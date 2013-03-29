@@ -203,9 +203,9 @@ static int mu509_probe(struct platform_device *pdev)
 	if(pdata->io_init)
 		pdata->io_init();
 
-   printk("******** mu509_probe_mu509_probe usb autosuspend *********\n");	
- // xxh begin
-		#if 1	
+   printk("******** mu509_probe_mu509_probe*********\n");	
+
+		#if 0	
 			rk30_mux_api_set(GPIO1A1_UART0SOUT_NAME, GPIO1A_GPIO1A4);	
 				    result = gpio_request(RK30_PIN1_PA4, "uart1_sout");			
 					if (result < 0) {	
@@ -220,7 +220,7 @@ static int mu509_probe(struct platform_device *pdev)
 			}		
    
    	  #endif	
-// xxh end
+
 
 	mu509_data = kzalloc(sizeof(struct modem_dev), GFP_KERNEL);
 	if(mu509_data == NULL)
