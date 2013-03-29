@@ -366,8 +366,8 @@ static ssize_t sysfs_test_status(struct device *dev, struct device_attribute *at
 	return curr - buf;
 }
 
-static DEVICE_ATTR(status, 0600, sysfs_test_status, NULL);
-static DEVICE_ATTR(command, 0600, NULL, sysfs_test_command);
+static DEVICE_ATTR(status, 0400, sysfs_test_status, NULL);
+static DEVICE_ATTR(command, 0200, NULL, sysfs_test_command);
 
 static struct bus_type rttest_subsys = {
 	.name = "rttest",
