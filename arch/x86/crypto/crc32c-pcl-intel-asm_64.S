@@ -43,6 +43,7 @@
  * SOFTWARE.
  */
 
+#include <asm/inst.h>
 #include <linux/linkage.h>
 
 ## ISCSI CRC 32 Implementation with crc32 and pclmulqdq Instruction
@@ -226,10 +227,10 @@ LABEL crc_ %i
 	movdqa  (bufp), %xmm0			# 2 consts: K1:K2
 
 	movq    crc_init, %xmm1			# CRC for block 1
-	pclmulqdq $0x00,%xmm0,%xmm1		# Multiply by K2
+	PCLMULQDQ 0x00,%xmm0,%xmm1		# Multiply by K2
 
 	movq    crc1, %xmm2			# CRC for block 2
-	pclmulqdq $0x10, %xmm0, %xmm2		# Multiply by K1
+	PCLMULQDQ 0x10, %xmm0, %xmm2		# Multiply by K1
 
 	pxor    %xmm2,%xmm1
 	movq    %xmm1, %rax
