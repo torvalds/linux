@@ -535,6 +535,9 @@
 				atmel,adc-drdy-mask = <0x1000000>;
 				atmel,adc-status-register = <0x30>;
 				atmel,adc-trigger-register = <0xc0>;
+				atmel,adc-res = <8 10>;
+				atmel,adc-res-names = "lowres", "highres";
+				atmel,adc-use-res = "highres";
 
 				trigger@0 {
 					trigger-name = "external-rising";
