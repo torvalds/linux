@@ -205,10 +205,11 @@ int solo_set_motion_block(struct solo_dev *solo_dev, u8 ch,
 		const struct solo_motion_thresholds *thresholds)
 {
 	u32 off = SOLO_MOT_FLAG_AREA + ch * SOLO_MOT_THRESH_SIZE * 2;
-	u16 buf[SOLO_MOTION_SZ];
+	u16 buf[64];
 	int x, y;
 	int ret = 0;
 
+	memset(buf, 0, sizeof(buf));
 	for (y = 0; y < SOLO_MOTION_SZ; y++) {
 		for (x = 0; x < SOLO_MOTION_SZ; x++)
 			buf[x] = cpu_to_le16(thresholds->thresholds[y][x]);

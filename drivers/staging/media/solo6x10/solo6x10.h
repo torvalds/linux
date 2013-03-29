@@ -113,8 +113,14 @@
  * each sample representing 16x16 pixels of the source. In
  * effect, 44x30 samples are used for NTSC, and 44x36 for PAL.
  * The 5th sample on the 10th row is (10*64)+5 = 645.
+ *
+ * Using a 64x64 array will result in a problem on some architectures like
+ * the powerpc where the size of the argument is limited to 13 bits.
+ * Since both PAL and NTSC do not use the full table anyway I've chosen
+ * to limit the array to 45x45 (45*16 = 720, which is the maximum PAL/NTSC
+ * width).
  */
-#define SOLO_MOTION_SZ (64)
+#define SOLO_MOTION_SZ (45)
 struct solo_motion_thresholds {
 	__u16	thresholds[SOLO_MOTION_SZ][SOLO_MOTION_SZ];
 };
