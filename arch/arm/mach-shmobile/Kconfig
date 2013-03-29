@@ -154,6 +154,11 @@ config MACH_MARZEN_REFERENCE
 
 	   This is intended to aid developers
 
+config MACH_LAGER
+	bool "Lager board"
+	depends on ARCH_R8A7790
+	select USE_OF
+
 config MACH_KZM9D
 	bool "KZM9D board"
 	depends on ARCH_EMEV2
@@ -194,7 +199,8 @@ config MEMORY_START
 	hex "Physical memory start address"
 	default "0x40000000" if MACH_AP4EVB || MACH_AG5EVM || \
 				MACH_MACKEREL || MACH_BONITO || \
-				MACH_ARMADILLO800EVA || MACH_APE6EVM
+				MACH_ARMADILLO800EVA || MACH_APE6EVM || \
+				MACH_LAGER
 	default "0x41000000" if MACH_KOTA2
 	default "0x00000000"
 	---help---
@@ -204,6 +210,7 @@ config MEMORY_START
 
 config MEMORY_SIZE
 	hex "Physical memory size"
+	default "0x80000000" if MACH_LAGER
 	default "0x40000000" if MACH_APE6EVM
 	default "0x20000000" if MACH_AG5EVM || MACH_BONITO || \
 				MACH_ARMADILLO800EVA
