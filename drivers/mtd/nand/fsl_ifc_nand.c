@@ -908,7 +908,6 @@ static int fsl_ifc_chip_remove(struct fsl_ifc_mtd *priv)
 
 	ifc_nand_ctrl->chips[priv->bank] = NULL;
 	dev_set_drvdata(priv->dev, NULL);
-	kfree(priv);
 
 	return 0;
 }
