@@ -79,6 +79,40 @@ static const struct of_dev_auxdata exynos4_auxdata_lookup[] __initconst = {
 	OF_DEV_AUXDATA("arm,pl330", EXYNOS4_PA_MDMA1, "dma-pl330.2", NULL),
 	OF_DEV_AUXDATA("samsung,exynos4210-tmu", EXYNOS4_PA_TMU,
 				"exynos-tmu", NULL),
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x13620000,
+			"exynos-sysmmu.0", NULL), /* MFC_L */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x13630000,
+			"exynos-sysmmu.1", NULL), /* MFC_R */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x13E20000,
+			"exynos-sysmmu.2", NULL), /* TV */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x11A60000,
+			"exynos-sysmmu.3", NULL), /* JPEG */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x12A30000,
+			"exynos-sysmmu.4", NULL), /* ROTATOR */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x11A20000,
+			"exynos-sysmmu.5", NULL), /* FIMC0 */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x11A30000,
+			"exynos-sysmmu.6", NULL), /* FIMC1 */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x11A40000,
+			"exynos-sysmmu.7", NULL), /* FIMC2 */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x11A50000,
+			"exynos-sysmmu.8", NULL), /* FIMC3 */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x12A20000,
+			"exynos-sysmmu.9", NULL), /* G2D(4210) */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x10A40000,
+			"exynos-sysmmu.9", NULL), /* G2D(4x12) */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x11E20000,
+			"exynos-sysmmu.10", NULL), /* FIMD0 */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x12220000,
+			"exynos-sysmmu.11", NULL), /* FIMD1(4210) */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x12260000,
+			"exynos-sysmmu.12", NULL), /* IS0(4x12) */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x122B0000,
+			"exynos-sysmmu.13", NULL), /* IS1(4x12) */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x123B0000,
+			"exynos-sysmmu.14", NULL), /* FIMC-LITE0(4x12) */
+	OF_DEV_AUXDATA("samsung,exynos-sysmmu", 0x123C0000,
+			"exynos-sysmmu.15", NULL), /* FIMC-LITE1(4x12) */
 	{},
 };
 

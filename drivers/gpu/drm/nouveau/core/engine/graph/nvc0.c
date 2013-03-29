@@ -433,10 +433,10 @@ nvc0_graph_intr(struct nouveau_subdev *subdev)
 	if (stat & 0x00000010) {
 		handle = nouveau_handle_get_class(engctx, class);
 		if (!handle || nv_call(handle->object, mthd, data)) {
-			nv_error(priv, "ILLEGAL_MTHD ch %d [0x%010llx] "
-				     "subc %d class 0x%04x mthd 0x%04x "
-				     "data 0x%08x\n",
-				 chid, inst << 12, subc, class, mthd, data);
+			nv_error(priv,
+				 "ILLEGAL_MTHD ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
+				 chid, inst << 12, nouveau_client_name(engctx),
+				 subc, class, mthd, data);
 		}
 		nouveau_handle_put(handle);
 		nv_wr32(priv, 0x400100, 0x00000010);
@@ -444,9 +444,10 @@ nvc0_graph_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x00000020) {
-		nv_error(priv, "ILLEGAL_CLASS ch %d [0x%010llx] subc %d "
-			     "class 0x%04x mthd 0x%04x data 0x%08x\n",
-			chid, inst << 12, subc, class, mthd, data);
+		nv_error(priv,
+			 "ILLEGAL_CLASS ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
+			 chid, inst << 12, nouveau_client_name(engctx), subc,
+			 class, mthd, data);
 		nv_wr32(priv, 0x400100, 0x00000020);
 		stat &= ~0x00000020;
 	}
@@ -454,15 +455,16 @@ nvc0_graph_intr(struct nouveau_subdev *subdev)
 	if (stat & 0x00100000) {
 		nv_error(priv, "DATA_ERROR [");
 		nouveau_enum_print(nv50_data_error_names, code);
-		printk("] ch %d [0x%010llx] subc %d class 0x%04x "
-		       "mthd 0x%04x data 0x%08x\n",
-		       chid, inst << 12, subc, class, mthd, data);
+		pr_cont("] ch %d [0x%010llx %s] subc %d class 0x%04x mthd 0x%04x data 0x%08x\n",
+			chid, inst << 12, nouveau_client_name(engctx), subc,
+			class, mthd, data);
 		nv_wr32(priv, 0x400100, 0x00100000);
 		stat &= ~0x00100000;
 	}
 
 	if (stat & 0x00200000) {
-		nv_error(priv, "TRAP ch %d [0x%010llx]\n", chid, inst << 12);
+		nv_error(priv, "TRAP ch %d [0x%010llx %s]\n", chid, inst << 12,
+			 nouveau_client_name(engctx));
 		nvc0_graph_trap_intr(priv);
 		nv_wr32(priv, 0x400100, 0x00200000);
 		stat &= ~0x00200000;
@@ -611,10 +613,8 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 static void
 nvc0_graph_dtor_fw(struct nvc0_graph_fuc *fuc)
 {
-	if (fuc->data) {
-		kfree(fuc->data);
-		fuc->data = NULL;
-	}
+	kfree(fuc->data);
+	fuc->data = NULL;
 }
 
 void
@@ -622,8 +622,7 @@ nvc0_graph_dtor(struct nouveau_object *object)
 {
 	struct nvc0_graph_priv *priv = (void *)object;
 
-	if (priv->data)
-		kfree(priv->data);
+	kfree(priv->data);
 
 	nvc0_graph_dtor_fw(&priv->fuc409c);
 	nvc0_graph_dtor_fw(&priv->fuc409d);

@@ -71,10 +71,9 @@ static struct sock *__raw_v6_lookup(struct net *net, struct sock *sk,
 		unsigned short num, const struct in6_addr *loc_addr,
 		const struct in6_addr *rmt_addr, int dif)
 {
-	struct hlist_node *node;
 	bool is_multicast = ipv6_addr_is_multicast(loc_addr);
 
-	sk_for_each_from(sk, node)
+	sk_for_each_from(sk)
 		if (inet_sk(sk)->inet_num == num) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
 

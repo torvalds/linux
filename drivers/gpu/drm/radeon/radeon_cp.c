@@ -27,6 +27,8 @@
  * Authors:
  *    Kevin E. Martin <martin@valinux.com>
  *    Gareth Hughes <gareth@valinux.com>
+ *
+ * ------------------------ This file is DEPRECATED! -------------------------
  */
 
 #include <linux/module.h>

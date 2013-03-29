@@ -141,11 +141,10 @@ dsthash_find(const struct xt_hashlimit_htable *ht,
 	     const struct dsthash_dst *dst)
 {
 	struct dsthash_ent *ent;
-	struct hlist_node *pos;
 	u_int32_t hash = hash_dst(ht, dst);
 
 	if (!hlist_empty(&ht->hash[hash])) {
-		hlist_for_each_entry_rcu(ent, pos, &ht->hash[hash], node)
+		hlist_for_each_entry_rcu(ent, &ht->hash[hash], node)
 			if (dst_cmp(ent, dst)) {
 				spin_lock(&ent->lock);
 				return ent;
@@ -297,8 +296,8 @@ static void htable_selective_cleanup(struct xt_hashlimit_htable *ht,
 	spin_lock_bh(&ht->lock);
 	for (i = 0; i < ht->cfg.size; i++) {
 		struct dsthash_ent *dh;
-		struct hlist_node *pos, *n;
-		hlist_for_each_entry_safe(dh, pos, n, &ht->hash[i], node) {
+		struct hlist_node *n;
+		hlist_for_each_entry_safe(dh, n, &ht->hash[i], node) {
 			if ((*select)(ht, dh))
 				dsthash_free(ht, dh);
 		}
@@ -343,9 +342,8 @@ static struct xt_hashlimit_htable *htable_find_get(struct net *net,
 {
 	struct hashlimit_net *hashlimit_net = hashlimit_pernet(net);
 	struct xt_hashlimit_htable *hinfo;
-	struct hlist_node *pos;
 
-	hlist_for_each_entry(hinfo, pos, &hashlimit_net->htables, node) {
+	hlist_for_each_entry(hinfo, &hashlimit_net->htables, node) {
 		if (!strcmp(name, hinfo->pde->name) &&
 		    hinfo->family == family) {
 			hinfo->use++;
@@ -821,10 +819,9 @@ static int dl_seq_show(struct seq_file *s, void *v)
 	struct xt_hashlimit_htable *htable = s->private;
 	unsigned int *bucket = (unsigned int *)v;
 	struct dsthash_ent *ent;
-	struct hlist_node *pos;
 
 	if (!hlist_empty(&htable->hash[*bucket])) {
-		hlist_for_each_entry(ent, pos, &htable->hash[*bucket], node)
+		hlist_for_each_entry(ent, &htable->hash[*bucket], node)
 			if (dl_seq_real_show(ent, htable->family, s))
 				return -1;
 	}
@@ -877,7 +874,6 @@ static int __net_init hashlimit_proc_net_init(struct net *net)
 static void __net_exit hashlimit_proc_net_exit(struct net *net)
 {
 	struct xt_hashlimit_htable *hinfo;
-	struct hlist_node *pos;
 	struct proc_dir_entry *pde;
 	struct hashlimit_net *hashlimit_net = hashlimit_pernet(net);
 
@@ -890,7 +886,7 @@ static void __net_exit hashlimit_proc_net_exit(struct net *net)
 	if (pde == NULL)
 		pde = hashlimit_net->ip6t_hashlimit;
 
-	hlist_for_each_entry(hinfo, pos, &hashlimit_net->htables, node)
+	hlist_for_each_entry(hinfo, &hashlimit_net->htables, node)
 		remove_proc_entry(hinfo->pde->name, pde);
 
 	hashlimit_net->ipt_hashlimit = NULL;

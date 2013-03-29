@@ -448,10 +448,8 @@ vmxnet3_get_ringparam(struct net_device *netdev,
 	param->rx_mini_max_pending = 0;
 	param->rx_jumbo_max_pending = 0;
 
-	param->rx_pending = adapter->rx_queue[0].rx_ring[0].size *
-			    adapter->num_rx_queues;
-	param->tx_pending = adapter->tx_queue[0].tx_ring.size *
-			    adapter->num_tx_queues;
+	param->rx_pending = adapter->rx_queue[0].rx_ring[0].size;
+	param->tx_pending = adapter->tx_queue[0].tx_ring.size;
 	param->rx_mini_pending = 0;
 	param->rx_jumbo_pending = 0;
 }

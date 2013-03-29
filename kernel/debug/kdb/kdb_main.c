@@ -124,7 +124,7 @@ static kdbmsg_t kdbmsgs[] = {
 };
 #undef KDBMSG
 
-static const int __nkdb_err = sizeof(kdbmsgs) / sizeof(kdbmsg_t);
+static const int __nkdb_err = ARRAY_SIZE(kdbmsgs);
 
 
 /*
@@ -175,7 +175,7 @@ static char *__env[] = {
  (char *)0,
 };
 
-static const int __nenv = (sizeof(__env) / sizeof(char *));
+static const int __nenv = ARRAY_SIZE(__env);
 
 struct task_struct *kdb_curr_task(int cpu)
 {
@@ -681,34 +681,50 @@ static int kdb_defcmd(int argc, const char **argv)
 	}
 	if (argc != 3)
 		return KDB_ARGCOUNT;
-	defcmd_set = kmalloc((defcmd_set_count + 1) * sizeof(*defcmd_set),
-			     GFP_KDB);
-	if (!defcmd_set) {
-		kdb_printf("Could not allocate new defcmd_set entry for %s\n",
-			   argv[1]);
-		defcmd_set = save_defcmd_set;
+	if (in_dbg_master()) {
+		kdb_printf("Command only available during kdb_init()\n");
 		return KDB_NOTIMP;
 	}
+	defcmd_set = kmalloc((defcmd_set_count + 1) * sizeof(*defcmd_set),
+			     GFP_KDB);
+	if (!defcmd_set)
+		goto fail_defcmd;
 	memcpy(defcmd_set, save_defcmd_set,
 	       defcmd_set_count * sizeof(*defcmd_set));
-	kfree(save_defcmd_set);
 	s = defcmd_set + defcmd_set_count;
 	memset(s, 0, sizeof(*s));
 	s->usable = 1;
 	s->name = kdb_strdup(argv[1], GFP_KDB);
+	if (!s->name)
+		goto fail_name;
 	s->usage = kdb_strdup(argv[2], GFP_KDB);
+	if (!s->usage)
+		goto fail_usage;
 	s->help = kdb_strdup(argv[3], GFP_KDB);
+	if (!s->help)
+		goto fail_help;
 	if (s->usage[0] == '"') {
-		strcpy(s->usage, s->usage+1);
+		strcpy(s->usage, argv[2]+1);
 		s->usage[strlen(s->usage)-1] = '\0';
 	}
 	if (s->help[0] == '"') {
-		strcpy(s->help, s->help+1);
+		strcpy(s->help, argv[3]+1);
 		s->help[strlen(s->help)-1] = '\0';
 	}
 	++defcmd_set_count;
 	defcmd_in_progress = 1;
+	kfree(save_defcmd_set);
 	return 0;
+fail_help:
+	kfree(s->usage);
+fail_usage:
+	kfree(s->name);
+fail_name:
+	kfree(defcmd_set);
+fail_defcmd:
+	kdb_printf("Could not allocate new defcmd_set entry for %s\n", argv[1]);
+	defcmd_set = save_defcmd_set;
+	return KDB_NOTIMP;
 }
 
 /*
@@ -1112,7 +1128,6 @@ void kdb_set_current_task(struct task_struct *p)
  *	KDB_CMD_GO	User typed 'go'.
  *	KDB_CMD_CPU	User switched to another cpu.
  *	KDB_CMD_SS	Single step.
- *	KDB_CMD_SSB	Single step until branch.
  */
 static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		     kdb_dbtrap_t db_result)
@@ -1150,14 +1165,6 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 #endif
 			kdb_printf("due to Debug @ " kdb_machreg_fmt "\n",
 				   instruction_pointer(regs));
-			break;
-		case KDB_DB_SSB:
-			/*
-			 * In the midst of ssb command. Just return.
-			 */
-			KDB_DEBUG_STATE("kdb_local 3", reason);
-			return KDB_CMD_SSB;	/* Continue with SSB command */
-
 			break;
 		case KDB_DB_SS:
 			break;
@@ -1281,7 +1288,6 @@ do_full_getstr:
 		if (diag == KDB_CMD_GO
 		 || diag == KDB_CMD_CPU
 		 || diag == KDB_CMD_SS
-		 || diag == KDB_CMD_SSB
 		 || diag == KDB_CMD_KGDB)
 			break;
 
@@ -1365,12 +1371,6 @@ int kdb_main_loop(kdb_reason_t reason, kdb_reason_t reason2, int error,
 
 		if (result == KDB_CMD_SS) {
 			KDB_STATE_SET(DOING_SS);
-			break;
-		}
-
-		if (result == KDB_CMD_SSB) {
-			KDB_STATE_SET(DOING_SS);
-			KDB_STATE_SET(DOING_SSB);
 			break;
 		}
 
@@ -2350,69 +2350,6 @@ static int kdb_pid(int argc, const char **argv)
 	return 0;
 }
 
-/*
- * kdb_ll - This function implements the 'll' command which follows a
- *	linked list and executes an arbitrary command for each
- *	element.
- */
-static int kdb_ll(int argc, const char **argv)
-{
-	int diag = 0;
-	unsigned long addr;
-	long offset = 0;
-	unsigned long va;
-	unsigned long linkoffset;
-	int nextarg;
-	const char *command;
-
-	if (argc != 3)
-		return KDB_ARGCOUNT;
-
-	nextarg = 1;
-	diag = kdbgetaddrarg(argc, argv, &nextarg, &addr, &offset, NULL);
-	if (diag)
-		return diag;
-
-	diag = kdbgetularg(argv[2], &linkoffset);
-	if (diag)
-		return diag;
-
-	/*
-	 * Using the starting address as
-	 * the first element in the list, and assuming that
-	 * the list ends with a null pointer.
-	 */
-
-	va = addr;
-	command = kdb_strdup(argv[3], GFP_KDB);
-	if (!command) {
-		kdb_printf("%s: cannot duplicate command\n", __func__);
-		return 0;
-	}
-	/* Recursive use of kdb_parse, do not use argv after this point */
-	argv = NULL;
-
-	while (va) {
-		char buf[80];
-
-		if (KDB_FLAG(CMD_INTERRUPT))
-			goto out;
-
-		sprintf(buf, "%s " kdb_machreg_fmt "\n", command, va);
-		diag = kdb_parse(buf);
-		if (diag)
-			goto out;
-
-		addr = va + linkoffset;
-		if (kdb_getword(&va, addr, sizeof(va)))
-			goto out;
-	}
-
-out:
-	kfree(command);
-	return diag;
-}
-
 static int kdb_kgdb(int argc, const char **argv)
 {
 	return KDB_CMD_KGDB;
@@ -2430,11 +2367,15 @@ static int kdb_help(int argc, const char **argv)
 	kdb_printf("-----------------------------"
 		   "-----------------------------\n");
 	for_each_kdbcmd(kt, i) {
-		if (kt->cmd_name)
-			kdb_printf("%-15.15s %-20.20s %s\n", kt->cmd_name,
-				   kt->cmd_usage, kt->cmd_help);
+		char *space = "";
 		if (KDB_FLAG(CMD_INTERRUPT))
 			return 0;
+		if (!kt->cmd_name)
+			continue;
+		if (strlen(kt->cmd_usage) > 20)
+			space = "\n                                    ";
+		kdb_printf("%-15.15s %-20s%s%s\n", kt->cmd_name,
+			   kt->cmd_usage, space, kt->cmd_help);
 	}
 	return 0;
 }
@@ -2739,7 +2680,7 @@ int kdb_register_repeat(char *cmd,
 			  (kdb_max_commands - KDB_BASE_CMD_MAX) * sizeof(*new));
 			kfree(kdb_commands);
 		}
-		memset(new + kdb_max_commands, 0,
+		memset(new + kdb_max_commands - KDB_BASE_CMD_MAX, 0,
 		       kdb_command_extend * sizeof(*new));
 		kdb_commands = new;
 		kp = kdb_commands + kdb_max_commands - KDB_BASE_CMD_MAX;
@@ -2843,15 +2784,13 @@ static void __init kdb_inittab(void)
 	  "Stack traceback", 1, KDB_REPEAT_NONE);
 	kdb_register_repeat("btp", kdb_bt, "<pid>",
 	  "Display stack for process <pid>", 0, KDB_REPEAT_NONE);
-	kdb_register_repeat("bta", kdb_bt, "[DRSTCZEUIMA]",
-	  "Display stack all processes", 0, KDB_REPEAT_NONE);
+	kdb_register_repeat("bta", kdb_bt, "[D|R|S|T|C|Z|E|U|I|M|A]",
+	  "Backtrace all processes matching state flag", 0, KDB_REPEAT_NONE);
 	kdb_register_repeat("btc", kdb_bt, "",
 	  "Backtrace current process on each cpu", 0, KDB_REPEAT_NONE);
 	kdb_register_repeat("btt", kdb_bt, "<vaddr>",
 	  "Backtrace process given its struct task address", 0,
 			    KDB_REPEAT_NONE);
-	kdb_register_repeat("ll", kdb_ll, "<first-element> <linkoffset> <cmd>",
-	  "Execute cmd for each element in linked list", 0, KDB_REPEAT_NONE);
 	kdb_register_repeat("env", kdb_env, "",
 	  "Show environment variables", 0, KDB_REPEAT_NONE);
 	kdb_register_repeat("set", kdb_set, "",

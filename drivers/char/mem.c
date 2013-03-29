@@ -708,7 +708,7 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
 
-	mutex_lock(&file->f_path.dentry->d_inode->i_mutex);
+	mutex_lock(&file_inode(file)->i_mutex);
 	switch (orig) {
 	case SEEK_CUR:
 		offset += file->f_pos;
@@ -725,7 +725,7 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 	default:
 		ret = -EINVAL;
 	}
-	mutex_unlock(&file->f_path.dentry->d_inode->i_mutex);
+	mutex_unlock(&file_inode(file)->i_mutex);
 	return ret;
 }
 

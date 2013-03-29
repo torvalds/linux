@@ -37,10 +37,10 @@ static int gfs2_encode_fh(struct inode *inode, __u32 *p, int *len,
 
 	if (parent && (*len < GFS2_LARGE_FH_SIZE)) {
 		*len = GFS2_LARGE_FH_SIZE;
-		return 255;
+		return FILEID_INVALID;
 	} else if (*len < GFS2_SMALL_FH_SIZE) {
 		*len = GFS2_SMALL_FH_SIZE;
-		return 255;
+		return FILEID_INVALID;
 	}
 
 	fh[0] = cpu_to_be32(ip->i_no_formal_ino >> 32);

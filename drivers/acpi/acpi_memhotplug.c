@@ -280,8 +280,10 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 
 static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
 {
-	int result = 0;
+	int result = 0, nid;
 	struct acpi_memory_info *info, *n;
+
+	nid = acpi_get_node(mem_device->device->handle);
 
 	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
 		if (info->failed)
@@ -295,7 +297,9 @@ static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
 			 */
 			return -EBUSY;
 
-		result = remove_memory(info->start_addr, info->length);
+		if (nid < 0)
+			nid = memory_add_physaddr_to_nid(info->start_addr);
+		result = remove_memory(nid, info->start_addr, info->length);
 		if (result)
 			return result;
 

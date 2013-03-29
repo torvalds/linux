@@ -703,7 +703,7 @@ static int ur_open(struct inode *inode, struct file *file)
 	 * We treat the minor number as the devno of the ur device
 	 * to find in the driver tree.
 	 */
-	devno = MINOR(file->f_dentry->d_inode->i_rdev);
+	devno = MINOR(file_inode(file)->i_rdev);
 
 	urd = urdev_get_from_devno(devno);
 	if (!urd) {

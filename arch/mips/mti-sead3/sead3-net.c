@@ -19,8 +19,8 @@ static struct smsc911x_platform_config sead3_smsc911x_data = {
 
 struct resource sead3_net_resourcess[] = {
 	{
-		.start                  = 0x1f010000,
-		.end                    = 0x1f01ffff,
+		.start			= 0x1f010000,
+		.end			= 0x1f01ffff,
 		.flags			= IORESOURCE_MEM
 	},
 	{

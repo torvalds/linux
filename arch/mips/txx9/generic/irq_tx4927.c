@@ -2,7 +2,7 @@
  * Common tx4927 irq handler
  *
  * Author: MontaVista Software, Inc.
- *         source@mvista.com
+ *	   source@mvista.com
  *
  *  under the terms of the GNU General Public License as published by the
  *  Free Software Foundation; either version 2 of the License, or (at your

@@ -833,6 +833,14 @@ void * __init __alloc_bootmem_low(unsigned long size, unsigned long align,
 	return ___alloc_bootmem(size, align, goal, ARCH_LOW_ADDRESS_LIMIT);
 }
 
+void * __init __alloc_bootmem_low_nopanic(unsigned long size,
+					  unsigned long align,
+					  unsigned long goal)
+{
+	return ___alloc_bootmem_nopanic(size, align, goal,
+					ARCH_LOW_ADDRESS_LIMIT);
+}
+
 /**
  * __alloc_bootmem_low_node - allocate low boot memory from a specific node
  * @pgdat: node to allocate from

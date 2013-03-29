@@ -434,11 +434,12 @@ static DEFINE_MUTEX(reboot_mutex);
 SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		void __user *, arg)
 {
+	struct pid_namespace *pid_ns = task_active_pid_ns(current);
 	char buffer[256];
 	int ret = 0;
 
 	/* We only trust the superuser with rebooting the system. */
-	if (!capable(CAP_SYS_BOOT))
+	if (!ns_capable(pid_ns->user_ns, CAP_SYS_BOOT))
 		return -EPERM;
 
 	/* For safety, we require "magic" arguments. */
@@ -454,7 +455,7 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 	 * pid_namespace, the command is handled by reboot_pid_ns() which will
 	 * call do_exit().
 	 */
-	ret = reboot_pid_ns(task_active_pid_ns(current), cmd);
+	ret = reboot_pid_ns(pid_ns, cmd);
 	if (ret)
 		return ret;
 
@@ -1793,14 +1794,14 @@ SYSCALL_DEFINE1(umask, int, mask)
 static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 {
 	struct fd exe;
-	struct dentry *dentry;
+	struct inode *inode;
 	int err;
 
 	exe = fdget(fd);
 	if (!exe.file)
 		return -EBADF;
 
-	dentry = exe.file->f_path.dentry;
+	inode = file_inode(exe.file);
 
 	/*
 	 * Because the original mm->exe_file points to executable file, make
@@ -1808,11 +1809,11 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 	 * overall picture.
 	 */
 	err = -EACCES;
-	if (!S_ISREG(dentry->d_inode->i_mode)	||
+	if (!S_ISREG(inode->i_mode)	||
 	    exe.file->f_path.mnt->mnt_flags & MNT_NOEXEC)
 		goto exit;
 
-	err = inode_permission(dentry->d_inode, MAY_EXEC);
+	err = inode_permission(inode, MAY_EXEC);
 	if (err)
 		goto exit;
 
@@ -2184,11 +2185,6 @@ SYSCALL_DEFINE3(getcpu, unsigned __user *, cpup, unsigned __user *, nodep,
 
 char poweroff_cmd[POWEROFF_CMD_PATH_LEN] = "/sbin/poweroff";
 
-static void argv_cleanup(struct subprocess_info *info)
-{
-	argv_free(info->argv);
-}
-
 static int __orderly_poweroff(void)
 {
 	int argc;
@@ -2208,9 +2204,8 @@ static int __orderly_poweroff(void)
 	}
 
 	ret = call_usermodehelper_fns(argv[0], argv, envp, UMH_WAIT_EXEC,
-				      NULL, argv_cleanup, NULL);
-	if (ret == -ENOMEM)
-		argv_free(argv);
+				      NULL, NULL, NULL);
+	argv_free(argv);
 
 	return ret;
 }

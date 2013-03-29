@@ -156,14 +156,13 @@ static int afiucv_pm_freeze(struct device *dev)
 {
 	struct iucv_sock *iucv;
 	struct sock *sk;
-	struct hlist_node *node;
 	int err = 0;
 
 #ifdef CONFIG_PM_DEBUG
 	printk(KERN_WARNING "afiucv_pm_freeze\n");
 #endif
 	read_lock(&iucv_sk_list.lock);
-	sk_for_each(sk, node, &iucv_sk_list.head) {
+	sk_for_each(sk, &iucv_sk_list.head) {
 		iucv = iucv_sk(sk);
 		switch (sk->sk_state) {
 		case IUCV_DISCONN:
@@ -194,13 +193,12 @@ static int afiucv_pm_freeze(struct device *dev)
 static int afiucv_pm_restore_thaw(struct device *dev)
 {
 	struct sock *sk;
-	struct hlist_node *node;
 
 #ifdef CONFIG_PM_DEBUG
 	printk(KERN_WARNING "afiucv_pm_restore_thaw\n");
 #endif
 	read_lock(&iucv_sk_list.lock);
-	sk_for_each(sk, node, &iucv_sk_list.head) {
+	sk_for_each(sk, &iucv_sk_list.head) {
 		switch (sk->sk_state) {
 		case IUCV_CONNECTED:
 			sk->sk_err = EPIPE;
@@ -390,9 +388,8 @@ static int afiucv_hs_send(struct iucv_message *imsg, struct sock *sock,
 static struct sock *__iucv_get_sock_by_name(char *nm)
 {
 	struct sock *sk;
-	struct hlist_node *node;
 
-	sk_for_each(sk, node, &iucv_sk_list.head)
+	sk_for_each(sk, &iucv_sk_list.head)
 		if (!memcmp(&iucv_sk(sk)->src_name, nm, 8))
 			return sk;
 
@@ -1678,7 +1675,6 @@ static int iucv_callback_connreq(struct iucv_path *path,
 	unsigned char user_data[16];
 	unsigned char nuser_data[16];
 	unsigned char src_name[8];
-	struct hlist_node *node;
 	struct sock *sk, *nsk;
 	struct iucv_sock *iucv, *niucv;
 	int err;
@@ -1689,7 +1685,7 @@ static int iucv_callback_connreq(struct iucv_path *path,
 	read_lock(&iucv_sk_list.lock);
 	iucv = NULL;
 	sk = NULL;
-	sk_for_each(sk, node, &iucv_sk_list.head)
+	sk_for_each(sk, &iucv_sk_list.head)
 		if (sk->sk_state == IUCV_LISTEN &&
 		    !memcmp(&iucv_sk(sk)->src_name, src_name, 8)) {
 			/*
@@ -2115,7 +2111,6 @@ static int afiucv_hs_callback_rx(struct sock *sk, struct sk_buff *skb)
 static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct packet_type *pt, struct net_device *orig_dev)
 {
-	struct hlist_node *node;
 	struct sock *sk;
 	struct iucv_sock *iucv;
 	struct af_iucv_trans_hdr *trans_hdr;
@@ -2132,7 +2127,7 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 	iucv = NULL;
 	sk = NULL;
 	read_lock(&iucv_sk_list.lock);
-	sk_for_each(sk, node, &iucv_sk_list.head) {
+	sk_for_each(sk, &iucv_sk_list.head) {
 		if (trans_hdr->flags == AF_IUCV_FLAG_SYN) {
 			if ((!memcmp(&iucv_sk(sk)->src_name,
 				     trans_hdr->destAppName, 8)) &&
@@ -2225,10 +2220,9 @@ static void afiucv_hs_callback_txnotify(struct sk_buff *skb,
 	struct sk_buff *list_skb;
 	struct sk_buff *nskb;
 	unsigned long flags;
-	struct hlist_node *node;
 
 	read_lock_irqsave(&iucv_sk_list.lock, flags);
-	sk_for_each(sk, node, &iucv_sk_list.head)
+	sk_for_each(sk, &iucv_sk_list.head)
 		if (sk == isk) {
 			iucv = iucv_sk(sk);
 			break;
@@ -2299,14 +2293,13 @@ static int afiucv_netdev_event(struct notifier_block *this,
 			       unsigned long event, void *ptr)
 {
 	struct net_device *event_dev = (struct net_device *)ptr;
-	struct hlist_node *node;
 	struct sock *sk;
 	struct iucv_sock *iucv;
 
 	switch (event) {
 	case NETDEV_REBOOT:
 	case NETDEV_GOING_DOWN:
-		sk_for_each(sk, node, &iucv_sk_list.head) {
+		sk_for_each(sk, &iucv_sk_list.head) {
 			iucv = iucv_sk(sk);
 			if ((iucv->hs_dev == event_dev) &&
 			    (sk->sk_state == IUCV_CONNECTED)) {

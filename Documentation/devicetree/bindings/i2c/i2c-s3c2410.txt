@@ -8,6 +8,8 @@ Required properties:
       (b) "samsung, s3c2440-i2c", for i2c compatible with s3c2440 i2c.
       (c) "samsung, s3c2440-hdmiphy-i2c", for s3c2440-like i2c used
           inside HDMIPHY block found on several samsung SoCs
+      (d) "samsung, exynos5440-i2c", for s3c2440-like i2c used
+	   on EXYNOS5440 which does not need GPIO configuration.
   - reg: physical base address of the controller and length of memory mapped
     region.
   - interrupts: interrupt number to the cpu.

@@ -135,33 +135,33 @@ static struct mtd_partition gpr_mtd_partitions[] = {
 	{
 		.name	= "kernel",
 		.size	= 0x00200000,
-		.offset	= 0,
+		.offset = 0,
 	},
 	{
 		.name	= "rootfs",
 		.size	= 0x00800000,
-		.offset	= MTDPART_OFS_APPEND,
+		.offset = MTDPART_OFS_APPEND,
 		.mask_flags = MTD_WRITEABLE,
 	},
 	{
 		.name	= "config",
 		.size	= 0x00200000,
-		.offset	= 0x01d00000,
+		.offset = 0x01d00000,
 	},
 	{
 		.name	= "yamon",
 		.size	= 0x00100000,
-		.offset	= 0x01c00000,
+		.offset = 0x01c00000,
 	},
 	{
 		.name	= "yamon env vars",
 		.size	= 0x00040000,
-		.offset	= MTDPART_OFS_APPEND,
+		.offset = MTDPART_OFS_APPEND,
 	},
 	{
 		.name	= "kernel+rootfs",
 		.size	= 0x00a00000,
-		.offset	= 0,
+		.offset = 0,
 	},
 };
 

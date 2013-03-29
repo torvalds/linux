@@ -666,7 +666,7 @@ void show_mem(unsigned int filter)
 	printk(KERN_INFO "%d pages swap cached\n", total_cached);
 	printk(KERN_INFO "Total of %ld pages in page table cache\n",
 	       quicklist_total_size());
-	printk(KERN_INFO "%d free buffer pages\n", nr_free_buffer_pages());
+	printk(KERN_INFO "%ld free buffer pages\n", nr_free_buffer_pages());
 }
 
 /**
@@ -821,5 +821,9 @@ int __meminit vmemmap_populate(struct page *start_page,
 						unsigned long size, int node)
 {
 	return vmemmap_populate_basepages(start_page, size, node);
+}
+
+void vmemmap_free(struct page *memmap, unsigned long nr_pages)
+{
 }
 #endif

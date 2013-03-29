@@ -102,7 +102,7 @@ dasd_default_erp_action(struct dasd_ccw_req *cqr)
 		pr_err("%s: default ERP has run out of retries and failed\n",
 		       dev_name(&device->cdev->dev));
 		cqr->status = DASD_CQR_FAILED;
-		cqr->stopclk = get_clock();
+		cqr->stopclk = get_tod_clock();
         }
         return cqr;
 }				/* end dasd_default_erp_action */
@@ -146,7 +146,7 @@ struct dasd_ccw_req *dasd_default_erp_postaction(struct dasd_ccw_req *cqr)
 		cqr->status = DASD_CQR_DONE;
 	else {
 		cqr->status = DASD_CQR_FAILED;
-		cqr->stopclk = get_clock();
+		cqr->stopclk = get_tod_clock();
 	}
 
 	return cqr;

@@ -68,7 +68,6 @@ batadv_orig_hash_find(struct batadv_priv *bat_priv, const void *data)
 {
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_head *head;
-	struct hlist_node *node;
 	struct batadv_orig_node *orig_node, *orig_node_tmp = NULL;
 	int index;
 
@@ -79,7 +78,7 @@ batadv_orig_hash_find(struct batadv_priv *bat_priv, const void *data)
 	head = &hash->table[index];
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
+	hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
 		if (!batadv_compare_eth(orig_node, data))
 			continue;
 

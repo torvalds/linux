@@ -441,3 +441,7 @@ d_make_root() drops the reference to inode if dentry allocation fails.
 two, it gets "is it an O_EXCL or equivalent?" boolean argument.  Note that
 local filesystems can ignore tha argument - they are guaranteed that the
 object doesn't exist.  It's remote/distributed ones that might care...
+--
+[mandatory]
+	FS_REVAL_DOT is gone; if you used to have it, add ->d_weak_revalidate()
+in your dentry operations instead.

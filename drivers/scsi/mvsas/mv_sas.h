@@ -76,6 +76,7 @@ extern struct kmem_cache *mvs_task_list_cache;
 					(__mc) != 0 ;		\
 					(++__lseq), (__mc) >>= 1)
 
+#define MVS_PHY_ID (1U << sas_phy->id)
 #define MV_INIT_DELAYED_WORK(w, f, d)	INIT_DELAYED_WORK(w, f)
 #define UNASSOC_D2H_FIS(id)		\
 	((void *) mvi->rx_fis + 0x100 * id)

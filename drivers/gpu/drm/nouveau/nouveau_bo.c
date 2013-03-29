@@ -301,17 +301,18 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
 	struct ttm_buffer_object *bo = &nvbo->bo;
 	int ret;
 
+	ret = ttm_bo_reserve(bo, false, false, false, 0);
+	if (ret)
+		goto out;
+
 	if (nvbo->pin_refcnt && !(memtype & (1 << bo->mem.mem_type))) {
 		NV_ERROR(drm, "bo %p pinned elsewhere: 0x%08x vs 0x%08x\n", bo,
 			 1 << bo->mem.mem_type, memtype);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	if (nvbo->pin_refcnt++)
-		return 0;
-
-	ret = ttm_bo_reserve(bo, false, false, false, 0);
-	if (ret)
 		goto out;
 
 	nouveau_bo_placement_set(nvbo, memtype, 0);
@@ -329,10 +330,8 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
 			break;
 		}
 	}
-	ttm_bo_unreserve(bo);
 out:
-	if (unlikely(ret))
-		nvbo->pin_refcnt--;
+	ttm_bo_unreserve(bo);
 	return ret;
 }
 
@@ -343,12 +342,12 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 	struct ttm_buffer_object *bo = &nvbo->bo;
 	int ret;
 
-	if (--nvbo->pin_refcnt)
-		return 0;
-
 	ret = ttm_bo_reserve(bo, false, false, false, 0);
 	if (ret)
 		return ret;
+
+	if (--nvbo->pin_refcnt)
+		goto out;
 
 	nouveau_bo_placement_set(nvbo, bo->mem.placement, 0);
 
@@ -366,6 +365,7 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 		}
 	}
 
+out:
 	ttm_bo_unreserve(bo);
 	return ret;
 }
@@ -562,7 +562,7 @@ nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
 	struct nouveau_fence *fence = NULL;
 	int ret;
 
-	ret = nouveau_fence_new(chan, &fence);
+	ret = nouveau_fence_new(chan, false, &fence);
 	if (ret)
 		return ret;
 

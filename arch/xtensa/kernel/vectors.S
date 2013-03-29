@@ -10,7 +10,7 @@
  * Public License.  See the file "COPYING" in the main directory of
  * this archive for more details.
  *
- * Copyright (C) 2005 Tensilica, Inc.
+ * Copyright (C) 2005 - 2008 Tensilica, Inc.
  *
  * Chris Zankel <chris@zankel.net>
  *
@@ -366,6 +366,41 @@ ENTRY(_DebugInterruptVector)
 ENDPROC(_DebugInterruptVector)
 
 
+
+/*
+ * Medium priority level interrupt vectors
+ *
+ * Each takes less than 16 (0x10) bytes, no literals, by placing
+ * the extra 8 bytes that would otherwise be required in the window
+ * vectors area where there is space.  With relocatable vectors,
+ * all vectors are within ~ 4 kB range of each other, so we can
+ * simply jump (J) to another vector without having to use JX.
+ *
+ * common_exception code gets current IRQ level in PS.INTLEVEL
+ * and preserves it for the IRQ handling time.
+ */
+
+	.macro	irq_entry_level level
+
+	.if	XCHAL_EXCM_LEVEL >= \level
+	.section .Level\level\()InterruptVector.text, "ax"
+ENTRY(_Level\level\()InterruptVector)
+	wsr	a0, epc1
+	rsr	a0, epc\level
+	xsr	a0, epc1
+					# branch to user or kernel vector
+	j	_SimulateUserKernelVectorException
+	.endif
+
+	.endm
+
+	irq_entry_level 2
+	irq_entry_level 3
+	irq_entry_level 4
+	irq_entry_level 5
+	irq_entry_level 6
+
+
 /* Window overflow and underflow handlers.
  * The handlers must be 64 bytes apart, first starting with the underflow
  * handlers underflow-4 to underflow-12, then the overflow handlers
@@ -394,6 +429,26 @@ ENTRY_ALIGN64(_WindowOverflow4)
 	rfwo
 
 ENDPROC(_WindowOverflow4)
+
+
+#if XCHAL_EXCM_LEVEL >= 2
+	/*  Not a window vector - but a convenient location
+	 *  (where we know there's space) for continuation of
+	 *  medium priority interrupt dispatch code.
+	 *  On entry here, a0 contains PS, and EPC2 contains saved a0:
+	 */
+	.align 4
+_SimulateUserKernelVectorException:
+	wsr	a0, excsave2
+	movi	a0, 4			# LEVEL1_INTERRUPT cause
+	wsr	a0, exccause
+	rsr	a0, ps
+	bbsi.l	a0, PS_UM_BIT, 1f	# branch if user mode
+	rsr	a0, excsave2		# restore a0
+	j	_KernelExceptionVector	# simulate kernel vector exception
+1:	rsr	a0, excsave2		# restore a0
+	j	_UserExceptionVector	# simulate user vector exception
+#endif
 
 
 /* 4-Register Window Underflow Vector (Handler) */

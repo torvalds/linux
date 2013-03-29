@@ -38,11 +38,11 @@
 /*
  * Common SMP definitions
  */
-#define	RESET_VEC_PHYS		0x1fc00000
-#define	RESET_DATA_PHYS		(RESET_VEC_PHYS + (1<<10))
-#define	BOOT_THREAD_MODE	0
-#define	BOOT_NMI_LOCK		4
-#define	BOOT_NMI_HANDLER	8
+#define RESET_VEC_PHYS		0x1fc00000
+#define RESET_DATA_PHYS		(RESET_VEC_PHYS + (1<<10))
+#define BOOT_THREAD_MODE	0
+#define BOOT_NMI_LOCK		4
+#define BOOT_NMI_HANDLER	8
 
 #ifndef __ASSEMBLY__
 #include <linux/cpumask.h>
@@ -80,7 +80,7 @@ extern unsigned int nlm_threads_per_core;
 extern cpumask_t nlm_cpumask;
 
 struct nlm_soc_info {
-	unsigned long coremask;	/* cores enabled on the soc */
+	unsigned long coremask; /* cores enabled on the soc */
 	unsigned long ebase;
 	uint64_t irqmask;
 	uint64_t sysbase;	/* only for XLP */
@@ -88,9 +88,9 @@ struct nlm_soc_info {
 	spinlock_t piclock;
 };
 
-#define	nlm_get_node(i)		(&nlm_nodes[i])
+#define nlm_get_node(i)		(&nlm_nodes[i])
 #ifdef CONFIG_CPU_XLR
-#define	nlm_current_node()	(&nlm_nodes[0])
+#define nlm_current_node()	(&nlm_nodes[0])
 #else
 #define nlm_current_node()	(&nlm_nodes[nlm_nodeid()])
 #endif

@@ -39,6 +39,8 @@ config SUPERH
 	select GENERIC_STRNLEN_USER
 	select HAVE_MOD_ARCH_SPECIFIC if DWARF_UNWINDER
 	select MODULES_USE_ELF_RELA
+	select OLD_SIGSUSPEND
+	select OLD_SIGACTION
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -145,9 +147,6 @@ config ARCH_HAS_ILOG2_U32
 
 config ARCH_HAS_ILOG2_U64
 	def_bool n
-
-config ARCH_NO_VIRT_TO_BUS
-	def_bool y
 
 config ARCH_HAS_DEFAULT_IDLE
 	def_bool y

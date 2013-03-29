@@ -50,7 +50,6 @@
 bool acpiphp_debug;
 
 /* local variables */
-static int num_slots;
 static struct acpiphp_attention_info *attention_info;
 
 #define DRIVER_VERSION	"0.5"
@@ -272,25 +271,6 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	return 0;
 }
 
-static int __init init_acpi(void)
-{
-	int retval;
-
-	/* initialize internal data structure etc. */
-	retval = acpiphp_glue_init();
-
-	/* read initial number of slots */
-	if (!retval) {
-		num_slots = acpiphp_get_num_slots();
-		if (num_slots == 0) {
-			acpiphp_glue_exit();
-			retval = -ENODEV;
-		}
-	}
-
-	return retval;
-}
-
 /**
  * release_slot - free up the memory used by a slot
  * @hotplug_slot: slot to free
@@ -379,7 +359,8 @@ static int __init acpiphp_init(void)
 		return 0;
 
 	/* read all the ACPI info from the system */
-	return init_acpi();
+	/* initialize internal data structure etc. */
+	return acpiphp_glue_init();
 }
 
 

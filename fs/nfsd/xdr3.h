@@ -136,6 +136,7 @@ struct nfsd3_accessres {
 	__be32			status;
 	struct svc_fh		fh;
 	__u32			access;
+	struct kstat		stat;
 };
 
 struct nfsd3_readlinkres {
@@ -225,6 +226,7 @@ struct nfsd3_getaclres {
 	int			mask;
 	struct posix_acl	*acl_access;
 	struct posix_acl	*acl_default;
+	struct kstat		stat;
 };
 
 /* dummy type for release */

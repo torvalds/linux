@@ -11,6 +11,9 @@ else
 Kconfig := Kconfig
 endif
 
+# We need this, in case the user has it in its environment
+unexport CONFIG_
+
 xconfig: $(obj)/qconf
 	$< $(Kconfig)
 

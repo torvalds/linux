@@ -24,9 +24,9 @@
 #include <asm/cacheops.h>
 #include <asm/sibyte/board.h>
 
-#define C0_ERRCTL     $26             /* CP0: Error info */
-#define C0_CERR_I     $27             /* CP0: Icache error */
-#define C0_CERR_D     $27,1           /* CP0: Dcache error */
+#define C0_ERRCTL     $26	      /* CP0: Error info */
+#define C0_CERR_I     $27	      /* CP0: Icache error */
+#define C0_CERR_D     $27,1	      /* CP0: Dcache error */
 
 	/*
 	 * Based on SiByte sample software cache-err/cerr.S
@@ -88,7 +88,7 @@ attempt_recovery:
 	/*
 	 * k0 has C0_ERRCTL << 1, which puts 'DC' at bit 31.  Any
 	 * Dcache errors we can recover from will take more extensive
-	 * processing.  For now, they are considered "unrecoverable".
+	 * processing.	For now, they are considered "unrecoverable".
 	 * Note that 'DC' becoming set (outside of ERL mode) will
 	 * cause 'IC' to clear; so if there's an Icache error, we'll
 	 * only find out about it if we recover from this error and

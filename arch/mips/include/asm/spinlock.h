@@ -17,7 +17,7 @@
 /*
  * Your basic SMP spinlocks, allowing only a single CPU anywhere
  *
- * Simple spin lock operations.  There are two variants, one clears IRQ's
+ * Simple spin lock operations.	 There are two variants, one clears IRQ's
  * on the local processor, one does not.
  *
  * These are fair FIFO ticket locks
@@ -222,7 +222,7 @@ static inline unsigned int arch_spin_trylock(arch_spinlock_t *lock)
  * write_can_lock - would write_trylock() succeed?
  * @lock: the rwlock in question.
  */
-#define arch_write_can_lock(rw)	(!(rw)->lock)
+#define arch_write_can_lock(rw) (!(rw)->lock)
 
 static inline void arch_read_lock(arch_rwlock_t *rw)
 {

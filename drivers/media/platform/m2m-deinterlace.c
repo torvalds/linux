@@ -28,7 +28,7 @@ MODULE_AUTHOR("Javier Martin <javier.martin@vista-silicon.com");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.0.1");
 
-static bool debug = true;
+static bool debug;
 module_param(debug, bool, 0644);
 
 /* Flags that indicate a format can be used for capture/output */
@@ -917,10 +917,8 @@ static int deinterlace_open(struct file *file)
 	ctx->xt = kzalloc(sizeof(struct dma_async_tx_descriptor) +
 				sizeof(struct data_chunk), GFP_KERNEL);
 	if (!ctx->xt) {
-		int ret = PTR_ERR(ctx->xt);
-
 		kfree(ctx);
-		return ret;
+		return -ENOMEM;
 	}
 
 	ctx->colorspace = V4L2_COLORSPACE_REC709;

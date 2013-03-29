@@ -38,7 +38,8 @@ struct drm_device;
 struct drm_mode_set;
 struct drm_framebuffer;
 struct drm_object_properties;
-
+struct drm_file;
+struct drm_clip_rect;
 
 #define DRM_MODE_OBJECT_CRTC 0xcccccccc
 #define DRM_MODE_OBJECT_CONNECTOR 0xc0c0c0c0
@@ -254,6 +255,10 @@ struct drm_framebuffer {
 	 * userspace perspective.
 	 */
 	struct kref refcount;
+	/*
+	 * Place on the dev->mode_config.fb_list, access protected by
+	 * dev->mode_config.fb_lock.
+	 */
 	struct list_head head;
 	struct drm_mode_object base;
 	const struct drm_framebuffer_funcs *funcs;
@@ -389,6 +394,15 @@ struct drm_crtc_funcs {
 struct drm_crtc {
 	struct drm_device *dev;
 	struct list_head head;
+
+	/**
+	 * crtc mutex
+	 *
+	 * This provides a read lock for the overall crtc state (mode, dpms
+	 * state, ...) and a write lock for everything which can be update
+	 * without a full modeset (fb, cursor data, ...)
+	 */
+	struct mutex mutex;
 
 	struct drm_mode_object base;
 
@@ -771,8 +785,18 @@ struct drm_mode_config {
 	struct mutex idr_mutex; /* for IDR management */
 	struct idr crtc_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
 	/* this is limited to one for now */
+
+
+	/**
+	 * fb_lock - mutex to protect fb state
+	 *
+	 * Besides the global fb list his also protects the fbs list in the
+	 * file_priv
+	 */
+	struct mutex fb_lock;
 	int num_fb;
 	struct list_head fb_list;
+
 	int num_connector;
 	struct list_head connector_list;
 	int num_encoder;
@@ -841,6 +865,10 @@ struct drm_prop_enum_list {
 	int type;
 	char *name;
 };
+
+extern void drm_modeset_lock_all(struct drm_device *dev);
+extern void drm_modeset_unlock_all(struct drm_device *dev);
+extern void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
 
 extern int drm_crtc_init(struct drm_device *dev,
 			 struct drm_crtc *crtc,
@@ -932,10 +960,13 @@ extern void drm_framebuffer_set_object(struct drm_device *dev,
 extern int drm_framebuffer_init(struct drm_device *dev,
 				struct drm_framebuffer *fb,
 				const struct drm_framebuffer_funcs *funcs);
+extern struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
+						      uint32_t id);
 extern void drm_framebuffer_unreference(struct drm_framebuffer *fb);
 extern void drm_framebuffer_reference(struct drm_framebuffer *fb);
 extern void drm_framebuffer_remove(struct drm_framebuffer *fb);
 extern void drm_framebuffer_cleanup(struct drm_framebuffer *fb);
+extern void drm_framebuffer_unregister_private(struct drm_framebuffer *fb);
 extern int drmfb_probe(struct drm_device *dev, struct drm_crtc *crtc);
 extern int drmfb_remove(struct drm_device *dev, struct drm_framebuffer *fb);
 extern void drm_crtc_probe_connector_modes(struct drm_device *dev, int maxX, int maxY);
@@ -985,6 +1016,7 @@ extern int drm_mode_getcrtc(struct drm_device *dev,
 			    void *data, struct drm_file *file_priv);
 extern int drm_mode_getconnector(struct drm_device *dev,
 			      void *data, struct drm_file *file_priv);
+extern int drm_mode_set_config_internal(struct drm_mode_set *set);
 extern int drm_mode_setcrtc(struct drm_device *dev,
 			    void *data, struct drm_file *file_priv);
 extern int drm_mode_getplane(struct drm_device *dev,
@@ -1030,9 +1062,10 @@ extern int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 extern int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern u8 *drm_find_cea_extension(struct edid *edid);
-extern u8 drm_match_cea_mode(struct drm_display_mode *to_match);
+extern u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
 extern bool drm_detect_hdmi_monitor(struct edid *edid);
 extern bool drm_detect_monitor_audio(struct edid *edid);
+extern bool drm_rgb_quant_range_selectable(struct edid *edid);
 extern int drm_mode_page_flip_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,
@@ -1047,7 +1080,6 @@ extern struct drm_display_mode *drm_gtf_mode_complex(struct drm_device *dev,
 				int GTF_2C, int GTF_K, int GTF_2J);
 extern int drm_add_modes_noedid(struct drm_connector *connector,
 				int hdisplay, int vdisplay);
-extern uint8_t drm_mode_cea_vic(const struct drm_display_mode *mode);
 
 extern int drm_edid_header_is_valid(const u8 *raw_edid);
 extern bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid);

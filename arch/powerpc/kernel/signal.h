@@ -25,13 +25,21 @@ extern int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 
 extern unsigned long copy_fpr_to_user(void __user *to,
 				      struct task_struct *task);
+extern unsigned long copy_transact_fpr_to_user(void __user *to,
+					       struct task_struct *task);
 extern unsigned long copy_fpr_from_user(struct task_struct *task,
 					void __user *from);
+extern unsigned long copy_transact_fpr_from_user(struct task_struct *task,
+						 void __user *from);
 #ifdef CONFIG_VSX
 extern unsigned long copy_vsx_to_user(void __user *to,
 				      struct task_struct *task);
+extern unsigned long copy_transact_vsx_to_user(void __user *to,
+					       struct task_struct *task);
 extern unsigned long copy_vsx_from_user(struct task_struct *task,
 					void __user *from);
+extern unsigned long copy_transact_vsx_from_user(struct task_struct *task,
+						 void __user *from);
 #endif
 
 #ifdef CONFIG_PPC64

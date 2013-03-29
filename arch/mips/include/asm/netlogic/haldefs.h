@@ -48,7 +48,7 @@
  * access 64 bit addresses or data.
  *
  * We need to disable interrupts because we save just the lower 32 bits of
- * registers in  interrupt handling. So if we get hit by an interrupt while
+ * registers in	 interrupt handling. So if we get hit by an interrupt while
  * using the upper 32 bits of a register, we lose.
  */
 static inline uint32_t nlm_save_flags_kx(void)

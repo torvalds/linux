@@ -280,11 +280,10 @@ static struct mmu_notifier *mmu_find_ops(struct mm_struct *mm,
 			const struct mmu_notifier_ops *ops)
 {
 	struct mmu_notifier *mn, *gru_mn = NULL;
-	struct hlist_node *n;
 
 	if (mm->mmu_notifier_mm) {
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(mn, n, &mm->mmu_notifier_mm->list,
+		hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list,
 					 hlist)
 		    if (mn->ops == ops) {
 			gru_mn = mn;

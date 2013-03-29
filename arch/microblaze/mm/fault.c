@@ -32,7 +32,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
-#include <asm/mmu_context.h>
+#include <linux/mmu_context.h>
 #include <linux/uaccess.h>
 #include <asm/exceptions.h>
 
@@ -100,7 +100,7 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 
 	/* On a kernel SLB miss we can only check for a valid exception entry */
 	if (unlikely(kernel_mode(regs) && (address >= TASK_SIZE))) {
-		printk(KERN_WARNING "kernel task_size exceed");
+		pr_warn("kernel task_size exceed");
 		_exception(SIGSEGV, regs, code, address);
 	}
 
@@ -114,9 +114,9 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 
 		/* in_atomic() in user mode is really bad,
 		   as is current->mm == NULL. */
-		printk(KERN_EMERG "Page fault in user mode with "
-		       "in_atomic(), mm = %p\n", mm);
-		printk(KERN_EMERG "r15 = %lx  MSR = %lx\n",
+		pr_emerg("Page fault in user mode with in_atomic(), mm = %p\n",
+									mm);
+		pr_emerg("r15 = %lx  MSR = %lx\n",
 		       regs->r15, regs->msr);
 		die("Weird page fault", regs, SIGSEGV);
 	}

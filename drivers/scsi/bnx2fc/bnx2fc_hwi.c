@@ -347,7 +347,7 @@ int bnx2fc_send_session_ofld_req(struct fcoe_port *port,
  * @port:		port structure pointer
  * @tgt:		bnx2fc_rport structure pointer
  */
-static int bnx2fc_send_session_enable_req(struct fcoe_port *port,
+int bnx2fc_send_session_enable_req(struct fcoe_port *port,
 					struct bnx2fc_rport *tgt)
 {
 	struct kwqe *kwqe_arr[2];
@@ -759,8 +759,6 @@ static void bnx2fc_process_unsol_compl(struct bnx2fc_rport *tgt, u16 wqe)
 		case FCOE_ERROR_CODE_DATA_SOFN_SEQ_ACTIVE_RESET:
 			BNX2FC_TGT_DBG(tgt, "REC TOV popped for xid - 0x%x\n",
 				   xid);
-			memset(&io_req->err_entry, 0,
-			       sizeof(struct fcoe_err_report_entry));
 			memcpy(&io_req->err_entry, err_entry,
 			       sizeof(struct fcoe_err_report_entry));
 			if (!test_bit(BNX2FC_FLAG_SRR_SENT,
@@ -847,8 +845,6 @@ ret_err_rqe:
 			goto ret_warn_rqe;
 		}
 
-		memset(&io_req->err_entry, 0,
-		       sizeof(struct fcoe_err_report_entry));
 		memcpy(&io_req->err_entry, err_entry,
 		       sizeof(struct fcoe_err_report_entry));
 
@@ -1124,7 +1120,6 @@ static void bnx2fc_process_ofld_cmpl(struct bnx2fc_hba *hba,
 	struct bnx2fc_interface		*interface;
 	u32				conn_id;
 	u32				context_id;
-	int				rc;
 
 	conn_id = ofld_kcqe->fcoe_conn_id;
 	context_id = ofld_kcqe->fcoe_conn_context_id;
@@ -1153,17 +1148,10 @@ static void bnx2fc_process_ofld_cmpl(struct bnx2fc_hba *hba,
 				"resources\n");
 			set_bit(BNX2FC_FLAG_CTX_ALLOC_FAILURE, &tgt->flags);
 		}
-		goto ofld_cmpl_err;
 	} else {
-
-		/* now enable the session */
-		rc = bnx2fc_send_session_enable_req(port, tgt);
-		if (rc) {
-			printk(KERN_ERR PFX "enable session failed\n");
-			goto ofld_cmpl_err;
-		}
+		/* FW offload request successfully completed */
+		set_bit(BNX2FC_FLAG_OFFLOADED, &tgt->flags);
 	}
-	return;
 ofld_cmpl_err:
 	set_bit(BNX2FC_FLAG_OFLD_REQ_CMPL, &tgt->flags);
 	wake_up_interruptible(&tgt->ofld_wait);
@@ -1210,15 +1198,9 @@ static void bnx2fc_process_enable_conn_cmpl(struct bnx2fc_hba *hba,
 		printk(KERN_ERR PFX "bnx2fc-enbl_cmpl: HBA mis-match\n");
 		goto enbl_cmpl_err;
 	}
-	if (ofld_kcqe->completion_status)
-		goto enbl_cmpl_err;
-	else {
+	if (!ofld_kcqe->completion_status)
 		/* enable successful - rport ready for issuing IOs */
-		set_bit(BNX2FC_FLAG_OFFLOADED, &tgt->flags);
-		set_bit(BNX2FC_FLAG_OFLD_REQ_CMPL, &tgt->flags);
-		wake_up_interruptible(&tgt->ofld_wait);
-	}
-	return;
+		set_bit(BNX2FC_FLAG_ENABLED, &tgt->flags);
 
 enbl_cmpl_err:
 	set_bit(BNX2FC_FLAG_OFLD_REQ_CMPL, &tgt->flags);
@@ -1251,6 +1233,7 @@ static void bnx2fc_process_conn_disable_cmpl(struct bnx2fc_hba *hba,
 		/* disable successful */
 		BNX2FC_TGT_DBG(tgt, "disable successful\n");
 		clear_bit(BNX2FC_FLAG_OFFLOADED, &tgt->flags);
+		clear_bit(BNX2FC_FLAG_ENABLED, &tgt->flags);
 		set_bit(BNX2FC_FLAG_DISABLED, &tgt->flags);
 		set_bit(BNX2FC_FLAG_UPLD_REQ_COMPL, &tgt->flags);
 		wake_up_interruptible(&tgt->upld_wait);

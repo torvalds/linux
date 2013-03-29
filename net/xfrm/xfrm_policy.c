@@ -379,27 +379,27 @@ static void xfrm_dst_hash_transfer(struct hlist_head *list,
 				   struct hlist_head *ndsttable,
 				   unsigned int nhashmask)
 {
-	struct hlist_node *entry, *tmp, *entry0 = NULL;
+	struct hlist_node *tmp, *entry0 = NULL;
 	struct xfrm_policy *pol;
 	unsigned int h0 = 0;
 
 redo:
-	hlist_for_each_entry_safe(pol, entry, tmp, list, bydst) {
+	hlist_for_each_entry_safe(pol, tmp, list, bydst) {
 		unsigned int h;
 
 		h = __addr_hash(&pol->selector.daddr, &pol->selector.saddr,
 				pol->family, nhashmask);
 		if (!entry0) {
-			hlist_del(entry);
+			hlist_del(&pol->bydst);
 			hlist_add_head(&pol->bydst, ndsttable+h);
 			h0 = h;
 		} else {
 			if (h != h0)
 				continue;
-			hlist_del(entry);
+			hlist_del(&pol->bydst);
 			hlist_add_after(entry0, &pol->bydst);
 		}
-		entry0 = entry;
+		entry0 = &pol->bydst;
 	}
 	if (!hlist_empty(list)) {
 		entry0 = NULL;
@@ -411,10 +411,10 @@ static void xfrm_idx_hash_transfer(struct hlist_head *list,
 				   struct hlist_head *nidxtable,
 				   unsigned int nhashmask)
 {
-	struct hlist_node *entry, *tmp;
+	struct hlist_node *tmp;
 	struct xfrm_policy *pol;
 
-	hlist_for_each_entry_safe(pol, entry, tmp, list, byidx) {
+	hlist_for_each_entry_safe(pol, tmp, list, byidx) {
 		unsigned int h;
 
 		h = __idx_hash(pol->index, nhashmask);
@@ -544,7 +544,6 @@ static u32 xfrm_gen_index(struct net *net, int dir)
 	static u32 idx_generator;
 
 	for (;;) {
-		struct hlist_node *entry;
 		struct hlist_head *list;
 		struct xfrm_policy *p;
 		u32 idx;
@@ -556,7 +555,7 @@ static u32 xfrm_gen_index(struct net *net, int dir)
 			idx = 8;
 		list = net->xfrm.policy_byidx + idx_hash(net, idx);
 		found = 0;
-		hlist_for_each_entry(p, entry, list, byidx) {
+		hlist_for_each_entry(p, list, byidx) {
 			if (p->index == idx) {
 				found = 1;
 				break;
@@ -628,13 +627,13 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	struct xfrm_policy *pol;
 	struct xfrm_policy *delpol;
 	struct hlist_head *chain;
-	struct hlist_node *entry, *newpos;
+	struct hlist_node *newpos;
 
 	write_lock_bh(&xfrm_policy_lock);
 	chain = policy_hash_bysel(net, &policy->selector, policy->family, dir);
 	delpol = NULL;
 	newpos = NULL;
-	hlist_for_each_entry(pol, entry, chain, bydst) {
+	hlist_for_each_entry(pol, chain, bydst) {
 		if (pol->type == policy->type &&
 		    !selector_cmp(&pol->selector, &policy->selector) &&
 		    xfrm_policy_mark_match(policy, pol) &&
@@ -691,13 +690,12 @@ struct xfrm_policy *xfrm_policy_bysel_ctx(struct net *net, u32 mark, u8 type,
 {
 	struct xfrm_policy *pol, *ret;
 	struct hlist_head *chain;
-	struct hlist_node *entry;
 
 	*err = 0;
 	write_lock_bh(&xfrm_policy_lock);
 	chain = policy_hash_bysel(net, sel, sel->family, dir);
 	ret = NULL;
-	hlist_for_each_entry(pol, entry, chain, bydst) {
+	hlist_for_each_entry(pol, chain, bydst) {
 		if (pol->type == type &&
 		    (mark & pol->mark.m) == pol->mark.v &&
 		    !selector_cmp(sel, &pol->selector) &&
@@ -729,7 +727,6 @@ struct xfrm_policy *xfrm_policy_byid(struct net *net, u32 mark, u8 type,
 {
 	struct xfrm_policy *pol, *ret;
 	struct hlist_head *chain;
-	struct hlist_node *entry;
 
 	*err = -ENOENT;
 	if (xfrm_policy_id2dir(id) != dir)
@@ -739,7 +736,7 @@ struct xfrm_policy *xfrm_policy_byid(struct net *net, u32 mark, u8 type,
 	write_lock_bh(&xfrm_policy_lock);
 	chain = net->xfrm.policy_byidx + idx_hash(net, id);
 	ret = NULL;
-	hlist_for_each_entry(pol, entry, chain, byidx) {
+	hlist_for_each_entry(pol, chain, byidx) {
 		if (pol->type == type && pol->index == id &&
 		    (mark & pol->mark.m) == pol->mark.v) {
 			xfrm_pol_hold(pol);
@@ -772,10 +769,9 @@ xfrm_policy_flush_secctx_check(struct net *net, u8 type, struct xfrm_audit *audi
 
 	for (dir = 0; dir < XFRM_POLICY_MAX; dir++) {
 		struct xfrm_policy *pol;
-		struct hlist_node *entry;
 		int i;
 
-		hlist_for_each_entry(pol, entry,
+		hlist_for_each_entry(pol,
 				     &net->xfrm.policy_inexact[dir], bydst) {
 			if (pol->type != type)
 				continue;
@@ -789,7 +785,7 @@ xfrm_policy_flush_secctx_check(struct net *net, u8 type, struct xfrm_audit *audi
 			}
 		}
 		for (i = net->xfrm.policy_bydst[dir].hmask; i >= 0; i--) {
-			hlist_for_each_entry(pol, entry,
+			hlist_for_each_entry(pol,
 					     net->xfrm.policy_bydst[dir].table + i,
 					     bydst) {
 				if (pol->type != type)
@@ -828,11 +824,10 @@ int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 
 	for (dir = 0; dir < XFRM_POLICY_MAX; dir++) {
 		struct xfrm_policy *pol;
-		struct hlist_node *entry;
 		int i;
 
 	again1:
-		hlist_for_each_entry(pol, entry,
+		hlist_for_each_entry(pol,
 				     &net->xfrm.policy_inexact[dir], bydst) {
 			if (pol->type != type)
 				continue;
@@ -852,7 +847,7 @@ int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 
 		for (i = net->xfrm.policy_bydst[dir].hmask; i >= 0; i--) {
 	again2:
-			hlist_for_each_entry(pol, entry,
+			hlist_for_each_entry(pol,
 					     net->xfrm.policy_bydst[dir].table + i,
 					     bydst) {
 				if (pol->type != type)
@@ -980,7 +975,6 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 	int err;
 	struct xfrm_policy *pol, *ret;
 	const xfrm_address_t *daddr, *saddr;
-	struct hlist_node *entry;
 	struct hlist_head *chain;
 	u32 priority = ~0U;
 
@@ -992,7 +986,7 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 	read_lock_bh(&xfrm_policy_lock);
 	chain = policy_hash_direct(net, daddr, saddr, family, dir);
 	ret = NULL;
-	hlist_for_each_entry(pol, entry, chain, bydst) {
+	hlist_for_each_entry(pol, chain, bydst) {
 		err = xfrm_policy_match(pol, fl, type, family, dir);
 		if (err) {
 			if (err == -ESRCH)
@@ -1008,7 +1002,7 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 		}
 	}
 	chain = &net->xfrm.policy_inexact[dir];
-	hlist_for_each_entry(pol, entry, chain, bydst) {
+	hlist_for_each_entry(pol, chain, bydst) {
 		err = xfrm_policy_match(pol, fl, type, family, dir);
 		if (err) {
 			if (err == -ESRCH)
@@ -3041,13 +3035,12 @@ static struct xfrm_policy * xfrm_migrate_policy_find(const struct xfrm_selector 
 						     u8 dir, u8 type)
 {
 	struct xfrm_policy *pol, *ret = NULL;
-	struct hlist_node *entry;
 	struct hlist_head *chain;
 	u32 priority = ~0U;
 
 	read_lock_bh(&xfrm_policy_lock);
 	chain = policy_hash_direct(&init_net, &sel->daddr, &sel->saddr, sel->family, dir);
-	hlist_for_each_entry(pol, entry, chain, bydst) {
+	hlist_for_each_entry(pol, chain, bydst) {
 		if (xfrm_migrate_selector_match(sel, &pol->selector) &&
 		    pol->type == type) {
 			ret = pol;
@@ -3056,7 +3049,7 @@ static struct xfrm_policy * xfrm_migrate_policy_find(const struct xfrm_selector 
 		}
 	}
 	chain = &init_net.xfrm.policy_inexact[dir];
-	hlist_for_each_entry(pol, entry, chain, bydst) {
+	hlist_for_each_entry(pol, chain, bydst) {
 		if (xfrm_migrate_selector_match(sel, &pol->selector) &&
 		    pol->type == type &&
 		    pol->priority < priority) {

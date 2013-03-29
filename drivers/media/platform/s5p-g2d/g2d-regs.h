@@ -35,6 +35,9 @@
 #define SRC_COLOR_MODE_REG	0x030C	/* Src Image Color Mode reg */
 #define SRC_LEFT_TOP_REG	0x0310	/* Src Left Top Coordinate reg */
 #define SRC_RIGHT_BOTTOM_REG	0x0314	/* Src Right Bottom Coordinate reg */
+#define SRC_SCALE_CTRL_REG	0x0328	/* Src Scaling type select */
+#define SRC_XSCALE_REG		0x032c	/* Src X Scaling ratio */
+#define SRC_YSCALE_REG		0x0330	/* Src Y Scaling ratio */
 
 /* Parameter Setting Registers (Dest) */
 #define DST_SELECT_REG		0x0400	/* Dest Image Selection reg */
@@ -113,3 +116,7 @@
 #define DEFAULT_WIDTH		100
 #define DEFAULT_HEIGHT		100
 
+#define DEFAULT_SCALE_MODE	(2 << 0)
+
+/* Command mode register values */
+#define CMD_V3_ENABLE_STRETCH	(1 << 4)

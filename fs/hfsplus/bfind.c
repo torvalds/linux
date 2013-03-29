@@ -24,7 +24,19 @@ int hfs_find_init(struct hfs_btree *tree, struct hfs_find_data *fd)
 	fd->key = ptr + tree->max_key_len + 2;
 	dprint(DBG_BNODE_REFS, "find_init: %d (%p)\n",
 		tree->cnid, __builtin_return_address(0));
-	mutex_lock(&tree->tree_lock);
+	switch (tree->cnid) {
+	case HFSPLUS_CAT_CNID:
+		mutex_lock_nested(&tree->tree_lock, CATALOG_BTREE_MUTEX);
+		break;
+	case HFSPLUS_EXT_CNID:
+		mutex_lock_nested(&tree->tree_lock, EXTENTS_BTREE_MUTEX);
+		break;
+	case HFSPLUS_ATTR_CNID:
+		mutex_lock_nested(&tree->tree_lock, ATTR_BTREE_MUTEX);
+		break;
+	default:
+		BUG();
+	}
 	return 0;
 }
 
@@ -38,14 +50,72 @@ void hfs_find_exit(struct hfs_find_data *fd)
 	fd->tree = NULL;
 }
 
-/* Find the record in bnode that best matches key (not greater than...)*/
-int __hfs_brec_find(struct hfs_bnode *bnode, struct hfs_find_data *fd)
+int hfs_find_1st_rec_by_cnid(struct hfs_bnode *bnode,
+				struct hfs_find_data *fd,
+				int *begin,
+				int *end,
+				int *cur_rec)
+{
+	__be32 cur_cnid, search_cnid;
+
+	if (bnode->tree->cnid == HFSPLUS_EXT_CNID) {
+		cur_cnid = fd->key->ext.cnid;
+		search_cnid = fd->search_key->ext.cnid;
+	} else if (bnode->tree->cnid == HFSPLUS_CAT_CNID) {
+		cur_cnid = fd->key->cat.parent;
+		search_cnid = fd->search_key->cat.parent;
+	} else if (bnode->tree->cnid == HFSPLUS_ATTR_CNID) {
+		cur_cnid = fd->key->attr.cnid;
+		search_cnid = fd->search_key->attr.cnid;
+	} else
+		BUG();
+
+	if (cur_cnid == search_cnid) {
+		(*end) = (*cur_rec);
+		if ((*begin) == (*end))
+			return 1;
+	} else {
+		if (be32_to_cpu(cur_cnid) < be32_to_cpu(search_cnid))
+			(*begin) = (*cur_rec) + 1;
+		else
+			(*end) = (*cur_rec) - 1;
+	}
+
+	return 0;
+}
+
+int hfs_find_rec_by_key(struct hfs_bnode *bnode,
+				struct hfs_find_data *fd,
+				int *begin,
+				int *end,
+				int *cur_rec)
 {
 	int cmpval;
+
+	cmpval = bnode->tree->keycmp(fd->key, fd->search_key);
+	if (!cmpval) {
+		(*end) = (*cur_rec);
+		return 1;
+	}
+	if (cmpval < 0)
+		(*begin) = (*cur_rec) + 1;
+	else
+		*(end) = (*cur_rec) - 1;
+
+	return 0;
+}
+
+/* Find the record in bnode that best matches key (not greater than...)*/
+int __hfs_brec_find(struct hfs_bnode *bnode, struct hfs_find_data *fd,
+					search_strategy_t rec_found)
+{
 	u16 off, len, keylen;
 	int rec;
 	int b, e;
 	int res;
+
+	if (!rec_found)
+		BUG();
 
 	b = 0;
 	e = bnode->num_recs - 1;
@@ -59,17 +129,12 @@ int __hfs_brec_find(struct hfs_bnode *bnode, struct hfs_find_data *fd)
 			goto fail;
 		}
 		hfs_bnode_read(bnode, fd->key, off, keylen);
-		cmpval = bnode->tree->keycmp(fd->key, fd->search_key);
-		if (!cmpval) {
-			e = rec;
+		if (rec_found(bnode, fd, &b, &e, &rec)) {
 			res = 0;
 			goto done;
 		}
-		if (cmpval < 0)
-			b = rec + 1;
-		else
-			e = rec - 1;
 	} while (b <= e);
+
 	if (rec != e && e >= 0) {
 		len = hfs_brec_lenoff(bnode, e, &off);
 		keylen = hfs_brec_keylen(bnode, e);
@@ -79,19 +144,21 @@ int __hfs_brec_find(struct hfs_bnode *bnode, struct hfs_find_data *fd)
 		}
 		hfs_bnode_read(bnode, fd->key, off, keylen);
 	}
+
 done:
 	fd->record = e;
 	fd->keyoffset = off;
 	fd->keylength = keylen;
 	fd->entryoffset = off + keylen;
 	fd->entrylength = len - keylen;
+
 fail:
 	return res;
 }
 
 /* Traverse a B*Tree from the root to a leaf finding best fit to key */
 /* Return allocated copy of node found, set recnum to best record */
-int hfs_brec_find(struct hfs_find_data *fd)
+int hfs_brec_find(struct hfs_find_data *fd, search_strategy_t do_key_compare)
 {
 	struct hfs_btree *tree;
 	struct hfs_bnode *bnode;
@@ -122,7 +189,7 @@ int hfs_brec_find(struct hfs_find_data *fd)
 			goto invalid;
 		bnode->parent = parent;
 
-		res = __hfs_brec_find(bnode, fd);
+		res = __hfs_brec_find(bnode, fd, do_key_compare);
 		if (!height)
 			break;
 		if (fd->record < 0)
@@ -149,7 +216,7 @@ int hfs_brec_read(struct hfs_find_data *fd, void *rec, int rec_len)
 {
 	int res;
 
-	res = hfs_brec_find(fd);
+	res = hfs_brec_find(fd, hfs_find_rec_by_key);
 	if (res)
 		return res;
 	if (fd->entrylength > rec_len)

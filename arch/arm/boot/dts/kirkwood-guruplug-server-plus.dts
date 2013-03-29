@@ -1,0 +1,94 @@
+/dts-v1/;
+
+/include/ "kirkwood.dtsi"
+/include/ "kirkwood-6281.dtsi"
+
+/ {
+	model = "Globalscale Technologies Guruplug Server Plus";
+	compatible = "globalscale,guruplug-server-plus", "globalscale,guruplug", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+	};
+
+	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+
+			pinctrl-0 = < &pmx_led_health_r &pmx_led_health_g
+				      &pmx_led_wmode_r &pmx_led_wmode_g >;
+			pinctrl-names = "default";
+
+			pmx_led_health_r: pmx-led-health-r {
+				marvell,pins = "mpp46";
+				marvell,function = "gpio";
+			};
+			pmx_led_health_g: pmx-led-health-g {
+				marvell,pins = "mpp47";
+				marvell,function = "gpio";
+			};
+			pmx_led_wmode_r: pmx-led-wmode-r {
+				marvell,pins = "mpp48";
+				marvell,function = "gpio";
+			};
+			pmx_led_wmode_g: pmx-led-wmode-g {
+				marvell,pins = "mpp49";
+				marvell,function = "gpio";
+			};
+		};
+		serial@12000 {
+			clock-frequency = <200000000>;
+			status = "ok";
+		};
+
+		nand@3000000 {
+			status = "okay";
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x00000000 0x00100000>;
+				read-only;
+			};
+
+			partition@100000 {
+				label = "uImage";
+				reg = <0x00100000 0x00400000>;
+			};
+
+			partition@500000 {
+				label = "data";
+				reg = <0x00500000 0x1fb00000>;
+			};
+		};
+
+		sata@80000 {
+			status = "okay";
+			nr-ports = <1>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		health-r {
+			label = "guruplug:red:health";
+			gpios = <&gpio1 14 1>;
+		};
+		health-g {
+			label = "guruplug:green:health";
+			gpios = <&gpio1 15 1>;
+		};
+		wmode-r {
+			label = "guruplug:red:wmode";
+			gpios = <&gpio1 16 1>;
+		};
+		wmode-g {
+			label = "guruplug:green:wmode";
+			gpios = <&gpio1 17 1>;
+		};
+	};
+};

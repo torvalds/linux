@@ -38,39 +38,26 @@ int s5p_mfc_alloc_dec_temp_buffers_v5(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_buf_size_v5 *buf_size = dev->variant->buf_size->priv;
+	int ret;
 
-	ctx->dsc.alloc = vb2_dma_contig_memops.alloc(
-			dev->alloc_ctx[MFC_BANK1_ALLOC_CTX],
-			buf_size->dsc);
-	if (IS_ERR_VALUE((int)ctx->dsc.alloc)) {
-		ctx->dsc.alloc = NULL;
-		mfc_err("Allocating DESC buffer failed\n");
-		return -ENOMEM;
+	ctx->dsc.size = buf_size->dsc;
+	ret =  s5p_mfc_alloc_priv_buf(dev->mem_dev_l, &ctx->dsc);
+	if (ret) {
+		mfc_err("Failed to allocate temporary buffer\n");
+		return ret;
 	}
-	ctx->dsc.dma = s5p_mfc_mem_cookie(
-			dev->alloc_ctx[MFC_BANK1_ALLOC_CTX], ctx->dsc.alloc);
+
 	BUG_ON(ctx->dsc.dma & ((1 << MFC_BANK1_ALIGN_ORDER) - 1));
-	ctx->dsc.virt = vb2_dma_contig_memops.vaddr(ctx->dsc.alloc);
-	if (ctx->dsc.virt == NULL) {
-		vb2_dma_contig_memops.put(ctx->dsc.alloc);
-		ctx->dsc.dma = 0;
-		ctx->dsc.alloc = NULL;
-		mfc_err("Remapping DESC buffer failed\n");
-		return -ENOMEM;
-	}
-	memset(ctx->dsc.virt, 0, buf_size->dsc);
+	memset(ctx->dsc.virt, 0, ctx->dsc.size);
 	wmb();
 	return 0;
 }
 
+
 /* Release temporary buffers for decoding */
 void s5p_mfc_release_dec_desc_buffer_v5(struct s5p_mfc_ctx *ctx)
 {
-	if (ctx->dsc.dma) {
-		vb2_dma_contig_memops.put(ctx->dsc.alloc);
-		ctx->dsc.alloc = NULL;
-		ctx->dsc.dma = 0;
-	}
+	s5p_mfc_release_priv_buf(ctx->dev->mem_dev_l, &ctx->dsc);
 }
 
 /* Allocate codec buffers */
@@ -80,6 +67,7 @@ int s5p_mfc_alloc_codec_buffers_v5(struct s5p_mfc_ctx *ctx)
 	unsigned int enc_ref_y_size = 0;
 	unsigned int enc_ref_c_size = 0;
 	unsigned int guard_width, guard_height;
+	int ret;
 
 	if (ctx->type == MFCINST_DECODER) {
 		mfc_debug(2, "Luma size:%d Chroma size:%d MV size:%d\n",
@@ -113,100 +101,93 @@ int s5p_mfc_alloc_codec_buffers_v5(struct s5p_mfc_ctx *ctx)
 	/* Codecs have different memory requirements */
 	switch (ctx->codec_mode) {
 	case S5P_MFC_CODEC_H264_DEC:
-		ctx->bank1_size =
+		ctx->bank1.size =
 		    ALIGN(S5P_FIMV_DEC_NB_IP_SIZE +
 					S5P_FIMV_DEC_VERT_NB_MV_SIZE,
 					S5P_FIMV_DEC_BUF_ALIGN);
-		ctx->bank2_size = ctx->total_dpb_count * ctx->mv_size;
+		ctx->bank2.size = ctx->total_dpb_count * ctx->mv_size;
 		break;
 	case S5P_MFC_CODEC_MPEG4_DEC:
-		ctx->bank1_size =
+		ctx->bank1.size =
 		    ALIGN(S5P_FIMV_DEC_NB_DCAC_SIZE +
 				     S5P_FIMV_DEC_UPNB_MV_SIZE +
 				     S5P_FIMV_DEC_SUB_ANCHOR_MV_SIZE +
 				     S5P_FIMV_DEC_STX_PARSER_SIZE +
 				     S5P_FIMV_DEC_OVERLAP_TRANSFORM_SIZE,
 				     S5P_FIMV_DEC_BUF_ALIGN);
-		ctx->bank2_size = 0;
+		ctx->bank2.size = 0;
 		break;
 	case S5P_MFC_CODEC_VC1RCV_DEC:
 	case S5P_MFC_CODEC_VC1_DEC:
-		ctx->bank1_size =
+		ctx->bank1.size =
 		    ALIGN(S5P_FIMV_DEC_OVERLAP_TRANSFORM_SIZE +
 			     S5P_FIMV_DEC_UPNB_MV_SIZE +
 			     S5P_FIMV_DEC_SUB_ANCHOR_MV_SIZE +
 			     S5P_FIMV_DEC_NB_DCAC_SIZE +
 			     3 * S5P_FIMV_DEC_VC1_BITPLANE_SIZE,
 			     S5P_FIMV_DEC_BUF_ALIGN);
-		ctx->bank2_size = 0;
+		ctx->bank2.size = 0;
 		break;
 	case S5P_MFC_CODEC_MPEG2_DEC:
-		ctx->bank1_size = 0;
-		ctx->bank2_size = 0;
+		ctx->bank1.size = 0;
+		ctx->bank2.size = 0;
 		break;
 	case S5P_MFC_CODEC_H263_DEC:
-		ctx->bank1_size =
+		ctx->bank1.size =
 		    ALIGN(S5P_FIMV_DEC_OVERLAP_TRANSFORM_SIZE +
 			     S5P_FIMV_DEC_UPNB_MV_SIZE +
 			     S5P_FIMV_DEC_SUB_ANCHOR_MV_SIZE +
 			     S5P_FIMV_DEC_NB_DCAC_SIZE,
 			     S5P_FIMV_DEC_BUF_ALIGN);
-		ctx->bank2_size = 0;
+		ctx->bank2.size = 0;
 		break;
 	case S5P_MFC_CODEC_H264_ENC:
-		ctx->bank1_size = (enc_ref_y_size * 2) +
+		ctx->bank1.size = (enc_ref_y_size * 2) +
 				   S5P_FIMV_ENC_UPMV_SIZE +
 				   S5P_FIMV_ENC_COLFLG_SIZE +
 				   S5P_FIMV_ENC_INTRAMD_SIZE +
 				   S5P_FIMV_ENC_NBORINFO_SIZE;
-		ctx->bank2_size = (enc_ref_y_size * 2) +
+		ctx->bank2.size = (enc_ref_y_size * 2) +
 				   (enc_ref_c_size * 4) +
 				   S5P_FIMV_ENC_INTRAPRED_SIZE;
 		break;
 	case S5P_MFC_CODEC_MPEG4_ENC:
-		ctx->bank1_size = (enc_ref_y_size * 2) +
+		ctx->bank1.size = (enc_ref_y_size * 2) +
 				   S5P_FIMV_ENC_UPMV_SIZE +
 				   S5P_FIMV_ENC_COLFLG_SIZE +
 				   S5P_FIMV_ENC_ACDCCOEF_SIZE;
-		ctx->bank2_size = (enc_ref_y_size * 2) +
+		ctx->bank2.size = (enc_ref_y_size * 2) +
 				   (enc_ref_c_size * 4);
 		break;
 	case S5P_MFC_CODEC_H263_ENC:
-		ctx->bank1_size = (enc_ref_y_size * 2) +
+		ctx->bank1.size = (enc_ref_y_size * 2) +
 				   S5P_FIMV_ENC_UPMV_SIZE +
 				   S5P_FIMV_ENC_ACDCCOEF_SIZE;
-		ctx->bank2_size = (enc_ref_y_size * 2) +
+		ctx->bank2.size = (enc_ref_y_size * 2) +
 				   (enc_ref_c_size * 4);
 		break;
 	default:
 		break;
 	}
 	/* Allocate only if memory from bank 1 is necessary */
-	if (ctx->bank1_size > 0) {
-		ctx->bank1_buf = vb2_dma_contig_memops.alloc(
-		dev->alloc_ctx[MFC_BANK1_ALLOC_CTX], ctx->bank1_size);
-		if (IS_ERR(ctx->bank1_buf)) {
-			ctx->bank1_buf = NULL;
-			printk(KERN_ERR
-			       "Buf alloc for decoding failed (port A)\n");
-			return -ENOMEM;
+	if (ctx->bank1.size > 0) {
+
+		ret = s5p_mfc_alloc_priv_buf(dev->mem_dev_l, &ctx->bank1);
+		if (ret) {
+			mfc_err("Failed to allocate Bank1 temporary buffer\n");
+			return ret;
 		}
-		ctx->bank1_phys = s5p_mfc_mem_cookie(
-		dev->alloc_ctx[MFC_BANK1_ALLOC_CTX], ctx->bank1_buf);
-		BUG_ON(ctx->bank1_phys & ((1 << MFC_BANK1_ALIGN_ORDER) - 1));
+		BUG_ON(ctx->bank1.dma & ((1 << MFC_BANK1_ALIGN_ORDER) - 1));
 	}
 	/* Allocate only if memory from bank 2 is necessary */
-	if (ctx->bank2_size > 0) {
-		ctx->bank2_buf = vb2_dma_contig_memops.alloc(
-		dev->alloc_ctx[MFC_BANK2_ALLOC_CTX], ctx->bank2_size);
-		if (IS_ERR(ctx->bank2_buf)) {
-			ctx->bank2_buf = NULL;
-			mfc_err("Buf alloc for decoding failed (port B)\n");
-			return -ENOMEM;
+	if (ctx->bank2.size > 0) {
+		ret = s5p_mfc_alloc_priv_buf(dev->mem_dev_r, &ctx->bank2);
+		if (ret) {
+			mfc_err("Failed to allocate Bank2 temporary buffer\n");
+		s5p_mfc_release_priv_buf(ctx->dev->mem_dev_l, &ctx->bank1);
+			return ret;
 		}
-		ctx->bank2_phys = s5p_mfc_mem_cookie(
-		dev->alloc_ctx[MFC_BANK2_ALLOC_CTX], ctx->bank2_buf);
-		BUG_ON(ctx->bank2_phys & ((1 << MFC_BANK2_ALIGN_ORDER) - 1));
+		BUG_ON(ctx->bank2.dma & ((1 << MFC_BANK2_ALIGN_ORDER) - 1));
 	}
 	return 0;
 }
@@ -214,18 +195,8 @@ int s5p_mfc_alloc_codec_buffers_v5(struct s5p_mfc_ctx *ctx)
 /* Release buffers allocated for codec */
 void s5p_mfc_release_codec_buffers_v5(struct s5p_mfc_ctx *ctx)
 {
-	if (ctx->bank1_buf) {
-		vb2_dma_contig_memops.put(ctx->bank1_buf);
-		ctx->bank1_buf = NULL;
-		ctx->bank1_phys = 0;
-		ctx->bank1_size = 0;
-	}
-	if (ctx->bank2_buf) {
-		vb2_dma_contig_memops.put(ctx->bank2_buf);
-		ctx->bank2_buf = NULL;
-		ctx->bank2_phys = 0;
-		ctx->bank2_size = 0;
-	}
+	s5p_mfc_release_priv_buf(ctx->dev->mem_dev_l, &ctx->bank1);
+	s5p_mfc_release_priv_buf(ctx->dev->mem_dev_r, &ctx->bank2);
 }
 
 /* Allocate memory for instance data buffer */
@@ -233,58 +204,38 @@ int s5p_mfc_alloc_instance_buffer_v5(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct s5p_mfc_buf_size_v5 *buf_size = dev->variant->buf_size->priv;
+	int ret;
 
 	if (ctx->codec_mode == S5P_MFC_CODEC_H264_DEC ||
 		ctx->codec_mode == S5P_MFC_CODEC_H264_ENC)
 		ctx->ctx.size = buf_size->h264_ctx;
 	else
 		ctx->ctx.size = buf_size->non_h264_ctx;
-	ctx->ctx.alloc = vb2_dma_contig_memops.alloc(
-		dev->alloc_ctx[MFC_BANK1_ALLOC_CTX], ctx->ctx.size);
-	if (IS_ERR(ctx->ctx.alloc)) {
-		mfc_err("Allocating context buffer failed\n");
-		ctx->ctx.alloc = NULL;
-		return -ENOMEM;
+
+	ret = s5p_mfc_alloc_priv_buf(dev->mem_dev_l, &ctx->ctx);
+	if (ret) {
+		mfc_err("Failed to allocate instance buffer\n");
+		return ret;
 	}
-	ctx->ctx.dma = s5p_mfc_mem_cookie(
-		dev->alloc_ctx[MFC_BANK1_ALLOC_CTX], ctx->ctx.alloc);
-	BUG_ON(ctx->ctx.dma & ((1 << MFC_BANK1_ALIGN_ORDER) - 1));
 	ctx->ctx.ofs = OFFSETA(ctx->ctx.dma);
-	ctx->ctx.virt = vb2_dma_contig_memops.vaddr(ctx->ctx.alloc);
-	if (!ctx->ctx.virt) {
-		mfc_err("Remapping instance buffer failed\n");
-		vb2_dma_contig_memops.put(ctx->ctx.alloc);
-		ctx->ctx.alloc = NULL;
-		ctx->ctx.ofs = 0;
-		ctx->ctx.dma = 0;
-		return -ENOMEM;
-	}
+
 	/* Zero content of the allocated memory */
 	memset(ctx->ctx.virt, 0, ctx->ctx.size);
 	wmb();
 
 	/* Initialize shared memory */
-	ctx->shm.alloc = vb2_dma_contig_memops.alloc(
-			dev->alloc_ctx[MFC_BANK1_ALLOC_CTX], buf_size->shm);
-	if (IS_ERR(ctx->shm.alloc)) {
-		mfc_err("failed to allocate shared memory\n");
-		return PTR_ERR(ctx->shm.alloc);
+	ctx->shm.size = buf_size->shm;
+	ret = s5p_mfc_alloc_priv_buf(dev->mem_dev_l, &ctx->shm);
+	if (ret) {
+		mfc_err("Failed to allocate shared memory buffer\n");
+		return ret;
 	}
+
 	/* shared memory offset only keeps the offset from base (port a) */
-	ctx->shm.ofs = s5p_mfc_mem_cookie(
-			dev->alloc_ctx[MFC_BANK1_ALLOC_CTX], ctx->shm.alloc)
-								- dev->bank1;
+	ctx->shm.ofs = ctx->shm.dma - dev->bank1;
 	BUG_ON(ctx->shm.ofs & ((1 << MFC_BANK1_ALIGN_ORDER) - 1));
 
-	ctx->shm.virt = vb2_dma_contig_memops.vaddr(ctx->shm.alloc);
-	if (!ctx->shm.virt) {
-		vb2_dma_contig_memops.put(ctx->shm.alloc);
-		ctx->shm.alloc = NULL;
-		ctx->shm.ofs = 0;
-		mfc_err("failed to virt addr of shared memory\n");
-		return -ENOMEM;
-	}
-	memset((void *)ctx->shm.virt, 0, buf_size->shm);
+	memset(ctx->shm.virt, 0, buf_size->shm);
 	wmb();
 	return 0;
 }
@@ -292,19 +243,8 @@ int s5p_mfc_alloc_instance_buffer_v5(struct s5p_mfc_ctx *ctx)
 /* Release instance buffer */
 void s5p_mfc_release_instance_buffer_v5(struct s5p_mfc_ctx *ctx)
 {
-	if (ctx->ctx.alloc) {
-		vb2_dma_contig_memops.put(ctx->ctx.alloc);
-		ctx->ctx.alloc = NULL;
-		ctx->ctx.ofs = 0;
-		ctx->ctx.virt = NULL;
-		ctx->ctx.dma = 0;
-	}
-	if (ctx->shm.alloc) {
-		vb2_dma_contig_memops.put(ctx->shm.alloc);
-		ctx->shm.alloc = NULL;
-		ctx->shm.ofs = 0;
-		ctx->shm.virt = NULL;
-	}
+	s5p_mfc_release_priv_buf(ctx->dev->mem_dev_l, &ctx->ctx);
+	s5p_mfc_release_priv_buf(ctx->dev->mem_dev_l, &ctx->shm);
 }
 
 int s5p_mfc_alloc_dev_context_buffer_v5(struct s5p_mfc_dev *dev)
@@ -443,10 +383,10 @@ int s5p_mfc_set_dec_frame_buffer_v5(struct s5p_mfc_ctx *ctx)
 	size_t buf_addr1, buf_addr2;
 	int buf_size1, buf_size2;
 
-	buf_addr1 = ctx->bank1_phys;
-	buf_size1 = ctx->bank1_size;
-	buf_addr2 = ctx->bank2_phys;
-	buf_size2 = ctx->bank2_size;
+	buf_addr1 = ctx->bank1.dma;
+	buf_size1 = ctx->bank1.size;
+	buf_addr2 = ctx->bank2.dma;
+	buf_size2 = ctx->bank2.size;
 	dpb = mfc_read(dev, S5P_FIMV_SI_CH0_DPB_CONF_CTRL) &
 						~S5P_FIMV_DPB_COUNT_MASK;
 	mfc_write(dev, ctx->total_dpb_count | dpb,
@@ -523,7 +463,6 @@ int s5p_mfc_set_dec_frame_buffer_v5(struct s5p_mfc_ctx *ctx)
 		mfc_err("Unknown codec for decoding (%x)\n",
 			ctx->codec_mode);
 		return -EINVAL;
-		break;
 	}
 	frame_size = ctx->luma_size;
 	frame_size_ch = ctx->chroma_size;
@@ -607,10 +546,10 @@ int s5p_mfc_set_enc_ref_buffer_v5(struct s5p_mfc_ctx *ctx)
 	unsigned int guard_width, guard_height;
 	int i;
 
-	buf_addr1 = ctx->bank1_phys;
-	buf_size1 = ctx->bank1_size;
-	buf_addr2 = ctx->bank2_phys;
-	buf_size2 = ctx->bank2_size;
+	buf_addr1 = ctx->bank1.dma;
+	buf_size1 = ctx->bank1.size;
+	buf_addr2 = ctx->bank2.dma;
+	buf_size2 = ctx->bank2.size;
 	enc_ref_y_size = ALIGN(ctx->img_width, S5P_FIMV_NV12MT_HALIGN)
 		* ALIGN(ctx->img_height, S5P_FIMV_NV12MT_VALIGN);
 	enc_ref_y_size = ALIGN(enc_ref_y_size, S5P_FIMV_NV12MT_SALIGN);

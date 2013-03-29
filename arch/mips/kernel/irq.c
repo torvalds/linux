@@ -48,7 +48,7 @@ again:
 }
 
 /*
- * Allocate the 16 legacy interrupts for i8259 devices.  This happens early
+ * Allocate the 16 legacy interrupts for i8259 devices.	 This happens early
  * in the kernel initialization so treating allocation failure as BUG() is
  * ok.
  */

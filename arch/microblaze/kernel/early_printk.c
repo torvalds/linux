@@ -140,20 +140,20 @@ int __init setup_early_printk(char *opt)
 		switch (version) {
 #ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
 		case UARTLITE:
-			printk(KERN_INFO "Early console on uartlite "
-						"at 0x%08x\n", base_addr);
+			pr_info("Early console on uartlite at 0x%08x\n",
+								base_addr);
 			early_console = &early_serial_uartlite_console;
 			break;
 #endif
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 		case UART16550:
-			printk(KERN_INFO "Early console on uart16650 "
-						"at 0x%08x\n", base_addr);
+			pr_info("Early console on uart16650 at 0x%08x\n",
+								base_addr);
 			early_console = &early_serial_uart16550_console;
 			break;
 #endif
 		default:
-			printk(KERN_INFO  "Unsupported early console %d\n",
+			pr_info("Unsupported early console %d\n",
 								version);
 			return 1;
 		}
@@ -171,10 +171,9 @@ void __init remap_early_printk(void)
 {
 	if (!early_console_initialized || !early_console)
 		return;
-	printk(KERN_INFO "early_printk_console remapping from 0x%x to ",
-								base_addr);
+	pr_info("early_printk_console remapping from 0x%x to ", base_addr);
 	base_addr = (u32) ioremap(base_addr, PAGE_SIZE);
-	printk(KERN_CONT "0x%x\n", base_addr);
+	pr_cont("0x%x\n", base_addr);
 
 #ifdef CONFIG_MMU
 	/*
@@ -197,7 +196,7 @@ void __init disable_early_printk(void)
 {
 	if (!early_console_initialized || !early_console)
 		return;
-	printk(KERN_WARNING "disabling early console\n");
+	pr_warn("disabling early console\n");
 	unregister_console(early_console);
 	early_console_initialized = 0;
 }

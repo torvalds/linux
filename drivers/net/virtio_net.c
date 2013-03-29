@@ -1736,17 +1736,7 @@ static struct virtio_driver virtio_net_driver = {
 #endif
 };
 
-static int __init init(void)
-{
-	return register_virtio_driver(&virtio_net_driver);
-}
-
-static void __exit fini(void)
-{
-	unregister_virtio_driver(&virtio_net_driver);
-}
-module_init(init);
-module_exit(fini);
+module_virtio_driver(virtio_net_driver);
 
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_DESCRIPTION("Virtio network driver");

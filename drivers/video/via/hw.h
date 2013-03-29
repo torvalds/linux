@@ -637,7 +637,7 @@ extern int viafb_LCD_ON;
 extern int viafb_DVI_ON;
 extern int viafb_hotplug;
 
-struct display_timing var_to_timing(const struct fb_var_screeninfo *var,
+struct via_display_timing var_to_timing(const struct fb_var_screeninfo *var,
 	u16 cxres, u16 cyres);
 void viafb_fill_crtc_timing(const struct fb_var_screeninfo *var,
 	u16 cxres, u16 cyres, int iga);

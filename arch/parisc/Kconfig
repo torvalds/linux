@@ -5,6 +5,7 @@ config PARISC
 	select HAVE_FUNCTION_TRACER if 64BIT
 	select HAVE_FUNCTION_GRAPH_TRACER if 64BIT
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST if 64BIT
+	select ARCH_WANT_FRAME_POINTERS
 	select RTC_CLASS
 	select RTC_DRV_GENERIC
 	select INIT_ALL_POSSIBLE
@@ -18,7 +19,9 @@ config PARISC
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_STRNCPY_FROM_USER
+	select SYSCTL_ARCH_UNALIGN_ALLOW
 	select HAVE_MOD_ARCH_SPECIFIC
+	select HAVE_VIRT_TO_BUS
 	select MODULES_USE_ELF_RELA
 	select CLONE_BACKWARDS
 	select TTY # Needed for pdc_cons.c
@@ -160,6 +163,23 @@ config PREFETCH
 	def_bool y
 	depends on PA8X00 || PA7200
 
+config MLONGCALLS
+	bool "Enable the -mlong-calls compiler option for big kernels"
+	def_bool y if (!MODULES)
+	depends on PA8X00
+	help
+	  If you configure the kernel to include many drivers built-in instead
+	  as modules, the kernel executable may become too big, so that the
+	  linker will not be able to resolve some long branches and fails to link
+	  your vmlinux kernel. In that case enabling this option will help you
+	  to overcome this limit by using the -mlong-calls compiler option.
+
+	  Usually you want to say N here, unless you e.g. want to build
+	  a kernel which includes all necessary drivers built-in and which can
+	  be used for TFTP booting without the need to have an initrd ramdisk.
+
+	  Enabling this option will probably slow down your kernel.
+
 config 64BIT
 	bool "64-bit kernel"
 	depends on PA8X00
@@ -253,6 +273,10 @@ source "mm/Kconfig"
 config COMPAT
 	def_bool y
 	depends on 64BIT
+
+config SYSVIPC_COMPAT
+	def_bool y
+	depends on COMPAT && SYSVIPC
 
 config HPUX
 	bool "Support for HP-UX binaries"

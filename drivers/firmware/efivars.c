@@ -79,6 +79,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/pstore.h>
+#include <linux/ctype.h>
 
 #include <linux/fs.h>
 #include <linux/ramfs.h>
@@ -908,6 +909,48 @@ static struct inode *efivarfs_get_inode(struct super_block *sb,
 	return inode;
 }
 
+/*
+ * Return true if 'str' is a valid efivarfs filename of the form,
+ *
+ *	VariableName-12345678-1234-1234-1234-1234567891bc
+ */
+static bool efivarfs_valid_name(const char *str, int len)
+{
+	static const char dashes[GUID_LEN] = {
+		[8] = 1, [13] = 1, [18] = 1, [23] = 1
+	};
+	const char *s = str + len - GUID_LEN;
+	int i;
+
+	/*
+	 * We need a GUID, plus at least one letter for the variable name,
+	 * plus the '-' separator
+	 */
+	if (len < GUID_LEN + 2)
+		return false;
+
+	/* GUID should be right after the first '-' */
+	if (s - 1 != strchr(str, '-'))
+		return false;
+
+	/*
+	 * Validate that 's' is of the correct format, e.g.
+	 *
+	 *	12345678-1234-1234-1234-123456789abc
+	 */
+	for (i = 0; i < GUID_LEN; i++) {
+		if (dashes[i]) {
+			if (*s++ != '-')
+				return false;
+		} else {
+			if (!isxdigit(*s++))
+				return false;
+		}
+	}
+
+	return true;
+}
+
 static void efivarfs_hex_to_guid(const char *str, efi_guid_t *guid)
 {
 	guid->b[0] = hex_to_bin(str[6]) << 4 | hex_to_bin(str[7]);
@@ -936,11 +979,7 @@ static int efivarfs_create(struct inode *dir, struct dentry *dentry,
 	struct efivar_entry *var;
 	int namelen, i = 0, err = 0;
 
-	/*
-	 * We need a GUID, plus at least one letter for the variable name,
-	 * plus the '-' separator
-	 */
-	if (dentry->d_name.len < GUID_LEN + 2)
+	if (!efivarfs_valid_name(dentry->d_name.name, dentry->d_name.len))
 		return -EINVAL;
 
 	inode = efivarfs_get_inode(dir->i_sb, dir, mode, 0);
@@ -1012,6 +1051,84 @@ static int efivarfs_unlink(struct inode *dir, struct dentry *dentry)
 	return -EINVAL;
 };
 
+/*
+ * Compare two efivarfs file names.
+ *
+ * An efivarfs filename is composed of two parts,
+ *
+ *	1. A case-sensitive variable name
+ *	2. A case-insensitive GUID
+ *
+ * So we need to perform a case-sensitive match on part 1 and a
+ * case-insensitive match on part 2.
+ */
+static int efivarfs_d_compare(const struct dentry *parent, const struct inode *pinode,
+			      const struct dentry *dentry, const struct inode *inode,
+			      unsigned int len, const char *str,
+			      const struct qstr *name)
+{
+	int guid = len - GUID_LEN;
+
+	if (name->len != len)
+		return 1;
+
+	/* Case-sensitive compare for the variable name */
+	if (memcmp(str, name->name, guid))
+		return 1;
+
+	/* Case-insensitive compare for the GUID */
+	return strncasecmp(name->name + guid, str + guid, GUID_LEN);
+}
+
+static int efivarfs_d_hash(const struct dentry *dentry,
+			   const struct inode *inode, struct qstr *qstr)
+{
+	unsigned long hash = init_name_hash();
+	const unsigned char *s = qstr->name;
+	unsigned int len = qstr->len;
+
+	if (!efivarfs_valid_name(s, len))
+		return -EINVAL;
+
+	while (len-- > GUID_LEN)
+		hash = partial_name_hash(*s++, hash);
+
+	/* GUID is case-insensitive. */
+	while (len--)
+		hash = partial_name_hash(tolower(*s++), hash);
+
+	qstr->hash = end_name_hash(hash);
+	return 0;
+}
+
+/*
+ * Retaining negative dentries for an in-memory filesystem just wastes
+ * memory and lookup time: arrange for them to be deleted immediately.
+ */
+static int efivarfs_delete_dentry(const struct dentry *dentry)
+{
+	return 1;
+}
+
+static struct dentry_operations efivarfs_d_ops = {
+	.d_compare = efivarfs_d_compare,
+	.d_hash = efivarfs_d_hash,
+	.d_delete = efivarfs_delete_dentry,
+};
+
+static struct dentry *efivarfs_alloc_dentry(struct dentry *parent, char *name)
+{
+	struct qstr q;
+
+	q.name = name;
+	q.len = strlen(name);
+
+	if (efivarfs_d_hash(NULL, NULL, &q))
+		return NULL;
+
+	return d_alloc(parent, &q);
+}
+
 static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode = NULL;
@@ -1027,6 +1144,7 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits    = PAGE_CACHE_SHIFT;
 	sb->s_magic             = EFIVARFS_MAGIC;
 	sb->s_op                = &efivarfs_ops;
+	sb->s_d_op		= &efivarfs_d_ops;
 	sb->s_time_gran         = 1;
 
 	inode = efivarfs_get_inode(sb, NULL, S_IFDIR | 0755, 0);
@@ -1067,7 +1185,7 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 		if (!inode)
 			goto fail_name;
 
-		dentry = d_alloc_name(root, name);
+		dentry = efivarfs_alloc_dentry(root, name);
 		if (!dentry)
 			goto fail_inode;
 
@@ -1084,7 +1202,7 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 
 		mutex_lock(&inode->i_mutex);
 		inode->i_private = entry;
-		i_size_write(inode, size+4);
+		i_size_write(inode, size + sizeof(entry->var.Attributes));
 		mutex_unlock(&inode->i_mutex);
 		d_add(dentry, inode);
 	}
@@ -1117,8 +1235,20 @@ static struct file_system_type efivarfs_type = {
 	.kill_sb = efivarfs_kill_sb,
 };
 
+/*
+ * Handle negative dentry.
+ */
+static struct dentry *efivarfs_lookup(struct inode *dir, struct dentry *dentry,
+				      unsigned int flags)
+{
+	if (dentry->d_name.len > NAME_MAX)
+		return ERR_PTR(-ENAMETOOLONG);
+	d_add(dentry, NULL);
+	return NULL;
+}
+
 static const struct inode_operations efivarfs_dir_inode_operations = {
-	.lookup = simple_lookup,
+	.lookup = efivarfs_lookup,
 	.unlink = efivarfs_unlink,
 	.create = efivarfs_create,
 };

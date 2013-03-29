@@ -20,12 +20,11 @@
 		pinctrl: pinctrl@10000 {
 
 			pinctrl-0 = < &pmx_nand &pmx_uart0
-				      &pmx_led_health &pmx_sdio
+				      &pmx_led_health
 				      &pmx_sata0 &pmx_sata1
 				      &pmx_led_user1o
 				      &pmx_led_user1g &pmx_led_user0o
 				      &pmx_led_user0g &pmx_led_misc
-				      &pmx_sdio_cd
 				    >;
 			pinctrl-names = "default";
 
@@ -132,6 +131,14 @@
 			nr-ports = <2>;
 			status = "okay";
 
+		};
+
+		mvsdio@90000 {
+			pinctrl-0 = <&pmx_sdio &pmx_sdio_cd>;
+			pinctrl-names = "default";
+			status = "okay";
+			cd-gpios = <&gpio1 15 0>;
+			/* No WP GPIO */
 		};
 	};
 

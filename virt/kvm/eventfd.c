@@ -268,14 +268,13 @@ static void irqfd_update(struct kvm *kvm, struct _irqfd *irqfd,
 			 struct kvm_irq_routing_table *irq_rt)
 {
 	struct kvm_kernel_irq_routing_entry *e;
-	struct hlist_node *n;
 
 	if (irqfd->gsi >= irq_rt->nr_rt_entries) {
 		rcu_assign_pointer(irqfd->irq_entry, NULL);
 		return;
 	}
 
-	hlist_for_each_entry(e, n, &irq_rt->map[irqfd->gsi], link) {
+	hlist_for_each_entry(e, &irq_rt->map[irqfd->gsi], link) {
 		/* Only fast-path MSI. */
 		if (e->type == KVM_IRQ_ROUTING_MSI)
 			rcu_assign_pointer(irqfd->irq_entry, e);

@@ -122,13 +122,3 @@ int do_signal(void)
 {
 	return kern_do_signal(&current->thread.regs);
 }
-
-/*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-long sys_sigsuspend(int history0, int history1, old_sigset_t mask)
-{
-	sigset_t blocked;
-	siginitset(&blocked, mask);
-	return sigsuspend(&blocked);
-}

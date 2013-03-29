@@ -318,7 +318,7 @@ static ssize_t buffer_from_user(unsigned int minor, const char __user *buf,
 static ssize_t vme_user_read(struct file *file, char __user *buf, size_t count,
 			loff_t *ppos)
 {
-	unsigned int minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	unsigned int minor = MINOR(file_inode(file)->i_rdev);
 	ssize_t retval;
 	size_t image_size;
 	size_t okcount;
@@ -364,7 +364,7 @@ static ssize_t vme_user_read(struct file *file, char __user *buf, size_t count,
 static ssize_t vme_user_write(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
-	unsigned int minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	unsigned int minor = MINOR(file_inode(file)->i_rdev);
 	ssize_t retval;
 	size_t image_size;
 	size_t okcount;
@@ -410,7 +410,7 @@ static ssize_t vme_user_write(struct file *file, const char __user *buf,
 static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
 {
 	loff_t absolute = -1;
-	unsigned int minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	unsigned int minor = MINOR(file_inode(file)->i_rdev);
 	size_t image_size;
 
 	if (minor == CONTROL_MINOR)
@@ -583,7 +583,7 @@ vme_user_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int ret;
 
 	mutex_lock(&vme_user_mutex);
-	ret = vme_user_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
+	ret = vme_user_ioctl(file_inode(file), file, cmd, arg);
 	mutex_unlock(&vme_user_mutex);
 
 	return ret;

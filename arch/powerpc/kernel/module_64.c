@@ -386,6 +386,14 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 				| (value & 0xffff);
 			break;
 
+		case R_PPC64_TOC16_LO:
+			/* Subtract TOC pointer */
+			value -= my_r2(sechdrs, me);
+			*((uint16_t *) location)
+				= (*((uint16_t *) location) & ~0xffff)
+				| (value & 0xffff);
+			break;
+
 		case R_PPC64_TOC16_DS:
 			/* Subtract TOC pointer */
 			value -= my_r2(sechdrs, me);
@@ -397,6 +405,28 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			*((uint16_t *) location)
 				= (*((uint16_t *) location) & ~0xfffc)
 				| (value & 0xfffc);
+			break;
+
+		case R_PPC64_TOC16_LO_DS:
+			/* Subtract TOC pointer */
+			value -= my_r2(sechdrs, me);
+			if ((value & 3) != 0) {
+				printk("%s: bad TOC16_LO_DS relocation (%lu)\n",
+				       me->name, value);
+				return -ENOEXEC;
+			}
+			*((uint16_t *) location)
+				= (*((uint16_t *) location) & ~0xfffc)
+				| (value & 0xfffc);
+			break;
+
+		case R_PPC64_TOC16_HA:
+			/* Subtract TOC pointer */
+			value -= my_r2(sechdrs, me);
+			value = ((value + 0x8000) >> 16);
+			*((uint16_t *) location)
+				= (*((uint16_t *) location) & ~0xffff)
+				| (value & 0xffff);
 			break;
 
 		case R_PPC_REL24:

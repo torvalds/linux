@@ -245,7 +245,7 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	arm_reg = devm_regulator_get(cpu_dev, "arm");
 	pu_reg = devm_regulator_get(cpu_dev, "pu");
 	soc_reg = devm_regulator_get(cpu_dev, "soc");
-	if (!arm_reg || !pu_reg || !soc_reg) {
+	if (IS_ERR(arm_reg) || IS_ERR(pu_reg) || IS_ERR(soc_reg)) {
 		dev_err(cpu_dev, "failed to get regulators\n");
 		ret = -ENOENT;
 		goto put_node;

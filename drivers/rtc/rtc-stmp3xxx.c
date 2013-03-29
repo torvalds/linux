@@ -27,6 +27,8 @@
 #include <linux/slab.h>
 #include <linux/of_device.h>
 #include <linux/of.h>
+#include <linux/stmp_device.h>
+#include <linux/stmp3xxx_rtc_wdt.h>
 
 #include <mach/common.h>
 
@@ -36,6 +38,7 @@
 #define STMP3XXX_RTC_CTRL_ALARM_IRQ_EN		0x00000001
 #define STMP3XXX_RTC_CTRL_ONEMSEC_IRQ_EN	0x00000002
 #define STMP3XXX_RTC_CTRL_ALARM_IRQ		0x00000004
+#define STMP3XXX_RTC_CTRL_WATCHDOGEN		0x00000010
 
 #define STMP3XXX_RTC_STAT			0x10
 #define STMP3XXX_RTC_STAT_STALE_SHIFT		16
@@ -45,6 +48,8 @@
 
 #define STMP3XXX_RTC_ALARM			0x40
 
+#define STMP3XXX_RTC_WATCHDOG			0x50
+
 #define STMP3XXX_RTC_PERSISTENT0		0x60
 #define STMP3XXX_RTC_PERSISTENT0_SET		0x64
 #define STMP3XXX_RTC_PERSISTENT0_CLR		0x68
@@ -52,11 +57,69 @@
 #define STMP3XXX_RTC_PERSISTENT0_ALARM_EN	0x00000004
 #define STMP3XXX_RTC_PERSISTENT0_ALARM_WAKE	0x00000080
 
+#define STMP3XXX_RTC_PERSISTENT1		0x70
+/* missing bitmask in headers */
+#define STMP3XXX_RTC_PERSISTENT1_FORCE_UPDATER	0x80000000
+
 struct stmp3xxx_rtc_data {
 	struct rtc_device *rtc;
 	void __iomem *io;
 	int irq_alarm;
 };
+
+#if IS_ENABLED(CONFIG_STMP3XXX_RTC_WATCHDOG)
+/**
+ * stmp3xxx_wdt_set_timeout - configure the watchdog inside the STMP3xxx RTC
+ * @dev: the parent device of the watchdog (= the RTC)
+ * @timeout: the desired value for the timeout register of the watchdog.
+ *           0 disables the watchdog
+ *
+ * The watchdog needs one register and two bits which are in the RTC domain.
+ * To handle the resource conflict, the RTC driver will create another
+ * platform_device for the watchdog driver as a child of the RTC device.
+ * The watchdog driver is passed the below accessor function via platform_data
+ * to configure the watchdog. Locking is not needed because accessing SET/CLR
+ * registers is atomic.
+ */
+
+static void stmp3xxx_wdt_set_timeout(struct device *dev, u32 timeout)
+{
+	struct stmp3xxx_rtc_data *rtc_data = dev_get_drvdata(dev);
+
+	if (timeout) {
+		writel(timeout, rtc_data->io + STMP3XXX_RTC_WATCHDOG);
+		writel(STMP3XXX_RTC_CTRL_WATCHDOGEN,
+		       rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_SET);
+		writel(STMP3XXX_RTC_PERSISTENT1_FORCE_UPDATER,
+		       rtc_data->io + STMP3XXX_RTC_PERSISTENT1 + STMP_OFFSET_REG_SET);
+	} else {
+		writel(STMP3XXX_RTC_CTRL_WATCHDOGEN,
+		       rtc_data->io + STMP3XXX_RTC_CTRL + STMP_OFFSET_REG_CLR);
+		writel(STMP3XXX_RTC_PERSISTENT1_FORCE_UPDATER,
+		       rtc_data->io + STMP3XXX_RTC_PERSISTENT1 + STMP_OFFSET_REG_CLR);
+	}
+}
+
+static struct stmp3xxx_wdt_pdata wdt_pdata = {
+	.wdt_set_timeout = stmp3xxx_wdt_set_timeout,
+};
+
+static void stmp3xxx_wdt_register(struct platform_device *rtc_pdev)
+{
+	struct platform_device *wdt_pdev =
+		platform_device_alloc("stmp3xxx_rtc_wdt", rtc_pdev->id);
+
+	if (wdt_pdev) {
+		wdt_pdev->dev.parent = &rtc_pdev->dev;
+		wdt_pdev->dev.platform_data = &wdt_pdata;
+		platform_device_add(wdt_pdev);
+	}
+}
+#else
+static void stmp3xxx_wdt_register(struct platform_device *rtc_pdev)
+{
+}
+#endif /* CONFIG_STMP3XXX_RTC_WATCHDOG */
 
 static void stmp3xxx_wait_time(struct stmp3xxx_rtc_data *rtc_data)
 {
@@ -233,6 +296,7 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 		goto out_irq_alarm;
 	}
 
+	stmp3xxx_wdt_register(pdev);
 	return 0;
 
 out_irq_alarm:

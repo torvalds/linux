@@ -3,7 +3,7 @@
  *  JZ4740 platform devices
  *
  *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
+ *  under  the terms of the GNU General	 Public License as published by the
  *  Free Software Foundation;  either version 2 of the License, or (at your
  *  option) any later version.
  *
@@ -102,7 +102,7 @@ struct platform_device jz4740_mmc_device = {
 		.dma_mask = &jz4740_mmc_device.dev.coherent_dma_mask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
-	.num_resources  = ARRAY_SIZE(jz4740_mmc_resources),
+	.num_resources	= ARRAY_SIZE(jz4740_mmc_resources),
 	.resource	= jz4740_mmc_resources,
 };
 
@@ -114,7 +114,7 @@ static struct resource jz4740_rtc_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start  = JZ4740_IRQ_RTC,
+		.start	= JZ4740_IRQ_RTC,
 		.end	= JZ4740_IRQ_RTC,
 		.flags	= IORESOURCE_IRQ,
 	},
@@ -144,7 +144,7 @@ static struct resource jz4740_i2c_resources[] = {
 struct platform_device jz4740_i2c_device = {
 	.name		= "jz4740-i2c",
 	.id		= 0,
-	.num_resources  = ARRAY_SIZE(jz4740_i2c_resources),
+	.num_resources	= ARRAY_SIZE(jz4740_i2c_resources),
 	.resource	= jz4740_i2c_resources,
 };
 
@@ -318,8 +318,8 @@ static struct resource jz4740_wdt_resources[] = {
 };
 
 struct platform_device jz4740_wdt_device = {
-	.name          = "jz4740-wdt",
-	.id            = -1,
+	.name	       = "jz4740-wdt",
+	.id	       = -1,
 	.num_resources = ARRAY_SIZE(jz4740_wdt_resources),
 	.resource      = jz4740_wdt_resources,
 };

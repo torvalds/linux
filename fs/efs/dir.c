@@ -20,7 +20,7 @@ const struct inode_operations efs_dir_inode_operations = {
 };
 
 static int efs_readdir(struct file *filp, void *dirent, filldir_t filldir) {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct buffer_head *bh;
 
 	struct efs_dir		*dirblock;

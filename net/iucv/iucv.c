@@ -831,8 +831,11 @@ static int iucv_reboot_event(struct notifier_block *this,
 {
 	int i;
 
+	if (cpumask_empty(&iucv_irq_cpumask))
+		return NOTIFY_DONE;
+
 	get_online_cpus();
-	on_each_cpu(iucv_block_cpu, NULL, 1);
+	on_each_cpu_mask(&iucv_irq_cpumask, iucv_block_cpu, NULL, 1);
 	preempt_disable();
 	for (i = 0; i < iucv_max_pathid; i++) {
 		if (iucv_path_table[i])

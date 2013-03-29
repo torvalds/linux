@@ -822,8 +822,12 @@
 #define __NR_syncfs		(__NR_Linux + 327)
 #define __NR_setns		(__NR_Linux + 328)
 #define __NR_sendmmsg		(__NR_Linux + 329)
+#define __NR_process_vm_readv	(__NR_Linux + 330)
+#define __NR_process_vm_writev	(__NR_Linux + 331)
+#define __NR_kcmp		(__NR_Linux + 332)
+#define __NR_finit_module	(__NR_Linux + 333)
 
-#define __NR_Linux_syscalls	(__NR_sendmmsg + 1)
+#define __NR_Linux_syscalls	(__NR_finit_module + 1)
 
 
 #define __IGNORE_select		/* newselect */

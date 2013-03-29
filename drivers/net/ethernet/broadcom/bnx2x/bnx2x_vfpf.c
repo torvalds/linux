@@ -98,7 +98,7 @@ static inline int bnx2x_pfvf_status_codes(int rc)
 	}
 }
 
-int bnx2x_send_msg2pf(struct bnx2x *bp, u8 *done, dma_addr_t msg_mapping)
+static int bnx2x_send_msg2pf(struct bnx2x *bp, u8 *done, dma_addr_t msg_mapping)
 {
 	struct cstorm_vf_zone_data __iomem *zone_data =
 		REG_ADDR(bp, PXP_VF_ADDR_CSDM_GLOBAL_START);
@@ -141,7 +141,7 @@ int bnx2x_send_msg2pf(struct bnx2x *bp, u8 *done, dma_addr_t msg_mapping)
 	return 0;
 }
 
-int bnx2x_get_vf_id(struct bnx2x *bp, u32 *vf_id)
+static int bnx2x_get_vf_id(struct bnx2x *bp, u32 *vf_id)
 {
 	u32 me_reg;
 	int tout = 10, interval = 100; /* Wait for 1 sec */

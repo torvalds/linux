@@ -603,6 +603,7 @@ static int dvb_frontend_thread(void *data)
 	enum dvbfe_algo algo;
 
 	bool re_tune = false;
+	bool semheld = false;
 
 	dev_dbg(fe->dvb->device, "%s:\n", __func__);
 
@@ -626,6 +627,8 @@ restart:
 
 		if (kthread_should_stop() || dvb_frontend_is_exiting(fe)) {
 			/* got signal or quitting */
+			if (!down_interruptible(&fepriv->sem))
+				semheld = true;
 			fepriv->exit = DVB_FE_NORMAL_EXIT;
 			break;
 		}
@@ -741,6 +744,8 @@ restart:
 		fepriv->exit = DVB_FE_NO_EXIT;
 	mb();
 
+	if (semheld)
+		up(&fepriv->sem);
 	dvb_frontend_wakeup(fe);
 	return 0;
 }
@@ -1048,6 +1053,16 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 	_DTV_CMD(DTV_ATSCMH_SCCC_CODE_MODE_B, 0, 0),
 	_DTV_CMD(DTV_ATSCMH_SCCC_CODE_MODE_C, 0, 0),
 	_DTV_CMD(DTV_ATSCMH_SCCC_CODE_MODE_D, 0, 0),
+
+	/* Statistics API */
+	_DTV_CMD(DTV_STAT_SIGNAL_STRENGTH, 0, 0),
+	_DTV_CMD(DTV_STAT_CNR, 0, 0),
+	_DTV_CMD(DTV_STAT_PRE_ERROR_BIT_COUNT, 0, 0),
+	_DTV_CMD(DTV_STAT_PRE_TOTAL_BIT_COUNT, 0, 0),
+	_DTV_CMD(DTV_STAT_POST_ERROR_BIT_COUNT, 0, 0),
+	_DTV_CMD(DTV_STAT_POST_TOTAL_BIT_COUNT, 0, 0),
+	_DTV_CMD(DTV_STAT_ERROR_BLOCK_COUNT, 0, 0),
+	_DTV_CMD(DTV_STAT_TOTAL_BLOCK_COUNT, 0, 0),
 };
 
 static void dtv_property_dump(struct dvb_frontend *fe, struct dtv_property *tvp)
@@ -1438,7 +1453,35 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 		tvp->u.data = c->lna;
 		break;
 
+	/* Fill quality measures */
+	case DTV_STAT_SIGNAL_STRENGTH:
+		tvp->u.st = c->strength;
+		break;
+	case DTV_STAT_CNR:
+		tvp->u.st = c->cnr;
+		break;
+	case DTV_STAT_PRE_ERROR_BIT_COUNT:
+		tvp->u.st = c->pre_bit_error;
+		break;
+	case DTV_STAT_PRE_TOTAL_BIT_COUNT:
+		tvp->u.st = c->pre_bit_count;
+		break;
+	case DTV_STAT_POST_ERROR_BIT_COUNT:
+		tvp->u.st = c->post_bit_error;
+		break;
+	case DTV_STAT_POST_TOTAL_BIT_COUNT:
+		tvp->u.st = c->post_bit_count;
+		break;
+	case DTV_STAT_ERROR_BLOCK_COUNT:
+		tvp->u.st = c->block_error;
+		break;
+	case DTV_STAT_TOTAL_BLOCK_COUNT:
+		tvp->u.st = c->block_count;
+		break;
 	default:
+		dev_dbg(fe->dvb->device,
+			"%s: FE property %d doesn't exist\n",
+			__func__, tvp->cmd);
 		return -EINVAL;
 	}
 
@@ -1823,16 +1866,20 @@ static int dvb_frontend_ioctl(struct file *file,
 	int err = -EOPNOTSUPP;
 
 	dev_dbg(fe->dvb->device, "%s: (%d)\n", __func__, _IOC_NR(cmd));
-	if (fepriv->exit != DVB_FE_NO_EXIT)
+	if (down_interruptible(&fepriv->sem))
+		return -ERESTARTSYS;
+
+	if (fepriv->exit != DVB_FE_NO_EXIT) {
+		up(&fepriv->sem);
 		return -ENODEV;
+	}
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY &&
 	    (_IOC_DIR(cmd) != _IOC_READ || cmd == FE_GET_EVENT ||
-	     cmd == FE_DISEQC_RECV_SLAVE_REPLY))
+	     cmd == FE_DISEQC_RECV_SLAVE_REPLY)) {
+		up(&fepriv->sem);
 		return -EPERM;
-
-	if (down_interruptible (&fepriv->sem))
-		return -ERESTARTSYS;
+	}
 
 	if ((cmd == FE_SET_PROPERTY) || (cmd == FE_GET_PROPERTY))
 		err = dvb_frontend_ioctl_properties(file, cmd, parg);
@@ -2246,7 +2293,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 				printk("%s switch command: 0x%04lx\n", __func__, swcmd);
 			do_gettimeofday(&nexttime);
 			if (dvb_frontend_debug)
-				memcpy(&tv[0], &nexttime, sizeof(struct timeval));
+				tv[0] = nexttime;
 			/* before sending a command, initialize by sending
 			 * a 32ms 18V to the switch
 			 */

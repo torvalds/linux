@@ -1127,7 +1127,7 @@ static int snd_emu10k1_playback_open(struct snd_pcm_substream *substream)
 	struct snd_emu10k1_pcm *epcm;
 	struct snd_emu10k1_pcm_mixer *mix;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int i, err;
+	int i, err, sample_rate;
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL)
@@ -1146,7 +1146,11 @@ static int snd_emu10k1_playback_open(struct snd_pcm_substream *substream)
 		kfree(epcm);
 		return err;
 	}
-	err = snd_pcm_hw_rule_noresample(runtime, 48000);
+	if (emu->card_capabilities->emu_model && emu->emu1010.internal_clock == 0)
+		sample_rate = 44100;
+	else
+		sample_rate = 48000;
+	err = snd_pcm_hw_rule_noresample(runtime, sample_rate);
 	if (err < 0) {
 		kfree(epcm);
 		return err;

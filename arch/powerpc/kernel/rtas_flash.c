@@ -191,7 +191,7 @@ static void free_flash_list(struct flash_block_list *f)
 
 static int rtas_flash_release(struct inode *inode, struct file *file)
 {
-	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file_inode(file));
 	struct rtas_update_flash_t *uf;
 	
 	uf = (struct rtas_update_flash_t *) dp->data;
@@ -253,7 +253,7 @@ static void get_flash_status_msg(int status, char *buf)
 static ssize_t rtas_flash_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
-	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file_inode(file));
 	struct rtas_update_flash_t *uf;
 	char msg[RTAS_MSG_MAXLEN];
 
@@ -282,7 +282,7 @@ void rtas_block_ctor(void *ptr)
 static ssize_t rtas_flash_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *off)
 {
-	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file_inode(file));
 	struct rtas_update_flash_t *uf;
 	char *p;
 	int next_free;
@@ -374,7 +374,7 @@ static void manage_flash(struct rtas_manage_flash_t *args_buf)
 static ssize_t manage_flash_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
-	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file_inode(file));
 	struct rtas_manage_flash_t *args_buf;
 	char msg[RTAS_MSG_MAXLEN];
 	int msglen;
@@ -391,7 +391,7 @@ static ssize_t manage_flash_read(struct file *file, char __user *buf,
 static ssize_t manage_flash_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *off)
 {
-	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file_inode(file));
 	struct rtas_manage_flash_t *args_buf;
 	const char reject_str[] = "0";
 	const char commit_str[] = "1";
@@ -462,7 +462,7 @@ static int get_validate_flash_msg(struct rtas_validate_flash_t *args_buf,
 static ssize_t validate_flash_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
-	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file_inode(file));
 	struct rtas_validate_flash_t *args_buf;
 	char msg[RTAS_MSG_MAXLEN];
 	int msglen;
@@ -477,7 +477,7 @@ static ssize_t validate_flash_read(struct file *file, char __user *buf,
 static ssize_t validate_flash_write(struct file *file, const char __user *buf,
 				    size_t count, loff_t *off)
 {
-	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file_inode(file));
 	struct rtas_validate_flash_t *args_buf;
 	int rc;
 
@@ -526,7 +526,7 @@ done:
 
 static int validate_flash_release(struct inode *inode, struct file *file)
 {
-	struct proc_dir_entry *dp = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *dp = PDE(file_inode(file));
 	struct rtas_validate_flash_t *args_buf;
 
 	args_buf = (struct rtas_validate_flash_t *) dp->data;

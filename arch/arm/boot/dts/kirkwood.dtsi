@@ -193,5 +193,13 @@
 			clocks = <&gate_clk 17>;
 			status = "okay";
 		};
+
+		mvsdio@90000 {
+			compatible = "marvell,orion-sdio";
+			reg = <0x90000 0x200>;
+			interrupts = <28>;
+			clocks = <&gate_clk 4>;
+			status = "disabled";
+		};
 	};
 };

@@ -47,7 +47,7 @@ static long do_spu_run(struct file *filp,
 	if (filp->f_op != &spufs_context_fops)
 		goto out;
 
-	i = SPUFS_I(filp->f_path.dentry->d_inode);
+	i = SPUFS_I(file_inode(filp));
 	ret = spufs_run_spu(i->i_ctx, &npc, &status);
 
 	if (put_user(npc, unpc))

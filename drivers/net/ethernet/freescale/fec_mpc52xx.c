@@ -41,8 +41,8 @@
 #include <asm/delay.h>
 #include <asm/mpc52xx.h>
 
-#include <sysdev/bestcomm/bestcomm.h>
-#include <sysdev/bestcomm/fec.h>
+#include <linux/fsl/bestcomm/bestcomm.h>
+#include <linux/fsl/bestcomm/fec.h>
 
 #include "fec_mpc52xx.h"
 

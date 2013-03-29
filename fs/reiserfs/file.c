@@ -268,7 +268,7 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 							 * new current position before returning. */
 				   )
 {
-	struct inode *inode = file->f_path.dentry->d_inode;	// Inode of the file that we are writing to.
+	struct inode *inode = file_inode(file);	// Inode of the file that we are writing to.
 	/* To simplify coding at this time, we store
 	   locked pages in array for now */
 	struct reiserfs_transaction_handle th;

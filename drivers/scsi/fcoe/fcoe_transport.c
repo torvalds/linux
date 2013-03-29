@@ -83,6 +83,50 @@ static struct notifier_block libfcoe_notifier = {
 	.notifier_call = libfcoe_device_notification,
 };
 
+/**
+ * fcoe_link_speed_update() - Update the supported and actual link speeds
+ * @lport: The local port to update speeds for
+ *
+ * Returns: 0 if the ethtool query was successful
+ *          -1 if the ethtool query failed
+ */
+int fcoe_link_speed_update(struct fc_lport *lport)
+{
+	struct net_device *netdev = fcoe_get_netdev(lport);
+	struct ethtool_cmd ecmd;
+
+	if (!__ethtool_get_settings(netdev, &ecmd)) {
+		lport->link_supported_speeds &=
+			~(FC_PORTSPEED_1GBIT | FC_PORTSPEED_10GBIT);
+		if (ecmd.supported & (SUPPORTED_1000baseT_Half |
+				      SUPPORTED_1000baseT_Full))
+			lport->link_supported_speeds |= FC_PORTSPEED_1GBIT;
+		if (ecmd.supported & SUPPORTED_10000baseT_Full)
+			lport->link_supported_speeds |=
+				FC_PORTSPEED_10GBIT;
+		switch (ethtool_cmd_speed(&ecmd)) {
+		case SPEED_1000:
+			lport->link_speed = FC_PORTSPEED_1GBIT;
+			break;
+		case SPEED_10000:
+			lport->link_speed = FC_PORTSPEED_10GBIT;
+			break;
+		}
+		return 0;
+	}
+	return -1;
+}
+EXPORT_SYMBOL_GPL(fcoe_link_speed_update);
+
+/**
+ * __fcoe_get_lesb() - Get the Link Error Status Block (LESB) for a given lport
+ * @lport: The local port to update speeds for
+ * @fc_lesb: Pointer to the LESB to be filled up
+ * @netdev: Pointer to the netdev that is associated with the lport
+ *
+ * Note, the Link Error Status Block (LESB) for FCoE is defined in FC-BB-6
+ * Clause 7.11 in v1.04.
+ */
 void __fcoe_get_lesb(struct fc_lport *lport,
 		     struct fc_els_lesb *fc_lesb,
 		     struct net_device *netdev)
@@ -111,6 +155,51 @@ void __fcoe_get_lesb(struct fc_lport *lport,
 			htonl(dev_get_stats(netdev, &temp)->rx_crc_errors);
 }
 EXPORT_SYMBOL_GPL(__fcoe_get_lesb);
+
+/**
+ * fcoe_get_lesb() - Fill the FCoE Link Error Status Block
+ * @lport: the local port
+ * @fc_lesb: the link error status block
+ */
+void fcoe_get_lesb(struct fc_lport *lport,
+			 struct fc_els_lesb *fc_lesb)
+{
+	struct net_device *netdev = fcoe_get_netdev(lport);
+
+	__fcoe_get_lesb(lport, fc_lesb, netdev);
+}
+EXPORT_SYMBOL_GPL(fcoe_get_lesb);
+
+/**
+ * fcoe_ctlr_get_lesb() - Get the Link Error Status Block (LESB) for a given
+ * fcoe controller device
+ * @ctlr_dev: The given fcoe controller device
+ *
+ */
+void fcoe_ctlr_get_lesb(struct fcoe_ctlr_device *ctlr_dev)
+{
+	struct fcoe_ctlr *fip = fcoe_ctlr_device_priv(ctlr_dev);
+	struct net_device *netdev = fcoe_get_netdev(fip->lp);
+	struct fcoe_fc_els_lesb *fcoe_lesb;
+	struct fc_els_lesb fc_lesb;
+
+	__fcoe_get_lesb(fip->lp, &fc_lesb, netdev);
+	fcoe_lesb = (struct fcoe_fc_els_lesb *)(&fc_lesb);
+
+	ctlr_dev->lesb.lesb_link_fail =
+		ntohl(fcoe_lesb->lesb_link_fail);
+	ctlr_dev->lesb.lesb_vlink_fail =
+		ntohl(fcoe_lesb->lesb_vlink_fail);
+	ctlr_dev->lesb.lesb_miss_fka =
+		ntohl(fcoe_lesb->lesb_miss_fka);
+	ctlr_dev->lesb.lesb_symb_err =
+		ntohl(fcoe_lesb->lesb_symb_err);
+	ctlr_dev->lesb.lesb_err_block =
+		ntohl(fcoe_lesb->lesb_err_block);
+	ctlr_dev->lesb.lesb_fcs_error =
+		ntohl(fcoe_lesb->lesb_fcs_error);
+}
+EXPORT_SYMBOL_GPL(fcoe_ctlr_get_lesb);
 
 void fcoe_wwn_to_str(u64 wwn, char *buf, int len)
 {
@@ -627,6 +716,110 @@ static int libfcoe_device_notification(struct notifier_block *notifier,
 	return NOTIFY_OK;
 }
 
+ssize_t fcoe_ctlr_create_store(struct bus_type *bus,
+			       const char *buf, size_t count)
+{
+	struct net_device *netdev = NULL;
+	struct fcoe_transport *ft = NULL;
+	struct fcoe_ctlr_device *ctlr_dev = NULL;
+	int rc = 0;
+	int err;
+
+	mutex_lock(&ft_mutex);
+
+	netdev = fcoe_if_to_netdev(buf);
+	if (!netdev) {
+		LIBFCOE_TRANSPORT_DBG("Invalid device %s.\n", buf);
+		rc = -ENODEV;
+		goto out_nodev;
+	}
+
+	ft = fcoe_netdev_map_lookup(netdev);
+	if (ft) {
+		LIBFCOE_TRANSPORT_DBG("transport %s already has existing "
+				      "FCoE instance on %s.\n",
+				      ft->name, netdev->name);
+		rc = -EEXIST;
+		goto out_putdev;
+	}
+
+	ft = fcoe_transport_lookup(netdev);
+	if (!ft) {
+		LIBFCOE_TRANSPORT_DBG("no FCoE transport found for %s.\n",
+				      netdev->name);
+		rc = -ENODEV;
+		goto out_putdev;
+	}
+
+	/* pass to transport create */
+	err = ft->alloc ? ft->alloc(netdev) : -ENODEV;
+	if (err) {
+		fcoe_del_netdev_mapping(netdev);
+		rc = -ENOMEM;
+		goto out_putdev;
+	}
+
+	err = fcoe_add_netdev_mapping(netdev, ft);
+	if (err) {
+		LIBFCOE_TRANSPORT_DBG("failed to add new netdev mapping "
+				      "for FCoE transport %s for %s.\n",
+				      ft->name, netdev->name);
+		rc = -ENODEV;
+		goto out_putdev;
+	}
+
+	LIBFCOE_TRANSPORT_DBG("transport %s %s to create fcoe on %s.\n",
+			      ft->name, (ctlr_dev) ? "succeeded" : "failed",
+			      netdev->name);
+
+out_putdev:
+	dev_put(netdev);
+out_nodev:
+	mutex_unlock(&ft_mutex);
+	if (rc)
+		return rc;
+	return count;
+}
+
+ssize_t fcoe_ctlr_destroy_store(struct bus_type *bus,
+				const char *buf, size_t count)
+{
+	int rc = -ENODEV;
+	struct net_device *netdev = NULL;
+	struct fcoe_transport *ft = NULL;
+
+	mutex_lock(&ft_mutex);
+
+	netdev = fcoe_if_to_netdev(buf);
+	if (!netdev) {
+		LIBFCOE_TRANSPORT_DBG("invalid device %s.\n", buf);
+		goto out_nodev;
+	}
+
+	ft = fcoe_netdev_map_lookup(netdev);
+	if (!ft) {
+		LIBFCOE_TRANSPORT_DBG("no FCoE transport found for %s.\n",
+				      netdev->name);
+		goto out_putdev;
+	}
+
+	/* pass to transport destroy */
+	rc = ft->destroy(netdev);
+	if (rc)
+		goto out_putdev;
+
+	fcoe_del_netdev_mapping(netdev);
+	LIBFCOE_TRANSPORT_DBG("transport %s %s to destroy fcoe on %s.\n",
+			      ft->name, (rc) ? "failed" : "succeeded",
+			      netdev->name);
+	rc = count; /* required for successful return */
+out_putdev:
+	dev_put(netdev);
+out_nodev:
+	mutex_unlock(&ft_mutex);
+	return rc;
+}
+EXPORT_SYMBOL(fcoe_ctlr_destroy_store);
 
 /**
  * fcoe_transport_create() - Create a fcoe interface
@@ -769,11 +962,7 @@ out_putdev:
 	dev_put(netdev);
 out_nodev:
 	mutex_unlock(&ft_mutex);
-
-	if (rc == -ERESTARTSYS)
-		return restart_syscall();
-	else
-		return rc;
+	return rc;
 }
 
 /**

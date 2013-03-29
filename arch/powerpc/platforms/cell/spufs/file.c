@@ -1852,7 +1852,7 @@ out:
 
 static int spufs_mfc_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	int err = filemap_write_and_wait_range(inode->i_mapping, start, end);
 	if (!err) {
 		mutex_lock(&inode->i_mutex);
@@ -2501,7 +2501,7 @@ static int switch_log_sprint(struct spu_context *ctx, char *tbuf, int n)
 static ssize_t spufs_switch_log_read(struct file *file, char __user *buf,
 			     size_t len, loff_t *ppos)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct spu_context *ctx = SPUFS_I(inode)->i_ctx;
 	int error = 0, cnt = 0;
 
@@ -2571,7 +2571,7 @@ static ssize_t spufs_switch_log_read(struct file *file, char __user *buf,
 
 static unsigned int spufs_switch_log_poll(struct file *file, poll_table *wait)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct spu_context *ctx = SPUFS_I(inode)->i_ctx;
 	unsigned int mask = 0;
 	int rc;

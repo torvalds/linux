@@ -84,6 +84,11 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	} else
 		vdev->msix_bar = 0xFF;
 
+#ifdef CONFIG_VFIO_PCI_VGA
+	if ((pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA)
+		vdev->has_vga = true;
+#endif
+
 	return 0;
 }
 
@@ -285,6 +290,16 @@ static long vfio_pci_ioctl(void *device_data,
 			info.flags = VFIO_REGION_INFO_FLAG_READ;
 			break;
 		}
+		case VFIO_PCI_VGA_REGION_INDEX:
+			if (!vdev->has_vga)
+				return -EINVAL;
+
+			info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
+			info.size = 0xc0000;
+			info.flags = VFIO_REGION_INFO_FLAG_READ |
+				     VFIO_REGION_INFO_FLAG_WRITE;
+
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -366,52 +381,50 @@ static long vfio_pci_ioctl(void *device_data,
 	return -ENOTTY;
 }
 
-static ssize_t vfio_pci_read(void *device_data, char __user *buf,
-			     size_t count, loff_t *ppos)
+static ssize_t vfio_pci_rw(void *device_data, char __user *buf,
+			   size_t count, loff_t *ppos, bool iswrite)
 {
 	unsigned int index = VFIO_PCI_OFFSET_TO_INDEX(*ppos);
 	struct vfio_pci_device *vdev = device_data;
-	struct pci_dev *pdev = vdev->pdev;
 
 	if (index >= VFIO_PCI_NUM_REGIONS)
 		return -EINVAL;
 
-	if (index == VFIO_PCI_CONFIG_REGION_INDEX)
-		return vfio_pci_config_readwrite(vdev, buf, count, ppos, false);
-	else if (index == VFIO_PCI_ROM_REGION_INDEX)
-		return vfio_pci_mem_readwrite(vdev, buf, count, ppos, false);
-	else if (pci_resource_flags(pdev, index) & IORESOURCE_IO)
-		return vfio_pci_io_readwrite(vdev, buf, count, ppos, false);
-	else if (pci_resource_flags(pdev, index) & IORESOURCE_MEM)
-		return vfio_pci_mem_readwrite(vdev, buf, count, ppos, false);
+	switch (index) {
+	case VFIO_PCI_CONFIG_REGION_INDEX:
+		return vfio_pci_config_rw(vdev, buf, count, ppos, iswrite);
+
+	case VFIO_PCI_ROM_REGION_INDEX:
+		if (iswrite)
+			return -EINVAL;
+		return vfio_pci_bar_rw(vdev, buf, count, ppos, false);
+
+	case VFIO_PCI_BAR0_REGION_INDEX ... VFIO_PCI_BAR5_REGION_INDEX:
+		return vfio_pci_bar_rw(vdev, buf, count, ppos, iswrite);
+
+	case VFIO_PCI_VGA_REGION_INDEX:
+		return vfio_pci_vga_rw(vdev, buf, count, ppos, iswrite);
+	}
 
 	return -EINVAL;
+}
+
+static ssize_t vfio_pci_read(void *device_data, char __user *buf,
+			     size_t count, loff_t *ppos)
+{
+	if (!count)
+		return 0;
+
+	return vfio_pci_rw(device_data, buf, count, ppos, false);
 }
 
 static ssize_t vfio_pci_write(void *device_data, const char __user *buf,
 			      size_t count, loff_t *ppos)
 {
-	unsigned int index = VFIO_PCI_OFFSET_TO_INDEX(*ppos);
-	struct vfio_pci_device *vdev = device_data;
-	struct pci_dev *pdev = vdev->pdev;
+	if (!count)
+		return 0;
 
-	if (index >= VFIO_PCI_NUM_REGIONS)
-		return -EINVAL;
-
-	if (index == VFIO_PCI_CONFIG_REGION_INDEX)
-		return vfio_pci_config_readwrite(vdev, (char __user *)buf,
-						 count, ppos, true);
-	else if (index == VFIO_PCI_ROM_REGION_INDEX)
-		return -EINVAL;
-	else if (pci_resource_flags(pdev, index) & IORESOURCE_IO)
-		return vfio_pci_io_readwrite(vdev, (char __user *)buf,
-					     count, ppos, true);
-	else if (pci_resource_flags(pdev, index) & IORESOURCE_MEM) {
-		return vfio_pci_mem_readwrite(vdev, (char __user *)buf,
-					      count, ppos, true);
-	}
-
-	return -EINVAL;
+	return vfio_pci_rw(device_data, (char __user *)buf, count, ppos, true);
 }
 
 static int vfio_pci_mmap(void *device_data, struct vm_area_struct *vma)

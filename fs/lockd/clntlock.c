@@ -11,7 +11,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/nfs_fs.h>
-#include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/lockd/lockd.h>
 #include <linux/kthread.h>
@@ -178,7 +178,7 @@ __be32 nlmclnt_grant(const struct sockaddr *addr, const struct nlm_lock *lock)
 			continue;
 		if (!rpc_cmp_addr(nlm_addr(block->b_host), addr))
 			continue;
-		if (nfs_compare_fh(NFS_FH(fl_blocked->fl_file->f_path.dentry->d_inode) ,fh) != 0)
+		if (nfs_compare_fh(NFS_FH(file_inode(fl_blocked->fl_file)) ,fh) != 0)
 			continue;
 		/* Alright, we found a lock. Set the return status
 		 * and wake up the caller
@@ -220,9 +220,18 @@ reclaimer(void *ptr)
 {
 	struct nlm_host	  *host = (struct nlm_host *) ptr;
 	struct nlm_wait	  *block;
+	struct nlm_rqst   *req;
 	struct file_lock *fl, *next;
 	u32 nsmstate;
 	struct net *net = host->net;
+
+	req = kmalloc(sizeof(*req), GFP_KERNEL);
+	if (!req) {
+		printk(KERN_ERR "lockd: reclaimer unable to alloc memory."
+				" Locks for %s won't be reclaimed!\n",
+				host->h_name);
+		return 0;
+	}
 
 	allow_signal(SIGKILL);
 
@@ -253,7 +262,7 @@ restart:
 		 */
 		if (signalled())
 			continue;
-		if (nlmclnt_reclaim(host, fl) != 0)
+		if (nlmclnt_reclaim(host, fl, req) != 0)
 			continue;
 		list_add_tail(&fl->fl_u.nfs_fl.list, &host->h_granted);
 		if (host->h_nsmstate != nsmstate) {
@@ -279,5 +288,6 @@ restart:
 	/* Release host handle after use */
 	nlmclnt_release_host(host);
 	lockd_down(net);
+	kfree(req);
 	return 0;
 }

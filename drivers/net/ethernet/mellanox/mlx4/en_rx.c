@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/mlx4/qp.h>
 #include <linux/skbuff.h>
+#include <linux/rculist.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/vmalloc.h>
@@ -617,7 +618,6 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 			if (is_multicast_ether_addr(ethh->h_dest)) {
 				struct mlx4_mac_entry *entry;
-				struct hlist_node *n;
 				struct hlist_head *bucket;
 				unsigned int mac_hash;
 
@@ -625,7 +625,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 				mac_hash = ethh->h_source[MLX4_EN_MAC_HASH_IDX];
 				bucket = &priv->mac_hash[mac_hash];
 				rcu_read_lock();
-				hlist_for_each_entry_rcu(entry, n, bucket, hlist) {
+				hlist_for_each_entry_rcu(entry, bucket, hlist) {
 					if (ether_addr_equal_64bits(entry->mac,
 								    ethh->h_source)) {
 						rcu_read_unlock();

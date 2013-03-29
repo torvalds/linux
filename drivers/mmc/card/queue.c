@@ -22,7 +22,8 @@
 
 #define MMC_QUEUE_BOUNCESZ	65536
 
-#define MMC_QUEUE_SUSPENDED	(1 << 0)
+
+#define MMC_REQ_SPECIAL_MASK	(REQ_DISCARD | REQ_FLUSH)
 
 /*
  * Prepare a MMC request. This just filters out odd stuff.
@@ -58,6 +59,7 @@ static int mmc_queue_thread(void *d)
 	do {
 		struct request *req = NULL;
 		struct mmc_queue_req *tmp;
+		unsigned int cmd_flags = 0;
 
 		spin_lock_irq(q->queue_lock);
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -67,12 +69,23 @@ static int mmc_queue_thread(void *d)
 
 		if (req || mq->mqrq_prev->req) {
 			set_current_state(TASK_RUNNING);
+			cmd_flags = req ? req->cmd_flags : 0;
 			mq->issue_fn(mq, req);
+			if (mq->flags & MMC_QUEUE_NEW_REQUEST) {
+				mq->flags &= ~MMC_QUEUE_NEW_REQUEST;
+				continue; /* fetch again */
+			}
 
 			/*
 			 * Current request becomes previous request
 			 * and vice versa.
+			 * In case of special requests, current request
+			 * has been finished. Do not assign it to previous
+			 * request.
 			 */
+			if (cmd_flags & MMC_REQ_SPECIAL_MASK)
+				mq->mqrq_cur->req = NULL;
+
 			mq->mqrq_prev->brq.mrq.data = NULL;
 			mq->mqrq_prev->req = NULL;
 			tmp = mq->mqrq_prev;
@@ -103,6 +116,8 @@ static void mmc_request_fn(struct request_queue *q)
 {
 	struct mmc_queue *mq = q->queuedata;
 	struct request *req;
+	unsigned long flags;
+	struct mmc_context_info *cntx;
 
 	if (!mq) {
 		while ((req = blk_fetch_request(q)) != NULL) {
@@ -112,7 +127,20 @@ static void mmc_request_fn(struct request_queue *q)
 		return;
 	}
 
-	if (!mq->mqrq_cur->req && !mq->mqrq_prev->req)
+	cntx = &mq->card->host->context_info;
+	if (!mq->mqrq_cur->req && mq->mqrq_prev->req) {
+		/*
+		 * New MMC request arrived when MMC thread may be
+		 * blocked on the previous request to be complete
+		 * with no current request fetched
+		 */
+		spin_lock_irqsave(&cntx->lock, flags);
+		if (cntx->is_waiting_last_req) {
+			cntx->is_new_req = true;
+			wake_up_interruptible(&cntx->wait);
+		}
+		spin_unlock_irqrestore(&cntx->lock, flags);
+	} else if (!mq->mqrq_cur->req && !mq->mqrq_prev->req)
 		wake_up_process(mq->thread);
 }
 
@@ -334,6 +362,49 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 }
 EXPORT_SYMBOL(mmc_cleanup_queue);
 
+int mmc_packed_init(struct mmc_queue *mq, struct mmc_card *card)
+{
+	struct mmc_queue_req *mqrq_cur = &mq->mqrq[0];
+	struct mmc_queue_req *mqrq_prev = &mq->mqrq[1];
+	int ret = 0;
+
+
+	mqrq_cur->packed = kzalloc(sizeof(struct mmc_packed), GFP_KERNEL);
+	if (!mqrq_cur->packed) {
+		pr_warn("%s: unable to allocate packed cmd for mqrq_cur\n",
+			mmc_card_name(card));
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	mqrq_prev->packed = kzalloc(sizeof(struct mmc_packed), GFP_KERNEL);
+	if (!mqrq_prev->packed) {
+		pr_warn("%s: unable to allocate packed cmd for mqrq_prev\n",
+			mmc_card_name(card));
+		kfree(mqrq_cur->packed);
+		mqrq_cur->packed = NULL;
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	INIT_LIST_HEAD(&mqrq_cur->packed->list);
+	INIT_LIST_HEAD(&mqrq_prev->packed->list);
+
+out:
+	return ret;
+}
+
+void mmc_packed_clean(struct mmc_queue *mq)
+{
+	struct mmc_queue_req *mqrq_cur = &mq->mqrq[0];
+	struct mmc_queue_req *mqrq_prev = &mq->mqrq[1];
+
+	kfree(mqrq_cur->packed);
+	mqrq_cur->packed = NULL;
+	kfree(mqrq_prev->packed);
+	mqrq_prev->packed = NULL;
+}
+
 /**
  * mmc_queue_suspend - suspend a MMC request queue
  * @mq: MMC queue to suspend
@@ -378,6 +449,41 @@ void mmc_queue_resume(struct mmc_queue *mq)
 	}
 }
 
+static unsigned int mmc_queue_packed_map_sg(struct mmc_queue *mq,
+					    struct mmc_packed *packed,
+					    struct scatterlist *sg,
+					    enum mmc_packed_type cmd_type)
+{
+	struct scatterlist *__sg = sg;
+	unsigned int sg_len = 0;
+	struct request *req;
+
+	if (mmc_packed_wr(cmd_type)) {
+		unsigned int hdr_sz = mmc_large_sector(mq->card) ? 4096 : 512;
+		unsigned int max_seg_sz = queue_max_segment_size(mq->queue);
+		unsigned int len, remain, offset = 0;
+		u8 *buf = (u8 *)packed->cmd_hdr;
+
+		remain = hdr_sz;
+		do {
+			len = min(remain, max_seg_sz);
+			sg_set_buf(__sg, buf + offset, len);
+			offset += len;
+			remain -= len;
+			(__sg++)->page_link &= ~0x02;
+			sg_len++;
+		} while (remain);
+	}
+
+	list_for_each_entry(req, &packed->list, queuelist) {
+		sg_len += blk_rq_map_sg(mq->queue, req, __sg);
+		__sg = sg + (sg_len - 1);
+		(__sg++)->page_link &= ~0x02;
+	}
+	sg_mark_end(sg + (sg_len - 1));
+	return sg_len;
+}
+
 /*
  * Prepare the sg list(s) to be handed of to the host driver
  */
@@ -386,14 +492,26 @@ unsigned int mmc_queue_map_sg(struct mmc_queue *mq, struct mmc_queue_req *mqrq)
 	unsigned int sg_len;
 	size_t buflen;
 	struct scatterlist *sg;
+	enum mmc_packed_type cmd_type;
 	int i;
 
-	if (!mqrq->bounce_buf)
-		return blk_rq_map_sg(mq->queue, mqrq->req, mqrq->sg);
+	cmd_type = mqrq->cmd_type;
+
+	if (!mqrq->bounce_buf) {
+		if (mmc_packed_cmd(cmd_type))
+			return mmc_queue_packed_map_sg(mq, mqrq->packed,
+						       mqrq->sg, cmd_type);
+		else
+			return blk_rq_map_sg(mq->queue, mqrq->req, mqrq->sg);
+	}
 
 	BUG_ON(!mqrq->bounce_sg);
 
-	sg_len = blk_rq_map_sg(mq->queue, mqrq->req, mqrq->bounce_sg);
+	if (mmc_packed_cmd(cmd_type))
+		sg_len = mmc_queue_packed_map_sg(mq, mqrq->packed,
+						 mqrq->bounce_sg, cmd_type);
+	else
+		sg_len = blk_rq_map_sg(mq->queue, mqrq->req, mqrq->bounce_sg);
 
 	mqrq->bounce_sg_len = sg_len;
 

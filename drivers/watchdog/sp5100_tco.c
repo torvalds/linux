@@ -361,7 +361,7 @@ static unsigned char sp5100_tco_setupdevice(void)
 {
 	struct pci_dev *dev = NULL;
 	const char *dev_name = NULL;
-	u32 val;
+	u32 val, tmp_val;
 	u32 index_reg, data_reg, base_addr;
 
 	/* Match the PCI device */
@@ -497,30 +497,19 @@ static unsigned char sp5100_tco_setupdevice(void)
 		pr_debug("Got 0x%04x from resource tree\n", val);
 	}
 
-	/* Restore to the low three bits, if chipset is SB8x0(or later) */
-	if (sp5100_tco_pci->revision >= 0x40) {
-		u8 reserved_bit;
-		reserved_bit = inb(base_addr) & 0x7;
-		val |= (u32)reserved_bit;
-	}
+	/* Restore to the low three bits */
+	outb(base_addr+0, index_reg);
+	tmp_val = val | (inb(data_reg) & 0x7);
 
 	/* Re-programming the watchdog timer base address */
 	outb(base_addr+0, index_reg);
-	/* Low three bits of BASE are reserved */
-	outb((val >>  0) & 0xf8, data_reg);
+	outb((tmp_val >>  0) & 0xff, data_reg);
 	outb(base_addr+1, index_reg);
-	outb((val >>  8) & 0xff, data_reg);
+	outb((tmp_val >>  8) & 0xff, data_reg);
 	outb(base_addr+2, index_reg);
-	outb((val >> 16) & 0xff, data_reg);
+	outb((tmp_val >> 16) & 0xff, data_reg);
 	outb(base_addr+3, index_reg);
-	outb((val >> 24) & 0xff, data_reg);
-
-	/*
-	 * Clear unnecessary the low three bits,
-	 * if chipset is SB8x0(or later)
-	 */
-	if (sp5100_tco_pci->revision >= 0x40)
-		val &= ~0x7;
+	outb((tmp_val >> 24) & 0xff, data_reg);
 
 	if (!request_mem_region_exclusive(val, SP5100_WDT_MEM_MAP_SIZE,
 								   dev_name)) {

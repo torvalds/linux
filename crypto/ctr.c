@@ -343,17 +343,15 @@ static struct crypto_instance *crypto_rfc3686_alloc(struct rtattr **tb)
 	int err;
 
 	algt = crypto_get_attr_type(tb);
-	err = PTR_ERR(algt);
 	if (IS_ERR(algt))
-		return ERR_PTR(err);
+		return ERR_CAST(algt);
 
 	if ((algt->type ^ CRYPTO_ALG_TYPE_BLKCIPHER) & algt->mask)
 		return ERR_PTR(-EINVAL);
 
 	cipher_name = crypto_attr_alg_name(tb[1]);
-	err = PTR_ERR(cipher_name);
 	if (IS_ERR(cipher_name))
-		return ERR_PTR(err);
+		return ERR_CAST(cipher_name);
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)

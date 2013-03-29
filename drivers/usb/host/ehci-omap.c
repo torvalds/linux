@@ -107,7 +107,7 @@ static int omap_ehci_init(struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	int			rc;
-	struct ehci_hcd_omap_platform_data	*pdata;
+	struct usbhs_omap_platform_data	*pdata;
 
 	pdata = hcd->self.controller->platform_data;
 
@@ -151,7 +151,7 @@ static int omap_ehci_init(struct usb_hcd *hcd)
 }
 
 static void disable_put_regulator(
-		struct ehci_hcd_omap_platform_data *pdata)
+		struct usbhs_omap_platform_data *pdata)
 {
 	int i;
 
@@ -176,7 +176,7 @@ static void disable_put_regulator(
 static int ehci_hcd_omap_probe(struct platform_device *pdev)
 {
 	struct device				*dev = &pdev->dev;
-	struct ehci_hcd_omap_platform_data	*pdata = dev->platform_data;
+	struct usbhs_omap_platform_data		*pdata = dev->platform_data;
 	struct resource				*res;
 	struct usb_hcd				*hcd;
 	void __iomem				*regs;

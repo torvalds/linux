@@ -39,6 +39,12 @@ extern "C" {
 #ifndef CONFIG_
 #define CONFIG_ "CONFIG_"
 #endif
+static inline const char *CONFIG_prefix(void)
+{
+	return getenv( "CONFIG_" ) ?: CONFIG_;
+}
+#undef CONFIG_
+#define CONFIG_ CONFIG_prefix()
 
 #define TF_COMMAND	0x0001
 #define TF_PARAM	0x0002
@@ -116,6 +122,8 @@ void menu_set_type(int type);
 /* util.c */
 struct file *file_lookup(const char *name);
 int file_write_dep(const char *name);
+void *xmalloc(size_t size);
+void *xcalloc(size_t nmemb, size_t size);
 
 struct gstr {
 	size_t len;

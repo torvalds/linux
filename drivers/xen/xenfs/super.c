@@ -24,47 +24,6 @@
 MODULE_DESCRIPTION("Xen filesystem");
 MODULE_LICENSE("GPL");
 
-static struct inode *xenfs_make_inode(struct super_block *sb, int mode)
-{
-	struct inode *ret = new_inode(sb);
-
-	if (ret) {
-		ret->i_mode = mode;
-		ret->i_uid = GLOBAL_ROOT_UID;
-		ret->i_gid = GLOBAL_ROOT_GID;
-		ret->i_blocks = 0;
-		ret->i_atime = ret->i_mtime = ret->i_ctime = CURRENT_TIME;
-	}
-	return ret;
-}
-
-static struct dentry *xenfs_create_file(struct super_block *sb,
-					struct dentry *parent,
-					const char *name,
-					const struct file_operations *fops,
-					void *data,
-					int mode)
-{
-	struct dentry *dentry;
-	struct inode *inode;
-
-	dentry = d_alloc_name(parent, name);
-	if (!dentry)
-		return NULL;
-
-	inode = xenfs_make_inode(sb, S_IFREG | mode);
-	if (!inode) {
-		dput(dentry);
-		return NULL;
-	}
-
-	inode->i_fop = fops;
-	inode->i_private = data;
-
-	d_add(dentry, inode);
-	return dentry;
-}
-
 static ssize_t capabilities_read(struct file *file, char __user *buf,
 				 size_t size, loff_t *off)
 {
@@ -84,26 +43,23 @@ static const struct file_operations capabilities_file_ops = {
 static int xenfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	static struct tree_descr xenfs_files[] = {
-		[1] = {},
-		{ "xenbus", &xen_xenbus_fops, S_IRUSR|S_IWUSR },
+		[2] = { "xenbus", &xen_xenbus_fops, S_IRUSR|S_IWUSR },
 		{ "capabilities", &capabilities_file_ops, S_IRUGO },
 		{ "privcmd", &xen_privcmd_fops, S_IRUSR|S_IWUSR },
 		{""},
 	};
-	int rc;
 
-	rc = simple_fill_super(sb, XENFS_SUPER_MAGIC, xenfs_files);
-	if (rc < 0)
-		return rc;
+	static struct tree_descr xenfs_init_files[] = {
+		[2] = { "xenbus", &xen_xenbus_fops, S_IRUSR|S_IWUSR },
+		{ "capabilities", &capabilities_file_ops, S_IRUGO },
+		{ "privcmd", &xen_privcmd_fops, S_IRUSR|S_IWUSR },
+		{ "xsd_kva", &xsd_kva_file_ops, S_IRUSR|S_IWUSR},
+		{ "xsd_port", &xsd_port_file_ops, S_IRUSR|S_IWUSR},
+		{""},
+	};
 
-	if (xen_initial_domain()) {
-		xenfs_create_file(sb, sb->s_root, "xsd_kva",
-				  &xsd_kva_file_ops, NULL, S_IRUSR|S_IWUSR);
-		xenfs_create_file(sb, sb->s_root, "xsd_port",
-				  &xsd_port_file_ops, NULL, S_IRUSR|S_IWUSR);
-	}
-
-	return rc;
+	return simple_fill_super(sb, XENFS_SUPER_MAGIC,
+			xen_initial_domain() ? xenfs_init_files : xenfs_files);
 }
 
 static struct dentry *xenfs_mount(struct file_system_type *fs_type,

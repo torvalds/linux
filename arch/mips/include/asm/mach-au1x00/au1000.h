@@ -349,7 +349,7 @@ extern void au1300_vss_block_control(int block, int enable);
 #define AU1000_INTC0_INT_LAST	(AU1000_INTC0_INT_BASE + 31)
 #define AU1000_INTC1_INT_BASE	(AU1000_INTC0_INT_LAST + 1)
 #define AU1000_INTC1_INT_LAST	(AU1000_INTC1_INT_BASE + 31)
-#define AU1000_MAX_INTR 	AU1000_INTC1_INT_LAST
+#define AU1000_MAX_INTR		AU1000_INTC1_INT_LAST
 
 /* Au1300-style (GPIC): 1 controller with up to 128 sources */
 #define ALCHEMY_GPIC_INT_BASE	(MIPS_CPU_IRQ_BASE + 8)
@@ -589,7 +589,7 @@ enum soc_au1550_ints {
 	AU1550_GPIO14_INT,
 	AU1550_GPIO15_INT,
 	AU1550_GPIO200_INT,
-	AU1550_GPIO201_205_INT,	/* Logical or of GPIO201:205 */
+	AU1550_GPIO201_205_INT, /* Logical or of GPIO201:205 */
 	AU1550_GPIO16_INT,
 	AU1550_GPIO17_INT,
 	AU1550_GPIO20_INT,
@@ -603,7 +603,7 @@ enum soc_au1550_ints {
 	AU1550_GPIO28_INT,
 	AU1550_GPIO206_INT,
 	AU1550_GPIO207_INT,
-	AU1550_GPIO208_215_INT,	/* Logical or of GPIO208:215 */
+	AU1550_GPIO208_215_INT, /* Logical or of GPIO208:215 */
 };
 
 enum soc_au1200_ints {
@@ -636,7 +636,7 @@ enum soc_au1200_ints {
 	AU1200_GPIO205_INT,
 	AU1200_GPIO206_INT,
 	AU1200_GPIO207_INT,
-	AU1200_GPIO208_215_INT,	/* Logical OR of 208:215 */
+	AU1200_GPIO208_215_INT, /* Logical OR of 208:215 */
 	AU1200_USB_INT,
 	AU1200_LCD_INT,
 	AU1200_MAE_BOTH_INT,
@@ -823,7 +823,7 @@ enum soc_au1200_ints {
 #define GPIC_GPIO_TO_BIT(gpio)	\
 	(1 << ((gpio) & 0x1f))
 
-#define GPIC_GPIO_BANKOFF(gpio)	\
+#define GPIC_GPIO_BANKOFF(gpio) \
 	(((gpio) >> 5) * 4)
 
 /* Pin Control bits: who owns the pin, what does it do */
@@ -958,32 +958,32 @@ enum soc_au1200_ints {
 #define MEM_STSTAT		0xB4001104
 
 #define MEM_STNAND_CMD		0x0
-#define MEM_STNAND_ADDR 	0x4
-#define MEM_STNAND_DATA 	0x20
+#define MEM_STNAND_ADDR		0x4
+#define MEM_STNAND_DATA		0x20
 
 
 /* Programmable Counters 0 and 1 */
 #define SYS_BASE		0xB1900000
 #define SYS_COUNTER_CNTRL	(SYS_BASE + 0x14)
-#  define SYS_CNTRL_E1S 	(1 << 23)
-#  define SYS_CNTRL_T1S 	(1 << 20)
-#  define SYS_CNTRL_M21 	(1 << 19)
-#  define SYS_CNTRL_M11 	(1 << 18)
-#  define SYS_CNTRL_M01 	(1 << 17)
-#  define SYS_CNTRL_C1S 	(1 << 16)
+#  define SYS_CNTRL_E1S		(1 << 23)
+#  define SYS_CNTRL_T1S		(1 << 20)
+#  define SYS_CNTRL_M21		(1 << 19)
+#  define SYS_CNTRL_M11		(1 << 18)
+#  define SYS_CNTRL_M01		(1 << 17)
+#  define SYS_CNTRL_C1S		(1 << 16)
 #  define SYS_CNTRL_BP		(1 << 14)
-#  define SYS_CNTRL_EN1 	(1 << 13)
-#  define SYS_CNTRL_BT1 	(1 << 12)
-#  define SYS_CNTRL_EN0 	(1 << 11)
-#  define SYS_CNTRL_BT0 	(1 << 10)
+#  define SYS_CNTRL_EN1		(1 << 13)
+#  define SYS_CNTRL_BT1		(1 << 12)
+#  define SYS_CNTRL_EN0		(1 << 11)
+#  define SYS_CNTRL_BT0		(1 << 10)
 #  define SYS_CNTRL_E0		(1 << 8)
-#  define SYS_CNTRL_E0S 	(1 << 7)
-#  define SYS_CNTRL_32S 	(1 << 5)
-#  define SYS_CNTRL_T0S 	(1 << 4)
-#  define SYS_CNTRL_M20 	(1 << 3)
-#  define SYS_CNTRL_M10 	(1 << 2)
-#  define SYS_CNTRL_M00 	(1 << 1)
-#  define SYS_CNTRL_C0S 	(1 << 0)
+#  define SYS_CNTRL_E0S		(1 << 7)
+#  define SYS_CNTRL_32S		(1 << 5)
+#  define SYS_CNTRL_T0S		(1 << 4)
+#  define SYS_CNTRL_M20		(1 << 3)
+#  define SYS_CNTRL_M10		(1 << 2)
+#  define SYS_CNTRL_M00		(1 << 1)
+#  define SYS_CNTRL_C0S		(1 << 0)
 
 /* Programmable Counter 0 Registers */
 #define SYS_TOYTRIM		(SYS_BASE + 0)
@@ -1003,33 +1003,33 @@ enum soc_au1200_ints {
 
 /* I2S Controller */
 #define I2S_DATA		0xB1000000
-#  define I2S_DATA_MASK 	0xffffff
+#  define I2S_DATA_MASK		0xffffff
 #define I2S_CONFIG		0xB1000004
-#  define I2S_CONFIG_XU 	(1 << 25)
-#  define I2S_CONFIG_XO 	(1 << 24)
-#  define I2S_CONFIG_RU 	(1 << 23)
-#  define I2S_CONFIG_RO 	(1 << 22)
-#  define I2S_CONFIG_TR 	(1 << 21)
-#  define I2S_CONFIG_TE 	(1 << 20)
-#  define I2S_CONFIG_TF 	(1 << 19)
-#  define I2S_CONFIG_RR 	(1 << 18)
-#  define I2S_CONFIG_RE 	(1 << 17)
-#  define I2S_CONFIG_RF 	(1 << 16)
-#  define I2S_CONFIG_PD 	(1 << 11)
-#  define I2S_CONFIG_LB 	(1 << 10)
-#  define I2S_CONFIG_IC 	(1 << 9)
+#  define I2S_CONFIG_XU		(1 << 25)
+#  define I2S_CONFIG_XO		(1 << 24)
+#  define I2S_CONFIG_RU		(1 << 23)
+#  define I2S_CONFIG_RO		(1 << 22)
+#  define I2S_CONFIG_TR		(1 << 21)
+#  define I2S_CONFIG_TE		(1 << 20)
+#  define I2S_CONFIG_TF		(1 << 19)
+#  define I2S_CONFIG_RR		(1 << 18)
+#  define I2S_CONFIG_RE		(1 << 17)
+#  define I2S_CONFIG_RF		(1 << 16)
+#  define I2S_CONFIG_PD		(1 << 11)
+#  define I2S_CONFIG_LB		(1 << 10)
+#  define I2S_CONFIG_IC		(1 << 9)
 #  define I2S_CONFIG_FM_BIT	7
 #  define I2S_CONFIG_FM_MASK	(0x3 << I2S_CONFIG_FM_BIT)
 #    define I2S_CONFIG_FM_I2S	(0x0 << I2S_CONFIG_FM_BIT)
 #    define I2S_CONFIG_FM_LJ	(0x1 << I2S_CONFIG_FM_BIT)
 #    define I2S_CONFIG_FM_RJ	(0x2 << I2S_CONFIG_FM_BIT)
-#  define I2S_CONFIG_TN 	(1 << 6)
-#  define I2S_CONFIG_RN 	(1 << 5)
+#  define I2S_CONFIG_TN		(1 << 6)
+#  define I2S_CONFIG_RN		(1 << 5)
 #  define I2S_CONFIG_SZ_BIT	0
 #  define I2S_CONFIG_SZ_MASK	(0x1F << I2S_CONFIG_SZ_BIT)
 
 #define I2S_CONTROL		0xB1000008
-#  define I2S_CONTROL_D 	(1 << 1)
+#  define I2S_CONTROL_D		(1 << 1)
 #  define I2S_CONTROL_CE	(1 << 0)
 
 
@@ -1037,16 +1037,16 @@ enum soc_au1200_ints {
 
 /* 4 byte offsets from AU1000_ETH_BASE */
 #define MAC_CONTROL		0x0
-#  define MAC_RX_ENABLE 	(1 << 2)
-#  define MAC_TX_ENABLE 	(1 << 3)
-#  define MAC_DEF_CHECK 	(1 << 5)
-#  define MAC_SET_BL(X) 	(((X) & 0x3) << 6)
+#  define MAC_RX_ENABLE		(1 << 2)
+#  define MAC_TX_ENABLE		(1 << 3)
+#  define MAC_DEF_CHECK		(1 << 5)
+#  define MAC_SET_BL(X)		(((X) & 0x3) << 6)
 #  define MAC_AUTO_PAD		(1 << 8)
 #  define MAC_DISABLE_RETRY	(1 << 10)
 #  define MAC_DISABLE_BCAST	(1 << 11)
 #  define MAC_LATE_COL		(1 << 12)
-#  define MAC_HASH_MODE 	(1 << 13)
-#  define MAC_HASH_ONLY 	(1 << 15)
+#  define MAC_HASH_MODE		(1 << 13)
+#  define MAC_HASH_ONLY		(1 << 15)
 #  define MAC_PASS_ALL		(1 << 16)
 #  define MAC_INVERSE_FILTER	(1 << 17)
 #  define MAC_PROMISCUOUS	(1 << 18)
@@ -1083,9 +1083,9 @@ enum soc_au1200_ints {
 #  define MAC_EN_RESET0		(1 << 1)
 #  define MAC_EN_TOSS		(0 << 2)
 #  define MAC_EN_CACHEABLE	(1 << 3)
-#  define MAC_EN_RESET1 	(1 << 4)
-#  define MAC_EN_RESET2 	(1 << 5)
-#  define MAC_DMA_RESET 	(1 << 6)
+#  define MAC_EN_RESET1		(1 << 4)
+#  define MAC_EN_RESET2		(1 << 5)
+#  define MAC_DMA_RESET		(1 << 6)
 
 /* Ethernet Controller DMA Channels */
 
@@ -1095,7 +1095,7 @@ enum soc_au1200_ints {
 #define MAC_TX_BUFF0_STATUS	0x0
 #  define TX_FRAME_ABORTED	(1 << 0)
 #  define TX_JAB_TIMEOUT	(1 << 1)
-#  define TX_NO_CARRIER 	(1 << 2)
+#  define TX_NO_CARRIER		(1 << 2)
 #  define TX_LOSS_CARRIER	(1 << 3)
 #  define TX_EXC_DEF		(1 << 4)
 #  define TX_LATE_COLL_ABORT	(1 << 5)
@@ -1106,7 +1106,7 @@ enum soc_au1200_ints {
 #  define TX_COLL_CNT_MASK	(0xF << 10)
 #  define TX_PKT_RETRY		(1 << 31)
 #define MAC_TX_BUFF0_ADDR	0x4
-#  define TX_DMA_ENABLE 	(1 << 0)
+#  define TX_DMA_ENABLE		(1 << 0)
 #  define TX_T_DONE		(1 << 1)
 #  define TX_GET_DMA_BUFFER(X)	(((X) >> 2) & 0x3)
 #define MAC_TX_BUFF0_LEN	0x8
@@ -1125,7 +1125,7 @@ enum soc_au1200_ints {
 /* offsets from MAC_RX_RING_ADDR */
 #define MAC_RX_BUFF0_STATUS	0x0
 #  define RX_FRAME_LEN_MASK	0x3fff
-#  define RX_WDOG_TIMER 	(1 << 14)
+#  define RX_WDOG_TIMER		(1 << 14)
 #  define RX_RUNT		(1 << 15)
 #  define RX_OVERLEN		(1 << 16)
 #  define RX_COLL		(1 << 17)
@@ -1148,7 +1148,7 @@ enum soc_au1200_ints {
 		    RX_COLL | RX_MII_ERROR | RX_CRC_ERROR | \
 		    RX_LEN_ERROR | RX_U_CNTRL_FRAME | RX_MISSED_FRAME)
 #define MAC_RX_BUFF0_ADDR	0x4
-#  define RX_DMA_ENABLE 	(1 << 0)
+#  define RX_DMA_ENABLE		(1 << 0)
 #  define RX_T_DONE		(1 << 1)
 #  define RX_GET_DMA_BUFFER(X)	(((X) >> 2) & 0x3)
 #  define RX_SET_BUFF_ADDR(X)	((X) & 0xffffffc0)
@@ -1173,34 +1173,34 @@ enum soc_au1200_ints {
 
 /* SSIO */
 #define SSI0_STATUS		0xB1600000
-#  define SSI_STATUS_BF 	(1 << 4)
-#  define SSI_STATUS_OF 	(1 << 3)
-#  define SSI_STATUS_UF 	(1 << 2)
+#  define SSI_STATUS_BF		(1 << 4)
+#  define SSI_STATUS_OF		(1 << 3)
+#  define SSI_STATUS_UF		(1 << 2)
 #  define SSI_STATUS_D		(1 << 1)
 #  define SSI_STATUS_B		(1 << 0)
 #define SSI0_INT		0xB1600004
 #  define SSI_INT_OI		(1 << 3)
 #  define SSI_INT_UI		(1 << 2)
 #  define SSI_INT_DI		(1 << 1)
-#define SSI0_INT_ENABLE 	0xB1600008
+#define SSI0_INT_ENABLE		0xB1600008
 #  define SSI_INTE_OIE		(1 << 3)
 #  define SSI_INTE_UIE		(1 << 2)
 #  define SSI_INTE_DIE		(1 << 1)
 #define SSI0_CONFIG		0xB1600020
-#  define SSI_CONFIG_AO 	(1 << 24)
-#  define SSI_CONFIG_DO 	(1 << 23)
+#  define SSI_CONFIG_AO		(1 << 24)
+#  define SSI_CONFIG_DO		(1 << 23)
 #  define SSI_CONFIG_ALEN_BIT	20
 #  define SSI_CONFIG_ALEN_MASK	(0x7 << 20)
 #  define SSI_CONFIG_DLEN_BIT	16
 #  define SSI_CONFIG_DLEN_MASK	(0x7 << 16)
-#  define SSI_CONFIG_DD 	(1 << 11)
-#  define SSI_CONFIG_AD 	(1 << 10)
+#  define SSI_CONFIG_DD		(1 << 11)
+#  define SSI_CONFIG_AD		(1 << 10)
 #  define SSI_CONFIG_BM_BIT	8
 #  define SSI_CONFIG_BM_MASK	(0x3 << 8)
-#  define SSI_CONFIG_CE 	(1 << 7)
-#  define SSI_CONFIG_DP 	(1 << 6)
-#  define SSI_CONFIG_DL 	(1 << 5)
-#  define SSI_CONFIG_EP 	(1 << 4)
+#  define SSI_CONFIG_CE		(1 << 7)
+#  define SSI_CONFIG_DP		(1 << 6)
+#  define SSI_CONFIG_DL		(1 << 5)
+#  define SSI_CONFIG_EP		(1 << 4)
 #define SSI0_ADATA		0xB1600024
 #  define SSI_AD_D		(1 << 24)
 #  define SSI_AD_ADDR_BIT	16
@@ -1210,12 +1210,12 @@ enum soc_au1200_ints {
 #define SSI0_CLKDIV		0xB1600028
 #define SSI0_CONTROL		0xB1600100
 #  define SSI_CONTROL_CD	(1 << 1)
-#  define SSI_CONTROL_E 	(1 << 0)
+#  define SSI_CONTROL_E		(1 << 0)
 
 /* SSI1 */
 #define SSI1_STATUS		0xB1680000
 #define SSI1_INT		0xB1680004
-#define SSI1_INT_ENABLE 	0xB1680008
+#define SSI1_INT_ENABLE		0xB1680008
 #define SSI1_CONFIG		0xB1680020
 #define SSI1_ADATA		0xB1680024
 #define SSI1_CLKDIV		0xB1680028
@@ -1242,8 +1242,8 @@ enum soc_au1200_ints {
 
 #define SSI_CONFIG_AO		(1 << 24)
 #define SSI_CONFIG_DO		(1 << 23)
-#define SSI_CONFIG_ALEN 	(7 << 20)
-#define SSI_CONFIG_DLEN 	(15 << 16)
+#define SSI_CONFIG_ALEN		(7 << 20)
+#define SSI_CONFIG_DLEN		(15 << 16)
 #define SSI_CONFIG_DD		(1 << 11)
 #define SSI_CONFIG_AD		(1 << 10)
 #define SSI_CONFIG_BM		(3 << 8)
@@ -1305,7 +1305,7 @@ struct au1k_irda_platform_data {
 #  define SYS_PF_CS		(1 << 16)	/* EXTCLK0/32KHz to gpio2 */
 #  define SYS_PF_EX0		(1 << 9)	/* GPIO2/clock */
 
-/* Au1550 only.  Redefines lots of pins */
+/* Au1550 only.	 Redefines lots of pins */
 #  define SYS_PF_PSC2_MASK	(7 << 17)
 #  define SYS_PF_PSC2_AC97	0
 #  define SYS_PF_PSC2_SPI	0
@@ -1322,33 +1322,33 @@ struct au1k_irda_platform_data {
 #  define SYS_PF_MUST_BE_SET	((1 << 5) | (1 << 2))
 
 /* Au1200 only */
-#define SYS_PINFUNC_DMA 	(1 << 31)
-#define SYS_PINFUNC_S0A 	(1 << 30)
-#define SYS_PINFUNC_S1A 	(1 << 29)
-#define SYS_PINFUNC_LP0 	(1 << 28)
-#define SYS_PINFUNC_LP1 	(1 << 27)
-#define SYS_PINFUNC_LD16 	(1 << 26)
-#define SYS_PINFUNC_LD8 	(1 << 25)
-#define SYS_PINFUNC_LD1 	(1 << 24)
-#define SYS_PINFUNC_LD0 	(1 << 23)
-#define SYS_PINFUNC_P1A 	(3 << 21)
-#define SYS_PINFUNC_P1B 	(1 << 20)
-#define SYS_PINFUNC_FS3 	(1 << 19)
-#define SYS_PINFUNC_P0A 	(3 << 17)
+#define SYS_PINFUNC_DMA		(1 << 31)
+#define SYS_PINFUNC_S0A		(1 << 30)
+#define SYS_PINFUNC_S1A		(1 << 29)
+#define SYS_PINFUNC_LP0		(1 << 28)
+#define SYS_PINFUNC_LP1		(1 << 27)
+#define SYS_PINFUNC_LD16	(1 << 26)
+#define SYS_PINFUNC_LD8		(1 << 25)
+#define SYS_PINFUNC_LD1		(1 << 24)
+#define SYS_PINFUNC_LD0		(1 << 23)
+#define SYS_PINFUNC_P1A		(3 << 21)
+#define SYS_PINFUNC_P1B		(1 << 20)
+#define SYS_PINFUNC_FS3		(1 << 19)
+#define SYS_PINFUNC_P0A		(3 << 17)
 #define SYS_PINFUNC_CS		(1 << 16)
-#define SYS_PINFUNC_CIM 	(1 << 15)
-#define SYS_PINFUNC_P1C 	(1 << 14)
-#define SYS_PINFUNC_U1T 	(1 << 12)
-#define SYS_PINFUNC_U1R 	(1 << 11)
-#define SYS_PINFUNC_EX1 	(1 << 10)
-#define SYS_PINFUNC_EX0 	(1 << 9)
-#define SYS_PINFUNC_U0R 	(1 << 8)
+#define SYS_PINFUNC_CIM		(1 << 15)
+#define SYS_PINFUNC_P1C		(1 << 14)
+#define SYS_PINFUNC_U1T		(1 << 12)
+#define SYS_PINFUNC_U1R		(1 << 11)
+#define SYS_PINFUNC_EX1		(1 << 10)
+#define SYS_PINFUNC_EX0		(1 << 9)
+#define SYS_PINFUNC_U0R		(1 << 8)
 #define SYS_PINFUNC_MC		(1 << 7)
-#define SYS_PINFUNC_S0B 	(1 << 6)
-#define SYS_PINFUNC_S0C 	(1 << 5)
-#define SYS_PINFUNC_P0B 	(1 << 4)
-#define SYS_PINFUNC_U0T 	(1 << 3)
-#define SYS_PINFUNC_S1B 	(1 << 2)
+#define SYS_PINFUNC_S0B		(1 << 6)
+#define SYS_PINFUNC_S0C		(1 << 5)
+#define SYS_PINFUNC_P0B		(1 << 4)
+#define SYS_PINFUNC_U0T		(1 << 3)
+#define SYS_PINFUNC_S1B		(1 << 2)
 
 /* Power Management */
 #define SYS_SCRATCH0		0xB1900018
@@ -1405,7 +1405,7 @@ struct au1k_irda_platform_data {
 #  define SYS_CS_DI2		(1 << 16)
 #  define SYS_CS_CI2		(1 << 15)
 
-#  define SYS_CS_ML_BIT 	7
+#  define SYS_CS_ML_BIT		7
 #  define SYS_CS_ML_MASK	(0x7 << SYS_CS_ML_BIT)
 #  define SYS_CS_DL		(1 << 6)
 #  define SYS_CS_CL		(1 << 5)
@@ -1554,8 +1554,8 @@ struct au1k_irda_platform_data {
 #define PCI_MWMASKDEV_MWMASK(x) (((x) & 0xffff) << 16)
 #define PCI_MWMASKDEV_DEVID(x)	((x) & 0xffff)
 #define PCI_MWBASEREVCCL_BASE(x) (((x) & 0xffff) << 16)
-#define PCI_MWBASEREVCCL_REV(x)  (((x) & 0xff) << 8)
-#define PCI_MWBASEREVCCL_CCL(x)  ((x) & 0xff)
+#define PCI_MWBASEREVCCL_REV(x)	 (((x) & 0xff) << 8)
+#define PCI_MWBASEREVCCL_CCL(x)	 ((x) & 0xff)
 #define PCI_ID_DID(x)		(((x) & 0xffff) << 16)
 #define PCI_ID_VID(x)		((x) & 0xffff)
 #define PCI_STATCMD_STATUS(x)	(((x) & 0xffff) << 16)

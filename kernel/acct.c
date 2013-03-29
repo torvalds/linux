@@ -205,7 +205,7 @@ static int acct_on(struct filename *pathname)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	if (!S_ISREG(file->f_path.dentry->d_inode->i_mode)) {
+	if (!S_ISREG(file_inode(file)->i_mode)) {
 		filp_close(file, NULL);
 		return -EACCES;
 	}

@@ -25,7 +25,7 @@
 static struct mtd_partition cobalt_mtd_partitions[] = {
 	{
 		.name	= "firmware",
-		.offset	= 0x0,
+		.offset = 0x0,
 		.size	= 0x80000,
 	},
 };

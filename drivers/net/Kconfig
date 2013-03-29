@@ -150,7 +150,7 @@ config MACVTAP
 
 config VXLAN
        tristate "Virtual eXtensible Local Area Network (VXLAN)"
-       depends on EXPERIMENTAL && INET
+       depends on INET
        ---help---
 	  This allows one to create vxlan virtual interfaces that provide
 	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used

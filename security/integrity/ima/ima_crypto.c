@@ -66,7 +66,7 @@ int ima_calc_file_hash(struct file *file, char *digest)
 		file->f_mode |= FMODE_READ;
 		read = 1;
 	}
-	i_size = i_size_read(file->f_dentry->d_inode);
+	i_size = i_size_read(file_inode(file));
 	while (offset < i_size) {
 		int rbuf_len;
 

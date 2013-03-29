@@ -1291,8 +1291,16 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 
 	LIBFCOE_FIP_DBG(fip, "Clear Virtual Link received\n");
 
-	if (!fcf || !lport->port_id)
+	if (!fcf || !lport->port_id) {
+		/*
+		 * We are yet to select best FCF, but we got CVL in the
+		 * meantime. reset the ctlr and let it rediscover the FCF
+		 */
+		mutex_lock(&fip->ctlr_mutex);
+		fcoe_ctlr_reset(fip);
+		mutex_unlock(&fip->ctlr_mutex);
 		return;
+	}
 
 	/*
 	 * mask of required descriptors.  Validating each one clears its bit.
@@ -1551,15 +1559,6 @@ static struct fcoe_fcf *fcoe_ctlr_select(struct fcoe_ctlr *fip)
 				fcf->fabric_name, fcf->vfid, fcf->fcf_mac,
 				fcf->fc_map, fcoe_ctlr_mtu_valid(fcf),
 				fcf->flogi_sent, fcf->pri);
-		if (fcf->fabric_name != first->fabric_name ||
-		    fcf->vfid != first->vfid ||
-		    fcf->fc_map != first->fc_map) {
-			LIBFCOE_FIP_DBG(fip, "Conflicting fabric, VFID, "
-					"or FC-MAP\n");
-			return NULL;
-		}
-		if (fcf->flogi_sent)
-			continue;
 		if (!fcoe_ctlr_fcf_usable(fcf)) {
 			LIBFCOE_FIP_DBG(fip, "FCF for fab %16.16llx "
 					"map %x %svalid %savailable\n",
@@ -1569,6 +1568,15 @@ static struct fcoe_fcf *fcoe_ctlr_select(struct fcoe_ctlr *fip)
 					"" : "un");
 			continue;
 		}
+		if (fcf->fabric_name != first->fabric_name ||
+		    fcf->vfid != first->vfid ||
+		    fcf->fc_map != first->fc_map) {
+			LIBFCOE_FIP_DBG(fip, "Conflicting fabric, VFID, "
+					"or FC-MAP\n");
+			return NULL;
+		}
+		if (fcf->flogi_sent)
+			continue;
 		if (!best || fcf->pri < best->pri || best->flogi_sent)
 			best = fcf;
 	}
@@ -2864,22 +2872,21 @@ void fcoe_fcf_get_selected(struct fcoe_fcf_device *fcf_dev)
 }
 EXPORT_SYMBOL(fcoe_fcf_get_selected);
 
-void fcoe_ctlr_get_fip_mode(struct fcoe_ctlr_device *ctlr_dev)
+void fcoe_ctlr_set_fip_mode(struct fcoe_ctlr_device *ctlr_dev)
 {
 	struct fcoe_ctlr *ctlr = fcoe_ctlr_device_priv(ctlr_dev);
 
 	mutex_lock(&ctlr->ctlr_mutex);
-	switch (ctlr->mode) {
-	case FIP_MODE_FABRIC:
-		ctlr_dev->mode = FIP_CONN_TYPE_FABRIC;
+	switch (ctlr_dev->mode) {
+	case FIP_CONN_TYPE_VN2VN:
+		ctlr->mode = FIP_MODE_VN2VN;
 		break;
-	case FIP_MODE_VN2VN:
-		ctlr_dev->mode = FIP_CONN_TYPE_VN2VN;
-		break;
+	case FIP_CONN_TYPE_FABRIC:
 	default:
-		ctlr_dev->mode = FIP_CONN_TYPE_UNKNOWN;
+		ctlr->mode = FIP_MODE_FABRIC;
 		break;
 	}
+
 	mutex_unlock(&ctlr->ctlr_mutex);
 }
-EXPORT_SYMBOL(fcoe_ctlr_get_fip_mode);
+EXPORT_SYMBOL(fcoe_ctlr_set_fip_mode);

@@ -55,70 +55,70 @@
  * DS2100/3100's, aka kn01, aka Pmax:
  *
  *	MIPS IRQ	Source
- *      --------        ------
- *             0	Software (ignored)
- *             1        Software (ignored)
- *             2        SCSI
- *             3        Lance Ethernet
- *             4        DZ11 serial
- *             5        RTC
- *             6        Memory Controller & Video
- *             7        FPU
+ *	--------	------
+ *	       0	Software (ignored)
+ *	       1	Software (ignored)
+ *	       2	SCSI
+ *	       3	Lance Ethernet
+ *	       4	DZ11 serial
+ *	       5	RTC
+ *	       6	Memory Controller & Video
+ *	       7	FPU
  *
  * DS5000/200, aka kn02, aka 3max:
  *
  *	MIPS IRQ	Source
- *      --------        ------
- *             0	Software (ignored)
- *             1        Software (ignored)
- *             2        TurboChannel
- *             3        RTC
- *             4        Reserved
- *             5        Memory Controller
- *             6        Reserved
- *             7        FPU
+ *	--------	------
+ *	       0	Software (ignored)
+ *	       1	Software (ignored)
+ *	       2	TurboChannel
+ *	       3	RTC
+ *	       4	Reserved
+ *	       5	Memory Controller
+ *	       6	Reserved
+ *	       7	FPU
  *
  * DS5000/1xx's, aka kn02ba, aka 3min:
  *
  *	MIPS IRQ	Source
- *      --------        ------
- *             0	Software (ignored)
- *             1        Software (ignored)
- *             2        TurboChannel Slot 0
- *             3        TurboChannel Slot 1
- *             4        TurboChannel Slot 2
- *             5        TurboChannel Slot 3 (ASIC)
- *             6        Halt button
- *             7        FPU/R4k timer
+ *	--------	------
+ *	       0	Software (ignored)
+ *	       1	Software (ignored)
+ *	       2	TurboChannel Slot 0
+ *	       3	TurboChannel Slot 1
+ *	       4	TurboChannel Slot 2
+ *	       5	TurboChannel Slot 3 (ASIC)
+ *	       6	Halt button
+ *	       7	FPU/R4k timer
  *
  * DS5000/2x's, aka kn02ca, aka maxine:
  *
  *	MIPS IRQ	Source
- *      --------        ------
- *             0	Software (ignored)
- *             1        Software (ignored)
- *             2        Periodic Interrupt (100usec)
- *             3        RTC
- *             4        I/O write timeout
- *             5        TurboChannel (ASIC)
- *             6        Halt Keycode from Access.Bus keyboard (CTRL-ALT-ENTER)
- *             7        FPU/R4k timer
+ *	--------	------
+ *	       0	Software (ignored)
+ *	       1	Software (ignored)
+ *	       2	Periodic Interrupt (100usec)
+ *	       3	RTC
+ *	       4	I/O write timeout
+ *	       5	TurboChannel (ASIC)
+ *	       6	Halt Keycode from Access.Bus keyboard (CTRL-ALT-ENTER)
+ *	       7	FPU/R4k timer
  *
  * DS5000/2xx's, aka kn03, aka 3maxplus:
  *
  *	MIPS IRQ	Source
- *      --------        ------
- *             0	Software (ignored)
- *             1        Software (ignored)
- *             2        System Board (ASIC)
- *             3        RTC
- *             4        Reserved
- *             5        Memory
- *             6        Halt Button
- *             7        FPU/R4k timer
+ *	--------	------
+ *	       0	Software (ignored)
+ *	       1	Software (ignored)
+ *	       2	System Board (ASIC)
+ *	       3	RTC
+ *	       4	Reserved
+ *	       5	Memory
+ *	       6	Halt Button
+ *	       7	FPU/R4k timer
  *
  * We handle the IRQ according to _our_ priority (see setup.c),
- * then we just return.  If multiple IRQs are pending then we will
+ * then we just return.	 If multiple IRQs are pending then we will
  * just take another exception, big deal.
  */
 		.align	5
@@ -146,7 +146,7 @@
 		/*
 		 * Find irq with highest priority
 		 */
-		 PTR_LA	t1,cpu_mask_nr_tbl
+		 PTR_LA t1,cpu_mask_nr_tbl
 1:		lw	t2,(t1)
 		nop
 		and	t2,t0
@@ -195,7 +195,7 @@
 		/*
 		 * Find irq with highest priority
 		 */
-		 PTR_LA	t1,asic_mask_nr_tbl
+		 PTR_LA t1,asic_mask_nr_tbl
 2:		lw	t2,(t1)
 		nop
 		and	t2,t0
@@ -221,7 +221,7 @@
 		FEXPORT(cpu_all_int)		# HALT, timers, software junk
 		li	a0,DEC_CPU_IRQ_BASE
 		srl	t0,CAUSEB_IP
-		li	t1,CAUSEF_IP>>CAUSEB_IP	# mask
+		li	t1,CAUSEF_IP>>CAUSEB_IP # mask
 		b	1f
 		 li	t2,4			# nr of bits / 2
 

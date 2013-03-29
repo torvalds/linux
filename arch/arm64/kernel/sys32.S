@@ -39,11 +39,6 @@ compat_sys_rt_sigreturn_wrapper:
 	b	compat_sys_rt_sigreturn
 ENDPROC(compat_sys_rt_sigreturn_wrapper)
 
-compat_sys_sigaltstack_wrapper:
-	ldr	x2, [sp, #S_COMPAT_SP]
-	b	compat_do_sigaltstack
-ENDPROC(compat_sys_sigaltstack_wrapper)
-
 compat_sys_statfs64_wrapper:
 	mov	w3, #84
 	cmp	w1, #88
@@ -63,11 +58,6 @@ ENDPROC(compat_sys_fstatfs64_wrapper)
  * in registers or that take 32-bit parameters which require sign
  * extension.
  */
-compat_sys_lseek_wrapper:
-	sxtw	x1, w1
-	b	sys_lseek
-ENDPROC(compat_sys_lseek_wrapper)
-
 compat_sys_pread64_wrapper:
 	orr	x3, x4, x5, lsl #32
 	b	sys_pread64

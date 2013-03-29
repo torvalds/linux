@@ -119,8 +119,10 @@ struct dma_buf {
 	struct file *file;
 	struct list_head attachments;
 	const struct dma_buf_ops *ops;
-	/* mutex to serialize list manipulation and attach/detach */
+	/* mutex to serialize list manipulation, attach/detach and vmap/unmap */
 	struct mutex lock;
+	unsigned vmapping_counter;
+	void *vmap_ptr;
 	void *priv;
 };
 

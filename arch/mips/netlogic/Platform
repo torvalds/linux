@@ -13,5 +13,5 @@ cflags-$(CONFIG_CPU_XLP)	+= $(call cc-option,-march=xlp,-march=mips64r2)
 #
 # NETLOGIC processor support
 #
-platform-$(CONFIG_NLM_COMMON)  	+= netlogic/
-load-$(CONFIG_NLM_COMMON)  	+= 0xffffffff80100000
+platform-$(CONFIG_NLM_COMMON)	+= netlogic/
+load-$(CONFIG_NLM_COMMON)	+= 0xffffffff80100000

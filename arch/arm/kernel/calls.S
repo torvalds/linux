@@ -195,7 +195,7 @@
 		CALL(sys_getcwd)
 		CALL(sys_capget)
 /* 185 */	CALL(sys_capset)
-		CALL(sys_sigaltstack_wrapper)
+		CALL(sys_sigaltstack)
 		CALL(sys_sendfile)
 		CALL(sys_ni_syscall)		/* getpmsg */
 		CALL(sys_ni_syscall)		/* putpmsg */

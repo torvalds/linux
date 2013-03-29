@@ -33,6 +33,7 @@
 #include <linux/regulator/db8500-prcmu.h>
 #include <linux/regulator/machine.h>
 #include <linux/cpufreq.h>
+#include <linux/platform_data/ux500_wdt.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/db8500-regs.h>
@@ -2207,21 +2208,25 @@ int db8500_prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
 			    sleep_auto_off ? A9WDOG_AUTO_OFF_EN :
 			    A9WDOG_AUTO_OFF_DIS);
 }
+EXPORT_SYMBOL(db8500_prcmu_config_a9wdog);
 
 int db8500_prcmu_enable_a9wdog(u8 id)
 {
 	return prcmu_a9wdog(MB4H_A9WDOG_EN, id, 0, 0, 0);
 }
+EXPORT_SYMBOL(db8500_prcmu_enable_a9wdog);
 
 int db8500_prcmu_disable_a9wdog(u8 id)
 {
 	return prcmu_a9wdog(MB4H_A9WDOG_DIS, id, 0, 0, 0);
 }
+EXPORT_SYMBOL(db8500_prcmu_disable_a9wdog);
 
 int db8500_prcmu_kick_a9wdog(u8 id)
 {
 	return prcmu_a9wdog(MB4H_A9WDOG_KICK, id, 0, 0, 0);
 }
+EXPORT_SYMBOL(db8500_prcmu_kick_a9wdog);
 
 /*
  * timeout is 28 bit, in ms.
@@ -2239,6 +2244,7 @@ int db8500_prcmu_load_a9wdog(u8 id, u32 timeout)
 			    (u8)((timeout >> 12) & 0xff),
 			    (u8)((timeout >> 20) & 0xff));
 }
+EXPORT_SYMBOL(db8500_prcmu_load_a9wdog);
 
 /**
  * prcmu_abb_read() - Read register value(s) from the ABB.
@@ -3094,6 +3100,11 @@ static struct resource ab8500_resources[] = {
 	}
 };
 
+static struct ux500_wdt_data db8500_wdt_pdata = {
+	.timeout = 600, /* 10 minutes */
+	.has_28_bits_resolution = true,
+};
+
 static struct mfd_cell db8500_prcmu_devs[] = {
 	{
 		.name = "db8500-prcmu-regulators",
@@ -3106,6 +3117,12 @@ static struct mfd_cell db8500_prcmu_devs[] = {
 		.of_compatible = "stericsson,cpufreq-ux500",
 		.platform_data = &db8500_cpufreq_table,
 		.pdata_size = sizeof(db8500_cpufreq_table),
+	},
+	{
+		.name = "ux500_wdt",
+		.platform_data = &db8500_wdt_pdata,
+		.pdata_size = sizeof(db8500_wdt_pdata),
+		.id = -1,
 	},
 	{
 		.name = "ab8500-core",

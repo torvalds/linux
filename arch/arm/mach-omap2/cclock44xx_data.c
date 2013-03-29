@@ -605,15 +605,26 @@ static const char *dpll_usb_ck_parents[] = {
 
 static struct clk dpll_usb_ck;
 
+static const struct clk_ops dpll_usb_ck_ops = {
+	.enable		= &omap3_noncore_dpll_enable,
+	.disable	= &omap3_noncore_dpll_disable,
+	.recalc_rate	= &omap3_dpll_recalc,
+	.round_rate	= &omap2_dpll_round_rate,
+	.set_rate	= &omap3_noncore_dpll_set_rate,
+	.get_parent	= &omap2_init_dpll_parent,
+	.init		= &omap2_init_clk_clkdm,
+};
+
 static struct clk_hw_omap dpll_usb_ck_hw = {
 	.hw = {
 		.clk = &dpll_usb_ck,
 	},
 	.dpll_data	= &dpll_usb_dd,
+	.clkdm_name	= "l3_init_clkdm",
 	.ops		= &clkhwops_omap3_dpll,
 };
 
-DEFINE_STRUCT_CLK(dpll_usb_ck, dpll_usb_ck_parents, dpll_ck_ops);
+DEFINE_STRUCT_CLK(dpll_usb_ck, dpll_usb_ck_parents, dpll_usb_ck_ops);
 
 static const char *dpll_usb_clkdcoldo_ck_parents[] = {
 	"dpll_usb_ck",

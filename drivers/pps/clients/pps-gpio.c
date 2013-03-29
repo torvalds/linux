@@ -128,7 +128,8 @@ static int pps_gpio_probe(struct platform_device *pdev)
 	}
 
 	/* allocate space for device info */
-	data = kzalloc(sizeof(struct pps_gpio_device_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct pps_gpio_device_data),
+			    GFP_KERNEL);
 	if (data == NULL) {
 		err = -ENOMEM;
 		goto return_error;
@@ -150,7 +151,6 @@ static int pps_gpio_probe(struct platform_device *pdev)
 		pps_default_params |= PPS_CAPTURECLEAR | PPS_OFFSETCLEAR;
 	data->pps = pps_register_source(&data->info, pps_default_params);
 	if (data->pps == NULL) {
-		kfree(data);
 		pr_err("failed to register IRQ %d as PPS source\n", irq);
 		err = -EINVAL;
 		goto return_error;
@@ -164,7 +164,6 @@ static int pps_gpio_probe(struct platform_device *pdev)
 			get_irqf_trigger_flags(pdata), data->info.name, data);
 	if (ret) {
 		pps_unregister_source(data->pps);
-		kfree(data);
 		pr_err("failed to acquire IRQ %d\n", irq);
 		err = -EINVAL;
 		goto return_error;
@@ -190,7 +189,6 @@ static int pps_gpio_remove(struct platform_device *pdev)
 	gpio_free(pdata->gpio_pin);
 	pps_unregister_source(data->pps);
 	pr_info("removed IRQ %d as PPS source\n", data->irq);
-	kfree(data);
 	return 0;
 }
 

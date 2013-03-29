@@ -265,6 +265,11 @@ struct mlx4_wqe_lso_seg {
 	__be32			header[0];
 };
 
+enum mlx4_wqe_bind_seg_flags2 {
+	MLX4_WQE_BIND_ZERO_BASED = (1 << 30),
+	MLX4_WQE_BIND_TYPE_2     = (1 << 31),
+};
+
 struct mlx4_wqe_bind_seg {
 	__be32			flags1;
 	__be32			flags2;
@@ -277,9 +282,9 @@ struct mlx4_wqe_bind_seg {
 enum {
 	MLX4_WQE_FMR_PERM_LOCAL_READ	= 1 << 27,
 	MLX4_WQE_FMR_PERM_LOCAL_WRITE	= 1 << 28,
-	MLX4_WQE_FMR_PERM_REMOTE_READ	= 1 << 29,
-	MLX4_WQE_FMR_PERM_REMOTE_WRITE	= 1 << 30,
-	MLX4_WQE_FMR_PERM_ATOMIC	= 1 << 31
+	MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_READ	= 1 << 29,
+	MLX4_WQE_FMR_AND_BIND_PERM_REMOTE_WRITE	= 1 << 30,
+	MLX4_WQE_FMR_AND_BIND_PERM_ATOMIC	= 1 << 31
 };
 
 struct mlx4_wqe_fmr_seg {
@@ -304,12 +309,10 @@ struct mlx4_wqe_fmr_ext_seg {
 };
 
 struct mlx4_wqe_local_inval_seg {
-	__be32			flags;
-	u32			reserved1;
+	u64			reserved1;
 	__be32			mem_key;
-	u32			reserved2[2];
-	__be32			guest_id;
-	__be64			pa;
+	u32			reserved2;
+	u64			reserved3[2];
 };
 
 struct mlx4_wqe_raddr_seg {

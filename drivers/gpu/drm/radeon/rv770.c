@@ -43,6 +43,31 @@ static void rv770_gpu_init(struct radeon_device *rdev);
 void rv770_fini(struct radeon_device *rdev);
 static void rv770_pcie_gen2_enable(struct radeon_device *rdev);
 
+#define PCIE_BUS_CLK                10000
+#define TCLK                        (PCIE_BUS_CLK / 10)
+
+/**
+ * rv770_get_xclk - get the xclk
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Returns the reference clock used by the gfx engine
+ * (r7xx-cayman).
+ */
+u32 rv770_get_xclk(struct radeon_device *rdev)
+{
+	u32 reference_clock = rdev->clock.spll.reference_freq;
+	u32 tmp = RREG32(CG_CLKPIN_CNTL);
+
+	if (tmp & MUX_TCLK_TO_XCLK)
+		return TCLK;
+
+	if (tmp & XTALIN_DIVIDE)
+		return reference_clock / 4;
+
+	return reference_clock;
+}
+
 u32 rv770_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];

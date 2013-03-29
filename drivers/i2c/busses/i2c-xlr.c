@@ -256,7 +256,6 @@ static int xlr_i2c_remove(struct platform_device *pdev)
 
 	priv = platform_get_drvdata(pdev);
 	i2c_del_adapter(&priv->adap);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

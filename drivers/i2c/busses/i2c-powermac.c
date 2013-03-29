@@ -221,7 +221,6 @@ static int i2c_powermac_remove(struct platform_device *dev)
 		printk(KERN_WARNING
 		       "i2c-powermac.c: Failed to remove bus %s !\n",
 		       adapter->name);
-	platform_set_drvdata(dev, NULL);
 	memset(adapter, 0, sizeof(*adapter));
 
 	return 0;

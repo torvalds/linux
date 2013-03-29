@@ -61,7 +61,7 @@ coh901318_lli_alloc(struct coh901318_pool *pool, unsigned int len)
 	dma_addr_t phy;
 
 	if (len == 0)
-		goto err;
+		return NULL;
 
 	spin_lock(&pool->lock);
 

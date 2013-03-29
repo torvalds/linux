@@ -22,8 +22,10 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/object.h>
+#include <core/client.h>
 #include <core/enum.h>
+#include <core/engctx.h>
+#include <core/object.h>
 
 #include <subdev/fb.h>
 #include <subdev/bios.h>
@@ -303,17 +305,18 @@ static const struct nouveau_enum vm_client[] = {
 };
 
 static const struct nouveau_enum vm_engine[] = {
-	{ 0x00000000, "PGRAPH", NULL },
-	{ 0x00000001, "PVP", NULL },
+	{ 0x00000000, "PGRAPH", NULL, NVDEV_ENGINE_GR },
+	{ 0x00000001, "PVP", NULL, NVDEV_ENGINE_VP },
 	{ 0x00000004, "PEEPHOLE", NULL },
-	{ 0x00000005, "PFIFO", vm_pfifo_subclients },
+	{ 0x00000005, "PFIFO", vm_pfifo_subclients, NVDEV_ENGINE_FIFO },
 	{ 0x00000006, "BAR", vm_bar_subclients },
-	{ 0x00000008, "PPPP", NULL },
-	{ 0x00000009, "PBSP", NULL },
-	{ 0x0000000a, "PCRYPT", NULL },
+	{ 0x00000008, "PPPP", NULL, NVDEV_ENGINE_PPP },
+	{ 0x00000008, "PMPEG", NULL, NVDEV_ENGINE_MPEG },
+	{ 0x00000009, "PBSP", NULL, NVDEV_ENGINE_BSP },
+	{ 0x0000000a, "PCRYPT", NULL, NVDEV_ENGINE_CRYPT },
 	{ 0x0000000b, "PCOUNTER", NULL },
 	{ 0x0000000c, "SEMAPHORE_BG", NULL },
-	{ 0x0000000d, "PCOPY", NULL },
+	{ 0x0000000d, "PCOPY", NULL, NVDEV_ENGINE_COPY0 },
 	{ 0x0000000e, "PDAEMON", NULL },
 	{}
 };
@@ -335,8 +338,10 @@ static void
 nv50_fb_intr(struct nouveau_subdev *subdev)
 {
 	struct nouveau_device *device = nv_device(subdev);
+	struct nouveau_engine *engine;
 	struct nv50_fb_priv *priv = (void *)subdev;
 	const struct nouveau_enum *en, *cl;
+	struct nouveau_object *engctx = NULL;
 	u32 trap[6], idx, chan;
 	u8 st0, st1, st2, st3;
 	int i;
@@ -367,36 +372,55 @@ nv50_fb_intr(struct nouveau_subdev *subdev)
 	}
 	chan = (trap[2] << 16) | trap[1];
 
-	nv_error(priv, "trapped %s at 0x%02x%04x%04x on channel 0x%08x ",
-		 (trap[5] & 0x00000100) ? "read" : "write",
-		 trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff, chan);
-
 	en = nouveau_enum_find(vm_engine, st0);
+
+	if (en && en->data2) {
+		const struct nouveau_enum *orig_en = en;
+		while (en->name && en->value == st0 && en->data2) {
+			engine = nouveau_engine(subdev, en->data2);
+			if (engine) {
+				engctx = nouveau_engctx_get(engine, chan);
+				if (engctx)
+					break;
+			}
+			en++;
+		}
+		if (!engctx)
+			en = orig_en;
+	}
+
+	nv_error(priv, "trapped %s at 0x%02x%04x%04x on channel 0x%08x [%s] ",
+		 (trap[5] & 0x00000100) ? "read" : "write",
+		 trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff, chan,
+		 nouveau_client_name(engctx));
+
+	nouveau_engctx_put(engctx);
+
 	if (en)
-		printk("%s/", en->name);
+		pr_cont("%s/", en->name);
 	else
-		printk("%02x/", st0);
+		pr_cont("%02x/", st0);
 
 	cl = nouveau_enum_find(vm_client, st2);
 	if (cl)
-		printk("%s/", cl->name);
+		pr_cont("%s/", cl->name);
 	else
-		printk("%02x/", st2);
+		pr_cont("%02x/", st2);
 
 	if      (cl && cl->data) cl = nouveau_enum_find(cl->data, st3);
 	else if (en && en->data) cl = nouveau_enum_find(en->data, st3);
 	else                     cl = NULL;
 	if (cl)
-		printk("%s", cl->name);
+		pr_cont("%s", cl->name);
 	else
-		printk("%02x", st3);
+		pr_cont("%02x", st3);
 
-	printk(" reason: ");
+	pr_cont(" reason: ");
 	en = nouveau_enum_find(vm_fault, st1);
 	if (en)
-		printk("%s\n", en->name);
+		pr_cont("%s\n", en->name);
 	else
-		printk("0x%08x\n", st1);
+		pr_cont("0x%08x\n", st1);
 }
 
 static int

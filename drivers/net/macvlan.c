@@ -55,9 +55,8 @@ static struct macvlan_dev *macvlan_hash_lookup(const struct macvlan_port *port,
 					       const unsigned char *addr)
 {
 	struct macvlan_dev *vlan;
-	struct hlist_node *n;
 
-	hlist_for_each_entry_rcu(vlan, n, &port->vlan_hash[addr[5]], hlist) {
+	hlist_for_each_entry_rcu(vlan, &port->vlan_hash[addr[5]], hlist) {
 		if (ether_addr_equal_64bits(vlan->dev->dev_addr, addr))
 			return vlan;
 	}
@@ -149,7 +148,6 @@ static void macvlan_broadcast(struct sk_buff *skb,
 {
 	const struct ethhdr *eth = eth_hdr(skb);
 	const struct macvlan_dev *vlan;
-	struct hlist_node *n;
 	struct sk_buff *nskb;
 	unsigned int i;
 	int err;
@@ -159,7 +157,7 @@ static void macvlan_broadcast(struct sk_buff *skb,
 		return;
 
 	for (i = 0; i < MACVLAN_HASH_SIZE; i++) {
-		hlist_for_each_entry_rcu(vlan, n, &port->vlan_hash[i], hlist) {
+		hlist_for_each_entry_rcu(vlan, &port->vlan_hash[i], hlist) {
 			if (vlan->dev == src || !(vlan->mode & mode))
 				continue;
 

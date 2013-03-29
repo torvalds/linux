@@ -380,7 +380,7 @@ static void lm355x_indicator_brightness_set(struct led_classdev *cdev,
 
 /* indicator pattern only for lm3556*/
 static ssize_t lm3556_indicator_pattern_store(struct device *dev,
-					      struct device_attribute *devAttr,
+					      struct device_attribute *attr,
 					      const char *buf, size_t size)
 {
 	ssize_t ret;

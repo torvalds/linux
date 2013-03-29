@@ -165,10 +165,9 @@ static void rose_remove_socket(struct sock *sk)
 void rose_kill_by_neigh(struct rose_neigh *neigh)
 {
 	struct sock *s;
-	struct hlist_node *node;
 
 	spin_lock_bh(&rose_list_lock);
-	sk_for_each(s, node, &rose_list) {
+	sk_for_each(s, &rose_list) {
 		struct rose_sock *rose = rose_sk(s);
 
 		if (rose->neighbour == neigh) {
@@ -186,10 +185,9 @@ void rose_kill_by_neigh(struct rose_neigh *neigh)
 static void rose_kill_by_device(struct net_device *dev)
 {
 	struct sock *s;
-	struct hlist_node *node;
 
 	spin_lock_bh(&rose_list_lock);
-	sk_for_each(s, node, &rose_list) {
+	sk_for_each(s, &rose_list) {
 		struct rose_sock *rose = rose_sk(s);
 
 		if (rose->device == dev) {
@@ -246,10 +244,9 @@ static void rose_insert_socket(struct sock *sk)
 static struct sock *rose_find_listener(rose_address *addr, ax25_address *call)
 {
 	struct sock *s;
-	struct hlist_node *node;
 
 	spin_lock_bh(&rose_list_lock);
-	sk_for_each(s, node, &rose_list) {
+	sk_for_each(s, &rose_list) {
 		struct rose_sock *rose = rose_sk(s);
 
 		if (!rosecmp(&rose->source_addr, addr) &&
@@ -258,7 +255,7 @@ static struct sock *rose_find_listener(rose_address *addr, ax25_address *call)
 			goto found;
 	}
 
-	sk_for_each(s, node, &rose_list) {
+	sk_for_each(s, &rose_list) {
 		struct rose_sock *rose = rose_sk(s);
 
 		if (!rosecmp(&rose->source_addr, addr) &&
@@ -278,10 +275,9 @@ found:
 struct sock *rose_find_socket(unsigned int lci, struct rose_neigh *neigh)
 {
 	struct sock *s;
-	struct hlist_node *node;
 
 	spin_lock_bh(&rose_list_lock);
-	sk_for_each(s, node, &rose_list) {
+	sk_for_each(s, &rose_list) {
 		struct rose_sock *rose = rose_sk(s);
 
 		if (rose->lci == lci && rose->neighbour == neigh)

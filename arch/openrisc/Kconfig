@@ -12,6 +12,7 @@ config OPENRISC
 	select ARCH_WANT_OPTIONAL_GPIOLIB
         select HAVE_ARCH_TRACEHOOK
 	select HAVE_GENERIC_HARDIRQS
+	select HAVE_VIRT_TO_BUS
 	select GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -25,10 +26,6 @@ config OPENRISC
 
 config MMU
 	def_bool y
-
-config SYMBOL_PREFIX
-        string
-        default ""
 
 config HAVE_DMA_ATTRS
 	def_bool y

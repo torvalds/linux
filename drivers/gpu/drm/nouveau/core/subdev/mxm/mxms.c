@@ -156,15 +156,15 @@ mxms_foreach(struct nouveau_mxm *mxm, u8 types,
 
 			nv_debug(mxm, "%4s: ", mxms_desc_name[type]);
 			for (j = headerlen - 1; j >= 0; j--)
-				printk("%02x", dump[j]);
-			printk("\n");
+				pr_cont("%02x", dump[j]);
+			pr_cont("\n");
 			dump += headerlen;
 
 			for (i = 0; i < entries; i++, dump += recordlen) {
 				nv_debug(mxm, "      ");
 				for (j = recordlen - 1; j >= 0; j--)
-					printk("%02x", dump[j]);
-				printk("\n");
+					pr_cont("%02x", dump[j]);
+				pr_cont("\n");
 			}
 		}
 

@@ -77,7 +77,6 @@ void __init prom_init(void)
 	board_ejtag_handler_setup = mips_ejtag_setup;
 
 	prom_init_cmdline();
-	prom_meminit();
 #ifdef CONFIG_EARLY_PRINTK
 	if ((strstr(prom_getcmdline(), "console=ttyS0")) != NULL)
 		prom_init_early_console(0);
@@ -88,4 +87,8 @@ void __init prom_init(void)
 	if ((strstr(prom_getcmdline(), "console=")) == NULL)
 		strcat(prom_getcmdline(), " console=ttyS0,38400n8r");
 #endif
+}
+
+void prom_free_prom_memory(void)
+{
 }

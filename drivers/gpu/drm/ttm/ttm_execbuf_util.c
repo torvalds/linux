@@ -82,22 +82,6 @@ static void ttm_eu_list_ref_sub(struct list_head *list)
 	}
 }
 
-static int ttm_eu_wait_unreserved_locked(struct list_head *list,
-					 struct ttm_buffer_object *bo)
-{
-	struct ttm_bo_global *glob = bo->glob;
-	int ret;
-
-	ttm_eu_del_from_lru_locked(list);
-	spin_unlock(&glob->lru_lock);
-	ret = ttm_bo_wait_unreserved(bo, true);
-	spin_lock(&glob->lru_lock);
-	if (unlikely(ret != 0))
-		ttm_eu_backoff_reservation_locked(list);
-	return ret;
-}
-
-
 void ttm_eu_backoff_reservation(struct list_head *list)
 {
 	struct ttm_validate_buffer *entry;
@@ -145,47 +129,65 @@ int ttm_eu_reserve_buffers(struct list_head *list)
 	entry = list_first_entry(list, struct ttm_validate_buffer, head);
 	glob = entry->bo->glob;
 
-retry:
 	spin_lock(&glob->lru_lock);
 	val_seq = entry->bo->bdev->val_seq++;
 
+retry:
 	list_for_each_entry(entry, list, head) {
 		struct ttm_buffer_object *bo = entry->bo;
 
-retry_this_bo:
-		ret = ttm_bo_reserve_locked(bo, true, true, true, val_seq);
+		/* already slowpath reserved? */
+		if (entry->reserved)
+			continue;
+
+		ret = ttm_bo_reserve_nolru(bo, true, true, true, val_seq);
 		switch (ret) {
 		case 0:
 			break;
 		case -EBUSY:
-			ret = ttm_eu_wait_unreserved_locked(list, bo);
-			if (unlikely(ret != 0)) {
-				spin_unlock(&glob->lru_lock);
-				ttm_eu_list_ref_sub(list);
-				return ret;
-			}
-			goto retry_this_bo;
+			ttm_eu_del_from_lru_locked(list);
+			spin_unlock(&glob->lru_lock);
+			ret = ttm_bo_reserve_nolru(bo, true, false,
+						   true, val_seq);
+			spin_lock(&glob->lru_lock);
+			if (!ret)
+				break;
+
+			if (unlikely(ret != -EAGAIN))
+				goto err;
+
+			/* fallthrough */
 		case -EAGAIN:
 			ttm_eu_backoff_reservation_locked(list);
+
+			/*
+			 * temporarily increase sequence number every retry,
+			 * to prevent us from seeing our old reservation
+			 * sequence when someone else reserved the buffer,
+			 * but hasn't updated the seq_valid/seqno members yet.
+			 */
+			val_seq = entry->bo->bdev->val_seq++;
+
 			spin_unlock(&glob->lru_lock);
 			ttm_eu_list_ref_sub(list);
-			ret = ttm_bo_wait_unreserved(bo, true);
+			ret = ttm_bo_reserve_slowpath_nolru(bo, true, val_seq);
 			if (unlikely(ret != 0))
 				return ret;
+			spin_lock(&glob->lru_lock);
+			entry->reserved = true;
+			if (unlikely(atomic_read(&bo->cpu_writers) > 0)) {
+				ret = -EBUSY;
+				goto err;
+			}
 			goto retry;
 		default:
-			ttm_eu_backoff_reservation_locked(list);
-			spin_unlock(&glob->lru_lock);
-			ttm_eu_list_ref_sub(list);
-			return ret;
+			goto err;
 		}
 
 		entry->reserved = true;
 		if (unlikely(atomic_read(&bo->cpu_writers) > 0)) {
-			ttm_eu_backoff_reservation_locked(list);
-			spin_unlock(&glob->lru_lock);
-			ttm_eu_list_ref_sub(list);
-			return -EBUSY;
+			ret = -EBUSY;
+			goto err;
 		}
 	}
 
@@ -194,6 +196,12 @@ retry_this_bo:
 	ttm_eu_list_ref_sub(list);
 
 	return 0;
+
+err:
+	ttm_eu_backoff_reservation_locked(list);
+	spin_unlock(&glob->lru_lock);
+	ttm_eu_list_ref_sub(list);
+	return ret;
 }
 EXPORT_SYMBOL(ttm_eu_reserve_buffers);
 

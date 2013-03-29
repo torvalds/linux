@@ -117,6 +117,7 @@ int btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 /* Used for evicting the inode. */
 void btrfs_remove_delayed_node(struct inode *inode);
 void btrfs_kill_delayed_inode_items(struct inode *inode);
+int btrfs_commit_inode_delayed_inode(struct inode *inode);
 
 
 int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,

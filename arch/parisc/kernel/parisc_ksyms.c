@@ -157,5 +157,6 @@ extern void _mcount(void);
 EXPORT_SYMBOL(_mcount);
 #endif
 
-/* from pacache.S -- needed for copy_page */
-EXPORT_SYMBOL(copy_user_page_asm);
+/* from pacache.S -- needed for clear/copy_page */
+EXPORT_SYMBOL(clear_page_asm);
+EXPORT_SYMBOL(copy_page_asm);

@@ -13013,64 +13013,6 @@ static int bnx2x_84833_common_init_phy(struct bnx2x *bp,
 	return 0;
 }
 
-static int bnx2x_84833_pre_init_phy(struct bnx2x *bp,
-				    struct bnx2x_phy *phy,
-				    u8 port)
-{
-	u16 val, cnt;
-	/* Wait for FW completing its initialization. */
-	for (cnt = 0; cnt < 1500; cnt++) {
-		bnx2x_cl45_read(bp, phy,
-				MDIO_PMA_DEVAD,
-				MDIO_PMA_REG_CTRL, &val);
-		if (!(val & (1<<15)))
-			break;
-		usleep_range(1000, 2000);
-	}
-	if (cnt >= 1500) {
-		DP(NETIF_MSG_LINK, "84833 reset timeout\n");
-		return -EINVAL;
-	}
-
-	/* Put the port in super isolate mode. */
-	bnx2x_cl45_read(bp, phy,
-			MDIO_CTL_DEVAD,
-			MDIO_84833_TOP_CFG_XGPHY_STRAP1, &val);
-	val |= MDIO_84833_SUPER_ISOLATE;
-	bnx2x_cl45_write(bp, phy,
-			 MDIO_CTL_DEVAD,
-			 MDIO_84833_TOP_CFG_XGPHY_STRAP1, val);
-
-	/* Save spirom version */
-	bnx2x_save_848xx_spirom_version(phy, bp, port);
-	return 0;
-}
-
-int bnx2x_pre_init_phy(struct bnx2x *bp,
-				  u32 shmem_base,
-				  u32 shmem2_base,
-				  u32 chip_id,
-				  u8 port)
-{
-	int rc = 0;
-	struct bnx2x_phy phy;
-	if (bnx2x_populate_phy(bp, EXT_PHY1, shmem_base, shmem2_base,
-			       port, &phy) != 0) {
-		DP(NETIF_MSG_LINK, "populate_phy failed\n");
-		return -EINVAL;
-	}
-	bnx2x_set_mdio_clk(bp, chip_id, phy.mdio_ctrl);
-	switch (phy.type) {
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833:
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834:
-		rc = bnx2x_84833_pre_init_phy(bp, &phy, port);
-		break;
-	default:
-		break;
-	}
-	return rc;
-}
-
 static int bnx2x_ext_phy_common_init(struct bnx2x *bp, u32 shmem_base_path[],
 				     u32 shmem2_base_path[], u8 phy_index,
 				     u32 ext_phy_type, u32 chip_id)

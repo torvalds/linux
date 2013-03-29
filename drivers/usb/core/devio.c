@@ -161,7 +161,7 @@ static loff_t usbdev_lseek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
 
-	mutex_lock(&file->f_dentry->d_inode->i_mutex);
+	mutex_lock(&file_inode(file)->i_mutex);
 
 	switch (orig) {
 	case 0:
@@ -177,7 +177,7 @@ static loff_t usbdev_lseek(struct file *file, loff_t offset, int orig)
 		ret = -EINVAL;
 	}
 
-	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
+	mutex_unlock(&file_inode(file)->i_mutex);
 	return ret;
 }
 
@@ -1971,7 +1971,7 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 				void __user *p)
 {
 	struct dev_state *ps = file->private_data;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct usb_device *dev = ps->dev;
 	int ret = -ENOTTY;
 

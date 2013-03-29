@@ -465,7 +465,7 @@
 #define	SD_RSP_TYPE_R6			0x01
 #define	SD_RSP_TYPE_R7			0x01
 
-/* SD_CONFIURE3 */
+/* SD_CONFIGURE3 */
 #define	SD_RSP_80CLK_TIMEOUT_EN		0x01
 
 /* Card Transfer Reset Register */
@@ -581,8 +581,11 @@
 #define CARD_GPIO_DIR			0xFD57
 #define CARD_GPIO			0xFD58
 #define CARD_DATA_SOURCE		0xFD5B
+#define SD30_CLK_DRIVE_SEL		0xFD5A
 #define CARD_SELECT			0xFD5C
 #define SD30_DRIVE_SEL			0xFD5E
+#define SD30_CMD_DRIVE_SEL		0xFD5E
+#define SD30_DAT_DRIVE_SEL		0xFD5F
 #define CARD_CLK_EN			0xFD69
 #define SDIO_CTRL			0xFD6B
 #define CD_PAD_CTL			0xFD73
@@ -655,6 +658,8 @@
 #define MSGTXDATA3			0xFE47
 #define MSGTXCTL			0xFE48
 #define PETXCFG				0xFE49
+#define LTR_CTL				0xFE4A
+#define OBFF_CFG			0xFE4C
 
 #define CDRESUMECTL			0xFE52
 #define WAKE_SEL_CTL			0xFE54
@@ -735,6 +740,7 @@ struct rtsx_pcr {
 
 	unsigned int			card_inserted;
 	unsigned int			card_removed;
+	unsigned int			card_exist;
 
 	struct delayed_work		carddet_work;
 	struct delayed_work		idle_work;
@@ -799,6 +805,7 @@ int rtsx_pci_switch_clock(struct rtsx_pcr *pcr, unsigned int card_clock,
 		u8 ssc_depth, bool initial_mode, bool double_clk, bool vpclk);
 int rtsx_pci_card_power_on(struct rtsx_pcr *pcr, int card);
 int rtsx_pci_card_power_off(struct rtsx_pcr *pcr, int card);
+int rtsx_pci_card_exclusive_check(struct rtsx_pcr *pcr, int card);
 int rtsx_pci_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage);
 unsigned int rtsx_pci_card_exist(struct rtsx_pcr *pcr);
 void rtsx_pci_complete_unfinished_transfer(struct rtsx_pcr *pcr);

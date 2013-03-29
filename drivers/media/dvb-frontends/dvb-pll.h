@@ -38,7 +38,7 @@
  * @param pll_desc_id dvb_pll_desc to use.
  * @return Frontend pointer on success, NULL on failure
  */
-#if defined(CONFIG_DVB_PLL) || (defined(CONFIG_DVB_PLL_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_PLL)
 extern struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe,
 					   int pll_addr,
 					   struct i2c_adapter *i2c,

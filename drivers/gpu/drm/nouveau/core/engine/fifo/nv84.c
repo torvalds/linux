@@ -26,6 +26,7 @@
 #include <core/client.h>
 #include <core/engctx.h>
 #include <core/ramht.h>
+#include <core/event.h>
 #include <core/class.h>
 #include <core/math.h>
 
@@ -100,7 +101,8 @@ nv84_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	done = nv_wait_ne(priv, 0x0032fc, 0xffffffff, 0xffffffff);
 	nv_wr32(priv, 0x002520, save);
 	if (!done) {
-		nv_error(priv, "channel %d unload timeout\n", chan->base.chid);
+		nv_error(priv, "channel %d [%s] unload timeout\n",
+			 chan->base.chid, nouveau_client_name(chan));
 		if (suspend)
 			return -EBUSY;
 	}
@@ -378,6 +380,20 @@ nv84_fifo_cclass = {
  * PFIFO engine
  ******************************************************************************/
 
+static void
+nv84_fifo_uevent_enable(struct nouveau_event *event, int index)
+{
+	struct nv84_fifo_priv *priv = event->priv;
+	nv_mask(priv, 0x002140, 0x40000000, 0x40000000);
+}
+
+static void
+nv84_fifo_uevent_disable(struct nouveau_event *event, int index)
+{
+	struct nv84_fifo_priv *priv = event->priv;
+	nv_mask(priv, 0x002140, 0x40000000, 0x00000000);
+}
+
 static int
 nv84_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_oclass *oclass, void *data, u32 size,
@@ -400,6 +416,10 @@ nv84_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 				&priv->playlist[1]);
 	if (ret)
 		return ret;
+
+	priv->base.uevent->enable = nv84_fifo_uevent_enable;
+	priv->base.uevent->disable = nv84_fifo_uevent_disable;
+	priv->base.uevent->priv = priv;
 
 	nv_subdev(priv)->unit = 0x00000100;
 	nv_subdev(priv)->intr = nv04_fifo_intr;

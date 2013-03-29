@@ -420,21 +420,21 @@ static inline int numdimms(u32 dimms)
 
 static inline int numrank(u32 rank)
 {
-	static int ranks[4] = { 1, 2, 4, -EINVAL };
+	static const int ranks[] = { 1, 2, 4, -EINVAL };
 
 	return ranks[rank & 0x3];
 }
 
 static inline int numbank(u32 bank)
 {
-	static int banks[4] = { 4, 8, 16, -EINVAL };
+	static const int banks[] = { 4, 8, 16, -EINVAL };
 
 	return banks[bank & 0x3];
 }
 
 static inline int numrow(u32 row)
 {
-	static int rows[8] = {
+	static const int rows[] = {
 		1 << 12, 1 << 13, 1 << 14, 1 << 15,
 		1 << 16, -EINVAL, -EINVAL, -EINVAL,
 	};
@@ -444,7 +444,7 @@ static inline int numrow(u32 row)
 
 static inline int numcol(u32 col)
 {
-	static int cols[8] = {
+	static const int cols[] = {
 		1 << 10, 1 << 11, 1 << 12, -EINVAL,
 	};
 	return cols[col & 0x3];

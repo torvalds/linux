@@ -869,8 +869,6 @@ static void pch_i2c_remove(struct pci_dev *pdev)
 	for (i = 0; i < adap_info->ch_num; i++)
 		adap_info->pch_data[i].pch_base_address = NULL;
 
-	pci_set_drvdata(pdev, NULL);
-
 	pci_release_regions(pdev);
 
 	pci_disable_device(pdev);

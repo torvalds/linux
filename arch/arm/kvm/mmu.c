@@ -633,11 +633,6 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	}
 
 	memslot = gfn_to_memslot(vcpu->kvm, gfn);
-	if (!memslot->user_alloc) {
-		kvm_err("non user-alloc memslots not supported\n");
-		ret = -EINVAL;
-		goto out_unlock;
-	}
 
 	ret = user_mem_abort(vcpu, fault_ipa, gfn, memslot, fault_status);
 	if (ret == 0)

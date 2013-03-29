@@ -125,31 +125,6 @@ static inline void init_llist_head(struct llist_head *list)
 	     (pos) = llist_entry((pos)->member.next, typeof(*(pos)), member))
 
 /**
- * llist_for_each_entry_safe - iterate safely against remove over some entries
- * of lock-less list of given type.
- * @pos:	the type * to use as a loop cursor.
- * @n:		another type * to use as a temporary storage.
- * @node:	the fist entry of deleted list entries.
- * @member:	the name of the llist_node with the struct.
- *
- * In general, some entries of the lock-less list can be traversed
- * safely only after being removed from list, so start with an entry
- * instead of list head. This variant allows removal of entries
- * as we iterate.
- *
- * If being used on entries deleted from lock-less list directly, the
- * traverse order is from the newest to the oldest added entry.  If
- * you want to traverse from the oldest to the newest, you must
- * reverse the order by yourself before traversing.
- */
-#define llist_for_each_entry_safe(pos, n, node, member)		\
-	for ((pos) = llist_entry((node), typeof(*(pos)), member),	\
-	     (n) = (pos)->member.next;					\
-	     &(pos)->member != NULL;					\
-	     (pos) = llist_entry(n, typeof(*(pos)), member),		\
-	     (n) = (&(pos)->member != NULL) ? (pos)->member.next : NULL)
-
-/**
  * llist_empty - tests whether a lock-less list is empty
  * @head:	the list to test
  *

@@ -404,7 +404,7 @@ static inline struct page *zbud_unuse_zbudpage(struct zbudpage *zbudpage,
 	else
 		zbud_pers_pageframes--;
 	zbudpage_spin_unlock(zbudpage);
-	reset_page_mapcount(page);
+	page_mapcount_reset(page);
 	init_page_count(page);
 	page->index = 0;
 	return page;

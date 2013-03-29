@@ -317,10 +317,7 @@ static int ams369fg06_power_on(struct ams369fg06 *lcd)
 	pd = lcd->lcd_pd;
 	bd = lcd->bd;
 
-	if (!pd->power_on) {
-		dev_err(lcd->dev, "power_on is NULL.\n");
-		return -EINVAL;
-	} else {
+	if (pd->power_on) {
 		pd->power_on(lcd->ld, 1);
 		msleep(pd->power_on_delay);
 	}
@@ -370,7 +367,8 @@ static int ams369fg06_power_off(struct ams369fg06 *lcd)
 
 	msleep(pd->power_off_delay);
 
-	pd->power_on(lcd->ld, 0);
+	if (pd->power_on)
+		pd->power_on(lcd->ld, 0);
 
 	return 0;
 }

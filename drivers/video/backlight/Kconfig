@@ -384,6 +384,12 @@ config BACKLIGHT_LP855X
 	  This supports TI LP8550, LP8551, LP8552, LP8553, LP8556 and LP8557
 	  backlight driver.
 
+config BACKLIGHT_LP8788
+	tristate "Backlight driver for TI LP8788 MFD"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_LP8788
+	help
+	  This supports TI LP8788 backlight driver.
+
 config BACKLIGHT_OT200
 	tristate "Backlight driver for ot200 visualisation device"
 	depends on BACKLIGHT_CLASS_DEVICE && CS5535_MFGPT && GPIO_CS5535
