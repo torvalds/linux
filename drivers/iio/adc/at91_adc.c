@@ -188,7 +188,7 @@ static u8 at91_adc_get_trigger_value_by_name(struct iio_dev *idev,
 
 static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 {
-	struct iio_dev *idev = trig->private_data;
+	struct iio_dev *idev = iio_trigger_get_drvdata(trig);
 	struct at91_adc_state *st = iio_priv(idev);
 	struct iio_buffer *buffer = idev->buffer;
 	struct at91_adc_reg_desc *reg = st->registers;
@@ -254,7 +254,7 @@ static struct iio_trigger *at91_adc_allocate_trigger(struct iio_dev *idev,
 		return NULL;
 
 	trig->dev.parent = idev->dev.parent;
-	trig->private_data = idev;
+	iio_trigger_set_drvdata(trig, idev);
 	trig->ops = &at91_adc_trigger_ops;
 
 	ret = iio_trigger_register(trig);
