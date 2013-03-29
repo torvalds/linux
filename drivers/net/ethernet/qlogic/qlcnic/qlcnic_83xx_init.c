@@ -5,6 +5,7 @@
  * See LICENSE.qlcnic for copyright and licensing details.
  */
 
+#include "qlcnic_sriov.h"
 #include "qlcnic.h"
 #include "qlcnic_hw.h"
 
@@ -2045,9 +2046,12 @@ static void qlcnic_83xx_clear_function_resources(struct qlcnic_adapter *adapter)
 	}
 }
 
-int qlcnic_83xx_init(struct qlcnic_adapter *adapter)
+int qlcnic_83xx_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
+
+	if (qlcnic_sriov_vf_check(adapter))
+		return qlcnic_sriov_vf_init(adapter, pci_using_dac);
 
 	if (qlcnic_83xx_check_hw_status(adapter))
 		return -EIO;

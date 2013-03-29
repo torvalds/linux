@@ -1523,6 +1523,9 @@ int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *);
 void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, int,
 			  __le16);
 int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter);
+int qlcnic_read_mac_addr(struct qlcnic_adapter *);
+int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);
+
 /*
  * QLOGIC Board information
  */
@@ -1647,7 +1650,10 @@ static inline int qlcnic_alloc_mbx_args(struct qlcnic_cmd_args *mbx,
 static inline int qlcnic_issue_cmd(struct qlcnic_adapter *adapter,
 				   struct qlcnic_cmd_args *cmd)
 {
-	return adapter->ahw->hw_ops->mbx_cmd(adapter, cmd);
+	if (adapter->ahw->hw_ops->mbx_cmd)
+		return adapter->ahw->hw_ops->mbx_cmd(adapter, cmd);
+
+	return -EIO;
 }
 
 static inline void qlcnic_get_func_no(struct qlcnic_adapter *adapter)
@@ -1667,12 +1673,14 @@ static inline void qlcnic_api_unlock(struct qlcnic_adapter *adapter)
 
 static inline void qlcnic_add_sysfs(struct qlcnic_adapter *adapter)
 {
-	adapter->ahw->hw_ops->add_sysfs(adapter);
+	if (adapter->ahw->hw_ops->add_sysfs)
+		adapter->ahw->hw_ops->add_sysfs(adapter);
 }
 
 static inline void qlcnic_remove_sysfs(struct qlcnic_adapter *adapter)
 {
-	adapter->ahw->hw_ops->remove_sysfs(adapter);
+	if (adapter->ahw->hw_ops->remove_sysfs)
+		adapter->ahw->hw_ops->remove_sysfs(adapter);
 }
 
 static inline void
@@ -1790,12 +1798,14 @@ static inline int qlcnic_get_board_info(struct qlcnic_adapter *adapter)
 static inline void qlcnic_dev_request_reset(struct qlcnic_adapter *adapter,
 					    u32 key)
 {
-	adapter->nic_ops->request_reset(adapter, key);
+	if (adapter->nic_ops->request_reset)
+		adapter->nic_ops->request_reset(adapter, key);
 }
 
 static inline void qlcnic_cancel_idc_work(struct qlcnic_adapter *adapter)
 {
-	adapter->nic_ops->cancel_idc_work(adapter);
+	if (adapter->nic_ops->cancel_idc_work)
+		adapter->nic_ops->cancel_idc_work(adapter);
 }
 
 static inline irqreturn_t
@@ -1842,7 +1852,9 @@ extern const struct ethtool_ops qlcnic_ethtool_failed_ops;
 	} while (0)
 
 #define PCI_DEVICE_ID_QLOGIC_QLE834X    0x8030
+#define PCI_DEVICE_ID_QLOGIC_VF_QLE834X	0x8430
 #define PCI_DEVICE_ID_QLOGIC_QLE824X	0x8020
+
 static inline bool qlcnic_82xx_check(struct qlcnic_adapter *adapter)
 {
 	unsigned short device = adapter->pdev->device;
@@ -1852,7 +1864,12 @@ static inline bool qlcnic_82xx_check(struct qlcnic_adapter *adapter)
 static inline bool qlcnic_83xx_check(struct qlcnic_adapter *adapter)
 {
 	unsigned short device = adapter->pdev->device;
-	return (device == PCI_DEVICE_ID_QLOGIC_QLE834X) ? true : false;
+	bool status;
+
+	status = ((device == PCI_DEVICE_ID_QLOGIC_QLE834X) ||
+		  (device == PCI_DEVICE_ID_QLOGIC_VF_QLE834X)) ? true : false;
+
+	return status;
 }
 
 static inline bool qlcnic_sriov_pf_check(struct qlcnic_adapter *adapter)
@@ -1860,4 +1877,10 @@ static inline bool qlcnic_sriov_pf_check(struct qlcnic_adapter *adapter)
 	return (adapter->ahw->op_mode == QLCNIC_SRIOV_PF_FUNC) ? true : false;
 }
 
+static inline bool qlcnic_sriov_vf_check(struct qlcnic_adapter *adapter)
+{
+	unsigned short device = adapter->pdev->device;
+
+	return (device == PCI_DEVICE_ID_QLOGIC_VF_QLE834X) ? true : false;
+}
 #endif				/* __QLCNIC_H_ */

@@ -12,6 +12,9 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 
+extern const u32 qlcnic_83xx_reg_tbl[];
+extern const u32 qlcnic_83xx_ext_reg_tbl[];
+
 struct qlcnic_resources {
 	u16 num_tx_mac_filters;
 	u16 num_rx_ucast_mac_filters;
@@ -40,6 +43,9 @@ struct qlcnic_sriov {
 int qlcnic_sriov_init(struct qlcnic_adapter *, int);
 void qlcnic_sriov_cleanup(struct qlcnic_adapter *);
 void __qlcnic_sriov_cleanup(struct qlcnic_adapter *);
+void qlcnic_sriov_vf_register_map(struct qlcnic_hardware_context *);
+int qlcnic_sriov_vf_init(struct qlcnic_adapter *, int);
+void qlcnic_sriov_vf_set_ops(struct qlcnic_adapter *);
 
 static inline bool qlcnic_sriov_enable_check(struct qlcnic_adapter *adapter)
 {

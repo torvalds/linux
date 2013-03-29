@@ -110,6 +110,7 @@ static u32 qlcnic_vlan_tx_check(struct qlcnic_adapter *adapter)
 static DEFINE_PCI_DEVICE_TABLE(qlcnic_pci_tbl) = {
 	ENTRY(PCI_DEVICE_ID_QLOGIC_QLE824X),
 	ENTRY(PCI_DEVICE_ID_QLOGIC_QLE834X),
+	ENTRY(PCI_DEVICE_ID_QLOGIC_VF_QLE834X),
 	{0,}
 };
 
@@ -199,8 +200,7 @@ void qlcnic_free_sds_rings(struct qlcnic_recv_context *recv_ctx)
 	recv_ctx->sds_rings = NULL;
 }
 
-static int
-qlcnic_read_mac_addr(struct qlcnic_adapter *adapter)
+int qlcnic_read_mac_addr(struct qlcnic_adapter *adapter)
 {
 	u8 mac_addr[ETH_ALEN];
 	struct net_device *netdev = adapter->netdev;
@@ -713,6 +713,7 @@ static void qlcnic_get_bar_length(u32 dev_id, ulong *bar)
 		*bar = QLCNIC_82XX_BAR0_LENGTH;
 		break;
 	case PCI_DEVICE_ID_QLOGIC_QLE834X:
+	case PCI_DEVICE_ID_QLOGIC_VF_QLE834X:
 		*bar = QLCNIC_83XX_BAR0_LENGTH;
 		break;
 	default:
@@ -743,7 +744,7 @@ static int qlcnic_setup_pci_map(struct pci_dev *pdev,
 		return -EIO;
 	}
 
-	dev_info(&pdev->dev, "%dMB memory map\n", (int)(mem_len>>20));
+	dev_info(&pdev->dev, "%dKB memory map\n", (int)(mem_len >> 10));
 
 	ahw->pci_base0 = mem_ptr0;
 	ahw->pci_len0 = pci_len0;
@@ -1678,7 +1679,7 @@ qlcnic_reset_context(struct qlcnic_adapter *adapter)
 	return err;
 }
 
-static int
+int
 qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 		    int pci_using_dac)
 {
@@ -1813,6 +1814,9 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u32 capab2;
 	char board_name[QLCNIC_MAX_BOARD_NAME_LEN + 19]; /* MAC + ": " + name */
 
+	if (pdev->is_virtfn)
+		return -ENODEV;
+
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
@@ -1837,12 +1841,18 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!ahw)
 		goto err_out_free_res;
 
-	if (ent->device == PCI_DEVICE_ID_QLOGIC_QLE824X) {
+	switch (ent->device) {
+	case PCI_DEVICE_ID_QLOGIC_QLE824X:
 		ahw->hw_ops = &qlcnic_hw_ops;
-		ahw->reg_tbl = (u32 *)qlcnic_reg_tbl;
-	} else if (ent->device == PCI_DEVICE_ID_QLOGIC_QLE834X) {
+		ahw->reg_tbl = (u32 *) qlcnic_reg_tbl;
+		break;
+	case PCI_DEVICE_ID_QLOGIC_QLE834X:
 		qlcnic_83xx_register_map(ahw);
-	} else {
+		break;
+	case PCI_DEVICE_ID_QLOGIC_VF_QLE834X:
+		qlcnic_sriov_vf_register_map(ahw);
+		break;
+	default:
 		goto err_out_free_hw_res;
 	}
 
@@ -1904,11 +1914,13 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else if (qlcnic_83xx_check(adapter)) {
 		qlcnic_83xx_check_vf(adapter, ent);
 		adapter->portnum = adapter->ahw->pci_func;
-		err = qlcnic_83xx_init(adapter);
+		err = qlcnic_83xx_init(adapter, pci_using_dac);
 		if (err) {
 			dev_err(&pdev->dev, "%s: failed\n", __func__);
 			goto err_out_free_hw;
 		}
+		if (qlcnic_sriov_vf_check(adapter))
+			return 0;
 	} else {
 		dev_err(&pdev->dev,
 			"%s: failed. Please Reboot\n", __func__);

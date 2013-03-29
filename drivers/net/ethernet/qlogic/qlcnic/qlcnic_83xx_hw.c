@@ -6,6 +6,7 @@
  */
 
 #include "qlcnic.h"
+#include "qlcnic_sriov.h"
 #include <linux/if_vlan.h>
 #include <linux/ipv6.h>
 #include <linux/ethtool.h>
@@ -212,7 +213,7 @@ static const struct qlcnic_mailbox_metadata qlcnic_83xx_mbx_tbl[] = {
 	{QLCNIC_CMD_CONFIG_VPORT, 4, 4},
 };
 
-static const u32 qlcnic_83xx_ext_reg_tbl[] = {
+const u32 qlcnic_83xx_ext_reg_tbl[] = {
 	0x38CC,		/* Global Reset */
 	0x38F0,		/* Wildcard */
 	0x38FC,		/* Informant */
@@ -258,7 +259,7 @@ static const u32 qlcnic_83xx_ext_reg_tbl[] = {
 	0x34A4,		/* QLC_83XX_ASIC_TEMP */
 };
 
-static const u32 qlcnic_83xx_reg_tbl[] = {
+const u32 qlcnic_83xx_reg_tbl[] = {
 	0x34A8,		/* PEG_HALT_STAT1 */
 	0x34AC,		/* PEG_HALT_STAT2 */
 	0x34B0,		/* FW_HEARTBEAT */
@@ -415,8 +416,11 @@ int qlcnic_83xx_setup_intr(struct qlcnic_adapter *adapter, u8 num_intr)
 		return err;
 	if (adapter->flags & QLCNIC_MSIX_ENABLED)
 		num_msix = adapter->ahw->num_msix;
-	else
+	else {
+		if (qlcnic_sriov_vf_check(adapter))
+			return -EINVAL;
 		num_msix = 1;
+	}
 	/* setup interrupt mapping table for fw */
 	ahw->intr_tbl = vzalloc(num_msix *
 				sizeof(struct qlcnic_intrpt_config));
@@ -649,7 +653,7 @@ int qlcnic_83xx_setup_mbx_intr(struct qlcnic_adapter *adapter)
 void qlcnic_83xx_get_func_no(struct qlcnic_adapter *adapter)
 {
 	u32 val = QLCRDX(adapter->ahw, QLCNIC_INFORMANT);
-	adapter->ahw->pci_func = val & 0xf;
+	adapter->ahw->pci_func = (val >> 24) & 0xff;
 }
 
 int qlcnic_83xx_cam_lock(struct qlcnic_adapter *adapter)
@@ -760,6 +764,11 @@ void qlcnic_83xx_check_vf(struct qlcnic_adapter *adapter,
 
 	ahw->fw_hal_version = 2;
 	qlcnic_get_func_no(adapter);
+
+	if (qlcnic_sriov_vf_check(adapter)) {
+		qlcnic_sriov_vf_set_ops(adapter);
+		return;
+	}
 
 	/* Determine function privilege level */
 	op_mode = QLCRDX(adapter->ahw, QLC_83XX_DRV_OP_MODE);
@@ -1486,6 +1495,9 @@ void qlcnic_83xx_register_nic_idc_func(struct qlcnic_adapter *adapter,
 {
 	struct qlcnic_cmd_args cmd;
 	int status;
+
+	if (qlcnic_sriov_vf_check(adapter))
+		return;
 
 	if (enable) {
 		qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_INIT_NIC_FUNC);
