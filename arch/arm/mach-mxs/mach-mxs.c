@@ -171,18 +171,6 @@ static struct of_dev_auxdata mxs_auxdata_lookup[] __initdata = {
 	{ /* sentinel */ }
 };
 
-static void __init imx23_timer_init(void)
-{
-	mx23_clocks_init();
-	clocksource_of_init();
-}
-
-static void __init imx28_timer_init(void)
-{
-	mx28_clocks_init();
-	clocksource_of_init();
-}
-
 #define OCOTP_WORD_OFFSET		0x20
 #define OCOTP_WORD_COUNT		0x20
 
@@ -573,32 +561,27 @@ soft:
 	soft_restart(0);
 }
 
-static const char *imx23_dt_compat[] __initdata = {
+static void __init mxs_timer_init(void)
+{
+	if (of_machine_is_compatible("fsl,imx23"))
+		mx23_clocks_init();
+	else
+		mx28_clocks_init();
+	clocksource_of_init();
+}
+
+static const char *mxs_dt_compat[] __initdata = {
+	"fsl,imx28",
 	"fsl,imx23",
 	NULL,
 };
 
-static const char *imx28_dt_compat[] __initdata = {
-	"fsl,imx28",
-	NULL,
-};
-
-DT_MACHINE_START(IMX23, "Freescale i.MX23 (Device Tree)")
+DT_MACHINE_START(MXS, "Freescale MXS (Device Tree)")
 	.map_io		= debug_ll_io_init,
 	.init_irq	= irqchip_init,
 	.handle_irq	= icoll_handle_irq,
-	.init_time	= imx23_timer_init,
+	.init_time	= mxs_timer_init,
 	.init_machine	= mxs_machine_init,
-	.dt_compat	= imx23_dt_compat,
-	.restart	= mxs_restart,
-MACHINE_END
-
-DT_MACHINE_START(IMX28, "Freescale i.MX28 (Device Tree)")
-	.map_io		= debug_ll_io_init,
-	.init_irq	= irqchip_init,
-	.handle_irq	= icoll_handle_irq,
-	.init_time	= imx28_timer_init,
-	.init_machine	= mxs_machine_init,
-	.dt_compat	= imx28_dt_compat,
+	.dt_compat	= mxs_dt_compat,
 	.restart	= mxs_restart,
 MACHINE_END
