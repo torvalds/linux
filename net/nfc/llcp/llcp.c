@@ -31,6 +31,8 @@ static u8 llcp_magic[3] = {0x46, 0x66, 0x6d};
 
 static struct list_head llcp_devices;
 
+static void nfc_llcp_rx_skb(struct nfc_llcp_local *local, struct sk_buff *skb);
+
 void nfc_llcp_sock_link(struct llcp_sock_list *l, struct sock *sk)
 {
 	write_lock(&l->lock);
@@ -1349,18 +1351,53 @@ exit:
 		nfc_llcp_send_snl_sdres(local, &llc_sdres_list, sdres_tlvs_len);
 }
 
-static void nfc_llcp_rx_work(struct work_struct *work)
+static void nfc_llcp_recv_agf(struct nfc_llcp_local *local, struct sk_buff *skb)
 {
-	struct nfc_llcp_local *local = container_of(work, struct nfc_llcp_local,
-						    rx_work);
-	u8 dsap, ssap, ptype;
-	struct sk_buff *skb;
+	u8 ptype;
+	u16 pdu_len;
+	struct sk_buff *new_skb;
 
-	skb = local->rx_pending;
-	if (skb == NULL) {
-		pr_debug("No pending SKB\n");
+	if (skb->len <= LLCP_HEADER_SIZE) {
+		pr_err("Malformed AGF PDU\n");
 		return;
 	}
+
+	skb_pull(skb, LLCP_HEADER_SIZE);
+
+	while (skb->len > LLCP_AGF_PDU_HEADER_SIZE) {
+		pdu_len = skb->data[0] << 8 | skb->data[1];
+
+		skb_pull(skb, LLCP_AGF_PDU_HEADER_SIZE);
+
+		if (pdu_len < LLCP_HEADER_SIZE || pdu_len > skb->len) {
+			pr_err("Malformed AGF PDU\n");
+			return;
+		}
+
+		ptype = nfc_llcp_ptype(skb);
+
+		if (ptype == LLCP_PDU_SYMM || ptype == LLCP_PDU_AGF)
+			goto next;
+
+		new_skb = nfc_alloc_recv_skb(pdu_len, GFP_KERNEL);
+		if (new_skb == NULL) {
+			pr_err("Could not allocate PDU\n");
+			return;
+		}
+
+		memcpy(skb_put(new_skb, pdu_len), skb->data, pdu_len);
+
+		nfc_llcp_rx_skb(local, new_skb);
+
+		kfree_skb(new_skb);
+next:
+		skb_pull(skb, pdu_len);
+	}
+}
+
+static void nfc_llcp_rx_skb(struct nfc_llcp_local *local, struct sk_buff *skb)
+{
+	u8 dsap, ssap, ptype;
 
 	ptype = nfc_llcp_ptype(skb);
 	dsap = nfc_llcp_dsap(skb);
@@ -1371,10 +1408,6 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 	if (ptype != LLCP_PDU_SYMM)
 		print_hex_dump(KERN_DEBUG, "LLCP Rx: ", DUMP_PREFIX_OFFSET,
 			       16, 1, skb->data, skb->len, true);
-
-	__net_timestamp(skb);
-
-	nfc_llcp_send_to_raw_sock(local, skb, NFC_LLCP_DIRECTION_RX);
 
 	switch (ptype) {
 	case LLCP_PDU_SYMM:
@@ -1418,7 +1451,30 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 		nfc_llcp_recv_hdlc(local, skb);
 		break;
 
+	case LLCP_PDU_AGF:
+		pr_debug("AGF frame\n");
+		nfc_llcp_recv_agf(local, skb);
+		break;
 	}
+}
+
+static void nfc_llcp_rx_work(struct work_struct *work)
+{
+	struct nfc_llcp_local *local = container_of(work, struct nfc_llcp_local,
+						    rx_work);
+	struct sk_buff *skb;
+
+	skb = local->rx_pending;
+	if (skb == NULL) {
+		pr_debug("No pending SKB\n");
+		return;
+	}
+
+	__net_timestamp(skb);
+
+	nfc_llcp_send_to_raw_sock(local, skb, NFC_LLCP_DIRECTION_RX);
+
+	nfc_llcp_rx_skb(local, skb);
 
 	schedule_work(&local->tx_work);
 	kfree_skb(local->rx_pending);

@@ -162,6 +162,7 @@ struct nfc_llcp_ui_cb {
 
 #define LLCP_HEADER_SIZE   2
 #define LLCP_SEQUENCE_SIZE 1
+#define LLCP_AGF_PDU_HEADER_SIZE 2
 
 /* LLCP versions: 1.1 is 1.0 plus SDP */
 #define LLCP_VERSION_10 0x10
