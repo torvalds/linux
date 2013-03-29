@@ -432,17 +432,13 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 				      BT_ENABLE_REDUCED_TXPOWER_THRESHOLD);
 }
 
-static void iwl_mvm_new_bt_coex_notif(struct iwl_mvm *mvm,
-				      struct iwl_bt_coex_profile_notif *notif)
+static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
 {
 	struct iwl_bt_iterator_data data = {
 		.mvm = mvm,
-		.notif = notif,
+		.notif = &mvm->last_bt_notif,
 		.reduced_tx_power = true,
 	};
-
-	/* remember this notification for future use: rssi fluctuations */
-	memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
 
 	ieee80211_iterate_active_interfaces_atomic(
 					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
@@ -476,7 +472,10 @@ int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 		       notif->bt_agg_traffic_load);
 	IWL_DEBUG_COEX(mvm, "\tBT ci compliance %d\n", notif->bt_ci_compliance);
 
-	iwl_mvm_new_bt_coex_notif(mvm, notif);
+	/* remember this notification for future use: rssi fluctuations */
+	memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
+
+	iwl_mvm_bt_coex_notif_handle(mvm);
 
 	/*
 	 * This is an async handler for a notification, returning anything other
@@ -586,5 +585,5 @@ void iwl_mvm_bt_coex_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	/* else, we can remove all the constraints */
 	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
 
-	iwl_mvm_new_bt_coex_notif(mvm, &mvm->last_bt_notif);
+	iwl_mvm_bt_coex_notif_handle(mvm);
 }
