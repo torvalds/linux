@@ -101,23 +101,6 @@ static char version[] __initdata =
  * them to system IRQ numbers. This mapping is card specific and is set to
  * the configuration of the Cirrus Eval board for this chip.
  */
-#if defined(CONFIG_MACH_IXDP2351)
-#define CS89x0_NONISA_IRQ
-static unsigned int netcard_portlist[] __used __initdata = {
-	IXDP2351_VIRT_CS8900_BASE, 0
-};
-static unsigned int cs8900_irq_map[] = {
-	IRQ_IXDP2351_CS8900, 0, 0, 0
-};
-#elif defined(CONFIG_ARCH_IXDP2X01)
-#define CS89x0_NONISA_IRQ
-static unsigned int netcard_portlist[] __used __initdata = {
-	IXDP2X01_CS8900_VIRT_BASE, 0
-};
-static unsigned int cs8900_irq_map[] = {
-	IRQ_IXDP2X01_CS8900, 0, 0, 0
-};
-#else
 #ifndef CONFIG_CS89x0_PLATFORM
 static unsigned int netcard_portlist[] __used __initdata = {
 	0x300, 0x320, 0x340, 0x360, 0x200, 0x220, 0x240,
@@ -126,7 +109,6 @@ static unsigned int netcard_portlist[] __used __initdata = {
 static unsigned int cs8900_irq_map[] = {
 	10, 11, 12, 5
 };
-#endif
 #endif
 
 #if DEBUGGING
@@ -208,32 +190,6 @@ static int __init media_fn(char *str)
 }
 
 __setup("cs89x0_media=", media_fn);
-#endif
-
-#if defined(CONFIG_MACH_IXDP2351)
-static u16
-readword(unsigned long base_addr, int portno)
-{
-	return __raw_readw(base_addr + (portno << 1));
-}
-
-static void
-writeword(unsigned long base_addr, int portno, u16 value)
-{
-	__raw_writew(value, base_addr + (portno << 1));
-}
-#elif defined(CONFIG_ARCH_IXDP2X01)
-static u16
-readword(unsigned long base_addr, int portno)
-{
-	return __raw_readl(base_addr + (portno << 1));
-}
-
-static void
-writeword(unsigned long base_addr, int portno, u16 value)
-{
-	__raw_writel(value, base_addr + (portno << 1));
-}
 #endif
 
 static void readwords(struct net_local *lp, int portno, void *buf, int length)
@@ -902,7 +858,7 @@ net_open(struct net_device *dev)
 			goto bad_out;
 		}
 	} else {
-#if !defined(CS89x0_NONISA_IRQ) && !defined(CONFIG_CS89x0_PLATFORM)
+#if !defined(CONFIG_CS89x0_PLATFORM)
 		if (((1 << dev->irq) & lp->irq_map) == 0) {
 			pr_err("%s: IRQ %d is not in our map of allowable IRQs, which is %x\n",
 			       dev->name, dev->irq, lp->irq_map);
@@ -1315,9 +1271,7 @@ static const struct net_device_ops net_ops = {
 static void __init reset_chip(struct net_device *dev)
 {
 #if !defined(CONFIG_MACH_MX31ADS)
-#if !defined(CS89x0_NONISA_IRQ)
 	struct net_local *lp = netdev_priv(dev);
-#endif /* CS89x0_NONISA_IRQ */
 	int reset_start_time;
 
 	writereg(dev, PP_SelfCTL, readreg(dev, PP_SelfCTL) | POWER_ON_RESET);
@@ -1325,7 +1279,6 @@ static void __init reset_chip(struct net_device *dev)
 	/* wait 30 ms */
 	msleep(30);
 
-#if !defined(CS89x0_NONISA_IRQ)
 	if (lp->chip_type != CS8900) {
 		/* Hardware problem requires PNP registers to be reconfigured after a reset */
 		iowrite16(PP_CS8920_ISAINT, lp->virt_addr + ADD_PORT);
@@ -1338,7 +1291,6 @@ static void __init reset_chip(struct net_device *dev)
 		iowrite8((dev->mem_start >> 8) & 0xff,
 			 lp->virt_addr + DATA_PORT + 1);
 	}
-#endif /* CS89x0_NONISA_IRQ */
 
 	/* Wait until the chip is reset */
 	reset_start_time = jiffies;
@@ -1573,9 +1525,6 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 		i = lp->isa_config & INT_NO_MASK;
 #ifndef CONFIG_CS89x0_PLATFORM
 		if (lp->chip_type == CS8900) {
-#ifdef CS89x0_NONISA_IRQ
-			i = cs8900_irq_map[0];
-#else
 			/* Translate the IRQ using the IRQ mapping table. */
 			if (i >= ARRAY_SIZE(cs8900_irq_map))
 				pr_err("invalid ISA interrupt number %d\n", i);
@@ -1593,7 +1542,6 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 					lp->irq_map = ((irq_map_buff[0] >> 8) |
 						       (irq_map_buff[1] << 8));
 			}
-#endif
 		}
 #endif
 		if (!dev->irq)
