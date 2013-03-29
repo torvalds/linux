@@ -419,8 +419,18 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 	p += 4;
 
 	/* data */
-	if (flags & CEPH_OSD_FLAG_WRITE)
-		req->r_request->hdr.data_off = cpu_to_le16(off);
+	if (flags & CEPH_OSD_FLAG_WRITE) {
+		u16 data_off;
+
+		/*
+		 * The header "data_off" is a hint to the receiver
+		 * allowing it to align received data into its
+		 * buffers such that there's no need to re-copy
+		 * it before writing it to disk (direct I/O).
+		 */
+		data_off = (u16) (off & 0xffff);
+		req->r_request->hdr.data_off = cpu_to_le16(data_off);
+	}
 	req->r_request->hdr.data_len = cpu_to_le32(data_len);
 
 	BUG_ON(p > msg->front.iov_base + msg->front.iov_len);
