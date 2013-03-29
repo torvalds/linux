@@ -20,6 +20,7 @@
 #define _LINUX_OPENVSWITCH_H 1
 
 #include <linux/types.h>
+#include <linux/if_ether.h>
 
 /**
  * struct ovs_header - header for OVS Generic Netlink messages.
@@ -269,8 +270,8 @@ enum ovs_frag_type {
 #define OVS_FRAG_TYPE_MAX (__OVS_FRAG_TYPE_MAX - 1)
 
 struct ovs_key_ethernet {
-	__u8	 eth_src[6];
-	__u8	 eth_dst[6];
+	__u8	 eth_src[ETH_ALEN];
+	__u8	 eth_dst[ETH_ALEN];
 };
 
 struct ovs_key_ipv4 {
@@ -316,14 +317,14 @@ struct ovs_key_arp {
 	__be32 arp_sip;
 	__be32 arp_tip;
 	__be16 arp_op;
-	__u8   arp_sha[6];
-	__u8   arp_tha[6];
+	__u8   arp_sha[ETH_ALEN];
+	__u8   arp_tha[ETH_ALEN];
 };
 
 struct ovs_key_nd {
 	__u32 nd_target[4];
-	__u8  nd_sll[6];
-	__u8  nd_tll[6];
+	__u8  nd_sll[ETH_ALEN];
+	__u8  nd_tll[ETH_ALEN];
 };
 
 /**
