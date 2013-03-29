@@ -205,6 +205,9 @@ clocks and IDs.
 	enet_ref		190
 	usbphy1_gate		191
 	usbphy2_gate		192
+	pll4_post_div		193
+	pll5_post_div		194
+	pll5_video_div		195
 
 Examples:
 
