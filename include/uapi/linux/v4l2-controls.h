@@ -153,12 +153,12 @@ enum v4l2_colorfx {
 
 
 /* The base for the s2255 driver controls.
- * We reserve 8 controls for this driver. */
-#define V4L2_CID_USER_S2255_BASE		(V4L2_CID_USER_BASE + 0x1010)
+ * We reserve 16 controls for this driver. */
+#define V4L2_CID_USER_S2255_BASE		(V4L2_CID_USER_BASE + 0x1030)
 
 /* The base for the si476x driver controls. See include/media/si476x.h for the list
- * of controls. Total of 16 controls is reserved for that driver */
-#define V4L2_CID_USER_SI476X_BASE		(V4L2_CID_USER_BASE + 0x1010)
+ * of controls. Total of 16 controls is reserved for this driver */
+#define V4L2_CID_USER_SI476X_BASE		(V4L2_CID_USER_BASE + 0x1040)
 
 /* MPEG-class control IDs */
 
