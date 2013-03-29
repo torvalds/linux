@@ -25,6 +25,7 @@ Optional properties:
   - atmel,adc-use-res: String corresponding to an identifier from
 		       atmel,adc-res-names property. If not specified, the highest
 		       resolution will be used.
+  - atmel,adc-sleep-mode: Boolean to enable sleep mode when no conversion
  
 Optional trigger Nodes:
   - Required properties:

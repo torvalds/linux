@@ -52,6 +52,7 @@ struct at91_adc_state {
 	void __iomem		*reg_base;
 	struct at91_adc_reg_desc *registers;
 	u8			startup_time;
+	bool			sleep_mode;
 	struct iio_trigger	**trig;
 	struct at91_adc_trigger	*trigger_list;
 	u32			trigger_number;
@@ -455,6 +456,8 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 	}
 	st->num_channels = prop;
 
+	st->sleep_mode = of_property_read_bool(node, "atmel,adc-sleep-mode");
+
 	if (of_property_read_u32(node, "atmel,adc-startup-time", &prop)) {
 		dev_err(&idev->dev, "Missing adc-startup-time property in the DT.\n");
 		ret = -EINVAL;
@@ -580,6 +583,7 @@ static int at91_adc_probe(struct platform_device *pdev)
 	struct iio_dev *idev;
 	struct at91_adc_state *st;
 	struct resource *res;
+	u32 reg;
 
 	idev = iio_device_alloc(sizeof(struct at91_adc_state));
 	if (idev == NULL) {
@@ -687,16 +691,13 @@ static int at91_adc_probe(struct platform_device *pdev)
 	 */
 	ticks = round_up((st->startup_time * adc_clk /
 			  1000000) - 1, 8) / 8;
-
+	reg = AT91_ADC_PRESCAL_(prsc) & AT91_ADC_PRESCAL;
+	reg |= AT91_ADC_STARTUP_(ticks) & AT91_ADC_STARTUP;
 	if (st->low_res)
-		at91_adc_writel(st, AT91_ADC_MR,
-				AT91_ADC_LOWRES |
-				(AT91_ADC_PRESCAL_(prsc) & AT91_ADC_PRESCAL) |
-				(AT91_ADC_STARTUP_(ticks) & AT91_ADC_STARTUP));
-	else
-		at91_adc_writel(st, AT91_ADC_MR,
-				(AT91_ADC_PRESCAL_(prsc) & AT91_ADC_PRESCAL) |
-				(AT91_ADC_STARTUP_(ticks) & AT91_ADC_STARTUP));
+		reg |= AT91_ADC_LOWRES;
+	if (st->sleep_mode)
+		reg |= AT91_ADC_SLEEP;
+	at91_adc_writel(st, AT91_ADC_MR, reg);
 
 	/* Setup the ADC channels available on the board */
 	ret = at91_adc_channel_init(idev);
