@@ -246,7 +246,7 @@ int __init rtllib_init(void)
 	struct proc_dir_entry *e;
 
 	rtllib_debug_level = debug;
-	rtllib_proc = create_proc_entry(DRV_NAME, S_IFDIR, init_net.proc_net);
+	rtllib_proc = proc_mkdir(DRV_NAME, init_net.proc_net);
 	if (rtllib_proc == NULL) {
 		RTLLIB_ERROR("Unable to create " DRV_NAME
 				" proc directory\n");
