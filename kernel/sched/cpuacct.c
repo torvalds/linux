@@ -218,6 +218,29 @@ void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 	rcu_read_unlock();
 }
 
+/*
+ * Add user/system time to cpuacct.
+ *
+ * Note: it's the caller that updates the account of the root cgroup.
+ */
+void cpuacct_account_field(struct task_struct *p, int index, u64 val)
+{
+	struct kernel_cpustat *kcpustat;
+	struct cpuacct *ca;
+
+	if (unlikely(!cpuacct_subsys.active))
+		return;
+
+	rcu_read_lock();
+	ca = task_ca(p);
+	while (ca && (ca != &root_cpuacct)) {
+		kcpustat = this_cpu_ptr(ca->cpustat);
+		kcpustat->cpustat[index] += val;
+		ca = parent_ca(ca);
+	}
+	rcu_read_unlock();
+}
+
 void __init cpuacct_init(void)
 {
 	root_cpuacct.cpustat = &kernel_cpustat;
