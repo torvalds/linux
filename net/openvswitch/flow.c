@@ -211,7 +211,7 @@ struct sw_flow_actions *ovs_flow_actions_alloc(const struct nlattr *actions)
 		return ERR_PTR(-ENOMEM);
 
 	sfa->actions_len = actions_len;
-	memcpy(sfa->actions, nla_data(actions), actions_len);
+	nla_memcpy(sfa->actions, actions, actions_len);
 	return sfa;
 }
 
