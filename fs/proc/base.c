@@ -2794,7 +2794,7 @@ retry:
 	return iter;
 }
 
-#define TGID_OFFSET (FIRST_PROCESS_ENTRY)
+#define TGID_OFFSET (FIRST_PROCESS_ENTRY + 1)
 
 static int proc_pid_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	struct tgid_iter iter)
@@ -2817,13 +2817,21 @@ int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	struct tgid_iter iter;
 	struct pid_namespace *ns;
 	filldir_t __filldir;
+	loff_t pos = filp->f_pos;
 
-	if (filp->f_pos >= PID_MAX_LIMIT + TGID_OFFSET)
+	if (pos >= PID_MAX_LIMIT + TGID_OFFSET)
 		goto out;
 
-	ns = filp->f_dentry->d_sb->s_fs_info;
+	if (pos == TGID_OFFSET - 1) {
+		if (proc_fill_cache(filp, dirent, filldir, "self", 4,
+					NULL, NULL, NULL) < 0)
+			goto out;
+		iter.tgid = 0;
+	} else {
+		iter.tgid = pos - TGID_OFFSET;
+	}
 	iter.task = NULL;
-	iter.tgid = filp->f_pos - TGID_OFFSET;
+	ns = filp->f_dentry->d_sb->s_fs_info;
 	for (iter = next_tgid(ns, iter);
 	     iter.task;
 	     iter.tgid += 1, iter = next_tgid(ns, iter)) {
