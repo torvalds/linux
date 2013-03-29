@@ -51,7 +51,7 @@ static const struct inode_operations proc_self_inode_operations = {
 void __init proc_self_init(void)
 {
 	struct proc_dir_entry *proc_self_symlink;
-	mode_t mode;
+	umode_t mode;
 
 	mode = S_IFLNK | S_IRWXUGO;
 	proc_self_symlink = proc_create("self", mode, NULL, NULL );

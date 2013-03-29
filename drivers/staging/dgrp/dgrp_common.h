@@ -120,7 +120,7 @@ enum {
 struct dgrp_proc_entry {
 	int                  id;          /* Integer identifier */
 	const char        *name;          /* ASCII identifier */
-	mode_t             mode;          /* File access permissions */
+	umode_t            mode;          /* File access permissions */
 	struct dgrp_proc_entry *child;    /* Child pointer */
 
 	/* file ops to use, pass NULL to use default */

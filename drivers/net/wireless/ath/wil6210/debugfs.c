@@ -216,7 +216,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_iomem_x32, wil_debugfs_iomem_x32_get,
 			wil_debugfs_iomem_x32_set, "0x%08llx\n");
 
 static struct dentry *wil_debugfs_create_iomem_x32(const char *name,
-						   mode_t mode,
+						   umode_t mode,
 						   struct dentry *parent,
 						   void __iomem *value)
 {
@@ -367,7 +367,7 @@ static const struct file_operations fops_ioblob = {
 
 static
 struct dentry *wil_debugfs_create_ioblob(const char *name,
-					 mode_t mode,
+					 umode_t mode,
 					 struct dentry *parent,
 					 struct debugfs_blob_wrapper *blob)
 {

@@ -228,7 +228,7 @@ static void register_proc_table(struct dgrp_proc_entry *table,
 {
 	struct proc_dir_entry *de;
 	int len;
-	mode_t mode;
+	umode_t mode;
 
 	if (table == NULL)
 		return;
