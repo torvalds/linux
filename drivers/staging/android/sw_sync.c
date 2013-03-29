@@ -239,6 +239,7 @@ static const struct file_operations sw_sync_fops = {
 	.open = sw_sync_open,
 	.release = sw_sync_release,
 	.unlocked_ioctl = sw_sync_ioctl,
+	.compat_ioctl = sw_sync_ioctl,
 };
 
 static struct miscdevice sw_sync_dev = {

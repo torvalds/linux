@@ -248,6 +248,7 @@ static const struct file_operations sync_fence_fops = {
 	.release = sync_fence_release,
 	.poll = sync_fence_poll,
 	.unlocked_ioctl = sync_fence_ioctl,
+	.compat_ioctl = sync_fence_ioctl,
 };
 
 static struct sync_fence *sync_fence_alloc(const char *name)
