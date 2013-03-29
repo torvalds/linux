@@ -29,6 +29,7 @@
 
 struct inode;
 struct file;
+struct au_pin;
 
 void au_cpup_attr_flags(struct inode *dst, struct inode *src);
 void au_cpup_attr_timesizes(struct inode *inode);
@@ -53,14 +54,15 @@ void au_cpup_attr_all(struct inode *inode, int force);
 int au_copy_file(struct file *dst, struct file *src, loff_t len);
 int au_sio_cpup_single(struct dentry *dentry, aufs_bindex_t bdst,
 		       aufs_bindex_t bsrc, loff_t len, unsigned int flags,
-		       struct dentry *dst_parent);
+		       struct dentry *dst_parent, struct au_pin *pin);
 int au_sio_cpup_simple(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
-		       unsigned int flags);
+		       unsigned int flags, struct au_pin *pin);
 int au_sio_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
-		   struct file *file);
+		   struct file *file, struct au_pin *pin);
 
 int au_cp_dirs(struct dentry *dentry, aufs_bindex_t bdst,
 	       int (*cp)(struct dentry *dentry, aufs_bindex_t bdst,
+			 struct au_pin *pin,
 			 struct dentry *h_parent, void *arg),
 	       void *arg);
 int au_cpup_dirs(struct dentry *dentry, aufs_bindex_t bdst);

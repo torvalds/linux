@@ -108,6 +108,7 @@ out:
 }
 
 static int au_cpdown_dir(struct dentry *dentry, aufs_bindex_t bdst,
+			 struct au_pin *pin,
 			 struct dentry *h_parent, void *arg)
 {
 	int err, rerr;

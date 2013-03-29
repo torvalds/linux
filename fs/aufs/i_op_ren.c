@@ -981,7 +981,7 @@ int aufs_rename(struct inode *_src_dir, struct dentry *_src_dentry,
 			h_file = NULL;
 		} else {
 			err = au_sio_cpup_simple(a->src_dentry, a->btgt, -1,
-						 AuCpup_DTIME);
+						 AuCpup_DTIME, &pin);
 			au_h_open_post(a->src_dentry, a->src_bstart, h_file);
 		}
 		au_unpin(&pin);

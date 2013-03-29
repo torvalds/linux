@@ -215,7 +215,7 @@ static int au_reopen_wh(struct file *file, aufs_bindex_t btgt,
 }
 
 static int au_ready_to_write_wh(struct file *file, loff_t len,
-				aufs_bindex_t bcpup)
+				aufs_bindex_t bcpup, struct au_pin *pin)
 {
 	int err;
 	struct inode *inode, *h_inode;
@@ -232,7 +232,7 @@ static int au_ready_to_write_wh(struct file *file, loff_t len,
 	}
 	hi_wh = au_hi_wh(inode, bcpup);
 	if (!hi_wh && !h_inode)
-		err = au_sio_cpup_wh(dentry, bcpup, len, file);
+		err = au_sio_cpup_wh(dentry, bcpup, len, file, pin);
 	else
 		/* already copied-up after unlink */
 		err = au_reopen_wh(file, bcpup, hi_wh);
@@ -306,7 +306,7 @@ int au_ready_to_write(struct file *file, loff_t len, struct au_pin *pin)
 			di_downgrade_lock(parent, AuLock_IR);
 			if (dbstart > bcpup)
 				err = au_sio_cpup_simple(dentry, bcpup, len,
-							 AuCpup_DTIME);
+							 AuCpup_DTIME, pin);
 			if (!err)
 				err = au_reopen_nondir(file);
 			au_h_open_post(dentry, bstart, h_file);
@@ -316,7 +316,7 @@ int au_ready_to_write(struct file *file, loff_t len, struct au_pin *pin)
 		 * since writable hfsplus branch is not supported,
 		 * h_open_pre/post() are unnecessary.
 		 */
-		err = au_ready_to_write_wh(file, len, bcpup);
+		err = au_ready_to_write_wh(file, len, bcpup, pin);
 		di_downgrade_lock(parent, AuLock_IR);
 	}
 
@@ -413,7 +413,7 @@ static int au_file_refresh_by_inode(struct file *file, int *need_reopen)
 			     AuPin_DI_LOCKED | AuPin_MNT_WRITE);
 		if (!err)
 			err = au_sio_cpup_simple(dentry, bstart, -1,
-						 AuCpup_DTIME);
+						 AuCpup_DTIME, &pin);
 		au_unpin(&pin);
 	} else if (hi_wh) {
 		/* already copied-up after unlink */

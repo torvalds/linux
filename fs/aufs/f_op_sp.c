@@ -199,7 +199,7 @@ static int au_cpup_sp(struct dentry *dentry)
 	err = au_pin(&pin, dentry, bcpup, au_opt_udba(dentry->d_sb),
 		     AuPin_MNT_WRITE);
 	if (!err) {
-		err = au_sio_cpup_simple(dentry, bcpup, -1, AuCpup_DTIME);
+		err = au_sio_cpup_simple(dentry, bcpup, -1, AuCpup_DTIME, &pin);
 		au_unpin(&pin);
 	}
 

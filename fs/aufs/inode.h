@@ -105,8 +105,11 @@ struct au_pin {
 	/* temporary unlock/relock for copyup */
 	struct dentry *h_dentry, *h_parent;
 	struct au_branch *br;
+	struct task_struct *task;
 	void (*hdir_unlock)(struct au_pin *p);
 	int (*hdir_relock)(struct au_pin *p);
+	void (*hdir_acquire_nest)(struct au_pin *p);
+	void (*hdir_release)(struct au_pin *p);
 };
 
 /* ---------------------------------------------------------------------- */

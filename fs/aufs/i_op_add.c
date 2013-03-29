@@ -375,7 +375,8 @@ static int au_cpup_before_link(struct dentry *src_dentry,
 		err = PTR_ERR(h_file);
 	else {
 		err = au_sio_cpup_simple(src_dentry, a->bdst, -1,
-					 AuCpup_DTIME /* | AuCpup_KEEPLINO */);
+					 AuCpup_DTIME /* | AuCpup_KEEPLINO */,
+					 &a->pin);
 		au_h_open_post(src_dentry, a->bsrc, h_file);
 	}
 	au_unpin(&a->pin);
@@ -417,7 +418,7 @@ static int au_cpup_or_link(struct dentry *src_dentry, struct dentry *dentry,
 			err = PTR_ERR(h_file);
 		else {
 			err = au_sio_cpup_simple(dentry, a->bdst, -1,
-						 AuCpup_KEEPLINO);
+						 AuCpup_KEEPLINO, &a->pin);
 			au_h_open_post(dentry, a->bsrc, h_file);
 			if (!err) {
 				dput(a->h_path.dentry);

@@ -396,6 +396,30 @@ out:
 	return err;
 }
 
+static void au_pin_hdir_set_owner(struct au_pin *p, struct task_struct *task)
+{
+#if defined(CONFIG_DEBUG_MUTEXES) || defined(CONFIG_SMP)
+	p->hdir->hi_inode->i_mutex.owner = task;
+#endif
+}
+
+static void au_pin_hdir_acquire_nest(struct au_pin *p)
+{
+	if (p->hdir) {
+		mutex_acquire_nest(&p->hdir->hi_inode->i_mutex.dep_map,
+				   p->lsc_hi, 0, NULL, _RET_IP_);
+		au_pin_hdir_set_owner(p, current);
+	}
+}
+
+static void au_pin_hdir_release(struct au_pin *p)
+{
+	if (p->hdir) {
+		au_pin_hdir_set_owner(p, p->task);
+		mutex_release(&p->hdir->hi_inode->i_mutex.dep_map, 1, _RET_IP_);
+	}
+}
+
 struct dentry *au_pinned_h_parent(struct au_pin *pin)
 {
 	if (pin && pin->parent)
@@ -418,6 +442,7 @@ void au_unpin(struct au_pin *p)
 	p->parent = NULL;
 	p->hdir = NULL;
 	p->h_mnt = NULL;
+	/* do not clear p->task */
 }
 
 int au_do_pin(struct au_pin *p)
@@ -511,8 +536,11 @@ void au_pin_init(struct au_pin *p, struct dentry *dentry,
 	p->h_dentry = NULL;
 	p->h_parent = NULL;
 	p->br = NULL;
+	p->task = current;
 	p->hdir_unlock = au_pin_hdir_unlock;
 	p->hdir_relock = au_pin_hdir_relock;
+	p->hdir_acquire_nest = au_pin_hdir_acquire_nest;
+	p->hdir_release = au_pin_hdir_release;
 }
 
 int au_pin(struct au_pin *pin, struct dentry *dentry, aufs_bindex_t bindex,
@@ -625,7 +653,8 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 	if (au_ftest_icpup(a->flags, DID_CPUP) && d_unlinked(dentry)) {
 		hi_wh = au_hi_wh(inode, a->btgt);
 		if (!hi_wh) {
-			err = au_sio_cpup_wh(dentry, a->btgt, sz, /*file*/NULL);
+			err = au_sio_cpup_wh(dentry, a->btgt, sz, /*file*/NULL,
+					     &a->pin);
 			if (unlikely(err))
 				goto out_unlock;
 			hi_wh = au_hi_wh(inode, a->btgt);
@@ -648,7 +677,7 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 			err = PTR_ERR(h_file);
 		else {
 			err = au_sio_cpup_simple(dentry, a->btgt, sz,
-						 AuCpup_DTIME);
+						 AuCpup_DTIME, &a->pin);
 			au_h_open_post(dentry, bstart, h_file);
 		}
 		if (!err)
