@@ -2329,7 +2329,7 @@ int ata_dev_configure(struct ata_device *dev)
 		 * from SATA Settings page of Identify Device Data Log.
 		 */
 		if (ata_id_has_devslp(dev->id)) {
-			u8 sata_setting[ATA_SECT_SIZE];
+			u8 *sata_setting = ap->sector_buf;
 			int i, j;
 
 			dev->flags |= ATA_DFLAG_DEVSLP;
