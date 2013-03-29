@@ -11,6 +11,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk/mxs.h>
 #include <linux/clkdev.h>
 #include <linux/clocksource.h>
 #include <linux/can/platform/flexcan.h>
@@ -30,7 +31,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
-#include <mach/common.h>
 #include <mach/digctl.h>
 #include <mach/mxs.h>
 
