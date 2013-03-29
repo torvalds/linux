@@ -429,6 +429,9 @@ static void __init xen_init_cpuid_mask(void)
 		cpuid_leaf1_edx_mask &=
 			~((1 << X86_FEATURE_APIC) |  /* disable local APIC */
 			  (1 << X86_FEATURE_ACPI));  /* disable ACPI */
+
+	cpuid_leaf1_ecx_mask &= ~(1 << (X86_FEATURE_X2APIC % 32));
+
 	ax = 1;
 	cx = 0;
 	xen_cpuid(&ax, &bx, &cx, &dx);
