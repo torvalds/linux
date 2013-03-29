@@ -579,42 +579,72 @@ static int regcache_sync_block_single(struct regmap *map, void *block,
 	return 0;
 }
 
+static int regcache_sync_block_raw_flush(struct regmap *map, const void **data,
+					 unsigned int base, unsigned int cur)
+{
+	size_t val_bytes = map->format.val_bytes;
+	int ret, count;
+
+	if (*data == NULL)
+		return 0;
+
+	count = cur - base;
+
+	dev_dbg(map->dev, "Writing %d bytes for %d registers from 0x%x-0x%x\n",
+		count * val_bytes, count, base, cur - 1);
+
+	map->cache_bypass = 1;
+
+	ret = _regmap_raw_write(map, base, *data, count * val_bytes,
+				false);
+
+	map->cache_bypass = 0;
+
+	*data = NULL;
+
+	return ret;
+}
+
 int regcache_sync_block_raw(struct regmap *map, void *block,
 			    unsigned int block_base, unsigned int start,
 			    unsigned int end)
 {
-	unsigned int i, regtmp, val;
-	const void *addr;
+	unsigned int i, val;
+	unsigned int regtmp = 0;
+	unsigned int base = 0;
+	const void *data = NULL;
 	int ret;
 
 	for (i = start; i < end; i++) {
 		regtmp = block_base + (i * map->reg_stride);
 
-		if (!regcache_reg_present(map, regtmp))
+		if (!regcache_reg_present(map, regtmp)) {
+			ret = regcache_sync_block_raw_flush(map, &data,
+							    base, regtmp);
+			if (ret != 0)
+				return ret;
 			continue;
+		}
 
 		val = regcache_get_val(map, block, i);
 
 		/* Is this the hardware default?  If so skip. */
 		ret = regcache_lookup_reg(map, regtmp);
-		if (ret >= 0 && val == map->reg_defaults[ret].def)
+		if (ret >= 0 && val == map->reg_defaults[ret].def) {
+			ret = regcache_sync_block_raw_flush(map, &data,
+							    base, regtmp);
+			if (ret != 0)
+				return ret;
 			continue;
+		}
 
-		map->cache_bypass = 1;
-
-		addr = regcache_get_val_addr(map, block, i);
-		ret = _regmap_raw_write(map, regtmp, addr,
-					map->format.val_bytes,
-					false);
-
-		map->cache_bypass = 0;
-		if (ret != 0)
-			return ret;
-		dev_dbg(map->dev, "Synced register %#x, value %#x\n",
-			regtmp, val);
+		if (!data) {
+			data = regcache_get_val_addr(map, block, i);
+			base = regtmp;
+		}
 	}
 
-	return 0;
+	return regcache_sync_block_raw_flush(map, &data, base, regtmp);
 }
 
 int regcache_sync_block(struct regmap *map, void *block,
