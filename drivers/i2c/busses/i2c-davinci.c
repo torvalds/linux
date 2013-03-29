@@ -137,7 +137,7 @@ static inline u16 davinci_i2c_read_reg(struct davinci_i2c_dev *i2c_dev, int reg)
 }
 
 /* Generate a pulse on the i2c clock pin. */
-static void generic_i2c_clock_pulse(unsigned int scl_pin)
+static void davinci_i2c_clock_pulse(unsigned int scl_pin)
 {
 	u16 i;
 
@@ -155,7 +155,7 @@ static void generic_i2c_clock_pulse(unsigned int scl_pin)
 /* This routine does i2c bus recovery as specified in the
  * i2c protocol Rev. 03 section 3.16 titled "Bus clear"
  */
-static void i2c_recover_bus(struct davinci_i2c_dev *dev)
+static void davinci_i2c_recover_bus(struct davinci_i2c_dev *dev)
 {
 	u32 flag = 0;
 	struct davinci_i2c_platform_data *pdata = dev->pdata;
@@ -166,7 +166,7 @@ static void i2c_recover_bus(struct davinci_i2c_dev *dev)
 	flag |=  DAVINCI_I2C_MDR_NACK;
 	/* write the data into mode register */
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, flag);
-	generic_i2c_clock_pulse(pdata->scl_pin);
+	davinci_i2c_clock_pulse(pdata->scl_pin);
 	/* Send STOP */
 	flag = davinci_i2c_read_reg(dev, DAVINCI_I2C_MDR_REG);
 	flag |= DAVINCI_I2C_MDR_STP;
@@ -289,7 +289,7 @@ static int i2c_davinci_wait_bus_not_busy(struct davinci_i2c_dev *dev,
 				return -ETIMEDOUT;
 			} else {
 				to_cnt = 0;
-				i2c_recover_bus(dev);
+				davinci_i2c_recover_bus(dev);
 				i2c_davinci_init(dev);
 			}
 		}
@@ -379,7 +379,7 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 						      dev->adapter.timeout);
 	if (r == 0) {
 		dev_err(dev->dev, "controller timed out\n");
-		i2c_recover_bus(dev);
+		davinci_i2c_recover_bus(dev);
 		i2c_davinci_init(dev);
 		dev->buf_len = 0;
 		return -ETIMEDOUT;
