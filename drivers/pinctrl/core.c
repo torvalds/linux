@@ -981,26 +981,10 @@ unapply_new_state:
 			pinmux_disable_setting(setting2);
 	}
 
-	if (old_state) {
-		list_for_each_entry(setting, &old_state->settings, node) {
-			bool found = false;
-			if (setting->type != PIN_MAP_TYPE_MUX_GROUP)
-				continue;
-			list_for_each_entry(setting2, &state->settings, node) {
-				if (setting2->type != PIN_MAP_TYPE_MUX_GROUP)
-					continue;
-				if (setting2->data.mux.group ==
-						setting->data.mux.group) {
-					found = true;
-					break;
-				}
-			}
-			if (!found)
-				pinmux_enable_setting(setting);
-		}
-	}
+	/* There's no infinite recursive loop here because p->state is NULL */
+	if (old_state)
+		pinctrl_select_state_locked(p, old_state);
 
-	p->state = old_state;
 	return ret;
 }
 
