@@ -88,6 +88,153 @@
 
 #define QLC_83XX_MAX_RESET_SEQ_ENTRIES	16
 
+/* status descriptor mailbox data
+ * @phy_addr_{low|high}: physical address of buffer
+ * @sds_ring_size: buffer size
+ * @intrpt_id: interrupt id
+ * @intrpt_val: source of interrupt
+ */
+struct qlcnic_sds_mbx {
+	u32	phy_addr_low;
+	u32	phy_addr_high;
+	u32	rsvd1[4];
+#if defined(__LITTLE_ENDIAN)
+	u16	sds_ring_size;
+	u16	rsvd2;
+	u16	rsvd3[2];
+	u16	intrpt_id;
+	u8	intrpt_val;
+	u8	rsvd4;
+#elif defined(__BIG_ENDIAN)
+	u16	rsvd2;
+	u16	sds_ring_size;
+	u16	rsvd3[2];
+	u8	rsvd4;
+	u8	intrpt_val;
+	u16	intrpt_id;
+#endif
+	u32	rsvd5;
+} __packed;
+
+/* receive descriptor buffer data
+ * phy_addr_reg_{low|high}: physical address of regular buffer
+ * phy_addr_jmb_{low|high}: physical address of jumbo buffer
+ * reg_ring_sz: size of regular buffer
+ * reg_ring_len: no. of entries in regular buffer
+ * jmb_ring_len: no. of entries in jumbo buffer
+ * jmb_ring_sz: size of jumbo buffer
+ */
+struct qlcnic_rds_mbx {
+	u32	phy_addr_reg_low;
+	u32	phy_addr_reg_high;
+	u32	phy_addr_jmb_low;
+	u32	phy_addr_jmb_high;
+#if defined(__LITTLE_ENDIAN)
+	u16	reg_ring_sz;
+	u16	reg_ring_len;
+	u16	jmb_ring_sz;
+	u16	jmb_ring_len;
+#elif defined(__BIG_ENDIAN)
+	u16	reg_ring_len;
+	u16	reg_ring_sz;
+	u16	jmb_ring_len;
+	u16	jmb_ring_sz;
+#endif
+} __packed;
+
+/* host producers for regular and jumbo rings */
+struct __host_producer_mbx {
+	u32	reg_buf;
+	u32	jmb_buf;
+} __packed;
+
+/* Receive context mailbox data outbox registers
+ * @state: state of the context
+ * @vport_id: virtual port id
+ * @context_id: receive context id
+ * @num_pci_func: number of pci functions of the port
+ * @phy_port: physical port id
+ */
+struct qlcnic_rcv_mbx_out {
+#if defined(__LITTLE_ENDIAN)
+	u8	rcv_num;
+	u8	sts_num;
+	u16	ctx_id;
+	u8	state;
+	u8	num_pci_func;
+	u8	phy_port;
+	u8	vport_id;
+#elif defined(__BIG_ENDIAN)
+	u16	ctx_id;
+	u8	sts_num;
+	u8	rcv_num;
+	u8	vport_id;
+	u8	phy_port;
+	u8	num_pci_func;
+	u8	state;
+#endif
+	u32	host_csmr[QLCNIC_MAX_RING_SETS];
+	struct __host_producer_mbx host_prod[QLCNIC_MAX_RING_SETS];
+} __packed;
+
+struct qlcnic_add_rings_mbx_out {
+#if defined(__LITTLE_ENDIAN)
+	u8      rcv_num;
+	u8      sts_num;
+	u16	ctx_id;
+#elif defined(__BIG_ENDIAN)
+	u16	ctx_id;
+	u8	sts_num;
+	u8	rcv_num;
+#endif
+	u32  host_csmr[QLCNIC_MAX_RING_SETS];
+	struct __host_producer_mbx host_prod[QLCNIC_MAX_RING_SETS];
+} __packed;
+
+/* Transmit context mailbox inbox registers
+ * @phys_addr_{low|high}: DMA address of the transmit buffer
+ * @cnsmr_index_{low|high}: host consumer index
+ * @size: legth of transmit buffer ring
+ * @intr_id: interrput id
+ * @src: src of interrupt
+ */
+struct qlcnic_tx_mbx {
+	u32	phys_addr_low;
+	u32	phys_addr_high;
+	u32	cnsmr_index_low;
+	u32	cnsmr_index_high;
+#if defined(__LITTLE_ENDIAN)
+	u16	size;
+	u16	intr_id;
+	u8	src;
+	u8	rsvd[3];
+#elif defined(__BIG_ENDIAN)
+	u16	intr_id;
+	u16	size;
+	u8	rsvd[3];
+	u8	src;
+#endif
+} __packed;
+
+/* Transmit context mailbox outbox registers
+ * @host_prod: host producer index
+ * @ctx_id: transmit context id
+ * @state: state of the transmit context
+ */
+
+struct qlcnic_tx_mbx_out {
+	u32	host_prod;
+#if defined(__LITTLE_ENDIAN)
+	u16	ctx_id;
+	u8	state;
+	u8	rsvd;
+#elif defined(__BIG_ENDIAN)
+	u8	rsvd;
+	u8	state;
+	u16	ctx_id;
+#endif
+} __packed;
+
 struct qlcnic_intrpt_config {
 	u8	type;
 	u8	enabled;
@@ -369,6 +516,9 @@ int qlcnic_ind_rd(struct qlcnic_adapter *, u32);
 int qlcnic_83xx_create_rx_ctx(struct qlcnic_adapter *);
 int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *,
 			      struct qlcnic_host_tx_ring *, int);
+void qlcnic_83xx_del_rx_ctx(struct qlcnic_adapter *);
+void qlcnic_83xx_del_tx_ctx(struct qlcnic_adapter *,
+			    struct qlcnic_host_tx_ring *);
 int qlcnic_83xx_get_nic_info(struct qlcnic_adapter *, struct qlcnic_info *, u8);
 int qlcnic_83xx_setup_link_event(struct qlcnic_adapter *, int);
 void qlcnic_83xx_process_rcv_ring_diag(struct qlcnic_host_sds_ring *);

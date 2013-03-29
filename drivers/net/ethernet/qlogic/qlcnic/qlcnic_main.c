@@ -226,6 +226,9 @@ static int qlcnic_set_mac(struct net_device *netdev, void *p)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct sockaddr *addr = p;
 
+	if (qlcnic_sriov_vf_check(adapter))
+		return -EINVAL;
+
 	if ((adapter->flags & QLCNIC_MAC_OVERRIDE_DISABLED))
 		return -EOPNOTSUPP;
 
@@ -379,6 +382,8 @@ static struct qlcnic_hardware_ops qlcnic_hw_ops = {
 	.process_lb_rcv_ring_diag	= qlcnic_82xx_process_rcv_ring_diag,
 	.create_rx_ctx			= qlcnic_82xx_fw_cmd_create_rx_ctx,
 	.create_tx_ctx			= qlcnic_82xx_fw_cmd_create_tx_ctx,
+	.del_rx_ctx			= qlcnic_82xx_fw_cmd_del_rx_ctx,
+	.del_tx_ctx			= qlcnic_82xx_fw_cmd_del_tx_ctx,
 	.setup_link_event		= qlcnic_82xx_linkevent_request,
 	.get_nic_info			= qlcnic_82xx_get_nic_info,
 	.get_pci_info			= qlcnic_82xx_get_pci_info,

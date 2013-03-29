@@ -16,153 +16,6 @@
 #define RSS_HASHTYPE_IP_TCP		0x3
 #define QLC_83XX_FW_MBX_CMD		0
 
-/* status descriptor mailbox data
- * @phy_addr_{low|high}: physical address of buffer
- * @sds_ring_size: buffer size
- * @intrpt_id: interrupt id
- * @intrpt_val: source of interrupt
- */
-struct qlcnic_sds_mbx {
-	u32	phy_addr_low;
-	u32	phy_addr_high;
-	u32	rsvd1[4];
-#if defined(__LITTLE_ENDIAN)
-	u16	sds_ring_size;
-	u16	rsvd2;
-	u16	rsvd3[2];
-	u16	intrpt_id;
-	u8	intrpt_val;
-	u8	rsvd4;
-#elif defined(__BIG_ENDIAN)
-	u16	rsvd2;
-	u16	sds_ring_size;
-	u16	rsvd3[2];
-	u8	rsvd4;
-	u8	intrpt_val;
-	u16	intrpt_id;
-#endif
-	u32	rsvd5;
-} __packed;
-
-/* receive descriptor buffer data
- * phy_addr_reg_{low|high}: physical address of regular buffer
- * phy_addr_jmb_{low|high}: physical address of jumbo buffer
- * reg_ring_sz: size of regular buffer
- * reg_ring_len: no. of entries in regular buffer
- * jmb_ring_len: no. of entries in jumbo buffer
- * jmb_ring_sz: size of jumbo buffer
- */
-struct qlcnic_rds_mbx {
-	u32	phy_addr_reg_low;
-	u32	phy_addr_reg_high;
-	u32	phy_addr_jmb_low;
-	u32	phy_addr_jmb_high;
-#if defined(__LITTLE_ENDIAN)
-	u16	reg_ring_sz;
-	u16	reg_ring_len;
-	u16	jmb_ring_sz;
-	u16	jmb_ring_len;
-#elif defined(__BIG_ENDIAN)
-	u16	reg_ring_len;
-	u16	reg_ring_sz;
-	u16	jmb_ring_len;
-	u16	jmb_ring_sz;
-#endif
-} __packed;
-
-/* host producers for regular and jumbo rings */
-struct __host_producer_mbx {
-	u32	reg_buf;
-	u32	jmb_buf;
-} __packed;
-
-/* Receive context mailbox data outbox registers
- * @state: state of the context
- * @vport_id: virtual port id
- * @context_id: receive context id
- * @num_pci_func: number of pci functions of the port
- * @phy_port: physical port id
- */
-struct qlcnic_rcv_mbx_out {
-#if defined(__LITTLE_ENDIAN)
-	u8	rcv_num;
-	u8	sts_num;
-	u16	ctx_id;
-	u8	state;
-	u8	num_pci_func;
-	u8	phy_port;
-	u8	vport_id;
-#elif defined(__BIG_ENDIAN)
-	u16	ctx_id;
-	u8	sts_num;
-	u8	rcv_num;
-	u8	vport_id;
-	u8	phy_port;
-	u8	num_pci_func;
-	u8	state;
-#endif
-	u32	host_csmr[QLCNIC_MAX_RING_SETS];
-	struct __host_producer_mbx host_prod[QLCNIC_MAX_RING_SETS];
-} __packed;
-
-struct qlcnic_add_rings_mbx_out {
-#if defined(__LITTLE_ENDIAN)
-	u8      rcv_num;
-	u8      sts_num;
-	u16	ctx_id;
-#elif defined(__BIG_ENDIAN)
-	u16	ctx_id;
-	u8	sts_num;
-	u8	rcv_num;
-#endif
-	u32  host_csmr[QLCNIC_MAX_RING_SETS];
-	struct __host_producer_mbx host_prod[QLCNIC_MAX_RING_SETS];
-} __packed;
-
-/* Transmit context mailbox inbox registers
- * @phys_addr_{low|high}: DMA address of the transmit buffer
- * @cnsmr_index_{low|high}: host consumer index
- * @size: legth of transmit buffer ring
- * @intr_id: interrput id
- * @src: src of interrupt
- */
-struct qlcnic_tx_mbx {
-	u32	phys_addr_low;
-	u32	phys_addr_high;
-	u32	cnsmr_index_low;
-	u32	cnsmr_index_high;
-#if defined(__LITTLE_ENDIAN)
-	u16	size;
-	u16	intr_id;
-	u8	src;
-	u8	rsvd[3];
-#elif defined(__BIG_ENDIAN)
-	u16	intr_id;
-	u16	size;
-	u8	rsvd[3];
-	u8	src;
-#endif
-} __packed;
-
-/* Transmit context mailbox outbox registers
- * @host_prod: host producer index
- * @ctx_id: transmit context id
- * @state: state of the transmit context
- */
-
-struct qlcnic_tx_mbx_out {
-	u32	host_prod;
-#if defined(__LITTLE_ENDIAN)
-	u16	ctx_id;
-	u8	state;
-	u8	rsvd;
-#elif defined(__BIG_ENDIAN)
-	u8	rsvd;
-	u8	state;
-	u16	ctx_id;
-#endif
-} __packed;
-
 static const struct qlcnic_mailbox_metadata qlcnic_83xx_mbx_tbl[] = {
 	{QLCNIC_CMD_CONFIGURE_IP_ADDR, 6, 1},
 	{QLCNIC_CMD_CONFIG_INTRPT, 18, 34},
@@ -304,6 +157,8 @@ static struct qlcnic_hardware_ops qlcnic_83xx_hw_ops = {
 	.process_lb_rcv_ring_diag	= qlcnic_83xx_process_rcv_ring_diag,
 	.create_rx_ctx			= qlcnic_83xx_create_rx_ctx,
 	.create_tx_ctx			= qlcnic_83xx_create_tx_ctx,
+	.del_rx_ctx			= qlcnic_83xx_del_rx_ctx,
+	.del_tx_ctx			= qlcnic_83xx_del_tx_ctx,
 	.setup_link_event		= qlcnic_83xx_setup_link_event,
 	.get_nic_info			= qlcnic_83xx_get_nic_info,
 	.get_pci_info			= qlcnic_83xx_get_pci_info,
@@ -1126,6 +981,32 @@ out:
 	return err;
 }
 
+void qlcnic_83xx_del_rx_ctx(struct qlcnic_adapter *adapter)
+{
+	int err;
+	u32 temp = 0;
+	struct qlcnic_cmd_args cmd;
+	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
+
+	if (qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_DESTROY_RX_CTX))
+		return;
+
+	if (qlcnic_sriov_pf_check(adapter) || qlcnic_sriov_vf_check(adapter))
+		cmd.req.arg[0] |= (0x3 << 29);
+
+	if (qlcnic_sriov_pf_check(adapter))
+		qlcnic_pf_set_interface_id_del_rx_ctx(adapter, &temp);
+
+	cmd.req.arg[1] = recv_ctx->context_id | temp;
+	err = qlcnic_issue_cmd(adapter, &cmd);
+	if (err)
+		dev_err(&adapter->pdev->dev,
+			"Failed to destroy rx ctx in firmware\n");
+
+	recv_ctx->state = QLCNIC_HOST_CTX_STATE_FREED;
+	qlcnic_free_mbx_args(&cmd);
+}
+
 int qlcnic_83xx_create_rx_ctx(struct qlcnic_adapter *adapter)
 {
 	int i, err, index, sds_mbx_size, rds_mbx_size;
@@ -1156,9 +1037,17 @@ int qlcnic_83xx_create_rx_ctx(struct qlcnic_adapter *adapter)
 	/* set mailbox hdr and capabilities */
 	qlcnic_alloc_mbx_args(&cmd, adapter,
 			      QLCNIC_CMD_CREATE_RX_CTX);
+
+	if (qlcnic_sriov_pf_check(adapter) || qlcnic_sriov_vf_check(adapter))
+		cmd.req.arg[0] |= (0x3 << 29);
+
 	cmd.req.arg[1] = cap;
 	cmd.req.arg[5] = 1 | (num_rds << 5) | (num_sds << 8) |
 			 (QLC_83XX_HOST_RDS_MODE_UNIQUE << 16);
+
+	if (qlcnic_sriov_pf_check(adapter))
+		qlcnic_pf_set_interface_id_create_rx_ctx(adapter,
+							 &cmd.req.arg[6]);
 	/* set up status rings, mbx 8-57/87 */
 	index = QLC_83XX_HOST_SDS_MBX_IDX;
 	for (i = 0; i < num_sds; i++) {
@@ -1242,12 +1131,34 @@ out:
 	return err;
 }
 
+void qlcnic_83xx_del_tx_ctx(struct qlcnic_adapter *adapter,
+			    struct qlcnic_host_tx_ring *tx_ring)
+{
+	struct qlcnic_cmd_args cmd;
+	u32 temp = 0;
+
+	if (qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_DESTROY_TX_CTX))
+		return;
+
+	if (qlcnic_sriov_pf_check(adapter) || qlcnic_sriov_vf_check(adapter))
+		cmd.req.arg[0] |= (0x3 << 29);
+
+	if (qlcnic_sriov_pf_check(adapter))
+		qlcnic_pf_set_interface_id_del_tx_ctx(adapter, &temp);
+
+	cmd.req.arg[1] = tx_ring->ctx_id | temp;
+	if (qlcnic_issue_cmd(adapter, &cmd))
+		dev_err(&adapter->pdev->dev,
+			"Failed to destroy tx ctx in firmware\n");
+	qlcnic_free_mbx_args(&cmd);
+}
+
 int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *adapter,
 			      struct qlcnic_host_tx_ring *tx, int ring)
 {
 	int err;
 	u16 msix_id;
-	u32 *buf, intr_mask;
+	u32 *buf, intr_mask, temp = 0;
 	struct qlcnic_cmd_args cmd;
 	struct qlcnic_tx_mbx mbx;
 	struct qlcnic_tx_mbx_out *mbx_out;
@@ -1284,8 +1195,15 @@ int qlcnic_83xx_create_tx_ctx(struct qlcnic_adapter *adapter,
 	mbx.src = 0;
 
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CREATE_TX_CTX);
+
+	if (qlcnic_sriov_pf_check(adapter) || qlcnic_sriov_vf_check(adapter))
+		cmd.req.arg[0] |= (0x3 << 29);
+
+	if (qlcnic_sriov_pf_check(adapter))
+		qlcnic_pf_set_interface_id_create_tx_ctx(adapter, &temp);
+
 	cmd.req.arg[1] = QLCNIC_CAP0_LEGACY_CONTEXT;
-	cmd.req.arg[5] = QLCNIC_MAX_TX_QUEUES;
+	cmd.req.arg[5] = QLCNIC_MAX_TX_QUEUES | temp;
 	buf = &cmd.req.arg[6];
 	memcpy(buf, &mbx, sizeof(struct qlcnic_tx_mbx));
 	/* send the mailbox command*/
@@ -1578,24 +1496,35 @@ int qlcnic_83xx_setup_link_event(struct qlcnic_adapter *adapter, int enable)
 	return err;
 }
 
+static void qlcnic_83xx_set_interface_id_promisc(struct qlcnic_adapter *adapter,
+						 u32 *interface_id)
+{
+	if (qlcnic_sriov_pf_check(adapter)) {
+		qlcnic_pf_set_interface_id_promisc(adapter, interface_id);
+	} else {
+		if (!qlcnic_sriov_vf_check(adapter))
+			*interface_id = adapter->recv_ctx->context_id << 16;
+	}
+}
+
 int qlcnic_83xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32 mode)
 {
 	int err;
-	u32 temp;
+	u32 temp = 0;
 	struct qlcnic_cmd_args cmd;
 
 	if (adapter->recv_ctx->state == QLCNIC_HOST_CTX_STATE_FREED)
 		return -EIO;
 
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIGURE_MAC_RX_MODE);
-	temp = adapter->recv_ctx->context_id << 16;
+	qlcnic_83xx_set_interface_id_promisc(adapter, &temp);
 	cmd.req.arg[1] = (mode ? 1 : 0) | temp;
 	err = qlcnic_issue_cmd(adapter, &cmd);
 	if (err)
 		dev_info(&adapter->pdev->dev,
 			 "Promiscous mode config failed\n");
-	qlcnic_free_mbx_args(&cmd);
 
+	qlcnic_free_mbx_args(&cmd);
 	return err;
 }
 
@@ -1735,21 +1664,31 @@ int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 	return status;
 }
 
+static void qlcnic_83xx_set_interface_id_ipaddr(struct qlcnic_adapter *adapter,
+						u32 *interface_id)
+{
+	if (qlcnic_sriov_pf_check(adapter)) {
+		qlcnic_pf_set_interface_id_ipaddr(adapter, interface_id);
+	} else {
+		if (!qlcnic_sriov_vf_check(adapter))
+			*interface_id = adapter->recv_ctx->context_id << 16;
+	}
+}
+
 void qlcnic_83xx_config_ipaddr(struct qlcnic_adapter *adapter, __be32 ip,
 			       int mode)
 {
 	int err;
-	u32 temp, temp_ip;
+	u32 temp = 0, temp_ip;
 	struct qlcnic_cmd_args cmd;
 
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIGURE_IP_ADDR);
-	if (mode == QLCNIC_IP_UP) {
-		temp = adapter->recv_ctx->context_id << 16;
+	qlcnic_83xx_set_interface_id_ipaddr(adapter, &temp);
+
+	if (mode == QLCNIC_IP_UP)
 		cmd.req.arg[1] = 1 | temp;
-	} else {
-		temp = adapter->recv_ctx->context_id << 16;
+	else
 		cmd.req.arg[1] = 2 | temp;
-	}
 
 	/*
 	 * Adapter needs IP address in network byte order.
@@ -1766,6 +1705,7 @@ void qlcnic_83xx_config_ipaddr(struct qlcnic_adapter *adapter, __be32 ip,
 		dev_err(&adapter->netdev->dev,
 			"could not notify %s IP 0x%x request\n",
 			(mode == QLCNIC_IP_UP) ? "Add" : "Remove", ip);
+
 	qlcnic_free_mbx_args(&cmd);
 }
 
@@ -1832,11 +1772,22 @@ int qlcnic_83xx_config_rss(struct qlcnic_adapter *adapter, int enable)
 
 }
 
+static void qlcnic_83xx_set_interface_id_macaddr(struct qlcnic_adapter *adapter,
+						 u32 *interface_id)
+{
+	if (qlcnic_sriov_pf_check(adapter)) {
+		qlcnic_pf_set_interface_id_macaddr(adapter, interface_id);
+	} else {
+		if (!qlcnic_sriov_vf_check(adapter))
+			*interface_id = adapter->recv_ctx->context_id << 16;
+	}
+}
+
 int qlcnic_83xx_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
 				   __le16 vlan_id, u8 op)
 {
 	int err;
-	u32 *buf;
+	u32 *buf, temp = 0;
 	struct qlcnic_cmd_args cmd;
 	struct qlcnic_macvlan_mbx mv;
 
@@ -1846,9 +1797,10 @@ int qlcnic_83xx_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
 	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIG_MAC_VLAN);
 	if (err)
 		return err;
-	cmd.req.arg[1] = op | (1 << 8) |
-			(adapter->recv_ctx->context_id << 16);
 
+	cmd.req.arg[1] = op | (1 << 8);
+	qlcnic_83xx_set_interface_id_macaddr(adapter, &temp);
+	cmd.req.arg[1] |= temp;
 	mv.vlan = le16_to_cpu(vlan_id);
 	mv.mac_addr0 = addr[0];
 	mv.mac_addr1 = addr[1];
@@ -2151,6 +2103,10 @@ int qlcnic_83xx_config_intrpt(struct qlcnic_adapter *adapter, bool op_type)
 	max_ints = adapter->ahw->num_msix - 1;
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIG_INTRPT);
 	cmd.req.arg[1] = max_ints;
+
+	if (qlcnic_sriov_vf_check(adapter))
+		cmd.req.arg[1] |= (adapter->ahw->pci_func << 8) | BIT_16;
+
 	for (i = 0, index = 2; i < max_ints; i++) {
 		type = op_type ? QLCNIC_INTRPT_ADD : QLCNIC_INTRPT_DEL;
 		val = type | (adapter->ahw->intr_tbl[i].type << 4);
@@ -2757,13 +2713,19 @@ int qlcnic_83xx_flash_read32(struct qlcnic_adapter *adapter, u32 flash_addr,
 
 int qlcnic_83xx_test_link(struct qlcnic_adapter *adapter)
 {
+	u8 pci_func;
 	int err;
 	u32 config = 0, state;
 	struct qlcnic_cmd_args cmd;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
-	state = readl(ahw->pci_base0 + QLC_83XX_LINK_STATE(ahw->pci_func));
-	if (!QLC_83xx_FUNC_VAL(state, ahw->pci_func)) {
+	if (qlcnic_sriov_vf_check(adapter))
+		pci_func = adapter->portnum;
+	else
+		pci_func = ahw->pci_func;
+
+	state = readl(ahw->pci_base0 + QLC_83XX_LINK_STATE(pci_func));
+	if (!QLC_83xx_FUNC_VAL(state, pci_func)) {
 		dev_info(&adapter->pdev->dev, "link state down\n");
 		return config;
 	}

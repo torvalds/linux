@@ -1584,6 +1584,9 @@ struct qlcnic_hardware_ops {
 	int (*create_rx_ctx) (struct qlcnic_adapter *);
 	int (*create_tx_ctx) (struct qlcnic_adapter *,
 	struct qlcnic_host_tx_ring *, int);
+	void (*del_rx_ctx) (struct qlcnic_adapter *);
+	void (*del_tx_ctx) (struct qlcnic_adapter *,
+			    struct qlcnic_host_tx_ring *);
 	int (*setup_link_event) (struct qlcnic_adapter *, int);
 	int (*get_nic_info) (struct qlcnic_adapter *, struct qlcnic_info *, u8);
 	int (*get_pci_info) (struct qlcnic_adapter *, struct qlcnic_pci_info *);
@@ -1701,6 +1704,17 @@ static inline int qlcnic_fw_cmd_create_tx_ctx(struct qlcnic_adapter *adapter,
 					      int ring)
 {
 	return adapter->ahw->hw_ops->create_tx_ctx(adapter, ptr, ring);
+}
+
+static inline void qlcnic_fw_cmd_del_rx_ctx(struct qlcnic_adapter *adapter)
+{
+	return adapter->ahw->hw_ops->del_rx_ctx(adapter);
+}
+
+static inline void qlcnic_fw_cmd_del_tx_ctx(struct qlcnic_adapter *adapter,
+					    struct qlcnic_host_tx_ring *ptr)
+{
+	return adapter->ahw->hw_ops->del_tx_ctx(adapter, ptr);
 }
 
 static inline int qlcnic_linkevent_request(struct qlcnic_adapter *adapter,

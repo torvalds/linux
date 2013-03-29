@@ -119,6 +119,8 @@ struct qlcnic_vport {
 
 struct qlcnic_vf_info {
 	u8				pci_func;
+	u16				rx_ctx_id;
+	u16				tx_ctx_id;
 	unsigned long			state;
 	struct completion		ch_free_cmpl;
 	struct work_struct		trans_work;
@@ -167,9 +169,37 @@ void qlcnic_sriov_pf_process_bc_cmd(struct qlcnic_adapter *,
 void qlcnic_sriov_pf_disable(struct qlcnic_adapter *);
 void qlcnic_sriov_pf_cleanup(struct qlcnic_adapter *);
 int qlcnic_pci_sriov_configure(struct pci_dev *, int);
+void qlcnic_pf_set_interface_id_create_rx_ctx(struct qlcnic_adapter *, u32 *);
+void qlcnic_pf_set_interface_id_create_tx_ctx(struct qlcnic_adapter *, u32 *);
+void qlcnic_pf_set_interface_id_del_rx_ctx(struct qlcnic_adapter *, u32 *);
+void qlcnic_pf_set_interface_id_del_tx_ctx(struct qlcnic_adapter *, u32 *);
+void qlcnic_pf_set_interface_id_promisc(struct qlcnic_adapter *, u32 *);
+void qlcnic_pf_set_interface_id_ipaddr(struct qlcnic_adapter *, u32 *);
+void qlcnic_pf_set_interface_id_macaddr(struct qlcnic_adapter *, u32 *);
 #else
 static inline void qlcnic_sriov_pf_disable(struct qlcnic_adapter *adapter) {}
 static inline void qlcnic_sriov_pf_cleanup(struct qlcnic_adapter *adapter) {}
+static inline void
+qlcnic_pf_set_interface_id_create_rx_ctx(struct qlcnic_adapter *adapter,
+					 u32 *int_id) {}
+static inline void
+qlcnic_pf_set_interface_id_create_tx_ctx(struct qlcnic_adapter *adapter,
+					 u32 *int_id) {}
+static inline void
+qlcnic_pf_set_interface_id_del_rx_ctx(struct qlcnic_adapter *adapter,
+				      u32 *int_id) {}
+static inline void
+qlcnic_pf_set_interface_id_del_tx_ctx(struct qlcnic_adapter *adapter,
+				      u32 *int_id) {}
+static inline void
+qlcnic_pf_set_interface_id_ipaddr(struct qlcnic_adapter *adapter, u32 *int_id)
+{}
+static inline void
+qlcnic_pf_set_interface_id_macaddr(struct qlcnic_adapter *adapter, u32 *int_id)
+{}
+static inline void
+qlcnic_pf_set_interface_id_promisc(struct qlcnic_adapter *adapter, u32 *int_id)
+{}
 #endif
 
 #endif

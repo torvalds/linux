@@ -21,6 +21,9 @@
 #define QLC_BC_HDR_SZ		16
 #define QLC_BC_PAYLOAD_SZ	(1024 - QLC_BC_HDR_SZ)
 
+#define QLC_DEFAULT_RCV_DESCRIPTORS_SRIOV_VF		2048
+#define QLC_DEFAULT_JUMBO_RCV_DESCRIPTORS_SRIOV_VF	512
+
 static int qlcnic_sriov_vf_mbx_op(struct qlcnic_adapter *,
 				  struct qlcnic_cmd_args *);
 
@@ -39,6 +42,8 @@ static struct qlcnic_hardware_ops qlcnic_sriov_vf_hw_ops = {
 	.process_lb_rcv_ring_diag	= qlcnic_83xx_process_rcv_ring_diag,
 	.create_rx_ctx			= qlcnic_83xx_create_rx_ctx,
 	.create_tx_ctx			= qlcnic_83xx_create_tx_ctx,
+	.del_rx_ctx			= qlcnic_83xx_del_rx_ctx,
+	.del_tx_ctx			= qlcnic_83xx_del_tx_ctx,
 	.setup_link_event		= qlcnic_83xx_setup_link_event,
 	.get_nic_info			= qlcnic_83xx_get_nic_info,
 	.get_pci_info			= qlcnic_83xx_get_pci_info,
@@ -305,6 +310,42 @@ out:
 	return rsp;
 }
 
+static void qlcnic_sriov_vf_cfg_buff_desc(struct qlcnic_adapter *adapter)
+{
+	adapter->num_rxd = QLC_DEFAULT_RCV_DESCRIPTORS_SRIOV_VF;
+	adapter->max_rxd = MAX_RCV_DESCRIPTORS_10G;
+	adapter->num_jumbo_rxd = QLC_DEFAULT_JUMBO_RCV_DESCRIPTORS_SRIOV_VF;
+	adapter->max_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS_10G;
+	adapter->num_txd = MAX_CMD_DESCRIPTORS;
+	adapter->max_rds_rings = MAX_RDS_RINGS;
+}
+
+static int qlcnic_sriov_vf_init_driver(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_info nic_info;
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	int err;
+
+	err = qlcnic_get_nic_info(adapter, &nic_info, ahw->pci_func);
+	if (err)
+		return -EIO;
+
+	if (qlcnic_83xx_get_port_info(adapter))
+		return -EIO;
+
+	qlcnic_sriov_vf_cfg_buff_desc(adapter);
+	adapter->flags |= QLCNIC_ADAPTER_INITIALIZED;
+	dev_info(&adapter->pdev->dev, "HAL Version: %d\n",
+		 adapter->ahw->fw_hal_version);
+
+	ahw->physical_port = (u8) nic_info.phys_port;
+	ahw->switch_mode = nic_info.switch_mode;
+	ahw->max_mtu = nic_info.max_mtu;
+	ahw->op_mode = nic_info.op_mode;
+	ahw->capabilities = nic_info.capabilities;
+	return 0;
+}
+
 static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 				 int pci_using_dac)
 {
@@ -335,6 +376,10 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 	err = qlcnic_sriov_channel_cfg_cmd(adapter, QLCNIC_BC_CMD_CHANNEL_INIT);
 	if (err)
 		goto err_out_disable_bc_intr;
+
+	err = qlcnic_sriov_vf_init_driver(adapter);
+	if (err)
+		goto err_out_send_channel_term;
 
 	err = qlcnic_setup_netdev(adapter, adapter->netdev, pci_using_dac);
 	if (err)

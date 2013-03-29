@@ -17,6 +17,11 @@ struct qlcnic_sriov_cmd_handler {
 	int (*fn) (struct qlcnic_bc_trans *, struct qlcnic_cmd_args *);
 };
 
+struct qlcnic_sriov_fw_cmd_handler {
+	u32 cmd;
+	int (*fn) (struct qlcnic_bc_trans *, struct qlcnic_cmd_args *);
+};
+
 static int qlcnic_sriov_pf_set_vport_info(struct qlcnic_adapter *adapter,
 					  struct qlcnic_info *npar_info,
 					  u16 vport_id)
@@ -542,9 +547,526 @@ err_out:
 	return err;
 }
 
+static int qlcnic_sriov_cfg_vf_def_mac(struct qlcnic_adapter *adapter,
+				       struct qlcnic_vport *vp,
+				       u16 func, __le16 vlan, u8 op)
+{
+	struct qlcnic_cmd_args cmd;
+	struct qlcnic_macvlan_mbx mv;
+	u8 *addr;
+	int err;
+	u32 *buf;
+	int vpid;
+
+	if (qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIG_MAC_VLAN))
+		return -ENOMEM;
+
+	vpid = qlcnic_sriov_pf_get_vport_handle(adapter, func);
+	if (vpid < 0) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (vlan)
+		op = ((op == QLCNIC_MAC_ADD || op == QLCNIC_MAC_VLAN_ADD) ?
+		      QLCNIC_MAC_VLAN_ADD : QLCNIC_MAC_VLAN_DEL);
+
+	cmd.req.arg[1] = op | (1 << 8) | (3 << 6);
+	cmd.req.arg[1] |= ((vpid & 0xffff) << 16) | BIT_31;
+
+	addr = vp->mac;
+	mv.vlan = le16_to_cpu(vlan);
+	mv.mac_addr0 = addr[0];
+	mv.mac_addr1 = addr[1];
+	mv.mac_addr2 = addr[2];
+	mv.mac_addr3 = addr[3];
+	mv.mac_addr4 = addr[4];
+	mv.mac_addr5 = addr[5];
+	buf = &cmd.req.arg[2];
+	memcpy(buf, &mv, sizeof(struct qlcnic_macvlan_mbx));
+
+	err = qlcnic_issue_cmd(adapter, &cmd);
+
+	if (err)
+		dev_err(&adapter->pdev->dev,
+			"MAC-VLAN %s to CAM failed, err=%d.\n",
+			((op == 1) ? "add " : "delete "), err);
+
+out:
+	qlcnic_free_mbx_args(&cmd);
+	return err;
+}
+
+static int qlcnic_sriov_validate_create_rx_ctx(struct qlcnic_cmd_args *cmd)
+{
+	if ((cmd->req.arg[0] >> 29) != 0x3)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qlcnic_sriov_pf_create_rx_ctx_cmd(struct qlcnic_bc_trans *tran,
+					     struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = tran->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	struct qlcnic_rcv_mbx_out *mbx_out;
+	int err;
+
+	err = qlcnic_sriov_validate_create_rx_ctx(cmd);
+	if (err) {
+		cmd->rsp.arg[0] |= (0x6 << 25);
+		return err;
+	}
+
+	cmd->req.arg[6] = vf->vp->handle;
+	err = qlcnic_issue_cmd(adapter, cmd);
+
+	if (!err) {
+		mbx_out = (struct qlcnic_rcv_mbx_out *)&cmd->rsp.arg[1];
+		vf->rx_ctx_id = mbx_out->ctx_id;
+		qlcnic_sriov_cfg_vf_def_mac(adapter, vf->vp, vf->pci_func,
+					    0, QLCNIC_MAC_ADD);
+	} else {
+		vf->rx_ctx_id = 0;
+	}
+
+	return err;
+}
+
+static int qlcnic_sriov_pf_mac_address_cmd(struct qlcnic_bc_trans *trans,
+					   struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = trans->vf;
+	u8 type, *mac;
+
+	type = cmd->req.arg[1];
+	switch (type) {
+	case QLCNIC_SET_STATION_MAC:
+	case QLCNIC_SET_FAC_DEF_MAC:
+		cmd->rsp.arg[0] = (2 << 25);
+		break;
+	case QLCNIC_GET_CURRENT_MAC:
+		cmd->rsp.arg[0] = (1 << 25);
+		mac = vf->vp->mac;
+		cmd->rsp.arg[2] = mac[1] | ((mac[0] << 8) & 0xff00);
+		cmd->rsp.arg[1] = mac[5] | ((mac[4] << 8) & 0xff00) |
+				  ((mac[3]) << 16 & 0xff0000) |
+				  ((mac[2]) << 24 & 0xff000000);
+	}
+
+	return 0;
+}
+
+static int qlcnic_sriov_validate_create_tx_ctx(struct qlcnic_cmd_args *cmd)
+{
+	if ((cmd->req.arg[0] >> 29) != 0x3)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qlcnic_sriov_pf_create_tx_ctx_cmd(struct qlcnic_bc_trans *trans,
+					     struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = trans->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	struct qlcnic_tx_mbx_out *mbx_out;
+	int err;
+
+	err = qlcnic_sriov_validate_create_tx_ctx(cmd);
+	if (err) {
+		cmd->rsp.arg[0] |= (0x6 << 25);
+		return err;
+	}
+
+	cmd->req.arg[5] |= vf->vp->handle << 16;
+	err = qlcnic_issue_cmd(adapter, cmd);
+	if (!err) {
+		mbx_out = (struct qlcnic_tx_mbx_out *)&cmd->rsp.arg[2];
+		vf->tx_ctx_id = mbx_out->ctx_id;
+	} else {
+		vf->tx_ctx_id = 0;
+	}
+
+	return err;
+}
+
+static int qlcnic_sriov_validate_del_rx_ctx(struct qlcnic_vf_info *vf,
+					    struct qlcnic_cmd_args *cmd)
+{
+	if ((cmd->req.arg[0] >> 29) != 0x3)
+		return -EINVAL;
+
+	if ((cmd->req.arg[1] & 0xffff) != vf->rx_ctx_id)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qlcnic_sriov_pf_del_rx_ctx_cmd(struct qlcnic_bc_trans *trans,
+					  struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = trans->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	int err;
+
+	err = qlcnic_sriov_validate_del_rx_ctx(vf, cmd);
+	if (err) {
+		cmd->rsp.arg[0] |= (0x6 << 25);
+		return err;
+	}
+
+	qlcnic_sriov_cfg_vf_def_mac(adapter, vf->vp, vf->pci_func,
+				    0, QLCNIC_MAC_DEL);
+	cmd->req.arg[1] |= vf->vp->handle << 16;
+	err = qlcnic_issue_cmd(adapter, cmd);
+
+	if (!err)
+		vf->rx_ctx_id = 0;
+
+	return err;
+}
+
+static int qlcnic_sriov_validate_del_tx_ctx(struct qlcnic_vf_info *vf,
+					    struct qlcnic_cmd_args *cmd)
+{
+	if ((cmd->req.arg[0] >> 29) != 0x3)
+		return -EINVAL;
+
+	if ((cmd->req.arg[1] & 0xffff) != vf->tx_ctx_id)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qlcnic_sriov_pf_del_tx_ctx_cmd(struct qlcnic_bc_trans *trans,
+					  struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = trans->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	int err;
+
+	err = qlcnic_sriov_validate_del_tx_ctx(vf, cmd);
+	if (err) {
+		cmd->rsp.arg[0] |= (0x6 << 25);
+		return err;
+	}
+
+	cmd->req.arg[1] |= vf->vp->handle << 16;
+	err = qlcnic_issue_cmd(adapter, cmd);
+
+	if (!err)
+		vf->tx_ctx_id = 0;
+
+	return err;
+}
+
+static int qlcnic_sriov_validate_cfg_lro(struct qlcnic_vf_info *vf,
+					 struct qlcnic_cmd_args *cmd)
+{
+	if ((cmd->req.arg[1] >> 16) != vf->rx_ctx_id)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qlcnic_sriov_pf_cfg_lro_cmd(struct qlcnic_bc_trans *trans,
+				       struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = trans->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	int err;
+
+	err = qlcnic_sriov_validate_cfg_lro(vf, cmd);
+	if (err) {
+		cmd->rsp.arg[0] |= (0x6 << 25);
+		return err;
+	}
+
+	err = qlcnic_issue_cmd(adapter, cmd);
+	return err;
+}
+
+static int qlcnic_sriov_pf_cfg_ip_cmd(struct qlcnic_bc_trans *trans,
+				      struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = trans->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	int err = -EIO;
+	u8 op;
+
+	op =  cmd->req.arg[1] & 0xff;
+
+	cmd->req.arg[1] |= vf->vp->handle << 16;
+	cmd->req.arg[1] |= BIT_31;
+
+	err = qlcnic_issue_cmd(adapter, cmd);
+	return err;
+}
+
+static int qlcnic_sriov_validate_cfg_intrpt(struct qlcnic_vf_info *vf,
+					    struct qlcnic_cmd_args *cmd)
+{
+	if (((cmd->req.arg[1] >> 8) & 0xff) != vf->pci_func)
+		return -EINVAL;
+
+	if (!(cmd->req.arg[1] & BIT_16))
+		return -EINVAL;
+
+	if ((cmd->req.arg[1] & 0xff) != 0x1)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qlcnic_sriov_pf_cfg_intrpt_cmd(struct qlcnic_bc_trans *trans,
+					  struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = trans->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	int err;
+
+	err = qlcnic_sriov_validate_cfg_intrpt(vf, cmd);
+	if (err)
+		cmd->rsp.arg[0] |= (0x6 << 25);
+	else
+		err = qlcnic_issue_cmd(adapter, cmd);
+
+	return err;
+}
+
+static int qlcnic_sriov_validate_mtu(struct qlcnic_adapter *adapter,
+				     struct qlcnic_vf_info *vf,
+				     struct qlcnic_cmd_args *cmd)
+{
+	if (cmd->req.arg[1] != vf->rx_ctx_id)
+		return -EINVAL;
+
+	if (cmd->req.arg[2] > adapter->ahw->max_mtu)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qlcnic_sriov_pf_set_mtu_cmd(struct qlcnic_bc_trans *trans,
+				       struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = trans->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	int err;
+
+	err = qlcnic_sriov_validate_mtu(adapter, vf, cmd);
+	if (err)
+		cmd->rsp.arg[0] |= (0x6 << 25);
+	else
+		err = qlcnic_issue_cmd(adapter, cmd);
+
+	return err;
+}
+
+static int qlcnic_sriov_validate_get_nic_info(struct qlcnic_vf_info *vf,
+					      struct qlcnic_cmd_args *cmd)
+{
+	if (cmd->req.arg[1] & BIT_31) {
+		if (((cmd->req.arg[1] >> 16) & 0x7fff) != vf->pci_func)
+			return -EINVAL;
+	} else {
+		cmd->req.arg[1] |= vf->vp->handle << 16;
+	}
+
+	return 0;
+}
+
+static int qlcnic_sriov_pf_get_nic_info_cmd(struct qlcnic_bc_trans *trans,
+					    struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = trans->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	int err;
+
+	err = qlcnic_sriov_validate_get_nic_info(vf, cmd);
+	if (err) {
+		cmd->rsp.arg[0] |= (0x6 << 25);
+		return err;
+	}
+
+	err = qlcnic_issue_cmd(adapter, cmd);
+	return err;
+}
+
+static int qlcnic_sriov_validate_cfg_rss(struct qlcnic_vf_info *vf,
+					 struct qlcnic_cmd_args *cmd)
+{
+	if (cmd->req.arg[1] != vf->rx_ctx_id)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qlcnic_sriov_pf_cfg_rss_cmd(struct qlcnic_bc_trans *trans,
+				       struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = trans->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	int err;
+
+	err = qlcnic_sriov_validate_cfg_rss(vf, cmd);
+	if (err)
+		cmd->rsp.arg[0] |= (0x6 << 25);
+	else
+		err = qlcnic_issue_cmd(adapter, cmd);
+
+	return err;
+}
+
+static int qlcnic_sriov_validate_cfg_intrcoal(struct qlcnic_adapter *adapter,
+					      struct qlcnic_vf_info *vf,
+					      struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_nic_intr_coalesce *coal = &adapter->ahw->coal;
+	u16 ctx_id, pkts, time;
+
+	ctx_id = cmd->req.arg[1] >> 16;
+	pkts = cmd->req.arg[2] & 0xffff;
+	time = cmd->req.arg[2] >> 16;
+
+	if (ctx_id != vf->rx_ctx_id)
+		return -EINVAL;
+	if (pkts > coal->rx_packets)
+		return -EINVAL;
+	if (time < coal->rx_time_us)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qlcnic_sriov_pf_cfg_intrcoal_cmd(struct qlcnic_bc_trans *tran,
+					    struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = tran->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	int err;
+
+	err = qlcnic_sriov_validate_cfg_intrcoal(adapter, vf, cmd);
+	if (err) {
+		cmd->rsp.arg[0] |= (0x6 << 25);
+		return err;
+	}
+
+	err = qlcnic_issue_cmd(adapter, cmd);
+	return err;
+}
+
+static int qlcnic_sriov_validate_cfg_macvlan(struct qlcnic_adapter *adapter,
+					     struct qlcnic_vf_info *vf,
+					     struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_macvlan_mbx *macvlan;
+
+	if (!(cmd->req.arg[1] & BIT_8))
+		return -EINVAL;
+
+	cmd->req.arg[1] |= (vf->vp->handle << 16);
+	cmd->req.arg[1] |= BIT_31;
+
+	macvlan = (struct qlcnic_macvlan_mbx *)&cmd->req.arg[2];
+	if (!(macvlan->mac_addr0 & BIT_0)) {
+		dev_err(&adapter->pdev->dev,
+			"MAC address change is not allowed from VF %d",
+			vf->pci_func);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int qlcnic_sriov_pf_cfg_macvlan_cmd(struct qlcnic_bc_trans *trans,
+					   struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = trans->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	int err;
+
+	err = qlcnic_sriov_validate_cfg_macvlan(adapter, vf, cmd);
+	if (err) {
+		cmd->rsp.arg[0] |= (0x6 << 25);
+		return err;
+	}
+
+	err = qlcnic_issue_cmd(adapter, cmd);
+	return err;
+}
+
+static int qlcnic_sriov_validate_linkevent(struct qlcnic_vf_info *vf,
+					   struct qlcnic_cmd_args *cmd)
+{
+	if ((cmd->req.arg[1] >> 16) != vf->rx_ctx_id)
+		return -EINVAL;
+
+	if (!(cmd->req.arg[1] & BIT_8))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int qlcnic_sriov_pf_linkevent_cmd(struct qlcnic_bc_trans *trans,
+					 struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = trans->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	int err;
+
+	err = qlcnic_sriov_validate_linkevent(vf, cmd);
+	if (err) {
+		cmd->rsp.arg[0] |= (0x6 << 25);
+		return err;
+	}
+
+	err = qlcnic_issue_cmd(adapter, cmd);
+	return err;
+}
+
+static int qlcnic_sriov_pf_cfg_promisc_cmd(struct qlcnic_bc_trans *trans,
+					   struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = trans->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	int err;
+
+	cmd->req.arg[1] |= vf->vp->handle << 16;
+	cmd->req.arg[1] |= BIT_31;
+	err = qlcnic_issue_cmd(adapter, cmd);
+	return err;
+}
+
+static const int qlcnic_pf_passthru_supp_cmds[] = {
+	QLCNIC_CMD_GET_STATISTICS,
+	QLCNIC_CMD_GET_PORT_CONFIG,
+	QLCNIC_CMD_GET_LINK_STATUS,
+};
+
 static const struct qlcnic_sriov_cmd_handler qlcnic_pf_bc_cmd_hdlr[] = {
 	[QLCNIC_BC_CMD_CHANNEL_INIT] = {&qlcnic_sriov_pf_channel_cfg_cmd},
 	[QLCNIC_BC_CMD_CHANNEL_TERM] = {&qlcnic_sriov_pf_channel_cfg_cmd},
+};
+
+static const struct qlcnic_sriov_fw_cmd_handler qlcnic_pf_fw_cmd_hdlr[] = {
+	{QLCNIC_CMD_CREATE_RX_CTX, qlcnic_sriov_pf_create_rx_ctx_cmd},
+	{QLCNIC_CMD_CREATE_TX_CTX, qlcnic_sriov_pf_create_tx_ctx_cmd},
+	{QLCNIC_CMD_MAC_ADDRESS, qlcnic_sriov_pf_mac_address_cmd},
+	{QLCNIC_CMD_DESTROY_RX_CTX, qlcnic_sriov_pf_del_rx_ctx_cmd},
+	{QLCNIC_CMD_DESTROY_TX_CTX, qlcnic_sriov_pf_del_tx_ctx_cmd},
+	{QLCNIC_CMD_CONFIGURE_HW_LRO, qlcnic_sriov_pf_cfg_lro_cmd},
+	{QLCNIC_CMD_CONFIGURE_IP_ADDR, qlcnic_sriov_pf_cfg_ip_cmd},
+	{QLCNIC_CMD_CONFIG_INTRPT, qlcnic_sriov_pf_cfg_intrpt_cmd},
+	{QLCNIC_CMD_SET_MTU, qlcnic_sriov_pf_set_mtu_cmd},
+	{QLCNIC_CMD_GET_NIC_INFO, qlcnic_sriov_pf_get_nic_info_cmd},
+	{QLCNIC_CMD_CONFIGURE_RSS, qlcnic_sriov_pf_cfg_rss_cmd},
+	{QLCNIC_CMD_CONFIG_INTR_COAL, qlcnic_sriov_pf_cfg_intrcoal_cmd},
+	{QLCNIC_CMD_CONFIG_MAC_VLAN, qlcnic_sriov_pf_cfg_macvlan_cmd},
+	{QLCNIC_CMD_GET_LINK_EVENT, qlcnic_sriov_pf_linkevent_cmd},
+	{QLCNIC_CMD_CONFIGURE_MAC_RX_MODE, qlcnic_sriov_pf_cfg_promisc_cmd},
 };
 
 void qlcnic_sriov_pf_process_bc_cmd(struct qlcnic_adapter *adapter,
@@ -561,7 +1083,94 @@ void qlcnic_sriov_pf_process_bc_cmd(struct qlcnic_adapter *adapter,
 			qlcnic_pf_bc_cmd_hdlr[cmd_op].fn(trans, cmd);
 			return;
 		}
+	} else {
+		int i;
+		size = ARRAY_SIZE(qlcnic_pf_fw_cmd_hdlr);
+		for (i = 0; i < size; i++) {
+			if (cmd_op == qlcnic_pf_fw_cmd_hdlr[i].cmd) {
+				qlcnic_pf_fw_cmd_hdlr[i].fn(trans, cmd);
+				return;
+			}
+		}
+
+		size = ARRAY_SIZE(qlcnic_pf_passthru_supp_cmds);
+		for (i = 0; i < size; i++) {
+			if (cmd_op == qlcnic_pf_passthru_supp_cmds[i]) {
+				qlcnic_issue_cmd(adapter, cmd);
+				return;
+			}
+		}
 	}
 
 	cmd->rsp.arg[0] |= (0x9 << 25);
+}
+
+void qlcnic_pf_set_interface_id_create_rx_ctx(struct qlcnic_adapter *adapter,
+					     u32 *int_id)
+{
+	u16 vpid;
+
+	vpid = qlcnic_sriov_pf_get_vport_handle(adapter,
+						adapter->ahw->pci_func);
+	*int_id |= vpid;
+}
+
+void qlcnic_pf_set_interface_id_del_rx_ctx(struct qlcnic_adapter *adapter,
+					   u32 *int_id)
+{
+	u16 vpid;
+
+	vpid = qlcnic_sriov_pf_get_vport_handle(adapter,
+						adapter->ahw->pci_func);
+	*int_id |= vpid << 16;
+}
+
+void qlcnic_pf_set_interface_id_create_tx_ctx(struct qlcnic_adapter *adapter,
+					      u32 *int_id)
+{
+	int vpid;
+
+	vpid = qlcnic_sriov_pf_get_vport_handle(adapter,
+						adapter->ahw->pci_func);
+	*int_id |= vpid << 16;
+}
+
+void qlcnic_pf_set_interface_id_del_tx_ctx(struct qlcnic_adapter *adapter,
+					   u32 *int_id)
+{
+	u16 vpid;
+
+	vpid = qlcnic_sriov_pf_get_vport_handle(adapter,
+						adapter->ahw->pci_func);
+	*int_id |= vpid << 16;
+}
+
+void qlcnic_pf_set_interface_id_promisc(struct qlcnic_adapter *adapter,
+					u32 *int_id)
+{
+	u16 vpid;
+
+	vpid = qlcnic_sriov_pf_get_vport_handle(adapter,
+						adapter->ahw->pci_func);
+	*int_id |= (vpid << 16) | BIT_31;
+}
+
+void qlcnic_pf_set_interface_id_ipaddr(struct qlcnic_adapter *adapter,
+				       u32 *int_id)
+{
+	u16 vpid;
+
+	vpid = qlcnic_sriov_pf_get_vport_handle(adapter,
+						adapter->ahw->pci_func);
+	*int_id |= (vpid << 16) | BIT_31;
+}
+
+void qlcnic_pf_set_interface_id_macaddr(struct qlcnic_adapter *adapter,
+					u32 *int_id)
+{
+	u16 vpid;
+
+	vpid = qlcnic_sriov_pf_get_vport_handle(adapter,
+						adapter->ahw->pci_func);
+	*int_id |= (vpid << 16) | BIT_31;
 }
