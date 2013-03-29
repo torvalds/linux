@@ -36,8 +36,6 @@ struct regcache_rbtree_node {
 struct regcache_rbtree_ctx {
 	struct rb_root root;
 	struct regcache_rbtree_node *cached_rbnode;
-	unsigned long *reg_present;
-	unsigned int reg_present_nbits;
 };
 
 static inline void regcache_rbtree_get_base_top_reg(
@@ -154,7 +152,7 @@ static int rbtree_show(struct seq_file *s, void *ignored)
 	map->lock(map);
 
 	mem_size = sizeof(*rbtree_ctx);
-	mem_size += BITS_TO_LONGS(rbtree_ctx->reg_present_nbits) * sizeof(long);
+	mem_size += BITS_TO_LONGS(map->cache_present_nbits) * sizeof(long);
 
 	for (node = rb_first(&rbtree_ctx->root); node != NULL;
 	     node = rb_next(node)) {
@@ -205,44 +203,6 @@ static void rbtree_debugfs_init(struct regmap *map)
 }
 #endif
 
-static int enlarge_reg_present_bitmap(struct regmap *map, unsigned int reg)
-{
-	struct regcache_rbtree_ctx *rbtree_ctx;
-	unsigned long *reg_present;
-	unsigned int reg_present_size;
-	unsigned int nregs;
-	int i;
-
-	rbtree_ctx = map->cache;
-	nregs = reg + 1;
-	reg_present_size = BITS_TO_LONGS(nregs);
-	reg_present_size *= sizeof(long);
-
-	if (!rbtree_ctx->reg_present) {
-		reg_present = kmalloc(reg_present_size, GFP_KERNEL);
-		if (!reg_present)
-			return -ENOMEM;
-		bitmap_zero(reg_present, nregs);
-		rbtree_ctx->reg_present = reg_present;
-		rbtree_ctx->reg_present_nbits = nregs;
-		return 0;
-	}
-
-	if (nregs > rbtree_ctx->reg_present_nbits) {
-		reg_present = krealloc(rbtree_ctx->reg_present,
-				       reg_present_size, GFP_KERNEL);
-		if (!reg_present)
-			return -ENOMEM;
-		for (i = 0; i < nregs; i++)
-			if (i >= rbtree_ctx->reg_present_nbits)
-				clear_bit(i, reg_present);
-		rbtree_ctx->reg_present = reg_present;
-		rbtree_ctx->reg_present_nbits = nregs;
-	}
-
-	return 0;
-}
-
 static int regcache_rbtree_init(struct regmap *map)
 {
 	struct regcache_rbtree_ctx *rbtree_ctx;
@@ -256,8 +216,6 @@ static int regcache_rbtree_init(struct regmap *map)
 	rbtree_ctx = map->cache;
 	rbtree_ctx->root = RB_ROOT;
 	rbtree_ctx->cached_rbnode = NULL;
-	rbtree_ctx->reg_present = NULL;
-	rbtree_ctx->reg_present_nbits = 0;
 
 	for (i = 0; i < map->num_reg_defaults; i++) {
 		ret = regcache_rbtree_write(map,
@@ -287,8 +245,6 @@ static int regcache_rbtree_exit(struct regmap *map)
 	if (!rbtree_ctx)
 		return 0;
 
-	kfree(rbtree_ctx->reg_present);
-
 	/* free up the rbtree */
 	next = rb_first(&rbtree_ctx->root);
 	while (next) {
@@ -304,17 +260,6 @@ static int regcache_rbtree_exit(struct regmap *map)
 	map->cache = NULL;
 
 	return 0;
-}
-
-static int regcache_reg_present(struct regmap *map, unsigned int reg)
-{
-	struct regcache_rbtree_ctx *rbtree_ctx;
-
-	rbtree_ctx = map->cache;
-	if (!(rbtree_ctx->reg_present[BIT_WORD(reg)] & BIT_MASK(reg)))
-		return 0;
-	return 1;
-
 }
 
 static int regcache_rbtree_read(struct regmap *map,
@@ -378,10 +323,9 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 
 	rbtree_ctx = map->cache;
 	/* update the reg_present bitmap, make space if necessary */
-	ret = enlarge_reg_present_bitmap(map, reg);
+	ret = regcache_set_reg_present(map, reg);
 	if (ret < 0)
 		return ret;
-	set_bit(reg, rbtree_ctx->reg_present);
 
 	/* if we can't locate it in the cached rbnode we'll have
 	 * to traverse the rbtree looking for it.

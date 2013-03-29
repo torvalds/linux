@@ -121,6 +121,8 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 	map->reg_defaults_raw = config->reg_defaults_raw;
 	map->cache_word_size = DIV_ROUND_UP(config->val_bits, 8);
 	map->cache_size_raw = map->cache_word_size * config->num_reg_defaults_raw;
+	map->cache_present = NULL;
+	map->cache_present_nbits = 0;
 
 	map->cache = NULL;
 	map->cache_ops = cache_types[i];
@@ -179,6 +181,7 @@ void regcache_exit(struct regmap *map)
 
 	BUG_ON(!map->cache_ops);
 
+	kfree(map->cache_present);
 	kfree(map->reg_defaults);
 	if (map->cache_free)
 		kfree(map->reg_defaults_raw);
@@ -414,6 +417,42 @@ void regcache_cache_bypass(struct regmap *map, bool enable)
 	map->unlock(map);
 }
 EXPORT_SYMBOL_GPL(regcache_cache_bypass);
+
+int regcache_set_reg_present(struct regmap *map, unsigned int reg)
+{
+	unsigned long *cache_present;
+	unsigned int cache_present_size;
+	unsigned int nregs;
+	int i;
+
+	nregs = reg + 1;
+	cache_present_size = BITS_TO_LONGS(nregs);
+	cache_present_size *= sizeof(long);
+
+	if (!map->cache_present) {
+		cache_present = kmalloc(cache_present_size, GFP_KERNEL);
+		if (!cache_present)
+			return -ENOMEM;
+		bitmap_zero(cache_present, nregs);
+		map->cache_present = cache_present;
+		map->cache_present_nbits = nregs;
+	}
+
+	if (nregs > map->cache_present_nbits) {
+		cache_present = krealloc(map->cache_present,
+					 cache_present_size, GFP_KERNEL);
+		if (!cache_present)
+			return -ENOMEM;
+		for (i = 0; i < nregs; i++)
+			if (i >= map->cache_present_nbits)
+				clear_bit(i, cache_present);
+		map->cache_present = cache_present;
+		map->cache_present_nbits = nregs;
+	}
+
+	set_bit(reg, map->cache_present);
+	return 0;
+}
 
 bool regcache_set_val(struct regmap *map, void *base, unsigned int idx,
 		      unsigned int val)
