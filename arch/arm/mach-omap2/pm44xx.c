@@ -126,8 +126,8 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
  * omap_default_idle - OMAP4 default ilde routine.'
  *
  * Implements OMAP4 memory, IO ordering requirements which can't be addressed
- * with default cpu_do_idle() hook. Used by all CPUs with !CONFIG_CPUIDLE and
- * by secondary CPU with CONFIG_CPUIDLE.
+ * with default cpu_do_idle() hook. Used by all CPUs with !CONFIG_CPU_IDLE and
+ * by secondary CPU with CONFIG_CPU_IDLE.
  */
 static void omap_default_idle(void)
 {
