@@ -1236,11 +1236,11 @@ static struct device_type rproc_type = {
  * @dev: the underlying device
  * @name: name of this remote processor
  * @ops: platform-specific handlers (mainly start/stop)
- * @firmware: name of firmware file to load
+ * @firmware: name of firmware file to load, can be NULL
  * @len: length of private data needed by the rproc driver (in bytes)
  *
  * Allocates a new remote processor handle, but does not register
- * it yet.
+ * it yet. if @firmware is NULL, a default name is used.
  *
  * This function should be used by rproc implementations during initialization
  * of the remote processor.
@@ -1259,19 +1259,39 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 				const char *firmware, int len)
 {
 	struct rproc *rproc;
+	char *p, *template = "rproc-%s-fw";
+	int name_len = 0;
 
 	if (!dev || !name || !ops)
 		return NULL;
 
-	rproc = kzalloc(sizeof(struct rproc) + len, GFP_KERNEL);
+	if (!firmware)
+		/*
+		 * Make room for default firmware name (minus %s plus '\0').
+		 * If the caller didn't pass in a firmware name then
+		 * construct a default name.  We're already glomming 'len'
+		 * bytes onto the end of the struct rproc allocation, so do
+		 * a few more for the default firmware name (but only if
+		 * the caller doesn't pass one).
+		 */
+		name_len = strlen(name) + strlen(template) - 2 + 1;
+
+	rproc = kzalloc(sizeof(struct rproc) + len + name_len, GFP_KERNEL);
 	if (!rproc) {
 		dev_err(dev, "%s: kzalloc failed\n", __func__);
 		return NULL;
 	}
 
+	if (!firmware) {
+		p = (char *)rproc + sizeof(struct rproc) + len;
+		snprintf(p, name_len, template, name);
+	} else {
+		p = (char *)firmware;
+	}
+
+	rproc->firmware = p;
 	rproc->name = name;
 	rproc->ops = ops;
-	rproc->firmware = firmware;
 	rproc->priv = &rproc[1];
 
 	device_initialize(&rproc->dev);
