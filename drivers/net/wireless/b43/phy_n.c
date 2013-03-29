@@ -1974,10 +1974,8 @@ static void b43_nphy_gain_ctl_workarounds_rev3plus(struct b43_wldev *dev)
 	b43_phy_set(dev, B43_NPHY_RXCTL, 0x0040);
 
 	/* Set Clip 2 detect */
-	b43_phy_set(dev, B43_NPHY_C1_CGAINI,
-			B43_NPHY_C1_CGAINI_CL2DETECT);
-	b43_phy_set(dev, B43_NPHY_C2_CGAINI,
-			B43_NPHY_C2_CGAINI_CL2DETECT);
+	b43_phy_set(dev, B43_NPHY_C1_CGAINI, B43_NPHY_C1_CGAINI_CL2DETECT);
+	b43_phy_set(dev, B43_NPHY_C2_CGAINI, B43_NPHY_C2_CGAINI_CL2DETECT);
 
 	b43_radio_write(dev, B2056_RX0 | B2056_RX_BIASPOLE_LNAG1_IDAC,
 			0x17);
@@ -2011,22 +2009,22 @@ static void b43_nphy_gain_ctl_workarounds_rev3plus(struct b43_wldev *dev)
 	b43_ntab_write_bulk(dev, B43_NTAB8(2, 0x40), 6, lpf_bits);
 	b43_ntab_write_bulk(dev, B43_NTAB8(3, 0x40), 6, lpf_bits);
 
-	b43_phy_write(dev, B43_NPHY_C1_INITGAIN, e->init_gain);
-	b43_phy_write(dev, 0x2A7, e->init_gain);
+	b43_phy_write(dev, B43_NPHY_REV3_C1_INITGAIN_A, e->init_gain);
+	b43_phy_write(dev, B43_NPHY_REV3_C2_INITGAIN_A, e->init_gain);
+
 	b43_ntab_write_bulk(dev, B43_NTAB16(7, 0x106), 2,
 				e->rfseq_init);
 
-	/* TODO: check defines. Do not match variables names */
-	b43_phy_write(dev, B43_NPHY_C1_CLIP1_MEDGAIN, e->cliphi_gain);
-	b43_phy_write(dev, 0x2A9, e->cliphi_gain);
-	b43_phy_write(dev, B43_NPHY_C1_CLIP2_GAIN, e->clipmd_gain);
-	b43_phy_write(dev, 0x2AB, e->clipmd_gain);
-	b43_phy_write(dev, B43_NPHY_C2_CLIP1_HIGAIN, e->cliplo_gain);
-	b43_phy_write(dev, 0x2AD, e->cliplo_gain);
+	b43_phy_write(dev, B43_NPHY_REV3_C1_CLIP_HIGAIN_A, e->cliphi_gain);
+	b43_phy_write(dev, B43_NPHY_REV3_C2_CLIP_HIGAIN_A, e->cliphi_gain);
+	b43_phy_write(dev, B43_NPHY_REV3_C1_CLIP_MEDGAIN_A, e->clipmd_gain);
+	b43_phy_write(dev, B43_NPHY_REV3_C2_CLIP_MEDGAIN_A, e->clipmd_gain);
+	b43_phy_write(dev, B43_NPHY_REV3_C1_CLIP_LOGAIN_A, e->cliplo_gain);
+	b43_phy_write(dev, B43_NPHY_REV3_C2_CLIP_LOGAIN_A, e->cliplo_gain);
 
-	b43_phy_maskset(dev, 0x27D, 0xFF00, e->crsmin);
-	b43_phy_maskset(dev, 0x280, 0xFF00, e->crsminl);
-	b43_phy_maskset(dev, 0x283, 0xFF00, e->crsminu);
+	b43_phy_maskset(dev, B43_NPHY_CRSMINPOWER0, 0xFF00, e->crsmin);
+	b43_phy_maskset(dev, B43_NPHY_CRSMINPOWERL0, 0xFF00, e->crsminl);
+	b43_phy_maskset(dev, B43_NPHY_CRSMINPOWERU0, 0xFF00, e->crsminu);
 	b43_phy_write(dev, B43_NPHY_C1_NBCLIPTHRES, e->nbclip);
 	b43_phy_write(dev, B43_NPHY_C2_NBCLIPTHRES, e->nbclip);
 	b43_phy_maskset(dev, B43_NPHY_C1_CLIPWBTHRES,
@@ -2208,8 +2206,8 @@ static void b43_nphy_workarounds_rev7plus(struct b43_wldev *dev)
 		b43_phy_maskset(dev, B43_NPHY_FREQGAIN7, 0x80FF, 0x4000);
 	}
 	if (phy->rev <= 8) {
-		b43_phy_write(dev, 0x23F, 0x1B0);
-		b43_phy_write(dev, 0x240, 0x1B0);
+		b43_phy_write(dev, B43_NPHY_FORCEFRONT0, 0x1B0);
+		b43_phy_write(dev, B43_NPHY_FORCEFRONT1, 0x1B0);
 	}
 	if (phy->rev >= 8)
 		b43_phy_maskset(dev, B43_NPHY_TXTAILCNT, ~0xFF, 0x72);
@@ -2226,8 +2224,8 @@ static void b43_nphy_workarounds_rev7plus(struct b43_wldev *dev)
 		b43_nphy_set_rf_sequence(dev, 0, rx2tx_events_ipa,
 				rx2tx_delays_ipa, ARRAY_SIZE(rx2tx_events_ipa));
 
-	b43_phy_maskset(dev, 0x299, 0x3FFF, 0x4000);
-	b43_phy_maskset(dev, 0x29D, 0x3FFF, 0x4000);
+	b43_phy_maskset(dev, B43_NPHY_EPS_OVERRIDEI_0, 0x3FFF, 0x4000);
+	b43_phy_maskset(dev, B43_NPHY_EPS_OVERRIDEI_1, 0x3FFF, 0x4000);
 
 	lpf_20 = b43_nphy_read_lpf_ctl(dev, 0x154);
 	lpf_40 = b43_nphy_read_lpf_ctl(dev, 0x159);
@@ -2494,8 +2492,8 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 	u16 tmp16;
 	u32 tmp32;
 
-	b43_phy_write(dev, 0x23f, 0x1f8);
-	b43_phy_write(dev, 0x240, 0x1f8);
+	b43_phy_write(dev, B43_NPHY_FORCEFRONT0, 0x1f8);
+	b43_phy_write(dev, B43_NPHY_FORCEFRONT1, 0x1f8);
 
 	tmp32 = b43_ntab_read(dev, B43_NTAB32(30, 0));
 	tmp32 &= 0xffffff;
@@ -2508,8 +2506,8 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_NPHY_PHASETR_B1, 0x00CD);
 	b43_phy_write(dev, B43_NPHY_PHASETR_B2, 0x0020);
 
-	b43_phy_write(dev, B43_NPHY_C2_CLIP1_MEDGAIN, 0x000C);
-	b43_phy_write(dev, 0x2AE, 0x000C);
+	b43_phy_write(dev, B43_NPHY_REV3_C1_CLIP_LOGAIN_B, 0x000C);
+	b43_phy_write(dev, B43_NPHY_REV3_C2_CLIP_LOGAIN_B, 0x000C);
 
 	/* TX to RX */
 	b43_nphy_set_rf_sequence(dev, 1, tx2rx_events, tx2rx_delays,
@@ -2534,7 +2532,7 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 		0x2 : 0x9C40;
 	b43_phy_write(dev, B43_NPHY_ENDROP_TLEN, tmp16);
 
-	b43_phy_maskset(dev, 0x294, 0xF0FF, 0x0700);
+	b43_phy_maskset(dev, B43_NPHY_SGILTRNOFFSET, 0xF0FF, 0x0700);
 
 	if (!dev->phy.is_40mhz) {
 		b43_ntab_write(dev, B43_NTAB32(16, 3), 0x18D);
@@ -2586,18 +2584,18 @@ static void b43_nphy_workarounds_rev3plus(struct b43_wldev *dev)
 	}
 
 	/* Dropped probably-always-true condition */
-	b43_phy_write(dev, 0x224, 0x03eb);
-	b43_phy_write(dev, 0x225, 0x03eb);
-	b43_phy_write(dev, 0x226, 0x0341);
-	b43_phy_write(dev, 0x227, 0x0341);
-	b43_phy_write(dev, 0x228, 0x042b);
-	b43_phy_write(dev, 0x229, 0x042b);
-	b43_phy_write(dev, 0x22a, 0x0381);
-	b43_phy_write(dev, 0x22b, 0x0381);
-	b43_phy_write(dev, 0x22c, 0x042b);
-	b43_phy_write(dev, 0x22d, 0x042b);
-	b43_phy_write(dev, 0x22e, 0x0381);
-	b43_phy_write(dev, 0x22f, 0x0381);
+	b43_phy_write(dev, B43_NPHY_ED_CRS40ASSERTTHRESH0, 0x03eb);
+	b43_phy_write(dev, B43_NPHY_ED_CRS40ASSERTTHRESH1, 0x03eb);
+	b43_phy_write(dev, B43_NPHY_ED_CRS40DEASSERTTHRESH1, 0x0341);
+	b43_phy_write(dev, B43_NPHY_ED_CRS40DEASSERTTHRESH1, 0x0341);
+	b43_phy_write(dev, B43_NPHY_ED_CRS20LASSERTTHRESH0, 0x042b);
+	b43_phy_write(dev, B43_NPHY_ED_CRS20LASSERTTHRESH1, 0x042b);
+	b43_phy_write(dev, B43_NPHY_ED_CRS20LDEASSERTTHRESH0, 0x0381);
+	b43_phy_write(dev, B43_NPHY_ED_CRS20LDEASSERTTHRESH1, 0x0381);
+	b43_phy_write(dev, B43_NPHY_ED_CRS20UASSERTTHRESH0, 0x042b);
+	b43_phy_write(dev, B43_NPHY_ED_CRS20UASSERTTHRESH1, 0x042b);
+	b43_phy_write(dev, B43_NPHY_ED_CRS20UDEASSERTTHRESH0, 0x0381);
+	b43_phy_write(dev, B43_NPHY_ED_CRS20UDEASSERTTHRESH1, 0x0381);
 
 	if (dev->phy.rev >= 6 && sprom->boardflags2_lo & B43_BFL2_SINGLEANT_CCK)
 		; /* TODO: 0x0080000000000000 HF */
