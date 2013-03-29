@@ -15,6 +15,8 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <asm/processor.h>	/* for cpu_relax() */
 
@@ -33,13 +35,18 @@ static u32 ocotp_words[OCOTP_WORD_COUNT];
 
 const u32 *mxs_get_ocotp(void)
 {
-	void __iomem *ocotp_base = MXS_IO_ADDRESS(MXS_OCOTP_BASE_ADDR);
+	struct device_node *np;
+	void __iomem *ocotp_base;
 	int timeout = 0x400;
 	size_t i;
 	static int once = 0;
 
 	if (once)
 		return ocotp_words;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,ocotp");
+	ocotp_base = of_iomap(np, 0);
+	WARN_ON(!ocotp_base);
 
 	mutex_lock(&ocotp_mutex);
 

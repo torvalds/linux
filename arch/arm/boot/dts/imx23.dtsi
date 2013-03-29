@@ -322,6 +322,7 @@
 			};
 
 			ocotp@8002c000 {
+				compatible = "fsl,ocotp";
 				reg = <0x8002c000 0x2000>;
 				status = "disabled";
 			};
