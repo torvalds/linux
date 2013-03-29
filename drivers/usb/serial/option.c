@@ -333,6 +333,7 @@ static void option_instat_callback(struct urb *urb);
 /* Haier products */
 #define HAIER_VENDOR_ID				0x201e
 #define HAIER_PRODUCT_CE100			0x2009
+#define HAIER_PRODUCT_IE701			0x1022
 
 /* Cinterion (formerly Siemens) products */
 #define SIEMENS_VENDOR_ID				0x0681
@@ -482,6 +483,7 @@ static void option_instat_callback(struct urb *urb);
 /* Strong Rising EVDO modem*/
 #define STRONG_RISING_PRODUCT_SP8J  0x2009
 
+static int viatelecom_send_setup(struct usb_serial_port *port);
 /* some devices interfaces need special handling due to a number of reasons */
 enum option_blacklist_reason {
 		OPTION_BLACKLIST_NONE = 0,
@@ -1368,6 +1370,7 @@ static const struct usb_device_id option_ids[] = {
    { USB_DEVICE(0x0af0,0xd157)}, 
    { USB_DEVICE(0x0421,0x0612)},
    { USB_DEVICE(0x19d2,0x1218)},
+   { USB_DEVICE(HAIER_VENDOR_ID, HAIER_PRODUCT_IE701)},
 //xxh end
 
 
@@ -1601,6 +1604,15 @@ static int option_probe(struct usb_serial *serial,
 	data = serial->private = kzalloc(sizeof(struct usb_wwan_intf_private), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
+      if ((serial->dev->descriptor.idVendor == HAIER_VENDOR_ID &&
+			  serial->dev->descriptor.idProduct == HAIER_PRODUCT_IE701)||
+			  (serial->dev->descriptor.idVendor == 0x15EB &&
+			  serial->dev->descriptor.idProduct == 0x7152)) {   
+			     
+			    data->send_setup = viatelecom_send_setup;
+				
+		 }else
+
 	data->send_setup = option_send_setup;
 	spin_lock_init(&data->susp_lock);
 	data->private = (void *)id->driver_info;
@@ -1711,9 +1723,34 @@ static int option_send_setup(struct usb_serial_port *port)
 	if (portdata->rts_state)
 		val |= 0x02;
 
-	return usb_control_msg(serial->dev,
-		usb_rcvctrlpipe(serial->dev, 0),
-		0x22, 0x21, val, ifNum, NULL, 0, USB_CTRL_SET_TIMEOUT);
+ return usb_control_msg(serial->dev,
+        usb_rcvctrlpipe(serial->dev, 0),
+         0x22, 0x21, val, ifNum, NULL, 0, USB_CTRL_SET_TIMEOUT);
+ }
+		
+static int viatelecom_send_setup(struct usb_serial_port *port)
+{
+			struct usb_serial *serial = port->serial;
+		    struct usb_wwan_port_private *portdata = usb_get_serial_port_data(port);
+		    int ifNum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
+			dbg("%s", __func__);
+#if 0
+			usb_control_msg(serial->dev,
+		    usb_sndctrlpipe(serial->dev, 0),
+		    0x01, 0x40, 0, ifNum,
+		    NULL, 0, USB_CTRL_SET_TIMEOUT);
+			/* VIA-Telecom CBP DTR format */
+			return usb_control_msg(serial->dev,
+	        usb_sndctrlpipe(serial->dev, 0),
+		    0x01, 0x40, 1, ifNum,
+		    NULL, 0, USB_CTRL_SET_TIMEOUT);
+#else
+		/* VIA-Telecom CBP DTR format */
+		   return usb_control_msg(serial->dev,
+	       usb_sndctrlpipe(serial->dev, 0),
+		   0x01, 0x40, portdata->dtr_state? 1: 0, ifNum,
+		   NULL, 0, USB_CTRL_SET_TIMEOUT);
+#endif
 }
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
