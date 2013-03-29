@@ -117,7 +117,14 @@ union dm_caps {
 	struct {
 		__u64 balloon:1;
 		__u64 hot_add:1;
-		__u64 reservedz:62;
+		/*
+		 * To support guests that may have alignment
+		 * limitations on hot-add, the guest can specify
+		 * its alignment requirements; a value of n
+		 * represents an alignment of 2^n in mega bytes.
+		 */
+		__u64 hot_add_alignment:4;
+		__u64 reservedz:58;
 	} cap_bits;
 	__u64 caps;
 } __packed;
@@ -774,7 +781,7 @@ static unsigned long process_hot_add(unsigned long pg_start,
 	 * If the host has specified a hot-add range; deal with it first.
 	 */
 
-	if ((rg_size != 0) && (!dm_device.host_specified_ha_region)) {
+	if (rg_size != 0) {
 		ha_region = kzalloc(sizeof(struct hv_hotadd_state), GFP_KERNEL);
 		if (!ha_region)
 			return 0;
@@ -1365,6 +1372,12 @@ static int balloon_probe(struct hv_device *dev,
 
 	cap_msg.caps.cap_bits.balloon = 1;
 	cap_msg.caps.cap_bits.hot_add = 1;
+
+	/*
+	 * Specify our alignment requirements as it relates
+	 * memory hot-add. Specify 128MB alignment.
+	 */
+	cap_msg.caps.cap_bits.hot_add_alignment = 7;
 
 	/*
 	 * Currently the host does not use these
