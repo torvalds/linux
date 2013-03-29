@@ -184,7 +184,8 @@ static void __iomem *gpio_base[] = {RK2928_GPIO0_BASE, RK2928_GPIO1_BASE, RK2928
 #elif defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
 static void __iomem *gpio_base[] = {RK30_GPIO0_BASE, RK30_GPIO1_BASE, RK30_GPIO2_BASE, RK30_GPIO3_BASE};
 #elif defined(CONFIG_ARCH_RK30)
-static void __iomem *gpio_base[] = {RK30_GPIO0_BASE, RK30_GPIO1_BASE, RK30_GPIO2_BASE, RK30_GPIO3_BASE, RK30_GPIO4_BASE, RK30_GPIO6_BASE};
+static void __iomem *gpio_base[] = {RK30_GPIO0_BASE, RK30_GPIO1_BASE, RK30_GPIO2_BASE, RK30_GPIO3_BASE, 
+				RK30_GPIO4_BASE, 0, RK30_GPIO6_BASE};
 #endif
 
 int sram_gpio_init(int gpio, struct sram_gpio_data *data)
@@ -198,6 +199,9 @@ int sram_gpio_init(int gpio, struct sram_gpio_data *data)
                return -EINVAL;
 
        data->base = gpio_base[index/NUM_GROUP];
+       if(data->base == 0)
+	       return -EINVAL;
+
        data->offset = index%NUM_GROUP;
 
        return 0;
