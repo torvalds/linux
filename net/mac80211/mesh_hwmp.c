@@ -445,9 +445,8 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 				}
 			}
 		} else {
-			mesh_path_add(sdata, orig_addr);
-			mpath = mesh_path_lookup(sdata, orig_addr);
-			if (!mpath) {
+			mpath = mesh_path_add(sdata, orig_addr);
+			if (IS_ERR(mpath)) {
 				rcu_read_unlock();
 				return 0;
 			}
@@ -486,9 +485,8 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 					(last_hop_metric > mpath->metric)))
 				fresh_info = false;
 		} else {
-			mesh_path_add(sdata, ta);
-			mpath = mesh_path_lookup(sdata, ta);
-			if (!mpath) {
+			mpath = mesh_path_add(sdata, ta);
+			if (IS_ERR(mpath)) {
 				rcu_read_unlock();
 				return 0;
 			}
@@ -804,9 +802,8 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 
 	mpath = mesh_path_lookup(sdata, orig_addr);
 	if (!mpath) {
-		mesh_path_add(sdata, orig_addr);
-		mpath = mesh_path_lookup(sdata, orig_addr);
-		if (!mpath) {
+		mpath = mesh_path_add(sdata, orig_addr);
+		if (IS_ERR(mpath)) {
 			rcu_read_unlock();
 			sdata->u.mesh.mshstats.dropped_frames_no_route++;
 			return;
@@ -1098,11 +1095,10 @@ int mesh_nexthop_resolve(struct ieee80211_sub_if_data *sdata,
 	/* no nexthop found, start resolving */
 	mpath = mesh_path_lookup(sdata, target_addr);
 	if (!mpath) {
-		mesh_path_add(sdata, target_addr);
-		mpath = mesh_path_lookup(sdata, target_addr);
-		if (!mpath) {
+		mpath = mesh_path_add(sdata, target_addr);
+		if (IS_ERR(mpath)) {
 			mesh_path_discard_frame(sdata, skb);
-			err = -ENOSPC;
+			err = PTR_ERR(mpath);
 			goto endlookup;
 		}
 	}
