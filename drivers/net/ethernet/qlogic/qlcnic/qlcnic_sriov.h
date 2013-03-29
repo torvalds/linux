@@ -133,9 +133,17 @@ struct qlcnic_vf_info {
 	struct qlcnic_vport		*vp;
 };
 
+struct qlcnic_async_work_list {
+	struct list_head	list;
+	struct work_struct	work;
+	void			*ptr;
+};
+
 struct qlcnic_back_channel {
 	u16			trans_counter;
 	struct workqueue_struct *bc_trans_wq;
+	struct workqueue_struct *bc_async_wq;
+	struct list_head	async_list;
 };
 
 struct qlcnic_sriov {
@@ -156,6 +164,7 @@ int qlcnic_sriov_func_to_index(struct qlcnic_adapter *, u8);
 int qlcnic_sriov_channel_cfg_cmd(struct qlcnic_adapter *, u8);
 void qlcnic_sriov_handle_bc_event(struct qlcnic_adapter *, u32);
 int qlcnic_sriov_cfg_bc_intr(struct qlcnic_adapter *, u8);
+void qlcnic_sriov_cleanup_async_list(struct qlcnic_back_channel *);
 
 static inline bool qlcnic_sriov_enable_check(struct qlcnic_adapter *adapter)
 {

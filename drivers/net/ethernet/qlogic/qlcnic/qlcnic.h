@@ -1013,6 +1013,7 @@ struct qlcnic_adapter {
 
 	struct qlcnic_filter_hash fhash;
 	struct qlcnic_filter_hash rx_fhash;
+	struct list_head vf_mc_list;
 
 	spinlock_t tx_clean_lock;
 	spinlock_t mac_learn_lock;
@@ -1443,6 +1444,7 @@ void qlcnic_post_rx_buffers(struct qlcnic_adapter *adapter,
 		struct qlcnic_host_rds_ring *rds_ring, u8 ring_id);
 int qlcnic_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring, int max);
 void qlcnic_set_multi(struct net_device *netdev);
+void __qlcnic_set_multi(struct net_device *netdev);
 int qlcnic_nic_add_mac(struct qlcnic_adapter *, const u8 *);
 int qlcnic_nic_del_mac(struct qlcnic_adapter *, const u8 *);
 void qlcnic_free_mac_list(struct qlcnic_adapter *adapter);
@@ -1527,6 +1529,8 @@ void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, int,
 int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter);
 int qlcnic_read_mac_addr(struct qlcnic_adapter *);
 int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);
+void qlcnic_sriov_vf_schedule_multi(struct net_device *);
+void qlcnic_vf_add_mc_list(struct net_device *);
 
 /*
  * QLOGIC Board information
