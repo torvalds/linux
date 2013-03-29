@@ -77,7 +77,7 @@ static void __iomem *sched_io_base;
 
 static u32 read_sched_clock(void)
 {
-	return ~__raw_readl(sched_io_base);
+	return ~__raw_readl(sched_io_base + APBTMR_N_CURRENT_VALUE);
 }
 
 static const struct of_device_id sptimer_ids[] __initconst = {
@@ -116,11 +116,12 @@ void __init dw_apb_timer_init(void)
 		panic("No timer for clockevent");
 	add_clockevent(event_timer);
 
-	source_timer = of_find_matching_node(event_timer, osctimer_ids);
+	source_timer = of_find_matching_node(NULL, sptimer_ids);
 	if (!source_timer)
 		panic("No timer for clocksource");
 	add_clocksource(source_timer);
 
+	of_node_put(event_timer);
 	of_node_put(source_timer);
 
 	init_sched_clock();
