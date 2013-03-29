@@ -35,6 +35,16 @@ config QLCNIC
 	  This driver supports QLogic QLE8240 and QLE8242 Converged Ethernet
 	  devices.
 
+config QLCNIC_SRIOV
+	bool "QLOGIC QLCNIC 83XX family SR-IOV Support"
+	depends on QLCNIC && PCI_IOV
+	default y
+	---help---
+	  This configuration parameter enables Single Root Input Output
+	  Virtualization support for QLE83XX Converged Ethernet devices.
+	  This allows for virtual function acceleration in virtualized
+	  environments.
+
 config QLGE
 	tristate "QLogic QLGE 10Gb Ethernet Driver Support"
 	depends on PCI

@@ -209,6 +209,7 @@ static const struct qlcnic_mailbox_metadata qlcnic_83xx_mbx_tbl[] = {
 	{QLCNIC_CMD_SET_LED_CONFIG, 5, 1},
 	{QLCNIC_CMD_GET_LED_CONFIG, 1, 5},
 	{QLCNIC_CMD_ADD_RCV_RINGS, 130, 26},
+	{QLCNIC_CMD_CONFIG_VPORT, 4, 4},
 };
 
 static const u32 qlcnic_83xx_ext_reg_tbl[] = {
@@ -775,6 +776,9 @@ void qlcnic_83xx_check_vf(struct qlcnic_adapter *adapter,
 			 ahw->fw_hal_version);
 		adapter->nic_ops = &qlcnic_vf_ops;
 	} else {
+		if (pci_find_ext_capability(adapter->pdev,
+					    PCI_EXT_CAP_ID_SRIOV))
+			set_bit(__QLCNIC_SRIOV_CAPABLE, &adapter->state);
 		adapter->nic_ops = &qlcnic_83xx_ops;
 	}
 }

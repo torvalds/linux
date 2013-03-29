@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 
 #include "qlcnic.h"
+#include "qlcnic_sriov.h"
 #include "qlcnic_hw.h"
 
 #include <linux/swab.h>
@@ -2022,11 +2023,13 @@ static void qlcnic_remove(struct pci_dev *pdev)
 		return;
 
 	netdev = adapter->netdev;
+	qlcnic_sriov_pf_disable(adapter);
 
 	qlcnic_cancel_idc_work(adapter);
 	ahw = adapter->ahw;
 
 	unregister_netdev(netdev);
+	qlcnic_sriov_cleanup(adapter);
 
 	if (qlcnic_83xx_check(adapter)) {
 		qlcnic_83xx_free_mbx_intr(adapter);
@@ -3430,7 +3433,10 @@ static struct pci_driver qlcnic_driver = {
 	.resume = qlcnic_resume,
 #endif
 	.shutdown = qlcnic_shutdown,
-	.err_handler = &qlcnic_err_handler
+	.err_handler = &qlcnic_err_handler,
+#ifdef CONFIG_QLCNIC_SRIOV
+	.sriov_configure = qlcnic_pci_sriov_configure,
+#endif
 
 };
 

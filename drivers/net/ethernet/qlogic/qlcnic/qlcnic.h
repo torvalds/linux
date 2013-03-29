@@ -449,6 +449,7 @@ struct qlcnic_hardware_context {
 	struct qlc_83xx_idc idc;
 	struct qlc_83xx_fw_info fw_info;
 	struct qlcnic_intrpt_config *intr_tbl;
+	struct qlcnic_sriov *sriov;
 	u32 *reg_tbl;
 	u32 *ext_reg_tbl;
 	u32 mbox_aen[QLC_83XX_MBX_AEN_CNT];
@@ -914,7 +915,9 @@ struct qlcnic_ipaddr {
 #define __QLCNIC_AER			5
 #define __QLCNIC_DIAG_RES_ALLOC		6
 #define __QLCNIC_LED_ENABLE		7
-#define __QLCNIC_ELB_INPROGRESS	8
+#define __QLCNIC_ELB_INPROGRESS		8
+#define __QLCNIC_SRIOV_ENABLE		10
+#define __QLCNIC_SRIOV_CAPABLE		11
 
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
@@ -1051,7 +1054,11 @@ struct qlcnic_info_le {
 	u8      total_pf;
 	u8      total_rss_engines;
 	__le16  max_vports;
-	u8      reserved2[64];
+	__le16	linkstate_reg_offset;
+	__le16	bit_offsets;
+	__le16  max_local_ipv6_addrs;
+	__le16  max_remote_ipv6_addrs;
+	u8	reserved2[56];
 } __packed;
 
 struct qlcnic_info {
@@ -1083,6 +1090,10 @@ struct qlcnic_info {
 	u8      total_pf;
 	u8      total_rss_engines;
 	u16	max_vports;
+	u16	linkstate_reg_offset;
+	u16	bit_offsets;
+	u16	max_local_ipv6_addrs;
+	u16	max_remote_ipv6_addrs;
 };
 
 struct qlcnic_pci_info_le {
@@ -1511,6 +1522,7 @@ int qlcnic_reset_npar_config(struct qlcnic_adapter *);
 int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *);
 void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, int,
 			  __le16);
+int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter);
 /*
  * QLOGIC Board information
  */
@@ -1843,5 +1855,9 @@ static inline bool qlcnic_83xx_check(struct qlcnic_adapter *adapter)
 	return (device == PCI_DEVICE_ID_QLOGIC_QLE834X) ? true : false;
 }
 
+static inline bool qlcnic_sriov_pf_check(struct qlcnic_adapter *adapter)
+{
+	return (adapter->ahw->op_mode == QLCNIC_SRIOV_PF_FUNC) ? true : false;
+}
 
 #endif				/* __QLCNIC_H_ */
