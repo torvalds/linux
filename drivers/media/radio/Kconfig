@@ -20,7 +20,7 @@ source "drivers/media/radio/si470x/Kconfig"
 
 config RADIO_SI476X
 	tristate "Silicon Laboratories Si476x I2C FM Radio"
-	depends on I2C && VIDEO_V4L2
+	depends on I2C && VIDEO_V4L2 && SND && SND_SOC
 	select MFD_CORE
 	select MFD_SI476X_CORE
 	select SND_SOC_SI476X

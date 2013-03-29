@@ -980,6 +980,7 @@ config MFD_SI476X_CORE
 	tristate "Support for Silicon Laboratories 4761/64/68 AM/FM radio."
 	depends on I2C
 	select MFD_CORE
+	select REGMAP_I2C
 	help
 	  This is the core driver for the SI476x series of AM/FM
 	  radio. This MFD driver connects the radio-si476x V4L2 module

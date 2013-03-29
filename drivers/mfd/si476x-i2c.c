@@ -389,7 +389,7 @@ static void si476x_core_drain_rds_fifo(struct work_struct *work)
 			kfifo_in(&core->rds_fifo, report.rds,
 				 sizeof(report.rds));
 			dev_dbg(&core->client->dev, "RDS data:\n %*ph\n",
-				sizeof(report.rds), report.rds);
+				(int)sizeof(report.rds), report.rds);
 		}
 		dev_dbg(&core->client->dev, "Drrrrained!\n");
 		wake_up_interruptible(&core->rds_read_queue);
