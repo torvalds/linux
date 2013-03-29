@@ -210,9 +210,13 @@ void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 
 	ca = task_ca(tsk);
 
-	for (; ca; ca = parent_ca(ca)) {
+	while (true) {
 		u64 *cpuusage = per_cpu_ptr(ca->cpuusage, cpu);
 		*cpuusage += cputime;
+
+		ca = parent_ca(ca);
+		if (!ca)
+			break;
 	}
 
 	rcu_read_unlock();

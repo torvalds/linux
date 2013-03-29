@@ -36,7 +36,7 @@ static inline struct cpuacct *task_ca(struct task_struct *tsk)
 
 static inline struct cpuacct *parent_ca(struct cpuacct *ca)
 {
-	if (!ca || !ca->css.cgroup->parent)
+	if (!ca->css.cgroup->parent)
 		return NULL;
 	return cgroup_ca(ca->css.cgroup->parent);
 }
