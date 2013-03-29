@@ -237,10 +237,10 @@ void cpuacct_account_field(struct task_struct *p, int index, u64 val)
 
 	rcu_read_lock();
 	ca = task_ca(p);
-	while (ca && (ca != &root_cpuacct)) {
+	while (ca != &root_cpuacct) {
 		kcpustat = this_cpu_ptr(ca->cpustat);
 		kcpustat->cpustat[index] += val;
-		ca = parent_ca(ca);
+		ca = __parent_ca(ca);
 	}
 	rcu_read_unlock();
 }

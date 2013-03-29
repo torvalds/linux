@@ -34,6 +34,11 @@ static inline struct cpuacct *task_ca(struct task_struct *tsk)
 			    struct cpuacct, css);
 }
 
+static inline struct cpuacct *__parent_ca(struct cpuacct *ca)
+{
+	return cgroup_ca(ca->css.cgroup->parent);
+}
+
 static inline struct cpuacct *parent_ca(struct cpuacct *ca)
 {
 	if (!ca->css.cgroup->parent)
