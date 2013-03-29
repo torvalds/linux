@@ -335,9 +335,9 @@ static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
 
 struct iwl_bt_iterator_data {
 	struct iwl_bt_coex_profile_notif *notif;
-	enum iwl_bt_kill_msk bt_kill_msk;
 	struct iwl_mvm *mvm;
 	u32 num_bss_ifaces;
+	bool reduced_tx_power;
 };
 
 static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
@@ -393,9 +393,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		/* ... cancel reduced Tx power ... */
 		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false))
 			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
-
-		/* ... use default values for bt_kill_msk ... */
-		data->bt_kill_msk = BT_KILL_MSK_DEFAULT;
+		data->reduced_tx_power = false;
 
 		/* ... and there is no need to get reports on RSSI any more. */
 		ieee80211_disable_rssi_reports(vif);
@@ -426,7 +424,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		 * One interface hasn't rssi above threshold, bt_kill_msk must
 		 * be set to default values.
 		 */
-		data->bt_kill_msk = BT_KILL_MSK_DEFAULT;
+		data->reduced_tx_power = false;
 	}
 
 	/* Begin to monitor the RSSI: it may influence the reduced Tx power */
@@ -440,9 +438,8 @@ static void iwl_mvm_new_bt_coex_notif(struct iwl_mvm *mvm,
 	struct iwl_bt_iterator_data data = {
 		.mvm = mvm,
 		.notif = notif,
-		.bt_kill_msk = BT_KILL_MSK_REDUCED_TXPOW,
+		.reduced_tx_power = true,
 	};
-	bool reduced_tx_power;
 
 	/* remember this notification for future use: rssi fluctuations */
 	memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
@@ -456,13 +453,9 @@ static void iwl_mvm_new_bt_coex_notif(struct iwl_mvm *mvm,
 	 * irrelevant since it is based on the RSSI coming from the beacon.
 	 * Use BT_KILL_MSK_DEFAULT in that case.
 	 */
-	if (!data.num_bss_ifaces)
-		data.bt_kill_msk = BT_KILL_MSK_DEFAULT;
+	data.reduced_tx_power = data.reduced_tx_power && data.num_bss_ifaces;
 
-	reduced_tx_power = data.num_bss_ifaces &&
-			   data.bt_kill_msk == BT_KILL_MSK_REDUCED_TXPOW;
-
-	if (iwl_mvm_bt_udpate_ctrl_kill_msk(mvm, reduced_tx_power))
+	if (iwl_mvm_bt_udpate_ctrl_kill_msk(mvm, data.reduced_tx_power))
 		IWL_ERR(mvm, "Failed to update the ctrl_kill_msk\n");
 }
 
@@ -515,7 +508,7 @@ static void iwl_mvm_bt_rssi_iterator(void *_data, u8 *mac,
 	 * RSSI probably), then set bt_kill_msk to default values.
 	 */
 	if (!mvmsta->bt_reduced_txpower)
-		data->bt_kill_msk = BT_KILL_MSK_DEFAULT;
+		data->reduced_tx_power = false;
 	/* else - possibly leave it to BT_KILL_MSK_REDUCED_TXPOW */
 }
 
@@ -523,10 +516,9 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   enum ieee80211_rssi_event rssi_event)
 {
 	struct iwl_mvm_vif *mvmvif = (void *)vif->drv_priv;
-	bool reduced_tx_power;
 	struct iwl_bt_iterator_data data = {
 		.mvm = mvm,
-		.bt_kill_msk = BT_KILL_MSK_REDUCED_TXPOW,
+		.reduced_tx_power = true,
 	};
 	int ret;
 
@@ -565,13 +557,9 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * irrelevant since it is based on the RSSI coming from the beacon.
 	 * Use BT_KILL_MSK_DEFAULT in that case.
 	 */
-	if (!data.num_bss_ifaces)
-		data.bt_kill_msk = BT_KILL_MSK_DEFAULT;
+	data.reduced_tx_power = data.reduced_tx_power && data.num_bss_ifaces;
 
-	reduced_tx_power = data.num_bss_ifaces &&
-			   data.bt_kill_msk == BT_KILL_MSK_REDUCED_TXPOW;
-
-	if (iwl_mvm_bt_udpate_ctrl_kill_msk(mvm, reduced_tx_power))
+	if (iwl_mvm_bt_udpate_ctrl_kill_msk(mvm, data.reduced_tx_power))
 		IWL_ERR(mvm, "Failed to update the ctrl_kill_msk\n");
 
  out_unlock:
