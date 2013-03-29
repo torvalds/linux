@@ -191,6 +191,9 @@ int regcache_read(struct regmap *map,
 int regcache_write(struct regmap *map,
 			unsigned int reg, unsigned int value);
 int regcache_sync(struct regmap *map);
+int regcache_sync_block(struct regmap *map, void *block,
+			unsigned int block_base, unsigned int start,
+			unsigned int end);
 
 static inline const void *regcache_get_val_addr(struct regmap *map,
 						const void *base,

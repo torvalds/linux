@@ -53,12 +53,6 @@ static unsigned int regcache_rbtree_get_register(struct regmap *map,
 	return regcache_get_val(map, rbnode->block, idx);
 }
 
-static const void *regcache_rbtree_get_reg_addr(struct regmap *map,
-	struct regcache_rbtree_node *rbnode, unsigned int idx)
-{
-	return regcache_get_val_addr(map, rbnode->block, idx);
-}
-
 static void regcache_rbtree_set_register(struct regmap *map,
 					 struct regcache_rbtree_node *rbnode,
 					 unsigned int idx, unsigned int val)
@@ -390,11 +384,8 @@ static int regcache_rbtree_sync(struct regmap *map, unsigned int min,
 	struct regcache_rbtree_ctx *rbtree_ctx;
 	struct rb_node *node;
 	struct regcache_rbtree_node *rbnode;
-	unsigned int regtmp;
-	unsigned int val;
-	const void *addr;
 	int ret;
-	int i, base, end;
+	int base, end;
 
 	rbtree_ctx = map->cache;
 	for (node = rb_first(&rbtree_ctx->root); node; node = rb_next(node)) {
@@ -417,40 +408,13 @@ static int regcache_rbtree_sync(struct regmap *map, unsigned int min,
 		else
 			end = rbnode->blklen;
 
-		for (i = base; i < end; i++) {
-			regtmp = rbnode->base_reg + (i * map->reg_stride);
-
-			if (!regcache_reg_present(map, regtmp))
-				continue;
-
-			val = regcache_rbtree_get_register(map, rbnode, i);
-
-			/* Is this the hardware default?  If so skip. */
-			ret = regcache_lookup_reg(map, regtmp);
-			if (ret >= 0 && val == map->reg_defaults[ret].def)
-				continue;
-
-			map->cache_bypass = 1;
-
-			if (regmap_can_raw_write(map)) {
-				addr = regcache_rbtree_get_reg_addr(map,
-								    rbnode, i);
-				ret = _regmap_raw_write(map, regtmp, addr,
-							map->format.val_bytes,
-							false);
-			} else {
-				ret = _regmap_write(map, regtmp, val);
-			}
-
-			map->cache_bypass = 0;
-			if (ret)
-				return ret;
-			dev_dbg(map->dev, "Synced register %#x, value %#x\n",
-				regtmp, val);
-		}
+		ret = regcache_sync_block(map, rbnode->block, rbnode->base_reg,
+					  base, end);
+		if (ret != 0)
+			return ret;
 	}
 
-	return 0;
+	return regmap_async_complete(map);
 }
 
 struct regcache_ops regcache_rbtree_ops = {

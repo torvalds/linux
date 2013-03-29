@@ -544,3 +544,45 @@ int regcache_lookup_reg(struct regmap *map, unsigned int reg)
 	else
 		return -ENOENT;
 }
+
+int regcache_sync_block(struct regmap *map, void *block,
+			unsigned int block_base, unsigned int start,
+			unsigned int end)
+{
+	unsigned int i, regtmp, val;
+	const void *addr;
+	int ret;
+
+	for (i = start; i < end; i++) {
+		regtmp = block_base + (i * map->reg_stride);
+
+		if (!regcache_reg_present(map, regtmp))
+			continue;
+
+		val = regcache_get_val(map, block, i);
+
+		/* Is this the hardware default?  If so skip. */
+		ret = regcache_lookup_reg(map, regtmp);
+		if (ret >= 0 && val == map->reg_defaults[ret].def)
+			continue;
+
+		map->cache_bypass = 1;
+
+		if (regmap_can_raw_write(map)) {
+			addr = regcache_get_val_addr(map, block, i);
+			ret = _regmap_raw_write(map, regtmp, addr,
+						map->format.val_bytes,
+						false);
+		} else {
+			ret = _regmap_write(map, regtmp, val);
+		}
+
+		map->cache_bypass = 0;
+		if (ret != 0)
+			return ret;
+		dev_dbg(map->dev, "Synced register %#x, value %#x\n",
+			regtmp, val);
+	}
+
+	return 0;
+}
