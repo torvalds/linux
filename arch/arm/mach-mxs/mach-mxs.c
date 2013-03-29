@@ -31,8 +31,33 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
-#include <mach/digctl.h>
-#include <mach/mxs.h>
+
+/* MXS DIGCTL SAIF CLKMUX */
+#define MXS_DIGCTL_SAIF_CLKMUX_DIRECT		0x0
+#define MXS_DIGCTL_SAIF_CLKMUX_CROSSINPUT	0x1
+#define MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR0		0x2
+#define MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR1		0x3
+
+#define MXS_GPIO_NR(bank, nr)	((bank) * 32 + (nr))
+
+#define MXS_SET_ADDR		0x4
+#define MXS_CLR_ADDR		0x8
+#define MXS_TOG_ADDR		0xc
+
+static inline void __mxs_setl(u32 mask, void __iomem *reg)
+{
+	__raw_writel(mask, reg + MXS_SET_ADDR);
+}
+
+static inline void __mxs_clrl(u32 mask, void __iomem *reg)
+{
+	__raw_writel(mask, reg + MXS_CLR_ADDR);
+}
+
+static inline void __mxs_togl(u32 mask, void __iomem *reg)
+{
+	__raw_writel(mask, reg + MXS_TOG_ADDR);
+}
 
 static struct fb_videomode mx23evk_video_modes[] = {
 	{
