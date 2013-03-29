@@ -128,7 +128,7 @@ static int setup_one_atmu(struct ccsr_pci __iomem *pci,
 		flags |= 0x10000000; /* enable relaxed ordering */
 
 	for (i = 0; size > 0; i++) {
-		unsigned int bits = min(__ilog2(size),
+		unsigned int bits = min(ilog2(size),
 					__ffs(pci_addr | phys_addr));
 
 		if (index + i >= 5)
@@ -218,7 +218,7 @@ static void setup_pci_atmu(struct pci_controller *hose,
 			out_be32(&pci->pow[j].powbar, (hose->io_base_phys >> 12));
 			/* Enable, IO R/W */
 			out_be32(&pci->pow[j].powar, 0x80088000
-				| (__ilog2(hose->io_resource.end
+				| (ilog2(hose->io_resource.end
 				- hose->io_resource.start + 1) - 1));
 		}
 	}
@@ -283,7 +283,7 @@ static void setup_pci_atmu(struct pci_controller *hose,
 	}
 
 	sz = min(mem, paddr_lo);
-	mem_log = __ilog2_u64(sz);
+	mem_log = ilog2(sz);
 
 	/* PCIe can overmap inbound & outbound since RX & TX are separated */
 	if (early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) {
@@ -312,7 +312,7 @@ static void setup_pci_atmu(struct pci_controller *hose,
 		 * SWIOTLB and access the full range of memory
 		 */
 		if (sz != mem) {
-			mem_log = __ilog2_u64(mem);
+			mem_log = ilog2(mem);
 
 			/* Size window up if we dont fit in exact power-of-2 */
 			if ((1ull << mem_log) != mem)
@@ -349,7 +349,7 @@ static void setup_pci_atmu(struct pci_controller *hose,
 		sz -= 1ull << mem_log;
 
 		if (sz) {
-			mem_log = __ilog2_u64(sz);
+			mem_log = ilog2(sz);
 			piwar |= (mem_log - 1);
 
 			out_be32(&pci->piw[win_idx].pitar,  paddr >> 12);
