@@ -1,5 +1,5 @@
 # Common support
-obj-y := ocotp.o mm.o
+obj-y := ocotp.o
 
 obj-$(CONFIG_PM) += pm.o
 

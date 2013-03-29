@@ -15,9 +15,7 @@ extern const u32 *mxs_get_ocotp(void);
 extern int mxs_saif_clkmux_select(unsigned int clkmux);
 
 extern int mx23_clocks_init(void);
-extern void mx23_map_io(void);
 
 extern int mx28_clocks_init(void);
-extern void mx28_map_io(void);
 
 #endif /* __MACH_MXS_COMMON_H__ */
