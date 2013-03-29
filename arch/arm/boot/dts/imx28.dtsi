@@ -756,7 +756,7 @@
 			ranges;
 
 			clks: clkctrl@80040000 {
-				compatible = "fsl,imx28-clkctrl";
+				compatible = "fsl,imx28-clkctrl", "fsl,clkctrl";
 				reg = <0x80040000 0x2000>;
 				#clock-cells = <1>;
 			};

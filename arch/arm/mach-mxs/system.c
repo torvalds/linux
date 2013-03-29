@@ -23,6 +23,8 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <asm/proc-fns.h>
 #include <asm/system_misc.h>
@@ -37,40 +39,36 @@
 #define MXS_MODULE_CLKGATE		(1 << 30)
 #define MXS_MODULE_SFTRST		(1 << 31)
 
-static void __iomem *mxs_clkctrl_reset_addr;
-
 /*
  * Reset the system. It is called by machine_restart().
  */
 void mxs_restart(char mode, const char *cmd)
 {
+	struct device_node *np;
+	void __iomem *reset_addr;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,clkctrl");
+	reset_addr = of_iomap(np, 0);
+	if (!reset_addr)
+		goto soft;
+
+	if (of_device_is_compatible(np, "fsl,imx23-clkctrl"))
+		reset_addr += MX23_CLKCTRL_RESET_OFFSET;
+	else
+		reset_addr += MX28_CLKCTRL_RESET_OFFSET;
+
 	/* reset the chip */
-	__mxs_setl(MXS_CLKCTRL_RESET_CHIP, mxs_clkctrl_reset_addr);
+	__mxs_setl(MXS_CLKCTRL_RESET_CHIP, reset_addr);
 
 	pr_err("Failed to assert the chip reset\n");
 
 	/* Delay to allow the serial port to show the message */
 	mdelay(50);
 
+soft:
 	/* We'll take a jump through zero as a poor second */
 	soft_restart(0);
 }
-
-static int __init mxs_arch_reset_init(void)
-{
-	struct clk *clk;
-
-	mxs_clkctrl_reset_addr = MXS_IO_ADDRESS(MXS_CLKCTRL_BASE_ADDR) +
-				(cpu_is_mx23() ? MX23_CLKCTRL_RESET_OFFSET :
-						 MX28_CLKCTRL_RESET_OFFSET);
-
-	clk = clk_get_sys("rtc", NULL);
-	if (!IS_ERR(clk))
-		clk_prepare_enable(clk);
-
-	return 0;
-}
-core_initcall(mxs_arch_reset_init);
 
 /*
  * Clear the bit and poll it cleared.  This is usually called with
