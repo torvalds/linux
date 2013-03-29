@@ -27,6 +27,7 @@
 #include <linux/phy.h>
 #include <linux/pinctrl/consumer.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
 #include <mach/common.h>
@@ -507,7 +508,7 @@ static const char *imx28_dt_compat[] __initdata = {
 };
 
 DT_MACHINE_START(IMX23, "Freescale i.MX23 (Device Tree)")
-	.map_io		= mx23_map_io,
+	.map_io		= debug_ll_io_init,
 	.init_irq	= irqchip_init,
 	.handle_irq	= icoll_handle_irq,
 	.init_time	= imx23_timer_init,
@@ -517,7 +518,7 @@ DT_MACHINE_START(IMX23, "Freescale i.MX23 (Device Tree)")
 MACHINE_END
 
 DT_MACHINE_START(IMX28, "Freescale i.MX28 (Device Tree)")
-	.map_io		= mx28_map_io,
+	.map_io		= debug_ll_io_init,
 	.init_irq	= irqchip_init,
 	.handle_irq	= icoll_handle_irq,
 	.init_time	= imx28_timer_init,
