@@ -472,7 +472,7 @@ static int si476x_radio_g_tuner(struct file *file, void *priv,
 }
 
 static int si476x_radio_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *tuner)
+				const struct v4l2_tuner *tuner)
 {
 	struct si476x_radio *radio = video_drvdata(file);
 
@@ -699,15 +699,16 @@ static int si476x_radio_g_frequency(struct file *file, void *priv,
 }
 
 static int si476x_radio_s_frequency(struct file *file, void *priv,
-				    struct v4l2_frequency *f)
+				    const struct v4l2_frequency *f)
 {
 	int err;
+	u32 freq = f->frequency;
 	struct si476x_tune_freq_args args;
 	struct si476x_radio *radio = video_drvdata(file);
 
 	const u32 midrange = (si476x_bands[SI476X_BAND_AM].rangehigh +
 			      si476x_bands[SI476X_BAND_FM].rangelow) / 2;
-	const int band = (f->frequency > midrange) ?
+	const int band = (freq > midrange) ?
 		SI476X_BAND_FM : SI476X_BAND_AM;
 	const enum si476x_func func = (band == SI476X_BAND_AM) ?
 		SI476X_FUNC_AM_RECEIVER : SI476X_FUNC_FM_RECEIVER;
@@ -718,11 +719,11 @@ static int si476x_radio_s_frequency(struct file *file, void *priv,
 
 	si476x_core_lock(radio->core);
 
-	f->frequency = clamp(f->frequency,
-			     si476x_bands[band].rangelow,
-			     si476x_bands[band].rangehigh);
+	freq = clamp(freq,
+		     si476x_bands[band].rangelow,
+		     si476x_bands[band].rangehigh);
 
-	if (si476x_radio_freq_is_inside_of_the_band(f->frequency,
+	if (si476x_radio_freq_is_inside_of_the_band(freq,
 						    SI476X_BAND_AM) &&
 	    (!si476x_core_has_am(radio->core) ||
 	     si476x_core_is_a_secondary_tuner(radio->core))) {
@@ -737,8 +738,7 @@ static int si476x_radio_s_frequency(struct file *file, void *priv,
 	args.zifsr		= false;
 	args.hd			= false;
 	args.injside		= SI476X_INJSIDE_AUTO;
-	args.freq		= v4l2_to_si476x(radio->core,
-						 f->frequency);
+	args.freq		= v4l2_to_si476x(radio->core, freq);
 	args.tunemode		= SI476X_TM_VALIDATED_NORMAL_TUNE;
 	args.smoothmetrics	= SI476X_SM_INITIALIZE_AUDIO;
 	args.antcap		= 0;
@@ -1046,7 +1046,7 @@ static int si476x_radio_g_register(struct file *file, void *fh,
 	return err;
 }
 static int si476x_radio_s_register(struct file *file, void *fh,
-				   struct v4l2_dbg_register *reg)
+				   const struct v4l2_dbg_register *reg)
 {
 
 	int err;
