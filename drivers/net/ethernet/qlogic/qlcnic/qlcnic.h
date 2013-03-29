@@ -1360,6 +1360,7 @@ struct _cdrp_cmd {
 struct qlcnic_cmd_args {
 	struct _cdrp_cmd req;
 	struct _cdrp_cmd rsp;
+	int op_type;
 };
 
 int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter);

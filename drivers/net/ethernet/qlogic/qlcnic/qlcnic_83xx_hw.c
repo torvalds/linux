@@ -14,6 +14,7 @@
 
 #define QLCNIC_MAX_TX_QUEUES		1
 #define RSS_HASHTYPE_IP_TCP		0x3
+#define QLC_83XX_FW_MBX_CMD		0
 
 /* status descriptor mailbox data
  * @phy_addr_{low|high}: physical address of buffer
@@ -211,6 +212,7 @@ static const struct qlcnic_mailbox_metadata qlcnic_83xx_mbx_tbl[] = {
 	{QLCNIC_CMD_GET_LED_CONFIG, 1, 5},
 	{QLCNIC_CMD_ADD_RCV_RINGS, 130, 26},
 	{QLCNIC_CMD_CONFIG_VPORT, 4, 4},
+	{QLCNIC_CMD_BC_EVENT_SETUP, 2, 1},
 };
 
 const u32 qlcnic_83xx_ext_reg_tbl[] = {
@@ -824,7 +826,7 @@ static void qlcnic_dump_mbx(struct qlcnic_adapter *adapter,
 }
 
 /* Mailbox response for mac rcode */
-static u32 qlcnic_83xx_mac_rcode(struct qlcnic_adapter *adapter)
+u32 qlcnic_83xx_mac_rcode(struct qlcnic_adapter *adapter)
 {
 	u32 fw_data;
 	u8 mac_cmd_rcode;
@@ -838,7 +840,7 @@ static u32 qlcnic_83xx_mac_rcode(struct qlcnic_adapter *adapter)
 	return 1;
 }
 
-static u32 qlcnic_83xx_mbx_poll(struct qlcnic_adapter *adapter)
+u32 qlcnic_83xx_mbx_poll(struct qlcnic_adapter *adapter)
 {
 	u32 data;
 	unsigned long wait_time = 0;
@@ -953,6 +955,7 @@ int qlcnic_83xx_alloc_mbx_args(struct qlcnic_cmd_args *mbx,
 	size = ARRAY_SIZE(qlcnic_83xx_mbx_tbl);
 	for (i = 0; i < size; i++) {
 		if (type == mbx_tbl[i].cmd) {
+			mbx->op_type = QLC_83XX_FW_MBX_CMD;
 			mbx->req.num = mbx_tbl[i].in_args;
 			mbx->rsp.num = mbx_tbl[i].out_args;
 			mbx->req.arg = kcalloc(mbx->req.num, sizeof(u32),
@@ -970,10 +973,10 @@ int qlcnic_83xx_alloc_mbx_args(struct qlcnic_cmd_args *mbx,
 			memset(mbx->rsp.arg, 0, sizeof(u32) * mbx->rsp.num);
 			temp = adapter->ahw->fw_hal_version << 29;
 			mbx->req.arg[0] = (type | (mbx->req.num << 16) | temp);
-			break;
+			return 0;
 		}
 	}
-	return 0;
+	return -EINVAL;
 }
 
 void qlcnic_83xx_idc_aen_work(struct work_struct *work)
@@ -1028,6 +1031,9 @@ void qlcnic_83xx_process_aen(struct qlcnic_adapter *adapter)
 				   &adapter->idc_aen_work, 0);
 		break;
 	case QLCNIC_MBX_TIME_EXTEND_EVENT:
+		break;
+	case QLCNIC_MBX_BC_EVENT:
+		qlcnic_sriov_handle_bc_event(adapter, event[1]);
 		break;
 	case QLCNIC_MBX_SFP_INSERT_EVENT:
 		dev_info(&adapter->pdev->dev, "SFP+ Insert AEN:0x%x.\n",

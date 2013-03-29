@@ -15,6 +15,84 @@
 extern const u32 qlcnic_83xx_reg_tbl[];
 extern const u32 qlcnic_83xx_ext_reg_tbl[];
 
+struct qlcnic_bc_payload {
+	u64 payload[126];
+};
+
+struct qlcnic_bc_hdr {
+#if defined(__LITTLE_ENDIAN)
+	u8	version;
+	u8	msg_type:4;
+	u8	rsvd1:3;
+	u8	op_type:1;
+	u8	num_cmds;
+	u8	num_frags;
+	u8	frag_num;
+	u8	cmd_op;
+	u16	seq_id;
+	u64	rsvd3;
+#elif defined(__BIG_ENDIAN)
+	u8	num_frags;
+	u8	num_cmds;
+	u8	op_type:1;
+	u8	rsvd1:3;
+	u8	msg_type:4;
+	u8	version;
+	u16	seq_id;
+	u8	cmd_op;
+	u8	frag_num;
+	u64	rsvd3;
+#endif
+};
+
+enum qlcnic_bc_commands {
+	QLCNIC_BC_CMD_CHANNEL_INIT = 0x0,
+	QLCNIC_BC_CMD_CHANNEL_TERM = 0x1,
+};
+
+#define QLC_BC_CMD 1
+
+struct qlcnic_trans_list {
+	/* Lock for manipulating list */
+	spinlock_t		lock;
+	struct list_head	wait_list;
+	int			count;
+};
+
+enum qlcnic_trans_state {
+	QLC_INIT = 0,
+	QLC_WAIT_FOR_CHANNEL_FREE,
+	QLC_WAIT_FOR_RESP,
+	QLC_ABORT,
+	QLC_END,
+};
+
+struct qlcnic_bc_trans {
+	u8				func_id;
+	u8				active;
+	u8				curr_rsp_frag;
+	u8				curr_req_frag;
+	u16				cmd_id;
+	u16				req_pay_size;
+	u16				rsp_pay_size;
+	u32				trans_id;
+	enum qlcnic_trans_state		trans_state;
+	struct list_head		list;
+	struct qlcnic_bc_hdr		*req_hdr;
+	struct qlcnic_bc_hdr		*rsp_hdr;
+	struct qlcnic_bc_payload	*req_pay;
+	struct qlcnic_bc_payload	*rsp_pay;
+	struct completion		resp_cmpl;
+	struct qlcnic_vf_info		*vf;
+};
+
+enum qlcnic_vf_state {
+	QLC_BC_VF_SEND = 0,
+	QLC_BC_VF_RECV,
+	QLC_BC_VF_CHANNEL,
+	QLC_BC_VF_STATE,
+};
+
 struct qlcnic_resources {
 	u16 num_tx_mac_filters;
 	u16 num_rx_ucast_mac_filters;
@@ -34,10 +112,36 @@ struct qlcnic_resources {
 	u16 max_remote_ipv6_addrs;
 };
 
+struct qlcnic_vport {
+	u16			handle;
+	u8			mac[6];
+};
+
+struct qlcnic_vf_info {
+	u8				pci_func;
+	unsigned long			state;
+	struct completion		ch_free_cmpl;
+	struct work_struct		trans_work;
+	/* It synchronizes commands sent from VF */
+	struct mutex			send_cmd_lock;
+	struct qlcnic_bc_trans		*send_cmd;
+	struct qlcnic_trans_list	rcv_act;
+	struct qlcnic_trans_list	rcv_pend;
+	struct qlcnic_adapter		*adapter;
+	struct qlcnic_vport		*vp;
+};
+
+struct qlcnic_back_channel {
+	u16			trans_counter;
+	struct workqueue_struct *bc_trans_wq;
+};
+
 struct qlcnic_sriov {
 	u16				vp_handle;
 	u8				num_vfs;
 	struct qlcnic_resources		ff_max;
+	struct qlcnic_back_channel	bc;
+	struct qlcnic_vf_info		*vf_info;
 };
 
 int qlcnic_sriov_init(struct qlcnic_adapter *, int);
@@ -46,6 +150,10 @@ void __qlcnic_sriov_cleanup(struct qlcnic_adapter *);
 void qlcnic_sriov_vf_register_map(struct qlcnic_hardware_context *);
 int qlcnic_sriov_vf_init(struct qlcnic_adapter *, int);
 void qlcnic_sriov_vf_set_ops(struct qlcnic_adapter *);
+int qlcnic_sriov_func_to_index(struct qlcnic_adapter *, u8);
+int qlcnic_sriov_channel_cfg_cmd(struct qlcnic_adapter *, u8);
+void qlcnic_sriov_handle_bc_event(struct qlcnic_adapter *, u32);
+int qlcnic_sriov_cfg_bc_intr(struct qlcnic_adapter *, u8);
 
 static inline bool qlcnic_sriov_enable_check(struct qlcnic_adapter *adapter)
 {
@@ -53,6 +161,9 @@ static inline bool qlcnic_sriov_enable_check(struct qlcnic_adapter *adapter)
 }
 
 #ifdef CONFIG_QLCNIC_SRIOV
+void qlcnic_sriov_pf_process_bc_cmd(struct qlcnic_adapter *,
+				    struct qlcnic_bc_trans *,
+				    struct qlcnic_cmd_args *);
 void qlcnic_sriov_pf_disable(struct qlcnic_adapter *);
 void qlcnic_sriov_pf_cleanup(struct qlcnic_adapter *);
 int qlcnic_pci_sriov_configure(struct pci_dev *, int);

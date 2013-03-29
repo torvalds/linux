@@ -13,6 +13,10 @@
 
 static int qlcnic_sriov_pf_get_vport_handle(struct qlcnic_adapter *, u8);
 
+struct qlcnic_sriov_cmd_handler {
+	int (*fn) (struct qlcnic_bc_trans *, struct qlcnic_cmd_args *);
+};
+
 static int qlcnic_sriov_pf_set_vport_info(struct qlcnic_adapter *adapter,
 					  struct qlcnic_info *npar_info,
 					  u16 vport_id)
@@ -174,27 +178,54 @@ static void qlcnic_sriov_pf_reset_vport_handle(struct qlcnic_adapter *adapter,
 					       u8 func)
 {
 	struct qlcnic_sriov  *sriov = adapter->ahw->sriov;
+	struct qlcnic_vport *vp;
+	int index;
 
-	if (adapter->ahw->pci_func == func)
+	if (adapter->ahw->pci_func == func) {
 		sriov->vp_handle = 0;
+	} else {
+		index = qlcnic_sriov_func_to_index(adapter, func);
+		if (index < 0)
+			return;
+		vp = sriov->vf_info[index].vp;
+		vp->handle = 0;
+	}
 }
 
 static void qlcnic_sriov_pf_set_vport_handle(struct qlcnic_adapter *adapter,
 					     u16 vport_handle, u8 func)
 {
 	struct qlcnic_sriov  *sriov = adapter->ahw->sriov;
+	struct qlcnic_vport *vp;
+	int index;
 
-	if (adapter->ahw->pci_func == func)
+	if (adapter->ahw->pci_func == func) {
 		sriov->vp_handle = vport_handle;
+	} else {
+		index = qlcnic_sriov_func_to_index(adapter, func);
+		if (index < 0)
+			return;
+		vp = sriov->vf_info[index].vp;
+		vp->handle = vport_handle;
+	}
 }
 
 static int qlcnic_sriov_pf_get_vport_handle(struct qlcnic_adapter *adapter,
 					    u8 func)
 {
 	struct qlcnic_sriov  *sriov = adapter->ahw->sriov;
+	struct qlcnic_vf_info *vf_info;
+	int index;
 
-	if (adapter->ahw->pci_func == func)
+	if (adapter->ahw->pci_func == func) {
 		return sriov->vp_handle;
+	} else {
+		index = qlcnic_sriov_func_to_index(adapter, func);
+		if (index >= 0) {
+			vf_info = &sriov->vf_info[index];
+			return vf_info->vp->handle;
+		}
+	}
 
 	return -EINVAL;
 }
@@ -273,6 +304,7 @@ void qlcnic_sriov_pf_cleanup(struct qlcnic_adapter *adapter)
 	if (!qlcnic_sriov_enable_check(adapter))
 		return;
 
+	qlcnic_sriov_cfg_bc_intr(adapter, 0);
 	qlcnic_sriov_pf_config_vport(adapter, 0, func);
 	qlcnic_sriov_pf_cfg_eswitch(adapter, func, 0);
 	__qlcnic_sriov_cleanup(adapter);
@@ -346,6 +378,10 @@ static int qlcnic_sriov_pf_init(struct qlcnic_adapter *adapter)
 		goto delete_vport;
 
 	err = qlcnic_sriov_pf_cal_res_limit(adapter, &vp_info, func);
+	if (err)
+		goto delete_vport;
+
+	err = qlcnic_sriov_cfg_bc_intr(adapter, 1);
 	if (err)
 		goto delete_vport;
 
@@ -452,4 +488,80 @@ int qlcnic_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
 
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	return err;
+}
+
+static int qlcnic_sriov_set_vf_vport_info(struct qlcnic_adapter *adapter,
+					  u16 func)
+{
+	struct qlcnic_info defvp_info;
+	int err;
+
+	err = qlcnic_sriov_pf_cal_res_limit(adapter, &defvp_info, func);
+	if (err)
+		return -EIO;
+
+	return 0;
+}
+
+static int qlcnic_sriov_pf_channel_cfg_cmd(struct qlcnic_bc_trans *trans,
+					   struct qlcnic_cmd_args *cmd)
+{
+	struct qlcnic_vf_info *vf = trans->vf;
+	struct qlcnic_adapter *adapter = vf->adapter;
+	int err;
+	u16 func = vf->pci_func;
+
+	cmd->rsp.arg[0] = trans->req_hdr->cmd_op;
+	cmd->rsp.arg[0] |= (1 << 16);
+
+	if (trans->req_hdr->cmd_op == QLCNIC_BC_CMD_CHANNEL_INIT) {
+		err = qlcnic_sriov_pf_config_vport(adapter, 1, func);
+		if (!err) {
+			err = qlcnic_sriov_set_vf_vport_info(adapter, func);
+			if (err)
+				qlcnic_sriov_pf_config_vport(adapter, 0, func);
+		}
+	} else {
+		err = qlcnic_sriov_pf_config_vport(adapter, 0, func);
+	}
+
+	if (err)
+		goto err_out;
+
+	cmd->rsp.arg[0] |= (1 << 25);
+
+	if (trans->req_hdr->cmd_op == QLCNIC_BC_CMD_CHANNEL_INIT)
+		set_bit(QLC_BC_VF_STATE, &vf->state);
+	else
+		clear_bit(QLC_BC_VF_STATE, &vf->state);
+
+	return err;
+
+err_out:
+	cmd->rsp.arg[0] |= (2 << 25);
+	return err;
+}
+
+static const struct qlcnic_sriov_cmd_handler qlcnic_pf_bc_cmd_hdlr[] = {
+	[QLCNIC_BC_CMD_CHANNEL_INIT] = {&qlcnic_sriov_pf_channel_cfg_cmd},
+	[QLCNIC_BC_CMD_CHANNEL_TERM] = {&qlcnic_sriov_pf_channel_cfg_cmd},
+};
+
+void qlcnic_sriov_pf_process_bc_cmd(struct qlcnic_adapter *adapter,
+				    struct qlcnic_bc_trans *trans,
+				    struct qlcnic_cmd_args *cmd)
+{
+	u8 size, cmd_op;
+
+	cmd_op = trans->req_hdr->cmd_op;
+
+	if (trans->req_hdr->op_type == QLC_BC_CMD) {
+		size = ARRAY_SIZE(qlcnic_pf_bc_cmd_hdlr);
+		if (cmd_op < size) {
+			qlcnic_pf_bc_cmd_hdlr[cmd_op].fn(trans, cmd);
+			return;
+		}
+	}
+
+	cmd->rsp.arg[0] |= (0x9 << 25);
 }
