@@ -41,9 +41,14 @@ static inline struct cpuacct *parent_ca(struct cpuacct *ca)
 	return cgroup_ca(ca->css.cgroup->parent);
 }
 
+extern void cpuacct_init(void);
 extern void cpuacct_charge(struct task_struct *tsk, u64 cputime);
 
 #else
+
+static inline void cpuacct_init(void)
+{
+}
 
 static inline void cpuacct_charge(struct task_struct *tsk, u64 cputime)
 {
