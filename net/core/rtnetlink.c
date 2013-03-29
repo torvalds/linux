@@ -2262,7 +2262,7 @@ skip:
  * @dev: netdevice
  *
  * Default netdevice operation to dump the existing unicast address list.
- * Returns zero on success.
+ * Returns number of addresses from list put in skb.
  */
 int ndo_dflt_fdb_dump(struct sk_buff *skb,
 		      struct netlink_callback *cb,
@@ -2303,7 +2303,7 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		if (dev->netdev_ops->ndo_fdb_dump)
 			idx = dev->netdev_ops->ndo_fdb_dump(skb, cb, dev, idx);
 		else
-			ndo_dflt_fdb_dump(skb, cb, dev, idx);
+			idx = ndo_dflt_fdb_dump(skb, cb, dev, idx);
 	}
 	rcu_read_unlock();
 
