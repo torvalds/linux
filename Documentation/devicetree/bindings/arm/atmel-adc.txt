@@ -26,6 +26,7 @@ Optional properties:
 		       atmel,adc-res-names property. If not specified, the highest
 		       resolution will be used.
   - atmel,adc-sleep-mode: Boolean to enable sleep mode when no conversion
+  - atmel,adc-sample-hold-time: Sample and Hold Time in microseconds
  
 Optional trigger Nodes:
   - Required properties:

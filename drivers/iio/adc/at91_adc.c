@@ -52,6 +52,7 @@ struct at91_adc_state {
 	void __iomem		*reg_base;
 	struct at91_adc_reg_desc *registers;
 	u8			startup_time;
+	u8			sample_hold_time;
 	bool			sleep_mode;
 	struct iio_trigger	**trig;
 	struct at91_adc_trigger	*trigger_list;
@@ -465,6 +466,9 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 	}
 	st->startup_time = prop;
 
+	prop = 0;
+	of_property_read_u32(node, "atmel,adc-sample-hold-time", &prop);
+	st->sample_hold_time = prop;
 
 	if (of_property_read_u32(node, "atmel,adc-vref", &prop)) {
 		dev_err(&idev->dev, "Missing adc-vref property in the DT.\n");
@@ -578,7 +582,7 @@ static const struct iio_info at91_adc_info = {
 
 static int at91_adc_probe(struct platform_device *pdev)
 {
-	unsigned int prsc, mstrclk, ticks, adc_clk;
+	unsigned int prsc, mstrclk, ticks, adc_clk, shtim;
 	int ret;
 	struct iio_dev *idev;
 	struct at91_adc_state *st;
@@ -691,12 +695,21 @@ static int at91_adc_probe(struct platform_device *pdev)
 	 */
 	ticks = round_up((st->startup_time * adc_clk /
 			  1000000) - 1, 8) / 8;
+	/*
+	 * a minimal Sample and Hold Time is necessary for the ADC to guarantee
+	 * the best converted final value between two channels selection
+	 * The formula thus is : Sample and Hold Time = (shtim + 1) / ADCClock
+	 */
+	shtim = round_up((st->sample_hold_time * adc_clk /
+			  1000000) - 1, 1);
+
 	reg = AT91_ADC_PRESCAL_(prsc) & AT91_ADC_PRESCAL;
 	reg |= AT91_ADC_STARTUP_(ticks) & AT91_ADC_STARTUP;
 	if (st->low_res)
 		reg |= AT91_ADC_LOWRES;
 	if (st->sleep_mode)
 		reg |= AT91_ADC_SLEEP;
+	reg |= AT91_ADC_SHTIM_(shtim) & AT91_ADC_SHTIM;
 	at91_adc_writel(st, AT91_ADC_MR, reg);
 
 	/* Setup the ADC channels available on the board */
