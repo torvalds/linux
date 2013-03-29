@@ -21,15 +21,25 @@
 #include <linux/interrupt.h>
 #include <linux/irqchip.h>
 #include <linux/kernel.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/platform_device.h>
 #include <mach/common.h>
 #include <mach/r8a73a4.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+static const struct pinctrl_map ape6evm_pinctrl_map[] = {
+	/* SCIFA0 console */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.0", "pfc-r8a73a4",
+				  "scifa0_data", "scifa0"),
+};
+
 static void __init ape6evm_add_standard_devices(void)
 {
 	r8a73a4_clock_init();
+	pinctrl_register_mappings(ape6evm_pinctrl_map,
+				  ARRAY_SIZE(ape6evm_pinctrl_map));
+	r8a73a4_pinmux_init();
 	r8a73a4_add_standard_devices();
 }
 
