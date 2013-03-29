@@ -855,6 +855,9 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 
 	
 err_input_register_device_failed:
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	unregister_early_suspend(&ts->early_suspend);
+#endif
 	input_free_device(ts->input_dev);
 	i2c_set_clientdata(client, NULL);	
 	kfree(ts);
