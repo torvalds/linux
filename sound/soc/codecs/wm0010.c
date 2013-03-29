@@ -361,8 +361,8 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 
 	ret = request_firmware(&fw, name, codec->dev);
 	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request application: %d\n",
-			ret);
+		dev_err(codec->dev, "Failed to request application(%s): %d\n",
+			name, ret);
 		return ret;
 	}
 
