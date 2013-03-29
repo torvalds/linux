@@ -1488,7 +1488,8 @@ static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
 		return 0;
 	}
 
-	if (kvm_gfn_to_hva_cache_init(vcpu->kvm, &vcpu->arch.apf.data, gpa))
+	if (kvm_gfn_to_hva_cache_init(vcpu->kvm, &vcpu->arch.apf.data, gpa,
+					sizeof(u32)))
 		return 1;
 
 	vcpu->arch.apf.send_user_only = !(data & KVM_ASYNC_PF_SEND_ALWAYS);
@@ -1605,12 +1606,9 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 
 		gpa_offset = data & ~(PAGE_MASK | 1);
 
-		/* Check that the address is 32-byte aligned. */
-		if (gpa_offset & (sizeof(struct pvclock_vcpu_time_info) - 1))
-			break;
-
 		if (kvm_gfn_to_hva_cache_init(vcpu->kvm,
-		     &vcpu->arch.pv_time, data & ~1ULL))
+		     &vcpu->arch.pv_time, data & ~1ULL,
+		     sizeof(struct pvclock_vcpu_time_info)))
 			vcpu->arch.pv_time_enabled = false;
 		else
 			vcpu->arch.pv_time_enabled = true;
@@ -1629,7 +1627,8 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 			return 1;
 
 		if (kvm_gfn_to_hva_cache_init(vcpu->kvm, &vcpu->arch.st.stime,
-							data & KVM_STEAL_VALID_BITS))
+						data & KVM_STEAL_VALID_BITS,
+						sizeof(struct kvm_steal_time)))
 			return 1;
 
 		vcpu->arch.st.msr_val = data;
