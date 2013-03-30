@@ -55,12 +55,6 @@ static struct proc_dir_entry *add_proc_file(struct nd_struct *node,
 /* File operation declarations */
 static int parse_write_config(char *);
 
-
-static struct inode_operations proc_inode_ops = {
-	.permission = dgrp_inode_permission
-};
-
-
 static ssize_t dgrp_config_proc_write(struct file *file,
 				      const char __user *buffer,
 				      size_t count, loff_t *pos);
@@ -139,28 +133,15 @@ void dgrp_unregister_proc(void)
 
 void dgrp_register_proc(void)
 {
-	struct proc_dir_entry *de;
 	/*
 	 *	Register /proc/dgrp
 	 */
 	dgrp_proc_dir_entry = proc_mkdir("dgrp", NULL);
 	if (!dgrp_proc_dir_entry)
 		return;
-	de = create_proc_entry("dgrp/config", 0644, NULL);
-	if (de) {
-		de->proc_fops = &config_proc_file_ops;
-		de->proc_iops = &proc_inode_ops;
-	}
-	de = create_proc_entry("dgrp/info", 0644, NULL);
-	if (de) {
-		de->proc_fops = &info_proc_file_ops;
-		de->proc_iops = &proc_inode_ops;
-	}
-	de = create_proc_entry("dgrp/nodeinfo", 0644, NULL);
-	if (de) {
-		de->proc_fops = &nodeinfo_proc_file_ops;
-		de->proc_iops = &proc_inode_ops;
-	}
+	proc_create("dgrp/config", 0644, NULL, &config_proc_file_ops);
+	proc_create("dgrp/info", 0644, NULL, &info_proc_file_ops);
+	proc_create("dgrp/nodeinfo", 0644, NULL, &nodeinfo_proc_file_ops);
 	net_entry_pointer = proc_mkdir_mode("dgrp/net", 0500, NULL);
 	mon_entry_pointer = proc_mkdir_mode("dgrp/mon", 0500, NULL);
 	dpa_entry_pointer = proc_mkdir_mode("dgrp/dpa", 0500, NULL);
@@ -554,15 +535,6 @@ static struct proc_dir_entry *add_proc_file(struct nd_struct *node,
 				 const struct file_operations *fops)
 {
 	char buf[3];
-	struct proc_dir_entry *de;
-
 	ID_TO_CHAR(node->nd_ID, buf);
-
-	de = create_proc_entry(buf, 0600 | S_IFREG, root);
-	if (de) {
-		de->data = (void *) node;
-		de->proc_fops = fops;
-		de->proc_iops = &proc_inode_ops;
-	}
-	return de;
+	return proc_create_data(buf, 0600, root, fops, node);
 }

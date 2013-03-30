@@ -89,8 +89,6 @@ extern void dgrp_register_proc(void);
  *-----------------------------------------------------------------------*/
 
 void dgrp_carrier(struct ch_struct *ch);
-extern int dgrp_inode_permission(struct inode *inode, int op);
-extern int dgrp_chk_perm(int mode, int op);
 
 
 /*
