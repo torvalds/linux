@@ -1106,6 +1106,23 @@ static inline void rt2x00_set_chip(struct rt2x00_dev *rt2x00dev,
 	     rt2x00dev->chip.rt, rt2x00dev->chip.rf, rt2x00dev->chip.rev);
 }
 
+static inline void rt2x00_set_rt(struct rt2x00_dev *rt2x00dev,
+				 const u16 rt, const u16 rev)
+{
+	rt2x00dev->chip.rt = rt;
+	rt2x00dev->chip.rev = rev;
+
+	INFO(rt2x00dev, "RT chipset %04x, rev %04x detected\n",
+	     rt2x00dev->chip.rt, rt2x00dev->chip.rev);
+}
+
+static inline void rt2x00_set_rf(struct rt2x00_dev *rt2x00dev, const u16 rf)
+{
+	rt2x00dev->chip.rf = rf;
+
+	INFO(rt2x00dev, "RF chipset %04x detected\n", rt2x00dev->chip.rf);
+}
+
 static inline bool rt2x00_rt(struct rt2x00_dev *rt2x00dev, const u16 rt)
 {
 	return (rt2x00dev->chip.rt == rt);
