@@ -175,7 +175,7 @@ static int ci_requests_show(struct seq_file *s, void *data)
 			req = list_entry(ptr, struct ci13xxx_req, queue);
 
 			seq_printf(s, "EP=%02i: TD=%08X %s\n",
-				   i % ci->hw_ep_max/2, (u32)req->dma,
+				   i % (ci->hw_ep_max / 2), (u32)req->dma,
 				   ((i < ci->hw_ep_max/2) ? "RX" : "TX"));
 
 			for (j = 0; j < qsize; j++)
