@@ -531,9 +531,10 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 {
 	struct nouveau_device *device = nv_device(parent);
 	struct nvc0_graph_priv *priv;
+	bool enable = device->chipset != 0xd7;
 	int ret, i;
 
-	ret = nouveau_graph_create(parent, engine, oclass, true, &priv);
+	ret = nouveau_graph_create(parent, engine, oclass, enable, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
