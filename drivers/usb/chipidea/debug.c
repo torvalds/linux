@@ -199,6 +199,55 @@ static const struct file_operations ci_requests_fops = {
 	.release	= single_release,
 };
 
+static int ci_role_show(struct seq_file *s, void *data)
+{
+	struct ci13xxx *ci = s->private;
+
+	seq_printf(s, "%s\n", ci_role(ci)->name);
+
+	return 0;
+}
+
+static ssize_t ci_role_write(struct file *file, const char __user *ubuf,
+			     size_t count, loff_t *ppos)
+{
+	struct seq_file *s = file->private_data;
+	struct ci13xxx *ci = s->private;
+	enum ci_role role;
+	char buf[8];
+	int ret;
+
+	if (copy_from_user(buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+		return -EFAULT;
+
+	for (role = CI_ROLE_HOST; role < CI_ROLE_END; role++)
+		if (ci->roles[role] &&
+		    !strncmp(buf, ci->roles[role]->name,
+			     strlen(ci->roles[role]->name)))
+			break;
+
+	if (role == CI_ROLE_END || role == ci->role)
+		return -EINVAL;
+
+	ci_role_stop(ci);
+	ret = ci_role_start(ci, role);
+
+	return ret ? ret : count;
+}
+
+static int ci_role_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ci_role_show, inode->i_private);
+}
+
+static const struct file_operations ci_role_fops = {
+	.open		= ci_role_open,
+	.write		= ci_role_write,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 /**
  * dbg_create_files: initializes the attribute interface
  * @ci: device
@@ -230,6 +279,11 @@ int dbg_create_files(struct ci13xxx *ci)
 
 	dent = debugfs_create_file("requests", S_IRUGO, ci->debugfs, ci,
 				   &ci_requests_fops);
+	if (!dent)
+		goto err;
+
+	dent = debugfs_create_file("role", S_IRUGO | S_IWUSR, ci->debugfs, ci,
+				   &ci_role_fops);
 	if (dent)
 		return 0;
 err:

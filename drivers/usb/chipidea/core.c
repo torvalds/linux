@@ -280,38 +280,6 @@ static void ci_role_work(struct work_struct *work)
 	}
 }
 
-static ssize_t show_role(struct device *dev, struct device_attribute *attr,
-			 char *buf)
-{
-	struct ci13xxx *ci = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%s\n", ci_role(ci)->name);
-}
-
-static ssize_t store_role(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	struct ci13xxx *ci = dev_get_drvdata(dev);
-	enum ci_role role;
-	int ret;
-
-	for (role = CI_ROLE_HOST; role < CI_ROLE_END; role++)
-		if (ci->roles[role] && !strcmp(buf, ci->roles[role]->name))
-			break;
-
-	if (role == CI_ROLE_END || role == ci->role)
-		return -EINVAL;
-
-	ci_role_stop(ci);
-	ret = ci_role_start(ci, role);
-	if (ret)
-		return ret;
-
-	return count;
-}
-
-static DEVICE_ATTR(role, S_IRUSR | S_IWUSR, show_role, store_role);
-
 static irqreturn_t ci_irq(int irq, void *data)
 {
 	struct ci13xxx *ci = data;
@@ -484,17 +452,11 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (ret)
 		goto stop;
 
-	ret = device_create_file(dev, &dev_attr_role);
-	if (ret)
-		goto rm_attr;
-
 	if (ci->is_otg)
 		hw_write(ci, OP_OTGSC, OTGSC_IDIE, OTGSC_IDIE);
 
 	return ret;
 
-rm_attr:
-	device_remove_file(dev, &dev_attr_role);
 stop:
 	ci_role_stop(ci);
 rm_wq:
@@ -510,7 +472,6 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 
 	flush_workqueue(ci->wq);
 	destroy_workqueue(ci->wq);
-	device_remove_file(ci->dev, &dev_attr_role);
 	free_irq(ci->irq, ci);
 	ci_role_stop(ci);
 
