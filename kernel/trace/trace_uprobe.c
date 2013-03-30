@@ -628,8 +628,14 @@ static int uprobe_event_define_fields(struct ftrace_event_call *event_call)
 	struct uprobe_trace_entry_head field;
 	struct trace_uprobe *tu = event_call->data;
 
-	DEFINE_FIELD(unsigned long, vaddr[0], FIELD_STRING_IP, 0);
-	size = SIZEOF_TRACE_ENTRY(false);
+	if (is_ret_probe(tu)) {
+		DEFINE_FIELD(unsigned long, vaddr[0], FIELD_STRING_FUNC, 0);
+		DEFINE_FIELD(unsigned long, vaddr[1], FIELD_STRING_RETIP, 0);
+		size = SIZEOF_TRACE_ENTRY(true);
+	} else {
+		DEFINE_FIELD(unsigned long, vaddr[0], FIELD_STRING_IP, 0);
+		size = SIZEOF_TRACE_ENTRY(false);
+	}
 	/* Set argument names as fields */
 	for (i = 0; i < tu->nr_args; i++) {
 		ret = trace_define_field(event_call, tu->args[i].type->fmttype,
@@ -652,8 +658,13 @@ static int __set_print_fmt(struct trace_uprobe *tu, char *buf, int len)
 	int i;
 	int pos = 0;
 
-	fmt = "(%lx)";
-	arg = "REC->" FIELD_STRING_IP;
+	if (is_ret_probe(tu)) {
+		fmt = "(%lx <- %lx)";
+		arg = "REC->" FIELD_STRING_FUNC ", REC->" FIELD_STRING_RETIP;
+	} else {
+		fmt = "(%lx)";
+		arg = "REC->" FIELD_STRING_IP;
+	}
 
 	/* When len=0, we just calculate the needed length */
 
