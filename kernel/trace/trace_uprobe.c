@@ -516,15 +516,22 @@ static void uprobe_trace_print(struct trace_uprobe *tu,
 	int size, i;
 	struct ftrace_event_call *call = &tu->call;
 
-	size = SIZEOF_TRACE_ENTRY(false) + tu->size;
+	size = SIZEOF_TRACE_ENTRY(is_ret_probe(tu));
 	event = trace_current_buffer_lock_reserve(&buffer, call->event.type,
-						  size, 0, 0);
+						  size + tu->size, 0, 0);
 	if (!event)
 		return;
 
 	entry = ring_buffer_event_data(event);
-	entry->vaddr[0] = instruction_pointer(regs);
-	data = DATAOF_TRACE_ENTRY(entry, false);
+	if (is_ret_probe(tu)) {
+		entry->vaddr[0] = func;
+		entry->vaddr[1] = instruction_pointer(regs);
+		data = DATAOF_TRACE_ENTRY(entry, true);
+	} else {
+		entry->vaddr[0] = instruction_pointer(regs);
+		data = DATAOF_TRACE_ENTRY(entry, false);
+	}
+
 	for (i = 0; i < tu->nr_args; i++)
 		call_fetch(&tu->args[i].fetch, regs, data + tu->args[i].offset);
 
@@ -535,7 +542,8 @@ static void uprobe_trace_print(struct trace_uprobe *tu,
 /* uprobe handler */
 static int uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs)
 {
-	uprobe_trace_print(tu, 0, regs);
+	if (!is_ret_probe(tu))
+		uprobe_trace_print(tu, 0, regs);
 	return 0;
 }
 
@@ -784,7 +792,7 @@ static void uprobe_perf_print(struct trace_uprobe *tu,
 	void *data;
 	int size, rctx, i;
 
-	size = SIZEOF_TRACE_ENTRY(false);
+	size = SIZEOF_TRACE_ENTRY(is_ret_probe(tu));
 	size = ALIGN(size + tu->size + sizeof(u32), sizeof(u64)) - sizeof(u32);
 	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE, "profile buffer not large enough"))
 		return;
@@ -795,8 +803,15 @@ static void uprobe_perf_print(struct trace_uprobe *tu,
 		goto out;
 
 	ip = instruction_pointer(regs);
-	entry->vaddr[0] = ip;
-	data = DATAOF_TRACE_ENTRY(entry, false);
+	if (is_ret_probe(tu)) {
+		entry->vaddr[0] = func;
+		entry->vaddr[1] = ip;
+		data = DATAOF_TRACE_ENTRY(entry, true);
+	} else {
+		entry->vaddr[0] = ip;
+		data = DATAOF_TRACE_ENTRY(entry, false);
+	}
+
 	for (i = 0; i < tu->nr_args; i++)
 		call_fetch(&tu->args[i].fetch, regs, data + tu->args[i].offset);
 
@@ -812,7 +827,8 @@ static int uprobe_perf_func(struct trace_uprobe *tu, struct pt_regs *regs)
 	if (!uprobe_perf_filter(&tu->consumer, 0, current->mm))
 		return UPROBE_HANDLER_REMOVE;
 
-	uprobe_perf_print(tu, 0, regs);
+	if (!is_ret_probe(tu))
+		uprobe_perf_print(tu, 0, regs);
 	return 0;
 }
 
