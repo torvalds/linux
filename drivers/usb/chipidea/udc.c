@@ -643,6 +643,59 @@ static void isr_get_status_complete(struct usb_ep *ep, struct usb_request *req)
 }
 
 /**
+ * _ep_queue: queues (submits) an I/O request to an endpoint
+ *
+ * Caller must hold lock
+ */
+static int _ep_queue(struct usb_ep *ep, struct usb_request *req,
+		    gfp_t __maybe_unused gfp_flags)
+{
+	struct ci13xxx_ep  *mEp  = container_of(ep,  struct ci13xxx_ep, ep);
+	struct ci13xxx_req *mReq = container_of(req, struct ci13xxx_req, req);
+	struct ci13xxx *ci = mEp->ci;
+	int retval = 0;
+
+	if (ep == NULL || req == NULL || mEp->ep.desc == NULL)
+		return -EINVAL;
+
+	if (mEp->type == USB_ENDPOINT_XFER_CONTROL) {
+		if (req->length)
+			mEp = (ci->ep0_dir == RX) ?
+			       ci->ep0out : ci->ep0in;
+		if (!list_empty(&mEp->qh.queue)) {
+			_ep_nuke(mEp);
+			retval = -EOVERFLOW;
+			dev_warn(mEp->ci->dev, "endpoint ctrl %X nuked\n",
+				 _usb_addr(mEp));
+		}
+	}
+
+	/* first nuke then test link, e.g. previous status has not sent */
+	if (!list_empty(&mReq->queue)) {
+		dev_err(mEp->ci->dev, "request already in queue\n");
+		return -EBUSY;
+	}
+
+	if (req->length > 4 * CI13XXX_PAGE_SIZE) {
+		dev_err(mEp->ci->dev, "request bigger than one td\n");
+		return -EMSGSIZE;
+	}
+
+	/* push request */
+	mReq->req.status = -EINPROGRESS;
+	mReq->req.actual = 0;
+
+	retval = _hardware_enqueue(mEp, mReq);
+
+	if (retval == -EALREADY)
+		retval = 0;
+	if (!retval)
+		list_add_tail(&mReq->queue, &mEp->qh.queue);
+
+	return retval;
+}
+
+/**
  * isr_get_status_response: get_status request response
  * @ci: ci struct
  * @setup: setup request packet
@@ -689,9 +742,7 @@ __acquires(mEp->lock)
 	}
 	/* else do nothing; reserved for future use */
 
-	spin_unlock(mEp->lock);
-	retval = usb_ep_queue(&mEp->ep, req, gfp_flags);
-	spin_lock(mEp->lock);
+	retval = _ep_queue(&mEp->ep, req, gfp_flags);
 	if (retval)
 		goto err_free_buf;
 
@@ -738,8 +789,6 @@ isr_setup_status_complete(struct usb_ep *ep, struct usb_request *req)
  * This function returns an error code
  */
 static int isr_setup_status_phase(struct ci13xxx *ci)
-__releases(mEp->lock)
-__acquires(mEp->lock)
 {
 	int retval;
 	struct ci13xxx_ep *mEp;
@@ -748,9 +797,7 @@ __acquires(mEp->lock)
 	ci->status->context = ci;
 	ci->status->complete = isr_setup_status_complete;
 
-	spin_unlock(mEp->lock);
-	retval = usb_ep_queue(&mEp->ep, ci->status, GFP_ATOMIC);
-	spin_lock(mEp->lock);
+	retval = _ep_queue(&mEp->ep, ci->status, GFP_ATOMIC);
 
 	return retval;
 }
@@ -1128,8 +1175,6 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 		    gfp_t __maybe_unused gfp_flags)
 {
 	struct ci13xxx_ep  *mEp  = container_of(ep,  struct ci13xxx_ep, ep);
-	struct ci13xxx_req *mReq = container_of(req, struct ci13xxx_req, req);
-	struct ci13xxx *ci = mEp->ci;
 	int retval = 0;
 	unsigned long flags;
 
@@ -1137,44 +1182,7 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 		return -EINVAL;
 
 	spin_lock_irqsave(mEp->lock, flags);
-
-	if (mEp->type == USB_ENDPOINT_XFER_CONTROL) {
-		if (req->length)
-			mEp = (ci->ep0_dir == RX) ?
-			       ci->ep0out : ci->ep0in;
-		if (!list_empty(&mEp->qh.queue)) {
-			_ep_nuke(mEp);
-			retval = -EOVERFLOW;
-			dev_warn(mEp->ci->dev, "endpoint ctrl %X nuked\n",
-				 _usb_addr(mEp));
-		}
-	}
-
-	/* first nuke then test link, e.g. previous status has not sent */
-	if (!list_empty(&mReq->queue)) {
-		retval = -EBUSY;
-		dev_err(mEp->ci->dev, "request already in queue\n");
-		goto done;
-	}
-
-	if (req->length > 4 * CI13XXX_PAGE_SIZE) {
-		retval = -EMSGSIZE;
-		dev_err(mEp->ci->dev, "request bigger than one td\n");
-		goto done;
-	}
-
-	/* push request */
-	mReq->req.status = -EINPROGRESS;
-	mReq->req.actual = 0;
-
-	retval = _hardware_enqueue(mEp, mReq);
-
-	if (retval == -EALREADY)
-		retval = 0;
-	if (!retval)
-		list_add_tail(&mReq->queue, &mEp->qh.queue);
-
- done:
+	retval = _ep_queue(ep, req, gfp_flags);
 	spin_unlock_irqrestore(mEp->lock, flags);
 	return retval;
 }
