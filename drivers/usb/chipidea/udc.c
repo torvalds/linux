@@ -461,7 +461,8 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 
 	/*  QH configuration */
 	mEp->qh.ptr->td.next   = cpu_to_le32(mReq->dma);    /* TERMINATE = 0 */
-	mEp->qh.ptr->td.token &= cpu_to_le32(~TD_STATUS);   /* clear status */
+	mEp->qh.ptr->td.token &=
+		cpu_to_le32(~(TD_STATUS_HALTED|TD_STATUS_ACTIVE));
 	mEp->qh.ptr->cap |=  cpu_to_le32(QH_ZLT);
 
 	wmb();   /* synchronize before ep prime */
