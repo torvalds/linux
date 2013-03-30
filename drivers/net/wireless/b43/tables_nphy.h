@@ -182,8 +182,7 @@ void b43_ntab_write(struct b43_wldev *dev, u32 offset, u32 value);
 void b43_ntab_write_bulk(struct b43_wldev *dev, u32 offset,
 			  unsigned int nr_elements, const void *_data);
 
-void b43_nphy_rev0_1_2_tables_init(struct b43_wldev *dev);
-void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev);
+void b43_nphy_tables_init(struct b43_wldev *dev);
 
 const u32 *b43_nphy_get_tx_gain_table(struct b43_wldev *dev);
 

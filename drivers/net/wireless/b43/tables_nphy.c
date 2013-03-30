@@ -3097,7 +3097,7 @@ void b43_ntab_write_bulk(struct b43_wldev *dev, u32 offset,
 #define ntab_upload(dev, offset, data) do { \
 		b43_ntab_write_bulk(dev, offset, offset##_SIZE, data);	\
 	} while (0)
-void b43_nphy_rev0_1_2_tables_init(struct b43_wldev *dev)
+static void b43_nphy_tables_init_rev0(struct b43_wldev *dev)
 {
 	/* Static tables */
 	ntab_upload(dev, B43_NTAB_FRAMESTRUCT, b43_ntab_framestruct);
@@ -3133,7 +3133,7 @@ void b43_nphy_rev0_1_2_tables_init(struct b43_wldev *dev)
 #define ntab_upload_r3(dev, offset, data) do { \
 		b43_ntab_write_bulk(dev, offset, ARRAY_SIZE(data), data); \
 	} while (0)
-void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev)
+static void b43_nphy_tables_init_rev3(struct b43_wldev *dev)
 {
 	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 
@@ -3172,6 +3172,15 @@ void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev)
 			       b43_ntab_antswctl2g_r3[sprom->fem.ghz2.antswlut]);
 	else
 		B43_WARN_ON(1);
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/InitTables */
+void b43_nphy_tables_init(struct b43_wldev *dev)
+{
+	if (dev->phy.rev >= 3)
+		b43_nphy_tables_init_rev3(dev);
+	else
+		b43_nphy_tables_init_rev0(dev);
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/GetIpaGainTbl */

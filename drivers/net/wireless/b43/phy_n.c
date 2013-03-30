@@ -4858,18 +4858,6 @@ static void b43_nphy_set_rx_core_state(struct b43_wldev *dev, u8 mask)
  * N-PHY init
  **************************************************/
 
-/*
- * Upload the N-PHY tables.
- * http://bcm-v4.sipsolutions.net/802.11/PHY/N/InitTables
- */
-static void b43_nphy_tables_init(struct b43_wldev *dev)
-{
-	if (dev->phy.rev < 3)
-		b43_nphy_rev0_1_2_tables_init(dev);
-	else
-		b43_nphy_rev3plus_tables_init(dev);
-}
-
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/MIMOConfig */
 static void b43_nphy_update_mimo_config(struct b43_wldev *dev, s32 preamble)
 {
