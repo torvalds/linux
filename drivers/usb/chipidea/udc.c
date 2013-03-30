@@ -463,7 +463,6 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	mEp->qh.ptr->td.next   = cpu_to_le32(mReq->dma);    /* TERMINATE = 0 */
 	mEp->qh.ptr->td.token &=
 		cpu_to_le32(~(TD_STATUS_HALTED|TD_STATUS_ACTIVE));
-	mEp->qh.ptr->cap |=  cpu_to_le32(QH_ZLT);
 
 	wmb();   /* synchronize before ep prime */
 
@@ -1008,6 +1007,8 @@ static int ep_enable(struct usb_ep *ep,
 
 	if (mEp->type == USB_ENDPOINT_XFER_CONTROL)
 		cap |= QH_IOS;
+	if (mEp->num)
+		cap |= QH_ZLT;
 	cap |= (mEp->ep.maxpacket << __ffs(QH_MAX_PKT)) & QH_MAX_PKT;
 
 	mEp->qh.ptr->cap = cpu_to_le32(cap);
