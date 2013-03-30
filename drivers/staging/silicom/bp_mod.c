@@ -7436,33 +7436,10 @@ get_bypass_slave_pfs(char *page, char **start, off_t off, int count,
 	bpctl_dev_t *pbp_device_block = (bpctl_dev_t *) data;
 
 	int len = 0;
-	bpctl_dev_t *pbp_device_block_slave = NULL;
-	int idx_dev = 0;
+	bpctl_dev_t *pbp_device_block_slave = get_status_port_fn(pbp_device_block);
 	struct net_device *net_slave_dev = NULL;
 
-	if ((pbp_device_block->func == 0) || (pbp_device_block->func == 2)) {
-		for (idx_dev = 0;
-		     ((bpctl_dev_arr[idx_dev].pdev != NULL)
-		      && (idx_dev < device_num)); idx_dev++) {
-			if ((bpctl_dev_arr[idx_dev].bus ==
-			     pbp_device_block->bus)
-			    && (bpctl_dev_arr[idx_dev].slot ==
-				pbp_device_block->slot)) {
-				if ((pbp_device_block->func == 0)
-				    && (bpctl_dev_arr[idx_dev].func == 1)) {
-					pbp_device_block_slave =
-					    &bpctl_dev_arr[idx_dev];
-					break;
-				}
-				if ((pbp_device_block->func == 2) &&
-				    (bpctl_dev_arr[idx_dev].func == 3)) {
-					pbp_device_block_slave =
-					    &bpctl_dev_arr[idx_dev];
-					break;
-				}
-			}
-		}
-	} else
+	if (!pbp_device_block_slave)
 		pbp_device_block_slave = pbp_device_block;
 	if (!pbp_device_block_slave) {
 		len = sprintf(page, "fail\n");
