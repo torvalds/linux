@@ -471,6 +471,7 @@ struct it87_data {
 	unsigned long last_updated;	/* In jiffies */
 
 	u16 in_scaled;		/* Internal voltage sensors are scaled */
+	u16 has_in;		/* Bitfield, voltage sensors enabled */
 	u8 in[10][3];		/* [nr][0]=in, [1]=min, [2]=max */
 	u8 has_fan;		/* Bitfield, fans enabled */
 	u16 fan[6][2];		/* Register values, [nr][0]=fan, [1]=min */
@@ -482,6 +483,7 @@ struct it87_data {
 	u8 vid;			/* Register encoding, combined */
 	u8 vrm;
 	u32 alarms;		/* Register encoding, combined */
+	bool has_beep;		/* true if beep supported */
 	u8 beeps;		/* Register encoding */
 	u8 fan_main_ctrl;	/* Register value */
 	u8 fan_ctl;		/* Register value */
@@ -1751,74 +1753,85 @@ static ssize_t show_name(struct device *dev, struct device_attribute
 }
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
 
-static struct attribute *it87_attributes_in[10][5] = {
+static umode_t it87_in_is_visible(struct kobject *kobj,
+				  struct attribute *attr, int index)
 {
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct it87_data *data = dev_get_drvdata(dev);
+	int i = index / 5;	/* voltage index */
+	int a = index % 5;	/* attribute index */
+
+	if (index >= 40) {	/* in8, in9 only have input attributes */
+		i = index - 40 + 8;
+		a = 0;
+	}
+
+	if (!(data->has_in & (1 << i)))
+		return 0;
+
+	if (a == 4 && !data->has_beep)
+		return 0;
+
+	return attr->mode;
+}
+
+static struct attribute *it87_attributes_in[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
 	&sensor_dev_attr_in0_min.dev_attr.attr,
 	&sensor_dev_attr_in0_max.dev_attr.attr,
 	&sensor_dev_attr_in0_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_in0_beep.dev_attr.attr,	/* 4 */
+
 	&sensor_dev_attr_in1_input.dev_attr.attr,
 	&sensor_dev_attr_in1_min.dev_attr.attr,
 	&sensor_dev_attr_in1_max.dev_attr.attr,
 	&sensor_dev_attr_in1_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_in1_beep.dev_attr.attr,	/* 9 */
+
 	&sensor_dev_attr_in2_input.dev_attr.attr,
 	&sensor_dev_attr_in2_min.dev_attr.attr,
 	&sensor_dev_attr_in2_max.dev_attr.attr,
 	&sensor_dev_attr_in2_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_in2_beep.dev_attr.attr,	/* 14 */
+
 	&sensor_dev_attr_in3_input.dev_attr.attr,
 	&sensor_dev_attr_in3_min.dev_attr.attr,
 	&sensor_dev_attr_in3_max.dev_attr.attr,
 	&sensor_dev_attr_in3_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_in3_beep.dev_attr.attr,	/* 19 */
+
 	&sensor_dev_attr_in4_input.dev_attr.attr,
 	&sensor_dev_attr_in4_min.dev_attr.attr,
 	&sensor_dev_attr_in4_max.dev_attr.attr,
 	&sensor_dev_attr_in4_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_in4_beep.dev_attr.attr,	/* 24 */
+
 	&sensor_dev_attr_in5_input.dev_attr.attr,
 	&sensor_dev_attr_in5_min.dev_attr.attr,
 	&sensor_dev_attr_in5_max.dev_attr.attr,
 	&sensor_dev_attr_in5_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_in5_beep.dev_attr.attr,	/* 29 */
+
 	&sensor_dev_attr_in6_input.dev_attr.attr,
 	&sensor_dev_attr_in6_min.dev_attr.attr,
 	&sensor_dev_attr_in6_max.dev_attr.attr,
 	&sensor_dev_attr_in6_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_in6_beep.dev_attr.attr,	/* 34 */
+
 	&sensor_dev_attr_in7_input.dev_attr.attr,
 	&sensor_dev_attr_in7_min.dev_attr.attr,
 	&sensor_dev_attr_in7_max.dev_attr.attr,
 	&sensor_dev_attr_in7_alarm.dev_attr.attr,
-	NULL
-}, {
-	&sensor_dev_attr_in8_input.dev_attr.attr,
-	NULL
-}, {
-	&sensor_dev_attr_in9_input.dev_attr.attr,
-	NULL
-} };
+	&sensor_dev_attr_in7_beep.dev_attr.attr,	/* 39 */
 
-static const struct attribute_group it87_group_in[10] = {
-	{ .attrs = it87_attributes_in[0] },
-	{ .attrs = it87_attributes_in[1] },
-	{ .attrs = it87_attributes_in[2] },
-	{ .attrs = it87_attributes_in[3] },
-	{ .attrs = it87_attributes_in[4] },
-	{ .attrs = it87_attributes_in[5] },
-	{ .attrs = it87_attributes_in[6] },
-	{ .attrs = it87_attributes_in[7] },
-	{ .attrs = it87_attributes_in[8] },
-	{ .attrs = it87_attributes_in[9] },
+	&sensor_dev_attr_in8_input.dev_attr.attr,	/* 40 */
+
+	&sensor_dev_attr_in9_input.dev_attr.attr,	/* 41 */
+};
+
+static const struct attribute_group it87_group_in = {
+	.attrs = it87_attributes_in,
+	.is_visible = it87_in_is_visible,
 };
 
 static struct attribute *it87_attributes_temp[3][6] = {
@@ -1866,19 +1879,6 @@ static struct attribute *it87_attributes[] = {
 
 static const struct attribute_group it87_group = {
 	.attrs = it87_attributes,
-};
-
-static struct attribute *it87_attributes_in_beep[] = {
-	&sensor_dev_attr_in0_beep.dev_attr.attr,
-	&sensor_dev_attr_in1_beep.dev_attr.attr,
-	&sensor_dev_attr_in2_beep.dev_attr.attr,
-	&sensor_dev_attr_in3_beep.dev_attr.attr,
-	&sensor_dev_attr_in4_beep.dev_attr.attr,
-	&sensor_dev_attr_in5_beep.dev_attr.attr,
-	&sensor_dev_attr_in6_beep.dev_attr.attr,
-	&sensor_dev_attr_in7_beep.dev_attr.attr,
-	NULL,
-	NULL,
 };
 
 static struct attribute *it87_attributes_temp_beep[] = {
@@ -2435,14 +2435,8 @@ static void it87_remove_files(struct device *dev)
 	int i;
 
 	sysfs_remove_group(&dev->kobj, &it87_group);
-	for (i = 0; i < 10; i++) {
-		if (sio_data->skip_in & (1 << i))
-			continue;
-		sysfs_remove_group(&dev->kobj, &it87_group_in[i]);
-		if (it87_attributes_in_beep[i])
-			sysfs_remove_file(&dev->kobj,
-					  it87_attributes_in_beep[i]);
-	}
+	sysfs_remove_group(&dev->kobj, &it87_group_in);
+
 	for (i = 0; i < 3; i++) {
 		if (!(data->has_temp & (1 << i)))
 			continue;
@@ -2736,6 +2730,10 @@ static int it87_probe(struct platform_device *pdev)
 			data->has_temp &= ~(1 << 2);
 	}
 
+	data->has_in = 0x3ff & ~sio_data->skip_in;
+
+	data->has_beep = !!sio_data->beep_pin;
+
 	/* Initialize the IT87 chip */
 	it87_init_device(pdev);
 
@@ -2744,19 +2742,9 @@ static int it87_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	for (i = 0; i < 10; i++) {
-		if (sio_data->skip_in & (1 << i))
-			continue;
-		err = sysfs_create_group(&dev->kobj, &it87_group_in[i]);
-		if (err)
-			goto error;
-		if (sio_data->beep_pin && it87_attributes_in_beep[i]) {
-			err = sysfs_create_file(&dev->kobj,
-						it87_attributes_in_beep[i]);
-			if (err)
-				goto error;
-		}
-	}
+	err = sysfs_create_group(&dev->kobj, &it87_group_in);
+	if (err)
+		goto error;
 
 	for (i = 0; i < 3; i++) {
 		if (!(data->has_temp & (1 << i)))
