@@ -143,7 +143,7 @@ static int spear_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	u32 val;
 
 	rc = clk_enable(pc->clk);
-	if (!rc)
+	if (rc)
 		return rc;
 
 	val = spear_pwm_readl(pc, pwm->hwpwm, PWMCR);
@@ -209,12 +209,12 @@ static int spear_pwm_probe(struct platform_device *pdev)
 	pc->chip.npwm = NUM_PWM;
 
 	ret = clk_prepare(pc->clk);
-	if (!ret)
+	if (ret)
 		return ret;
 
 	if (of_device_is_compatible(np, "st,spear1340-pwm")) {
 		ret = clk_enable(pc->clk);
-		if (!ret) {
+		if (ret) {
 			clk_unprepare(pc->clk);
 			return ret;
 		}
