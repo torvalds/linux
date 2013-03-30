@@ -766,8 +766,8 @@ static struct page *ceph_msg_data_bio_next(struct ceph_msg_data *data,
 		*length = cursor->resid;
 	else
 		*length = (size_t) (bio_vec->bv_len - cursor->vector_offset);
-	BUG_ON(*length > PAGE_SIZE);
 	BUG_ON(*length > cursor->resid);
+	BUG_ON(*page_offset + *length > PAGE_SIZE);
 
 	return bio_vec->bv_page;
 }
@@ -876,14 +876,13 @@ static bool ceph_msg_data_pages_advance(struct ceph_msg_data *data,
 	/* Advance the cursor page offset */
 
 	cursor->resid -= bytes;
-	cursor->page_offset += bytes;
-	if (!bytes || cursor->page_offset & ~PAGE_MASK)
+	cursor->page_offset = (cursor->page_offset + bytes) & ~PAGE_MASK;
+	if (!bytes || cursor->page_offset)
 		return false;	/* more bytes to process in the current page */
 
-	/* Move on to the next page */
+	/* Move on to the next page; offset is already at 0 */
 
 	BUG_ON(cursor->page_index >= cursor->page_count);
-	cursor->page_offset = 0;
 	cursor->page_index++;
 	cursor->last_piece = cursor->resid <= PAGE_SIZE;
 
@@ -934,8 +933,9 @@ static struct page *ceph_msg_data_pagelist_next(struct ceph_msg_data *data,
 	BUG_ON(!cursor->page);
 	BUG_ON(cursor->offset + cursor->resid != pagelist->length);
 
+	/* offset of first page in pagelist is always 0 */
 	*page_offset = cursor->offset & ~PAGE_MASK;
-	if (cursor->last_piece) /* pagelist offset is always 0 */
+	if (cursor->last_piece)
 		*length = cursor->resid;
 	else
 		*length = PAGE_SIZE - *page_offset;
@@ -961,7 +961,7 @@ static bool ceph_msg_data_pagelist_advance(struct ceph_msg_data *data,
 
 	cursor->resid -= bytes;
 	cursor->offset += bytes;
-	/* pagelist offset is always 0 */
+	/* offset of first page in pagelist is always 0 */
 	if (!bytes || cursor->offset & ~PAGE_MASK)
 		return false;	/* more bytes to process in the current page */
 
