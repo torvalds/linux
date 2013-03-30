@@ -55,16 +55,8 @@ static void register_dgrp_device(struct nd_struct *node,
 				 void (*register_hook)(struct proc_dir_entry *de));
 
 /* File operation declarations */
-static int dgrp_gen_proc_open(struct inode *, struct file *);
-static int dgrp_gen_proc_close(struct inode *, struct file *);
 static int parse_write_config(char *);
 
-
-static const struct file_operations dgrp_proc_file_ops = {
-	.owner   = THIS_MODULE,
-	.open    = dgrp_gen_proc_open,
-	.release = dgrp_gen_proc_close,
-};
 
 static struct inode_operations proc_inode_ops = {
 	.permission = dgrp_inode_permission
@@ -345,61 +337,6 @@ static void unregister_proc_table(struct dgrp_proc_entry *table,
 		remove_proc_entry(de->name, de->parent);
 		table->de = NULL;
 	}
-}
-
-static int dgrp_gen_proc_open(struct inode *inode, struct file *file)
-{
-	struct proc_dir_entry *de;
-	struct dgrp_proc_entry *entry;
-	int ret = 0;
-
-	de = (struct proc_dir_entry *) PDE(file_inode(file));
-	if (!de || !de->data) {
-		ret = -ENXIO;
-		goto done;
-	}
-
-	entry = (struct dgrp_proc_entry *) de->data;
-	if (!entry) {
-		ret = -ENXIO;
-		goto done;
-	}
-
-	down(&entry->excl_sem);
-
-	if (entry->excl_cnt)
-		ret = -EBUSY;
-	else
-		entry->excl_cnt++;
-
-	up(&entry->excl_sem);
-
-done:
-	return ret;
-}
-
-static int dgrp_gen_proc_close(struct inode *inode, struct file *file)
-{
-	struct proc_dir_entry *de;
-	struct dgrp_proc_entry *entry;
-
-	de = (struct proc_dir_entry *) PDE(file_inode(file));
-	if (!de || !de->data)
-		goto done;
-
-	entry = (struct dgrp_proc_entry *) de->data;
-	if (!entry)
-		goto done;
-
-	down(&entry->excl_sem);
-
-	if (entry->excl_cnt)
-		entry->excl_cnt = 0;
-
-	up(&entry->excl_sem);
-
-done:
-	return 0;
 }
 
 static void *dgrp_config_proc_start(struct seq_file *m, loff_t *pos)
