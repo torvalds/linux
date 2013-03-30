@@ -5434,33 +5434,19 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	u32 reg;
 	u16 value;
 	u16 eeprom;
+	u32 rt;
+	u32 rev;
+	u16 rf;
 
-	/*
-	 * Read EEPROM word for configuration.
-	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF0, &eeprom);
-
-	/*
-	 * Identify RF chipset by EEPROM value
-	 * RT28xx/RT30xx: defined in "EEPROM_NIC_CONF0_RF_TYPE" field
-	 * RT53xx: defined in "EEPROM_CHIP_ID" field
-	 */
 	if (rt2x00_rt(rt2x00dev, RT3290))
 		rt2800_register_read(rt2x00dev, MAC_CSR0_3290, &reg);
 	else
 		rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
 
-	if (rt2x00_get_field32(reg, MAC_CSR0_CHIPSET) == RT3290 ||
-	    rt2x00_get_field32(reg, MAC_CSR0_CHIPSET) == RT5390 ||
-	    rt2x00_get_field32(reg, MAC_CSR0_CHIPSET) == RT5392)
-		rt2x00_eeprom_read(rt2x00dev, EEPROM_CHIP_ID, &value);
-	else
-		value = rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RF_TYPE);
+	rt = rt2x00_get_field32(reg, MAC_CSR0_CHIPSET);
+	rev = rt2x00_get_field32(reg, MAC_CSR0_REVISION);
 
-	rt2x00_set_chip(rt2x00dev, rt2x00_get_field32(reg, MAC_CSR0_CHIPSET),
-			value, rt2x00_get_field32(reg, MAC_CSR0_REVISION));
-
-	switch (rt2x00dev->chip.rt) {
+	switch (rt) {
 	case RT2860:
 	case RT2872:
 	case RT2883:
@@ -5476,11 +5462,32 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	case RT5592:
 		break;
 	default:
-		ERROR(rt2x00dev, "Invalid RT chipset 0x%04x detected.\n", rt2x00dev->chip.rt);
+		ERROR(rt2x00dev,
+		      "Invalid RT chipset 0x%04x, rev %04x detected.\n",
+		      rt, rev);
 		return -ENODEV;
 	}
 
-	switch (rt2x00dev->chip.rf) {
+	rt2x00_set_rt(rt2x00dev, rt, rev);
+
+	/*
+	 * Read EEPROM word for configuration.
+	 */
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF0, &eeprom);
+
+	/*
+	 * Identify RF chipset by EEPROM value
+	 * RT28xx/RT30xx: defined in "EEPROM_NIC_CONF0_RF_TYPE" field
+	 * RT53xx: defined in "EEPROM_CHIP_ID" field
+	 */
+	if (rt2x00_rt(rt2x00dev, RT3290) ||
+	    rt2x00_rt(rt2x00dev, RT5390) ||
+	    rt2x00_rt(rt2x00dev, RT5392))
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_CHIP_ID, &rf);
+	else
+		rf = rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RF_TYPE);
+
+	switch (rf) {
 	case RF2820:
 	case RF2850:
 	case RF2720:
@@ -5501,10 +5508,11 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	case RF5592:
 		break;
 	default:
-		ERROR(rt2x00dev, "Invalid RF chipset 0x%04x detected.\n",
-		      rt2x00dev->chip.rf);
+		ERROR(rt2x00dev, "Invalid RF chipset 0x%04x detected.\n", rf);
 		return -ENODEV;
 	}
+
+	rt2x00_set_rf(rt2x00dev, rf);
 
 	/*
 	 * Identify default antenna configuration.
