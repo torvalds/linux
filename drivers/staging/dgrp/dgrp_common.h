@@ -49,20 +49,20 @@ extern struct dgrp_poll_data dgrp_poll_data;
 extern void dgrp_poll_handler(unsigned long arg);
 
 /* from dgrp_mon_ops.c */
-extern void dgrp_register_mon_hook(struct proc_dir_entry *de);
+extern const struct file_operations dgrp_mon_ops;
 
 /* from dgrp_tty.c */
 extern int dgrp_tty_init(struct nd_struct *nd);
 extern void dgrp_tty_uninit(struct nd_struct *nd);
 
 /* from dgrp_ports_ops.c */
-extern void dgrp_register_ports_hook(struct proc_dir_entry *de);
+extern const struct file_operations dgrp_ports_ops;
 
 /* from dgrp_net_ops.c */
-extern void dgrp_register_net_hook(struct proc_dir_entry *de);
+extern const struct file_operations dgrp_net_ops;
 
 /* from dgrp_dpa_ops.c */
-extern void dgrp_register_dpa_hook(struct proc_dir_entry *de);
+extern const struct file_operations dgrp_dpa_ops;
 extern void dgrp_dpa_data(struct nd_struct *, int, u8 *, int);
 
 /* from dgrp_sysfs.c */

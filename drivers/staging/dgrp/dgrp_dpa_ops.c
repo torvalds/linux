@@ -52,7 +52,7 @@ static long dgrp_dpa_ioctl(struct file *file, unsigned int cmd,
 			   unsigned long arg);
 static unsigned int dgrp_dpa_select(struct file *, struct poll_table_struct *);
 
-static const struct file_operations dpa_ops = {
+const struct file_operations dgrp_dpa_ops = {
 	.owner   =  THIS_MODULE,
 	.read    =  dgrp_dpa_read,
 	.poll    =  dgrp_dpa_select,
@@ -60,12 +60,6 @@ static const struct file_operations dpa_ops = {
 	.open    =  dgrp_dpa_open,
 	.release =  dgrp_dpa_release,
 };
-
-static struct inode_operations dpa_inode_ops = {
-	.permission = dgrp_inode_permission
-};
-
-
 
 struct digi_node {
 	uint	nd_state;		/* Node state: 1 = up, 0 = down. */
@@ -110,17 +104,6 @@ struct digi_debug {
 
 #define DIGI_SETDEBUG      (('d'<<8) | 247)	/* set debug info */
 
-
-void dgrp_register_dpa_hook(struct proc_dir_entry *de)
-{
-	struct nd_struct *node = de->data;
-
-	de->proc_iops = &dpa_inode_ops;
-	de->proc_fops = &dpa_ops;
-
-	node->nd_dpa_de = de;
-	spin_lock_init(&node->nd_dpa_lock);
-}
 
 /*
  * dgrp_dpa_open -- open the DPA device for a particular PortServer

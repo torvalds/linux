@@ -72,7 +72,7 @@ static long dgrp_net_ioctl(struct file *file, unsigned int cmd,
 static unsigned int dgrp_net_select(struct file *file,
 				    struct poll_table_struct *table);
 
-static const struct file_operations net_ops = {
+const struct file_operations dgrp_net_ops = {
 	.owner   =  THIS_MODULE,
 	.read    =  dgrp_net_read,
 	.write   =  dgrp_net_write,
@@ -81,23 +81,6 @@ static const struct file_operations net_ops = {
 	.open    =  dgrp_net_open,
 	.release =  dgrp_net_release,
 };
-
-static struct inode_operations net_inode_ops = {
-	.permission = dgrp_inode_permission
-};
-
-void dgrp_register_net_hook(struct proc_dir_entry *de)
-{
-	struct nd_struct *node = de->data;
-
-	de->proc_iops = &net_inode_ops;
-	de->proc_fops = &net_ops;
-	node->nd_net_de = de;
-	sema_init(&node->nd_net_semaphore, 1);
-	node->nd_state = NS_CLOSED;
-	dgrp_create_node_class_sysfs_files(node);
-}
-
 
 /**
  * dgrp_dump() -- prints memory for debugging purposes.

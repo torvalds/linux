@@ -48,10 +48,9 @@ static struct proc_dir_entry *dgrp_proc_dir_entry;
 
 static int dgrp_add_id(long id);
 static int dgrp_remove_nd(struct nd_struct *nd);
-static void unregister_dgrp_device(struct proc_dir_entry *de);
-static void register_dgrp_device(struct nd_struct *node,
+static struct proc_dir_entry *add_proc_file(struct nd_struct *node,
 				 struct proc_dir_entry *root,
-				 void (*register_hook)(struct proc_dir_entry *de));
+				 const struct file_operations *fops);
 
 /* File operation declarations */
 static int parse_write_config(char *);
@@ -100,6 +99,21 @@ static struct proc_dir_entry *mon_entry_pointer;
 static struct proc_dir_entry *dpa_entry_pointer;
 static struct proc_dir_entry *ports_entry_pointer;
 
+static void remove_files(struct nd_struct *nd)
+{
+	char buf[3];
+	ID_TO_CHAR(nd->nd_ID, buf);
+	dgrp_remove_node_class_sysfs_files(nd);
+	if (nd->nd_net_de)
+		remove_proc_entry(buf, net_entry_pointer);
+	if (nd->nd_mon_de)
+		remove_proc_entry(buf, mon_entry_pointer);
+	if (nd->nd_dpa_de)
+		remove_proc_entry(buf, dpa_entry_pointer);
+	if (nd->nd_ports_de)
+		remove_proc_entry(buf, ports_entry_pointer);
+}
+
 void dgrp_unregister_proc(void)
 {
 	net_entry_pointer = NULL;
@@ -109,21 +123,8 @@ void dgrp_unregister_proc(void)
 
 	if (dgrp_proc_dir_entry) {
 		struct nd_struct *nd;
-		list_for_each_entry(nd, &nd_struct_list, list) {
-			if (nd->nd_net_de) {
-				unregister_dgrp_device(nd->nd_net_de);
-				dgrp_remove_node_class_sysfs_files(nd);
-			}
-
-			if (nd->nd_mon_de)
-				unregister_dgrp_device(nd->nd_mon_de);
-
-			if (nd->nd_dpa_de)
-				unregister_dgrp_device(nd->nd_dpa_de);
-
-			if (nd->nd_ports_de)
-				unregister_dgrp_device(nd->nd_ports_de);
-		}
+		list_for_each_entry(nd, &nd_struct_list, list)
+			remove_files(nd);
 		remove_proc_entry("dgrp/config", NULL);
 		remove_proc_entry("dgrp/info", NULL);
 		remove_proc_entry("dgrp/nodeinfo", NULL);
@@ -494,6 +495,10 @@ static int dgrp_add_id(long id)
 	init_waitqueue_head(&nd->nd_tx_waitq);
 	init_waitqueue_head(&nd->nd_mon_wqueue);
 	init_waitqueue_head(&nd->nd_dpa_wqueue);
+	sema_init(&nd->nd_mon_semaphore, 1);
+	sema_init(&nd->nd_net_semaphore, 1);
+	spin_lock_init(&nd->nd_dpa_lock);
+	nd->nd_state = NS_CLOSED;
 	for (i = 0; i < SEQ_MAX; i++)
 		init_waitqueue_head(&nd->nd_seq_wque[i]);
 
@@ -508,12 +513,12 @@ static int dgrp_add_id(long id)
 	if (ret)
 		goto error_out;
 
-	register_dgrp_device(nd, net_entry_pointer, dgrp_register_net_hook);
-	register_dgrp_device(nd, mon_entry_pointer, dgrp_register_mon_hook);
-	register_dgrp_device(nd, dpa_entry_pointer, dgrp_register_dpa_hook);
-	register_dgrp_device(nd, ports_entry_pointer,
-			      dgrp_register_ports_hook);
-
+	dgrp_create_node_class_sysfs_files(nd);
+	nd->nd_net_de = add_proc_file(nd, net_entry_pointer, &dgrp_net_ops);
+	nd->nd_mon_de = add_proc_file(nd, mon_entry_pointer, &dgrp_mon_ops);
+	nd->nd_dpa_de = add_proc_file(nd, dpa_entry_pointer, &dgrp_dpa_ops);
+	nd->nd_ports_de = add_proc_file(nd, ports_entry_pointer,
+					&dgrp_ports_ops);
 	return 0;
 
 	/* FIXME this guy should free the tty driver stored in nd and destroy
@@ -532,16 +537,7 @@ static int dgrp_remove_nd(struct nd_struct *nd)
 	if (nd->nd_tty_ref_cnt)
 		return -EBUSY;
 
-	if (nd->nd_net_de) {
-		unregister_dgrp_device(nd->nd_net_de);
-		dgrp_remove_node_class_sysfs_files(nd);
-	}
-
-	unregister_dgrp_device(nd->nd_mon_de);
-
-	unregister_dgrp_device(nd->nd_ports_de);
-
-	unregister_dgrp_device(nd->nd_dpa_de);
+	remove_files(nd);
 
 	dgrp_tty_uninit(nd);
 
@@ -553,9 +549,9 @@ static int dgrp_remove_nd(struct nd_struct *nd)
 	return 0;
 }
 
-static void register_dgrp_device(struct nd_struct *node,
+static struct proc_dir_entry *add_proc_file(struct nd_struct *node,
 				 struct proc_dir_entry *root,
-				 void (*register_hook)(struct proc_dir_entry *de))
+				 const struct file_operations *fops)
 {
 	char buf[3];
 	struct proc_dir_entry *de;
@@ -563,28 +559,10 @@ static void register_dgrp_device(struct nd_struct *node,
 	ID_TO_CHAR(node->nd_ID, buf);
 
 	de = create_proc_entry(buf, 0600 | S_IFREG, root);
-	if (!de)
-		return;
-
-	de->data = (void *) node;
-
-	if (register_hook)
-		register_hook(de);
-
-}
-
-static void unregister_dgrp_device(struct proc_dir_entry *de)
-{
-	if (!de)
-		return;
-
-	/* Don't unregister proc entries that are still being used.. */
-	if ((atomic_read(&de->count)) != 1) {
-		pr_alert("%s - proc entry %s in use. Not removing.\n",
-			 __func__, de->name);
-		return;
+	if (de) {
+		de->data = (void *) node;
+		de->proc_fops = fops;
+		de->proc_iops = &proc_inode_ops;
 	}
-
-	remove_proc_entry(de->name, de->parent);
-	de = NULL;
+	return de;
 }
