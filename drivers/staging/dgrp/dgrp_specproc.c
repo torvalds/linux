@@ -201,8 +201,7 @@ void dgrp_register_proc(void)
 	/*
 	 *	Register /proc/dgrp
 	 */
-	dgrp_proc_dir_entry = proc_create("dgrp", S_IFDIR, NULL,
-					  &dgrp_proc_file_ops);
+	dgrp_proc_dir_entry = proc_mkdir("dgrp", NULL);
 	register_proc_table(dgrp_table, dgrp_proc_dir_entry);
 }
 
