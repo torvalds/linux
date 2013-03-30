@@ -89,7 +89,9 @@ static const u8 TMP411_TEMP_HIGHEST_LSB[2]		= { 0x33, 0x37 };
 /* Manufacturer / Device ID's */
 #define TMP401_MANUFACTURER_ID			0x55
 #define TMP401_DEVICE_ID			0x11
-#define TMP411_DEVICE_ID			0x12
+#define TMP411A_DEVICE_ID			0x12
+#define TMP411B_DEVICE_ID			0x13
+#define TMP411C_DEVICE_ID			0x10
 #define TMP431_DEVICE_ID			0x31
 
 /*
@@ -561,7 +563,19 @@ static int tmp401_detect(struct i2c_client *client,
 			return -ENODEV;
 		kind = tmp401;
 		break;
-	case TMP411_DEVICE_ID:
+	case TMP411A_DEVICE_ID:
+		if (client->addr != 0x4c)
+			return -ENODEV;
+		kind = tmp411;
+		break;
+	case TMP411B_DEVICE_ID:
+		if (client->addr != 0x4d)
+			return -ENODEV;
+		kind = tmp411;
+		break;
+	case TMP411C_DEVICE_ID:
+		if (client->addr != 0x4e)
+			return -ENODEV;
 		kind = tmp411;
 		break;
 	case TMP431_DEVICE_ID:
