@@ -429,7 +429,7 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 			mReq->ptr->token  |= cpu_to_le32(TD_IOC);
 	}
 	mReq->ptr->page[0]  = cpu_to_le32(mReq->req.dma);
-	for (i = 1; i < 5; i++) {
+	for (i = 1; i < TD_PAGE_COUNT; i++) {
 		u32 page = mReq->req.dma + i * CI13XXX_PAGE_SIZE;
 		page &= ~TD_RESERVED_MASK;
 		mReq->ptr->page[i] = cpu_to_le32(page);
@@ -676,7 +676,7 @@ static int _ep_queue(struct usb_ep *ep, struct usb_request *req,
 		return -EBUSY;
 	}
 
-	if (req->length > 4 * CI13XXX_PAGE_SIZE) {
+	if (req->length > (TD_PAGE_COUNT - 1) * CI13XXX_PAGE_SIZE) {
 		dev_err(mEp->ci->dev, "request bigger than one td\n");
 		return -EMSGSIZE;
 	}
