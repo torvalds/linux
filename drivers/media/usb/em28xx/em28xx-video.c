@@ -996,7 +996,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	}
 
 	size_to_scale(dev, width, height, &hscale, &vscale);
-	scale_to_size(dev, hscale, hscale, &width, &height);
+	scale_to_size(dev, hscale, vscale, &width, &height);
 
 	f->fmt.pix.width = width;
 	f->fmt.pix.height = height;
