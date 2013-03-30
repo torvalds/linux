@@ -471,6 +471,7 @@ struct it87_data {
 	unsigned long last_updated;	/* In jiffies */
 
 	u16 in_scaled;		/* Internal voltage sensors are scaled */
+	u16 in_internal;	/* Bitfield, internal sensors (for labels) */
 	u16 has_in;		/* Bitfield, voltage sensors enabled */
 	u8 in[10][3];		/* [nr][0]=in, [1]=min, [2]=max */
 	u8 has_fan;		/* Bitfield, fans enabled */
@@ -480,6 +481,7 @@ struct it87_data {
 	u8 sensor;		/* Register value (IT87_REG_TEMP_ENABLE) */
 	u8 extra;		/* Register value (IT87_REG_TEMP_EXTRA) */
 	u8 fan_div[3];		/* Register encoding, shifted right */
+	bool has_vid;		/* True if VID supported */
 	u8 vid;			/* Register encoding, combined */
 	u8 vrm;
 	u32 alarms;		/* Register encoding, combined */
@@ -1879,15 +1881,37 @@ static const struct attribute_group it87_group_temp = {
 	.is_visible = it87_temp_is_visible,
 };
 
+static umode_t it87_is_visible(struct kobject *kobj,
+			       struct attribute *attr, int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct it87_data *data = dev_get_drvdata(dev);
+
+	if ((index == 3 || index == 4) && !data->has_vid)
+		return 0;
+
+	if (index > 4 && !(data->in_internal & (1 << (index - 5))))
+		return 0;
+
+	return attr->mode;
+}
+
 static struct attribute *it87_attributes[] = {
 	&dev_attr_alarms.attr,
 	&sensor_dev_attr_intrusion0_alarm.dev_attr.attr,
 	&dev_attr_name.attr,
+	&dev_attr_vrm.attr,				/* 3 */
+	&dev_attr_cpu0_vid.attr,			/* 4 */
+	&sensor_dev_attr_in3_label.dev_attr.attr,	/* 5 .. 8 */
+	&sensor_dev_attr_in7_label.dev_attr.attr,
+	&sensor_dev_attr_in8_label.dev_attr.attr,
+	&sensor_dev_attr_in9_label.dev_attr.attr,
 	NULL
 };
 
 static const struct attribute_group it87_group = {
 	.attrs = it87_attributes,
+	.is_visible = it87_is_visible,
 };
 
 static umode_t it87_fan_is_visible(struct kobject *kobj,
@@ -2072,28 +2096,6 @@ static struct attribute *it87_attributes_auto_pwm[] = {
 static const struct attribute_group it87_group_auto_pwm = {
 	.attrs = it87_attributes_auto_pwm,
 	.is_visible = it87_auto_pwm_is_visible,
-};
-
-static struct attribute *it87_attributes_vid[] = {
-	&dev_attr_vrm.attr,
-	&dev_attr_cpu0_vid.attr,
-	NULL
-};
-
-static const struct attribute_group it87_group_vid = {
-	.attrs = it87_attributes_vid,
-};
-
-static struct attribute *it87_attributes_label[] = {
-	&sensor_dev_attr_in3_label.dev_attr.attr,
-	&sensor_dev_attr_in7_label.dev_attr.attr,
-	&sensor_dev_attr_in8_label.dev_attr.attr,
-	&sensor_dev_attr_in9_label.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group it87_group_label = {
-	.attrs = it87_attributes_label,
 };
 
 /* SuperIO detection - will change isa_address if a chip is found */
@@ -2460,18 +2462,12 @@ exit:
 
 static void it87_remove_files(struct device *dev)
 {
-	struct it87_sio_data *sio_data = dev_get_platdata(dev);
-
 	sysfs_remove_group(&dev->kobj, &it87_group);
 	sysfs_remove_group(&dev->kobj, &it87_group_in);
 	sysfs_remove_group(&dev->kobj, &it87_group_temp);
 	sysfs_remove_group(&dev->kobj, &it87_group_fan);
 	sysfs_remove_group(&dev->kobj, &it87_group_pwm);
 	sysfs_remove_group(&dev->kobj, &it87_group_auto_pwm);
-
-	if (!sio_data->skip_vid)
-		sysfs_remove_group(&dev->kobj, &it87_group_vid);
-	sysfs_remove_group(&dev->kobj, &it87_group_label);
 }
 
 /* Called when we have found a new IT87. */
@@ -2649,8 +2645,8 @@ static int it87_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device *dev = &pdev->dev;
 	struct it87_sio_data *sio_data = dev_get_platdata(dev);
-	int err = 0, i;
 	int enable_pwm_interface;
+	int err = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!devm_request_region(&pdev->dev, res->start, IT87_EC_EXTENT,
@@ -2731,12 +2727,20 @@ static int it87_probe(struct platform_device *pdev)
 			data->has_temp &= ~(1 << 2);
 	}
 
+	data->in_internal = sio_data->internal;
 	data->has_in = 0x3ff & ~sio_data->skip_in;
 
 	data->has_beep = !!sio_data->beep_pin;
 
 	/* Initialize the IT87 chip */
 	it87_init_device(pdev);
+
+	if (!sio_data->skip_vid) {
+		data->has_vid = true;
+		data->vrm = vid_which_vrm();
+		/* VID reading from Super-I/O config space if available */
+		data->vid = sio_data->vid_value;
+	}
 
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&dev->kobj, &it87_group);
@@ -2768,25 +2772,6 @@ static int it87_probe(struct platform_device *pdev)
 			if (err)
 				goto error;
 		}
-	}
-
-	if (!sio_data->skip_vid) {
-		data->vrm = vid_which_vrm();
-		/* VID reading from Super-I/O config space if available */
-		data->vid = sio_data->vid_value;
-		err = sysfs_create_group(&dev->kobj, &it87_group_vid);
-		if (err)
-			goto error;
-	}
-
-	/* Export labels for internal sensors */
-	for (i = 0; i < 4; i++) {
-		if (!(sio_data->internal & (1 << i)))
-			continue;
-		err = sysfs_create_file(&dev->kobj,
-					it87_attributes_label[i]);
-		if (err)
-			goto error;
 	}
 
 	data->hwmon_dev = hwmon_device_register(dev);
