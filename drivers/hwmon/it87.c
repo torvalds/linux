@@ -1898,51 +1898,75 @@ static const struct attribute_group it87_group = {
 	.attrs = it87_attributes,
 };
 
-static struct attribute *it87_attributes_fan[6][3+1] = { {
+static umode_t it87_fan_is_visible(struct kobject *kobj,
+				   struct attribute *attr, int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct it87_data *data = dev_get_drvdata(dev);
+	int i = index / 5;	/* fan index */
+	int a = index % 5;	/* attribute index */
+
+	if (index >= 15) {	/* fan 4..6 don't have divisor attributes */
+		i = (index - 15) / 4 + 3;
+		a = (index - 15) % 4;
+	}
+
+	if (!(data->has_fan & (1 << i)))
+		return 0;
+
+	if (a == 3) {				/* beep */
+		if (!data->has_beep)
+			return 0;
+		/* first fan beep attribute is writable */
+		if (i == __ffs(data->has_fan))
+			return attr->mode | S_IWUSR;
+	}
+
+	if (a == 4 && has_16bit_fans(data))	/* divisor */
+		return 0;
+
+	return attr->mode;
+}
+
+static struct attribute *it87_attributes_fan[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
 	&sensor_dev_attr_fan1_min.dev_attr.attr,
 	&sensor_dev_attr_fan1_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_fan1_beep.dev_attr.attr,	/* 3 */
+	&sensor_dev_attr_fan1_div.dev_attr.attr,	/* 4 */
+
 	&sensor_dev_attr_fan2_input.dev_attr.attr,
 	&sensor_dev_attr_fan2_min.dev_attr.attr,
 	&sensor_dev_attr_fan2_alarm.dev_attr.attr,
-	NULL
-}, {
+	&sensor_dev_attr_fan2_beep.dev_attr.attr,
+	&sensor_dev_attr_fan2_div.dev_attr.attr,	/* 9 */
+
 	&sensor_dev_attr_fan3_input.dev_attr.attr,
 	&sensor_dev_attr_fan3_min.dev_attr.attr,
 	&sensor_dev_attr_fan3_alarm.dev_attr.attr,
-	NULL
-}, {
-	&sensor_dev_attr_fan4_input.dev_attr.attr,
+	&sensor_dev_attr_fan3_beep.dev_attr.attr,
+	&sensor_dev_attr_fan3_div.dev_attr.attr,	/* 14 */
+
+	&sensor_dev_attr_fan4_input.dev_attr.attr,	/* 15 */
 	&sensor_dev_attr_fan4_min.dev_attr.attr,
 	&sensor_dev_attr_fan4_alarm.dev_attr.attr,
-	NULL
-}, {
-	&sensor_dev_attr_fan5_input.dev_attr.attr,
+	&sensor_dev_attr_fan4_beep.dev_attr.attr,
+
+	&sensor_dev_attr_fan5_input.dev_attr.attr,	/* 19 */
 	&sensor_dev_attr_fan5_min.dev_attr.attr,
 	&sensor_dev_attr_fan5_alarm.dev_attr.attr,
-	NULL
-}, {
-	&sensor_dev_attr_fan6_input.dev_attr.attr,
+	&sensor_dev_attr_fan5_beep.dev_attr.attr,
+
+	&sensor_dev_attr_fan6_input.dev_attr.attr,	/* 23 */
 	&sensor_dev_attr_fan6_min.dev_attr.attr,
 	&sensor_dev_attr_fan6_alarm.dev_attr.attr,
+	&sensor_dev_attr_fan6_beep.dev_attr.attr,
 	NULL
-} };
-
-static const struct attribute_group it87_group_fan[6] = {
-	{ .attrs = it87_attributes_fan[0] },
-	{ .attrs = it87_attributes_fan[1] },
-	{ .attrs = it87_attributes_fan[2] },
-	{ .attrs = it87_attributes_fan[3] },
-	{ .attrs = it87_attributes_fan[4] },
-	{ .attrs = it87_attributes_fan[5] },
 };
 
-static const struct attribute *it87_attributes_fan_div[] = {
-	&sensor_dev_attr_fan1_div.dev_attr.attr,
-	&sensor_dev_attr_fan2_div.dev_attr.attr,
-	&sensor_dev_attr_fan3_div.dev_attr.attr,
+static const struct attribute_group it87_group_fan = {
+	.attrs = it87_attributes_fan,
+	.is_visible = it87_fan_is_visible,
 };
 
 static struct attribute *it87_attributes_pwm[6][4+1] = { {
@@ -2044,15 +2068,6 @@ static const struct attribute_group it87_group_autopwm[3] = {
 	{ .attrs = it87_attributes_autopwm[0] },
 	{ .attrs = it87_attributes_autopwm[1] },
 	{ .attrs = it87_attributes_autopwm[2] },
-};
-
-static struct attribute *it87_attributes_fan_beep[] = {
-	&sensor_dev_attr_fan1_beep.dev_attr.attr,
-	&sensor_dev_attr_fan2_beep.dev_attr.attr,
-	&sensor_dev_attr_fan3_beep.dev_attr.attr,
-	&sensor_dev_attr_fan4_beep.dev_attr.attr,
-	&sensor_dev_attr_fan5_beep.dev_attr.attr,
-	&sensor_dev_attr_fan6_beep.dev_attr.attr,
 };
 
 static struct attribute *it87_attributes_vid[] = {
@@ -2448,18 +2463,8 @@ static void it87_remove_files(struct device *dev)
 	sysfs_remove_group(&dev->kobj, &it87_group);
 	sysfs_remove_group(&dev->kobj, &it87_group_in);
 	sysfs_remove_group(&dev->kobj, &it87_group_temp);
+	sysfs_remove_group(&dev->kobj, &it87_group_fan);
 
-	for (i = 0; i < 6; i++) {
-		if (!(data->has_fan & (1 << i)))
-			continue;
-		sysfs_remove_group(&dev->kobj, &it87_group_fan[i]);
-		if (sio_data->beep_pin)
-			sysfs_remove_file(&dev->kobj,
-					  it87_attributes_fan_beep[i]);
-		if (i < 3 && !has_16bit_fans(data))
-			sysfs_remove_file(&dev->kobj,
-					  it87_attributes_fan_div[i]);
-	}
 	for (i = 0; i < 6; i++) {
 		if (sio_data->skip_pwm & (1 << i))
 			continue;
@@ -2650,7 +2655,6 @@ static int it87_probe(struct platform_device *pdev)
 	struct it87_sio_data *sio_data = dev_get_platdata(dev);
 	int err = 0, i;
 	int enable_pwm_interface;
-	int fan_beep_need_rw;
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!devm_request_region(&pdev->dev, res->start, IT87_EC_EXTENT,
@@ -2751,43 +2755,9 @@ static int it87_probe(struct platform_device *pdev)
 	if (err)
 		goto error;
 
-	/* Do not create fan files for disabled fans */
-	fan_beep_need_rw = 1;
-	for (i = 0; i < 6; i++) {
-		if (!(data->has_fan & (1 << i)))
-			continue;
-		err = sysfs_create_group(&dev->kobj, &it87_group_fan[i]);
-		if (err)
-			goto error;
-
-		if (i < 3 && !has_16bit_fans(data)) {
-			err = sysfs_create_file(&dev->kobj,
-						it87_attributes_fan_div[i]);
-			if (err)
-				goto error;
-		}
-
-		if (sio_data->beep_pin) {
-			err = sysfs_create_file(&dev->kobj,
-						it87_attributes_fan_beep[i]);
-			if (err)
-				goto error;
-			if (!fan_beep_need_rw)
-				continue;
-
-			/*
-			 * As we have a single beep enable bit for all fans,
-			 * only the first enabled fan has a writable attribute
-			 * for it.
-			 */
-			if (sysfs_chmod_file(&dev->kobj,
-					     it87_attributes_fan_beep[i],
-					     S_IRUGO | S_IWUSR))
-				dev_dbg(dev, "chmod +w fan%d_beep failed\n",
-					i + 1);
-			fan_beep_need_rw = 0;
-		}
-	}
+	err = sysfs_create_group(&dev->kobj, &it87_group_fan);
+	if (err)
+		goto error;
 
 	if (enable_pwm_interface) {
 		for (i = 0; i < 6; i++) {
