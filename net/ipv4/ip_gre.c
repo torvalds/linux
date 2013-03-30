@@ -660,7 +660,6 @@ static void __gre_tunnel_init(struct net_device *dev)
 
 	dev->needed_headroom	= LL_MAX_HEADER + sizeof(struct iphdr) + 4;
 	dev->mtu		= ETH_DATA_LEN - sizeof(struct iphdr) - 4;
-	dev->iflink		= 0;
 
 	dev->features		|= NETIF_F_NETNS_LOCAL | GRE_FEATURES;
 	dev->hw_features	|= GRE_FEATURES;
