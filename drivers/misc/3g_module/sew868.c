@@ -60,7 +60,7 @@ static irqreturn_t detect_irq_handler(int irq, void *dev_id)
     }
     return IRQ_HANDLED;
 }
-int modem_poweron_off(int on_off)
+static int modem_poweron_off(int on_off)
 {
 	struct rk30_sew868_data *pdata = gpdata;		
   if(on_off)
@@ -180,18 +180,18 @@ err1:
 	return 0;
 }
 
-int sew868_suspend(struct platform_device *pdev, pm_message_t state)
+static int sew868_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	do_wakeup_irq = 1;
 	return 0;
 }
 
-int sew868_resume(struct platform_device *pdev)
+static int sew868_resume(struct platform_device *pdev)
 {
 	return 0;
 }
 
-void sew868_shutdown(struct platform_device *pdev)
+static void sew868_shutdown(struct platform_device *pdev)
 {
 	struct rk30_sew868_data *pdata = pdev->dev.platform_data;
 	struct modem_dev *sew868_data = platform_get_drvdata(pdev);

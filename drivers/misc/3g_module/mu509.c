@@ -73,7 +73,7 @@ static irqreturn_t detect_irq_handler(int irq, void *dev_id)
     }
     return IRQ_HANDLED;
 }
-int modem_poweron_off(int on_off)
+static int modem_poweron_off(int on_off)
 {
 	struct rk29_mu509_data *pdata = gpdata;		
   if(on_off)
@@ -295,7 +295,7 @@ err4:
 	return 0;
 }
 
-int mu509_suspend(struct platform_device *pdev, pm_message_t state)
+static int mu509_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	suspend_int = 1;
 	do_wakeup_irq = 1;
@@ -309,7 +309,7 @@ int mu509_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-int mu509_resume(struct platform_device *pdev)
+static int mu509_resume(struct platform_device *pdev)
 {
 #if defined(CONFIG_ARCH_RK29)
 	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
@@ -324,7 +324,7 @@ int mu509_resume(struct platform_device *pdev)
 	return 0;
 }
 
-void mu509_shutdown(struct platform_device *pdev)
+static void mu509_shutdown(struct platform_device *pdev)
 {
 	struct rk29_mu509_data *pdata = pdev->dev.platform_data;
 	struct modem_dev *mu509_data = platform_get_drvdata(pdev);

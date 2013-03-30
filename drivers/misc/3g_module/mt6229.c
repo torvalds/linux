@@ -72,7 +72,7 @@ static irqreturn_t detect_irq_handler(int irq, void *dev_id)
     }
     return IRQ_HANDLED;
 }
-int modem_poweron_off(int on_off)
+static int modem_poweron_off(int on_off)
 {
 	struct rk29_mt6229_data *pdata = gpdata;		
   if(on_off)
@@ -188,13 +188,17 @@ static ssize_t modem_status_write(struct class *cls, const char *_buf, size_t _c
     int new_state = simple_strtoul(_buf, NULL, 16);
    if(new_state == modem_status) return _count;
    if (new_state == 1){
-     printk("%s, c(%d), modem resume \n", __FUNCTION__, new_state);
-     gpio_set_value(gpdata->modem_usb_en, GPIO_HIGH);
-     gpio_set_value(gpdata->modem_uart_en,GPIO_LOW);
+    // printk("%s, c(%d), modem resume \n", __FUNCTION__, new_state);
+    // gpio_set_value(gpdata->modem_usb_en, GPIO_HIGH);
+    // gpio_set_value(gpdata->modem_uart_en,GPIO_LOW);
+	 printk("%s, c(%d), open modem \n", __FUNCTION__, new_state);	
+	 modem_poweron_off(1);
    }else if(new_state == 0){
-     printk("%s, c(%d), modem suspend \n", __FUNCTION__, new_state);
-     gpio_set_value(gpdata->modem_usb_en, GPIO_LOW);
-     gpio_set_value(gpdata->modem_uart_en,GPIO_HIGH);
+    // printk("%s, c(%d), modem suspend \n", __FUNCTION__, new_state);
+    // gpio_set_value(gpdata->modem_usb_en, GPIO_LOW);
+    // gpio_set_value(gpdata->modem_uart_en,GPIO_HIGH);
+	 printk("%s, c(%d), close modem \n", __FUNCTION__, new_state);	
+	  modem_poweron_off(0);
    }else{
      printk("%s, invalid parameter \n", __FUNCTION__);
    }
@@ -291,7 +295,7 @@ err6:
 	return 0;
 }
 
-int mt6229_suspend(struct platform_device *pdev, pm_message_t state)
+static int mt6229_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	do_wakeup_irq = 1;
 	ap_wakeup_bp(pdev, 0);
@@ -299,14 +303,14 @@ int mt6229_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-int mt6229_resume(struct platform_device *pdev)
+static int mt6229_resume(struct platform_device *pdev)
 {
 	gpio_set_value(gpdata->modem_uart_en,GPIO_LOW);
 	schedule_delayed_work(&wakeup_work, 2*HZ);
 	return 0;
 }
 
-void mt6229_shutdown(struct platform_device *pdev)
+static void mt6229_shutdown(struct platform_device *pdev)
 {
 	struct rk29_mt6229_data *pdata = pdev->dev.platform_data;
 	struct modem_dev *mt6229_data = platform_get_drvdata(pdev);

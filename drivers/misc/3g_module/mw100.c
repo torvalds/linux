@@ -163,7 +163,7 @@ err2:
 	return 0;
 }
 
-int mw100_suspend(struct platform_device *pdev, pm_message_t state)
+static int mw100_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	
 	struct rk29_mw100_data *pdata = pdev->dev.platform_data;
@@ -181,7 +181,7 @@ int mw100_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-int mw100_resume(struct platform_device *pdev)
+static int mw100_resume(struct platform_device *pdev)
 {
 	struct rk29_mw100_data *pdata = pdev->dev.platform_data;
 	int irq;
@@ -194,7 +194,7 @@ int mw100_resume(struct platform_device *pdev)
 	return 0;
 }
 
-void mw100_shutdown(struct platform_device *pdev)
+static void mw100_shutdown(struct platform_device *pdev)
 {
 	struct rk29_mw100_data *pdata = pdev->dev.platform_data;
 	struct modem_dev *mw100_data = platform_get_drvdata(pdev);

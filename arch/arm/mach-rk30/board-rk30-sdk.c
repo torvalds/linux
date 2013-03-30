@@ -60,6 +60,9 @@
 #if defined(CONFIG_MU509)
 #include <linux/mu509.h>
 #endif
+#if defined(CONFIG_MT6229)
+#include <linux/mt6229.h>
+#endif
 #if defined(CONFIG_MW100)
 #include <linux/mw100.h>
 #endif
