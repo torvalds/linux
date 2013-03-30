@@ -14,17 +14,16 @@
 #define __DRIVERS_USB_CHIPIDEA_DEBUG_H
 
 #ifdef CONFIG_USB_CHIPIDEA_DEBUG
-int dbg_create_files(struct device *dev);
-int dbg_remove_files(struct device *dev);
+int dbg_create_files(struct ci13xxx *ci);
+void dbg_remove_files(struct ci13xxx *ci);
 #else
-static inline int dbg_create_files(struct device *dev)
+static inline int dbg_create_files(struct ci13xxx *ci)
 {
 	return 0;
 }
 
-static inline int dbg_remove_files(struct device *dev)
+static inline void dbg_remove_files(struct ci13xxx *ci)
 {
-	return 0;
 }
 #endif
 
