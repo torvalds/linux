@@ -140,7 +140,7 @@ static int hw_ep_enable(struct ci13xxx *ci, int num, int dir, int type)
 
 	if (dir) {
 		mask  = ENDPTCTRL_TXT;  /* type    */
-		data  = type << ffs_nr(mask);
+		data  = type << __ffs(mask);
 
 		mask |= ENDPTCTRL_TXS;  /* unstall */
 		mask |= ENDPTCTRL_TXR;  /* reset data toggle */
@@ -149,7 +149,7 @@ static int hw_ep_enable(struct ci13xxx *ci, int num, int dir, int type)
 		data |= ENDPTCTRL_TXE;
 	} else {
 		mask  = ENDPTCTRL_RXT;  /* type    */
-		data  = type << ffs_nr(mask);
+		data  = type << __ffs(mask);
 
 		mask |= ENDPTCTRL_RXS;  /* unstall */
 		mask |= ENDPTCTRL_RXR;  /* reset data toggle */
@@ -331,7 +331,7 @@ static int hw_test_and_set_setup_guard(struct ci13xxx *ci)
 static void hw_usb_set_address(struct ci13xxx *ci, u8 value)
 {
 	hw_write(ci, OP_DEVICEADDR, DEVICEADDR_USBADR,
-		 value << ffs_nr(DEVICEADDR_USBADR));
+		 value << __ffs(DEVICEADDR_USBADR));
 }
 
 /**
@@ -418,7 +418,7 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	 * TODO - handle requests which spawns into several TDs
 	 */
 	memset(mReq->ptr, 0, sizeof(*mReq->ptr));
-	mReq->ptr->token    = length << ffs_nr(TD_TOTAL_BYTES);
+	mReq->ptr->token    = length << __ffs(TD_TOTAL_BYTES);
 	mReq->ptr->token   &= TD_TOTAL_BYTES;
 	mReq->ptr->token   |= TD_STATUS_ACTIVE;
 	if (mReq->zptr) {
@@ -504,7 +504,7 @@ static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 		mReq->req.status = -1;
 
 	mReq->req.actual   = mReq->ptr->token & TD_TOTAL_BYTES;
-	mReq->req.actual >>= ffs_nr(TD_TOTAL_BYTES);
+	mReq->req.actual >>= __ffs(TD_TOTAL_BYTES);
 	mReq->req.actual   = mReq->req.length - mReq->req.actual;
 	mReq->req.actual   = mReq->req.status ? 0 : mReq->req.actual;
 
@@ -1011,7 +1011,7 @@ static int ep_enable(struct usb_ep *ep,
 		mEp->qh.ptr->cap &= ~QH_ZLT;
 
 	mEp->qh.ptr->cap |=
-		(mEp->ep.maxpacket << ffs_nr(QH_MAX_PKT)) & QH_MAX_PKT;
+		(mEp->ep.maxpacket << __ffs(QH_MAX_PKT)) & QH_MAX_PKT;
 	mEp->qh.ptr->td.next |= TD_TERMINATE;   /* needed? */
 
 	/*

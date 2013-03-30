@@ -155,7 +155,7 @@ int hw_port_test_set(struct ci13xxx *ci, u8 mode)
 	if (mode > TEST_MODE_MAX)
 		return -EINVAL;
 
-	hw_write(ci, OP_PORTSC, PORTSC_PTC, mode << ffs_nr(PORTSC_PTC));
+	hw_write(ci, OP_PORTSC, PORTSC_PTC, mode << __ffs(PORTSC_PTC));
 	return 0;
 }
 
@@ -166,7 +166,7 @@ int hw_port_test_set(struct ci13xxx *ci, u8 mode)
  */
 u8 hw_port_test_get(struct ci13xxx *ci)
 {
-	return hw_read(ci, OP_PORTSC, PORTSC_PTC) >> ffs_nr(PORTSC_PTC);
+	return hw_read(ci, OP_PORTSC, PORTSC_PTC) >> __ffs(PORTSC_PTC);
 }
 
 static int hw_device_init(struct ci13xxx *ci, void __iomem *base)
@@ -182,7 +182,7 @@ static int hw_device_init(struct ci13xxx *ci, void __iomem *base)
 
 	hw_alloc_regmap(ci, false);
 	reg = hw_read(ci, CAP_HCCPARAMS, HCCPARAMS_LEN) >>
-		ffs_nr(HCCPARAMS_LEN);
+		__ffs(HCCPARAMS_LEN);
 	ci->hw_bank.lpm  = reg;
 	hw_alloc_regmap(ci, !!reg);
 	ci->hw_bank.size = ci->hw_bank.op - ci->hw_bank.abs;
@@ -190,7 +190,7 @@ static int hw_device_init(struct ci13xxx *ci, void __iomem *base)
 	ci->hw_bank.size /= sizeof(u32);
 
 	reg = hw_read(ci, CAP_DCCPARAMS, DCCPARAMS_DEN) >>
-		ffs_nr(DCCPARAMS_DEN);
+		__ffs(DCCPARAMS_DEN);
 	ci->hw_ep_max = reg * 2;   /* cache hw ENDPT_MAX */
 
 	if (ci->hw_ep_max > ENDPT_MAX)
