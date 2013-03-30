@@ -134,9 +134,6 @@ if SMP
 config ARC_HAS_COH_CACHES
 	def_bool n
 
-config ARC_HAS_COH_LLSC
-	def_bool n
-
 config ARC_HAS_COH_RTSC
 	def_bool n
 
@@ -304,6 +301,9 @@ config ARC_FPU_SAVE_RESTORE
 	  based on actual usage of FPU by a task. Thus our implemn does
 	  this for all tasks in system.
 
+config ARC_CANT_LLSC
+	def_bool n
+
 menuconfig ARC_CPU_REL_4_10
 	bool "Enable support for Rel 4.10 features"
 	default n
@@ -314,9 +314,7 @@ menuconfig ARC_CPU_REL_4_10
 config ARC_HAS_LLSC
 	bool "Insn: LLOCK/SCOND (efficient atomic ops)"
 	default y
-	depends on ARC_CPU_770
-	# if SMP, enable LLSC ONLY if ARC implementation has coherent atomics
-	depends on !SMP || ARC_HAS_COH_LLSC
+	depends on ARC_CPU_770 && !ARC_CANT_LLSC
 
 config ARC_HAS_SWAPE
 	bool "Insn: SWAPE (endian-swap)"
