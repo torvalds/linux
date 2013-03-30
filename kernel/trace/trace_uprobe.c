@@ -497,8 +497,8 @@ static const struct file_operations uprobe_profile_ops = {
 	.release	= seq_release,
 };
 
-/* uprobe handler */
-static int uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs)
+static void uprobe_trace_print(struct trace_uprobe *tu,
+				unsigned long func, struct pt_regs *regs)
 {
 	struct uprobe_trace_entry_head *entry;
 	struct ring_buffer_event *event;
@@ -511,7 +511,7 @@ static int uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs)
 	event = trace_current_buffer_lock_reserve(&buffer, call->event.type,
 						  size, 0, 0);
 	if (!event)
-		return 0;
+		return;
 
 	entry = ring_buffer_event_data(event);
 	entry->vaddr[0] = instruction_pointer(regs);
@@ -521,7 +521,12 @@ static int uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs)
 
 	if (!filter_current_check_discard(buffer, call, entry, event))
 		trace_buffer_unlock_commit(buffer, event, 0, 0);
+}
 
+/* uprobe handler */
+static int uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs)
+{
+	uprobe_trace_print(tu, 0, regs);
 	return 0;
 }
 
@@ -754,8 +759,8 @@ static bool uprobe_perf_filter(struct uprobe_consumer *uc,
 	return ret;
 }
 
-/* uprobe profile handler */
-static int uprobe_perf_func(struct trace_uprobe *tu, struct pt_regs *regs)
+static void uprobe_perf_print(struct trace_uprobe *tu,
+				unsigned long func, struct pt_regs *regs)
 {
 	struct ftrace_event_call *call = &tu->call;
 	struct uprobe_trace_entry_head *entry;
@@ -764,13 +769,10 @@ static int uprobe_perf_func(struct trace_uprobe *tu, struct pt_regs *regs)
 	void *data;
 	int size, rctx, i;
 
-	if (!uprobe_perf_filter(&tu->consumer, 0, current->mm))
-		return UPROBE_HANDLER_REMOVE;
-
 	size = SIZEOF_TRACE_ENTRY(false);
 	size = ALIGN(size + tu->size + sizeof(u32), sizeof(u64)) - sizeof(u32);
 	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE, "profile buffer not large enough"))
-		return 0;
+		return;
 
 	preempt_disable();
 	entry = perf_trace_buf_prepare(size, call->event.type, regs, &rctx);
@@ -787,6 +789,15 @@ static int uprobe_perf_func(struct trace_uprobe *tu, struct pt_regs *regs)
 	perf_trace_buf_submit(entry, size, rctx, ip, 1, regs, head, NULL);
  out:
 	preempt_enable();
+}
+
+/* uprobe profile handler */
+static int uprobe_perf_func(struct trace_uprobe *tu, struct pt_regs *regs)
+{
+	if (!uprobe_perf_filter(&tu->consumer, 0, current->mm))
+		return UPROBE_HANDLER_REMOVE;
+
+	uprobe_perf_print(tu, 0, regs);
 	return 0;
 }
 #endif	/* CONFIG_PERF_EVENTS */
