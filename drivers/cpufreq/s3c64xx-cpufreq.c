@@ -87,7 +87,7 @@ static int s3c64xx_cpufreq_set_target(struct cpufreq_policy *policy,
 	freqs.old = clk_get_rate(armclk) / 1000;
 	freqs.new = s3c64xx_freq_table[i].frequency;
 	freqs.flags = 0;
-	dvfs = &s3c64xx_dvfs_table[s3c64xx_freq_table[i].index];
+	dvfs = &s3c64xx_dvfs_table[s3c64xx_freq_table[i].driver_data];
 
 	if (freqs.old == freqs.new)
 		return 0;

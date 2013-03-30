@@ -70,7 +70,7 @@ static void s3c_cpufreq_getcur(struct s3c_cpufreq_config *cfg)
 	cfg->freq.pclk = pclk = clk_get_rate(clk_pclk);
 	cfg->freq.armclk = armclk = clk_get_rate(clk_arm);
 
-	cfg->pll.index = __raw_readl(S3C2410_MPLLCON);
+	cfg->pll.driver_data = __raw_readl(S3C2410_MPLLCON);
 	cfg->pll.frequency = fclk;
 
 	cfg->freq.hclk_tns = 1000000000 / (cfg->freq.hclk / 10);
@@ -431,7 +431,7 @@ static unsigned int suspend_freq;
 static int s3c_cpufreq_suspend(struct cpufreq_policy *policy)
 {
 	suspend_pll.frequency = clk_get_rate(_clk_mpll);
-	suspend_pll.index = __raw_readl(S3C2410_MPLLCON);
+	suspend_pll.driver_data = __raw_readl(S3C2410_MPLLCON);
 	suspend_freq = s3c_cpufreq_get(0) * 1000;
 
 	return 0;

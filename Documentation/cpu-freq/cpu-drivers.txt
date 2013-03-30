@@ -186,7 +186,7 @@ As most cpufreq processors only allow for being set to a few specific
 frequencies, a "frequency table" with some functions might assist in
 some work of the processor driver. Such a "frequency table" consists
 of an array of struct cpufreq_frequency_table entries, with any value in
-"index" you want to use, and the corresponding frequency in
+"driver_data" you want to use, and the corresponding frequency in
 "frequency". At the end of the table, you need to add a
 cpufreq_frequency_table entry with frequency set to CPUFREQ_TABLE_END. And
 if you want to skip one entry in the table, set the frequency to 
@@ -214,10 +214,4 @@ int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 is the corresponding frequency table helper for the ->target
 stage. Just pass the values to this function, and the unsigned int
 index returns the number of the frequency table entry which contains
-the frequency the CPU shall be set to. PLEASE NOTE: This is not the
-"index" which is in this cpufreq_table_entry.index, but instead
-cpufreq_table[index]. So, the new frequency is
-cpufreq_table[index].frequency, and the value you stored into the
-frequency table "index" field is
-cpufreq_table[index].index.
-
+the frequency the CPU shall be set to.

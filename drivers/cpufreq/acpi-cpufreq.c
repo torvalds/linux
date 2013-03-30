@@ -232,7 +232,7 @@ static unsigned extract_msr(u32 msr, struct acpi_cpufreq_data *data)
 	perf = data->acpi_data;
 
 	for (i = 0; data->freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		if (msr == perf->states[data->freq_table[i].index].status)
+		if (msr == perf->states[data->freq_table[i].driver_data].status)
 			return data->freq_table[i].frequency;
 	}
 	return data->freq_table[0].frequency;
@@ -442,7 +442,7 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 		goto out;
 	}
 
-	next_perf_state = data->freq_table[next_state].index;
+	next_perf_state = data->freq_table[next_state].driver_data;
 	if (perf->state == next_perf_state) {
 		if (unlikely(data->resume)) {
 			pr_debug("Called after resume, resetting to P%d\n",
@@ -811,7 +811,7 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		    data->freq_table[valid_states-1].frequency / 1000)
 			continue;
 
-		data->freq_table[valid_states].index = i;
+		data->freq_table[valid_states].driver_data = i;
 		data->freq_table[valid_states].frequency =
 		    perf->states[i].core_frequency * 1000;
 		valid_states++;
