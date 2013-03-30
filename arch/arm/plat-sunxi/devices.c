@@ -37,7 +37,7 @@
 #include <asm/setup.h>
 #include <asm/pmu.h>
 #include <mach/hardware.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 
 #if 0
 /* uart */
@@ -86,11 +86,7 @@ struct platform_device sw_pdev_nand =
 };
 
 /* twi0 */
-#if defined CONFIG_ARCH_SUN4I
-static struct sun4i_i2c_platform_data sunxi_twi0_pdata[] = {
-#elif defined CONFIG_ARCH_SUN5I
-static struct sun5i_i2c_platform_data sunxi_twi0_pdata[] = {
-#endif
+static struct sunxi_i2c_platform_data sunxi_twi0_pdata[] = {
 	{
 		.bus_num   = 0,
 		.frequency = I2C0_TRANSFER_SPEED,
@@ -110,11 +106,7 @@ static struct resource sunxi_twi0_resources[] = {
 };
 
 struct platform_device sunxi_twi0_device = {
-#if defined CONFIG_ARCH_SUN4I
-	.name		= "sun4i-i2c",
-#elif defined CONFIG_ARCH_SUN5I
-	.name		= "sun5i-i2c",
-#endif
+	.name		= "sunxi-i2c",
 	.id		    = 0,
 	.resource	= sunxi_twi0_resources,
 	.num_resources	= ARRAY_SIZE(sunxi_twi0_resources),
@@ -124,11 +116,7 @@ struct platform_device sunxi_twi0_device = {
 };
 
 /* twi1 */
-#if defined CONFIG_ARCH_SUN4I
-static struct sun4i_i2c_platform_data sunxi_twi1_pdata[] = {
-#elif defined CONFIG_ARCH_SUN5I
-static struct sun5i_i2c_platform_data sunxi_twi1_pdata[] = {
-#endif
+static struct sunxi_i2c_platform_data sunxi_twi1_pdata[] = {
 	{
 		.bus_num   = 1,
     	.frequency = I2C1_TRANSFER_SPEED,
@@ -148,11 +136,7 @@ static struct resource sunxi_twi1_resources[] = {
 };
 
 struct platform_device sunxi_twi1_device = {
-#if defined CONFIG_ARCH_SUN4I
-	.name		= "sun4i-i2c",
-#elif defined CONFIG_ARCH_SUN5I
-	.name		= "sun5i-i2c",
-#endif
+	.name		= "sunxi-i2c",
 	.id		    = 1,
 	.resource	= sunxi_twi1_resources,
 	.num_resources	= ARRAY_SIZE(sunxi_twi1_resources),
@@ -162,11 +146,7 @@ struct platform_device sunxi_twi1_device = {
 };
 
 /* twi2 */
-#if defined CONFIG_ARCH_SUN4I
-static struct sun4i_i2c_platform_data sunxi_twi2_pdata[] = {
-#elif defined CONFIG_ARCH_SUN5I
-static struct sun5i_i2c_platform_data sunxi_twi2_pdata[] = {
-#endif
+static struct sunxi_i2c_platform_data sunxi_twi2_pdata[] = {
 	{
 		.bus_num   = 2,
     	.frequency = I2C2_TRANSFER_SPEED,
@@ -186,11 +166,7 @@ static struct resource sunxi_twi2_resources[] = {
 };
 
 struct platform_device sunxi_twi2_device = {
-#if defined CONFIG_ARCH_SUN4I
-	.name		= "sun4i-i2c",
-#elif defined CONFIG_ARCH_SUN5I
-	.name		= "sun5i-i2c",
-#endif
+	.name		= "sunxi-i2c",
 	.id		    = 2,
 	.resource	= sunxi_twi2_resources,
 	.num_resources	= ARRAY_SIZE(sunxi_twi2_resources),

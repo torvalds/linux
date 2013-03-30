@@ -1,13 +1,10 @@
 /*
- * arch/arm/mach-sun5i/include/mach/i2c.h
+ * arch/arm/mach-sunxi/include/plat/i2c.h
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- *
  * Tom Cubie <tanglaing@allwinnertech.com>
  * Victor Wei <weiziheng@allwinnertech.com>
- *
- * SUN5I two wire interface reg definition
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -25,9 +22,8 @@
  * MA 02111-1307 USA
  */
 
-
-#ifndef _SUN5I_I2C_PRIVATE_H_
-#define _SUN5I_I2C_PRIVATE_H_
+#ifndef _SUNXI_I2C_PRIVATE_H_
+#define _SUNXI_I2C_PRIVATE_H_
 
 #define TWI_MODULE_NUM    (3)
 
@@ -192,7 +188,7 @@ Foscl is clock SCL;standard mode:100KHz or fast mode:400KHz
 #define I2C1_TRANSFER_SPEED     (200000)
 #define I2C2_TRANSFER_SPEED     (200000)
 
-struct sun5i_i2c_platform_data {
+struct sunxi_i2c_platform_data {
 	int 		 bus_num;
 	unsigned int frequency;
 };
