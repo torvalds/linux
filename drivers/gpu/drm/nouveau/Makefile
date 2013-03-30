@@ -160,6 +160,7 @@ nouveau-y += core/engine/disp/nva0.o
 nouveau-y += core/engine/disp/nva3.o
 nouveau-y += core/engine/disp/nvd0.o
 nouveau-y += core/engine/disp/nve0.o
+nouveau-y += core/engine/disp/nvf0.o
 nouveau-y += core/engine/disp/dacnv50.o
 nouveau-y += core/engine/disp/dport.o
 nouveau-y += core/engine/disp/hdanva3.o
