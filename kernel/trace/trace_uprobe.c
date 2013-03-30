@@ -76,6 +76,8 @@ static DEFINE_MUTEX(uprobe_lock);
 static LIST_HEAD(uprobe_list);
 
 static int uprobe_dispatcher(struct uprobe_consumer *con, struct pt_regs *regs);
+static int uretprobe_dispatcher(struct uprobe_consumer *con,
+				unsigned long func, struct pt_regs *regs);
 
 static inline void init_trace_uprobe_filter(struct trace_uprobe_filter *filter)
 {
@@ -89,11 +91,16 @@ static inline bool uprobe_filter_is_empty(struct trace_uprobe_filter *filter)
 	return !filter->nr_systemwide && list_empty(&filter->perf_events);
 }
 
+static inline bool is_ret_probe(struct trace_uprobe *tu)
+{
+	return tu->consumer.ret_handler != NULL;
+}
+
 /*
  * Allocate new trace_uprobe and initialize it (including uprobes).
  */
 static struct trace_uprobe *
-alloc_trace_uprobe(const char *group, const char *event, int nargs)
+alloc_trace_uprobe(const char *group, const char *event, int nargs, bool is_ret)
 {
 	struct trace_uprobe *tu;
 
@@ -118,6 +125,8 @@ alloc_trace_uprobe(const char *group, const char *event, int nargs)
 
 	INIT_LIST_HEAD(&tu->list);
 	tu->consumer.handler = uprobe_dispatcher;
+	if (is_ret)
+		tu->consumer.ret_handler = uretprobe_dispatcher;
 	init_trace_uprobe_filter(&tu->filter);
 	return tu;
 
@@ -315,7 +324,7 @@ static int create_trace_uprobe(int argc, char **argv)
 		kfree(tail);
 	}
 
-	tu = alloc_trace_uprobe(group, event, argc);
+	tu = alloc_trace_uprobe(group, event, argc, false);
 	if (IS_ERR(tu)) {
 		pr_info("Failed to allocate trace_uprobe.(%d)\n", (int)PTR_ERR(tu));
 		ret = PTR_ERR(tu);
@@ -528,6 +537,12 @@ static int uprobe_trace_func(struct trace_uprobe *tu, struct pt_regs *regs)
 {
 	uprobe_trace_print(tu, 0, regs);
 	return 0;
+}
+
+static void uretprobe_trace_func(struct trace_uprobe *tu, unsigned long func,
+				struct pt_regs *regs)
+{
+	uprobe_trace_print(tu, func, regs);
 }
 
 /* Event entry printers */
@@ -800,6 +815,12 @@ static int uprobe_perf_func(struct trace_uprobe *tu, struct pt_regs *regs)
 	uprobe_perf_print(tu, 0, regs);
 	return 0;
 }
+
+static void uretprobe_perf_func(struct trace_uprobe *tu, unsigned long func,
+				struct pt_regs *regs)
+{
+	uprobe_perf_print(tu, func, regs);
+}
 #endif	/* CONFIG_PERF_EVENTS */
 
 static
@@ -852,6 +873,23 @@ static int uprobe_dispatcher(struct uprobe_consumer *con, struct pt_regs *regs)
 		ret |= uprobe_perf_func(tu, regs);
 #endif
 	return ret;
+}
+
+static int uretprobe_dispatcher(struct uprobe_consumer *con,
+				unsigned long func, struct pt_regs *regs)
+{
+	struct trace_uprobe *tu;
+
+	tu = container_of(con, struct trace_uprobe, consumer);
+
+	if (tu->flags & TP_FLAG_TRACE)
+		uretprobe_trace_func(tu, func, regs);
+
+#ifdef CONFIG_PERF_EVENTS
+	if (tu->flags & TP_FLAG_PROFILE)
+		uretprobe_perf_func(tu, func, regs);
+#endif
+	return 0;
 }
 
 static struct trace_event_functions uprobe_funcs = {
