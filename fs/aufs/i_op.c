@@ -715,8 +715,7 @@ static int aufs_setattr(struct dentry *dentry, struct iattr *ia)
 			goto out_unlock;
 	} else if ((ia->ia_valid & (ATTR_UID | ATTR_GID))
 		   && (ia->ia_valid & ATTR_CTIME)) {
-		err = security_path_chown(&a->h_path, vfsub_ia_uid(ia),
-					  vfsub_ia_gid(ia));
+		err = security_path_chown(&a->h_path, ia->ia_uid, ia->ia_gid);
 		if (unlikely(err))
 			goto out_unlock;
 	}
