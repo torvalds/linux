@@ -601,8 +601,6 @@ __acquires(ci->lock)
 {
 	int retval;
 
-	dbg_event(0xFF, "BUS RST", 0);
-
 	spin_unlock(&ci->lock);
 	retval = _gadget_stop_activity(&ci->gadget);
 	if (retval)
@@ -773,7 +771,6 @@ __acquires(mEp->lock)
 		if (retval < 0)
 			break;
 		list_del_init(&mReq->queue);
-		dbg_done(_usb_addr(mEp), mReq->ptr->token, retval);
 		if (mReq->req.complete != NULL) {
 			spin_unlock(mEp->lock);
 			if ((mEp->type == USB_ENDPOINT_XFER_CONTROL) &&
@@ -786,8 +783,6 @@ __acquires(mEp->lock)
 
 	if (retval == -EBUSY)
 		retval = 0;
-	if (retval < 0)
-		dbg_event(_usb_addr(mEp), "DONE", retval);
 
 	return retval;
 }
@@ -819,8 +814,6 @@ __acquires(ci->lock)
 				if (err > 0)   /* needs status phase */
 					err = isr_setup_status_phase(ci);
 				if (err < 0) {
-					dbg_event(_usb_addr(mEp),
-						  "ERROR", err);
 					spin_unlock(&ci->lock);
 					if (usb_ep_set_halt(&mEp->ep))
 						dev_err(ci->dev,
@@ -855,8 +848,6 @@ __acquires(ci->lock)
 		type = req.bRequestType;
 
 		ci->ep0_dir = (type & USB_DIR_IN) ? TX : RX;
-
-		dbg_setup(_usb_addr(mEp), &req);
 
 		switch (req.bRequest) {
 		case USB_REQ_CLEAR_FEATURE:
@@ -969,8 +960,6 @@ delegate:
 		}
 
 		if (err < 0) {
-			dbg_event(_usb_addr(mEp), "ERROR", err);
-
 			spin_unlock(&ci->lock);
 			if (usb_ep_set_halt(&mEp->ep))
 				dev_err(ci->dev, "error: ep_set_halt\n");
@@ -1011,8 +1000,6 @@ static int ep_enable(struct usb_ep *ep,
 	mEp->type = usb_endpoint_type(desc);
 
 	mEp->ep.maxpacket = usb_endpoint_maxp(desc);
-
-	dbg_event(_usb_addr(mEp), "ENABLE", 0);
 
 	mEp->qh.ptr->cap = 0;
 
@@ -1060,8 +1047,6 @@ static int ep_disable(struct usb_ep *ep)
 
 	direction = mEp->dir;
 	do {
-		dbg_event(_usb_addr(mEp), "DISABLE", 0);
-
 		retval |= _ep_nuke(mEp);
 		retval |= hw_ep_disable(mEp->ci, mEp->num, mEp->dir);
 
@@ -1101,8 +1086,6 @@ static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 		}
 	}
 
-	dbg_event(_usb_addr(mEp), "ALLOC", mReq == NULL);
-
 	return (mReq == NULL) ? NULL : &mReq->req;
 }
 
@@ -1129,8 +1112,6 @@ static void ep_free_request(struct usb_ep *ep, struct usb_request *req)
 	if (mReq->ptr)
 		dma_pool_free(mEp->td_pool, mReq->ptr, mReq->dma);
 	kfree(mReq);
-
-	dbg_event(_usb_addr(mEp), "FREE", 0);
 
 	spin_unlock_irqrestore(mEp->lock, flags);
 }
@@ -1179,18 +1160,14 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 		dev_warn(mEp->ci->dev, "request length truncated\n");
 	}
 
-	dbg_queue(_usb_addr(mEp), req, retval);
-
 	/* push request */
 	mReq->req.status = -EINPROGRESS;
 	mReq->req.actual = 0;
 
 	retval = _hardware_enqueue(mEp, mReq);
 
-	if (retval == -EALREADY) {
-		dbg_event(_usb_addr(mEp), "QUEUE", retval);
+	if (retval == -EALREADY)
 		retval = 0;
-	}
 	if (!retval)
 		list_add_tail(&mReq->queue, &mEp->qh.queue);
 
@@ -1216,8 +1193,6 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 		return -EINVAL;
 
 	spin_lock_irqsave(mEp->lock, flags);
-
-	dbg_event(_usb_addr(mEp), "DEQUEUE", 0);
 
 	hw_ep_flush(mEp->ci, mEp->num, mEp->dir);
 
@@ -1265,7 +1240,6 @@ static int ep_set_halt(struct usb_ep *ep, int value)
 
 	direction = mEp->dir;
 	do {
-		dbg_event(_usb_addr(mEp), "HALT", value);
 		retval |= hw_ep_set_halt(mEp->ci, mEp->num, mEp->dir, value);
 
 		if (!value)
@@ -1294,10 +1268,7 @@ static int ep_set_wedge(struct usb_ep *ep)
 		return -EINVAL;
 
 	spin_lock_irqsave(mEp->lock, flags);
-
-	dbg_event(_usb_addr(mEp), "WEDGE", 0);
 	mEp->wedge = 1;
-
 	spin_unlock_irqrestore(mEp->lock, flags);
 
 	return usb_ep_set_halt(ep);
@@ -1320,7 +1291,6 @@ static void ep_fifo_flush(struct usb_ep *ep)
 
 	spin_lock_irqsave(mEp->lock, flags);
 
-	dbg_event(_usb_addr(mEp), "FFLUSH", 0);
 	hw_ep_flush(mEp->ci, mEp->num, mEp->dir);
 
 	spin_unlock_irqrestore(mEp->lock, flags);
@@ -1611,7 +1581,6 @@ static irqreturn_t udc_irq(struct ci13xxx *ci)
 		}
 	}
 	intr = hw_test_and_clear_intr_active(ci);
-	dbg_interrupt(intr);
 
 	if (intr) {
 		/* order defines priority - do NOT change it */
