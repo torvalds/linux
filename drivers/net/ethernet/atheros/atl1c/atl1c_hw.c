@@ -810,7 +810,7 @@ int atl1c_power_saving(struct atl1c_hw *hw, u32 wufc)
 	if (wufc & AT_WUFC_LNKC) {
 		wol_ctrl |= WOL_LINK_CHG_EN | WOL_LINK_CHG_PME_EN;
 		if (atl1c_write_phy_reg(hw, MII_IER, IER_LINK_UP) != 0) {
-			dev_dbg(&pdev->dev, "%s: write phy MII_IER faild.\n",
+			dev_dbg(&pdev->dev, "%s: write phy MII_IER failed.\n",
 				atl1c_driver_name);
 		}
 	}
