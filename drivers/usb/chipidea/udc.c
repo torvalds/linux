@@ -481,10 +481,12 @@ done:
  */
 static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 {
+	u32 tmptoken = le32_to_cpu(mReq->ptr->token);
+
 	if (mReq->req.status != -EALREADY)
 		return -EINVAL;
 
-	if ((cpu_to_le32(TD_STATUS_ACTIVE) & mReq->ptr->token) != 0)
+	if ((TD_STATUS_ACTIVE & tmptoken) != 0)
 		return -EBUSY;
 
 	if (mReq->zptr) {
@@ -498,7 +500,7 @@ static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 
 	usb_gadget_unmap_request(&mEp->ci->gadget, &mReq->req, mEp->dir);
 
-	mReq->req.status = le32_to_cpu(mReq->ptr->token) & TD_STATUS;
+	mReq->req.status = tmptoken & TD_STATUS;
 	if ((TD_STATUS_HALTED & mReq->req.status) != 0)
 		mReq->req.status = -1;
 	else if ((TD_STATUS_DT_ERR & mReq->req.status) != 0)
@@ -506,7 +508,7 @@ static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	else if ((TD_STATUS_TR_ERR & mReq->req.status) != 0)
 		mReq->req.status = -1;
 
-	mReq->req.actual   = le32_to_cpu(mReq->ptr->token) & TD_TOTAL_BYTES;
+	mReq->req.actual   = tmptoken & TD_TOTAL_BYTES;
 	mReq->req.actual >>= __ffs(TD_TOTAL_BYTES);
 	mReq->req.actual   = mReq->req.length - mReq->req.actual;
 	mReq->req.actual   = mReq->req.status ? 0 : mReq->req.actual;
