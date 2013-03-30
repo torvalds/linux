@@ -858,6 +858,9 @@ int __init mvebu_mbus_init(const char *soc, phys_addr_t mbuswins_phys_base,
 		return -ENOMEM;
 	}
 
+	if (of_find_compatible_node(NULL, NULL, "marvell,coherency-fabric"))
+		mbus->hw_io_coherency = 1;
+
 	for (win = 0; win < mbus->soc->num_wins; win++)
 		mvebu_mbus_disable_window(mbus, win);
 
