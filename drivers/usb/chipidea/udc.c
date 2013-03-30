@@ -1158,9 +1158,9 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 	}
 
 	if (req->length > 4 * CI13XXX_PAGE_SIZE) {
-		req->length = 4 * CI13XXX_PAGE_SIZE;
 		retval = -EMSGSIZE;
-		dev_warn(mEp->ci->dev, "request length truncated\n");
+		dev_err(mEp->ci->dev, "request bigger than one td\n");
+		goto done;
 	}
 
 	/* push request */
