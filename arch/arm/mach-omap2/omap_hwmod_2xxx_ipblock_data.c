@@ -864,3 +864,40 @@ struct omap_hwmod omap2xxx_rng_hwmod = {
 	.flags		= HWMOD_INIT_NO_RESET,
 	.class		= &omap2_rng_hwmod_class,
 };
+
+/* SHAM */
+
+static struct omap_hwmod_class_sysconfig omap2_sham_sysc = {
+	.rev_offs	= 0x5c,
+	.sysc_offs	= 0x60,
+	.syss_offs	= 0x64,
+	.sysc_flags	= (SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
+			   SYSS_HAS_RESET_STATUS),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap2xxx_sham_class = {
+	.name	= "sham",
+	.sysc	= &omap2_sham_sysc,
+};
+
+static struct omap_hwmod_irq_info omap2_sham_mpu_irqs[] = {
+	{ .irq = 51 + OMAP_INTC_START, },
+	{ .irq = -1 }
+};
+
+struct omap_hwmod omap2xxx_sham_hwmod = {
+	.name		= "sham",
+	.mpu_irqs	= omap2_sham_mpu_irqs,
+	.main_clk	= "l4_ck",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 4,
+			.module_bit = OMAP24XX_EN_SHA_SHIFT,
+			.idlest_reg_id = 4,
+			.idlest_idle_bit = OMAP24XX_ST_SHA_SHIFT,
+		},
+	},
+	.class		= &omap2xxx_sham_class,
+};
