@@ -1071,6 +1071,8 @@ struct net_device {
 	struct list_head	dev_list;
 	struct list_head	napi_list;
 	struct list_head	unreg_list;
+	struct list_head	upper_dev_list; /* List of upper devices */
+
 
 	/* currently active device features */
 	netdev_features_t	features;
@@ -1143,6 +1145,13 @@ struct net_device {
 	spinlock_t		addr_list_lock;
 	struct netdev_hw_addr_list	uc;	/* Unicast mac addresses */
 	struct netdev_hw_addr_list	mc;	/* Multicast mac addresses */
+	struct netdev_hw_addr_list	dev_addrs; /* list of device
+						    * hw addresses
+						    */
+#ifdef CONFIG_SYSFS
+	struct kset		*queues_kset;
+#endif
+
 	bool			uc_promisc;
 	unsigned int		promiscuity;
 	unsigned int		allmulti;
@@ -1175,21 +1184,11 @@ struct net_device {
 						 * avoid dirtying this cache line.
 						 */
 
-	struct list_head	upper_dev_list; /* List of upper devices */
-
 	/* Interface address info used in eth_type_trans() */
 	unsigned char		*dev_addr;	/* hw address, (before bcast
 						   because most packets are
 						   unicast) */
 
-	struct netdev_hw_addr_list	dev_addrs; /* list of device
-						      hw addresses */
-
-	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
-
-#ifdef CONFIG_SYSFS
-	struct kset		*queues_kset;
-#endif
 
 #ifdef CONFIG_RPS
 	struct netdev_rx_queue	*_rx;
@@ -1200,18 +1199,14 @@ struct net_device {
 	/* Number of RX queues currently active in device */
 	unsigned int		real_num_rx_queues;
 
-#ifdef CONFIG_RFS_ACCEL
-	/* CPU reverse-mapping for RX completion interrupts, indexed
-	 * by RX queue number.  Assigned by driver.  This must only be
-	 * set if the ndo_rx_flow_steer operation is defined. */
-	struct cpu_rmap		*rx_cpu_rmap;
-#endif
 #endif
 
 	rx_handler_func_t __rcu	*rx_handler;
 	void __rcu		*rx_handler_data;
 
 	struct netdev_queue __rcu *ingress_queue;
+	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
+
 
 /*
  * Cache lines mostly used on transmit path
@@ -1232,6 +1227,12 @@ struct net_device {
 
 #ifdef CONFIG_XPS
 	struct xps_dev_maps __rcu *xps_maps;
+#endif
+#ifdef CONFIG_RFS_ACCEL
+	/* CPU reverse-mapping for RX completion interrupts, indexed
+	 * by RX queue number.  Assigned by driver.  This must only be
+	 * set if the ndo_rx_flow_steer operation is defined. */
+	struct cpu_rmap		*rx_cpu_rmap;
 #endif
 
 	/* These may be needed for future network-power-down code. */
