@@ -1748,8 +1748,13 @@ static void b43_nphy_rev3_rssi_cal(struct b43_wldev *dev)
 		rssical_radio_regs = nphy->rssical_cache.rssical_radio_regs_5G;
 		rssical_phy_regs = nphy->rssical_cache.rssical_phy_regs_5G;
 	}
-	rssical_radio_regs[0] = b43_radio_read(dev, 0x602B);
-	rssical_radio_regs[0] = b43_radio_read(dev, 0x702B);
+	if (dev->phy.rev >= 7) {
+	} else {
+		rssical_radio_regs[0] = b43_radio_read(dev, B2056_RX0 |
+						       B2056_RX_RSSI_MISC);
+		rssical_radio_regs[1] = b43_radio_read(dev, B2056_RX1 |
+						       B2056_RX_RSSI_MISC);
+	}
 	rssical_phy_regs[0] = b43_phy_read(dev, B43_NPHY_RSSIMC_0I_RSSI_Z);
 	rssical_phy_regs[1] = b43_phy_read(dev, B43_NPHY_RSSIMC_0Q_RSSI_Z);
 	rssical_phy_regs[2] = b43_phy_read(dev, B43_NPHY_RSSIMC_1I_RSSI_Z);
@@ -3899,9 +3904,13 @@ static void b43_nphy_restore_rssi_cal(struct b43_wldev *dev)
 		rssical_phy_regs = nphy->rssical_cache.rssical_phy_regs_5G;
 	}
 
-	/* TODO use some definitions */
-	b43_radio_maskset(dev, 0x602B, 0xE3, rssical_radio_regs[0]);
-	b43_radio_maskset(dev, 0x702B, 0xE3, rssical_radio_regs[1]);
+	if (dev->phy.rev >= 7) {
+	} else {
+		b43_radio_maskset(dev, B2056_RX0 | B2056_RX_RSSI_MISC, 0xE3,
+				  rssical_radio_regs[0]);
+		b43_radio_maskset(dev, B2056_RX1 | B2056_RX_RSSI_MISC, 0xE3,
+				  rssical_radio_regs[1]);
+	}
 
 	b43_phy_write(dev, B43_NPHY_RSSIMC_0I_RSSI_Z, rssical_phy_regs[0]);
 	b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_RSSI_Z, rssical_phy_regs[1]);
