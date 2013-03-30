@@ -6657,6 +6657,118 @@ static bpmod_info_t tx_ctl_pci_tbl[] = {
 	{0,}
 };
 
+static void find_fw(bpctl_dev_t *dev)
+{
+	unsigned long mmio_start, mmio_len;
+	struct pci_dev *pdev1 = dev->pdev;
+
+	if ((OLD_IF_SERIES(dev->subdevice)) ||
+	    (INTEL_IF_SERIES(dev->subdevice)))
+		dev->bp_fw_ver = 0xff;
+	else
+		dev->bp_fw_ver = bypass_fw_ver(dev);
+
+	if (dev->bp_10gb == 1 && dev->bp_fw_ver == 0xff) {
+		int cnt = 100;
+		while (cnt--) {
+			iounmap((void *)dev->mem_map);
+			mmio_start = pci_resource_start(pdev1, 0);
+			mmio_len = pci_resource_len(pdev1, 0);
+
+			dev->mem_map = (unsigned long)
+			    ioremap(mmio_start, mmio_len);
+
+			dev->bp_fw_ver = bypass_fw_ver(dev);
+			if (dev-> bp_fw_ver == 0xa8)
+				break;
+		}
+	}
+	/* dev->bp_fw_ver=0xa8; */
+	printk("firmware version: 0x%x\n", dev->bp_fw_ver);
+}
+
+static int init_one(bpctl_dev_t *dev, bpmod_info_t *info, struct pci_dev *pdev1)
+{
+	unsigned long mmio_start, mmio_len;
+
+	dev->pdev = pdev1;
+	mmio_start = pci_resource_start(pdev1, 0);
+	mmio_len = pci_resource_len(pdev1, 0);
+
+	dev->desc = dev_desc[info->index].name;
+	dev->name = info->bp_name;
+	dev->device = info->device;
+	dev->vendor = info->vendor;
+	dev->subdevice = info->subdevice;
+	dev->subvendor = info->subvendor;
+	dev->func = PCI_FUNC(pdev1->devfn);
+	dev->slot = PCI_SLOT(pdev1->devfn);
+	dev->bus = pdev1->bus->number;
+	dev->mem_map = (unsigned long)ioremap(mmio_start, mmio_len);
+#ifdef BP_SYNC_FLAG
+	spin_lock_init(&dev->bypass_wr_lock);
+#endif
+	if (BP10G9_IF_SERIES(dev->subdevice))
+		dev->bp_10g9 = 1;
+	if (BP10G_IF_SERIES(dev->subdevice))
+		dev->bp_10g = 1;
+	if (PEG540_IF_SERIES(dev->subdevice))
+		dev->bp_540 = 1;
+	if (PEGF5_IF_SERIES(dev->subdevice))
+		dev->bp_fiber5 = 1;
+	if (PEG80_IF_SERIES(dev->subdevice))
+		dev->bp_i80 = 1;
+	if (PEGF80_IF_SERIES(dev->subdevice))
+		dev->bp_i80 = 1;
+	if ((dev->subdevice & 0xa00) == 0xa00)
+		dev->bp_i80 = 1;
+	if (BP10GB_IF_SERIES(dev->subdevice)) {
+		if (dev->ifindex == 0) {
+			unregister_chrdev(major_num, DEVICE_NAME);
+			printk("Please load network driver for %s adapter!\n",
+			     dev->name);
+			return -1;
+		}
+
+		if (dev->ndev && !(dev->ndev->flags & IFF_UP)) {
+			unregister_chrdev(major_num, DEVICE_NAME);
+			printk("Please bring up network interfaces for %s adapter!\n",
+			     dev->name);
+			return -1;
+		}
+		dev->bp_10gb = 1;
+	}
+
+	if (!dev->bp_10g9) {
+		if (is_bypass_fn(dev)) {
+			printk(KERN_INFO "%s found, ",
+			       dev->name);
+			find_fw(dev);
+		}
+		dev->wdt_status = WDT_STATUS_UNKNOWN;
+		dev->reset_time = 0;
+		atomic_set(&dev->wdt_busy, 0);
+		dev->bp_status_un = 1;
+
+		bypass_caps_init(dev);
+
+		init_bypass_wd_auto(dev);
+		init_bypass_tpl_auto(dev);
+		if (NOKIA_SERIES(dev->subdevice))
+			reset_cont(dev);
+	}
+#ifdef BP_SELF_TEST
+	if ((dev->bp_tx_data = kzalloc(BPTEST_DATA_LEN, GFP_KERNEL))) {
+		memset(dev->bp_tx_data, 0xff, 6);
+		memset(dev->bp_tx_data + 6, 0x0, 1);
+		memset(dev->bp_tx_data + 7, 0xaa, 5);
+		*(__be16 *)(dev->bp_tx_data + 12) = htons(ETH_P_BPTEST);
+	} else
+		printk("bp_ctl: Memory allocation error!\n");
+#endif
+	return 0;
+}
+
 /*
 * Initialize the module - Register the character device
 */
@@ -6665,7 +6777,7 @@ static int __init bypass_init_module(void)
 {
 	int ret_val, idx, idx_dev = 0;
 	struct pci_dev *pdev1 = NULL;
-	unsigned long mmio_start, mmio_len;
+	bpctl_dev_t *dev;
 
 	printk(BP_MOD_DESCR " v" BP_MOD_VER "\n");
 	ret_val = register_chrdev(major_num, DEVICE_NAME, &Fops);
@@ -6700,181 +6812,16 @@ static int __init bypass_init_module(void)
 	memset(bpctl_dev_arr, 0, ((device_num) * sizeof(bpctl_dev_t)));
 
 	pdev1 = NULL;
+	dev = bpctl_dev_arr;
 	for (idx = 0; tx_ctl_pci_tbl[idx].vendor; idx++) {
 		while ((pdev1 = pci_get_subsys(tx_ctl_pci_tbl[idx].vendor,
 					       tx_ctl_pci_tbl[idx].device,
 					       tx_ctl_pci_tbl[idx].subvendor,
 					       tx_ctl_pci_tbl[idx].subdevice,
 					       pdev1))) {
-			bpctl_dev_arr[idx_dev].pdev = pdev1;
-
-			mmio_start = pci_resource_start(pdev1, 0);
-			mmio_len = pci_resource_len(pdev1, 0);
-
-			bpctl_dev_arr[idx_dev].desc =
-			    dev_desc[tx_ctl_pci_tbl[idx].index].name;
-			bpctl_dev_arr[idx_dev].name =
-			    tx_ctl_pci_tbl[idx].bp_name;
-			bpctl_dev_arr[idx_dev].device =
-			    tx_ctl_pci_tbl[idx].device;
-			bpctl_dev_arr[idx_dev].vendor =
-			    tx_ctl_pci_tbl[idx].vendor;
-			bpctl_dev_arr[idx_dev].subdevice =
-			    tx_ctl_pci_tbl[idx].subdevice;
-			bpctl_dev_arr[idx_dev].subvendor =
-			    tx_ctl_pci_tbl[idx].subvendor;
-			/* bpctl_dev_arr[idx_dev].pdev=pdev1; */
-			bpctl_dev_arr[idx_dev].func = PCI_FUNC(pdev1->devfn);
-			bpctl_dev_arr[idx_dev].slot = PCI_SLOT(pdev1->devfn);
-			bpctl_dev_arr[idx_dev].bus = pdev1->bus->number;
-			bpctl_dev_arr[idx_dev].mem_map =
-			    (unsigned long)ioremap(mmio_start, mmio_len);
-#ifdef BP_SYNC_FLAG
-			spin_lock_init(&bpctl_dev_arr[idx_dev].bypass_wr_lock);
-#endif
-			if (BP10G9_IF_SERIES(bpctl_dev_arr[idx_dev].subdevice))
-				bpctl_dev_arr[idx_dev].bp_10g9 = 1;
-			if (BP10G_IF_SERIES(bpctl_dev_arr[idx_dev].subdevice))
-				bpctl_dev_arr[idx_dev].bp_10g = 1;
-			if (PEG540_IF_SERIES(bpctl_dev_arr[idx_dev].subdevice)) {
-
-				bpctl_dev_arr[idx_dev].bp_540 = 1;
-			}
-			if (PEGF5_IF_SERIES(bpctl_dev_arr[idx_dev].subdevice))
-				bpctl_dev_arr[idx_dev].bp_fiber5 = 1;
-			if (PEG80_IF_SERIES(bpctl_dev_arr[idx_dev].subdevice))
-				bpctl_dev_arr[idx_dev].bp_i80 = 1;
-			if (PEGF80_IF_SERIES(bpctl_dev_arr[idx_dev].subdevice))
-				bpctl_dev_arr[idx_dev].bp_i80 = 1;
-			if ((bpctl_dev_arr[idx_dev].subdevice & 0xa00) == 0xa00)
-				bpctl_dev_arr[idx_dev].bp_i80 = 1;
-			if (BP10GB_IF_SERIES(bpctl_dev_arr[idx_dev].subdevice)) {
-				if (bpctl_dev_arr[idx_dev].ifindex == 0) {
-					unregister_chrdev(major_num,
-							  DEVICE_NAME);
-					printk
-					    ("Please load network driver for %s adapter!\n",
-					     bpctl_dev_arr[idx_dev].name);
-					return -1;
-				}
-
-				if (bpctl_dev_arr[idx_dev].ndev) {
-					if (!
-					    (bpctl_dev_arr[idx_dev].ndev->
-					     flags & IFF_UP)) {
-						if (!
-						    (bpctl_dev_arr[idx_dev].
-						     ndev->flags & IFF_UP)) {
-							unregister_chrdev
-							    (major_num,
-							     DEVICE_NAME);
-							printk
-							    ("Please bring up network interfaces for %s adapter!\n",
-							     bpctl_dev_arr
-							     [idx_dev].name);
-							return -1;
-						}
-
-					}
-				}
-				bpctl_dev_arr[idx_dev].bp_10gb = 1;
-			}
-
-			if (!bpctl_dev_arr[idx_dev].bp_10g9) {
-
-				if (is_bypass_fn(&bpctl_dev_arr[idx_dev])) {
-					printk(KERN_INFO "%s found, ",
-					       bpctl_dev_arr[idx_dev].name);
-					if ((OLD_IF_SERIES
-					     (bpctl_dev_arr[idx_dev].subdevice))
-					    ||
-					    (INTEL_IF_SERIES
-					     (bpctl_dev_arr[idx_dev].
-					      subdevice)))
-						bpctl_dev_arr[idx_dev].
-						    bp_fw_ver = 0xff;
-					else
-						bpctl_dev_arr[idx_dev].
-						    bp_fw_ver =
-						    bypass_fw_ver(&bpctl_dev_arr
-								  [idx_dev]);
-					if ((bpctl_dev_arr[idx_dev].bp_10gb ==
-					     1)
-					    && (bpctl_dev_arr[idx_dev].
-						bp_fw_ver == 0xff)) {
-						int cnt = 100;
-						while (cnt--) {
-							iounmap((void
-								 *)
-								(bpctl_dev_arr
-								 [idx_dev].
-								 mem_map));
-							mmio_start =
-							    pci_resource_start
-							    (pdev1, 0);
-							mmio_len =
-							    pci_resource_len
-							    (pdev1, 0);
-
-							bpctl_dev_arr[idx_dev].
-							    mem_map =
-							    (unsigned long)
-							    ioremap(mmio_start,
-								    mmio_len);
-
-							bpctl_dev_arr[idx_dev].
-							    bp_fw_ver =
-							    bypass_fw_ver
-							    (&bpctl_dev_arr
-							     [idx_dev]);
-							if (bpctl_dev_arr
-							    [idx_dev].
-							    bp_fw_ver == 0xa8)
-								break;
-
-						}
-					}
-					/* bpctl_dev_arr[idx_dev].bp_fw_ver=0xa8; */
-					printk("firmware version: 0x%x\n",
-					       bpctl_dev_arr[idx_dev].
-					       bp_fw_ver);
-				}
-				bpctl_dev_arr[idx_dev].wdt_status =
-				    WDT_STATUS_UNKNOWN;
-				bpctl_dev_arr[idx_dev].reset_time = 0;
-				atomic_set(&bpctl_dev_arr[idx_dev].wdt_busy, 0);
-				bpctl_dev_arr[idx_dev].bp_status_un = 1;
-
-				bypass_caps_init(&bpctl_dev_arr[idx_dev]);
-
-				init_bypass_wd_auto(&bpctl_dev_arr[idx_dev]);
-				init_bypass_tpl_auto(&bpctl_dev_arr[idx_dev]);
-				if (NOKIA_SERIES
-				    (bpctl_dev_arr[idx_dev].subdevice))
-					reset_cont(&bpctl_dev_arr[idx_dev]);
-			}
-#ifdef BP_SELF_TEST
-			if ((bpctl_dev_arr[idx_dev].bp_tx_data =
-			     kmalloc(BPTEST_DATA_LEN, GFP_KERNEL))) {
-
-				memset(bpctl_dev_arr[idx_dev].bp_tx_data, 0x0,
-				       BPTEST_DATA_LEN);
-
-				memset(bpctl_dev_arr[idx_dev].bp_tx_data, 0xff,
-				       6);
-				memset(bpctl_dev_arr[idx_dev].bp_tx_data + 6,
-				       0x0, 1);
-				memset(bpctl_dev_arr[idx_dev].bp_tx_data + 7,
-				       0xaa, 5);
-
-				*(__be16 *) (bpctl_dev_arr[idx_dev].bp_tx_data +
-					     12) = htons(ETH_P_BPTEST);
-
-			} else
-				printk("bp_ctl: Memory allocation error!\n");
-#endif
-			idx_dev++;
-
+			if (init_one(dev, &tx_ctl_pci_tbl[idx], pdev1) < 0)
+				return -1;
+			dev++;
 		}
 	}
 	if_scan_init();
@@ -6884,33 +6831,27 @@ static int __init bypass_init_module(void)
 	{
 
 		bpctl_dev_t *pbpctl_dev_c = NULL;
-		for (idx_dev = 0;
-		     ((bpctl_dev_arr[idx_dev].pdev != NULL)
-		      && (idx_dev < device_num)); idx_dev++) {
-			if (bpctl_dev_arr[idx_dev].bp_10g9) {
-				pbpctl_dev_c =
-				    get_status_port_fn(&bpctl_dev_arr[idx_dev]);
-				if (is_bypass_fn(&bpctl_dev_arr[idx_dev])) {
+		for (idx_dev = 0, dev = bpctl_dev_arr;
+		     idx_dev < device_num && dev->pdev;
+		     idx_dev++, dev++) {
+			if (dev->bp_10g9) {
+				pbpctl_dev_c = get_status_port_fn(dev);
+				if (is_bypass_fn(dev)) {
 					printk(KERN_INFO "%s found, ",
-					       bpctl_dev_arr[idx_dev].name);
-					bpctl_dev_arr[idx_dev].bp_fw_ver =
-					    bypass_fw_ver(&bpctl_dev_arr
-							  [idx_dev]);
+					       dev->name);
+					dev->bp_fw_ver = bypass_fw_ver(dev);
 					printk("firmware version: 0x%x\n",
-					       bpctl_dev_arr[idx_dev].
-					       bp_fw_ver);
-
+					       dev->bp_fw_ver);
 				}
-				bpctl_dev_arr[idx_dev].wdt_status =
-				    WDT_STATUS_UNKNOWN;
-				bpctl_dev_arr[idx_dev].reset_time = 0;
-				atomic_set(&bpctl_dev_arr[idx_dev].wdt_busy, 0);
-				bpctl_dev_arr[idx_dev].bp_status_un = 1;
+				dev->wdt_status = WDT_STATUS_UNKNOWN;
+				dev->reset_time = 0;
+				atomic_set(&dev->wdt_busy, 0);
+				dev->bp_status_un = 1;
 
-				bypass_caps_init(&bpctl_dev_arr[idx_dev]);
+				bypass_caps_init(dev);
 
-				init_bypass_wd_auto(&bpctl_dev_arr[idx_dev]);
-				init_bypass_tpl_auto(&bpctl_dev_arr[idx_dev]);
+				init_bypass_wd_auto(dev);
+				init_bypass_tpl_auto(dev);
 
 			}
 
