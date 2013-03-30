@@ -131,6 +131,7 @@ static int usbmisc_imx_remove(struct platform_device *pdev)
 {
 	usbmisc_unset_ops(&imx6q_usbmisc_ops);
 	clk_disable_unprepare(usbmisc->clk);
+	usbmisc = NULL;
 	return 0;
 }
 
