@@ -833,7 +833,7 @@ static void ceph_msg_data_pages_cursor_init(struct ceph_msg_data *data,
 
 	BUG_ON(!data->pages);
 	BUG_ON(!data->length);
-	BUG_ON(length != data->length);
+	BUG_ON(length > data->length);	/* short reads are OK */
 
 	cursor->resid = length;
 	page_count = calc_pages_for(data->alignment, (u64)data->length);
@@ -905,7 +905,7 @@ static void ceph_msg_data_pagelist_cursor_init(struct ceph_msg_data *data,
 
 	pagelist = data->pagelist;
 	BUG_ON(!pagelist);
-	BUG_ON(length != pagelist->length);
+	BUG_ON(length > pagelist->length);	/* short reads are OK */
 
 	if (!length)
 		return;		/* pagelist can be assigned but empty */
