@@ -34,7 +34,7 @@
 
 #include <plat/sys_config.h>
 #include <mach/irqs.h>
-#include <mach/i2c.h>
+#include <plat/i2c.h>
 
 
 
@@ -900,11 +900,7 @@ static int i2c_sunxi_probe(struct platform_device *dev)
 {
 	struct sunxi_i2c *i2c = NULL;
 	struct resource *res = NULL;
-#if defined CONFIG_ARCH_SUN4I
-	struct sun4i_i2c_platform_data *pdata = NULL;
-#elif defined CONFIG_ARCH_SUN5I
-    struct sun5i_i2c_platform_data *pdata = NULL;
-#endif
+	struct sunxi_i2c_platform_data *pdata = NULL;
 	char *i2c_clk[] ={"twi0","twi1","twi2"};
 	char *i2c_pclk[] ={"apb_twi0","apb_twi1","apb_twi2"};
 	int ret;
@@ -930,11 +926,7 @@ static int i2c_sunxi_probe(struct platform_device *dev)
 		ret = -ENOMEM;
 		goto emalloc;
 	}
-#if defined CONFIG_ARCH_SUN4I
-	strlcpy(i2c->adap.name, "sun4i-i2c", sizeof(i2c->adap.name));
-#elif defined CONFIG_ARCH_SUN5I
-    strlcpy(i2c->adap.name, "sun5i-i2c", sizeof(i2c->adap.name));
-#endif
+	strlcpy(i2c->adap.name, "sunxi-i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner   = THIS_MODULE;
 	i2c->adap.nr      = pdata->bus_num;
 	i2c->adap.retries = 2;
@@ -963,12 +955,8 @@ static int i2c_sunxi_probe(struct platform_device *dev)
 		goto eremap;
 	}
 
-#if defined CONFIG_ARCH_SUN4I
-	snprintf(i2c->adap.name, sizeof(i2c->adap.name), "sun4i-i2c.%u", i2c->adap.nr);
-#elif defined CONFIG_ARCH_SUN5I
-    snprintf(i2c->adap.name, sizeof(i2c->adap.name), "sun5i-i2c.%u", i2c->adap.nr);
-#endif
-
+	snprintf(i2c->adap.name, sizeof(i2c->adap.name),\
+		 "sunxi-i2c.%u", i2c->adap.nr);
 	i2c->base_addr = ioremap(res->start, resource_size(res));
 	if (!i2c->base_addr) {
 		ret = -EIO;
@@ -1133,11 +1121,7 @@ static struct platform_driver i2c_sunxi_driver = {
 	.suspend        = i2c_sunxi_suspend,
 	.resume         = i2c_sunxi_resume,
 	.driver		= {
-#if defined CONFIG_ARCH_SUN4I
-		.name	= "sun4i-i2c",
-#elif defined CONFIG_ARCH_SUN5I
-        .name	= "sun5i-i2c",
-#endif
+		.name	= "sunxi-i2c",
 		.owner	= THIS_MODULE,
 	},
 };
