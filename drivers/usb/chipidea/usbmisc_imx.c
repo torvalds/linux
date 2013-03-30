@@ -21,14 +21,14 @@
 
 #define BM_OVER_CUR_DIS		BIT(7)
 
-struct imx6q_usbmisc {
+struct imx_usbmisc {
 	void __iomem *base;
 	spinlock_t lock;
 	struct clk *clk;
 	struct usbmisc_usb_device usbdev[USB_DEV_MAX];
 };
 
-static struct imx6q_usbmisc *usbmisc;
+static struct imx_usbmisc *usbmisc;
 
 static struct usbmisc_usb_device *get_usbdev(struct device *dev)
 {
@@ -77,15 +77,15 @@ static const struct usbmisc_ops imx6q_usbmisc_ops = {
 	.init = usbmisc_imx6q_init,
 };
 
-static const struct of_device_id usbmisc_imx6q_dt_ids[] = {
+static const struct of_device_id usbmisc_imx_dt_ids[] = {
 	{ .compatible = "fsl,imx6q-usbmisc"},
 	{ /* sentinel */ }
 };
 
-static int usbmisc_imx6q_probe(struct platform_device *pdev)
+static int usbmisc_imx_probe(struct platform_device *pdev)
 {
 	struct resource	*res;
-	struct imx6q_usbmisc *data;
+	struct imx_usbmisc *data;
 	int ret;
 
 	if (usbmisc)
@@ -127,36 +127,36 @@ static int usbmisc_imx6q_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int usbmisc_imx6q_remove(struct platform_device *pdev)
+static int usbmisc_imx_remove(struct platform_device *pdev)
 {
 	usbmisc_unset_ops(&imx6q_usbmisc_ops);
 	clk_disable_unprepare(usbmisc->clk);
 	return 0;
 }
 
-static struct platform_driver usbmisc_imx6q_driver = {
-	.probe = usbmisc_imx6q_probe,
-	.remove = usbmisc_imx6q_remove,
+static struct platform_driver usbmisc_imx_driver = {
+	.probe = usbmisc_imx_probe,
+	.remove = usbmisc_imx_remove,
 	.driver = {
-		.name = "usbmisc_imx6q",
+		.name = "usbmisc_imx",
 		.owner = THIS_MODULE,
-		.of_match_table = usbmisc_imx6q_dt_ids,
+		.of_match_table = usbmisc_imx_dt_ids,
 	 },
 };
 
-static int __init usbmisc_imx6q_drv_init(void)
+int usbmisc_imx_drv_init(void)
 {
-	return platform_driver_register(&usbmisc_imx6q_driver);
+	return platform_driver_register(&usbmisc_imx_driver);
 }
-subsys_initcall(usbmisc_imx6q_drv_init);
+subsys_initcall(usbmisc_imx_drv_init);
 
-static void __exit usbmisc_imx6q_drv_exit(void)
+void usbmisc_imx_drv_exit(void)
 {
-	platform_driver_unregister(&usbmisc_imx6q_driver);
+	platform_driver_unregister(&usbmisc_imx_driver);
 }
-module_exit(usbmisc_imx6q_drv_exit);
+module_exit(usbmisc_imx_drv_exit);
 
-MODULE_ALIAS("platform:usbmisc-imx6q");
+MODULE_ALIAS("platform:usbmisc-imx");
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("driver for imx6q usb non-core registers");
+MODULE_DESCRIPTION("driver for imx usb non-core registers");
 MODULE_AUTHOR("Richard Zhao <richard.zhao@freescale.com>");
