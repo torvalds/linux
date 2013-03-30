@@ -435,9 +435,10 @@ static void probes_seq_stop(struct seq_file *m, void *v)
 static int probes_seq_show(struct seq_file *m, void *v)
 {
 	struct trace_uprobe *tu = v;
+	char c = is_ret_probe(tu) ? 'r' : 'p';
 	int i;
 
-	seq_printf(m, "p:%s/%s", tu->call.class->system, tu->call.name);
+	seq_printf(m, "%c:%s/%s", c, tu->call.class->system, tu->call.name);
 	seq_printf(m, " %s:0x%p", tu->filename, (void *)tu->offset);
 
 	for (i = 0; i < tu->nr_args; i++)
@@ -566,10 +567,18 @@ print_uprobe_event(struct trace_iterator *iter, int flags, struct trace_event *e
 	entry = (struct uprobe_trace_entry_head *)iter->ent;
 	tu = container_of(event, struct trace_uprobe, call.event);
 
-	if (!trace_seq_printf(s, "%s: (0x%lx)", tu->call.name, entry->vaddr[0]))
-		goto partial;
+	if (is_ret_probe(tu)) {
+		if (!trace_seq_printf(s, "%s: (0x%lx <- 0x%lx)", tu->call.name,
+					entry->vaddr[1], entry->vaddr[0]))
+			goto partial;
+		data = DATAOF_TRACE_ENTRY(entry, true);
+	} else {
+		if (!trace_seq_printf(s, "%s: (0x%lx)", tu->call.name,
+					entry->vaddr[0]))
+			goto partial;
+		data = DATAOF_TRACE_ENTRY(entry, false);
+	}
 
-	data = DATAOF_TRACE_ENTRY(entry, false);
 	for (i = 0; i < tu->nr_args; i++) {
 		if (!tu->args[i].type->print(s, tu->args[i].name,
 					     data + tu->args[i].offset, entry))
