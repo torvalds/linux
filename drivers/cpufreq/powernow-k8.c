@@ -584,9 +584,9 @@ static void print_basics(struct powernow_k8_data *data)
 				CPUFREQ_ENTRY_INVALID) {
 				printk(KERN_INFO PFX
 					"fid 0x%x (%d MHz), vid 0x%x\n",
-					data->powernow_table[j].index & 0xff,
+					data->powernow_table[j].driver_data & 0xff,
 					data->powernow_table[j].frequency/1000,
-					data->powernow_table[j].index >> 8);
+					data->powernow_table[j].driver_data >> 8);
 		}
 	}
 	if (data->batps)
@@ -632,13 +632,13 @@ static int fill_powernow_table(struct powernow_k8_data *data,
 
 	for (j = 0; j < data->numps; j++) {
 		int freq;
-		powernow_table[j].index = pst[j].fid; /* lower 8 bits */
-		powernow_table[j].index |= (pst[j].vid << 8); /* upper 8 bits */
+		powernow_table[j].driver_data = pst[j].fid; /* lower 8 bits */
+		powernow_table[j].driver_data |= (pst[j].vid << 8); /* upper 8 bits */
 		freq = find_khz_freq_from_fid(pst[j].fid);
 		powernow_table[j].frequency = freq;
 	}
 	powernow_table[data->numps].frequency = CPUFREQ_TABLE_END;
-	powernow_table[data->numps].index = 0;
+	powernow_table[data->numps].driver_data = 0;
 
 	if (query_current_values_with_pending_wait(data)) {
 		kfree(powernow_table);
@@ -810,7 +810,7 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 
 	powernow_table[data->acpi_data.state_count].frequency =
 		CPUFREQ_TABLE_END;
-	powernow_table[data->acpi_data.state_count].index = 0;
+	powernow_table[data->acpi_data.state_count].driver_data = 0;
 	data->powernow_table = powernow_table;
 
 	if (cpumask_first(cpu_core_mask(data->cpu)) == data->cpu)
@@ -865,7 +865,7 @@ static int fill_powernow_table_fidvid(struct powernow_k8_data *data,
 		pr_debug("   %d : fid 0x%x, vid 0x%x\n", i, fid, vid);
 
 		index = fid | (vid<<8);
-		powernow_table[i].index = index;
+		powernow_table[i].driver_data = index;
 
 		freq = find_khz_freq_from_fid(fid);
 		powernow_table[i].frequency = freq;
@@ -941,8 +941,8 @@ static int transition_frequency_fidvid(struct powernow_k8_data *data,
 	 * the cpufreq frequency table in find_psb_table, vid
 	 * are the upper 8 bits.
 	 */
-	fid = data->powernow_table[index].index & 0xFF;
-	vid = (data->powernow_table[index].index & 0xFF00) >> 8;
+	fid = data->powernow_table[index].driver_data & 0xFF;
+	vid = (data->powernow_table[index].driver_data & 0xFF00) >> 8;
 
 	pr_debug("table matched fid 0x%x, giving vid 0x%x\n", fid, vid);
 

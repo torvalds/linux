@@ -72,7 +72,7 @@ static int loongson2_cpufreq_target(struct cpufreq_policy *policy,
 
 	freq =
 	    ((cpu_clock_freq / 1000) *
-	     loongson2_clockmod_table[newstate].index) / 8;
+	     loongson2_clockmod_table[newstate].driver_data) / 8;
 	if (freq < policy->min || freq > policy->max)
 		return -EINVAL;
 

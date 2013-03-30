@@ -244,7 +244,7 @@ static int s3c2416_cpufreq_set_target(struct cpufreq_policy *policy,
 	if (ret != 0)
 		goto out;
 
-	idx = s3c_freq->freq_table[i].index;
+	idx = s3c_freq->freq_table[i].driver_data;
 
 	if (idx == SOURCE_HCLK)
 		to_dvs = 1;

@@ -169,13 +169,13 @@ static int __init us3_freq_cpu_init(struct cpufreq_policy *policy)
 	struct cpufreq_frequency_table *table =
 		&us3_freq_table[cpu].table[0];
 
-	table[0].index = 0;
+	table[0].driver_data = 0;
 	table[0].frequency = clock_tick / 1;
-	table[1].index = 1;
+	table[1].driver_data = 1;
 	table[1].frequency = clock_tick / 2;
-	table[2].index = 2;
+	table[2].driver_data = 2;
 	table[2].frequency = clock_tick / 32;
-	table[3].index = 0;
+	table[3].driver_data = 0;
 	table[3].frequency = CPUFREQ_TABLE_END;
 
 	policy->cpuinfo.transition_latency = 0;

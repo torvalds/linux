@@ -142,15 +142,15 @@ static void pllc2_table_rebuild(struct clk *clk)
 	/* Initialise PLLC2 frequency table */
 	for (i = 0; i < ARRAY_SIZE(pllc2_freq_table) - 2; i++) {
 		pllc2_freq_table[i].frequency = clk->parent->rate * (i + 20) * 2;
-		pllc2_freq_table[i].index = i;
+		pllc2_freq_table[i].driver_data = i;
 	}
 
 	/* This is a special entry - switching PLL off makes it a repeater */
 	pllc2_freq_table[i].frequency = clk->parent->rate;
-	pllc2_freq_table[i].index = i;
+	pllc2_freq_table[i].driver_data = i;
 
 	pllc2_freq_table[++i].frequency = CPUFREQ_TABLE_END;
-	pllc2_freq_table[i].index = i;
+	pllc2_freq_table[i].driver_data = i;
 }
 
 static unsigned long pllc2_recalc(struct clk *clk)
