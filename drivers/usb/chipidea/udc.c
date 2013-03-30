@@ -404,10 +404,10 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 			return -ENOMEM;
 
 		memset(mReq->zptr, 0, sizeof(*mReq->zptr));
-		mReq->zptr->next    = TD_TERMINATE;
-		mReq->zptr->token   = TD_STATUS_ACTIVE;
+		mReq->zptr->next    = cpu_to_le32(TD_TERMINATE);
+		mReq->zptr->token   = cpu_to_le32(TD_STATUS_ACTIVE);
 		if (!mReq->req.no_interrupt)
-			mReq->zptr->token   |= TD_IOC;
+			mReq->zptr->token   |= cpu_to_le32(TD_IOC);
 	}
 	ret = usb_gadget_map_request(&ci->gadget, &mReq->req, mEp->dir);
 	if (ret)
@@ -418,32 +418,35 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	 * TODO - handle requests which spawns into several TDs
 	 */
 	memset(mReq->ptr, 0, sizeof(*mReq->ptr));
-	mReq->ptr->token    = length << __ffs(TD_TOTAL_BYTES);
-	mReq->ptr->token   &= TD_TOTAL_BYTES;
-	mReq->ptr->token   |= TD_STATUS_ACTIVE;
+	mReq->ptr->token    = cpu_to_le32(length << __ffs(TD_TOTAL_BYTES));
+	mReq->ptr->token   &= cpu_to_le32(TD_TOTAL_BYTES);
+	mReq->ptr->token   |= cpu_to_le32(TD_STATUS_ACTIVE);
 	if (mReq->zptr) {
-		mReq->ptr->next    = mReq->zdma;
+		mReq->ptr->next    = cpu_to_le32(mReq->zdma);
 	} else {
-		mReq->ptr->next    = TD_TERMINATE;
+		mReq->ptr->next    = cpu_to_le32(TD_TERMINATE);
 		if (!mReq->req.no_interrupt)
-			mReq->ptr->token  |= TD_IOC;
+			mReq->ptr->token  |= cpu_to_le32(TD_IOC);
 	}
-	mReq->ptr->page[0]  = mReq->req.dma;
-	for (i = 1; i < 5; i++)
-		mReq->ptr->page[i] =
-			(mReq->req.dma + i * CI13XXX_PAGE_SIZE) & ~TD_RESERVED_MASK;
+	mReq->ptr->page[0]  = cpu_to_le32(mReq->req.dma);
+	for (i = 1; i < 5; i++) {
+		u32 page = mReq->req.dma + i * CI13XXX_PAGE_SIZE;
+		page &= ~TD_RESERVED_MASK;
+		mReq->ptr->page[i] = cpu_to_le32(page);
+	}
 
 	if (!list_empty(&mEp->qh.queue)) {
 		struct ci13xxx_req *mReqPrev;
 		int n = hw_ep_bit(mEp->num, mEp->dir);
 		int tmp_stat;
+		u32 next = mReq->dma & TD_ADDR_MASK;
 
 		mReqPrev = list_entry(mEp->qh.queue.prev,
 				struct ci13xxx_req, queue);
 		if (mReqPrev->zptr)
-			mReqPrev->zptr->next = mReq->dma & TD_ADDR_MASK;
+			mReqPrev->zptr->next = cpu_to_le32(next);
 		else
-			mReqPrev->ptr->next = mReq->dma & TD_ADDR_MASK;
+			mReqPrev->ptr->next = cpu_to_le32(next);
 		wmb();
 		if (hw_read(ci, OP_ENDPTPRIME, BIT(n)))
 			goto done;
@@ -457,9 +460,9 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	}
 
 	/*  QH configuration */
-	mEp->qh.ptr->td.next   = mReq->dma;    /* TERMINATE = 0 */
-	mEp->qh.ptr->td.token &= ~TD_STATUS;   /* clear status */
-	mEp->qh.ptr->cap |=  QH_ZLT;
+	mEp->qh.ptr->td.next   = cpu_to_le32(mReq->dma);    /* TERMINATE = 0 */
+	mEp->qh.ptr->td.token &= cpu_to_le32(~TD_STATUS);   /* clear status */
+	mEp->qh.ptr->cap |=  cpu_to_le32(QH_ZLT);
 
 	wmb();   /* synchronize before ep prime */
 
@@ -481,11 +484,11 @@ static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	if (mReq->req.status != -EALREADY)
 		return -EINVAL;
 
-	if ((TD_STATUS_ACTIVE & mReq->ptr->token) != 0)
+	if ((cpu_to_le32(TD_STATUS_ACTIVE) & mReq->ptr->token) != 0)
 		return -EBUSY;
 
 	if (mReq->zptr) {
-		if ((TD_STATUS_ACTIVE & mReq->zptr->token) != 0)
+		if ((cpu_to_le32(TD_STATUS_ACTIVE) & mReq->zptr->token) != 0)
 			return -EBUSY;
 		dma_pool_free(mEp->td_pool, mReq->zptr, mReq->zdma);
 		mReq->zptr = NULL;
@@ -495,7 +498,7 @@ static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 
 	usb_gadget_unmap_request(&mEp->ci->gadget, &mReq->req, mEp->dir);
 
-	mReq->req.status = mReq->ptr->token & TD_STATUS;
+	mReq->req.status = le32_to_cpu(mReq->ptr->token) & TD_STATUS;
 	if ((TD_STATUS_HALTED & mReq->req.status) != 0)
 		mReq->req.status = -1;
 	else if ((TD_STATUS_DT_ERR & mReq->req.status) != 0)
@@ -503,7 +506,7 @@ static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	else if ((TD_STATUS_TR_ERR & mReq->req.status) != 0)
 		mReq->req.status = -1;
 
-	mReq->req.actual   = mReq->ptr->token & TD_TOTAL_BYTES;
+	mReq->req.actual   = le32_to_cpu(mReq->ptr->token) & TD_TOTAL_BYTES;
 	mReq->req.actual >>= __ffs(TD_TOTAL_BYTES);
 	mReq->req.actual   = mReq->req.length - mReq->req.actual;
 	mReq->req.actual   = mReq->req.status ? 0 : mReq->req.actual;
@@ -1004,15 +1007,15 @@ static int ep_enable(struct usb_ep *ep,
 	mEp->qh.ptr->cap = 0;
 
 	if (mEp->type == USB_ENDPOINT_XFER_CONTROL)
-		mEp->qh.ptr->cap |=  QH_IOS;
+		mEp->qh.ptr->cap |=  cpu_to_le32(QH_IOS);
 	else if (mEp->type == USB_ENDPOINT_XFER_ISOC)
-		mEp->qh.ptr->cap &= ~QH_MULT;
+		mEp->qh.ptr->cap &= cpu_to_le32(~QH_MULT);
 	else
-		mEp->qh.ptr->cap &= ~QH_ZLT;
+		mEp->qh.ptr->cap &= cpu_to_le32(~QH_ZLT);
 
-	mEp->qh.ptr->cap |=
-		(mEp->ep.maxpacket << __ffs(QH_MAX_PKT)) & QH_MAX_PKT;
-	mEp->qh.ptr->td.next |= TD_TERMINATE;   /* needed? */
+	mEp->qh.ptr->cap |= cpu_to_le32((mEp->ep.maxpacket << __ffs(QH_MAX_PKT))
+					& QH_MAX_PKT);
+	mEp->qh.ptr->td.next |= cpu_to_le32(TD_TERMINATE);   /* needed? */
 
 	/*
 	 * Enable endpoints in the HW other than ep0 as ep0

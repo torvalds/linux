@@ -178,7 +178,7 @@ static int hw_device_init(struct ci13xxx *ci, void __iomem *base)
 
 	ci->hw_bank.cap = ci->hw_bank.abs;
 	ci->hw_bank.cap += ci->platdata->capoffset;
-	ci->hw_bank.op = ci->hw_bank.cap + ioread8(ci->hw_bank.cap);
+	ci->hw_bank.op = ci->hw_bank.cap + (ioread32(ci->hw_bank.cap) & 0xff);
 
 	hw_alloc_regmap(ci, false);
 	reg = hw_read(ci, CAP_HCCPARAMS, HCCPARAMS_LEN) >>
