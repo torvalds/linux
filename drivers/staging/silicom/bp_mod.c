@@ -1728,62 +1728,33 @@ int gpio6_clear_fn(bpctl_dev_t *pbpctl_dev)
 }
 #endif				/*BYPASS_DEBUG */
 
+static bpctl_dev_t *lookup_port(bpctl_dev_t *dev)
+{
+	bpctl_dev_t *p;
+	int n;
+	for (n = 0, p = bpctl_dev_arr; n < device_num && p->pdev; n++) {
+		if (p->bus == dev->bus
+		    && p->slot == dev->slot
+		    && p->func == (dev->func ^ 1))
+			return p;
+	}
+	return NULL;
+}
+
 static bpctl_dev_t *get_status_port_fn(bpctl_dev_t *pbpctl_dev)
 {
-	int idx_dev = 0;
-
-	if (pbpctl_dev == NULL)
-		return NULL;
-
-	if ((pbpctl_dev->func == 0) || (pbpctl_dev->func == 2)) {
-		for (idx_dev = 0;
-		     ((bpctl_dev_arr[idx_dev].pdev != NULL)
-		      && (idx_dev < device_num)); idx_dev++) {
-			if ((bpctl_dev_arr[idx_dev].bus == pbpctl_dev->bus)
-			    && (bpctl_dev_arr[idx_dev].slot == pbpctl_dev->slot)
-			    && ((bpctl_dev_arr[idx_dev].func == 1)
-				&& (pbpctl_dev->func == 0))) {
-
-				return &(bpctl_dev_arr[idx_dev]);
-			}
-			if ((bpctl_dev_arr[idx_dev].bus == pbpctl_dev->bus) &&
-			    (bpctl_dev_arr[idx_dev].slot == pbpctl_dev->slot) &&
-			    ((bpctl_dev_arr[idx_dev].func == 3)
-			     && (pbpctl_dev->func == 2))) {
-
-				return &(bpctl_dev_arr[idx_dev]);
-			}
-		}
+	if (pbpctl_dev) {
+		if (pbpctl_dev->func == 0 || pbpctl_dev->func == 2)
+			return lookup_port(pbpctl_dev);
 	}
 	return NULL;
 }
 
 static bpctl_dev_t *get_master_port_fn(bpctl_dev_t *pbpctl_dev)
 {
-	int idx_dev = 0;
-
-	if (pbpctl_dev == NULL)
-		return NULL;
-
-	if ((pbpctl_dev->func == 1) || (pbpctl_dev->func == 3)) {
-		for (idx_dev = 0;
-		     ((bpctl_dev_arr[idx_dev].pdev != NULL)
-		      && (idx_dev < device_num)); idx_dev++) {
-			if ((bpctl_dev_arr[idx_dev].bus == pbpctl_dev->bus)
-			    && (bpctl_dev_arr[idx_dev].slot == pbpctl_dev->slot)
-			    && ((bpctl_dev_arr[idx_dev].func == 0)
-				&& (pbpctl_dev->func == 1))) {
-
-				return &(bpctl_dev_arr[idx_dev]);
-			}
-			if ((bpctl_dev_arr[idx_dev].bus == pbpctl_dev->bus) &&
-			    (bpctl_dev_arr[idx_dev].slot == pbpctl_dev->slot) &&
-			    ((bpctl_dev_arr[idx_dev].func == 2)
-			     && (pbpctl_dev->func == 3))) {
-
-				return &(bpctl_dev_arr[idx_dev]);
-			}
-		}
+	if (pbpctl_dev) {
+		if (pbpctl_dev->func == 1 || pbpctl_dev->func == 3)
+			return lookup_port(pbpctl_dev);
 	}
 	return NULL;
 }
