@@ -30,3 +30,10 @@ config POWER_RESET_RESTART
 	  Some boards don't actually have the ability to power off.
 	  Instead they restart, and u-boot holds the SoC until the
 	  user presses a key. u-boot then boots into Linux.
+
+config POWER_RESET_VEXPRESS
+	bool
+	depends on POWER_RESET
+	help
+	  Power off and reset support for the ARM Ltd. Versatile
+	  Express boards.
