@@ -116,13 +116,13 @@ static int usbmisc_imx_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	usbmisc = data;
 	ret = usbmisc_set_ops(&imx6q_usbmisc_ops);
 	if (ret) {
+		usbmisc = NULL;
 		clk_disable_unprepare(data->clk);
 		return ret;
 	}
-
-	usbmisc = data;
 
 	return 0;
 }
