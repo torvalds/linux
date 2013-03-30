@@ -397,10 +397,9 @@ static int __init ds1620_init(void)
 		return ret;
 
 #ifdef THERM_USE_PROC
-	proc_therm_ds1620 = create_proc_entry("therm", 0, NULL);
-	if (proc_therm_ds1620)
-		proc_therm_ds1620->read_proc = proc_therm_ds1620_read;
-	else
+	proc_therm_ds1620 = create_proc_read_entry("therm", 0, NULL,
+					proc_therm_ds1620_read, NULL);
+	if (!proc_therm_ds1620)
 		printk(KERN_ERR "therm: unable to register /proc/therm\n");
 #endif
 

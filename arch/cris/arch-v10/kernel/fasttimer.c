@@ -491,7 +491,6 @@ void schedule_usleep(unsigned long us)
 #ifdef CONFIG_PROC_FS
 static int proc_fasttimer_read(char *buf, char **start, off_t offset, int len
                        ,int *eof, void *data_unused);
-static struct proc_dir_entry *fasttimer_proc_entry;
 #endif /* CONFIG_PROC_FS */
 
 #ifdef CONFIG_PROC_FS
@@ -857,8 +856,7 @@ int fast_timer_init(void)
     }
 #endif
 #ifdef CONFIG_PROC_FS
-   if ((fasttimer_proc_entry = create_proc_entry( "fasttimer", 0, 0 )))
-     fasttimer_proc_entry->read_proc = proc_fasttimer_read;
+   create_proc_read_entry("fasttimer", 0, NULL, proc_fasttimer_read, NULL);
 #endif /* PROC_FS */
     if(request_irq(TIMER1_IRQ_NBR, timer1_handler, 0,
                    "fast timer int", NULL))

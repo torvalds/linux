@@ -158,9 +158,8 @@ static __init int register_proc(void)
 {
 	struct proc_dir_entry *proc_gpio;
 
-	proc_gpio = create_proc_entry("gpio", S_IRUGO, NULL);
-	if (proc_gpio) 
-		proc_gpio->read_proc = gpio_proc_read;
+	proc_gpio = create_proc_read_entry("gpio", S_IRUGO, NULL,
+					gpio_proc_read, NULL);
 	return proc_gpio != NULL;
 }
 

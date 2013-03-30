@@ -268,12 +268,11 @@ static int __init swp_emulation_init(void)
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *res;
 
-	res = create_proc_entry("cpu/swp_emulation", S_IRUGO, NULL);
+	res = create_proc_read_entry("cpu/swp_emulation", S_IRUGO, NULL,
+					proc_read_status, NULL);
 
 	if (!res)
 		return -ENOMEM;
-
-	res->read_proc = proc_read_status;
 #endif /* CONFIG_PROC_FS */
 
 	printk(KERN_NOTICE "Registering SWP/SWPB emulation handler\n");

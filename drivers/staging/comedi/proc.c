@@ -80,11 +80,8 @@ static int comedi_read(char *buf, char **start, off_t offset, int len,
 
 void comedi_proc_init(void)
 {
-	struct proc_dir_entry *comedi_proc;
-
-	comedi_proc = create_proc_entry("comedi", S_IFREG | S_IRUGO, NULL);
-	if (comedi_proc)
-		comedi_proc->read_proc = comedi_read;
+	create_proc_read_entry("comedi", S_IFREG | S_IRUGO, NULL,
+				comedi_read, NULL);
 }
 
 void comedi_proc_cleanup(void)
