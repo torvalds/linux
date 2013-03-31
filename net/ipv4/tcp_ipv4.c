@@ -2580,7 +2580,7 @@ static void tcp_seq_stop(struct seq_file *seq, void *v)
 
 int tcp_seq_open(struct inode *inode, struct file *file)
 {
-	struct tcp_seq_afinfo *afinfo = PDE(inode)->data;
+	struct tcp_seq_afinfo *afinfo = PDE_DATA(inode);
 	struct tcp_iter_state *s;
 	int err;
 

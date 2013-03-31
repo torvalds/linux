@@ -93,7 +93,7 @@ static const struct file_operations vlan_fops = {
 
 static int vlandev_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, vlandev_seq_show, PDE(inode)->data);
+	return single_open(file, vlandev_seq_show, PDE_DATA(inode));
 }
 
 static const struct file_operations vlandev_fops = {

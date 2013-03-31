@@ -784,7 +784,6 @@ out_err:
 static int dgrp_net_open(struct inode *inode, struct file *file)
 {
 	struct nd_struct *nd;
-	struct proc_dir_entry *de;
 	ulong  lock_flags;
 	int rtn;
 
@@ -808,13 +807,7 @@ static int dgrp_net_open(struct inode *inode, struct file *file)
 	/*
 	 *  Get the node pointer, and fail if it doesn't exist.
 	 */
-	de = PDE(inode);
-	if (!de) {
-		rtn = -ENXIO;
-		goto done;
-	}
-
-	nd = (struct nd_struct *) de->data;
+	nd = PDE_DATA(inode);
 	if (!nd) {
 		rtn = -ENXIO;
 		goto done;

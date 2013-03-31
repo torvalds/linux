@@ -67,7 +67,6 @@ const struct file_operations dgrp_mon_ops = {
 static int dgrp_mon_open(struct inode *inode, struct file *file)
 {
 	struct nd_struct *nd;
-	struct proc_dir_entry *de;
 	struct timeval tv;
 	uint32_t time;
 	u8 *buf;
@@ -95,13 +94,7 @@ static int dgrp_mon_open(struct inode *inode, struct file *file)
 	/*
 	 *  Get the node pointer, and fail if it doesn't exist.
 	 */
-	de = PDE(inode);
-	if (!de) {
-		rtn = -ENXIO;
-		goto done;
-	}
-
-	nd = (struct nd_struct *)de->data;
+	nd = PDE_DATA(inode);
 	if (!nd) {
 		rtn = -ENXIO;
 		goto done;

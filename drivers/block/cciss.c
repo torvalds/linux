@@ -493,7 +493,7 @@ static int cciss_seq_open(struct inode *inode, struct file *file)
 	struct seq_file *seq = file->private_data;
 
 	if (!ret)
-		seq->private = PDE(inode)->data;
+		seq->private = PDE_DATA(inode);
 
 	return ret;
 }

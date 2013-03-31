@@ -2149,7 +2149,7 @@ static const struct seq_operations ext4_mb_seq_groups_ops = {
 
 static int ext4_mb_seq_groups_open(struct inode *inode, struct file *file)
 {
-	struct super_block *sb = PDE(inode)->data;
+	struct super_block *sb = PDE_DATA(inode);
 	int rc;
 
 	rc = seq_open(file, &ext4_mb_seq_groups_ops);

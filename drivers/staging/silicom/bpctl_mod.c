@@ -7250,7 +7250,7 @@ static int procfs_add(char *proc_name, const struct file_operations *fops,
 #define RO_FOPS(name)	\
 static int name##_open(struct inode *inode, struct file *file)	\
 {								\
-	return single_open(file, show_##name, PDE(inode)->data);\
+	return single_open(file, show_##name, PDE_DATA(inode));\
 }								\
 static const struct file_operations name##_ops = {		\
 	.open = name##_open,					\
@@ -7262,7 +7262,7 @@ static const struct file_operations name##_ops = {		\
 #define RW_FOPS(name)	\
 static int name##_open(struct inode *inode, struct file *file)	\
 {								\
-	return single_open(file, show_##name, PDE(inode)->data);\
+	return single_open(file, show_##name, PDE_DATA(inode));\
 }								\
 static const struct file_operations name##_ops = {		\
 	.open = name##_open,					\
@@ -7351,7 +7351,7 @@ static ssize_t bypass_write(struct file *file, const char __user *buffer,
 	if (bypass_param < 0)
 		return -1;
 
-	set_bypass_fn(PDE(file_inode(file))->data, bypass_param);
+	set_bypass_fn(PDE_DATA(file_inode(file)), bypass_param);
 	return count;
 }
 static int show_bypass(struct seq_file *m, void *v)
@@ -7375,7 +7375,7 @@ static ssize_t tap_write(struct file *file, const char __user *buffer,
 	if (tap_param < 0)
 		return -1;
 
-	set_tap_fn(PDE(file_inode(file))->data, tap_param);
+	set_tap_fn(PDE_DATA(file_inode(file)), tap_param);
 	return count;
 }
 static int show_tap(struct seq_file *m, void *v)
@@ -7399,7 +7399,7 @@ static ssize_t disc_write(struct file *file, const char __user *buffer,
 	if (tap_param < 0)
 		return -1;
 
-	set_disc_fn(PDE(file_inode(file))->data, tap_param);
+	set_disc_fn(PDE_DATA(file_inode(file)), tap_param);
 	return count;
 }
 static int show_disc(struct seq_file *m, void *v)
@@ -7461,7 +7461,7 @@ RO_FOPS(disc_change)
 static ssize_t bypass_wd_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
-	bpctl_dev_t *dev = PDE(file_inode(file))->data;
+	bpctl_dev_t *dev = PDE_DATA(file_inode(file));
 	int timeout;
 	int ret = kstrtoint_from_user(buffer, count, 10, &timeout);
 	if (ret)
@@ -7507,7 +7507,7 @@ RO_FOPS(wd_expire_time)
 static ssize_t tpl_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
-	bpctl_dev_t *dev = PDE(file_inode(file))->data;
+	bpctl_dev_t *dev = PDE_DATA(file_inode(file));
 	int tpl_param = user_on_off(buffer, count);
 	if (tpl_param < 0)
 		return -1;
@@ -7533,7 +7533,7 @@ RW_FOPS(tpl)
 static ssize_t wait_at_pwup_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
-	bpctl_dev_t *dev = PDE(file_inode(file))->data;
+	bpctl_dev_t *dev = PDE_DATA(file_inode(file));
 	int tpl_param = user_on_off(buffer, count);
 	if (tpl_param < 0)
 		return -1;
@@ -7558,7 +7558,7 @@ RW_FOPS(wait_at_pwup)
 static ssize_t hw_reset_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
-	bpctl_dev_t *dev = PDE(file_inode(file))->data;
+	bpctl_dev_t *dev = PDE_DATA(file_inode(file));
 	int tpl_param = user_on_off(buffer, count);
 	if (tpl_param < 0)
 		return -1;
@@ -7603,7 +7603,7 @@ static ssize_t dis_bypass_write(struct file *file, const char __user *buffer,
 	if (bypass_param < 0)
 		return -EINVAL;
 
-	set_dis_bypass_fn(PDE(file_inode(file))->data, bypass_param);
+	set_dis_bypass_fn(PDE_DATA(file_inode(file)), bypass_param);
 	return count;
 }
 static int show_dis_bypass(struct seq_file *m, void *v)
@@ -7627,7 +7627,7 @@ static ssize_t dis_tap_write(struct file *file, const char __user *buffer,
 	if (tap_param < 0)
 		return -EINVAL;
 
-	set_dis_tap_fn(PDE(file_inode(file))->data, tap_param);
+	set_dis_tap_fn(PDE_DATA(file_inode(file)), tap_param);
 	return count;
 }
 static int show_dis_tap(struct seq_file *m, void *v)
@@ -7651,7 +7651,7 @@ static ssize_t dis_disc_write(struct file *file, const char __user *buffer,
 	if (tap_param < 0)
 		return -EINVAL;
 
-	set_dis_disc_fn(PDE(file_inode(file))->data, tap_param);
+	set_dis_disc_fn(PDE_DATA(file_inode(file)), tap_param);
 	return count;
 }
 static int show_dis_disc(struct seq_file *m, void *v)
@@ -7675,7 +7675,7 @@ static ssize_t bypass_pwup_write(struct file *file, const char __user *buffer,
 	if (bypass_param < 0)
 		return -EINVAL;
 
-	set_bypass_pwup_fn(PDE(file_inode(file))->data, bypass_param);
+	set_bypass_pwup_fn(PDE_DATA(file_inode(file)), bypass_param);
 	return count;
 }
 static int show_bypass_pwup(struct seq_file *m, void *v)
@@ -7699,7 +7699,7 @@ static ssize_t bypass_pwoff_write(struct file *file, const char __user *buffer,
 	if (bypass_param < 0)
 		return -EINVAL;
 
-	set_bypass_pwoff_fn(PDE(file_inode(file))->data, bypass_param);
+	set_bypass_pwoff_fn(PDE_DATA(file_inode(file)), bypass_param);
 	return count;
 }
 static int show_bypass_pwoff(struct seq_file *m, void *v)
@@ -7723,7 +7723,7 @@ static ssize_t tap_pwup_write(struct file *file, const char __user *buffer,
 	if (tap_param < 0)
 		return -EINVAL;
 
-	set_tap_pwup_fn(PDE(file_inode(file))->data, tap_param);
+	set_tap_pwup_fn(PDE_DATA(file_inode(file)), tap_param);
 	return count;
 }
 static int show_tap_pwup(struct seq_file *m, void *v)
@@ -7747,7 +7747,7 @@ static ssize_t disc_pwup_write(struct file *file, const char __user *buffer,
 	if (tap_param < 0)
 		return -EINVAL;
 
-	set_disc_pwup_fn(PDE(file_inode(file))->data, tap_param);
+	set_disc_pwup_fn(PDE_DATA(file_inode(file)), tap_param);
 	return count;
 }
 static int show_disc_pwup(struct seq_file *m, void *v)
@@ -7771,7 +7771,7 @@ static ssize_t std_nic_write(struct file *file, const char __user *buffer,
 	if (bypass_param < 0)
 		return -EINVAL;
 
-	set_std_nic_fn(PDE(file_inode(file))->data, bypass_param);
+	set_std_nic_fn(PDE_DATA(file_inode(file)), bypass_param);
 	return count;
 }
 static int show_std_nic(struct seq_file *m, void *v)
@@ -7812,7 +7812,7 @@ static ssize_t wd_exp_mode_write(struct file *file, const char __user *buffer,
 	else if (strcmp(kbuf, "disc") == 0)
 		bypass_param = 2;
 
-	set_wd_exp_mode_fn(PDE(file_inode(file))->data, bypass_param);
+	set_wd_exp_mode_fn(PDE_DATA(file_inode(file)), bypass_param);
 
 	return count;
 }
@@ -7839,7 +7839,7 @@ static ssize_t wd_autoreset_write(struct file *file, const char __user *buffer,
 	int ret = kstrtoint_from_user(buffer, count, 10, &timeout);
 	if (ret)
 		return ret;
-	set_wd_autoreset_fn(PDE(file_inode(file))->data, timeout);
+	set_wd_autoreset_fn(PDE_DATA(file_inode(file)), timeout);
 	return count;
 }
 static int show_wd_autoreset(struct seq_file *m, void *v)

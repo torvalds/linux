@@ -346,7 +346,7 @@ void proc_free_inum(unsigned int inum)
 
 static void *proc_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	nd_set_link(nd, PDE(dentry->d_inode)->data);
+	nd_set_link(nd, PDE_DATA(dentry->d_inode));
 	return NULL;
 }
 

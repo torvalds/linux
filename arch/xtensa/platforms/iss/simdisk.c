@@ -217,7 +217,7 @@ static int simdisk_detach(struct simdisk *dev)
 static ssize_t proc_read_simdisk(struct file *file, char __user *buf,
 			size_t size, loff_t *ppos)
 {
-	struct simdisk *dev = PDE(file_inode(file))->data;
+	struct simdisk *dev = PDE_DATA(file_inode(file));
 	char *s = dev->filename;
 	if (s) {
 		ssize_t n = simple_read_from_buffer(buf, size, ppos,
@@ -234,7 +234,7 @@ static ssize_t proc_write_simdisk(struct file *file, const char __user *buf,
 			size_t size, loff_t *ppos)
 {
 	char *tmp = kmalloc(count + 1, GFP_KERNEL);
-	struct simdisk *dev = PDE(file_inode(file))->data;
+	struct simdisk *dev = PDE_DATA(file_inode(file));
 	int err;
 
 	if (tmp == NULL)

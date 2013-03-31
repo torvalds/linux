@@ -844,14 +844,14 @@ static int dispatch_proc_show(struct seq_file *m, void *v)
 
 static int dispatch_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, dispatch_proc_show, PDE(inode)->data);
+	return single_open(file, dispatch_proc_show, PDE_DATA(inode));
 }
 
 static ssize_t dispatch_proc_write(struct file *file,
 			const char __user *userbuf,
 			size_t count, loff_t *pos)
 {
-	struct ibm_struct *ibm = PDE(file_inode(file))->data;
+	struct ibm_struct *ibm = PDE_DATA(file_inode(file));
 	char *kernbuf;
 	int ret;
 

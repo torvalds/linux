@@ -349,7 +349,7 @@ static ssize_t
 adv7393_write_proc(struct file *file, const char __user * buffer,
 		   size_t count, loff_t *ppos)
 {
-	struct adv7393fb_device *fbdev = PDE(file_inode(file))->data;
+	struct adv7393fb_device *fbdev = PDE_DATA(file_inode(file));
 	unsigned int val;
 	int ret;
 

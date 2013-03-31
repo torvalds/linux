@@ -116,14 +116,12 @@ static const struct seq_operations cplbinfo_sops = {
 
 static int cplbinfo_open(struct inode *inode, struct file *file)
 {
-	struct proc_dir_entry *pde = PDE(file_inode(file));
 	char cplb_type;
-	unsigned int cpu;
+	unsigned int cpu = (unsigned long)PDE_DATA(file_inode(file));
 	int ret;
 	struct seq_file *m;
 	struct cplbinfo_data *cdata;
 
-	cpu = (unsigned int)pde->data;
 	cplb_type = cpu & CPLBINFO_DCPLB_FLAG ? 'D' : 'I';
 	cpu &= ~CPLBINFO_DCPLB_FLAG;
 

@@ -234,7 +234,7 @@ hysdn_conf_open(struct inode *ino, struct file *filep)
 
 	/* now search the addressed card */
 	mutex_lock(&hysdn_conf_mutex);
-	card = PDE(ino)->data;
+	card = PDE_DATA(ino);
 	if (card->debug_flags & (LOG_PROC_OPEN | LOG_PROC_ALL))
 		hysdn_addlog(card, "config open for uid=%d gid=%d mode=0x%x",
 			     filep->f_cred->fsuid, filep->f_cred->fsgid,
@@ -308,7 +308,7 @@ hysdn_conf_close(struct inode *ino, struct file *filep)
 	int retval = 0;
 
 	mutex_lock(&hysdn_conf_mutex);
-	card = PDE(ino)->data;
+	card = PDE_DATA(ino);
 	if (card->debug_flags & (LOG_PROC_OPEN | LOG_PROC_ALL))
 		hysdn_addlog(card, "config close for uid=%d gid=%d mode=0x%x",
 			     filep->f_cred->fsuid, filep->f_cred->fsgid,

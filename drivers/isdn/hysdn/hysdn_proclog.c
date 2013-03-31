@@ -173,7 +173,7 @@ hysdn_log_read(struct file *file, char __user *buf, size_t count, loff_t *off)
 {
 	struct log_data *inf;
 	int len;
-	hysdn_card *card = PDE(file_inode(file))->data;
+	hysdn_card *card = PDE_DATA(file_inode(file));
 
 	if (!*((struct log_data **) file->private_data)) {
 		struct procdata *pd = card->proclog;
@@ -202,7 +202,7 @@ hysdn_log_read(struct file *file, char __user *buf, size_t count, loff_t *off)
 static int
 hysdn_log_open(struct inode *ino, struct file *filep)
 {
-	hysdn_card *card = PDE(ino)->data;
+	hysdn_card *card = PDE_DATA(ino);
 
 	mutex_lock(&hysdn_log_mutex);
 	if ((filep->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_WRITE) {
@@ -255,7 +255,7 @@ hysdn_log_close(struct inode *ino, struct file *filep)
 			pd = (struct procdata *) inf->proc_ctrl;	/* still entries there */
 		else {
 			/* no info available -> search card */
-			card = PDE(file_inode(filep))->data;
+			card = PDE_DATA(file_inode(filep));
 			pd = card->proclog;	/* pointer to procfs log */
 		}
 		if (pd)
@@ -286,7 +286,7 @@ static unsigned int
 hysdn_log_poll(struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
-	hysdn_card *card = PDE(file_inode(file))->data;
+	hysdn_card *card = PDE_DATA(file_inode(file));
 	struct procdata *pd = card->proclog;
 
 	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_WRITE)

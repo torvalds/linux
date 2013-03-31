@@ -113,8 +113,6 @@ static int dgrp_dpa_open(struct inode *inode, struct file *file)
 	struct nd_struct *nd;
 	int rtn = 0;
 
-	struct proc_dir_entry *de;
-
 	rtn = try_module_get(THIS_MODULE);
 	if (!rtn)
 		return -ENXIO;
@@ -137,12 +135,7 @@ static int dgrp_dpa_open(struct inode *inode, struct file *file)
 	/*
 	 *  Get the node pointer, and fail if it doesn't exist.
 	 */
-	de = PDE(inode);
-	if (!de) {
-		rtn = -ENXIO;
-		goto done;
-	}
-	nd = (struct nd_struct *)de->data;
+	nd = PDE_DATA(inode);
 	if (!nd) {
 		rtn = -ENXIO;
 		goto done;

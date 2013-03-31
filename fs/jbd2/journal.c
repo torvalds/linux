@@ -950,7 +950,7 @@ static const struct seq_operations jbd2_seq_info_ops = {
 
 static int jbd2_seq_info_open(struct inode *inode, struct file *file)
 {
-	journal_t *journal = PDE(inode)->data;
+	journal_t *journal = PDE_DATA(inode);
 	struct jbd2_stats_proc_session *s;
 	int rc, size;
 
