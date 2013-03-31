@@ -1895,25 +1895,6 @@ static int i2o_proc_create_entries(struct proc_dir_entry *dir,
 }
 
 /**
- *	i2o_proc_subdir_remove - Remove child entries from a proc entry
- *	@dir: proc dir entry from which the childs should be removed
- *
- *	Iterate over each i2o proc entry under dir and remove it. If the child
- *	also has entries, remove them too.
- */
-static void i2o_proc_subdir_remove(struct proc_dir_entry *dir)
-{
-	struct proc_dir_entry *pe, *tmp;
-	pe = dir->subdir;
-	while (pe) {
-		tmp = pe->next;
-		i2o_proc_subdir_remove(pe);
-		remove_proc_entry(pe->name, dir);
-		pe = tmp;
-	}
-};
-
-/**
  *	i2o_proc_device_add - Add an I2O device to the proc dir
  *	@dir: proc dir entry to which the device should be added
  *	@dev: I2O device which should be added
@@ -1988,31 +1969,6 @@ static int i2o_proc_iop_add(struct proc_dir_entry *dir,
 }
 
 /**
- *	i2o_proc_iop_remove - Removes an I2O controller from the i2o proc tree
- *	@dir: parent proc dir entry
- *	@c: I2O controller which should be removed
- *
- *	Iterate over each i2o proc entry and search controller c. If it is found
- *	remove it from the tree.
- */
-static void i2o_proc_iop_remove(struct proc_dir_entry *dir,
-				struct i2o_controller *c)
-{
-	struct proc_dir_entry *pe, *tmp;
-
-	pe = dir->subdir;
-	while (pe) {
-		tmp = pe->next;
-		if (pe->data == c) {
-			i2o_proc_subdir_remove(pe);
-			remove_proc_entry(pe->name, dir);
-		}
-		osm_debug("removing IOP /proc/i2o/%s\n", c->name);
-		pe = tmp;
-	}
-}
-
-/**
  *	i2o_proc_fs_create - Create the i2o proc fs.
  *
  *	Iterate over each I2O controller and create the entries for it.
@@ -2042,12 +1998,7 @@ static int __init i2o_proc_fs_create(void)
  */
 static int __exit i2o_proc_fs_destroy(void)
 {
-	struct i2o_controller *c;
-
-	list_for_each_entry(c, &i2o_controllers, list)
-	    i2o_proc_iop_remove(i2o_proc_dir_root, c);
-
-	remove_proc_entry("i2o", NULL);
+	remove_proc_subtree("i2o", NULL);
 
 	return 0;
 };
