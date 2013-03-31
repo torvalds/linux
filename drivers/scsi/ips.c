@@ -2049,16 +2049,16 @@ ips_host_info(ips_ha_t *ha, struct seq_file *m)
 
 	if (ha->io_addr)
 		seq_printf(m,
-			  "\tIO region                         : 0x%lx (%d bytes)\n",
+			  "\tIO region                         : 0x%x (%d bytes)\n",
 			  ha->io_addr, ha->io_len);
 
 	if (ha->mem_addr) {
 		seq_printf(m,
-			  "\tMemory region                     : 0x%lx (%d bytes)\n",
+			  "\tMemory region                     : 0x%x (%d bytes)\n",
 			  ha->mem_addr, ha->mem_len);
 		seq_printf(m,
 			  "\tShared memory address             : 0x%lx\n",
-			  ha->mem_ptr);
+			  (unsigned long)ha->mem_ptr);
 	}
 
 	seq_printf(m, "\tIRQ number                        : %d\n", ha->pcidev->irq);
