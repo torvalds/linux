@@ -1324,12 +1324,18 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	struct sh_eth_cpu_data *cd = mdp->cd;
 	irqreturn_t ret = IRQ_NONE;
-	u32 intr_status = 0;
+	unsigned long intr_status;
 
 	spin_lock(&mdp->lock);
 
-	/* Get interrpt stat */
+	/* Get interrupt status */
 	intr_status = sh_eth_read(ndev, EESR);
+	/* Mask it with the interrupt mask, forcing ECI interrupt to be always
+	 * enabled since it's the one that  comes thru regardless of the mask,
+	 * and we need to fully handle it in sh_eth_error() in order to quench
+	 * it as it doesn't get cleared by just writing 1 to the ECI bit...
+	 */
+	intr_status &= sh_eth_read(ndev, EESIPR) | DMAC_M_ECI;
 	/* Clear interrupt */
 	if (intr_status & (EESR_FRC | EESR_RMAF | EESR_RRF |
 			EESR_RTLF | EESR_RTSF | EESR_PRE | EESR_CERF |
