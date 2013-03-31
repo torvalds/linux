@@ -1054,16 +1054,18 @@ static int gsc_m2m_suspend(struct gsc_dev *gsc)
 
 static int gsc_m2m_resume(struct gsc_dev *gsc)
 {
+	struct gsc_ctx *ctx;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gsc->slock, flags);
 	/* Clear for full H/W setup in first run after resume */
+	ctx = gsc->m2m.ctx;
 	gsc->m2m.ctx = NULL;
 	spin_unlock_irqrestore(&gsc->slock, flags);
 
 	if (test_and_clear_bit(ST_M2M_SUSPENDED, &gsc->state))
-		gsc_m2m_job_finish(gsc->m2m.ctx,
-				    VB2_BUF_STATE_ERROR);
+		gsc_m2m_job_finish(ctx, VB2_BUF_STATE_ERROR);
+
 	return 0;
 }
 
@@ -1204,7 +1206,7 @@ static int gsc_resume(struct device *dev)
 	/* Do not resume if the device was idle before system suspend */
 	spin_lock_irqsave(&gsc->slock, flags);
 	if (!test_and_clear_bit(ST_SUSPEND, &gsc->state) ||
-	    !gsc_m2m_active(gsc)) {
+	    !gsc_m2m_opened(gsc)) {
 		spin_unlock_irqrestore(&gsc->slock, flags);
 		return 0;
 	}
