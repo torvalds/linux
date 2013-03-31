@@ -48,7 +48,6 @@ struct pxa_pwm_chip {
 	struct device	*dev;
 
 	struct clk	*clk;
-	int		clk_enabled;
 	void __iomem	*mmio_base;
 };
 
@@ -108,24 +107,15 @@ static int pxa_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 static int pxa_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct pxa_pwm_chip *pc = to_pxa_pwm_chip(chip);
-	int rc = 0;
 
-	if (!pc->clk_enabled) {
-		rc = clk_prepare_enable(pc->clk);
-		if (!rc)
-			pc->clk_enabled++;
-	}
-	return rc;
+	return clk_prepare_enable(pc->clk);
 }
 
 static void pxa_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct pxa_pwm_chip *pc = to_pxa_pwm_chip(chip);
 
-	if (pc->clk_enabled) {
-		clk_disable_unprepare(pc->clk);
-		pc->clk_enabled--;
-	}
+	clk_disable_unprepare(pc->clk);
 }
 
 static struct pwm_ops pxa_pwm_ops = {
@@ -151,8 +141,6 @@ static int pwm_probe(struct platform_device *pdev)
 	pwm->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pwm->clk))
 		return PTR_ERR(pwm->clk);
-
-	pwm->clk_enabled = 0;
 
 	pwm->chip.dev = &pdev->dev;
 	pwm->chip.ops = &pxa_pwm_ops;
