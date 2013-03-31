@@ -347,6 +347,17 @@ next:
 	return NULL_SEGNO;
 }
 
+static int is_next_segment_free(struct f2fs_sb_info *sbi, int type)
+{
+	struct curseg_info *curseg = CURSEG_I(sbi, type);
+	unsigned int segno = curseg->segno;
+	struct free_segmap_info *free_i = FREE_I(sbi);
+
+	if (segno + 1 < TOTAL_SEGS(sbi) && (segno + 1) % sbi->segs_per_sec)
+		return !test_bit(segno + 1, free_i->free_segmap);
+	return 0;
+}
+
 /*
  * Find a new segment from the free segments bitmap to right order
  * This function should be returned with success, otherwise BUG
@@ -579,6 +590,8 @@ static void allocate_segment_by_default(struct f2fs_sb_info *sbi,
 	if (curseg->next_segno != NULL_SEGNO)
 		change_curseg(sbi, type, false);
 	else if (type == CURSEG_WARM_NODE)
+		new_curseg(sbi, type, false);
+	else if (curseg->alloc_type == LFS && is_next_segment_free(sbi, type))
 		new_curseg(sbi, type, false);
 	else if (need_SSR(sbi) && get_ssr_segment(sbi, type))
 		change_curseg(sbi, type, true);
