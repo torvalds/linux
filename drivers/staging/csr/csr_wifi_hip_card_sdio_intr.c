@@ -883,7 +883,7 @@ static CsrResult handle_host_protocol(card_t *card, u8 *processed_something)
     r = read_to_host_signals(card, &done);
     if (r != CSR_RESULT_SUCCESS)
     {
-        unifi_error(card->ospriv, "Error occured reading to-host signals\n");
+        unifi_error(card->ospriv, "Error occurred reading to-host signals\n");
         return r;
     }
     if (done > 0)
@@ -899,7 +899,7 @@ static CsrResult handle_host_protocol(card_t *card, u8 *processed_something)
     r = process_to_host_signals(card, &done);
     if (r != CSR_RESULT_SUCCESS)
     {
-        unifi_error(card->ospriv, "Error occured processing to-host signals\n");
+        unifi_error(card->ospriv, "Error occurred processing to-host signals\n");
         return r;
     }
 
@@ -908,7 +908,7 @@ static CsrResult handle_host_protocol(card_t *card, u8 *processed_something)
     r = process_fh_cmd_queue(card, &done);
     if (r != CSR_RESULT_SUCCESS)
     {
-        unifi_error(card->ospriv, "Error occured processing from-host signals\n");
+        unifi_error(card->ospriv, "Error occurred processing from-host signals\n");
         return r;
     }
     if (done > 0)
@@ -919,7 +919,7 @@ static CsrResult handle_host_protocol(card_t *card, u8 *processed_something)
     r = process_fh_traffic_queue(card, &done);
     if (r != CSR_RESULT_SUCCESS)
     {
-        unifi_error(card->ospriv, "Error occured processing from-host data signals\n");
+        unifi_error(card->ospriv, "Error occurred processing from-host data signals\n");
         return r;
     }
     if (done > 0)
@@ -1953,7 +1953,7 @@ static CsrResult check_fh_sig_slots(card_t *card, u16 needed, s32 *space_fh)
  *      in the from-host queue using the wire-format structures, as they arrive.
  *      All other requests are stored in the from-host queue using the host
  *      (cpu specific) structures. We use the is_packed member of the card_signal_t
- *      structure that describes the queue to make the distiction.
+ *      structure that describes the queue to make the distinction.
  * ---------------------------------------------------------------------------
  */
 static CsrResult process_fh_cmd_queue(card_t *card, s32 *processed)
