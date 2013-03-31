@@ -55,6 +55,9 @@ source "kernel/Kconfig.freezer"
 config STACKTRACE_SUPPORT
 	def_bool y
 
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool y
+
 config MMU
 	def_bool n
 

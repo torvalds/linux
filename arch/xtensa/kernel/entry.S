@@ -389,6 +389,22 @@ common_exception:
 
 	save_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
 	
+#ifdef CONFIG_TRACE_IRQFLAGS
+	l32i	a4, a1, PT_DEPC
+	/* Double exception means we came here with an exception
+	 * while PS.EXCM was set, i.e. interrupts disabled.
+	 */
+	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
+	l32i	a4, a1, PT_EXCCAUSE
+	bnei	a4, EXCCAUSE_LEVEL1_INTERRUPT, 1f
+	/* We came here with an interrupt means interrupts were enabled
+	 * and we've just disabled them.
+	 */
+	movi	a4, trace_hardirqs_off
+	callx4	a4
+1:
+#endif
+
 	/* Go to second-level dispatcher. Set up parameters to pass to the
 	 * exception handler and call the exception handler.
 	 */
@@ -406,6 +422,22 @@ common_exception:
 	/* Jump here for exception exit */
 	.global common_exception_return
 common_exception_return:
+
+#ifdef CONFIG_TRACE_IRQFLAGS
+	l32i	a4, a1, PT_DEPC
+	/* Double exception means we came here with an exception
+	 * while PS.EXCM was set, i.e. interrupts disabled.
+	 */
+	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
+	l32i	a4, a1, PT_EXCCAUSE
+	bnei	a4, EXCCAUSE_LEVEL1_INTERRUPT, 1f
+	/* We came here with an interrupt means interrupts were enabled
+	 * and we'll reenable them on return.
+	 */
+	movi	a4, trace_hardirqs_on
+	callx4	a4
+1:
+#endif
 
 	/* Jump if we are returning from kernel exceptions. */
 
