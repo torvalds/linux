@@ -110,8 +110,11 @@ static struct dentry *proc_mount(struct file_system_type *fs_type,
 		ns = task_active_pid_ns(current);
 		options = data;
 
-		if (!current_user_ns()->may_mount_proc ||
-		    !ns_capable(ns->user_ns, CAP_SYS_ADMIN))
+		if (!capable(CAP_SYS_ADMIN) && !fs_fully_visible(fs_type))
+			return ERR_PTR(-EPERM);
+
+		/* Does the mounter have privilege over the pid namespace? */
+		if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN))
 			return ERR_PTR(-EPERM);
 	}
 

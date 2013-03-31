@@ -97,8 +97,6 @@ int create_user_ns(struct cred *new)
 
 	set_cred_user_ns(new, ns);
 
-	update_mnt_policy(ns);
-
 	return 0;
 }
 

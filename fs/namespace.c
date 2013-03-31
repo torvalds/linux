@@ -2867,25 +2867,38 @@ bool current_chrooted(void)
 	return chrooted;
 }
 
-void update_mnt_policy(struct user_namespace *userns)
+bool fs_fully_visible(struct file_system_type *type)
 {
 	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
 	struct mount *mnt;
+	bool visible = false;
 
-	down_read(&namespace_sem);
+	if (unlikely(!ns))
+		return false;
+
+	namespace_lock();
 	list_for_each_entry(mnt, &ns->list, mnt_list) {
-		switch (mnt->mnt.mnt_sb->s_magic) {
-		case SYSFS_MAGIC:
-			userns->may_mount_sysfs = true;
-			break;
-		case PROC_SUPER_MAGIC:
-			userns->may_mount_proc = true;
-			break;
+		struct mount *child;
+		if (mnt->mnt.mnt_sb->s_type != type)
+			continue;
+
+		/* This mount is not fully visible if there are any child mounts
+		 * that cover anything except for empty directories.
+		 */
+		list_for_each_entry(child, &mnt->mnt_mounts, mnt_child) {
+			struct inode *inode = child->mnt_mountpoint->d_inode;
+			if (!S_ISDIR(inode->i_mode))
+				goto next;
+			if (inode->i_nlink != 2)
+				goto next;
 		}
-		if (userns->may_mount_sysfs && userns->may_mount_proc)
-			break;
+		visible = true;
+		goto found;
+	next:	;
 	}
-	up_read(&namespace_sem);
+found:
+	namespace_unlock();
+	return visible;
 }
 
 static void *mntns_get(struct task_struct *task)
