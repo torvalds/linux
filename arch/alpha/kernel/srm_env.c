@@ -51,7 +51,6 @@ MODULE_LICENSE("GPL");
 typedef struct _srm_env {
 	char			*name;
 	unsigned long		id;
-	struct proc_dir_entry	*proc_entry;
 } srm_env_t;
 
 static struct proc_dir_entry	*base_dir;
@@ -149,52 +148,6 @@ static const struct file_operations srm_env_proc_fops = {
 	.write		= srm_env_proc_write,
 };
 
-static void
-srm_env_cleanup(void)
-{
-	srm_env_t	*entry;
-	unsigned long	var_num;
-
-	if (base_dir) {
-		/*
-		 * Remove named entries
-		 */
-		if (named_dir) {
-			entry = srm_named_entries;
-			while (entry->name != NULL && entry->id != 0) {
-				if (entry->proc_entry) {
-					remove_proc_entry(entry->name,
-							named_dir);
-					entry->proc_entry = NULL;
-				}
-				entry++;
-			}
-			remove_proc_entry(NAMED_DIR, base_dir);
-		}
-
-		/*
-		 * Remove numbered entries
-		 */
-		if (numbered_dir) {
-			for (var_num = 0; var_num <= 255; var_num++) {
-				entry =	&srm_numbered_entries[var_num];
-
-				if (entry->proc_entry) {
-					remove_proc_entry(entry->name,
-							numbered_dir);
-					entry->proc_entry	= NULL;
-					entry->name		= NULL;
-				}
-			}
-			remove_proc_entry(NUMBERED_DIR, base_dir);
-		}
-
-		remove_proc_entry(BASE_DIR, NULL);
-	}
-
-	return;
-}
-
 static int __init
 srm_env_init(void)
 {
@@ -225,7 +178,7 @@ srm_env_init(void)
 	if (!base_dir) {
 		printk(KERN_ERR "Couldn't create base dir /proc/%s\n",
 				BASE_DIR);
-		goto cleanup;
+		return -ENOMEM;
 	}
 
 	/*
@@ -254,9 +207,8 @@ srm_env_init(void)
 	 */
 	entry = srm_named_entries;
 	while (entry->name && entry->id) {
-		entry->proc_entry = proc_create_data(entry->name, 0644, named_dir,
-						     &srm_env_proc_fops, entry);
-		if (!entry->proc_entry)
+		if (!proc_create_data(entry->name, 0644, named_dir,
+					     &srm_env_proc_fops, entry))
 			goto cleanup;
 		entry++;
 	}
@@ -268,9 +220,8 @@ srm_env_init(void)
 		entry = &srm_numbered_entries[var_num];
 		entry->name = number[var_num];
 
-		entry->proc_entry = proc_create_data(entry->name, 0644, numbered_dir,
-						     &srm_env_proc_fops, entry);
-		if (!entry->proc_entry)
+		if (!proc_create_data(entry->name, 0644, numbered_dir,
+					     &srm_env_proc_fops, entry))
 			goto cleanup;
 
 		entry->id			= var_num;
@@ -282,15 +233,14 @@ srm_env_init(void)
 	return 0;
 
 cleanup:
-	srm_env_cleanup();
-
+	remove_proc_subtree(BASE_DIR, NULL);
 	return -ENOMEM;
 }
 
 static void __exit
 srm_env_exit(void)
 {
-	srm_env_cleanup();
+	remove_proc_subtree(BASE_DIR, NULL);
 	printk(KERN_INFO "%s: unloaded successfully\n", NAME);
 
 	return;
