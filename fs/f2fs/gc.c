@@ -131,7 +131,7 @@ static void select_policy(struct f2fs_sb_info *sbi, int gc_type,
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
 
-	if (p->alloc_mode) {
+	if (p->alloc_mode == SSR) {
 		p->gc_mode = GC_GREEDY;
 		p->dirty_segmap = dirty_i->dirty_segmap[type];
 		p->ofs_unit = 1;
@@ -404,8 +404,14 @@ next_step:
 			continue;
 
 		/* set page dirty and write it */
-		if (!PageWriteback(node_page))
+		if (gc_type == FG_GC) {
+			f2fs_submit_bio(sbi, NODE, true);
+			wait_on_page_writeback(node_page);
 			set_page_dirty(node_page);
+		} else {
+			if (!PageWriteback(node_page))
+				set_page_dirty(node_page);
+		}
 		f2fs_put_page(node_page, 1);
 		stat_inc_node_blk_count(sbi, 1);
 	}
@@ -421,6 +427,13 @@ next_step:
 			.for_reclaim = 0,
 		};
 		sync_node_pages(sbi, 0, &wbc);
+
+		/*
+		 * In the case of FG_GC, it'd be better to reclaim this victim
+		 * completely.
+		 */
+		if (get_valid_blocks(sbi, segno, 1) != 0)
+			goto next_step;
 	}
 }
 
@@ -484,20 +497,19 @@ static int check_dnode(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 
 static void move_data_page(struct inode *inode, struct page *page, int gc_type)
 {
-	if (page->mapping != inode->i_mapping)
-		goto out;
-
-	if (inode != page->mapping->host)
-		goto out;
-
-	if (PageWriteback(page))
-		goto out;
-
 	if (gc_type == BG_GC) {
+		if (PageWriteback(page))
+			goto out;
 		set_page_dirty(page);
 		set_cold_data(page);
 	} else {
 		struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+
+		if (PageWriteback(page)) {
+			f2fs_submit_bio(sbi, DATA, true);
+			wait_on_page_writeback(page);
+		}
+
 		mutex_lock_op(sbi, DATA_WRITE);
 		if (clear_page_dirty_for_io(page) &&
 			S_ISDIR(inode->i_mode)) {
@@ -594,8 +606,18 @@ next_iput:
 	if (++phase < 4)
 		goto next_step;
 
-	if (gc_type == FG_GC)
+	if (gc_type == FG_GC) {
 		f2fs_submit_bio(sbi, DATA, true);
+
+		/*
+		 * In the case of FG_GC, it'd be better to reclaim this victim
+		 * completely.
+		 */
+		if (get_valid_blocks(sbi, segno, 1) != 0) {
+			phase = 2;
+			goto next_step;
+		}
+	}
 }
 
 static int __get_victim(struct f2fs_sb_info *sbi, unsigned int *victim,
