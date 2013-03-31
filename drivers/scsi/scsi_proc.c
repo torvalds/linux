@@ -78,7 +78,8 @@ static int proc_scsi_show(struct seq_file *m, void *v)
 
 static int proc_scsi_host_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, proc_scsi_show, PDE(inode)->data);
+	return single_open_size(file, proc_scsi_show, PDE(inode)->data,
+				4 * PAGE_SIZE);
 }
 
 static const struct file_operations proc_scsi_fops = {
