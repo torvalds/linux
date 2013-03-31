@@ -1377,7 +1377,7 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 	struct phy_device *phydev = mdp->phydev;
 	int new_state = 0;
 
-	if (phydev->link != PHY_DOWN) {
+	if (phydev->link) {
 		if (phydev->duplex != mdp->duplex) {
 			new_state = 1;
 			mdp->duplex = phydev->duplex;
@@ -1391,7 +1391,7 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 			if (mdp->cd->set_rate)
 				mdp->cd->set_rate(ndev);
 		}
-		if (mdp->link == PHY_DOWN) {
+		if (!mdp->link) {
 			sh_eth_write(ndev,
 				(sh_eth_read(ndev, ECMR) & ~ECMR_TXF), ECMR);
 			new_state = 1;
@@ -1401,7 +1401,7 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 		}
 	} else if (mdp->link) {
 		new_state = 1;
-		mdp->link = PHY_DOWN;
+		mdp->link = 0;
 		mdp->speed = 0;
 		mdp->duplex = -1;
 		if (mdp->cd->no_psr || mdp->no_ether_link)
@@ -1422,7 +1422,7 @@ static int sh_eth_phy_init(struct net_device *ndev)
 	snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT,
 		mdp->mii_bus->id , mdp->phy_id);
 
-	mdp->link = PHY_DOWN;
+	mdp->link = 0;
 	mdp->speed = 0;
 	mdp->duplex = -1;
 
