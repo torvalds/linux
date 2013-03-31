@@ -27,7 +27,6 @@ struct puv3_pwm_chip {
 	struct pwm_chip chip;
 	void __iomem *base;
 	struct clk *clk;
-	bool enabled;
 };
 
 static inline struct puv3_pwm_chip *to_puv3(struct pwm_chip *chip)
