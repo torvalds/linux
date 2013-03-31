@@ -610,13 +610,10 @@ out:
  */
 static void au_ren_unlock(struct au_ren_args *a)
 {
-	struct super_block *sb;
-
-	sb = a->dst_dentry->d_sb;
-	if (au_ftest_ren(a->flags, MNT_WRITE))
-		vfsub_mnt_drop_write(a->br->br_mnt);
 	vfsub_unlock_rename(a->src_h_parent, a->src_hdir,
 			    a->dst_h_parent, a->dst_hdir);
+	if (au_ftest_ren(a->flags, MNT_WRITE))
+		vfsub_mnt_drop_write(a->br->br_mnt);
 }
 
 static int au_ren_lock(struct au_ren_args *a)
@@ -629,6 +626,11 @@ static int au_ren_lock(struct au_ren_args *a)
 	a->src_hdir = au_hi(a->src_dir, a->btgt);
 	a->dst_h_parent = au_h_dptr(a->dst_parent, a->btgt);
 	a->dst_hdir = au_hi(a->dst_dir, a->btgt);
+
+	err = vfsub_mnt_want_write(a->br->br_mnt);
+	if (unlikely(err))
+		goto out;
+	au_fset_ren(a->flags, MNT_WRITE);
 	a->h_trap = vfsub_lock_rename(a->src_h_parent, a->src_hdir,
 				      a->dst_h_parent, a->dst_hdir);
 	udba = au_opt_udba(a->src_dentry->d_sb);
@@ -643,18 +645,12 @@ static int au_ren_lock(struct au_ren_args *a)
 		err = au_h_verify(a->dst_h_dentry, udba,
 				  a->dst_h_parent->d_inode, a->dst_h_parent,
 				  a->br);
-	if (!err) {
-		err = vfsub_mnt_want_write(a->br->br_mnt);
-		if (unlikely(err))
-			goto out_unlock;
-		au_fset_ren(a->flags, MNT_WRITE);
+	if (!err)
 		goto out; /* success */
-	}
 
 	err = au_busy_or_stale();
-
-out_unlock:
 	au_ren_unlock(a);
+
 out:
 	return err;
 }
