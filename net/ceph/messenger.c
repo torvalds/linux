@@ -839,9 +839,10 @@ static void ceph_msg_data_pages_cursor_init(struct ceph_msg_data *data,
 	page_count = calc_pages_for(data->alignment, (u64)data->length);
 	cursor->page_offset = data->alignment & ~PAGE_MASK;
 	cursor->page_index = 0;
-	BUG_ON(page_count > (int) USHRT_MAX);
-	cursor->page_count = (unsigned short) page_count;
-	cursor->last_piece = length <= PAGE_SIZE;
+	BUG_ON(page_count > (int)USHRT_MAX);
+	cursor->page_count = (unsigned short)page_count;
+	BUG_ON(length > SIZE_MAX - cursor->page_offset);
+	cursor->last_piece = (size_t)cursor->page_offset + length <= PAGE_SIZE;
 }
 
 static struct page *ceph_msg_data_pages_next(struct ceph_msg_data *data,
