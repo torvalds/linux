@@ -287,12 +287,14 @@ static const struct pwm_ops twl4030_pwm_ops = {
 	.disable = twl4030_pwm_disable,
 	.request = twl4030_pwm_request,
 	.free = twl4030_pwm_free,
+	.owner = THIS_MODULE,
 };
 
 static const struct pwm_ops twl6030_pwm_ops = {
 	.config = twl_pwm_config,
 	.enable = twl6030_pwm_enable,
 	.disable = twl6030_pwm_disable,
+	.owner = THIS_MODULE,
 };
 
 static int twl_pwm_probe(struct platform_device *pdev)
