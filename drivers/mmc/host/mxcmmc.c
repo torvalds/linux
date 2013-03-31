@@ -34,6 +34,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/dmaengine.h>
 #include <linux/types.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_dma.h>
+#include <linux/of_gpio.h>
 
 #include <asm/dma.h>
 #include <asm/irq.h>
@@ -172,6 +176,19 @@ static struct platform_device_id mxcmci_devtype[] = {
 	}
 };
 MODULE_DEVICE_TABLE(platform, mxcmci_devtype);
+
+static const struct of_device_id mxcmci_of_match[] = {
+	{
+		.compatible = "fsl,imx21-mmc",
+		.data = &mxcmci_devtype[IMX21_MMC],
+	}, {
+		.compatible = "fsl,imx31-mmc",
+		.data = &mxcmci_devtype[IMX31_MMC],
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(of, mxcmci_of_match);
 
 static inline int is_imx31_mmc(struct mxcmci_host *host)
 {
@@ -935,9 +952,14 @@ static int mxcmci_probe(struct platform_device *pdev)
 	struct mxcmci_host *host = NULL;
 	struct resource *iores, *r;
 	int ret = 0, irq;
+	bool dat3_card_detect = false;
 	dma_cap_mask_t mask;
+	const struct of_device_id *of_id;
+	struct imxmmc_platform_data *pdata = pdev->dev.platform_data;
 
 	pr_info("i.MX SDHC driver\n");
+
+	of_id = of_match_device(mxcmci_of_match, &pdev->dev);
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
@@ -954,8 +976,14 @@ static int mxcmci_probe(struct platform_device *pdev)
 		goto out_release_mem;
 	}
 
+	mmc_of_parse(mmc);
 	mmc->ops = &mxcmci_ops;
-	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
+
+	/* For devicetree parsing, the bus width is read from devicetree */
+	if (pdata)
+		mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
+	else
+		mmc->caps |= MMC_CAP_SDIO_IRQ;
 
 	/* MMC core transfer sizes tunable parameters */
 	mmc->max_segs = 64;
@@ -971,14 +999,25 @@ static int mxcmci_probe(struct platform_device *pdev)
 		goto out_free;
 	}
 
+	if (of_id) {
+		const struct platform_device_id *id_entry = of_id->data;
+		host->devtype = id_entry->driver_data;
+	} else {
+		host->devtype = pdev->id_entry->driver_data;
+	}
 	host->mmc = mmc;
-	host->pdata = pdev->dev.platform_data;
-	host->devtype = pdev->id_entry->driver_data;
+	host->pdata = pdata;
 	spin_lock_init(&host->lock);
+
+	if (pdata)
+		dat3_card_detect = pdata->dat3_card_detect;
+	else if (!(mmc->caps & MMC_CAP_NONREMOVABLE)
+			&& !of_property_read_bool(pdev->dev.of_node, "cd-gpios"))
+		dat3_card_detect = true;
 
 	mxcmci_init_ocr(host);
 
-	if (host->pdata && host->pdata->dat3_card_detect)
+	if (dat3_card_detect)
 		host->default_irq_mask =
 			INT_CARD_INSERTION_EN | INT_CARD_REMOVAL_EN;
 	else
@@ -1020,21 +1059,24 @@ static int mxcmci_probe(struct platform_device *pdev)
 
 	writel(host->default_irq_mask, host->base + MMC_REG_INT_CNTR);
 
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (r) {
-		host->dmareq = r->start;
-		host->dma_data.peripheral_type = IMX_DMATYPE_SDHC;
-		host->dma_data.priority = DMA_PRIO_LOW;
-		host->dma_data.dma_request = host->dmareq;
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_SLAVE, mask);
-		host->dma = dma_request_channel(mask, filter, host);
-		if (host->dma)
-			mmc->max_seg_size = dma_get_max_seg_size(
-					host->dma->device->dev);
+	if (!host->pdata) {
+		host->dma = dma_request_slave_channel(&pdev->dev, "rx-tx");
+	} else {
+		r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+		if (r) {
+			host->dmareq = r->start;
+			host->dma_data.peripheral_type = IMX_DMATYPE_SDHC;
+			host->dma_data.priority = DMA_PRIO_LOW;
+			host->dma_data.dma_request = host->dmareq;
+			dma_cap_zero(mask);
+			dma_cap_set(DMA_SLAVE, mask);
+			host->dma = dma_request_channel(mask, filter, host);
+		}
 	}
-
-	if (!host->dma)
+	if (host->dma)
+		mmc->max_seg_size = dma_get_max_seg_size(
+				host->dma->device->dev);
+	else
 		dev_info(mmc_dev(host->mmc), "dma not available. Using PIO\n");
 
 	INIT_WORK(&host->datawork, mxcmci_datawork);
@@ -1153,6 +1195,7 @@ static struct platform_driver mxcmci_driver = {
 #ifdef CONFIG_PM
 		.pm	= &mxcmci_pm_ops,
 #endif
+		.of_match_table	= mxcmci_of_match,
 	}
 };
 
