@@ -103,19 +103,6 @@ static inline void vfsub_dead_dir(struct inode *inode)
 
 /* ---------------------------------------------------------------------- */
 
-/* cf. i_[ug]id_read() in linux/include/fs.h */
-static inline uid_t vfsub_ia_uid(struct iattr *ia)
-{
-	return from_kuid(&init_user_ns, ia->ia_uid);
-}
-
-static inline gid_t vfsub_ia_gid(struct iattr *ia)
-{
-	return from_kgid(&init_user_ns, ia->ia_gid);
-}
-
-/* ---------------------------------------------------------------------- */
-
 int vfsub_update_h_iattr(struct path *h_path, int *did);
 struct file *vfsub_dentry_open(struct path *path, int flags);
 struct file *vfsub_filp_open(const char *path, int oflags, int mode);
