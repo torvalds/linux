@@ -642,12 +642,6 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 	if (IS_ERR(sum_page))
 		return;
 
-	/*
-	 * CP needs to lock sum_page. In this time, we don't need
-	 * to lock this page, because this summary page is not gone anywhere.
-	 * Also, this page is not gonna be updated before GC is done.
-	 */
-	unlock_page(sum_page);
 	sum = page_address(sum_page);
 
 	switch (GET_SUM_TYPE((&sum->footer))) {
@@ -661,7 +655,7 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 	stat_inc_seg_count(sbi, GET_SUM_TYPE((&sum->footer)));
 	stat_inc_call_count(sbi->stat_info);
 
-	f2fs_put_page(sum_page, 0);
+	f2fs_put_page(sum_page, 1);
 }
 
 int f2fs_gc(struct f2fs_sb_info *sbi)

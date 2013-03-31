@@ -137,10 +137,13 @@ int f2fs_sync_fs(struct super_block *sb, int sync)
 	if (!sbi->s_dirty && !get_pages(sbi, F2FS_DIRTY_NODES))
 		return 0;
 
-	if (sync)
+	if (sync) {
+		mutex_lock(&sbi->gc_mutex);
 		write_checkpoint(sbi, false);
-	else
+		mutex_unlock(&sbi->gc_mutex);
+	} else {
 		f2fs_balance_fs(sbi);
+	}
 
 	return 0;
 }
