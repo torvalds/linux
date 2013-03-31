@@ -341,7 +341,6 @@ struct scsi_host_template {
 	 *
 	 * Status: OBSOLETE
 	 */
-	int (*proc_info)(struct Scsi_Host *, char *, char **, off_t, int, int);
 	int (*show_info)(struct seq_file *, struct Scsi_Host *);
 	int (*write_info)(struct Scsi_Host *, char *, int);
 
@@ -378,7 +377,7 @@ struct scsi_host_template {
 
 	/*
 	 * Used to store the procfs directory if a driver implements the
-	 * proc_info or show_info method.
+	 * show_info method.
 	 */
 	struct proc_dir_entry *proc_dir;
 
