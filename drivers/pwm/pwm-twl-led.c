@@ -271,6 +271,7 @@ static const struct pwm_ops twl4030_pwmled_ops = {
 	.enable = twl4030_pwmled_enable,
 	.disable = twl4030_pwmled_disable,
 	.config = twl4030_pwmled_config,
+	.owner = THIS_MODULE,
 };
 
 static const struct pwm_ops twl6030_pwmled_ops = {
@@ -279,6 +280,7 @@ static const struct pwm_ops twl6030_pwmled_ops = {
 	.config = twl6030_pwmled_config,
 	.request = twl6030_pwmled_request,
 	.free = twl6030_pwmled_free,
+	.owner = THIS_MODULE,
 };
 
 static int twl_pwmled_probe(struct platform_device *pdev)
