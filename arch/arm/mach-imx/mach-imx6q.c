@@ -164,7 +164,6 @@ static void __init imx6q_init_machine(void)
 	imx6q_pm_init();
 	imx6q_usb_init();
 	imx6q_1588_init();
-	imx_print_silicon_rev("i.MX6Q", imx6q_revision());
 }
 
 #define OCOTP_CFG3			0x440
@@ -258,6 +257,7 @@ static void __init imx6q_timer_init(void)
 {
 	mx6q_clocks_init();
 	twd_local_timer_of_register();
+	imx_print_silicon_rev("i.MX6Q", imx6q_revision());
 }
 
 static const char *imx6q_dt_compat[] __initdata = {

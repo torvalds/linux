@@ -78,10 +78,19 @@ void imx_anatop_usb_chrg_detect_disable(void)
 
 u32 imx_anatop_get_digprog(void)
 {
-	u32  val;
+	struct device_node *np;
+	void __iomem *anatop_base;
+	static u32 digprog;
 
-	regmap_read(anatop, ANADIG_DIGPROG, &val);
-	return val;
+	if (digprog)
+		return digprog;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-anatop");
+	anatop_base = of_iomap(np, 0);
+	WARN_ON(!anatop_base);
+	digprog = readl_relaxed(anatop_base + ANADIG_DIGPROG);
+
+	return digprog;
 }
 
 void __init imx_anatop_init(void)
