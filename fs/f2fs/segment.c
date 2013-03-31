@@ -362,7 +362,8 @@ static void get_new_segment(struct f2fs_sb_info *sbi,
 	if (!new_sec && ((*newseg + 1) % sbi->segs_per_sec)) {
 		segno = find_next_zero_bit(free_i->free_segmap,
 					TOTAL_SEGS(sbi), *newseg + 1);
-		if (segno < TOTAL_SEGS(sbi))
+		if (segno - *newseg < sbi->segs_per_sec -
+					(*newseg % sbi->segs_per_sec))
 			goto got_it;
 	}
 find_other_zone:
