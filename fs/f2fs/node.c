@@ -847,6 +847,12 @@ fail:
 	return ERR_PTR(err);
 }
 
+/*
+ * Caller should do after getting the following values.
+ * 0: f2fs_put_page(page, 0)
+ * LOCKED_PAGE: f2fs_put_page(page, 1)
+ * error: nothing
+ */
 static int read_node_page(struct page *page, int type)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(page->mapping->host->i_sb);
@@ -859,10 +865,8 @@ static int read_node_page(struct page *page, int type)
 		return -ENOENT;
 	}
 
-	if (PageUptodate(page)) {
-		unlock_page(page);
-		return 0;
-	}
+	if (PageUptodate(page))
+		return LOCKED_PAGE;
 
 	return f2fs_readpage(sbi, page, ni.blk_addr, type);
 }
@@ -874,6 +878,7 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 {
 	struct address_space *mapping = sbi->node_inode->i_mapping;
 	struct page *apage;
+	int err;
 
 	apage = find_get_page(mapping, nid);
 	if (apage && PageUptodate(apage)) {
@@ -886,30 +891,36 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 	if (!apage)
 		return;
 
-	if (read_node_page(apage, READA) == 0)
+	err = read_node_page(apage, READA);
+	if (err == 0)
 		f2fs_put_page(apage, 0);
+	else if (err == LOCKED_PAGE)
+		f2fs_put_page(apage, 1);
 	return;
 }
 
 struct page *get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
 {
-	int err;
-	struct page *page;
 	struct address_space *mapping = sbi->node_inode->i_mapping;
+	struct page *page;
+	int err;
 
 	page = grab_cache_page(mapping, nid);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
 	err = read_node_page(page, READ_SYNC);
-	if (err)
+	if (err < 0)
 		return ERR_PTR(err);
+	else if (err == LOCKED_PAGE)
+		goto got_it;
 
 	lock_page(page);
 	if (!PageUptodate(page)) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(-EIO);
 	}
+got_it:
 	BUG_ON(nid != nid_of_node(page));
 	mark_page_accessed(page);
 	return page;
@@ -923,10 +934,9 @@ struct page *get_node_page_ra(struct page *parent, int start)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(parent->mapping->host->i_sb);
 	struct address_space *mapping = sbi->node_inode->i_mapping;
-	int i, end;
-	int err = 0;
-	nid_t nid;
 	struct page *page;
+	int err, i, end;
+	nid_t nid;
 
 	/* First, try getting the desired direct node. */
 	nid = get_nid(parent, start, false);
@@ -936,12 +946,12 @@ struct page *get_node_page_ra(struct page *parent, int start)
 	page = grab_cache_page(mapping, nid);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
-	else if (PageUptodate(page))
-		goto page_hit;
 
 	err = read_node_page(page, READ_SYNC);
-	if (err)
+	if (err < 0)
 		return ERR_PTR(err);
+	else if (err == LOCKED_PAGE)
+		goto page_hit;
 
 	/* Then, try readahead for siblings of the desired node */
 	end = start + MAX_RA_NODE;
@@ -956,7 +966,7 @@ struct page *get_node_page_ra(struct page *parent, int start)
 	lock_page(page);
 
 page_hit:
-	if (PageError(page)) {
+	if (!PageUptodate(page)) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(-EIO);
 	}
