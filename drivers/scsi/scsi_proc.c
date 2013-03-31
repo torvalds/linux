@@ -97,6 +97,49 @@ out:
 	return ret;
 }
 
+static ssize_t proc_scsi_host_write(struct file *file, const char __user *buf,
+                           size_t count, loff_t *ppos)
+{
+	struct Scsi_Host *shost = PDE(file_inode(file))->data;
+	ssize_t ret = -ENOMEM;
+	char *page;
+    
+	if (count > PROC_BLOCK_SIZE)
+		return -EOVERFLOW;
+
+	if (!shost->hostt->write_info)
+		return -EINVAL;
+
+	page = (char *)__get_free_page(GFP_KERNEL);
+	if (page) {
+		ret = -EFAULT;
+		if (copy_from_user(page, buf, count))
+			goto out;
+		ret = shost->hostt->write_info(shost, page, count);
+	}
+out:
+	free_page((unsigned long)page);
+	return ret;
+}
+
+static int proc_scsi_show(struct seq_file *m, void *v)
+{
+	struct Scsi_Host *shost = m->private;
+	return shost->hostt->show_info(m, shost);
+}
+
+static int proc_scsi_host_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_scsi_show, PDE(inode)->data);
+}
+
+static const struct file_operations proc_scsi_fops = {
+	.open = proc_scsi_host_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = proc_scsi_host_write
+};
+
 /**
  * scsi_proc_hostdir_add - Create directory in /proc for a scsi host
  * @sht: owner of this directory
@@ -106,7 +149,7 @@ out:
 
 void scsi_proc_hostdir_add(struct scsi_host_template *sht)
 {
-	if (!sht->proc_info)
+	if (!sht->proc_info && !sht->show_info)
 		return;
 
 	mutex_lock(&global_host_template_mutex);
@@ -125,7 +168,7 @@ void scsi_proc_hostdir_add(struct scsi_host_template *sht)
  */
 void scsi_proc_hostdir_rm(struct scsi_host_template *sht)
 {
-	if (!sht->proc_info)
+	if (!sht->proc_info && !sht->show_info)
 		return;
 
 	mutex_lock(&global_host_template_mutex);
@@ -151,16 +194,23 @@ void scsi_proc_host_add(struct Scsi_Host *shost)
 		return;
 
 	sprintf(name,"%d", shost->host_no);
+	if (sht->show_info) {
+		p = proc_create_data(name, S_IRUGO | S_IWUSR,
+			sht->proc_dir, &proc_scsi_fops, shost);
+		if (!p)
+			goto Fail;
+		return;
+	}
 	p = create_proc_read_entry(name, S_IFREG | S_IRUGO | S_IWUSR,
 			sht->proc_dir, proc_scsi_read, shost);
-	if (!p) {
-		printk(KERN_ERR "%s: Failed to register host %d in"
-		       "%s\n", __func__, shost->host_no,
-		       sht->proc_name);
+	if (p) {
+		p->write_proc = proc_scsi_write_proc;
 		return;
-	} 
-
-	p->write_proc = proc_scsi_write_proc;
+	}
+Fail:
+	printk(KERN_ERR "%s: Failed to register host %d in"
+	       "%s\n", __func__, shost->host_no,
+	       sht->proc_name);
 }
 
 /**
