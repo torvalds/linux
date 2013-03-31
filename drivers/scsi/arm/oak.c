@@ -31,7 +31,8 @@
 #define NCR5380_write(reg, value)	writeb(value, _base + ((reg) << 2))
 #define NCR5380_intr			oakscsi_intr
 #define NCR5380_queue_command		oakscsi_queue_command
-#define NCR5380_proc_info		oakscsi_proc_info
+#define NCR5380_show_info		oakscsi_show_info
+#define NCR5380_write_info		oakscsi_write_info
 
 #define NCR5380_implementation_fields	\
 	void __iomem *base
@@ -115,7 +116,8 @@ printk("reading %p len %d\n", addr, len);
 
 static struct scsi_host_template oakscsi_template = {
 	.module			= THIS_MODULE,
-	.proc_info		= oakscsi_proc_info,
+	.show_info		= oakscsi_show_info,
+	.write_info		= oakscsi_write_info,
 	.name			= "Oak 16-bit SCSI",
 	.info			= oakscsi_info,
 	.queuecommand		= oakscsi_queue_command,
