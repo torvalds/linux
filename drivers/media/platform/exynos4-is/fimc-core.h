@@ -15,6 +15,7 @@
 #include <linux/regmap.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
+#include <linux/mfd/syscon.h>
 #include <linux/types.h>
 #include <linux/videodev2.h>
 #include <linux/io.h>
@@ -644,6 +645,15 @@ int fimc_register_m2m_device(struct fimc_dev *fimc,
 void fimc_unregister_m2m_device(struct fimc_dev *fimc);
 int fimc_register_driver(void);
 void fimc_unregister_driver(void);
+
+#ifdef CONFIG_MFD_SYSCON
+static inline struct regmap * fimc_get_sysreg_regmap(struct device_node *node)
+{
+	return syscon_regmap_lookup_by_phandle(node, "samsung,sysreg");
+}
+#else
+#define fimc_get_sysreg_regmap(node) (NULL)
+#endif
 
 /* -----------------------------------------------------*/
 /* fimc-m2m.c */

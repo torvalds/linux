@@ -966,8 +966,7 @@ static int fimc_probe(struct platform_device *pdev)
 	spin_lock_init(&fimc->slock);
 	mutex_init(&fimc->lock);
 
-	fimc->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
-						"samsung,sysreg");
+	fimc->sysreg = fimc_get_sysreg_regmap(dev->of_node);
 	if (IS_ERR(fimc->sysreg))
 		return PTR_ERR(fimc->sysreg);
 

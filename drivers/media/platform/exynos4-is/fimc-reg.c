@@ -805,6 +805,9 @@ int fimc_hw_camblk_cfg_writeback(struct fimc_dev *fimc)
 	unsigned int mask, val, camblk_cfg;
 	int ret;
 
+	if (map == NULL)
+		return 0;
+
 	ret = regmap_read(map, SYSREG_CAMBLK, &camblk_cfg);
 	if (ret < 0 || ((camblk_cfg & 0x00700000) >> 20 != 0x3))
 		return ret;
