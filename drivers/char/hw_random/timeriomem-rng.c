@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/hw_random.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -101,7 +102,7 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 	int err = 0;
 	int period;
 
-	if (!pdata) {
+	if (!pdev->dev.of_node && !pdata) {
 		dev_err(&pdev->dev, "timeriomem_rng_data is missing\n");
 		return -EINVAL;
 	}
@@ -125,7 +126,19 @@ static int timeriomem_rng_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	period = pdata->period;
+	if (pdev->dev.of_node) {
+		int i;
+
+		if (!of_property_read_u32(pdev->dev.of_node,
+						"period", &i))
+			period = i;
+		else {
+			dev_err(&pdev->dev, "missing period\n");
+			err = -EINVAL;
+			goto out_free;
+		}
+	} else
+		period = pdata->period;
 
 	priv->period = usecs_to_jiffies(period);
 	if (priv->period < 1) {
@@ -202,10 +215,17 @@ static int timeriomem_rng_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id timeriomem_rng_match[] = {
+	{ .compatible = "timeriomem_rng" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, timeriomem_rng_match);
+
 static struct platform_driver timeriomem_rng_driver = {
 	.driver = {
 		.name		= "timeriomem_rng",
 		.owner		= THIS_MODULE,
+		.of_match_table	= timeriomem_rng_match,
 	},
 	.probe		= timeriomem_rng_probe,
 	.remove		= timeriomem_rng_remove,
