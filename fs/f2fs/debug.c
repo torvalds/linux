@@ -153,7 +153,7 @@ static void update_mem_info(struct f2fs_sb_info *sbi)
 	/* build dirty segmap */
 	si->base_mem += sizeof(struct dirty_seglist_info);
 	si->base_mem += NR_DIRTY_TYPE * f2fs_bitmap_size(TOTAL_SEGS(sbi));
-	si->base_mem += 2 * f2fs_bitmap_size(TOTAL_SEGS(sbi));
+	si->base_mem += f2fs_bitmap_size(TOTAL_SECS(sbi));
 
 	/* buld nm */
 	si->base_mem += sizeof(struct f2fs_nm_info);

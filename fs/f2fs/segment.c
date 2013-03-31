@@ -69,8 +69,9 @@ static void __remove_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
 		if (test_and_clear_bit(segno,
 					dirty_i->dirty_segmap[dirty_type]))
 			dirty_i->nr_dirty[dirty_type]--;
-		clear_bit(segno, dirty_i->victim_segmap[FG_GC]);
-		clear_bit(segno, dirty_i->victim_segmap[BG_GC]);
+		if (get_valid_blocks(sbi, segno, sbi->segs_per_sec) == 0)
+			clear_bit(GET_SECNO(sbi, segno),
+						dirty_i->victim_secmap);
 	}
 }
 
@@ -296,13 +297,12 @@ static void write_sum_page(struct f2fs_sb_info *sbi,
 	f2fs_put_page(page, 1);
 }
 
-static unsigned int check_prefree_segments(struct f2fs_sb_info *sbi,
-					int ofs_unit, int type)
+static unsigned int check_prefree_segments(struct f2fs_sb_info *sbi, int type)
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
 	unsigned long *prefree_segmap = dirty_i->dirty_segmap[PRE];
-	unsigned int segno, next_segno, i;
-	int ofs = 0;
+	unsigned int segno;
+	unsigned int ofs = 0;
 
 	/*
 	 * If there is not enough reserved sections,
@@ -318,23 +318,30 @@ static unsigned int check_prefree_segments(struct f2fs_sb_info *sbi,
 	if (IS_NODESEG(type))
 		return NULL_SEGNO;
 next:
-	segno = find_next_bit(prefree_segmap, TOTAL_SEGS(sbi), ofs++);
-	ofs = ((segno / ofs_unit) * ofs_unit) + ofs_unit;
+	segno = find_next_bit(prefree_segmap, TOTAL_SEGS(sbi), ofs);
+	ofs += sbi->segs_per_sec;
+
 	if (segno < TOTAL_SEGS(sbi)) {
+		int i;
+
 		/* skip intermediate segments in a section */
-		if (segno % ofs_unit)
+		if (segno % sbi->segs_per_sec)
+			goto next;
+
+		/* skip if the section is currently used */
+		if (sec_usage_check(sbi, GET_SECNO(sbi, segno)))
 			goto next;
 
 		/* skip if whole section is not prefree */
-		next_segno = find_next_zero_bit(prefree_segmap,
-						TOTAL_SEGS(sbi), segno + 1);
-		if (next_segno - segno < ofs_unit)
-			goto next;
+		for (i = 1; i < sbi->segs_per_sec; i++)
+			if (!test_bit(segno + i, prefree_segmap))
+				goto next;
 
 		/* skip if whole section was not free at the last checkpoint */
-		for (i = 0; i < ofs_unit; i++)
-			if (get_seg_entry(sbi, segno)->ckpt_valid_blocks)
+		for (i = 0; i < sbi->segs_per_sec; i++)
+			if (get_seg_entry(sbi, segno + i)->ckpt_valid_blocks)
 				goto next;
+
 		return segno;
 	}
 	return NULL_SEGNO;
@@ -561,15 +568,13 @@ static void allocate_segment_by_default(struct f2fs_sb_info *sbi,
 						int type, bool force)
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
-	unsigned int ofs_unit;
 
 	if (force) {
 		new_curseg(sbi, type, true);
 		goto out;
 	}
 
-	ofs_unit = need_SSR(sbi) ? 1 : sbi->segs_per_sec;
-	curseg->next_segno = check_prefree_segments(sbi, ofs_unit, type);
+	curseg->next_segno = check_prefree_segments(sbi, type);
 
 	if (curseg->next_segno != NULL_SEGNO)
 		change_curseg(sbi, type, false);
@@ -1558,14 +1563,13 @@ static void init_dirty_segmap(struct f2fs_sb_info *sbi)
 	}
 }
 
-static int init_victim_segmap(struct f2fs_sb_info *sbi)
+static int init_victim_secmap(struct f2fs_sb_info *sbi)
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
-	unsigned int bitmap_size = f2fs_bitmap_size(TOTAL_SEGS(sbi));
+	unsigned int bitmap_size = f2fs_bitmap_size(TOTAL_SECS(sbi));
 
-	dirty_i->victim_segmap[FG_GC] = kzalloc(bitmap_size, GFP_KERNEL);
-	dirty_i->victim_segmap[BG_GC] = kzalloc(bitmap_size, GFP_KERNEL);
-	if (!dirty_i->victim_segmap[FG_GC] || !dirty_i->victim_segmap[BG_GC])
+	dirty_i->victim_secmap = kzalloc(bitmap_size, GFP_KERNEL);
+	if (!dirty_i->victim_secmap)
 		return -ENOMEM;
 	return 0;
 }
@@ -1592,7 +1596,7 @@ static int build_dirty_segmap(struct f2fs_sb_info *sbi)
 	}
 
 	init_dirty_segmap(sbi);
-	return init_victim_segmap(sbi);
+	return init_victim_secmap(sbi);
 }
 
 /*
@@ -1679,18 +1683,10 @@ static void discard_dirty_segmap(struct f2fs_sb_info *sbi,
 	mutex_unlock(&dirty_i->seglist_lock);
 }
 
-void reset_victim_segmap(struct f2fs_sb_info *sbi)
-{
-	unsigned int bitmap_size = f2fs_bitmap_size(TOTAL_SEGS(sbi));
-	memset(DIRTY_I(sbi)->victim_segmap[FG_GC], 0, bitmap_size);
-}
-
-static void destroy_victim_segmap(struct f2fs_sb_info *sbi)
+static void destroy_victim_secmap(struct f2fs_sb_info *sbi)
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
-
-	kfree(dirty_i->victim_segmap[FG_GC]);
-	kfree(dirty_i->victim_segmap[BG_GC]);
+	kfree(dirty_i->victim_secmap);
 }
 
 static void destroy_dirty_segmap(struct f2fs_sb_info *sbi)
@@ -1705,7 +1701,7 @@ static void destroy_dirty_segmap(struct f2fs_sb_info *sbi)
 	for (i = 0; i < NR_DIRTY_TYPE; i++)
 		discard_dirty_segmap(sbi, i);
 
-	destroy_victim_segmap(sbi);
+	destroy_victim_secmap(sbi);
 	SM_I(sbi)->dirty_info = NULL;
 	kfree(dirty_i);
 }

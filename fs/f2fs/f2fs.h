@@ -410,6 +410,7 @@ struct f2fs_sb_info {
 	/* for cleaning operations */
 	struct mutex gc_mutex;			/* mutex for GC */
 	struct f2fs_gc_kthread	*gc_thread;	/* GC thread */
+	unsigned int cur_victim_sec;		/* current victim section num */
 
 	/*
 	 * for stat information.
@@ -979,7 +980,6 @@ int lookup_journal_in_cursum(struct f2fs_summary_block *,
 					int, unsigned int, int);
 void flush_sit_entries(struct f2fs_sb_info *);
 int build_segment_manager(struct f2fs_sb_info *);
-void reset_victim_segmap(struct f2fs_sb_info *);
 void destroy_segment_manager(struct f2fs_sb_info *);
 
 /*

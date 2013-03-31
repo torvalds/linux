@@ -26,6 +26,7 @@
 
 #include "f2fs.h"
 #include "node.h"
+#include "segment.h"
 #include "xattr.h"
 
 static struct kmem_cache *f2fs_inode_cachep;
@@ -458,6 +459,7 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 	sbi->root_ino_num = le32_to_cpu(raw_super->root_ino);
 	sbi->node_ino_num = le32_to_cpu(raw_super->node_ino);
 	sbi->meta_ino_num = le32_to_cpu(raw_super->meta_ino);
+	sbi->cur_victim_sec = NULL_SECNO;
 
 	for (i = 0; i < NR_COUNT_TYPE; i++)
 		atomic_set(&sbi->nr_pages[i], 0);

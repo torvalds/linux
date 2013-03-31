@@ -748,8 +748,6 @@ void write_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	flush_nat_entries(sbi);
 	flush_sit_entries(sbi);
 
-	reset_victim_segmap(sbi);
-
 	/* unlock all the fs_lock[] in do_checkpoint() */
 	do_checkpoint(sbi, is_umount);
 
