@@ -3345,7 +3345,7 @@ static void asc_prt_driver_conf(struct seq_file *m, struct Scsi_Host *shost)
 		shost->host_no);
 
 	seq_printf(m,
-		   " host_busy %u, last_reset %u, max_id %u, max_lun %u, max_channel %u\n",
+		   " host_busy %u, last_reset %lu, max_id %u, max_lun %u, max_channel %u\n",
 		   shost->host_busy, shost->last_reset, shost->max_id,
 		   shost->max_lun, shost->max_channel);
 
@@ -3359,11 +3359,11 @@ static void asc_prt_driver_conf(struct seq_file *m, struct Scsi_Host *shost)
 		   shost->unchecked_isa_dma, shost->use_clustering);
 
 	seq_printf(m,
-		   " flags 0x%x, last_reset 0x%x, jiffies 0x%x, asc_n_io_port 0x%x\n",
+		   " flags 0x%x, last_reset 0x%lx, jiffies 0x%lx, asc_n_io_port 0x%x\n",
 		   boardp->flags, boardp->last_reset, jiffies,
 		   boardp->asc_n_io_port);
 
-	seq_printf(m, " io_port 0x%x\n", shost->io_port);
+	seq_printf(m, " io_port 0x%lx\n", shost->io_port);
 
 	if (ASC_NARROW_BOARD(boardp)) {
 		chip_scsi_id = boardp->dvc_cfg.asc_dvc_cfg.chip_scsi_id;
@@ -3539,7 +3539,7 @@ static void asc_prt_adv_board_info(struct seq_file *m, struct Scsi_Host *shost)
 
 	seq_printf(m,
 		   " iop_base 0x%lx, cable_detect: %X, err_code %u\n",
-		   v->iop_base,
+		   (unsigned long)v->iop_base,
 		   AdvReadWordRegister(iop_base,IOPW_SCSI_CFG1) & CABLE_DETECT,
 		   v->err_code);
 
@@ -3670,7 +3670,7 @@ static void asc_prt_adv_board_info(struct seq_file *m, struct Scsi_Host *shost)
 				period = (((lramword >> 8) * 25) + 50) / 4;
 
 				if (period == 0) {	/* Should never happen. */
-					seq_printf(m, "%d (? Mhz), ");
+					seq_printf(m, "%d (? Mhz), ", period);
 				} else {
 					seq_printf(m,
 						   "%d (%d.%d Mhz),",
@@ -3711,17 +3711,17 @@ static void asc_prt_board_stats(struct seq_file *m, struct Scsi_Host *shost)
 		   shost->host_no);
 
 	seq_printf(m,
-		   " queuecommand %lu, reset %lu, biosparam %lu, interrupt %lu\n",
+		   " queuecommand %u, reset %u, biosparam %u, interrupt %u\n",
 		   s->queuecommand, s->reset, s->biosparam,
 		   s->interrupt);
 
 	seq_printf(m,
-		   " callback %lu, done %lu, build_error %lu, build_noreq %lu, build_nosg %lu\n",
+		   " callback %u, done %u, build_error %u, build_noreq %u, build_nosg %u\n",
 		   s->callback, s->done, s->build_error,
 		   s->adv_build_noreq, s->adv_build_nosg);
 
 	seq_printf(m,
-		   " exe_noerror %lu, exe_busy %lu, exe_error %lu, exe_unknown %lu\n",
+		   " exe_noerror %u, exe_busy %u, exe_error %u, exe_unknown %u\n",
 		   s->exe_noerror, s->exe_busy, s->exe_error,
 		   s->exe_unknown);
 
@@ -3729,22 +3729,22 @@ static void asc_prt_board_stats(struct seq_file *m, struct Scsi_Host *shost)
 	 * Display data transfer statistics.
 	 */
 	if (s->xfer_cnt > 0) {
-		seq_printf(m, " xfer_cnt %lu, xfer_elem %lu, ",
+		seq_printf(m, " xfer_cnt %u, xfer_elem %u, ",
 			   s->xfer_cnt, s->xfer_elem);
 
-		seq_printf(m, "xfer_bytes %lu.%01lu kb\n",
+		seq_printf(m, "xfer_bytes %u.%01u kb\n",
 			   s->xfer_sect / 2, ASC_TENTHS(s->xfer_sect, 2));
 
 		/* Scatter gather transfer statistics */
-		seq_printf(m, " avg_num_elem %lu.%01lu, ",
+		seq_printf(m, " avg_num_elem %u.%01u, ",
 			   s->xfer_elem / s->xfer_cnt,
 			   ASC_TENTHS(s->xfer_elem, s->xfer_cnt));
 
-		seq_printf(m, "avg_elem_size %lu.%01lu kb, ",
+		seq_printf(m, "avg_elem_size %u.%01u kb, ",
 			   (s->xfer_sect / 2) / s->xfer_elem,
 			   ASC_TENTHS((s->xfer_sect / 2), s->xfer_elem));
 
-		seq_printf(m, "avg_xfer_size %lu.%01lu kb\n",
+		seq_printf(m, "avg_xfer_size %u.%01u kb\n",
 			   (s->xfer_sect / 2) / s->xfer_cnt,
 			   ASC_TENTHS((s->xfer_sect / 2), s->xfer_cnt));
 	}
