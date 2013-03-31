@@ -374,12 +374,13 @@ struct dentry *au_pinned_h_parent(struct au_pin *pin)
 
 void au_unpin(struct au_pin *p)
 {
+	if (p->hdir)
+		au_hn_imtx_unlock(p->hdir);
 	if (p->h_mnt && au_ftest_pin(p->flags, MNT_WRITE))
 		vfsub_mnt_drop_write(p->h_mnt);
 	if (!p->hdir)
 		return;
 
-	au_hn_imtx_unlock(p->hdir);
 	if (!au_ftest_pin(p->flags, DI_LOCKED))
 		di_read_unlock(p->parent, AuLock_IR);
 	iput(p->hdir->hi_inode);
@@ -440,6 +441,19 @@ int au_do_pin(struct au_pin *p)
 		goto out_err;
 	}
 
+	if (au_ftest_pin(p->flags, MNT_WRITE)) {
+		p->h_mnt = br->br_mnt;
+		err = vfsub_mnt_want_write(p->h_mnt);
+		if (unlikely(err)) {
+			au_fclr_pin(p->flags, MNT_WRITE);
+			if (!au_ftest_pin(p->flags, DI_LOCKED))
+				di_read_unlock(p->parent, AuLock_IR);
+			dput(p->parent);
+			p->parent = NULL;
+			goto out_err;
+		}
+	}
+
 	au_igrab(h_dir);
 	au_hn_imtx_lock_nested(p->hdir, p->lsc_hi);
 
@@ -449,19 +463,8 @@ int au_do_pin(struct au_pin *p)
 	}
 	if (h_dentry) {
 		err = au_h_verify(h_dentry, p->udba, h_dir, h_parent, br);
-		if (unlikely(err)) {
-			au_fclr_pin(p->flags, MNT_WRITE);
+		if (unlikely(err))
 			goto out_unpin;
-		}
-	}
-
-	if (au_ftest_pin(p->flags, MNT_WRITE)) {
-		p->h_mnt = br->br_mnt;
-		err = vfsub_mnt_want_write(p->h_mnt);
-		if (unlikely(err)) {
-			au_fclr_pin(p->flags, MNT_WRITE);
-			goto out_unpin;
-		}
 	}
 	goto out; /* success */
 
