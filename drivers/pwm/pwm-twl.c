@@ -248,7 +248,7 @@ static int twl6030_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	twl->twl6030_toggle3 = val;
 out:
 	mutex_unlock(&twl->mutex);
-	return 0;
+	return ret;
 }
 
 static void twl6030_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
