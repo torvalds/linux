@@ -1216,10 +1216,7 @@ static void sh_eth_error(struct net_device *ndev, int intr_status)
 		if (felic_stat & ECSR_LCHNG) {
 			/* Link Changed */
 			if (mdp->cd->no_psr || mdp->no_ether_link) {
-				if (mdp->link == PHY_DOWN)
-					link_stat = 0;
-				else
-					link_stat = PHY_ST_LINK;
+				goto ignore_link;
 			} else {
 				link_stat = (sh_eth_read(ndev, PSR));
 				if (mdp->ether_link_active_low)
@@ -1242,6 +1239,7 @@ static void sh_eth_error(struct net_device *ndev, int intr_status)
 		}
 	}
 
+ignore_link:
 	if (intr_status & EESR_TWB) {
 		/* Write buck end. unused write back interrupt */
 		if (intr_status & EESR_TABT)	/* Transmit Abort int */
@@ -1392,12 +1390,16 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 				(sh_eth_read(ndev, ECMR) & ~ECMR_TXF), ECMR);
 			new_state = 1;
 			mdp->link = phydev->link;
+			if (mdp->cd->no_psr || mdp->no_ether_link)
+				sh_eth_rcv_snd_enable(ndev);
 		}
 	} else if (mdp->link) {
 		new_state = 1;
 		mdp->link = PHY_DOWN;
 		mdp->speed = 0;
 		mdp->duplex = -1;
+		if (mdp->cd->no_psr || mdp->no_ether_link)
+			sh_eth_rcv_snd_disable(ndev);
 	}
 
 	if (new_state && netif_msg_link(mdp))
