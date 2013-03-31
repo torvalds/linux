@@ -358,6 +358,7 @@ static const struct pwm_ops atmel_tcb_pwm_ops = {
 	.set_polarity = atmel_tcb_pwm_set_polarity,
 	.enable = atmel_tcb_pwm_enable,
 	.disable = atmel_tcb_pwm_disable,
+	.owner = THIS_MODULE,
 };
 
 static int atmel_tcb_pwm_probe(struct platform_device *pdev)
