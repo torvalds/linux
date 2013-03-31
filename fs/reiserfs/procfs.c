@@ -499,29 +499,17 @@ int reiserfs_proc_info_init(struct super_block *sb)
 int reiserfs_proc_info_done(struct super_block *sb)
 {
 	struct proc_dir_entry *de = REISERFS_SB(sb)->procdir;
-	char b[BDEVNAME_SIZE];
-	char *s;
-
-	/* Some block devices use /'s */
-	strlcpy(b, reiserfs_bdevname(sb), BDEVNAME_SIZE);
-	s = strchr(b, '/');
-	if (s)
-		*s = '!';
-
 	if (de) {
-		remove_proc_entry("journal", de);
-		remove_proc_entry("oidmap", de);
-		remove_proc_entry("on-disk-super", de);
-		remove_proc_entry("bitmap", de);
-		remove_proc_entry("per-level", de);
-		remove_proc_entry("super", de);
-		remove_proc_entry("version", de);
-	}
-	spin_lock(&__PINFO(sb).lock);
-	__PINFO(sb).exiting = 1;
-	spin_unlock(&__PINFO(sb).lock);
-	if (proc_info_root) {
-		remove_proc_entry(b, proc_info_root);
+		char b[BDEVNAME_SIZE];
+		char *s;
+
+		/* Some block devices use /'s */
+		strlcpy(b, reiserfs_bdevname(sb), BDEVNAME_SIZE);
+		s = strchr(b, '/');
+		if (s)
+			*s = '!';
+
+		remove_proc_subtree(b, proc_info_root);
 		REISERFS_SB(sb)->procdir = NULL;
 	}
 	return 0;
