@@ -72,7 +72,6 @@ struct proc_dir_entry {
 	struct proc_dir_entry *next, *parent, *subdir;
 	void *data;
 	read_proc_t *read_proc;
-	write_proc_t *write_proc;
 	atomic_t count;		/* use count */
 	int pde_users;	/* number of callers into module in progress */
 	struct completion *pde_unload_completion;
