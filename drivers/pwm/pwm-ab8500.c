@@ -88,6 +88,7 @@ static const struct pwm_ops ab8500_pwm_ops = {
 	.config = ab8500_pwm_config,
 	.enable = ab8500_pwm_enable,
 	.disable = ab8500_pwm_disable,
+	.owner = THIS_MODULE,
 };
 
 static int ab8500_pwm_probe(struct platform_device *pdev)
