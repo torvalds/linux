@@ -348,9 +348,8 @@ static void get_new_segment(struct f2fs_sb_info *sbi,
 			unsigned int *newseg, bool new_sec, int dir)
 {
 	struct free_segmap_info *free_i = FREE_I(sbi);
-	unsigned int total_secs = sbi->total_sections;
 	unsigned int segno, secno, zoneno;
-	unsigned int total_zones = sbi->total_sections / sbi->secs_per_zone;
+	unsigned int total_zones = TOTAL_SECS(sbi) / sbi->secs_per_zone;
 	unsigned int hint = *newseg / sbi->segs_per_sec;
 	unsigned int old_zoneno = GET_ZONENO_FROM_SEGNO(sbi, *newseg);
 	unsigned int left_start = hint;
@@ -367,12 +366,12 @@ static void get_new_segment(struct f2fs_sb_info *sbi,
 			goto got_it;
 	}
 find_other_zone:
-	secno = find_next_zero_bit(free_i->free_secmap, total_secs, hint);
-	if (secno >= total_secs) {
+	secno = find_next_zero_bit(free_i->free_secmap, TOTAL_SECS(sbi), hint);
+	if (secno >= TOTAL_SECS(sbi)) {
 		if (dir == ALLOC_RIGHT) {
 			secno = find_next_zero_bit(free_i->free_secmap,
-						total_secs, 0);
-			BUG_ON(secno >= total_secs);
+							TOTAL_SECS(sbi), 0);
+			BUG_ON(secno >= TOTAL_SECS(sbi));
 		} else {
 			go_left = 1;
 			left_start = hint - 1;
@@ -387,8 +386,8 @@ find_other_zone:
 			continue;
 		}
 		left_start = find_next_zero_bit(free_i->free_secmap,
-						total_secs, 0);
-		BUG_ON(left_start >= total_secs);
+							TOTAL_SECS(sbi), 0);
+		BUG_ON(left_start >= TOTAL_SECS(sbi));
 		break;
 	}
 	secno = left_start;
@@ -1390,7 +1389,7 @@ static int build_sit_info(struct f2fs_sb_info *sbi)
 	}
 
 	if (sbi->segs_per_sec > 1) {
-		sit_i->sec_entries = vzalloc(sbi->total_sections *
+		sit_i->sec_entries = vzalloc(TOTAL_SECS(sbi) *
 					sizeof(struct sec_entry));
 		if (!sit_i->sec_entries)
 			return -ENOMEM;
@@ -1441,7 +1440,7 @@ static int build_free_segmap(struct f2fs_sb_info *sbi)
 	if (!free_i->free_segmap)
 		return -ENOMEM;
 
-	sec_bitmap_size = f2fs_bitmap_size(sbi->total_sections);
+	sec_bitmap_size = f2fs_bitmap_size(TOTAL_SECS(sbi));
 	free_i->free_secmap = kmalloc(sec_bitmap_size, GFP_KERNEL);
 	if (!free_i->free_secmap)
 		return -ENOMEM;

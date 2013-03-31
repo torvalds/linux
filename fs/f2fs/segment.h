@@ -81,6 +81,7 @@
 #define f2fs_bitmap_size(nr)			\
 	(BITS_TO_LONGS(nr) * sizeof(unsigned long))
 #define TOTAL_SEGS(sbi)	(SM_I(sbi)->main_segments)
+#define TOTAL_SECS(sbi)	(sbi->total_sections)
 
 #define SECTOR_FROM_BLOCK(sbi, blk_addr)				\
 	(blk_addr << ((sbi)->log_blocksize - F2FS_LOG_SECTOR_SIZE))
