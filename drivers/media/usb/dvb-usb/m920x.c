@@ -76,12 +76,12 @@ static inline int m920x_write_seq(struct usb_device *udev, u8 request,
 		seq++;
 	} while (seq->address);
 
-	return ret;
+	return 0;
 }
 
 static int m920x_init(struct dvb_usb_device *d, struct m920x_inits *rc_seq)
 {
-	int ret = 0, i, epi, flags = 0;
+	int ret, i, epi, flags = 0;
 	int adap_enabled[M9206_MAX_ADAPTERS] = { 0 };
 
 	/* Remote controller init. */
@@ -124,7 +124,7 @@ static int m920x_init(struct dvb_usb_device *d, struct m920x_inits *rc_seq)
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 static int m920x_init_ep(struct usb_interface *intf)
