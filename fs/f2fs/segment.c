@@ -49,9 +49,20 @@ static void __locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
 
 	if (dirty_type == DIRTY) {
 		struct seg_entry *sentry = get_seg_entry(sbi, segno);
+		enum dirty_type t = DIRTY_HOT_DATA;
+
 		dirty_type = sentry->type;
+
 		if (!test_and_set_bit(segno, dirty_i->dirty_segmap[dirty_type]))
 			dirty_i->nr_dirty[dirty_type]++;
+
+		/* Only one bitmap should be set */
+		for (; t <= DIRTY_COLD_NODE; t++) {
+			if (t == dirty_type)
+				continue;
+			if (test_and_clear_bit(segno, dirty_i->dirty_segmap[t]))
+				dirty_i->nr_dirty[t]--;
+		}
 	}
 }
 
@@ -64,11 +75,13 @@ static void __remove_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
 		dirty_i->nr_dirty[dirty_type]--;
 
 	if (dirty_type == DIRTY) {
-		struct seg_entry *sentry = get_seg_entry(sbi, segno);
-		dirty_type = sentry->type;
-		if (test_and_clear_bit(segno,
-					dirty_i->dirty_segmap[dirty_type]))
-			dirty_i->nr_dirty[dirty_type]--;
+		enum dirty_type t = DIRTY_HOT_DATA;
+
+		/* clear all the bitmaps */
+		for (; t <= DIRTY_COLD_NODE; t++)
+			if (test_and_clear_bit(segno, dirty_i->dirty_segmap[t]))
+				dirty_i->nr_dirty[t]--;
+
 		if (get_valid_blocks(sbi, segno, sbi->segs_per_sec) == 0)
 			clear_bit(GET_SECNO(sbi, segno),
 						dirty_i->victim_secmap);
