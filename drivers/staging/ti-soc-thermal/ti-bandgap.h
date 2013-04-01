@@ -79,6 +79,7 @@
  * @mask_hot_mask: mask to bandgap_mask_ctrl.mask_hot
  * @mask_cold_mask: mask to bandgap_mask_ctrl.mask_cold
  * @mask_sidlemode_mask: mask to bandgap_mask_ctrl.mask_sidlemode
+ * @mask_counter_delay_mask: mask to bandgap_mask_ctrl.mask_counter_delay
  * @mask_freeze_mask: mask to bandgap_mask_ctrl.mask_free
  * @mask_clear_mask: mask to bandgap_mask_ctrl.mask_clear
  * @mask_clear_accum_mask: mask to bandgap_mask_ctrl.mask_clear_accum
@@ -127,6 +128,7 @@ struct temp_sensor_registers {
 	u32	mask_hot_mask;
 	u32	mask_cold_mask;
 	u32	mask_sidlemode_mask; /* not used: but may be needed for pm */
+	u32	mask_counter_delay_mask;
 	u32	mask_freeze_mask;
 	u32	mask_clear_mask; /* not used: but needed for trending */
 	u32	mask_clear_accum_mask; /* not used: but needed for trending */
