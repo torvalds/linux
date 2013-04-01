@@ -50,7 +50,7 @@
  * @reg: desired register (offset) to be read
  *
  * Helper function to read bandgap registers. It uses the io remapped area.
- * Returns the register value.
+ * Return: the register value.
  */
 static u32 ti_bandgap_readl(struct ti_bandgap *bgp, u32 reg)
 {
@@ -97,6 +97,8 @@ do {								\
  *
  * Used to power on/off a bandgap device instance. Only used on those
  * that features tempsoff bit.
+ *
+ * Return: 0 on success, -ENOTSUPP if tempsoff is not supported.
  */
 static int ti_bandgap_power(struct ti_bandgap *bgp, bool on)
 {
@@ -124,6 +126,8 @@ exit:
  * This function is desired because, depending on bandgap device version,
  * it might be needed to freeze the bandgap state machine, before fetching
  * the register value.
+ *
+ * Return: temperature in ADC values.
  */
 static u32 ti_bandgap_read_temp(struct ti_bandgap *bgp, int id)
 {
@@ -164,6 +168,8 @@ static u32 ti_bandgap_read_temp(struct ti_bandgap *bgp, int id)
  * conditions and acts accordingly. In case there are events pending,
  * it will reset the event mask to wait for the opposite event (next event).
  * Every time there is a new event, it will be reported to thermal layer.
+ *
+ * Return: IRQ_HANDLED
  */
 static irqreturn_t ti_bandgap_talert_irq_handler(int irq, void *data)
 {
@@ -224,6 +230,8 @@ static irqreturn_t ti_bandgap_talert_irq_handler(int irq, void *data)
  * This is the Tshut handler. Use it only if bandgap device features
  * HAS(TSHUT). If any sensor fires the Tshut signal, we simply shutdown
  * the system.
+ *
+ * Return: IRQ_HANDLED
  */
 static irqreturn_t ti_bandgap_tshut_irq_handler(int irq, void *data)
 {
@@ -246,6 +254,9 @@ static irqreturn_t ti_bandgap_tshut_irq_handler(int irq, void *data)
  * Simple conversion from ADC representation to mCelsius. In case the ADC value
  * is out of the ADC conv table range, it returns -ERANGE, 0 on success.
  * The conversion table is indexed by the ADC values.
+ *
+ * Return: 0 if conversion was successful, else -ERANGE in case the @adc_val
+ * argument is out of the ADC conv table range.
  */
 static
 int ti_bandgap_adc_to_mcelsius(struct ti_bandgap *bgp, int adc_val, int *t)
@@ -274,6 +285,9 @@ exit:
  * Simple conversion from mCelsius to ADC values. In case the temp value
  * is out of the ADC conv table range, it returns -ERANGE, 0 on success.
  * The conversion table is indexed by the ADC values.
+ *
+ * Return: 0 if conversion was successful, else -ERANGE in case the @temp
+ * argument is out of the ADC conv table range.
  */
 static
 int ti_bandgap_mcelsius_to_adc(struct ti_bandgap *bgp, long temp, int *adc)
@@ -313,7 +327,8 @@ exit:
  * @sum: address where to write the resulting temperature (in ADC scale)
  *
  * Adds an hysteresis value (in mCelsius) to a ADC temperature value.
- * Returns 0 on success, -ERANGE otherwise.
+ *
+ * Return: 0 on success, -ERANGE otherwise.
  */
 static
 int ti_bandgap_add_hyst(struct ti_bandgap *bgp, int adc_val, int hyst_val,
@@ -386,6 +401,8 @@ static void ti_bandgap_unmask_interrupts(struct ti_bandgap *bgp, int id,
  * It checks the resulting t_hot and t_cold values, based on the new passed @val
  * and configures the thresholds so that t_hot is always greater than t_cold.
  * Call this function only if bandgap features HAS(TALERT).
+ *
+ * Return: 0 if no error, else corresponding error
  */
 static int ti_bandgap_update_alert_threshold(struct ti_bandgap *bgp, int id,
 					     int val, bool hot)
@@ -444,6 +461,9 @@ exit:
  *
  * Checks if the bandgap pointer is valid and if the sensor id is also
  * applicable.
+ *
+ * Return: 0 if no errors, -EINVAL for invalid @bgp pointer or -ERANGE if
+ * @id cannot index @bgp sensors.
  */
 static inline int ti_bandgap_validate(struct ti_bandgap *bgp, int id)
 {
@@ -477,6 +497,8 @@ exit:
  * This function can be used to update t_hot or t_cold, depending on @hot value.
  * Validates the mCelsius range and update the requested threshold.
  * Call this function only if bandgap features HAS(TALERT).
+ *
+ * Return: 0 if no error, else corresponding error value.
  */
 static int _ti_bandgap_write_threshold(struct ti_bandgap *bgp, int id, int val,
 				       bool hot)
@@ -531,6 +553,9 @@ exit:
  * It will fetch the required thresholds (hot and cold) for TALERT signal.
  * This function can be used to read t_hot or t_cold, depending on @hot value.
  * Call this function only if bandgap features HAS(TALERT).
+ *
+ * Return: 0 if no error, -ENOTSUPP if it has no TALERT support, or the
+ * corresponding error value if some operation fails.
  */
 static int _ti_bandgap_read_threshold(struct ti_bandgap *bgp, int id,
 				      int *val, bool hot)
@@ -577,7 +602,7 @@ exit:
  * @id: sensor id
  * @thot: resulting current thot value
  *
- * returns 0 on success or the proper error code
+ * Return: 0 on success or the proper error code
  */
 int ti_bandgap_read_thot(struct ti_bandgap *bgp, int id, int *thot)
 {
@@ -590,7 +615,7 @@ int ti_bandgap_read_thot(struct ti_bandgap *bgp, int id, int *thot)
  * @id: sensor id
  * @val: desired thot value
  *
- * returns 0 on success or the proper error code
+ * Return: 0 on success or the proper error code
  */
 int ti_bandgap_write_thot(struct ti_bandgap *bgp, int id, int val)
 {
@@ -603,7 +628,7 @@ int ti_bandgap_write_thot(struct ti_bandgap *bgp, int id, int val)
  * @id: sensor id
  * @tcold: resulting current tcold value
  *
- * returns 0 on success or the proper error code
+ * Return: 0 on success or the proper error code
  */
 int ti_bandgap_read_tcold(struct ti_bandgap *bgp, int id, int *tcold)
 {
@@ -616,7 +641,7 @@ int ti_bandgap_read_tcold(struct ti_bandgap *bgp, int id, int *tcold)
  * @id: sensor id
  * @val: desired tcold value
  *
- * returns 0 on success or the proper error code
+ * Return: 0 on success or the proper error code
  */
 int ti_bandgap_write_tcold(struct ti_bandgap *bgp, int id, int val)
 {
@@ -629,7 +654,7 @@ int ti_bandgap_write_tcold(struct ti_bandgap *bgp, int id, int val)
  * @id: sensor id
  * @interval: resulting update interval in miliseconds
  *
- * returns 0 on success or the proper error code
+ * Return: 0 on success or the proper error code
  */
 int ti_bandgap_read_update_interval(struct ti_bandgap *bgp, int id,
 				    int *interval)
@@ -661,7 +686,7 @@ int ti_bandgap_read_update_interval(struct ti_bandgap *bgp, int id,
  * @id: sensor id
  * @interval: desired update interval in miliseconds
  *
- * returns 0 on success or the proper error code
+ * Return: 0 on success or the proper error code
  */
 int ti_bandgap_write_update_interval(struct ti_bandgap *bgp,
 				     int id, u32 interval)
@@ -687,7 +712,7 @@ int ti_bandgap_write_update_interval(struct ti_bandgap *bgp,
  * @id: sensor id
  * @temperature: resulting temperature
  *
- * returns 0 on success or the proper error code
+ * Return: 0 on success or the proper error code
  */
 int ti_bandgap_read_temperature(struct ti_bandgap *bgp, int id,
 				int *temperature)
@@ -719,7 +744,7 @@ int ti_bandgap_read_temperature(struct ti_bandgap *bgp, int id,
  * @id: sensor id
  * @data: thermal framework related data to be stored
  *
- * returns 0 on success or the proper error code
+ * Return: 0 on success or the proper error code
  */
 int ti_bandgap_set_sensor_data(struct ti_bandgap *bgp, int id, void *data)
 {
@@ -738,7 +763,7 @@ int ti_bandgap_set_sensor_data(struct ti_bandgap *bgp, int id, void *data)
  * @bgp: pointer to bandgap instance
  * @id: sensor id
  *
- * returns data stored by set function with sensor id on success or NULL
+ * Return: data stored by set function with sensor id on success or NULL
  */
 void *ti_bandgap_get_sensor_data(struct ti_bandgap *bgp, int id)
 {
@@ -758,6 +783,8 @@ void *ti_bandgap_get_sensor_data(struct ti_bandgap *bgp, int id)
  *
  * Used to initialize the conversion state machine and set it to a valid
  * state. Called during device initialization and context restore events.
+ *
+ * Return: 0
  */
 static int
 ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id)
@@ -791,6 +818,8 @@ ti_bandgap_force_single_read(struct ti_bandgap *bgp, int id)
  * be used for junction temperature monitoring, it is desirable that the
  * sensors are operational all the time, so that alerts are generated
  * properly.
+ *
+ * Return: 0
  */
 static int ti_bandgap_set_continuous_mode(struct ti_bandgap *bgp)
 {
@@ -816,6 +845,8 @@ static int ti_bandgap_set_continuous_mode(struct ti_bandgap *bgp)
  * to specify which GPIO line is used. TSHUT IRQ is fired anytime
  * one of the bandgap sensors violates the TSHUT high/hot threshold.
  * And in that case, the system must go off.
+ *
+ * Return: 0 if no error, else error status
  */
 static int ti_bandgap_tshut_init(struct ti_bandgap *bgp,
 				 struct platform_device *pdev)
@@ -855,6 +886,8 @@ static int ti_bandgap_tshut_init(struct ti_bandgap *bgp,
  * TALERT is a normal IRQ and it is fired any time thresholds (hot or cold)
  * are violated. In these situation, the driver must reprogram the thresholds,
  * accordingly to specified policy.
+ *
+ * Return: 0 if no error, else return corresponding error.
  */
 static int ti_bandgap_talert_init(struct ti_bandgap *bgp,
 				  struct platform_device *pdev)
@@ -886,6 +919,9 @@ static const struct of_device_id of_ti_bandgap_match[];
  * Used to read the device tree properties accordingly to the bandgap
  * matching version. Based on bandgap version and its capabilities it
  * will build a struct ti_bandgap out of the required DT entries.
+ *
+ * Return: valid bandgap structure if successful, else returns ERR_PTR
+ * return value must be verified with IS_ERR.
  */
 static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 {
