@@ -1024,7 +1024,7 @@ static inline void audit_free_names(struct audit_context *context)
 	list_for_each_entry_safe(n, next, &context->names_list, list) {
 		list_del(&n->list);
 		if (n->name && n->name_put)
-			__putname(n->name);
+			final_putname(n->name);
 		if (n->should_free)
 			kfree(n);
 	}
@@ -2050,7 +2050,7 @@ void audit_putname(struct filename *name)
 	BUG_ON(!context);
 	if (!context->in_syscall) {
 #if AUDIT_DEBUG == 2
-		printk(KERN_ERR "%s:%d(:%d): __putname(%p)\n",
+		printk(KERN_ERR "%s:%d(:%d): final_putname(%p)\n",
 		       __FILE__, __LINE__, context->serial, name);
 		if (context->name_count) {
 			struct audit_names *n;
@@ -2061,7 +2061,7 @@ void audit_putname(struct filename *name)
 				       n->name, n->name->name ?: "(null)");
 			}
 #endif
-		__putname(name);
+		final_putname(name);
 	}
 #if AUDIT_DEBUG
 	else {
