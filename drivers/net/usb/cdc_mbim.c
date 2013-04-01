@@ -68,17 +68,8 @@ static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 	struct cdc_ncm_ctx *ctx;
 	struct usb_driver *subdriver = ERR_PTR(-ENODEV);
 	int ret = -ENODEV;
-	u8 data_altsetting = CDC_NCM_DATA_ALTSETTING_NCM;
+	u8 data_altsetting = cdc_ncm_select_altsetting(dev, intf);
 	struct cdc_mbim_state *info = (void *)&dev->data;
-
-	/* see if interface supports MBIM alternate setting */
-	if (intf->num_altsetting == 2) {
-		if (!cdc_ncm_comm_intf_is_mbim(intf->cur_altsetting))
-			usb_set_interface(dev->udev,
-					  intf->cur_altsetting->desc.bInterfaceNumber,
-					  CDC_NCM_COMM_ALTSETTING_MBIM);
-		data_altsetting = CDC_NCM_DATA_ALTSETTING_MBIM;
-	}
 
 	/* Probably NCM, defer for cdc_ncm_bind */
 	if (!cdc_ncm_comm_intf_is_mbim(intf->cur_altsetting))

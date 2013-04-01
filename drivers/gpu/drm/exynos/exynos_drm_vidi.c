@@ -117,13 +117,12 @@ static struct edid *vidi_get_edid(struct device *dev,
 	}
 
 	edid_len = (1 + ctx->raw_edid->extensions) * EDID_LENGTH;
-	edid = kzalloc(edid_len, GFP_KERNEL);
+	edid = kmemdup(ctx->raw_edid, edid_len, GFP_KERNEL);
 	if (!edid) {
 		DRM_DEBUG_KMS("failed to allocate edid\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
-	memcpy(edid, ctx->raw_edid, edid_len);
 	return edid;
 }
 
@@ -563,12 +562,11 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 			return -EINVAL;
 		}
 		edid_len = (1 + raw_edid->extensions) * EDID_LENGTH;
-		ctx->raw_edid = kzalloc(edid_len, GFP_KERNEL);
+		ctx->raw_edid = kmemdup(raw_edid, edid_len, GFP_KERNEL);
 		if (!ctx->raw_edid) {
 			DRM_DEBUG_KMS("failed to allocate raw_edid.\n");
 			return -ENOMEM;
 		}
-		memcpy(ctx->raw_edid, raw_edid, edid_len);
 	} else {
 		/*
 		 * with connection = 0, free raw_edid

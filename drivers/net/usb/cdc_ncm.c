@@ -55,6 +55,14 @@
 
 #define	DRIVER_VERSION				"14-Mar-2012"
 
+#if IS_ENABLED(CONFIG_USB_NET_CDC_MBIM)
+static bool prefer_mbim = true;
+#else
+static bool prefer_mbim;
+#endif
+module_param(prefer_mbim, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(prefer_mbim, "Prefer MBIM setting on dual NCM/MBIM functions");
+
 static void cdc_ncm_txpath_bh(unsigned long param);
 static void cdc_ncm_tx_timeout_start(struct cdc_ncm_ctx *ctx);
 static enum hrtimer_restart cdc_ncm_tx_timer_cb(struct hrtimer *hr_timer);
@@ -550,9 +558,12 @@ void cdc_ncm_unbind(struct usbnet *dev, struct usb_interface *intf)
 }
 EXPORT_SYMBOL_GPL(cdc_ncm_unbind);
 
-static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
+/* Select the MBIM altsetting iff it is preferred and available,
+ * returning the number of the corresponding data interface altsetting
+ */
+u8 cdc_ncm_select_altsetting(struct usbnet *dev, struct usb_interface *intf)
 {
-	int ret;
+	struct usb_host_interface *alt;
 
 	/* The MBIM spec defines a NCM compatible default altsetting,
 	 * which we may have matched:
@@ -568,23 +579,27 @@ static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
 	 *   endpoint descriptors, shall be constructed according to
 	 *   the rules given in section 6 (USB Device Model) of this
 	 *   specification."
-	 *
-	 * Do not bind to such interfaces, allowing cdc_mbim to handle
-	 * them
 	 */
-#if IS_ENABLED(CONFIG_USB_NET_CDC_MBIM)
-	if ((intf->num_altsetting == 2) &&
-	    !usb_set_interface(dev->udev,
-			       intf->cur_altsetting->desc.bInterfaceNumber,
-			       CDC_NCM_COMM_ALTSETTING_MBIM)) {
-		if (cdc_ncm_comm_intf_is_mbim(intf->cur_altsetting))
-			return -ENODEV;
-		else
-			usb_set_interface(dev->udev,
-					  intf->cur_altsetting->desc.bInterfaceNumber,
-					  CDC_NCM_COMM_ALTSETTING_NCM);
+	if (prefer_mbim && intf->num_altsetting == 2) {
+		alt = usb_altnum_to_altsetting(intf, CDC_NCM_COMM_ALTSETTING_MBIM);
+		if (alt && cdc_ncm_comm_intf_is_mbim(alt) &&
+		    !usb_set_interface(dev->udev,
+				       intf->cur_altsetting->desc.bInterfaceNumber,
+				       CDC_NCM_COMM_ALTSETTING_MBIM))
+			return CDC_NCM_DATA_ALTSETTING_MBIM;
 	}
-#endif
+	return CDC_NCM_DATA_ALTSETTING_NCM;
+}
+EXPORT_SYMBOL_GPL(cdc_ncm_select_altsetting);
+
+static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
+{
+	int ret;
+
+	/* MBIM backwards compatible function? */
+	cdc_ncm_select_altsetting(dev, intf);
+	if (cdc_ncm_comm_intf_is_mbim(intf->cur_altsetting))
+		return -ENODEV;
 
 	/* NCM data altsetting is always 1 */
 	ret = cdc_ncm_bind_common(dev, intf, 1);

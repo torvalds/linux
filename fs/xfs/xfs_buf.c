@@ -1334,6 +1334,12 @@ _xfs_buf_ioapply(
 	int		size;
 	int		i;
 
+	/*
+	 * Make sure we capture only current IO errors rather than stale errors
+	 * left over from previous use of the buffer (e.g. failed readahead).
+	 */
+	bp->b_error = 0;
+
 	if (bp->b_flags & XBF_WRITE) {
 		if (bp->b_flags & XBF_SYNCIO)
 			rw = WRITE_SYNC;

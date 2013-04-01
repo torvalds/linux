@@ -240,6 +240,7 @@ struct fec_enet_private {
 	phy_interface_t	phy_interface;
 	int	link;
 	int	full_duplex;
+	int	speed;
 	struct	completion mdio_done;
 	int	irq[FEC_IRQ_NUM];
 	int	bufdesc_ex;

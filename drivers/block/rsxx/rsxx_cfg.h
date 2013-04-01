@@ -58,7 +58,7 @@ struct rsxx_card_cfg {
 };
 
 /* Vendor ID Values */
-#define RSXX_VENDOR_ID_TMS_IBM		0
+#define RSXX_VENDOR_ID_IBM		0
 #define RSXX_VENDOR_ID_DSI		1
 #define RSXX_VENDOR_COUNT		2
 

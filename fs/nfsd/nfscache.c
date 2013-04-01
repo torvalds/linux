@@ -102,7 +102,8 @@ nfsd_reply_cache_free_locked(struct svc_cacherep *rp)
 {
 	if (rp->c_type == RC_REPLBUFF)
 		kfree(rp->c_replvec.iov_base);
-	hlist_del(&rp->c_hash);
+	if (!hlist_unhashed(&rp->c_hash))
+		hlist_del(&rp->c_hash);
 	list_del(&rp->c_lru);
 	--num_drc_entries;
 	kmem_cache_free(drc_slab, rp);
@@ -118,6 +119,10 @@ nfsd_reply_cache_free(struct svc_cacherep *rp)
 
 int nfsd_reply_cache_init(void)
 {
+	INIT_LIST_HEAD(&lru_head);
+	max_drc_entries = nfsd_cache_size_limit();
+	num_drc_entries = 0;
+
 	register_shrinker(&nfsd_reply_cache_shrinker);
 	drc_slab = kmem_cache_create("nfsd_drc", sizeof(struct svc_cacherep),
 					0, 0, NULL);
@@ -127,10 +132,6 @@ int nfsd_reply_cache_init(void)
 	cache_hash = kcalloc(HASHSIZE, sizeof(struct hlist_head), GFP_KERNEL);
 	if (!cache_hash)
 		goto out_nomem;
-
-	INIT_LIST_HEAD(&lru_head);
-	max_drc_entries = nfsd_cache_size_limit();
-	num_drc_entries = 0;
 
 	return 0;
 out_nomem:

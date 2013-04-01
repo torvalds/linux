@@ -1388,10 +1388,13 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 			list_del(&cmd_node->list);
 			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
 					       flags);
-			adapter->cmd_queued = cmd_node;
 			mwifiex_insert_cmd_to_pending_q(adapter, cmd_node,
 							true);
 			queue_work(adapter->workqueue, &adapter->main_work);
+
+			/* Perform internal scan synchronously */
+			if (!priv->scan_request)
+				mwifiex_wait_queue_complete(adapter, cmd_node);
 		} else {
 			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
 					       flags);
@@ -1945,9 +1948,6 @@ int mwifiex_request_scan(struct mwifiex_private *priv,
 	else
 		/* Normal scan */
 		ret = mwifiex_scan_networks(priv, NULL);
-
-	if (!ret)
-		ret = mwifiex_wait_queue_complete(priv->adapter);
 
 	up(&priv->async_sem);
 
