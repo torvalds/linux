@@ -86,6 +86,11 @@ struct arizona_micd_config {
 	bool gpio;
 };
 
+struct arizona_micd_range {
+	int max;  /** Ohms */
+	int key;  /** Key to report to input layer */
+};
+
 struct arizona_pdata {
 	int reset;      /** GPIO controlling /RESET, if any */
 	int ldoena;     /** GPIO controlling LODENA, if any */
@@ -137,6 +142,10 @@ struct arizona_pdata {
 
 	/** Force MICBIAS on for mic detect */
 	bool micd_force_micbias;
+
+	/** Mic detect level parameters */
+	const struct arizona_micd_range *micd_ranges;
+	int num_micd_ranges;
 
 	/** Headset polarity configurations */
 	struct arizona_micd_config *micd_configs;
