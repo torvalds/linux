@@ -138,6 +138,7 @@ enum {
 struct worker_pool {
 	spinlock_t		lock;		/* the pool lock */
 	int			cpu;		/* I: the associated cpu */
+	int			node;		/* I: the associated node ID */
 	int			id;		/* I: pool ID */
 	unsigned int		flags;		/* X: flags */
 
@@ -1645,7 +1646,6 @@ static struct worker *alloc_worker(void)
 static struct worker *create_worker(struct worker_pool *pool)
 {
 	struct worker *worker = NULL;
-	int node = pool->cpu >= 0 ? cpu_to_node(pool->cpu) : NUMA_NO_NODE;
 	int id = -1;
 	char id_buf[16];
 
@@ -1678,7 +1678,7 @@ static struct worker *create_worker(struct worker_pool *pool)
 	else
 		snprintf(id_buf, sizeof(id_buf), "u%d:%d", pool->id, id);
 
-	worker->task = kthread_create_on_node(worker_thread, worker, node,
+	worker->task = kthread_create_on_node(worker_thread, worker, pool->node,
 					      "kworker/%s", id_buf);
 	if (IS_ERR(worker->task))
 		goto fail;
@@ -3360,6 +3360,7 @@ static int init_worker_pool(struct worker_pool *pool)
 	spin_lock_init(&pool->lock);
 	pool->id = -1;
 	pool->cpu = -1;
+	pool->node = NUMA_NO_NODE;
 	pool->flags |= POOL_DISASSOCIATED;
 	INIT_LIST_HEAD(&pool->worklist);
 	INIT_LIST_HEAD(&pool->idle_list);
@@ -3465,6 +3466,7 @@ static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
 {
 	u32 hash = wqattrs_hash(attrs);
 	struct worker_pool *pool;
+	int node;
 
 	lockdep_assert_held(&wq_pool_mutex);
 
@@ -3486,6 +3488,17 @@ static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
 
 	lockdep_set_subclass(&pool->lock, 1);	/* see put_pwq() */
 	copy_workqueue_attrs(pool->attrs, attrs);
+
+	/* if cpumask is contained inside a NUMA node, we belong to that node */
+	if (wq_numa_enabled) {
+		for_each_node(node) {
+			if (cpumask_subset(pool->attrs->cpumask,
+					   wq_numa_possible_cpumask[node])) {
+				pool->node = node;
+				break;
+			}
+		}
+	}
 
 	if (worker_pool_assign_id(pool) < 0)
 		goto fail;
@@ -4480,6 +4493,7 @@ static int __init init_workqueues(void)
 			pool->cpu = cpu;
 			cpumask_copy(pool->attrs->cpumask, cpumask_of(cpu));
 			pool->attrs->nice = std_nice[i++];
+			pool->node = cpu_to_node(cpu);
 
 			/* alloc pool ID */
 			mutex_lock(&wq_pool_mutex);
