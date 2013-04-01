@@ -39,23 +39,32 @@
 #include "cpuidle.h"
 #include "hardware.h"
 
+static u32 chip_revision;
+
 int imx6q_revision(void)
 {
-	static u32 rev;
+	return chip_revision;
+}
 
-	if (!rev)
-		rev = imx_anatop_get_digprog();
+static void __init imx6q_init_revision(void)
+{
+	u32 rev = imx_anatop_get_digprog();
 
 	switch (rev & 0xff) {
 	case 0:
-		return IMX_CHIP_REVISION_1_0;
+		chip_revision = IMX_CHIP_REVISION_1_0;
+		break;
 	case 1:
-		return IMX_CHIP_REVISION_1_1;
+		chip_revision = IMX_CHIP_REVISION_1_1;
+		break;
 	case 2:
-		return IMX_CHIP_REVISION_1_2;
+		chip_revision = IMX_CHIP_REVISION_1_2;
+		break;
 	default:
-		return IMX_CHIP_REVISION_UNKNOWN;
+		chip_revision = IMX_CHIP_REVISION_UNKNOWN;
 	}
+
+	mxc_set_cpu_type(rev >> 16 & 0xff);
 }
 
 void imx6q_restart(char mode, const char *cmd)
@@ -247,6 +256,7 @@ static void __init imx6q_map_io(void)
 
 static void __init imx6q_init_irq(void)
 {
+	imx6q_init_revision();
 	l2x0_of_init(0, ~0UL);
 	imx_src_init();
 	imx_gpc_init();
@@ -257,15 +267,17 @@ static void __init imx6q_timer_init(void)
 {
 	mx6q_clocks_init();
 	twd_local_timer_of_register();
-	imx_print_silicon_rev("i.MX6Q", imx6q_revision());
+	imx_print_silicon_rev(cpu_is_imx6dl() ? "i.MX6DL" : "i.MX6Q",
+			      imx6q_revision());
 }
 
 static const char *imx6q_dt_compat[] __initdata = {
+	"fsl,imx6dl",
 	"fsl,imx6q",
 	NULL,
 };
 
-DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad (Device Tree)")
+DT_MACHINE_START(IMX6Q, "Freescale i.MX6 Quad/DualLite (Device Tree)")
 	.smp		= smp_ops(imx_smp_ops),
 	.map_io		= imx6q_map_io,
 	.init_irq	= imx6q_init_irq,

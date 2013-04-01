@@ -790,7 +790,7 @@ config	SOC_IMX53
 	  This enables support for Freescale i.MX53 processor.
 
 config SOC_IMX6Q
-	bool "i.MX6 Quad support"
+	bool "i.MX6 Quad/DualLite support"
 	select ARCH_HAS_CPUFREQ
 	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM

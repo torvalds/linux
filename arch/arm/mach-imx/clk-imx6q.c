@@ -296,7 +296,7 @@ int __init mx6q_clocks_init(void)
 	WARN_ON(!base);
 
 	/* Audio/video PLL post dividers do not work on i.MX6q revision 1.0 */
-	if (imx6q_revision() == IMX_CHIP_REVISION_1_0) {
+	if (cpu_is_imx6q() && imx6q_revision() == IMX_CHIP_REVISION_1_0) {
 		post_div_table[1].div = 1;
 		post_div_table[2].div = 1;
 		video_div_table[1].div = 1;
