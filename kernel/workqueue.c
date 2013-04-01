@@ -101,6 +101,8 @@ enum {
 	 */
 	RESCUER_NICE_LEVEL	= -20,
 	HIGHPRI_NICE_LEVEL	= -20,
+
+	WQ_NAME_LEN		= 24,
 };
 
 /*
@@ -252,7 +254,7 @@ struct workqueue_struct {
 #ifdef CONFIG_LOCKDEP
 	struct lockdep_map	lockdep_map;
 #endif
-	char			name[];		/* I: workqueue name */
+	char			name[WQ_NAME_LEN]; /* I: workqueue name */
 };
 
 static struct kmem_cache *pwq_cache;
@@ -3757,17 +3759,12 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 					       struct lock_class_key *key,
 					       const char *lock_name, ...)
 {
-	va_list args, args1;
+	va_list args;
 	struct workqueue_struct *wq;
 	struct pool_workqueue *pwq;
-	size_t namelen;
 
-	/* determine namelen, allocate wq and format name */
-	va_start(args, lock_name);
-	va_copy(args1, args);
-	namelen = vsnprintf(NULL, 0, fmt, args) + 1;
-
-	wq = kzalloc(sizeof(*wq) + namelen, GFP_KERNEL);
+	/* allocate wq and format name */
+	wq = kzalloc(sizeof(*wq), GFP_KERNEL);
 	if (!wq)
 		return NULL;
 
@@ -3777,9 +3774,9 @@ struct workqueue_struct *__alloc_workqueue_key(const char *fmt,
 			goto err_free_wq;
 	}
 
-	vsnprintf(wq->name, namelen, fmt, args1);
+	va_start(args, lock_name);
+	vsnprintf(wq->name, sizeof(wq->name), fmt, args);
 	va_end(args);
-	va_end(args1);
 
 	max_active = max_active ?: WQ_DFL_ACTIVE;
 	max_active = wq_clamp_max_active(max_active, flags, wq->name);
