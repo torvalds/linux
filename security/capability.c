@@ -98,9 +98,10 @@ static int cap_sb_set_mnt_opts(struct super_block *sb,
 	return 0;
 }
 
-static void cap_sb_clone_mnt_opts(const struct super_block *oldsb,
+static int cap_sb_clone_mnt_opts(const struct super_block *oldsb,
 				  struct super_block *newsb)
 {
+	return 0;
 }
 
 static int cap_sb_parse_opts_str(char *options, struct security_mnt_opts *opts)

@@ -299,10 +299,10 @@ int security_sb_set_mnt_opts(struct super_block *sb,
 }
 EXPORT_SYMBOL(security_sb_set_mnt_opts);
 
-void security_sb_clone_mnt_opts(const struct super_block *oldsb,
+int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 				struct super_block *newsb)
 {
-	security_ops->sb_clone_mnt_opts(oldsb, newsb);
+	return security_ops->sb_clone_mnt_opts(oldsb, newsb);
 }
 EXPORT_SYMBOL(security_sb_clone_mnt_opts);
 
