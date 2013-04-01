@@ -5240,10 +5240,7 @@ static void rtl_hw_start_8168(struct net_device *dev)
 
 	rtl_set_rx_tx_desc_registers(tp, ioaddr);
 
-	rtl_set_rx_mode(dev);
-
-	RTL_W32(TxConfig, (TX_DMA_BURST << TxDMAShift) |
-		(InterFrameGap << TxInterFrameGapShift));
+	rtl_set_rx_tx_config_registers(tp);
 
 	RTL_R8(IntrMask);
 
@@ -5330,9 +5327,11 @@ static void rtl_hw_start_8168(struct net_device *dev)
 		break;
 	}
 
+	RTL_W8(Cfg9346, Cfg9346_Lock);
+
 	RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
 
-	RTL_W8(Cfg9346, Cfg9346_Lock);
+	rtl_set_rx_mode(dev);
 
 	RTL_W16(MultiIntr, RTL_R16(MultiIntr) & 0xF000);
 }
@@ -5490,6 +5489,17 @@ static void rtl_hw_start_8101(struct net_device *dev)
 
 	RTL_W8(Cfg9346, Cfg9346_Unlock);
 
+	RTL_W8(MaxTxPacketSize, TxPacketMax);
+
+	rtl_set_rx_max_size(ioaddr, rx_buf_sz);
+
+	tp->cp_cmd &= ~R810X_CPCMD_QUIRK_MASK;
+	RTL_W16(CPlusCmd, tp->cp_cmd);
+
+	rtl_set_rx_tx_desc_registers(tp, ioaddr);
+
+	rtl_set_rx_tx_config_registers(tp);
+
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_07:
 		rtl_hw_start_8102e_1(tp);
@@ -5521,23 +5531,13 @@ static void rtl_hw_start_8101(struct net_device *dev)
 
 	RTL_W8(Cfg9346, Cfg9346_Lock);
 
-	RTL_W8(MaxTxPacketSize, TxPacketMax);
-
-	rtl_set_rx_max_size(ioaddr, rx_buf_sz);
-
-	tp->cp_cmd &= ~R810X_CPCMD_QUIRK_MASK;
-	RTL_W16(CPlusCmd, tp->cp_cmd);
-
 	RTL_W16(IntrMitigate, 0x0000);
 
-	rtl_set_rx_tx_desc_registers(tp, ioaddr);
-
 	RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
-	rtl_set_rx_tx_config_registers(tp);
-
-	RTL_R8(IntrMask);
 
 	rtl_set_rx_mode(dev);
+
+	RTL_R8(IntrMask);
 
 	RTL_W16(MultiIntr, RTL_R16(MultiIntr) & 0xf000);
 }
