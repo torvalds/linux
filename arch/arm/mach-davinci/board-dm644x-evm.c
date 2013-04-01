@@ -750,26 +750,11 @@ static int davinci_phy_fixup(struct phy_device *phydev)
 	return 0;
 }
 
-#if defined(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
-    defined(CONFIG_BLK_DEV_PALMCHIP_BK3710_MODULE)
-#define HAS_ATA 1
-#else
-#define HAS_ATA 0
-#endif
+#define HAS_ATA		IS_ENABLED(CONFIG_BLK_DEV_PALMCHIP_BK3710)
 
-#if defined(CONFIG_MTD_PHYSMAP) || \
-    defined(CONFIG_MTD_PHYSMAP_MODULE)
-#define HAS_NOR 1
-#else
-#define HAS_NOR 0
-#endif
+#define HAS_NOR		IS_ENABLED(CONFIG_MTD_PHYSMAP)
 
-#if defined(CONFIG_MTD_NAND_DAVINCI) || \
-    defined(CONFIG_MTD_NAND_DAVINCI_MODULE)
-#define HAS_NAND 1
-#else
-#define HAS_NAND 0
-#endif
+#define HAS_NAND	IS_ENABLED(CONFIG_MTD_NAND_DAVINCI)
 
 static __init void davinci_evm_init(void)
 {

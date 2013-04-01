@@ -298,11 +298,7 @@ static const short da830_evm_emif25_pins[] = {
 	-1
 };
 
-#if defined(CONFIG_MMC_DAVINCI) || defined(CONFIG_MMC_DAVINCI_MODULE)
-#define HAS_MMC	1
-#else
-#define HAS_MMC	0
-#endif
+#define HAS_MMC		IS_ENABLED(CONFIG_MMC_DAVINCI)
 
 #ifdef CONFIG_DA830_UI_NAND
 static struct mtd_partition da830_evm_nand_partitions[] = {

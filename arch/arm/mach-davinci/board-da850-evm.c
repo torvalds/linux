@@ -335,12 +335,7 @@ static const short da850_evm_nor_pins[] = {
 	-1
 };
 
-#if defined(CONFIG_MMC_DAVINCI) || \
-    defined(CONFIG_MMC_DAVINCI_MODULE)
-#define HAS_MMC 1
-#else
-#define HAS_MMC 0
-#endif
+#define HAS_MMC		IS_ENABLED(CONFIG_MMC_DAVINCI)
 
 static inline void da850_evm_setup_nor_nand(void)
 {
