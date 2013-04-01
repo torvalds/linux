@@ -481,10 +481,6 @@ static int centrino_target (struct cpufreq_policy *policy,
 	for_each_cpu(j, policy->cpus) {
 		int good_cpu;
 
-		/* cpufreq holds the hotplug lock, so we are safe here */
-		if (!cpu_online(j))
-			continue;
-
 		/*
 		 * Support for SMP systems.
 		 * Make sure we are running on CPU that wants to change freq

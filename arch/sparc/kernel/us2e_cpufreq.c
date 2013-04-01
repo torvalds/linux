@@ -234,9 +234,6 @@ static unsigned int us2e_freq_get(unsigned int cpu)
 	cpumask_t cpus_allowed;
 	unsigned long clock_tick, estar;
 
-	if (!cpu_online(cpu))
-		return 0;
-
 	cpumask_copy(&cpus_allowed, tsk_cpus_allowed(current));
 	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
@@ -256,9 +253,6 @@ static void us2e_set_cpu_divider_index(struct cpufreq_policy *policy,
 	unsigned long clock_tick, divisor, old_divisor, estar;
 	cpumask_t cpus_allowed;
 	struct cpufreq_freqs freqs;
-
-	if (!cpu_online(cpu))
-		return;
 
 	cpumask_copy(&cpus_allowed, tsk_cpus_allowed(current));
 	set_cpus_allowed_ptr(current, cpumask_of(cpu));

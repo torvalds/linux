@@ -51,9 +51,6 @@ static int sh_cpufreq_target(struct cpufreq_policy *policy,
 	struct device *dev;
 	long freq;
 
-	if (!cpu_online(cpu))
-		return -ENODEV;
-
 	cpus_allowed = current->cpus_allowed;
 	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
@@ -110,9 +107,6 @@ static int sh_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	struct clk *cpuclk = &per_cpu(sh_cpuclk, cpu);
 	struct cpufreq_frequency_table *freq_table;
 	struct device *dev;
-
-	if (!cpu_online(cpu))
-		return -ENODEV;
 
 	dev = get_cpu_device(cpu);
 

@@ -82,9 +82,6 @@ static unsigned int us3_freq_get(unsigned int cpu)
 	unsigned long reg;
 	unsigned int ret;
 
-	if (!cpu_online(cpu))
-		return 0;
-
 	cpumask_copy(&cpus_allowed, tsk_cpus_allowed(current));
 	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
@@ -103,9 +100,6 @@ static void us3_set_cpu_divider_index(struct cpufreq_policy *policy,
 	unsigned long new_bits, new_freq, reg;
 	cpumask_t cpus_allowed;
 	struct cpufreq_freqs freqs;
-
-	if (!cpu_online(cpu))
-		return;
 
 	cpumask_copy(&cpus_allowed, tsk_cpus_allowed(current));
 	set_cpus_allowed_ptr(current, cpumask_of(cpu));

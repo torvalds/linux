@@ -61,9 +61,6 @@ static int loongson2_cpufreq_target(struct cpufreq_policy *policy,
 	struct cpufreq_freqs freqs;
 	unsigned int freq;
 
-	if (!cpu_online(cpu))
-		return -ENODEV;
-
 	cpus_allowed = current->cpus_allowed;
 	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
@@ -108,9 +105,6 @@ static int loongson2_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	int i;
 	unsigned long rate;
 	int ret;
-
-	if (!cpu_online(policy->cpu))
-		return -ENODEV;
 
 	cpuclk = clk_get(NULL, "cpu_clk");
 	if (IS_ERR(cpuclk)) {
