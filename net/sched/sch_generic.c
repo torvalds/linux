@@ -904,7 +904,7 @@ void psched_ratecfg_precompute(struct psched_ratecfg *r, u32 rate)
 	u64 mult;
 	int shift;
 
-	r->rate_bps = rate << 3;
+	r->rate_bps = (u64)rate << 3;
 	r->shift = 0;
 	r->mult = 1;
 	/*
