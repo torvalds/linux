@@ -693,8 +693,6 @@ static void arizona_start_hpdet_acc_id(struct arizona_extcon_info *info)
 
 	info->hpdet_active = true;
 
-	arizona_extcon_pulse_micbias(info);
-
 	arizona_extcon_do_magic(info, 0x4000);
 
 	ret = regmap_update_bits(arizona->regmap,
