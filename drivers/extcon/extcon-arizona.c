@@ -42,6 +42,7 @@
 #define ARIZONA_HPDET_MAX 10000
 
 #define HPDET_DEBOUNCE 500
+#define MICD_TIMEOUT 2000
 
 struct arizona_extcon_info {
 	struct device *dev;
@@ -63,6 +64,7 @@ struct arizona_extcon_info {
 	bool micd_clamp;
 
 	struct delayed_work hpdet_work;
+	struct delayed_work micd_timeout_work;
 
 	bool hpdet_active;
 	bool hpdet_done;
@@ -730,12 +732,32 @@ err:
 	info->hpdet_active = false;
 }
 
+static void arizona_micd_timeout_work(struct work_struct *work)
+{
+	struct arizona_extcon_info *info = container_of(work,
+							struct arizona_extcon_info,
+							micd_timeout_work.work);
+
+	mutex_lock(&info->lock);
+
+	dev_dbg(info->arizona->dev, "MICD timed out, reporting HP\n");
+	arizona_identify_headphone(info);
+
+	info->detecting = false;
+
+	arizona_stop_mic(info);
+
+	mutex_unlock(&info->lock);
+}
+
 static irqreturn_t arizona_micdet(int irq, void *data)
 {
 	struct arizona_extcon_info *info = data;
 	struct arizona *arizona = info->arizona;
 	unsigned int val = 0, lvl;
 	int ret, i, key;
+
+	cancel_delayed_work_sync(&info->micd_timeout_work);
 
 	mutex_lock(&info->lock);
 
@@ -858,6 +880,10 @@ static irqreturn_t arizona_micdet(int irq, void *data)
 	}
 
 handled:
+	if (info->detecting)
+		schedule_delayed_work(&info->micd_timeout_work,
+				      msecs_to_jiffies(MICD_TIMEOUT));
+
 	pm_runtime_mark_last_busy(info->dev);
 	mutex_unlock(&info->lock);
 
@@ -880,10 +906,11 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 	struct arizona_extcon_info *info = data;
 	struct arizona *arizona = info->arizona;
 	unsigned int val, present, mask;
-	bool cancelled;
+	bool cancelled_hp, cancelled_mic;
 	int ret, i;
 
-	cancelled = cancel_delayed_work_sync(&info->hpdet_work);
+	cancelled_hp = cancel_delayed_work_sync(&info->hpdet_work);
+	cancelled_mic = cancel_delayed_work_sync(&info->micd_timeout_work);
 
 	pm_runtime_get_sync(info->dev);
 
@@ -909,9 +936,13 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 	val &= mask;
 	if (val == info->last_jackdet) {
 		dev_dbg(arizona->dev, "Suppressing duplicate JACKDET\n");
-		if (cancelled)
+		if (cancelled_hp)
 			schedule_delayed_work(&info->hpdet_work,
 					      msecs_to_jiffies(HPDET_DEBOUNCE));
+
+		if (cancelled_mic)
+			schedule_delayed_work(&info->micd_timeout_work,
+					      msecs_to_jiffies(MICD_TIMEOUT));
 
 		goto out;
 	}
@@ -1037,6 +1068,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	info->dev = &pdev->dev;
 	info->last_jackdet = ~(ARIZONA_MICD_CLAMP_STS | ARIZONA_JD1_STS);
 	INIT_DELAYED_WORK(&info->hpdet_work, arizona_hpdet_work);
+	INIT_DELAYED_WORK(&info->micd_timeout_work, arizona_micd_timeout_work);
 	platform_set_drvdata(pdev, info);
 
 	switch (arizona->type) {
