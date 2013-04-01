@@ -688,6 +688,7 @@ static struct file_system_type hpfs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("hpfs");
 
 static int __init init_hpfs_fs(void)
 {

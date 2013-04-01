@@ -550,7 +550,7 @@ static int mpc512x_psc_clock(struct uart_port *port, int enable)
 		return 0;
 
 	psc_num = (port->mapbase & 0xf00) >> 8;
-	snprintf(clk_name, sizeof(clk_name), "psc%d_clk", psc_num);
+	snprintf(clk_name, sizeof(clk_name), "psc%d_mclk", psc_num);
 	psc_clk = clk_get(port->dev, clk_name);
 	if (IS_ERR(psc_clk)) {
 		dev_err(port->dev, "Failed to get PSC clock entry!\n");

@@ -21,6 +21,7 @@
 #include <linux/uaccess.h>
 #include <linux/ctype.h>
 #include <linux/projid.h>
+#include <linux/fs_struct.h>
 
 static struct kmem_cache *user_ns_cachep __read_mostly;
 
@@ -60,6 +61,15 @@ int create_user_ns(struct cred *new)
 	kgid_t group = new->egid;
 	int ret;
 
+	/*
+	 * Verify that we can not violate the policy of which files
+	 * may be accessed that is specified by the root directory,
+	 * by verifing that the root directory is at the root of the
+	 * mount namespace which allows all files to be accessed.
+	 */
+	if (current_chrooted())
+		return -EPERM;
+
 	/* The creator needs a mapping in the parent user namespace
 	 * or else we won't be able to reasonably tell userspace who
 	 * created a user_namespace.
@@ -85,6 +95,8 @@ int create_user_ns(struct cred *new)
 	ns->group = group;
 
 	set_cred_user_ns(new, ns);
+
+	update_mnt_policy(ns);
 
 	return 0;
 }
@@ -835,6 +847,9 @@ static int userns_install(struct nsproxy *nsproxy, void *ns)
 
 	/* Threaded processes may not enter a different user namespace */
 	if (atomic_read(&current->mm->mm_users) > 1)
+		return -EINVAL;
+
+	if (current->fs->users != 1)
 		return -EINVAL;
 
 	if (!ns_capable(user_ns, CAP_SYS_ADMIN))

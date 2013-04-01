@@ -412,6 +412,7 @@ static struct file_system_type qnx4_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("qnx4");
 
 static int __init init_qnx4_fs(void)
 {

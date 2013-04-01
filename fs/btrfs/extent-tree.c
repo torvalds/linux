@@ -257,7 +257,8 @@ static int exclude_super_stripes(struct btrfs_root *root,
 		cache->bytes_super += stripe_len;
 		ret = add_excluded_extent(root, cache->key.objectid,
 					  stripe_len);
-		BUG_ON(ret); /* -ENOMEM */
+		if (ret)
+			return ret;
 	}
 
 	for (i = 0; i < BTRFS_SUPER_MIRROR_MAX; i++) {
@@ -265,13 +266,17 @@ static int exclude_super_stripes(struct btrfs_root *root,
 		ret = btrfs_rmap_block(&root->fs_info->mapping_tree,
 				       cache->key.objectid, bytenr,
 				       0, &logical, &nr, &stripe_len);
-		BUG_ON(ret); /* -ENOMEM */
+		if (ret)
+			return ret;
 
 		while (nr--) {
 			cache->bytes_super += stripe_len;
 			ret = add_excluded_extent(root, logical[nr],
 						  stripe_len);
-			BUG_ON(ret); /* -ENOMEM */
+			if (ret) {
+				kfree(logical);
+				return ret;
+			}
 		}
 
 		kfree(logical);
@@ -1467,8 +1472,11 @@ int lookup_inline_extent_backref(struct btrfs_trans_handle *trans,
 	if (ret && !insert) {
 		err = -ENOENT;
 		goto out;
+	} else if (ret) {
+		err = -EIO;
+		WARN_ON(1);
+		goto out;
 	}
-	BUG_ON(ret); /* Corruption */
 
 	leaf = path->nodes[0];
 	item_size = btrfs_item_size_nr(leaf, path->slots[0]);
@@ -4435,7 +4443,7 @@ static void update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	spin_lock(&sinfo->lock);
 	spin_lock(&block_rsv->lock);
 
-	block_rsv->size = num_bytes;
+	block_rsv->size = min_t(u64, num_bytes, 512 * 1024 * 1024);
 
 	num_bytes = sinfo->bytes_used + sinfo->bytes_pinned +
 		    sinfo->bytes_reserved + sinfo->bytes_readonly +
@@ -4790,14 +4798,49 @@ out_fail:
 	 * If the inodes csum_bytes is the same as the original
 	 * csum_bytes then we know we haven't raced with any free()ers
 	 * so we can just reduce our inodes csum bytes and carry on.
-	 * Otherwise we have to do the normal free thing to account for
-	 * the case that the free side didn't free up its reserve
-	 * because of this outstanding reservation.
 	 */
-	if (BTRFS_I(inode)->csum_bytes == csum_bytes)
+	if (BTRFS_I(inode)->csum_bytes == csum_bytes) {
 		calc_csum_metadata_size(inode, num_bytes, 0);
-	else
-		to_free = calc_csum_metadata_size(inode, num_bytes, 0);
+	} else {
+		u64 orig_csum_bytes = BTRFS_I(inode)->csum_bytes;
+		u64 bytes;
+
+		/*
+		 * This is tricky, but first we need to figure out how much we
+		 * free'd from any free-ers that occured during this
+		 * reservation, so we reset ->csum_bytes to the csum_bytes
+		 * before we dropped our lock, and then call the free for the
+		 * number of bytes that were freed while we were trying our
+		 * reservation.
+		 */
+		bytes = csum_bytes - BTRFS_I(inode)->csum_bytes;
+		BTRFS_I(inode)->csum_bytes = csum_bytes;
+		to_free = calc_csum_metadata_size(inode, bytes, 0);
+
+
+		/*
+		 * Now we need to see how much we would have freed had we not
+		 * been making this reservation and our ->csum_bytes were not
+		 * artificially inflated.
+		 */
+		BTRFS_I(inode)->csum_bytes = csum_bytes - num_bytes;
+		bytes = csum_bytes - orig_csum_bytes;
+		bytes = calc_csum_metadata_size(inode, bytes, 0);
+
+		/*
+		 * Now reset ->csum_bytes to what it should be.  If bytes is
+		 * more than to_free then we would have free'd more space had we
+		 * not had an artificially high ->csum_bytes, so we need to free
+		 * the remainder.  If bytes is the same or less then we don't
+		 * need to do anything, the other free-ers did the correct
+		 * thing.
+		 */
+		BTRFS_I(inode)->csum_bytes = orig_csum_bytes - num_bytes;
+		if (bytes > to_free)
+			to_free = bytes - to_free;
+		else
+			to_free = 0;
+	}
 	spin_unlock(&BTRFS_I(inode)->lock);
 	if (dropped)
 		to_free += btrfs_calc_trans_metadata_size(root, dropped);
@@ -7944,7 +7987,17 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		 * info has super bytes accounted for, otherwise we'll think
 		 * we have more space than we actually do.
 		 */
-		exclude_super_stripes(root, cache);
+		ret = exclude_super_stripes(root, cache);
+		if (ret) {
+			/*
+			 * We may have excluded something, so call this just in
+			 * case.
+			 */
+			free_excluded_extents(root, cache);
+			kfree(cache->free_space_ctl);
+			kfree(cache);
+			goto error;
+		}
 
 		/*
 		 * check for two cases, either we are full, and therefore
@@ -8086,7 +8139,17 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 
 	cache->last_byte_to_unpin = (u64)-1;
 	cache->cached = BTRFS_CACHE_FINISHED;
-	exclude_super_stripes(root, cache);
+	ret = exclude_super_stripes(root, cache);
+	if (ret) {
+		/*
+		 * We may have excluded something, so call this just in
+		 * case.
+		 */
+		free_excluded_extents(root, cache);
+		kfree(cache->free_space_ctl);
+		kfree(cache);
+		return ret;
+	}
 
 	add_new_free_space(cache, root->fs_info, chunk_offset,
 			   chunk_offset + size);

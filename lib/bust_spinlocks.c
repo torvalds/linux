@@ -8,6 +8,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/printk.h>
 #include <linux/spinlock.h>
 #include <linux/tty.h>
 #include <linux/wait.h>
@@ -28,5 +29,3 @@ void __attribute__((weak)) bust_spinlocks(int yes)
 			wake_up_klogd();
 	}
 }
-
-

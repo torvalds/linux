@@ -1577,6 +1577,11 @@ static bool data_dev_supports_discard(struct pool_c *pt)
 	return q && blk_queue_discard(q);
 }
 
+static bool is_factor(sector_t block_size, uint32_t n)
+{
+	return !sector_div(block_size, n);
+}
+
 /*
  * If discard_passdown was enabled verify that the data device
  * supports discards.  Disable discard_passdown if not.
@@ -1602,7 +1607,7 @@ static void disable_passdown_if_not_supported(struct pool_c *pt)
 	else if (data_limits->discard_granularity > block_size)
 		reason = "discard granularity larger than a block";
 
-	else if (block_size & (data_limits->discard_granularity - 1))
+	else if (!is_factor(block_size, data_limits->discard_granularity))
 		reason = "discard granularity not a factor of block size";
 
 	if (reason) {
@@ -2544,7 +2549,7 @@ static struct target_type pool_target = {
 	.name = "thin-pool",
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
 		    DM_TARGET_IMMUTABLE,
-	.version = {1, 6, 1},
+	.version = {1, 7, 0},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,
@@ -2831,7 +2836,7 @@ static int thin_iterate_devices(struct dm_target *ti,
 
 static struct target_type thin_target = {
 	.name = "thin",
-	.version = {1, 7, 1},
+	.version = {1, 8, 0},
 	.module	= THIS_MODULE,
 	.ctr = thin_ctr,
 	.dtr = thin_dtr,

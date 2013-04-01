@@ -232,10 +232,8 @@ char *arc_extn_mumbojumbo(int cpu_id, char *buf, int len)
 
 	n += scnprintf(buf + n, len - n, "\n");
 
-#ifdef _ASM_GENERIC_UNISTD_H
 	n += scnprintf(buf + n, len - n,
-		       "OS ABI [v2]\t: asm-generic/{unistd,stat,fcntl}\n");
-#endif
+		       "OS ABI [v3]\t: no-legacy-syscalls\n");
 
 	return buf;
 }

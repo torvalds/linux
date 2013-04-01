@@ -731,7 +731,7 @@ static inline void cpsw_add_default_vlan(struct cpsw_priv *priv)
 
 	writel(vlan, &priv->host_port_regs->port_vlan);
 
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < priv->data.slaves; i++)
 		slave_write(priv->slaves + i, vlan, reg);
 
 	cpsw_ale_add_vlan(priv->ale, vlan, ALE_ALL_PORTS << port,
@@ -905,7 +905,7 @@ static netdev_tx_t cpsw_ndo_start_xmit(struct sk_buff *skb,
 	/* If there is no more tx desc left free then we need to
 	 * tell the kernel to stop sending us tx frames.
 	 */
-	if (unlikely(cpdma_check_free_tx_desc(priv->txch)))
+	if (unlikely(!cpdma_check_free_tx_desc(priv->txch)))
 		netif_stop_queue(ndev);
 
 	return NETDEV_TX_OK;
@@ -1364,7 +1364,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		struct platform_device *mdio;
 
 		parp = of_get_property(slave_node, "phy_id", &lenp);
-		if ((parp == NULL) && (lenp != (sizeof(void *) * 2))) {
+		if ((parp == NULL) || (lenp != (sizeof(void *) * 2))) {
 			pr_err("Missing slave[%d] phy_id property\n", i);
 			ret = -EINVAL;
 			goto error_ret;

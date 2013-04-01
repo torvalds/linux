@@ -232,6 +232,7 @@ static struct mfc_control controls[] = {
 		.minimum = 0,
 		.maximum = 1,
 		.default_value = 0,
+		.step = 1,
 		.menu_skip_mask = 0,
 	},
 	{

@@ -349,24 +349,22 @@ TRACE_EVENT(iwlwifi_dev_rx_data,
 TRACE_EVENT(iwlwifi_dev_hcmd,
 	TP_PROTO(const struct device *dev,
 		 struct iwl_host_cmd *cmd, u16 total_size,
-		 const void *hdr, size_t hdr_len),
-	TP_ARGS(dev, cmd, total_size, hdr, hdr_len),
+		 struct iwl_cmd_header *hdr),
+	TP_ARGS(dev, cmd, total_size, hdr),
 	TP_STRUCT__entry(
 		DEV_ENTRY
 		__dynamic_array(u8, hcmd, total_size)
 		__field(u32, flags)
 	),
 	TP_fast_assign(
-		int i, offset = hdr_len;
+		int i, offset = sizeof(*hdr);
 
 		DEV_ASSIGN;
 		__entry->flags = cmd->flags;
-		memcpy(__get_dynamic_array(hcmd), hdr, hdr_len);
+		memcpy(__get_dynamic_array(hcmd), hdr, sizeof(*hdr));
 
-		for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
+		for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
 			if (!cmd->len[i])
-				continue;
-			if (!(cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY))
 				continue;
 			memcpy((u8 *)__get_dynamic_array(hcmd) + offset,
 			       cmd->data[i], cmd->len[i]);

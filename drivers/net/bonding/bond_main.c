@@ -1629,7 +1629,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	/* If this is the first slave, then we need to set the master's hardware
 	 * address to be the same as the slave's. */
-	if (bond->dev_addr_from_first)
+	if (bond->slave_cnt == 0 && bond->dev_addr_from_first)
 		bond_set_dev_addr(bond->dev, slave_dev);
 
 	new_slave = kzalloc(sizeof(struct slave), GFP_KERNEL);
@@ -1746,6 +1746,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	bond_compute_features(bond);
 
+	bond_update_speed_duplex(new_slave);
+
 	read_lock(&bond->lock);
 
 	new_slave->last_arp_rx = jiffies -
@@ -1797,8 +1799,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	pr_debug("Initial state of slave_dev is BOND_LINK_%s\n",
 		new_slave->link == BOND_LINK_DOWN ? "DOWN" :
 			(new_slave->link == BOND_LINK_UP ? "UP" : "BACK"));
-
-	bond_update_speed_duplex(new_slave);
 
 	if (USES_PRIMARY(bond->params.mode) && bond->params.primary[0]) {
 		/* if there is a primary slave, remember it */
@@ -1964,7 +1964,6 @@ static int __bond_release_one(struct net_device *bond_dev,
 	}
 
 	block_netpoll_tx();
-	call_netdevice_notifiers(NETDEV_RELEASE, bond_dev);
 	write_lock_bh(&bond->lock);
 
 	slave = bond_get_slave_by_dev(bond, slave_dev);
@@ -2066,8 +2065,10 @@ static int __bond_release_one(struct net_device *bond_dev,
 	write_unlock_bh(&bond->lock);
 	unblock_netpoll_tx();
 
-	if (bond->slave_cnt == 0)
+	if (bond->slave_cnt == 0) {
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, bond->dev);
+		call_netdevice_notifiers(NETDEV_RELEASE, bond->dev);
+	}
 
 	bond_compute_features(bond);
 	if (!(bond_dev->features & NETIF_F_VLAN_CHALLENGED) &&
@@ -2372,8 +2373,6 @@ static void bond_miimon_commit(struct bonding *bond)
 				/* prevent it from being the active one */
 				bond_set_backup_slave(slave);
 			}
-
-			bond_update_speed_duplex(slave);
 
 			pr_info("%s: link status definitely up for interface %s, %u Mbps %s duplex.\n",
 				bond->dev->name, slave->dev->name,

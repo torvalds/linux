@@ -41,8 +41,6 @@ static struct fb_videomode mx23evk_video_modes[] = {
 		.lower_margin	= 4,
 		.hsync_len	= 1,
 		.vsync_len	= 1,
-		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT |
-				  FB_SYNC_DOTCLK_FAILING_ACT,
 	},
 };
 
@@ -59,8 +57,6 @@ static struct fb_videomode mx28evk_video_modes[] = {
 		.lower_margin	= 10,
 		.hsync_len	= 10,
 		.vsync_len	= 10,
-		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT |
-				  FB_SYNC_DOTCLK_FAILING_ACT,
 	},
 };
 
@@ -77,7 +73,6 @@ static struct fb_videomode m28evk_video_modes[] = {
 		.lower_margin	= 45,
 		.hsync_len	= 1,
 		.vsync_len	= 1,
-		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT,
 	},
 };
 
@@ -94,9 +89,7 @@ static struct fb_videomode apx4devkit_video_modes[] = {
 		.lower_margin	= 13,
 		.hsync_len	= 48,
 		.vsync_len	= 3,
-		.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT |
-				  FB_SYNC_DATA_ENABLE_HIGH_ACT |
-				  FB_SYNC_DOTCLK_FAILING_ACT,
+		.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	},
 };
 
@@ -113,9 +106,7 @@ static struct fb_videomode apf28dev_video_modes[] = {
 		.lower_margin = 0x15,
 		.hsync_len = 64,
 		.vsync_len = 4,
-		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT |
-				FB_SYNC_DATA_ENABLE_HIGH_ACT |
-				FB_SYNC_DOTCLK_FAILING_ACT,
+		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	},
 };
 
@@ -132,7 +123,6 @@ static struct fb_videomode cfa10049_video_modes[] = {
 		.lower_margin	= 2,
 		.hsync_len	= 15,
 		.vsync_len	= 15,
-		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT
 	},
 };
 
@@ -259,6 +249,8 @@ static void __init imx23_evk_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(mx23evk_video_modes);
 	mxsfb_pdata.default_bpp = 32;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
+				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 }
 
 static inline void enable_clk_enet_out(void)
@@ -278,6 +270,8 @@ static void __init imx28_evk_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(mx28evk_video_modes);
 	mxsfb_pdata.default_bpp = 32;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
+				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 
 	mxs_saif_clkmux_select(MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR0);
 }
@@ -297,6 +291,7 @@ static void __init m28evk_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(m28evk_video_modes);
 	mxsfb_pdata.default_bpp = 16;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT;
 }
 
 static void __init sc_sps1_init(void)
@@ -322,6 +317,8 @@ static void __init apx4devkit_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(apx4devkit_video_modes);
 	mxsfb_pdata.default_bpp = 32;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
+				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 }
 
 #define ENET0_MDC__GPIO_4_0	MXS_GPIO_NR(4, 0)
@@ -402,17 +399,18 @@ static void __init cfa10049_init(void)
 {
 	enable_clk_enet_out();
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
+
+	mxsfb_pdata.mode_list = cfa10049_video_modes;
+	mxsfb_pdata.mode_count = ARRAY_SIZE(cfa10049_video_modes);
+	mxsfb_pdata.default_bpp = 32;
+	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT;
 }
 
 static void __init cfa10037_init(void)
 {
 	enable_clk_enet_out();
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
-
-	mxsfb_pdata.mode_list = cfa10049_video_modes;
-	mxsfb_pdata.mode_count = ARRAY_SIZE(cfa10049_video_modes);
-	mxsfb_pdata.default_bpp = 32;
-	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
 }
 
 static void __init apf28_init(void)
@@ -423,6 +421,8 @@ static void __init apf28_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(apf28dev_video_modes);
 	mxsfb_pdata.default_bpp = 16;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_16BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
+				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 }
 
 static void __init mxs_machine_init(void)

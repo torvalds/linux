@@ -410,6 +410,7 @@ static struct file_system_type ipathfs_fs_type = {
 	.mount =	ipathfs_mount,
 	.kill_sb =	ipathfs_kill_super,
 };
+MODULE_ALIAS_FS("ipathfs");
 
 int __init ipath_init_ipathfs(void)
 {

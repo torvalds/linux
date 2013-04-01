@@ -42,10 +42,9 @@
 			fsl,pins = <689 0x10000		/* DISP1_DRDY	*/
 				    482 0x10000		/* DISP1_HSYNC	*/
 				    489 0x10000		/* DISP1_VSYNC	*/
-				    684 0x10000		/* DISP1_DAT_0	*/
 				    515 0x10000		/* DISP1_DAT_22	*/
 				    523 0x10000		/* DISP1_DAT_23	*/
-				    543 0x10000		/* DISP1_DAT_21	*/
+				    545 0x10000		/* DISP1_DAT_21	*/
 				    553 0x10000		/* DISP1_DAT_20	*/
 				    558 0x10000		/* DISP1_DAT_19	*/
 				    564 0x10000		/* DISP1_DAT_18	*/

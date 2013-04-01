@@ -45,6 +45,7 @@ struct file_system_type afs_fs_type = {
 	.kill_sb	= afs_kill_super,
 	.fs_flags	= 0,
 };
+MODULE_ALIAS_FS("afs");
 
 static const struct super_operations afs_super_ops = {
 	.statfs		= afs_statfs,

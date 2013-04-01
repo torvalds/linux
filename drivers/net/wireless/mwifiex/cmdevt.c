@@ -157,6 +157,20 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 		return -1;
 	}
 
+	cmd_code = le16_to_cpu(host_cmd->command);
+	cmd_size = le16_to_cpu(host_cmd->size);
+
+	if (adapter->hw_status == MWIFIEX_HW_STATUS_RESET &&
+	    cmd_code != HostCmd_CMD_FUNC_SHUTDOWN &&
+	    cmd_code != HostCmd_CMD_FUNC_INIT) {
+		dev_err(adapter->dev,
+			"DNLD_CMD: FW in reset state, ignore cmd %#x\n",
+			cmd_code);
+		mwifiex_complete_cmd(adapter, cmd_node);
+		mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
+		return -1;
+	}
+
 	/* Set command sequence number */
 	adapter->seq_num++;
 	host_cmd->seq_num = cpu_to_le16(HostCmd_SET_SEQ_NO_BSS_INFO
@@ -167,9 +181,6 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 	adapter->curr_cmd = cmd_node;
 	spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
-
-	cmd_code = le16_to_cpu(host_cmd->command);
-	cmd_size = le16_to_cpu(host_cmd->size);
 
 	/* Adjust skb length */
 	if (cmd_node->cmd_skb->len > cmd_size)
@@ -484,8 +495,6 @@ int mwifiex_send_cmd_sync(struct mwifiex_private *priv, uint16_t cmd_no,
 
 	ret = mwifiex_send_cmd_async(priv, cmd_no, cmd_action, cmd_oid,
 				     data_buf);
-	if (!ret)
-		ret = mwifiex_wait_queue_complete(adapter);
 
 	return ret;
 }
@@ -588,9 +597,10 @@ int mwifiex_send_cmd_async(struct mwifiex_private *priv, uint16_t cmd_no,
 	if (cmd_no == HostCmd_CMD_802_11_SCAN) {
 		mwifiex_queue_scan_cmd(priv, cmd_node);
 	} else {
-		adapter->cmd_queued = cmd_node;
 		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node, true);
 		queue_work(adapter->workqueue, &adapter->main_work);
+		if (cmd_node->wait_q_enabled)
+			ret = mwifiex_wait_queue_complete(adapter, cmd_node);
 	}
 
 	return ret;
