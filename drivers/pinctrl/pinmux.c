@@ -194,6 +194,11 @@ static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
 	}
 
 	if (!gpio_range) {
+		/*
+		 * A pin should not be freed more times than allocated.
+		 */
+		if (WARN_ON(!desc->mux_usecount))
+			return NULL;
 		desc->mux_usecount--;
 		if (desc->mux_usecount)
 			return NULL;

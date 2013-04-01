@@ -976,6 +976,7 @@ struct netns_ipvs {
 	int			sysctl_sync_retries;
 	int			sysctl_nat_icmp_send;
 	int			sysctl_pmtu_disc;
+	int			sysctl_backup_only;
 
 	/* ip_vs_lblc */
 	int			sysctl_lblc_expiration;
@@ -1067,6 +1068,12 @@ static inline int sysctl_pmtu_disc(struct netns_ipvs *ipvs)
 	return ipvs->sysctl_pmtu_disc;
 }
 
+static inline int sysctl_backup_only(struct netns_ipvs *ipvs)
+{
+	return ipvs->sync_state & IP_VS_STATE_BACKUP &&
+	       ipvs->sysctl_backup_only;
+}
+
 #else
 
 static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
@@ -1112,6 +1119,11 @@ static inline int sysctl_sync_sock_size(struct netns_ipvs *ipvs)
 static inline int sysctl_pmtu_disc(struct netns_ipvs *ipvs)
 {
 	return 1;
+}
+
+static inline int sysctl_backup_only(struct netns_ipvs *ipvs)
+{
+	return 0;
 }
 
 #endif
