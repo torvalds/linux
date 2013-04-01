@@ -39,7 +39,7 @@
 #define ARIZONA_ACCDET_MODE_HPL 1
 #define ARIZONA_ACCDET_MODE_HPR 2
 
-#define HPDET_DEBOUNCE 250
+#define HPDET_DEBOUNCE 500
 
 struct arizona_extcon_info {
 	struct device *dev;
