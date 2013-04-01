@@ -125,3 +125,8 @@ extern int invalidate_inodes(struct super_block *, bool);
  * dcache.c
  */
 extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
+
+/*
+ * read_write.c
+ */
+extern ssize_t __kernel_write(struct file *, const char *, size_t, loff_t *);

@@ -60,6 +60,15 @@ enum {
 	VHOST_SCSI_VQ_IO = 2,
 };
 
+/*
+ * VIRTIO_RING_F_EVENT_IDX seems broken. Not sure the bug is in
+ * kernel but disabling it helps.
+ * TODO: debug and remove the workaround.
+ */
+enum {
+	VHOST_SCSI_FEATURES = VHOST_FEATURES & (~VIRTIO_RING_F_EVENT_IDX)
+};
+
 #define VHOST_SCSI_MAX_TARGET	256
 #define VHOST_SCSI_MAX_VQ	128
 
@@ -946,7 +955,7 @@ static void vhost_scsi_flush(struct vhost_scsi *vs)
 
 static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 {
-	if (features & ~VHOST_FEATURES)
+	if (features & ~VHOST_SCSI_FEATURES)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&vs->dev.mutex);
@@ -992,7 +1001,7 @@ static long vhost_scsi_ioctl(struct file *f, unsigned int ioctl,
 			return -EFAULT;
 		return 0;
 	case VHOST_GET_FEATURES:
-		features = VHOST_FEATURES;
+		features = VHOST_SCSI_FEATURES;
 		if (copy_to_user(featurep, &features, sizeof features))
 			return -EFAULT;
 		return 0;

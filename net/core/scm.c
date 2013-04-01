@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/security.h>
+#include <linux/pid_namespace.h>
 #include <linux/pid.h>
 #include <linux/nsproxy.h>
 #include <linux/slab.h>
@@ -52,7 +53,8 @@ static __inline__ int scm_check_creds(struct ucred *creds)
 	if (!uid_valid(uid) || !gid_valid(gid))
 		return -EINVAL;
 
-	if ((creds->pid == task_tgid_vnr(current) || nsown_capable(CAP_SYS_ADMIN)) &&
+	if ((creds->pid == task_tgid_vnr(current) ||
+	     ns_capable(current->nsproxy->pid_ns->user_ns, CAP_SYS_ADMIN)) &&
 	    ((uid_eq(uid, cred->uid)   || uid_eq(uid, cred->euid) ||
 	      uid_eq(uid, cred->suid)) || nsown_capable(CAP_SETUID)) &&
 	    ((gid_eq(gid, cred->gid)   || gid_eq(gid, cred->egid) ||

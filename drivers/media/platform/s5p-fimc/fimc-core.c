@@ -850,16 +850,18 @@ static int fimc_m2m_suspend(struct fimc_dev *fimc)
 
 static int fimc_m2m_resume(struct fimc_dev *fimc)
 {
+	struct fimc_ctx *ctx;
 	unsigned long flags;
 
 	spin_lock_irqsave(&fimc->slock, flags);
 	/* Clear for full H/W setup in first run after resume */
+	ctx = fimc->m2m.ctx;
 	fimc->m2m.ctx = NULL;
 	spin_unlock_irqrestore(&fimc->slock, flags);
 
 	if (test_and_clear_bit(ST_M2M_SUSPENDED, &fimc->state))
-		fimc_m2m_job_finish(fimc->m2m.ctx,
-				    VB2_BUF_STATE_ERROR);
+		fimc_m2m_job_finish(ctx, VB2_BUF_STATE_ERROR);
+
 	return 0;
 }
 

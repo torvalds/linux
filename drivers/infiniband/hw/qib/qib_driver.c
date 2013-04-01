@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2013 Intel Corporation. All rights reserved.
  * Copyright (c) 2006, 2007, 2008, 2009 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
@@ -63,8 +64,8 @@ MODULE_PARM_DESC(compat_ddr_negotiate,
 		 "Attempt pre-IBTA 1.2 DDR speed negotiation");
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("QLogic <support@qlogic.com>");
-MODULE_DESCRIPTION("QLogic IB driver");
+MODULE_AUTHOR("Intel <ibsupport@intel.com>");
+MODULE_DESCRIPTION("Intel IB driver");
 MODULE_VERSION(QIB_DRIVER_VERSION);
 
 /*
