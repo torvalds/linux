@@ -2200,6 +2200,7 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ring_desc *start_tx;
 	struct ring_desc *prev_tx;
 	struct nv_skb_map *prev_tx_ctx;
+	struct nv_skb_map *tmp_tx_ctx = NULL, *start_tx_ctx = NULL;
 	unsigned long flags;
 
 	/* add fragments to entries count */
@@ -2261,12 +2262,31 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		do {
 			prev_tx = put_tx;
 			prev_tx_ctx = np->put_tx_ctx;
+			if (!start_tx_ctx)
+				start_tx_ctx = tmp_tx_ctx = np->put_tx_ctx;
+
 			bcnt = (frag_size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : frag_size;
 			np->put_tx_ctx->dma = skb_frag_dma_map(
 							&np->pci_dev->dev,
 							frag, offset,
 							bcnt,
 							DMA_TO_DEVICE);
+			if (dma_mapping_error(&np->pci_dev->dev, np->put_tx_ctx->dma)) {
+
+				/* Unwind the mapped fragments */
+				do {
+					nv_unmap_txskb(np, start_tx_ctx);
+					if (unlikely(tmp_tx_ctx++ == np->last_tx_ctx))
+						tmp_tx_ctx = np->first_tx_ctx;
+				} while (tmp_tx_ctx != np->put_tx_ctx);
+				kfree_skb(skb);
+				np->put_tx_ctx = start_tx_ctx;
+				u64_stats_update_begin(&np->swstats_tx_syncp);
+				np->stat_tx_dropped++;
+				u64_stats_update_end(&np->swstats_tx_syncp);
+				return NETDEV_TX_OK;
+			}
+
 			np->put_tx_ctx->dma_len = bcnt;
 			np->put_tx_ctx->dma_single = 0;
 			put_tx->buf = cpu_to_le32(np->put_tx_ctx->dma);
@@ -2327,7 +2347,8 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 	struct ring_desc_ex *start_tx;
 	struct ring_desc_ex *prev_tx;
 	struct nv_skb_map *prev_tx_ctx;
-	struct nv_skb_map *start_tx_ctx;
+	struct nv_skb_map *start_tx_ctx = NULL;
+	struct nv_skb_map *tmp_tx_ctx = NULL;
 	unsigned long flags;
 
 	/* add fragments to entries count */
@@ -2392,11 +2413,29 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 			prev_tx = put_tx;
 			prev_tx_ctx = np->put_tx_ctx;
 			bcnt = (frag_size > NV_TX2_TSO_MAX_SIZE) ? NV_TX2_TSO_MAX_SIZE : frag_size;
+			if (!start_tx_ctx)
+				start_tx_ctx = tmp_tx_ctx = np->put_tx_ctx;
 			np->put_tx_ctx->dma = skb_frag_dma_map(
 							&np->pci_dev->dev,
 							frag, offset,
 							bcnt,
 							DMA_TO_DEVICE);
+
+			if (dma_mapping_error(&np->pci_dev->dev, np->put_tx_ctx->dma)) {
+
+				/* Unwind the mapped fragments */
+				do {
+					nv_unmap_txskb(np, start_tx_ctx);
+					if (unlikely(tmp_tx_ctx++ == np->last_tx_ctx))
+						tmp_tx_ctx = np->first_tx_ctx;
+				} while (tmp_tx_ctx != np->put_tx_ctx);
+				kfree_skb(skb);
+				np->put_tx_ctx = start_tx_ctx;
+				u64_stats_update_begin(&np->swstats_tx_syncp);
+				np->stat_tx_dropped++;
+				u64_stats_update_end(&np->swstats_tx_syncp);
+				return NETDEV_TX_OK;
+			}
 			np->put_tx_ctx->dma_len = bcnt;
 			np->put_tx_ctx->dma_single = 0;
 			put_tx->bufhigh = cpu_to_le32(dma_high(np->put_tx_ctx->dma));
