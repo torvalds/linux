@@ -3639,24 +3639,26 @@ static void init_pwq(struct pool_workqueue *pwq, struct workqueue_struct *wq,
 	pwq->flush_color = -1;
 	pwq->refcnt = 1;
 	INIT_LIST_HEAD(&pwq->delayed_works);
+	INIT_LIST_HEAD(&pwq->pwqs_node);
 	INIT_LIST_HEAD(&pwq->mayday_node);
 	INIT_WORK(&pwq->unbound_release_work, pwq_unbound_release_workfn);
 }
 
 /* sync @pwq with the current state of its associated wq and link it */
-static void link_pwq(struct pool_workqueue *pwq,
-		     struct pool_workqueue **p_last_pwq)
+static void link_pwq(struct pool_workqueue *pwq)
 {
 	struct workqueue_struct *wq = pwq->wq;
 
 	lockdep_assert_held(&wq->mutex);
 
+	/* may be called multiple times, ignore if already linked */
+	if (!list_empty(&pwq->pwqs_node))
+		return;
+
 	/*
 	 * Set the matching work_color.  This is synchronized with
 	 * wq->mutex to avoid confusing flush_workqueue().
 	 */
-	if (p_last_pwq)
-		*p_last_pwq = first_pwq(wq);
 	pwq->work_color = wq->work_color;
 
 	/* sync max_active to the current setting */
@@ -3689,6 +3691,23 @@ static struct pool_workqueue *alloc_unbound_pwq(struct workqueue_struct *wq,
 	return pwq;
 }
 
+/* install @pwq into @wq's numa_pwq_tbl[] for @node and return the old pwq */
+static struct pool_workqueue *numa_pwq_tbl_install(struct workqueue_struct *wq,
+						   int node,
+						   struct pool_workqueue *pwq)
+{
+	struct pool_workqueue *old_pwq;
+
+	lockdep_assert_held(&wq->mutex);
+
+	/* link_pwq() can handle duplicate calls */
+	link_pwq(pwq);
+
+	old_pwq = rcu_access_pointer(wq->numa_pwq_tbl[node]);
+	rcu_assign_pointer(wq->numa_pwq_tbl[node], pwq);
+	return old_pwq;
+}
+
 /**
  * apply_workqueue_attrs - apply new workqueue_attrs to an unbound workqueue
  * @wq: the target workqueue
@@ -3707,7 +3726,7 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
 			  const struct workqueue_attrs *attrs)
 {
 	struct workqueue_attrs *new_attrs;
-	struct pool_workqueue *pwq, *last_pwq;
+	struct pool_workqueue *pwq, *last_pwq = NULL;
 	int node, ret;
 
 	/* only unbound workqueues can change attributes */
@@ -3734,11 +3753,9 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
 
 	mutex_lock(&wq->mutex);
 
-	link_pwq(pwq, &last_pwq);
-
 	copy_workqueue_attrs(wq->unbound_attrs, new_attrs);
 	for_each_node(node)
-		rcu_assign_pointer(wq->numa_pwq_tbl[node], pwq);
+		last_pwq = numa_pwq_tbl_install(wq, node, pwq);
 
 	mutex_unlock(&wq->mutex);
 
@@ -3778,7 +3795,7 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 			init_pwq(pwq, wq, &cpu_pools[highpri]);
 
 			mutex_lock(&wq->mutex);
-			link_pwq(pwq, NULL);
+			link_pwq(pwq);
 			mutex_unlock(&wq->mutex);
 		}
 		return 0;
