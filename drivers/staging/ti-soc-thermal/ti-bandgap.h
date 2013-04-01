@@ -315,6 +315,9 @@ struct ti_temp_sensor {
  * TI_BANDGAP_FEATURE_COUNTER_DELAY - used when the bandgap device features
  *	a delay programming based on distinct values.
  *
+ * TI_BANDGAP_FEATURE_HISTORY_BUFFER - used when the bandgap device features
+ *	a history buffer of temperatures.
+ *
  * TI_BANDGAP_HAS(b, f) - macro to check if a bandgap device is capable of a
  *      specific feature (above) or not. Return non-zero, if yes.
  */
@@ -327,6 +330,7 @@ struct ti_temp_sensor {
 #define TI_BANDGAP_FEATURE_CLK_CTRL		BIT(6)
 #define TI_BANDGAP_FEATURE_FREEZE_BIT		BIT(7)
 #define TI_BANDGAP_FEATURE_COUNTER_DELAY	BIT(8)
+#define TI_BANDGAP_FEATURE_HISTORY_BUFFER	BIT(9)
 #define TI_BANDGAP_HAS(b, f)			\
 			((b)->conf->features & TI_BANDGAP_FEATURE_ ## f)
 
