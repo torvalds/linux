@@ -1379,70 +1379,56 @@ static int nfs4_open_reclaim(struct nfs4_state_owner *sp, struct nfs4_state *sta
 	return ret;
 }
 
-static int _nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state *state, const nfs4_stateid *stateid)
+int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state *state, const nfs4_stateid *stateid)
 {
+	struct nfs_server *server = NFS_SERVER(state->inode);
 	struct nfs4_opendata *opendata;
-	int ret;
+	int err;
 
 	opendata = nfs4_open_recoverdata_alloc(ctx, state,
 			NFS4_OPEN_CLAIM_DELEG_CUR_FH);
 	if (IS_ERR(opendata))
 		return PTR_ERR(opendata);
 	nfs4_stateid_copy(&opendata->o_arg.u.delegation, stateid);
-	ret = nfs4_open_recover(opendata, state);
+	err = nfs4_open_recover(opendata, state);
 	nfs4_opendata_put(opendata);
-	return ret;
-}
-
-int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state *state, const nfs4_stateid *stateid)
-{
-	struct nfs4_exception exception = { };
-	struct nfs_server *server = NFS_SERVER(state->inode);
-	int err;
-	do {
-		err = _nfs4_open_delegation_recall(ctx, state, stateid);
-		switch (err) {
-			case 0:
-			case -ENOENT:
-			case -ESTALE:
-				goto out;
-			case -NFS4ERR_BADSESSION:
-			case -NFS4ERR_BADSLOT:
-			case -NFS4ERR_BAD_HIGH_SLOT:
-			case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
-			case -NFS4ERR_DEADSESSION:
-				set_bit(NFS_DELEGATED_STATE, &state->flags);
-				nfs4_schedule_session_recovery(server->nfs_client->cl_session, err);
-				err = -EAGAIN;
-				goto out;
-			case -NFS4ERR_STALE_CLIENTID:
-			case -NFS4ERR_STALE_STATEID:
-				set_bit(NFS_DELEGATED_STATE, &state->flags);
-			case -NFS4ERR_EXPIRED:
-				/* Don't recall a delegation if it was lost */
-				nfs4_schedule_lease_recovery(server->nfs_client);
-				err = -EAGAIN;
-				goto out;
-			case -NFS4ERR_DELEG_REVOKED:
-			case -NFS4ERR_ADMIN_REVOKED:
-			case -NFS4ERR_BAD_STATEID:
-				nfs_inode_find_state_and_recover(state->inode,
-						stateid);
-				nfs4_schedule_stateid_recovery(server, state);
-			case -ENOMEM:
-				err = 0;
-				goto out;
-			case -NFS4ERR_DELAY:
-			case -NFS4ERR_GRACE:
-				set_bit(NFS_DELEGATED_STATE, &state->flags);
-				ssleep(1);
-				err = -EAGAIN;
-				goto out;
-		}
-		set_bit(NFS_DELEGATED_STATE, &state->flags);
-		err = nfs4_handle_exception(server, err, &exception);
-	} while (exception.retry);
-out:
+	switch (err) {
+		default:
+			printk(KERN_ERR "NFS: %s: unhandled error "
+					"%d.\n", __func__, err);
+		case 0:
+		case -ENOENT:
+		case -ESTALE:
+			break;
+		case -NFS4ERR_BADSESSION:
+		case -NFS4ERR_BADSLOT:
+		case -NFS4ERR_BAD_HIGH_SLOT:
+		case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
+		case -NFS4ERR_DEADSESSION:
+			set_bit(NFS_DELEGATED_STATE, &state->flags);
+			nfs4_schedule_session_recovery(server->nfs_client->cl_session, err);
+			return -EAGAIN;
+		case -NFS4ERR_STALE_CLIENTID:
+		case -NFS4ERR_STALE_STATEID:
+			set_bit(NFS_DELEGATED_STATE, &state->flags);
+		case -NFS4ERR_EXPIRED:
+			/* Don't recall a delegation if it was lost */
+			nfs4_schedule_lease_recovery(server->nfs_client);
+			return -EAGAIN;
+		case -NFS4ERR_DELEG_REVOKED:
+		case -NFS4ERR_ADMIN_REVOKED:
+		case -NFS4ERR_BAD_STATEID:
+			nfs_inode_find_state_and_recover(state->inode,
+					stateid);
+			nfs4_schedule_stateid_recovery(server, state);
+		case -ENOMEM:
+			return 0;
+		case -NFS4ERR_DELAY:
+		case -NFS4ERR_GRACE:
+			set_bit(NFS_DELEGATED_STATE, &state->flags);
+			ssleep(1);
+			return -EAGAIN;
+	}
 	return err;
 }
 
