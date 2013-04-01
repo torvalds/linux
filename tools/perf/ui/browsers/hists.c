@@ -1155,7 +1155,7 @@ static struct hist_browser *hist_browser__new(struct hists *hists)
 		browser->b.refresh = hist_browser__refresh;
 		browser->b.seek = ui_browser__hists_seek;
 		browser->b.use_navkeypressed = true;
-		if (sort__branch_mode == 1)
+		if (sort__mode == SORT_MODE__BRANCH)
 			browser->has_symbols = sort_sym_from.list.next != NULL;
 		else
 			browser->has_symbols = sort_sym.list.next != NULL;
@@ -1488,7 +1488,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		if (!browser->has_symbols)
 			goto add_exit_option;
 
-		if (sort__branch_mode == 1) {
+		if (sort__mode == SORT_MODE__BRANCH) {
 			bi = browser->he_selection->branch_info;
 			if (browser->selection != NULL &&
 			    bi &&

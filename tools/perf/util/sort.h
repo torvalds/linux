@@ -32,7 +32,7 @@ extern const char default_sort_order[];
 extern int sort__need_collapse;
 extern int sort__has_parent;
 extern int sort__has_sym;
-extern int sort__branch_mode;
+extern enum sort_mode sort__mode;
 extern struct sort_entry sort_comm;
 extern struct sort_entry sort_dso;
 extern struct sort_entry sort_sym;
@@ -122,6 +122,12 @@ static inline void hist_entry__add_pair(struct hist_entry *he,
 {
 	list_add_tail(&he->pairs.head, &pair->pairs.node);
 }
+
+enum sort_mode {
+	SORT_MODE__NORMAL,
+	SORT_MODE__BRANCH,
+	SORT_MODE__MEMORY,
+};
 
 enum sort_type {
 	/* common sort keys */

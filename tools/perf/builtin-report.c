@@ -311,7 +311,7 @@ static int process_sample_event(struct perf_tool *tool,
 	if (rep->cpu_list && !test_bit(sample->cpu, rep->cpu_bitmap))
 		return 0;
 
-	if (sort__branch_mode == 1) {
+	if (sort__mode == SORT_MODE__BRANCH) {
 		if (perf_report__add_branch_hist_entry(tool, &al, sample,
 						       evsel, machine)) {
 			pr_debug("problem adding lbr entry, skipping event\n");
@@ -387,7 +387,7 @@ static int perf_report__setup_sample_type(struct perf_report *rep)
 			}
 	}
 
-	if (sort__branch_mode == 1) {
+	if (sort__mode == SORT_MODE__BRANCH) {
 		if (!self->fd_pipe &&
 		    !(sample_type & PERF_SAMPLE_BRANCH_STACK)) {
 			ui__error("Selected -b but no branch data. "
@@ -694,7 +694,9 @@ static int
 parse_branch_mode(const struct option *opt __maybe_unused,
 		  const char *str __maybe_unused, int unset)
 {
-	sort__branch_mode = !unset;
+	int *branch_mode = opt->value;
+
+	*branch_mode = !unset;
 	return 0;
 }
 
@@ -703,6 +705,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	struct perf_session *session;
 	struct stat st;
 	bool has_br_stack = false;
+	int branch_mode = -1;
 	int ret = -1;
 	char callchain_default_opt[] = "fractal,0.5,callee";
 	const char * const report_usage[] = {
@@ -799,7 +802,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show a column with the sum of periods"),
 	OPT_BOOLEAN(0, "group", &symbol_conf.event_group,
 		    "Show event group information together"),
-	OPT_CALLBACK_NOOPT('b', "branch-stack", &sort__branch_mode, "",
+	OPT_CALLBACK_NOOPT('b', "branch-stack", &branch_mode, "",
 		    "use branch records for histogram filling", parse_branch_mode),
 	OPT_STRING(0, "objdump", &objdump_path, "path",
 		   "objdump binary to use for disassembly and annotations"),
@@ -849,11 +852,11 @@ repeat:
 	has_br_stack = perf_header__has_feat(&session->header,
 					     HEADER_BRANCH_STACK);
 
-	if (sort__branch_mode == -1 && has_br_stack)
-		sort__branch_mode = 1;
+	if (branch_mode == -1 && has_br_stack)
+		sort__mode = SORT_MODE__BRANCH;
 
-	/* sort__branch_mode could be 0 if --no-branch-stack */
-	if (sort__branch_mode == 1) {
+	/* sort__mode could be NORMAL if --no-branch-stack */
+	if (sort__mode == SORT_MODE__BRANCH) {
 		/*
 		 * if no sort_order is provided, then specify
 		 * branch-mode specific order
@@ -864,7 +867,7 @@ repeat:
 
 	}
 	if (report.mem_mode) {
-		if (sort__branch_mode == 1) {
+		if (sort__mode == SORT_MODE__BRANCH) {
 			fprintf(stderr, "branch and mem mode incompatible\n");
 			goto error;
 		}
@@ -934,7 +937,7 @@ repeat:
 
 	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list, "comm", stdout);
 
-	if (sort__branch_mode == 1) {
+	if (sort__mode == SORT_MODE__BRANCH) {
 		sort_entry__setup_elide(&sort_dso_from, symbol_conf.dso_from_list, "dso_from", stdout);
 		sort_entry__setup_elide(&sort_dso_to, symbol_conf.dso_to_list, "dso_to", stdout);
 		sort_entry__setup_elide(&sort_sym_from, symbol_conf.sym_from_list, "sym_from", stdout);
