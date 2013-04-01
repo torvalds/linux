@@ -130,9 +130,6 @@ static int cpu0_cpufreq_init(struct cpufreq_policy *policy)
 {
 	int ret;
 
-	if (policy->cpu != 0)
-		return -EINVAL;
-
 	ret = cpufreq_frequency_table_cpuinfo(policy, freq_table);
 	if (ret) {
 		pr_err("invalid frequency table: %d\n", ret);
