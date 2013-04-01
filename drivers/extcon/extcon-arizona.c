@@ -39,6 +39,8 @@
 #define ARIZONA_ACCDET_MODE_HPL 1
 #define ARIZONA_ACCDET_MODE_HPR 2
 
+#define ARIZONA_HPDET_MAX 10000
+
 #define HPDET_DEBOUNCE 500
 
 struct arizona_extcon_info {
@@ -64,6 +66,7 @@ struct arizona_extcon_info {
 
 	bool hpdet_active;
 	bool hpdet_done;
+	bool hpdet_retried;
 
 	int num_hpdet_res;
 	unsigned int hpdet_res[3];
@@ -111,6 +114,8 @@ static const char *arizona_cable[] = {
 	"Line-out",
 	NULL,
 };
+
+static void arizona_start_hpdet_acc_id(struct arizona_extcon_info *info);
 
 static void arizona_extcon_do_magic(struct arizona_extcon_info *info,
 				    unsigned int magic)
@@ -393,7 +398,7 @@ static int arizona_hpdet_read(struct arizona_extcon_info *info)
 		/* If we go out of range report top of range */
 		if (val < 100 || val > 0x3fb) {
 			dev_dbg(arizona->dev, "Measurement out of range\n");
-			return 10000;
+			return ARIZONA_HPDET_MAX;
 		}
 
 		dev_dbg(arizona->dev, "HPDET read %d in range %d\n",
@@ -517,6 +522,16 @@ static int arizona_hpdet_do_id(struct arizona_extcon_info *info, int *reading)
 
 		/* Take the headphone impedance for the main report */
 		*reading = info->hpdet_res[0];
+
+		/* Sometimes we get false readings due to slow insert */
+		if (*reading >= ARIZONA_HPDET_MAX && !info->hpdet_retried) {
+			dev_dbg(arizona->dev, "Retrying high impedance\n");
+			info->num_hpdet_res = 0;
+			info->hpdet_retried = true;
+			arizona_start_hpdet_acc_id(info);
+			pm_runtime_put(info->dev);
+			return -EAGAIN;
+		}
 
 		/*
 		 * Either the two grounds measure differently or we
@@ -953,6 +968,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 			info->hpdet_res[i] = 0;
 		info->mic = false;
 		info->hpdet_done = false;
+		info->hpdet_retried = false;
 
 		for (i = 0; i < info->num_micd_ranges; i++)
 			input_report_key(info->input,
