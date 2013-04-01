@@ -470,29 +470,7 @@ static int arizona_hpdet_do_id(struct arizona_extcon_info *info, int *reading)
 	 */
 	if (arizona->pdata.hpdet_acc_id) {
 		info->hpdet_res[info->num_hpdet_res++] = *reading;
-
-		/*
-		 * If the impedence is too high don't measure the
-		 * second ground.
-		 */
-		if (info->num_hpdet_res == 1 && *reading >= 45) {
-			dev_dbg(arizona->dev, "Skipping ground flip\n");
-			info->hpdet_res[info->num_hpdet_res++] = *reading;
-		}
-
-		if (info->num_hpdet_res == 1) {
-			dev_dbg(arizona->dev, "Flipping ground\n");
-
-			regmap_update_bits(arizona->regmap,
-					   ARIZONA_ACCESSORY_DETECT_MODE_1,
-					   ARIZONA_ACCDET_SRC,
-					   ~info->micd_modes[0].src);
-
-			regmap_update_bits(arizona->regmap,
-					   ARIZONA_HEADPHONE_DETECT_1,
-					   ARIZONA_HP_POLL, ARIZONA_HP_POLL);
-			return -EAGAIN;
-		}
+		info->hpdet_res[info->num_hpdet_res++] = *reading;
 
 		/* Only check the mic directly if we didn't already ID it */
 		if (id_gpio && info->num_hpdet_res == 2 &&
