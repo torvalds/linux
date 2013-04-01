@@ -149,6 +149,9 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 	in_8(&psc->mode);
 	out_8(&psc->mode, 0x0);
 
+	/* enable transmiter/receiver */
+	out_8(&psc->command, MPC52xx_PSC_TX_ENABLE | MPC52xx_PSC_RX_ENABLE);
+
 	while (len) {
 		int count;
 		int i;
@@ -177,10 +180,6 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 		out_be32(&fifo->txisr, MPC512x_PSC_FIFO_EMPTY);
 		out_be32(&fifo->tximr, MPC512x_PSC_FIFO_EMPTY);
 
-		/* enable transmiter/receiver */
-		out_8(&psc->command,
-		      MPC52xx_PSC_TX_ENABLE | MPC52xx_PSC_RX_ENABLE);
-
 		wait_for_completion(&mps->done);
 
 		mdelay(1);
@@ -205,9 +204,6 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 		while (in_be32(&fifo->rxcnt)) {
 			in_8(&fifo->rxdata_8);
 		}
-
-		out_8(&psc->command,
-		      MPC52xx_PSC_TX_DISABLE | MPC52xx_PSC_RX_DISABLE);
 	}
 	/* disable transmiter/receiver and fifo interrupt */
 	out_8(&psc->command, MPC52xx_PSC_TX_DISABLE | MPC52xx_PSC_RX_DISABLE);
