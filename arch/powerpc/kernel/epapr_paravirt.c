@@ -23,8 +23,10 @@
 #include <asm/code-patching.h>
 #include <asm/machdep.h>
 
+#if !defined(CONFIG_64BIT) || defined(CONFIG_PPC_BOOK3E_64)
 extern void epapr_ev_idle(void);
 extern u32 epapr_ev_idle_start[];
+#endif
 
 bool epapr_paravirt_enabled;
 
@@ -47,11 +49,15 @@ static int __init epapr_paravirt_init(void)
 
 	for (i = 0; i < (len / 4); i++) {
 		patch_instruction(epapr_hypercall_start + i, insts[i]);
+#if !defined(CONFIG_64BIT) || defined(CONFIG_PPC_BOOK3E_64)
 		patch_instruction(epapr_ev_idle_start + i, insts[i]);
+#endif
 	}
 
+#if !defined(CONFIG_64BIT) || defined(CONFIG_PPC_BOOK3E_64)
 	if (of_get_property(hyper_node, "has-idle", NULL))
 		ppc_md.power_save = epapr_ev_idle;
+#endif
 
 	epapr_paravirt_enabled = true;
 

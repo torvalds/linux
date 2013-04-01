@@ -620,7 +620,7 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 
 		/* special soc specific control */
 		if (ctrl->mpp_get || ctrl->mpp_set) {
-			if (!ctrl->name || !ctrl->mpp_set || !ctrl->mpp_set) {
+			if (!ctrl->name || !ctrl->mpp_get || !ctrl->mpp_set) {
 				dev_err(&pdev->dev, "wrong soc control info\n");
 				return -EINVAL;
 			}

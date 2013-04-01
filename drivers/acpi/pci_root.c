@@ -646,6 +646,7 @@ static void handle_root_bridge_insertion(acpi_handle handle)
 
 static void handle_root_bridge_removal(struct acpi_device *device)
 {
+	acpi_status status;
 	struct acpi_eject_event *ej_event;
 
 	ej_event = kmalloc(sizeof(*ej_event), GFP_KERNEL);
@@ -661,7 +662,9 @@ static void handle_root_bridge_removal(struct acpi_device *device)
 	ej_event->device = device;
 	ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
 
-	acpi_bus_hot_remove_device(ej_event);
+	status = acpi_os_hotplug_execute(acpi_bus_hot_remove_device, ej_event);
+	if (ACPI_FAILURE(status))
+		kfree(ej_event);
 }
 
 static void _handle_hotplug_event_root(struct work_struct *work)
@@ -676,8 +679,9 @@ static void _handle_hotplug_event_root(struct work_struct *work)
 	handle = hp_work->handle;
 	type = hp_work->type;
 
-	root = acpi_pci_find_root(handle);
+	acpi_scan_lock_acquire();
 
+	root = acpi_pci_find_root(handle);
 	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
 
 	switch (type) {
@@ -711,6 +715,7 @@ static void _handle_hotplug_event_root(struct work_struct *work)
 		break;
 	}
 
+	acpi_scan_lock_release();
 	kfree(hp_work); /* allocated in handle_hotplug_event_bridge */
 	kfree(buffer.pointer);
 }

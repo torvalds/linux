@@ -186,8 +186,10 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	wq->rq.queue = dma_alloc_coherent(&(rdev->lldi.pdev->dev),
 					  wq->rq.memsize, &(wq->rq.dma_addr),
 					  GFP_KERNEL);
-	if (!wq->rq.queue)
+	if (!wq->rq.queue) {
+		ret = -ENOMEM;
 		goto free_sq;
+	}
 	PDBG("%s sq base va 0x%p pa 0x%llx rq base va 0x%p pa 0x%llx\n",
 		__func__, wq->sq.queue,
 		(unsigned long long)virt_to_phys(wq->sq.queue),

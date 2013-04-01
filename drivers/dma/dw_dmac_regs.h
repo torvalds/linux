@@ -247,6 +247,7 @@ struct dw_dma {
 	/* hardware configuration */
 	unsigned char		nr_masters;
 	unsigned char		data_width[4];
+	unsigned int		request_line_base;
 
 	struct dw_dma_chan	chan[0];
 };

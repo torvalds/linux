@@ -9,6 +9,7 @@
 #include <linux/mnt_namespace.h>
 #include <linux/mount.h>
 #include <linux/fs.h>
+#include <linux/nsproxy.h>
 #include "internal.h"
 #include "pnode.h"
 
@@ -220,6 +221,7 @@ static struct mount *get_source(struct mount *dest,
 int propagate_mnt(struct mount *dest_mnt, struct dentry *dest_dentry,
 		    struct mount *source_mnt, struct list_head *tree_list)
 {
+	struct user_namespace *user_ns = current->nsproxy->mnt_ns->user_ns;
 	struct mount *m, *child;
 	int ret = 0;
 	struct mount *prev_dest_mnt = dest_mnt;
@@ -236,6 +238,10 @@ int propagate_mnt(struct mount *dest_mnt, struct dentry *dest_dentry,
 			continue;
 
 		source =  get_source(m, prev_dest_mnt, prev_src_mnt, &type);
+
+		/* Notice when we are propagating across user namespaces */
+		if (m->mnt_ns->user_ns != user_ns)
+			type |= CL_UNPRIVILEGED;
 
 		child = copy_tree(source, source->mnt.mnt_root, type);
 		if (IS_ERR(child)) {

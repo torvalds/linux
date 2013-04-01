@@ -771,7 +771,7 @@ int mlx4_MAP_EQ_wrapper(struct mlx4_dev *dev, int slave,
 	struct mlx4_slave_event_eq_info *event_eq =
 		priv->mfunc.master.slave_state[slave].event_eq;
 	u32 in_modifier = vhcr->in_modifier;
-	u32 eqn = in_modifier & 0x1FF;
+	u32 eqn = in_modifier & 0x3FF;
 	u64 in_param =  vhcr->in_param;
 	int err = 0;
 	int i;
