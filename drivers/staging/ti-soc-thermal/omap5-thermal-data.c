@@ -323,6 +323,7 @@ const struct ti_bandgap_data omap5430_data = {
 	.adc_end_val = OMAP5430_ADC_END_VALUE,
 	.expose_sensor = ti_thermal_expose_sensor,
 	.remove_sensor = ti_thermal_remove_sensor,
+	.report_temperature = ti_thermal_report_sensor_temperature,
 	.sensors = {
 		{
 		.registers = &omap5430_mpu_temp_sensor_registers,
