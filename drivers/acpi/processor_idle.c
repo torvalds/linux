@@ -66,7 +66,8 @@ module_param(latency_factor, uint, 0644);
 
 static DEFINE_PER_CPU(struct cpuidle_device *, acpi_cpuidle_device);
 
-static struct acpi_processor_cx *acpi_cstate[CPUIDLE_STATE_MAX];
+static DEFINE_PER_CPU(struct acpi_processor_cx * [CPUIDLE_STATE_MAX],
+								acpi_cstate);
 
 static int disabled_by_idle_boot_param(void)
 {
@@ -722,7 +723,7 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor *pr;
-	struct acpi_processor_cx *cx = acpi_cstate[index];
+	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
 
 	pr = __this_cpu_read(processors);
 
@@ -745,7 +746,7 @@ static int acpi_idle_enter_c1(struct cpuidle_device *dev,
  */
 static int acpi_idle_play_dead(struct cpuidle_device *dev, int index)
 {
-	struct acpi_processor_cx *cx = acpi_cstate[index];
+	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
 
 	ACPI_FLUSH_CPU_CACHE();
 
@@ -775,7 +776,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor *pr;
-	struct acpi_processor_cx *cx = acpi_cstate[index];
+	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
 
 	pr = __this_cpu_read(processors);
 
@@ -833,7 +834,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor *pr;
-	struct acpi_processor_cx *cx = acpi_cstate[index];
+	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
 
 	pr = __this_cpu_read(processors);
 
@@ -960,7 +961,7 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
 		    !(acpi_gbl_FADT.flags & ACPI_FADT_C2_MP_SUPPORTED))
 			continue;
 #endif
-		acpi_cstate[count] = cx;
+		per_cpu(acpi_cstate[count], dev->cpu) = cx;
 
 		count++;
 		if (count == CPUIDLE_STATE_MAX)
