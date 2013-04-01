@@ -268,6 +268,9 @@ static int wq_numa_tbl_len;		/* highest possible NUMA node id + 1 */
 static cpumask_var_t *wq_numa_possible_cpumask;
 					/* possible CPUs of each node */
 
+static bool wq_disable_numa;
+module_param_named(disable_numa, wq_disable_numa, bool, 0444);
+
 static bool wq_numa_enabled;		/* unbound NUMA affinity enabled */
 
 /* buf for wq_update_unbound_numa_attrs(), protected by CPU hotplug exclusion */
@@ -514,21 +517,6 @@ static int worker_pool_assign_id(struct worker_pool *pool)
 	} while (ret == -EAGAIN);
 
 	return ret;
-}
-
-/**
- * first_pwq - return the first pool_workqueue of the specified workqueue
- * @wq: the target workqueue
- *
- * This must be called either with wq->mutex held or sched RCU read locked.
- * If the pwq needs to be used beyond the locking in effect, the caller is
- * responsible for guaranteeing that the pwq stays online.
- */
-static struct pool_workqueue *first_pwq(struct workqueue_struct *wq)
-{
-	assert_rcu_or_wq_mutex(wq);
-	return list_first_or_null_rcu(&wq->pwqs, struct pool_workqueue,
-				      pwqs_node);
 }
 
 /**
@@ -3114,16 +3102,21 @@ static struct device_attribute wq_sysfs_attrs[] = {
 	__ATTR_NULL,
 };
 
-static ssize_t wq_pool_id_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t wq_pool_ids_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct workqueue_struct *wq = dev_to_wq(dev);
-	struct worker_pool *pool;
-	int written;
+	const char *delim = "";
+	int node, written = 0;
 
 	rcu_read_lock_sched();
-	pool = first_pwq(wq)->pool;
-	written = scnprintf(buf, PAGE_SIZE, "%d\n", pool->id);
+	for_each_node(node) {
+		written += scnprintf(buf + written, PAGE_SIZE - written,
+				     "%s%d:%d", delim, node,
+				     unbound_pwq_by_node(wq, node)->pool->id);
+		delim = " ";
+	}
+	written += scnprintf(buf + written, PAGE_SIZE - written, "\n");
 	rcu_read_unlock_sched();
 
 	return written;
@@ -3212,10 +3205,46 @@ static ssize_t wq_cpumask_store(struct device *dev,
 	return ret ?: count;
 }
 
+static ssize_t wq_numa_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct workqueue_struct *wq = dev_to_wq(dev);
+	int written;
+
+	mutex_lock(&wq->mutex);
+	written = scnprintf(buf, PAGE_SIZE, "%d\n",
+			    !wq->unbound_attrs->no_numa);
+	mutex_unlock(&wq->mutex);
+
+	return written;
+}
+
+static ssize_t wq_numa_store(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct workqueue_struct *wq = dev_to_wq(dev);
+	struct workqueue_attrs *attrs;
+	int v, ret;
+
+	attrs = wq_sysfs_prep_attrs(wq);
+	if (!attrs)
+		return -ENOMEM;
+
+	ret = -EINVAL;
+	if (sscanf(buf, "%d", &v) == 1) {
+		attrs->no_numa = !v;
+		ret = apply_workqueue_attrs(wq, attrs);
+	}
+
+	free_workqueue_attrs(attrs);
+	return ret ?: count;
+}
+
 static struct device_attribute wq_sysfs_unbound_attrs[] = {
-	__ATTR(pool_id, 0444, wq_pool_id_show, NULL),
+	__ATTR(pool_ids, 0444, wq_pool_ids_show, NULL),
 	__ATTR(nice, 0644, wq_nice_show, wq_nice_store),
 	__ATTR(cpumask, 0644, wq_cpumask_show, wq_cpumask_store),
+	__ATTR(numa, 0644, wq_numa_show, wq_numa_store),
 	__ATTR_NULL,
 };
 
@@ -3750,7 +3779,7 @@ static void free_unbound_pwq(struct pool_workqueue *pwq)
 static bool wq_calc_node_cpumask(const struct workqueue_attrs *attrs, int node,
 				 int cpu_going_down, cpumask_t *cpumask)
 {
-	if (!wq_numa_enabled)
+	if (!wq_numa_enabled || attrs->no_numa)
 		goto use_dfl;
 
 	/* does @node have any online CPUs @attrs wants? */
@@ -3951,6 +3980,8 @@ static void wq_update_unbound_numa(struct workqueue_struct *wq, int cpu,
 	cpumask = target_attrs->cpumask;
 
 	mutex_lock(&wq->mutex);
+	if (wq->unbound_attrs->no_numa)
+		goto out_unlock;
 
 	copy_workqueue_attrs(target_attrs, wq->unbound_attrs);
 	pwq = unbound_pwq_by_node(wq, node);
@@ -4762,6 +4793,11 @@ static void __init wq_numa_init(void)
 
 	if (num_possible_nodes() <= 1)
 		return;
+
+	if (wq_disable_numa) {
+		pr_info("workqueue: NUMA affinity support disabled\n");
+		return;
+	}
 
 	wq_update_unbound_numa_attrs_buf = alloc_workqueue_attrs(GFP_KERNEL);
 	BUG_ON(!wq_update_unbound_numa_attrs_buf);
