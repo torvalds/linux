@@ -3534,6 +3534,7 @@ static void pwq_unbound_release_workfn(struct work_struct *work)
 						  unbound_release_work);
 	struct workqueue_struct *wq = pwq->wq;
 	struct worker_pool *pool = pwq->pool;
+	bool is_last;
 
 	if (WARN_ON_ONCE(!(wq->flags & WQ_UNBOUND)))
 		return;
@@ -3545,6 +3546,7 @@ static void pwq_unbound_release_workfn(struct work_struct *work)
 	 */
 	mutex_lock(&wq->mutex);
 	list_del_rcu(&pwq->pwqs_node);
+	is_last = list_empty(&wq->pwqs);
 	mutex_unlock(&wq->mutex);
 
 	put_unbound_pool(pool);
@@ -3554,7 +3556,7 @@ static void pwq_unbound_release_workfn(struct work_struct *work)
 	 * If we're the last pwq going away, @wq is already dead and no one
 	 * is gonna access it anymore.  Free it.
 	 */
-	if (list_empty(&wq->pwqs))
+	if (is_last)
 		kfree(wq);
 }
 
