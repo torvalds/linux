@@ -100,17 +100,19 @@ do {								\
  */
 static int ti_bandgap_power(struct ti_bandgap *bgp, bool on)
 {
-	int i;
+	int i, ret = 0;
 
-	if (!TI_BANDGAP_HAS(bgp, POWER_SWITCH))
+	if (!TI_BANDGAP_HAS(bgp, POWER_SWITCH)) {
+		ret = -ENOTSUPP;
 		goto exit;
+	}
 
 	for (i = 0; i < bgp->conf->sensor_count; i++)
 		/* active on 0 */
 		RMW_BITS(bgp, i, temp_sensor_ctrl, bgap_tempsoff_mask, !on);
 
 exit:
-	return 0;
+	return ret;
 }
 
 /**
