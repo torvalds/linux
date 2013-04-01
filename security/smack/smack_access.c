@@ -252,6 +252,8 @@ static inline void smack_str_from_perm(char *string, int access)
 		string[i++] = 'x';
 	if (access & MAY_APPEND)
 		string[i++] = 'a';
+	if (access & MAY_TRANSMUTE)
+		string[i++] = 't';
 	string[i] = '\0';
 }
 /**
