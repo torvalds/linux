@@ -91,15 +91,10 @@ void ceph_osdc_release_request(struct kref *kref)
 
 	if (req->r_request)
 		ceph_msg_put(req->r_request);
-	if (req->r_con_filling_msg) {
-		dout("%s revoking msg %p from con %p\n", __func__,
-		     req->r_reply, req->r_con_filling_msg);
+	if (req->r_reply) {
 		ceph_msg_revoke_incoming(req->r_reply);
-		req->r_con_filling_msg->ops->put(req->r_con_filling_msg);
-		req->r_con_filling_msg = NULL;
-	}
-	if (req->r_reply)
 		ceph_msg_put(req->r_reply);
+	}
 
 	if (req->r_data_in.type == CEPH_OSD_DATA_TYPE_PAGES &&
 			req->r_data_in.own_pages) {
@@ -1353,16 +1348,6 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	for (i = 0; i < numops; i++)
 		req->r_reply_op_result[i] = ceph_decode_32(&p);
 
-	/*
-	 * if this connection filled our message, drop our reference now, to
-	 * avoid a (safe but slower) revoke later.
-	 */
-	if (req->r_con_filling_msg == con && req->r_reply == msg) {
-		dout(" dropping con_filling_msg ref %p\n", con);
-		req->r_con_filling_msg = NULL;
-		con->ops->put(con);
-	}
-
 	if (!req->r_got_reply) {
 		unsigned int bytes;
 
@@ -2199,13 +2184,10 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 		goto out;
 	}
 
-	if (req->r_con_filling_msg) {
+	if (req->r_reply->con)
 		dout("%s revoking msg %p from old con %p\n", __func__,
-		     req->r_reply, req->r_con_filling_msg);
-		ceph_msg_revoke_incoming(req->r_reply);
-		req->r_con_filling_msg->ops->put(req->r_con_filling_msg);
-		req->r_con_filling_msg = NULL;
-	}
+		     req->r_reply, req->r_reply->con);
+	ceph_msg_revoke_incoming(req->r_reply);
 
 	if (front > req->r_reply->front.iov_len) {
 		pr_warning("get_reply front %d > preallocated %d\n",
@@ -2236,7 +2218,6 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 		}
 	}
 	*skip = 0;
-	req->r_con_filling_msg = con->ops->get(con);
 	dout("get_reply tid %lld %p\n", tid, m);
 
 out:

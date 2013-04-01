@@ -89,8 +89,6 @@ struct ceph_osd_request {
 	int              r_pg_osds[CEPH_PG_MAX_SIZE];
 	int              r_num_pg_osds;
 
-	struct ceph_connection *r_con_filling_msg;
-
 	struct ceph_msg  *r_request, *r_reply;
 	int               r_flags;     /* any additional flags for the osd */
 	u32               r_sent;      /* >0 if r_request is sending/sent */
