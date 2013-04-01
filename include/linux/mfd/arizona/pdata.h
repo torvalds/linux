@@ -149,6 +149,9 @@ struct arizona_pdata {
 	/** Mic detect debounce level */
 	int micd_dbtime;
 
+	/** Mic detect timeout (ms) */
+	int micd_timeout;
+
 	/** Force MICBIAS on for mic detect */
 	bool micd_force_micbias;
 

@@ -42,7 +42,7 @@
 #define ARIZONA_HPDET_MAX 10000
 
 #define HPDET_DEBOUNCE 500
-#define MICD_TIMEOUT 2000
+#define DEFAULT_MICD_TIMEOUT 2000
 
 struct arizona_extcon_info {
 	struct device *dev;
@@ -59,6 +59,8 @@ struct arizona_extcon_info {
 
 	const struct arizona_micd_range *micd_ranges;
 	int num_micd_ranges;
+
+	int micd_timeout;
 
 	bool micd_reva;
 	bool micd_clamp;
@@ -889,7 +891,7 @@ static void arizona_micd_detect(struct work_struct *work)
 handled:
 	if (info->detecting)
 		schedule_delayed_work(&info->micd_timeout_work,
-				      msecs_to_jiffies(MICD_TIMEOUT));
+				      msecs_to_jiffies(info->micd_timeout));
 
 	pm_runtime_mark_last_busy(info->dev);
 	mutex_unlock(&info->lock);
@@ -970,7 +972,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 
 		if (cancelled_mic)
 			schedule_delayed_work(&info->micd_timeout_work,
-					      msecs_to_jiffies(MICD_TIMEOUT));
+					      msecs_to_jiffies(info->micd_timeout));
 
 		goto out;
 	}
@@ -1026,6 +1028,11 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 				   ARIZONA_MICD_CLAMP_DB | ARIZONA_JD1_DB,
 				   ARIZONA_MICD_CLAMP_DB | ARIZONA_JD1_DB);
 	}
+
+	if (arizona->pdata.micd_timeout)
+		info->micd_timeout = arizona->pdata.micd_timeout;
+	else
+		info->micd_timeout = DEFAULT_MICD_TIMEOUT;
 
 	/* Clear trig_sts to make sure DCVDD is not forced up */
 	regmap_write(arizona->regmap, ARIZONA_AOD_WKUP_AND_TRIG,
