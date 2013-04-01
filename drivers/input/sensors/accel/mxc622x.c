@@ -32,12 +32,6 @@
 #endif
 #include <linux/sensor-dev.h>
 
-#if 0
-#define SENSOR_DEBUG_TYPE SENSOR_TYPE_ACCEL
-#define DBG(x...) if(sensor->pdata->type == SENSOR_DEBUG_TYPE) printk(x)
-#else
-#define DBG(x...)
-#endif
 
 #define MXC6225_ENABLE		1
 
@@ -154,8 +148,8 @@ static int sensor_init(struct i2c_client *client)
 static int sensor_convert_data(struct i2c_client *client, char high_byte, char low_byte)
 {
     s64 result;
-	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	//struct sensor_private_data *sensor =
+	//    (struct sensor_private_data *) i2c_get_clientdata(client);	
 	//int precision = sensor->ops->precision;
 		
 	result = (int)low_byte;
@@ -174,7 +168,7 @@ static int gsensor_report_value(struct i2c_client *client, struct sensor_axis *a
 
 	/* Report acceleration sensor information */
 	input_report_abs(sensor->input_dev, ABS_X, axis->x);
-	input_report_abs(sensor->input_dev, ABS_X, axis->y);
+	input_report_abs(sensor->input_dev, ABS_Y, axis->y);
 	input_report_abs(sensor->input_dev, ABS_Z, axis->z);
 	input_sync(sensor->input_dev);
 	DBG("Gsensor x==%d  y==%d z==%d\n",axis->x,axis->y,axis->z);
@@ -293,7 +287,6 @@ static int __init gsensor_mxc6225_init(void)
 	int type = ops->type;
 	
 	result = sensor_register_slave(type, NULL, NULL, gsensor_get_ops);	
-	DBG("%s\n",__func__);
 	return result;
 }
 

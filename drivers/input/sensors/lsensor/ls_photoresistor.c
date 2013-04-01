@@ -33,20 +33,6 @@
 #endif
 #include <linux/sensor-dev.h>
 
-static int ls_photoresistor_dbg_level = 0;
-module_param_named(dbg_level, ls_photoresistor_dbg_level, int, 0644);
-#if 1
-#define SENSOR_DEBUG_TYPE SENSOR_TYPE_LIGHT
-#define DBG( args...) \
-	do { \
-		if (ls_photoresistor_dbg_level) { \
-			pr_info(args); \
-		} \
-	} while (0)
-#else
-#define DBG(x...) printk(x)
-#endif
-
 struct lsp_base_data {
 
 	int adcvalue ;
@@ -63,9 +49,9 @@ static int LighSensorLevel_TAB[8]={0,1,2,3,4,5,6,7};
 
 static int sensor_active(struct i2c_client *client, int enable, int rate)
 {
-    int ret = 0;
+    //int ret = 0;
 
-    DBG("light_photoresisto: sensor active is %s \n",( (enable)?"on":"off" ) );
+    //printk("light_photoresisto: sensor active is %s \n",( (enable)?"on":"off" ) );
 
     if( enable ){//ture on
 		
@@ -79,7 +65,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 static void lsp_adc_callback(struct adc_client *client, void *callback_param, int result)
 {
 	glspdata.adcvalue = result;
-	DBG("light_photoresisto: adc callback value is %d \n",glspdata.adcvalue);
+	//printk("light_photoresisto: adc callback value is %d \n",glspdata.adcvalue);
 }
 
 static int valuetoindex( int data)
@@ -105,7 +91,7 @@ static int sensor_report_value(struct i2c_client *client)
 		adc_async_read(glspdata.adc_client);
 
 	if(glspdata.adcvalue==0||glspdata.adcvalue==1){//
-		DBG("light_photoresisto: adc value is (%d)  invalid \n",glspdata.adcvalue);
+		printk("light_photoresisto: adc value is (%d)  invalid \n",glspdata.adcvalue);
 	    	return ret ;
 	}
 	  
@@ -124,9 +110,9 @@ static int sensor_report_value(struct i2c_client *client)
 
 static int sensor_init(struct i2c_client *client)
 {
-    DBG("enter %s\n",__func__);
     int error = 0 ;
     struct sensor_private_data *sensor =  (struct sensor_private_data *) i2c_get_clientdata(client);	
+    DBG("enter %s\n",__func__);
 
     //adc register
     if( (sensor->pdata->address >= 0) && (sensor->pdata->address <=3) ){
@@ -148,11 +134,11 @@ static int sensor_init(struct i2c_client *client)
 
 struct sensor_operate light_photoresistor_ops = {
 	.name				= "light_photoresistor",
-	.type				= SENSOR_TYPE_LIGHT,	//sensor type and it should be correct
+	.type				= SENSOR_TYPE_LIGHT,		//sensor type and it should be correct
 	.id_i2c				= LIGHT_ID_PHOTORESISTOR,	//i2c id number
 
-	.range				= {0,10},		//range
-	.brightness              ={1,255},                          // brightness
+	.range				= {0,10},			//range
+	.brightness              	={1,255},                       // brightness
 	.active				= sensor_active,	
 	.init				= sensor_init,
 	.report				= sensor_report_value,
@@ -165,7 +151,7 @@ struct sensor_operate light_photoresistor_ops = {
 	.precision			= SENSOR_UNKNOW_DATA,			//8 bits INVALID
 	.ctrl_reg 			= SENSOR_UNKNOW_DATA,		//enable or disable  INVALID
 	.int_status_reg 		= SENSOR_UNKNOW_DATA,	//intterupt status register INVALID
-	.trig				      = SENSOR_UNKNOW_DATA,		
+	.trig				= SENSOR_UNKNOW_DATA,		
 	/*--------- INVALID end-------*/
 };
 /****************operate according to sensor chip:end************/
@@ -183,7 +169,6 @@ static int __init lsp_init(void)
 	int result = 0;
 	int type = ops->type;
 	result = sensor_register_slave(type, NULL, NULL, light_get_ops);
-	DBG("%s\n",__func__);
 	return result;
 }
 

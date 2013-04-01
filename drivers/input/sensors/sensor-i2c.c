@@ -34,12 +34,6 @@
 
 #define SENSOR_I2C_RATE 200*1000
 
-#if 0
-#define SENSOR_DEBUG_TYPE SENSOR_TYPE_COMPASS
-#define DBG(x...) if(sensor->pdata->type == SENSOR_DEBUG_TYPE) printk(x)
-#else
-#define DBG(x...)
-#endif
 
 static int sensor_i2c_write(struct i2c_adapter *i2c_adap,
 			    unsigned char address,
@@ -106,39 +100,32 @@ static int senosr_i2c_read(struct i2c_adapter *i2c_adap,
 
 int sensor_rx_data(struct i2c_client *client, char *rxData, int length)
 {
-#ifdef SENSOR_DEBUG_TYPE
 	struct sensor_private_data* sensor = 
 		(struct sensor_private_data *)i2c_get_clientdata(client);
 	int i = 0;
-#endif
 	int ret = 0;
 	char reg = rxData[0];
 	ret = senosr_i2c_read(client->adapter, client->addr, reg, length, rxData);
 	
-#ifdef SENSOR_DEBUG_TYPE
 	DBG("addr=0x%x,len=%d,rxdata:",reg,length);
 	for(i=0; i<length; i++)
 		DBG("0x%x,",rxData[i]);
 	DBG("\n");
-#endif	
 	return ret;
 }
 EXPORT_SYMBOL(sensor_rx_data);
 
 int sensor_tx_data(struct i2c_client *client, char *txData, int length)
 {
-#ifdef SENSOR_DEBUG_TYPE	
 	struct sensor_private_data* sensor = 
 		(struct sensor_private_data *)i2c_get_clientdata(client);
 	int i = 0;
-#endif
 	int ret = 0;
-#ifdef SENSOR_DEBUG_TYPE	
+
 	DBG("addr=0x%x,len=%d,txdata:",txData[0],length);
 	for(i=1; i<length; i++)
 		DBG("0x%x,",txData[i]);
 	DBG("\n");
-#endif
 	ret = sensor_i2c_write(client->adapter, client->addr, length, txData);
 	return ret;
 

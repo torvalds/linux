@@ -46,6 +46,7 @@ enum sensor_id {
 	ACCEL_ID_KXSD9,
 	ACCEL_ID_KXTF9,
 	ACCEL_ID_KXTIK,
+	ACCEL_ID_KXTJ9,
 	ACCEL_ID_BMA150,
 	ACCEL_ID_BMA222,
 	ACCEL_ID_BMA250,
@@ -59,6 +60,7 @@ enum sensor_id {
 	COMPASS_ID_ALL,
 	COMPASS_ID_AK8975,
 	COMPASS_ID_AK8963,
+	COMPASS_ID_AK09911,
 	COMPASS_ID_AK8972,
 	COMPASS_ID_AMI30X,
 	COMPASS_ID_AMI306,
@@ -73,7 +75,7 @@ enum sensor_id {
 
 	GYRO_ID_ALL,
 	GYRO_ID_L3G4200D,
-        GYRO_ID_L3G20D,
+    	GYRO_ID_L3G20D,
 	GYRO_ID_K3G,
 
 	LIGHT_ID_ALL,
@@ -84,6 +86,7 @@ enum sensor_id {
 	LIGHT_ID_ISL29023,
 	LIGHT_ID_AP321XX,
 	LIGHT_ID_PHOTORESISTOR,	
+	LIGHT_ID_US5152,
 
 	PROXIMITY_ID_ALL,
 	PROXIMITY_ID_AL3006,
@@ -111,6 +114,7 @@ struct sensor_flag {
 	atomic_t m_flag;	
 	atomic_t mv_flag;	
 	atomic_t open_flag;
+	atomic_t debug_flag;
 	long long delay;	
 	wait_queue_head_t open_wq;
 };
@@ -181,6 +185,11 @@ extern int sensor_unregister_slave(int type,struct i2c_client *client,
 			struct sensor_platform_data *slave_pdata,
 			struct sensor_operate *(*get_sensor_ops)(void));
 
+#if 1
+#define DBG(x...) if((atomic_read(&sensor->flags.debug_flag) == sensor->pdata->type) || (atomic_read(&sensor->flags.debug_flag) == SENSOR_NUM_TYPES))printk(x)
+#else
+#define DBG(x...)
+#endif
 
 #define GSENSOR_IOCTL_MAGIC			'a'
 #define GBUFF_SIZE				12	/* Rx buffer size */

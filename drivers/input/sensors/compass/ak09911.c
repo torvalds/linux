@@ -1,4 +1,4 @@
-/* drivers/input/sensors/access/akm8963.c
+/* drivers/input/sensors/access/akm09911.c
  *
  * Copyright (C) 2012-2015 ROCKCHIP.
  * Author: luowei <lw@rock-chips.com>
@@ -32,11 +32,10 @@
 #endif
 #include <linux/sensor-dev.h>
 
-#define SENSOR_DATA_SIZE		8
 
 
-#define SENSOR_DATA_SIZE	8
-#define YPR_DATA_SIZE		12
+#define SENSOR_DATA_SIZE	9
+#define YPR_DATA_SIZE		16
 #define RWBUF_SIZE		16
 
 #define ACC_DATA_FLAG		0
@@ -48,54 +47,42 @@
 #define MAG_DATA_READY		(1<<(MAG_DATA_FLAG))
 #define ORI_DATA_READY		(1<<(ORI_DATA_FLAG))
 
-/*! \name AK8963 constant definition
- \anchor AK8963_Def
- Constant definitions of the AK8963.*/
-#define AK8963_MEASUREMENT_TIME_US	10000
+/*Constant definitions of the AK09911.*/
+#define AK09911_MEASUREMENT_TIME_US	10000
 
-/*! \name AK8963 operation mode
- \anchor AK8963_Mode
- Defines an operation mode of the AK8963.*/
-/*! @{*/
-#define AK8963_MODE_SNG_MEASURE	0x01
-#define	AK8963_MODE_SELF_TEST	0x08
-#define	AK8963_MODE_FUSE_ACCESS	0x0F
-#define	AK8963_MODE_POWERDOWN	0x00
+#define AK09911_MODE_SNG_MEASURE	0x01
+#define AK09911_MODE_SELF_TEST		0x10
+#define AK09911_MODE_FUSE_ACCESS	0x1F
+#define AK09911_MODE_POWERDOWN		0x00
+#define AK09911_RESET_DATA		0x01
 
-/*! @}*/
 
-/*! \name AK8963 register address
-\anchor AK8963_REG
-Defines a register address of the AK8963.*/
-/*! @{*/
-#define AK8963_REG_WIA		0x00
-#define AK8963_REG_INFO		0x01
-#define AK8963_REG_ST1		0x02
-#define AK8963_REG_HXL		0x03
-#define AK8963_REG_HXH		0x04
-#define AK8963_REG_HYL		0x05
-#define AK8963_REG_HYH		0x06
-#define AK8963_REG_HZL		0x07
-#define AK8963_REG_HZH		0x08
-#define AK8963_REG_ST2		0x09
-#define AK8963_REG_CNTL1	0x0A
-#define AK8963_REG_CNTL2	0x0B
-#define AK8963_REG_ASTC		0x0C
-#define AK8963_REG_TS1		0x0D
-#define AK8963_REG_TS2		0x0E
-#define AK8963_REG_I2CDIS	0x0F
-/*! @}*/
+/* Device specific constant values */
+#define AK09911_REG_WIA1			0x00
+#define AK09911_REG_WIA2			0x01
+#define AK09911_REG_INFO1			0x02
+#define AK09911_REG_INFO2			0x03
+#define AK09911_REG_ST1				0x10
+#define AK09911_REG_HXL				0x11
+#define AK09911_REG_HXH				0x12
+#define AK09911_REG_HYL				0x13
+#define AK09911_REG_HYH				0x14
+#define AK09911_REG_HZL				0x15
+#define AK09911_REG_HZH				0x16
+#define AK09911_REG_TMPS			0x17
+#define AK09911_REG_ST2				0x18
+#define AK09911_REG_CNTL1			0x30
+#define AK09911_REG_CNTL2			0x31
+#define AK09911_REG_CNTL3			0x32
 
-/*! \name AK8963 fuse-rom address
-\anchor AK8963_FUSE
-Defines a read-only address of the fuse ROM of the AK8963.*/
-/*! @{*/
-#define AK8963_FUSE_ASAX	0x10
-#define AK8963_FUSE_ASAY	0x11
-#define AK8963_FUSE_ASAZ	0x12
-/*! @}*/
 
-#define AK8963_INFO_DATA	(0x03<<3)
+#define AK09911_FUSE_ASAX			0x60
+#define AK09911_FUSE_ASAY			0x61
+#define AK09911_FUSE_ASAZ			0x62
+
+#define AK09911_INFO_SIZE			2
+#define AK09911_CONF_SIZE			3
+
 
 
 #define COMPASS_IOCTL_MAGIC                   'c'
@@ -105,25 +92,27 @@ Defines a read-only address of the fuse ROM of the AK8963.*/
 #define ECS_IOCTL_READ                  _IOWR(COMPASS_IOCTL_MAGIC, 0x02, char*)
 #define ECS_IOCTL_RESET      	        _IO(COMPASS_IOCTL_MAGIC, 0x03) /* NOT used in AK8975 */
 #define ECS_IOCTL_SET_MODE              _IOW(COMPASS_IOCTL_MAGIC, 0x04, short)
-#define ECS_IOCTL_GETDATA               _IOR(COMPASS_IOCTL_MAGIC, 0x05, char[SENSOR_DATA_SIZE])
+#define ECS_IOCTL_GETDATA               _IOR(COMPASS_IOCTL_MAGIC, 0x05, char[8])
 #define ECS_IOCTL_SET_YPR               _IOW(COMPASS_IOCTL_MAGIC, 0x06, short[12])
 #define ECS_IOCTL_GET_OPEN_STATUS       _IOR(COMPASS_IOCTL_MAGIC, 0x07, int)
 #define ECS_IOCTL_GET_CLOSE_STATUS      _IOR(COMPASS_IOCTL_MAGIC, 0x08, int)
 #define ECS_IOCTL_GET_LAYOUT        	_IOR(COMPASS_IOCTL_MAGIC, 0x09, char)
 #define ECS_IOCTL_GET_ACCEL         	_IOR(COMPASS_IOCTL_MAGIC, 0x0A, short[3])
 #define ECS_IOCTL_GET_OUTBIT        	_IOR(COMPASS_IOCTL_MAGIC, 0x0B, char)
-#define ECS_IOCTL_GET_DELAY             _IOR(COMPASS_IOCTL_MAGIC, 0x30, short)
-#define ECS_IOCTL_GET_PROJECT_NAME      _IOR(COMPASS_IOCTL_MAGIC, 0x0D, char[64])
-#define ECS_IOCTL_GET_MATRIX            _IOR(COMPASS_IOCTL_MAGIC, 0x0E, short [4][3][3])
+#define ECS_IOCTL_GET_INFO             	_IOR(COMPASS_IOCTL_MAGIC, 0x0C, short)
+#define ECS_IOCTL_GET_CONF             	_IOR(COMPASS_IOCTL_MAGIC, 0x0D, short)
 #define ECS_IOCTL_GET_PLATFORM_DATA     _IOR(COMPASS_IOCTL_MAGIC, 0x0E, struct akm_platform_data)
+#define ECS_IOCTL_GET_DELAY             _IOR(COMPASS_IOCTL_MAGIC, 0x30, short)
 
 
 
-#define AK8963_DEVICE_ID		0x48
+#define AK09911_DEVICE_ID		0x05
 static struct i2c_client *this_client;
 static struct miscdevice compass_dev_device;
 
 static short g_akm_rbuf[12];
+static char g_sensor_info[AK09911_INFO_SIZE];
+static char g_sensor_conf[AK09911_CONF_SIZE];
 
 
 /****************operate according to sensor chip:start************/
@@ -139,11 +128,11 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	//register setting according to chip datasheet		
 	if(enable)
 	{	
-		sensor->ops->ctrl_data = AK8963_MODE_SNG_MEASURE;	
+		sensor->ops->ctrl_data = AK09911_MODE_SNG_MEASURE;	
 	}
 	else
 	{
-		sensor->ops->ctrl_data = AK8963_MODE_POWERDOWN;
+		sensor->ops->ctrl_data = AK09911_MODE_POWERDOWN;
 	}
 
 	DBG("%s:reg=0x%x,reg_ctrl=0x%x,enable=%d\n",__func__,sensor->ops->ctrl_reg, sensor->ops->ctrl_data, enable);
@@ -160,7 +149,6 @@ static int sensor_init(struct i2c_client *client)
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
 	int result = 0;
-	char info = 0;
 
 	this_client = client;	
 
@@ -173,17 +161,27 @@ static int sensor_init(struct i2c_client *client)
 	
 	sensor->status_cur = SENSOR_OFF;
 
-	info = sensor_read_reg(client, AK8963_REG_INFO);	
-	if((info & (0x0f<<3)) != AK8963_INFO_DATA)
-	{
-		printk("%s:info=0x%x,it is not %s\n",__func__, info, sensor->ops->name);
-		return -1;
-	}
-
 	result = misc_register(&compass_dev_device);
 	if (result < 0) {
 		printk("%s:fail to register misc device %s\n", __func__, compass_dev_device.name);
 		result = -1;
+	}
+
+	g_sensor_info[0] = AK09911_REG_WIA1;
+	result = sensor_rx_data(client, g_sensor_info, AK09911_INFO_SIZE);
+	if(result)
+	{
+		printk("%s:line=%d,error\n",__func__,__LINE__);
+		return result;
+	}
+
+	
+	g_sensor_conf[0] = AK09911_FUSE_ASAX;
+	result = sensor_rx_data(client, g_sensor_conf, AK09911_CONF_SIZE);
+	if(result)
+	{
+		printk("%s:line=%d,error\n",__func__,__LINE__);
+		return result;
 	}
 	
 	DBG("%s:status_cur=%d\n",__func__, sensor->status_cur);
@@ -194,20 +192,20 @@ static int sensor_report_value(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
 	    	(struct sensor_private_data *) i2c_get_clientdata(client);	
-	char buffer[8] = {0};	
+	char buffer[SENSOR_DATA_SIZE] = {0};	
 	unsigned char *stat;
 	unsigned char *stat2;	
 	int ret = 0;	
 	char value = 0;
 	int i;
 
-	if(sensor->ops->read_len < 8)	//sensor->ops->read_len = 8
+	if(sensor->ops->read_len < SENSOR_DATA_SIZE)	//sensor->ops->read_len = 8
 	{
 		printk("%s:lenth is error,len=%d\n",__func__,sensor->ops->read_len);
 		return -1;
 	}
 	
-	memset(buffer, 0, 8);
+	memset(buffer, 0, SENSOR_DATA_SIZE);
 	
 	/* Data bytes from hardware xL, xH, yL, yH, zL, zH */	
 	do {
@@ -228,7 +226,7 @@ static int sensor_report_value(struct i2c_client *client)
 		DBG(KERN_ERR "%s:ST is not set\n",__func__);
 		return -1;
 	}
-
+#if 0
 	/*
 	 * ST2 : data error -
 	 * occurs when data read is started outside of a readable period;
@@ -259,7 +257,7 @@ static int sensor_report_value(struct i2c_client *client)
 		DBG(KERN_ERR "%s:compass data overflow\n",__func__);
 		return -3;
 	}
-	
+#endif
 	/* »¥³âµØ»º´æÊý¾Ý. */
 	mutex_lock(&sensor->data_mutex);	
 	memcpy(sensor->sensor_data, buffer, sensor->ops->read_len);
@@ -363,11 +361,11 @@ static int compass_akm_set_mode(struct i2c_client *client, char mode)
 	struct sensor_private_data* sensor = (struct sensor_private_data *)i2c_get_clientdata(this_client); 
 	int result = 0;	
 
-	switch(mode & 0x0f)
+	switch(mode & 0x1f)
 	{
-		case AK8963_MODE_SNG_MEASURE:
-		case AK8963_MODE_SELF_TEST: 	
-		case AK8963_MODE_FUSE_ACCESS:			
+		case AK09911_MODE_SNG_MEASURE:
+		case AK09911_MODE_SELF_TEST: 	
+		case AK09911_MODE_FUSE_ACCESS:			
 			if(sensor->status_cur == SENSOR_OFF)
 			{
 				if(sensor->pdata->irq_enable)
@@ -385,7 +383,7 @@ static int compass_akm_set_mode(struct i2c_client *client, char mode)
 
 			break;
 
-		case AK8963_MODE_POWERDOWN: 	
+		case AK09911_MODE_POWERDOWN: 	
 			if(sensor->status_cur == SENSOR_ON)
 			{
 				if(sensor->pdata->irq_enable)
@@ -402,26 +400,26 @@ static int compass_akm_set_mode(struct i2c_client *client, char mode)
 
 	}
 	
-	switch(mode & 0x0f)
+	switch(mode & 0x1f)
 	{
-		case AK8963_MODE_SNG_MEASURE:		
-			result = sensor_write_reg(client, sensor->ops->ctrl_reg, mode);
+		case AK09911_MODE_SNG_MEASURE:		
+			result = sensor_write_reg(client, sensor->ops->ctrl_reg, AK09911_MODE_SNG_MEASURE);
 			if(result)
 			printk("%s:i2c error,mode=%d\n",__func__,mode);				
 			break;
-		case AK8963_MODE_SELF_TEST:			
-			result = sensor_write_reg(client, sensor->ops->ctrl_reg, mode);
+		case AK09911_MODE_SELF_TEST:			
+			result = sensor_write_reg(client, sensor->ops->ctrl_reg, AK09911_MODE_SELF_TEST);
 			if(result)
 			printk("%s:i2c error,mode=%d\n",__func__,mode);
 			break;
-		case AK8963_MODE_FUSE_ACCESS:
-			result = sensor_write_reg(client, sensor->ops->ctrl_reg, mode);
+		case AK09911_MODE_FUSE_ACCESS:
+			result = sensor_write_reg(client, sensor->ops->ctrl_reg, AK09911_MODE_FUSE_ACCESS);
 			if(result)
 			printk("%s:i2c error,mode=%d\n",__func__,mode);
 			break;
-		case AK8963_MODE_POWERDOWN:
+		case AK09911_MODE_POWERDOWN:
 			/* Set powerdown mode */
-			result = sensor_write_reg(client, sensor->ops->ctrl_reg, AK8963_MODE_POWERDOWN);
+			result = sensor_write_reg(client, sensor->ops->ctrl_reg, AK09911_MODE_POWERDOWN);
 			if(result)
 			printk("%s:i2c error,mode=%d\n",__func__,mode);
 			udelay(100);
@@ -450,7 +448,7 @@ static int compass_akm_reset(struct i2c_client *client)
 	else	
 	{
 		/* Set measure mode */
-		result = sensor_write_reg(client, AK8963_REG_CNTL2, AK8963_MODE_SNG_MEASURE);
+		result = sensor_write_reg(client, sensor->ops->ctrl_reg, AK09911_MODE_SNG_MEASURE);
 		if(result)
 		printk("%s:fail to Set measure mode\n",__func__);
 	}
@@ -492,7 +490,7 @@ static long compass_dev_ioctl(struct file *file,
 	char compass_data[SENSOR_DATA_SIZE];	/* for GETDATA */
 	char rwbuf[RWBUF_SIZE]; 		/* for READ/WRITE */
 	char mode;				/* for SET_MODE*/
-	int value[12];			/* for SET_YPR */
+	int value[YPR_DATA_SIZE];		/* for SET_YPR */
 	int status;				/* for OPEN/CLOSE_STATUS */
 	int ret = -1;				/* Return value. */
 	
@@ -500,7 +498,6 @@ static long compass_dev_ioctl(struct file *file,
 	//int32_t ypr_buf[YPR_DATA_SIZE]; 	/* for SET_YPR */
 	int16_t acc_buf[3];			/* for GET_ACCEL */
 	int64_t delay[AKM_NUM_SENSORS]; 	/* for GET_DELAY */
-
 	char layout;		/* for GET_LAYOUT */
 	char outbit;		/* for GET_OUTBIT */
 
@@ -537,6 +534,8 @@ static long compass_dev_ioctl(struct file *file,
 	case ECS_IOCTL_GET_LAYOUT:
 	case ECS_IOCTL_GET_OUTBIT:
 	case ECS_IOCTL_GET_ACCEL:
+	case ECS_IOCTL_GET_INFO:
+	case ECS_IOCTL_GET_CONF:
 		/* Just check buffer pointer */
 		if (argp == NULL) {
 			printk("%s:invalid argument\n",__func__);
@@ -637,7 +636,10 @@ static long compass_dev_ioctl(struct file *file,
 		break;
 	case ECS_IOCTL_GET_LAYOUT:
 		DBG("%s:ECS_IOCTL_GET_LAYOUT start\n",__func__);
-		layout = 1;	//sensor->pdata->layout;
+		if((sensor->pdata->layout >= 1) && (sensor->pdata->layout <=8 ))
+		layout = sensor->pdata->layout;
+		else
+		layout = 1;
 		break;
 	case ECS_IOCTL_GET_OUTBIT:
 		DBG("%s:ECS_IOCTL_GET_OUTBIT start\n",__func__);
@@ -656,6 +658,22 @@ static long compass_dev_ioctl(struct file *file,
 		acc_buf[1] = g_akm_rbuf[7];
 		acc_buf[2] = g_akm_rbuf[8];
 		mutex_unlock(&sensor->operation_mutex);
+		break;
+	case ECS_IOCTL_GET_INFO:
+		ret = copy_to_user(argp, g_sensor_info, sizeof(g_sensor_info));
+		if(ret < 0)
+		{
+			printk("%s:error,ret=%d\n",__FUNCTION__, ret);
+			return ret;
+		}
+		break;
+	case ECS_IOCTL_GET_CONF:
+		ret = copy_to_user(argp, g_sensor_conf, sizeof(g_sensor_conf));
+		if(ret < 0)
+		{
+			printk("%s:error,ret=%d\n",__FUNCTION__, ret);
+			return ret;
+		}
 		break;
 
 	default:
@@ -721,20 +739,20 @@ static struct file_operations compass_dev_fops =
 static struct miscdevice compass_dev_device =
 {	
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = "akm8963_dev",
+	.name = "akm_dev",
 	.fops = &compass_dev_fops,
 };
 
-struct sensor_operate compass_akm8963_ops = {
-	.name				= "akm8963",
+struct sensor_operate compass_akm09911_ops = {
+	.name				= "akm09911",
 	.type				= SENSOR_TYPE_COMPASS,	//it is important
-	.id_i2c				= COMPASS_ID_AK8963,
-	.read_reg			= AK8963_REG_ST1,	//read data
+	.id_i2c				= COMPASS_ID_AK09911,
+	.read_reg			= AK09911_REG_ST1,	//read data
 	.read_len			= SENSOR_DATA_SIZE,	//data length
-	.id_reg				= AK8963_REG_WIA,	//read id
-	.id_data 			= AK8963_DEVICE_ID,
+	.id_reg				= AK09911_REG_WIA2,	//read id
+	.id_data 			= AK09911_DEVICE_ID,
 	.precision			= 8,			//12 bits
-	.ctrl_reg 			= AK8963_REG_CNTL1,	//enable or disable 
+	.ctrl_reg 			= AK09911_REG_CNTL2,	//enable or disable 
 	.int_status_reg			= SENSOR_UNKNOW_DATA,	//not exist
 	.range				= {-0xffff,0xffff},
 	.trig				= IRQF_TRIGGER_RISING,	//if LEVEL interrupt then IRQF_ONESHOT
@@ -749,11 +767,11 @@ struct sensor_operate compass_akm8963_ops = {
 //function name should not be changed
 static struct sensor_operate *compass_get_ops(void)
 {
-	return &compass_akm8963_ops; 
+	return &compass_akm09911_ops; 
 }
 
 
-static int __init compass_akm8963_init(void)
+static int __init compass_akm09911_init(void)
 {
 	struct sensor_operate *ops = compass_get_ops();
 	int result = 0;
@@ -763,7 +781,7 @@ static int __init compass_akm8963_init(void)
 	return result;
 }
 
-static void __exit compass_akm8963_exit(void)
+static void __exit compass_akm09911_exit(void)
 {
 	struct sensor_operate *ops = compass_get_ops();
 	int type = ops->type;
@@ -771,7 +789,7 @@ static void __exit compass_akm8963_exit(void)
 }
 
 
-module_init(compass_akm8963_init);
-module_exit(compass_akm8963_exit);
+module_init(compass_akm09911_init);
+module_exit(compass_akm09911_exit);
 
 

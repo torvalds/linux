@@ -32,12 +32,6 @@
 #endif
 #include <linux/sensor-dev.h>
 
-#if 0
-#define SENSOR_DEBUG_TYPE SENSOR_TYPE_ACCEL
-#define DBG(x...) if(sensor->pdata->type == SENSOR_DEBUG_TYPE) printk(x)
-#else
-#define DBG(x...)
-#endif
 
 #define LIS3DH_INT_COUNT		(0x0E)
 #define LIS3DH_WHO_AM_I			(0x0F)
@@ -325,7 +319,6 @@ static int __init gsensor_lis3dh_init(void)
 	int result = 0;
 	int type = ops->type;
 	result = sensor_register_slave(type, NULL, NULL, gsensor_get_ops);
-	DBG("%s\n",__func__);
 	return result;
 }
 

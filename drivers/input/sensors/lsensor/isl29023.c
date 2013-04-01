@@ -32,12 +32,6 @@
 #endif
 #include <linux/sensor-dev.h>
 
-#if 0
-#define SENSOR_DEBUG_TYPE SENSOR_TYPE_LIGHT
-#define DBG(x...) if(sensor->pdata->type == SENSOR_DEBUG_TYPE) printk(x)
-#else
-#define DBG(x...)
-#endif
 
 #define ISL29023_REG_ADD_COMMAND1	0x00
 #define COMMMAND1_OPMODE_SHIFT		5
@@ -87,7 +81,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
 	int result = 0;
-	int status = 0;
+	//int status = 0;
 
 	sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
 	
@@ -224,7 +218,7 @@ static int sensor_report_value(struct i2c_client *client)
 	return result;
 }
 
-struct sensor_operate light_stk3171_ops = {
+struct sensor_operate light_isl29023_ops = {
 	.name				= "ls_isl29023",
 	.type				= SENSOR_TYPE_LIGHT,	//sensor type and it should be correct
 	.id_i2c				= LIGHT_ID_ISL29023,	//i2c id number
@@ -248,21 +242,20 @@ struct sensor_operate light_stk3171_ops = {
 //function name should not be changed
 static struct sensor_operate *light_get_ops(void)
 {
-	return &light_stk3171_ops;
+	return &light_isl29023_ops;
 }
 
 
-static int __init light_stk3171_init(void)
+static int __init light_isl29023_init(void)
 {
 	struct sensor_operate *ops = light_get_ops();
 	int result = 0;
 	int type = ops->type;
 	result = sensor_register_slave(type, NULL, NULL, light_get_ops);
-	//printk("%s\n",__func__);
 	return result;
 }
 
-static void __exit light_stk3171_exit(void)
+static void __exit light_isl29023_exit(void)
 {
 	struct sensor_operate *ops = light_get_ops();
 	int type = ops->type;
@@ -270,7 +263,7 @@ static void __exit light_stk3171_exit(void)
 }
 
 
-module_init(light_stk3171_init);
-module_exit(light_stk3171_exit);
+module_init(light_isl29023_init);
+module_exit(light_isl29023_exit);
 
 

@@ -33,6 +33,15 @@ config COMPASS_AK8963
   will be called ak8963.
 
 
+config COMPASS_AK09911
+  tristate "Asahi Kasei AK09911 3-Axis Magnetometer"
+  depends on I2C
+  help
+  Say yes here to build support for Asahi Kasei AK09911 3-Axis Magnetometer.
+
+  To compile this driver as a module, choose M here: the module
+  will be called AK09911.
+
 config COMPASS_MMC328X
   tristate "Mmc328x 3-Axis Magnetometer"
   depends on I2C

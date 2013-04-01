@@ -21,6 +21,12 @@ config GS_KXTIK
     To have support for your specific gsesnor you will have to
     select the proper drivers which depend on this option.
 
+config GS_KXTJ9
+  bool "gsensor kxtj9"
+  help
+    To have support for your specific gsesnor you will have to
+    select the proper drivers which depend on this option.
+
 config GS_LIS3DH
   bool "gsensor lis3dh"
 	help	 

@@ -33,12 +33,6 @@
 #include <linux/mma8452.h>
 #include <linux/sensor-dev.h>
 
-#if 0
-#define SENSOR_DEBUG_TYPE SENSOR_TYPE_ACCEL
-#define DBG(x...) if(sensor->pdata->type == SENSOR_DEBUG_TYPE) printk(x)
-#else
-#define DBG(x...)
-#endif
 
 
 #define MMA8451_DEVID		0x1a
@@ -286,7 +280,6 @@ static int __init gsensor_mma8452_init(void)
 	int result = 0;
 	int type = ops->type;
 	result = sensor_register_slave(type, NULL, NULL, gsensor_get_ops);	
-	DBG("%s\n",__func__);
 	return result;
 }
 

@@ -1,4 +1,4 @@
-/* drivers/input/sensors/access/kxtik.c
+/* drivers/input/sensors/access/kxtj9.c
  *
  * Copyright (C) 2012-2015 ROCKCHIP.
  * Author: luowei <lw@rock-chips.com>
@@ -30,9 +30,86 @@
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
-#include <linux/kxtik.h>
 #include <linux/sensor-dev.h>
 
+
+#define KXTJ9_DEVID	0x09	//chip id
+#define KXTJ9_RANGE	2000000
+
+#define KXTJ9_XOUT_HPF_L                (0x00)	/* 0000 0000 */
+#define KXTJ9_XOUT_HPF_H                (0x01)	/* 0000 0001 */
+#define KXTJ9_YOUT_HPF_L                (0x02)	/* 0000 0010 */
+#define KXTJ9_YOUT_HPF_H                (0x03)	/* 0000 0011 */
+#define KXTJ9_ZOUT_HPF_L                (0x04)	/* 0001 0100 */
+#define KXTJ9_ZOUT_HPF_H                (0x05)	/* 0001 0101 */
+#define KXTJ9_XOUT_L                    (0x06)	/* 0000 0110 */
+#define KXTJ9_XOUT_H                    (0x07)	/* 0000 0111 */
+#define KXTJ9_YOUT_L                    (0x08)	/* 0000 1000 */
+#define KXTJ9_YOUT_H                    (0x09)	/* 0000 1001 */
+#define KXTJ9_ZOUT_L                    (0x0A)	/* 0001 1010 */
+#define KXTJ9_ZOUT_H                    (0x0B)	/* 0001 1011 */
+#define KXTJ9_ST_RESP                   (0x0C)	/* 0000 1100 */
+#define KXTJ9_WHO_AM_I                  (0x0F)	/* 0000 1111 */
+#define KXTJ9_TILT_POS_CUR              (0x10)	/* 0001 0000 */
+#define KXTJ9_TILT_POS_PRE              (0x11)	/* 0001 0001 */
+#define KXTJ9_INT_SRC_REG1              (0x15)	/* 0001 0101 */
+#define KXTJ9_INT_SRC_REG2              (0x16)	/* 0001 0110 */
+#define KXTJ9_STATUS_REG                (0x18)	/* 0001 1000 */
+#define KXTJ9_INT_REL                   (0x1A)	/* 0001 1010 */
+#define KXTJ9_CTRL_REG1                 (0x1B)	/* 0001 1011 */
+#define KXTJ9_CTRL_REG2                 (0x1C)	/* 0001 1100 */
+#define KXTJ9_CTRL_REG3                 (0x1D)	/* 0001 1101 */
+#define KXTJ9_INT_CTRL_REG1             (0x1E)	/* 0001 1110 */
+#define KXTJ9_INT_CTRL_REG2             (0x1F)	/* 0001 1111 */
+#define KXTJ9_INT_CTRL_REG3             (0x20)	/* 0010 0000 */
+#define KXTJ9_DATA_CTRL_REG             (0x21)	/* 0010 0001 */
+#define KXTJ9_TILT_TIMER                (0x28)	/* 0010 1000 */
+#define KXTJ9_WUF_TIMER                 (0x29)	/* 0010 1001 */
+#define KXTJ9_TDT_TIMER                 (0x2B)	/* 0010 1011 */
+#define KXTJ9_TDT_H_THRESH              (0x2C)	/* 0010 1100 */
+#define KXTJ9_TDT_L_THRESH              (0x2D)	/* 0010 1101 */
+#define KXTJ9_TDT_TAP_TIMER             (0x2E)	/* 0010 1110 */
+#define KXTJ9_TDT_TOTAL_TIMER           (0x2F)	/* 0010 1111 */
+#define KXTJ9_TDT_LATENCY_TIMER         (0x30)	/* 0011 0000 */
+#define KXTJ9_TDT_WINDOW_TIMER          (0x31)	/* 0011 0001 */
+#define KXTJ9_WUF_THRESH                (0x5A)	/* 0101 1010 */
+#define KXTJ9_TILT_ANGLE                (0x5C)	/* 0101 1100 */
+#define KXTJ9_HYST_SET                  (0x5F)	/* 0101 1111 */
+
+/* CONTROL REGISTER 1 BITS */
+#define KXTJ9_DISABLE			0x7F
+#define KXTJ9_ENABLE			(1 << 7)
+/* INPUT_ABS CONSTANTS */
+#define FUZZ			3
+#define FLAT			3
+/* RESUME STATE INDICES */
+#define RES_DATA_CTRL		0
+#define RES_CTRL_REG1		1
+#define RES_INT_CTRL1		2
+#define RESUME_ENTRIES		3
+
+/* CTRL_REG1: set resolution, g-range, data ready enable */
+/* Output resolution: 8-bit valid or 12-bit valid */
+#define KXTJ9_RES_8BIT		0
+#define KXTJ9_RES_12BIT		(1 << 6)
+/* Output g-range: +/-2g, 4g, or 8g */
+#define KXTJ9_G_2G		0
+#define KXTJ9_G_4G		(1 << 3)
+#define KXTJ9_G_8G		(1 << 4)
+
+/* DATA_CTRL_REG: controls the output data rate of the part */
+#define KXTJ9_ODR12_5F		0
+#define KXTJ9_ODR25F			1
+#define KXTJ9_ODR50F			2
+#define KXTJ9_ODR100F			3
+#define KXTJ9_ODR200F			4
+#define KXTJ9_ODR400F			5
+#define KXTJ9_ODR800F			6
+
+/* kxtj9 */
+#define KXTJ9_PRECISION       12
+#define KXTJ9_BOUNDARY        (0x1 << (KXTJ9_PRECISION - 1))
+#define KXTJ9_GRAVITY_STEP    KXTJ9_RANGE / KXTJ9_BOUNDARY
 
 
 /****************operate according to sensor chip:start************/
@@ -49,12 +126,12 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	//register setting according to chip datasheet		
 	if(enable)
 	{	
-		status = KXTIK_ENABLE;	//kxtik	
+		status = KXTJ9_ENABLE;	//kxtj9	
 		sensor->ops->ctrl_data |= status;	
 	}
 	else
 	{
-		status = ~KXTIK_ENABLE;	//kxtik
+		status = ~KXTJ9_ENABLE;	//kxtj9
 		sensor->ops->ctrl_data &= status;
 	}
 
@@ -82,7 +159,7 @@ static int sensor_init(struct i2c_client *client)
 	
 	sensor->status_cur = SENSOR_OFF;
 	
-	result = sensor_write_reg(client, KXTIK_DATA_CTRL_REG, KXTIK_ODR400F);
+	result = sensor_write_reg(client, KXTJ9_DATA_CTRL_REG, KXTJ9_ODR400F);
 	if(result)
 	{
 		printk("%s:line=%d,error\n",__func__,__LINE__);
@@ -91,7 +168,7 @@ static int sensor_init(struct i2c_client *client)
 
 	if(sensor->pdata->irq_enable)	//open interrupt
 	{
-		result = sensor_write_reg(client, KXTIK_INT_CTRL_REG1, 0x34);//enable int,active high,need read INT_REL
+		result = sensor_write_reg(client, KXTJ9_INT_CTRL_REG1, 0x34);//enable int,active high,need read INT_REL
 		if(result)
 		{
 			printk("%s:line=%d,error\n",__func__,__LINE__);
@@ -99,7 +176,7 @@ static int sensor_init(struct i2c_client *client)
 		}
 	}
 	
-	sensor->ops->ctrl_data = (KXTIK_RES_12BIT | KXTIK_G_2G);
+	sensor->ops->ctrl_data = (KXTJ9_RES_12BIT | KXTJ9_G_2G);
 	result = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
 	if(result)
 	{
@@ -117,13 +194,13 @@ static int sensor_convert_data(struct i2c_client *client, char high_byte, char l
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
 	//int precision = sensor->ops->precision;
 	switch (sensor->devid) {	
-		case KXTIK_DEVID:		
+		case KXTJ9_DEVID:		
 			result = (((int)high_byte << 8) | ((int)low_byte ))>>4;
-			if (result < KXTIK_BOUNDARY)
-       			result = result* KXTIK_GRAVITY_STEP;
+			if (result < KXTJ9_BOUNDARY)
+       			result = result* KXTJ9_GRAVITY_STEP;
     		else
-       			result = ~( ((~result & (0x7fff>>(16-KXTIK_PRECISION)) ) + 1) 
-			   			* KXTIK_GRAVITY_STEP) + 1;
+       			result = ~( ((~result & (0x7fff>>(16-KXTJ9_PRECISION)) ) + 1) 
+			   			* KXTJ9_GRAVITY_STEP) + 1;
 			break;
 
 		default:
@@ -209,18 +286,18 @@ static int sensor_report_value(struct i2c_client *client)
 	return ret;
 }
 
-struct sensor_operate gsensor_kxtik_ops = {
-	.name				= "kxtik",
+struct sensor_operate gsensor_kxtj9_ops = {
+	.name				= "kxtj9",
 	.type				= SENSOR_TYPE_ACCEL,		//sensor type and it should be correct
-	.id_i2c				= ACCEL_ID_KXTIK,		//i2c id number
-	.read_reg			= KXTIK_XOUT_L,			//read data
+	.id_i2c				= ACCEL_ID_KXTJ9,		//i2c id number
+	.read_reg			= KXTJ9_XOUT_L,			//read data
 	.read_len			= 6,				//data length
-	.id_reg				= KXTIK_WHO_AM_I,		//read device id from this register
-	.id_data 			= KXTIK_DEVID,			//device id
-	.precision			= KXTIK_PRECISION,		//12 bits
-	.ctrl_reg 			= KXTIK_CTRL_REG1,		//enable or disable 
-	.int_status_reg 		= KXTIK_INT_REL,		//intterupt status register
-	.range				= {-KXTIK_RANGE,KXTIK_RANGE},	//range
+	.id_reg				= KXTJ9_WHO_AM_I,		//read device id from this register
+	.id_data 			= KXTJ9_DEVID,			//device id
+	.precision			= KXTJ9_PRECISION,		//12 bits
+	.ctrl_reg 			= KXTJ9_CTRL_REG1,		//enable or disable 
+	.int_status_reg 		= KXTJ9_INT_REL,		//intterupt status register
+	.range				= {-KXTJ9_RANGE,KXTJ9_RANGE},	//range
 	.trig				= IRQF_TRIGGER_LOW|IRQF_ONESHOT,		
 	.active				= sensor_active,	
 	.init				= sensor_init,
@@ -232,11 +309,11 @@ struct sensor_operate gsensor_kxtik_ops = {
 //function name should not be changed
 static struct sensor_operate *gsensor_get_ops(void)
 {
-	return &gsensor_kxtik_ops;
+	return &gsensor_kxtj9_ops;
 }
 
 
-static int __init gsensor_kxtik_init(void)
+static int __init gsensor_kxtj9_init(void)
 {
 	struct sensor_operate *ops = gsensor_get_ops();
 	int result = 0;
@@ -245,7 +322,7 @@ static int __init gsensor_kxtik_init(void)
 	return result;
 }
 
-static void __exit gsensor_kxtik_exit(void)
+static void __exit gsensor_kxtj9_exit(void)
 {
 	struct sensor_operate *ops = gsensor_get_ops();
 	int type = ops->type;
@@ -253,6 +330,6 @@ static void __exit gsensor_kxtik_exit(void)
 }
 
 
-module_init(gsensor_kxtik_init);
-module_exit(gsensor_kxtik_exit);
+module_init(gsensor_kxtj9_init);
+module_exit(gsensor_kxtj9_exit);
 

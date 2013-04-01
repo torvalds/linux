@@ -33,12 +33,6 @@
 #include <linux/l3g4200d.h>
 #include <linux/sensor-dev.h>
 
-#if 0
-#define SENSOR_DEBUG_TYPE SENSOR_TYPE_GYROSCOPE
-#define DBG(x...) if(sensor->pdata->type == SENSOR_DEBUG_TYPE) printk(x)
-#else
-#define DBG(x...)
-#endif
 
 #define L3G4200D_ENABLE			0x08
 
@@ -246,7 +240,6 @@ static int __init gyro_l3g20d_init(void)
 	int result = 0;
 	int type = ops->type;
 	result = sensor_register_slave(type, NULL, NULL, gyro_get_ops);
-	DBG("%s\n",__func__);
 	return result;
 }
 

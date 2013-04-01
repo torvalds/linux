@@ -35,12 +35,6 @@
 
 #define SENSOR_DATA_SIZE		8
 
-#if 0
-#define SENSOR_DEBUG_TYPE SENSOR_TYPE_COMPASS
-#define DBG(x...) if(sensor->pdata->type == SENSOR_DEBUG_TYPE) printk(x)
-#else
-#define DBG(x...)
-#endif
 
 /*! \name AK8975 operation mode
  \anchor AK8975_Mode
@@ -191,9 +185,8 @@ static int sensor_report_value(struct i2c_client *client)
 	unsigned char *stat2;	
 	int ret = 0;	
 	char value = 0;
-#ifdef SENSOR_DEBUG_TYPE	
 	int i;
-#endif			
+
 	if(sensor->ops->read_len < 8)	//sensor->ops->read_len = 8
 	{
 		printk("%s:lenth is error,len=%d\n",__func__,sensor->ops->read_len);
@@ -257,12 +250,10 @@ static int sensor_report_value(struct i2c_client *client)
 	mutex_lock(&sensor->data_mutex);	
 	memcpy(sensor->sensor_data, buffer, sensor->ops->read_len);
 	mutex_unlock(&sensor->data_mutex);
-#ifdef SENSOR_DEBUG_TYPE	
 	DBG("%s:",__func__);
 	for(i=0; i<sensor->ops->read_len; i++)
 		DBG("0x%x,",buffer[i]);
 	DBG("\n");
-#endif	
 
 	if((sensor->pdata->irq_enable)&& (sensor->ops->int_status_reg >= 0))	//read sensor intterupt status register
 	{
@@ -322,10 +313,8 @@ static void compass_set_YPR(short *rbuf)
 
 static int compass_dev_open(struct inode *inode, struct file *file)
 {
-#ifdef SENSOR_DEBUG_TYPE
 	struct sensor_private_data* sensor = 
 		(struct sensor_private_data *)i2c_get_clientdata(this_client); 
-#endif
 	int result = 0;
 	DBG("%s\n",__func__);
 
@@ -335,10 +324,8 @@ static int compass_dev_open(struct inode *inode, struct file *file)
 
 static int compass_dev_release(struct inode *inode, struct file *file)
 {
-#ifdef SENSOR_DEBUG_TYPE
 	struct sensor_private_data* sensor = 
 		(struct sensor_private_data *)i2c_get_clientdata(this_client); 
-#endif
 	int result = 0;	
 	DBG("%s\n",__func__);
 

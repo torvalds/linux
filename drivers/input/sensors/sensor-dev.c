@@ -26,6 +26,7 @@
 #include <linux/input.h>
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
+#include <linux/proc_fs.h>
 #include <mach/gpio.h>
 #include <mach/board.h> 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -35,23 +36,63 @@
 #include <linux/sensor-dev.h>
 
 
-#if 0
-#define SENSOR_DEBUG_TYPE SENSOR_TYPE_ACCEL
-#define DBG(x...) if(sensor->pdata->type == SENSOR_DEBUG_TYPE) printk(x)
-#else
-#define DBG(x...)
-#endif
-
-#if 0
+/*
 sensor-dev.c v1.1 add pressure and temperature support 2013-2-27
 sensor-dev.c v1.2 add akm8963 support 2013-3-10
-#endif
-#define SENSOR_VERSION_AND_TIME  "sensor-dev.c v1.2 add akm8963 support 2013-3-10"
+sensor-dev.c v1.3 add sensor debug support 2013-3-15
+*/
+
+#define SENSOR_VERSION_AND_TIME  "sensor-dev.c v1.3 add sensor debug support 2013-3-15"
 
 
 struct sensor_private_data *g_sensor[SENSOR_NUM_TYPES];
 static struct sensor_operate *sensor_ops[SENSOR_NUM_ID]; 
 static struct class *g_sensor_class[SENSOR_NUM_TYPES];
+
+static ssize_t sensor_proc_write(struct file *file, const char __user *buffer,
+			   size_t count, loff_t *data)
+{
+	char c;
+	int rc;
+	int i = 0, num = 0;
+	
+	rc = get_user(c, buffer);
+	if (rc)
+	{
+		for(i=SENSOR_TYPE_NULL+1; i<SENSOR_NUM_TYPES; i++)
+		atomic_set(&g_sensor[i]->flags.debug_flag, SENSOR_TYPE_NULL);
+		return rc; 
+	}
+
+	
+	num = c - '0';
+
+	printk("%s command list:close:%d, accel:%d, compass:%d, gyro:%d, light:%d, psensor:%d, temp:%d, pressure:%d,total:%d,num=%d\n",__func__,
+		
+		SENSOR_TYPE_NULL, SENSOR_TYPE_ACCEL,SENSOR_TYPE_COMPASS,SENSOR_TYPE_GYROSCOPE,SENSOR_TYPE_LIGHT,SENSOR_TYPE_PROXIMITY,
+
+		SENSOR_TYPE_TEMPERATURE,SENSOR_TYPE_PRESSURE,SENSOR_NUM_TYPES,num);
+
+	if((num > SENSOR_NUM_TYPES) || (num < SENSOR_TYPE_NULL))
+	{
+		printk("%s:error! only support %d to %d\n",__func__, SENSOR_TYPE_NULL,SENSOR_NUM_TYPES);
+		return -1;
+	}
+
+	for(i=SENSOR_TYPE_NULL+1; i<SENSOR_NUM_TYPES; i++)
+	{
+		if(g_sensor[i])
+		atomic_set(&g_sensor[i]->flags.debug_flag, num);
+	}
+	
+	return count; 
+}
+
+static const struct file_operations sensor_proc_fops = {
+	.owner		= THIS_MODULE, 
+	.write		= sensor_proc_write,
+};
+
 
 
 static int sensor_get_id(struct i2c_client *client, int *value)
@@ -608,7 +649,7 @@ static long compass_dev_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_COMPASS];
-	struct i2c_client *client = sensor->client;
+	//struct i2c_client *client = sensor->client;
 	void __user *argp = (void __user *)arg;
 	int result = 0;
 	short flag;
@@ -1439,6 +1480,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	struct sensor_platform_data *pdata;
 	int result = 0;
 	int type = 0;
+	
 	dev_info(&client->adapter->dev, "%s: %s,0x%x\n", __func__, devid->name,(unsigned int)client);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -1506,7 +1548,8 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	atomic_set(&sensor->flags.m_flag, 1);
 	atomic_set(&sensor->flags.a_flag, 1);
 	atomic_set(&sensor->flags.mv_flag, 1);			
-	atomic_set(&sensor->flags.open_flag, 0);		
+	atomic_set(&sensor->flags.open_flag, 0);
+	atomic_set(&sensor->flags.debug_flag, 0);
 	init_waitqueue_head(&sensor->flags.open_wq);
 	sensor->flags.delay = 100;
 
@@ -1639,7 +1682,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 				"fail to register misc device %s\n", sensor->i2c_id->name);
 			goto out_misc_device_register_device_failed;
 		}
-	}
+	}	
 	
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	if((sensor->ops->suspend) && (sensor->ops->resume))
@@ -1700,7 +1743,8 @@ static const struct i2c_device_id sensor_id[] = {
 	/*gsensor*/
 	{"gsensor", ACCEL_ID_ALL},
 	{"gs_mma8452", ACCEL_ID_MMA845X},	
-	{"gs_kxtik", ACCEL_ID_KXTIK},
+	{"gs_kxtik", ACCEL_ID_KXTIK},	
+	{"gs_kxtj9", ACCEL_ID_KXTJ9},
 	{"gs_lis3dh", ACCEL_ID_LIS3DH},
 	{"gs_mma7660", ACCEL_ID_MMA7660},
 	{"gs_mxc6225", ACCEL_ID_MXC6225},
@@ -1708,11 +1752,12 @@ static const struct i2c_device_id sensor_id[] = {
 	{"compass", COMPASS_ID_ALL},
 	{"ak8975", COMPASS_ID_AK8975},	
 	{"ak8963", COMPASS_ID_AK8963},
+	{"ak09911", COMPASS_ID_AK09911},
 	{"mmc314x", COMPASS_ID_MMC314X},
 	/*gyroscope*/
 	{"gyro", GYRO_ID_ALL},	
 	{"l3g4200d_gryo", GYRO_ID_L3G4200D},
-        {"l3g20d_gryo", GYRO_ID_L3G20D},
+	{"l3g20d_gryo", GYRO_ID_L3G20D},
 	{"k3g", GYRO_ID_K3G},
 	/*light sensor*/
 	{"lightsensor", LIGHT_ID_ALL},	
@@ -1723,6 +1768,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"ls_isl29023", LIGHT_ID_ISL29023},
 	{"ls_ap321xx", LIGHT_ID_AP321XX},
 	{"ls_photoresistor", LIGHT_ID_PHOTORESISTOR},
+	{"ls_us5152", LIGHT_ID_US5152},
 	/*proximity sensor*/
 	{"psensor", PROXIMITY_ID_ALL},
 	{"proximity_al3006", PROXIMITY_ID_AL3006},	
@@ -1754,11 +1800,13 @@ static struct i2c_driver sensor_driver = {
 
 static int __init sensor_init(void)
 {
-	int res = i2c_add_driver(&sensor_driver);
+	int res = i2c_add_driver(&sensor_driver);	
+	struct proc_dir_entry *sensor_proc_entry;	
 	pr_info("%s: Probe name %s\n", __func__, sensor_driver.driver.name);
 	if (res)
 		pr_err("%s failed\n", __func__);
 	
+	sensor_proc_entry = proc_create("driver/sensor_dbg", 0660, NULL, &sensor_proc_fops); 
 	printk("%s\n", SENSOR_VERSION_AND_TIME);
 	return res;
 }

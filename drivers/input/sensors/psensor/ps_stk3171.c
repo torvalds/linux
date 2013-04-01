@@ -32,12 +32,6 @@
 #endif
 #include <linux/sensor-dev.h>
 
-#if 0
-#define SENSOR_DEBUG_TYPE SENSOR_TYPE_PROXIMITY
-#define DBG(x...) if(sensor->pdata->type == SENSOR_DEBUG_TYPE) printk(x)
-#else
-#define DBG(x...)
-#endif
 
 #define ALS_CMD 	0x01
 #define ALS_DT1		0x02
@@ -252,7 +246,6 @@ static int __init proximity_stk3171_init(void)
 	int result = 0;
 	int type = ops->type;
 	result = sensor_register_slave(type, NULL, NULL, proximity_get_ops);
-	DBG("%s\n",__func__);
 	return result;
 }
 

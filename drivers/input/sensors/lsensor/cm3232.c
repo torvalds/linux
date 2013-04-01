@@ -32,12 +32,6 @@
 #endif
 #include <linux/sensor-dev.h>
 
-#if 0
-#define SENSOR_DEBUG_TYPE SENSOR_TYPE_LIGHT
-#define DBG(x...) if(sensor->pdata->type == SENSOR_DEBUG_TYPE) printk(x)
-#else
-#define DBG(x...)
-#endif
 
 #define CM3232_CLOSE	0x01
 
@@ -72,7 +66,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
 	int result = 0;
-	int status = 0;
+	//int status = 0;
 	
 	//sensor->client->addr = sensor->ops->ctrl_reg;	
 	//sensor->ops->ctrl_data = sensor_read_reg(client, sensor->ops->ctrl_reg);
@@ -125,9 +119,10 @@ static int sensor_init(struct i2c_client *client)
 }
 
 
-static void light_report_value(struct input_dev *input, int data)
+static int light_report_value(struct input_dev *input, int data)
 {
 	unsigned char index = 0;
+	
 	if(data <= 10){
 		index = 0;goto report;
 	}
@@ -154,10 +149,10 @@ static void light_report_value(struct input_dev *input, int data)
 	}
 
 report:
-	DBG("cm3232 report data=%d,index = %d\n",data,index);
-	printk("cm3232 report data=%d,index = %d\n",data,index);
 	input_report_abs(input, ABS_MISC, index);
 	input_sync(input);
+	
+	return index;
 }
 
 
@@ -166,9 +161,10 @@ static int sensor_report_value(struct i2c_client *client)
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
 	int result = 0;
-	char msb = 0, lsb = 0;
+	//char msb = 0, lsb = 0;
 	char data[2] = {0};
 	unsigned short value = 0;
+	int index = 0;
 	
 	//sensor->client->addr = CM3232_ADDR_DATA;
 	data[0] = CM3232_ADDR_DATA;
@@ -177,7 +173,8 @@ static int sensor_report_value(struct i2c_client *client)
 
 	DBG("%s:result=%d\n",__func__,value);
 	//printk("%s:result=%d\n",__func__,value);
-	light_report_value(sensor->input_dev, value);
+	index = light_report_value(sensor->input_dev, value);	
+	DBG("%s:%s result=0x%x,index=%d\n",__func__,sensor->ops->name, value,index);
 
 	if((sensor->pdata->irq_enable)&& (sensor->ops->int_status_reg >= 0))	//read sensor intterupt status register
 	{
@@ -227,7 +224,6 @@ static int __init light_cm3232_init(void)
 	int result = 0;
 	int type = ops->type;
 	result = sensor_register_slave(type, NULL, NULL, light_get_ops);
-	//printk("%s: >>>>>>>>>>>>>>>>>>>\n\n\n",__func__);
 	return result;
 }
 

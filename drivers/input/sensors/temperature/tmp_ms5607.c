@@ -32,12 +32,6 @@
 #endif
 #include <linux/sensor-dev.h>
 
-#if 0
-#define SENSOR_DEBUG_TYPE SENSOR_TYPE_TEMPERATURE
-#define DBG(x...) if(sensor->pdata->type == SENSOR_DEBUG_TYPE) printk(x)
-#else
-#define DBG(x...)
-#endif
 
 #define CMD_RESET   0x1E  // ADC reset command 
 #define CMD_ADC_READ 0x00  // ADC read command 
@@ -93,8 +87,8 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 		for (i=0;i<8;i++) 
 		{
 			C[i] = prom[2*i] << 8 | prom[2*i + 1];
-			DBG("prom[%d]=0x%x,prom[%d]=0x%x",2*i,prom[2*i],(2*i + 1),prom[2*i + 1]);
-			DBG("\nC[%d]=%d,",i+1,C[i]);
+			//printk("prom[%d]=0x%x,prom[%d]=0x%x",2*i,prom[2*i],(2*i + 1),prom[2*i + 1]);
+			//printk("\nC[%d]=%d,",i+1,C[i]);
 		} 
 
 	}
@@ -300,7 +294,6 @@ static int __init temperature_ms5607_init(void)
 	int result = 0;
 	int type = ops->type;
 	result = sensor_register_slave(type, NULL, NULL, temperature_get_ops);
-	DBG("%s\n",__func__);
 	return result;
 }
 

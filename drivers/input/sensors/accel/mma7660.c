@@ -32,12 +32,6 @@
 #endif
 #include <linux/sensor-dev.h>
 
-#if 0
-#define SENSOR_DEBUG_TYPE SENSOR_TYPE_ACCEL
-#define DBG(x...) if(sensor->pdata->type == SENSOR_DEBUG_TYPE) printk(x)
-#else
-#define DBG(x...)
-#endif
 
 #define MMA7660_ENABLE		1
 
@@ -156,8 +150,8 @@ static int sensor_init(struct i2c_client *client)
 static int sensor_convert_data(struct i2c_client *client, char high_byte, char low_byte)
 {
     s64 result;
-	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(client);	
+	//struct sensor_private_data *sensor =
+	//    (struct sensor_private_data *) i2c_get_clientdata(client);	
 	//int precision = sensor->ops->precision;
 		
 	result = (int)low_byte;
@@ -295,7 +289,6 @@ static int __init gsensor_mma7660_init(void)
 	int result = 0;
 	int type = ops->type;
 	result = sensor_register_slave(type, NULL, NULL, gsensor_get_ops);	
-	DBG("%s\n",__func__);
 	return result;
 }
 
