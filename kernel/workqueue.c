@@ -44,6 +44,7 @@
 #include <linux/jhash.h>
 #include <linux/hashtable.h>
 #include <linux/rculist.h>
+#include <linux/nodemask.h>
 
 #include "workqueue_internal.h"
 
@@ -252,6 +253,12 @@ struct workqueue_struct {
 };
 
 static struct kmem_cache *pwq_cache;
+
+static int wq_numa_tbl_len;		/* highest possible NUMA node id + 1 */
+static cpumask_var_t *wq_numa_possible_cpumask;
+					/* possible CPUs of each node */
+
+static bool wq_numa_enabled;		/* unbound NUMA affinity enabled */
 
 static DEFINE_MUTEX(wq_pool_mutex);	/* protects pools and workqueues list */
 static DEFINE_SPINLOCK(wq_mayday_lock);	/* protects wq->maydays list */
@@ -4407,6 +4414,43 @@ out_unlock:
 }
 #endif /* CONFIG_FREEZER */
 
+static void __init wq_numa_init(void)
+{
+	cpumask_var_t *tbl;
+	int node, cpu;
+
+	/* determine NUMA pwq table len - highest node id + 1 */
+	for_each_node(node)
+		wq_numa_tbl_len = max(wq_numa_tbl_len, node + 1);
+
+	if (num_possible_nodes() <= 1)
+		return;
+
+	/*
+	 * We want masks of possible CPUs of each node which isn't readily
+	 * available.  Build one from cpu_to_node() which should have been
+	 * fully initialized by now.
+	 */
+	tbl = kzalloc(wq_numa_tbl_len * sizeof(tbl[0]), GFP_KERNEL);
+	BUG_ON(!tbl);
+
+	for_each_node(node)
+		BUG_ON(!alloc_cpumask_var_node(&tbl[node], GFP_KERNEL, node));
+
+	for_each_possible_cpu(cpu) {
+		node = cpu_to_node(cpu);
+		if (WARN_ON(node == NUMA_NO_NODE)) {
+			pr_warn("workqueue: NUMA node mapping not available for cpu%d, disabling NUMA support\n", cpu);
+			/* happens iff arch is bonkers, let's just proceed */
+			return;
+		}
+		cpumask_set_cpu(cpu, tbl[node]);
+	}
+
+	wq_numa_possible_cpumask = tbl;
+	wq_numa_enabled = true;
+}
+
 static int __init init_workqueues(void)
 {
 	int std_nice[NR_STD_WORKER_POOLS] = { 0, HIGHPRI_NICE_LEVEL };
@@ -4422,6 +4466,8 @@ static int __init init_workqueues(void)
 
 	cpu_notifier(workqueue_cpu_up_callback, CPU_PRI_WORKQUEUE_UP);
 	hotcpu_notifier(workqueue_cpu_down_callback, CPU_PRI_WORKQUEUE_DOWN);
+
+	wq_numa_init();
 
 	/* initialize CPU pools */
 	for_each_possible_cpu(cpu) {
