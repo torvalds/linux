@@ -1644,9 +1644,10 @@ static struct worker *alloc_worker(void)
  */
 static struct worker *create_worker(struct worker_pool *pool)
 {
-	const char *pri = pool->attrs->nice < 0  ? "H" : "";
 	struct worker *worker = NULL;
+	int node = pool->cpu >= 0 ? cpu_to_node(pool->cpu) : NUMA_NO_NODE;
 	int id = -1;
+	char id_buf[16];
 
 	lockdep_assert_held(&pool->manager_mutex);
 
@@ -1672,13 +1673,13 @@ static struct worker *create_worker(struct worker_pool *pool)
 	worker->id = id;
 
 	if (pool->cpu >= 0)
-		worker->task = kthread_create_on_node(worker_thread,
-					worker, cpu_to_node(pool->cpu),
-					"kworker/%d:%d%s", pool->cpu, id, pri);
+		snprintf(id_buf, sizeof(id_buf), "%d:%d%s", pool->cpu, id,
+			 pool->attrs->nice < 0  ? "H" : "");
 	else
-		worker->task = kthread_create(worker_thread, worker,
-					      "kworker/u%d:%d%s",
-					      pool->id, id, pri);
+		snprintf(id_buf, sizeof(id_buf), "u%d:%d", pool->id, id);
+
+	worker->task = kthread_create_on_node(worker_thread, worker, node,
+					      "kworker/%s", id_buf);
 	if (IS_ERR(worker->task))
 		goto fail;
 
