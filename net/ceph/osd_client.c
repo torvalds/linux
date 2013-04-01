@@ -1268,26 +1268,6 @@ static void complete_request(struct ceph_osd_request *req)
 	complete_all(&req->r_safe_completion);  /* fsync waiter */
 }
 
-static int __decode_pgid(void **p, void *end, struct ceph_pg *pgid)
-{
-	__u8 v;
-
-	ceph_decode_need(p, end, 1 + 8 + 4 + 4, bad);
-	v = ceph_decode_8(p);
-	if (v > 1) {
-		pr_warning("do not understand pg encoding %d > 1", v);
-		return -EINVAL;
-	}
-	pgid->pool = ceph_decode_64(p);
-	pgid->seed = ceph_decode_32(p);
-	*p += 4;
-	return 0;
-
-bad:
-	pr_warning("incomplete pg encoding");
-	return -EINVAL;
-}
-
 /*
  * handle osd op reply.  either call the callback if it is specified,
  * or do the completion to wake up the waiting thread.
@@ -1321,7 +1301,7 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	ceph_decode_need(&p, end, object_len, bad);
 	p += object_len;
 
-	err = __decode_pgid(&p, end, &pg);
+	err = ceph_decode_pgid(&p, end, &pg);
 	if (err)
 		goto bad;
 

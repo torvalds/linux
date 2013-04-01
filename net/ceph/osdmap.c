@@ -654,24 +654,6 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 	return 0;
 }
 
-static int __decode_pgid(void **p, void *end, struct ceph_pg *pg)
-{
-	u8 v;
-
-	ceph_decode_need(p, end, 1+8+4+4, bad);
-	v = ceph_decode_8(p);
-	if (v != 1)
-		goto bad;
-	pg->pool = ceph_decode_64(p);
-	pg->seed = ceph_decode_32(p);
-	*p += 4; /* skip preferred */
-	return 0;
-
-bad:
-	dout("error decoding pgid\n");
-	return -EINVAL;
-}
-
 /*
  * decode a full map.
  */
@@ -765,7 +747,7 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 		struct ceph_pg pgid;
 		struct ceph_pg_mapping *pg;
 
-		err = __decode_pgid(p, end, &pgid);
+		err = ceph_decode_pgid(p, end, &pgid);
 		if (err)
 			goto bad;
 		ceph_decode_need(p, end, sizeof(u32), bad);
@@ -983,7 +965,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		struct ceph_pg pgid;
 		u32 pglen;
 
-		err = __decode_pgid(p, end, &pgid);
+		err = ceph_decode_pgid(p, end, &pgid);
 		if (err)
 			goto bad;
 		ceph_decode_need(p, end, sizeof(u32), bad);
