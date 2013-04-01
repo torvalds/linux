@@ -156,34 +156,6 @@ static const int lp8788_aldo7_vtbl[] = {
 	1200000, 1300000, 1400000, 1500000, 1600000, 1700000, 1800000, 1800000,
 };
 
-static enum lp8788_ldo_id lp8788_dldo_id[] = {
-	DLDO1,
-	DLDO2,
-	DLDO3,
-	DLDO4,
-	DLDO5,
-	DLDO6,
-	DLDO7,
-	DLDO8,
-	DLDO9,
-	DLDO10,
-	DLDO11,
-	DLDO12,
-};
-
-static enum lp8788_ldo_id lp8788_aldo_id[] = {
-	ALDO1,
-	ALDO2,
-	ALDO3,
-	ALDO4,
-	ALDO5,
-	ALDO6,
-	ALDO7,
-	ALDO8,
-	ALDO9,
-	ALDO10,
-};
-
 static int lp8788_ldo_enable_time(struct regulator_dev *rdev)
 {
 	struct lp8788_ldo *ldo = rdev_get_drvdata(rdev);
@@ -566,7 +538,7 @@ static int lp8788_dldo_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ldo->lp = lp;
-	ret = lp8788_config_ldo_enable_mode(pdev, ldo, lp8788_dldo_id[id]);
+	ret = lp8788_config_ldo_enable_mode(pdev, ldo, id);
 	if (ret)
 		return ret;
 
@@ -627,7 +599,7 @@ static int lp8788_aldo_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ldo->lp = lp;
-	ret = lp8788_config_ldo_enable_mode(pdev, ldo, lp8788_aldo_id[id]);
+	ret = lp8788_config_ldo_enable_mode(pdev, ldo, id + ALDO1);
 	if (ret)
 		return ret;
 
