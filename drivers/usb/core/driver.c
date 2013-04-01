@@ -1253,10 +1253,12 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 
 	/* If the suspend failed, resume interfaces that did get suspended */
 	if (status != 0) {
-		msg.event ^= (PM_EVENT_SUSPEND | PM_EVENT_RESUME);
-		while (++i < n) {
-			intf = udev->actconfig->interface[i];
-			usb_resume_interface(udev, intf, msg, 0);
+		if (udev->actconfig) {
+			msg.event ^= (PM_EVENT_SUSPEND | PM_EVENT_RESUME);
+			while (++i < n) {
+				intf = udev->actconfig->interface[i];
+				usb_resume_interface(udev, intf, msg, 0);
+			}
 		}
 
 	/* If the suspend succeeded then prevent any more URB submissions
