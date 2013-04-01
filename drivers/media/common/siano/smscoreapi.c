@@ -389,7 +389,7 @@ char *smscore_translate_msg(enum msg_types msgtype)
 	int i = msgtype - MSG_TYPE_BASE_VAL;
 	char *msg;
 
-	if (i < 0 || i > ARRAY_SIZE(siano_msgs))
+	if (i < 0 || i >= ARRAY_SIZE(siano_msgs))
 		return "Unknown msg type";
 
 	msg = siano_msgs[i];
