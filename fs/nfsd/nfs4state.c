@@ -720,6 +720,28 @@ dump_sessionid(const char *fn, struct nfs4_sessionid *sessionid)
 }
 #endif
 
+/*
+ * Bump the seqid on cstate->replay_owner, and clear replay_owner if it
+ * won't be used for replay.
+ */
+void nfsd4_bump_seqid(struct nfsd4_compound_state *cstate, __be32 nfserr)
+{
+	struct nfs4_stateowner *so = cstate->replay_owner;
+
+	if (nfserr == nfserr_replay_me)
+		return;
+
+	if (!seqid_mutating_err(ntohl(nfserr))) {
+		cstate->replay_owner = NULL;
+		return;
+	}
+	if (!so)
+		return;
+	if (so->so_is_open_owner)
+		release_last_closed_stateid(openowner(so));
+	so->so_seqid++;
+	return;
+}
 
 static void
 gen_sessionid(struct nfsd4_session *ses)
@@ -3702,6 +3724,7 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	nfsd4_client_record_create(oo->oo_owner.so_client);
 	status = nfs_ok;
 out:
+	nfsd4_bump_seqid(cstate, status);
 	if (!cstate->replay_owner)
 		nfs4_unlock_state();
 	return status;
@@ -3785,29 +3808,10 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 	memcpy(&od->od_stateid, &stp->st_stid.sc_stateid, sizeof(stateid_t));
 	status = nfs_ok;
 out:
+	nfsd4_bump_seqid(cstate, status);
 	if (!cstate->replay_owner)
 		nfs4_unlock_state();
 	return status;
-}
-
-void nfsd4_purge_closed_stateid(struct nfs4_stateowner *so)
-{
-	struct nfs4_openowner *oo;
-	struct nfs4_ol_stateid *s;
-
-	if (!so->so_is_open_owner)
-		return;
-	oo = openowner(so);
-	s = oo->oo_last_closed_stid;
-	if (!s)
-		return;
-	if (!(oo->oo_flags & NFS4_OO_PURGE_CLOSE)) {
-		/* Release the last_closed_stid on the next seqid bump: */
-		oo->oo_flags |= NFS4_OO_PURGE_CLOSE;
-		return;
-	}
-	oo->oo_flags &= ~NFS4_OO_PURGE_CLOSE;
-	release_last_closed_stateid(oo);
 }
 
 static void nfsd4_close_open_stateid(struct nfs4_ol_stateid *s)
@@ -3838,17 +3842,20 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 					&close->cl_stateid,
 					NFS4_OPEN_STID|NFS4_CLOSED_STID,
 					&stp, nn);
+	nfsd4_bump_seqid(cstate, status);
 	if (status)
 		goto out; 
 	oo = openowner(stp->st_stateowner);
-	status = nfs_ok;
 	update_stateid(&stp->st_stid.sc_stateid);
 	memcpy(&close->cl_stateid, &stp->st_stid.sc_stateid, sizeof(stateid_t));
 
 	nfsd4_close_open_stateid(stp);
-	release_last_closed_stateid(oo);
-	oo->oo_flags &= ~NFS4_OO_PURGE_CLOSE;
-	oo->oo_last_closed_stid = stp;
+
+	if (cstate->minorversion) {
+		unhash_stid(&stp->st_stid);
+		free_generic_stateid(stp);
+	} else
+		oo->oo_last_closed_stid = stp;
 
 	if (list_empty(&oo->oo_owner.so_stateids)) {
 		if (cstate->minorversion) {
@@ -4270,6 +4277,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 out:
 	if (status && new_state)
 		release_lockowner(lock_sop);
+	nfsd4_bump_seqid(cstate, status);
 	if (!cstate->replay_owner)
 		nfs4_unlock_state();
 	if (file_lock)
@@ -4439,6 +4447,7 @@ nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	memcpy(&locku->lu_stateid, &stp->st_stid.sc_stateid, sizeof(stateid_t));
 
 out:
+	nfsd4_bump_seqid(cstate, status);
 	if (!cstate->replay_owner)
 		nfs4_unlock_state();
 	if (file_lock)

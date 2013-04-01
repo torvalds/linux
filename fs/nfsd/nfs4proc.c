@@ -415,7 +415,8 @@ out:
 	nfsd4_cleanup_open_state(open, status);
 	if (open->op_openowner)
 		cstate->replay_owner = &open->op_openowner->oo_owner;
-	else
+	nfsd4_bump_seqid(cstate, status);
+	if (!cstate->replay_owner)
 		nfs4_unlock_state();
 	return status;
 }

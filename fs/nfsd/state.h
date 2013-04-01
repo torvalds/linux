@@ -355,7 +355,6 @@ struct nfs4_openowner {
 	struct nfs4_ol_stateid *oo_last_closed_stid;
 	time_t			oo_time; /* time of placement on so_close_lru */
 #define NFS4_OO_CONFIRMED   1
-#define NFS4_OO_PURGE_CLOSE 2
 #define NFS4_OO_NEW         4
 	unsigned char		oo_flags;
 };
@@ -363,7 +362,7 @@ struct nfs4_openowner {
 struct nfs4_lockowner {
 	struct nfs4_stateowner	lo_owner; /* must be first element */
 	struct list_head	lo_owner_ino_hash; /* hash by owner,file */
-	struct list_head        lo_perstateid; /* for lockowners only */
+	struct list_head        lo_perstateid;
 	struct list_head	lo_list; /* for temporary uses */
 };
 
@@ -477,7 +476,6 @@ extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(const char *name,
 							struct nfsd_net *nn);
 extern bool nfs4_has_reclaimed_state(const char *name, struct nfsd_net *nn);
 extern void put_client_renew(struct nfs4_client *clp);
-extern void nfsd4_purge_closed_stateid(struct nfs4_stateowner *);
 
 /* nfs4recover operations */
 extern int nfsd4_client_tracking_init(struct net *net);

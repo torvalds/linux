@@ -623,6 +623,7 @@ extern __be32 nfsd4_test_stateid(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, struct nfsd4_test_stateid *test_stateid);
 extern __be32 nfsd4_free_stateid(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, struct nfsd4_free_stateid *free_stateid);
+extern void nfsd4_bump_seqid(struct nfsd4_compound_state *, __be32 nfserr);
 #endif
 
 /*
