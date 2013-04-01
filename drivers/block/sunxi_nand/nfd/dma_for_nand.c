@@ -30,6 +30,7 @@
 #define DMA_HALF_INT_MASK       (1<<0)
 #define DMA_END_INT_MASK        (1<<1)
 
+#define NAND_DMA_TIMEOUT 20000 /*20 sec*/
 //__hdle          hNandDmaHdle;
 static int nanddma_completed_flag = 1;
 static DECLARE_WAIT_QUEUE_HEAD(DMA_wait);
@@ -267,32 +268,10 @@ __u32 NAND_QueryDmaDst(__hdle hDma)
 
 __s32 NAND_WaitDmaFinish(void)
 {
- 	//unsigned long flags;
- 	//int i;
-
-//    __u8        err;
-//
-//    if(pNandDmaSem && hNandDmaHdle)
-//    {
-//        //wait dma transfer finished
-//        esKRNL_SemPend(pNandDmaSem, 2, &err);
-//        //disable dma end interupt
-//        esDMA_DisableINT(hNandDmaHdle, DMA_END_INT_MASK);
-//    }
-//	while(1){
-//
-//		mutex_lock(&state_lock);
-//		local_irq_save(flags);
-//		if (nanddma_completed_flag){
-//			local_irq_restore(flags);
-//			 break;
-//			}
-//		for(i=0;i<1000;i++);
-//		local_irq_restore(flags);
-//	}
-
-	 wait_event(DMA_wait, nanddma_completed_flag);
-
-    return 0;
+	int ret = wait_event_timeout(DMA_wait, nanddma_completed_flag,\
+			msecs_to_jiffies(NAND_DMA_TIMEOUT));
+	if (!ret)
+		pr_err("sunxi:nand: Dma operation finish timeout\n");
+	return ret;
 }
 
