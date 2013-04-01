@@ -962,6 +962,73 @@ static int ti_bandgap_set_continuous_mode(struct ti_bandgap *bgp)
 }
 
 /**
+ * ti_bandgap_get_trend() - To fetch the temperature trend of a sensor
+ * @bgp: pointer to struct ti_bandgap
+ * @id: id of the individual sensor
+ * @trend: Pointer to trend.
+ *
+ * This function needs to be called to fetch the temperature trend of a
+ * Particular sensor. The function computes the difference in temperature
+ * w.r.t time. For the bandgaps with built in history buffer the temperatures
+ * are read from the buffer and for those without the Buffer -ENOTSUPP is
+ * returned.
+ *
+ * Return: 0 if no error, else return corresponding error. If no
+ *		error then the trend value is passed on to trend parameter
+ */
+int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend)
+{
+	struct temp_sensor_registers *tsr;
+	u32 temp1, temp2, reg1, reg2;
+	int t1, t2, interval, ret = 0;
+
+	ret = ti_bandgap_validate(bgp, id);
+	if (ret)
+		goto exit;
+
+	if (!TI_BANDGAP_HAS(bgp, HISTORY_BUFFER) ||
+	    !TI_BANDGAP_HAS(bgp, FREEZE_BIT)) {
+		ret = -ENOTSUPP;
+		goto exit;
+	}
+
+	tsr = bgp->conf->sensors[id].registers;
+
+	/* Freeze and read the last 2 valid readings */
+	reg1 = tsr->ctrl_dtemp_1;
+	reg2 = tsr->ctrl_dtemp_2;
+
+	/* read temperature from history buffer */
+	temp1 = ti_bandgap_readl(bgp, reg1);
+	temp1 &= tsr->bgap_dtemp_mask;
+
+	temp2 = ti_bandgap_readl(bgp, reg2);
+	temp2 &= tsr->bgap_dtemp_mask;
+
+	/* Convert from adc values to mCelsius temperature */
+	ret = ti_bandgap_adc_to_mcelsius(bgp, temp1, &t1);
+	if (ret)
+		goto exit;
+
+	ret = ti_bandgap_adc_to_mcelsius(bgp, temp2, &t2);
+	if (ret)
+		goto exit;
+
+	/* Fetch the update interval */
+	ret = ti_bandgap_read_update_interval(bgp, id, &interval);
+	if (ret || !interval)
+		goto exit;
+
+	*trend = (t1 - t2) / interval;
+
+	dev_dbg(bgp->dev, "The temperatures are t1 = %d and t2 = %d and trend =%d\n",
+		t1, t2, *trend);
+
+exit:
+	return ret;
+}
+
+/**
  * ti_bandgap_tshut_init() - setup and initialize tshut handling
  * @bgp: pointer to struct ti_bandgap
  * @pdev: pointer to device struct platform_device

@@ -382,6 +382,7 @@ int ti_bandgap_read_temperature(struct ti_bandgap *bgp, int id,
 				  int *temperature);
 int ti_bandgap_set_sensor_data(struct ti_bandgap *bgp, int id, void *data);
 void *ti_bandgap_get_sensor_data(struct ti_bandgap *bgp, int id);
+int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend);
 
 #ifdef CONFIG_OMAP4_THERMAL
 extern const struct ti_bandgap_data omap4430_data;
