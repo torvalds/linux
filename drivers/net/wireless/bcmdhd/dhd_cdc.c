@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_cdc.c 390859 2013-03-14 01:09:31Z $
+ * $Id: dhd_cdc.c 393623 2013-03-28 06:27:09Z $
  *
  * BDC is like CDC, except it includes a header for data packets to convey
  * packet priority over the bus, and flags (e.g. to indicate checksum status
@@ -443,6 +443,7 @@ dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf, uchar *reorder_buf_in
 #endif /* BDC */
 
 #ifdef PROP_TXSTATUS
+	dhd_os_wlfc_block(dhd);
 	if (dhd->wlfc_state &&
 		((athost_wl_status_info_t*)dhd->wlfc_state)->proptxstatus_mode
 		!= WLFC_FCMODE_NONE &&
@@ -450,13 +451,12 @@ dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf, uchar *reorder_buf_in
 		/*
 		- parse txstatus only for packets that came from the firmware
 		*/
-		dhd_os_wlfc_block(dhd);
 		dhd_wlfc_parse_header_info(dhd, pktbuf, (data_offset << 2),
 			reorder_buf_info, reorder_info_len);
 		((athost_wl_status_info_t*)dhd->wlfc_state)->stats.dhd_hdrpulls++;
 
-		dhd_os_wlfc_unblock(dhd);
 	}
+	dhd_os_wlfc_unblock(dhd);
 #endif /* PROP_TXSTATUS */
 
 exit:
@@ -468,14 +468,14 @@ exit:
 void
 dhd_wlfc_trigger_pktcommit(dhd_pub_t *dhd)
 {
+	dhd_os_wlfc_block(dhd);
 	if (dhd->wlfc_state &&
 		(((athost_wl_status_info_t*)dhd->wlfc_state)->proptxstatus_mode
 		!= WLFC_FCMODE_NONE)) {
-		dhd_os_wlfc_block(dhd);
 		dhd_wlfc_commit_packets(dhd->wlfc_state, (f_commitpkt_t)dhd_bus_txdata,
 			(void *)dhd->bus, NULL);
-		dhd_os_wlfc_unblock(dhd);
 	}
+	dhd_os_wlfc_unblock(dhd);
 }
 #endif
 

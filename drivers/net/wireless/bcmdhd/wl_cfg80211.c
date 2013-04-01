@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.c 392554 2013-03-22 16:42:12Z $
+ * $Id: wl_cfg80211.c 392744 2013-03-23 07:53:23Z $
  */
 #include <typedefs.h>
 #include <linuxver.h>
@@ -2725,6 +2725,12 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	if (unlikely(!sme->ssid)) {
 		WL_ERR(("Invalid ssid\n"));
 		return -EOPNOTSUPP;
+	}
+
+	if (unlikely(sme->ssid_len > DOT11_MAX_SSID_LEN)) {
+		WL_ERR(("Invalid SSID info: SSID=%s, length=%d\n",
+			sme->ssid, sme->ssid_len));
+		return -EINVAL;
 	}
 
 	RETURN_EIO_IF_NOT_UP(wl);

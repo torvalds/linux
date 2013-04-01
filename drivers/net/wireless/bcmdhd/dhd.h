@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 391294 2013-03-15 22:09:01Z $
+ * $Id: dhd.h 393288 2013-03-27 01:02:25Z $
  */
 
 /****************
@@ -739,6 +739,12 @@ extern uint dhd_force_tx_queueing;
 #define CUSTOM_RXF_PRIO_SETTING 	(DEFAULT_DHP_DPC_PRIO + 1)
 #endif
 #endif /* RXFRAME_THREAD */
+
+#ifdef WLTDLS
+#ifndef CUSTOM_TDLS_IDLE_MODE_SETTING
+#define CUSTOM_TDLS_IDLE_MODE_SETTING  60000 /* 60sec to tear down TDLS of not active */
+#endif
+#endif /* WLTDLS */
 
 #define MAX_DTIM_SKIP_BEACON_ITERVAL	100 /* max allowed associated AP beacon for dtim skip */
 

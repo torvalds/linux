@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.h 387187 2013-02-24 09:19:34Z $
+ * $Id: bcmsdh_sdmmc.h 393685 2013-03-28 11:04:06Z $
  */
 
 #ifndef __BCMSDH_SDMMC_H__
@@ -33,8 +33,6 @@
 #define sd_debug(x)
 #define sd_data(x)
 #define sd_ctrl(x)
-
-#define sd_trace_hw4	sd_trace
 
 #define sd_sync_dma(sd, read, nbytes)
 #define sd_init_dma(sd)
