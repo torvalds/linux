@@ -23,14 +23,13 @@
 #include <asm/div64.h>
 
 #define HAS_SECONDARY_PWM	0x10
-#define PWM_ID_BASE(d)		((d) & 0xf)
 
 static const struct platform_device_id pwm_id_table[] = {
 	/*   PWM    has_secondary_pwm? */
 	{ "pxa25x-pwm", 0 },
-	{ "pxa27x-pwm", 0 | HAS_SECONDARY_PWM },
-	{ "pxa168-pwm", 1 },
-	{ "pxa910-pwm", 1 },
+	{ "pxa27x-pwm", HAS_SECONDARY_PWM },
+	{ "pxa168-pwm", 0 },
+	{ "pxa910-pwm", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, pwm_id_table);
