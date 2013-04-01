@@ -3636,6 +3636,7 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
 	struct workqueue_attrs *new_attrs;
 	struct pool_workqueue *pwq = NULL, *last_pwq;
 	struct worker_pool *pool;
+	int ret;
 
 	/* only unbound workqueues can change attributes */
 	if (WARN_ON(!(wq->flags & WQ_UNBOUND)))
@@ -3668,12 +3669,16 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
 		spin_unlock_irq(&last_pwq->pool->lock);
 	}
 
-	return 0;
+	ret = 0;
+	/* fall through */
+out_free:
+	free_workqueue_attrs(new_attrs);
+	return ret;
 
 enomem:
 	kmem_cache_free(pwq_cache, pwq);
-	free_workqueue_attrs(new_attrs);
-	return -ENOMEM;
+	ret = -ENOMEM;
+	goto out_free;
 }
 
 static int alloc_and_link_pwqs(struct workqueue_struct *wq)
