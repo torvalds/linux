@@ -1379,19 +1379,8 @@ static int nfs4_open_reclaim(struct nfs4_state_owner *sp, struct nfs4_state *sta
 	return ret;
 }
 
-int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state *state, const nfs4_stateid *stateid)
+static int nfs4_handle_delegation_recall_error(struct nfs_server *server, struct nfs4_state *state, const nfs4_stateid *stateid, int err)
 {
-	struct nfs_server *server = NFS_SERVER(state->inode);
-	struct nfs4_opendata *opendata;
-	int err;
-
-	opendata = nfs4_open_recoverdata_alloc(ctx, state,
-			NFS4_OPEN_CLAIM_DELEG_CUR_FH);
-	if (IS_ERR(opendata))
-		return PTR_ERR(opendata);
-	nfs4_stateid_copy(&opendata->o_arg.u.delegation, stateid);
-	err = nfs4_open_recover(opendata, state);
-	nfs4_opendata_put(opendata);
 	switch (err) {
 		default:
 			printk(KERN_ERR "NFS: %s: unhandled error "
@@ -1418,18 +1407,38 @@ int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state 
 		case -NFS4ERR_DELEG_REVOKED:
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_BAD_STATEID:
+		case -NFS4ERR_OPENMODE:
 			nfs_inode_find_state_and_recover(state->inode,
 					stateid);
 			nfs4_schedule_stateid_recovery(server, state);
-		case -ENOMEM:
 			return 0;
 		case -NFS4ERR_DELAY:
 		case -NFS4ERR_GRACE:
 			set_bit(NFS_DELEGATED_STATE, &state->flags);
 			ssleep(1);
 			return -EAGAIN;
+		case -ENOMEM:
+		case -NFS4ERR_DENIED:
+			/* kill_proc(fl->fl_pid, SIGLOST, 1); */
+			return 0;
 	}
 	return err;
+}
+
+int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state *state, const nfs4_stateid *stateid)
+{
+	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs4_opendata *opendata;
+	int err;
+
+	opendata = nfs4_open_recoverdata_alloc(ctx, state,
+			NFS4_OPEN_CLAIM_DELEG_CUR_FH);
+	if (IS_ERR(opendata))
+		return PTR_ERR(opendata);
+	nfs4_stateid_copy(&opendata->o_arg.u.delegation, stateid);
+	err = nfs4_open_recover(opendata, state);
+	nfs4_opendata_put(opendata);
+	return nfs4_handle_delegation_recall_error(server, state, stateid, err);
 }
 
 static void nfs4_open_confirm_done(struct rpc_task *task, void *calldata)
@@ -5127,54 +5136,16 @@ nfs4_proc_lock(struct file *filp, int cmd, struct file_lock *request)
 	return status;
 }
 
-int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl)
+int nfs4_lock_delegation_recall(struct file_lock *fl, struct nfs4_state *state, const nfs4_stateid *stateid)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
 	int err;
 
 	err = nfs4_set_lock_state(state, fl);
 	if (err != 0)
-		goto out;
+		return err;
 	err = _nfs4_do_setlk(state, F_SETLK, fl, NFS_LOCK_NEW);
-	switch (err) {
-		default:
-			printk(KERN_ERR "NFS: %s: unhandled error "
-				"%d.\n", __func__, err);
-		case 0:
-		case -ESTALE:
-			goto out;
-		case -NFS4ERR_STALE_CLIENTID:
-		case -NFS4ERR_STALE_STATEID:
-			set_bit(NFS_DELEGATED_STATE, &state->flags);
-		case -NFS4ERR_EXPIRED:
-			nfs4_schedule_lease_recovery(server->nfs_client);
-			return -EAGAIN;
-		case -NFS4ERR_BADSESSION:
-		case -NFS4ERR_BADSLOT:
-		case -NFS4ERR_BAD_HIGH_SLOT:
-		case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
-		case -NFS4ERR_DEADSESSION:
-			set_bit(NFS_DELEGATED_STATE, &state->flags);
-			nfs4_schedule_session_recovery(server->nfs_client->cl_session, err);
-			return -EAGAIN;
-		case -NFS4ERR_DELEG_REVOKED:
-		case -NFS4ERR_ADMIN_REVOKED:
-		case -NFS4ERR_BAD_STATEID:
-		case -NFS4ERR_OPENMODE:
-			nfs4_schedule_stateid_recovery(server, state);
-			return 0;
-		case -NFS4ERR_DELAY:
-		case -NFS4ERR_GRACE:
-			set_bit(NFS_DELEGATED_STATE, &state->flags);
-			ssleep(1);
-			return -EAGAIN;
-		case -ENOMEM:
-		case -NFS4ERR_DENIED:
-			/* kill_proc(fl->fl_pid, SIGLOST, 1); */
-			return 0;
-	}
-out:
-	return err;
+	return nfs4_handle_delegation_recall_error(server, state, stateid, err);
 }
 
 struct nfs_release_lockowner_data {
