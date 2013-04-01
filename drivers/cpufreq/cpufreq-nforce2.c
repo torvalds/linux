@@ -359,12 +359,10 @@ static int nforce2_cpu_init(struct cpufreq_policy *policy)
 		min_fsb = NFORCE2_MIN_FSB;
 
 	/* cpuinfo and default policy values */
-	policy->cpuinfo.min_freq = min_fsb * fid * 100;
-	policy->cpuinfo.max_freq = max_fsb * fid * 100;
+	policy->min = policy->cpuinfo.min_freq = min_fsb * fid * 100;
+	policy->max = policy->cpuinfo.max_freq = max_fsb * fid * 100;
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 	policy->cur = nforce2_get(policy->cpu);
-	policy->min = policy->cpuinfo.min_freq;
-	policy->max = policy->cpuinfo.max_freq;
 
 	return 0;
 }

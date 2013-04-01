@@ -108,8 +108,9 @@ policy->governor		must contain the "default policy" for
 				cpufreq_driver.target is called with
 				these values.
 
-For setting some of these values, the frequency table helpers might be
-helpful. See the section 2 for more information on them.
+For setting some of these values (cpuinfo.min[max]_freq, policy->min[max]), the
+frequency table helpers might be helpful. See the section 2 for more information
+on them.
 
 SMP systems normally have same clock source for a group of cpus. For these the
 .init() would be called only once for the first online cpu. Here the .init()

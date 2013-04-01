@@ -137,21 +137,16 @@ static int davinci_cpu_init(struct cpufreq_policy *policy)
 			return result;
 	}
 
-	policy->cur = policy->min = policy->max = davinci_getspeed(0);
+	policy->cur = davinci_getspeed(0);
 
-	if (freq_table) {
-		result = cpufreq_frequency_table_cpuinfo(policy, freq_table);
-		if (!result)
-			cpufreq_frequency_table_get_attr(freq_table,
-							policy->cpu);
-	} else {
-		policy->cpuinfo.min_freq = policy->min;
-		policy->cpuinfo.max_freq = policy->max;
+	result = cpufreq_frequency_table_cpuinfo(policy, freq_table);
+	if (result) {
+		pr_err("%s: cpufreq_frequency_table_cpuinfo() failed",
+				__func__);
+		return result;
 	}
 
-	policy->min = policy->cpuinfo.min_freq;
-	policy->max = policy->cpuinfo.max_freq;
-	policy->cur = davinci_getspeed(0);
+	cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
 
 	/*
 	 * Time measurement across the target() function yields ~1500-1800us
