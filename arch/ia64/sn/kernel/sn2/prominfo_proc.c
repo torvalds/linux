@@ -216,58 +216,40 @@ void __exit prominfo_exit(void);
 module_init(prominfo_init);
 module_exit(prominfo_exit);
 
-static struct proc_dir_entry **proc_entries;
 static struct proc_dir_entry *sgi_prominfo_entry;
 
 #define NODE_NAME_LEN 11
 
 int __init prominfo_init(void)
 {
-	struct proc_dir_entry **entp;
 	cnodeid_t cnodeid;
-	unsigned long nasid;
-	int size;
-	char name[NODE_NAME_LEN];
 
 	if (!ia64_platform_is("sn2"))
 		return 0;
 
-	size = num_online_nodes() * sizeof(struct proc_dir_entry *);
-	proc_entries = kzalloc(size, GFP_KERNEL);
-	if (!proc_entries)
+	sgi_prominfo_entry = proc_mkdir("sgi_prominfo", NULL);
+	if (!sgi_prominfo_entry)
 		return -ENOMEM;
 
-	sgi_prominfo_entry = proc_mkdir("sgi_prominfo", NULL);
-
-	entp = proc_entries;
 	for_each_online_node(cnodeid) {
-		sprintf(name, "node%d", cnodeid);
-		*entp = proc_mkdir(name, sgi_prominfo_entry);
-		nasid = cnodeid_to_nasid(cnodeid);
-		create_proc_read_entry("fit", 0, *entp, read_fit_entry,
-					   (void *)nasid);
-		create_proc_read_entry("version", 0, *entp,
-					   read_version_entry, (void *)nasid);
-		entp++;
-	}
+		struct proc_dir_entry *dir;
+		unsigned long nasid;
+		char name[NODE_NAME_LEN];
 
+		sprintf(name, "node%d", cnodeid);
+		dir = proc_mkdir(name, sgi_prominfo_entry);
+		if (!dir)
+			continue;
+		nasid = cnodeid_to_nasid(cnodeid);
+		create_proc_read_entry("fit", 0, dir, read_fit_entry,
+					   (void *)nasid);
+		create_proc_read_entry("version", 0, dir,
+					   read_version_entry, (void *)nasid);
+	}
 	return 0;
 }
 
 void __exit prominfo_exit(void)
 {
-	struct proc_dir_entry **entp;
-	unsigned int cnodeid;
-	char name[NODE_NAME_LEN];
-
-	entp = proc_entries;
-	for_each_online_node(cnodeid) {
-		remove_proc_entry("fit", *entp);
-		remove_proc_entry("version", *entp);
-		sprintf(name, "node%d", cnodeid);
-		remove_proc_entry(name, sgi_prominfo_entry);
-		entp++;
-	}
-	remove_proc_entry("sgi_prominfo", NULL);
-	kfree(proc_entries);
+	remove_proc_subtree("sgi_prominfo", NULL);
 }
