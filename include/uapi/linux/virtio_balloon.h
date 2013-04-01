@@ -52,8 +52,8 @@ struct virtio_balloon_config
 #define VIRTIO_BALLOON_S_NR       6
 
 struct virtio_balloon_stat {
-	u16 tag;
-	u64 val;
+	__u16 tag;
+	__u64 val;
 } __attribute__((packed));
 
 #endif /* _LINUX_VIRTIO_BALLOON_H */
