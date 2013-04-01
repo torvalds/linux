@@ -49,11 +49,11 @@ static unsigned char sysint1_assign[16] = {
 static unsigned char sysint2_assign[16] = {
 	2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-#define ICU1_TYPE1_BASE	0x0b000080UL
-#define ICU2_TYPE1_BASE	0x0b000200UL
+#define ICU1_TYPE1_BASE 0x0b000080UL
+#define ICU2_TYPE1_BASE 0x0b000200UL
 
-#define ICU1_TYPE2_BASE	0x0f000080UL
-#define ICU2_TYPE2_BASE	0x0f0000a0UL
+#define ICU1_TYPE2_BASE 0x0f000080UL
+#define ICU2_TYPE2_BASE 0x0f0000a0UL
 
 #define ICU1_SIZE	0x20
 #define ICU2_SIZE	0x1c

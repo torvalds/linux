@@ -349,13 +349,8 @@ int add_mtd_device(struct mtd_info *mtd)
 	BUG_ON(mtd->writesize == 0);
 	mutex_lock(&mtd_table_mutex);
 
-	do {
-		if (!idr_pre_get(&mtd_idr, GFP_KERNEL))
-			goto fail_locked;
-		error = idr_get_new(&mtd_idr, mtd, &i);
-	} while (error == -EAGAIN);
-
-	if (error)
+	i = idr_alloc(&mtd_idr, mtd, 0, 0, GFP_KERNEL);
+	if (i < 0)
 		goto fail_locked;
 
 	mtd->index = i;

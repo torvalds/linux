@@ -30,7 +30,7 @@
 	};
 
 	mpic: interrupt-controller@d0020000 {
-	      reg = <0xd0020a00 0x1d0>,
+	      reg = <0xd0020a00 0x2d0>,
 		    <0xd0021070 0x58>;
 	};
 
@@ -134,5 +134,22 @@
 				dmacap,memset;
 			};
 		};
+
+		usb@d0050000 {
+			clocks = <&gateclk 18>;
+		};
+
+		usb@d0051000 {
+			clocks = <&gateclk 19>;
+		};
+
+		usb@d0052000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0xd0052000 0x500>;
+			interrupts = <47>;
+			clocks = <&gateclk 20>;
+			status = "disabled";
+		};
+
 	};
 };

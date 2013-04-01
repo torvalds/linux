@@ -1838,7 +1838,7 @@ static int uvc_ctrl_add_info(struct uvc_device *dev, struct uvc_control *ctrl,
 {
 	int ret = 0;
 
-	memcpy(&ctrl->info, info, sizeof(*info));
+	ctrl->info = *info;
 	INIT_LIST_HEAD(&ctrl->info.mappings);
 
 	/* Allocate an array to save control values (cur, def, max, etc.) */

@@ -1500,7 +1500,7 @@ static ssize_t ext2_quota_write(struct super_block *sb, int type,
 			bh = sb_bread(sb, tmp_bh.b_blocknr);
 		else
 			bh = sb_getblk(sb, tmp_bh.b_blocknr);
-		if (!bh) {
+		if (unlikely(!bh)) {
 			err = -EIO;
 			goto out;
 		}

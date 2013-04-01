@@ -56,7 +56,7 @@ early_param("numa", numa_setup);
 /*
  * apicid, cpu, node mappings
  */
-s16 __apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
+s16 __apicid_to_node[MAX_LOCAL_APIC] = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
 };
 
@@ -78,7 +78,7 @@ EXPORT_SYMBOL(node_to_cpumask_map);
 DEFINE_EARLY_PER_CPU(int, x86_cpu_to_node_map, NUMA_NO_NODE);
 EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_node_map);
 
-void __cpuinit numa_set_node(int cpu, int node)
+void numa_set_node(int cpu, int node)
 {
 	int *cpu_to_node_map = early_per_cpu_ptr(x86_cpu_to_node_map);
 
@@ -97,11 +97,10 @@ void __cpuinit numa_set_node(int cpu, int node)
 #endif
 	per_cpu(x86_cpu_to_node_map, cpu) = node;
 
-	if (node != NUMA_NO_NODE)
-		set_cpu_numa_node(cpu, node);
+	set_cpu_numa_node(cpu, node);
 }
 
-void __cpuinit numa_clear_node(int cpu)
+void numa_clear_node(int cpu)
 {
 	numa_set_node(cpu, NUMA_NO_NODE);
 }
@@ -193,7 +192,6 @@ int __init numa_add_memblk(int nid, u64 start, u64 end)
 static void __init setup_node_data(int nid, u64 start, u64 end)
 {
 	const size_t nd_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
-	bool remapped = false;
 	u64 nd_pa;
 	void *nd;
 	int tnid;
@@ -205,37 +203,28 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
 	if (end && (end - start) < NODE_MIN_SIZE)
 		return;
 
-	/* initialize remap allocator before aligning to ZONE_ALIGN */
-	init_alloc_remap(nid, start, end);
-
 	start = roundup(start, ZONE_ALIGN);
 
 	printk(KERN_INFO "Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
 	       nid, start, end - 1);
 
 	/*
-	 * Allocate node data.  Try remap allocator first, node-local
-	 * memory and then any node.  Never allocate in DMA zone.
+	 * Allocate node data.  Try node-local memory and then any node.
+	 * Never allocate in DMA zone.
 	 */
-	nd = alloc_remap(nid, nd_size);
-	if (nd) {
-		nd_pa = __pa(nd);
-		remapped = true;
-	} else {
-		nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
-		if (!nd_pa) {
-			pr_err("Cannot find %zu bytes in node %d\n",
-			       nd_size, nid);
-			return;
-		}
-		nd = __va(nd_pa);
+	nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
+	if (!nd_pa) {
+		pr_err("Cannot find %zu bytes in node %d\n",
+		       nd_size, nid);
+		return;
 	}
+	nd = __va(nd_pa);
 
 	/* report and initialize */
-	printk(KERN_INFO "  NODE_DATA [mem %#010Lx-%#010Lx]%s\n",
-	       nd_pa, nd_pa + nd_size - 1, remapped ? " (remapped)" : "");
+	printk(KERN_INFO "  NODE_DATA [mem %#010Lx-%#010Lx]\n",
+	       nd_pa, nd_pa + nd_size - 1);
 	tnid = early_pfn_to_nid(nd_pa >> PAGE_SHIFT);
-	if (!remapped && tnid != nid)
+	if (tnid != nid)
 		printk(KERN_INFO "    NODE_DATA(%d) on node %d\n", nid, tnid);
 
 	node_data[nid] = nd;

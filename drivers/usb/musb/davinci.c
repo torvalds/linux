@@ -380,11 +380,14 @@ static int davinci_musb_init(struct musb *musb)
 {
 	void __iomem	*tibase = musb->ctrl_base;
 	u32		revision;
+	int 		ret = -ENODEV;
 
 	usb_nop_xceiv_register();
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
-	if (IS_ERR_OR_NULL(musb->xceiv))
+	if (IS_ERR_OR_NULL(musb->xceiv)) {
+		ret = -EPROBE_DEFER;
 		goto unregister;
+	}
 
 	musb->mregs += DAVINCI_BASE_OFFSET;
 
@@ -438,7 +441,7 @@ fail:
 	usb_put_phy(musb->xceiv);
 unregister:
 	usb_nop_xceiv_unregister();
-	return -ENODEV;
+	return ret;
 }
 
 static int davinci_musb_exit(struct musb *musb)

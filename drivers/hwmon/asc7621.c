@@ -191,7 +191,7 @@ static ssize_t store_u8(struct device *dev, struct device_attribute *attr,
 	if (kstrtol(buf, 10, &reqval))
 		return -EINVAL;
 
-	reqval = SENSORS_LIMIT(reqval, 0, 255);
+	reqval = clamp_val(reqval, 0, 255);
 
 	mutex_lock(&data->update_lock);
 	data->reg[param->msb[0]] = reqval;
@@ -224,7 +224,7 @@ static ssize_t store_bitmask(struct device *dev,
 	if (kstrtol(buf, 10, &reqval))
 		return -EINVAL;
 
-	reqval = SENSORS_LIMIT(reqval, 0, param->mask[0]);
+	reqval = clamp_val(reqval, 0, param->mask[0]);
 
 	reqval = (reqval & param->mask[0]) << param->shift[0];
 
@@ -274,7 +274,7 @@ static ssize_t store_fan16(struct device *dev,
 	 * generating an alarm.
 	 */
 	reqval =
-	    (reqval <= 0 ? 0xffff : SENSORS_LIMIT(5400000 / reqval, 0, 0xfffe));
+	    (reqval <= 0 ? 0xffff : clamp_val(5400000 / reqval, 0, 0xfffe));
 
 	mutex_lock(&data->update_lock);
 	data->reg[param->msb[0]] = (reqval >> 8) & 0xff;
@@ -343,11 +343,11 @@ static ssize_t store_in8(struct device *dev, struct device_attribute *attr,
 	if (kstrtol(buf, 10, &reqval))
 		return -EINVAL;
 
-	reqval = SENSORS_LIMIT(reqval, 0, 0xffff);
+	reqval = clamp_val(reqval, 0, 0xffff);
 
 	reqval = reqval * 0xc0 / asc7621_in_scaling[nr];
 
-	reqval = SENSORS_LIMIT(reqval, 0, 0xff);
+	reqval = clamp_val(reqval, 0, 0xff);
 
 	mutex_lock(&data->update_lock);
 	data->reg[param->msb[0]] = reqval;
@@ -376,7 +376,7 @@ static ssize_t store_temp8(struct device *dev,
 	if (kstrtol(buf, 10, &reqval))
 		return -EINVAL;
 
-	reqval = SENSORS_LIMIT(reqval, -127000, 127000);
+	reqval = clamp_val(reqval, -127000, 127000);
 
 	temp = reqval / 1000;
 
@@ -432,7 +432,7 @@ static ssize_t store_temp62(struct device *dev,
 	if (kstrtol(buf, 10, &reqval))
 		return -EINVAL;
 
-	reqval = SENSORS_LIMIT(reqval, -32000, 31750);
+	reqval = clamp_val(reqval, -32000, 31750);
 	i = reqval / 1000;
 	f = reqval - (i * 1000);
 	temp = i << 2;
@@ -468,7 +468,7 @@ static ssize_t show_ap2_temp(struct device *dev,
 	auto_point1 = ((s8) data->reg[param->msb[1]]) * 1000;
 	regval =
 	    ((data->reg[param->msb[0]] >> param->shift[0]) & param->mask[0]);
-	temp = auto_point1 + asc7621_range_map[SENSORS_LIMIT(regval, 0, 15)];
+	temp = auto_point1 + asc7621_range_map[clamp_val(regval, 0, 15)];
 	mutex_unlock(&data->update_lock);
 
 	return sprintf(buf, "%d\n", temp);
@@ -489,7 +489,7 @@ static ssize_t store_ap2_temp(struct device *dev,
 
 	mutex_lock(&data->update_lock);
 	auto_point1 = data->reg[param->msb[1]] * 1000;
-	reqval = SENSORS_LIMIT(reqval, auto_point1 + 2000, auto_point1 + 80000);
+	reqval = clamp_val(reqval, auto_point1 + 2000, auto_point1 + 80000);
 
 	for (i = ARRAY_SIZE(asc7621_range_map) - 1; i >= 0; i--) {
 		if (reqval >= auto_point1 + asc7621_range_map[i]) {
@@ -523,7 +523,7 @@ static ssize_t show_pwm_ac(struct device *dev,
 	regval = config | (altbit << 3);
 	mutex_unlock(&data->update_lock);
 
-	return sprintf(buf, "%u\n", map[SENSORS_LIMIT(regval, 0, 15)]);
+	return sprintf(buf, "%u\n", map[clamp_val(regval, 0, 15)]);
 }
 
 static ssize_t store_pwm_ac(struct device *dev,
@@ -663,7 +663,7 @@ static ssize_t show_pwm_freq(struct device *dev,
 	u8 regval =
 	    (data->reg[param->msb[0]] >> param->shift[0]) & param->mask[0];
 
-	regval = SENSORS_LIMIT(regval, 0, 15);
+	regval = clamp_val(regval, 0, 15);
 
 	return sprintf(buf, "%u\n", asc7621_pwm_freq_map[regval]);
 }
@@ -711,7 +711,7 @@ static ssize_t show_pwm_ast(struct device *dev,
 	u8 regval =
 	    (data->reg[param->msb[0]] >> param->shift[0]) & param->mask[0];
 
-	regval = SENSORS_LIMIT(regval, 0, 7);
+	regval = clamp_val(regval, 0, 7);
 
 	return sprintf(buf, "%u\n", asc7621_pwm_auto_spinup_map[regval]);
 
@@ -759,7 +759,7 @@ static ssize_t show_temp_st(struct device *dev,
 	SETUP_SHOW_data_param(dev, attr);
 	u8 regval =
 	    (data->reg[param->msb[0]] >> param->shift[0]) & param->mask[0];
-	regval = SENSORS_LIMIT(regval, 0, 7);
+	regval = clamp_val(regval, 0, 7);
 
 	return sprintf(buf, "%u\n", asc7621_temp_smoothing_time_map[regval]);
 }

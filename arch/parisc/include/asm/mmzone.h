@@ -1,9 +1,10 @@
 #ifndef _PARISC_MMZONE_H
 #define _PARISC_MMZONE_H
 
+#define MAX_PHYSMEM_RANGES 8 /* Fix the size for now (current known max is 3) */
+
 #ifdef CONFIG_DISCONTIGMEM
 
-#define MAX_PHYSMEM_RANGES 8 /* Fix the size for now (current known max is 3) */
 extern int npmem_ranges;
 
 struct node_map_data {
@@ -44,7 +45,7 @@ static inline int pfn_to_nid(unsigned long pfn)
 		return 0;
 
 	i = pfn >> PFNNID_SHIFT;
-	BUG_ON(i >= sizeof(pfnnid_map) / sizeof(pfnnid_map[0]));
+	BUG_ON(i >= ARRAY_SIZE(pfnnid_map));
 	r = pfnnid_map[i];
 	BUG_ON(r == 0xff);
 
@@ -60,7 +61,5 @@ static inline int pfn_valid(int pfn)
 	return 0;
 }
 
-#else /* !CONFIG_DISCONTIGMEM */
-#define MAX_PHYSMEM_RANGES 	1 
 #endif
 #endif /* _PARISC_MMZONE_H */

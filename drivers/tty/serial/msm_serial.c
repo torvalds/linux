@@ -91,14 +91,14 @@ static void msm_enable_ms(struct uart_port *port)
 
 static void handle_rx_dm(struct uart_port *port, unsigned int misr)
 {
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 	unsigned int sr;
 	int count = 0;
 	struct msm_port *msm_port = UART_TO_MSM(port);
 
 	if ((msm_read(port, UART_SR) & UART_SR_OVERRUN)) {
 		port->icount.overrun++;
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 		msm_write(port, UART_CR_CMD_RESET_ERR, UART_CR);
 	}
 
@@ -132,12 +132,12 @@ static void handle_rx_dm(struct uart_port *port, unsigned int misr)
 			port->icount.frame++;
 
 		/* TODO: handle sysrq */
-		tty_insert_flip_string(tty, (char *) &c,
+		tty_insert_flip_string(tport, (char *)&c,
 				       (count > 4) ? 4 : count);
 		count -= 4;
 	}
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tport);
 	if (misr & (UART_IMR_RXSTALE))
 		msm_write(port, UART_CR_CMD_RESET_STALE_INT, UART_CR);
 	msm_write(port, 0xFFFFFF, UARTDM_DMRX);
@@ -146,7 +146,7 @@ static void handle_rx_dm(struct uart_port *port, unsigned int misr)
 
 static void handle_rx(struct uart_port *port)
 {
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 	unsigned int sr;
 
 	/*
@@ -155,7 +155,7 @@ static void handle_rx(struct uart_port *port)
 	 */
 	if ((msm_read(port, UART_SR) & UART_SR_OVERRUN)) {
 		port->icount.overrun++;
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 		msm_write(port, UART_CR_CMD_RESET_ERR, UART_CR);
 	}
 
@@ -186,10 +186,10 @@ static void handle_rx(struct uart_port *port)
 		}
 
 		if (!uart_handle_sysrq_char(port, c))
-			tty_insert_flip_char(tty, c, flag);
+			tty_insert_flip_char(tport, c, flag);
 	}
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tport);
 }
 
 static void reset_dm_count(struct uart_port *port)

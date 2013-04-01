@@ -1660,7 +1660,8 @@ static int snd_nm256_probe(struct pci_dev *pci,
 
 	q = snd_pci_quirk_lookup(pci, nm256_quirks);
 	if (q) {
-		snd_printdd(KERN_INFO "nm256: Enabled quirk for %s.\n", q->name);
+		snd_printdd(KERN_INFO "nm256: Enabled quirk for %s.\n",
+			    snd_pci_quirk_name(q));
 		switch (q->value) {
 		case NM_BLACKLISTED:
 			printk(KERN_INFO "nm256: The device is blacklisted. "

@@ -58,7 +58,6 @@ struct da9055_volt_reg {
 	int reg_b;
 	int sl_shift;
 	int v_mask;
-	int v_shift;
 };
 
 struct da9055_mode_reg {
@@ -388,7 +387,6 @@ static struct regulator_ops da9055_ldo_ops = {
 		.reg_b = DA9055_REG_VBCORE_B + DA9055_ID_##_id, \
 		.sl_shift = 7,\
 		.v_mask = (1 << (vbits)) - 1,\
-		.v_shift = (vbits),\
 	},\
 }
 
@@ -417,7 +415,6 @@ static struct regulator_ops da9055_ldo_ops = {
 		.reg_b = DA9055_REG_VBCORE_B + DA9055_ID_##_id, \
 		.sl_shift = 7,\
 		.v_mask = (1 << (vbits)) - 1,\
-		.v_shift = (vbits),\
 	},\
 	.mode = {\
 		.reg = DA9055_REG_BCORE_MODE,\

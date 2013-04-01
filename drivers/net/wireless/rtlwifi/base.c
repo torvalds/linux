@@ -523,8 +523,8 @@ static void _rtl_query_shortgi(struct ieee80211_hw *hw,
 	if (mac->opmode == NL80211_IFTYPE_STATION)
 		bw_40 = mac->bw_40;
 	else if (mac->opmode == NL80211_IFTYPE_AP ||
-		mac->opmode == NL80211_IFTYPE_ADHOC)
-		bw_40 = sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+		 mac->opmode == NL80211_IFTYPE_ADHOC)
+		bw_40 = sta->bandwidth >= IEEE80211_STA_RX_BW_40;
 
 	if (bw_40 && sgi_40)
 		tcb_desc->use_shortgi = true;
@@ -634,8 +634,7 @@ static void _rtl_query_bandwidth_mode(struct ieee80211_hw *hw,
 		return;
 	if (mac->opmode == NL80211_IFTYPE_AP ||
 	    mac->opmode == NL80211_IFTYPE_ADHOC) {
-		if (!(sta->ht_cap.ht_supported) ||
-		    !(sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
+		if (sta->bandwidth == IEEE80211_STA_RX_BW_20)
 			return;
 	} else if (mac->opmode == NL80211_IFTYPE_STATION) {
 		if (!mac->bw_40 || !(sta->ht_cap.ht_supported))

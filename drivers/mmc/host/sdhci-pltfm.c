@@ -36,6 +36,14 @@
 #endif
 #include "sdhci-pltfm.h"
 
+unsigned int sdhci_pltfm_clk_get_max_clock(struct sdhci_host *host)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+
+	return clk_get_rate(pltfm_host->clk);
+}
+EXPORT_SYMBOL_GPL(sdhci_pltfm_clk_get_max_clock);
+
 static struct sdhci_ops sdhci_pltfm_ops = {
 };
 

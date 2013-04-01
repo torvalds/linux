@@ -22,10 +22,10 @@
  * for indexed cache operations.  Two issues here:
  *
  *  - The MIPS32 and MIPS64 specs permit an implementation to directly derive
- *    the index bits from the virtual address.  This breaks with tradition
- *    set by the R4000.  To keep unpleasant surprises from happening we pick
+ *    the index bits from the virtual address.	This breaks with tradition
+ *    set by the R4000.	 To keep unpleasant surprises from happening we pick
  *    an address in KSEG0 / CKSEG0.
- *  - We need a properly sign extended address for 64-bit code.  To get away
+ *  - We need a properly sign extended address for 64-bit code.	 To get away
  *    without ifdefs we let the compiler do it by a type cast.
  */
 #define INDEX_BASE	CKSEG0
@@ -347,7 +347,7 @@ static inline void blast_##pfx##cache##lsize(void)			\
 	unsigned long end = start + current_cpu_data.desc.waysize;	\
 	unsigned long ws_inc = 1UL << current_cpu_data.desc.waybit;	\
 	unsigned long ws_end = current_cpu_data.desc.ways <<		\
-	                       current_cpu_data.desc.waybit;		\
+			       current_cpu_data.desc.waybit;		\
 	unsigned long ws, addr;						\
 									\
 	__##pfx##flush_prologue						\
@@ -359,7 +359,7 @@ static inline void blast_##pfx##cache##lsize(void)			\
 	__##pfx##flush_epilogue						\
 }									\
 									\
-static inline void blast_##pfx##cache##lsize##_page(unsigned long page)	\
+static inline void blast_##pfx##cache##lsize##_page(unsigned long page) \
 {									\
 	unsigned long start = page;					\
 	unsigned long end = page + PAGE_SIZE;				\
@@ -381,7 +381,7 @@ static inline void blast_##pfx##cache##lsize##_page_indexed(unsigned long page) 
 	unsigned long end = start + PAGE_SIZE;				\
 	unsigned long ws_inc = 1UL << current_cpu_data.desc.waybit;	\
 	unsigned long ws_end = current_cpu_data.desc.ways <<		\
-	                       current_cpu_data.desc.waybit;		\
+			       current_cpu_data.desc.waybit;		\
 	unsigned long ws, addr;						\
 									\
 	__##pfx##flush_prologue						\

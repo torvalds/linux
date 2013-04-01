@@ -1,0 +1,60 @@
+* Allwinner A1X Pin Controller
+
+The pins controlled by sunXi pin controller are organized in banks,
+each bank has 32 pins.  Each pin has 7 multiplexing functions, with
+the first two functions being GPIO in and out. The configuration on
+the pins includes drive strength and pull-up.
+
+Required properties:
+- compatible: "allwinner,<soc>-pinctrl". Supported SoCs for now are:
+  sun5i-a13.
+- reg: Should contain the register physical address and length for the
+  pin controller.
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices.
+
+A pinctrl node should contain at least one subnodes representing the
+pinctrl groups available on the machine. Each subnode will list the
+pins it needs, and how they should be configured, with regard to muxer
+configuration, drive strength and pullups. If one of these options is
+not set, its actual value will be unspecified.
+
+Required subnode-properties:
+
+- allwinner,pins: List of strings containing the pin name.
+- allwinner,function: Function to mux the pins listed above to.
+
+Optional subnode-properties:
+- allwinner,drive: Integer. Represents the current sent to the pin
+    0: 10 mA
+    1: 20 mA
+    2: 30 mA
+    3: 40 mA
+- allwinner,pull: Integer.
+    0: No resistor
+    1: Pull-up resistor
+    2: Pull-down resistor
+
+Examples:
+
+pinctrl@01c20800 {
+	compatible = "allwinner,sun5i-a13-pinctrl";
+	reg = <0x01c20800 0x400>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	uart1_pins_a: uart1@0 {
+		allwinner,pins = "PE10", "PE11";
+		allwinner,function = "uart1";
+		allwinner,drive = <0>;
+		allwinner,pull = <0>;
+	};
+
+	uart1_pins_b: uart1@1 {
+		allwinner,pins = "PG3", "PG4";
+		allwinner,function = "uart1";
+		allwinner,drive = <0>;
+		allwinner,pull = <0>;
+	};
+};

@@ -18,6 +18,7 @@
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/hrtimer.h>
 #include <linux/io.h>
@@ -104,9 +105,9 @@ static int ehci_platform_probe(struct platform_device *dev)
 	hcd->rsrc_start = res_mem->start;
 	hcd->rsrc_len = resource_size(res_mem);
 
-	hcd->regs = devm_request_and_ioremap(&dev->dev, res_mem);
-	if (!hcd->regs) {
-		err = -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&dev->dev, res_mem);
+	if (IS_ERR(hcd->regs)) {
+		err = PTR_ERR(hcd->regs);
 		goto err_put_hcd;
 	}
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);

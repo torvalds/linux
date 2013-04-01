@@ -40,6 +40,7 @@
  * void (*close)(struct tty_struct * tty, struct file * filp);
  *
  * 	This routine is called when a particular tty device is closed.
+ *	Note: called even if the corresponding open() failed.
  *
  *	Required method.
  *

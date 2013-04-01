@@ -1201,7 +1201,7 @@ nodata:
  * specifically, max(asoc->pathmtu, SCTP_DEFAULT_MAXSEGMENT)
  * This is a helper function to allocate an error chunk for
  * for those invalid parameter codes in which we may not want
- * to report all the errors, if the incomming chunk is large
+ * to report all the errors, if the incoming chunk is large
  */
 static inline struct sctp_chunk *sctp_make_op_error_fixed(
 	const struct sctp_association *asoc,
@@ -1589,8 +1589,6 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 	struct sctp_signed_cookie *cookie;
 	struct scatterlist sg;
 	int headersize, bodysize;
-	unsigned int keylen;
-	char *key;
 
 	/* Header size is static data prior to the actual cookie, including
 	 * any padding.
@@ -1650,12 +1648,11 @@ static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
 
 		/* Sign the message.  */
 		sg_init_one(&sg, &cookie->c, bodysize);
-		keylen = SCTP_SECRET_SIZE;
-		key = (char *)ep->secret_key[ep->current_key];
 		desc.tfm = sctp_sk(ep->base.sk)->hmac;
 		desc.flags = 0;
 
-		if (crypto_hash_setkey(desc.tfm, key, keylen) ||
+		if (crypto_hash_setkey(desc.tfm, ep->secret_key,
+				       sizeof(ep->secret_key)) ||
 		    crypto_hash_digest(&desc, &sg, bodysize, cookie->signature))
 			goto free_cookie;
 	}
@@ -1682,8 +1679,7 @@ struct sctp_association *sctp_unpack_cookie(
 	int headersize, bodysize, fixed_size;
 	__u8 *digest = ep->digest;
 	struct scatterlist sg;
-	unsigned int keylen, len;
-	char *key;
+	unsigned int len;
 	sctp_scope_t scope;
 	struct sk_buff *skb = chunk->skb;
 	struct timeval tv;
@@ -1718,34 +1714,21 @@ struct sctp_association *sctp_unpack_cookie(
 		goto no_hmac;
 
 	/* Check the signature.  */
-	keylen = SCTP_SECRET_SIZE;
 	sg_init_one(&sg, bear_cookie, bodysize);
-	key = (char *)ep->secret_key[ep->current_key];
 	desc.tfm = sctp_sk(ep->base.sk)->hmac;
 	desc.flags = 0;
 
 	memset(digest, 0x00, SCTP_SIGNATURE_SIZE);
-	if (crypto_hash_setkey(desc.tfm, key, keylen) ||
+	if (crypto_hash_setkey(desc.tfm, ep->secret_key,
+			       sizeof(ep->secret_key)) ||
 	    crypto_hash_digest(&desc, &sg, bodysize, digest)) {
 		*error = -SCTP_IERROR_NOMEM;
 		goto fail;
 	}
 
 	if (memcmp(digest, cookie->signature, SCTP_SIGNATURE_SIZE)) {
-		/* Try the previous key. */
-		key = (char *)ep->secret_key[ep->last_key];
-		memset(digest, 0x00, SCTP_SIGNATURE_SIZE);
-		if (crypto_hash_setkey(desc.tfm, key, keylen) ||
-		    crypto_hash_digest(&desc, &sg, bodysize, digest)) {
-			*error = -SCTP_IERROR_NOMEM;
-			goto fail;
-		}
-
-		if (memcmp(digest, cookie->signature, SCTP_SIGNATURE_SIZE)) {
-			/* Yikes!  Still bad signature! */
-			*error = -SCTP_IERROR_BAD_SIG;
-			goto fail;
-		}
+		*error = -SCTP_IERROR_BAD_SIG;
+		goto fail;
 	}
 
 no_hmac:

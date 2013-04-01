@@ -103,6 +103,7 @@ struct intel_sdvo {
 	 * It is only valid when using TMDS encoding and 8 bit per color mode.
 	 */
 	uint32_t color_range;
+	bool color_range_auto;
 
 	/**
 	 * This is set if we're going to treat the device as TV-out.
@@ -125,6 +126,7 @@ struct intel_sdvo {
 	bool is_hdmi;
 	bool has_hdmi_monitor;
 	bool has_hdmi_audio;
+	bool rgb_quant_range_selectable;
 
 	/**
 	 * This is set if we detect output of sdvo device as LVDS and
@@ -946,7 +948,8 @@ static bool intel_sdvo_write_infoframe(struct intel_sdvo *intel_sdvo,
 				    &tx_rate, 1);
 }
 
-static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo)
+static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
+					 const struct drm_display_mode *adjusted_mode)
 {
 	struct dip_infoframe avi_if = {
 		.type = DIP_TYPE_AVI,
@@ -954,6 +957,13 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo)
 		.len = DIP_LEN_AVI,
 	};
 	uint8_t sdvo_data[4 + sizeof(avi_if.body.avi)];
+
+	if (intel_sdvo->rgb_quant_range_selectable) {
+		if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_LIMITED;
+		else
+			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_FULL;
+	}
 
 	intel_dip_infoframe_csum(&avi_if);
 
@@ -1064,6 +1074,18 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 	multiplier = intel_sdvo_get_pixel_multiplier(adjusted_mode);
 	intel_mode_set_pixel_multiplier(adjusted_mode, multiplier);
 
+	if (intel_sdvo->color_range_auto) {
+		/* See CEA-861-E - 5.1 Default Encoding Parameters */
+		if (intel_sdvo->has_hdmi_monitor &&
+		    drm_match_cea_mode(adjusted_mode) > 1)
+			intel_sdvo->color_range = SDVO_COLOR_RANGE_16_235;
+		else
+			intel_sdvo->color_range = 0;
+	}
+
+	if (intel_sdvo->color_range)
+		adjusted_mode->private_flags |= INTEL_MODE_LIMITED_COLOR_RANGE;
+
 	return true;
 }
 
@@ -1121,7 +1143,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_HDMI);
 		intel_sdvo_set_colorimetry(intel_sdvo,
 					   SDVO_COLORIMETRY_RGB256);
-		intel_sdvo_set_avi_infoframe(intel_sdvo);
+		intel_sdvo_set_avi_infoframe(intel_sdvo, adjusted_mode);
 	} else
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_DVI);
 
@@ -1153,7 +1175,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 		/* The real mode polarity is set by the SDVO commands, using
 		 * struct intel_sdvo_dtd. */
 		sdvox = SDVO_VSYNC_ACTIVE_HIGH | SDVO_HSYNC_ACTIVE_HIGH;
-		if (intel_sdvo->is_hdmi)
+		if (!HAS_PCH_SPLIT(dev) && intel_sdvo->is_hdmi)
 			sdvox |= intel_sdvo->color_range;
 		if (INTEL_INFO(dev)->gen < 5)
 			sdvox |= SDVO_BORDER_ENABLE;
@@ -1513,6 +1535,8 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 			if (intel_sdvo->is_hdmi) {
 				intel_sdvo->has_hdmi_monitor = drm_detect_hdmi_monitor(edid);
 				intel_sdvo->has_hdmi_audio = drm_detect_monitor_audio(edid);
+				intel_sdvo->rgb_quant_range_selectable =
+					drm_rgb_quant_range_selectable(edid);
 			}
 		} else
 			status = connector_status_disconnected;
@@ -1564,6 +1588,7 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 
 	intel_sdvo->has_hdmi_monitor = false;
 	intel_sdvo->has_hdmi_audio = false;
+	intel_sdvo->rgb_quant_range_selectable = false;
 
 	if ((intel_sdvo_connector->output_flag & response) == 0)
 		ret = connector_status_disconnected;
@@ -1897,10 +1922,21 @@ intel_sdvo_set_property(struct drm_connector *connector,
 	}
 
 	if (property == dev_priv->broadcast_rgb_property) {
-		if (val == !!intel_sdvo->color_range)
-			return 0;
-
-		intel_sdvo->color_range = val ? SDVO_COLOR_RANGE_16_235 : 0;
+		switch (val) {
+		case INTEL_BROADCAST_RGB_AUTO:
+			intel_sdvo->color_range_auto = true;
+			break;
+		case INTEL_BROADCAST_RGB_FULL:
+			intel_sdvo->color_range_auto = false;
+			intel_sdvo->color_range = 0;
+			break;
+		case INTEL_BROADCAST_RGB_LIMITED:
+			intel_sdvo->color_range_auto = false;
+			intel_sdvo->color_range = SDVO_COLOR_RANGE_16_235;
+			break;
+		default:
+			return -EINVAL;
+		}
 		goto done;
 	}
 
@@ -1997,11 +2033,8 @@ set_value:
 
 
 done:
-	if (intel_sdvo->base.base.crtc) {
-		struct drm_crtc *crtc = intel_sdvo->base.base.crtc;
-		intel_set_mode(crtc, &crtc->mode,
-			       crtc->x, crtc->y, crtc->fb);
-	}
+	if (intel_sdvo->base.base.crtc)
+		intel_crtc_restore_mode(intel_sdvo->base.base.crtc);
 
 	return 0;
 #undef CHECK_PROPERTY
@@ -2010,7 +2043,6 @@ done:
 static const struct drm_encoder_helper_funcs intel_sdvo_helper_funcs = {
 	.mode_fixup = intel_sdvo_mode_fixup,
 	.mode_set = intel_sdvo_mode_set,
-	.disable = intel_encoder_noop,
 };
 
 static const struct drm_connector_funcs intel_sdvo_connector_funcs = {
@@ -2200,13 +2232,16 @@ intel_sdvo_connector_init(struct intel_sdvo_connector *connector,
 }
 
 static void
-intel_sdvo_add_hdmi_properties(struct intel_sdvo_connector *connector)
+intel_sdvo_add_hdmi_properties(struct intel_sdvo *intel_sdvo,
+			       struct intel_sdvo_connector *connector)
 {
 	struct drm_device *dev = connector->base.base.dev;
 
 	intel_attach_force_audio_property(&connector->base.base);
-	if (INTEL_INFO(dev)->gen >= 4 && IS_MOBILE(dev))
+	if (INTEL_INFO(dev)->gen >= 4 && IS_MOBILE(dev)) {
 		intel_attach_broadcast_rgb_property(&connector->base.base);
+		intel_sdvo->color_range_auto = true;
+	}
 }
 
 static bool
@@ -2254,7 +2289,7 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 
 	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
 	if (intel_sdvo->is_hdmi)
-		intel_sdvo_add_hdmi_properties(intel_sdvo_connector);
+		intel_sdvo_add_hdmi_properties(intel_sdvo, intel_sdvo_connector);
 
 	return true;
 }

@@ -506,19 +506,16 @@ static void ssu100_dtr_rts(struct usb_serial_port *port, int on)
 {
 	struct usb_device *dev = port->serial->dev;
 
-	mutex_lock(&port->serial->disc_mutex);
-	if (!port->serial->disconnected) {
-		/* Disable flow control */
-		if (!on &&
-		    ssu100_setregister(dev, 0, UART_MCR, 0) < 0)
+	/* Disable flow control */
+	if (!on) {
+		if (ssu100_setregister(dev, 0, UART_MCR, 0) < 0)
 			dev_err(&port->dev, "error from flowcontrol urb\n");
-		/* drop RTS and DTR */
-		if (on)
-			set_mctrl(dev, TIOCM_DTR | TIOCM_RTS);
-		else
-			clear_mctrl(dev, TIOCM_DTR | TIOCM_RTS);
 	}
-	mutex_unlock(&port->serial->disc_mutex);
+	/* drop RTS and DTR */
+	if (on)
+		set_mctrl(dev, TIOCM_DTR | TIOCM_RTS);
+	else
+		clear_mctrl(dev, TIOCM_DTR | TIOCM_RTS);
 }
 
 static void ssu100_update_msr(struct usb_serial_port *port, u8 msr)
@@ -582,8 +579,7 @@ static void ssu100_update_lsr(struct usb_serial_port *port, u8 lsr,
 
 }
 
-static int ssu100_process_packet(struct urb *urb,
-				 struct tty_struct *tty)
+static void ssu100_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	char *packet = (char *)urb->transfer_buffer;
@@ -598,7 +594,8 @@ static int ssu100_process_packet(struct urb *urb,
 		if (packet[2] == 0x00) {
 			ssu100_update_lsr(port, packet[3], &flag);
 			if (flag == TTY_OVERRUN)
-				tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+				tty_insert_flip_char(&port->port, 0,
+						TTY_OVERRUN);
 		}
 		if (packet[2] == 0x01)
 			ssu100_update_msr(port, packet[3]);
@@ -609,34 +606,17 @@ static int ssu100_process_packet(struct urb *urb,
 		ch = packet;
 
 	if (!len)
-		return 0;	/* status only */
+		return;	/* status only */
 
 	if (port->port.console && port->sysrq) {
 		for (i = 0; i < len; i++, ch++) {
 			if (!usb_serial_handle_sysrq_char(port, *ch))
-				tty_insert_flip_char(tty, *ch, flag);
+				tty_insert_flip_char(&port->port, *ch, flag);
 		}
 	} else
-		tty_insert_flip_string_fixed_flag(tty, ch, flag, len);
+		tty_insert_flip_string_fixed_flag(&port->port, ch, flag, len);
 
-	return len;
-}
-
-static void ssu100_process_read_urb(struct urb *urb)
-{
-	struct usb_serial_port *port = urb->context;
-	struct tty_struct *tty;
-	int count;
-
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
-
-	count = ssu100_process_packet(urb, tty);
-
-	if (count)
-		tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&port->port);
 }
 
 static struct usb_serial_driver ssu100_device = {

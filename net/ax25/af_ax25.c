@@ -81,14 +81,13 @@ static void ax25_kill_by_device(struct net_device *dev)
 {
 	ax25_dev *ax25_dev;
 	ax25_cb *s;
-	struct hlist_node *node;
 
 	if ((ax25_dev = ax25_dev_ax25dev(dev)) == NULL)
 		return;
 
 	spin_lock_bh(&ax25_list_lock);
 again:
-	ax25_for_each(s, node, &ax25_list) {
+	ax25_for_each(s, &ax25_list) {
 		if (s->ax25_dev == ax25_dev) {
 			s->ax25_dev = NULL;
 			spin_unlock_bh(&ax25_list_lock);
@@ -158,10 +157,9 @@ struct sock *ax25_find_listener(ax25_address *addr, int digi,
 	struct net_device *dev, int type)
 {
 	ax25_cb *s;
-	struct hlist_node *node;
 
 	spin_lock(&ax25_list_lock);
-	ax25_for_each(s, node, &ax25_list) {
+	ax25_for_each(s, &ax25_list) {
 		if ((s->iamdigi && !digi) || (!s->iamdigi && digi))
 			continue;
 		if (s->sk && !ax25cmp(&s->source_addr, addr) &&
@@ -187,10 +185,9 @@ struct sock *ax25_get_socket(ax25_address *my_addr, ax25_address *dest_addr,
 {
 	struct sock *sk = NULL;
 	ax25_cb *s;
-	struct hlist_node *node;
 
 	spin_lock(&ax25_list_lock);
-	ax25_for_each(s, node, &ax25_list) {
+	ax25_for_each(s, &ax25_list) {
 		if (s->sk && !ax25cmp(&s->source_addr, my_addr) &&
 		    !ax25cmp(&s->dest_addr, dest_addr) &&
 		    s->sk->sk_type == type) {
@@ -213,10 +210,9 @@ ax25_cb *ax25_find_cb(ax25_address *src_addr, ax25_address *dest_addr,
 	ax25_digi *digi, struct net_device *dev)
 {
 	ax25_cb *s;
-	struct hlist_node *node;
 
 	spin_lock_bh(&ax25_list_lock);
-	ax25_for_each(s, node, &ax25_list) {
+	ax25_for_each(s, &ax25_list) {
 		if (s->sk && s->sk->sk_type != SOCK_SEQPACKET)
 			continue;
 		if (s->ax25_dev == NULL)
@@ -248,10 +244,9 @@ void ax25_send_to_raw(ax25_address *addr, struct sk_buff *skb, int proto)
 {
 	ax25_cb *s;
 	struct sk_buff *copy;
-	struct hlist_node *node;
 
 	spin_lock(&ax25_list_lock);
-	ax25_for_each(s, node, &ax25_list) {
+	ax25_for_each(s, &ax25_list) {
 		if (s->sk != NULL && ax25cmp(&s->source_addr, addr) == 0 &&
 		    s->sk->sk_type == SOCK_RAW &&
 		    s->sk->sk_protocol == proto &&
@@ -1992,9 +1987,10 @@ static int __init ax25_init(void)
 	dev_add_pack(&ax25_packet_type);
 	register_netdevice_notifier(&ax25_dev_notifier);
 
-	proc_net_fops_create(&init_net, "ax25_route", S_IRUGO, &ax25_route_fops);
-	proc_net_fops_create(&init_net, "ax25", S_IRUGO, &ax25_info_fops);
-	proc_net_fops_create(&init_net, "ax25_calls", S_IRUGO, &ax25_uid_fops);
+	proc_create("ax25_route", S_IRUGO, init_net.proc_net,
+		    &ax25_route_fops);
+	proc_create("ax25", S_IRUGO, init_net.proc_net, &ax25_info_fops);
+	proc_create("ax25_calls", S_IRUGO, init_net.proc_net, &ax25_uid_fops);
 out:
 	return rc;
 }
@@ -2008,9 +2004,9 @@ MODULE_ALIAS_NETPROTO(PF_AX25);
 
 static void __exit ax25_exit(void)
 {
-	proc_net_remove(&init_net, "ax25_route");
-	proc_net_remove(&init_net, "ax25");
-	proc_net_remove(&init_net, "ax25_calls");
+	remove_proc_entry("ax25_route", init_net.proc_net);
+	remove_proc_entry("ax25", init_net.proc_net);
+	remove_proc_entry("ax25_calls", init_net.proc_net);
 
 	unregister_netdevice_notifier(&ax25_dev_notifier);
 

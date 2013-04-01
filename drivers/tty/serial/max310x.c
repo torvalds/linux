@@ -460,10 +460,6 @@ static int max310x_set_ref_clk(struct max310x_port *s)
 static void max310x_handle_rx(struct max310x_port *s, unsigned int rxlen)
 {
 	unsigned int sts = 0, ch = 0, flag;
-	struct tty_struct *tty = tty_port_tty_get(&s->port.state->port);
-
-	if (!tty)
-		return;
 
 	if (unlikely(rxlen >= MAX310X_FIFO_SIZE)) {
 		dev_warn(s->port.dev, "Possible RX FIFO overrun %d\n", rxlen);
@@ -516,9 +512,7 @@ static void max310x_handle_rx(struct max310x_port *s, unsigned int rxlen)
 				 ch, flag);
 	}
 
-	tty_flip_buffer_push(tty);
-
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&s->port.state->port);
 }
 
 static void max310x_handle_tx(struct max310x_port *s)

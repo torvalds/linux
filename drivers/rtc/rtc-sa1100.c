@@ -108,9 +108,6 @@ static int sa1100_rtc_open(struct device *dev)
 	struct rtc_device *rtc = info->rtc;
 	int ret;
 
-	ret = clk_prepare_enable(info->clk);
-	if (ret)
-		goto fail_clk;
 	ret = request_irq(info->irq_1hz, sa1100_rtc_interrupt, 0, "rtc 1Hz", dev);
 	if (ret) {
 		dev_err(dev, "IRQ %d already in use.\n", info->irq_1hz);
@@ -130,7 +127,6 @@ static int sa1100_rtc_open(struct device *dev)
 	free_irq(info->irq_1hz, dev);
  fail_ui:
 	clk_disable_unprepare(info->clk);
- fail_clk:
 	return ret;
 }
 
@@ -144,7 +140,6 @@ static void sa1100_rtc_release(struct device *dev)
 
 	free_irq(info->irq_alarm, dev);
 	free_irq(info->irq_1hz, dev);
-	clk_disable_unprepare(info->clk);
 }
 
 static int sa1100_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
@@ -253,6 +248,9 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 	spin_lock_init(&info->lock);
 	platform_set_drvdata(pdev, info);
 
+	ret = clk_prepare_enable(info->clk);
+	if (ret)
+		goto err_enable_clk;
 	/*
 	 * According to the manual we should be able to let RTTR be zero
 	 * and then a default diviser for a 32.768KHz clock is used.
@@ -305,6 +303,8 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 
 	return 0;
 err_dev:
+	clk_disable_unprepare(info->clk);
+err_enable_clk:
 	platform_set_drvdata(pdev, NULL);
 	clk_put(info->clk);
 err_clk:
@@ -318,6 +318,7 @@ static int sa1100_rtc_remove(struct platform_device *pdev)
 
 	if (info) {
 		rtc_device_unregister(info->rtc);
+		clk_disable_unprepare(info->clk);
 		clk_put(info->clk);
 		platform_set_drvdata(pdev, NULL);
 		kfree(info);
@@ -349,12 +350,14 @@ static const struct dev_pm_ops sa1100_rtc_pm_ops = {
 };
 #endif
 
+#ifdef CONFIG_OF
 static struct of_device_id sa1100_rtc_dt_ids[] = {
 	{ .compatible = "mrvl,sa1100-rtc", },
 	{ .compatible = "mrvl,mmp-rtc", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sa1100_rtc_dt_ids);
+#endif
 
 static struct platform_driver sa1100_rtc_driver = {
 	.probe		= sa1100_rtc_probe,
@@ -364,7 +367,7 @@ static struct platform_driver sa1100_rtc_driver = {
 #ifdef CONFIG_PM
 		.pm	= &sa1100_rtc_pm_ops,
 #endif
-		.of_match_table = sa1100_rtc_dt_ids,
+		.of_match_table = of_match_ptr(sa1100_rtc_dt_ids),
 	},
 };
 

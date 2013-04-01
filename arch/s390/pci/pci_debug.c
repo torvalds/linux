@@ -99,7 +99,7 @@ static ssize_t pci_perf_seq_write(struct file *file, const char __user *ubuf,
 static int pci_perf_seq_open(struct inode *inode, struct file *filp)
 {
 	return single_open(filp, pci_perf_show,
-			   filp->f_path.dentry->d_inode->i_private);
+			   file_inode(filp)->i_private);
 }
 
 static const struct file_operations debugfs_pci_perf_fops = {
@@ -121,7 +121,7 @@ static int pci_debug_show(struct seq_file *m, void *v)
 static int pci_debug_seq_open(struct inode *inode, struct file *filp)
 {
 	return single_open(filp, pci_debug_show,
-			   filp->f_path.dentry->d_inode->i_private);
+			   file_inode(filp)->i_private);
 }
 
 static const struct file_operations debugfs_pci_debug_fops = {

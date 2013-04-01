@@ -8,6 +8,7 @@ config HP_SIMETH
 
 config HP_SIMSERIAL
 	bool "Simulated serial driver support"
+	depends on TTY
 
 config HP_SIMSERIAL_CONSOLE
 	bool "Console for HP simulator"

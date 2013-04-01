@@ -2,7 +2,7 @@
  *               Static functions needed during the initialization.
  *               This file is "included" in bnx2x_main.c.
  *
- * Copyright (c) 2007-2012 Broadcom Corporation
+ * Copyright (c) 2007-2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -218,7 +218,7 @@ static void bnx2x_init_wr_zp(struct bnx2x *bp, u32 addr, u32 len,
 	/* gunzip_outlen is in dwords */
 	len = GUNZIP_OUTLEN(bp);
 	for (i = 0; i < len; i++)
-		((u32 *)GUNZIP_BUF(bp))[i] =
+		((u32 *)GUNZIP_BUF(bp))[i] = (__force u32)
 				cpu_to_le32(((u32 *)GUNZIP_BUF(bp))[i]);
 
 	bnx2x_write_big_buf_wb(bp, addr, len);
@@ -232,7 +232,7 @@ static void bnx2x_init_block(struct bnx2x *bp, u32 block, u32 stage)
 	u16 op_end =
 		INIT_OPS_OFFSETS(bp)[BLOCK_OPS_IDX(block, stage,
 						     STAGE_END)];
-	union init_op *op;
+	const union init_op *op;
 	u32 op_idx, op_type, addr, len;
 	const u32 *data, *data_base;
 
@@ -244,7 +244,7 @@ static void bnx2x_init_block(struct bnx2x *bp, u32 block, u32 stage)
 
 	for (op_idx = op_start; op_idx < op_end; op_idx++) {
 
-		op = (union init_op *)&(INIT_OPS(bp)[op_idx]);
+		op = (const union init_op *)&(INIT_OPS(bp)[op_idx]);
 		/* Get generic data */
 		op_type = op->raw.op;
 		addr = op->raw.offset;

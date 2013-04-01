@@ -54,7 +54,7 @@ static int soc_camera_platform_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);
 
-	return soc_camera_set_power(p->icd->control, p->icd->link, on);
+	return soc_camera_set_power(p->icd->control, &p->icd->sdesc->subdev_desc, on);
 }
 
 static struct v4l2_subdev_core_ops platform_subdev_core_ops = {
@@ -148,7 +148,7 @@ static int soc_camera_platform_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -173,7 +173,6 @@ static int soc_camera_platform_probe(struct platform_device *pdev)
 
 evdrs:
 	platform_set_drvdata(pdev, NULL);
-	kfree(priv);
 	return ret;
 }
 
@@ -185,7 +184,6 @@ static int soc_camera_platform_remove(struct platform_device *pdev)
 	p->icd->control = NULL;
 	v4l2_device_unregister_subdev(&priv->subdev);
 	platform_set_drvdata(pdev, NULL);
-	kfree(priv);
 	return 0;
 }
 

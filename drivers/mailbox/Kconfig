@@ -1,0 +1,19 @@
+menuconfig MAILBOX
+	bool "Mailbox Hardware Support"
+	help
+	  Mailbox is a framework to control hardware communication between
+	  on-chip processors through queued messages and interrupt driven
+	  signals. Say Y if your platform supports hardware mailboxes.
+
+if MAILBOX
+config PL320_MBOX
+	bool "ARM PL320 Mailbox"
+	depends on ARM_AMBA
+	help
+	  An implementation of the ARM PL320 Interprocessor Communication
+	  Mailbox (IPCM), tailored for the Calxeda Highbank. It is used to
+	  send short messages between Highbank's A9 cores and the EnergyCore
+	  Management Engine, primarily for cpufreq. Say Y here if you want
+	  to use the PL320 IPCM support.
+
+endif

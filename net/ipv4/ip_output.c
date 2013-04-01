@@ -598,6 +598,7 @@ slow_path:
 	/* for offloaded checksums cleanup checksum before fragmentation */
 	if ((skb->ip_summed == CHECKSUM_PARTIAL) && skb_checksum_help(skb))
 		goto fail;
+	iph = ip_hdr(skb);
 
 	left = skb->len - hlen;		/* Space per frame */
 	ptr = hlen;		/* Where to start from */

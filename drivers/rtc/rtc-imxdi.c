@@ -406,7 +406,7 @@ static int dryice_rtc_probe(struct platform_device *pdev)
 
 	mutex_init(&imxdi->write_mutex);
 
-	imxdi->clk = clk_get(&pdev->dev, NULL);
+	imxdi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(imxdi->clk))
 		return PTR_ERR(imxdi->clk);
 	clk_prepare_enable(imxdi->clk);
@@ -475,7 +475,6 @@ static int dryice_rtc_probe(struct platform_device *pdev)
 
 err:
 	clk_disable_unprepare(imxdi->clk);
-	clk_put(imxdi->clk);
 
 	return rc;
 }
@@ -492,7 +491,6 @@ static int dryice_rtc_remove(struct platform_device *pdev)
 	rtc_device_unregister(imxdi->rtc);
 
 	clk_disable_unprepare(imxdi->clk);
-	clk_put(imxdi->clk);
 
 	return 0;
 }

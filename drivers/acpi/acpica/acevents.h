@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -158,10 +158,23 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 			    void *context);
 
 /*
- * evregion - Address Space handling
+ * evhandler - Address space handling
  */
+u8
+acpi_ev_has_default_handler(struct acpi_namespace_node *node,
+			    acpi_adr_space_type space_id);
+
 acpi_status acpi_ev_install_region_handlers(void);
 
+acpi_status
+acpi_ev_install_space_handler(struct acpi_namespace_node *node,
+			      acpi_adr_space_type space_id,
+			      acpi_adr_space_handler handler,
+			      acpi_adr_space_setup setup, void *context);
+
+/*
+ * evregion - Operation region support
+ */
 acpi_status acpi_ev_initialize_op_regions(void);
 
 acpi_status
@@ -178,12 +191,6 @@ acpi_ev_attach_region(union acpi_operand_object *handler_obj,
 void
 acpi_ev_detach_region(union acpi_operand_object *region_obj,
 		      u8 acpi_ns_is_locked);
-
-acpi_status
-acpi_ev_install_space_handler(struct acpi_namespace_node *node,
-			      acpi_adr_space_type space_id,
-			      acpi_adr_space_handler handler,
-			      acpi_adr_space_setup setup, void *context);
 
 acpi_status
 acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,

@@ -2161,7 +2161,7 @@ static long adpt_unlocked_ioctl(struct file *file, uint cmd, ulong arg)
 	struct inode *inode;
 	long ret;
  
-	inode = file->f_dentry->d_inode;
+	inode = file_inode(file);
  
 	mutex_lock(&adpt_mutex);
 	ret = adpt_ioctl(inode, file, cmd, arg);
@@ -2177,7 +2177,7 @@ static long compat_adpt_ioctl(struct file *file,
 	struct inode *inode;
 	long ret;
  
-	inode = file->f_dentry->d_inode;
+	inode = file_inode(file);
  
 	mutex_lock(&adpt_mutex);
  

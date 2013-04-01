@@ -561,7 +561,6 @@ static int kvaser_usb_simple_msg_async(struct kvaser_usb_net_priv *priv,
 
 	buf = kmalloc(sizeof(struct kvaser_msg), GFP_ATOMIC);
 	if (!buf) {
-		netdev_err(netdev, "No memory left for USB buffer\n");
 		usb_free_urb(urb);
 		return -ENOMEM;
 	}
@@ -1268,7 +1267,6 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 
 	buf = kmalloc(sizeof(struct kvaser_msg), GFP_ATOMIC);
 	if (!buf) {
-		netdev_err(netdev, "No memory left for USB buffer\n");
 		stats->tx_dropped++;
 		goto nobufmem;
 	}

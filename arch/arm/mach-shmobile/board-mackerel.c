@@ -202,9 +202,7 @@
  *
  * it needs amixer settings for playing
  *
- * amixer set "Headphone" on
- * amixer set "HPOUTL Mixer DACH" on
- * amixer set "HPOUTR Mixer DACH" on
+ * amixer set "Headphone Enable" on
  */
 
 /* Fixed 3.3V and 1.8V regulators to be used by multiple devices */
@@ -502,18 +500,18 @@ static struct platform_device hdmi_lcdc_device = {
 	},
 };
 
-static struct asoc_simple_dai_init_info fsi2_hdmi_init_info = {
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
-};
-
 static struct asoc_simple_card_info fsi2_hdmi_info = {
 	.name		= "HDMI",
 	.card		= "FSI2B-HDMI",
-	.cpu_dai	= "fsib-dai",
 	.codec		= "sh-mobile-hdmi",
 	.platform	= "sh_fsi2",
-	.codec_dai	= "sh_mobile_hdmi-hifi",
-	.init		= &fsi2_hdmi_init_info,
+	.cpu_dai = {
+		.name	= "fsib-dai",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_IB_NF,
+	},
+	.codec_dai = {
+		.name	= "sh_mobile_hdmi-hifi",
+	},
 };
 
 static struct platform_device fsi_hdmi_device = {
@@ -858,16 +856,12 @@ static struct platform_device leds_device = {
 #define IRQ_FSI evt2irq(0x1840)
 static struct sh_fsi_platform_info fsi_info = {
 	.port_a = {
-		.flags = SH_FSI_BRS_INV,
 		.tx_id = SHDMA_SLAVE_FSIA_TX,
 		.rx_id = SHDMA_SLAVE_FSIA_RX,
 	},
 	.port_b = {
-		.flags = SH_FSI_BRS_INV	|
-			SH_FSI_BRM_INV	|
-			SH_FSI_LRS_INV	|
-			SH_FSI_CLK_CPG	|
-			SH_FSI_FMT_SPDIF,
+		.flags = SH_FSI_CLK_CPG	|
+			 SH_FSI_FMT_SPDIF,
 	}
 };
 
@@ -896,21 +890,21 @@ static struct platform_device fsi_device = {
 	},
 };
 
-static struct asoc_simple_dai_init_info fsi2_ak4643_init_info = {
-	.fmt		= SND_SOC_DAIFMT_LEFT_J,
-	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
-	.sysclk		= 11289600,
-};
-
 static struct asoc_simple_card_info fsi2_ak4643_info = {
 	.name		= "AK4643",
 	.card		= "FSI2A-AK4643",
-	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi2",
-	.codec_dai	= "ak4642-hifi",
-	.init		= &fsi2_ak4643_init_info,
+	.daifmt		= SND_SOC_DAIFMT_LEFT_J,
+	.cpu_dai = {
+		.name	= "fsia-dai",
+		.fmt	= SND_SOC_DAIFMT_CBS_CFS,
+	},
+	.codec_dai = {
+		.name	= "ak4642-hifi",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
+		.sysclk	= 11289600,
+	},
 };
 
 static struct platform_device fsi_ak4643_device = {
@@ -1408,11 +1402,10 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_LCDDISP,  NULL);
 	gpio_request(GPIO_FN_LCDDCK,   NULL);
 
-	gpio_request(GPIO_PORT31, NULL); /* backlight */
-	gpio_direction_output(GPIO_PORT31, 0); /* off by default */
+	/* backlight, off by default */
+	gpio_request_one(GPIO_PORT31, GPIOF_OUT_INIT_LOW, NULL);
 
-	gpio_request(GPIO_PORT151, NULL); /* LCDDON */
-	gpio_direction_output(GPIO_PORT151, 1);
+	gpio_request_one(GPIO_PORT151, GPIOF_OUT_INIT_HIGH, NULL); /* LCDDON */
 
 	/* USBHS0 */
 	gpio_request(GPIO_FN_VBUS0_0, NULL);
@@ -1428,8 +1421,7 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_FSIAILR,	NULL);
 	gpio_request(GPIO_FN_FSIAISLD,	NULL);
 	gpio_request(GPIO_FN_FSIAOSLD,	NULL);
-	gpio_request(GPIO_PORT161,	NULL);
-	gpio_direction_output(GPIO_PORT161, 0); /* slave */
+	gpio_request_one(GPIO_PORT161, GPIOF_OUT_INIT_LOW, NULL); /* slave */
 
 	gpio_request(GPIO_PORT9,  NULL);
 	gpio_request(GPIO_PORT10, NULL);
@@ -1483,8 +1475,7 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_SDHID1_0, NULL);
 #endif
 	/* card detect pin for MMC slot (CN7) */
-	gpio_request(GPIO_PORT41, NULL);
-	gpio_direction_input(GPIO_PORT41);
+	gpio_request_one(GPIO_PORT41, GPIOF_IN, NULL);
 
 	/* enable SDHI2 */
 	gpio_request(GPIO_FN_SDHICMD2, NULL);
@@ -1495,8 +1486,7 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_SDHID2_0, NULL);
 
 	/* card detect pin for microSD slot (CN23) */
-	gpio_request(GPIO_PORT162, NULL);
-	gpio_direction_input(GPIO_PORT162);
+	gpio_request_one(GPIO_PORT162, GPIOF_IN, NULL);
 
 	/* MMCIF */
 	gpio_request(GPIO_FN_MMCD0_0, NULL);
@@ -1593,6 +1583,6 @@ DT_MACHINE_START(MACKEREL_DT, "mackerel")
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= mackerel_init,
 	.init_late	= sh7372_pm_init_late,
-	.timer		= &shmobile_timer,
+	.init_time	= sh7372_earlytimer_init,
 	.dt_compat  = mackerel_boards_compat_dt,
 MACHINE_END

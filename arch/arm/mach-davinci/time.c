@@ -337,7 +337,7 @@ static struct clock_event_device clockevent_davinci = {
 };
 
 
-static void __init davinci_timer_init(void)
+void __init davinci_timer_init(void)
 {
 	struct clk *timer_clk;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
@@ -409,11 +409,6 @@ static void __init davinci_timer_init(void)
 	for (i=0; i< ARRAY_SIZE(timers); i++)
 		timer32_config(&timers[i]);
 }
-
-struct sys_timer davinci_timer = {
-	.init   = davinci_timer_init,
-};
-
 
 /* reset board using watchdog timer */
 void davinci_watchdog_reset(struct platform_device *pdev)

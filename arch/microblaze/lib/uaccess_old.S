@@ -38,15 +38,14 @@ __strncpy_user:
 	addik	r3,r7,0		/* temp_count = len */
 1:
 	lbu	r4,r6,r0
+	beqid	r4,2f
 	sb	r4,r5,r0
 
-	addik	r3,r3,-1
-	beqi	r3,2f		/* break on len */
-
 	addik	r5,r5,1
-	bneid	r4,1b
 	addik	r6,r6,1		/* delay slot */
-	addik	r3,r3,1		/* undo "temp_count--" */
+
+	addik	r3,r3,-1
+	bnei	r3,1b		/* break on len */
 2:
 	rsubk	r3,r3,r7	/* temp_count = len - temp_count */
 3:

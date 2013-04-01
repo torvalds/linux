@@ -3017,7 +3017,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 			}
 		}
 
-		page_start = (u64)page->index << PAGE_CACHE_SHIFT;
+		page_start = page_offset(page);
 		page_end = page_start + PAGE_CACHE_SIZE - 1;
 
 		lock_extent(&BTRFS_I(inode)->io_tree, page_start, page_end);
@@ -3472,7 +3472,7 @@ out:
 }
 
 /*
- * hepler to find all tree blocks that reference a given data extent
+ * helper to find all tree blocks that reference a given data extent
  */
 static noinline_for_stack
 int add_data_references(struct reloc_control *rc,
@@ -3566,7 +3566,7 @@ int add_data_references(struct reloc_control *rc,
 }
 
 /*
- * hepler to find next unprocessed extent
+ * helper to find next unprocessed extent
  */
 static noinline_for_stack
 int find_next_extent(struct btrfs_trans_handle *trans,

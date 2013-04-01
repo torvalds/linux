@@ -47,10 +47,10 @@ static void __init reset_tod_clock(void)
 {
 	u64 time;
 
-	if (store_clock(&time) == 0)
+	if (store_tod_clock(&time) == 0)
 		return;
 	/* TOD clock not running. Set the clock to Unix Epoch. */
-	if (set_clock(TOD_UNIX_EPOCH) != 0 || store_clock(&time) != 0)
+	if (set_tod_clock(TOD_UNIX_EPOCH) != 0 || store_tod_clock(&time) != 0)
 		disabled_wait(0);
 
 	sched_clock_base_cc = TOD_UNIX_EPOCH;
@@ -173,7 +173,7 @@ static noinline __init void create_kernel_nss(void)
 	}
 
 	/* re-initialize cputime accounting. */
-	sched_clock_base_cc = get_clock();
+	sched_clock_base_cc = get_tod_clock();
 	S390_lowcore.last_update_clock = sched_clock_base_cc;
 	S390_lowcore.last_update_timer = 0x7fffffffffffffffULL;
 	S390_lowcore.user_timer = 0;
@@ -381,7 +381,7 @@ static __init void detect_machine_facilities(void)
 	if (test_facility(27))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
 	if (test_facility(40))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_SPP;
+		S390_lowcore.machine_flags |= MACHINE_FLAG_LPP;
 	if (test_facility(50) && test_facility(73))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_TE;
 	if (test_facility(66))

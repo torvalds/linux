@@ -48,10 +48,10 @@ MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
 			 "{Native Instruments, Audio 8 DJ},"
 			 "{Native Instruments, Traktor Audio 2},"
 			 "{Native Instruments, Session I/O},"
-			 "{Native Instruments, GuitarRig mobile}"
-			 "{Native Instruments, Traktor Kontrol X1}"
-			 "{Native Instruments, Traktor Kontrol S4}"
-			 "{Native Instruments, Maschine Controller}");
+			 "{Native Instruments, GuitarRig mobile},"
+			 "{Native Instruments, Traktor Kontrol X1},"
+			 "{Native Instruments, Traktor Kontrol S4},"
+			 "{Native Instruments, Maschine Controller}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX; /* Index 0-max */
 static char* id[SNDRV_CARDS] = SNDRV_DEFAULT_STR; /* Id for this card */

@@ -280,14 +280,14 @@ err:
 	return ret;
 }
 
-static int ath9k_reg_notifier(struct wiphy *wiphy,
-			      struct regulatory_request *request)
+static void ath9k_reg_notifier(struct wiphy *wiphy,
+			       struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath9k_htc_priv *priv = hw->priv;
 
-	return ath_reg_notifier_apply(wiphy, request,
-				      ath9k_hw_regulatory(priv->ah));
+	ath_reg_notifier_apply(wiphy, request,
+			       ath9k_hw_regulatory(priv->ah));
 }
 
 static unsigned int ath9k_regread(void *hw_priv, u32 reg_offset)
@@ -783,7 +783,7 @@ static int ath9k_init_firmware_version(struct ath9k_htc_priv *priv)
 	priv->fw_version_major = be16_to_cpu(cmd_rsp.major);
 	priv->fw_version_minor = be16_to_cpu(cmd_rsp.minor);
 
-	snprintf(hw->wiphy->fw_version, ETHTOOL_BUSINFO_LEN, "%d.%d",
+	snprintf(hw->wiphy->fw_version, sizeof(hw->wiphy->fw_version), "%d.%d",
 		 priv->fw_version_major,
 		 priv->fw_version_minor);
 

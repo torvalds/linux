@@ -51,14 +51,14 @@
  * Returns the physical address of a CKSEGx / XKPHYS address
  */
 #define CPHYSADDR(a)		((_ACAST32_(a)) & 0x1fffffff)
-#define XPHYSADDR(a)            ((_ACAST64_(a)) &			\
+#define XPHYSADDR(a)		((_ACAST64_(a)) &			\
 				 _CONST64_(0x000000ffffffffff))
 
 #ifdef CONFIG_64BIT
 
 /*
  * Memory segments (64bit kernel mode addresses)
- * The compatibility segments use the full 64-bit sign extended value.  Note
+ * The compatibility segments use the full 64-bit sign extended value.	Note
  * the R8000 doesn't have them so don't reference these in generic MIPS code.
  */
 #define XKUSEG			_CONST64_(0x0000000000000000)
@@ -131,7 +131,7 @@
 
 /*
  * The ultimate limited of the 64-bit MIPS architecture:  2 bits for selecting
- * the region, 3 bits for the CCA mode.  This leaves 59 bits of which the
+ * the region, 3 bits for the CCA mode.	 This leaves 59 bits of which the
  * R8000 implements most with its 48-bit physical address space.
  */
 #define TO_PHYS_MASK	_CONST64_(0x07ffffffffffffff)	/* 2^^59 - 1 */

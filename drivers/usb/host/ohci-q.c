@@ -44,6 +44,7 @@ __acquires(ohci->lock)
 	// ASSERT (urb->hcpriv != 0);
 
 	urb_free_priv (ohci, urb->hcpriv);
+	urb->hcpriv = NULL;
 	if (likely(status == -EINPROGRESS))
 		status = 0;
 

@@ -46,125 +46,70 @@ Options (for pcm-das08):
 Command support does not exist, but could be added for this board.
 */
 
-#include "../comedidev.h"
-
 #include <linux/delay.h>
-#include <linux/pci.h>
 #include <linux/slab.h>
 
-#include "das08.h"
+#include "../comedidev.h"
 
-/* pcmcia includes */
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
+#include "das08.h"
+
 static const struct das08_board_struct das08_cs_boards[] = {
 	{
-		.name = "pcm-das08",
-		.id = 0x0,		/*  XXX */
-		.bustype = pcmcia,
-		.ai_nbits = 12,
-		.ai_pg = das08_bipolar5,
-		.ai_encoding = das08_pcm_encode12,
-		.di_nchan = 3,
-		.do_nchan = 3,
-		.iosize = 16,
-	},
-	/*  duplicate so driver name can be used also */
-	{
-		.name = "das08_cs",
-		.id = 0x0,		/*  XXX */
-		.bustype = pcmcia,
-		.ai_nbits = 12,
-		.ai_pg = das08_bipolar5,
-		.ai_encoding = das08_pcm_encode12,
-		.di_nchan = 3,
-		.do_nchan = 3,
-		.iosize = 16,
+		.name		= "pcm-das08",
+		.id		= 0x0,	/*  XXX */
+		.ai_nbits	= 12,
+		.ai_pg		= das08_bipolar5,
+		.ai_encoding	= das08_pcm_encode12,
+		.di_nchan	= 3,
+		.do_nchan	= 3,
+		.iosize		= 16,
 	},
 };
 
-static struct pcmcia_device *cur_dev;
-
-static int das08_cs_attach(struct comedi_device *dev,
-			   struct comedi_devconfig *it)
+static int das08_cs_auto_attach(struct comedi_device *dev,
+				unsigned long context)
 {
-	const struct das08_board_struct *thisboard = comedi_board(dev);
+	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
 	struct das08_private_struct *devpriv;
 	unsigned long iobase;
-	struct pcmcia_device *link = cur_dev;	/*  XXX hack */
+	int ret;
+
+	/* The das08 driver needs the board_ptr */
+	dev->board_ptr = &das08_cs_boards[0];
+
+	link->config_flags |= CONF_AUTO_SET_IO;
+	ret = comedi_pcmcia_enable(dev, NULL);
+	if (ret)
+		return ret;
+	iobase = link->resource[0]->start;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	dev_info(dev->class_dev, "das08_cs: attach\n");
-	/*  deal with a pci board */
-
-	if (thisboard->bustype == pcmcia) {
-		if (link == NULL) {
-			dev_err(dev->class_dev, "no pcmcia cards found\n");
-			return -EIO;
-		}
-		iobase = link->resource[0]->start;
-	} else {
-		dev_err(dev->class_dev,
-			"bug! board does not have PCMCIA bustype\n");
-		return -EINVAL;
-	}
-
 	return das08_common_attach(dev, iobase);
+}
+
+static void das08_cs_detach(struct comedi_device *dev)
+{
+	das08_common_detach(dev);
+	comedi_pcmcia_disable(dev);
 }
 
 static struct comedi_driver driver_das08_cs = {
 	.driver_name	= "das08_cs",
 	.module		= THIS_MODULE,
-	.attach		= das08_cs_attach,
-	.detach		= das08_common_detach,
-	.board_name	= &das08_cs_boards[0].name,
-	.num_names	= ARRAY_SIZE(das08_cs_boards),
-	.offset		= sizeof(struct das08_board_struct),
+	.auto_attach	= das08_cs_auto_attach,
+	.detach		= das08_cs_detach,
 };
-
-static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
-				void *priv_data)
-{
-	if (p_dev->config_index == 0)
-		return -EINVAL;
-
-	return pcmcia_request_io(p_dev);
-}
 
 static int das08_pcmcia_attach(struct pcmcia_device *link)
 {
-	int ret;
-
-	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
-
-	ret = pcmcia_loop_config(link, das08_pcmcia_config_loop, NULL);
-	if (ret)
-		goto failed;
-
-	if (!link->irq)
-		goto failed;
-
-	ret = pcmcia_enable_device(link);
-	if (ret)
-		goto failed;
-
-	cur_dev = link;
-	return 0;
-
-failed:
-	pcmcia_disable_device(link);
-	return ret;
-}
-
-static void das08_pcmcia_detach(struct pcmcia_device *link)
-{
-	pcmcia_disable_device(link);
-	cur_dev = NULL;
+	return comedi_pcmcia_auto_config(link, &driver_das08_cs);
 }
 
 static const struct pcmcia_device_id das08_cs_id_table[] = {
@@ -176,36 +121,11 @@ MODULE_DEVICE_TABLE(pcmcia, das08_cs_id_table);
 static struct pcmcia_driver das08_cs_driver = {
 	.name		= "pcm-das08",
 	.owner		= THIS_MODULE,
-	.probe		= das08_pcmcia_attach,
-	.remove		= das08_pcmcia_detach,
 	.id_table	= das08_cs_id_table,
+	.probe		= das08_pcmcia_attach,
+	.remove		= comedi_pcmcia_auto_unconfig,
 };
-
-static int __init das08_cs_init_module(void)
-{
-	int ret;
-
-	ret = comedi_driver_register(&driver_das08_cs);
-	if (ret < 0)
-		return ret;
-
-	ret = pcmcia_register_driver(&das08_cs_driver);
-	if (ret < 0) {
-		comedi_driver_unregister(&driver_das08_cs);
-		return ret;
-	}
-
-	return 0;
-
-}
-module_init(das08_cs_init_module);
-
-static void __exit das08_cs_exit_module(void)
-{
-	pcmcia_unregister_driver(&das08_cs_driver);
-	comedi_driver_unregister(&driver_das08_cs);
-}
-module_exit(das08_cs_exit_module);
+module_comedi_pcmcia_driver(driver_das08_cs, das08_cs_driver);
 
 MODULE_AUTHOR("David A. Schleef <ds@schleef.org>, "
 	      "Frank Mori Hess <fmhess@users.sourceforge.net>");

@@ -38,7 +38,6 @@
 
 void usb_wwan_dtr_rts(struct usb_serial_port *port, int on)
 {
-	struct usb_serial *serial = port->serial;
 	struct usb_wwan_port_private *portdata;
 	struct usb_wwan_intf_private *intfdata;
 
@@ -48,12 +47,11 @@ void usb_wwan_dtr_rts(struct usb_serial_port *port, int on)
 		return;
 
 	portdata = usb_get_serial_port_data(port);
-	mutex_lock(&serial->disc_mutex);
+	/* FIXME: locking */
 	portdata->rts_state = on;
 	portdata->dtr_state = on;
-	if (serial->dev)
-		intfdata->send_setup(port);
-	mutex_unlock(&serial->disc_mutex);
+
+	intfdata->send_setup(port);
 }
 EXPORT_SYMBOL(usb_wwan_dtr_rts);
 
@@ -275,7 +273,6 @@ static void usb_wwan_indat_callback(struct urb *urb)
 	int err;
 	int endpoint;
 	struct usb_serial_port *port;
-	struct tty_struct *tty;
 	struct device *dev;
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
@@ -288,16 +285,12 @@ static void usb_wwan_indat_callback(struct urb *urb)
 		dev_dbg(dev, "%s: nonzero status: %d on endpoint %02x.\n",
 			__func__, status, endpoint);
 	} else {
-		tty = tty_port_tty_get(&port->port);
-		if (tty) {
-			if (urb->actual_length) {
-				tty_insert_flip_string(tty, data,
-						urb->actual_length);
-				tty_flip_buffer_push(tty);
-			} else
-				dev_dbg(dev, "%s: empty read urb received\n", __func__);
-			tty_kref_put(tty);
-		}
+		if (urb->actual_length) {
+			tty_insert_flip_string(&port->port, data,
+					urb->actual_length);
+			tty_flip_buffer_push(&port->port);
+		} else
+			dev_dbg(dev, "%s: empty read urb received\n", __func__);
 
 		/* Resubmit urb so we continue receiving */
 		err = usb_submit_urb(urb, GFP_ATOMIC);

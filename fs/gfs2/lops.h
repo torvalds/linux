@@ -29,6 +29,7 @@ extern const struct gfs2_log_operations gfs2_databuf_lops;
 extern const struct gfs2_log_operations *gfs2_log_ops[];
 extern void gfs2_log_write_page(struct gfs2_sbd *sdp, struct page *page);
 extern void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int rw);
+extern void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh);
 
 static inline unsigned int buf_limit(struct gfs2_sbd *sdp)
 {
@@ -44,19 +45,6 @@ static inline unsigned int databuf_limit(struct gfs2_sbd *sdp)
 
 	limit = (sdp->sd_sb.sb_bsize - DATABUF_OFFSET) / (2 * sizeof(__be64));
 	return limit;
-}
-
-static inline void lops_init_le(struct gfs2_bufdata *bd,
-				const struct gfs2_log_operations *lops)
-{
-	INIT_LIST_HEAD(&bd->bd_list);
-	bd->bd_ops = lops;
-}
-
-static inline void lops_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
-{
-	if (bd->bd_ops->lo_add)
-		bd->bd_ops->lo_add(sdp, bd);
 }
 
 static inline void lops_before_commit(struct gfs2_sbd *sdp)

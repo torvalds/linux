@@ -135,17 +135,14 @@ static inline u8 IN_TO_REG(long val, int inNum)
 	 * for the constants.
 	 */
 	if (inNum <= 1)
-		return (u8)
-		    SENSORS_LIMIT((val * 21024 - 1205000) / 250000, 0, 255);
+		return (u8) clamp_val((val * 21024 - 1205000) / 250000, 0, 255);
 	else if (inNum == 2)
-		return (u8)
-		    SENSORS_LIMIT((val * 15737 - 1205000) / 250000, 0, 255);
+		return (u8) clamp_val((val * 15737 - 1205000) / 250000, 0, 255);
 	else if (inNum == 3)
-		return (u8)
-		    SENSORS_LIMIT((val * 10108 - 1205000) / 250000, 0, 255);
+		return (u8) clamp_val((val * 10108 - 1205000) / 250000, 0, 255);
 	else
-		return (u8)
-		    SENSORS_LIMIT((val * 41714 - 12050000) / 2500000, 0, 255);
+		return (u8) clamp_val((val * 41714 - 12050000) / 2500000, 0,
+				      255);
 }
 
 static inline long IN_FROM_REG(u8 val, int inNum)
@@ -175,8 +172,8 @@ static inline u8 FAN_TO_REG(long rpm, int div)
 {
 	if (rpm == 0)
 		return 0;
-	rpm = SENSORS_LIMIT(rpm, 1, 1000000);
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1, 255);
+	rpm = clamp_val(rpm, 1, 1000000);
+	return clamp_val((1350000 + rpm * div / 2) / (rpm * div), 1, 255);
 }
 
 #define FAN_FROM_REG(val, div) ((val) == 0 ? 0 : (val) == 255 ? 0 : 1350000 / \

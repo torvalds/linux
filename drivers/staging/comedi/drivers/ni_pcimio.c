@@ -110,10 +110,12 @@ Bugs:
 
 */
 
+#include <linux/delay.h>
+#include <linux/delay.h>
+
 #include "../comedidev.h"
 
 #include <asm/byteorder.h>
-#include <linux/delay.h>
 
 #include "ni_stc.h"
 #include "mite.h"
@@ -1791,11 +1793,6 @@ static int ni_pcimio_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni_pcimio_driver);
 }
 
-static void ni_pcimio_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(ni_pcimio_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x0162) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1170) },
@@ -1858,7 +1855,7 @@ static struct pci_driver ni_pcimio_pci_driver = {
 	.name		= "ni_pcimio",
 	.id_table	= ni_pcimio_pci_table,
 	.probe		= ni_pcimio_pci_probe,
-	.remove		= ni_pcimio_pci_remove
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(ni_pcimio_driver, ni_pcimio_pci_driver);
 

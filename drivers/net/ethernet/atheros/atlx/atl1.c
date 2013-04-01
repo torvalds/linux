@@ -3053,7 +3053,7 @@ static int atl1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* copy the MAC address out of the EEPROM */
 	if (atl1_read_mac_addr(&adapter->hw)) {
 		/* mark random mac */
-		netdev->addr_assign_type |= NET_ADDR_RANDOM;
+		netdev->addr_assign_type = NET_ADDR_RANDOM;
 	}
 	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
 

@@ -164,6 +164,13 @@ int ro_step(struct ro_spine *s, dm_block_t new_child)
 	return r;
 }
 
+void ro_pop(struct ro_spine *s)
+{
+	BUG_ON(!s->count);
+	--s->count;
+	unlock_block(s->info, s->nodes[s->count]);
+}
+
 struct btree_node *ro_node(struct ro_spine *s)
 {
 	struct dm_block *block;

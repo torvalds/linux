@@ -65,9 +65,9 @@ cdc_ncm_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info)
 {
 	struct usbnet *dev = netdev_priv(net);
 
-	strncpy(info->driver, dev->driver_name, sizeof(info->driver));
-	strncpy(info->version, DRIVER_VERSION, sizeof(info->version));
-	strncpy(info->fw_version, dev->driver_info->description,
+	strlcpy(info->driver, dev->driver_name, sizeof(info->driver));
+	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
+	strlcpy(info->fw_version, dev->driver_info->description,
 		sizeof(info->fw_version));
 	usb_make_path(dev->udev, info->bus_info, sizeof(info->bus_info));
 }
@@ -576,9 +576,14 @@ static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
 	if ((intf->num_altsetting == 2) &&
 	    !usb_set_interface(dev->udev,
 			       intf->cur_altsetting->desc.bInterfaceNumber,
-			       CDC_NCM_COMM_ALTSETTING_MBIM) &&
-	    cdc_ncm_comm_intf_is_mbim(intf->cur_altsetting))
-		return -ENODEV;
+			       CDC_NCM_COMM_ALTSETTING_MBIM)) {
+		if (cdc_ncm_comm_intf_is_mbim(intf->cur_altsetting))
+			return -ENODEV;
+		else
+			usb_set_interface(dev->udev,
+					  intf->cur_altsetting->desc.bInterfaceNumber,
+					  CDC_NCM_COMM_ALTSETTING_NCM);
+	}
 #endif
 
 	/* NCM data altsetting is always 1 */

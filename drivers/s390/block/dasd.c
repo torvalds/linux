@@ -1352,7 +1352,7 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 		switch (rc) {
 		case 0:	/* termination successful */
 			cqr->status = DASD_CQR_CLEAR_PENDING;
-			cqr->stopclk = get_clock();
+			cqr->stopclk = get_tod_clock();
 			cqr->starttime = 0;
 			DBF_DEV_EVENT(DBF_DEBUG, device,
 				      "terminate cqr %p successful",
@@ -1420,7 +1420,7 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 		cqr->status = DASD_CQR_ERROR;
 		return -EIO;
 	}
-	cqr->startclk = get_clock();
+	cqr->startclk = get_tod_clock();
 	cqr->starttime = jiffies;
 	cqr->retries--;
 	if (!test_bit(DASD_CQR_VERIFY_PATH, &cqr->flags)) {
@@ -1623,7 +1623,7 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		return;
 	}
 
-	now = get_clock();
+	now = get_tod_clock();
 	cqr = (struct dasd_ccw_req *) intparm;
 	/* check for conditions that should be handled immediately */
 	if (!cqr ||
@@ -1963,7 +1963,7 @@ int dasd_flush_device_queue(struct dasd_device *device)
 			}
 			break;
 		case DASD_CQR_QUEUED:
-			cqr->stopclk = get_clock();
+			cqr->stopclk = get_tod_clock();
 			cqr->status = DASD_CQR_CLEARED;
 			break;
 		default: /* no need to modify the others */
@@ -2210,7 +2210,7 @@ static int _dasd_sleep_on(struct dasd_ccw_req *maincqr, int interruptible)
 			wait_event(generic_waitq, _wait_for_wakeup(cqr));
 	}
 
-	maincqr->endclk = get_clock();
+	maincqr->endclk = get_tod_clock();
 	if ((maincqr->status != DASD_CQR_DONE) &&
 	    (maincqr->intrc != -ERESTARTSYS))
 		dasd_log_sense(maincqr, &maincqr->irb);
@@ -2340,7 +2340,7 @@ int dasd_cancel_req(struct dasd_ccw_req *cqr)
 				"Cancelling request %p failed with rc=%d\n",
 				cqr, rc);
 		} else {
-			cqr->stopclk = get_clock();
+			cqr->stopclk = get_tod_clock();
 		}
 		break;
 	default: /* already finished or clear pending - do nothing */
@@ -2568,7 +2568,7 @@ restart:
 		}
 
 		/* Rechain finished requests to final queue */
-		cqr->endclk = get_clock();
+		cqr->endclk = get_tod_clock();
 		list_move_tail(&cqr->blocklist, final_queue);
 	}
 }
@@ -2711,7 +2711,7 @@ restart_cb:
 		}
 		/* call the callback function */
 		spin_lock_irq(&block->request_queue_lock);
-		cqr->endclk = get_clock();
+		cqr->endclk = get_tod_clock();
 		list_del_init(&cqr->blocklist);
 		__dasd_cleanup_cqr(cqr);
 		spin_unlock_irq(&block->request_queue_lock);
@@ -3042,12 +3042,15 @@ void dasd_generic_remove(struct ccw_device *cdev)
 	cdev->handler = NULL;
 
 	device = dasd_device_from_cdev(cdev);
-	if (IS_ERR(device))
+	if (IS_ERR(device)) {
+		dasd_remove_sysfs_files(cdev);
 		return;
+	}
 	if (test_and_set_bit(DASD_FLAG_OFFLINE, &device->flags) &&
 	    !test_bit(DASD_FLAG_SAFE_OFFLINE_RUNNING, &device->flags)) {
 		/* Already doing offline processing */
 		dasd_put_device(device);
+		dasd_remove_sysfs_files(cdev);
 		return;
 	}
 	/*
@@ -3504,7 +3507,7 @@ static struct dasd_ccw_req *dasd_generic_build_rdc(struct dasd_device *device,
 	cqr->memdev = device;
 	cqr->expires = 10*HZ;
 	cqr->retries = 256;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
 }

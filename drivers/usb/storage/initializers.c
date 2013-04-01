@@ -147,7 +147,7 @@ static int usb_stor_huawei_dongles_pid(struct us_data *us)
 	int idProduct;
 
 	idesc = &us->pusb_intf->cur_altsetting->desc;
-	idProduct = us->pusb_dev->descriptor.idProduct;
+	idProduct = le16_to_cpu(us->pusb_dev->descriptor.idProduct);
 	/* The first port is CDROM,
 	 * means the dongle in the single port mode,
 	 * and a switch command is required to be sent. */
@@ -169,7 +169,7 @@ int usb_stor_huawei_init(struct us_data *us)
 	int result = 0;
 
 	if (usb_stor_huawei_dongles_pid(us)) {
-		if (us->pusb_dev->descriptor.idProduct >= 0x1446)
+		if (le16_to_cpu(us->pusb_dev->descriptor.idProduct) >= 0x1446)
 			result = usb_stor_huawei_scsi_init(us);
 		else
 			result = usb_stor_huawei_feature_init(us);

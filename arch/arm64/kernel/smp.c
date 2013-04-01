@@ -233,7 +233,28 @@ void __init smp_prepare_boot_cpu(void)
 }
 
 static void (*smp_cross_call)(const struct cpumask *, unsigned int);
-static phys_addr_t cpu_release_addr[NR_CPUS];
+
+static const struct smp_enable_ops *enable_ops[] __initconst = {
+	&smp_spin_table_ops,
+	&smp_psci_ops,
+	NULL,
+};
+
+static const struct smp_enable_ops *smp_enable_ops[NR_CPUS];
+
+static const struct smp_enable_ops * __init smp_get_enable_ops(const char *name)
+{
+	const struct smp_enable_ops *ops = enable_ops[0];
+
+	while (ops) {
+		if (!strcmp(name, ops->name))
+			return ops;
+
+		ops++;
+	}
+
+	return NULL;
+}
 
 /*
  * Enumerate the possible CPU set from the device tree.
@@ -252,21 +273,21 @@ void __init smp_init_cpus(void)
 		 * We currently support only the "spin-table" enable-method.
 		 */
 		enable_method = of_get_property(dn, "enable-method", NULL);
-		if (!enable_method || strcmp(enable_method, "spin-table")) {
-			pr_err("CPU %d: missing or invalid enable-method property: %s\n",
+		if (!enable_method) {
+			pr_err("CPU %d: missing enable-method property\n", cpu);
+			goto next;
+		}
+
+		smp_enable_ops[cpu] = smp_get_enable_ops(enable_method);
+
+		if (!smp_enable_ops[cpu]) {
+			pr_err("CPU %d: invalid enable-method property: %s\n",
 			       cpu, enable_method);
 			goto next;
 		}
 
-		/*
-		 * Determine the address from which the CPU is polling.
-		 */
-		if (of_property_read_u64(dn, "cpu-release-addr",
-					 &cpu_release_addr[cpu])) {
-			pr_err("CPU %d: missing or invalid cpu-release-addr property\n",
-			       cpu);
+		if (smp_enable_ops[cpu]->init_cpu(dn, cpu))
 			goto next;
-		}
 
 		set_cpu_possible(cpu, true);
 next:
@@ -281,8 +302,7 @@ next:
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	int cpu;
-	void **release_addr;
+	int cpu, err;
 	unsigned int ncores = num_possible_cpus();
 
 	/*
@@ -291,30 +311,35 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (max_cpus > ncores)
 		max_cpus = ncores;
 
+	/* Don't bother if we're effectively UP */
+	if (max_cpus <= 1)
+		return;
+
 	/*
 	 * Initialise the present map (which describes the set of CPUs
 	 * actually populated at the present time) and release the
 	 * secondaries from the bootloader.
+	 *
+	 * Make sure we online at most (max_cpus - 1) additional CPUs.
 	 */
+	max_cpus--;
 	for_each_possible_cpu(cpu) {
 		if (max_cpus == 0)
 			break;
 
-		if (!cpu_release_addr[cpu])
+		if (cpu == smp_processor_id())
 			continue;
 
-		release_addr = __va(cpu_release_addr[cpu]);
-		release_addr[0] = (void *)__pa(secondary_holding_pen);
-		__flush_dcache_area(release_addr, sizeof(release_addr[0]));
+		if (!smp_enable_ops[cpu])
+			continue;
+
+		err = smp_enable_ops[cpu]->prepare_cpu(cpu);
+		if (err)
+			continue;
 
 		set_cpu_present(cpu, true);
 		max_cpus--;
 	}
-
-	/*
-	 * Send an event to wake up the secondaries.
-	 */
-	sev();
 }
 
 

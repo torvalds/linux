@@ -23,6 +23,7 @@
  * Bank : 0x5
  */
 #define AB8500_USB_LINE_STAT_REG	0x80
+#define AB8500_USB_LINK1_STAT_REG	0x94
 
 /*
  * Charger / status register offfsets
@@ -225,6 +226,8 @@
 /* BatCtrl Current Source Constants */
 #define BAT_CTRL_7U_ENA			0x01
 #define BAT_CTRL_20U_ENA		0x02
+#define BAT_CTRL_18U_ENA		0x01
+#define BAT_CTRL_16U_ENA		0x02
 #define BAT_CTRL_CMP_ENA		0x04
 #define FORCE_BAT_CTRL_CMP_HIGH		0x08
 #define BAT_CTRL_PULL_UP_ENA		0x10
@@ -355,6 +358,7 @@ struct ab8500_bm_charger_parameters {
  * @bkup_bat_v		voltage which we charge the backup battery with
  * @bkup_bat_i		current which we charge the backup battery with
  * @no_maintenance	indicates that maintenance charging is disabled
+ * @capacity_scaling    indicates whether capacity scaling is to be used
  * @adc_therm		placement of thermistor, batctrl or battemp adc
  * @chg_unknown_bat	flag to enable charging of unknown batteries
  * @enable_overshoot	flag to enable VBAT overshoot control
@@ -383,6 +387,7 @@ struct ab8500_bm_data {
 	int bkup_bat_v;
 	int bkup_bat_i;
 	bool no_maintenance;
+	bool capacity_scaling;
 	bool chg_unknown_bat;
 	bool enable_overshoot;
 	enum abx500_adc_therm adc_therm;
@@ -399,26 +404,6 @@ struct ab8500_bm_data {
 	const struct ab8500_fg_parameters *fg_params;
 };
 
-struct ab8500_charger_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-	bool autopower_cfg;
-};
-
-struct ab8500_btemp_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-};
-
-struct ab8500_fg_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-};
-
-struct ab8500_chargalg_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-};
 struct ab8500_btemp;
 struct ab8500_gpadc;
 struct ab8500_fg;
@@ -434,20 +419,10 @@ struct ab8500_fg *ab8500_fg_get(void);
 int ab8500_fg_inst_curr_blocking(struct ab8500_fg *dev);
 int ab8500_fg_inst_curr_start(struct ab8500_fg *di);
 int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res);
+int ab8500_fg_inst_curr_started(struct ab8500_fg *di);
 int ab8500_fg_inst_curr_done(struct ab8500_fg *di);
 
 #else
 static struct abx500_bm_data ab8500_bm_data;
-
-static inline int ab8500_fg_inst_curr_start(struct ab8500_fg *di)
-{
-	return -ENODEV;
-}
-
-static inline int ab8500_fg_inst_curr_finalize(struct ab8500_fg *di, int *res)
-{
-	return -ENODEV;
-}
-
 #endif
 #endif /* _AB8500_BM_H */

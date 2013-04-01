@@ -1655,18 +1655,15 @@ static void ahci_error_intr(struct ata_port *ap, u32 irq_stat)
 		ata_port_abort(ap);
 }
 
-static void ahci_port_intr(struct ata_port *ap)
+static void ahci_handle_port_interrupt(struct ata_port *ap,
+				       void __iomem *port_mmio, u32 status)
 {
-	void __iomem *port_mmio = ahci_port_base(ap);
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	struct ahci_port_priv *pp = ap->private_data;
 	struct ahci_host_priv *hpriv = ap->host->private_data;
 	int resetting = !!(ap->pflags & ATA_PFLAG_RESETTING);
-	u32 status, qc_active = 0;
+	u32 qc_active = 0;
 	int rc;
-
-	status = readl(port_mmio + PORT_IRQ_STAT);
-	writel(status, port_mmio + PORT_IRQ_STAT);
 
 	/* ignore BAD_PMP while resetting */
 	if (unlikely(resetting))
@@ -1742,6 +1739,107 @@ static void ahci_port_intr(struct ata_port *ap)
 		ata_port_freeze(ap);
 	}
 }
+
+void ahci_port_intr(struct ata_port *ap)
+{
+	void __iomem *port_mmio = ahci_port_base(ap);
+	u32 status;
+
+	status = readl(port_mmio + PORT_IRQ_STAT);
+	writel(status, port_mmio + PORT_IRQ_STAT);
+
+	ahci_handle_port_interrupt(ap, port_mmio, status);
+}
+
+irqreturn_t ahci_thread_fn(int irq, void *dev_instance)
+{
+	struct ata_port *ap = dev_instance;
+	struct ahci_port_priv *pp = ap->private_data;
+	void __iomem *port_mmio = ahci_port_base(ap);
+	unsigned long flags;
+	u32 status;
+
+	spin_lock_irqsave(&ap->host->lock, flags);
+	status = pp->intr_status;
+	if (status)
+		pp->intr_status = 0;
+	spin_unlock_irqrestore(&ap->host->lock, flags);
+
+	spin_lock_bh(ap->lock);
+	ahci_handle_port_interrupt(ap, port_mmio, status);
+	spin_unlock_bh(ap->lock);
+
+	return IRQ_HANDLED;
+}
+EXPORT_SYMBOL_GPL(ahci_thread_fn);
+
+void ahci_hw_port_interrupt(struct ata_port *ap)
+{
+	void __iomem *port_mmio = ahci_port_base(ap);
+	struct ahci_port_priv *pp = ap->private_data;
+	u32 status;
+
+	status = readl(port_mmio + PORT_IRQ_STAT);
+	writel(status, port_mmio + PORT_IRQ_STAT);
+
+	pp->intr_status |= status;
+}
+
+irqreturn_t ahci_hw_interrupt(int irq, void *dev_instance)
+{
+	struct ata_port *ap_this = dev_instance;
+	struct ahci_port_priv *pp = ap_this->private_data;
+	struct ata_host *host = ap_this->host;
+	struct ahci_host_priv *hpriv = host->private_data;
+	void __iomem *mmio = hpriv->mmio;
+	unsigned int i;
+	u32 irq_stat, irq_masked;
+
+	VPRINTK("ENTER\n");
+
+	spin_lock(&host->lock);
+
+	irq_stat = readl(mmio + HOST_IRQ_STAT);
+
+	if (!irq_stat) {
+		u32 status = pp->intr_status;
+
+		spin_unlock(&host->lock);
+
+		VPRINTK("EXIT\n");
+
+		return status ? IRQ_WAKE_THREAD : IRQ_NONE;
+	}
+
+	irq_masked = irq_stat & hpriv->port_map;
+
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap;
+
+		if (!(irq_masked & (1 << i)))
+			continue;
+
+		ap = host->ports[i];
+		if (ap) {
+			ahci_hw_port_interrupt(ap);
+			VPRINTK("port %u\n", i);
+		} else {
+			VPRINTK("port %u (no irq)\n", i);
+			if (ata_ratelimit())
+				dev_warn(host->dev,
+					 "interrupt on disabled port %u\n", i);
+		}
+	}
+
+	writel(irq_stat, mmio + HOST_IRQ_STAT);
+
+	spin_unlock(&host->lock);
+
+	VPRINTK("EXIT\n");
+
+	return IRQ_WAKE_THREAD;
+}
+EXPORT_SYMBOL_GPL(ahci_hw_interrupt);
 
 irqreturn_t ahci_interrupt(int irq, void *dev_instance)
 {
@@ -2195,6 +2293,14 @@ static int ahci_port_start(struct ata_port *ap)
 	 * This could be changed later
 	 */
 	pp->intr_mask = DEF_PORT_IRQ;
+
+	/*
+	 * Switch to per-port locking in case each port has its own MSI vector.
+	 */
+	if ((hpriv->flags & AHCI_HFLAG_MULTI_MSI)) {
+		spin_lock_init(&pp->lock);
+		ap->lock = &pp->lock;
+	}
 
 	ap->private_data = pp;
 

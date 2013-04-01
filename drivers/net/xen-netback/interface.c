@@ -132,6 +132,7 @@ static void xenvif_up(struct xenvif *vif)
 static void xenvif_down(struct xenvif *vif)
 {
 	disable_irq(vif->irq);
+	del_timer_sync(&vif->credit_timeout);
 	xen_netbk_deschedule_xenvif(vif);
 	xen_netbk_remove_xenvif(vif);
 }
@@ -238,6 +239,8 @@ static const struct net_device_ops xenvif_netdev_ops = {
 	.ndo_stop	= xenvif_close,
 	.ndo_change_mtu	= xenvif_change_mtu,
 	.ndo_fix_features = xenvif_fix_features,
+	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_validate_addr   = eth_validate_addr,
 };
 
 struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
@@ -362,8 +365,6 @@ void xenvif_disconnect(struct xenvif *vif)
 
 	atomic_dec(&vif->refcnt);
 	wait_event(vif->waiting_to_free, atomic_read(&vif->refcnt) == 0);
-
-	del_timer_sync(&vif->credit_timeout);
 
 	if (vif->irq)
 		unbind_from_irqhandler(vif->irq, vif);

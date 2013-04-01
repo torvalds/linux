@@ -1169,7 +1169,7 @@ zoran_reap_stat_com (struct zoran *zr)
 		}
 		frame = zr->jpg_pend[zr->jpg_dma_tail & BUZ_MASK_FRAME];
 		buffer = &zr->jpg_buffers.buffer[frame];
-		do_gettimeofday(&buffer->bs.timestamp);
+		v4l2_get_timestamp(&buffer->bs.timestamp);
 
 		if (zr->codec_mode == BUZ_MODE_MOTION_COMPRESS) {
 			buffer->bs.length = (stat_com & 0x7fffff) >> 1;
@@ -1407,7 +1407,7 @@ zoran_irq (int             irq,
 
 						zr->v4l_buffers.buffer[zr->v4l_grab_frame].state = BUZ_STATE_DONE;
 						zr->v4l_buffers.buffer[zr->v4l_grab_frame].bs.seq = zr->v4l_grab_seq;
-						do_gettimeofday(&zr->v4l_buffers.buffer[zr->v4l_grab_frame].bs.timestamp);
+						v4l2_get_timestamp(&zr->v4l_buffers.buffer[zr->v4l_grab_frame].bs.timestamp);
 						zr->v4l_grab_frame = NO_GRAB_ACTIVE;
 						zr->v4l_pend_tail++;
 					}

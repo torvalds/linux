@@ -4480,18 +4480,11 @@ static void handle_scan_event(struct ipw_priv *priv)
 {
 	/* Only userspace-requested scan completion events go out immediately */
 	if (!priv->user_requested_scan) {
-		if (!delayed_work_pending(&priv->scan_event))
-			schedule_delayed_work(&priv->scan_event,
-					      round_jiffies_relative(msecs_to_jiffies(4000)));
+		schedule_delayed_work(&priv->scan_event,
+				      round_jiffies_relative(msecs_to_jiffies(4000)));
 	} else {
-		union iwreq_data wrqu;
-
 		priv->user_requested_scan = 0;
-		cancel_delayed_work(&priv->scan_event);
-
-		wrqu.data.length = 0;
-		wrqu.data.flags = 0;
-		wireless_send_event(priv->net_dev, SIOCGIWSCAN, &wrqu, NULL);
+		mod_delayed_work(system_wq, &priv->scan_event, 0);
 	}
 }
 
@@ -11327,7 +11320,6 @@ static int ipw_up(struct ipw_priv *priv)
 		if (!(priv->config & CFG_CUSTOM_MAC))
 			eeprom_parse_mac(priv, priv->mac_addr);
 		memcpy(priv->net_dev->dev_addr, priv->mac_addr, ETH_ALEN);
-		memcpy(priv->net_dev->perm_addr, priv->mac_addr, ETH_ALEN);
 
 		ipw_set_geo(priv);
 

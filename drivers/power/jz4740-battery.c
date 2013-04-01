@@ -22,6 +22,7 @@
 #include <linux/io.h>
 
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/mfd/core.h>
 #include <linux/power_supply.h>
@@ -266,9 +267,9 @@ static int jz_battery_probe(struct platform_device *pdev)
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	jz_battery->base = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!jz_battery->base)
-		return -EBUSY;
+	jz_battery->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(jz_battery->base))
+		return PTR_ERR(jz_battery->base);
 
 	battery = &jz_battery->battery;
 	battery->name = pdata->info.name;

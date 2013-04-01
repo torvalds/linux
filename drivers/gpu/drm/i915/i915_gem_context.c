@@ -126,13 +126,8 @@ static int get_context_size(struct drm_device *dev)
 
 static void do_destroy(struct i915_hw_context *ctx)
 {
-	struct drm_device *dev = ctx->obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	if (ctx->file_priv)
 		idr_remove(&ctx->file_priv->context_idr, ctx->id);
-	else
-		BUG_ON(ctx != dev_priv->ring[RCS].default_context);
 
 	drm_gem_object_unreference(&ctx->obj->base);
 	kfree(ctx);
@@ -144,7 +139,7 @@ create_hw_context(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_hw_context *ctx;
-	int ret, id;
+	int ret;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx == NULL)
@@ -169,22 +164,11 @@ create_hw_context(struct drm_device *dev,
 
 	ctx->file_priv = file_priv;
 
-again:
-	if (idr_pre_get(&file_priv->context_idr, GFP_KERNEL) == 0) {
-		ret = -ENOMEM;
-		DRM_DEBUG_DRIVER("idr allocation failed\n");
+	ret = idr_alloc(&file_priv->context_idr, ctx, DEFAULT_CONTEXT_ID + 1, 0,
+			GFP_KERNEL);
+	if (ret < 0)
 		goto err_out;
-	}
-
-	ret = idr_get_new_above(&file_priv->context_idr, ctx,
-				DEFAULT_CONTEXT_ID + 1, &id);
-	if (ret == 0)
-		ctx->id = id;
-
-	if (ret == -EAGAIN)
-		goto again;
-	else if (ret)
-		goto err_out;
+	ctx->id = ret;
 
 	return ctx;
 
@@ -242,7 +226,6 @@ err_destroy:
 void i915_gem_context_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t ctx_size;
 
 	if (!HAS_HW_CONTEXTS(dev)) {
 		dev_priv->hw_contexts_disabled = true;
@@ -254,11 +237,9 @@ void i915_gem_context_init(struct drm_device *dev)
 	    dev_priv->ring[RCS].default_context)
 		return;
 
-	ctx_size = get_context_size(dev);
-	dev_priv->hw_context_size = get_context_size(dev);
-	dev_priv->hw_context_size = round_up(dev_priv->hw_context_size, 4096);
+	dev_priv->hw_context_size = round_up(get_context_size(dev), 4096);
 
-	if (ctx_size <= 0 || ctx_size > (1<<20)) {
+	if (dev_priv->hw_context_size > (1<<20)) {
 		dev_priv->hw_contexts_disabled = true;
 		return;
 	}

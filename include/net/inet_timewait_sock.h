@@ -178,11 +178,11 @@ static inline int inet_twsk_del_dead_node(struct inet_timewait_sock *tw)
 #define inet_twsk_for_each(tw, node, head) \
 	hlist_nulls_for_each_entry(tw, node, head, tw_node)
 
-#define inet_twsk_for_each_inmate(tw, node, jail) \
-	hlist_for_each_entry(tw, node, jail, tw_death_node)
+#define inet_twsk_for_each_inmate(tw, jail) \
+	hlist_for_each_entry(tw, jail, tw_death_node)
 
-#define inet_twsk_for_each_inmate_safe(tw, node, safe, jail) \
-	hlist_for_each_entry_safe(tw, node, safe, jail, tw_death_node)
+#define inet_twsk_for_each_inmate_safe(tw, safe, jail) \
+	hlist_for_each_entry_safe(tw, safe, jail, tw_death_node)
 
 static inline struct inet_timewait_sock *inet_twsk(const struct sock *sk)
 {

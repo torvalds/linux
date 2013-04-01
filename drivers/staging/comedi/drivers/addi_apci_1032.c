@@ -29,6 +29,9 @@
  * source code.
  */
 
+#include <linux/pci.h>
+#include <linux/interrupt.h>
+
 #include "../comedidev.h"
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
@@ -375,11 +378,6 @@ static int apci1032_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci1032_driver);
 }
 
-static void apci1032_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(apci1032_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1003) },
 	{ 0 }
@@ -390,7 +388,7 @@ static struct pci_driver apci1032_pci_driver = {
 	.name		= "addi_apci_1032",
 	.id_table	= apci1032_pci_table,
 	.probe		= apci1032_pci_probe,
-	.remove		= apci1032_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(apci1032_driver, apci1032_pci_driver);
 

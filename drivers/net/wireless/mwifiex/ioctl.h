@@ -20,7 +20,6 @@
 #ifndef _MWIFIEX_IOCTL_H_
 #define _MWIFIEX_IOCTL_H_
 
-#include <net/mac80211.h>
 #include <net/lib80211.h>
 
 enum {
@@ -61,6 +60,8 @@ enum {
 	BAND_A = 4,
 	BAND_GN = 8,
 	BAND_AN = 16,
+	BAND_GAC = 32,
+	BAND_AAC = 64,
 };
 
 #define MWIFIEX_WPA_PASSHPHRASE_LEN 64
@@ -104,9 +105,12 @@ struct mwifiex_uap_bss_param {
 	struct wpa_param wpa_cfg;
 	struct wep_key wep_cfg[NUM_WEP_KEYS];
 	struct ieee80211_ht_cap ht_cap;
+	struct ieee80211_vht_cap vht_cap;
 	u8 rates[MWIFIEX_SUPPORTED_RATES];
 	u32 sta_ao_timer;
 	u32 ps_sta_ao_timer;
+	u8 qos_info;
+	struct mwifiex_types_wmm_info wmm_info;
 };
 
 enum {
@@ -177,7 +181,6 @@ struct mwifiex_ds_tx_ba_stream_tbl {
 struct mwifiex_debug_info {
 	u32 int_counter;
 	u32 packets_out[MAX_NUM_TID];
-	u32 max_tx_buf_size;
 	u32 tx_buf_size;
 	u32 curr_tx_buf_size;
 	u32 tx_tbl_num;
@@ -272,6 +275,7 @@ struct mwifiex_ds_pm_cfg {
 struct mwifiex_ds_11n_tx_cfg {
 	u16 tx_htcap;
 	u16 tx_htinfo;
+	u16 misc_config; /* Needed for 802.11AC cards only */
 };
 
 struct mwifiex_ds_11n_amsdu_aggr_ctrl {

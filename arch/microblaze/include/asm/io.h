@@ -150,7 +150,7 @@ static inline void writel(unsigned int v, volatile void __iomem *addr)
 #define page_to_bus(page)	(page_to_phys(page))
 #define bus_to_virt(addr)	(phys_to_virt(addr))
 
-extern void iounmap(void *addr);
+extern void iounmap(void __iomem *addr);
 /*extern void *__ioremap(phys_addr_t address, unsigned long size,
 		unsigned long flags);*/
 extern void __iomem *ioremap(phys_addr_t address, unsigned long size);

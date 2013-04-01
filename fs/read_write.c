@@ -15,6 +15,7 @@
 #include <linux/syscalls.h>
 #include <linux/pagemap.h>
 #include <linux/splice.h>
+#include <linux/compat.h>
 #include "read_write.h"
 
 #include <asm/uaccess.h>
@@ -163,7 +164,7 @@ EXPORT_SYMBOL(no_llseek);
 
 loff_t default_llseek(struct file *file, loff_t offset, int whence)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	loff_t retval;
 
 	mutex_lock(&inode->i_mutex);
@@ -247,6 +248,13 @@ SYSCALL_DEFINE3(lseek, unsigned int, fd, off_t, offset, unsigned int, whence)
 	return retval;
 }
 
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE3(lseek, unsigned int, fd, compat_off_t, offset, unsigned int, whence)
+{
+	return sys_lseek(fd, offset, whence);
+}
+#endif
+
 #ifdef __ARCH_WANT_SYS_LLSEEK
 SYSCALL_DEFINE5(llseek, unsigned int, fd, unsigned long, offset_high,
 		unsigned long, offset_low, loff_t __user *, result,
@@ -278,7 +286,6 @@ out_putf:
 }
 #endif
 
-
 /*
  * rw_verify_area doesn't like huge counts. We limit
  * them to something that fits in "int" so that others
@@ -290,7 +297,7 @@ int rw_verify_area(int read_write, struct file *file, loff_t *ppos, size_t count
 	loff_t pos;
 	int retval = -EINVAL;
 
-	inode = file->f_path.dentry->d_inode;
+	inode = file_inode(file);
 	if (unlikely((ssize_t) count < 0))
 		return retval;
 	pos = *ppos;
@@ -901,8 +908,8 @@ ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos, size_t count,
 	if (!(out.file->f_mode & FMODE_WRITE))
 		goto fput_out;
 	retval = -EINVAL;
-	in_inode = in.file->f_path.dentry->d_inode;
-	out_inode = out.file->f_path.dentry->d_inode;
+	in_inode = file_inode(in.file);
+	out_inode = file_inode(out.file);
 	retval = rw_verify_area(WRITE, out.file, &out.file->f_pos, count);
 	if (retval < 0)
 		goto fput_out;

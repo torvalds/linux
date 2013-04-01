@@ -112,8 +112,8 @@ struct mips_fpu_struct {
 typedef __u32 dspreg_t;
 
 struct mips_dsp_state {
-	dspreg_t        dspr[NUM_DSP_REGS];
-	unsigned int    dspcontrol;
+	dspreg_t	dspr[NUM_DSP_REGS];
+	unsigned int	dspcontrol;
 };
 
 #define INIT_CPUMASK { \
@@ -137,46 +137,46 @@ union mips_watch_reg_state {
 
 struct octeon_cop2_state {
 	/* DMFC2 rt, 0x0201 */
-	unsigned long   cop2_crc_iv;
+	unsigned long	cop2_crc_iv;
 	/* DMFC2 rt, 0x0202 (Set with DMTC2 rt, 0x1202) */
-	unsigned long   cop2_crc_length;
+	unsigned long	cop2_crc_length;
 	/* DMFC2 rt, 0x0200 (set with DMTC2 rt, 0x4200) */
-	unsigned long   cop2_crc_poly;
+	unsigned long	cop2_crc_poly;
 	/* DMFC2 rt, 0x0402; DMFC2 rt, 0x040A */
-	unsigned long   cop2_llm_dat[2];
+	unsigned long	cop2_llm_dat[2];
        /* DMFC2 rt, 0x0084 */
-	unsigned long   cop2_3des_iv;
+	unsigned long	cop2_3des_iv;
 	/* DMFC2 rt, 0x0080; DMFC2 rt, 0x0081; DMFC2 rt, 0x0082 */
-	unsigned long   cop2_3des_key[3];
+	unsigned long	cop2_3des_key[3];
 	/* DMFC2 rt, 0x0088 (Set with DMTC2 rt, 0x0098) */
-	unsigned long   cop2_3des_result;
+	unsigned long	cop2_3des_result;
 	/* DMFC2 rt, 0x0111 (FIXME: Read Pass1 Errata) */
-	unsigned long   cop2_aes_inp0;
+	unsigned long	cop2_aes_inp0;
 	/* DMFC2 rt, 0x0102; DMFC2 rt, 0x0103 */
-	unsigned long   cop2_aes_iv[2];
+	unsigned long	cop2_aes_iv[2];
 	/* DMFC2 rt, 0x0104; DMFC2 rt, 0x0105; DMFC2 rt, 0x0106; DMFC2
 	 * rt, 0x0107 */
-	unsigned long   cop2_aes_key[4];
+	unsigned long	cop2_aes_key[4];
 	/* DMFC2 rt, 0x0110 */
-	unsigned long   cop2_aes_keylen;
+	unsigned long	cop2_aes_keylen;
 	/* DMFC2 rt, 0x0100; DMFC2 rt, 0x0101 */
-	unsigned long   cop2_aes_result[2];
+	unsigned long	cop2_aes_result[2];
 	/* DMFC2 rt, 0x0240; DMFC2 rt, 0x0241; DMFC2 rt, 0x0242; DMFC2
 	 * rt, 0x0243; DMFC2 rt, 0x0244; DMFC2 rt, 0x0245; DMFC2 rt,
 	 * 0x0246; DMFC2 rt, 0x0247; DMFC2 rt, 0x0248; DMFC2 rt,
 	 * 0x0249; DMFC2 rt, 0x024A; DMFC2 rt, 0x024B; DMFC2 rt,
 	 * 0x024C; DMFC2 rt, 0x024D; DMFC2 rt, 0x024E - Pass2 */
-	unsigned long   cop2_hsh_datw[15];
+	unsigned long	cop2_hsh_datw[15];
 	/* DMFC2 rt, 0x0250; DMFC2 rt, 0x0251; DMFC2 rt, 0x0252; DMFC2
 	 * rt, 0x0253; DMFC2 rt, 0x0254; DMFC2 rt, 0x0255; DMFC2 rt,
 	 * 0x0256; DMFC2 rt, 0x0257 - Pass2 */
-	unsigned long   cop2_hsh_ivw[8];
+	unsigned long	cop2_hsh_ivw[8];
 	/* DMFC2 rt, 0x0258; DMFC2 rt, 0x0259 - Pass2 */
-	unsigned long   cop2_gfm_mult[2];
+	unsigned long	cop2_gfm_mult[2];
 	/* DMFC2 rt, 0x025E - Pass2 */
-	unsigned long   cop2_gfm_poly;
+	unsigned long	cop2_gfm_poly;
 	/* DMFC2 rt, 0x025A; DMFC2 rt, 0x025B - Pass2 */
-	unsigned long   cop2_gfm_result[2];
+	unsigned long	cop2_gfm_result[2];
 };
 #define INIT_OCTEON_COP2 {0,}
 
@@ -249,9 +249,9 @@ struct thread_struct {
 #endif /* CONFIG_CPU_CAVIUM_OCTEON */
 
 #define INIT_THREAD  {						\
-        /*							\
-         * Saved main processor registers			\
-         */							\
+	/*							\
+	 * Saved main processor registers			\
+	 */							\
 	.reg16			= 0,				\
 	.reg17			= 0,				\
 	.reg18			= 0,				\
@@ -332,7 +332,7 @@ unsigned long get_wchan(struct task_struct *p);
  * aborts compilation on some CPUs.  It's simply not possible to unwind
  * some CPU's stackframes.
  *
- * __builtin_return_address works only for non-leaf functions.  We avoid the
+ * __builtin_return_address works only for non-leaf functions.	We avoid the
  * overhead of a function call by forcing the compiler to save the return
  * address register on the stack.
  */

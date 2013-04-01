@@ -163,9 +163,9 @@ static int ads7828_probe(struct i2c_client *client,
 
 	/* Bound Vref with min/max values if it was provided */
 	if (data->vref_mv)
-		data->vref_mv = SENSORS_LIMIT(data->vref_mv,
-					      ADS7828_EXT_VREF_MV_MIN,
-					      ADS7828_EXT_VREF_MV_MAX);
+		data->vref_mv = clamp_val(data->vref_mv,
+					  ADS7828_EXT_VREF_MV_MIN,
+					  ADS7828_EXT_VREF_MV_MAX);
 	else
 		data->vref_mv = ADS7828_INT_VREF_MV;
 

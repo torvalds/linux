@@ -336,7 +336,7 @@ static struct usb_configuration webcam_config_driver = {
 	.bConfigurationValue	= 1,
 	.iConfiguration		= 0, /* dynamic */
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower		= CONFIG_USB_GADGET_VBUS_DRAW / 2,
+	.MaxPower		= CONFIG_USB_GADGET_VBUS_DRAW,
 };
 
 static int /* __init_or_exit */

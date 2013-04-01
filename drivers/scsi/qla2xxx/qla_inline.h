@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -198,6 +198,13 @@ done:
 }
 
 static inline void
+qla2x00_rel_sp(scsi_qla_host_t *vha, srb_t *sp)
+{
+	mempool_free(sp, vha->hw->srb_mempool);
+	QLA_VHA_MARK_NOT_BUSY(vha);
+}
+
+static inline void
 qla2x00_init_timer(srb_t *sp, unsigned long tmo)
 {
 	init_timer(&sp->u.iocb_cmd.timer);
@@ -212,4 +219,23 @@ static inline int
 qla2x00_gid_list_size(struct qla_hw_data *ha)
 {
 	return sizeof(struct gid_list_info) * ha->max_fibre_devices;
+}
+
+static inline void
+qla2x00_do_host_ramp_up(scsi_qla_host_t *vha)
+{
+	if (vha->hw->cfg_lun_q_depth >= ql2xmaxqdepth)
+		return;
+
+	/* Wait at least HOST_QUEUE_RAMPDOWN_INTERVAL before ramping up */
+	if (time_before(jiffies, (vha->hw->host_last_rampdown_time +
+	    HOST_QUEUE_RAMPDOWN_INTERVAL)))
+		return;
+
+	/* Wait at least HOST_QUEUE_RAMPUP_INTERVAL between each ramp up */
+	if (time_before(jiffies, (vha->hw->host_last_rampup_time +
+	    HOST_QUEUE_RAMPUP_INTERVAL)))
+		return;
+
+	set_bit(HOST_RAMP_UP_QUEUE_DEPTH, &vha->dpc_flags);
 }

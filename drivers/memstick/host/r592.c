@@ -454,7 +454,7 @@ static int r592_transfer_fifo_pio(struct r592_device *dev)
 /* Executes one TPC (data is read/written from small or large fifo) */
 static void r592_execute_tpc(struct r592_device *dev)
 {
-	bool is_write = dev->req->tpc >= MS_TPC_SET_RW_REG_ADRS;
+	bool is_write;
 	int len, error;
 	u32 status, reg;
 
@@ -463,6 +463,7 @@ static void r592_execute_tpc(struct r592_device *dev)
 		return;
 	}
 
+	is_write = dev->req->tpc >= MS_TPC_SET_RW_REG_ADRS;
 	len = dev->req->long_data ?
 		dev->req->sg.length : dev->req->data_len;
 

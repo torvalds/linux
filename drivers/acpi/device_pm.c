@@ -30,6 +30,12 @@
 
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
+#include <acpi/acpi_drivers.h>
+
+#include "internal.h"
+
+#define _COMPONENT	ACPI_POWER_COMPONENT
+ACPI_MODULE_NAME("device_pm");
 
 static DEFINE_MUTEX(acpi_pm_notifier_lock);
 
@@ -92,6 +98,293 @@ acpi_status acpi_remove_pm_notifier(struct acpi_device *adev,
 	mutex_unlock(&acpi_pm_notifier_lock);
 	return status;
 }
+
+/**
+ * acpi_power_state_string - String representation of ACPI device power state.
+ * @state: ACPI device power state to return the string representation of.
+ */
+const char *acpi_power_state_string(int state)
+{
+	switch (state) {
+	case ACPI_STATE_D0:
+		return "D0";
+	case ACPI_STATE_D1:
+		return "D1";
+	case ACPI_STATE_D2:
+		return "D2";
+	case ACPI_STATE_D3_HOT:
+		return "D3hot";
+	case ACPI_STATE_D3_COLD:
+		return "D3cold";
+	default:
+		return "(unknown)";
+	}
+}
+
+/**
+ * acpi_device_get_power - Get power state of an ACPI device.
+ * @device: Device to get the power state of.
+ * @state: Place to store the power state of the device.
+ *
+ * This function does not update the device's power.state field, but it may
+ * update its parent's power.state field (when the parent's power state is
+ * unknown and the device's power state turns out to be D0).
+ */
+int acpi_device_get_power(struct acpi_device *device, int *state)
+{
+	int result = ACPI_STATE_UNKNOWN;
+
+	if (!device || !state)
+		return -EINVAL;
+
+	if (!device->flags.power_manageable) {
+		/* TBD: Non-recursive algorithm for walking up hierarchy. */
+		*state = device->parent ?
+			device->parent->power.state : ACPI_STATE_D0;
+		goto out;
+	}
+
+	/*
+	 * Get the device's power state either directly (via _PSC) or
+	 * indirectly (via power resources).
+	 */
+	if (device->power.flags.explicit_get) {
+		unsigned long long psc;
+		acpi_status status = acpi_evaluate_integer(device->handle,
+							   "_PSC", NULL, &psc);
+		if (ACPI_FAILURE(status))
+			return -ENODEV;
+
+		result = psc;
+	}
+	/* The test below covers ACPI_STATE_UNKNOWN too. */
+	if (result <= ACPI_STATE_D2) {
+	  ; /* Do nothing. */
+	} else if (device->power.flags.power_resources) {
+		int error = acpi_power_get_inferred_state(device, &result);
+		if (error)
+			return error;
+	} else if (result == ACPI_STATE_D3_HOT) {
+		result = ACPI_STATE_D3;
+	}
+
+	/*
+	 * If we were unsure about the device parent's power state up to this
+	 * point, the fact that the device is in D0 implies that the parent has
+	 * to be in D0 too.
+	 */
+	if (device->parent && device->parent->power.state == ACPI_STATE_UNKNOWN
+	    && result == ACPI_STATE_D0)
+		device->parent->power.state = ACPI_STATE_D0;
+
+	*state = result;
+
+ out:
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device [%s] power state is %s\n",
+			  device->pnp.bus_id, acpi_power_state_string(*state)));
+
+	return 0;
+}
+
+static int acpi_dev_pm_explicit_set(struct acpi_device *adev, int state)
+{
+	if (adev->power.states[state].flags.explicit_set) {
+		char method[5] = { '_', 'P', 'S', '0' + state, '\0' };
+		acpi_status status;
+
+		status = acpi_evaluate_object(adev->handle, method, NULL, NULL);
+		if (ACPI_FAILURE(status))
+			return -ENODEV;
+	}
+	return 0;
+}
+
+/**
+ * acpi_device_set_power - Set power state of an ACPI device.
+ * @device: Device to set the power state of.
+ * @state: New power state to set.
+ *
+ * Callers must ensure that the device is power manageable before using this
+ * function.
+ */
+int acpi_device_set_power(struct acpi_device *device, int state)
+{
+	int result = 0;
+	bool cut_power = false;
+
+	if (!device || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3_COLD))
+		return -EINVAL;
+
+	/* Make sure this is a valid target state */
+
+	if (state == device->power.state) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device is already at %s\n",
+				  acpi_power_state_string(state)));
+		return 0;
+	}
+
+	if (!device->power.states[state].flags.valid) {
+		printk(KERN_WARNING PREFIX "Device does not support %s\n",
+		       acpi_power_state_string(state));
+		return -ENODEV;
+	}
+	if (device->parent && (state < device->parent->power.state)) {
+		printk(KERN_WARNING PREFIX
+			      "Cannot set device to a higher-powered"
+			      " state than parent\n");
+		return -ENODEV;
+	}
+
+	/* For D3cold we should first transition into D3hot. */
+	if (state == ACPI_STATE_D3_COLD
+	    && device->power.states[ACPI_STATE_D3_COLD].flags.os_accessible) {
+		state = ACPI_STATE_D3_HOT;
+		cut_power = true;
+	}
+
+	if (state < device->power.state && state != ACPI_STATE_D0
+	    && device->power.state >= ACPI_STATE_D3_HOT) {
+		printk(KERN_WARNING PREFIX
+			"Cannot transition to non-D0 state from D3\n");
+		return -ENODEV;
+	}
+
+	/*
+	 * Transition Power
+	 * ----------------
+	 * In accordance with the ACPI specification first apply power (via
+	 * power resources) and then evalute _PSx.
+	 */
+	if (device->power.flags.power_resources) {
+		result = acpi_power_transition(device, state);
+		if (result)
+			goto end;
+	}
+	result = acpi_dev_pm_explicit_set(device, state);
+	if (result)
+		goto end;
+
+	if (cut_power) {
+		device->power.state = state;
+		state = ACPI_STATE_D3_COLD;
+		result = acpi_power_transition(device, state);
+	}
+
+ end:
+	if (result) {
+		printk(KERN_WARNING PREFIX
+			      "Device [%s] failed to transition to %s\n",
+			      device->pnp.bus_id,
+			      acpi_power_state_string(state));
+	} else {
+		device->power.state = state;
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				  "Device [%s] transitioned to %s\n",
+				  device->pnp.bus_id,
+				  acpi_power_state_string(state)));
+	}
+
+	return result;
+}
+EXPORT_SYMBOL(acpi_device_set_power);
+
+int acpi_bus_set_power(acpi_handle handle, int state)
+{
+	struct acpi_device *device;
+	int result;
+
+	result = acpi_bus_get_device(handle, &device);
+	if (result)
+		return result;
+
+	if (!device->flags.power_manageable) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				"Device [%s] is not power manageable\n",
+				dev_name(&device->dev)));
+		return -ENODEV;
+	}
+
+	return acpi_device_set_power(device, state);
+}
+EXPORT_SYMBOL(acpi_bus_set_power);
+
+int acpi_bus_init_power(struct acpi_device *device)
+{
+	int state;
+	int result;
+
+	if (!device)
+		return -EINVAL;
+
+	device->power.state = ACPI_STATE_UNKNOWN;
+
+	result = acpi_device_get_power(device, &state);
+	if (result)
+		return result;
+
+	if (state < ACPI_STATE_D3_COLD && device->power.flags.power_resources) {
+		result = acpi_power_on_resources(device, state);
+		if (result)
+			return result;
+
+		result = acpi_dev_pm_explicit_set(device, state);
+		if (result)
+			return result;
+	} else if (state == ACPI_STATE_UNKNOWN) {
+		/* No power resources and missing _PSC? Try to force D0. */
+		state = ACPI_STATE_D0;
+		result = acpi_dev_pm_explicit_set(device, state);
+		if (result)
+			return result;
+	}
+	device->power.state = state;
+	return 0;
+}
+
+int acpi_bus_update_power(acpi_handle handle, int *state_p)
+{
+	struct acpi_device *device;
+	int state;
+	int result;
+
+	result = acpi_bus_get_device(handle, &device);
+	if (result)
+		return result;
+
+	result = acpi_device_get_power(device, &state);
+	if (result)
+		return result;
+
+	if (state == ACPI_STATE_UNKNOWN)
+		state = ACPI_STATE_D0;
+
+	result = acpi_device_set_power(device, state);
+	if (!result && state_p)
+		*state_p = state;
+
+	return result;
+}
+EXPORT_SYMBOL_GPL(acpi_bus_update_power);
+
+bool acpi_bus_power_manageable(acpi_handle handle)
+{
+	struct acpi_device *device;
+	int result;
+
+	result = acpi_bus_get_device(handle, &device);
+	return result ? false : device->flags.power_manageable;
+}
+EXPORT_SYMBOL(acpi_bus_power_manageable);
+
+bool acpi_bus_can_wakeup(acpi_handle handle)
+{
+	struct acpi_device *device;
+	int result;
+
+	result = acpi_bus_get_device(handle, &device);
+	return result ? false : device->wakeup.flags.valid;
+}
+EXPORT_SYMBOL(acpi_bus_can_wakeup);
 
 /**
  * acpi_device_power_state - Get preferred power state of ACPI device.
@@ -213,7 +506,7 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 	acpi_handle handle = DEVICE_ACPI_HANDLE(dev);
 	struct acpi_device *adev;
 
-	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
+	if (!handle || acpi_bus_get_device(handle, &adev)) {
 		dev_dbg(dev, "ACPI handle without context in %s!\n", __func__);
 		return -ENODEV;
 	}
@@ -290,7 +583,7 @@ int acpi_pm_device_run_wake(struct device *phys_dev, bool enable)
 		return -EINVAL;
 
 	handle = DEVICE_ACPI_HANDLE(phys_dev);
-	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
+	if (!handle || acpi_bus_get_device(handle, &adev)) {
 		dev_dbg(phys_dev, "ACPI handle without context in %s!\n",
 			__func__);
 		return -ENODEV;
@@ -304,7 +597,7 @@ static inline void acpi_wakeup_device(acpi_handle handle, u32 event,
 				      void *context) {}
 #endif /* CONFIG_PM_RUNTIME */
 
- #ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_PM_SLEEP
 /**
  * __acpi_device_sleep_wake - Enable or disable device to wake up the system.
  * @dev: Device to enable/desible to wake up the system.
@@ -334,7 +627,7 @@ int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 		return -EINVAL;
 
 	handle = DEVICE_ACPI_HANDLE(dev);
-	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
+	if (!handle || acpi_bus_get_device(handle, &adev)) {
 		dev_dbg(dev, "ACPI handle without context in %s!\n", __func__);
 		return -ENODEV;
 	}
@@ -353,7 +646,7 @@ int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
  * acpi_dev_pm_get_node - Get ACPI device node for the given physical device.
  * @dev: Device to get the ACPI node for.
  */
-static struct acpi_device *acpi_dev_pm_get_node(struct device *dev)
+struct acpi_device *acpi_dev_pm_get_node(struct device *dev)
 {
 	acpi_handle handle = DEVICE_ACPI_HANDLE(dev);
 	struct acpi_device *adev;
@@ -665,3 +958,59 @@ void acpi_dev_pm_detach(struct device *dev, bool power_off)
 	}
 }
 EXPORT_SYMBOL_GPL(acpi_dev_pm_detach);
+
+/**
+ * acpi_dev_pm_add_dependent - Add physical device depending for PM.
+ * @handle: Handle of ACPI device node.
+ * @depdev: Device depending on that node for PM.
+ */
+void acpi_dev_pm_add_dependent(acpi_handle handle, struct device *depdev)
+{
+	struct acpi_device_physical_node *dep;
+	struct acpi_device *adev;
+
+	if (!depdev || acpi_bus_get_device(handle, &adev))
+		return;
+
+	mutex_lock(&adev->physical_node_lock);
+
+	list_for_each_entry(dep, &adev->power_dependent, node)
+		if (dep->dev == depdev)
+			goto out;
+
+	dep = kzalloc(sizeof(*dep), GFP_KERNEL);
+	if (dep) {
+		dep->dev = depdev;
+		list_add_tail(&dep->node, &adev->power_dependent);
+	}
+
+ out:
+	mutex_unlock(&adev->physical_node_lock);
+}
+EXPORT_SYMBOL_GPL(acpi_dev_pm_add_dependent);
+
+/**
+ * acpi_dev_pm_remove_dependent - Remove physical device depending for PM.
+ * @handle: Handle of ACPI device node.
+ * @depdev: Device depending on that node for PM.
+ */
+void acpi_dev_pm_remove_dependent(acpi_handle handle, struct device *depdev)
+{
+	struct acpi_device_physical_node *dep;
+	struct acpi_device *adev;
+
+	if (!depdev || acpi_bus_get_device(handle, &adev))
+		return;
+
+	mutex_lock(&adev->physical_node_lock);
+
+	list_for_each_entry(dep, &adev->power_dependent, node)
+		if (dep->dev == depdev) {
+			list_del(&dep->node);
+			kfree(dep);
+			break;
+		}
+
+	mutex_unlock(&adev->physical_node_lock);
+}
+EXPORT_SYMBOL_GPL(acpi_dev_pm_remove_dependent);

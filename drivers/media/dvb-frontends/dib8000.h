@@ -37,7 +37,7 @@ struct dib8000_config {
 
 #define DEFAULT_DIB8000_I2C_ADDRESS 18
 
-#if defined(CONFIG_DVB_DIB8000) || (defined(CONFIG_DVB_DIB8000_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_DIB8000)
 extern struct dvb_frontend *dib8000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg);
 extern struct i2c_adapter *dib8000_get_i2c_master(struct dvb_frontend *, enum dibx000_i2c_interface, int);
 

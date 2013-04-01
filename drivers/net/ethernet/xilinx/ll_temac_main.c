@@ -238,11 +238,9 @@ static int temac_dma_bd_init(struct net_device *ndev)
 	int i;
 
 	lp->rx_skb = kcalloc(RX_BD_NUM, sizeof(*lp->rx_skb), GFP_KERNEL);
-	if (!lp->rx_skb) {
-		dev_err(&ndev->dev,
-				"can't allocate memory for DMA RX buffer\n");
+	if (!lp->rx_skb)
 		goto out;
-	}
+
 	/* allocate the tx and rx ring buffer descriptors. */
 	/* returns a virtual address and a physical address. */
 	lp->tx_bd_v = dma_alloc_coherent(ndev->dev.parent,
@@ -319,17 +317,9 @@ out:
  * net_device_ops
  */
 
-static int temac_set_mac_address(struct net_device *ndev, void *address)
+static void temac_do_set_mac_address(struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);
-
-	if (address)
-		memcpy(ndev->dev_addr, address, ETH_ALEN);
-
-	if (!is_valid_ether_addr(ndev->dev_addr))
-		eth_hw_addr_random(ndev);
-	else
-		ndev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	/* set up unicast MAC address filter set its mac address */
 	mutex_lock(&lp->indirect_mutex);
@@ -344,15 +334,26 @@ static int temac_set_mac_address(struct net_device *ndev, void *address)
 			     (ndev->dev_addr[4] & 0x000000ff) |
 			     (ndev->dev_addr[5] << 8));
 	mutex_unlock(&lp->indirect_mutex);
+}
 
+static int temac_init_mac_address(struct net_device *ndev, void *address)
+{
+	memcpy(ndev->dev_addr, address, ETH_ALEN);
+	if (!is_valid_ether_addr(ndev->dev_addr))
+		eth_hw_addr_random(ndev);
+	temac_do_set_mac_address(ndev);
 	return 0;
 }
 
-static int netdev_set_mac_address(struct net_device *ndev, void *p)
+static int temac_set_mac_address(struct net_device *ndev, void *p)
 {
 	struct sockaddr *addr = p;
 
-	return temac_set_mac_address(ndev, addr->sa_data);
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+	memcpy(ndev->dev_addr, addr->sa_data, ETH_ALEN);
+	temac_do_set_mac_address(ndev);
+	return 0;
 }
 
 static void temac_set_multicast_list(struct net_device *ndev)
@@ -579,7 +580,7 @@ static void temac_device_reset(struct net_device *ndev)
 	temac_setoptions(ndev,
 			 lp->options & ~(XTE_OPTION_TXEN | XTE_OPTION_RXEN));
 
-	temac_set_mac_address(ndev, NULL);
+	temac_do_set_mac_address(ndev);
 
 	/* Set address filter table */
 	temac_set_multicast_list(ndev);
@@ -938,7 +939,7 @@ static const struct net_device_ops temac_netdev_ops = {
 	.ndo_open = temac_open,
 	.ndo_stop = temac_stop,
 	.ndo_start_xmit = temac_start_xmit,
-	.ndo_set_mac_address = netdev_set_mac_address,
+	.ndo_set_mac_address = temac_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_do_ioctl = temac_ioctl,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1106,7 +1107,7 @@ static int temac_of_probe(struct platform_device *op)
 		rc = -ENODEV;
 		goto err_iounmap_2;
 	}
-	temac_set_mac_address(ndev, (void *)addr);
+	temac_init_mac_address(ndev, (void *)addr);
 
 	rc = temac_mdio_setup(lp, op->dev.of_node);
 	if (rc)

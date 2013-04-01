@@ -997,9 +997,8 @@ static int smsc911x_mii_probe(struct net_device *dev)
 	SMSC_TRACE(pdata, probe, "PHY: addr %d, phy_id 0x%08X",
 		   phydev->addr, phydev->phy_id);
 
-	ret = phy_connect_direct(dev, phydev,
-			&smsc911x_phy_adjust_link, 0,
-			pdata->config.phy_interface);
+	ret = phy_connect_direct(dev, phydev, &smsc911x_phy_adjust_link,
+				 pdata->config.phy_interface);
 
 	if (ret) {
 		netdev_err(dev, "Could not attach to PHY\n");
@@ -1831,7 +1830,6 @@ static int smsc911x_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 
 	spin_lock_irq(&pdata->mac_lock);

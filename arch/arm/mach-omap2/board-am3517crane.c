@@ -20,12 +20,18 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/mfd/tps65910.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/partitions.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
 #include "common.h"
+#include "common-board-devices.h"
+#include "board-flash.h"
 
 #include "am35xx-emac.h"
 #include "mux.h"
@@ -36,11 +42,12 @@
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
+	OMAP3_MUX(SYS_NIRQ, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #endif
 
-static struct usbhs_omap_board_data usbhs_bdata __initdata = {
+static struct usbhs_omap_platform_data usbhs_bdata __initdata = {
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
 	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
@@ -51,6 +58,54 @@ static struct usbhs_omap_board_data usbhs_bdata __initdata = {
 	.reset_gpio_port[2]  = -EINVAL
 };
 
+static struct mtd_partition crane_nand_partitions[] = {
+	{
+		.name		= "X-Loader",
+		.offset		= 0,
+		.size		= 4 * NAND_BLOCK_SIZE,
+		.mask_flags	= MTD_WRITEABLE,
+	},
+	{
+		.name		= "U-Boot",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 14 * NAND_BLOCK_SIZE,
+		.mask_flags	= MTD_WRITEABLE,
+	},
+	{
+		.name		= "U-Boot Env",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 2 * NAND_BLOCK_SIZE,
+	},
+	{
+		.name		= "Kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 40 * NAND_BLOCK_SIZE,
+	},
+	{
+		.name		= "File System",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct tps65910_board tps65910_pdata = {
+	.irq = 7 + OMAP_INTC_START,
+	.en_ck32k_xtal = true,
+};
+
+static struct i2c_board_info __initdata tps65910_board_info[] = {
+	{
+		I2C_BOARD_INFO("tps65910", 0x2d),
+		.platform_data = &tps65910_pdata,
+	},
+};
+
+static void __init am3517_crane_i2c_init(void)
+{
+	omap_register_i2c_bus(1, 2600, tps65910_board_info,
+			ARRAY_SIZE(tps65910_board_info));
+}
+
 static void __init am3517_crane_init(void)
 {
 	int ret;
@@ -58,6 +113,10 @@ static void __init am3517_crane_init(void)
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);
+	board_nand_init(crane_nand_partitions,
+			ARRAY_SIZE(crane_nand_partitions), 0,
+			NAND_BUSWIDTH_16, NULL);
+	am3517_crane_i2c_init();
 
 	/* Configure GPIO for EHCI port */
 	if (omap_mux_init_gpio(GPIO_USB_NRESET, OMAP_PIN_OUTPUT)) {
@@ -92,6 +151,6 @@ MACHINE_START(CRANEBOARD, "AM3517/05 CRANEBOARD")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= am3517_crane_init,
 	.init_late	= am35xx_init_late,
-	.timer		= &omap3_timer,
+	.init_time	= omap3_sync32k_timer_init,
 	.restart	= omap3xxx_restart,
 MACHINE_END

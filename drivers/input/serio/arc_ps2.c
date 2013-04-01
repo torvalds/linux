@@ -8,6 +8,7 @@
  * Driver is originally developed by Pavel Sokolov <psokolov@synopsys.com>
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
@@ -206,9 +207,9 @@ static int arc_ps2_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	arc_ps2->addr = devm_request_and_ioremap(&pdev->dev, res);
-	if (!arc_ps2->addr)
-		return -EBUSY;
+	arc_ps2->addr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(arc_ps2->addr))
+		return PTR_ERR(arc_ps2->addr);
 
 	dev_info(&pdev->dev, "irq = %d, address = 0x%p, ports = %i\n",
 		 irq, arc_ps2->addr, ARC_PS2_PORTS);

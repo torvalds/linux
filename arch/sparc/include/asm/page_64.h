@@ -27,8 +27,8 @@
 #ifndef __ASSEMBLY__
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-struct mm_struct;
-extern void hugetlb_setup(struct mm_struct *mm);
+struct pt_regs;
+extern void hugetlb_setup(struct pt_regs *regs);
 #endif
 
 #define WANT_PAGE_VIRTUAL

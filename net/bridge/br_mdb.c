@@ -18,7 +18,6 @@ static int br_rports_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 {
 	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_port *p;
-	struct hlist_node *n;
 	struct nlattr *nest;
 
 	if (!br->multicast_router || hlist_empty(&br->router_list))
@@ -28,7 +27,7 @@ static int br_rports_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 	if (nest == NULL)
 		return -EMSGSIZE;
 
-	hlist_for_each_entry_rcu(p, n, &br->router_list, rlist) {
+	hlist_for_each_entry_rcu(p, &br->router_list, rlist) {
 		if (p && nla_put_u32(skb, MDBA_ROUTER_PORT, p->dev->ifindex))
 			goto fail;
 	}
@@ -61,12 +60,11 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 		return -EMSGSIZE;
 
 	for (i = 0; i < mdb->max; i++) {
-		struct hlist_node *h;
 		struct net_bridge_mdb_entry *mp;
 		struct net_bridge_port_group *p, **pp;
 		struct net_bridge_port *port;
 
-		hlist_for_each_entry_rcu(mp, h, &mdb->mhash[i], hlist[mdb->ver]) {
+		hlist_for_each_entry_rcu(mp, &mdb->mhash[i], hlist[mdb->ver]) {
 			if (idx < s_idx)
 				goto skip;
 
@@ -271,9 +269,6 @@ static int br_mdb_parse(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct nlattr *tb[MDBA_SET_ENTRY_MAX+1];
 	struct net_device *dev;
 	int err;
-
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
 
 	err = nlmsg_parse(nlh, sizeof(*bpm), tb, MDBA_SET_ENTRY, NULL);
 	if (err < 0)

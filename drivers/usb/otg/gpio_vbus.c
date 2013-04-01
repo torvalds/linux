@@ -409,17 +409,7 @@ static struct platform_driver gpio_vbus_driver = {
 	.remove  = __exit_p(gpio_vbus_remove),
 };
 
-static int __init gpio_vbus_init(void)
-{
-	return platform_driver_probe(&gpio_vbus_driver, gpio_vbus_probe);
-}
-module_init(gpio_vbus_init);
-
-static void __exit gpio_vbus_exit(void)
-{
-	platform_driver_unregister(&gpio_vbus_driver);
-}
-module_exit(gpio_vbus_exit);
+module_platform_driver_probe(gpio_vbus_driver, gpio_vbus_probe);
 
 MODULE_DESCRIPTION("simple GPIO controlled OTG transceiver driver");
 MODULE_AUTHOR("Philipp Zabel");

@@ -8,11 +8,31 @@ config OMAP_USB2
 	tristate "OMAP USB2 PHY Driver"
 	depends on ARCH_OMAP2PLUS
 	select USB_OTG_UTILS
+	select OMAP_CONTROL_USB
 	help
 	  Enable this to support the transceiver that is part of SOC. This
 	  driver takes care of all the PHY functionality apart from comparator.
 	  The USB OTG controller communicates with the comparator using this
 	  driver.
+
+config OMAP_USB3
+	tristate "OMAP USB3 PHY Driver"
+	select USB_OTG_UTILS
+	select OMAP_CONTROL_USB
+	help
+	  Enable this to support the USB3 PHY that is part of SOC. This
+	  driver takes care of all the PHY functionality apart from comparator.
+	  This driver interacts with the "OMAP Control USB Driver" to power
+	  on/off the PHY.
+
+config OMAP_CONTROL_USB
+	tristate "OMAP CONTROL USB Driver"
+	help
+	  Enable this to add support for the USB part present in the control
+	  module. This driver has API to power on the USB2 PHY and to write to
+	  the mailbox. The mailbox is present only in omap4 and the register to
+	  power on the USB2 PHY is present in OMAP4 and OMAP5. OMAP5 has an
+	  additional register to power on USB3 PHY.
 
 config USB_ISP1301
 	tristate "NXP ISP1301 USB transceiver support"
@@ -45,3 +65,11 @@ config USB_RCAR_PHY
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rcar-phy.
+
+config SAMSUNG_USBPHY
+	bool "Samsung USB PHY controller Driver"
+	depends on USB_S3C_HSOTG || USB_EHCI_S5P || USB_OHCI_EXYNOS
+	select USB_OTG_UTILS
+	help
+	  Enable this to support Samsung USB phy controller for samsung
+	  SoCs.

@@ -138,12 +138,12 @@ static int bcm_download_config_file(struct bcm_mini_adapter *Adapter, struct bcm
 	B_UINT32 value = 0;
 
 	if (Adapter->pstargetparams == NULL) {
-		Adapter->pstargetparams = kmalloc(sizeof(STARGETPARAMS), GFP_KERNEL);
+		Adapter->pstargetparams = kmalloc(sizeof(struct bcm_target_params), GFP_KERNEL);
 		if (Adapter->pstargetparams == NULL)
 			return -ENOMEM;
 	}
 
-	if (psFwInfo->u32FirmwareLength != sizeof(STARGETPARAMS))
+	if (psFwInfo->u32FirmwareLength != sizeof(struct bcm_target_params))
 		return -EIO;
 
 	retval = copy_from_user(Adapter->pstargetparams, psFwInfo->pvMappedFirmwareAddress, psFwInfo->u32FirmwareLength);
@@ -195,7 +195,7 @@ static int bcm_download_config_file(struct bcm_mini_adapter *Adapter, struct bcm
 		}
 	}
 
-	retval = buffDnldVerify(Adapter, (PUCHAR)Adapter->pstargetparams, sizeof(STARGETPARAMS), CONFIG_BEGIN_ADDR);
+	retval = buffDnldVerify(Adapter, (PUCHAR)Adapter->pstargetparams, sizeof(struct bcm_target_params), CONFIG_BEGIN_ADDR);
 
 	if (retval)
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "configuration file not downloaded properly");

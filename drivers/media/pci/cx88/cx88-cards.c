@@ -3743,7 +3743,7 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 		cx88_card_list(core, pci);
 	}
 
-	memcpy(&core->board, &cx88_boards[core->boardnr], sizeof(core->board));
+	core->board = cx88_boards[core->boardnr];
 
 	if (!core->board.num_frontends && (core->board.mpeg & CX88_MPEG_DVB))
 		core->board.num_frontends = 1;

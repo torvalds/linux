@@ -500,7 +500,7 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
 	if (error)
 		return;
 
-	gfs2_trans_add_bh(l_ip->i_gl, l_bh, 1);
+	gfs2_trans_add_meta(l_ip->i_gl, l_bh);
 
 	spin_lock(&sdp->sd_statfs_spin);
 	l_sc->sc_total += total;
@@ -528,7 +528,7 @@ void update_statfs(struct gfs2_sbd *sdp, struct buffer_head *m_bh,
 	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
 	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
 
-	gfs2_trans_add_bh(l_ip->i_gl, l_bh, 1);
+	gfs2_trans_add_meta(l_ip->i_gl, l_bh);
 
 	spin_lock(&sdp->sd_statfs_spin);
 	m_sc->sc_total += l_sc->sc_total;
@@ -539,7 +539,7 @@ void update_statfs(struct gfs2_sbd *sdp, struct buffer_head *m_bh,
 	       0, sizeof(struct gfs2_statfs_change));
 	spin_unlock(&sdp->sd_statfs_spin);
 
-	gfs2_trans_add_bh(m_ip->i_gl, m_bh, 1);
+	gfs2_trans_add_meta(m_ip->i_gl, m_bh);
 	gfs2_statfs_change_out(m_sc, m_bh->b_data + sizeof(struct gfs2_dinode));
 }
 
@@ -663,54 +663,6 @@ out:
 	return error;
 }
 
-/**
- * gfs2_freeze_fs - freezes the file system
- * @sdp: the file system
- *
- * This function flushes data and meta data for all machines by
- * acquiring the transaction log exclusively.  All journals are
- * ensured to be in a clean state as well.
- *
- * Returns: errno
- */
-
-int gfs2_freeze_fs(struct gfs2_sbd *sdp)
-{
-	int error = 0;
-
-	mutex_lock(&sdp->sd_freeze_lock);
-
-	if (!sdp->sd_freeze_count++) {
-		error = gfs2_lock_fs_check_clean(sdp, &sdp->sd_freeze_gh);
-		if (error)
-			sdp->sd_freeze_count--;
-	}
-
-	mutex_unlock(&sdp->sd_freeze_lock);
-
-	return error;
-}
-
-/**
- * gfs2_unfreeze_fs - unfreezes the file system
- * @sdp: the file system
- *
- * This function allows the file system to proceed by unlocking
- * the exclusively held transaction lock.  Other GFS2 nodes are
- * now free to acquire the lock shared and go on with their lives.
- *
- */
-
-void gfs2_unfreeze_fs(struct gfs2_sbd *sdp)
-{
-	mutex_lock(&sdp->sd_freeze_lock);
-
-	if (sdp->sd_freeze_count && !--sdp->sd_freeze_count)
-		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
-
-	mutex_unlock(&sdp->sd_freeze_lock);
-}
-
 void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 {
 	struct gfs2_dinode *str = buf;
@@ -721,8 +673,8 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_num.no_addr = cpu_to_be64(ip->i_no_addr);
 	str->di_num.no_formal_ino = cpu_to_be64(ip->i_no_formal_ino);
 	str->di_mode = cpu_to_be32(ip->i_inode.i_mode);
-	str->di_uid = cpu_to_be32(ip->i_inode.i_uid);
-	str->di_gid = cpu_to_be32(ip->i_inode.i_gid);
+	str->di_uid = cpu_to_be32(i_uid_read(&ip->i_inode));
+	str->di_gid = cpu_to_be32(i_gid_read(&ip->i_inode));
 	str->di_nlink = cpu_to_be32(ip->i_inode.i_nlink);
 	str->di_size = cpu_to_be64(i_size_read(&ip->i_inode));
 	str->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(&ip->i_inode));
@@ -824,7 +776,7 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 
 	ret = gfs2_meta_inode_buffer(ip, &bh);
 	if (ret == 0) {
-		gfs2_trans_add_bh(ip->i_gl, bh, 1);
+		gfs2_trans_add_meta(ip->i_gl, bh);
 		gfs2_dinode_out(ip, bh->b_data);
 		brelse(bh);
 	}
@@ -887,13 +839,6 @@ static void gfs2_put_super(struct super_block *sb)
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int error;
 	struct gfs2_jdesc *jd;
-
-	/*  Unfreeze the filesystem, if we need to  */
-
-	mutex_lock(&sdp->sd_freeze_lock);
-	if (sdp->sd_freeze_count)
-		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
-	mutex_unlock(&sdp->sd_freeze_lock);
 
 	/* No more recovery requests */
 	set_bit(SDF_NORECOVERY, &sdp->sd_flags);
@@ -985,7 +930,7 @@ static int gfs2_freeze(struct super_block *sb)
 		return -EINVAL;
 
 	for (;;) {
-		error = gfs2_freeze_fs(sdp);
+		error = gfs2_lock_fs_check_clean(sdp, &sdp->sd_freeze_gh);
 		if (!error)
 			break;
 
@@ -1013,7 +958,9 @@ static int gfs2_freeze(struct super_block *sb)
 
 static int gfs2_unfreeze(struct super_block *sb)
 {
-	gfs2_unfreeze_fs(sb->s_fs_info);
+	struct gfs2_sbd *sdp = sb->s_fs_info;
+
+	gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
 	return 0;
 }
 
@@ -1429,7 +1376,7 @@ static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 	if (error)
 		return error;
 
-	error = gfs2_quota_hold(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+	error = gfs2_quota_hold(ip, NO_UID_QUOTA_CHANGE, NO_GID_QUOTA_CHANGE);
 	if (error)
 		return error;
 
@@ -1577,6 +1524,7 @@ out:
 	/* Case 3 starts here */
 	truncate_inode_pages(&inode->i_data, 0);
 	gfs2_rs_delete(ip);
+	gfs2_ordered_del_inode(ip);
 	clear_inode(inode);
 	gfs2_dir_hash_inval(ip);
 	ip->i_gl->gl_object = NULL;

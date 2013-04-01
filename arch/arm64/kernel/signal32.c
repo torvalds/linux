@@ -28,26 +28,6 @@
 #include <asm/uaccess.h>
 #include <asm/unistd32.h>
 
-struct compat_sigaction {
-	compat_uptr_t			sa_handler;
-	compat_ulong_t			sa_flags;
-	compat_uptr_t			sa_restorer;
-	compat_sigset_t			sa_mask;
-};
-
-struct compat_old_sigaction {
-	compat_uptr_t			sa_handler;
-	compat_old_sigset_t		sa_mask;
-	compat_ulong_t			sa_flags;
-	compat_uptr_t			sa_restorer;
-};
-
-typedef struct compat_sigaltstack {
-	compat_uptr_t			ss_sp;
-	int				ss_flags;
-	compat_size_t			ss_size;
-} compat_stack_t;
-
 struct compat_sigcontext {
 	/* We always set these two fields to 0 */
 	compat_ulong_t			trap_no;
@@ -76,7 +56,7 @@ struct compat_sigcontext {
 
 struct compat_ucontext {
 	compat_ulong_t			uc_flags;
-	struct compat_ucontext		*uc_link;
+	compat_uptr_t			uc_link;
 	compat_stack_t			uc_stack;
 	struct compat_sigcontext	uc_mcontext;
 	compat_sigset_t			uc_sigmask;
@@ -339,127 +319,6 @@ static int compat_restore_vfp_context(struct compat_vfp_sigframe __user *frame)
 	return err ? -EFAULT : 0;
 }
 
-/*
- * atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage int compat_sys_sigsuspend(int restart, compat_ulong_t oldmask,
-				     compat_old_sigset_t mask)
-{
-	sigset_t blocked;
-
-	siginitset(&current->blocked, mask);
-	return sigsuspend(&blocked);
-}
-
-asmlinkage int compat_sys_sigaction(int sig,
-				    const struct compat_old_sigaction __user *act,
-				    struct compat_old_sigaction __user *oact)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-	compat_old_sigset_t mask;
-	compat_uptr_t handler, restorer;
-
-	if (act) {
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-		    __get_user(handler, &act->sa_handler) ||
-		    __get_user(restorer, &act->sa_restorer) ||
-		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(mask, &act->sa_mask))
-			return -EFAULT;
-
-		new_ka.sa.sa_handler = compat_ptr(handler);
-		new_ka.sa.sa_restorer = compat_ptr(restorer);
-		siginitset(&new_ka.sa.sa_mask, mask);
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(ptr_to_compat(old_ka.sa.sa_handler),
-			       &oact->sa_handler) ||
-		    __put_user(ptr_to_compat(old_ka.sa.sa_restorer),
-			       &oact->sa_restorer) ||
-		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
-			return -EFAULT;
-	}
-
-	return ret;
-}
-
-asmlinkage int compat_sys_rt_sigaction(int sig,
-				       const struct compat_sigaction __user *act,
-				       struct compat_sigaction __user *oact,
-				       compat_size_t sigsetsize)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(compat_sigset_t))
-		return -EINVAL;
-
-	if (act) {
-		compat_uptr_t handler, restorer;
-
-		ret = get_user(handler, &act->sa_handler);
-		new_ka.sa.sa_handler = compat_ptr(handler);
-		ret |= get_user(restorer, &act->sa_restorer);
-		new_ka.sa.sa_restorer = compat_ptr(restorer);
-		ret |= get_sigset_t(&new_ka.sa.sa_mask, &act->sa_mask);
-		ret |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		if (ret)
-			return -EFAULT;
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-	if (!ret && oact) {
-		ret = put_user(ptr_to_compat(old_ka.sa.sa_handler), &oact->sa_handler);
-		ret |= put_sigset_t(&oact->sa_mask, &old_ka.sa.sa_mask);
-		ret |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-	}
-	return ret;
-}
-
-int compat_do_sigaltstack(compat_uptr_t compat_uss, compat_uptr_t compat_uoss,
-			  compat_ulong_t sp)
-{
-	compat_stack_t __user *newstack = compat_ptr(compat_uss);
-	compat_stack_t __user *oldstack = compat_ptr(compat_uoss);
-	compat_uptr_t ss_sp;
-	int ret;
-	mm_segment_t old_fs;
-	stack_t uss, uoss;
-
-	/* Marshall the compat new stack into a stack_t */
-	if (newstack) {
-		if (get_user(ss_sp, &newstack->ss_sp) ||
-		    __get_user(uss.ss_flags, &newstack->ss_flags) ||
-		    __get_user(uss.ss_size, &newstack->ss_size))
-			return -EFAULT;
-		uss.ss_sp = compat_ptr(ss_sp);
-	}
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	/* The __user pointer casts are valid because of the set_fs() */
-	ret = do_sigaltstack(
-		newstack ? (stack_t __user *) &uss : NULL,
-		oldstack ? (stack_t __user *) &uoss : NULL,
-		(unsigned long)sp);
-	set_fs(old_fs);
-
-	/* Convert the old stack_t into a compat stack. */
-	if (!ret && oldstack &&
-		(put_user(ptr_to_compat(uoss.ss_sp), &oldstack->ss_sp) ||
-		 __put_user(uoss.ss_flags, &oldstack->ss_flags) ||
-		 __put_user(uoss.ss_size, &oldstack->ss_size)))
-		return -EFAULT;
-	return ret;
-}
-
 static int compat_restore_sigframe(struct pt_regs *regs,
 				   struct compat_sigframe __user *sf)
 {
@@ -562,9 +421,7 @@ asmlinkage int compat_sys_rt_sigreturn(struct pt_regs *regs)
 	if (compat_restore_sigframe(regs, &frame->sig))
 		goto badframe;
 
-	if (compat_do_sigaltstack(ptr_to_compat(&frame->sig.uc.uc_stack),
-				 ptr_to_compat((void __user *)NULL),
-				 regs->compat_sp) == -EFAULT)
+	if (compat_restore_altstack(&frame->sig.uc.uc_stack))
 		goto badframe;
 
 	return regs->regs[0];
@@ -703,13 +560,9 @@ int compat_setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 	err |= copy_siginfo_to_user32(&frame->info, info);
 
 	__put_user_error(0, &frame->sig.uc.uc_flags, err);
-	__put_user_error(NULL, &frame->sig.uc.uc_link, err);
+	__put_user_error(0, &frame->sig.uc.uc_link, err);
 
-	memset(&stack, 0, sizeof(stack));
-	stack.ss_sp = (compat_uptr_t)current->sas_ss_sp;
-	stack.ss_flags = sas_ss_flags(regs->compat_sp);
-	stack.ss_size = current->sas_ss_size;
-	err |= __copy_to_user(&frame->sig.uc.uc_stack, &stack, sizeof(stack));
+	err |= __compat_save_altstack(&frame->sig.uc.uc_stack, regs->compat_sp);
 
 	err |= compat_setup_sigframe(&frame->sig, regs, set);
 
@@ -740,75 +593,6 @@ int compat_setup_frame(int usig, struct k_sigaction *ka, sigset_t *set,
 		compat_setup_return(regs, ka, frame->retcode, frame, usig);
 
 	return err;
-}
-
-/*
- * RT signals don't have generic compat wrappers.
- * See arch/powerpc/kernel/signal_32.c
- */
-asmlinkage int compat_sys_rt_sigprocmask(int how, compat_sigset_t __user *set,
-					 compat_sigset_t __user *oset,
-					 compat_size_t sigsetsize)
-{
-	sigset_t s;
-	sigset_t __user *up;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	if (set) {
-		if (get_sigset_t(&s, set))
-			return -EFAULT;
-	}
-
-	set_fs(KERNEL_DS);
-	/* This is valid because of the set_fs() */
-	up = (sigset_t __user *) &s;
-	ret = sys_rt_sigprocmask(how, set ? up : NULL, oset ? up : NULL,
-				 sigsetsize);
-	set_fs(old_fs);
-	if (ret)
-		return ret;
-	if (oset) {
-		if (put_sigset_t(oset, &s))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-asmlinkage int compat_sys_rt_sigpending(compat_sigset_t __user *set,
-					compat_size_t sigsetsize)
-{
-	sigset_t s;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	/* The __user pointer cast is valid because of the set_fs() */
-	ret = sys_rt_sigpending((sigset_t __user *) &s, sigsetsize);
-	set_fs(old_fs);
-	if (!ret) {
-		if (put_sigset_t(set, &s))
-			return -EFAULT;
-	}
-	return ret;
-}
-
-asmlinkage int compat_sys_rt_sigqueueinfo(int pid, int sig,
-					  compat_siginfo_t __user *uinfo)
-{
-	siginfo_t info;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	ret = copy_siginfo_from_user32(&info, uinfo);
-	if (unlikely(ret))
-		return ret;
-
-	set_fs (KERNEL_DS);
-	/* The __user pointer cast is valid because of the set_fs() */
-	ret = sys_rt_sigqueueinfo(pid, sig, (siginfo_t __user *) &info);
-	set_fs (old_fs);
-	return ret;
 }
 
 void compat_setup_restart_syscall(struct pt_regs *regs)

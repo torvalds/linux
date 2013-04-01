@@ -157,14 +157,23 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	andn		REG2, 0x7, REG2; \
 	add		REG1, REG2, REG1;
 
-	/* This macro exists only to make the PMD translator below easier
-	 * to read.  It hides the ELF section switch for the sun4v code
-	 * patching.
+	/* These macros exists only to make the PMD translator below
+	 * easier to read.  It hides the ELF section switch for the
+	 * sun4v code patching.
 	 */
-#define OR_PTE_BIT(REG, NAME)				\
+#define OR_PTE_BIT_1INSN(REG, NAME)			\
 661:	or		REG, _PAGE_##NAME##_4U, REG;	\
 	.section	.sun4v_1insn_patch, "ax";	\
 	.word		661b;				\
+	or		REG, _PAGE_##NAME##_4V, REG;	\
+	.previous;
+
+#define OR_PTE_BIT_2INSN(REG, TMP, NAME)		\
+661:	sethi		%hi(_PAGE_##NAME##_4U), TMP;	\
+	or		REG, TMP, REG;			\
+	.section	.sun4v_2insn_patch, "ax";	\
+	.word		661b;				\
+	mov		-1, TMP;			\
 	or		REG, _PAGE_##NAME##_4V, REG;	\
 	.previous;
 
@@ -214,12 +223,13 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	 andn		REG1, PMD_HUGE_PROTBITS, REG2;			      \
 	sllx		REG2, PMD_PADDR_SHIFT, REG2;			      \
 	/* REG2 now holds PFN << PAGE_SHIFT */				      \
-	andcc		REG1, PMD_HUGE_EXEC, %g0;			      \
+	andcc		REG1, PMD_HUGE_WRITE, %g0;			      \
 	bne,a,pt	%xcc, 1f;					      \
-	 OR_PTE_BIT(REG2, EXEC);					      \
-1:	andcc		REG1, PMD_HUGE_WRITE, %g0;			      \
-	bne,a,pt	%xcc, 1f;					      \
-	 OR_PTE_BIT(REG2, W);						      \
+	 OR_PTE_BIT_1INSN(REG2, W);					      \
+1:	andcc		REG1, PMD_HUGE_EXEC, %g0;			      \
+	be,pt		%xcc, 1f;					      \
+	 nop;								      \
+	OR_PTE_BIT_2INSN(REG2, REG1, EXEC);				      \
 	/* REG1 can now be clobbered, build final PTE */		      \
 1:	BUILD_PTE_VALID_SZHUGE_CACHE(REG1);				      \
 	ba,pt		%xcc, PTE_LABEL;				      \

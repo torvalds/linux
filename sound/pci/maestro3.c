@@ -2586,8 +2586,9 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	else {
 		quirk = snd_pci_quirk_lookup(pci, m3_amp_quirk_list);
 		if (quirk) {
-			snd_printdd(KERN_INFO "maestro3: set amp-gpio "
-				    "for '%s'\n", quirk->name);
+			snd_printdd(KERN_INFO
+				    "maestro3: set amp-gpio for '%s'\n",
+				    snd_pci_quirk_name(quirk));
 			chip->amp_gpio = quirk->value;
 		} else if (chip->allegro_flag)
 			chip->amp_gpio = GPO_EXT_AMP_ALLEGRO;
@@ -2597,8 +2598,9 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 
 	quirk = snd_pci_quirk_lookup(pci, m3_irda_quirk_list);
 	if (quirk) {
-		snd_printdd(KERN_INFO "maestro3: enabled irda workaround "
-			    "for '%s'\n", quirk->name);
+		snd_printdd(KERN_INFO
+			    "maestro3: enabled irda workaround for '%s'\n",
+			    snd_pci_quirk_name(quirk));
 		chip->irda_workaround = 1;
 	}
 	quirk = snd_pci_quirk_lookup(pci, m3_hv_quirk_list);

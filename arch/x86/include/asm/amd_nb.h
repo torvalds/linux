@@ -81,6 +81,23 @@ static inline struct amd_northbridge *node_to_amd_nb(int node)
 	return (node < amd_northbridges.num) ? &amd_northbridges.nb[node] : NULL;
 }
 
+static inline u16 amd_get_node_id(struct pci_dev *pdev)
+{
+	struct pci_dev *misc;
+	int i;
+
+	for (i = 0; i != amd_nb_num(); i++) {
+		misc = node_to_amd_nb(i)->misc;
+
+		if (pci_domain_nr(misc->bus) == pci_domain_nr(pdev->bus) &&
+		    PCI_SLOT(misc->devfn) == PCI_SLOT(pdev->devfn))
+			return i;
+	}
+
+	WARN(1, "Unable to find AMD Northbridge id for %s\n", pci_name(pdev));
+	return 0;
+}
+
 #else
 
 #define amd_nb_num(x)		0

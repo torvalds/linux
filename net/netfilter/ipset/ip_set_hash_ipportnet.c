@@ -388,8 +388,8 @@ hash_ipportnet6_data_equal(const struct hash_ipportnet6_elem *ip1,
 			   const struct hash_ipportnet6_elem *ip2,
 			   u32 *multi)
 {
-	return ipv6_addr_cmp(&ip1->ip.in6, &ip2->ip.in6) == 0 &&
-	       ipv6_addr_cmp(&ip1->ip2.in6, &ip2->ip2.in6) == 0 &&
+	return ipv6_addr_equal(&ip1->ip.in6, &ip2->ip.in6) &&
+	       ipv6_addr_equal(&ip1->ip2.in6, &ip2->ip2.in6) &&
 	       ip1->cidr == ip2->cidr &&
 	       ip1->port == ip2->port &&
 	       ip1->proto == ip2->proto;

@@ -151,9 +151,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	ep->rcvbuf_policy = net->sctp.rcvbuf_policy;
 
 	/* Initialize the secret key used with cookie. */
-	get_random_bytes(&ep->secret_key[0], SCTP_SECRET_SIZE);
-	ep->last_key = ep->current_key = 0;
-	ep->key_changed_at = jiffies;
+	get_random_bytes(ep->secret_key, sizeof(ep->secret_key));
 
 	/* SCTP-AUTH extensions*/
 	INIT_LIST_HEAD(&ep->endpoint_shared_keys);
@@ -249,8 +247,6 @@ void sctp_endpoint_free(struct sctp_endpoint *ep)
 /* Final destructor for endpoint.  */
 static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 {
-	int i;
-
 	SCTP_ASSERT(ep->base.dead, "Endpoint is not dead", return);
 
 	/* Free up the HMAC transform. */
@@ -273,8 +269,7 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 	sctp_inq_free(&ep->base.inqueue);
 	sctp_bind_addr_free(&ep->base.bind_addr);
 
-	for (i = 0; i < SCTP_HOW_MANY_SECRETS; ++i)
-		memset(&ep->secret_key[i], 0, SCTP_SECRET_SIZE);
+	memset(ep->secret_key, 0, sizeof(ep->secret_key));
 
 	/* Remove and free the port */
 	if (sctp_sk(ep->base.sk)->bind_hash)
@@ -337,7 +332,6 @@ static struct sctp_association *__sctp_endpoint_lookup_assoc(
 	struct sctp_transport *t = NULL;
 	struct sctp_hashbucket *head;
 	struct sctp_ep_common *epb;
-	struct hlist_node *node;
 	int hash;
 	int rport;
 
@@ -355,7 +349,7 @@ static struct sctp_association *__sctp_endpoint_lookup_assoc(
 				 rport);
 	head = &sctp_assoc_hashtable[hash];
 	read_lock(&head->lock);
-	sctp_for_each_hentry(epb, node, &head->chain) {
+	sctp_for_each_hentry(epb, &head->chain) {
 		tmp = sctp_assoc(epb);
 		if (tmp->ep != ep || rport != tmp->peer.port)
 			continue;

@@ -58,6 +58,7 @@ config ATH9K_DEBUGFS
 	bool "Atheros ath9k debugging"
 	depends on ATH9K
 	select MAC80211_DEBUGFS
+	select RELAY
 	---help---
 	  Say Y, if you need access to ath9k's statistics for
 	  interrupts, rate control, etc.

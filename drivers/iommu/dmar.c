@@ -41,6 +41,8 @@
 #include <asm/irq_remapping.h>
 #include <asm/iommu_table.h>
 
+#include "irq_remapping.h"
+
 /* No locks are needed as DMA remapping hardware unit
  * list is constructed at boot time and hotplug of
  * these units are not supported by the architecture.
@@ -1040,7 +1042,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 
 	qi->desc = page_address(desc_page);
 
-	qi->desc_status = kmalloc(QI_LENGTH * sizeof(int), GFP_ATOMIC);
+	qi->desc_status = kzalloc(QI_LENGTH * sizeof(int), GFP_ATOMIC);
 	if (!qi->desc_status) {
 		free_page((unsigned long) qi->desc);
 		kfree(qi);

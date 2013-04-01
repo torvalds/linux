@@ -1452,20 +1452,6 @@ static int dac33_soc_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int dac33_soc_suspend(struct snd_soc_codec *codec)
-{
-	dac33_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int dac33_soc_resume(struct snd_soc_codec *codec)
-{
-	dac33_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_tlv320dac33 = {
 	.read = dac33_read_reg_cache,
 	.write = dac33_write_locked,
@@ -1476,8 +1462,6 @@ static struct snd_soc_codec_driver soc_codec_dev_tlv320dac33 = {
 	.reg_cache_default = dac33_reg,
 	.probe = dac33_soc_probe,
 	.remove = dac33_soc_remove,
-	.suspend = dac33_soc_suspend,
-	.resume = dac33_soc_resume,
 
 	.controls = dac33_snd_controls,
 	.num_controls = ARRAY_SIZE(dac33_snd_controls),

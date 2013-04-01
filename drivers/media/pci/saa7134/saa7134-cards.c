@@ -5773,6 +5773,23 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio	= 0x0000000,
 		},
 	},
+	[SAA7134_BOARD_HAWELL_HW_9004V1] = {
+		/* Hawell HW-9004V1 */
+		/* Vadim Frolov <fralik@gmail.com> */
+		.name         = "Hawell HW-9004V1",
+		.audio_clock   = 0x00200000,
+		.tuner_type    = UNSET,
+		.radio_type    = UNSET,
+		.tuner_addr   = ADDR_UNSET,
+		.radio_addr   = ADDR_UNSET,
+		.gpiomask      = 0x618E700,
+		.inputs       = {{
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+			.gpio = 0x6010000,
+		} },
+	},
 
 };
 

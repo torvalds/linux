@@ -1,0 +1,24 @@
+NVIDIA Tegra20/Tegra30 high speed (DMA based) UART controller driver.
+
+Required properties:
+- compatible : should be "nvidia,tegra30-hsuart", "nvidia,tegra20-hsuart".
+- reg: Should contain UART controller registers location and length.
+- interrupts: Should contain UART controller interrupts.
+- nvidia,dma-request-selector : The Tegra DMA controller's phandle and
+  request selector for this UART controller.
+
+Optional properties:
+- nvidia,enable-modem-interrupt: Enable modem interrupts. Should be enable
+		only if all 8 lines of UART controller are pinmuxed.
+
+Example:
+
+serial@70006000 {
+	compatible = "nvidia,tegra30-hsuart", "nvidia,tegra20-hsuart";
+	reg = <0x70006000 0x40>;
+	reg-shift = <2>;
+	interrupts = <0 36 0x04>;
+	nvidia,dma-request-selector = <&apbdma 8>;
+	nvidia,enable-modem-interrupt;
+	status = "disabled";
+};

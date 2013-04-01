@@ -53,9 +53,8 @@ int ptrace_getregs(struct task_struct *child, void __user *uregs)
 {
 	struct pt_regs *regs = task_pt_regs(child);
 	xtensa_gregset_t __user *gregset = uregs;
-	unsigned long wm = regs->wmask;
 	unsigned long wb = regs->windowbase;
-	int live, i;
+	int i;
 
 	if (!access_ok(VERIFY_WRITE, uregs, sizeof(xtensa_gregset_t)))
 		return -EIO;
@@ -67,13 +66,11 @@ int ptrace_getregs(struct task_struct *child, void __user *uregs)
 	__put_user(regs->lcount, &gregset->lcount);
 	__put_user(regs->windowstart, &gregset->windowstart);
 	__put_user(regs->windowbase, &gregset->windowbase);
+	__put_user(regs->threadptr, &gregset->threadptr);
 
-	live = (wm & 2) ? 4 : (wm & 4) ? 8 : (wm & 8) ? 12 : 16;
-
-	for (i = 0; i < live; i++)
-		__put_user(regs->areg[i],gregset->a+((wb*4+i)%XCHAL_NUM_AREGS));
-	for (i = XCHAL_NUM_AREGS - (wm >> 4) * 4; i < XCHAL_NUM_AREGS; i++)
-		__put_user(regs->areg[i],gregset->a+((wb*4+i)%XCHAL_NUM_AREGS));
+	for (i = 0; i < XCHAL_NUM_AREGS; i++)
+		__put_user(regs->areg[i],
+				gregset->a + ((wb * 4 + i) % XCHAL_NUM_AREGS));
 
 	return 0;
 }
@@ -84,7 +81,7 @@ int ptrace_setregs(struct task_struct *child, void __user *uregs)
 	xtensa_gregset_t *gregset = uregs;
 	const unsigned long ps_mask = PS_CALLINC_MASK | PS_OWB_MASK;
 	unsigned long ps;
-	unsigned long wb;
+	unsigned long wb, ws;
 
 	if (!access_ok(VERIFY_WRITE, uregs, sizeof(xtensa_gregset_t)))
 		return -EIO;
@@ -94,21 +91,33 @@ int ptrace_setregs(struct task_struct *child, void __user *uregs)
 	__get_user(regs->lbeg, &gregset->lbeg);
 	__get_user(regs->lend, &gregset->lend);
 	__get_user(regs->lcount, &gregset->lcount);
-	__get_user(regs->windowstart, &gregset->windowstart);
+	__get_user(ws, &gregset->windowstart);
 	__get_user(wb, &gregset->windowbase);
+	__get_user(regs->threadptr, &gregset->threadptr);
 
 	regs->ps = (regs->ps & ~ps_mask) | (ps & ps_mask) | (1 << PS_EXCM_BIT);
 
 	if (wb >= XCHAL_NUM_AREGS / 4)
 		return -EFAULT;
 
-	regs->windowbase = wb;
+	if (wb != regs->windowbase || ws != regs->windowstart) {
+		unsigned long rotws, wmask;
+
+		rotws = (((ws | (ws << WSBITS)) >> wb) &
+				((1 << WSBITS) - 1)) & ~1;
+		wmask = ((rotws ? WSBITS + 1 - ffs(rotws) : 0) << 4) |
+			(rotws & 0xF) | 1;
+		regs->windowbase = wb;
+		regs->windowstart = ws;
+		regs->wmask = wmask;
+	}
 
 	if (wb != 0 &&  __copy_from_user(regs->areg + XCHAL_NUM_AREGS - wb * 4,
-					 gregset->a, wb * 16))
+				gregset->a, wb * 16))
 		return -EFAULT;
 
-	if (__copy_from_user(regs->areg, gregset->a + wb*4, (WSBITS-wb) * 16))
+	if (__copy_from_user(regs->areg, gregset->a + wb * 4,
+				(WSBITS - wb) * 16))
 		return -EFAULT;
 
 	return 0;

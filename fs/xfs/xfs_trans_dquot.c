@@ -516,7 +516,7 @@ xfs_trans_unreserve_and_mod_dquots(
 	int			i, j;
 	xfs_dquot_t		*dqp;
 	xfs_dqtrx_t		*qtrx, *qa;
-	boolean_t		locked;
+	bool                    locked;
 
 	if (!tp->t_dqinfo || !(tp->t_flags & XFS_TRANS_DQ_DIRTY))
 		return;
@@ -537,17 +537,17 @@ xfs_trans_unreserve_and_mod_dquots(
 			 * about the number of blocks used field, or deltas.
 			 * Also we don't bother to zero the fields.
 			 */
-			locked = B_FALSE;
+			locked = false;
 			if (qtrx->qt_blk_res) {
 				xfs_dqlock(dqp);
-				locked = B_TRUE;
+				locked = true;
 				dqp->q_res_bcount -=
 					(xfs_qcnt_t)qtrx->qt_blk_res;
 			}
 			if (qtrx->qt_ino_res) {
 				if (!locked) {
 					xfs_dqlock(dqp);
-					locked = B_TRUE;
+					locked = true;
 				}
 				dqp->q_res_icount -=
 					(xfs_qcnt_t)qtrx->qt_ino_res;
@@ -556,7 +556,7 @@ xfs_trans_unreserve_and_mod_dquots(
 			if (qtrx->qt_rtblk_res) {
 				if (!locked) {
 					xfs_dqlock(dqp);
-					locked = B_TRUE;
+					locked = true;
 				}
 				dqp->q_res_rtbcount -=
 					(xfs_qcnt_t)qtrx->qt_rtblk_res;

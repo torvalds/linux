@@ -1,3 +1,5 @@
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
@@ -251,11 +253,6 @@ static int apci3120_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci3120_driver);
 }
 
-static void apci3120_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(apci3120_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, 0x818d) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, 0x828d) },
@@ -267,7 +264,7 @@ static struct pci_driver apci3120_pci_driver = {
 	.name		= "addi_apci_3120",
 	.id_table	= apci3120_pci_table,
 	.probe		= apci3120_pci_probe,
-	.remove		= apci3120_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(apci3120_driver, apci3120_pci_driver);
 

@@ -3055,7 +3055,6 @@ static int nv_set_mac_address(struct net_device *dev, void *addr)
 
 	/* synchronized against open : rtnl_lock() held by caller */
 	memcpy(dev->dev_addr, macaddr->sa_data, ETH_ALEN);
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	if (netif_running(dev)) {
 		netif_tx_lock_bh(dev);
@@ -5766,9 +5765,8 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 			"%s: set workaround bit for reversed mac addr\n",
 			__func__);
 	}
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
-	if (!is_valid_ether_addr(dev->perm_addr)) {
+	if (!is_valid_ether_addr(dev->dev_addr)) {
 		/*
 		 * Bad mac address. At least one bios sets the mac address
 		 * to 01:23:45:67:89:ab

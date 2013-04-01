@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1403,6 +1403,7 @@ enum {
 
 #define AGG_TX_STATUS_MSK	0x00000fff	/* bits 0:11 */
 #define AGG_TX_TRY_MSK		0x0000f000	/* bits 12:15 */
+#define AGG_TX_TRY_POS		12
 
 #define AGG_TX_STATE_LAST_SENT_MSK  (AGG_TX_STATE_LAST_SENT_TTL_MSK | \
 				     AGG_TX_STATE_LAST_SENT_TRY_CNT_MSK | \
@@ -3695,7 +3696,7 @@ struct iwl_bt_uart_msg {
 	u8 frame5;
 	u8 frame6;
 	u8 frame7;
-} __attribute__((packed));
+} __packed;
 
 struct iwl_bt_coex_profile_notif {
 	struct iwl_bt_uart_msg last_bt_uart_msg;
@@ -3703,7 +3704,7 @@ struct iwl_bt_coex_profile_notif {
 	u8 bt_traffic_load; /* 0 .. 3? */
 	u8 bt_ci_compliance; /* 0 - not complied, 1 - complied */
 	u8 reserved;
-} __attribute__((packed));
+} __packed;
 
 #define IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_POS	0
 #define IWL_BT_COEX_PRIO_TBL_SHARED_ANTENNA_MSK	0x1
@@ -3752,7 +3753,7 @@ enum bt_coex_prio_table_priorities {
 
 struct iwl_bt_coex_prio_table_cmd {
 	u8 prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX];
-} __attribute__((packed));
+} __packed;
 
 #define IWL_BT_COEX_ENV_CLOSE	0
 #define IWL_BT_COEX_ENV_OPEN	1
@@ -3764,7 +3765,7 @@ struct iwl_bt_coex_prot_env_cmd {
 	u8 action; /* 0 = closed, 1 = open */
 	u8 type; /* 0 .. 15 */
 	u8 reserved[2];
-} __attribute__((packed));
+} __packed;
 
 /*
  * REPLY_D3_CONFIG
@@ -3895,6 +3896,24 @@ struct iwlagn_wowlan_kek_kck_material_cmd {
 	__le16	kck_len;
 	__le16	kek_len;
 	__le64	replay_ctr;
+} __packed;
+
+#define RF_KILL_INDICATOR_FOR_WOWLAN	0x87
+
+/*
+ * REPLY_WOWLAN_GET_STATUS = 0xe5
+ */
+struct iwlagn_wowlan_status {
+	__le64 replay_ctr;
+	__le32 rekey_status;
+	__le32 wakeup_reason;
+	u8 pattern_number;
+	u8 reserved1;
+	__le16 qos_seq_ctr[8];
+	__le16 non_qos_seq_ctr;
+	__le16 reserved2;
+	union iwlagn_all_tsc_rsc tsc_rsc;
+	__le16 reserved3;
 } __packed;
 
 /*

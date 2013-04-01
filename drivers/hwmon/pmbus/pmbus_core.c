@@ -2,6 +2,7 @@
  * Hardware monitoring driver for PMBus devices
  *
  * Copyright (c) 2010, 2011 Ericsson AB.
+ * Copyright (c) 2012 Guenter Roeck
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,45 +32,10 @@
 #include "pmbus.h"
 
 /*
- * Constants needed to determine number of sensors, booleans, and labels.
+ * Number of additional attribute pointers to allocate
+ * with each call to krealloc
  */
-#define PMBUS_MAX_INPUT_SENSORS		22	/* 10*volt, 7*curr, 5*power */
-#define PMBUS_VOUT_SENSORS_PER_PAGE	9	/* input, min, max, lcrit,
-						   crit, lowest, highest, avg,
-						   reset */
-#define PMBUS_IOUT_SENSORS_PER_PAGE	8	/* input, min, max, crit,
-						   lowest, highest, avg,
-						   reset */
-#define PMBUS_POUT_SENSORS_PER_PAGE	7	/* input, cap, max, crit,
-						 * highest, avg, reset
-						 */
-#define PMBUS_MAX_SENSORS_PER_FAN	1	/* input */
-#define PMBUS_MAX_SENSORS_PER_TEMP	9	/* input, min, max, lcrit,
-						 * crit, lowest, highest, avg,
-						 * reset
-						 */
-
-#define PMBUS_MAX_INPUT_BOOLEANS	7	/* v: min_alarm, max_alarm,
-						   lcrit_alarm, crit_alarm;
-						   c: alarm, crit_alarm;
-						   p: crit_alarm */
-#define PMBUS_VOUT_BOOLEANS_PER_PAGE	4	/* min_alarm, max_alarm,
-						   lcrit_alarm, crit_alarm */
-#define PMBUS_IOUT_BOOLEANS_PER_PAGE	3	/* alarm, lcrit_alarm,
-						   crit_alarm */
-#define PMBUS_POUT_BOOLEANS_PER_PAGE	3	/* cap_alarm, alarm, crit_alarm
-						 */
-#define PMBUS_MAX_BOOLEANS_PER_FAN	2	/* alarm, fault */
-#define PMBUS_MAX_BOOLEANS_PER_TEMP	4	/* min_alarm, max_alarm,
-						   lcrit_alarm, crit_alarm */
-
-#define PMBUS_MAX_INPUT_LABELS		4	/* vin, vcap, iin, pin */
-
-/*
- * status, status_vout, status_iout, status_fans, status_fan34, and status_temp
- * are paged. status_input is unpaged.
- */
-#define PB_NUM_STATUS_REG	(PMBUS_PAGES * 6 + 1)
+#define PMBUS_ATTR_ALLOC_SIZE	32
 
 /*
  * Index into status register array, per status register group
@@ -79,14 +45,18 @@
 #define PB_STATUS_IOUT_BASE	(PB_STATUS_VOUT_BASE + PMBUS_PAGES)
 #define PB_STATUS_FAN_BASE	(PB_STATUS_IOUT_BASE + PMBUS_PAGES)
 #define PB_STATUS_FAN34_BASE	(PB_STATUS_FAN_BASE + PMBUS_PAGES)
-#define PB_STATUS_INPUT_BASE	(PB_STATUS_FAN34_BASE + PMBUS_PAGES)
-#define PB_STATUS_TEMP_BASE	(PB_STATUS_INPUT_BASE + 1)
+#define PB_STATUS_TEMP_BASE	(PB_STATUS_FAN34_BASE + PMBUS_PAGES)
+#define PB_STATUS_INPUT_BASE	(PB_STATUS_TEMP_BASE + PMBUS_PAGES)
+#define PB_STATUS_VMON_BASE	(PB_STATUS_INPUT_BASE + 1)
+
+#define PB_NUM_STATUS_REG	(PB_STATUS_VMON_BASE + 1)
 
 #define PMBUS_NAME_SIZE		24
 
 struct pmbus_sensor {
+	struct pmbus_sensor *next;
 	char name[PMBUS_NAME_SIZE];	/* sysfs sensor name */
-	struct sensor_device_attribute attribute;
+	struct device_attribute attribute;
 	u8 page;		/* page number */
 	u16 reg;		/* register */
 	enum pmbus_sensor_classes class;	/* sensor class */
@@ -94,19 +64,28 @@ struct pmbus_sensor {
 	int data;		/* Sensor data.
 				   Negative if there was a read error */
 };
+#define to_pmbus_sensor(_attr) \
+	container_of(_attr, struct pmbus_sensor, attribute)
 
 struct pmbus_boolean {
 	char name[PMBUS_NAME_SIZE];	/* sysfs boolean name */
 	struct sensor_device_attribute attribute;
+	struct pmbus_sensor *s1;
+	struct pmbus_sensor *s2;
 };
+#define to_pmbus_boolean(_attr) \
+	container_of(_attr, struct pmbus_boolean, attribute)
 
 struct pmbus_label {
 	char name[PMBUS_NAME_SIZE];	/* sysfs label name */
-	struct sensor_device_attribute attribute;
+	struct device_attribute attribute;
 	char label[PMBUS_NAME_SIZE];	/* label */
 };
+#define to_pmbus_label(_attr) \
+	container_of(_attr, struct pmbus_label, attribute)
 
 struct pmbus_data {
+	struct device *dev;
 	struct device *hwmon_dev;
 
 	u32 flags;		/* from platform data */
@@ -117,29 +96,9 @@ struct pmbus_data {
 
 	int max_attributes;
 	int num_attributes;
-	struct attribute **attributes;
 	struct attribute_group group;
 
-	/*
-	 * Sensors cover both sensor and limit registers.
-	 */
-	int max_sensors;
-	int num_sensors;
 	struct pmbus_sensor *sensors;
-	/*
-	 * Booleans are used for alarms.
-	 * Values are determined from status registers.
-	 */
-	int max_booleans;
-	int num_booleans;
-	struct pmbus_boolean *booleans;
-	/*
-	 * Labels are used to map generic names (e.g., "in1")
-	 * to PMBus specific names (e.g., "vin" or "vout1").
-	 */
-	int max_labels;
-	int num_labels;
-	struct pmbus_label *labels;
 
 	struct mutex update_lock;
 	bool valid;
@@ -150,9 +109,18 @@ struct pmbus_data {
 	 * so we keep them all together.
 	 */
 	u8 status[PB_NUM_STATUS_REG];
+	u8 status_register;
 
 	u8 currpage;
 };
+
+void pmbus_clear_cache(struct i2c_client *client)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+
+	data->valid = false;
+}
+EXPORT_SYMBOL_GPL(pmbus_clear_cache);
 
 int pmbus_set_page(struct i2c_client *client, u8 page)
 {
@@ -318,9 +286,10 @@ EXPORT_SYMBOL_GPL(pmbus_clear_faults);
 
 static int pmbus_check_status_cml(struct i2c_client *client)
 {
+	struct pmbus_data *data = i2c_get_clientdata(client);
 	int status, status2;
 
-	status = _pmbus_read_byte_data(client, -1, PMBUS_STATUS_BYTE);
+	status = _pmbus_read_byte_data(client, -1, data->status_register);
 	if (status < 0 || (status & PB_STATUS_CML)) {
 		status2 = _pmbus_read_byte_data(client, -1, PMBUS_STATUS_CML);
 		if (status2 < 0 || (status2 & PB_CML_FAULT_INVALID_COMMAND))
@@ -329,29 +298,30 @@ static int pmbus_check_status_cml(struct i2c_client *client)
 	return 0;
 }
 
-bool pmbus_check_byte_register(struct i2c_client *client, int page, int reg)
+static bool pmbus_check_register(struct i2c_client *client,
+				 int (*func)(struct i2c_client *client,
+					     int page, int reg),
+				 int page, int reg)
 {
 	int rv;
 	struct pmbus_data *data = i2c_get_clientdata(client);
 
-	rv = _pmbus_read_byte_data(client, page, reg);
+	rv = func(client, page, reg);
 	if (rv >= 0 && !(data->flags & PMBUS_SKIP_STATUS_CHECK))
 		rv = pmbus_check_status_cml(client);
 	pmbus_clear_fault_page(client, -1);
 	return rv >= 0;
 }
+
+bool pmbus_check_byte_register(struct i2c_client *client, int page, int reg)
+{
+	return pmbus_check_register(client, _pmbus_read_byte_data, page, reg);
+}
 EXPORT_SYMBOL_GPL(pmbus_check_byte_register);
 
 bool pmbus_check_word_register(struct i2c_client *client, int page, int reg)
 {
-	int rv;
-	struct pmbus_data *data = i2c_get_clientdata(client);
-
-	rv = _pmbus_read_word_data(client, page, reg);
-	if (rv >= 0 && !(data->flags & PMBUS_SKIP_STATUS_CHECK))
-		rv = pmbus_check_status_cml(client);
-	pmbus_clear_fault_page(client, -1);
-	return rv >= 0;
+	return pmbus_check_register(client, _pmbus_read_word_data, page, reg);
 }
 EXPORT_SYMBOL_GPL(pmbus_check_word_register);
 
@@ -363,53 +333,43 @@ const struct pmbus_driver_info *pmbus_get_driver_info(struct i2c_client *client)
 }
 EXPORT_SYMBOL_GPL(pmbus_get_driver_info);
 
+static struct _pmbus_status {
+	u32 func;
+	u16 base;
+	u16 reg;
+} pmbus_status[] = {
+	{ PMBUS_HAVE_STATUS_VOUT, PB_STATUS_VOUT_BASE, PMBUS_STATUS_VOUT },
+	{ PMBUS_HAVE_STATUS_IOUT, PB_STATUS_IOUT_BASE, PMBUS_STATUS_IOUT },
+	{ PMBUS_HAVE_STATUS_TEMP, PB_STATUS_TEMP_BASE,
+	  PMBUS_STATUS_TEMPERATURE },
+	{ PMBUS_HAVE_STATUS_FAN12, PB_STATUS_FAN_BASE, PMBUS_STATUS_FAN_12 },
+	{ PMBUS_HAVE_STATUS_FAN34, PB_STATUS_FAN34_BASE, PMBUS_STATUS_FAN_34 },
+};
+
 static struct pmbus_data *pmbus_update_device(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct pmbus_data *data = i2c_get_clientdata(client);
 	const struct pmbus_driver_info *info = data->info;
+	struct pmbus_sensor *sensor;
 
 	mutex_lock(&data->update_lock);
 	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
-		int i;
+		int i, j;
 
-		for (i = 0; i < info->pages; i++)
+		for (i = 0; i < info->pages; i++) {
 			data->status[PB_STATUS_BASE + i]
 			    = _pmbus_read_byte_data(client, i,
-						    PMBUS_STATUS_BYTE);
-		for (i = 0; i < info->pages; i++) {
-			if (!(info->func[i] & PMBUS_HAVE_STATUS_VOUT))
-				continue;
-			data->status[PB_STATUS_VOUT_BASE + i]
-			  = _pmbus_read_byte_data(client, i, PMBUS_STATUS_VOUT);
-		}
-		for (i = 0; i < info->pages; i++) {
-			if (!(info->func[i] & PMBUS_HAVE_STATUS_IOUT))
-				continue;
-			data->status[PB_STATUS_IOUT_BASE + i]
-			  = _pmbus_read_byte_data(client, i, PMBUS_STATUS_IOUT);
-		}
-		for (i = 0; i < info->pages; i++) {
-			if (!(info->func[i] & PMBUS_HAVE_STATUS_TEMP))
-				continue;
-			data->status[PB_STATUS_TEMP_BASE + i]
-			  = _pmbus_read_byte_data(client, i,
-						  PMBUS_STATUS_TEMPERATURE);
-		}
-		for (i = 0; i < info->pages; i++) {
-			if (!(info->func[i] & PMBUS_HAVE_STATUS_FAN12))
-				continue;
-			data->status[PB_STATUS_FAN_BASE + i]
-			  = _pmbus_read_byte_data(client, i,
-						  PMBUS_STATUS_FAN_12);
-		}
+						    data->status_register);
+			for (j = 0; j < ARRAY_SIZE(pmbus_status); j++) {
+				struct _pmbus_status *s = &pmbus_status[j];
 
-		for (i = 0; i < info->pages; i++) {
-			if (!(info->func[i] & PMBUS_HAVE_STATUS_FAN34))
-				continue;
-			data->status[PB_STATUS_FAN34_BASE + i]
-			  = _pmbus_read_byte_data(client, i,
-						  PMBUS_STATUS_FAN_34);
+				if (!(info->func[i] & s->func))
+					continue;
+				data->status[s->base + i]
+					= _pmbus_read_byte_data(client, i,
+								s->reg);
+			}
 		}
 
 		if (info->func[0] & PMBUS_HAVE_STATUS_INPUT)
@@ -417,9 +377,12 @@ static struct pmbus_data *pmbus_update_device(struct device *dev)
 			  = _pmbus_read_byte_data(client, 0,
 						  PMBUS_STATUS_INPUT);
 
-		for (i = 0; i < data->num_sensors; i++) {
-			struct pmbus_sensor *sensor = &data->sensors[i];
+		if (info->func[0] & PMBUS_HAVE_STATUS_VMON)
+			data->status[PB_STATUS_VMON_BASE]
+			  = _pmbus_read_byte_data(client, 0,
+						  PMBUS_VIRT_STATUS_VMON);
 
+		for (sensor = data->sensors; sensor; sensor = sensor->next) {
 			if (!data->valid || sensor->update)
 				sensor->data
 				    = _pmbus_read_word_data(client,
@@ -657,7 +620,7 @@ static u16 pmbus_data2reg_direct(struct pmbus_data *data,
 static u16 pmbus_data2reg_vid(struct pmbus_data *data,
 			      enum pmbus_sensor_classes class, long val)
 {
-	val = SENSORS_LIMIT(val, 500, 1600);
+	val = clamp_val(val, 500, 1600);
 
 	return 2 + DIV_ROUND_CLOSEST((1600 - val) * 100, 625);
 }
@@ -684,25 +647,20 @@ static u16 pmbus_data2reg(struct pmbus_data *data,
 
 /*
  * Return boolean calculated from converted data.
- * <index> defines a status register index and mask, and optionally
- * two sensor indexes.
- * The upper half-word references the two sensors,
- * two sensor indices.
- * The upper half-word references the two optional sensors,
- * the lower half word references status register and mask.
- * The function returns true if (status[reg] & mask) is true and,
- * if specified, if v1 >= v2.
- * To determine if an object exceeds upper limits, specify <v, limit>.
- * To determine if an object exceeds lower limits, specify <limit, v>.
+ * <index> defines a status register index and mask.
+ * The mask is in the lower 8 bits, the register index is in bits 8..23.
  *
- * For booleans created with pmbus_add_boolean_reg(), only the lower 16 bits of
- * index are set. s1 and s2 (the sensor index values) are zero in this case.
- * The function returns true if (status[reg] & mask) is true.
+ * The associated pmbus_boolean structure contains optional pointers to two
+ * sensor attributes. If specified, those attributes are compared against each
+ * other to determine if a limit has been exceeded.
  *
- * If the boolean was created with pmbus_add_boolean_cmp(), a comparison against
- * a specified limit has to be performed to determine the boolean result.
+ * If the sensor attribute pointers are NULL, the function returns true if
+ * (status[reg] & mask) is true.
+ *
+ * If sensor attribute pointers are provided, a comparison against a specified
+ * limit has to be performed to determine the boolean result.
  * In this case, the function returns true if v1 >= v2 (where v1 and v2 are
- * sensor values referenced by sensor indices s1 and s2).
+ * sensor values referenced by sensor attribute pointers s1 and s2).
  *
  * To determine if an object exceeds upper limits, specify <s1,s2> = <v,limit>.
  * To determine if an object exceeds lower limits, specify <s1,s2> = <limit,v>.
@@ -710,11 +668,12 @@ static u16 pmbus_data2reg(struct pmbus_data *data,
  * If a negative value is stored in any of the referenced registers, this value
  * reflects an error code which will be returned.
  */
-static int pmbus_get_boolean(struct pmbus_data *data, int index)
+static int pmbus_get_boolean(struct pmbus_data *data, struct pmbus_boolean *b,
+			     int index)
 {
-	u8 s1 = (index >> 24) & 0xff;
-	u8 s2 = (index >> 16) & 0xff;
-	u8 reg = (index >> 8) & 0xff;
+	struct pmbus_sensor *s1 = b->s1;
+	struct pmbus_sensor *s2 = b->s2;
+	u16 reg = (index >> 8) & 0xffff;
 	u8 mask = index & 0xff;
 	int ret, status;
 	u8 regval;
@@ -724,21 +683,21 @@ static int pmbus_get_boolean(struct pmbus_data *data, int index)
 		return status;
 
 	regval = status & mask;
-	if (!s1 && !s2)
+	if (!s1 && !s2) {
 		ret = !!regval;
-	else {
+	} else if (!s1 || !s2) {
+		BUG();
+		return 0;
+	} else {
 		long v1, v2;
-		struct pmbus_sensor *sensor1, *sensor2;
 
-		sensor1 = &data->sensors[s1];
-		if (sensor1->data < 0)
-			return sensor1->data;
-		sensor2 = &data->sensors[s2];
-		if (sensor2->data < 0)
-			return sensor2->data;
+		if (s1->data < 0)
+			return s1->data;
+		if (s2->data < 0)
+			return s2->data;
 
-		v1 = pmbus_reg2data(data, sensor1);
-		v2 = pmbus_reg2data(data, sensor2);
+		v1 = pmbus_reg2data(data, s1);
+		v2 = pmbus_reg2data(data, s2);
 		ret = !!(regval && v1 >= v2);
 	}
 	return ret;
@@ -748,23 +707,22 @@ static ssize_t pmbus_show_boolean(struct device *dev,
 				  struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	struct pmbus_boolean *boolean = to_pmbus_boolean(attr);
 	struct pmbus_data *data = pmbus_update_device(dev);
 	int val;
 
-	val = pmbus_get_boolean(data, attr->index);
+	val = pmbus_get_boolean(data, boolean, attr->index);
 	if (val < 0)
 		return val;
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 static ssize_t pmbus_show_sensor(struct device *dev,
-				 struct device_attribute *da, char *buf)
+				 struct device_attribute *devattr, char *buf)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct pmbus_data *data = pmbus_update_device(dev);
-	struct pmbus_sensor *sensor;
+	struct pmbus_sensor *sensor = to_pmbus_sensor(devattr);
 
-	sensor = &data->sensors[attr->index];
 	if (sensor->data < 0)
 		return sensor->data;
 
@@ -775,10 +733,9 @@ static ssize_t pmbus_set_sensor(struct device *dev,
 				struct device_attribute *devattr,
 				const char *buf, size_t count)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct i2c_client *client = to_i2c_client(dev);
 	struct pmbus_data *data = i2c_get_clientdata(client);
-	struct pmbus_sensor *sensor = &data->sensors[attr->index];
+	struct pmbus_sensor *sensor = to_pmbus_sensor(devattr);
 	ssize_t rv = count;
 	long val = 0;
 	int ret;
@@ -793,7 +750,7 @@ static ssize_t pmbus_set_sensor(struct device *dev,
 	if (ret < 0)
 		rv = ret;
 	else
-		data->sensors[attr->index].data = regval;
+		sensor->data = regval;
 	mutex_unlock(&data->update_lock);
 	return rv;
 }
@@ -801,102 +758,130 @@ static ssize_t pmbus_set_sensor(struct device *dev,
 static ssize_t pmbus_show_label(struct device *dev,
 				struct device_attribute *da, char *buf)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct pmbus_data *data = i2c_get_clientdata(client);
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
+	struct pmbus_label *label = to_pmbus_label(da);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			data->labels[attr->index].label);
+	return snprintf(buf, PAGE_SIZE, "%s\n", label->label);
 }
 
-#define PMBUS_ADD_ATTR(data, _name, _idx, _mode, _type, _show, _set)	\
-do {									\
-	struct sensor_device_attribute *a				\
-	    = &data->_type##s[data->num_##_type##s].attribute;		\
-	BUG_ON(data->num_attributes >= data->max_attributes);		\
-	sysfs_attr_init(&a->dev_attr.attr);				\
-	a->dev_attr.attr.name = _name;					\
-	a->dev_attr.attr.mode = _mode;					\
-	a->dev_attr.show = _show;					\
-	a->dev_attr.store = _set;					\
-	a->index = _idx;						\
-	data->attributes[data->num_attributes] = &a->dev_attr.attr;	\
-	data->num_attributes++;						\
-} while (0)
+static int pmbus_add_attribute(struct pmbus_data *data, struct attribute *attr)
+{
+	if (data->num_attributes >= data->max_attributes - 1) {
+		data->max_attributes += PMBUS_ATTR_ALLOC_SIZE;
+		data->group.attrs = krealloc(data->group.attrs,
+					     sizeof(struct attribute *) *
+					     data->max_attributes, GFP_KERNEL);
+		if (data->group.attrs == NULL)
+			return -ENOMEM;
+	}
 
-#define PMBUS_ADD_GET_ATTR(data, _name, _type, _idx)			\
-	PMBUS_ADD_ATTR(data, _name, _idx, S_IRUGO, _type,		\
-		       pmbus_show_##_type,  NULL)
+	data->group.attrs[data->num_attributes++] = attr;
+	data->group.attrs[data->num_attributes] = NULL;
+	return 0;
+}
 
-#define PMBUS_ADD_SET_ATTR(data, _name, _type, _idx)			\
-	PMBUS_ADD_ATTR(data, _name, _idx, S_IWUSR | S_IRUGO, _type,	\
-		       pmbus_show_##_type, pmbus_set_##_type)
+static void pmbus_dev_attr_init(struct device_attribute *dev_attr,
+				const char *name,
+				umode_t mode,
+				ssize_t (*show)(struct device *dev,
+						struct device_attribute *attr,
+						char *buf),
+				ssize_t (*store)(struct device *dev,
+						 struct device_attribute *attr,
+						 const char *buf, size_t count))
+{
+	sysfs_attr_init(&dev_attr->attr);
+	dev_attr->attr.name = name;
+	dev_attr->attr.mode = mode;
+	dev_attr->show = show;
+	dev_attr->store = store;
+}
 
-static void pmbus_add_boolean(struct pmbus_data *data,
-			      const char *name, const char *type, int seq,
-			      int idx)
+static void pmbus_attr_init(struct sensor_device_attribute *a,
+			    const char *name,
+			    umode_t mode,
+			    ssize_t (*show)(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf),
+			    ssize_t (*store)(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf, size_t count),
+			    int idx)
+{
+	pmbus_dev_attr_init(&a->dev_attr, name, mode, show, store);
+	a->index = idx;
+}
+
+static int pmbus_add_boolean(struct pmbus_data *data,
+			     const char *name, const char *type, int seq,
+			     struct pmbus_sensor *s1,
+			     struct pmbus_sensor *s2,
+			     u16 reg, u8 mask)
 {
 	struct pmbus_boolean *boolean;
+	struct sensor_device_attribute *a;
 
-	BUG_ON(data->num_booleans >= data->max_booleans);
+	boolean = devm_kzalloc(data->dev, sizeof(*boolean), GFP_KERNEL);
+	if (!boolean)
+		return -ENOMEM;
 
-	boolean = &data->booleans[data->num_booleans];
+	a = &boolean->attribute;
 
 	snprintf(boolean->name, sizeof(boolean->name), "%s%d_%s",
 		 name, seq, type);
-	PMBUS_ADD_GET_ATTR(data, boolean->name, boolean, idx);
-	data->num_booleans++;
+	boolean->s1 = s1;
+	boolean->s2 = s2;
+	pmbus_attr_init(a, boolean->name, S_IRUGO, pmbus_show_boolean, NULL,
+			(reg << 8) | mask);
+
+	return pmbus_add_attribute(data, &a->dev_attr.attr);
 }
 
-static void pmbus_add_boolean_reg(struct pmbus_data *data,
-				  const char *name, const char *type,
-				  int seq, int reg, int bit)
-{
-	pmbus_add_boolean(data, name, type, seq, (reg << 8) | bit);
-}
-
-static void pmbus_add_boolean_cmp(struct pmbus_data *data,
-				  const char *name, const char *type,
-				  int seq, int i1, int i2, int reg, int mask)
-{
-	pmbus_add_boolean(data, name, type, seq,
-			  (i1 << 24) | (i2 << 16) | (reg << 8) | mask);
-}
-
-static void pmbus_add_sensor(struct pmbus_data *data,
-			     const char *name, const char *type, int seq,
-			     int page, int reg, enum pmbus_sensor_classes class,
-			     bool update, bool readonly)
+static struct pmbus_sensor *pmbus_add_sensor(struct pmbus_data *data,
+					     const char *name, const char *type,
+					     int seq, int page, int reg,
+					     enum pmbus_sensor_classes class,
+					     bool update, bool readonly)
 {
 	struct pmbus_sensor *sensor;
+	struct device_attribute *a;
 
-	BUG_ON(data->num_sensors >= data->max_sensors);
+	sensor = devm_kzalloc(data->dev, sizeof(*sensor), GFP_KERNEL);
+	if (!sensor)
+		return NULL;
+	a = &sensor->attribute;
 
-	sensor = &data->sensors[data->num_sensors];
 	snprintf(sensor->name, sizeof(sensor->name), "%s%d_%s",
 		 name, seq, type);
 	sensor->page = page;
 	sensor->reg = reg;
 	sensor->class = class;
 	sensor->update = update;
-	if (readonly)
-		PMBUS_ADD_GET_ATTR(data, sensor->name, sensor,
-				   data->num_sensors);
-	else
-		PMBUS_ADD_SET_ATTR(data, sensor->name, sensor,
-				   data->num_sensors);
-	data->num_sensors++;
+	pmbus_dev_attr_init(a, sensor->name,
+			    readonly ? S_IRUGO : S_IRUGO | S_IWUSR,
+			    pmbus_show_sensor, pmbus_set_sensor);
+
+	if (pmbus_add_attribute(data, &a->attr))
+		return NULL;
+
+	sensor->next = data->sensors;
+	data->sensors = sensor;
+
+	return sensor;
 }
 
-static void pmbus_add_label(struct pmbus_data *data,
-			    const char *name, int seq,
-			    const char *lstring, int index)
+static int pmbus_add_label(struct pmbus_data *data,
+			   const char *name, int seq,
+			   const char *lstring, int index)
 {
 	struct pmbus_label *label;
+	struct device_attribute *a;
 
-	BUG_ON(data->num_labels >= data->max_labels);
+	label = devm_kzalloc(data->dev, sizeof(*label), GFP_KERNEL);
+	if (!label)
+		return -ENOMEM;
 
-	label = &data->labels[data->num_labels];
+	a = &label->attribute;
+
 	snprintf(label->name, sizeof(label->name), "%s%d_label", name, seq);
 	if (!index)
 		strncpy(label->label, lstring, sizeof(label->label) - 1);
@@ -904,65 +889,8 @@ static void pmbus_add_label(struct pmbus_data *data,
 		snprintf(label->label, sizeof(label->label), "%s%d", lstring,
 			 index);
 
-	PMBUS_ADD_GET_ATTR(data, label->name, label, data->num_labels);
-	data->num_labels++;
-}
-
-/*
- * Determine maximum number of sensors, booleans, and labels.
- * To keep things simple, only make a rough high estimate.
- */
-static void pmbus_find_max_attr(struct i2c_client *client,
-				struct pmbus_data *data)
-{
-	const struct pmbus_driver_info *info = data->info;
-	int page, max_sensors, max_booleans, max_labels;
-
-	max_sensors = PMBUS_MAX_INPUT_SENSORS;
-	max_booleans = PMBUS_MAX_INPUT_BOOLEANS;
-	max_labels = PMBUS_MAX_INPUT_LABELS;
-
-	for (page = 0; page < info->pages; page++) {
-		if (info->func[page] & PMBUS_HAVE_VOUT) {
-			max_sensors += PMBUS_VOUT_SENSORS_PER_PAGE;
-			max_booleans += PMBUS_VOUT_BOOLEANS_PER_PAGE;
-			max_labels++;
-		}
-		if (info->func[page] & PMBUS_HAVE_IOUT) {
-			max_sensors += PMBUS_IOUT_SENSORS_PER_PAGE;
-			max_booleans += PMBUS_IOUT_BOOLEANS_PER_PAGE;
-			max_labels++;
-		}
-		if (info->func[page] & PMBUS_HAVE_POUT) {
-			max_sensors += PMBUS_POUT_SENSORS_PER_PAGE;
-			max_booleans += PMBUS_POUT_BOOLEANS_PER_PAGE;
-			max_labels++;
-		}
-		if (info->func[page] & PMBUS_HAVE_FAN12) {
-			max_sensors += 2 * PMBUS_MAX_SENSORS_PER_FAN;
-			max_booleans += 2 * PMBUS_MAX_BOOLEANS_PER_FAN;
-		}
-		if (info->func[page] & PMBUS_HAVE_FAN34) {
-			max_sensors += 2 * PMBUS_MAX_SENSORS_PER_FAN;
-			max_booleans += 2 * PMBUS_MAX_BOOLEANS_PER_FAN;
-		}
-		if (info->func[page] & PMBUS_HAVE_TEMP) {
-			max_sensors += PMBUS_MAX_SENSORS_PER_TEMP;
-			max_booleans += PMBUS_MAX_BOOLEANS_PER_TEMP;
-		}
-		if (info->func[page] & PMBUS_HAVE_TEMP2) {
-			max_sensors += PMBUS_MAX_SENSORS_PER_TEMP;
-			max_booleans += PMBUS_MAX_BOOLEANS_PER_TEMP;
-		}
-		if (info->func[page] & PMBUS_HAVE_TEMP3) {
-			max_sensors += PMBUS_MAX_SENSORS_PER_TEMP;
-			max_booleans += PMBUS_MAX_BOOLEANS_PER_TEMP;
-		}
-	}
-	data->max_sensors = max_sensors;
-	data->max_booleans = max_booleans;
-	data->max_labels = max_labels;
-	data->max_attributes = max_sensors + max_booleans + max_labels;
+	pmbus_dev_attr_init(a, label->name, S_IRUGO, pmbus_show_label, NULL);
+	return pmbus_add_attribute(data, &a->attr);
 }
 
 /*
@@ -975,12 +903,12 @@ static void pmbus_find_max_attr(struct i2c_client *client,
  */
 struct pmbus_limit_attr {
 	u16 reg;		/* Limit register */
+	u16 sbit;		/* Alarm attribute status bit */
 	bool update;		/* True if register needs updates */
 	bool low;		/* True if low limit; for limits with compare
 				   functions only */
 	const char *attr;	/* Attribute name */
 	const char *alarm;	/* Alarm attribute name */
-	u32 sbit;		/* Alarm attribute status bit */
 };
 
 /*
@@ -988,7 +916,9 @@ struct pmbus_limit_attr {
  * description includes a reference to the associated limit attributes.
  */
 struct pmbus_sensor_attr {
-	u8 reg;				/* sensor register */
+	u16 reg;			/* sensor register */
+	u8 gbit;			/* generic status bit */
+	u8 nlimit;			/* # of limit registers */
 	enum pmbus_sensor_classes class;/* sensor class */
 	const char *label;		/* sensor label */
 	bool paged;			/* true if paged sensor */
@@ -997,47 +927,47 @@ struct pmbus_sensor_attr {
 	u32 func;			/* sensor mask */
 	u32 sfunc;			/* sensor status mask */
 	int sbase;			/* status base register */
-	u32 gbit;			/* generic status bit */
 	const struct pmbus_limit_attr *limit;/* limit registers */
-	int nlimit;			/* # of limit registers */
 };
 
 /*
  * Add a set of limit attributes and, if supported, the associated
  * alarm attributes.
+ * returns 0 if no alarm register found, 1 if an alarm register was found,
+ * < 0 on errors.
  */
-static bool pmbus_add_limit_attrs(struct i2c_client *client,
-				  struct pmbus_data *data,
-				  const struct pmbus_driver_info *info,
-				  const char *name, int index, int page,
-				  int cbase,
-				  const struct pmbus_sensor_attr *attr)
+static int pmbus_add_limit_attrs(struct i2c_client *client,
+				 struct pmbus_data *data,
+				 const struct pmbus_driver_info *info,
+				 const char *name, int index, int page,
+				 struct pmbus_sensor *base,
+				 const struct pmbus_sensor_attr *attr)
 {
 	const struct pmbus_limit_attr *l = attr->limit;
 	int nlimit = attr->nlimit;
-	bool have_alarm = false;
-	int i, cindex;
+	int have_alarm = 0;
+	int i, ret;
+	struct pmbus_sensor *curr;
 
 	for (i = 0; i < nlimit; i++) {
 		if (pmbus_check_word_register(client, page, l->reg)) {
-			cindex = data->num_sensors;
-			pmbus_add_sensor(data, name, l->attr, index, page,
-					 l->reg, attr->class,
-					 attr->update || l->update,
-					 false);
+			curr = pmbus_add_sensor(data, name, l->attr, index,
+						page, l->reg, attr->class,
+						attr->update || l->update,
+						false);
+			if (!curr)
+				return -ENOMEM;
 			if (l->sbit && (info->func[page] & attr->sfunc)) {
-				if (attr->compare) {
-					pmbus_add_boolean_cmp(data, name,
-						l->alarm, index,
-						l->low ? cindex : cbase,
-						l->low ? cbase : cindex,
-						attr->sbase + page, l->sbit);
-				} else {
-					pmbus_add_boolean_reg(data, name,
-						l->alarm, index,
-						attr->sbase + page, l->sbit);
-				}
-				have_alarm = true;
+				ret = pmbus_add_boolean(data, name,
+					l->alarm, index,
+					attr->compare ?  l->low ? curr : base
+						      : NULL,
+					attr->compare ? l->low ? base : curr
+						      : NULL,
+					attr->sbase + page, l->sbit);
+				if (ret)
+					return ret;
+				have_alarm = 1;
 			}
 		}
 		l++;
@@ -1045,45 +975,59 @@ static bool pmbus_add_limit_attrs(struct i2c_client *client,
 	return have_alarm;
 }
 
-static void pmbus_add_sensor_attrs_one(struct i2c_client *client,
-				       struct pmbus_data *data,
-				       const struct pmbus_driver_info *info,
-				       const char *name,
-				       int index, int page,
-				       const struct pmbus_sensor_attr *attr)
+static int pmbus_add_sensor_attrs_one(struct i2c_client *client,
+				      struct pmbus_data *data,
+				      const struct pmbus_driver_info *info,
+				      const char *name,
+				      int index, int page,
+				      const struct pmbus_sensor_attr *attr)
 {
-	bool have_alarm;
-	int cbase = data->num_sensors;
+	struct pmbus_sensor *base;
+	int ret;
 
-	if (attr->label)
-		pmbus_add_label(data, name, index, attr->label,
-				attr->paged ? page + 1 : 0);
-	pmbus_add_sensor(data, name, "input", index, page, attr->reg,
-			 attr->class, true, true);
+	if (attr->label) {
+		ret = pmbus_add_label(data, name, index, attr->label,
+				      attr->paged ? page + 1 : 0);
+		if (ret)
+			return ret;
+	}
+	base = pmbus_add_sensor(data, name, "input", index, page, attr->reg,
+				attr->class, true, true);
+	if (!base)
+		return -ENOMEM;
 	if (attr->sfunc) {
-		have_alarm = pmbus_add_limit_attrs(client, data, info, name,
-						   index, page, cbase, attr);
+		ret = pmbus_add_limit_attrs(client, data, info, name,
+					    index, page, base, attr);
+		if (ret < 0)
+			return ret;
 		/*
 		 * Add generic alarm attribute only if there are no individual
 		 * alarm attributes, if there is a global alarm bit, and if
 		 * the generic status register for this page is accessible.
 		 */
-		if (!have_alarm && attr->gbit &&
-		    pmbus_check_byte_register(client, page, PMBUS_STATUS_BYTE))
-			pmbus_add_boolean_reg(data, name, "alarm", index,
-					      PB_STATUS_BASE + page,
-					      attr->gbit);
+		if (!ret && attr->gbit &&
+		    pmbus_check_byte_register(client, page,
+					      data->status_register)) {
+			ret = pmbus_add_boolean(data, name, "alarm", index,
+						NULL, NULL,
+						PB_STATUS_BASE + page,
+						attr->gbit);
+			if (ret)
+				return ret;
+		}
 	}
+	return 0;
 }
 
-static void pmbus_add_sensor_attrs(struct i2c_client *client,
-				   struct pmbus_data *data,
-				   const char *name,
-				   const struct pmbus_sensor_attr *attrs,
-				   int nattrs)
+static int pmbus_add_sensor_attrs(struct i2c_client *client,
+				  struct pmbus_data *data,
+				  const char *name,
+				  const struct pmbus_sensor_attr *attrs,
+				  int nattrs)
 {
 	const struct pmbus_driver_info *info = data->info;
 	int index, i;
+	int ret;
 
 	index = 1;
 	for (i = 0; i < nattrs; i++) {
@@ -1093,12 +1037,16 @@ static void pmbus_add_sensor_attrs(struct i2c_client *client,
 		for (page = 0; page < pages; page++) {
 			if (!(info->func[page] & attrs->func))
 				continue;
-			pmbus_add_sensor_attrs_one(client, data, info, name,
-						   index, page, attrs);
+			ret = pmbus_add_sensor_attrs_one(client, data, info,
+							 name, index, page,
+							 attrs);
+			if (ret)
+				return ret;
 			index++;
 		}
 		attrs++;
 	}
+	return 0;
 }
 
 static const struct pmbus_limit_attr vin_limit_attrs[] = {
@@ -1138,6 +1086,30 @@ static const struct pmbus_limit_attr vin_limit_attrs[] = {
 		.reg = PMBUS_VIRT_RESET_VIN_HISTORY,
 		.attr = "reset_history",
 	},
+};
+
+static const struct pmbus_limit_attr vmon_limit_attrs[] = {
+	{
+		.reg = PMBUS_VIRT_VMON_UV_WARN_LIMIT,
+		.attr = "min",
+		.alarm = "min_alarm",
+		.sbit = PB_VOLTAGE_UV_WARNING,
+	}, {
+		.reg = PMBUS_VIRT_VMON_UV_FAULT_LIMIT,
+		.attr = "lcrit",
+		.alarm = "lcrit_alarm",
+		.sbit = PB_VOLTAGE_UV_FAULT,
+	}, {
+		.reg = PMBUS_VIRT_VMON_OV_WARN_LIMIT,
+		.attr = "max",
+		.alarm = "max_alarm",
+		.sbit = PB_VOLTAGE_OV_WARNING,
+	}, {
+		.reg = PMBUS_VIRT_VMON_OV_FAULT_LIMIT,
+		.attr = "crit",
+		.alarm = "crit_alarm",
+		.sbit = PB_VOLTAGE_OV_FAULT,
+	}
 };
 
 static const struct pmbus_limit_attr vout_limit_attrs[] = {
@@ -1190,6 +1162,15 @@ static const struct pmbus_sensor_attr voltage_attributes[] = {
 		.gbit = PB_STATUS_VIN_UV,
 		.limit = vin_limit_attrs,
 		.nlimit = ARRAY_SIZE(vin_limit_attrs),
+	}, {
+		.reg = PMBUS_VIRT_READ_VMON,
+		.class = PSC_VOLTAGE_IN,
+		.label = "vmon",
+		.func = PMBUS_HAVE_VMON,
+		.sfunc = PMBUS_HAVE_STATUS_VMON,
+		.sbase = PB_STATUS_VMON_BASE,
+		.limit = vmon_limit_attrs,
+		.nlimit = ARRAY_SIZE(vmon_limit_attrs),
 	}, {
 		.reg = PMBUS_READ_VCAP,
 		.class = PSC_VOLTAGE_IN,
@@ -1553,12 +1534,13 @@ static const u32 pmbus_fan_status_flags[] = {
 };
 
 /* Fans */
-static void pmbus_add_fan_attributes(struct i2c_client *client,
-				     struct pmbus_data *data)
+static int pmbus_add_fan_attributes(struct i2c_client *client,
+				    struct pmbus_data *data)
 {
 	const struct pmbus_driver_info *info = data->info;
 	int index = 1;
 	int page;
+	int ret;
 
 	for (page = 0; page < info->pages; page++) {
 		int f;
@@ -1584,9 +1566,10 @@ static void pmbus_add_fan_attributes(struct i2c_client *client,
 			    (!(regval & (PB_FAN_1_INSTALLED >> ((f & 1) * 4)))))
 				continue;
 
-			pmbus_add_sensor(data, "fan", "input", index, page,
-					 pmbus_fan_registers[f], PSC_FAN, true,
-					 true);
+			if (pmbus_add_sensor(data, "fan", "input", index,
+					     page, pmbus_fan_registers[f],
+					     PSC_FAN, true, true) == NULL)
+				return -ENOMEM;
 
 			/*
 			 * Each fan status register covers multiple fans,
@@ -1601,39 +1584,55 @@ static void pmbus_add_fan_attributes(struct i2c_client *client,
 					base = PB_STATUS_FAN34_BASE + page;
 				else
 					base = PB_STATUS_FAN_BASE + page;
-				pmbus_add_boolean_reg(data, "fan", "alarm",
-					index, base,
+				ret = pmbus_add_boolean(data, "fan",
+					"alarm", index, NULL, NULL, base,
 					PB_FAN_FAN1_WARNING >> (f & 1));
-				pmbus_add_boolean_reg(data, "fan", "fault",
-					index, base,
+				if (ret)
+					return ret;
+				ret = pmbus_add_boolean(data, "fan",
+					"fault", index, NULL, NULL, base,
 					PB_FAN_FAN1_FAULT >> (f & 1));
+				if (ret)
+					return ret;
 			}
 			index++;
 		}
 	}
+	return 0;
 }
 
-static void pmbus_find_attributes(struct i2c_client *client,
-				  struct pmbus_data *data)
+static int pmbus_find_attributes(struct i2c_client *client,
+				 struct pmbus_data *data)
 {
+	int ret;
+
 	/* Voltage sensors */
-	pmbus_add_sensor_attrs(client, data, "in", voltage_attributes,
-			       ARRAY_SIZE(voltage_attributes));
+	ret = pmbus_add_sensor_attrs(client, data, "in", voltage_attributes,
+				     ARRAY_SIZE(voltage_attributes));
+	if (ret)
+		return ret;
 
 	/* Current sensors */
-	pmbus_add_sensor_attrs(client, data, "curr", current_attributes,
-			       ARRAY_SIZE(current_attributes));
+	ret = pmbus_add_sensor_attrs(client, data, "curr", current_attributes,
+				     ARRAY_SIZE(current_attributes));
+	if (ret)
+		return ret;
 
 	/* Power sensors */
-	pmbus_add_sensor_attrs(client, data, "power", power_attributes,
-			       ARRAY_SIZE(power_attributes));
+	ret = pmbus_add_sensor_attrs(client, data, "power", power_attributes,
+				     ARRAY_SIZE(power_attributes));
+	if (ret)
+		return ret;
 
 	/* Temperature sensors */
-	pmbus_add_sensor_attrs(client, data, "temp", temp_attributes,
-			       ARRAY_SIZE(temp_attributes));
+	ret = pmbus_add_sensor_attrs(client, data, "temp", temp_attributes,
+				     ARRAY_SIZE(temp_attributes));
+	if (ret)
+		return ret;
 
 	/* Fans */
-	pmbus_add_fan_attributes(client, data);
+	ret = pmbus_add_fan_attributes(client, data);
+	return ret;
 }
 
 /*
@@ -1672,127 +1671,119 @@ static int pmbus_identify_common(struct i2c_client *client,
 		}
 	}
 
-	/* Determine maximum number of sensors, booleans, and labels */
-	pmbus_find_max_attr(client, data);
 	pmbus_clear_fault_page(client, 0);
 	return 0;
 }
 
-int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
-		   struct pmbus_driver_info *info)
+static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
+			     struct pmbus_driver_info *info)
 {
-	const struct pmbus_platform_data *pdata = client->dev.platform_data;
-	struct pmbus_data *data;
+	struct device *dev = &client->dev;
 	int ret;
 
-	if (!info) {
-		dev_err(&client->dev, "Missing chip information");
-		return -ENODEV;
+	/*
+	 * Some PMBus chips don't support PMBUS_STATUS_BYTE, so try
+	 * to use PMBUS_STATUS_WORD instead if that is the case.
+	 * Bail out if both registers are not supported.
+	 */
+	data->status_register = PMBUS_STATUS_BYTE;
+	ret = i2c_smbus_read_byte_data(client, PMBUS_STATUS_BYTE);
+	if (ret < 0 || ret == 0xff) {
+		data->status_register = PMBUS_STATUS_WORD;
+		ret = i2c_smbus_read_word_data(client, PMBUS_STATUS_WORD);
+		if (ret < 0 || ret == 0xffff) {
+			dev_err(dev, "PMBus status register not found\n");
+			return -ENODEV;
+		}
 	}
-
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WRITE_BYTE
-				     | I2C_FUNC_SMBUS_BYTE_DATA
-				     | I2C_FUNC_SMBUS_WORD_DATA))
-		return -ENODEV;
-
-	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&client->dev, "No memory to allocate driver data\n");
-		return -ENOMEM;
-	}
-
-	i2c_set_clientdata(client, data);
-	mutex_init(&data->update_lock);
-
-	/* Bail out if PMBus status register does not exist. */
-	if (i2c_smbus_read_byte_data(client, PMBUS_STATUS_BYTE) < 0) {
-		dev_err(&client->dev, "PMBus status register not found\n");
-		return -ENODEV;
-	}
-
-	if (pdata)
-		data->flags = pdata->flags;
-	data->info = info;
 
 	pmbus_clear_faults(client);
 
 	if (info->identify) {
 		ret = (*info->identify)(client, info);
 		if (ret < 0) {
-			dev_err(&client->dev, "Chip identification failed\n");
+			dev_err(dev, "Chip identification failed\n");
 			return ret;
 		}
 	}
 
 	if (info->pages <= 0 || info->pages > PMBUS_PAGES) {
-		dev_err(&client->dev, "Bad number of PMBus pages: %d\n",
-			info->pages);
+		dev_err(dev, "Bad number of PMBus pages: %d\n", info->pages);
 		return -ENODEV;
 	}
 
 	ret = pmbus_identify_common(client, data);
 	if (ret < 0) {
-		dev_err(&client->dev, "Failed to identify chip capabilities\n");
+		dev_err(dev, "Failed to identify chip capabilities\n");
 		return ret;
 	}
+	return 0;
+}
 
-	ret = -ENOMEM;
-	data->sensors = devm_kzalloc(&client->dev, sizeof(struct pmbus_sensor)
-				     * data->max_sensors, GFP_KERNEL);
-	if (!data->sensors) {
-		dev_err(&client->dev, "No memory to allocate sensor data\n");
+int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
+		   struct pmbus_driver_info *info)
+{
+	struct device *dev = &client->dev;
+	const struct pmbus_platform_data *pdata = dev->platform_data;
+	struct pmbus_data *data;
+	int ret;
+
+	if (!info)
+		return -ENODEV;
+
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WRITE_BYTE
+				     | I2C_FUNC_SMBUS_BYTE_DATA
+				     | I2C_FUNC_SMBUS_WORD_DATA))
+		return -ENODEV;
+
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
-	}
 
-	data->booleans = devm_kzalloc(&client->dev, sizeof(struct pmbus_boolean)
-				 * data->max_booleans, GFP_KERNEL);
-	if (!data->booleans) {
-		dev_err(&client->dev, "No memory to allocate boolean data\n");
-		return -ENOMEM;
-	}
+	i2c_set_clientdata(client, data);
+	mutex_init(&data->update_lock);
+	data->dev = dev;
 
-	data->labels = devm_kzalloc(&client->dev, sizeof(struct pmbus_label)
-				    * data->max_labels, GFP_KERNEL);
-	if (!data->labels) {
-		dev_err(&client->dev, "No memory to allocate label data\n");
-		return -ENOMEM;
-	}
+	if (pdata)
+		data->flags = pdata->flags;
+	data->info = info;
 
-	data->attributes = devm_kzalloc(&client->dev, sizeof(struct attribute *)
-					* data->max_attributes, GFP_KERNEL);
-	if (!data->attributes) {
-		dev_err(&client->dev, "No memory to allocate attribute data\n");
-		return -ENOMEM;
-	}
+	ret = pmbus_init_common(client, data, info);
+	if (ret < 0)
+		return ret;
 
-	pmbus_find_attributes(client, data);
+	ret = pmbus_find_attributes(client, data);
+	if (ret)
+		goto out_kfree;
 
 	/*
 	 * If there are no attributes, something is wrong.
 	 * Bail out instead of trying to register nothing.
 	 */
 	if (!data->num_attributes) {
-		dev_err(&client->dev, "No attributes found\n");
-		return -ENODEV;
+		dev_err(dev, "No attributes found\n");
+		ret = -ENODEV;
+		goto out_kfree;
 	}
 
 	/* Register sysfs hooks */
-	data->group.attrs = data->attributes;
-	ret = sysfs_create_group(&client->dev.kobj, &data->group);
+	ret = sysfs_create_group(&dev->kobj, &data->group);
 	if (ret) {
-		dev_err(&client->dev, "Failed to create sysfs entries\n");
-		return ret;
+		dev_err(dev, "Failed to create sysfs entries\n");
+		goto out_kfree;
 	}
-	data->hwmon_dev = hwmon_device_register(&client->dev);
+	data->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		ret = PTR_ERR(data->hwmon_dev);
-		dev_err(&client->dev, "Failed to register hwmon device\n");
+		dev_err(dev, "Failed to register hwmon device\n");
 		goto out_hwmon_device_register;
 	}
 	return 0;
 
 out_hwmon_device_register:
-	sysfs_remove_group(&client->dev.kobj, &data->group);
+	sysfs_remove_group(&dev->kobj, &data->group);
+out_kfree:
+	kfree(data->group.attrs);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pmbus_do_probe);
@@ -1802,6 +1793,7 @@ int pmbus_do_remove(struct i2c_client *client)
 	struct pmbus_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &data->group);
+	kfree(data->group.attrs);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pmbus_do_remove);

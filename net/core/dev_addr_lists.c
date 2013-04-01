@@ -15,7 +15,6 @@
 #include <linux/rtnetlink.h>
 #include <linux/export.h>
 #include <linux/list.h>
-#include <linux/proc_fs.h>
 
 /*
  * General list handling functions
@@ -727,76 +726,3 @@ void dev_mc_init(struct net_device *dev)
 	__hw_addr_init(&dev->mc);
 }
 EXPORT_SYMBOL(dev_mc_init);
-
-#ifdef CONFIG_PROC_FS
-#include <linux/seq_file.h>
-
-static int dev_mc_seq_show(struct seq_file *seq, void *v)
-{
-	struct netdev_hw_addr *ha;
-	struct net_device *dev = v;
-
-	if (v == SEQ_START_TOKEN)
-		return 0;
-
-	netif_addr_lock_bh(dev);
-	netdev_for_each_mc_addr(ha, dev) {
-		int i;
-
-		seq_printf(seq, "%-4d %-15s %-5d %-5d ", dev->ifindex,
-			   dev->name, ha->refcount, ha->global_use);
-
-		for (i = 0; i < dev->addr_len; i++)
-			seq_printf(seq, "%02x", ha->addr[i]);
-
-		seq_putc(seq, '\n');
-	}
-	netif_addr_unlock_bh(dev);
-	return 0;
-}
-
-static const struct seq_operations dev_mc_seq_ops = {
-	.start = dev_seq_start,
-	.next  = dev_seq_next,
-	.stop  = dev_seq_stop,
-	.show  = dev_mc_seq_show,
-};
-
-static int dev_mc_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &dev_mc_seq_ops,
-			    sizeof(struct seq_net_private));
-}
-
-static const struct file_operations dev_mc_seq_fops = {
-	.owner	 = THIS_MODULE,
-	.open    = dev_mc_seq_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release_net,
-};
-
-#endif
-
-static int __net_init dev_mc_net_init(struct net *net)
-{
-	if (!proc_net_fops_create(net, "dev_mcast", 0, &dev_mc_seq_fops))
-		return -ENOMEM;
-	return 0;
-}
-
-static void __net_exit dev_mc_net_exit(struct net *net)
-{
-	proc_net_remove(net, "dev_mcast");
-}
-
-static struct pernet_operations __net_initdata dev_mc_net_ops = {
-	.init = dev_mc_net_init,
-	.exit = dev_mc_net_exit,
-};
-
-void __init dev_mcast_init(void)
-{
-	register_pernet_subsys(&dev_mc_net_ops);
-}
-

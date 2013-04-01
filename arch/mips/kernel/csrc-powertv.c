@@ -45,7 +45,7 @@ unsigned int __init mips_get_pll_freq(void)
 	m = PLL_GET_M(pll_reg);
 	n = PLL_GET_N(pll_reg);
 	p = PLL_GET_P(pll_reg);
-	pr_info("MIPS PLL Register:0x%x  M=%d  N=%d  P=%d\n", pll_reg, m, n, p);
+	pr_info("MIPS PLL Register:0x%x	 M=%d  N=%d  P=%d\n", pll_reg, m, n, p);
 
 	/* Calculate clock frequency = (2 * N * 54MHz) / (M * (2**P)) */
 	fout = ((2 * n * fin) / (m * (0x01 << p)));
@@ -83,8 +83,8 @@ static void __init powertv_c0_hpt_clocksource_init(void)
 
 /**
  * struct tim_c - free running counter
- * @hi:	High 16 bits of the counter
- * @lo:	Low 32 bits of the counter
+ * @hi: High 16 bits of the counter
+ * @lo: Low 32 bits of the counter
  *
  * Lays out the structure of the free running counter in memory. This counter
  * increments at a rate of 27 MHz/8 on all platforms.

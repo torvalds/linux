@@ -972,6 +972,18 @@ pinmux core.
 Pin control requests from drivers
 =================================
 
+When a device driver is about to probe the device core will automatically
+attempt to issue pinctrl_get_select_default() on these devices.
+This way driver writers do not need to add any of the boilerplate code
+of the type found below. However when doing fine-grained state selection
+and not using the "default" state, you may have to do some device driver
+handling of the pinctrl handles and states.
+
+So if you just want to put the pins for a certain device into the default
+state and be done with it, there is nothing you need to do besides
+providing the proper mapping table. The device core will take care of
+the rest.
+
 Generally it is discouraged to let individual drivers get and enable pin
 control. So if possible, handle the pin control in platform code or some other
 place where you have access to all the affected struct device * pointers. In
@@ -1097,9 +1109,9 @@ situations that can be electrically unpleasant, you will certainly want to
 mux in and bias pins in a certain way before the GPIO subsystems starts to
 deal with them.
 
-The above can be hidden: using pinctrl hogs, the pin control driver may be
-setting up the config and muxing for the pins when it is probing,
-nevertheless orthogonal to the GPIO subsystem.
+The above can be hidden: using the device core, the pinctrl core may be
+setting up the config and muxing for the pins right before the device is
+probing, nevertheless orthogonal to the GPIO subsystem.
 
 But there are also situations where it makes sense for the GPIO subsystem
 to communicate directly with with the pinctrl subsystem, using the latter

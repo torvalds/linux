@@ -255,12 +255,11 @@ static void ProcessModemStatus(struct quatech_port *qt_port,
 	wake_up_interruptible(&qt_port->wait);
 }
 
-static void ProcessRxChar(struct tty_struct *tty, struct usb_serial_port *port,
-						unsigned char data)
+static void ProcessRxChar(struct usb_serial_port *port, unsigned char data)
 {
 	struct urb *urb = port->read_urb;
 	if (urb->actual_length)
-		tty_insert_flip_char(tty, data, TTY_NORMAL);
+		tty_insert_flip_char(&port->port, data, TTY_NORMAL);
 }
 
 static void qt_write_bulk_callback(struct urb *urb)
@@ -291,8 +290,7 @@ static void qt_interrupt_callback(struct urb *urb)
 	/* FIXME */
 }
 
-static void qt_status_change_check(struct tty_struct *tty,
-				   struct urb *urb,
+static void qt_status_change_check(struct urb *urb,
 				   struct quatech_port *qt_port,
 				   struct usb_serial_port *port)
 {
@@ -335,8 +333,8 @@ static void qt_status_change_check(struct tty_struct *tty,
 			case 0xff:
 				dev_dbg(&port->dev, "No status sequence.\n");
 
-				ProcessRxChar(tty, port, data[i]);
-				ProcessRxChar(tty, port, data[i + 1]);
+				ProcessRxChar(port, data[i]);
+				ProcessRxChar(port, data[i + 1]);
 
 				i += 2;
 				break;
@@ -345,11 +343,11 @@ static void qt_status_change_check(struct tty_struct *tty,
 				continue;
 		}
 
-		if (tty && urb->actual_length)
-			tty_insert_flip_char(tty, data[i], TTY_NORMAL);
+		if (urb->actual_length)
+			tty_insert_flip_char(&port->port, data[i], TTY_NORMAL);
 
 	}
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->port);
 }
 
 static void qt_read_bulk_callback(struct urb *urb)
@@ -358,7 +356,6 @@ static void qt_read_bulk_callback(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	struct usb_serial *serial = get_usb_serial(port, __func__);
 	struct quatech_port *qt_port = qt_get_port_private(port);
-	struct tty_struct *tty;
 	int result;
 
 	if (urb->status) {
@@ -369,27 +366,23 @@ static void qt_read_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
-
 	dev_dbg(&port->dev,
 		"%s - port->RxHolding = %d\n", __func__, qt_port->RxHolding);
 
 	if (port_paranoia_check(port, __func__) != 0) {
 		qt_port->ReadBulkStopped = 1;
-		goto exit;
+		return;
 	}
 
 	if (!serial)
-		goto exit;
+		return;
 
 	if (qt_port->closePending == 1) {
 		/* Were closing , stop reading */
 		dev_dbg(&port->dev,
 			"%s - (qt_port->closepending == 1\n", __func__);
 		qt_port->ReadBulkStopped = 1;
-		goto exit;
+		return;
 	}
 
 	/*
@@ -399,7 +392,7 @@ static void qt_read_bulk_callback(struct urb *urb)
 	 */
 	if (qt_port->RxHolding == 1) {
 		qt_port->ReadBulkStopped = 1;
-		goto exit;
+		return;
 	}
 
 	if (urb->status) {
@@ -408,11 +401,11 @@ static void qt_read_bulk_callback(struct urb *urb)
 		dev_dbg(&port->dev,
 			"%s - nonzero read bulk status received: %d\n",
 			__func__, urb->status);
-		goto exit;
+		return;
 	}
 
 	if (urb->actual_length)
-		qt_status_change_check(tty, urb, qt_port, port);
+		qt_status_change_check(urb, qt_port, port);
 
 	/* Continue trying to always read  */
 	usb_fill_bulk_urb(port->read_urb, serial->dev,
@@ -428,14 +421,12 @@ static void qt_read_bulk_callback(struct urb *urb)
 			__func__, result);
 	else {
 		if (urb->actual_length) {
-			tty_flip_buffer_push(tty);
-			tty_schedule_flip(tty);
+			tty_flip_buffer_push(&port->port);
+			tty_schedule_flip(&port->port);
 		}
 	}
 
 	schedule_work(&port->work);
-exit:
-	tty_kref_put(tty);
 }
 
 /*

@@ -100,6 +100,7 @@
 #define PPC_INST_MFSPR_PVR		0x7c1f42a6
 #define PPC_INST_MFSPR_PVR_MASK		0xfc1fffff
 #define PPC_INST_MSGSND			0x7c00019c
+#define PPC_INST_MSGSNDP		0x7c00011c
 #define PPC_INST_NOP			0x60000000
 #define PPC_INST_POPCNTB		0x7c0000f4
 #define PPC_INST_POPCNTB_MASK		0xfc0007fe
@@ -128,6 +129,9 @@
 #define PPC_INST_TLBSRX_DOT		0x7c0006a5
 #define PPC_INST_XXLOR			0xf0000510
 #define PPC_INST_XVCPSGNDP		0xf0000780
+#define PPC_INST_TRECHKPT		0x7c0007dd
+#define PPC_INST_TRECLAIM		0x7c00075d
+#define PPC_INST_TABORT			0x7c00071d
 
 #define PPC_INST_NAP			0x4c000364
 #define PPC_INST_SLEEP			0x4c0003a4
@@ -227,6 +231,8 @@
 					___PPC_RB(b) | __PPC_EH(eh))
 #define PPC_MSGSND(b)		stringify_in_c(.long PPC_INST_MSGSND | \
 					___PPC_RB(b))
+#define PPC_MSGSNDP(b)		stringify_in_c(.long PPC_INST_MSGSNDP | \
+					___PPC_RB(b))
 #define PPC_POPCNTB(a, s)	stringify_in_c(.long PPC_INST_POPCNTB | \
 					__PPC_RA(a) | __PPC_RS(s))
 #define PPC_POPCNTD(a, s)	stringify_in_c(.long PPC_INST_POPCNTD | \
@@ -290,5 +296,12 @@
 
 #define PPC_NAP			stringify_in_c(.long PPC_INST_NAP)
 #define PPC_SLEEP		stringify_in_c(.long PPC_INST_SLEEP)
+
+/* Transactional memory instructions */
+#define TRECHKPT		stringify_in_c(.long PPC_INST_TRECHKPT)
+#define TRECLAIM(r)		stringify_in_c(.long PPC_INST_TRECLAIM \
+					       | __PPC_RA(r))
+#define TABORT(r)		stringify_in_c(.long PPC_INST_TABORT \
+					       | __PPC_RA(r))
 
 #endif /* _ASM_POWERPC_PPC_OPCODE_H */

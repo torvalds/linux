@@ -2920,14 +2920,11 @@ static int ql_alloc_rx_resources(struct ql_adapter *qdev,
 		/*
 		 * Allocate small buffer queue control blocks.
 		 */
-		rx_ring->sbq =
-		    kmalloc(rx_ring->sbq_len * sizeof(struct bq_desc),
-			    GFP_KERNEL);
-		if (rx_ring->sbq == NULL) {
-			netif_err(qdev, ifup, qdev->ndev,
-				  "Small buffer queue control block allocation failed.\n");
+		rx_ring->sbq = kmalloc_array(rx_ring->sbq_len,
+					     sizeof(struct bq_desc),
+					     GFP_KERNEL);
+		if (rx_ring->sbq == NULL)
 			goto err_mem;
-		}
 
 		ql_init_sbq_ring(qdev, rx_ring);
 	}
@@ -2948,14 +2945,11 @@ static int ql_alloc_rx_resources(struct ql_adapter *qdev,
 		/*
 		 * Allocate large buffer queue control blocks.
 		 */
-		rx_ring->lbq =
-		    kmalloc(rx_ring->lbq_len * sizeof(struct bq_desc),
-			    GFP_KERNEL);
-		if (rx_ring->lbq == NULL) {
-			netif_err(qdev, ifup, qdev->ndev,
-				  "Large buffer queue control block allocation failed.\n");
+		rx_ring->lbq = kmalloc_array(rx_ring->lbq_len,
+					     sizeof(struct bq_desc),
+					     GFP_KERNEL);
+		if (rx_ring->lbq == NULL)
 			goto err_mem;
-		}
 
 		ql_init_lbq_ring(qdev, rx_ring);
 	}
@@ -4572,7 +4566,6 @@ static int ql_init_device(struct pci_dev *pdev, struct net_device *ndev,
 		qdev->mpi_coredump =
 			vmalloc(sizeof(struct ql_mpi_coredump));
 		if (qdev->mpi_coredump == NULL) {
-			dev_err(&pdev->dev, "Coredump alloc failed.\n");
 			err = -ENOMEM;
 			goto err_out2;
 		}
@@ -4586,7 +4579,6 @@ static int ql_init_device(struct pci_dev *pdev, struct net_device *ndev,
 		goto err_out2;
 	}
 
-	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
 	/* Keep local copy of current mac address. */
 	memcpy(qdev->current_mac_addr, ndev->dev_addr, ndev->addr_len);
 

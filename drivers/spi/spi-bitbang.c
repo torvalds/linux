@@ -69,7 +69,7 @@ static unsigned bitbang_txrx_8(
 	unsigned		ns,
 	struct spi_transfer	*t
 ) {
-	unsigned		bits = t->bits_per_word ? : spi->bits_per_word;
+	unsigned		bits = t->bits_per_word;
 	unsigned		count = t->len;
 	const u8		*tx = t->tx_buf;
 	u8			*rx = t->rx_buf;
@@ -95,7 +95,7 @@ static unsigned bitbang_txrx_16(
 	unsigned		ns,
 	struct spi_transfer	*t
 ) {
-	unsigned		bits = t->bits_per_word ? : spi->bits_per_word;
+	unsigned		bits = t->bits_per_word;
 	unsigned		count = t->len;
 	const u16		*tx = t->tx_buf;
 	u16			*rx = t->rx_buf;
@@ -121,7 +121,7 @@ static unsigned bitbang_txrx_32(
 	unsigned		ns,
 	struct spi_transfer	*t
 ) {
-	unsigned		bits = t->bits_per_word ? : spi->bits_per_word;
+	unsigned		bits = t->bits_per_word;
 	unsigned		count = t->len;
 	const u32		*tx = t->tx_buf;
 	u32			*rx = t->rx_buf;
@@ -427,40 +427,41 @@ EXPORT_SYMBOL_GPL(spi_bitbang_transfer);
  */
 int spi_bitbang_start(struct spi_bitbang *bitbang)
 {
-	int	status;
+	struct spi_master *master = bitbang->master;
+	int status;
 
-	if (!bitbang->master || !bitbang->chipselect)
+	if (!master || !bitbang->chipselect)
 		return -EINVAL;
 
 	INIT_WORK(&bitbang->work, bitbang_work);
 	spin_lock_init(&bitbang->lock);
 	INIT_LIST_HEAD(&bitbang->queue);
 
-	if (!bitbang->master->mode_bits)
-		bitbang->master->mode_bits = SPI_CPOL | SPI_CPHA | bitbang->flags;
+	if (!master->mode_bits)
+		master->mode_bits = SPI_CPOL | SPI_CPHA | bitbang->flags;
 
-	if (!bitbang->master->transfer)
-		bitbang->master->transfer = spi_bitbang_transfer;
+	if (!master->transfer)
+		master->transfer = spi_bitbang_transfer;
 	if (!bitbang->txrx_bufs) {
 		bitbang->use_dma = 0;
 		bitbang->txrx_bufs = spi_bitbang_bufs;
-		if (!bitbang->master->setup) {
+		if (!master->setup) {
 			if (!bitbang->setup_transfer)
 				bitbang->setup_transfer =
 					 spi_bitbang_setup_transfer;
-			bitbang->master->setup = spi_bitbang_setup;
-			bitbang->master->cleanup = spi_bitbang_cleanup;
+			master->setup = spi_bitbang_setup;
+			master->cleanup = spi_bitbang_cleanup;
 		}
-	} else if (!bitbang->master->setup)
+	} else if (!master->setup)
 		return -EINVAL;
-	if (bitbang->master->transfer == spi_bitbang_transfer &&
+	if (master->transfer == spi_bitbang_transfer &&
 			!bitbang->setup_transfer)
 		return -EINVAL;
 
 	/* this task is the only thing to touch the SPI bits */
 	bitbang->busy = 0;
 	bitbang->workqueue = create_singlethread_workqueue(
-			dev_name(bitbang->master->dev.parent));
+			dev_name(master->dev.parent));
 	if (bitbang->workqueue == NULL) {
 		status = -EBUSY;
 		goto err1;
@@ -469,7 +470,7 @@ int spi_bitbang_start(struct spi_bitbang *bitbang)
 	/* driver may get busy before register() returns, especially
 	 * if someone registered boardinfo for devices
 	 */
-	status = spi_register_master(bitbang->master);
+	status = spi_register_master(master);
 	if (status < 0)
 		goto err2;
 

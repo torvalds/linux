@@ -81,12 +81,6 @@ static const struct chan_ops not_configged_ops = {
 };
 #endif /* CONFIG_NOCONFIG_CHAN */
 
-static void tty_receive_char(struct tty_struct *tty, char ch)
-{
-	if (tty)
-		tty_insert_flip_char(tty, ch, TTY_NORMAL);
-}
-
 static int open_one_chan(struct chan *chan)
 {
 	int fd, err;
@@ -137,11 +131,9 @@ void chan_enable_winch(struct chan *chan, struct tty_struct *tty)
 static void line_timer_cb(struct work_struct *work)
 {
 	struct line *line = container_of(work, struct line, task.work);
-	struct tty_struct *tty = tty_port_tty_get(&line->port);
 
 	if (!line->throttled)
-		chan_interrupt(line, tty, line->driver->read_irq);
-	tty_kref_put(tty);
+		chan_interrupt(line, line->driver->read_irq);
 }
 
 int enable_chan(struct line *line)
@@ -552,8 +544,9 @@ int parse_chan_pair(char *str, struct line *line, int device,
 	return 0;
 }
 
-void chan_interrupt(struct line *line, struct tty_struct *tty, int irq)
+void chan_interrupt(struct line *line, int irq)
 {
+	struct tty_port *port = &line->port;
 	struct chan *chan = line->chan_in;
 	int err;
 	char c;
@@ -562,21 +555,24 @@ void chan_interrupt(struct line *line, struct tty_struct *tty, int irq)
 		goto out;
 
 	do {
-		if (tty && !tty_buffer_request_room(tty, 1)) {
+		if (!tty_buffer_request_room(port, 1)) {
 			schedule_delayed_work(&line->task, 1);
 			goto out;
 		}
 		err = chan->ops->read(chan->fd, &c, chan->data);
 		if (err > 0)
-			tty_receive_char(tty, c);
+			tty_insert_flip_char(port, c, TTY_NORMAL);
 	} while (err > 0);
 
 	if (err == 0)
 		reactivate_fd(chan->fd, irq);
 	if (err == -EIO) {
 		if (chan->primary) {
-			if (tty != NULL)
+			struct tty_struct *tty = tty_port_tty_get(&line->port);
+			if (tty != NULL) {
 				tty_hangup(tty);
+				tty_kref_put(tty);
+			}
 			if (line->chan_out != chan)
 				close_one_chan(line->chan_out, 1);
 		}
@@ -585,6 +581,5 @@ void chan_interrupt(struct line *line, struct tty_struct *tty, int irq)
 			return;
 	}
  out:
-	if (tty)
-		tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(port);
 }

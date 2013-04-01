@@ -5,10 +5,10 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "bcma_private.h"
+
 #include <linux/platform_device.h>
 #include <linux/bcma/bcma.h>
-
-#include "bcma_private.h"
 
 struct platform_device bcma_nflash_dev = {
 	.name		= "bcma_nflash",

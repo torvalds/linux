@@ -47,34 +47,6 @@ static void function_trace_start(struct trace_array *tr)
 	tracing_reset_online_cpus(tr);
 }
 
-static void
-function_trace_call_preempt_only(unsigned long ip, unsigned long parent_ip,
-				 struct ftrace_ops *op, struct pt_regs *pt_regs)
-{
-	struct trace_array *tr = func_trace;
-	struct trace_array_cpu *data;
-	unsigned long flags;
-	long disabled;
-	int cpu;
-	int pc;
-
-	if (unlikely(!ftrace_function_enabled))
-		return;
-
-	pc = preempt_count();
-	preempt_disable_notrace();
-	local_save_flags(flags);
-	cpu = raw_smp_processor_id();
-	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
-
-	if (likely(disabled == 1))
-		trace_function(tr, ip, parent_ip, flags, pc);
-
-	atomic_dec(&data->disabled);
-	preempt_enable_notrace();
-}
-
 /* Our option */
 enum {
 	TRACE_FUNC_OPT_STACK	= 0x1,
@@ -85,34 +57,34 @@ static struct tracer_flags func_flags;
 static void
 function_trace_call(unsigned long ip, unsigned long parent_ip,
 		    struct ftrace_ops *op, struct pt_regs *pt_regs)
-
 {
 	struct trace_array *tr = func_trace;
 	struct trace_array_cpu *data;
 	unsigned long flags;
-	long disabled;
+	int bit;
 	int cpu;
 	int pc;
 
 	if (unlikely(!ftrace_function_enabled))
 		return;
 
-	/*
-	 * Need to use raw, since this must be called before the
-	 * recursive protection is performed.
-	 */
-	local_irq_save(flags);
-	cpu = raw_smp_processor_id();
-	data = tr->data[cpu];
-	disabled = atomic_inc_return(&data->disabled);
+	pc = preempt_count();
+	preempt_disable_notrace();
 
-	if (likely(disabled == 1)) {
-		pc = preempt_count();
+	bit = trace_test_and_set_recursion(TRACE_FTRACE_START, TRACE_FTRACE_MAX);
+	if (bit < 0)
+		goto out;
+
+	cpu = smp_processor_id();
+	data = tr->data[cpu];
+	if (!atomic_read(&data->disabled)) {
+		local_save_flags(flags);
 		trace_function(tr, ip, parent_ip, flags, pc);
 	}
+	trace_clear_recursion(bit);
 
-	atomic_dec(&data->disabled);
-	local_irq_restore(flags);
+ out:
+	preempt_enable_notrace();
 }
 
 static void
@@ -184,11 +156,6 @@ static struct tracer_flags func_flags = {
 static void tracing_start_function_trace(void)
 {
 	ftrace_function_enabled = 0;
-
-	if (trace_flags & TRACE_ITER_PREEMPTONLY)
-		trace_ops.func = function_trace_call_preempt_only;
-	else
-		trace_ops.func = function_trace_call;
 
 	if (func_flags.val & TRACE_FUNC_OPT_STACK)
 		register_ftrace_function(&trace_stack_ops);

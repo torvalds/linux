@@ -449,7 +449,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 			do {
 				min_flt += t->min_flt;
 				maj_flt += t->maj_flt;
-				gtime += t->gtime;
+				gtime += task_gtime(t);
 				t = next_thread(t);
 			} while (t != task);
 
@@ -472,7 +472,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 		min_flt = task->min_flt;
 		maj_flt = task->maj_flt;
 		task_cputime_adjusted(task, &utime, &stime);
-		gtime = task->gtime;
+		gtime = task_gtime(task);
 	}
 
 	/* scale priority and nice values from timeslices to -20..20 */

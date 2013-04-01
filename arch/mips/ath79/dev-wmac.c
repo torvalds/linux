@@ -55,8 +55,8 @@ static void __init ar913x_wmac_setup(void)
 
 	ath79_wmac_resources[0].start = AR913X_WMAC_BASE;
 	ath79_wmac_resources[0].end = AR913X_WMAC_BASE + AR913X_WMAC_SIZE - 1;
-	ath79_wmac_resources[1].start = ATH79_CPU_IRQ_IP2;
-	ath79_wmac_resources[1].end = ATH79_CPU_IRQ_IP2;
+	ath79_wmac_resources[1].start = ATH79_CPU_IRQ(2);
+	ath79_wmac_resources[1].end = ATH79_CPU_IRQ(2);
 }
 
 
@@ -83,8 +83,8 @@ static void __init ar933x_wmac_setup(void)
 
 	ath79_wmac_resources[0].start = AR933X_WMAC_BASE;
 	ath79_wmac_resources[0].end = AR933X_WMAC_BASE + AR933X_WMAC_SIZE - 1;
-	ath79_wmac_resources[1].start = ATH79_CPU_IRQ_IP2;
-	ath79_wmac_resources[1].end = ATH79_CPU_IRQ_IP2;
+	ath79_wmac_resources[1].start = ATH79_CPU_IRQ(2);
+	ath79_wmac_resources[1].end = ATH79_CPU_IRQ(2);
 
 	t = ath79_reset_rr(AR933X_RESET_REG_BOOTSTRAP);
 	if (t & AR933X_BOOTSTRAP_REF_CLK_40)
@@ -107,10 +107,28 @@ static void ar934x_wmac_setup(void)
 	ath79_wmac_resources[0].start = AR934X_WMAC_BASE;
 	ath79_wmac_resources[0].end = AR934X_WMAC_BASE + AR934X_WMAC_SIZE - 1;
 	ath79_wmac_resources[1].start = ATH79_IP2_IRQ(1);
-	ath79_wmac_resources[1].start = ATH79_IP2_IRQ(1);
+	ath79_wmac_resources[1].end = ATH79_IP2_IRQ(1);
 
 	t = ath79_reset_rr(AR934X_RESET_REG_BOOTSTRAP);
 	if (t & AR934X_BOOTSTRAP_REF_CLK_40)
+		ath79_wmac_data.is_clk_25mhz = false;
+	else
+		ath79_wmac_data.is_clk_25mhz = true;
+}
+
+static void qca955x_wmac_setup(void)
+{
+	u32 t;
+
+	ath79_wmac_device.name = "qca955x_wmac";
+
+	ath79_wmac_resources[0].start = QCA955X_WMAC_BASE;
+	ath79_wmac_resources[0].end = QCA955X_WMAC_BASE + QCA955X_WMAC_SIZE - 1;
+	ath79_wmac_resources[1].start = ATH79_IP2_IRQ(1);
+	ath79_wmac_resources[1].end = ATH79_IP2_IRQ(1);
+
+	t = ath79_reset_rr(QCA955X_RESET_REG_BOOTSTRAP);
+	if (t & QCA955X_BOOTSTRAP_REF_CLK_40)
 		ath79_wmac_data.is_clk_25mhz = false;
 	else
 		ath79_wmac_data.is_clk_25mhz = true;
@@ -124,6 +142,8 @@ void __init ath79_register_wmac(u8 *cal_data)
 		ar933x_wmac_setup();
 	else if (soc_is_ar934x())
 		ar934x_wmac_setup();
+	else if (soc_is_qca955x())
+		qca955x_wmac_setup();
 	else
 		BUG();
 

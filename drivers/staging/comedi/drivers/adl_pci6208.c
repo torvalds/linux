@@ -42,6 +42,8 @@ References:
 	- adl_pci9118.c
 */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 
 /*
@@ -270,11 +272,6 @@ static int adl_pci6208_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &adl_pci6208_driver);
 }
 
-static void adl_pci6208_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(adl_pci6208_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI6208) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI6216) },
@@ -286,7 +283,7 @@ static struct pci_driver adl_pci6208_pci_driver = {
 	.name		= "adl_pci6208",
 	.id_table	= adl_pci6208_pci_table,
 	.probe		= adl_pci6208_pci_probe,
-	.remove		= adl_pci6208_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(adl_pci6208_driver, adl_pci6208_pci_driver);
 

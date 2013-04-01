@@ -282,7 +282,7 @@ static void add_fixed_clk(struct clk *clk, const char *name, int rate)
 	clk_register_clkdev(clk, name, NULL);
 }
 
-static void __init clps711x_timer_init(void)
+void __init clps711x_timer_init(void)
 {
 	int osc, ext, pll, cpu, bus, timl, timh, uart, spi;
 	u32 tmp;
@@ -344,10 +344,6 @@ static void __init clps711x_timer_init(void)
 
 	setup_irq(IRQ_TC2OI, &clps711x_timer_irq);
 }
-
-struct sys_timer clps711x_timer = {
-	.init		= clps711x_timer_init,
-};
 
 void clps711x_restart(char mode, const char *cmd)
 {

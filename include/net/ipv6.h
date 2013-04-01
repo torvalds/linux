@@ -15,6 +15,7 @@
 
 #include <linux/ipv6.h>
 #include <linux/hardirq.h>
+#include <linux/jhash.h>
 #include <net/if_inet6.h>
 #include <net/ndisc.h>
 #include <net/flow.h>
@@ -222,6 +223,7 @@ struct ip6_flowlabel {
 	struct in6_addr		dst;
 	struct ipv6_txoptions	*opt;
 	unsigned long		linger;
+	struct rcu_head		rcu;
 	u8			share;
 	union {
 		struct pid *pid;
@@ -238,6 +240,7 @@ struct ip6_flowlabel {
 struct ipv6_fl_socklist {
 	struct ipv6_fl_socklist	*next;
 	struct ip6_flowlabel	*fl;
+	struct rcu_head		rcu;
 };
 
 extern struct ip6_flowlabel	*fl6_sock_lookup(struct sock *sk, __be32 label);
@@ -288,12 +291,12 @@ static inline int ip6_frag_nqueues(struct net *net)
 
 static inline int ip6_frag_mem(struct net *net)
 {
-	return atomic_read(&net->ipv6.frags.mem);
+	return sum_frag_mem_limit(&net->ipv6.frags);
 }
 #endif
 
-#define IPV6_FRAG_HIGH_THRESH	(256 * 1024)	/* 262144 */
-#define IPV6_FRAG_LOW_THRESH	(192 * 1024)	/* 196608 */
+#define IPV6_FRAG_HIGH_THRESH	(4 * 1024*1024)	/* 4194304 */
+#define IPV6_FRAG_LOW_THRESH	(3 * 1024*1024)	/* 3145728 */
 #define IPV6_FRAG_TIMEOUT	(60 * HZ)	/* 60 seconds */
 
 extern int __ipv6_addr_type(const struct in6_addr *addr);
@@ -355,14 +358,32 @@ static inline void ipv6_addr_prefix(struct in6_addr *pfx,
 		pfx->s6_addr[o] = addr->s6_addr[o] & (0xff00 >> b);
 }
 
+static inline void __ipv6_addr_set_half(__be32 *addr,
+					__be32 wh, __be32 wl)
+{
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+#if defined(__BIG_ENDIAN)
+	if (__builtin_constant_p(wh) && __builtin_constant_p(wl)) {
+		*(__force u64 *)addr = ((__force u64)(wh) << 32 | (__force u64)(wl));
+		return;
+	}
+#elif defined(__LITTLE_ENDIAN)
+	if (__builtin_constant_p(wl) && __builtin_constant_p(wh)) {
+		*(__force u64 *)addr = ((__force u64)(wl) << 32 | (__force u64)(wh));
+		return;
+	}
+#endif
+#endif
+	addr[0] = wh;
+	addr[1] = wl;
+}
+
 static inline void ipv6_addr_set(struct in6_addr *addr, 
 				     __be32 w1, __be32 w2,
 				     __be32 w3, __be32 w4)
 {
-	addr->s6_addr32[0] = w1;
-	addr->s6_addr32[1] = w2;
-	addr->s6_addr32[2] = w3;
-	addr->s6_addr32[3] = w4;
+	__ipv6_addr_set_half(&addr->s6_addr32[0], w1, w2);
+	__ipv6_addr_set_half(&addr->s6_addr32[2], w3, w4);
 }
 
 static inline bool ipv6_addr_equal(const struct in6_addr *a1,
@@ -381,9 +402,37 @@ static inline bool ipv6_addr_equal(const struct in6_addr *a1,
 #endif
 }
 
-static inline bool __ipv6_prefix_equal(const __be32 *a1, const __be32 *a2,
-				       unsigned int prefixlen)
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+static inline bool __ipv6_prefix_equal64_half(const __be64 *a1,
+					      const __be64 *a2,
+					      unsigned int len)
 {
+	if (len && ((*a1 ^ *a2) & cpu_to_be64((~0UL) << (64 - len))))
+		return false;
+	return true;
+}
+
+static inline bool ipv6_prefix_equal(const struct in6_addr *addr1,
+				     const struct in6_addr *addr2,
+				     unsigned int prefixlen)
+{
+	const __be64 *a1 = (const __be64 *)addr1;
+	const __be64 *a2 = (const __be64 *)addr2;
+
+	if (prefixlen >= 64) {
+		if (a1[0] ^ a2[0])
+			return false;
+		return __ipv6_prefix_equal64_half(a1 + 1, a2 + 1, prefixlen - 64);
+	}
+	return __ipv6_prefix_equal64_half(a1, a2, prefixlen);
+}
+#else
+static inline bool ipv6_prefix_equal(const struct in6_addr *addr1,
+				     const struct in6_addr *addr2,
+				     unsigned int prefixlen)
+{
+	const __be32 *a1 = addr1->s6_addr32;
+	const __be32 *a2 = addr2->s6_addr32;
 	unsigned int pdw, pbi;
 
 	/* check complete u32 in prefix */
@@ -398,14 +447,7 @@ static inline bool __ipv6_prefix_equal(const __be32 *a1, const __be32 *a2,
 
 	return true;
 }
-
-static inline bool ipv6_prefix_equal(const struct in6_addr *a1,
-				     const struct in6_addr *a2,
-				     unsigned int prefixlen)
-{
-	return __ipv6_prefix_equal(a1->s6_addr32, a2->s6_addr32,
-				   prefixlen);
-}
+#endif
 
 struct inet_frag_queue;
 
@@ -473,16 +515,38 @@ static inline u32 ipv6_addr_hash(const struct in6_addr *a)
 #endif
 }
 
+/* more secured version of ipv6_addr_hash() */
+static inline u32 ipv6_addr_jhash(const struct in6_addr *a)
+{
+	u32 v = (__force u32)a->s6_addr32[0] ^ (__force u32)a->s6_addr32[1];
+
+	return jhash_3words(v,
+			    (__force u32)a->s6_addr32[2],
+			    (__force u32)a->s6_addr32[3],
+			    ipv6_hash_secret);
+}
+
 static inline bool ipv6_addr_loopback(const struct in6_addr *a)
 {
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+	const unsigned long *ul = (const unsigned long *)a;
+
+	return (ul[0] | (ul[1] ^ cpu_to_be64(1))) == 0UL;
+#else
 	return (a->s6_addr32[0] | a->s6_addr32[1] |
 		a->s6_addr32[2] | (a->s6_addr32[3] ^ htonl(1))) == 0;
+#endif
 }
 
 static inline bool ipv6_addr_v4mapped(const struct in6_addr *a)
 {
-	return (a->s6_addr32[0] | a->s6_addr32[1] |
-		 (a->s6_addr32[2] ^ htonl(0x0000ffff))) == 0;
+	return (
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+		*(__be64 *)a |
+#else
+		(a->s6_addr32[0] | a->s6_addr32[1]) |
+#endif
+		(a->s6_addr32[2] ^ htonl(0x0000ffff))) == 0UL;
 }
 
 /*
@@ -507,7 +571,7 @@ static inline void ipv6_addr_set_v4mapped(const __be32 addr,
  * find the first different bit between two addresses
  * length of address must be a multiple of 32bits
  */
-static inline int __ipv6_addr_diff(const void *token1, const void *token2, int addrlen)
+static inline int __ipv6_addr_diff32(const void *token1, const void *token2, int addrlen)
 {
 	const __be32 *a1 = token1, *a2 = token2;
 	int i;
@@ -539,12 +603,53 @@ static inline int __ipv6_addr_diff(const void *token1, const void *token2, int a
 	return addrlen << 5;
 }
 
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+static inline int __ipv6_addr_diff64(const void *token1, const void *token2, int addrlen)
+{
+	const __be64 *a1 = token1, *a2 = token2;
+	int i;
+
+	addrlen >>= 3;
+
+	for (i = 0; i < addrlen; i++) {
+		__be64 xb = a1[i] ^ a2[i];
+		if (xb)
+			return i * 64 + 63 - __fls(be64_to_cpu(xb));
+	}
+
+	return addrlen << 6;
+}
+#endif
+
+static inline int __ipv6_addr_diff(const void *token1, const void *token2, int addrlen)
+{
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+	if (__builtin_constant_p(addrlen) && !(addrlen & 7))
+		return __ipv6_addr_diff64(token1, token2, addrlen);
+#endif
+	return __ipv6_addr_diff32(token1, token2, addrlen);
+}
+
 static inline int ipv6_addr_diff(const struct in6_addr *a1, const struct in6_addr *a2)
 {
 	return __ipv6_addr_diff(a1, a2, sizeof(struct in6_addr));
 }
 
 extern void ipv6_select_ident(struct frag_hdr *fhdr, struct rt6_info *rt);
+
+/*
+ *	Header manipulation
+ */
+static inline void ip6_flow_hdr(struct ipv6hdr *hdr, unsigned int tclass,
+				__be32 flowlabel)
+{
+	*(__be32 *)hdr = htonl(0x60000000 | (tclass << 20)) | flowlabel;
+}
+
+static inline __be32 ip6_flowinfo(const struct ipv6hdr *hdr)
+{
+	return *(__be32 *)hdr & IPV6_FLOWINFO_MASK;
+}
 
 /*
  *	Prototypes exported by ipv6
@@ -569,13 +674,6 @@ extern int			ip6_xmit(struct sock *sk,
 					 struct flowi6 *fl6,
 					 struct ipv6_txoptions *opt,
 					 int tclass);
-
-extern int			ip6_nd_hdr(struct sock *sk,
-					   struct sk_buff *skb,
-					   struct net_device *dev,
-					   const struct in6_addr *saddr,
-					   const struct in6_addr *daddr,
-					   int proto, int len);
 
 extern int			ip6_find_1stfragopt(struct sk_buff *skb, u8 **nexthdr);
 

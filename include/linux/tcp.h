@@ -162,6 +162,8 @@ struct tcp_sock {
 	u32	rcv_tstamp;	/* timestamp of last received ACK (for keepalives) */
 	u32	lsndtime;	/* timestamp of last sent data packet (for restart window) */
 
+	u32	tsoffset;	/* timestamp offset */
+
 	struct list_head tsq_node; /* anchor in tsq_tasklet.head list */
 	unsigned long	tsq_flags;
 
@@ -246,7 +248,6 @@ struct tcp_sock {
 	u32	sacked_out;	/* SACK'd packets			*/
 	u32	fackets_out;	/* FACK'd packets			*/
 	u32	tso_deferred;
-	u32	bytes_acked;	/* Appropriate Byte Counting - RFC3465 */
 
 	/* from STCP, retrans queue hinting */
 	struct sk_buff* lost_skb_hint;
@@ -354,6 +355,7 @@ struct tcp_timewait_sock {
 	u32			  tw_rcv_nxt;
 	u32			  tw_snd_nxt;
 	u32			  tw_rcv_wnd;
+	u32			  tw_ts_offset;
 	u32			  tw_ts_recent;
 	long			  tw_ts_recent_stamp;
 #ifdef CONFIG_TCP_MD5SIG

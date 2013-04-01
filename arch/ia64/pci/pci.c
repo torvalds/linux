@@ -393,6 +393,14 @@ out1:
 	return NULL;
 }
 
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	struct pci_controller *controller = bridge->bus->sysdata;
+
+	ACPI_HANDLE_SET(&bridge->dev, controller->acpi_handle);
+	return 0;
+}
+
 static int is_valid_resource(struct pci_dev *dev, int idx)
 {
 	unsigned int i, type_mask = IORESOURCE_IO | IORESOURCE_MEM;

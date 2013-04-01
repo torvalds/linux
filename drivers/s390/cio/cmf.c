@@ -33,7 +33,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
-#include <linux/timex.h>	/* get_clock() */
+#include <linux/timex.h>	/* get_tod_clock() */
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
@@ -326,7 +326,7 @@ static int cmf_copy_block(struct ccw_device *cdev)
 		memcpy(cmb_data->last_block, hw_block, cmb_data->size);
 		memcpy(reference_buf, hw_block, cmb_data->size);
 	} while (memcmp(cmb_data->last_block, reference_buf, cmb_data->size));
-	cmb_data->last_update = get_clock();
+	cmb_data->last_update = get_tod_clock();
 	kfree(reference_buf);
 	return 0;
 }
@@ -428,7 +428,7 @@ static void cmf_generic_reset(struct ccw_device *cdev)
 		memset(cmbops->align(cmb_data->hw_block), 0, cmb_data->size);
 		cmb_data->last_update = 0;
 	}
-	cdev->private->cmb_start_time = get_clock();
+	cdev->private->cmb_start_time = get_tod_clock();
 	spin_unlock_irq(cdev->ccwlock);
 }
 

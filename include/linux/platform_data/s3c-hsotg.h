@@ -15,6 +15,8 @@
 #ifndef __LINUX_USB_S3C_HSOTG_H
 #define __LINUX_USB_S3C_HSOTG_H
 
+struct platform_device;
+
 enum s3c_hsotg_dmamode {
 	S3C_HSOTG_DMA_NONE,	/* do not use DMA at-all */
 	S3C_HSOTG_DMA_ONLY,	/* always use DMA */

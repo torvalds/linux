@@ -473,6 +473,7 @@ struct pxa_udc {
 	struct dentry				*debugfs_eps;
 #endif
 };
+#define to_pxa(g)	(container_of((g), struct pxa_udc, gadget))
 
 static inline struct pxa_udc *to_gadget_udc(struct usb_gadget *gadget)
 {

@@ -26,7 +26,7 @@
  *                the allocation to memory nodes instead
  *
  * preferred       Try a specific node first before normal fallback.
- *                As a special case node -1 here means do the allocation
+ *                As a special case NUMA_NO_NODE here means do the allocation
  *                on the local CPU. This is normally identical to default,
  *                but useful to set in a VMA when you have a non default
  *                process policy.
@@ -127,7 +127,7 @@ static struct mempolicy *get_task_policy(struct task_struct *p)
 
 	if (!pol) {
 		node = numa_node_id();
-		if (node != -1)
+		if (node != NUMA_NO_NODE)
 			pol = &preferred_node_policy[node];
 
 		/* preferred_node_policy is not initialised early in boot */
@@ -161,19 +161,7 @@ static const struct mempolicy_operations {
 /* Check that the nodemask contains at least one populated zone */
 static int is_valid_nodemask(const nodemask_t *nodemask)
 {
-	int nd, k;
-
-	for_each_node_mask(nd, *nodemask) {
-		struct zone *z;
-
-		for (k = 0; k <= policy_zone; k++) {
-			z = &NODE_DATA(nd)->node_zones[k];
-			if (z->present_pages > 0)
-				return 1;
-		}
-	}
-
-	return 0;
+	return nodes_intersects(*nodemask, node_states[N_MEMORY]);
 }
 
 static inline int mpol_store_user_nodemask(const struct mempolicy *pol)
@@ -270,7 +258,7 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
 	struct mempolicy *policy;
 
 	pr_debug("setting mode %d flags %d nodes[0] %lx\n",
-		 mode, flags, nodes ? nodes_addr(*nodes)[0] : -1);
+		 mode, flags, nodes ? nodes_addr(*nodes)[0] : NUMA_NO_NODE);
 
 	if (mode == MPOL_DEFAULT) {
 		if (nodes && !nodes_empty(*nodes))
@@ -508,9 +496,8 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		/*
 		 * vm_normal_page() filters out zero pages, but there might
 		 * still be PageReserved pages to skip, perhaps in a VDSO.
-		 * And we cannot move PageKsm pages sensibly or safely yet.
 		 */
-		if (PageReserved(page) || PageKsm(page))
+		if (PageReserved(page))
 			continue;
 		nid = page_to_nid(page);
 		if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
@@ -1027,8 +1014,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
 
 	if (!list_empty(&pagelist)) {
 		err = migrate_pages(&pagelist, new_node_page, dest,
-							false, MIGRATE_SYNC,
-							MR_SYSCALL);
+					MIGRATE_SYNC, MR_SYSCALL);
 		if (err)
 			putback_lru_pages(&pagelist);
 	}
@@ -1235,7 +1221,7 @@ static long do_mbind(unsigned long start, unsigned long len,
 
 	pr_debug("mbind %lx-%lx mode:%d flags:%d nodes:%lx\n",
 		 start, start + len, mode, mode_flags,
-		 nmask ? nodes_addr(*nmask)[0] : -1);
+		 nmask ? nodes_addr(*nmask)[0] : NUMA_NO_NODE);
 
 	if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
 
@@ -1272,9 +1258,8 @@ static long do_mbind(unsigned long start, unsigned long len,
 		if (!list_empty(&pagelist)) {
 			WARN_ON_ONCE(flags & MPOL_MF_LAZY);
 			nr_failed = migrate_pages(&pagelist, new_vma_page,
-						(unsigned long)vma,
-						false, MIGRATE_SYNC,
-						MR_MEMPOLICY_MBIND);
+					(unsigned long)vma,
+					MIGRATE_SYNC, MR_MEMPOLICY_MBIND);
 			if (nr_failed)
 				putback_lru_pages(&pagelist);
 		}
@@ -1644,6 +1629,26 @@ struct mempolicy *get_vma_policy(struct task_struct *task,
 	return pol;
 }
 
+static int apply_policy_zone(struct mempolicy *policy, enum zone_type zone)
+{
+	enum zone_type dynamic_policy_zone = policy_zone;
+
+	BUG_ON(dynamic_policy_zone == ZONE_MOVABLE);
+
+	/*
+	 * if policy->v.nodes has movable memory only,
+	 * we apply policy when gfp_zone(gfp) = ZONE_MOVABLE only.
+	 *
+	 * policy->v.nodes is intersect with node_states[N_MEMORY].
+	 * so if the following test faile, it implies
+	 * policy->v.nodes has movable memory only.
+	 */
+	if (!nodes_intersects(policy->v.nodes, node_states[N_HIGH_MEMORY]))
+		dynamic_policy_zone = ZONE_MOVABLE;
+
+	return zone >= dynamic_policy_zone;
+}
+
 /*
  * Return a nodemask representing a mempolicy for filtering nodes for
  * page allocation
@@ -1652,7 +1657,7 @@ static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
 {
 	/* Lower zones don't get a nodemask applied for MPOL_BIND */
 	if (unlikely(policy->mode == MPOL_BIND) &&
-			gfp_zone(gfp) >= policy_zone &&
+			apply_policy_zone(policy, gfp_zone(gfp)) &&
 			cpuset_nodemask_valid_mems_allowed(&policy->v.nodes))
 		return &policy->v.nodes;
 
@@ -2308,7 +2313,7 @@ int mpol_misplaced(struct page *page, struct vm_area_struct *vma, unsigned long 
 		 * it less likely we act on an unlikely task<->page
 		 * relation.
 		 */
-		last_nid = page_xchg_last_nid(page, polnid);
+		last_nid = page_nid_xchg_last(page, polnid);
 		if (last_nid != polnid)
 			goto out;
 	}
@@ -2483,7 +2488,7 @@ int mpol_set_shared_policy(struct shared_policy *info,
 		 vma->vm_pgoff,
 		 sz, npol ? npol->mode : -1,
 		 npol ? npol->flags : -1,
-		 npol ? nodes_addr(npol->v.nodes)[0] : -1);
+		 npol ? nodes_addr(npol->v.nodes)[0] : NUMA_NO_NODE);
 
 	if (npol) {
 		new = sp_alloc(vma->vm_pgoff, vma->vm_pgoff + sz, npol);

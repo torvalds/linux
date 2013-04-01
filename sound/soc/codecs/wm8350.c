@@ -283,18 +283,16 @@ static int pga_event(struct snd_soc_dapm_widget *w,
 		out->ramp = WM8350_RAMP_UP;
 		out->active = 1;
 
-		if (!delayed_work_pending(&codec->dapm.delayed_work))
-			schedule_delayed_work(&codec->dapm.delayed_work,
-					      msecs_to_jiffies(1));
+		schedule_delayed_work(&codec->dapm.delayed_work,
+				      msecs_to_jiffies(1));
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
 		out->ramp = WM8350_RAMP_DOWN;
 		out->active = 0;
 
-		if (!delayed_work_pending(&codec->dapm.delayed_work))
-			schedule_delayed_work(&codec->dapm.delayed_work,
-					      msecs_to_jiffies(1));
+		schedule_delayed_work(&codec->dapm.delayed_work,
+				      msecs_to_jiffies(1));
 		break;
 	}
 

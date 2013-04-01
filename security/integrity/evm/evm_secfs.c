@@ -100,9 +100,3 @@ int __init evm_init_secfs(void)
 		error = -EFAULT;
 	return error;
 }
-
-void __exit evm_cleanup_secfs(void)
-{
-	if (evm_init_tpm)
-		securityfs_remove(evm_init_tpm);
-}

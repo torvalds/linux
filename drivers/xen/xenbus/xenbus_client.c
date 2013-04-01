@@ -30,6 +30,7 @@
  * IN THE SOFTWARE.
  */
 
+#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>

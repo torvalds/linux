@@ -184,8 +184,6 @@ static void return_io(struct bio *return_bi)
 		return_bi = bi->bi_next;
 		bi->bi_next = NULL;
 		bi->bi_size = 0;
-		trace_block_bio_complete(bdev_get_queue(bi->bi_bdev),
-					 bi, 0);
 		bio_endio(bi, 0);
 		bi = return_bi;
 	}
@@ -365,10 +363,9 @@ static struct stripe_head *__find_stripe(struct r5conf *conf, sector_t sector,
 					 short generation)
 {
 	struct stripe_head *sh;
-	struct hlist_node *hn;
 
 	pr_debug("__find_stripe, sector %llu\n", (unsigned long long)sector);
-	hlist_for_each_entry(sh, hn, stripe_hash(conf, sector), hash)
+	hlist_for_each_entry(sh, stripe_hash(conf, sector), hash)
 		if (sh->sector == sector && sh->generation == generation)
 			return sh;
 	pr_debug("__stripe %llu not in cache\n", (unsigned long long)sector);
@@ -3917,8 +3914,6 @@ static void raid5_align_endio(struct bio *bi, int error)
 	rdev_dec_pending(rdev, conf->mddev);
 
 	if (!error && uptodate) {
-		trace_block_bio_complete(bdev_get_queue(raid_bi->bi_bdev),
-					 raid_bi, 0);
 		bio_endio(raid_bi, 0);
 		if (atomic_dec_and_test(&conf->active_aligned_reads))
 			wake_up(&conf->wait_for_stripe);
@@ -4377,8 +4372,6 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 		if ( rw == WRITE )
 			md_write_end(mddev);
 
-		trace_block_bio_complete(bdev_get_queue(bi->bi_bdev),
-					 bi, 0);
 		bio_endio(bi, 0);
 	}
 }
@@ -4755,11 +4748,8 @@ static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio)
 		handled++;
 	}
 	remaining = raid5_dec_bi_active_stripes(raid_bio);
-	if (remaining == 0) {
-		trace_block_bio_complete(bdev_get_queue(raid_bio->bi_bdev),
-					 raid_bio, 0);
+	if (remaining == 0)
 		bio_endio(raid_bio, 0);
-	}
 	if (atomic_dec_and_test(&conf->active_aligned_reads))
 		wake_up(&conf->wait_for_stripe);
 	return handled;

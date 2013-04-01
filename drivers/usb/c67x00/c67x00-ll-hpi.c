@@ -237,7 +237,7 @@ void c67x00_ll_hpi_disable_sofeop(struct c67x00_sie *sie)
 /* -------------------------------------------------------------------------- */
 /* Transactions */
 
-static inline u16 ll_recv_msg(struct c67x00_device *dev)
+static inline int ll_recv_msg(struct c67x00_device *dev)
 {
 	u16 res;
 

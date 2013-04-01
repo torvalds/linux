@@ -866,11 +866,9 @@ static int exynos5440_pinctrl_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	priv->reg_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!priv->reg_base) {
-		dev_err(dev, "ioremap failed\n");
-		return -ENODEV;
-	}
+	priv->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv->reg_base))
+		return PTR_ERR(priv->reg_base);
 
 	ret = exynos5440_gpiolib_register(pdev, priv);
 	if (ret)

@@ -166,6 +166,12 @@ struct in_ifaddr {
 	unsigned char		ifa_flags;
 	unsigned char		ifa_prefixlen;
 	char			ifa_label[IFNAMSIZ];
+
+	/* In seconds, relative to tstamp. Expiry is at tstamp + HZ * lft. */
+	__u32			ifa_valid_lft;
+	__u32			ifa_preferred_lft;
+	unsigned long		ifa_cstamp; /* created timestamp */
+	unsigned long		ifa_tstamp; /* updated timestamp */
 };
 
 extern int register_inetaddr_notifier(struct notifier_block *nb);

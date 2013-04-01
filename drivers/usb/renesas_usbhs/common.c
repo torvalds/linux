@@ -14,6 +14,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
@@ -443,11 +444,9 @@ static int usbhs_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	priv->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!priv->base) {
-		dev_err(&pdev->dev, "ioremap error.\n");
-		return -ENOMEM;
-	}
+	priv->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv->base))
+		return PTR_ERR(priv->base);
 
 	/*
 	 * care platform info

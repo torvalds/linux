@@ -30,7 +30,7 @@ struct mt2060_config {
 	u8 clock_out; /* 0 = off, 1 = CLK/4, 2 = CLK/2, 3 = CLK/1 */
 };
 
-#if defined(CONFIG_MEDIA_TUNER_MT2060) || (defined(CONFIG_MEDIA_TUNER_MT2060_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_MEDIA_TUNER_MT2060)
 extern struct dvb_frontend * mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct mt2060_config *cfg, u16 if1);
 #else
 static inline struct dvb_frontend * mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct mt2060_config *cfg, u16 if1)

@@ -17,12 +17,13 @@ Supported chips:
   * Maxim MAX6604
     Datasheets:
 	http://datasheets.maxim-ic.com/en/ds/MAX6604.pdf
-  * Microchip MCP9804, MCP9805, MCP98242, MCP98243, MCP9843
+  * Microchip MCP9804, MCP9805, MCP98242, MCP98243, MCP98244, MCP9843
     Datasheets:
 	http://ww1.microchip.com/downloads/en/DeviceDoc/22203C.pdf
 	http://ww1.microchip.com/downloads/en/DeviceDoc/21977b.pdf
 	http://ww1.microchip.com/downloads/en/DeviceDoc/21996a.pdf
 	http://ww1.microchip.com/downloads/en/DeviceDoc/22153c.pdf
+	http://ww1.microchip.com/downloads/en/DeviceDoc/22327A.pdf
   * NXP Semiconductors SE97, SE97B, SE98, SE98A
     Datasheets:
 	http://www.nxp.com/documents/data_sheet/SE97.pdf

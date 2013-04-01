@@ -212,7 +212,7 @@ static void submit_frame(struct front_face *front)
 	front->curr_frame	= NULL;
 	vb->state		= VIDEOBUF_DONE;
 	vb->field_count++;
-	do_gettimeofday(&vb->ts);
+	v4l2_get_timestamp(&vb->ts);
 
 	wake_up(&vb->done);
 }

@@ -17,5 +17,17 @@ config INTEGRITY_SIGNATURE
 	  This is useful for evm and module keyrings, when keys are
 	  usually only added from initramfs.
 
+config INTEGRITY_ASYMMETRIC_KEYS
+	boolean "Enable asymmetric keys support"
+	depends on INTEGRITY_SIGNATURE
+	default n
+        select ASYMMETRIC_KEY_TYPE
+        select ASYMMETRIC_PUBLIC_KEY_SUBTYPE
+        select PUBLIC_KEY_ALGO_RSA
+        select X509_CERTIFICATE_PARSER
+	help
+	  This option enables digital signature verification using
+	  asymmetric keys.
+
 source security/integrity/ima/Kconfig
 source security/integrity/evm/Kconfig

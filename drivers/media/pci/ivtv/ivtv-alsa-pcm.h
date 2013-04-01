@@ -20,4 +20,4 @@
  *  02111-1307  USA
  */
 
-int __init snd_ivtv_pcm_create(struct snd_ivtv_card *itvsc);
+int snd_ivtv_pcm_create(struct snd_ivtv_card *itvsc);

@@ -156,7 +156,7 @@ static void appldata_get_os_data(void *data)
 		}
 		ops.size = new_size;
 	}
-	os_data->timestamp = get_clock();
+	os_data->timestamp = get_tod_clock();
 	os_data->sync_count_2++;
 }
 

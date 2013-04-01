@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,6 @@
 #include "acnamesp.h"
 #include "acdispat.h"
 #include "acinterp.h"
-#include <linux/nmi.h>
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsinit")
@@ -87,7 +86,7 @@ acpi_status acpi_ns_initialize_objects(void)
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "**** Starting initialization of namespace objects ****\n"));
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "Completing Region/Field/Buffer/Package initialization:"));
+			      "Completing Region/Field/Buffer/Package initialization:\n"));
 
 	/* Set all init info to zero */
 
@@ -103,7 +102,7 @@ acpi_status acpi_ns_initialize_objects(void)
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "\nInitialized %u/%u Regions %u/%u Fields %u/%u "
+			      "    Initialized %u/%u Regions %u/%u Fields %u/%u "
 			      "Buffers %u/%u Packages (%u nodes)\n",
 			      info.op_region_init, info.op_region_count,
 			      info.field_init, info.field_count,
@@ -150,7 +149,7 @@ acpi_status acpi_ns_initialize_devices(void)
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
 			      "Initializing Device/Processor/Thermal objects "
-			      "by executing _INI methods:"));
+			      "and executing _INI/_STA methods:\n"));
 
 	/* Tree analysis: find all subtrees that contain _INI methods */
 
@@ -208,7 +207,7 @@ acpi_status acpi_ns_initialize_devices(void)
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "\nExecuted %u _INI methods requiring %u _STA executions "
+			      "    Executed %u _INI methods requiring %u _STA executions "
 			      "(examined %u objects)\n",
 			      info.num_INI, info.num_STA, info.device_count));
 
@@ -347,14 +346,6 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 				"Could not execute arguments for [%4.4s] (%s)",
 				acpi_ut_get_node_name(node),
 				acpi_ut_get_type_name(type)));
-	}
-
-	/*
-	 * Print a dot for each object unless we are going to print the entire
-	 * pathname
-	 */
-	if (!(acpi_dbg_level & ACPI_LV_INIT_NAMES)) {
-		ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT, "."));
 	}
 
 	/*
@@ -572,20 +563,10 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	info->parameters = NULL;
 	info->flags = ACPI_IGNORE_RETURN_VALUE;
 
-	/*
-	 * Some hardware relies on this being executed as atomically
-	 * as possible (without an NMI being received in the middle of
-	 * this) - so disable NMIs and initialize the device:
-	 */
 	status = acpi_ns_evaluate(info);
 
 	if (ACPI_SUCCESS(status)) {
 		walk_info->num_INI++;
-
-		if ((acpi_dbg_level <= ACPI_LV_ALL_EXCEPTIONS) &&
-		    (!(acpi_dbg_level & ACPI_LV_INFO))) {
-			ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT, "."));
-		}
 	}
 #ifdef ACPI_DEBUG_OUTPUT
 	else if (status != AE_NOT_FOUND) {

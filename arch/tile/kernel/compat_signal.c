@@ -34,19 +34,6 @@
 #include <asm/syscalls.h>
 #include <arch/interrupts.h>
 
-struct compat_sigaction {
-	compat_uptr_t sa_handler;
-	compat_ulong_t sa_flags;
-	compat_uptr_t sa_restorer;
-	sigset_t sa_mask __packed;
-};
-
-struct compat_sigaltstack {
-	compat_uptr_t ss_sp;
-	int ss_flags;
-	compat_size_t ss_size;
-};
-
 struct compat_ucontext {
 	compat_ulong_t	  uc_flags;
 	compat_uptr_t     uc_link;
@@ -60,63 +47,6 @@ struct compat_rt_sigframe {
 	struct compat_siginfo info;
 	struct compat_ucontext uc;
 };
-
-long compat_sys_rt_sigaction(int sig, struct compat_sigaction __user *act,
-			     struct compat_sigaction __user *oact,
-			     size_t sigsetsize)
-{
-	struct k_sigaction new_sa, old_sa;
-	int ret = -EINVAL;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		goto out;
-
-	if (act) {
-		compat_uptr_t handler, restorer;
-
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-		    __get_user(handler, &act->sa_handler) ||
-		    __get_user(new_sa.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(restorer, &act->sa_restorer) ||
-		    __copy_from_user(&new_sa.sa.sa_mask, &act->sa_mask,
-				     sizeof(sigset_t)))
-			return -EFAULT;
-		new_sa.sa.sa_handler = compat_ptr(handler);
-		new_sa.sa.sa_restorer = compat_ptr(restorer);
-	}
-
-	ret = do_sigaction(sig, act ? &new_sa : NULL, oact ? &old_sa : NULL);
-
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(ptr_to_compat(old_sa.sa.sa_handler),
-			       &oact->sa_handler) ||
-		    __put_user(ptr_to_compat(old_sa.sa.sa_restorer),
-			       &oact->sa_restorer) ||
-		    __put_user(old_sa.sa.sa_flags, &oact->sa_flags) ||
-		    __copy_to_user(&oact->sa_mask, &old_sa.sa.sa_mask,
-				   sizeof(sigset_t)))
-			return -EFAULT;
-	}
-out:
-	return ret;
-}
-
-long compat_sys_rt_sigqueueinfo(int pid, int sig,
-				struct compat_siginfo __user *uinfo)
-{
-	siginfo_t info;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-
-	if (copy_siginfo_from_user32(&info, uinfo))
-		return -EFAULT;
-	set_fs(KERNEL_DS);
-	ret = sys_rt_sigqueueinfo(pid, sig, (siginfo_t __force __user *)&info);
-	set_fs(old_fs);
-	return ret;
-}
 
 int copy_siginfo_to_user32(struct compat_siginfo __user *to, siginfo_t *from)
 {
@@ -196,40 +126,6 @@ int copy_siginfo_from_user32(siginfo_t *to, struct compat_siginfo __user *from)
 	return err;
 }
 
-long compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
-			    struct compat_sigaltstack __user *uoss_ptr)
-{
-	stack_t uss, uoss;
-	int ret;
-	mm_segment_t seg;
-
-	if (uss_ptr) {
-		u32 ptr;
-
-		memset(&uss, 0, sizeof(stack_t));
-		if (!access_ok(VERIFY_READ, uss_ptr, sizeof(*uss_ptr)) ||
-			    __get_user(ptr, &uss_ptr->ss_sp) ||
-			    __get_user(uss.ss_flags, &uss_ptr->ss_flags) ||
-			    __get_user(uss.ss_size, &uss_ptr->ss_size))
-			return -EFAULT;
-		uss.ss_sp = compat_ptr(ptr);
-	}
-	seg = get_fs();
-	set_fs(KERNEL_DS);
-	ret = do_sigaltstack(uss_ptr ? (stack_t __user __force *)&uss : NULL,
-			     (stack_t __user __force *)&uoss,
-			     (unsigned long)compat_ptr(current_pt_regs()->sp));
-	set_fs(seg);
-	if (ret >= 0 && uoss_ptr)  {
-		if (!access_ok(VERIFY_WRITE, uoss_ptr, sizeof(*uoss_ptr)) ||
-		    __put_user(ptr_to_compat(uoss.ss_sp), &uoss_ptr->ss_sp) ||
-		    __put_user(uoss.ss_flags, &uoss_ptr->ss_flags) ||
-		    __put_user(uoss.ss_size, &uoss_ptr->ss_size))
-			ret = -EFAULT;
-	}
-	return ret;
-}
-
 /* The assembly shim for this function arranges to ignore the return value. */
 long compat_sys_rt_sigreturn(void)
 {
@@ -248,7 +144,7 @@ long compat_sys_rt_sigreturn(void)
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 
-	if (compat_sys_sigaltstack(&frame->uc.uc_stack, NULL) == -EFAULT)
+	if (compat_restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	return 0;
@@ -325,11 +221,7 @@ int compat_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __clear_user(&frame->save_area, sizeof(frame->save_area));
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user(ptr_to_compat((void *)(current->sas_ss_sp)),
-			  &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->sp),
-			  &frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __compat_save_altstack(&frame->uc.uc_stack, regs->sp);
 	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	if (err)

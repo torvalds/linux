@@ -169,7 +169,7 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 
 		/* starting with BTC, there is one state that is used for both
 		 * MH and SH.  Difference is that we always use the high clock index for
-		 * mclk.
+		 * mclk and vddci.
 		 */
 		if ((rdev->pm.pm_method == PM_METHOD_PROFILE) &&
 		    (rdev->family >= CHIP_BARTS) &&

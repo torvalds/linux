@@ -31,6 +31,7 @@
  *   Copyright (C) 2006 Tower Technologies
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -937,9 +938,9 @@ static int ep93xx_pata_probe(struct platform_device *pdev)
 		goto err_rel_gpio;
 	}
 
-	ide_base = devm_request_and_ioremap(&pdev->dev, mem_res);
-	if (!ide_base) {
-		err = -ENXIO;
+	ide_base = devm_ioremap_resource(&pdev->dev, mem_res);
+	if (IS_ERR(ide_base)) {
+		err = PTR_ERR(ide_base);
 		goto err_rel_gpio;
 	}
 

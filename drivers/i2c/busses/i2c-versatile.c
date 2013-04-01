@@ -125,8 +125,6 @@ static int i2c_versatile_remove(struct platform_device *dev)
 {
 	struct i2c_versatile *i2c = platform_get_drvdata(dev);
 
-	platform_set_drvdata(dev, NULL);
-
 	i2c_del_adapter(&i2c->adap);
 	return 0;
 }

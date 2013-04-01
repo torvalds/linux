@@ -52,7 +52,7 @@ static inline void ieee80211_monitor_rx(struct ieee80211_device *ieee,
 	u16 fc = le16_to_cpu(hdr->frame_ctl);
 
 	skb->dev = ieee->dev;
-        skb_reset_mac_header(skb);
+	skb_reset_mac_header(skb);
 
 	skb_pull(skb, ieee80211_get_hdrlen(fc));
 	skb->pkt_type = PACKET_OTHERHOST;
@@ -218,16 +218,16 @@ ieee80211_rx_frame_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb,
 	 * this is not mandatory.... but seems that the probe
 	 * response parser uses it
 	 */
-        struct ieee80211_hdr_3addr * hdr = (struct ieee80211_hdr_3addr *)skb->data;
+	struct ieee80211_hdr_3addr * hdr = (struct ieee80211_hdr_3addr *)skb->data;
 
 	rx_stats->len = skb->len;
 	ieee80211_rx_mgt(ieee,(struct ieee80211_hdr_4addr *)skb->data,rx_stats);
-        //if ((ieee->state == IEEE80211_LINKED) && (memcmp(hdr->addr3, ieee->current_network.bssid, ETH_ALEN)))
-        if ((memcmp(hdr->addr1, ieee->dev->dev_addr, ETH_ALEN)))//use ADDR1 to perform address matching for Management frames
-        {
-                dev_kfree_skb_any(skb);
-                return 0;
-        }
+	//if ((ieee->state == IEEE80211_LINKED) && (memcmp(hdr->addr3, ieee->current_network.bssid, ETH_ALEN)))
+	if ((memcmp(hdr->addr1, ieee->dev->dev_addr, ETH_ALEN)))//use ADDR1 to perform address matching for Management frames
+	{
+		dev_kfree_skb_any(skb);
+		return 0;
+	}
 
 	ieee80211_rx_frame_softmac(ieee, skb, rx_stats, type, stype);
 
@@ -608,7 +608,7 @@ void RxReorderIndicatePacket( struct ieee80211_device *ieee,
 		u16			SeqNum)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	PRX_REORDER_ENTRY 	pReorderEntry = NULL;
+	PRX_REORDER_ENTRY	pReorderEntry = NULL;
 	struct ieee80211_rxb* prxbIndicateArray[REORDER_WIN_SIZE];
 	u8			WinSize = pHTInfo->RxReorderWinSize;
 	u16			WinEnd = (pTS->RxIndicateSeq + WinSize -1)%4096;
@@ -773,7 +773,7 @@ void RxReorderIndicatePacket( struct ieee80211_device *ieee,
 }
 
 u8 parse_subframe(struct sk_buff *skb,
-                  struct ieee80211_rx_stats *rx_stats,
+		  struct ieee80211_rx_stats *rx_stats,
 		  struct ieee80211_rxb *rxb,u8* src,u8* dst)
 {
 	struct ieee80211_hdr_3addr  *hdr = (struct ieee80211_hdr_3addr* )skb->data;
@@ -1043,7 +1043,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		{
 
 		//	IEEE80211_DEBUG(IEEE80211_DL_REORDER,"%s(): pRxTS->RxLastFragNum is %d,frag is %d,pRxTS->RxLastSeqNum is %d,seq is %d\n",__FUNCTION__,pRxTS->RxLastFragNum,frag,pRxTS->RxLastSeqNum,WLAN_GET_SEQ_SEQ(sc));
-			if( 	(fc & (1<<11))  &&
+			if(	(fc & (1<<11))  &&
 					(frag == pRxTS->RxLastFragNum) &&
 					(WLAN_GET_SEQ_SEQ(sc) == pRxTS->RxLastSeqNum)	)
 			{
@@ -1154,8 +1154,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 				type, stype, skb->len);
 		goto rx_dropped;
 	}
-        if (memcmp(bssid, ieee->current_network.bssid, ETH_ALEN))
-                goto rx_dropped;
+	if (memcmp(bssid, ieee->current_network.bssid, ETH_ALEN))
+		goto rx_dropped;
 
 	/* skb: hdr + (possibly fragmented, possibly encrypted) payload */
 
@@ -1402,19 +1402,19 @@ static u8 qos_oui[QOS_OUI_LEN] = { 0x00, 0x50, 0xF2 };
 * the right values
 */
 static int ieee80211_verify_qos_info(struct ieee80211_qos_information_element
-                                     *info_element, int sub_type)
+				     *info_element, int sub_type)
 {
 
-        if (info_element->qui_subtype != sub_type)
-                return -1;
-        if (memcmp(info_element->qui, qos_oui, QOS_OUI_LEN))
-                return -1;
-        if (info_element->qui_type != QOS_OUI_TYPE)
-                return -1;
-        if (info_element->version != QOS_VERSION_1)
-                return -1;
+	if (info_element->qui_subtype != sub_type)
+		return -1;
+	if (memcmp(info_element->qui, qos_oui, QOS_OUI_LEN))
+		return -1;
+	if (info_element->qui_type != QOS_OUI_TYPE)
+		return -1;
+	if (info_element->version != QOS_VERSION_1)
+		return -1;
 
-        return 0;
+	return 0;
 }
 
 
@@ -1422,56 +1422,56 @@ static int ieee80211_verify_qos_info(struct ieee80211_qos_information_element
  * Parse a QoS parameter element
  */
 static int ieee80211_read_qos_param_element(struct ieee80211_qos_parameter_info
-                                            *element_param, struct ieee80211_info_element
-                                            *info_element)
+					    *element_param, struct ieee80211_info_element
+					    *info_element)
 {
-        int ret = 0;
-        u16 size = sizeof(struct ieee80211_qos_parameter_info) - 2;
+	int ret = 0;
+	u16 size = sizeof(struct ieee80211_qos_parameter_info) - 2;
 
-        if ((info_element == NULL) || (element_param == NULL))
-                return -1;
+	if ((info_element == NULL) || (element_param == NULL))
+		return -1;
 
-        if (info_element->id == QOS_ELEMENT_ID && info_element->len == size) {
-                memcpy(element_param->info_element.qui, info_element->data,
-                       info_element->len);
-                element_param->info_element.elementID = info_element->id;
-                element_param->info_element.length = info_element->len;
-        } else
-                ret = -1;
-        if (ret == 0)
-                ret = ieee80211_verify_qos_info(&element_param->info_element,
-                                                QOS_OUI_PARAM_SUB_TYPE);
-        return ret;
+	if (info_element->id == QOS_ELEMENT_ID && info_element->len == size) {
+		memcpy(element_param->info_element.qui, info_element->data,
+		       info_element->len);
+		element_param->info_element.elementID = info_element->id;
+		element_param->info_element.length = info_element->len;
+	} else
+		ret = -1;
+	if (ret == 0)
+		ret = ieee80211_verify_qos_info(&element_param->info_element,
+						QOS_OUI_PARAM_SUB_TYPE);
+	return ret;
 }
 
 /*
  * Parse a QoS information element
  */
 static int ieee80211_read_qos_info_element(struct
-                                           ieee80211_qos_information_element
-                                           *element_info, struct ieee80211_info_element
-                                           *info_element)
+					   ieee80211_qos_information_element
+					   *element_info, struct ieee80211_info_element
+					   *info_element)
 {
-        int ret = 0;
-        u16 size = sizeof(struct ieee80211_qos_information_element) - 2;
+	int ret = 0;
+	u16 size = sizeof(struct ieee80211_qos_information_element) - 2;
 
-        if (element_info == NULL)
-                return -1;
-        if (info_element == NULL)
-                return -1;
+	if (element_info == NULL)
+		return -1;
+	if (info_element == NULL)
+		return -1;
 
-        if ((info_element->id == QOS_ELEMENT_ID) && (info_element->len == size)) {
-                memcpy(element_info->qui, info_element->data,
-                       info_element->len);
-                element_info->elementID = info_element->id;
-                element_info->length = info_element->len;
-        } else
-                ret = -1;
+	if ((info_element->id == QOS_ELEMENT_ID) && (info_element->len == size)) {
+		memcpy(element_info->qui, info_element->data,
+		       info_element->len);
+		element_info->elementID = info_element->id;
+		element_info->length = info_element->len;
+	} else
+		ret = -1;
 
-        if (ret == 0)
-                ret = ieee80211_verify_qos_info(element_info,
-                                                QOS_OUI_INFO_SUB_TYPE);
-        return ret;
+	if (ret == 0)
+		ret = ieee80211_verify_qos_info(element_info,
+						QOS_OUI_INFO_SUB_TYPE);
+	return ret;
 }
 
 
@@ -1479,39 +1479,39 @@ static int ieee80211_read_qos_info_element(struct
  * Write QoS parameters from the ac parameters.
  */
 static int ieee80211_qos_convert_ac_to_parameters(struct
-                                                  ieee80211_qos_parameter_info
-                                                  *param_elm, struct
-                                                  ieee80211_qos_parameters
-                                                  *qos_param)
+						  ieee80211_qos_parameter_info
+						  *param_elm, struct
+						  ieee80211_qos_parameters
+						  *qos_param)
 {
-        int rc = 0;
-        int i;
-        struct ieee80211_qos_ac_parameter *ac_params;
+	int rc = 0;
+	int i;
+	struct ieee80211_qos_ac_parameter *ac_params;
 	u8 aci;
-        //u8 cw_min;
-        //u8 cw_max;
+	//u8 cw_min;
+	//u8 cw_max;
 
-        for (i = 0; i < QOS_QUEUE_NUM; i++) {
-                ac_params = &(param_elm->ac_params_record[i]);
+	for (i = 0; i < QOS_QUEUE_NUM; i++) {
+		ac_params = &(param_elm->ac_params_record[i]);
 
 		aci = (ac_params->aci_aifsn & 0x60) >> 5;
 
 		if(aci >= QOS_QUEUE_NUM)
 			continue;
-                qos_param->aifs[aci] = (ac_params->aci_aifsn) & 0x0f;
+		qos_param->aifs[aci] = (ac_params->aci_aifsn) & 0x0f;
 
 		/* WMM spec P.11: The minimum value for AIFSN shall be 2 */
-                qos_param->aifs[aci] = (qos_param->aifs[aci] < 2) ? 2:qos_param->aifs[aci];
+		qos_param->aifs[aci] = (qos_param->aifs[aci] < 2) ? 2:qos_param->aifs[aci];
 
-                qos_param->cw_min[aci] = ac_params->ecw_min_max & 0x0F;
+		qos_param->cw_min[aci] = ac_params->ecw_min_max & 0x0F;
 
-                qos_param->cw_max[aci] = (ac_params->ecw_min_max & 0xF0) >> 4;
+		qos_param->cw_max[aci] = (ac_params->ecw_min_max & 0xF0) >> 4;
 
-                qos_param->flag[aci] =
-                    (ac_params->aci_aifsn & 0x10) ? 0x01 : 0x00;
-                qos_param->tx_op_limit[aci] = le16_to_cpu(ac_params->tx_op_limit);
-        }
-        return rc;
+		qos_param->flag[aci] =
+		    (ac_params->aci_aifsn & 0x10) ? 0x01 : 0x00;
+		qos_param->tx_op_limit[aci] = le16_to_cpu(ac_params->tx_op_limit);
+	}
+	return rc;
 }
 
 /*
@@ -1520,38 +1520,38 @@ static int ieee80211_qos_convert_ac_to_parameters(struct
  * which type to read
  */
 static int ieee80211_parse_qos_info_param_IE(struct ieee80211_info_element
-                                             *info_element,
-                                             struct ieee80211_network *network)
+					     *info_element,
+					     struct ieee80211_network *network)
 {
-        int rc = 0;
-        struct ieee80211_qos_parameters *qos_param = NULL;
-        struct ieee80211_qos_information_element qos_info_element;
+	int rc = 0;
+	struct ieee80211_qos_parameters *qos_param = NULL;
+	struct ieee80211_qos_information_element qos_info_element;
 
-        rc = ieee80211_read_qos_info_element(&qos_info_element, info_element);
+	rc = ieee80211_read_qos_info_element(&qos_info_element, info_element);
 
-        if (rc == 0) {
-                network->qos_data.param_count = qos_info_element.ac_info & 0x0F;
-                network->flags |= NETWORK_HAS_QOS_INFORMATION;
-        } else {
-                struct ieee80211_qos_parameter_info param_element;
+	if (rc == 0) {
+		network->qos_data.param_count = qos_info_element.ac_info & 0x0F;
+		network->flags |= NETWORK_HAS_QOS_INFORMATION;
+	} else {
+		struct ieee80211_qos_parameter_info param_element;
 
-                rc = ieee80211_read_qos_param_element(&param_element,
-                                                      info_element);
-                if (rc == 0) {
-                        qos_param = &(network->qos_data.parameters);
-                        ieee80211_qos_convert_ac_to_parameters(&param_element,
-                                                               qos_param);
-                        network->flags |= NETWORK_HAS_QOS_PARAMETERS;
-                        network->qos_data.param_count =
-                            param_element.info_element.ac_info & 0x0F;
-                }
-        }
+		rc = ieee80211_read_qos_param_element(&param_element,
+						      info_element);
+		if (rc == 0) {
+			qos_param = &(network->qos_data.parameters);
+			ieee80211_qos_convert_ac_to_parameters(&param_element,
+							       qos_param);
+			network->flags |= NETWORK_HAS_QOS_PARAMETERS;
+			network->qos_data.param_count =
+			    param_element.info_element.ac_info & 0x0F;
+		}
+	}
 
-        if (rc == 0) {
-                IEEE80211_DEBUG_QOS("QoS is supported\n");
-                network->qos_data.supported = 1;
-        }
-        return rc;
+	if (rc == 0) {
+		IEEE80211_DEBUG_QOS("QoS is supported\n");
+		network->qos_data.supported = 1;
+	}
+	return rc;
 }
 
 #ifdef CONFIG_IEEE80211_DEBUG
@@ -1559,37 +1559,37 @@ static int ieee80211_parse_qos_info_param_IE(struct ieee80211_info_element
 
 static const char *get_info_element_string(u16 id)
 {
-        switch (id) {
-                MFIE_STRING(SSID);
-                MFIE_STRING(RATES);
-                MFIE_STRING(FH_SET);
-                MFIE_STRING(DS_SET);
-                MFIE_STRING(CF_SET);
-                MFIE_STRING(TIM);
-                MFIE_STRING(IBSS_SET);
-                MFIE_STRING(COUNTRY);
-                MFIE_STRING(HOP_PARAMS);
-                MFIE_STRING(HOP_TABLE);
-                MFIE_STRING(REQUEST);
-                MFIE_STRING(CHALLENGE);
-                MFIE_STRING(POWER_CONSTRAINT);
-                MFIE_STRING(POWER_CAPABILITY);
-                MFIE_STRING(TPC_REQUEST);
-                MFIE_STRING(TPC_REPORT);
-                MFIE_STRING(SUPP_CHANNELS);
-                MFIE_STRING(CSA);
-                MFIE_STRING(MEASURE_REQUEST);
-                MFIE_STRING(MEASURE_REPORT);
-                MFIE_STRING(QUIET);
-                MFIE_STRING(IBSS_DFS);
-               // MFIE_STRING(ERP_INFO);
-                MFIE_STRING(RSN);
-                MFIE_STRING(RATES_EX);
-                MFIE_STRING(GENERIC);
-                MFIE_STRING(QOS_PARAMETER);
-        default:
-                return "UNKNOWN";
-        }
+	switch (id) {
+		MFIE_STRING(SSID);
+		MFIE_STRING(RATES);
+		MFIE_STRING(FH_SET);
+		MFIE_STRING(DS_SET);
+		MFIE_STRING(CF_SET);
+		MFIE_STRING(TIM);
+		MFIE_STRING(IBSS_SET);
+		MFIE_STRING(COUNTRY);
+		MFIE_STRING(HOP_PARAMS);
+		MFIE_STRING(HOP_TABLE);
+		MFIE_STRING(REQUEST);
+		MFIE_STRING(CHALLENGE);
+		MFIE_STRING(POWER_CONSTRAINT);
+		MFIE_STRING(POWER_CAPABILITY);
+		MFIE_STRING(TPC_REQUEST);
+		MFIE_STRING(TPC_REPORT);
+		MFIE_STRING(SUPP_CHANNELS);
+		MFIE_STRING(CSA);
+		MFIE_STRING(MEASURE_REQUEST);
+		MFIE_STRING(MEASURE_REPORT);
+		MFIE_STRING(QUIET);
+		MFIE_STRING(IBSS_DFS);
+	       // MFIE_STRING(ERP_INFO);
+		MFIE_STRING(RSN);
+		MFIE_STRING(RATES_EX);
+		MFIE_STRING(GENERIC);
+		MFIE_STRING(QOS_PARAMETER);
+	default:
+		return "UNKNOWN";
+	}
 }
 #endif
 
@@ -1634,7 +1634,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 {
 	u8 i;
 	short offset;
-        u16	tmp_htcap_len=0;
+	u16	tmp_htcap_len=0;
 	u16	tmp_htinfo_len=0;
 	u16 ht_realtek_agg_len=0;
 	u8  ht_realtek_agg_buf[MAX_IE_LEN];
@@ -1752,34 +1752,34 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 			network->tim.tim_count = info_element->data[0];
 			network->tim.tim_period = info_element->data[1];
 
-                        network->dtim_period = info_element->data[1];
-                        if(ieee->state != IEEE80211_LINKED)
-                                break;
+			network->dtim_period = info_element->data[1];
+			if(ieee->state != IEEE80211_LINKED)
+				break;
 
-                        network->last_dtim_sta_time[0] = stats->mac_time[0];
-                        network->last_dtim_sta_time[1] = stats->mac_time[1];
+			network->last_dtim_sta_time[0] = stats->mac_time[0];
+			network->last_dtim_sta_time[1] = stats->mac_time[1];
 
-                        network->dtim_data = IEEE80211_DTIM_VALID;
+			network->dtim_data = IEEE80211_DTIM_VALID;
 
-                        if(info_element->data[0] != 0)
-                                break;
+			if(info_element->data[0] != 0)
+				break;
 
-                        if(info_element->data[2] & 1)
-                                network->dtim_data |= IEEE80211_DTIM_MBCAST;
+			if(info_element->data[2] & 1)
+				network->dtim_data |= IEEE80211_DTIM_MBCAST;
 
-                        offset = (info_element->data[2] >> 1)*2;
+			offset = (info_element->data[2] >> 1)*2;
 
-                        //printk("offset1:%x aid:%x\n",offset, ieee->assoc_id);
+			//printk("offset1:%x aid:%x\n",offset, ieee->assoc_id);
 
-                        if(ieee->assoc_id < 8*offset ||
-                                ieee->assoc_id > 8*(offset + info_element->len -3))
+			if(ieee->assoc_id < 8*offset ||
+				ieee->assoc_id > 8*(offset + info_element->len -3))
 
-                                break;
+				break;
 
-                        offset = (ieee->assoc_id / 8) - offset;// + ((aid % 8)? 0 : 1) ;
+			offset = (ieee->assoc_id / 8) - offset;// + ((aid % 8)? 0 : 1) ;
 
-                        if(info_element->data[3+offset] & (1<<(ieee->assoc_id%8)))
-                                network->dtim_data |= IEEE80211_DTIM_UCAST;
+			if(info_element->data[3+offset] & (1<<(ieee->assoc_id%8)))
+				network->dtim_data |= IEEE80211_DTIM_UCAST;
 
 			//IEEE80211_DEBUG_MGMT("MFIE_TYPE_TIM: partially ignored\n");
 			break;
@@ -1820,17 +1820,17 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 			}
 
 #ifdef THOMAS_TURBO
-                        if (info_element->len == 7 &&
-                            info_element->data[0] == 0x00 &&
-                            info_element->data[1] == 0xe0 &&
-                            info_element->data[2] == 0x4c &&
-                            info_element->data[3] == 0x01 &&
-                            info_element->data[4] == 0x02) {
-                                network->Turbo_Enable = 1;
-                        }
+			if (info_element->len == 7 &&
+			    info_element->data[0] == 0x00 &&
+			    info_element->data[1] == 0xe0 &&
+			    info_element->data[2] == 0x4c &&
+			    info_element->data[3] == 0x01 &&
+			    info_element->data[4] == 0x02) {
+				network->Turbo_Enable = 1;
+			}
 #endif
 
-                        //for HTcap and HTinfo parameters
+			//for HTcap and HTinfo parameters
 			if(tmp_htcap_len == 0){
 				if(info_element->len >= 4 &&
 				   info_element->data[0] == 0x00 &&
@@ -1839,12 +1839,12 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 				   info_element->data[3] == 0x033){
 
 						tmp_htcap_len = min(info_element->len,(u8)MAX_IE_LEN);
-				   		if(tmp_htcap_len != 0){
-				   			network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
+						if(tmp_htcap_len != 0){
+							network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
 							network->bssht.bdHTCapLen = tmp_htcap_len > sizeof(network->bssht.bdHTCapBuf)?\
 								sizeof(network->bssht.bdHTCapBuf):tmp_htcap_len;
 							memcpy(network->bssht.bdHTCapBuf,info_element->data,network->bssht.bdHTCapLen);
-				   		}
+						}
 				}
 				if(tmp_htcap_len != 0)
 					network->bssht.bdSupportHT = true;
@@ -1856,9 +1856,9 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 			if(tmp_htinfo_len == 0){
 				if(info_element->len >= 4 &&
 					info_element->data[0] == 0x00 &&
-				   	info_element->data[1] == 0x90 &&
-				   	info_element->data[2] == 0x4c &&
-				   	info_element->data[3] == 0x034){
+					info_element->data[1] == 0x90 &&
+					info_element->data[2] == 0x4c &&
+					info_element->data[3] == 0x034){
 
 						tmp_htinfo_len = min(info_element->len,(u8)MAX_IE_LEN);
 						if(tmp_htinfo_len != 0){
@@ -2014,7 +2014,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 			       network->rsn_ie_len);
 			break;
 
-                        //HT related element.
+			//HT related element.
 		case MFIE_TYPE_HT_CAP:
 			IEEE80211_DEBUG_SCAN("MFIE_TYPE_HT_CAP: %d bytes\n",
 					     info_element->len);
@@ -2027,7 +2027,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 
 				//If peer is HT, but not WMM, call QosSetLegacyWMMParamWithHT()
 				// windows driver will update WMM parameters each beacon received once connected
-                                // Linux driver is a bit different.
+				// Linux driver is a bit different.
 				network->bssht.bdSupportHT = true;
 			}
 			else
@@ -2060,7 +2060,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 				if(	(info_element->data[IE_CISCO_FLAG_POSITION]&SUPPORT_CKIP_MIC)	||
 					(info_element->data[IE_CISCO_FLAG_POSITION]&SUPPORT_CKIP_PK)	)
 				{
-		 			network->bCkipSupported = true;
+					network->bCkipSupported = true;
 				}
 				else
 				{
@@ -2070,7 +2070,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 			else
 			{
 				network->bWithAironetIE = false;
-		 		network->bCkipSupported = false;
+				network->bCkipSupported = false;
 			}
 			break;
 		case MFIE_TYPE_QOS_PARAMETER:
@@ -2189,10 +2189,10 @@ static inline int ieee80211_network_init(
 	//char *p;
 #endif
 
-        network->qos_data.active = 0;
-        network->qos_data.supported = 0;
-        network->qos_data.param_count = 0;
-        network->qos_data.old_param_count = 0;
+	network->qos_data.active = 0;
+	network->qos_data.supported = 0;
+	network->qos_data.param_count = 0;
+	network->qos_data.old_param_count = 0;
 
 	/* Pull out fixed field data */
 	memcpy(network->bssid, beacon->header.addr3, ETH_ALEN);
@@ -2209,9 +2209,9 @@ static inline int ieee80211_network_init(
 	network->flags = 0;
 	network->atim_window = 0;
 	network->erp_value = (network->capability & WLAN_CAPABILITY_IBSS) ?
-            0x3 : 0x0;
+	    0x3 : 0x0;
 	network->berp_info_valid = false;
-        network->broadcom_cap_exist = false;
+	network->broadcom_cap_exist = false;
 	network->ralink_cap_exist = false;
 	network->atheros_cap_exist = false;
 	network->cisco_cap_exist = false;
@@ -2230,12 +2230,12 @@ static inline int ieee80211_network_init(
 	} else
 		network->flags |= NETWORK_HAS_CCK;
 
- 	network->wpa_ie_len = 0;
- 	network->rsn_ie_len = 0;
+	network->wpa_ie_len = 0;
+	network->rsn_ie_len = 0;
 
-        if (ieee80211_parse_info_param
-            (ieee,beacon->info_element, stats->len - sizeof(*beacon), network, stats))
-                return 1;
+	if (ieee80211_parse_info_param
+	    (ieee,beacon->info_element, stats->len - sizeof(*beacon), network, stats))
+		return 1;
 
 	network->mode = 0;
 	if (stats->freq == IEEE80211_52GHZ_BAND)
@@ -2329,7 +2329,7 @@ static inline void update_network(struct ieee80211_network *dst,
 	dst->last_dtim_sta_time[1] = src->last_dtim_sta_time[1];
 	memcpy(&dst->tim, &src->tim, sizeof(struct ieee80211_tim_parameters));
 
-        dst->bssht.bdSupportHT = src->bssht.bdSupportHT;
+	dst->bssht.bdSupportHT = src->bssht.bdSupportHT;
 	dst->bssht.bdRT2RTAggregation = src->bssht.bdRT2RTAggregation;
 	dst->bssht.bdHTCapLen= src->bssht.bdHTCapLen;
 	memcpy(dst->bssht.bdHTCapBuf,src->bssht.bdHTCapBuf,src->bssht.bdHTCapLen);

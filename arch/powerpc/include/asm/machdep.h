@@ -180,6 +180,10 @@ struct machdep_calls {
 	int		(*set_dabr)(unsigned long dabr,
 				    unsigned long dabrx);
 
+	/* Set DAWR for this platform, leave empty for default implemenation */
+	int		(*set_dawr)(unsigned long dawr,
+				    unsigned long dawrx);
+
 #ifdef CONFIG_PPC32	/* XXX for now */
 	/* A general init function, called by ppc_init in init/main.c.
 	   May be NULL. */

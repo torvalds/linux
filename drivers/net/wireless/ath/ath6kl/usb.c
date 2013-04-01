@@ -159,10 +159,8 @@ static void ath6kl_usb_free_urb_to_pipe(struct ath6kl_usb_pipe *pipe,
 
 static void ath6kl_usb_cleanup_recv_urb(struct ath6kl_urb_context *urb_context)
 {
-	if (urb_context->skb != NULL) {
-		dev_kfree_skb(urb_context->skb);
-		urb_context->skb = NULL;
-	}
+	dev_kfree_skb(urb_context->skb);
+	urb_context->skb = NULL;
 
 	ath6kl_usb_free_urb_to_pipe(urb_context->pipe, urb_context);
 }

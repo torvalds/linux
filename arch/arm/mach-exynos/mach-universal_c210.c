@@ -29,7 +29,6 @@
 #include <drm/exynos_drm.h>
 
 #include <asm/mach/arch.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
 #include <video/samsung_fimd.h>
@@ -988,12 +987,12 @@ static struct i2c_board_info m5mols_board_info = {
 	.platform_data = &m5mols_platdata,
 };
 
-static struct s5p_fimc_isp_info universal_camera_sensors[] = {
+static struct fimc_source_info universal_camera_sensors[] = {
 	{
 		.mux_id		= 0,
 		.flags		= V4L2_MBUS_PCLK_SAMPLE_FALLING |
 				  V4L2_MBUS_VSYNC_ACTIVE_LOW,
-		.bus_type	= FIMC_ITU_601,
+		.fimc_bus_type	= FIMC_BUS_TYPE_ITU_601,
 		.board_info	= &s5k6aa_board_info,
 		.i2c_bus_num	= 0,
 		.clk_frequency	= 24000000UL,
@@ -1001,7 +1000,7 @@ static struct s5p_fimc_isp_info universal_camera_sensors[] = {
 		.mux_id		= 0,
 		.flags		= V4L2_MBUS_PCLK_SAMPLE_FALLING |
 				  V4L2_MBUS_VSYNC_ACTIVE_LOW,
-		.bus_type	= FIMC_MIPI_CSI2,
+		.fimc_bus_type	= FIMC_BUS_TYPE_MIPI_CSI2,
 		.board_info	= &m5mols_board_info,
 		.i2c_bus_num	= 0,
 		.clk_frequency	= 24000000UL,
@@ -1009,7 +1008,7 @@ static struct s5p_fimc_isp_info universal_camera_sensors[] = {
 };
 
 static struct s5p_platform_fimc fimc_md_platdata = {
-	.isp_info	= universal_camera_sensors,
+	.source_info	= universal_camera_sensors,
 	.num_clients	= ARRAY_SIZE(universal_camera_sensors),
 };
 
@@ -1151,10 +1150,9 @@ MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
 	.smp		= smp_ops(exynos_smp_ops),
 	.init_irq	= exynos4_init_irq,
 	.map_io		= universal_map_io,
-	.handle_irq	= gic_handle_irq,
 	.init_machine	= universal_machine_init,
 	.init_late	= exynos_init_late,
-	.timer		= &s5p_timer,
+	.init_time	= s5p_timer_init,
 	.reserve        = &universal_reserve,
 	.restart	= exynos4_restart,
 MACHINE_END

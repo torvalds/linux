@@ -34,7 +34,7 @@ static struct clk *ac97_clk;
 static struct clk *ac97conf_clk;
 static int reset_gpio;
 
-extern void pxa27x_assert_ac97reset(int reset_gpio, int on);
+extern void pxa27x_configure_ac97reset(int reset_gpio, bool to_gpio);
 
 /*
  * Beware PXA27x bugs:
@@ -140,10 +140,10 @@ static inline void pxa_ac97_warm_pxa27x(void)
 	gsr_bits = 0;
 
 	/* warm reset broken on Bulverde, so manually keep AC97 reset high */
-	pxa27x_assert_ac97reset(reset_gpio, 1);
+	pxa27x_configure_ac97reset(reset_gpio, true);
 	udelay(10);
 	GCR |= GCR_WARM_RST;
-	pxa27x_assert_ac97reset(reset_gpio, 0);
+	pxa27x_configure_ac97reset(reset_gpio, false);
 	udelay(500);
 }
 
@@ -358,7 +358,7 @@ int pxa2xx_ac97_hw_probe(struct platform_device *dev)
 			       __func__, ret);
 			goto err_conf;
 		}
-		pxa27x_assert_ac97reset(reset_gpio, 0);
+		pxa27x_configure_ac97reset(reset_gpio, false);
 
 		ac97conf_clk = clk_get(&dev->dev, "AC97CONFCLK");
 		if (IS_ERR(ac97conf_clk)) {

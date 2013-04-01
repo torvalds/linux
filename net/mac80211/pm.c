@@ -7,25 +7,23 @@
 #include "led.h"
 
 /* return value indicates whether the driver should be further notified */
-static bool ieee80211_quiesce(struct ieee80211_sub_if_data *sdata)
+static void ieee80211_quiesce(struct ieee80211_sub_if_data *sdata)
 {
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_STATION:
 		ieee80211_sta_quiesce(sdata);
-		return true;
+		break;
 	case NL80211_IFTYPE_ADHOC:
 		ieee80211_ibss_quiesce(sdata);
-		return true;
+		break;
 	case NL80211_IFTYPE_MESH_POINT:
 		ieee80211_mesh_quiesce(sdata);
-		return true;
-	case NL80211_IFTYPE_AP_VLAN:
-	case NL80211_IFTYPE_MONITOR:
-		/* don't tell driver about this */
-		return false;
+		break;
 	default:
-		return true;
+		break;
 	}
+
+	cancel_work_sync(&sdata->work);
 }
 
 int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
@@ -40,11 +38,14 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	ieee80211_scan_cancel(local);
 
+	ieee80211_dfs_cac_cancel(local);
+
 	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
 		mutex_lock(&local->sta_mtx);
 		list_for_each_entry(sta, &local->sta_list, list) {
 			set_sta_flag(sta, WLAN_STA_BLOCK_BA);
-			ieee80211_sta_tear_down_BA_sessions(sta, true);
+			ieee80211_sta_tear_down_BA_sessions(
+					sta, AGG_STOP_LOCAL_REQUEST);
 		}
 		mutex_unlock(&local->sta_mtx);
 	}
@@ -94,10 +95,9 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			WARN_ON(err != 1);
 			local->wowlan = false;
 		} else {
-			list_for_each_entry(sdata, &local->interfaces, list) {
-				cancel_work_sync(&sdata->work);
-				ieee80211_quiesce(sdata);
-			}
+			list_for_each_entry(sdata, &local->interfaces, list)
+				if (ieee80211_sdata_running(sdata))
+					ieee80211_quiesce(sdata);
 			goto suspend;
 		}
 	}
@@ -124,17 +124,43 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	/* remove all interfaces */
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		cancel_work_sync(&sdata->work);
-
-		if (!ieee80211_quiesce(sdata))
-			continue;
+		static u8 zero_addr[ETH_ALEN] = {};
+		u32 changed = 0;
 
 		if (!ieee80211_sdata_running(sdata))
 			continue;
 
-		/* disable beaconing */
-		ieee80211_bss_info_change_notify(sdata,
-			BSS_CHANGED_BEACON_ENABLED);
+		switch (sdata->vif.type) {
+		case NL80211_IFTYPE_AP_VLAN:
+		case NL80211_IFTYPE_MONITOR:
+			/* skip these */
+			continue;
+		case NL80211_IFTYPE_STATION:
+			if (sdata->vif.bss_conf.assoc)
+				changed = BSS_CHANGED_ASSOC |
+					  BSS_CHANGED_BSSID |
+					  BSS_CHANGED_IDLE;
+			break;
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_MESH_POINT:
+			if (sdata->vif.bss_conf.enable_beacon)
+				changed = BSS_CHANGED_BEACON_ENABLED;
+			break;
+		default:
+			break;
+		}
+
+		ieee80211_quiesce(sdata);
+
+		sdata->suspend_bss_conf = sdata->vif.bss_conf;
+		memset(&sdata->vif.bss_conf, 0, sizeof(sdata->vif.bss_conf));
+		sdata->vif.bss_conf.idle = true;
+		if (sdata->suspend_bss_conf.bssid)
+			sdata->vif.bss_conf.bssid = zero_addr;
+
+		/* disable beaconing or remove association */
+		ieee80211_bss_info_change_notify(sdata, changed);
 
 		if (sdata->vif.type == NL80211_IFTYPE_AP &&
 		    rcu_access_pointer(sdata->u.ap.beacon))
@@ -204,3 +230,13 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
  * ieee80211_reconfig(), which is also needed for hardware
  * hang/firmware failure/etc. recovery.
  */
+
+void ieee80211_report_wowlan_wakeup(struct ieee80211_vif *vif,
+				    struct cfg80211_wowlan_wakeup *wakeup,
+				    gfp_t gfp)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	cfg80211_report_wowlan_wakeup(&sdata->wdev, wakeup, gfp);
+}
+EXPORT_SYMBOL(ieee80211_report_wowlan_wakeup);

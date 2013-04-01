@@ -69,7 +69,7 @@
 #else
 #define SMP_IRQ_MASK	0
 #endif
-#define PERCPU_IRQ_MASK	(SMP_IRQ_MASK | (1ull << IRQ_TIMER) | \
+#define PERCPU_IRQ_MASK (SMP_IRQ_MASK | (1ull << IRQ_TIMER) | \
 				(1ull << IRQ_FMN))
 
 struct nlm_pic_irq {
@@ -105,20 +105,22 @@ static void xlp_pic_disable(struct irq_data *d)
 static void xlp_pic_mask_ack(struct irq_data *d)
 {
 	struct nlm_pic_irq *pd = irq_data_get_irq_handler_data(d);
-	uint64_t mask = 1ull << pd->picirq;
 
-	write_c0_eirr(mask);            /* ack by writing EIRR */
+	clear_c0_eimr(pd->picirq);
+	ack_c0_eirr(pd->picirq);
 }
 
 static void xlp_pic_unmask(struct irq_data *d)
 {
 	struct nlm_pic_irq *pd = irq_data_get_irq_handler_data(d);
 
-	if (!pd)
-		return;
+	BUG_ON(!pd);
 
 	if (pd->extra_ack)
 		pd->extra_ack(d);
+
+	/* re-enable the intr on this cpu */
+	set_c0_eimr(pd->picirq);
 
 	/* Ack is a single write, no need to lock */
 	nlm_pic_ack(pd->node->picbase, pd->irt);
@@ -134,32 +136,17 @@ static struct irq_chip xlp_pic = {
 
 static void cpuintr_disable(struct irq_data *d)
 {
-	uint64_t eimr;
-	uint64_t mask = 1ull << d->irq;
-
-	eimr = read_c0_eimr();
-	write_c0_eimr(eimr & ~mask);
+	clear_c0_eimr(d->irq);
 }
 
 static void cpuintr_enable(struct irq_data *d)
 {
-	uint64_t eimr;
-	uint64_t mask = 1ull << d->irq;
-
-	eimr = read_c0_eimr();
-	write_c0_eimr(eimr | mask);
+	set_c0_eimr(d->irq);
 }
 
 static void cpuintr_ack(struct irq_data *d)
 {
-	uint64_t mask = 1ull << d->irq;
-
-	write_c0_eirr(mask);
-}
-
-static void cpuintr_nop(struct irq_data *d)
-{
-	WARN(d->irq >= PIC_IRQ_BASE, "Bad irq %d", d->irq);
+	ack_c0_eirr(d->irq);
 }
 
 /*
@@ -170,9 +157,9 @@ struct irq_chip nlm_cpu_intr = {
 	.name		= "XLP-CPU-INTR",
 	.irq_enable	= cpuintr_enable,
 	.irq_disable	= cpuintr_disable,
-	.irq_mask	= cpuintr_nop,
-	.irq_ack	= cpuintr_nop,
-	.irq_eoi	= cpuintr_ack,
+	.irq_mask	= cpuintr_disable,
+	.irq_ack	= cpuintr_ack,
+	.irq_eoi	= cpuintr_enable,
 };
 
 static void __init nlm_init_percpu_irqs(void)
@@ -230,7 +217,7 @@ static void nlm_init_node_irqs(int node)
 		nlm_setup_pic_irq(node, i, i, irt);
 		/* set interrupts to first cpu in node */
 		nlm_pic_init_irt(nodep->picbase, irt, i,
-					node * NLM_CPUS_PER_NODE);
+					node * NLM_CPUS_PER_NODE, 0);
 		irqmask |= (1ull << i);
 	}
 	nodep->irqmask = irqmask;
@@ -265,7 +252,7 @@ asmlinkage void plat_irq_dispatch(void)
 	int i, node;
 
 	node = nlm_nodeid();
-	eirr = read_c0_eirr() & read_c0_eimr();
+	eirr = read_c0_eirr_and_eimr();
 
 	i = __ilog2_u64(eirr);
 	if (i == -1)

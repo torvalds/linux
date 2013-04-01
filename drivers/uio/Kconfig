@@ -1,6 +1,5 @@
 menuconfig UIO
 	tristate "Userspace I/O drivers"
-	depends on !S390
 	help
 	  Enable this to allow the userspace driver core code to be
 	  built.  This code allows userspace programs easy access to

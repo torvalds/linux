@@ -941,9 +941,9 @@ static int emmaprp_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pcdev);
 
-	pcdev->base_emma = devm_request_and_ioremap(&pdev->dev, res_emma);
-	if (!pcdev->base_emma) {
-		ret = -ENXIO;
+	pcdev->base_emma = devm_ioremap_resource(&pdev->dev, res_emma);
+	if (IS_ERR(pcdev->base_emma)) {
+		ret = PTR_ERR(pcdev->base_emma);
 		goto rel_vdev;
 	}
 

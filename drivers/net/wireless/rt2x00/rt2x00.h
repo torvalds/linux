@@ -88,11 +88,9 @@
 #define ERROR_PROBE(__msg, __args...) \
 	DEBUG_PRINTK_PROBE(KERN_ERR, "Error", __msg, ##__args)
 #define WARNING(__dev, __msg, __args...) \
-	DEBUG_PRINTK(__dev, KERN_WARNING, "Warning", __msg, ##__args)
-#define NOTICE(__dev, __msg, __args...) \
-	DEBUG_PRINTK(__dev, KERN_NOTICE, "Notice", __msg, ##__args)
+	DEBUG_PRINTK_MSG(__dev, KERN_WARNING, "Warning", __msg, ##__args)
 #define INFO(__dev, __msg, __args...) \
-	DEBUG_PRINTK(__dev, KERN_INFO, "Info", __msg, ##__args)
+	DEBUG_PRINTK_MSG(__dev, KERN_INFO, "Info", __msg, ##__args)
 #define DEBUG(__dev, __msg, __args...) \
 	DEBUG_PRINTK(__dev, KERN_DEBUG, "Debug", __msg, ##__args)
 #define EEPROM(__dev, __msg, __args...) \
@@ -1016,6 +1014,26 @@ struct rt2x00_dev {
 	 * Protect the interrupt mask register.
 	 */
 	spinlock_t irqmask_lock;
+
+	/*
+	 * List of BlockAckReq TX entries that need driver BlockAck processing.
+	 */
+	struct list_head bar_list;
+	spinlock_t bar_list_lock;
+};
+
+struct rt2x00_bar_list_entry {
+	struct list_head list;
+	struct rcu_head head;
+
+	struct queue_entry *entry;
+	int block_acked;
+
+	/* Relevant parts of the IEEE80211 BAR header */
+	__u8 ra[6];
+	__u8 ta[6];
+	__le16 control;
+	__le16 start_seq_num;
 };
 
 /*
@@ -1151,8 +1169,10 @@ static inline bool rt2x00_is_soc(struct rt2x00_dev *rt2x00dev)
 /**
  * rt2x00queue_map_txskb - Map a skb into DMA for TX purposes.
  * @entry: Pointer to &struct queue_entry
+ *
+ * Returns -ENOMEM if mapping fail, 0 otherwise.
  */
-void rt2x00queue_map_txskb(struct queue_entry *entry);
+int rt2x00queue_map_txskb(struct queue_entry *entry);
 
 /**
  * rt2x00queue_unmap_skb - Unmap a skb from DMA.

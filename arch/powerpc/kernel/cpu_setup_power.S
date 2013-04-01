@@ -56,6 +56,7 @@ _GLOBAL(__setup_cpu_power8)
 	mfspr	r3,SPRN_LPCR
 	oris	r3, r3, LPCR_AIL_3@h
 	bl	__init_LPCR
+	bl	__init_FSCR
 	bl	__init_TLB
 	mtlr	r11
 	blr
@@ -110,6 +111,12 @@ __init_LPCR:
 	rldimi	r3,r5, LPCR_VRMASD_SH, 64-LPCR_VRMASD_SH-5
 	mtspr	SPRN_LPCR,r3
 	isync
+	blr
+
+__init_FSCR:
+	mfspr	r3,SPRN_FSCR
+	ori	r3,r3,FSCR_TAR
+	mtspr	SPRN_FSCR,r3
 	blr
 
 __init_TLB:

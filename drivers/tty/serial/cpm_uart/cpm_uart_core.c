@@ -245,7 +245,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 	int i;
 	unsigned char ch;
 	u8 *cp;
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 	struct uart_cpm_port *pinfo = (struct uart_cpm_port *)port;
 	cbd_t __iomem *bdp;
 	u16 status;
@@ -276,7 +276,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 		/* If we have not enough room in tty flip buffer, then we try
 		 * later, which will be the next rx-interrupt or a timeout
 		 */
-		if(tty_buffer_request_room(tty, i) < i) {
+		if (tty_buffer_request_room(tport, i) < i) {
 			printk(KERN_WARNING "No room in flip buffer\n");
 			return;
 		}
@@ -302,7 +302,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 			}
 #endif
 		      error_return:
-			tty_insert_flip_char(tty, ch, flg);
+			tty_insert_flip_char(tport, ch, flg);
 
 		}		/* End while (i--) */
 
@@ -322,7 +322,7 @@ static void cpm_uart_int_rx(struct uart_port *port)
 	pinfo->rx_cur = bdp;
 
 	/* activate BH processing */
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tport);
 
 	return;
 
@@ -507,7 +507,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
 	if (baud < HW_BUF_SPD_THRESHOLD ||
-	    (pinfo->port.state && pinfo->port.state->port.tty->low_latency))
+	    (pinfo->port.state && pinfo->port.state->port.low_latency))
 		pinfo->rx_fifosize = 1;
 	else
 		pinfo->rx_fifosize = RX_BUF_SIZE;

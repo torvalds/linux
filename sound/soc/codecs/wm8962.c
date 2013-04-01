@@ -2873,22 +2873,20 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 
 	ret = 0;
 
-	if (fll1 & WM8962_FLL_ENA) {
-		/* This should be a massive overestimate but go even
-		 * higher if we'll error out
-		 */
-		if (wm8962->irq)
-			timeout = msecs_to_jiffies(5);
-		else
-			timeout = msecs_to_jiffies(1);
+	/* This should be a massive overestimate but go even
+	 * higher if we'll error out
+	 */
+	if (wm8962->irq)
+		timeout = msecs_to_jiffies(5);
+	else
+		timeout = msecs_to_jiffies(1);
 
-		timeout = wait_for_completion_timeout(&wm8962->fll_lock,
-						      timeout);
+	timeout = wait_for_completion_timeout(&wm8962->fll_lock,
+					      timeout);
 
-		if (timeout == 0 && wm8962->irq) {
-			dev_err(codec->dev, "FLL lock timed out");
-			ret = -ETIMEDOUT;
-		}
+	if (timeout == 0 && wm8962->irq) {
+		dev_err(codec->dev, "FLL lock timed out");
+		ret = -ETIMEDOUT;
 	}
 
 	wm8962->fll_fref = Fref;
@@ -3189,7 +3187,7 @@ static void wm8962_init_beep(struct snd_soc_codec *codec)
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	wm8962->beep = input_allocate_device();
+	wm8962->beep = devm_input_allocate_device(codec->dev);
 	if (!wm8962->beep) {
 		dev_err(codec->dev, "Failed to allocate beep device\n");
 		return;
@@ -3210,7 +3208,6 @@ static void wm8962_init_beep(struct snd_soc_codec *codec)
 
 	ret = input_register_device(wm8962->beep);
 	if (ret != 0) {
-		input_free_device(wm8962->beep);
 		wm8962->beep = NULL;
 		dev_err(codec->dev, "Failed to register beep device\n");
 	}
@@ -3227,7 +3224,6 @@ static void wm8962_free_beep(struct snd_soc_codec *codec)
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 
 	device_remove_file(codec->dev, &dev_attr_beep);
-	input_unregister_device(wm8962->beep);
 	cancel_work_sync(&wm8962->beep_work);
 	wm8962->beep = NULL;
 
@@ -3758,10 +3754,17 @@ static const struct i2c_device_id wm8962_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8962_i2c_id);
 
+static const struct of_device_id wm8962_of_match[] = {
+	{ .compatible = "wlf,wm8962", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8962_of_match);
+
 static struct i2c_driver wm8962_i2c_driver = {
 	.driver = {
 		.name = "wm8962",
 		.owner = THIS_MODULE,
+		.of_match_table = wm8962_of_match,
 		.pm = &wm8962_pm,
 	},
 	.probe =    wm8962_i2c_probe,

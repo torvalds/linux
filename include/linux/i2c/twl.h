@@ -39,51 +39,55 @@
  * address each module uses within a given i2c slave.
  */
 
+/* Module IDs for similar functionalities found in twl4030/twl6030 */
+enum twl_module_ids {
+	TWL_MODULE_USB,
+	TWL_MODULE_PIH,
+	TWL_MODULE_MAIN_CHARGE,
+	TWL_MODULE_PM_MASTER,
+	TWL_MODULE_PM_RECEIVER,
+
+	TWL_MODULE_RTC,
+	TWL_MODULE_PWM,
+	TWL_MODULE_LED,
+	TWL_MODULE_SECURED_REG,
+
+	TWL_MODULE_LAST,
+};
+
+/* Modules only available in twl4030 series */
 enum twl4030_module_ids {
-	TWL4030_MODULE_USB = 0,		/* Slave 0 (i2c address 0x48) */
-	TWL4030_MODULE_AUDIO_VOICE,	/* Slave 1 (i2c address 0x49) */
+	TWL4030_MODULE_AUDIO_VOICE = TWL_MODULE_LAST,
 	TWL4030_MODULE_GPIO,
 	TWL4030_MODULE_INTBR,
-	TWL4030_MODULE_PIH,
-
 	TWL4030_MODULE_TEST,
-	TWL4030_MODULE_KEYPAD,		/* Slave 2 (i2c address 0x4a) */
+	TWL4030_MODULE_KEYPAD,
+
 	TWL4030_MODULE_MADC,
 	TWL4030_MODULE_INTERRUPTS,
-	TWL4030_MODULE_LED,
-
-	TWL4030_MODULE_MAIN_CHARGE,
 	TWL4030_MODULE_PRECHARGE,
-	TWL4030_MODULE_PWM0,
-	TWL4030_MODULE_PWM1,
-	TWL4030_MODULE_PWMA,
-
-	TWL4030_MODULE_PWMB,
-	TWL5031_MODULE_ACCESSORY,
-	TWL5031_MODULE_INTERRUPTS,
-	TWL4030_MODULE_BACKUP,		/* Slave 3 (i2c address 0x4b) */
+	TWL4030_MODULE_BACKUP,
 	TWL4030_MODULE_INT,
 
-	TWL4030_MODULE_PM_MASTER,
-	TWL4030_MODULE_PM_RECEIVER,
-	TWL4030_MODULE_RTC,
-	TWL4030_MODULE_SECURED_REG,
+	TWL5031_MODULE_ACCESSORY,
+	TWL5031_MODULE_INTERRUPTS,
+
 	TWL4030_MODULE_LAST,
 };
 
-/* Similar functionalities implemented in TWL4030/6030 */
-#define TWL_MODULE_USB		TWL4030_MODULE_USB
-#define TWL_MODULE_PIH		TWL4030_MODULE_PIH
-#define TWL_MODULE_MAIN_CHARGE	TWL4030_MODULE_MAIN_CHARGE
-#define TWL_MODULE_PM_MASTER	TWL4030_MODULE_PM_MASTER
-#define TWL_MODULE_PM_RECEIVER	TWL4030_MODULE_PM_RECEIVER
-#define TWL_MODULE_RTC		TWL4030_MODULE_RTC
-#define TWL_MODULE_PWM		TWL4030_MODULE_PWM0
-#define TWL_MODULE_LED		TWL4030_MODULE_LED
+/* Modules only available in twl6030 series */
+enum twl6030_module_ids {
+	TWL6030_MODULE_ID0 = TWL_MODULE_LAST,
+	TWL6030_MODULE_ID1,
+	TWL6030_MODULE_ID2,
+	TWL6030_MODULE_GPADC,
+	TWL6030_MODULE_GASGAUGE,
 
-#define TWL6030_MODULE_ID0	13
-#define TWL6030_MODULE_ID1	14
-#define TWL6030_MODULE_ID2	15
+	TWL6030_MODULE_LAST,
+};
+
+/* Until the clients has been converted to use TWL_MODULE_LED */
+#define TWL4030_MODULE_LED	TWL_MODULE_LED
 
 #define GPIO_INTR_OFFSET	0
 #define KEYPAD_INTR_OFFSET	1
@@ -171,19 +175,21 @@ TWL_CLASS_IS(4030, TWL4030_CLASS_ID)
 TWL_CLASS_IS(6030, TWL6030_CLASS_ID)
 
 /*
- * Read and write single 8-bit registers
- */
-int twl_i2c_write_u8(u8 mod_no, u8 val, u8 reg);
-int twl_i2c_read_u8(u8 mod_no, u8 *val, u8 reg);
-
-/*
  * Read and write several 8-bit registers at once.
- *
- * IMPORTANT:  For twl_i2c_write(), allocate num_bytes + 1
- * for the value, and populate your data starting at offset 1.
  */
 int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
+
+/*
+ * Read and write single 8-bit registers
+ */
+static inline int twl_i2c_write_u8(u8 mod_no, u8 val, u8 reg) {
+	return twl_i2c_write(mod_no, &val, reg, 1);
+}
+
+static inline int twl_i2c_read_u8(u8 mod_no, u8 *val, u8 reg) {
+	return twl_i2c_read(mod_no, val, reg, 1);
+}
 
 int twl_get_type(void);
 int twl_get_version(void);

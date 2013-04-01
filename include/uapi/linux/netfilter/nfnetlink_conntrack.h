@@ -49,6 +49,8 @@ enum ctattr_type {
 	CTA_SECCTX,
 	CTA_TIMESTAMP,
 	CTA_MARK_MASK,
+	CTA_LABELS,
+	CTA_LABELS_MASK,
 	__CTA_MAX
 };
 #define CTA_MAX (__CTA_MAX - 1)

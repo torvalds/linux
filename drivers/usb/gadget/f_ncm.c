@@ -56,8 +56,9 @@ struct f_ncm {
 	u8				notify_state;
 	bool				is_open;
 
-	struct ndp_parser_opts		*parser_opts;
+	const struct ndp_parser_opts	*parser_opts;
 	bool				is_crc;
+	u32				ndp_sign;
 
 	/*
 	 * for notification, it is accessed from both
@@ -390,8 +391,8 @@ struct ndp_parser_opts {
 		.next_fp_index = 2,				\
 	}
 
-static struct ndp_parser_opts ndp16_opts = INIT_NDP16_OPTS;
-static struct ndp_parser_opts ndp32_opts = INIT_NDP32_OPTS;
+static const struct ndp_parser_opts ndp16_opts = INIT_NDP16_OPTS;
+static const struct ndp_parser_opts ndp32_opts = INIT_NDP32_OPTS;
 
 static inline void put_ncm(__le16 **p, unsigned size, unsigned val)
 {
@@ -732,8 +733,7 @@ static int ncm_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 		default:
 			goto invalid;
 		}
-		ncm->parser_opts->ndp_sign &= ~NCM_NDP_HDR_CRC_MASK;
-		ncm->parser_opts->ndp_sign |= ndp_hdr_crc;
+		ncm->ndp_sign = ncm->parser_opts->ndp_sign | ndp_hdr_crc;
 		value = 0;
 		break;
 	}
@@ -875,7 +875,7 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 	int		ndp_align;
 	int		ndp_pad;
 	unsigned	max_size = ncm->port.fixed_in_len;
-	struct ndp_parser_opts *opts = ncm->parser_opts;
+	const struct ndp_parser_opts *opts = ncm->parser_opts;
 	unsigned	crc_len = ncm->is_crc ? sizeof(uint32_t) : 0;
 
 	div = le16_to_cpu(ntb_parameters.wNdpInDivisor);
@@ -921,7 +921,7 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 	tmp = (void *)tmp + ndp_pad;
 
 	/* NDP */
-	put_unaligned_le32(opts->ndp_sign, tmp); /* dwSignature */
+	put_unaligned_le32(ncm->ndp_sign, tmp); /* dwSignature */
 	tmp += 2;
 	/* wLength */
 	put_unaligned_le16(ncb_len - opts->nth_size - pad, tmp++);
@@ -965,7 +965,7 @@ static int ncm_unwrap_ntb(struct gether *port,
 	struct sk_buff	*skb2;
 	int		ret = -EINVAL;
 	unsigned	max_size = le32_to_cpu(ntb_parameters.dwNtbOutMaxSize);
-	struct ndp_parser_opts *opts = ncm->parser_opts;
+	const struct ndp_parser_opts *opts = ncm->parser_opts;
 	unsigned	crc_len = ncm->is_crc ? sizeof(uint32_t) : 0;
 	int		dgram_counter;
 
@@ -1002,7 +1002,7 @@ static int ncm_unwrap_ntb(struct gether *port,
 
 	/* walk through NDP */
 	tmp = ((void *)skb->data) + index;
-	if (get_unaligned_le32(tmp) != opts->ndp_sign) {
+	if (get_unaligned_le32(tmp) != ncm->ndp_sign) {
 		INFO(port->func.config->cdev, "Wrong NDP SIGN\n");
 		goto err;
 	}

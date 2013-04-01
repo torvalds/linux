@@ -993,7 +993,7 @@ static void ali_ircc_change_speed(struct ali_ircc_cb *self, __u32 baud)
 		/* Enable Interuupt */
 		self->ier = IER_EOM; // benjamin 2000/11/20 07:24PM					
 				
-		/* Be ready for incomming frames */
+		/* Be ready for incoming frames */
 		ali_ircc_dma_receive(self);	// benajmin 2000/11/8 07:46PM not complete
 	}	
 	/* Go to SIR Speed */

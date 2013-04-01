@@ -20,6 +20,7 @@
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
@@ -414,15 +415,23 @@ open_err:
 	return -EIO;
 }
 
+#ifdef CONFIG_OF
+static struct of_device_id imx_keypad_of_match[] = {
+	{ .compatible = "fsl,imx21-kpp", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, imx_keypad_of_match);
+#endif
+
 static int imx_keypad_probe(struct platform_device *pdev)
 {
 	const struct matrix_keymap_data *keymap_data = pdev->dev.platform_data;
 	struct imx_keypad *keypad;
 	struct input_dev *input_dev;
 	struct resource *res;
-	int irq, error, i;
+	int irq, error, i, row, col;
 
-	if (keymap_data == NULL) {
+	if (!keymap_data && !pdev->dev.of_node) {
 		dev_err(&pdev->dev, "no keymap defined\n");
 		return -EINVAL;
 	}
@@ -480,22 +489,6 @@ static int imx_keypad_probe(struct platform_device *pdev)
 		goto failed_unmap;
 	}
 
-	/* Search for rows and cols enabled */
-	for (i = 0; i < keymap_data->keymap_size; i++) {
-		keypad->rows_en_mask |= 1 << KEY_ROW(keymap_data->keymap[i]);
-		keypad->cols_en_mask |= 1 << KEY_COL(keymap_data->keymap[i]);
-	}
-
-	if (keypad->rows_en_mask > ((1 << MAX_MATRIX_KEY_ROWS) - 1) ||
-	    keypad->cols_en_mask > ((1 << MAX_MATRIX_KEY_COLS) - 1)) {
-		dev_err(&pdev->dev,
-			"invalid key data (too many rows or colums)\n");
-		error = -EINVAL;
-		goto failed_clock_put;
-	}
-	dev_dbg(&pdev->dev, "enabled rows mask: %x\n", keypad->rows_en_mask);
-	dev_dbg(&pdev->dev, "enabled cols mask: %x\n", keypad->cols_en_mask);
-
 	/* Init the Input device */
 	input_dev->name = pdev->name;
 	input_dev->id.bustype = BUS_HOST;
@@ -511,6 +504,19 @@ static int imx_keypad_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to build keymap\n");
 		goto failed_clock_put;
 	}
+
+	/* Search for rows and cols enabled */
+	for (row = 0; row < MAX_MATRIX_KEY_ROWS; row++) {
+		for (col = 0; col < MAX_MATRIX_KEY_COLS; col++) {
+			i = MATRIX_SCAN_CODE(row, col, MATRIX_ROW_SHIFT);
+			if (keypad->keycodes[i] != KEY_RESERVED) {
+				keypad->rows_en_mask |= 1 << row;
+				keypad->cols_en_mask |= 1 << col;
+			}
+		}
+	}
+	dev_dbg(&pdev->dev, "enabled rows mask: %x\n", keypad->rows_en_mask);
+	dev_dbg(&pdev->dev, "enabled cols mask: %x\n", keypad->cols_en_mask);
 
 	__set_bit(EV_REP, input_dev->evbit);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
@@ -631,6 +637,7 @@ static struct platform_driver imx_keypad_driver = {
 		.name	= "imx-keypad",
 		.owner	= THIS_MODULE,
 		.pm	= &imx_kbd_pm_ops,
+		.of_match_table = of_match_ptr(imx_keypad_of_match),
 	},
 	.probe		= imx_keypad_probe,
 	.remove		= imx_keypad_remove,

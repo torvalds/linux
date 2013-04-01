@@ -16,6 +16,7 @@ struct netns_sysctl_ipv6 {
 	struct ctl_table_header *route_hdr;
 	struct ctl_table_header *icmp_hdr;
 	struct ctl_table_header *frags_hdr;
+	struct ctl_table_header *xfrm6_hdr;
 #endif
 	int bindv6only;
 	int flush_delay;

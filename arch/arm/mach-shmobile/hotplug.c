@@ -56,6 +56,12 @@ int shmobile_cpu_disable(unsigned int cpu)
 	return cpu == 0 ? -EPERM : 0;
 }
 
+int shmobile_cpu_disable_any(unsigned int cpu)
+{
+	cpumask_clear_cpu(cpu, &dead_cpus);
+	return 0;
+}
+
 int shmobile_cpu_is_dead(unsigned int cpu)
 {
 	return cpumask_test_cpu(cpu, &dead_cpus);

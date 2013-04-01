@@ -3,6 +3,17 @@
 #
 menu "Inertial measurement units"
 
+config ADIS16400
+	tristate "Analog Devices ADIS16400 and similar IMU SPI driver"
+	depends on SPI
+	select IIO_ADIS_LIB
+	select IIO_ADIS_LIB_BUFFER if IIO_BUFFER
+	help
+	  Say yes here to build support for Analog Devices adis16300, adis16344,
+	  adis16350, adis16354, adis16355, adis16360, adis16362, adis16364,
+	  adis16365, adis16400 and adis16405 triaxial inertial sensors
+	  (adis16400 series also have magnetometers).
+
 config ADIS16480
 	tristate "Analog Devices ADIS16480 and similar IMU driver"
 	depends on SPI
@@ -25,3 +36,5 @@ config IIO_ADIS_LIB_BUFFER
 	help
 	  A set of buffer helper functions for the Analog Devices ADIS* device
 	  family.
+
+source "drivers/iio/imu/inv_mpu6050/Kconfig"

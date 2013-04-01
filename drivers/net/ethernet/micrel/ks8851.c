@@ -69,7 +69,6 @@ union ks8851_tx_hdr {
  * @mii: The MII state information for the mii calls.
  * @rxctrl: RX settings for @rxctrl_work.
  * @tx_work: Work queue for tx packets
- * @irq_work: Work queue for servicing interrupts
  * @rxctrl_work: Work queue for updating RX mode and multicast lists
  * @txq: Queue of packets for transmission.
  * @spi_msg1: pre-setup SPI transfer with one message, @spi_xfer1.
@@ -121,7 +120,6 @@ struct ks8851_net {
 	struct ks8851_rxctrl	rxctrl;
 
 	struct work_struct	tx_work;
-	struct work_struct	irq_work;
 	struct work_struct	rxctrl_work;
 
 	struct sk_buff_head	txq;
@@ -444,23 +442,6 @@ static void ks8851_init_mac(struct ks8851_net *ks)
 }
 
 /**
- * ks8851_irq - device interrupt handler
- * @irq: Interrupt number passed from the IRQ handler.
- * @pw: The private word passed to register_irq(), our struct ks8851_net.
- *
- * Disable the interrupt from happening again until we've processed the
- * current status by scheduling ks8851_irq_work().
- */
-static irqreturn_t ks8851_irq(int irq, void *pw)
-{
-	struct ks8851_net *ks = pw;
-
-	disable_irq_nosync(irq);
-	schedule_work(&ks->irq_work);
-	return IRQ_HANDLED;
-}
-
-/**
  * ks8851_rdfifo - read data from the receive fifo
  * @ks: The device state.
  * @buff: The buffer address
@@ -595,19 +576,20 @@ static void ks8851_rx_pkts(struct ks8851_net *ks)
 }
 
 /**
- * ks8851_irq_work - work queue handler for dealing with interrupt requests
- * @work: The work structure that was scheduled by schedule_work()
+ * ks8851_irq - IRQ handler for dealing with interrupt requests
+ * @irq: IRQ number
+ * @_ks: cookie
  *
- * This is the handler invoked when the ks8851_irq() is called to find out
- * what happened, as we cannot allow ourselves to sleep whilst waiting for
- * anything other process has the chip's lock.
+ * This handler is invoked when the IRQ line asserts to find out what happened.
+ * As we cannot allow ourselves to sleep in HARDIRQ context, this handler runs
+ * in thread context.
  *
  * Read the interrupt status, work out what needs to be done and then clear
  * any of the interrupts that are not needed.
  */
-static void ks8851_irq_work(struct work_struct *work)
+static irqreturn_t ks8851_irq(int irq, void *_ks)
 {
-	struct ks8851_net *ks = container_of(work, struct ks8851_net, irq_work);
+	struct ks8851_net *ks = _ks;
 	unsigned status;
 	unsigned handled = 0;
 
@@ -688,7 +670,7 @@ static void ks8851_irq_work(struct work_struct *work)
 	if (status & IRQ_TXI)
 		netif_wake_queue(ks->netdev);
 
-	enable_irq(ks->netdev->irq);
+	return IRQ_HANDLED;
 }
 
 /**
@@ -896,7 +878,6 @@ static int ks8851_net_stop(struct net_device *dev)
 	mutex_unlock(&ks->lock);
 
 	/* stop any outstanding work */
-	flush_work(&ks->irq_work);
 	flush_work(&ks->tx_work);
 	flush_work(&ks->rxctrl_work);
 
@@ -1052,7 +1033,6 @@ static int ks8851_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(sa->sa_data))
 		return -EADDRNOTAVAIL;
 
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
 	return ks8851_write_mac_addr(dev);
 }
@@ -1438,7 +1418,6 @@ static int ks8851_probe(struct spi_device *spi)
 	spin_lock_init(&ks->statelock);
 
 	INIT_WORK(&ks->tx_work, ks8851_tx_work);
-	INIT_WORK(&ks->irq_work, ks8851_irq_work);
 	INIT_WORK(&ks->rxctrl_work, ks8851_rxctrl_work);
 
 	/* initialise pre-made spi transfer messages */
@@ -1505,8 +1484,9 @@ static int ks8851_probe(struct spi_device *spi)
 	ks8851_read_selftest(ks);
 	ks8851_init_mac(ks);
 
-	ret = request_irq(spi->irq, ks8851_irq, IRQF_TRIGGER_LOW,
-			  ndev->name, ks);
+	ret = request_threaded_irq(spi->irq, NULL, ks8851_irq,
+				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+				   ndev->name, ks);
 	if (ret < 0) {
 		dev_err(&spi->dev, "failed to get irq\n");
 		goto err_irq;

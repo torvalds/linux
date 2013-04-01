@@ -111,7 +111,7 @@ static int match_context(const void *v, struct file *file, unsigned fd)
 	struct spu_context *ctx;
 	if (file->f_op != &spufs_context_fops)
 		return 0;
-	ctx = SPUFS_I(file->f_dentry->d_inode)->i_ctx;
+	ctx = SPUFS_I(file_inode(file))->i_ctx;
 	if (ctx->flags & SPU_CREATE_NOSCHED)
 		return 0;
 	return fd + 1;
@@ -137,7 +137,7 @@ static struct spu_context *coredump_next_context(int *fd)
 		return NULL;
 	*fd = n - 1;
 	file = fcheck(*fd);
-	return SPUFS_I(file->f_dentry->d_inode)->i_ctx;
+	return SPUFS_I(file_inode(file))->i_ctx;
 }
 
 int spufs_coredump_extra_notes_size(void)

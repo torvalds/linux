@@ -21,7 +21,7 @@
  */
 long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	unsigned int flags;
 	int err = 0;
 

@@ -24,14 +24,12 @@
 
 #include <asm/smp_twd.h>
 #include <asm/localtimer.h>
-#include <asm/hardware/gic.h>
 
 /* set up by the platform code */
 static void __iomem *twd_base;
 
 static struct clk *twd_clk;
 static unsigned long twd_timer_rate;
-static bool common_setup_called;
 static DEFINE_PER_CPU(bool, percpu_setup_called);
 
 static struct clock_event_device __percpu **twd_evt;
@@ -239,25 +237,28 @@ static irqreturn_t twd_handler(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-static struct clk *twd_get_clock(void)
+static void twd_get_clock(struct device_node *np)
 {
-	struct clk *clk;
 	int err;
 
-	clk = clk_get_sys("smp_twd", NULL);
-	if (IS_ERR(clk)) {
-		pr_err("smp_twd: clock not found: %d\n", (int)PTR_ERR(clk));
-		return clk;
+	if (np)
+		twd_clk = of_clk_get(np, 0);
+	else
+		twd_clk = clk_get_sys("smp_twd", NULL);
+
+	if (IS_ERR(twd_clk)) {
+		pr_err("smp_twd: clock not found %d\n", (int) PTR_ERR(twd_clk));
+		return;
 	}
 
-	err = clk_prepare_enable(clk);
+	err = clk_prepare_enable(twd_clk);
 	if (err) {
 		pr_err("smp_twd: clock failed to prepare+enable: %d\n", err);
-		clk_put(clk);
-		return ERR_PTR(err);
+		clk_put(twd_clk);
+		return;
 	}
 
-	return clk;
+	twd_timer_rate = clk_get_rate(twd_clk);
 }
 
 /*
@@ -280,26 +281,7 @@ static int __cpuinit twd_timer_setup(struct clock_event_device *clk)
 	}
 	per_cpu(percpu_setup_called, cpu) = true;
 
-	/*
-	 * This stuff only need to be done once for the entire TWD cluster
-	 * during the runtime of the system.
-	 */
-	if (!common_setup_called) {
-		twd_clk = twd_get_clock();
-
-		/*
-		 * We use IS_ERR_OR_NULL() here, because if the clock stubs
-		 * are active we will get a valid clk reference which is
-		 * however NULL and will return the rate 0. In that case we
-		 * need to calibrate the rate instead.
-		 */
-		if (!IS_ERR_OR_NULL(twd_clk))
-			twd_timer_rate = clk_get_rate(twd_clk);
-		else
-			twd_calibrate_rate();
-
-		common_setup_called = true;
-	}
+	twd_calibrate_rate();
 
 	/*
 	 * The following is done once per CPU the first time .setup() is
@@ -330,7 +312,7 @@ static struct local_timer_ops twd_lt_ops __cpuinitdata = {
 	.stop	= twd_timer_stop,
 };
 
-static int __init twd_local_timer_common_register(void)
+static int __init twd_local_timer_common_register(struct device_node *np)
 {
 	int err;
 
@@ -349,6 +331,8 @@ static int __init twd_local_timer_common_register(void)
 	err = local_timer_register(&twd_lt_ops);
 	if (err)
 		goto out_irq;
+
+	twd_get_clock(np);
 
 	return 0;
 
@@ -373,7 +357,7 @@ int __init twd_local_timer_register(struct twd_local_timer *tlt)
 	if (!twd_base)
 		return -ENOMEM;
 
-	return twd_local_timer_common_register();
+	return twd_local_timer_common_register(NULL);
 }
 
 #ifdef CONFIG_OF
@@ -405,7 +389,7 @@ void __init twd_local_timer_of_register(void)
 		goto out;
 	}
 
-	err = twd_local_timer_common_register();
+	err = twd_local_timer_common_register(np);
 
 out:
 	WARN(err, "twd_local_timer_of_register failed (%d)\n", err);

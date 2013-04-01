@@ -405,7 +405,7 @@ static ssize_t set_fan_target(struct device *dev, struct device_attribute *da,
 	if (rpm_target == 0)
 		data->fan_target = 0x1fff;
 	else
-		data->fan_target = SENSORS_LIMIT(
+		data->fan_target = clamp_val(
 			(FAN_RPM_FACTOR * data->fan_multiplier) / rpm_target,
 			0, 0x1fff);
 

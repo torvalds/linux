@@ -242,10 +242,14 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 				    IB_ACCESS_REMOTE_READ);
 
 	ib_conn->fmr_pool = ib_create_fmr_pool(device->pd, &params);
-	if (IS_ERR(ib_conn->fmr_pool)) {
-		ret = PTR_ERR(ib_conn->fmr_pool);
+	ret = PTR_ERR(ib_conn->fmr_pool);
+	if (IS_ERR(ib_conn->fmr_pool) && ret != -ENOSYS) {
 		ib_conn->fmr_pool = NULL;
 		goto out_err;
+	} else if (ret == -ENOSYS) {
+		ib_conn->fmr_pool = NULL;
+		iser_warn("FMRs are not supported, using unaligned mode\n");
+		ret = 0;
 	}
 
 	memset(&init_attr, 0, sizeof init_attr);

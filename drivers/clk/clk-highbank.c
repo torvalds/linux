@@ -182,8 +182,10 @@ static int clk_pll_set_rate(struct clk_hw *hwclk, unsigned long rate,
 		reg |= HB_PLL_EXT_ENA;
 		reg &= ~HB_PLL_EXT_BYPASS;
 	} else {
+		writel(reg | HB_PLL_EXT_BYPASS, hbclk->reg);
 		reg &= ~HB_PLL_DIVQ_MASK;
 		reg |= divq << HB_PLL_DIVQ_SHIFT;
+		writel(reg | HB_PLL_EXT_BYPASS, hbclk->reg);
 	}
 	writel(reg, hbclk->reg);
 
@@ -314,33 +316,23 @@ static void __init hb_pll_init(struct device_node *node)
 {
 	hb_clk_init(node, &clk_pll_ops);
 }
+CLK_OF_DECLARE(hb_pll, "calxeda,hb-pll-clock", hb_pll_init);
 
 static void __init hb_a9periph_init(struct device_node *node)
 {
 	hb_clk_init(node, &a9periphclk_ops);
 }
+CLK_OF_DECLARE(hb_a9periph, "calxeda,hb-a9periph-clock", hb_a9periph_init);
 
 static void __init hb_a9bus_init(struct device_node *node)
 {
 	struct clk *clk = hb_clk_init(node, &a9bclk_ops);
 	clk_prepare_enable(clk);
 }
+CLK_OF_DECLARE(hb_a9bus, "calxeda,hb-a9bus-clock", hb_a9bus_init);
 
 static void __init hb_emmc_init(struct device_node *node)
 {
 	hb_clk_init(node, &periclk_ops);
 }
-
-static const __initconst struct of_device_id clk_match[] = {
-	{ .compatible = "fixed-clock", .data = of_fixed_clk_setup, },
-	{ .compatible = "calxeda,hb-pll-clock", .data = hb_pll_init, },
-	{ .compatible = "calxeda,hb-a9periph-clock", .data = hb_a9periph_init, },
-	{ .compatible = "calxeda,hb-a9bus-clock", .data = hb_a9bus_init, },
-	{ .compatible = "calxeda,hb-emmc-clock", .data = hb_emmc_init, },
-	{}
-};
-
-void __init highbank_clocks_init(void)
-{
-	of_clk_init(clk_match);
-}
+CLK_OF_DECLARE(hb_emmc, "calxeda,hb-emmc-clock", hb_emmc_init);

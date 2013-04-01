@@ -1528,7 +1528,7 @@ static int file_has_perm(const struct cred *cred,
 			 u32 av)
 {
 	struct file_security_struct *fsec = file->f_security;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct common_audit_data ad;
 	u32 sid = cred_sid(cred);
 	int rc;
@@ -1957,7 +1957,7 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 	struct task_security_struct *new_tsec;
 	struct inode_security_struct *isec;
 	struct common_audit_data ad;
-	struct inode *inode = bprm->file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(bprm->file);
 	int rc;
 
 	rc = cap_bprm_set_creds(bprm);
@@ -2929,7 +2929,7 @@ static void selinux_inode_getsecid(const struct inode *inode, u32 *secid)
 static int selinux_revalidate_file_permission(struct file *file, int mask)
 {
 	const struct cred *cred = current_cred();
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 
 	/* file_mask_to_av won't add FILE__WRITE if MAY_APPEND is set */
 	if ((file->f_flags & O_APPEND) && (mask & MAY_WRITE))
@@ -2941,7 +2941,7 @@ static int selinux_revalidate_file_permission(struct file *file, int mask)
 
 static int selinux_file_permission(struct file *file, int mask)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct file_security_struct *fsec = file->f_security;
 	struct inode_security_struct *isec = inode->i_security;
 	u32 sid = current_sid();
@@ -3135,11 +3135,6 @@ static int selinux_file_fcntl(struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case F_SETFL:
-		if (!file->f_path.dentry || !file->f_path.dentry->d_inode) {
-			err = -EINVAL;
-			break;
-		}
-
 		if ((file->f_flags & O_APPEND) && !(arg & O_APPEND)) {
 			err = file_has_perm(cred, file, FILE__WRITE);
 			break;
@@ -3162,10 +3157,6 @@ static int selinux_file_fcntl(struct file *file, unsigned int cmd,
 	case F_SETLK64:
 	case F_SETLKW64:
 #endif
-		if (!file->f_path.dentry || !file->f_path.dentry->d_inode) {
-			err = -EINVAL;
-			break;
-		}
 		err = file_has_perm(cred, file, FILE__LOCK);
 		break;
 	}
@@ -3218,7 +3209,7 @@ static int selinux_file_open(struct file *file, const struct cred *cred)
 	struct inode_security_struct *isec;
 
 	fsec = file->f_security;
-	isec = file->f_path.dentry->d_inode->i_security;
+	isec = file_inode(file)->i_security;
 	/*
 	 * Save inode label and policy sequence number
 	 * at open-time so that selinux_file_permission

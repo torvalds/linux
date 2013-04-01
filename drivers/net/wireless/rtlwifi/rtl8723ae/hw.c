@@ -703,11 +703,9 @@ static void _rtl8723ae_hw_configure(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	u8 reg_bw_opmode;
-	u32 reg_ratr, reg_prsr;
+	u32 reg_prsr;
 
 	reg_bw_opmode = BW_OPMODE_20MHZ;
-	reg_ratr = RATE_ALL_CCK | RATE_ALL_OFDM_AG |
-	    RATE_ALL_OFDM_1SS | RATE_ALL_OFDM_2SS;
 	reg_prsr = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
 
 	rtl_write_byte(rtlpriv, REG_INIRTS_RATE_SEL, 0x8);
@@ -1868,8 +1866,7 @@ static void rtl8723ae_update_hal_rate_mask(struct ieee80211_hw *hw,
 	struct rtl_sta_info *sta_entry = NULL;
 	u32 ratr_bitmap;
 	u8 ratr_index;
-	u8 curtxbw_40mhz = (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
-				? 1 : 0;
+	u8 curtxbw_40mhz = (sta->bandwidth >= IEEE80211_STA_RX_BW_40) ? 1 : 0;
 	u8 curshortgi_40mhz = (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40) ?
 				1 : 0;
 	u8 curshortgi_20mhz = (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ?
@@ -2030,7 +2027,7 @@ bool rtl8723ae_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-	enum rf_pwrstate e_rfpowerstate_toset, cur_rfstate;
+	enum rf_pwrstate e_rfpowerstate_toset;
 	u8 u1tmp;
 	bool actuallyset = false;
 
@@ -2048,8 +2045,6 @@ bool rtl8723ae_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 		ppsc->rfchange_inprogress = true;
 		spin_unlock(&rtlpriv->locks.rf_ps_lock);
 	}
-
-	cur_rfstate = ppsc->rfpwr_state;
 
 	rtl_write_byte(rtlpriv, REG_GPIO_IO_SEL_2,
 		       rtl_read_byte(rtlpriv, REG_GPIO_IO_SEL_2)&~(BIT(1)));

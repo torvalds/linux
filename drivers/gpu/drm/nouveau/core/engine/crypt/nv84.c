@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/client.h>
 #include <core/os.h>
 #include <core/enum.h>
 #include <core/class.h>
@@ -126,10 +127,11 @@ nv84_crypt_intr(struct nouveau_subdev *subdev)
 	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat) {
-		nv_error(priv, "");
+		nv_error(priv, "%s", "");
 		nouveau_bitfield_print(nv84_crypt_intr_mask, stat);
-		printk(" ch %d [0x%010llx] mthd 0x%04x data 0x%08x\n",
-		       chid, (u64)inst << 12, mthd, data);
+		pr_cont(" ch %d [0x%010llx %s] mthd 0x%04x data 0x%08x\n",
+		       chid, (u64)inst << 12, nouveau_client_name(engctx),
+		       mthd, data);
 	}
 
 	nv_wr32(priv, 0x102130, stat);

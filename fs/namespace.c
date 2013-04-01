@@ -384,7 +384,7 @@ EXPORT_SYMBOL_GPL(mnt_clone_write);
  */
 int __mnt_want_write_file(struct file *file)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 
 	if (!(file->f_mode & FMODE_WRITE) || special_file(inode->i_mode))
 		return __mnt_want_write(file->f_path.mnt);
@@ -1237,6 +1237,14 @@ static int do_umount(struct mount *mnt, int flags)
 	return retval;
 }
 
+/* 
+ * Is the caller allowed to modify his namespace?
+ */
+static inline bool may_mount(void)
+{
+	return ns_capable(current->nsproxy->mnt_ns->user_ns, CAP_SYS_ADMIN);
+}
+
 /*
  * Now umount can handle mount points as well as block devices.
  * This is important for filesystems which use unnamed block devices.
@@ -1255,6 +1263,9 @@ SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 	if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))
 		return -EINVAL;
 
+	if (!may_mount())
+		return -EPERM;
+
 	if (!(flags & UMOUNT_NOFOLLOW))
 		lookup_flags |= LOOKUP_FOLLOW;
 
@@ -1266,10 +1277,6 @@ SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 	if (path.dentry != path.mnt->mnt_root)
 		goto dput_and_out;
 	if (!check_mnt(mnt))
-		goto dput_and_out;
-
-	retval = -EPERM;
-	if (!ns_capable(mnt->mnt_ns->user_ns, CAP_SYS_ADMIN))
 		goto dput_and_out;
 
 	retval = do_umount(mnt, flags);
@@ -1292,24 +1299,6 @@ SYSCALL_DEFINE1(oldumount, char __user *, name)
 }
 
 #endif
-
-static int mount_is_safe(struct path *path)
-{
-	if (ns_capable(real_mount(path->mnt)->mnt_ns->user_ns, CAP_SYS_ADMIN))
-		return 0;
-	return -EPERM;
-#ifdef notyet
-	if (S_ISLNK(path->dentry->d_inode->i_mode))
-		return -EPERM;
-	if (path->dentry->d_inode->i_mode & S_ISVTX) {
-		if (current_uid() != path->dentry->d_inode->i_uid)
-			return -EPERM;
-	}
-	if (inode_permission(path->dentry->d_inode, MAY_WRITE))
-		return -EPERM;
-	return 0;
-#endif
-}
 
 static bool mnt_ns_loop(struct path *path)
 {
@@ -1633,9 +1622,6 @@ static int do_change_type(struct path *path, int flag)
 	int type;
 	int err = 0;
 
-	if (!ns_capable(mnt->mnt_ns->user_ns, CAP_SYS_ADMIN))
-		return -EPERM;
-
 	if (path->dentry != path->mnt->mnt_root)
 		return -EINVAL;
 
@@ -1669,9 +1655,7 @@ static int do_loopback(struct path *path, const char *old_name,
 	LIST_HEAD(umount_list);
 	struct path old_path;
 	struct mount *mnt = NULL, *old;
-	int err = mount_is_safe(path);
-	if (err)
-		return err;
+	int err;
 	if (!old_name || !*old_name)
 		return -EINVAL;
 	err = kern_path(old_name, LOOKUP_FOLLOW|LOOKUP_AUTOMOUNT, &old_path);
@@ -1748,9 +1732,6 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 	struct super_block *sb = path->mnt->mnt_sb;
 	struct mount *mnt = real_mount(path->mnt);
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	if (!check_mnt(mnt))
 		return -EINVAL;
 
@@ -1764,6 +1745,8 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 	down_write(&sb->s_umount);
 	if (flags & MS_BIND)
 		err = change_mount_flags(path->mnt, flags);
+	else if (!capable(CAP_SYS_ADMIN))
+		err = -EPERM;
 	else
 		err = do_remount_sb(sb, flags, data, 0);
 	if (!err) {
@@ -1796,9 +1779,7 @@ static int do_move_mount(struct path *path, const char *old_name)
 	struct path old_path, parent_path;
 	struct mount *p;
 	struct mount *old;
-	int err = 0;
-	if (!ns_capable(real_mount(path->mnt)->mnt_ns->user_ns, CAP_SYS_ADMIN))
-		return -EPERM;
+	int err;
 	if (!old_name || !*old_name)
 		return -EINVAL;
 	err = kern_path(old_name, LOOKUP_FOLLOW, &old_path);
@@ -1933,17 +1914,12 @@ static int do_new_mount(struct path *path, const char *fstype, int flags,
 			int mnt_flags, const char *name, void *data)
 {
 	struct file_system_type *type;
-	struct user_namespace *user_ns;
+	struct user_namespace *user_ns = current->nsproxy->mnt_ns->user_ns;
 	struct vfsmount *mnt;
 	int err;
 
 	if (!fstype)
 		return -EINVAL;
-
-	/* we need capabilities... */
-	user_ns = real_mount(path->mnt)->mnt_ns->user_ns;
-	if (!ns_capable(user_ns, CAP_SYS_ADMIN))
-		return -EPERM;
 
 	type = get_fs_type(fstype);
 	if (!type)
@@ -2258,6 +2234,9 @@ long do_mount(const char *dev_name, const char *dir_name,
 	if (retval)
 		goto dput_out;
 
+	if (!may_mount())
+		return -EPERM;
+
 	/* Default to relatime unless overriden */
 	if (!(flags & MS_NOATIME))
 		mnt_flags |= MNT_RELATIME;
@@ -2567,7 +2546,7 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	struct mount *new_mnt, *root_mnt;
 	int error;
 
-	if (!ns_capable(current->nsproxy->mnt_ns->user_ns, CAP_SYS_ADMIN))
+	if (!may_mount())
 		return -EPERM;
 
 	error = user_path_dir(new_root, &new);

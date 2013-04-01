@@ -224,7 +224,7 @@ static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
 static unsigned int dlmfs_file_poll(struct file *file, poll_table *wait)
 {
 	int event = 0;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct dlmfs_inode_private *ip = DLMFS_I(inode);
 
 	poll_wait(file, &ip->ip_lockres.l_event, wait);
@@ -245,7 +245,7 @@ static ssize_t dlmfs_file_read(struct file *filp,
 	int bytes_left;
 	ssize_t readlen, got;
 	char *lvb_buf;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 
 	mlog(0, "inode %lu, count = %zu, *ppos = %llu\n",
 		inode->i_ino, count, *ppos);
@@ -293,7 +293,7 @@ static ssize_t dlmfs_file_write(struct file *filp,
 	int bytes_left;
 	ssize_t writelen;
 	char *lvb_buf;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 
 	mlog(0, "inode %lu, count = %zu, *ppos = %llu\n",
 		inode->i_ino, count, *ppos);

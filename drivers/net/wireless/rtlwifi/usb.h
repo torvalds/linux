@@ -157,7 +157,8 @@ struct rtl_usb_priv {
 
 
 int rtl_usb_probe(struct usb_interface *intf,
-			    const struct usb_device_id *id);
+		  const struct usb_device_id *id,
+		  struct rtl_hal_cfg *rtl92cu_hal_cfg);
 void rtl_usb_disconnect(struct usb_interface *intf);
 int rtl_usb_suspend(struct usb_interface *pusb_intf, pm_message_t message);
 int rtl_usb_resume(struct usb_interface *pusb_intf);

@@ -334,7 +334,12 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
 	if (changed && dirty) {
 		*pmdp = entry;
 		pmd_update_defer(vma->vm_mm, address, pmdp);
-		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+		/*
+		 * We had a write-protection fault here and changed the pmd
+		 * to to more permissive. No need to flush the TLB for that,
+		 * #PF is architecturally guaranteed to do that and in the
+		 * worst-case we'll generate a spurious fault.
+		 */
 	}
 
 	return changed;

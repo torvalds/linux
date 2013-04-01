@@ -154,7 +154,7 @@ static enum imx28_clk clks_init_on[] __initdata = {
 int __init mx28_clocks_init(void)
 {
 	struct device_node *np;
-	int i;
+	u32 i;
 
 	clk_misc_init();
 
@@ -238,7 +238,7 @@ int __init mx28_clocks_init(void)
 		of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 	}
 
-	clk_register_clkdev(clks[clk32k], NULL, "timrot");
+	clk_register_clkdev(clks[xbus], NULL, "timrot");
 	clk_register_clkdev(clks[enet_out], NULL, "enet_out");
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)

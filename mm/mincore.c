@@ -75,7 +75,7 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
 	/* shmem/tmpfs may return swap: account for swapcache page too. */
 	if (radix_tree_exceptional_entry(page)) {
 		swp_entry_t swap = radix_to_swp_entry(page);
-		page = find_get_page(&swapper_space, swap.val);
+		page = find_get_page(swap_address_space(swap), swap.val);
 	}
 #endif
 	if (page) {
@@ -135,7 +135,8 @@ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 			} else {
 #ifdef CONFIG_SWAP
 				pgoff = entry.val;
-				*vec = mincore_page(&swapper_space, pgoff);
+				*vec = mincore_page(swap_address_space(entry),
+					pgoff);
 #else
 				WARN_ON(1);
 				*vec = 1;

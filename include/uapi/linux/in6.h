@@ -38,11 +38,6 @@ struct in6_addr {
 #define s6_addr32		in6_u.u6_addr32
 };
 
-/* IPv6 Wildcard Address (::) and Loopback Address (::1) defined in RFC2553
- * NOTE: Be aware the IN6ADDR_* constants and in6addr_* externals are defined
- * in network byte order, not in host byte order as are the IPv4 equivalents
- */
-
 struct sockaddr_in6 {
 	unsigned short int	sin6_family;    /* AF_INET6 */
 	__be16			sin6_port;      /* Transport layer port # */
@@ -264,17 +259,10 @@ struct in6_flowlabel_req {
 
 /*
  * Multicast Routing:
- * see include/linux/mroute6.h.
+ * see include/uapi/linux/mroute6.h.
  *
- * MRT6_INIT			200
- * MRT6_DONE			201
- * MRT6_ADD_MIF			202
- * MRT6_DEL_MIF			203
- * MRT6_ADD_MFC			204
- * MRT6_DEL_MFC			205
- * MRT6_VERSION			206
- * MRT6_ASSERT			207
- * MRT6_PIM			208
- * (reserved)			209
+ * MRT6_BASE			200
+ * ...
+ * MRT6_MAX
  */
 #endif /* _UAPI_LINUX_IN6_H */

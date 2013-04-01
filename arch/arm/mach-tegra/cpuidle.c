@@ -38,6 +38,9 @@ static int __init tegra_cpuidle_init(void)
 	case TEGRA30:
 		ret = tegra30_cpuidle_init();
 		break;
+	case TEGRA114:
+		ret = tegra114_cpuidle_init();
+		break;
 	default:
 		ret = -ENODEV;
 		break;

@@ -100,7 +100,6 @@ static unsigned int ipv4_helper(unsigned int hooknum,
 	enum ip_conntrack_info ctinfo;
 	const struct nf_conn_help *help;
 	const struct nf_conntrack_helper *helper;
-	unsigned int ret;
 
 	/* This is where we call the helper: as the packet goes out. */
 	ct = nf_ct_get(skb, &ctinfo);
@@ -116,13 +115,8 @@ static unsigned int ipv4_helper(unsigned int hooknum,
 	if (!helper)
 		return NF_ACCEPT;
 
-	ret = helper->help(skb, skb_network_offset(skb) + ip_hdrlen(skb),
-			   ct, ctinfo);
-	if (ret != NF_ACCEPT && (ret & NF_VERDICT_MASK) != NF_QUEUE) {
-		nf_log_packet(NFPROTO_IPV4, hooknum, skb, in, out, NULL,
-			      "nf_ct_%s: dropping packet", helper->name);
-	}
-	return ret;
+	return helper->help(skb, skb_network_offset(skb) + ip_hdrlen(skb),
+			    ct, ctinfo);
 }
 
 static unsigned int ipv4_confirm(unsigned int hooknum,
@@ -420,54 +414,43 @@ static int ipv4_net_init(struct net *net)
 {
 	int ret = 0;
 
-	ret = nf_conntrack_l4proto_register(net,
-					    &nf_conntrack_l4proto_tcp4);
+	ret = nf_ct_l4proto_pernet_register(net, &nf_conntrack_l4proto_tcp4);
 	if (ret < 0) {
-		pr_err("nf_conntrack_l4proto_tcp4 :protocol register failed\n");
+		pr_err("nf_conntrack_tcp4: pernet registration failed\n");
 		goto out_tcp;
 	}
-	ret = nf_conntrack_l4proto_register(net,
-					    &nf_conntrack_l4proto_udp4);
+	ret = nf_ct_l4proto_pernet_register(net, &nf_conntrack_l4proto_udp4);
 	if (ret < 0) {
-		pr_err("nf_conntrack_l4proto_udp4 :protocol register failed\n");
+		pr_err("nf_conntrack_udp4: pernet registration failed\n");
 		goto out_udp;
 	}
-	ret = nf_conntrack_l4proto_register(net,
-					    &nf_conntrack_l4proto_icmp);
+	ret = nf_ct_l4proto_pernet_register(net, &nf_conntrack_l4proto_icmp);
 	if (ret < 0) {
-		pr_err("nf_conntrack_l4proto_icmp4 :protocol register failed\n");
+		pr_err("nf_conntrack_icmp4: pernet registration failed\n");
 		goto out_icmp;
 	}
-	ret = nf_conntrack_l3proto_register(net,
-					    &nf_conntrack_l3proto_ipv4);
+	ret = nf_ct_l3proto_pernet_register(net, &nf_conntrack_l3proto_ipv4);
 	if (ret < 0) {
-		pr_err("nf_conntrack_l3proto_ipv4 :protocol register failed\n");
+		pr_err("nf_conntrack_ipv4: pernet registration failed\n");
 		goto out_ipv4;
 	}
 	return 0;
 out_ipv4:
-	nf_conntrack_l4proto_unregister(net,
-					&nf_conntrack_l4proto_icmp);
+	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_icmp);
 out_icmp:
-	nf_conntrack_l4proto_unregister(net,
-					&nf_conntrack_l4proto_udp4);
+	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_udp4);
 out_udp:
-	nf_conntrack_l4proto_unregister(net,
-					&nf_conntrack_l4proto_tcp4);
+	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_tcp4);
 out_tcp:
 	return ret;
 }
 
 static void ipv4_net_exit(struct net *net)
 {
-	nf_conntrack_l3proto_unregister(net,
-					&nf_conntrack_l3proto_ipv4);
-	nf_conntrack_l4proto_unregister(net,
-					&nf_conntrack_l4proto_icmp);
-	nf_conntrack_l4proto_unregister(net,
-					&nf_conntrack_l4proto_udp4);
-	nf_conntrack_l4proto_unregister(net,
-					&nf_conntrack_l4proto_tcp4);
+	nf_ct_l3proto_pernet_unregister(net, &nf_conntrack_l3proto_ipv4);
+	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_icmp);
+	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_udp4);
+	nf_ct_l4proto_pernet_unregister(net, &nf_conntrack_l4proto_tcp4);
 }
 
 static struct pernet_operations ipv4_net_ops = {
@@ -500,16 +483,49 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 		pr_err("nf_conntrack_ipv4: can't register hooks.\n");
 		goto cleanup_pernet;
 	}
+
+	ret = nf_ct_l4proto_register(&nf_conntrack_l4proto_tcp4);
+	if (ret < 0) {
+		pr_err("nf_conntrack_ipv4: can't register tcp4 proto.\n");
+		goto cleanup_hooks;
+	}
+
+	ret = nf_ct_l4proto_register(&nf_conntrack_l4proto_udp4);
+	if (ret < 0) {
+		pr_err("nf_conntrack_ipv4: can't register udp4 proto.\n");
+		goto cleanup_tcp4;
+	}
+
+	ret = nf_ct_l4proto_register(&nf_conntrack_l4proto_icmp);
+	if (ret < 0) {
+		pr_err("nf_conntrack_ipv4: can't register icmpv4 proto.\n");
+		goto cleanup_udp4;
+	}
+
+	ret = nf_ct_l3proto_register(&nf_conntrack_l3proto_ipv4);
+	if (ret < 0) {
+		pr_err("nf_conntrack_ipv4: can't register ipv4 proto.\n");
+		goto cleanup_icmpv4;
+	}
+
 #if defined(CONFIG_PROC_FS) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
 	ret = nf_conntrack_ipv4_compat_init();
 	if (ret < 0)
-		goto cleanup_hooks;
+		goto cleanup_proto;
 #endif
 	return ret;
 #if defined(CONFIG_PROC_FS) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
+ cleanup_proto:
+	nf_ct_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
+#endif
+ cleanup_icmpv4:
+	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_icmp);
+ cleanup_udp4:
+	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_udp4);
+ cleanup_tcp4:
+	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_tcp4);
  cleanup_hooks:
 	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
-#endif
  cleanup_pernet:
 	unregister_pernet_subsys(&ipv4_net_ops);
  cleanup_sockopt:
@@ -523,6 +539,10 @@ static void __exit nf_conntrack_l3proto_ipv4_fini(void)
 #if defined(CONFIG_PROC_FS) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
 	nf_conntrack_ipv4_compat_fini();
 #endif
+	nf_ct_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
+	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_icmp);
+	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_udp4);
+	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_tcp4);
 	nf_unregister_hooks(ipv4_conntrack_ops, ARRAY_SIZE(ipv4_conntrack_ops));
 	unregister_pernet_subsys(&ipv4_net_ops);
 	nf_unregister_sockopt(&so_getorigdst);

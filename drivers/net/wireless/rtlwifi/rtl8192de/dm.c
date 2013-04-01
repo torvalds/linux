@@ -841,9 +841,9 @@ static void rtl92d_dm_txpower_tracking_callback_thermalmeter(
 	long ele_a = 0, ele_d, temp_cck, val_x, value32;
 	long val_y, ele_c = 0;
 	u8 ofdm_index[2];
-	u8 cck_index = 0;
+	s8 cck_index = 0;
 	u8 ofdm_index_old[2];
-	u8 cck_index_old = 0;
+	s8 cck_index_old = 0;
 	u8 index;
 	int i;
 	bool is2t = IS_92D_SINGLEPHY(rtlhal->version);

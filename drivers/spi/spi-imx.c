@@ -949,3 +949,4 @@ module_platform_driver(spi_imx_driver);
 MODULE_DESCRIPTION("SPI Master Controller driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRIVER_NAME);

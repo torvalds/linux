@@ -363,8 +363,11 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		return -EOPNOTSUPP;
 	}
 
+	spin_lock_bh(&wl->lock);
+	memcpy(wl->pub->cur_etheraddr, vif->addr, sizeof(vif->addr));
 	wl->mute_tx = false;
 	brcms_c_mute(wl->wlc, false);
+	spin_unlock_bh(&wl->lock);
 
 	return 0;
 }
@@ -540,9 +543,8 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ARP_FILTER) {
 		/* Hardware ARP filter address list or state changed */
-		brcms_err(core, "%s: arp filtering: enabled %s, count %d"
-			  " (implement)\n", __func__, info->arp_filter_enabled ?
-			  "true" : "false", info->arp_addr_cnt);
+		brcms_err(core, "%s: arp filtering: %d addresses"
+			  " (implement)\n", __func__, info->arp_addr_cnt);
 	}
 
 	if (changed & BSS_CHANGED_QOS) {
@@ -669,7 +671,9 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 
-	case IEEE80211_AMPDU_TX_STOP:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		spin_lock_bh(&wl->lock);
 		brcms_c_ampdu_flush(wl->wlc, sta, tid);
 		spin_unlock_bh(&wl->lock);

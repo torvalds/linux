@@ -170,7 +170,7 @@ MACHINE_START(AUTCPU12, "autronix autcpu12")
 	.nr_irqs	= CLPS711X_NR_IRQS,
 	.map_io		= clps711x_map_io,
 	.init_irq	= clps711x_init_irq,
-	.timer		= &clps711x_timer,
+	.init_time	= clps711x_timer_init,
 	.init_machine	= autcpu12_init,
 	.init_late	= autcpu12_init_late,
 	.handle_irq	= clps711x_handle_irq,

@@ -24,6 +24,7 @@
 
 #include <subdev/device.h>
 #include <subdev/bios.h>
+#include <subdev/bus.h>
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>
 #include <subdev/clock.h>
@@ -56,13 +57,14 @@ nve0_identify(struct nouveau_device *device)
 	case 0xe4:
 		device->cname = "GK104";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nvd0_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nve0_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nvd0_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv50_therm_oclass;
+		device->oclass[NVDEV_SUBDEV_THERM  ] = &nvd0_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
+		device->oclass[NVDEV_SUBDEV_BUS    ] = &nvc0_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nvc0_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTCG   ] = &nvc0_ltcg_oclass;
@@ -84,13 +86,14 @@ nve0_identify(struct nouveau_device *device)
 	case 0xe7:
 		device->cname = "GK107";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nvd0_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nve0_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nvd0_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv50_therm_oclass;
+		device->oclass[NVDEV_SUBDEV_THERM  ] = &nvd0_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
+		device->oclass[NVDEV_SUBDEV_BUS    ] = &nvc0_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nvc0_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTCG   ] = &nvc0_ltcg_oclass;
@@ -112,13 +115,14 @@ nve0_identify(struct nouveau_device *device)
 	case 0xe6:
 		device->cname = "GK106";
 		device->oclass[NVDEV_SUBDEV_VBIOS  ] = &nouveau_bios_oclass;
-		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nvd0_gpio_oclass;
-		device->oclass[NVDEV_SUBDEV_I2C    ] = &nouveau_i2c_oclass;
+		device->oclass[NVDEV_SUBDEV_GPIO   ] = &nve0_gpio_oclass;
+		device->oclass[NVDEV_SUBDEV_I2C    ] = &nvd0_i2c_oclass;
 		device->oclass[NVDEV_SUBDEV_CLOCK  ] = &nvc0_clock_oclass;
-		device->oclass[NVDEV_SUBDEV_THERM  ] = &nv50_therm_oclass;
+		device->oclass[NVDEV_SUBDEV_THERM  ] = &nvd0_therm_oclass;
 		device->oclass[NVDEV_SUBDEV_MXM    ] = &nv50_mxm_oclass;
 		device->oclass[NVDEV_SUBDEV_DEVINIT] = &nv50_devinit_oclass;
 		device->oclass[NVDEV_SUBDEV_MC     ] = &nvc0_mc_oclass;
+		device->oclass[NVDEV_SUBDEV_BUS    ] = &nvc0_bus_oclass;
 		device->oclass[NVDEV_SUBDEV_TIMER  ] = &nv04_timer_oclass;
 		device->oclass[NVDEV_SUBDEV_FB     ] = &nvc0_fb_oclass;
 		device->oclass[NVDEV_SUBDEV_LTCG   ] = &nvc0_ltcg_oclass;

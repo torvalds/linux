@@ -29,7 +29,7 @@
 #include <linux/workqueue.h>
 #include <linux/gpio.h>
 #include <linux/extcon.h>
-#include <linux/extcon/extcon_gpio.h>
+#include <linux/extcon/extcon-gpio.h>
 
 struct gpio_extcon_data {
 	struct extcon_dev edev;

@@ -339,8 +339,7 @@ static void peak_pciec_set_leds(struct peak_pciec_card *card, u8 led_mask, u8 s)
  */
 static void peak_pciec_start_led_work(struct peak_pciec_card *card)
 {
-	if (!delayed_work_pending(&card->led_work))
-		schedule_delayed_work(&card->led_work, HZ);
+	schedule_delayed_work(&card->led_work, HZ);
 }
 
 /*
@@ -451,11 +450,8 @@ static int peak_pciec_probe(struct pci_dev *pdev, struct net_device *dev)
 	} else {
 		/* create the bit banging I2C adapter structure */
 		card = kzalloc(sizeof(struct peak_pciec_card), GFP_KERNEL);
-		if (!card) {
-			dev_err(&pdev->dev,
-				 "failed allocating memory for i2c chip\n");
+		if (!card)
 			return -ENOMEM;
-		}
 
 		card->cfg_base = chan->cfg_base;
 		card->reg_base = priv->reg_base;

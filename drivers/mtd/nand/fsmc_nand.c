@@ -573,23 +573,22 @@ static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
 	dma_dev = chan->device;
 	dma_addr = dma_map_single(dma_dev->dev, buffer, len, direction);
 
+	flags |= DMA_COMPL_SKIP_SRC_UNMAP | DMA_COMPL_SKIP_DEST_UNMAP;
+
 	if (direction == DMA_TO_DEVICE) {
 		dma_src = dma_addr;
 		dma_dst = host->data_pa;
-		flags |= DMA_COMPL_SRC_UNMAP_SINGLE | DMA_COMPL_SKIP_DEST_UNMAP;
 	} else {
 		dma_src = host->data_pa;
 		dma_dst = dma_addr;
-		flags |= DMA_COMPL_DEST_UNMAP_SINGLE | DMA_COMPL_SKIP_SRC_UNMAP;
 	}
 
 	tx = dma_dev->device_prep_dma_memcpy(chan, dma_dst, dma_src,
 			len, flags);
-
 	if (!tx) {
 		dev_err(host->dev, "device_prep_dma_memcpy error\n");
-		dma_unmap_single(dma_dev->dev, dma_addr, len, direction);
-		return -EIO;
+		ret = -EIO;
+		goto unmap_dma;
 	}
 
 	tx->callback = dma_complete;
@@ -599,7 +598,7 @@ static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
 	ret = dma_submit_error(cookie);
 	if (ret) {
 		dev_err(host->dev, "dma_submit_error %d\n", cookie);
-		return ret;
+		goto unmap_dma;
 	}
 
 	dma_async_issue_pending(chan);
@@ -610,10 +609,17 @@ static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
 	if (ret <= 0) {
 		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
 		dev_err(host->dev, "wait_for_completion_timeout\n");
-		return ret ? ret : -ETIMEDOUT;
+		if (!ret)
+			ret = -ETIMEDOUT;
+		goto unmap_dma;
 	}
 
-	return 0;
+	ret = 0;
+
+unmap_dma:
+	dma_unmap_single(dma_dev->dev, dma_addr, len, direction);
+
+	return ret;
 }
 
 /*
@@ -937,42 +943,35 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	if (!res)
 		return -EINVAL;
 
-	host->data_va = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->data_va) {
-		dev_err(&pdev->dev, "data ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->data_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->data_va))
+		return PTR_ERR(host->data_va);
+	
 	host->data_pa = (dma_addr_t)res->start;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_addr");
 	if (!res)
 		return -EINVAL;
 
-	host->addr_va = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->addr_va) {
-		dev_err(&pdev->dev, "ale ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->addr_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->addr_va))
+		return PTR_ERR(host->addr_va);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand_cmd");
 	if (!res)
 		return -EINVAL;
 
-	host->cmd_va = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->cmd_va) {
-		dev_err(&pdev->dev, "ale ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->cmd_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->cmd_va))
+		return PTR_ERR(host->cmd_va);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fsmc_regs");
 	if (!res)
 		return -EINVAL;
 
-	host->regs_va = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->regs_va) {
-		dev_err(&pdev->dev, "regs ioremap failed\n");
-		return -ENOMEM;
-	}
+	host->regs_va = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->regs_va))
+		return PTR_ERR(host->regs_va);
 
 	host->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
@@ -1218,6 +1217,7 @@ static SIMPLE_DEV_PM_OPS(fsmc_nand_pm_ops, fsmc_nand_suspend, fsmc_nand_resume);
 #ifdef CONFIG_OF
 static const struct of_device_id fsmc_nand_id_table[] = {
 	{ .compatible = "st,spear600-fsmc-nand" },
+	{ .compatible = "stericsson,fsmc-nand" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsmc_nand_id_table);

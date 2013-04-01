@@ -64,7 +64,7 @@ void oz_elt_buf_term(struct oz_elt_buf *buf)
  */
 struct oz_elt_info *oz_elt_info_alloc(struct oz_elt_buf *buf)
 {
-	struct oz_elt_info *ei = 0;
+	struct oz_elt_info *ei = NULL;
 	spin_lock_bh(&buf->lock);
 	if (buf->free_elts && buf->elt_pool) {
 		ei = container_of(buf->elt_pool, struct oz_elt_info, link);
@@ -82,9 +82,9 @@ struct oz_elt_info *oz_elt_info_alloc(struct oz_elt_buf *buf)
 	if (ei) {
 		ei->flags = 0;
 		ei->app_id = 0;
-		ei->callback = 0;
+		ei->callback = NULL;
 		ei->context = 0;
-		ei->stream = 0;
+		ei->stream = NULL;
 		ei->magic = OZ_ELT_INFO_MAGIC_USED;
 		INIT_LIST_HEAD(&ei->link);
 		INIT_LIST_HEAD(&ei->link_order);
@@ -135,7 +135,7 @@ int oz_elt_stream_create(struct oz_elt_buf *buf, u8 id, int max_buf_count)
 	oz_trace("oz_elt_stream_create(0x%x)\n", id);
 
 	st = kzalloc(sizeof(struct oz_elt_stream), GFP_ATOMIC | __GFP_ZERO);
-	if (st == 0)
+	if (st == NULL)
 		return -ENOMEM;
 	atomic_set(&st->ref_count, 1);
 	st->id = id;
@@ -151,7 +151,7 @@ int oz_elt_stream_create(struct oz_elt_buf *buf, u8 id, int max_buf_count)
 int oz_elt_stream_delete(struct oz_elt_buf *buf, u8 id)
 {
 	struct list_head *e;
-	struct oz_elt_stream *st;
+	struct oz_elt_stream *st = NULL;
 	oz_trace("oz_elt_stream_delete(0x%x)\n", id);
 	spin_lock_bh(&buf->lock);
 	e = buf->stream_list.next;
@@ -161,7 +161,7 @@ int oz_elt_stream_delete(struct oz_elt_buf *buf, u8 id)
 			list_del(e);
 			break;
 		}
-		st = 0;
+		st = NULL;
 	}
 	if (!st) {
 		spin_unlock_bh(&buf->lock);
@@ -208,7 +208,7 @@ void oz_elt_stream_put(struct oz_elt_stream *st)
 int oz_queue_elt_info(struct oz_elt_buf *buf, u8 isoc, u8 id,
 	struct oz_elt_info *ei)
 {
-	struct oz_elt_stream *st = 0;
+	struct oz_elt_stream *st = NULL;
 	struct list_head *e;
 	if (id) {
 		list_for_each(e, &buf->stream_list) {
@@ -297,7 +297,7 @@ int oz_select_elts_for_tx(struct oz_elt_buf *buf, u8 isoc, unsigned *len,
 					"Stream down: %d  %d\n",
 					ei->stream->buf_count, ei->length);
 				oz_elt_stream_put(ei->stream);
-				ei->stream = 0;
+				ei->stream = NULL;
 			}
 			INIT_LIST_HEAD(&ei->link_order);
 			list_add_tail(&ei->link, list);
@@ -319,7 +319,7 @@ int oz_are_elts_available(struct oz_elt_buf *buf)
  */
 void oz_trim_elt_pool(struct oz_elt_buf *buf)
 {
-	struct list_head *free = 0;
+	struct list_head *free = NULL;
 	struct list_head *e;
 	spin_lock_bh(&buf->lock);
 	while (buf->free_elts > buf->max_free_elts) {

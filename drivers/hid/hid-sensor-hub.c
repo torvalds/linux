@@ -605,15 +605,11 @@ static void sensor_hub_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id sensor_hub_devices[] = {
-	{ HID_DEVICE(BUS_USB, HID_GROUP_SENSOR_HUB, HID_ANY_ID, HID_ANY_ID) },
+	{ HID_DEVICE(HID_BUS_ANY, HID_GROUP_SENSOR_HUB, HID_ANY_ID,
+		     HID_ANY_ID) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, sensor_hub_devices);
-
-static const struct hid_usage_id sensor_hub_grabbed_usages[] = {
-	{ HID_ANY_ID, HID_ANY_ID, HID_ANY_ID },
-	{ HID_ANY_ID - 1, HID_ANY_ID - 1, HID_ANY_ID - 1 }
-};
 
 static struct hid_driver sensor_hub_driver = {
 	.name = "hid-sensor-hub",
@@ -627,19 +623,7 @@ static struct hid_driver sensor_hub_driver = {
 	.reset_resume =  sensor_hub_reset_resume,
 #endif
 };
-
-static int __init sensor_hub_init(void)
-{
-	return hid_register_driver(&sensor_hub_driver);
-}
-
-static void __exit sensor_hub_exit(void)
-{
-	hid_unregister_driver(&sensor_hub_driver);
-}
-
-module_init(sensor_hub_init);
-module_exit(sensor_hub_exit);
+module_hid_driver(sensor_hub_driver);
 
 MODULE_DESCRIPTION("HID Sensor Hub driver");
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@intel.com>");

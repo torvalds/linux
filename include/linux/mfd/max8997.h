@@ -78,21 +78,6 @@ struct max8997_regulator_data {
 	struct device_node *reg_node;
 };
 
-enum max8997_muic_usb_type {
-	MAX8997_USB_HOST,
-	MAX8997_USB_DEVICE,
-};
-
-enum max8997_muic_charger_type {
-	MAX8997_CHARGER_TYPE_NONE = 0,
-	MAX8997_CHARGER_TYPE_USB,
-	MAX8997_CHARGER_TYPE_DOWNSTREAM_PORT,
-	MAX8997_CHARGER_TYPE_DEDICATED_CHG,
-	MAX8997_CHARGER_TYPE_500MA,
-	MAX8997_CHARGER_TYPE_1A,
-	MAX8997_CHARGER_TYPE_DEAD_BATTERY = 7,
-};
-
 struct max8997_muic_reg_data {
 	u8 addr;
 	u8 data;
@@ -107,6 +92,16 @@ struct max8997_muic_reg_data {
 struct max8997_muic_platform_data {
 	struct max8997_muic_reg_data *init_data;
 	int num_init_data;
+
+	/* Check cable state after certain delay */
+	int detcable_delay_ms;
+
+	/*
+	 * Default usb/uart path whether UART/USB or AUX_UART/AUX_USB
+	 * h/w path of COMP2/COMN1 on CONTROL1 register.
+	 */
+	int path_usb;
+	int path_uart;
 };
 
 enum max8997_haptic_motor_type {

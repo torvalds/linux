@@ -72,7 +72,7 @@ int pow_receive_group = 15;
 module_param(pow_receive_group, int, 0444);
 MODULE_PARM_DESC(pow_receive_group, "\n"
 	"\tPOW group to receive packets from. All ethernet hardware\n"
-	"\twill be configured to send incomming packets to this POW\n"
+	"\twill be configured to send incoming packets to this POW\n"
 	"\tgroup. Also any other software can submit packets to this\n"
 	"\tgroup for the kernel to process.");
 
@@ -453,12 +453,10 @@ int cvm_oct_common_init(struct net_device *dev)
 	if (priv->of_node)
 		mac = of_get_mac_address(priv->of_node);
 
-	if (mac && is_valid_ether_addr(mac)) {
+	if (mac && is_valid_ether_addr(mac))
 		memcpy(dev->dev_addr, mac, ETH_ALEN);
-		dev->addr_assign_type &= ~NET_ADDR_RANDOM;
-	} else {
+	else
 		eth_hw_addr_random(dev);
-	}
 
 	/*
 	 * Force the interface to use the POW send if always_use_pow

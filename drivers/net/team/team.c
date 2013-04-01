@@ -28,6 +28,7 @@
 #include <net/genetlink.h>
 #include <net/netlink.h>
 #include <net/sch_generic.h>
+#include <generated/utsrelease.h>
 #include <linux/if_team.h>
 
 #define DRV_NAME "team"
@@ -507,6 +508,7 @@ static bool team_is_mode_set(struct team *team)
 
 static void team_set_no_mode(struct team *team)
 {
+	team->user_carrier_enabled = false;
 	team->mode = &__team_no_mode;
 }
 
@@ -1054,10 +1056,11 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 		}
 	}
 
-	err = netdev_set_master(port_dev, dev);
+	err = netdev_master_upper_dev_link(port_dev, dev);
 	if (err) {
-		netdev_err(dev, "Device %s failed to set master\n", portname);
-		goto err_set_master;
+		netdev_err(dev, "Device %s failed to set upper link\n",
+			   portname);
+		goto err_set_upper_link;
 	}
 
 	err = netdev_rx_handler_register(port_dev, team_handle_frame,
@@ -1090,9 +1093,9 @@ err_option_port_add:
 	netdev_rx_handler_unregister(port_dev);
 
 err_handler_register:
-	netdev_set_master(port_dev, NULL);
+	netdev_upper_dev_unlink(port_dev, dev);
 
-err_set_master:
+err_set_upper_link:
 	team_port_disable_netpoll(port);
 
 err_enable_netpoll:
@@ -1129,18 +1132,20 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 		return -ENOENT;
 	}
 
-	__team_option_inst_mark_removed_port(team, port);
-	__team_options_change_check(team);
-	__team_option_inst_del_port(team, port);
-	__team_port_change_port_removed(port);
 	team_port_disable(team, port);
 	list_del_rcu(&port->list);
 	netdev_rx_handler_unregister(port_dev);
-	netdev_set_master(port_dev, NULL);
+	netdev_upper_dev_unlink(port_dev, dev);
 	team_port_disable_netpoll(port);
 	vlan_vids_del_by_dev(port_dev, dev);
 	dev_close(port_dev);
 	team_port_leave(team, port);
+
+	__team_option_inst_mark_removed_port(team, port);
+	__team_options_change_check(team);
+	__team_option_inst_del_port(team, port);
+	__team_port_change_port_removed(port);
+
 	team_port_set_orig_dev_addr(port);
 	dev_set_mtu(port_dev, port->orig.mtu);
 	synchronize_rcu();
@@ -1399,13 +1404,11 @@ static void team_destructor(struct net_device *dev)
 
 static int team_open(struct net_device *dev)
 {
-	netif_carrier_on(dev);
 	return 0;
 }
 
 static int team_close(struct net_device *dev)
 {
-	netif_carrier_off(dev);
 	return 0;
 }
 
@@ -1501,7 +1504,6 @@ static int team_set_mac_address(struct net_device *dev, void *p)
 	if (dev->type == ARPHRD_ETHER && !is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	rcu_read_lock();
 	list_for_each_entry_rcu(port, &team->port_list, list)
 		if (team->ops.port_change_dev_addr)
@@ -1707,6 +1709,19 @@ static netdev_features_t team_fix_features(struct net_device *dev,
 	return features;
 }
 
+static int team_change_carrier(struct net_device *dev, bool new_carrier)
+{
+	struct team *team = netdev_priv(dev);
+
+	team->user_carrier_enabled = true;
+
+	if (new_carrier)
+		netif_carrier_on(dev);
+	else
+		netif_carrier_off(dev);
+	return 0;
+}
+
 static const struct net_device_ops team_netdev_ops = {
 	.ndo_init		= team_init,
 	.ndo_uninit		= team_uninit,
@@ -1729,8 +1744,24 @@ static const struct net_device_ops team_netdev_ops = {
 	.ndo_add_slave		= team_add_slave,
 	.ndo_del_slave		= team_del_slave,
 	.ndo_fix_features	= team_fix_features,
+	.ndo_change_carrier     = team_change_carrier,
 };
 
+/***********************
+ * ethtool interface
+ ***********************/
+
+static void team_ethtool_get_drvinfo(struct net_device *dev,
+				     struct ethtool_drvinfo *drvinfo)
+{
+	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, UTS_RELEASE, sizeof(drvinfo->version));
+}
+
+static const struct ethtool_ops team_ethtool_ops = {
+	.get_drvinfo		= team_ethtool_get_drvinfo,
+	.get_link		= ethtool_op_get_link,
+};
 
 /***********************
  * rt netlink interface
@@ -1746,7 +1777,6 @@ static void team_setup_by_port(struct net_device *dev,
 	dev->mtu = port_dev->mtu;
 	memcpy(dev->broadcast, port_dev->broadcast, port_dev->addr_len);
 	memcpy(dev->dev_addr, port_dev->dev_addr, port_dev->addr_len);
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 }
 
 static int team_dev_type_check_change(struct net_device *dev,
@@ -1780,6 +1810,7 @@ static void team_setup(struct net_device *dev)
 	ether_setup(dev);
 
 	dev->netdev_ops = &team_netdev_ops;
+	dev->ethtool_ops = &team_ethtool_ops;
 	dev->destructor	= team_destructor;
 	dev->tx_queue_len = 0;
 	dev->flags |= IFF_MULTICAST;
@@ -1939,30 +1970,6 @@ static void team_nl_team_put(struct team *team)
 {
 	mutex_unlock(&team->lock);
 	dev_put(team->dev);
-}
-
-static int team_nl_send_generic(struct genl_info *info, struct team *team,
-				int (*fill_func)(struct sk_buff *skb,
-						 struct genl_info *info,
-						 int flags, struct team *team))
-{
-	struct sk_buff *skb;
-	int err;
-
-	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!skb)
-		return -ENOMEM;
-
-	err = fill_func(skb, info, NLM_F_ACK, team);
-	if (err < 0)
-		goto err_fill;
-
-	err = genlmsg_unicast(genl_info_net(info), skb, info->snd_portid);
-	return err;
-
-err_fill:
-	nlmsg_free(skb);
-	return err;
 }
 
 typedef int team_nl_send_func_t(struct sk_buff *skb,
@@ -2309,16 +2316,57 @@ team_put:
 	return err;
 }
 
-static int team_nl_fill_port_list_get(struct sk_buff *skb,
-				      u32 portid, u32 seq, int flags,
-				      struct team *team,
-				      bool fillall)
+static int team_nl_fill_one_port_get(struct sk_buff *skb,
+				     struct team_port *port)
+{
+	struct nlattr *port_item;
+
+	port_item = nla_nest_start(skb, TEAM_ATTR_ITEM_PORT);
+	if (!port_item)
+		goto nest_cancel;
+	if (nla_put_u32(skb, TEAM_ATTR_PORT_IFINDEX, port->dev->ifindex))
+		goto nest_cancel;
+	if (port->changed) {
+		if (nla_put_flag(skb, TEAM_ATTR_PORT_CHANGED))
+			goto nest_cancel;
+		port->changed = false;
+	}
+	if ((port->removed &&
+	     nla_put_flag(skb, TEAM_ATTR_PORT_REMOVED)) ||
+	    (port->state.linkup &&
+	     nla_put_flag(skb, TEAM_ATTR_PORT_LINKUP)) ||
+	    nla_put_u32(skb, TEAM_ATTR_PORT_SPEED, port->state.speed) ||
+	    nla_put_u8(skb, TEAM_ATTR_PORT_DUPLEX, port->state.duplex))
+		goto nest_cancel;
+	nla_nest_end(skb, port_item);
+	return 0;
+
+nest_cancel:
+	nla_nest_cancel(skb, port_item);
+	return -EMSGSIZE;
+}
+
+static int team_nl_send_port_list_get(struct team *team, u32 portid, u32 seq,
+				      int flags, team_nl_send_func_t *send_func,
+				      struct team_port *one_port)
 {
 	struct nlattr *port_list;
+	struct nlmsghdr *nlh;
 	void *hdr;
 	struct team_port *port;
+	int err;
+	struct sk_buff *skb = NULL;
+	bool incomplete;
+	int i;
 
-	hdr = genlmsg_put(skb, portid, seq, &team_nl_family, flags,
+	port = list_first_entry(&team->port_list, struct team_port, list);
+
+start_again:
+	err = __send_and_alloc_skb(&skb, team, portid, send_func);
+	if (err)
+		return err;
+
+	hdr = genlmsg_put(skb, portid, seq, &team_nl_family, flags | NLM_F_MULTI,
 			  TEAM_CMD_PORT_LIST_GET);
 	if (!hdr)
 		return -EMSGSIZE;
@@ -2329,47 +2377,54 @@ static int team_nl_fill_port_list_get(struct sk_buff *skb,
 	if (!port_list)
 		goto nla_put_failure;
 
-	list_for_each_entry(port, &team->port_list, list) {
-		struct nlattr *port_item;
+	i = 0;
+	incomplete = false;
 
-		/* Include only changed ports if fill all mode is not on */
-		if (!fillall && !port->changed)
-			continue;
-		port_item = nla_nest_start(skb, TEAM_ATTR_ITEM_PORT);
-		if (!port_item)
-			goto nla_put_failure;
-		if (nla_put_u32(skb, TEAM_ATTR_PORT_IFINDEX, port->dev->ifindex))
-			goto nla_put_failure;
-		if (port->changed) {
-			if (nla_put_flag(skb, TEAM_ATTR_PORT_CHANGED))
-				goto nla_put_failure;
-			port->changed = false;
+	/* If one port is selected, called wants to send port list containing
+	 * only this port. Otherwise go through all listed ports and send all
+	 */
+	if (one_port) {
+		err = team_nl_fill_one_port_get(skb, one_port);
+		if (err)
+			goto errout;
+	} else {
+		list_for_each_entry(port, &team->port_list, list) {
+			err = team_nl_fill_one_port_get(skb, port);
+			if (err) {
+				if (err == -EMSGSIZE) {
+					if (!i)
+						goto errout;
+					incomplete = true;
+					break;
+				}
+				goto errout;
+			}
+			i++;
 		}
-		if ((port->removed &&
-		     nla_put_flag(skb, TEAM_ATTR_PORT_REMOVED)) ||
-		    (port->state.linkup &&
-		     nla_put_flag(skb, TEAM_ATTR_PORT_LINKUP)) ||
-		    nla_put_u32(skb, TEAM_ATTR_PORT_SPEED, port->state.speed) ||
-		    nla_put_u8(skb, TEAM_ATTR_PORT_DUPLEX, port->state.duplex))
-			goto nla_put_failure;
-		nla_nest_end(skb, port_item);
 	}
 
 	nla_nest_end(skb, port_list);
-	return genlmsg_end(skb, hdr);
+	genlmsg_end(skb, hdr);
+	if (incomplete)
+		goto start_again;
+
+send_done:
+	nlh = nlmsg_put(skb, portid, seq, NLMSG_DONE, 0, flags | NLM_F_MULTI);
+	if (!nlh) {
+		err = __send_and_alloc_skb(&skb, team, portid, send_func);
+		if (err)
+			goto errout;
+		goto send_done;
+	}
+
+	return send_func(skb, team, portid);
 
 nla_put_failure:
+	err = -EMSGSIZE;
+errout:
 	genlmsg_cancel(skb, hdr);
-	return -EMSGSIZE;
-}
-
-static int team_nl_fill_port_list_get_all(struct sk_buff *skb,
-					  struct genl_info *info, int flags,
-					  struct team *team)
-{
-	return team_nl_fill_port_list_get(skb, info->snd_portid,
-					  info->snd_seq, NLM_F_ACK,
-					  team, true);
+	nlmsg_free(skb);
+	return err;
 }
 
 static int team_nl_cmd_port_list_get(struct sk_buff *skb,
@@ -2382,7 +2437,8 @@ static int team_nl_cmd_port_list_get(struct sk_buff *skb,
 	if (!team)
 		return -EINVAL;
 
-	err = team_nl_send_generic(info, team, team_nl_fill_port_list_get_all);
+	err = team_nl_send_port_list_get(team, info->snd_portid, info->snd_seq,
+					 NLM_F_ACK, team_nl_send_unicast, NULL);
 
 	team_nl_team_put(team);
 
@@ -2433,27 +2489,11 @@ static int team_nl_send_event_options_get(struct team *team,
 					sel_opt_inst_list);
 }
 
-static int team_nl_send_event_port_list_get(struct team *team)
+static int team_nl_send_event_port_get(struct team *team,
+				       struct team_port *port)
 {
-	struct sk_buff *skb;
-	int err;
-	struct net *net = dev_net(team->dev);
-
-	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!skb)
-		return -ENOMEM;
-
-	err = team_nl_fill_port_list_get(skb, 0, 0, 0, team, false);
-	if (err < 0)
-		goto err_fill;
-
-	err = genlmsg_multicast_netns(net, skb, 0, team_change_event_mcgrp.id,
-				      GFP_KERNEL);
-	return err;
-
-err_fill:
-	nlmsg_free(skb);
-	return err;
+	return team_nl_send_port_list_get(team, 0, 0, 0, team_nl_send_multicast,
+					  port);
 }
 
 static int team_nl_init(void)
@@ -2526,28 +2566,53 @@ static void __team_port_change_send(struct team_port *port, bool linkup)
 	port->state.duplex = 0;
 
 send_event:
-	err = team_nl_send_event_port_list_get(port->team);
+	err = team_nl_send_event_port_get(port->team, port);
 	if (err && err != -ESRCH)
 		netdev_warn(port->team->dev, "Failed to send port change of device %s via netlink (err %d)\n",
 			    port->dev->name, err);
 
 }
 
+static void __team_carrier_check(struct team *team)
+{
+	struct team_port *port;
+	bool team_linkup;
+
+	if (team->user_carrier_enabled)
+		return;
+
+	team_linkup = false;
+	list_for_each_entry(port, &team->port_list, list) {
+		if (port->linkup) {
+			team_linkup = true;
+			break;
+		}
+	}
+
+	if (team_linkup)
+		netif_carrier_on(team->dev);
+	else
+		netif_carrier_off(team->dev);
+}
+
 static void __team_port_change_check(struct team_port *port, bool linkup)
 {
 	if (port->state.linkup != linkup)
 		__team_port_change_send(port, linkup);
+	__team_carrier_check(port->team);
 }
 
 static void __team_port_change_port_added(struct team_port *port, bool linkup)
 {
 	__team_port_change_send(port, linkup);
+	__team_carrier_check(port->team);
 }
 
 static void __team_port_change_port_removed(struct team_port *port)
 {
 	port->removed = true;
 	__team_port_change_send(port, false);
+	__team_carrier_check(port->team);
 }
 
 static void team_port_change_check(struct team_port *port, bool linkup)

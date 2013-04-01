@@ -28,7 +28,11 @@ obj-$(CONFIG_MXC_ULPI) += ulpi.o
 obj-$(CONFIG_MXC_USE_EPIT) += epit.o
 obj-$(CONFIG_MXC_DEBUG_BOARD) += 3ds_debugboard.o
 obj-$(CONFIG_CPU_FREQ_IMX)    += cpufreq.o
-obj-$(CONFIG_CPU_IDLE) += cpuidle.o
+
+ifeq ($(CONFIG_CPU_IDLE),y)
+obj-y += cpuidle.o
+obj-$(CONFIG_SOC_IMX6Q) += cpuidle-imx6q.o
+endif
 
 ifdef CONFIG_SND_IMX_SOC
 obj-y += ssi-fiq.o
@@ -88,7 +92,6 @@ obj-$(CONFIG_MACH_EUKREA_CPUIMX35SD) += mach-cpuimx35.o
 obj-$(CONFIG_MACH_EUKREA_MBIMXSD35_BASEBOARD) += eukrea_mbimxsd35-baseboard.o
 obj-$(CONFIG_MACH_VPR200) += mach-vpr200.o
 
-obj-$(CONFIG_DEBUG_LL) += lluart.o
 obj-$(CONFIG_HAVE_IMX_GPC) += gpc.o
 obj-$(CONFIG_HAVE_IMX_MMDC) += mmdc.o
 obj-$(CONFIG_HAVE_IMX_SRC) += src.o
@@ -103,10 +106,8 @@ endif
 
 # i.MX5 based machines
 obj-$(CONFIG_MACH_MX51_BABBAGE) += mach-mx51_babbage.o
-obj-$(CONFIG_MACH_MX51_3DS) += mach-mx51_3ds.o
 obj-$(CONFIG_MACH_EUKREA_CPUIMX51SD) += mach-cpuimx51sd.o
 obj-$(CONFIG_MACH_EUKREA_MBIMXSD51_BASEBOARD) += eukrea_mbimxsd51-baseboard.o
-obj-$(CONFIG_MACH_MX50_RDP) += mach-mx50_rdp.o
 
 obj-$(CONFIG_MACH_IMX51_DT) += imx51-dt.o
 obj-$(CONFIG_SOC_IMX53) += mach-imx53.o

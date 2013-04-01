@@ -36,12 +36,11 @@ extern int  __init at91_aic5_of_init(struct device_node *node,
 
 
  /* Timer */
-struct sys_timer;
 extern void at91rm9200_ioremap_st(u32 addr);
-extern struct sys_timer at91rm9200_timer;
+extern void at91rm9200_timer_init(void);
 extern void at91sam926x_ioremap_pit(u32 addr);
-extern struct sys_timer at91sam926x_timer;
-extern struct sys_timer at91x40_timer;
+extern void at91sam926x_pit_init(void);
+extern void at91x40_timer_init(void);
 
  /* Clocks */
 #ifdef CONFIG_AT91_PMC_UNIT

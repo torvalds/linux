@@ -319,6 +319,7 @@ il4965_rx_allocate(struct il_priv *il, gfp_t priority)
 	struct list_head *element;
 	struct il_rx_buf *rxb;
 	struct page *page;
+	dma_addr_t page_dma;
 	unsigned long flags;
 	gfp_t gfp_mask = priority;
 
@@ -356,33 +357,35 @@ il4965_rx_allocate(struct il_priv *il, gfp_t priority)
 			return;
 		}
 
+		/* Get physical address of the RB */
+		page_dma =
+		    pci_map_page(il->pci_dev, page, 0,
+				 PAGE_SIZE << il->hw_params.rx_page_order,
+				 PCI_DMA_FROMDEVICE);
+		if (unlikely(pci_dma_mapping_error(il->pci_dev, page_dma))) {
+			__free_pages(page, il->hw_params.rx_page_order);
+			break;
+		}
+
 		spin_lock_irqsave(&rxq->lock, flags);
 
 		if (list_empty(&rxq->rx_used)) {
 			spin_unlock_irqrestore(&rxq->lock, flags);
+			pci_unmap_page(il->pci_dev, page_dma,
+				       PAGE_SIZE << il->hw_params.rx_page_order,
+				       PCI_DMA_FROMDEVICE);
 			__free_pages(page, il->hw_params.rx_page_order);
 			return;
 		}
+
 		element = rxq->rx_used.next;
 		rxb = list_entry(element, struct il_rx_buf, list);
 		list_del(element);
 
-		spin_unlock_irqrestore(&rxq->lock, flags);
-
 		BUG_ON(rxb->page);
+
 		rxb->page = page;
-		/* Get physical address of the RB */
-		rxb->page_dma =
-		    pci_map_page(il->pci_dev, page, 0,
-				 PAGE_SIZE << il->hw_params.rx_page_order,
-				 PCI_DMA_FROMDEVICE);
-		/* dma address must be no more than 36 bits */
-		BUG_ON(rxb->page_dma & ~DMA_BIT_MASK(36));
-		/* and also 256 byte aligned! */
-		BUG_ON(rxb->page_dma & DMA_BIT_MASK(8));
-
-		spin_lock_irqsave(&rxq->lock, flags);
-
+		rxb->page_dma = page_dma;
 		list_add_tail(&rxb->list, &rxq->rx_free);
 		rxq->free_count++;
 		il->alloc_rxb_page++;
@@ -725,6 +728,16 @@ il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 	if (rate_n_flags & RATE_MCS_SGI_MSK)
 		rx_status.flag |= RX_FLAG_SHORT_GI;
 
+	if (phy_res->phy_flags & RX_RES_PHY_FLAGS_AGG_MSK) {
+		/* We know which subframes of an A-MPDU belong
+		 * together since we get a single PHY response
+		 * from the firmware for all of them.
+		 */
+
+		rx_status.flag |= RX_FLAG_AMPDU_DETAILS;
+		rx_status.ampdu_reference = il->_4965.ampdu_ref;
+	}
+
 	il4965_pass_packet_to_mac80211(il, header, len, ampdu_status, rxb,
 				       &rx_status);
 }
@@ -736,6 +749,7 @@ il4965_hdl_rx_phy(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	il->_4965.last_phy_res_valid = true;
+	il->_4965.ampdu_ref++;
 	memcpy(&il->_4965.last_phy_res, pkt->u.raw,
 	       sizeof(struct il_rx_phy_res));
 }
@@ -1779,8 +1793,7 @@ il4965_tx_skb(struct il_priv *il,
 	memcpy(tx_cmd->hdr, hdr, hdr_len);
 
 	/* Total # bytes to be transmitted */
-	len = (u16) skb->len;
-	tx_cmd->len = cpu_to_le16(len);
+	tx_cmd->len = cpu_to_le16((u16) skb->len);
 
 	if (info->control.hw_key)
 		il4965_tx_cmd_build_hwcrypto(il, info, tx_cmd, skb, sta_id);
@@ -1790,7 +1803,6 @@ il4965_tx_skb(struct il_priv *il,
 
 	il4965_tx_cmd_build_rate(il, tx_cmd, info, sta, fc);
 
-	il_update_stats(il, true, fc, len);
 	/*
 	 * Use the first empty entry in this queue's command buffer array
 	 * to contain the Tx command and MAC header concatenated together
@@ -1812,18 +1824,8 @@ il4965_tx_skb(struct il_priv *il,
 	txcmd_phys =
 	    pci_map_single(il->pci_dev, &out_cmd->hdr, firstlen,
 			   PCI_DMA_BIDIRECTIONAL);
-	dma_unmap_addr_set(out_meta, mapping, txcmd_phys);
-	dma_unmap_len_set(out_meta, len, firstlen);
-	/* Add buffer containing Tx command and MAC(!) header to TFD's
-	 * first entry */
-	il->ops->txq_attach_buf_to_tfd(il, txq, txcmd_phys, firstlen, 1, 0);
-
-	if (!ieee80211_has_morefrags(hdr->frame_control)) {
-		txq->need_update = 1;
-	} else {
-		wait_write_ptr = 1;
-		txq->need_update = 0;
-	}
+	if (unlikely(pci_dma_mapping_error(il->pci_dev, txcmd_phys)))
+		goto drop_unlock;
 
 	/* Set up TFD's 2nd entry to point directly to remainder of skb,
 	 * if any (802.11 null frames have no payload). */
@@ -1832,8 +1834,24 @@ il4965_tx_skb(struct il_priv *il,
 		phys_addr =
 		    pci_map_single(il->pci_dev, skb->data + hdr_len, secondlen,
 				   PCI_DMA_TODEVICE);
+		if (unlikely(pci_dma_mapping_error(il->pci_dev, phys_addr)))
+			goto drop_unlock;
+	}
+
+	/* Add buffer containing Tx command and MAC(!) header to TFD's
+	 * first entry */
+	il->ops->txq_attach_buf_to_tfd(il, txq, txcmd_phys, firstlen, 1, 0);
+	dma_unmap_addr_set(out_meta, mapping, txcmd_phys);
+	dma_unmap_len_set(out_meta, len, firstlen);
+	if (secondlen)
 		il->ops->txq_attach_buf_to_tfd(il, txq, phys_addr, secondlen,
 					       0, 0);
+
+	if (!ieee80211_has_morefrags(hdr->frame_control)) {
+		txq->need_update = 1;
+	} else {
+		wait_write_ptr = 1;
+		txq->need_update = 0;
 	}
 
 	scratch_phys =
@@ -1845,6 +1863,8 @@ il4965_tx_skb(struct il_priv *il,
 				    PCI_DMA_BIDIRECTIONAL);
 	tx_cmd->dram_lsb_ptr = cpu_to_le32(scratch_phys);
 	tx_cmd->dram_msb_ptr = il_get_dma_hi_addr(scratch_phys);
+
+	il_update_stats(il, true, fc, skb->len);
 
 	D_TX("sequence nr = 0X%x\n", le16_to_cpu(out_cmd->hdr.sequence));
 	D_TX("tx_flags = 0X%x\n", le32_to_cpu(tx_cmd->tx_flags));
@@ -4281,8 +4301,16 @@ il4965_rx_handle(struct il_priv *il)
 			    pci_map_page(il->pci_dev, rxb->page, 0,
 					 PAGE_SIZE << il->hw_params.
 					 rx_page_order, PCI_DMA_FROMDEVICE);
-			list_add_tail(&rxb->list, &rxq->rx_free);
-			rxq->free_count++;
+
+			if (unlikely(pci_dma_mapping_error(il->pci_dev,
+							   rxb->page_dma))) {
+				__il_free_pages(il, rxb->page);
+				rxb->page = NULL;
+				list_add_tail(&rxb->list, &rxq->rx_used);
+			} else {
+				list_add_tail(&rxb->list, &rxq->rx_free);
+				rxq->free_count++;
+			}
 		} else
 			list_add_tail(&rxb->list, &rxq->rx_used);
 
@@ -5711,9 +5739,9 @@ il4965_mac_setup_register(struct il_priv *il, u32 max_probe_length)
 	/* Tell mac80211 our characteristics */
 	hw->flags =
 	    IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_AMPDU_AGGREGATION |
-	    IEEE80211_HW_NEED_DTIM_PERIOD | IEEE80211_HW_SPECTRUM_MGMT |
-	    IEEE80211_HW_REPORTS_TX_ACK_STATUS;
-
+	    IEEE80211_HW_NEED_DTIM_BEFORE_ASSOC | IEEE80211_HW_SPECTRUM_MGMT |
+	    IEEE80211_HW_REPORTS_TX_ACK_STATUS | IEEE80211_HW_SUPPORTS_PS |
+	    IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 	if (il->cfg->sku & IL_SKU_N)
 		hw->flags |=
 		    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
@@ -5968,7 +5996,9 @@ il4965_mac_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		D_HT("start Tx\n");
 		ret = il4965_tx_agg_start(il, vif, sta, tid, ssn);
 		break;
-	case IEEE80211_AMPDU_TX_STOP:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		D_HT("stop Tx\n");
 		ret = il4965_tx_agg_stop(il, vif, sta, tid);
 		if (test_bit(S_EXIT_PENDING, &il->status))
@@ -6306,6 +6336,7 @@ const struct ieee80211_ops il4965_mac_ops = {
 	.sta_remove = il_mac_sta_remove,
 	.channel_switch = il4965_mac_channel_switch,
 	.tx_last_beacon = il_mac_tx_last_beacon,
+	.flush = il_mac_flush,
 };
 
 static int
@@ -6553,6 +6584,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	il4965_prepare_card_hw(il);
 	if (!il->hw_ready) {
 		IL_WARN("Failed, HW not ready\n");
+		err = -EIO;
 		goto out_iounmap;
 	}
 
@@ -6566,9 +6598,6 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_iounmap;
 	}
 	err = il4965_eeprom_check_version(il);
-	if (err)
-		goto out_free_eeprom;
-
 	if (err)
 		goto out_free_eeprom;
 

@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -236,7 +236,7 @@ acpi_evaluate_object(acpi_handle handle,
 	 * 2) No handle, not fully qualified pathname (error)
 	 * 3) Valid handle
 	 */
-	if ((pathname) && (acpi_ns_valid_root_prefix(pathname[0]))) {
+	if ((pathname) && (ACPI_IS_ROOT_PREFIX(pathname[0]))) {
 
 		/* The path is fully qualified, just evaluate by name */
 
@@ -492,7 +492,7 @@ acpi_walk_namespace(acpi_object_type type,
 	 */
 	status = acpi_ut_acquire_read_lock(&acpi_gbl_namespace_rw_lock);
 	if (ACPI_FAILURE(status)) {
-		return status;
+		return_ACPI_STATUS(status);
 	}
 
 	/*
@@ -550,7 +550,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+		return (status);
 	}
 
 	node = acpi_ns_validate_handle(obj_handle);
@@ -602,17 +602,22 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 
 			/* Walk the CID list */
 
-			found = 0;
+			found = FALSE;
 			for (i = 0; i < cid->count; i++) {
 				if (ACPI_STRCMP(cid->ids[i].string, info->hid)
 				    == 0) {
-					found = 1;
+
+					/* Found a matching CID */
+
+					found = TRUE;
 					break;
 				}
 			}
+
 			ACPI_FREE(cid);
-			if (!found)
+			if (!found) {
 				return (AE_OK);
+			}
 		}
 	}
 

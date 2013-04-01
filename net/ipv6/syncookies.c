@@ -179,7 +179,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	memset(&tcp_opt, 0, sizeof(tcp_opt));
 	tcp_parse_options(skb, &tcp_opt, &hash_location, 0, NULL);
 
-	if (!cookie_check_timestamp(&tcp_opt, &ecn_ok))
+	if (!cookie_check_timestamp(&tcp_opt, sock_net(sk), &ecn_ok))
 		goto out;
 
 	ret = NULL;

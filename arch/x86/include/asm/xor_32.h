@@ -2,7 +2,7 @@
 #define _ASM_X86_XOR_32_H
 
 /*
- * Optimized RAID-5 checksumming functions for MMX and SSE.
+ * Optimized RAID-5 checksumming functions for MMX.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -529,290 +529,6 @@ static struct xor_block_template xor_block_p5_mmx = {
 	.do_5 = xor_p5_mmx_5,
 };
 
-/*
- * Cache avoiding checksumming functions utilizing KNI instructions
- * Copyright (C) 1999 Zach Brown (with obvious credit due Ingo)
- */
-
-#define OFFS(x)		"16*("#x")"
-#define PF_OFFS(x)	"256+16*("#x")"
-#define	PF0(x)		"	prefetchnta "PF_OFFS(x)"(%1)		;\n"
-#define LD(x, y)	"       movaps   "OFFS(x)"(%1), %%xmm"#y"	;\n"
-#define ST(x, y)	"       movaps %%xmm"#y",   "OFFS(x)"(%1)	;\n"
-#define PF1(x)		"	prefetchnta "PF_OFFS(x)"(%2)		;\n"
-#define PF2(x)		"	prefetchnta "PF_OFFS(x)"(%3)		;\n"
-#define PF3(x)		"	prefetchnta "PF_OFFS(x)"(%4)		;\n"
-#define PF4(x)		"	prefetchnta "PF_OFFS(x)"(%5)		;\n"
-#define PF5(x)		"	prefetchnta "PF_OFFS(x)"(%6)		;\n"
-#define XO1(x, y)	"       xorps   "OFFS(x)"(%2), %%xmm"#y"	;\n"
-#define XO2(x, y)	"       xorps   "OFFS(x)"(%3), %%xmm"#y"	;\n"
-#define XO3(x, y)	"       xorps   "OFFS(x)"(%4), %%xmm"#y"	;\n"
-#define XO4(x, y)	"       xorps   "OFFS(x)"(%5), %%xmm"#y"	;\n"
-#define XO5(x, y)	"       xorps   "OFFS(x)"(%6), %%xmm"#y"	;\n"
-
-
-static void
-xor_sse_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
-{
-	unsigned long lines = bytes >> 8;
-
-	kernel_fpu_begin();
-
-	asm volatile(
-#undef BLOCK
-#define BLOCK(i)					\
-		LD(i, 0)				\
-			LD(i + 1, 1)			\
-		PF1(i)					\
-				PF1(i + 2)		\
-				LD(i + 2, 2)		\
-					LD(i + 3, 3)	\
-		PF0(i + 4)				\
-				PF0(i + 6)		\
-		XO1(i, 0)				\
-			XO1(i + 1, 1)			\
-				XO1(i + 2, 2)		\
-					XO1(i + 3, 3)	\
-		ST(i, 0)				\
-			ST(i + 1, 1)			\
-				ST(i + 2, 2)		\
-					ST(i + 3, 3)	\
-
-
-		PF0(0)
-				PF0(2)
-
-	" .align 32			;\n"
-	" 1:                            ;\n"
-
-		BLOCK(0)
-		BLOCK(4)
-		BLOCK(8)
-		BLOCK(12)
-
-	"       addl $256, %1           ;\n"
-	"       addl $256, %2           ;\n"
-	"       decl %0                 ;\n"
-	"       jnz 1b                  ;\n"
-	: "+r" (lines),
-	  "+r" (p1), "+r" (p2)
-	:
-	: "memory");
-
-	kernel_fpu_end();
-}
-
-static void
-xor_sse_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	  unsigned long *p3)
-{
-	unsigned long lines = bytes >> 8;
-
-	kernel_fpu_begin();
-
-	asm volatile(
-#undef BLOCK
-#define BLOCK(i) \
-		PF1(i)					\
-				PF1(i + 2)		\
-		LD(i,0)					\
-			LD(i + 1, 1)			\
-				LD(i + 2, 2)		\
-					LD(i + 3, 3)	\
-		PF2(i)					\
-				PF2(i + 2)		\
-		PF0(i + 4)				\
-				PF0(i + 6)		\
-		XO1(i,0)				\
-			XO1(i + 1, 1)			\
-				XO1(i + 2, 2)		\
-					XO1(i + 3, 3)	\
-		XO2(i,0)				\
-			XO2(i + 1, 1)			\
-				XO2(i + 2, 2)		\
-					XO2(i + 3, 3)	\
-		ST(i,0)					\
-			ST(i + 1, 1)			\
-				ST(i + 2, 2)		\
-					ST(i + 3, 3)	\
-
-
-		PF0(0)
-				PF0(2)
-
-	" .align 32			;\n"
-	" 1:                            ;\n"
-
-		BLOCK(0)
-		BLOCK(4)
-		BLOCK(8)
-		BLOCK(12)
-
-	"       addl $256, %1           ;\n"
-	"       addl $256, %2           ;\n"
-	"       addl $256, %3           ;\n"
-	"       decl %0                 ;\n"
-	"       jnz 1b                  ;\n"
-	: "+r" (lines),
-	  "+r" (p1), "+r"(p2), "+r"(p3)
-	:
-	: "memory" );
-
-	kernel_fpu_end();
-}
-
-static void
-xor_sse_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	  unsigned long *p3, unsigned long *p4)
-{
-	unsigned long lines = bytes >> 8;
-
-	kernel_fpu_begin();
-
-	asm volatile(
-#undef BLOCK
-#define BLOCK(i) \
-		PF1(i)					\
-				PF1(i + 2)		\
-		LD(i,0)					\
-			LD(i + 1, 1)			\
-				LD(i + 2, 2)		\
-					LD(i + 3, 3)	\
-		PF2(i)					\
-				PF2(i + 2)		\
-		XO1(i,0)				\
-			XO1(i + 1, 1)			\
-				XO1(i + 2, 2)		\
-					XO1(i + 3, 3)	\
-		PF3(i)					\
-				PF3(i + 2)		\
-		PF0(i + 4)				\
-				PF0(i + 6)		\
-		XO2(i,0)				\
-			XO2(i + 1, 1)			\
-				XO2(i + 2, 2)		\
-					XO2(i + 3, 3)	\
-		XO3(i,0)				\
-			XO3(i + 1, 1)			\
-				XO3(i + 2, 2)		\
-					XO3(i + 3, 3)	\
-		ST(i,0)					\
-			ST(i + 1, 1)			\
-				ST(i + 2, 2)		\
-					ST(i + 3, 3)	\
-
-
-		PF0(0)
-				PF0(2)
-
-	" .align 32			;\n"
-	" 1:                            ;\n"
-
-		BLOCK(0)
-		BLOCK(4)
-		BLOCK(8)
-		BLOCK(12)
-
-	"       addl $256, %1           ;\n"
-	"       addl $256, %2           ;\n"
-	"       addl $256, %3           ;\n"
-	"       addl $256, %4           ;\n"
-	"       decl %0                 ;\n"
-	"       jnz 1b                  ;\n"
-	: "+r" (lines),
-	  "+r" (p1), "+r" (p2), "+r" (p3), "+r" (p4)
-	:
-	: "memory" );
-
-	kernel_fpu_end();
-}
-
-static void
-xor_sse_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-	  unsigned long *p3, unsigned long *p4, unsigned long *p5)
-{
-	unsigned long lines = bytes >> 8;
-
-	kernel_fpu_begin();
-
-	/* Make sure GCC forgets anything it knows about p4 or p5,
-	   such that it won't pass to the asm volatile below a
-	   register that is shared with any other variable.  That's
-	   because we modify p4 and p5 there, but we can't mark them
-	   as read/write, otherwise we'd overflow the 10-asm-operands
-	   limit of GCC < 3.1.  */
-	asm("" : "+r" (p4), "+r" (p5));
-
-	asm volatile(
-#undef BLOCK
-#define BLOCK(i) \
-		PF1(i)					\
-				PF1(i + 2)		\
-		LD(i,0)					\
-			LD(i + 1, 1)			\
-				LD(i + 2, 2)		\
-					LD(i + 3, 3)	\
-		PF2(i)					\
-				PF2(i + 2)		\
-		XO1(i,0)				\
-			XO1(i + 1, 1)			\
-				XO1(i + 2, 2)		\
-					XO1(i + 3, 3)	\
-		PF3(i)					\
-				PF3(i + 2)		\
-		XO2(i,0)				\
-			XO2(i + 1, 1)			\
-				XO2(i + 2, 2)		\
-					XO2(i + 3, 3)	\
-		PF4(i)					\
-				PF4(i + 2)		\
-		PF0(i + 4)				\
-				PF0(i + 6)		\
-		XO3(i,0)				\
-			XO3(i + 1, 1)			\
-				XO3(i + 2, 2)		\
-					XO3(i + 3, 3)	\
-		XO4(i,0)				\
-			XO4(i + 1, 1)			\
-				XO4(i + 2, 2)		\
-					XO4(i + 3, 3)	\
-		ST(i,0)					\
-			ST(i + 1, 1)			\
-				ST(i + 2, 2)		\
-					ST(i + 3, 3)	\
-
-
-		PF0(0)
-				PF0(2)
-
-	" .align 32			;\n"
-	" 1:                            ;\n"
-
-		BLOCK(0)
-		BLOCK(4)
-		BLOCK(8)
-		BLOCK(12)
-
-	"       addl $256, %1           ;\n"
-	"       addl $256, %2           ;\n"
-	"       addl $256, %3           ;\n"
-	"       addl $256, %4           ;\n"
-	"       addl $256, %5           ;\n"
-	"       decl %0                 ;\n"
-	"       jnz 1b                  ;\n"
-	: "+r" (lines),
-	  "+r" (p1), "+r" (p2), "+r" (p3)
-	: "r" (p4), "r" (p5)
-	: "memory");
-
-	/* p4 and p5 were modified, and now the variables are dead.
-	   Clobber them just to be sure nobody does something stupid
-	   like assuming they have some legal value.  */
-	asm("" : "=r" (p4), "=r" (p5));
-
-	kernel_fpu_end();
-}
-
 static struct xor_block_template xor_block_pIII_sse = {
 	.name = "pIII_sse",
 	.do_2 = xor_sse_2,
@@ -827,26 +543,25 @@ static struct xor_block_template xor_block_pIII_sse = {
 /* Also try the generic routines.  */
 #include <asm-generic/xor.h>
 
-#undef XOR_TRY_TEMPLATES
-#define XOR_TRY_TEMPLATES				\
-do {							\
-	xor_speed(&xor_block_8regs);			\
-	xor_speed(&xor_block_8regs_p);			\
-	xor_speed(&xor_block_32regs);			\
-	xor_speed(&xor_block_32regs_p);			\
-	AVX_XOR_SPEED;					\
-	if (cpu_has_xmm)				\
-		xor_speed(&xor_block_pIII_sse);		\
-	if (cpu_has_mmx) {				\
-		xor_speed(&xor_block_pII_mmx);		\
-		xor_speed(&xor_block_p5_mmx);		\
-	}						\
-} while (0)
-
 /* We force the use of the SSE xor block because it can write around L2.
    We may also be able to load into the L1 only depending on how the cpu
    deals with a load to a line that is being prefetched.  */
-#define XOR_SELECT_TEMPLATE(FASTEST)			\
-	AVX_SELECT(cpu_has_xmm ? &xor_block_pIII_sse : FASTEST)
+#undef XOR_TRY_TEMPLATES
+#define XOR_TRY_TEMPLATES				\
+do {							\
+	AVX_XOR_SPEED;					\
+	if (cpu_has_xmm) {				\
+		xor_speed(&xor_block_pIII_sse);		\
+		xor_speed(&xor_block_sse_pf64);		\
+	} else if (cpu_has_mmx) {			\
+		xor_speed(&xor_block_pII_mmx);		\
+		xor_speed(&xor_block_p5_mmx);		\
+	} else {					\
+		xor_speed(&xor_block_8regs);		\
+		xor_speed(&xor_block_8regs_p);		\
+		xor_speed(&xor_block_32regs);		\
+		xor_speed(&xor_block_32regs_p);		\
+	}						\
+} while (0)
 
 #endif /* _ASM_X86_XOR_32_H */

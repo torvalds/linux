@@ -499,6 +499,28 @@ void __init kirkwood_wdt_init(void)
 	orion_wdt_init();
 }
 
+/*****************************************************************************
+ * CPU idle
+ ****************************************************************************/
+static struct resource kirkwood_cpuidle_resource[] = {
+	{
+		.flags	= IORESOURCE_MEM,
+		.start	= DDR_OPERATION_BASE,
+		.end	= DDR_OPERATION_BASE + 3,
+	},
+};
+
+static struct platform_device kirkwood_cpuidle = {
+	.name		= "kirkwood_cpuidle",
+	.id		= -1,
+	.resource	= kirkwood_cpuidle_resource,
+	.num_resources	= 1,
+};
+
+void __init kirkwood_cpuidle_init(void)
+{
+	platform_device_register(&kirkwood_cpuidle);
+}
 
 /*****************************************************************************
  * Time handling
@@ -530,17 +552,13 @@ static int __init kirkwood_find_tclk(void)
 	return 166666667;
 }
 
-static void __init kirkwood_timer_init(void)
+void __init kirkwood_timer_init(void)
 {
 	kirkwood_tclk = kirkwood_find_tclk();
 
 	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_KIRKWOOD_BRIDGE, kirkwood_tclk);
 }
-
-struct sys_timer kirkwood_timer = {
-	.init = kirkwood_timer_init,
-};
 
 /*****************************************************************************
  * Audio
@@ -671,6 +689,7 @@ void __init kirkwood_init(void)
 	kirkwood_xor1_init();
 	kirkwood_crypto_init();
 
+	kirkwood_cpuidle_init();
 #ifdef CONFIG_KEXEC
 	kexec_reinit = kirkwood_enable_pcie;
 #endif

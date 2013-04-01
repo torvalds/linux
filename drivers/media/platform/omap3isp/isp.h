@@ -147,7 +147,6 @@ struct isp_platform_callback {
  * @ref_count: Reference count for handling multiple ISP requests.
  * @cam_ick: Pointer to camera interface clock structure.
  * @cam_mclk: Pointer to camera functional clock structure.
- * @dpll4_m5_ck: Pointer to DPLL4 M5 clock structure.
  * @csi2_fck: Pointer to camera CSI2 complexIO clock structure.
  * @l3_ick: Pointer to OMAP3 L3 bus interface clock.
  * @irq: Currently attached ISP ISR callbacks information structure.
@@ -189,10 +188,9 @@ struct isp_device {
 	u32 xclk_divisor[2];	/* Two clocks, a and b. */
 #define ISP_CLK_CAM_ICK		0
 #define ISP_CLK_CAM_MCLK	1
-#define ISP_CLK_DPLL4_M5_CK	2
-#define ISP_CLK_CSI2_FCK	3
-#define ISP_CLK_L3_ICK		4
-	struct clk *clock[5];
+#define ISP_CLK_CSI2_FCK	2
+#define ISP_CLK_L3_ICK		3
+	struct clk *clock[4];
 
 	/* ISP modules */
 	struct ispstat isp_af;

@@ -1748,7 +1748,6 @@ static void
 il4965_post_associate(struct il_priv *il)
 {
 	struct ieee80211_vif *vif = il->vif;
-	struct ieee80211_conf *conf = NULL;
 	int ret = 0;
 
 	if (!vif || !il->is_open)
@@ -1758,8 +1757,6 @@ il4965_post_associate(struct il_priv *il)
 		return;
 
 	il_scan_cancel_timeout(il, 200);
-
-	conf = &il->hw->conf;
 
 	il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	il_commit_rxon(il);

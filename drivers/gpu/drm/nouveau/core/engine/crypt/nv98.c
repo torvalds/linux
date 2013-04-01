@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 
+#include <core/client.h>
 #include <core/os.h>
 #include <core/enum.h>
 #include <core/class.h>
@@ -102,8 +103,9 @@ nv98_crypt_intr(struct nouveau_subdev *subdev)
 	if (stat & 0x00000040) {
 		nv_error(priv, "DISPATCH_ERROR [");
 		nouveau_enum_print(nv98_crypt_isr_error_name, ssta);
-		printk("] ch %d [0x%010llx] subc %d mthd 0x%04x data 0x%08x\n",
-		       chid, (u64)inst << 12, subc, mthd, data);
+		pr_cont("] ch %d [0x%010llx %s] subc %d mthd 0x%04x data 0x%08x\n",
+		       chid, (u64)inst << 12, nouveau_client_name(engctx),
+		       subc, mthd, data);
 		nv_wr32(priv, 0x087004, 0x00000040);
 		stat &= ~0x00000040;
 	}

@@ -326,7 +326,7 @@ static int sh_dmae_set_slave(struct shdma_chan *schan,
 						    shdma_chan);
 	const struct sh_dmae_slave_config *cfg = dmae_find_slave(sh_chan, slave_id);
 	if (!cfg)
-		return -ENODEV;
+		return -ENXIO;
 
 	if (!try)
 		sh_chan->config = cfg;

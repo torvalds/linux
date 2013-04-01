@@ -42,6 +42,8 @@
  * SOFTWARE.
  */
 
+#include <linux/linkage.h>
+
 ## ISCSI CRC 32 Implementation with crc32 and pclmulqdq Instruction
 
 .macro LABEL prefix n
@@ -68,8 +70,7 @@
 
 # unsigned int crc_pcl(u8 *buffer, int len, unsigned int crc_init);
 
-.global crc_pcl
-crc_pcl:
+ENTRY(crc_pcl)
 #define    bufp		%rdi
 #define    bufp_dw	%edi
 #define    bufp_w	%di
@@ -323,6 +324,9 @@ JMPTBL_ENTRY %i
 .noaltmacro
 	i=i+1
 .endr
+
+ENDPROC(crc_pcl)
+
 	################################################################
 	## PCLMULQDQ tables
 	## Table is 128 entries x 2 quad words each

@@ -811,11 +811,10 @@ static struct pernet_operations inet6_net_ops = {
 
 static int __init inet6_init(void)
 {
-	struct sk_buff *dummy_skb;
 	struct list_head *r;
 	int err = 0;
 
-	BUILD_BUG_ON(sizeof(struct inet6_skb_parm) > sizeof(dummy_skb->cb));
+	BUILD_BUG_ON(sizeof(struct inet6_skb_parm) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	/* Register the socket-side information for inet6_create.  */
 	for (r = &inetsw6[0]; r < &inetsw6[SOCK_MAX]; ++r)

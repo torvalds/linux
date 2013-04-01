@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portionhelp of the ieee80211 subsystem header files.
@@ -790,7 +790,7 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
 
-	ieee80211_rx(priv->hw, skb);
+	ieee80211_rx_ni(priv->hw, skb);
 }
 
 static u32 iwlagn_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)

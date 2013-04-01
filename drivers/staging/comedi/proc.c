@@ -33,7 +33,6 @@
 #include <linux/proc_fs.h>
 #include <linux/string.h>
 
-#ifdef CONFIG_PROC_FS
 static int comedi_read(char *buf, char **start, off_t offset, int len,
 		       int *eof, void *data)
 {
@@ -49,13 +48,10 @@ static int comedi_read(char *buf, char **start, off_t offset, int len,
 		     "driver_name, board_name, n_subdevices");
 
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
-		struct comedi_device_file_info *dev_file_info =
-		    comedi_get_device_file_info(i);
-		struct comedi_device *dev;
+		struct comedi_device *dev = comedi_dev_from_minor(i);
 
-		if (dev_file_info == NULL)
+		if (!dev)
 			continue;
-		dev = dev_file_info->device;
 
 		if (dev->attached) {
 			devices_q = 1;
@@ -95,4 +91,3 @@ void comedi_proc_cleanup(void)
 {
 	remove_proc_entry("comedi", NULL);
 }
-#endif

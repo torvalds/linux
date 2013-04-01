@@ -314,16 +314,31 @@ static void __update_mmu_tsb_insert(struct mm_struct *mm, unsigned long tsb_inde
 	struct tsb *tsb = mm->context.tsb_block[tsb_index].tsb;
 	unsigned long tag;
 
+	if (unlikely(!tsb))
+		return;
+
 	tsb += ((address >> tsb_hash_shift) &
 		(mm->context.tsb_block[tsb_index].tsb_nentries - 1UL));
 	tag = (address >> 22UL);
 	tsb_insert(tsb, tag, tte);
 }
 
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
+static inline bool is_hugetlb_pte(pte_t pte)
+{
+	if ((tlb_type == hypervisor &&
+	     (pte_val(pte) & _PAGE_SZALL_4V) == _PAGE_SZHUGE_4V) ||
+	    (tlb_type != hypervisor &&
+	     (pte_val(pte) & _PAGE_SZALL_4U) == _PAGE_SZHUGE_4U))
+		return true;
+	return false;
+}
+#endif
+
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
-	unsigned long tsb_index, tsb_hash_shift, flags;
 	struct mm_struct *mm;
+	unsigned long flags;
 	pte_t pte = *ptep;
 
 	if (tlb_type != hypervisor) {
@@ -335,25 +350,16 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *
 
 	mm = vma->vm_mm;
 
-	tsb_index = MM_TSB_BASE;
-	tsb_hash_shift = PAGE_SHIFT;
-
 	spin_lock_irqsave(&mm->context.lock, flags);
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-	if (mm->context.tsb_block[MM_TSB_HUGE].tsb != NULL) {
-		if ((tlb_type == hypervisor &&
-		     (pte_val(pte) & _PAGE_SZALL_4V) == _PAGE_SZHUGE_4V) ||
-		    (tlb_type != hypervisor &&
-		     (pte_val(pte) & _PAGE_SZALL_4U) == _PAGE_SZHUGE_4U)) {
-			tsb_index = MM_TSB_HUGE;
-			tsb_hash_shift = HPAGE_SHIFT;
-		}
-	}
+	if (mm->context.huge_pte_count && is_hugetlb_pte(pte))
+		__update_mmu_tsb_insert(mm, MM_TSB_HUGE, HPAGE_SHIFT,
+					address, pte_val(pte));
+	else
 #endif
-
-	__update_mmu_tsb_insert(mm, tsb_index, tsb_hash_shift,
-				address, pte_val(pte));
+		__update_mmu_tsb_insert(mm, MM_TSB_BASE, PAGE_SHIFT,
+					address, pte_val(pte));
 
 	spin_unlock_irqrestore(&mm->context.lock, flags);
 }
@@ -2021,6 +2027,16 @@ static void __init patch_tlb_miss_handler_bitmap(void)
 	flushi(&valid_addr_bitmap_insn[0]);
 }
 
+static void __init register_page_bootmem_info(void)
+{
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+	int i;
+
+	for_each_online_node(i)
+		if (NODE_DATA(i)->node_spanned_pages)
+			register_page_bootmem_info_node(NODE_DATA(i));
+#endif
+}
 void __init mem_init(void)
 {
 	unsigned long codepages, datapages, initpages;
@@ -2038,20 +2054,8 @@ void __init mem_init(void)
 
 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
 
-#ifdef CONFIG_NEED_MULTIPLE_NODES
-	{
-		int i;
-		for_each_online_node(i) {
-			if (NODE_DATA(i)->node_spanned_pages != 0) {
-				totalram_pages +=
-					free_all_bootmem_node(NODE_DATA(i));
-			}
-		}
-		totalram_pages += free_low_memory_core_early(MAX_NUMNODES);
-	}
-#else
+	register_page_bootmem_info();
 	totalram_pages = free_all_bootmem();
-#endif
 
 	/* We subtract one to account for the mem_map_zero page
 	 * allocated below.
@@ -2231,6 +2235,11 @@ void __meminit vmemmap_populate_print_last(void)
 		node_start = 0;
 	}
 }
+
+void vmemmap_free(struct page *memmap, unsigned long nr_pages)
+{
+}
+
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
 static void prot_init_common(unsigned long page_none,
@@ -2712,14 +2721,28 @@ static void context_reload(void *__data)
 		load_secondary_context(mm);
 }
 
-void hugetlb_setup(struct mm_struct *mm)
+void hugetlb_setup(struct pt_regs *regs)
 {
-	struct tsb_config *tp = &mm->context.tsb_block[MM_TSB_HUGE];
+	struct mm_struct *mm = current->mm;
+	struct tsb_config *tp;
 
-	if (likely(tp->tsb != NULL))
-		return;
+	if (in_atomic() || !mm) {
+		const struct exception_table_entry *entry;
 
-	tsb_grow(mm, MM_TSB_HUGE, 0);
+		entry = search_exception_tables(regs->tpc);
+		if (entry) {
+			regs->tpc = entry->fixup;
+			regs->tnpc = regs->tpc + 4;
+			return;
+		}
+		pr_alert("Unexpected HugeTLB setup in atomic context.\n");
+		die_if_kernel("HugeTSB in atomic", regs);
+	}
+
+	tp = &mm->context.tsb_block[MM_TSB_HUGE];
+	if (likely(tp->tsb == NULL))
+		tsb_grow(mm, MM_TSB_HUGE, 0);
+
 	tsb_context_switch(mm);
 	smp_tsb_sync(mm);
 

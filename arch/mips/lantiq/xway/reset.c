@@ -78,10 +78,19 @@ static struct ltq_xrx200_gphy_reset {
 /* reset and boot a gphy. these phys only exist on xrx200 SoC */
 int xrx200_gphy_boot(struct device *dev, unsigned int id, dma_addr_t dev_addr)
 {
+	struct clk *clk;
+
 	if (!of_device_is_compatible(ltq_rcu_np, "lantiq,rcu-xrx200")) {
 		dev_err(dev, "this SoC has no GPHY\n");
 		return -EINVAL;
 	}
+
+	clk = clk_get_sys("1f203000.rcu", "gphy");
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	clk_enable(clk);
+
 	if (id > 1) {
 		dev_err(dev, "%u is an invalid gphy id\n", id);
 		return -EINVAL;

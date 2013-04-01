@@ -335,7 +335,8 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 	if (dropped)
 		acked = false;
 
-	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX) {
+	if (info->flags & (IEEE80211_TX_INTFL_NL80211_FRAME_TX |
+			   IEEE80211_TX_INTFL_MLME_CONN_TX)) {
 		struct ieee80211_sub_if_data *sdata = NULL;
 		struct ieee80211_sub_if_data *iter_sdata;
 		u64 cookie = (unsigned long)skb;
@@ -357,10 +358,13 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 			sdata = rcu_dereference(local->p2p_sdata);
 		}
 
-		if (!sdata)
+		if (!sdata) {
 			skb->dev = NULL;
-		else if (ieee80211_is_nullfunc(hdr->frame_control) ||
-			 ieee80211_is_qos_nullfunc(hdr->frame_control)) {
+		} else if (info->flags & IEEE80211_TX_INTFL_MLME_CONN_TX) {
+			ieee80211_mgd_conn_tx_status(sdata, hdr->frame_control,
+						     acked);
+		} else if (ieee80211_is_nullfunc(hdr->frame_control) ||
+			   ieee80211_is_qos_nullfunc(hdr->frame_control)) {
 			cfg80211_probe_status(sdata->dev, hdr->addr1,
 					      cookie, acked, GFP_ATOMIC);
 		} else {
@@ -468,6 +472,13 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			return;
 		}
 
+		/* mesh Peer Service Period support */
+		if (ieee80211_vif_is_mesh(&sta->sdata->vif) &&
+		    ieee80211_is_data_qos(fc))
+			ieee80211_mpsp_trigger_process(
+					ieee80211_get_qos_ctl(hdr),
+					sta, true, acked);
+
 		if ((local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL) &&
 		    (rates_idx != -1))
 			sta->last_tx_rate = info->status.rates[rates_idx];
@@ -502,11 +513,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 				       IEEE80211_BAR_CTRL_TID_INFO_MASK) >>
 				      IEEE80211_BAR_CTRL_TID_INFO_SHIFT;
 
-				if (local->hw.flags &
-				    IEEE80211_HW_TEARDOWN_AGGR_ON_BAR_FAIL)
-					ieee80211_stop_tx_ba_session(&sta->sta, tid);
-				else
-					ieee80211_set_bar_pending(sta, tid, ssn);
+				ieee80211_set_bar_pending(sta, tid, ssn);
 			}
 		}
 

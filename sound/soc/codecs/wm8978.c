@@ -166,15 +166,15 @@ static const struct snd_kcontrol_new wm8978_snd_controls[] = {
 	SOC_ENUM("EQ1 Cut Off", eq1),
 	SOC_SINGLE_TLV("EQ1 Volume", WM8978_EQ1,  0, 24, 1, eq_tlv),
 
-	SOC_ENUM("Equaliser EQ2 Bandwith", eq2bw),
+	SOC_ENUM("Equaliser EQ2 Bandwidth", eq2bw),
 	SOC_ENUM("EQ2 Cut Off", eq2),
 	SOC_SINGLE_TLV("EQ2 Volume", WM8978_EQ2,  0, 24, 1, eq_tlv),
 
-	SOC_ENUM("Equaliser EQ3 Bandwith", eq3bw),
+	SOC_ENUM("Equaliser EQ3 Bandwidth", eq3bw),
 	SOC_ENUM("EQ3 Cut Off", eq3),
 	SOC_SINGLE_TLV("EQ3 Volume", WM8978_EQ3,  0, 24, 1, eq_tlv),
 
-	SOC_ENUM("Equaliser EQ4 Bandwith", eq4bw),
+	SOC_ENUM("Equaliser EQ4 Bandwidth", eq4bw),
 	SOC_ENUM("EQ4 Cut Off", eq4),
 	SOC_SINGLE_TLV("EQ4 Volume", WM8978_EQ4,  0, 24, 1, eq_tlv),
 

@@ -185,7 +185,7 @@ static int BcmFileDownload(struct bcm_mini_adapter *Adapter, const char *path, u
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Unable to Open %s\n", path);
 		return -ENOENT;
 	}
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Opened file is = %s and length =0x%lx to be downloaded at =0x%x", path, (unsigned long)flp->f_dentry->d_inode->i_size, loc);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Opened file is = %s and length =0x%lx to be downloaded at =0x%x", path, (unsigned long)file_inode(flp)->i_size, loc);
 	do_gettimeofday(&tv);
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "download start %lx", ((tv.tv_sec * 1000) + (tv.tv_usec / 1000)));
@@ -956,7 +956,7 @@ int InitCardAndDownloadFirmware(struct bcm_mini_adapter *ps_adapter)
 	/* Download cfg file */
 	status = buffDnldVerify(ps_adapter,
 				(PUCHAR)ps_adapter->pstargetparams,
-				sizeof(STARGETPARAMS),
+				sizeof(struct bcm_target_params),
 				CONFIG_BEGIN_ADDR);
 	if (status) {
 		BCM_DEBUG_PRINT(ps_adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Error downloading CFG file");
@@ -1053,7 +1053,7 @@ static int bcm_parse_target_params(struct bcm_mini_adapter *Adapter)
 	if (!buff)
 		return -ENOMEM;
 
-	Adapter->pstargetparams = kmalloc(sizeof(STARGETPARAMS), GFP_KERNEL);
+	Adapter->pstargetparams = kmalloc(sizeof(struct bcm_target_params), GFP_KERNEL);
 	if (Adapter->pstargetparams == NULL) {
 		kfree(buff);
 		return -ENOMEM;
@@ -1070,7 +1070,7 @@ static int bcm_parse_target_params(struct bcm_mini_adapter *Adapter)
 	len = kernel_read(flp, 0, buff, BUFFER_1K);
 	filp_close(flp, NULL);
 
-	if (len != sizeof(STARGETPARAMS)) {
+	if (len != sizeof(struct bcm_target_params)) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, MP_INIT, DBG_LVL_ALL, "Mismatch in Target Param Structure!\n");
 		kfree(buff);
 		kfree(Adapter->pstargetparams);
@@ -1082,7 +1082,7 @@ static int bcm_parse_target_params(struct bcm_mini_adapter *Adapter)
 	/*
 	 * Values in Adapter->pstargetparams are in network byte order
 	 */
-	memcpy(Adapter->pstargetparams, buff, sizeof(STARGETPARAMS));
+	memcpy(Adapter->pstargetparams, buff, sizeof(struct bcm_target_params));
 	kfree(buff);
 	beceem_parse_target_struct(Adapter);
 	return STATUS_SUCCESS;
@@ -1134,7 +1134,7 @@ void beceem_parse_target_struct(struct bcm_mini_adapter *Adapter)
 
 	uiEEPROMFlag = ntohl(Adapter->pstargetparams->m_u32EEPROMFlag);
 	pr_info(DRV_NAME ": uiEEPROMFlag  : 0x%X\n", uiEEPROMFlag);
-	Adapter->eNVMType = (NVM_TYPE)((uiEEPROMFlag>>4)&0x3);
+	Adapter->eNVMType = (enum bcm_nvm_type)((uiEEPROMFlag>>4)&0x3);
 	Adapter->bStatusWrite = (uiEEPROMFlag>>6)&0x1;
 	Adapter->uiSectorSizeInCFG = 1024*(0xFFFF & ntohl(Adapter->pstargetparams->HostDrvrConfig4));
 	Adapter->bSectorSizeOverride = (bool) ((ntohl(Adapter->pstargetparams->HostDrvrConfig4))>>16)&0x1;

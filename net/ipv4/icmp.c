@@ -934,6 +934,29 @@ error:
 	goto drop;
 }
 
+void icmp_err(struct sk_buff *skb, u32 info)
+{
+	struct iphdr *iph = (struct iphdr *)skb->data;
+	struct icmphdr *icmph = (struct icmphdr *)(skb->data+(iph->ihl<<2));
+	int type = icmp_hdr(skb)->type;
+	int code = icmp_hdr(skb)->code;
+	struct net *net = dev_net(skb->dev);
+
+	/*
+	 * Use ping_err to handle all icmp errors except those
+	 * triggered by ICMP_ECHOREPLY which sent from kernel.
+	 */
+	if (icmph->type != ICMP_ECHOREPLY) {
+		ping_err(skb, info);
+		return;
+	}
+
+	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED)
+		ipv4_update_pmtu(skb, net, info, 0, 0, IPPROTO_ICMP, 0);
+	else if (type == ICMP_REDIRECT)
+		ipv4_redirect(skb, net, 0, 0, IPPROTO_ICMP, 0);
+}
+
 /*
  *	This table is the definition of how we handle ICMP.
  */

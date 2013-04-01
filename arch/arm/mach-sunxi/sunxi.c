@@ -21,15 +21,16 @@
 
 #include <linux/irqchip/sunxi.h>
 
-#include <asm/hardware/vic.h>
-
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
 #include "sunxi.h"
 
 #define WATCHDOG_CTRL_REG	0x00
+#define WATCHDOG_CTRL_RESTART		(1 << 0)
 #define WATCHDOG_MODE_REG	0x04
+#define WATCHDOG_MODE_ENABLE		(1 << 0)
+#define WATCHDOG_MODE_RESET_ENABLE	(1 << 1)
 
 static void __iomem *wdt_base;
 
@@ -50,11 +51,19 @@ static void sunxi_restart(char mode, const char *cmd)
 		return;
 
 	/* Enable timer and set reset bit in the watchdog */
-	writel(3, wdt_base + WATCHDOG_MODE_REG);
-	writel(0xa57 << 1 | 1, wdt_base + WATCHDOG_CTRL_REG);
-	while(1) {
+	writel(WATCHDOG_MODE_ENABLE | WATCHDOG_MODE_RESET_ENABLE,
+		wdt_base + WATCHDOG_MODE_REG);
+
+	/*
+	 * Restart the watchdog. The default (and lowest) interval
+	 * value for the watchdog is 0.5s.
+	 */
+	writel(WATCHDOG_CTRL_RESTART, wdt_base + WATCHDOG_CTRL_REG);
+
+	while (1) {
 		mdelay(5);
-		writel(3, wdt_base + WATCHDOG_MODE_REG);
+		writel(WATCHDOG_MODE_ENABLE | WATCHDOG_MODE_RESET_ENABLE,
+			wdt_base + WATCHDOG_MODE_REG);
 	}
 }
 
@@ -91,6 +100,6 @@ DT_MACHINE_START(SUNXI_DT, "Allwinner A1X (Device Tree)")
 	.init_irq	= sunxi_init_irq,
 	.handle_irq	= sunxi_handle_irq,
 	.restart	= sunxi_restart,
-	.timer		= &sunxi_timer,
+	.init_time	= &sunxi_timer_init,
 	.dt_compat	= sunxi_board_dt_compat,
 MACHINE_END

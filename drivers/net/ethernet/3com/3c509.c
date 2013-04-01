@@ -1161,8 +1161,8 @@ el3_netdev_set_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 static void el3_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
 static int el3_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)

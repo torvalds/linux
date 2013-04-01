@@ -712,6 +712,12 @@ static int ptrace_regset(struct task_struct *task, int req, unsigned int type,
 					     kiov->iov_len, kiov->iov_base);
 }
 
+/*
+ * This is declared in linux/regset.h and defined in machine-dependent
+ * code.  We put the export here, near the primary machine-neutral use,
+ * to ensure no machine forgets it.
+ */
+EXPORT_SYMBOL_GPL(task_user_regset_view);
 #endif
 
 int ptrace_request(struct task_struct *child, long request,

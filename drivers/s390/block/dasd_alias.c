@@ -448,7 +448,7 @@ static int read_unit_address_configuration(struct dasd_device *device,
 	ccw->count = sizeof(*(lcu->uac));
 	ccw->cda = (__u32)(addr_t) lcu->uac;
 
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 
 	/* need to unset flag here to detect race with summary unit check */
@@ -733,7 +733,7 @@ static int reset_summary_unit_check(struct alias_lcu *lcu,
 	cqr->memdev = device;
 	cqr->block = NULL;
 	cqr->expires = 5 * HZ;
-	cqr->buildclk = get_clock();
+	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;
 
 	rc = dasd_sleep_on_immediatly(cqr);

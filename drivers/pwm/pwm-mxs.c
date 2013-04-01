@@ -139,9 +139,9 @@ static int mxs_pwm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mxs->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!mxs->base)
-		return -EADDRNOTAVAIL;
+	mxs->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mxs->base))
+		return PTR_ERR(mxs->base);
 
 	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(pinctrl))

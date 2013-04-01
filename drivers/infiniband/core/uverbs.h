@@ -188,6 +188,8 @@ IB_UVERBS_DECLARE_CMD(alloc_pd);
 IB_UVERBS_DECLARE_CMD(dealloc_pd);
 IB_UVERBS_DECLARE_CMD(reg_mr);
 IB_UVERBS_DECLARE_CMD(dereg_mr);
+IB_UVERBS_DECLARE_CMD(alloc_mw);
+IB_UVERBS_DECLARE_CMD(dealloc_mw);
 IB_UVERBS_DECLARE_CMD(create_comp_channel);
 IB_UVERBS_DECLARE_CMD(create_cq);
 IB_UVERBS_DECLARE_CMD(resize_cq);

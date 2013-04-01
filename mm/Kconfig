@@ -1,6 +1,6 @@
 config SELECT_MEMORY_MODEL
 	def_bool y
-	depends on EXPERIMENTAL || ARCH_SELECT_MEMORY_MODEL
+	depends on ARCH_SELECT_MEMORY_MODEL
 
 choice
 	prompt "Memory model"
@@ -162,10 +162,16 @@ config MOVABLE_NODE
 	  Say Y here if you want to hotplug a whole node.
 	  Say N here if you want kernel to use memory on all nodes evenly.
 
+#
+# Only be set on architectures that have completely implemented memory hotplug
+# feature. If you are not sure, don't touch it.
+#
+config HAVE_BOOTMEM_INFO_NODE
+	def_bool n
+
 # eventually, we can have this option just 'select SPARSEMEM'
 config MEMORY_HOTPLUG
 	bool "Allow for memory hot-add"
-	select MEMORY_ISOLATION
 	depends on SPARSEMEM || X86_64_ACPI_NUMA
 	depends on HOTPLUG && ARCH_ENABLE_MEMORY_HOTPLUG
 	depends on (IA64 || X86 || PPC_BOOK3S_64 || SUPERH || S390)
@@ -176,6 +182,8 @@ config MEMORY_HOTPLUG_SPARSE
 
 config MEMORY_HOTREMOVE
 	bool "Allow for memory hot remove"
+	select MEMORY_ISOLATION
+	select HAVE_BOOTMEM_INFO_NODE if X86_64
 	depends on MEMORY_HOTPLUG && ARCH_ENABLE_MEMORY_HOTREMOVE
 	depends on MIGRATION
 
@@ -258,6 +266,19 @@ config BOUNCE
 	def_bool y
 	depends on BLOCK && MMU && (ZONE_DMA || HIGHMEM)
 
+# On the 'tile' arch, USB OHCI needs the bounce pool since tilegx will often
+# have more than 4GB of memory, but we don't currently use the IOTLB to present
+# a 32-bit address to OHCI.  So we need to use a bounce pool instead.
+#
+# We also use the bounce pool to provide stable page writes for jbd.  jbd
+# initiates buffer writeback without locking the page or setting PG_writeback,
+# and fixing that behavior (a second time; jbd2 doesn't have this problem) is
+# a major rework effort.  Instead, use the bounce buffer to snapshot pages
+# (until jbd goes away).  The only jbd user is ext3.
+config NEED_BOUNCE_POOL
+	bool
+	default y if (TILE && USB_OHCI_HCD) || (BLK_DEV_INTEGRITY && JBD)
+
 config NR_QUICK
 	int
 	depends on QUICKLIST
@@ -266,7 +287,7 @@ config NR_QUICK
 
 config VIRT_TO_BUS
 	def_bool y
-	depends on !ARCH_NO_VIRT_TO_BUS
+	depends on HAVE_VIRT_TO_BUS
 
 config MMU_NOTIFIER
 	bool

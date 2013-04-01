@@ -61,7 +61,7 @@ static int ux500_musb_init(struct musb *musb)
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
 	if (IS_ERR_OR_NULL(musb->xceiv)) {
 		pr_err("HS USB OTG: no transceiver configured\n");
-		return -ENODEV;
+		return -EPROBE_DEFER;
 	}
 
 	musb->isr = ux500_musb_interrupt;
@@ -108,7 +108,7 @@ static int ux500_probe(struct platform_device *pdev)
 		goto err3;
 	}
 
-	ret = clk_enable(clk);
+	ret = clk_prepare_enable(clk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable clock\n");
 		goto err4;
@@ -148,7 +148,7 @@ static int ux500_probe(struct platform_device *pdev)
 	return 0;
 
 err5:
-	clk_disable(clk);
+	clk_disable_unprepare(clk);
 
 err4:
 	clk_put(clk);
@@ -168,7 +168,7 @@ static int ux500_remove(struct platform_device *pdev)
 	struct ux500_glue	*glue = platform_get_drvdata(pdev);
 
 	platform_device_unregister(glue->musb);
-	clk_disable(glue->clk);
+	clk_disable_unprepare(glue->clk);
 	clk_put(glue->clk);
 	kfree(glue);
 
@@ -182,7 +182,7 @@ static int ux500_suspend(struct device *dev)
 	struct musb		*musb = glue_to_musb(glue);
 
 	usb_phy_set_suspend(musb->xceiv, 1);
-	clk_disable(glue->clk);
+	clk_disable_unprepare(glue->clk);
 
 	return 0;
 }
@@ -193,7 +193,7 @@ static int ux500_resume(struct device *dev)
 	struct musb		*musb = glue_to_musb(glue);
 	int			ret;
 
-	ret = clk_enable(glue->clk);
+	ret = clk_prepare_enable(glue->clk);
 	if (ret) {
 		dev_err(dev, "failed to enable clock\n");
 		return ret;

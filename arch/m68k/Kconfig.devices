@@ -41,7 +41,7 @@ config NFBLOCK
 
 config NFCON
 	tristate "NatFeat console driver"
-	depends on NATFEAT
+	depends on TTY && NATFEAT
 	help
 	  Say Y to include support for the ARAnyM NatFeat console driver
 	  which allows the console output to be redirected to the stderr

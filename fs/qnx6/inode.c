@@ -285,7 +285,7 @@ static struct buffer_head *qnx6_check_first_superblock(struct super_block *s,
 		if (fs32_to_cpu(sbi, sb->sb_magic) == QNX6_SUPER_MAGIC) {
 			/* we got a big endian fs */
 			QNX6DEBUG((KERN_INFO "qnx6: fs got different"
-					" endianess.\n"));
+					" endianness.\n"));
 			return bh;
 		} else
 			sbi->s_bytesex = BYTESEX_LE;

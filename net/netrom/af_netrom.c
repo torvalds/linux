@@ -104,10 +104,9 @@ static void nr_remove_socket(struct sock *sk)
 static void nr_kill_by_device(struct net_device *dev)
 {
 	struct sock *s;
-	struct hlist_node *node;
 
 	spin_lock_bh(&nr_list_lock);
-	sk_for_each(s, node, &nr_list)
+	sk_for_each(s, &nr_list)
 		if (nr_sk(s)->device == dev)
 			nr_disconnect(s, ENETUNREACH);
 	spin_unlock_bh(&nr_list_lock);
@@ -149,10 +148,9 @@ static void nr_insert_socket(struct sock *sk)
 static struct sock *nr_find_listener(ax25_address *addr)
 {
 	struct sock *s;
-	struct hlist_node *node;
 
 	spin_lock_bh(&nr_list_lock);
-	sk_for_each(s, node, &nr_list)
+	sk_for_each(s, &nr_list)
 		if (!ax25cmp(&nr_sk(s)->source_addr, addr) &&
 		    s->sk_state == TCP_LISTEN) {
 			bh_lock_sock(s);
@@ -170,10 +168,9 @@ found:
 static struct sock *nr_find_socket(unsigned char index, unsigned char id)
 {
 	struct sock *s;
-	struct hlist_node *node;
 
 	spin_lock_bh(&nr_list_lock);
-	sk_for_each(s, node, &nr_list) {
+	sk_for_each(s, &nr_list) {
 		struct nr_sock *nr = nr_sk(s);
 
 		if (nr->my_index == index && nr->my_id == id) {
@@ -194,10 +191,9 @@ static struct sock *nr_find_peer(unsigned char index, unsigned char id,
 	ax25_address *dest)
 {
 	struct sock *s;
-	struct hlist_node *node;
 
 	spin_lock_bh(&nr_list_lock);
-	sk_for_each(s, node, &nr_list) {
+	sk_for_each(s, &nr_list) {
 		struct nr_sock *nr = nr_sk(s);
 
 		if (nr->your_index == index && nr->your_id == id &&
@@ -1452,9 +1448,9 @@ static int __init nr_proto_init(void)
 
 	nr_loopback_init();
 
-	proc_net_fops_create(&init_net, "nr", S_IRUGO, &nr_info_fops);
-	proc_net_fops_create(&init_net, "nr_neigh", S_IRUGO, &nr_neigh_fops);
-	proc_net_fops_create(&init_net, "nr_nodes", S_IRUGO, &nr_nodes_fops);
+	proc_create("nr", S_IRUGO, init_net.proc_net, &nr_info_fops);
+	proc_create("nr_neigh", S_IRUGO, init_net.proc_net, &nr_neigh_fops);
+	proc_create("nr_nodes", S_IRUGO, init_net.proc_net, &nr_nodes_fops);
 out:
 	return rc;
 fail:
@@ -1482,9 +1478,9 @@ static void __exit nr_exit(void)
 {
 	int i;
 
-	proc_net_remove(&init_net, "nr");
-	proc_net_remove(&init_net, "nr_neigh");
-	proc_net_remove(&init_net, "nr_nodes");
+	remove_proc_entry("nr", init_net.proc_net);
+	remove_proc_entry("nr_neigh", init_net.proc_net);
+	remove_proc_entry("nr_nodes", init_net.proc_net);
 	nr_loopback_clear();
 
 	nr_rt_free();

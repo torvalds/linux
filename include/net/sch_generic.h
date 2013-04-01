@@ -195,7 +195,7 @@ struct tcf_proto_ops {
 
 	unsigned long		(*get)(struct tcf_proto*, u32 handle);
 	void			(*put)(struct tcf_proto*, unsigned long);
-	int			(*change)(struct sk_buff *,
+	int			(*change)(struct net *net, struct sk_buff *,
 					struct tcf_proto*, unsigned long,
 					u32 handle, struct nlattr **,
 					unsigned long *);
@@ -339,11 +339,10 @@ static inline struct Qdisc_class_common *
 qdisc_class_find(const struct Qdisc_class_hash *hash, u32 id)
 {
 	struct Qdisc_class_common *cl;
-	struct hlist_node *n;
 	unsigned int h;
 
 	h = qdisc_class_hash(id, hash->hashmask);
-	hlist_for_each_entry(cl, n, &hash->hash[h], hnode) {
+	hlist_for_each_entry(cl, &hash->hash[h], hnode) {
 		if (cl->classid == id)
 			return cl;
 	}
@@ -678,5 +677,24 @@ static inline struct sk_buff *skb_act_clone(struct sk_buff *skb, gfp_t gfp_mask,
 	return n;
 }
 #endif
+
+struct psched_ratecfg {
+	u64 rate_bps;
+	u32 mult;
+	u32 shift;
+};
+
+static inline u64 psched_l2t_ns(const struct psched_ratecfg *r,
+				unsigned int len)
+{
+	return ((u64)len * r->mult) >> r->shift;
+}
+
+extern void psched_ratecfg_precompute(struct psched_ratecfg *r, u32 rate);
+
+static inline u32 psched_ratecfg_getrate(const struct psched_ratecfg *r)
+{
+	return r->rate_bps >> 3;
+}
 
 #endif

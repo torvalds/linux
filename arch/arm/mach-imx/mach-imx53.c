@@ -44,26 +44,22 @@ static void __init imx53_dt_init(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
-static void __init imx53_timer_init(void)
-{
-	mx53_clocks_init_dt();
-}
-
-static struct sys_timer imx53_timer = {
-	.init = imx53_timer_init,
-};
-
 static const char *imx53_dt_board_compat[] __initdata = {
 	"fsl,imx53",
 	NULL
 };
+
+static void __init imx53_timer_init(void)
+{
+	mx53_clocks_init_dt();
+}
 
 DT_MACHINE_START(IMX53_DT, "Freescale i.MX53 (Device Tree Support)")
 	.map_io		= mx53_map_io,
 	.init_early	= imx53_init_early,
 	.init_irq	= mx53_init_irq,
 	.handle_irq	= imx53_handle_irq,
-	.timer		= &imx53_timer,
+	.init_time	= imx53_timer_init,
 	.init_machine	= imx53_dt_init,
 	.init_late	= imx53_init_late,
 	.dt_compat	= imx53_dt_board_compat,

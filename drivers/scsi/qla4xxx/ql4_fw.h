@@ -495,7 +495,7 @@ struct qla_flt_region {
 #define MBOX_ASTS_IPV6_LCL_PREFIX_IGNORED	0x802D
 #define MBOX_ASTS_ICMPV6_ERROR_MSG_RCVD		0x802E
 #define MBOX_ASTS_IDC_COMPLETE			0x8100
-#define MBOX_ASTS_IDC_NOTIFY			0x8101
+#define MBOX_ASTS_IDC_REQUEST_NOTIFICATION	0x8101
 #define MBOX_ASTS_TXSCVR_INSERTED		0x8130
 #define MBOX_ASTS_TXSCVR_REMOVED		0x8131
 
@@ -521,6 +521,10 @@ struct qla_flt_region {
 #define FLASH_OPT_RMW_INIT	1
 #define FLASH_OPT_COMMIT	2
 #define FLASH_OPT_RMW_COMMIT	3
+
+/* Loopback type */
+#define ENABLE_INTERNAL_LOOPBACK	0x04
+#define ENABLE_EXTERNAL_LOOPBACK	0x08
 
 /*************************************************************************/
 

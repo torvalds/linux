@@ -795,7 +795,7 @@ static inline int s6gmac_phy_start(struct net_device *dev)
 	struct phy_device *p = NULL;
 	while ((i < PHY_MAX_ADDR) && (!(p = pd->mii.bus->phy_map[i])))
 		i++;
-	p = phy_connect(dev, dev_name(&p->dev), &s6gmac_adjust_link, 0,
+	p = phy_connect(dev, dev_name(&p->dev), &s6gmac_adjust_link,
 			PHY_INTERFACE_MODE_RGMII);
 	if (IS_ERR(p)) {
 		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);

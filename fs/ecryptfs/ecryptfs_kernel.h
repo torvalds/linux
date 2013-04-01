@@ -509,6 +509,12 @@ ecryptfs_dentry_to_lower_mnt(struct dentry *dentry)
 	return ((struct ecryptfs_dentry_info *)dentry->d_fsdata)->lower_path.mnt;
 }
 
+static inline struct path *
+ecryptfs_dentry_to_lower_path(struct dentry *dentry)
+{
+	return &((struct ecryptfs_dentry_info *)dentry->d_fsdata)->lower_path;
+}
+
 static inline void
 ecryptfs_set_dentry_lower_mnt(struct dentry *dentry, struct vfsmount *lower_mnt)
 {

@@ -67,6 +67,7 @@
 #include <asm/hypervisor.h>
 #include <asm/mwait.h>
 #include <asm/pci_x86.h>
+#include <asm/pat.h>
 
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
@@ -1417,7 +1418,14 @@ asmlinkage void __init xen_start_kernel(void)
 	 */
 	acpi_numa = -1;
 #endif
-
+#ifdef CONFIG_X86_PAT
+	/*
+	 * For right now disable the PAT. We should remove this once
+	 * git commit 8eaffa67b43e99ae581622c5133e20b0f48bcef1
+	 * (xen/pat: Disable PAT support for now) is reverted.
+	 */
+	pat_enabled = 0;
+#endif
 	/* Don't do the full vcpu_info placement stuff until we have a
 	   possible map and a non-dummy shared_info. */
 	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
@@ -1637,6 +1645,7 @@ const struct hypervisor_x86 x86_hyper_xen_hvm __refconst = {
 	.name			= "Xen HVM",
 	.detect			= xen_hvm_platform,
 	.init_platform		= xen_hvm_guest_init,
+	.x2apic_available	= xen_x2apic_para_available,
 };
 EXPORT_SYMBOL(x86_hyper_xen_hvm);
 #endif

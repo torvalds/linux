@@ -196,6 +196,4 @@ static inline void flush(void)
 		barrier();
 }
 
-#define arch_decomp_wdog()
-
 #endif

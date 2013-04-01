@@ -98,9 +98,9 @@ static int usbmisc_imx6q_probe(struct platform_device *pdev)
 	spin_lock_init(&data->lock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!data->base)
-		return -EADDRNOTAVAIL;
+	data->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(data->base))
+		return PTR_ERR(data->base);
 
 	data->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(data->clk)) {

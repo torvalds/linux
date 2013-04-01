@@ -120,7 +120,6 @@ static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
 #define EMAC_DEF_TX_CH			(0) /* Default 0th channel */
 #define EMAC_DEF_RX_CH			(0) /* Default 0th channel */
 #define EMAC_DEF_RX_NUM_DESC		(128)
-#define EMAC_DEF_TX_NUM_DESC		(128)
 #define EMAC_DEF_MAX_TX_CH		(1) /* Max TX channels configured */
 #define EMAC_DEF_MAX_RX_CH		(1) /* Max RX channels configured */
 #define EMAC_POLL_WEIGHT		(64) /* Default NAPI poll weight */
@@ -342,7 +341,6 @@ struct emac_priv {
 	u32 mac_hash2;
 	u32 multicast_hash_cnt[EMAC_NUM_MULTICAST_BITS];
 	u32 rx_addr_type;
-	atomic_t cur_tx;
 	const char *phy_id;
 #ifdef CONFIG_OF
 	struct device_node *phy_node;
@@ -480,8 +478,8 @@ static void emac_dump_regs(struct emac_priv *priv)
 static void emac_get_drvinfo(struct net_device *ndev,
 			     struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, emac_version_string);
-	strcpy(info->version, EMAC_MODULE_VERSION);
+	strlcpy(info->driver, emac_version_string, sizeof(info->driver));
+	strlcpy(info->version, EMAC_MODULE_VERSION, sizeof(info->version));
 }
 
 /**
@@ -1039,7 +1037,7 @@ static void emac_rx_handler(void *token, int len, int status)
 
 recycle:
 	ret = cpdma_chan_submit(priv->rxchan, skb, skb->data,
-			skb_tailroom(skb), GFP_KERNEL);
+			skb_tailroom(skb), 0, GFP_KERNEL);
 
 	WARN_ON(ret == -ENOMEM);
 	if (unlikely(ret < 0))
@@ -1050,10 +1048,10 @@ static void emac_tx_handler(void *token, int len, int status)
 {
 	struct sk_buff		*skb = token;
 	struct net_device	*ndev = skb->dev;
-	struct emac_priv	*priv = netdev_priv(ndev);
 
-	atomic_dec(&priv->cur_tx);
-
+	/* Check whether the queue is stopped due to stalled tx dma, if the
+	 * queue is stopped then start the queue as we have free desc for tx
+	 */
 	if (unlikely(netif_queue_stopped(ndev)))
 		netif_start_queue(ndev);
 	ndev->stats.tx_packets++;
@@ -1094,14 +1092,17 @@ static int emac_dev_xmit(struct sk_buff *skb, struct net_device *ndev)
 	skb_tx_timestamp(skb);
 
 	ret_code = cpdma_chan_submit(priv->txchan, skb, skb->data, skb->len,
-				     GFP_KERNEL);
+				     0, GFP_KERNEL);
 	if (unlikely(ret_code != 0)) {
 		if (netif_msg_tx_err(priv) && net_ratelimit())
 			dev_err(emac_dev, "DaVinci EMAC: desc submit failed");
 		goto fail_tx;
 	}
 
-	if (atomic_inc_return(&priv->cur_tx) >= EMAC_DEF_TX_NUM_DESC)
+	/* If there is no more tx desc left free then we need to
+	 * tell the kernel to stop sending us tx frames.
+	 */
+	if (unlikely(cpdma_check_free_tx_desc(priv->txchan)))
 		netif_stop_queue(ndev);
 
 	return NETDEV_TX_OK;
@@ -1264,7 +1265,6 @@ static int emac_dev_setmac_addr(struct net_device *ndev, void *addr)
 	/* Store mac addr in priv and rx channel and set it in EMAC hw */
 	memcpy(priv->mac_addr, sa->sa_data, ndev->addr_len);
 	memcpy(ndev->dev_addr, sa->sa_data, ndev->addr_len);
-	ndev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	/* MAC address is configured only after the interface is enabled. */
 	if (netif_running(ndev)) {
@@ -1558,7 +1558,7 @@ static int emac_dev_open(struct net_device *ndev)
 			break;
 
 		ret = cpdma_chan_submit(priv->rxchan, skb, skb->data,
-					skb_tailroom(skb), GFP_KERNEL);
+					skb_tailroom(skb), 0, GFP_KERNEL);
 		if (WARN_ON(ret < 0))
 			break;
 	}
@@ -1600,7 +1600,7 @@ static int emac_dev_open(struct net_device *ndev)
 
 	if (priv->phy_id && *priv->phy_id) {
 		priv->phydev = phy_connect(ndev, priv->phy_id,
-					   &emac_adjust_link, 0,
+					   &emac_adjust_link,
 					   PHY_INTERFACE_MODE_MII);
 
 		if (IS_ERR(priv->phydev)) {

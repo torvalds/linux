@@ -127,8 +127,15 @@ static void pseries_mach_cpu_die(void)
 			get_lppaca()->donate_dedicated_cpu = 1;
 
 		while (get_preferred_offline_state(cpu) == CPU_STATE_INACTIVE) {
+			while (!prep_irq_for_idle()) {
+				local_irq_enable();
+				local_irq_disable();
+			}
+
 			extended_cede_processor(cede_latency_hint);
 		}
+
+		local_irq_disable();
 
 		if (!get_lppaca()->shared_proc)
 			get_lppaca()->donate_dedicated_cpu = 0;
@@ -137,6 +144,7 @@ static void pseries_mach_cpu_die(void)
 		if (get_preferred_offline_state(cpu) == CPU_STATE_ONLINE) {
 			unregister_slb_shadow(hwcpu);
 
+			hard_irq_disable();
 			/*
 			 * Call to start_secondary_resume() will not return.
 			 * Kernel stack will be reset and start_secondary()

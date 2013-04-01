@@ -75,6 +75,20 @@ static struct sirfsoc_uart_port sirfsoc_uart_ports[SIRFSOC_UART_NR] = {
 			.line		= 2,
 		},
 	},
+	[3] = {
+		.port = {
+			.iotype		= UPIO_MEM,
+			.flags		= UPF_BOOT_AUTOCONF,
+			.line		= 3,
+		},
+	},
+	[4] = {
+		.port = {
+			.iotype		= UPIO_MEM,
+			.flags		= UPF_BOOT_AUTOCONF,
+			.line		= 4,
+		},
+	},
 };
 
 static inline struct sirfsoc_uart_port *to_sirfport(struct uart_port *port)
@@ -192,11 +206,6 @@ static unsigned int
 sirfsoc_uart_pio_rx_chars(struct uart_port *port, unsigned int max_rx_count)
 {
 	unsigned int ch, rx_count = 0;
-	struct tty_struct *tty;
-
-	tty = tty_port_tty_get(&port->state->port);
-	if (!tty)
-		return -ENODEV;
 
 	while (!(rd_regl(port, SIRFUART_RX_FIFO_STATUS) &
 					SIRFUART_FIFOEMPTY_MASK(port))) {
@@ -210,8 +219,7 @@ sirfsoc_uart_pio_rx_chars(struct uart_port *port, unsigned int max_rx_count)
 	}
 
 	port->icount.rx += rx_count;
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&port->state->port);
 
 	return rx_count;
 }
@@ -245,6 +253,7 @@ static irqreturn_t sirfsoc_uart_isr(int irq, void *dev_id)
 	struct uart_port *port = &sirfport->port;
 	struct uart_state *state = port->state;
 	struct circ_buf *xmit = &port->state->xmit;
+	spin_lock(&port->lock);
 	intr_status = rd_regl(port, SIRFUART_INT_STATUS);
 	wr_regl(port, SIRFUART_INT_STATUS, intr_status);
 	intr_status &= rd_regl(port, SIRFUART_INT_EN);
@@ -254,6 +263,7 @@ static irqreturn_t sirfsoc_uart_isr(int irq, void *dev_id)
 				goto recv_char;
 			uart_insert_char(port, intr_status,
 					SIRFUART_RX_OFLOW, 0, TTY_BREAK);
+			spin_unlock(&port->lock);
 			return IRQ_HANDLED;
 		}
 		if (intr_status & SIRFUART_RX_OFLOW)
@@ -286,6 +296,7 @@ recv_char:
 		sirfsoc_uart_pio_rx_chars(port, SIRFSOC_UART_IO_RX_MAX_CNT);
 	if (intr_status & SIRFUART_TX_INT_EN) {
 		if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
+			spin_unlock(&port->lock);
 			return IRQ_HANDLED;
 		} else {
 			sirfsoc_uart_pio_tx_chars(sirfport,
@@ -296,6 +307,7 @@ recv_char:
 				sirfsoc_uart_stop_tx(port);
 		}
 	}
+	spin_unlock(&port->lock);
 	return IRQ_HANDLED;
 }
 
@@ -345,7 +357,6 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 				       struct ktermios *old)
 {
 	struct sirfsoc_uart_port *sirfport = to_sirfport(port);
-	unsigned long	ioclk_rate;
 	unsigned long	config_reg = 0;
 	unsigned long	baud_rate;
 	unsigned long	setted_baud;
@@ -357,7 +368,6 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 	int		threshold_div;
 	int		temp;
 
-	ioclk_rate = 150000000;
 	switch (termios->c_cflag & CSIZE) {
 	default:
 	case CS8:
@@ -413,14 +423,17 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 			sirfsoc_uart_disable_ms(port);
 	}
 
-	/* common rate: fast calculation */
-	for (ic = 0; ic < SIRF_BAUD_RATE_SUPPORT_NR; ic++)
-		if (baud_rate == baudrate_to_regv[ic].baud_rate)
-			clk_div_reg = baudrate_to_regv[ic].reg_val;
+	if (port->uartclk == 150000000) {
+		/* common rate: fast calculation */
+		for (ic = 0; ic < SIRF_BAUD_RATE_SUPPORT_NR; ic++)
+			if (baud_rate == baudrate_to_regv[ic].baud_rate)
+				clk_div_reg = baudrate_to_regv[ic].reg_val;
+	}
+
 	setted_baud = baud_rate;
 	/* arbitary rate setting */
 	if (unlikely(clk_div_reg == 0))
-		clk_div_reg = sirfsoc_calc_sample_div(baud_rate, ioclk_rate,
+		clk_div_reg = sirfsoc_calc_sample_div(baud_rate, port->uartclk,
 								&setted_baud);
 	wr_regl(port, SIRFUART_DIVISOR, clk_div_reg);
 
@@ -679,6 +692,14 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 			goto err;
 	}
 
+	sirfport->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(sirfport->clk)) {
+		ret = PTR_ERR(sirfport->clk);
+		goto clk_err;
+	}
+	clk_prepare_enable(sirfport->clk);
+	port->uartclk = clk_get_rate(sirfport->clk);
+
 	port->ops = &sirfsoc_uart_ops;
 	spin_lock_init(&port->lock);
 
@@ -692,6 +713,9 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 	return 0;
 
 port_err:
+	clk_disable_unprepare(sirfport->clk);
+	clk_put(sirfport->clk);
+clk_err:
 	platform_set_drvdata(pdev, NULL);
 	if (sirfport->hw_flow_ctrl)
 		pinctrl_put(sirfport->p);
@@ -706,6 +730,8 @@ static int sirfsoc_uart_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	if (sirfport->hw_flow_ctrl)
 		pinctrl_put(sirfport->p);
+	clk_disable_unprepare(sirfport->clk);
+	clk_put(sirfport->clk);
 	uart_remove_one_port(&sirfsoc_uart_drv, port);
 	return 0;
 }
@@ -729,6 +755,7 @@ static int sirfsoc_uart_resume(struct platform_device *pdev)
 
 static struct of_device_id sirfsoc_uart_ids[] = {
 	{ .compatible = "sirf,prima2-uart", },
+	{ .compatible = "sirf,marco-uart", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sirfsoc_serial_of_match);

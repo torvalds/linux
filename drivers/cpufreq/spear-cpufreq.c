@@ -30,7 +30,7 @@ static struct {
 	u32 cnt;
 } spear_cpufreq;
 
-int spear_cpufreq_verify(struct cpufreq_policy *policy)
+static int spear_cpufreq_verify(struct cpufreq_policy *policy)
 {
 	return cpufreq_frequency_table_verify(policy, spear_cpufreq.freq_tbl);
 }
@@ -157,7 +157,9 @@ static int spear_cpufreq_target(struct cpufreq_policy *policy,
 
 	freqs.new = newfreq / 1000;
 	freqs.new /= mult;
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+
+	for_each_cpu(freqs.cpu, policy->cpus)
+		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
 	if (mult == 2)
 		ret = spear1340_set_cpu_rate(srcclk, newfreq);
@@ -170,7 +172,8 @@ static int spear_cpufreq_target(struct cpufreq_policy *policy,
 		freqs.new = clk_get_rate(spear_cpufreq.clk) / 1000;
 	}
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	for_each_cpu(freqs.cpu, policy->cpus)
+		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 	return ret;
 }
 
@@ -188,8 +191,7 @@ static int spear_cpufreq_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = spear_cpufreq.transition_latency;
 	policy->cur = spear_cpufreq_get(0);
 
-	cpumask_copy(policy->cpus, topology_core_cpumask(policy->cpu));
-	cpumask_copy(policy->related_cpus, policy->cpus);
+	cpumask_setall(policy->cpus);
 
 	return 0;
 }

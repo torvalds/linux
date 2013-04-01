@@ -19,13 +19,9 @@
 	memory {
 		reg = <0x80000000 0x8000000>; /* 128M */
 	};
+};
 
-	soc {
-		aips@43f00000 { /* AIPS1 */
-			uart5: serial@43fb4000 {
-				fsl,uart-has-rtscts;
-				status = "okay";
-			};
-		};
-	};
+&uart5 {
+	fsl,uart-has-rtscts;
+	status = "okay";
 };

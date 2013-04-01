@@ -273,9 +273,6 @@ int omap2xxx_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
 
 static void omap2xxx_clkdm_allow_idle(struct clockdomain *clkdm)
 {
-	if (atomic_read(&clkdm->usecount) > 0)
-		_clkdm_add_autodeps(clkdm);
-
 	omap2xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 				       clkdm->clktrctrl_mask);
 }
@@ -284,9 +281,6 @@ static void omap2xxx_clkdm_deny_idle(struct clockdomain *clkdm)
 {
 	omap2xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 					clkdm->clktrctrl_mask);
-
-	if (atomic_read(&clkdm->usecount) > 0)
-		_clkdm_del_autodeps(clkdm);
 }
 
 static int omap2xxx_clkdm_clk_enable(struct clockdomain *clkdm)
@@ -298,18 +292,8 @@ static int omap2xxx_clkdm_clk_enable(struct clockdomain *clkdm)
 
 	hwsup = omap2xxx_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 					      clkdm->clktrctrl_mask);
-
-	if (hwsup) {
-		/* Disable HW transitions when we are changing deps */
-		omap2xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-						clkdm->clktrctrl_mask);
-		_clkdm_add_autodeps(clkdm);
-		omap2xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-					       clkdm->clktrctrl_mask);
-	} else {
-		if (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
-			omap2xxx_clkdm_wakeup(clkdm);
-	}
+	if (!hwsup && clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
+		omap2xxx_clkdm_wakeup(clkdm);
 
 	return 0;
 }
@@ -324,17 +308,8 @@ static int omap2xxx_clkdm_clk_disable(struct clockdomain *clkdm)
 	hwsup = omap2xxx_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 					      clkdm->clktrctrl_mask);
 
-	if (hwsup) {
-		/* Disable HW transitions when we are changing deps */
-		omap2xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-						clkdm->clktrctrl_mask);
-		_clkdm_del_autodeps(clkdm);
-		omap2xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-					       clkdm->clktrctrl_mask);
-	} else {
-		if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP)
-			omap2xxx_clkdm_sleep(clkdm);
-	}
+	if (!hwsup && clkdm->flags & CLKDM_CAN_FORCE_SLEEP)
+		omap2xxx_clkdm_sleep(clkdm);
 
 	return 0;
 }

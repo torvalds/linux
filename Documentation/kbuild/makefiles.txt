@@ -1186,6 +1186,29 @@ When kbuild executes, the following steps are followed (roughly):
 		clean-files += *.dtb
 		DTC_FLAGS ?= -p 1024
 
+    dtc_cpp
+	This is just like dtc as describe above, except that the C pre-
+	processor is invoked upon the .dtsp file before compiling the result
+	with dtc.
+
+	In order for build dependencies to work, all files compiled using
+	dtc_cpp must use the C pre-processor's #include functionality and not
+	dtc's /include/ functionality.
+
+	Using the C pre-processor allows use of #define to create named
+	constants. In turn, the #defines will typically appear in a header
+	file, which may be shared with regular C code. Since the dtc language
+	represents a data structure rather than code in C syntax, similar
+	restrictions are placed on a header file included by a device tree
+	file as for a header file included by an assembly language file.
+	In particular, the C pre-processor is passed -x assembler-with-cpp,
+	which sets macro __ASSEMBLY__. __DTS__ is also set. These allow header
+	files to restrict their content to that compatible with device tree
+	source.
+
+	A central rule exists to create $(obj)/%.dtb from $(src)/%.dtsp;
+	architecture Makefiles do no need to explicitly write out that rule.
+
 --- 6.8 Custom kbuild commands
 
 	When kbuild is executing with KBUILD_VERBOSE=0, then only a shorthand

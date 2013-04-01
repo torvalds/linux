@@ -9,6 +9,7 @@
  * (C) Copyright TOSHIBA CORPORATION 2004-2007
  * All Rights Reserved.
  */
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -286,9 +287,9 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 	drvdata = devm_kzalloc(&dev->dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
-	drvdata->base = devm_request_and_ioremap(&dev->dev, res);
-	if (!drvdata->base)
-		return -EBUSY;
+	drvdata->base = devm_ioremap_resource(&dev->dev, res);
+	if (IS_ERR(drvdata->base))
+		return PTR_ERR(drvdata->base);
 
 	hold = plat->hold ?: 20; /* tDH */
 	spw = plat->spw ?: 90; /* max(tREADID, tWP, tRP) */

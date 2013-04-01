@@ -12,6 +12,35 @@
  */
 
 #include <linux/serial_8250.h>
+#include <linux/dmaengine.h>
+
+struct uart_8250_dma {
+	dma_filter_fn		fn;
+	void			*rx_param;
+	void			*tx_param;
+
+	int			rx_chan_id;
+	int			tx_chan_id;
+
+	struct dma_slave_config	rxconf;
+	struct dma_slave_config	txconf;
+
+	struct dma_chan		*rxchan;
+	struct dma_chan		*txchan;
+
+	dma_addr_t		rx_addr;
+	dma_addr_t		tx_addr;
+
+	dma_cookie_t		rx_cookie;
+	dma_cookie_t		tx_cookie;
+
+	void			*rx_buf;
+
+	size_t			rx_size;
+	size_t			tx_size;
+
+	unsigned char		tx_running:1;
+};
 
 struct old_serial_port {
 	unsigned int uart;
@@ -142,4 +171,25 @@ static inline int is_omap1510_8250(struct uart_8250_port *pt)
 {
 	return 0;
 }
+#endif
+
+#ifdef CONFIG_SERIAL_8250_DMA
+extern int serial8250_tx_dma(struct uart_8250_port *);
+extern int serial8250_rx_dma(struct uart_8250_port *, unsigned int iir);
+extern int serial8250_request_dma(struct uart_8250_port *);
+extern void serial8250_release_dma(struct uart_8250_port *);
+#else
+static inline int serial8250_tx_dma(struct uart_8250_port *p)
+{
+	return -1;
+}
+static inline int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
+{
+	return -1;
+}
+static inline int serial8250_request_dma(struct uart_8250_port *p)
+{
+	return -1;
+}
+static inline void serial8250_release_dma(struct uart_8250_port *p) { }
 #endif

@@ -150,7 +150,7 @@ static int ebook_switch_add(struct acpi_device *device)
 	return error;
 }
 
-static int ebook_switch_remove(struct acpi_device *device, int type)
+static int ebook_switch_remove(struct acpi_device *device)
 {
 	struct ebook_switch *button = acpi_driver_data(device);
 

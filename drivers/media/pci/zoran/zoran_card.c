@@ -708,8 +708,7 @@ static const struct i2c_algo_bit_data zoran_i2c_bit_data_template = {
 static int
 zoran_register_i2c (struct zoran *zr)
 {
-	memcpy(&zr->i2c_algo, &zoran_i2c_bit_data_template,
-	       sizeof(struct i2c_algo_bit_data));
+	zr->i2c_algo = zoran_i2c_bit_data_template;
 	zr->i2c_algo.data = zr;
 	strlcpy(zr->i2c_adapter.name, ZR_DEVNAME(zr),
 		sizeof(zr->i2c_adapter.name));

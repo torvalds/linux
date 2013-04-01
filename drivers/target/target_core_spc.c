@@ -66,8 +66,8 @@ static void spc_fill_alua_data(struct se_port *port, unsigned char *buf)
 	spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
 }
 
-static sense_reason_t
-spc_emulate_inquiry_std(struct se_cmd *cmd, char *buf)
+sense_reason_t
+spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_lun *lun = cmd->se_lun;
 	struct se_device *dev = cmd->se_dev;
@@ -104,6 +104,7 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, char *buf)
 
 	return 0;
 }
+EXPORT_SYMBOL(spc_emulate_inquiry_std);
 
 /* unit serial number */
 static sense_reason_t
@@ -160,7 +161,7 @@ static void spc_parse_naa_6h_vendor_specific(struct se_device *dev,
  * Device identification VPD, for a complete list of
  * DESIGNATOR TYPEs see spc4r17 Table 459.
  */
-static sense_reason_t
+sense_reason_t
 spc_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -404,17 +405,33 @@ check_scsi_name:
 	buf[3] = (len & 0xff); /* Page Length for VPD 0x83 */
 	return 0;
 }
+EXPORT_SYMBOL(spc_emulate_evpd_83);
+
+static bool
+spc_check_dev_wce(struct se_device *dev)
+{
+	bool wce = false;
+
+	if (dev->transport->get_write_cache)
+		wce = dev->transport->get_write_cache(dev);
+	else if (dev->dev_attrib.emulate_write_cache > 0)
+		wce = true;
+
+	return wce;
+}
 
 /* Extended INQUIRY Data VPD Page */
 static sense_reason_t
 spc_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 {
+	struct se_device *dev = cmd->se_dev;
+
 	buf[3] = 0x3c;
 	/* Set HEADSUP, ORDSUP, SIMPSUP */
 	buf[5] = 0x07;
 
 	/* If WriteCache emulation is enabled, set V_SUP */
-	if (cmd->se_dev->dev_attrib.emulate_write_cache > 0)
+	if (spc_check_dev_wce(dev))
 		buf[6] = 0x01;
 	return 0;
 }
@@ -764,7 +781,7 @@ static int spc_modesense_caching(struct se_device *dev, u8 pc, u8 *p)
 	if (pc == 1)
 		goto out;
 
-	if (dev->dev_attrib.emulate_write_cache > 0)
+	if (spc_check_dev_wce(dev))
 		p[2] = 0x04; /* Write Cache Enable */
 	p[12] = 0x20; /* Disabled Read Ahead */
 
@@ -876,7 +893,7 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 	     (cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)))
 		spc_modesense_write_protect(&buf[length], type);
 
-	if ((dev->dev_attrib.emulate_write_cache > 0) &&
+	if ((spc_check_dev_wce(dev)) &&
 	    (dev->dev_attrib.emulate_fua_write > 0))
 		spc_modesense_dpofua(&buf[length], type);
 
@@ -983,6 +1000,14 @@ static sense_reason_t spc_emulate_modeselect(struct se_cmd *cmd)
 	int ret = 0;
 	int i;
 
+	if (!cmd->data_length) {
+		target_complete_cmd(cmd, GOOD);
+		return 0;
+	}
+
+	if (cmd->data_length < off + 2)
+		return TCM_PARAMETER_LIST_LENGTH_ERROR;
+
 	buf = transport_kmap_data_sg(cmd);
 	if (!buf)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -1007,6 +1032,11 @@ static sense_reason_t spc_emulate_modeselect(struct se_cmd *cmd)
 	goto out;
 
 check_contents:
+	if (cmd->data_length < off + length) {
+		ret = TCM_PARAMETER_LIST_LENGTH_ERROR;
+		goto out;
+	}
+
 	if (memcmp(buf + off, tbuf, length))
 		ret = TCM_INVALID_PARAMETER_LIST;
 

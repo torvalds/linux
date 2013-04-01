@@ -197,9 +197,10 @@ static const struct nla_policy tcindex_policy[TCA_TCINDEX_MAX + 1] = {
 };
 
 static int
-tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
-		  struct tcindex_data *p, struct tcindex_filter_result *r,
-		  struct nlattr **tb, struct nlattr *est)
+tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
+		  u32 handle, struct tcindex_data *p,
+		  struct tcindex_filter_result *r, struct nlattr **tb,
+		 struct nlattr *est)
 {
 	int err, balloc = 0;
 	struct tcindex_filter_result new_filter_result, *old_r = r;
@@ -208,7 +209,7 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 	struct tcindex_filter *f = NULL; /* make gcc behave */
 	struct tcf_exts e;
 
-	err = tcf_exts_validate(tp, tb, est, &e, &tcindex_ext_map);
+	err = tcf_exts_validate(net, tp, tb, est, &e, &tcindex_ext_map);
 	if (err < 0)
 		return err;
 
@@ -332,7 +333,7 @@ errout:
 }
 
 static int
-tcindex_change(struct sk_buff *in_skb,
+tcindex_change(struct net *net, struct sk_buff *in_skb,
 	       struct tcf_proto *tp, unsigned long base, u32 handle,
 	       struct nlattr **tca, unsigned long *arg)
 {
@@ -353,7 +354,8 @@ tcindex_change(struct sk_buff *in_skb,
 	if (err < 0)
 		return err;
 
-	return tcindex_set_parms(tp, base, handle, p, r, tb, tca[TCA_RATE]);
+	return tcindex_set_parms(net, tp, base, handle, p, r, tb,
+				 tca[TCA_RATE]);
 }
 
 

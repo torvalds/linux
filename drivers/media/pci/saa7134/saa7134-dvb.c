@@ -607,6 +607,9 @@ static int configure_tda827x_fe(struct saa7134_dev *dev,
 	/* Get the first frontend */
 	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 1);
 
+	if (!fe0)
+		return -EINVAL;
+
 	fe0->dvb.frontend = dvb_attach(tda10046_attach, cdec_conf, &dev->i2c_adap);
 	if (fe0->dvb.frontend) {
 		if (cdec_conf->i2c_gate)

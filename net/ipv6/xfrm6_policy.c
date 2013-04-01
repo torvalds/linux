@@ -110,7 +110,6 @@ static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 
 	/* Sheit... I remember I did this right. Apparently,
 	 * it was magically lost, so this code needs audit */
-	xdst->u.rt6.n = neigh_clone(rt->n);
 	xdst->u.rt6.rt6i_flags = rt->rt6i_flags & (RTF_ANYCAST |
 						   RTF_LOCAL);
 	xdst->u.rt6.rt6i_metric = rt->rt6i_metric;
@@ -321,7 +320,51 @@ static struct ctl_table xfrm6_policy_table[] = {
 	{ }
 };
 
-static struct ctl_table_header *sysctl_hdr;
+static int __net_init xfrm6_net_init(struct net *net)
+{
+	struct ctl_table *table;
+	struct ctl_table_header *hdr;
+
+	table = xfrm6_policy_table;
+	if (!net_eq(net, &init_net)) {
+		table = kmemdup(table, sizeof(xfrm6_policy_table), GFP_KERNEL);
+		if (!table)
+			goto err_alloc;
+
+		table[0].data = &net->xfrm.xfrm6_dst_ops.gc_thresh;
+	}
+
+	hdr = register_net_sysctl(net, "net/ipv6", table);
+	if (!hdr)
+		goto err_reg;
+
+	net->ipv6.sysctl.xfrm6_hdr = hdr;
+	return 0;
+
+err_reg:
+	if (!net_eq(net, &init_net))
+		kfree(table);
+err_alloc:
+	return -ENOMEM;
+}
+
+static void __net_exit xfrm6_net_exit(struct net *net)
+{
+	struct ctl_table *table;
+
+	if (net->ipv6.sysctl.xfrm6_hdr == NULL)
+		return;
+
+	table = net->ipv6.sysctl.xfrm6_hdr->ctl_table_arg;
+	unregister_net_sysctl_table(net->ipv6.sysctl.xfrm6_hdr);
+	if (!net_eq(net, &init_net))
+		kfree(table);
+}
+
+static struct pernet_operations xfrm6_net_ops = {
+	.init	= xfrm6_net_init,
+	.exit	= xfrm6_net_exit,
+};
 #endif
 
 int __init xfrm6_init(void)
@@ -340,8 +383,7 @@ int __init xfrm6_init(void)
 		goto out_policy;
 
 #ifdef CONFIG_SYSCTL
-	sysctl_hdr = register_net_sysctl(&init_net, "net/ipv6",
-					 xfrm6_policy_table);
+	register_pernet_subsys(&xfrm6_net_ops);
 #endif
 out:
 	return ret;
@@ -353,8 +395,7 @@ out_policy:
 void xfrm6_fini(void)
 {
 #ifdef CONFIG_SYSCTL
-	if (sysctl_hdr)
-		unregister_net_sysctl_table(sysctl_hdr);
+	unregister_pernet_subsys(&xfrm6_net_ops);
 #endif
 	xfrm6_policy_fini();
 	xfrm6_state_fini();

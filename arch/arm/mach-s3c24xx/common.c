@@ -197,7 +197,7 @@ static unsigned long s3c24xx_read_idcode_v4(void)
 
 static void s3c24xx_default_idle(void)
 {
-	unsigned long tmp;
+	unsigned long tmp = 0;
 	int i;
 
 	/* idle the system by using the idle mode which will wait for an

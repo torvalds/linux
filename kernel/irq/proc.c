@@ -76,7 +76,7 @@ static int irq_affinity_list_proc_show(struct seq_file *m, void *v)
 static ssize_t write_irq_affinity(int type, struct file *file,
 		const char __user *buffer, size_t count, loff_t *pos)
 {
-	unsigned int irq = (int)(long)PDE(file->f_path.dentry->d_inode)->data;
+	unsigned int irq = (int)(long)PDE(file_inode(file))->data;
 	cpumask_var_t new_value;
 	int err;
 

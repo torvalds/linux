@@ -68,6 +68,7 @@ header-y += blkpg.h
 header-y += blktrace_api.h
 header-y += bpqether.h
 header-y += bsg.h
+header-y += btrfs.h
 header-y += can.h
 header-y += capability.h
 header-y += capi.h

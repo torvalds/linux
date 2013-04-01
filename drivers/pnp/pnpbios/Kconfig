@@ -2,8 +2,8 @@
 # Plug and Play BIOS configuration
 #
 config PNPBIOS
-	bool "Plug and Play BIOS support (EXPERIMENTAL)"
-	depends on ISA && X86 && EXPERIMENTAL
+	bool "Plug and Play BIOS support"
+	depends on ISA && X86
 	default n
 	---help---
 	  Linux uses the PNPBIOS as defined in "Plug and Play BIOS

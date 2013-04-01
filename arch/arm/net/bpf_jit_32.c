@@ -341,10 +341,17 @@ static void emit_load_be16(u8 cond, u8 r_res, u8 r_addr, struct jit_ctx *ctx)
 
 static inline void emit_swap16(u8 r_dst, u8 r_src, struct jit_ctx *ctx)
 {
-	emit(ARM_LSL_R(ARM_R1, r_src, 8), ctx);
-	emit(ARM_ORR_S(r_dst, ARM_R1, r_src, SRTYPE_LSL, 8), ctx);
-	emit(ARM_LSL_I(r_dst, r_dst, 8), ctx);
-	emit(ARM_LSL_R(r_dst, r_dst, 8), ctx);
+	/* r_dst = (r_src << 8) | (r_src >> 8) */
+	emit(ARM_LSL_I(ARM_R1, r_src, 8), ctx);
+	emit(ARM_ORR_S(r_dst, ARM_R1, r_src, SRTYPE_LSR, 8), ctx);
+
+	/*
+	 * we need to mask out the bits set in r_dst[23:16] due to
+	 * the first shift instruction.
+	 *
+	 * note that 0x8ff is the encoded immediate 0x00ff0000.
+	 */
+	emit(ARM_BIC_I(r_dst, r_dst, 0x8ff), ctx);
 }
 
 #else  /* ARMv6+ */

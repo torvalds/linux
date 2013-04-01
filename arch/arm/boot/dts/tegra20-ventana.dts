@@ -3,11 +3,23 @@
 /include/ "tegra20.dtsi"
 
 / {
-	model = "NVIDIA Tegra2 Ventana evaluation board";
+	model = "NVIDIA Tegra20 Ventana evaluation board";
 	compatible = "nvidia,ventana", "nvidia,tegra20";
 
 	memory {
 		reg = <0x00000000 0x40000000>;
+	};
+
+	host1x {
+		hdmi {
+			status = "okay";
+
+			vdd-supply = <&hdmi_vdd_reg>;
+			pll-supply = <&hdmi_pll_reg>;
+
+			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
+			nvidia,hpd-gpio = <&gpio 111 0>; /* PN7 */
+		};
 	};
 
 	pinmux {
@@ -288,7 +300,6 @@
 
 	serial@70006300 {
 		status = "okay";
-		clock-frequency = <216000000>;
 	};
 
 	i2c@7000c000 {
@@ -320,7 +331,7 @@
 
 	i2c@7000c400 {
 		status = "okay";
-		clock-frequency = <400000>;
+		clock-frequency = <100000>;
 	};
 
 	i2cmux {
@@ -335,7 +346,7 @@
 		pinctrl-1 = <&state_i2cmux_pta>;
 		pinctrl-2 = <&state_i2cmux_idle>;
 
-		i2c@0 {
+		hdmi_ddc: i2c@0 {
 			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -446,13 +457,13 @@
 					regulator-max-microvolt = <1800000>;
 				};
 
-				ldo7 {
+				hdmi_vdd_reg: ldo7 {
 					regulator-name = "vdd_ldo7,avdd_hdmi,vdd_fuse";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 				};
 
-				ldo8 {
+				hdmi_pll_reg: ldo8 {
 					regulator-name = "vdd_ldo8,avdd_hdmi_pll";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
@@ -495,6 +506,10 @@
 
 	usb@c5008000 {
 		status = "okay";
+	};
+
+	usb-phy@c5004400 {
+		nvidia,phy-reset-gpio = <&gpio 169 0>; /* gpio PV1 */
 	};
 
 	sdhci@c8000000 {

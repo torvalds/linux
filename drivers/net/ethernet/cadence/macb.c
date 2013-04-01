@@ -287,7 +287,7 @@ static int macb_mii_probe(struct net_device *dev)
 	}
 
 	/* attach the mac to the phy */
-	ret = phy_connect_direct(dev, phydev, &macb_handle_link_change, 0,
+	ret = phy_connect_direct(dev, phydev, &macb_handle_link_change,
 				 bp->phy_interface);
 	if (ret) {
 		netdev_err(dev, "Could not attach to PHY\n");

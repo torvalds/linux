@@ -5,7 +5,6 @@
 
 struct scatterlist;
 
-#ifndef CONFIG_MMU_SUN3
 static inline int dma_supported(struct device *dev, u64 mask)
 {
 	return 1;
@@ -110,10 +109,6 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t handle)
 {
 	return 0;
 }
-
-#else
-#include <asm-generic/dma-mapping-broken.h>
-#endif
 
 /* drivers/base/dma-mapping.c */
 extern int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,

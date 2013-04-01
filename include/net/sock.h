@@ -140,6 +140,7 @@ typedef __u64 __bitwise __addrpair;
  *	@skc_family: network address family
  *	@skc_state: Connection state
  *	@skc_reuse: %SO_REUSEADDR setting
+ *	@skc_reuseport: %SO_REUSEPORT setting
  *	@skc_bound_dev_if: bound device index if != 0
  *	@skc_bind_node: bind hash linkage for various protocol lookup tables
  *	@skc_portaddr_node: second hash linkage for UDP/UDP-Lite protocol
@@ -179,7 +180,8 @@ struct sock_common {
 
 	unsigned short		skc_family;
 	volatile unsigned char	skc_state;
-	unsigned char		skc_reuse;
+	unsigned char		skc_reuse:4;
+	unsigned char		skc_reuseport:4;
 	int			skc_bound_dev_if;
 	union {
 		struct hlist_node	skc_bind_node;
@@ -297,6 +299,7 @@ struct sock {
 #define sk_family		__sk_common.skc_family
 #define sk_state		__sk_common.skc_state
 #define sk_reuse		__sk_common.skc_reuse
+#define sk_reuseport		__sk_common.skc_reuseport
 #define sk_bound_dev_if		__sk_common.skc_bound_dev_if
 #define sk_bind_node		__sk_common.skc_bind_node
 #define sk_prot			__sk_common.skc_prot
@@ -337,7 +340,7 @@ struct sock {
 #endif
 	unsigned long 		sk_flags;
 	struct dst_entry	*sk_rx_dst;
-	struct dst_entry	*sk_dst_cache;
+	struct dst_entry __rcu	*sk_dst_cache;
 	spinlock_t		sk_dst_lock;
 	atomic_t		sk_wmem_alloc;
 	atomic_t		sk_omem_alloc;
@@ -603,24 +606,23 @@ static inline void sk_add_bind_node(struct sock *sk,
 	hlist_add_head(&sk->sk_bind_node, list);
 }
 
-#define sk_for_each(__sk, node, list) \
-	hlist_for_each_entry(__sk, node, list, sk_node)
-#define sk_for_each_rcu(__sk, node, list) \
-	hlist_for_each_entry_rcu(__sk, node, list, sk_node)
+#define sk_for_each(__sk, list) \
+	hlist_for_each_entry(__sk, list, sk_node)
+#define sk_for_each_rcu(__sk, list) \
+	hlist_for_each_entry_rcu(__sk, list, sk_node)
 #define sk_nulls_for_each(__sk, node, list) \
 	hlist_nulls_for_each_entry(__sk, node, list, sk_nulls_node)
 #define sk_nulls_for_each_rcu(__sk, node, list) \
 	hlist_nulls_for_each_entry_rcu(__sk, node, list, sk_nulls_node)
-#define sk_for_each_from(__sk, node) \
-	if (__sk && ({ node = &(__sk)->sk_node; 1; })) \
-		hlist_for_each_entry_from(__sk, node, sk_node)
+#define sk_for_each_from(__sk) \
+	hlist_for_each_entry_from(__sk, sk_node)
 #define sk_nulls_for_each_from(__sk, node) \
 	if (__sk && ({ node = &(__sk)->sk_nulls_node; 1; })) \
 		hlist_nulls_for_each_entry_from(__sk, node, sk_nulls_node)
-#define sk_for_each_safe(__sk, node, tmp, list) \
-	hlist_for_each_entry_safe(__sk, node, tmp, list, sk_node)
-#define sk_for_each_bound(__sk, node, list) \
-	hlist_for_each_entry(__sk, node, list, sk_bind_node)
+#define sk_for_each_safe(__sk, tmp, list) \
+	hlist_for_each_entry_safe(__sk, tmp, list, sk_node)
+#define sk_for_each_bound(__sk, list) \
+	hlist_for_each_entry(__sk, list, sk_bind_node)
 
 static inline struct user_namespace *sk_user_ns(struct sock *sk)
 {
@@ -664,6 +666,7 @@ enum sock_flags {
 		     * Will use last 4 bytes of packet sent from
 		     * user-space instead.
 		     */
+	SOCK_FILTER_LOCKED, /* Filter cannot be changed anymore */
 };
 
 static inline void sock_copy_flags(struct sock *nsk, struct sock *osk)
@@ -1037,7 +1040,7 @@ static inline void sk_refcnt_debug_dec(struct sock *sk)
 	       sk->sk_prot->name, sk, atomic_read(&sk->sk_prot->socks));
 }
 
-inline void sk_refcnt_debug_release(const struct sock *sk)
+static inline void sk_refcnt_debug_release(const struct sock *sk)
 {
 	if (atomic_read(&sk->sk_refcnt) != 1)
 		printk(KERN_DEBUG "Destruction of the %s socket %p delayed, refcnt=%d\n",

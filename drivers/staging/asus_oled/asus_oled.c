@@ -164,11 +164,8 @@ static void enable_oled(struct asus_oled_dev *odev, uint8_t enabl)
 	struct asus_oled_packet *packet;
 
 	packet = kzalloc(sizeof(struct asus_oled_packet), GFP_KERNEL);
-
-	if (!packet) {
-		dev_err(&odev->udev->dev, "out of memory\n");
+	if (!packet)
 		return;
-	}
 
 	setup_packet_header(packet, 0x20, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00);
 
@@ -323,11 +320,8 @@ static void send_data(struct asus_oled_dev *odev)
 	struct asus_oled_packet *packet;
 
 	packet = kzalloc(sizeof(struct asus_oled_packet), GFP_KERNEL);
-
-	if (!packet) {
-		dev_err(&odev->udev->dev, "out of memory\n");
+	if (!packet)
 		return;
-	}
 
 	if (odev->pack_mode == PACK_MODE_G1) {
 		/* When sending roll-mode data the display updated only
@@ -665,11 +659,8 @@ static int asus_oled_probe(struct usb_interface *interface,
 	}
 
 	odev = kzalloc(sizeof(struct asus_oled_dev), GFP_KERNEL);
-
-	if (odev == NULL) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (odev == NULL)
 		return -ENOMEM;
-	}
 
 	odev->udev = usb_get_dev(udev);
 	odev->pic_mode = ASUS_OLED_STATIC;

@@ -139,9 +139,9 @@ static const match_table_t tokens = {
 
 
 STATIC unsigned long
-suffix_strtoul(char *s, char **endp, unsigned int base)
+suffix_kstrtoint(char *s, unsigned int base, int *res)
 {
-	int	last, shift_left_factor = 0;
+	int	last, shift_left_factor = 0, _res;
 	char	*value = s;
 
 	last = strlen(value) - 1;
@@ -158,7 +158,10 @@ suffix_strtoul(char *s, char **endp, unsigned int base)
 		value[last] = '\0';
 	}
 
-	return simple_strtoul((const char *)s, endp, base) << shift_left_factor;
+	if (kstrtoint(s, base, &_res))
+		return -EINVAL;
+	*res = _res << shift_left_factor;
+	return 0;
 }
 
 /*
@@ -174,7 +177,7 @@ xfs_parseargs(
 	char			*options)
 {
 	struct super_block	*sb = mp->m_super;
-	char			*this_char, *value, *eov;
+	char			*this_char, *value;
 	int			dsunit = 0;
 	int			dswidth = 0;
 	int			iosize = 0;
@@ -230,14 +233,16 @@ xfs_parseargs(
 					this_char);
 				return EINVAL;
 			}
-			mp->m_logbufs = simple_strtoul(value, &eov, 10);
+			if (kstrtoint(value, 10, &mp->m_logbufs))
+				return EINVAL;
 		} else if (!strcmp(this_char, MNTOPT_LOGBSIZE)) {
 			if (!value || !*value) {
 				xfs_warn(mp, "%s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
-			mp->m_logbsize = suffix_strtoul(value, &eov, 10);
+			if (suffix_kstrtoint(value, 10, &mp->m_logbsize))
+				return EINVAL;
 		} else if (!strcmp(this_char, MNTOPT_LOGDEV)) {
 			if (!value || !*value) {
 				xfs_warn(mp, "%s option requires an argument",
@@ -266,7 +271,8 @@ xfs_parseargs(
 					this_char);
 				return EINVAL;
 			}
-			iosize = simple_strtoul(value, &eov, 10);
+			if (kstrtoint(value, 10, &iosize))
+				return EINVAL;
 			iosizelog = ffs(iosize) - 1;
 		} else if (!strcmp(this_char, MNTOPT_ALLOCSIZE)) {
 			if (!value || !*value) {
@@ -274,7 +280,8 @@ xfs_parseargs(
 					this_char);
 				return EINVAL;
 			}
-			iosize = suffix_strtoul(value, &eov, 10);
+			if (suffix_kstrtoint(value, 10, &iosize))
+				return EINVAL;
 			iosizelog = ffs(iosize) - 1;
 		} else if (!strcmp(this_char, MNTOPT_GRPID) ||
 			   !strcmp(this_char, MNTOPT_BSDGROUPS)) {
@@ -296,14 +303,16 @@ xfs_parseargs(
 					this_char);
 				return EINVAL;
 			}
-			dsunit = simple_strtoul(value, &eov, 10);
+			if (kstrtoint(value, 10, &dsunit))
+				return EINVAL;
 		} else if (!strcmp(this_char, MNTOPT_SWIDTH)) {
 			if (!value || !*value) {
 				xfs_warn(mp, "%s option requires an argument",
 					this_char);
 				return EINVAL;
 			}
-			dswidth = simple_strtoul(value, &eov, 10);
+			if (kstrtoint(value, 10, &dswidth))
+				return EINVAL;
 		} else if (!strcmp(this_char, MNTOPT_32BITINODE)) {
 			mp->m_flags |= XFS_MOUNT_SMALL_INUMS;
 		} else if (!strcmp(this_char, MNTOPT_64BITINODE)) {

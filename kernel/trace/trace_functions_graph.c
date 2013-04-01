@@ -47,6 +47,8 @@ struct fgraph_data {
 #define TRACE_GRAPH_PRINT_ABS_TIME	0x20
 #define TRACE_GRAPH_PRINT_IRQS		0x40
 
+static unsigned int max_depth;
+
 static struct tracer_opt trace_opts[] = {
 	/* Display overruns? (for self-debug purpose) */
 	{ TRACER_OPT(funcgraph-overrun, TRACE_GRAPH_PRINT_OVERRUN) },
@@ -189,9 +191,15 @@ unsigned long ftrace_return_to_handler(unsigned long frame_pointer)
 
 	ftrace_pop_return_trace(&trace, &ret, frame_pointer);
 	trace.rettime = trace_clock_local();
-	ftrace_graph_return(&trace);
 	barrier();
 	current->curr_ret_stack--;
+
+	/*
+	 * The trace should run after decrementing the ret counter
+	 * in case an interrupt were to come in. We don't want to
+	 * lose the interrupt if max_depth is set.
+	 */
+	ftrace_graph_return(&trace);
 
 	if (unlikely(!ret)) {
 		ftrace_graph_stop();
@@ -250,8 +258,9 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 		return 0;
 
 	/* trace it when it is-nested-in or is a function enabled. */
-	if (!(trace->depth || ftrace_graph_addr(trace->func)) ||
-	      ftrace_graph_ignore_irqs())
+	if ((!(trace->depth || ftrace_graph_addr(trace->func)) ||
+	     ftrace_graph_ignore_irqs()) ||
+	    (max_depth && trace->depth >= max_depth))
 		return 0;
 
 	local_irq_save(flags);
@@ -1456,6 +1465,59 @@ static struct tracer graph_trace __read_mostly = {
 	.selftest	= trace_selftest_startup_function_graph,
 #endif
 };
+
+
+static ssize_t
+graph_depth_write(struct file *filp, const char __user *ubuf, size_t cnt,
+		  loff_t *ppos)
+{
+	unsigned long val;
+	int ret;
+
+	ret = kstrtoul_from_user(ubuf, cnt, 10, &val);
+	if (ret)
+		return ret;
+
+	max_depth = val;
+
+	*ppos += cnt;
+
+	return cnt;
+}
+
+static ssize_t
+graph_depth_read(struct file *filp, char __user *ubuf, size_t cnt,
+		 loff_t *ppos)
+{
+	char buf[15]; /* More than enough to hold UINT_MAX + "\n"*/
+	int n;
+
+	n = sprintf(buf, "%d\n", max_depth);
+
+	return simple_read_from_buffer(ubuf, cnt, ppos, buf, n);
+}
+
+static const struct file_operations graph_depth_fops = {
+	.open		= tracing_open_generic,
+	.write		= graph_depth_write,
+	.read		= graph_depth_read,
+	.llseek		= generic_file_llseek,
+};
+
+static __init int init_graph_debugfs(void)
+{
+	struct dentry *d_tracer;
+
+	d_tracer = tracing_init_dentry();
+	if (!d_tracer)
+		return 0;
+
+	trace_create_file("max_graph_depth", 0644, d_tracer,
+			  NULL, &graph_depth_fops);
+
+	return 0;
+}
+fs_initcall(init_graph_debugfs);
 
 static __init int init_graph_trace(void)
 {

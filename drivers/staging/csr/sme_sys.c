@@ -280,7 +280,7 @@ void CsrWifiRouterCtrlHipReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     CSR_SIGNAL *signal;
     u16 interfaceTag = 0;
     CSR_MA_PACKET_REQUEST *req;
-    netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
+    netInterface_priv_t *interfacePriv;
 
     if (priv == NULL) {
         return;
@@ -293,6 +293,8 @@ void CsrWifiRouterCtrlHipReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
         unifi_error(priv, "CsrWifiRouterCtrlHipReqHandler: invalid interfaceTag\n");
         return;
     }
+
+    interfacePriv = priv->interfacePriv[interfaceTag];
 
     /* Initialize bulkdata to avoid os_net_buf is garbage */
     memset(&bulkdata, 0, sizeof(bulk_data_param_t));
@@ -1498,7 +1500,7 @@ void CsrWifiRouterMaPacketReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     u8 *daddr, *saddr;
     u16 interfaceTag = mareq->interfaceTag & 0x00ff;
     int queue;
-    netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
+    netInterface_priv_t *interfacePriv;
 
     if (!mareq->frame || !priv || !priv->smepriv)
     {
@@ -1510,6 +1512,8 @@ void CsrWifiRouterMaPacketReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
         unifi_error(priv, "CsrWifiRouterMaPacketReqHandler: interfaceID >= CSR_WIFI_NUM_INTERFACES.\n");
         return;
     }
+
+    interfacePriv = priv->interfacePriv[interfaceTag];
     /* get a pointer to dest & source Mac address */
     daddr = mareq->frame;
     saddr = (mareq->frame + ETH_ALEN);
@@ -2056,9 +2060,9 @@ void CsrWifiRouterCtrlPeerDelReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     CsrWifiRouterCtrlPeerDelReq* req = (CsrWifiRouterCtrlPeerDelReq*)msg;
     CsrResult status = CSR_RESULT_SUCCESS;
     unifi_priv_t *priv = (unifi_priv_t*)drvpriv;
-    netInterface_priv_t *interfacePriv = priv->interfacePriv[req->interfaceTag];
+    netInterface_priv_t *interfacePriv;
 
-    unifi_trace(priv, UDBG2, "entering CsrWifiRouterCtrlPeerDelReqHandler \n");
+    unifi_trace(priv, UDBG2, "entering CsrWifiRouterCtrlPeerDelReqHandler\n");
     if (priv == NULL)
     {
         unifi_error(priv, "CsrWifiRouterCtrlPeerDelReqHandler: invalid smepriv\n");
@@ -2070,6 +2074,8 @@ void CsrWifiRouterCtrlPeerDelReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
         unifi_error(priv, "CsrWifiRouterCtrlPeerDelReqHandler: bad interfaceTag\n");
         return;
     }
+
+    interfacePriv = priv->interfacePriv[req->interfaceTag];
 
     switch(interfacePriv->interfaceMode)
     {
@@ -2471,7 +2477,7 @@ void CsrWifiRouterCtrlPeerAddReqHandler(void* drvpriv,CsrWifiFsmEvent* msg)
     CsrResult status = CSR_RESULT_SUCCESS;
     unifi_priv_t *priv = (unifi_priv_t*)drvpriv;
     u32 handle = 0;
-    netInterface_priv_t *interfacePriv = priv->interfacePriv[req->interfaceTag];
+    netInterface_priv_t *interfacePriv;
 
     unifi_trace(priv, UDBG2, "entering CsrWifiRouterCtrlPeerAddReqHandler \n");
     if (priv == NULL)
@@ -2485,6 +2491,8 @@ void CsrWifiRouterCtrlPeerAddReqHandler(void* drvpriv,CsrWifiFsmEvent* msg)
         unifi_error(priv, "CsrWifiRouterCtrlPeerAddReqHandler: bad interfaceTag\n");
         return;
     }
+
+    interfacePriv = priv->interfacePriv[req->interfaceTag];
 
     switch(interfacePriv->interfaceMode)
     {
@@ -3036,21 +3044,24 @@ void CsrWifiRouterCtrlWapiRxPktReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     ul_client_t *client;
     CSR_SIGNAL signal;
     CSR_MA_PACKET_INDICATION *pkt_ind;
-    netInterface_priv_t *interfacePriv = priv->interfacePriv[req->interfaceTag];
+    netInterface_priv_t *interfacePriv;
+
+    if (priv == NULL) {
+	    unifi_error(priv, "CsrWifiRouterCtrlWapiRxPktReq : invalid priv\n", __func__);
+	    return;
+    }
+
+    if (priv->smepriv == NULL) {
+	    unifi_error(priv, "CsrWifiRouterCtrlWapiRxPktReq : invalid sme priv\n", __func__);
+	    return;
+    }
+
+    interfacePriv = priv->interfacePriv[req->interfaceTag];
 
     if (CSR_WIFI_ROUTER_CTRL_MODE_STA == interfacePriv->interfaceMode) {
 
     	unifi_trace(priv, UDBG6, ">>%s\n", __FUNCTION__);
 
-        if (priv == NULL) {
-            unifi_error(priv, "CsrWifiRouterCtrlWapiRxPktReq : invalid priv\n",__FUNCTION__);
-            return;
-        }
-
-        if (priv->smepriv == NULL) {
-             unifi_error(priv, "CsrWifiRouterCtrlWapiRxPktReq : invalid sme priv\n",__FUNCTION__);
-             return;
-        }
 
         if (req->dataLength == 0 || req->data == NULL) {
              unifi_error(priv, "CsrWifiRouterCtrlWapiRxPktReq: invalid request\n",__FUNCTION__);

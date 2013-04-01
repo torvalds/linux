@@ -177,7 +177,7 @@ static void __init snapper9260_board_init(void)
 }
 
 MACHINE_START(SNAPPER_9260, "Bluewater Systems Snapper 9260/9G20 module")
-	.timer		= &at91sam926x_timer,
+	.init_time	= at91sam926x_pit_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= snapper9260_init_early,

@@ -35,37 +35,12 @@ static int wil_stop(struct net_device *ndev)
 	return wil_down(wil);
 }
 
-/*
- * AC to queue mapping
- *
- * AC_VO -> queue 3
- * AC_VI -> queue 2
- * AC_BE -> queue 1
- * AC_BK -> queue 0
- */
-static u16 wil_select_queue(struct net_device *ndev, struct sk_buff *skb)
-{
-	static const u16 wil_1d_to_queue[8] = { 1, 0, 0, 1, 2, 2, 3, 3 };
-	struct wil6210_priv *wil = ndev_to_wil(ndev);
-	u16 rc;
-
-	skb->priority = cfg80211_classify8021d(skb);
-
-	rc = wil_1d_to_queue[skb->priority];
-
-	wil_dbg_TXRX(wil, "%s() %d -> %d\n", __func__, (int)skb->priority,
-		     (int)rc);
-
-	return rc;
-}
-
 static const struct net_device_ops wil_netdev_ops = {
 	.ndo_open		= wil_open,
 	.ndo_stop		= wil_stop,
 	.ndo_start_xmit		= wil_start_xmit,
-	.ndo_select_queue	= wil_select_queue,
-	.ndo_set_mac_address    = eth_mac_addr,
-	.ndo_validate_addr      = eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
 };
 
 void *wil_if_alloc(struct device *dev, void __iomem *csr)
@@ -97,7 +72,7 @@ void *wil_if_alloc(struct device *dev, void __iomem *csr)
 	ch = wdev->wiphy->bands[IEEE80211_BAND_60GHZ]->channels;
 	cfg80211_chandef_create(&wdev->preset_chandef, ch, NL80211_CHAN_NO_HT);
 
-	ndev = alloc_netdev_mqs(0, "wlan%d", ether_setup, WIL6210_TX_QUEUES, 1);
+	ndev = alloc_netdev(0, "wlan%d", ether_setup);
 	if (!ndev) {
 		dev_err(dev, "alloc_netdev_mqs failed\n");
 		rc = -ENOMEM;

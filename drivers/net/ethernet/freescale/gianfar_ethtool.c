@@ -149,20 +149,17 @@ static void gfar_fill_stats(struct net_device *dev, struct ethtool_stats *dummy,
 	int i;
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
-	u64 *extra = (u64 *) & priv->extra_stats;
+	atomic64_t *extra = (atomic64_t *)&priv->extra_stats;
+
+	for (i = 0; i < GFAR_EXTRA_STATS_LEN; i++)
+		buf[i] = atomic64_read(&extra[i]);
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
 		u32 __iomem *rmon = (u32 __iomem *) &regs->rmon;
-		struct gfar_stats *stats = (struct gfar_stats *) buf;
 
-		for (i = 0; i < GFAR_RMON_LEN; i++)
-			stats->rmon[i] = (u64) gfar_read(&rmon[i]);
-
-		for (i = 0; i < GFAR_EXTRA_STATS_LEN; i++)
-			stats->extra[i] = extra[i];
-	} else
-		for (i = 0; i < GFAR_EXTRA_STATS_LEN; i++)
-			buf[i] = extra[i];
+		for (; i < GFAR_STATS_LEN; i++, rmon++)
+			buf[i] = (u64) gfar_read(rmon);
+	}
 }
 
 static int gfar_sset_count(struct net_device *dev, int sset)
@@ -184,10 +181,11 @@ static int gfar_sset_count(struct net_device *dev, int sset)
 static void gfar_gdrvinfo(struct net_device *dev,
 			  struct ethtool_drvinfo *drvinfo)
 {
-	strncpy(drvinfo->driver, DRV_NAME, GFAR_INFOSTR_LEN);
-	strncpy(drvinfo->version, gfar_driver_version, GFAR_INFOSTR_LEN);
-	strncpy(drvinfo->fw_version, "N/A", GFAR_INFOSTR_LEN);
-	strncpy(drvinfo->bus_info, "N/A", GFAR_INFOSTR_LEN);
+	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, gfar_driver_version,
+		sizeof(drvinfo->version));
+	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+	strlcpy(drvinfo->bus_info, "N/A", sizeof(drvinfo->bus_info));
 	drvinfo->regdump_len = 0;
 	drvinfo->eedump_len = 0;
 }
@@ -715,12 +713,11 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow,
 	int j = MAX_FILER_IDX, l = 0x0;
 	int ret = 1;
 
-	local_rqfpr = kmalloc(sizeof(unsigned int) * (MAX_FILER_IDX + 1),
-			      GFP_KERNEL);
-	local_rqfcr = kmalloc(sizeof(unsigned int) * (MAX_FILER_IDX + 1),
-			      GFP_KERNEL);
+	local_rqfpr = kmalloc_array(MAX_FILER_IDX + 1, sizeof(unsigned int),
+				    GFP_KERNEL);
+	local_rqfcr = kmalloc_array(MAX_FILER_IDX + 1, sizeof(unsigned int),
+				    GFP_KERNEL);
 	if (!local_rqfpr || !local_rqfcr) {
-		pr_err("Out of memory\n");
 		ret = 0;
 		goto err;
 	}

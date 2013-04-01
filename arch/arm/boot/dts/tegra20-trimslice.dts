@@ -249,6 +249,11 @@
 					"ld23_22";
 				nvidia,pull = <1>;
 			};
+			conf_spif {
+				nvidia,pins = "spif";
+				nvidia,pull = <1>;
+				nvidia,tristate = <0>;
+			};
 		};
 	};
 
@@ -258,7 +263,6 @@
 
 	serial@70006000 {
 		status = "okay";
-		clock-frequency = <216000000>;
 	};
 
 	dvi_ddc: i2c@7000c000 {
@@ -310,6 +314,10 @@
 		status = "okay";
 	};
 
+	usb-phy@c5004400 {
+		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
+	};
+
 	sdhci@c8000000 {
 		status = "okay";
 		bus-width = <4>;
@@ -320,6 +328,11 @@
 		cd-gpios = <&gpio 121 0>; /* gpio PP1 */
 		wp-gpios = <&gpio 122 0>; /* gpio PP2 */
 		bus-width = <4>;
+	};
+
+	poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio 191 1>; /* gpio PX7, active low */
 	};
 
 	regulators {

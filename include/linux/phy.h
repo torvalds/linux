@@ -506,13 +506,13 @@ struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45);
 int phy_device_register(struct phy_device *phy);
 int phy_init_hw(struct phy_device *phydev);
 struct phy_device * phy_attach(struct net_device *dev,
-		const char *bus_id, u32 flags, phy_interface_t interface);
+		const char *bus_id, phy_interface_t interface);
 struct phy_device *phy_find_first(struct mii_bus *bus);
 int phy_connect_direct(struct net_device *dev, struct phy_device *phydev,
-		void (*handler)(struct net_device *), u32 flags,
+		void (*handler)(struct net_device *),
 		phy_interface_t interface);
 struct phy_device * phy_connect(struct net_device *dev, const char *bus_id,
-		void (*handler)(struct net_device *), u32 flags,
+		void (*handler)(struct net_device *),
 		phy_interface_t interface);
 void phy_disconnect(struct phy_device *phydev);
 void phy_detach(struct phy_device *phydev);

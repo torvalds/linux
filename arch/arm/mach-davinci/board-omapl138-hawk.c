@@ -48,8 +48,7 @@ static __init void omapl138_hawk_config_emac(void)
 	val &= ~BIT(8);
 	ret = davinci_cfg_reg_list(omapl138_hawk_mii_pins);
 	if (ret) {
-		pr_warning("%s: cpgmac/mii mux setup failed: %d\n",
-			__func__, ret);
+		pr_warn("%s: CPGMAC/MII mux setup failed: %d\n", __func__, ret);
 		return;
 	}
 
@@ -61,8 +60,7 @@ static __init void omapl138_hawk_config_emac(void)
 
 	ret = da8xx_register_emac();
 	if (ret)
-		pr_warning("%s: emac registration failed: %d\n",
-			__func__, ret);
+		pr_warn("%s: EMAC registration failed: %d\n", __func__, ret);
 }
 
 /*
@@ -147,15 +145,14 @@ static __init void omapl138_hawk_mmc_init(void)
 
 	ret = davinci_cfg_reg_list(hawk_mmcsd0_pins);
 	if (ret) {
-		pr_warning("%s: MMC/SD0 mux setup failed: %d\n",
-			__func__, ret);
+		pr_warn("%s: MMC/SD0 mux setup failed: %d\n", __func__, ret);
 		return;
 	}
 
 	ret = gpio_request_one(DA850_HAWK_MMCSD_CD_PIN,
 			GPIOF_DIR_IN, "MMC CD");
 	if (ret < 0) {
-		pr_warning("%s: can not open GPIO %d\n",
+		pr_warn("%s: can not open GPIO %d\n",
 			__func__, DA850_HAWK_MMCSD_CD_PIN);
 		return;
 	}
@@ -163,15 +160,14 @@ static __init void omapl138_hawk_mmc_init(void)
 	ret = gpio_request_one(DA850_HAWK_MMCSD_WP_PIN,
 			GPIOF_DIR_IN, "MMC WP");
 	if (ret < 0) {
-		pr_warning("%s: can not open GPIO %d\n",
+		pr_warn("%s: can not open GPIO %d\n",
 			__func__, DA850_HAWK_MMCSD_WP_PIN);
 		goto mmc_setup_wp_fail;
 	}
 
 	ret = da8xx_register_mmcsd0(&da850_mmc_config);
 	if (ret) {
-		pr_warning("%s: MMC/SD0 registration failed: %d\n",
-			__func__, ret);
+		pr_warn("%s: MMC/SD0 registration failed: %d\n", __func__, ret);
 		goto mmc_setup_mmcsd_fail;
 	}
 
@@ -250,8 +246,7 @@ static __init void omapl138_hawk_usb_init(void)
 
 	ret = davinci_cfg_reg_list(da850_hawk_usb11_pins);
 	if (ret) {
-		pr_warning("%s: USB 1.1 PinMux setup failed: %d\n",
-			__func__, ret);
+		pr_warn("%s: USB 1.1 PinMux setup failed: %d\n", __func__, ret);
 		return;
 	}
 
@@ -280,8 +275,7 @@ static __init void omapl138_hawk_usb_init(void)
 
 	ret = da8xx_register_usb11(&omapl138_hawk_usb11_pdata);
 	if (ret) {
-		pr_warning("%s: USB 1.1 registration failed: %d\n",
-			__func__, ret);
+		pr_warn("%s: USB 1.1 registration failed: %d\n", __func__, ret);
 		goto usb11_setup_fail;
 	}
 
@@ -307,8 +301,7 @@ static __init void omapl138_hawk_init(void)
 
 	ret = da850_register_edma(da850_edma_rsv);
 	if (ret)
-		pr_warning("%s: EDMA registration failed: %d\n",
-			__func__, ret);
+		pr_warn("%s: EDMA registration failed: %d\n", __func__, ret);
 
 	omapl138_hawk_mmc_init();
 
@@ -316,9 +309,8 @@ static __init void omapl138_hawk_init(void)
 
 	ret = da8xx_register_watchdog();
 	if (ret)
-		pr_warning("omapl138_hawk_init: "
-			"watchdog registration failed: %d\n",
-			ret);
+		pr_warn("%s: watchdog registration failed: %d\n",
+			__func__, ret);
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
@@ -341,7 +333,7 @@ MACHINE_START(OMAPL138_HAWKBOARD, "AM18x/OMAP-L138 Hawkboard")
 	.atag_offset	= 0x100,
 	.map_io		= omapl138_hawk_map_io,
 	.init_irq	= cp_intc_init,
-	.timer		= &davinci_timer,
+	.init_time	= davinci_timer_init,
 	.init_machine	= omapl138_hawk_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,

@@ -52,8 +52,6 @@ de4x5.txt
 	- the Digital EtherWORKS DE4?? and DE5?? PCI Ethernet driver
 decnet.txt
 	- info on using the DECnet networking layer in Linux.
-depca.txt
-	- the Digital DEPCA/EtherWORKS DE1?? and DE2?? LANCE Ethernet driver
 dl2k.txt
 	- README for D-Link DL2000-based Gigabit Ethernet Adapters (dl2k.ko).
 dm9000.txt
@@ -72,8 +70,6 @@ e1000e.txt
 	- README for the Intel Gigabit Ethernet Driver (e1000e).
 eql.txt
 	- serial IP load balancing
-ewrk3.txt
-	- the Digital EtherWORKS 3 DE203/4/5 Ethernet driver
 fib_trie.txt
 	- Level Compressed Trie (LC-trie) notes: a structure for routing.
 filter.txt
@@ -126,8 +122,6 @@ ltpc.txt
 	- the Apple or Farallon LocalTalk PC card driver
 mac80211-injection.txt
 	- HOWTO use packet injection with mac80211
-multicast.txt
-	- Behaviour of cards under Multicast
 multiqueue.txt
 	- HOWTO for multiqueue network device support.
 netconsole.txt

@@ -154,6 +154,7 @@ static int iblock_configure_device(struct se_device *dev)
 
 	if (blk_queue_nonrot(q))
 		dev->dev_attrib.is_nonrot = 1;
+
 	return 0;
 
 out_free_bioset:
@@ -390,10 +391,19 @@ iblock_execute_unmap(struct se_cmd *cmd)
 	sense_reason_t ret = 0;
 	int dl, bd_dl, err;
 
+	/* We never set ANC_SUP */
+	if (cmd->t_task_cdb[1])
+		return TCM_INVALID_CDB_FIELD;
+
+	if (cmd->data_length == 0) {
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
+		return 0;
+	}
+
 	if (cmd->data_length < 8) {
 		pr_warn("UNMAP parameter list length %u too small\n",
 			cmd->data_length);
-		return TCM_INVALID_PARAMETER_LIST;
+		return TCM_PARAMETER_LIST_LENGTH_ERROR;
 	}
 
 	buf = transport_kmap_data_sg(cmd);
@@ -463,7 +473,7 @@ iblock_execute_write_same_unmap(struct se_cmd *cmd)
 	int rc;
 
 	rc = blkdev_issue_discard(ib_dev->ibd_bd, cmd->t_task_lba,
-			spc_get_write_same_sectors(cmd), GFP_KERNEL, 0);
+			sbc_get_write_same_sectors(cmd), GFP_KERNEL, 0);
 	if (rc < 0) {
 		pr_warn("blkdev_issue_discard() failed: %d\n", rc);
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -481,7 +491,7 @@ iblock_execute_write_same(struct se_cmd *cmd)
 	struct bio *bio;
 	struct bio_list list;
 	sector_t block_lba = cmd->t_task_lba;
-	sector_t sectors = spc_get_write_same_sectors(cmd);
+	sector_t sectors = sbc_get_write_same_sectors(cmd);
 
 	sg = &cmd->t_data_sg[0];
 
@@ -654,20 +664,24 @@ iblock_execute_rw(struct se_cmd *cmd)
 	u32 sg_num = sgl_nents;
 	sector_t block_lba;
 	unsigned bio_cnt;
-	int rw;
+	int rw = 0;
 	int i;
 
 	if (data_direction == DMA_TO_DEVICE) {
+		struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+		struct request_queue *q = bdev_get_queue(ib_dev->ibd_bd);
 		/*
-		 * Force data to disk if we pretend to not have a volatile
-		 * write cache, or the initiator set the Force Unit Access bit.
+		 * Force writethrough using WRITE_FUA if a volatile write cache
+		 * is not enabled, or if initiator set the Force Unit Access bit.
 		 */
-		if (dev->dev_attrib.emulate_write_cache == 0 ||
-		    (dev->dev_attrib.emulate_fua_write > 0 &&
-		     (cmd->se_cmd_flags & SCF_FUA)))
-			rw = WRITE_FUA;
-		else
+		if (q->flush_flags & REQ_FUA) {
+			if (cmd->se_cmd_flags & SCF_FUA)
+				rw = WRITE_FUA;
+			else if (!(q->flush_flags & REQ_FLUSH))
+				rw = WRITE_FUA;
+		} else {
 			rw = WRITE;
+		}
 	} else {
 		rw = READ;
 	}
@@ -774,6 +788,15 @@ iblock_parse_cdb(struct se_cmd *cmd)
 	return sbc_parse_cdb(cmd, &iblock_sbc_ops);
 }
 
+bool iblock_get_write_cache(struct se_device *dev)
+{
+	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
+	struct block_device *bd = ib_dev->ibd_bd;
+	struct request_queue *q = bdev_get_queue(bd);
+
+	return q->flush_flags & REQ_FLUSH;
+}
+
 static struct se_subsystem_api iblock_template = {
 	.name			= "iblock",
 	.inquiry_prod		= "IBLOCK",
@@ -790,6 +813,7 @@ static struct se_subsystem_api iblock_template = {
 	.show_configfs_dev_params = iblock_show_configfs_dev_params,
 	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= iblock_get_blocks,
+	.get_write_cache	= iblock_get_write_cache,
 };
 
 static int __init iblock_module_init(void)
@@ -797,7 +821,7 @@ static int __init iblock_module_init(void)
 	return transport_subsystem_register(&iblock_template);
 }
 
-static void iblock_module_exit(void)
+static void __exit iblock_module_exit(void)
 {
 	transport_subsystem_release(&iblock_template);
 }

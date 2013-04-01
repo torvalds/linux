@@ -1,0 +1,140 @@
+ST Ericsson Nomadik pinmux controller
+
+Required properties:
+- compatible: "stericsson,nmk-pinctrl", "stericsson,nmk-pinctrl-db8540",
+              "stericsson,nmk-pinctrl-stn8815"
+- reg: Should contain the register physical address and length of the PRCMU.
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices, including the meaning of the
+phrase "pin configuration node".
+
+ST Ericsson's pin configuration nodes act as a container for an arbitrary number of
+subnodes. Each of these subnodes represents some desired configuration for a
+pin, a group, or a list of pins or groups. This configuration can include the
+mux function to select on those pin(s)/group(s), and various pin configuration
+parameters, such as input, output, pull up, pull down...
+
+The name of each subnode is not important; all subnodes should be enumerated
+and processed purely based on their content.
+
+Required subnode-properties:
+- ste,pins : An array of strings. Each string contains the name of a pin or
+    group.
+
+Optional subnode-properties:
+- ste,function: A string containing the name of the function to mux to the
+  pin or group.
+
+- ste,config: Handle of pin configuration node (e.g. ste,config = <&slpm_in_wkup_pdis>)
+
+- ste,input : <0/1/2>
+	0: input with no pull
+	1: input with pull up,
+	2: input with pull down,
+
+- ste,output: <0/1/2>
+	0: output low,
+	1: output high,
+	2: output (value is not specified).
+
+- ste,sleep: <0/1>
+	0: sleep mode disable,
+	1: sleep mode enable.
+
+- ste,sleep-input: <0/1/2/3>
+	0: sleep input with no pull,
+	1: sleep input with pull up,
+	2: sleep input with pull down.
+	3: sleep input and keep last input configuration (no pull, pull up or pull down).
+
+- ste,sleep-output: <0/1/2>
+	0: sleep output low,
+	1: sleep output high,
+	2: sleep output (value is not specified).
+
+- ste,sleep-gpio: <0/1>
+	0: disable sleep gpio mode,
+	1: enable sleep gpio mode.
+
+- ste,sleep-wakeup: <0/1>
+	0: wake-up detection enabled,
+	1: wake-up detection disabled.
+
+- ste,sleep-pull-disable: <0/1>
+	0: GPIO pull-up or pull-down resistor is enabled, when pin is an input,
+	1: GPIO pull-up and pull-down resistor are disabled.
+
+Example board file extract:
+
+	pinctrl@80157000 {
+		compatible = "stericsson,nmk-pinctrl";
+		reg = <0x80157000 0x2000>;
+
+		pinctrl-names = "default";
+
+		slpm_in_wkup_pdis: slpm_in_wkup_pdis {
+			ste,sleep = <1>;
+			ste,sleep-input = <3>;
+			ste,sleep-wakeup = <1>;
+			ste,sleep-pull-disable = <0>;
+		};
+
+		slpm_out_hi_wkup_pdis: slpm_out_hi_wkup_pdis {
+			ste,sleep = <1>;
+			ste,sleep-output = <1>;
+			ste,sleep-wakeup = <1>;
+			ste,sleep-pull-disable = <0>;
+		};
+
+		slpm_out_wkup_pdis: slpm_out_wkup_pdis {
+			ste,sleep = <1>;
+			ste,sleep-output = <2>;
+			ste,sleep-wakeup = <1>;
+			ste,sleep-pull-disable = <0>;
+		};
+
+		uart0 {
+			uart0_default_mux: uart0_mux {
+				u0_default_mux {
+					ste,function = "u0";
+					ste,pins = "u0_a_1";
+				};
+			};
+			uart0_default_mode: uart0_default {
+				uart0_default_cfg1 {
+					ste,pins = "GPIO0", "GPIO2";
+					ste,input = <1>;
+				};
+
+				uart0_default_cfg2 {
+					ste,pins = "GPIO1", "GPIO3";
+					ste,output = <1>;
+				};
+			};
+			uart0_sleep_mode: uart0_sleep {
+				uart0_sleep_cfg1 {
+					ste,pins = "GPIO0", "GPIO2";
+					ste,config = <&slpm_in_wkup_pdis>;
+				};
+				uart0_sleep_cfg2 {
+					ste,pins = "GPIO1";
+					ste,config = <&slpm_out_hi_wkup_pdis>;
+				};
+				uart0_sleep_cfg3 {
+					ste,pins = "GPIO3";
+					ste,config = <&slpm_out_wkup_pdis>;
+				};
+			};
+		};
+	};
+
+	uart@80120000 {
+		compatible = "arm,pl011", "arm,primecell";
+		reg = <0x80120000 0x1000>;
+		interrupts = <0 11 0x4>;
+
+		pinctrl-names = "default","sleep";
+		pinctrl-0 = <&uart0_default_mux>, <&uart0_default_mode>;
+		pinctrl-1 = <&uart0_sleep_mode>;
+	};

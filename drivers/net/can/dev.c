@@ -24,7 +24,9 @@
 #include <linux/if_arp.h>
 #include <linux/can.h>
 #include <linux/can/dev.h>
+#include <linux/can/skb.h>
 #include <linux/can/netlink.h>
+#include <linux/can/led.h>
 #include <net/rtnetlink.h>
 
 #define MOD_DESC "CAN device driver interface"
@@ -501,13 +503,18 @@ struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf)
 {
 	struct sk_buff *skb;
 
-	skb = netdev_alloc_skb(dev, sizeof(struct can_frame));
+	skb = netdev_alloc_skb(dev, sizeof(struct can_skb_priv) +
+			       sizeof(struct can_frame));
 	if (unlikely(!skb))
 		return NULL;
 
 	skb->protocol = htons(ETH_P_CAN);
 	skb->pkt_type = PACKET_BROADCAST;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	can_skb_reserve(skb);
+	can_skb_prv(skb)->ifindex = dev->ifindex;
+
 	*cf = (struct can_frame *)skb_put(skb, sizeof(struct can_frame));
 	memset(*cf, 0, sizeof(struct can_frame));
 
@@ -794,9 +801,24 @@ void unregister_candev(struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(unregister_candev);
 
+/*
+ * Test if a network device is a candev based device
+ * and return the can_priv* if so.
+ */
+struct can_priv *safe_candev_priv(struct net_device *dev)
+{
+	if ((dev->type != ARPHRD_CAN) || (dev->rtnl_link_ops != &can_link_ops))
+		return NULL;
+
+	return netdev_priv(dev);
+}
+EXPORT_SYMBOL_GPL(safe_candev_priv);
+
 static __init int can_dev_init(void)
 {
 	int err;
+
+	can_led_notifier_init();
 
 	err = rtnl_link_register(&can_link_ops);
 	if (!err)
@@ -809,6 +831,8 @@ module_init(can_dev_init);
 static __exit void can_dev_exit(void)
 {
 	rtnl_link_unregister(&can_link_ops);
+
+	can_led_notifier_exit();
 }
 module_exit(can_dev_exit);
 

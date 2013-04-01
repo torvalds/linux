@@ -28,11 +28,30 @@ Makefile environment are given here.
 To create binary EDID and C source code files from the existing data
 material, simply type "make".
 
-If you want to create your own EDID file, copy the file 1024x768.S and
-replace the settings with your own data. The CRC value in the last line
+If you want to create your own EDID file, copy the file 1024x768.S,
+replace the settings with your own data and add a new target to the
+Makefile. Please note that the EDID data structure expects the timing
+values in a different way as compared to the standard X11 format.
+
+X11:
+HTimings:  hdisp hsyncstart hsyncend htotal
+VTimings:  vdisp vsyncstart vsyncend vtotal
+
+EDID:
+#define XPIX hdisp
+#define XBLANK htotal-hdisp
+#define XOFFSET hsyncstart-hdisp
+#define XPULSE hsyncend-hsyncstart
+
+#define YPIX vdisp
+#define YBLANK vtotal-vdisp
+#define YOFFSET (63+(vsyncstart-vdisp))
+#define YPULSE (63+(vsyncend-vsyncstart))
+
+The CRC value in the last line
   #define CRC 0x55
-is a bit tricky. After a first version of the binary data set is
-created, it must be be checked with the "edid-decode" utility which will
+also is a bit tricky. After a first version of the binary data set is
+created, it must be checked with the "edid-decode" utility which will
 most probably complain about a wrong CRC. Fortunately, the utility also
 displays the correct CRC which must then be inserted into the source
 file. After the make procedure is repeated, the EDID data set is ready
