@@ -986,6 +986,7 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct arizona_pdata *pdata;
 	struct arizona_extcon_info *info;
+	unsigned int val;
 	int jack_irq_fall, jack_irq_rise;
 	int ret, mode, i, j;
 
@@ -1172,9 +1173,13 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 	 */
 	if (info->micd_clamp) {
 		if (arizona->pdata.jd_gpio5) {
-			/* Put the GPIO into input mode */
+			/* Put the GPIO into input mode with optional pull */
+			val = 0xc101;
+			if (arizona->pdata.jd_gpio5_nopull)
+				val &= ~ARIZONA_GPN_PU;
+
 			regmap_write(arizona->regmap, ARIZONA_GPIO5_CTRL,
-				     0xc101);
+				     val);
 
 			regmap_update_bits(arizona->regmap,
 					   ARIZONA_MICD_CLAMP_CONTROL,

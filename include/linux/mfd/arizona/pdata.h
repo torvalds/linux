@@ -122,6 +122,9 @@ struct arizona_pdata {
 	/** GPIO5 is used for jack detection */
 	bool jd_gpio5;
 
+	/** Internal pull on GPIO5 is disabled when used for jack detection */
+	bool jd_gpio5_nopull;
+
 	/** Use the headphone detect circuit to identify the accessory */
 	bool hpdet_acc_id;
 
