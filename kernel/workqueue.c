@@ -3395,30 +3395,27 @@ static void rcu_free_pool(struct rcu_head *rcu)
  * safe manner.  get_unbound_pool() calls this function on its failure path
  * and this function should be able to release pools which went through,
  * successfully or not, init_worker_pool().
+ *
+ * Should be called with wq_pool_mutex held.
  */
 static void put_unbound_pool(struct worker_pool *pool)
 {
 	struct worker *worker;
 
-	mutex_lock(&wq_pool_mutex);
-	if (--pool->refcnt) {
-		mutex_unlock(&wq_pool_mutex);
+	lockdep_assert_held(&wq_pool_mutex);
+
+	if (--pool->refcnt)
 		return;
-	}
 
 	/* sanity checks */
 	if (WARN_ON(!(pool->flags & POOL_DISASSOCIATED)) ||
-	    WARN_ON(!list_empty(&pool->worklist))) {
-		mutex_unlock(&wq_pool_mutex);
+	    WARN_ON(!list_empty(&pool->worklist)))
 		return;
-	}
 
 	/* release id and unhash */
 	if (pool->id >= 0)
 		idr_remove(&worker_pool_idr, pool->id);
 	hash_del(&pool->hash_node);
-
-	mutex_unlock(&wq_pool_mutex);
 
 	/*
 	 * Become the manager and destroy all workers.  Grabbing
@@ -3453,13 +3450,15 @@ static void put_unbound_pool(struct worker_pool *pool)
  * reference count and return it.  If there already is a matching
  * worker_pool, it will be used; otherwise, this function attempts to
  * create a new one.  On failure, returns NULL.
+ *
+ * Should be called with wq_pool_mutex held.
  */
 static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
 {
 	u32 hash = wqattrs_hash(attrs);
 	struct worker_pool *pool;
 
-	mutex_lock(&wq_pool_mutex);
+	lockdep_assert_held(&wq_pool_mutex);
 
 	/* do we already have a matching pool? */
 	hash_for_each_possible(unbound_pool_hash, pool, hash_node, hash) {
@@ -3490,10 +3489,8 @@ static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
 	/* install */
 	hash_add(unbound_pool_hash, &pool->hash_node, hash);
 out_unlock:
-	mutex_unlock(&wq_pool_mutex);
 	return pool;
 fail:
-	mutex_unlock(&wq_pool_mutex);
 	if (pool)
 		put_unbound_pool(pool);
 	return NULL;
@@ -3530,7 +3527,10 @@ static void pwq_unbound_release_workfn(struct work_struct *work)
 	is_last = list_empty(&wq->pwqs);
 	mutex_unlock(&wq->mutex);
 
+	mutex_lock(&wq_pool_mutex);
 	put_unbound_pool(pool);
+	mutex_unlock(&wq_pool_mutex);
+
 	call_rcu_sched(&pwq->rcu, rcu_free_pwq);
 
 	/*
@@ -3654,13 +3654,21 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
 	copy_workqueue_attrs(new_attrs, attrs);
 	cpumask_and(new_attrs->cpumask, new_attrs->cpumask, cpu_possible_mask);
 
+	mutex_lock(&wq_pool_mutex);
+
 	pwq = kmem_cache_zalloc(pwq_cache, GFP_KERNEL);
-	if (!pwq)
+	if (!pwq) {
+		mutex_unlock(&wq_pool_mutex);
 		goto enomem;
+	}
 
 	pool = get_unbound_pool(new_attrs);
-	if (!pool)
+	if (!pool) {
+		mutex_unlock(&wq_pool_mutex);
 		goto enomem;
+	}
+
+	mutex_unlock(&wq_pool_mutex);
 
 	init_and_link_pwq(pwq, wq, pool, &last_pwq);
 	if (last_pwq) {
