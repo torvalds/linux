@@ -118,8 +118,10 @@ struct btrfs_csum_item *btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 		csums_in_item = btrfs_item_size_nr(leaf, path->slots[0]);
 		csums_in_item /= csum_size;
 
-		if (csum_offset >= csums_in_item) {
+		if (csum_offset == csums_in_item) {
 			ret = -EFBIG;
+			goto fail;
+		} else if (csum_offset > csums_in_item) {
 			goto fail;
 		}
 	}
@@ -728,7 +730,6 @@ int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	sector_sum = sums->sums;
-	trans->adding_csums = 1;
 again:
 	next_offset = (u64)-1;
 	found_next = 0;
@@ -899,7 +900,6 @@ next_sector:
 		goto again;
 	}
 out:
-	trans->adding_csums = 0;
 	btrfs_free_path(path);
 	return ret;
 

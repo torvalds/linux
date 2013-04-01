@@ -13,7 +13,7 @@
 
 #ifdef CONFIG_KGDB
 
-#include <asm/user.h>
+#include <asm/ptrace.h>
 
 /* to ensure compatibility with Linux 2.6.35, we don't implement the get/set
  * register API yet */
@@ -53,9 +53,7 @@ enum arc700_linux_regnums {
 };
 
 #else
-static inline void kgdb_trap(struct pt_regs *regs, int param)
-{
-}
+#define kgdb_trap(regs, param)
 #endif
 
 #endif	/* __ARC_KGDB_H__ */
