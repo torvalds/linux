@@ -3626,11 +3626,13 @@ static void pwq_adjust_max_active(struct pool_workqueue *pwq)
 	spin_unlock_irq(&pwq->pool->lock);
 }
 
-/* initialize newly zalloced @pwq which is associated with @wq and @pool */
+/* initialize newly alloced @pwq which is associated with @wq and @pool */
 static void init_pwq(struct pool_workqueue *pwq, struct workqueue_struct *wq,
 		     struct worker_pool *pool)
 {
 	BUG_ON((unsigned long)pwq & WORK_STRUCT_FLAG_MASK);
+
+	memset(pwq, 0, sizeof(*pwq));
 
 	pwq->pool = pool;
 	pwq->wq = wq;
@@ -3677,7 +3679,7 @@ static struct pool_workqueue *alloc_unbound_pwq(struct workqueue_struct *wq,
 	if (!pool)
 		return NULL;
 
-	pwq = kmem_cache_zalloc(pwq_cache, GFP_KERNEL);
+	pwq = kmem_cache_alloc_node(pwq_cache, GFP_KERNEL, pool->node);
 	if (!pwq) {
 		put_unbound_pool(pool);
 		return NULL;
