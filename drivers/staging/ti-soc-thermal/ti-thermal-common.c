@@ -215,6 +215,31 @@ static int ti_thermal_get_trip_temp(struct thermal_zone_device *thermal,
 	return 0;
 }
 
+/* Get the temperature trend callback functions for thermal zone */
+static int ti_thermal_get_trend(struct thermal_zone_device *thermal,
+				int trip, enum thermal_trend *trend)
+{
+	struct ti_thermal_data *data = thermal->devdata;
+	struct ti_bandgap *bgp;
+	int id, tr, ret = 0;
+
+	bgp = data->bgp;
+	id = data->sensor_id;
+
+	ret = ti_bandgap_get_trend(bgp, id, &tr);
+	if (ret)
+		return ret;
+
+	if (tr > 0)
+		*trend = THERMAL_TREND_RAISING;
+	else if (tr < 0)
+		*trend = THERMAL_TREND_DROPPING;
+	else
+		*trend = THERMAL_TREND_STABLE;
+
+	return 0;
+}
+
 /* Get critical temperature callback functions for thermal zone */
 static int ti_thermal_get_crit_temp(struct thermal_zone_device *thermal,
 				    unsigned long *temp)
@@ -225,7 +250,7 @@ static int ti_thermal_get_crit_temp(struct thermal_zone_device *thermal,
 
 static struct thermal_zone_device_ops ti_thermal_ops = {
 	.get_temp = ti_thermal_get_temp,
-	/* TODO: add .get_trend */
+	.get_trend = ti_thermal_get_trend,
 	.bind = ti_thermal_bind,
 	.unbind = ti_thermal_unbind,
 	.get_mode = ti_thermal_get_mode,
