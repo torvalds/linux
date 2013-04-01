@@ -7,6 +7,7 @@
 #include <linux/io.h>
 #include <linux/errno.h>
 #include <linux/clksrc-dbx500-prcmu.h>
+#include <linux/clocksource.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_data/clocksource-nomadik-mtu.h>
@@ -32,7 +33,7 @@ static void __init ux500_twd_init(void)
 	twd_local_timer = &u8500_twd_local_timer;
 
 	if (of_have_populated_dt())
-		twd_local_timer_of_register();
+		clocksource_of_init();
 	else {
 		err = twd_local_timer_register(twd_local_timer);
 		if (err)
