@@ -76,6 +76,7 @@
 #ifdef CONFIG_TI_THERMAL
 int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id, char *domain);
 int ti_thermal_remove_sensor(struct ti_bandgap *bgp, int id);
+int ti_thermal_report_sensor_temperature(struct ti_bandgap *bgp, int id);
 int ti_thermal_register_cpu_cooling(struct ti_bandgap *bgp, int id);
 int ti_thermal_unregister_cpu_cooling(struct ti_bandgap *bgp, int id);
 #else
@@ -87,6 +88,12 @@ int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id, char *domain)
 
 static inline
 int ti_thermal_remove_sensor(struct ti_bandgap *bgp, int id)
+{
+	return 0;
+}
+
+static inline
+int ti_thermal_report_sensor_temperature(struct ti_bandgap *bgp, int id)
 {
 	return 0;
 }
