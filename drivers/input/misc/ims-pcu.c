@@ -292,7 +292,8 @@ static int ims_pcu_setup_gamepad(struct ims_pcu *pcu)
 	if (!gamepad || !input) {
 		dev_err(pcu->dev,
 			"Not enough memory for gamepad device\n");
-		return -ENOMEM;
+		error = -ENOMEM;
+		goto err_free_mem;
 	}
 
 	gamepad->input = input;
@@ -1156,7 +1157,7 @@ static ssize_t ims_pcu_update_firmware_store(struct device *dev,
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct ims_pcu *pcu = usb_get_intfdata(intf);
-	const struct firmware *fw;
+	const struct firmware *fw = NULL;
 	int value;
 	int error;
 
