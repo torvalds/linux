@@ -713,7 +713,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 	if (adapter->curr_cmd) {
 		dev_warn(adapter->dev, "curr_cmd is still in processing\n");
 		del_timer(&adapter->cmd_timer);
-		mwifiex_insert_cmd_to_free_q(adapter, adapter->curr_cmd);
+		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
 		adapter->curr_cmd = NULL;
 	}
 
