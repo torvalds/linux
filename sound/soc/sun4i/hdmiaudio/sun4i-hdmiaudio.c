@@ -32,7 +32,7 @@
 
 #include <mach/hardware.h>
 #include <asm/dma.h>
-#include <mach/dma.h>
+#include <plat/dma.h>
 
 #include "sun4i-hdmipcm.h"
 #include "sun4i-hdmiaudio.h"
