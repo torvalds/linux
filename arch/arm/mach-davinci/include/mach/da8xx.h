@@ -79,8 +79,8 @@ extern unsigned int da850_max_speed;
 #define DA8XX_SHARED_RAM_BASE	0x80000000
 #define DA8XX_ARM_RAM_BASE	0xffff0000
 
-void __init da830_init(void);
-void __init da850_init(void);
+void da830_init(void);
+void da850_init(void);
 
 int da830_register_edma(struct edma_rsv_info *rsv);
 int da850_register_edma(struct edma_rsv_info *rsv[2]);
@@ -94,17 +94,17 @@ int da8xx_register_uio_pruss(void);
 int da8xx_register_lcdc(struct da8xx_lcdc_platform_data *pdata);
 int da8xx_register_mmcsd0(struct davinci_mmc_config *config);
 int da850_register_mmcsd1(struct davinci_mmc_config *config);
-void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata);
+void da8xx_register_mcasp(int id, struct snd_platform_data *pdata);
 int da8xx_register_rtc(void);
 int da850_register_cpufreq(char *async_clk);
 int da8xx_register_cpuidle(void);
-void __iomem * __init da8xx_get_mem_ctlr(void);
+void __iomem *da8xx_get_mem_ctlr(void);
 int da850_register_pm(struct platform_device *pdev);
-int __init da850_register_sata(unsigned long refclkpn);
-int __init da850_register_vpif(void);
-int __init da850_register_vpif_display
+int da850_register_sata(unsigned long refclkpn);
+int da850_register_vpif(void);
+int da850_register_vpif_display
 			(struct vpif_display_config *display_config);
-int __init da850_register_vpif_capture
+int da850_register_vpif_capture
 			(struct vpif_capture_config *capture_config);
 void da8xx_restart(char mode, const char *cmd);
 void da8xx_rproc_reserve_cma(void);
