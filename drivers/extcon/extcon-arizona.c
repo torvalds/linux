@@ -852,6 +852,10 @@ static irqreturn_t arizona_micdet(int irq, void *data)
 			lvl = val & ARIZONA_MICD_LVL_MASK;
 			lvl >>= ARIZONA_MICD_LVL_SHIFT;
 
+			for (i = 0; i < info->num_micd_ranges; i++)
+				input_report_key(info->input,
+						 info->micd_ranges[i].key, 0);
+
 			WARN_ON(!lvl);
 			WARN_ON(ffs(lvl) - 1 >= info->num_micd_ranges);
 			if (lvl && ffs(lvl) - 1 < info->num_micd_ranges) {
