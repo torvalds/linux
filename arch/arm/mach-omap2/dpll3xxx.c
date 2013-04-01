@@ -480,20 +480,22 @@ int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (!dd)
 		return -EINVAL;
 
-	__clk_prepare(dd->clk_bypass);
-	clk_enable(dd->clk_bypass);
-	__clk_prepare(dd->clk_ref);
-	clk_enable(dd->clk_ref);
-
 	if (__clk_get_rate(dd->clk_bypass) == rate &&
 	    (dd->modes & (1 << DPLL_LOW_POWER_BYPASS))) {
 		pr_debug("%s: %s: set rate: entering bypass.\n",
 			 __func__, __clk_get_name(hw->clk));
 
+		__clk_prepare(dd->clk_bypass);
+		clk_enable(dd->clk_bypass);
 		ret = _omap3_noncore_dpll_bypass(clk);
 		if (!ret)
 			new_parent = dd->clk_bypass;
+		clk_disable(dd->clk_bypass);
+		__clk_unprepare(dd->clk_bypass);
 	} else {
+		__clk_prepare(dd->clk_ref);
+		clk_enable(dd->clk_ref);
+
 		if (dd->last_rounded_rate != rate)
 			rate = __clk_round_rate(hw->clk, rate);
 
@@ -514,6 +516,8 @@ int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 		ret = omap3_noncore_dpll_program(clk, freqsel);
 		if (!ret)
 			new_parent = dd->clk_ref;
+		clk_disable(dd->clk_ref);
+		__clk_unprepare(dd->clk_ref);
 	}
 	/*
 	* FIXME - this is all wrong.  common code handles reparenting and
@@ -524,11 +528,6 @@ int omap3_noncore_dpll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (!ret)
 		__clk_reparent(hw->clk, new_parent);
-
-	clk_disable(dd->clk_ref);
-	__clk_unprepare(dd->clk_ref);
-	clk_disable(dd->clk_bypass);
-	__clk_unprepare(dd->clk_bypass);
 
 	return 0;
 }

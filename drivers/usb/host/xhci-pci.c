@@ -313,6 +313,7 @@ static const struct hc_driver xhci_pci_hc_driver = {
 	.set_usb2_hw_lpm =	xhci_set_usb2_hardware_lpm,
 	.enable_usb3_lpm_timeout =	xhci_enable_usb3_lpm_timeout,
 	.disable_usb3_lpm_timeout =	xhci_disable_usb3_lpm_timeout,
+	.find_raw_port_number =	xhci_find_raw_port_number,
 };
 
 /*-------------------------------------------------------------------------*/

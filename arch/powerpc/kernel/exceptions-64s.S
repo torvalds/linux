@@ -1066,78 +1066,6 @@ unrecov_user_slb:
 #endif /* __DISABLED__ */
 
 
-/*
- * r13 points to the PACA, r9 contains the saved CR,
- * r12 contain the saved SRR1, SRR0 is still ready for return
- * r3 has the faulting address
- * r9 - r13 are saved in paca->exslb.
- * r3 is saved in paca->slb_r3
- * We assume we aren't going to take any exceptions during this procedure.
- */
-_GLOBAL(slb_miss_realmode)
-	mflr	r10
-#ifdef CONFIG_RELOCATABLE
-	mtctr	r11
-#endif
-
-	stw	r9,PACA_EXSLB+EX_CCR(r13)	/* save CR in exc. frame */
-	std	r10,PACA_EXSLB+EX_LR(r13)	/* save LR */
-
-	bl	.slb_allocate_realmode
-
-	/* All done -- return from exception. */
-
-	ld	r10,PACA_EXSLB+EX_LR(r13)
-	ld	r3,PACA_EXSLB+EX_R3(r13)
-	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
-
-	mtlr	r10
-
-	andi.	r10,r12,MSR_RI	/* check for unrecoverable exception */
-	beq-	2f
-
-.machine	push
-.machine	"power4"
-	mtcrf	0x80,r9
-	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
-.machine	pop
-
-	RESTORE_PPR_PACA(PACA_EXSLB, r9)
-	ld	r9,PACA_EXSLB+EX_R9(r13)
-	ld	r10,PACA_EXSLB+EX_R10(r13)
-	ld	r11,PACA_EXSLB+EX_R11(r13)
-	ld	r12,PACA_EXSLB+EX_R12(r13)
-	ld	r13,PACA_EXSLB+EX_R13(r13)
-	rfid
-	b	.	/* prevent speculative execution */
-
-2:	mfspr	r11,SPRN_SRR0
-	ld	r10,PACAKBASE(r13)
-	LOAD_HANDLER(r10,unrecov_slb)
-	mtspr	SPRN_SRR0,r10
-	ld	r10,PACAKMSR(r13)
-	mtspr	SPRN_SRR1,r10
-	rfid
-	b	.
-
-unrecov_slb:
-	EXCEPTION_PROLOG_COMMON(0x4100, PACA_EXSLB)
-	DISABLE_INTS
-	bl	.save_nvgprs
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.unrecoverable_exception
-	b	1b
-
-
-#ifdef CONFIG_PPC_970_NAP
-power4_fixup_nap:
-	andc	r9,r9,r10
-	std	r9,TI_LOCAL_FLAGS(r11)
-	ld	r10,_LINK(r1)		/* make idle task do the */
-	std	r10,_NIP(r1)		/* equivalent of a blr */
-	blr
-#endif
-
 	.align	7
 	.globl alignment_common
 alignment_common:
@@ -1336,6 +1264,78 @@ _GLOBAL(opal_mc_secondary_handler)
 
 
 /*
+ * r13 points to the PACA, r9 contains the saved CR,
+ * r12 contain the saved SRR1, SRR0 is still ready for return
+ * r3 has the faulting address
+ * r9 - r13 are saved in paca->exslb.
+ * r3 is saved in paca->slb_r3
+ * We assume we aren't going to take any exceptions during this procedure.
+ */
+_GLOBAL(slb_miss_realmode)
+	mflr	r10
+#ifdef CONFIG_RELOCATABLE
+	mtctr	r11
+#endif
+
+	stw	r9,PACA_EXSLB+EX_CCR(r13)	/* save CR in exc. frame */
+	std	r10,PACA_EXSLB+EX_LR(r13)	/* save LR */
+
+	bl	.slb_allocate_realmode
+
+	/* All done -- return from exception. */
+
+	ld	r10,PACA_EXSLB+EX_LR(r13)
+	ld	r3,PACA_EXSLB+EX_R3(r13)
+	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
+
+	mtlr	r10
+
+	andi.	r10,r12,MSR_RI	/* check for unrecoverable exception */
+	beq-	2f
+
+.machine	push
+.machine	"power4"
+	mtcrf	0x80,r9
+	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
+.machine	pop
+
+	RESTORE_PPR_PACA(PACA_EXSLB, r9)
+	ld	r9,PACA_EXSLB+EX_R9(r13)
+	ld	r10,PACA_EXSLB+EX_R10(r13)
+	ld	r11,PACA_EXSLB+EX_R11(r13)
+	ld	r12,PACA_EXSLB+EX_R12(r13)
+	ld	r13,PACA_EXSLB+EX_R13(r13)
+	rfid
+	b	.	/* prevent speculative execution */
+
+2:	mfspr	r11,SPRN_SRR0
+	ld	r10,PACAKBASE(r13)
+	LOAD_HANDLER(r10,unrecov_slb)
+	mtspr	SPRN_SRR0,r10
+	ld	r10,PACAKMSR(r13)
+	mtspr	SPRN_SRR1,r10
+	rfid
+	b	.
+
+unrecov_slb:
+	EXCEPTION_PROLOG_COMMON(0x4100, PACA_EXSLB)
+	DISABLE_INTS
+	bl	.save_nvgprs
+1:	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.unrecoverable_exception
+	b	1b
+
+
+#ifdef CONFIG_PPC_970_NAP
+power4_fixup_nap:
+	andc	r9,r9,r10
+	std	r9,TI_LOCAL_FLAGS(r11)
+	ld	r10,_LINK(r1)		/* make idle task do the */
+	std	r10,_NIP(r1)		/* equivalent of a blr */
+	blr
+#endif
+
+/*
  * Hash table stuff
  */
 	.align	7
@@ -1452,19 +1452,35 @@ do_ste_alloc:
 _GLOBAL(do_stab_bolted)
 	stw	r9,PACA_EXSLB+EX_CCR(r13)	/* save CR in exc. frame */
 	std	r11,PACA_EXSLB+EX_SRR0(r13)	/* save SRR0 in exc. frame */
+	mfspr	r11,SPRN_DAR			/* ea */
 
+	/*
+	 * check for bad kernel/user address
+	 * (ea & ~REGION_MASK) >= PGTABLE_RANGE
+	 */
+	rldicr. r9,r11,4,(63 - 46 - 4)
+	li	r9,0	/* VSID = 0 for bad address */
+	bne-	0f
+
+	/*
+	 * Calculate VSID:
+	 * This is the kernel vsid, we take the top for context from
+	 * the range. context = (MAX_USER_CONTEXT) + ((ea >> 60) - 0xc) + 1
+	 * Here we know that (ea >> 60) == 0xc
+	 */
+	lis	r9,(MAX_USER_CONTEXT + 1)@ha
+	addi	r9,r9,(MAX_USER_CONTEXT + 1)@l
+
+	srdi	r10,r11,SID_SHIFT
+	rldimi  r10,r9,ESID_BITS,0 /* proto vsid */
+	ASM_VSID_SCRAMBLE(r10, r9, 256M)
+	rldic	r9,r10,12,16	/* r9 = vsid << 12 */
+
+0:
 	/* Hash to the primary group */
 	ld	r10,PACASTABVIRT(r13)
-	mfspr	r11,SPRN_DAR
-	srdi	r11,r11,28
+	srdi	r11,r11,SID_SHIFT
 	rldimi	r10,r11,7,52	/* r10 = first ste of the group */
-
-	/* Calculate VSID */
-	/* This is a kernel address, so protovsid = ESID | 1 << 37 */
-	li	r9,0x1
-	rldimi  r11,r9,(CONTEXT_BITS + USER_ESID_BITS),0
-	ASM_VSID_SCRAMBLE(r11, r9, 256M)
-	rldic	r9,r11,12,16	/* r9 = vsid << 12 */
 
 	/* Search the primary group for a free entry */
 1:	ld	r11,0(r10)	/* Test valid bit of the current ste	*/
