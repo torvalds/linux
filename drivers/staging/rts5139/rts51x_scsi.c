@@ -2072,7 +2072,7 @@ int command_abort(struct scsi_cmnd *srb)
 
 /* This invokes the transport reset mechanism to reset the state of the
  * device */
-int device_reset(struct scsi_cmnd *srb)
+static int device_reset(struct scsi_cmnd *srb)
 {
 	int result = 0;
 
