@@ -475,6 +475,10 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	hw_rfkill = iwl_is_rfkill_set(trans);
+	if (hw_rfkill)
+		set_bit(STATUS_RFKILL, &trans_pcie->status);
+	else
+		clear_bit(STATUS_RFKILL, &trans_pcie->status);
 	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 	if (hw_rfkill && !run_in_rfkill)
 		return -ERFKILL;
@@ -641,6 +645,7 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 
 static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool hw_rfkill;
 	int err;
 
@@ -656,6 +661,10 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 	iwl_enable_rfkill_int(trans);
 
 	hw_rfkill = iwl_is_rfkill_set(trans);
+	if (hw_rfkill)
+		set_bit(STATUS_RFKILL, &trans_pcie->status);
+	else
+		clear_bit(STATUS_RFKILL, &trans_pcie->status);
 	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 
 	return 0;
@@ -694,6 +703,10 @@ static void iwl_trans_pcie_stop_hw(struct iwl_trans *trans,
 		 * op_mode.
 		 */
 		hw_rfkill = iwl_is_rfkill_set(trans);
+		if (hw_rfkill)
+			set_bit(STATUS_RFKILL, &trans_pcie->status);
+		else
+			clear_bit(STATUS_RFKILL, &trans_pcie->status);
 		iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 	}
 }

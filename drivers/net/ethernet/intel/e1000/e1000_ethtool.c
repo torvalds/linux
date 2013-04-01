@@ -1052,6 +1052,10 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		txdr->buffer_info[i].dma =
 			dma_map_single(&pdev->dev, skb->data, skb->len,
 				       DMA_TO_DEVICE);
+		if (dma_mapping_error(&pdev->dev, txdr->buffer_info[i].dma)) {
+			ret_val = 4;
+			goto err_nomem;
+		}
 		tx_desc->buffer_addr = cpu_to_le64(txdr->buffer_info[i].dma);
 		tx_desc->lower.data = cpu_to_le32(skb->len);
 		tx_desc->lower.data |= cpu_to_le32(E1000_TXD_CMD_EOP |
@@ -1068,7 +1072,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	rxdr->buffer_info = kcalloc(rxdr->count, sizeof(struct e1000_buffer),
 				    GFP_KERNEL);
 	if (!rxdr->buffer_info) {
-		ret_val = 4;
+		ret_val = 5;
 		goto err_nomem;
 	}
 
@@ -1076,7 +1080,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	rxdr->desc = dma_alloc_coherent(&pdev->dev, rxdr->size, &rxdr->dma,
 					GFP_KERNEL | __GFP_ZERO);
 	if (!rxdr->desc) {
-		ret_val = 5;
+		ret_val = 6;
 		goto err_nomem;
 	}
 	rxdr->next_to_use = rxdr->next_to_clean = 0;
@@ -1099,7 +1103,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 
 		skb = alloc_skb(E1000_RXBUFFER_2048 + NET_IP_ALIGN, GFP_KERNEL);
 		if (!skb) {
-			ret_val = 6;
+			ret_val = 7;
 			goto err_nomem;
 		}
 		skb_reserve(skb, NET_IP_ALIGN);
@@ -1108,6 +1112,10 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		rxdr->buffer_info[i].dma =
 			dma_map_single(&pdev->dev, skb->data,
 				       E1000_RXBUFFER_2048, DMA_FROM_DEVICE);
+		if (dma_mapping_error(&pdev->dev, rxdr->buffer_info[i].dma)) {
+			ret_val = 8;
+			goto err_nomem;
+		}
 		rx_desc->buffer_addr = cpu_to_le64(rxdr->buffer_info[i].dma);
 		memset(skb->data, 0x00, skb->len);
 	}

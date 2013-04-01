@@ -846,11 +846,16 @@ check_page:
 			}
 		}
 
-		if (!buffer_info->dma)
+		if (!buffer_info->dma) {
 			buffer_info->dma = dma_map_page(&pdev->dev,
 							buffer_info->page, 0,
 							PAGE_SIZE,
 							DMA_FROM_DEVICE);
+			if (dma_mapping_error(&pdev->dev, buffer_info->dma)) {
+				adapter->alloc_rx_buff_failed++;
+				break;
+			}
+		}
 
 		rx_desc = E1000_RX_DESC_EXT(*rx_ring, i);
 		rx_desc->read.buffer_addr = cpu_to_le64(buffer_info->dma);

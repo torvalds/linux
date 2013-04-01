@@ -771,6 +771,7 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
 	int ret, i;
+	bool have_key = false;
 
 	might_sleep();
 
@@ -798,13 +799,21 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 	list_del_rcu(&sta->list);
 
 	mutex_lock(&local->key_mtx);
-	for (i = 0; i < NUM_DEFAULT_KEYS; i++)
+	for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
 		__ieee80211_key_free(key_mtx_dereference(local, sta->gtk[i]),
 				     true);
-	if (sta->ptk)
+		have_key = true;
+	}
+	if (sta->ptk) {
 		__ieee80211_key_free(key_mtx_dereference(local, sta->ptk),
 				     true);
+		have_key = true;
+	}
+
 	mutex_unlock(&local->key_mtx);
+
+	if (!have_key)
+		synchronize_net();
 
 	sta->dead = true;
 
