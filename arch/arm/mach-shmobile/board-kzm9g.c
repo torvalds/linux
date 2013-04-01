@@ -155,12 +155,14 @@ static int usbhs_get_vbus(struct platform_device *pdev)
 	return !((1 << 7) & __raw_readw(priv->cr2));
 }
 
-static void usbhs_phy_reset(struct platform_device *pdev)
+static int usbhs_phy_reset(struct platform_device *pdev)
 {
 	struct usbhs_private *priv = usbhs_get_priv(pdev);
 
 	/* init phy */
 	__raw_writew(0x8a0a, priv->cr2);
+
+	return 0;
 }
 
 static int usbhs_get_id(struct platform_device *pdev)
@@ -202,7 +204,7 @@ static int usbhs_hardware_init(struct platform_device *pdev)
 	return 0;
 }
 
-static void usbhs_hardware_exit(struct platform_device *pdev)
+static int usbhs_hardware_exit(struct platform_device *pdev)
 {
 	struct usbhs_private *priv = usbhs_get_priv(pdev);
 
@@ -210,6 +212,8 @@ static void usbhs_hardware_exit(struct platform_device *pdev)
 	__raw_writew(USB_PHY_MODE | USB_PHY_INT_CLR, priv->phy);
 
 	free_irq(IRQ15, pdev);
+
+	return 0;
 }
 
 static u32 usbhs_pipe_cfg[] = {

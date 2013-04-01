@@ -230,7 +230,7 @@ static int usbhsg_recip_handler_std_clear_endpoint(struct usbhs_priv *priv,
 	return 0;
 }
 
-struct usbhsg_recip_handle req_clear_feature = {
+static struct usbhsg_recip_handle req_clear_feature = {
 	.name		= "clear feature",
 	.device		= usbhsg_recip_handler_std_control_done,
 	.interface	= usbhsg_recip_handler_std_control_done,
@@ -271,7 +271,7 @@ static int usbhsg_recip_handler_std_set_endpoint(struct usbhs_priv *priv,
 	return 0;
 }
 
-struct usbhsg_recip_handle req_set_feature = {
+static struct usbhsg_recip_handle req_set_feature = {
 	.name		= "set feature",
 	.device		= usbhsg_recip_handler_std_set_device,
 	.interface	= usbhsg_recip_handler_std_control_done,
@@ -372,7 +372,7 @@ static int usbhsg_recip_handler_std_get_endpoint(struct usbhs_priv *priv,
 	return 0;
 }
 
-struct usbhsg_recip_handle req_get_status = {
+static struct usbhsg_recip_handle req_get_status = {
 	.name		= "get status",
 	.device		= usbhsg_recip_handler_std_get_device,
 	.interface	= usbhsg_recip_handler_std_get_interface,
