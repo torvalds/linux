@@ -737,22 +737,30 @@ static irqreturn_t arizona_micdet(int irq, void *data)
 {
 	struct arizona_extcon_info *info = data;
 	struct arizona *arizona = info->arizona;
-	unsigned int val, lvl;
+	unsigned int val = 0, lvl;
 	int ret, i, key;
 
 	mutex_lock(&info->lock);
 
-	ret = regmap_read(arizona->regmap, ARIZONA_MIC_DETECT_3, &val);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to read MICDET: %d\n", ret);
-		mutex_unlock(&info->lock);
-		return IRQ_NONE;
+	for (i = 0; i < 10 && !(val & 0x7fc); i++) {
+		ret = regmap_read(arizona->regmap, ARIZONA_MIC_DETECT_3, &val);
+		if (ret != 0) {
+			dev_err(arizona->dev, "Failed to read MICDET: %d\n", ret);
+			mutex_unlock(&info->lock);
+			return IRQ_NONE;
+		}
+
+		dev_dbg(arizona->dev, "MICDET: %x\n", val);
+
+		if (!(val & ARIZONA_MICD_VALID)) {
+			dev_warn(arizona->dev, "Microphone detection state invalid\n");
+			mutex_unlock(&info->lock);
+			return IRQ_NONE;
+		}
 	}
 
-	dev_dbg(arizona->dev, "MICDET: %x\n", val);
-
-	if (!(val & ARIZONA_MICD_VALID)) {
-		dev_warn(arizona->dev, "Microphone detection state invalid\n");
+	if (i == 10 && !(val & 0x7fc)) {
+		dev_err(arizona->dev, "Failed to get valid MICDET value\n");
 		mutex_unlock(&info->lock);
 		return IRQ_NONE;
 	}
