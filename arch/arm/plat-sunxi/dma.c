@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-sun5i/dma/dma.c
+ * arch/arm/plat-sunxi/dma/dma.c
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
@@ -26,7 +26,7 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/io.h>
@@ -35,275 +35,31 @@
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <mach/dma.h>
+#include <plat/dma.h>
+#include <linux/serial_core.h>
+#include <linux/platform_device.h>
 
 #include <mach/platform.h>
-#include <mach/dma.h>
 #include "dma_regs.h"
+#if defined CONFIG_ARCH_SUN4I
+#include "dma_route_sun4i.h"
+#elif defined CONFIG_ARCH_SUN5I
+#include "dma_route_sun5i.h"
+#endif
+
 
 #undef DEBUG
 
 /* io map for dma */
 static void __iomem *dma_base;
 static struct kmem_cache *dma_kmem;
-	
+
 static int dma_channels;
 
 static struct sw_dma_selection dma_sel;
 
 /* dma channel state information */
 struct sw_dma_chan sw_chans[SW_DMA_CHANNELS];
-
-unsigned long xfer_arr[DMAXFER_MAX]={
-	/*des:X_SIGLE  src:X_SIGLE*/
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_WORD << 9),	
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_WORD << 9),		
-	
-	/*des:X_SIGLE   src:X_BURST*/
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_WORD << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_WORD << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_WORD << 9),
-
-	/*des:X_SIGLE   src:X_TIPPL*/
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_SIGLE << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-	
-	/*des:X_BURST  src:X_BURST*/
-	(X_BURST << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_WORD << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_WORD << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_WORD << 9),
-	
-	/*des:X_BURST   src:X_SIGLE*/	
-	(X_BURST << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-
-	/*des:X_BURST   src:X_TIPPL*/	
-	(X_BURST << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_BURST << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-		
-	/*des:X_TIPPL   src:X_TIPPL*/
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_TIPPL <<7) | (X_WORD << 9),
-	
-	/*des:X_TIPPL   src:X_SIGLE*/
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_SIGLE <<7) | (X_WORD << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_SIGLE <<7) | (X_WORD << 9),	
-		
-	/*des:X_TIPPL   src:X_BURST*/
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_BYTE << 25) | (X_BURST <<7) | (X_WORD << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_HALF << 25) | (X_BURST <<7) | (X_WORD << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_BYTE << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_HALF << 9),
-	(X_TIPPL << 23) | (X_WORD << 25) | (X_BURST <<7) | (X_WORD << 9),	
-};
-
-unsigned long addrtype_arr[DMAADDRT_MAX]={
-	(A_INC << 21) | (A_INC << 5),
-	(A_INC << 21) | (A_FIX << 5),
-	(A_FIX << 21) | (A_INC << 5),
-	(A_FIX << 21) | (A_FIX << 5),
-
-	(A_LN  << 21) | (A_LN  << 5),
-	(A_LN  << 21) | (A_IO  << 5),
-	(A_LN  << 21) | (A_PH  << 5),
-	(A_LN  << 21) | (A_PV  << 5),
-	                       
-	(A_IO  << 21) | (A_LN  << 5),
-	(A_IO  << 21) | (A_IO  << 5),
-	(A_IO  << 21) | (A_PH  << 5),
-	(A_IO  << 21) | (A_PV  << 5),
-	                       
-	(A_PH  << 21) | (A_LN  << 5),
-	(A_PH  << 21) | (A_IO  << 5),
-	(A_PH  << 21) | (A_PH  << 5),
-	(A_PH  << 21) | (A_PV  << 5),
-	                       
-	(A_PV  << 21) | (A_LN  << 5),
-	(A_PV  << 21) | (A_IO  << 5),
-	(A_PV  << 21) | (A_PH  << 5),
-	(A_PV  << 21) | (A_PV  << 5),
-};
-
-unsigned long n_drqsrc_arr[DRQ_TYPE_MAX]={
-	N_DRQSRC_SRAM,       		//DRQ_TYPE_SRAM
-	N_DRQSRC_SDRAM,      		//DRQ_TYPE_SDRAM	
-	DRQ_INVALID,         		//DRQ_TYPE_NAND
-	DRQ_INVALID,         		//DRQ_TYPE_USB0
-	DRQ_INVALID,         		//DRQ_TYPE_EMAC
-	N_DRQSRC_SPI1RX,         	//DRQ_TYPE_SPI1
-	DRQ_INVALID,         		//DRQ_TYPE_SS
-	DRQ_INVALID,         		//DRQ_TYPE_MS
-	N_DRQSRC_SPI0RX,       		//DRQ_TYPE_SPI0
-	N_DRQSRC_SPI2RX,       		//DRQ_TYPE_SPI2
-	DRQ_INVALID,				//DRQ_TYPE_TCON0
-	DRQ_INVALID,				//DRQ_TYPE_HDMIAUDIO
-	N_DRQSRC_HDMIDDCRX,			//DRQ_TYPE_HDMI
-	
-	N_DRQSRC_IRRX,       		//DRQ_TYPE_IR
-	N_DRQSRC_SPDIFRX,      		//DRQ_TYPE_SPDIF
-	N_DRQSRC_IISRX,     		//DRQ_TYPE_IIS
-	N_DRQSRC_UART0RX,     		//DRQ_TYPE_UART0
-	N_DRQSRC_UART1RX,			//DRQ_TYPE_UART1
-	N_DRQSRC_UART2RX,    		//DRQ_TYPE_UART2
-	N_DRQSRC_UART3RX,    		//DRQ_TYPE_UART3
-	N_DRQSRC_AUDIOCDAD,    		//DRQ_TYPE_AUDIO
-	N_DRQSRC_TPAD,	    		//DRQ_TYPE_TPAD
-	N_DRQSRC_USBEP1,			//DRQ_TYPE_USBEP1
-	N_DRQSRC_USBEP2,			//DRQ_TYPE_USBEP2
-	N_DRQSRC_USBEP3,			//DRQ_TYPE_USBEP3
-	N_DRQSRC_USBEP4,			//DRQ_TYPE_USBEP4
-	N_DRQSRC_USBEP5,			//DRQ_TYPE_USBEP5
-};
-
-unsigned long n_drqdst_arr[DRQ_TYPE_MAX]={
-	N_DRQDST_SRAM,       	//DRQ_TYPE_SRAM
-	N_DRQDST_SDRAM,      	//DRQ_TYPE_SDRAM
-	DRQ_INVALID,         	//DRQ_TYPE_NAND
-	DRQ_INVALID,         	//DRQ_TYPE_USB0
-	DRQ_INVALID,         	//DRQ_TYPE_EMAC
-	N_DRQDST_SPI1TX,       	//DRQ_TYPE_SPI1
-	DRQ_INVALID,         	//DRQ_TYPE_SS
-	DRQ_INVALID,         	//DRQ_TYPE_MS
-	N_DRQDST_SPI0TX,       	//DRQ_TYPE_SPI0
-	N_DRQDST_SPI2TX,       	//DRQ_TYPE_SPI2	
-	DRQ_INVALID,			//DRQ_TYPE_TCON0
-	DRQ_INVALID,			//DRQ_TYPE_HDMIAUDIO
-	N_DRQDST_HDMIDDCTX,		//DRQ_TYPE_HDMI
-		
-	N_DRQDST_IRTX,       	//DRQ_TYPE_IR
-	N_DRQDST_SPDIFTX,      	//DRQ_TYPE_SPDIF
-	N_DRQDST_IISTX,     	//DRQ_TYPE_IIS
-	N_DRQDST_UART0TX,     	//DRQ_TYPE_UART0
-	N_DRQDST_UART1TX,		//DRQ_TYPE_UART1
-	N_DRQDST_UART2TX,    	//DRQ_TYPE_UART2
-	N_DRQDST_UART3TX,    	//DRQ_TYPE_UART3
-	N_DRQDST_AUDIOCDAD,    	//DRQ_TYPE_AUDIO
-	DRQ_INVALID,	    	//DRQ_TYPE_TPAD
-	N_DRQDST_USBEP1,		//DRQ_TYPE_USBEP1
-	N_DRQDST_USBEP2,		//DRQ_TYPE_USBEP2
-	N_DRQDST_USBEP3,		//DRQ_TYPE_USBEP3
-	N_DRQDST_USBEP4,		//DRQ_TYPE_USBEP4
-	N_DRQDST_USBEP5,		//DRQ_TYPE_USBEP5
-};
-
-unsigned long d_drqsrc_arr[DRQ_TYPE_MAX]={
-	D_DRQSRC_SRAM,       	//DRQ_TYPE_SRAM
-	D_DRQSRC_SDRAM,      	//DRQ_TYPE_SDRAM
-	D_DRQSRC_NAND,         	//DRQ_TYPE_NAND
-	D_DRQSRC_USB0,         	//DRQ_TYPE_USB0
-	D_DRQSRC_EMACRX,       	//DRQ_TYPE_EMAC
-	D_DRQSRC_SPI1RX,       	//DRQ_TYPE_SPI1
-	D_DRQSRC_SECRX,       	//DRQ_TYPE_SS
-	D_DRQSRC_MS,         	//DRQ_TYPE_MS
-	D_DRQSRC_SPI0RX,       	//DRQ_TYPE_SPI0
-	D_DRQSRC_SPI2RX,       	//DRQ_TYPE_SPI2
-	DRQ_INVALID,			//DRQ_TYPE_TCON0	
-	DRQ_INVALID,			//DRQ_TYPE_HDMIAUDIO
-	DRQ_INVALID,			//DRQ_TYPE_HDMI
-	
-	DRQ_INVALID,       		//DRQ_TYPE_IR	
-	DRQ_INVALID,      		//DRQ_TYPE_SPDIF
-	DRQ_INVALID,     		//DRQ_TYPE_IIS
-	DRQ_INVALID,     		//DRQ_TYPE_UART0
-	DRQ_INVALID,			//DRQ_TYPE_UART1
-	DRQ_INVALID,    		//DRQ_TYPE_UART2
-	DRQ_INVALID,    		//DRQ_TYPE_UART3
-	DRQ_INVALID,    		//DRQ_TYPE_AUDIO
-	DRQ_INVALID,	    	//DRQ_TYPE_TPAD
-	DRQ_INVALID,			//DRQ_TYPE_USBEP1
-	DRQ_INVALID,			//DRQ_TYPE_USBEP2
-	DRQ_INVALID,			//DRQ_TYPE_USBEP3
-	DRQ_INVALID,			//DRQ_TYPE_USBEP4
-	DRQ_INVALID,			//DRQ_TYPE_USBEP5	
-};                                      
-unsigned long d_drqdst_arr[DRQ_TYPE_MAX]={
-	D_DRQDST_SRAM,       	//DRQ_TYPE_SRAM
-	D_DRQDST_SDRAM,      	//DRQ_TYPE_SDRAM	
-	D_DRQDST_NAND,         	//DRQ_TYPE_NAND
-	D_DRQDST_USB0,         	//DRQ_TYPE_USB0
-	D_DRQDST_EMACTX,       	//DRQ_TYPE_EMAC
-	D_DRQDST_SPI1TX,       	//DRQ_TYPE_SPI1
-	D_DRQDST_SECTX,       	//DRQ_TYPE_SS
-	D_DRQDST_MS,         	//DRQ_TYPE_MS
-	D_DRQDST_SPI0TX,       	//DRQ_TYPE_SPI0
-	D_DRQDST_SPI2TX,       	//DRQ_TYPE_SPI2
-	DRQ_INVALID,			//DRQ_TYPE_TCON0	
-	D_DRQDST_HDMIAUDIO,		//DRQ_TYPE_HDMIAUDIO
-	DRQ_INVALID,			//DRQ_TYPE_HDMI		
-	
-	DRQ_INVALID,       		//DRQ_TYPE_IR	
-	DRQ_INVALID,      		//DRQ_TYPE_SPDIF
-	DRQ_INVALID,     		//DRQ_TYPE_IIS
-	DRQ_INVALID,     		//DRQ_TYPE_UART0
-	DRQ_INVALID,			//DRQ_TYPE_UART1
-	DRQ_INVALID,    		//DRQ_TYPE_UART2
-	DRQ_INVALID,    		//DRQ_TYPE_UART3
-	DRQ_INVALID,    		//DRQ_TYPE_AUDIO
-	DRQ_INVALID,	    	//DRQ_TYPE_TPAD
-	DRQ_INVALID,			//DRQ_TYPE_USBEP1
-	DRQ_INVALID,			//DRQ_TYPE_USBEP2
-	DRQ_INVALID,			//DRQ_TYPE_USBEP3
-	DRQ_INVALID,			//DRQ_TYPE_USBEP4
-	DRQ_INVALID,			//DRQ_TYPE_USBEP5
-};             
 
 /* debugging functions */
 
@@ -346,8 +102,8 @@ pr_debug_dumpregs(const char *fname, int line, struct sw_dma_chan *chan,
 {
 	pr_debug("dma%d: %s:%d: IRQEN=%08lx, IRQPD=%08lx, SRC=%08lx "
 		        "DST=%08lx, DCNT=%lx, DCONF=%08lx\n",
-	       chan->number, fname, line, regs->dirqen, regs->dirqpd, 
-	       		regs->dsrc, regs->ddst, regs->dcnt, regs->dconf
+	       chan->number, fname, line, regs->dirqen, regs->dirqpd,
+			regs->dsrc, regs->ddst, regs->dcnt, regs->dconf
 	       );
 }
 
@@ -400,7 +156,7 @@ static struct sw_dma_chan *lookup_dma_channel(unsigned int channel)
 }
 
 inline void DMA_COPY_HW_CONF(struct dma_hw_conf *to, struct dma_hw_conf *from)
-{ 
+{
 	to->xfer_type    = from->xfer_type;
 	to->drqsrc_type  = from->drqsrc_type;
 	to->drqdst_type  = from->drqdst_type;
@@ -818,7 +574,7 @@ void exec_pending_chan(int chan_nr, unsigned long pend_bits)
 	struct sw_dma_buf  *buf;
 	unsigned long tmp;
 	unsigned long flags;
-    
+
 	writel(pend_bits, dma_base + SW_DMA_DIRQPD);
 
 	chan = &sw_chans[chan_nr];
@@ -834,10 +590,10 @@ void exec_pending_chan(int chan_nr, unsigned long pend_bits)
 	if( tmp  & SW_DMA_IRQ_HALF ){
 		if(chan->state != SW_DMA_IDLE)     //if dma is stopped by app, app may not want callback
 			sw_dma_halfdone(chan, buf, SW_RES_OK);
-	} 
+	}
 	if (!(tmp & SW_DMA_IRQ_FULL))
 		return;
-	
+
 	dbg_showchan(chan);
 	/* modify the channel state */
 	switch (chan->load_state) {
@@ -869,10 +625,10 @@ void exec_pending_chan(int chan_nr, unsigned long pend_bits)
 
 		pr_debug("L%d, loadstate SW_DMALOAD_1LOADED_1RUNNING -> SW_DMALOAD_1LOADED\n", __LINE__);
 		chan->load_state = SW_DMALOAD_1LOADED;
-		
+
 		if(!(( chan->dcon & SW_NDMA_CONF_CONTI) || (chan->dcon & SW_DDMA_CONF_CONTI))){
 			struct sw_dma_buf  *next = chan->curr->next;
-			
+
 			writel(__virt_to_bus(next->data), chan->addr_reg);
 			dma_wrreg(chan, SW_DMA_DCNT, next->size);
 			tmp = SW_DCONF_LOADING | chan->dcon;
@@ -884,7 +640,7 @@ void exec_pending_chan(int chan_nr, unsigned long pend_bits)
 				return;
 			}
 		}
-	
+
 		break;
 
 	case SW_DMALOAD_NONE:
@@ -897,7 +653,7 @@ void exec_pending_chan(int chan_nr, unsigned long pend_bits)
 		       chan->number, chan->load_state);
 		break;
 	}
-	
+
 	if (buf != NULL) {
 		/* update the chain to make sure that if we load any more
 		 * buffers when we call the callback function, things should
@@ -917,11 +673,11 @@ void exec_pending_chan(int chan_nr, unsigned long pend_bits)
 
 		/* free resouces */
 		sw_dma_freebuf(buf);
-		/* modify by yemao, 2011-07-28 
+		/* modify by yemao, 2011-07-28
 		 * check load state after call dma callback, because some relative states may be changed
-		 * in callback operation. if there is another buffer loaded in dma queue, run it and 
+		 * in callback operation. if there is another buffer loaded in dma queue, run it and
 		 * change relative state for next transfer.
-		 * waitforload operation must follow dma loading to update dma load state 
+		 * waitforload operation must follow dma loading to update dma load state
 		 */
 		if(chan->load_state == SW_DMALOAD_1LOADED && !((chan->dcon & SW_NDMA_CONF_CONTI)||(chan->dcon & SW_DDMA_CONF_CONTI))){
 			writel(__virt_to_bus(chan->curr->data), chan->addr_reg);
@@ -992,9 +748,9 @@ sw_dma_irq(int irq, void *dma_pending)
 	int i;
 
 	pr_debug("sw_dma_irq\n");
-	
+
 	pend_reg = readl(dma_base + SW_DMA_DIRQPD);
-	
+
 	for(i=0; i<16; i++){
 		pend_bits = pend_reg & ( 3 <<  (i<<1) );
 		if(pend_bits){
@@ -1006,8 +762,8 @@ sw_dma_irq(int irq, void *dma_pending)
 
 /*
  * helper for dma pending check in irq disabled env.
- * it dose fully like the dma irq triggled. 
- * mostly you can check if dma finished by using flags set within 
+ * it dose fully like the dma irq triggled.
+ * mostly you can check if dma finished by using flags set within
  * bufferdone call back function.
  */
 void poll_dma_pending(int chan_nr)
@@ -1018,7 +774,7 @@ void poll_dma_pending(int chan_nr)
 		chan_nr = chan_nr & ~DMACH_LOW_LEVEL;
 	else
 		chan_nr = (lookup_dma_channel(chan_nr))->number;
-	
+
 	pend_bits = readl(dma_base + SW_DMA_DIRQPD)  & (3 << (chan_nr << 1));
 	if(pend_bits){
 		exec_pending_chan(chan_nr, pend_bits);
@@ -1328,15 +1084,15 @@ int sw_dma_config(unsigned int channel, struct dma_hw_conf* user_conf)
 				drqdst = D_DRQDST_SDRAM;
 			}
 			else {
-				
+
 				drqsrc = n_drqsrc_arr[hw_conf->drqsrc_type];
 				drqdst = N_DRQDST_SDRAM;
 			}
-			
+
 			chan->addr_reg = dma_regaddr(chan, SW_DMA_DDST);
 			dma_wrreg(chan, SW_DMA_DSRC,  hw_conf->from);
 			break;
-			
+
 		case SW_DMA_WDEV:
 			if(IS_DADECATE_DMA(chan)) {
 				drqdst = d_drqdst_arr[hw_conf->drqdst_type];
@@ -1350,7 +1106,7 @@ int sw_dma_config(unsigned int channel, struct dma_hw_conf* user_conf)
 			chan->addr_reg = dma_regaddr(chan, SW_DMA_DSRC);
 			dma_wrreg(chan, SW_DMA_DDST,  hw_conf->to);
 			break;
-			
+
 		case SW_DMA_M2M:
 			if(IS_DADECATE_DMA(chan)) {
 				drqdst = d_drqdst_arr[hw_conf->drqdst_type];
@@ -1486,7 +1242,7 @@ EXPORT_SYMBOL(sw_dma_set_halfdone_fn);
 
 int sw_dma_getposition(unsigned int channel, dma_addr_t *src, dma_addr_t *dst)
 {
- 	struct sw_dma_chan *chan = lookup_dma_channel(channel);
+	struct sw_dma_chan *chan = lookup_dma_channel(channel);
 	dma_addr_t s,d;
 
 	if (chan == NULL)
@@ -1503,14 +1259,14 @@ int sw_dma_getposition(unsigned int channel, dma_addr_t *src, dma_addr_t *dst)
 		*dst = d;
 	}
 
- 	return 0;
+	return 0;
 }
 
 EXPORT_SYMBOL(sw_dma_getposition);
 
 int sw_dma_getcurposition(unsigned int channel, dma_addr_t *src, dma_addr_t *dst)
 {
- 	struct sw_dma_chan *chan = lookup_dma_channel(channel);
+	struct sw_dma_chan *chan = lookup_dma_channel(channel);
 	//dma_addr_t s,d,count,countleft;
 	dma_addr_t s,d,count;
 
@@ -1519,7 +1275,7 @@ int sw_dma_getcurposition(unsigned int channel, dma_addr_t *src, dma_addr_t *dst
 
 	s = dma_rdreg(chan, SW_DMA_DSRC);
 	d = dma_rdreg(chan, SW_DMA_DDST);
-	count = dma_rdreg(chan, SW_DMA_DCNT);	
+	count = dma_rdreg(chan, SW_DMA_DCNT);
 
 	/* FIXME: check */
 #if 0
@@ -1533,16 +1289,16 @@ int sw_dma_getcurposition(unsigned int channel, dma_addr_t *src, dma_addr_t *dst
 #if 0
 	temp = dma_rdreg(chan, SW_DMA_DCONF);
 	temp &= ~(1<<15);
-	dma_wrreg(chan, SW_DMA_DCONF, temp);	
+	dma_wrreg(chan, SW_DMA_DCONF, temp);
 #endif
 
-        //printk("src = %x, count = %x , countleft = %x\n",s,count,countleft); 
+        //printk("src = %x, count = %x , countleft = %x\n",s,count,countleft);
 	//*src = s + (count - countleft);
 	*src = s - count;
 	*dst = d - count;
 
 
- 	return 0;
+	return 0;
 }
 
 EXPORT_SYMBOL(sw_dma_getcurposition);
@@ -1556,7 +1312,7 @@ static void sw_dma_cache_ctor(void *p)
 
 /* initialisation code */
 
-int __init sw_dma_init(unsigned int channels, unsigned int irq,
+int __devinit sw_dma_init(unsigned int channels, unsigned int irq,
 			    unsigned int stride)
 {
 	struct sw_dma_chan *cp;
@@ -1582,7 +1338,7 @@ int __init sw_dma_init(unsigned int channels, unsigned int irq,
 	writel(0x0, dma_base);
 	//writel(0xffffffff, SW_VA_DMAC_IO_BASE + 0x4);
 	writel(0xffffffff, dma_base + 0x4);
-	
+
 	writel(1<<16, dma_base + 0x8);
 	pr_debug("%s,%d,%x,%p\n",__func__,__LINE__,*(volatile int *)(dma_base + 0x8),dma_base + 0x8);
 	for (channel = 0; channel < channels;  channel++) {
@@ -1630,7 +1386,7 @@ int __init sw_dma_init(unsigned int channels, unsigned int irq,
 	return ret;
 }
 
-int __init sw15_dma_init(void)
+int __devinit sw15_dma_init(void)
 {
 	return sw_dma_init(SW_DMA_CHANNELS, SW_INT_IRQNO_DMA, 0x20);
 }
@@ -1688,7 +1444,7 @@ static int sw_dma_check_entry(struct sw_dma_map *map, int ch)
 	return 0;
 }
 
-int __init sw_dma_init_map(struct sw_dma_selection *sel)
+int __devinit sw_dma_init_map(struct sw_dma_selection *sel)
 {
 	struct sw_dma_map *nmap;
 	size_t map_sz = sizeof(*nmap) * sel->map_size;
@@ -1710,3 +1466,60 @@ int __init sw_dma_init_map(struct sw_dma_selection *sel)
 	return 0;
 }
 
+static struct sw_dma_selection __refdata sw_dma_sel = {
+	.dcon_mask	= 0xffffffff,
+	.map		= sw_dma_mappings,
+	.map_size	= ARRAY_SIZE(sw_dma_mappings),
+};
+
+static int __devinit sw_dmac_probe(struct platform_device *dev)
+{
+	int ret;
+
+	sw15_dma_init();
+
+	ret = sw_dma_init_map(&sw_dma_sel);
+
+	if (ret) {
+		early_printk("DMAC: failed to init map\n");
+	} else {
+		pr_info("Initialize DMAC OK\n");
+	}
+
+	return ret;
+}
+static int __devexit sw_dmac_remove(struct platform_device *dev)
+{
+        early_printk("[%s] enter\n", __FUNCTION__);
+        return 0;
+}
+static int sw_dmac_suspend(struct platform_device *dev, pm_message_t state)
+{
+        early_printk("[%s] enter\n", __FUNCTION__);
+        return 0;
+}
+
+static int sw_dmac_resume(struct platform_device *dev)
+{
+        early_printk("[%s] enter\n", __FUNCTION__);
+        return 0;
+}
+
+static struct platform_driver sw_dmac_driver = {
+        .probe          = sw_dmac_probe,
+        .remove         = __devexit_p(sw_dmac_remove),
+        .suspend        = sw_dmac_suspend,
+        .resume         = sw_dmac_resume,
+        .driver         = {
+                .name   = "sw_dmac",
+                .owner  = THIS_MODULE,
+        },
+};
+
+static int __init sw_dma_drvinit(void)
+{
+        platform_driver_register(&sw_dmac_driver);
+	return 0;
+}
+
+arch_initcall(sw_dma_drvinit);

@@ -19,7 +19,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <asm/io.h>
-#include <mach/dma.h>
+#include <plat/dma.h>
 #ifdef CONFIG_PM
 #include <linux/pm.h>
 #endif

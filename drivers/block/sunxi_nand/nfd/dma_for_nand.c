@@ -22,7 +22,7 @@
 
 //#include "nand_oal.h"
 #include "nand_private.h"
-#include <mach/dma.h>
+#include <plat/dma.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <asm/cacheflush.h>

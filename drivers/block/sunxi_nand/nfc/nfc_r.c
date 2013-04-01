@@ -22,7 +22,7 @@
 
 #include "nfc_i.h"
 //#include "dma_for_nand.h"
-#include <mach/dma.h>
+#include <plat/dma.h>
 #include <linux/dma-mapping.h>
 
 __u32	nand_board_version;

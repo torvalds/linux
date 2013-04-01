@@ -40,7 +40,7 @@
 #include <asm/cacheflush.h>
 #include <asm/irq.h>
 
-#include <mach/dma.h>
+#include <plat/dma.h>
 #include <plat/sys_config.h>
 #include <mach/clock.h>
 

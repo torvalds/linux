@@ -27,7 +27,7 @@
 
 #include <asm/dma.h>
 #include <mach/hardware.h>
-#include <mach/dma.h>
+#include <plat/dma.h>
 
 #include "sun4i-hdmiaudio.h"
 #include "sun4i-hdmipcm.h"

@@ -29,7 +29,7 @@
 #include <linux/spi/spi_bitbang.h>
 
 #include <asm/io.h>
-#include <mach/dma.h>
+#include <plat/dma.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <plat/sys_config.h>

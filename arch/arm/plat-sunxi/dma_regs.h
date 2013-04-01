@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-sun4i/dma/dma_regs.h
+ * arch/arm/mach-sun5i/dma/dma_regs.h
  *
  * (C) Copyright 2007-2012
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
@@ -25,6 +25,8 @@
 #define _DMA_REGS_
 
 /* DMA */
+#define SOFTWINNER_DMA_BASE             0x01c02000
+
 /* DMA Register definitions */
 #define SW_DMA_DIRQEN      		(0x0000)	//	DMA_IRQ_EN_REG(0x0000)
 #define SW_DMA_DIRQPD      		(0x0004)	//	DMA_IRQ_PEND_STA_REG(0x0004)
