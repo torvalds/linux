@@ -216,6 +216,7 @@ const struct ti_bandgap_data omap4460_data = {
 	.adc_end_val = OMAP4460_ADC_END_VALUE,
 	.expose_sensor = ti_thermal_expose_sensor,
 	.remove_sensor = ti_thermal_remove_sensor,
+	.report_temperature = ti_thermal_report_sensor_temperature,
 	.sensors = {
 		{
 		.registers = &omap4460_mpu_temp_sensor_registers,
@@ -248,6 +249,7 @@ const struct ti_bandgap_data omap4470_data = {
 	.adc_end_val = OMAP4460_ADC_END_VALUE,
 	.expose_sensor = ti_thermal_expose_sensor,
 	.remove_sensor = ti_thermal_remove_sensor,
+	.report_temperature = ti_thermal_report_sensor_temperature,
 	.sensors = {
 		{
 		.registers = &omap4460_mpu_temp_sensor_registers,
