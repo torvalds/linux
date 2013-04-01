@@ -261,7 +261,7 @@ static void __init create_mapping(phys_addr_t phys, unsigned long virt,
 void __iomem * __init early_io_map(phys_addr_t phys, unsigned long virt)
 {
 	unsigned long size, mask;
-	bool page64k = IS_ENABLED(ARM64_64K_PAGES);
+	bool page64k = IS_ENABLED(CONFIG_ARM64_64K_PAGES);
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;

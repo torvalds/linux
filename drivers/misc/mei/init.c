@@ -183,6 +183,24 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	mei_cl_all_write_clear(dev);
 }
 
+void mei_stop(struct mei_device *dev)
+{
+	dev_dbg(&dev->pdev->dev, "stopping the device.\n");
+
+	mutex_lock(&dev->device_lock);
+
+	cancel_delayed_work(&dev->timer_work);
+
+	mei_wd_stop(dev);
+
+	dev->dev_state = MEI_DEV_POWER_DOWN;
+	mei_reset(dev, 0);
+
+	mutex_unlock(&dev->device_lock);
+
+	flush_scheduled_work();
+}
+
 
 
 
