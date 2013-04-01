@@ -1571,8 +1571,8 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	xip_enable(map, chip, adr);
 	/* FIXME - should have reset delay before continuing */
 
-	printk(KERN_WARNING "MTD %s(): software timeout\n",
-	       __func__ );
+	printk(KERN_WARNING "MTD %s(): software timeout, address:0x%.8lx.\n",
+	       __func__, adr);
 
 	ret = -EIO;
  op_done:
