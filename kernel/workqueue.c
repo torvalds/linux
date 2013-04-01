@@ -1057,6 +1057,25 @@ static void put_pwq(struct pool_workqueue *pwq)
 	schedule_work(&pwq->unbound_release_work);
 }
 
+/**
+ * put_pwq_unlocked - put_pwq() with surrounding pool lock/unlock
+ * @pwq: pool_workqueue to put (can be %NULL)
+ *
+ * put_pwq() with locking.  This function also allows %NULL @pwq.
+ */
+static void put_pwq_unlocked(struct pool_workqueue *pwq)
+{
+	if (pwq) {
+		/*
+		 * As both pwqs and pools are sched-RCU protected, the
+		 * following lock operations are safe.
+		 */
+		spin_lock_irq(&pwq->pool->lock);
+		put_pwq(pwq);
+		spin_unlock_irq(&pwq->pool->lock);
+	}
+}
+
 static void pwq_activate_delayed_work(struct work_struct *work)
 {
 	struct pool_workqueue *pwq = get_work_pwq(work);
@@ -3759,12 +3778,7 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
 
 	mutex_unlock(&wq->mutex);
 
-	if (last_pwq) {
-		spin_lock_irq(&last_pwq->pool->lock);
-		put_pwq(last_pwq);
-		spin_unlock_irq(&last_pwq->pool->lock);
-	}
-
+	put_pwq_unlocked(last_pwq);
 	ret = 0;
 	/* fall through */
 out_free:
@@ -3979,16 +3993,12 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	} else {
 		/*
 		 * We're the sole accessor of @wq at this point.  Directly
-		 * access the first pwq and put the base ref.  As both pwqs
-		 * and pools are sched-RCU protected, the lock operations
-		 * are safe.  @wq will be freed when the last pwq is
-		 * released.
+		 * access the first pwq and put the base ref.  @wq will be
+		 * freed when the last pwq is released.
 		 */
 		pwq = list_first_entry(&wq->pwqs, struct pool_workqueue,
 				       pwqs_node);
-		spin_lock_irq(&pwq->pool->lock);
-		put_pwq(pwq);
-		spin_unlock_irq(&pwq->pool->lock);
+		put_pwq_unlocked(pwq);
 	}
 }
 EXPORT_SYMBOL_GPL(destroy_workqueue);
