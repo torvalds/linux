@@ -1192,7 +1192,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 			memset(&info->status, 0, sizeof(info->status));
 
 			if (status == TX_STATUS_FAIL_PASSIVE_NO_RX &&
-			    iwl_is_associated_ctx(ctx) && ctx->vif &&
+			    ctx->vif &&
 			    ctx->vif->type == NL80211_IFTYPE_STATION) {
 				/* block and stop all queues */
 				priv->passive_no_rx = true;
