@@ -374,6 +374,12 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 		if (!cmp) {
 			he_stat__add_period(&he->stat, period, weight);
 
+			/*
+			 * This mem info was allocated from machine__resolve_mem
+			 * and will not be used anymore.
+			 */
+			free(entry->mem_info);
+
 			/* If the map of an existing hist_entry has
 			 * become out-of-date due to an exec() or
 			 * similar, update it.  Otherwise we will
