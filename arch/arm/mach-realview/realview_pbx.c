@@ -324,10 +324,6 @@ static void __init realview_pbx_timer_init(void)
 	realview_pbx_twd_init();
 }
 
-static struct sys_timer realview_pbx_timer = {
-	.init		= realview_pbx_timer_init,
-};
-
 static void realview_pbx_fixup(struct tag *tags, char **from,
 			       struct meminfo *meminfo)
 {
@@ -404,7 +400,7 @@ MACHINE_START(REALVIEW_PBX, "ARM-RealView PBX")
 	.map_io		= realview_pbx_map_io,
 	.init_early	= realview_init_early,
 	.init_irq	= gic_init_irq,
-	.timer		= &realview_pbx_timer,
+	.init_time	= realview_pbx_timer_init,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= realview_pbx_init,
 #ifdef CONFIG_ZONE_DMA

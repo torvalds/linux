@@ -79,13 +79,13 @@ static inline int omap_mux_late_init(void)
 
 extern void omap2_init_common_infrastructure(void);
 
-extern struct sys_timer omap2_timer;
-extern struct sys_timer omap3_timer;
-extern struct sys_timer omap3_secure_timer;
-extern struct sys_timer omap3_gp_timer;
-extern struct sys_timer omap3_am33xx_timer;
-extern struct sys_timer omap4_timer;
-extern struct sys_timer omap5_timer;
+extern void omap2_sync32k_timer_init(void);
+extern void omap3_sync32k_timer_init(void);
+extern void omap3_secure_sync32k_timer_init(void);
+extern void omap3_gp_gptimer_timer_init(void);
+extern void omap3_am33xx_gptimer_timer_init(void);
+extern void omap4_local_timer_init(void);
+extern void omap5_realtime_timer_init(void);
 
 void omap2420_init_early(void);
 void omap2430_init_early(void);

@@ -236,12 +236,8 @@ static inline void omap_mpu_timer_init(void)
  * Timer initialization
  * ---------------------------------------------------------------------------
  */
-static void __init omap1_timer_init(void)
+void __init omap1_timer_init(void)
 {
 	if (omap_32k_timer_init() != 0)
 		omap_mpu_timer_init();
 }
-
-struct sys_timer omap1_timer = {
-	.init		= omap1_timer_init,
-};

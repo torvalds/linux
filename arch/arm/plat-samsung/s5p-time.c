@@ -393,13 +393,9 @@ static void __init s5p_timer_resources(void)
 	clk_enable(tin_source);
 }
 
-static void __init s5p_timer_init(void)
+void __init s5p_timer_init(void)
 {
 	s5p_timer_resources();
 	s5p_clockevent_init();
 	s5p_clocksource_init();
 }
-
-struct sys_timer s5p_timer = {
-	.init		= s5p_timer_init,
-};

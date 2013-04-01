@@ -134,12 +134,32 @@ static void nmdk_clkevt_mode(enum clock_event_mode mode,
 	}
 }
 
+void nmdk_clksrc_reset(void)
+{
+	/* Disable */
+	writel(0, mtu_base + MTU_CR(0));
+
+	/* ClockSource: configure load and background-load, and fire it up */
+	writel(nmdk_cycle, mtu_base + MTU_LR(0));
+	writel(nmdk_cycle, mtu_base + MTU_BGLR(0));
+
+	writel(clk_prescale | MTU_CRn_32BITS | MTU_CRn_ENA,
+	       mtu_base + MTU_CR(0));
+}
+
+static void nmdk_clkevt_resume(struct clock_event_device *cedev)
+{
+	nmdk_clkevt_reset();
+	nmdk_clksrc_reset();
+}
+
 static struct clock_event_device nmdk_clkevt = {
 	.name		= "mtu_1",
 	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
 	.rating		= 200,
 	.set_mode	= nmdk_clkevt_mode,
 	.set_next_event	= nmdk_clkevt_next,
+	.resume		= nmdk_clkevt_resume,
 };
 
 /*
@@ -160,19 +180,6 @@ static struct irqaction nmdk_timer_irq = {
 	.handler	= nmdk_timer_interrupt,
 	.dev_id		= &nmdk_clkevt,
 };
-
-void nmdk_clksrc_reset(void)
-{
-	/* Disable */
-	writel(0, mtu_base + MTU_CR(0));
-
-	/* ClockSource: configure load and background-load, and fire it up */
-	writel(nmdk_cycle, mtu_base + MTU_LR(0));
-	writel(nmdk_cycle, mtu_base + MTU_BGLR(0));
-
-	writel(clk_prescale | MTU_CRn_32BITS | MTU_CRn_ENA,
-	       mtu_base + MTU_CR(0));
-}
 
 void __init nmdk_timer_init(void __iomem *base, int irq)
 {

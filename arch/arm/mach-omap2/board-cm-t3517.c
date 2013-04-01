@@ -297,6 +297,6 @@ MACHINE_START(CM_T3517, "Compulab CM-T3517")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= cm_t3517_init,
 	.init_late	= am35xx_init_late,
-	.timer		= &omap3_gp_timer,
+	.init_time	= omap3_gp_gptimer_timer_init,
 	.restart	= omap3xxx_restart,
 MACHINE_END

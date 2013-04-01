@@ -17,6 +17,6 @@
 
 #include <asm/mach/time.h>
 
-extern struct sys_timer bcm2835_timer;
+extern void bcm2835_timer_init(void);
 
 #endif

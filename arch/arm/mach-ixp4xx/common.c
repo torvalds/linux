@@ -307,10 +307,6 @@ void __init ixp4xx_timer_init(void)
 	ixp4xx_clockevent_init();
 }
 
-struct sys_timer ixp4xx_timer = {
-	.init		= ixp4xx_timer_init,
-};
-
 static struct pxa2xx_udc_mach_info ixp4xx_udc_info;
 
 void __init ixp4xx_set_udc_info(struct pxa2xx_udc_mach_info *info)

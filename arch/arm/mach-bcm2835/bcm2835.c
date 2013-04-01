@@ -104,7 +104,7 @@ DT_MACHINE_START(BCM2835, "BCM2835")
 	.init_irq = bcm2835_init_irq,
 	.handle_irq = bcm2835_handle_irq,
 	.init_machine = bcm2835_init,
-	.timer = &bcm2835_timer,
+	.init_time = bcm2835_timer_init,
 	.restart = bcm2835_restart,
 	.dt_compat = bcm2835_compat
 MACHINE_END

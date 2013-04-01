@@ -174,6 +174,6 @@ MACHINE_START(LART, "LART")
 	.init_irq	= sa1100_init_irq,
 	.init_machine	= lart_init,
 	.init_late	= sa11x0_init_late,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 	.restart	= sa11x0_restart,
 MACHINE_END

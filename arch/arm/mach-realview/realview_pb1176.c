@@ -329,10 +329,6 @@ static void __init realview_pb1176_timer_init(void)
 	realview_timer_init(IRQ_DC1176_TIMER0);
 }
 
-static struct sys_timer realview_pb1176_timer = {
-	.init		= realview_pb1176_timer_init,
-};
-
 static void realview_pb1176_restart(char mode, const char *cmd)
 {
 	void __iomem *reset_ctrl = __io_address(REALVIEW_SYS_RESETCTL);
@@ -384,7 +380,7 @@ MACHINE_START(REALVIEW_PB1176, "ARM-RealView PB1176")
 	.map_io		= realview_pb1176_map_io,
 	.init_early	= realview_init_early,
 	.init_irq	= gic_init_irq,
-	.timer		= &realview_pb1176_timer,
+	.init_time	= realview_pb1176_timer_init,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= realview_pb1176_init,
 #ifdef CONFIG_ZONE_DMA

@@ -251,7 +251,7 @@ static void __init intcp_init_early(void)
 
 #ifdef CONFIG_OF
 
-static void __init intcp_timer_init_of(void)
+static void __init cp_of_timer_init(void)
 {
 	struct device_node *node;
 	const char *path;
@@ -282,10 +282,6 @@ static void __init intcp_timer_init_of(void)
 	writel(0, base + TIMER_CTRL);
 	sp804_clockevents_init(base, irq, node->name);
 }
-
-static struct sys_timer cp_of_timer = {
-	.init		= intcp_timer_init_of,
-};
 
 static const struct of_device_id fpga_irq_of_match[] __initconst = {
 	{ .compatible = "arm,versatile-fpga-irq", .data = fpga_irq_of_init, },
@@ -387,7 +383,7 @@ DT_MACHINE_START(INTEGRATOR_CP_DT, "ARM Integrator/CP (Device Tree)")
 	.init_early	= intcp_init_early,
 	.init_irq	= intcp_init_irq_of,
 	.handle_irq	= fpga_handle_irq,
-	.timer		= &cp_of_timer,
+	.init_time	= cp_of_timer_init,
 	.init_machine	= intcp_init_of,
 	.restart	= integrator_restart,
 	.dt_compat      = intcp_dt_board_compat,
@@ -509,7 +505,7 @@ static void __init intcp_init_irq(void)
 #define TIMER1_VA_BASE __io_address(INTEGRATOR_TIMER1_BASE)
 #define TIMER2_VA_BASE __io_address(INTEGRATOR_TIMER2_BASE)
 
-static void __init intcp_timer_init(void)
+static void __init cp_timer_init(void)
 {
 	writel(0, TIMER0_VA_BASE + TIMER_CTRL);
 	writel(0, TIMER1_VA_BASE + TIMER_CTRL);
@@ -518,10 +514,6 @@ static void __init intcp_timer_init(void)
 	sp804_clocksource_init(TIMER2_VA_BASE, "timer2");
 	sp804_clockevents_init(TIMER1_VA_BASE, IRQ_TIMERINT1, "timer1");
 }
-
-static struct sys_timer cp_timer = {
-	.init		= intcp_timer_init,
-};
 
 #define INTEGRATOR_CP_MMC_IRQS	{ IRQ_CP_MMCIINT0, IRQ_CP_MMCIINT1 }
 #define INTEGRATOR_CP_AACI_IRQS	{ IRQ_CP_AACIINT }
@@ -562,7 +554,7 @@ MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	.init_early	= intcp_init_early,
 	.init_irq	= intcp_init_irq,
 	.handle_irq	= fpga_handle_irq,
-	.timer		= &cp_timer,
+	.init_time	= cp_timer_init,
 	.init_machine	= intcp_init,
 	.restart	= integrator_restart,
 MACHINE_END

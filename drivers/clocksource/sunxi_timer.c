@@ -104,7 +104,7 @@ static struct of_device_id sunxi_timer_dt_ids[] = {
 	{ }
 };
 
-static void __init sunxi_timer_init(void)
+void __init sunxi_timer_init(void)
 {
 	struct device_node *node;
 	unsigned long rate = 0;
@@ -165,7 +165,3 @@ static void __init sunxi_timer_init(void)
 
 	clockevents_register_device(&sunxi_clockevent);
 }
-
-struct sys_timer sunxi_timer = {
-	.init = sunxi_timer_init,
-};

@@ -100,7 +100,7 @@ static struct irqaction lpc32xx_timer_irq = {
  * clocks need to be enabled here manually and then tagged as used in
  * the clock driver initialization
  */
-static void __init lpc32xx_timer_init(void)
+void __init lpc32xx_timer_init(void)
 {
 	u32 clkrate, pllreg;
 
@@ -161,8 +161,3 @@ static void __init lpc32xx_timer_init(void)
 	clocksource_mmio_init(LPC32XX_TIMER_TC(LPC32XX_TIMER1_BASE),
 		"lpc32xx_clksrc", clkrate, 300, 32, clocksource_mmio_readl_up);
 }
-
-struct sys_timer lpc32xx_timer = {
-	.init		= &lpc32xx_timer_init,
-};
-

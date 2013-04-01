@@ -257,6 +257,6 @@ MACHINE_START(SMDKC100, "SMDKC100")
 	.handle_irq	= vic_handle_irq,
 	.map_io		= smdkc100_map_io,
 	.init_machine	= smdkc100_machine_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.restart	= s5pc100_restart,
 MACHINE_END

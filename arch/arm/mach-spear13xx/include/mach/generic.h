@@ -18,7 +18,7 @@
 #include <asm/mach/time.h>
 
 /* Add spear13xx structure declarations here */
-extern struct sys_timer spear13xx_timer;
+extern void spear13xx_timer_init(void);
 extern struct pl022_ssp_controller pl022_plat_data;
 extern struct dw_dma_platform_data dmac_plat_data;
 extern struct dw_dma_slave cf_dma_priv;

@@ -552,7 +552,7 @@ static inline void __init realtime_counter_init(void)
 
 #define OMAP_SYS_GP_TIMER_INIT(name, clkev_nr, clkev_src, clkev_prop,	\
 			       clksrc_nr, clksrc_src)			\
-static void __init omap##name##_gptimer_timer_init(void)		\
+void __init omap##name##_gptimer_timer_init(void)			\
 {									\
 	omap_dmtimer_init();						\
 	omap2_gp_clockevent_init((clkev_nr), clkev_src, clkev_prop);	\
@@ -561,7 +561,7 @@ static void __init omap##name##_gptimer_timer_init(void)		\
 
 #define OMAP_SYS_32K_TIMER_INIT(name, clkev_nr, clkev_src, clkev_prop,	\
 				clksrc_nr, clksrc_src)			\
-static void __init omap##name##_sync32k_timer_init(void)		\
+void __init omap##name##_sync32k_timer_init(void)		\
 {									\
 	omap_dmtimer_init();						\
 	omap2_gp_clockevent_init((clkev_nr), clkev_src, clkev_prop);	\
@@ -572,33 +572,23 @@ static void __init omap##name##_sync32k_timer_init(void)		\
 		omap2_sync32k_clocksource_init();			\
 }
 
-#define OMAP_SYS_TIMER(name, clksrc)					\
-struct sys_timer omap##name##_timer = {					\
-	.init	= omap##name##_##clksrc##_timer_init,			\
-};
-
 #ifdef CONFIG_ARCH_OMAP2
 OMAP_SYS_32K_TIMER_INIT(2, 1, OMAP2_32K_SOURCE, "ti,timer-alwon",
 			2, OMAP2_MPU_SOURCE);
-OMAP_SYS_TIMER(2, sync32k);
 #endif /* CONFIG_ARCH_OMAP2 */
 
 #ifdef CONFIG_ARCH_OMAP3
 OMAP_SYS_32K_TIMER_INIT(3, 1, OMAP3_32K_SOURCE, "ti,timer-alwon",
 			2, OMAP3_MPU_SOURCE);
-OMAP_SYS_TIMER(3, sync32k);
 OMAP_SYS_32K_TIMER_INIT(3_secure, 12, OMAP3_32K_SOURCE, "ti,timer-secure",
 			2, OMAP3_MPU_SOURCE);
-OMAP_SYS_TIMER(3_secure, sync32k);
 OMAP_SYS_GP_TIMER_INIT(3_gp, 1, OMAP3_MPU_SOURCE, "ti,timer-alwon",
 		       2, OMAP3_MPU_SOURCE);
-OMAP_SYS_TIMER(3_gp, gptimer);
 #endif /* CONFIG_ARCH_OMAP3 */
 
 #ifdef CONFIG_SOC_AM33XX
 OMAP_SYS_GP_TIMER_INIT(3_am33xx, 1, OMAP4_MPU_SOURCE, "ti,timer-alwon",
 		       2, OMAP4_MPU_SOURCE);
-OMAP_SYS_TIMER(3_am33xx, gptimer);
 #endif /* CONFIG_SOC_AM33XX */
 
 #ifdef CONFIG_ARCH_OMAP4
@@ -606,7 +596,7 @@ OMAP_SYS_32K_TIMER_INIT(4, 1, OMAP4_32K_SOURCE, "ti,timer-alwon",
 			2, OMAP4_MPU_SOURCE);
 #ifdef CONFIG_LOCAL_TIMERS
 static DEFINE_TWD_LOCAL_TIMER(twd_local_timer, OMAP44XX_LOCAL_TWD_BASE, 29);
-static void __init omap4_local_timer_init(void)
+void __init omap4_local_timer_init(void)
 {
 	omap4_sync32k_timer_init();
 	/* Local timers are not supprted on OMAP4430 ES1.0 */
@@ -624,18 +614,17 @@ static void __init omap4_local_timer_init(void)
 	}
 }
 #else /* CONFIG_LOCAL_TIMERS */
-static void __init omap4_local_timer_init(void)
+void __init omap4_local_timer_init(void)
 {
 	omap4_sync32k_timer_init();
 }
 #endif /* CONFIG_LOCAL_TIMERS */
-OMAP_SYS_TIMER(4, local);
 #endif /* CONFIG_ARCH_OMAP4 */
 
 #ifdef CONFIG_SOC_OMAP5
 OMAP_SYS_32K_TIMER_INIT(5, 1, OMAP4_32K_SOURCE, "ti,timer-alwon",
 			2, OMAP4_MPU_SOURCE);
-static void __init omap5_realtime_timer_init(void)
+void __init omap5_realtime_timer_init(void)
 {
 	int err;
 
@@ -646,7 +635,6 @@ static void __init omap5_realtime_timer_init(void)
 	if (err)
 		pr_err("%s: arch_timer_register failed %d\n", __func__, err);
 }
-OMAP_SYS_TIMER(5, realtime);
 #endif /* CONFIG_SOC_OMAP5 */
 
 /**
