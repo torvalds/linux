@@ -3302,7 +3302,7 @@ struct workqueue_attrs *alloc_workqueue_attrs(gfp_t gfp_mask)
 	if (!alloc_cpumask_var(&attrs->cpumask, gfp_mask))
 		goto fail;
 
-	cpumask_setall(attrs->cpumask);
+	cpumask_copy(attrs->cpumask, cpu_possible_mask);
 	return attrs;
 fail:
 	free_workqueue_attrs(attrs);
@@ -3316,33 +3316,14 @@ static void copy_workqueue_attrs(struct workqueue_attrs *to,
 	cpumask_copy(to->cpumask, from->cpumask);
 }
 
-/*
- * Hacky implementation of jhash of bitmaps which only considers the
- * specified number of bits.  We probably want a proper implementation in
- * include/linux/jhash.h.
- */
-static u32 jhash_bitmap(const unsigned long *bitmap, int bits, u32 hash)
-{
-	int nr_longs = bits / BITS_PER_LONG;
-	int nr_leftover = bits % BITS_PER_LONG;
-	unsigned long leftover = 0;
-
-	if (nr_longs)
-		hash = jhash(bitmap, nr_longs * sizeof(long), hash);
-	if (nr_leftover) {
-		bitmap_copy(&leftover, bitmap + nr_longs, nr_leftover);
-		hash = jhash(&leftover, sizeof(long), hash);
-	}
-	return hash;
-}
-
 /* hash value of the content of @attr */
 static u32 wqattrs_hash(const struct workqueue_attrs *attrs)
 {
 	u32 hash = 0;
 
 	hash = jhash_1word(attrs->nice, hash);
-	hash = jhash_bitmap(cpumask_bits(attrs->cpumask), nr_cpu_ids, hash);
+	hash = jhash(cpumask_bits(attrs->cpumask),
+		     BITS_TO_LONGS(nr_cpumask_bits) * sizeof(long), hash);
 	return hash;
 }
 
@@ -3652,7 +3633,8 @@ static void init_and_link_pwq(struct pool_workqueue *pwq,
 int apply_workqueue_attrs(struct workqueue_struct *wq,
 			  const struct workqueue_attrs *attrs)
 {
-	struct pool_workqueue *pwq, *last_pwq;
+	struct workqueue_attrs *new_attrs;
+	struct pool_workqueue *pwq = NULL, *last_pwq;
 	struct worker_pool *pool;
 
 	/* only unbound workqueues can change attributes */
@@ -3663,15 +3645,21 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
 	if (WARN_ON((wq->flags & __WQ_ORDERED) && !list_empty(&wq->pwqs)))
 		return -EINVAL;
 
+	/* make a copy of @attrs and sanitize it */
+	new_attrs = alloc_workqueue_attrs(GFP_KERNEL);
+	if (!new_attrs)
+		goto enomem;
+
+	copy_workqueue_attrs(new_attrs, attrs);
+	cpumask_and(new_attrs->cpumask, new_attrs->cpumask, cpu_possible_mask);
+
 	pwq = kmem_cache_zalloc(pwq_cache, GFP_KERNEL);
 	if (!pwq)
-		return -ENOMEM;
+		goto enomem;
 
-	pool = get_unbound_pool(attrs);
-	if (!pool) {
-		kmem_cache_free(pwq_cache, pwq);
-		return -ENOMEM;
-	}
+	pool = get_unbound_pool(new_attrs);
+	if (!pool)
+		goto enomem;
 
 	init_and_link_pwq(pwq, wq, pool, &last_pwq);
 	if (last_pwq) {
@@ -3681,6 +3669,11 @@ int apply_workqueue_attrs(struct workqueue_struct *wq,
 	}
 
 	return 0;
+
+enomem:
+	kmem_cache_free(pwq_cache, pwq);
+	free_workqueue_attrs(new_attrs);
+	return -ENOMEM;
 }
 
 static int alloc_and_link_pwqs(struct workqueue_struct *wq)
@@ -4450,10 +4443,7 @@ static int __init init_workqueues(void)
 		struct workqueue_attrs *attrs;
 
 		BUG_ON(!(attrs = alloc_workqueue_attrs(GFP_KERNEL)));
-
 		attrs->nice = std_nice[i];
-		cpumask_setall(attrs->cpumask);
-
 		unbound_std_wq_attrs[i] = attrs;
 	}
 
