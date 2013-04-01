@@ -161,10 +161,9 @@ void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 	}
 
 	/* Don't go through full error handling during mount */
-	if (sb->s_flags & MS_BORN) {
-		save_error_info(fs_info);
+	save_error_info(fs_info);
+	if (sb->s_flags & MS_BORN)
 		btrfs_handle_error(fs_info);
-	}
 }
 
 static const char * const logtypes[] = {

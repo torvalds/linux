@@ -1487,6 +1487,10 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 		current->journal_info = NULL;
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
+
+	spin_lock(&root->fs_info->trans_lock);
+	root->fs_info->trans_no_join = 0;
+	spin_unlock(&root->fs_info->trans_lock);
 }
 
 static int btrfs_flush_all_pending_stuffs(struct btrfs_trans_handle *trans,
