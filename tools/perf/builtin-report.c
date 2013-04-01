@@ -187,6 +187,9 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 	for (i = 0; i < sample->branch_stack->nr; i++) {
 		if (rep->hide_unresolved && !(bi[i].from.sym && bi[i].to.sym))
 			continue;
+
+		err = -ENOMEM;
+
 		/*
 		 * The report shows the percentage of total branches captured
 		 * and not events sampled. Thus we use a pseudo period of 1.
@@ -195,7 +198,6 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 				&bi[i], 1, 1);
 		if (he) {
 			struct annotation *notes;
-			err = -ENOMEM;
 			bx = he->branch_info;
 			if (bx->from.sym && use_browser == 1 && sort__has_sym) {
 				notes = symbol__annotation(bx->from.sym);
@@ -226,11 +228,12 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 			}
 			evsel->hists.stats.total_period += 1;
 			hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
-			err = 0;
 		} else
-			return -ENOMEM;
+			goto out;
 	}
+	err = 0;
 out:
+	free(bi);
 	return err;
 }
 

@@ -292,6 +292,20 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template)
 			he->ms.map->referenced = true;
 
 		if (he->branch_info) {
+			/*
+			 * This branch info is (a part of) allocated from
+			 * machine__resolve_bstack() and will be freed after
+			 * adding new entries.  So we need to save a copy.
+			 */
+			he->branch_info = malloc(sizeof(*he->branch_info));
+			if (he->branch_info == NULL) {
+				free(he);
+				return NULL;
+			}
+
+			memcpy(he->branch_info, template->branch_info,
+			       sizeof(*he->branch_info));
+
 			if (he->branch_info->from.map)
 				he->branch_info->from.map->referenced = true;
 			if (he->branch_info->to.map)
