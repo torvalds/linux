@@ -519,7 +519,7 @@ static int arizona_hpdet_do_id(struct arizona_extcon_info *info, int *reading)
 		 * measure the mic as high impedance.
 		 */
 		if ((info->hpdet_res[0] > info->hpdet_res[1] * 2) ||
-		    (id_gpio && info->hpdet_res[2] > 10)) {
+		    (id_gpio && info->hpdet_res[2] > 1257)) {
 			dev_dbg(arizona->dev, "Detected mic\n");
 			info->mic = true;
 			info->detecting = true;
