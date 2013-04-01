@@ -1337,8 +1337,7 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	req = __lookup_request(osdc, tid);
 	if (req == NULL) {
 		dout("handle_reply tid %llu dne\n", tid);
-		mutex_unlock(&osdc->request_mutex);
-		return;
+		goto bad_mutex;
 	}
 	ceph_osdc_get_request(req);
 
@@ -1437,6 +1436,8 @@ done:
 
 bad_put:
 	ceph_osdc_put_request(req);
+bad_mutex:
+	mutex_unlock(&osdc->request_mutex);
 bad:
 	pr_err("corrupt osd_op_reply got %d %d\n",
 	       (int)msg->front.iov_len, le32_to_cpu(msg->hdr.front_len));
