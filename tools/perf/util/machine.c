@@ -955,6 +955,7 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 	struct thread *thread;
 	struct map *map;
+	enum map_type type;
 	int ret = 0;
 
 	if (dump_trace)
@@ -971,10 +972,17 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 	thread = machine__findnew_thread(machine, event->mmap.pid);
 	if (thread == NULL)
 		goto out_problem;
+
+	if (event->header.misc & PERF_RECORD_MISC_MMAP_DATA)
+		type = MAP__VARIABLE;
+	else
+		type = MAP__FUNCTION;
+
 	map = map__new(&machine->user_dsos, event->mmap.start,
 			event->mmap.len, event->mmap.pgoff,
 			event->mmap.pid, event->mmap.filename,
-			MAP__FUNCTION);
+			type);
+
 	if (map == NULL)
 		goto out_problem;
 
@@ -1095,6 +1103,38 @@ found:
 	ams->al_addr = al.addr;
 	ams->sym = al.sym;
 	ams->map = al.map;
+}
+
+static void ip__resolve_data(struct machine *machine, struct thread *thread,
+			     u8 m, struct addr_map_symbol *ams, u64 addr)
+{
+	struct addr_location al;
+
+	memset(&al, 0, sizeof(al));
+
+	thread__find_addr_location(thread, machine, m, MAP__VARIABLE, addr, &al,
+				   NULL);
+	ams->addr = addr;
+	ams->al_addr = al.addr;
+	ams->sym = al.sym;
+	ams->map = al.map;
+}
+
+struct mem_info *machine__resolve_mem(struct machine *machine,
+				      struct thread *thr,
+				      struct perf_sample *sample,
+				      u8 cpumode)
+{
+	struct mem_info *mi = zalloc(sizeof(*mi));
+
+	if (!mi)
+		return NULL;
+
+	ip__resolve_ams(machine, thr, &mi->iaddr, sample->ip);
+	ip__resolve_data(machine, thr, cpumode, &mi->daddr, sample->addr);
+	mi->data_src.val = sample->data_src;
+
+	return mi;
 }
 
 struct branch_info *machine__resolve_bstack(struct machine *machine,

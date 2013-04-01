@@ -1,5 +1,3 @@
-#define _FILE_OFFSET_BITS 64
-
 #include "util.h"
 #include <sys/types.h>
 #include <byteswap.h>
@@ -1672,8 +1670,8 @@ static int process_tracing_data(struct perf_file_section *section __maybe_unused
 				struct perf_header *ph __maybe_unused,
 				int fd, void *data)
 {
-	trace_report(fd, data, false);
-	return 0;
+	ssize_t ret = trace_report(fd, data, false);
+	return ret < 0 ? -1 : 0;
 }
 
 static int process_build_id(struct perf_file_section *section,
@@ -2751,6 +2749,11 @@ static int perf_evsel__prepare_tracepoint_event(struct perf_evsel *evsel,
 	/* already prepared */
 	if (evsel->tp_format)
 		return 0;
+
+	if (pevent == NULL) {
+		pr_debug("broken or missing trace data\n");
+		return -1;
+	}
 
 	event = pevent_find_event(pevent, evsel->attr.config);
 	if (event == NULL)

@@ -976,8 +976,14 @@ static void perf_event__header_size(struct perf_event *event)
 	if (sample_type & PERF_SAMPLE_PERIOD)
 		size += sizeof(data->period);
 
+	if (sample_type & PERF_SAMPLE_WEIGHT)
+		size += sizeof(data->weight);
+
 	if (sample_type & PERF_SAMPLE_READ)
 		size += event->read_size;
+
+	if (sample_type & PERF_SAMPLE_DATA_SRC)
+		size += sizeof(data->data_src.val);
 
 	event->header_size = size;
 }
@@ -4193,6 +4199,12 @@ void perf_output_sample(struct perf_output_handle *handle,
 		perf_output_sample_ustack(handle,
 					  data->stack_user_size,
 					  data->regs_user.regs);
+
+	if (sample_type & PERF_SAMPLE_WEIGHT)
+		perf_output_put(handle, data->weight);
+
+	if (sample_type & PERF_SAMPLE_DATA_SRC)
+		perf_output_put(handle, data->data_src.val);
 }
 
 void perf_prepare_sample(struct perf_event_header *header,
@@ -4778,6 +4790,9 @@ got_name:
 
 	mmap_event->file_name = name;
 	mmap_event->file_size = size;
+
+	if (!(vma->vm_flags & VM_EXEC))
+		mmap_event->event_id.header.misc |= PERF_RECORD_MISC_MMAP_DATA;
 
 	mmap_event->event_id.header.size = sizeof(mmap_event->event_id) + size;
 

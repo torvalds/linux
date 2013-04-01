@@ -97,7 +97,8 @@ struct symbol_conf {
 			kptr_restrict,
 			annotate_asm_raw,
 			annotate_src,
-			event_group;
+			event_group,
+			demangle;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,
@@ -153,6 +154,12 @@ struct branch_info {
 	struct addr_map_symbol from;
 	struct addr_map_symbol to;
 	struct branch_flags flags;
+};
+
+struct mem_info {
+	struct addr_map_symbol iaddr;
+	struct addr_map_symbol daddr;
+	union perf_mem_data_src data_src;
 };
 
 struct addr_location {

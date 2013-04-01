@@ -1,5 +1,3 @@
-#define _FILE_OFFSET_BITS 64
-
 #include <linux/kernel.h>
 
 #include <byteswap.h>
@@ -800,6 +798,12 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 
 	if (sample_type & PERF_SAMPLE_STACK_USER)
 		stack_user__printf(&sample->user_stack);
+
+	if (sample_type & PERF_SAMPLE_WEIGHT)
+		printf("... weight: %" PRIu64 "\n", sample->weight);
+
+	if (sample_type & PERF_SAMPLE_DATA_SRC)
+		printf(" . data_src: 0x%"PRIx64"\n", sample->data_src);
 }
 
 static struct machine *

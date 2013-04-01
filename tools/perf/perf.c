@@ -60,6 +60,7 @@ static struct cmd_struct commands[] = {
 	{ "trace",	cmd_trace,	0 },
 #endif
 	{ "inject",	cmd_inject,	0 },
+	{ "mem",	cmd_mem,	0 },
 };
 
 struct pager_config {
@@ -517,9 +518,8 @@ int main(int argc, const char **argv)
 
 	while (1) {
 		static int done_help;
-		static int was_alias;
+		int was_alias = run_argv(&argc, &argv);
 
-		was_alias = run_argv(&argc, &argv);
 		if (errno != ENOENT)
 			break;
 
