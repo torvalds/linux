@@ -131,15 +131,41 @@ void usb20otg_phy_suspend(void* pdata, int suspend)
 void usb20otg_soft_reset(void)
 {
 #if 1
-    cru_set_soft_reset(SOFT_RST_USBOTG0, true);
-    cru_set_soft_reset(SOFT_RST_USBPHY0, true);
-    cru_set_soft_reset(SOFT_RST_OTGC0, true);
-    udelay(1);
+    printk("~~~~~~~~~~usb20otg_soft_reset\n");
+    //phy reset
+    *(unsigned int*)(USBGRF_UOC0_CON5) = 0x00030001;
+    *(unsigned int*)(USBGRF_UOC1_CON5) = 0x00030001;
 
-    cru_set_soft_reset(SOFT_RST_USBOTG0, false);
-    cru_set_soft_reset(SOFT_RST_USBPHY0, false);
-    cru_set_soft_reset(SOFT_RST_OTGC0, false);
-    mdelay(1);
+
+    cru_set_soft_reset(SOFT_RST_USBPOR, true);
+
+    cru_set_soft_reset(SOFT_RST_UTMI0, true);
+    cru_set_soft_reset(SOFT_RST_UTMI1, true);
+
+    udelay(15);
+    
+    *(unsigned int*)(USBGRF_UOC0_CON5) = 0x00030002; 
+    *(unsigned int*)(USBGRF_UOC1_CON5) = 0x00030002;
+
+    udelay(1500);
+    cru_set_soft_reset(SOFT_RST_USBPOR, false);
+    udelay(2);
+    cru_set_soft_reset(SOFT_RST_UTMI0, false);
+    cru_set_soft_reset(SOFT_RST_UTMI1, false);
+
+    //ctrler reset
+    cru_set_soft_reset(SOFT_RST_OTGC0, true);
+    cru_set_soft_reset(SOFT_RST_OTGC1, true);
+    udelay(2);
+
+    cru_set_soft_reset(SOFT_RST_USBOTG0, true);
+    cru_set_soft_reset(SOFT_RST_USBOTG1, true);
+    udelay(2);
+    
+    cru_set_soft_reset(SOFT_RST_OTGC0,false);
+    cru_set_soft_reset(SOFT_RST_OTGC1,false);
+    cru_set_soft_reset(SOFT_RST_USBOTG0,false);
+    cru_set_soft_reset(SOFT_RST_USBOTG1,false);
 #endif
 }
 void usb20otg_clock_init(void* pdata)
@@ -287,14 +313,15 @@ void usb20host_phy_suspend(void* pdata, int suspend)
 }
 void usb20host_soft_reset(void)
 {
-#if 1
+#if 0
     cru_set_soft_reset(SOFT_RST_USBOTG1, true);
-    cru_set_soft_reset(SOFT_RST_USBPHY1, true);
+    //cru_set_soft_reset(SOFT_RST_USBPHY1, true);
     cru_set_soft_reset(SOFT_RST_OTGC1, true);
+    
     udelay(1);
 
     cru_set_soft_reset(SOFT_RST_USBOTG1, false);
-    cru_set_soft_reset(SOFT_RST_USBPHY1, false);
+    //cru_set_soft_reset(SOFT_RST_USBPHY1, false);
     cru_set_soft_reset(SOFT_RST_OTGC1, false);
     mdelay(1);
 #endif
