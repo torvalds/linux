@@ -4583,6 +4583,13 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 	else
 		pipeconf |= PIPECONF_PROGRESSIVE;
 
+	if (IS_VALLEYVIEW(dev)) {
+		if (intel_crtc->config.limited_color_range)
+			pipeconf |= PIPECONF_COLOR_RANGE_SELECT;
+		else
+			pipeconf &= ~PIPECONF_COLOR_RANGE_SELECT;
+	}
+
 	I915_WRITE(PIPECONF(intel_crtc->pipe), pipeconf);
 	POSTING_READ(PIPECONF(intel_crtc->pipe));
 }
