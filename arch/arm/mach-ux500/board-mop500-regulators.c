@@ -877,7 +877,10 @@ struct regulator_init_data ab8505_regulators[AB8505_NUM_REGULATORS] = {
 	[AB8505_LDO_ANAMIC1] = {
 		.constraints = {
 			.name = "V-AMIC1",
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS |
+					  REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_NORMAL |
+					    REGULATOR_MODE_IDLE,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(ab8500_vamic1_consumers),
 		.consumer_supplies = ab8500_vamic1_consumers,
@@ -886,7 +889,10 @@ struct regulator_init_data ab8505_regulators[AB8505_NUM_REGULATORS] = {
 	[AB8505_LDO_ANAMIC2] = {
 		.constraints = {
 			.name = "V-AMIC2",
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS |
+					  REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_NORMAL |
+					    REGULATOR_MODE_IDLE,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(ab8500_vamic2_consumers),
 		.consumer_supplies = ab8500_vamic2_consumers,
