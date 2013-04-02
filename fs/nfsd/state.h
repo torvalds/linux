@@ -209,6 +209,8 @@ struct nfsd4_session {
 	struct nfsd4_slot	*se_slots[];	/* forward channel slots */
 };
 
+extern void nfsd4_put_session(struct nfsd4_session *ses);
+
 /* formatted contents of nfs4_sessionid */
 struct nfsd4_sessionid {
 	clientid_t	clientid;
@@ -283,18 +285,6 @@ struct nfs4_client {
 						/* wait here for slots */
 	struct net		*net;
 };
-
-static inline void
-mark_client_expired(struct nfs4_client *clp)
-{
-	clp->cl_time = 0;
-}
-
-static inline bool
-is_client_expired(struct nfs4_client *clp)
-{
-	return clp->cl_time == 0;
-}
 
 /* struct nfs4_client_reset
  * one per old client. Populates reset_str_hashtbl. Filled from conf_id_hashtbl
@@ -484,7 +474,7 @@ extern void nfs4_put_delegation(struct nfs4_delegation *dp);
 extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(const char *name,
 							struct nfsd_net *nn);
 extern bool nfs4_has_reclaimed_state(const char *name, struct nfsd_net *nn);
-extern void release_session_client(struct nfsd4_session *);
+extern void put_client_renew(struct nfs4_client *clp);
 extern void nfsd4_purge_closed_stateid(struct nfs4_stateowner *);
 
 /* nfs4recover operations */

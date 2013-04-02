@@ -3684,7 +3684,8 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compo
 			cs->slot->sl_flags &= ~NFSD4_SLOT_INUSE;
 		}
 		/* Renew the clientid on success and on replay */
-		release_session_client(cs->session);
+		put_client_renew(cs->session->se_client);
+		nfsd4_put_session(cs->session);
 	}
 	return 1;
 }
