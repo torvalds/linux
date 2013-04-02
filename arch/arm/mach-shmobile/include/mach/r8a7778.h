@@ -24,5 +24,6 @@ extern void r8a7778_init_delay(void);
 extern void r8a7778_init_irq(void);
 extern void r8a7778_init_irq_dt(void);
 extern void r8a7778_clock_init(void);
+extern void r8a7778_init_irq_extpin(int irlm);
 
 #endif /* __ASM_R8A7778_H__ */

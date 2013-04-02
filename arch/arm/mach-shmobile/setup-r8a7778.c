@@ -23,6 +23,7 @@
 #include <linux/irqchip/arm-gic.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_data/irq-renesas-intc-irqpin.h>
 #include <linux/platform_device.h>
 #include <linux/irqchip.h>
 #include <linux/serial_sci.h>
@@ -108,6 +109,49 @@ void __init r8a7778_add_standard_devices(void)
 
 	r8a7778_register_tmu(0);
 	r8a7778_register_tmu(1);
+}
+
+static struct renesas_intc_irqpin_config irqpin_platform_data = {
+	.irq_base = irq_pin(0), /* IRQ0 -> IRQ3 */
+	.sense_bitfield_width = 2,
+};
+
+static struct resource irqpin_resources[] = {
+	DEFINE_RES_MEM(0xfe78001c, 4), /* ICR1 */
+	DEFINE_RES_MEM(0xfe780010, 4), /* INTPRI */
+	DEFINE_RES_MEM(0xfe780024, 4), /* INTREQ */
+	DEFINE_RES_MEM(0xfe780044, 4), /* INTMSK0 */
+	DEFINE_RES_MEM(0xfe780064, 4), /* INTMSKCLR0 */
+	DEFINE_RES_IRQ(gic_iid(0x3b)), /* IRQ0 */
+	DEFINE_RES_IRQ(gic_iid(0x3c)), /* IRQ1 */
+	DEFINE_RES_IRQ(gic_iid(0x3d)), /* IRQ2 */
+	DEFINE_RES_IRQ(gic_iid(0x3e)), /* IRQ3 */
+};
+
+void __init r8a7778_init_irq_extpin(int irlm)
+{
+	void __iomem *icr0 = ioremap_nocache(0xfe780000, PAGE_SIZE);
+	unsigned long tmp;
+
+	if (!icr0) {
+		pr_warn("r8a7778: unable to setup external irq pin mode\n");
+		return;
+	}
+
+	tmp = ioread32(icr0);
+	if (irlm)
+		tmp |= 1 << 23; /* IRQ0 -> IRQ3 as individual pins */
+	else
+		tmp &= ~(1 << 23); /* IRL mode - not supported */
+	tmp |= (1 << 21); /* LVLMODE = 1 */
+	iowrite32(tmp, icr0);
+	iounmap(icr0);
+
+	if (irlm)
+		platform_device_register_resndata(
+			&platform_bus, "renesas_intc_irqpin", -1,
+			irqpin_resources, ARRAY_SIZE(irqpin_resources),
+			&irqpin_platform_data, sizeof(irqpin_platform_data));
 }
 
 #define INT2SMSKCR0	0x82288 /* 0xfe782288 */
