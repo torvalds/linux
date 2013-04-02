@@ -81,7 +81,7 @@ static struct resource smsc9221_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= intcs_evt2irq(0x260), /* IRQ3 */
+		.start	= irq_pin(3), /* IRQ3 */
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -115,7 +115,7 @@ static struct resource usb_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= intcs_evt2irq(0x220), /* IRQ1 */
+		.start	= irq_pin(1), /* IRQ1 */
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -138,7 +138,7 @@ struct usbhs_private {
 	struct renesas_usbhs_platform_info info;
 };
 
-#define IRQ15			intcs_evt2irq(0x03e0)
+#define IRQ15			irq_pin(15)
 #define USB_PHY_MODE		(1 << 4)
 #define USB_PHY_INT_EN		((1 << 3) | (1 << 2))
 #define USB_PHY_ON		(1 << 1)
@@ -563,25 +563,25 @@ static struct i2c_board_info i2c0_devices[] = {
 	},
 	{
 		I2C_BOARD_INFO("ak8975", 0x0c),
-		.irq = intcs_evt2irq(0x3380), /* IRQ28 */
+		.irq = irq_pin(28), /* IRQ28 */
 	},
 	{
 		I2C_BOARD_INFO("adxl34x", 0x1d),
-		.irq = intcs_evt2irq(0x3340), /* IRQ26 */
+		.irq = irq_pin(26), /* IRQ26 */
 	},
 };
 
 static struct i2c_board_info i2c1_devices[] = {
 	{
 		I2C_BOARD_INFO("st1232-ts", 0x55),
-		.irq = intcs_evt2irq(0x300), /* IRQ8 */
+		.irq = irq_pin(8), /* IRQ8 */
 	},
 };
 
 static struct i2c_board_info i2c3_devices[] = {
 	{
 		I2C_BOARD_INFO("pcf8575", 0x20),
-		.irq		= intcs_evt2irq(0x3260), /* IRQ19 */
+		.irq = irq_pin(19), /* IRQ19 */
 		.platform_data = &pcf8575_pdata,
 	},
 };

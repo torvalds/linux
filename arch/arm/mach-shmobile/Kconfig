@@ -16,6 +16,7 @@ config ARCH_SH73A0
 	select CPU_V7
 	select I2C
 	select SH_CLK_CPG
+	select RENESAS_INTC_IRQPIN
 
 config ARCH_R8A7740
 	bool "R-Mobile A1 (R8A77400)"
@@ -31,6 +32,7 @@ config ARCH_R8A7779
 	select SH_CLK_CPG
 	select USB_ARCH_HAS_EHCI
 	select USB_ARCH_HAS_OHCI
+	select RENESAS_INTC_IRQPIN
 
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
