@@ -219,6 +219,7 @@ void pnfs_set_layoutcommit(struct nfs_write_data *wdata);
 void pnfs_cleanup_layoutcommit(struct nfs4_layoutcommit_data *data);
 int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
 int _pnfs_return_layout(struct inode *);
+int pnfs_commit_and_return_layout(struct inode *);
 void pnfs_ld_write_done(struct nfs_write_data *);
 void pnfs_ld_read_done(struct nfs_read_data *);
 struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
@@ -403,6 +404,11 @@ static inline void pnfs_put_lseg(struct pnfs_layout_segment *lseg)
 }
 
 static inline int pnfs_return_layout(struct inode *ino)
+{
+	return 0;
+}
+
+static inline int pnfs_commit_and_return_layout(struct inode *inode)
 {
 	return 0;
 }

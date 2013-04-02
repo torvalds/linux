@@ -557,6 +557,7 @@ void btrfs_wait_ordered_extents(struct btrfs_root *root, int delay_iput)
 	INIT_LIST_HEAD(&splice);
 	INIT_LIST_HEAD(&works);
 
+	mutex_lock(&root->fs_info->ordered_operations_mutex);
 	spin_lock(&root->fs_info->ordered_extent_lock);
 	list_splice_init(&root->fs_info->ordered_extents, &splice);
 	while (!list_empty(&splice)) {
@@ -600,6 +601,7 @@ void btrfs_wait_ordered_extents(struct btrfs_root *root, int delay_iput)
 
 		cond_resched();
 	}
+	mutex_unlock(&root->fs_info->ordered_operations_mutex);
 }
 
 /*
