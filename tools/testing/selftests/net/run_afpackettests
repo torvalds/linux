@@ -14,3 +14,13 @@ if [ $? -ne 0 ]; then
 else
 	echo "[PASS]"
 fi
+
+echo "--------------------"
+echo "running psock_tpacket test"
+echo "--------------------"
+./psock_tpacket
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+else
+	echo "[PASS]"
+fi

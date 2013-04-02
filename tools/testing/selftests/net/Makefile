@@ -1,11 +1,11 @@
 # Makefile for net selftests
 
 CC = $(CROSS_COMPILE)gcc
-CFLAGS = -Wall
+CFLAGS = -Wall -O2 -g
 
 CFLAGS += -I../../../../usr/include/
 
-NET_PROGS = socket psock_fanout
+NET_PROGS = socket psock_fanout psock_tpacket
 
 all: $(NET_PROGS)
 %: %.c

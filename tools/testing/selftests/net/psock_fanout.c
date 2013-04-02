@@ -61,91 +61,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define DATA_LEN			100
-#define DATA_CHAR			'a'
+#include "psock_lib.h"
+
 #define RING_NUM_FRAMES			20
-#define PORT_BASE			8000
-
-static void pair_udp_open(int fds[], uint16_t port)
-{
-	struct sockaddr_in saddr, daddr;
-
-	fds[0] = socket(PF_INET, SOCK_DGRAM, 0);
-	fds[1] = socket(PF_INET, SOCK_DGRAM, 0);
-	if (fds[0] == -1 || fds[1] == -1) {
-		fprintf(stderr, "ERROR: socket dgram\n");
-		exit(1);
-	}
-
-	memset(&saddr, 0, sizeof(saddr));
-	saddr.sin_family = AF_INET;
-	saddr.sin_port = htons(port);
-	saddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-	memset(&daddr, 0, sizeof(daddr));
-	daddr.sin_family = AF_INET;
-	daddr.sin_port = htons(port + 1);
-	daddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-	/* must bind both to get consistent hash result */
-	if (bind(fds[1], (void *) &daddr, sizeof(daddr))) {
-		perror("bind");
-		exit(1);
-	}
-	if (bind(fds[0], (void *) &saddr, sizeof(saddr))) {
-		perror("bind");
-		exit(1);
-	}
-	if (connect(fds[0], (void *) &daddr, sizeof(daddr))) {
-		perror("connect");
-		exit(1);
-	}
-}
-
-static void pair_udp_send(int fds[], int num)
-{
-	char buf[DATA_LEN], rbuf[DATA_LEN];
-
-	memset(buf, DATA_CHAR, sizeof(buf));
-	while (num--) {
-		/* Should really handle EINTR and EAGAIN */
-		if (write(fds[0], buf, sizeof(buf)) != sizeof(buf)) {
-			fprintf(stderr, "ERROR: send failed left=%d\n", num);
-			exit(1);
-		}
-		if (read(fds[1], rbuf, sizeof(rbuf)) != sizeof(rbuf)) {
-			fprintf(stderr, "ERROR: recv failed left=%d\n", num);
-			exit(1);
-		}
-		if (memcmp(buf, rbuf, sizeof(buf))) {
-			fprintf(stderr, "ERROR: data failed left=%d\n", num);
-			exit(1);
-		}
-	}
-}
-
-static void sock_fanout_setfilter(int fd)
-{
-	struct sock_filter bpf_filter[] = {
-		{ 0x80, 0, 0, 0x00000000 },  /* LD  pktlen		      */
-		{ 0x35, 0, 5, DATA_LEN   },  /* JGE DATA_LEN  [f goto nomatch]*/
-		{ 0x30, 0, 0, 0x00000050 },  /* LD  ip[80]		      */
-		{ 0x15, 0, 3, DATA_CHAR  },  /* JEQ DATA_CHAR [f goto nomatch]*/
-		{ 0x30, 0, 0, 0x00000051 },  /* LD  ip[81]		      */
-		{ 0x15, 0, 1, DATA_CHAR  },  /* JEQ DATA_CHAR [f goto nomatch]*/
-		{ 0x6, 0, 0, 0x00000060  },  /* RET match	              */
-/* nomatch */	{ 0x6, 0, 0, 0x00000000  },  /* RET no match		      */
-	};
-	struct sock_fprog bpf_prog;
-
-	bpf_prog.filter = bpf_filter;
-	bpf_prog.len = sizeof(bpf_filter) / sizeof(struct sock_filter);
-	if (setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_prog,
-		       sizeof(bpf_prog))) {
-		perror("setsockopt SO_ATTACH_FILTER");
-		exit(1);
-	}
-}
 
 /* Open a socket in a given fanout mode.
  * @return -1 if mode is bad, a valid socket otherwise */
@@ -169,7 +87,7 @@ static int sock_fanout_open(uint16_t typeflags, int num_packets)
 		return -1;
 	}
 
-	sock_fanout_setfilter(fd);
+	pair_udp_setfilter(fd);
 	return fd;
 }
 
