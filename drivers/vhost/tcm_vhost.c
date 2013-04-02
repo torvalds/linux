@@ -661,7 +661,7 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs,
 
 		/* Extract the tpgt */
 		target = v_req.lun[1];
-		tv_tpg = vs->vs_tpg[target];
+		tv_tpg = ACCESS_ONCE(vs->vs_tpg[target]);
 
 		/* Target does not exist, fail the request */
 		if (unlikely(!tv_tpg)) {
