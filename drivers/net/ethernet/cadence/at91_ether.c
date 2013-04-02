@@ -299,42 +299,7 @@ static const struct of_device_id at91ether_dt_ids[] = {
 	{ .compatible = "cdns,emac" },
 	{ /* sentinel */ }
 };
-
 MODULE_DEVICE_TABLE(of, at91ether_dt_ids);
-
-static int at91ether_get_phy_mode_dt(struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-
-	if (np)
-		return of_get_phy_mode(np);
-
-	return -ENODEV;
-}
-
-static int at91ether_get_hwaddr_dt(struct macb *bp)
-{
-	struct device_node *np = bp->pdev->dev.of_node;
-
-	if (np) {
-		const char *mac = of_get_mac_address(np);
-		if (mac) {
-			memcpy(bp->dev->dev_addr, mac, ETH_ALEN);
-			return 0;
-		}
-	}
-
-	return -ENODEV;
-}
-#else
-static int at91ether_get_phy_mode_dt(struct platform_device *pdev)
-{
-	return -ENODEV;
-}
-static int at91ether_get_hwaddr_dt(struct macb *bp)
-{
-	return -ENODEV;
-}
 #endif
 
 /* Detect MAC & PHY and perform ethernet interface initialization */
@@ -348,6 +313,7 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	struct macb *lp;
 	int res;
 	u32 reg;
+	const char *mac;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
@@ -399,11 +365,13 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	res = at91ether_get_hwaddr_dt(lp);
-	if (res < 0)
+	mac = of_get_mac_address(pdev->dev.of_node);
+	if (mac)
+		memcpy(lp->dev->dev_addr, mac, ETH_ALEN);
+	else
 		macb_get_hwaddr(lp);
 
-	res = at91ether_get_phy_mode_dt(pdev);
+	res = of_get_phy_mode(pdev->dev.of_node);
 	if (res < 0) {
 		if (board_data && board_data->is_rmii)
 			lp->phy_interface = PHY_INTERFACE_MODE_RMII;
