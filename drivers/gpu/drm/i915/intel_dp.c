@@ -775,12 +775,9 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	struct drm_device *dev = crtc->dev;
 	struct intel_encoder *intel_encoder;
 	struct intel_dp *intel_dp;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int lane_count = 4;
 	struct intel_link_m_n m_n;
-	int pipe = intel_crtc->pipe;
-	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 	int target_clock;
 
 	/*
@@ -814,29 +811,10 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	intel_link_compute_m_n(intel_crtc->config.pipe_bpp, lane_count,
 			       target_clock, adjusted_mode->clock, &m_n);
 
-	if (HAS_DDI(dev)) {
-		I915_WRITE(PIPE_DATA_M1(cpu_transcoder),
-			   TU_SIZE(m_n.tu) | m_n.gmch_m);
-		I915_WRITE(PIPE_DATA_N1(cpu_transcoder), m_n.gmch_n);
-		I915_WRITE(PIPE_LINK_M1(cpu_transcoder), m_n.link_m);
-		I915_WRITE(PIPE_LINK_N1(cpu_transcoder), m_n.link_n);
-	} else if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(TRANSDATA_M1(pipe), TU_SIZE(m_n.tu) | m_n.gmch_m);
-		I915_WRITE(TRANSDATA_N1(pipe), m_n.gmch_n);
-		I915_WRITE(TRANSDPLINK_M1(pipe), m_n.link_m);
-		I915_WRITE(TRANSDPLINK_N1(pipe), m_n.link_n);
-	} else if (IS_VALLEYVIEW(dev)) {
-		I915_WRITE(PIPE_DATA_M1(pipe), TU_SIZE(m_n.tu) | m_n.gmch_m);
-		I915_WRITE(PIPE_DATA_N1(pipe), m_n.gmch_n);
-		I915_WRITE(PIPE_LINK_M1(pipe), m_n.link_m);
-		I915_WRITE(PIPE_LINK_N1(pipe), m_n.link_n);
-	} else {
-		I915_WRITE(PIPE_GMCH_DATA_M(pipe),
-			   TU_SIZE(m_n.tu) | m_n.gmch_m);
-		I915_WRITE(PIPE_GMCH_DATA_N(pipe), m_n.gmch_n);
-		I915_WRITE(PIPE_DP_LINK_M(pipe), m_n.link_m);
-		I915_WRITE(PIPE_DP_LINK_N(pipe), m_n.link_n);
-	}
+	if (intel_crtc->config.has_pch_encoder)
+		intel_pch_transcoder_set_m_n(intel_crtc, &m_n);
+	else
+		intel_cpu_transcoder_set_m_n(intel_crtc, &m_n);
 }
 
 void intel_dp_init_link_config(struct intel_dp *intel_dp)

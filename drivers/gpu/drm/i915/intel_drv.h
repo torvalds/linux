@@ -192,6 +192,7 @@ struct intel_crtc_config {
 
 	bool dither;
 	int pipe_bpp;
+	struct intel_link_m_n dp_m_n;
 
 	/* Used by SDVO (and if we ever fix it, HDMI). */
 	unsigned pixel_multiplier;
@@ -640,6 +641,10 @@ extern void intel_init_clock_gating(struct drm_device *dev);
 extern void intel_write_eld(struct drm_encoder *encoder,
 			    struct drm_display_mode *mode);
 extern void intel_cpt_verify_modeset(struct drm_device *dev, int pipe);
+extern void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
+					 struct intel_link_m_n *m_n);
+extern void intel_pch_transcoder_set_m_n(struct intel_crtc *crtc,
+					 struct intel_link_m_n *m_n);
 extern void intel_prepare_ddi(struct drm_device *dev);
 extern void hsw_fdi_link_train(struct drm_crtc *crtc);
 extern void intel_ddi_init(struct drm_device *dev, enum port port);

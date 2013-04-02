@@ -5373,15 +5373,47 @@ int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp)
 	return bps / (link_bw * 8) + 1;
 }
 
-static void ironlake_set_m_n(struct drm_crtc *crtc)
+void intel_pch_transcoder_set_m_n(struct intel_crtc *crtc,
+				  struct intel_link_m_n *m_n)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = crtc->pipe;
+
+	I915_WRITE(TRANSDATA_M1(pipe), TU_SIZE(m_n->tu) | m_n->gmch_m);
+	I915_WRITE(TRANSDATA_N1(pipe), m_n->gmch_n);
+	I915_WRITE(TRANSDPLINK_M1(pipe), m_n->link_m);
+	I915_WRITE(TRANSDPLINK_N1(pipe), m_n->link_n);
+}
+
+void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
+				  struct intel_link_m_n *m_n)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = crtc->pipe;
+	enum transcoder transcoder = crtc->cpu_transcoder;
+
+	if (INTEL_INFO(dev)->gen >= 5) {
+		I915_WRITE(PIPE_DATA_M1(transcoder), TU_SIZE(m_n->tu) | m_n->gmch_m);
+		I915_WRITE(PIPE_DATA_N1(transcoder), m_n->gmch_n);
+		I915_WRITE(PIPE_LINK_M1(transcoder), m_n->link_m);
+		I915_WRITE(PIPE_LINK_N1(transcoder), m_n->link_n);
+	} else {
+		I915_WRITE(PIPE_GMCH_DATA_M(pipe), TU_SIZE(m_n->tu) | m_n->gmch_m);
+		I915_WRITE(PIPE_GMCH_DATA_N(pipe), m_n->gmch_n);
+		I915_WRITE(PIPE_DP_LINK_M(pipe), m_n->link_m);
+		I915_WRITE(PIPE_DP_LINK_N(pipe), m_n->link_n);
+	}
+}
+
+static void ironlake_fdi_set_m_n(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_display_mode *adjusted_mode =
 		&intel_crtc->config.adjusted_mode;
 	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
-	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 	struct intel_encoder *intel_encoder, *edp_encoder = NULL;
 	struct intel_link_m_n m_n = {0};
 	int target_clock, lane, link_bw;
@@ -5401,22 +5433,14 @@ static void ironlake_set_m_n(struct drm_crtc *crtc)
 		}
 	}
 
-	/* FDI link */
-	lane = 0;
-	/* CPU eDP doesn't require FDI link, so just set DP M/N
-	   according to current link config */
-	if (is_cpu_edp) {
-		intel_edp_link_config(edp_encoder, &lane, &link_bw);
-	} else {
-		/* FDI is a binary signal running at ~2.7GHz, encoding
-		 * each output octet as 10 bits. The actual frequency
-		 * is stored as a divider into a 100MHz clock, and the
-		 * mode pixel clock is stored in units of 1KHz.
-		 * Hence the bw of each lane in terms of the mode signal
-		 * is:
-		 */
-		link_bw = intel_fdi_link_freq(dev) * MHz(100)/KHz(1)/10;
-	}
+	/* FDI is a binary signal running at ~2.7GHz, encoding
+	 * each output octet as 10 bits. The actual frequency
+	 * is stored as a divider into a 100MHz clock, and the
+	 * mode pixel clock is stored in units of 1KHz.
+	 * Hence the bw of each lane in terms of the mode signal
+	 * is:
+	 */
+	link_bw = intel_fdi_link_freq(dev) * MHz(100)/KHz(1)/10;
 
 	/* [e]DP over FDI requires target mode clock instead of link clock. */
 	if (edp_encoder)
@@ -5426,9 +5450,8 @@ static void ironlake_set_m_n(struct drm_crtc *crtc)
 	else
 		target_clock = adjusted_mode->clock;
 
-	if (!lane)
-		lane = ironlake_get_lanes_required(target_clock, link_bw,
-						   intel_crtc->config.pipe_bpp);
+	lane = ironlake_get_lanes_required(target_clock, link_bw,
+					   intel_crtc->config.pipe_bpp);
 
 	intel_crtc->fdi_lanes = lane;
 
@@ -5437,10 +5460,7 @@ static void ironlake_set_m_n(struct drm_crtc *crtc)
 	intel_link_compute_m_n(intel_crtc->config.pipe_bpp, lane, target_clock,
 			       link_bw, &m_n);
 
-	I915_WRITE(PIPE_DATA_M1(cpu_transcoder), TU_SIZE(m_n.tu) | m_n.gmch_m);
-	I915_WRITE(PIPE_DATA_N1(cpu_transcoder), m_n.gmch_n);
-	I915_WRITE(PIPE_LINK_M1(cpu_transcoder), m_n.link_m);
-	I915_WRITE(PIPE_LINK_N1(cpu_transcoder), m_n.link_n);
+	intel_cpu_transcoder_set_m_n(intel_crtc, &m_n);
 }
 
 static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
@@ -5587,6 +5607,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	WARN(!(HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)),
 	     "Unexpected PCH type %d\n", INTEL_PCH_TYPE(dev));
 
+	intel_crtc->cpu_transcoder = pipe;
+
 	ok = ironlake_compute_clocks(crtc, adjusted_mode, &clock,
 				     &has_reduced_clock, &reduced_clock);
 	if (!ok) {
@@ -5625,7 +5647,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	} else
 		intel_put_pch_pll(intel_crtc);
 
-	if (is_dp && !is_cpu_edp)
+	if (is_dp)
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
@@ -5661,7 +5683,9 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* Note, this also computes intel_crtc->fdi_lanes which is used below in
 	 * ironlake_check_fdi_lanes. */
-	ironlake_set_m_n(crtc);
+	intel_crtc->fdi_lanes = 0;
+	if (intel_crtc->config.has_pch_encoder)
+		ironlake_fdi_set_m_n(crtc);
 
 	fdi_config_ok = ironlake_check_fdi_lanes(intel_crtc);
 
@@ -5773,15 +5797,15 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	DRM_DEBUG_KMS("Mode for pipe %d:\n", pipe);
 	drm_mode_debug_printmodeline(mode);
 
-	if (is_dp && !is_cpu_edp)
+	if (is_dp)
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
 
 	intel_crtc->lowfreq_avail = false;
 
 	intel_set_pipe_timings(intel_crtc, mode, adjusted_mode);
 
-	if (!is_dp || is_cpu_edp)
-		ironlake_set_m_n(crtc);
+	if (intel_crtc->config.has_pch_encoder)
+		ironlake_fdi_set_m_n(crtc);
 
 	haswell_set_pipeconf(crtc, adjusted_mode, dither);
 
