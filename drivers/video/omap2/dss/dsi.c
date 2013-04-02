@@ -5073,7 +5073,7 @@ static int dsi_get_clocks(struct platform_device *dsidev)
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct clk *clk;
 
-	clk = clk_get(&dsidev->dev, "fck");
+	clk = devm_clk_get(&dsidev->dev, "fck");
 	if (IS_ERR(clk)) {
 		DSSERR("can't get fck\n");
 		return PTR_ERR(clk);
@@ -5081,27 +5081,15 @@ static int dsi_get_clocks(struct platform_device *dsidev)
 
 	dsi->dss_clk = clk;
 
-	clk = clk_get(&dsidev->dev, "sys_clk");
+	clk = devm_clk_get(&dsidev->dev, "sys_clk");
 	if (IS_ERR(clk)) {
 		DSSERR("can't get sys_clk\n");
-		clk_put(dsi->dss_clk);
-		dsi->dss_clk = NULL;
 		return PTR_ERR(clk);
 	}
 
 	dsi->sys_clk = clk;
 
 	return 0;
-}
-
-static void dsi_put_clocks(struct platform_device *dsidev)
-{
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	if (dsi->dss_clk)
-		clk_put(dsi->dss_clk);
-	if (dsi->sys_clk)
-		clk_put(dsi->sys_clk);
 }
 
 static struct omap_dss_device * __init dsi_find_dssdev(struct platform_device *pdev)
@@ -5314,7 +5302,6 @@ static int __init omap_dsihw_probe(struct platform_device *dsidev)
 
 err_runtime_get:
 	pm_runtime_disable(&dsidev->dev);
-	dsi_put_clocks(dsidev);
 	return r;
 }
 
@@ -5329,8 +5316,6 @@ static int __exit omap_dsihw_remove(struct platform_device *dsidev)
 	dsi_uninit_output(dsidev);
 
 	pm_runtime_disable(&dsidev->dev);
-
-	dsi_put_clocks(dsidev);
 
 	if (dsi->vdds_dsi_reg != NULL) {
 		if (dsi->vdds_dsi_enabled) {
