@@ -3827,8 +3827,9 @@ exit:
 static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
-	s32 err = -EPERM;
+	s32 err;
 	struct brcmf_fil_bss_enable_le bss_enable;
+	struct brcmf_join_params join_params;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -3836,16 +3837,21 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 		/* Due to most likely deauths outstanding we sleep */
 		/* first to make sure they get processed by fw. */
 		msleep(400);
-		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_AP, 0);
-		if (err < 0) {
-			brcmf_err("setting AP mode failed %d\n", err);
-			goto exit;
-		}
+
+		memset(&join_params, 0, sizeof(join_params));
+		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SET_SSID,
+					     &join_params, sizeof(join_params));
+		if (err < 0)
+			brcmf_err("SET SSID error (%d)\n", err);
 		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 0);
-		if (err < 0) {
+		if (err < 0)
 			brcmf_err("BRCMF_C_UP error %d\n", err);
-			goto exit;
-		}
+		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_AP, 0);
+		if (err < 0)
+			brcmf_err("setting AP mode failed %d\n", err);
+		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_INFRA, 0);
+		if (err < 0)
+			brcmf_err("setting INFRA mode failed %d\n", err);
 	} else {
 		bss_enable.bsscfg_idx = cpu_to_le32(ifp->bssidx);
 		bss_enable.enable = cpu_to_le32(0);
@@ -3858,7 +3864,6 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 	set_bit(BRCMF_VIF_STATUS_AP_CREATING, &ifp->vif->sme_state);
 	clear_bit(BRCMF_VIF_STATUS_AP_CREATED, &ifp->vif->sme_state);
 
-exit:
 	return err;
 }
 
