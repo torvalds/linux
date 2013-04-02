@@ -1821,7 +1821,7 @@ static int mv_u3d_probe(struct platform_device *dev)
 	u3d->dev = &dev->dev;
 	u3d->vbus = pdata->vbus;
 
-	u3d->clk = clk_get(&dev->dev, pdata->clkname[0]);
+	u3d->clk = clk_get(&dev->dev, NULL);
 	if (IS_ERR(u3d->clk)) {
 		retval = PTR_ERR(u3d->clk);
 		goto err_get_clk;
