@@ -2434,6 +2434,7 @@ struct file_system_type reiserfs_fs_type = {
 	.kill_sb = reiserfs_kill_sb,
 	.fs_flags = FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("reiserfs");
 
 MODULE_DESCRIPTION("ReiserFS journaled filesystem");
 MODULE_AUTHOR("Hans Reiser <reiser@namesys.com>");

@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
+#include <mach/clock.h>
 #include <mach/common.h>
 
 /* SH7372 registers */
@@ -83,39 +84,12 @@ struct clk sh7372_extal2_clk = {
 	.rate		= 48000000,
 };
 
-/* A fixed divide-by-2 block */
-static unsigned long div2_recalc(struct clk *clk)
-{
-	return clk->parent->rate / 2;
-}
+SH_CLK_RATIO(div2, 1, 2);
 
-static struct sh_clk_ops div2_clk_ops = {
-	.recalc		= div2_recalc,
-};
-
-/* Divide dv_clki by two */
-struct clk sh7372_dv_clki_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &sh7372_dv_clki_clk,
-};
-
-/* Divide extal1 by two */
-static struct clk extal1_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &sh7372_extal1_clk,
-};
-
-/* Divide extal2 by two */
-static struct clk extal2_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &sh7372_extal2_clk,
-};
-
-/* Divide extal2 by four */
-static struct clk extal2_div4_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &extal2_div2_clk,
-};
+SH_FIXED_RATIO_CLKg(sh7372_dv_clki_div2_clk,	sh7372_dv_clki_clk,	div2);
+SH_FIXED_RATIO_CLK(extal1_div2_clk,		sh7372_extal1_clk,	div2);
+SH_FIXED_RATIO_CLK(extal2_div2_clk,		sh7372_extal2_clk,	div2);
+SH_FIXED_RATIO_CLK(extal2_div4_clk,		extal2_div2_clk,	div2);
 
 /* PLLC0 and PLLC1 */
 static unsigned long pllc01_recalc(struct clk *clk)
@@ -147,10 +121,7 @@ static struct clk pllc1_clk = {
 };
 
 /* Divide PLLC1 by two */
-static struct clk pllc1_div2_clk = {
-	.ops		= &div2_clk_ops,
-	.parent		= &pllc1_clk,
-};
+SH_FIXED_RATIO_CLK(pllc1_div2_clk,	pllc1_clk,	div2);
 
 /* PLLC2 */
 
@@ -342,7 +313,7 @@ static struct clk_div4_table div4_table = {
 };
 
 enum { DIV4_I, DIV4_ZG, DIV4_B, DIV4_M1, DIV4_CSIR,
-       DIV4_ZTR, DIV4_ZT, DIV4_ZX, DIV4_HP,
+       DIV4_ZX, DIV4_HP,
        DIV4_ISPB, DIV4_S, DIV4_ZB, DIV4_ZB3, DIV4_CP,
        DIV4_DDRP, DIV4_NR };
 
@@ -355,8 +326,6 @@ static struct clk div4_clks[DIV4_NR] = {
 	[DIV4_B] = DIV4(FRQCRA, 8, 0x6fff, CLK_ENABLE_ON_INIT),
 	[DIV4_M1] = DIV4(FRQCRA, 4, 0x6fff, CLK_ENABLE_ON_INIT),
 	[DIV4_CSIR] = DIV4(FRQCRA, 0, 0x6fff, 0),
-	[DIV4_ZTR] = DIV4(FRQCRB, 20, 0x6fff, 0),
-	[DIV4_ZT] = DIV4(FRQCRB, 16, 0x6fff, 0),
 	[DIV4_ZX] = DIV4(FRQCRB, 12, 0x6fff, 0),
 	[DIV4_HP] = DIV4(FRQCRB, 4, 0x6fff, 0),
 	[DIV4_ISPB] = DIV4(FRQCRC, 20, 0x6fff, 0),
@@ -516,8 +485,6 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("b_clk", &div4_clks[DIV4_B]),
 	CLKDEV_CON_ID("m1_clk", &div4_clks[DIV4_M1]),
 	CLKDEV_CON_ID("csir_clk", &div4_clks[DIV4_CSIR]),
-	CLKDEV_CON_ID("ztr_clk", &div4_clks[DIV4_ZTR]),
-	CLKDEV_CON_ID("zt_clk", &div4_clks[DIV4_ZT]),
 	CLKDEV_CON_ID("zx_clk", &div4_clks[DIV4_ZX]),
 	CLKDEV_CON_ID("hp_clk", &div4_clks[DIV4_HP]),
 	CLKDEV_CON_ID("ispb_clk", &div4_clks[DIV4_ISPB]),
@@ -654,5 +621,4 @@ void __init sh7372_clock_init(void)
 		shmobile_clk_init();
 	else
 		panic("failed to setup sh7372 clocks\n");
-
 }

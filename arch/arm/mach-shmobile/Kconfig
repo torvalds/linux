@@ -16,12 +16,30 @@ config ARCH_SH73A0
 	select CPU_V7
 	select I2C
 	select SH_CLK_CPG
+	select RENESAS_INTC_IRQPIN
+
+config ARCH_R8A73A4
+	bool "R-Mobile APE6 (R8A73A40)"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_GIC
+	select CPU_V7
+	select ARM_ARCH_TIMER
+	select SH_CLK_CPG
+	select RENESAS_IRQC
 
 config ARCH_R8A7740
 	bool "R-Mobile A1 (R8A77400)"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_GIC
 	select CPU_V7
 	select SH_CLK_CPG
+	select RENESAS_INTC_IRQPIN
+
+config ARCH_R8A7778
+	bool "R-Car M1 (R8A77780)"
+	select CPU_V7
+	select SH_CLK_CPG
+	select ARM_GIC
 
 config ARCH_R8A7779
 	bool "R-Car H1 (R8A77790)"
@@ -31,6 +49,16 @@ config ARCH_R8A7779
 	select SH_CLK_CPG
 	select USB_ARCH_HAS_EHCI
 	select USB_ARCH_HAS_OHCI
+	select RENESAS_INTC_IRQPIN
+
+config ARCH_R8A7790
+	bool "R-Car H2 (R8A77900)"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_GIC
+	select CPU_V7
+	select ARM_ARCH_TIMER
+	select SH_CLK_CPG
+	select RENESAS_IRQC
 
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"

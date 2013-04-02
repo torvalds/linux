@@ -23,6 +23,19 @@
 #include <linux/init.h>
 #include <linux/sh_clk.h>
 #include <linux/export.h>
+#include <mach/clock.h>
+#include <mach/common.h>
+
+unsigned long shmobile_fixed_ratio_clk_recalc(struct clk *clk)
+{
+	struct clk_ratio *p = clk->priv;
+
+	return clk->parent->rate / p->div * p->mul;
+};
+
+struct sh_clk_ops shmobile_fixed_ratio_clk_ops = {
+	.recalc	= shmobile_fixed_ratio_clk_recalc,
+};
 
 int __init shmobile_clk_init(void)
 {

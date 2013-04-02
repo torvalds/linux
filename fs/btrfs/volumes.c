@@ -2379,7 +2379,11 @@ static int btrfs_relocate_chunk(struct btrfs_root *root,
 		return ret;
 
 	trans = btrfs_start_transaction(root, 0);
-	BUG_ON(IS_ERR(trans));
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		btrfs_std_error(root->fs_info, ret);
+		return ret;
+	}
 
 	lock_chunks(root);
 
@@ -3050,7 +3054,8 @@ static void __cancel_balance(struct btrfs_fs_info *fs_info)
 
 	unset_balance_control(fs_info);
 	ret = del_balance_item(fs_info->tree_root);
-	BUG_ON(ret);
+	if (ret)
+		btrfs_std_error(fs_info, ret);
 
 	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
 }
@@ -3228,6 +3233,11 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	if (bargs) {
 		memset(bargs, 0, sizeof(*bargs));
 		update_ioctl_balance_args(fs_info, 0, bargs);
+	}
+
+	if ((ret && ret != -ECANCELED && ret != -ENOSPC) ||
+	    balance_need_close(fs_info)) {
+		__cancel_balance(fs_info);
 	}
 
 	wake_up(&fs_info->balance_wait_q);

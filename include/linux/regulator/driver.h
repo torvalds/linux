@@ -199,6 +199,8 @@ enum regulator_type {
  *                output when using regulator_set_voltage_sel_regmap
  * @enable_reg: Register for control when using regmap enable/disable ops
  * @enable_mask: Mask for control when using regmap enable/disable ops
+ * @bypass_reg: Register for control when using regmap set_bypass
+ * @bypass_mask: Mask for control when using regmap set_bypass
  *
  * @enable_time: Time taken for initial enable of regulator (in uS).
  */

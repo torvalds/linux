@@ -26,11 +26,13 @@
 #include <linux/irqchip/arm-gic.h>
 #include <mach/common.h>
 #include <mach/r8a7779.h>
+#include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 #include <asm/smp_twd.h>
 
 #define AVECR IOMEM(0xfe700040)
+#define R8A7779_SCU_BASE 0xf0000000
 
 static struct r8a7779_pm_ch r8a7779_ch_cpu1 = {
 	.chan_offs = 0x40, /* PWRSR0 .. PWRER0 */
@@ -56,43 +58,13 @@ static struct r8a7779_pm_ch *r8a7779_ch_cpu[4] = {
 	[3] = &r8a7779_ch_cpu3,
 };
 
-static void __iomem *scu_base_addr(void)
-{
-	return (void __iomem *)0xf0000000;
-}
-
-static DEFINE_SPINLOCK(scu_lock);
-static unsigned long tmp;
-
 #ifdef CONFIG_HAVE_ARM_TWD
-static DEFINE_TWD_LOCAL_TIMER(twd_local_timer, 0xf0000600, 29);
-
+static DEFINE_TWD_LOCAL_TIMER(twd_local_timer, R8A7779_SCU_BASE + 0x600, 29);
 void __init r8a7779_register_twd(void)
 {
 	twd_local_timer_register(&twd_local_timer);
 }
 #endif
-
-static void modify_scu_cpu_psr(unsigned long set, unsigned long clr)
-{
-	void __iomem *scu_base = scu_base_addr();
-
-	spin_lock(&scu_lock);
-	tmp = __raw_readl(scu_base + 8);
-	tmp &= ~clr;
-	tmp |= set;
-	spin_unlock(&scu_lock);
-
-	/* disable cache coherency after releasing the lock */
-	__raw_writel(tmp, scu_base + 8);
-}
-
-static unsigned int __init r8a7779_get_core_count(void)
-{
-	void __iomem *scu_base = scu_base_addr();
-
-	return scu_get_core_count(scu_base);
-}
 
 static int r8a7779_platform_cpu_kill(unsigned int cpu)
 {
@@ -100,9 +72,6 @@ static int r8a7779_platform_cpu_kill(unsigned int cpu)
 	int ret = -EIO;
 
 	cpu = cpu_logical_map(cpu);
-
-	/* disable cache coherency */
-	modify_scu_cpu_psr(3 << (cpu * 8), 0);
 
 	if (cpu < ARRAY_SIZE(r8a7779_ch_cpu))
 		ch = r8a7779_ch_cpu[cpu];
@@ -112,25 +81,6 @@ static int r8a7779_platform_cpu_kill(unsigned int cpu)
 
 	return ret ? ret : 1;
 }
-
-static int __maybe_unused r8a7779_cpu_kill(unsigned int cpu)
-{
-	int k;
-
-	/* this function is running on another CPU than the offline target,
-	 * here we need wait for shutdown code in platform_cpu_die() to
-	 * finish before asking SoC-specific code to power off the CPU core.
-	 */
-	for (k = 0; k < 1000; k++) {
-		if (shmobile_cpu_is_dead(cpu))
-			return r8a7779_platform_cpu_kill(cpu);
-
-		mdelay(1);
-	}
-
-	return 0;
-}
-
 
 static void __cpuinit r8a7779_secondary_init(unsigned int cpu)
 {
@@ -144,9 +94,6 @@ static int __cpuinit r8a7779_boot_secondary(unsigned int cpu, struct task_struct
 
 	cpu = cpu_logical_map(cpu);
 
-	/* enable cache coherency */
-	modify_scu_cpu_psr(0, 3 << (cpu * 8));
-
 	if (cpu < ARRAY_SIZE(r8a7779_ch_cpu))
 		ch = r8a7779_ch_cpu[cpu];
 
@@ -158,15 +105,13 @@ static int __cpuinit r8a7779_boot_secondary(unsigned int cpu, struct task_struct
 
 static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 {
-	int cpu = cpu_logical_map(0);
+	scu_enable(shmobile_scu_base);
 
-	scu_enable(scu_base_addr());
+	/* Map the reset vector (in headsmp-scu.S) */
+	__raw_writel(__pa(shmobile_secondary_vector_scu), AVECR);
 
-	/* Map the reset vector (in headsmp.S) */
-	__raw_writel(__pa(shmobile_secondary_vector), AVECR);
-
-	/* enable cache coherency on CPU0 */
-	modify_scu_cpu_psr(0, 3 << (cpu * 8));
+	/* enable cache coherency on booting CPU */
+	scu_power_mode(shmobile_scu_base, SCU_PM_NORMAL);
 
 	r8a7779_pm_init();
 
@@ -178,10 +123,60 @@ static void __init r8a7779_smp_prepare_cpus(unsigned int max_cpus)
 
 static void __init r8a7779_smp_init_cpus(void)
 {
-	unsigned int ncores = r8a7779_get_core_count();
+	/* setup r8a7779 specific SCU base */
+	shmobile_scu_base = IOMEM(R8A7779_SCU_BASE);
 
-	shmobile_smp_init_cpus(ncores);
+	shmobile_smp_init_cpus(scu_get_core_count(shmobile_scu_base));
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+static int r8a7779_scu_psr_core_disabled(int cpu)
+{
+	unsigned long mask = 3 << (cpu * 8);
+
+	if ((__raw_readl(shmobile_scu_base + 8) & mask) == mask)
+		return 1;
+
+	return 0;
+}
+
+static int r8a7779_cpu_kill(unsigned int cpu)
+{
+	int k;
+
+	/* this function is running on another CPU than the offline target,
+	 * here we need wait for shutdown code in platform_cpu_die() to
+	 * finish before asking SoC-specific code to power off the CPU core.
+	 */
+	for (k = 0; k < 1000; k++) {
+		if (r8a7779_scu_psr_core_disabled(cpu))
+			return r8a7779_platform_cpu_kill(cpu);
+
+		mdelay(1);
+	}
+
+	return 0;
+}
+
+static void r8a7779_cpu_die(unsigned int cpu)
+{
+	dsb();
+	flush_cache_all();
+
+	/* disable cache coherency */
+	scu_power_mode(shmobile_scu_base, SCU_PM_POWEROFF);
+
+	/* Endless loop until power off from r8a7779_cpu_kill() */
+	while (1)
+		cpu_do_idle();
+}
+
+static int r8a7779_cpu_disable(unsigned int cpu)
+{
+	/* only CPU1->3 have power domains, do not allow hotplug of CPU0 */
+	return cpu == 0 ? -EPERM : 0;
+}
+#endif /* CONFIG_HOTPLUG_CPU */
 
 struct smp_operations r8a7779_smp_ops  __initdata = {
 	.smp_init_cpus		= r8a7779_smp_init_cpus,
@@ -190,7 +185,7 @@ struct smp_operations r8a7779_smp_ops  __initdata = {
 	.smp_boot_secondary	= r8a7779_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_kill		= r8a7779_cpu_kill,
-	.cpu_die		= shmobile_cpu_die,
-	.cpu_disable		= shmobile_cpu_disable,
+	.cpu_die		= r8a7779_cpu_die,
+	.cpu_disable		= r8a7779_cpu_disable,
 #endif
 };

@@ -71,9 +71,14 @@ struct kmem_cache *scsi_sdb_cache;
 #ifdef CONFIG_ACPI
 #include <acpi/acpi_bus.h>
 
+static bool acpi_scsi_bus_match(struct device *dev)
+{
+	return dev->bus == &scsi_bus_type;
+}
+
 int scsi_register_acpi_bus_type(struct acpi_bus_type *bus)
 {
-        bus->bus = &scsi_bus_type;
+        bus->match = acpi_scsi_bus_match;
         return register_acpi_bus_type(bus);
 }
 EXPORT_SYMBOL_GPL(scsi_register_acpi_bus_type);
