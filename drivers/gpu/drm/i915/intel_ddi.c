@@ -1150,7 +1150,7 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("No pipe for ddi port %i found\n", port);
 
-	return true;
+	return false;
 }
 
 static uint32_t intel_ddi_get_crtc_pll(struct drm_i915_private *dev_priv,
