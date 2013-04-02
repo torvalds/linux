@@ -505,8 +505,10 @@ static void ep0_rxstate(struct musb *musb)
 			req->status = -EOVERFLOW;
 			count = len;
 		}
-		musb_read_fifo(&musb->endpoints[0], count, buf);
-		req->actual += count;
+		if (count > 0) {
+			musb_read_fifo(&musb->endpoints[0], count, buf);
+			req->actual += count;
+		}
 		csr = MUSB_CSR0_P_SVDRXPKTRDY;
 		if (count < 64 || req->actual == req->length) {
 			musb->ep0_state = MUSB_EP0_STAGE_STATUSIN;
