@@ -3616,6 +3616,8 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 					   dir, index);
 	if (ret == -ENOENT)
 		ret = 0;
+	else if (ret)
+		btrfs_abort_transaction(trans, root, ret);
 err:
 	btrfs_free_path(path);
 	if (ret)
