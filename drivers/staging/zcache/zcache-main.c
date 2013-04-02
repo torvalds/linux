@@ -1733,9 +1733,7 @@ static int __init zcache_init(void)
 		namestr = "ramster";
 		ramster_register_pamops(&zcache_pamops);
 	}
-#ifdef CONFIG_DEBUG_FS
 	zcache_debugfs_init();
-#endif
 	if (zcache_enabled) {
 		unsigned int cpu;
 

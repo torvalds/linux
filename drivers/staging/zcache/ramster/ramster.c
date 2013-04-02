@@ -134,6 +134,11 @@ static int __init ramster_debugfs_init(void)
 }
 #undef	zdebugfs
 #undef	zdfs64
+#else
+static inline int ramster_debugfs_init(void)
+{
+	return 0;
+}
 #endif
 
 static LIST_HEAD(ramster_rem_op_list);
