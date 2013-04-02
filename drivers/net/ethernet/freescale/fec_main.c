@@ -913,7 +913,6 @@ static void fec_get_mac(struct net_device *ndev)
 	 */
 	iap = macaddr;
 
-#ifdef CONFIG_OF
 	/*
 	 * 2) from device tree data
 	 */
@@ -925,7 +924,6 @@ static void fec_get_mac(struct net_device *ndev)
 				iap = (unsigned char *) mac;
 		}
 	}
-#endif
 
 	/*
 	 * 3) from flash or fuse (via platform data)
@@ -1679,16 +1677,6 @@ static int fec_enet_init(struct net_device *ndev)
 }
 
 #ifdef CONFIG_OF
-static int fec_get_phy_mode_dt(struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-
-	if (np)
-		return of_get_phy_mode(np);
-
-	return -ENODEV;
-}
-
 static void fec_reset_phy(struct platform_device *pdev)
 {
 	int err, phy_reset;
@@ -1717,11 +1705,6 @@ static void fec_reset_phy(struct platform_device *pdev)
 	gpio_set_value(phy_reset, 1);
 }
 #else /* CONFIG_OF */
-static int fec_get_phy_mode_dt(struct platform_device *pdev)
-{
-	return -ENODEV;
-}
-
 static void fec_reset_phy(struct platform_device *pdev)
 {
 	/*
@@ -1780,7 +1763,7 @@ fec_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ndev);
 
-	ret = fec_get_phy_mode_dt(pdev);
+	ret = of_get_phy_mode(pdev->dev.of_node);
 	if (ret < 0) {
 		pdata = pdev->dev.platform_data;
 		if (pdata)
