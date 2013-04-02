@@ -2916,6 +2916,66 @@ static struct ab8500_reg_init ab8540_reg_init[] = {
 	REG_INIT(AB8540_REGUCTRLDISCH4,		0x04, 0x49, 0x07),
 };
 
+static struct of_regulator_match ab8500_regulator_match[] = {
+	{ .name	= "ab8500_ldo_aux1",    .driver_data = (void *) AB8500_LDO_AUX1, },
+	{ .name	= "ab8500_ldo_aux2",    .driver_data = (void *) AB8500_LDO_AUX2, },
+	{ .name	= "ab8500_ldo_aux3",    .driver_data = (void *) AB8500_LDO_AUX3, },
+	{ .name	= "ab8500_ldo_intcore", .driver_data = (void *) AB8500_LDO_INTCORE, },
+	{ .name	= "ab8500_ldo_tvout",   .driver_data = (void *) AB8500_LDO_TVOUT, },
+	{ .name = "ab8500_ldo_audio",   .driver_data = (void *) AB8500_LDO_AUDIO, },
+	{ .name	= "ab8500_ldo_anamic1", .driver_data = (void *) AB8500_LDO_ANAMIC1, },
+	{ .name	= "ab8500_ldo_amamic2", .driver_data = (void *) AB8500_LDO_ANAMIC2, },
+	{ .name	= "ab8500_ldo_dmic",    .driver_data = (void *) AB8500_LDO_DMIC, },
+	{ .name	= "ab8500_ldo_ana",     .driver_data = (void *) AB8500_LDO_ANA, },
+};
+
+static struct of_regulator_match ab8505_regulator_match[] = {
+	{ .name	= "ab8500_ldo_aux1",    .driver_data = (void *) AB8505_LDO_AUX1, },
+	{ .name	= "ab8500_ldo_aux2",    .driver_data = (void *) AB8505_LDO_AUX2, },
+	{ .name	= "ab8500_ldo_aux3",    .driver_data = (void *) AB8505_LDO_AUX3, },
+	{ .name	= "ab8500_ldo_aux4",    .driver_data = (void *) AB8505_LDO_AUX4, },
+	{ .name	= "ab8500_ldo_aux5",    .driver_data = (void *) AB8505_LDO_AUX5, },
+	{ .name	= "ab8500_ldo_aux6",    .driver_data = (void *) AB8505_LDO_AUX6, },
+	{ .name	= "ab8500_ldo_intcore", .driver_data = (void *) AB8505_LDO_INTCORE, },
+	{ .name	= "ab8500_ldo_adc",	.driver_data = (void *) AB8505_LDO_ADC, },
+	{ .name = "ab8500_ldo_audio",   .driver_data = (void *) AB8505_LDO_AUDIO, },
+	{ .name	= "ab8500_ldo_anamic1", .driver_data = (void *) AB8505_LDO_ANAMIC1, },
+	{ .name	= "ab8500_ldo_amamic2", .driver_data = (void *) AB8505_LDO_ANAMIC2, },
+	{ .name	= "ab8500_ldo_aux8",    .driver_data = (void *) AB8505_LDO_AUX8, },
+	{ .name	= "ab8500_ldo_ana",     .driver_data = (void *) AB8505_LDO_ANA, },
+};
+
+static struct of_regulator_match ab8540_regulator_match[] = {
+	{ .name	= "ab8500_ldo_aux1",    .driver_data = (void *) AB8540_LDO_AUX1, },
+	{ .name	= "ab8500_ldo_aux2",    .driver_data = (void *) AB8540_LDO_AUX2, },
+	{ .name	= "ab8500_ldo_aux3",    .driver_data = (void *) AB8540_LDO_AUX3, },
+	{ .name	= "ab8500_ldo_aux4",    .driver_data = (void *) AB8540_LDO_AUX4, },
+	{ .name	= "ab8500_ldo_aux5",    .driver_data = (void *) AB8540_LDO_AUX5, },
+	{ .name	= "ab8500_ldo_aux6",    .driver_data = (void *) AB8540_LDO_AUX6, },
+	{ .name	= "ab8500_ldo_intcore", .driver_data = (void *) AB8540_LDO_INTCORE, },
+	{ .name	= "ab8500_ldo_tvout",   .driver_data = (void *) AB8540_LDO_TVOUT, },
+	{ .name = "ab8500_ldo_audio",   .driver_data = (void *) AB8540_LDO_AUDIO, },
+	{ .name	= "ab8500_ldo_anamic1", .driver_data = (void *) AB8540_LDO_ANAMIC1, },
+	{ .name	= "ab8500_ldo_amamic2", .driver_data = (void *) AB8540_LDO_ANAMIC2, },
+	{ .name	= "ab8500_ldo_dmic",    .driver_data = (void *) AB8540_LDO_DMIC, },
+	{ .name	= "ab8500_ldo_ana",     .driver_data = (void *) AB8540_LDO_ANA, },
+	{ .name = "ab8500_ldo_sdio",    .driver_data = (void *) AB8540_LDO_SDIO, },
+};
+
+static struct of_regulator_match ab9540_regulator_match[] = {
+	{ .name	= "ab8500_ldo_aux1",    .driver_data = (void *) AB9540_LDO_AUX1, },
+	{ .name	= "ab8500_ldo_aux2",    .driver_data = (void *) AB9540_LDO_AUX2, },
+	{ .name	= "ab8500_ldo_aux3",    .driver_data = (void *) AB9540_LDO_AUX3, },
+	{ .name	= "ab8500_ldo_aux4",    .driver_data = (void *) AB9540_LDO_AUX4, },
+	{ .name	= "ab8500_ldo_intcore", .driver_data = (void *) AB9540_LDO_INTCORE, },
+	{ .name	= "ab8500_ldo_tvout",   .driver_data = (void *) AB9540_LDO_TVOUT, },
+	{ .name = "ab8500_ldo_audio",   .driver_data = (void *) AB9540_LDO_AUDIO, },
+	{ .name	= "ab8500_ldo_anamic1", .driver_data = (void *) AB9540_LDO_ANAMIC1, },
+	{ .name	= "ab8500_ldo_amamic2", .driver_data = (void *) AB9540_LDO_ANAMIC2, },
+	{ .name	= "ab8500_ldo_dmic",    .driver_data = (void *) AB9540_LDO_DMIC, },
+	{ .name	= "ab8500_ldo_ana",     .driver_data = (void *) AB9540_LDO_ANA, },
+};
+
 static struct {
 	struct ab8500_regulator_info *info;
 	int info_size;
@@ -2924,6 +2984,39 @@ static struct {
 	struct of_regulator_match *match;
 	int match_size;
 } abx500_regulator;
+
+static void abx500_get_regulator_info(struct ab8500 *ab8500)
+{
+	if (is_ab9540(ab8500)) {
+		abx500_regulator.info = ab9540_regulator_info;
+		abx500_regulator.info_size = ARRAY_SIZE(ab9540_regulator_info);
+		abx500_regulator.init = ab9540_reg_init;
+		abx500_regulator.init_size = AB9540_NUM_REGULATOR_REGISTERS;
+		abx500_regulator.match = ab9540_regulator_match;
+		abx500_regulator.match_size = ARRAY_SIZE(ab9540_regulator_match);
+	} else if (is_ab8505(ab8500)) {
+		abx500_regulator.info = ab8505_regulator_info;
+		abx500_regulator.info_size = ARRAY_SIZE(ab8505_regulator_info);
+		abx500_regulator.init = ab8505_reg_init;
+		abx500_regulator.init_size = AB8505_NUM_REGULATOR_REGISTERS;
+		abx500_regulator.match = ab8505_regulator_match;
+		abx500_regulator.match_size = ARRAY_SIZE(ab8505_regulator_match);
+	} else if (is_ab8540(ab8500)) {
+		abx500_regulator.info = ab8540_regulator_info;
+		abx500_regulator.info_size = ARRAY_SIZE(ab8540_regulator_info);
+		abx500_regulator.init = ab8540_reg_init;
+		abx500_regulator.init_size = AB8540_NUM_REGULATOR_REGISTERS;
+		abx500_regulator.match = ab8540_regulator_match;
+		abx500_regulator.match_size = ARRAY_SIZE(ab8540_regulator_match);
+	} else {
+		abx500_regulator.info = ab8500_regulator_info;
+		abx500_regulator.info_size = ARRAY_SIZE(ab8500_regulator_info);
+		abx500_regulator.init = ab8500_reg_init;
+		abx500_regulator.init_size = AB8500_NUM_REGULATOR_REGISTERS;
+		abx500_regulator.match = ab8500_regulator_match;
+		abx500_regulator.match_size = ARRAY_SIZE(ab8500_regulator_match);
+	}
+}
 
 static int ab8500_regulator_init_registers(struct platform_device *pdev,
 					   int id, int mask, int value)
@@ -2999,99 +3092,6 @@ static int ab8500_regulator_register(struct platform_device *pdev,
 	}
 
 	return 0;
-}
-
-static struct of_regulator_match ab8500_regulator_match[] = {
-	{ .name	= "ab8500_ldo_aux1",    .driver_data = (void *) AB8500_LDO_AUX1, },
-	{ .name	= "ab8500_ldo_aux2",    .driver_data = (void *) AB8500_LDO_AUX2, },
-	{ .name	= "ab8500_ldo_aux3",    .driver_data = (void *) AB8500_LDO_AUX3, },
-	{ .name	= "ab8500_ldo_intcore", .driver_data = (void *) AB8500_LDO_INTCORE, },
-	{ .name	= "ab8500_ldo_tvout",   .driver_data = (void *) AB8500_LDO_TVOUT, },
-	{ .name = "ab8500_ldo_audio",   .driver_data = (void *) AB8500_LDO_AUDIO, },
-	{ .name	= "ab8500_ldo_anamic1", .driver_data = (void *) AB8500_LDO_ANAMIC1, },
-	{ .name	= "ab8500_ldo_amamic2", .driver_data = (void *) AB8500_LDO_ANAMIC2, },
-	{ .name	= "ab8500_ldo_dmic",    .driver_data = (void *) AB8500_LDO_DMIC, },
-	{ .name	= "ab8500_ldo_ana",     .driver_data = (void *) AB8500_LDO_ANA, },
-};
-
-static struct of_regulator_match ab8505_regulator_match[] = {
-	{ .name	= "ab8500_ldo_aux1",    .driver_data = (void *) AB8505_LDO_AUX1, },
-	{ .name	= "ab8500_ldo_aux2",    .driver_data = (void *) AB8505_LDO_AUX2, },
-	{ .name	= "ab8500_ldo_aux3",    .driver_data = (void *) AB8505_LDO_AUX3, },
-	{ .name	= "ab8500_ldo_aux4",    .driver_data = (void *) AB8505_LDO_AUX4, },
-	{ .name	= "ab8500_ldo_aux5",    .driver_data = (void *) AB8505_LDO_AUX5, },
-	{ .name	= "ab8500_ldo_aux6",    .driver_data = (void *) AB8505_LDO_AUX6, },
-	{ .name	= "ab8500_ldo_intcore", .driver_data = (void *) AB8505_LDO_INTCORE, },
-	{ .name	= "ab8500_ldo_adc",	.driver_data = (void *) AB8505_LDO_ADC, },
-	{ .name = "ab8500_ldo_audio",   .driver_data = (void *) AB8505_LDO_AUDIO, },
-	{ .name	= "ab8500_ldo_anamic1", .driver_data = (void *) AB8505_LDO_ANAMIC1, },
-	{ .name	= "ab8500_ldo_amamic2", .driver_data = (void *) AB8505_LDO_ANAMIC2, },
-	{ .name	= "ab8500_ldo_aux8",    .driver_data = (void *) AB8505_LDO_AUX8, },
-	{ .name	= "ab8500_ldo_ana",     .driver_data = (void *) AB8505_LDO_ANA, },
-};
-
-static struct of_regulator_match ab8540_regulator_match[] = {
-	{ .name	= "ab8500_ldo_aux1",    .driver_data = (void *) AB8540_LDO_AUX1, },
-	{ .name	= "ab8500_ldo_aux2",    .driver_data = (void *) AB8540_LDO_AUX2, },
-	{ .name	= "ab8500_ldo_aux3",    .driver_data = (void *) AB8540_LDO_AUX3, },
-	{ .name	= "ab8500_ldo_aux4",    .driver_data = (void *) AB8540_LDO_AUX4, },
-	{ .name	= "ab8500_ldo_aux5",    .driver_data = (void *) AB8540_LDO_AUX5, },
-	{ .name	= "ab8500_ldo_aux6",    .driver_data = (void *) AB8540_LDO_AUX6, },
-	{ .name	= "ab8500_ldo_intcore", .driver_data = (void *) AB8540_LDO_INTCORE, },
-	{ .name	= "ab8500_ldo_tvout",   .driver_data = (void *) AB8540_LDO_TVOUT, },
-	{ .name = "ab8500_ldo_audio",   .driver_data = (void *) AB8540_LDO_AUDIO, },
-	{ .name	= "ab8500_ldo_anamic1", .driver_data = (void *) AB8540_LDO_ANAMIC1, },
-	{ .name	= "ab8500_ldo_amamic2", .driver_data = (void *) AB8540_LDO_ANAMIC2, },
-	{ .name	= "ab8500_ldo_dmic",    .driver_data = (void *) AB8540_LDO_DMIC, },
-	{ .name	= "ab8500_ldo_ana",     .driver_data = (void *) AB8540_LDO_ANA, },
-	{ .name = "ab8500_ldo_sdio",    .driver_data = (void *) AB8540_LDO_SDIO, },
-};
-
-static struct of_regulator_match ab9540_regulator_match[] = {
-	{ .name	= "ab8500_ldo_aux1",    .driver_data = (void *) AB9540_LDO_AUX1, },
-	{ .name	= "ab8500_ldo_aux2",    .driver_data = (void *) AB9540_LDO_AUX2, },
-	{ .name	= "ab8500_ldo_aux3",    .driver_data = (void *) AB9540_LDO_AUX3, },
-	{ .name	= "ab8500_ldo_aux4",    .driver_data = (void *) AB9540_LDO_AUX4, },
-	{ .name	= "ab8500_ldo_intcore", .driver_data = (void *) AB9540_LDO_INTCORE, },
-	{ .name	= "ab8500_ldo_tvout",   .driver_data = (void *) AB9540_LDO_TVOUT, },
-	{ .name = "ab8500_ldo_audio",   .driver_data = (void *) AB9540_LDO_AUDIO, },
-	{ .name	= "ab8500_ldo_anamic1", .driver_data = (void *) AB9540_LDO_ANAMIC1, },
-	{ .name	= "ab8500_ldo_amamic2", .driver_data = (void *) AB9540_LDO_ANAMIC2, },
-	{ .name	= "ab8500_ldo_dmic",    .driver_data = (void *) AB9540_LDO_DMIC, },
-	{ .name	= "ab8500_ldo_ana",     .driver_data = (void *) AB9540_LDO_ANA, },
-};
-
-static void abx500_get_regulator_info(struct ab8500 *ab8500)
-{
-	if (is_ab9540(ab8500)) {
-		abx500_regulator.info = ab9540_regulator_info;
-		abx500_regulator.info_size = ARRAY_SIZE(ab9540_regulator_info);
-		abx500_regulator.init = ab9540_reg_init;
-		abx500_regulator.init_size = AB9540_NUM_REGULATOR_REGISTERS;
-		abx500_regulator.match = ab9540_regulator_match;
-		abx500_regulator.match_size = ARRAY_SIZE(ab9540_regulator_match);
-	} else if (is_ab8505(ab8500)) {
-		abx500_regulator.info = ab8505_regulator_info;
-		abx500_regulator.info_size = ARRAY_SIZE(ab8505_regulator_info);
-		abx500_regulator.init = ab8505_reg_init;
-		abx500_regulator.init_size = AB8505_NUM_REGULATOR_REGISTERS;
-		abx500_regulator.match = ab8505_regulator_match;
-		abx500_regulator.match_size = ARRAY_SIZE(ab8505_regulator_match);
-	} else if (is_ab8540(ab8500)) {
-		abx500_regulator.info = ab8540_regulator_info;
-		abx500_regulator.info_size = ARRAY_SIZE(ab8540_regulator_info);
-		abx500_regulator.init = ab8540_reg_init;
-		abx500_regulator.init_size = AB8540_NUM_REGULATOR_REGISTERS;
-		abx500_regulator.match = ab8540_regulator_match;
-		abx500_regulator.match_size = ARRAY_SIZE(ab8540_regulator_match);
-	} else {
-		abx500_regulator.info = ab8500_regulator_info;
-		abx500_regulator.info_size = ARRAY_SIZE(ab8500_regulator_info);
-		abx500_regulator.init = ab8500_reg_init;
-		abx500_regulator.init_size = AB8500_NUM_REGULATOR_REGISTERS;
-		abx500_regulator.match = ab8500_regulator_match;
-		abx500_regulator.match_size = ARRAY_SIZE(ab8500_regulator_match);
-	}
 }
 
 static int
