@@ -4202,6 +4202,14 @@ static void i9xx_update_pll_dividers(struct drm_crtc *crtc,
 	}
 }
 
+static void intel_dp_set_m_n(struct intel_crtc *crtc)
+{
+	if (crtc->config.has_pch_encoder)
+		intel_pch_transcoder_set_m_n(crtc, &crtc->config.dp_m_n);
+	else
+		intel_cpu_transcoder_set_m_n(crtc, &crtc->config.dp_m_n);
+}
+
 static void vlv_update_pll(struct drm_crtc *crtc,
 			   intel_clock_t *clock, intel_clock_t *reduced_clock,
 			   int num_connectors)
@@ -4209,9 +4217,6 @@ static void vlv_update_pll(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_display_mode *adjusted_mode =
-		&intel_crtc->config.adjusted_mode;
-	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
 	int pipe = intel_crtc->pipe;
 	u32 dpll, mdiv, pdiv;
 	u32 bestn, bestm1, bestm2, bestp1, bestp2;
@@ -4267,8 +4272,8 @@ static void vlv_update_pll(struct drm_crtc *crtc,
 
 	intel_dpio_write(dev_priv, DPIO_FASTCLK_DISABLE, 0x620);
 
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
-		intel_dp_set_m_n(crtc, mode, adjusted_mode);
+	if (intel_crtc->config.has_dp_encoder)
+		intel_dp_set_m_n(intel_crtc);
 
 	I915_WRITE(DPLL(pipe), dpll);
 
@@ -4314,9 +4319,6 @@ static void i9xx_update_pll(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_display_mode *adjusted_mode =
-		&intel_crtc->config.adjusted_mode;
-	struct drm_display_mode *mode = &intel_crtc->config.requested_mode;
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	u32 dpll;
@@ -4391,8 +4393,8 @@ static void i9xx_update_pll(struct drm_crtc *crtc,
 		if (encoder->pre_pll_enable)
 			encoder->pre_pll_enable(encoder);
 
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
-		intel_dp_set_m_n(crtc, mode, adjusted_mode);
+	if (intel_crtc->config.has_dp_encoder)
+		intel_dp_set_m_n(intel_crtc);
 
 	I915_WRITE(DPLL(pipe), dpll);
 
@@ -5647,8 +5649,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	} else
 		intel_put_pch_pll(intel_crtc);
 
-	if (is_dp)
-		intel_dp_set_m_n(crtc, mode, adjusted_mode);
+	if (intel_crtc->config.has_dp_encoder)
+		intel_dp_set_m_n(intel_crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_pll_enable)
@@ -5797,8 +5799,8 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	DRM_DEBUG_KMS("Mode for pipe %d:\n", pipe);
 	drm_mode_debug_printmodeline(mode);
 
-	if (is_dp)
-		intel_dp_set_m_n(crtc, mode, adjusted_mode);
+	if (intel_crtc->config.has_dp_encoder)
+		intel_dp_set_m_n(intel_crtc);
 
 	intel_crtc->lowfreq_avail = false;
 

@@ -193,6 +193,8 @@ intel_dp_mode_valid(struct drm_connector *connector,
 
 		if (mode->vdisplay > fixed_mode->vdisplay)
 			return MODE_PANEL;
+
+		target_clock = fixed_mode->clock;
 	}
 
 	max_link_clock = drm_dp_bw_code_to_link_rate(intel_dp_max_link_bw(intel_dp));
@@ -697,6 +699,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev) && !is_cpu_edp(intel_dp))
 		pipe_config->has_pch_encoder = true;
 
+	pipe_config->has_dp_encoder = true;
+
 	if (is_edp(intel_dp) && intel_connector->panel.fixed_mode) {
 		intel_fixed_panel_mode(intel_connector->panel.fixed_mode,
 				       adjusted_mode);
@@ -716,7 +720,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	/* Walk through all bpp values. Luckily they're all nicely spaced with 2
 	 * bpc in between. */
-	bpp = 8*3;
+	bpp = min_t(int, 8*3, pipe_config->pipe_bpp);
 	if (is_edp(intel_dp) && dev_priv->edp.bpp)
 		bpp = min_t(int, bpp, dev_priv->edp.bpp);
 
@@ -765,56 +769,11 @@ found:
 	DRM_DEBUG_KMS("DP link bw required %i available %i\n",
 		      mode_rate, link_avail);
 
+	intel_link_compute_m_n(bpp, lane_count,
+			       target_clock, adjusted_mode->clock,
+			       &pipe_config->dp_m_n);
+
 	return true;
-}
-
-void
-intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
-		 struct drm_display_mode *adjusted_mode)
-{
-	struct drm_device *dev = crtc->dev;
-	struct intel_encoder *intel_encoder;
-	struct intel_dp *intel_dp;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int lane_count = 4;
-	struct intel_link_m_n m_n;
-	int target_clock;
-
-	/*
-	 * Find the lane count in the intel_encoder private
-	 */
-	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
-		intel_dp = enc_to_intel_dp(&intel_encoder->base);
-
-		if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
-		    intel_encoder->type == INTEL_OUTPUT_EDP)
-		{
-			lane_count = intel_dp->lane_count;
-			break;
-		}
-	}
-
-	target_clock = mode->clock;
-	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
-		if (intel_encoder->type == INTEL_OUTPUT_EDP) {
-			target_clock = intel_edp_target_clock(intel_encoder,
-							      mode);
-			break;
-		}
-	}
-
-	/*
-	 * Compute the GMCH and Link ratios. The '3' here is
-	 * the number of bytes_per_pixel post-LUT, which we always
-	 * set up for 8-bits of R/G/B, or 3 bytes total.
-	 */
-	intel_link_compute_m_n(intel_crtc->config.pipe_bpp, lane_count,
-			       target_clock, adjusted_mode->clock, &m_n);
-
-	if (intel_crtc->config.has_pch_encoder)
-		intel_pch_transcoder_set_m_n(intel_crtc, &m_n);
-	else
-		intel_cpu_transcoder_set_m_n(intel_crtc, &m_n);
 }
 
 void intel_dp_init_link_config(struct intel_dp *intel_dp)

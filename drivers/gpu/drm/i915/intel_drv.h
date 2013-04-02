@@ -190,6 +190,9 @@ struct intel_crtc_config {
 	 */
 	bool limited_color_range;
 
+	/* DP has a bunch of special case unfortunately, so mark the pipe
+	 * accordingly. */
+	bool has_dp_encoder;
 	bool dither;
 	int pipe_bpp;
 	struct intel_link_m_n dp_m_n;
@@ -469,9 +472,6 @@ extern void intel_dp_init(struct drm_device *dev, int output_reg,
 			  enum port port);
 extern void intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 				    struct intel_connector *intel_connector);
-void
-intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
-		 struct drm_display_mode *adjusted_mode);
 extern void intel_dp_init_link_config(struct intel_dp *intel_dp);
 extern void intel_dp_start_link_train(struct intel_dp *intel_dp);
 extern void intel_dp_complete_link_train(struct intel_dp *intel_dp);
