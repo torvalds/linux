@@ -1264,11 +1264,6 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ehci_octeon_driver
 #endif
 
-#ifdef CONFIG_PLAT_SPEAR
-#include "ehci-spear.c"
-#define PLATFORM_DRIVER		spear_ehci_hcd_driver
-#endif
-
 #ifdef CONFIG_USB_EHCI_MSM
 #include "ehci-msm.c"
 #define PLATFORM_DRIVER		ehci_msm_driver
@@ -1315,6 +1310,7 @@ MODULE_LICENSE ("GPL");
 	!IS_ENABLED(CONFIG_USB_EHCI_MXC) && \
 	!IS_ENABLED(CONFIG_USB_EHCI_HCD_OMAP) && \
 	!IS_ENABLED(CONFIG_USB_EHCI_HCD_ORION) && \
+	!IS_ENABLED(CONFIG_USB_EHCI_HCD_SPEAR) && \
 	!defined(PLATFORM_DRIVER) && \
 	!defined(PS3_SYSTEM_BUS_DRIVER) && \
 	!defined(OF_PLATFORM_DRIVER) && \
