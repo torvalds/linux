@@ -163,6 +163,17 @@ config USB_EHCI_HCD_OMAP
 	  Enables support for the on-chip EHCI controller on
 	  OMAP3 and later chips.
 
+config USB_EHCI_HCD_ORION
+	tristate  "Support for Marvell EBU on-chip EHCI USB controller"
+	depends on USB_EHCI_HCD && PLAT_ORION
+	default y
+	---help---
+	  Enables support for the on-chip EHCI controller on Marvell's
+	  embedded ARM SoCs, including Orion, Kirkwood, Dove, Armada XP,
+	  Armada 370.  This is different from the EHCI implementation
+	  on Marvell's mobile PXA and MMP SoC, see "EHCI support for
+	  Marvell PXA/MMP USB controller" for those.
+
 config USB_EHCI_MSM
 	bool "Support for MSM on-chip EHCI USB controller"
 	depends on USB_EHCI_HCD && ARCH_MSM
@@ -207,13 +218,17 @@ config USB_EHCI_S5P
 	 Enable support for the S5P SOC's on-chip EHCI controller.
 
 config USB_EHCI_MV
-	bool "EHCI support for Marvell on-chip controller"
+	bool "EHCI support for Marvell PXA/MMP USB controller"
 	depends on USB_EHCI_HCD && (ARCH_PXA || ARCH_MMP)
 	select USB_EHCI_ROOT_HUB_TT
 	---help---
 	  Enables support for Marvell (including PXA and MMP series) on-chip
 	  USB SPH and OTG controller. SPH is a single port host, and it can
 	  only be EHCI host. OTG is controller that can switch to host mode.
+	  Note that this driver will not work on Marvell's other EHCI
+	  controller used by the EBU-type SoCs including Orion, Kirkwood,
+	  Dova, Armada 370 and Armada XP. See "Support for Marvell EBU
+	  on-chip EHCI USB controller" for those.
 
 config USB_W90X900_EHCI
 	bool "W90X900(W90P910) EHCI support"
