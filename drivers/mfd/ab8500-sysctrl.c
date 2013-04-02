@@ -242,7 +242,7 @@ static int __init ab8500_sysctrl_init(void)
 {
 	return platform_driver_register(&ab8500_sysctrl_driver);
 }
-subsys_initcall(ab8500_sysctrl_init);
+arch_initcall(ab8500_sysctrl_init);
 
 MODULE_AUTHOR("Mattias Nilsson <mattias.i.nilsson@stericsson.com");
 MODULE_DESCRIPTION("AB8500 system control driver");
