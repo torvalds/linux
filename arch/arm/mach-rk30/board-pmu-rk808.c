@@ -11,9 +11,6 @@
 
 static int rk808_pre_init(struct rk808 *rk808)
 {
-	struct regulator *dcdc;
-	struct regulator *ldo;
-	int i = 0;
 	int ret,val;
 	 printk("%s,line=%d\n", __func__,__LINE__);
 	/***********set buck 12.5mv/us ************/

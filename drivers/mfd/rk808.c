@@ -729,14 +729,14 @@ int rk808_clear_bits(struct rk808 *rk808, u8 reg, u8 mask)
 
 	mutex_lock(&rk808->io_lock);
 	err = rk808_i2c_read(rk808, reg, 1, &data);
-	if (err) {
+	if (err <0) {
 		dev_err(rk808->dev, "read from reg %x failed\n", reg);
 		goto out;
 	}
 
 	data &= ~mask;
-	err = rk808_i2c_write(rk808, reg, 1, &data);
-	if (err)
+	err = rk808_i2c_write(rk808, reg, 1, data);
+	if (err <0)
 		dev_err(rk808->dev, "write to reg %x failed\n", reg);
 
 out:
@@ -923,11 +923,12 @@ error:
 	return err;
 }
 
+extern void rk28_send_wakeup_key(void);
 static irqreturn_t rk808_vbat_lo_irq(int irq, void *data)
 {
-//  	 rk28_send_wakeup_key();
         printk("rk808 vbat low %s:irq=%d\n",__func__,irq);
 	rk808_set_bits(g_rk808,0x4c,(0x1 << 1),(0x1 <<1));
+	rk28_send_wakeup_key();
         return IRQ_HANDLED;
 }
 
@@ -940,7 +941,7 @@ int rk808_device_shutdown(void)
 	printk("%s\n",__func__);
 
 	ret = rk808_reg_read(rk808,RK808_DEVCTRL_REG);
-	ret = rk808_set_bits(rk808, RK808_DEVCTRL_REG,(0x1<<0),(0x1<<0));
+	ret = rk808_set_bits(rk808, RK808_DEVCTRL_REG,(0x1<<3),(0x1<<3));
 //	ret = rk808_set_bits(rk808, RK808_DEVCTRL_REG,(0x1<<4),(0x1<<4));
 	if (ret < 0) {
 		printk("rk808 power off error!\n");
