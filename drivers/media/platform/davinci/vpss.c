@@ -17,13 +17,8 @@
  *
  * common vpss system module platform driver for all video drivers.
  */
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
-#include <linux/compiler.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
 
@@ -101,7 +96,7 @@ enum vpss_platform_type {
 
 /*
  * vpss operations. Depends on platform. Not all functions are available
- * on all platforms. The api, first check if a functio is available before
+ * on all platforms. The api, first check if a function is available before
  * invoking it. In the probe, the function ptrs are initialized based on
  * vpss name. vpss name can be "dm355_vpss", "dm644x_vpss" etc.
  */
@@ -116,7 +111,7 @@ struct vpss_hw_ops {
 	void (*set_sync_pol)(struct vpss_sync_pol);
 	/* set the PG_FRAME_SIZE register*/
 	void (*set_pg_frame_size)(struct vpss_pg_frame_size);
-	/* check and clear interrupt if occured */
+	/* check and clear interrupt if occurred */
 	int (*dma_complete_interrupt)(void);
 };
 
@@ -235,7 +230,7 @@ EXPORT_SYMBOL(vpss_clear_wbl_overflow);
 
 /*
  *  dm355_enable_clock - Enable VPSS Clock
- *  @clock_sel: CLock to be enabled/disabled
+ *  @clock_sel: Clock to be enabled/disabled
  *  @en: enable/disable flag
  *
  *  This is called to enable or disable a vpss clock
