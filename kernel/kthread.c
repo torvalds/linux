@@ -260,7 +260,7 @@ static void __kthread_bind(struct task_struct *p, unsigned int cpu)
 {
 	/* It's safe because the task is inactive. */
 	do_set_cpus_allowed(p, cpumask_of(cpu));
-	p->flags |= PF_THREAD_BOUND;
+	p->flags |= PF_NO_SETAFFINITY;
 }
 
 /**

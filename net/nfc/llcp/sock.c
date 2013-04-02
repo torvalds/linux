@@ -278,6 +278,8 @@ struct sock *nfc_llcp_accept_dequeue(struct sock *parent,
 
 			pr_debug("Returning sk state %d\n", sk->sk_state);
 
+			sk_acceptq_removed(parent);
+
 			return sk;
 		}
 

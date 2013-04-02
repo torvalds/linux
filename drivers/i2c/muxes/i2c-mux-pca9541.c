@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2010 Ericsson AB.
  *
- * Author: Guenter Roeck <guenter.roeck@ericsson.com>
+ * Author: Guenter Roeck <linux@roeck-us.net>
  *
  * Derived from:
  *  pca954x.c
