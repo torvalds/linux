@@ -32,8 +32,6 @@
 #include <linux/of_fdt.h>
 #include <linux/memblock.h>
 
-#include <linux/platform_data/video-vt8500lcdfb.h>
-
 #include "wm8505fb_regs.h"
 #include "wmt_ge_rops.h"
 
