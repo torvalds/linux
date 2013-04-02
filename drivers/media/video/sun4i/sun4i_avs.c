@@ -35,7 +35,6 @@
 #include <linux/errno.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/preempt.h>
 #include <linux/cdev.h>
 #include <linux/platform_device.h>
@@ -69,10 +68,10 @@
 #  define _info(fmt, args...)
 #endif
 
-int g_dev_major = AVSDEV_MAJOR;
-int g_dev_minor = AVSDEV_MINOR;
-module_param(g_dev_major, int, S_IRUGO);
-module_param(g_dev_minor, int, S_IRUGO);
+int avs_dev_major = AVSDEV_MAJOR;
+int avs_dev_minor = AVSDEV_MINOR;
+module_param(avs_dev_major, int, S_IRUGO);
+module_param(avs_dev_minor, int, S_IRUGO);
 
 struct iomap_resource{
 	struct resource *io_sram;
@@ -352,17 +351,17 @@ static int __init avsdev_init(void)
 	dev_t dev = 0;
 
 	printk("[tt]----- avs_dev driver load... ----\n");
-	if (g_dev_major) {
-		dev = MKDEV(g_dev_major, g_dev_minor);
+	if (avs_dev_major) {
+		dev = MKDEV(avs_dev_major, avs_dev_minor);
 		ret = register_chrdev_region(dev, 1, "avs_dev");
 	} else {
-		ret = alloc_chrdev_region(&dev, g_dev_minor, 1, "avs_dev");
-		g_dev_major = MAJOR(dev);
-		g_dev_minor = MINOR(dev);
+		ret = alloc_chrdev_region(&dev, avs_dev_minor, 1, "avs_dev");
+		avs_dev_major = MAJOR(dev);
+		avs_dev_minor = MINOR(dev);
 	}
 
 	if (ret < 0) {
-		printk(KERN_WARNING "avs_dev: can't get major %d\n", g_dev_major);
+		printk(KERN_WARNING "avs_dev: can't get major %d\n", avs_dev_major);
 		return ret;
 	}
 
@@ -373,7 +372,7 @@ static int __init avsdev_init(void)
 	}
 	memset(avs_devp, 0, sizeof(struct avs_dev));
 
-	init_MUTEX(&avs_devp->sem);
+	sema_init(&avs_devp->sem, 0);
 
 	/* request resources and ioremap */
 	printk("[tt]-----      register iomem      ----\n");
@@ -382,7 +381,7 @@ static int __init avsdev_init(void)
 	/* init lock for protect ioctl access */
 	spin_lock_init(&avs_devp->lock);
 
-	devno = MKDEV(g_dev_major, g_dev_minor);
+	devno = MKDEV(avs_dev_major, avs_dev_minor);
 	cdev_init(&avs_devp->cdev, &avsdev_fops);
 	avs_devp->cdev.owner = THIS_MODULE;
 	avs_devp->cdev.ops = &avsdev_fops;
@@ -402,7 +401,7 @@ module_init(avsdev_init);
 static void __exit avsdev_exit(void)
 {
 	dev_t dev;
-	dev = MKDEV(g_dev_major, g_dev_minor);
+	dev = MKDEV(avs_dev_major, avs_dev_minor);
 
 	/* Unregister iomem and iounmap */
 	avs_iomem_unregister(avs_devp);
