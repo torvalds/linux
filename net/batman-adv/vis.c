@@ -392,12 +392,12 @@ batadv_add_packet(struct batadv_priv *bat_priv,
 		return NULL;
 
 	len = sizeof(*packet) + vis_info_len;
-	info->skb_packet = dev_alloc_skb(len + ETH_HLEN + NET_IP_ALIGN);
+	info->skb_packet = netdev_alloc_skb_ip_align(NULL, len + ETH_HLEN);
 	if (!info->skb_packet) {
 		kfree(info);
 		return NULL;
 	}
-	skb_reserve(info->skb_packet, ETH_HLEN + NET_IP_ALIGN);
+	skb_reserve(info->skb_packet, ETH_HLEN);
 	packet = (struct batadv_vis_packet *)skb_put(info->skb_packet, len);
 
 	kref_init(&info->refcount);
@@ -854,13 +854,13 @@ int batadv_vis_init(struct batadv_priv *bat_priv)
 	if (!bat_priv->vis.my_info)
 		goto err;
 
-	len = sizeof(*packet) + BATADV_MAX_VIS_PACKET_SIZE;
-	len += ETH_HLEN + NET_IP_ALIGN;
-	bat_priv->vis.my_info->skb_packet = dev_alloc_skb(len);
+	len = sizeof(*packet) + BATADV_MAX_VIS_PACKET_SIZE + ETH_HLEN;
+	bat_priv->vis.my_info->skb_packet = netdev_alloc_skb_ip_align(NULL,
+								      len);
 	if (!bat_priv->vis.my_info->skb_packet)
 		goto free_info;
 
-	skb_reserve(bat_priv->vis.my_info->skb_packet, ETH_HLEN + NET_IP_ALIGN);
+	skb_reserve(bat_priv->vis.my_info->skb_packet, ETH_HLEN);
 	tmp_skb = bat_priv->vis.my_info->skb_packet;
 	packet = (struct batadv_vis_packet *)skb_put(tmp_skb, sizeof(*packet));
 
