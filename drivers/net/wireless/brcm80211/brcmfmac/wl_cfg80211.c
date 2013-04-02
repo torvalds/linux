@@ -1891,8 +1891,10 @@ static s32
 brcmf_add_keyext(struct wiphy *wiphy, struct net_device *ndev,
 	      u8 key_idx, const u8 *mac_addr, struct key_params *params)
 {
+	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_wsec_key key;
 	s32 err = 0;
+	u8 keybuf[8];
 
 	memset(&key, 0, sizeof(key));
 	key.index = (u32) key_idx;
@@ -1916,8 +1918,9 @@ brcmf_add_keyext(struct wiphy *wiphy, struct net_device *ndev,
 		brcmf_dbg(CONN, "Setting the key index %d\n", key.index);
 		memcpy(key.data, params->key, key.len);
 
-		if (params->cipher == WLAN_CIPHER_SUITE_TKIP) {
-			u8 keybuf[8];
+		if ((ifp->vif->mode != WL_MODE_AP) &&
+		    (params->cipher == WLAN_CIPHER_SUITE_TKIP)) {
+			brcmf_dbg(CONN, "Swapping RX/TX MIC key\n");
 			memcpy(keybuf, &key.data[24], sizeof(keybuf));
 			memcpy(&key.data[24], &key.data[16], sizeof(keybuf));
 			memcpy(&key.data[16], keybuf, sizeof(keybuf));
@@ -2013,7 +2016,7 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 		if (ifp->vif->mode != WL_MODE_AP) {
-			brcmf_dbg(CONN, "Swapping key\n");
+			brcmf_dbg(CONN, "Swapping RX/TX MIC key\n");
 			memcpy(keybuf, &key.data[24], sizeof(keybuf));
 			memcpy(&key.data[24], &key.data[16], sizeof(keybuf));
 			memcpy(&key.data[16], keybuf, sizeof(keybuf));
