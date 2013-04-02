@@ -80,7 +80,8 @@
 
 #define IWL_INVALID_MAC80211_QUEUE	0xff
 #define IWL_MVM_MAX_ADDRESSES		2
-#define IWL_RSSI_OFFSET 44
+/* RSSI offset for WkP */
+#define IWL_RSSI_OFFSET 50
 
 enum iwl_mvm_tx_fifo {
 	IWL_MVM_TX_FIFO_BK = 0,
@@ -327,6 +328,10 @@ struct iwl_mvm {
 	struct led_classdev led;
 
 	struct ieee80211_vif *p2p_device_vif;
+
+#ifdef CONFIG_PM_SLEEP
+	int gtk_ivlen, gtk_icvlen, ptk_ivlen, ptk_icvlen;
+#endif
 };
 
 /* Extract MVM priv from op_mode and _hw */

@@ -828,7 +828,8 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 						&buf_list);
 			if (!buf) {
 				adsp_err(dsp, "Out of memory\n");
-				return -ENOMEM;
+				ret = -ENOMEM;
+				goto out_fw;
 			}
 
 			adsp_dbg(dsp, "%s.%d: Writing %d bytes at %x\n",
@@ -865,7 +866,7 @@ out_fw:
 	wm_adsp_buf_free(&buf_list);
 out:
 	kfree(file);
-	return 0;
+	return ret;
 }
 
 int wm_adsp1_init(struct wm_adsp *adsp)
