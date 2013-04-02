@@ -14,8 +14,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef _CPUFREQ_GOVERNER_H
-#define _CPUFREQ_GOVERNER_H
+#ifndef _CPUFREQ_GOVERNOR_H
+#define _CPUFREQ_GOVERNOR_H
 
 #include <linux/cpufreq.h>
 #include <linux/kobject.h>
@@ -175,4 +175,4 @@ bool need_load_eval(struct cpu_dbs_common_info *cdbs,
 		unsigned int sampling_rate);
 int cpufreq_governor_dbs(struct dbs_data *dbs_data,
 		struct cpufreq_policy *policy, unsigned int event);
-#endif /* _CPUFREQ_GOVERNER_H */
+#endif /* _CPUFREQ_GOVERNOR_H */
