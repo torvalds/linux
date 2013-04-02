@@ -1476,41 +1476,7 @@ static const struct of_device_id macb_dt_ids[] = {
 	{ .compatible = "cdns,gem" },
 	{ /* sentinel */ }
 };
-
 MODULE_DEVICE_TABLE(of, macb_dt_ids);
-
-static int macb_get_phy_mode_dt(struct platform_device *pdev)
-{
-	struct device_node *np = pdev->dev.of_node;
-
-	if (np)
-		return of_get_phy_mode(np);
-
-	return -ENODEV;
-}
-
-static int macb_get_hwaddr_dt(struct macb *bp)
-{
-	struct device_node *np = bp->pdev->dev.of_node;
-	if (np) {
-		const char *mac = of_get_mac_address(np);
-		if (mac) {
-			memcpy(bp->dev->dev_addr, mac, ETH_ALEN);
-			return 0;
-		}
-	}
-
-	return -ENODEV;
-}
-#else
-static int macb_get_phy_mode_dt(struct platform_device *pdev)
-{
-	return -ENODEV;
-}
-static int macb_get_hwaddr_dt(struct macb *bp)
-{
-	return -ENODEV;
-}
 #endif
 
 static int __init macb_probe(struct platform_device *pdev)
@@ -1523,6 +1489,7 @@ static int __init macb_probe(struct platform_device *pdev)
 	u32 config;
 	int err = -ENXIO;
 	struct pinctrl *pinctrl;
+	const char *mac;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
@@ -1596,11 +1563,13 @@ static int __init macb_probe(struct platform_device *pdev)
 	config |= macb_dbw(bp);
 	macb_writel(bp, NCFGR, config);
 
-	err = macb_get_hwaddr_dt(bp);
-	if (err < 0)
+	mac = of_get_mac_address(pdev->dev.of_node);
+	if (mac)
+		memcpy(bp->dev->dev_addr, mac, ETH_ALEN);
+	else
 		macb_get_hwaddr(bp);
 
-	err = macb_get_phy_mode_dt(pdev);
+	err = of_get_phy_mode(pdev->dev.of_node);
 	if (err < 0) {
 		pdata = pdev->dev.platform_data;
 		if (pdata && pdata->is_rmii)
