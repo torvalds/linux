@@ -1662,6 +1662,7 @@ static struct ab8500_regulator_info
 			.id		= AB8540_LDO_TVOUT,
 			.owner		= THIS_MODULE,
 			.n_voltages	= 1,
+			.volt_table     = fixed_2000000_voltage,
 			.enable_time	= 10000,
 		},
 		.load_lp_uA		= 1000,
