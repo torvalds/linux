@@ -292,6 +292,16 @@ static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	{},
 };
 
+static struct of_dev_auxdata u8540_auxdata_lookup[] __initdata = {
+	/* Requires DMA bindings. */
+	OF_DEV_AUXDATA("arm,pl011", 0x80120000, "uart0", NULL),
+	OF_DEV_AUXDATA("arm,pl011", 0x80121000, "uart1", NULL),
+	OF_DEV_AUXDATA("arm,pl011", 0x80007000, "uart2", NULL),
+	OF_DEV_AUXDATA("stericsson,db8500-prcmu", 0x80157000, "db8500-prcmu",
+			&db8500_prcmu_pdata),
+	{},
+};
+
 static const struct of_device_id u8500_local_bus_nodes[] = {
 	/* only create devices below soc node */
 	{ .compatible = "stericsson,db8500", },
@@ -318,8 +328,13 @@ static void __init u8500_init_machine(void)
 	/* TODO: Export SoC, USB, cpu-freq and DMA40 */
 	parent = u8500_of_init_devices();
 
-	/* automatically probe child nodes of db8500 device */
-	of_platform_populate(NULL, u8500_local_bus_nodes, u8500_auxdata_lookup, parent);
+	/* automatically probe child nodes of dbx5x0 devices */
+	if (of_machine_is_compatible("st-ericsson,u8540"))
+		of_platform_populate(NULL, u8500_local_bus_nodes,
+				     u8540_auxdata_lookup, parent);
+	else
+		of_platform_populate(NULL, u8500_local_bus_nodes,
+				     u8500_auxdata_lookup, parent);
 }
 
 static const char * stericsson_dt_platform_compat[] = {
