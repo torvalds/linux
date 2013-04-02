@@ -301,17 +301,19 @@ void ovs_vport_get_stats(struct vport *vport, struct ovs_vport_stats *stats)
 int ovs_vport_get_options(const struct vport *vport, struct sk_buff *skb)
 {
 	struct nlattr *nla;
+	int err;
+
+	if (!vport->ops->get_options)
+		return 0;
 
 	nla = nla_nest_start(skb, OVS_VPORT_ATTR_OPTIONS);
 	if (!nla)
 		return -EMSGSIZE;
 
-	if (vport->ops->get_options) {
-		int err = vport->ops->get_options(vport, skb);
-		if (err) {
-			nla_nest_cancel(skb, nla);
-			return err;
-		}
+	err = vport->ops->get_options(vport, skb);
+	if (err) {
+		nla_nest_cancel(skb, nla);
+		return err;
 	}
 
 	nla_nest_end(skb, nla);
