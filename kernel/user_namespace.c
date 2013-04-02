@@ -21,6 +21,7 @@
 #include <linux/uaccess.h>
 #include <linux/ctype.h>
 #include <linux/projid.h>
+#include <linux/fs_struct.h>
 
 static struct kmem_cache *user_ns_cachep __read_mostly;
 
@@ -835,6 +836,9 @@ static int userns_install(struct nsproxy *nsproxy, void *ns)
 
 	/* Threaded processes may not enter a different user namespace */
 	if (atomic_read(&current->mm->mm_users) > 1)
+		return -EINVAL;
+
+	if (current->fs->users != 1)
 		return -EINVAL;
 
 	if (!ns_capable(user_ns, CAP_SYS_ADMIN))

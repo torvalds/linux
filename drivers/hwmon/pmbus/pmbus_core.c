@@ -766,12 +766,14 @@ static ssize_t pmbus_show_label(struct device *dev,
 static int pmbus_add_attribute(struct pmbus_data *data, struct attribute *attr)
 {
 	if (data->num_attributes >= data->max_attributes - 1) {
-		data->max_attributes += PMBUS_ATTR_ALLOC_SIZE;
-		data->group.attrs = krealloc(data->group.attrs,
-					     sizeof(struct attribute *) *
-					     data->max_attributes, GFP_KERNEL);
-		if (data->group.attrs == NULL)
+		int new_max_attrs = data->max_attributes + PMBUS_ATTR_ALLOC_SIZE;
+		void *new_attrs = krealloc(data->group.attrs,
+					   new_max_attrs * sizeof(void *),
+					   GFP_KERNEL);
+		if (!new_attrs)
 			return -ENOMEM;
+		data->group.attrs = new_attrs;
+		data->max_attributes = new_max_attrs;
 	}
 
 	data->group.attrs[data->num_attributes++] = attr;

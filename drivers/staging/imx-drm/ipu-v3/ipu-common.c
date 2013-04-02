@@ -25,8 +25,8 @@
 #include <linux/clk.h>
 #include <linux/list.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/of_device.h>
-#include <asm/mach/irq.h>
 
 #include "imx-ipu-v3.h"
 #include "ipu-prv.h"

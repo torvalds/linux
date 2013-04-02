@@ -492,7 +492,7 @@ config DEBUG_IMX_UART_PORT
 						DEBUG_IMX31_UART || \
 						DEBUG_IMX35_UART || \
 						DEBUG_IMX51_UART || \
-						DEBUG_IMX50_IMX53_UART || \
+						DEBUG_IMX53_UART || \
 						DEBUG_IMX6Q_UART
 	default 1
 	help
