@@ -939,9 +939,14 @@ typedef struct drm_i915_private {
 	struct intel_overlay *overlay;
 	unsigned int sprite_scaling_enabled;
 
+	/* backlight */
+	struct {
+		int level;
+		bool enabled;
+		struct backlight_device *device;
+	} backlight;
+
 	/* LVDS info */
-	int backlight_level;  /* restore backlight to this value */
-	bool backlight_enabled;
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
 
@@ -1042,8 +1047,6 @@ typedef struct drm_i915_private {
 	 * want it to block on it.
 	 */
 	struct work_struct console_resume_work;
-
-	struct backlight_device *backlight;
 
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
