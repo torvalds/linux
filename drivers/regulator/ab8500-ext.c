@@ -393,6 +393,12 @@ int ab8500_ext_regulator_init(struct platform_device *pdev)
 		config.init_data = &pdata->ext_regulator[i];
 		config.driver_data = info;
 
+		if (is_ab9540(ab8500) &&
+		    ((info->desc.id == AB8500_EXT_SUPPLY1) ||
+		     (info->desc.id == AB8500_EXT_SUPPLY2) ||
+		     (info->desc.id == AB8500_EXT_SUPPLY3)))
+			info->desc.ops = &ab8500_ext_regulator_ops;
+
 		/* register regulator with framework */
 		info->rdev = regulator_register(&info->desc, &config);
 
