@@ -450,6 +450,25 @@ static struct sensor_platform_data mma7660_info = {
 };
 #endif
 
+#if defined (CONFIG_GS_MXC6225)
+#define MXC6225_INT_PIN   RK30_PIN0_PB7
+
+static int mxc6225_init_platform_hw(void)
+{
+//        rk30_mux_api_set(GPIO1B1_SPI_TXD_UART1_SOUT_NAME, GPIO1B_GPIO1B1);
+        return 0;
+}
+
+static struct sensor_platform_data mxc6225_info = {
+        .type = SENSOR_TYPE_ACCEL,
+        .irq_enable = 0,
+        .poll_delay_ms = 30,
+        .init_platform_hw = mxc6225_init_platform_hw,
+        .orientation = { -1, 0, 0, 0, -1, 0, 0, 0, 1},//mxc6225 only report x and y
+};
+#endif
+
+
 #if defined (CONFIG_GS_LIS3DH)
 #define LIS3DH_INT_PIN   RK30_PIN0_PB7
 
@@ -1379,6 +1398,15 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.irq	        = MMA7660_INT_PIN,
 		.platform_data = &mma7660_info,
 	},
+#endif
+#if defined (CONFIG_GS_MXC6225)
+        {
+                .type           = "gs_mxc6225",
+                .addr           = 0x15,
+                .flags          = 0,
+                .irq            = MXC6225_INT_PIN,
+                .platform_data  = &mxc6225_info,
+        },
 #endif
 #if defined (CONFIG_GS_MMA8452)
 	{
