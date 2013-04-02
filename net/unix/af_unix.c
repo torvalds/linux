@@ -2197,7 +2197,7 @@ static unsigned int unix_dgram_poll(struct file *file, struct socket *sock,
 	/* exceptional events? */
 	if (sk->sk_err || !skb_queue_empty(&sk->sk_error_queue))
 		mask |= POLLERR |
-			sock_flag(sk, SOCK_SELECT_ERR_QUEUE) ? POLLPRI : 0;
+			(sock_flag(sk, SOCK_SELECT_ERR_QUEUE) ? POLLPRI : 0);
 
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
 		mask |= POLLRDHUP | POLLIN | POLLRDNORM;
