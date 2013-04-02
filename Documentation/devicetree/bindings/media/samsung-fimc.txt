@@ -17,9 +17,9 @@ Required properties:
 
 - compatible	: must be "samsung,fimc", "simple-bus"
 - clocks	: list of clock specifiers, corresponding to entries in
-		  clock-names property;
-- clock-names	: must contain "fimc", "sclk_fimc" entries, matching entries
-		  in the clocks property.
+		  the clock-names property;
+- clock-names	: must contain "sclk_cam0", "sclk_cam1", "pxl_async0",
+		  "pxl_async1" entries, matching entries in the clocks property.
 
 The pinctrl bindings defined in ../pinctrl/pinctrl-bindings.txt must be used
 to define a required pinctrl state named "default" and optional pinctrl states:
@@ -32,7 +32,6 @@ way around.
 
 The 'camera' node must include at least one 'fimc' child node.
 
-
 'fimc' device nodes
 -------------------
 
@@ -44,8 +43,7 @@ Required properties:
 - interrupts: should contain FIMC interrupt;
 - clocks: list of clock specifiers, must contain an entry for each required
   entry in clock-names;
-- clock-names: must include "fimc", "sclk_fimc", "mux" entries and optionally
-  "parent" entry.
+- clock-names: must contain "fimc", "sclk_fimc" entries.
 - samsung,pix-limits: an array of maximum supported image sizes in pixels, for
   details refer to Table 2-1 in the S5PV210 SoC User Manual; The meaning of
   each cell is as follows:
