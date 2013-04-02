@@ -912,6 +912,36 @@ static int handle_offloads(struct sk_buff *skb)
 	return 0;
 }
 
+/* Bypass encapsulation if the destination is local */
+static void vxlan_encap_bypass(struct sk_buff *skb, struct vxlan_dev *src_vxlan,
+			       struct vxlan_dev *dst_vxlan)
+{
+	struct pcpu_tstats *tx_stats = this_cpu_ptr(src_vxlan->dev->tstats);
+	struct pcpu_tstats *rx_stats = this_cpu_ptr(dst_vxlan->dev->tstats);
+
+	skb->pkt_type = PACKET_HOST;
+	skb->encapsulation = 0;
+	skb->dev = dst_vxlan->dev;
+	__skb_pull(skb, skb_network_offset(skb));
+
+	if (dst_vxlan->flags & VXLAN_F_LEARN)
+		vxlan_snoop(skb->dev, INADDR_LOOPBACK, eth_hdr(skb)->h_source);
+
+	u64_stats_update_begin(&tx_stats->syncp);
+	tx_stats->tx_packets++;
+	tx_stats->tx_bytes += skb->len;
+	u64_stats_update_end(&tx_stats->syncp);
+
+	if (netif_rx(skb) == NET_RX_SUCCESS) {
+		u64_stats_update_begin(&rx_stats->syncp);
+		rx_stats->rx_packets++;
+		rx_stats->rx_bytes += skb->len;
+		u64_stats_update_end(&rx_stats->syncp);
+	} else {
+		skb->dev->stats.rx_dropped++;
+	}
+}
+
 static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 				  struct vxlan_rdst *rdst, bool did_rsc)
 {
@@ -922,7 +952,6 @@ static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	struct vxlanhdr *vxh;
 	struct udphdr *uh;
 	struct flowi4 fl4;
-	unsigned int pkt_len = skb->len;
 	__be32 dst;
 	__u16 src_port, dst_port;
         u32 vni;
@@ -935,22 +964,8 @@ static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 
 	if (!dst) {
 		if (did_rsc) {
-			__skb_pull(skb, skb_network_offset(skb));
-			skb->ip_summed = CHECKSUM_NONE;
-			skb->pkt_type = PACKET_HOST;
-
 			/* short-circuited back to local bridge */
-			if (netif_rx(skb) == NET_RX_SUCCESS) {
-				struct pcpu_tstats *stats = this_cpu_ptr(dev->tstats);
-
-				u64_stats_update_begin(&stats->syncp);
-				stats->tx_packets++;
-				stats->tx_bytes += pkt_len;
-				u64_stats_update_end(&stats->syncp);
-			} else {
-				dev->stats.tx_errors++;
-				dev->stats.tx_aborted_errors++;
-			}
+			vxlan_encap_bypass(skb, vxlan, vxlan);
 			return NETDEV_TX_OK;
 		}
 		goto drop;
@@ -995,6 +1010,18 @@ static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		ip_rt_put(rt);
 		dev->stats.collisions++;
 		goto tx_error;
+	}
+
+	/* Bypass encapsulation if the destination is local */
+	if (rt->rt_flags & RTCF_LOCAL) {
+		struct vxlan_dev *dst_vxlan;
+
+		ip_rt_put(rt);
+		dst_vxlan = vxlan_find_vni(dev_net(dev), vni);
+		if (!dst_vxlan)
+			goto tx_error;
+		vxlan_encap_bypass(skb, vxlan, dst_vxlan);
+		return NETDEV_TX_OK;
 	}
 
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
