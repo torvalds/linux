@@ -133,6 +133,7 @@ config MACH_BOCKW
 	bool "BOCK-W platform"
 	depends on ARCH_R8A7778
 	select ARCH_REQUIRE_GPIOLIB
+	select RENESAS_INTC_IRQPIN
 	select USE_OF
 
 config MACH_MARZEN
