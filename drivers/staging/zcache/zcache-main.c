@@ -648,6 +648,8 @@ static int zcache_pampd_get_data_and_free(char *data, size_t *sizep, bool raw,
 	if (pampd == (void *)ZERO_FILLED) {
 		handle_zero_filled_page(data);
 		zero_filled = true;
+		zsize = 0;
+		zpages = 1;
 		if (!raw)
 			*sizep = PAGE_SIZE;
 		goto zero_fill;
@@ -696,8 +698,11 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
 
 	BUG_ON(preemptible());
 
-	if (pampd == (void *)ZERO_FILLED)
+	if (pampd == (void *)ZERO_FILLED) {
 		zero_filled = true;
+		zsize = 0;
+		zpages = 1;
+	}
 
 	if (pampd_is_remote(pampd) && !zero_filled) {
 		BUG_ON(!ramster_enabled);
