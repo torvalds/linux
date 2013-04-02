@@ -144,6 +144,14 @@ config DB8500_THERMAL
 	  created. Cooling devices can be bound to the trip points to cool this
 	  thermal zone if trip points reached.
 
+config ARMADA_THERMAL
+	tristate "Armada 370/XP thermal management"
+	depends on ARCH_MVEBU
+	depends on OF
+	help
+	  Enable this option if you want to have support for thermal management
+	  controller present in Armada 370 and Armada XP SoC.
+
 config DB8500_CPUFREQ_COOLING
 	tristate "DB8500 cpufreq cooling"
 	depends on ARCH_U8500
