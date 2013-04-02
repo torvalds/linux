@@ -2121,8 +2121,7 @@ brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 		err = -EAGAIN;
 		goto done;
 	}
-	switch (wsec & ~SES_OW_ENABLED) {
-	case WEP_ENABLED:
+	if (wsec & WEP_ENABLED) {
 		sec = &profile->sec;
 		if (sec->cipher_pairwise & WLAN_CIPHER_SUITE_WEP40) {
 			params.cipher = WLAN_CIPHER_SUITE_WEP40;
@@ -2131,16 +2130,13 @@ brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 			params.cipher = WLAN_CIPHER_SUITE_WEP104;
 			brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_WEP104\n");
 		}
-		break;
-	case TKIP_ENABLED:
+	} else if (wsec & TKIP_ENABLED) {
 		params.cipher = WLAN_CIPHER_SUITE_TKIP;
 		brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_TKIP\n");
-		break;
-	case AES_ENABLED:
+	} else if (wsec & AES_ENABLED) {
 		params.cipher = WLAN_CIPHER_SUITE_AES_CMAC;
 		brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_AES_CMAC\n");
-		break;
-	default:
+	} else  {
 		brcmf_err("Invalid algo (0x%x)\n", wsec);
 		err = -EINVAL;
 		goto done;
