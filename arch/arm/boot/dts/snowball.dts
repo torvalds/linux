@@ -119,6 +119,13 @@
 			};
 		};
 
+		vmmci: regulator-gpio {
+			gpios = <&gpio6 25 0x4>;
+			enable-gpio = <&gpio7 4 0x4>;
+
+			status = "okay";
+		};
+
 		// External Micro SD slot
 		sdi0_per1@80126000 {
 			arm,primecell-periphid = <0x10480180>;
@@ -126,6 +133,7 @@
 			bus-width = <4>;
 			mmc-cap-mmc-highspeed;
 			vmmc-supply = <&ab8500_ldo_aux3_reg>;
+			vqmmc-supply = <&vmmci>;
 
 			cd-gpios  = <&gpio6 26 0x4>; // 218
 			cd-inverted;
