@@ -2326,7 +2326,6 @@ int drm_mode_addfb(struct drm_device *dev,
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, &r);
 	if (IS_ERR(fb)) {
 		DRM_DEBUG_KMS("could not create framebuffer\n");
-		drm_modeset_unlock_all(dev);
 		return PTR_ERR(fb);
 	}
 
@@ -2506,7 +2505,6 @@ int drm_mode_addfb2(struct drm_device *dev,
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
 	if (IS_ERR(fb)) {
 		DRM_DEBUG_KMS("could not create framebuffer\n");
-		drm_modeset_unlock_all(dev);
 		return PTR_ERR(fb);
 	}
 
