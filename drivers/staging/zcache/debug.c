@@ -31,8 +31,8 @@ static struct debug_entry {
 	ATTR(eph_nonactive_puts_ignored),
 	ATTR(pers_nonactive_puts_ignored),
 #ifdef CONFIG_ZCACHE_WRITEBACK
-	ATTR(zcache_outstanding_writeback_pages),
-	ATTR(zcache_writtenback_pages),
+	ATTR(outstanding_writeback_pages),
+	ATTR(writtenback_pages),
 #endif
 };
 #undef ATTR
