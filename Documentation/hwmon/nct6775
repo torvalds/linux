@@ -8,15 +8,15 @@ Kernel driver NCT6775
 =====================
 
 Supported chips:
-  * Nuvoton NCT6775F/W83667HG-I
+  * Nuvoton NCT5572D/NCT6771F/NCT6772F/NCT6775F/W83677HG-I
     Prefix: 'nct6775'
     Addresses scanned: ISA address retrieved from Super I/O registers
     Datasheet: Available from Nuvoton upon request
-  * Nuvoton NCT6776F
+  * Nuvoton NCT5577D/NCT6776D/NCT6776F
     Prefix: 'nct6776'
     Addresses scanned: ISA address retrieved from Super I/O registers
     Datasheet: Available from Nuvoton upon request
-  * Nuvoton NCT6779D
+  * Nuvoton NCT5532D/NCT6779D
     Prefix: 'nct6779'
     Addresses scanned: ISA address retrieved from Super I/O registers
     Datasheet: Available from Nuvoton upon request
@@ -28,7 +28,7 @@ Description
 -----------
 
 This driver implements support for the Nuvoton NCT6775F, NCT6776F, and NCT6779D
-super I/O chips.
+and compatible super I/O chips.
 
 The chips support up to 25 temperature monitoring sources. Up to 6 of those are
 direct temperature sensor inputs, the others are special sources such as PECI,
