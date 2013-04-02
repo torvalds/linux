@@ -560,6 +560,8 @@ void qlcnic_set_multi(struct net_device *netdev)
 			netdev_for_each_mc_addr(ha, netdev) {
 				cur = kzalloc(sizeof(struct qlcnic_mac_list_s),
 					      GFP_ATOMIC);
+				if (cur == NULL)
+					break;
 				memcpy(cur->mac_addr,
 				       ha->addr, ETH_ALEN);
 				list_add_tail(&cur->list, &adapter->vf_mc_list);
