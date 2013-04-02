@@ -424,8 +424,10 @@ static int cfv_create_genpool(struct cfv_info *cfv)
 	cfv->reserved_size = num_possible_cpus() * cfv->ndev->mtu;
 	cfv->reserved_mem = gen_pool_alloc(cfv->genpool,
 					   cfv->reserved_size);
-	if (!cfv->reserved_mem)
+	if (!cfv->reserved_mem) {
+		err = -ENOMEM;
 		goto err;
+	}
 
 	cfv->watermark_tx = virtqueue_get_vring_size(cfv->vq_tx);
 	return 0;
