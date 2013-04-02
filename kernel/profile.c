@@ -462,10 +462,10 @@ static const struct file_operations prof_cpu_mask_proc_fops = {
 	.write		= prof_cpu_mask_proc_write,
 };
 
-void create_prof_cpu_mask(struct proc_dir_entry *root_irq_dir)
+void create_prof_cpu_mask(void)
 {
 	/* create /proc/irq/prof_cpu_mask */
-	proc_create("prof_cpu_mask", 0600, root_irq_dir, &prof_cpu_mask_proc_fops);
+	proc_create("irq/prof_cpu_mask", 0600, NULL, &prof_cpu_mask_proc_fops);
 }
 
 /*
