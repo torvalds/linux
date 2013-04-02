@@ -241,6 +241,7 @@ struct intel_crtc {
 
 struct intel_plane {
 	struct drm_plane base;
+	int plane;
 	enum pipe pipe;
 	struct drm_i915_gem_object *obj;
 	bool can_scale;
@@ -489,7 +490,7 @@ extern void intel_edp_link_config(struct intel_encoder *, int *, int *);
 extern int intel_edp_target_clock(struct intel_encoder *,
 				  struct drm_display_mode *mode);
 extern bool intel_encoder_is_pch_edp(struct drm_encoder *encoder);
-extern int intel_plane_init(struct drm_device *dev, enum pipe pipe);
+extern int intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane);
 extern void intel_flush_display_plane(struct drm_i915_private *dev_priv,
 				      enum plane plane);
 

@@ -1630,6 +1630,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	mutex_init(&dev_priv->rps.hw_lock);
 	mutex_init(&dev_priv->modeset_restore_lock);
 
+	dev_priv->num_plane = 1;
+	if (IS_VALLEYVIEW(dev))
+		dev_priv->num_plane = 2;
+
 	ret = drm_vblank_init(dev, INTEL_INFO(dev)->num_pipes);
 	if (ret)
 		goto out_gem_unload;

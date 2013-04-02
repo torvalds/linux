@@ -926,6 +926,7 @@ typedef struct drm_i915_private {
 	bool enable_hotplug_processing;
 
 	int num_pch_pll;
+	int num_plane;
 
 	unsigned long cfb_size;
 	unsigned int cfb_fb;

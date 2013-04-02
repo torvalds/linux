@@ -8867,7 +8867,7 @@ void intel_modeset_init_hw(struct drm_device *dev)
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int i, ret;
+	int i, j, ret;
 
 	drm_mode_config_init(dev);
 
@@ -8903,9 +8903,12 @@ void intel_modeset_init(struct drm_device *dev)
 
 	for (i = 0; i < INTEL_INFO(dev)->num_pipes; i++) {
 		intel_crtc_init(dev, i);
-		ret = intel_plane_init(dev, i);
-		if (ret)
-			DRM_DEBUG_KMS("plane %d init failed: %d\n", i, ret);
+		for (j = 0; j < dev_priv->num_plane; j++) {
+			ret = intel_plane_init(dev, i, j);
+			if (ret)
+				DRM_DEBUG_KMS("pipe %d plane %d init failed: %d\n",
+					      i, j, ret);
+		}
 	}
 
 	intel_cpu_pll_init(dev);
