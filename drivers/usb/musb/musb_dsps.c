@@ -335,7 +335,7 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 	 * value but DEVCTL.BDEVICE is invalid without DEVCTL.SESSION set.
 	 * Also, DRVVBUS pulses for SRP (but not at 5V) ...
 	 */
-	if (usbintr & MUSB_INTR_BABBLE)
+	if (is_host_active(musb) && usbintr & MUSB_INTR_BABBLE)
 		pr_info("CAUTION: musb: Babble Interrupt Occurred\n");
 
 	if (usbintr & ((1 << wrp->drvvbus) << wrp->usb_shift)) {
