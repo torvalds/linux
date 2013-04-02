@@ -31,7 +31,7 @@ void restore_cpu_arch_register(void);
 void tegra_clear_cpu_in_lp2(int phy_cpu_id);
 bool tegra_set_cpu_in_lp2(int phy_cpu_id);
 
-void tegra_idle_lp2_last(u32 cpu_on_time, u32 cpu_off_time);
+void tegra_idle_lp2_last(void);
 extern void (*tegra_tear_down_cpu)(void);
 
 #ifdef CONFIG_PM_SLEEP

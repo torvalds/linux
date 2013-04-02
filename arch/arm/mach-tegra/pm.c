@@ -140,7 +140,7 @@ static int tegra_sleep_cpu(unsigned long v2p)
 	return 0;
 }
 
-void tegra_idle_lp2_last(u32 cpu_on_time, u32 cpu_off_time)
+void tegra_idle_lp2_last(void)
 {
 	tegra_pmc_pm_set(TEGRA_SUSPEND_LP2);
 
