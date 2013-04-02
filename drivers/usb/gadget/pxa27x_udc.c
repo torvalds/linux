@@ -609,7 +609,7 @@ static void inc_ep_stats_bytes(struct pxa_ep *ep, int count, int is_in)
  *
  * Find the physical pxa27x ep, and setup its UDCCR
  */
-static __init void pxa_ep_setup(struct pxa_ep *ep)
+static void pxa_ep_setup(struct pxa_ep *ep)
 {
 	u32 new_udccr;
 
@@ -631,7 +631,7 @@ static __init void pxa_ep_setup(struct pxa_ep *ep)
  *
  * Setup all pxa physical endpoints, except ep0
  */
-static __init void pxa_eps_setup(struct pxa_udc *dev)
+static void pxa_eps_setup(struct pxa_udc *dev)
 {
 	unsigned int i;
 
@@ -1716,7 +1716,7 @@ static void udc_disable(struct pxa_udc *udc)
  * Initializes gadget endpoint list, endpoints locks. No action is taken
  * on the hardware.
  */
-static __init void udc_init_data(struct pxa_udc *dev)
+static void udc_init_data(struct pxa_udc *dev)
 {
 	int i;
 	struct pxa_ep *ep;
@@ -2490,7 +2490,7 @@ err_clk:
  * pxa_udc_remove - removes the udc device driver
  * @_dev: platform device
  */
-static int __exit pxa_udc_remove(struct platform_device *_dev)
+static int pxa_udc_remove(struct platform_device *_dev)
 {
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
 	int gpio = udc->mach->gpio_pullup;
@@ -2609,7 +2609,7 @@ static struct platform_driver udc_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pxa_udc_probe,
-	.remove		= __exit_p(pxa_udc_remove),
+	.remove		= pxa_udc_remove,
 	.shutdown	= pxa_udc_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= pxa_udc_suspend,
