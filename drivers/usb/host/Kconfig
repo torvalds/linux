@@ -191,7 +191,7 @@ config USB_EHCI_HCD_AT91
           Atmel chips.
 
 config USB_EHCI_MSM
-	bool "Support for MSM on-chip EHCI USB controller"
+	tristate "Support for Qualcomm QSD/MSM on-chip EHCI USB controller"
 	depends on USB_EHCI_HCD && ARCH_MSM
 	select USB_EHCI_ROOT_HUB_TT
 	select USB_MSM_OTG
