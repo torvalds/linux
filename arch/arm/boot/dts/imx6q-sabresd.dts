@@ -11,50 +11,13 @@
  */
 
 /dts-v1/;
+
 #include "imx6q.dtsi"
+#include "imx6qdl-sabresd.dtsi"
 
 / {
-	model = "Freescale i.MX6Q SABRE Smart Device Board";
+	model = "Freescale i.MX6 Quad SABRE Smart Device Board";
 	compatible = "fsl,imx6q-sabresd", "fsl,imx6q";
-
-	memory {
-		reg = <0x10000000 0x40000000>;
-	};
-
-	regulators {
-		compatible = "simple-bus";
-
-		reg_usb_otg_vbus: usb_otg_vbus {
-			compatible = "regulator-fixed";
-			regulator-name = "usb_otg_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio3 22 0>;
-			enable-active-high;
-		};
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-
-		volume-up {
-			label = "Volume Up";
-			gpios = <&gpio1 4 0>;
-			linux,code = <115>; /* KEY_VOLUMEUP */
-		};
-
-		volume-down {
-			label = "Volume Down";
-			gpios = <&gpio1 5 0>;
-			linux,code = <114>; /* KEY_VOLUMEDOWN */
-		};
-	};
-};
-
-&uart1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart1_1>;
-	status = "okay";
 };
 
 &iomuxc {
@@ -73,39 +36,4 @@
 			>;
 		};
 	};
-};
-
-&usbotg {
-	vbus-supply = <&reg_usb_otg_vbus>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usbotg_2>;
-	disable-over-current;
-	status = "okay";
-};
-
-&usbh1 {
-	status = "okay";
-};
-
-&fec {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_enet_1>;
-	phy-mode = "rgmii";
-	status = "okay";
-};
-
-&usdhc2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc2_1>;
-	cd-gpios = <&gpio2 2 0>;
-	wp-gpios = <&gpio2 3 0>;
-	status = "okay";
-};
-
-&usdhc3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc3_1>;
-	cd-gpios = <&gpio2 0 0>;
-	wp-gpios = <&gpio2 1 0>;
-	status = "okay";
 };
