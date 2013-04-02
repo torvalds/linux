@@ -1327,6 +1327,12 @@ config SP2518_USER_DEFINED_SERIES
 	bool "sp2518 user defined init series"
 	default n	
 
+config SOC_CAMERA_HM5065
+	tristate "hm5065 camera support for rockchip"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a HM5065 camera driver for rockchip
+	  
 
 config SOC_CAMERA_OV9640
 	tristate "ov9640 camera support"

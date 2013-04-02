@@ -360,6 +360,7 @@ enum {
     V4L2_IDENT_SIV121D= 64141,      /* ddl@rock-chips.com : sid130B support */
     
 
+    V4L2_IDENT_HM5065 = 64151,
 
 	/* Don't just add new IDs at the end: KEEP THIS LIST ORDERED BY ID! */
 };
