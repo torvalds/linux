@@ -27,9 +27,9 @@
  *
  *****************************************************************************/
 
-#include "wifi.h"
-#include "pci.h"
-#include "base.h"
+#include "../wifi.h"
+#include "../pci.h"
+#include "../base.h"
 #include "reg.h"
 #include "def.h"
 #include "fw.h"

@@ -27,7 +27,7 @@
  *
  *****************************************************************************/
 
-#include "wifi.h"
+#include "../wifi.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"

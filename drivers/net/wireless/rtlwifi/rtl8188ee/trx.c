@@ -27,10 +27,10 @@
  *
  *****************************************************************************/
 
-#include "wifi.h"
-#include "pci.h"
-#include "base.h"
-#include "stats.h"
+#include "../wifi.h"
+#include "../pci.h"
+#include "../base.h"
+#include "../stats.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"

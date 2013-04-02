@@ -27,8 +27,8 @@
  *
  *****************************************************************************/
 
-#include "wifi.h"
-#include "pci.h"
+#include "../wifi.h"
+#include "../pci.h"
 #include "reg.h"
 #include "led.h"
 

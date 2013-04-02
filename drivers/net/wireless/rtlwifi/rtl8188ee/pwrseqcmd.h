@@ -30,7 +30,7 @@
 #ifndef __RTL8723E_PWRSEQCMD_H__
 #define __RTL8723E_PWRSEQCMD_H__
 
-#include "wifi.h"
+#include "../wifi.h"
 /*---------------------------------------------*/
 /* The value of cmd: 4 bits */
 /*---------------------------------------------*/
