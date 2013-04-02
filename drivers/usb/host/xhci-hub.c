@@ -461,8 +461,15 @@ void xhci_test_and_clear_bit(struct xhci_hcd *xhci, __le32 __iomem **port_array,
 	}
 }
 
+/* Updates Link Status for USB 2.1 port */
+static void xhci_hub_report_usb2_link_state(u32 *status, u32 status_reg)
+{
+	if ((status_reg & PORT_PLS_MASK) == XDEV_U2)
+		*status |= USB_PORT_STAT_L1;
+}
+
 /* Updates Link Status for super Speed port */
-static void xhci_hub_report_link_state(u32 *status, u32 status_reg)
+static void xhci_hub_report_usb3_link_state(u32 *status, u32 status_reg)
 {
 	u32 pls = status_reg & PORT_PLS_MASK;
 
@@ -631,14 +638,16 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 		else
 			status |= USB_PORT_STAT_POWER;
 	}
-	/* Update Port Link State for super speed ports*/
+	/* Update Port Link State */
 	if (hcd->speed == HCD_USB3) {
-		xhci_hub_report_link_state(&status, raw_port_status);
+		xhci_hub_report_usb3_link_state(&status, raw_port_status);
 		/*
 		 * Verify if all USB3 Ports Have entered U0 already.
 		 * Delete Compliance Mode Timer if so.
 		 */
 		xhci_del_comp_mod_timer(xhci, raw_port_status, wIndex);
+	} else {
+		xhci_hub_report_usb2_link_state(&status, raw_port_status);
 	}
 	if (bus_state->port_c_suspend & (1 << wIndex))
 		status |= 1 << USB_PORT_FEAT_C_SUSPEND;
