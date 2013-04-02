@@ -934,7 +934,7 @@ static int fimd_probe(struct platform_device *pdev)
 	if (IS_ERR(ctx->regs))
 		return PTR_ERR(ctx->regs);
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
 	if (!res) {
 		dev_err(dev, "irq request failed.\n");
 		return -ENXIO;
