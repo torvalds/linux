@@ -394,7 +394,7 @@ static void fusb300_clear_epnstall(struct fusb300 *fusb300, u8 ep)
 
 	if (reg & FUSB300_EPSET0_STL) {
 		printk(KERN_DEBUG "EP%d stall... Clear!!\n", ep);
-		reg &= ~FUSB300_EPSET0_STL;
+		reg |= FUSB300_EPSET0_STL_CLR;
 		iowrite32(reg, fusb300->reg + FUSB300_OFFSET_EPSET0(ep));
 	}
 }

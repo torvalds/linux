@@ -111,8 +111,8 @@
 /*
  * * EPn Setting 0 (EPn_SET0, offset = 020H+(n-1)*30H, n=1~15 )
  * */
+#define FUSB300_EPSET0_STL_CLR		(1 << 3)
 #define FUSB300_EPSET0_CLRSEQNUM	(1 << 2)
-#define FUSB300_EPSET0_EPn_TX0BYTE	(1 << 1)
 #define FUSB300_EPSET0_STL		(1 << 0)
 
 /*
