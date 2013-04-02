@@ -220,10 +220,11 @@ config USB_EHCI_SH
 	  If you use the PCI EHCI controller, this option is not necessary.
 
 config USB_EHCI_S5P
-       boolean "S5P EHCI support"
+       tristate "EHCI support for Samsung S5P/EXYNOS SoC Series"
        depends on USB_EHCI_HCD && PLAT_S5P
        help
-	 Enable support for the S5P SOC's on-chip EHCI controller.
+	Enable support for the Samsung S5Pxxxx and Exynos3/4/5 SOC's
+	on-chip EHCI controller.
 
 config USB_EHCI_MV
 	bool "EHCI support for Marvell PXA/MMP USB controller"
