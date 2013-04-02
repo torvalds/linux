@@ -411,8 +411,8 @@ static int mlx4_en_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 
 static void mlx4_en_u64_to_mac(unsigned char dst_mac[ETH_ALEN + 2], u64 src_mac)
 {
-	unsigned int i;
-	for (i = ETH_ALEN - 1; i; --i) {
+	int i;
+	for (i = ETH_ALEN - 1; i >= 0; --i) {
 		dst_mac[i] = src_mac & 0xff;
 		src_mac >>= 8;
 	}
