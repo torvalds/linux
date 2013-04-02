@@ -1194,28 +1194,105 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct cfg80211_chan_def chandef;
-	int ret;
+	struct iwl_mvm_phy_ctxt *phy_ctxt;
+	int ret, i;
+
+	IWL_DEBUG_MAC80211(mvm, "enter (%d, %d, %d)\n", channel->hw_value,
+			   duration, type);
 
 	if (vif->type != NL80211_IFTYPE_P2P_DEVICE) {
 		IWL_ERR(mvm, "vif isn't a P2P_DEVICE: %d\n", vif->type);
 		return -EINVAL;
 	}
 
-	IWL_DEBUG_MAC80211(mvm, "enter (%d, %d, %d)\n", channel->hw_value,
-			   duration, type);
-
 	mutex_lock(&mvm->mutex);
 
-	cfg80211_chandef_create(&chandef, channel, NL80211_CHAN_NO_HT);
-	ret = iwl_mvm_phy_ctxt_changed(mvm, mvmvif->phy_ctxt,
-				       &chandef, 1, 1);
+	for (i = 0; i < NUM_PHY_CTX; i++) {
+		phy_ctxt = &mvm->phy_ctxts[i];
+		if (phy_ctxt->ref == 0 || mvmvif->phy_ctxt == phy_ctxt)
+			continue;
 
+		if (phy_ctxt->ref && channel == phy_ctxt->channel) {
+			/*
+			 * Unbind the P2P_DEVICE from the current PHY context,
+			 * and if the PHY context is not used remove it.
+			 */
+			ret = iwl_mvm_binding_remove_vif(mvm, vif);
+			if (WARN(ret, "Failed unbinding P2P_DEVICE\n"))
+				goto out_unlock;
+
+			iwl_mvm_phy_ctxt_unref(mvm, mvmvif->phy_ctxt);
+
+			/* Bind the P2P_DEVICE to the current PHY Context */
+			mvmvif->phy_ctxt = phy_ctxt;
+
+			ret = iwl_mvm_binding_add_vif(mvm, vif);
+			if (WARN(ret, "Failed binding P2P_DEVICE\n"))
+				goto out_unlock;
+
+			iwl_mvm_phy_ctxt_ref(mvm, mvmvif->phy_ctxt);
+			goto schedule_time_event;
+		}
+	}
+
+	/* Need to update the PHY context only if the ROC channel changed */
+	if (channel == mvmvif->phy_ctxt->channel)
+		goto schedule_time_event;
+
+	cfg80211_chandef_create(&chandef, channel, NL80211_CHAN_NO_HT);
+
+	/*
+	 * Change the PHY context configuration as it is currently referenced
+	 * only by the P2P Device MAC
+	 */
+	if (mvmvif->phy_ctxt->ref == 1) {
+		ret = iwl_mvm_phy_ctxt_changed(mvm, mvmvif->phy_ctxt,
+					       &chandef, 1, 1);
+		if (ret)
+			goto out_unlock;
+	} else {
+		/*
+		 * The PHY context is shared with other MACs. Need to remove the
+		 * P2P Device from the binding, allocate an new PHY context and
+		 * create a new binding
+		 */
+		phy_ctxt = iwl_mvm_get_free_phy_ctxt(mvm);
+		if (!phy_ctxt) {
+			ret = -ENOSPC;
+			goto out_unlock;
+		}
+
+		ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &chandef,
+					       1, 1);
+		if (ret) {
+			IWL_ERR(mvm, "Failed to change PHY context\n");
+			goto out_unlock;
+		}
+
+		/* Unbind the P2P_DEVICE from the current PHY context */
+		ret = iwl_mvm_binding_remove_vif(mvm, vif);
+		if (WARN(ret, "Failed unbinding P2P_DEVICE\n"))
+			goto out_unlock;
+
+		iwl_mvm_phy_ctxt_unref(mvm, mvmvif->phy_ctxt);
+
+		/* Bind the P2P_DEVICE to the new allocated PHY context */
+		mvmvif->phy_ctxt = phy_ctxt;
+
+		ret = iwl_mvm_binding_add_vif(mvm, vif);
+		if (WARN(ret, "Failed binding P2P_DEVICE\n"))
+			goto out_unlock;
+
+		iwl_mvm_phy_ctxt_ref(mvm, mvmvif->phy_ctxt);
+	}
+
+schedule_time_event:
 	/* Schedule the time events */
 	ret = iwl_mvm_start_p2p_roc(mvm, vif, duration, type);
 
+out_unlock:
 	mutex_unlock(&mvm->mutex);
 	IWL_DEBUG_MAC80211(mvm, "leave\n");
-
 	return ret;
 }
 
@@ -1284,6 +1361,14 @@ static void iwl_mvm_change_chanctx(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
 	struct iwl_mvm_phy_ctxt *phy_ctxt = &mvm->phy_ctxts[*phy_ctxt_id];
+
+	if (WARN_ONCE((phy_ctxt->ref > 1) &&
+		      (changed & ~(IEEE80211_CHANCTX_CHANGE_WIDTH |
+				   IEEE80211_CHANCTX_CHANGE_RX_CHAINS |
+				   IEEE80211_CHANCTX_CHANGE_RADAR)),
+		      "Cannot change PHY. Ref=%d, changed=0x%X\n",
+		      phy_ctxt->ref, changed))
+		return;
 
 	mutex_lock(&mvm->mutex);
 	iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &ctx->def,
