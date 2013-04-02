@@ -156,6 +156,7 @@ static int qlcnic_sriov_get_pf_info(struct qlcnic_adapter *adapter,
 	npar_info->max_local_ipv6_addrs = LSW(cmd.rsp.arg[8]);
 	npar_info->max_remote_ipv6_addrs = MSW(cmd.rsp.arg[8]);
 
+	qlcnic_sriov_pf_set_ff_max_res(adapter, npar_info);
 	dev_info(&adapter->pdev->dev,
 		 "\n\ttotal_pf: %d,\n"
 		 "\n\ttotal_rss_engines: %d max_vports: %d max_tx_ques %d,\n"
@@ -375,8 +376,6 @@ static int qlcnic_sriov_pf_init(struct qlcnic_adapter *adapter)
 	err = qlcnic_sriov_get_pf_info(adapter, &pf_info);
 	if (err)
 		goto delete_vport;
-
-	qlcnic_sriov_pf_set_ff_max_res(adapter, &pf_info);
 
 	err = qlcnic_get_nic_info(adapter, &nic_info, func);
 	if (err)
