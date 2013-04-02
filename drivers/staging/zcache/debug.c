@@ -21,6 +21,7 @@ static struct debug_entry {
 	ATTR(pers_ate_eph), ATTR(pers_ate_eph_failed),
 	ATTR(evicted_eph_zpages), ATTR(evicted_eph_pageframes),
 	ATTR(eph_pageframes), ATTR(eph_pageframes_max),
+	ATTR(pers_pageframes), ATTR(pers_pageframes_max),
 	ATTR(eph_zpages), ATTR(eph_zpages_max),
 	ATTR(pers_zpages), ATTR(pers_zpages_max),
 	ATTR(last_active_file_pageframes),
