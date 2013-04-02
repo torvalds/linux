@@ -1247,6 +1247,8 @@ static __initdata struct tegra_clk_init_table init_table[] = {
 	{host1x, pll_c, 150000000, 0},
 	{disp1, pll_p, 600000000, 0},
 	{disp2, pll_p, 600000000, 0},
+	{gr2d, pll_c, 300000000, 0},
+	{gr3d, pll_c, 300000000, 0},
 	{clk_max, clk_max, 0, 0}, /* This MUST be the last entry */
 };
 
