@@ -31,13 +31,11 @@ EXPORT_SYMBOL_GPL(noop_backing_dev_info);
 static struct class *bdi_class;
 
 /*
- * bdi_lock protects updates to bdi_list and bdi_pending_list, as well as
- * reader side protection for bdi_pending_list. bdi_list has RCU reader side
+ * bdi_lock protects updates to bdi_list. bdi_list has RCU reader side
  * locking.
  */
 DEFINE_SPINLOCK(bdi_lock);
 LIST_HEAD(bdi_list);
-LIST_HEAD(bdi_pending_list);
 
 void bdi_lock_two(struct bdi_writeback *wb1, struct bdi_writeback *wb2)
 {
