@@ -1136,6 +1136,9 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 		hdev->sent_cmd = NULL;
 	}
 
+	kfree_skb(hdev->recv_evt);
+	hdev->recv_evt = NULL;
+
 	/* After this point our queues are empty
 	 * and no tasks are scheduled. */
 	hdev->close(hdev);

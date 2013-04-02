@@ -3699,6 +3699,18 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	struct hci_event_hdr *hdr = (void *) skb->data;
 	__u8 event = hdr->evt;
 
+	hci_dev_lock(hdev);
+
+	/* Received events are (currently) only needed when a request is
+	 * ongoing so avoid unnecessary memory allocation.
+	 */
+	if (hdev->req_status == HCI_REQ_PEND) {
+		kfree_skb(hdev->recv_evt);
+		hdev->recv_evt = skb_clone(skb, GFP_KERNEL);
+	}
+
+	hci_dev_unlock(hdev);
+
 	skb_pull(skb, HCI_EVENT_HDR_SIZE);
 
 	switch (event) {
