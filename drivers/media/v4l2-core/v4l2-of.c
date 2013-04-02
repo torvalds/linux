@@ -2,7 +2,7 @@
  * V4L2 OF binding parsing library
  *
  * Copyright (C) 2012 - 2013 Samsung Electronics Co., Ltd.
- * Sylwester Nawrocki <s.nawrocki@samsung.com>
+ * Author: Sylwester Nawrocki <s.nawrocki@samsung.com>
  *
  * Copyright (C) 2012 Renesas Electronics Corp.
  * Author: Guennadi Liakhovetski <g.liakhovetski@gmx.de>
@@ -103,7 +103,6 @@ static void v4l2_of_parse_parallel_bus(const struct device_node *node,
 	bus->flags = flags;
 
 }
-EXPORT_SYMBOL(v4l2_of_parse_parallel_bus);
 
 /**
  * v4l2_of_parse_endpoint() - parse all endpoint node properties
