@@ -12,8 +12,8 @@
 #include <linux/kernel.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/ab8500.h>
-#include <mach/id.h> /* to identify older boards for fixes */
 #include "board-mop500-regulators.h"
+#include "id.h"
 
 static struct regulator_consumer_supply gpio_en_3v3_consumers[] = {
        REGULATOR_SUPPLY("vdd33a", "smsc911x.0"),
