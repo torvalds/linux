@@ -24,6 +24,7 @@
 #include <linux/sysfs.h>
 #include <linux/tick.h>
 #include <linux/types.h>
+#include <linux/cpu.h>
 
 #include "cpufreq_governor.h"
 
@@ -39,6 +40,8 @@
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
 
 static DEFINE_PER_CPU(struct od_cpu_dbs_info_s, od_cpu_dbs_info);
+
+static struct od_ops od_ops;
 
 #ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND
 static struct cpufreq_governor cpufreq_gov_ondemand;
@@ -80,7 +83,7 @@ static int should_io_be_busy(void)
  * Returns the freq_hi to be used right now and will set freq_hi_jiffies,
  * freq_lo, and freq_lo_jiffies in percpu area for averaging freqs.
  */
-static unsigned int powersave_bias_target(struct cpufreq_policy *policy,
+static unsigned int generic_powersave_bias_target(struct cpufreq_policy *policy,
 		unsigned int freq_next, unsigned int relation)
 {
 	unsigned int freq_req, freq_reduc, freq_avg;
@@ -145,7 +148,8 @@ static void dbs_freq_increase(struct cpufreq_policy *p, unsigned int freq)
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 
 	if (od_tuners->powersave_bias)
-		freq = powersave_bias_target(p, freq, CPUFREQ_RELATION_H);
+		freq = od_ops.powersave_bias_target(p, freq,
+				CPUFREQ_RELATION_H);
 	else if (p->cur == p->max)
 		return;
 
@@ -205,12 +209,12 @@ static void od_check_cpu(int cpu, unsigned int load_freq)
 		if (!od_tuners->powersave_bias) {
 			__cpufreq_driver_target(policy, freq_next,
 					CPUFREQ_RELATION_L);
-		} else {
-			int freq = powersave_bias_target(policy, freq_next,
-					CPUFREQ_RELATION_L);
-			__cpufreq_driver_target(policy, freq,
-					CPUFREQ_RELATION_L);
+			return;
 		}
+
+		freq_next = od_ops.powersave_bias_target(policy, freq_next,
+					CPUFREQ_RELATION_L);
+		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_L);
 	}
 }
 
@@ -557,7 +561,7 @@ define_get_cpu_dbs_routines(od_cpu_dbs_info);
 
 static struct od_ops od_ops = {
 	.powersave_bias_init_cpu = ondemand_powersave_bias_init_cpu,
-	.powersave_bias_target = powersave_bias_target,
+	.powersave_bias_target = generic_powersave_bias_target,
 	.freq_increase = dbs_freq_increase,
 };
 
@@ -573,6 +577,47 @@ static struct common_dbs_data od_dbs_cdata = {
 	.init = od_init,
 	.exit = od_exit,
 };
+
+static void od_set_powersave_bias(unsigned int powersave_bias)
+{
+	struct cpufreq_policy *policy;
+	struct dbs_data *dbs_data;
+	struct od_dbs_tuners *od_tuners;
+	unsigned int cpu;
+	cpumask_t done;
+
+	cpumask_clear(&done);
+
+	get_online_cpus();
+	for_each_online_cpu(cpu) {
+		if (cpumask_test_cpu(cpu, &done))
+			continue;
+
+		policy = per_cpu(od_cpu_dbs_info, cpu).cdbs.cur_policy;
+		dbs_data = policy->governor_data;
+		od_tuners = dbs_data->tuners;
+		od_tuners->powersave_bias = powersave_bias;
+
+		cpumask_or(&done, &done, policy->cpus);
+	}
+	put_online_cpus();
+}
+
+void od_register_powersave_bias_handler(unsigned int (*f)
+		(struct cpufreq_policy *, unsigned int, unsigned int),
+		unsigned int powersave_bias)
+{
+	od_ops.powersave_bias_target = f;
+	od_set_powersave_bias(powersave_bias);
+}
+EXPORT_SYMBOL_GPL(od_register_powersave_bias_handler);
+
+void od_unregister_powersave_bias_handler(void)
+{
+	od_ops.powersave_bias_target = generic_powersave_bias_target;
+	od_set_powersave_bias(0);
+}
+EXPORT_SYMBOL_GPL(od_unregister_powersave_bias_handler);
 
 static int od_cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		unsigned int event)
