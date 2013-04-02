@@ -31,6 +31,7 @@ enum llcp_state {
 #define LLCP_MAX_LTO  0xff
 #define LLCP_MAX_RW   15
 #define LLCP_MAX_MIUX 0x7ff
+#define LLCP_MAX_MIU (LLCP_MAX_MIUX + 128)
 
 #define LLCP_WKS_NUM_SAP   16
 #define LLCP_SDP_NUM_SAP   16

@@ -658,6 +658,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 	struct nfc_llcp_local *local;
 	size_t frag_len = 0, remaining_len;
 	u8 *msg_data, *msg_ptr;
+	u16 remote_miu;
 
 	pr_debug("Send I frame len %zd\n", len);
 
@@ -695,7 +696,10 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 	msg_ptr = msg_data;
 
 	do {
-		frag_len = min_t(size_t, sock->remote_miu, remaining_len);
+		remote_miu = sock->remote_miu > LLCP_MAX_MIU ?
+				local->remote_miu : sock->remote_miu;
+
+		frag_len = min_t(size_t, remote_miu, remaining_len);
 
 		pr_debug("Fragment %zd bytes remaining %zd",
 			 frag_len, remaining_len);
@@ -734,6 +738,7 @@ int nfc_llcp_send_ui_frame(struct nfc_llcp_sock *sock, u8 ssap, u8 dsap,
 	struct nfc_llcp_local *local;
 	size_t frag_len = 0, remaining_len;
 	u8 *msg_ptr, *msg_data;
+	u16 remote_miu;
 	int err;
 
 	pr_debug("Send UI frame len %zd\n", len);
@@ -755,7 +760,10 @@ int nfc_llcp_send_ui_frame(struct nfc_llcp_sock *sock, u8 ssap, u8 dsap,
 	msg_ptr = msg_data;
 
 	do {
-		frag_len = min_t(size_t, sock->remote_miu, remaining_len);
+		remote_miu = sock->remote_miu > LLCP_MAX_MIU ?
+				local->remote_miu : sock->remote_miu;
+
+		frag_len = min_t(size_t, remote_miu, remaining_len);
 
 		pr_debug("Fragment %zd bytes remaining %zd",
 			 frag_len, remaining_len);
