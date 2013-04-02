@@ -1291,6 +1291,8 @@ static void wiimote_hid_remove(struct hid_device *hdev)
 static const struct hid_device_id wiimote_hid_devices[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_NINTENDO,
 				USB_DEVICE_ID_NINTENDO_WIIMOTE) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_NINTENDO,
+				USB_DEVICE_ID_NINTENDO_WIIMOTE2) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, wiimote_hid_devices);
