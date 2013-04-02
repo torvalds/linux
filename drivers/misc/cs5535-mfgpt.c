@@ -27,8 +27,8 @@ module_param_named(mfgptfix, mfgpt_reset_timers, int, 0644);
 MODULE_PARM_DESC(mfgptfix, "Try to reset the MFGPT timers during init; "
 		"required by some broken BIOSes (ie, TinyBIOS < 0.99) or kexec "
 		"(1 = reset the MFGPT using an undocumented bit, "
-		"2 = perform a soft reset by unconfiguring all timers);
-		use what works best for you.");
+		"2 = perform a soft reset by unconfiguring all timers); "
+		"use what works best for you.");
 
 struct cs5535_mfgpt_timer {
 	struct cs5535_mfgpt_chip *chip;
