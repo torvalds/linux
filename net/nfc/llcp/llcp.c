@@ -47,6 +47,12 @@ void nfc_llcp_sock_unlink(struct llcp_sock_list *l, struct sock *sk)
 	write_unlock(&l->lock);
 }
 
+void nfc_llcp_socket_remote_param_init(struct nfc_llcp_sock *sock)
+{
+	sock->remote_rw = LLCP_DEFAULT_RW;
+	sock->remote_miu = LLCP_MAX_MIU + 1;
+}
+
 static void nfc_llcp_socket_purge(struct nfc_llcp_sock *sock)
 {
 	struct nfc_llcp_local *local = sock->local;
@@ -112,6 +118,7 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen,
 			}
 
 			if (listen == true) {
+				nfc_llcp_socket_remote_param_init(llcp_sock);
 				bh_unlock_sock(sk);
 				continue;
 			}
@@ -123,6 +130,7 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen,
 		 */
 		if (sk->sk_state == LLCP_BOUND && sk->sk_type == SOCK_DGRAM &&
 		    listen == true) {
+			nfc_llcp_socket_remote_param_init(llcp_sock);
 			bh_unlock_sock(sk);
 			continue;
 		}
@@ -1521,6 +1529,9 @@ void nfc_llcp_mac_is_down(struct nfc_dev *dev)
 	local = nfc_llcp_find_local(dev);
 	if (local == NULL)
 		return;
+
+	local->remote_miu = LLCP_DEFAULT_MIU;
+	local->remote_lto = LLCP_DEFAULT_LTO;
 
 	/* Close and purge all existing sockets */
 	nfc_llcp_socket_release(local, true, 0);
