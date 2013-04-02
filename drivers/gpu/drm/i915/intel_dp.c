@@ -109,29 +109,6 @@ bool intel_encoder_is_pch_edp(struct drm_encoder *encoder)
 
 static void intel_dp_link_down(struct intel_dp *intel_dp);
 
-void
-intel_edp_link_config(struct intel_encoder *intel_encoder,
-		       int *lane_num, int *link_bw)
-{
-	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
-
-	*lane_num = intel_dp->lane_count;
-	*link_bw = drm_dp_bw_code_to_link_rate(intel_dp->link_bw);
-}
-
-int
-intel_edp_target_clock(struct intel_encoder *intel_encoder,
-		       struct drm_display_mode *mode)
-{
-	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
-	struct intel_connector *intel_connector = intel_dp->attached_connector;
-
-	if (intel_connector->panel.fixed_mode)
-		return intel_connector->panel.fixed_mode->clock;
-	else
-		return mode->clock;
-}
-
 static int
 intel_dp_max_link_bw(struct intel_dp *intel_dp)
 {

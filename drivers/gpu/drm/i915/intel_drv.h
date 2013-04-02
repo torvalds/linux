@@ -492,9 +492,6 @@ extern void ironlake_edp_panel_on(struct intel_dp *intel_dp);
 extern void ironlake_edp_panel_off(struct intel_dp *intel_dp);
 extern void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp);
 extern void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
-extern void intel_edp_link_config(struct intel_encoder *, int *, int *);
-extern int intel_edp_target_clock(struct intel_encoder *,
-				  struct drm_display_mode *mode);
 extern bool intel_encoder_is_pch_edp(struct drm_encoder *encoder);
 extern int intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane);
 extern void intel_flush_display_plane(struct drm_i915_private *dev_priv,
