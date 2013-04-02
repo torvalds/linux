@@ -78,21 +78,13 @@ static struct sh_timer_config sh_tmu1_platform_data = {
 	.clocksource_rating	= 200,
 };
 
-#define PLATFORM_INFO(n, i)					\
-{								\
-	.parent		= &platform_bus,			\
-	.name		= #n,					\
-	.id		= i,					\
-	.res		= n ## i ## _resources,			\
-	.num_res	= ARRAY_SIZE(n ## i ##_resources),	\
-	.data		= &n ## i ##_platform_data,		\
-	.size_data	= sizeof(n ## i ## _platform_data),	\
-}
-
-struct platform_device_info platform_devinfo[] = {
-	PLATFORM_INFO(sh_tmu, 0),
-	PLATFORM_INFO(sh_tmu, 1),
-};
+#define r8a7778_register_tmu(idx)			\
+	platform_device_register_resndata(		\
+		&platform_bus, "sh_tmu", idx,		\
+		sh_tmu##idx##_resources,		\
+		ARRAY_SIZE(sh_tmu##idx##_resources),	\
+		&sh_tmu##idx##_platform_data,		\
+		sizeof(sh_tmu##idx##_platform_data))
 
 void __init r8a7778_add_standard_devices(void)
 {
@@ -114,8 +106,8 @@ void __init r8a7778_add_standard_devices(void)
 					      &scif_platform_data[i],
 					      sizeof(struct plat_sci_port));
 
-	for (i = 0; i < ARRAY_SIZE(platform_devinfo); i++)
-		platform_device_register_full(&platform_devinfo[i]);
+	r8a7778_register_tmu(0);
+	r8a7778_register_tmu(1);
 }
 
 #define INT2SMSKCR0	0x82288 /* 0xfe782288 */
