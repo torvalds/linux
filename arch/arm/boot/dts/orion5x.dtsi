@@ -13,6 +13,9 @@
 	compatible = "marvell,orion5x";
 	interrupt-parent = <&intc>;
 
+	aliases {
+		gpio0 = &gpio0;
+	};
 	intc: interrupt-controller {
 		compatible = "marvell,orion-intc", "marvell,intc";
 		interrupt-controller;
@@ -32,7 +35,9 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			reg = <0x10100 0x40>;
-			ngpio = <32>;
+			ngpios = <32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <6>, <7>, <8>, <9>;
 		};
 
@@ -91,7 +96,7 @@
 			reg = <0x90000 0x10000>,
 			      <0xf2200000 0x800>;
 			reg-names = "regs", "sram";
-			interrupts = <22>;
+			interrupts = <28>;
 			status = "okay";
 		};
 	};

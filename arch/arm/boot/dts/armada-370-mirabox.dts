@@ -54,7 +54,7 @@
 		};
 
 		mvsdio@d00d4000 {
-			pinctrl-0 = <&sdio_pins2>;
+			pinctrl-0 = <&sdio_pins3>;
 			pinctrl-names = "default";
 			status = "okay";
 			/*
