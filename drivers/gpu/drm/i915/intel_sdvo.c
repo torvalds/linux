@@ -1231,7 +1231,11 @@ static bool intel_sdvo_connector_get_hw_state(struct intel_connector *connector)
 	struct intel_sdvo_connector *intel_sdvo_connector =
 		to_intel_sdvo_connector(&connector->base);
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(&connector->base);
+	struct drm_i915_private *dev_priv = intel_sdvo->base.base.dev->dev_private;
 	u16 active_outputs;
+
+	if (!(I915_READ(intel_sdvo->sdvo_reg) & SDVO_ENABLE))
+		return false;
 
 	intel_sdvo_get_active_outputs(intel_sdvo, &active_outputs);
 
