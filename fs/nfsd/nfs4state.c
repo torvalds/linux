@@ -236,7 +236,7 @@ static inline void
 put_nfs4_file(struct nfs4_file *fi)
 {
 	if (atomic_dec_and_lock(&fi->fi_ref, &recall_lock)) {
-		list_del(&fi->fi_hash);
+		hlist_del(&fi->fi_hash);
 		spin_unlock(&recall_lock);
 		iput(fi->fi_inode);
 		nfsd4_free_file(fi);
@@ -280,7 +280,7 @@ static unsigned int file_hashval(struct inode *ino)
 	return hash_ptr(ino, FILE_HASH_BITS);
 }
 
-static struct list_head file_hashtbl[FILE_HASH_SIZE];
+static struct hlist_head file_hashtbl[FILE_HASH_SIZE];
 
 static void __nfs4_file_get_access(struct nfs4_file *fp, int oflag)
 {
@@ -2347,7 +2347,6 @@ static void nfsd4_init_file(struct nfs4_file *fp, struct inode *ino)
 	unsigned int hashval = file_hashval(ino);
 
 	atomic_set(&fp->fi_ref, 1);
-	INIT_LIST_HEAD(&fp->fi_hash);
 	INIT_LIST_HEAD(&fp->fi_stateids);
 	INIT_LIST_HEAD(&fp->fi_delegations);
 	fp->fi_inode = igrab(ino);
@@ -2356,7 +2355,7 @@ static void nfsd4_init_file(struct nfs4_file *fp, struct inode *ino)
 	memset(fp->fi_fds, 0, sizeof(fp->fi_fds));
 	memset(fp->fi_access, 0, sizeof(fp->fi_access));
 	spin_lock(&recall_lock);
-	list_add(&fp->fi_hash, &file_hashtbl[hashval]);
+	hlist_add_head(&fp->fi_hash, &file_hashtbl[hashval]);
 	spin_unlock(&recall_lock);
 }
 
@@ -2542,7 +2541,7 @@ find_file(struct inode *ino)
 	struct nfs4_file *fp;
 
 	spin_lock(&recall_lock);
-	list_for_each_entry(fp, &file_hashtbl[hashval], fi_hash) {
+	hlist_for_each_entry(fp, &file_hashtbl[hashval], fi_hash) {
 		if (fp->fi_inode == ino) {
 			get_nfs4_file(fp);
 			spin_unlock(&recall_lock);
@@ -4810,11 +4809,6 @@ struct nfs4_client *nfsd_find_client(struct sockaddr_storage *addr, size_t addr_
 void
 nfs4_state_init(void)
 {
-	int i;
-
-	for (i = 0; i < FILE_HASH_SIZE; i++) {
-		INIT_LIST_HEAD(&file_hashtbl[i]);
-	}
 	INIT_LIST_HEAD(&del_recall_lru);
 }
 
