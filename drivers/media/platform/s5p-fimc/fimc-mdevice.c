@@ -827,7 +827,7 @@ static int fimc_md_link_notify(struct media_pad *source,
 	struct fimc_pipeline *pipeline;
 	struct v4l2_subdev *sd;
 	struct mutex *lock;
-	int ret = 0;
+	int i, ret = 0;
 	int ref_count;
 
 	if (media_entity_type(sink->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
@@ -854,29 +854,28 @@ static int fimc_md_link_notify(struct media_pad *source,
 		return 0;
 	}
 
+	mutex_lock(lock);
+	ref_count = fimc ? fimc->vid_cap.refcnt : fimc_lite->ref_count;
+
 	if (!(flags & MEDIA_LNK_FL_ENABLED)) {
-		int i;
-		mutex_lock(lock);
-		ret = __fimc_pipeline_close(pipeline);
+		if (ref_count > 0) {
+			ret = __fimc_pipeline_close(pipeline);
+			if (!ret && fimc)
+				fimc_ctrls_delete(fimc->vid_cap.ctx);
+		}
 		for (i = 0; i < IDX_MAX; i++)
 			pipeline->subdevs[i] = NULL;
-		if (fimc)
-			fimc_ctrls_delete(fimc->vid_cap.ctx);
-		mutex_unlock(lock);
-		return ret;
+	} else if (ref_count > 0) {
+		/*
+		 * Link activation. Enable power of pipeline elements only if
+		 * the pipeline is already in use, i.e. its video node is open.
+		 * Recreate the controls destroyed during the link deactivation.
+		 */
+		ret = __fimc_pipeline_open(pipeline,
+					   source->entity, true);
+		if (!ret && fimc)
+			ret = fimc_capture_ctrls_create(fimc);
 	}
-	/*
-	 * Link activation. Enable power of pipeline elements only if the
-	 * pipeline is already in use, i.e. its video node is opened.
-	 * Recreate the controls destroyed during the link deactivation.
-	 */
-	mutex_lock(lock);
-
-	ref_count = fimc ? fimc->vid_cap.refcnt : fimc_lite->ref_count;
-	if (ref_count > 0)
-		ret = __fimc_pipeline_open(pipeline, source->entity, true);
-	if (!ret && fimc)
-		ret = fimc_capture_ctrls_create(fimc);
 
 	mutex_unlock(lock);
 	return ret ? -EPIPE : ret;

@@ -1332,7 +1332,7 @@ static int fec_enet_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 static void fec_enet_free_buffers(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	int i;
+	unsigned int i;
 	struct sk_buff *skb;
 	struct bufdesc	*bdp;
 
@@ -1356,7 +1356,7 @@ static void fec_enet_free_buffers(struct net_device *ndev)
 static int fec_enet_alloc_buffers(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	int i;
+	unsigned int i;
 	struct sk_buff *skb;
 	struct bufdesc	*bdp;
 
@@ -1598,7 +1598,7 @@ static int fec_enet_init(struct net_device *ndev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	struct bufdesc *cbd_base;
 	struct bufdesc *bdp;
-	int i;
+	unsigned int i;
 
 	/* Allocate memory for buffer descriptors. */
 	cbd_base = dma_alloc_coherent(NULL, PAGE_SIZE, &fep->bd_dma,
