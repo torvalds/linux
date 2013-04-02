@@ -14,23 +14,24 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/fb.h>
+#include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/dma-mapping.h>
-#include <linux/platform_device.h>
-#include <linux/wait.h>
+#include <linux/kernel.h>
+#include <linux/memblock.h>
+#include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/memblock.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/wait.h>
+#include <video/of_display_timing.h>
 
 #include "wm8505fb_regs.h"
 #include "wmt_ge_rops.h"
@@ -261,12 +262,12 @@ static struct fb_ops wm8505fb_ops = {
 static int wm8505fb_probe(struct platform_device *pdev)
 {
 	struct wm8505fb_info	*fbi;
-	struct resource		*res;
+	struct resource	*res;
+	struct display_timings *disp_timing;
 	void			*addr;
 	int ret;
 
-	struct fb_videomode	of_mode;
-	struct device_node	*np;
+	struct fb_videomode	mode;
 	u32			bpp;
 	dma_addr_t fb_mem_phys;
 	unsigned long fb_mem_len;
@@ -306,33 +307,19 @@ static int wm8505fb_probe(struct platform_device *pdev)
 	if (fbi->regbase == NULL)
 		return -EBUSY;
 
-	np = of_parse_phandle(pdev->dev.of_node, "default-mode", 0);
-	if (!np) {
-		pr_err("%s: No display description in Device Tree\n", __func__);
+	disp_timing = of_get_display_timings(pdev->dev.of_node);
+	if (!disp_timing)
 		return -EINVAL;
-	}
 
-	/*
-	 * This code is copied from Sascha Hauer's of_videomode helper
-	 * and can be replaced with a call to the helper once mainlined
-	 */
-	ret = 0;
-	ret |= of_property_read_u32(np, "hactive", &of_mode.xres);
-	ret |= of_property_read_u32(np, "vactive", &of_mode.yres);
-	ret |= of_property_read_u32(np, "hback-porch", &of_mode.left_margin);
-	ret |= of_property_read_u32(np, "hfront-porch", &of_mode.right_margin);
-	ret |= of_property_read_u32(np, "hsync-len", &of_mode.hsync_len);
-	ret |= of_property_read_u32(np, "vback-porch", &of_mode.upper_margin);
-	ret |= of_property_read_u32(np, "vfront-porch", &of_mode.lower_margin);
-	ret |= of_property_read_u32(np, "vsync-len", &of_mode.vsync_len);
-	ret |= of_property_read_u32(np, "bpp", &bpp);
-	if (ret) {
-		pr_err("%s: Unable to read display properties\n", __func__);
-		return -EINVAL;
-	}
+	ret = of_get_fb_videomode(pdev->dev.of_node, &mode, OF_USE_NATIVE_MODE);
+	if (ret)
+		return ret;
 
-	of_mode.vmode = FB_VMODE_NONINTERLACED;
-	fb_videomode_to_var(&fbi->fb.var, &of_mode);
+	ret = of_property_read_u32(pdev->dev.of_node, "bits-per-pixel", &bpp);
+	if (ret)
+		return ret;
+
+	fb_videomode_to_var(&fbi->fb.var, &mode);
 
 	fbi->fb.var.nonstd		= 0;
 	fbi->fb.var.activate		= FB_ACTIVATE_NOW;
@@ -341,7 +328,7 @@ static int wm8505fb_probe(struct platform_device *pdev)
 	fbi->fb.var.width		= -1;
 
 	/* try allocating the framebuffer */
-	fb_mem_len = of_mode.xres * of_mode.yres * 2 * (bpp / 8);
+	fb_mem_len = mode.xres * mode.yres * 2 * (bpp / 8);
 	fb_mem_virt = dmam_alloc_coherent(&pdev->dev, fb_mem_len, &fb_mem_phys,
 				GFP_KERNEL);
 	if (!fb_mem_virt) {
@@ -349,8 +336,8 @@ static int wm8505fb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	fbi->fb.var.xres_virtual	= of_mode.xres;
-	fbi->fb.var.yres_virtual	= of_mode.yres * 2;
+	fbi->fb.var.xres_virtual	= mode.xres;
+	fbi->fb.var.yres_virtual	= mode.yres * 2;
 	fbi->fb.var.bits_per_pixel	= bpp;
 
 	fbi->fb.fix.smem_start		= fb_mem_phys;
