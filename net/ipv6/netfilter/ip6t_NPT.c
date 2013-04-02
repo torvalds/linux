@@ -114,6 +114,7 @@ ip6t_dnpt_tg(struct sk_buff *skb, const struct xt_action_param *par)
 static struct xt_target ip6t_npt_target_reg[] __read_mostly = {
 	{
 		.name		= "SNPT",
+		.table		= "mangle",
 		.target		= ip6t_snpt_tg,
 		.targetsize	= sizeof(struct ip6t_npt_tginfo),
 		.checkentry	= ip6t_npt_checkentry,
@@ -124,6 +125,7 @@ static struct xt_target ip6t_npt_target_reg[] __read_mostly = {
 	},
 	{
 		.name		= "DNPT",
+		.table		= "mangle",
 		.target		= ip6t_dnpt_tg,
 		.targetsize	= sizeof(struct ip6t_npt_tginfo),
 		.checkentry	= ip6t_npt_checkentry,

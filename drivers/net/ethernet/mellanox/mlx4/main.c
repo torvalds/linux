@@ -1555,7 +1555,7 @@ void __mlx4_counter_free(struct mlx4_dev *dev, u32 idx)
 
 void mlx4_counter_free(struct mlx4_dev *dev, u32 idx)
 {
-	u64 in_param;
+	u64 in_param = 0;
 
 	if (mlx4_is_mfunc(dev)) {
 		set_param_l(&in_param, idx);

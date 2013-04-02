@@ -49,7 +49,6 @@ config ARM
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UID16
-	select HAVE_VIRT_TO_BUS
 	select KTIME_SCALAR
 	select PERF_USE_VMALLOC
 	select RTC_LIB
@@ -556,7 +555,6 @@ config ARCH_IXP4XX
 config ARCH_DOVE
 	bool "Marvell Dove"
 	select ARCH_REQUIRE_GPIOLIB
-	select COMMON_CLK_DOVE
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select MIGHT_HAVE_PCI
@@ -744,6 +742,7 @@ config ARCH_RPC
 	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
 	select NO_IOPORT
+	select VIRT_TO_BUS
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
 	  CD-ROM interface, serial and parallel port, and the floppy drive.
@@ -879,6 +878,7 @@ config ARCH_SHARK
 	select ISA_DMA
 	select NEED_MACH_MEMORY_H
 	select PCI
+	select VIRT_TO_BUS
 	select ZONE_DMA
 	help
 	  Support for the StrongARM based Digital DNARD machine, also known
@@ -1006,12 +1006,12 @@ config ARCH_MULTI_V4_V5
 	bool
 
 config ARCH_MULTI_V6
-	bool "ARMv6 based platforms (ARM11, Scorpion, ...)"
+	bool "ARMv6 based platforms (ARM11)"
 	select ARCH_MULTI_V6_V7
 	select CPU_V6
 
 config ARCH_MULTI_V7
-	bool "ARMv7 based platforms (Cortex-A, PJ4, Krait)"
+	bool "ARMv7 based platforms (Cortex-A, PJ4, Scorpion, Krait)"
 	default y
 	select ARCH_MULTI_V6_V7
 	select ARCH_VEXPRESS
@@ -1462,10 +1462,6 @@ config ISA_DMA
 	bool
 	select ISA_DMA_API
 
-config ARCH_NO_VIRT_TO_BUS
-	def_bool y
-	depends on !ARCH_RPC && !ARCH_NETWINDER && !ARCH_SHARK
-
 # Select ISA DMA interface
 config ISA_DMA_API
 	bool
@@ -1657,13 +1653,16 @@ config LOCAL_TIMERS
 	  accounting to be spread across the timer interval, preventing a
 	  "thundering herd" at every timer tick.
 
+# The GPIO number here must be sorted by descending number. In case of
+# a multiplatform kernel, we just want the highest value required by the
+# selected platforms.
 config ARCH_NR_GPIO
 	int
 	default 1024 if ARCH_SHMOBILE || ARCH_TEGRA
-	default 355 if ARCH_U8500
-	default 264 if MACH_H4700
 	default 512 if SOC_OMAP5
+	default 355 if ARCH_U8500
 	default 288 if ARCH_VT8500 || ARCH_SUNXI
+	default 264 if MACH_H4700
 	default 0
 	help
 	  Maximum number of GPIOs in the system.
@@ -1887,8 +1886,9 @@ config XEN_DOM0
 
 config XEN
 	bool "Xen guest support on ARM (EXPERIMENTAL)"
-	depends on ARM && OF
+	depends on ARM && AEABI && OF
 	depends on CPU_V7 && !CPU_V6
+	depends on !GENERIC_ATOMIC64
 	help
 	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM.
 

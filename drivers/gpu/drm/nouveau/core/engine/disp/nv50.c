@@ -544,13 +544,13 @@ nv50_disp_curs_ofuncs = {
 static void
 nv50_disp_base_vblank_enable(struct nouveau_event *event, int head)
 {
-	nv_mask(event->priv, 0x61002c, (1 << head), (1 << head));
+	nv_mask(event->priv, 0x61002c, (4 << head), (4 << head));
 }
 
 static void
 nv50_disp_base_vblank_disable(struct nouveau_event *event, int head)
 {
-	nv_mask(event->priv, 0x61002c, (1 << head), (0 << head));
+	nv_mask(event->priv, 0x61002c, (4 << head), 0);
 }
 
 static int

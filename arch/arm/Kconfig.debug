@@ -492,9 +492,10 @@ config DEBUG_IMX_UART_PORT
 						DEBUG_IMX31_UART || \
 						DEBUG_IMX35_UART || \
 						DEBUG_IMX51_UART || \
-						DEBUG_IMX50_IMX53_UART || \
+						DEBUG_IMX53_UART || \
 						DEBUG_IMX6Q_UART
 	default 1
+	depends on ARCH_MXC
 	help
 	  Choose UART port on which kernel low-level debug messages
 	  should be output.

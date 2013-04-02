@@ -69,7 +69,7 @@ static void __init m528x_uarts_init(void)
 	u8 port;
 
 	/* make sure PUAPAR is set for UART0 and UART1 */
-	port = readb(MCF5282_GPIO_PUAPAR);
+	port = readb(MCFGPIO_PUAPAR);
 	port |= 0x03 | (0x03 << 2);
 	writeb(port, MCFGPIO_PUAPAR);
 }

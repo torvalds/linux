@@ -29,15 +29,13 @@
 #include "rsxx_priv.h"
 #include "rsxx_cfg.h"
 
-static void initialize_config(void *config)
+static void initialize_config(struct rsxx_card_cfg *cfg)
 {
-	struct rsxx_card_cfg *cfg = config;
-
 	cfg->hdr.version = RSXX_CFG_VERSION;
 
 	cfg->data.block_size        = RSXX_HW_BLK_SIZE;
 	cfg->data.stripe_size       = RSXX_HW_BLK_SIZE;
-	cfg->data.vendor_id         = RSXX_VENDOR_ID_TMS_IBM;
+	cfg->data.vendor_id         = RSXX_VENDOR_ID_IBM;
 	cfg->data.cache_order       = (-1);
 	cfg->data.intr_coal.mode    = RSXX_INTR_COAL_DISABLED;
 	cfg->data.intr_coal.count   = 0;
@@ -181,7 +179,7 @@ int rsxx_load_config(struct rsxx_cardinfo *card)
 	} else {
 		dev_info(CARD_TO_DEV(card),
 			"Initializing card configuration.\n");
-		initialize_config(card);
+		initialize_config(&card->config);
 		st = rsxx_save_config(card);
 		if (st)
 			return st;

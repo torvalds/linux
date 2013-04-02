@@ -1439,8 +1439,11 @@ static void __dquot_initialize(struct inode *inode, int type)
 			 * did a write before quota was turned on
 			 */
 			rsv = inode_get_rsv_space(inode);
-			if (unlikely(rsv))
+			if (unlikely(rsv)) {
+				spin_lock(&dq_data_lock);
 				dquot_resv_space(inode->i_dquot[cnt], rsv);
+				spin_unlock(&dq_data_lock);
+			}
 		}
 	}
 out_err:

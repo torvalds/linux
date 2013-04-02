@@ -500,16 +500,19 @@ static int __init xen_acpi_processor_init(void)
 	(void)acpi_processor_preregister_performance(acpi_perf_data);
 
 	for_each_possible_cpu(i) {
+		struct acpi_processor *pr;
 		struct acpi_processor_performance *perf;
 
+		pr = per_cpu(processors, i);
 		perf = per_cpu_ptr(acpi_perf_data, i);
-		rc = acpi_processor_register_performance(perf, i);
+		if (!pr)
+			continue;
+
+		pr->performance = perf;
+		rc = acpi_processor_get_performance_info(pr);
 		if (rc)
 			goto err_out;
 	}
-	rc = acpi_processor_notify_smm(THIS_MODULE);
-	if (rc)
-		goto err_unregister;
 
 	for_each_possible_cpu(i) {
 		struct acpi_processor *_pr;
