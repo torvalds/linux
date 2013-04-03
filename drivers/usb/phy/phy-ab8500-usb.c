@@ -614,17 +614,16 @@ static int ab8500_usb_set_peripheral(struct usb_otg *otg,
 
 	ab = phy_to_ab(otg->phy);
 
+	ab->phy.otg->gadget = gadget;
+
 	/* Some drivers call this function in atomic context.
 	 * Do not update ab8500 registers directly till this
 	 * is fixed.
 	 */
 
-	if (!gadget) {
-		otg->gadget = NULL;
+	if ((ab->mode != USB_IDLE) && (!gadget)) {
+		ab->mode = USB_IDLE;
 		schedule_work(&ab->phy_dis_work);
-	} else {
-		otg->gadget = gadget;
-		otg->phy->state = OTG_STATE_B_IDLE;
 	}
 
 	return 0;
@@ -639,16 +638,16 @@ static int ab8500_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 
 	ab = phy_to_ab(otg->phy);
 
+	ab->phy.otg->host = host;
+
 	/* Some drivers call this function in atomic context.
 	 * Do not update ab8500 registers directly till this
 	 * is fixed.
 	 */
 
-	if (!host) {
-		otg->host = NULL;
+	if ((ab->mode != USB_IDLE) && (!host)) {
+		ab->mode = USB_IDLE;
 		schedule_work(&ab->phy_dis_work);
-	} else {
-		otg->host = host;
 	}
 
 	return 0;
