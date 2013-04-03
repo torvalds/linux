@@ -45,6 +45,7 @@
 #include "xfs_cksum.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
+#include "xfs_symlink.h"
 
 STATIC int
 xlog_find_zeroed(
@@ -2001,6 +2002,14 @@ xlog_recover_do_reg_buffer(
 			break;
 		}
 		bp->b_ops = &xfs_inode_buf_ops;
+		break;
+	case XFS_BLF_SYMLINK_BUF:
+		if (*(__be32 *)bp->b_addr != cpu_to_be32(XFS_SYMLINK_MAGIC)) {
+			xfs_warn(mp, "Bad symlink block magic!");
+			ASSERT(0);
+			break;
+		}
+		bp->b_ops = &xfs_symlink_buf_ops;
 		break;
 	default:
 		break;

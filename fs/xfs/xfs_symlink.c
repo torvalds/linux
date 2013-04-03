@@ -43,6 +43,152 @@
 #include "xfs_log_priv.h"
 #include "xfs_trace.h"
 #include "xfs_symlink.h"
+#include "xfs_cksum.h"
+#include "xfs_buf_item.h"
+
+
+/*
+ * Each contiguous block has a header, so it is not just a simple pathlen
+ * to FSB conversion.
+ */
+int
+xfs_symlink_blocks(
+	struct xfs_mount *mp,
+	int		pathlen)
+{
+	int		fsblocks = 0;
+	int		len = pathlen;
+
+	do {
+		fsblocks++;
+		len -= XFS_SYMLINK_BUF_SPACE(mp, mp->m_sb.sb_blocksize);
+	} while (len > 0);
+
+	ASSERT(fsblocks <= XFS_SYMLINK_MAPS);
+	return fsblocks;
+}
+
+static int
+xfs_symlink_hdr_set(
+	struct xfs_mount	*mp,
+	xfs_ino_t		ino,
+	uint32_t		offset,
+	uint32_t		size,
+	struct xfs_buf		*bp)
+{
+	struct xfs_dsymlink_hdr	*dsl = bp->b_addr;
+
+	if (!xfs_sb_version_hascrc(&mp->m_sb))
+		return 0;
+
+	dsl->sl_magic = cpu_to_be32(XFS_SYMLINK_MAGIC);
+	dsl->sl_offset = cpu_to_be32(offset);
+	dsl->sl_bytes = cpu_to_be32(size);
+	uuid_copy(&dsl->sl_uuid, &mp->m_sb.sb_uuid);
+	dsl->sl_owner = cpu_to_be64(ino);
+	dsl->sl_blkno = cpu_to_be64(bp->b_bn);
+	bp->b_ops = &xfs_symlink_buf_ops;
+
+	return sizeof(struct xfs_dsymlink_hdr);
+}
+
+/*
+ * Checking of the symlink header is split into two parts. the verifier does
+ * CRC, location and bounds checking, the unpacking function checks the path
+ * parameters and owner.
+ */
+bool
+xfs_symlink_hdr_ok(
+	struct xfs_mount	*mp,
+	xfs_ino_t		ino,
+	uint32_t		offset,
+	uint32_t		size,
+	struct xfs_buf		*bp)
+{
+	struct xfs_dsymlink_hdr *dsl = bp->b_addr;
+
+	if (offset != be32_to_cpu(dsl->sl_offset))
+		return false;
+	if (size != be32_to_cpu(dsl->sl_bytes))
+		return false;
+	if (ino != be64_to_cpu(dsl->sl_owner))
+		return false;
+
+	/* ok */
+	return true;
+}
+
+static bool
+xfs_symlink_verify(
+	struct xfs_buf		*bp)
+{
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_dsymlink_hdr	*dsl = bp->b_addr;
+
+	if (!xfs_sb_version_hascrc(&mp->m_sb))
+		return false;
+	if (dsl->sl_magic != cpu_to_be32(XFS_SYMLINK_MAGIC))
+		return false;
+	if (!uuid_equal(&dsl->sl_uuid, &mp->m_sb.sb_uuid))
+		return false;
+	if (bp->b_bn != be64_to_cpu(dsl->sl_blkno))
+		return false;
+	if (be32_to_cpu(dsl->sl_offset) +
+				be32_to_cpu(dsl->sl_bytes) >= MAXPATHLEN)
+		return false;
+	if (dsl->sl_owner == 0)
+		return false;
+
+	return true;
+}
+
+static void
+xfs_symlink_read_verify(
+	struct xfs_buf	*bp)
+{
+	struct xfs_mount *mp = bp->b_target->bt_mount;
+
+	/* no verification of non-crc buffers */
+	if (!xfs_sb_version_hascrc(&mp->m_sb))
+		return;
+
+	if (!xfs_verify_cksum(bp->b_addr, BBTOB(bp->b_length),
+				  offsetof(struct xfs_dsymlink_hdr, sl_crc)) ||
+	    !xfs_symlink_verify(bp)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
+}
+
+static void
+xfs_symlink_write_verify(
+	struct xfs_buf	*bp)
+{
+	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+
+	/* no verification of non-crc buffers */
+	if (!xfs_sb_version_hascrc(&mp->m_sb))
+		return;
+
+	if (!xfs_symlink_verify(bp)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		return;
+	}
+
+	if (bip) {
+		struct xfs_dsymlink_hdr *dsl = bp->b_addr;
+		dsl->sl_lsn = cpu_to_be64(bip->bli_item.li_lsn);
+	}
+	xfs_update_cksum(bp->b_addr, BBTOB(bp->b_length),
+			 offsetof(struct xfs_dsymlink_hdr, sl_crc));
+}
+
+const struct xfs_buf_ops xfs_symlink_buf_ops = {
+	.verify_read = xfs_symlink_read_verify,
+	.verify_write = xfs_symlink_write_verify,
+};
 
 void
 xfs_symlink_local_to_remote(
@@ -51,38 +197,60 @@ xfs_symlink_local_to_remote(
 	struct xfs_inode	*ip,
 	struct xfs_ifork	*ifp)
 {
-	/* remote symlink blocks are not verifiable until CRCs come along */
-	bp->b_ops = NULL;
-	memcpy(bp->b_addr, ifp->if_u1.if_data, ifp->if_bytes);
+	struct xfs_mount	*mp = ip->i_mount;
+	char			*buf;
+
+	if (!xfs_sb_version_hascrc(&mp->m_sb)) {
+		bp->b_ops = NULL;
+		memcpy(bp->b_addr, ifp->if_u1.if_data, ifp->if_bytes);
+		return;
+	}
+
+	/*
+	 * As this symlink fits in an inode literal area, it must also fit in
+	 * the smallest buffer the filesystem supports.
+	 */
+	ASSERT(BBTOB(bp->b_length) >=
+			ifp->if_bytes + sizeof(struct xfs_dsymlink_hdr));
+
+	bp->b_ops = &xfs_symlink_buf_ops;
+
+	buf = bp->b_addr;
+	buf += xfs_symlink_hdr_set(mp, ip->i_ino, 0, ifp->if_bytes, bp);
+	memcpy(buf, ifp->if_u1.if_data, ifp->if_bytes);
 }
 
 /* ----- Kernel only functions below ----- */
-
 STATIC int
 xfs_readlink_bmap(
-	xfs_inode_t	*ip,
-	char		*link)
+	struct xfs_inode	*ip,
+	char			*link)
 {
-	xfs_mount_t	*mp = ip->i_mount;
-	int		pathlen = ip->i_d.di_size;
-	int             nmaps = XFS_SYMLINK_MAPS;
-	xfs_bmbt_irec_t mval[XFS_SYMLINK_MAPS];
-	xfs_daddr_t	d;
-	int		byte_cnt;
-	int		n;
-	xfs_buf_t	*bp;
-	int		error = 0;
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_bmbt_irec	mval[XFS_SYMLINK_MAPS];
+	struct xfs_buf		*bp;
+	xfs_daddr_t		d;
+	char			*cur_chunk;
+	int			pathlen = ip->i_d.di_size;
+	int			nmaps = XFS_SYMLINK_MAPS;
+	int			byte_cnt;
+	int			n;
+	int			error = 0;
+	int			fsblocks = 0;
+	int			offset;
 
-	error = xfs_bmapi_read(ip, 0, XFS_B_TO_FSB(mp, pathlen), mval, &nmaps,
-			       0);
+	fsblocks = xfs_symlink_blocks(mp, pathlen);
+	error = xfs_bmapi_read(ip, 0, fsblocks, mval, &nmaps, 0);
 	if (error)
 		goto out;
 
+	offset = 0;
 	for (n = 0; n < nmaps; n++) {
 		d = XFS_FSB_TO_DADDR(mp, mval[n].br_startblock);
 		byte_cnt = XFS_FSB_TO_B(mp, mval[n].br_blockcount);
 
-		bp = xfs_buf_read(mp->m_ddev_targp, d, BTOBB(byte_cnt), 0, NULL);
+		bp = xfs_buf_read(mp->m_ddev_targp, d, BTOBB(byte_cnt), 0,
+				  &xfs_symlink_buf_ops);
 		if (!bp)
 			return XFS_ERROR(ENOMEM);
 		error = bp->b_error;
@@ -91,13 +259,34 @@ xfs_readlink_bmap(
 			xfs_buf_relse(bp);
 			goto out;
 		}
+		byte_cnt = XFS_SYMLINK_BUF_SPACE(mp, byte_cnt);
 		if (pathlen < byte_cnt)
 			byte_cnt = pathlen;
-		pathlen -= byte_cnt;
 
-		memcpy(link, bp->b_addr, byte_cnt);
+		cur_chunk = bp->b_addr;
+		if (xfs_sb_version_hascrc(&mp->m_sb)) {
+			if (!xfs_symlink_hdr_ok(mp, ip->i_ino, offset,
+							byte_cnt, bp)) {
+				error = EFSCORRUPTED;
+				xfs_alert(mp,
+"symlink header does not match required off/len/owner (0x%x/Ox%x,0x%llx)",
+					offset, byte_cnt, ip->i_ino);
+				xfs_buf_relse(bp);
+				goto out;
+
+			}
+
+			cur_chunk += sizeof(struct xfs_dsymlink_hdr);
+		}
+
+		memcpy(link + offset, bp->b_addr, byte_cnt);
+
+		pathlen -= byte_cnt;
+		offset += byte_cnt;
+
 		xfs_buf_relse(bp);
 	}
+	ASSERT(pathlen == 0);
 
 	link[ip->i_d.di_size] = '\0';
 	error = 0;
@@ -108,10 +297,10 @@ xfs_readlink_bmap(
 
 int
 xfs_readlink(
-	xfs_inode_t     *ip,
+	struct xfs_inode *ip,
 	char		*link)
 {
-	xfs_mount_t	*mp = ip->i_mount;
+	struct xfs_mount *mp = ip->i_mount;
 	xfs_fsize_t	pathlen;
 	int		error = 0;
 
@@ -150,26 +339,26 @@ xfs_readlink(
 
 int
 xfs_symlink(
-	xfs_inode_t		*dp,
+	struct xfs_inode	*dp,
 	struct xfs_name		*link_name,
 	const char		*target_path,
 	umode_t			mode,
-	xfs_inode_t		**ipp)
+	struct xfs_inode	**ipp)
 {
-	xfs_mount_t		*mp = dp->i_mount;
-	xfs_trans_t		*tp;
-	xfs_inode_t		*ip;
-	int			error;
+	struct xfs_mount	*mp = dp->i_mount;
+	struct xfs_trans	*tp = NULL;
+	struct xfs_inode	*ip = NULL;
+	int			error = 0;
 	int			pathlen;
-	xfs_bmap_free_t		free_list;
+	struct xfs_bmap_free	free_list;
 	xfs_fsblock_t		first_block;
-	bool                    unlock_dp_on_error = false;
+	bool			unlock_dp_on_error = false;
 	uint			cancel_flags;
 	int			committed;
 	xfs_fileoff_t		first_fsb;
 	xfs_filblks_t		fs_blocks;
 	int			nmaps;
-	xfs_bmbt_irec_t		mval[XFS_SYMLINK_MAPS];
+	struct xfs_bmbt_irec	mval[XFS_SYMLINK_MAPS];
 	xfs_daddr_t		d;
 	const char		*cur_chunk;
 	int			byte_cnt;
@@ -180,9 +369,6 @@ xfs_symlink(
 	uint			resblks;
 
 	*ipp = NULL;
-	error = 0;
-	ip = NULL;
-	tp = NULL;
 
 	trace_xfs_symlink(dp, link_name);
 
@@ -307,6 +493,8 @@ xfs_symlink(
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_DDATA | XFS_ILOG_CORE);
 
 	} else {
+		int	offset;
+
 		first_fsb = 0;
 		nmaps = XFS_SYMLINK_MAPS;
 
@@ -322,7 +510,10 @@ xfs_symlink(
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 		cur_chunk = target_path;
+		offset = 0;
 		for (n = 0; n < nmaps; n++) {
+			char *buf;
+
 			d = XFS_FSB_TO_DADDR(mp, mval[n].br_startblock);
 			byte_cnt = XFS_FSB_TO_B(mp, mval[n].br_blockcount);
 			bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, d,
@@ -331,15 +522,25 @@ xfs_symlink(
 				error = ENOMEM;
 				goto error2;
 			}
+			bp->b_ops = &xfs_symlink_buf_ops;
+
+			byte_cnt = XFS_SYMLINK_BUF_SPACE(mp, byte_cnt);
 			if (pathlen < byte_cnt) {
 				byte_cnt = pathlen;
 			}
-			pathlen -= byte_cnt;
 
-			memcpy(bp->b_addr, cur_chunk, byte_cnt);
+			buf = bp->b_addr;
+			buf += xfs_symlink_hdr_set(mp, ip->i_ino, offset,
+						   byte_cnt, bp);
+
+			memcpy(buf, cur_chunk, byte_cnt);
+
 			cur_chunk += byte_cnt;
+			pathlen -= byte_cnt;
+			offset += byte_cnt;
 
-			xfs_trans_log_buf(tp, bp, 0, byte_cnt - 1);
+			xfs_trans_log_buf(tp, bp, 0, (buf + byte_cnt - 1) -
+							(char *)bp->b_addr);
 		}
 	}
 
@@ -392,7 +593,7 @@ xfs_symlink(
 /*
  * Free a symlink that has blocks associated with it.
  */
-STATIC int
+int
 xfs_inactive_symlink_rmt(
 	xfs_inode_t	*ip,
 	xfs_trans_t	**tpp)
@@ -438,12 +639,12 @@ xfs_inactive_symlink_rmt(
 	done = 0;
 	xfs_bmap_init(&free_list, &first_block);
 	nmaps = ARRAY_SIZE(mval);
-	error = xfs_bmapi_read(ip, 0, XFS_B_TO_FSB(mp, size),
+	error = xfs_bmapi_read(ip, 0, xfs_symlink_blocks(mp, size),
 				mval, &nmaps, 0);
 	if (error)
 		goto error0;
 	/*
-	 * Invalidate the block(s).
+	 * Invalidate the block(s). No validation is done.
 	 */
 	for (i = 0; i < nmaps; i++) {
 		bp = xfs_trans_get_buf(tp, mp->m_ddev_targp,

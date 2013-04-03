@@ -49,6 +49,7 @@ extern kmem_zone_t	*xfs_buf_item_zone;
 #define XFS_BLF_AGFL_BUF	(1<<7)
 #define XFS_BLF_AGI_BUF		(1<<8)
 #define XFS_BLF_DINO_BUF	(1<<9)
+#define XFS_BLF_SYMLINK_BUF	(1<<10)
 
 #define XFS_BLF_TYPE_MASK	\
 		(XFS_BLF_UDQUOT_BUF | \
@@ -58,7 +59,8 @@ extern kmem_zone_t	*xfs_buf_item_zone;
 		 XFS_BLF_AGF_BUF | \
 		 XFS_BLF_AGFL_BUF | \
 		 XFS_BLF_AGI_BUF | \
-		 XFS_BLF_DINO_BUF)
+		 XFS_BLF_DINO_BUF | \
+		 XFS_BLF_SYMLINK_BUF)
 
 #define	XFS_BLF_CHUNK		128
 #define	XFS_BLF_SHIFT		7
