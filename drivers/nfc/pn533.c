@@ -886,6 +886,7 @@ static void pn533_wq_cmd(struct work_struct *work)
 {
 	struct pn533 *dev = container_of(work, struct pn533, cmd_work);
 	struct pn533_cmd *cmd;
+	int rc;
 
 	mutex_lock(&dev->cmd_lock);
 
@@ -901,8 +902,13 @@ static void pn533_wq_cmd(struct work_struct *work)
 
 	mutex_unlock(&dev->cmd_lock);
 
-	__pn533_send_frame_async(dev, cmd->req, cmd->resp, cmd->resp_len,
-				 pn533_send_async_complete, cmd->arg);
+	rc = __pn533_send_frame_async(dev, cmd->req, cmd->resp, cmd->resp_len,
+				      pn533_send_async_complete, cmd->arg);
+	if (rc < 0) {
+		dev_kfree_skb(cmd->req);
+		dev_kfree_skb(cmd->resp);
+		kfree(cmd->arg);
+	}
 
 	kfree(cmd);
 }
