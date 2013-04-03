@@ -32,6 +32,7 @@
 #include "xfs_alloc.h"
 #include "xfs_btree.h"
 #include "xfs_attr_sf.h"
+#include "xfs_attr_remote.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
