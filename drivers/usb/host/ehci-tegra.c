@@ -760,7 +760,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	err = usb_phy_set_suspend(hcd->phy, 0);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to power on the phy\n");
-		goto fail;
+		goto fail_phy;
 	}
 
 	tegra->host_resumed = 1;
@@ -770,7 +770,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	if (!irq) {
 		dev_err(&pdev->dev, "Failed to get IRQ\n");
 		err = -ENODEV;
-		goto fail;
+		goto fail_phy;
 	}
 
 #ifdef CONFIG_USB_OTG_UTILS
@@ -779,6 +779,8 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 			devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
 		if (!IS_ERR_OR_NULL(tegra->transceiver))
 			otg_set_host(tegra->transceiver->otg, &hcd->self);
+	} else {
+		tegra->transceiver = ERR_PTR(-ENODEV);
 	}
 #endif
 
@@ -803,6 +805,7 @@ fail:
 	if (!IS_ERR_OR_NULL(tegra->transceiver))
 		otg_set_host(tegra->transceiver->otg, NULL);
 #endif
+fail_phy:
 	usb_phy_shutdown(hcd->phy);
 fail_io:
 	clk_disable_unprepare(tegra->clk);
