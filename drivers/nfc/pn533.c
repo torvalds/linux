@@ -359,7 +359,7 @@ struct pn533 {
 
 struct pn533_cmd {
 	struct list_head queue;
-	u8 cmd_code;
+	u8 code;
 	struct sk_buff *req;
 	struct sk_buff *resp;
 	int resp_len;
@@ -503,7 +503,7 @@ static struct pn533_frame_ops pn533_std_frame_ops = {
 static bool pn533_rx_frame_is_cmd_response(struct pn533 *dev, void *frame)
 {
 	return (dev->ops->get_cmd_code(frame) ==
-				PN533_CMD_RESPONSE(dev->cmd->cmd_code));
+				PN533_CMD_RESPONSE(dev->cmd->code));
 }
 
 
@@ -737,7 +737,7 @@ static int __pn533_send_async(struct pn533 *dev, u8 cmd_code,
 	if (!cmd)
 		return -ENOMEM;
 
-	cmd->cmd_code = cmd_code;
+	cmd->code = cmd_code;
 	cmd->req = req;
 	cmd->resp = resp;
 	cmd->resp_len = resp_len;
@@ -850,7 +850,7 @@ static int pn533_send_cmd_direct_async(struct pn533 *dev, u8 cmd_code,
 		return -ENOMEM;
 	}
 
-	cmd->cmd_code = cmd_code;
+	cmd->code = cmd_code;
 	cmd->req = req;
 	cmd->resp = resp;
 	cmd->resp_len = resp_len;
