@@ -42,7 +42,7 @@ void nfs_inode_return_delegation_noreclaim(struct inode *inode);
 struct inode *nfs_delegation_find_inode(struct nfs_client *clp, const struct nfs_fh *fhandle);
 void nfs_server_return_all_delegations(struct nfs_server *);
 void nfs_expire_all_delegations(struct nfs_client *clp);
-void nfs_expire_all_delegation_types(struct nfs_client *clp, fmode_t flags);
+void nfs_expire_unused_delegation_types(struct nfs_client *clp, fmode_t flags);
 void nfs_expire_unreferenced_delegations(struct nfs_client *clp);
 int nfs_client_return_marked_delegations(struct nfs_client *clp);
 int nfs_delegations_present(struct nfs_client *clp);
