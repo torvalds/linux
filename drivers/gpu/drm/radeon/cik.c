@@ -78,6 +78,27 @@ extern void si_rlc_fini(struct radeon_device *rdev);
 extern int si_rlc_init(struct radeon_device *rdev);
 static void cik_rlc_stop(struct radeon_device *rdev);
 
+/*
+ * Indirect registers accessor
+ */
+u32 cik_pciep_rreg(struct radeon_device *rdev, u32 reg)
+{
+	u32 r;
+
+	WREG32(PCIE_INDEX, reg);
+	(void)RREG32(PCIE_INDEX);
+	r = RREG32(PCIE_DATA);
+	return r;
+}
+
+void cik_pciep_wreg(struct radeon_device *rdev, u32 reg, u32 v)
+{
+	WREG32(PCIE_INDEX, reg);
+	(void)RREG32(PCIE_INDEX);
+	WREG32(PCIE_DATA, v);
+	(void)RREG32(PCIE_DATA);
+}
+
 /**
  * cik_get_xclk - get the xclk
  *

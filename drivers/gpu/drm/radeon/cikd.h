@@ -35,6 +35,9 @@
 #define CG_CLKPIN_CNTL                                    0xC05001A0
 #       define XTALIN_DIVIDE                              (1 << 1)
 
+#define PCIE_INDEX  					0x38
+#define PCIE_DATA  					0x3C
+
 #define VGA_HDP_CONTROL  				0x328
 #define		VGA_MEMORY_DISABLE				(1 << 4)
 
