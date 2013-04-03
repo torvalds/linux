@@ -900,74 +900,6 @@ static int brcmf_fws_notify_credit_map(struct brcmf_if *ifp,
 	return 0;
 }
 
-int brcmf_fws_init(struct brcmf_pub *drvr)
-{
-	u32 tlv = 0;
-	int rc;
-
-	/* enable rssi signals */
-	if (drvr->fw_signals)
-		tlv = BRCMF_FWS_FLAGS_RSSI_SIGNALS |
-		      BRCMF_FWS_FLAGS_XONXOFF_SIGNALS |
-		      BRCMF_FWS_FLAGS_CREDIT_STATUS_SIGNALS;
-
-	spin_lock_init(&drvr->fws_spinlock);
-
-	drvr->fws = kzalloc(sizeof(*(drvr->fws)), GFP_KERNEL);
-	if (!drvr->fws) {
-		rc = -ENOMEM;
-		goto fail;
-	}
-
-	/* set linkage back */
-	drvr->fws->drvr = drvr;
-	drvr->fws->fcmode = fcmode;
-
-	/* enable proptxtstatus signaling by default */
-	rc = brcmf_fil_iovar_int_set(drvr->iflist[0], "tlv", tlv);
-	if (rc < 0) {
-		brcmf_err("failed to set bdcv2 tlv signaling\n");
-		goto fail;
-	}
-
-	if (brcmf_fweh_register(drvr, BRCMF_E_FIFO_CREDIT_MAP,
-				brcmf_fws_notify_credit_map)) {
-		brcmf_err("register credit map handler failed\n");
-		goto fail;
-	}
-
-	brcmf_fws_hanger_init(&drvr->fws->hanger);
-
-	/* create debugfs file for statistics */
-	brcmf_debugfs_create_fws_stats(drvr, &drvr->fws->stats);
-
-	/* TODO: remove upon feature delivery */
-	brcmf_err("%s bdcv2 tlv signaling [%x]\n",
-		  drvr->fw_signals ? "enabled" : "disabled", tlv);
-	return 0;
-
-fail:
-	/* disable flow control entirely */
-	drvr->fw_signals = false;
-	brcmf_fws_deinit(drvr);
-	return rc;
-}
-
-void brcmf_fws_deinit(struct brcmf_pub *drvr)
-{
-	struct brcmf_fws_info *fws = drvr->fws;
-	ulong flags;
-
-	/* cleanup */
-	brcmf_fws_lock(drvr, flags);
-	brcmf_fws_cleanup(fws, -1);
-	drvr->fws = NULL;
-	brcmf_fws_unlock(drvr, flags);
-
-	/* free top structure */
-	kfree(fws);
-}
-
 int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 		      struct sk_buff *skb)
 {
@@ -1285,6 +1217,74 @@ void brcmf_fws_del_interface(struct brcmf_if *ifp)
 	brcmf_fws_clear_mac_descriptor(entry);
 	brcmf_fws_cleanup(ifp->drvr->fws, ifp->ifidx);
 	kfree(entry);
+}
+
+int brcmf_fws_init(struct brcmf_pub *drvr)
+{
+	u32 tlv = 0;
+	int rc;
+
+	/* enable rssi signals */
+	if (drvr->fw_signals)
+		tlv = BRCMF_FWS_FLAGS_RSSI_SIGNALS |
+		      BRCMF_FWS_FLAGS_XONXOFF_SIGNALS |
+		      BRCMF_FWS_FLAGS_CREDIT_STATUS_SIGNALS;
+
+	spin_lock_init(&drvr->fws_spinlock);
+
+	drvr->fws = kzalloc(sizeof(*(drvr->fws)), GFP_KERNEL);
+	if (!drvr->fws) {
+		rc = -ENOMEM;
+		goto fail;
+	}
+
+	/* set linkage back */
+	drvr->fws->drvr = drvr;
+	drvr->fws->fcmode = fcmode;
+
+	/* enable proptxtstatus signaling by default */
+	rc = brcmf_fil_iovar_int_set(drvr->iflist[0], "tlv", tlv);
+	if (rc < 0) {
+		brcmf_err("failed to set bdcv2 tlv signaling\n");
+		goto fail;
+	}
+
+	if (brcmf_fweh_register(drvr, BRCMF_E_FIFO_CREDIT_MAP,
+				brcmf_fws_notify_credit_map)) {
+		brcmf_err("register credit map handler failed\n");
+		goto fail;
+	}
+
+	brcmf_fws_hanger_init(&drvr->fws->hanger);
+
+	/* create debugfs file for statistics */
+	brcmf_debugfs_create_fws_stats(drvr, &drvr->fws->stats);
+
+	/* TODO: remove upon feature delivery */
+	brcmf_err("%s bdcv2 tlv signaling [%x]\n",
+		  drvr->fw_signals ? "enabled" : "disabled", tlv);
+	return 0;
+
+fail:
+	/* disable flow control entirely */
+	drvr->fw_signals = false;
+	brcmf_fws_deinit(drvr);
+	return rc;
+}
+
+void brcmf_fws_deinit(struct brcmf_pub *drvr)
+{
+	struct brcmf_fws_info *fws = drvr->fws;
+	ulong flags;
+
+	/* cleanup */
+	brcmf_fws_lock(drvr, flags);
+	brcmf_fws_cleanup(fws, -1);
+	drvr->fws = NULL;
+	brcmf_fws_unlock(drvr, flags);
+
+	/* free top structure */
+	kfree(fws);
 }
 
 bool brcmf_fws_fc_active(struct brcmf_fws_info *fws)
