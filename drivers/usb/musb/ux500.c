@@ -114,7 +114,6 @@ static int musb_otg_notifications(struct notifier_block *nb,
 		break;
 	case UX500_MUSB_VBUS:
 		dev_dbg(musb->controller, "VBUS Connect\n");
-		ux500_musb_set_vbus(musb, 0);
 		break;
 	case UX500_MUSB_NONE:
 		dev_dbg(musb->controller, "VBUS Disconnect\n");

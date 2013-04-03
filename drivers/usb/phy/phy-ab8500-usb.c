@@ -578,15 +578,11 @@ static int ab8500_usb_set_power(struct usb_phy *phy, unsigned mA)
 
 	ab->vbus_draw = mA;
 
-	if (mA)
-		atomic_notifier_call_chain(&ab->phy.notifier,
-				UX500_MUSB_ENUMERATED, ab->phy.otg->gadget);
+	atomic_notifier_call_chain(&ab->phy.notifier,
+			UX500_MUSB_VBUS, &ab->vbus_draw);
+
 	return 0;
 }
-
-/* TODO: Implement some way for charging or other drivers to read
- * ab->vbus_draw.
- */
 
 static int ab8500_usb_set_suspend(struct usb_phy *x, int suspend)
 {
