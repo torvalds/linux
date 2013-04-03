@@ -1,9 +1,6 @@
 /*
  * Copyright (C) 2011 Instituto Nokia de Tecnologia
- *
- * Authors:
- *    Lauro Ramos Venancio <lauro.venancio@openbossa.org>
- *    Aloisio Almeida Jr <aloisio.almeida@openbossa.org>
+ * Copyright (C) 2012-2013 Tieto Poland
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -2607,8 +2604,9 @@ static struct usb_driver pn533_driver = {
 
 module_usb_driver(pn533_driver);
 
-MODULE_AUTHOR("Lauro Ramos Venancio <lauro.venancio@openbossa.org>,"
-			" Aloisio Almeida Jr <aloisio.almeida@openbossa.org>");
+MODULE_AUTHOR("Lauro Ramos Venancio <lauro.venancio@openbossa.org>");
+MODULE_AUTHOR("Aloisio Almeida Jr <aloisio.almeida@openbossa.org>");
+MODULE_AUTHOR("Waldemar Rymarkiewicz <waldemar.rymarkiewicz@tieto.com>");
 MODULE_DESCRIPTION("PN533 usb driver ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
