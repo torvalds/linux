@@ -303,19 +303,9 @@ struct slot_dt9812 {
 	struct comedi_dt9812 *comedi;
 };
 
-static const struct comedi_lrange dt9812_10_ain_range = { 1, {
-							      BIP_RANGE(10),
-							      }
-};
-
 static const struct comedi_lrange dt9812_2pt5_ain_range = { 1, {
 								UNI_RANGE(2.5),
 								}
-};
-
-static const struct comedi_lrange dt9812_10_aout_range = { 1, {
-							       BIP_RANGE(10),
-							       }
 };
 
 static const struct comedi_lrange dt9812_2pt5_aout_range = { 1, {
@@ -912,7 +902,7 @@ static int dt9812_comedi_open(struct comedi_device *dev)
 		switch (devpriv->slot->usb->device) {
 		case 0:{
 				s->maxdata = 4095;
-				s->range_table = &dt9812_10_ain_range;
+				s->range_table = &range_bipolar10;
 			}
 			break;
 		case 1:{
@@ -927,7 +917,7 @@ static int dt9812_comedi_open(struct comedi_device *dev)
 		switch (devpriv->slot->usb->device) {
 		case 0:{
 				s->maxdata = 4095;
-				s->range_table = &dt9812_10_aout_range;
+				s->range_table = &range_bipolar10;
 			}
 			break;
 		case 1:{
