@@ -25,6 +25,14 @@ config ARM_VIC_NR
 	  The maximum number of VICs available in the system, for
 	  power management.
 
+config RENESAS_INTC_IRQPIN
+	bool
+	select IRQ_DOMAIN
+
+config RENESAS_IRQC
+	bool
+	select IRQ_DOMAIN
+
 config VERSATILE_FPGA_IRQ
 	bool
 	select IRQ_DOMAIN
