@@ -888,8 +888,10 @@ static int ab8500_usb_remove(struct platform_device *pdev)
 
 	usb_remove_phy(&ab->phy);
 
-	ab8500_usb_host_phy_dis(ab);
-	ab8500_usb_peri_phy_dis(ab);
+	if (ab->mode == USB_HOST)
+		ab8500_usb_host_phy_dis(ab);
+	else if (ab->mode == USB_PERIPHERAL)
+		ab8500_usb_peri_phy_dis(ab);
 
 	platform_set_drvdata(pdev, NULL);
 
