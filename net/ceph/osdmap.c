@@ -654,6 +654,24 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 	return 0;
 }
 
+static int __decode_pgid(void **p, void *end, struct ceph_pg *pg)
+{
+	u8 v;
+
+	ceph_decode_need(p, end, 1+8+4+4, bad);
+	v = ceph_decode_8(p);
+	if (v != 1)
+		goto bad;
+	pg->pool = ceph_decode_64(p);
+	pg->seed = ceph_decode_32(p);
+	*p += 4; /* skip preferred */
+	return 0;
+
+bad:
+	dout("error decoding pgid\n");
+	return -EINVAL;
+}
+
 /*
  * decode a full map.
  */
@@ -745,13 +763,12 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	for (i = 0; i < len; i++) {
 		int n, j;
 		struct ceph_pg pgid;
-		struct ceph_pg_v1 pgid_v1;
 		struct ceph_pg_mapping *pg;
 
-		ceph_decode_need(p, end, sizeof(u32) + sizeof(u64), bad);
-		ceph_decode_copy(p, &pgid_v1, sizeof(pgid_v1));
-		pgid.pool = le32_to_cpu(pgid_v1.pool);
-		pgid.seed = le16_to_cpu(pgid_v1.ps);
+		err = __decode_pgid(p, end, &pgid);
+		if (err)
+			goto bad;
+		ceph_decode_need(p, end, sizeof(u32), bad);
 		n = ceph_decode_32(p);
 		err = -EINVAL;
 		if (n > (UINT_MAX - sizeof(*pg)) / sizeof(u32))
@@ -818,8 +835,8 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	u16 version;
 
 	ceph_decode_16_safe(p, end, version, bad);
-	if (version > 6) {
-		pr_warning("got unknown v %d > %d of inc osdmap\n", version, 6);
+	if (version != 6) {
+		pr_warning("got unknown v %d != 6 of inc osdmap\n", version);
 		goto bad;
 	}
 
@@ -963,15 +980,14 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	while (len--) {
 		struct ceph_pg_mapping *pg;
 		int j;
-		struct ceph_pg_v1 pgid_v1;
 		struct ceph_pg pgid;
 		u32 pglen;
-		ceph_decode_need(p, end, sizeof(u64) + sizeof(u32), bad);
-		ceph_decode_copy(p, &pgid_v1, sizeof(pgid_v1));
-		pgid.pool = le32_to_cpu(pgid_v1.pool);
-		pgid.seed = le16_to_cpu(pgid_v1.ps);
-		pglen = ceph_decode_32(p);
 
+		err = __decode_pgid(p, end, &pgid);
+		if (err)
+			goto bad;
+		ceph_decode_need(p, end, sizeof(u32), bad);
+		pglen = ceph_decode_32(p);
 		if (pglen) {
 			ceph_decode_need(p, end, pglen*sizeof(u32), bad);
 
