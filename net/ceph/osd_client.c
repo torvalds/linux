@@ -1293,6 +1293,7 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	u64 reassert_version;
 	u32 osdmap_epoch;
 	int already_completed;
+	u32 bytes;
 	int i;
 
 	tid = le64_to_cpu(msg->hdr.tid);
@@ -1347,9 +1348,10 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 		payload_len += len;
 		p += sizeof(*op);
 	}
-	if (payload_len != le32_to_cpu(msg->hdr.data_len)) {
+	bytes = le32_to_cpu(msg->hdr.data_len);
+	if (payload_len != bytes) {
 		pr_warning("sum of op payload lens %d != data_len %d",
-			   payload_len, le32_to_cpu(msg->hdr.data_len));
+			   payload_len, bytes);
 		goto bad_put;
 	}
 
@@ -1359,10 +1361,8 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 		req->r_reply_op_result[i] = ceph_decode_32(&p);
 
 	if (!req->r_got_reply) {
-		unsigned int bytes;
 
 		req->r_result = result;
-		bytes = le32_to_cpu(msg->hdr.data_len);
 		dout("handle_reply result %d bytes %d\n", req->r_result,
 		     bytes);
 		if (req->r_result == 0)
