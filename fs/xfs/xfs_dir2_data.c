@@ -301,8 +301,13 @@ xfs_dir3_data_read(
 	xfs_daddr_t		mapped_bno,
 	struct xfs_buf		**bpp)
 {
-	return xfs_da_read_buf(tp, dp, bno, mapped_bno, bpp,
+	int			err;
+
+	err = xfs_da_read_buf(tp, dp, bno, mapped_bno, bpp,
 				XFS_DATA_FORK, &xfs_dir3_data_buf_ops);
+	if (!err && tp)
+		xfs_trans_buf_set_type(tp, *bpp, XFS_BLF_DIR_DATA_BUF);
+	return err;
 }
 
 int
@@ -571,6 +576,7 @@ xfs_dir3_data_init(
 	if (error)
 		return error;
 	bp->b_ops = &xfs_dir3_data_buf_ops;
+	xfs_trans_buf_set_type(tp, bp, XFS_BLF_DIR_DATA_BUF);
 
 	/*
 	 * Initialize the header.

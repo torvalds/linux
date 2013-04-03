@@ -279,7 +279,7 @@ xfs_dir3_leafn_write_verify(
 	__write_verify(bp, XFS_DIR2_LEAFN_MAGIC);
 }
 
-static const struct xfs_buf_ops xfs_dir3_leaf1_buf_ops = {
+const struct xfs_buf_ops xfs_dir3_leaf1_buf_ops = {
 	.verify_read = xfs_dir3_leaf1_read_verify,
 	.verify_write = xfs_dir3_leaf1_write_verify,
 };
@@ -297,8 +297,13 @@ xfs_dir3_leaf_read(
 	xfs_daddr_t		mappedbno,
 	struct xfs_buf		**bpp)
 {
-	return xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
+	int			err;
+
+	err = xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
 				XFS_DATA_FORK, &xfs_dir3_leaf1_buf_ops);
+	if (!err && tp)
+		xfs_trans_buf_set_type(tp, *bpp, XFS_BLF_DIR_LEAF1_BUF);
+	return err;
 }
 
 int
@@ -309,8 +314,13 @@ xfs_dir3_leafn_read(
 	xfs_daddr_t		mappedbno,
 	struct xfs_buf		**bpp)
 {
-	return xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
+	int			err;
+
+	err = xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
 				XFS_DATA_FORK, &xfs_dir3_leafn_buf_ops);
+	if (!err && tp)
+		xfs_trans_buf_set_type(tp, *bpp, XFS_BLF_DIR_LEAFN_BUF);
+	return err;
 }
 
 /*
@@ -319,6 +329,7 @@ xfs_dir3_leafn_read(
 static void
 xfs_dir3_leaf_init(
 	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
 	struct xfs_buf		*bp,
 	xfs_ino_t		owner,
 	__uint16_t		type)
@@ -353,8 +364,11 @@ xfs_dir3_leaf_init(
 		ltp = xfs_dir2_leaf_tail_p(mp, leaf);
 		ltp->bestcount = 0;
 		bp->b_ops = &xfs_dir3_leaf1_buf_ops;
-	} else
+		xfs_trans_buf_set_type(tp, bp, XFS_BLF_DIR_LEAF1_BUF);
+	} else {
 		bp->b_ops = &xfs_dir3_leafn_buf_ops;
+		xfs_trans_buf_set_type(tp, bp, XFS_BLF_DIR_LEAFN_BUF);
+	}
 }
 
 int
@@ -379,7 +393,7 @@ xfs_dir3_leaf_get_buf(
 	if (error)
 		return error;
 
-	xfs_dir3_leaf_init(mp, bp, dp->i_ino, magic);
+	xfs_dir3_leaf_init(mp, tp, bp, dp->i_ino, magic);
 	xfs_dir3_leaf_log_header(tp, bp);
 	if (magic == XFS_DIR2_LEAF1_MAGIC)
 		xfs_dir3_leaf_log_tail(tp, bp);
@@ -474,6 +488,7 @@ xfs_dir2_block_to_leaf(
 	 * Fix up the block header, make it a data block.
 	 */
 	dbp->b_ops = &xfs_dir3_data_buf_ops;
+	xfs_trans_buf_set_type(tp, dbp, XFS_BLF_DIR_DATA_BUF);
 	if (hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC))
 		hdr->magic = cpu_to_be32(XFS_DIR2_DATA_MAGIC);
 	else
@@ -2182,6 +2197,7 @@ xfs_dir2_node_to_leaf(
 		xfs_dir3_leaf_compact(args, &leafhdr, lbp);
 
 	lbp->b_ops = &xfs_dir3_leaf1_buf_ops;
+	xfs_trans_buf_set_type(tp, lbp, XFS_BLF_DIR_LEAF1_BUF);
 	leafhdr.magic = (leafhdr.magic == XFS_DIR2_LEAFN_MAGIC)
 					? XFS_DIR2_LEAF1_MAGIC
 					: XFS_DIR3_LEAF1_MAGIC;

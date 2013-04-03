@@ -132,20 +132,26 @@ xfs_dir3_block_read(
 	struct xfs_buf		**bpp)
 {
 	struct xfs_mount	*mp = dp->i_mount;
+	int			err;
 
-	return xfs_da_read_buf(tp, dp, mp->m_dirdatablk, -1, bpp,
+	err = xfs_da_read_buf(tp, dp, mp->m_dirdatablk, -1, bpp,
 				XFS_DATA_FORK, &xfs_dir3_block_buf_ops);
+	if (!err && tp)
+		xfs_trans_buf_set_type(tp, *bpp, XFS_BLF_DIR_BLOCK_BUF);
+	return err;
 }
 
 static void
 xfs_dir3_block_init(
 	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
 	struct xfs_buf		*bp,
 	struct xfs_inode	*dp)
 {
 	struct xfs_dir3_blk_hdr *hdr3 = bp->b_addr;
 
 	bp->b_ops = &xfs_dir3_block_buf_ops;
+	xfs_trans_buf_set_type(tp, bp, XFS_BLF_DIR_BLOCK_BUF);
 
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		memset(hdr3, 0, sizeof(*hdr3));
@@ -1080,7 +1086,7 @@ xfs_dir2_leaf_to_block(
 	/*
 	 * Start converting it to block form.
 	 */
-	xfs_dir3_block_init(mp, dbp, dp);
+	xfs_dir3_block_init(mp, tp, dbp, dp);
 
 	needlog = 1;
 	needscan = 0;
@@ -1209,7 +1215,7 @@ xfs_dir2_sf_to_block(
 		kmem_free(sfp);
 		return error;
 	}
-	xfs_dir3_block_init(mp, bp, dp);
+	xfs_dir3_block_init(mp, tp, bp, dp);
 	hdr = bp->b_addr;
 
 	/*

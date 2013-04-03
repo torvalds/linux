@@ -292,7 +292,6 @@ const struct xfs_buf_ops xfs_da3_node_buf_ops = {
 	.verify_write = xfs_da3_node_write_verify,
 };
 
-
 int
 xfs_da3_node_read(
 	struct xfs_trans	*tp,
@@ -302,8 +301,35 @@ xfs_da3_node_read(
 	struct xfs_buf		**bpp,
 	int			which_fork)
 {
-	return xfs_da_read_buf(tp, dp, bno, mappedbno, bpp,
+	int			err;
+
+	err = xfs_da_read_buf(tp, dp, bno, mappedbno, bpp,
 					which_fork, &xfs_da3_node_buf_ops);
+	if (!err && tp) {
+		struct xfs_da_blkinfo	*info = (*bpp)->b_addr;
+		int			type;
+
+		switch (be16_to_cpu(info->magic)) {
+		case XFS_DA3_NODE_MAGIC:
+		case XFS_DA_NODE_MAGIC:
+			type = XFS_BLF_DA_NODE_BUF;
+			break;
+		case XFS_ATTR_LEAF_MAGIC:
+		case XFS_ATTR3_LEAF_MAGIC:
+			type = XFS_BLF_ATTR_LEAF_BUF;
+			break;
+		case XFS_DIR2_LEAFN_MAGIC:
+		case XFS_DIR3_LEAFN_MAGIC:
+			type = XFS_BLF_DIR_LEAFN_BUF;
+			break;
+		default:
+			type = 0;
+			ASSERT(0);
+			break;
+		}
+		xfs_trans_buf_set_type(tp, *bpp, type);
+	}
+	return err;
 }
 
 /*========================================================================
@@ -334,6 +360,8 @@ xfs_da3_node_create(
 	error = xfs_da_get_buf(tp, args->dp, blkno, -1, &bp, whichfork);
 	if (error)
 		return(error);
+	bp->b_ops = &xfs_da3_node_buf_ops;
+	xfs_trans_buf_set_type(tp, bp, XFS_BLF_DA_NODE_BUF);
 	node = bp->b_addr;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
@@ -352,7 +380,6 @@ xfs_da3_node_create(
 	xfs_trans_log_buf(tp, bp,
 		XFS_DA_LOGRANGE(node, &node->hdr, xfs_da3_node_hdr_size(node)));
 
-	bp->b_ops = &xfs_da3_node_buf_ops;
 	*bpp = bp;
 	return(0);
 }
@@ -565,6 +592,12 @@ xfs_da3_root_split(
 		btree = xfs_da3_node_tree_p(oldroot);
 		size = (int)((char *)&btree[nodehdr.count] - (char *)oldroot);
 		level = nodehdr.level;
+
+		/*
+		 * we are about to copy oldroot to bp, so set up the type
+		 * of bp while we know exactly what it will be.
+		 */
+		xfs_trans_buf_set_type(tp, bp, XFS_BLF_DA_NODE_BUF);
 	} else {
 		struct xfs_dir3_icleaf_hdr leafhdr;
 		struct xfs_dir2_leaf_entry *ents;
@@ -577,6 +610,12 @@ xfs_da3_root_split(
 		       leafhdr.magic == XFS_DIR3_LEAFN_MAGIC);
 		size = (int)((char *)&ents[leafhdr.count] - (char *)leaf);
 		level = 0;
+
+		/*
+		 * we are about to copy oldroot to bp, so set up the type
+		 * of bp while we know exactly what it will be.
+		 */
+		xfs_trans_buf_set_type(tp, bp, XFS_BLF_DIR_LEAFN_BUF);
 	}
 
 	/*
@@ -1092,6 +1131,7 @@ xfs_da3_root_join(
 	 */
 	memcpy(root_blk->bp->b_addr, bp->b_addr, state->blocksize);
 	root_blk->bp->b_ops = bp->b_ops;
+	xfs_trans_buf_copy_type(root_blk->bp, bp);
 	if (oldroothdr.magic == XFS_DA3_NODE_MAGIC) {
 		struct xfs_da3_blkinfo *da3 = root_blk->bp->b_addr;
 		da3->blkno = cpu_to_be64(root_blk->bp->b_bn);

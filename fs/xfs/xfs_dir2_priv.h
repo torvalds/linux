@@ -49,6 +49,7 @@ extern int xfs_dir2_leaf_to_block(struct xfs_da_args *args,
 #endif
 
 extern const struct xfs_buf_ops xfs_dir3_data_buf_ops;
+extern const struct xfs_buf_ops xfs_dir3_free_buf_ops;
 
 extern int __xfs_dir3_data_check(struct xfs_inode *dp, struct xfs_buf *bp);
 extern int xfs_dir3_data_read(struct xfs_trans *tp, struct xfs_inode *dp,
@@ -77,6 +78,7 @@ extern void xfs_dir2_data_use_free(struct xfs_trans *tp, struct xfs_buf *bp,
 		xfs_dir2_data_aoff_t len, int *needlogp, int *needscanp);
 
 /* xfs_dir2_leaf.c */
+extern const struct xfs_buf_ops xfs_dir3_leaf1_buf_ops;
 extern const struct xfs_buf_ops xfs_dir3_leafn_buf_ops;
 
 extern int xfs_dir3_leafn_read(struct xfs_trans *tp, struct xfs_inode *dp,

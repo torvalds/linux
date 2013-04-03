@@ -768,6 +768,9 @@ xfs_trans_buf_set_type(
 {
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 
+	if (!tp)
+		return;
+
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
@@ -775,6 +778,20 @@ xfs_trans_buf_set_type(
 
 	bip->__bli_format.blf_flags &= ~XFS_BLF_TYPE_MASK;
 	bip->__bli_format.blf_flags |= type;
+}
+
+void
+xfs_trans_buf_copy_type(
+	struct xfs_buf		*dst_bp,
+	struct xfs_buf		*src_bp)
+{
+	struct xfs_buf_log_item	*sbip = src_bp->b_fspriv;
+	struct xfs_buf_log_item	*dbip = dst_bp->b_fspriv;
+	uint			type;
+
+	type = sbip->__bli_format.blf_flags & XFS_BLF_TYPE_MASK;
+	dbip->__bli_format.blf_flags &= ~XFS_BLF_TYPE_MASK;
+	dbip->__bli_format.blf_flags |= type;
 }
 
 /*

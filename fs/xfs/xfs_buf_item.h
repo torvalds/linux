@@ -50,6 +50,14 @@ extern kmem_zone_t	*xfs_buf_item_zone;
 #define XFS_BLF_AGI_BUF		(1<<8)
 #define XFS_BLF_DINO_BUF	(1<<9)
 #define XFS_BLF_SYMLINK_BUF	(1<<10)
+#define XFS_BLF_DIR_BLOCK_BUF	(1<<11)
+#define XFS_BLF_DIR_DATA_BUF	(1<<12)
+#define XFS_BLF_DIR_FREE_BUF	(1<<13)
+#define XFS_BLF_DIR_LEAF1_BUF	(1<<14)
+#define XFS_BLF_DIR_LEAFN_BUF	(1<<15)
+#define XFS_BLF_DA_NODE_BUF	(1<<16)
+#define XFS_BLF_ATTR_LEAF_BUF	(1<<17)
+#define XFS_BLF_ATTR_RMT_BUF	(1<<18)
 
 #define XFS_BLF_TYPE_MASK	\
 		(XFS_BLF_UDQUOT_BUF | \
@@ -60,7 +68,15 @@ extern kmem_zone_t	*xfs_buf_item_zone;
 		 XFS_BLF_AGFL_BUF | \
 		 XFS_BLF_AGI_BUF | \
 		 XFS_BLF_DINO_BUF | \
-		 XFS_BLF_SYMLINK_BUF)
+		 XFS_BLF_SYMLINK_BUF | \
+		 XFS_BLF_DIR_BLOCK_BUF | \
+		 XFS_BLF_DIR_DATA_BUF | \
+		 XFS_BLF_DIR_FREE_BUF | \
+		 XFS_BLF_DIR_LEAF1_BUF | \
+		 XFS_BLF_DIR_LEAFN_BUF | \
+		 XFS_BLF_DA_NODE_BUF | \
+		 XFS_BLF_ATTR_LEAF_BUF | \
+		 XFS_BLF_ATTR_RMT_BUF)
 
 #define	XFS_BLF_CHUNK		128
 #define	XFS_BLF_SHIFT		7
