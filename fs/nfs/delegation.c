@@ -514,6 +514,33 @@ static bool nfs_server_mark_return_all_delegations(struct nfs_server *server)
 	return ret;
 }
 
+static void nfs_client_mark_return_all_delegations(struct nfs_client *clp)
+{
+	struct nfs_server *server;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link)
+		nfs_server_mark_return_all_delegations(server);
+	rcu_read_unlock();
+}
+
+static void nfs_delegation_run_state_manager(struct nfs_client *clp)
+{
+	if (test_bit(NFS4CLNT_DELEGRETURN, &clp->cl_state))
+		nfs4_schedule_state_manager(clp);
+}
+
+/**
+ * nfs_expire_all_delegations
+ * @clp: client to process
+ *
+ */
+void nfs_expire_all_delegations(struct nfs_client *clp)
+{
+	nfs_client_mark_return_all_delegations(clp);
+	nfs_delegation_run_state_manager(clp);
+}
+
 /**
  * nfs_super_return_all_delegations - return delegations for one superblock
  * @sb: sb to process
@@ -561,12 +588,6 @@ static void nfs_client_mark_return_all_delegation_types(struct nfs_client *clp,
 	rcu_read_unlock();
 }
 
-static void nfs_delegation_run_state_manager(struct nfs_client *clp)
-{
-	if (test_bit(NFS4CLNT_DELEGRETURN, &clp->cl_state))
-		nfs4_schedule_state_manager(clp);
-}
-
 void nfs_remove_bad_delegation(struct inode *inode)
 {
 	struct nfs_delegation *delegation;
@@ -589,16 +610,6 @@ void nfs_expire_all_delegation_types(struct nfs_client *clp, fmode_t flags)
 {
 	nfs_client_mark_return_all_delegation_types(clp, flags);
 	nfs_delegation_run_state_manager(clp);
-}
-
-/**
- * nfs_expire_all_delegations
- * @clp: client to process
- *
- */
-void nfs_expire_all_delegations(struct nfs_client *clp)
-{
-	nfs_expire_all_delegation_types(clp, FMODE_READ|FMODE_WRITE);
 }
 
 static void nfs_mark_return_unreferenced_delegations(struct nfs_server *server)
