@@ -1550,6 +1550,11 @@ static int pn533_poll_complete(struct pn533 *dev, void *arg,
 	if (!rc)
 		goto done;
 
+	if (!dev->poll_mod_count) {
+		nfc_dev_dbg(&dev->interface->dev, "Polling has been stoped.");
+		goto done;
+	}
+
 	pn533_poll_next_mod(dev);
 	queue_work(dev->wq, &dev->poll_work);
 
