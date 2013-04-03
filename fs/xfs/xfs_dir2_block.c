@@ -77,7 +77,7 @@ xfs_dir3_block_verify(
 		if (hdr3->magic != cpu_to_be32(XFS_DIR2_BLOCK_MAGIC))
 			return false;
 	}
-	if (__xfs_dir2_data_check(NULL, bp))
+	if (__xfs_dir3_data_check(NULL, bp))
 		return false;
 	return true;
 }
@@ -553,7 +553,7 @@ xfs_dir2_block_addname(
 		xfs_dir2_data_log_header(tp, bp);
 	xfs_dir2_block_log_tail(tp, bp);
 	xfs_dir2_data_log_entry(tp, bp, dep);
-	xfs_dir2_data_check(dp, bp);
+	xfs_dir3_data_check(dp, bp);
 	return 0;
 }
 
@@ -596,7 +596,7 @@ xfs_dir2_block_getdents(
 	 */
 	wantoff = xfs_dir2_dataptr_to_off(mp, *offset);
 	hdr = bp->b_addr;
-	xfs_dir2_data_check(dp, bp);
+	xfs_dir3_data_check(dp, bp);
 	/*
 	 * Set up values for the loop.
 	 */
@@ -720,7 +720,7 @@ xfs_dir2_block_lookup(
 	dp = args->dp;
 	mp = dp->i_mount;
 	hdr = bp->b_addr;
-	xfs_dir2_data_check(dp, bp);
+	xfs_dir3_data_check(dp, bp);
 	btp = xfs_dir2_block_tail_p(mp, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
 	/*
@@ -771,7 +771,7 @@ xfs_dir2_block_lookup_int(
 		return error;
 
 	hdr = bp->b_addr;
-	xfs_dir2_data_check(dp, bp);
+	xfs_dir3_data_check(dp, bp);
 	btp = xfs_dir2_block_tail_p(mp, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
 	/*
@@ -908,7 +908,7 @@ xfs_dir2_block_removename(
 		xfs_dir2_data_freescan(mp, hdr, &needlog);
 	if (needlog)
 		xfs_dir2_data_log_header(tp, bp);
-	xfs_dir2_data_check(dp, bp);
+	xfs_dir3_data_check(dp, bp);
 	/*
 	 * See if the size as a shortform is good enough.
 	 */
@@ -965,7 +965,7 @@ xfs_dir2_block_replace(
 	 */
 	dep->inumber = cpu_to_be64(args->inumber);
 	xfs_dir2_data_log_entry(args->trans, bp, dep);
-	xfs_dir2_data_check(dp, bp);
+	xfs_dir3_data_check(dp, bp);
 	return 0;
 }
 
@@ -1046,12 +1046,14 @@ xfs_dir2_leaf_to_block(
 	 * Read the data block if we don't already have it, give up if it fails.
 	 */
 	if (!dbp) {
-		error = xfs_dir2_data_read(tp, dp, mp->m_dirdatablk, -1, &dbp);
+		error = xfs_dir3_data_read(tp, dp, mp->m_dirdatablk, -1, &dbp);
 		if (error)
 			return error;
 	}
 	hdr = dbp->b_addr;
-	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC));
+	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
+	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC));
+
 	/*
 	 * Size of the "leaf" area in the block.
 	 */
@@ -1329,6 +1331,6 @@ xfs_dir2_sf_to_block(
 	ASSERT(needscan == 0);
 	xfs_dir2_block_log_leaf(tp, bp, 0, be32_to_cpu(btp->count) - 1);
 	xfs_dir2_block_log_tail(tp, bp);
-	xfs_dir2_data_check(dp, bp);
+	xfs_dir3_data_check(dp, bp);
 	return 0;
 }

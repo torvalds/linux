@@ -753,13 +753,13 @@ xfs_dir2_leafn_lookup_for_entry(
 				ASSERT(state->extravalid);
 				curbp = state->extrablk.bp;
 			} else {
-				error = xfs_dir2_data_read(tp, dp,
+				error = xfs_dir3_data_read(tp, dp,
 						xfs_dir2_db_to_da(mp, newdb),
 						-1, &curbp);
 				if (error)
 					return error;
 			}
-			xfs_dir2_data_check(dp, curbp);
+			xfs_dir3_data_check(dp, curbp);
 			curdb = newdb;
 		}
 		/*
@@ -787,7 +787,7 @@ xfs_dir2_leafn_lookup_for_entry(
 			state->extrablk.index = (int)((char *)dep -
 							(char *)curbp->b_addr);
 			state->extrablk.magic = XFS_DIR2_DATA_MAGIC;
-			curbp->b_ops = &xfs_dir2_data_buf_ops;
+			curbp->b_ops = &xfs_dir3_data_buf_ops;
 			if (cmp == XFS_CMP_EXACT)
 				return XFS_ERROR(EEXIST);
 		}
@@ -802,7 +802,7 @@ xfs_dir2_leafn_lookup_for_entry(
 			state->extrablk.index = -1;
 			state->extrablk.blkno = curdb;
 			state->extrablk.magic = XFS_DIR2_DATA_MAGIC;
-			curbp->b_ops = &xfs_dir2_data_buf_ops;
+			curbp->b_ops = &xfs_dir3_data_buf_ops;
 		} else {
 			/* If the curbp is not the CI match block, drop it */
 			if (state->extrablk.bp != curbp)
@@ -1152,6 +1152,7 @@ xfs_dir2_leafn_remove(
 	int			needlog;	/* need to log data header */
 	int			needscan;	/* need to rescan data frees */
 	xfs_trans_t		*tp;		/* transaction pointer */
+	struct xfs_dir2_data_free *bf;		/* bestfree table */
 
 	trace_xfs_dir2_leafn_remove(args, index);
 
@@ -1186,7 +1187,8 @@ xfs_dir2_leafn_remove(
 	dbp = dblk->bp;
 	hdr = dbp->b_addr;
 	dep = (xfs_dir2_data_entry_t *)((char *)hdr + off);
-	longest = be16_to_cpu(hdr->bestfree[0].length);
+	bf = xfs_dir3_data_bestfree_p(hdr);
+	longest = be16_to_cpu(bf[0].length);
 	needlog = needscan = 0;
 	xfs_dir2_data_make_free(tp, dbp, off,
 		xfs_dir2_data_entsize(dep->namelen), &needlog, &needscan);
@@ -1198,12 +1200,12 @@ xfs_dir2_leafn_remove(
 		xfs_dir2_data_freescan(mp, hdr, &needlog);
 	if (needlog)
 		xfs_dir2_data_log_header(tp, dbp);
-	xfs_dir2_data_check(dp, dbp);
+	xfs_dir3_data_check(dp, dbp);
 	/*
 	 * If the longest data block freespace changes, need to update
 	 * the corresponding freeblock entry.
 	 */
-	if (longest < be16_to_cpu(hdr->bestfree[0].length)) {
+	if (longest < be16_to_cpu(bf[0].length)) {
 		int		error;		/* error return value */
 		struct xfs_buf	*fbp;		/* freeblock buffer */
 		xfs_dir2_db_t	fdb;		/* freeblock block number */
@@ -1232,12 +1234,13 @@ xfs_dir2_leafn_remove(
 		 * Calculate which entry we need to fix.
 		 */
 		findex = xfs_dir2_db_to_fdindex(mp, db);
-		longest = be16_to_cpu(hdr->bestfree[0].length);
+		longest = be16_to_cpu(bf[0].length);
 		/*
 		 * If the data block is now empty we can get rid of it
 		 * (usually).
 		 */
-		if (longest == mp->m_dirblksize - (uint)sizeof(*hdr)) {
+		if (longest == mp->m_dirblksize -
+			       xfs_dir3_data_entry_offset(hdr)) {
 			/*
 			 * Try to punch out the data block.
 			 */
@@ -1611,6 +1614,7 @@ xfs_dir2_node_addname_int(
 	xfs_trans_t		*tp;		/* transaction pointer */
 	__be16			*bests;
 	struct xfs_dir3_icfree_hdr freehdr;
+	struct xfs_dir2_data_free *bf;
 
 	dp = args->dp;
 	mp = dp->i_mount;
@@ -1868,7 +1872,8 @@ xfs_dir2_node_addname_int(
 		 * change again.
 		 */
 		hdr = dbp->b_addr;
-		bests[findex] = hdr->bestfree[0].length;
+		bf = xfs_dir3_data_bestfree_p(hdr);
+		bests[findex] = bf[0].length;
 		logfree = 1;
 	}
 	/*
@@ -1884,19 +1889,20 @@ xfs_dir2_node_addname_int(
 		/*
 		 * Read the data block in.
 		 */
-		error = xfs_dir2_data_read(tp, dp, xfs_dir2_db_to_da(mp, dbno),
+		error = xfs_dir3_data_read(tp, dp, xfs_dir2_db_to_da(mp, dbno),
 					   -1, &dbp);
 		if (error)
 			return error;
 		hdr = dbp->b_addr;
+		bf = xfs_dir3_data_bestfree_p(hdr);
 		logfree = 0;
 	}
-	ASSERT(be16_to_cpu(hdr->bestfree[0].length) >= length);
+	ASSERT(be16_to_cpu(bf[0].length) >= length);
 	/*
 	 * Point to the existing unused space.
 	 */
 	dup = (xfs_dir2_data_unused_t *)
-	      ((char *)hdr + be16_to_cpu(hdr->bestfree[0].offset));
+	      ((char *)hdr + be16_to_cpu(bf[0].offset));
 	needscan = needlog = 0;
 	/*
 	 * Mark the first part of the unused space, inuse for us.
@@ -1928,8 +1934,8 @@ xfs_dir2_node_addname_int(
 	 * If the freespace entry is now wrong, update it.
 	 */
 	bests = xfs_dir3_free_bests_p(mp, free); /* gcc is so stupid */
-	if (be16_to_cpu(bests[findex]) != be16_to_cpu(hdr->bestfree[0].length)) {
-		bests[findex] = hdr->bestfree[0].length;
+	if (be16_to_cpu(bests[findex]) != be16_to_cpu(bf[0].length)) {
+		bests[findex] = bf[0].length;
 		logfree = 1;
 	}
 	/*
@@ -2119,7 +2125,8 @@ xfs_dir2_node_replace(
 		 * Point to the data entry.
 		 */
 		hdr = state->extrablk.bp->b_addr;
-		ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC));
+		ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
+		       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC));
 		dep = (xfs_dir2_data_entry_t *)
 		      ((char *)hdr +
 		       xfs_dir2_dataptr_to_off(state->mp, be32_to_cpu(lep->address)));

@@ -31,6 +31,8 @@
 #include "xfs_dir2_format.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_error.h"
+#include "xfs_buf_item.h"
+#include "xfs_cksum.h"
 
 STATIC xfs_dir2_data_free_t *
 xfs_dir2_data_freefind(xfs_dir2_data_hdr_t *hdr, xfs_dir2_data_unused_t *dup);
@@ -41,7 +43,7 @@ xfs_dir2_data_freefind(xfs_dir2_data_hdr_t *hdr, xfs_dir2_data_unused_t *dup);
  * Return 0 is the buffer is good, otherwise an error.
  */
 int
-__xfs_dir2_data_check(
+__xfs_dir3_data_check(
 	struct xfs_inode	*dp,		/* incore inode pointer */
 	struct xfs_buf		*bp)		/* data block's buffer */
 {
@@ -76,6 +78,7 @@ __xfs_dir2_data_check(
 		lep = xfs_dir2_block_leaf_p(btp);
 		endp = (char *)lep;
 		break;
+	case cpu_to_be32(XFS_DIR3_DATA_MAGIC):
 	case cpu_to_be32(XFS_DIR2_DATA_MAGIC):
 		endp = (char *)hdr + mp->m_dirblksize;
 		break;
@@ -189,21 +192,27 @@ __xfs_dir2_data_check(
 	return 0;
 }
 
-static void
-xfs_dir2_data_verify(
+static bool
+xfs_dir3_data_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
-	struct xfs_dir2_data_hdr *hdr = bp->b_addr;
-	int			block_ok = 0;
+	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
 
-	block_ok = hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC);
-	block_ok = block_ok && __xfs_dir2_data_check(NULL, bp) == 0;
-
-	if (!block_ok) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, hdr);
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		if (hdr3->magic != cpu_to_be32(XFS_DIR3_DATA_MAGIC))
+			return false;
+		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_uuid))
+			return false;
+		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
+			return false;
+	} else {
+		if (hdr3->magic != cpu_to_be32(XFS_DIR2_DATA_MAGIC))
+			return false;
 	}
+	if (__xfs_dir3_data_check(NULL, bp))
+		return false;
+	return true;
 }
 
 /*
@@ -212,7 +221,7 @@ xfs_dir2_data_verify(
  * format buffer or a data format buffer on readahead.
  */
 static void
-xfs_dir2_data_reada_verify(
+xfs_dir3_data_reada_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
@@ -225,7 +234,8 @@ xfs_dir2_data_reada_verify(
 		bp->b_ops->verify_read(bp);
 		return;
 	case cpu_to_be32(XFS_DIR2_DATA_MAGIC):
-		xfs_dir2_data_verify(bp);
+	case cpu_to_be32(XFS_DIR3_DATA_MAGIC):
+		xfs_dir3_data_verify(bp);
 		return;
 	default:
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, hdr);
@@ -235,32 +245,56 @@ xfs_dir2_data_reada_verify(
 }
 
 static void
-xfs_dir2_data_read_verify(
+xfs_dir3_data_read_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_dir2_data_verify(bp);
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+
+	if ((xfs_sb_version_hascrc(&mp->m_sb) &&
+	     !xfs_verify_cksum(bp->b_addr, BBTOB(bp->b_length),
+					  XFS_DIR3_DATA_CRC_OFF)) ||
+	    !xfs_dir3_data_verify(bp)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
 }
 
 static void
-xfs_dir2_data_write_verify(
+xfs_dir3_data_write_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_dir2_data_verify(bp);
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
+
+	if (!xfs_dir3_data_verify(bp)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		return;
+	}
+
+	if (!xfs_sb_version_hascrc(&mp->m_sb))
+		return;
+
+	if (bip)
+		hdr3->lsn = cpu_to_be64(bip->bli_item.li_lsn);
+
+	xfs_update_cksum(bp->b_addr, BBTOB(bp->b_length), XFS_DIR3_DATA_CRC_OFF);
 }
 
-const struct xfs_buf_ops xfs_dir2_data_buf_ops = {
-	.verify_read = xfs_dir2_data_read_verify,
-	.verify_write = xfs_dir2_data_write_verify,
+const struct xfs_buf_ops xfs_dir3_data_buf_ops = {
+	.verify_read = xfs_dir3_data_read_verify,
+	.verify_write = xfs_dir3_data_write_verify,
 };
 
-static const struct xfs_buf_ops xfs_dir2_data_reada_buf_ops = {
-	.verify_read = xfs_dir2_data_reada_verify,
-	.verify_write = xfs_dir2_data_write_verify,
+static const struct xfs_buf_ops xfs_dir3_data_reada_buf_ops = {
+	.verify_read = xfs_dir3_data_reada_verify,
+	.verify_write = xfs_dir3_data_write_verify,
 };
 
 
 int
-xfs_dir2_data_read(
+xfs_dir3_data_read(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
 	xfs_dablk_t		bno,
@@ -268,18 +302,18 @@ xfs_dir2_data_read(
 	struct xfs_buf		**bpp)
 {
 	return xfs_da_read_buf(tp, dp, bno, mapped_bno, bpp,
-				XFS_DATA_FORK, &xfs_dir2_data_buf_ops);
+				XFS_DATA_FORK, &xfs_dir3_data_buf_ops);
 }
 
 int
-xfs_dir2_data_readahead(
+xfs_dir3_data_readahead(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*dp,
 	xfs_dablk_t		bno,
 	xfs_daddr_t		mapped_bno)
 {
 	return xfs_da_reada_buf(tp, dp, bno, mapped_bno,
-				XFS_DATA_FORK, &xfs_dir2_data_reada_buf_ops);
+				XFS_DATA_FORK, &xfs_dir3_data_reada_buf_ops);
 }
 
 /*
@@ -309,6 +343,7 @@ xfs_dir2_data_freefind(
 	 * one we're looking for it has to be exact.
 	 */
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
+	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC));
 	for (dfp = &bf[0], seenzero = matched = 0;
@@ -458,6 +493,7 @@ xfs_dir2_data_freescan(
 	char			*p;		/* current entry pointer */
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
+	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC));
 
@@ -534,13 +570,12 @@ xfs_dir3_data_init(
 		XFS_DATA_FORK);
 	if (error)
 		return error;
-	bp->b_ops = &xfs_dir2_data_buf_ops;
+	bp->b_ops = &xfs_dir3_data_buf_ops;
 
 	/*
 	 * Initialize the header.
 	 */
 	hdr = bp->b_addr;
-
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		struct xfs_dir3_blk_hdr *hdr3 = bp->b_addr;
 
@@ -591,6 +626,7 @@ xfs_dir2_data_log_entry(
 	xfs_dir2_data_hdr_t	*hdr = bp->b_addr;
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
+	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC));
 
@@ -610,6 +646,7 @@ xfs_dir2_data_log_header(
 	xfs_dir2_data_hdr_t	*hdr = bp->b_addr;
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
+	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC));
 
@@ -628,6 +665,7 @@ xfs_dir2_data_log_unused(
 	xfs_dir2_data_hdr_t	*hdr = bp->b_addr;
 
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
+	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC));
 
@@ -675,7 +713,8 @@ xfs_dir2_data_make_free(
 	/*
 	 * Figure out where the end of the data area is.
 	 */
-	if (hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC))
+	if (hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
+	    hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC))
 		endptr = (char *)hdr + mp->m_dirblksize;
 	else {
 		xfs_dir2_block_tail_t	*btp;	/* block tail */
@@ -857,6 +896,7 @@ xfs_dir2_data_use_free(
 
 	hdr = bp->b_addr;
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC) ||
+	       hdr->magic == cpu_to_be32(XFS_DIR3_DATA_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC) ||
 	       hdr->magic == cpu_to_be32(XFS_DIR3_BLOCK_MAGIC));
 	ASSERT(be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG);
