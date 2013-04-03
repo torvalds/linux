@@ -176,12 +176,6 @@ static const struct comedi_lrange range_usbdux_ai_range = { 1, {
 								}
 };
 
-static const struct comedi_lrange range_usbdux_ao_range = { 1, {
-								UNI_RANGE
-								(2.5),
-							       }
-};
-
 /*
  * private structure of one subdevice
  */
@@ -2269,7 +2263,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 	/* 8 bit resolution */
 	s->maxdata = 0x00ff;
 	/* unipolar range */
-	s->range_table = (&range_usbdux_ao_range);
+	s->range_table = &range_unipolar2_5;
 	/* callback */
 	s->do_cmdtest = usbdux_ao_cmdtest;
 	s->do_cmd = usbdux_ao_cmd;
