@@ -366,24 +366,24 @@ enum rtd_boardid {
 	BOARD_PCI4520,
 };
 
-struct rtdBoard {
+struct rtd_boardinfo {
 	const char *name;
-	int range10Start;	/* start of +-10V range */
-	int rangeUniStart;	/* start of +10V range */
+	int range_bip10;	/* start of +-10V range */
+	int range_uni10;	/* start of +10V range */
 	const struct comedi_lrange *ai_range;
 };
 
-static const struct rtdBoard rtd520Boards[] = {
+static const struct rtd_boardinfo rtd520Boards[] = {
 	[BOARD_DM7520] = {
 		.name		= "DM7520",
-		.range10Start	= 6,
-		.rangeUniStart	= 12,
+		.range_bip10	= 6,
+		.range_uni10	= 12,
 		.ai_range	= &rtd_ai_7520_range,
 	},
 	[BOARD_PCI4520] = {
 		.name		= "PCI4520",
-		.range10Start	= 8,
-		.rangeUniStart	= 16,
+		.range_bip10	= 8,
+		.range_uni10	= 16,
 		.ai_range	= &rtd_ai_4520_range,
 	},
 };
@@ -469,7 +469,7 @@ static int rtd_ns_to_timer(unsigned int *ns, int round_mode)
 static unsigned short rtdConvertChanGain(struct comedi_device *dev,
 					 unsigned int comediChan, int chanIndex)
 {				/* index in channel list */
-	const struct rtdBoard *thisboard = comedi_board(dev);
+	const struct rtd_boardinfo *thisboard = comedi_board(dev);
 	struct rtd_private *devpriv = dev->private;
 	unsigned int chan, range, aref;
 	unsigned short r = 0;
@@ -481,20 +481,20 @@ static unsigned short rtdConvertChanGain(struct comedi_device *dev,
 	r |= chan & 0xf;
 
 	/* Note: we also setup the channel list bipolar flag array */
-	if (range < thisboard->range10Start) {
+	if (range < thisboard->range_bip10) {
 		/* +-5 range */
 		r |= 0x000;
 		r |= (range & 0x7) << 4;
 		CHAN_ARRAY_SET(devpriv->chanBipolar, chanIndex);
-	} else if (range < thisboard->rangeUniStart) {
+	} else if (range < thisboard->range_uni10) {
 		/* +-10 range */
 		r |= 0x100;
-		r |= ((range - thisboard->range10Start) & 0x7) << 4;
+		r |= ((range - thisboard->range_bip10) & 0x7) << 4;
 		CHAN_ARRAY_SET(devpriv->chanBipolar, chanIndex);
 	} else {
 		/* +10 range */
 		r |= 0x200;
-		r |= ((range - thisboard->rangeUniStart) & 0x7) << 4;
+		r |= ((range - thisboard->range_uni10) & 0x7) << 4;
 		CHAN_ARRAY_CLEAR(devpriv->chanBipolar, chanIndex);
 	}
 
@@ -1332,7 +1332,7 @@ static int rtd_auto_attach(struct comedi_device *dev,
 			   unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct rtdBoard *thisboard = NULL;
+	const struct rtd_boardinfo *thisboard = NULL;
 	struct rtd_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
