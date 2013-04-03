@@ -1802,7 +1802,7 @@ static struct dev_pm_ops pxa_camera_pm = {
 };
 
 static struct platform_driver pxa_camera_driver = {
-	.driver 	= {
+	.driver		= {
 		.name	= PXA_CAM_DRV_NAME,
 		.pm	= &pxa_camera_pm,
 	},
