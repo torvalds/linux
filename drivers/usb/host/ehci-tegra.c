@@ -28,6 +28,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/usb/ehci_def.h>
 #include <linux/usb/tegra_usb_phy.h>
+#include <linux/clk/tegra.h>
 
 #define TEGRA_USB_BASE			0xC5000000
 #define TEGRA_USB2_BASE			0xC5004000
@@ -690,6 +691,10 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	err = clk_prepare_enable(tegra->clk);
 	if (err)
 		goto fail_clk;
+
+	tegra_periph_reset_assert(tegra->clk);
+	udelay(1);
+	tegra_periph_reset_deassert(tegra->clk);
 
 	tegra->needs_double_reset = of_property_read_bool(pdev->dev.of_node,
 		"nvidia,needs-double-reset");
