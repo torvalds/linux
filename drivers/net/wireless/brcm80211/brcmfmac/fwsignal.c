@@ -1221,15 +1221,11 @@ void brcmf_fws_del_interface(struct brcmf_if *ifp)
 
 int brcmf_fws_init(struct brcmf_pub *drvr)
 {
-	u32 tlv = 0;
+	u32 tlv = BRCMF_FWS_FLAGS_RSSI_SIGNALS;
 	int rc;
 
 	if (!drvr->fw_signals)
 		return 0;
-
-	tlv = BRCMF_FWS_FLAGS_RSSI_SIGNALS |
-	      BRCMF_FWS_FLAGS_XONXOFF_SIGNALS |
-	      BRCMF_FWS_FLAGS_CREDIT_STATUS_SIGNALS;
 
 	spin_lock_init(&drvr->fws_spinlock);
 
@@ -1243,7 +1239,11 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 	drvr->fws->drvr = drvr;
 	drvr->fws->fcmode = fcmode;
 
-	/* enable proptxtstatus signaling by default */
+	/* enable firmware signalling if fcmode active */
+	if (drvr->fws->fcmode != BRCMF_FWS_FCMODE_NONE)
+		tlv |= BRCMF_FWS_FLAGS_XONXOFF_SIGNALS |
+		       BRCMF_FWS_FLAGS_CREDIT_STATUS_SIGNALS;
+
 	rc = brcmf_fil_iovar_int_set(drvr->iflist[0], "tlv", tlv);
 	if (rc < 0) {
 		brcmf_err("failed to set bdcv2 tlv signaling\n");
