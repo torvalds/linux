@@ -32,6 +32,7 @@
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/usb/musb-ux500.h>
+#include <linux/regulator/consumer.h>
 
 /* Bank AB8500_SYS_CTRL2_BLOCK */
 #define AB8500_MAIN_WD_CTRL_REG 0x01
@@ -126,6 +127,9 @@ struct ab8500_usb {
 	struct work_struct phy_dis_work;
 	unsigned long link_status_wait;
 	enum ab8500_usb_mode mode;
+	struct regulator *v_ape;
+	struct regulator *v_musb;
+	struct regulator *v_ulpi;
 	int previous_link_status_state;
 };
 
@@ -590,6 +594,34 @@ static int ab8500_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 	return 0;
 }
 
+static int ab8500_usb_regulator_get(struct ab8500_usb *ab)
+{
+	int err;
+
+	ab->v_ape = devm_regulator_get(ab->dev, "v-ape");
+	if (IS_ERR(ab->v_ape)) {
+		dev_err(ab->dev, "Could not get v-ape supply\n");
+		err = PTR_ERR(ab->v_ape);
+		return err;
+	}
+
+	ab->v_ulpi = devm_regulator_get(ab->dev, "vddulpivio18");
+	if (IS_ERR(ab->v_ulpi)) {
+		dev_err(ab->dev, "Could not get vddulpivio18 supply\n");
+		err = PTR_ERR(ab->v_ulpi);
+		return err;
+	}
+
+	ab->v_musb = devm_regulator_get(ab->dev, "musb_1v8");
+	if (IS_ERR(ab->v_musb)) {
+		dev_err(ab->dev, "Could not get musb_1v8 supply\n");
+		err = PTR_ERR(ab->v_musb);
+		return err;
+	}
+
+	return 0;
+}
+
 static int ab8500_usb_irq_setup(struct platform_device *pdev,
 		struct ab8500_usb *ab)
 {
@@ -686,6 +718,10 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 
 	/* all: Disable phy when called from set_host and set_peripheral */
 	INIT_WORK(&ab->phy_dis_work, ab8500_usb_phy_disable_work);
+
+	err = ab8500_usb_regulator_get(ab);
+	if (err)
+		return err;
 
 	err = ab8500_usb_irq_setup(pdev, ab);
 	if (err < 0)
