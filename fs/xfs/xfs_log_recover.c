@@ -1971,6 +1971,14 @@ xlog_recover_do_reg_buffer(
 		}
 		bp->b_ops = &xfs_agfl_buf_ops;
 		break;
+	case XFS_BLF_AGI_BUF:
+		if (*(__be32 *)bp->b_addr != cpu_to_be32(XFS_AGI_MAGIC)) {
+			xfs_warn(mp, "Bad AGI block magic!");
+			ASSERT(0);
+			break;
+		}
+		bp->b_ops = &xfs_agi_buf_ops;
+		break;
 	default:
 		break;
 	}

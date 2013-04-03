@@ -304,8 +304,11 @@ xfs_growfs_data_private(
 		agi->agi_freecount = 0;
 		agi->agi_newino = cpu_to_be32(NULLAGINO);
 		agi->agi_dirino = cpu_to_be32(NULLAGINO);
+		if (xfs_sb_version_hascrc(&mp->m_sb))
+			uuid_copy(&agi->agi_uuid, &mp->m_sb.sb_uuid);
 		for (bucket = 0; bucket < XFS_AGI_UNLINKED_BUCKETS; bucket++)
 			agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
+
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);
 		if (error)
