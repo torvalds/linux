@@ -22,7 +22,6 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
-#include <net/netlink.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <net/net_namespace.h>
