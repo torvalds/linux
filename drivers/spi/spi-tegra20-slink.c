@@ -467,7 +467,7 @@ static int tegra_slink_start_tx_dma(struct tegra_slink_data *tspi, int len)
 	INIT_COMPLETION(tspi->tx_dma_complete);
 	tspi->tx_dma_desc = dmaengine_prep_slave_single(tspi->tx_dma_chan,
 				tspi->tx_dma_phys, len, DMA_MEM_TO_DEV,
-				DMA_PREP_INTERRUPT);
+				DMA_PREP_INTERRUPT |  DMA_CTRL_ACK);
 	if (!tspi->tx_dma_desc) {
 		dev_err(tspi->dev, "Not able to get desc for Tx\n");
 		return -EIO;
@@ -486,7 +486,7 @@ static int tegra_slink_start_rx_dma(struct tegra_slink_data *tspi, int len)
 	INIT_COMPLETION(tspi->rx_dma_complete);
 	tspi->rx_dma_desc = dmaengine_prep_slave_single(tspi->rx_dma_chan,
 				tspi->rx_dma_phys, len, DMA_DEV_TO_MEM,
-				DMA_PREP_INTERRUPT);
+				DMA_PREP_INTERRUPT |  DMA_CTRL_ACK);
 	if (!tspi->rx_dma_desc) {
 		dev_err(tspi->dev, "Not able to get desc for Rx\n");
 		return -EIO;
