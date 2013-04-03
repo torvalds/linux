@@ -1439,7 +1439,7 @@ void rv770_set_uvd_clock_before_set_eng_clock(struct radeon_device *rdev,
 	if (new_state->high.sclk >= current_state->high.sclk)
 		return;
 
-	radeon_set_uvd_clocks(rdev, new_ps->vclk, old_ps->dclk);
+	radeon_set_uvd_clocks(rdev, new_ps->vclk, new_ps->dclk);
 }
 
 void rv770_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev,
