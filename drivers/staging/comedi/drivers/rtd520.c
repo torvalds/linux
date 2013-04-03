@@ -467,7 +467,7 @@ static int rtd_ns_to_timer(unsigned int *ns, int round_mode)
 static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 					    unsigned int chanspec, int index)
 {
-	const struct rtd_boardinfo *thisboard = comedi_board(dev);
+	const struct rtd_boardinfo *board = comedi_board(dev);
 	struct rtd_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(chanspec);
 	unsigned int range = CR_RANGE(chanspec);
@@ -477,20 +477,20 @@ static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 	r |= chan & 0xf;
 
 	/* Note: we also setup the channel list bipolar flag array */
-	if (range < thisboard->range_bip10) {
+	if (range < board->range_bip10) {
 		/* +-5 range */
 		r |= 0x000;
 		r |= (range & 0x7) << 4;
 		CHAN_ARRAY_SET(devpriv->chan_is_bipolar, index);
-	} else if (range < thisboard->range_uni10) {
+	} else if (range < board->range_uni10) {
 		/* +-10 range */
 		r |= 0x100;
-		r |= ((range - thisboard->range_bip10) & 0x7) << 4;
+		r |= ((range - board->range_bip10) & 0x7) << 4;
 		CHAN_ARRAY_SET(devpriv->chan_is_bipolar, index);
 	} else {
 		/* +10 range */
 		r |= 0x200;
-		r |= ((range - thisboard->range_uni10) & 0x7) << 4;
+		r |= ((range - board->range_uni10) & 0x7) << 4;
 		CHAN_ARRAY_CLEAR(devpriv->chan_is_bipolar, index);
 	}
 
@@ -1330,17 +1330,17 @@ static int rtd_auto_attach(struct comedi_device *dev,
 			   unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct rtd_boardinfo *thisboard = NULL;
+	const struct rtd_boardinfo *board = NULL;
 	struct rtd_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
 	if (context < ARRAY_SIZE(rtd520Boards))
-		thisboard = &rtd520Boards[context];
-	if (!thisboard)
+		board = &rtd520Boards[context];
+	if (!board)
 		return -ENODEV;
-	dev->board_ptr = thisboard;
-	dev->board_name = thisboard->name;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -1376,7 +1376,7 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_COMMON | SDF_DIFF;
 	s->n_chan	= 16;
 	s->maxdata	= 0x0fff;
-	s->range_table	= thisboard->ai_range;
+	s->range_table	= board->ai_range;
 	s->len_chanlist	= RTD_MAX_CHANLIST;
 	s->insn_read	= rtd_ai_rinsn;
 	if (dev->irq) {
