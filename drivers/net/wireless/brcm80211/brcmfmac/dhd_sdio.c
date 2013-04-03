@@ -2293,6 +2293,15 @@ static void brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 	}
 }
 
+static struct pktq *brcmf_sdbrcm_bus_gettxq(struct device *dev)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
+	struct brcmf_sdio *bus = sdiodev->bus;
+
+	return &bus->txq;
+}
+
 static int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 {
 	int ret = -EBADE;
@@ -3834,6 +3843,7 @@ static struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.txdata = brcmf_sdbrcm_bus_txdata,
 	.txctl = brcmf_sdbrcm_bus_txctl,
 	.rxctl = brcmf_sdbrcm_bus_rxctl,
+	.gettxq = brcmf_sdbrcm_bus_gettxq,
 };
 
 void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)

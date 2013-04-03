@@ -25,6 +25,7 @@
 #include <brcmu_wifi.h>
 #include "dhd.h"
 #include "dhd_dbg.h"
+#include "dhd_bus.h"
 #include "fwil.h"
 #include "fweh.h"
 #include "fwsignal.h"
@@ -236,11 +237,11 @@ struct brcmf_skbuff_cb {
 #define BRCMF_SKB_HTOD_TAG_FREERUN_SHIFT			0
 
 #define brcmf_skb_htod_tag_set_field(skb, field, value) \
-	brcmu_maskset32(&(brcmf_skbcb(skb)->htod_tag), \
+	brcmu_maskset32(&(brcmf_skbcb(skb)->htod), \
 			BRCMF_SKB_HTOD_TAG_ ## field ## _MASK, \
 			BRCMF_SKB_HTOD_TAG_ ## field ## _SHIFT, (value))
 #define brcmf_skb_htod_tag_get_field(skb, field) \
-	brcmu_maskget32(brcmf_skbcb(skb)->htod_tag, \
+	brcmu_maskget32(brcmf_skbcb(skb)->htod, \
 			BRCMF_SKB_HTOD_TAG_ ## field ## _MASK, \
 			BRCMF_SKB_HTOD_TAG_ ## field ## _SHIFT)
 
@@ -548,6 +549,36 @@ static void brcmf_fws_mac_desc_cleanup(struct brcmf_fws_mac_descriptor *entry,
 	}
 }
 
+static void brcmf_fws_bus_txq_cleanup(struct brcmf_fws_info *fws,
+				      bool (*fn)(struct sk_buff *, void *),
+				      int ifidx)
+{
+	struct brcmf_fws_hanger_item *hi;
+	struct pktq *txq;
+	struct sk_buff *skb;
+	int prec;
+	u32 hslot;
+
+	brcmf_dbg(TRACE, "enter: ifidx=%d\n", ifidx);
+	txq = brcmf_bus_gettxq(fws->drvr->bus_if);
+	if (IS_ERR(txq)) {
+		brcmf_dbg(TRACE, "no txq to clean up\n");
+		return;
+	}
+
+	for (prec = 0; prec < txq->num_prec; prec++) {
+		skb = brcmu_pktq_pdeq_match(txq, prec, fn, &ifidx);
+		while (skb) {
+			hslot = brcmf_skb_htod_tag_get_field(skb, HSLOT);
+			hi = &fws->hanger.items[hslot];
+			WARN_ON(skb != hi->pkt);
+			hi->state = BRCMF_FWS_HANGER_ITEM_STATE_FREE;
+			brcmu_pkt_buf_free_skb(skb);
+			skb = brcmu_pktq_pdeq_match(txq, prec, fn, &ifidx);
+		}
+	}
+}
+
 static bool brcmf_fws_ifidx_match(struct sk_buff *skb, void *arg)
 {
 	u32 ifidx = brcmf_skb_if_flags_get_field(skb, INDEX);
@@ -573,6 +604,7 @@ static void brcmf_fws_cleanup(struct brcmf_fws_info *fws, int ifidx)
 		brcmf_fws_mac_desc_cleanup(&table[i], matchfn, ifidx);
 
 	brcmf_fws_mac_desc_cleanup(&fws->other, matchfn, ifidx);
+	brcmf_fws_bus_txq_cleanup(fws, matchfn, ifidx);
 	brcmf_fws_hanger_cleanup(&fws->hanger, matchfn, ifidx);
 }
 
