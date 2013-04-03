@@ -1276,7 +1276,7 @@ static int mx3_camera_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver mx3_camera_driver = {
-	.driver 	= {
+	.driver		= {
 		.name	= MX3_CAM_DRV_NAME,
 	},
 	.probe		= mx3_camera_probe,
