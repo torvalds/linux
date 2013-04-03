@@ -254,8 +254,7 @@ int v4l2_chip_match_i2c_client(struct i2c_client *c, const struct v4l2_dbg_match
 		return len && !strncmp(c->driver->driver.name, match->name, len);
 	case V4L2_CHIP_MATCH_I2C_ADDR:
 		return c->addr == match->addr;
-	case V4L2_CHIP_MATCH_SUBDEV_IDX:
-	case V4L2_CHIP_MATCH_SUBDEV_NAME:
+	case V4L2_CHIP_MATCH_SUBDEV:
 		return 1;
 	default:
 		return 0;

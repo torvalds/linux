@@ -123,15 +123,7 @@ bus address.</para>
 on the TV card.</para>
 
     <para>When <structfield>match.type</structfield> is
-<constant>V4L2_CHIP_MATCH_SUBDEV_NAME</constant>,
-<structfield>match.name</structfield> contains the sub-device name.
-For instance
-<constant>"saa7127 6-0044"</constant> will match this specific saa7127
-sub-device. Again with the &VIDIOC-DBG-G-CHIP-NAME; ioctl you can find
-out which sub-devices are present.</para>
-
-    <para>When <structfield>match.type</structfield> is
-<constant>V4L2_CHIP_MATCH_SUBDEV_IDX</constant>,
+<constant>V4L2_CHIP_MATCH_SUBDEV</constant>,
 <structfield>match.addr</structfield> selects the nth sub-device.</para>
 
     <note>
@@ -250,13 +242,8 @@ register.</entry>
 	    <entry>Match the nth anciliary AC97 chip.</entry>
 	  </row>
 	  <row>
-	    <entry><constant>V4L2_CHIP_MATCH_SUBDEV_NAME</constant></entry>
+	    <entry><constant>V4L2_CHIP_MATCH_SUBDEV</constant></entry>
 	    <entry>4</entry>
-	    <entry>Match the sub-device by name.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_CHIP_MATCH_SUBDEV_IDX</constant></entry>
-	    <entry>5</entry>
 	    <entry>Match the nth sub-device.</entry>
 	  </row>
 	</tbody>

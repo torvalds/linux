@@ -221,13 +221,8 @@ the values from <xref linkend="chip-ids" />.</entry>
 	    <entry>Match the nth anciliary AC97 chip.</entry>
 	  </row>
 	  <row>
-	    <entry><constant>V4L2_CHIP_MATCH_SUBDEV_NAME</constant></entry>
+	    <entry><constant>V4L2_CHIP_MATCH_SUBDEV</constant></entry>
 	    <entry>4</entry>
-	    <entry>Match the sub-device by name. Can't be used with this ioctl.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_CHIP_MATCH_SUBDEV_IDX</constant></entry>
-	    <entry>5</entry>
 	    <entry>Match the nth sub-device. Can't be used with this ioctl.</entry>
 	  </row>
 	</tbody>

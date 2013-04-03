@@ -1812,8 +1812,7 @@ struct v4l2_event_subscription {
 #define V4L2_CHIP_MATCH_I2C_DRIVER  1  /* Match against I2C driver name */
 #define V4L2_CHIP_MATCH_I2C_ADDR    2  /* Match against I2C 7-bit address */
 #define V4L2_CHIP_MATCH_AC97        3  /* Match against anciliary AC97 chip */
-#define V4L2_CHIP_MATCH_SUBDEV_NAME 4  /* Match against subdev name */
-#define V4L2_CHIP_MATCH_SUBDEV_IDX  5  /* Match against subdev index */
+#define V4L2_CHIP_MATCH_SUBDEV      4  /* Match against subdev index */
 
 struct v4l2_dbg_match {
 	__u32 type; /* Match type */

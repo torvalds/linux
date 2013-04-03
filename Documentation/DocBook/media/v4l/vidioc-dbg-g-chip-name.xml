@@ -87,16 +87,7 @@ connected to the PCI or USB bus. Non-zero numbers identify specific
 parts of the bridge chip such as an AC97 register block.</para>
 
     <para>When <structfield>match.type</structfield> is
-<constant>V4L2_CHIP_MATCH_SUBDEV_NAME</constant>,
-<structfield>match.name</structfield> contains the name of a sub-device.
-For instance
-<constant>"saa7127 6-0044"</constant> will match the saa7127 sub-device
-at the given i2c bus. This match type is not very useful for this ioctl
-and is here only for consistency.
-</para>
-
-    <para>When <structfield>match.type</structfield> is
-<constant>V4L2_CHIP_MATCH_SUBDEV_IDX</constant>,
+<constant>V4L2_CHIP_MATCH_SUBDEV</constant>,
 <structfield>match.addr</structfield> selects the nth sub-device. This
 allows you to enumerate over all sub-devices.</para>
 
@@ -207,13 +198,8 @@ is set, then the driver supports reading registers from the device. If
 	    <entry>Match the nth anciliary AC97 chip. Can't be used with this ioctl.</entry>
 	  </row>
 	  <row>
-	    <entry><constant>V4L2_CHIP_MATCH_SUBDEV_NAME</constant></entry>
+	    <entry><constant>V4L2_CHIP_MATCH_SUBDEV</constant></entry>
 	    <entry>4</entry>
-	    <entry>Match the sub-device by name.</entry>
-	  </row>
-	  <row>
-	    <entry><constant>V4L2_CHIP_MATCH_SUBDEV_IDX</constant></entry>
-	    <entry>5</entry>
 	    <entry>Match the nth sub-device.</entry>
 	  </row>
 	</tbody>

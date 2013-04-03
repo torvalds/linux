@@ -629,8 +629,7 @@ static void v4l_print_dbg_chip_ident(const void *arg, bool write_only)
 	const struct v4l2_dbg_chip_ident *p = arg;
 
 	pr_cont("type=%u, ", p->match.type);
-	if (p->match.type == V4L2_CHIP_MATCH_I2C_DRIVER ||
-	    p->match.type == V4L2_CHIP_MATCH_SUBDEV_NAME)
+	if (p->match.type == V4L2_CHIP_MATCH_I2C_DRIVER)
 		pr_cont("name=%.*s, ",
 				(int)sizeof(p->match.name), p->match.name);
 	else
@@ -644,8 +643,7 @@ static void v4l_print_dbg_chip_name(const void *arg, bool write_only)
 	const struct v4l2_dbg_chip_name *p = arg;
 
 	pr_cont("type=%u, ", p->match.type);
-	if (p->match.type == V4L2_CHIP_MATCH_I2C_DRIVER ||
-	    p->match.type == V4L2_CHIP_MATCH_SUBDEV_NAME)
+	if (p->match.type == V4L2_CHIP_MATCH_I2C_DRIVER)
 		pr_cont("name=%.*s, ",
 				(int)sizeof(p->match.name), p->match.name);
 	else
@@ -658,8 +656,7 @@ static void v4l_print_dbg_register(const void *arg, bool write_only)
 	const struct v4l2_dbg_register *p = arg;
 
 	pr_cont("type=%u, ", p->match.type);
-	if (p->match.type == V4L2_CHIP_MATCH_I2C_DRIVER ||
-	    p->match.type == V4L2_CHIP_MATCH_SUBDEV_NAME)
+	if (p->match.type == V4L2_CHIP_MATCH_I2C_DRIVER)
 		pr_cont("name=%.*s, ",
 				(int)sizeof(p->match.name), p->match.name);
 	else
@@ -1791,14 +1788,6 @@ static int v4l_log_status(const struct v4l2_ioctl_ops *ops,
 	return ret;
 }
 
-static bool v4l_dbg_found_match(const struct v4l2_dbg_match *match,
-		struct v4l2_subdev *sd, int idx)
-{
-	if (match->type == V4L2_CHIP_MATCH_SUBDEV_IDX)
-		return match->addr == idx;
-	return !strcmp(match->name, sd->name);
-}
-
 static int v4l_dbg_g_register(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
@@ -1810,14 +1799,12 @@ static int v4l_dbg_g_register(const struct v4l2_ioctl_ops *ops,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	if (p->match.type == V4L2_CHIP_MATCH_SUBDEV_IDX ||
-	    p->match.type == V4L2_CHIP_MATCH_SUBDEV_NAME) {
+	if (p->match.type == V4L2_CHIP_MATCH_SUBDEV) {
 		if (vfd->v4l2_dev == NULL)
 			return -EINVAL;
-		v4l2_device_for_each_subdev(sd, vfd->v4l2_dev) {
-			if (v4l_dbg_found_match(&p->match, sd, idx++))
+		v4l2_device_for_each_subdev(sd, vfd->v4l2_dev)
+			if (p->match.addr == idx++)
 				return v4l2_subdev_call(sd, core, g_register, p);
-		}
 		return -EINVAL;
 	}
 	if (ops->vidioc_g_register)
@@ -1839,14 +1826,12 @@ static int v4l_dbg_s_register(const struct v4l2_ioctl_ops *ops,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	if (p->match.type == V4L2_CHIP_MATCH_SUBDEV_IDX ||
-	    p->match.type == V4L2_CHIP_MATCH_SUBDEV_NAME) {
+	if (p->match.type == V4L2_CHIP_MATCH_SUBDEV) {
 		if (vfd->v4l2_dev == NULL)
 			return -EINVAL;
-		v4l2_device_for_each_subdev(sd, vfd->v4l2_dev) {
-			if (v4l_dbg_found_match(&p->match, sd, idx++))
+		v4l2_device_for_each_subdev(sd, vfd->v4l2_dev)
+			if (p->match.addr == idx++)
 				return v4l2_subdev_call(sd, core, s_register, p);
-		}
 		return -EINVAL;
 	}
 	if (ops->vidioc_s_register)
@@ -1864,8 +1849,7 @@ static int v4l_dbg_g_chip_ident(const struct v4l2_ioctl_ops *ops,
 
 	p->ident = V4L2_IDENT_NONE;
 	p->revision = 0;
-	if (p->match.type == V4L2_CHIP_MATCH_SUBDEV_NAME ||
-	    p->match.type == V4L2_CHIP_MATCH_SUBDEV_IDX)
+	if (p->match.type == V4L2_CHIP_MATCH_SUBDEV)
 		return -EINVAL;
 	return ops->vidioc_g_chip_ident(file, fh, p);
 }
@@ -1897,19 +1881,18 @@ static int v4l_dbg_g_chip_name(const struct v4l2_ioctl_ops *ops,
 			strlcpy(p->name, "bridge", sizeof(p->name));
 		return 0;
 
-	case V4L2_CHIP_MATCH_SUBDEV_IDX:
-	case V4L2_CHIP_MATCH_SUBDEV_NAME:
+	case V4L2_CHIP_MATCH_SUBDEV:
 		if (vfd->v4l2_dev == NULL)
 			break;
 		v4l2_device_for_each_subdev(sd, vfd->v4l2_dev) {
-			if (v4l_dbg_found_match(&p->match, sd, idx++)) {
-				if (sd->ops->core && sd->ops->core->s_register)
-					p->flags |= V4L2_CHIP_FL_WRITABLE;
-				if (sd->ops->core && sd->ops->core->g_register)
-					p->flags |= V4L2_CHIP_FL_READABLE;
-				strlcpy(p->name, sd->name, sizeof(p->name));
-				return 0;
-			}
+			if (p->match.addr != idx++)
+				continue;
+			if (sd->ops->core && sd->ops->core->s_register)
+				p->flags |= V4L2_CHIP_FL_WRITABLE;
+			if (sd->ops->core && sd->ops->core->g_register)
+				p->flags |= V4L2_CHIP_FL_READABLE;
+			strlcpy(p->name, sd->name, sizeof(p->name));
+			return 0;
 		}
 		break;
 	}
