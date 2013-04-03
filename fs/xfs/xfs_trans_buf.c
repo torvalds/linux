@@ -704,12 +704,13 @@ xfs_trans_inode_buf(
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
 	bip->bli_flags |= XFS_BLI_INODE_BUF;
+	xfs_trans_buf_set_type(tp, bp, XFS_BLF_DINO_BUF);
 }
 
 /*
  * This call is used to indicate that the buffer is going to
  * be staled and was an inode buffer. This means it gets
- * special processing during unpin - where any inodes 
+ * special processing during unpin - where any inodes
  * associated with the buffer should be removed from ail.
  * There is also special processing during recovery,
  * any replay of the inodes in the buffer needs to be
@@ -728,6 +729,7 @@ xfs_trans_stale_inode_buf(
 
 	bip->bli_flags |= XFS_BLI_STALE_INODE;
 	bip->bli_item.li_cb = xfs_buf_iodone;
+	xfs_trans_buf_set_type(tp, bp, XFS_BLF_DINO_BUF);
 }
 
 /*
@@ -751,6 +753,7 @@ xfs_trans_inode_alloc_buf(
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
 	bip->bli_flags |= XFS_BLI_INODE_ALLOC_BUF;
+	xfs_trans_buf_set_type(tp, bp, XFS_BLF_DINO_BUF);
 }
 
 /*
