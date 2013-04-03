@@ -1271,7 +1271,7 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 			}
 		}
 		if (period_elapsed &&
-		    !snd_usb_endpoint_implict_feedback_sink(subs->data_endpoint)) /* finish at the period boundary */
+		    !snd_usb_endpoint_implicit_feedback_sink(subs->data_endpoint)) /* finish at the period boundary */
 			break;
 	}
 	bytes = frames * stride;

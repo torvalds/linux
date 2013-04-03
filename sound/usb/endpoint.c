@@ -128,7 +128,7 @@ static const char *usb_error_string(int err)
  * Determine whether an endpoint is driven by an implicit feedback
  * data endpoint source.
  */
-int snd_usb_endpoint_implict_feedback_sink(struct snd_usb_endpoint *ep)
+int snd_usb_endpoint_implicit_feedback_sink(struct snd_usb_endpoint *ep)
 {
 	return  ep->sync_master &&
 		ep->sync_master->type == SND_USB_ENDPOINT_TYPE_DATA &&
@@ -363,7 +363,7 @@ static void snd_complete_urb(struct urb *urb)
 		if (unlikely(!test_bit(EP_FLAG_RUNNING, &ep->flags)))
 			goto exit_clear;
 
-		if (snd_usb_endpoint_implict_feedback_sink(ep)) {
+		if (snd_usb_endpoint_implicit_feedback_sink(ep)) {
 			unsigned long flags;
 
 			spin_lock_irqsave(&ep->lock, flags);
@@ -605,7 +605,7 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep,
 	else
 		packs_per_ms = 1;
 
-	if (is_playback && !snd_usb_endpoint_implict_feedback_sink(ep)) {
+	if (is_playback && !snd_usb_endpoint_implicit_feedback_sink(ep)) {
 		urb_packs = max(ep->chip->nrpacks, 1);
 		urb_packs = min(urb_packs, (unsigned int) MAX_PACKS);
 	} else {
@@ -614,11 +614,11 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep,
 
 	urb_packs *= packs_per_ms;
 
-	if (sync_ep && !snd_usb_endpoint_implict_feedback_sink(ep))
+	if (sync_ep && !snd_usb_endpoint_implicit_feedback_sink(ep))
 		urb_packs = min(urb_packs, 1U << sync_ep->syncinterval);
 
 	/* decide how many packets to be used */
-	if (is_playback && !snd_usb_endpoint_implict_feedback_sink(ep)) {
+	if (is_playback && !snd_usb_endpoint_implicit_feedback_sink(ep)) {
 		unsigned int minsize, maxpacks;
 		/* determine how small a packet can be */
 		minsize = (ep->freqn >> (16 - ep->datainterval))
@@ -845,7 +845,7 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep, bool can_sleep)
 
 	set_bit(EP_FLAG_RUNNING, &ep->flags);
 
-	if (snd_usb_endpoint_implict_feedback_sink(ep)) {
+	if (snd_usb_endpoint_implicit_feedback_sink(ep)) {
 		for (i = 0; i < ep->nurbs; i++) {
 			struct snd_urb_ctx *ctx = ep->urb + i;
 			list_add_tail(&ctx->ready_list, &ep->ready_playback_urbs);
@@ -988,7 +988,7 @@ void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 	 * and add it to the list of pending urbs. queue_pending_output_urbs()
 	 * will take care of them later.
 	 */
-	if (snd_usb_endpoint_implict_feedback_sink(ep) &&
+	if (snd_usb_endpoint_implicit_feedback_sink(ep) &&
 	    ep->use_count != 0) {
 
 		/* implicit feedback case */
