@@ -87,12 +87,14 @@ struct ceph_osd_req_op {
 			u64 offset, length;
 			u64 truncate_size;
 			u32 truncate_seq;
+			struct ceph_osd_data *osd_data;
 		} extent;
 		struct {
 			const char *class_name;
 			const char *method_name;
 			const void *request_data;
 			u32 request_data_len;
+			struct ceph_osd_data *response_data;
 			__u8 class_len;
 			__u8 method_len;
 			__u8 argc;
@@ -236,10 +238,14 @@ extern void osd_req_op_extent_init(struct ceph_osd_req_op *op, u16 opcode,
 					u64 offset, u64 length,
 					u64 truncate_size, u32 truncate_seq);
 extern void osd_req_op_extent_update(struct ceph_osd_req_op *op, u64 length);
+extern void osd_req_op_extent_osd_data(struct ceph_osd_req_op *op,
+					struct ceph_osd_data *osd_data);
 extern void osd_req_op_cls_init(struct ceph_osd_req_op *op, u16 opcode,
 					const char *class, const char *method,
 					const void *request_data,
 					size_t request_data_size);
+extern void osd_req_op_cls_response_data(struct ceph_osd_req_op *op,
+					struct ceph_osd_data *response_data);
 extern void osd_req_op_watch_init(struct ceph_osd_req_op *op, u16 opcode,
 					u64 cookie, u64 version, int flag);
 

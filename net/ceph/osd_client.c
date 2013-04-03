@@ -372,6 +372,13 @@ void osd_req_op_extent_update(struct ceph_osd_req_op *op, u64 length)
 }
 EXPORT_SYMBOL(osd_req_op_extent_update);
 
+void osd_req_op_extent_osd_data(struct ceph_osd_req_op *op,
+				struct ceph_osd_data *osd_data)
+{
+	op->extent.osd_data = osd_data;
+}
+EXPORT_SYMBOL(osd_req_op_extent_osd_data);
+
 void osd_req_op_cls_init(struct ceph_osd_req_op *op, u16 opcode,
 			const char *class, const char *method,
 			const void *request_data, size_t request_data_size)
@@ -405,6 +412,13 @@ void osd_req_op_cls_init(struct ceph_osd_req_op *op, u16 opcode,
 	op->payload_len = payload_len;
 }
 EXPORT_SYMBOL(osd_req_op_cls_init);
+
+void osd_req_op_cls_response_data(struct ceph_osd_req_op *op,
+				struct ceph_osd_data *response_data)
+{
+	op->cls.response_data = response_data;
+}
+EXPORT_SYMBOL(osd_req_op_cls_response_data);
 
 void osd_req_op_watch_init(struct ceph_osd_req_op *op, u16 opcode,
 				u64 cookie, u64 version, int flag)
@@ -449,6 +463,10 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 			cpu_to_le64(src->extent.truncate_size);
 		dst->extent.truncate_seq =
 			cpu_to_le32(src->extent.truncate_seq);
+		if (src->op == CEPH_OSD_OP_WRITE)
+			WARN_ON(src->extent.osd_data != &req->r_data_out);
+		else
+			WARN_ON(src->extent.osd_data != &req->r_data_in);
 		break;
 	case CEPH_OSD_OP_CALL:
 		pagelist = kmalloc(sizeof (*pagelist), GFP_NOFS);
@@ -464,8 +482,9 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 				     src->cls.method_len);
 		ceph_pagelist_append(pagelist, src->cls.request_data,
 				     src->cls.request_data_len);
-
 		ceph_osd_data_pagelist_init(&req->r_data_out, pagelist);
+
+		WARN_ON(src->cls.response_data != &req->r_data_in);
 		request_data_len = pagelist->length;
 		break;
 	case CEPH_OSD_OP_STARTSYNC:
@@ -609,6 +628,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					       bool use_mempool)
 {
 	struct ceph_osd_request *req;
+	struct ceph_osd_data *osd_data;
 	struct ceph_osd_req_op *op;
 	u64 objnum = 0;
 	u64 objoff = 0;
@@ -623,6 +643,8 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					GFP_NOFS);
 	if (!req)
 		return ERR_PTR(-ENOMEM);
+	osd_data = opcode == CEPH_OSD_OP_WRITE ? &req->r_data_out
+					       : &req->r_data_in;
 
 	req->r_flags = flags;
 
@@ -646,6 +668,8 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	op = &req->r_ops[0];
 	osd_req_op_extent_init(op, opcode, objoff, objlen,
 				truncate_size, truncate_seq);
+	osd_req_op_extent_osd_data(op, osd_data);
+
 	/*
 	 * A second op in the ops array means the caller wants to
 	 * also issue a include a 'startsync' command so that the

@@ -1315,23 +1315,39 @@ static void rbd_osd_req_format_op(struct rbd_obj_request *obj_request,
 					bool write_request)
 {
 	struct rbd_img_request *img_request = obj_request->img_request;
+	struct ceph_osd_request *osd_req = obj_request->osd_req;
+	struct ceph_osd_data *osd_data = NULL;
 	struct ceph_snap_context *snapc = NULL;
 	u64 snap_id = CEPH_NOSNAP;
 	struct timespec *mtime = NULL;
 	struct timespec now;
 
-	rbd_assert(obj_request->osd_req != NULL);
+	rbd_assert(osd_req != NULL);
 
 	if (write_request) {
+		osd_data = &osd_req->r_data_out;
 		now = CURRENT_TIME;
 		mtime = &now;
 		if (img_request)
 			snapc = img_request->snapc;
-	} else if (img_request) {
-		snap_id = img_request->snap_id;
+	} else {
+		osd_data = &osd_req->r_data_in;
+		if (img_request)
+			snap_id = img_request->snap_id;
 	}
+	if (obj_request->type != OBJ_REQUEST_NODATA) {
+		struct ceph_osd_req_op *op = &obj_request->osd_req->r_ops[0];
 
-	ceph_osdc_build_request(obj_request->osd_req, obj_request->offset,
+		/*
+		 * If it has data, it's either a object class method
+		 * call (cls) or it's an extent operation.
+		 */
+		if (op->op == CEPH_OSD_OP_CALL)
+			osd_req_op_cls_response_data(op, osd_data);
+		else
+			osd_req_op_extent_osd_data(op, osd_data);
+	}
+	ceph_osdc_build_request(osd_req, obj_request->offset,
 			snapc, snap_id, mtime);
 }
 

@@ -574,8 +574,9 @@ more:
 			own_pages = true;
 		}
 	}
-	ceph_osd_data_pages_init(&req->r_data_out, pages, len, page_align,
-					false, own_pages);
+	BUG_ON(req->r_ops[0].extent.osd_data != &req->r_data_out);
+	ceph_osd_data_pages_init(req->r_ops[0].extent.osd_data, pages, len,
+					page_align, false, own_pages);
 
 	/* BUG_ON(vino.snap != CEPH_NOSNAP); */
 	ceph_osdc_build_request(req, pos, snapc, vino.snap, &mtime);

@@ -343,7 +343,8 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 		}
 		pages[i] = page;
 	}
-	ceph_osd_data_pages_init(&req->r_data_in, pages, len, 0,
+	BUG_ON(req->r_ops[0].extent.osd_data != &req->r_data_in);
+	ceph_osd_data_pages_init(req->r_ops[0].extent.osd_data, pages, len, 0,
 					false, false);
 	req->r_callback = finish_read;
 	req->r_inode = inode;
@@ -916,8 +917,9 @@ get_more_pages:
 		dout("writepages got %d pages at %llu~%llu\n",
 		     locked_pages, offset, len);
 
-		ceph_osd_data_pages_init(&req->r_data_out, pages, len, 0,
-						!!pool, false);
+		BUG_ON(req->r_ops[0].extent.osd_data != &req->r_data_out);
+		ceph_osd_data_pages_init(req->r_ops[0].extent.osd_data, pages,
+						len, 0, !!pool, false);
 
 		pages = NULL;	/* request message now owns the pages array */
 		pool = NULL;
