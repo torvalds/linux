@@ -504,18 +504,6 @@ static bool pn533_rx_frame_is_cmd_response(struct pn533 *dev, void *frame)
 				PN533_CMD_RESPONSE(dev->cmd->code));
 }
 
-static int pn533_send_async_complete(struct pn533 *dev);
-
-static void pn533_wq_cmd_complete(struct work_struct *work)
-{
-	struct pn533 *dev = container_of(work, struct pn533, cmd_complete_work);
-	int rc;
-
-	rc = pn533_send_async_complete(dev);
-	if (rc != -EINPROGRESS)
-		queue_work(dev->wq, &dev->cmd_work);
-}
-
 static void pn533_recv_response(struct urb *urb)
 {
 	struct pn533 *dev = urb->context;
@@ -862,6 +850,16 @@ static int pn533_send_cmd_direct_async(struct pn533 *dev, u8 cmd_code,
 	}
 
 	return rc;
+}
+
+static void pn533_wq_cmd_complete(struct work_struct *work)
+{
+	struct pn533 *dev = container_of(work, struct pn533, cmd_complete_work);
+	int rc;
+
+	rc = pn533_send_async_complete(dev);
+	if (rc != -EINPROGRESS)
+		queue_work(dev->wq, &dev->cmd_work);
 }
 
 static void pn533_wq_cmd(struct work_struct *work)
