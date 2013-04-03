@@ -314,6 +314,7 @@ struct pn533 {
 	struct usb_device *udev;
 	struct usb_interface *interface;
 	struct nfc_dev *nfc_dev;
+	u32 device_type;
 
 	struct urb *out_urb;
 	struct urb *in_urb;
@@ -326,19 +327,22 @@ struct pn533 {
 	struct work_struct poll_work;
 	struct work_struct mi_work;
 	struct work_struct tg_work;
-	struct timer_list listen_timer;
+
+	struct list_head cmd_queue;
+	struct pn533_cmd *cmd;
+	u8 cmd_pending;
 	int wq_in_error;
-	int cancel_listen;
+	struct mutex cmd_lock;  /* protects cmd queue */
 
 	void *cmd_complete_mi_arg;
-	struct mutex cmd_lock;
-	struct pn533_cmd *cmd;
 
 	struct pn533_poll_modulations *poll_mod_active[PN533_POLL_MOD_MAX + 1];
 	u8 poll_mod_count;
 	u8 poll_mod_curr;
 	u32 poll_protocols;
 	u32 listen_protocols;
+	struct timer_list listen_timer;
+	int cancel_listen;
 
 	u8 *gb;
 	size_t gb_len;
@@ -346,11 +350,6 @@ struct pn533 {
 	u8 tgt_available_prots;
 	u8 tgt_active_prot;
 	u8 tgt_mode;
-
-	u32 device_type;
-
-	struct list_head cmd_queue;
-	u8 cmd_pending;
 
 	struct pn533_frame_ops *ops;
 };
