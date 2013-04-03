@@ -712,23 +712,22 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
   This is a "slow handler";  other interrupts may be active.
   The data conversion may someday happen in a "bottom half".
 */
-static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
-				 void *d)
-{				/* our data *//* cpu context (ignored) */
+static irqreturn_t rtd_interrupt(int irq, void *d)
+{
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = &dev->subdevices[0];
 	struct rtd_private *devpriv = dev->private;
 	u32 overrun;
 	u16 status;
-	u16 fifoStatus;
+	u16 fifo_status;
 
 	if (!dev->attached)
 		return IRQ_NONE;
 
-	fifoStatus = readl(devpriv->las0 + LAS0_ADC);
+	fifo_status = readl(devpriv->las0 + LAS0_ADC);
 	/* check for FIFO full, this automatically halts the ADC! */
-	if (!(fifoStatus & FS_ADC_NOT_FULL))	/* 0 -> full */
-		goto abortTransfer;
+	if (!(fifo_status & FS_ADC_NOT_FULL))	/* 0 -> full */
+		goto xfer_abort;
 
 	status = readw(devpriv->las0 + LAS0_IT);
 	/* if interrupt was not caused by our board, or handled above */
@@ -742,23 +741,23 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 		 * finished, we must handle the possibility that there is
 		 * no data here
 		 */
-		if (!(fifoStatus & FS_ADC_HEMPTY)) {
+		if (!(fifo_status & FS_ADC_HEMPTY)) {
 			/* FIFO half full */
 			if (ai_read_n(dev, s, devpriv->fifosz / 2) < 0)
-				goto abortTransfer;
+				goto xfer_abort;
 
 			if (0 == devpriv->aiCount)
-				goto transferDone;
+				goto xfer_done;
 
 			comedi_event(dev, s);
 		} else if (devpriv->xfer_count > 0) {
-			if (fifoStatus & FS_ADC_NOT_EMPTY) {
+			if (fifo_status & FS_ADC_NOT_EMPTY) {
 				/* FIFO not empty */
 				if (ai_read_n(dev, s, devpriv->xfer_count) < 0)
-					goto abortTransfer;
+					goto xfer_abort;
 
 				if (0 == devpriv->aiCount)
-					goto transferDone;
+					goto xfer_done;
 
 				comedi_event(dev, s);
 			}
@@ -767,20 +766,20 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 
 	overrun = readl(devpriv->las0 + LAS0_OVERRUN) & 0xffff;
 	if (overrun)
-		goto abortTransfer;
+		goto xfer_abort;
 
 	/* clear the interrupt */
 	writew(status, devpriv->las0 + LAS0_CLEAR);
 	readw(devpriv->las0 + LAS0_CLEAR);
 	return IRQ_HANDLED;
 
-abortTransfer:
+xfer_abort:
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	s->async->events |= COMEDI_CB_ERROR;
 	devpriv->aiCount = 0;	/* stop and don't transfer any more */
-	/* fall into transferDone */
+	/* fall into xfer_done */
 
-transferDone:
+xfer_done:
 	/* pacer stop source: SOFTWARE */
 	writel(0, devpriv->las0 + LAS0_PACER_STOP);
 	writel(0, devpriv->las0 + LAS0_PACER);	/* stop pacer */
@@ -788,7 +787,7 @@ transferDone:
 	writew(0, devpriv->las0 + LAS0_IT);
 
 	if (devpriv->aiCount > 0) {	/* there shouldn't be anything left */
-		fifoStatus = readl(devpriv->las0 + LAS0_ADC);
+		fifo_status = readl(devpriv->las0 + LAS0_ADC);
 		ai_read_dregs(dev, s);	/* read anything left in FIFO */
 	}
 
@@ -800,7 +799,7 @@ transferDone:
 	writew(status, devpriv->las0 + LAS0_CLEAR);
 	readw(devpriv->las0 + LAS0_CLEAR);
 
-	fifoStatus = readl(devpriv->las0 + LAS0_ADC);
+	fifo_status = readl(devpriv->las0 + LAS0_ADC);
 	overrun = readl(devpriv->las0 + LAS0_OVERRUN) & 0xffff;
 
 	return IRQ_HANDLED;
