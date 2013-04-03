@@ -21,6 +21,8 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
+#include "pmc.h"
+
 #define PMC_CTRL			0x0
 #define PMC_CTRL_INTR_LOW		(1 << 17)
 #define PMC_PWRGATE_TOGGLE		0x30
@@ -48,6 +50,22 @@ static DEFINE_SPINLOCK(tegra_powergate_lock);
 static void __iomem *tegra_pmc_base;
 static bool tegra_pmc_invert_interrupt;
 static struct clk *tegra_pclk;
+
+struct pmc_pm_data {
+	u32 cpu_good_time;	/* CPU power good time in uS */
+	u32 cpu_off_time;	/* CPU power off time in uS */
+	u32 core_osc_time;	/* Core power good osc time in uS */
+	u32 core_pmu_time;	/* Core power good pmu time in uS */
+	u32 core_off_time;	/* Core power off time in uS */
+	bool corereq_high;	/* Core power request active-high */
+	bool sysclkreq_high;	/* System clock request active-high */
+	bool combined_req;	/* Combined pwr req for CPU & Core */
+	bool cpu_pwr_good_en;	/* CPU power good signal is enabled */
+	u32 lp0_vec_phy_addr;	/* The phy addr of LP0 warm boot code */
+	u32 lp0_vec_size;	/* The size of LP0 warm boot code */
+	enum tegra_suspend_mode suspend_mode;
+};
+static struct pmc_pm_data pmc_pm_data;
 
 static inline u32 tegra_pmc_readl(u32 reg)
 {
@@ -176,6 +194,10 @@ static const struct of_device_id matches[] __initconst = {
 static void tegra_pmc_parse_dt(void)
 {
 	struct device_node *np;
+	u32 prop;
+	enum tegra_suspend_mode suspend_mode;
+	u32 core_good_time[2] = {0, 0};
+	u32 lp0_vec[2] = {0, 0};
 
 	np = of_find_matching_node(NULL, matches);
 	BUG_ON(!np);
@@ -186,6 +208,67 @@ static void tegra_pmc_parse_dt(void)
 				     "nvidia,invert-interrupt");
 	tegra_pclk = of_clk_get_by_name(np, "pclk");
 	WARN_ON(IS_ERR(tegra_pclk));
+
+	/* Grabbing the power management configurations */
+	if (of_property_read_u32(np, "nvidia,suspend-mode", &prop)) {
+		suspend_mode = TEGRA_SUSPEND_NONE;
+	} else {
+		switch (prop) {
+		case 0:
+			suspend_mode = TEGRA_SUSPEND_LP0;
+			break;
+		case 1:
+			suspend_mode = TEGRA_SUSPEND_LP1;
+			break;
+		case 2:
+			suspend_mode = TEGRA_SUSPEND_LP2;
+			break;
+		default:
+			suspend_mode = TEGRA_SUSPEND_NONE;
+			break;
+		}
+	}
+
+	if (of_property_read_u32(np, "nvidia,cpu-pwr-good-time", &prop))
+		suspend_mode = TEGRA_SUSPEND_NONE;
+	pmc_pm_data.cpu_good_time = prop;
+
+	if (of_property_read_u32(np, "nvidia,cpu-pwr-off-time", &prop))
+		suspend_mode = TEGRA_SUSPEND_NONE;
+	pmc_pm_data.cpu_off_time = prop;
+
+	if (of_property_read_u32_array(np, "nvidia,core-pwr-good-time",
+			core_good_time, ARRAY_SIZE(core_good_time)))
+		suspend_mode = TEGRA_SUSPEND_NONE;
+	pmc_pm_data.core_osc_time = core_good_time[0];
+	pmc_pm_data.core_pmu_time = core_good_time[1];
+
+	if (of_property_read_u32(np, "nvidia,core-pwr-off-time",
+				 &prop))
+		suspend_mode = TEGRA_SUSPEND_NONE;
+	pmc_pm_data.core_off_time = prop;
+
+	pmc_pm_data.corereq_high = of_property_read_bool(np,
+				"nvidia,core-power-req-active-high");
+
+	pmc_pm_data.sysclkreq_high = of_property_read_bool(np,
+				"nvidia,sys-clock-req-active-high");
+
+	pmc_pm_data.combined_req = of_property_read_bool(np,
+				"nvidia,combined-power-req");
+
+	pmc_pm_data.cpu_pwr_good_en = of_property_read_bool(np,
+				"nvidia,cpu-pwr-good-en");
+
+	if (of_property_read_u32_array(np, "nvidia,lp0-vec", lp0_vec,
+				       ARRAY_SIZE(lp0_vec)))
+		if (suspend_mode == TEGRA_SUSPEND_LP0)
+			suspend_mode = TEGRA_SUSPEND_LP1;
+
+	pmc_pm_data.lp0_vec_phy_addr = lp0_vec[0];
+	pmc_pm_data.lp0_vec_size = lp0_vec[1];
+
+	pmc_pm_data.suspend_mode = suspend_mode;
 }
 
 void __init tegra_pmc_init(void)
