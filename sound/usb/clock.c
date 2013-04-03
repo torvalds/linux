@@ -247,6 +247,27 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
 	return 0;
 }
 
+static int get_sample_rate_v2(struct snd_usb_audio *chip, int iface,
+			      int altsetting, int clock)
+{
+	struct usb_device *dev = chip->dev;
+	unsigned char data[4];
+	int err;
+
+	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
+			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
+			      UAC2_CS_CONTROL_SAM_FREQ << 8,
+			      snd_usb_ctrl_intf(chip) | (clock << 8),
+			      data, sizeof(data));
+	if (err < 0) {
+		snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq (v2)\n",
+			   dev->devnum, iface, altsetting);
+		return 0;
+	}
+
+	return data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
+}
+
 static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 			      struct usb_host_interface *alts,
 			      struct audioformat *fmt, int rate)
@@ -266,18 +287,7 @@ static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 		return -ENXIO;
 	}
 
-	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
-			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-			      UAC2_CS_CONTROL_SAM_FREQ << 8,
-			      snd_usb_ctrl_intf(chip) | (clock << 8),
-			      data, sizeof(data));
-	if (err < 0) {
-		snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq (v2)\n",
-			   dev->devnum, iface, fmt->altsetting);
-		prev_rate = 0;
-	} else {
-		prev_rate = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
-	}
+	prev_rate = get_sample_rate_v2(chip, iface, fmt->altsetting, clock);
 
 	data[0] = rate;
 	data[1] = rate >> 8;
@@ -293,18 +303,7 @@ static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 		return err;
 	}
 
-	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
-			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-			      UAC2_CS_CONTROL_SAM_FREQ << 8,
-			      snd_usb_ctrl_intf(chip) | (clock << 8),
-			      data, sizeof(data));
-	if (err < 0) {
-		snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq (v2)\n",
-			   dev->devnum, iface, fmt->altsetting);
-		cur_rate = 0;
-	} else {
-		cur_rate = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
-	}
+	cur_rate = get_sample_rate_v2(chip, iface, fmt->altsetting, clock);
 
 	if (cur_rate != rate) {
 		snd_printd(KERN_WARNING
