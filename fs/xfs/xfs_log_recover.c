@@ -2040,6 +2040,14 @@ xlog_recovery_validate_buf_type(
 		}
 		bp->b_ops = &xfs_attr3_rmt_buf_ops;
 		break;
+	case XFS_BLFT_SB_BUF:
+		if (magic32 != XFS_SB_MAGIC) {
+			xfs_warn(mp, "Bad SB block magic!");
+			ASSERT(0);
+			break;
+		}
+		bp->b_ops = &xfs_sb_buf_ops;
+		break;
 	default:
 		xfs_warn(mp, "Unknown buffer type %d!",
 			 xfs_blft_from_flags(buf_f));
