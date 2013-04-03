@@ -1340,7 +1340,6 @@ static void unix_destruct_scm(struct sk_buff *skb)
 	struct scm_cookie scm;
 	memset(&scm, 0, sizeof(scm));
 	scm.pid  = UNIXCB(skb).pid;
-	scm.cred = UNIXCB(skb).cred;
 	if (UNIXCB(skb).fp)
 		unix_detach_fds(&scm, skb);
 
@@ -1391,8 +1390,8 @@ static int unix_scm_to_skb(struct scm_cookie *scm, struct sk_buff *skb, bool sen
 	int err = 0;
 
 	UNIXCB(skb).pid  = get_pid(scm->pid);
-	if (scm->cred)
-		UNIXCB(skb).cred = get_cred(scm->cred);
+	UNIXCB(skb).uid = scm->creds.uid;
+	UNIXCB(skb).gid = scm->creds.gid;
 	UNIXCB(skb).fp = NULL;
 	if (scm->fp && send_fds)
 		err = unix_attach_fds(scm, skb);
@@ -1409,13 +1408,13 @@ static int unix_scm_to_skb(struct scm_cookie *scm, struct sk_buff *skb, bool sen
 static void maybe_add_creds(struct sk_buff *skb, const struct socket *sock,
 			    const struct sock *other)
 {
-	if (UNIXCB(skb).cred)
+	if (UNIXCB(skb).pid)
 		return;
 	if (test_bit(SOCK_PASSCRED, &sock->flags) ||
 	    !other->sk_socket ||
 	    test_bit(SOCK_PASSCRED, &other->sk_socket->flags)) {
 		UNIXCB(skb).pid  = get_pid(task_tgid(current));
-		UNIXCB(skb).cred = get_current_cred();
+		current_euid_egid(&UNIXCB(skb).uid, &UNIXCB(skb).gid);
 	}
 }
 
@@ -1819,7 +1818,7 @@ static int unix_dgram_recvmsg(struct kiocb *iocb, struct socket *sock,
 		siocb->scm = &tmp_scm;
 		memset(&tmp_scm, 0, sizeof(tmp_scm));
 	}
-	scm_set_cred(siocb->scm, UNIXCB(skb).pid, UNIXCB(skb).cred);
+	scm_set_cred(siocb->scm, UNIXCB(skb).pid, UNIXCB(skb).uid, UNIXCB(skb).gid);
 	unix_set_secdata(siocb->scm, skb);
 
 	if (!(flags & MSG_PEEK)) {
@@ -1991,11 +1990,12 @@ again:
 		if (check_creds) {
 			/* Never glue messages from different writers */
 			if ((UNIXCB(skb).pid  != siocb->scm->pid) ||
-			    (UNIXCB(skb).cred != siocb->scm->cred))
+			    !uid_eq(UNIXCB(skb).uid, siocb->scm->creds.uid) ||
+			    !gid_eq(UNIXCB(skb).gid, siocb->scm->creds.gid))
 				break;
 		} else if (test_bit(SOCK_PASSCRED, &sock->flags)) {
 			/* Copy credentials */
-			scm_set_cred(siocb->scm, UNIXCB(skb).pid, UNIXCB(skb).cred);
+			scm_set_cred(siocb->scm, UNIXCB(skb).pid, UNIXCB(skb).uid, UNIXCB(skb).gid);
 			check_creds = 1;
 		}
 
