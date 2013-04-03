@@ -4,6 +4,7 @@
  * initial bootloader stuff..
  */
 
+#include <asm/pal.h>
 
 	.set noreorder
 	.globl	__start

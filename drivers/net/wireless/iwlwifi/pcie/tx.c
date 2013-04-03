@@ -191,12 +191,9 @@ static void iwl_pcie_txq_stuck_timer(unsigned long data)
 	}
 
 	for (i = q->read_ptr; i != q->write_ptr;
-	     i = iwl_queue_inc_wrap(i, q->n_bd)) {
-		struct iwl_tx_cmd *tx_cmd =
-			(struct iwl_tx_cmd *)txq->entries[i].cmd->payload;
+	     i = iwl_queue_inc_wrap(i, q->n_bd))
 		IWL_ERR(trans, "scratch %d = 0x%08x\n", i,
-			get_unaligned_le32(&tx_cmd->scratch));
-	}
+			le32_to_cpu(txq->scratchbufs[i].scratch));
 
 	iwl_op_mode_nic_error(trans->op_mode);
 }
@@ -367,8 +364,8 @@ static inline u8 iwl_pcie_tfd_get_num_tbs(struct iwl_tfd *tfd)
 }
 
 static void iwl_pcie_tfd_unmap(struct iwl_trans *trans,
-			       struct iwl_cmd_meta *meta, struct iwl_tfd *tfd,
-			       enum dma_data_direction dma_dir)
+			       struct iwl_cmd_meta *meta,
+			       struct iwl_tfd *tfd)
 {
 	int i;
 	int num_tbs;
@@ -382,17 +379,12 @@ static void iwl_pcie_tfd_unmap(struct iwl_trans *trans,
 		return;
 	}
 
-	/* Unmap tx_cmd */
-	if (num_tbs)
-		dma_unmap_single(trans->dev,
-				dma_unmap_addr(meta, mapping),
-				dma_unmap_len(meta, len),
-				DMA_BIDIRECTIONAL);
+	/* first TB is never freed - it's the scratchbuf data */
 
-	/* Unmap chunks, if any. */
 	for (i = 1; i < num_tbs; i++)
 		dma_unmap_single(trans->dev, iwl_pcie_tfd_tb_get_addr(tfd, i),
-				 iwl_pcie_tfd_tb_get_len(tfd, i), dma_dir);
+				 iwl_pcie_tfd_tb_get_len(tfd, i),
+				 DMA_TO_DEVICE);
 
 	tfd->num_tbs = 0;
 }
@@ -406,8 +398,7 @@ static void iwl_pcie_tfd_unmap(struct iwl_trans *trans,
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
-static void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
-				  enum dma_data_direction dma_dir)
+static void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 {
 	struct iwl_tfd *tfd_tmp = txq->tfds;
 
@@ -418,8 +409,7 @@ static void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 	lockdep_assert_held(&txq->lock);
 
 	/* We have only q->n_window txq->entries, but we use q->n_bd tfds */
-	iwl_pcie_tfd_unmap(trans, &txq->entries[idx].meta, &tfd_tmp[rd_ptr],
-			   dma_dir);
+	iwl_pcie_tfd_unmap(trans, &txq->entries[idx].meta, &tfd_tmp[rd_ptr]);
 
 	/* free SKB */
 	if (txq->entries) {
@@ -479,6 +469,7 @@ static int iwl_pcie_txq_alloc(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	size_t tfd_sz = sizeof(struct iwl_tfd) * TFD_QUEUE_SIZE_MAX;
+	size_t scratchbuf_sz;
 	int i;
 
 	if (WARN_ON(txq->entries || txq->tfds))
@@ -514,9 +505,25 @@ static int iwl_pcie_txq_alloc(struct iwl_trans *trans,
 		IWL_ERR(trans, "dma_alloc_coherent(%zd) failed\n", tfd_sz);
 		goto error;
 	}
+
+	BUILD_BUG_ON(IWL_HCMD_SCRATCHBUF_SIZE != sizeof(*txq->scratchbufs));
+	BUILD_BUG_ON(offsetof(struct iwl_pcie_txq_scratch_buf, scratch) !=
+			sizeof(struct iwl_cmd_header) +
+			offsetof(struct iwl_tx_cmd, scratch));
+
+	scratchbuf_sz = sizeof(*txq->scratchbufs) * slots_num;
+
+	txq->scratchbufs = dma_alloc_coherent(trans->dev, scratchbuf_sz,
+					      &txq->scratchbufs_dma,
+					      GFP_KERNEL);
+	if (!txq->scratchbufs)
+		goto err_free_tfds;
+
 	txq->q.id = txq_id;
 
 	return 0;
+err_free_tfds:
+	dma_free_coherent(trans->dev, tfd_sz, txq->tfds, txq->q.dma_addr);
 error:
 	if (txq->entries && txq_id == trans_pcie->cmd_queue)
 		for (i = 0; i < slots_num; i++)
@@ -565,22 +572,13 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = &trans_pcie->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
-	enum dma_data_direction dma_dir;
 
 	if (!q->n_bd)
 		return;
 
-	/* In the command queue, all the TBs are mapped as BIDI
-	 * so unmap them as such.
-	 */
-	if (txq_id == trans_pcie->cmd_queue)
-		dma_dir = DMA_BIDIRECTIONAL;
-	else
-		dma_dir = DMA_TO_DEVICE;
-
 	spin_lock_bh(&txq->lock);
 	while (q->write_ptr != q->read_ptr) {
-		iwl_pcie_txq_free_tfd(trans, txq, dma_dir);
+		iwl_pcie_txq_free_tfd(trans, txq);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
 	spin_unlock_bh(&txq->lock);
@@ -610,7 +608,6 @@ static void iwl_pcie_txq_free(struct iwl_trans *trans, int txq_id)
 	if (txq_id == trans_pcie->cmd_queue)
 		for (i = 0; i < txq->q.n_window; i++) {
 			kfree(txq->entries[i].cmd);
-			kfree(txq->entries[i].copy_cmd);
 			kfree(txq->entries[i].free_buf);
 		}
 
@@ -619,6 +616,10 @@ static void iwl_pcie_txq_free(struct iwl_trans *trans, int txq_id)
 		dma_free_coherent(dev, sizeof(struct iwl_tfd) *
 				  txq->q.n_bd, txq->tfds, txq->q.dma_addr);
 		txq->q.dma_addr = 0;
+
+		dma_free_coherent(dev,
+				  sizeof(*txq->scratchbufs) * txq->q.n_window,
+				  txq->scratchbufs, txq->scratchbufs_dma);
 	}
 
 	kfree(txq->entries);
@@ -962,7 +963,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 		iwl_pcie_txq_inval_byte_cnt_tbl(trans, txq);
 
-		iwl_pcie_txq_free_tfd(trans, txq, DMA_TO_DEVICE);
+		iwl_pcie_txq_free_tfd(trans, txq);
 	}
 
 	iwl_pcie_txq_progress(trans_pcie, txq);
@@ -1152,20 +1153,37 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	void *dup_buf = NULL;
 	dma_addr_t phys_addr;
 	int idx;
-	u16 copy_size, cmd_size;
+	u16 copy_size, cmd_size, scratch_size;
 	bool had_nocopy = false;
 	int i;
 	u32 cmd_pos;
+	const u8 *cmddata[IWL_MAX_CMD_TBS_PER_TFD];
+	u16 cmdlen[IWL_MAX_CMD_TBS_PER_TFD];
 
 	copy_size = sizeof(out_cmd->hdr);
 	cmd_size = sizeof(out_cmd->hdr);
 
 	/* need one for the header if the first is NOCOPY */
-	BUILD_BUG_ON(IWL_MAX_CMD_TFDS > IWL_NUM_OF_TBS - 1);
+	BUILD_BUG_ON(IWL_MAX_CMD_TBS_PER_TFD > IWL_NUM_OF_TBS - 1);
 
-	for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
+	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
+		cmddata[i] = cmd->data[i];
+		cmdlen[i] = cmd->len[i];
+
 		if (!cmd->len[i])
 			continue;
+
+		/* need at least IWL_HCMD_SCRATCHBUF_SIZE copied */
+		if (copy_size < IWL_HCMD_SCRATCHBUF_SIZE) {
+			int copy = IWL_HCMD_SCRATCHBUF_SIZE - copy_size;
+
+			if (copy > cmdlen[i])
+				copy = cmdlen[i];
+			cmdlen[i] -= copy;
+			cmddata[i] += copy;
+			copy_size += copy;
+		}
+
 		if (cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY) {
 			had_nocopy = true;
 			if (WARN_ON(cmd->dataflags[i] & IWL_HCMD_DFL_DUP)) {
@@ -1185,7 +1203,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 				goto free_dup_buf;
 			}
 
-			dup_buf = kmemdup(cmd->data[i], cmd->len[i],
+			dup_buf = kmemdup(cmddata[i], cmdlen[i],
 					  GFP_ATOMIC);
 			if (!dup_buf)
 				return -ENOMEM;
@@ -1195,7 +1213,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 				idx = -EINVAL;
 				goto free_dup_buf;
 			}
-			copy_size += cmd->len[i];
+			copy_size += cmdlen[i];
 		}
 		cmd_size += cmd->len[i];
 	}
@@ -1242,30 +1260,30 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 
 	/* and copy the data that needs to be copied */
 	cmd_pos = offsetof(struct iwl_device_cmd, payload);
-	for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
-		if (!cmd->len[i])
+	copy_size = sizeof(out_cmd->hdr);
+	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
+		int copy = 0;
+
+		if (!cmd->len)
 			continue;
-		if (cmd->dataflags[i] & (IWL_HCMD_DFL_NOCOPY |
-					 IWL_HCMD_DFL_DUP))
-			break;
-		memcpy((u8 *)out_cmd + cmd_pos, cmd->data[i], cmd->len[i]);
-		cmd_pos += cmd->len[i];
-	}
 
-	WARN_ON_ONCE(txq->entries[idx].copy_cmd);
+		/* need at least IWL_HCMD_SCRATCHBUF_SIZE copied */
+		if (copy_size < IWL_HCMD_SCRATCHBUF_SIZE) {
+			copy = IWL_HCMD_SCRATCHBUF_SIZE - copy_size;
 
-	/*
-	 * since out_cmd will be the source address of the FH, it will write
-	 * the retry count there. So when the user needs to receivce the HCMD
-	 * that corresponds to the response in the response handler, it needs
-	 * to set CMD_WANT_HCMD.
-	 */
-	if (cmd->flags & CMD_WANT_HCMD) {
-		txq->entries[idx].copy_cmd =
-			kmemdup(out_cmd, cmd_pos, GFP_ATOMIC);
-		if (unlikely(!txq->entries[idx].copy_cmd)) {
-			idx = -ENOMEM;
-			goto out;
+			if (copy > cmd->len[i])
+				copy = cmd->len[i];
+		}
+
+		/* copy everything if not nocopy/dup */
+		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_NOCOPY |
+					   IWL_HCMD_DFL_DUP)))
+			copy = cmd->len[i];
+
+		if (copy) {
+			memcpy((u8 *)out_cmd + cmd_pos, cmd->data[i], copy);
+			cmd_pos += copy;
+			copy_size += copy;
 		}
 	}
 
@@ -1275,22 +1293,35 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		     out_cmd->hdr.cmd, le16_to_cpu(out_cmd->hdr.sequence),
 		     cmd_size, q->write_ptr, idx, trans_pcie->cmd_queue);
 
-	phys_addr = dma_map_single(trans->dev, &out_cmd->hdr, copy_size,
-				   DMA_BIDIRECTIONAL);
-	if (unlikely(dma_mapping_error(trans->dev, phys_addr))) {
-		idx = -ENOMEM;
-		goto out;
+	/* start the TFD with the scratchbuf */
+	scratch_size = min_t(int, copy_size, IWL_HCMD_SCRATCHBUF_SIZE);
+	memcpy(&txq->scratchbufs[q->write_ptr], &out_cmd->hdr, scratch_size);
+	iwl_pcie_txq_build_tfd(trans, txq,
+			       iwl_pcie_get_scratchbuf_dma(txq, q->write_ptr),
+			       scratch_size, 1);
+
+	/* map first command fragment, if any remains */
+	if (copy_size > scratch_size) {
+		phys_addr = dma_map_single(trans->dev,
+					   ((u8 *)&out_cmd->hdr) + scratch_size,
+					   copy_size - scratch_size,
+					   DMA_TO_DEVICE);
+		if (dma_mapping_error(trans->dev, phys_addr)) {
+			iwl_pcie_tfd_unmap(trans, out_meta,
+					   &txq->tfds[q->write_ptr]);
+			idx = -ENOMEM;
+			goto out;
+		}
+
+		iwl_pcie_txq_build_tfd(trans, txq, phys_addr,
+				       copy_size - scratch_size, 0);
 	}
 
-	dma_unmap_addr_set(out_meta, mapping, phys_addr);
-	dma_unmap_len_set(out_meta, len, copy_size);
+	/* map the remaining (adjusted) nocopy/dup fragments */
+	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
+		const void *data = cmddata[i];
 
-	iwl_pcie_txq_build_tfd(trans, txq, phys_addr, copy_size, 1);
-
-	for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
-		const void *data = cmd->data[i];
-
-		if (!cmd->len[i])
+		if (!cmdlen[i])
 			continue;
 		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_NOCOPY |
 					   IWL_HCMD_DFL_DUP)))
@@ -1298,16 +1329,15 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		if (cmd->dataflags[i] & IWL_HCMD_DFL_DUP)
 			data = dup_buf;
 		phys_addr = dma_map_single(trans->dev, (void *)data,
-					   cmd->len[i], DMA_BIDIRECTIONAL);
+					   cmdlen[i], DMA_TO_DEVICE);
 		if (dma_mapping_error(trans->dev, phys_addr)) {
 			iwl_pcie_tfd_unmap(trans, out_meta,
-					   &txq->tfds[q->write_ptr],
-					   DMA_BIDIRECTIONAL);
+					   &txq->tfds[q->write_ptr]);
 			idx = -ENOMEM;
 			goto out;
 		}
 
-		iwl_pcie_txq_build_tfd(trans, txq, phys_addr, cmd->len[i], 0);
+		iwl_pcie_txq_build_tfd(trans, txq, phys_addr, cmdlen[i], 0);
 	}
 
 	out_meta->flags = cmd->flags;
@@ -1317,8 +1347,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 
 	txq->need_update = 1;
 
-	trace_iwlwifi_dev_hcmd(trans->dev, cmd, cmd_size,
-			       &out_cmd->hdr, copy_size);
+	trace_iwlwifi_dev_hcmd(trans->dev, cmd, cmd_size, &out_cmd->hdr);
 
 	/* start timer if queue currently empty */
 	if (q->read_ptr == q->write_ptr && trans_pcie->wd_timeout)
@@ -1377,7 +1406,7 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 	cmd = txq->entries[cmd_index].cmd;
 	meta = &txq->entries[cmd_index].meta;
 
-	iwl_pcie_tfd_unmap(trans, meta, &txq->tfds[index], DMA_BIDIRECTIONAL);
+	iwl_pcie_tfd_unmap(trans, meta, &txq->tfds[index]);
 
 	/* Input error checking is done when commands are added to queue. */
 	if (meta->flags & CMD_WANT_SKB) {
@@ -1556,10 +1585,9 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	struct iwl_cmd_meta *out_meta;
 	struct iwl_txq *txq;
 	struct iwl_queue *q;
-	dma_addr_t phys_addr = 0;
-	dma_addr_t txcmd_phys;
-	dma_addr_t scratch_phys;
-	u16 len, firstlen, secondlen;
+	dma_addr_t tb0_phys, tb1_phys, scratch_phys;
+	void *tb1_addr;
+	u16 len, tb1_len, tb2_len;
 	u8 wait_write_ptr = 0;
 	__le16 fc = hdr->frame_control;
 	u8 hdr_len = ieee80211_hdrlen(fc);
@@ -1597,35 +1625,73 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		cpu_to_le16((u16)(QUEUE_TO_SEQ(txq_id) |
 			    INDEX_TO_SEQ(q->write_ptr)));
 
+	tb0_phys = iwl_pcie_get_scratchbuf_dma(txq, q->write_ptr);
+	scratch_phys = tb0_phys + sizeof(struct iwl_cmd_header) +
+		       offsetof(struct iwl_tx_cmd, scratch);
+
+	tx_cmd->dram_lsb_ptr = cpu_to_le32(scratch_phys);
+	tx_cmd->dram_msb_ptr = iwl_get_dma_hi_addr(scratch_phys);
+
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
 	out_meta = &txq->entries[q->write_ptr].meta;
 
 	/*
-	 * Use the first empty entry in this queue's command buffer array
-	 * to contain the Tx command and MAC header concatenated together
-	 * (payload data will be in another buffer).
-	 * Size of this varies, due to varying MAC header length.
-	 * If end is not dword aligned, we'll have 2 extra bytes at the end
-	 * of the MAC header (device reads on dword boundaries).
-	 * We'll tell device about this padding later.
+	 * The second TB (tb1) points to the remainder of the TX command
+	 * and the 802.11 header - dword aligned size
+	 * (This calculation modifies the TX command, so do it before the
+	 * setup of the first TB)
 	 */
-	len = sizeof(struct iwl_tx_cmd) +
-		sizeof(struct iwl_cmd_header) + hdr_len;
-	firstlen = (len + 3) & ~3;
+	len = sizeof(struct iwl_tx_cmd) + sizeof(struct iwl_cmd_header) +
+	      hdr_len - IWL_HCMD_SCRATCHBUF_SIZE;
+	tb1_len = (len + 3) & ~3;
 
 	/* Tell NIC about any 2-byte padding after MAC header */
-	if (firstlen != len)
+	if (tb1_len != len)
 		tx_cmd->tx_flags |= TX_CMD_FLG_MH_PAD_MSK;
 
-	/* Physical address of this Tx command's header (not MAC header!),
-	 * within command buffer array. */
-	txcmd_phys = dma_map_single(trans->dev,
-				    &dev_cmd->hdr, firstlen,
-				    DMA_BIDIRECTIONAL);
-	if (unlikely(dma_mapping_error(trans->dev, txcmd_phys)))
+	/* The first TB points to the scratchbuf data - min_copy bytes */
+	memcpy(&txq->scratchbufs[q->write_ptr], &dev_cmd->hdr,
+	       IWL_HCMD_SCRATCHBUF_SIZE);
+	iwl_pcie_txq_build_tfd(trans, txq, tb0_phys,
+			       IWL_HCMD_SCRATCHBUF_SIZE, 1);
+
+	/* there must be data left over for TB1 or this code must be changed */
+	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd) < IWL_HCMD_SCRATCHBUF_SIZE);
+
+	/* map the data for TB1 */
+	tb1_addr = ((u8 *)&dev_cmd->hdr) + IWL_HCMD_SCRATCHBUF_SIZE;
+	tb1_phys = dma_map_single(trans->dev, tb1_addr, tb1_len, DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(trans->dev, tb1_phys)))
 		goto out_err;
-	dma_unmap_addr_set(out_meta, mapping, txcmd_phys);
-	dma_unmap_len_set(out_meta, len, firstlen);
+	iwl_pcie_txq_build_tfd(trans, txq, tb1_phys, tb1_len, 0);
+
+	/*
+	 * Set up TFD's third entry to point directly to remainder
+	 * of skb, if any (802.11 null frames have no payload).
+	 */
+	tb2_len = skb->len - hdr_len;
+	if (tb2_len > 0) {
+		dma_addr_t tb2_phys = dma_map_single(trans->dev,
+						     skb->data + hdr_len,
+						     tb2_len, DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(trans->dev, tb2_phys))) {
+			iwl_pcie_tfd_unmap(trans, out_meta,
+					   &txq->tfds[q->write_ptr]);
+			goto out_err;
+		}
+		iwl_pcie_txq_build_tfd(trans, txq, tb2_phys, tb2_len, 0);
+	}
+
+	/* Set up entry for this TFD in Tx byte-count array */
+	iwl_pcie_txq_update_byte_cnt_tbl(trans, txq, le16_to_cpu(tx_cmd->len));
+
+	trace_iwlwifi_dev_tx(trans->dev, skb,
+			     &txq->tfds[txq->q.write_ptr],
+			     sizeof(struct iwl_tfd),
+			     &dev_cmd->hdr, IWL_HCMD_SCRATCHBUF_SIZE + tb1_len,
+			     skb->data + hdr_len, tb2_len);
+	trace_iwlwifi_dev_tx_data(trans->dev, skb,
+				  skb->data + hdr_len, tb2_len);
 
 	if (!ieee80211_has_morefrags(fc)) {
 		txq->need_update = 1;
@@ -1633,49 +1699,6 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		wait_write_ptr = 1;
 		txq->need_update = 0;
 	}
-
-	/* Set up TFD's 2nd entry to point directly to remainder of skb,
-	 * if any (802.11 null frames have no payload). */
-	secondlen = skb->len - hdr_len;
-	if (secondlen > 0) {
-		phys_addr = dma_map_single(trans->dev, skb->data + hdr_len,
-					   secondlen, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(trans->dev, phys_addr))) {
-			dma_unmap_single(trans->dev,
-					 dma_unmap_addr(out_meta, mapping),
-					 dma_unmap_len(out_meta, len),
-					 DMA_BIDIRECTIONAL);
-			goto out_err;
-		}
-	}
-
-	/* Attach buffers to TFD */
-	iwl_pcie_txq_build_tfd(trans, txq, txcmd_phys, firstlen, 1);
-	if (secondlen > 0)
-		iwl_pcie_txq_build_tfd(trans, txq, phys_addr, secondlen, 0);
-
-	scratch_phys = txcmd_phys + sizeof(struct iwl_cmd_header) +
-				offsetof(struct iwl_tx_cmd, scratch);
-
-	/* take back ownership of DMA buffer to enable update */
-	dma_sync_single_for_cpu(trans->dev, txcmd_phys, firstlen,
-				DMA_BIDIRECTIONAL);
-	tx_cmd->dram_lsb_ptr = cpu_to_le32(scratch_phys);
-	tx_cmd->dram_msb_ptr = iwl_get_dma_hi_addr(scratch_phys);
-
-	/* Set up entry for this TFD in Tx byte-count array */
-	iwl_pcie_txq_update_byte_cnt_tbl(trans, txq, le16_to_cpu(tx_cmd->len));
-
-	dma_sync_single_for_device(trans->dev, txcmd_phys, firstlen,
-				   DMA_BIDIRECTIONAL);
-
-	trace_iwlwifi_dev_tx(trans->dev, skb,
-			     &txq->tfds[txq->q.write_ptr],
-			     sizeof(struct iwl_tfd),
-			     &dev_cmd->hdr, firstlen,
-			     skb->data + hdr_len, secondlen);
-	trace_iwlwifi_dev_tx_data(trans->dev, skb,
-				  skb->data + hdr_len, secondlen);
 
 	/* start timer if queue currently empty */
 	if (txq->need_update && q->read_ptr == q->write_ptr &&

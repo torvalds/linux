@@ -881,17 +881,12 @@ static struct vio_driver hvcs_vio_driver = {
 /* Only called from hvcs_get_pi please */
 static void hvcs_set_pi(struct hvcs_partner_info *pi, struct hvcs_struct *hvcsd)
 {
-	int clclength;
-
 	hvcsd->p_unit_address = pi->unit_address;
 	hvcsd->p_partition_ID  = pi->partition_ID;
-	clclength = strlen(&pi->location_code[0]);
-	if (clclength > HVCS_CLC_LENGTH)
-		clclength = HVCS_CLC_LENGTH;
 
 	/* copy the null-term char too */
-	strncpy(&hvcsd->p_location_code[0],
-			&pi->location_code[0], clclength + 1);
+	strlcpy(&hvcsd->p_location_code[0],
+			&pi->location_code[0], sizeof(hvcsd->p_location_code));
 }
 
 /*
