@@ -243,7 +243,6 @@ int __init tegra20_cpuidle_init(void)
 		dev->coupled_cpus = *cpu_possible_mask;
 #endif
 
-		dev->state_count = drv->state_count;
 		ret = cpuidle_register_device(dev);
 		if (ret) {
 			pr_err("CPU%u: CPUidle device registration failed\n",

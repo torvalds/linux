@@ -176,7 +176,6 @@ int __init tegra30_cpuidle_init(void)
 		dev = &per_cpu(tegra_idle_device, cpu);
 		dev->cpu = cpu;
 
-		dev->state_count = drv->state_count;
 		ret = cpuidle_register_device(dev);
 		if (ret) {
 			pr_err("CPU%u: CPUidle device registration failed\n",
