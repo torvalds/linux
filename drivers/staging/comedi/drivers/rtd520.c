@@ -404,7 +404,7 @@ struct rtd_private {
 
 	unsigned int ao_readback[2];
 
-	unsigned fifoLen;
+	unsigned fifosz;
 };
 
 /* bit defines for "flags" */
@@ -744,7 +744,7 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 		 */
 		if (!(fifoStatus & FS_ADC_HEMPTY)) {
 			/* FIFO half full */
-			if (ai_read_n(dev, s, devpriv->fifoLen / 2) < 0)
+			if (ai_read_n(dev, s, devpriv->fifosz / 2) < 0)
 				goto abortTransfer;
 
 			if (0 == devpriv->aiCount)
@@ -1004,7 +1004,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* ADC conversion trigger source: PACER */
 		writel(1, devpriv->las0 + LAS0_ADC_CONVERSION);
 	}
-	writel((devpriv->fifoLen / 2 - 1) & 0xffff, devpriv->las0 + LAS0_ACNT);
+	writel((devpriv->fifosz / 2 - 1) & 0xffff, devpriv->las0 + LAS0_ACNT);
 
 	if (TRIG_TIMER == cmd->scan_begin_src) {
 		/* scan_begin_arg is in nanoseconds */
@@ -1034,7 +1034,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			}
 			devpriv->flags |= SEND_EOS;
 		}
-		if (devpriv->xfer_count >= (devpriv->fifoLen / 2)) {
+		if (devpriv->xfer_count >= (devpriv->fifosz / 2)) {
 			/* out of counter range, use 1/2 fifo instead */
 			devpriv->xfer_count = 0;
 			devpriv->flags &= ~SEND_EOS;
@@ -1423,7 +1423,7 @@ static int rtd_auto_attach(struct comedi_device *dev,
 	ret = rtd520_probe_fifo_depth(dev);
 	if (ret < 0)
 		return ret;
-	devpriv->fifoLen = ret;
+	devpriv->fifosz = ret;
 
 	if (dev->irq)
 		writel(ICS_PIE | ICS_PLIE, devpriv->lcfg + PLX_INTRCS_REG);
