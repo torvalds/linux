@@ -148,7 +148,7 @@
  * see
  *	usbhsf_power_ctrl()
  */
-#define IRQ7		evt2irq(0x02e0)
+#define IRQ7		irq_pin(7)
 #define USBCR1		IOMEM(0xe605810a)
 #define USBH		0xC6700000
 #define USBH_USBCTR	0x10834
@@ -333,7 +333,7 @@ static struct resource usbhsf_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= evt2irq(0x0A20),
+		.start	= gic_spi(51),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -366,7 +366,7 @@ static struct resource sh_eth_resources[] = {
 		.end	= 0xe9a02000 - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.start	= evt2irq(0x0500),
+		.start	= gic_spi(110),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -420,7 +420,7 @@ static struct resource lcdc0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= intcs_evt2irq(0x580),
+		.start	= gic_spi(177),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -455,7 +455,7 @@ static struct resource hdmi_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= evt2irq(0x1700),
+		.start	= gic_spi(131),
 		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = {
@@ -517,7 +517,7 @@ static struct resource hdmi_lcdc_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= intcs_evt2irq(0x1780),
+		.start	= gic_spi(178),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -681,7 +681,7 @@ static struct platform_device vcc_sdhi1 = {
  * We can use IRQ31 as card detect irq,
  * but it needs chattering removal operation
  */
-#define IRQ31	evt2irq(0x33E0)
+#define IRQ31	irq_pin(31)
 static struct sh_mobile_sdhi_info sdhi0_info = {
 	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
@@ -703,12 +703,12 @@ static struct resource sdhi0_resources[] = {
 	 */
 	{
 		.name	= SH_MOBILE_SDHI_IRQ_SDCARD,
-		.start	= evt2irq(0x0E20),
+		.start	= gic_spi(118),
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
 		.name	= SH_MOBILE_SDHI_IRQ_SDIO,
-		.start	= evt2irq(0x0E40),
+		.start	= gic_spi(119),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -742,15 +742,15 @@ static struct resource sdhi1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= evt2irq(0x0E80),
+		.start	= gic_spi(121),
 		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = {
-		.start	= evt2irq(0x0EA0),
+		.start	= gic_spi(122),
 		.flags	= IORESOURCE_IRQ,
 	},
 	[3] = {
-		.start	= evt2irq(0x0EC0),
+		.start	= gic_spi(123),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -793,12 +793,12 @@ static struct resource sh_mmcif_resources[] = {
 	},
 	[1] = {
 		/* MMC ERR */
-		.start	= evt2irq(0x1AC0),
+		.start	= gic_spi(56),
 		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = {
 		/* MMC NOR */
-		.start	= evt2irq(0x1AE0),
+		.start	= gic_spi(57),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -875,7 +875,7 @@ static struct resource ceu0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = intcs_evt2irq(0x0500),
+		.start  = gic_spi(160),
 		.flags  = IORESOURCE_IRQ,
 	},
 	[2] = {
@@ -917,7 +917,7 @@ static struct resource fsi_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = evt2irq(0x1840),
+		.start  = gic_spi(9),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -1000,7 +1000,7 @@ static struct platform_device i2c_gpio_device = {
 static struct i2c_board_info i2c0_devices[] = {
 	{
 		I2C_BOARD_INFO("st1232-ts", 0x55),
-		.irq = evt2irq(0x0340),
+		.irq = irq_pin(10),
 	},
 	{
 		I2C_BOARD_INFO("wm8978", 0x1a),
@@ -1283,7 +1283,6 @@ DT_MACHINE_START(ARMADILLO800EVA_DT, "armadillo800eva")
 	.map_io		= r8a7740_map_io,
 	.init_early	= eva_add_early_devices,
 	.init_irq	= r8a7740_init_irq,
-	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= eva_init,
 	.init_late	= shmobile_init_late,
 	.init_time	= eva_earlytimer_init,

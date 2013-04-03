@@ -72,6 +72,7 @@ static void __iomem *sh_pfc_phys_to_virt(struct sh_pfc *pfc,
 	}
 
 	BUG();
+	return NULL;
 }
 
 int sh_pfc_get_pin_index(struct sh_pfc *pfc, unsigned int pin)
@@ -267,7 +268,7 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	int ret;
 
 	switch (pinmux_type) {
-
+	case PINMUX_TYPE_GPIO:
 	case PINMUX_TYPE_FUNCTION:
 		range = NULL;
 		break;
@@ -296,6 +297,8 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 	enum_id = 0;
 	field = 0;
 	value = 0;
+
+	/* Iterate over all the configuration fields we need to update. */
 	while (1) {
 		pos = sh_pfc_mark_to_enum(pfc, mark, pos, &enum_id);
 		if (pos < 0)
@@ -304,18 +307,20 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 		if (!enum_id)
 			break;
 
-		/* first check if this is a function enum */
+		/* Check if the configuration field selects a function. If it
+		 * doesn't, skip the field if it's not applicable to the
+		 * requested pinmux type.
+		 */
 		in_range = sh_pfc_enum_in_range(enum_id, &pfc->info->function);
 		if (!in_range) {
-			/* not a function enum */
-			if (range) {
-				/*
-				 * other range exists, so this pin is
-				 * a regular GPIO pin that now is being
-				 * bound to a specific direction.
-				 *
-				 * for this case we only allow function enums
-				 * and the enums that match the other range.
+			if (pinmux_type == PINMUX_TYPE_FUNCTION) {
+				/* Functions are allowed to modify all
+				 * fields.
+				 */
+				in_range = 1;
+			} else if (pinmux_type != PINMUX_TYPE_GPIO) {
+				/* Input/output types can only modify fields
+				 * that correspond to their respective ranges.
 				 */
 				in_range = sh_pfc_enum_in_range(enum_id, range);
 
@@ -326,17 +331,8 @@ int sh_pfc_config_mux(struct sh_pfc *pfc, unsigned mark, int pinmux_type)
 				 */
 				if (in_range && enum_id == range->force)
 					continue;
-			} else {
-				/*
-				 * no other range exists, so this pin
-				 * must then be of the function type.
-				 *
-				 * allow function type pins to select
-				 * any combination of function/in/out
-				 * in their MARK lists.
-				 */
-				in_range = 1;
 			}
+			/* GPIOs are only allowed to modify function fields. */
 		}
 
 		if (!in_range)
@@ -422,6 +418,9 @@ static int sh_pfc_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id sh_pfc_id_table[] = {
+#ifdef CONFIG_PINCTRL_PFC_R8A73A4
+	{ "pfc-r8a73a4", (kernel_ulong_t)&r8a73a4_pinmux_info },
+#endif
 #ifdef CONFIG_PINCTRL_PFC_R8A7740
 	{ "pfc-r8a7740", (kernel_ulong_t)&r8a7740_pinmux_info },
 #endif

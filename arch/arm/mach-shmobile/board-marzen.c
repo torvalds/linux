@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/leds.h>
 #include <linux/dma-mapping.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/regulator/fixed.h>
@@ -168,12 +169,43 @@ static struct platform_device usb_phy_device = {
 	.num_resources	= ARRAY_SIZE(usb_phy_resources),
 };
 
+/* LEDS */
+static struct gpio_led marzen_leds[] = {
+	{
+		.name		= "led2",
+		.gpio		= 157,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	}, {
+		.name		= "led3",
+		.gpio		= 158,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	}, {
+		.name		= "led4",
+		.gpio		= 159,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+};
+
+static struct gpio_led_platform_data marzen_leds_pdata = {
+	.leds		= marzen_leds,
+	.num_leds	= ARRAY_SIZE(marzen_leds),
+};
+
+static struct platform_device leds_device = {
+	.name	= "leds-gpio",
+	.id	= 0,
+	.dev	= {
+		.platform_data  = &marzen_leds_pdata,
+	},
+};
+
 static struct platform_device *marzen_devices[] __initdata = {
 	&eth_device,
 	&sdhi0_device,
 	&thermal_device,
 	&hspi_device,
 	&usb_phy_device,
+	&leds_device,
 };
 
 /* USB */
