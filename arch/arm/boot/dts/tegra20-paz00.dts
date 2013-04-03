@@ -445,6 +445,7 @@
 	sdhci@c8000600 {
 		status = "okay";
 		bus-width = <8>;
+		non-removable;
 	};
 
 	clocks {

@@ -580,6 +580,7 @@
 		status = "okay";
 		power-gpios = <&gpio 86 0>; /* gpio PK6 */
 		bus-width = <4>;
+		keep-power-in-suspend;
 	};
 
 	sdhci@c8000400 {
@@ -593,6 +594,7 @@
 	sdhci@c8000600 {
 		status = "okay";
 		bus-width = <8>;
+		non-removable;
 	};
 
 	clocks {

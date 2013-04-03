@@ -266,6 +266,7 @@
 	sdhci@78000600 {
 		status = "okay";
 		bus-width = <8>;
+		non-removable;
 	};
 
 	clocks {
