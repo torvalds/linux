@@ -490,11 +490,11 @@ static int vexpress_sysreg_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	vexpress_sysreg_dev = &pdev->dev;
+
 	platform_device_register_data(vexpress_sysreg_dev, "leds-gpio",
 			PLATFORM_DEVID_AUTO, &vexpress_sysreg_leds_pdata,
 			sizeof(vexpress_sysreg_leds_pdata));
-
-	vexpress_sysreg_dev = &pdev->dev;
 
 	device_create_file(vexpress_sysreg_dev, &dev_attr_sys_id);
 
