@@ -496,6 +496,14 @@
 
 	pmc {
 		nvidia,invert-interrupt;
+		nvidia,suspend-mode = <2>;
+		nvidia,cpu-pwr-good-time = <2000>;
+		nvidia,cpu-pwr-off-time = <1000>;
+		nvidia,core-pwr-good-time = <0 3845>;
+		nvidia,core-pwr-off-time = <93727>;
+		nvidia,core-power-req-active-high;
+		nvidia,sys-clock-req-active-high;
+		nvidia,combined-power-req;
 	};
 
 	usb@c5000000 {
