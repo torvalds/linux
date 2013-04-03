@@ -33,6 +33,7 @@
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/usb/musb-ux500.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pinctrl/consumer.h>
 
 /* Bank AB8500_SYS_CTRL2_BLOCK */
 #define AB8500_MAIN_WD_CTRL_REG 0x01
@@ -132,6 +133,8 @@ struct ab8500_usb {
 	struct regulator *v_ulpi;
 	int saved_v_ulpi;
 	int previous_link_status_state;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *pins_sleep;
 };
 
 static inline struct ab8500_usb *phy_to_ab(struct usb_phy *x)
@@ -240,6 +243,11 @@ static void ab8500_usb_phy_enable(struct ab8500_usb *ab, bool sel_host)
 	bit = sel_host ? AB8500_BIT_PHY_CTRL_HOST_EN :
 		AB8500_BIT_PHY_CTRL_DEVICE_EN;
 
+	/* mux and configure USB pins to DEFAULT state */
+	ab->pinctrl = pinctrl_get_select(ab->dev, PINCTRL_STATE_DEFAULT);
+	if (IS_ERR(ab->pinctrl))
+		dev_err(ab->dev, "could not get/set default pinstate\n");
+
 	ab8500_usb_regulator_enable(ab);
 
 	abx500_mask_and_set_register_interruptible(ab->dev,
@@ -263,6 +271,22 @@ static void ab8500_usb_phy_disable(struct ab8500_usb *ab, bool sel_host)
 	ab8500_usb_wd_workaround(ab);
 
 	ab8500_usb_regulator_disable(ab);
+
+	if (!IS_ERR(ab->pinctrl)) {
+		/* configure USB pins to SLEEP state */
+		ab->pins_sleep = pinctrl_lookup_state(ab->pinctrl,
+				PINCTRL_STATE_SLEEP);
+
+		if (IS_ERR(ab->pins_sleep))
+			dev_dbg(ab->dev, "could not get sleep pinstate\n");
+		else if (pinctrl_select_state(ab->pinctrl, ab->pins_sleep))
+			dev_err(ab->dev, "could not set pins to sleep state\n");
+
+		/* as USB pins are shared with idddet, release them to allow
+		 * iddet to request them
+		 */
+		pinctrl_put(ab->pinctrl);
+	}
 }
 
 #define ab8500_usb_host_phy_en(ab)	ab8500_usb_phy_enable(ab, true)
