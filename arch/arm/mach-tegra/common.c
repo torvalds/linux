@@ -109,5 +109,6 @@ void __init tegra_init_early(void)
 
 void __init tegra_init_late(void)
 {
+	tegra_init_suspend();
 	tegra_powergate_debugfs_init();
 }

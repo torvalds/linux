@@ -21,7 +21,14 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
+#include "fuse.h"
+#include "pm.h"
 #include "pmc.h"
+#include "sleep.h"
+
+#define TEGRA_POWER_EFFECT_LP0		(1 << 14)  /* LP0 when CPU pwr gated */
+#define TEGRA_POWER_CPU_PWRREQ_POLARITY	(1 << 15)  /* CPU pwr req polarity */
+#define TEGRA_POWER_CPU_PWRREQ_OE	(1 << 16)  /* CPU pwr req enable */
 
 #define PMC_CTRL			0x0
 #define PMC_CTRL_INTR_LOW		(1 << 17)
@@ -157,14 +164,12 @@ int tegra_pmc_cpu_remove_clamping(int cpuid)
 }
 
 #ifdef CONFIG_PM_SLEEP
-void set_power_timers(unsigned long us_on, unsigned long us_off)
+static void set_power_timers(u32 us_on, u32 us_off, unsigned long rate)
 {
 	unsigned long long ticks;
 	unsigned long long pclk;
-	unsigned long rate;
 	static unsigned long tegra_last_pclk;
 
-	rate = clk_get_rate(tegra_pclk);
 	if (WARN_ON_ONCE(rate <= 0))
 		pclk = 100000000;
 	else
@@ -181,6 +186,44 @@ void set_power_timers(unsigned long us_on, unsigned long us_off)
 		wmb();
 	}
 	tegra_last_pclk = pclk;
+}
+
+enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void)
+{
+	return pmc_pm_data.suspend_mode;
+}
+
+void tegra_pmc_pm_set(enum tegra_suspend_mode mode)
+{
+	u32 reg;
+	unsigned long rate = 0;
+
+	reg = tegra_pmc_readl(PMC_CTRL);
+	reg |= TEGRA_POWER_CPU_PWRREQ_OE;
+	reg &= ~TEGRA_POWER_EFFECT_LP0;
+
+	switch (mode) {
+	case TEGRA_SUSPEND_LP2:
+		rate = clk_get_rate(tegra_pclk);
+		break;
+	default:
+		break;
+	}
+
+	set_power_timers(pmc_pm_data.cpu_good_time, pmc_pm_data.cpu_off_time,
+			 rate);
+
+	tegra_pmc_writel(reg, PMC_CTRL);
+}
+
+void tegra_pmc_suspend_init(void)
+{
+	u32 reg;
+
+	/* Always enable CPU power request */
+	reg = tegra_pmc_readl(PMC_CTRL);
+	reg |= TEGRA_POWER_CPU_PWRREQ_OE;
+	tegra_pmc_writel(reg, PMC_CTRL);
 }
 #endif
 
@@ -228,6 +271,7 @@ static void tegra_pmc_parse_dt(void)
 			break;
 		}
 	}
+	suspend_mode = tegra_pm_validate_suspend_mode(suspend_mode);
 
 	if (of_property_read_u32(np, "nvidia,cpu-pwr-good-time", &prop))
 		suspend_mode = TEGRA_SUSPEND_NONE;
