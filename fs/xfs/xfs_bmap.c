@@ -1338,7 +1338,7 @@ xfs_bmap_local_to_extents_init_fn(
 	ASSERT(0);
 	bp->b_ops = &xfs_bmbt_buf_ops;
 	memcpy(bp->b_addr, ifp->if_u1.if_data, ifp->if_bytes);
-	xfs_trans_buf_set_type(tp, bp, XFS_BLF_BTREE_BUF);
+	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_BTREE_BUF);
 }
 
 /*

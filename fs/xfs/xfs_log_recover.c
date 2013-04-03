@@ -1888,8 +1888,8 @@ xlog_recovery_validate_buf_type(
 	magic32 = be32_to_cpu(*(__be32 *)bp->b_addr);
 	magic16 = be16_to_cpu(*(__be16*)bp->b_addr);
 	magicda = be16_to_cpu(info->magic);
-	switch (buf_f->blf_flags & XFS_BLF_TYPE_MASK) {
-	case XFS_BLF_BTREE_BUF:
+	switch (xfs_blft_from_flags(buf_f)) {
+	case XFS_BLFT_BTREE_BUF:
 		switch (magic32) {
 		case XFS_ABTB_CRC_MAGIC:
 		case XFS_ABTC_CRC_MAGIC:
@@ -1911,7 +1911,7 @@ xlog_recovery_validate_buf_type(
 			break;
 		}
 		break;
-	case XFS_BLF_AGF_BUF:
+	case XFS_BLFT_AGF_BUF:
 		if (magic32 != XFS_AGF_MAGIC) {
 			xfs_warn(mp, "Bad AGF block magic!");
 			ASSERT(0);
@@ -1919,7 +1919,7 @@ xlog_recovery_validate_buf_type(
 		}
 		bp->b_ops = &xfs_agf_buf_ops;
 		break;
-	case XFS_BLF_AGFL_BUF:
+	case XFS_BLFT_AGFL_BUF:
 		if (!xfs_sb_version_hascrc(&mp->m_sb))
 			break;
 		if (magic32 != XFS_AGFL_MAGIC) {
@@ -1929,7 +1929,7 @@ xlog_recovery_validate_buf_type(
 		}
 		bp->b_ops = &xfs_agfl_buf_ops;
 		break;
-	case XFS_BLF_AGI_BUF:
+	case XFS_BLFT_AGI_BUF:
 		if (magic32 != XFS_AGI_MAGIC) {
 			xfs_warn(mp, "Bad AGI block magic!");
 			ASSERT(0);
@@ -1937,9 +1937,9 @@ xlog_recovery_validate_buf_type(
 		}
 		bp->b_ops = &xfs_agi_buf_ops;
 		break;
-	case XFS_BLF_UDQUOT_BUF:
-	case XFS_BLF_PDQUOT_BUF:
-	case XFS_BLF_GDQUOT_BUF:
+	case XFS_BLFT_UDQUOT_BUF:
+	case XFS_BLFT_PDQUOT_BUF:
+	case XFS_BLFT_GDQUOT_BUF:
 		if (magic16 != XFS_DQUOT_MAGIC) {
 			xfs_warn(mp, "Bad DQUOT block magic!");
 			ASSERT(0);
@@ -1947,7 +1947,7 @@ xlog_recovery_validate_buf_type(
 		}
 		bp->b_ops = &xfs_dquot_buf_ops;
 		break;
-	case XFS_BLF_DINO_BUF:
+	case XFS_BLFT_DINO_BUF:
 		/*
 		 * we get here with inode allocation buffers, not buffers that
 		 * track unlinked list changes.
@@ -1959,7 +1959,7 @@ xlog_recovery_validate_buf_type(
 		}
 		bp->b_ops = &xfs_inode_buf_ops;
 		break;
-	case XFS_BLF_SYMLINK_BUF:
+	case XFS_BLFT_SYMLINK_BUF:
 		if (magic32 != XFS_SYMLINK_MAGIC) {
 			xfs_warn(mp, "Bad symlink block magic!");
 			ASSERT(0);
@@ -1967,7 +1967,7 @@ xlog_recovery_validate_buf_type(
 		}
 		bp->b_ops = &xfs_symlink_buf_ops;
 		break;
-	case XFS_BLF_DIR_BLOCK_BUF:
+	case XFS_BLFT_DIR_BLOCK_BUF:
 		if (magic32 != XFS_DIR2_BLOCK_MAGIC &&
 		    magic32 != XFS_DIR3_BLOCK_MAGIC) {
 			xfs_warn(mp, "Bad dir block magic!");
@@ -1976,7 +1976,7 @@ xlog_recovery_validate_buf_type(
 		}
 		bp->b_ops = &xfs_dir3_block_buf_ops;
 		break;
-	case XFS_BLF_DIR_DATA_BUF:
+	case XFS_BLFT_DIR_DATA_BUF:
 		if (magic32 != XFS_DIR2_DATA_MAGIC &&
 		    magic32 != XFS_DIR3_DATA_MAGIC) {
 			xfs_warn(mp, "Bad dir data magic!");
@@ -1985,7 +1985,7 @@ xlog_recovery_validate_buf_type(
 		}
 		bp->b_ops = &xfs_dir3_data_buf_ops;
 		break;
-	case XFS_BLF_DIR_FREE_BUF:
+	case XFS_BLFT_DIR_FREE_BUF:
 		if (magic32 != XFS_DIR2_FREE_MAGIC &&
 		    magic32 != XFS_DIR3_FREE_MAGIC) {
 			xfs_warn(mp, "Bad dir3 free magic!");
@@ -1994,7 +1994,7 @@ xlog_recovery_validate_buf_type(
 		}
 		bp->b_ops = &xfs_dir3_free_buf_ops;
 		break;
-	case XFS_BLF_DIR_LEAF1_BUF:
+	case XFS_BLFT_DIR_LEAF1_BUF:
 		if (magicda != XFS_DIR2_LEAF1_MAGIC &&
 		    magicda != XFS_DIR3_LEAF1_MAGIC) {
 			xfs_warn(mp, "Bad dir leaf1 magic!");
@@ -2003,7 +2003,7 @@ xlog_recovery_validate_buf_type(
 		}
 		bp->b_ops = &xfs_dir3_leaf1_buf_ops;
 		break;
-	case XFS_BLF_DIR_LEAFN_BUF:
+	case XFS_BLFT_DIR_LEAFN_BUF:
 		if (magicda != XFS_DIR2_LEAFN_MAGIC &&
 		    magicda != XFS_DIR3_LEAFN_MAGIC) {
 			xfs_warn(mp, "Bad dir leafn magic!");
@@ -2012,7 +2012,7 @@ xlog_recovery_validate_buf_type(
 		}
 		bp->b_ops = &xfs_dir3_leafn_buf_ops;
 		break;
-	case XFS_BLF_DA_NODE_BUF:
+	case XFS_BLFT_DA_NODE_BUF:
 		if (magicda != XFS_DA_NODE_MAGIC &&
 		    magicda != XFS_DA3_NODE_MAGIC) {
 			xfs_warn(mp, "Bad da node magic!");
@@ -2021,7 +2021,7 @@ xlog_recovery_validate_buf_type(
 		}
 		bp->b_ops = &xfs_da3_node_buf_ops;
 		break;
-	case XFS_BLF_ATTR_LEAF_BUF:
+	case XFS_BLFT_ATTR_LEAF_BUF:
 		if (magicda != XFS_ATTR_LEAF_MAGIC &&
 		    magicda != XFS_ATTR3_LEAF_MAGIC) {
 			xfs_warn(mp, "Bad attr leaf magic!");
@@ -2030,7 +2030,7 @@ xlog_recovery_validate_buf_type(
 		}
 		bp->b_ops = &xfs_attr3_leaf_buf_ops;
 		break;
-	case XFS_BLF_ATTR_RMT_BUF:
+	case XFS_BLFT_ATTR_RMT_BUF:
 		if (!xfs_sb_version_hascrc(&mp->m_sb))
 			break;
 		if (magicda != XFS_ATTR3_RMT_MAGIC) {
@@ -2041,6 +2041,8 @@ xlog_recovery_validate_buf_type(
 		bp->b_ops = &xfs_attr3_rmt_buf_ops;
 		break;
 	default:
+		xfs_warn(mp, "Unknown buffer type %d!",
+			 xfs_blft_from_flags(buf_f));
 		break;
 	}
 }

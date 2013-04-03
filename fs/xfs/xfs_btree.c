@@ -1282,7 +1282,7 @@ xfs_btree_log_keys(
 	XFS_BTREE_TRACE_ARGBII(cur, bp, first, last);
 
 	if (bp) {
-		xfs_trans_buf_set_type(cur->bc_tp, bp, XFS_BLF_BTREE_BUF);
+		xfs_trans_buf_set_type(cur->bc_tp, bp, XFS_BLFT_BTREE_BUF);
 		xfs_trans_log_buf(cur->bc_tp, bp,
 				  xfs_btree_key_offset(cur, first),
 				  xfs_btree_key_offset(cur, last + 1) - 1);
@@ -1307,7 +1307,7 @@ xfs_btree_log_recs(
 	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
 	XFS_BTREE_TRACE_ARGBII(cur, bp, first, last);
 
-	xfs_trans_buf_set_type(cur->bc_tp, bp, XFS_BLF_BTREE_BUF);
+	xfs_trans_buf_set_type(cur->bc_tp, bp, XFS_BLFT_BTREE_BUF);
 	xfs_trans_log_buf(cur->bc_tp, bp,
 			  xfs_btree_rec_offset(cur, first),
 			  xfs_btree_rec_offset(cur, last + 1) - 1);
@@ -1332,7 +1332,7 @@ xfs_btree_log_ptrs(
 		struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
 		int			level = xfs_btree_get_level(block);
 
-		xfs_trans_buf_set_type(cur->bc_tp, bp, XFS_BLF_BTREE_BUF);
+		xfs_trans_buf_set_type(cur->bc_tp, bp, XFS_BLFT_BTREE_BUF);
 		xfs_trans_log_buf(cur->bc_tp, bp,
 				xfs_btree_ptr_offset(cur, first, level),
 				xfs_btree_ptr_offset(cur, last + 1, level) - 1);
@@ -1407,7 +1407,7 @@ xfs_btree_log_block(
 				  (cur->bc_flags & XFS_BTREE_LONG_PTRS) ?
 					loffsets : soffsets,
 				  nbits, &first, &last);
-		xfs_trans_buf_set_type(cur->bc_tp, bp, XFS_BLF_BTREE_BUF);
+		xfs_trans_buf_set_type(cur->bc_tp, bp, XFS_BLFT_BTREE_BUF);
 		xfs_trans_log_buf(cur->bc_tp, bp, first, last);
 	} else {
 		xfs_trans_log_inode(cur->bc_tp, cur->bc_private.b.ip,

@@ -659,7 +659,7 @@ xfs_trans_binval(
 		ASSERT(XFS_BUF_ISSTALE(bp));
 		ASSERT(!(bip->bli_flags & (XFS_BLI_LOGGED | XFS_BLI_DIRTY)));
 		ASSERT(!(bip->__bli_format.blf_flags & XFS_BLF_INODE_BUF));
-		ASSERT(!(bip->__bli_format.blf_flags & XFS_BLF_TYPE_MASK));
+		ASSERT(!(bip->__bli_format.blf_flags & XFS_BLFT_MASK));
 		ASSERT(bip->__bli_format.blf_flags & XFS_BLF_CANCEL);
 		ASSERT(bip->bli_item.li_desc->lid_flags & XFS_LID_DIRTY);
 		ASSERT(tp->t_flags & XFS_TRANS_DIRTY);
@@ -672,7 +672,7 @@ xfs_trans_binval(
 	bip->bli_flags &= ~(XFS_BLI_INODE_BUF | XFS_BLI_LOGGED | XFS_BLI_DIRTY);
 	bip->__bli_format.blf_flags &= ~XFS_BLF_INODE_BUF;
 	bip->__bli_format.blf_flags |= XFS_BLF_CANCEL;
-	bip->__bli_format.blf_flags &= ~XFS_BLF_TYPE_MASK;
+	bip->__bli_format.blf_flags &= ~XFS_BLFT_MASK;
 	for (i = 0; i < bip->bli_format_count; i++) {
 		memset(bip->bli_formats[i].blf_data_map, 0,
 		       (bip->bli_formats[i].blf_map_size * sizeof(uint)));
@@ -704,7 +704,7 @@ xfs_trans_inode_buf(
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
 	bip->bli_flags |= XFS_BLI_INODE_BUF;
-	xfs_trans_buf_set_type(tp, bp, XFS_BLF_DINO_BUF);
+	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DINO_BUF);
 }
 
 /*
@@ -729,7 +729,7 @@ xfs_trans_stale_inode_buf(
 
 	bip->bli_flags |= XFS_BLI_STALE_INODE;
 	bip->bli_item.li_cb = xfs_buf_iodone;
-	xfs_trans_buf_set_type(tp, bp, XFS_BLF_DINO_BUF);
+	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DINO_BUF);
 }
 
 /*
@@ -753,7 +753,7 @@ xfs_trans_inode_alloc_buf(
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
 	bip->bli_flags |= XFS_BLI_INODE_ALLOC_BUF;
-	xfs_trans_buf_set_type(tp, bp, XFS_BLF_DINO_BUF);
+	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DINO_BUF);
 }
 
 /*
@@ -764,7 +764,7 @@ void
 xfs_trans_buf_set_type(
 	struct xfs_trans	*tp,
 	struct xfs_buf		*bp,
-	uint			type)
+	enum xfs_blft		type)
 {
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 
@@ -774,10 +774,8 @@ xfs_trans_buf_set_type(
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
-	ASSERT((type & XFS_BLF_TYPE_MASK) != 0);
 
-	bip->__bli_format.blf_flags &= ~XFS_BLF_TYPE_MASK;
-	bip->__bli_format.blf_flags |= type;
+	xfs_blft_to_flags(&bip->__bli_format, type);
 }
 
 void
@@ -787,11 +785,10 @@ xfs_trans_buf_copy_type(
 {
 	struct xfs_buf_log_item	*sbip = src_bp->b_fspriv;
 	struct xfs_buf_log_item	*dbip = dst_bp->b_fspriv;
-	uint			type;
+	enum xfs_blft		type;
 
-	type = sbip->__bli_format.blf_flags & XFS_BLF_TYPE_MASK;
-	dbip->__bli_format.blf_flags &= ~XFS_BLF_TYPE_MASK;
-	dbip->__bli_format.blf_flags |= type;
+	type = xfs_blft_from_flags(&sbip->__bli_format);
+	xfs_blft_to_flags(&dbip->__bli_format, type);
 }
 
 /*
@@ -811,9 +808,28 @@ xfs_trans_dquot_buf(
 	xfs_buf_t	*bp,
 	uint		type)
 {
+	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+
 	ASSERT(type == XFS_BLF_UDQUOT_BUF ||
 	       type == XFS_BLF_PDQUOT_BUF ||
 	       type == XFS_BLF_GDQUOT_BUF);
+
+	bip->__bli_format.blf_flags |= type;
+
+	switch (type) {
+	case XFS_BLF_UDQUOT_BUF:
+		type = XFS_BLFT_UDQUOT_BUF;
+		break;
+	case XFS_BLF_PDQUOT_BUF:
+		type = XFS_BLFT_PDQUOT_BUF;
+		break;
+	case XFS_BLF_GDQUOT_BUF:
+		type = XFS_BLFT_GDQUOT_BUF;
+		break;
+	default:
+		type = XFS_BLFT_UNKNOWN_BUF;
+		break;
+	}
 
 	xfs_trans_buf_set_type(tp, bp, type);
 }

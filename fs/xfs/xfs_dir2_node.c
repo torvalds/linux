@@ -168,7 +168,7 @@ __xfs_dir3_free_read(
 
 	/* try read returns without an error or *bpp if it lands in a hole */
 	if (!err && tp && *bpp)
-		xfs_trans_buf_set_type(tp, *bpp, XFS_BLF_DIR_FREE_BUF);
+		xfs_trans_buf_set_type(tp, *bpp, XFS_BLFT_DIR_FREE_BUF);
 	return err;
 }
 
@@ -256,7 +256,7 @@ xfs_dir3_free_get_buf(
 	if (error)
 		return error;
 
-	xfs_trans_buf_set_type(tp, bp, XFS_BLF_DIR_FREE_BUF);
+	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DIR_FREE_BUF);
 	bp->b_ops = &xfs_dir3_free_buf_ops;
 
 	/*
@@ -404,7 +404,7 @@ xfs_dir2_leaf_to_node(
 	else
 		leaf->hdr.info.magic = cpu_to_be16(XFS_DIR3_LEAFN_MAGIC);
 	lbp->b_ops = &xfs_dir3_leafn_buf_ops;
-	xfs_trans_buf_set_type(tp, lbp, XFS_BLF_DIR_LEAFN_BUF);
+	xfs_trans_buf_set_type(tp, lbp, XFS_BLFT_DIR_LEAFN_BUF);
 	xfs_dir3_leaf_log_header(tp, lbp);
 	xfs_dir3_leaf_check(mp, lbp);
 	return 0;
@@ -820,7 +820,7 @@ xfs_dir2_leafn_lookup_for_entry(
 							(char *)curbp->b_addr);
 			state->extrablk.magic = XFS_DIR2_DATA_MAGIC;
 			curbp->b_ops = &xfs_dir3_data_buf_ops;
-			xfs_trans_buf_set_type(tp, curbp, XFS_BLF_DIR_DATA_BUF);
+			xfs_trans_buf_set_type(tp, curbp, XFS_BLFT_DIR_DATA_BUF);
 			if (cmp == XFS_CMP_EXACT)
 				return XFS_ERROR(EEXIST);
 		}
@@ -835,7 +835,7 @@ xfs_dir2_leafn_lookup_for_entry(
 			state->extrablk.blkno = curdb;
 			state->extrablk.magic = XFS_DIR2_DATA_MAGIC;
 			curbp->b_ops = &xfs_dir3_data_buf_ops;
-			xfs_trans_buf_set_type(tp, curbp, XFS_BLF_DIR_DATA_BUF);
+			xfs_trans_buf_set_type(tp, curbp, XFS_BLFT_DIR_DATA_BUF);
 		} else {
 			/* If the curbp is not the CI match block, drop it */
 			if (state->extrablk.bp != curbp)
