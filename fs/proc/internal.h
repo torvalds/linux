@@ -153,6 +153,8 @@ int proc_readdir_de(struct proc_dir_entry *de, struct file *filp, void *dirent,
 struct pde_opener {
 	struct file *file;
 	struct list_head lh;
+	int count;	/* number of threads in close_pdeo() */
+	struct mutex mutex;
 };
 
 ssize_t __proc_file_read(struct file *, char __user *, size_t, loff_t *);

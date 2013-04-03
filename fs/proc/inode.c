@@ -156,6 +156,29 @@ static void unuse_pde(struct proc_dir_entry *pde)
 	spin_unlock(&pde->pde_unload_lock);
 }
 
+/* pde is locked */
+static void close_pdeo(struct proc_dir_entry *pde, struct pde_opener *pdeo)
+{
+	pdeo->count++;
+	if (!mutex_trylock(&pdeo->mutex)) {
+		/* somebody else is doing that, just wait */
+		spin_unlock(&pde->pde_unload_lock);
+		mutex_lock(&pdeo->mutex);
+		spin_lock(&pde->pde_unload_lock);
+		WARN_ON(!list_empty(&pdeo->lh));
+	} else {
+		struct file *file;
+		spin_unlock(&pde->pde_unload_lock);
+		file = pdeo->file;
+		pde->proc_fops->release(file_inode(file), file);
+		spin_lock(&pde->pde_unload_lock);
+		list_del_init(&pdeo->lh);
+	}
+	mutex_unlock(&pdeo->mutex);
+	if (!--pdeo->count)
+		kfree(pdeo);
+}
+
 void proc_entry_rundown(struct proc_dir_entry *de)
 {
 	spin_lock(&de->pde_unload_lock);
@@ -173,15 +196,8 @@ void proc_entry_rundown(struct proc_dir_entry *de)
 
 	while (!list_empty(&de->pde_openers)) {
 		struct pde_opener *pdeo;
-		struct file *file;
-
 		pdeo = list_first_entry(&de->pde_openers, struct pde_opener, lh);
-		list_del(&pdeo->lh);
-		spin_unlock(&de->pde_unload_lock);
-		file = pdeo->file;
-		de->proc_fops->release(file_inode(file), file);
-		kfree(pdeo);
-		spin_lock(&de->pde_unload_lock);
+		close_pdeo(de, pdeo);
 	}
 	spin_unlock(&de->pde_unload_lock);
 }
@@ -357,6 +373,8 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	spin_lock(&pde->pde_unload_lock);
 	if (rv == 0 && release) {
 		/* To know what to release. */
+		mutex_init(&pdeo->mutex);
+		pdeo->count = 0;
 		pdeo->file = file;
 		/* Strictly for "too late" ->release in proc_reg_release(). */
 		list_add(&pdeo->lh, &pde->pde_openers);
@@ -367,58 +385,19 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	return rv;
 }
 
-static struct pde_opener *find_pde_opener(struct proc_dir_entry *pde,
-					struct file *file)
-{
-	struct pde_opener *pdeo;
-
-	list_for_each_entry(pdeo, &pde->pde_openers, lh) {
-		if (pdeo->file == file)
-			return pdeo;
-	}
-	return NULL;
-}
-
 static int proc_reg_release(struct inode *inode, struct file *file)
 {
 	struct proc_dir_entry *pde = PDE(inode);
-	int rv = 0;
-	int (*release)(struct inode *, struct file *);
 	struct pde_opener *pdeo;
-
 	spin_lock(&pde->pde_unload_lock);
-	pdeo = find_pde_opener(pde, file);
-	if (pde->pde_users < 0) {
-		/*
-		 * Can't simply exit, __fput() will think that everything is OK,
-		 * and move on to freeing struct file. remove_proc_entry() will
-		 * find slacker in opener's list and will try to do non-trivial
-		 * things with struct file. Therefore, remove opener from list.
-		 *
-		 * But if opener is removed from list, who will ->release it?
-		 */
-		if (pdeo) {
-			list_del(&pdeo->lh);
-			spin_unlock(&pde->pde_unload_lock);
-			rv = pde->proc_fops->release(inode, file);
-			kfree(pdeo);
-		} else
-			spin_unlock(&pde->pde_unload_lock);
-		return rv;
-	}
-	pde->pde_users++;
-	release = pde->proc_fops->release;
-	if (pdeo) {
-		list_del(&pdeo->lh);
-		kfree(pdeo);
+	list_for_each_entry(pdeo, &pde->pde_openers, lh) {
+		if (pdeo->file == file) {
+			close_pdeo(pde, pdeo);
+			break;
+		}
 	}
 	spin_unlock(&pde->pde_unload_lock);
-
-	if (release)
-		rv = release(inode, file);
-
-	unuse_pde(pde);
-	return rv;
+	return 0;
 }
 
 static const struct file_operations proc_reg_file_ops = {
