@@ -230,37 +230,6 @@ static void nfs4_file_put_access(struct nfs4_file *fp, int oflag)
 		__nfs4_file_put_access(fp, oflag);
 }
 
-static inline int get_new_stid(struct nfs4_stid *stid)
-{
-	static int min_stateid = 0;
-	struct idr *stateids = &stid->sc_client->cl_stateids;
-	int new_stid;
-	int error;
-
-	error = idr_get_new_above(stateids, stid, min_stateid, &new_stid);
-	/*
-	 * Note: the necessary preallocation was done in
-	 * nfs4_alloc_stateid().  The idr code caps the number of
-	 * preallocations that can exist at a time, but the state lock
-	 * prevents anyone from using ours before we get here:
-	 */
-	WARN_ON_ONCE(error);
-	/*
-	 * It shouldn't be a problem to reuse an opaque stateid value.
-	 * I don't think it is for 4.1.  But with 4.0 I worry that, for
-	 * example, a stray write retransmission could be accepted by
-	 * the server when it should have been rejected.  Therefore,
-	 * adopt a trick from the sctp code to attempt to maximize the
-	 * amount of time until an id is reused, by ensuring they always
-	 * "increase" (mod INT_MAX):
-	 */
-
-	min_stateid = new_stid+1;
-	if (min_stateid == INT_MAX)
-		min_stateid = 0;
-	return new_stid;
-}
-
 static struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl, struct
 kmem_cache *slab)
 {
@@ -273,9 +242,8 @@ kmem_cache *slab)
 	if (!stid)
 		return NULL;
 
-	if (!idr_pre_get(stateids, GFP_KERNEL))
-		goto out_free;
-	if (idr_get_new_above(stateids, stid, min_stateid, &new_id))
+	new_id = idr_alloc(stateids, stid, min_stateid, 0, GFP_KERNEL);
+	if (new_id < 0)
 		goto out_free;
 	stid->sc_client = cl;
 	stid->sc_type = 0;

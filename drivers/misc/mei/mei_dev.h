@@ -381,6 +381,7 @@ static inline unsigned long mei_secs_to_jiffies(unsigned long sec)
 void mei_device_init(struct mei_device *dev);
 void mei_reset(struct mei_device *dev, int interrupts);
 int mei_hw_init(struct mei_device *dev);
+void mei_stop(struct mei_device *dev);
 
 /*
  *  MEI interrupt functions prototype

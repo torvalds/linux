@@ -128,10 +128,10 @@ static const u32 src_pixfmt_map[8][3] = {
 void flite_hw_set_source_format(struct fimc_lite *dev, struct flite_frame *f)
 {
 	enum v4l2_mbus_pixelcode pixelcode = dev->fmt->mbus_code;
-	unsigned int i = ARRAY_SIZE(src_pixfmt_map);
+	int i = ARRAY_SIZE(src_pixfmt_map);
 	u32 cfg;
 
-	while (i-- >= 0) {
+	while (--i >= 0) {
 		if (src_pixfmt_map[i][0] == pixelcode)
 			break;
 	}
@@ -224,9 +224,9 @@ static void flite_hw_set_out_order(struct fimc_lite *dev, struct flite_frame *f)
 		{ V4L2_MBUS_FMT_VYUY8_2X8, FLITE_REG_CIODMAFMT_CRYCBY },
 	};
 	u32 cfg = readl(dev->regs + FLITE_REG_CIODMAFMT);
-	unsigned int i = ARRAY_SIZE(pixcode);
+	int i = ARRAY_SIZE(pixcode);
 
-	while (i-- >= 0)
+	while (--i >= 0)
 		if (pixcode[i][0] == dev->fmt->mbus_code)
 			break;
 	cfg &= ~FLITE_REG_CIODMAFMT_YCBCR_ORDER_MASK;

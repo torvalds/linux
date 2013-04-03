@@ -460,15 +460,15 @@ static void omap_usbhs_init(struct device *dev)
 
 	switch (omap->usbhs_rev) {
 	case OMAP_USBHS_REV1:
-		omap_usbhs_rev1_hostconfig(omap, reg);
+		reg = omap_usbhs_rev1_hostconfig(omap, reg);
 		break;
 
 	case OMAP_USBHS_REV2:
-		omap_usbhs_rev2_hostconfig(omap, reg);
+		reg = omap_usbhs_rev2_hostconfig(omap, reg);
 		break;
 
 	default:	/* newer revisions */
-		omap_usbhs_rev2_hostconfig(omap, reg);
+		reg = omap_usbhs_rev2_hostconfig(omap, reg);
 		break;
 	}
 

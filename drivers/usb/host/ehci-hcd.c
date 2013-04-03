@@ -302,6 +302,7 @@ static void ehci_quiesce (struct ehci_hcd *ehci)
 
 static void end_unlink_async(struct ehci_hcd *ehci);
 static void unlink_empty_async(struct ehci_hcd *ehci);
+static void unlink_empty_async_suspended(struct ehci_hcd *ehci);
 static void ehci_work(struct ehci_hcd *ehci);
 static void start_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);
 static void end_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);
@@ -748,11 +749,9 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		/* guard against (alleged) silicon errata */
 		if (cmd & CMD_IAAD)
 			ehci_dbg(ehci, "IAA with IAAD still set?\n");
-		if (ehci->async_iaa) {
+		if (ehci->async_iaa)
 			COUNT(ehci->stats.iaa);
-			end_unlink_async(ehci);
-		} else
-			ehci_dbg(ehci, "IAA with nothing unlinked?\n");
+		end_unlink_async(ehci);
 	}
 
 	/* remote wakeup [4.3.1] */
