@@ -1404,6 +1404,13 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 	if (!utask)
 		return;
 
+	if (utask->depth >= MAX_URETPROBE_DEPTH) {
+		printk_ratelimited(KERN_INFO "uprobe: omit uretprobe due to"
+				" nestedness limit pid/tgid=%d/%d\n",
+				current->pid, current->tgid);
+		return;
+	}
+
 	ri = kzalloc(sizeof(struct return_instance), GFP_KERNEL);
 	if (!ri)
 		goto fail;
@@ -1438,6 +1445,8 @@ static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
 	ri->func = instruction_pointer(regs);
 	ri->orig_ret_vaddr = orig_ret_vaddr;
 	ri->chained = chained;
+
+	utask->depth++;
 
 	/* add instance to the stack */
 	ri->next = utask->return_instances;
@@ -1680,6 +1689,8 @@ static bool handle_trampoline(struct pt_regs *regs)
 
 		if (!chained)
 			break;
+
+		utask->depth--;
 
 		BUG_ON(!ri);
 	}

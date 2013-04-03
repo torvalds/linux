@@ -38,6 +38,8 @@ struct inode;
 #define UPROBE_HANDLER_REMOVE		1
 #define UPROBE_HANDLER_MASK		1
 
+#define MAX_URETPROBE_DEPTH		64
+
 enum uprobe_filter_ctx {
 	UPROBE_FILTER_REGISTER,
 	UPROBE_FILTER_UNREGISTER,
@@ -72,6 +74,7 @@ struct uprobe_task {
 	struct arch_uprobe_task		autask;
 
 	struct return_instance		*return_instances;
+	unsigned int			depth;
 	struct uprobe			*active_uprobe;
 
 	unsigned long			xol_vaddr;
