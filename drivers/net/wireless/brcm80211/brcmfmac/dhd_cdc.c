@@ -303,8 +303,8 @@ int brcmf_proto_hdrpull(struct brcmf_pub *drvr, bool do_fws, u8 *ifidx,
 
 	/* Pop BDC header used to convey priority for buses that don't */
 
-	if (pktbuf->len < BDC_HEADER_LEN) {
-		brcmf_err("rx data too short (%d < %d)\n",
+	if (pktbuf->len <= BDC_HEADER_LEN) {
+		brcmf_dbg(INFO, "rx data too short (%d <= %d)\n",
 			  pktbuf->len, BDC_HEADER_LEN);
 		return -EBADE;
 	}
