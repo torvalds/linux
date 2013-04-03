@@ -8647,7 +8647,9 @@ void bnx2x_handle_module_detect_int(struct link_params *params)
 						MDIO_WC_DEVAD,
 						MDIO_WC_REG_DIGITAL5_MISC6,
 						&rx_tx_in_reset);
-				if (!rx_tx_in_reset) {
+				if ((!rx_tx_in_reset) &&
+				    (params->link_flags &
+				     PHY_INITIALIZED)) {
 					bnx2x_warpcore_reset_lane(bp, phy, 1);
 					bnx2x_warpcore_config_sfi(phy, params);
 					bnx2x_warpcore_reset_lane(bp, phy, 0);
@@ -12527,6 +12529,8 @@ int bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 	vars->flow_ctrl = BNX2X_FLOW_CTRL_NONE;
 	vars->mac_type = MAC_TYPE_NONE;
 	vars->phy_flags = 0;
+	vars->check_kr2_recovery_cnt = 0;
+	params->link_flags = PHY_INITIALIZED;
 	/* Driver opens NIG-BRB filters */
 	bnx2x_set_rx_filter(params, 1);
 	/* Check if link flap can be avoided */
@@ -12691,6 +12695,7 @@ int bnx2x_lfa_reset(struct link_params *params,
 	struct bnx2x *bp = params->bp;
 	vars->link_up = 0;
 	vars->phy_flags = 0;
+	params->link_flags &= ~PHY_INITIALIZED;
 	if (!params->lfa_base)
 		return bnx2x_link_reset(params, vars, 1);
 	/*
@@ -13411,6 +13416,7 @@ static void bnx2x_disable_kr2(struct link_params *params,
 	vars->link_attr_sync &= ~LINK_ATTR_SYNC_KR2_ENABLE;
 	bnx2x_update_link_attr(params, vars->link_attr_sync);
 
+	vars->check_kr2_recovery_cnt = CHECK_KR2_RECOVERY_CNT;
 	/* Restart AN on leading lane */
 	bnx2x_warpcore_restart_AN_KR(phy, params);
 }
@@ -13439,6 +13445,15 @@ static void bnx2x_check_kr2_wa(struct link_params *params,
 		return;
 	}
 
+	/* Once KR2 was disabled, wait 5 seconds before checking KR2 recovery
+	 * since some switches tend to reinit the AN process and clear the
+	 * advertised BP/NP after ~2 seconds causing the KR2 to be disabled
+	 * and recovered many times
+	 */
+	if (vars->check_kr2_recovery_cnt > 0) {
+		vars->check_kr2_recovery_cnt--;
+		return;
+	}
 	lane = bnx2x_get_warpcore_lane(phy, params);
 	CL22_WR_OVER_CL45(bp, phy, MDIO_REG_BANK_AER_BLOCK,
 			  MDIO_AER_BLOCK_AER_REG, lane);
