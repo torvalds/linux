@@ -39,9 +39,9 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 
 #include "omap-mcpdm.h"
-#include "omap-pcm.h"
 
 struct mcpdm_link_config {
 	u32 link_mask; /* channel mask for the direction */
@@ -64,19 +64,14 @@ struct omap_mcpdm {
 
 	/* McPDM needs to be restarted due to runtime reconfiguration */
 	bool restart;
+
+	struct snd_dmaengine_dai_dma_data dma_data[2];
+	unsigned int dma_req[2];
 };
 
 /*
  * Stream DMA parameters
  */
-static struct omap_pcm_dma_data omap_mcpdm_dai_dma_params[] = {
-	{
-		.name = "Audio playback",
-	},
-	{
-		.name = "Audio capture",
-	},
-};
 
 static inline void omap_mcpdm_write(struct omap_mcpdm *mcpdm, u16 reg, u32 val)
 {
@@ -272,7 +267,7 @@ static int omap_mcpdm_dai_startup(struct snd_pcm_substream *substream,
 	mutex_unlock(&mcpdm->mutex);
 
 	snd_soc_dai_set_dma_data(dai, substream,
-				 &omap_mcpdm_dai_dma_params[substream->stream]);
+				 &mcpdm->dma_data[substream->stream]);
 
 	return 0;
 }
@@ -302,7 +297,7 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct omap_mcpdm *mcpdm = snd_soc_dai_get_drvdata(dai);
 	int stream = substream->stream;
-	struct omap_pcm_dma_data *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 	u32 threshold;
 	int channels;
 	int link_mask = 0;
@@ -342,14 +337,14 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 		if (!mcpdm->config[!stream].link_mask)
 			mcpdm->config[!stream].link_mask = 0x3;
 
-		dma_data->packet_size =
+		dma_data->maxburst =
 				(MCPDM_DN_THRES_MAX - threshold) * channels;
 	} else {
 		/* If playback is not running assume a stereo stream to come */
 		if (!mcpdm->config[!stream].link_mask)
 			mcpdm->config[!stream].link_mask = (0x3 << 3);
 
-		dma_data->packet_size = threshold * channels;
+		dma_data->maxburst = threshold * channels;
 	}
 
 	/* Check if we need to restart McPDM with this stream */
@@ -475,20 +470,22 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 	if (res == NULL)
 		return -ENOMEM;
 
-	omap_mcpdm_dai_dma_params[0].port_addr = res->start + MCPDM_REG_DN_DATA;
-	omap_mcpdm_dai_dma_params[1].port_addr = res->start + MCPDM_REG_UP_DATA;
+	mcpdm->dma_data[0].addr = res->start + MCPDM_REG_DN_DATA;
+	mcpdm->dma_data[1].addr = res->start + MCPDM_REG_UP_DATA;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "dn_link");
 	if (!res)
 		return -ENODEV;
 
-	omap_mcpdm_dai_dma_params[0].dma_req = res->start;
+	mcpdm->dma_req[0] = res->start;
+	mcpdm->dma_data[0].filter_data = &mcpdm->dma_req[0];
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "up_link");
 	if (!res)
 		return -ENODEV;
 
-	omap_mcpdm_dai_dma_params[1].dma_req = res->start;
+	mcpdm->dma_req[1] = res->start;
+	mcpdm->dma_data[1].filter_data = &mcpdm->dma_req[1];
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
 	if (res == NULL)

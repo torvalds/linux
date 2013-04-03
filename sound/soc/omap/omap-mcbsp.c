@@ -33,11 +33,11 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 #include "mcbsp.h"
 #include "omap-mcbsp.h"
-#include "omap-pcm.h"
 
 #define OMAP_MCBSP_RATES	(SNDRV_PCM_RATE_8000_96000)
 
@@ -224,7 +224,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp->cfg_regs;
-	struct omap_pcm_dma_data *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 	int wlen, channels, wpf;
 	int pkt_size = 0;
 	unsigned int format, div, framesize, master;
@@ -276,7 +276,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 		omap_mcbsp_set_threshold(substream, pkt_size);
 	}
 
-	dma_data->packet_size = pkt_size;
+	dma_data->maxburst = pkt_size;
 
 	if (mcbsp->configured) {
 		/* McBSP already configured by another stream */

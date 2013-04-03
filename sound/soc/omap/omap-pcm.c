@@ -32,8 +32,6 @@
 #include <sound/dmaengine_pcm.h>
 #include <sound/soc.h>
 
-#include "omap-pcm.h"
-
 #ifdef CONFIG_ARCH_OMAP1
 #define pcm_omap1510()	cpu_is_omap1510()
 #else
@@ -55,25 +53,6 @@ static const struct snd_pcm_hardware omap_pcm_hardware = {
 	.periods_max		= 255,
 	.buffer_bytes_max	= 128 * 1024,
 };
-
-static int omap_pcm_get_dma_buswidth(int num_bits)
-{
-	int buswidth;
-
-	switch (num_bits) {
-	case 16:
-		buswidth = DMA_SLAVE_BUSWIDTH_2_BYTES;
-		break;
-	case 32:
-		buswidth = DMA_SLAVE_BUSWIDTH_4_BYTES;
-		break;
-	default:
-		buswidth = -EINVAL;
-		break;
-	}
-	return buswidth;
-}
-
 
 /* this may get called several times by oss emulation */
 static int omap_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -105,20 +84,9 @@ static int omap_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (err)
 		return err;
 
-	/* Override the *_dma addr_width if requested by the DAI driver */
-	if (dma_data->data_type) {
-		int buswidth = omap_pcm_get_dma_buswidth(dma_data->data_type);
-
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			config.dst_addr_width = buswidth;
-		else
-			config.src_addr_width = buswidth;
-	}
-
-	config.src_addr = dma_data->port_addr;
-	config.dst_addr = dma_data->port_addr;
-	config.src_maxburst = dma_data->packet_size;
-	config.dst_maxburst = dma_data->packet_size;
+	snd_dmaengine_pcm_set_config_from_dai_data(substream,
+			snd_soc_dai_get_dma_data(rtd->cpu_dai, substream),
+			&config);
 
 	return dmaengine_slave_config(chan, &config);
 }
@@ -144,14 +112,14 @@ static snd_pcm_uframes_t omap_pcm_pointer(struct snd_pcm_substream *substream)
 static int omap_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct omap_pcm_dma_data *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 
 	snd_soc_set_runtime_hwparams(substream, &omap_pcm_hardware);
 
 	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	return snd_dmaengine_pcm_open(substream, omap_dma_filter_fn,
-				      &dma_data->dma_req);
+				      dma_data->filter_data);
 }
 
 static int omap_pcm_mmap(struct snd_pcm_substream *substream,
