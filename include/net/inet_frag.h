@@ -50,10 +50,16 @@ struct inet_frag_queue {
  */
 #define INETFRAGS_MAXDEPTH		128
 
+struct inet_frag_bucket {
+	struct hlist_head	chain;
+	spinlock_t		chain_lock;
+};
+
 struct inet_frags {
-	struct hlist_head	hash[INETFRAGS_HASHSZ];
+	struct inet_frag_bucket	hash[INETFRAGS_HASHSZ];
 	/* This rwlock is a global lock (seperate per IPv4, IPv6 and
 	 * netfilter). Important to keep this on a seperate cacheline.
+	 * Its primarily a rebuild protection rwlock.
 	 */
 	rwlock_t		lock ____cacheline_aligned_in_smp;
 	int			secret_interval;
