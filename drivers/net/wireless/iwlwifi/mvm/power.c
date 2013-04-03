@@ -111,8 +111,7 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 */
 	cmd->keep_alive_seconds = POWER_KEEP_ALIVE_PERIOD_SEC;
 
-	if ((iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM) ||
-	    !iwlwifi_mod_params.power_save)
+	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM)
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
@@ -171,8 +170,7 @@ int iwl_mvm_power_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
 
-	if ((iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_CAM) &&
-	    iwlwifi_mod_params.power_save)
+	if (iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_CAM)
 		cmd.flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
 	iwl_mvm_power_log(mvm, &cmd);
