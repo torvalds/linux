@@ -593,7 +593,7 @@ more details, with real examples.
 
 	Example:
 		#Makefile
-		LDFLAGS_vmlinux += $(call really-ld-option, -X)
+		LDFLAGS_vmlinux += $(call ld-option, -X)
 
 
 === 4 Host Program support
