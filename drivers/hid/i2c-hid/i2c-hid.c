@@ -567,18 +567,17 @@ static void i2c_hid_request(struct hid_device *hid, struct hid_report *rep,
 		int reqtype)
 {
 	struct i2c_client *client = hid->driver_data;
-	struct i2c_hid *ihid = i2c_get_clientdata(client);
 	char *buf;
 	int ret;
+	int len = i2c_hid_get_report_length(rep) - 2;
 
-	buf = kzalloc(ihid->bufsize, GFP_KERNEL);
+	buf = kzalloc(len, GFP_KERNEL);
 	if (!buf)
 		return;
 
 	switch (reqtype) {
 	case HID_REQ_GET_REPORT:
-		ret = i2c_hid_get_raw_report(hid, rep->id, buf, ihid->bufsize,
-					     rep->type);
+		ret = i2c_hid_get_raw_report(hid, rep->id, buf, len, rep->type);
 		if (ret < 0)
 			dev_err(&client->dev, "%s: unable to get report: %d\n",
 				__func__, ret);
@@ -587,7 +586,7 @@ static void i2c_hid_request(struct hid_device *hid, struct hid_report *rep,
 		break;
 	case HID_REQ_SET_REPORT:
 		hid_output_report(rep, buf);
-		i2c_hid_output_raw_report(hid, buf, ihid->bufsize, rep->type);
+		i2c_hid_output_raw_report(hid, buf, len, rep->type);
 		break;
 	}
 
