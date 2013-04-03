@@ -1106,6 +1106,12 @@ static void nfc_llcp_recv_disc(struct nfc_llcp_local *local,
 	dsap = nfc_llcp_dsap(skb);
 	ssap = nfc_llcp_ssap(skb);
 
+	if ((dsap == 0) && (ssap == 0)) {
+		pr_debug("Connection termination");
+		nfc_dep_link_down(local->dev);
+		return;
+	}
+
 	llcp_sock = nfc_llcp_sock_get(local, dsap, ssap);
 	if (llcp_sock == NULL) {
 		nfc_llcp_send_dm(local, dsap, ssap, LLCP_DM_NOCONN);
