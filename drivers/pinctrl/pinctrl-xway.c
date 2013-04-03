@@ -553,7 +553,7 @@ int xway_pinconf_group_set(struct pinctrl_dev *pctldev,
 	return ret;
 }
 
-static struct pinconf_ops xway_pinconf_ops = {
+static const struct pinconf_ops xway_pinconf_ops = {
 	.pin_config_get	= xway_pinconf_get,
 	.pin_config_set	= xway_pinconf_set,
 	.pin_config_group_set = xway_pinconf_group_set,
