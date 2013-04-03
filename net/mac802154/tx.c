@@ -39,7 +39,6 @@ struct xmit_work {
 	struct mac802154_priv *priv;
 	u8 chan;
 	u8 page;
-	u8 xmit_attempts;
 };
 
 static void mac802154_xmit_worker(struct work_struct *work)
@@ -60,18 +59,12 @@ static void mac802154_xmit_worker(struct work_struct *work)
 	}
 
 	res = xw->priv->ops->xmit(&xw->priv->hw, xw->skb);
+	if (res)
+		pr_debug("transmission failed\n");
 
 out:
 	mutex_unlock(&xw->priv->phy->pib_lock);
 
-	if (res) {
-		if (xw->xmit_attempts++ < MAC802154_MAX_XMIT_ATTEMPTS) {
-			queue_work(xw->priv->dev_workqueue, &xw->work);
-			return;
-		} else
-			pr_debug("transmission failed for %d times",
-				 MAC802154_MAX_XMIT_ATTEMPTS);
-	}
 
 	dev_kfree_skb(xw->skb);
 
@@ -114,7 +107,6 @@ netdev_tx_t mac802154_tx(struct mac802154_priv *priv, struct sk_buff *skb,
 	work->priv = priv;
 	work->page = page;
 	work->chan = chan;
-	work->xmit_attempts = 0;
 
 	queue_work(priv->dev_workqueue, &work->work);
 
