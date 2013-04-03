@@ -612,6 +612,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	ssp->dmach = dma_request_channel(mask, mxs_ssp_dma_filter, ssp);
 	if (!ssp->dmach) {
 		dev_err(ssp->dev, "Failed to request DMA\n");
+		ret = -ENODEV;
 		goto out_master_free;
 	}
 
