@@ -113,7 +113,18 @@
 					0x4 0x00000004 0x0000000f
 				>;
 			};
-
+			spi1_pins: pinmux_spi_pins {
+				pinctrl-single,bits = <
+					/* SIMO, SOMI, CLK */
+					0x14 0x00110100 0x00ff0f00
+				>;
+			};
+			spi1_cs0_pin: pinmux_spi1_cs0 {
+				pinctrl-single,bits = <
+					/* CS0 */
+					0x14 0x00000010 0x000000f0
+				>;
+			};
 		};
 		serial0: serial@1c42000 {
 			compatible = "ns16550a";
@@ -193,6 +204,16 @@
 			compatible = "ti,da850-ecap", "ti,am33xx-ecap";
 			#pwm-cells = <3>;
 			reg = <0x308000 0x80>;
+			status = "disabled";
+		};
+		spi1: spi@1f0e000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "ti,da830-spi";
+			reg = <0x30e000 0x1000>;
+			num-cs = <4>;
+			ti,davinci-spi-intr-line = <1>;
+			interrupts = <56>;
 			status = "disabled";
 		};
 	};
