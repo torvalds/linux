@@ -900,7 +900,7 @@ get_more_pages:
 		}
 
 		/* submit the write */
-		offset = req->r_data_out.pages[0]->index << PAGE_CACHE_SHIFT;
+		offset = page_offset(req->r_data_out.pages[0]);
 		len = min((snap_size ? snap_size : i_size_read(inode)) - offset,
 			  (u64)locked_pages << PAGE_CACHE_SHIFT);
 		dout("writepages got %d pages at %llu~%llu\n",
