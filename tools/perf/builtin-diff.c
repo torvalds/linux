@@ -611,9 +611,7 @@ int cmd_diff(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	setup_pager();
 
-	sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso", NULL);
-	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list, "comm", NULL);
-	sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", NULL);
+	sort__setup_elide(NULL);
 
 	return __cmd_diff();
 }

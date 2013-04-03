@@ -1200,9 +1200,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (symbol__init() < 0)
 		return -1;
 
-	sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso", stdout);
-	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list, "comm", stdout);
-	sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", stdout);
+	sort__setup_elide(stdout);
 
 	/*
 	 * Avoid annotation data structures overhead when symbols aren't on the

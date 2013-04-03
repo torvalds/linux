@@ -937,25 +937,7 @@ repeat:
 		report.symbol_filter_str = argv[0];
 	}
 
-	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list, "comm", stdout);
-
-	if (sort__mode == SORT_MODE__BRANCH) {
-		sort_entry__setup_elide(&sort_dso_from, symbol_conf.dso_from_list, "dso_from", stdout);
-		sort_entry__setup_elide(&sort_dso_to, symbol_conf.dso_to_list, "dso_to", stdout);
-		sort_entry__setup_elide(&sort_sym_from, symbol_conf.sym_from_list, "sym_from", stdout);
-		sort_entry__setup_elide(&sort_sym_to, symbol_conf.sym_to_list, "sym_to", stdout);
-	} else {
-		if (report.mem_mode) {
-			sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "symbol_daddr", stdout);
-			sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso_daddr", stdout);
-			sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "mem", stdout);
-			sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "local_weight", stdout);
-			sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "tlb", stdout);
-			sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "snoop", stdout);
-		}
-		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso", stdout);
-		sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", stdout);
-	}
+	sort__setup_elide(stdout);
 
 	ret = __cmd_report(&report);
 	if (ret == K_SWITCH_INPUT_DATA) {

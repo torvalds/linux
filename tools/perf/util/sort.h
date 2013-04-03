@@ -181,7 +181,6 @@ extern struct list_head hist_entry__sort_list;
 
 int setup_sorting(void);
 extern int sort_dimension__add(const char *);
-void sort_entry__setup_elide(struct sort_entry *self, struct strlist *list,
-			     const char *list_name, FILE *fp);
+void sort__setup_elide(FILE *fp);
 
 #endif	/* __PERF_SORT_H */

@@ -1,5 +1,6 @@
 #include "sort.h"
 #include "hist.h"
+#include "symbol.h"
 
 regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
@@ -1009,8 +1010,9 @@ int setup_sorting(void)
 	return ret;
 }
 
-void sort_entry__setup_elide(struct sort_entry *self, struct strlist *list,
-			     const char *list_name, FILE *fp)
+static void sort_entry__setup_elide(struct sort_entry *self,
+				    struct strlist *list,
+				    const char *list_name, FILE *fp)
 {
 	if (list && strlist__nr_entries(list) == 1) {
 		if (fp != NULL)
@@ -1018,4 +1020,43 @@ void sort_entry__setup_elide(struct sort_entry *self, struct strlist *list,
 				strlist__entry(list, 0)->s);
 		self->elide = true;
 	}
+}
+
+void sort__setup_elide(FILE *output)
+{
+	sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
+				"dso", output);
+	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list,
+				"comm", output);
+	sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list,
+				"symbol", output);
+
+	if (sort__mode == SORT_MODE__BRANCH) {
+		sort_entry__setup_elide(&sort_dso_from,
+					symbol_conf.dso_from_list,
+					"dso_from", output);
+		sort_entry__setup_elide(&sort_dso_to,
+					symbol_conf.dso_to_list,
+					"dso_to", output);
+		sort_entry__setup_elide(&sort_sym_from,
+					symbol_conf.sym_from_list,
+					"sym_from", output);
+		sort_entry__setup_elide(&sort_sym_to,
+					symbol_conf.sym_to_list,
+					"sym_to", output);
+	} else if (sort__mode == SORT_MODE__MEMORY) {
+		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
+					"symbol_daddr", output);
+		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
+					"dso_daddr", output);
+		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
+					"mem", output);
+		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
+					"local_weight", output);
+		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
+					"tlb", output);
+		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list,
+					"snoop", output);
+	}
+
 }
