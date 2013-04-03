@@ -27,7 +27,7 @@
 #include <linux/netdevice.h>
 #include <net/nfc/nfc.h>
 
-#define VERSION "0.1"
+#define VERSION "0.2"
 
 #define PN533_VENDOR_ID 0x4CC
 #define PN533_PRODUCT_ID 0x2533
