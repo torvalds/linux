@@ -1,9 +1,15 @@
 NVIDIA Tegra Power Management Controller (PMC)
 
-Properties:
+Required properties:
 - name : Should be pmc
 - compatible : Should contain "nvidia,tegra<chip>-pmc".
 - reg : Offset and length of the register set for the device
+- clocks : Must contain an entry for each entry in clock-names.
+- clock-names : Must include the following entries:
+  "pclk" (The Tegra clock of that name),
+  "clk32k_in" (The 32KHz clock input to Tegra).
+
+Optional properties:
 - nvidia,invert-interrupt : If present, inverts the PMU interrupt signal.
   The PMU is an external Power Management Unit, whose interrupt output
   signal is fed into the PMC. This signal is optionally inverted, and then
@@ -12,8 +18,29 @@ Properties:
 
 Example:
 
+/ SoC dts including file
 pmc@7000f400 {
 	compatible = "nvidia,tegra20-pmc";
 	reg = <0x7000e400 0x400>;
+	clocks = <&tegra_car 110>, <&clk32k_in>;
+	clock-names = "pclk", "clk32k_in";
 	nvidia,invert-interrupt;
+};
+
+/ Tegra board dts file
+{
+	...
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk32k_in: clock {
+			compatible = "fixed-clock";
+			reg=<0>;
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+	...
 };

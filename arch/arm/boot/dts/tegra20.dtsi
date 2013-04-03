@@ -417,6 +417,8 @@
 	pmc {
 		compatible = "nvidia,tegra20-pmc";
 		reg = <0x7000e400 0x400>;
+		clocks = <&tegra_car 110>, <&clk32k_in>;
+		clock-names = "pclk", "clk32k_in";
 	};
 
 	memory-controller@7000f000 {
