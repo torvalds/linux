@@ -648,15 +648,6 @@ static int ab8540_aux3_regulator_set_voltage_sel(struct regulator_dev *rdev,
 	return ret;
 }
 
-static int ab8500_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
-					     unsigned int old_sel,
-					     unsigned int new_sel)
-{
-	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
-
-	return info->desc.enable_time;
-}
-
 static struct regulator_ops ab8500_regulator_volt_mode_ops = {
 	.enable			= ab8500_regulator_enable,
 	.disable		= ab8500_regulator_disable,
@@ -679,7 +670,6 @@ static struct regulator_ops ab8540_aux3_regulator_volt_mode_ops = {
 	.get_voltage_sel = ab8540_aux3_regulator_get_voltage_sel,
 	.set_voltage_sel = ab8540_aux3_regulator_set_voltage_sel,
 	.list_voltage	= regulator_list_voltage_table,
-	.set_voltage_time_sel = ab8500_regulator_set_voltage_time_sel,
 };
 
 static struct regulator_ops ab8500_regulator_volt_ops = {
@@ -689,7 +679,6 @@ static struct regulator_ops ab8500_regulator_volt_ops = {
 	.get_voltage_sel = ab8500_regulator_get_voltage_sel,
 	.set_voltage_sel = ab8500_regulator_set_voltage_sel,
 	.list_voltage	= regulator_list_voltage_table,
-	.set_voltage_time_sel = ab8500_regulator_set_voltage_time_sel,
 };
 
 static struct regulator_ops ab8500_regulator_mode_ops = {
