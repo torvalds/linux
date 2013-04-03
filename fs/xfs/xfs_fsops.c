@@ -268,6 +268,11 @@ xfs_growfs_data_private(
 		}
 
 		agfl = XFS_BUF_TO_AGFL(bp);
+		if (xfs_sb_version_hascrc(&mp->m_sb)) {
+			agfl->agfl_magicnum = cpu_to_be32(XFS_AGFL_MAGIC);
+			agfl->agfl_seqno = cpu_to_be32(agno);
+			uuid_copy(&agfl->agfl_uuid, &mp->m_sb.sb_uuid);
+		}
 		for (bucket = 0; bucket < XFS_AGFL_SIZE(mp); bucket++)
 			agfl->agfl_bno[bucket] = cpu_to_be32(NULLAGBLOCK);
 
