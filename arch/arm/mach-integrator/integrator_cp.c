@@ -360,17 +360,14 @@ static void __init intcp_init_of(void)
 					   'A' + (intcp_sc_id & 0x0f));
 
 	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR_OR_NULL(soc_dev)) {
+	if (IS_ERR(soc_dev)) {
 		kfree(soc_dev_attr->revision);
 		kfree(soc_dev_attr);
 		return;
 	}
 
 	parent = soc_device_to_device(soc_dev);
-
-	if (!IS_ERR_OR_NULL(parent))
-		integrator_init_sysfs(parent, intcp_sc_id);
-
+	integrator_init_sysfs(parent, intcp_sc_id);
 	of_platform_populate(root, of_default_bus_match_table,
 			intcp_auxdata_lookup, parent);
 }

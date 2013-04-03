@@ -56,9 +56,9 @@ int __init harmony_pcie_init(void)
 	gpio_direction_output(en_vdd_1v05, 1);
 
 	regulator = regulator_get(NULL, "vdd_ldo0,vddio_pex_clk");
-	if (IS_ERR_OR_NULL(regulator)) {
-		pr_err("%s: regulator_get failed: %d\n", __func__,
-		       (int)PTR_ERR(regulator));
+	if (IS_ERR(regulator)) {
+		err = PTR_ERR(regulator);
+		pr_err("%s: regulator_get failed: %d\n", __func__, err);
 		goto err_reg;
 	}
 

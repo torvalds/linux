@@ -479,7 +479,7 @@ static int __init beagle_opp_init(void)
 
 	/* Initialize the omap3 opp table if not already created. */
 	r = omap3_opp_init();
-	if (IS_ERR_VALUE(r) && (r != -EEXIST)) {
+	if (r < 0 && (r != -EEXIST)) {
 		pr_err("%s: opp default init failed\n", __func__);
 		return r;
 	}

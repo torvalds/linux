@@ -1180,7 +1180,7 @@ bool pwrdm_can_ever_lose_context(struct powerdomain *pwrdm)
 {
 	int i;
 
-	if (IS_ERR_OR_NULL(pwrdm)) {
+	if (!pwrdm) {
 		pr_debug("powerdomain: %s: invalid powerdomain pointer\n",
 			 __func__);
 		return 1;
