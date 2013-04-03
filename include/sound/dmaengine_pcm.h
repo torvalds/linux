@@ -44,4 +44,28 @@ int snd_dmaengine_pcm_close(struct snd_pcm_substream *substream);
 
 struct dma_chan *snd_dmaengine_pcm_get_chan(struct snd_pcm_substream *substream);
 
+/**
+ * struct snd_dmaengine_dai_dma_data - DAI DMA configuration data
+ * @addr: Address of the DAI data source or destination register.
+ * @addr_width: Width of the DAI data source or destination register.
+ * @maxburst: Maximum number of words(note: words, as in units of the
+ * src_addr_width member, not bytes) that can be send to or received from the
+ * DAI in one burst.
+ * @slave_id: Slave requester id for the DMA channel.
+ * @filter_data: Custom DMA channel filter data, this will usually be used when
+ * requesting the DMA channel.
+ */
+struct snd_dmaengine_dai_dma_data {
+	dma_addr_t addr;
+	enum dma_slave_buswidth addr_width;
+	u32 maxburst;
+	unsigned int slave_id;
+	void *filter_data;
+};
+
+void snd_dmaengine_pcm_set_config_from_dai_data(
+	const struct snd_pcm_substream *substream,
+	const struct snd_dmaengine_dai_dma_data *dma_data,
+	struct dma_slave_config *config);
+
 #endif
