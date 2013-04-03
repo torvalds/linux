@@ -117,6 +117,25 @@ void ceph_osd_data_bio_init(struct ceph_osd_data *osd_data,
 EXPORT_SYMBOL(ceph_osd_data_bio_init);
 #endif /* CONFIG_BLOCK */
 
+static u64 ceph_osd_data_length(struct ceph_osd_data *osd_data)
+{
+	switch (osd_data->type) {
+	case CEPH_OSD_DATA_TYPE_NONE:
+		return 0;
+	case CEPH_OSD_DATA_TYPE_PAGES:
+		return osd_data->length;
+	case CEPH_OSD_DATA_TYPE_PAGELIST:
+		return (u64)osd_data->pagelist->length;
+#ifdef CONFIG_BLOCK
+	case CEPH_OSD_DATA_TYPE_BIO:
+		return (u64)osd_data->bio_length;
+#endif /* CONFIG_BLOCK */
+	default:
+		WARN(true, "unrecognized data type %d\n", (int)osd_data->type);
+		return 0;
+	}
+}
+
 static void ceph_osd_data_release(struct ceph_osd_data *osd_data)
 {
 	if (osd_data->type != CEPH_OSD_DATA_TYPE_PAGES)
@@ -1887,17 +1906,19 @@ bad:
 static void ceph_osdc_msg_data_set(struct ceph_msg *msg,
 				struct ceph_osd_data *osd_data)
 {
+	u64 length = ceph_osd_data_length(osd_data);
+
 	if (osd_data->type == CEPH_OSD_DATA_TYPE_PAGES) {
-		BUG_ON(osd_data->length > (u64) SIZE_MAX);
-		if (osd_data->length)
+		BUG_ON(length > (u64) SIZE_MAX);
+		if (length)
 			ceph_msg_data_set_pages(msg, osd_data->pages,
-				osd_data->length, osd_data->alignment);
+					length, osd_data->alignment);
 	} else if (osd_data->type == CEPH_OSD_DATA_TYPE_PAGELIST) {
-		BUG_ON(!osd_data->pagelist->length);
+		BUG_ON(!length);
 		ceph_msg_data_set_pagelist(msg, osd_data->pagelist);
 #ifdef CONFIG_BLOCK
 	} else if (osd_data->type == CEPH_OSD_DATA_TYPE_BIO) {
-		ceph_msg_data_set_bio(msg, osd_data->bio, osd_data->bio_length);
+		ceph_msg_data_set_bio(msg, osd_data->bio, length);
 #endif
 	} else {
 		BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_NONE);
