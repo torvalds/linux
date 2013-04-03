@@ -493,19 +493,9 @@ static int asoc_dmic_probe(struct platform_device *pdev)
 		goto err_put_clk;
 	}
 
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), pdev->name)) {
-		dev_err(dmic->dev, "memory region already claimed\n");
-		ret = -ENODEV;
-		goto err_put_clk;
-	}
-
-	dmic->io_base = devm_ioremap(&pdev->dev, res->start,
-				     resource_size(res));
-	if (!dmic->io_base) {
-		ret = -ENOMEM;
-		goto err_put_clk;
-	}
+	dmic->io_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dmic->io_base))
+		return PTR_ERR(dmic->io_base);
 
 	ret = snd_soc_register_dai(&pdev->dev, &omap_dmic_dai);
 	if (ret)
