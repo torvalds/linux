@@ -1781,7 +1781,6 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_sdio *bus, struct sk_buff *pkt,
 	u8 *frame;
 	u16 len, pad = 0;
 	u32 swheader;
-	struct sk_buff *new;
 	int i;
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -1795,26 +1794,14 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_sdio *bus, struct sk_buff *pkt,
 			brcmf_dbg(INFO, "insufficient headroom %d for %d pad\n",
 				  skb_headroom(pkt), pad);
 			bus->sdiodev->bus_if->tx_realloc++;
-			new = brcmu_pkt_buf_get_skb(pkt->len + BRCMF_SDALIGN);
-			if (!new) {
-				brcmf_err("couldn't allocate new %d-byte packet\n",
-					  pkt->len + BRCMF_SDALIGN);
-				ret = -ENOMEM;
+			ret = skb_cow(pkt, BRCMF_SDALIGN);
+			if (ret)
 				goto done;
-			}
-
-			pkt_align(new, pkt->len, BRCMF_SDALIGN);
-			memcpy(new->data, pkt->data, pkt->len);
-			brcmu_pkt_buf_free_skb(pkt);
-			pkt = new;
-			frame = (u8 *) (pkt->data);
-			/* precondition: (frame % BRCMF_SDALIGN) == 0) */
-			pad = 0;
-		} else {
-			skb_push(pkt, pad);
-			frame = (u8 *) (pkt->data);
-			memset(frame + SDPCM_HDRLEN, 0, pad);
+			pad = ((unsigned long)frame % BRCMF_SDALIGN);
 		}
+		skb_push(pkt, pad);
+		frame = (u8 *) (pkt->data);
+		memset(frame, 0, pad + SDPCM_HDRLEN);
 	}
 	/* precondition: pad < BRCMF_SDALIGN */
 
