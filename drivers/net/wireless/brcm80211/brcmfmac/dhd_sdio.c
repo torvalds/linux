@@ -675,7 +675,7 @@ static int brcmf_sdbrcm_htclk(struct brcmf_sdio *bus, bool on, bool pendok)
 	u8 clkctl, clkreq, devctl;
 	unsigned long timeout;
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(SDIO, "Enter\n");
 
 	clkctl = 0;
 
@@ -713,7 +713,7 @@ static int brcmf_sdbrcm_htclk(struct brcmf_sdio *bus, bool on, bool pendok)
 			devctl |= SBSDIO_DEVCTL_CA_INT_ONLY;
 			brcmf_sdio_regwb(bus->sdiodev, SBSDIO_DEVICE_CTL,
 					 devctl, &err);
-			brcmf_dbg(INFO, "CLKCTL: set PENDING\n");
+			brcmf_dbg(SDIO, "CLKCTL: set PENDING\n");
 			bus->clkstate = CLK_PENDING;
 
 			return 0;
@@ -750,7 +750,7 @@ static int brcmf_sdbrcm_htclk(struct brcmf_sdio *bus, bool on, bool pendok)
 
 		/* Mark clock available */
 		bus->clkstate = CLK_AVAIL;
-		brcmf_dbg(INFO, "CLKCTL: turned ON\n");
+		brcmf_dbg(SDIO, "CLKCTL: turned ON\n");
 
 #if defined(DEBUG)
 		if (!bus->alp_only) {
@@ -775,7 +775,7 @@ static int brcmf_sdbrcm_htclk(struct brcmf_sdio *bus, bool on, bool pendok)
 		bus->clkstate = CLK_SDONLY;
 		brcmf_sdio_regwb(bus->sdiodev, SBSDIO_FUNC1_CHIPCLKCSR,
 				 clkreq, &err);
-		brcmf_dbg(INFO, "CLKCTL: turned OFF\n");
+		brcmf_dbg(SDIO, "CLKCTL: turned OFF\n");
 		if (err) {
 			brcmf_err("Failed access turning clock off: %d\n",
 				  err);
@@ -788,7 +788,7 @@ static int brcmf_sdbrcm_htclk(struct brcmf_sdio *bus, bool on, bool pendok)
 /* Change idle/active SD state */
 static int brcmf_sdbrcm_sdclk(struct brcmf_sdio *bus, bool on)
 {
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(SDIO, "Enter\n");
 
 	if (on)
 		bus->clkstate = CLK_SDONLY;
@@ -805,7 +805,7 @@ static int brcmf_sdbrcm_clkctl(struct brcmf_sdio *bus, uint target, bool pendok)
 	uint oldstate = bus->clkstate;
 #endif				/* DEBUG */
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(SDIO, "Enter\n");
 
 	/* Early exit if we're already there */
 	if (bus->clkstate == target) {
@@ -849,7 +849,7 @@ static int brcmf_sdbrcm_clkctl(struct brcmf_sdio *bus, uint target, bool pendok)
 		break;
 	}
 #ifdef DEBUG
-	brcmf_dbg(INFO, "%d -> %d\n", oldstate, bus->clkstate);
+	brcmf_dbg(SDIO, "%d -> %d\n", oldstate, bus->clkstate);
 #endif				/* DEBUG */
 
 	return 0;
@@ -862,7 +862,7 @@ static u32 brcmf_sdbrcm_hostmail(struct brcmf_sdio *bus)
 	u8 fcbits;
 	int ret;
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(SDIO, "Enter\n");
 
 	/* Read mailbox data and ack that we did so */
 	ret = r_sdreg32(bus, &hmb_data,
@@ -875,7 +875,7 @@ static u32 brcmf_sdbrcm_hostmail(struct brcmf_sdio *bus)
 
 	/* Dongle recomposed rx frames, accept them again */
 	if (hmb_data & HMB_DATA_NAKHANDLED) {
-		brcmf_dbg(INFO, "Dongle reports NAK handled, expect rtx of %d\n",
+		brcmf_dbg(SDIO, "Dongle reports NAK handled, expect rtx of %d\n",
 			  bus->rx_seq);
 		if (!bus->rxskip)
 			brcmf_err("unexpected NAKHANDLED!\n");
@@ -896,7 +896,7 @@ static u32 brcmf_sdbrcm_hostmail(struct brcmf_sdio *bus)
 				  "expecting %d\n",
 				  bus->sdpcm_ver, SDPCM_PROT_VERSION);
 		else
-			brcmf_dbg(INFO, "Dongle ready, protocol version %d\n",
+			brcmf_dbg(SDIO, "Dongle ready, protocol version %d\n",
 				  bus->sdpcm_ver);
 	}
 
@@ -970,7 +970,7 @@ static void brcmf_sdbrcm_rxfail(struct brcmf_sdio *bus, bool abort, bool rtx)
 	if (!retries)
 		brcmf_err("count never zeroed: last 0x%04x\n", lastrbc);
 	else
-		brcmf_dbg(INFO, "flush took %d iterations\n", 0xffff - retries);
+		brcmf_dbg(SDIO, "flush took %d iterations\n", 0xffff - retries);
 
 	if (rtx) {
 		bus->sdcnt.rxrtx++;
@@ -1173,7 +1173,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 	/* If packets, issue read(s) and send up packet chain */
 	/* Return sequence numbers consumed? */
 
-	brcmf_dbg(TRACE, "start: glomd %p glom %p\n",
+	brcmf_dbg(SDIO, "start: glomd %p glom %p\n",
 		  bus->glomd, skb_peek(&bus->glom));
 
 	/* If there's a descriptor, generate the packet chain */
@@ -2117,7 +2117,7 @@ static void brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 			bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 		}
 
-		brcmf_dbg(INFO, "DPC: PENDING, devctl 0x%02x clkctl 0x%02x\n",
+		brcmf_dbg(SDIO, "DPC: PENDING, devctl 0x%02x clkctl 0x%02x\n",
 			  devctl, clkctl);
 
 		if (SBSDIO_HTAV(clkctl)) {
@@ -2387,7 +2387,7 @@ brcmf_sdbrcm_membytes(struct brcmf_sdio *bus, bool write, u32 address, u8 *data,
 
 	/* Do the transfer(s) */
 	while (size) {
-		brcmf_dbg(INFO, "%s %d bytes at offset 0x%08x in window 0x%08x\n",
+		brcmf_dbg(SDIO, "%s %d bytes at offset 0x%08x in window 0x%08x\n",
 			  write ? "write" : "read", dsize,
 			  sdaddr, address & SBSDIO_SBWINDOW_MASK);
 		bcmerror = brcmf_sdcard_rwdata(bus->sdiodev, write,
@@ -2620,10 +2620,10 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 						 msecs_to_jiffies(2000));
 
 		if (!bus->ctrl_frame_stat) {
-			brcmf_dbg(INFO, "ctrl_frame_stat == false\n");
+			brcmf_dbg(SDIO, "ctrl_frame_stat == false\n");
 			ret = 0;
 		} else {
-			brcmf_dbg(INFO, "ctrl_frame_stat == true\n");
+			brcmf_dbg(SDIO, "ctrl_frame_stat == true\n");
 			ret = -1;
 		}
 	}
@@ -2694,7 +2694,7 @@ static int brcmf_sdio_readshared(struct brcmf_sdio *bus,
 
 	addr = le32_to_cpu(addr_le);
 
-	brcmf_dbg(INFO, "sdpcm_shared address 0x%08X\n", addr);
+	brcmf_dbg(SDIO, "sdpcm_shared address 0x%08X\n", addr);
 
 	/*
 	 * Check if addr is valid.

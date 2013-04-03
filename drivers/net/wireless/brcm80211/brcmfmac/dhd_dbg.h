@@ -34,6 +34,7 @@
 #define BRCMF_SCAN_VAL	0x00004000
 #define BRCMF_CONN_VAL	0x00008000
 #define BRCMF_CDC_VAL	0x00010000
+#define BRCMF_SDIO_VAL	0x00020000
 
 /* set default print format */
 #undef pr_fmt
