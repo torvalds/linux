@@ -1979,6 +1979,16 @@ xlog_recover_do_reg_buffer(
 		}
 		bp->b_ops = &xfs_agi_buf_ops;
 		break;
+	case XFS_BLF_UDQUOT_BUF:
+	case XFS_BLF_PDQUOT_BUF:
+	case XFS_BLF_GDQUOT_BUF:
+		if (*(__be16 *)bp->b_addr != cpu_to_be16(XFS_DQUOT_MAGIC)) {
+			xfs_warn(mp, "Bad DQUOT block magic!");
+			ASSERT(0);
+			break;
+		}
+		bp->b_ops = &xfs_dquot_buf_ops;
+		break;
 	default:
 		break;
 	}

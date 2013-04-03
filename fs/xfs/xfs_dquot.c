@@ -36,6 +36,7 @@
 #include "xfs_trans_space.h"
 #include "xfs_trans_priv.h"
 #include "xfs_qm.h"
+#include "xfs_cksum.h"
 #include "xfs_trace.h"
 
 /*
@@ -248,6 +249,8 @@ xfs_qm_init_dquot_blk(
 		d->dd_diskdq.d_version = XFS_DQUOT_VERSION;
 		d->dd_diskdq.d_id = cpu_to_be32(curid);
 		d->dd_diskdq.d_flags = type;
+		if (xfs_sb_version_hascrc(&mp->m_sb))
+			uuid_copy(&d->dd_uuid, &mp->m_sb.sb_uuid);
 	}
 
 	xfs_trans_dquot_buf(tp, bp,
@@ -283,15 +286,76 @@ xfs_dquot_set_prealloc_limits(struct xfs_dquot *dqp)
 	dqp->q_low_space[XFS_QLOWSP_5_PCNT] = space * 5;
 }
 
-static void
-xfs_dquot_buf_verify(
+STATIC void
+xfs_dquot_buf_calc_crc(
+	struct xfs_mount	*mp,
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
-	struct xfs_disk_dquot	*ddq;
-	xfs_dqid_t		id = 0;
 	int			i;
+
+	if (!xfs_sb_version_hascrc(&mp->m_sb))
+		return;
+
+	for (i = 0; i < mp->m_quotainfo->qi_dqperchunk; i++, d++) {
+		xfs_update_cksum((char *)d, sizeof(struct xfs_dqblk),
+				 offsetof(struct xfs_dqblk, dd_crc));
+	}
+}
+
+STATIC bool
+xfs_dquot_buf_verify_crc(
+	struct xfs_mount	*mp,
+	struct xfs_buf		*bp)
+{
+	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
+	int			ndquots;
+	int			i;
+
+	if (!xfs_sb_version_hascrc(&mp->m_sb))
+		return true;
+
+	/*
+	 * if we are in log recovery, the quota subsystem has not been
+	 * initialised so we have no quotainfo structure. In that case, we need
+	 * to manually calculate the number of dquots in the buffer.
+	 */
+	if (mp->m_quotainfo)
+		ndquots = mp->m_quotainfo->qi_dqperchunk;
+	else
+		ndquots = xfs_qm_calc_dquots_per_chunk(mp,
+					XFS_BB_TO_FSB(mp, bp->b_length));
+
+	for (i = 0; i < ndquots; i++, d++) {
+		if (!xfs_verify_cksum((char *)d, sizeof(struct xfs_dqblk),
+				 offsetof(struct xfs_dqblk, dd_crc)))
+			return false;
+		if (!uuid_equal(&d->dd_uuid, &mp->m_sb.sb_uuid))
+			return false;
+	}
+
+	return true;
+}
+
+STATIC bool
+xfs_dquot_buf_verify(
+	struct xfs_mount	*mp,
+	struct xfs_buf		*bp)
+{
+	struct xfs_dqblk	*d = (struct xfs_dqblk *)bp->b_addr;
+	xfs_dqid_t		id = 0;
+	int			ndquots;
+	int			i;
+
+	/*
+	 * if we are in log recovery, the quota subsystem has not been
+	 * initialised so we have no quotainfo structure. In that case, we need
+	 * to manually calculate the number of dquots in the buffer.
+	 */
+	if (mp->m_quotainfo)
+		ndquots = mp->m_quotainfo->qi_dqperchunk;
+	else
+		ndquots = xfs_qm_calc_dquots_per_chunk(mp, bp->b_length);
 
 	/*
 	 * On the first read of the buffer, verify that each dquot is valid.
@@ -300,8 +364,9 @@ xfs_dquot_buf_verify(
 	 * first id is corrupt, then it will fail on the second dquot in the
 	 * buffer so corruptions could point to the wrong dquot in this case.
 	 */
-	for (i = 0; i < mp->m_quotainfo->qi_dqperchunk; i++) {
-		int	error;
+	for (i = 0; i < ndquots; i++) {
+		struct xfs_disk_dquot	*ddq;
+		int			error;
 
 		ddq = &d[i].dd_diskdq;
 
@@ -309,27 +374,37 @@ xfs_dquot_buf_verify(
 			id = be32_to_cpu(ddq->d_id);
 
 		error = xfs_qm_dqcheck(mp, ddq, id + i, 0, XFS_QMOPT_DOWARN,
-					"xfs_dquot_read_verify");
-		if (error) {
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, d);
-			xfs_buf_ioerror(bp, EFSCORRUPTED);
-			break;
-		}
+				       "xfs_dquot_buf_verify");
+		if (error)
+			return false;
 	}
+	return true;
 }
 
 static void
 xfs_dquot_buf_read_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_dquot_buf_verify(bp);
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+
+	if (!xfs_dquot_buf_verify_crc(mp, bp) || !xfs_dquot_buf_verify(mp, bp)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
 }
 
 void
 xfs_dquot_buf_write_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_dquot_buf_verify(bp);
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+
+	if (!xfs_dquot_buf_verify(mp, bp)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		return;
+	}
+	xfs_dquot_buf_calc_crc(mp, bp);
 }
 
 const struct xfs_buf_ops xfs_dquot_buf_ops = {
@@ -1071,6 +1146,17 @@ xfs_qm_dqflush(
 
 	xfs_trans_ail_copy_lsn(mp->m_ail, &dqp->q_logitem.qli_flush_lsn,
 					&dqp->q_logitem.qli_item.li_lsn);
+
+	/*
+	 * copy the lsn into the on-disk dquot now while we have the in memory
+	 * dquot here. This can't be done later in the write verifier as we
+	 * can't get access to the log item at that point in time.
+	 */
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		struct xfs_dqblk *dqb = (struct xfs_dqblk *)ddqp;
+
+		dqb->dd_lsn = cpu_to_be64(dqp->q_logitem.qli_item.li_lsn);
+	}
 
 	/*
 	 * Attach an iodone routine so that we can remove this dquot from the

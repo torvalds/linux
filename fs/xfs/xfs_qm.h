@@ -75,6 +75,8 @@ typedef struct xfs_quotainfo {
 	 &((qi)->qi_gquota_tree))
 
 
+extern int	xfs_qm_calc_dquots_per_chunk(struct xfs_mount *mp,
+					     unsigned int nbblks);
 extern void	xfs_trans_mod_dquot(xfs_trans_t *, xfs_dquot_t *, uint, long);
 extern int	xfs_trans_reserve_quota_bydquots(xfs_trans_t *, xfs_mount_t *,
 			xfs_dquot_t *, xfs_dquot_t *, long, long, uint);
