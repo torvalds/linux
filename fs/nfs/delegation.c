@@ -389,6 +389,24 @@ out:
 	return err;
 }
 
+static bool nfs_delegation_need_return(struct nfs_delegation *delegation)
+{
+	bool ret = false;
+
+	if (test_and_clear_bit(NFS_DELEGATION_RETURN, &delegation->flags))
+		ret = true;
+	if (test_and_clear_bit(NFS_DELEGATION_RETURN_IF_CLOSED, &delegation->flags) && !ret) {
+		struct inode *inode;
+
+		spin_lock(&delegation->lock);
+		inode = delegation->inode;
+		if (inode && list_empty(&NFS_I(inode)->open_files))
+			ret = true;
+		spin_unlock(&delegation->lock);
+	}
+	return ret;
+}
+
 /**
  * nfs_client_return_marked_delegations - return previously marked delegations
  * @clp: nfs_client to process
@@ -411,8 +429,7 @@ restart:
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
 		list_for_each_entry_rcu(delegation, &server->delegations,
 								super_list) {
-			if (!test_and_clear_bit(NFS_DELEGATION_RETURN,
-							&delegation->flags))
+			if (!nfs_delegation_need_return(delegation))
 				continue;
 			inode = nfs_delegation_grab_inode(delegation);
 			if (inode == NULL)
@@ -469,6 +486,13 @@ int nfs4_inode_return_delegation(struct inode *inode)
 	if (delegation != NULL)
 		err = nfs_end_delegation_return(inode, delegation, 1);
 	return err;
+}
+
+static void nfs_mark_return_if_closed_delegation(struct nfs_server *server,
+		struct nfs_delegation *delegation)
+{
+	set_bit(NFS_DELEGATION_RETURN_IF_CLOSED, &delegation->flags);
+	set_bit(NFS4CLNT_DELEGRETURN, &server->nfs_client->cl_state);
 }
 
 static void nfs_mark_return_delegation(struct nfs_server *server,
@@ -574,7 +598,7 @@ static void nfs_mark_return_unreferenced_delegations(struct nfs_server *server)
 	list_for_each_entry_rcu(delegation, &server->delegations, super_list) {
 		if (test_and_clear_bit(NFS_DELEGATION_REFERENCED, &delegation->flags))
 			continue;
-		nfs_mark_return_delegation(server, delegation);
+		nfs_mark_return_if_closed_delegation(server, delegation);
 	}
 }
 
