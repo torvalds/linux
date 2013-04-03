@@ -331,8 +331,8 @@ static int get_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 			      snd_usb_ctrl_intf(chip) | (clock << 8),
 			      &data, sizeof(data));
 	if (err < 0) {
-		snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq (v2)\n",
-			   dev->devnum, iface, altsetting);
+		snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq (v2): err %d\n",
+			   dev->devnum, iface, altsetting, err);
 		return 0;
 	}
 
@@ -360,8 +360,8 @@ static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 				   UAC2_CS_CONTROL_SAM_FREQ << 8,
 				   snd_usb_ctrl_intf(chip) | (clock << 8),
 				   &data, sizeof(data))) < 0) {
-		snd_printk(KERN_ERR "%d:%d:%d: cannot set freq %d (v2)\n",
-			   dev->devnum, iface, fmt->altsetting, rate);
+		snd_printk(KERN_ERR "%d:%d:%d: cannot set freq %d (v2): err %d\n",
+			   dev->devnum, iface, fmt->altsetting, rate, err);
 		return err;
 	}
 
