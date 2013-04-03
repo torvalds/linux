@@ -755,7 +755,6 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 	ifp->ifidx = ifidx;
 	ifp->bssidx = bssidx;
 
-
 	init_waitqueue_head(&ifp->pend_8021x_wait);
 
 	if (mac_addr != NULL)
@@ -882,6 +881,7 @@ int brcmf_bus_start(struct device *dev)
 
 	drvr->fw_signals = true;
 	(void)brcmf_fws_init(drvr);
+	brcmf_fws_add_interface(ifp);
 
 	drvr->config = brcmf_cfg80211_attach(drvr, bus_if->dev);
 	if (drvr->config == NULL) {
@@ -899,8 +899,10 @@ fail:
 		brcmf_err("failed: %d\n", ret);
 		if (drvr->config)
 			brcmf_cfg80211_detach(drvr->config);
-		if (drvr->fws)
+		if (drvr->fws) {
+			brcmf_fws_del_interface(ifp);
 			brcmf_fws_deinit(drvr);
+		}
 		free_netdev(ifp->ndev);
 		drvr->iflist[0] = NULL;
 		if (p2p_ifp) {
@@ -956,8 +958,10 @@ void brcmf_detach(struct device *dev)
 
 	/* make sure primary interface removed last */
 	for (i = BRCMF_MAX_IFS-1; i > -1; i--)
-		if (drvr->iflist[i])
+		if (drvr->iflist[i]) {
+			brcmf_fws_del_interface(drvr->iflist[i]);
 			brcmf_del_if(drvr, i);
+		}
 
 	brcmf_bus_detach(drvr);
 

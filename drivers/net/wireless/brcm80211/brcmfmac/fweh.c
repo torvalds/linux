@@ -20,6 +20,7 @@
 
 #include "dhd.h"
 #include "dhd_dbg.h"
+#include "fwsignal.h"
 #include "fweh.h"
 #include "fwil.h"
 
@@ -198,15 +199,20 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 				   emsg->ifname, emsg->addr);
 		if (IS_ERR(ifp))
 			return;
-
+		brcmf_fws_add_interface(ifp);
 		if (!drvr->fweh.evt_handler[BRCMF_E_IF])
 			err = brcmf_net_attach(ifp, false);
 	}
 
+	if (ifevent->action == BRCMF_E_IF_CHANGE)
+		brcmf_fws_reset_interface(ifp);
+
 	err = brcmf_fweh_call_event_handler(ifp, emsg->event_code, emsg, data);
 
-	if (ifevent->action == BRCMF_E_IF_DEL)
+	if (ifevent->action == BRCMF_E_IF_DEL) {
+		brcmf_fws_del_interface(ifp);
 		brcmf_del_if(drvr, ifevent->bssidx);
+	}
 }
 
 /**

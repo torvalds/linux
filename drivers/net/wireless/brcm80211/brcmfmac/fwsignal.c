@@ -73,16 +73,6 @@ enum brcmf_fws_tlv_type {
 };
 #undef BRCMF_FWS_TLV_DEF
 
-/**
- * enum brcmf_fws_tlv_len - length values for tlvs.
- */
-#define BRCMF_FWS_TLV_DEF(name, id, len) \
-	BRCMF_FWS_TYPE_ ## name ## _LEN = len,
-enum brcmf_fws_tlv_len {
-	BRCMF_FWS_TLV_DEFLIST
-};
-#undef BRCMF_FWS_TLV_DEF
-
 #ifdef DEBUG
 /**
  * brcmf_fws_tlv_names - array of tlv names.
@@ -117,32 +107,56 @@ static const char *brcmf_fws_get_tlv_name(enum brcmf_fws_tlv_type id)
 /**
  * flags used to enable tlv signalling from firmware.
  */
-#define BRCMF_FWS_FLAGS_RSSI_SIGNALS				0x0001
-#define BRCMF_FWS_FLAGS_XONXOFF_SIGNALS				0x0002
-#define BRCMF_FWS_FLAGS_CREDIT_STATUS_SIGNALS			0x0004
-#define BRCMF_FWS_FLAGS_HOST_PROPTXSTATUS_ACTIVE		0x0008
-#define BRCMF_FWS_FLAGS_PSQ_GENERATIONFSM_ENABLE		0x0010
-#define BRCMF_FWS_FLAGS_PSQ_ZERO_BUFFER_ENABLE			0x0020
-#define BRCMF_FWS_FLAGS_HOST_RXREORDER_ACTIVE			0x0040
+#define BRCMF_FWS_FLAGS_RSSI_SIGNALS			0x0001
+#define BRCMF_FWS_FLAGS_XONXOFF_SIGNALS			0x0002
+#define BRCMF_FWS_FLAGS_CREDIT_STATUS_SIGNALS		0x0004
+#define BRCMF_FWS_FLAGS_HOST_PROPTXSTATUS_ACTIVE	0x0008
+#define BRCMF_FWS_FLAGS_PSQ_GENERATIONFSM_ENABLE	0x0010
+#define BRCMF_FWS_FLAGS_PSQ_ZERO_BUFFER_ENABLE		0x0020
+#define BRCMF_FWS_FLAGS_HOST_RXREORDER_ACTIVE		0x0040
 
-#define BRCMF_FWS_HANGER_MAXITEMS				1024
-#define BRCMF_FWS_HANGER_ITEM_STATE_FREE			1
-#define BRCMF_FWS_HANGER_ITEM_STATE_INUSE			2
-#define BRCMF_FWS_HANGER_ITEM_STATE_INUSE_SUPPRESSED		3
+#define BRCMF_FWS_HANGER_MAXITEMS			1024
+#define BRCMF_FWS_HANGER_ITEM_STATE_FREE		1
+#define BRCMF_FWS_HANGER_ITEM_STATE_INUSE		2
+#define BRCMF_FWS_HANGER_ITEM_STATE_INUSE_SUPPRESSED	3
 
-#define BRCMF_FWS_STATE_OPEN					1
+#define BRCMF_FWS_STATE_OPEN				1
 #define BRCMF_FWS_STATE_CLOSE				2
 
 #define BRCMF_FWS_FCMODE_NONE				0
 #define BRCMF_FWS_FCMODE_IMPLIED_CREDIT			1
-#define BRCMF_FWS_FCMODE_EXPLICIT_CREDIT			2
+#define BRCMF_FWS_FCMODE_EXPLICIT_CREDIT		2
 
 #define BRCMF_FWS_MAC_DESC_TABLE_SIZE			32
-#define BRCMF_FWS_MAX_IFNUM					16
+#define BRCMF_FWS_MAX_IFNUM				16
 #define BRCMF_FWS_MAC_DESC_ID_INVALID			0xff
 
 #define BRCMF_FWS_HOSTIF_FLOWSTATE_OFF			0
 #define BRCMF_FWS_HOSTIF_FLOWSTATE_ON			1
+
+#define BRCMF_FWS_PSQ_PREC_COUNT		((NL80211_NUM_ACS + 1) * 2)
+#define BRCMF_FWS_PSQ_LEN				256
+
+/**
+ * struct brcmf_fws_mac_descriptor - firmware signalling data per node/interface
+ *
+ * @occupied: slot is in use.
+ * @interface_id: interface index.
+ * @state: current state.
+ * @ac_bitmap: ac queue bitmap.
+ * @requested_credit: credits requested by firmware.
+ * @ea: ethernet address.
+ * @psq: power-save queue.
+ */
+struct brcmf_fws_mac_descriptor {
+	u8 occupied;
+	u8 interface_id;
+	u8 state;
+	u8 ac_bitmap;
+	u8 requested_credit;
+	u8 ea[ETH_ALEN];
+	struct pktq psq;
+};
 
 /**
  * FWFC packet identifier
@@ -181,6 +195,27 @@ struct brcmf_fws_info {
 	struct brcmf_pub *drvr;
 	struct brcmf_fws_stats stats;
 };
+
+/**
+ * brcmf_fws_get_tlv_len() - returns defined length for given tlv id.
+ */
+#define BRCMF_FWS_TLV_DEF(name, id, len) \
+	case BRCMF_FWS_TYPE_ ## name: \
+		return len;
+
+static int brcmf_fws_get_tlv_len(struct brcmf_fws_info *fws,
+				 enum brcmf_fws_tlv_type id)
+{
+	switch (id) {
+	BRCMF_FWS_TLV_DEFLIST
+	default:
+		brcmf_err("invalid tlv id: %d\n", id);
+		fws->stats.tlv_invalid_type++;
+		break;
+	}
+	return -EINVAL;
+}
+#undef BRCMF_FWS_TLV_DEF
 
 static int brcmf_fws_rssi_indicate(struct brcmf_fws_info *fws, s8 rssi)
 {
@@ -308,52 +343,32 @@ int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 		if (data_len < len + 2)
 			break;
 
+		if (len != brcmf_fws_get_tlv_len(fws, type))
+			break;
+
 		brcmf_dbg(INFO, "tlv type=%d (%s), len=%d\n", type,
 			  brcmf_fws_get_tlv_name(type), len);
 		switch (type) {
 		case BRCMF_FWS_TYPE_MAC_OPEN:
 		case BRCMF_FWS_TYPE_MAC_CLOSE:
-			WARN_ON(len != BRCMF_FWS_TYPE_MAC_OPEN_LEN);
-			break;
 		case BRCMF_FWS_TYPE_MAC_REQUEST_CREDIT:
-			WARN_ON(len != BRCMF_FWS_TYPE_MAC_REQUEST_CREDIT_LEN);
-			break;
 		case BRCMF_FWS_TYPE_TXSTATUS:
-			WARN_ON(len != BRCMF_FWS_TYPE_TXSTATUS_LEN);
-			break;
 		case BRCMF_FWS_TYPE_PKTTAG:
-			WARN_ON(len != BRCMF_FWS_TYPE_PKTTAG_LEN);
-			break;
-		case BRCMF_FWS_TYPE_MACDESC_ADD:
-		case BRCMF_FWS_TYPE_MACDESC_DEL:
-			WARN_ON(len != BRCMF_FWS_TYPE_MACDESC_ADD_LEN);
-			break;
-		case BRCMF_FWS_TYPE_RSSI:
-			WARN_ON(len != BRCMF_FWS_TYPE_RSSI_LEN);
-			brcmf_fws_rssi_indicate(fws, *(s8 *)data);
-			break;
 		case BRCMF_FWS_TYPE_INTERFACE_OPEN:
 		case BRCMF_FWS_TYPE_INTERFACE_CLOSE:
-			WARN_ON(len != BRCMF_FWS_TYPE_INTERFACE_OPEN_LEN);
-			break;
 		case BRCMF_FWS_TYPE_FIFO_CREDITBACK:
-			WARN_ON(len != BRCMF_FWS_TYPE_FIFO_CREDITBACK_LEN);
-			break;
 		case BRCMF_FWS_TYPE_PENDING_TRAFFIC_BMP:
-			WARN_ON(len != BRCMF_FWS_TYPE_PENDING_TRAFFIC_BMP_LEN);
-			break;
 		case BRCMF_FWS_TYPE_MAC_REQUEST_PACKET:
-			WARN_ON(len != BRCMF_FWS_TYPE_MAC_REQUEST_PACKET_LEN);
-			break;
 		case BRCMF_FWS_TYPE_HOST_REORDER_RXPKTS:
-			WARN_ON(len != BRCMF_FWS_TYPE_HOST_REORDER_RXPKTS_LEN);
+		case BRCMF_FWS_TYPE_COMP_TXSTATUS:
+		case BRCMF_FWS_TYPE_MACDESC_ADD:
+		case BRCMF_FWS_TYPE_MACDESC_DEL:
+			break;
+		case BRCMF_FWS_TYPE_RSSI:
+			brcmf_fws_rssi_indicate(fws, *data);
 			break;
 		case BRCMF_FWS_TYPE_TRANS_ID:
-			WARN_ON(len != BRCMF_FWS_TYPE_TRANS_ID_LEN);
 			brcmf_fws_dbg_seqnum_check(fws, data);
-			break;
-		case BRCMF_FWS_TYPE_COMP_TXSTATUS:
-			WARN_ON(len != BRCMF_FWS_TYPE_COMP_TXSTATUS_LEN);
 			break;
 		default:
 			fws->stats.tlv_invalid_type++;
@@ -379,4 +394,56 @@ int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 
 	brcmf_fws_unlock(drvr, flags);
 	return 0;
+}
+
+void brcmf_fws_reset_interface(struct brcmf_if *ifp)
+{
+	struct brcmf_fws_mac_descriptor *entry = ifp->fws_desc;
+
+	brcmf_dbg(TRACE, "enter: idx=%d\n", ifp->bssidx);
+	if (!entry)
+		return;
+
+	entry->occupied = 1;
+	entry->state = BRCMF_FWS_STATE_OPEN;
+	entry->requested_credit = 0;
+	/* depending on use may need ifp->bssidx instead */
+	entry->interface_id = ifp->ifidx;
+	entry->ac_bitmap = 0xff; /* update this when handling APSD */
+	memcpy(&entry->ea[0], ifp->mac_addr, ETH_ALEN);
+}
+
+void brcmf_fws_add_interface(struct brcmf_if *ifp)
+{
+	struct brcmf_fws_mac_descriptor *entry;
+
+	brcmf_dbg(TRACE, "enter: idx=%d, mac=%pM\n",
+		  ifp->bssidx, ifp->mac_addr);
+	if (!ifp->drvr->fw_signals)
+		return;
+
+	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	if (entry) {
+		ifp->fws_desc = entry;
+		brcmf_fws_reset_interface(ifp);
+		brcmu_pktq_init(&entry->psq, BRCMF_FWS_PSQ_PREC_COUNT,
+				BRCMF_FWS_PSQ_LEN);
+	} else {
+		brcmf_err("no firmware signalling\n");
+	}
+}
+
+void brcmf_fws_del_interface(struct brcmf_if *ifp)
+{
+	struct brcmf_fws_mac_descriptor *entry = ifp->fws_desc;
+
+	brcmf_dbg(TRACE, "enter: idx=%d\n", ifp->bssidx);
+	if (!entry)
+		return;
+
+	ifp->fws_desc = NULL;
+	entry->occupied = 0;
+	entry->state = BRCMF_FWS_STATE_CLOSE;
+	entry->requested_credit = 0;
+	kfree(entry);
 }

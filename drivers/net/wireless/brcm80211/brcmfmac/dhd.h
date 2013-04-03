@@ -550,8 +550,9 @@ struct brcmf_if_event {
 	u8 bssidx;
 };
 
-/* forward declaration */
+/* forward declarations */
 struct brcmf_cfg80211_vif;
+struct brcmf_fws_mac_descriptor;
 
 /**
  * struct brcmf_if - interface control information.
@@ -560,6 +561,9 @@ struct brcmf_cfg80211_vif;
  * @vif: points to cfg80211 specific interface information.
  * @ndev: associated network device.
  * @stats: interface specific network statistics.
+ * @setmacaddr_work: worker object for setting mac address.
+ * @multicast_work: worker object for multicast provisioning.
+ * @fws_desc: interface specific firmware-signalling descriptor.
  * @ifidx: interface index in device firmware.
  * @bssidx: index of bss associated with this interface.
  * @mac_addr: assigned mac address.
@@ -573,6 +577,7 @@ struct brcmf_if {
 	struct net_device_stats stats;
 	struct work_struct setmacaddr_work;
 	struct work_struct multicast_work;
+	struct brcmf_fws_mac_descriptor *fws_desc;
 	int ifidx;
 	s32 bssidx;
 	u8 mac_addr[ETH_ALEN];

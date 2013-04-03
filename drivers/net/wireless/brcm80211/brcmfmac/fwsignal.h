@@ -22,4 +22,9 @@ int brcmf_fws_init(struct brcmf_pub *drvr);
 void brcmf_fws_deinit(struct brcmf_pub *drvr);
 int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 		      struct sk_buff *skb);
+
+void brcmf_fws_reset_interface(struct brcmf_if *ifp);
+void brcmf_fws_add_interface(struct brcmf_if *ifp);
+void brcmf_fws_del_interface(struct brcmf_if *ifp);
+
 #endif /* FWSIGNAL_H_ */
