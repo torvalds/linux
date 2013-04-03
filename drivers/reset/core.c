@@ -181,7 +181,7 @@ struct reset_control *reset_control_get(struct device *dev, const char *id)
 
 	rstc = kzalloc(sizeof(*rstc), GFP_KERNEL);
 	if (!rstc) {
-		module_put(rstc->rcdev->owner);
+		module_put(rcdev->owner);
 		return ERR_PTR(-ENOMEM);
 	}
 
