@@ -806,26 +806,9 @@ int ext4_ind_trans_blocks(struct inode *inode, int nrblocks, int chunk)
  * be able to restart the transaction at a conventient checkpoint to make
  * sure we don't overflow the journal.
  *
- * start_transaction gets us a new handle for a truncate transaction,
- * and extend_transaction tries to extend the existing one a bit.  If
+ * Try to extend this transaction for the purposes of truncation.  If
  * extend fails, we need to propagate the failure up and restart the
  * transaction in the top-level truncate loop. --sct
- */
-static handle_t *start_transaction(struct inode *inode)
-{
-	handle_t *result;
-
-	result = ext4_journal_start(inode, EXT4_HT_TRUNCATE,
-				    ext4_blocks_for_truncate(inode));
-	if (!IS_ERR(result))
-		return result;
-
-	ext4_std_error(inode->i_sb, PTR_ERR(result));
-	return result;
-}
-
-/*
- * Try to extend this transaction for the purposes of truncation.
  *
  * Returns 0 if we managed to create more room.  If we can't create more
  * room, and the transaction must be restarted we return 1.
@@ -1218,68 +1201,30 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 	}
 }
 
-void ext4_ind_truncate(struct inode *inode)
+void ext4_ind_truncate(handle_t *handle, struct inode *inode)
 {
-	handle_t *handle;
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	__le32 *i_data = ei->i_data;
 	int addr_per_block = EXT4_ADDR_PER_BLOCK(inode->i_sb);
-	struct address_space *mapping = inode->i_mapping;
 	ext4_lblk_t offsets[4];
 	Indirect chain[4];
 	Indirect *partial;
 	__le32 nr = 0;
 	int n = 0;
 	ext4_lblk_t last_block, max_block;
-	loff_t page_len;
 	unsigned blocksize = inode->i_sb->s_blocksize;
-	int err;
-
-	handle = start_transaction(inode);
-	if (IS_ERR(handle))
-		return;		/* AKPM: return what? */
 
 	last_block = (inode->i_size + blocksize-1)
 					>> EXT4_BLOCK_SIZE_BITS(inode->i_sb);
 	max_block = (EXT4_SB(inode->i_sb)->s_bitmap_maxbytes + blocksize-1)
 					>> EXT4_BLOCK_SIZE_BITS(inode->i_sb);
 
-	if (inode->i_size % PAGE_CACHE_SIZE != 0) {
-		page_len = PAGE_CACHE_SIZE -
-			(inode->i_size & (PAGE_CACHE_SIZE - 1));
-
-		err = ext4_discard_partial_page_buffers(handle,
-			mapping, inode->i_size, page_len, 0);
-
-		if (err)
-			goto out_stop;
-	}
-
 	if (last_block != max_block) {
 		n = ext4_block_to_path(inode, last_block, offsets, NULL);
 		if (n == 0)
-			goto out_stop;	/* error */
+			return;
 	}
 
-	/*
-	 * OK.  This truncate is going to happen.  We add the inode to the
-	 * orphan list, so that if this truncate spans multiple transactions,
-	 * and we crash, we will resume the truncate when the filesystem
-	 * recovers.  It also marks the inode dirty, to catch the new size.
-	 *
-	 * Implication: the file must always be in a sane, consistent
-	 * truncatable state while each transaction commits.
-	 */
-	if (ext4_orphan_add(handle, inode))
-		goto out_stop;
-
-	/*
-	 * From here we block out all ext4_get_block() callers who want to
-	 * modify the block allocation tree.
-	 */
-	down_write(&ei->i_data_sem);
-
-	ext4_discard_preallocations(inode);
 	ext4_es_remove_extent(inode, last_block, EXT_MAX_BLOCKS - last_block);
 
 	/*
@@ -1296,7 +1241,7 @@ void ext4_ind_truncate(struct inode *inode)
 		 * It is unnecessary to free any data blocks if last_block is
 		 * equal to the indirect block limit.
 		 */
-		goto out_unlock;
+		return;
 	} else if (n == 1) {		/* direct blocks */
 		ext4_free_data(handle, inode, NULL, i_data+offsets[0],
 			       i_data + EXT4_NDIR_BLOCKS);
@@ -1356,31 +1301,6 @@ do_indirects:
 	case EXT4_TIND_BLOCK:
 		;
 	}
-
-out_unlock:
-	up_write(&ei->i_data_sem);
-	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
-	ext4_mark_inode_dirty(handle, inode);
-
-	/*
-	 * In a multi-transaction truncate, we only make the final transaction
-	 * synchronous
-	 */
-	if (IS_SYNC(inode))
-		ext4_handle_sync(handle);
-out_stop:
-	/*
-	 * If this was a simple ftruncate(), and the file will remain alive
-	 * then we need to clear up the orphan record which we created above.
-	 * However, if this was a real unlink then we were called by
-	 * ext4_delete_inode(), and we allow that function to clean up the
-	 * orphan info for us.
-	 */
-	if (inode->i_nlink)
-		ext4_orphan_del(handle, inode);
-
-	ext4_journal_stop(handle);
-	trace_ext4_truncate_exit(inode);
 }
 
 static int free_hole_blocks(handle_t *handle, struct inode *inode,
