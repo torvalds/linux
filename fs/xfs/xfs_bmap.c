@@ -47,6 +47,7 @@
 #include "xfs_filestream.h"
 #include "xfs_vnodeops.h"
 #include "xfs_trace.h"
+#include "xfs_symlink.h"
 
 
 kmem_zone_t		*xfs_bmap_free_item_zone;
@@ -1321,9 +1322,10 @@ xfs_bmap_add_attrfork_extents(
 }
 
 /*
- * Block initialisation functions for local to extent format conversion.
- * As these get more complex, they will be moved to the relevant files,
- * but for now they are too simple to worry about.
+ * Block initialisation function for local to extent format conversion.
+ *
+ * This shouldn't actually be called by anyone, so make sure debug kernels cause
+ * a noticable failure.
  */
 STATIC void
 xfs_bmap_local_to_extents_init_fn(
@@ -1332,21 +1334,10 @@ xfs_bmap_local_to_extents_init_fn(
 	struct xfs_inode	*ip,
 	struct xfs_ifork	*ifp)
 {
+	ASSERT(0);
 	bp->b_ops = &xfs_bmbt_buf_ops;
 	memcpy(bp->b_addr, ifp->if_u1.if_data, ifp->if_bytes);
 	xfs_trans_buf_set_type(tp, bp, XFS_BLF_BTREE_BUF);
-}
-
-STATIC void
-xfs_symlink_local_to_remote(
-	struct xfs_trans	*tp,
-	struct xfs_buf		*bp,
-	struct xfs_inode	*ip,
-	struct xfs_ifork	*ifp)
-{
-	/* remote symlink blocks are not verifiable until CRCs come along */
-	bp->b_ops = NULL;
-	memcpy(bp->b_addr, ifp->if_u1.if_data, ifp->if_bytes);
 }
 
 /*
