@@ -544,7 +544,7 @@ int __init arm_add_memory(phys_addr_t start, phys_addr_t size)
 	size -= start & ~PAGE_MASK;
 	bank->start = PAGE_ALIGN(start);
 
-#ifndef CONFIG_LPAE
+#ifndef CONFIG_ARM_LPAE
 	if (bank->start + size < bank->start) {
 		printk(KERN_CRIT "Truncating memory at 0x%08llx to fit in "
 			"32-bit physical address space\n", (long long)start);
