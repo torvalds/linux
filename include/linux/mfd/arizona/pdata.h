@@ -86,6 +86,11 @@ struct arizona_micd_config {
 	bool gpio;
 };
 
+struct arizona_micd_range {
+	int max;  /** Ohms */
+	int key;  /** Key to report to input layer */
+};
+
 struct arizona_pdata {
 	int reset;      /** GPIO controlling /RESET, if any */
 	int ldoena;     /** GPIO controlling LODENA, if any */
@@ -117,11 +122,20 @@ struct arizona_pdata {
 	/** GPIO5 is used for jack detection */
 	bool jd_gpio5;
 
+	/** Internal pull on GPIO5 is disabled when used for jack detection */
+	bool jd_gpio5_nopull;
+
 	/** Use the headphone detect circuit to identify the accessory */
 	bool hpdet_acc_id;
 
+	/** Check for line output with HPDET method */
+	bool hpdet_acc_id_line;
+
 	/** GPIO used for mic isolation with HPDET */
 	int hpdet_id_gpio;
+
+	/** Extra debounce timeout used during initial mic detection (ms) */
+	int micd_detect_debounce;
 
 	/** GPIO for mic detection polarity */
 	int micd_pol_gpio;
@@ -135,8 +149,15 @@ struct arizona_pdata {
 	/** Mic detect debounce level */
 	int micd_dbtime;
 
+	/** Mic detect timeout (ms) */
+	int micd_timeout;
+
 	/** Force MICBIAS on for mic detect */
 	bool micd_force_micbias;
+
+	/** Mic detect level parameters */
+	const struct arizona_micd_range *micd_ranges;
+	int num_micd_ranges;
 
 	/** Headset polarity configurations */
 	struct arizona_micd_config *micd_configs;
