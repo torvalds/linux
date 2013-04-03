@@ -2253,7 +2253,7 @@ static void pn533_wq_mi_recv(struct work_struct *work)
 		    "Error %d when trying to perform data_exchange", rc);
 
 	dev_kfree_skb(skb);
-	kfree(dev->cmd_complete_arg);
+	kfree(dev->cmd_complete_mi_arg);
 
 error:
 	pn533_send_ack(dev, GFP_KERNEL);
