@@ -172,40 +172,37 @@ static void ab8500_usb_wd_linkstatus(struct ab8500_usb *ab, u8 bit)
 	}
 }
 
-static void ab8500_usb_phy_ctrl(struct ab8500_usb *ab, bool sel_host,
-					bool enable)
+static void ab8500_usb_phy_enable(struct ab8500_usb *ab, bool sel_host)
 {
-	u8 ctrl_reg;
-	abx500_get_register_interruptible(ab->dev,
-				AB8500_USB,
-				AB8500_USB_PHY_CTRL_REG,
-				&ctrl_reg);
-	if (sel_host) {
-		if (enable)
-			ctrl_reg |= AB8500_BIT_PHY_CTRL_HOST_EN;
-		else
-			ctrl_reg &= ~AB8500_BIT_PHY_CTRL_HOST_EN;
-	} else {
-		if (enable)
-			ctrl_reg |= AB8500_BIT_PHY_CTRL_DEVICE_EN;
-		else
-			ctrl_reg &= ~AB8500_BIT_PHY_CTRL_DEVICE_EN;
-	}
+	u8 bit;
+	bit = sel_host ? AB8500_BIT_PHY_CTRL_HOST_EN :
+		AB8500_BIT_PHY_CTRL_DEVICE_EN;
 
-	abx500_set_register_interruptible(ab->dev,
-				AB8500_USB,
-				AB8500_USB_PHY_CTRL_REG,
-				ctrl_reg);
-
-	/* Needed to enable the phy.*/
-	if (enable)
-		ab8500_usb_wd_workaround(ab);
+	abx500_mask_and_set_register_interruptible(ab->dev,
+			AB8500_USB, AB8500_USB_PHY_CTRL_REG,
+			bit, bit);
 }
 
-#define ab8500_usb_host_phy_en(ab)	ab8500_usb_phy_ctrl(ab, true, true)
-#define ab8500_usb_host_phy_dis(ab)	ab8500_usb_phy_ctrl(ab, true, false)
-#define ab8500_usb_peri_phy_en(ab)	ab8500_usb_phy_ctrl(ab, false, true)
-#define ab8500_usb_peri_phy_dis(ab)	ab8500_usb_phy_ctrl(ab, false, false)
+static void ab8500_usb_phy_disable(struct ab8500_usb *ab, bool sel_host)
+{
+	u8 bit;
+	bit = sel_host ? AB8500_BIT_PHY_CTRL_HOST_EN :
+		AB8500_BIT_PHY_CTRL_DEVICE_EN;
+
+	ab8500_usb_wd_linkstatus(ab, bit);
+
+	abx500_mask_and_set_register_interruptible(ab->dev,
+			AB8500_USB, AB8500_USB_PHY_CTRL_REG,
+			bit, 0);
+
+	/* Needed to disable the phy.*/
+	ab8500_usb_wd_workaround(ab);
+}
+
+#define ab8500_usb_host_phy_en(ab)	ab8500_usb_phy_enable(ab, true)
+#define ab8500_usb_host_phy_dis(ab)	ab8500_usb_phy_disable(ab, true)
+#define ab8500_usb_peri_phy_en(ab)	ab8500_usb_phy_enable(ab, false)
+#define ab8500_usb_peri_phy_dis(ab)	ab8500_usb_phy_disable(ab, false)
 
 static int ab8505_usb_link_status_update(struct ab8500_usb *ab,
 		enum ab8505_usb_link_status lsts)
