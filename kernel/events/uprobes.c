@@ -1132,6 +1132,7 @@ static struct xol_area *get_xol_area(void)
 {
 	struct mm_struct *mm = current->mm;
 	struct xol_area *area;
+	uprobe_opcode_t insn = UPROBE_SWBP_INSN;
 
 	area = mm->uprobes_state.xol_area;
 	if (area)
@@ -1149,7 +1150,12 @@ static struct xol_area *get_xol_area(void)
 	if (!area->page)
 		goto free_bitmap;
 
+	/* allocate first slot of task's xol_area for the return probes */
+	set_bit(0, area->bitmap);
+	copy_to_page(area->page, 0, &insn, UPROBE_SWBP_INSN_SIZE);
+	atomic_set(&area->slot_count, 1);
 	init_waitqueue_head(&area->wq);
+
 	if (!xol_add_vma(area))
 		return area;
 
@@ -1344,6 +1350,25 @@ static struct uprobe_task *get_utask(void)
 	if (!current->utask)
 		current->utask = kzalloc(sizeof(struct uprobe_task), GFP_KERNEL);
 	return current->utask;
+}
+
+/*
+ * Current area->vaddr notion assume the trampoline address is always
+ * equal area->vaddr.
+ *
+ * Returns -1 in case the xol_area is not allocated.
+ */
+static unsigned long get_trampoline_vaddr(void)
+{
+	struct xol_area *area;
+	unsigned long trampoline_vaddr = -1;
+
+	area = current->mm->uprobes_state.xol_area;
+	smp_read_barrier_depends();
+	if (area)
+		trampoline_vaddr = area->vaddr;
+
+	return trampoline_vaddr;
 }
 
 /* Prepare to single-step probed instruction out of line. */
