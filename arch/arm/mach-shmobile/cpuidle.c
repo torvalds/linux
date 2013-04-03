@@ -36,12 +36,12 @@ static struct cpuidle_driver shmobile_cpuidle_default_driver = {
 
 static struct cpuidle_driver *cpuidle_drv = &shmobile_cpuidle_default_driver;
 
-void shmobile_cpuidle_set_driver(struct cpuidle_driver *drv)
+void __init shmobile_cpuidle_set_driver(struct cpuidle_driver *drv)
 {
 	cpuidle_drv = drv;
 }
 
-int shmobile_cpuidle_init(void)
+int __init shmobile_cpuidle_init(void)
 {
 	struct cpuidle_device *dev = &shmobile_cpuidle_dev;
 
