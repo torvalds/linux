@@ -187,7 +187,6 @@ static int x25_seq_forward_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations x25_seq_socket_fops = {
-	.owner		= THIS_MODULE,
 	.open		= x25_seq_socket_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -195,7 +194,6 @@ static const struct file_operations x25_seq_socket_fops = {
 };
 
 static const struct file_operations x25_seq_route_fops = {
-	.owner		= THIS_MODULE,
 	.open		= x25_seq_route_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -203,55 +201,38 @@ static const struct file_operations x25_seq_route_fops = {
 };
 
 static const struct file_operations x25_seq_forward_fops = {
-	.owner		= THIS_MODULE,
 	.open		= x25_seq_forward_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
 
-static struct proc_dir_entry *x25_proc_dir;
-
 int __init x25_proc_init(void)
 {
-	struct proc_dir_entry *p;
-	int rc = -ENOMEM;
+	if (!proc_mkdir("x25", init_net.proc_net))
+		return -ENOMEM;
 
-	x25_proc_dir = proc_mkdir("x25", init_net.proc_net);
-	if (!x25_proc_dir)
+	if (!proc_create("x25/route", S_IRUGO, init_net.proc_net,
+			&x25_seq_route_fops))
 		goto out;
 
-	p = proc_create("route", S_IRUGO, x25_proc_dir, &x25_seq_route_fops);
-	if (!p)
-		goto out_route;
+	if (!proc_create("x25/socket", S_IRUGO, init_net.proc_net,
+			&x25_seq_socket_fops))
+		goto out;
 
-	p = proc_create("socket", S_IRUGO, x25_proc_dir, &x25_seq_socket_fops);
-	if (!p)
-		goto out_socket;
-
-	p = proc_create("forward", S_IRUGO, x25_proc_dir,
-			&x25_seq_forward_fops);
-	if (!p)
-		goto out_forward;
-	rc = 0;
+	if (!proc_create("x25/forward", S_IRUGO, init_net.proc_net,
+			&x25_seq_forward_fops))
+		goto out;
+	return 0;
 
 out:
-	return rc;
-out_forward:
-	remove_proc_entry("socket", x25_proc_dir);
-out_socket:
-	remove_proc_entry("route", x25_proc_dir);
-out_route:
-	remove_proc_entry("x25", init_net.proc_net);
-	goto out;
+	remove_proc_subtree("x25", init_net.proc_net);
+	return -ENOMEM;
 }
 
 void __exit x25_proc_exit(void)
 {
-	remove_proc_entry("forward", x25_proc_dir);
-	remove_proc_entry("route", x25_proc_dir);
-	remove_proc_entry("socket", x25_proc_dir);
-	remove_proc_entry("x25", init_net.proc_net);
+	remove_proc_subtree("x25", init_net.proc_net);
 }
 
 #else /* CONFIG_PROC_FS */
