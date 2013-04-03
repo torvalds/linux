@@ -50,14 +50,10 @@ static void davinci_save_ddr_power(int enter, bool pdown)
 
 /* Actual code that puts the SoC in different idle states */
 static int davinci_enter_idle(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv,
-						int index)
+			      struct cpuidle_driver *drv, int index)
 {
 	davinci_save_ddr_power(1, ddr2_pdown);
-
-	index = cpuidle_wrap_enter(dev,	drv, index,
-				arm_cpuidle_simple_enter);
-
+	cpu_do_idle();
 	davinci_save_ddr_power(0, ddr2_pdown);
 
 	return index;
