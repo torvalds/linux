@@ -116,8 +116,8 @@
 #define PLLDU_MISC_LOCK_ENABLE 22
 #define PLLE_MISC_LOCK_ENABLE 9
 
-#define PLL_BASE_LOCK 27
-#define PLLE_MISC_LOCK 11
+#define PLL_BASE_LOCK BIT(27)
+#define PLLE_MISC_LOCK BIT(11)
 
 #define PLLE_AUX 0x48c
 #define PLLC_OUT 0x84
@@ -559,7 +559,7 @@ static struct tegra_clk_pll_params pll_c_params = {
 	.vco_max = 1400000000,
 	.base_reg = PLLC_BASE,
 	.misc_reg = PLLC_MISC,
-	.lock_bit_idx = PLL_BASE_LOCK,
+	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLL_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
 };
@@ -573,7 +573,7 @@ static struct tegra_clk_pll_params pll_m_params = {
 	.vco_max = 1200000000,
 	.base_reg = PLLM_BASE,
 	.misc_reg = PLLM_MISC,
-	.lock_bit_idx = PLL_BASE_LOCK,
+	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLL_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
 };
@@ -587,7 +587,7 @@ static struct tegra_clk_pll_params pll_p_params = {
 	.vco_max = 1400000000,
 	.base_reg = PLLP_BASE,
 	.misc_reg = PLLP_MISC,
-	.lock_bit_idx = PLL_BASE_LOCK,
+	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLL_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
 };
@@ -601,7 +601,7 @@ static struct tegra_clk_pll_params pll_a_params = {
 	.vco_max = 1400000000,
 	.base_reg = PLLA_BASE,
 	.misc_reg = PLLA_MISC,
-	.lock_bit_idx = PLL_BASE_LOCK,
+	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLL_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
 };
@@ -615,7 +615,7 @@ static struct tegra_clk_pll_params pll_d_params = {
 	.vco_max = 1000000000,
 	.base_reg = PLLD_BASE,
 	.misc_reg = PLLD_MISC,
-	.lock_bit_idx = PLL_BASE_LOCK,
+	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLLDU_MISC_LOCK_ENABLE,
 	.lock_delay = 1000,
 };
@@ -629,7 +629,7 @@ static struct tegra_clk_pll_params pll_d2_params = {
 	.vco_max = 1000000000,
 	.base_reg = PLLD2_BASE,
 	.misc_reg = PLLD2_MISC,
-	.lock_bit_idx = PLL_BASE_LOCK,
+	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLLDU_MISC_LOCK_ENABLE,
 	.lock_delay = 1000,
 };
@@ -643,7 +643,7 @@ static struct tegra_clk_pll_params pll_u_params = {
 	.vco_max = 960000000,
 	.base_reg = PLLU_BASE,
 	.misc_reg = PLLU_MISC,
-	.lock_bit_idx = PLL_BASE_LOCK,
+	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLLDU_MISC_LOCK_ENABLE,
 	.lock_delay = 1000,
 	.pdiv_tohw = pllu_p,
@@ -658,7 +658,7 @@ static struct tegra_clk_pll_params pll_x_params = {
 	.vco_max = 1700000000,
 	.base_reg = PLLX_BASE,
 	.misc_reg = PLLX_MISC,
-	.lock_bit_idx = PLL_BASE_LOCK,
+	.lock_mask = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLL_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
 };
@@ -672,7 +672,7 @@ static struct tegra_clk_pll_params pll_e_params = {
 	.vco_max = 2400000000U,
 	.base_reg = PLLE_BASE,
 	.misc_reg = PLLE_MISC,
-	.lock_bit_idx = PLLE_MISC_LOCK,
+	.lock_mask = PLLE_MISC_LOCK,
 	.lock_enable_bit_idx = PLLE_MISC_LOCK_ENABLE,
 	.lock_delay = 300,
 };

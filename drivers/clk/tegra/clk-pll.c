@@ -119,7 +119,7 @@ static void clk_pll_enable_lock(struct tegra_clk_pll *pll)
 static int clk_pll_wait_for_lock(struct tegra_clk_pll *pll)
 {
 	int i;
-	u32 val, lock_bit;
+	u32 val, lock_mask;
 	void __iomem *lock_addr;
 
 	if (!(pll->flags & TEGRA_PLL_USE_LOCK)) {
@@ -133,11 +133,11 @@ static int clk_pll_wait_for_lock(struct tegra_clk_pll *pll)
 	else
 		lock_addr += pll->params->base_reg;
 
-	lock_bit = BIT(pll->params->lock_bit_idx);
+	lock_mask = pll->params->lock_mask;
 
 	for (i = 0; i < pll->params->lock_delay; i++) {
 		val = readl_relaxed(lock_addr);
-		if (val & lock_bit) {
+		if ((val & lock_mask) == lock_mask) {
 			udelay(PLL_POST_LOCK_DELAY);
 			return 0;
 		}

@@ -154,7 +154,7 @@ struct tegra_clk_pll_params {
 	u32		base_reg;
 	u32		misc_reg;
 	u32		lock_reg;
-	u32		lock_bit_idx;
+	u32		lock_mask;
 	u32		lock_enable_bit_idx;
 	int		lock_delay;
 	int		max_p;
