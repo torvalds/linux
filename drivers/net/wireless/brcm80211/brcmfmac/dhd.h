@@ -72,6 +72,7 @@
 #define BRCMF_C_SET_WSEC			134
 #define BRCMF_C_GET_PHY_NOISE			135
 #define BRCMF_C_GET_BSS_INFO			136
+#define BRCMF_C_GET_BANDLIST			140
 #define BRCMF_C_SET_SCB_TIMEOUT			158
 #define BRCMF_C_GET_PHYLIST			180
 #define BRCMF_C_SET_SCAN_CHANNEL_TIME		185
@@ -473,6 +474,11 @@ struct brcmf_sta_info_le {
 	__le32	rx_rate;	/* Rate of last successful rx frame */
 	__le32	rx_decrypt_succeeds;	/* # of packet decrypted successfully */
 	__le32	rx_decrypt_failures;	/* # of packet decrypted failed */
+};
+
+struct brcmf_chanspec_list {
+	__le32	count;		/* # of entries */
+	__le32	element[1];	/* variable length uint32 list */
 };
 
 /*
