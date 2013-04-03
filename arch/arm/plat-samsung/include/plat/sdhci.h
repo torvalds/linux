@@ -206,7 +206,7 @@ static inline void s3c6400_default_sdhci2(void) { }
 
 /* S5P64X0 SDHCI setup */
 
-#ifdef CONFIG_S5P64X0_SETUP_SDHCI
+#ifdef CONFIG_S5P64X0_SETUP_SDHCI_GPIO
 static inline void s5p64x0_default_sdhci0(void)
 {
 #ifdef CONFIG_S3C_DEV_HSMMC
@@ -241,7 +241,7 @@ static inline void s5p64x0_default_sdhci1(void) { }
 static inline void s5p6440_default_sdhci2(void) { }
 static inline void s5p6450_default_sdhci2(void) { }
 
-#endif /* CONFIG_S5P64X0_SETUP_SDHCI */
+#endif /* CONFIG_S5P64X0_SETUP_SDHCI_GPIO */
 
 /* S5PC100 SDHCI setup */
 
