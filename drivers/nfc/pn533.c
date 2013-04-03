@@ -149,8 +149,6 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 
 struct pn533;
 
-typedef int (*pn533_cmd_complete_t) (struct pn533 *dev, void *arg, int status);
-
 typedef int (*pn533_send_async_complete_t) (struct pn533 *dev, void *arg,
 					struct sk_buff *resp);
 
