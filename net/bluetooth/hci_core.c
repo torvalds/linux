@@ -79,7 +79,7 @@ static void hci_req_cancel(struct hci_dev *hdev, int err)
 	}
 }
 
-struct sk_buff *hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode)
+struct sk_buff *hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 event)
 {
 	struct hci_ev_cmd_complete *ev;
 	struct hci_event_hdr *hdr;
@@ -102,6 +102,12 @@ struct sk_buff *hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode)
 
 	hdr = (void *) skb->data;
 	skb_pull(skb, HCI_EVENT_HDR_SIZE);
+
+	if (event) {
+		if (hdr->evt != event)
+			goto failed;
+		return skb;
+	}
 
 	if (hdr->evt != HCI_EV_CMD_COMPLETE) {
 		BT_DBG("Last event is not cmd complete (0x%2.2x)", hdr->evt);
@@ -127,8 +133,8 @@ failed:
 	return ERR_PTR(-ENODATA);
 }
 
-struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
-			       void *param, u32 timeout)
+struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
+				  void *param, u8 event, u32 timeout)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	struct hci_request req;
@@ -138,7 +144,7 @@ struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
 
 	hci_req_init(&req, hdev);
 
-	hci_req_add(&req, opcode, plen, param);
+	hci_req_add_ev(&req, opcode, plen, param, event);
 
 	hdev->req_status = HCI_REQ_PEND;
 
@@ -177,7 +183,14 @@ struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
 	if (err < 0)
 		return ERR_PTR(err);
 
-	return hci_get_cmd_complete(hdev, opcode);
+	return hci_get_cmd_complete(hdev, opcode, event);
+}
+EXPORT_SYMBOL(__hci_cmd_sync_ev);
+
+struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
+			       void *param, u32 timeout)
+{
+	return __hci_cmd_sync_ev(hdev, opcode, plen, param, 0, timeout);
 }
 EXPORT_SYMBOL(__hci_cmd_sync);
 
