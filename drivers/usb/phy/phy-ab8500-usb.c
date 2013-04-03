@@ -124,9 +124,7 @@ struct ab8500_usb {
 	struct device *dev;
 	struct ab8500 *ab8500;
 	unsigned vbus_draw;
-	struct delayed_work dwork;
 	struct work_struct phy_dis_work;
-	unsigned long link_status_wait;
 	enum ab8500_usb_mode mode;
 	struct regulator *v_ape;
 	struct regulator *v_musb;
@@ -556,14 +554,6 @@ static irqreturn_t ab8500_usb_link_status_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void ab8500_usb_delayed_work(struct work_struct *work)
-{
-	struct ab8500_usb *ab = container_of(work, struct ab8500_usb,
-						dwork.work);
-
-	abx500_usb_link_status_update(ab);
-}
-
 static void ab8500_usb_phy_disable_work(struct work_struct *work)
 {
 	struct ab8500_usb *ab = container_of(work, struct ab8500_usb,
@@ -635,12 +625,6 @@ static int ab8500_usb_set_peripheral(struct usb_otg *otg,
 	} else {
 		otg->gadget = gadget;
 		otg->phy->state = OTG_STATE_B_IDLE;
-
-		/* Phy will not be enabled if cable is already
-		 * plugged-in. Schedule to enable phy.
-		 * Use same delay to avoid any race condition.
-		 */
-		schedule_delayed_work(&ab->dwork, ab->link_status_wait);
 	}
 
 	return 0;
@@ -665,11 +649,6 @@ static int ab8500_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 		schedule_work(&ab->phy_dis_work);
 	} else {
 		otg->host = host;
-		/* Phy will not be enabled if cable is already
-		 * plugged-in. Schedule to enable phy.
-		 * Use same delay to avoid any race condition.
-		 */
-		schedule_delayed_work(&ab->dwork, ab->link_status_wait);
 	}
 
 	return 0;
@@ -792,11 +771,6 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&ab->phy.notifier);
 
-	/* v1: Wait for link status to become stable.
-	 * all: Updates form set_host and set_peripheral as they are atomic.
-	 */
-	INIT_DELAYED_WORK(&ab->dwork, ab8500_usb_delayed_work);
-
 	/* all: Disable phy when called from set_host and set_peripheral */
 	INIT_WORK(&ab->phy_dis_work, ab8500_usb_phy_disable_work);
 
@@ -893,6 +867,8 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 	/* Needed to enable ID detection. */
 	ab8500_usb_wd_workaround(ab);
 
+	abx500_usb_link_status_update(ab);
+
 	dev_info(&pdev->dev, "revision 0x%2x driver initialized\n", rev);
 
 	return 0;
@@ -901,8 +877,6 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 static int ab8500_usb_remove(struct platform_device *pdev)
 {
 	struct ab8500_usb *ab = platform_get_drvdata(pdev);
-
-	cancel_delayed_work_sync(&ab->dwork);
 
 	cancel_work_sync(&ab->phy_dis_work);
 
