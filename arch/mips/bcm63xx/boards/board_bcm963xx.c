@@ -745,10 +745,7 @@ void __init board_prom_init(void)
 		strcpy(cfe_version, "unknown");
 	printk(KERN_INFO PFX "CFE version: %s\n", cfe_version);
 
-	if (bcm63xx_nvram_init(boot_addr + BCM963XX_NVRAM_OFFSET)) {
-		printk(KERN_ERR PFX "invalid nvram checksum\n");
-		return;
-	}
+	bcm63xx_nvram_init(boot_addr + BCM963XX_NVRAM_OFFSET);
 
 	board_name = bcm63xx_nvram_get_name();
 	/* find board by name */

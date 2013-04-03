@@ -67,7 +67,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (cpu_has_mips_r) {
 		seq_printf(m, "isa\t\t\t:");
 		if (cpu_has_mips_1)
-			seq_printf(m, "%s", "mips1");
+			seq_printf(m, "%s", " mips1");
 		if (cpu_has_mips_2)
 			seq_printf(m, "%s", " mips2");
 		if (cpu_has_mips_3)
