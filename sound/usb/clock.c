@@ -217,7 +217,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 		cur = ret;
 		ret = __uac_clock_find_source(chip, selector->baCSourceID[ret - 1],
 					       visited, validate);
-		if (!validate || ret > 0)
+		if (!validate || ret > 0 || !chip->autoclock)
 			return ret;
 
 		/* The current clock source is invalid, try others. */

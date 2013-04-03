@@ -82,6 +82,7 @@ static int pid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 };
 static int nrpacks = 8;		/* max. number of packets per urb */
 static int device_setup[SNDRV_CARDS]; /* device parameter for this card */
 static bool ignore_ctl_error;
+static bool autoclock = true;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the USB audio adapter.");
@@ -100,6 +101,8 @@ MODULE_PARM_DESC(device_setup, "Specific device setup (if needed).");
 module_param(ignore_ctl_error, bool, 0444);
 MODULE_PARM_DESC(ignore_ctl_error,
 		 "Ignore errors from USB controller for mixer interfaces.");
+module_param(autoclock, bool, 0444);
+MODULE_PARM_DESC(autoclock, "Enable auto-clock selection for UAC2 devices (default: yes).");
 
 /*
  * we keep the snd_usb_audio_t instances by ourselves for merging
@@ -354,6 +357,7 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 	chip->card = card;
 	chip->setup = device_setup[idx];
 	chip->nrpacks = nrpacks;
+	chip->autoclock = autoclock;
 	chip->probing = 1;
 
 	chip->usb_id = USB_ID(le16_to_cpu(dev->descriptor.idVendor),
