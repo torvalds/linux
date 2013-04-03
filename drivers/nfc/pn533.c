@@ -310,11 +310,17 @@ struct pn533_cmd_jump_dep_response {
 #define PN533_INIT_TARGET_RESP_ACTIVE     0x1
 #define PN533_INIT_TARGET_RESP_DEP        0x4
 
+enum  pn533_protocol_type {
+	PN533_PROTO_REQ_ACK_RESP = 0,
+	PN533_PROTO_REQ_RESP
+};
+
 struct pn533 {
 	struct usb_device *udev;
 	struct usb_interface *interface;
 	struct nfc_dev *nfc_dev;
 	u32 device_type;
+	enum pn533_protocol_type protocol_type;
 
 	struct urb *out_urb;
 	struct urb *in_urb;
@@ -646,9 +652,17 @@ static int __pn533_send_frame_async(struct pn533 *dev,
 	if (rc)
 		return rc;
 
-	rc = pn533_submit_urb_for_ack(dev, GFP_KERNEL);
-	if (rc)
-		goto error;
+	if (dev->protocol_type == PN533_PROTO_REQ_RESP) {
+		/* request for response for sent packet directly */
+		rc = pn533_submit_urb_for_response(dev, GFP_ATOMIC);
+		if (rc)
+			goto error;
+	} else if (dev->protocol_type == PN533_PROTO_REQ_ACK_RESP) {
+		/* request for ACK if that's the case */
+		rc = pn533_submit_urb_for_ack(dev, GFP_KERNEL);
+		if (rc)
+			goto error;
+	}
 
 	return 0;
 
@@ -2485,6 +2499,7 @@ static int pn533_probe(struct usb_interface *interface,
 
 	dev->ops = &pn533_std_frame_ops;
 
+	dev->protocol_type = PN533_PROTO_REQ_ACK_RESP;
 	dev->device_type = id->driver_info;
 	switch (dev->device_type) {
 	case PN533_DEVICE_STD:
