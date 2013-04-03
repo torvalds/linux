@@ -16,6 +16,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -26,6 +27,9 @@
 #define PMC_PWRGATE_TOGGLE_START	(1 << 8)
 #define PMC_REMOVE_CLAMPING		0x34
 #define PMC_PWRGATE_STATUS		0x38
+
+#define PMC_CPUPWRGOOD_TIMER	0xc8
+#define PMC_CPUPWROFF_TIMER	0xcc
 
 #define TEGRA_POWERGATE_PCIE	3
 #define TEGRA_POWERGATE_VDEC	4
@@ -43,6 +47,7 @@ static DEFINE_SPINLOCK(tegra_powergate_lock);
 
 static void __iomem *tegra_pmc_base;
 static bool tegra_pmc_invert_interrupt;
+static struct clk *tegra_pclk;
 
 static inline u32 tegra_pmc_readl(u32 reg)
 {
@@ -133,6 +138,34 @@ int tegra_pmc_cpu_remove_clamping(int cpuid)
 	return tegra_pmc_powergate_remove_clamping(id);
 }
 
+#ifdef CONFIG_PM_SLEEP
+void set_power_timers(unsigned long us_on, unsigned long us_off)
+{
+	unsigned long long ticks;
+	unsigned long long pclk;
+	unsigned long rate;
+	static unsigned long tegra_last_pclk;
+
+	rate = clk_get_rate(tegra_pclk);
+	if (WARN_ON_ONCE(rate <= 0))
+		pclk = 100000000;
+	else
+		pclk = rate;
+
+	if ((rate != tegra_last_pclk)) {
+		ticks = (us_on * pclk) + 999999ull;
+		do_div(ticks, 1000000);
+		tegra_pmc_writel((unsigned long)ticks, PMC_CPUPWRGOOD_TIMER);
+
+		ticks = (us_off * pclk) + 999999ull;
+		do_div(ticks, 1000000);
+		tegra_pmc_writel((unsigned long)ticks, PMC_CPUPWROFF_TIMER);
+		wmb();
+	}
+	tegra_last_pclk = pclk;
+}
+#endif
+
 static const struct of_device_id matches[] __initconst = {
 	{ .compatible = "nvidia,tegra114-pmc" },
 	{ .compatible = "nvidia,tegra30-pmc" },
@@ -151,6 +184,8 @@ static void tegra_pmc_parse_dt(void)
 
 	tegra_pmc_invert_interrupt = of_property_read_bool(np,
 				     "nvidia,invert-interrupt");
+	tegra_pclk = of_clk_get_by_name(np, "pclk");
+	WARN_ON(IS_ERR(tegra_pclk));
 }
 
 void __init tegra_pmc_init(void)

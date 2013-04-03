@@ -61,6 +61,7 @@ u32 tegra_uart_config[4] = {
 void __init tegra_dt_init_irq(void)
 {
 	tegra_clocks_init();
+	tegra_pmc_init();
 	tegra_init_irq();
 	irqchip_init();
 }
@@ -100,7 +101,6 @@ void __init tegra_init_early(void)
 	tegra_apb_io_init();
 	tegra_init_fuse();
 	tegra_init_cache();
-	tegra_pmc_init();
 	tegra_powergate_init();
 	tegra_hotplug_init();
 }
