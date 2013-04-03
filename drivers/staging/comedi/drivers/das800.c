@@ -114,14 +114,6 @@ struct das800_board {
 	int resolution;
 };
 
-/* analog input ranges */
-static const struct comedi_lrange range_das800_ai = {
-	1,
-	{
-	 RANGE(-5, 5),
-	 }
-};
-
 static const struct comedi_lrange range_das801_ai = {
 	9,
 	{
@@ -187,13 +179,13 @@ static const struct das800_board das800_boards[] = {
 	{
 	 .name = "das-800",
 	 .ai_speed = 25000,
-	 .ai_range = &range_das800_ai,
+	 .ai_range = &range_bipolar5,
 	 .resolution = 12,
 	 },
 	{
 	 .name = "cio-das800",
 	 .ai_speed = 20000,
-	 .ai_range = &range_das800_ai,
+	 .ai_range = &range_bipolar5,
 	 .resolution = 12,
 	 },
 	{
