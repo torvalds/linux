@@ -1813,8 +1813,7 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_sdio *bus, struct sk_buff *pkt,
 		} else {
 			skb_push(pkt, pad);
 			frame = (u8 *) (pkt->data);
-			/* precondition: pad + SDPCM_HDRLEN <= pkt->len */
-			memset(frame, 0, pad + SDPCM_HDRLEN);
+			memset(frame + SDPCM_HDRLEN, 0, pad);
 		}
 	}
 	/* precondition: pad < BRCMF_SDALIGN */
@@ -1830,8 +1829,8 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_sdio *bus, struct sk_buff *pkt,
 	    (((pad +
 	       SDPCM_HDRLEN) << SDPCM_DOFFSET_SHIFT) & SDPCM_DOFFSET_MASK);
 
-	put_unaligned_le32(swheader, frame + SDPCM_FRAMETAG_LEN);
-	put_unaligned_le32(0, frame + SDPCM_FRAMETAG_LEN + sizeof(swheader));
+	*(((__le32 *) frame) + 1) = cpu_to_le32(swheader);
+	*(((__le32 *) frame) + 2) = 0;
 
 #ifdef DEBUG
 	tx_packets[pkt->priority]++;
