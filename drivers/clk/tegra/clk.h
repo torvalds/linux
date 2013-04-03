@@ -182,12 +182,14 @@ struct tegra_clk_pll_params {
  * TEGRA_PLL_FIXED - We are not supposed to change output frequency
  *     of some plls.
  * TEGRA_PLLE_CONFIGURE - Configure PLLE when enabling.
+ * TEGRA_PLL_LOCK_MISC - Lock bit is in the misc register instead of the
+ *     base register.
  */
 struct tegra_clk_pll {
 	struct clk_hw	hw;
 	void __iomem	*clk_base;
 	void __iomem	*pmc;
-	u8		flags;
+	u32		flags;
 	unsigned long	fixed_rate;
 	spinlock_t	*lock;
 	u8		divn_shift;
@@ -210,18 +212,19 @@ struct tegra_clk_pll {
 #define TEGRA_PLLM BIT(5)
 #define TEGRA_PLL_FIXED BIT(6)
 #define TEGRA_PLLE_CONFIGURE BIT(7)
+#define TEGRA_PLL_LOCK_MISC BIT(8)
 
 extern const struct clk_ops tegra_clk_pll_ops;
 extern const struct clk_ops tegra_clk_plle_ops;
 struct clk *tegra_clk_register_pll(const char *name, const char *parent_name,
 		void __iomem *clk_base, void __iomem *pmc,
 		unsigned long flags, unsigned long fixed_rate,
-		struct tegra_clk_pll_params *pll_params, u8 pll_flags,
+		struct tegra_clk_pll_params *pll_params, u32 pll_flags,
 		struct tegra_clk_pll_freq_table *freq_table, spinlock_t *lock);
 struct clk *tegra_clk_register_plle(const char *name, const char *parent_name,
 		void __iomem *clk_base, void __iomem *pmc,
 		unsigned long flags, unsigned long fixed_rate,
-		struct tegra_clk_pll_params *pll_params, u8 pll_flags,
+		struct tegra_clk_pll_params *pll_params, u32 pll_flags,
 		struct tegra_clk_pll_freq_table *freq_table, spinlock_t *lock);
 
 /**
