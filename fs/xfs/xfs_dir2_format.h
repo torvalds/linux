@@ -228,16 +228,6 @@ xfs_dir2_sf_nextentry(struct xfs_dir2_sf_hdr *hdr,
 	xfs_dir2_byte_to_db(mp, XFS_DIR2_DATA_OFFSET)
 
 /*
- * Offsets of . and .. in data space (always block 0)
- */
-#define	XFS_DIR2_DATA_DOT_OFFSET	\
-	((xfs_dir2_data_aoff_t)sizeof(struct xfs_dir2_data_hdr))
-#define	XFS_DIR2_DATA_DOTDOT_OFFSET	\
-	(XFS_DIR2_DATA_DOT_OFFSET + xfs_dir2_data_entsize(1))
-#define	XFS_DIR2_DATA_FIRST_OFFSET		\
-	(XFS_DIR2_DATA_DOTDOT_OFFSET + xfs_dir2_data_entsize(2))
-
-/*
  * Describe a free area in the data block.
  *
  * The freespace will be formatted as a xfs_dir2_data_unused_t.
@@ -378,7 +368,20 @@ xfs_dir3_data_unused_p(struct xfs_dir2_data_hdr *hdr)
 
 /*
  * Offsets of . and .. in data space (always block 0)
+ *
+ * The macros are used for shortform directories as they have no headers to read
+ * the magic number out of. Shortform directories need to know the size of the
+ * data block header because the sfe embeds the block offset of the entry into
+ * it so that it doesn't change when format conversion occurs. Bad Things Happen
+ * if we don't follow this rule.
  */
+#define	XFS_DIR3_DATA_DOT_OFFSET(mp)	\
+	xfs_dir3_data_hdr_size(xfs_sb_version_hascrc(&(mp)->m_sb))
+#define	XFS_DIR3_DATA_DOTDOT_OFFSET(mp)	\
+	(XFS_DIR3_DATA_DOT_OFFSET(mp) + xfs_dir2_data_entsize(1))
+#define	XFS_DIR3_DATA_FIRST_OFFSET(mp)		\
+	(XFS_DIR3_DATA_DOTDOT_OFFSET(mp) + xfs_dir2_data_entsize(2))
+
 static inline xfs_dir2_data_aoff_t
 xfs_dir3_data_dot_offset(struct xfs_dir2_data_hdr *hdr)
 {
