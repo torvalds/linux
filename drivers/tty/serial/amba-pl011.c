@@ -1195,6 +1195,7 @@ static void pl011_rx_chars(struct uart_amba_port *uap)
 			uap->im |= UART011_RXIM;
 		} else {
 			uap->im &= ~UART011_RXIM;
+#ifdef CONFIG_DMA_ENGINE
 			/* Start Rx DMA poll */
 			if (uap->dmarx.poll_rate) {
 				uap->dmarx.last_jiffies = jiffies;
@@ -1203,6 +1204,7 @@ static void pl011_rx_chars(struct uart_amba_port *uap)
 					jiffies +
 					msecs_to_jiffies(uap->dmarx.poll_rate));
 			}
+#endif
 		}
 
 		writew(uap->im, uap->port.membase + UART011_IMSC);
@@ -1665,11 +1667,13 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 	 */
 	baud = uart_get_baud_rate(port, termios, old, 0,
 				  port->uartclk / clkdiv);
+#ifdef CONFIG_DMA_ENGINE
 	/*
 	 * Adjust RX DMA polling rate with baud rate if not specified.
 	 */
 	if (uap->dmarx.auto_poll_rate)
 		uap->dmarx.poll_rate = DIV_ROUND_UP(10000000, baud);
+#endif
 
 	if (baud > port->uartclk/16)
 		quot = DIV_ROUND_CLOSEST(port->uartclk * 8, baud);
