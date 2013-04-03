@@ -67,12 +67,12 @@ struct ep93xx_i2s_info {
 struct ep93xx_dma_data ep93xx_i2s_dma_data[] = {
 	[SNDRV_PCM_STREAM_PLAYBACK] = {
 		.name		= "i2s-pcm-out",
-		.dma_port	= EP93XX_DMA_I2S1,
+		.port		= EP93XX_DMA_I2S1,
 		.direction	= DMA_MEM_TO_DEV,
 	},
 	[SNDRV_PCM_STREAM_CAPTURE] = {
 		.name		= "i2s-pcm-in",
-		.dma_port	= EP93XX_DMA_I2S1,
+		.port		= EP93XX_DMA_I2S1,
 		.direction	= DMA_DEV_TO_MEM,
 	},
 };
