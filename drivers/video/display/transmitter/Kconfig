@@ -10,6 +10,12 @@ config RK610_LVDS
 	depends on MFD_RK610 
 	help
 		Support Jetta(RK610) to output LCD1 and LVDS.
+
+config RK616_LVDS
+        bool "RK616(Jetta B) lvds,lcd,scaler transmitter support"
+        depends on MFD_RK616
+        help
+           RK616(Jetta B) LVDS,LCD,scaler transmitter support.
 		
 
 config DP_ANX6345

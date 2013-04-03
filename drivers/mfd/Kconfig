@@ -831,6 +831,15 @@ config MFD_RK610
 	help
 	  if you say yes here you get support for the RK610, with func as
 	  HDMI LCD LVDS TVOUT CODEC.
+
+config MFD_RK616
+        bool "RK616(Jetta B) Multifunction device support"
+        depends on I2C=y 
+        select MFD_CORE
+        help
+          if you say yes here you get support for the RK616, with func as
+          HDMI、LCD、LVDS、CODEC、MIPI.
+
 endif # MFD_SUPPORT
 
 menu "Multimedia Capabilities Port drivers"
