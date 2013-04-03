@@ -251,21 +251,21 @@ static int get_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 			      int altsetting, int clock)
 {
 	struct usb_device *dev = chip->dev;
-	unsigned char data[4];
+	__le32 data;
 	int err;
 
 	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
 			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
 			      UAC2_CS_CONTROL_SAM_FREQ << 8,
 			      snd_usb_ctrl_intf(chip) | (clock << 8),
-			      data, sizeof(data));
+			      &data, sizeof(data));
 	if (err < 0) {
 		snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq (v2)\n",
 			   dev->devnum, iface, altsetting);
 		return 0;
 	}
 
-	return data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
+	return le32_to_cpu(data);
 }
 
 static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
@@ -273,7 +273,7 @@ static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 			      struct audioformat *fmt, int rate)
 {
 	struct usb_device *dev = chip->dev;
-	unsigned char data[4];
+	__le32 data;
 	int err, cur_rate, prev_rate;
 	int clock = snd_usb_clock_find_source(chip, fmt->clock);
 
@@ -289,15 +289,12 @@ static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 
 	prev_rate = get_sample_rate_v2(chip, iface, fmt->altsetting, clock);
 
-	data[0] = rate;
-	data[1] = rate >> 8;
-	data[2] = rate >> 16;
-	data[3] = rate >> 24;
+	data = cpu_to_le32(rate);
 	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC2_CS_CUR,
 				   USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT,
 				   UAC2_CS_CONTROL_SAM_FREQ << 8,
 				   snd_usb_ctrl_intf(chip) | (clock << 8),
-				   data, sizeof(data))) < 0) {
+				   &data, sizeof(data))) < 0) {
 		snd_printk(KERN_ERR "%d:%d:%d: cannot set freq %d (v2)\n",
 			   dev->devnum, iface, fmt->altsetting, rate);
 		return err;
