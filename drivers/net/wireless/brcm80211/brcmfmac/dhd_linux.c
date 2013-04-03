@@ -223,18 +223,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 		goto done;
 	}
 
-	/* handle ethernet header */
-	eh = (struct ethhdr *)(skb->data);
-	if (is_multicast_ether_addr(eh->h_dest))
-		drvr->tx_multicast++;
-	if (ntohs(eh->h_proto) == ETH_P_PAE)
-		atomic_inc(&ifp->pend_8021x_cnt);
-
-	/* If the protocol uses a data header, apply it */
-	brcmf_proto_hdrpush(drvr, ifp->ifidx, 0, skb);
-
-	/* Use bus module to send data frame */
-	ret =  brcmf_bus_txdata(drvr->bus_if, skb);
+	ret = brcmf_fws_process_skb(ifp, skb);
 
 done:
 	if (ret) {
@@ -376,7 +365,7 @@ void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp,
 
 	ifp = drvr->iflist[ifidx];
 	if (!ifp)
-		return;
+		goto done;
 
 	if (res == 0) {
 		eh = (struct ethhdr *)(txp->data);
@@ -390,6 +379,8 @@ void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp,
 	}
 	if (!success)
 		ifp->stats.tx_errors++;
+done:
+	brcmu_pkt_buf_free_skb(txp);
 }
 
 void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
@@ -402,7 +393,6 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 		return;
 
 	brcmf_txfinalize(drvr, txp, success);
-	brcmu_pkt_buf_free_skb(txp);
 }
 
 static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *ndev)

@@ -138,16 +138,34 @@ ssize_t brcmf_debugfs_fws_stats_read(struct file *f, char __user *data,
 		return 0;
 
 	res = scnprintf(buf, sizeof(buf),
-			"header_pulls:     %u\n"
-			"header_only_pkt:  %u\n"
-			"tlv_parse_failed: %u\n"
-			"tlv_invalid_type: %u\n"
-			"mac_update_fails: %u\n",
+			"header_pulls:      %u\n"
+			"header_only_pkt:   %u\n"
+			"tlv_parse_failed:  %u\n"
+			"tlv_invalid_type:  %u\n"
+			"mac_update_fails:  %u\n"
+			"pkt2bus:           %u\n"
+			"generic_error:     %u\n"
+			"txs_indicate:      %u\n"
+			"txs_discard:       %u\n"
+			"txs_suppr_core:    %u\n"
+			"txs_suppr_ps:      %u\n"
+			"txs_tossed:        %u\n"
+			"send_pkts:         BK:%u BE:%u VO:%u VI:%u BCMC:%u\n",
 			fwstats->header_pulls,
 			fwstats->header_only_pkt,
 			fwstats->tlv_parse_failed,
 			fwstats->tlv_invalid_type,
-			fwstats->mac_update_failed);
+			fwstats->mac_update_failed,
+			fwstats->pkt2bus,
+			fwstats->generic_error,
+			fwstats->txs_indicate,
+			fwstats->txs_discard,
+			fwstats->txs_supp_core,
+			fwstats->txs_supp_ps,
+			fwstats->txs_tossed,
+			fwstats->send_pkts[0], fwstats->send_pkts[1],
+			fwstats->send_pkts[2], fwstats->send_pkts[3],
+			fwstats->send_pkts[4]);
 
 	return simple_read_from_buffer(data, count, ppos, buf, res);
 }
