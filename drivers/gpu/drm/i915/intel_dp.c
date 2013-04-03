@@ -1328,7 +1328,7 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 			      intel_dp->output_reg);
 	}
 
-	return false;
+	return true;
 }
 
 static void intel_disable_dp(struct intel_encoder *encoder)
