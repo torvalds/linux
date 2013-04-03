@@ -14,6 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <linux/types.h>
+#include <linux/module.h>
 #include <linux/if_ether.h>
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
@@ -123,10 +124,6 @@ static const char *brcmf_fws_get_tlv_name(enum brcmf_fws_tlv_type id)
 
 #define BRCMF_FWS_STATE_OPEN				1
 #define BRCMF_FWS_STATE_CLOSE				2
-
-#define BRCMF_FWS_FCMODE_NONE				0
-#define BRCMF_FWS_FCMODE_IMPLIED_CREDIT			1
-#define BRCMF_FWS_FCMODE_EXPLICIT_CREDIT		2
 
 #define BRCMF_FWS_MAC_DESC_TABLE_SIZE			32
 #define BRCMF_FWS_MAX_IFNUM				16
@@ -245,6 +242,12 @@ struct brcmf_skbuff_cb {
 			BRCMF_SKB_HTOD_TAG_ ## field ## _MASK, \
 			BRCMF_SKB_HTOD_TAG_ ## field ## _SHIFT)
 
+enum brcmf_fws_fcmode {
+	BRCMF_FWS_FCMODE_NONE,
+	BRCMF_FWS_FCMODE_IMPLIED_CREDIT,
+	BRCMF_FWS_FCMODE_EXPLICIT_CREDIT
+};
+
 /**
  * struct brcmf_fws_mac_descriptor - firmware signalling data per node/interface
  *
@@ -328,8 +331,13 @@ struct brcmf_fws_info {
 	struct brcmf_fws_hanger hanger;
 	struct brcmf_fws_mac_descriptor nodes[BRCMF_FWS_MAC_DESC_TABLE_SIZE];
 	struct brcmf_fws_mac_descriptor other;
+	enum brcmf_fws_fcmode fcmode;
 	int fifo_credit[NL80211_NUM_ACS+1+1];
 };
+
+static int fcmode;
+module_param(fcmode, int, S_IRUSR);
+MODULE_PARM_DESC(fcmode, "mode of firmware signalled flow control");
 
 /**
  * brcmf_fws_get_tlv_len() - returns defined length for given tlv id.
@@ -745,6 +753,7 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 
 	/* set linkage back */
 	drvr->fws->drvr = drvr;
+	drvr->fws->fcmode = fcmode;
 
 	/* TODO: remove upon feature delivery */
 	brcmf_err("%s bdcv2 tlv signaling [%x]\n",
@@ -919,4 +928,13 @@ void brcmf_fws_del_interface(struct brcmf_if *ifp)
 	brcmf_fws_clear_mac_descriptor(entry);
 	brcmf_fws_cleanup(ifp->drvr->fws, ifp->ifidx);
 	kfree(entry);
+}
+
+bool brcmf_fws_fc_active(struct brcmf_fws_info *fws)
+{
+	if (!fws)
+		return false;
+
+	brcmf_dbg(TRACE, "enter: mode=%d\n", fws->fcmode);
+	return fws->fcmode != BRCMF_FWS_FCMODE_NONE;
 }

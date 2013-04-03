@@ -623,5 +623,7 @@ extern void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx);
 void brcmf_txflowblock_if(struct brcmf_if *ifp,
 			  enum brcmf_netif_stop_reason reason, bool state);
 extern u32 brcmf_get_chip_info(struct brcmf_if *ifp);
+extern void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp,
+			     bool success);
 
 #endif				/* _BRCMF_H_ */

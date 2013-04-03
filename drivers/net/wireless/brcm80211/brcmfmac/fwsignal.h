@@ -20,6 +20,7 @@
 
 int brcmf_fws_init(struct brcmf_pub *drvr);
 void brcmf_fws_deinit(struct brcmf_pub *drvr);
+bool brcmf_fws_fc_active(struct brcmf_fws_info *fws);
 int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 		      struct sk_buff *skb);
 

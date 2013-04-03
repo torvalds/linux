@@ -363,21 +363,20 @@ void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 	}
 }
 
-void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
+void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp,
+		      bool success)
 {
-	u8 ifidx;
-	struct ethhdr *eh;
-	u16 type;
-	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_pub *drvr = bus_if->drvr;
 	struct brcmf_if *ifp;
+	struct ethhdr *eh;
+	u8 ifidx;
+	u16 type;
 	int res;
 
 	res = brcmf_proto_hdrpull(drvr, false, &ifidx, txp);
 
 	ifp = drvr->iflist[ifidx];
 	if (!ifp)
-		goto done;
+		return;
 
 	if (res == 0) {
 		eh = (struct ethhdr *)(txp->data);
@@ -391,8 +390,18 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 	}
 	if (!success)
 		ifp->stats.tx_errors++;
+}
 
-done:
+void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
+
+	/* await txstatus signal for firmware is active */
+	if (success && brcmf_fws_fc_active(drvr->fws))
+		return;
+
+	brcmf_txfinalize(drvr, txp, success);
 	brcmu_pkt_buf_free_skb(txp);
 }
 
