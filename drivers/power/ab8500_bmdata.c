@@ -11,7 +11,7 @@
  * Note that the res_to_temp table must be strictly sorted by falling resistance
  * values to work.
  */
-static const struct abx500_res_to_temp temp_tbl_a_thermistor[] = {
+const struct abx500_res_to_temp ab8500_temp_tbl_a_thermistor[] = {
 	{-5, 53407},
 	{ 0, 48594},
 	{ 5, 43804},
@@ -28,8 +28,12 @@ static const struct abx500_res_to_temp temp_tbl_a_thermistor[] = {
 	{60, 13437},
 	{65, 12500},
 };
+EXPORT_SYMBOL(ab8500_temp_tbl_a_thermistor);
 
-static const struct abx500_res_to_temp temp_tbl_b_thermistor[] = {
+const int ab8500_temp_tbl_a_size = ARRAY_SIZE(ab8500_temp_tbl_a_thermistor);
+EXPORT_SYMBOL(ab8500_temp_tbl_a_size);
+
+const struct abx500_res_to_temp ab8500_temp_tbl_b_thermistor[] = {
 	{-5, 200000},
 	{ 0, 159024},
 	{ 5, 151921},
@@ -46,6 +50,10 @@ static const struct abx500_res_to_temp temp_tbl_b_thermistor[] = {
 	{60,  85461},
 	{65,  82869},
 };
+EXPORT_SYMBOL(ab8500_temp_tbl_b_thermistor);
+
+const int ab8500_temp_tbl_b_size = ARRAY_SIZE(ab8500_temp_tbl_b_thermistor);
+EXPORT_SYMBOL(ab8500_temp_tbl_b_size);
 
 static const struct abx500_v_to_cap cap_tbl_a_thermistor[] = {
 	{4171,	100},
@@ -230,8 +238,8 @@ static struct abx500_battery_type bat_type_thermistor[] = {
 		.maint_b_chg_timer_h = 200,
 		.low_high_cur_lvl = 300,
 		.low_high_vol_lvl = 4000,
-		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl_a_thermistor),
-		.r_to_t_tbl = temp_tbl_a_thermistor,
+		.n_temp_tbl_elements = ARRAY_SIZE(ab8500_temp_tbl_a_thermistor),
+		.r_to_t_tbl = ab8500_temp_tbl_a_thermistor,
 		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl_a_thermistor),
 		.v_to_cap_tbl = cap_tbl_a_thermistor,
 		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
@@ -258,8 +266,8 @@ static struct abx500_battery_type bat_type_thermistor[] = {
 		.maint_b_chg_timer_h = 200,
 		.low_high_cur_lvl = 300,
 		.low_high_vol_lvl = 4000,
-		.n_temp_tbl_elements = ARRAY_SIZE(temp_tbl_b_thermistor),
-		.r_to_t_tbl = temp_tbl_b_thermistor,
+		.n_temp_tbl_elements = ARRAY_SIZE(ab8500_temp_tbl_b_thermistor),
+		.r_to_t_tbl = ab8500_temp_tbl_b_thermistor,
 		.n_v_cap_tbl_elements = ARRAY_SIZE(cap_tbl_b_thermistor),
 		.v_to_cap_tbl = cap_tbl_b_thermistor,
 		.n_batres_tbl_elements = ARRAY_SIZE(temp_to_batres_tbl_thermistor),
