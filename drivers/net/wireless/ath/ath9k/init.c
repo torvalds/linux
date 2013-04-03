@@ -319,6 +319,10 @@ static void ath9k_reg_notifier(struct wiphy *wiphy,
 		ath9k_ps_wakeup(sc);
 		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit, false);
 		sc->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
+		/* synchronize DFS detector if regulatory domain changed */
+		if (sc->dfs_detector != NULL)
+			sc->dfs_detector->set_dfs_domain(sc->dfs_detector,
+							 request->dfs_region);
 		ath9k_ps_restore(sc);
 	}
 }

@@ -2380,8 +2380,11 @@ static bool ath9k_hw_dfs_tested(struct ath_hw *ah)
 {
 
 	switch (ah->hw_version.macVersion) {
+	/* for temporary testing DFS with 9280 */
+	case AR_SREV_VERSION_9280:
 	/* AR9580 will likely be our first target to get testing on */
 	case AR_SREV_VERSION_9580:
+		return true;
 	default:
 		return false;
 	}
