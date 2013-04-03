@@ -184,6 +184,7 @@ struct tegra_clk_pll_params {
  * TEGRA_PLLE_CONFIGURE - Configure PLLE when enabling.
  * TEGRA_PLL_LOCK_MISC - Lock bit is in the misc register instead of the
  *     base register.
+ * TEGRA_PLL_BYPASS - PLL has bypass bit
  */
 struct tegra_clk_pll {
 	struct clk_hw	hw;
@@ -213,6 +214,7 @@ struct tegra_clk_pll {
 #define TEGRA_PLL_FIXED BIT(6)
 #define TEGRA_PLLE_CONFIGURE BIT(7)
 #define TEGRA_PLL_LOCK_MISC BIT(8)
+#define TEGRA_PLL_BYPASS BIT(9)
 
 extern const struct clk_ops tegra_clk_pll_ops;
 extern const struct clk_ops tegra_clk_plle_ops;

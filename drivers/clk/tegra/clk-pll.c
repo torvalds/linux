@@ -171,7 +171,8 @@ static void _clk_pll_enable(struct clk_hw *hw)
 	clk_pll_enable_lock(pll);
 
 	val = pll_readl_base(pll);
-	val &= ~PLL_BASE_BYPASS;
+	if (pll->flags & TEGRA_PLL_BYPASS)
+		val &= ~PLL_BASE_BYPASS;
 	val |= PLL_BASE_ENABLE;
 	pll_writel_base(val, pll);
 
@@ -188,7 +189,9 @@ static void _clk_pll_disable(struct clk_hw *hw)
 	u32 val;
 
 	val = pll_readl_base(pll);
-	val &= ~(PLL_BASE_BYPASS | PLL_BASE_ENABLE);
+	if (pll->flags & TEGRA_PLL_BYPASS)
+		val &= ~PLL_BASE_BYPASS;
+	val &= ~PLL_BASE_ENABLE;
 	pll_writel_base(val, pll);
 
 	if (pll->flags & TEGRA_PLLM) {
@@ -459,7 +462,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 
 	val = pll_readl_base(pll);
 
-	if (val & PLL_BASE_BYPASS)
+	if ((pll->flags & TEGRA_PLL_BYPASS) && (val & PLL_BASE_BYPASS))
 		return parent_rate;
 
 	if ((pll->flags & TEGRA_PLL_FIXED) && !(val & PLL_BASE_OVERRIDE)) {
@@ -671,6 +674,7 @@ struct clk *tegra_clk_register_pll(const char *name, const char *parent_name,
 	struct tegra_clk_pll *pll;
 	struct clk *clk;
 
+	pll_flags |= TEGRA_PLL_BYPASS;
 	pll = _tegra_init_pll(clk_base, pmc, fixed_rate, pll_params, pll_flags,
 			      freq_table, lock);
 	if (IS_ERR(pll))
@@ -692,8 +696,8 @@ struct clk *tegra_clk_register_plle(const char *name, const char *parent_name,
 {
 	struct tegra_clk_pll *pll;
 	struct clk *clk;
-	pll_flags |= TEGRA_PLL_LOCK_MISC;
 
+	pll_flags |= TEGRA_PLL_LOCK_MISC | TEGRA_PLL_BYPASS;
 	pll = _tegra_init_pll(clk_base, pmc, fixed_rate, pll_params, pll_flags,
 			      freq_table, lock);
 	if (IS_ERR(pll))
