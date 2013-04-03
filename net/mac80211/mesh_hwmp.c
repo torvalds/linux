@@ -144,7 +144,7 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 		*pos++ = WLAN_EID_PREQ;
 		break;
 	case MPATH_PREP:
-		mhwmp_dbg(sdata, "sending PREP to %pM\n", target);
+		mhwmp_dbg(sdata, "sending PREP to %pM\n", orig_addr);
 		ie_len = 31;
 		pos = skb_put(skb, 2 + ie_len);
 		*pos++ = WLAN_EID_PREP;
@@ -661,7 +661,7 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 	u32 target_sn, orig_sn, lifetime;
 
 	mhwmp_dbg(sdata, "received PREP from %pM\n",
-		  PREP_IE_ORIG_ADDR(prep_elem));
+		  PREP_IE_TARGET_ADDR(prep_elem));
 
 	orig_addr = PREP_IE_ORIG_ADDR(prep_elem);
 	if (ether_addr_equal(orig_addr, sdata->vif.addr))
