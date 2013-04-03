@@ -4302,6 +4302,8 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	instance++;
 	if (rv != MTIP_FTL_REBUILD_MAGIC)
 		set_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag);
+	else
+		rv = 0; /* device in rebuild state, return 0 from probe */
 	goto done;
 
 block_initialize_err:
