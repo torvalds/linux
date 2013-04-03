@@ -1375,7 +1375,7 @@ static struct clk aclk_gpu = {
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc_div,
 	.round_rate	= clk_freediv_round_autosel_parents_rate,
-	.set_rate	= clksel_set_rate_freediv,
+	.set_rate	= clkset_rate_freediv_autosel_parents,
 	.clksel_con 	= CRU_CLKSELS_CON(34),
 	.gate_idx	= CLK_GATE_ACLK_GPU,
 	CRU_DIV_SET(0x1f, 0, 32),
