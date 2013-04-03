@@ -1374,6 +1374,7 @@ enum {
 	EXT4_STATE_DIOREAD_LOCK,	/* Disable support for dio read
 					   nolocking */
 	EXT4_STATE_MAY_INLINE_DATA,	/* may have in-inode data */
+	EXT4_STATE_ORDERED_MODE,	/* data=ordered mode */
 };
 
 #define EXT4_INODE_BIT_FNS(name, field, offset)				\
