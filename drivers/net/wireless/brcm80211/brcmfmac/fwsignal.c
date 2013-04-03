@@ -1224,11 +1224,12 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 	u32 tlv = 0;
 	int rc;
 
-	/* enable rssi signals */
-	if (drvr->fw_signals)
-		tlv = BRCMF_FWS_FLAGS_RSSI_SIGNALS |
-		      BRCMF_FWS_FLAGS_XONXOFF_SIGNALS |
-		      BRCMF_FWS_FLAGS_CREDIT_STATUS_SIGNALS;
+	if (!drvr->fw_signals)
+		return 0;
+
+	tlv = BRCMF_FWS_FLAGS_RSSI_SIGNALS |
+	      BRCMF_FWS_FLAGS_XONXOFF_SIGNALS |
+	      BRCMF_FWS_FLAGS_CREDIT_STATUS_SIGNALS;
 
 	spin_lock_init(&drvr->fws_spinlock);
 
@@ -1276,6 +1277,9 @@ void brcmf_fws_deinit(struct brcmf_pub *drvr)
 {
 	struct brcmf_fws_info *fws = drvr->fws;
 	ulong flags;
+
+	if (!fws)
+		return;
 
 	/* cleanup */
 	brcmf_fws_lock(drvr, flags);
