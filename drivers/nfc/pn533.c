@@ -1724,6 +1724,8 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 	rsp = (struct pn533_cmd_activate_response *)resp->data;
 	rc = rsp->status & PN533_CMD_RET_MASK;
 	if (rc != PN533_CMD_RET_SUCCESS) {
+		nfc_dev_err(&dev->interface->dev,
+			    "Target activation failed (error 0x%x)", rc);
 		dev_kfree_skb(resp);
 		return -EIO;
 	}
@@ -1851,7 +1853,7 @@ static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 	rc = rsp->status & PN533_CMD_RET_MASK;
 	if (rc != PN533_CMD_RET_SUCCESS) {
 		nfc_dev_err(&dev->interface->dev,
-			    "Bringing DEP link up failed %d", rc);
+			    "Bringing DEP link up failed (error 0x%x)", rc);
 		goto error;
 	}
 
@@ -2065,8 +2067,7 @@ static int pn533_data_exchange_complete(struct pn533 *dev, void *_arg,
 
 	if (ret != PN533_CMD_RET_SUCCESS) {
 		nfc_dev_err(&dev->interface->dev,
-			    "PN533 reported error %d when exchanging data",
-			    ret);
+			    "Exchanging data failed (error 0x%x)", ret);
 		rc = -EIO;
 		goto error;
 	}
