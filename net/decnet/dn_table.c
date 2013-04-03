@@ -19,7 +19,6 @@
 #include <linux/sockios.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
-#include <net/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/proc_fs.h>
 #include <linux/netdevice.h>
