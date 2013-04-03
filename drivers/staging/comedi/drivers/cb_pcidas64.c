@@ -543,13 +543,6 @@ static const int ao_range_code_64xx[] = {
 	0x3,
 };
 
-static const struct comedi_lrange ao_ranges_60xx = {
-	1,
-	{
-	 BIP_RANGE(10),
-	 }
-};
-
 static const int ao_range_code_60xx[] = {
 	0x0,
 };
@@ -762,7 +755,7 @@ static const struct pcidas64_board pcidas64_boards[] = {
 		.ao_bits	= 16,
 		.layout		= LAYOUT_60XX,
 		.ai_range_table	= &ai_ranges_60xx,
-		.ao_range_table	= &ao_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
 		.ao_range_code	= ao_range_code_60xx,
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
@@ -777,7 +770,7 @@ static const struct pcidas64_board pcidas64_boards[] = {
 		.ao_scan_speed	= 100000,
 		.layout		= LAYOUT_60XX,
 		.ai_range_table	= &ai_ranges_60xx,
-		.ao_range_table	= &ao_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
 		.ao_range_code	= ao_range_code_60xx,
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
@@ -791,7 +784,7 @@ static const struct pcidas64_board pcidas64_boards[] = {
 		.ao_scan_speed	= 100000,
 		.layout		= LAYOUT_60XX,
 		.ai_range_table	= &ai_ranges_60xx,
-		.ao_range_table	= &ao_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
 		.ao_range_code	= ao_range_code_60xx,
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 1,
@@ -806,7 +799,7 @@ static const struct pcidas64_board pcidas64_boards[] = {
 		.ao_scan_speed	= 100000,
 		.layout		= LAYOUT_60XX,
 		.ai_range_table	= &ai_ranges_60xx,
-		.ao_range_table	= &ao_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
 		.ao_range_code	= ao_range_code_60xx,
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 1,
@@ -885,7 +878,7 @@ static const struct pcidas64_board pcidas64_boards[] = {
 		.ao_scan_speed	= 100000,
 		.layout		= LAYOUT_60XX,
 		.ai_range_table	= &ai_ranges_60xx,
-		.ao_range_table	= &ao_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
 		.ao_range_code	= ao_range_code_60xx,
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
@@ -900,7 +893,7 @@ static const struct pcidas64_board pcidas64_boards[] = {
 		.ao_scan_speed	= 100000,
 		.layout		= LAYOUT_60XX,
 		.ai_range_table	= &ai_ranges_60xx,
-		.ao_range_table	= &ao_ranges_60xx,
+		.ao_range_table	= &range_bipolar10,
 		.ao_range_code	= ao_range_code_60xx,
 		.ai_fifo	= &ai_fifo_60xx,
 		.has_8255	= 0,
