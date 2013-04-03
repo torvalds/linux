@@ -91,8 +91,8 @@ struct ceph_osd_req_op {
 		struct {
 			const char *class_name;
 			const char *method_name;
-			const void *indata;
-			u32 indata_len;
+			const void *request_data;
+			u32 request_data_len;
 			__u8 class_len;
 			__u8 method_len;
 			__u8 argc;

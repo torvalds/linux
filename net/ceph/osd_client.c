@@ -395,9 +395,9 @@ void osd_req_op_cls_init(struct ceph_osd_req_op *op, u16 opcode,
 	op->cls.method_len = size;
 	payload_len += size;
 
-	op->cls.indata = request_data;
+	op->cls.request_data = request_data;
 	BUG_ON(request_data_size > (size_t) U32_MAX);
-	op->cls.indata_len = (u32) request_data_size;
+	op->cls.request_data_len = (u32) request_data_size;
 	payload_len += request_data_size;
 
 	op->cls.argc = 0;	/* currently unused */
@@ -425,7 +425,7 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 			      struct ceph_osd_op *dst, unsigned int which)
 {
 	struct ceph_osd_req_op *src;
-	u64 out_data_len = 0;
+	u64 request_data_len = 0;
 	struct ceph_pagelist *pagelist;
 
 	BUG_ON(which >= req->r_num_ops);
@@ -442,7 +442,7 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 	case CEPH_OSD_OP_READ:
 	case CEPH_OSD_OP_WRITE:
 		if (src->op == CEPH_OSD_OP_WRITE)
-			out_data_len = src->extent.length;
+			request_data_len = src->extent.length;
 		dst->extent.offset = cpu_to_le64(src->extent.offset);
 		dst->extent.length = cpu_to_le64(src->extent.length);
 		dst->extent.truncate_size =
@@ -457,16 +457,16 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 
 		dst->cls.class_len = src->cls.class_len;
 		dst->cls.method_len = src->cls.method_len;
-		dst->cls.indata_len = cpu_to_le32(src->cls.indata_len);
+		dst->cls.indata_len = cpu_to_le32(src->cls.request_data_len);
 		ceph_pagelist_append(pagelist, src->cls.class_name,
 				     src->cls.class_len);
 		ceph_pagelist_append(pagelist, src->cls.method_name,
 				     src->cls.method_len);
-		ceph_pagelist_append(pagelist, src->cls.indata,
-				     src->cls.indata_len);
+		ceph_pagelist_append(pagelist, src->cls.request_data,
+				     src->cls.request_data_len);
 
 		ceph_osd_data_pagelist_init(&req->r_data_out, pagelist);
-		out_data_len = pagelist->length;
+		request_data_len = pagelist->length;
 		break;
 	case CEPH_OSD_OP_STARTSYNC:
 		break;
@@ -486,7 +486,7 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 	dst->op = cpu_to_le16(src->op);
 	dst->payload_len = cpu_to_le32(src->payload_len);
 
-	return out_data_len;
+	return request_data_len;
 }
 
 /*
