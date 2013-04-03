@@ -440,7 +440,6 @@ static int brcmf_fws_get_tlv_len(struct brcmf_fws_info *fws,
 	switch (id) {
 	BRCMF_FWS_TLV_DEFLIST
 	default:
-		brcmf_err("invalid tlv id: %d\n", id);
 		fws->stats.tlv_invalid_type++;
 		break;
 	}
@@ -1013,6 +1012,9 @@ int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 		len = signal_data[1];
 		data = signal_data + 2;
 
+		brcmf_dbg(INFO, "tlv type=%d (%s), len=%d, data[0]=%d\n", type,
+			  brcmf_fws_get_tlv_name(type), len, *data);
+
 		/* abort parsing when length invalid */
 		if (data_len < len + 2)
 			break;
@@ -1020,8 +1022,6 @@ int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 		if (len != brcmf_fws_get_tlv_len(fws, type))
 			break;
 
-		brcmf_dbg(INFO, "tlv type=%d (%s), len=%d\n", type,
-			  brcmf_fws_get_tlv_name(type), len);
 		switch (type) {
 		case BRCMF_FWS_TYPE_MAC_OPEN:
 		case BRCMF_FWS_TYPE_MAC_CLOSE:
