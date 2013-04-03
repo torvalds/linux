@@ -501,8 +501,9 @@ struct perf_cpu_context {
 	struct perf_event_context	*task_ctx;
 	int				active_oncpu;
 	int				exclusive;
+	struct hrtimer			hrtimer;
+	ktime_t				hrtimer_interval;
 	struct list_head		rotation_list;
-	int				jiffies_interval;
 	struct pmu			*unique_pmu;
 	struct perf_cgroup		*cgrp;
 };
