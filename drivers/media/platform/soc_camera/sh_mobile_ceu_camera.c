@@ -2288,7 +2288,7 @@ static const struct dev_pm_ops sh_mobile_ceu_dev_pm_ops = {
 };
 
 static struct platform_driver sh_mobile_ceu_driver = {
-	.driver 	= {
+	.driver		= {
 		.name	= "sh_mobile_ceu",
 		.pm	= &sh_mobile_ceu_dev_pm_ops,
 	},
