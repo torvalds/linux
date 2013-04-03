@@ -173,14 +173,15 @@ const struct clk_ops tegra_clk_periph_nodiv_ops = {
 static struct clk *_tegra_clk_register_periph(const char *name,
 			const char **parent_names, int num_parents,
 			struct tegra_clk_periph *periph,
-			void __iomem *clk_base, u32 offset, bool div)
+			void __iomem *clk_base, u32 offset, bool div,
+			unsigned long flags)
 {
 	struct clk *clk;
 	struct clk_init_data init;
 
 	init.name = name;
 	init.ops = div ? &tegra_clk_periph_ops : &tegra_clk_periph_nodiv_ops;
-	init.flags = div ? 0 : CLK_SET_RATE_PARENT;
+	init.flags = flags;
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
 
@@ -205,10 +206,10 @@ static struct clk *_tegra_clk_register_periph(const char *name,
 struct clk *tegra_clk_register_periph(const char *name,
 		const char **parent_names, int num_parents,
 		struct tegra_clk_periph *periph, void __iomem *clk_base,
-		u32 offset)
+		u32 offset, unsigned long flags)
 {
 	return _tegra_clk_register_periph(name, parent_names, num_parents,
-			periph, clk_base, offset, true);
+			periph, clk_base, offset, true, flags);
 }
 
 struct clk *tegra_clk_register_periph_nodiv(const char *name,
@@ -217,5 +218,5 @@ struct clk *tegra_clk_register_periph_nodiv(const char *name,
 		u32 offset)
 {
 	return _tegra_clk_register_periph(name, parent_names, num_parents,
-			periph, clk_base, offset, false);
+			periph, clk_base, offset, false, CLK_SET_RATE_PARENT);
 }
