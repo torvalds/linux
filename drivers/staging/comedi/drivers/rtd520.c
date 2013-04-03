@@ -402,8 +402,7 @@ struct rtd_private {
 	/* chanBipolar tracks whether a channel is bipolar (and needs +2048) */
 	unsigned char chanBipolar[RTD_MAX_CHANLIST / 8];	/* bit array */
 
-	/* read back data */
-	unsigned int aoValue[2];	/* Used for AO read back */
+	unsigned int ao_readback[2];
 
 	unsigned fifoLen;
 };
@@ -1184,7 +1183,7 @@ static int rtd_ao_winsn(struct comedi_device *dev,
 		writew(0, devpriv->las0 +
 			((chan == 0) ? LAS0_DAC1 : LAS0_DAC2));
 
-		devpriv->aoValue[chan] = data[i];	/* save for read back */
+		devpriv->ao_readback[chan] = data[i];
 
 		for (ii = 0; ii < RTD_DAC_TIMEOUT; ++ii) {
 			stat = readl(devpriv->las0 + LAS0_ADC);
@@ -1213,7 +1212,7 @@ static int rtd_ao_rinsn(struct comedi_device *dev,
 	int chan = CR_CHAN(insn->chanspec);
 
 	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->aoValue[chan];
+		data[i] = devpriv->ao_readback[chan];
 
 
 	return i;
