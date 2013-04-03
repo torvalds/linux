@@ -798,10 +798,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 
 	if (dev->header_ops && dev->type == ARPHRD_IPGRE) {
 		gre_hlen = 0;
-		if (skb->protocol == htons(ETH_P_IP))
-			tiph = (const struct iphdr *)skb->data;
-		else
-			tiph = &tunnel->parms.iph;
+		tiph = (const struct iphdr *)skb->data;
 	} else {
 		gre_hlen = tunnel->hlen;
 		tiph = &tunnel->parms.iph;

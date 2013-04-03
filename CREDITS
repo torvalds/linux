@@ -1510,6 +1510,14 @@ D: Natsemi ethernet
 D: Cobalt Networks (x86) support
 D: This-and-That
 
+N: Mark M. Hoffman
+E: mhoffman@lightlink.com
+D: asb100, lm93 and smsc47b397 hardware monitoring drivers
+D: hwmon subsystem core
+D: hwmon subsystem maintainer
+D: i2c-sis96x and i2c-stub SMBus drivers
+S: USA
+
 N: Dirk Hohndel
 E: hohndel@suse.de
 D: The XFree86[tm] Project

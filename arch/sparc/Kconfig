@@ -84,12 +84,6 @@ config ARCH_DEFCONFIG
 	default "arch/sparc/configs/sparc32_defconfig" if SPARC32
 	default "arch/sparc/configs/sparc64_defconfig" if SPARC64
 
-# CONFIG_BITS can be used at source level to get 32/64 bits
-config BITS
-	int
-	default 32 if SPARC32
-	default 64 if SPARC64
-
 config IOMMU_HELPER
 	bool
 	default y if SPARC64
@@ -197,7 +191,7 @@ config RWSEM_XCHGADD_ALGORITHM
 
 config GENERIC_HWEIGHT
 	bool
-	default y if !ULTRA_HAS_POPULATION_COUNT
+	default y
 
 config GENERIC_CALIBRATE_DELAY
 	bool

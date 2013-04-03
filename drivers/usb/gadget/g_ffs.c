@@ -357,7 +357,7 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 		goto error;
 	gfs_dev_desc.iProduct = gfs_strings[USB_GADGET_PRODUCT_IDX].id;
 
-	for (i = func_num; --i; ) {
+	for (i = func_num; i--; ) {
 		ret = functionfs_bind(ffs_tab[i].ffs_data, cdev);
 		if (unlikely(ret < 0)) {
 			while (++i < func_num)
@@ -413,7 +413,7 @@ static int gfs_unbind(struct usb_composite_dev *cdev)
 		gether_cleanup();
 	gfs_ether_setup = false;
 
-	for (i = func_num; --i; )
+	for (i = func_num; i--; )
 		if (ffs_tab[i].ffs_data)
 			functionfs_unbind(ffs_tab[i].ffs_data);
 

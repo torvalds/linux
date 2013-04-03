@@ -100,6 +100,27 @@ size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom, size_t size)
 	return min((size_t)(image - rom), size);
 }
 
+static loff_t pci_find_rom(struct pci_dev *pdev, size_t *size)
+{
+	struct resource *res = &pdev->resource[PCI_ROM_RESOURCE];
+	loff_t start;
+
+	/* assign the ROM an address if it doesn't have one */
+	if (res->parent == NULL && pci_assign_resource(pdev, PCI_ROM_RESOURCE))
+		return 0;
+	start = pci_resource_start(pdev, PCI_ROM_RESOURCE);
+	*size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
+
+	if (*size == 0)
+		return 0;
+
+	/* Enable ROM space decodes */
+	if (pci_enable_rom(pdev))
+		return 0;
+
+	return start;
+}
+
 /**
  * pci_map_rom - map a PCI ROM to kernel space
  * @pdev: pointer to pci device struct
@@ -114,21 +135,15 @@ size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom, size_t size)
 void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 {
 	struct resource *res = &pdev->resource[PCI_ROM_RESOURCE];
-	loff_t start;
+	loff_t start = 0;
 	void __iomem *rom;
 
-	/*
-	 * Some devices may provide ROMs via a source other than the BAR
-	 */
-	if (pdev->rom && pdev->romlen) {
-		*size = pdev->romlen;
-		return phys_to_virt(pdev->rom);
 	/*
 	 * IORESOURCE_ROM_SHADOW set on x86, x86_64 and IA64 supports legacy
 	 * memory map if the VGA enable bit of the Bridge Control register is
 	 * set for embedded VGA.
 	 */
-	} else if (res->flags & IORESOURCE_ROM_SHADOW) {
+	if (res->flags & IORESOURCE_ROM_SHADOW) {
 		/* primary video rom always starts here */
 		start = (loff_t)0xC0000;
 		*size = 0x20000; /* cover C000:0 through E000:0 */
@@ -139,20 +154,20 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 			return (void __iomem *)(unsigned long)
 				pci_resource_start(pdev, PCI_ROM_RESOURCE);
 		} else {
-			/* assign the ROM an address if it doesn't have one */
-			if (res->parent == NULL &&
-			    pci_assign_resource(pdev,PCI_ROM_RESOURCE))
-				return NULL;
-			start = pci_resource_start(pdev, PCI_ROM_RESOURCE);
-			*size = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-			if (*size == 0)
-				return NULL;
-
-			/* Enable ROM space decodes */
-			if (pci_enable_rom(pdev))
-				return NULL;
+			start = pci_find_rom(pdev, size);
 		}
 	}
+
+	/*
+	 * Some devices may provide ROMs via a source other than the BAR
+	 */
+	if (!start && pdev->rom && pdev->romlen) {
+		*size = pdev->romlen;
+		return phys_to_virt(pdev->rom);
+	}
+
+	if (!start)
+		return NULL;
 
 	rom = ioremap(start, *size);
 	if (!rom) {
