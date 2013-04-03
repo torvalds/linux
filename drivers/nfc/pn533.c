@@ -38,8 +38,12 @@
 #define SONY_VENDOR_ID         0x054c
 #define PASORI_PRODUCT_ID      0x02e1
 
-#define PN533_DEVICE_STD    0x1
-#define PN533_DEVICE_PASORI 0x2
+#define ACS_VENDOR_ID 0x072f
+#define ACR122U_PRODUCT_ID 0x2200
+
+#define PN533_DEVICE_STD     0x1
+#define PN533_DEVICE_PASORI  0x2
+#define PN533_DEVICE_ACR122U 0x3
 
 #define PN533_ALL_PROTOCOLS (NFC_PROTO_JEWEL_MASK | NFC_PROTO_MIFARE_MASK |\
 			     NFC_PROTO_FELICA_MASK | NFC_PROTO_ISO14443_MASK |\
@@ -67,6 +71,11 @@ static const struct usb_device_id pn533_table[] = {
 	  .idVendor		= SONY_VENDOR_ID,
 	  .idProduct		= PASORI_PRODUCT_ID,
 	  .driver_info		= PN533_DEVICE_PASORI,
+	},
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE,
+	  .idVendor		= ACS_VENDOR_ID,
+	  .idProduct		= ACR122U_PRODUCT_ID,
+	  .driver_info		= PN533_DEVICE_ACR122U,
 	},
 	{ }
 };
@@ -98,6 +107,21 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 #define PN533_STD_FRAME_IDENTIFIER(f) (f->data[0]) /* TFI */
 #define PN533_STD_FRAME_DIR_OUT 0xD4
 #define PN533_STD_FRAME_DIR_IN 0xD5
+
+/* ACS ACR122 pn533 frame definitions */
+#define PN533_ACR122_TX_FRAME_HEADER_LEN (sizeof(struct pn533_acr122_tx_frame) \
+					  + 2)
+#define PN533_ACR122_TX_FRAME_TAIL_LEN 0
+#define PN533_ACR122_RX_FRAME_HEADER_LEN (sizeof(struct pn533_acr122_rx_frame) \
+					  + 2)
+#define PN533_ACR122_RX_FRAME_TAIL_LEN 2
+#define PN533_ACR122_FRAME_MAX_PAYLOAD_LEN PN533_STD_FRAME_MAX_PAYLOAD_LEN
+
+/* CCID messages types */
+#define PN533_ACR122_PC_TO_RDR_ICCPOWERON 0x62
+#define PN533_ACR122_PC_TO_RDR_ESCAPE 0x6B
+
+#define PN533_ACR122_RDR_TO_PC_ESCAPE 0x83
 
 /* PN533 Commands */
 #define PN533_STD_FRAME_CMD(f) (f->data[1])
@@ -392,6 +416,116 @@ struct pn533_frame_ops {
 
 	int max_payload_len;
 	u8 (*get_cmd_code)(void *frame);
+};
+
+struct pn533_acr122_ccid_hdr {
+	u8 type;
+	u32 datalen;
+	u8 slot;
+	u8 seq;
+	u8 params[3]; /* 3 msg specific bytes or status, error and 1 specific
+			 byte for reposnse msg */
+	u8 data[]; /* payload */
+} __packed;
+
+struct pn533_acr122_apdu_hdr {
+	u8 class;
+	u8 ins;
+	u8 p1;
+	u8 p2;
+} __packed;
+
+struct pn533_acr122_tx_frame {
+	struct pn533_acr122_ccid_hdr ccid;
+	struct pn533_acr122_apdu_hdr apdu;
+	u8 datalen;
+	u8 data[]; /* pn533 frame: TFI ... */
+} __packed;
+
+struct pn533_acr122_rx_frame {
+	struct pn533_acr122_ccid_hdr ccid;
+	u8 data[]; /* pn533 frame : TFI ... */
+} __packed;
+
+static void pn533_acr122_tx_frame_init(void *_frame, u8 cmd_code)
+{
+	struct pn533_acr122_tx_frame *frame = _frame;
+
+	frame->ccid.type = PN533_ACR122_PC_TO_RDR_ESCAPE;
+	frame->ccid.datalen = sizeof(frame->apdu) + 1; /* sizeof(apdu_hdr) +
+							  sizeof(datalen) */
+	frame->ccid.slot = 0;
+	frame->ccid.seq = 0;
+	frame->ccid.params[0] = 0;
+	frame->ccid.params[1] = 0;
+	frame->ccid.params[2] = 0;
+
+	frame->data[0] = PN533_STD_FRAME_DIR_OUT;
+	frame->data[1] = cmd_code;
+	frame->datalen = 2;  /* data[0] + data[1] */
+
+	frame->apdu.class = 0xFF;
+	frame->apdu.ins = 0;
+	frame->apdu.p1 = 0;
+	frame->apdu.p2 = 0;
+}
+
+static void pn533_acr122_tx_frame_finish(void *_frame)
+{
+	struct pn533_acr122_tx_frame *frame = _frame;
+
+	frame->ccid.datalen += frame->datalen;
+}
+
+static void pn533_acr122_tx_update_payload_len(void *_frame, int len)
+{
+	struct pn533_acr122_tx_frame *frame = _frame;
+
+	frame->datalen += len;
+}
+
+static bool pn533_acr122_is_rx_frame_valid(void *_frame)
+{
+	struct pn533_acr122_rx_frame *frame = _frame;
+
+	if (frame->ccid.type != 0x83)
+		return false;
+
+	if (frame->data[frame->ccid.datalen - 2] == 0x63)
+		return false;
+
+	return true;
+}
+
+static int pn533_acr122_rx_frame_size(void *frame)
+{
+	struct pn533_acr122_rx_frame *f = frame;
+
+	/* f->ccid.datalen already includes tail length */
+	return sizeof(struct pn533_acr122_rx_frame) + f->ccid.datalen;
+}
+
+static u8 pn533_acr122_get_cmd_code(void *frame)
+{
+	struct pn533_acr122_rx_frame *f = frame;
+
+	return PN533_STD_FRAME_CMD(f);
+}
+
+static struct pn533_frame_ops pn533_acr122_frame_ops = {
+	.tx_frame_init = pn533_acr122_tx_frame_init,
+	.tx_frame_finish = pn533_acr122_tx_frame_finish,
+	.tx_update_payload_len = pn533_acr122_tx_update_payload_len,
+	.tx_header_len = PN533_ACR122_TX_FRAME_HEADER_LEN,
+	.tx_tail_len = PN533_ACR122_TX_FRAME_TAIL_LEN,
+
+	.rx_is_frame_valid = pn533_acr122_is_rx_frame_valid,
+	.rx_header_len = PN533_ACR122_RX_FRAME_HEADER_LEN,
+	.rx_tail_len = PN533_ACR122_RX_FRAME_TAIL_LEN,
+	.rx_frame_size = pn533_acr122_rx_frame_size,
+
+	.max_payload_len = PN533_ACR122_FRAME_MAX_PAYLOAD_LEN,
+	.get_cmd_code = pn533_acr122_get_cmd_code,
 };
 
 /* The rule: value + checksum = 0 */
@@ -2335,6 +2469,72 @@ static int pn533_pasori_fw_reset(struct pn533 *dev)
 	return 0;
 }
 
+struct pn533_acr122_poweron_rdr_arg {
+	int rc;
+	struct completion done;
+};
+
+static void pn533_acr122_poweron_rdr_resp(struct urb *urb)
+{
+	struct pn533_acr122_poweron_rdr_arg *arg = urb->context;
+
+	nfc_dev_dbg(&urb->dev->dev, "%s", __func__);
+
+	print_hex_dump(KERN_ERR, "ACR122 RX: ", DUMP_PREFIX_NONE, 16, 1,
+		       urb->transfer_buffer, urb->transfer_buffer_length,
+		       false);
+
+	arg->rc = urb->status;
+	complete(&arg->done);
+}
+
+static int pn533_acr122_poweron_rdr(struct pn533 *dev)
+{
+	/* Power on th reader (CCID cmd) */
+	u8 cmd[10] = {PN533_ACR122_PC_TO_RDR_ICCPOWERON,
+		      0, 0, 0, 0, 0, 0, 3, 0, 0};
+	u8 buf[255];
+	int rc;
+	void *cntx;
+	struct pn533_acr122_poweron_rdr_arg arg;
+
+	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	init_completion(&arg.done);
+	cntx = dev->in_urb->context;  /* backup context */
+
+	dev->in_urb->transfer_buffer = buf;
+	dev->in_urb->transfer_buffer_length = 255;
+	dev->in_urb->complete = pn533_acr122_poweron_rdr_resp;
+	dev->in_urb->context = &arg;
+
+	dev->out_urb->transfer_buffer = cmd;
+	dev->out_urb->transfer_buffer_length = sizeof(cmd);
+
+	print_hex_dump(KERN_ERR, "ACR122 TX: ", DUMP_PREFIX_NONE, 16, 1,
+		       cmd, sizeof(cmd), false);
+
+	rc = usb_submit_urb(dev->out_urb, GFP_KERNEL);
+	if (rc) {
+		nfc_dev_err(&dev->interface->dev,
+			    "Reader power on cmd error %d", rc);
+		return rc;
+	}
+
+	rc =  usb_submit_urb(dev->in_urb, GFP_KERNEL);
+	if (rc) {
+		nfc_dev_err(&dev->interface->dev,
+			    "Can't submit for reader power on cmd response %d",
+			    rc);
+		return rc;
+	}
+
+	wait_for_completion(&arg.done);
+	dev->in_urb->context = cntx; /* restore context */
+
+	return arg.rc;
+}
+
 static struct nfc_ops pn533_nfc_ops = {
 	.dev_up = NULL,
 	.dev_down = NULL,
@@ -2369,6 +2569,7 @@ static int pn533_setup(struct pn533 *dev)
 		break;
 
 	case PN533_DEVICE_PASORI:
+	case PN533_DEVICE_ACR122U:
 		max_retries.mx_rty_atr = 0x2;
 		max_retries.mx_rty_psl = 0x1;
 		max_retries.mx_rty_passive_act =
@@ -2508,6 +2709,20 @@ static int pn533_probe(struct usb_interface *interface,
 
 	case PN533_DEVICE_PASORI:
 		protocols = PN533_NO_TYPE_B_PROTOCOLS;
+		break;
+
+	case PN533_DEVICE_ACR122U:
+		protocols = PN533_NO_TYPE_B_PROTOCOLS;
+		dev->ops = &pn533_acr122_frame_ops;
+		dev->protocol_type = PN533_PROTO_REQ_RESP,
+
+		rc = pn533_acr122_poweron_rdr(dev);
+		if (rc < 0) {
+			nfc_dev_err(&dev->interface->dev,
+				    "Couldn't poweron the reader (error %d)",
+				    rc);
+			goto destroy_wq;
+		}
 		break;
 
 	default:
