@@ -895,6 +895,21 @@ static struct sort_dimension bstack_sort_dimensions[] = {
 
 #undef DIM
 
+static void __sort_dimension__add(struct sort_dimension *sd, enum sort_type idx)
+{
+	if (sd->taken)
+		return;
+
+	if (sd->entry->se_collapse)
+		sort__need_collapse = 1;
+
+	if (list_empty(&hist_entry__sort_list))
+		sort__first_dimension = idx;
+
+	list_add_tail(&sd->entry->list, &hist_entry__sort_list);
+	sd->taken = 1;
+}
+
 int sort_dimension__add(const char *tok)
 {
 	unsigned int i;
@@ -922,18 +937,7 @@ int sort_dimension__add(const char *tok)
 			sort__has_sym = 1;
 		}
 
-		if (sd->taken)
-			return 0;
-
-		if (sd->entry->se_collapse)
-			sort__need_collapse = 1;
-
-		if (list_empty(&hist_entry__sort_list))
-			sort__first_dimension = i;
-
-		list_add_tail(&sd->entry->list, &hist_entry__sort_list);
-		sd->taken = 1;
-
+		__sort_dimension__add(sd, i);
 		return 0;
 	}
 
@@ -949,18 +953,7 @@ int sort_dimension__add(const char *tok)
 		if (sd->entry == &sort_sym_from || sd->entry == &sort_sym_to)
 			sort__has_sym = 1;
 
-		if (sd->taken)
-			return 0;
-
-		if (sd->entry->se_collapse)
-			sort__need_collapse = 1;
-
-		if (list_empty(&hist_entry__sort_list))
-			sort__first_dimension = i + __SORT_BRANCH_STACK;
-
-		list_add_tail(&sd->entry->list, &hist_entry__sort_list);
-		sd->taken = 1;
-
+		__sort_dimension__add(sd, i + __SORT_BRANCH_STACK);
 		return 0;
 	}
 
