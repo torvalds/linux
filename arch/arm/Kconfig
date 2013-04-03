@@ -1183,9 +1183,9 @@ config ARM_NR_BANKS
 	default 8
 
 config IWMMXT
-	bool "Enable iWMMXt support"
+	bool "Enable iWMMXt support" if !CPU_PJ4
 	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_PJ4
-	default y if PXA27x || PXA3xx || ARCH_MMP
+	default y if PXA27x || PXA3xx || ARCH_MMP || CPU_PJ4
 	help
 	  Enable support for iWMMXt context switching at run time if
 	  running on a CPU that supports it.
