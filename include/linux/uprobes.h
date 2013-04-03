@@ -71,6 +71,7 @@ struct uprobe_task {
 	enum uprobe_task_state		state;
 	struct arch_uprobe_task		autask;
 
+	struct return_instance		*return_instances;
 	struct uprobe			*active_uprobe;
 
 	unsigned long			xol_vaddr;

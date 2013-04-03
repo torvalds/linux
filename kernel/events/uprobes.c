@@ -75,6 +75,15 @@ struct uprobe {
 	struct arch_uprobe	arch;
 };
 
+struct return_instance {
+	struct uprobe		*uprobe;
+	unsigned long		func;
+	unsigned long		orig_ret_vaddr; /* original return address */
+	bool			chained;	/* true, if instance is nested */
+
+	struct return_instance	*next;		/* keep as stack */
+};
+
 /*
  * valid_vma: Verify if the specified vma is an executable vma
  * Relax restrictions while unregistering: vm_flags might have
@@ -1317,12 +1326,22 @@ unsigned long __weak uprobe_get_swbp_addr(struct pt_regs *regs)
 void uprobe_free_utask(struct task_struct *t)
 {
 	struct uprobe_task *utask = t->utask;
+	struct return_instance *ri, *tmp;
 
 	if (!utask)
 		return;
 
 	if (utask->active_uprobe)
 		put_uprobe(utask->active_uprobe);
+
+	ri = utask->return_instances;
+	while (ri) {
+		tmp = ri;
+		ri = ri->next;
+
+		put_uprobe(tmp->uprobe);
+		kfree(tmp);
+	}
 
 	xol_free_insn_slot(t);
 	kfree(utask);
@@ -1369,6 +1388,65 @@ static unsigned long get_trampoline_vaddr(void)
 		trampoline_vaddr = area->vaddr;
 
 	return trampoline_vaddr;
+}
+
+static void prepare_uretprobe(struct uprobe *uprobe, struct pt_regs *regs)
+{
+	struct return_instance *ri;
+	struct uprobe_task *utask;
+	unsigned long orig_ret_vaddr, trampoline_vaddr;
+	bool chained = false;
+
+	if (!get_xol_area())
+		return;
+
+	utask = get_utask();
+	if (!utask)
+		return;
+
+	ri = kzalloc(sizeof(struct return_instance), GFP_KERNEL);
+	if (!ri)
+		goto fail;
+
+	trampoline_vaddr = get_trampoline_vaddr();
+	orig_ret_vaddr = arch_uretprobe_hijack_return_addr(trampoline_vaddr, regs);
+	if (orig_ret_vaddr == -1)
+		goto fail;
+
+	/*
+	 * We don't want to keep trampoline address in stack, rather keep the
+	 * original return address of first caller thru all the consequent
+	 * instances. This also makes breakpoint unwrapping easier.
+	 */
+	if (orig_ret_vaddr == trampoline_vaddr) {
+		if (!utask->return_instances) {
+			/*
+			 * This situation is not possible. Likely we have an
+			 * attack from user-space.
+			 */
+			pr_warn("uprobe: unable to set uretprobe pid/tgid=%d/%d\n",
+						current->pid, current->tgid);
+			goto fail;
+		}
+
+		chained = true;
+		orig_ret_vaddr = utask->return_instances->orig_ret_vaddr;
+	}
+
+	atomic_inc(&uprobe->ref);
+	ri->uprobe = uprobe;
+	ri->func = instruction_pointer(regs);
+	ri->orig_ret_vaddr = orig_ret_vaddr;
+	ri->chained = chained;
+
+	/* add instance to the stack */
+	ri->next = utask->return_instances;
+	utask->return_instances = ri;
+
+	return;
+
+ fail:
+	kfree(ri);
 }
 
 /* Prepare to single-step probed instruction out of line. */
@@ -1527,6 +1605,7 @@ static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
 {
 	struct uprobe_consumer *uc;
 	int remove = UPROBE_HANDLER_REMOVE;
+	bool need_prep = false; /* prepare return uprobe, when needed */
 
 	down_read(&uprobe->register_rwsem);
 	for (uc = uprobe->consumers; uc; uc = uc->next) {
@@ -1537,8 +1616,15 @@ static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
 			WARN(rc & ~UPROBE_HANDLER_MASK,
 				"bad rc=0x%x from %pf()\n", rc, uc->handler);
 		}
+
+		if (uc->ret_handler)
+			need_prep = true;
+
 		remove &= rc;
 	}
+
+	if (need_prep && !remove)
+		prepare_uretprobe(uprobe, regs); /* put bp at return */
 
 	if (remove && uprobe->consumers) {
 		WARN_ON(!uprobe_is_active(uprobe));
@@ -1658,7 +1744,11 @@ void uprobe_notify_resume(struct pt_regs *regs)
  */
 int uprobe_pre_sstep_notifier(struct pt_regs *regs)
 {
-	if (!current->mm || !test_bit(MMF_HAS_UPROBES, &current->mm->flags))
+	if (!current->mm)
+		return 0;
+
+	if (!test_bit(MMF_HAS_UPROBES, &current->mm->flags) &&
+	    (!current->utask || !current->utask->return_instances))
 		return 0;
 
 	set_thread_flag(TIF_UPROBE);
