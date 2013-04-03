@@ -197,6 +197,7 @@ struct brcmf_fws_info {
 	struct brcmf_pub *drvr;
 	struct brcmf_fws_stats stats;
 	struct brcmf_fws_mac_descriptor nodes[BRCMF_FWS_MAC_DESC_TABLE_SIZE];
+	int fifo_credit[NL80211_NUM_ACS+1+1];
 };
 
 /**
@@ -346,6 +347,22 @@ do {								\
 #define brcmf_fws_unlock(drvr, flags) \
 	spin_unlock_irqrestore(&((drvr)->fws_spinlock), (flags))
 
+static int brcmf_fws_notify_credit_map(struct brcmf_if *ifp,
+				       const struct brcmf_event_msg *e,
+				       void *data)
+{
+	struct brcmf_fws_info *fws = ifp->drvr->fws;
+	int i;
+	ulong flags;
+	u8 *credits = data;
+
+	brcmf_fws_lock(ifp->drvr, flags);
+	for (i = 0; i < ARRAY_SIZE(fws->fifo_credit); i++)
+		fws->fifo_credit[i] = *credits++;
+	brcmf_fws_unlock(ifp->drvr, flags);
+	return 0;
+}
+
 int brcmf_fws_init(struct brcmf_pub *drvr)
 {
 	u32 tlv = 0;
@@ -370,6 +387,13 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 		brcmf_err("failed to set bdcv2 tlv signaling\n");
 		goto fail;
 	}
+
+	if (brcmf_fweh_register(drvr, BRCMF_E_FIFO_CREDIT_MAP,
+				brcmf_fws_notify_credit_map)) {
+		brcmf_err("register credit map handler failed\n");
+		goto fail;
+	}
+
 	/* set linkage back */
 	drvr->fws->drvr = drvr;
 
