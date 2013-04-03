@@ -137,6 +137,7 @@ struct brcmf_fws_stats {
 	u32 tlv_invalid_type;
 	u32 header_only_pkt;
 	u32 header_pulls;
+	u32 mac_update_failed;
 };
 
 struct brcmf_pub;

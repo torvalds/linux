@@ -141,11 +141,13 @@ ssize_t brcmf_debugfs_fws_stats_read(struct file *f, char __user *data,
 			"header_pulls:     %u\n"
 			"header_only_pkt:  %u\n"
 			"tlv_parse_failed: %u\n"
-			"tlv_invalid_type: %u\n",
+			"tlv_invalid_type: %u\n"
+			"mac_update_fails: %u\n",
 			fwstats->header_pulls,
 			fwstats->header_only_pkt,
 			fwstats->tlv_parse_failed,
-			fwstats->tlv_invalid_type);
+			fwstats->tlv_invalid_type,
+			fwstats->mac_update_failed);
 
 	return simple_read_from_buffer(data, count, ppos, buf, res);
 }
