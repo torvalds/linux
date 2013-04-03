@@ -34,10 +34,12 @@
 
 static bool filter(struct dma_chan *chan, void *param)
 {
+	struct snd_dmaengine_dai_dma_data *dma_data = param;
+
 	if (!imx_dma_is_general_purpose(chan))
 		return false;
 
-	chan->private = param;
+	chan->private = dma_data->filter_data;
 
 	return true;
 }
@@ -47,23 +49,16 @@ static int snd_imx_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
-	struct imx_pcm_dma_params *dma_params;
 	struct dma_slave_config slave_config;
 	int ret;
-
-	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	ret = snd_hwparams_to_dma_slave_config(substream, params, &slave_config);
 	if (ret)
 		return ret;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		slave_config.dst_addr = dma_params->dma_addr;
-		slave_config.dst_maxburst = dma_params->burstsize;
-	} else {
-		slave_config.src_addr = dma_params->dma_addr;
-		slave_config.src_maxburst = dma_params->burstsize;
-	}
+	snd_dmaengine_pcm_set_config_from_dai_data(substream,
+			snd_soc_dai_get_dma_data(rtd->cpu_dai, substream),
+			&slave_config);
 
 	ret = dmaengine_slave_config(chan, &slave_config);
 	if (ret)
@@ -96,13 +91,11 @@ static struct snd_pcm_hardware snd_imx_hardware = {
 static int snd_imx_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct imx_pcm_dma_params *dma_params;
 
 	snd_soc_set_runtime_hwparams(substream, &snd_imx_hardware);
 
-	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-
-	return snd_dmaengine_pcm_open(substream, filter, &dma_params->dma_data);
+	return snd_dmaengine_pcm_open(substream, filter,
+		snd_soc_dai_get_dma_data(rtd->cpu_dai, substream));
 }
 
 static struct snd_pcm_ops imx_pcm_ops = {
