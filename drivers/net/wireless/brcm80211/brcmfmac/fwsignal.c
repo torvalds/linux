@@ -919,6 +919,10 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 		goto fail;
 	}
 
+	/* set linkage back */
+	drvr->fws->drvr = drvr;
+	drvr->fws->fcmode = fcmode;
+
 	/* enable proptxtstatus signaling by default */
 	rc = brcmf_fil_iovar_int_set(drvr->iflist[0], "tlv", tlv);
 	if (rc < 0) {
@@ -936,10 +940,6 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 
 	/* create debugfs file for statistics */
 	brcmf_debugfs_create_fws_stats(drvr, &drvr->fws->stats);
-
-	/* set linkage back */
-	drvr->fws->drvr = drvr;
-	drvr->fws->fcmode = fcmode;
 
 	/* TODO: remove upon feature delivery */
 	brcmf_err("%s bdcv2 tlv signaling [%x]\n",
