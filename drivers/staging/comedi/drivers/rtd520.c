@@ -466,17 +466,15 @@ static int rtd_ns_to_timer(unsigned int *ns, int round_mode)
 /*
   Convert a single comedi channel-gain entry to a RTD520 table entry
 */
-static unsigned short rtdConvertChanGain(struct comedi_device *dev,
-					 unsigned int comediChan, int chanIndex)
-{				/* index in channel list */
+static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
+					    unsigned int chanspec, int index)
+{
 	const struct rtd_boardinfo *thisboard = comedi_board(dev);
 	struct rtd_private *devpriv = dev->private;
-	unsigned int chan, range, aref;
+	unsigned int chan = CR_CHAN(chanspec);
+	unsigned int range = CR_RANGE(chanspec);
+	unsigned int aref = CR_AREF(chanspec);
 	unsigned short r = 0;
-
-	chan = CR_CHAN(comediChan);
-	range = CR_RANGE(comediChan);
-	aref = CR_AREF(comediChan);
 
 	r |= chan & 0xf;
 
@@ -485,17 +483,17 @@ static unsigned short rtdConvertChanGain(struct comedi_device *dev,
 		/* +-5 range */
 		r |= 0x000;
 		r |= (range & 0x7) << 4;
-		CHAN_ARRAY_SET(devpriv->chanBipolar, chanIndex);
+		CHAN_ARRAY_SET(devpriv->chanBipolar, index);
 	} else if (range < thisboard->range_uni10) {
 		/* +-10 range */
 		r |= 0x100;
 		r |= ((range - thisboard->range_bip10) & 0x7) << 4;
-		CHAN_ARRAY_SET(devpriv->chanBipolar, chanIndex);
+		CHAN_ARRAY_SET(devpriv->chanBipolar, index);
 	} else {
 		/* +10 range */
 		r |= 0x200;
 		r |= ((range - thisboard->range_uni10) & 0x7) << 4;
-		CHAN_ARRAY_CLEAR(devpriv->chanBipolar, chanIndex);
+		CHAN_ARRAY_CLEAR(devpriv->chanBipolar, index);
 	}
 
 	switch (aref) {
@@ -532,12 +530,12 @@ static void rtd_load_channelgain_list(struct comedi_device *dev,
 		writel(0, devpriv->las0 + LAS0_CGT_CLEAR);
 		writel(1, devpriv->las0 + LAS0_CGT_ENABLE);
 		for (ii = 0; ii < n_chan; ii++) {
-			writel(rtdConvertChanGain(dev, list[ii], ii),
+			writel(rtd_convert_chan_gain(dev, list[ii], ii),
 				devpriv->las0 + LAS0_CGT_WRITE);
 		}
 	} else {		/* just use the channel gain latch */
 		writel(0, devpriv->las0 + LAS0_CGT_ENABLE);
-		writel(rtdConvertChanGain(dev, list[0], 0),
+		writel(rtd_convert_chan_gain(dev, list[0], 0),
 			devpriv->las0 + LAS0_CGL_WRITE);
 	}
 }
