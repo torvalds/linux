@@ -1407,10 +1407,8 @@ void alloc_nid_done(struct f2fs_sb_info *sbi, nid_t nid)
 
 	spin_lock(&nm_i->free_nid_list_lock);
 	i = __lookup_free_nid_list(nid, &nm_i->free_nid_list);
-	if (i) {
-		BUG_ON(i->state != NID_ALLOC);
-		__del_from_free_nid_list(i);
-	}
+	BUG_ON(!i || i->state != NID_ALLOC);
+	__del_from_free_nid_list(i);
 	spin_unlock(&nm_i->free_nid_list_lock);
 }
 
@@ -1419,8 +1417,15 @@ void alloc_nid_done(struct f2fs_sb_info *sbi, nid_t nid)
  */
 void alloc_nid_failed(struct f2fs_sb_info *sbi, nid_t nid)
 {
-	alloc_nid_done(sbi, nid);
-	add_free_nid(NM_I(sbi), nid);
+	struct f2fs_nm_info *nm_i = NM_I(sbi);
+	struct free_nid *i;
+
+	spin_lock(&nm_i->free_nid_list_lock);
+	i = __lookup_free_nid_list(nid, &nm_i->free_nid_list);
+	BUG_ON(!i || i->state != NID_ALLOC);
+	i->state = NID_NEW;
+	nm_i->fcnt++;
+	spin_unlock(&nm_i->free_nid_list_lock);
 }
 
 void recover_node_page(struct f2fs_sb_info *sbi, struct page *page,
