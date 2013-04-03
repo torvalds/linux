@@ -25,7 +25,7 @@
 		pinmux: pinmux@b4000000 {
 			compatible = "st,spear310-pinmux";
 			reg = <0xb4000000 0x1000>;
-			#gpio-range-cells = <2>;
+			#gpio-range-cells = <3>;
 		};
 
 		fsmc: flash@44000000 {
@@ -102,7 +102,7 @@
 				interrupt-controller;
 				gpio-controller;
 				#gpio-cells = <2>;
-				gpio-ranges = <&pinmux 0 102>;
+				gpio-ranges = <&pinmux 0 0 102>;
 				status = "disabled";
 
 				st-plgpio,ngpio = <102>;

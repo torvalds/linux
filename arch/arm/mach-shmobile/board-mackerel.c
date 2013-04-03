@@ -40,6 +40,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/sh_flctl.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/pm_clock.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
@@ -363,7 +364,7 @@ static struct fb_videomode mackerel_lcdc_modes[] = {
 
 static int mackerel_set_brightness(int brightness)
 {
-	gpio_set_value(GPIO_PORT31, brightness);
+	gpio_set_value(31, brightness);
 
 	return 0;
 }
@@ -819,22 +820,22 @@ static struct platform_device usbhs1_device = {
 static struct gpio_led mackerel_leds[] = {
 	{
 		.name		= "led0",
-		.gpio		= GPIO_PORT0,
+		.gpio		= 0,
 		.default_state	= LEDS_GPIO_DEFSTATE_ON,
 	},
 	{
 		.name		= "led1",
-		.gpio		= GPIO_PORT1,
+		.gpio		= 1,
 		.default_state	= LEDS_GPIO_DEFSTATE_ON,
 	},
 	{
 		.name		= "led2",
-		.gpio		= GPIO_PORT2,
+		.gpio		= 2,
 		.default_state	= LEDS_GPIO_DEFSTATE_ON,
 	},
 	{
 		.name		= "led3",
-		.gpio		= GPIO_PORT159,
+		.gpio		= 159,
 		.default_state	= LEDS_GPIO_DEFSTATE_ON,
 	}
 };
@@ -964,11 +965,11 @@ static struct platform_device nand_flash_device = {
 
 /*
  * The card detect pin of the top SD/MMC slot (CN7) is active low and is
- * connected to GPIO A22 of SH7372 (GPIO_PORT41).
+ * connected to GPIO A22 of SH7372 (GPIO 41).
  */
 static int slot_cn7_get_cd(struct platform_device *pdev)
 {
-	return !gpio_get_value(GPIO_PORT41);
+	return !gpio_get_value(41);
 }
 
 /* SDHI0 */
@@ -977,7 +978,7 @@ static struct sh_mobile_sdhi_info sdhi0_info = {
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
 	.tmio_flags	= TMIO_MMC_USE_GPIO_CD,
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
-	.cd_gpio	= GPIO_PORT172,
+	.cd_gpio	= 172,
 };
 
 static struct resource sdhi0_resources[] = {
@@ -1060,11 +1061,11 @@ static struct platform_device sdhi1_device = {
 
 /*
  * The card detect pin of the top SD/MMC slot (CN23) is active low and is
- * connected to GPIO SCIFB_SCK of SH7372 (GPIO_PORT162).
+ * connected to GPIO SCIFB_SCK of SH7372 (162).
  */
 static int slot_cn23_get_cd(struct platform_device *pdev)
 {
-	return !gpio_get_value(GPIO_PORT162);
+	return !gpio_get_value(162);
 }
 
 /* SDHI2 */
@@ -1328,6 +1329,33 @@ static struct i2c_board_info i2c1_devices[] = {
 	},
 };
 
+static const struct pinctrl_map mackerel_pinctrl_map[] = {
+	/* MMCIF */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh7372",
+				  "mmc0_data8_0", "mmc0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh7372",
+				  "mmc0_ctrl_0", "mmc0"),
+	/* SDHI0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
+				  "sdhi0_data4", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
+				  "sdhi0_ctrl", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
+				  "sdhi0_wp", "sdhi0"),
+	/* SDHI1 */
+#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.1", "pfc-sh7372",
+				  "sdhi1_data4", "sdhi1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.1", "pfc-sh7372",
+				  "sdhi1_ctrl", "sdhi1"),
+#endif
+	/* SDHI2 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.2", "pfc-sh7372",
+				  "sdhi2_data4", "sdhi2"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.2", "pfc-sh7372",
+				  "sdhi2_ctrl", "sdhi2"),
+};
+
 #define GPIO_PORT9CR	IOMEM(0xE6051009)
 #define GPIO_PORT10CR	IOMEM(0xE605100A)
 #define GPIO_PORT167CR	IOMEM(0xE60520A7)
@@ -1364,6 +1392,8 @@ static void __init mackerel_init(void)
 	/* External clock source */
 	clk_set_rate(&sh7372_dv_clki_clk, 27000000);
 
+	pinctrl_register_mappings(mackerel_pinctrl_map,
+				  ARRAY_SIZE(mackerel_pinctrl_map));
 	sh7372_pinmux_init();
 
 	/* enable SCIFA0 */
@@ -1403,9 +1433,9 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_LCDDCK,   NULL);
 
 	/* backlight, off by default */
-	gpio_request_one(GPIO_PORT31, GPIOF_OUT_INIT_LOW, NULL);
+	gpio_request_one(31, GPIOF_OUT_INIT_LOW, NULL);
 
-	gpio_request_one(GPIO_PORT151, GPIOF_OUT_INIT_HIGH, NULL); /* LCDDON */
+	gpio_request_one(151, GPIOF_OUT_INIT_HIGH, NULL); /* LCDDON */
 
 	/* USBHS0 */
 	gpio_request(GPIO_FN_VBUS0_0, NULL);
@@ -1421,10 +1451,10 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_FSIAILR,	NULL);
 	gpio_request(GPIO_FN_FSIAISLD,	NULL);
 	gpio_request(GPIO_FN_FSIAOSLD,	NULL);
-	gpio_request_one(GPIO_PORT161, GPIOF_OUT_INIT_LOW, NULL); /* slave */
+	gpio_request_one(161, GPIOF_OUT_INIT_LOW, NULL); /* slave */
 
-	gpio_request(GPIO_PORT9,  NULL);
-	gpio_request(GPIO_PORT10, NULL);
+	gpio_request(9,  NULL);
+	gpio_request(10, NULL);
 	gpio_direction_none(GPIO_PORT9CR);  /* FSIAOBT needs no direction */
 	gpio_direction_none(GPIO_PORT10CR); /* FSIAOLR needs no direction */
 
@@ -1453,52 +1483,14 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_IRQ21,	NULL);
 	irq_set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
 
-	/* enable SDHI0 */
-	gpio_request(GPIO_FN_SDHIWP0, NULL);
-	gpio_request(GPIO_FN_SDHICMD0, NULL);
-	gpio_request(GPIO_FN_SDHICLK0, NULL);
-	gpio_request(GPIO_FN_SDHID0_3, NULL);
-	gpio_request(GPIO_FN_SDHID0_2, NULL);
-	gpio_request(GPIO_FN_SDHID0_1, NULL);
-	gpio_request(GPIO_FN_SDHID0_0, NULL);
-
 	/* SDHI0 PORT172 card-detect IRQ26 */
 	gpio_request(GPIO_FN_IRQ26_172, NULL);
 
-#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
-	/* enable SDHI1 */
-	gpio_request(GPIO_FN_SDHICMD1, NULL);
-	gpio_request(GPIO_FN_SDHICLK1, NULL);
-	gpio_request(GPIO_FN_SDHID1_3, NULL);
-	gpio_request(GPIO_FN_SDHID1_2, NULL);
-	gpio_request(GPIO_FN_SDHID1_1, NULL);
-	gpio_request(GPIO_FN_SDHID1_0, NULL);
-#endif
 	/* card detect pin for MMC slot (CN7) */
-	gpio_request_one(GPIO_PORT41, GPIOF_IN, NULL);
-
-	/* enable SDHI2 */
-	gpio_request(GPIO_FN_SDHICMD2, NULL);
-	gpio_request(GPIO_FN_SDHICLK2, NULL);
-	gpio_request(GPIO_FN_SDHID2_3, NULL);
-	gpio_request(GPIO_FN_SDHID2_2, NULL);
-	gpio_request(GPIO_FN_SDHID2_1, NULL);
-	gpio_request(GPIO_FN_SDHID2_0, NULL);
+	gpio_request_one(41, GPIOF_IN, NULL);
 
 	/* card detect pin for microSD slot (CN23) */
-	gpio_request_one(GPIO_PORT162, GPIOF_IN, NULL);
-
-	/* MMCIF */
-	gpio_request(GPIO_FN_MMCD0_0, NULL);
-	gpio_request(GPIO_FN_MMCD0_1, NULL);
-	gpio_request(GPIO_FN_MMCD0_2, NULL);
-	gpio_request(GPIO_FN_MMCD0_3, NULL);
-	gpio_request(GPIO_FN_MMCD0_4, NULL);
-	gpio_request(GPIO_FN_MMCD0_5, NULL);
-	gpio_request(GPIO_FN_MMCD0_6, NULL);
-	gpio_request(GPIO_FN_MMCD0_7, NULL);
-	gpio_request(GPIO_FN_MMCCMD0, NULL);
-	gpio_request(GPIO_FN_MMCCLK0, NULL);
+	gpio_request_one(162, GPIOF_IN, NULL);
 
 	/* FLCTL */
 	gpio_request(GPIO_FN_D0_NAF0, NULL);

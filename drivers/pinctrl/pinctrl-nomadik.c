@@ -1764,7 +1764,7 @@ int nmk_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinctrl_ops nmk_pinctrl_ops = {
+static const struct pinctrl_ops nmk_pinctrl_ops = {
 	.get_groups_count = nmk_get_groups_cnt,
 	.get_group_name = nmk_get_group_name,
 	.get_group_pins = nmk_get_group_pins,
@@ -1975,7 +1975,7 @@ static void nmk_gpio_disable_free(struct pinctrl_dev *pctldev,
 	/* Set the pin to some default state, GPIO is usually default */
 }
 
-static struct pinmux_ops nmk_pinmux_ops = {
+static const struct pinmux_ops nmk_pinmux_ops = {
 	.get_functions_count = nmk_pmx_get_funcs_cnt,
 	.get_function_name = nmk_pmx_get_func_name,
 	.get_function_groups = nmk_pmx_get_func_groups,
@@ -2089,7 +2089,7 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 	return 0;
 }
 
-static struct pinconf_ops nmk_pinconf_ops = {
+static const struct pinconf_ops nmk_pinconf_ops = {
 	.pin_config_get = nmk_pin_config_get,
 	.pin_config_set = nmk_pin_config_set,
 };
