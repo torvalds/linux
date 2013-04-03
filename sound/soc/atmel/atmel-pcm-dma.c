@@ -129,8 +129,6 @@ static int atmel_pcm_configure_dma(struct snd_pcm_substream *substream,
 		slave_config.src_maxburst = 1;
 	}
 
-	slave_config.device_fc = false;
-
 	dma_chan = snd_dmaengine_pcm_get_chan(substream);
 	if (dmaengine_slave_config(dma_chan, &slave_config)) {
 		pr_err("atmel-pcm: failed to configure dma channel\n");

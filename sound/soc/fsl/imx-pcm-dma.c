@@ -57,8 +57,6 @@ static int snd_imx_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return ret;
 
-	slave_config.device_fc = false;
-
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		slave_config.dst_addr = dma_params->dma_addr;
 		slave_config.dst_maxburst = dma_params->burstsize;

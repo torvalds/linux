@@ -89,6 +89,8 @@ int snd_hwparams_to_dma_slave_config(const struct snd_pcm_substream *substream,
 		slave_config->src_addr_width = buswidth;
 	}
 
+	slave_config->device_fc = false;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hwparams_to_dma_slave_config);
