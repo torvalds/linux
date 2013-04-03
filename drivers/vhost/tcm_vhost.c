@@ -874,6 +874,7 @@ static int vhost_scsi_set_endpoint(
 			/* Flushing the vhost_work acts as synchronize_rcu */
 			mutex_lock(&vq->mutex);
 			rcu_assign_pointer(vq->private_data, vs_tpg);
+			vhost_init_used(vq);
 			mutex_unlock(&vq->mutex);
 		}
 		ret = 0;
