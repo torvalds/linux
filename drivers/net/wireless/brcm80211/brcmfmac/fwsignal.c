@@ -354,21 +354,31 @@ static void brcmf_fws_mac_desc_cleanup(struct brcmf_fws_mac_descriptor *entry,
 	}
 }
 
+static bool brcmf_fws_ifidx_match(struct sk_buff *skb, void *arg)
+{
+	u32 ifidx = brcmf_skb_if_flags_get_field(skb, INDEX);
+	return ifidx == *(int *)arg;
+}
+
 static void brcmf_fws_cleanup(struct brcmf_fws_info *fws, int ifidx)
 {
 	int i;
 	struct brcmf_fws_mac_descriptor *table;
+	bool (*matchfn)(struct sk_buff *, void *) = NULL;
 
 	brcmf_dbg(TRACE, "enter: ifidx=%d\n", ifidx);
 	if (fws == NULL)
 		return;
 
+	if (ifidx != -1)
+		matchfn = brcmf_fws_ifidx_match;
+
 	/* cleanup individual nodes */
 	table = &fws->nodes[0];
 	for (i = 0; i < ARRAY_SIZE(fws->nodes); i++)
-		brcmf_fws_mac_desc_cleanup(&table[i], NULL, ifidx);
+		brcmf_fws_mac_desc_cleanup(&table[i], matchfn, ifidx);
 
-	brcmf_fws_mac_desc_cleanup(&fws->other, NULL, ifidx);
+	brcmf_fws_mac_desc_cleanup(&fws->other, matchfn, ifidx);
 }
 
 static int brcmf_fws_rssi_indicate(struct brcmf_fws_info *fws, s8 rssi)
@@ -678,5 +688,6 @@ void brcmf_fws_del_interface(struct brcmf_if *ifp)
 
 	ifp->fws_desc = NULL;
 	brcmf_fws_clear_mac_descriptor(entry);
+	brcmf_fws_cleanup(ifp->drvr->fws, ifp->ifidx);
 	kfree(entry);
 }
