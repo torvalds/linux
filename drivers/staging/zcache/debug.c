@@ -4,6 +4,38 @@
 #ifdef CONFIG_ZCACHE_DEBUG
 #include <linux/debugfs.h>
 
+ssize_t zcache_obj_count;
+ssize_t zcache_obj_count_max;
+ssize_t zcache_objnode_count;
+ssize_t zcache_objnode_count_max;
+u64 zcache_eph_zbytes;
+u64 zcache_eph_zbytes_max;
+u64 zcache_pers_zbytes_max;
+ssize_t zcache_eph_pageframes_max;
+ssize_t zcache_pers_pageframes_max;
+ssize_t zcache_pageframes_alloced;
+ssize_t zcache_pageframes_freed;
+ssize_t zcache_eph_zpages;
+ssize_t zcache_eph_zpages_max;
+ssize_t zcache_pers_zpages_max;
+ssize_t zcache_flush_total;
+ssize_t zcache_flush_found;
+ssize_t zcache_flobj_total;
+ssize_t zcache_flobj_found;
+ssize_t zcache_failed_eph_puts;
+ssize_t zcache_failed_pers_puts;
+ssize_t zcache_failed_getfreepages;
+ssize_t zcache_failed_alloc;
+ssize_t zcache_put_to_flush;
+ssize_t zcache_compress_poor;
+ssize_t zcache_mean_compress_poor;
+ssize_t zcache_eph_ate_tail;
+ssize_t zcache_eph_ate_tail_failed;
+ssize_t zcache_pers_ate_eph;
+ssize_t zcache_pers_ate_eph_failed;
+ssize_t zcache_evicted_eph_zpages;
+ssize_t zcache_evicted_eph_pageframes;
+
 #define ATTR(x)  { .name = #x, .val = &zcache_##x, }
 static struct debug_entry {
 	const char *name;
