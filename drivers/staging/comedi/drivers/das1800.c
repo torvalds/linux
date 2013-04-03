@@ -454,14 +454,6 @@ struct das1800_private {
 	short ao_update_bits;	/* remembers the last write to the 'update' dac */
 };
 
-/* analog out range for boards with basic analog out */
-static const struct comedi_lrange range_ao_1 = {
-	1,
-	{
-	 RANGE(-10, 10),
-	 }
-};
-
 /* analog out range for 'ao' boards */
 /*
 static const struct comedi_lrange range_ao_2 = {
@@ -1657,7 +1649,7 @@ static int das1800_attach(struct comedi_device *dev,
 		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = thisboard->ao_n_chan;
 		s->maxdata = (1 << thisboard->resolution) - 1;
-		s->range_table = &range_ao_1;
+		s->range_table = &range_bipolar10;
 		s->insn_write = das1800_ao_winsn;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
