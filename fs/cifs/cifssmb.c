@@ -1545,7 +1545,7 @@ cifs_readv_callback(struct mid_q_entry *mid)
 			int rc = 0;
 
 			rc = cifs_verify_signature(&rqst, server,
-						  mid->sequence_number + 1);
+						  mid->sequence_number);
 			if (rc)
 				cifs_dbg(VFS, "SMB signature verification returned error = %d\n",
 					 rc);

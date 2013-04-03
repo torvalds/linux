@@ -622,7 +622,7 @@ cifs_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 		iov.iov_len = len;
 		/* FIXME: add code to kill session */
 		rc = cifs_verify_signature(&rqst, server,
-					   mid->sequence_number + 1);
+					   mid->sequence_number);
 		if (rc)
 			cifs_dbg(VFS, "SMB signature verification returned error = %d\n",
 				 rc);

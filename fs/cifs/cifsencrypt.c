@@ -135,8 +135,8 @@ int cifs_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 				cpu_to_le32(server->sequence_number);
 	cifs_pdu->Signature.Sequence.Reserved = 0;
 
-	*pexpected_response_sequence_number = server->sequence_number++;
-	server->sequence_number++;
+	*pexpected_response_sequence_number = ++server->sequence_number;
+	++server->sequence_number;
 
 	rc = cifs_calc_signature(rqst, server, smb_signature);
 	if (rc)
