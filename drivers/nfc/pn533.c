@@ -334,7 +334,7 @@ struct pn533 {
 	void *cmd_complete_arg;
 	void *cmd_complete_mi_arg;
 	struct mutex cmd_lock;
-	u8 cmd;
+	struct pn533_cmd *cmd;
 
 	struct pn533_poll_modulations *poll_mod_active[PN533_POLL_MOD_MAX + 1];
 	u8 poll_mod_count;
@@ -502,7 +502,8 @@ static struct pn533_frame_ops pn533_std_frame_ops = {
 
 static bool pn533_rx_frame_is_cmd_response(struct pn533 *dev, void *frame)
 {
-	return (dev->ops->get_cmd_code(frame) == PN533_CMD_RESPONSE(dev->cmd));
+	return (dev->ops->get_cmd_code(frame) ==
+				PN533_CMD_RESPONSE(dev->cmd->cmd_code));
 }
 
 
@@ -648,7 +649,6 @@ static int __pn533_send_frame_async(struct pn533 *dev,
 {
 	int rc;
 
-	dev->cmd = dev->ops->get_cmd_code(out->data);
 	dev->cmd_complete = cmd_complete;
 	dev->cmd_complete_arg = arg;
 
@@ -707,8 +707,7 @@ static int pn533_send_async_complete(struct pn533 *dev, void *arg, int status)
 		rc = cmd->complete_cb(dev, cmd->complete_cb_context,
 				      ERR_PTR(status));
 		dev_kfree_skb(resp);
-		kfree(cmd);
-		return rc;
+		goto done;
 	}
 
 	skb_put(resp, dev->ops->rx_frame_size(resp->data));
@@ -717,7 +716,9 @@ static int pn533_send_async_complete(struct pn533 *dev, void *arg, int status)
 
 	rc = cmd->complete_cb(dev, cmd->complete_cb_context, resp);
 
+done:
 	kfree(cmd);
+	dev->cmd = NULL;
 	return rc;
 }
 
@@ -754,6 +755,7 @@ static int __pn533_send_async(struct pn533 *dev, u8 cmd_code,
 			goto error;
 
 		dev->cmd_pending = 1;
+		dev->cmd = cmd;
 		goto unlock;
 	}
 
@@ -862,6 +864,8 @@ static int pn533_send_cmd_direct_async(struct pn533 *dev, u8 cmd_code,
 	if (rc < 0) {
 		dev_kfree_skb(resp);
 		kfree(cmd);
+	} else {
+		dev->cmd = cmd;
 	}
 
 	return rc;
@@ -893,7 +897,10 @@ static void pn533_wq_cmd(struct work_struct *work)
 		dev_kfree_skb(cmd->req);
 		dev_kfree_skb(cmd->resp);
 		kfree(cmd);
+		return;
 	}
+
+	dev->cmd = cmd;
 }
 
 struct pn533_sync_cmd_response {
