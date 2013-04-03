@@ -90,9 +90,6 @@ Interrupts are not supported.
 #define PCL727_DI_HI  0
 #define PCL727_DI_LO  1
 
-static const struct comedi_lrange range_4_20mA = { 1, {RANGE_mA(4, 20)} };
-static const struct comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
-
 static const struct comedi_lrange *const rangelist_726[] = {
 	&range_unipolar5, &range_unipolar10,
 	&range_bipolar5, &range_bipolar10,

@@ -61,12 +61,6 @@ Configuration options:
 #include <linux/ioport.h>
 #include <linux/delay.h>
 
-static const struct comedi_lrange
-	range_dt2815_ao_32_current = {1, {RANGE_mA(0, 32)} };
-
-static const struct comedi_lrange
-	range_dt2815_ao_20_current = {1, {RANGE_mA(4, 20)} };
-
 #define DT2815_SIZE 2
 
 #define DT2815_DATA 0
@@ -199,7 +193,7 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table_list = devpriv->range_type_list;
 
 	current_range_type = (it->options[3])
-	    ? &range_dt2815_ao_20_current : &range_dt2815_ao_32_current;
+	    ? &range_4_20mA : &range_0_32mA;
 	voltage_range_type = (it->options[2])
 	    ? &range_bipolar5 : &range_unipolar5;
 	for (i = 0; i < 8; i++) {

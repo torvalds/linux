@@ -94,8 +94,6 @@ struct ni_670x_private {
 	unsigned int ao_readback[32];
 };
 
-static struct comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
-
 static int ni_670x_ao_winsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)

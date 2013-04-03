@@ -37,6 +37,12 @@ const struct comedi_lrange range_unipolar5 = { 1, {UNI_RANGE(5)} };
 EXPORT_SYMBOL(range_unipolar5);
 const struct comedi_lrange range_unipolar2_5 = { 1, {UNI_RANGE(2.5)} };
 EXPORT_SYMBOL(range_unipolar2_5);
+const struct comedi_lrange range_0_20mA = { 1, {RANGE_mA(0, 20)} };
+EXPORT_SYMBOL(range_0_20mA);
+const struct comedi_lrange range_4_20mA = { 1, {RANGE_mA(4, 20)} };
+EXPORT_SYMBOL(range_4_20mA);
+const struct comedi_lrange range_0_32mA = { 1, {RANGE_mA(0, 32)} };
+EXPORT_SYMBOL(range_0_32mA);
 const struct comedi_lrange range_unknown = { 1, {{0, 1000000, UNIT_none} } };
 EXPORT_SYMBOL(range_unknown);
 

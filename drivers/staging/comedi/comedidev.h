@@ -295,6 +295,9 @@ extern const struct comedi_lrange range_bipolar2_5;
 extern const struct comedi_lrange range_unipolar10;
 extern const struct comedi_lrange range_unipolar5;
 extern const struct comedi_lrange range_unipolar2_5;
+extern const struct comedi_lrange range_0_20mA;
+extern const struct comedi_lrange range_4_20mA;
+extern const struct comedi_lrange range_0_32mA;
 extern const struct comedi_lrange range_unknown;
 
 #define range_digital		range_unipolar5
