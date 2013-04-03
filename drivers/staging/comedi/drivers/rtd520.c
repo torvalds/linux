@@ -1244,30 +1244,24 @@ static int rtd_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-  Configure one bit on a IO port as Input or Output (hence the name :-).
-*/
 static int rtd_dio_insn_config(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct rtdPrivate *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask = 1 << chan;
 
-	/* The input or output configuration of each digital line is
-	 * configured by a special insn_config instruction.  chanspec
-	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= 1 << chan;	/* 1 means Out */
+		s->io_bits |= mask;
 		break;
 	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~(1 << chan);
+		s->io_bits &= ~mask;
 		break;
 	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
 		break;
 	default:
@@ -1287,7 +1281,7 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 
 	/* there are also 2 user input lines and 2 user output lines */
 
-	return 1;
+	return insn->n;
 }
 
 static void rtd_reset(struct comedi_device *dev)
