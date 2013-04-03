@@ -1767,7 +1767,7 @@ static int udc_start(struct ci13xxx *ci)
 		goto put_transceiver;
 	}
 
-	retval = dbg_create_files(&ci->gadget.dev);
+	retval = dbg_create_files(ci->dev);
 	if (retval)
 		goto unreg_device;
 
@@ -1796,7 +1796,7 @@ remove_trans:
 
 	dev_err(dev, "error = %i\n", retval);
 remove_dbg:
-	dbg_remove_files(&ci->gadget.dev);
+	dbg_remove_files(ci->dev);
 unreg_device:
 	device_unregister(&ci->gadget.dev);
 put_transceiver:
@@ -1836,7 +1836,7 @@ static void udc_stop(struct ci13xxx *ci)
 		if (ci->global_phy)
 			usb_put_phy(ci->transceiver);
 	}
-	dbg_remove_files(&ci->gadget.dev);
+	dbg_remove_files(ci->dev);
 	device_unregister(&ci->gadget.dev);
 	/* my kobject is dynamic, I swear! */
 	memset(&ci->gadget, 0, sizeof(ci->gadget));

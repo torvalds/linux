@@ -2594,6 +2594,8 @@ static int snd_ice1712_create(struct snd_card *card,
 	snd_ice1712_proc_init(ice);
 	synchronize_irq(pci->irq);
 
+	card->private_data = ice;
+
 	err = pci_request_regions(pci, "ICE1712");
 	if (err < 0) {
 		kfree(ice);

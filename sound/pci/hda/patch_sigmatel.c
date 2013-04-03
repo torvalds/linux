@@ -815,6 +815,29 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 	return 0;
 }
 
+/* check whether a built-in speaker is included in parsed pins */
+static bool has_builtin_speaker(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	hda_nid_t *nid_pin;
+	int nids, i;
+
+	if (spec->gen.autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT) {
+		nid_pin = spec->gen.autocfg.line_out_pins;
+		nids = spec->gen.autocfg.line_outs;
+	} else {
+		nid_pin = spec->gen.autocfg.speaker_pins;
+		nids = spec->gen.autocfg.speaker_outs;
+	}
+
+	for (i = 0; i < nids; i++) {
+		unsigned int def_conf = snd_hda_codec_get_pincfg(codec, nid_pin[i]);
+		if (snd_hda_get_input_pin_attr(def_conf) == INPUT_PIN_ATTR_INT)
+			return true;
+	}
+	return false;
+}
+
 /*
  * PC beep controls
  */
@@ -3889,6 +3912,12 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 		stac_free(codec);
 		return err;
 	}
+
+	/* Don't GPIO-mute speakers if there are no internal speakers, because
+	 * the GPIO might be necessary for Headphone
+	 */
+	if (spec->eapd_switch && !has_builtin_speaker(codec))
+		spec->eapd_switch = 0;
 
 	codec->proc_widget_hook = stac92hd7x_proc_hook;
 

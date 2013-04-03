@@ -105,7 +105,7 @@
 			compatible = "fixed-clock";
 			reg = <1>;
 			#clock-cells = <0>;
-			clock-frequency = <150000000>;
+			clock-frequency = <250000000>;
 		};
 	};
 };

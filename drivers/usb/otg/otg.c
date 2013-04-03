@@ -130,7 +130,7 @@ struct usb_phy *usb_get_phy(enum usb_phy_type type)
 	spin_lock_irqsave(&phy_lock, flags);
 
 	phy = __usb_find_phy(&phy_list, type);
-	if (IS_ERR(phy)) {
+	if (IS_ERR(phy) || !try_module_get(phy->dev->driver->owner)) {
 		pr_err("unable to find transceiver of type %s\n",
 			usb_phy_type_string(type));
 		goto err0;
@@ -228,7 +228,7 @@ struct usb_phy *usb_get_phy_dev(struct device *dev, u8 index)
 	spin_lock_irqsave(&phy_lock, flags);
 
 	phy = __usb_find_phy_dev(dev, &phy_bind_list, index);
-	if (IS_ERR(phy)) {
+	if (IS_ERR(phy) || !try_module_get(phy->dev->driver->owner)) {
 		pr_err("unable to find transceiver\n");
 		goto err0;
 	}
@@ -301,8 +301,12 @@ EXPORT_SYMBOL(devm_usb_put_phy);
  */
 void usb_put_phy(struct usb_phy *x)
 {
-	if (x)
+	if (x) {
+		struct module *owner = x->dev->driver->owner;
+
 		put_device(x->dev);
+		module_put(owner);
+	}
 }
 EXPORT_SYMBOL(usb_put_phy);
 

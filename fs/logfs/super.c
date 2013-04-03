@@ -608,6 +608,7 @@ static struct file_system_type logfs_fs_type = {
 	.fs_flags	= FS_REQUIRES_DEV,
 
 };
+MODULE_ALIAS_FS("logfs");
 
 static int __init logfs_init(void)
 {
