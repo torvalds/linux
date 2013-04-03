@@ -1,4 +1,4 @@
-/*
+	/*
  * Copyright (c) 2012, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -156,6 +156,13 @@ struct tegra_clk_pll_params {
 	u32		lock_reg;
 	u32		lock_mask;
 	u32		lock_enable_bit_idx;
+	u32		iddq_reg;
+	u32		iddq_bit_idx;
+	u32		aux_reg;
+	u32		dyn_ramp_reg;
+	u32		ext_misc_reg[3];
+	int		stepa_shift;
+	int		stepb_shift;
 	int		lock_delay;
 	int		max_p;
 	struct pdiv_map *pdiv_tohw;
@@ -238,11 +245,52 @@ struct clk *tegra_clk_register_pll(const char *name, const char *parent_name,
 		unsigned long flags, unsigned long fixed_rate,
 		struct tegra_clk_pll_params *pll_params, u32 pll_flags,
 		struct tegra_clk_pll_freq_table *freq_table, spinlock_t *lock);
+
 struct clk *tegra_clk_register_plle(const char *name, const char *parent_name,
 		void __iomem *clk_base, void __iomem *pmc,
 		unsigned long flags, unsigned long fixed_rate,
 		struct tegra_clk_pll_params *pll_params, u32 pll_flags,
 		struct tegra_clk_pll_freq_table *freq_table, spinlock_t *lock);
+
+struct clk *tegra_clk_register_pllxc(const char *name, const char *parent_name,
+			    void __iomem *clk_base, void __iomem *pmc,
+			    unsigned long flags, unsigned long fixed_rate,
+			    struct tegra_clk_pll_params *pll_params,
+			    u32 pll_flags,
+			    struct tegra_clk_pll_freq_table *freq_table,
+			    spinlock_t *lock);
+
+struct clk *tegra_clk_register_pllm(const char *name, const char *parent_name,
+			   void __iomem *clk_base, void __iomem *pmc,
+			   unsigned long flags, unsigned long fixed_rate,
+			   struct tegra_clk_pll_params *pll_params,
+			   u32 pll_flags,
+			   struct tegra_clk_pll_freq_table *freq_table,
+			   spinlock_t *lock);
+
+struct clk *tegra_clk_register_pllc(const char *name, const char *parent_name,
+			   void __iomem *clk_base, void __iomem *pmc,
+			   unsigned long flags, unsigned long fixed_rate,
+			   struct tegra_clk_pll_params *pll_params,
+			   u32 pll_flags,
+			   struct tegra_clk_pll_freq_table *freq_table,
+			   spinlock_t *lock);
+
+struct clk *tegra_clk_register_pllre(const char *name, const char *parent_name,
+			   void __iomem *clk_base, void __iomem *pmc,
+			   unsigned long flags, unsigned long fixed_rate,
+			   struct tegra_clk_pll_params *pll_params,
+			   u32 pll_flags,
+			   struct tegra_clk_pll_freq_table *freq_table,
+			   spinlock_t *lock, unsigned long parent_rate);
+
+struct clk *tegra_clk_register_plle_tegra114(const char *name,
+				const char *parent_name,
+				void __iomem *clk_base, unsigned long flags,
+				unsigned long fixed_rate,
+				struct tegra_clk_pll_params *pll_params,
+				struct tegra_clk_pll_freq_table *freq_table,
+				spinlock_t *lock);
 
 /**
  * struct tegra_clk_pll_out - PLL divider down clock
