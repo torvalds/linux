@@ -39,7 +39,7 @@ static int proc_match(unsigned int len, const char *name, struct proc_dir_entry 
 /* buffer size is one page but our output routines use some slack for overruns */
 #define PROC_BLOCK_SIZE	(PAGE_SIZE - 1024)
 
-static ssize_t
+ssize_t
 __proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 	       loff_t *ppos)
 {
@@ -170,48 +170,6 @@ __proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 	free_page((unsigned long) page);
 	return retval;
 }
-
-static ssize_t
-proc_file_read(struct file *file, char __user *buf, size_t nbytes,
-	       loff_t *ppos)
-{
-	struct proc_dir_entry *pde = PDE(file_inode(file));
-	ssize_t rv = -EIO;
-
-	spin_lock(&pde->pde_unload_lock);
-	if (!pde->proc_fops) {
-		spin_unlock(&pde->pde_unload_lock);
-		return rv;
-	}
-	pde->pde_users++;
-	spin_unlock(&pde->pde_unload_lock);
-
-	rv = __proc_file_read(file, buf, nbytes, ppos);
-
-	pde_users_dec(pde);
-	return rv;
-}
-
-static loff_t
-proc_file_lseek(struct file *file, loff_t offset, int orig)
-{
-	loff_t retval = -EINVAL;
-	switch (orig) {
-	case 1:
-		offset += file->f_pos;
-	/* fallthrough */
-	case 0:
-		if (offset < 0 || offset > MAX_NON_LFS)
-			break;
-		file->f_pos = retval = offset;
-	}
-	return retval;
-}
-
-static const struct file_operations proc_file_operations = {
-	.llseek		= proc_file_lseek,
-	.read		= proc_file_read,
-};
 
 static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 {
@@ -722,41 +680,6 @@ void pde_put(struct proc_dir_entry *pde)
 		free_proc_entry(pde);
 }
 
-static void entry_rundown(struct proc_dir_entry *de)
-{
-	spin_lock(&de->pde_unload_lock);
-	/*
-	 * Stop accepting new callers into module. If you're
-	 * dynamically allocating ->proc_fops, save a pointer somewhere.
-	 */
-	de->proc_fops = NULL;
-	/* Wait until all existing callers into module are done. */
-	if (de->pde_users > 0) {
-		DECLARE_COMPLETION_ONSTACK(c);
-
-		if (!de->pde_unload_completion)
-			de->pde_unload_completion = &c;
-
-		spin_unlock(&de->pde_unload_lock);
-
-		wait_for_completion(de->pde_unload_completion);
-
-		spin_lock(&de->pde_unload_lock);
-	}
-
-	while (!list_empty(&de->pde_openers)) {
-		struct pde_opener *pdeo;
-
-		pdeo = list_first_entry(&de->pde_openers, struct pde_opener, lh);
-		list_del(&pdeo->lh);
-		spin_unlock(&de->pde_unload_lock);
-		pdeo->release(pdeo->inode, pdeo->file);
-		kfree(pdeo);
-		spin_lock(&de->pde_unload_lock);
-	}
-	spin_unlock(&de->pde_unload_lock);
-}
-
 /*
  * Remove a /proc entry and free it if it's not currently in use.
  */
@@ -788,7 +711,7 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 		return;
 	}
 
-	entry_rundown(de);
+	proc_entry_rundown(de);
 
 	if (S_ISDIR(de->mode))
 		parent->nlink--;
@@ -837,7 +760,7 @@ int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
 		}
 		spin_unlock(&proc_subdir_lock);
 
-		entry_rundown(de);
+		proc_entry_rundown(de);
 		next = de->parent;
 		if (S_ISDIR(de->mode))
 			next->nlink--;

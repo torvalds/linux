@@ -60,20 +60,13 @@ struct proc_dir_entry {
 	kgid_t gid;
 	loff_t size;
 	const struct inode_operations *proc_iops;
-	/*
-	 * NULL ->proc_fops means "PDE is going away RSN" or
-	 * "PDE is just created". In either case, e.g. ->read_proc won't be
-	 * called because it's too late or too early, respectively.
-	 *
-	 * If you're allocating ->proc_fops dynamically, save a pointer
-	 * somewhere.
-	 */
 	const struct file_operations *proc_fops;
 	struct proc_dir_entry *next, *parent, *subdir;
 	void *data;
 	read_proc_t *read_proc;
 	atomic_t count;		/* use count */
-	int pde_users;	/* number of callers into module in progress */
+	int pde_users;	/* number of callers into module in progress; */
+			/* negative -> it's going away RSN */
 	struct completion *pde_unload_completion;
 	struct list_head pde_openers;	/* who did ->open, but not ->release */
 	spinlock_t pde_unload_lock; /* proc_fops checks and pde_users bumps */
