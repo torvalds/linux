@@ -280,6 +280,17 @@ static inline void ceph_osdc_put_request(struct ceph_osd_request *req)
 	kref_put(&req->r_kref, ceph_osdc_release_request);
 }
 
+extern void ceph_osd_data_pages_init(struct ceph_osd_data *osd_data,
+				     struct page **pages, u64 length,
+				     u32 alignment, bool pages_from_pool,
+				     bool own_pages);
+extern void ceph_osd_data_pagelist_init(struct ceph_osd_data *osd_data,
+					struct ceph_pagelist *pagelist);
+#ifdef CONFIG_BLOCK
+extern void ceph_osd_data_bio_init(struct ceph_osd_data *osd_data,
+				   struct bio *bio, size_t bio_length);
+#endif /* CONFIG_BLOCK */
+
 extern int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 				   struct ceph_osd_request *req,
 				   bool nofail);

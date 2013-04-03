@@ -1350,17 +1350,13 @@ static struct ceph_osd_request *rbd_osd_req_create(
 		break;		/* Nothing to do */
 	case OBJ_REQUEST_BIO:
 		rbd_assert(obj_request->bio_list != NULL);
-		osd_data->type = CEPH_OSD_DATA_TYPE_BIO;
-		osd_data->bio = obj_request->bio_list;
-		osd_data->bio_length = obj_request->length;
+		ceph_osd_data_bio_init(osd_data, obj_request->bio_list,
+					obj_request->length);
 		break;
 	case OBJ_REQUEST_PAGES:
-		osd_data->type = CEPH_OSD_DATA_TYPE_PAGES;
-		osd_data->pages = obj_request->pages;
-		osd_data->length = obj_request->length;
-		osd_data->alignment = offset & ~PAGE_MASK;
-		osd_data->pages_from_pool = false;
-		osd_data->own_pages = false;
+		ceph_osd_data_pages_init(osd_data, obj_request->pages,
+				obj_request->length, offset & ~PAGE_MASK,
+				false, false);
 		break;
 	}
 

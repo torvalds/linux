@@ -491,6 +491,7 @@ static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 	unsigned long buf_align;
 	int ret;
 	struct timespec mtime = CURRENT_TIME;
+	bool own_pages = false;
 
 	if (ceph_snap(file_inode(file)) != CEPH_NOSNAP)
 		return -EROFS;
@@ -571,14 +572,11 @@ more:
 		if ((file->f_flags & O_SYNC) == 0) {
 			/* get a second commit callback */
 			req->r_safe_callback = sync_write_commit;
-			req->r_data_out.own_pages = 1;
+			own_pages = true;
 		}
 	}
-	req->r_data_out.type = CEPH_OSD_DATA_TYPE_PAGES;
-	req->r_data_out.pages = pages;
-	req->r_data_out.length = len;
-	req->r_data_out.alignment = page_align;
-	req->r_inode = inode;
+	ceph_osd_data_pages_init(&req->r_data_out, pages, len, page_align,
+					false, own_pages);
 
 	/* BUG_ON(vino.snap != CEPH_NOSNAP); */
 	ceph_osdc_build_request(req, pos, num_ops, ops,

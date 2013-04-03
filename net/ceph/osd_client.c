@@ -79,6 +79,38 @@ static int calc_layout(struct ceph_file_layout *layout, u64 off, u64 *plen,
 	return 0;
 }
 
+void ceph_osd_data_pages_init(struct ceph_osd_data *osd_data,
+			struct page **pages, u64 length, u32 alignment,
+			bool pages_from_pool, bool own_pages)
+{
+	osd_data->type = CEPH_OSD_DATA_TYPE_PAGES;
+	osd_data->pages = pages;
+	osd_data->length = length;
+	osd_data->alignment = alignment;
+	osd_data->pages_from_pool = pages_from_pool;
+	osd_data->own_pages = own_pages;
+}
+EXPORT_SYMBOL(ceph_osd_data_pages_init);
+
+void ceph_osd_data_pagelist_init(struct ceph_osd_data *osd_data,
+			struct ceph_pagelist *pagelist)
+{
+	osd_data->type = CEPH_OSD_DATA_TYPE_PAGELIST;
+	osd_data->pagelist = pagelist;
+}
+EXPORT_SYMBOL(ceph_osd_data_pagelist_init);
+
+#ifdef CONFIG_BLOCK
+void ceph_osd_data_bio_init(struct ceph_osd_data *osd_data,
+			struct bio *bio, size_t bio_length)
+{
+	osd_data->type = CEPH_OSD_DATA_TYPE_BIO;
+	osd_data->bio = bio;
+	osd_data->bio_length = bio_length;
+}
+EXPORT_SYMBOL(ceph_osd_data_bio_init);
+#endif /* CONFIG_BLOCK */
+
 /*
  * requests
  */
@@ -400,8 +432,7 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 		ceph_pagelist_append(pagelist, src->cls.indata,
 				     src->cls.indata_len);
 
-		req->r_data_out.type = CEPH_OSD_DATA_TYPE_PAGELIST;
-		req->r_data_out.pagelist = pagelist;
+		ceph_osd_data_pagelist_init(&req->r_data_out, pagelist);
 		out_data_len = pagelist->length;
 		break;
 	case CEPH_OSD_OP_STARTSYNC:
@@ -2056,7 +2087,6 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 			struct page **pages, int num_pages, int page_align)
 {
 	struct ceph_osd_request *req;
-	struct ceph_osd_data *osd_data;
 	struct ceph_osd_req_op op;
 	int rc = 0;
 
@@ -2071,14 +2101,11 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 
 	/* it may be a short read due to an object boundary */
 
-	osd_data = &req->r_data_in;
-	osd_data->type = CEPH_OSD_DATA_TYPE_PAGES;
-	osd_data->pages = pages;
-	osd_data->length = *plen;
-	osd_data->alignment = page_align;
+	ceph_osd_data_pages_init(&req->r_data_in, pages, *plen, page_align,
+				false, false);
 
 	dout("readpages  final extent is %llu~%llu (%llu bytes align %d)\n",
-	     off, *plen, osd_data->length, page_align);
+	     off, *plen, *plen, page_align);
 
 	ceph_osdc_build_request(req, off, 1, &op, NULL, vino.snap, NULL);
 
@@ -2104,7 +2131,6 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 			 struct page **pages, int num_pages)
 {
 	struct ceph_osd_request *req;
-	struct ceph_osd_data *osd_data;
 	struct ceph_osd_req_op op;
 	int rc = 0;
 	int page_align = off & ~PAGE_MASK;
@@ -2119,12 +2145,9 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 		return PTR_ERR(req);
 
 	/* it may be a short write due to an object boundary */
-	osd_data = &req->r_data_out;
-	osd_data->type = CEPH_OSD_DATA_TYPE_PAGES;
-	osd_data->pages = pages;
-	osd_data->length = len;
-	osd_data->alignment = page_align;
-	dout("writepages %llu~%llu (%llu bytes)\n", off, len, osd_data->length);
+	ceph_osd_data_pages_init(&req->r_data_out, pages, len, page_align,
+				false, false);
+	dout("writepages %llu~%llu (%llu bytes)\n", off, len, len);
 
 	ceph_osdc_build_request(req, off, 1, &op, snapc, CEPH_NOSNAP, mtime);
 
