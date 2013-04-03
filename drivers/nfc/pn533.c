@@ -2314,7 +2314,7 @@ static int pn533_get_firmware_version(struct pn533 *dev,
 	return 0;
 }
 
-static int pn533_fw_reset(struct pn533 *dev)
+static int pn533_pasori_fw_reset(struct pn533 *dev)
 {
 	struct sk_buff *skb;
 	struct sk_buff *resp;
@@ -2409,7 +2409,7 @@ static int pn533_setup(struct pn533 *dev)
 		break;
 
 	case PN533_DEVICE_PASORI:
-		pn533_fw_reset(dev);
+		pn533_pasori_fw_reset(dev);
 
 		rc = pn533_set_configuration(dev, PN533_CFGITEM_PASORI,
 					     pasori_cfg, 3);
@@ -2419,7 +2419,7 @@ static int pn533_setup(struct pn533 *dev)
 			return rc;
 		}
 
-		pn533_fw_reset(dev);
+		pn533_pasori_fw_reset(dev);
 
 		break;
 	}
