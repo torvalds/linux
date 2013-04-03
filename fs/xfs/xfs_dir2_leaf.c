@@ -1881,6 +1881,7 @@ xfs_dir2_node_to_leaf(
 	xfs_mount_t		*mp;		/* filesystem mount point */
 	int			rval;		/* successful free trim? */
 	xfs_trans_t		*tp;		/* transaction pointer */
+	struct xfs_dir3_icfree_hdr freehdr;
 
 	/*
 	 * There's more than a leaf level in the btree, so there must
@@ -1938,15 +1939,15 @@ xfs_dir2_node_to_leaf(
 	if (error)
 		return error;
 	free = fbp->b_addr;
-	ASSERT(free->hdr.magic == cpu_to_be32(XFS_DIR2_FREE_MAGIC));
-	ASSERT(!free->hdr.firstdb);
+	xfs_dir3_free_hdr_from_disk(&freehdr, free);
+
+	ASSERT(!freehdr.firstdb);
 
 	/*
 	 * Now see if the leafn and free data will fit in a leaf1.
 	 * If not, release the buffer and give up.
 	 */
-	if (xfs_dir2_leaf_size(&leaf->hdr, be32_to_cpu(free->hdr.nvalid)) >
-			mp->m_dirblksize) {
+	if (xfs_dir2_leaf_size(&leaf->hdr, freehdr.nvalid) > mp->m_dirblksize) {
 		xfs_trans_brelse(tp, fbp);
 		return 0;
 	}
@@ -1967,12 +1968,12 @@ xfs_dir2_node_to_leaf(
 	 * Set up the leaf tail from the freespace block.
 	 */
 	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
-	ltp->bestcount = free->hdr.nvalid;
+	ltp->bestcount = cpu_to_be32(freehdr.nvalid);
 	/*
 	 * Set up the leaf bests table.
 	 */
-	memcpy(xfs_dir2_leaf_bests_p(ltp), free->bests,
-		be32_to_cpu(ltp->bestcount) * sizeof(xfs_dir2_data_off_t));
+	memcpy(xfs_dir2_leaf_bests_p(ltp), xfs_dir3_free_bests_p(mp, free),
+		freehdr.nvalid * sizeof(xfs_dir2_data_off_t));
 	xfs_dir2_leaf_log_bests(tp, lbp, 0, be32_to_cpu(ltp->bestcount) - 1);
 	xfs_dir2_leaf_log_tail(tp, lbp);
 	xfs_dir2_leaf_check(dp, lbp);

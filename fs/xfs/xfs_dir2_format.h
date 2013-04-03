@@ -66,6 +66,7 @@
 
 #define	XFS_DIR3_BLOCK_MAGIC	0x58444233	/* XDB3: single block dirs */
 #define	XFS_DIR3_DATA_MAGIC	0x58444433	/* XDD3: multiblock dirs */
+#define	XFS_DIR3_FREE_MAGIC	0x58444633	/* XDF3: free index blocks */
 
 /*
  * Byte offset in data block and shortform entry.
@@ -663,10 +664,56 @@ typedef struct xfs_dir2_free {
 						/* unused entries are -1 */
 } xfs_dir2_free_t;
 
-static inline int xfs_dir2_free_max_bests(struct xfs_mount *mp)
+struct xfs_dir3_free_hdr {
+	struct xfs_dir3_blk_hdr	hdr;
+	__be32			firstdb;	/* db of first entry */
+	__be32			nvalid;		/* count of valid entries */
+	__be32			nused;		/* count of used entries */
+};
+
+struct xfs_dir3_free {
+	struct xfs_dir3_free_hdr hdr;
+	__be16			bests[];	/* best free counts */
+						/* unused entries are -1 */
+};
+
+#define XFS_DIR3_FREE_CRC_OFF  offsetof(struct xfs_dir3_free, hdr.hdr.crc)
+
+/*
+ * In core version of the free block header, abstracted away from on-disk format
+ * differences. Use this in the code, and convert to/from the disk version using
+ * xfs_dir3_free_hdr_from_disk/xfs_dir3_free_hdr_to_disk.
+ */
+struct xfs_dir3_icfree_hdr {
+	__uint32_t	magic;
+	__uint32_t	firstdb;
+	__uint32_t	nvalid;
+	__uint32_t	nused;
+
+};
+
+void xfs_dir3_free_hdr_from_disk(struct xfs_dir3_icfree_hdr *to,
+				 struct xfs_dir2_free *from);
+
+static inline int
+xfs_dir3_free_hdr_size(struct xfs_mount *mp)
 {
-	return (mp->m_dirblksize - sizeof(struct xfs_dir2_free_hdr)) /
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		return sizeof(struct xfs_dir3_free_hdr);
+	return sizeof(struct xfs_dir2_free_hdr);
+}
+
+static inline int
+xfs_dir3_free_max_bests(struct xfs_mount *mp)
+{
+	return (mp->m_dirblksize - xfs_dir3_free_hdr_size(mp)) /
 		sizeof(xfs_dir2_data_off_t);
+}
+
+static inline __be16 *
+xfs_dir3_free_bests_p(struct xfs_mount *mp, struct xfs_dir2_free *free)
+{
+	return (__be16 *)((char *)free + xfs_dir3_free_hdr_size(mp));
 }
 
 /*
@@ -675,7 +722,7 @@ static inline int xfs_dir2_free_max_bests(struct xfs_mount *mp)
 static inline xfs_dir2_db_t
 xfs_dir2_db_to_fdb(struct xfs_mount *mp, xfs_dir2_db_t db)
 {
-	return XFS_DIR2_FREE_FIRSTDB(mp) + db / xfs_dir2_free_max_bests(mp);
+	return XFS_DIR2_FREE_FIRSTDB(mp) + db / xfs_dir3_free_max_bests(mp);
 }
 
 /*
@@ -684,7 +731,7 @@ xfs_dir2_db_to_fdb(struct xfs_mount *mp, xfs_dir2_db_t db)
 static inline int
 xfs_dir2_db_to_fdindex(struct xfs_mount *mp, xfs_dir2_db_t db)
 {
-	return db % xfs_dir2_free_max_bests(mp);
+	return db % xfs_dir3_free_max_bests(mp);
 }
 
 /*
