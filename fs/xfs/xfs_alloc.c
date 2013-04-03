@@ -33,7 +33,9 @@
 #include "xfs_alloc.h"
 #include "xfs_extent_busy.h"
 #include "xfs_error.h"
+#include "xfs_cksum.h"
 #include "xfs_trace.h"
+#include "xfs_buf_item.h"
 
 struct workqueue_struct *xfs_alloc_wq;
 
@@ -2058,10 +2060,13 @@ xfs_alloc_log_agf(
 		offsetof(xfs_agf_t, agf_freeblks),
 		offsetof(xfs_agf_t, agf_longest),
 		offsetof(xfs_agf_t, agf_btreeblks),
+		offsetof(xfs_agf_t, agf_uuid),
 		sizeof(xfs_agf_t)
 	};
 
 	trace_xfs_agf(tp->t_mountp, XFS_BUF_TO_AGF(bp), fields, _RET_IP_);
+
+	xfs_trans_buf_set_type(tp, bp, XFS_BLF_AGF_BUF);
 
 	xfs_btree_offsets(fields, offsets, XFS_AGF_NUM_BITS, &first, &last);
 	xfs_trans_log_buf(tp, bp, (uint)first, (uint)last);
@@ -2143,22 +2148,24 @@ xfs_alloc_put_freelist(
 	return 0;
 }
 
-static void
+static bool
 xfs_agf_verify(
+	struct xfs_mount *mp,
 	struct xfs_buf	*bp)
  {
-	struct xfs_mount *mp = bp->b_target->bt_mount;
-	struct xfs_agf	*agf;
-	int		agf_ok;
+	struct xfs_agf	*agf = XFS_BUF_TO_AGF(bp);
 
-	agf = XFS_BUF_TO_AGF(bp);
+	if (xfs_sb_version_hascrc(&mp->m_sb) &&
+	    !uuid_equal(&agf->agf_uuid, &mp->m_sb.sb_uuid))
+			return false;
 
-	agf_ok = agf->agf_magicnum == cpu_to_be32(XFS_AGF_MAGIC) &&
-		XFS_AGF_GOOD_VERSION(be32_to_cpu(agf->agf_versionnum)) &&
-		be32_to_cpu(agf->agf_freeblks) <= be32_to_cpu(agf->agf_length) &&
-		be32_to_cpu(agf->agf_flfirst) < XFS_AGFL_SIZE(mp) &&
-		be32_to_cpu(agf->agf_fllast) < XFS_AGFL_SIZE(mp) &&
-		be32_to_cpu(agf->agf_flcount) <= XFS_AGFL_SIZE(mp);
+	if (!(agf->agf_magicnum == cpu_to_be32(XFS_AGF_MAGIC) &&
+	      XFS_AGF_GOOD_VERSION(be32_to_cpu(agf->agf_versionnum)) &&
+	      be32_to_cpu(agf->agf_freeblks) <= be32_to_cpu(agf->agf_length) &&
+	      be32_to_cpu(agf->agf_flfirst) < XFS_AGFL_SIZE(mp) &&
+	      be32_to_cpu(agf->agf_fllast) < XFS_AGFL_SIZE(mp) &&
+	      be32_to_cpu(agf->agf_flcount) <= XFS_AGFL_SIZE(mp)))
+		return false;
 
 	/*
 	 * during growfs operations, the perag is not fully initialised,
@@ -2166,33 +2173,58 @@ xfs_agf_verify(
 	 * use it by using uncached buffers that don't have the perag attached
 	 * so we can detect and avoid this problem.
 	 */
-	if (bp->b_pag)
-		agf_ok = agf_ok && be32_to_cpu(agf->agf_seqno) ==
-						bp->b_pag->pag_agno;
+	if (bp->b_pag && be32_to_cpu(agf->agf_seqno) != bp->b_pag->pag_agno)
+		return false;
 
-	if (xfs_sb_version_haslazysbcount(&mp->m_sb))
-		agf_ok = agf_ok && be32_to_cpu(agf->agf_btreeblks) <=
-						be32_to_cpu(agf->agf_length);
+	if (xfs_sb_version_haslazysbcount(&mp->m_sb) &&
+	    be32_to_cpu(agf->agf_btreeblks) > be32_to_cpu(agf->agf_length))
+		return false;
 
-	if (unlikely(XFS_TEST_ERROR(!agf_ok, mp, XFS_ERRTAG_ALLOC_READ_AGF,
-			XFS_RANDOM_ALLOC_READ_AGF))) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, agf);
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
-	}
+	return true;;
+
 }
 
 static void
 xfs_agf_read_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_agf_verify(bp);
+	struct xfs_mount *mp = bp->b_target->bt_mount;
+	int		agf_ok = 1;
+
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		agf_ok = xfs_verify_cksum(bp->b_addr, BBTOB(bp->b_length),
+					  offsetof(struct xfs_agf, agf_crc));
+
+	agf_ok = agf_ok && xfs_agf_verify(mp, bp);
+
+	if (unlikely(XFS_TEST_ERROR(!agf_ok, mp, XFS_ERRTAG_ALLOC_READ_AGF,
+			XFS_RANDOM_ALLOC_READ_AGF))) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
 }
 
 static void
 xfs_agf_write_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_agf_verify(bp);
+	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+
+	if (!xfs_agf_verify(mp, bp)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		return;
+	}
+
+	if (!xfs_sb_version_hascrc(&mp->m_sb))
+		return;
+
+	if (bip)
+		XFS_BUF_TO_AGF(bp)->agf_lsn = cpu_to_be64(bip->bli_item.li_lsn);
+
+	xfs_update_cksum(bp->b_addr, BBTOB(bp->b_length),
+			 offsetof(struct xfs_agf, agf_crc));
 }
 
 const struct xfs_buf_ops xfs_agf_buf_ops = {

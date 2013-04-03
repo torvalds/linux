@@ -45,12 +45,14 @@ extern kmem_zone_t	*xfs_buf_item_zone;
  * once the changes have been replayed into the buffer.
  */
 #define XFS_BLF_BTREE_BUF	(1<<5)
+#define XFS_BLF_AGF_BUF		(1<<6)
 
 #define XFS_BLF_TYPE_MASK	\
 		(XFS_BLF_UDQUOT_BUF | \
 		 XFS_BLF_PDQUOT_BUF | \
 		 XFS_BLF_GDQUOT_BUF | \
-		 XFS_BLF_BTREE_BUF)
+		 XFS_BLF_BTREE_BUF | \
+		 XFS_BLF_AGF_BUF)
 
 #define	XFS_BLF_CHUNK		128
 #define	XFS_BLF_SHIFT		7

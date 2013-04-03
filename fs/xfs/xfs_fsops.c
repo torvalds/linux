@@ -247,6 +247,9 @@ xfs_growfs_data_private(
 		tmpsize = agsize - XFS_PREALLOC_BLOCKS(mp);
 		agf->agf_freeblks = cpu_to_be32(tmpsize);
 		agf->agf_longest = cpu_to_be32(tmpsize);
+		if (xfs_sb_version_hascrc(&mp->m_sb))
+			uuid_copy(&agf->agf_uuid, &mp->m_sb.sb_uuid);
+
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);
 		if (error)

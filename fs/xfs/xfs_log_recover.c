@@ -1953,6 +1953,14 @@ xlog_recover_do_reg_buffer(
 			break;
 		}
 		break;
+	case XFS_BLF_AGF_BUF:
+		if (*(__be32 *)bp->b_addr != cpu_to_be32(XFS_AGF_MAGIC)) {
+			xfs_warn(mp, "Bad AGF block magic!");
+			ASSERT(0);
+			break;
+		}
+		bp->b_ops = &xfs_agf_buf_ops;
+		break;
 	default:
 		break;
 	}
