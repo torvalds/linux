@@ -248,9 +248,27 @@ done:
 	return NETDEV_TX_OK;
 }
 
+void brcmf_txflowblock_if(struct brcmf_if *ifp,
+			  enum brcmf_netif_stop_reason reason, bool state)
+{
+	if (!ifp)
+		return;
+
+	brcmf_dbg(TRACE, "enter: idx=%d stop=0x%X reason=%d state=%d\n",
+		  ifp->bssidx, ifp->netif_stop, reason, state);
+	if (state) {
+		if (!ifp->netif_stop)
+			netif_stop_queue(ifp->ndev);
+		ifp->netif_stop |= reason;
+	} else {
+		ifp->netif_stop &= ~reason;
+		if (!ifp->netif_stop)
+			netif_wake_queue(ifp->ndev);
+	}
+}
+
 void brcmf_txflowblock(struct device *dev, bool state)
 {
-	struct net_device *ndev;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
 	int i;
@@ -258,13 +276,8 @@ void brcmf_txflowblock(struct device *dev, bool state)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	for (i = 0; i < BRCMF_MAX_IFS; i++)
-		if (drvr->iflist[i]) {
-			ndev = drvr->iflist[i]->ndev;
-			if (state)
-				netif_stop_queue(ndev);
-			else
-				netif_wake_queue(ndev);
-		}
+		brcmf_txflowblock_if(drvr->iflist[i],
+				     BRCMF_NETIF_STOP_REASON_BLOCK_BUS, state);
 }
 
 void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
