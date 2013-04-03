@@ -157,11 +157,6 @@ static const struct comedi_lrange range_ni_M_625x_ao = { 3, {
 							     }
 };
 
-static const struct comedi_lrange range_ni_M_622x_ao = { 1, {
-							     RANGE(-10, 10),
-							     }
-};
-
 enum ni_pcimio_boardid {
 	BOARD_PCIMIO_16XE_50,
 	BOARD_PCIMIO_16XE_10,
@@ -760,7 +755,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.n_aochan	= 2,
 		.aobits		= 16,
 		.ao_fifo_depth	= 8191,
-		.ao_range_table	= &range_ni_M_622x_ao,
+		.ao_range_table	= &range_bipolar10,
 		.reg_type	= ni_reg_622x,
 		.ao_speed	= 1200,
 		.num_p0_dio_channels = 8,
@@ -776,7 +771,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.n_aochan	= 2,
 		.aobits		= 16,
 		.ao_fifo_depth	= 8191,
-		.ao_range_table	= &range_ni_M_622x_ao,
+		.ao_range_table	= &range_bipolar10,
 		.reg_type	= ni_reg_622x,
 		.ao_speed	= 1200,
 		.num_p0_dio_channels = 8,
@@ -814,7 +809,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.n_aochan	= 2,
 		.aobits		= 16,
 		.ao_fifo_depth	= 8191,
-		.ao_range_table	= &range_ni_M_622x_ao,
+		.ao_range_table	= &range_bipolar10,
 		.reg_type	= ni_reg_622x,
 		.ao_speed	= 1200,
 		.num_p0_dio_channels = 32,
@@ -830,7 +825,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.n_aochan	= 2,
 		.aobits		= 16,
 		.ao_fifo_depth	= 8191,
-		.ao_range_table	= &range_ni_M_622x_ao,
+		.ao_range_table	= &range_bipolar10,
 		.reg_type	= ni_reg_622x,
 		.ao_speed	= 1200,
 		.num_p0_dio_channels = 32,
@@ -846,7 +841,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.n_aochan	= 4,
 		.aobits		= 16,
 		.ao_fifo_depth	= 8191,
-		.ao_range_table	= &range_ni_M_622x_ao,
+		.ao_range_table	= &range_bipolar10,
 		.reg_type	= ni_reg_622x,
 		.ao_speed	= 1200,
 		.num_p0_dio_channels = 32,
