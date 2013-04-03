@@ -197,6 +197,7 @@ struct brcmf_fws_info {
 	struct brcmf_pub *drvr;
 	struct brcmf_fws_stats stats;
 	struct brcmf_fws_mac_descriptor nodes[BRCMF_FWS_MAC_DESC_TABLE_SIZE];
+	struct brcmf_fws_mac_descriptor other;
 	int fifo_credit[NL80211_NUM_ACS+1+1];
 };
 
@@ -262,6 +263,38 @@ brcmf_fws_mac_descriptor_lookup(struct brcmf_fws_info *fws, u8 *ea)
 	}
 
 	return ERR_PTR(-ENOENT);
+}
+
+static void brcmf_fws_mac_desc_cleanup(struct brcmf_fws_mac_descriptor *entry,
+				       bool (*fn)(struct sk_buff *, void *),
+				       int ifidx)
+{
+	brcmf_dbg(TRACE, "enter: entry=(ea=%pM,ifid=%d), ifidx=%d\n",
+		  entry->ea, entry->interface_id, ifidx);
+	if (entry->occupied && (fn == NULL || (ifidx == entry->interface_id))) {
+		brcmf_dbg(TRACE, "flush delayQ: ifidx=%d, qlen=%d\n",
+			  ifidx, entry->psq.len);
+		/* release packets held in DELAYQ */
+		brcmu_pktq_flush(&entry->psq, true, fn, &ifidx);
+		entry->occupied = !!(entry->psq.len);
+	}
+}
+
+static void brcmf_fws_cleanup(struct brcmf_fws_info *fws, int ifidx)
+{
+	int i;
+	struct brcmf_fws_mac_descriptor *table;
+
+	brcmf_dbg(TRACE, "enter: ifidx=%d\n", ifidx);
+	if (fws == NULL)
+		return;
+
+	/* cleanup individual nodes */
+	table = &fws->nodes[0];
+	for (i = 0; i < ARRAY_SIZE(fws->nodes); i++)
+		brcmf_fws_mac_desc_cleanup(&table[i], NULL, ifidx);
+
+	brcmf_fws_mac_desc_cleanup(&fws->other, NULL, ifidx);
 }
 
 static int brcmf_fws_rssi_indicate(struct brcmf_fws_info *fws, s8 rssi)
@@ -394,11 +427,11 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 		goto fail;
 	}
 
-	/* set linkage back */
-	drvr->fws->drvr = drvr;
-
 	/* create debugfs file for statistics */
 	brcmf_debugfs_create_fws_stats(drvr, &drvr->fws->stats);
+
+	/* set linkage back */
+	drvr->fws->drvr = drvr;
 
 	/* TODO: remove upon feature delivery */
 	brcmf_err("%s bdcv2 tlv signaling [%x]\n",
@@ -414,9 +447,17 @@ fail:
 
 void brcmf_fws_deinit(struct brcmf_pub *drvr)
 {
-	/* free top structure */
-	kfree(drvr->fws);
+	struct brcmf_fws_info *fws = drvr->fws;
+	ulong flags;
+
+	/* cleanup */
+	brcmf_fws_lock(drvr, flags);
+	brcmf_fws_cleanup(fws, -1);
 	drvr->fws = NULL;
+	brcmf_fws_unlock(drvr, flags);
+
+	/* free top structure */
+	kfree(fws);
 }
 
 int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
