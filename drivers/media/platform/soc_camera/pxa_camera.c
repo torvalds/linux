@@ -1796,7 +1796,7 @@ static int pxa_camera_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct dev_pm_ops pxa_camera_pm = {
+static const struct dev_pm_ops pxa_camera_pm = {
 	.suspend	= pxa_camera_suspend,
 	.resume		= pxa_camera_resume,
 };
