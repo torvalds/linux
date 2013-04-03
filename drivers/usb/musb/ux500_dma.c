@@ -1,7 +1,7 @@
 /*
  * drivers/usb/musb/ux500_dma.c
  *
- * U8500 and U5500 DMA support code
+ * U8500 DMA support code
  *
  * Copyright (C) 2009 STMicroelectronics
  * Copyright (C) 2011 ST-Ericsson SA
