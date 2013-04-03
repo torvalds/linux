@@ -394,7 +394,7 @@ struct rtd_private {
 	void __iomem *las1;
 	void __iomem *lcfg;
 
-	long aiCount;		/* total transfer size (samples) */
+	long ai_count;		/* total transfer size (samples) */
 	int xfer_count;		/* # to transfer data. 0->1/2FIFO */
 	int flags;		/* flag event modes */
 
@@ -653,7 +653,7 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 		short sample;
 		s16 d;
 
-		if (0 == devpriv->aiCount) {	/* done */
+		if (0 == devpriv->ai_count) {	/* done */
 			d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 			continue;
 		}
@@ -669,8 +669,8 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 		if (!comedi_buf_put(s->async, sample))
 			return -1;
 
-		if (devpriv->aiCount > 0)	/* < 0, means read forever */
-			devpriv->aiCount--;
+		if (devpriv->ai_count > 0)	/* < 0, means read forever */
+			devpriv->ai_count--;
 	}
 	return 0;
 }
@@ -686,7 +686,7 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 		short sample;
 		s16 d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 
-		if (0 == devpriv->aiCount) {	/* done */
+		if (0 == devpriv->ai_count) {	/* done */
 			continue;	/* read rest */
 		}
 
@@ -700,8 +700,8 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 		if (!comedi_buf_put(s->async, sample))
 			return -1;
 
-		if (devpriv->aiCount > 0)	/* < 0, means read forever */
-			devpriv->aiCount--;
+		if (devpriv->ai_count > 0)	/* < 0, means read forever */
+			devpriv->ai_count--;
 	}
 	return 0;
 }
@@ -746,7 +746,7 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 			if (ai_read_n(dev, s, devpriv->fifosz / 2) < 0)
 				goto xfer_abort;
 
-			if (0 == devpriv->aiCount)
+			if (0 == devpriv->ai_count)
 				goto xfer_done;
 
 			comedi_event(dev, s);
@@ -756,7 +756,7 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 				if (ai_read_n(dev, s, devpriv->xfer_count) < 0)
 					goto xfer_abort;
 
-				if (0 == devpriv->aiCount)
+				if (0 == devpriv->ai_count)
 					goto xfer_done;
 
 				comedi_event(dev, s);
@@ -776,7 +776,7 @@ static irqreturn_t rtd_interrupt(int irq, void *d)
 xfer_abort:
 	writel(0, devpriv->las0 + LAS0_ADC_FIFO_CLEAR);
 	s->async->events |= COMEDI_CB_ERROR;
-	devpriv->aiCount = 0;	/* stop and don't transfer any more */
+	devpriv->ai_count = 0;	/* stop and don't transfer any more */
 	/* fall into xfer_done */
 
 xfer_done:
@@ -786,7 +786,7 @@ xfer_done:
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	writew(0, devpriv->las0 + LAS0_IT);
 
-	if (devpriv->aiCount > 0) {	/* there shouldn't be anything left */
+	if (devpriv->ai_count > 0) {	/* there shouldn't be anything left */
 		fifo_status = readl(devpriv->las0 + LAS0_ADC);
 		ai_read_dregs(dev, s);	/* read anything left in FIFO */
 	}
@@ -1056,15 +1056,15 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* First, setup when to stop */
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:	/* stop after N scans */
-		devpriv->aiCount = cmd->stop_arg * cmd->chanlist_len;
+		devpriv->ai_count = cmd->stop_arg * cmd->chanlist_len;
 		if ((devpriv->xfer_count > 0)
-		    && (devpriv->xfer_count > devpriv->aiCount)) {
-			devpriv->xfer_count = devpriv->aiCount;
+		    && (devpriv->xfer_count > devpriv->ai_count)) {
+			devpriv->xfer_count = devpriv->ai_count;
 		}
 		break;
 
 	case TRIG_NONE:	/* stop when cancel is called */
-		devpriv->aiCount = -1;	/* read forever */
+		devpriv->ai_count = -1;	/* read forever */
 		break;
 	}
 
@@ -1136,7 +1136,7 @@ static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 	writel(0, devpriv->las0 + LAS0_PACER);	/* stop pacer */
 	writel(0, devpriv->las0 + LAS0_ADC_CONVERSION);
 	writew(0, devpriv->las0 + LAS0_IT);
-	devpriv->aiCount = 0;	/* stop and don't transfer any more */
+	devpriv->ai_count = 0;	/* stop and don't transfer any more */
 	status = readw(devpriv->las0 + LAS0_IT);
 	overrun = readl(devpriv->las0 + LAS0_OVERRUN) & 0xffff;
 	return 0;
