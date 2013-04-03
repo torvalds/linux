@@ -1588,7 +1588,7 @@ xfs_dir2_node_addname_int(
 		if (unlikely((error = xfs_dir2_grow_inode(args,
 							 XFS_DIR2_DATA_SPACE,
 							 &dbno)) ||
-		    (error = xfs_dir2_data_init(args, dbno, &dbp))))
+		    (error = xfs_dir3_data_init(args, dbno, &dbp))))
 			return error;
 
 		/*

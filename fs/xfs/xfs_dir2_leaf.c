@@ -149,6 +149,7 @@ xfs_dir2_block_to_leaf(
 	int			needlog;	/* need to log block header */
 	int			needscan;	/* need to rescan bestfree */
 	xfs_trans_t		*tp;		/* transaction pointer */
+	struct xfs_dir2_data_free	*bf;
 
 	trace_xfs_dir2_block_to_leaf(args);
 
@@ -177,6 +178,7 @@ xfs_dir2_block_to_leaf(
 	xfs_dir2_data_check(dp, dbp);
 	btp = xfs_dir2_block_tail_p(mp, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
+	bf = xfs_dir3_data_bestfree_p(hdr);
 	/*
 	 * Set the counts in the leaf header.
 	 */
@@ -212,7 +214,7 @@ xfs_dir2_block_to_leaf(
 	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
 	ltp->bestcount = cpu_to_be32(1);
 	bestsp = xfs_dir2_leaf_bests_p(ltp);
-	bestsp[0] =  hdr->bestfree[0].length;
+	bestsp[0] =  bf[0].length;
 	/*
 	 * Log the data header and leaf bests table.
 	 */
@@ -544,7 +546,7 @@ xfs_dir2_leaf_addname(
 		/*
 		 * Initialize the block.
 		 */
-		if ((error = xfs_dir2_data_init(args, use_block, &dbp))) {
+		if ((error = xfs_dir3_data_init(args, use_block, &dbp))) {
 			xfs_trans_brelse(tp, lbp);
 			return error;
 		}

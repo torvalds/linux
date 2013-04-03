@@ -30,7 +30,7 @@ extern int xfs_dir_cilookup_result(struct xfs_da_args *args,
 				const unsigned char *name, int len);
 
 /* xfs_dir2_block.c */
-extern const struct xfs_buf_ops xfs_dir2_block_buf_ops;
+extern const struct xfs_buf_ops xfs_dir3_block_buf_ops;
 
 extern int xfs_dir2_block_addname(struct xfs_da_args *args);
 extern int xfs_dir2_block_getdents(struct xfs_inode *dp, void *dirent,
@@ -61,7 +61,7 @@ xfs_dir2_data_freeinsert(struct xfs_dir2_data_hdr *hdr,
 		struct xfs_dir2_data_unused *dup, int *loghead);
 extern void xfs_dir2_data_freescan(struct xfs_mount *mp,
 		struct xfs_dir2_data_hdr *hdr, int *loghead);
-extern int xfs_dir2_data_init(struct xfs_da_args *args, xfs_dir2_db_t blkno,
+extern int xfs_dir3_data_init(struct xfs_da_args *args, xfs_dir2_db_t blkno,
 		struct xfs_buf **bpp);
 extern void xfs_dir2_data_log_entry(struct xfs_trans *tp, struct xfs_buf *bp,
 		struct xfs_dir2_data_entry *dep);

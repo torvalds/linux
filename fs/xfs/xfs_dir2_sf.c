@@ -278,7 +278,7 @@ xfs_dir2_block_to_sf(
 	 * Set up to loop over the block's entries.
 	 */
 	btp = xfs_dir2_block_tail_p(mp, hdr);
-	ptr = (char *)(hdr + 1);
+	ptr = (char *)xfs_dir3_data_entry_p(hdr);
 	endptr = (char *)xfs_dir2_block_leaf_p(btp);
 	sfep = xfs_dir2_sf_firstentry(sfp);
 	/*
