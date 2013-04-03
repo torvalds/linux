@@ -600,10 +600,24 @@ int arizona_dev_init(struct arizona *arizona)
 		}
 	}
 
-	ret = arizona_wait_for_boot(arizona);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Device failed initial boot: %d\n", ret);
-		goto err_reset;
+	switch (arizona->type) {
+	case WM5102:
+		ret = regmap_read(arizona->regmap, 0x19, &val);
+		if (ret != 0)
+			dev_err(dev,
+				"Failed to check write sequencer state: %d\n",
+				ret);
+		else if (val & 0x01)
+			break;
+		/* Fall through */
+	default:
+		ret = arizona_wait_for_boot(arizona);
+		if (ret != 0) {
+			dev_err(arizona->dev,
+				"Device failed initial boot: %d\n", ret);
+			goto err_reset;
+		}
+		break;
 	}
 
 	if (apply_patch) {
