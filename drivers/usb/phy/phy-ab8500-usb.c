@@ -130,6 +130,7 @@ struct ab8500_usb {
 	struct regulator *v_ape;
 	struct regulator *v_musb;
 	struct regulator *v_ulpi;
+	int saved_v_ulpi;
 	int previous_link_status_state;
 };
 
@@ -161,6 +162,67 @@ static void ab8500_usb_wd_workaround(struct ab8500_usb *ab)
 		0);
 }
 
+static void ab8500_usb_regulator_enable(struct ab8500_usb *ab)
+{
+	int ret, volt;
+
+	regulator_enable(ab->v_ape);
+
+	if (!is_ab8500_2p0_or_earlier(ab->ab8500)) {
+		ab->saved_v_ulpi = regulator_get_voltage(ab->v_ulpi);
+		if (ab->saved_v_ulpi < 0)
+			dev_err(ab->dev, "Failed to get v_ulpi voltage\n");
+
+		ret = regulator_set_voltage(ab->v_ulpi, 1300000, 1350000);
+		if (ret < 0)
+			dev_err(ab->dev, "Failed to set the Vintcore to 1.3V, ret=%d\n",
+					ret);
+
+		ret = regulator_set_optimum_mode(ab->v_ulpi, 28000);
+		if (ret < 0)
+			dev_err(ab->dev, "Failed to set optimum mode (ret=%d)\n",
+					ret);
+	}
+
+	regulator_enable(ab->v_ulpi);
+
+	if (!is_ab8500_2p0_or_earlier(ab->ab8500)) {
+		volt = regulator_get_voltage(ab->v_ulpi);
+		if ((volt != 1300000) && (volt != 1350000))
+			dev_err(ab->dev, "Vintcore is not set to 1.3V volt=%d\n",
+					volt);
+	}
+
+	regulator_enable(ab->v_musb);
+}
+
+static void ab8500_usb_regulator_disable(struct ab8500_usb *ab)
+{
+	int ret;
+
+	regulator_disable(ab->v_musb);
+
+	regulator_disable(ab->v_ulpi);
+
+	/* USB is not the only consumer of Vintcore, restore old settings */
+	if (!is_ab8500_2p0_or_earlier(ab->ab8500)) {
+		if (ab->saved_v_ulpi > 0) {
+			ret = regulator_set_voltage(ab->v_ulpi,
+					ab->saved_v_ulpi, ab->saved_v_ulpi);
+			if (ret < 0)
+				dev_err(ab->dev, "Failed to set the Vintcore to %duV, ret=%d\n",
+						ab->saved_v_ulpi, ret);
+		}
+
+		ret = regulator_set_optimum_mode(ab->v_ulpi, 0);
+		if (ret < 0)
+			dev_err(ab->dev, "Failed to set optimum mode (ret=%d)\n",
+					ret);
+	}
+
+	regulator_disable(ab->v_ape);
+}
+
 static void ab8500_usb_wd_linkstatus(struct ab8500_usb *ab, u8 bit)
 {
 	/* Workaround for v2.0 bug # 31952 */
@@ -177,6 +239,8 @@ static void ab8500_usb_phy_enable(struct ab8500_usb *ab, bool sel_host)
 	u8 bit;
 	bit = sel_host ? AB8500_BIT_PHY_CTRL_HOST_EN :
 		AB8500_BIT_PHY_CTRL_DEVICE_EN;
+
+	ab8500_usb_regulator_enable(ab);
 
 	abx500_mask_and_set_register_interruptible(ab->dev,
 			AB8500_USB, AB8500_USB_PHY_CTRL_REG,
@@ -197,6 +261,8 @@ static void ab8500_usb_phy_disable(struct ab8500_usb *ab, bool sel_host)
 
 	/* Needed to disable the phy.*/
 	ab8500_usb_wd_workaround(ab);
+
+	ab8500_usb_regulator_disable(ab);
 }
 
 #define ab8500_usb_host_phy_en(ab)	ab8500_usb_phy_enable(ab, true)
@@ -544,7 +610,6 @@ static int ab8500_usb_set_peripheral(struct usb_otg *otg,
 	 */
 
 	if (!gadget) {
-		/* TODO: Disable regulators. */
 		otg->gadget = NULL;
 		schedule_work(&ab->phy_dis_work);
 	} else {
@@ -576,7 +641,6 @@ static int ab8500_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 	 */
 
 	if (!host) {
-		/* TODO: Disable regulators. */
 		otg->host = NULL;
 		schedule_work(&ab->phy_dis_work);
 	} else {
