@@ -189,11 +189,6 @@ static const struct comedi_lrange range_ni_M_ai_628x = { 7, {
 							     }
 };
 
-static const struct comedi_lrange range_ni_S_ai_6143 = { 1, {
-							     RANGE(-5, +5),
-							     }
-};
-
 static const struct comedi_lrange range_ni_E_ao_ext = { 4, {
 							    RANGE(-10, 10),
 							    RANGE(0, 10),
@@ -210,7 +205,7 @@ static const struct comedi_lrange *const ni_range_lkup[] = {
 	[ai_gain_611x] = &range_ni_E_ai_611x,
 	[ai_gain_622x] = &range_ni_M_ai_622x,
 	[ai_gain_628x] = &range_ni_M_ai_628x,
-	[ai_gain_6143] = &range_ni_S_ai_6143
+	[ai_gain_6143] = &range_bipolar5
 };
 
 static int ni_dio_insn_config(struct comedi_device *dev,
