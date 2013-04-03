@@ -384,9 +384,17 @@ static void __twl4030_phy_power(struct twl4030_usb *twl, int on)
 
 static void twl4030_phy_power(struct twl4030_usb *twl, int on)
 {
+	int ret;
+
 	if (on) {
-		regulator_enable(twl->usb3v1);
-		regulator_enable(twl->usb1v8);
+		ret = regulator_enable(twl->usb3v1);
+		if (ret)
+			dev_err(twl->dev, "Failed to enable usb3v1\n");
+
+		ret = regulator_enable(twl->usb1v8);
+		if (ret)
+			dev_err(twl->dev, "Failed to enable usb1v8\n");
+
 		/*
 		 * Disabling usb3v1 regulator (= writing 0 to VUSB3V1_DEV_GRP
 		 * in twl4030) resets the VUSB_DEDICATED2 register. This reset
@@ -395,7 +403,11 @@ static void twl4030_phy_power(struct twl4030_usb *twl, int on)
 		 * is re-activated. This ensures that VUSB3V1 is really active.
 		 */
 		twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER, 0, VUSB_DEDICATED2);
-		regulator_enable(twl->usb1v5);
+
+		ret = regulator_enable(twl->usb1v5);
+		if (ret)
+			dev_err(twl->dev, "Failed to enable usb1v5\n");
+
 		__twl4030_phy_power(twl, 1);
 		twl4030_usb_write(twl, PHY_CLK_CTRL,
 				  twl4030_usb_read(twl, PHY_CLK_CTRL) |
