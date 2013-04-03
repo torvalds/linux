@@ -331,7 +331,6 @@ struct pn533 {
 	struct list_head cmd_queue;
 	struct pn533_cmd *cmd;
 	u8 cmd_pending;
-	int wq_in_error;
 	struct mutex cmd_lock;  /* protects cmd queue */
 
 	void *cmd_complete_mi_arg;
@@ -357,6 +356,7 @@ struct pn533 {
 struct pn533_cmd {
 	struct list_head queue;
 	u8 code;
+	int status;
 	struct sk_buff *req;
 	struct sk_buff *resp;
 	int resp_len;
@@ -506,7 +506,10 @@ static bool pn533_rx_frame_is_cmd_response(struct pn533 *dev, void *frame)
 static void pn533_recv_response(struct urb *urb)
 {
 	struct pn533 *dev = urb->context;
+	struct pn533_cmd *cmd = dev->cmd;
 	u8 *in_frame;
+
+	cmd->status = urb->status;
 
 	switch (urb->status) {
 	case 0:
@@ -516,13 +519,11 @@ static void pn533_recv_response(struct urb *urb)
 		nfc_dev_dbg(&dev->interface->dev,
 			    "The urb has been canceled (status %d)",
 			    urb->status);
-		dev->wq_in_error = urb->status;
 		goto sched_wq;
 	case -ESHUTDOWN:
 	default:
 		nfc_dev_err(&dev->interface->dev,
 			    "Urb failure (status %d)", urb->status);
-		dev->wq_in_error = urb->status;
 		goto sched_wq;
 	}
 
@@ -534,18 +535,16 @@ static void pn533_recv_response(struct urb *urb)
 
 	if (!dev->ops->rx_is_frame_valid(in_frame)) {
 		nfc_dev_err(&dev->interface->dev, "Received an invalid frame");
-		dev->wq_in_error = -EIO;
+		cmd->status = -EIO;
 		goto sched_wq;
 	}
 
 	if (!pn533_rx_frame_is_cmd_response(dev, in_frame)) {
 		nfc_dev_err(&dev->interface->dev,
 			    "It it not the response to the last command");
-		dev->wq_in_error = -EIO;
+		cmd->status = -EIO;
 		goto sched_wq;
 	}
-
-	dev->wq_in_error = 0;
 
 sched_wq:
 	queue_work(dev->wq, &dev->cmd_complete_work);
@@ -561,8 +560,11 @@ static int pn533_submit_urb_for_response(struct pn533 *dev, gfp_t flags)
 static void pn533_recv_ack(struct urb *urb)
 {
 	struct pn533 *dev = urb->context;
+	struct pn533_cmd *cmd = dev->cmd;
 	struct pn533_std_frame *in_frame;
 	int rc;
+
+	cmd->status = urb->status;
 
 	switch (urb->status) {
 	case 0:
@@ -572,13 +574,11 @@ static void pn533_recv_ack(struct urb *urb)
 		nfc_dev_dbg(&dev->interface->dev,
 			    "The urb has been stopped (status %d)",
 			    urb->status);
-		dev->wq_in_error = urb->status;
 		goto sched_wq;
 	case -ESHUTDOWN:
 	default:
 		nfc_dev_err(&dev->interface->dev,
 			    "Urb failure (status %d)", urb->status);
-		dev->wq_in_error = urb->status;
 		goto sched_wq;
 	}
 
@@ -586,7 +586,7 @@ static void pn533_recv_ack(struct urb *urb)
 
 	if (!pn533_std_rx_frame_is_ack(in_frame)) {
 		nfc_dev_err(&dev->interface->dev, "Received an invalid ack");
-		dev->wq_in_error = -EIO;
+		cmd->status = -EIO;
 		goto sched_wq;
 	}
 
@@ -594,7 +594,7 @@ static void pn533_recv_ack(struct urb *urb)
 	if (rc) {
 		nfc_dev_err(&dev->interface->dev,
 			    "usb_submit_urb failed with result %d", rc);
-		dev->wq_in_error = rc;
+		cmd->status = rc;
 		goto sched_wq;
 	}
 
@@ -676,7 +676,7 @@ static void pn533_build_cmd_frame(struct pn533 *dev, u8 cmd_code,
 static int pn533_send_async_complete(struct pn533 *dev)
 {
 	struct pn533_cmd *cmd = dev->cmd;
-	int status = dev->wq_in_error;
+	int status = cmd->status;
 
 	struct sk_buff *req = cmd->req;
 	struct sk_buff *resp = cmd->resp;
