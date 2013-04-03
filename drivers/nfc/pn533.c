@@ -1113,6 +1113,23 @@ static void pn533_send_complete(struct urb *urb)
 	}
 }
 
+static void pn533_abort_cmd(struct pn533 *dev, gfp_t flags)
+{
+	/* ACR122U does not support any command which aborts last
+	 * issued command i.e. as ACK for standard PN533. Additionally,
+	 * it behaves stange, sending broken or incorrect responses,
+	 * when we cancel urb before the chip will send response.
+	 */
+	if (dev->device_type == PN533_DEVICE_ACR122U)
+		return;
+
+	/* An ack will cancel the last issued command */
+	pn533_send_ack(dev, flags);
+
+	/* cancel the urb request */
+	usb_kill_urb(dev->in_urb);
+}
+
 static struct sk_buff *pn533_alloc_skb(struct pn533 *dev, unsigned int size)
 {
 	struct sk_buff *skb;
@@ -1631,9 +1648,6 @@ static void pn533_listen_mode_timer(unsigned long data)
 
 	nfc_dev_dbg(&dev->interface->dev, "Listen mode timeout");
 
-	/* An ack will cancel the last issued command (poll) */
-	pn533_send_ack(dev, GFP_ATOMIC);
-
 	dev->cancel_listen = 1;
 
 	pn533_poll_next_mod(dev);
@@ -1763,7 +1777,7 @@ static void pn533_wq_poll(struct work_struct *work)
 
 	if (dev->cancel_listen == 1) {
 		dev->cancel_listen = 0;
-		usb_kill_urb(dev->in_urb);
+		pn533_abort_cmd(dev, GFP_ATOMIC);
 	}
 
 	rc = pn533_send_poll_frame(dev);
@@ -1825,12 +1839,7 @@ static void pn533_stop_poll(struct nfc_dev *nfc_dev)
 		return;
 	}
 
-	/* An ack will cancel the last issued command (poll) */
-	pn533_send_ack(dev, GFP_KERNEL);
-
-	/* prevent pn533_start_poll_complete to issue a new poll meanwhile */
-	usb_kill_urb(dev->in_urb);
-
+	pn533_abort_cmd(dev, GFP_KERNEL);
 	pn533_poll_reset_mod_list(dev);
 }
 
@@ -2123,10 +2132,8 @@ static int pn533_dep_link_down(struct nfc_dev *nfc_dev)
 
 	pn533_poll_reset_mod_list(dev);
 
-	if (dev->tgt_mode || dev->tgt_active_prot) {
-		pn533_send_ack(dev, GFP_KERNEL);
-		usb_kill_urb(dev->in_urb);
-	}
+	if (dev->tgt_mode || dev->tgt_active_prot)
+		pn533_abort_cmd(dev, GFP_KERNEL);
 
 	dev->tgt_active_prot = 0;
 	dev->tgt_mode = 0;
