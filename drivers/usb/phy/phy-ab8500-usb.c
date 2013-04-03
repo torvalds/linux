@@ -628,15 +628,13 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ab = kzalloc(sizeof *ab, GFP_KERNEL);
+	ab = devm_kzalloc(&pdev->dev, sizeof(*ab), GFP_KERNEL);
 	if (!ab)
 		return -ENOMEM;
 
-	otg = kzalloc(sizeof *otg, GFP_KERNEL);
-	if (!otg) {
-		kfree(ab);
+	otg = devm_kzalloc(&pdev->dev, sizeof(*otg), GFP_KERNEL);
+	if (!otg)
 		return -ENOMEM;
-	}
 
 	ab->dev			= &pdev->dev;
 	ab->ab8500		= ab8500;
@@ -665,12 +663,12 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 
 	err = ab8500_usb_irq_setup(pdev, ab);
 	if (err < 0)
-		goto fail;
+		return err;
 
 	err = usb_add_phy(&ab->phy, USB_PHY_TYPE_USB2);
 	if (err) {
 		dev_err(&pdev->dev, "Can't register transceiver\n");
-		goto fail;
+		return err;
 	}
 
 	/* Needed to enable ID detection. */
@@ -679,10 +677,6 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "revision 0x%2x driver initialized\n", rev);
 
 	return 0;
-fail:
-	kfree(otg);
-	kfree(ab);
-	return err;
 }
 
 static int ab8500_usb_remove(struct platform_device *pdev)
@@ -699,9 +693,6 @@ static int ab8500_usb_remove(struct platform_device *pdev)
 	ab8500_usb_peri_phy_dis(ab);
 
 	platform_set_drvdata(pdev, NULL);
-
-	kfree(ab->phy.otg);
-	kfree(ab);
 
 	return 0;
 }
