@@ -192,3 +192,16 @@ bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 
 	return false;
 }
+
+unsigned long
+arch_uretprobe_hijack_return_addr(unsigned long trampoline_vaddr, struct pt_regs *regs)
+{
+	unsigned long orig_ret_vaddr;
+
+	orig_ret_vaddr = regs->link;
+
+	/* Replace the return addr with trampoline addr */
+	regs->link = trampoline_vaddr;
+
+	return orig_ret_vaddr;
+}
