@@ -502,6 +502,18 @@ static void nfs_mark_return_delegation(struct nfs_server *server,
 	set_bit(NFS4CLNT_DELEGRETURN, &server->nfs_client->cl_state);
 }
 
+static bool nfs_server_mark_return_all_delegations(struct nfs_server *server)
+{
+	struct nfs_delegation *delegation;
+	bool ret = false;
+
+	list_for_each_entry_rcu(delegation, &server->delegations, super_list) {
+		nfs_mark_return_delegation(server, delegation);
+		ret = true;
+	}
+	return ret;
+}
+
 /**
  * nfs_super_return_all_delegations - return delegations for one superblock
  * @sb: sb to process
@@ -510,21 +522,19 @@ static void nfs_mark_return_delegation(struct nfs_server *server,
 void nfs_server_return_all_delegations(struct nfs_server *server)
 {
 	struct nfs_client *clp = server->nfs_client;
-	struct nfs_delegation *delegation;
+	bool need_wait;
 
 	if (clp == NULL)
 		return;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(delegation, &server->delegations, super_list) {
-		spin_lock(&delegation->lock);
-		set_bit(NFS_DELEGATION_RETURN, &delegation->flags);
-		spin_unlock(&delegation->lock);
-	}
+	need_wait = nfs_server_mark_return_all_delegations(server);
 	rcu_read_unlock();
 
-	if (nfs_client_return_marked_delegations(clp) != 0)
+	if (need_wait) {
 		nfs4_schedule_state_manager(clp);
+		nfs4_wait_clnt_recover(clp);
+	}
 }
 
 static void nfs_mark_return_all_delegation_types(struct nfs_server *server,
