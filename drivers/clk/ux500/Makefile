@@ -5,6 +5,7 @@
 # Clock types
 obj-y += clk-prcc.o
 obj-y += clk-prcmu.o
+obj-y += clk-sysctrl.o
 
 # Clock definitions
 obj-y += u8500_clk.o
