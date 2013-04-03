@@ -347,6 +347,8 @@ static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 	__le32 data;
 	int err, cur_rate, prev_rate;
 	int clock;
+	bool writeable;
+	struct uac_clock_source_descriptor *cs_desc;
 
 	clock = snd_usb_clock_find_source(chip, fmt->clock, true);
 	if (clock < 0)
@@ -354,20 +356,33 @@ static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 
 	prev_rate = get_sample_rate_v2(chip, iface, fmt->altsetting, clock);
 
-	data = cpu_to_le32(rate);
-	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC2_CS_CUR,
-				   USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT,
-				   UAC2_CS_CONTROL_SAM_FREQ << 8,
-				   snd_usb_ctrl_intf(chip) | (clock << 8),
-				   &data, sizeof(data))) < 0) {
-		snd_printk(KERN_ERR "%d:%d:%d: cannot set freq %d (v2): err %d\n",
-			   dev->devnum, iface, fmt->altsetting, rate, err);
-		return err;
+	cs_desc = snd_usb_find_clock_source(chip->ctrl_intf, clock);
+	writeable = uac2_control_is_writeable(cs_desc->bmControls, UAC2_CS_CONTROL_SAM_FREQ - 1);
+	if (writeable) {
+		data = cpu_to_le32(rate);
+		err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC2_CS_CUR,
+				      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT,
+				      UAC2_CS_CONTROL_SAM_FREQ << 8,
+				      snd_usb_ctrl_intf(chip) | (clock << 8),
+				      &data, sizeof(data));
+		if (err < 0) {
+			snd_printk(KERN_ERR "%d:%d:%d: cannot set freq %d (v2): err %d\n",
+				   dev->devnum, iface, fmt->altsetting, rate, err);
+			return err;
+		}
+
+		cur_rate = get_sample_rate_v2(chip, iface, fmt->altsetting, clock);
+	} else {
+		cur_rate = prev_rate;
 	}
 
-	cur_rate = get_sample_rate_v2(chip, iface, fmt->altsetting, clock);
-
 	if (cur_rate != rate) {
+		if (!writeable) {
+			snd_printk(KERN_WARNING
+				   "%d:%d:%d: freq mismatch (RO clock): req %d, clock runs @%d\n",
+				   dev->devnum, iface, fmt->altsetting, rate, cur_rate);
+			return -ENXIO;
+		}
 		snd_printd(KERN_WARNING
 			   "current rate %d is different from the runtime rate %d\n",
 			   cur_rate, rate);
