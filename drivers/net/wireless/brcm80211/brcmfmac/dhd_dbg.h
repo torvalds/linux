@@ -140,8 +140,14 @@ struct brcmf_fws_stats {
 	u32 header_pulls;
 	u32 pkt2bus;
 	u32 send_pkts[5];
+	u32 fifo_credits_sent[5];
+	u32 fifo_credits_back[6];
 	u32 generic_error;
 	u32 mac_update_failed;
+	u32 rollback_success;
+	u32 rollback_failed;
+	u32 delayq_full_error;
+	u32 supprq_full_error;
 	u32 txs_indicate;
 	u32 txs_discard;
 	u32 txs_supp_core;
