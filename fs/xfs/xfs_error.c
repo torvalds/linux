@@ -178,7 +178,7 @@ xfs_corruption_error(
 	inst_t			*ra)
 {
 	if (level <= xfs_error_level)
-		xfs_hex_dump(p, 16);
+		xfs_hex_dump(p, 64);
 	xfs_error_report(tag, level, mp, filename, linenum, ra);
 	xfs_alert(mp, "Corruption detected. Unmount and run xfs_repair");
 }
