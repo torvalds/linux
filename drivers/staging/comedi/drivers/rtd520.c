@@ -398,9 +398,7 @@ struct rtd_private {
 	int xfer_count;		/* # to transfer data. 0->1/2FIFO */
 	int flags;		/* flag event modes */
 
-	/* channel list info */
-	/* chanBipolar tracks whether a channel is bipolar (and needs +2048) */
-	unsigned char chanBipolar[RTD_MAX_CHANLIST / 8];	/* bit array */
+	unsigned char chan_is_bipolar[RTD_MAX_CHANLIST / 8];	/* bit array */
 
 	unsigned int ao_readback[2];
 
@@ -483,17 +481,17 @@ static unsigned short rtd_convert_chan_gain(struct comedi_device *dev,
 		/* +-5 range */
 		r |= 0x000;
 		r |= (range & 0x7) << 4;
-		CHAN_ARRAY_SET(devpriv->chanBipolar, index);
+		CHAN_ARRAY_SET(devpriv->chan_is_bipolar, index);
 	} else if (range < thisboard->range_uni10) {
 		/* +-10 range */
 		r |= 0x100;
 		r |= ((range - thisboard->range_bip10) & 0x7) << 4;
-		CHAN_ARRAY_SET(devpriv->chanBipolar, index);
+		CHAN_ARRAY_SET(devpriv->chan_is_bipolar, index);
 	} else {
 		/* +10 range */
 		r |= 0x200;
 		r |= ((range - thisboard->range_uni10) & 0x7) << 4;
-		CHAN_ARRAY_CLEAR(devpriv->chanBipolar, index);
+		CHAN_ARRAY_CLEAR(devpriv->chan_is_bipolar, index);
 	}
 
 	switch (aref) {
@@ -624,7 +622,7 @@ static int rtd_ai_rinsn(struct comedi_device *dev,
 		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 		/*printk ("rtd520: Got 0x%x after %d usec\n", d, ii+1); */
 		d = d >> 3;	/* low 3 bits are marker lines */
-		if (CHAN_ARRAY_TEST(devpriv->chanBipolar, 0))
+		if (CHAN_ARRAY_TEST(devpriv->chan_is_bipolar, 0))
 			/* convert to comedi unsigned data */
 			data[n] = d + 2048;
 		else
@@ -658,7 +656,8 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		d = readw(devpriv->las1 + LAS1_ADC_FIFO);
 		d = d >> 3;	/* low 3 bits are marker lines */
-		if (CHAN_ARRAY_TEST(devpriv->chanBipolar, s->async->cur_chan)) {
+		if (CHAN_ARRAY_TEST(devpriv->chan_is_bipolar,
+				    s->async->cur_chan)) {
 			/* convert to comedi unsigned data */
 			sample = d + 2048;
 		} else
@@ -689,7 +688,8 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 		}
 
 		d = d >> 3;	/* low 3 bits are marker lines */
-		if (CHAN_ARRAY_TEST(devpriv->chanBipolar, s->async->cur_chan)) {
+		if (CHAN_ARRAY_TEST(devpriv->chan_is_bipolar,
+				    s->async->cur_chan)) {
 			/* convert to comedi unsigned data */
 			sample = d + 2048;
 		} else
