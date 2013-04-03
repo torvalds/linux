@@ -3959,6 +3959,25 @@ xlog_recover(
 			return error;
 		}
 
+		/*
+		 * Version 5 superblock log feature mask validation. We know the
+		 * log is dirty so check if there are any unknown log features
+		 * in what we need to recover. If there are unknown features
+		 * (e.g. unsupported transactions, then simply reject the
+		 * attempt at recovery before touching anything.
+		 */
+		if (XFS_SB_VERSION_NUM(&log->l_mp->m_sb) == XFS_SB_VERSION_5 &&
+		    xfs_sb_has_incompat_log_feature(&log->l_mp->m_sb,
+					XFS_SB_FEAT_INCOMPAT_LOG_UNKNOWN)) {
+			xfs_warn(log->l_mp,
+"Superblock has unknown incompatible log features (0x%x) enabled.\n"
+"The log can not be fully and/or safely recovered by this kernel.\n"
+"Please recover the log on a kernel that supports the unknown features.",
+				(log->l_mp->m_sb.sb_features_log_incompat &
+					XFS_SB_FEAT_INCOMPAT_LOG_UNKNOWN));
+			return EINVAL;
+		}
+
 		xfs_notice(log->l_mp, "Starting recovery (logdev: %s)",
 				log->l_mp->m_logname ? log->l_mp->m_logname
 						     : "internal");

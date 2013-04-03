@@ -114,7 +114,9 @@ static const struct {
     { offsetof(xfs_sb_t, sb_features_compat), 0 },
     { offsetof(xfs_sb_t, sb_features_ro_compat), 0 },
     { offsetof(xfs_sb_t, sb_features_incompat), 0 },
+    { offsetof(xfs_sb_t, sb_features_log_incompat), 0 },
     { offsetof(xfs_sb_t, sb_crc),	 0 },
+    { offsetof(xfs_sb_t, sb_pad),	 0 },
     { offsetof(xfs_sb_t, sb_pquotino),	 0 },
     { offsetof(xfs_sb_t, sb_lsn),	 0 },
     { sizeof(xfs_sb_t),			 0 }
@@ -334,14 +336,45 @@ xfs_mount_validate_sb(
 	}
 
 	/*
-	 * Do not allow Version 5 superblocks to mount right now, even though
-	 * support is in place. We need to implement the proper feature masks
-	 * first.
+	 * Version 5 superblock feature mask validation. Reject combinations the
+	 * kernel cannot support up front before checking anything else.
 	 */
 	if (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) {
 		xfs_alert(mp,
-	"Version 5 superblock detected. Experimental support not yet enabled!");
-		return XFS_ERROR(EINVAL);
+"Version 5 superblock detected. This kernel has EXPERIMENTAL support enabled!\n"
+"Use of these features in this kernel is at your own risk!");
+
+		if (xfs_sb_has_compat_feature(sbp,
+					XFS_SB_FEAT_COMPAT_UNKNOWN)) {
+			xfs_warn(mp,
+"Superblock has unknown compatible features (0x%x) enabled.\n"
+"Using a more recent kernel is recommended.",
+				(sbp->sb_features_compat &
+						XFS_SB_FEAT_COMPAT_UNKNOWN));
+		}
+
+		if (xfs_sb_has_ro_compat_feature(sbp,
+					XFS_SB_FEAT_RO_COMPAT_UNKNOWN)) {
+			xfs_alert(mp,
+"Superblock has unknown read-only compatible features (0x%x) enabled.",
+				(sbp->sb_features_ro_compat &
+						XFS_SB_FEAT_RO_COMPAT_UNKNOWN));
+			if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
+				xfs_warn(mp,
+"Attempted to mount read-only compatible filesystem read-write.\n"
+"Filesystem can only be safely mounted read only.");
+				return XFS_ERROR(EINVAL);
+			}
+		}
+		if (xfs_sb_has_incompat_feature(sbp,
+					XFS_SB_FEAT_INCOMPAT_UNKNOWN)) {
+			xfs_warn(mp,
+"Superblock has unknown incompatible features (0x%x) enabled.\n"
+"Filesystem can not be safely mounted by this kernel.",
+				(sbp->sb_features_incompat &
+						XFS_SB_FEAT_INCOMPAT_UNKNOWN));
+			return XFS_ERROR(EINVAL);
+		}
 	}
 
 	if (unlikely(
@@ -580,6 +613,9 @@ xfs_sb_from_disk(
 	to->sb_features_compat = be32_to_cpu(from->sb_features_compat);
 	to->sb_features_ro_compat = be32_to_cpu(from->sb_features_ro_compat);
 	to->sb_features_incompat = be32_to_cpu(from->sb_features_incompat);
+	to->sb_features_log_incompat =
+				be32_to_cpu(from->sb_features_log_incompat);
+	to->sb_pad = 0;
 	to->sb_pquotino = be64_to_cpu(from->sb_pquotino);
 	to->sb_lsn = be64_to_cpu(from->sb_lsn);
 }
@@ -786,7 +822,7 @@ reread:
 	if (bp->b_error) {
 		error = bp->b_error;
 		if (loud)
-			xfs_warn(mp, "SB validate failed");
+			xfs_warn(mp, "SB validate failed with error %d.", error);
 		goto release_buf;
 	}
 
