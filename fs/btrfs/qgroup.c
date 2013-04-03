@@ -1153,7 +1153,7 @@ int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
 	ret = btrfs_find_all_roots(trans, fs_info, node->bytenr,
 				   sgn > 0 ? node->seq - 1 : node->seq, &roots);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	spin_lock(&fs_info->qgroup_lock);
 	quota_root = fs_info->quota_root;
@@ -1275,7 +1275,6 @@ int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
 	ret = 0;
 unlock:
 	spin_unlock(&fs_info->qgroup_lock);
-out:
 	ulist_free(roots);
 	ulist_free(tmp);
 

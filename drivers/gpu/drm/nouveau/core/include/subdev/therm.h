@@ -4,7 +4,7 @@
 #include <core/device.h>
 #include <core/subdev.h>
 
-enum nouveau_therm_mode {
+enum nouveau_therm_fan_mode {
 	NOUVEAU_THERM_CTRL_NONE = 0,
 	NOUVEAU_THERM_CTRL_MANUAL = 1,
 	NOUVEAU_THERM_CTRL_AUTO = 2,

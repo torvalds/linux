@@ -976,6 +976,7 @@ static const struct snd_soc_component_driver samsung_i2s_component = {
 static struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
 {
 	struct i2s_dai *i2s;
+	int ret;
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(struct i2s_dai), GFP_KERNEL);
 	if (i2s == NULL)
@@ -1000,15 +1001,17 @@ static struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
 		i2s->i2s_dai_drv.capture.channels_max = 2;
 		i2s->i2s_dai_drv.capture.rates = SAMSUNG_I2S_RATES;
 		i2s->i2s_dai_drv.capture.formats = SAMSUNG_I2S_FMTS;
+		dev_set_drvdata(&i2s->pdev->dev, i2s);
 	} else {	/* Create a new platform_device for Secondary */
-		i2s->pdev = platform_device_register_resndata(NULL,
-				"samsung-i2s-sec", -1, NULL, 0, NULL, 0);
+		i2s->pdev = platform_device_alloc("samsung-i2s-sec", -1);
 		if (IS_ERR(i2s->pdev))
 			return NULL;
-	}
 
-	/* Pre-assign snd_soc_dai_set_drvdata */
-	dev_set_drvdata(&i2s->pdev->dev, i2s);
+		platform_set_drvdata(i2s->pdev, i2s);
+		ret = platform_device_add(i2s->pdev);
+		if (ret < 0)
+			return NULL;
+	}
 
 	return i2s;
 }
@@ -1111,6 +1114,10 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 
 	if (samsung_dai_type == TYPE_SEC) {
 		sec_dai = dev_get_drvdata(&pdev->dev);
+		if (!sec_dai) {
+			dev_err(&pdev->dev, "Unable to get drvdata\n");
+			return -EFAULT;
+		}
 		snd_soc_register_component(&sec_dai->pdev->dev,
 					   &samsung_i2s_component,
 					   &sec_dai->i2s_dai_drv, 1);
