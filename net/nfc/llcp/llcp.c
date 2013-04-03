@@ -76,7 +76,7 @@ static void nfc_llcp_socket_purge(struct nfc_llcp_sock *sock)
 	}
 }
 
-static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen,
+static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool device,
 				    int err)
 {
 	struct sock *sk;
@@ -116,23 +116,6 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen,
 
 				bh_unlock_sock(accept_sk);
 			}
-
-			if (listen == true) {
-				nfc_llcp_socket_remote_param_init(llcp_sock);
-				bh_unlock_sock(sk);
-				continue;
-			}
-		}
-
-		/*
-		 * If we have a connection less socket bound, we keep it alive
-		 * if the device is still present.
-		 */
-		if (sk->sk_state == LLCP_BOUND && sk->sk_type == SOCK_DGRAM &&
-		    listen == true) {
-			nfc_llcp_socket_remote_param_init(llcp_sock);
-			bh_unlock_sock(sk);
-			continue;
 		}
 
 		if (err)
@@ -147,11 +130,8 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen,
 
 	write_unlock(&local->sockets.lock);
 
-	/*
-	 * If we want to keep the listening sockets alive,
-	 * we don't touch the RAW ones.
-	 */
-	if (listen == true)
+	/* If we still have a device, we keep the RAW sockets alive */
+	if (device == true)
 		return;
 
 	write_lock(&local->raw_sockets.lock);
