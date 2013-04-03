@@ -810,19 +810,11 @@ int brcmf_fws_macdesc_indicate(struct brcmf_fws_info *fws, u8 type, u8 *data)
 }
 
 static int
-brcmf_fws_txstatus_indicate(struct brcmf_fws_info *fws, u8 *data)
+brcmf_fws_txstatus_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot)
 {
-	u8 flags;
-	u32 status;
-	u32 hslot;
 	int ret;
 	struct sk_buff *skb;
 	struct brcmf_fws_mac_descriptor *entry = NULL;
-
-	status = le32_to_cpu(*(__le32 *)data);
-	flags = brcmf_txstatus_get_field(status, FLAGS);
-	hslot = brcmf_txstatus_get_field(status, HSLOT);
-	fws->stats.txs_indicate++;
 
 	brcmf_dbg(TRACE, "status: flags=0x%X, hslot=%d\n",
 		  flags, hslot);
@@ -852,6 +844,20 @@ brcmf_fws_txstatus_indicate(struct brcmf_fws_info *fws, u8 *data)
 done:
 	brcmf_txfinalize(fws->drvr, skb, true);
 	return ret;
+}
+
+static int brcmf_fws_txstatus_indicate(struct brcmf_fws_info *fws, u8 *data)
+{
+	u32 status;
+	u32 hslot;
+	u8 flags;
+
+	fws->stats.txs_indicate++;
+	status = le32_to_cpu(*(__le32 *)data);
+	flags = brcmf_txstatus_get_field(status, FLAGS);
+	hslot = brcmf_txstatus_get_field(status, HSLOT);
+
+	return brcmf_fws_txstatus_process(fws, flags, hslot);
 }
 
 static int brcmf_fws_dbg_seqnum_check(struct brcmf_fws_info *fws, u8 *data)
@@ -1288,4 +1294,14 @@ bool brcmf_fws_fc_active(struct brcmf_fws_info *fws)
 
 	brcmf_dbg(TRACE, "enter: mode=%d\n", fws->fcmode);
 	return fws->fcmode != BRCMF_FWS_FCMODE_NONE;
+}
+
+void brcmf_fws_bustxfail(struct brcmf_fws_info *fws, struct sk_buff *skb)
+{
+	ulong flags;
+
+	brcmf_fws_lock(fws->drvr, flags);
+	brcmf_fws_txstatus_process(fws, BRCMF_FWS_TXSTATUS_FW_TOSSED,
+				   brcmf_skb_htod_tag_get_field(skb, HSLOT));
+	brcmf_fws_unlock(fws->drvr, flags);
 }

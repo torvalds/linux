@@ -388,11 +388,13 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
 
-	/* await txstatus signal for firmware is active */
-	if (success && brcmf_fws_fc_active(drvr->fws))
-		return;
-
-	brcmf_txfinalize(drvr, txp, success);
+	/* await txstatus signal for firmware if active */
+	if (brcmf_fws_fc_active(drvr->fws)) {
+		if (!success)
+			brcmf_fws_bustxfail(drvr->fws, txp);
+	} else {
+		brcmf_txfinalize(drvr, txp, success);
+	}
 }
 
 static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *ndev)
