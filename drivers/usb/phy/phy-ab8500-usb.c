@@ -167,7 +167,9 @@ static void ab8500_usb_regulator_enable(struct ab8500_usb *ab)
 {
 	int ret, volt;
 
-	regulator_enable(ab->v_ape);
+	ret = regulator_enable(ab->v_ape);
+	if (ret)
+		dev_err(ab->dev, "Failed to enable v-ape\n");
 
 	if (!is_ab8500_2p0_or_earlier(ab->ab8500)) {
 		ab->saved_v_ulpi = regulator_get_voltage(ab->v_ulpi);
@@ -185,7 +187,9 @@ static void ab8500_usb_regulator_enable(struct ab8500_usb *ab)
 					ret);
 	}
 
-	regulator_enable(ab->v_ulpi);
+	ret = regulator_enable(ab->v_ulpi);
+	if (ret)
+		dev_err(ab->dev, "Failed to enable vddulpivio18\n");
 
 	if (!is_ab8500_2p0_or_earlier(ab->ab8500)) {
 		volt = regulator_get_voltage(ab->v_ulpi);
@@ -194,7 +198,9 @@ static void ab8500_usb_regulator_enable(struct ab8500_usb *ab)
 					volt);
 	}
 
-	regulator_enable(ab->v_musb);
+	ret = regulator_enable(ab->v_musb);
+	if (ret)
+		dev_err(ab->dev, "Failed to enable musb_1v8\n");
 }
 
 static void ab8500_usb_regulator_disable(struct ab8500_usb *ab)
