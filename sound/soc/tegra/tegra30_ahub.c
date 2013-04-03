@@ -95,8 +95,8 @@ static int tegra30_ahub_runtime_resume(struct device *dev)
 }
 
 int tegra30_ahub_allocate_rx_fifo(enum tegra30_ahub_rxcif *rxcif,
-				  unsigned long *fiforeg,
-				  unsigned long *reqsel)
+				  dma_addr_t *fiforeg,
+				  unsigned int *reqsel)
 {
 	int channel;
 	u32 reg, val;
@@ -178,8 +178,8 @@ int tegra30_ahub_free_rx_fifo(enum tegra30_ahub_rxcif rxcif)
 EXPORT_SYMBOL_GPL(tegra30_ahub_free_rx_fifo);
 
 int tegra30_ahub_allocate_tx_fifo(enum tegra30_ahub_txcif *txcif,
-				  unsigned long *fiforeg,
-				  unsigned long *reqsel)
+				  dma_addr_t *fiforeg,
+				  unsigned int *reqsel)
 {
 	int channel;
 	u32 reg, val;
