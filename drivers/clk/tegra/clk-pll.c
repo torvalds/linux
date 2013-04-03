@@ -266,6 +266,7 @@ static int _calc_rate(struct clk_hw *hw, struct tegra_clk_pll_freq_table *cfg,
 		      unsigned long rate, unsigned long parent_rate)
 {
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
+	struct pdiv_map *p_tohw = pll->params->pdiv_tohw;
 	unsigned long cfreq;
 	u32 p_div = 0;
 
@@ -299,7 +300,6 @@ static int _calc_rate(struct clk_hw *hw, struct tegra_clk_pll_freq_table *cfg,
 	     cfg->output_rate <<= 1)
 		p_div++;
 
-	cfg->p = p_div;
 	cfg->m = parent_rate / cfreq;
 	cfg->n = cfg->output_rate / cfreq;
 	cfg->cpcon = OUT_OF_TABLE_CPCON;
@@ -312,8 +312,19 @@ static int _calc_rate(struct clk_hw *hw, struct tegra_clk_pll_freq_table *cfg,
 		return -EINVAL;
 	}
 
-	if (pll->flags & TEGRA_PLLU)
-		cfg->p ^= 1;
+	if (p_tohw) {
+		p_div = 1 << p_div;
+		while (p_tohw->pdiv) {
+			if (p_div <= p_tohw->pdiv) {
+				cfg->p = p_tohw->hw_val;
+				break;
+			}
+			p_tohw++;
+		}
+		if (!p_tohw->pdiv)
+			return -EINVAL;
+	} else
+		cfg->p = p_div;
 
 	return 0;
 }
@@ -460,8 +471,10 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 {
 	struct tegra_clk_pll *pll = to_clk_pll(hw);
 	struct tegra_clk_pll_freq_table cfg;
+	struct pdiv_map *p_tohw = pll->params->pdiv_tohw;
 	u32 val;
 	u64 rate = parent_rate;
+	int pdiv;
 
 	val = pll_readl_base(pll);
 
@@ -480,10 +493,23 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 
 	_get_pll_mnp(pll, &cfg);
 
-	if (pll->flags & TEGRA_PLLU)
-		cfg.p ^= 1;
+	if (p_tohw) {
+		while (p_tohw->pdiv) {
+			if (cfg.p == p_tohw->hw_val) {
+				pdiv = p_tohw->pdiv;
+				break;
+			}
+			p_tohw++;
+		}
 
-	cfg.m *= 1 << cfg.p;
+		if (!p_tohw->pdiv) {
+			WARN_ON(1);
+			pdiv = 1;
+		}
+	} else
+		pdiv = 1 << cfg.p;
+
+	cfg.m *= pdiv;
 
 	rate *= cfg.n;
 	do_div(rate, cfg.m);

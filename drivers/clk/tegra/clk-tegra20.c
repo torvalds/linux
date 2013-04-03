@@ -441,6 +441,12 @@ static struct tegra_clk_pll_params pll_d_params = {
 	.lock_delay = 1000,
 };
 
+static struct pdiv_map pllu_p[] = {
+	{ .pdiv = 1, .hw_val = 1 },
+	{ .pdiv = 2, .hw_val = 0 },
+	{ .pdiv = 0, .hw_val = 0 },
+};
+
 static struct tegra_clk_pll_params pll_u_params = {
 	.input_min = 2000000,
 	.input_max = 40000000,
@@ -453,6 +459,7 @@ static struct tegra_clk_pll_params pll_u_params = {
 	.lock_bit_idx = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLLDU_MISC_LOCK_ENABLE,
 	.lock_delay = 1000,
+	.pdiv_tohw = pllu_p,
 };
 
 static struct tegra_clk_pll_params pll_x_params = {

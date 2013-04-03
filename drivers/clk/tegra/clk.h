@@ -117,6 +117,17 @@ struct tegra_clk_pll_freq_table {
 };
 
 /**
+ * struct pdiv_map - map post divider to hw value
+ *
+ * @pdiv:		post divider
+ * @hw_val:		value to be written to the PLL hw
+ */
+struct pdiv_map {
+	u8 pdiv;
+	u8 hw_val;
+};
+
+/**
  * struct clk_pll_params - PLL parameters
  *
  * @input_min:			Minimum input frequency
@@ -146,6 +157,8 @@ struct tegra_clk_pll_params {
 	u32		lock_bit_idx;
 	u32		lock_enable_bit_idx;
 	int		lock_delay;
+	int		max_p;
+	struct pdiv_map *pdiv_tohw;
 };
 
 /**

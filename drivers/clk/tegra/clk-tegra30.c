@@ -467,6 +467,12 @@ static struct tegra_clk_pll_freq_table pll_d_freq_table[] = {
 	{ 0, 0, 0, 0, 0, 0 },
 };
 
+static struct pdiv_map pllu_p[] = {
+	{ .pdiv = 1, .hw_val = 1 },
+	{ .pdiv = 2, .hw_val = 0 },
+	{ .pdiv = 0, .hw_val = 0 },
+};
+
 static struct tegra_clk_pll_freq_table pll_u_freq_table[] = {
 	{ 12000000, 480000000, 960, 12, 0, 12},
 	{ 13000000, 480000000, 960, 13, 0, 12},
@@ -640,6 +646,7 @@ static struct tegra_clk_pll_params pll_u_params = {
 	.lock_bit_idx = PLL_BASE_LOCK,
 	.lock_enable_bit_idx = PLLDU_MISC_LOCK_ENABLE,
 	.lock_delay = 1000,
+	.pdiv_tohw = pllu_p,
 };
 
 static struct tegra_clk_pll_params pll_x_params = {
