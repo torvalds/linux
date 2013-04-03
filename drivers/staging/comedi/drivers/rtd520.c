@@ -395,7 +395,7 @@ struct rtd_private {
 	void __iomem *lcfg;
 
 	long aiCount;		/* total transfer size (samples) */
-	int transCount;		/* # to transfer data. 0->1/2FIFO */
+	int xfer_count;		/* # to transfer data. 0->1/2FIFO */
 	int flags;		/* flag event modes */
 
 	/* channel list info */
@@ -751,10 +751,10 @@ static irqreturn_t rtd_interrupt(int irq,	/* interrupt number (ignored) */
 				goto transferDone;
 
 			comedi_event(dev, s);
-		} else if (devpriv->transCount > 0) {
+		} else if (devpriv->xfer_count > 0) {
 			if (fifoStatus & FS_ADC_NOT_EMPTY) {
 				/* FIFO not empty */
-				if (ai_read_n(dev, s, devpriv->transCount) < 0)
+				if (ai_read_n(dev, s, devpriv->xfer_count) < 0)
 					goto abortTransfer;
 
 				if (0 == devpriv->aiCount)
@@ -1015,37 +1015,36 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			 * the application is responsible for doing the
 			 * right thing
 			 */
-			devpriv->transCount = cmd->chanlist_len;
+			devpriv->xfer_count = cmd->chanlist_len;
 			devpriv->flags |= SEND_EOS;
 		} else {
 			/* arrange to transfer data periodically */
-			devpriv->transCount
-			    =
+			devpriv->xfer_count =
 			    (TRANS_TARGET_PERIOD * cmd->chanlist_len) /
 			    cmd->scan_begin_arg;
-			if (devpriv->transCount < cmd->chanlist_len) {
+			if (devpriv->xfer_count < cmd->chanlist_len) {
 				/* transfer after each scan (and avoid 0) */
-				devpriv->transCount = cmd->chanlist_len;
+				devpriv->xfer_count = cmd->chanlist_len;
 			} else {	/* make a multiple of scan length */
-				devpriv->transCount =
-				    (devpriv->transCount +
+				devpriv->xfer_count =
+				    (devpriv->xfer_count +
 				     cmd->chanlist_len - 1)
 				    / cmd->chanlist_len;
-				devpriv->transCount *= cmd->chanlist_len;
+				devpriv->xfer_count *= cmd->chanlist_len;
 			}
 			devpriv->flags |= SEND_EOS;
 		}
-		if (devpriv->transCount >= (devpriv->fifoLen / 2)) {
+		if (devpriv->xfer_count >= (devpriv->fifoLen / 2)) {
 			/* out of counter range, use 1/2 fifo instead */
-			devpriv->transCount = 0;
+			devpriv->xfer_count = 0;
 			devpriv->flags &= ~SEND_EOS;
 		} else {
 			/* interrupt for each transfer */
-			writel((devpriv->transCount - 1) & 0xffff,
+			writel((devpriv->xfer_count - 1) & 0xffff,
 				devpriv->las0 + LAS0_ACNT);
 		}
 	} else {		/* unknown timing, just use 1/2 FIFO */
-		devpriv->transCount = 0;
+		devpriv->xfer_count = 0;
 		devpriv->flags &= ~SEND_EOS;
 	}
 	/* pacer clock source: INTERNAL 8MHz */
@@ -1059,9 +1058,9 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:	/* stop after N scans */
 		devpriv->aiCount = cmd->stop_arg * cmd->chanlist_len;
-		if ((devpriv->transCount > 0)
-		    && (devpriv->transCount > devpriv->aiCount)) {
-			devpriv->transCount = devpriv->aiCount;
+		if ((devpriv->xfer_count > 0)
+		    && (devpriv->xfer_count > devpriv->aiCount)) {
+			devpriv->xfer_count = devpriv->aiCount;
 		}
 		break;
 
@@ -1112,7 +1111,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	readw(devpriv->las0 + LAS0_CLEAR);
 
 	/* TODO: allow multiple interrupt sources */
-	if (devpriv->transCount > 0) {	/* transfer every N samples */
+	if (devpriv->xfer_count > 0) {	/* transfer every N samples */
 		writew(IRQM_ADC_ABOUT_CNT, devpriv->las0 + LAS0_IT);
 	} else {		/* 1/2 FIFO transfers */
 		writew(IRQM_ADC_ABOUT_CNT, devpriv->las0 + LAS0_IT);
