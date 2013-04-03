@@ -1,3 +1,6 @@
+#define grf_readl(offset)	readl_relaxed(RK30_GRF_BASE + offset)
+#define grf_writel(v, offset)	do { writel_relaxed(v, RK30_GRF_BASE + offset); dsb(); } while (0)
+
 static int rk30_vmac_register_set(void)
 {
 	//config rk30 vmac as rmii
@@ -8,6 +11,7 @@ static int rk30_vmac_register_set(void)
 static int rk30_rmii_io_init(void)
 {
 	int err;
+	printk("enter %s ",__func__);
 	iomux_set(GPIO0_C0);//power pwr
 	iomux_set(GPIO3_D2);//int
 	
@@ -23,6 +27,9 @@ static int rk30_rmii_io_init(void)
 	iomux_set(RMII_TXEN);
 	iomux_set(RMII_CLKOUT);
 
+	//rk3188 gpio3 and sdio drive strength , 
+      grf_writel(0x0f<16|0x0f,GRF_IO_CON3);
+      
 	//phy power gpio
 	err = gpio_request(PHY_PWR_EN_GPIO, "phy_power_en");
 	if (err) {
@@ -32,12 +39,14 @@ static int rk30_rmii_io_init(void)
 	//phy power down
 	gpio_direction_output(PHY_PWR_EN_GPIO, !PHY_PWR_EN_VALUE);
 	gpio_set_value(PHY_PWR_EN_GPIO, !PHY_PWR_EN_VALUE);
+
 	return 0;
 }
 
 static int rk30_rmii_io_deinit(void)
 {
 	//phy power down
+	printk("enter %s ",__func__);
 	gpio_direction_output(PHY_PWR_EN_GPIO, !PHY_PWR_EN_VALUE);
 	gpio_set_value(PHY_PWR_EN_GPIO, !PHY_PWR_EN_VALUE);
 	//free
@@ -47,6 +56,7 @@ static int rk30_rmii_io_deinit(void)
 
 static int rk30_rmii_power_control(int enable)
 {
+      printk("enter %s ,enable = %d ",__func__,enable);
 	if (enable) {
 		//enable phy power
 		printk("power on phy\n");
@@ -67,6 +77,8 @@ static int rk30_rmii_power_control(int enable)
 	
 		gpio_direction_output(PHY_PWR_EN_GPIO, PHY_PWR_EN_VALUE);
 		gpio_set_value(PHY_PWR_EN_GPIO, PHY_PWR_EN_VALUE);
+
+		//gpio reset		
 	}else {
 		gpio_direction_output(PHY_PWR_EN_GPIO, !PHY_PWR_EN_VALUE);
 		gpio_set_value(PHY_PWR_EN_GPIO, !PHY_PWR_EN_VALUE);
@@ -77,7 +89,6 @@ static int rk30_rmii_power_control(int enable)
 #define BIT_EMAC_SPEED      (1 << 1)
 static int rk29_vmac_speed_switch(int speed)
 {
-	printk("%s--speed=%d\n", __FUNCTION__, speed);
 	if (10 == speed) {
 	    writel_relaxed(readl_relaxed(RK30_GRF_BASE + GRF_SOC_CON1) & (~BIT_EMAC_SPEED), RK30_GRF_BASE + GRF_SOC_CON1);
 	} else {

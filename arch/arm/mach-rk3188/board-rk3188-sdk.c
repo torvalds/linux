@@ -1173,8 +1173,10 @@ struct platform_device pwm_regulator_device[1] = {
 #endif
 
 #ifdef CONFIG_RK29_VMAC
-#define PHY_PWR_EN_GPIO	RK30_PIN1_PD6
+#define PHY_PWR_EN_GPIO	RK30_PIN0_PC0
+#define PHY_PWR_EN_VALUE   GPIO_HIGH
 #include "board-rk3188-sdk-vmac.c"
+
 #endif
 
 #ifdef CONFIG_RFKILL_RK
