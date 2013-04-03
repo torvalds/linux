@@ -863,7 +863,7 @@ static int ab8500_fg_bat_voltage(struct ab8500_fg *di)
 static int ab8500_fg_volt_to_capacity(struct ab8500_fg *di, int voltage)
 {
 	int i, tbl_size;
-	struct abx500_v_to_cap *tbl;
+	const struct abx500_v_to_cap *tbl;
 	int cap = 0;
 
 	tbl = di->bm->bat_type[di->bm->batt_id].v_to_cap_tbl,
@@ -915,7 +915,7 @@ static int ab8500_fg_uncomp_volt_to_capacity(struct ab8500_fg *di)
 static int ab8500_fg_battery_resistance(struct ab8500_fg *di)
 {
 	int i, tbl_size;
-	struct batres_vs_temp *tbl;
+	const struct batres_vs_temp *tbl;
 	int resist = 0;
 
 	tbl = di->bm->bat_type[di->bm->batt_id].batres_tbl;

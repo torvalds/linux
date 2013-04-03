@@ -183,11 +183,11 @@ struct abx500_battery_type {
 	int low_high_vol_lvl;
 	int battery_resistance;
 	int n_temp_tbl_elements;
-	struct abx500_res_to_temp *r_to_t_tbl;
+	const struct abx500_res_to_temp *r_to_t_tbl;
 	int n_v_cap_tbl_elements;
-	struct abx500_v_to_cap *v_to_cap_tbl;
+	const struct abx500_v_to_cap *v_to_cap_tbl;
 	int n_batres_tbl_elements;
-	struct batres_vs_temp *batres_tbl;
+	const struct batres_vs_temp *batres_tbl;
 };
 
 /**

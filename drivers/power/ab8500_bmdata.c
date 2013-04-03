@@ -11,7 +11,7 @@
  * Note that the res_to_temp table must be strictly sorted by falling resistance
  * values to work.
  */
-static struct abx500_res_to_temp temp_tbl_a_thermistor[] = {
+static const struct abx500_res_to_temp temp_tbl_a_thermistor[] = {
 	{-5, 53407},
 	{ 0, 48594},
 	{ 5, 43804},
@@ -29,7 +29,7 @@ static struct abx500_res_to_temp temp_tbl_a_thermistor[] = {
 	{65, 12500},
 };
 
-static struct abx500_res_to_temp temp_tbl_b_thermistor[] = {
+static const struct abx500_res_to_temp temp_tbl_b_thermistor[] = {
 	{-5, 200000},
 	{ 0, 159024},
 	{ 5, 151921},
@@ -47,7 +47,7 @@ static struct abx500_res_to_temp temp_tbl_b_thermistor[] = {
 	{65,  82869},
 };
 
-static struct abx500_v_to_cap cap_tbl_a_thermistor[] = {
+static const struct abx500_v_to_cap cap_tbl_a_thermistor[] = {
 	{4171,	100},
 	{4114,	 95},
 	{4009,	 83},
@@ -70,7 +70,7 @@ static struct abx500_v_to_cap cap_tbl_a_thermistor[] = {
 	{3247,	  0},
 };
 
-static struct abx500_v_to_cap cap_tbl_b_thermistor[] = {
+static const struct abx500_v_to_cap cap_tbl_b_thermistor[] = {
 	{4161,	100},
 	{4124,	 98},
 	{4044,	 90},
@@ -93,7 +93,7 @@ static struct abx500_v_to_cap cap_tbl_b_thermistor[] = {
 	{3250,	  0},
 };
 
-static struct abx500_v_to_cap cap_tbl[] = {
+static const struct abx500_v_to_cap cap_tbl[] = {
 	{4186,	100},
 	{4163,	 99},
 	{4114,	 95},
@@ -124,7 +124,7 @@ static struct abx500_v_to_cap cap_tbl[] = {
  * Note that the res_to_temp table must be strictly sorted by falling
  * resistance values to work.
  */
-static struct abx500_res_to_temp temp_tbl[] = {
+static const struct abx500_res_to_temp temp_tbl[] = {
 	{-5, 214834},
 	{ 0, 162943},
 	{ 5, 124820},
@@ -146,7 +146,7 @@ static struct abx500_res_to_temp temp_tbl[] = {
  * Note that the batres_vs_temp table must be strictly sorted by falling
  * temperature values to work.
  */
-static struct batres_vs_temp temp_to_batres_tbl_thermistor[] = {
+static const struct batres_vs_temp temp_to_batres_tbl_thermistor[] = {
 	{ 40, 120},
 	{ 30, 135},
 	{ 20, 165},
@@ -160,7 +160,7 @@ static struct batres_vs_temp temp_to_batres_tbl_thermistor[] = {
  * Note that the batres_vs_temp table must be strictly sorted by falling
  * temperature values to work.
  */
-static struct batres_vs_temp temp_to_batres_tbl_ext_thermistor[] = {
+static const struct batres_vs_temp temp_to_batres_tbl_ext_thermistor[] = {
 	{ 60, 300},
 	{ 30, 300},
 	{ 20, 300},
@@ -171,7 +171,7 @@ static struct batres_vs_temp temp_to_batres_tbl_ext_thermistor[] = {
 };
 
 /* battery resistance table for LI ION 9100 battery */
-static struct batres_vs_temp temp_to_batres_tbl_9100[] = {
+static const struct batres_vs_temp temp_to_batres_tbl_9100[] = {
 	{ 60, 180},
 	{ 30, 180},
 	{ 20, 180},
@@ -547,7 +547,7 @@ int ab8500_bm_of_probe(struct device *dev,
 		       struct device_node *np,
 		       struct abx500_bm_data *bm)
 {
-	struct batres_vs_temp *tmp_batres_tbl;
+	const struct batres_vs_temp *tmp_batres_tbl;
 	struct device_node *battery_node;
 	const char *btech;
 	int i;
