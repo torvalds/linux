@@ -79,6 +79,12 @@ static int calc_layout(struct ceph_file_layout *layout, u64 off, u64 *plen,
 	return 0;
 }
 
+static void ceph_osd_data_init(struct ceph_osd_data *osd_data)
+{
+	memset(osd_data, 0, sizeof (*osd_data));
+	osd_data->type = CEPH_OSD_DATA_TYPE_NONE;
+}
+
 void ceph_osd_data_pages_init(struct ceph_osd_data *osd_data,
 			struct page **pages, u64 length, u32 alignment,
 			bool pages_from_pool, bool own_pages)
@@ -111,16 +117,28 @@ void ceph_osd_data_bio_init(struct ceph_osd_data *osd_data,
 EXPORT_SYMBOL(ceph_osd_data_bio_init);
 #endif /* CONFIG_BLOCK */
 
+static void ceph_osd_data_release(struct ceph_osd_data *osd_data)
+{
+	if (osd_data->type != CEPH_OSD_DATA_TYPE_PAGES)
+		return;
+
+	if (osd_data->own_pages) {
+		int num_pages;
+
+		num_pages = calc_pages_for((u64)osd_data->alignment,
+						(u64)osd_data->length);
+		ceph_release_page_vector(osd_data->pages, num_pages);
+	}
+}
+
 /*
  * requests
  */
 void ceph_osdc_release_request(struct kref *kref)
 {
-	int num_pages;
-	struct ceph_osd_request *req = container_of(kref,
-						    struct ceph_osd_request,
-						    r_kref);
+	struct ceph_osd_request *req;
 
+	req = container_of(kref, struct ceph_osd_request, r_kref);
 	if (req->r_request)
 		ceph_msg_put(req->r_request);
 	if (req->r_reply) {
@@ -128,18 +146,8 @@ void ceph_osdc_release_request(struct kref *kref)
 		ceph_msg_put(req->r_reply);
 	}
 
-	if (req->r_data_in.type == CEPH_OSD_DATA_TYPE_PAGES &&
-			req->r_data_in.own_pages) {
-		num_pages = calc_pages_for((u64)req->r_data_in.alignment,
-						(u64)req->r_data_in.length);
-		ceph_release_page_vector(req->r_data_in.pages, num_pages);
-	}
-	if (req->r_data_out.type == CEPH_OSD_DATA_TYPE_PAGES &&
-			req->r_data_out.own_pages) {
-		num_pages = calc_pages_for((u64)req->r_data_out.alignment,
-						(u64)req->r_data_out.length);
-		ceph_release_page_vector(req->r_data_out.pages, num_pages);
-	}
+	ceph_osd_data_release(&req->r_data_in);
+	ceph_osd_data_release(&req->r_data_out);
 
 	ceph_put_snap_context(req->r_snapc);
 	if (req->r_mempool)
@@ -203,8 +211,8 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	}
 	req->r_reply = msg;
 
-	req->r_data_in.type = CEPH_OSD_DATA_TYPE_NONE;
-	req->r_data_out.type = CEPH_OSD_DATA_TYPE_NONE;
+	ceph_osd_data_init(&req->r_data_in);
+	ceph_osd_data_init(&req->r_data_out);
 
 	/* create request message; allow space for oid */
 	if (use_mempool)
