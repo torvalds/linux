@@ -61,6 +61,9 @@ send_nt_cancel(struct TCP_Server_Info *server, void *buf,
 	 */
 	--server->sequence_number;
 	rc = smb_send(server, in_buf, be32_to_cpu(in_buf->smb_buf_length));
+	if (rc < 0)
+		server->sequence_number--;
+
 	mutex_unlock(&server->srv_mutex);
 
 	cifs_dbg(FYI, "issued NT_CANCEL for mid %u, rc = %d\n",

@@ -522,6 +522,9 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 	rc = smb_send_rqst(server, rqst);
 	cifs_in_send_dec(server);
 	cifs_save_when_sent(mid);
+
+	if (rc < 0)
+		server->sequence_number -= 2;
 	mutex_unlock(&server->srv_mutex);
 
 	if (rc == 0)
@@ -711,6 +714,8 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 	cifs_in_send_dec(ses->server);
 	cifs_save_when_sent(midQ);
 
+	if (rc < 0)
+		ses->server->sequence_number -= 2;
 	mutex_unlock(&ses->server->srv_mutex);
 
 	if (rc < 0) {
@@ -835,6 +840,10 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	rc = smb_send(ses->server, in_buf, be32_to_cpu(in_buf->smb_buf_length));
 	cifs_in_send_dec(ses->server);
 	cifs_save_when_sent(midQ);
+
+	if (rc < 0)
+		ses->server->sequence_number -= 2;
+
 	mutex_unlock(&ses->server->srv_mutex);
 
 	if (rc < 0)
@@ -968,6 +977,10 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = smb_send(ses->server, in_buf, be32_to_cpu(in_buf->smb_buf_length));
 	cifs_in_send_dec(ses->server);
 	cifs_save_when_sent(midQ);
+
+	if (rc < 0)
+		ses->server->sequence_number -= 2;
+
 	mutex_unlock(&ses->server->srv_mutex);
 
 	if (rc < 0) {
