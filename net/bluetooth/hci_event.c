@@ -2463,7 +2463,9 @@ static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	if (opcode != HCI_OP_NOP)
 		del_timer(&hdev->cmd_timer);
 
-	hci_req_cmd_complete(hdev, opcode, ev->status);
+	if (ev->status ||
+	    (hdev->sent_cmd && !bt_cb(hdev->sent_cmd)->req.event))
+		hci_req_cmd_complete(hdev, opcode, ev->status);
 
 	if (ev->ncmd && !test_bit(HCI_RESET, &hdev->flags)) {
 		atomic_set(&hdev->cmd_cnt, 1);
@@ -3712,6 +3714,13 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_unlock(hdev);
 
 	skb_pull(skb, HCI_EVENT_HDR_SIZE);
+
+	if (hdev->sent_cmd && bt_cb(hdev->sent_cmd)->req.event == event) {
+		struct hci_command_hdr *hdr = (void *) hdev->sent_cmd->data;
+		u16 opcode = __le16_to_cpu(hdr->opcode);
+
+		hci_req_cmd_complete(hdev, opcode, 0);
+	}
 
 	switch (event) {
 	case HCI_EV_INQUIRY_COMPLETE:

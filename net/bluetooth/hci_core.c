@@ -2645,7 +2645,8 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
 }
 
 /* Queue a command to an asynchronous HCI request */
-void hci_req_add(struct hci_request *req, u16 opcode, u32 plen, void *param)
+void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen, void *param,
+		    u8 event)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct sk_buff *skb;
@@ -2669,7 +2670,14 @@ void hci_req_add(struct hci_request *req, u16 opcode, u32 plen, void *param)
 	if (skb_queue_empty(&req->cmd_q))
 		bt_cb(skb)->req.start = true;
 
+	bt_cb(skb)->req.event = event;
+
 	skb_queue_tail(&req->cmd_q, skb);
+}
+
+void hci_req_add(struct hci_request *req, u16 opcode, u32 plen, void *param)
+{
+	hci_req_add_ev(req, opcode, plen, param, 0);
 }
 
 /* Get data from the previously sent command */

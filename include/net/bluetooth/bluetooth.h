@@ -266,6 +266,7 @@ typedef void (*hci_req_complete_t)(struct hci_dev *hdev, u8 status);
 
 struct hci_req_ctrl {
 	bool			start;
+	u8			event;
 	hci_req_complete_t	complete;
 };
 
