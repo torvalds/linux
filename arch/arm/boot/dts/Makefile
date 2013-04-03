@@ -100,6 +100,7 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx53-smd.dtb \
 	imx6dl-sabreauto.dtb \
 	imx6dl-sabresd.dtb \
+	imx6dl-wandboard.dtb \
 	imx6q-arm2.dtb \
 	imx6q-sabreauto.dtb \
 	imx6q-sabrelite.dtb \
