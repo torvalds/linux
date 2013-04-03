@@ -1455,6 +1455,7 @@ void snd_usbmidi_disconnect(struct list_head* p)
 	}
 	del_timer_sync(&umidi->error_timer);
 }
+EXPORT_SYMBOL(snd_usbmidi_disconnect);
 
 static void snd_usbmidi_rawmidi_free(struct snd_rawmidi *rmidi)
 {
@@ -2090,6 +2091,7 @@ void snd_usbmidi_input_stop(struct list_head* p)
 	}
 	umidi->input_running = 0;
 }
+EXPORT_SYMBOL(snd_usbmidi_input_stop);
 
 static void snd_usbmidi_input_start_ep(struct snd_usb_midi_in_endpoint* ep)
 {
@@ -2119,6 +2121,7 @@ void snd_usbmidi_input_start(struct list_head* p)
 		snd_usbmidi_input_start_ep(umidi->endpoints[i].in);
 	umidi->input_running = 1;
 }
+EXPORT_SYMBOL(snd_usbmidi_input_start);
 
 /*
  * Creates and registers everything needed for a MIDI streaming interface.
@@ -2258,8 +2261,4 @@ int snd_usbmidi_create(struct snd_card *card,
 	list_add_tail(&umidi->list, midi_list);
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_usbmidi_create);
-EXPORT_SYMBOL(snd_usbmidi_input_stop);
-EXPORT_SYMBOL(snd_usbmidi_input_start);
-EXPORT_SYMBOL(snd_usbmidi_disconnect);
