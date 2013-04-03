@@ -838,6 +838,14 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 	struct uprobe *uprobe;
 	int ret;
 
+	/* Uprobe must have at least one set consumer */
+	if (!uc->handler && !uc->ret_handler)
+		return -EINVAL;
+
+	/* TODO: Implement return probes */
+	if (uc->ret_handler)
+		return -ENOSYS;
+
 	/* Racy, just to catch the obvious mistakes */
 	if (offset > i_size_read(inode))
 		return -EINVAL;
@@ -1497,10 +1505,13 @@ static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
 
 	down_read(&uprobe->register_rwsem);
 	for (uc = uprobe->consumers; uc; uc = uc->next) {
-		int rc = uc->handler(uc, regs);
+		int rc = 0;
 
-		WARN(rc & ~UPROBE_HANDLER_MASK,
-			"bad rc=0x%x from %pf()\n", rc, uc->handler);
+		if (uc->handler) {
+			rc = uc->handler(uc, regs);
+			WARN(rc & ~UPROBE_HANDLER_MASK,
+				"bad rc=0x%x from %pf()\n", rc, uc->handler);
+		}
 		remove &= rc;
 	}
 
