@@ -35,6 +35,8 @@ ssize_t zcache_pers_ate_eph;
 ssize_t zcache_pers_ate_eph_failed;
 ssize_t zcache_evicted_eph_zpages;
 ssize_t zcache_evicted_eph_pageframes;
+ssize_t zcache_zero_filled_pages;
+ssize_t zcache_zero_filled_pages_max;
 
 #define ATTR(x)  { .name = #x, .val = &zcache_##x, }
 static struct debug_entry {
@@ -62,6 +64,7 @@ static struct debug_entry {
 	ATTR(last_inactive_anon_pageframes),
 	ATTR(eph_nonactive_puts_ignored),
 	ATTR(pers_nonactive_puts_ignored),
+	ATTR(zero_filled_pages),
 #ifdef CONFIG_ZCACHE_WRITEBACK
 	ATTR(outstanding_writeback_pages),
 	ATTR(writtenback_pages),

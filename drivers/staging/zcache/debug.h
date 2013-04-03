@@ -122,6 +122,21 @@ static inline void dec_zcache_pers_zpages(unsigned zpages)
 	zcache_pers_zpages = atomic_sub_return(zpages, &zcache_pers_zpages_atomic);
 }
 
+extern ssize_t zcache_zero_filled_pages;
+static atomic_t zcache_zero_filled_pages_atomic = ATOMIC_INIT(0);
+extern ssize_t zcache_zero_filled_pages_max;
+static inline void inc_zcache_zero_filled_pages(void)
+{
+	zcache_zero_filled_pages = atomic_inc_return(
+					&zcache_zero_filled_pages_atomic);
+	if (zcache_zero_filled_pages > zcache_zero_filled_pages_max)
+		zcache_zero_filled_pages_max = zcache_zero_filled_pages;
+}
+static inline void dec_zcache_zero_filled_pages(void)
+{
+	zcache_zero_filled_pages = atomic_dec_return(
+					&zcache_zero_filled_pages_atomic);
+}
 static inline unsigned long curr_pageframes_count(void)
 {
 	return zcache_pageframes_alloced -
@@ -200,6 +215,8 @@ static inline void inc_zcache_eph_zpages(void) { };
 static inline void dec_zcache_eph_zpages(unsigned zpages) { };
 static inline void inc_zcache_pers_zpages(void) { };
 static inline void dec_zcache_pers_zpages(unsigned zpages) { };
+static inline void inc_zcache_zero_filled_pages(void) { };
+static inline void dec_zcache_zero_filled_pages(void) { };
 static inline unsigned long curr_pageframes_count(void)
 {
 	return 0;
