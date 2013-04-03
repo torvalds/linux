@@ -529,8 +529,10 @@ int arizona_dev_init(struct arizona *arizona)
 		goto err_enable;
 	}
 
-	if (arizona->pdata.reset)
+	if (arizona->pdata.reset) {
 		gpio_set_value_cansleep(arizona->pdata.reset, 1);
+		msleep(1);
+	}
 
 	regcache_cache_only(arizona->regmap, false);
 
@@ -588,6 +590,8 @@ int arizona_dev_init(struct arizona *arizona)
 			dev_err(dev, "Failed to reset device: %d\n", ret);
 			goto err_reset;
 		}
+
+		msleep(1);
 
 		ret = regcache_sync(arizona->regmap);
 		if (ret != 0) {
