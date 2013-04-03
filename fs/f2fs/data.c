@@ -559,6 +559,10 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 	int ret;
 	long excess_nrtw = 0, desired_nrtw;
 
+	/* deal with chardevs and other special file */
+	if (!mapping->a_ops->writepage)
+		return 0;
+
 	if (wbc->nr_to_write < MAX_DESIRED_PAGES_WP) {
 		desired_nrtw = MAX_DESIRED_PAGES_WP;
 		excess_nrtw = desired_nrtw - wbc->nr_to_write;
