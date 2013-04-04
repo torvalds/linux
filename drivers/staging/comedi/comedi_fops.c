@@ -2342,7 +2342,7 @@ static void comedi_free_board_file_info(struct comedi_file_info *info)
 	}
 }
 
-void comedi_free_board_minor(unsigned minor)
+static void comedi_free_board_minor(unsigned minor)
 {
 	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
 	comedi_free_board_file_info(comedi_clear_minor(minor));
