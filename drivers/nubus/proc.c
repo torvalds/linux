@@ -73,8 +73,9 @@ static void nubus_proc_subdir(struct nubus_dev* dev,
 		struct proc_dir_entry* e;
 		
 		sprintf(name, "%x", ent.type);
-		e = create_proc_entry(name, S_IFREG | S_IRUGO |
-				      S_IWUSR, parent);
+#warning Need to set some I/O handlers here
+		e = create_proc_read_entry(name, S_IFREG | S_IRUGO | S_IWUSR,
+					   parent, NULL, NULL);
 		if (!e) return;
 	}
 }
