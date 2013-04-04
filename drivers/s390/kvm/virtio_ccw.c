@@ -133,8 +133,11 @@ static int ccw_io_helper(struct virtio_ccw_device *vcdev,
 	do {
 		spin_lock_irqsave(get_ccwdev_lock(vcdev->cdev), flags);
 		ret = ccw_device_start(vcdev->cdev, ccw, intparm, 0, 0);
-		if (!ret)
+		if (!ret) {
+			if (!vcdev->curr_io)
+				vcdev->err = 0;
 			vcdev->curr_io |= flag;
+		}
 		spin_unlock_irqrestore(get_ccwdev_lock(vcdev->cdev), flags);
 		cpu_relax();
 	} while (ret == -EBUSY);
