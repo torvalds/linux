@@ -49,6 +49,9 @@
 
 #include "comedi_internal.h"
 
+#define COMEDI_NUM_MINORS 0x100
+#define COMEDI_FIRST_SUBDEVICE_MINOR COMEDI_NUM_BOARD_MINORS
+
 #ifdef CONFIG_COMEDI_DEBUG
 int comedi_debug;
 EXPORT_SYMBOL(comedi_debug);
