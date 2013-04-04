@@ -457,8 +457,10 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 		 inode, direntry->d_name.name, direntry);
 
 	tlink = cifs_sb_tlink(CIFS_SB(inode->i_sb));
-	if (IS_ERR(tlink))
+	if (IS_ERR(tlink)) {
+		rc = PTR_ERR(tlink);
 		goto out_free_xid;
+	}
 
 	tcon = tlink_tcon(tlink);
 	server = tcon->ses->server;
