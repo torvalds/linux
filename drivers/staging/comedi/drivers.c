@@ -277,11 +277,11 @@ static int __comedi_device_postconfig(struct comedi_device *dev)
 }
 
 /* do a little post-config cleanup */
-/* called with module refcount incremented, decrements it */
 static int comedi_device_postconfig(struct comedi_device *dev)
 {
-	int ret = __comedi_device_postconfig(dev);
-	module_put(dev->driver->module);
+	int ret;
+
+	ret = __comedi_device_postconfig(dev);
 	if (ret < 0) {
 		__comedi_device_detach(dev);
 		return ret;
@@ -400,7 +400,11 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		__comedi_device_detach(dev);
 		return ret;
 	}
-	return comedi_device_postconfig(dev);
+	ret = comedi_device_postconfig(dev);
+	if (ret < 0)
+		module_put(dev->driver->module);
+	/* On success, the driver module count has been incremented. */
+	return ret;
 }
 
 int comedi_auto_config(struct device *hardware_device,
@@ -431,19 +435,13 @@ int comedi_auto_config(struct device *hardware_device,
 		return PTR_ERR(comedi_dev);
 	/* Note: comedi_alloc_board_minor() locked comedi_dev->mutex. */
 
-	if (!try_module_get(driver->module))
-		ret = -EIO;
-	else {
-		comedi_set_hw_dev(comedi_dev, hardware_device);
-		comedi_dev->driver = driver;
-		ret = driver->auto_attach(comedi_dev, context);
-		if (ret < 0) {
-			module_put(driver->module);
-			__comedi_device_detach(comedi_dev);
-		} else {
-			ret = comedi_device_postconfig(comedi_dev);
-		}
-	}
+	comedi_set_hw_dev(comedi_dev, hardware_device);
+	comedi_dev->driver = driver;
+	ret = driver->auto_attach(comedi_dev, context);
+	if (ret < 0)
+		__comedi_device_detach(comedi_dev);
+	else
+		ret = comedi_device_postconfig(comedi_dev);
 	mutex_unlock(&comedi_dev->mutex);
 
 	if (ret < 0)

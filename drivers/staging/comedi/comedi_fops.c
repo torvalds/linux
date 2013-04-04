@@ -520,7 +520,6 @@ static int do_devconfig_ioctl(struct comedi_device *dev,
 			      struct comedi_devconfig __user *arg)
 {
 	struct comedi_devconfig it;
-	int ret;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -551,15 +550,8 @@ static int do_devconfig_ioctl(struct comedi_device *dev,
 		/* don't re-use dynamically allocated comedi devices */
 		return -EBUSY;
 
-	ret = comedi_device_attach(dev, &it);
-	if (ret == 0) {
-		if (!try_module_get(dev->driver->module)) {
-			comedi_device_detach(dev);
-			ret = -ENOSYS;
-		}
-	}
-
-	return ret;
+	/* This increments the driver module count on success. */
+	return comedi_device_attach(dev, &it);
 }
 
 /*
