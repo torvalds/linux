@@ -86,6 +86,7 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 	struct stub_device *sdev = dev_get_drvdata(dev);
 	int sockfd = 0;
 	struct socket *socket;
+	ssize_t err = -EINVAL;
 
 	if (!sdev) {
 		dev_err(dev, "sdev is null\n");
@@ -101,15 +102,13 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 
 		if (sdev->ud.status != SDEV_ST_AVAILABLE) {
 			dev_err(dev, "not ready\n");
-			spin_unlock_irq(&sdev->ud.lock);
-			return -EINVAL;
+			goto err;
 		}
 
 		socket = sockfd_to_socket(sockfd);
-		if (!socket) {
-			spin_unlock_irq(&sdev->ud.lock);
-			return -EINVAL;
-		}
+		if (!socket)
+			goto err;
+
 		sdev->ud.tcp_socket = socket;
 
 		spin_unlock_irq(&sdev->ud.lock);
@@ -127,16 +126,19 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 		dev_info(dev, "stub down\n");
 
 		spin_lock_irq(&sdev->ud.lock);
-		if (sdev->ud.status != SDEV_ST_USED) {
-			spin_unlock_irq(&sdev->ud.lock);
-			return -EINVAL;
-		}
+		if (sdev->ud.status != SDEV_ST_USED)
+			goto err;
+
 		spin_unlock_irq(&sdev->ud.lock);
 
 		usbip_event_add(&sdev->ud, SDEV_EVENT_DOWN);
 	}
 
 	return count;
+
+err:
+	spin_unlock_irq(&sdev->ud.lock);
+	return err;
 }
 static DEVICE_ATTR(usbip_sockfd, S_IWUSR, NULL, store_sockfd);
 
