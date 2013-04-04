@@ -206,7 +206,7 @@ static int restart_read(struct edgeport_port *edge_port);
 
 static void edge_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios);
-static void edge_send(struct tty_struct *tty);
+static void edge_send(struct usb_serial_port *port, struct tty_struct *tty);
 
 /* sysfs attributes */
 static int edge_create_sysfs_attrs(struct usb_serial_port *port);
@@ -1712,7 +1712,7 @@ static void edge_bulk_out_callback(struct urb *urb)
 
 	/* send any buffered data */
 	tty = tty_port_tty_get(&port->port);
-	edge_send(tty);
+	edge_send(port, tty);
 	tty_kref_put(tty);
 }
 
@@ -1940,14 +1940,13 @@ static int edge_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	count = kfifo_in_locked(&edge_port->write_fifo, data, count,
 							&edge_port->ep_lock);
-	edge_send(tty);
+	edge_send(port, tty);
 
 	return count;
 }
 
-static void edge_send(struct tty_struct *tty)
+static void edge_send(struct usb_serial_port *port, struct tty_struct *tty)
 {
-	struct usb_serial_port *port = tty->driver_data;
 	int count, result;
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	unsigned long flags;
