@@ -119,22 +119,12 @@ static void cleanup_device(struct comedi_device *dev)
 	comedi_clear_hw_dev(dev);
 }
 
-static void __comedi_device_detach(struct comedi_device *dev)
+void comedi_device_detach(struct comedi_device *dev)
 {
 	dev->attached = false;
 	if (dev->driver)
 		dev->driver->detach(dev);
-	else
-		dev_warn(dev->class_dev,
-			 "BUG: dev->driver=NULL in comedi_device_detach()\n");
 	cleanup_device(dev);
-}
-
-void comedi_device_detach(struct comedi_device *dev)
-{
-	if (!dev->attached)
-		return;
-	__comedi_device_detach(dev);
 }
 
 static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -283,7 +273,7 @@ static int comedi_device_postconfig(struct comedi_device *dev)
 
 	ret = __comedi_device_postconfig(dev);
 	if (ret < 0) {
-		__comedi_device_detach(dev);
+		comedi_device_detach(dev);
 		return ret;
 	}
 	if (!dev->board_name) {
@@ -396,7 +386,7 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->driver = driv;
 	ret = driv->attach(dev, it);
 	if (ret < 0) {
-		__comedi_device_detach(dev);
+		comedi_device_detach(dev);
 		module_put(dev->driver->module);
 		return ret;
 	}
@@ -439,7 +429,7 @@ int comedi_auto_config(struct device *hardware_device,
 	comedi_dev->driver = driver;
 	ret = driver->auto_attach(comedi_dev, context);
 	if (ret < 0)
-		__comedi_device_detach(comedi_dev);
+		comedi_device_detach(comedi_dev);
 	else
 		ret = comedi_device_postconfig(comedi_dev);
 	mutex_unlock(&comedi_dev->mutex);
