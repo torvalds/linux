@@ -197,6 +197,8 @@
 		interrupts = <0 58 0>;
 		clocks = <&clock 317>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c0_bus>;
 		status = "disabled";
 	};
 
@@ -208,6 +210,8 @@
 		interrupts = <0 59 0>;
 		clocks = <&clock 318>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c1_bus>;
 		status = "disabled";
 	};
 
@@ -287,6 +291,8 @@
 		#size-cells = <0>;
 		clocks = <&clock 327>, <&clock 159>;
 		clock-names = "spi", "spi_busclk0";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi0_bus>;
 		status = "disabled";
 	};
 
@@ -300,6 +306,8 @@
 		#size-cells = <0>;
 		clocks = <&clock 328>, <&clock 160>;
 		clock-names = "spi", "spi_busclk0";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi1_bus>;
 		status = "disabled";
 	};
 
@@ -313,6 +321,8 @@
 		#size-cells = <0>;
 		clocks = <&clock 329>, <&clock 161>;
 		clock-names = "spi", "spi_busclk0";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi2_bus>;
 		status = "disabled";
 	};
 
