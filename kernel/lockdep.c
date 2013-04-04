@@ -2000,7 +2000,7 @@ static inline int lookup_chain_cache(struct task_struct *curr,
 	struct lock_class *class = hlock_class(hlock);
 	struct list_head *hash_head = chainhashentry(chain_key);
 	struct lock_chain *chain;
-	struct held_lock *hlock_curr, *hlock_next;
+	struct held_lock *hlock_curr;
 	int i, j;
 
 	/*
@@ -2057,12 +2057,10 @@ cache_hit:
 	chain->chain_key = chain_key;
 	chain->irq_context = hlock->irq_context;
 	/* Find the first held_lock of current chain */
-	hlock_next = hlock;
 	for (i = curr->lockdep_depth - 1; i >= 0; i--) {
 		hlock_curr = curr->held_locks + i;
-		if (hlock_curr->irq_context != hlock_next->irq_context)
+		if (hlock_curr->irq_context != hlock->irq_context)
 			break;
-		hlock_next = hlock;
 	}
 	i++;
 	chain->depth = curr->lockdep_depth + 1 - i;
