@@ -35,7 +35,6 @@
 #define BP_MOD_DESCR "Silicom Bypass-SD Control driver"
 #define BP_SYNC_FLAG 1
 
-static int Device_Open = 0;
 static int major_num = 0;
 
 MODULE_AUTHOR("Anna Lukin, annal@silicom.co.il");
@@ -288,27 +287,6 @@ static int bp_device_event(struct notifier_block *unused,
 static struct notifier_block bp_notifier_block = {
 	.notifier_call = bp_device_event,
 };
-
-static int device_open(struct inode *inode, struct file *file)
-{
-#ifdef DEBUG
-	printk("device_open(%p)\n", file);
-#endif
-	Device_Open++;
-/*
-* Initialize the message
-*/
-	return SUCCESS;
-}
-
-static int device_release(struct inode *inode, struct file *file)
-{
-#ifdef DEBUG
-	printk("device_release(%p,%p)\n", inode, file);
-#endif
-	Device_Open--;
-	return SUCCESS;
-}
 
 int is_bypass_fn(bpctl_dev_t *pbpctl_dev);
 int wdt_time_left(bpctl_dev_t *pbpctl_dev);
@@ -5806,8 +5784,6 @@ static long device_ioctl(struct file *file,	/* see include/linux/fs.h */
 static const struct file_operations Fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = device_ioctl,
-	.open = device_open,
-	.release = device_release,	/* a.k.a. close */
 };
 
 #ifndef PCI_DEVICE
