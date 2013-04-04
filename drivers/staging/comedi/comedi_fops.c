@@ -154,18 +154,6 @@ static void comedi_free_board_file_info(struct comedi_file_info *info)
 }
 
 static struct comedi_file_info
-*comedi_file_info_from_board_minor(unsigned minor)
-{
-	struct comedi_file_info *info;
-
-	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
-	mutex_lock(&comedi_board_minor_table_lock);
-	info = comedi_board_minor_table[minor];
-	mutex_unlock(&comedi_board_minor_table_lock);
-	return info;
-}
-
-static struct comedi_file_info
 *comedi_file_info_from_subdevice_minor(unsigned minor)
 {
 	struct comedi_file_info *info;
@@ -188,7 +176,10 @@ static struct comedi_device *comedi_dev_from_board_minor(unsigned minor)
 {
 	struct comedi_file_info *info;
 
-	info = comedi_file_info_from_board_minor(minor);
+	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
+	mutex_lock(&comedi_board_minor_table_lock);
+	info = comedi_board_minor_table[minor];
+	mutex_unlock(&comedi_board_minor_table_lock);
 	return comedi_dev_from_file_info(info);
 }
 
