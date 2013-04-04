@@ -112,7 +112,7 @@ static int pata_imx_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->clk = clk_get(&pdev->dev, NULL);
+	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		dev_err(&pdev->dev, "Failed to get clock\n");
 		return PTR_ERR(priv->clk);
@@ -163,7 +163,7 @@ static int pata_imx_probe(struct platform_device *pdev)
 
 free_priv:
 	clk_disable_unprepare(priv->clk);
-	clk_put(priv->clk);
+
 	return -ENOMEM;
 }
 
@@ -177,7 +177,6 @@ static int pata_imx_remove(struct platform_device *pdev)
 	__raw_writel(0, priv->host_regs + PATA_IMX_ATA_INT_EN);
 
 	clk_disable_unprepare(priv->clk);
-	clk_put(priv->clk);
 
 	return 0;
 }
