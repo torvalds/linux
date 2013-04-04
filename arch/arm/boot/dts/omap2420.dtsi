@@ -34,6 +34,7 @@
 			reg = <0x48018000 0x200>;
 			interrupts = <29>;
 			ti,hwmods = "gpio1";
+			ti,gpio-always-on;
 			#gpio-cells = <2>;
 			gpio-controller;
 			#interrupt-cells = <2>;
@@ -45,6 +46,7 @@
 			reg = <0x4801a000 0x200>;
 			interrupts = <30>;
 			ti,hwmods = "gpio2";
+			ti,gpio-always-on;
 			#gpio-cells = <2>;
 			gpio-controller;
 			#interrupt-cells = <2>;
@@ -56,6 +58,7 @@
 			reg = <0x4801c000 0x200>;
 			interrupts = <31>;
 			ti,hwmods = "gpio3";
+			ti,gpio-always-on;
 			#gpio-cells = <2>;
 			gpio-controller;
 			#interrupt-cells = <2>;
@@ -67,6 +70,7 @@
 			reg = <0x4801e000 0x200>;
 			interrupts = <32>;
 			ti,hwmods = "gpio4";
+			ti,gpio-always-on;
 			#gpio-cells = <2>;
 			gpio-controller;
 			#interrupt-cells = <2>;

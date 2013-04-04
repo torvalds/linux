@@ -116,6 +116,7 @@
 			reg = <0x48310000 0x200>;
 			interrupts = <29>;
 			ti,hwmods = "gpio1";
+			ti,gpio-always-on;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
