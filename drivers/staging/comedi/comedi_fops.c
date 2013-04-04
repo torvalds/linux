@@ -120,6 +120,20 @@ static void comedi_device_cleanup(struct comedi_device *dev)
 	mutex_destroy(&dev->mutex);
 }
 
+static bool comedi_clear_board_dev(struct comedi_device *dev)
+{
+	unsigned int i = dev->minor;
+	bool cleared = false;
+
+	mutex_lock(&comedi_board_minor_table_lock);
+	if (dev == comedi_board_minor_table[i]) {
+		comedi_board_minor_table[i] = NULL;
+		cleared = true;
+	}
+	mutex_unlock(&comedi_board_minor_table_lock);
+	return cleared;
+}
+
 static struct comedi_device *comedi_clear_board_minor(unsigned minor)
 {
 	struct comedi_device *dev;
@@ -1766,9 +1780,7 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 			    dev->minor >= comedi_num_legacy_minors) {
 				/* Successfully unconfigured a dynamically
 				 * allocated device.  Try and remove it. */
-				struct comedi_device *devr;
-				devr = comedi_clear_board_minor(dev->minor);
-				if (dev == devr) {
+				if (comedi_clear_board_dev(dev)) {
 					mutex_unlock(&dev->mutex);
 					comedi_free_board_dev(dev);
 					return rc;
