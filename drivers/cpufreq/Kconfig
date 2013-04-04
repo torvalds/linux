@@ -205,6 +205,19 @@ depends on ARM
 source "drivers/cpufreq/Kconfig.arm"
 endmenu
 
+menu "AVR32 CPU frequency scaling drivers"
+depends on AVR32
+
+config AVR32_AT32AP_CPUFREQ
+	bool "CPU frequency driver for AT32AP"
+	depends on PLATFORM_AT32AP
+	default n
+	help
+	  This enables the CPU frequency driver for AT32AP processors.
+	  If in doubt, say N.
+
+endmenu
+
 menu "PowerPC CPU frequency scaling drivers"
 depends on PPC32 || PPC64
 source "drivers/cpufreq/Kconfig.powerpc"
