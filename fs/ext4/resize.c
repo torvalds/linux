@@ -272,7 +272,7 @@ next_group:
 		if (start_blk >= last_blk)
 			goto next_group;
 		group_data[bb_index].block_bitmap = start_blk++;
-		ext4_get_group_no_and_offset(sb, start_blk - 1, &group, NULL);
+		group = ext4_get_group_number(sb, start_blk - 1);
 		group -= group_data[0].group;
 		group_data[group].free_blocks_count--;
 		if (flexbg_size > 1)
@@ -284,7 +284,7 @@ next_group:
 		if (start_blk >= last_blk)
 			goto next_group;
 		group_data[ib_index].inode_bitmap = start_blk++;
-		ext4_get_group_no_and_offset(sb, start_blk - 1, &group, NULL);
+		group = ext4_get_group_number(sb, start_blk - 1);
 		group -= group_data[0].group;
 		group_data[group].free_blocks_count--;
 		if (flexbg_size > 1)
@@ -296,7 +296,7 @@ next_group:
 		if (start_blk + EXT4_SB(sb)->s_itb_per_group > last_blk)
 			goto next_group;
 		group_data[it_index].inode_table = start_blk;
-		ext4_get_group_no_and_offset(sb, start_blk, &group, NULL);
+		group = ext4_get_group_number(sb, start_blk - 1);
 		group -= group_data[0].group;
 		group_data[group].free_blocks_count -=
 					EXT4_SB(sb)->s_itb_per_group;
@@ -392,7 +392,7 @@ static int set_flexbg_block_bitmap(struct super_block *sb, handle_t *handle,
 		ext4_group_t group;
 		int err;
 
-		ext4_get_group_no_and_offset(sb, block, &group, NULL);
+		group = ext4_get_group_number(sb, block);
 		start = ext4_group_first_block_no(sb, group);
 		group -= flex_gd->groups[0].group;
 
@@ -1879,7 +1879,7 @@ retry:
 		/* Nothing need to do */
 		return 0;
 
-	ext4_get_group_no_and_offset(sb, n_blocks_count - 1, &n_group, &offset);
+	n_group = ext4_get_group_number(sb, n_blocks_count - 1);
 	ext4_get_group_no_and_offset(sb, o_blocks_count - 1, &o_group, &offset);
 
 	n_desc_blocks = num_desc_blocks(sb, n_group + 1);

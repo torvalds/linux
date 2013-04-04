@@ -1793,9 +1793,6 @@ ext4_group_first_block_no(struct super_block *sb, ext4_group_t group_no)
  */
 #define ERR_BAD_DX_DIR	-75000
 
-void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
-			ext4_group_t *blockgrpp, ext4_grpblk_t *offsetp);
-
 /*
  * Timeout and state flag for lazy initialization inode thread.
  */
@@ -1917,6 +1914,13 @@ int ext4_block_bitmap_csum_verify(struct super_block *sb, ext4_group_t group,
 				  struct buffer_head *bh);
 
 /* balloc.c */
+extern void ext4_get_group_no_and_offset(struct super_block *sb,
+					 ext4_fsblk_t blocknr,
+					 ext4_group_t *blockgrpp,
+					 ext4_grpblk_t *offsetp);
+extern ext4_group_t ext4_get_group_number(struct super_block *sb,
+					  ext4_fsblk_t block);
+
 extern void ext4_validate_block_bitmap(struct super_block *sb,
 				       struct ext4_group_desc *desc,
 				       unsigned int block_group,
