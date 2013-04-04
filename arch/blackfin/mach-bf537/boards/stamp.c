@@ -2222,7 +2222,7 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 	},
 #endif
 
-#if defined(CONFIG_ADT75) || defined(CONFIG_ADT75_MODULE)
+#if IS_ENABLED(CONFIG_SENSORS_LM75)
 	{
 		I2C_BOARD_INFO("adt75", 0x9),
 		.irq = IRQ_PG5,
