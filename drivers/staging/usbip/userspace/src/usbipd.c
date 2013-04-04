@@ -436,9 +436,6 @@ static int do_standalone_mode(int daemonize)
 	struct timespec timeout;
 	sigset_t sigmask;
 
-	if (usbip_names_init(USBIDS_FILE))
-		err("failed to open %s", USBIDS_FILE);
-
 	if (usbip_host_driver_open()) {
 		err("please load " USBIP_CORE_MOD_NAME ".ko and "
 		    USBIP_HOST_DRV_NAME ".ko!");
@@ -507,7 +504,6 @@ static int do_standalone_mode(int daemonize)
 	free(fds);
 	freeaddrinfo(ai_head);
 	usbip_host_driver_close();
-	usbip_names_free();
 
 	return 0;
 }
