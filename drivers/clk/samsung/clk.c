@@ -54,7 +54,8 @@ static struct syscore_ops samsung_clk_syscore_ops = {
 /* setup the essentials required to support clock lookup using ccf */
 void __init samsung_clk_init(struct device_node *np, void __iomem *base,
 		unsigned long nr_clks, unsigned long *rdump,
-		unsigned long nr_rdump)
+		unsigned long nr_rdump, unsigned long *soc_rdump,
+		unsigned long nr_soc_rdump)
 {
 	reg_base = base;
 
@@ -62,7 +63,7 @@ void __init samsung_clk_init(struct device_node *np, void __iomem *base,
 	if (rdump && nr_rdump) {
 		unsigned int idx;
 		reg_dump = kzalloc(sizeof(struct samsung_clk_reg_dump)
-					* nr_rdump, GFP_KERNEL);
+				* (nr_rdump + nr_soc_rdump), GFP_KERNEL);
 		if (!reg_dump) {
 			pr_err("%s: memory alloc for register dump failed\n",
 					__func__);
@@ -71,7 +72,9 @@ void __init samsung_clk_init(struct device_node *np, void __iomem *base,
 
 		for (idx = 0; idx < nr_rdump; idx++)
 			reg_dump[idx].offset = rdump[idx];
-		nr_reg_dump = nr_rdump;
+		for (idx = 0; idx < nr_soc_rdump; idx++)
+			reg_dump[nr_rdump + idx].offset = soc_rdump[idx];
+		nr_reg_dump = nr_rdump + nr_soc_rdump;
 		register_syscore_ops(&samsung_clk_syscore_ops);
 	}
 #endif

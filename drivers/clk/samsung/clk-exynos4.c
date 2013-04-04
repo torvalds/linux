@@ -183,6 +183,26 @@ enum exynos4_clks {
  * list of controller registers to be saved and restored during a
  * suspend/resume cycle.
  */
+static __initdata unsigned long exynos4210_clk_save[] = {
+	E4210_SRC_IMAGE,
+	E4210_SRC_LCD1,
+	E4210_SRC_MASK_LCD1,
+	E4210_DIV_LCD1,
+	E4210_GATE_IP_IMAGE,
+	E4210_GATE_IP_LCD1,
+	E4210_GATE_IP_PERIR,
+	E4210_MPLL_CON0,
+};
+
+static __initdata unsigned long exynos4x12_clk_save[] = {
+	E4X12_GATE_IP_IMAGE,
+	E4X12_GATE_IP_PERIR,
+	E4X12_SRC_CAM1,
+	E4X12_DIV_ISP,
+	E4X12_DIV_CAM1,
+	E4X12_MPLL_CON0,
+};
+
 static __initdata unsigned long exynos4_clk_regs[] = {
 	SRC_LEFTBUS,
 	DIV_LEFTBUS,
@@ -986,8 +1006,14 @@ void __init exynos4_clk_init(struct device_node *np)
 			panic("%s: unable to determine soc\n", __func__);
 	}
 
-	samsung_clk_init(np, reg_base, nr_clks,
-		exynos4_clk_regs, ARRAY_SIZE(exynos4_clk_regs));
+	if (exynos4_soc == EXYNOS4210)
+		samsung_clk_init(np, reg_base, nr_clks,
+			exynos4_clk_regs, ARRAY_SIZE(exynos4_clk_regs),
+			exynos4210_clk_save, ARRAY_SIZE(exynos4210_clk_save));
+	else
+		samsung_clk_init(np, reg_base, nr_clks,
+			exynos4_clk_regs, ARRAY_SIZE(exynos4_clk_regs),
+			exynos4x12_clk_save, ARRAY_SIZE(exynos4x12_clk_save));
 
 	if (np)
 		samsung_clk_of_register_fixed_ext(exynos4_fixed_rate_ext_clks,

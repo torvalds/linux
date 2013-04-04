@@ -477,7 +477,8 @@ void __init exynos5250_clk_init(struct device_node *np)
 	}
 
 	samsung_clk_init(np, reg_base, nr_clks,
-			exynos5250_clk_regs, ARRAY_SIZE(exynos5250_clk_regs));
+			exynos5250_clk_regs, ARRAY_SIZE(exynos5250_clk_regs),
+			NULL, 0);
 	samsung_clk_of_register_fixed_ext(exynos5250_fixed_rate_ext_clks,
 			ARRAY_SIZE(exynos5250_fixed_rate_ext_clks),
 			ext_clk_match);

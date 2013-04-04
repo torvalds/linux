@@ -262,7 +262,8 @@ struct samsung_clk_reg_dump {
 
 extern void __init samsung_clk_init(struct device_node *np, void __iomem *base,
 		unsigned long nr_clks, unsigned long *rdump,
-		unsigned long nr_rdump);
+		unsigned long nr_rdump, unsigned long *soc_rdump,
+		unsigned long nr_soc_rdump);
 extern void __init samsung_clk_of_register_fixed_ext(
 		struct samsung_fixed_rate_clock *fixed_rate_clk,
 		unsigned int nr_fixed_rate_clk,
