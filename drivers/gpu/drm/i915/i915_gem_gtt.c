@@ -117,6 +117,11 @@ static int gen6_ppgtt_enable(struct drm_device *dev)
 				       ECOCHK_PPGTT_CACHE64B);
 		I915_WRITE(GFX_MODE, _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
 	} else if (INTEL_INFO(dev)->gen >= 7) {
+		uint32_t ecobits;
+
+		ecobits = I915_READ(GAC_ECO_BITS);
+		I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_PPGTT_CACHE64B);
+
 		I915_WRITE(GAM_ECOCHK, ECOCHK_PPGTT_CACHE64B);
 		/* GFX_MODE is per-ring on gen7+ */
 	}
