@@ -150,14 +150,6 @@ static struct comedi_file_info *comedi_clear_subdevice_minor(unsigned minor)
 	return info;
 }
 
-static struct comedi_file_info *comedi_clear_minor(unsigned minor)
-{
-	if (minor < COMEDI_NUM_BOARD_MINORS)
-		return comedi_clear_board_minor(minor);
-	else
-		return comedi_clear_subdevice_minor(minor);
-}
-
 static void comedi_free_board_file_info(struct comedi_file_info *info)
 {
 	if (info) {
@@ -1745,7 +1737,7 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 			    dev->minor >= comedi_num_legacy_minors) {
 				/* Successfully unconfigured a dynamically
 				 * allocated device.  Try and remove it. */
-				info = comedi_clear_minor(dev->minor);
+				info = comedi_clear_board_minor(dev->minor);
 				if (info) {
 					mutex_unlock(&dev->mutex);
 					comedi_free_board_file_info(info);
@@ -2411,7 +2403,7 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 static void comedi_free_board_minor(unsigned minor)
 {
 	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
-	comedi_free_board_file_info(comedi_clear_minor(minor));
+	comedi_free_board_file_info(comedi_clear_board_minor(minor));
 }
 
 void comedi_release_hardware_device(struct device *hardware_device)
@@ -2485,7 +2477,7 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 	BUG_ON(s->minor >= COMEDI_NUM_MINORS);
 	BUG_ON(s->minor < COMEDI_NUM_BOARD_MINORS);
 
-	info = comedi_clear_minor(s->minor);
+	info = comedi_clear_subdevice_minor(s->minor);
 	if (s->class_dev) {
 		device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, s->minor));
 		s->class_dev = NULL;
