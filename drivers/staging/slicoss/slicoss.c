@@ -3149,6 +3149,7 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			return -EFAULT;
 
 		if (ecmd.cmd == ETHTOOL_GSET) {
+			memset(&edata, 0, sizeof(edata));
 			edata.supported = (SUPPORTED_10baseT_Half |
 					   SUPPORTED_10baseT_Full |
 					   SUPPORTED_100baseT_Half |
