@@ -650,8 +650,9 @@ struct proc_dir_entry *proc_mkdir(const char *name,
 }
 EXPORT_SYMBOL(proc_mkdir);
 
-struct proc_dir_entry *create_proc_entry(const char *name, umode_t mode,
-					 struct proc_dir_entry *parent)
+struct proc_dir_entry *create_proc_read_entry(
+	const char *name, umode_t mode, struct proc_dir_entry *parent, 
+	read_proc_t *read_proc, void *data)
 {
 	struct proc_dir_entry *ent;
 
@@ -668,6 +669,8 @@ struct proc_dir_entry *create_proc_entry(const char *name, umode_t mode,
 
 	ent = __proc_create(&parent, name, mode, 1);
 	if (ent) {
+		ent->read_proc = read_proc;
+		ent->data = data;
 		if (proc_register(parent, ent) < 0) {
 			kfree(ent);
 			ent = NULL;
@@ -675,7 +678,7 @@ struct proc_dir_entry *create_proc_entry(const char *name, umode_t mode,
 	}
 	return ent;
 }
-EXPORT_SYMBOL(create_proc_entry);
+EXPORT_SYMBOL(create_proc_read_entry);
 
 struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 					struct proc_dir_entry *parent,
