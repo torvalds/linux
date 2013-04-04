@@ -2326,6 +2326,7 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	info->device = dev;
 	info->hardware_device = hardware_device;
 	comedi_device_init(dev);
+	comedi_set_hw_dev(dev, hardware_device);
 	mutex_lock(&dev->mutex);
 	spin_lock(&comedi_file_info_table_lock);
 	for (i = hardware_device ? comedi_num_legacy_minors : 0;

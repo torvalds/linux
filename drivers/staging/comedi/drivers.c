@@ -422,7 +422,6 @@ int comedi_auto_config(struct device *hardware_device,
 		return PTR_ERR(comedi_dev);
 	/* Note: comedi_alloc_board_minor() locked comedi_dev->mutex. */
 
-	comedi_set_hw_dev(comedi_dev, hardware_device);
 	comedi_dev->driver = driver;
 	ret = driver->auto_attach(comedi_dev, context);
 	if (ret >= 0)
