@@ -2256,10 +2256,20 @@ static void comedi_device_init(struct comedi_device *dev)
 
 static void comedi_device_cleanup(struct comedi_device *dev)
 {
+	struct module *driver_module = NULL;
+
 	if (dev == NULL)
 		return;
 	mutex_lock(&dev->mutex);
+	if (dev->attached)
+		driver_module = dev->driver->module;
 	comedi_device_detach(dev);
+	while (dev->use_count > 0) {
+		if (driver_module)
+			module_put(driver_module);
+		module_put(THIS_MODULE);
+		dev->use_count--;
+	}
 	mutex_unlock(&dev->mutex);
 	mutex_destroy(&dev->mutex);
 }
