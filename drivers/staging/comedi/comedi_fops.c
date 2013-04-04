@@ -85,7 +85,6 @@ struct comedi_file_info {
 	struct comedi_device *device;
 	struct comedi_subdevice *read_subdevice;
 	struct comedi_subdevice *write_subdevice;
-	struct device *hardware_device;
 };
 
 static DEFINE_MUTEX(comedi_board_minor_table_lock);
@@ -2368,7 +2367,6 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 		return ERR_PTR(-ENOMEM);
 	}
 	info->device = dev;
-	info->hardware_device = hardware_device;
 	comedi_device_init(dev);
 	comedi_set_hw_dev(dev, hardware_device);
 	mutex_lock(&dev->mutex);
@@ -2415,7 +2413,7 @@ void comedi_release_hardware_device(struct device *hardware_device)
 	     minor++) {
 		mutex_lock(&comedi_board_minor_table_lock);
 		info = comedi_board_minor_table[minor];
-		if (info && info->hardware_device == hardware_device) {
+		if (info && info->device->hw_dev == hardware_device) {
 			comedi_board_minor_table[minor] = NULL;
 			mutex_unlock(&comedi_board_minor_table_lock);
 			comedi_free_board_file_info(info);
