@@ -147,7 +147,6 @@ void wl_isr_handler( unsigned long p );
 //int scull_read_procmem(char *buf, char **start, off_t offset, int len, int unused);
 int scull_read_procmem(char *buf, char **start, off_t offset, int len, int *eof, void *data );
 static int write_int(struct file *file, const char *buffer, unsigned long count, void *data);
-static void proc_write(const char *name, write_proc_t *w, void *data);
 
 #endif /* SCULL_USE_PROC */
 
@@ -910,7 +909,6 @@ int wl_insert( struct net_device *dev )
 #if 0 //SCULL_USE_PROC /* don't waste space if unused */
 	create_proc_read_entry( "wlags", 0, NULL, scull_read_procmem, dev );
 	proc_mkdir("driver/wlags49", 0);
-	proc_write("driver/wlags49/wlags49_type", write_int, &lp->wlags49_type);
 #endif /* SCULL_USE_PROC */
 
 	DBG_LEAVE( DbgInfo );
@@ -3772,15 +3770,6 @@ int scull_read_procmem(char *buf, char **start, off_t offset, int len, int *eof,
 	}
     return len;
 } // scull_read_procmem
-
-static void proc_write(const char *name, write_proc_t *w, void *data)
-{
-	struct proc_dir_entry * entry = create_proc_entry(name, S_IFREG | S_IWUSR, NULL);
-	if (entry) {
-		entry->write_proc = w;
-		entry->data = data;
-	}
-} // proc_write
 
 static int write_int(struct file *file, const char *buffer, unsigned long count, void *data)
 {
