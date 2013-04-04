@@ -98,6 +98,10 @@ Exynos4 SoC and this is specified where applicable.
   sclk_mfc            170
   sclk_pcm0           171
   sclk_g3d            172
+  sclk_pwm_isp        173     Exynos4x12
+  sclk_spi0_isp       174     Exynos4x12
+  sclk_spi1_isp       175     Exynos4x12
+  sclk_uart_isp       176     Exynos4x12
 
 	      [Peripheral Clock Gates]
 
@@ -205,6 +209,32 @@ Exynos4 SoC and this is specified where applicable.
   fimc_lite1          354     Exynos4x12
   ppmuispx            355     Exynos4x12
   ppmuispmx           356     Exynos4x12
+  fimc_isp            357     Exynos4x12
+  fimc_drc            358     Exynos4x12
+  fimc_fd             359     Exynos4x12
+  mcuisp              360     Exynos4x12
+  gicisp              361     Exynos4x12
+  smmu_isp            362     Exynos4x12
+  smmu_drc            363     Exynos4x12
+  smmu_fd             364     Exynos4x12
+  smmu_lite0          365     Exynos4x12
+  smmu_lite1          366     Exynos4x12
+  mcuctl_isp          367     Exynos4x12
+  mpwm_isp            368     Exynos4x12
+  i2c0_isp            369     Exynos4x12
+  i2c1_isp            370     Exynos4x12
+  mtcadc_isp          371     Exynos4x12
+  pwm_isp             372     Exynos4x12
+  wdt_isp             373     Exynos4x12
+  uart_isp            374     Exynos4x12
+  asyncaxim           375     Exynos4x12
+  smmu_ispcx          376     Exynos4x12
+  spi0_isp            377     Exynos4x12
+  spi1_isp            378     Exynos4x12
+  pwm_isp_sclk        379     Exynos4x12
+  spi0_isp_sclk       380     Exynos4x12
+  spi1_isp_sclk       381     Exynos4x12
+  uart_isp_sclk       382     Exynos4x12
 
 			[Mux Clocks]
 
