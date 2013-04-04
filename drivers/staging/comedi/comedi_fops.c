@@ -2295,7 +2295,8 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	comedi_device_init(dev);
 	mutex_lock(&dev->mutex);
 	spin_lock(&comedi_file_info_table_lock);
-	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; ++i) {
+	for (i = hardware_device ? comedi_num_legacy_minors : 0;
+	     i < COMEDI_NUM_BOARD_MINORS; ++i) {
 		if (comedi_file_info_table[i] == NULL) {
 			comedi_file_info_table[i] = info;
 			break;
@@ -2359,7 +2360,8 @@ void comedi_release_hardware_device(struct device *hardware_device)
 	int minor;
 	struct comedi_file_info *info;
 
-	for (minor = 0; minor < COMEDI_NUM_BOARD_MINORS; minor++) {
+	for (minor = comedi_num_legacy_minors; minor < COMEDI_NUM_BOARD_MINORS;
+	     minor++) {
 		spin_lock(&comedi_file_info_table_lock);
 		info = comedi_file_info_table[minor];
 		if (info && info->hardware_device == hardware_device) {
