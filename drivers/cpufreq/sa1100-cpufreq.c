@@ -91,9 +91,8 @@
 
 #include <asm/cputype.h>
 
+#include <mach/generic.h>
 #include <mach/hardware.h>
-
-#include "generic.h"
 
 struct sa1100_dram_regs {
 	int speed;

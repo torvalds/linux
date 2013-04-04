@@ -127,6 +127,12 @@ config ARM_S5PV210_CPUFREQ
 
 	  If in doubt, say N.
 
+config ARM_SA1100_CPUFREQ
+	bool
+
+config ARM_SA1110_CPUFREQ
+	bool
+
 config ARM_SPEAR_CPUFREQ
 	bool "SPEAr CPUFreq support"
 	depends on PLAT_SPEAR

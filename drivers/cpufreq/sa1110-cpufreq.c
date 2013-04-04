@@ -27,9 +27,8 @@
 #include <asm/cputype.h>
 #include <asm/mach-types.h>
 
+#include <mach/generic.h>
 #include <mach/hardware.h>
-
-#include "generic.h"
 
 #undef DEBUG
 
