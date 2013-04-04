@@ -1,5 +1,5 @@
 /*
- * linux/arch/unicore32/kernel/cpu-ucv2.c: clock scaling for the UniCore-II
+ * clock scaling for the UniCore-II
  *
  * Code specific to PKUnity SoC and UniCore ISA
  *
