@@ -396,8 +396,8 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->driver = driv;
 	ret = driv->attach(dev, it);
 	if (ret < 0) {
-		module_put(dev->driver->module);
 		__comedi_device_detach(dev);
+		module_put(dev->driver->module);
 		return ret;
 	}
 	ret = comedi_device_postconfig(dev);
