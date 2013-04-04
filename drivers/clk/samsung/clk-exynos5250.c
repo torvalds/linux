@@ -62,6 +62,7 @@
 #define GATE_IP_PERIS		0x10960
 #define SRC_CDREX		0x20200
 #define PLL_DIV2_SEL		0x20a24
+#define GATE_IP_DISP1		0x10928
 
 /*
  * Let each supported clock get a unique id. This id is used to lookup the clock
@@ -98,7 +99,7 @@ enum exynos5250_clks {
 	spi2, i2s1, i2s2, pcm1, pcm2, pwm, spdif, ac97, hsi2c0, hsi2c1, hsi2c2,
 	hsi2c3, chipid, sysreg, pmu, cmu_top, cmu_core, cmu_mem, tzpc0, tzpc1,
 	tzpc2, tzpc3, tzpc4, tzpc5, tzpc6, tzpc7, tzpc8, tzpc9, hdmi_cec, mct,
-	wdt, rtc, tmu,
+	wdt, rtc, tmu, fimd1, mie1, dsim0, dp, mixer, hdmi,
 
 	nr_clks,
 };
@@ -150,6 +151,7 @@ static __initdata unsigned long exynos5250_clk_regs[] = {
 	GATE_IP_PERIS,
 	SRC_CDREX,
 	PLL_DIV2_SEL,
+	GATE_IP_DISP1,
 };
 
 /* list of all parent clock list */
@@ -455,6 +457,12 @@ struct samsung_gate_clock exynos5250_gate_clks[] __initdata = {
 			SRC_MASK_PERIC1, 20, CLK_SET_RATE_PARENT, 0),
 	GATE(sclk_spi2, "sclk_spi2", "div_spi_pre2",
 			SRC_MASK_PERIC1, 24, CLK_SET_RATE_PARENT, 0),
+	GATE(fimd1, "fimd1", "aclk200", GATE_IP_DISP1, 0, 0, 0),
+	GATE(mie1, "mie1", "aclk200", GATE_IP_DISP1, 1, 0, 0),
+	GATE(dsim0, "dsim0", "aclk200", GATE_IP_DISP1, 3, 0, 0),
+	GATE(dp, "dp", "aclk200", GATE_IP_DISP1, 4, 0, 0),
+	GATE(mixer, "mixer", "aclk200", GATE_IP_DISP1, 5, 0, 0),
+	GATE(hdmi, "hdmi", "aclk200", GATE_IP_DISP1, 6, 0, 0),
 };
 
 static __initdata struct of_device_id ext_clk_match[] = {

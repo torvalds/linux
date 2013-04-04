@@ -149,6 +149,12 @@ clock which they consume.
   wdt			336
   rtc			337
   tmu			338
+  fimd1			339
+  mie1			340
+  dsim0			341
+  dp			342
+  mixer			343
+  hdmi			345
 
 Example 1: An example of a clock controller node is listed below.
 
