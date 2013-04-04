@@ -452,7 +452,7 @@ int comedi_auto_config(struct device *hardware_device,
 	mutex_unlock(&comedi_dev->mutex);
 
 	if (ret < 0)
-		comedi_free_board_minor(minor);
+		comedi_release_hardware_device(hardware_device);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(comedi_auto_config);
