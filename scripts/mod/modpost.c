@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <limits.h>
 #include <stdbool.h>
 #include "modpost.h"
 #include "../../include/generated/autoconf.h"
@@ -1763,6 +1764,27 @@ static void read_symbols(char *modname)
 		mod->unres = alloc_symbol("module_layout", 0, mod->unres);
 }
 
+static void read_symbols_from_files(const char *filename)
+{
+	FILE *in = stdin;
+	char fname[PATH_MAX];
+
+	if (strcmp(filename, "-") != 0) {
+		in = fopen(filename, "r");
+		if (!in)
+			fatal("Can't open filenames file %s: %m", filename);
+	}
+
+	while (fgets(fname, PATH_MAX, in) != NULL) {
+		if (strends(fname, "\n"))
+			fname[strlen(fname)-1] = '\0';
+		read_symbols(fname);
+	}
+
+	if (in != stdin)
+		fclose(in);
+}
+
 #define SZ 500
 
 /* We first write the generated file into memory using the
@@ -2124,13 +2146,13 @@ int main(int argc, char **argv)
 	struct module *mod;
 	struct buffer buf = { };
 	char *kernel_read = NULL, *module_read = NULL;
-	char *dump_write = NULL;
+	char *dump_write = NULL, *files_source = NULL;
 	int opt;
 	int err;
 	struct ext_sym_list *extsym_iter;
 	struct ext_sym_list *extsym_start = NULL;
 
-	while ((opt = getopt(argc, argv, "i:I:e:msSo:awM:K:")) != -1) {
+	while ((opt = getopt(argc, argv, "i:I:e:msST:o:awM:K:")) != -1) {
 		switch (opt) {
 		case 'i':
 			kernel_read = optarg;
@@ -2162,6 +2184,9 @@ int main(int argc, char **argv)
 		case 'S':
 			sec_mismatch_verbose = 0;
 			break;
+		case 'T':
+			files_source = optarg;
+			break;
 		case 'w':
 			warn_unresolved = 1;
 			break;
@@ -2183,6 +2208,9 @@ int main(int argc, char **argv)
 
 	while (optind < argc)
 		read_symbols(argv[optind++]);
+
+	if (files_source)
+		read_symbols_from_files(files_source);
 
 	for (mod = modules; mod; mod = mod->next) {
 		if (mod->skip)
