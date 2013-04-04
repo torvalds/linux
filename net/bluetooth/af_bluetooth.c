@@ -627,6 +627,13 @@ static int bt_seq_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static const struct file_operations bt_fops = {
+	.open = bt_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release_private
+};
+
 int bt_procfs_init(struct module* module, struct net *net, const char *name,
 		   struct bt_sock_list* sk_list,
 		   int (* seq_show)(struct seq_file *, void *))
@@ -635,13 +642,7 @@ int bt_procfs_init(struct module* module, struct net *net, const char *name,
 
 	sk_list->custom_seq_show = seq_show;
 
-	sk_list->fops.owner     = module;
-	sk_list->fops.open      = bt_seq_open;
-	sk_list->fops.read      = seq_read;
-	sk_list->fops.llseek    = seq_lseek;
-	sk_list->fops.release   = seq_release_private;
-
-	pde = proc_create(name, 0, net->proc_net, &sk_list->fops);
+	pde = proc_create(name, 0, net->proc_net, &bt_fops);
 	if (!pde)
 		return -ENOMEM;
 
