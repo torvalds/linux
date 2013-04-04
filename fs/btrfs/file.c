@@ -607,6 +607,7 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 				split->block_len = em->block_len;
 			else
 				split->block_len = split->len;
+			split->ram_bytes = em->ram_bytes;
 			split->orig_block_len = max(split->block_len,
 						    em->orig_block_len);
 			split->generation = gen;
@@ -632,6 +633,7 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			split->generation = gen;
 			split->orig_block_len = max(em->block_len,
 						    em->orig_block_len);
+			split->ram_bytes = em->ram_bytes;
 
 			if (compressed) {
 				split->block_len = em->block_len;
@@ -1915,6 +1917,7 @@ out:
 	} else {
 		hole_em->start = offset;
 		hole_em->len = end - offset;
+		hole_em->ram_bytes = hole_em->len;
 		hole_em->orig_start = offset;
 
 		hole_em->block_start = EXTENT_MAP_HOLE;

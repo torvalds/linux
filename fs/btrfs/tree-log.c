@@ -3410,7 +3410,7 @@ insert:
 					   em->start - em->orig_start,
 					   &token);
 	btrfs_set_token_file_extent_num_bytes(leaf, fi, em->len, &token);
-	btrfs_set_token_file_extent_ram_bytes(leaf, fi, em->len, &token);
+	btrfs_set_token_file_extent_ram_bytes(leaf, fi, em->ram_bytes, &token);
 	btrfs_set_token_file_extent_compression(leaf, fi, em->compress_type,
 						&token);
 	btrfs_set_token_file_extent_encryption(leaf, fi, 0, &token);
