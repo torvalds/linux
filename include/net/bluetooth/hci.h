@@ -984,6 +984,9 @@ struct hci_cp_le_set_adv_data {
 
 #define HCI_OP_LE_SET_ADV_ENABLE	0x200a
 
+#define LE_SCAN_PASSIVE			0x00
+#define LE_SCAN_ACTIVE			0x01
+
 #define HCI_OP_LE_SET_SCAN_PARAM	0x200b
 struct hci_cp_le_set_scan_param {
 	__u8    type;
