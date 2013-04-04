@@ -162,23 +162,7 @@ static struct platform_driver wm8994_ldo_driver = {
 	},
 };
 
-static int __init wm8994_ldo_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&wm8994_ldo_driver);
-	if (ret != 0)
-		pr_err("Failed to register Wm8994 GP LDO driver: %d\n", ret);
-
-	return ret;
-}
-subsys_initcall(wm8994_ldo_init);
-
-static void __exit wm8994_ldo_exit(void)
-{
-	platform_driver_unregister(&wm8994_ldo_driver);
-}
-module_exit(wm8994_ldo_exit);
+module_platform_driver(wm8994_ldo_driver);
 
 /* Module information */
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
