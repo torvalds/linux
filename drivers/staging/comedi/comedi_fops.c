@@ -2315,16 +2315,19 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	return i;
 }
 
-void comedi_free_board_minor(unsigned minor)
+static struct comedi_file_info *comedi_clear_minor(unsigned minor)
 {
 	struct comedi_file_info *info;
 
-	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
 	spin_lock(&comedi_file_info_table_lock);
 	info = comedi_file_info_table[minor];
 	comedi_file_info_table[minor] = NULL;
 	spin_unlock(&comedi_file_info_table_lock);
+	return info;
+}
 
+static void comedi_free_board_file_info(struct comedi_file_info *info)
+{
 	if (info) {
 		struct comedi_device *dev = info->device;
 		if (dev) {
@@ -2337,6 +2340,12 @@ void comedi_free_board_minor(unsigned minor)
 		}
 		kfree(info);
 	}
+}
+
+void comedi_free_board_minor(unsigned minor)
+{
+	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
+	comedi_free_board_file_info(comedi_clear_minor(minor));
 }
 
 int comedi_find_board_minor(struct device *hardware_device)
@@ -2407,11 +2416,7 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 	BUG_ON(s->minor >= COMEDI_NUM_MINORS);
 	BUG_ON(s->minor < COMEDI_FIRST_SUBDEVICE_MINOR);
 
-	spin_lock(&comedi_file_info_table_lock);
-	info = comedi_file_info_table[s->minor];
-	comedi_file_info_table[s->minor] = NULL;
-	spin_unlock(&comedi_file_info_table_lock);
-
+	info = comedi_clear_minor(s->minor);
 	if (s->class_dev) {
 		device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, s->minor));
 		s->class_dev = NULL;
