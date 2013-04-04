@@ -5469,7 +5469,7 @@ static void ironlake_fdi_set_m_n(struct drm_crtc *crtc)
 }
 
 static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
-				      intel_clock_t *clock, u32 fp)
+				      intel_clock_t *clock, u32 *fp)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
 	struct drm_device *dev = crtc->dev;
@@ -5509,7 +5509,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 		factor = 20;
 
 	if (clock->m < factor * clock->n)
-		fp |= FP_CB_TUNE;
+		*fp |= FP_CB_TUNE;
 
 	dpll = 0;
 
@@ -5626,7 +5626,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		fp2 = reduced_clock.n << 16 | reduced_clock.m1 << 8 |
 			reduced_clock.m2;
 
-	dpll = ironlake_compute_dpll(intel_crtc, &clock, fp);
+	dpll = ironlake_compute_dpll(intel_crtc, &clock, &fp);
 
 	DRM_DEBUG_KMS("Mode for pipe %d:\n", pipe);
 	drm_mode_debug_printmodeline(mode);
