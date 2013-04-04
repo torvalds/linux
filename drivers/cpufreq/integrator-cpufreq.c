@@ -1,6 +1,4 @@
 /*
- *  linux/arch/arm/mach-integrator/cpu.c
- *
  *  Copyright (C) 2001-2002 Deep Blue Solutions Ltd.
  *
  * This program is free software; you can redistribute it and/or modify

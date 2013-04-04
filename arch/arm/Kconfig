@@ -2166,17 +2166,6 @@ config CPU_FREQ_SA1100
 config CPU_FREQ_SA1110
 	bool
 
-config CPU_FREQ_INTEGRATOR
-	tristate "CPUfreq driver for ARM Integrator CPUs"
-	depends on ARCH_INTEGRATOR && CPU_FREQ
-	default y
-	help
-	  This enables the CPUfreq driver for ARM Integrator CPUs.
-
-	  For details, take a look at <file:Documentation/cpu-freq>.
-
-	  If in doubt, say Y.
-
 config CPU_FREQ_S3C
 	bool
 	help
