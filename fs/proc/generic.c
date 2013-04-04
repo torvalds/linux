@@ -71,58 +71,54 @@ __proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 		count = min_t(size_t, PROC_BLOCK_SIZE, nbytes);
 
 		start = NULL;
-		if (dp->read_proc) {
-			/*
-			 * How to be a proc read function
-			 * ------------------------------
-			 * Prototype:
-			 *    int f(char *buffer, char **start, off_t offset,
-			 *          int count, int *peof, void *dat)
-			 *
-			 * Assume that the buffer is "count" bytes in size.
-			 *
-			 * If you know you have supplied all the data you
-			 * have, set *peof.
-			 *
-			 * You have three ways to return data:
-			 * 0) Leave *start = NULL.  (This is the default.)
-			 *    Put the data of the requested offset at that
-			 *    offset within the buffer.  Return the number (n)
-			 *    of bytes there are from the beginning of the
-			 *    buffer up to the last byte of data.  If the
-			 *    number of supplied bytes (= n - offset) is 
-			 *    greater than zero and you didn't signal eof
-			 *    and the reader is prepared to take more data
-			 *    you will be called again with the requested
-			 *    offset advanced by the number of bytes 
-			 *    absorbed.  This interface is useful for files
-			 *    no larger than the buffer.
-			 * 1) Set *start = an unsigned long value less than
-			 *    the buffer address but greater than zero.
-			 *    Put the data of the requested offset at the
-			 *    beginning of the buffer.  Return the number of
-			 *    bytes of data placed there.  If this number is
-			 *    greater than zero and you didn't signal eof
-			 *    and the reader is prepared to take more data
-			 *    you will be called again with the requested
-			 *    offset advanced by *start.  This interface is
-			 *    useful when you have a large file consisting
-			 *    of a series of blocks which you want to count
-			 *    and return as wholes.
-			 *    (Hack by Paul.Russell@rustcorp.com.au)
-			 * 2) Set *start = an address within the buffer.
-			 *    Put the data of the requested offset at *start.
-			 *    Return the number of bytes of data placed there.
-			 *    If this number is greater than zero and you
-			 *    didn't signal eof and the reader is prepared to
-			 *    take more data you will be called again with the
-			 *    requested offset advanced by the number of bytes
-			 *    absorbed.
-			 */
-			n = dp->read_proc(page, &start, *ppos,
-					  count, &eof, dp->data);
-		} else
+		if (!dp->read_proc)
 			break;
+
+		/* How to be a proc read function
+		 * ------------------------------
+		 * Prototype:
+		 *    int f(char *buffer, char **start, off_t offset,
+		 *          int count, int *peof, void *dat)
+		 *
+		 * Assume that the buffer is "count" bytes in size.
+		 *
+		 * If you know you have supplied all the data you have, set
+		 * *peof.
+		 *
+		 * You have three ways to return data:
+		 *
+		 * 0) Leave *start = NULL.  (This is the default.)  Put the
+		 *    data of the requested offset at that offset within the
+		 *    buffer.  Return the number (n) of bytes there are from
+		 *    the beginning of the buffer up to the last byte of data.
+		 *    If the number of supplied bytes (= n - offset) is greater
+		 *    than zero and you didn't signal eof and the reader is
+		 *    prepared to take more data you will be called again with
+		 *    the requested offset advanced by the number of bytes
+		 *    absorbed.  This interface is useful for files no larger
+		 *    than the buffer.
+		 *
+		 * 1) Set *start = an unsigned long value less than the buffer
+		 *    address but greater than zero.  Put the data of the
+		 *    requested offset at the beginning of the buffer.  Return
+		 *    the number of bytes of data placed there.  If this number
+		 *    is greater than zero and you didn't signal eof and the
+		 *    reader is prepared to take more data you will be called
+		 *    again with the requested offset advanced by *start.  This
+		 *    interface is useful when you have a large file consisting
+		 *    of a series of blocks which you want to count and return
+		 *    as wholes.
+		 *    (Hack by Paul.Russell@rustcorp.com.au)
+		 *
+		 * 2) Set *start = an address within the buffer.  Put the data
+		 *    of the requested offset at *start.  Return the number of
+		 *    bytes of data placed there.  If this number is greater
+		 *    than zero and you didn't signal eof and the reader is
+		 *    prepared to take more data you will be called again with
+		 *    the requested offset advanced by the number of bytes
+		 *    absorbed.
+		 */
+		n = dp->read_proc(page, &start, *ppos, count, &eof, dp->data);
 
 		if (n == 0)   /* end of file */
 			break;
