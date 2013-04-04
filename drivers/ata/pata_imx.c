@@ -230,11 +230,20 @@ static const struct dev_pm_ops pata_imx_pm_ops = {
 };
 #endif
 
+static const struct of_device_id imx_pata_dt_ids[] = {
+	{
+		.compatible = "fsl,imx27-pata",
+	}, {
+		/* sentinel */
+	}
+};
+
 static struct platform_driver pata_imx_driver = {
 	.probe		= pata_imx_probe,
 	.remove		= pata_imx_remove,
 	.driver = {
 		.name		= DRV_NAME,
+		.of_match_table	= imx_pata_dt_ids,
 		.owner		= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm		= &pata_imx_pm_ops,
