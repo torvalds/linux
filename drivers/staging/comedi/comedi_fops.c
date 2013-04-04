@@ -50,6 +50,8 @@
 #include "comedi_internal.h"
 
 #define COMEDI_NUM_MINORS 0x100
+#define COMEDI_NUM_SUBDEVICE_MINORS	\
+	(COMEDI_NUM_MINORS - COMEDI_NUM_BOARD_MINORS)
 
 #ifdef CONFIG_COMEDI_DEBUG
 int comedi_debug;
@@ -86,8 +88,14 @@ struct comedi_file_info {
 	struct device *hardware_device;
 };
 
-static DEFINE_MUTEX(comedi_file_info_table_lock);
-static struct comedi_file_info *comedi_file_info_table[COMEDI_NUM_MINORS];
+static DEFINE_MUTEX(comedi_board_minor_table_lock);
+static struct comedi_file_info
+*comedi_board_minor_table[COMEDI_NUM_BOARD_MINORS];
+
+static DEFINE_MUTEX(comedi_subdevice_minor_table_lock);
+/* Note: indexed by minor - COMEDI_NUM_BOARD_MINORS. */
+static struct comedi_file_info
+*comedi_subdevice_minor_table[COMEDI_NUM_SUBDEVICE_MINORS];
 
 static struct class *comedi_class;
 static struct cdev comedi_cdev;
@@ -119,15 +127,35 @@ static void comedi_device_cleanup(struct comedi_device *dev)
 	mutex_destroy(&dev->mutex);
 }
 
-static struct comedi_file_info *comedi_clear_minor(unsigned minor)
+static struct comedi_file_info *comedi_clear_board_minor(unsigned minor)
 {
 	struct comedi_file_info *info;
 
-	mutex_lock(&comedi_file_info_table_lock);
-	info = comedi_file_info_table[minor];
-	comedi_file_info_table[minor] = NULL;
-	mutex_unlock(&comedi_file_info_table_lock);
+	mutex_lock(&comedi_board_minor_table_lock);
+	info = comedi_board_minor_table[minor];
+	comedi_board_minor_table[minor] = NULL;
+	mutex_unlock(&comedi_board_minor_table_lock);
 	return info;
+}
+
+static struct comedi_file_info *comedi_clear_subdevice_minor(unsigned minor)
+{
+	struct comedi_file_info *info;
+	unsigned int i = minor - COMEDI_NUM_BOARD_MINORS;
+
+	mutex_lock(&comedi_subdevice_minor_table_lock);
+	info = comedi_subdevice_minor_table[i];
+	comedi_subdevice_minor_table[i] = NULL;
+	mutex_unlock(&comedi_subdevice_minor_table_lock);
+	return info;
+}
+
+static struct comedi_file_info *comedi_clear_minor(unsigned minor)
+{
+	if (minor < COMEDI_NUM_BOARD_MINORS)
+		return comedi_clear_board_minor(minor);
+	else
+		return comedi_clear_subdevice_minor(minor);
 }
 
 static void comedi_free_board_file_info(struct comedi_file_info *info)
@@ -146,15 +174,37 @@ static void comedi_free_board_file_info(struct comedi_file_info *info)
 	}
 }
 
-static struct comedi_file_info *comedi_file_info_from_minor(unsigned minor)
+static struct comedi_file_info
+*comedi_file_info_from_board_minor(unsigned minor)
 {
 	struct comedi_file_info *info;
 
-	BUG_ON(minor >= COMEDI_NUM_MINORS);
-	mutex_lock(&comedi_file_info_table_lock);
-	info = comedi_file_info_table[minor];
-	mutex_unlock(&comedi_file_info_table_lock);
+	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
+	mutex_lock(&comedi_board_minor_table_lock);
+	info = comedi_board_minor_table[minor];
+	mutex_unlock(&comedi_board_minor_table_lock);
 	return info;
+}
+
+static struct comedi_file_info
+*comedi_file_info_from_subdevice_minor(unsigned minor)
+{
+	struct comedi_file_info *info;
+	unsigned int i = minor - COMEDI_NUM_BOARD_MINORS;
+
+	BUG_ON(i >= COMEDI_NUM_SUBDEVICE_MINORS);
+	mutex_lock(&comedi_subdevice_minor_table_lock);
+	info = comedi_subdevice_minor_table[i];
+	mutex_unlock(&comedi_subdevice_minor_table_lock);
+	return info;
+}
+
+static struct comedi_file_info *comedi_file_info_from_minor(unsigned minor)
+{
+	if (minor < COMEDI_NUM_BOARD_MINORS)
+		return comedi_file_info_from_board_minor(minor);
+	else
+		return comedi_file_info_from_subdevice_minor(minor);
 }
 
 static struct comedi_device *
@@ -2330,15 +2380,15 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	comedi_device_init(dev);
 	comedi_set_hw_dev(dev, hardware_device);
 	mutex_lock(&dev->mutex);
-	mutex_lock(&comedi_file_info_table_lock);
+	mutex_lock(&comedi_board_minor_table_lock);
 	for (i = hardware_device ? comedi_num_legacy_minors : 0;
 	     i < COMEDI_NUM_BOARD_MINORS; ++i) {
-		if (comedi_file_info_table[i] == NULL) {
-			comedi_file_info_table[i] = info;
+		if (comedi_board_minor_table[i] == NULL) {
+			comedi_board_minor_table[i] = info;
 			break;
 		}
 	}
-	mutex_unlock(&comedi_file_info_table_lock);
+	mutex_unlock(&comedi_board_minor_table_lock);
 	if (i == COMEDI_NUM_BOARD_MINORS) {
 		mutex_unlock(&dev->mutex);
 		comedi_device_cleanup(dev);
@@ -2371,15 +2421,15 @@ void comedi_release_hardware_device(struct device *hardware_device)
 
 	for (minor = comedi_num_legacy_minors; minor < COMEDI_NUM_BOARD_MINORS;
 	     minor++) {
-		mutex_lock(&comedi_file_info_table_lock);
-		info = comedi_file_info_table[minor];
+		mutex_lock(&comedi_board_minor_table_lock);
+		info = comedi_board_minor_table[minor];
 		if (info && info->hardware_device == hardware_device) {
-			comedi_file_info_table[minor] = NULL;
-			mutex_unlock(&comedi_file_info_table_lock);
+			comedi_board_minor_table[minor] = NULL;
+			mutex_unlock(&comedi_board_minor_table_lock);
 			comedi_free_board_file_info(info);
 			break;
 		}
-		mutex_unlock(&comedi_file_info_table_lock);
+		mutex_unlock(&comedi_board_minor_table_lock);
 	}
 }
 
@@ -2398,19 +2448,20 @@ int comedi_alloc_subdevice_minor(struct comedi_subdevice *s)
 		info->read_subdevice = s;
 	if (s->subdev_flags & SDF_CMD_WRITE)
 		info->write_subdevice = s;
-	mutex_lock(&comedi_file_info_table_lock);
-	for (i = COMEDI_NUM_BOARD_MINORS; i < COMEDI_NUM_MINORS; ++i) {
-		if (comedi_file_info_table[i] == NULL) {
-			comedi_file_info_table[i] = info;
+	mutex_lock(&comedi_subdevice_minor_table_lock);
+	for (i = 0; i < COMEDI_NUM_SUBDEVICE_MINORS; ++i) {
+		if (comedi_subdevice_minor_table[i] == NULL) {
+			comedi_subdevice_minor_table[i] = info;
 			break;
 		}
 	}
-	mutex_unlock(&comedi_file_info_table_lock);
-	if (i == COMEDI_NUM_MINORS) {
+	mutex_unlock(&comedi_subdevice_minor_table_lock);
+	if (i == COMEDI_NUM_SUBDEVICE_MINORS) {
 		kfree(info);
 		pr_err("comedi: error: ran out of minor numbers for subdevice files.\n");
 		return -EBUSY;
 	}
+	i += COMEDI_NUM_BOARD_MINORS;
 	s->minor = i;
 	csdev = device_create(comedi_class, dev->class_dev,
 			      MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i_subd%i",
@@ -2515,8 +2566,10 @@ static void __exit comedi_cleanup(void)
 	int i;
 
 	comedi_cleanup_board_minors();
-	for (i = 0; i < COMEDI_NUM_MINORS; ++i)
-		BUG_ON(comedi_file_info_table[i]);
+	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; ++i)
+		BUG_ON(comedi_board_minor_table[i]);
+	for (i = 0; i < COMEDI_NUM_SUBDEVICE_MINORS; ++i)
+		BUG_ON(comedi_subdevice_minor_table[i]);
 
 	class_destroy(comedi_class);
 	cdev_del(&comedi_cdev);
