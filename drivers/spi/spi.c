@@ -984,7 +984,7 @@ static void acpi_register_spi_devices(struct spi_master *master)
 	acpi_status status;
 	acpi_handle handle;
 
-	handle = ACPI_HANDLE(&master->dev);
+	handle = ACPI_HANDLE(master->dev.parent);
 	if (!handle)
 		return;
 
