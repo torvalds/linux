@@ -198,6 +198,26 @@ Exynos4 SoC and this is specified where applicable.
   audss               348
   mipi_hsi            349     Exynos4210
   mdma2               350     Exynos4210
+  pixelasyncm0        351
+  pixelasyncm1        352
+  fimc_lite0          353     Exynos4x12
+  fimc_lite1          354     Exynos4x12
+  ppmuispx            355     Exynos4x12
+  ppmuispmx           356     Exynos4x12
+
+			[Mux Clocks]
+
+	Clock		ID	SoC (if specific)
+	-----------------------------------------------
+
+	mout_fimc0	384
+	mout_fimc1	385
+	mout_fimc2	386
+	mout_fimc3	387
+	mout_cam0	388
+	mout_cam1	389
+	mout_csis0	390
+	mout_csis1	391
 
 Example 1: An example of a clock controller node is listed below.
 
