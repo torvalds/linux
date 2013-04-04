@@ -2177,13 +2177,6 @@ config CPU_FREQ_INTEGRATOR
 
 	  If in doubt, say Y.
 
-config CPU_FREQ_PXA
-	bool
-	depends on CPU_FREQ && ARCH_PXA && PXA25x
-	default y
-	select CPU_FREQ_DEFAULT_GOV_USERSPACE
-	select CPU_FREQ_TABLE
-
 config CPU_FREQ_S3C
 	bool
 	help
