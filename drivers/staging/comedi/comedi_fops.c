@@ -2274,22 +2274,24 @@ static void comedi_device_cleanup(struct comedi_device *dev)
 	mutex_destroy(&dev->mutex);
 }
 
-int comedi_alloc_board_minor(struct device *hardware_device)
+struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 {
 	struct comedi_file_info *info;
+	struct comedi_device *dev;
 	struct device *csdev;
 	unsigned i;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL)
-		return -ENOMEM;
-	info->device = kzalloc(sizeof(struct comedi_device), GFP_KERNEL);
-	if (info->device == NULL) {
+		return ERR_PTR(-ENOMEM);
+	dev = kzalloc(sizeof(struct comedi_device), GFP_KERNEL);
+	if (dev == NULL) {
 		kfree(info);
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
+	info->device = dev;
 	info->hardware_device = hardware_device;
-	comedi_device_init(info->device);
+	comedi_device_init(dev);
 	spin_lock(&comedi_file_info_table_lock);
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; ++i) {
 		if (comedi_file_info_table[i] == NULL) {
@@ -2299,20 +2301,20 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	}
 	spin_unlock(&comedi_file_info_table_lock);
 	if (i == COMEDI_NUM_BOARD_MINORS) {
-		comedi_device_cleanup(info->device);
-		kfree(info->device);
+		comedi_device_cleanup(dev);
+		kfree(dev);
 		kfree(info);
 		pr_err("comedi: error: ran out of minor numbers for board device files.\n");
-		return -EBUSY;
+		return ERR_PTR(-EBUSY);
 	}
-	info->device->minor = i;
+	dev->minor = i;
 	csdev = device_create(comedi_class, hardware_device,
 			      MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
 	if (!IS_ERR(csdev))
-		info->device->class_dev = csdev;
+		dev->class_dev = csdev;
 	dev_set_drvdata(csdev, info);
 
-	return i;
+	return dev;
 }
 
 static struct comedi_file_info *comedi_clear_minor(unsigned minor)
@@ -2475,14 +2477,14 @@ static int __init comedi_init(void)
 
 	/* create devices files for legacy/manual use */
 	for (i = 0; i < comedi_num_legacy_minors; i++) {
-		int minor;
-		minor = comedi_alloc_board_minor(NULL);
-		if (minor < 0) {
+		struct comedi_device *dev;
+		dev = comedi_alloc_board_minor(NULL);
+		if (IS_ERR(dev)) {
 			comedi_cleanup_board_minors();
 			cdev_del(&comedi_cdev);
 			unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 						 COMEDI_NUM_MINORS);
-			return minor;
+			return PTR_ERR(dev);
 		}
 	}
 

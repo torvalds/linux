@@ -406,7 +406,6 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 int comedi_auto_config(struct device *hardware_device,
 		       struct comedi_driver *driver, unsigned long context)
 {
-	int minor;
 	struct comedi_device *comedi_dev;
 	int ret;
 
@@ -427,11 +426,9 @@ int comedi_auto_config(struct device *hardware_device,
 		return -EINVAL;
 	}
 
-	minor = comedi_alloc_board_minor(hardware_device);
-	if (minor < 0)
-		return minor;
-
-	comedi_dev = comedi_dev_from_minor(minor);
+	comedi_dev = comedi_alloc_board_minor(hardware_device);
+	if (IS_ERR(comedi_dev))
+		return PTR_ERR(comedi_dev);
 
 	mutex_lock(&comedi_dev->mutex);
 	if (comedi_dev->attached)
