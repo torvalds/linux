@@ -131,6 +131,13 @@ enum {
 /* Effects values size*/
 #define EFFECT_VALS_MAX_COUNT 12
 
+/* Latency introduced by DSP blocks in milliseconds. */
+#define DSP_CAPTURE_INIT_LATENCY        0
+#define DSP_CRYSTAL_VOICE_LATENCY       124
+#define DSP_PLAYBACK_INIT_LATENCY       13
+#define DSP_PLAY_ENHANCEMENT_LATENCY    30
+#define DSP_SPEAKER_OUT_LATENCY         7
+
 struct ct_effect {
 	char name[44];
 	hda_nid_t nid;
@@ -2743,6 +2750,31 @@ static int ca0132_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 	return 0;
 }
 
+static unsigned int ca0132_playback_pcm_delay(struct hda_pcm_stream *info,
+			struct hda_codec *codec,
+			struct snd_pcm_substream *substream)
+{
+	struct ca0132_spec *spec = codec->spec;
+	unsigned int latency = DSP_PLAYBACK_INIT_LATENCY;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	if (spec->dsp_state != DSP_DOWNLOADED)
+		return 0;
+
+	/* Add latency if playback enhancement and either effect is enabled. */
+	if (spec->effects_switch[PLAY_ENHANCEMENT - EFFECT_START_NID]) {
+		if ((spec->effects_switch[SURROUND - EFFECT_START_NID]) ||
+		    (spec->effects_switch[DIALOG_PLUS - EFFECT_START_NID]))
+			latency += DSP_PLAY_ENHANCEMENT_LATENCY;
+	}
+
+	/* Applying Speaker EQ adds latency as well. */
+	if (spec->cur_out_type == SPEAKER_OUT)
+		latency += DSP_SPEAKER_OUT_LATENCY;
+
+	return (latency * runtime->rate) / 1000;
+}
+
 /*
  * Digital out
  */
@@ -2809,6 +2841,23 @@ static int ca0132_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 
 	ca0132_cleanup_stream(codec, hinfo->nid);
 	return 0;
+}
+
+static unsigned int ca0132_capture_pcm_delay(struct hda_pcm_stream *info,
+			struct hda_codec *codec,
+			struct snd_pcm_substream *substream)
+{
+	struct ca0132_spec *spec = codec->spec;
+	unsigned int latency = DSP_CAPTURE_INIT_LATENCY;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	if (spec->dsp_state != DSP_DOWNLOADED)
+		return 0;
+
+	if (spec->effects_switch[CRYSTAL_VOICE - EFFECT_START_NID])
+		latency += DSP_CRYSTAL_VOICE_LATENCY;
+
+	return (latency * runtime->rate) / 1000;
 }
 
 /*
@@ -4002,7 +4051,8 @@ static struct hda_pcm_stream ca0132_pcm_analog_playback = {
 	.channels_max = 6,
 	.ops = {
 		.prepare = ca0132_playback_pcm_prepare,
-		.cleanup = ca0132_playback_pcm_cleanup
+		.cleanup = ca0132_playback_pcm_cleanup,
+		.get_delay = ca0132_playback_pcm_delay,
 	},
 };
 
@@ -4012,7 +4062,8 @@ static struct hda_pcm_stream ca0132_pcm_analog_capture = {
 	.channels_max = 2,
 	.ops = {
 		.prepare = ca0132_capture_pcm_prepare,
-		.cleanup = ca0132_capture_pcm_cleanup
+		.cleanup = ca0132_capture_pcm_cleanup,
+		.get_delay = ca0132_capture_pcm_delay,
 	},
 };
 
