@@ -258,6 +258,29 @@ depends on PPC32 || PPC64
 source "drivers/cpufreq/Kconfig.powerpc"
 endmenu
 
+menu "SPARC CPU frequency scaling drivers"
+depends on SPARC64
+config SPARC_US3_CPUFREQ
+	tristate "UltraSPARC-III CPU Frequency driver"
+	select CPU_FREQ_TABLE
+	help
+	  This adds the CPUFreq driver for UltraSPARC-III processors.
+
+	  For details, take a look at <file:Documentation/cpu-freq>.
+
+	  If in doubt, say N.
+
+config SPARC_US2E_CPUFREQ
+	tristate "UltraSPARC-IIe CPU Frequency driver"
+	select CPU_FREQ_TABLE
+	help
+	  This adds the CPUFreq driver for UltraSPARC-IIe processors.
+
+	  For details, take a look at <file:Documentation/cpu-freq>.
+
+	  If in doubt, say N.
+endmenu
+
 menu "SH CPU Frequency scaling"
 depends on SUPERH
 config SH_CPU_FREQ

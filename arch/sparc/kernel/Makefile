@@ -102,9 +102,6 @@ obj-$(CONFIG_PCI_MSI)        += pci_msi.o
 
 obj-$(CONFIG_COMPAT)         += sys32.o sys_sparc32.o signal32.o
 
-# sparc64 cpufreq
-obj-$(CONFIG_US3_FREQ)  += us3_cpufreq.o
-obj-$(CONFIG_US2E_FREQ) += us2e_cpufreq.o
 obj-$(CONFIG_US3_MC)    += chmc.o
 
 obj-$(CONFIG_KPROBES)   += kprobes.o

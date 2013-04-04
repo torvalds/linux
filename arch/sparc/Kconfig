@@ -254,29 +254,6 @@ config HOTPLUG_CPU
 
 if SPARC64
 source "drivers/cpufreq/Kconfig"
-
-config US3_FREQ
-	tristate "UltraSPARC-III CPU Frequency driver"
-	depends on CPU_FREQ
-	select CPU_FREQ_TABLE
-	help
-	  This adds the CPUFreq driver for UltraSPARC-III processors.
-
-	  For details, take a look at <file:Documentation/cpu-freq>.
-
-	  If in doubt, say N.
-
-config US2E_FREQ
-	tristate "UltraSPARC-IIe CPU Frequency driver"
-	depends on CPU_FREQ
-	select CPU_FREQ_TABLE
-	help
-	  This adds the CPUFreq driver for UltraSPARC-IIe processors.
-
-	  For details, take a look at <file:Documentation/cpu-freq>.
-
-	  If in doubt, say N.
-
 endif
 
 config US3_MC
