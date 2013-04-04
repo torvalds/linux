@@ -590,7 +590,7 @@ static int regcache_sync_block_raw_flush(struct regmap *map, const void **data,
 
 	count = cur - base;
 
-	dev_dbg(map->dev, "Writing %d bytes for %d registers from 0x%x-0x%x\n",
+	dev_dbg(map->dev, "Writing %zu bytes for %d registers from 0x%x-0x%x\n",
 		count * val_bytes, count, base, cur - 1);
 
 	map->cache_bypass = 1;
