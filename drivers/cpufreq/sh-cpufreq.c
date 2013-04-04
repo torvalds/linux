@@ -1,6 +1,4 @@
 /*
- * arch/sh/kernel/cpufreq.c
- *
  * cpufreq driver for the SuperH processors.
  *
  * Copyright (C) 2002 - 2012 Paul Mundt
