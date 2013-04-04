@@ -2725,7 +2725,7 @@ static ssize_t show_device_status(struct device_driver *drv, char *buf)
 	spin_lock_irqsave(&dev_lock, flags);
 	size += sprintf(&buf[size], "Devices Present:\n");
 	list_for_each_entry_safe(dd, tmp, &online_list, online_list) {
-		if (dd && dd->pdev) {
+		if (dd->pdev) {
 			if (dd->port &&
 			    dd->port->identify &&
 			    dd->port->identify_valid) {
@@ -2755,7 +2755,7 @@ static ssize_t show_device_status(struct device_driver *drv, char *buf)
 
 	size += sprintf(&buf[size], "Devices Being Removed:\n");
 	list_for_each_entry_safe(dd, tmp, &removing_list, remove_list) {
-		if (dd && dd->pdev) {
+		if (dd->pdev) {
 			if (dd->port &&
 			    dd->port->identify &&
 			    dd->port->identify_valid) {
