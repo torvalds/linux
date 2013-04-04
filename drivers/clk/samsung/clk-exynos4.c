@@ -508,6 +508,8 @@ struct samsung_gate_clock exynos4_gate_clks[] __initdata = {
 			CLK_SET_RATE_PARENT, 0),
 	GATE(sclk_mipi0, "sclk_mipi0", "div_mipi_pre0",
 			SRC_MASK_LCD0, 12, CLK_SET_RATE_PARENT, 0),
+	GATE(sclk_audio0, "sclk_audio0", "div_audio0", SRC_MASK_MAUDIO, 0,
+			CLK_SET_RATE_PARENT, 0),
 	GATE(sclk_audio1, "sclk_audio1", "div_audio1", 0xc354, 0,
 			CLK_SET_RATE_PARENT, 0),
 	GATE_D(vp, "s5p-mixer", "vp", "aclk160", GATE_IP_TV, 0, 0, 0),
