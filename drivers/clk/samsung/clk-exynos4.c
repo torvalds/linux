@@ -122,7 +122,7 @@ enum exynos4_clks {
 	sclk_sata, sclk_uart0, sclk_uart1, sclk_uart2, sclk_uart3, sclk_uart4,
 	sclk_audio1, sclk_audio2, sclk_spdif, sclk_spi0, sclk_spi1, sclk_spi2,
 	sclk_slimbus, sclk_fimd1, sclk_mipi1, sclk_pcm1, sclk_pcm2, sclk_i2s1,
-	sclk_i2s2, sclk_mipihsi, sclk_mfc,
+	sclk_i2s2, sclk_mipihsi, sclk_mfc, sclk_pcm0,
 
 	/* gate clocks */
 	fimc0 = 256, fimc1, fimc2, fimc3, csis0, csis1, jpeg, smmu_fimc0,
@@ -411,7 +411,7 @@ struct samsung_div_clock exynos4_div_clks[] __initdata = {
 	DIV(none, "div_fimd0", "mout_fimd0", DIV_LCD0, 0, 4),
 	DIV(none, "div_mipi0", "mout_mipi0", DIV_LCD0, 16, 4),
 	DIV(none, "div_audio0", "mout_audio0", DIV_MAUDIO, 0, 4),
-	DIV(none, "div_pcm0", "sclk_audio0", DIV_MAUDIO, 4, 8),
+	DIV(sclk_pcm0, "sclk_pcm0", "sclk_audio0", DIV_MAUDIO, 4, 8),
 	DIV(none, "div_mmc0", "mout_mmc0", DIV_FSYS1, 0, 4),
 	DIV(none, "div_mmc1", "mout_mmc1", DIV_FSYS1, 16, 4),
 	DIV(none, "div_mmc2", "mout_mmc2", DIV_FSYS2, 0, 4),

@@ -94,6 +94,7 @@ Exynos4 SoC and this is specified where applicable.
   sclk_i2s2           168
   sclk_mipihsi        169     Exynos4412
   sclk_mfc            170
+  sclk_pcm0           171
 
 	      [Peripheral Clock Gates]
 
