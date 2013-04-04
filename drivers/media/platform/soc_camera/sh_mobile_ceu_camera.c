@@ -95,7 +95,6 @@ struct sh_mobile_ceu_buffer {
 
 struct sh_mobile_ceu_dev {
 	struct soc_camera_host ici;
-	struct soc_camera_device *icd;
 	struct platform_device *csi2_pdev;
 
 	unsigned int irq;
@@ -163,7 +162,7 @@ static u32 ceu_read(struct sh_mobile_ceu_dev *priv, unsigned long reg_offs)
 static int sh_mobile_ceu_soft_reset(struct sh_mobile_ceu_dev *pcdev)
 {
 	int i, success = 0;
-	struct soc_camera_device *icd = pcdev->icd;
+	struct soc_camera_device *icd = pcdev->ici.icd;
 
 	ceu_write(pcdev, CAPSR, 1 << 16); /* reset */
 
@@ -277,7 +276,7 @@ static int sh_mobile_ceu_videobuf_setup(struct vb2_queue *vq,
  */
 static int sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 {
-	struct soc_camera_device *icd = pcdev->icd;
+	struct soc_camera_device *icd = pcdev->ici.icd;
 	dma_addr_t phys_addr_top, phys_addr_bottom;
 	unsigned long top1, top2;
 	unsigned long bottom1, bottom2;
@@ -552,9 +551,6 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 	struct v4l2_subdev *csi2_sd;
 	int ret;
 
-	if (pcdev->icd)
-		return -EBUSY;
-
 	dev_info(icd->parent,
 		 "SuperH Mobile CEU driver attached to camera %d\n",
 		 icd->devnum);
@@ -583,7 +579,6 @@ static int sh_mobile_ceu_add_device(struct soc_camera_device *icd)
 	 */
 	if (ret == -ENODEV && csi2_sd)
 		csi2_sd->grp_id = 0;
-	pcdev->icd = icd;
 
 	return 0;
 }
@@ -594,8 +589,6 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	struct v4l2_subdev *csi2_sd = find_csi2(pcdev);
-
-	BUG_ON(icd != pcdev->icd);
 
 	v4l2_subdev_call(csi2_sd, core, s_power, 0);
 	if (csi2_sd)
@@ -618,8 +611,6 @@ static void sh_mobile_ceu_remove_device(struct soc_camera_device *icd)
 	dev_info(icd->parent,
 		 "SuperH Mobile CEU driver detached from camera %d\n",
 		 icd->devnum);
-
-	pcdev->icd = NULL;
 }
 
 /*

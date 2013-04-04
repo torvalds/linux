@@ -150,7 +150,6 @@ struct omap1_cam_buf {
 
 struct omap1_cam_dev {
 	struct soc_camera_host		soc_host;
-	struct soc_camera_device	*icd;
 	struct clk			*clk;
 
 	unsigned int			irq;
@@ -564,7 +563,7 @@ static void videobuf_done(struct omap1_cam_dev *pcdev,
 {
 	struct omap1_cam_buf *buf = pcdev->active;
 	struct videobuf_buffer *vb;
-	struct device *dev = pcdev->icd->parent;
+	struct device *dev = pcdev->soc_host.icd->parent;
 
 	if (WARN_ON(!buf)) {
 		suspend_capture(pcdev);
@@ -790,7 +789,7 @@ out:
 static irqreturn_t cam_isr(int irq, void *data)
 {
 	struct omap1_cam_dev *pcdev = data;
-	struct device *dev = pcdev->icd->parent;
+	struct device *dev = pcdev->soc_host.icd->parent;
 	struct omap1_cam_buf *buf = pcdev->active;
 	u32 it_status;
 	unsigned long flags;
@@ -904,9 +903,6 @@ static int omap1_cam_add_device(struct soc_camera_device *icd)
 	struct omap1_cam_dev *pcdev = ici->priv;
 	u32 ctrlclock;
 
-	if (pcdev->icd)
-		return -EBUSY;
-
 	clk_enable(pcdev->clk);
 
 	/* setup sensor clock */
@@ -941,8 +937,6 @@ static int omap1_cam_add_device(struct soc_camera_device *icd)
 
 	sensor_reset(pcdev, false);
 
-	pcdev->icd = icd;
-
 	dev_dbg(icd->parent, "OMAP1 Camera driver attached to camera %d\n",
 			icd->devnum);
 	return 0;
@@ -953,8 +947,6 @@ static void omap1_cam_remove_device(struct soc_camera_device *icd)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct omap1_cam_dev *pcdev = ici->priv;
 	u32 ctrlclock;
-
-	BUG_ON(icd != pcdev->icd);
 
 	suspend_capture(pcdev);
 	disable_capture(pcdev);
@@ -973,8 +965,6 @@ static void omap1_cam_remove_device(struct soc_camera_device *icd)
 	CAM_WRITE(pcdev, CTRLCLOCK, ctrlclock & ~MCLK_EN);
 
 	clk_disable(pcdev->clk);
-
-	pcdev->icd = NULL;
 
 	dev_dbg(icd->parent,
 		"OMAP1 Camera driver detached from camera %d\n", icd->devnum);

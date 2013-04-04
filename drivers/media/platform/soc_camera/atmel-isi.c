@@ -102,7 +102,6 @@ struct atmel_isi {
 	struct list_head		video_buffer_list;
 	struct frame_buffer		*active;
 
-	struct soc_camera_device	*icd;
 	struct soc_camera_host		soc_host;
 };
 
@@ -367,7 +366,7 @@ static void start_dma(struct atmel_isi *isi, struct frame_buffer *buffer)
 
 	/* Check if already in a frame */
 	if (isi_readl(isi, ISI_STATUS) & ISI_CTRL_CDC) {
-		dev_err(isi->icd->parent, "Already in frame handling.\n");
+		dev_err(isi->soc_host.icd->parent, "Already in frame handling.\n");
 		return;
 	}
 
@@ -753,9 +752,6 @@ static int isi_camera_add_device(struct soc_camera_device *icd)
 	struct atmel_isi *isi = ici->priv;
 	int ret;
 
-	if (isi->icd)
-		return -EBUSY;
-
 	ret = clk_enable(isi->pclk);
 	if (ret)
 		return ret;
@@ -766,7 +762,6 @@ static int isi_camera_add_device(struct soc_camera_device *icd)
 		return ret;
 	}
 
-	isi->icd = icd;
 	dev_dbg(icd->parent, "Atmel ISI Camera driver attached to camera %d\n",
 		 icd->devnum);
 	return 0;
@@ -777,11 +772,8 @@ static void isi_camera_remove_device(struct soc_camera_device *icd)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 
-	BUG_ON(icd != isi->icd);
-
 	clk_disable(isi->mck);
 	clk_disable(isi->pclk);
-	isi->icd = NULL;
 
 	dev_dbg(icd->parent, "Atmel ISI Camera driver detached from camera %d\n",
 		 icd->devnum);

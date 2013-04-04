@@ -104,7 +104,6 @@ struct mx1_buffer {
  */
 struct mx1_camera_dev {
 	struct soc_camera_host		soc_host;
-	struct soc_camera_device	*icd;
 	struct mx1_camera_pdata		*pdata;
 	struct mx1_buffer		*active;
 	struct resource			*res;
@@ -220,7 +219,7 @@ out:
 static int mx1_camera_setup_dma(struct mx1_camera_dev *pcdev)
 {
 	struct videobuf_buffer *vbuf = &pcdev->active->vb;
-	struct device *dev = pcdev->icd->parent;
+	struct device *dev = pcdev->soc_host.icd->parent;
 	int ret;
 
 	if (unlikely(!pcdev->active)) {
@@ -331,7 +330,7 @@ static void mx1_camera_wakeup(struct mx1_camera_dev *pcdev,
 static void mx1_camera_dma_irq(int channel, void *data)
 {
 	struct mx1_camera_dev *pcdev = data;
-	struct device *dev = pcdev->icd->parent;
+	struct device *dev = pcdev->soc_host.icd->parent;
 	struct mx1_buffer *buf;
 	struct videobuf_buffer *vb;
 	unsigned long flags;
@@ -389,7 +388,7 @@ static int mclk_get_divisor(struct mx1_camera_dev *pcdev)
 	 */
 	div = (lcdclk + 2 * mclk - 1) / (2 * mclk) - 1;
 
-	dev_dbg(pcdev->icd->parent,
+	dev_dbg(pcdev->soc_host.icd->parent,
 		"System clock %lukHz, target freq %dkHz, divisor %lu\n",
 		lcdclk / 1000, mclk / 1000, div);
 
@@ -400,7 +399,7 @@ static void mx1_camera_activate(struct mx1_camera_dev *pcdev)
 {
 	unsigned int csicr1 = CSICR1_EN;
 
-	dev_dbg(pcdev->icd->parent, "Activate device\n");
+	dev_dbg(pcdev->soc_host.icd->parent, "Activate device\n");
 
 	clk_prepare_enable(pcdev->clk);
 
@@ -416,7 +415,7 @@ static void mx1_camera_activate(struct mx1_camera_dev *pcdev)
 
 static void mx1_camera_deactivate(struct mx1_camera_dev *pcdev)
 {
-	dev_dbg(pcdev->icd->parent, "Deactivate device\n");
+	dev_dbg(pcdev->soc_host.icd->parent, "Deactivate device\n");
 
 	/* Disable all CSI interface */
 	__raw_writel(0x00, pcdev->base + CSICR1);
@@ -433,15 +432,10 @@ static int mx1_camera_add_device(struct soc_camera_device *icd)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx1_camera_dev *pcdev = ici->priv;
 
-	if (pcdev->icd)
-		return -EBUSY;
-
 	dev_info(icd->parent, "MX1 Camera driver attached to camera %d\n",
 		 icd->devnum);
 
 	mx1_camera_activate(pcdev);
-
-	pcdev->icd = icd;
 
 	return 0;
 }
@@ -451,8 +445,6 @@ static void mx1_camera_remove_device(struct soc_camera_device *icd)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx1_camera_dev *pcdev = ici->priv;
 	unsigned int csicr1;
-
-	BUG_ON(icd != pcdev->icd);
 
 	/* disable interrupts */
 	csicr1 = __raw_readl(pcdev->base + CSICR1) & ~CSI_IRQ_MASK;
@@ -465,8 +457,6 @@ static void mx1_camera_remove_device(struct soc_camera_device *icd)
 		 icd->devnum);
 
 	mx1_camera_deactivate(pcdev);
-
-	pcdev->icd = NULL;
 }
 
 static int mx1_camera_set_bus_param(struct soc_camera_device *icd)
