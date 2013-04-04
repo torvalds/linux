@@ -512,10 +512,23 @@ static int soc_camera_add_device(struct soc_camera_device *icd)
 	if (ici->icd)
 		return -EBUSY;
 
-	ret = ici->ops->add(icd);
-	if (!ret)
-		ici->icd = icd;
+	if (ici->ops->clock_start) {
+		ret = ici->ops->clock_start(ici);
+		if (ret < 0)
+			return ret;
+	}
 
+	ret = ici->ops->add(icd);
+	if (ret < 0)
+		goto eadd;
+
+	ici->icd = icd;
+
+	return 0;
+
+eadd:
+	if (ici->ops->clock_stop)
+		ici->ops->clock_stop(ici);
 	return ret;
 }
 
@@ -527,6 +540,8 @@ static void soc_camera_remove_device(struct soc_camera_device *icd)
 		return;
 
 	ici->ops->remove(icd);
+	if (ici->ops->clock_stop)
+		ici->ops->clock_stop(ici);
 	ici->icd = NULL;
 }
 
