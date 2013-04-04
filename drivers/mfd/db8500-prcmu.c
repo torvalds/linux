@@ -2704,6 +2704,7 @@ static void dbx500_fw_version_init(struct platform_device *pdev,
 {
 	struct resource *res;
 	void __iomem *tcpm_base;
+	u32 version;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "prcmu-tcpm");
@@ -2713,26 +2714,27 @@ static void dbx500_fw_version_init(struct platform_device *pdev,
 		return;
 	}
 	tcpm_base = ioremap(res->start, resource_size(res));
-	if (tcpm_base != NULL) {
-		u32 version;
-
-		version = readl(tcpm_base + version_offset);
-		fw_info.version.project = (version & 0xFF);
-		fw_info.version.api_version = (version >> 8) & 0xFF;
-		fw_info.version.func_version = (version >> 16) & 0xFF;
-		fw_info.version.errata = (version >> 24) & 0xFF;
-		strncpy(fw_info.version.project_name,
-			fw_project_name(fw_info.version.project),
-			PRCMU_FW_PROJECT_NAME_LEN);
-		fw_info.valid = true;
-		pr_info("PRCMU firmware: %s(%d), version %d.%d.%d\n",
-			fw_info.version.project_name,
-			fw_info.version.project,
-			fw_info.version.api_version,
-			fw_info.version.func_version,
-			fw_info.version.errata);
-		iounmap(tcpm_base);
+	if (!tcpm_base) {
+		dev_err(&pdev->dev, "no prcmu tcpm mem region provided\n");
+		return;
 	}
+
+	version = readl(tcpm_base + version_offset);
+	fw_info.version.project = (version & 0xFF);
+	fw_info.version.api_version = (version >> 8) & 0xFF;
+	fw_info.version.func_version = (version >> 16) & 0xFF;
+	fw_info.version.errata = (version >> 24) & 0xFF;
+	strncpy(fw_info.version.project_name,
+		fw_project_name(fw_info.version.project),
+		PRCMU_FW_PROJECT_NAME_LEN);
+	fw_info.valid = true;
+	pr_info("PRCMU firmware: %s(%d), version %d.%d.%d\n",
+		fw_info.version.project_name,
+		fw_info.version.project,
+		fw_info.version.api_version,
+		fw_info.version.func_version,
+		fw_info.version.errata);
+	iounmap(tcpm_base);
 }
 
 void __init db8500_prcmu_early_init(u32 phy_base, u32 size)
