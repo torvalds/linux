@@ -82,6 +82,11 @@
 		reg = <0x10440000 0x1000>;
 	};
 
+	sys_reg: sysreg {
+		compatible = "samsung,exynos4-sysreg", "syscon";
+		reg = <0x10010000 0x400>;
+	};
+
 	watchdog@10060000 {
 		compatible = "samsung,s3c2410-wdt";
 		reg = <0x10060000 0x100>;
