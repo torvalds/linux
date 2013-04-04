@@ -638,16 +638,10 @@ int bt_procfs_init(struct net *net, const char *name,
 		   struct bt_sock_list* sk_list,
 		   int (* seq_show)(struct seq_file *, void *))
 {
-	struct proc_dir_entry * pde;
-
 	sk_list->custom_seq_show = seq_show;
 
-	pde = proc_create(name, 0, net->proc_net, &bt_fops);
-	if (!pde)
+	if (!proc_create_data(name, 0, net->proc_net, &bt_fops, sk_list))
 		return -ENOMEM;
-
-	pde->data = sk_list;
-
 	return 0;
 }
 
