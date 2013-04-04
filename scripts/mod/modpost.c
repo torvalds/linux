@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdbool.h>
 #include "modpost.h"
 #include "../../include/generated/autoconf.h"
 #include "../../include/linux/license.h"
@@ -78,6 +79,14 @@ PRINTF void merror(const char *fmt, ...)
 	va_end(arglist);
 }
 
+static inline bool strends(const char *str, const char *postfix)
+{
+	if (strlen(str) < strlen(postfix))
+		return false;
+
+	return strcmp(str + strlen(str) - strlen(postfix), postfix) == 0;
+}
+
 static int is_vmlinux(const char *modname)
 {
 	const char *myname;
@@ -113,22 +122,20 @@ static struct module *find_module(char *modname)
 	return mod;
 }
 
-static struct module *new_module(char *modname)
+static struct module *new_module(const char *modname)
 {
 	struct module *mod;
-	char *p, *s;
+	char *p;
 
 	mod = NOFAIL(malloc(sizeof(*mod)));
 	memset(mod, 0, sizeof(*mod));
 	p = NOFAIL(strdup(modname));
 
 	/* strip trailing .o */
-	s = strrchr(p, '.');
-	if (s != NULL)
-		if (strcmp(s, ".o") == 0) {
-			*s = '\0';
-			mod->is_dot_o = 1;
-		}
+	if (strends(p, ".o")) {
+		p[strlen(p) - 2] = '\0';
+		mod->is_dot_o = 1;
+	}
 
 	/* add to list */
 	mod->name = p;
