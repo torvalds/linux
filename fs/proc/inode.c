@@ -133,67 +133,48 @@ enum {BIAS = -1U<<31};
 
 static inline int use_pde(struct proc_dir_entry *pde)
 {
-	int res = 1;
-	spin_lock(&pde->pde_unload_lock);
-	if (unlikely(pde->pde_users < 0))
-		res = 0;
-	else
-		pde->pde_users++;
-	spin_unlock(&pde->pde_unload_lock);
-	return res;
-}
-
-static void __pde_users_dec(struct proc_dir_entry *pde)
-{
-	if (--pde->pde_users == BIAS)
-		complete(pde->pde_unload_completion);
+	return atomic_inc_unless_negative(&pde->in_use);
 }
 
 static void unuse_pde(struct proc_dir_entry *pde)
 {
-	spin_lock(&pde->pde_unload_lock);
-	__pde_users_dec(pde);
-	spin_unlock(&pde->pde_unload_lock);
+	if (atomic_dec_return(&pde->in_use) == BIAS)
+		complete(pde->pde_unload_completion);
 }
 
 /* pde is locked */
 static void close_pdeo(struct proc_dir_entry *pde, struct pde_opener *pdeo)
 {
-	pdeo->count++;
-	if (!mutex_trylock(&pdeo->mutex)) {
+	if (pdeo->closing) {
 		/* somebody else is doing that, just wait */
+		DECLARE_COMPLETION_ONSTACK(c);
+		pdeo->c = &c;
 		spin_unlock(&pde->pde_unload_lock);
-		mutex_lock(&pdeo->mutex);
+		wait_for_completion(&c);
 		spin_lock(&pde->pde_unload_lock);
-		WARN_ON(!list_empty(&pdeo->lh));
 	} else {
 		struct file *file;
+		pdeo->closing = 1;
 		spin_unlock(&pde->pde_unload_lock);
 		file = pdeo->file;
 		pde->proc_fops->release(file_inode(file), file);
 		spin_lock(&pde->pde_unload_lock);
 		list_del_init(&pdeo->lh);
-	}
-	mutex_unlock(&pdeo->mutex);
-	if (!--pdeo->count)
+		if (pdeo->c)
+			complete(pdeo->c);
 		kfree(pdeo);
+	}
 }
 
 void proc_entry_rundown(struct proc_dir_entry *de)
 {
-	spin_lock(&de->pde_unload_lock);
-	de->pde_users += BIAS;
+	DECLARE_COMPLETION_ONSTACK(c);
 	/* Wait until all existing callers into module are done. */
-	if (de->pde_users != BIAS) {
-		DECLARE_COMPLETION_ONSTACK(c);
-		de->pde_unload_completion = &c;
-		spin_unlock(&de->pde_unload_lock);
+	de->pde_unload_completion = &c;
+	if (atomic_add_return(BIAS, &de->in_use) != BIAS)
+		wait_for_completion(&c);
 
-		wait_for_completion(de->pde_unload_completion);
-
-		spin_lock(&de->pde_unload_lock);
-	}
-
+	spin_lock(&de->pde_unload_lock);
 	while (!list_empty(&de->pde_openers)) {
 		struct pde_opener *pdeo;
 		pdeo = list_first_entry(&de->pde_openers, struct pde_opener, lh);
@@ -356,7 +337,7 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	 * by hand in remove_proc_entry(). For this, save opener's credentials
 	 * for later.
 	 */
-	pdeo = kmalloc(sizeof(struct pde_opener), GFP_KERNEL);
+	pdeo = kzalloc(sizeof(struct pde_opener), GFP_KERNEL);
 	if (!pdeo)
 		return -ENOMEM;
 
@@ -370,18 +351,17 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	if (open)
 		rv = open(inode, file);
 
-	spin_lock(&pde->pde_unload_lock);
 	if (rv == 0 && release) {
 		/* To know what to release. */
-		mutex_init(&pdeo->mutex);
-		pdeo->count = 0;
 		pdeo->file = file;
 		/* Strictly for "too late" ->release in proc_reg_release(). */
+		spin_lock(&pde->pde_unload_lock);
 		list_add(&pdeo->lh, &pde->pde_openers);
+		spin_unlock(&pde->pde_unload_lock);
 	} else
 		kfree(pdeo);
-	__pde_users_dec(pde);
-	spin_unlock(&pde->pde_unload_lock);
+
+	unuse_pde(pde);
 	return rv;
 }
 

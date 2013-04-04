@@ -65,7 +65,7 @@ struct proc_dir_entry {
 	void *data;
 	read_proc_t *read_proc;
 	atomic_t count;		/* use count */
-	int pde_users;	/* number of callers into module in progress; */
+	atomic_t in_use;	/* number of callers into module in progress; */
 			/* negative -> it's going away RSN */
 	struct completion *pde_unload_completion;
 	struct list_head pde_openers;	/* who did ->open, but not ->release */
