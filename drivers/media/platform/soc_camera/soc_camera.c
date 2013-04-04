@@ -1177,7 +1177,7 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 		ssdd->reset(icd->pdev);
 
 	mutex_lock(&ici->host_lock);
-	ret = soc_camera_add_device(icd);
+	ret = ici->ops->clock_start(ici);
 	mutex_unlock(&ici->host_lock);
 	if (ret < 0)
 		goto eadd;
@@ -1250,7 +1250,7 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 		icd->field		= mf.field;
 	}
 
-	soc_camera_remove_device(icd);
+	ici->ops->clock_stop(ici);
 
 	mutex_unlock(&ici->host_lock);
 
@@ -1273,7 +1273,7 @@ eadddev:
 	icd->vdev = NULL;
 evdc:
 	mutex_lock(&ici->host_lock);
-	soc_camera_remove_device(icd);
+	ici->ops->clock_stop(ici);
 	mutex_unlock(&ici->host_lock);
 eadd:
 	v4l2_ctrl_handler_free(&icd->ctrl_handler);
