@@ -1,0 +1,47 @@
+Microchip MCP2308/MCP23S08/MCP23017/MCP23S17 driver for
+8-/16-bit I/O expander with serial interface (I2C/SPI)
+
+Required properties:
+- compatible : Should be
+    - "mcp,mcp23s08" for  8 GPIO SPI version
+    - "mcp,mcp23s17" for 16 GPIO SPI version
+    - "mcp,mcp23008" for  8 GPIO I2C version or
+    - "mcp,mcp23017" for 16 GPIO I2C version of the chip
+- #gpio-cells : Should be two.
+  - first cell is the pin number
+  - second cell is used to specify flags. Flags are currently unused.
+- gpio-controller : Marks the device node as a GPIO controller.
+- reg : For an address on its bus. I2C uses this a the I2C address of the chip.
+        SPI uses this to specify the chipselect line which the chip is
+        connected to. The driver and the SPI variant of the chip support
+        multiple chips on the same chipselect. Have a look at
+        mcp,spi-present-mask below.
+
+Required device specific properties (only for SPI chips):
+- mcp,spi-present-mask : This is a present flag, that makes only sense for SPI
+        chips - as the name suggests. Multiple SPI chips can share the same
+        SPI chipselect. Set a bit in bit0-7 in this mask to 1 if there is a
+        chip connected with the corresponding spi address set. For example if
+        you have a chip with address 3 connected, you have to set bit3 to 1,
+        which is 0x08. mcp23s08 chip variant only supports bits 0-3. It is not
+        possible to mix mcp23s08 and mcp23s17 on the same chipselect. Set at
+        least one bit to 1 for SPI chips.
+- spi-max-frequency = The maximum frequency this chip is able to handle
+
+Example I2C:
+gpiom1: gpio@20 {
+        compatible = "mcp,mcp23017";
+        gpio-controller;
+        #gpio-cells = <2>;
+        reg = <0x20>;
+};
+
+Example SPI:
+gpiom1: gpio@0 {
+        compatible = "mcp,mcp23s17";
+        gpio-controller;
+        #gpio-cells = <2>;
+        spi-present-mask = <0x01>;
+        reg = <0>;
+        spi-max-frequency = <1000000>;
+};
