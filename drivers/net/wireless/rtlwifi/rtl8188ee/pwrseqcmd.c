@@ -39,9 +39,9 @@
  *	2011.07.07, added by Roger.
  */
 
-bool rtl_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
-			      u8 fab_version, u8 interface_type,
-			      struct wlan_pwr_cfg pwrcfgcmd[])
+bool rtl88_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
+				u8 fab_version, u8 interface_type,
+				struct wlan_pwr_cfg pwrcfgcmd[])
 {
 	struct wlan_pwr_cfg cmd = {0};
 	bool polling_bit = false;
@@ -54,7 +54,7 @@ bool rtl_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 	do {
 		cmd = pwrcfgcmd[ary_idx];
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "rtl_hal_pwrseqcmdparsing(): offset(%#x), cut_msk(%#x), fab_msk(%#x),"
+			 "rtl88_hal_pwrseqcmdparsing(): offset(%#x), cut_msk(%#x), fab_msk(%#x),"
 			 "interface_msk(%#x), base(%#x), cmd(%#x), msk(%#x), val(%#x)\n",
 			 GET_PWR_CFG_OFFSET(cmd),
 			 GET_PWR_CFG_CUT_MASK(cmd),
@@ -71,11 +71,11 @@ bool rtl_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 			switch (GET_PWR_CFG_CMD(cmd)) {
 			case PWR_CMD_READ:
 				RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-					 "rtl_hal_pwrseqcmdparsing(): PWR_CMD_READ\n");
+					 "rtl88_hal_pwrseqcmdparsing(): PWR_CMD_READ\n");
 				break;
 			case PWR_CMD_WRITE: {
 				RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-					 "rtl_hal_pwrseqcmdparsing(): PWR_CMD_WRITE\n");
+					 "rtl88_hal_pwrseqcmdparsing(): PWR_CMD_WRITE\n");
 				offset = GET_PWR_CFG_OFFSET(cmd);
 
 					/*Read the val from system register*/
@@ -90,7 +90,7 @@ bool rtl_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 				break;
 			case PWR_CMD_POLLING:
 				RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-					 "rtl_hal_pwrseqcmdparsing(): PWR_CMD_POLLING\n");
+					 "rtl88_hal_pwrseqcmdparsing(): PWR_CMD_POLLING\n");
 				polling_bit = false;
 				offset = GET_PWR_CFG_OFFSET(cmd);
 
@@ -115,7 +115,7 @@ bool rtl_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 				break;
 			case PWR_CMD_DELAY:
 				RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-					 "rtl_hal_pwrseqcmdparsing(): PWR_CMD_DELAY\n");
+					 "rtl88_hal_pwrseqcmdparsing(): PWR_CMD_DELAY\n");
 				if (GET_PWR_CFG_VALUE(cmd) == PWRSEQ_DELAY_US)
 					udelay(GET_PWR_CFG_OFFSET(cmd));
 				else
@@ -123,12 +123,12 @@ bool rtl_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 				break;
 			case PWR_CMD_END:
 				RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-					 "rtl_hal_pwrseqcmdparsing(): PWR_CMD_END\n");
+					 "rtl88_hal_pwrseqcmdparsing(): PWR_CMD_END\n");
 				return true;
 				break;
 			default:
 				RT_ASSERT(false,
-					  "rtl_hal_pwrseqcmdparsing(): Unknown CMD!!\n");
+					  "rtl88_hal_pwrseqcmdparsing(): Unknown CMD!!\n");
 				break;
 			}
 		}

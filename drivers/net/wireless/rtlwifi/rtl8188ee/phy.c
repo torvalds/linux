@@ -2001,16 +2001,6 @@ void rtl88e_phy_lc_calibrate(struct ieee80211_hw *hw)
 	rtlphy->lck_inprogress = false;
 }
 
-void rtl92c_phy_ap_calibrate(struct ieee80211_hw *hw, char delta)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-
-	if (rtlphy->apk_done)
-		return;
-	return;
-}
-
 void rtl88e_phy_set_rfpath_switch(struct ieee80211_hw *hw, bool bmain)
 {
 	rfpath_switch(hw, bmain, false);
