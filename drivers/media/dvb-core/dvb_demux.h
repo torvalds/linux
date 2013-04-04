@@ -119,8 +119,8 @@ struct dvb_demux {
 
 	struct list_head frontend_list;
 
-	struct dvb_demux_feed *pesfilter[DMX_TS_PES_OTHER];
-	u16 pids[DMX_TS_PES_OTHER];
+	struct dvb_demux_feed *pesfilter[DMX_PES_OTHER];
+	u16 pids[DMX_PES_OTHER];
 	int playing;
 	int recording;
 

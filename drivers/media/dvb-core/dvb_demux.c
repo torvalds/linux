@@ -674,7 +674,7 @@ static int dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		return -ERESTARTSYS;
 
 	if (ts_type & TS_DECODER) {
-		if (pes_type >= DMX_TS_PES_OTHER) {
+		if (pes_type >= DMX_PES_OTHER) {
 			mutex_unlock(&demux->mutex);
 			return -EINVAL;
 		}
@@ -846,7 +846,7 @@ static int dvbdmx_release_ts_feed(struct dmx_demux *dmx,
 
 	feed->pid = 0xffff;
 
-	if (feed->ts_type & TS_DECODER && feed->pes_type < DMX_TS_PES_OTHER)
+	if (feed->ts_type & TS_DECODER && feed->pes_type < DMX_PES_OTHER)
 		demux->pesfilter[feed->pes_type] = NULL;
 
 	mutex_unlock(&demux->mutex);
@@ -1268,7 +1268,7 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux)
 
 	INIT_LIST_HEAD(&dvbdemux->frontend_list);
 
-	for (i = 0; i < DMX_TS_PES_OTHER; i++) {
+	for (i = 0; i < DMX_PES_OTHER; i++) {
 		dvbdemux->pesfilter[i] = NULL;
 		dvbdemux->pids[i] = 0xffff;
 	}
