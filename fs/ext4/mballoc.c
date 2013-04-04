@@ -1011,6 +1011,7 @@ int ext4_mb_init_group(struct super_block *sb, ext4_group_t group)
 	struct page *page;
 	int ret = 0;
 
+	might_sleep();
 	mb_debug(1, "init group %u\n", group);
 	this_grp = ext4_get_group_info(sb, group);
 	/*
@@ -1082,6 +1083,7 @@ ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct inode *inode = sbi->s_buddy_cache;
 
+	might_sleep();
 	mb_debug(1, "load group %u\n", group);
 
 	blocks_per_page = PAGE_CACHE_SIZE / sb->s_blocksize;
@@ -4217,6 +4219,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	unsigned int inquota = 0;
 	unsigned int reserv_clstrs = 0;
 
+	might_sleep();
 	sb = ar->inode->i_sb;
 	sbi = EXT4_SB(sb);
 
@@ -4470,6 +4473,7 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 	int err = 0;
 	int ret;
 
+	might_sleep();
 	if (bh) {
 		if (block)
 			BUG_ON(block != bh->b_blocknr);
