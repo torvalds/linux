@@ -795,9 +795,6 @@ static void davinci_hw_param(struct davinci_audio_dev *dev, int stream)
 /* S/PDIF */
 static void davinci_hw_dit_param(struct davinci_audio_dev *dev)
 {
-	/* Set the PDIR for Serialiser as output */
-	mcasp_set_bits(dev->base + DAVINCI_MCASP_PDIR_REG, AFSX);
-
 	/* TXMASK for 24 bits */
 	mcasp_set_reg(dev->base + DAVINCI_MCASP_TXMASK_REG, 0x00FFFFFF);
 
