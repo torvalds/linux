@@ -167,22 +167,22 @@ static ssize_t store_match_busid(struct device_driver *dev, const char *buf,
 	strncpy(busid, buf + 4, BUSID_SIZE);
 
 	if (!strncmp(buf, "add ", 4)) {
-		if (add_match_busid(busid) < 0) {
+		if (add_match_busid(busid) < 0)
 			return -ENOMEM;
-		} else {
-			pr_debug("add busid %s\n", busid);
-			return count;
-		}
-	} else if (!strncmp(buf, "del ", 4)) {
-		if (del_match_busid(busid) < 0) {
-			return -ENODEV;
-		} else {
-			pr_debug("del busid %s\n", busid);
-			return count;
-		}
-	} else {
-		return -EINVAL;
+
+		pr_debug("add busid %s\n", busid);
+		return count;
 	}
+
+	if (!strncmp(buf, "del ", 4)) {
+		if (del_match_busid(busid) < 0)
+			return -ENODEV;
+
+		pr_debug("del busid %s\n", busid);
+		return count;
+	}
+
+	return -EINVAL;
 }
 static DRIVER_ATTR(match_busid, S_IRUSR | S_IWUSR, show_match_busid,
 		   store_match_busid);
