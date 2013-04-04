@@ -123,6 +123,28 @@ static inline void s3c_irq_ack(struct irq_data *data)
 		__raw_writel(bitval, intc->reg_intpnd);
 }
 
+static int s3c_irq_type(struct irq_data *data, unsigned int type)
+{
+	switch (type) {
+	case IRQ_TYPE_NONE:
+		break;
+	case IRQ_TYPE_EDGE_RISING:
+	case IRQ_TYPE_EDGE_FALLING:
+	case IRQ_TYPE_EDGE_BOTH:
+		irq_set_handler(data->irq, handle_edge_irq);
+		break;
+	case IRQ_TYPE_LEVEL_LOW:
+	case IRQ_TYPE_LEVEL_HIGH:
+		irq_set_handler(data->irq, handle_level_irq);
+		break;
+	default:
+		pr_err("No such irq type %d", type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int s3c_irqext_type_set(void __iomem *gpcon_reg,
 			       void __iomem *extint_reg,
 			       unsigned long gpcon_offset,
@@ -228,6 +250,7 @@ static struct irq_chip s3c_irq_chip = {
 	.irq_ack	= s3c_irq_ack,
 	.irq_mask	= s3c_irq_mask,
 	.irq_unmask	= s3c_irq_unmask,
+	.irq_set_type	= s3c_irq_type,
 	.irq_set_wake	= s3c_irq_wake
 };
 
@@ -236,6 +259,7 @@ static struct irq_chip s3c_irq_level_chip = {
 	.irq_mask	= s3c_irq_mask,
 	.irq_unmask	= s3c_irq_unmask,
 	.irq_ack	= s3c_irq_ack,
+	.irq_set_type	= s3c_irq_type,
 };
 
 static struct irq_chip s3c_irqext_chip = {
