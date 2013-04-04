@@ -838,7 +838,6 @@ static int at86rf230_probe(struct spi_device *spi)
 
 	lp->spi = spi;
 
-	dev->priv = lp;
 	dev->parent = &spi->dev;
 	dev->extra_tx_headroom = 0;
 	/* We do support only 2.4 Ghz */
@@ -940,7 +939,6 @@ static int at86rf230_probe(struct spi_device *spi)
 
 	return rc;
 
-	ieee802154_unregister_device(lp->dev);
 err_irq:
 	free_irq(spi->irq, lp);
 	flush_work(&lp->irqwork);
