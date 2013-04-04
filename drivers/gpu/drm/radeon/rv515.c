@@ -348,7 +348,7 @@ void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save)
 	/* update crtc base addresses */
 	for (i = 0; i < rdev->num_crtc; i++) {
 		if (rdev->family >= CHIP_RV770) {
-			if (i == 1) {
+			if (i == 0) {
 				WREG32(R700_D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH,
 				       upper_32_bits(rdev->mc.vram_start));
 				WREG32(R700_D1GRPH_SECONDARY_SURFACE_ADDRESS_HIGH,
