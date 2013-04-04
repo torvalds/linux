@@ -37,7 +37,7 @@
 struct pata_imx_priv {
 	struct clk *clk;
 	/* timings/interrupt/control regs */
-	u8 *host_regs;
+	void __iomem *host_regs;
 	u32 ata_ctl;
 };
 
