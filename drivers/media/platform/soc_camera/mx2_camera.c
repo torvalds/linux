@@ -412,13 +412,26 @@ static void mx2_camera_deactivate(struct mx2_camera_dev *pcdev)
 	writel(0, pcdev->base_emma + PRP_CNTL);
 }
 
+static int mx2_camera_add_device(struct soc_camera_device *icd)
+{
+	dev_info(icd->parent, "Camera driver attached to camera %d\n",
+		 icd->devnum);
+
+	return 0;
+}
+
+static void mx2_camera_remove_device(struct soc_camera_device *icd)
+{
+	dev_info(icd->parent, "Camera driver detached from camera %d\n",
+		 icd->devnum);
+}
+
 /*
  * The following two functions absolutely depend on the fact, that
  * there can be only one camera on mx2 camera sensor interface
  */
-static int mx2_camera_add_device(struct soc_camera_device *icd)
+static int mx2_camera_clock_start(struct soc_camera_host *ici)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
 	int ret;
 	u32 csicr1;
@@ -439,9 +452,6 @@ static int mx2_camera_add_device(struct soc_camera_device *icd)
 
 	pcdev->frame_count = 0;
 
-	dev_info(icd->parent, "Camera driver attached to camera %d\n",
-		 icd->devnum);
-
 	return 0;
 
 exit_csi_ahb:
@@ -450,13 +460,9 @@ exit_csi_ahb:
 	return ret;
 }
 
-static void mx2_camera_remove_device(struct soc_camera_device *icd)
+static void mx2_camera_clock_stop(struct soc_camera_host *ici)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
-
-	dev_info(icd->parent, "Camera driver detached from camera %d\n",
-		 icd->devnum);
 
 	mx2_camera_deactivate(pcdev);
 }
@@ -1271,6 +1277,8 @@ static struct soc_camera_host_ops mx2_soc_camera_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= mx2_camera_add_device,
 	.remove		= mx2_camera_remove_device,
+	.clock_start	= mx2_camera_clock_start,
+	.clock_stop	= mx2_camera_clock_stop,
 	.set_fmt	= mx2_camera_set_fmt,
 	.set_crop	= mx2_camera_set_crop,
 	.get_formats	= mx2_camera_get_formats,
