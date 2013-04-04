@@ -20,8 +20,11 @@ Required properties:
       8 = active low level-sensitive.
 
 OMAP specific properties:
-- ti,hwmods: Name of the hwmod associated to the GPIO:
-  "gpio<X>", <X> being the 1-based instance number from the HW spec
+- ti,hwmods:		Name of the hwmod associated to the GPIO:
+			"gpio<X>", <X> being the 1-based instance number
+			from the HW spec.
+- ti,gpio-always-on: 	Indicates if a GPIO bank is always powered and
+			so will never lose its logic state.
 
 
 Example:
