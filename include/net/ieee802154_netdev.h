@@ -85,6 +85,8 @@ struct wpan_phy;
  * Use wpan_wpy_put to put that reference.
  */
 struct ieee802154_mlme_ops {
+	/* The following fields are optional (can be NULL). */
+
 	int (*assoc_req)(struct net_device *dev,
 			struct ieee802154_addr *addr,
 			u8 channel, u8 page, u8 cap);
@@ -100,6 +102,8 @@ struct ieee802154_mlme_ops {
 			u8 pan_coord, u8 blx, u8 coord_realign);
 	int (*scan_req)(struct net_device *dev,
 			u8 type, u32 channels, u8 page, u8 duration);
+
+	/* The fields below are required. */
 
 	struct wpan_phy *(*get_phy)(const struct net_device *dev);
 
