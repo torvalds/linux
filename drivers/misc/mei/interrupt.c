@@ -30,7 +30,7 @@
 
 
 /**
- * mei_complete_handler - processes completed operation.
+ * mei_irq_complete_handler - processes completed operation.
  *
  * @cl: private data of the file object.
  * @cb_pos: callback block.
@@ -177,7 +177,7 @@ static int _mei_irq_thread_close(struct mei_device *dev, s32 *slots,
 
 
 /**
- * _mei_hb_read - processes read related operation.
+ * _mei_irq_thread_read - processes read related operation.
  *
  * @dev: the device structure.
  * @slots: free slots.
@@ -310,7 +310,7 @@ static int mei_irq_thread_write_complete(struct mei_device *dev, s32 *slots,
 }
 
 /**
- * mei_irq_thread_read_handler - bottom half read routine after ISR to
+ * mei_irq_read_handler - bottom half read routine after ISR to
  * handle the read processing.
  *
  * @dev: the device structure

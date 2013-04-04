@@ -109,7 +109,7 @@ void mei_io_cb_free(struct mei_cl_cb *cb)
  * mei_io_cb_init - allocate and initialize io callback
  *
  * @cl - mei client
- * @file: pointer to file structure
+ * @fp: pointer to file structure
  *
  * returns mei_cl_cb pointer or NULL;
  */
@@ -132,8 +132,8 @@ struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, struct file *fp)
 /**
  * mei_io_cb_alloc_req_buf - allocate request buffer
  *
- * @cb -  io callback structure
- * @size: size of the buffer
+ * @cb: io callback structure
+ * @length: size of the buffer
  *
  * returns 0 on success
  *         -EINVAL if cb is NULL
@@ -154,10 +154,10 @@ int mei_io_cb_alloc_req_buf(struct mei_cl_cb *cb, size_t length)
 	return 0;
 }
 /**
- * mei_io_cb_alloc_req_buf - allocate respose buffer
+ * mei_io_cb_alloc_resp_buf - allocate respose buffer
  *
- * @cb -  io callback structure
- * @size: size of the buffer
+ * @cb: io callback structure
+ * @length: size of the buffer
  *
  * returns 0 on success
  *         -EINVAL if cb is NULL
@@ -183,7 +183,6 @@ int mei_io_cb_alloc_resp_buf(struct mei_cl_cb *cb, size_t length)
 /**
  * mei_cl_flush_queues - flushes queue lists belonging to cl.
  *
- * @dev: the device structure
  * @cl: host client
  */
 int mei_cl_flush_queues(struct mei_cl *cl)
@@ -243,7 +242,8 @@ struct mei_cl *mei_cl_allocate(struct mei_device *dev)
 /**
  * mei_cl_find_read_cb - find this cl's callback in the read list
  *
- * @dev: device structure
+ * @cl: host client
+ *
  * returns cb on success, NULL on error
  */
 struct mei_cl_cb *mei_cl_find_read_cb(struct mei_cl *cl)
@@ -262,6 +262,7 @@ struct mei_cl_cb *mei_cl_find_read_cb(struct mei_cl *cl)
  *
  * @cl - host client
  * @id - fixed host id or -1 for genereting one
+ *
  * returns 0 on success
  *	-EINVAL on incorrect values
  *	-ENONET if client not found
@@ -301,7 +302,7 @@ int mei_cl_link(struct mei_cl *cl, int id)
 /**
  * mei_cl_unlink - remove me_cl from the list
  *
- * @dev: the device structure
+ * @cl: host client
  */
 int mei_cl_unlink(struct mei_cl *cl)
 {
@@ -534,7 +535,6 @@ out:
 /**
  * mei_cl_flow_ctrl_creds - checks flow_control credits for cl.
  *
- * @dev: the device structure
  * @cl: private data of the file object
  *
  * returns 1 if mei_flow_ctrl_creds >0, 0 - otherwise.
@@ -575,8 +575,8 @@ int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
 /**
  * mei_cl_flow_ctrl_reduce - reduces flow_control.
  *
- * @dev: the device structure
  * @cl: private data of the file object
+ *
  * @returns
  *	0 on success
  *	-ENOENT when me client is not found
@@ -614,7 +614,7 @@ int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
 }
 
 /**
- * mei_cl_start_read - the start read client message function.
+ * mei_cl_read_start - the start read client message function.
  *
  * @cl: host client
  *

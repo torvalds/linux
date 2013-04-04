@@ -60,7 +60,7 @@ void mei_amthif_reset_params(struct mei_device *dev)
 }
 
 /**
- * mei_amthif_host_init_ - mei initialization amthif client.
+ * mei_amthif_host_init - mei initialization amthif client.
  *
  * @dev: the device structure
  *
@@ -433,7 +433,7 @@ unsigned int mei_amthif_poll(struct mei_device *dev,
 
 
 /**
- * mei_amthif_irq_process_completed - processes completed iamthif operation.
+ * mei_amthif_irq_write_completed - processes completed iamthif operation.
  *
  * @dev: the device structure.
  * @slots: free slots.
@@ -703,7 +703,7 @@ static bool mei_clear_lists(struct mei_device *dev, struct file *file)
 /**
 * mei_amthif_release - the release function
 *
-*  @inode: pointer to inode structure
+*  @dev: device structure
 *  @file: pointer to file structure
 *
 *  returns 0 on success, <0 on error

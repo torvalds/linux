@@ -62,6 +62,7 @@ static void mei_hbm_me_cl_allocate(struct mei_device *dev)
 
 /**
  * mei_hbm_cl_hdr - construct client hbm header
+ *
  * @cl: - client
  * @hbm_cmd: host bus message command
  * @buf: buffer for cl header
@@ -184,7 +185,7 @@ static void mei_hbm_enum_clients_req(struct mei_device *dev)
 }
 
 /**
- * mei_hbm_prop_requsest - request property for a single client
+ * mei_hbm_prop_req - request property for a single client
  *
  * @dev: the device structure
  *
@@ -283,9 +284,9 @@ int mei_hbm_cl_flow_control_req(struct mei_device *dev, struct mei_cl *cl)
 }
 
 /**
- * add_single_flow_creds - adds single buffer credentials.
+ * mei_hbm_add_single_flow_creds - adds single buffer credentials.
  *
- * @file: private data ot the file object.
+ * @dev: the device structure
  * @flow: flow control.
  */
 static void mei_hbm_add_single_flow_creds(struct mei_device *dev,
@@ -477,7 +478,7 @@ static void mei_hbm_cl_connect_res(struct mei_device *dev,
 
 
 /**
- * mei_client_disconnect_request - disconnect request initiated by me
+ * mei_hbm_fw_disconnect_req - disconnect request initiated by me
  *  host sends disoconnect response
  *
  * @dev: the device structure.

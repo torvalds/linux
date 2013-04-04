@@ -103,7 +103,7 @@ static inline void mei_hcsr_set(struct mei_me_hw *hw, u32 hcsr)
 
 
 /**
- * me_hw_config - configure hw dependent settings
+ * mei_me_hw_config - configure hw dependent settings
  *
  * @dev: mei device
  */
@@ -155,7 +155,7 @@ static void mei_me_intr_disable(struct mei_device *dev)
  * mei_me_hw_reset - resets fw via mei csr register.
  *
  * @dev: the device structure
- * @interrupts_enabled: if interrupt should be enabled after reset.
+ * @intr_enable: if interrupt should be enabled after reset.
  */
 static void mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 {
@@ -243,7 +243,7 @@ static unsigned char mei_hbuf_filled_slots(struct mei_device *dev)
 }
 
 /**
- * mei_hbuf_is_empty - checks if host buffer is empty.
+ * mei_me_hbuf_is_empty - checks if host buffer is empty.
  *
  * @dev: the device structure
  *
@@ -543,7 +543,7 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 };
 
 /**
- * init_mei_device - allocates and initializes the mei device structure
+ * mei_me_dev_init - allocates and initializes the mei device structure
  *
  * @pdev: The pci device structure
  *
