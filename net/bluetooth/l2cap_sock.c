@@ -1292,7 +1292,7 @@ int __init l2cap_init_sockets(void)
 		goto error;
 	}
 
-	err = bt_procfs_init(THIS_MODULE, &init_net, "l2cap", &l2cap_sk_list,
+	err = bt_procfs_init(&init_net, "l2cap", &l2cap_sk_list,
 			     NULL);
 	if (err < 0) {
 		BT_ERR("Failed to create L2CAP proc file");

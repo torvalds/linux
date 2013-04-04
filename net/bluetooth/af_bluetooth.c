@@ -634,7 +634,7 @@ static const struct file_operations bt_fops = {
 	.release = seq_release_private
 };
 
-int bt_procfs_init(struct module* module, struct net *net, const char *name,
+int bt_procfs_init(struct net *net, const char *name,
 		   struct bt_sock_list* sk_list,
 		   int (* seq_show)(struct seq_file *, void *))
 {
@@ -656,7 +656,7 @@ void bt_procfs_cleanup(struct net *net, const char *name)
 	remove_proc_entry(name, net->proc_net);
 }
 #else
-int bt_procfs_init(struct module* module, struct net *net, const char *name,
+int bt_procfs_init(struct net *net, const char *name,
 		   struct bt_sock_list* sk_list,
 		   int (* seq_show)(struct seq_file *, void *))
 {
