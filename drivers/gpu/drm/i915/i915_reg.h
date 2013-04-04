@@ -127,6 +127,7 @@
 #define   ECOCHK_PPGTT_CACHE4B		(0x0<<3)
 
 #define GAC_ECO_BITS			0x14090
+#define   ECOBITS_SNB_BIT		(1<<13)
 #define   ECOBITS_PPGTT_CACHE64B	(3<<8)
 #define   ECOBITS_PPGTT_CACHE4B		(0<<8)
 

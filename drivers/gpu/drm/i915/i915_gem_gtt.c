@@ -106,7 +106,8 @@ static int gen6_ppgtt_enable(struct drm_device *dev)
 		uint32_t ecochk, gab_ctl, ecobits;
 
 		ecobits = I915_READ(GAC_ECO_BITS);
-		I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_PPGTT_CACHE64B);
+		I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_SNB_BIT |
+					 ECOBITS_PPGTT_CACHE64B);
 
 		gab_ctl = I915_READ(GAB_CTL);
 		I915_WRITE(GAB_CTL, gab_ctl | GAB_CTL_CONT_AFTER_PAGEFAULT);
