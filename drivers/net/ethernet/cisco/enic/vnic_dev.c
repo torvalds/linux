@@ -308,6 +308,9 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 
 			if (status & STAT_ERROR) {
 				err = (int)readq(&devcmd->args[0]);
+				if (err == ERR_EINVAL &&
+				    cmd == CMD_CAPABILITY)
+					return err;
 				if (err != ERR_ECMDUNKNOWN ||
 				    cmd != CMD_CAPABILITY)
 					pr_err("Error %d devcmd %d\n",
