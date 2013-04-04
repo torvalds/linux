@@ -804,6 +804,8 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg
 			return -EEXIST;
 		ifa = ifa_existing;
 		set_ifa_lifetime(ifa, valid_lft, prefered_lft);
+		cancel_delayed_work(&check_lifetime_work);
+		schedule_delayed_work(&check_lifetime_work, 0);
 		rtmsg_ifa(RTM_NEWADDR, ifa, nlh, NETLINK_CB(skb).portid);
 		blocking_notifier_call_chain(&inetaddr_chain, NETDEV_UP, ifa);
 	}
