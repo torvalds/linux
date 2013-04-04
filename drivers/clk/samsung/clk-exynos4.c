@@ -381,6 +381,7 @@ struct samsung_mux_clock exynos4x12_mux_clks[] __initdata = {
 	MUX(none, "mout_mmc2", group1_p4x12, SRC_FSYS, 8, 4),
 	MUX(none, "mout_mmc3", group1_p4x12, SRC_FSYS, 12, 4),
 	MUX(none, "mout_mmc4", group1_p4x12, SRC_FSYS, 16, 4),
+	MUX(none, "mout_mipihsi", aclk_p4412, SRC_FSYS, 24, 1),
 	MUX(none, "mout_uart0", group1_p4x12, SRC_PERIL0, 0, 4),
 	MUX(none, "mout_uart1", group1_p4x12, SRC_PERIL0, 4, 4),
 	MUX(none, "mout_uart2", group1_p4x12, SRC_PERIL0, 8, 4),
