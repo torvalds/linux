@@ -506,6 +506,7 @@ static void __init exynos4_timer_resources(struct device_node *np)
 static const struct of_device_id exynos_mct_ids[] = {
 	{ .compatible = "samsung,exynos4210-mct", .data = (void *)MCT_INT_SPI },
 	{ .compatible = "samsung,exynos4412-mct", .data = (void *)MCT_INT_PPI },
+	{ }
 };
 
 void __init mct_init(void)
