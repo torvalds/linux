@@ -998,8 +998,13 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	 * else from proceeding if the module fails to load
 	 * or hangs loading.
 	 */
-	if (load_module)
-		request_module("%s", op->name);
+	if (load_module) {
+		err = request_module("%s", op->name);
+		if (err)
+			IWL_ERR(drv,
+				"failed to load module %s (error %d), is dynamic loading enabled?\n",
+				op->name, err);
+	}
 	return;
 
  try_again:
