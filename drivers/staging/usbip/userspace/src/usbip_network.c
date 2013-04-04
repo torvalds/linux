@@ -248,10 +248,10 @@ int usbip_net_tcp_connect(char *hostname, char *service)
 		close(sockfd);
 	}
 
+	freeaddrinfo(res);
+
 	if (!rp)
 		return EAI_SYSTEM;
-
-	freeaddrinfo(res);
 
 	return sockfd;
 }
