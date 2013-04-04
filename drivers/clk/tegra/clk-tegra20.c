@@ -236,7 +236,7 @@ enum tegra20_clk {
 	dvc, dsi, mipi = 50, hdmi, csi, tvdac, i2c2, uartc, emc = 57, usb2,
 	usb3, mpe, vde, bsea, bsev, speedo, uartd, uarte, i2c3, sbc4, sdmmc3,
 	pex, owr, afi, csite, pcie_xclk, avpucq = 75, la, irama = 84, iramb,
-	iramc, iramd, cram2, audio_2x, clk_d, csus = 92, cdev1, cdev2,
+	iramc, iramd, cram2, audio_2x, clk_d, csus = 92, cdev2, cdev1,
 	uartb = 96, vfir, spdif_in, spdif_out, vi, vi_sensor, tvo, cve,
 	osc, clk_32k, clk_m, sclk, cclk, hclk, pclk, blink, pll_a, pll_a_out0,
 	pll_c, pll_c_out1, pll_d, pll_d_out0, pll_e, pll_m, pll_m_out1,
