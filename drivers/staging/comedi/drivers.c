@@ -459,14 +459,9 @@ EXPORT_SYMBOL_GPL(comedi_auto_config);
 
 void comedi_auto_unconfig(struct device *hardware_device)
 {
-	int minor;
-
 	if (hardware_device == NULL)
 		return;
-	minor = comedi_find_board_minor(hardware_device);
-	if (minor < 0)
-		return;
-	comedi_free_board_minor(minor);
+	comedi_release_hardware_device(hardware_device);
 }
 EXPORT_SYMBOL_GPL(comedi_auto_unconfig);
 

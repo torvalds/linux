@@ -2348,7 +2348,7 @@ void comedi_free_board_minor(unsigned minor)
 	comedi_free_board_file_info(comedi_clear_minor(minor));
 }
 
-int comedi_find_board_minor(struct device *hardware_device)
+void comedi_release_hardware_device(struct device *hardware_device)
 {
 	int minor;
 	struct comedi_file_info *info;
@@ -2357,12 +2357,13 @@ int comedi_find_board_minor(struct device *hardware_device)
 		spin_lock(&comedi_file_info_table_lock);
 		info = comedi_file_info_table[minor];
 		if (info && info->hardware_device == hardware_device) {
+			comedi_file_info_table[minor] = NULL;
 			spin_unlock(&comedi_file_info_table_lock);
-			return minor;
+			comedi_free_board_file_info(info);
+			break;
 		}
 		spin_unlock(&comedi_file_info_table_lock);
 	}
-	return -ENODEV;
 }
 
 int comedi_alloc_subdevice_minor(struct comedi_subdevice *s)
