@@ -1138,7 +1138,7 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 
 	ret = rtsx_pci_acquire_irq(pcr);
 	if (ret < 0)
-		goto free_dma;
+		goto disable_msi;
 
 	pci_set_master(pcidev);
 	synchronize_irq(pcr->irq);
@@ -1162,7 +1162,9 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 
 disable_irq:
 	free_irq(pcr->irq, (void *)pcr);
-free_dma:
+disable_msi:
+	if (pcr->msi_en)
+		pci_disable_msi(pcr->pci);
 	dma_free_coherent(&(pcr->pci->dev), RTSX_RESV_BUF_LEN,
 			pcr->rtsx_resv_buf, pcr->rtsx_resv_buf_addr);
 unmap:
