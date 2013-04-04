@@ -5503,7 +5503,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	if (is_lvds) {
 		if ((intel_panel_use_ssc(dev_priv) &&
 		     dev_priv->lvds_ssc_freq == 100) ||
-		    intel_is_dual_link_lvds(dev))
+		    (HAS_PCH_IBX(dev) && intel_is_dual_link_lvds(dev)))
 			factor = 25;
 	} else if (is_sdvo && is_tv)
 		factor = 20;
