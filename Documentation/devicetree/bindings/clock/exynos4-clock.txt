@@ -97,6 +97,7 @@ Exynos4 SoC and this is specified where applicable.
   sclk_mipihsi        169     Exynos4412
   sclk_mfc            170
   sclk_pcm0           171
+  sclk_g3d            172
 
 	      [Peripheral Clock Gates]
 
@@ -218,6 +219,9 @@ Exynos4 SoC and this is specified where applicable.
 	mout_cam1	389
 	mout_csis0	390
 	mout_csis1	391
+	mout_g3d0	392
+	mout_g3d1	393
+	mout_g3d	394
 
 Example 1: An example of a clock controller node is listed below.
 
