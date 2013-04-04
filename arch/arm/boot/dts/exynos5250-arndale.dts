@@ -116,6 +116,52 @@
 		status = "disabled";
 	};
 
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		menu {
+			label = "SW-TACT2";
+			gpios = <&gpx1 4 1>;
+			linux,code = <139>;
+			gpio-key,wakeup;
+		};
+
+		home {
+			label = "SW-TACT3";
+			gpios = <&gpx1 5 1>;
+			linux,code = <102>;
+			gpio-key,wakeup;
+		};
+
+		up {
+			label = "SW-TACT4";
+			gpios = <&gpx1 6 1>;
+			linux,code = <103>;
+			gpio-key,wakeup;
+		};
+
+		down {
+			label = "SW-TACT5";
+			gpios = <&gpx1 7 1>;
+			linux,code = <108>;
+			gpio-key,wakeup;
+		};
+
+		back {
+			label = "SW-TACT6";
+			gpios = <&gpx2 0 1>;
+			linux,code = <158>;
+			gpio-key,wakeup;
+		};
+
+		wakeup {
+			label = "SW-TACT7";
+			gpios = <&gpx2 1 1>;
+			linux,code = <143>;
+			gpio-key,wakeup;
+		};
+	};
+
 	fixed-rate-clocks {
 		xxti {
 			compatible = "samsung,clock-xxti";
