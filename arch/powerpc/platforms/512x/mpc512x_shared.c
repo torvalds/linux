@@ -347,6 +347,17 @@ void __init mpc512x_declare_of_platform_devices(void)
 
 #define DEFAULT_FIFO_SIZE 16
 
+const char *mpc512x_select_psc_compat(void)
+{
+	if (of_machine_is_compatible("fsl,mpc5121"))
+		return "fsl,mpc5121-psc";
+
+	if (of_machine_is_compatible("fsl,mpc5125"))
+		return "fsl,mpc5125-psc";
+
+	return NULL;
+}
+
 static unsigned int __init get_fifo_size(struct device_node *np,
 					 char *prop_name)
 {
@@ -372,9 +383,16 @@ void __init mpc512x_psc_fifo_init(void)
 	void __iomem *psc;
 	unsigned int tx_fifo_size;
 	unsigned int rx_fifo_size;
+	const char *psc_compat;
 	int fifobase = 0; /* current fifo address in 32 bit words */
 
-	for_each_compatible_node(np, NULL, "fsl,mpc5121-psc") {
+	psc_compat = mpc512x_select_psc_compat();
+	if (!psc_compat) {
+		pr_err("%s: no compatible devices found\n", __func__);
+		return;
+	}
+
+	for_each_compatible_node(np, NULL, psc_compat) {
 		tx_fifo_size = get_fifo_size(np, "fsl,tx-fifo-size");
 		rx_fifo_size = get_fifo_size(np, "fsl,rx-fifo-size");
 
