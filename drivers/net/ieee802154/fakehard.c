@@ -106,26 +106,6 @@ static u8 fake_get_dsn(const struct net_device *dev)
 }
 
 /**
- * fake_get_bsn - Retrieve the BSN of the device.
- * @dev: The network device to retrieve the BSN for.
- *
- * Returns the IEEE 802.15.4 BSN for the network device.
- * The BSN is the sequence number which will be added to each
- * beacon frame sent by the MAC.
- *
- * BSN means 'Beacon Sequence Number'.
- *
- * Note: This is in section 7.2.1.2 of the IEEE 802.15.4-2006
- *       document.
- */
-static u8 fake_get_bsn(const struct net_device *dev)
-{
-	BUG_ON(dev->type != ARPHRD_IEEE802154);
-
-	return 0x00; /* BSN are implemented in HW, so return just 0 */
-}
-
-/**
  * fake_assoc_req - Make an association request to the HW.
  * @dev: The network device which we are associating to a network.
  * @addr: The coordinator with which we wish to associate.
@@ -264,7 +244,6 @@ static struct ieee802154_mlme_ops fake_mlme = {
 	.get_pan_id = fake_get_pan_id,
 	.get_short_addr = fake_get_short_addr,
 	.get_dsn = fake_get_dsn,
-	.get_bsn = fake_get_bsn,
 };
 
 static int ieee802154_fake_open(struct net_device *dev)

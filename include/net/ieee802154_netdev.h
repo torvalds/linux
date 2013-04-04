@@ -110,7 +110,6 @@ struct ieee802154_mlme_ops {
 	u16 (*get_pan_id)(const struct net_device *dev);
 	u16 (*get_short_addr)(const struct net_device *dev);
 	u8 (*get_dsn)(const struct net_device *dev);
-	u8 (*get_bsn)(const struct net_device *dev);
 };
 
 /* The IEEE 802.15.4 standard defines 2 type of the devices:
