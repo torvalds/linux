@@ -835,13 +835,12 @@ static struct s3c_irq_data init_s3c2416subint[32] = {
 
 static struct s3c_irq_data init_s3c2416_second[32] = {
 	{ .type = S3C_IRQTYPE_EDGE }, /* 2D */
-	{ .type = S3C_IRQTYPE_EDGE }, /* IIC1 */
+	{ .type = S3C_IRQTYPE_NONE }, /* reserved */
 	{ .type = S3C_IRQTYPE_NONE }, /* reserved */
 	{ .type = S3C_IRQTYPE_NONE }, /* reserved */
 	{ .type = S3C_IRQTYPE_EDGE }, /* PCM0 */
-	{ .type = S3C_IRQTYPE_EDGE }, /* PCM1 */
+	{ .type = S3C_IRQTYPE_NONE }, /* reserved */
 	{ .type = S3C_IRQTYPE_EDGE }, /* I2S0 */
-	{ .type = S3C_IRQTYPE_EDGE }, /* I2S1 */
 };
 
 void __init s3c2416_init_irq(void)
