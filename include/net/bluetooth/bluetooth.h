@@ -226,7 +226,6 @@ struct bt_sock_list {
 	struct hlist_head head;
 	rwlock_t          lock;
 #ifdef CONFIG_PROC_FS
-        struct file_operations   fops;
         int (* custom_seq_show)(struct seq_file *, void *);
 #endif
 };
