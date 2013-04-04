@@ -5803,7 +5803,7 @@ static long device_ioctl(struct file *file,	/* see include/linux/fs.h */
 	return ret;
 }
 
-struct file_operations Fops = {
+static const struct file_operations Fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = device_ioctl,
 	.open = device_open,

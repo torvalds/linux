@@ -1467,7 +1467,7 @@ static int kvm_htab_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations kvm_htab_fops = {
+static const struct file_operations kvm_htab_fops = {
 	.read		= kvm_htab_read,
 	.write		= kvm_htab_write,
 	.llseek		= default_llseek,

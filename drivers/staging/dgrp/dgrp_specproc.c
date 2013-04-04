@@ -63,7 +63,7 @@ static int dgrp_nodeinfo_proc_open(struct inode *inode, struct file *file);
 static int dgrp_info_proc_open(struct inode *inode, struct file *file);
 static int dgrp_config_proc_open(struct inode *inode, struct file *file);
 
-static struct file_operations config_proc_file_ops = {
+static const struct file_operations config_proc_file_ops = {
 	.owner	 = THIS_MODULE,
 	.open	 = dgrp_config_proc_open,
 	.read	 = seq_read,
@@ -72,7 +72,7 @@ static struct file_operations config_proc_file_ops = {
 	.write   = dgrp_config_proc_write,
 };
 
-static struct file_operations info_proc_file_ops = {
+static const struct file_operations info_proc_file_ops = {
 	.owner	 = THIS_MODULE,
 	.open	 = dgrp_info_proc_open,
 	.read	 = seq_read,
@@ -80,7 +80,7 @@ static struct file_operations info_proc_file_ops = {
 	.release = single_release,
 };
 
-static struct file_operations nodeinfo_proc_file_ops = {
+static const struct file_operations nodeinfo_proc_file_ops = {
 	.owner	 = THIS_MODULE,
 	.open	 = dgrp_nodeinfo_proc_open,
 	.read	 = seq_read,

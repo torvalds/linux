@@ -5351,7 +5351,7 @@ static struct pci_driver qla2xxx_pci_driver = {
 	.err_handler	= &qla2xxx_err_handler,
 };
 
-static struct file_operations apidev_fops = {
+static const struct file_operations apidev_fops = {
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
 };
