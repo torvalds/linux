@@ -78,3 +78,4 @@ obj-$(CONFIG_CPU_FREQ_MAPLE)		+= maple-cpufreq.o
 ##################################################################################
 # Other platform drivers
 obj-$(CONFIG_AVR32_AT32AP_CPUFREQ)	+= at32ap-cpufreq.o
+obj-$(CONFIG_BLACKFIN)			+= blackfin-cpufreq.o
