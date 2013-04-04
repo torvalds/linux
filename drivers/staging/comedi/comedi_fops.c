@@ -272,10 +272,10 @@ static int resize_async_buffer(struct comedi_device *dev,
 
 /* sysfs attribute files */
 
-static ssize_t show_max_read_buffer_kb(struct device *dev,
+static ssize_t show_max_read_buffer_kb(struct device *csdev,
 				       struct device_attribute *attr, char *buf)
 {
-	struct comedi_file_info *info = dev_get_drvdata(dev);
+	struct comedi_file_info *info = dev_get_drvdata(csdev);
 	struct comedi_subdevice *s = comedi_read_subdevice(info);
 	unsigned int size = 0;
 
@@ -287,11 +287,11 @@ static ssize_t show_max_read_buffer_kb(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
-static ssize_t store_max_read_buffer_kb(struct device *dev,
+static ssize_t store_max_read_buffer_kb(struct device *csdev,
 					struct device_attribute *attr,
 					const char *buf, size_t count)
 {
-	struct comedi_file_info *info = dev_get_drvdata(dev);
+	struct comedi_file_info *info = dev_get_drvdata(csdev);
 	struct comedi_subdevice *s = comedi_read_subdevice(info);
 	unsigned int size;
 	int err;
@@ -313,10 +313,10 @@ static ssize_t store_max_read_buffer_kb(struct device *dev,
 	return err ? err : count;
 }
 
-static ssize_t show_read_buffer_kb(struct device *dev,
+static ssize_t show_read_buffer_kb(struct device *csdev,
 				   struct device_attribute *attr, char *buf)
 {
-	struct comedi_file_info *info = dev_get_drvdata(dev);
+	struct comedi_file_info *info = dev_get_drvdata(csdev);
 	struct comedi_subdevice *s = comedi_read_subdevice(info);
 	unsigned int size = 0;
 
@@ -328,11 +328,11 @@ static ssize_t show_read_buffer_kb(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
-static ssize_t store_read_buffer_kb(struct device *dev,
+static ssize_t store_read_buffer_kb(struct device *csdev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
-	struct comedi_file_info *info = dev_get_drvdata(dev);
+	struct comedi_file_info *info = dev_get_drvdata(csdev);
 	struct comedi_subdevice *s = comedi_read_subdevice(info);
 	unsigned int size;
 	int err;
@@ -354,11 +354,11 @@ static ssize_t store_read_buffer_kb(struct device *dev,
 	return err ? err : count;
 }
 
-static ssize_t show_max_write_buffer_kb(struct device *dev,
+static ssize_t show_max_write_buffer_kb(struct device *csdev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct comedi_file_info *info = dev_get_drvdata(dev);
+	struct comedi_file_info *info = dev_get_drvdata(csdev);
 	struct comedi_subdevice *s = comedi_write_subdevice(info);
 	unsigned int size = 0;
 
@@ -370,11 +370,11 @@ static ssize_t show_max_write_buffer_kb(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
-static ssize_t store_max_write_buffer_kb(struct device *dev,
+static ssize_t store_max_write_buffer_kb(struct device *csdev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
-	struct comedi_file_info *info = dev_get_drvdata(dev);
+	struct comedi_file_info *info = dev_get_drvdata(csdev);
 	struct comedi_subdevice *s = comedi_write_subdevice(info);
 	unsigned int size;
 	int err;
@@ -396,10 +396,10 @@ static ssize_t store_max_write_buffer_kb(struct device *dev,
 	return err ? err : count;
 }
 
-static ssize_t show_write_buffer_kb(struct device *dev,
+static ssize_t show_write_buffer_kb(struct device *csdev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct comedi_file_info *info = dev_get_drvdata(dev);
+	struct comedi_file_info *info = dev_get_drvdata(csdev);
 	struct comedi_subdevice *s = comedi_write_subdevice(info);
 	unsigned int size = 0;
 
@@ -411,11 +411,11 @@ static ssize_t show_write_buffer_kb(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%i\n", size);
 }
 
-static ssize_t store_write_buffer_kb(struct device *dev,
+static ssize_t store_write_buffer_kb(struct device *csdev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	struct comedi_file_info *info = dev_get_drvdata(dev);
+	struct comedi_file_info *info = dev_get_drvdata(csdev);
 	struct comedi_subdevice *s = comedi_write_subdevice(info);
 	unsigned int size;
 	int err;
