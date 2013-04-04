@@ -21,6 +21,8 @@
 #ifndef _MACH_TEGRA_PM_H_
 #define _MACH_TEGRA_PM_H_
 
+#include "pmc.h"
+
 extern unsigned long l2x0_saved_regs_addr;
 
 void save_cpu_arch_register(void);
@@ -29,7 +31,20 @@ void restore_cpu_arch_register(void);
 void tegra_clear_cpu_in_lp2(int phy_cpu_id);
 bool tegra_set_cpu_in_lp2(int phy_cpu_id);
 
-void tegra_idle_lp2_last(u32 cpu_on_time, u32 cpu_off_time);
+void tegra_idle_lp2_last(void);
 extern void (*tegra_tear_down_cpu)(void);
+
+#ifdef CONFIG_PM_SLEEP
+enum tegra_suspend_mode tegra_pm_validate_suspend_mode(
+				enum tegra_suspend_mode mode);
+void tegra_init_suspend(void);
+#else
+enum tegra_suspend_mode tegra_pm_validate_suspend_mode(
+				enum tegra_suspend_mode mode)
+{
+	return TEGRA_SUSPEND_NONE;
+}
+static inline void tegra_init_suspend(void) {}
+#endif
 
 #endif /* _MACH_TEGRA_PM_H_ */
