@@ -687,7 +687,7 @@
 		nvidia,int-mic-en-gpios = <&gpio 184 0>; /*gpio PX0 */
 		nvidia,ext-mic-en-gpios = <&gpio 185 0>; /* gpio PX1 */
 
-		clocks = <&tegra_car 112>, <&tegra_car 113>, <&tegra_car 93>;
+		clocks = <&tegra_car 112>, <&tegra_car 113>, <&tegra_car 94>;
 		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 };

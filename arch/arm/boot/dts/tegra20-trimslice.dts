@@ -397,7 +397,7 @@
 		nvidia,i2s-controller = <&tegra_i2s1>;
 		nvidia,audio-codec = <&codec>;
 
-		clocks = <&tegra_car 112>, <&tegra_car 113>, <&tegra_car 93>;
+		clocks = <&tegra_car 112>, <&tegra_car 113>, <&tegra_car 94>;
 		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 };

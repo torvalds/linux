@@ -483,7 +483,7 @@
 
 		nvidia,ac97-controller = <&ac97>;
 
-		clocks = <&tegra_car 112>, <&tegra_car 113>, <&tegra_car 93>;
+		clocks = <&tegra_car 112>, <&tegra_car 113>, <&tegra_car 94>;
 		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 

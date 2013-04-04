@@ -478,7 +478,7 @@
 		compatible = "nvidia,tegra20-usb-phy";
 		reg = <0xc5004400 0x3c00>;
 		phy_type = "ulpi";
-		clocks = <&tegra_car 94>, <&tegra_car 127>;
+		clocks = <&tegra_car 93>, <&tegra_car 127>;
 		clock-names = "phy", "pll_u";
 	};
 
