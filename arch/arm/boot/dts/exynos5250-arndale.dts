@@ -96,6 +96,7 @@
 		slot@0 {
 			reg = <0>;
 			bus-width = <4>;
+			disable-wp;
 		};
 	};
 
