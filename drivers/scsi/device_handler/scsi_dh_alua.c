@@ -712,6 +712,10 @@ static int alua_set_params(struct scsi_device *sdev, const char *params)
 	return result;
 }
 
+static uint optimize_stpg;
+module_param(optimize_stpg, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(optimize_stpg, "Allow use of a non-optimized path, rather than sending a STPG, when implicit TPGS is supported (0=No,1=Yes). Default is 0.");
+
 /*
  * alua_activate - activate a path
  * @sdev: device on the path to be activated
@@ -732,6 +736,9 @@ static int alua_activate(struct scsi_device *sdev,
 	err = alua_rtpg(sdev, h);
 	if (err != SCSI_DH_OK)
 		goto out;
+
+	if (optimize_stpg)
+		h->flags |= ALUA_OPTIMIZE_STPG;
 
 	if (h->tpgs & TPGS_MODE_EXPLICIT) {
 		switch (h->state) {
