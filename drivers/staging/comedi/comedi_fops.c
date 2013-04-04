@@ -190,23 +190,34 @@ static struct comedi_file_info
 	return info;
 }
 
-static struct comedi_file_info *comedi_file_info_from_minor(unsigned minor)
-{
-	if (minor < COMEDI_NUM_BOARD_MINORS)
-		return comedi_file_info_from_board_minor(minor);
-	else
-		return comedi_file_info_from_subdevice_minor(minor);
-}
-
 static struct comedi_device *
 comedi_dev_from_file_info(struct comedi_file_info *info)
 {
 	return info ? info->device : NULL;
 }
 
+static struct comedi_device *comedi_dev_from_board_minor(unsigned minor)
+{
+	struct comedi_file_info *info;
+
+	info = comedi_file_info_from_board_minor(minor);
+	return comedi_dev_from_file_info(info);
+}
+
+static struct comedi_device *comedi_dev_from_subdevice_minor(unsigned minor)
+{
+	struct comedi_file_info *info;
+
+	info = comedi_file_info_from_subdevice_minor(minor);
+	return comedi_dev_from_file_info(info);
+}
+
 struct comedi_device *comedi_dev_from_minor(unsigned minor)
 {
-	return comedi_dev_from_file_info(comedi_file_info_from_minor(minor));
+	if (minor < COMEDI_NUM_BOARD_MINORS)
+		return comedi_dev_from_board_minor(minor);
+	else
+		return comedi_dev_from_subdevice_minor(minor);
 }
 EXPORT_SYMBOL_GPL(comedi_dev_from_minor);
 
