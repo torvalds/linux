@@ -505,6 +505,32 @@ static int soc_camera_set_fmt(struct soc_camera_device *icd,
 	return ici->ops->set_bus_param(icd);
 }
 
+static int soc_camera_add_device(struct soc_camera_device *icd)
+{
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	int ret;
+
+	if (ici->icd)
+		return -EBUSY;
+
+	ret = ici->ops->add(icd);
+	if (!ret)
+		ici->icd = icd;
+
+	return ret;
+}
+
+static void soc_camera_remove_device(struct soc_camera_device *icd)
+{
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+
+	if (WARN_ON(icd != ici->icd))
+		return;
+
+	ici->ops->remove(icd);
+	ici->icd = NULL;
+}
+
 static int soc_camera_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -568,7 +594,7 @@ static int soc_camera_open(struct file *file)
 		if (sdesc->subdev_desc.reset)
 			sdesc->subdev_desc.reset(icd->pdev);
 
-		ret = ici->ops->add(icd);
+		ret = soc_camera_add_device(icd);
 		if (ret < 0) {
 			dev_err(icd->pdev, "Couldn't activate the camera: %d\n", ret);
 			goto eiciadd;
@@ -619,7 +645,7 @@ esfmt:
 eresume:
 	__soc_camera_power_off(icd);
 epower:
-	ici->ops->remove(icd);
+	soc_camera_remove_device(icd);
 eiciadd:
 	icd->use_count--;
 	mutex_unlock(&ici->host_lock);
@@ -645,7 +671,7 @@ static int soc_camera_close(struct file *file)
 			vb2_queue_release(&icd->vb2_vidq);
 		__soc_camera_power_off(icd);
 
-		ici->ops->remove(icd);
+		soc_camera_remove_device(icd);
 	}
 
 	if (icd->streamer == file)
@@ -1167,7 +1193,7 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 		ssdd->reset(icd->pdev);
 
 	mutex_lock(&ici->host_lock);
-	ret = ici->ops->add(icd);
+	ret = soc_camera_add_device(icd);
 	mutex_unlock(&ici->host_lock);
 	if (ret < 0)
 		goto eadd;
@@ -1240,7 +1266,7 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 		icd->field		= mf.field;
 	}
 
-	ici->ops->remove(icd);
+	soc_camera_remove_device(icd);
 
 	mutex_unlock(&ici->host_lock);
 
@@ -1263,7 +1289,7 @@ eadddev:
 	icd->vdev = NULL;
 evdc:
 	mutex_lock(&ici->host_lock);
-	ici->ops->remove(icd);
+	soc_camera_remove_device(icd);
 	mutex_unlock(&ici->host_lock);
 eadd:
 	v4l2_ctrl_handler_free(&icd->ctrl_handler);

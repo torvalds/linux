@@ -64,6 +64,7 @@ struct soc_camera_host {
 	struct mutex host_lock;		/* Protect pipeline modifications */
 	unsigned char nr;		/* Host number */
 	u32 capabilities;
+	struct soc_camera_device *icd;	/* Currently attached client */
 	void *priv;
 	const char *drv_name;
 	struct soc_camera_host_ops *ops;

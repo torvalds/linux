@@ -236,7 +236,6 @@ enum mx2_camera_type {
 struct mx2_camera_dev {
 	struct device		*dev;
 	struct soc_camera_host	soc_host;
-	struct soc_camera_device *icd;
 	struct clk		*clk_emma_ahb, *clk_emma_ipg;
 	struct clk		*clk_csi_ahb, *clk_csi_per;
 
@@ -394,8 +393,8 @@ static void mx27_update_emma_buf(struct mx2_camera_dev *pcdev,
 		writel(phys, pcdev->base_emma +
 			PRP_DEST_Y_PTR - 0x14 * bufnum);
 		if (prp->out_fmt == V4L2_PIX_FMT_YUV420) {
-			u32 imgsize = pcdev->icd->user_height *
-					pcdev->icd->user_width;
+			u32 imgsize = pcdev->soc_host.icd->user_height *
+					pcdev->soc_host.icd->user_width;
 
 			writel(phys + imgsize, pcdev->base_emma +
 				PRP_DEST_CB_PTR - 0x14 * bufnum);
@@ -424,9 +423,6 @@ static int mx2_camera_add_device(struct soc_camera_device *icd)
 	int ret;
 	u32 csicr1;
 
-	if (pcdev->icd)
-		return -EBUSY;
-
 	ret = clk_prepare_enable(pcdev->clk_csi_ahb);
 	if (ret < 0)
 		return ret;
@@ -441,7 +437,6 @@ static int mx2_camera_add_device(struct soc_camera_device *icd)
 	pcdev->csicr1 = csicr1;
 	writel(pcdev->csicr1, pcdev->base_csi + CSICR1);
 
-	pcdev->icd = icd;
 	pcdev->frame_count = 0;
 
 	dev_info(icd->parent, "Camera driver attached to camera %d\n",
@@ -460,14 +455,10 @@ static void mx2_camera_remove_device(struct soc_camera_device *icd)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
 
-	BUG_ON(icd != pcdev->icd);
-
 	dev_info(icd->parent, "Camera driver detached from camera %d\n",
 		 icd->devnum);
 
 	mx2_camera_deactivate(pcdev);
-
-	pcdev->icd = NULL;
 }
 
 /*

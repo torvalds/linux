@@ -200,7 +200,6 @@ struct pxa_camera_dev {
 	 * interface. If anyone ever builds hardware to enable more than
 	 * one camera, they will have to modify this driver too
 	 */
-	struct soc_camera_device *icd;
 	struct clk		*clk;
 
 	unsigned int		irq;
@@ -966,12 +965,7 @@ static int pxa_camera_add_device(struct soc_camera_device *icd)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct pxa_camera_dev *pcdev = ici->priv;
 
-	if (pcdev->icd)
-		return -EBUSY;
-
 	pxa_camera_activate(pcdev);
-
-	pcdev->icd = icd;
 
 	dev_info(icd->parent, "PXA Camera driver attached to camera %d\n",
 		 icd->devnum);
@@ -985,8 +979,6 @@ static void pxa_camera_remove_device(struct soc_camera_device *icd)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct pxa_camera_dev *pcdev = ici->priv;
 
-	BUG_ON(icd != pcdev->icd);
-
 	dev_info(icd->parent, "PXA Camera driver detached from camera %d\n",
 		 icd->devnum);
 
@@ -999,8 +991,6 @@ static void pxa_camera_remove_device(struct soc_camera_device *icd)
 	DCSR(pcdev->dma_chans[2]) = 0;
 
 	pxa_camera_deactivate(pcdev);
-
-	pcdev->icd = NULL;
 }
 
 static int test_platform_param(struct pxa_camera_dev *pcdev,
@@ -1596,8 +1586,8 @@ static int pxa_camera_suspend(struct device *dev)
 	pcdev->save_cicr[i++] = __raw_readl(pcdev->base + CICR3);
 	pcdev->save_cicr[i++] = __raw_readl(pcdev->base + CICR4);
 
-	if (pcdev->icd) {
-		struct v4l2_subdev *sd = soc_camera_to_subdev(pcdev->icd);
+	if (pcdev->soc_host.icd) {
+		struct v4l2_subdev *sd = soc_camera_to_subdev(pcdev->soc_host.icd);
 		ret = v4l2_subdev_call(sd, core, s_power, 0);
 		if (ret == -ENOIOCTLCMD)
 			ret = 0;
@@ -1622,8 +1612,8 @@ static int pxa_camera_resume(struct device *dev)
 	__raw_writel(pcdev->save_cicr[i++], pcdev->base + CICR3);
 	__raw_writel(pcdev->save_cicr[i++], pcdev->base + CICR4);
 
-	if (pcdev->icd) {
-		struct v4l2_subdev *sd = soc_camera_to_subdev(pcdev->icd);
+	if (pcdev->soc_host.icd) {
+		struct v4l2_subdev *sd = soc_camera_to_subdev(pcdev->soc_host.icd);
 		ret = v4l2_subdev_call(sd, core, s_power, 1);
 		if (ret == -ENOIOCTLCMD)
 			ret = 0;

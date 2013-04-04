@@ -94,7 +94,6 @@ struct mx3_camera_dev {
 	 * Interface. If anyone ever builds hardware to enable more than one
 	 * camera _simultaneously_, they will have to modify this driver too
 	 */
-	struct soc_camera_device *icd;
 	struct clk		*clk;
 
 	void __iomem		*base;
@@ -517,13 +516,9 @@ static int mx3_camera_add_device(struct soc_camera_device *icd)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 
-	if (mx3_cam->icd)
-		return -EBUSY;
-
 	mx3_camera_activate(mx3_cam, icd);
 
 	mx3_cam->buf_total = 0;
-	mx3_cam->icd = icd;
 
 	dev_info(icd->parent, "MX3 Camera driver attached to camera %d\n",
 		 icd->devnum);
@@ -538,16 +533,12 @@ static void mx3_camera_remove_device(struct soc_camera_device *icd)
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct idmac_channel **ichan = &mx3_cam->idmac_channel[0];
 
-	BUG_ON(icd != mx3_cam->icd);
-
 	if (*ichan) {
 		dma_release_channel(&(*ichan)->dma_chan);
 		*ichan = NULL;
 	}
 
 	clk_disable_unprepare(mx3_cam->clk);
-
-	mx3_cam->icd = NULL;
 
 	dev_info(icd->parent, "MX3 Camera driver detached from camera %d\n",
 		 icd->devnum);
