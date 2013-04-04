@@ -2274,6 +2274,7 @@ static void comedi_device_cleanup(struct comedi_device *dev)
 	mutex_destroy(&dev->mutex);
 }
 
+/* Note: the ->mutex is pre-locked on successful return */
 struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 {
 	struct comedi_file_info *info;
@@ -2292,6 +2293,7 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	info->device = dev;
 	info->hardware_device = hardware_device;
 	comedi_device_init(dev);
+	mutex_lock(&dev->mutex);
 	spin_lock(&comedi_file_info_table_lock);
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; ++i) {
 		if (comedi_file_info_table[i] == NULL) {
@@ -2301,6 +2303,7 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 	}
 	spin_unlock(&comedi_file_info_table_lock);
 	if (i == COMEDI_NUM_BOARD_MINORS) {
+		mutex_unlock(&dev->mutex);
 		comedi_device_cleanup(dev);
 		kfree(dev);
 		kfree(info);
@@ -2314,6 +2317,7 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 		dev->class_dev = csdev;
 	dev_set_drvdata(csdev, info);
 
+	/* Note: dev->mutex needs to be unlocked by the caller. */
 	return dev;
 }
 
@@ -2485,6 +2489,9 @@ static int __init comedi_init(void)
 			unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 						 COMEDI_NUM_MINORS);
 			return PTR_ERR(dev);
+		} else {
+			/* comedi_alloc_board_minor() locked the mutex */
+			mutex_unlock(&dev->mutex);
 		}
 	}
 
