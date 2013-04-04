@@ -2776,6 +2776,7 @@
 /* Transfer unit size for display port - 1, default is 0x3f (for TU size 64) */
 #define   PIPE_GMCH_DATA_M_TU_SIZE_MASK		(0x3f << 25)
 #define   PIPE_GMCH_DATA_M_TU_SIZE_SHIFT	25
+#define  TU_SIZE_SHIFT		25
 
 #define   PIPE_GMCH_DATA_M_MASK			(0xffffff)
 
