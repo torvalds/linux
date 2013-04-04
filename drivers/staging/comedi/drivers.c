@@ -273,7 +273,6 @@ static int comedi_device_postconfig(struct comedi_device *dev)
 
 	ret = __comedi_device_postconfig(dev);
 	if (ret < 0) {
-		comedi_device_detach(dev);
 		return ret;
 	}
 	if (!dev->board_name) {
@@ -385,14 +384,12 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	 * comedi_error() can be called from attach */
 	dev->driver = driv;
 	ret = driv->attach(dev, it);
+	if (ret >= 0)
+		ret = comedi_device_postconfig(dev);
 	if (ret < 0) {
 		comedi_device_detach(dev);
 		module_put(dev->driver->module);
-		return ret;
 	}
-	ret = comedi_device_postconfig(dev);
-	if (ret < 0)
-		module_put(dev->driver->module);
 	/* On success, the driver module count has been incremented. */
 	return ret;
 }
@@ -428,10 +425,10 @@ int comedi_auto_config(struct device *hardware_device,
 	comedi_set_hw_dev(comedi_dev, hardware_device);
 	comedi_dev->driver = driver;
 	ret = driver->auto_attach(comedi_dev, context);
+	if (ret >= 0)
+		ret = comedi_device_postconfig(comedi_dev);
 	if (ret < 0)
 		comedi_device_detach(comedi_dev);
-	else
-		ret = comedi_device_postconfig(comedi_dev);
 	mutex_unlock(&comedi_dev->mutex);
 
 	if (ret < 0)
