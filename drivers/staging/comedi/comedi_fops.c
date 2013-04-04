@@ -87,6 +87,9 @@ struct comedi_file_info {
 static DEFINE_SPINLOCK(comedi_file_info_table_lock);
 static struct comedi_file_info *comedi_file_info_table[COMEDI_NUM_MINORS];
 
+static struct comedi_file_info *comedi_clear_minor(unsigned minor);
+static void comedi_free_board_file_info(struct comedi_file_info *info);
+
 static struct comedi_file_info *comedi_file_info_from_minor(unsigned minor)
 {
 	struct comedi_file_info *info;
@@ -489,6 +492,10 @@ static int do_devconfig_ioctl(struct comedi_device *dev,
 			 "comedi_config --init_data is deprecated\n");
 		return -EINVAL;
 	}
+
+	if (dev->minor >= comedi_num_legacy_minors)
+		/* don't re-use dynamically allocated comedi devices */
+		return -EBUSY;
 
 	ret = comedi_device_attach(dev, &it);
 	if (ret == 0) {
@@ -1635,6 +1642,19 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 		}
 		rc = do_devconfig_ioctl(dev,
 					(struct comedi_devconfig __user *)arg);
+		if (rc == 0) {
+			if (arg == 0 &&
+			    dev->minor >= comedi_num_legacy_minors) {
+				/* Successfully unconfigured a dynamically
+				 * allocated device.  Try and remove it. */
+				info = comedi_clear_minor(dev->minor);
+				if (info) {
+					mutex_unlock(&dev->mutex);
+					comedi_free_board_file_info(info);
+					return rc;
+				}
+			}
+		}
 		goto done;
 	}
 
