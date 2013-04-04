@@ -491,10 +491,10 @@ static void parse(FILE *f)
 	while (fgets(buf, sizeof(buf), f)) {
 		linectr++;
 		/* remove line ends */
-		cp = strchr(buf, 13);
+		cp = strchr(buf, '\r');
 		if (cp)
 			*cp = 0;
-		cp = strchr(buf, 10);
+		cp = strchr(buf, '\n');
 		if (cp)
 			*cp = 0;
 		if (buf[0] == '#' || !buf[0])
