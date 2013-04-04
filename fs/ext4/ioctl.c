@@ -83,17 +83,8 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			if (!capable(CAP_SYS_RESOURCE))
 				goto flags_out;
 		}
-		if (oldflags & EXT4_EXTENTS_FL) {
-			/* We don't support clearning extent flags */
-			if (!(flags & EXT4_EXTENTS_FL)) {
-				err = -EOPNOTSUPP;
-				goto flags_out;
-			}
-		} else if (flags & EXT4_EXTENTS_FL) {
-			/* migrate the file */
+		if ((flags ^ oldflags) & EXT4_EXTENTS_FL)
 			migrate = 1;
-			flags &= ~EXT4_EXTENTS_FL;
-		}
 
 		if (flags & EXT4_EOFBLOCKS_FL) {
 			/* we don't support adding EOFBLOCKS flag */
@@ -137,8 +128,13 @@ flags_err:
 			err = ext4_change_inode_journal_flag(inode, jflag);
 		if (err)
 			goto flags_out;
-		if (migrate)
-			err = ext4_ext_migrate(inode);
+		if (migrate) {
+			if (flags & EXT4_EXTENTS_FL)
+				err = ext4_ext_migrate(inode);
+			else
+				err = ext4_ind_migrate(inode);
+		}
+
 flags_out:
 		mutex_unlock(&inode->i_mutex);
 		mnt_drop_write_file(filp);

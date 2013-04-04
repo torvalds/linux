@@ -403,7 +403,7 @@ struct flex_groups {
 #define EXT4_RESERVED_FL		0x80000000 /* reserved for ext4 lib */
 
 #define EXT4_FL_USER_VISIBLE		0x004BDFFF /* User visible flags */
-#define EXT4_FL_USER_MODIFIABLE		0x004B80FF /* User modifiable flags */
+#define EXT4_FL_USER_MODIFIABLE		0x004380FF /* User modifiable flags */
 
 /* Flags that should be inherited by new inodes from their parent. */
 #define EXT4_FL_INHERITED (EXT4_SECRM_FL | EXT4_UNRM_FL | EXT4_COMPR_FL |\
@@ -2608,6 +2608,7 @@ extern int ext4_find_delalloc_range(struct inode *inode,
 extern int ext4_find_delalloc_cluster(struct inode *inode, ext4_lblk_t lblk);
 extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			__u64 start, __u64 len);
+extern int ext4_ind_migrate(struct inode *inode);
 
 
 /* move_extent.c */
