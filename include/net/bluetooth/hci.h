@@ -998,6 +998,8 @@ struct hci_cp_le_set_scan_param {
 
 #define LE_SCANNING_DISABLED		0x00
 #define LE_SCANNING_ENABLED		0x01
+#define LE_SCAN_FILTER_DUP_DISABLE	0x00
+#define LE_SCAN_FILTER_DUP_ENABLE	0x01
 
 #define HCI_OP_LE_SET_SCAN_ENABLE	0x200c
 struct hci_cp_le_set_scan_enable {

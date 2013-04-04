@@ -1990,7 +1990,7 @@ static void le_scan_enable_req(struct hci_request *req, unsigned long opt)
 
 	memset(&cp, 0, sizeof(cp));
 	cp.enable = 1;
-	cp.filter_dup = 1;
+	cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
 
 	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
 }
