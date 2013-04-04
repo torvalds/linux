@@ -13,4 +13,4 @@ rtl8188ee-objs :=		\
 
 obj-$(CONFIG_RTL8188EE) += rtl8188ee.o
 
-ccflags-y += -I drivers/net/wireless/rtlwifi -D__CHECK_ENDIAN__
+ccflags-y += -Idrivers/net/wireless/rtlwifi -D__CHECK_ENDIAN__
