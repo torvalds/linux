@@ -327,15 +327,9 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev,
 	return sdev;
 }
 
-static int stub_device_free(struct stub_device *sdev)
+static void stub_device_free(struct stub_device *sdev)
 {
-	if (!sdev)
-		return -EINVAL;
-
 	kfree(sdev);
-	pr_debug("kfree udev ok\n");
-
-	return 0;
 }
 
 /*
