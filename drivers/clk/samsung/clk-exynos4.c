@@ -91,7 +91,7 @@
 #define GATE_IP_FSYS		0xc940
 #define GATE_IP_GPS		0xc94c
 #define GATE_IP_PERIL		0xc950
-#define GATE_IP_PERIR		0xc960
+#define E4210_GATE_IP_PERIR	0xc960
 #define E4X12_MPLL_CON0		0x10108
 #define E4X12_SRC_DMC		0x10200
 #define APLL_CON0		0x14100
@@ -732,9 +732,9 @@ struct samsung_gate_clock exynos4210_gate_clks[] __initdata = {
 	GATE(pcie, "pcie", "aclk133", GATE_IP_FSYS, 14, 0, 0),
 	GATE(smmu_pcie, "smmu_pcie", "aclk133", GATE_IP_FSYS, 18, 0, 0),
 	GATE(modemif, "modemif", "aclk100", GATE_IP_PERIL, 28, 0, 0),
-	GATE(chipid, "chipid", "aclk100", GATE_IP_PERIR, 0, 0, 0),
-	GATE(sysreg, "sysreg", "aclk100", GATE_IP_PERIR, 0, 0, 0),
-	GATE(hdmi_cec, "hdmi_cec", "aclk100", GATE_IP_PERIR, 11, 0, 0),
+	GATE(chipid, "chipid", "aclk100", E4210_GATE_IP_PERIR, 0, 0, 0),
+	GATE(sysreg, "sysreg", "aclk100", E4210_GATE_IP_PERIR, 0, 0, 0),
+	GATE(hdmi_cec, "hdmi_cec", "aclk100", E4210_GATE_IP_PERIR, 11, 0, 0),
 	GATE(smmu_rotator, "smmu_rotator", "aclk200",
 			E4210_GATE_IP_IMAGE, 4, 0, 0),
 	GATE(sclk_mipi1, "sclk_mipi1", "div_mipi_pre1",
@@ -744,10 +744,10 @@ struct samsung_gate_clock exynos4210_gate_clks[] __initdata = {
 	GATE(sclk_mixer, "sclk_mixer", "mout_mixer", SRC_MASK_TV, 4, 0, 0),
 	GATE(sclk_dac, "sclk_dac", "mout_dac", SRC_MASK_TV, 8, 0, 0),
 	GATE_A(tsadc, "tsadc", "aclk100", GATE_IP_PERIL, 15, 0, 0, "adc"),
-	GATE_A(mct, "mct", "aclk100", GATE_IP_PERIR, 13, 0, 0, "mct"),
-	GATE_A(wdt, "watchdog", "aclk100", GATE_IP_PERIR, 14, 0, 0, "watchdog"),
-	GATE_A(rtc, "rtc", "aclk100", GATE_IP_PERIR, 15, 0, 0, "rtc"),
-	GATE_A(keyif, "keyif", "aclk100", GATE_IP_PERIR, 16, 0, 0, "keypad"),
+	GATE_A(mct, "mct", "aclk100", E4210_GATE_IP_PERIR, 13, 0, 0, "mct"),
+	GATE_A(wdt, "watchdog", "aclk100", E4210_GATE_IP_PERIR, 14, 0, 0, "watchdog"),
+	GATE_A(rtc, "rtc", "aclk100", E4210_GATE_IP_PERIR, 15, 0, 0, "rtc"),
+	GATE_A(keyif, "keyif", "aclk100", E4210_GATE_IP_PERIR, 16, 0, 0, "keypad"),
 	GATE_DA(sclk_fimd1, "exynos4-fb.1", "sclk_fimd1", "div_fimd1",
 			E4210_SRC_MASK_LCD1, 0, CLK_SET_RATE_PARENT, 0, "sclk_fimd"),
 };
