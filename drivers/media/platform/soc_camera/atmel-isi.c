@@ -745,10 +745,23 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 	return formats;
 }
 
-/* Called with .host_lock held */
 static int isi_camera_add_device(struct soc_camera_device *icd)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	dev_dbg(icd->parent, "Atmel ISI Camera driver attached to camera %d\n",
+		 icd->devnum);
+
+	return 0;
+}
+
+static void isi_camera_remove_device(struct soc_camera_device *icd)
+{
+	dev_dbg(icd->parent, "Atmel ISI Camera driver detached from camera %d\n",
+		 icd->devnum);
+}
+
+/* Called with .host_lock held */
+static int isi_camera_clock_start(struct soc_camera_host *ici)
+{
 	struct atmel_isi *isi = ici->priv;
 	int ret;
 
@@ -762,21 +775,16 @@ static int isi_camera_add_device(struct soc_camera_device *icd)
 		return ret;
 	}
 
-	dev_dbg(icd->parent, "Atmel ISI Camera driver attached to camera %d\n",
-		 icd->devnum);
 	return 0;
 }
+
 /* Called with .host_lock held */
-static void isi_camera_remove_device(struct soc_camera_device *icd)
+static void isi_camera_clock_stop(struct soc_camera_host *ici)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 
 	clk_disable(isi->mck);
 	clk_disable(isi->pclk);
-
-	dev_dbg(icd->parent, "Atmel ISI Camera driver detached from camera %d\n",
-		 icd->devnum);
 }
 
 static unsigned int isi_camera_poll(struct file *file, poll_table *pt)
@@ -880,6 +888,8 @@ static struct soc_camera_host_ops isi_soc_camera_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= isi_camera_add_device,
 	.remove		= isi_camera_remove_device,
+	.clock_start	= isi_camera_clock_start,
+	.clock_stop	= isi_camera_clock_stop,
 	.set_fmt	= isi_camera_set_fmt,
 	.try_fmt	= isi_camera_try_fmt,
 	.get_formats	= isi_camera_get_formats,
