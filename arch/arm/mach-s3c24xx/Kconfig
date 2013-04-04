@@ -229,7 +229,7 @@ if CPU_S3C2410
 
 config S3C2410_CPUFREQ
 	bool
-	depends on CPU_FREQ_S3C24XX && CPU_S3C2410
+	depends on CPU_FREQ_S3C24XX
 	select S3C2410_CPUFREQ_UTILS
 	help
 	  CPU Frequency scaling support for S3C2410
