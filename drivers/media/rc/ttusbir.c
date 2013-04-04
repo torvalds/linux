@@ -347,6 +347,7 @@ static int ttusbir_probe(struct usb_interface *intf,
 	return 0;
 out3:
 	rc_unregister_device(rc);
+	rc = NULL;
 out2:
 	led_classdev_unregister(&tt->led);
 out:
