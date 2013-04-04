@@ -668,10 +668,6 @@ xlog_cil_push_foreground(
  * transaction to the checkpoint context so we carry the busy extents through
  * to checkpoint completion, and then unlock all the items in the transaction.
  *
- * For more specific information about the order of operations in
- * xfs_log_commit_cil() please refer to the comments in
- * xfs_trans_commit_iclog().
- *
  * Called with the context lock already held in read mode to lock out
  * background commit, returns without it held once background commits are
  * allowed again.
