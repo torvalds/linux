@@ -38,11 +38,11 @@ static spinlock_t busid_table_lock;
 
 static void init_busid_table(void)
 {
-	int i;
-
+	/*
+	 * This also sets the bus_table[i].status to
+	 * STUB_BUSID_OTHER, which is 0.
+	 */
 	memset(busid_table, 0, sizeof(busid_table));
-	for (i = 0; i < MAX_BUSID; i++)
-		busid_table[i].status = STUB_BUSID_OTHER;
 
 	spin_lock_init(&busid_table_lock);
 }
