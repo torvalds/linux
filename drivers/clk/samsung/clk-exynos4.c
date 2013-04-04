@@ -112,7 +112,8 @@ enum exynos4_clks {
 	/* core clocks */
 	xxti, xusbxti, fin_pll, fout_apll, fout_mpll, fout_epll, fout_vpll,
 	sclk_apll, sclk_mpll, sclk_epll, sclk_vpll, arm_clk, aclk200, aclk100,
-	aclk160, aclk133, mout_mpll_user_t, mout_mpll_user_c, /* 18 */
+	aclk160, aclk133, mout_mpll_user_t, mout_mpll_user_c, mout_core,
+	mout_apll, /* 20 */
 
 	/* gate for special clocks (sclk) */
 	sclk_fimc0 = 128, sclk_fimc1, sclk_fimc2, sclk_fimc3, sclk_cam0,
@@ -284,7 +285,8 @@ struct samsung_fixed_rate_clock exynos4210_fixed_rate_clks[] __initdata = {
 
 /* list of mux clocks supported in all exynos4 soc's */
 struct samsung_mux_clock exynos4_mux_clks[] __initdata = {
-	MUX(none, "mout_apll", mout_apll_p, SRC_CPU, 0, 1),
+	MUX_F(mout_apll, "mout_apll", mout_apll_p, SRC_CPU, 0, 1,
+			CLK_SET_RATE_PARENT, 0),
 	MUX(none, "mout_hdmi", mout_hdmi_p, SRC_TV, 0, 1),
 	MUX(none, "mout_mfc1", sclk_evpll_p, SRC_MFC, 4, 1),
 	MUX(none, "mout_mfc", mout_mfc_p, SRC_MFC, 8, 1),
@@ -362,7 +364,7 @@ struct samsung_mux_clock exynos4x12_mux_clks[] __initdata = {
 			E4X12_SRC_DMC, 12, 1, "sclk_mpll"),
 	MUX_A(sclk_vpll, "sclk_vpll", mout_vpll_p,
 			SRC_TOP0, 8, 1, "sclk_vpll"),
-	MUX(none, "mout_core", mout_core_p4x12, SRC_CPU, 16, 1),
+	MUX(mout_core, "mout_core", mout_core_p4x12, SRC_CPU, 16, 1),
 	MUX(none, "mout_fimc0", group1_p4x12, SRC_CAM, 0, 4),
 	MUX(none, "mout_fimc1", group1_p4x12, SRC_CAM, 4, 4),
 	MUX(none, "mout_fimc2", group1_p4x12, SRC_CAM, 8, 4),
