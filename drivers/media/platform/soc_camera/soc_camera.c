@@ -512,23 +512,22 @@ static int soc_camera_add_device(struct soc_camera_device *icd)
 	if (ici->icd)
 		return -EBUSY;
 
-	if (ici->ops->clock_start) {
-		ret = ici->ops->clock_start(ici);
-		if (ret < 0)
-			return ret;
-	}
-
-	ret = ici->ops->add(icd);
+	ret = ici->ops->clock_start(ici);
 	if (ret < 0)
-		goto eadd;
+		return ret;
+
+	if (ici->ops->add) {
+		ret = ici->ops->add(icd);
+		if (ret < 0)
+			goto eadd;
+	}
 
 	ici->icd = icd;
 
 	return 0;
 
 eadd:
-	if (ici->ops->clock_stop)
-		ici->ops->clock_stop(ici);
+	ici->ops->clock_stop(ici);
 	return ret;
 }
 
@@ -539,9 +538,9 @@ static void soc_camera_remove_device(struct soc_camera_device *icd)
 	if (WARN_ON(icd != ici->icd))
 		return;
 
-	ici->ops->remove(icd);
-	if (ici->ops->clock_stop)
-		ici->ops->clock_stop(ici);
+	if (ici->ops->remove)
+		ici->ops->remove(icd);
+	ici->ops->clock_stop(ici);
 	ici->icd = NULL;
 }
 
@@ -1383,8 +1382,8 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 	    ((!ici->ops->init_videobuf ||
 	      !ici->ops->reqbufs) &&
 	     !ici->ops->init_videobuf2) ||
-	    !ici->ops->add ||
-	    !ici->ops->remove ||
+	    !ici->ops->clock_start ||
+	    !ici->ops->clock_stop ||
 	    !ici->ops->poll ||
 	    !ici->v4l2_dev.dev)
 		return -EINVAL;
