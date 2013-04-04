@@ -2249,7 +2249,6 @@ EXPORT_SYMBOL(comedi_event);
 
 static void comedi_device_init(struct comedi_device *dev)
 {
-	memset(dev, 0, sizeof(*dev));
 	spin_lock_init(&dev->spinlock);
 	mutex_init(&dev->mutex);
 	dev->minor = -1;
