@@ -71,5 +71,6 @@ extern struct dw_mci_board sdmmc_platform_data;
 extern unsigned long cpu1start_addr;
 
 #define SOCFPGA_SCU_VIRT_BASE   0xfee00000
+#define SOCFPGA_IRQ_GIC_START	32
 
 #endif /* __CORE_H */

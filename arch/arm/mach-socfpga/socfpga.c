@@ -34,8 +34,6 @@
 
 #include "core.h"
 
-#define SOCFPGA_NR_IRQS		512
-
 void __iomem *socfpga_scu_base_addr = ((void __iomem *)(SOCFPGA_SCU_VIRT_BASE));
 void __iomem *sys_manager_base_addr;
 void __iomem *rst_manager_base_addr;
