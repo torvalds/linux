@@ -760,7 +760,7 @@ enum tegra114_clk {
 	pll_re_vco, pll_re_out, pll_e_out0, spdif_in_sync, i2s0_sync,
 	i2s1_sync, i2s2_sync, i2s3_sync, i2s4_sync, vimclk_sync, audio0,
 	audio1, audio2, audio3, audio4, spdif, clk_out_1, clk_out_2, clk_out_3,
-	blink, xusb_host_src, xusb_falcon_src, xusb_fs_src, xusb_ss_src,
+	blink, xusb_host_src = 252, xusb_falcon_src, xusb_fs_src, xusb_ss_src,
 	xusb_dev_src, xusb_dev, xusb_hs_src, sclk, hclk, pclk, cclk_g, cclk_lp,
 
 	/* Mux clocks */
