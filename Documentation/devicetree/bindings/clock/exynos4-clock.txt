@@ -42,6 +42,8 @@ Exynos4 SoC and this is specified where applicable.
   aclk100             14
   aclk160             15
   aclk133             16
+  mout_mpll_user_t    17      Exynos4x12
+  mout_mpll_user_c    18      Exynos4x12
 
 
             [Clock Gate for Special Clocks]
