@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-tegra/cpu-tegra.c
- *
  * Copyright (C) 2010 Google, Inc.
  *
  * Author:
