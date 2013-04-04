@@ -2418,7 +2418,6 @@ void mmc_start_host(struct mmc_host *host)
 	host->rescan_disable = 0;
 	mmc_power_up(host);
 	mmc_detect_change(host, 0);
-	mmc_flush_scheduled_work();
 }
 
 void mmc_stop_host(struct mmc_host *host)
