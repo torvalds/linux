@@ -916,8 +916,8 @@ static struct s3c_irq_data init_s3c2440subint[32] = {
 	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 15 }, /* UART2-ERR */
 	{ .type = S3C_IRQTYPE_EDGE, .parent_irq = 31 }, /* TC */
 	{ .type = S3C_IRQTYPE_EDGE, .parent_irq = 31 }, /* ADC */
-	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 6 }, /* TC */
-	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 6 }, /* ADC */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 6 }, /* CAM_C */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 6 }, /* CAM_P */
 	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 9 }, /* WDT */
 	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 9 }, /* AC97 */
 };
@@ -991,8 +991,8 @@ static struct s3c_irq_data init_s3c2442subint[32] = {
 	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 15 }, /* UART2-ERR */
 	{ .type = S3C_IRQTYPE_EDGE, .parent_irq = 31 }, /* TC */
 	{ .type = S3C_IRQTYPE_EDGE, .parent_irq = 31 }, /* ADC */
-	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 6 }, /* TC */
-	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 6 }, /* ADC */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 6 }, /* CAM_C */
+	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 6 }, /* CAM_P */
 };
 
 void __init s3c2442_init_irq(void)
