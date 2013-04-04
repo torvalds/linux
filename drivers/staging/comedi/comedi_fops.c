@@ -93,7 +93,7 @@ static struct comedi_file_info
 
 static DEFINE_MUTEX(comedi_subdevice_minor_table_lock);
 /* Note: indexed by minor - COMEDI_NUM_BOARD_MINORS. */
-static struct comedi_file_info
+static struct comedi_subdevice
 *comedi_subdevice_minor_table[COMEDI_NUM_SUBDEVICE_MINORS];
 
 static struct class *comedi_class;
@@ -153,17 +153,17 @@ static void comedi_free_board_file_info(struct comedi_file_info *info)
 	}
 }
 
-static struct comedi_file_info
-*comedi_file_info_from_subdevice_minor(unsigned minor)
+static struct comedi_subdevice
+*comedi_subdevice_from_minor(unsigned minor)
 {
-	struct comedi_file_info *info;
+	struct comedi_subdevice *s;
 	unsigned int i = minor - COMEDI_NUM_BOARD_MINORS;
 
 	BUG_ON(i >= COMEDI_NUM_SUBDEVICE_MINORS);
 	mutex_lock(&comedi_subdevice_minor_table_lock);
-	info = comedi_subdevice_minor_table[i];
+	s = comedi_subdevice_minor_table[i];
 	mutex_unlock(&comedi_subdevice_minor_table_lock);
-	return info;
+	return s;
 }
 
 static struct comedi_device *
@@ -185,10 +185,10 @@ static struct comedi_device *comedi_dev_from_board_minor(unsigned minor)
 
 static struct comedi_device *comedi_dev_from_subdevice_minor(unsigned minor)
 {
-	struct comedi_file_info *info;
+	struct comedi_subdevice *s;
 
-	info = comedi_file_info_from_subdevice_minor(minor);
-	return comedi_dev_from_file_info(info);
+	s = comedi_subdevice_from_minor(minor);
+	return s ? s->device : NULL;
 }
 
 struct comedi_device *comedi_dev_from_minor(unsigned minor)
@@ -203,14 +203,14 @@ EXPORT_SYMBOL_GPL(comedi_dev_from_minor);
 static struct comedi_subdevice *
 comedi_read_subdevice(const struct comedi_device *dev, unsigned int minor)
 {
-	struct comedi_file_info *info;
+	struct comedi_subdevice *s;
 
 	if (minor >= COMEDI_NUM_BOARD_MINORS) {
-		info = comedi_file_info_from_subdevice_minor(minor);
-		if (!info || info->device != dev)
+		s = comedi_subdevice_from_minor(minor);
+		if (!s || s->device != dev)
 			return NULL;
-		if (info->read_subdevice)
-			return info->read_subdevice;
+		if (s->subdev_flags & SDF_CMD_READ)
+			return s;
 	}
 	return dev->read_subdev;
 }
@@ -218,14 +218,14 @@ comedi_read_subdevice(const struct comedi_device *dev, unsigned int minor)
 static struct comedi_subdevice *
 comedi_write_subdevice(const struct comedi_device *dev, unsigned int minor)
 {
-	struct comedi_file_info *info;
+	struct comedi_subdevice *s;
 
 	if (minor >= COMEDI_NUM_BOARD_MINORS) {
-		info = comedi_file_info_from_subdevice_minor(minor);
-		if (!info || info->device != dev)
+		s = comedi_subdevice_from_minor(minor);
+		if (!s || s->device != dev)
 			return NULL;
-		if (info->write_subdevice)
-			return info->write_subdevice;
+		if (s->subdev_flags & SDF_CMD_WRITE)
+			return s;
 	}
 	return dev->write_subdev;
 }
@@ -2468,28 +2468,18 @@ void comedi_release_hardware_device(struct device *hardware_device)
 int comedi_alloc_subdevice_minor(struct comedi_subdevice *s)
 {
 	struct comedi_device *dev = s->device;
-	struct comedi_file_info *info;
 	struct device *csdev;
 	unsigned i;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-	info->device = dev;
-	if (s->subdev_flags & SDF_CMD_READ)
-		info->read_subdevice = s;
-	if (s->subdev_flags & SDF_CMD_WRITE)
-		info->write_subdevice = s;
 	mutex_lock(&comedi_subdevice_minor_table_lock);
 	for (i = 0; i < COMEDI_NUM_SUBDEVICE_MINORS; ++i) {
 		if (comedi_subdevice_minor_table[i] == NULL) {
-			comedi_subdevice_minor_table[i] = info;
+			comedi_subdevice_minor_table[i] = s;
 			break;
 		}
 	}
 	mutex_unlock(&comedi_subdevice_minor_table_lock);
 	if (i == COMEDI_NUM_SUBDEVICE_MINORS) {
-		kfree(info);
 		pr_err("comedi: error: ran out of minor numbers for subdevice files.\n");
 		return -EBUSY;
 	}
@@ -2506,7 +2496,6 @@ int comedi_alloc_subdevice_minor(struct comedi_subdevice *s)
 
 void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 {
-	struct comedi_file_info *info;
 	unsigned int i;
 
 	if (s == NULL)
@@ -2519,14 +2508,13 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 
 	i = s->minor - COMEDI_NUM_BOARD_MINORS;
 	mutex_lock(&comedi_subdevice_minor_table_lock);
-	info = comedi_subdevice_minor_table[i];
-	comedi_subdevice_minor_table[i] = NULL;
+	if (s == comedi_subdevice_minor_table[i])
+		comedi_subdevice_minor_table[i] = NULL;
 	mutex_unlock(&comedi_subdevice_minor_table_lock);
 	if (s->class_dev) {
 		device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, s->minor));
 		s->class_dev = NULL;
 	}
-	kfree(info);
 }
 
 static void comedi_cleanup_board_minors(void)
