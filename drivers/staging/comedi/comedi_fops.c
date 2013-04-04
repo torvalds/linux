@@ -87,8 +87,62 @@ struct comedi_file_info {
 static DEFINE_SPINLOCK(comedi_file_info_table_lock);
 static struct comedi_file_info *comedi_file_info_table[COMEDI_NUM_MINORS];
 
-static struct comedi_file_info *comedi_clear_minor(unsigned minor);
-static void comedi_free_board_file_info(struct comedi_file_info *info);
+static struct class *comedi_class;
+static struct cdev comedi_cdev;
+
+static void comedi_device_init(struct comedi_device *dev)
+{
+	spin_lock_init(&dev->spinlock);
+	mutex_init(&dev->mutex);
+	dev->minor = -1;
+}
+
+static void comedi_device_cleanup(struct comedi_device *dev)
+{
+	struct module *driver_module = NULL;
+
+	if (dev == NULL)
+		return;
+	mutex_lock(&dev->mutex);
+	if (dev->attached)
+		driver_module = dev->driver->module;
+	comedi_device_detach(dev);
+	while (dev->use_count > 0) {
+		if (driver_module)
+			module_put(driver_module);
+		module_put(THIS_MODULE);
+		dev->use_count--;
+	}
+	mutex_unlock(&dev->mutex);
+	mutex_destroy(&dev->mutex);
+}
+
+static struct comedi_file_info *comedi_clear_minor(unsigned minor)
+{
+	struct comedi_file_info *info;
+
+	spin_lock(&comedi_file_info_table_lock);
+	info = comedi_file_info_table[minor];
+	comedi_file_info_table[minor] = NULL;
+	spin_unlock(&comedi_file_info_table_lock);
+	return info;
+}
+
+static void comedi_free_board_file_info(struct comedi_file_info *info)
+{
+	if (info) {
+		struct comedi_device *dev = info->device;
+		if (dev) {
+			if (dev->class_dev) {
+				device_destroy(comedi_class,
+					       MKDEV(COMEDI_MAJOR, dev->minor));
+			}
+			comedi_device_cleanup(dev);
+			kfree(dev);
+		}
+		kfree(info);
+	}
+}
 
 static struct comedi_file_info *comedi_file_info_from_minor(unsigned minor)
 {
@@ -2212,9 +2266,6 @@ static const struct file_operations comedi_fops = {
 	.llseek = noop_llseek,
 };
 
-static struct class *comedi_class;
-static struct cdev comedi_cdev;
-
 void comedi_error(const struct comedi_device *dev, const char *s)
 {
 	dev_err(dev->class_dev, "%s: %s\n", dev->driver->driver_name, s);
@@ -2264,33 +2315,6 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 }
 EXPORT_SYMBOL(comedi_event);
 
-static void comedi_device_init(struct comedi_device *dev)
-{
-	spin_lock_init(&dev->spinlock);
-	mutex_init(&dev->mutex);
-	dev->minor = -1;
-}
-
-static void comedi_device_cleanup(struct comedi_device *dev)
-{
-	struct module *driver_module = NULL;
-
-	if (dev == NULL)
-		return;
-	mutex_lock(&dev->mutex);
-	if (dev->attached)
-		driver_module = dev->driver->module;
-	comedi_device_detach(dev);
-	while (dev->use_count > 0) {
-		if (driver_module)
-			module_put(driver_module);
-		module_put(THIS_MODULE);
-		dev->use_count--;
-	}
-	mutex_unlock(&dev->mutex);
-	mutex_destroy(&dev->mutex);
-}
-
 /* Note: the ->mutex is pre-locked on successful return */
 struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 {
@@ -2337,33 +2361,6 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 
 	/* Note: dev->mutex needs to be unlocked by the caller. */
 	return dev;
-}
-
-static struct comedi_file_info *comedi_clear_minor(unsigned minor)
-{
-	struct comedi_file_info *info;
-
-	spin_lock(&comedi_file_info_table_lock);
-	info = comedi_file_info_table[minor];
-	comedi_file_info_table[minor] = NULL;
-	spin_unlock(&comedi_file_info_table_lock);
-	return info;
-}
-
-static void comedi_free_board_file_info(struct comedi_file_info *info)
-{
-	if (info) {
-		struct comedi_device *dev = info->device;
-		if (dev) {
-			if (dev->class_dev) {
-				device_destroy(comedi_class,
-					       MKDEV(COMEDI_MAJOR, dev->minor));
-			}
-			comedi_device_cleanup(dev);
-			kfree(dev);
-		}
-		kfree(info);
-	}
 }
 
 static void comedi_free_board_minor(unsigned minor)
