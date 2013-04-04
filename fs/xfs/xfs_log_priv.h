@@ -468,7 +468,6 @@ struct xfs_cil {
  * threshold, yet give us plenty of space for aggregation on large logs.
  */
 #define XLOG_CIL_SPACE_LIMIT(log)	(log->l_logsize >> 3)
-#define XLOG_CIL_HARD_SPACE_LIMIT(log)	(3 * (log->l_logsize >> 4))
 
 /*
  * ticket grant locks, queues and accounting have their own cachlines
