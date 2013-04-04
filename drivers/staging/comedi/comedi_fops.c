@@ -211,23 +211,33 @@ struct comedi_device *comedi_dev_from_minor(unsigned minor)
 EXPORT_SYMBOL_GPL(comedi_dev_from_minor);
 
 static struct comedi_subdevice *
-comedi_read_subdevice(const struct comedi_file_info *info)
+comedi_read_subdevice(const struct comedi_device *dev, unsigned int minor)
 {
-	if (info->read_subdevice)
-		return info->read_subdevice;
-	if (info->device)
-		return info->device->read_subdev;
-	return NULL;
+	struct comedi_file_info *info;
+
+	if (minor >= COMEDI_NUM_BOARD_MINORS) {
+		info = comedi_file_info_from_subdevice_minor(minor);
+		if (!info || info->device != dev)
+			return NULL;
+		if (info->read_subdevice)
+			return info->read_subdevice;
+	}
+	return dev->read_subdev;
 }
 
 static struct comedi_subdevice *
-comedi_write_subdevice(const struct comedi_file_info *info)
+comedi_write_subdevice(const struct comedi_device *dev, unsigned int minor)
 {
-	if (info->write_subdevice)
-		return info->write_subdevice;
-	if (info->device)
-		return info->device->write_subdev;
-	return NULL;
+	struct comedi_file_info *info;
+
+	if (minor >= COMEDI_NUM_BOARD_MINORS) {
+		info = comedi_file_info_from_subdevice_minor(minor);
+		if (!info || info->device != dev)
+			return NULL;
+		if (info->write_subdevice)
+			return info->write_subdevice;
+	}
+	return dev->write_subdev;
 }
 
 static int resize_async_buffer(struct comedi_device *dev,
@@ -287,7 +297,7 @@ static ssize_t show_max_read_buffer_kb(struct device *csdev,
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
-	s = comedi_read_subdevice(info);
+	s = comedi_read_subdevice(dev, minor);
 	if (s && (s->subdev_flags & SDF_CMD_READ) && s->async)
 		size = s->async->max_bufsize / 1024;
 	mutex_unlock(&dev->mutex);
@@ -319,7 +329,7 @@ static ssize_t store_max_read_buffer_kb(struct device *csdev,
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
-	s = comedi_read_subdevice(info);
+	s = comedi_read_subdevice(dev, minor);
 	if (s && (s->subdev_flags & SDF_CMD_READ) && s->async)
 		s->async->max_bufsize = size;
 	else
@@ -344,7 +354,7 @@ static ssize_t show_read_buffer_kb(struct device *csdev,
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
-	s = comedi_read_subdevice(info);
+	s = comedi_read_subdevice(dev, minor);
 	if (s && (s->subdev_flags & SDF_CMD_READ) && s->async)
 		size = s->async->prealloc_bufsz / 1024;
 	mutex_unlock(&dev->mutex);
@@ -376,7 +386,7 @@ static ssize_t store_read_buffer_kb(struct device *csdev,
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
-	s = comedi_read_subdevice(info);
+	s = comedi_read_subdevice(dev, minor);
 	if (s && (s->subdev_flags & SDF_CMD_READ) && s->async)
 		err = resize_async_buffer(dev, s, s->async, size);
 	else
@@ -402,7 +412,7 @@ static ssize_t show_max_write_buffer_kb(struct device *csdev,
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
-	s = comedi_write_subdevice(info);
+	s = comedi_write_subdevice(dev, minor);
 	if (s && (s->subdev_flags & SDF_CMD_WRITE) && s->async)
 		size = s->async->max_bufsize / 1024;
 	mutex_unlock(&dev->mutex);
@@ -434,7 +444,7 @@ static ssize_t store_max_write_buffer_kb(struct device *csdev,
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
-	s = comedi_write_subdevice(info);
+	s = comedi_write_subdevice(dev, minor);
 	if (s && (s->subdev_flags & SDF_CMD_WRITE) && s->async)
 		s->async->max_bufsize = size;
 	else
@@ -459,7 +469,7 @@ static ssize_t show_write_buffer_kb(struct device *csdev,
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
-	s = comedi_write_subdevice(info);
+	s = comedi_write_subdevice(dev, minor);
 	if (s && (s->subdev_flags & SDF_CMD_WRITE) && s->async)
 		size = s->async->prealloc_bufsz / 1024;
 	mutex_unlock(&dev->mutex);
@@ -491,7 +501,7 @@ static ssize_t store_write_buffer_kb(struct device *csdev,
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
-	s = comedi_write_subdevice(info);
+	s = comedi_write_subdevice(dev, minor);
 	if (s && (s->subdev_flags & SDF_CMD_WRITE) && s->async)
 		err = resize_async_buffer(dev, s, s->async, size);
 	else
@@ -741,7 +751,6 @@ static int do_devinfo_ioctl(struct comedi_device *dev,
 			    struct file *file)
 {
 	const unsigned minor = iminor(file_inode(file));
-	struct comedi_file_info *info = comedi_file_info_from_minor(minor);
 	struct comedi_subdevice *s;
 	struct comedi_devinfo devinfo;
 
@@ -753,13 +762,13 @@ static int do_devinfo_ioctl(struct comedi_device *dev,
 	strlcpy(devinfo.driver_name, dev->driver->driver_name, COMEDI_NAMELEN);
 	strlcpy(devinfo.board_name, dev->board_name, COMEDI_NAMELEN);
 
-	s = comedi_read_subdevice(info);
+	s = comedi_read_subdevice(dev, minor);
 	if (s)
 		devinfo.read_subdevice = s->index;
 	else
 		devinfo.read_subdevice = -1;
 
-	s = comedi_write_subdevice(info);
+	s = comedi_write_subdevice(dev, minor);
 	if (s)
 		devinfo.write_subdevice = s->index;
 	else
@@ -1936,9 +1945,9 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	if (vma->vm_flags & VM_WRITE)
-		s = comedi_write_subdevice(info);
+		s = comedi_write_subdevice(dev, minor);
 	else
-		s = comedi_read_subdevice(info);
+		s = comedi_read_subdevice(dev, minor);
 	if (!s) {
 		retval = -EINVAL;
 		goto done;
@@ -2008,7 +2017,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 		goto done;
 	}
 
-	s = comedi_read_subdevice(info);
+	s = comedi_read_subdevice(dev, minor);
 	if (s && s->async) {
 		poll_wait(file, &s->async->wait_head, wait);
 		if (!s->busy || !comedi_is_subdevice_running(s) ||
@@ -2016,7 +2025,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 			mask |= POLLIN | POLLRDNORM;
 	}
 
-	s = comedi_write_subdevice(info);
+	s = comedi_write_subdevice(dev, minor);
 	if (s && s->async) {
 		unsigned int bps = bytes_per_sample(s->async->subdevice);
 
@@ -2051,7 +2060,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 		return -ENODEV;
 	}
 
-	s = comedi_write_subdevice(info);
+	s = comedi_write_subdevice(dev, minor);
 	if (!s || !s->async)
 		return -EIO;
 
@@ -2146,7 +2155,7 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 		return -ENODEV;
 	}
 
-	s = comedi_read_subdevice(info);
+	s = comedi_read_subdevice(dev, minor);
 	if (!s || !s->async)
 		return -EIO;
 
