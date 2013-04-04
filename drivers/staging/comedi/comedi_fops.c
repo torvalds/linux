@@ -275,10 +275,15 @@ static int resize_async_buffer(struct comedi_device *dev,
 static ssize_t show_max_read_buffer_kb(struct device *csdev,
 				       struct device_attribute *attr, char *buf)
 {
-	struct comedi_file_info *info = dev_get_drvdata(csdev);
+	unsigned int minor = MINOR(csdev->devt);
+	struct comedi_file_info *info;
 	struct comedi_device *dev;
 	struct comedi_subdevice *s;
 	unsigned int size = 0;
+
+	info = comedi_file_info_from_minor(minor);
+	if (!info)
+		return -ENODEV;
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
@@ -294,7 +299,8 @@ static ssize_t store_max_read_buffer_kb(struct device *csdev,
 					struct device_attribute *attr,
 					const char *buf, size_t count)
 {
-	struct comedi_file_info *info = dev_get_drvdata(csdev);
+	unsigned int minor = MINOR(csdev->devt);
+	struct comedi_file_info *info;
 	struct comedi_device *dev;
 	struct comedi_subdevice *s;
 	unsigned int size;
@@ -306,6 +312,10 @@ static ssize_t store_max_read_buffer_kb(struct device *csdev,
 	if (size > (UINT_MAX / 1024))
 		return -EINVAL;
 	size *= 1024;
+
+	info = comedi_file_info_from_minor(minor);
+	if (!info)
+		return -ENODEV;
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
@@ -322,10 +332,15 @@ static ssize_t store_max_read_buffer_kb(struct device *csdev,
 static ssize_t show_read_buffer_kb(struct device *csdev,
 				   struct device_attribute *attr, char *buf)
 {
-	struct comedi_file_info *info = dev_get_drvdata(csdev);
+	unsigned int minor = MINOR(csdev->devt);
+	struct comedi_file_info *info;
 	struct comedi_device *dev;
 	struct comedi_subdevice *s;
 	unsigned int size = 0;
+
+	info = comedi_file_info_from_minor(minor);
+	if (!info)
+		return -ENODEV;
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
@@ -341,7 +356,8 @@ static ssize_t store_read_buffer_kb(struct device *csdev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
-	struct comedi_file_info *info = dev_get_drvdata(csdev);
+	unsigned int minor = MINOR(csdev->devt);
+	struct comedi_file_info *info;
 	struct comedi_device *dev;
 	struct comedi_subdevice *s;
 	unsigned int size;
@@ -353,6 +369,10 @@ static ssize_t store_read_buffer_kb(struct device *csdev,
 	if (size > (UINT_MAX / 1024))
 		return -EINVAL;
 	size *= 1024;
+
+	info = comedi_file_info_from_minor(minor);
+	if (!info)
+		return -ENODEV;
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
@@ -370,10 +390,15 @@ static ssize_t show_max_write_buffer_kb(struct device *csdev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct comedi_file_info *info = dev_get_drvdata(csdev);
+	unsigned int minor = MINOR(csdev->devt);
+	struct comedi_file_info *info;
 	struct comedi_device *dev;
 	struct comedi_subdevice *s;
 	unsigned int size = 0;
+
+	info = comedi_file_info_from_minor(minor);
+	if (!info)
+		return -ENODEV;
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
@@ -389,7 +414,8 @@ static ssize_t store_max_write_buffer_kb(struct device *csdev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
-	struct comedi_file_info *info = dev_get_drvdata(csdev);
+	unsigned int minor = MINOR(csdev->devt);
+	struct comedi_file_info *info;
 	struct comedi_device *dev;
 	struct comedi_subdevice *s;
 	unsigned int size;
@@ -401,6 +427,10 @@ static ssize_t store_max_write_buffer_kb(struct device *csdev,
 	if (size > (UINT_MAX / 1024))
 		return -EINVAL;
 	size *= 1024;
+
+	info = comedi_file_info_from_minor(minor);
+	if (!info)
+		return -ENODEV;
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
@@ -417,10 +447,15 @@ static ssize_t store_max_write_buffer_kb(struct device *csdev,
 static ssize_t show_write_buffer_kb(struct device *csdev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct comedi_file_info *info = dev_get_drvdata(csdev);
+	unsigned int minor = MINOR(csdev->devt);
+	struct comedi_file_info *info;
 	struct comedi_device *dev;
 	struct comedi_subdevice *s;
 	unsigned int size = 0;
+
+	info = comedi_file_info_from_minor(minor);
+	if (!info)
+		return -ENODEV;
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
@@ -436,7 +471,8 @@ static ssize_t store_write_buffer_kb(struct device *csdev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	struct comedi_file_info *info = dev_get_drvdata(csdev);
+	unsigned int minor = MINOR(csdev->devt);
+	struct comedi_file_info *info;
 	struct comedi_device *dev;
 	struct comedi_subdevice *s;
 	unsigned int size;
@@ -448,6 +484,10 @@ static ssize_t store_write_buffer_kb(struct device *csdev,
 	if (size > (UINT_MAX / 1024))
 		return -EINVAL;
 	size *= 1024;
+
+	info = comedi_file_info_from_minor(minor);
+	if (!info)
+		return -ENODEV;
 
 	dev = info->device;
 	mutex_lock(&dev->mutex);
@@ -2416,7 +2456,6 @@ struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
 			      MKDEV(COMEDI_MAJOR, i), NULL, "comedi%i", i);
 	if (!IS_ERR(csdev))
 		dev->class_dev = csdev;
-	dev_set_drvdata(csdev, info);
 
 	/* Note: dev->mutex needs to be unlocked by the caller. */
 	return dev;
@@ -2482,7 +2521,6 @@ int comedi_alloc_subdevice_minor(struct comedi_subdevice *s)
 			      dev->minor, s->index);
 	if (!IS_ERR(csdev))
 		s->class_dev = csdev;
-	dev_set_drvdata(csdev, info);
 
 	return 0;
 }
