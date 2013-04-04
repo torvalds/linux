@@ -32,10 +32,53 @@
 #define GENERAL_PWRMGT                                    0xC0200000
 #       define GPU_COUNTER_CLK                            (1 << 15)
 
+#define	MPLL_BYPASSCLK_SEL				0xC050019C
+#	define MPLL_CLKOUT_SEL(x)			((x) << 8)
+#	define MPLL_CLKOUT_SEL_MASK			0xFF00
 #define CG_CLKPIN_CNTL                                    0xC05001A0
 #       define XTALIN_DIVIDE                              (1 << 1)
+#       define BCLK_AS_XCLK                               (1 << 2)
+#define CG_CLKPIN_CNTL_2                                  0xC05001A4
+#       define FORCE_BIF_REFCLK_EN                        (1 << 3)
+#       define MUX_TCLK_TO_XCLK                           (1 << 8)
+#define	THM_CLK_CNTL					0xC05001A8
+#	define CMON_CLK_SEL(x)				((x) << 0)
+#	define CMON_CLK_SEL_MASK			0xFF
+#	define TMON_CLK_SEL(x)				((x) << 8)
+#	define TMON_CLK_SEL_MASK			0xFF00
+#define	MISC_CLK_CTRL					0xC05001AC
+#	define DEEP_SLEEP_CLK_SEL(x)			((x) << 0)
+#	define DEEP_SLEEP_CLK_SEL_MASK			0xFF
+#	define ZCLK_SEL(x)				((x) << 8)
+#	define ZCLK_SEL_MASK				0xFF00
 
 /* PCIE registers idx/data 0x38/0x3c */
+#define PB0_PIF_PWRDOWN_0                                 0x1100012 /* PCIE */
+#       define PLL_POWER_STATE_IN_TXS2_0(x)               ((x) << 7)
+#       define PLL_POWER_STATE_IN_TXS2_0_MASK             (0x7 << 7)
+#       define PLL_POWER_STATE_IN_TXS2_0_SHIFT            7
+#       define PLL_POWER_STATE_IN_OFF_0(x)                ((x) << 10)
+#       define PLL_POWER_STATE_IN_OFF_0_MASK              (0x7 << 10)
+#       define PLL_POWER_STATE_IN_OFF_0_SHIFT             10
+#       define PLL_RAMP_UP_TIME_0(x)                      ((x) << 24)
+#       define PLL_RAMP_UP_TIME_0_MASK                    (0x7 << 24)
+#       define PLL_RAMP_UP_TIME_0_SHIFT                   24
+#define PB0_PIF_PWRDOWN_1                                 0x1100013 /* PCIE */
+#       define PLL_POWER_STATE_IN_TXS2_1(x)               ((x) << 7)
+#       define PLL_POWER_STATE_IN_TXS2_1_MASK             (0x7 << 7)
+#       define PLL_POWER_STATE_IN_TXS2_1_SHIFT            7
+#       define PLL_POWER_STATE_IN_OFF_1(x)                ((x) << 10)
+#       define PLL_POWER_STATE_IN_OFF_1_MASK              (0x7 << 10)
+#       define PLL_POWER_STATE_IN_OFF_1_SHIFT             10
+#       define PLL_RAMP_UP_TIME_1(x)                      ((x) << 24)
+#       define PLL_RAMP_UP_TIME_1_MASK                    (0x7 << 24)
+#       define PLL_RAMP_UP_TIME_1_SHIFT                   24
+
+#define PCIE_CNTL2                                        0x1001001c /* PCIE */
+#       define SLV_MEM_LS_EN                              (1 << 16)
+#       define MST_MEM_LS_EN                              (1 << 18)
+#       define REPLAY_MEM_LS_EN                           (1 << 19)
+
 #define PCIE_LC_STATUS1                                   0x1400028 /* PCIE */
 #       define LC_REVERSE_RCVR                            (1 << 0)
 #       define LC_REVERSE_XMIT                            (1 << 1)
@@ -43,6 +86,22 @@
 #       define LC_OPERATING_LINK_WIDTH_SHIFT              2
 #       define LC_DETECTED_LINK_WIDTH_MASK                (0x7 << 5)
 #       define LC_DETECTED_LINK_WIDTH_SHIFT               5
+
+#define PCIE_P_CNTL                                       0x1400040 /* PCIE */
+#       define P_IGNORE_EDB_ERR                           (1 << 6)
+
+#define PB1_PIF_PWRDOWN_0                                 0x2100012 /* PCIE */
+#define PB1_PIF_PWRDOWN_1                                 0x2100013 /* PCIE */
+
+#define PCIE_LC_CNTL                                      0x100100A0 /* PCIE */
+#       define LC_L0S_INACTIVITY(x)                       ((x) << 8)
+#       define LC_L0S_INACTIVITY_MASK                     (0xf << 8)
+#       define LC_L0S_INACTIVITY_SHIFT                    8
+#       define LC_L1_INACTIVITY(x)                        ((x) << 12)
+#       define LC_L1_INACTIVITY_MASK                      (0xf << 12)
+#       define LC_L1_INACTIVITY_SHIFT                     12
+#       define LC_PMI_TO_L1_DIS                           (1 << 16)
+#       define LC_ASPM_TO_L1_DIS                          (1 << 24)
 
 #define PCIE_LC_LINK_WIDTH_CNTL                           0x100100A2 /* PCIE */
 #       define LC_LINK_WIDTH_SHIFT                        0
@@ -65,7 +124,12 @@
 #       define LC_DYN_LANES_PWR_STATE(x)                  ((x) << 21)
 #       define LC_DYN_LANES_PWR_STATE_MASK                (0x3 << 21)
 #       define LC_DYN_LANES_PWR_STATE_SHIFT               21
-
+#define PCIE_LC_N_FTS_CNTL                                0x100100a3 /* PCIE */
+#       define LC_XMIT_N_FTS(x)                           ((x) << 0)
+#       define LC_XMIT_N_FTS_MASK                         (0xff << 0)
+#       define LC_XMIT_N_FTS_SHIFT                        0
+#       define LC_XMIT_N_FTS_OVERRIDE_EN                  (1 << 8)
+#       define LC_N_FTS_MASK                              (0xff << 24)
 #define PCIE_LC_SPEED_CNTL                                0x100100A4 /* PCIE */
 #       define LC_GEN2_EN_STRAP                           (1 << 0)
 #       define LC_GEN3_EN_STRAP                           (1 << 1)
@@ -87,6 +151,12 @@
 #       define LC_OTHER_SIDE_EVER_SENT_GEN3               (1 << 20)
 #       define LC_OTHER_SIDE_SUPPORTS_GEN3                (1 << 21)
 
+#define PCIE_LC_CNTL2                                     0x100100B1 /* PCIE */
+#       define LC_ALLOW_PDWN_IN_L1                        (1 << 17)
+#       define LC_ALLOW_PDWN_IN_L23                       (1 << 18)
+
+#define PCIE_LC_CNTL3                                     0x100100B5 /* PCIE */
+#       define LC_GO_TO_RECOVERY                          (1 << 30)
 #define PCIE_LC_CNTL4                                     0x100100B6 /* PCIE */
 #       define LC_REDO_EQ                                 (1 << 5)
 #       define LC_SET_QUIESCE                             (1 << 13)
