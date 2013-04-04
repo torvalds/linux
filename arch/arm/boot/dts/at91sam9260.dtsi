@@ -158,8 +158,8 @@
 				usart1 {
 					pinctrl_usart1: usart1-0 {
 						atmel,pins =
-							<2 6 0x1 0x1	/* PB6 periph A with pullup */
-							 2 7 0x1 0x0>;	/* PB7 periph A */
+							<1 6 0x1 0x1	/* PB6 periph A with pullup */
+							 1 7 0x1 0x0>;	/* PB7 periph A */
 					};
 
 					pinctrl_usart1_rts: usart1_rts-0 {
@@ -194,18 +194,18 @@
 				usart3 {
 					pinctrl_usart3: usart3-0 {
 						atmel,pins =
-							<2 10 0x1 0x1	/* PB10 periph A with pullup */
-							 2 11 0x1 0x0>;	/* PB11 periph A */
+							<1 10 0x1 0x1	/* PB10 periph A with pullup */
+							 1 11 0x1 0x0>;	/* PB11 periph A */
 					};
 
 					pinctrl_usart3_rts: usart3_rts-0 {
 						atmel,pins =
-							<3 8 0x2 0x0>;	/* PB8 periph B */
+							<2 8 0x2 0x0>;	/* PC8 periph B */
 					};
 
 					pinctrl_usart3_cts: usart3_cts-0 {
 						atmel,pins =
-							<3 10 0x2 0x0>;	/* PB10 periph B */
+							<2 10 0x2 0x0>;	/* PC10 periph B */
 					};
 				};
 
@@ -220,8 +220,8 @@
 				uart1 {
 					pinctrl_uart1: uart1-0 {
 						atmel,pins =
-							<2 12 0x1 0x1	/* PB12 periph A with pullup */
-							 2 13 0x1 0x0>;	/* PB13 periph A */
+							<1 12 0x1 0x1	/* PB12 periph A with pullup */
+							 1 13 0x1 0x0>;	/* PB13 periph A */
 					};
 				};
 
