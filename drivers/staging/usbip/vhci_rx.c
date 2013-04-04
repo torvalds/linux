@@ -206,7 +206,7 @@ static void vhci_rx_pdu(struct usbip_device *ud)
 
 	memset(&pdu, 0, sizeof(pdu));
 
-	/* 1. receive a pdu header */
+	/* receive a pdu header */
 	ret = usbip_recv(ud->tcp_socket, &pdu, sizeof(pdu));
 	if (ret < 0) {
 		if (ret == -ECONNRESET)
