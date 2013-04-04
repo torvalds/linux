@@ -591,9 +591,9 @@ source "kernel/power/Kconfig"
 source "drivers/acpi/Kconfig"
 
 if PM
-
-source "arch/ia64/kernel/cpufreq/Kconfig"
-
+menu "CPU Frequency scaling"
+source "drivers/cpufreq/Kconfig"
+endmenu
 endif
 
 endmenu
