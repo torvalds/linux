@@ -49,14 +49,24 @@ void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
 
 }
 
-static int ext4_block_in_group(struct super_block *sb, ext4_fsblk_t block,
-			ext4_group_t block_group)
+/*
+ * Check whether the 'block' lives within the 'block_group'. Returns 1 if so
+ * and 0 otherwise.
+ */
+static inline int ext4_block_in_group(struct super_block *sb,
+				      ext4_fsblk_t block,
+				      ext4_group_t block_group)
 {
 	ext4_group_t actual_group;
-	ext4_get_group_no_and_offset(sb, block, &actual_group, NULL);
-	if (actual_group == block_group)
-		return 1;
-	return 0;
+
+	if (test_opt2(sb, STD_GROUP_SIZE))
+		actual_group =
+			(le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block) +
+			block) >>
+			(EXT4_BLOCK_SIZE_BITS(sb) + EXT4_CLUSTER_BITS(sb) + 3);
+	else
+		ext4_get_group_no_and_offset(sb, block, &actual_group, NULL);
+	return (actual_group == block_group) ? 1 : 0;
 }
 
 /* Return the number of clusters used for file system metadata; this

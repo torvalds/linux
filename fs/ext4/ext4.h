@@ -949,7 +949,7 @@ struct ext4_inode_info {
 #define EXT2_FLAGS_TEST_FILESYS		0x0004	/* to test development code */
 
 /*
- * Mount flags
+ * Mount flags set via mount options or defaults
  */
 #define EXT4_MOUNT_GRPID		0x00004	/* Create files with directory's group */
 #define EXT4_MOUNT_DEBUG		0x00008	/* Some debugging messages */
@@ -981,8 +981,16 @@ struct ext4_inode_info {
 #define EXT4_MOUNT_DISCARD		0x40000000 /* Issue DISCARD requests */
 #define EXT4_MOUNT_INIT_INODE_TABLE	0x80000000 /* Initialize uninitialized itables */
 
+/*
+ * Mount flags set either automatically (could not be set by mount option)
+ * based on per file system feature or property or in special cases such as
+ * distinguishing between explicit mount option definition and default.
+ */
 #define EXT4_MOUNT2_EXPLICIT_DELALLOC	0x00000001 /* User explicitly
 						      specified delalloc */
+#define EXT4_MOUNT2_STD_GROUP_SIZE	0x00000002 /* We have standard group
+						      size of blocksize * 8
+						      blocks */
 
 #define clear_opt(sb, opt)		EXT4_SB(sb)->s_mount_opt &= \
 						~EXT4_MOUNT_##opt
