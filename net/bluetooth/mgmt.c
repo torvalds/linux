@@ -109,8 +109,8 @@ static const u16 mgmt_events[] = {
 #define LE_SCAN_TYPE			0x01
 #define LE_SCAN_WIN			0x12
 #define LE_SCAN_INT			0x12
-#define LE_SCAN_TIMEOUT_LE_ONLY		10240	/* TGAP(gen_disc_scan_min) */
-#define LE_SCAN_TIMEOUT_BREDR_LE	5120	/* TGAP(100)/2 */
+#define LE_SCAN_TIMEOUT_LE_ONLY		msecs_to_jiffies(10240)
+#define LE_SCAN_TIMEOUT_BREDR_LE	msecs_to_jiffies(5120)
 
 #define INQUIRY_LEN_BREDR		0x08	/* TGAP(100) */
 #define INQUIRY_LEN_BREDR_LE		0x04	/* TGAP(100)/2 */

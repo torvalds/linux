@@ -2024,7 +2024,7 @@ static int hci_do_le_scan(struct hci_dev *hdev, u8 type, u16 interval,
 		return err;
 
 	queue_delayed_work(hdev->workqueue, &hdev->le_scan_disable,
-			   msecs_to_jiffies(timeout));
+			   timeout);
 
 	return 0;
 }
