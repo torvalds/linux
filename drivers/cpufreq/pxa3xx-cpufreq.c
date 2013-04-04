@@ -1,6 +1,4 @@
 /*
- * linux/arch/arm/mach-pxa/cpufreq-pxa3xx.c
- *
  * Copyright (C) 2008 Marvell International Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,9 +15,8 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 
+#include <mach/generic.h>
 #include <mach/pxa3xx-regs.h>
-
-#include "generic.h"
 
 #define HSS_104M	(0)
 #define HSS_156M	(1)
