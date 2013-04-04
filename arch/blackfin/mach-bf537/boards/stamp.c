@@ -682,7 +682,7 @@ static struct bfin5xx_spi_chip ad2s1210_spi_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_AD7314) || defined(CONFIG_AD7314_MODULE)
+#if IS_ENABLED(CONFIG_SENSORS_AD7314)
 static struct bfin5xx_spi_chip ad7314_spi_chip_info = {
 	.enable_dma = 0,
 };
@@ -1040,7 +1040,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_AD7314) || defined(CONFIG_AD7314_MODULE)
+#if IS_ENABLED(CONFIG_SENSORS_AD7314)
 	{
 		.modalias = "ad7314",
 		.max_speed_hz = 1000000,
