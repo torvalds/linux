@@ -159,14 +159,14 @@ static int ip_gre_calc_hlen(__be16 o_flags)
 static int parse_gre_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 			    bool *csum_err, int *hdr_len)
 {
-	struct iphdr *iph = ip_hdr(skb);
-	struct gre_base_hdr *greh;
+	unsigned int ip_hlen = ip_hdrlen(skb);
+	const struct gre_base_hdr *greh;
 	__be32 *options;
 
 	if (unlikely(!pskb_may_pull(skb, sizeof(struct gre_base_hdr))))
 		return -EINVAL;
 
-	greh = (struct gre_base_hdr *)((u8 *)iph + (iph->ihl << 2));
+	greh = (struct gre_base_hdr *)(skb_network_header(skb) + ip_hlen);
 	if (unlikely(greh->flags & (GRE_VERSION | GRE_ROUTING)))
 		return -EINVAL;
 
@@ -175,6 +175,8 @@ static int parse_gre_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 
 	if (!pskb_may_pull(skb, *hdr_len))
 		return -EINVAL;
+
+	greh = (struct gre_base_hdr *)(skb_network_header(skb) + ip_hlen);
 
 	tpi->proto = greh->protocol;
 
