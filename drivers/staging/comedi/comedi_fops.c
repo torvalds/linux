@@ -50,7 +50,6 @@
 #include "comedi_internal.h"
 
 #define COMEDI_NUM_MINORS 0x100
-#define COMEDI_FIRST_SUBDEVICE_MINOR COMEDI_NUM_BOARD_MINORS
 
 #ifdef CONFIG_COMEDI_DEBUG
 int comedi_debug;
@@ -2400,7 +2399,7 @@ int comedi_alloc_subdevice_minor(struct comedi_subdevice *s)
 	if (s->subdev_flags & SDF_CMD_WRITE)
 		info->write_subdevice = s;
 	mutex_lock(&comedi_file_info_table_lock);
-	for (i = COMEDI_FIRST_SUBDEVICE_MINOR; i < COMEDI_NUM_MINORS; ++i) {
+	for (i = COMEDI_NUM_BOARD_MINORS; i < COMEDI_NUM_MINORS; ++i) {
 		if (comedi_file_info_table[i] == NULL) {
 			comedi_file_info_table[i] = info;
 			break;
@@ -2433,7 +2432,7 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 		return;
 
 	BUG_ON(s->minor >= COMEDI_NUM_MINORS);
-	BUG_ON(s->minor < COMEDI_FIRST_SUBDEVICE_MINOR);
+	BUG_ON(s->minor < COMEDI_NUM_BOARD_MINORS);
 
 	info = comedi_clear_minor(s->minor);
 	if (s->class_dev) {
