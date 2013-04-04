@@ -183,6 +183,8 @@ clocks and IDs.
 	cko2_sel		168
 	cko2_podf		169
 	cko2			170
+	srtc_gate		171
+	pata_gate		172
 
 Examples (for mx53):
 
