@@ -30,8 +30,6 @@
 #include <mach/cpufreq.h>
 #include <mach/common.h>
 
-#include "clock.h"
-
 struct davinci_cpufreq {
 	struct device *dev;
 	struct clk *armclk;
