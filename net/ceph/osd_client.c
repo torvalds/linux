@@ -186,6 +186,9 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	struct ceph_msg *msg;
 	size_t msg_size;
 
+	BUILD_BUG_ON(CEPH_OSD_MAX_OP > U16_MAX);
+	BUG_ON(num_ops > CEPH_OSD_MAX_OP);
+
 	msg_size = 4 + 4 + 8 + 8 + 4+8;
 	msg_size += 2 + 4 + 8 + 4 + 4; /* oloc */
 	msg_size += 1 + 8 + 4 + 4;     /* pg_t */
@@ -207,6 +210,7 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 
 	req->r_osdc = osdc;
 	req->r_mempool = use_mempool;
+	req->r_num_ops = num_ops;
 
 	kref_init(&req->r_kref);
 	init_completion(&req->r_completion);
@@ -418,12 +422,14 @@ void osd_req_op_watch_init(struct ceph_osd_req_op *op, u16 opcode,
 EXPORT_SYMBOL(osd_req_op_watch_init);
 
 static u64 osd_req_encode_op(struct ceph_osd_request *req,
-			      struct ceph_osd_op *dst,
-			      struct ceph_osd_req_op *src)
+			      struct ceph_osd_op *dst, unsigned int which)
 {
+	struct ceph_osd_req_op *src;
 	u64 out_data_len = 0;
 	struct ceph_pagelist *pagelist;
 
+	BUG_ON(which >= req->r_num_ops);
+	src = &req->r_ops[which];
 	if (WARN_ON(!osd_req_opcode_valid(src->op))) {
 		pr_err("unrecognized osd opcode %d\n", src->op);
 
@@ -487,21 +493,17 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
  * build new request AND message
  *
  */
-void ceph_osdc_build_request(struct ceph_osd_request *req,
-			     u64 off, unsigned int num_ops,
-			     struct ceph_osd_req_op *src_ops,
-			     struct ceph_snap_context *snapc, u64 snap_id,
-			     struct timespec *mtime)
+void ceph_osdc_build_request(struct ceph_osd_request *req, u64 off,
+				struct ceph_snap_context *snapc, u64 snap_id,
+				struct timespec *mtime)
 {
 	struct ceph_msg *msg = req->r_request;
-	struct ceph_osd_req_op *src_op;
 	void *p;
 	size_t msg_size;
 	int flags = req->r_flags;
 	u64 data_len;
-	int i;
+	unsigned int i;
 
-	req->r_num_ops = num_ops;
 	req->r_snapid = snap_id;
 	req->r_snapc = ceph_get_snap_context(snapc);
 
@@ -541,12 +543,10 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 	p += req->r_oid_len;
 
 	/* ops--can imply data */
-	ceph_encode_16(&p, num_ops);
-	src_op = src_ops;
-	req->r_request_ops = p;
+	ceph_encode_16(&p, (u16)req->r_num_ops);
 	data_len = 0;
-	for (i = 0; i < num_ops; i++, src_op++) {
-		data_len += osd_req_encode_op(req, p, src_op);
+	for (i = 0; i < req->r_num_ops; i++) {
+		data_len += osd_req_encode_op(req, p, i);
 		p += sizeof(struct ceph_osd_op);
 	}
 
@@ -602,7 +602,6 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					       struct ceph_file_layout *layout,
 					       struct ceph_vino vino,
 					       u64 off, u64 *plen, int num_ops,
-					       struct ceph_osd_req_op *ops,
 					       int opcode, int flags,
 					       struct ceph_snap_context *snapc,
 					       u32 truncate_seq,
@@ -610,6 +609,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					       bool use_mempool)
 {
 	struct ceph_osd_request *req;
+	struct ceph_osd_req_op *op;
 	u64 objnum = 0;
 	u64 objoff = 0;
 	u64 objlen = 0;
@@ -623,6 +623,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					GFP_NOFS);
 	if (!req)
 		return ERR_PTR(-ENOMEM);
+
 	req->r_flags = flags;
 
 	/* calculate max write size */
@@ -642,7 +643,8 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 			truncate_size = object_size;
 	}
 
-	osd_req_op_extent_init(&ops[0], opcode, objoff, objlen,
+	op = &req->r_ops[0];
+	osd_req_op_extent_init(op, opcode, objoff, objlen,
 				truncate_size, truncate_seq);
 	/*
 	 * A second op in the ops array means the caller wants to
@@ -650,7 +652,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	 * osd will flush data quickly.
 	 */
 	if (num_ops > 1)
-		osd_req_op_init(&ops[1], CEPH_OSD_OP_STARTSYNC);
+		osd_req_op_init(++op, CEPH_OSD_OP_STARTSYNC);
 
 	req->r_file_layout = *layout;  /* keep a copy */
 
@@ -1342,7 +1344,8 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	struct ceph_osd_request *req;
 	u64 tid;
 	int object_len;
-	int numops, payload_len, flags;
+	unsigned int numops;
+	int payload_len, flags;
 	s32 result;
 	s32 retry_attempt;
 	struct ceph_pg pg;
@@ -1352,7 +1355,7 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	u32 osdmap_epoch;
 	int already_completed;
 	u32 bytes;
-	int i;
+	unsigned int i;
 
 	tid = le64_to_cpu(msg->hdr.tid);
 	dout("handle_reply %p tid %llu\n", msg, tid);
@@ -2116,12 +2119,11 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 			struct page **pages, int num_pages, int page_align)
 {
 	struct ceph_osd_request *req;
-	struct ceph_osd_req_op op;
 	int rc = 0;
 
 	dout("readpages on ino %llx.%llx on %llu~%llu\n", vino.ino,
 	     vino.snap, off, *plen);
-	req = ceph_osdc_new_request(osdc, layout, vino, off, plen, 1, &op,
+	req = ceph_osdc_new_request(osdc, layout, vino, off, plen, 1,
 				    CEPH_OSD_OP_READ, CEPH_OSD_FLAG_READ,
 				    NULL, truncate_seq, truncate_size,
 				    false);
@@ -2136,7 +2138,7 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 	dout("readpages  final extent is %llu~%llu (%llu bytes align %d)\n",
 	     off, *plen, *plen, page_align);
 
-	ceph_osdc_build_request(req, off, 1, &op, NULL, vino.snap, NULL);
+	ceph_osdc_build_request(req, off, NULL, vino.snap, NULL);
 
 	rc = ceph_osdc_start_request(osdc, req, false);
 	if (!rc)
@@ -2160,12 +2162,11 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 			 struct page **pages, int num_pages)
 {
 	struct ceph_osd_request *req;
-	struct ceph_osd_req_op op;
 	int rc = 0;
 	int page_align = off & ~PAGE_MASK;
 
 	BUG_ON(vino.snap != CEPH_NOSNAP);	/* snapshots aren't writeable */
-	req = ceph_osdc_new_request(osdc, layout, vino, off, &len, 1, &op,
+	req = ceph_osdc_new_request(osdc, layout, vino, off, &len, 1,
 				    CEPH_OSD_OP_WRITE,
 				    CEPH_OSD_FLAG_ONDISK | CEPH_OSD_FLAG_WRITE,
 				    snapc, truncate_seq, truncate_size,
@@ -2178,7 +2179,7 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 				false, false);
 	dout("writepages %llu~%llu (%llu bytes)\n", off, len, len);
 
-	ceph_osdc_build_request(req, off, 1, &op, snapc, CEPH_NOSNAP, mtime);
+	ceph_osdc_build_request(req, off, snapc, CEPH_NOSNAP, mtime);
 
 	rc = ceph_osdc_start_request(osdc, req, true);
 	if (!rc)

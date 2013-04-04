@@ -1285,7 +1285,7 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 	 */
 	obj_request->xferred = osd_req->r_reply_op_len[0];
 	rbd_assert(obj_request->xferred < (u64) UINT_MAX);
-	opcode = osd_req->r_request_ops[0].op;
+	opcode = osd_req->r_ops[0].op;
 	switch (opcode) {
 	case CEPH_OSD_OP_READ:
 		rbd_osd_read_callback(obj_request);
@@ -1312,8 +1312,7 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 }
 
 static void rbd_osd_req_format_op(struct rbd_obj_request *obj_request,
-					bool write_request,
-					struct ceph_osd_req_op *op)
+					bool write_request)
 {
 	struct rbd_img_request *img_request = obj_request->img_request;
 	struct ceph_snap_context *snapc = NULL;
@@ -1333,7 +1332,7 @@ static void rbd_osd_req_format_op(struct rbd_obj_request *obj_request,
 	}
 
 	ceph_osdc_build_request(obj_request->osd_req, obj_request->offset,
-			1, op, snapc, snap_id, mtime);
+			snapc, snap_id, mtime);
 }
 
 static struct ceph_osd_request *rbd_osd_req_create(
@@ -1562,7 +1561,7 @@ static int rbd_img_request_fill_bio(struct rbd_img_request *img_request,
 	while (resid) {
 		const char *object_name;
 		unsigned int clone_size;
-		struct ceph_osd_req_op op;
+		struct ceph_osd_req_op *op;
 		u64 offset;
 		u64 length;
 
@@ -1591,8 +1590,9 @@ static int rbd_img_request_fill_bio(struct rbd_img_request *img_request,
 		if (!obj_request->osd_req)
 			goto out_partial;
 
-		osd_req_op_extent_init(&op, opcode, offset, length, 0, 0);
-		rbd_osd_req_format_op(obj_request, write_request, &op);
+		op = &obj_request->osd_req->r_ops[0];
+		osd_req_op_extent_init(op, opcode, offset, length, 0, 0);
+		rbd_osd_req_format_op(obj_request, write_request);
 
 		/* status and version are initially zero-filled */
 
@@ -1694,7 +1694,7 @@ static int rbd_obj_notify_ack(struct rbd_device *rbd_dev,
 				   u64 ver, u64 notify_id)
 {
 	struct rbd_obj_request *obj_request;
-	struct ceph_osd_req_op op;
+	struct ceph_osd_req_op *op;
 	struct ceph_osd_client *osdc;
 	int ret;
 
@@ -1708,8 +1708,9 @@ static int rbd_obj_notify_ack(struct rbd_device *rbd_dev,
 	if (!obj_request->osd_req)
 		goto out;
 
-	osd_req_op_watch_init(&op, CEPH_OSD_OP_NOTIFY_ACK, notify_id, ver, 0);
-	rbd_osd_req_format_op(obj_request, false, &op);
+	op = &obj_request->osd_req->r_ops[0];
+	osd_req_op_watch_init(op, CEPH_OSD_OP_NOTIFY_ACK, notify_id, ver, 0);
+	rbd_osd_req_format_op(obj_request, false);
 
 	osdc = &rbd_dev->rbd_client->client->osdc;
 	obj_request->callback = rbd_obj_request_put;
@@ -1749,7 +1750,7 @@ static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, int start)
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct rbd_obj_request *obj_request;
-	struct ceph_osd_req_op op;
+	struct ceph_osd_req_op *op;
 	int ret;
 
 	rbd_assert(start ^ !!rbd_dev->watch_event);
@@ -1773,10 +1774,11 @@ static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, int start)
 	if (!obj_request->osd_req)
 		goto out_cancel;
 
-	osd_req_op_watch_init(&op, CEPH_OSD_OP_WATCH,
+	op = &obj_request->osd_req->r_ops[0];
+	osd_req_op_watch_init(op, CEPH_OSD_OP_WATCH,
 				rbd_dev->watch_event->cookie,
 				rbd_dev->header.obj_version, start);
-	rbd_osd_req_format_op(obj_request, true, &op);
+	rbd_osd_req_format_op(obj_request, true);
 
 	if (start)
 		ceph_osdc_set_request_linger(osdc, obj_request->osd_req);
@@ -1836,7 +1838,7 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 {
 	struct rbd_obj_request *obj_request;
 	struct ceph_osd_client *osdc;
-	struct ceph_osd_req_op op;
+	struct ceph_osd_req_op *op;
 	struct page **pages;
 	u32 page_count;
 	int ret;
@@ -1866,9 +1868,10 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 	if (!obj_request->osd_req)
 		goto out;
 
-	osd_req_op_cls_init(&op, CEPH_OSD_OP_CALL, class_name, method_name,
+	op = &obj_request->osd_req->r_ops[0];
+	osd_req_op_cls_init(op, CEPH_OSD_OP_CALL, class_name, method_name,
 					outbound, outbound_size);
-	rbd_osd_req_format_op(obj_request, false, &op);
+	rbd_osd_req_format_op(obj_request, false);
 
 	osdc = &rbd_dev->rbd_client->client->osdc;
 	ret = rbd_obj_request_submit(osdc, obj_request);
@@ -2046,8 +2049,8 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 				char *buf, u64 *version)
 
 {
-	struct ceph_osd_req_op op;
 	struct rbd_obj_request *obj_request;
+	struct ceph_osd_req_op *op;
 	struct ceph_osd_client *osdc;
 	struct page **pages = NULL;
 	u32 page_count;
@@ -2072,8 +2075,9 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 	if (!obj_request->osd_req)
 		goto out;
 
-	osd_req_op_extent_init(&op, CEPH_OSD_OP_READ, offset, length, 0, 0);
-	rbd_osd_req_format_op(obj_request, false, &op);
+	op = &obj_request->osd_req->r_ops[0];
+	osd_req_op_extent_init(op, CEPH_OSD_OP_READ, offset, length, 0, 0);
+	rbd_osd_req_format_op(obj_request, false);
 
 	osdc = &rbd_dev->rbd_client->client->osdc;
 	ret = rbd_obj_request_submit(osdc, obj_request);

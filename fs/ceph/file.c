@@ -478,7 +478,6 @@ static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 	struct ceph_snap_context *snapc;
 	struct ceph_vino vino;
 	struct ceph_osd_request *req;
-	struct ceph_osd_req_op ops[2];
 	int num_ops = 1;
 	struct page **pages;
 	int num_pages;
@@ -534,7 +533,7 @@ more:
 	snapc = ci->i_snap_realm->cached_context;
 	vino = ceph_vino(inode);
 	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
-				    vino, pos, &len, num_ops, ops,
+				    vino, pos, &len, num_ops,
 				    CEPH_OSD_OP_WRITE, flags, snapc,
 				    ci->i_truncate_seq, ci->i_truncate_size,
 				    false);
@@ -579,8 +578,7 @@ more:
 					false, own_pages);
 
 	/* BUG_ON(vino.snap != CEPH_NOSNAP); */
-	ceph_osdc_build_request(req, pos, num_ops, ops,
-				snapc, vino.snap, &mtime);
+	ceph_osdc_build_request(req, pos, snapc, vino.snap, &mtime);
 
 	ret = ceph_osdc_start_request(&fsc->client->osdc, req, false);
 	if (!ret) {

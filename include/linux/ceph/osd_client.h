@@ -48,7 +48,7 @@ struct ceph_osd {
 };
 
 
-#define CEPH_OSD_MAX_OP 10
+#define CEPH_OSD_MAX_OP	2
 
 enum ceph_osd_data_type {
 	CEPH_OSD_DATA_TYPE_NONE,
@@ -79,6 +79,34 @@ struct ceph_osd_data {
 	};
 };
 
+struct ceph_osd_req_op {
+	u16 op;           /* CEPH_OSD_OP_* */
+	u32 payload_len;
+	union {
+		struct {
+			u64 offset, length;
+			u64 truncate_size;
+			u32 truncate_seq;
+		} extent;
+		struct {
+			const char *class_name;
+			const char *method_name;
+			const void *indata;
+			u32 indata_len;
+			__u8 class_len;
+			__u8 method_len;
+			__u8 argc;
+		} cls;
+		struct {
+			u64 cookie;
+			u64 ver;
+			u32 prot_ver;
+			u32 timeout;
+			__u8 flag;
+		} watch;
+	};
+};
+
 /* an in-flight request */
 struct ceph_osd_request {
 	u64             r_tid;              /* unique for this client */
@@ -95,10 +123,11 @@ struct ceph_osd_request {
 	struct ceph_msg  *r_request, *r_reply;
 	int               r_flags;     /* any additional flags for the osd */
 	u32               r_sent;      /* >0 if r_request is sending/sent */
-	int               r_num_ops;
 
-	/* encoded message content */
-	struct ceph_osd_op *r_request_ops;
+	/* request osd ops array  */
+	unsigned int		r_num_ops;
+	struct ceph_osd_req_op	r_ops[CEPH_OSD_MAX_OP];
+
 	/* these are updated on each send */
 	__le32           *r_request_osdmap_epoch;
 	__le32           *r_request_flags;
@@ -193,34 +222,6 @@ struct ceph_osd_client {
 	struct workqueue_struct	*notify_wq;
 };
 
-struct ceph_osd_req_op {
-	u16 op;           /* CEPH_OSD_OP_* */
-	u32 payload_len;
-	union {
-		struct {
-			u64 offset, length;
-			u64 truncate_size;
-			u32 truncate_seq;
-		} extent;
-		struct {
-			const char *class_name;
-			const char *method_name;
-			const void *indata;
-			u32 indata_len;
-			__u8 class_len;
-			__u8 method_len;
-			__u8 argc;
-		} cls;
-		struct {
-			u64 cookie;
-			u64 ver;
-			u32 prot_ver;
-			u32 timeout;
-			__u8 flag;
-		} watch;
-	};
-};
-
 extern int ceph_osdc_init(struct ceph_osd_client *osdc,
 			  struct ceph_client *client);
 extern void ceph_osdc_stop(struct ceph_osd_client *osdc);
@@ -249,8 +250,6 @@ extern struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *
 					       gfp_t gfp_flags);
 
 extern void ceph_osdc_build_request(struct ceph_osd_request *req, u64 off,
-				    unsigned int num_ops,
-				    struct ceph_osd_req_op *src_ops,
 				    struct ceph_snap_context *snapc,
 				    u64 snap_id,
 				    struct timespec *mtime);
@@ -259,8 +258,7 @@ extern struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *,
 				      struct ceph_file_layout *layout,
 				      struct ceph_vino vino,
 				      u64 offset, u64 *len,
-				      int num_ops, struct ceph_osd_req_op *ops,
-				      int opcode, int flags,
+				      int num_ops, int opcode, int flags,
 				      struct ceph_snap_context *snapc,
 				      u32 truncate_seq, u64 truncate_size,
 				      bool use_mempool);

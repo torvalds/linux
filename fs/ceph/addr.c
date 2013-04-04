@@ -288,7 +288,6 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 	struct page *page = list_entry(page_list->prev, struct page, lru);
 	struct ceph_vino vino;
 	struct ceph_osd_request *req;
-	struct ceph_osd_req_op op;
 	u64 off;
 	u64 len;
 	int i;
@@ -314,7 +313,7 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 	     off, len);
 	vino = ceph_vino(inode);
 	req = ceph_osdc_new_request(osdc, &ci->i_layout, vino, off, &len,
-				    1, &op, CEPH_OSD_OP_READ,
+				    1, CEPH_OSD_OP_READ,
 				    CEPH_OSD_FLAG_READ, NULL,
 				    ci->i_truncate_seq, ci->i_truncate_size,
 				    false);
@@ -349,7 +348,7 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 	req->r_callback = finish_read;
 	req->r_inode = inode;
 
-	ceph_osdc_build_request(req, off, 1, &op, NULL, vino.snap, NULL);
+	ceph_osdc_build_request(req, off, NULL, vino.snap, NULL);
 
 	dout("start_read %p starting %p %lld~%lld\n", inode, req, off, len);
 	ret = ceph_osdc_start_request(osdc, req, false);
@@ -567,7 +566,7 @@ static void writepages_finish(struct ceph_osd_request *req,
 	struct ceph_snap_context *snapc = req->r_snapc;
 	struct address_space *mapping = inode->i_mapping;
 	int rc = req->r_result;
-	u64 bytes = le64_to_cpu(req->r_request_ops[0].extent.length);
+	u64 bytes = req->r_ops[0].extent.length;
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	long writeback_stat;
 	unsigned issued = ceph_caps_issued(ci);
@@ -635,8 +634,7 @@ static void writepages_finish(struct ceph_osd_request *req,
 
 static struct ceph_osd_request *
 ceph_writepages_osd_request(struct inode *inode, u64 offset, u64 *len,
-				struct ceph_snap_context *snapc,
-				int num_ops, struct ceph_osd_req_op *ops)
+				struct ceph_snap_context *snapc, int num_ops)
 {
 	struct ceph_fs_client *fsc;
 	struct ceph_inode_info *ci;
@@ -648,7 +646,7 @@ ceph_writepages_osd_request(struct inode *inode, u64 offset, u64 *len,
 	/* BUG_ON(vino.snap != CEPH_NOSNAP); */
 
 	return ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
-			vino, offset, len, num_ops, ops, CEPH_OSD_OP_WRITE,
+			vino, offset, len, num_ops, CEPH_OSD_OP_WRITE,
 			CEPH_OSD_FLAG_WRITE|CEPH_OSD_FLAG_ONDISK,
 			snapc, ci->i_truncate_seq, ci->i_truncate_size, true);
 }
@@ -738,7 +736,6 @@ retry:
 	last_snapc = snapc;
 
 	while (!done && index <= end) {
-		struct ceph_osd_req_op ops[2];
 		int num_ops = do_sync ? 2 : 1;
 		struct ceph_vino vino;
 		unsigned i;
@@ -846,7 +843,7 @@ get_more_pages:
 				len = wsize;
 				req = ceph_writepages_osd_request(inode,
 							offset, &len, snapc,
-							num_ops, ops);
+							num_ops);
 
 				if (IS_ERR(req)) {
 					rc = PTR_ERR(req);
@@ -927,11 +924,11 @@ get_more_pages:
 
 		/* Update the write op length in case we changed it */
 
-		osd_req_op_extent_update(&ops[0], len);
+		osd_req_op_extent_update(&req->r_ops[0], len);
 
 		vino = ceph_vino(inode);
-		ceph_osdc_build_request(req, offset, num_ops, ops,
-					snapc, vino.snap, &inode->i_mtime);
+		ceph_osdc_build_request(req, offset, snapc, vino.snap,
+					&inode->i_mtime);
 
 		rc = ceph_osdc_start_request(&fsc->client->osdc, req, true);
 		BUG_ON(rc);
