@@ -360,6 +360,7 @@ struct samsung_mux_clock exynos4210_mux_clks[] __initdata = {
 	MUX(none, "mout_mmc2", group1_p4210, SRC_FSYS, 8, 4),
 	MUX(none, "mout_mmc3", group1_p4210, SRC_FSYS, 12, 4),
 	MUX(none, "mout_mmc4", group1_p4210, SRC_FSYS, 16, 4),
+	MUX(none, "mout_sata", sclk_ampll_p4210, SRC_FSYS, 24, 1),
 	MUX(none, "mout_uart0", group1_p4210, SRC_PERIL0, 0, 4),
 	MUX(none, "mout_uart1", group1_p4210, SRC_PERIL0, 4, 4),
 	MUX(none, "mout_uart2", group1_p4210, SRC_PERIL0, 8, 4),
