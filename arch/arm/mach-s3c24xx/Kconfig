@@ -376,12 +376,12 @@ if CPU_S3C2412
 config CPU_S3C2412_ONLY
 	bool
 	depends on !CPU_S3C2410 && !CPU_S3C2416 && !CPU_S3C2440 && \
-		   !CPU_S3C2442 && !CPU_S3C2443 && CPU_S3C2412
+		   !CPU_S3C2442 && !CPU_S3C2443
 	default y
 
 config S3C2412_CPUFREQ
 	bool
-	depends on CPU_FREQ_S3C24XX && CPU_S3C2412
+	depends on CPU_FREQ_S3C24XX
 	default y
 	select S3C2412_IOTIMING
 	help
