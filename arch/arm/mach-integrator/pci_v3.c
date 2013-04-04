@@ -495,7 +495,6 @@ static void __init pci_v3_preinit(void)
 {
 	unsigned long flags;
 	unsigned int temp;
-	int ret;
 
 	/* Remap the Integrator system controller */
 	ap_syscon_base = ioremap(INTEGRATOR_SC_BASE, 0x100);
@@ -578,14 +577,6 @@ static void __init pci_v3_preinit(void)
 	v3_writew(V3_LB_CFG, v3_readw(V3_LB_CFG) | (1 << 10));
 	v3_writeb(V3_LB_IMASK, 0x28);
 	__raw_writel(3, ap_syscon_base + INTEGRATOR_SC_PCIENABLE_OFFSET);
-
-	/*
-	 * Grab the PCI error interrupt.
-	 */
-	ret = request_irq(IRQ_AP_V3INT, v3_irq, 0, "V3", NULL);
-	if (ret)
-		printk(KERN_ERR "PCI: unable to grab PCI error "
-		       "interrupt: %d\n", ret);
 
 	raw_spin_unlock_irqrestore(&v3_lock, flags);
 }
@@ -684,7 +675,17 @@ static struct hw_pci pci_v3 __initdata = {
 
 static int __init pci_v3_probe(struct platform_device *pdev)
 {
+	int ret;
+
+	ret = devm_request_irq(&pdev->dev, IRQ_AP_V3INT, v3_irq, 0, "V3", NULL);
+	if (ret) {
+		dev_err(&pdev->dev, "unable to grab PCI error interrupt: %d\n",
+			ret);
+		return -ENODEV;
+	}
+
 	pci_common_init(&pci_v3);
+
 	return 0;
 }
 
