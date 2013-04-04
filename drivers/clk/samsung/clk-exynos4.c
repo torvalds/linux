@@ -93,7 +93,7 @@
 #define GATE_IP_PERIL		0xc950
 #define E4210_GATE_IP_PERIR	0xc960
 #define E4X12_MPLL_CON0		0x10108
-#define E4X12_SRC_DMC		0x10200
+#define SRC_DMC			0x10200
 #define APLL_CON0		0x14100
 #define E4210_MPLL_CON0		0x14108
 #define SRC_CPU			0x14200
@@ -389,7 +389,7 @@ struct samsung_mux_clock exynos4x12_mux_clks[] __initdata = {
 	MUX(none, "mout_jpeg1", sclk_evpll_p, E4X12_SRC_CAM1, 4, 1),
 	MUX(none, "mout_jpeg", mout_jpeg_p, E4X12_SRC_CAM1, 8, 1),
 	MUX_A(sclk_mpll, "sclk_mpll", mout_mpll_p,
-			E4X12_SRC_DMC, 12, 1, "sclk_mpll"),
+			SRC_DMC, 12, 1, "sclk_mpll"),
 	MUX_A(sclk_vpll, "sclk_vpll", mout_vpll_p,
 			SRC_TOP0, 8, 1, "sclk_vpll"),
 	MUX(mout_core, "mout_core", mout_core_p4x12, SRC_CPU, 16, 1),
