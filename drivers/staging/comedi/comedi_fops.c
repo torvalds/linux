@@ -2432,9 +2432,6 @@ static int __init comedi_init(void)
 		return -EINVAL;
 	}
 
-	memset(comedi_file_info_table, 0,
-	       sizeof(struct comedi_file_info *) * COMEDI_NUM_MINORS);
-
 	retval = register_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 					COMEDI_NUM_MINORS, "comedi");
 	if (retval)
