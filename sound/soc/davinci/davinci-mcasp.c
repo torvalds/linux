@@ -645,16 +645,20 @@ static int davinci_config_channel_size(struct davinci_audio_dev *dev,
 	/* mapping of the XSSZ bit-field as described in the datasheet */
 	fmt = (word_length >> 1) - 1;
 
-	mcasp_mod_bits(dev->base + DAVINCI_MCASP_RXFMT_REG,
-					RXSSZ(fmt), RXSSZ(0x0F));
-	mcasp_mod_bits(dev->base + DAVINCI_MCASP_TXFMT_REG,
-					TXSSZ(fmt), TXSSZ(0x0F));
-	mcasp_mod_bits(dev->base + DAVINCI_MCASP_TXFMT_REG, TXROT(rotate),
-							TXROT(7));
-	mcasp_mod_bits(dev->base + DAVINCI_MCASP_RXFMT_REG, RXROT(rotate),
-							RXROT(7));
+	if (dev->op_mode != DAVINCI_MCASP_DIT_MODE) {
+		mcasp_mod_bits(dev->base + DAVINCI_MCASP_RXFMT_REG,
+				RXSSZ(fmt), RXSSZ(0x0F));
+		mcasp_mod_bits(dev->base + DAVINCI_MCASP_TXFMT_REG,
+				TXSSZ(fmt), TXSSZ(0x0F));
+		mcasp_mod_bits(dev->base + DAVINCI_MCASP_TXFMT_REG,
+				TXROT(rotate), TXROT(7));
+		mcasp_mod_bits(dev->base + DAVINCI_MCASP_RXFMT_REG,
+				RXROT(rotate), RXROT(7));
+		mcasp_set_reg(dev->base + DAVINCI_MCASP_RXMASK_REG,
+				mask);
+	}
+
 	mcasp_set_reg(dev->base + DAVINCI_MCASP_TXMASK_REG, mask);
-	mcasp_set_reg(dev->base + DAVINCI_MCASP_RXMASK_REG, mask);
 
 	return 0;
 }
@@ -795,9 +799,6 @@ static void davinci_hw_param(struct davinci_audio_dev *dev, int stream)
 /* S/PDIF */
 static void davinci_hw_dit_param(struct davinci_audio_dev *dev)
 {
-	/* TXMASK for 24 bits */
-	mcasp_set_reg(dev->base + DAVINCI_MCASP_TXMASK_REG, 0x00FFFFFF);
-
 	/* Set the TX format : 24 bit right rotation, 32 bit slot, Pad 0
 	   and LSB first */
 	mcasp_set_bits(dev->base + DAVINCI_MCASP_TXFMT_REG,
