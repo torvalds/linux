@@ -1094,7 +1094,6 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	const struct omap_gpio_platform_data *pdata;
 	struct resource *res;
 	struct gpio_bank *bank;
-	int ret = 0;
 
 	match = of_match_device(of_match_ptr(omap_gpio_match), dev);
 
@@ -1143,18 +1142,21 @@ static int omap_gpio_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (unlikely(!res)) {
 		dev_err(dev, "Invalid mem resource\n");
+		irq_domain_remove(bank->domain);
 		return -ENODEV;
 	}
 
 	if (!devm_request_mem_region(dev, res->start, resource_size(res),
 				     pdev->name)) {
 		dev_err(dev, "Region already claimed\n");
+		irq_domain_remove(bank->domain);
 		return -EBUSY;
 	}
 
 	bank->base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!bank->base) {
 		dev_err(dev, "Could not ioremap\n");
+		irq_domain_remove(bank->domain);
 		return -ENOMEM;
 	}
 
@@ -1178,7 +1180,7 @@ static int omap_gpio_probe(struct platform_device *pdev)
 
 	list_add_tail(&bank->node, &omap_gpio_list);
 
-	return ret;
+	return 0;
 }
 
 #ifdef CONFIG_ARCH_OMAP2PLUS
