@@ -154,11 +154,11 @@ static int max8952_pmic_probe(struct i2c_client *client,
 	max8952->pdata = pdata;
 
 	config.dev = max8952->dev;
-	config.init_data = &pdata->reg_data;
+	config.init_data = pdata->reg_data;
 	config.driver_data = max8952;
 
 	config.ena_gpio = pdata->gpio_en;
-	if (pdata->reg_data.constraints.boot_on)
+	if (pdata->reg_data->constraints.boot_on)
 		config.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
 
 	max8952->rdev = regulator_register(&regulator, &config);

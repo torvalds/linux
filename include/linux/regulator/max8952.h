@@ -128,7 +128,7 @@ struct max8952_platform_data {
 	u8 sync_freq;
 	u8 ramp_speed;
 
-	struct regulator_init_data reg_data;
+	struct regulator_init_data *reg_data;
 };
 
 

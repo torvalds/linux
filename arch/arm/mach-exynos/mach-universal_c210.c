@@ -97,6 +97,19 @@ static struct s3c2410_uartcfg universal_uartcfgs[] __initdata = {
 static struct regulator_consumer_supply max8952_consumer =
 	REGULATOR_SUPPLY("vdd_arm", NULL);
 
+static struct regulator_init_data universal_max8952_reg_data = {
+	.constraints	= {
+		.name		= "VARM_1.2V",
+		.min_uV		= 770000,
+		.max_uV		= 1400000,
+		.valid_ops_mask	= REGULATOR_CHANGE_VOLTAGE,
+		.always_on	= 1,
+		.boot_on	= 1,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &max8952_consumer,
+};
+
 static struct max8952_platform_data universal_max8952_pdata __initdata = {
 	.gpio_vid0	= EXYNOS4_GPX0(3),
 	.gpio_vid1	= EXYNOS4_GPX0(4),
@@ -105,19 +118,7 @@ static struct max8952_platform_data universal_max8952_pdata __initdata = {
 	.dvs_mode	= { 48, 32, 28, 18 }, /* 1.25, 1.20, 1.05, 0.95V */
 	.sync_freq	= 0, /* default: fastest */
 	.ramp_speed	= 0, /* default: fastest */
-
-	.reg_data	= {
-		.constraints	= {
-			.name		= "VARM_1.2V",
-			.min_uV		= 770000,
-			.max_uV		= 1400000,
-			.valid_ops_mask	= REGULATOR_CHANGE_VOLTAGE,
-			.always_on	= 1,
-			.boot_on	= 1,
-		},
-		.num_consumer_supplies	= 1,
-		.consumer_supplies	= &max8952_consumer,
-	},
+	.reg_data	= &universal_max8952_reg_data,
 };
 
 static struct regulator_consumer_supply lp3974_buck1_consumer =
