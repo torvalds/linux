@@ -18,6 +18,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/irq.h>
+#include <linux/delay.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -345,6 +346,12 @@ static u32 notrace u300_read_sched_clock(void)
 	return readl(U300_TIMER_APP_VBASE + U300_TIMER_APP_GPT2CC);
 }
 
+static unsigned long u300_read_current_timer(void)
+{
+	return readl(U300_TIMER_APP_VBASE + U300_TIMER_APP_GPT2CC);
+}
+
+static struct delay_timer u300_delay_timer;
 
 /*
  * This sets up the system timers, clock source and clock event.
@@ -361,6 +368,10 @@ void __init u300_timer_init(void)
 	rate = clk_get_rate(clk);
 
 	setup_sched_clock(u300_read_sched_clock, 32, rate);
+
+	u300_delay_timer.read_current_timer = &u300_read_current_timer;
+	u300_delay_timer.freq = rate;
+	register_current_timer_delay(&u300_delay_timer);
 
 	/*
 	 * Disable the "OS" and "DD" timers - these are designed for Symbian!
