@@ -6252,7 +6252,7 @@ static void sched_init_numa(void)
 	 * 'level' contains the number of unique distances, excluding the
 	 * identity distance node_distance(i,i).
 	 *
-	 * The sched_domains_nume_distance[] array includes the actual distance
+	 * The sched_domains_numa_distance[] array includes the actual distance
 	 * numbers.
 	 */
 
