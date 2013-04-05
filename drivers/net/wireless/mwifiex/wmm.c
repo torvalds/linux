@@ -930,8 +930,7 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 				spin_lock_irqsave(&tid_ptr->tid_tbl_lock,
 						  flags);
 				is_list_empty =
-					list_empty(&adapter->bss_prio_tbl[j]
-						   .bss_prio_head);
+					list_empty(&tid_ptr->ra_list);
 				spin_unlock_irqrestore(&tid_ptr->tid_tbl_lock,
 						       flags);
 				if (is_list_empty)
