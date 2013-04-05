@@ -51,7 +51,7 @@ struct ceph_osd {
 #define CEPH_OSD_MAX_OP	2
 
 enum ceph_osd_data_type {
-	CEPH_OSD_DATA_TYPE_NONE,
+	CEPH_OSD_DATA_TYPE_NONE = 0,
 	CEPH_OSD_DATA_TYPE_PAGES,
 	CEPH_OSD_DATA_TYPE_PAGELIST,
 #ifdef CONFIG_BLOCK
