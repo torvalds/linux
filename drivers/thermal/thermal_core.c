@@ -369,15 +369,27 @@ static void handle_thermal_trip(struct thermal_zone_device *tz, int trip)
 	monitor_thermal_zone(tz);
 }
 
-static int thermal_zone_get_temp(struct thermal_zone_device *tz,
-				unsigned long *temp)
+/**
+ * thermal_zone_get_temp() - returns its the temperature of thermal zone
+ * @tz: a valid pointer to a struct thermal_zone_device
+ * @temp: a valid pointer to where to store the resulting temperature.
+ *
+ * When a valid thermal zone reference is passed, it will fetch its
+ * temperature and fill @temp.
+ *
+ * Return: On success returns 0, an error code otherwise
+ */
+int thermal_zone_get_temp(struct thermal_zone_device *tz, unsigned long *temp)
 {
-	int ret = 0;
+	int ret = -EINVAL;
 #ifdef CONFIG_THERMAL_EMULATION
 	int count;
 	unsigned long crit_temp = -1UL;
 	enum thermal_trip_type type;
 #endif
+
+	if (IS_ERR_OR_NULL(tz))
+		goto exit;
 
 	mutex_lock(&tz->lock);
 
@@ -402,8 +414,10 @@ static int thermal_zone_get_temp(struct thermal_zone_device *tz,
 skip_emul:
 #endif
 	mutex_unlock(&tz->lock);
+exit:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(thermal_zone_get_temp);
 
 static void update_temperature(struct thermal_zone_device *tz)
 {
