@@ -87,14 +87,14 @@ struct ceph_osd_req_op {
 			u64 offset, length;
 			u64 truncate_size;
 			u32 truncate_seq;
-			struct ceph_osd_data *osd_data;
+			struct ceph_osd_data osd_data;
 		} extent;
 		struct {
 			const char *class_name;
 			const char *method_name;
 			const void *request_data;
-			struct ceph_osd_data *request_info;
-			struct ceph_osd_data *response_data;
+			struct ceph_osd_data request_info;
+			struct ceph_osd_data response_data;
 			u32 request_data_len;
 			__u8 class_len;
 			__u8 method_len;
@@ -164,9 +164,6 @@ struct ceph_osd_request {
 
 	struct ceph_file_layout r_file_layout;
 	struct ceph_snap_context *r_snapc;    /* snap context for writes */
-
-	struct ceph_osd_data r_data_in;
-	struct ceph_osd_data r_data_out;
 };
 
 struct ceph_osd_event {
