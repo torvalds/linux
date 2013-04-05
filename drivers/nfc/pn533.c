@@ -1450,7 +1450,7 @@ static int pn533_target_found(struct pn533 *dev, u8 tg, u8 *tgdata,
 	struct nfc_target nfc_tgt;
 	int rc;
 
-	dev_dbg(&dev->interface->dev, "%s - modulation=%d\n",
+	dev_dbg(&dev->interface->dev, "%s: modulation=%d\n",
 		__func__, dev->poll_mod_curr);
 
 	if (tg != 1)
@@ -2004,8 +2004,7 @@ static int pn533_activate_target(struct nfc_dev *nfc_dev,
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	int rc;
 
-	dev_dbg(&dev->interface->dev, "%s - protocol=%u\n",
-		__func__, protocol);
+	dev_dbg(&dev->interface->dev, "%s: protocol=%u\n", __func__, protocol);
 
 	if (dev->poll_mod_count) {
 		nfc_err(&dev->interface->dev,

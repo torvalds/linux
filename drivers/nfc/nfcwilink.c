@@ -171,7 +171,7 @@ static int nfcwilink_get_bts_file_name(struct nfcwilink *drv, char *file_name)
 	dev_dbg(&drv->pdev->dev, "wait_for_completion_timeout returned %ld\n",
 		comp_ret);
 	if (comp_ret == 0) {
-		dev_err(&drv->pdev->dev,
+		nfc_err(&drv->pdev->dev,
 			"timeout on wait_for_completion_timeout\n");
 		return -ETIMEDOUT;
 	}

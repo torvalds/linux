@@ -18,6 +18,8 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -391,7 +393,7 @@ static int pn544_hci_start_poll(struct nfc_hci_dev *hdev,
 	if ((im_protocols | tm_protocols) & NFC_PROTO_NFC_DEP_MASK) {
 		hdev->gb = nfc_get_local_general_bytes(hdev->ndev,
 							&hdev->gb_len);
-		pr_debug("generate local bytes %p", hdev->gb);
+		pr_debug("generate local bytes %p\n", hdev->gb);
 		if (hdev->gb == NULL || hdev->gb_len == 0) {
 			im_protocols &= ~NFC_PROTO_NFC_DEP_MASK;
 			tm_protocols &= ~NFC_PROTO_NFC_DEP_MASK;
@@ -693,7 +695,7 @@ static int pn544_hci_tm_send(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
 				   struct nfc_target *target)
 {
-	pr_debug("supported protocol %d", target->supported_protocols);
+	pr_debug("supported protocol %d\b", target->supported_protocols);
 	if (target->supported_protocols & (NFC_PROTO_ISO14443_MASK |
 					NFC_PROTO_ISO14443_B_MASK)) {
 		return nfc_hci_send_cmd(hdev, target->hci_reader_gate,
@@ -730,7 +732,7 @@ static int pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 gate, u8 event,
 	struct sk_buff *rgb_skb = NULL;
 	int r;
 
-	pr_debug("hci event %d", event);
+	pr_debug("hci event %d\n", event);
 	switch (event) {
 	case PN544_HCI_EVT_ACTIVATED:
 		if (gate == PN544_RF_READER_NFCIP1_INITIATOR_GATE) {
@@ -761,7 +763,7 @@ static int pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 gate, u8 event,
 		}
 
 		if (skb->data[0] != 0) {
-			pr_debug("data0 %d", skb->data[0]);
+			pr_debug("data0 %d\n", skb->data[0]);
 			r = -EPROTO;
 			goto exit;
 		}
@@ -922,7 +924,6 @@ int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 
 	info = kzalloc(sizeof(struct pn544_hci_info), GFP_KERNEL);
 	if (!info) {
-		pr_err("Cannot allocate memory for pn544_hci_info.\n");
 		r = -ENOMEM;
 		goto err_info_alloc;
 	}
@@ -955,7 +956,7 @@ int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 					     phy_headroom + PN544_CMDS_HEADROOM,
 					     phy_tailroom, phy_payload);
 	if (!info->hdev) {
-		pr_err("Cannot allocate nfc hdev.\n");
+		pr_err("Cannot allocate nfc hdev\n");
 		r = -ENOMEM;
 		goto err_alloc_hdev;
 	}
