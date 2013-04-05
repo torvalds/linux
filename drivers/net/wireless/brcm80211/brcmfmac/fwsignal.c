@@ -959,6 +959,29 @@ fail:
 	return ret;
 }
 
+static int brcmf_fws_request_indicate(struct brcmf_fws_info *fws, u8 type,
+				      u8 *data)
+{
+	struct brcmf_fws_mac_descriptor *entry;
+
+	entry = &fws->desc.nodes[data[1] & 0x1F];
+	if (!entry->occupied) {
+		if (type == BRCMF_FWS_TYPE_MAC_REQUEST_CREDIT)
+			fws->stats.credit_request_failed++;
+		else
+			fws->stats.packet_request_failed++;
+		return -ESRCH;
+	}
+
+	if (type == BRCMF_FWS_TYPE_MAC_REQUEST_CREDIT)
+		entry->requested_credit = data[0];
+	else
+		entry->requested_packet = data[0];
+
+	entry->ac_bitmap = data[2];
+	return 0;
+}
+
 static void brcmf_fws_return_credits(struct brcmf_fws_info *fws,
 				     u8 fifo, u8 credits)
 {
@@ -1366,8 +1389,6 @@ int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 			break;
 
 		switch (type) {
-		case BRCMF_FWS_TYPE_MAC_REQUEST_CREDIT:
-		case BRCMF_FWS_TYPE_MAC_REQUEST_PACKET:
 		case BRCMF_FWS_TYPE_HOST_REORDER_RXPKTS:
 		case BRCMF_FWS_TYPE_COMP_TXSTATUS:
 			break;
@@ -1382,6 +1403,10 @@ int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 		case BRCMF_FWS_TYPE_INTERFACE_OPEN:
 		case BRCMF_FWS_TYPE_INTERFACE_CLOSE:
 			brcmf_fws_interface_state_indicate(fws, type, data);
+			break;
+		case BRCMF_FWS_TYPE_MAC_REQUEST_CREDIT:
+		case BRCMF_FWS_TYPE_MAC_REQUEST_PACKET:
+			brcmf_fws_request_indicate(fws, type, data);
 			break;
 		case BRCMF_FWS_TYPE_TXSTATUS:
 			brcmf_fws_txstatus_indicate(fws, data);

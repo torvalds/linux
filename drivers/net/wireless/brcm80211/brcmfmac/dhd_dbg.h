@@ -146,6 +146,8 @@ struct brcmf_fws_stats {
 	u32 mac_update_failed;
 	u32 mac_ps_update_failed;
 	u32 if_update_failed;
+	u32 packet_request_failed;
+	u32 credit_request_failed;
 	u32 rollback_success;
 	u32 rollback_failed;
 	u32 delayq_full_error;
