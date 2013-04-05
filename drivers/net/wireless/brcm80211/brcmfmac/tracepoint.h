@@ -73,6 +73,20 @@ TRACE_EVENT(brcmf_dbg,
 	TP_printk("%s: %s", __get_str(func), __get_str(msg))
 );
 
+TRACE_EVENT(brcmf_hexdump,
+	TP_PROTO(void *data, size_t len),
+	TP_ARGS(data, len),
+	TP_STRUCT__entry(
+		__field(unsigned long, len)
+		__dynamic_array(u8, hdata, len)
+	),
+	TP_fast_assign(
+		__entry->len = len;
+		memcpy(__get_dynamic_array(hdata), data, len);
+	),
+	TP_printk("hexdump [length=%lu]", __entry->len)
+);
+
 #ifdef CONFIG_BRCM_TRACING
 
 #undef TRACE_INCLUDE_PATH

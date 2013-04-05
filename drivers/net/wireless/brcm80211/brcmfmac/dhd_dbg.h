@@ -93,6 +93,7 @@ do {								\
 
 #define brcmf_dbg_hex_dump(test, data, len, fmt, ...)			\
 do {									\
+	trace_brcmf_hexdump((void *)data, len);				\
 	if (test)							\
 		brcmu_dbg_hex_dump(data, len, fmt, ##__VA_ARGS__);	\
 } while (0)

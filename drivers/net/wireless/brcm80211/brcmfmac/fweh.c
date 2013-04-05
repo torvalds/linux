@@ -20,6 +20,7 @@
 
 #include "dhd.h"
 #include "dhd_dbg.h"
+#include "tracepoint.h"
 #include "fwsignal.h"
 #include "fweh.h"
 #include "fwil.h"
