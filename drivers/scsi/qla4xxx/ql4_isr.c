@@ -875,6 +875,43 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			}
 			break;
 
+		case MBOX_ASTS_IPV6_DEFAULT_ROUTER_CHANGED:
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+					  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x mbox_sts[5]=%08x\n",
+					  ha->host_no, mbox_sts[0], mbox_sts[1],
+					  mbox_sts[2], mbox_sts[3], mbox_sts[4],
+					  mbox_sts[5]));
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+					  "scsi%ld: AEN %04x Received IPv6 default router changed notification\n",
+					  ha->host_no, mbox_sts[0]));
+			break;
+
+		case MBOX_ASTS_INITIALIZATION_FAILED:
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+					  "scsi%ld: AEN %04x, mbox_sts[3]=%08x\n",
+					  ha->host_no, mbox_sts[0],
+					  mbox_sts[3]));
+			break;
+
+		case MBOX_ASTS_SYSTEM_WARNING_EVENT:
+			DEBUG2(ql4_printk(KERN_WARNING, ha,
+					  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x mbox_sts[5]=%08x\n",
+					  ha->host_no, mbox_sts[0], mbox_sts[1],
+					  mbox_sts[2], mbox_sts[3], mbox_sts[4],
+					  mbox_sts[5]));
+			break;
+
+		case MBOX_ASTS_DCBX_CONF_CHANGE:
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+					  "scsi%ld: AEN %04x, mbox_sts[1]=%08x, mbox_sts[2]=%08x, mbox_sts[3]=%08x, mbox_sts[4]=%08x mbox_sts[5]=%08x\n",
+					  ha->host_no, mbox_sts[0], mbox_sts[1],
+					  mbox_sts[2], mbox_sts[3], mbox_sts[4],
+					  mbox_sts[5]));
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+					  "scsi%ld: AEN %04x Received DCBX configuration changed notification\n",
+					  ha->host_no, mbox_sts[0]));
+			break;
+
 		default:
 			DEBUG2(printk(KERN_WARNING
 				      "scsi%ld: AEN %04x UNKNOWN\n",
