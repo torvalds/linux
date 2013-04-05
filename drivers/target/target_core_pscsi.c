@@ -1210,7 +1210,6 @@ static int __pscsi_map_task_SG(
 				bio = NULL;
 			}
 
-			page++;
 			len -= bytes;
 			data_len -= bytes;
 			off = 0;

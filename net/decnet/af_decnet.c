@@ -2355,6 +2355,8 @@ static const struct proto_ops dn_proto_ops = {
 	.sendpage =	sock_no_sendpage,
 };
 
+void dn_register_sysctl_skeleton(void);
+void dn_unregister_sysctl_skeleton(void);
 void dn_register_sysctl(void);
 void dn_unregister_sysctl(void);
 
@@ -2375,6 +2377,7 @@ static int __init decnet_init(void)
 	if (rc != 0)
 		goto out;
 
+	dn_register_sysctl_skeleton();
 	dn_neigh_init();
 	dn_dev_init();
 	dn_route_init();
@@ -2414,6 +2417,7 @@ static void __exit decnet_exit(void)
 	dn_fib_cleanup();
 
 	proc_net_remove(&init_net, "decnet");
+	dn_unregister_sysctl_skeleton();
 
 	proto_unregister(&dn_proto);
 
