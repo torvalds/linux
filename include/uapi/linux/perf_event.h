@@ -645,8 +645,8 @@ union perf_mem_data_src {
 #define PERF_MEM_LVL_MISS	0x04  /* miss level  */
 #define PERF_MEM_LVL_L1		0x08  /* L1 */
 #define PERF_MEM_LVL_LFB	0x10  /* Line Fill Buffer */
-#define PERF_MEM_LVL_L2		0x20  /* L2 hit */
-#define PERF_MEM_LVL_L3		0x40  /* L3 hit */
+#define PERF_MEM_LVL_L2		0x20  /* L2 */
+#define PERF_MEM_LVL_L3		0x40  /* L3 */
 #define PERF_MEM_LVL_LOC_RAM	0x80  /* Local DRAM */
 #define PERF_MEM_LVL_REM_RAM1	0x100 /* Remote DRAM (1 hop) */
 #define PERF_MEM_LVL_REM_RAM2	0x200 /* Remote DRAM (2 hops) */
