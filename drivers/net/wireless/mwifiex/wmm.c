@@ -927,12 +927,12 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 				if (!tid_ptr->ra_list_curr)
 					continue;
 
-				spin_lock_irqsave(&tid_ptr->tid_tbl_lock,
-						  flags);
+				spin_lock_irqsave(&priv_tmp->wmm.
+						  ra_list_spinlock, flags);
 				is_list_empty =
 					list_empty(&tid_ptr->ra_list);
-				spin_unlock_irqrestore(&tid_ptr->tid_tbl_lock,
-						       flags);
+				spin_unlock_irqrestore(&priv_tmp->wmm.
+						       ra_list_spinlock, flags);
 				if (is_list_empty)
 					continue;
 

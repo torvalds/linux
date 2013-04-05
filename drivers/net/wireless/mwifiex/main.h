@@ -213,8 +213,6 @@ struct mwifiex_ra_list_tbl {
 
 struct mwifiex_tid_tbl {
 	struct list_head ra_list;
-	/* spin lock for tid table */
-	spinlock_t tid_tbl_lock;
 	struct mwifiex_ra_list_tbl *ra_list_curr;
 };
 
