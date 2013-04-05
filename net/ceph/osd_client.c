@@ -1884,6 +1884,11 @@ void ceph_osdc_build_request(struct ceph_osd_request *req, u64 off,
 	u64 data_len;
 	unsigned int i;
 
+	/* Set up response incoming data and request outgoing data fields */
+
+	ceph_osdc_msg_data_set(req->r_reply, &req->r_data_in);
+	ceph_osdc_msg_data_set(req->r_request, &req->r_data_out);
+
 	req->r_snapid = snap_id;
 	req->r_snapc = ceph_get_snap_context(snapc);
 
@@ -1975,11 +1980,6 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 			    bool nofail)
 {
 	int rc = 0;
-
-	/* Set up response incoming data and request outgoing data fields */
-
-	ceph_osdc_msg_data_set(req->r_reply, &req->r_data_in);
-	ceph_osdc_msg_data_set(req->r_request, &req->r_data_out);
 
 	down_read(&osdc->map_sem);
 	mutex_lock(&osdc->request_mutex);
