@@ -8,7 +8,7 @@
  * published by the Free Software Foundation.
  *
  */
-#include <mach/hardware.h>
+
 
 #if CONFIG_UX500_DEBUG_UART > 2
 #error Invalid Ux500 debug UART
@@ -21,19 +21,28 @@
  */
 
 #ifdef CONFIG_UX500_SOC_DB8500
-#define __UX500_UART(n)	U8500_UART##n##_BASE
+#define U8500_UART0_PHYS_BASE	(0x80120000)
+#define U8500_UART1_PHYS_BASE	(0x80121000)
+#define U8500_UART2_PHYS_BASE	(0x80007000)
+#define U8500_UART0_VIRT_BASE	(0xa8120000)
+#define U8500_UART1_VIRT_BASE	(0xa8121000)
+#define U8500_UART2_VIRT_BASE	(0xa8007000)
+#define __UX500_PHYS_UART(n)	U8500_UART##n##_PHYS_BASE
+#define __UX500_VIRT_UART(n)	U8500_UART##n##_VIRT_BASE
 #endif
 
-#ifndef __UX500_UART
+#if !defined(__UX500_PHYS_UART) || !defined(__UX500_VIRT_UART)
 #error Unknown SOC
 #endif
 
-#define UX500_UART(n)	__UX500_UART(n)
-#define UART_BASE	UX500_UART(CONFIG_UX500_DEBUG_UART)
+#define UX500_PHYS_UART(n)	__UX500_PHYS_UART(n)
+#define UX500_VIRT_UART(n)	__UX500_VIRT_UART(n)
+#define UART_PHYS_BASE	UX500_PHYS_UART(CONFIG_UX500_DEBUG_UART)
+#define UART_VIRT_BASE	UX500_VIRT_UART(CONFIG_UX500_DEBUG_UART)
 
 	.macro	addruart, rp, rv, tmp
-	ldr	\rp, =UART_BASE				@ no, physical address
-	ldr	\rv, =IO_ADDRESS(UART_BASE)		@ yes, virtual address
+	ldr	\rp, =UART_PHYS_BASE		@ no, physical address
+	ldr	\rv, =UART_VIRT_BASE		@ yes, virtual address
 	.endm
 
 #include <asm/hardware/debug-pl01x.S>
