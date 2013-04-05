@@ -233,20 +233,25 @@ extern void ceph_osdc_handle_reply(struct ceph_osd_client *osdc,
 extern void ceph_osdc_handle_map(struct ceph_osd_client *osdc,
 				 struct ceph_msg *msg);
 
-extern void osd_req_op_init(struct ceph_osd_req_op *op, u16 opcode);
-extern void osd_req_op_extent_init(struct ceph_osd_req_op *op, u16 opcode,
+extern void osd_req_op_extent_init(struct ceph_osd_request *osd_req,
+					unsigned int which, u16 opcode,
 					u64 offset, u64 length,
 					u64 truncate_size, u32 truncate_seq);
-extern void osd_req_op_extent_update(struct ceph_osd_req_op *op, u64 length);
-extern void osd_req_op_extent_osd_data(struct ceph_osd_req_op *op,
+extern void osd_req_op_extent_update(struct ceph_osd_request *osd_req,
+					unsigned int which, u64 length);
+extern void osd_req_op_extent_osd_data(struct ceph_osd_request *osd_req,
+					unsigned int which,
 					struct ceph_osd_data *osd_data);
-extern void osd_req_op_cls_init(struct ceph_osd_req_op *op, u16 opcode,
+extern void osd_req_op_cls_init(struct ceph_osd_request *osd_req,
+					unsigned int which, u16 opcode,
 					const char *class, const char *method,
 					const void *request_data,
 					size_t request_data_size);
-extern void osd_req_op_cls_response_data(struct ceph_osd_req_op *op,
+extern void osd_req_op_cls_response_data(struct ceph_osd_request *osd_req,
+					unsigned int which,
 					struct ceph_osd_data *response_data);
-extern void osd_req_op_watch_init(struct ceph_osd_req_op *op, u16 opcode,
+extern void osd_req_op_watch_init(struct ceph_osd_request *osd_req,
+					unsigned int which, u16 opcode,
 					u64 cookie, u64 version, int flag);
 
 extern struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,

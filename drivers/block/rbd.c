@@ -1336,16 +1336,17 @@ static void rbd_osd_req_format_op(struct rbd_obj_request *obj_request,
 			snap_id = img_request->snap_id;
 	}
 	if (obj_request->type != OBJ_REQUEST_NODATA) {
-		struct ceph_osd_req_op *op = &obj_request->osd_req->r_ops[0];
-
 		/*
 		 * If it has data, it's either a object class method
 		 * call (cls) or it's an extent operation.
 		 */
-		if (op->op == CEPH_OSD_OP_CALL)
-			osd_req_op_cls_response_data(op, osd_data);
+		/* XXX This use of the ops array goes away in the next patch */
+		if (obj_request->osd_req->r_ops[0].op == CEPH_OSD_OP_CALL)
+			osd_req_op_cls_response_data(obj_request->osd_req, 0,
+						osd_data);
 		else
-			osd_req_op_extent_osd_data(op, osd_data);
+			osd_req_op_extent_osd_data(obj_request->osd_req, 0,
+						osd_data);
 	}
 	ceph_osdc_build_request(osd_req, obj_request->offset,
 			snapc, snap_id, mtime);
@@ -1577,7 +1578,6 @@ static int rbd_img_request_fill_bio(struct rbd_img_request *img_request,
 	while (resid) {
 		const char *object_name;
 		unsigned int clone_size;
-		struct ceph_osd_req_op *op;
 		u64 offset;
 		u64 length;
 
@@ -1606,8 +1606,8 @@ static int rbd_img_request_fill_bio(struct rbd_img_request *img_request,
 		if (!obj_request->osd_req)
 			goto out_partial;
 
-		op = &obj_request->osd_req->r_ops[0];
-		osd_req_op_extent_init(op, opcode, offset, length, 0, 0);
+		osd_req_op_extent_init(obj_request->osd_req, 0,
+					opcode, offset, length, 0, 0);
 		rbd_osd_req_format_op(obj_request, write_request);
 
 		/* status and version are initially zero-filled */
@@ -1710,7 +1710,6 @@ static int rbd_obj_notify_ack(struct rbd_device *rbd_dev,
 				   u64 ver, u64 notify_id)
 {
 	struct rbd_obj_request *obj_request;
-	struct ceph_osd_req_op *op;
 	struct ceph_osd_client *osdc;
 	int ret;
 
@@ -1724,8 +1723,8 @@ static int rbd_obj_notify_ack(struct rbd_device *rbd_dev,
 	if (!obj_request->osd_req)
 		goto out;
 
-	op = &obj_request->osd_req->r_ops[0];
-	osd_req_op_watch_init(op, CEPH_OSD_OP_NOTIFY_ACK, notify_id, ver, 0);
+	osd_req_op_watch_init(obj_request->osd_req, 0, CEPH_OSD_OP_NOTIFY_ACK,
+					notify_id, ver, 0);
 	rbd_osd_req_format_op(obj_request, false);
 
 	osdc = &rbd_dev->rbd_client->client->osdc;
@@ -1766,7 +1765,6 @@ static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, int start)
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct rbd_obj_request *obj_request;
-	struct ceph_osd_req_op *op;
 	int ret;
 
 	rbd_assert(start ^ !!rbd_dev->watch_event);
@@ -1790,8 +1788,7 @@ static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, int start)
 	if (!obj_request->osd_req)
 		goto out_cancel;
 
-	op = &obj_request->osd_req->r_ops[0];
-	osd_req_op_watch_init(op, CEPH_OSD_OP_WATCH,
+	osd_req_op_watch_init(obj_request->osd_req, 0, CEPH_OSD_OP_WATCH,
 				rbd_dev->watch_event->cookie,
 				rbd_dev->header.obj_version, start);
 	rbd_osd_req_format_op(obj_request, true);
@@ -1854,7 +1851,6 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 {
 	struct rbd_obj_request *obj_request;
 	struct ceph_osd_client *osdc;
-	struct ceph_osd_req_op *op;
 	struct page **pages;
 	u32 page_count;
 	int ret;
@@ -1884,8 +1880,8 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 	if (!obj_request->osd_req)
 		goto out;
 
-	op = &obj_request->osd_req->r_ops[0];
-	osd_req_op_cls_init(op, CEPH_OSD_OP_CALL, class_name, method_name,
+	osd_req_op_cls_init(obj_request->osd_req, 0, CEPH_OSD_OP_CALL,
+					class_name, method_name,
 					outbound, outbound_size);
 	rbd_osd_req_format_op(obj_request, false);
 
@@ -2066,7 +2062,6 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 
 {
 	struct rbd_obj_request *obj_request;
-	struct ceph_osd_req_op *op;
 	struct ceph_osd_client *osdc;
 	struct page **pages = NULL;
 	u32 page_count;
@@ -2091,8 +2086,8 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 	if (!obj_request->osd_req)
 		goto out;
 
-	op = &obj_request->osd_req->r_ops[0];
-	osd_req_op_extent_init(op, CEPH_OSD_OP_READ, offset, length, 0, 0);
+	osd_req_op_extent_init(obj_request->osd_req, 0, CEPH_OSD_OP_READ,
+					offset, length, 0, 0);
 	rbd_osd_req_format_op(obj_request, false);
 
 	osdc = &rbd_dev->rbd_client->client->osdc;

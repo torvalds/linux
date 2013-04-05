@@ -926,7 +926,7 @@ get_more_pages:
 
 		/* Update the write op length in case we changed it */
 
-		osd_req_op_extent_update(&req->r_ops[0], len);
+		osd_req_op_extent_update(req, 0, len);
 
 		vino = ceph_vino(inode);
 		ceph_osdc_build_request(req, offset, snapc, vino.snap,
