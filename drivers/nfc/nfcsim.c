@@ -22,7 +22,7 @@
 #define DEV_ERR(_dev, fmt, args...) nfc_dev_err(&_dev->nfc_dev->dev, \
 						"%s: " fmt, __func__, ## args)
 
-#define DEV_DBG(_dev, fmt, args...) nfc_dev_dbg(&_dev->nfc_dev->dev, \
+#define DEV_DBG(_dev, fmt, args...) dev_dbg(&_dev->nfc_dev->dev, \
 						"%s: " fmt, __func__, ## args)
 
 #define NFCSIM_VERSION "0.1"
@@ -64,7 +64,7 @@ static struct workqueue_struct *wq;
 
 static void nfcsim_cleanup_dev(struct nfcsim *dev, u8 shutdown)
 {
-	DEV_DBG(dev, "shutdown=%d", shutdown);
+	DEV_DBG(dev, "shutdown=%d\n", shutdown);
 
 	mutex_lock(&dev->lock);
 
@@ -84,7 +84,7 @@ static int nfcsim_target_found(struct nfcsim *dev)
 {
 	struct nfc_target nfc_tgt;
 
-	DEV_DBG(dev, "");
+	DEV_DBG(dev, "\n");
 
 	memset(&nfc_tgt, 0, sizeof(struct nfc_target));
 
@@ -98,7 +98,7 @@ static int nfcsim_dev_up(struct nfc_dev *nfc_dev)
 {
 	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
 
-	DEV_DBG(dev, "");
+	DEV_DBG(dev, "\n");
 
 	mutex_lock(&dev->lock);
 
@@ -113,7 +113,7 @@ static int nfcsim_dev_down(struct nfc_dev *nfc_dev)
 {
 	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
 
-	DEV_DBG(dev, "");
+	DEV_DBG(dev, "\n");
 
 	mutex_lock(&dev->lock);
 
@@ -172,7 +172,7 @@ static int nfcsim_dep_link_down(struct nfc_dev *nfc_dev)
 {
 	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
 
-	DEV_DBG(dev, "");
+	DEV_DBG(dev, "\n");
 
 	nfcsim_cleanup_dev(dev, 0);
 
@@ -210,7 +210,7 @@ static int nfcsim_start_poll(struct nfc_dev *nfc_dev,
 
 	queue_delayed_work(wq, &dev->poll_work, 0);
 
-	DEV_DBG(dev, "Start polling: im: 0x%X, tm: 0x%X", im_protocols,
+	DEV_DBG(dev, "Start polling: im: 0x%X, tm: 0x%X\n", im_protocols,
 		tm_protocols);
 
 	rc = 0;
@@ -224,7 +224,7 @@ static void nfcsim_stop_poll(struct nfc_dev *nfc_dev)
 {
 	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
 
-	DEV_DBG(dev, "Stop poll");
+	DEV_DBG(dev, "Stop poll\n");
 
 	mutex_lock(&dev->lock);
 
@@ -240,7 +240,7 @@ static int nfcsim_activate_target(struct nfc_dev *nfc_dev,
 {
 	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
 
-	DEV_DBG(dev, "");
+	DEV_DBG(dev, "\n");
 
 	return -ENOTSUPP;
 }
@@ -250,7 +250,7 @@ static void nfcsim_deactivate_target(struct nfc_dev *nfc_dev,
 {
 	struct nfcsim *dev = nfc_get_drvdata(nfc_dev);
 
-	DEV_DBG(dev, "");
+	DEV_DBG(dev, "\n");
 }
 
 static void nfcsim_wq_recv(struct work_struct *work)
@@ -397,13 +397,13 @@ static void nfcsim_wq_poll(struct work_struct *work)
 	nfcsim_set_polling_mode(dev);
 
 	if (dev->curr_polling_mode == NFCSIM_POLL_NONE) {
-		DEV_DBG(dev, "Not polling");
+		DEV_DBG(dev, "Not polling\n");
 		goto unlock;
 	}
 
 	DEV_DBG(dev, "Polling as %s",
 		dev->curr_polling_mode == NFCSIM_POLL_INITIATOR ?
-		"initiator" : "target");
+		"initiator\n" : "target\n");
 
 	if (dev->curr_polling_mode == NFCSIM_POLL_TARGET)
 		goto sched_work;

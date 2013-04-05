@@ -146,8 +146,6 @@ static int nfcwilink_get_bts_file_name(struct nfcwilink *drv, char *file_name)
 	unsigned long comp_ret;
 	int rc;
 
-	nfc_dev_dbg(&drv->pdev->dev, "get_bts_file_name entry");
-
 	skb = nfcwilink_skb_alloc(sizeof(struct nci_vs_nfcc_info_cmd),
 					GFP_KERNEL);
 	if (!skb) {
@@ -170,17 +168,16 @@ static int nfcwilink_get_bts_file_name(struct nfcwilink *drv, char *file_name)
 
 	comp_ret = wait_for_completion_timeout(&drv->completed,
 				msecs_to_jiffies(NFCWILINK_CMD_TIMEOUT));
-	nfc_dev_dbg(&drv->pdev->dev, "wait_for_completion_timeout returned %ld",
-			comp_ret);
+	dev_dbg(&drv->pdev->dev, "wait_for_completion_timeout returned %ld\n",
+		comp_ret);
 	if (comp_ret == 0) {
-		nfc_dev_err(&drv->pdev->dev,
-				"timeout on wait_for_completion_timeout");
+		dev_err(&drv->pdev->dev,
+			"timeout on wait_for_completion_timeout\n");
 		return -ETIMEDOUT;
 	}
 
-	nfc_dev_dbg(&drv->pdev->dev, "nci_vs_nfcc_info_rsp: plen %d, status %d",
-			drv->nfcc_info.plen,
-			drv->nfcc_info.status);
+	dev_dbg(&drv->pdev->dev, "nci_vs_nfcc_info_rsp: plen %d, status %d\n",
+		drv->nfcc_info.plen, drv->nfcc_info.status);
 
 	if ((drv->nfcc_info.plen != 5) || (drv->nfcc_info.status != 0)) {
 		nfc_dev_err(&drv->pdev->dev,
@@ -206,8 +203,6 @@ static int nfcwilink_send_bts_cmd(struct nfcwilink *drv, __u8 *data, int len)
 	struct sk_buff *skb;
 	unsigned long comp_ret;
 	int rc;
-
-	nfc_dev_dbg(&drv->pdev->dev, "send_bts_cmd entry");
 
 	/* verify valid cmd for the NFC channel */
 	if ((len <= sizeof(struct nfcwilink_hdr)) ||
@@ -238,8 +233,8 @@ static int nfcwilink_send_bts_cmd(struct nfcwilink *drv, __u8 *data, int len)
 
 	comp_ret = wait_for_completion_timeout(&drv->completed,
 				msecs_to_jiffies(NFCWILINK_CMD_TIMEOUT));
-	nfc_dev_dbg(&drv->pdev->dev, "wait_for_completion_timeout returned %ld",
-			comp_ret);
+	dev_dbg(&drv->pdev->dev, "wait_for_completion_timeout returned %ld\n",
+		comp_ret);
 	if (comp_ret == 0) {
 		nfc_dev_err(&drv->pdev->dev,
 				"timeout on wait_for_completion_timeout");
@@ -256,8 +251,6 @@ static int nfcwilink_download_fw(struct nfcwilink *drv)
 	__u16 action_type, action_len;
 	__u8 *ptr;
 	int len, rc;
-
-	nfc_dev_dbg(&drv->pdev->dev, "download_fw entry");
 
 	set_bit(NFCWILINK_FW_DOWNLOAD, &drv->flags);
 
@@ -280,8 +273,8 @@ static int nfcwilink_download_fw(struct nfcwilink *drv)
 	ptr = (__u8 *)fw->data;
 
 	if ((len == 0) || (ptr == NULL)) {
-		nfc_dev_dbg(&drv->pdev->dev,
-				"request_firmware returned size %d", len);
+		dev_dbg(&drv->pdev->dev,
+			"request_firmware returned size %d\n", len);
 		goto release_fw;
 	}
 
@@ -302,8 +295,8 @@ static int nfcwilink_download_fw(struct nfcwilink *drv)
 		action_len =
 			__le16_to_cpu(((struct bts_file_action *)ptr)->len);
 
-		nfc_dev_dbg(&drv->pdev->dev, "bts_file_action type %d, len %d",
-				action_type, action_len);
+		dev_dbg(&drv->pdev->dev, "bts_file_action type %d, len %d\n",
+			action_type, action_len);
 
 		switch (action_type) {
 		case BTS_FILE_ACTION_TYPE_SEND_CMD:
@@ -333,8 +326,6 @@ static void nfcwilink_register_complete(void *priv_data, char data)
 {
 	struct nfcwilink *drv = priv_data;
 
-	nfc_dev_dbg(&drv->pdev->dev, "register_complete entry");
-
 	/* store ST registration status */
 	drv->st_register_cb_status = data;
 
@@ -356,7 +347,7 @@ static long nfcwilink_receive(void *priv_data, struct sk_buff *skb)
 		return -EFAULT;
 	}
 
-	nfc_dev_dbg(&drv->pdev->dev, "receive entry, len %d", skb->len);
+	dev_dbg(&drv->pdev->dev, "receive entry, len %d\n", skb->len);
 
 	/* strip the ST header
 	(apart for the chnl byte, which is not received in the hdr) */
@@ -396,8 +387,6 @@ static int nfcwilink_open(struct nci_dev *ndev)
 	unsigned long comp_ret;
 	int rc;
 
-	nfc_dev_dbg(&drv->pdev->dev, "open entry");
-
 	if (test_and_set_bit(NFCWILINK_RUNNING, &drv->flags)) {
 		rc = -EBUSY;
 		goto exit;
@@ -415,9 +404,9 @@ static int nfcwilink_open(struct nci_dev *ndev)
 			&drv->completed,
 			msecs_to_jiffies(NFCWILINK_REGISTER_TIMEOUT));
 
-			nfc_dev_dbg(&drv->pdev->dev,
-			"wait_for_completion_timeout returned %ld",
-			comp_ret);
+			dev_dbg(&drv->pdev->dev,
+				"wait_for_completion_timeout returned %ld\n",
+				comp_ret);
 
 			if (comp_ret == 0) {
 				/* timeout */
@@ -460,8 +449,6 @@ static int nfcwilink_close(struct nci_dev *ndev)
 	struct nfcwilink *drv = nci_get_drvdata(ndev);
 	int rc;
 
-	nfc_dev_dbg(&drv->pdev->dev, "close entry");
-
 	if (!test_and_clear_bit(NFCWILINK_RUNNING, &drv->flags))
 		return 0;
 
@@ -480,7 +467,7 @@ static int nfcwilink_send(struct nci_dev *ndev, struct sk_buff *skb)
 	struct nfcwilink_hdr hdr = {NFCWILINK_CHNL, NFCWILINK_OPCODE, 0x0000};
 	long len;
 
-	nfc_dev_dbg(&drv->pdev->dev, "send entry, len %d", skb->len);
+	dev_dbg(&drv->pdev->dev, "send entry, len %d\n", skb->len);
 
 	if (!test_bit(NFCWILINK_RUNNING, &drv->flags)) {
 		kfree_skb(skb);
@@ -516,8 +503,6 @@ static int nfcwilink_probe(struct platform_device *pdev)
 	static struct nfcwilink *drv;
 	int rc;
 	__u32 protocols;
-
-	nfc_dev_dbg(&pdev->dev, "probe entry");
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(struct nfcwilink), GFP_KERNEL);
 	if (!drv) {
@@ -567,8 +552,6 @@ static int nfcwilink_remove(struct platform_device *pdev)
 {
 	struct nfcwilink *drv = dev_get_drvdata(&pdev->dev);
 	struct nci_dev *ndev;
-
-	nfc_dev_dbg(&pdev->dev, "remove entry");
 
 	if (!drv)
 		return -EFAULT;
