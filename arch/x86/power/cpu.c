@@ -61,7 +61,6 @@ static void __save_processor_state(struct saved_context *ctxt)
 	 * descriptor tables
 	 */
 #ifdef CONFIG_X86_32
-	store_gdt(&ctxt->gdt);
 	store_idt(&ctxt->idt);
 #else
 /* CONFIG_X86_64 */
@@ -181,7 +180,6 @@ static void __restore_processor_state(struct saved_context *ctxt)
 	 * ltr is done i fix_processor_context().
 	 */
 #ifdef CONFIG_X86_32
-	load_gdt(&ctxt->gdt);
 	load_idt(&ctxt->idt);
 #else
 /* CONFIG_X86_64 */
