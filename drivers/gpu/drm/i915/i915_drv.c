@@ -140,6 +140,16 @@ extern int intel_agp_enabled;
 	.subdevice = PCI_ANY_ID,		\
 	.driver_data = (unsigned long) info }
 
+#define INTEL_QUANTA_VGA_DEVICE(info) {		\
+	.class = PCI_BASE_CLASS_DISPLAY << 16,	\
+	.class_mask = 0xff0000,			\
+	.vendor = 0x8086,			\
+	.device = 0x16a,			\
+	.subvendor = 0x152d,			\
+	.subdevice = 0x8990,			\
+	.driver_data = (unsigned long) info }
+
+
 static const struct intel_device_info intel_i830_info = {
 	.gen = 2, .is_mobile = 1, .cursor_needs_physical = 1, .num_pipes = 2,
 	.has_overlay = 1, .overlay_needs_physical = 1,
@@ -272,6 +282,12 @@ static const struct intel_device_info intel_ivybridge_m_info = {
 	.is_mobile = 1,
 };
 
+static const struct intel_device_info intel_ivybridge_q_info = {
+	GEN7_FEATURES,
+	.is_ivybridge = 1,
+	.num_pipes = 0, /* legal, last one wins */
+};
+
 static const struct intel_device_info intel_valleyview_m_info = {
 	GEN7_FEATURES,
 	.is_mobile = 1,
@@ -342,6 +358,7 @@ static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_VGA_DEVICE(0x0152, &intel_ivybridge_d_info), /* GT1 desktop */
 	INTEL_VGA_DEVICE(0x0162, &intel_ivybridge_d_info), /* GT2 desktop */
 	INTEL_VGA_DEVICE(0x015a, &intel_ivybridge_d_info), /* GT1 server */
+	INTEL_QUANTA_VGA_DEVICE(&intel_ivybridge_q_info), /* Quanta transcode */
 	INTEL_VGA_DEVICE(0x016a, &intel_ivybridge_d_info), /* GT2 server */
 	INTEL_VGA_DEVICE(0x0402, &intel_haswell_d_info), /* GT1 desktop */
 	INTEL_VGA_DEVICE(0x0412, &intel_haswell_d_info), /* GT2 desktop */
