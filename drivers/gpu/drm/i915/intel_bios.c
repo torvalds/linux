@@ -692,6 +692,9 @@ intel_parse_bios(struct drm_device *dev)
 	struct bdb_header *bdb = NULL;
 	u8 __iomem *bios = NULL;
 
+	if (HAS_PCH_NOP(dev))
+		return -ENODEV;
+
 	init_vbt_defaults(dev_priv);
 
 	/* XXX Should this validation be moved to intel_opregion.c? */

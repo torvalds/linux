@@ -758,7 +758,7 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 de_iir, gt_iir, de_ier, pm_iir, sde_ier;
+	u32 de_iir, gt_iir, de_ier, pm_iir, sde_ier = 0;
 	irqreturn_t ret = IRQ_NONE;
 	int i;
 
@@ -773,9 +773,11 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 	 * able to process them after we restore SDEIER (as soon as we restore
 	 * it, we'll get an interrupt if SDEIIR still has something to process
 	 * due to its back queue). */
-	sde_ier = I915_READ(SDEIER);
-	I915_WRITE(SDEIER, 0);
-	POSTING_READ(SDEIER);
+	if (!HAS_PCH_NOP(dev)) {
+		sde_ier = I915_READ(SDEIER);
+		I915_WRITE(SDEIER, 0);
+		POSTING_READ(SDEIER);
+	}
 
 	gt_iir = I915_READ(GTIIR);
 	if (gt_iir) {
@@ -802,7 +804,7 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 		}
 
 		/* check event from PCH */
-		if (de_iir & DE_PCH_EVENT_IVB) {
+		if (!HAS_PCH_NOP(dev) && (de_iir & DE_PCH_EVENT_IVB)) {
 			u32 pch_iir = I915_READ(SDEIIR);
 
 			cpt_irq_handler(dev, pch_iir);
@@ -825,8 +827,10 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 
 	I915_WRITE(DEIER, de_ier);
 	POSTING_READ(DEIER);
-	I915_WRITE(SDEIER, sde_ier);
-	POSTING_READ(SDEIER);
+	if (!HAS_PCH_NOP(dev)) {
+		I915_WRITE(SDEIER, sde_ier);
+		POSTING_READ(SDEIER);
+	}
 
 	return ret;
 }
@@ -2027,6 +2031,9 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(GTIER, 0x0);
 	POSTING_READ(GTIER);
 
+	if (HAS_PCH_NOP(dev))
+		return;
+
 	/* south display irq */
 	I915_WRITE(SDEIMR, 0xffffffff);
 	/*
@@ -2112,6 +2119,10 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 		mask = SDE_GMBUS | SDE_AUX_MASK;
 	else
 		mask = SDE_GMBUS_CPT | SDE_AUX_MASK_CPT;
+
+	if (HAS_PCH_NOP(dev))
+		return;
+
 	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
 	I915_WRITE(SDEIMR, ~mask);
 }
@@ -2305,6 +2316,9 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 	I915_WRITE(GTIMR, 0xffffffff);
 	I915_WRITE(GTIER, 0x0);
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
+
+	if (HAS_PCH_NOP(dev))
+		return;
 
 	I915_WRITE(SDEIMR, 0xffffffff);
 	I915_WRITE(SDEIER, 0x0);

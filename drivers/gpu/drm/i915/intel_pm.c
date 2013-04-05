@@ -3890,7 +3890,8 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	snpcr |= GEN6_MBC_SNPCR_MED;
 	I915_WRITE(GEN6_MBCUNIT_SNPCR, snpcr);
 
-	cpt_init_clock_gating(dev);
+	if (!HAS_PCH_NOP(dev))
+		cpt_init_clock_gating(dev);
 
 	gen6_check_mch_setup(dev);
 }
