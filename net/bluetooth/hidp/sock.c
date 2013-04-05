@@ -296,7 +296,6 @@ int __init hidp_init_sockets(void)
 	return 0;
 
 error:
-	BT_ERR("Can't register HIDP socket");
 	proto_unregister(&hidp_proto);
 	return err;
 }
