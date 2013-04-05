@@ -178,27 +178,33 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 		ecmd->port = PORT_TP;
 		ecmd->phy_address = hw->phy.addr;
+		ecmd->transceiver = XCVR_INTERNAL;
 	} else {
 		ecmd->supported   = (SUPPORTED_1000baseT_Full |
+				     SUPPORTED_100baseT_Full |
+				     SUPPORTED_Autoneg |
 				     SUPPORTED_FIBRE |
-				     SUPPORTED_Autoneg);
+				     SUPPORTED_Pause);
 
-		ecmd->advertising = (ADVERTISED_1000baseT_Full |
-				     ADVERTISED_FIBRE |
-				     ADVERTISED_Autoneg |
-				     ADVERTISED_Pause);
+		ecmd->advertising = ADVERTISED_FIBRE;
+
+		if (adapter->link_speed == SPEED_100)
+			ecmd->advertising = ADVERTISED_100baseT_Full;
+		else if (adapter->link_speed == SPEED_1000)
+			ecmd->advertising = ADVERTISED_1000baseT_Full;
+
+		if (hw->mac.autoneg == 1)
+			ecmd->advertising |= ADVERTISED_Autoneg;
 
 		ecmd->port = PORT_FIBRE;
+		ecmd->transceiver = XCVR_EXTERNAL;
 	}
-
-	ecmd->transceiver = XCVR_INTERNAL;
 
 	status = rd32(E1000_STATUS);
 
 	if (status & E1000_STATUS_LU) {
 
-		if ((status & E1000_STATUS_SPEED_1000) ||
-		    hw->phy.media_type != e1000_media_type_copper)
+		if (status & E1000_STATUS_SPEED_1000)
 			ethtool_cmd_speed_set(ecmd, SPEED_1000);
 		else if (status & E1000_STATUS_SPEED_100)
 			ethtool_cmd_speed_set(ecmd, SPEED_100);
@@ -215,7 +221,11 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ecmd->duplex = -1;
 	}
 
-	ecmd->autoneg = hw->mac.autoneg ? AUTONEG_ENABLE : AUTONEG_DISABLE;
+	if ((hw->phy.media_type == e1000_media_type_fiber) ||
+	    hw->mac.autoneg)
+		ecmd->autoneg = AUTONEG_ENABLE;
+	else
+		ecmd->autoneg = AUTONEG_DISABLE;
 
 	/* MDI-X => 2; MDI =>1; Invalid =>0 */
 	if (hw->phy.media_type == e1000_media_type_copper)
@@ -266,9 +276,21 @@ static int igb_set_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
 		hw->mac.autoneg = 1;
-		hw->phy.autoneg_advertised = ecmd->advertising |
-					     ADVERTISED_TP |
-					     ADVERTISED_Autoneg;
+		if (hw->phy.media_type == e1000_media_type_fiber) {
+			hw->phy.autoneg_advertised = ecmd->advertising |
+						     ADVERTISED_FIBRE |
+						     ADVERTISED_Autoneg;
+			if (adapter->link_speed == SPEED_1000)
+				hw->phy.autoneg_advertised =
+					ADVERTISED_1000baseT_Full;
+			else if (adapter->link_speed == SPEED_100)
+				hw->phy.autoneg_advertised =
+					ADVERTISED_100baseT_Full;
+		} else {
+			hw->phy.autoneg_advertised = ecmd->advertising |
+						     ADVERTISED_TP |
+						     ADVERTISED_Autoneg;
+		}
 		ecmd->advertising = hw->phy.autoneg_advertised;
 		if (adapter->fc_autoneg)
 			hw->fc.requested_mode = e1000_fc_default;

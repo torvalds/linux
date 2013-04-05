@@ -7008,11 +7008,19 @@ int igb_set_spd_dplx(struct igb_adapter *adapter, u32 spd, u8 dplx)
 	if ((spd & 1) || (dplx & ~1))
 		goto err_inval;
 
-	/* Fiber NIC's only allow 1000 Gbps Full duplex */
-	if ((adapter->hw.phy.media_type == e1000_media_type_internal_serdes) &&
-	    spd != SPEED_1000 &&
-	    dplx != DUPLEX_FULL)
-		goto err_inval;
+	/* Fiber NIC's only allow 1000 gbps Full duplex
+	 * and 100Mbps Full duplex for 100baseFx sfp
+	 */
+	if (adapter->hw.phy.media_type == e1000_media_type_internal_serdes) {
+		switch (spd + dplx) {
+		case SPEED_10 + DUPLEX_HALF:
+		case SPEED_10 + DUPLEX_FULL:
+		case SPEED_100 + DUPLEX_HALF:
+			goto err_inval;
+		default:
+			break;
+		}
+	}
 
 	switch (spd + dplx) {
 	case SPEED_10 + DUPLEX_HALF:
