@@ -136,6 +136,16 @@ osd_req_op_cls_request_info(struct ceph_osd_request *osd_req,
 EXPORT_SYMBOL(osd_req_op_cls_request_info);	/* ??? */
 
 struct ceph_osd_data *
+osd_req_op_cls_request_data(struct ceph_osd_request *osd_req,
+			unsigned int which)
+{
+	BUG_ON(which >= osd_req->r_num_ops);
+
+	return &osd_req->r_ops[which].cls.request_data;
+}
+EXPORT_SYMBOL(osd_req_op_cls_request_data);	/* ??? */
+
+struct ceph_osd_data *
 osd_req_op_cls_response_data(struct ceph_osd_request *osd_req,
 			unsigned int which)
 {
@@ -191,6 +201,17 @@ static void osd_req_op_cls_request_info_pagelist(
 	osd_data = osd_req_op_cls_request_info(osd_req, which);
 	ceph_osd_data_pagelist_init(osd_data, pagelist);
 }
+
+void osd_req_op_cls_request_data_pagelist(
+			struct ceph_osd_request *osd_req,
+			unsigned int which, struct ceph_pagelist *pagelist)
+{
+	struct ceph_osd_data *osd_data;
+
+	osd_data = osd_req_op_cls_request_data(osd_req, which);
+	ceph_osd_data_pagelist_init(osd_data, pagelist);
+}
+EXPORT_SYMBOL(osd_req_op_cls_request_data_pagelist);
 
 void osd_req_op_cls_response_data_pages(struct ceph_osd_request *osd_req,
 			unsigned int which, struct page **pages, u64 length,
@@ -251,6 +272,7 @@ static void osd_req_op_data_release(struct ceph_osd_request *osd_req,
 		break;
 	case CEPH_OSD_OP_CALL:
 		ceph_osd_data_release(&op->cls.request_info);
+		ceph_osd_data_release(&op->cls.request_data);
 		ceph_osd_data_release(&op->cls.response_data);
 		break;
 	default:
@@ -492,8 +514,7 @@ void osd_req_op_extent_update(struct ceph_osd_request *osd_req,
 EXPORT_SYMBOL(osd_req_op_extent_update);
 
 void osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
-			u16 opcode, const char *class, const char *method,
-			const void *request_data, size_t request_data_size)
+			u16 opcode, const char *class, const char *method)
 {
 	struct ceph_osd_req_op *op = osd_req_op_init(osd_req, which, opcode);
 	struct ceph_pagelist *pagelist;
@@ -519,12 +540,6 @@ void osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
 	op->cls.method_len = size;
 	ceph_pagelist_append(pagelist, method, size);
 	payload_len += size;
-
-	op->cls.request_data = request_data;
-	BUG_ON(request_data_size > (size_t) U32_MAX);
-	op->cls.request_data_len = (u32) request_data_size;
-	ceph_pagelist_append(pagelist, request_data, request_data_size);
-	payload_len += request_data_size;
 
 	osd_req_op_cls_request_info_pagelist(osd_req, which, pagelist);
 
@@ -576,7 +591,9 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 			      struct ceph_osd_op *dst, unsigned int which)
 {
 	struct ceph_osd_req_op *src;
+	struct ceph_osd_data *osd_data;
 	u64 request_data_len = 0;
+	u64 data_length;
 
 	BUG_ON(which >= req->r_num_ops);
 	src = &req->r_ops[which];
@@ -599,22 +616,31 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 			cpu_to_le64(src->extent.truncate_size);
 		dst->extent.truncate_seq =
 			cpu_to_le32(src->extent.truncate_seq);
+		osd_data = &src->extent.osd_data;
 		if (src->op == CEPH_OSD_OP_WRITE)
-			ceph_osdc_msg_data_add(req->r_request,
-						&src->extent.osd_data);
+			ceph_osdc_msg_data_add(req->r_request, osd_data);
 		else
-			ceph_osdc_msg_data_add(req->r_reply,
-						&src->extent.osd_data);
+			ceph_osdc_msg_data_add(req->r_reply, osd_data);
 		break;
 	case CEPH_OSD_OP_CALL:
 		dst->cls.class_len = src->cls.class_len;
 		dst->cls.method_len = src->cls.method_len;
-		dst->cls.indata_len = cpu_to_le32(src->cls.request_data_len);
-		ceph_osdc_msg_data_add(req->r_reply, &src->cls.response_data);
-		ceph_osdc_msg_data_add(req->r_request, &src->cls.request_info);
-		BUG_ON(src->cls.request_info.type !=
-					CEPH_OSD_DATA_TYPE_PAGELIST);
-		request_data_len = src->cls.request_info.pagelist->length;
+		osd_data = &src->cls.request_info;
+		ceph_osdc_msg_data_add(req->r_request, osd_data);
+		BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_PAGELIST);
+		request_data_len = osd_data->pagelist->length;
+
+		osd_data = &src->cls.request_data;
+		data_length = ceph_osd_data_length(osd_data);
+		if (data_length) {
+			BUG_ON(osd_data->type == CEPH_OSD_DATA_TYPE_NONE);
+			dst->cls.indata_len = cpu_to_le32(data_length);
+			ceph_osdc_msg_data_add(req->r_request, osd_data);
+			src->payload_len += data_length;
+			request_data_len += data_length;
+		}
+		osd_data = &src->cls.response_data;
+		ceph_osdc_msg_data_add(req->r_reply, osd_data);
 		break;
 	case CEPH_OSD_OP_STARTSYNC:
 		break;

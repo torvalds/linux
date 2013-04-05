@@ -1847,8 +1847,19 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 		goto out;
 
 	osd_req_op_cls_init(obj_request->osd_req, 0, CEPH_OSD_OP_CALL,
-					class_name, method_name,
-					outbound, outbound_size);
+					class_name, method_name);
+	if (outbound_size) {
+		struct ceph_pagelist *pagelist;
+
+		pagelist = kmalloc(sizeof (*pagelist), GFP_NOFS);
+		if (!pagelist)
+			goto out;
+
+		ceph_pagelist_init(pagelist);
+		ceph_pagelist_append(pagelist, outbound, outbound_size);
+		osd_req_op_cls_request_data_pagelist(obj_request->osd_req, 0,
+						pagelist);
+	}
 	osd_req_op_cls_response_data_pages(obj_request->osd_req, 0,
 					obj_request->pages, inbound_size,
 					0, false, false);

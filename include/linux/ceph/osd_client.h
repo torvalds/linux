@@ -92,10 +92,9 @@ struct ceph_osd_req_op {
 		struct {
 			const char *class_name;
 			const char *method_name;
-			const void *request_data;
 			struct ceph_osd_data request_info;
+			struct ceph_osd_data request_data;
 			struct ceph_osd_data response_data;
-			u32 request_data_len;
 			__u8 class_len;
 			__u8 method_len;
 			__u8 argc;
@@ -259,6 +258,9 @@ extern void osd_req_op_extent_osd_data_bio(struct ceph_osd_request *,
 					struct bio *bio, size_t bio_length);
 #endif /* CONFIG_BLOCK */
 
+extern void osd_req_op_cls_request_data_pagelist(struct ceph_osd_request *,
+					unsigned int which,
+					struct ceph_pagelist *pagelist);
 extern void osd_req_op_cls_response_data_pages(struct ceph_osd_request *,
 					unsigned int which,
 					struct page **pages, u64 length,
@@ -267,9 +269,7 @@ extern void osd_req_op_cls_response_data_pages(struct ceph_osd_request *,
 
 extern void osd_req_op_cls_init(struct ceph_osd_request *osd_req,
 					unsigned int which, u16 opcode,
-					const char *class, const char *method,
-					const void *request_data,
-					size_t request_data_size);
+					const char *class, const char *method);
 extern void osd_req_op_watch_init(struct ceph_osd_request *osd_req,
 					unsigned int which, u16 opcode,
 					u64 cookie, u64 version, int flag);
