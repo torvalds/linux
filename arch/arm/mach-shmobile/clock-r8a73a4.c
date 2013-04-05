@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/sh_clk.h>
 #include <linux/clkdev.h>
+#include <mach/clock.h>
 #include <mach/common.h>
 
 #define CPG_BASE 0xe6150000
@@ -30,6 +31,8 @@
 #define MPCKCR 0xe6150080
 #define SMSTPCR2 0xe6150138
 #define SMSTPCR5 0xe6150144
+
+#define CKSCR		0xE61500C0
 
 static struct clk_mapping cpg_mapping = {
 	.phys   = CPG_BASE,
@@ -51,10 +54,32 @@ static struct clk extal2_clk = {
 	.mapping	= &cpg_mapping,
 };
 
+static struct sh_clk_ops followparent_clk_ops = {
+	.recalc	= followparent_recalc,
+};
+
+static struct clk main_clk = {
+	/* .parent will be set r8a73a4_clock_init */
+	.ops	= &followparent_clk_ops,
+};
+
+SH_CLK_RATIO(div2,	1, 2);
+SH_CLK_RATIO(div4,	1, 4);
+
+SH_FIXED_RATIO_CLK(main_div2_clk,	main_clk,		div2);
+SH_FIXED_RATIO_CLK(extal1_div2_clk,	extal1_clk,		div2);
+SH_FIXED_RATIO_CLK(extal2_div2_clk,	extal2_clk,		div2);
+SH_FIXED_RATIO_CLK(extal2_div4_clk,	extal2_clk,		div4);
+
 static struct clk *main_clks[] = {
 	&extalr_clk,
 	&extal1_clk,
+	&extal1_div2_clk,
 	&extal2_clk,
+	&extal2_div2_clk,
+	&extal2_div4_clk,
+	&main_clk,
+	&main_div2_clk,
 };
 
 enum {
@@ -74,6 +99,13 @@ static struct clk mstp_clks[MSTP_NR] = {
 };
 
 static struct clk_lookup lookups[] = {
+	/* main clock */
+	CLKDEV_CON_ID("extal1",			&extal1_clk),
+	CLKDEV_CON_ID("extal1_div2",		&extal1_div2_clk),
+	CLKDEV_CON_ID("extal2",			&extal2_clk),
+	CLKDEV_CON_ID("extal2_div2",		&extal2_div2_clk),
+	CLKDEV_CON_ID("extal2_div4",		&extal2_div4_clk),
+
 	CLKDEV_DEV_ID("sh-sci.0", &mstp_clks[MSTP204]),
 	CLKDEV_DEV_ID("sh-sci.1", &mstp_clks[MSTP203]),
 	CLKDEV_DEV_ID("sh-sci.2", &mstp_clks[MSTP206]),
@@ -90,6 +122,7 @@ void __init r8a73a4_clock_init(void)
 {
 	void __iomem *cpg_base, *reg;
 	int k, ret = 0;
+	u32 ckscr;
 
 	/* fix MPCLK to EXTAL2 for now.
 	 * this is needed until more detailed clock topology is supported
@@ -99,6 +132,26 @@ void __init r8a73a4_clock_init(void)
 	reg = cpg_base + (MPCKCR - CPG_BASE);
 	iowrite32(ioread32(reg) | 1 << 7 | 0x0c, reg); /* set CKSEL */
 	iounmap(cpg_base);
+
+	reg = ioremap_nocache(CKSCR, PAGE_SIZE);
+	BUG_ON(!reg);
+	ckscr = ioread32(reg);
+	iounmap(reg);
+
+	switch ((ckscr >> 28) & 0x3) {
+	case 0:
+		main_clk.parent = &extal1_clk;
+		break;
+	case 1:
+		main_clk.parent = &extal1_div2_clk;
+		break;
+	case 2:
+		main_clk.parent = &extal2_clk;
+		break;
+	case 3:
+		main_clk.parent = &extal2_div2_clk;
+		break;
+	}
 
 	for (k = 0; !ret && (k < ARRAY_SIZE(main_clks)); k++)
 		ret = clk_register(main_clks[k]);
