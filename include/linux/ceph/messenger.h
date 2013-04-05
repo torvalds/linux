@@ -108,7 +108,10 @@ struct ceph_msg_data {
 };
 
 struct ceph_msg_data_cursor {
-	struct ceph_msg_data	*data;		/* data item this describes */
+	size_t			total_resid;	/* across all data items */
+	struct list_head	*data_head;	/* = &ceph_msg->data */
+
+	struct ceph_msg_data	*data;		/* current data item */
 	size_t			resid;		/* bytes not yet consumed */
 	bool			last_piece;	/* current is last piece */
 	bool			need_crc;	/* crc update needed */
