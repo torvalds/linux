@@ -1421,7 +1421,7 @@ int qla4xxx_flashdb_by_index(struct scsi_qla_host *ha,
 			     struct dev_db_entry *fw_ddb_entry,
 			     dma_addr_t fw_ddb_entry_dma, uint16_t ddb_index)
 {
-	uint32_t dev_db_start_offset = FLASH_OFFSET_DB_INFO;
+	uint32_t dev_db_start_offset;
 	uint32_t dev_db_end_offset;
 	int status = QLA_ERROR;
 
@@ -1429,6 +1429,7 @@ int qla4xxx_flashdb_by_index(struct scsi_qla_host *ha,
 
 	if (is_qla40XX(ha)) {
 		dev_db_start_offset = FLASH_OFFSET_DB_INFO;
+		dev_db_end_offset = FLASH_OFFSET_DB_END;
 	} else {
 		dev_db_start_offset = FLASH_RAW_ACCESS_ADDR +
 				      (ha->hw.flt_region_ddb << 2);
@@ -1437,9 +1438,11 @@ int qla4xxx_flashdb_by_index(struct scsi_qla_host *ha,
 		 */
 		if (ha->port_num == 1)
 			dev_db_start_offset += (ha->hw.flt_ddb_size / 2);
+
+		dev_db_end_offset = dev_db_start_offset +
+				    (ha->hw.flt_ddb_size / 2);
 	}
 
-	dev_db_end_offset = dev_db_start_offset + (ha->hw.flt_ddb_size / 2);
 	dev_db_start_offset += (ddb_index * sizeof(*fw_ddb_entry));
 
 	if (dev_db_start_offset > dev_db_end_offset) {
