@@ -773,7 +773,7 @@ exit:
  * validates the channels in the request.
  */
 static s32 brcmf_p2p_run_escan(struct brcmf_cfg80211_info *cfg,
-			       struct net_device *ndev,
+			       struct brcmf_if *ifp,
 			       struct cfg80211_scan_request *request,
 			       u16 action)
 {
@@ -1261,7 +1261,7 @@ static void
 brcmf_p2p_stop_wait_next_action_frame(struct brcmf_cfg80211_info *cfg)
 {
 	struct brcmf_p2p_info *p2p = &cfg->p2p;
-	struct net_device *ndev = cfg->escan_info.ndev;
+	struct brcmf_if *ifp = cfg->escan_info.ifp;
 
 	if (test_bit(BRCMF_P2P_STATUS_SENDING_ACT_FRAME, &p2p->status) &&
 	    (test_bit(BRCMF_P2P_STATUS_ACTION_TX_COMPLETED, &p2p->status) ||
@@ -1271,12 +1271,12 @@ brcmf_p2p_stop_wait_next_action_frame(struct brcmf_cfg80211_info *cfg)
 		 * So abort scan for off channel completion.
 		 */
 		if (p2p->af_sent_channel)
-			brcmf_notify_escan_complete(cfg, ndev, true, true);
+			brcmf_notify_escan_complete(cfg, ifp, true, true);
 	} else if (test_bit(BRCMF_P2P_STATUS_WAITING_NEXT_AF_LISTEN,
 			    &p2p->status)) {
 		brcmf_dbg(TRACE, "*** Wake UP ** abort listen for next af frame\n");
 		/* So abort scan to cancel listen */
-		brcmf_notify_escan_complete(cfg, ndev, true, true);
+		brcmf_notify_escan_complete(cfg, ifp, true, true);
 	}
 }
 
@@ -1637,6 +1637,7 @@ bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
 				 struct brcmf_fil_af_params_le *af_params)
 {
 	struct brcmf_p2p_info *p2p = &cfg->p2p;
+	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_fil_action_frame_le *action_frame;
 	struct brcmf_config_af_params config_af_params;
 	struct afx_hdl *afx_hdl = &p2p->afx_hdl;
@@ -1725,7 +1726,7 @@ bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
 
 	/* To make sure to send successfully action frame, turn off mpc */
 	if (config_af_params.mpc_onoff == 0)
-		brcmf_set_mpc(netdev_priv(ndev), 0);
+		brcmf_set_mpc(ifp, 0);
 
 	/* set status and destination address before sending af */
 	if (p2p->next_af_subtype != P2P_PAF_SUBTYPE_INVALID) {
@@ -1753,7 +1754,7 @@ bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
 		 * care of current piggback algo, lets abort the scan here
 		 * itself.
 		 */
-		brcmf_notify_escan_complete(cfg, ndev, true, true);
+		brcmf_notify_escan_complete(cfg, ifp, true, true);
 
 		/* update channel */
 		af_params->channel = cpu_to_le32(afx_hdl->peer_chan);
@@ -1820,7 +1821,7 @@ exit:
 	clear_bit(BRCMF_P2P_STATUS_WAITING_NEXT_ACT_FRAME, &p2p->status);
 	/* if all done, turn mpc on again */
 	if (config_af_params.mpc_onoff == 1)
-		brcmf_set_mpc(netdev_priv(ndev), 1);
+		brcmf_set_mpc(ifp, 1);
 
 	return ack;
 }
@@ -2040,7 +2041,7 @@ int brcmf_p2p_ifchange(struct brcmf_cfg80211_info *cfg,
 		brcmf_err("vif for P2PAPI_BSSCFG_PRIMARY does not exist\n");
 		return -EPERM;
 	}
-	brcmf_notify_escan_complete(cfg, vif->ifp->ndev, true, true);
+	brcmf_notify_escan_complete(cfg, vif->ifp, true, true);
 	vif = p2p->bss_idx[P2PAPI_BSSCFG_CONNECTION].vif;
 	if (!vif) {
 		brcmf_err("vif for P2PAPI_BSSCFG_CONNECTION does not exist\n");
