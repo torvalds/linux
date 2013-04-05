@@ -2979,7 +2979,7 @@ int setup_extent_mapping(struct inode *inode, u64 start, u64 end,
 	lock_extent(&BTRFS_I(inode)->io_tree, start, end);
 	while (1) {
 		write_lock(&em_tree->lock);
-		ret = add_extent_mapping(em_tree, em);
+		ret = add_extent_mapping(em_tree, em, 0);
 		write_unlock(&em_tree->lock);
 		if (ret != -EEXIST) {
 			free_extent_map(em);

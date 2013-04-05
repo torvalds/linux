@@ -222,7 +222,7 @@ static struct extent_map *btree_get_extent(struct inode *inode,
 	em->bdev = BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
 
 	write_lock(&em_tree->lock);
-	ret = add_extent_mapping(em_tree, em);
+	ret = add_extent_mapping(em_tree, em, 0);
 	if (ret == -EEXIST) {
 		free_extent_map(em);
 		em = lookup_extent_mapping(em_tree, start, len);

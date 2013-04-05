@@ -2211,9 +2211,6 @@ static noinline void unlock_up(struct btrfs_path *path, int level,
 	int no_skips = 0;
 	struct extent_buffer *t;
 
-	if (path->really_keep_locks)
-		return;
-
 	for (i = level; i < BTRFS_MAX_LEVEL; i++) {
 		if (!path->nodes[i])
 			break;
@@ -2261,7 +2258,7 @@ noinline void btrfs_unlock_up_safe(struct btrfs_path *path, int level)
 {
 	int i;
 
-	if (path->keep_locks || path->really_keep_locks)
+	if (path->keep_locks)
 		return;
 
 	for (i = level; i < BTRFS_MAX_LEVEL; i++) {
@@ -2494,7 +2491,7 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (!cow)
 		write_lock_level = -1;
 
-	if (cow && (p->really_keep_locks || p->keep_locks || p->lowest_level))
+	if (cow && (p->keep_locks || p->lowest_level))
 		write_lock_level = BTRFS_MAX_LEVEL;
 
 	min_write_lock_level = write_lock_level;
@@ -5463,139 +5460,6 @@ next:
 int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 {
 	return btrfs_next_old_leaf(root, path, 0);
-}
-
-/* Release the path up to but not including the given level */
-static void btrfs_release_level(struct btrfs_path *path, int level)
-{
-	int i;
-
-	for (i = 0; i < level; i++) {
-		path->slots[i] = 0;
-		if (!path->nodes[i])
-			continue;
-		if (path->locks[i]) {
-			btrfs_tree_unlock_rw(path->nodes[i], path->locks[i]);
-			path->locks[i] = 0;
-		}
-		free_extent_buffer(path->nodes[i]);
-		path->nodes[i] = NULL;
-	}
-}
-
-/*
- * This function assumes 2 things
- *
- * 1) You are using path->keep_locks
- * 2) You are not inserting items.
- *
- * If either of these are not true do not use this function. If you need a next
- * leaf with either of these not being true then this function can be easily
- * adapted to do that, but at the moment these are the limitations.
- */
-int btrfs_next_leaf_write(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root, struct btrfs_path *path,
-			  int del)
-{
-	struct extent_buffer *b;
-	struct btrfs_key key;
-	u32 nritems;
-	int level = 1;
-	int slot;
-	int ret = 1;
-	int write_lock_level = BTRFS_MAX_LEVEL;
-	int ins_len = del ? -1 : 0;
-
-	WARN_ON(!(path->keep_locks || path->really_keep_locks));
-
-	nritems = btrfs_header_nritems(path->nodes[0]);
-	btrfs_item_key_to_cpu(path->nodes[0], &key, nritems - 1);
-
-	while (path->nodes[level]) {
-		nritems = btrfs_header_nritems(path->nodes[level]);
-		if (!(path->locks[level] & BTRFS_WRITE_LOCK)) {
-search:
-			btrfs_release_path(path);
-			ret = btrfs_search_slot(trans, root, &key, path,
-						ins_len, 1);
-			if (ret < 0)
-				goto out;
-			level = 1;
-			continue;
-		}
-
-		if (path->slots[level] >= nritems - 1) {
-			level++;
-			continue;
-		}
-
-		btrfs_release_level(path, level);
-		break;
-	}
-
-	if (!path->nodes[level]) {
-		ret = 1;
-		goto out;
-	}
-
-	path->slots[level]++;
-	b = path->nodes[level];
-
-	while (b) {
-		level = btrfs_header_level(b);
-
-		if (!should_cow_block(trans, root, b))
-			goto cow_done;
-
-		btrfs_set_path_blocking(path);
-		ret = btrfs_cow_block(trans, root, b,
-				      path->nodes[level + 1],
-				      path->slots[level + 1], &b);
-		if (ret)
-			goto out;
-cow_done:
-		path->nodes[level] = b;
-		btrfs_clear_path_blocking(path, NULL, 0);
-		if (level != 0) {
-			ret = setup_nodes_for_search(trans, root, path, b,
-						     level, ins_len,
-						     &write_lock_level);
-			if (ret == -EAGAIN)
-				goto search;
-			if (ret)
-				goto out;
-
-			b = path->nodes[level];
-			slot = path->slots[level];
-
-			ret = read_block_for_search(trans, root, path,
-						    &b, level, slot, &key, 0);
-			if (ret == -EAGAIN)
-				goto search;
-			if (ret)
-				goto out;
-			level = btrfs_header_level(b);
-			if (!btrfs_try_tree_write_lock(b)) {
-				btrfs_set_path_blocking(path);
-				btrfs_tree_lock(b);
-				btrfs_clear_path_blocking(path, b,
-							  BTRFS_WRITE_LOCK);
-			}
-			path->locks[level] = BTRFS_WRITE_LOCK;
-			path->nodes[level] = b;
-			path->slots[level] = 0;
-		} else {
-			path->slots[level] = 0;
-			ret = 0;
-			break;
-		}
-	}
-
-out:
-	if (ret)
-		btrfs_release_path(path);
-
-	return ret;
 }
 
 int btrfs_next_old_leaf(struct btrfs_root *root, struct btrfs_path *path,

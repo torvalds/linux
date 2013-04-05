@@ -552,6 +552,7 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 	int testend = 1;
 	unsigned long flags;
 	int compressed = 0;
+	bool modified;
 
 	WARN_ON(end < start);
 	if (end == (u64)-1) {
@@ -561,6 +562,7 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 	while (1) {
 		int no_splits = 0;
 
+		modified = false;
 		if (!split)
 			split = alloc_extent_map();
 		if (!split2)
@@ -592,6 +594,7 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 		compressed = test_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
 		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
 		clear_bit(EXTENT_FLAG_LOGGING, &flags);
+		modified = !list_empty(&em->list);
 		remove_extent_mapping(em_tree, em);
 		if (no_splits)
 			goto next;
@@ -614,9 +617,8 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			split->bdev = em->bdev;
 			split->flags = flags;
 			split->compress_type = em->compress_type;
-			ret = add_extent_mapping(em_tree, split);
+			ret = add_extent_mapping(em_tree, split, modified);
 			BUG_ON(ret); /* Logic error */
-			list_move(&split->list, &em_tree->modified_extents);
 			free_extent_map(split);
 			split = split2;
 			split2 = NULL;
@@ -645,9 +647,8 @@ void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 				split->orig_start = em->orig_start;
 			}
 
-			ret = add_extent_mapping(em_tree, split);
+			ret = add_extent_mapping(em_tree, split, modified);
 			BUG_ON(ret); /* Logic error */
-			list_move(&split->list, &em_tree->modified_extents);
 			free_extent_map(split);
 			split = NULL;
 		}
@@ -1930,10 +1931,7 @@ out:
 		do {
 			btrfs_drop_extent_cache(inode, offset, end - 1, 0);
 			write_lock(&em_tree->lock);
-			ret = add_extent_mapping(em_tree, hole_em);
-			if (!ret)
-				list_move(&hole_em->list,
-					  &em_tree->modified_extents);
+			ret = add_extent_mapping(em_tree, hole_em, 1);
 			write_unlock(&em_tree->lock);
 		} while (ret == -EEXIST);
 		free_extent_map(hole_em);

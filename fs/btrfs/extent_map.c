@@ -174,6 +174,14 @@ static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 	    test_bit(EXTENT_FLAG_LOGGING, &next->flags))
 		return 0;
 
+	/*
+	 * We don't want to merge stuff that hasn't been written to the log yet
+	 * since it may not reflect exactly what is on disk, and that would be
+	 * bad.
+	 */
+	if (!list_empty(&prev->list) || !list_empty(&next->list))
+		return 0;
+
 	if (extent_map_end(prev) == next->start &&
 	    prev->flags == next->flags &&
 	    prev->bdev == next->bdev &&
@@ -209,9 +217,7 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 			em->mod_len = (em->mod_len + em->mod_start) - merge->mod_start;
 			em->mod_start = merge->mod_start;
 			em->generation = max(em->generation, merge->generation);
-			list_move(&em->list, &tree->modified_extents);
 
-			list_del_init(&merge->list);
 			rb_erase(&merge->rb_node, &tree->map);
 			free_extent_map(merge);
 		}
@@ -227,7 +233,6 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 		merge->in_tree = 0;
 		em->mod_len = (merge->mod_start + merge->mod_len) - em->mod_start;
 		em->generation = max(em->generation, merge->generation);
-		list_del_init(&merge->list);
 		free_extent_map(merge);
 	}
 }
@@ -302,7 +307,7 @@ void clear_em_logging(struct extent_map_tree *tree, struct extent_map *em)
  * reference dropped if the merge attempt was successful.
  */
 int add_extent_mapping(struct extent_map_tree *tree,
-		       struct extent_map *em)
+		       struct extent_map *em, int modified)
 {
 	int ret = 0;
 	struct rb_node *rb;
@@ -324,7 +329,10 @@ int add_extent_mapping(struct extent_map_tree *tree,
 	em->mod_start = em->start;
 	em->mod_len = em->len;
 
-	try_merge_map(tree, em);
+	if (modified)
+		list_move(&em->list, &tree->modified_extents);
+	else
+		try_merge_map(tree, em);
 out:
 	return ret;
 }
