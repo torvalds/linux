@@ -76,7 +76,7 @@ STRTO_H(strtoull, unsigned long long)
 ssize_t bch_hprint(char *buf, int64_t v)
 {
 	static const char units[] = "?kMGTPEZY";
-	char dec[3] = "";
+	char dec[4] = "";
 	int u, t = 0;
 
 	for (u = 0; v >= 1024 || v <= -1024; u++) {
@@ -88,7 +88,7 @@ ssize_t bch_hprint(char *buf, int64_t v)
 		return sprintf(buf, "%llu", v);
 
 	if (v < 100 && v > -100)
-		sprintf(dec, ".%i", t / 100);
+		snprintf(dec, sizeof(dec), ".%i", t / 100);
 
 	return sprintf(buf, "%lli%s%c", v, dec, units[u]);
 }
