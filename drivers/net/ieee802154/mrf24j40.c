@@ -648,7 +648,7 @@ static int mrf24j40_probe(struct spi_device *spi)
 	init_completion(&devrec->tx_complete);
 	INIT_WORK(&devrec->irqwork, mrf24j40_isrwork);
 	devrec->spi = spi;
-	dev_set_drvdata(&spi->dev, devrec);
+	spi_set_drvdata(spi, devrec);
 
 	/* Register with the 802154 subsystem */
 
@@ -720,7 +720,7 @@ err_devrec:
 
 static int mrf24j40_remove(struct spi_device *spi)
 {
-	struct mrf24j40 *devrec = dev_get_drvdata(&spi->dev);
+	struct mrf24j40 *devrec = spi_get_drvdata(spi);
 
 	dev_dbg(printdev(devrec), "remove\n");
 
@@ -732,7 +732,7 @@ static int mrf24j40_remove(struct spi_device *spi)
 	 * complete? */
 
 	/* Clean up the SPI stuff. */
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 	kfree(devrec->buf);
 	kfree(devrec);
 	return 0;
