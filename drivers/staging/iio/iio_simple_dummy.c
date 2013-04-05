@@ -166,11 +166,12 @@ static const struct iio_chan_spec iio_dummy_channels[] = {
 		.channel2 = IIO_MOD_X,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 		/*
-		 * Internal bias correction value. Applied
+		 * Internal bias and gain correction values. Applied
 		 * by the hardware or driver prior to userspace
 		 * seeing the readings. Typically part of hardware
 		 * calibration.
 		 */
+		BIT(IIO_CHAN_INFO_CALIBSCALE) |
 		BIT(IIO_CHAN_INFO_CALIBBIAS),
 		.scan_index = accelx,
 		.scan_type = { /* Description of storage in buffer */
@@ -311,7 +312,7 @@ static int iio_dummy_write_raw(struct iio_dev *indio_dev,
 		st->dac_val = val;
 		mutex_unlock(&st->lock);
 		return 0;
-	case IIO_CHAN_INFO_CALIBBIAS:
+	case IIO_CHAN_INFO_CALIBSCALE:
 		mutex_lock(&st->lock);
 		/* Compare against table - hard matching here */
 		for (i = 0; i < ARRAY_SIZE(dummy_scales); i++)
@@ -324,6 +325,12 @@ static int iio_dummy_write_raw(struct iio_dev *indio_dev,
 			st->accel_calibscale = &dummy_scales[i];
 		mutex_unlock(&st->lock);
 		return ret;
+	case IIO_CHAN_INFO_CALIBBIAS:
+		mutex_lock(&st->lock);
+		st->accel_calibbias = val;
+		mutex_unlock(&st->lock);
+		return 0;
+
 	default:
 		return -EINVAL;
 	}
