@@ -712,19 +712,22 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	}
 
 	/*
-	 * set up the RTS/CTS rate as the fastest basic rate
-	 * that is not faster than the data rate
+	 * Set up the RTS/CTS rate as the fastest basic rate
+	 * that is not faster than the data rate unless there
+	 * is no basic rate slower than the data rate, in which
+	 * case we pick the slowest basic rate
 	 *
 	 * XXX: Should this check all retry rates?
 	 */
 	if (!(info->control.rates[0].flags & IEEE80211_TX_RC_MCS)) {
-		s8 baserate = 0;
+		u32 basic_rates = tx->sdata->vif.bss_conf.basic_rates;
+		s8 baserate = basic_rates ? ffs(basic_rates - 1) : 0;
 
 		rate = &sband->bitrates[info->control.rates[0].idx];
 
 		for (i = 0; i < sband->n_bitrates; i++) {
 			/* must be a basic rate */
-			if (!(tx->sdata->vif.bss_conf.basic_rates & BIT(i)))
+			if (!(basic_rates & BIT(i)))
 				continue;
 			/* must not be faster than the data rate */
 			if (sband->bitrates[i].bitrate > rate->bitrate)
