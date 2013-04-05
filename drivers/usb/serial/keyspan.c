@@ -741,14 +741,15 @@ static void usa49wg_indat_callback(struct urb *urb)
 		if ((data[i] & 0x80) == 0) {
 			/* no error on any byte */
 			i++;
-			for (x = 1; x < len ; ++x)
+			for (x = 1; x < len && i < urb->actual_length; ++x)
 				tty_insert_flip_char(&port->port,
 						data[i++], 0);
 		} else {
 			/*
 			 * some bytes had errors, every byte has status
 			 */
-			for (x = 0; x + 1 < len; x += 2) {
+			for (x = 0; x + 1 < len &&
+				    i + 1 < urb->actual_length; x += 2) {
 				int stat = data[i], flag = 0;
 
 				if (stat & RXERROR_OVERRUN)
