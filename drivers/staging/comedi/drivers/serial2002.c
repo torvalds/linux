@@ -273,15 +273,13 @@ static struct serial_data serial_read(struct file *f, int timeout)
 		} else {
 			if (length == 1) {
 				switch ((data >> 5) & 0x03) {
-				case 0:{
-						result.value = 0;
-						result.kind = is_digital;
-					}
+				case 0:
+					result.value = 0;
+					result.kind = is_digital;
 					break;
-				case 1:{
-						result.value = 1;
-						result.kind = is_digital;
-					}
+				case 1:
+					result.value = 1;
+					result.kind = is_digital;
 					break;
 				}
 			} else {
