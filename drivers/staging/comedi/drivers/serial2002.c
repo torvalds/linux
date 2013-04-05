@@ -102,6 +102,33 @@ static int __tty_readb(struct file *f, unsigned char *buf)
 	return f->f_op->read(f, p, 1, &f->f_pos);
 }
 
+static void tty_read_poll_wait(struct file *f, int timeout)
+{
+	struct poll_wqueues table;
+	struct timeval start, now;
+
+	do_gettimeofday(&start);
+	poll_initwait(&table);
+	while (1) {
+		long elapsed;
+		int mask;
+
+		mask = f->f_op->poll(f, &table.pt);
+		if (mask & (POLLRDNORM | POLLRDBAND | POLLIN |
+			    POLLHUP | POLLERR)) {
+			break;
+		}
+		do_gettimeofday(&now);
+		elapsed = (1000000 * (now.tv_sec - start.tv_sec) +
+			  now.tv_usec - start.tv_usec);
+		if (elapsed > timeout)
+			break;
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(((timeout - elapsed) * HZ) / 10000);
+	}
+	poll_freewait(&table);
+}
+
 #if 0
 /*
  * On 2.6.26.3 this occaisonally gave me page faults, worked around by
@@ -132,31 +159,7 @@ static int tty_read(struct file *f, int timeout)
 		oldfs = get_fs();
 		set_fs(KERNEL_DS);
 		if (f->f_op->poll) {
-			struct poll_wqueues table;
-			struct timeval start, now;
-
-			do_gettimeofday(&start);
-			poll_initwait(&table);
-			while (1) {
-				long elapsed;
-				int mask;
-
-				mask = f->f_op->poll(f, &table.pt);
-				if (mask & (POLLRDNORM | POLLRDBAND | POLLIN |
-					    POLLHUP | POLLERR)) {
-					break;
-				}
-				do_gettimeofday(&now);
-				elapsed =
-				    (1000000 * (now.tv_sec - start.tv_sec) +
-				     now.tv_usec - start.tv_usec);
-				if (elapsed > timeout)
-					break;
-				set_current_state(TASK_INTERRUPTIBLE);
-				schedule_timeout(((timeout -
-						   elapsed) * HZ) / 10000);
-			}
-			poll_freewait(&table);
+			tty_read_poll_wait(f, timeout);
 
 			if (__tty_readb(f, &ch) == 1)
 				result = ch;
