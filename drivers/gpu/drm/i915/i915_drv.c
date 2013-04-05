@@ -397,6 +397,15 @@ void intel_detect_pch(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct pci_dev *pch;
 
+	/* In all current cases, num_pipes is equivalent to the PCH_NOP setting
+	 * (which really amounts to a PCH but no South Display).
+	 */
+	if (INTEL_INFO(dev)->num_pipes == 0) {
+		dev_priv->pch_type = PCH_NOP;
+		dev_priv->num_pch_pll = 0;
+		return;
+	}
+
 	/*
 	 * The reason to probe ISA bridge instead of Dev31:Fun0 is to
 	 * make graphics device passthrough work easy for VMM, that only
