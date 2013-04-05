@@ -408,8 +408,10 @@ void __init exynos_init_time(void)
 #endif
 	} else {
 		/* todo: remove after migrating legacy E4 platforms to dt */
+#ifdef CONFIG_ARCH_EXYNOS4
 		exynos4_clk_init(NULL);
 		exynos4_clk_register_fixed_ext(xxti_f, xusbxti_f);
+#endif
 		mct_init();
 	}
 }
