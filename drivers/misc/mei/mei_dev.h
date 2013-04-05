@@ -437,6 +437,11 @@ struct mei_device {
 	/* List of bus devices */
 	struct list_head device_list;
 
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	struct dentry *dbgfs_dir;
+#endif /* CONFIG_DEBUG_FS */
+
+
 	const struct mei_hw_ops *ops;
 	char hw[0] __aligned(sizeof(void *));
 };
@@ -603,8 +608,19 @@ static inline int mei_count_full_read_slots(struct mei_device *dev)
 	return dev->ops->rdbuf_full_slots(dev);
 }
 
-int mei_register(struct device *dev);
-void mei_deregister(void);
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+int mei_dbgfs_register(struct mei_device *dev, const char *name);
+void mei_dbgfs_deregister(struct mei_device *dev);
+#else
+static inline int mei_dbgfs_register(struct mei_device *dev, const char *name)
+{
+	return 0;
+}
+static inline void mei_dbgfs_deregister(struct mei_device *dev) {}
+#endif /* CONFIG_DEBUG_FS */
+
+int mei_register(struct mei_device *dev);
+void mei_deregister(struct mei_device *dev);
 
 #define MEI_HDR_FMT "hdr:host=%02d me=%02d len=%d comp=%1d"
 #define MEI_HDR_PRM(hdr)                  \

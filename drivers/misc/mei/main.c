@@ -753,15 +753,25 @@ static struct miscdevice  mei_misc_device = {
 		.minor = MISC_DYNAMIC_MINOR,
 };
 
-int mei_register(struct device *dev)
+
+int mei_register(struct mei_device *dev)
 {
-	mei_misc_device.parent = dev;
-	return misc_register(&mei_misc_device);
+	int ret;
+	mei_misc_device.parent = &dev->pdev->dev;
+	ret = misc_register(&mei_misc_device);
+	if (ret)
+		return ret;
+
+	if (mei_dbgfs_register(dev, mei_misc_device.name))
+		dev_err(&dev->pdev->dev, "cannot register debugfs\n");
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mei_register);
 
-void mei_deregister(void)
+void mei_deregister(struct mei_device *dev)
 {
+	mei_dbgfs_deregister(dev);
 	misc_deregister(&mei_misc_device);
 	mei_misc_device.parent = NULL;
 }

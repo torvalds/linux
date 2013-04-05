@@ -190,7 +190,7 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto release_irq;
 	}
 
-	err = mei_register(&pdev->dev);
+	err = mei_register(dev);
 	if (err)
 		goto release_irq;
 
@@ -262,12 +262,13 @@ static void mei_me_remove(struct pci_dev *pdev)
 	if (hw->mem_addr)
 		pci_iounmap(pdev, hw->mem_addr);
 
+	mei_deregister(dev);
+
 	kfree(dev);
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 
-	mei_deregister();
 
 }
 #ifdef CONFIG_PM
