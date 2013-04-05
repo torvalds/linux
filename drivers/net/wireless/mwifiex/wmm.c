@@ -685,12 +685,12 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	ra_list->total_pkts_size += skb->len;
 	ra_list->pkt_count++;
 
-	atomic_inc(&priv->wmm.tx_pkts_queued);
-
 	if (atomic_read(&priv->wmm.highest_queued_prio) <
 						tos_to_tid_inv[tid_down])
 		atomic_set(&priv->wmm.highest_queued_prio,
 			   tos_to_tid_inv[tid_down]);
+
+	atomic_inc(&priv->wmm.tx_pkts_queued);
 
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
 }
@@ -887,19 +887,15 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 	struct mwifiex_bss_prio_node *bssprio_node, *bssprio_head;
 	struct mwifiex_tid_tbl *tid_ptr;
 	atomic_t *hqp;
-	int is_list_empty;
-	unsigned long flags;
+	unsigned long flags_bss, flags_ra;
 	int i, j;
 
 	for (j = adapter->priv_num - 1; j >= 0; --j) {
 		spin_lock_irqsave(&adapter->bss_prio_tbl[j].bss_prio_lock,
-				  flags);
-		is_list_empty = list_empty(&adapter->bss_prio_tbl[j]
-					   .bss_prio_head);
-		spin_unlock_irqrestore(&adapter->bss_prio_tbl[j].bss_prio_lock,
-				       flags);
-		if (is_list_empty)
-			continue;
+				  flags_bss);
+
+		if (list_empty(&adapter->bss_prio_tbl[j].bss_prio_head))
+			goto skip_prio_tbl;
 
 		if (adapter->bss_prio_tbl[j].bss_prio_cur ==
 		    (struct mwifiex_bss_prio_node *)
@@ -924,21 +920,18 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 			hqp = &priv_tmp->wmm.highest_queued_prio;
 			for (i = atomic_read(hqp); i >= LOW_PRIO_TID; --i) {
 
+				spin_lock_irqsave(&priv_tmp->wmm.
+						  ra_list_spinlock, flags_ra);
+
 				tid_ptr = &(priv_tmp)->wmm.
 					tid_tbl_ptr[tos_to_tid[i]];
 
 				/* For non-STA ra_list_curr may be NULL */
 				if (!tid_ptr->ra_list_curr)
-					continue;
+					goto skip_wmm_queue;
 
-				spin_lock_irqsave(&priv_tmp->wmm.
-						  ra_list_spinlock, flags);
-				is_list_empty =
-					list_empty(&tid_ptr->ra_list);
-				spin_unlock_irqrestore(&priv_tmp->wmm.
-						       ra_list_spinlock, flags);
-				if (is_list_empty)
-					continue;
+				if (list_empty(&tid_ptr->ra_list))
+					goto skip_wmm_queue;
 
 				/*
 				 * Always choose the next ra we transmitted
@@ -960,10 +953,8 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 				}
 
 				do {
-					is_list_empty =
-						skb_queue_empty(&ptr->skb_head);
-
-					if (!is_list_empty)
+					if (!skb_queue_empty(&ptr->skb_head))
+						/* holds both locks */
 						goto found;
 
 					/* Get next ra */
@@ -978,6 +969,11 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 						    struct mwifiex_ra_list_tbl,
 						    list);
 				} while (ptr != head);
+
+skip_wmm_queue:
+				spin_unlock_irqrestore(&priv_tmp->wmm.
+						       ra_list_spinlock,
+						       flags_ra);
 			}
 
 skip_bss:
@@ -995,14 +991,21 @@ skip_bss:
 						struct mwifiex_bss_prio_node,
 						list);
 		} while (bssprio_node != bssprio_head);
+
+skip_prio_tbl:
+		spin_unlock_irqrestore(&adapter->bss_prio_tbl[j].bss_prio_lock,
+				       flags_bss);
 	}
+
 	return NULL;
 
 found:
-	spin_lock_irqsave(&priv_tmp->wmm.ra_list_spinlock, flags);
+	/* holds bss_prio_lock / ra_list_spinlock */
 	if (atomic_read(hqp) > i)
 		atomic_set(hqp, i);
-	spin_unlock_irqrestore(&priv_tmp->wmm.ra_list_spinlock, flags);
+	spin_unlock_irqrestore(&priv_tmp->wmm.ra_list_spinlock, flags_ra);
+	spin_unlock_irqrestore(&adapter->bss_prio_tbl[j].bss_prio_lock,
+			       flags_bss);
 
 	*priv = priv_tmp;
 	*tid = tos_to_tid[i];
