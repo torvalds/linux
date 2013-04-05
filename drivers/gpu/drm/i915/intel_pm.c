@@ -2558,8 +2558,8 @@ static void gen6_enable_rps(struct drm_device *dev)
 	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 	gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 
-	/* In units of 100MHz */
-	dev_priv->rps.max_delay = rp_state_cap & 0xff;
+	/* In units of 50MHz */
+	dev_priv->rps.hw_max = dev_priv->rps.max_delay = rp_state_cap & 0xff;
 	dev_priv->rps.min_delay = (rp_state_cap & 0xff0000) >> 16;
 	dev_priv->rps.cur_delay = 0;
 
@@ -2646,6 +2646,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 			DRM_DEBUG_DRIVER("overclocking supported, adjusting frequency max from %dMHz to %dMHz\n",
 					 (dev_priv->rps.max_delay & 0xff) * 50,
 					 (pcu_mbox & 0xff) * 50);
+			dev_priv->rps.hw_max = pcu_mbox & 0xff;
 			dev_priv->rps.max_delay = pcu_mbox & 0xff;
 		}
 	} else {

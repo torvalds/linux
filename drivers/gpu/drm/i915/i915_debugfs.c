@@ -1006,6 +1006,9 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		max_freq = rp_state_cap & 0xff;
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   max_freq * GT_FREQUENCY_MULTIPLIER);
+
+		seq_printf(m, "Max overclocked frequency: %dMHz\n",
+			   dev_priv->rps.hw_max * GT_FREQUENCY_MULTIPLIER);
 	} else {
 		seq_printf(m, "no P-state info available\n");
 	}

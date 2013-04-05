@@ -668,6 +668,7 @@ struct intel_gen6_power_mgmt {
 	u8 cur_delay;
 	u8 min_delay;
 	u8 max_delay;
+	u8 hw_max;
 
 	struct delayed_work delayed_resume_work;
 
