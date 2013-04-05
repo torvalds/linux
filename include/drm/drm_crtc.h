@@ -310,7 +310,7 @@ struct drm_plane;
  * drm_crtc_funcs - control CRTCs for a given device
  * @save: save CRTC state
  * @restore: restore CRTC state
- * @reset: reset CRTC after state has been invalidate (e.g. resume)
+ * @reset: reset CRTC after state has been invalidated (e.g. resume)
  * @cursor_set: setup the cursor
  * @cursor_move: move the cursor
  * @gamma_set: specify color ramp for CRTC
