@@ -1045,11 +1045,11 @@ static void tegra_slink_parse_dt(struct tegra_slink_data *tspi)
 		tspi->spi_max_frequency = 25000000; /* 25MHz */
 }
 
-const struct tegra_slink_chip_data tegra30_spi_cdata = {
+static const struct tegra_slink_chip_data tegra30_spi_cdata = {
 	.cs_hold_time = true,
 };
 
-const struct tegra_slink_chip_data tegra20_spi_cdata = {
+static const struct tegra_slink_chip_data tegra20_spi_cdata = {
 	.cs_hold_time = false,
 };
 
