@@ -1367,7 +1367,7 @@ static int ks8851_read_selftest(struct ks8851_net *ks)
 #ifdef CONFIG_PM
 static int ks8851_suspend(struct spi_device *spi, pm_message_t state)
 {
-	struct ks8851_net *ks = dev_get_drvdata(&spi->dev);
+	struct ks8851_net *ks = spi_get_drvdata(spi);
 	struct net_device *dev = ks->netdev;
 
 	if (netif_running(dev)) {
@@ -1380,7 +1380,7 @@ static int ks8851_suspend(struct spi_device *spi, pm_message_t state)
 
 static int ks8851_resume(struct spi_device *spi)
 {
-	struct ks8851_net *ks = dev_get_drvdata(&spi->dev);
+	struct ks8851_net *ks = spi_get_drvdata(spi);
 	struct net_device *dev = ks->netdev;
 
 	if (netif_running(dev)) {
@@ -1456,7 +1456,7 @@ static int ks8851_probe(struct spi_device *spi)
 	SET_ETHTOOL_OPS(ndev, &ks8851_ethtool_ops);
 	SET_NETDEV_DEV(ndev, &spi->dev);
 
-	dev_set_drvdata(&spi->dev, ks);
+	spi_set_drvdata(spi, ks);
 
 	ndev->if_port = IF_PORT_100BASET;
 	ndev->netdev_ops = &ks8851_netdev_ops;
@@ -1516,7 +1516,7 @@ err_irq:
 
 static int ks8851_remove(struct spi_device *spi)
 {
-	struct ks8851_net *priv = dev_get_drvdata(&spi->dev);
+	struct ks8851_net *priv = spi_get_drvdata(spi);
 
 	if (netif_msg_drv(priv))
 		dev_info(&spi->dev, "remove\n");
