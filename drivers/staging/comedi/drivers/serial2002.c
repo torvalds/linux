@@ -328,6 +328,249 @@ static void serial_write(struct file *f, struct serial_data data)
 	}
 }
 
+struct config_t {
+	short int kind;
+	short int bits;
+	int min;
+	int max;
+};
+
+static int serial2002_setup_subdevice(struct comedi_subdevice *s,
+				      struct config_t *cfg,
+				      struct serial2002_range_table_t *range,
+				      unsigned char *mapping,
+				      int kind)
+{
+	const struct comedi_lrange **range_table_list = NULL;
+	unsigned int *maxdata_list;
+	int j, chan;
+
+	for (chan = 0, j = 0; j < 32; j++) {
+		if (cfg[j].kind == kind)
+			chan++;
+	}
+	s->n_chan = chan;
+	s->maxdata = 0;
+	kfree(s->maxdata_list);
+	maxdata_list = kmalloc(sizeof(unsigned int) * s->n_chan, GFP_KERNEL);
+	if (!maxdata_list)
+		return -ENOMEM;
+	s->maxdata_list = maxdata_list;
+	kfree(s->range_table_list);
+	s->range_table = NULL;
+	s->range_table_list = NULL;
+	if (kind == 1 || kind == 2) {
+		s->range_table = &range_digital;
+	} else if (range) {
+		range_table_list =
+			kmalloc(sizeof(struct serial2002_range_table_t) *
+				s->n_chan, GFP_KERNEL);
+		if (!range_table_list)
+			return -ENOMEM;
+		s->range_table_list = range_table_list;
+	}
+	for (chan = 0, j = 0; j < 32; j++) {
+		if (cfg[j].kind == kind) {
+			if (mapping)
+				mapping[chan] = j;
+			if (range) {
+				range[j].length = 1;
+				range[j].range.min = cfg[j].min;
+				range[j].range.max = cfg[j].max;
+				range_table_list[chan] =
+				    (const struct comedi_lrange *)&range[j];
+			}
+			maxdata_list[chan] = ((long long)1 << cfg[j].bits) - 1;
+			chan++;
+		}
+	}
+	return 0;
+}
+
+static int serial2002_setup_subdevs(struct comedi_device *dev)
+{
+	struct serial2002_private *devpriv = dev->private;
+	struct config_t *di_cfg;
+	struct config_t *do_cfg;
+	struct config_t *ai_cfg;
+	struct config_t *ao_cfg;
+	struct config_t *cfg;
+	struct comedi_subdevice *s;
+	int result;
+	int i;
+
+	result = 0;
+	di_cfg = kcalloc(32, sizeof(*cfg), GFP_KERNEL);
+	do_cfg = kcalloc(32, sizeof(*cfg), GFP_KERNEL);
+	ai_cfg = kcalloc(32, sizeof(*cfg), GFP_KERNEL);
+	ao_cfg = kcalloc(32, sizeof(*cfg), GFP_KERNEL);
+	if (!di_cfg || !do_cfg || !ai_cfg || !ao_cfg) {
+		result = -ENOMEM;
+		goto err_alloc_configs;
+	}
+
+	tty_setspeed(devpriv->tty, devpriv->speed);
+	poll_channel(devpriv->tty, 31);	/*  Start reading configuration */
+	while (1) {
+		struct serial_data data;
+
+		data = serial_read(devpriv->tty, 1000);
+		if (data.kind != is_channel || data.index != 31 ||
+		    !(data.value & 0xe0)) {
+			break;
+		} else {
+			int channel = data.value & 0x1f;
+			int kind = (data.value >> 5) & 0x7;
+			int command = (data.value >> 8) & 0x3;
+
+			switch (kind) {
+			case 1:
+				cfg = di_cfg;
+				break;
+			case 2:
+				cfg = do_cfg;
+				break;
+			case 3:
+				cfg = ai_cfg;
+				break;
+			case 4:
+				cfg = ao_cfg;
+				break;
+			case 5:
+				cfg = ai_cfg;
+				break;
+			default:
+				cfg = NULL;
+				break;
+			}
+
+			if (cfg) {
+				short int bits = (data.value >> 10) & 0x3f;
+				int unit = (data.value >> 10) & 0x7;
+				int sign = (data.value >> 13) & 0x1;
+				int min = (data.value >> 14) & 0xfffff;
+				int max = min;
+
+				cfg[channel].kind = kind;
+				switch (command) {
+				case 0:
+					cfg[channel].bits = bits;
+					break;
+				case 1:
+					switch (unit) {
+					case 0:
+						min *= 1000000;
+						break;
+					case 1:
+						min *= 1000;
+						break;
+					case 2:
+						min *= 1;
+						break;
+					}
+					if (sign)
+						min = -min;
+					cfg[channel].min = min;
+					break;
+				case 2:
+					switch (unit) {
+					case 0:
+						max *= 1000000;
+						break;
+					case 1:
+						max *= 1000;
+						break;
+					case 2:
+						max *= 1;
+						break;
+					}
+					if (sign)
+						max = -max;
+					cfg[channel].max = max;
+					break;
+				}
+			}
+		}
+	}
+
+	/* Fill in subdevice data */
+	for (i = 0; i <= 4; i++) {
+		unsigned char *mapping = NULL;
+		struct serial2002_range_table_t *range = NULL;
+		int kind = 0;
+
+		switch (i) {
+		case 0:
+			cfg = di_cfg;
+			mapping = devpriv->digital_in_mapping;
+			kind = 1;
+			break;
+		case 1:
+			cfg = do_cfg;
+			mapping = devpriv->digital_out_mapping;
+			kind = 2;
+			break;
+		case 2:
+			cfg = ai_cfg;
+			mapping = devpriv->analog_in_mapping;
+			range = devpriv->in_range;
+			kind = 3;
+			break;
+		case 3:
+			cfg = ao_cfg;
+			mapping = devpriv->analog_out_mapping;
+			range = devpriv->out_range;
+			kind = 4;
+			break;
+		case 4:
+			cfg = ai_cfg;
+			mapping = devpriv->encoder_in_mapping;
+			range = devpriv->in_range;
+			kind = 5;
+			break;
+		default:
+			cfg = NULL;
+			break;
+		}
+
+		if (cfg) {
+			s = &dev->subdevices[i];
+			if (serial2002_setup_subdevice(s, cfg, range, mapping,
+						       kind))
+				break;	/* err handled below */
+		}
+	}
+	if (i <= 4) {
+		/*
+		 * Failed to allocate maxdata_list or range_table_list
+		 * for a subdevice that needed it.
+		 */
+		result = -ENOMEM;
+		for (i = 0; i <= 4; i++) {
+			s = &dev->subdevices[i];
+			kfree(s->maxdata_list);
+			s->maxdata_list = NULL;
+			kfree(s->range_table_list);
+			s->range_table_list = NULL;
+		}
+	}
+
+err_alloc_configs:
+	kfree(di_cfg);
+	kfree(do_cfg);
+	kfree(ai_cfg);
+	kfree(ao_cfg);
+
+	if (result) {
+		if (devpriv->tty) {
+			filp_close(devpriv->tty, NULL);
+			devpriv->tty = NULL;
+		}
+	}
+
+	return result;
+}
+
 static int serial_2002_open(struct comedi_device *dev)
 {
 	struct serial2002_private *devpriv = dev->private;
@@ -340,298 +583,7 @@ static int serial_2002_open(struct comedi_device *dev)
 		result = (int)PTR_ERR(devpriv->tty);
 		dev_err(dev->class_dev, "file open error = %d\n", result);
 	} else {
-		struct config_t {
-
-			short int kind;
-			short int bits;
-			int min;
-			int max;
-		};
-
-		struct config_t *dig_in_config;
-		struct config_t *dig_out_config;
-		struct config_t *chan_in_config;
-		struct config_t *chan_out_config;
-		int i;
-
-		result = 0;
-		dig_in_config = kcalloc(32, sizeof(struct config_t),
-				GFP_KERNEL);
-		dig_out_config = kcalloc(32, sizeof(struct config_t),
-				GFP_KERNEL);
-		chan_in_config = kcalloc(32, sizeof(struct config_t),
-				GFP_KERNEL);
-		chan_out_config = kcalloc(32, sizeof(struct config_t),
-				GFP_KERNEL);
-		if (!dig_in_config || !dig_out_config
-		    || !chan_in_config || !chan_out_config) {
-			result = -ENOMEM;
-			goto err_alloc_configs;
-		}
-
-		tty_setspeed(devpriv->tty, devpriv->speed);
-		poll_channel(devpriv->tty, 31);	/*  Start reading configuration */
-		while (1) {
-			struct serial_data data;
-
-			data = serial_read(devpriv->tty, 1000);
-			if (data.kind != is_channel || data.index != 31
-			    || !(data.value & 0xe0)) {
-				break;
-			} else {
-				int command, channel, kind;
-				struct config_t *cur_config = NULL;
-
-				channel = data.value & 0x1f;
-				kind = (data.value >> 5) & 0x7;
-				command = (data.value >> 8) & 0x3;
-				switch (kind) {
-				case 1:{
-						cur_config = dig_in_config;
-					}
-					break;
-				case 2:{
-						cur_config = dig_out_config;
-					}
-					break;
-				case 3:{
-						cur_config = chan_in_config;
-					}
-					break;
-				case 4:{
-						cur_config = chan_out_config;
-					}
-					break;
-				case 5:{
-						cur_config = chan_in_config;
-					}
-					break;
-				}
-
-				if (cur_config) {
-					cur_config[channel].kind = kind;
-					switch (command) {
-					case 0:{
-							cur_config[channel].bits
-							    =
-							    (data.value >> 10) &
-							    0x3f;
-						}
-						break;
-					case 1:{
-							int unit, sign, min;
-							unit =
-							    (data.value >> 10) &
-							    0x7;
-							sign =
-							    (data.value >> 13) &
-							    0x1;
-							min =
-							    (data.value >> 14) &
-							    0xfffff;
-
-							switch (unit) {
-							case 0:{
-									min =
-									    min
-									    *
-									    1000000;
-								}
-								break;
-							case 1:{
-									min =
-									    min
-									    *
-									    1000;
-								}
-								break;
-							case 2:{
-									min =
-									    min
-									    * 1;
-								}
-								break;
-							}
-							if (sign)
-								min = -min;
-							cur_config[channel].min
-							    = min;
-						}
-						break;
-					case 2:{
-							int unit, sign, max;
-							unit =
-							    (data.value >> 10) &
-							    0x7;
-							sign =
-							    (data.value >> 13) &
-							    0x1;
-							max =
-							    (data.value >> 14) &
-							    0xfffff;
-
-							switch (unit) {
-							case 0:{
-									max =
-									    max
-									    *
-									    1000000;
-								}
-								break;
-							case 1:{
-									max =
-									    max
-									    *
-									    1000;
-								}
-								break;
-							case 2:{
-									max =
-									    max
-									    * 1;
-								}
-								break;
-							}
-							if (sign)
-								max = -max;
-							cur_config[channel].max
-							    = max;
-						}
-						break;
-					}
-				}
-			}
-		}
-		for (i = 0; i <= 4; i++) {
-			/*  Fill in subdev data */
-			struct config_t *c;
-			unsigned char *mapping = NULL;
-			struct serial2002_range_table_t *range = NULL;
-			int kind = 0;
-
-			switch (i) {
-			case 0:{
-					c = dig_in_config;
-					mapping = devpriv->digital_in_mapping;
-					kind = 1;
-				}
-				break;
-			case 1:{
-					c = dig_out_config;
-					mapping = devpriv->digital_out_mapping;
-					kind = 2;
-				}
-				break;
-			case 2:{
-					c = chan_in_config;
-					mapping = devpriv->analog_in_mapping;
-					range = devpriv->in_range;
-					kind = 3;
-				}
-				break;
-			case 3:{
-					c = chan_out_config;
-					mapping = devpriv->analog_out_mapping;
-					range = devpriv->out_range;
-					kind = 4;
-				}
-				break;
-			case 4:{
-					c = chan_in_config;
-					mapping = devpriv->encoder_in_mapping;
-					range = devpriv->in_range;
-					kind = 5;
-				}
-				break;
-			default:{
-					c = NULL;
-				}
-				break;
-			}
-			if (c) {
-				struct comedi_subdevice *s;
-				const struct comedi_lrange **range_table_list =
-				    NULL;
-				unsigned int *maxdata_list;
-				int j, chan;
-
-				for (chan = 0, j = 0; j < 32; j++) {
-					if (c[j].kind == kind)
-						chan++;
-				}
-				s = &dev->subdevices[i];
-				s->n_chan = chan;
-				s->maxdata = 0;
-				kfree(s->maxdata_list);
-				s->maxdata_list = maxdata_list =
-				    kmalloc(sizeof(unsigned int) * s->n_chan,
-					    GFP_KERNEL);
-				if (!s->maxdata_list)
-					break;	/* error handled below */
-				kfree(s->range_table_list);
-				s->range_table = NULL;
-				s->range_table_list = NULL;
-				if (kind == 1 || kind == 2) {
-					s->range_table = &range_digital;
-				} else if (range) {
-					s->range_table_list = range_table_list =
-					    kmalloc(sizeof
-						    (struct
-						     serial2002_range_table_t) *
-						    s->n_chan, GFP_KERNEL);
-					if (!s->range_table_list)
-						break;	/* err handled below */
-				}
-				for (chan = 0, j = 0; j < 32; j++) {
-					if (c[j].kind == kind) {
-						if (mapping)
-							mapping[chan] = j;
-						if (range) {
-							range[j].length = 1;
-							range[j].range.min =
-							    c[j].min;
-							range[j].range.max =
-							    c[j].max;
-							range_table_list[chan] =
-							    (const struct
-							     comedi_lrange *)
-							    &range[j];
-						}
-						maxdata_list[chan] =
-						    ((long long)1 << c[j].bits)
-						    - 1;
-						chan++;
-					}
-				}
-			}
-		}
-		if (i <= 4) {
-			/* Failed to allocate maxdata_list or range_table_list
-			 * for a subdevice that needed it.  */
-			result = -ENOMEM;
-			for (i = 0; i <= 4; i++) {
-				struct comedi_subdevice *s;
-
-				s = &dev->subdevices[i];
-				kfree(s->maxdata_list);
-				s->maxdata_list = NULL;
-				kfree(s->range_table_list);
-				s->range_table_list = NULL;
-			}
-		}
-
-err_alloc_configs:
-		kfree(dig_in_config);
-		kfree(dig_out_config);
-		kfree(chan_in_config);
-		kfree(chan_out_config);
-
-		if (result) {
-			if (devpriv->tty) {
-				filp_close(devpriv->tty, NULL);
-				devpriv->tty = NULL;
-			}
-		}
+		result = serial2002_setup_subdevs(dev);
 	}
 	return result;
 }
