@@ -811,7 +811,7 @@ static void serial2002_detach(struct comedi_device *dev)
 	struct comedi_subdevice *s;
 	int i;
 
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
 		kfree(s->maxdata_list);
 		kfree(s->range_table_list);
