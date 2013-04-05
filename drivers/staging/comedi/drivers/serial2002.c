@@ -104,7 +104,8 @@ struct serial_data {
 #define S2002_CFG_SIGN(x)		(((x) >> 13) & 0x1)
 #define S2002_CFG_BASE(x)		(((x) >> 14) & 0xfffff)
 
-static long tty_ioctl(struct file *f, unsigned op, unsigned long param)
+static long serial2002_tty_ioctl(struct file *f, unsigned op,
+				 unsigned long param)
 {
 	if (f->f_op->unlocked_ioctl)
 		return f->f_op->unlocked_ioctl(f, op, param);
@@ -112,7 +113,7 @@ static long tty_ioctl(struct file *f, unsigned op, unsigned long param)
 	return -ENOSYS;
 }
 
-static int tty_write(struct file *f, unsigned char *buf, int count)
+static int serial2002_tty_write(struct file *f, unsigned char *buf, int count)
 {
 	const char __user *p = (__force const char __user *)buf;
 	int result;
@@ -126,7 +127,7 @@ static int tty_write(struct file *f, unsigned char *buf, int count)
 	return result;
 }
 
-static int __tty_readb(struct file *f, unsigned char *buf)
+static int serial2002_tty_readb(struct file *f, unsigned char *buf)
 {
 	char __user *p = (__force char __user *)buf;
 
@@ -134,7 +135,7 @@ static int __tty_readb(struct file *f, unsigned char *buf)
 	return f->f_op->read(f, p, 1, &f->f_pos);
 }
 
-static void tty_read_poll_wait(struct file *f, int timeout)
+static void serial2002_tty_read_poll_wait(struct file *f, int timeout)
 {
 	struct poll_wqueues table;
 	struct timeval start, now;
@@ -173,13 +174,13 @@ static int tty_available(struct file *f)
 
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
-	tty_ioctl(f, FIONREAD, (unsigned long)&result);
+	serial2002_tty_ioctl(f, FIONREAD, (unsigned long)&result);
 	set_fs(oldfs);
 	return result;
 }
 #endif
 
-static int tty_read(struct file *f, int timeout)
+static int serial2002_tty_read(struct file *f, int timeout)
 {
 	unsigned char ch;
 	int result;
@@ -191,9 +192,9 @@ static int tty_read(struct file *f, int timeout)
 		oldfs = get_fs();
 		set_fs(KERNEL_DS);
 		if (f->f_op->poll) {
-			tty_read_poll_wait(f, timeout);
+			serial2002_tty_read_poll_wait(f, timeout);
 
-			if (__tty_readb(f, &ch) == 1)
+			if (serial2002_tty_readb(f, &ch) == 1)
 				result = ch;
 		} else {
 			/* Device does not support poll, busy wait */
@@ -203,7 +204,7 @@ static int tty_read(struct file *f, int timeout)
 				if (retries >= timeout)
 					break;
 
-				if (__tty_readb(f, &ch) == 1) {
+				if (serial2002_tty_readb(f, &ch) == 1) {
 					result = ch;
 					break;
 				}
@@ -215,7 +216,7 @@ static int tty_read(struct file *f, int timeout)
 	return result;
 }
 
-static void tty_setspeed(struct file *f, int speed)
+static void serial2002_tty_setspeed(struct file *f, int speed)
 {
 	struct termios termios;
 	struct serial_struct serial;
@@ -225,7 +226,7 @@ static void tty_setspeed(struct file *f, int speed)
 	set_fs(KERNEL_DS);
 
 	/* Set speed */
-	tty_ioctl(f, TCGETS, (unsigned long)&termios);
+	serial2002_tty_ioctl(f, TCGETS, (unsigned long)&termios);
 	termios.c_iflag = 0;
 	termios.c_oflag = 0;
 	termios.c_lflag = 0;
@@ -258,33 +259,33 @@ static void tty_setspeed(struct file *f, int speed)
 		termios.c_cflag |= B9600;
 		break;
 	}
-	tty_ioctl(f, TCSETS, (unsigned long)&termios);
+	serial2002_tty_ioctl(f, TCSETS, (unsigned long)&termios);
 
 	/* Set low latency */
-	tty_ioctl(f, TIOCGSERIAL, (unsigned long)&serial);
+	serial2002_tty_ioctl(f, TIOCGSERIAL, (unsigned long)&serial);
 	serial.flags |= ASYNC_LOW_LATENCY;
-	tty_ioctl(f, TIOCSSERIAL, (unsigned long)&serial);
+	serial2002_tty_ioctl(f, TIOCSSERIAL, (unsigned long)&serial);
 
 	set_fs(oldfs);
 }
 
-static void poll_digital(struct file *f, int channel)
+static void serial2002_poll_digital(struct file *f, int channel)
 {
 	char cmd;
 
 	cmd = 0x40 | (channel & 0x1f);
-	tty_write(f, &cmd, 1);
+	serial2002_tty_write(f, &cmd, 1);
 }
 
-static void poll_channel(struct file *f, int channel)
+static void serial2002_poll_channel(struct file *f, int channel)
 {
 	char cmd;
 
 	cmd = 0x60 | (channel & 0x1f);
-	tty_write(f, &cmd, 1);
+	serial2002_tty_write(f, &cmd, 1);
 }
 
-static struct serial_data serial_read(struct file *f, int timeout)
+static struct serial_data serial2002_read(struct file *f, int timeout)
 {
 	struct serial_data result;
 	int length;
@@ -294,7 +295,7 @@ static struct serial_data serial_read(struct file *f, int timeout)
 	result.value = 0;
 	length = 0;
 	while (1) {
-		int data = tty_read(f, timeout);
+		int data = serial2002_tty_read(f, timeout);
 
 		length++;
 		if (data < 0) {
@@ -327,12 +328,12 @@ static struct serial_data serial_read(struct file *f, int timeout)
 
 }
 
-static void serial_write(struct file *f, struct serial_data data)
+static void serial2002_write(struct file *f, struct serial_data data)
 {
 	if (data.kind == is_digital) {
 		unsigned char ch =
 		    ((data.value << 5) & 0x20) | (data.index & 0x1f);
-		tty_write(f, &ch, 1);
+		serial2002_tty_write(f, &ch, 1);
 	} else {
 		unsigned char ch[6];
 		int i = 0;
@@ -356,7 +357,7 @@ static void serial_write(struct file *f, struct serial_data data)
 		i++;
 		ch[i] = ((data.value << 5) & 0x60) | (data.index & 0x1f);
 		i++;
-		tty_write(f, ch, i);
+		serial2002_tty_write(f, ch, i);
 	}
 }
 
@@ -442,12 +443,12 @@ static int serial2002_setup_subdevs(struct comedi_device *dev)
 	}
 
 	/* Read the configuration from the connected device */
-	tty_setspeed(devpriv->tty, devpriv->speed);
-	poll_channel(devpriv->tty, 31);
+	serial2002_tty_setspeed(devpriv->tty, devpriv->speed);
+	serial2002_poll_channel(devpriv->tty, 31);
 	while (1) {
 		struct serial_data data;
 
-		data = serial_read(devpriv->tty, 1000);
+		data = serial2002_read(devpriv->tty, 1000);
 		if (data.kind != is_channel || data.index != 31 ||
 		    S2002_CFG_KIND(data.value) == S2002_CFG_KIND_INVALID) {
 			break;
@@ -582,7 +583,7 @@ err_alloc_configs:
 	return result;
 }
 
-static int serial_2002_open(struct comedi_device *dev)
+static int serial2002_open(struct comedi_device *dev)
 {
 	struct serial2002_private *devpriv = dev->private;
 	int result;
@@ -599,7 +600,7 @@ static int serial_2002_open(struct comedi_device *dev)
 	return result;
 }
 
-static void serial_2002_close(struct comedi_device *dev)
+static void serial2002_close(struct comedi_device *dev)
 {
 	struct serial2002_private *devpriv = dev->private;
 
@@ -620,9 +621,9 @@ static int serial2002_di_insn_read(struct comedi_device *dev,
 	for (n = 0; n < insn->n; n++) {
 		struct serial_data read;
 
-		poll_digital(devpriv->tty, chan);
+		serial2002_poll_digital(devpriv->tty, chan);
 		while (1) {
-			read = serial_read(devpriv->tty, 1000);
+			read = serial2002_read(devpriv->tty, 1000);
 			if (read.kind != is_digital || read.index == chan)
 				break;
 		}
@@ -647,7 +648,7 @@ static int serial2002_do_insn_write(struct comedi_device *dev,
 		write.kind = is_digital;
 		write.index = chan;
 		write.value = data[n];
-		serial_write(devpriv->tty, write);
+		serial2002_write(devpriv->tty, write);
 	}
 	return n;
 }
@@ -665,9 +666,9 @@ static int serial2002_ai_insn_read(struct comedi_device *dev,
 	for (n = 0; n < insn->n; n++) {
 		struct serial_data read;
 
-		poll_channel(devpriv->tty, chan);
+		serial2002_poll_channel(devpriv->tty, chan);
 		while (1) {
-			read = serial_read(devpriv->tty, 1000);
+			read = serial2002_read(devpriv->tty, 1000);
 			if (read.kind != is_channel || read.index == chan)
 				break;
 		}
@@ -692,7 +693,7 @@ static int serial2002_ao_insn_write(struct comedi_device *dev,
 		write.kind = is_channel;
 		write.index = chan;
 		write.value = data[n];
-		serial_write(devpriv->tty, write);
+		serial2002_write(devpriv->tty, write);
 		devpriv->ao_readback[chan] = data[n];
 	}
 	return n;
@@ -726,9 +727,9 @@ static int serial2002_encoder_insn_read(struct comedi_device *dev,
 	for (n = 0; n < insn->n; n++) {
 		struct serial_data read;
 
-		poll_channel(devpriv->tty, chan);
+		serial2002_poll_channel(devpriv->tty, chan);
 		while (1) {
-			read = serial_read(devpriv->tty, 1000);
+			read = serial2002_read(devpriv->tty, 1000);
 			if (read.kind != is_channel || read.index == chan)
 				break;
 		}
@@ -804,8 +805,8 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->range_table	= NULL;
 	s->insn_read	= serial2002_encoder_insn_read;
 
-	dev->open	= serial_2002_open;
-	dev->close	= serial_2002_close;
+	dev->open	= serial2002_open;
+	dev->close	= serial2002_close;
 
 	return 0;
 }
