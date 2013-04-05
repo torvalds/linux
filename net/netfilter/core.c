@@ -276,23 +276,15 @@ void (*nf_nat_decode_session_hook)(struct sk_buff *, struct flowi *);
 EXPORT_SYMBOL(nf_nat_decode_session_hook);
 #endif
 
-#ifdef CONFIG_PROC_FS
-struct proc_dir_entry *proc_net_netfilter;
-EXPORT_SYMBOL(proc_net_netfilter);
-#endif
-
 static int __net_init netfilter_net_init(struct net *net)
 {
 #ifdef CONFIG_PROC_FS
 	net->nf.proc_netfilter = proc_net_mkdir(net, "netfilter",
 						net->proc_net);
-	if (net_eq(net, &init_net)) {
-		if (!net->nf.proc_netfilter)
-			return -ENOMEM;
-		else
-			proc_net_netfilter = net->nf.proc_netfilter;
-	} else if (!net->nf.proc_netfilter) {
-		pr_err("cannot create netfilter proc entry");
+	if (!net->nf.proc_netfilter) {
+		if (!net_eq(net, &init_net))
+			pr_err("cannot create netfilter proc entry");
+
 		return -ENOMEM;
 	}
 #endif
