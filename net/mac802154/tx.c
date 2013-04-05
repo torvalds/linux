@@ -58,6 +58,9 @@ static void mac802154_xmit_worker(struct work_struct *work)
 			pr_debug("set_channel failed\n");
 			goto out;
 		}
+
+		xw->priv->phy->current_channel = xw->chan;
+		xw->priv->phy->current_page = xw->page;
 	}
 
 	res = xw->priv->ops->xmit(&xw->priv->hw, xw->skb);
