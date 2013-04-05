@@ -1344,8 +1344,6 @@ static struct ceph_osd_request *rbd_osd_req_create(
 	struct ceph_snap_context *snapc = NULL;
 	struct ceph_osd_client *osdc;
 	struct ceph_osd_request *osd_req;
-	struct ceph_osd_data *osd_data;
-	u64 offset = obj_request->offset;
 
 	if (img_request) {
 		rbd_assert(img_request->write_request == write_request);
@@ -1359,23 +1357,6 @@ static struct ceph_osd_request *rbd_osd_req_create(
 	osd_req = ceph_osdc_alloc_request(osdc, snapc, 1, false, GFP_ATOMIC);
 	if (!osd_req)
 		return NULL;	/* ENOMEM */
-	osd_data = write_request ? &osd_req->r_data_out : &osd_req->r_data_in;
-
-	rbd_assert(obj_request_type_valid(obj_request->type));
-	switch (obj_request->type) {
-	case OBJ_REQUEST_NODATA:
-		break;		/* Nothing to do */
-	case OBJ_REQUEST_BIO:
-		rbd_assert(obj_request->bio_list != NULL);
-		ceph_osd_data_bio_init(osd_data, obj_request->bio_list,
-					obj_request->length);
-		break;
-	case OBJ_REQUEST_PAGES:
-		ceph_osd_data_pages_init(osd_data, obj_request->pages,
-				obj_request->length, offset & ~PAGE_MASK,
-				false, false);
-		break;
-	}
 
 	if (write_request)
 		osd_req->r_flags = CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK;
@@ -1596,6 +1577,8 @@ static int rbd_img_request_fill_bio(struct rbd_img_request *img_request,
 					 : &osd_req->r_data_in;
 		osd_req_op_extent_init(osd_req, 0, opcode, offset, length,
 						0, 0);
+		ceph_osd_data_bio_init(osd_data, obj_request->bio_list,
+					obj_request->length);
 		osd_req_op_extent_osd_data(osd_req, 0, osd_data);
 		rbd_osd_req_format(obj_request, write_request);
 
@@ -1874,6 +1857,8 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 	osd_req_op_cls_init(obj_request->osd_req, 0, CEPH_OSD_OP_CALL,
 					class_name, method_name,
 					outbound, outbound_size);
+	ceph_osd_data_pages_init(osd_data, obj_request->pages, inbound_size,
+					0, false, false);
 	osd_req_op_cls_response_data(obj_request->osd_req, 0, osd_data);
 	rbd_osd_req_format(obj_request, false);
 
@@ -2082,6 +2067,10 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 	osd_data = &obj_request->osd_req->r_data_in;
 	osd_req_op_extent_init(obj_request->osd_req, 0, CEPH_OSD_OP_READ,
 					offset, length, 0, 0);
+	ceph_osd_data_pages_init(osd_data, obj_request->pages,
+					obj_request->length,
+					obj_request->offset & ~PAGE_MASK,
+					false, false);
 	osd_req_op_extent_osd_data(obj_request->osd_req, 0, osd_data);
 	rbd_osd_req_format(obj_request, false);
 
