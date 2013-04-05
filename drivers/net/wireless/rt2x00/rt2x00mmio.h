@@ -37,7 +37,6 @@ static inline void rt2x00mmio_register_read(struct rt2x00_dev *rt2x00dev,
 {
 	*value = readl(rt2x00dev->csr.base + offset);
 }
-#define rt2x00pci_register_read rt2x00mmio_register_read
 
 static inline void rt2x00mmio_register_multiread(struct rt2x00_dev *rt2x00dev,
 						 const unsigned int offset,
@@ -45,7 +44,6 @@ static inline void rt2x00mmio_register_multiread(struct rt2x00_dev *rt2x00dev,
 {
 	memcpy_fromio(value, rt2x00dev->csr.base + offset, length);
 }
-#define rt2x00pci_register_multiread rt2x00mmio_register_multiread
 
 static inline void rt2x00mmio_register_write(struct rt2x00_dev *rt2x00dev,
 					     const unsigned int offset,
@@ -53,7 +51,6 @@ static inline void rt2x00mmio_register_write(struct rt2x00_dev *rt2x00dev,
 {
 	writel(value, rt2x00dev->csr.base + offset);
 }
-#define rt2x00pci_register_write rt2x00mmio_register_write
 
 static inline void rt2x00mmio_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 						  const unsigned int offset,
@@ -62,7 +59,6 @@ static inline void rt2x00mmio_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 {
 	__iowrite32_copy(rt2x00dev->csr.base + offset, value, length >> 2);
 }
-#define rt2x00pci_register_multiwrite rt2x00mmio_register_multiwrite
 
 /**
  * rt2x00mmio_regbusy_read - Read from register with busy check
@@ -81,7 +77,6 @@ int rt2x00mmio_regbusy_read(struct rt2x00_dev *rt2x00dev,
 			    const unsigned int offset,
 			    const struct rt2x00_field32 field,
 			    u32 *reg);
-#define rt2x00pci_regbusy_read rt2x00mmio_regbusy_read
 
 /**
  * struct queue_entry_priv_mmio: Per entry PCI specific information
@@ -95,7 +90,6 @@ struct queue_entry_priv_mmio {
 	__le32 *desc;
 	dma_addr_t desc_dma;
 };
-#define queue_entry_priv_pci queue_entry_priv_mmio
 
 /**
  * rt2x00mmio_rxdone - Handle RX done events
@@ -105,7 +99,6 @@ struct queue_entry_priv_mmio {
  * pending rx frames were processed.
  */
 bool rt2x00mmio_rxdone(struct rt2x00_dev *rt2x00dev);
-#define rt2x00pci_rxdone rt2x00mmio_rxdone
 
 /**
  * rt2x00mmio_flush_queue - Flush data queue
@@ -116,15 +109,11 @@ bool rt2x00mmio_rxdone(struct rt2x00_dev *rt2x00dev);
  * to become empty.
  */
 void rt2x00mmio_flush_queue(struct data_queue *queue, bool drop);
-#define rt2x00pci_flush_queue rt2x00mmio_flush_queue
 
 /*
  * Device initialization handlers.
  */
 int rt2x00mmio_initialize(struct rt2x00_dev *rt2x00dev);
-#define rt2x00pci_initialize rt2x00mmio_initialize
-
 void rt2x00mmio_uninitialize(struct rt2x00_dev *rt2x00dev);
-#define rt2x00pci_uninitialize rt2x00mmio_uninitialize
 
 #endif /* RT2X00MMIO_H */
