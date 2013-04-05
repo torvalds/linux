@@ -407,13 +407,12 @@ int brcmf_fweh_activate_events(struct brcmf_if *ifp)
  *
  * @drvr: driver information object.
  * @event_packet: event packet to process.
- * @ifidx: index of the firmware interface (may change).
  *
  * If the packet buffer contains a firmware event message it will
  * dispatch the event to a registered handler (using worker).
  */
 void brcmf_fweh_process_event(struct brcmf_pub *drvr,
-			      struct brcmf_event *event_packet, u8 *ifidx)
+			      struct brcmf_event *event_packet)
 {
 	enum brcmf_fweh_event_code code;
 	struct brcmf_fweh_info *fweh = &drvr->fweh;
@@ -425,7 +424,6 @@ void brcmf_fweh_process_event(struct brcmf_pub *drvr,
 	/* get event info */
 	code = get_unaligned_be32(&event_packet->msg.event_type);
 	datalen = get_unaligned_be32(&event_packet->msg.datalen);
-	*ifidx = event_packet->msg.ifidx;
 	data = &event_packet[1];
 
 	if (code >= BRCMF_E_LAST)
@@ -442,7 +440,7 @@ void brcmf_fweh_process_event(struct brcmf_pub *drvr,
 		return;
 
 	event->code = code;
-	event->ifidx = *ifidx;
+	event->ifidx = event_packet->msg.ifidx;
 
 	/* use memcpy to get aligned event message */
 	memcpy(&event->emsg, &event_packet->msg, sizeof(event->emsg));

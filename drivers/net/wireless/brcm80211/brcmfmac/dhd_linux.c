@@ -323,13 +323,8 @@ void brcmf_rx_frames(struct device *dev, struct sk_buff_head *skb_list)
 		/* Strip header, count, deliver upward */
 		skb_pull(skb, ETH_HLEN);
 
-		/* Process special event packets and then discard them */
-		brcmf_fweh_process_skb(drvr, skb, &ifidx);
-
-		if (drvr->iflist[ifidx]) {
-			ifp = drvr->iflist[ifidx];
-			ifp->ndev->last_rx = jiffies;
-		}
+		/* Process special event packets */
+		brcmf_fweh_process_skb(drvr, skb);
 
 		if (!(ifp->ndev->flags & IFF_UP)) {
 			brcmu_pkt_buf_free_skb(skb);
