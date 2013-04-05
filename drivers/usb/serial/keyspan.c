@@ -726,45 +726,44 @@ static void usa49wg_indat_callback(struct urb *urb)
 	i = 0;
 	len = 0;
 
-	if (urb->actual_length) {
-		while (i < urb->actual_length) {
+	while (i < urb->actual_length) {
 
-			/* Check port number from message*/
-			if (data[i] >= serial->num_ports) {
-				dev_dbg(&urb->dev->dev, "%s - Unexpected port number %d\n",
-					__func__, data[i]);
-				return;
-			}
-			port = serial->port[data[i++]];
-			len = data[i++];
-
-			/* 0x80 bit is error flag */
-			if ((data[i] & 0x80) == 0) {
-				/* no error on any byte */
-				i++;
-				for (x = 1; x < len ; ++x)
-					tty_insert_flip_char(&port->port,
-							data[i++], 0);
-			} else {
-				/*
-				 * some bytes had errors, every byte has status
-				 */
-				for (x = 0; x + 1 < len; x += 2) {
-					int stat = data[i], flag = 0;
-					if (stat & RXERROR_OVERRUN)
-						flag |= TTY_OVERRUN;
-					if (stat & RXERROR_FRAMING)
-						flag |= TTY_FRAME;
-					if (stat & RXERROR_PARITY)
-						flag |= TTY_PARITY;
-					/* XXX should handle break (0x10) */
-					tty_insert_flip_char(&port->port,
-							data[i+1], flag);
-					i += 2;
-				}
-			}
-			tty_flip_buffer_push(&port->port);
+		/* Check port number from message */
+		if (data[i] >= serial->num_ports) {
+			dev_dbg(&urb->dev->dev, "%s - Unexpected port number %d\n",
+				__func__, data[i]);
+			return;
 		}
+		port = serial->port[data[i++]];
+		len = data[i++];
+
+		/* 0x80 bit is error flag */
+		if ((data[i] & 0x80) == 0) {
+			/* no error on any byte */
+			i++;
+			for (x = 1; x < len ; ++x)
+				tty_insert_flip_char(&port->port,
+						data[i++], 0);
+		} else {
+			/*
+			 * some bytes had errors, every byte has status
+			 */
+			for (x = 0; x + 1 < len; x += 2) {
+				int stat = data[i], flag = 0;
+
+				if (stat & RXERROR_OVERRUN)
+					flag |= TTY_OVERRUN;
+				if (stat & RXERROR_FRAMING)
+					flag |= TTY_FRAME;
+				if (stat & RXERROR_PARITY)
+					flag |= TTY_PARITY;
+				/* XXX should handle break (0x10) */
+				tty_insert_flip_char(&port->port, data[i+1],
+						     flag);
+				i += 2;
+			}
+		}
+		tty_flip_buffer_push(&port->port);
 	}
 
 	/* Resubmit urb so we continue receiving */
