@@ -8991,6 +8991,9 @@ void intel_modeset_init(struct drm_device *dev)
 
 	intel_init_pm(dev);
 
+	if (INTEL_INFO(dev)->num_pipes == 0)
+		return;
+
 	intel_init_display(dev);
 
 	if (IS_GEN2(dev)) {

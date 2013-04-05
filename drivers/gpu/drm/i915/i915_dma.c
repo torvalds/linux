@@ -1322,6 +1322,10 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
 	dev->vblank_disable_allowed = 1;
+	if (INTEL_INFO(dev)->num_pipes == 0) {
+		dev_priv->mm.suspended = 0;
+		return 0;
+	}
 
 	ret = intel_fbdev_init(dev);
 	if (ret)
@@ -1634,9 +1638,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (IS_VALLEYVIEW(dev))
 		dev_priv->num_plane = 2;
 
-	ret = drm_vblank_init(dev, INTEL_INFO(dev)->num_pipes);
-	if (ret)
-		goto out_gem_unload;
+	if (INTEL_INFO(dev)->num_pipes) {
+		ret = drm_vblank_init(dev, INTEL_INFO(dev)->num_pipes);
+		if (ret)
+			goto out_gem_unload;
+	}
 
 	/* Start out suspended */
 	dev_priv->mm.suspended = 1;
@@ -1651,9 +1657,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	i915_setup_sysfs(dev);
 
-	/* Must be done after probing outputs */
-	intel_opregion_init(dev);
-	acpi_video_register();
+	if (INTEL_INFO(dev)->num_pipes) {
+		/* Must be done after probing outputs */
+		intel_opregion_init(dev);
+		acpi_video_register();
+	}
 
 	if (IS_GEN5(dev))
 		intel_gpu_ips_init(dev_priv);
