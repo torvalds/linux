@@ -261,6 +261,13 @@ void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data)
 }
 EXPORT_SYMBOL_GPL(kvm_set_apic_base);
 
+asmlinkage void kvm_spurious_fault(void)
+{
+	/* Fault while not rebooting.  We want the trace. */
+	BUG();
+}
+EXPORT_SYMBOL_GPL(kvm_spurious_fault);
+
 #define EXCPT_BENIGN		0
 #define EXCPT_CONTRIBUTORY	1
 #define EXCPT_PF		2
