@@ -1181,13 +1181,15 @@ static int brcmf_fws_fifocreditback_indicate(struct brcmf_fws_info *fws,
 
 static int brcmf_fws_txstatus_indicate(struct brcmf_fws_info *fws, u8 *data)
 {
+	__le32 status_le;
 	u32 status;
 	u32 hslot;
 	u32 genbit;
 	u8 flags;
 
 	fws->stats.txs_indicate++;
-	status = le32_to_cpu(*(__le32 *)data);
+	memcpy(&status_le, data, sizeof(status_le));
+	status = le32_to_cpu(status_le);
 	flags = brcmf_txstatus_get_field(status, FLAGS);
 	hslot = brcmf_txstatus_get_field(status, HSLOT);
 	genbit = brcmf_txstatus_get_field(status, GENERATION);
