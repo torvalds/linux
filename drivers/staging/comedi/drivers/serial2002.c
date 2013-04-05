@@ -31,8 +31,6 @@ Status: in development
 
 */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include "../comedidev.h"
 
 #include <linux/delay.h>
@@ -299,7 +297,6 @@ static struct serial_data serial2002_read(struct file *f, int timeout)
 
 		length++;
 		if (data < 0) {
-			pr_err("Failed to read serial.\n");
 			break;
 		} else if (data & 0x80) {
 			result.value = (result.value << 7) | (data & 0x7f);
