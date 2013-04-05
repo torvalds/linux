@@ -6,6 +6,7 @@
 
 #include "dm.h"
 #include "dm-bio-prison.h"
+#include "dm-bio-record.h"
 #include "dm-cache-metadata.h"
 
 #include <linux/dm-io.h>
@@ -205,6 +206,7 @@ struct per_bio_data {
 	struct cache *cache;
 	dm_cblock_t cblock;
 	bio_end_io_t *saved_bi_end_io;
+	struct dm_bio_details bio_details;
 };
 
 struct dm_cache_migration {
@@ -643,6 +645,7 @@ static void writethrough_endio(struct bio *bio, int err)
 		return;
 	}
 
+	dm_bio_restore(&pb->bio_details, bio);
 	remap_to_cache(pb->cache, bio, pb->cblock);
 
 	/*
@@ -667,6 +670,7 @@ static void remap_to_origin_then_cache(struct cache *cache, struct bio *bio,
 	pb->cache = cache;
 	pb->cblock = cblock;
 	pb->saved_bi_end_io = bio->bi_end_io;
+	dm_bio_record(&pb->bio_details, bio);
 	bio->bi_end_io = writethrough_endio;
 
 	remap_to_origin_clear_discard(pb->cache, bio, oblock);
