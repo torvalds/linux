@@ -1384,7 +1384,7 @@ int brcmf_p2p_notify_action_frame_rx(struct brcmf_if *ifp,
 		/* After complete GO Negotiation, roll back to mpc mode */
 		if ((action == P2P_PAF_GON_CONF) ||
 		    (action == P2P_PAF_PROVDIS_RSP))
-			brcmf_set_mpc(ifp->ndev, 1);
+			brcmf_set_mpc(ifp, 1);
 		if (action == P2P_PAF_GON_CONF) {
 			brcmf_dbg(TRACE, "P2P: GO_NEG_PHASE status cleared\n");
 			clear_bit(BRCMF_P2P_STATUS_GO_NEG_PHASE, &p2p->status);
@@ -1725,7 +1725,7 @@ bool brcmf_p2p_send_action_frame(struct brcmf_cfg80211_info *cfg,
 
 	/* To make sure to send successfully action frame, turn off mpc */
 	if (config_af_params.mpc_onoff == 0)
-		brcmf_set_mpc(ndev, 0);
+		brcmf_set_mpc(netdev_priv(ndev), 0);
 
 	/* set status and destination address before sending af */
 	if (p2p->next_af_subtype != P2P_PAF_SUBTYPE_INVALID) {
@@ -1820,7 +1820,7 @@ exit:
 	clear_bit(BRCMF_P2P_STATUS_WAITING_NEXT_ACT_FRAME, &p2p->status);
 	/* if all done, turn mpc on again */
 	if (config_af_params.mpc_onoff == 1)
-		brcmf_set_mpc(ndev, 1);
+		brcmf_set_mpc(netdev_priv(ndev), 1);
 
 	return ack;
 }
@@ -2046,7 +2046,7 @@ int brcmf_p2p_ifchange(struct brcmf_cfg80211_info *cfg,
 		brcmf_err("vif for P2PAPI_BSSCFG_CONNECTION does not exist\n");
 		return -EPERM;
 	}
-	brcmf_set_mpc(vif->ifp->ndev, 0);
+	brcmf_set_mpc(vif->ifp, 0);
 
 	/* In concurrency case, STA may be already associated in a particular */
 	/* channel. so retrieve the current channel of primary interface and  */

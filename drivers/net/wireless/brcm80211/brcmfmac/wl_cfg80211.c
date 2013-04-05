@@ -490,9 +490,8 @@ static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 	}
 }
 
-void brcmf_set_mpc(struct net_device *ndev, int mpc)
+void brcmf_set_mpc(struct brcmf_if *ifp, int mpc)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
 	s32 err = 0;
 
 	if (check_vif_up(ifp->vif)) {
@@ -510,6 +509,7 @@ brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 			    struct net_device *ndev,
 			    bool aborted, bool fw_abort)
 {
+	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_scan_params_le params_le;
 	struct cfg80211_scan_request *scan_request;
 	s32 err = 0;
@@ -539,7 +539,7 @@ brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 		/* Scan is aborted by setting channel_list[0] to -1 */
 		params_le.channel_list[0] = cpu_to_le16(-1);
 		/* E-Scan (or anyother type) can be aborted by SCAN */
-		err = brcmf_fil_cmd_data_set(netdev_priv(ndev), BRCMF_C_SCAN,
+		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SCAN,
 					     &params_le, sizeof(params_le));
 		if (err)
 			brcmf_err("Scan abort  failed\n");
@@ -553,12 +553,12 @@ brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 		cfg->sched_escan = false;
 		if (!aborted)
 			cfg80211_sched_scan_results(cfg_to_wiphy(cfg));
-		brcmf_set_mpc(ndev, 1);
+		brcmf_set_mpc(ifp, 1);
 	} else if (scan_request) {
 		brcmf_dbg(SCAN, "ESCAN Completed scan: %s\n",
 			  aborted ? "Aborted" : "Done");
 		cfg80211_scan_done(scan_request, aborted);
-		brcmf_set_mpc(ndev, 1);
+		brcmf_set_mpc(ifp, 1);
 	}
 	if (!test_and_clear_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status))
 		brcmf_dbg(SCAN, "Scan complete, probably P2P scan\n");
@@ -813,19 +813,20 @@ brcmf_do_escan(struct brcmf_cfg80211_info *cfg, struct wiphy *wiphy,
 	u32 passive_scan;
 	struct brcmf_scan_results *results;
 	struct escan_info *escan = &cfg->escan_info;
+	struct brcmf_if *ifp = netdev_priv(ndev);
 
 	brcmf_dbg(SCAN, "Enter\n");
 	escan->ndev = ndev;
 	escan->wiphy = wiphy;
 	escan->escan_state = WL_ESCAN_STATE_SCANNING;
 	passive_scan = cfg->active_scan ? 0 : 1;
-	err = brcmf_fil_cmd_int_set(netdev_priv(ndev), BRCMF_C_SET_PASSIVE_SCAN,
+	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_PASSIVE_SCAN,
 				    passive_scan);
 	if (err) {
 		brcmf_err("error (%d)\n", err);
 		return err;
 	}
-	brcmf_set_mpc(ndev, 0);
+	brcmf_set_mpc(ifp, 0);
 	results = (struct brcmf_scan_results *)cfg->escan_info.escan_buf;
 	results->version = 0;
 	results->count = 0;
@@ -833,7 +834,7 @@ brcmf_do_escan(struct brcmf_cfg80211_info *cfg, struct wiphy *wiphy,
 
 	err = escan->run(cfg, ndev, request, WL_ESCAN_ACTION_START);
 	if (err)
-		brcmf_set_mpc(ndev, 1);
+		brcmf_set_mpc(ifp, 1);
 	return err;
 }
 
@@ -921,7 +922,7 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct net_device *ndev,
 			brcmf_err("WLC_SET_PASSIVE_SCAN error (%d)\n", err);
 			goto scan_out;
 		}
-		brcmf_set_mpc(ndev, 0);
+		brcmf_set_mpc(ifp, 0);
 		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SCAN,
 					     &sr->ssid_le, sizeof(sr->ssid_le));
 		if (err) {
@@ -931,7 +932,7 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct net_device *ndev,
 			else
 				brcmf_err("WLC_SCAN error (%d)\n", err);
 
-			brcmf_set_mpc(ndev, 1);
+			brcmf_set_mpc(ifp, 1);
 			goto scan_out;
 		}
 	}
@@ -2697,7 +2698,7 @@ static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
 		brcmf_abort_scanning(cfg);
 
 	/* Turn off watchdog timer */
-	brcmf_set_mpc(ndev, 1);
+	brcmf_set_mpc(netdev_priv(ndev), 1);
 
 exit:
 	brcmf_dbg(TRACE, "Exit\n");
@@ -3668,7 +3669,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		ssid_le.SSID_len = cpu_to_le32((u32)settings->ssid_len);
 	}
 
-	brcmf_set_mpc(ndev, 0);
+	brcmf_set_mpc(ifp, 0);
 
 	/* find the RSN_IE */
 	rsn_ie = brcmf_parse_tlvs((u8 *)settings->beacon.tail,
@@ -3776,7 +3777,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 
 exit:
 	if (err)
-		brcmf_set_mpc(ndev, 1);
+		brcmf_set_mpc(ifp, 1);
 	return err;
 }
 
@@ -3810,7 +3811,7 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 		if (err < 0)
 			brcmf_err("bss_enable config failed %d\n", err);
 	}
-	brcmf_set_mpc(ndev, 1);
+	brcmf_set_mpc(ifp, 1);
 	set_bit(BRCMF_VIF_STATUS_AP_CREATING, &ifp->vif->sme_state);
 	clear_bit(BRCMF_VIF_STATUS_AP_CREATED, &ifp->vif->sme_state);
 
