@@ -7216,6 +7216,14 @@ int ixgbe_wol_supported(struct ixgbe_adapter *adapter, u16 device_id,
 			break;
 		}
 		break;
+	case IXGBE_DEV_ID_82599EN_SFP:
+		/* Only this subdevice supports WOL */
+		switch (subdevice_id) {
+		case IXGBE_SUBDEV_ID_82599EN_SFP_OCP1:
+			is_wol_supported = 1;
+			break;
+		}
+		break;
 	case IXGBE_DEV_ID_82599_COMBO_BACKPLANE:
 		/* All except this subdevice support WOL */
 		if (subdevice_id != IXGBE_SUBDEV_ID_82599_KX4_KR_MEZZ)
