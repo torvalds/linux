@@ -778,7 +778,7 @@ static int max3100_probe(struct spi_device *spi)
 	max3100s[i]->spi = spi;
 	max3100s[i]->irq = spi->irq;
 	spin_lock_init(&max3100s[i]->conf_lock);
-	dev_set_drvdata(&spi->dev, max3100s[i]);
+	spi_set_drvdata(spi, max3100s[i]);
 	pdata = spi->dev.platform_data;
 	max3100s[i]->crystal = pdata->crystal;
 	max3100s[i]->loopback = pdata->loopback;
@@ -819,7 +819,7 @@ static int max3100_probe(struct spi_device *spi)
 
 static int max3100_remove(struct spi_device *spi)
 {
-	struct max3100_port *s = dev_get_drvdata(&spi->dev);
+	struct max3100_port *s = spi_get_drvdata(spi);
 	int i;
 
 	mutex_lock(&max3100s_lock);
