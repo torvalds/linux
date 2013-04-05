@@ -1391,8 +1391,9 @@ static int dvb_init(struct saa7134_dev *dev)
 					wprintk("%s: Lifeview Trio, No tda826x found!\n", __func__);
 					goto detach_frontend;
 				}
-				if (dvb_attach(isl6421_attach, fe0->dvb.frontend, &dev->i2c_adap,
-										0x08, 0, 0) == NULL) {
+				if (dvb_attach(isl6421_attach, fe0->dvb.frontend,
+					       &dev->i2c_adap,
+					       0x08, 0, 0, false) == NULL) {
 					wprintk("%s: Lifeview Trio, No ISL6421 found!\n", __func__);
 					goto detach_frontend;
 				}
@@ -1509,7 +1510,8 @@ static int dvb_init(struct saa7134_dev *dev)
 				goto detach_frontend;
 			}
 			if (dvb_attach(isl6421_attach, fe0->dvb.frontend,
-				       &dev->i2c_adap, 0x08, 0, 0) == NULL) {
+				       &dev->i2c_adap,
+				       0x08, 0, 0, false) == NULL) {
 				wprintk("%s: No ISL6421 found!\n", __func__);
 				goto detach_frontend;
 			}

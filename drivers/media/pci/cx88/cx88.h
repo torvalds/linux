@@ -334,6 +334,7 @@ struct cx88_core {
 	/* board name */
 	int                        nr;
 	char                       name[32];
+	u32			   model;
 
 	/* pci stuff */
 	int                        pci_bus;

@@ -2855,6 +2855,7 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	core->board.tuner_type = tv.tuner_type;
 	core->tuner_formats = tv.tuner_formats;
 	core->board.radio.type = tv.has_radio ? CX88_RADIO : 0;
+	core->model = tv.model;
 
 	/* Make sure we support the board model */
 	switch (tv.model)
