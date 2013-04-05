@@ -1,3 +1,4 @@
+
 #include <linux/ceph/ceph_debug.h>
 
 #include <linux/module.h>
@@ -85,7 +86,7 @@ static void ceph_osd_data_init(struct ceph_osd_data *osd_data)
 	osd_data->type = CEPH_OSD_DATA_TYPE_NONE;
 }
 
-void ceph_osd_data_pages_init(struct ceph_osd_data *osd_data,
+static void ceph_osd_data_pages_init(struct ceph_osd_data *osd_data,
 			struct page **pages, u64 length, u32 alignment,
 			bool pages_from_pool, bool own_pages)
 {
@@ -96,26 +97,130 @@ void ceph_osd_data_pages_init(struct ceph_osd_data *osd_data,
 	osd_data->pages_from_pool = pages_from_pool;
 	osd_data->own_pages = own_pages;
 }
-EXPORT_SYMBOL(ceph_osd_data_pages_init);
 
-void ceph_osd_data_pagelist_init(struct ceph_osd_data *osd_data,
+static void ceph_osd_data_pagelist_init(struct ceph_osd_data *osd_data,
 			struct ceph_pagelist *pagelist)
 {
 	osd_data->type = CEPH_OSD_DATA_TYPE_PAGELIST;
 	osd_data->pagelist = pagelist;
 }
-EXPORT_SYMBOL(ceph_osd_data_pagelist_init);
 
 #ifdef CONFIG_BLOCK
-void ceph_osd_data_bio_init(struct ceph_osd_data *osd_data,
+static void ceph_osd_data_bio_init(struct ceph_osd_data *osd_data,
 			struct bio *bio, size_t bio_length)
 {
 	osd_data->type = CEPH_OSD_DATA_TYPE_BIO;
 	osd_data->bio = bio;
 	osd_data->bio_length = bio_length;
 }
-EXPORT_SYMBOL(ceph_osd_data_bio_init);
 #endif /* CONFIG_BLOCK */
+
+struct ceph_osd_data *
+osd_req_op_extent_osd_data(struct ceph_osd_request *osd_req,
+			unsigned int which, bool write_request)
+{
+	BUG_ON(which >= osd_req->r_num_ops);
+
+	/* return &osd_req->r_ops[which].extent.osd_data; */
+	return write_request ? &osd_req->r_data_out : &osd_req->r_data_in;
+}
+EXPORT_SYMBOL(osd_req_op_extent_osd_data);
+
+struct ceph_osd_data *
+osd_req_op_cls_request_info(struct ceph_osd_request *osd_req,
+			unsigned int which)
+{
+	BUG_ON(which >= osd_req->r_num_ops);
+
+	/* return &osd_req->r_ops[which].cls.request_info; */
+	return &osd_req->r_data_out;	/* Request data is outgoing */
+}
+EXPORT_SYMBOL(osd_req_op_cls_request_info);	/* ??? */
+
+struct ceph_osd_data *
+osd_req_op_cls_response_data(struct ceph_osd_request *osd_req,
+			unsigned int which)
+{
+	BUG_ON(which >= osd_req->r_num_ops);
+
+	/* return &osd_req->r_ops[which].cls.response_data; */
+	return &osd_req->r_data_in;	/* Response data is incoming */
+}
+EXPORT_SYMBOL(osd_req_op_cls_response_data);	/* ??? */
+
+void osd_req_op_extent_osd_data_pages(struct ceph_osd_request *osd_req,
+			unsigned int which, bool write_request,
+			struct page **pages, u64 length, u32 alignment,
+			bool pages_from_pool, bool own_pages)
+{
+	struct ceph_osd_data *osd_data;
+
+	osd_data = osd_req_op_extent_osd_data(osd_req, which, write_request);
+	ceph_osd_data_pages_init(osd_data, pages, length, alignment,
+				pages_from_pool, own_pages);
+
+	osd_req->r_ops[which].extent.osd_data =
+		osd_req_op_extent_osd_data(osd_req, which, write_request);
+}
+EXPORT_SYMBOL(osd_req_op_extent_osd_data_pages);
+
+void osd_req_op_extent_osd_data_pagelist(struct ceph_osd_request *osd_req,
+			unsigned int which, bool write_request,
+			struct ceph_pagelist *pagelist)
+{
+	struct ceph_osd_data *osd_data;
+
+	osd_data = osd_req_op_extent_osd_data(osd_req, which, write_request);
+	ceph_osd_data_pagelist_init(osd_data, pagelist);
+
+	osd_req->r_ops[which].extent.osd_data =
+		osd_req_op_extent_osd_data(osd_req, which, write_request);
+}
+EXPORT_SYMBOL(osd_req_op_extent_osd_data_pagelist);
+
+#ifdef CONFIG_BLOCK
+void osd_req_op_extent_osd_data_bio(struct ceph_osd_request *osd_req,
+			unsigned int which, bool write_request,
+			struct bio *bio, size_t bio_length)
+{
+	struct ceph_osd_data *osd_data;
+
+	osd_data = osd_req_op_extent_osd_data(osd_req, which, write_request);
+	ceph_osd_data_bio_init(osd_data, bio, bio_length);
+
+	osd_req->r_ops[which].extent.osd_data =
+		osd_req_op_extent_osd_data(osd_req, which, write_request);
+}
+EXPORT_SYMBOL(osd_req_op_extent_osd_data_bio);
+#endif /* CONFIG_BLOCK */
+
+static void osd_req_op_cls_request_info_pagelist(
+			struct ceph_osd_request *osd_req,
+			unsigned int which, struct ceph_pagelist *pagelist)
+{
+	struct ceph_osd_data *osd_data;
+
+	osd_data = osd_req_op_cls_request_info(osd_req, which);
+	ceph_osd_data_pagelist_init(osd_data, pagelist);
+
+	osd_req->r_ops[which].cls.request_info =
+		osd_req_op_cls_request_info(osd_req, which);
+}
+
+void osd_req_op_cls_response_data_pages(struct ceph_osd_request *osd_req,
+			unsigned int which, struct page **pages, u64 length,
+			u32 alignment, bool pages_from_pool, bool own_pages)
+{
+	struct ceph_osd_data *osd_data;
+
+	osd_data = osd_req_op_cls_response_data(osd_req, which);
+	ceph_osd_data_pages_init(osd_data, pages, length, alignment,
+				pages_from_pool, own_pages);
+
+	osd_req->r_ops[which].cls.response_data =
+		osd_req_op_cls_response_data(osd_req, which);
+}
+EXPORT_SYMBOL(osd_req_op_cls_response_data_pages);
 
 static u64 ceph_osd_data_length(struct ceph_osd_data *osd_data)
 {
@@ -385,15 +490,6 @@ void osd_req_op_extent_update(struct ceph_osd_request *osd_req,
 }
 EXPORT_SYMBOL(osd_req_op_extent_update);
 
-void osd_req_op_extent_osd_data(struct ceph_osd_request *osd_req,
-				unsigned int which,
-				struct ceph_osd_data *osd_data)
-{
-	BUG_ON(which >= osd_req->r_num_ops);
-	osd_req->r_ops[which].extent.osd_data = osd_data;
-}
-EXPORT_SYMBOL(osd_req_op_extent_osd_data);
-
 void osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
 			u16 opcode, const char *class, const char *method,
 			const void *request_data, size_t request_data_size)
@@ -429,22 +525,13 @@ void osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
 	ceph_pagelist_append(pagelist, request_data, request_data_size);
 	payload_len += request_data_size;
 
-	op->cls.request_info = &osd_req->r_data_out;
-	ceph_osd_data_pagelist_init(op->cls.request_info, pagelist);
+	osd_req_op_cls_request_info_pagelist(osd_req, which, pagelist);
 
 	op->cls.argc = 0;	/* currently unused */
 
 	op->payload_len = payload_len;
 }
 EXPORT_SYMBOL(osd_req_op_cls_init);
-void osd_req_op_cls_response_data(struct ceph_osd_request *osd_req,
-				unsigned int which,
-				struct ceph_osd_data *response_data)
-{
-	BUG_ON(which >= osd_req->r_num_ops);
-	osd_req->r_ops[which].cls.response_data = response_data;
-}
-EXPORT_SYMBOL(osd_req_op_cls_response_data);
 
 void osd_req_op_watch_init(struct ceph_osd_request *osd_req,
 				unsigned int which, u16 opcode,
@@ -547,7 +634,6 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					       bool use_mempool)
 {
 	struct ceph_osd_request *req;
-	struct ceph_osd_data *osd_data;
 	u64 objnum = 0;
 	u64 objoff = 0;
 	u64 objlen = 0;
@@ -561,8 +647,6 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					GFP_NOFS);
 	if (!req)
 		return ERR_PTR(-ENOMEM);
-	osd_data = opcode == CEPH_OSD_OP_WRITE ? &req->r_data_out
-					       : &req->r_data_in;
 
 	req->r_flags = flags;
 
@@ -585,7 +669,6 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 
 	osd_req_op_extent_init(req, 0, opcode, objoff, objlen,
 				truncate_size, truncate_seq);
-	osd_req_op_extent_osd_data(req, 0, osd_data);
 
 	/*
 	 * A second op in the ops array means the caller wants to
@@ -2171,8 +2254,8 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 
 	/* it may be a short read due to an object boundary */
 
-	ceph_osd_data_pages_init(&req->r_data_in, pages, *plen, page_align,
-				false, false);
+	osd_req_op_extent_osd_data_pages(req, 0, false,
+				pages, *plen, page_align, false, false);
 
 	dout("readpages  final extent is %llu~%llu (%llu bytes align %d)\n",
 	     off, *plen, *plen, page_align);
@@ -2214,7 +2297,7 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 		return PTR_ERR(req);
 
 	/* it may be a short write due to an object boundary */
-	ceph_osd_data_pages_init(&req->r_data_out, pages, len, page_align,
+	osd_req_op_extent_osd_data_pages(req, 0, true, pages, len, page_align,
 				false, false);
 	dout("writepages %llu~%llu (%llu bytes)\n", off, len, len);
 
@@ -2308,8 +2391,14 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 	m = ceph_msg_get(req->r_reply);
 
 	if (data_len > 0) {
-		struct ceph_osd_data *osd_data = &req->r_data_in;
+		struct ceph_osd_data *osd_data;
 
+		/*
+		 * XXX This is assuming there is only one op containing
+		 * XXX page data.  Probably OK for reads, but this
+		 * XXX ought to be done more generally.
+		 */
+		osd_data = osd_req_op_extent_osd_data(req, 0, false);
 		if (osd_data->type == CEPH_OSD_DATA_TYPE_PAGES) {
 			if (osd_data->pages &&
 				unlikely(osd_data->length < data_len)) {

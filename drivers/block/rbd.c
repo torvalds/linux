@@ -1592,7 +1592,6 @@ static int rbd_img_request_fill_bio(struct rbd_img_request *img_request,
 	rbd_assert(resid > 0);
 	while (resid) {
 		struct ceph_osd_request *osd_req;
-		struct ceph_osd_data *osd_data;
 		const char *object_name;
 		unsigned int clone_size;
 		u64 offset;
@@ -1625,13 +1624,10 @@ static int rbd_img_request_fill_bio(struct rbd_img_request *img_request,
 		obj_request->osd_req = osd_req;
 		obj_request->callback = rbd_img_obj_callback;
 
-		osd_data = write_request ? &osd_req->r_data_out
-					 : &osd_req->r_data_in;
 		osd_req_op_extent_init(osd_req, 0, opcode, offset, length,
 						0, 0);
-		ceph_osd_data_bio_init(osd_data, obj_request->bio_list,
-					obj_request->length);
-		osd_req_op_extent_osd_data(osd_req, 0, osd_data);
+		osd_req_op_extent_osd_data_bio(osd_req, 0, write_request,
+				obj_request->bio_list, obj_request->length);
 		rbd_osd_req_format(obj_request, write_request);
 
 		rbd_img_obj_request_add(img_request, obj_request);
@@ -1821,7 +1817,6 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct rbd_obj_request *obj_request;
-	struct ceph_osd_data *osd_data;
 	struct page **pages;
 	u32 page_count;
 	int ret;
@@ -1851,13 +1846,12 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 	if (!obj_request->osd_req)
 		goto out;
 
-	osd_data = &obj_request->osd_req->r_data_in;
 	osd_req_op_cls_init(obj_request->osd_req, 0, CEPH_OSD_OP_CALL,
 					class_name, method_name,
 					outbound, outbound_size);
-	ceph_osd_data_pages_init(osd_data, obj_request->pages, inbound_size,
+	osd_req_op_cls_response_data_pages(obj_request->osd_req, 0,
+					obj_request->pages, inbound_size,
 					0, false, false);
-	osd_req_op_cls_response_data(obj_request->osd_req, 0, osd_data);
 	rbd_osd_req_format(obj_request, false);
 
 	ret = rbd_obj_request_submit(osdc, obj_request);
@@ -2037,7 +2031,6 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct rbd_obj_request *obj_request;
-	struct ceph_osd_data *osd_data;
 	struct page **pages = NULL;
 	u32 page_count;
 	size_t size;
@@ -2061,14 +2054,13 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 	if (!obj_request->osd_req)
 		goto out;
 
-	osd_data = &obj_request->osd_req->r_data_in;
 	osd_req_op_extent_init(obj_request->osd_req, 0, CEPH_OSD_OP_READ,
 					offset, length, 0, 0);
-	ceph_osd_data_pages_init(osd_data, obj_request->pages,
+	osd_req_op_extent_osd_data_pages(obj_request->osd_req, 0, false,
+					obj_request->pages,
 					obj_request->length,
 					obj_request->offset & ~PAGE_MASK,
 					false, false);
-	osd_req_op_extent_osd_data(obj_request->osd_req, 0, osd_data);
 	rbd_osd_req_format(obj_request, false);
 
 	ret = rbd_obj_request_submit(osdc, obj_request);
