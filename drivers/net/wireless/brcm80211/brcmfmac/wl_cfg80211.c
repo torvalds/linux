@@ -482,9 +482,9 @@ static struct wireless_dev *brcmf_cfg80211_add_iface(struct wiphy *wiphy,
 		return ERR_PTR(-EOPNOTSUPP);
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_P2P_DEVICE:
 		return brcmf_p2p_add_vif(wiphy, name, type, flags, params);
 	case NL80211_IFTYPE_UNSPECIFIED:
-	case NL80211_IFTYPE_P2P_DEVICE:
 	default:
 		return ERR_PTR(-EINVAL);
 	}
@@ -594,9 +594,9 @@ int brcmf_cfg80211_del_iface(struct wiphy *wiphy, struct wireless_dev *wdev)
 		return -EOPNOTSUPP;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_P2P_DEVICE:
 		return brcmf_p2p_del_vif(wiphy, wdev);
 	case NL80211_IFTYPE_UNSPECIFIED:
-	case NL80211_IFTYPE_P2P_DEVICE:
 	default:
 		return -EINVAL;
 	}
@@ -4023,6 +4023,8 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	.mgmt_tx = brcmf_cfg80211_mgmt_tx,
 	.remain_on_channel = brcmf_p2p_remain_on_channel,
 	.cancel_remain_on_channel = brcmf_cfg80211_cancel_remain_on_channel,
+	.start_p2p_device = brcmf_p2p_start_device,
+	.stop_p2p_device = brcmf_p2p_stop_device,
 #ifdef CONFIG_NL80211_TESTMODE
 	.testmode_cmd = brcmf_cfg80211_testmode
 #endif
