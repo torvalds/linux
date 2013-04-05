@@ -25,6 +25,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <net/wpan-phy.h>
 #include <net/mac802154.h>
+#include <net/ieee802154.h>
 
 /* MRF24J40 Short Address Registers */
 #define REG_RXMCR    0x00  /* Receive MAC control */
@@ -349,7 +350,9 @@ static int mrf24j40_tx(struct ieee802154_dev *dev, struct sk_buff *skb)
 	if (ret)
 		goto err;
 	val |= 0x1;
-	val &= ~0x4;
+	/* Set TXNACKREQ if the ACK bit is set in the packet. */
+	if (skb->data[0] & IEEE802154_FC_ACK_REQ)
+		val |= 0x4;
 	write_short_reg(devrec, REG_TXNCON, val);
 
 	INIT_COMPLETION(devrec->tx_complete);
@@ -371,7 +374,7 @@ static int mrf24j40_tx(struct ieee802154_dev *dev, struct sk_buff *skb)
 	if (ret)
 		goto err;
 	if (val & 0x1) {
-		dev_err(printdev(devrec), "Error Sending. Retry count exceeded\n");
+		dev_dbg(printdev(devrec), "Error Sending. Retry count exceeded\n");
 		ret = -ECOMM; /* TODO: Better error code ? */
 	} else
 		dev_dbg(printdev(devrec), "Packet Sent\n");
