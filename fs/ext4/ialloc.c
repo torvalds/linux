@@ -22,6 +22,7 @@
 #include <linux/random.h>
 #include <linux/bitops.h>
 #include <linux/blkdev.h>
+#include <linux/math64.h>
 #include <asm/byteorder.h>
 
 #include "ext4.h"
@@ -356,7 +357,7 @@ static int find_group_flex(struct super_block *sb, struct inode *parent,
 
 find_close_to_parent:
 	flexbg_free_blocks = atomic64_read(&flex_group[best_flex].free_blocks);
-	flex_freeb_ratio = flexbg_free_blocks * 100 / blocks_per_flex;
+	flex_freeb_ratio = div64_u64(flexbg_free_blocks * 100, blocks_per_flex);
 	if (atomic_read(&flex_group[best_flex].free_inodes) &&
 	    flex_freeb_ratio > free_block_ratio)
 		goto found_flexbg;
@@ -371,7 +372,7 @@ find_close_to_parent:
 			continue;
 
 		flexbg_free_blocks = atomic64_read(&flex_group[i].free_blocks);
-		flex_freeb_ratio = flexbg_free_blocks * 100 / blocks_per_flex;
+		flex_freeb_ratio = div64_u64(flexbg_free_blocks * 100, blocks_per_flex);
 
 		if (flex_freeb_ratio > free_block_ratio &&
 		    (atomic_read(&flex_group[i].free_inodes))) {
