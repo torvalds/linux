@@ -82,15 +82,24 @@ static long tty_ioctl(struct file *f, unsigned op, unsigned long param)
 
 static int tty_write(struct file *f, unsigned char *buf, int count)
 {
+	const char __user *p = (__force const char __user *)buf;
 	int result;
 	mm_segment_t oldfs;
 
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
 	f->f_pos = 0;
-	result = f->f_op->write(f, buf, count, &f->f_pos);
+	result = f->f_op->write(f, p, count, &f->f_pos);
 	set_fs(oldfs);
 	return result;
+}
+
+static int __tty_readb(struct file *f, unsigned char *buf)
+{
+	char __user *p = (__force char __user *)buf;
+
+	f->f_pos = 0;
+	return f->f_op->read(f, p, 1, &f->f_pos);
 }
 
 #if 0
@@ -113,6 +122,7 @@ static int tty_available(struct file *f)
 
 static int tty_read(struct file *f, int timeout)
 {
+	unsigned char ch;
 	int result;
 
 	result = -1;
@@ -147,25 +157,18 @@ static int tty_read(struct file *f, int timeout)
 						   elapsed) * HZ) / 10000);
 			}
 			poll_freewait(&table);
-			{
-				unsigned char ch;
 
-				f->f_pos = 0;
-				if (f->f_op->read(f, &ch, 1, &f->f_pos) == 1)
-					result = ch;
-			}
+			if (__tty_readb(f, &ch) == 1)
+				result = ch;
 		} else {
 			/* Device does not support poll, busy wait */
 			int retries = 0;
 			while (1) {
-				unsigned char ch;
-
 				retries++;
 				if (retries >= timeout)
 					break;
 
-				f->f_pos = 0;
-				if (f->f_op->read(f, &ch, 1, &f->f_pos) == 1) {
+				if (__tty_readb(f, &ch) == 1) {
 					result = ch;
 					break;
 				}
