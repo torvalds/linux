@@ -121,9 +121,7 @@ MODULE_PARM_DESC(i915_enable_ppgtt,
 unsigned int i915_preliminary_hw_support __read_mostly = 0;
 module_param_named(preliminary_hw_support, i915_preliminary_hw_support, int, 0600);
 MODULE_PARM_DESC(preliminary_hw_support,
-		"Enable preliminary hardware support. "
-		"Enable Haswell and ValleyView Support. "
-		"(default: false)");
+		"Enable preliminary hardware support. (default: false)");
 
 int i915_disable_power_well __read_mostly = 0;
 module_param_named(disable_power_well, i915_disable_power_well, int, 0600);
@@ -143,74 +141,74 @@ extern int intel_agp_enabled;
 	.driver_data = (unsigned long) info }
 
 static const struct intel_device_info intel_i830_info = {
-	.gen = 2, .is_mobile = 1, .cursor_needs_physical = 1,
+	.gen = 2, .is_mobile = 1, .cursor_needs_physical = 1, .num_pipes = 2,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_845g_info = {
-	.gen = 2,
+	.gen = 2, .num_pipes = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_i85x_info = {
-	.gen = 2, .is_i85x = 1, .is_mobile = 1,
+	.gen = 2, .is_i85x = 1, .is_mobile = 1, .num_pipes = 2,
 	.cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_i865g_info = {
-	.gen = 2,
+	.gen = 2, .num_pipes = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_i915g_info = {
-	.gen = 3, .is_i915g = 1, .cursor_needs_physical = 1,
+	.gen = 3, .is_i915g = 1, .cursor_needs_physical = 1, .num_pipes = 2,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 static const struct intel_device_info intel_i915gm_info = {
-	.gen = 3, .is_mobile = 1,
+	.gen = 3, .is_mobile = 1, .num_pipes = 2,
 	.cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.supports_tv = 1,
 };
 static const struct intel_device_info intel_i945g_info = {
-	.gen = 3, .has_hotplug = 1, .cursor_needs_physical = 1,
+	.gen = 3, .has_hotplug = 1, .cursor_needs_physical = 1, .num_pipes = 2,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 };
 static const struct intel_device_info intel_i945gm_info = {
-	.gen = 3, .is_i945gm = 1, .is_mobile = 1,
+	.gen = 3, .is_i945gm = 1, .is_mobile = 1, .num_pipes = 2,
 	.has_hotplug = 1, .cursor_needs_physical = 1,
 	.has_overlay = 1, .overlay_needs_physical = 1,
 	.supports_tv = 1,
 };
 
 static const struct intel_device_info intel_i965g_info = {
-	.gen = 4, .is_broadwater = 1,
+	.gen = 4, .is_broadwater = 1, .num_pipes = 2,
 	.has_hotplug = 1,
 	.has_overlay = 1,
 };
 
 static const struct intel_device_info intel_i965gm_info = {
-	.gen = 4, .is_crestline = 1,
+	.gen = 4, .is_crestline = 1, .num_pipes = 2,
 	.is_mobile = 1, .has_fbc = 1, .has_hotplug = 1,
 	.has_overlay = 1,
 	.supports_tv = 1,
 };
 
 static const struct intel_device_info intel_g33_info = {
-	.gen = 3, .is_g33 = 1,
+	.gen = 3, .is_g33 = 1, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_overlay = 1,
 };
 
 static const struct intel_device_info intel_g45_info = {
-	.gen = 4, .is_g4x = 1, .need_gfx_hws = 1,
+	.gen = 4, .is_g4x = 1, .need_gfx_hws = 1, .num_pipes = 2,
 	.has_pipe_cxsr = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_gm45_info = {
-	.gen = 4, .is_g4x = 1,
+	.gen = 4, .is_g4x = 1, .num_pipes = 2,
 	.is_mobile = 1, .need_gfx_hws = 1, .has_fbc = 1,
 	.has_pipe_cxsr = 1, .has_hotplug = 1,
 	.supports_tv = 1,
@@ -218,26 +216,26 @@ static const struct intel_device_info intel_gm45_info = {
 };
 
 static const struct intel_device_info intel_pineview_info = {
-	.gen = 3, .is_g33 = 1, .is_pineview = 1, .is_mobile = 1,
+	.gen = 3, .is_g33 = 1, .is_pineview = 1, .is_mobile = 1, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_overlay = 1,
 };
 
 static const struct intel_device_info intel_ironlake_d_info = {
-	.gen = 5,
+	.gen = 5, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_ironlake_m_info = {
-	.gen = 5, .is_mobile = 1,
+	.gen = 5, .is_mobile = 1, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_fbc = 1,
 	.has_bsd_ring = 1,
 };
 
 static const struct intel_device_info intel_sandybridge_d_info = {
-	.gen = 6,
+	.gen = 6, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
@@ -246,7 +244,7 @@ static const struct intel_device_info intel_sandybridge_d_info = {
 };
 
 static const struct intel_device_info intel_sandybridge_m_info = {
-	.gen = 6, .is_mobile = 1,
+	.gen = 6, .is_mobile = 1, .num_pipes = 2,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_fbc = 1,
 	.has_bsd_ring = 1,
@@ -255,61 +253,49 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 	.has_force_wake = 1,
 };
 
+#define GEN7_FEATURES  \
+	.gen = 7, .num_pipes = 3, \
+	.need_gfx_hws = 1, .has_hotplug = 1, \
+	.has_bsd_ring = 1, \
+	.has_blt_ring = 1, \
+	.has_llc = 1, \
+	.has_force_wake = 1
+
 static const struct intel_device_info intel_ivybridge_d_info = {
-	.is_ivybridge = 1, .gen = 7,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_bsd_ring = 1,
-	.has_blt_ring = 1,
-	.has_llc = 1,
-	.has_force_wake = 1,
+	GEN7_FEATURES,
+	.is_ivybridge = 1,
 };
 
 static const struct intel_device_info intel_ivybridge_m_info = {
-	.is_ivybridge = 1, .gen = 7, .is_mobile = 1,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_fbc = 0,	/* FBC is not enabled on Ivybridge mobile yet */
-	.has_bsd_ring = 1,
-	.has_blt_ring = 1,
-	.has_llc = 1,
-	.has_force_wake = 1,
+	GEN7_FEATURES,
+	.is_ivybridge = 1,
+	.is_mobile = 1,
 };
 
 static const struct intel_device_info intel_valleyview_m_info = {
-	.gen = 7, .is_mobile = 1,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_fbc = 0,
-	.has_bsd_ring = 1,
-	.has_blt_ring = 1,
+	GEN7_FEATURES,
+	.is_mobile = 1,
+	.num_pipes = 2,
 	.is_valleyview = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 };
 
 static const struct intel_device_info intel_valleyview_d_info = {
-	.gen = 7,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_fbc = 0,
-	.has_bsd_ring = 1,
-	.has_blt_ring = 1,
+	GEN7_FEATURES,
+	.num_pipes = 2,
 	.is_valleyview = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 };
 
 static const struct intel_device_info intel_haswell_d_info = {
-	.is_haswell = 1, .gen = 7,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_bsd_ring = 1,
-	.has_blt_ring = 1,
-	.has_llc = 1,
-	.has_force_wake = 1,
+	GEN7_FEATURES,
+	.is_haswell = 1,
 };
 
 static const struct intel_device_info intel_haswell_m_info = {
-	.is_haswell = 1, .gen = 7, .is_mobile = 1,
-	.need_gfx_hws = 1, .has_hotplug = 1,
-	.has_bsd_ring = 1,
-	.has_blt_ring = 1,
-	.has_llc = 1,
-	.has_force_wake = 1,
+	GEN7_FEATURES,
+	.is_haswell = 1,
+	.is_mobile = 1,
 };
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
@@ -394,6 +380,9 @@ static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_VGA_DEVICE(0x0D16, &intel_haswell_m_info), /* CRW GT2 mobile */
 	INTEL_VGA_DEVICE(0x0D26, &intel_haswell_m_info), /* CRW GT2 mobile */
 	INTEL_VGA_DEVICE(0x0f30, &intel_valleyview_m_info),
+	INTEL_VGA_DEVICE(0x0f31, &intel_valleyview_m_info),
+	INTEL_VGA_DEVICE(0x0f32, &intel_valleyview_m_info),
+	INTEL_VGA_DEVICE(0x0f33, &intel_valleyview_m_info),
 	INTEL_VGA_DEVICE(0x0157, &intel_valleyview_m_info),
 	INTEL_VGA_DEVICE(0x0155, &intel_valleyview_d_info),
 	{0, 0, 0}
@@ -1147,6 +1136,27 @@ ilk_dummy_write(struct drm_i915_private *dev_priv)
 	I915_WRITE_NOTRACE(MI_MODE, 0);
 }
 
+static void
+hsw_unclaimed_reg_clear(struct drm_i915_private *dev_priv, u32 reg)
+{
+	if (IS_HASWELL(dev_priv->dev) &&
+	    (I915_READ_NOTRACE(FPGA_DBG) & FPGA_DBG_RM_NOCLAIM)) {
+		DRM_ERROR("Unknown unclaimed register before writing to %x\n",
+			  reg);
+		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+	}
+}
+
+static void
+hsw_unclaimed_reg_check(struct drm_i915_private *dev_priv, u32 reg)
+{
+	if (IS_HASWELL(dev_priv->dev) &&
+	    (I915_READ_NOTRACE(FPGA_DBG) & FPGA_DBG_RM_NOCLAIM)) {
+		DRM_ERROR("Unclaimed write to %x\n", reg);
+		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+	}
+}
+
 #define __i915_read(x, y) \
 u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
 	u##x val = 0; \
@@ -1183,18 +1193,12 @@ void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 	} \
 	if (IS_GEN5(dev_priv->dev)) \
 		ilk_dummy_write(dev_priv); \
-	if (IS_HASWELL(dev_priv->dev) && (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) { \
-		DRM_ERROR("Unknown unclaimed register before writing to %x\n", reg); \
-		I915_WRITE_NOTRACE(GEN7_ERR_INT, ERR_INT_MMIO_UNCLAIMED); \
-	} \
+	hsw_unclaimed_reg_clear(dev_priv, reg); \
 	write##y(val, dev_priv->regs + reg); \
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
-	if (IS_HASWELL(dev_priv->dev) && (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) { \
-		DRM_ERROR("Unclaimed write to %x\n", reg); \
-		writel(ERR_INT_MMIO_UNCLAIMED, dev_priv->regs + GEN7_ERR_INT);	\
-	} \
+	hsw_unclaimed_reg_check(dev_priv, reg); \
 }
 __i915_write(8, b)
 __i915_write(16, w)

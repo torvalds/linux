@@ -246,11 +246,11 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 		return;
 	}
 
-	if (intel_sdvo->sdvo_reg == SDVOB) {
-		cval = I915_READ(SDVOC);
-	} else {
-		bval = I915_READ(SDVOB);
-	}
+	if (intel_sdvo->sdvo_reg == GEN3_SDVOB)
+		cval = I915_READ(GEN3_SDVOC);
+	else
+		bval = I915_READ(GEN3_SDVOB);
+
 	/*
 	 * Write the registers twice for luck. Sometimes,
 	 * writing them only once doesn't appear to 'stick'.
@@ -258,10 +258,10 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 	 */
 	for (i = 0; i < 2; i++)
 	{
-		I915_WRITE(SDVOB, bval);
-		I915_READ(SDVOB);
-		I915_WRITE(SDVOC, cval);
-		I915_READ(SDVOC);
+		I915_WRITE(GEN3_SDVOB, bval);
+		I915_READ(GEN3_SDVOB);
+		I915_WRITE(GEN3_SDVOC, cval);
+		I915_READ(GEN3_SDVOC);
 	}
 }
 
@@ -451,7 +451,7 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 	int i, ret = true;
 
         /* Would be simpler to allocate both in one go ? */        
-	buf = (u8 *)kzalloc(args_len * 2 + 2, GFP_KERNEL);
+	buf = kzalloc(args_len * 2 + 2, GFP_KERNEL);
 	if (!buf)
 		return false;
 
@@ -965,6 +965,8 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
 			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_FULL;
 	}
 
+	avi_if.body.avi.VIC = drm_match_cea_mode(adjusted_mode);
+
 	intel_dip_infoframe_csum(&avi_if);
 
 	/* sdvo spec says that the ecc is handled by the hw, and it looks like
@@ -1076,9 +1078,11 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 
 	if (intel_sdvo->color_range_auto) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
+		/* FIXME: This bit is only valid when using TMDS encoding and 8
+		 * bit per color mode. */
 		if (intel_sdvo->has_hdmi_monitor &&
 		    drm_match_cea_mode(adjusted_mode) > 1)
-			intel_sdvo->color_range = SDVO_COLOR_RANGE_16_235;
+			intel_sdvo->color_range = HDMI_COLOR_RANGE_16_235;
 		else
 			intel_sdvo->color_range = 0;
 	}
@@ -1182,10 +1186,10 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	} else {
 		sdvox = I915_READ(intel_sdvo->sdvo_reg);
 		switch (intel_sdvo->sdvo_reg) {
-		case SDVOB:
+		case GEN3_SDVOB:
 			sdvox &= SDVOB_PRESERVE_MASK;
 			break;
-		case SDVOC:
+		case GEN3_SDVOC:
 			sdvox &= SDVOC_PRESERVE_MASK;
 			break;
 		}
@@ -1193,9 +1197,9 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	}
 
 	if (INTEL_PCH_TYPE(dev) >= PCH_CPT)
-		sdvox |= TRANSCODER_CPT(intel_crtc->pipe);
+		sdvox |= SDVO_PIPE_SEL_CPT(intel_crtc->pipe);
 	else
-		sdvox |= TRANSCODER(intel_crtc->pipe);
+		sdvox |= SDVO_PIPE_SEL(intel_crtc->pipe);
 
 	if (intel_sdvo->has_hdmi_audio)
 		sdvox |= SDVO_AUDIO_ENABLE;
@@ -1305,15 +1309,9 @@ static void intel_enable_sdvo(struct intel_encoder *encoder)
 	temp = I915_READ(intel_sdvo->sdvo_reg);
 	if ((temp & SDVO_ENABLE) == 0) {
 		/* HW workaround for IBX, we need to move the port
-		 * to transcoder A before disabling it. */
-		if (HAS_PCH_IBX(dev)) {
-			struct drm_crtc *crtc = encoder->base.crtc;
-			int pipe = crtc ? to_intel_crtc(crtc)->pipe : -1;
-
-			/* Restore the transcoder select bit. */
-			if (pipe == PIPE_B)
-				temp |= SDVO_PIPE_B_SELECT;
-		}
+		 * to transcoder A before disabling it, so restore it here. */
+		if (HAS_PCH_IBX(dev))
+			temp |= SDVO_PIPE_SEL(intel_crtc->pipe);
 
 		intel_sdvo_write_sdvox(intel_sdvo, temp | SDVO_ENABLE);
 	}
@@ -1932,7 +1930,9 @@ intel_sdvo_set_property(struct drm_connector *connector,
 			break;
 		case INTEL_BROADCAST_RGB_LIMITED:
 			intel_sdvo->color_range_auto = false;
-			intel_sdvo->color_range = SDVO_COLOR_RANGE_16_235;
+			/* FIXME: this bit is only valid when using TMDS
+			 * encoding and 8 bit per color mode. */
+			intel_sdvo->color_range = HDMI_COLOR_RANGE_16_235;
 			break;
 		default:
 			return -EINVAL;

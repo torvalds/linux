@@ -93,7 +93,7 @@ enum port {
 	 I915_GEM_DOMAIN_INSTRUCTION | \
 	 I915_GEM_DOMAIN_VERTEX)
 
-#define for_each_pipe(p) for ((p) = 0; (p) < dev_priv->num_pipe; (p)++)
+#define for_each_pipe(p) for ((p) = 0; (p) < INTEL_INFO(dev)->num_pipes; (p)++)
 
 #define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
 	list_for_each_entry((intel_encoder), &(dev)->mode_config.encoder_list, base.head) \
@@ -243,7 +243,7 @@ struct drm_i915_error_state {
 			int page_count;
 			u32 gtt_offset;
 			u32 *pages[0];
-		} *ringbuffer, *batchbuffer;
+		} *ringbuffer, *batchbuffer, *ctx;
 		struct drm_i915_error_request {
 			long jiffies;
 			u32 seqno;
@@ -341,6 +341,7 @@ struct drm_i915_gt_funcs {
 
 struct intel_device_info {
 	u32 display_mmio_offset;
+	u8 num_pipes:3;
 	u8 gen;
 	u8 is_mobile:1;
 	u8 is_i85x:1;
@@ -905,7 +906,6 @@ typedef struct drm_i915_private {
 	struct mutex dpio_lock;
 
 	/** Cached value of IMR to avoid reads in updating the bitfield */
-	u32 pipestat[2];
 	u32 irq_mask;
 	u32 gt_irq_mask;
 
@@ -913,7 +913,6 @@ typedef struct drm_i915_private {
 	struct work_struct hotplug_work;
 	bool enable_hotplug_processing;
 
-	int num_pipe;
 	int num_pch_pll;
 
 	unsigned long cfb_size;
@@ -1340,6 +1339,7 @@ struct drm_i915_file_private {
 #define HAS_PIPE_CONTROL(dev) (INTEL_INFO(dev)->gen >= 5)
 
 #define HAS_DDI(dev)		(IS_HASWELL(dev))
+#define HAS_POWER_WELL(dev)	(IS_HASWELL(dev))
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
@@ -1529,17 +1529,12 @@ void i915_gem_lastclose(struct drm_device *dev);
 int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 static inline struct page *i915_gem_object_get_page(struct drm_i915_gem_object *obj, int n)
 {
-	struct scatterlist *sg = obj->pages->sgl;
-	int nents = obj->pages->nents;
-	while (nents > SG_MAX_SINGLE_ALLOC) {
-		if (n < SG_MAX_SINGLE_ALLOC - 1)
-			break;
+	struct sg_page_iter sg_iter;
 
-		sg = sg_chain_ptr(sg + SG_MAX_SINGLE_ALLOC - 1);
-		n -= SG_MAX_SINGLE_ALLOC - 1;
-		nents -= SG_MAX_SINGLE_ALLOC - 1;
-	}
-	return sg_page(sg+n);
+	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, n)
+		return sg_iter.page;
+
+	return NULL;
 }
 static inline void i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
@@ -1899,6 +1894,11 @@ static inline uint32_t i915_vgacntrl_reg(struct drm_device *dev)
 		return VLV_VGACNTRL;
 	else
 		return VGACNTRL;
+}
+
+static inline void __user *to_user_ptr(u64 address)
+{
+	return (void __user *)(uintptr_t)address;
 }
 
 #endif

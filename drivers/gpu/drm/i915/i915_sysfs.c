@@ -49,7 +49,7 @@ static ssize_t
 show_rc6_mask(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
-	return snprintf(buf, PAGE_SIZE, "%x", intel_enable_rc6(dminor->dev));
+	return snprintf(buf, PAGE_SIZE, "%x\n", intel_enable_rc6(dminor->dev));
 }
 
 static ssize_t
@@ -57,7 +57,7 @@ show_rc6_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
 	u32 rc6_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6);
-	return snprintf(buf, PAGE_SIZE, "%u", rc6_residency);
+	return snprintf(buf, PAGE_SIZE, "%u\n", rc6_residency);
 }
 
 static ssize_t
@@ -65,7 +65,7 @@ show_rc6p_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
 	u32 rc6p_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6p);
-	return snprintf(buf, PAGE_SIZE, "%u", rc6p_residency);
+	return snprintf(buf, PAGE_SIZE, "%u\n", rc6p_residency);
 }
 
 static ssize_t
@@ -73,7 +73,7 @@ show_rc6pp_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 {
 	struct drm_minor *dminor = container_of(kdev, struct drm_minor, kdev);
 	u32 rc6pp_residency = calc_residency(dminor->dev, GEN6_GT_GFX_RC6pp);
-	return snprintf(buf, PAGE_SIZE, "%u", rc6pp_residency);
+	return snprintf(buf, PAGE_SIZE, "%u\n", rc6pp_residency);
 }
 
 static DEVICE_ATTR(rc6_enable, S_IRUGO, show_rc6_mask, NULL);
@@ -215,7 +215,7 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 	ret = dev_priv->rps.cur_delay * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
-	return snprintf(buf, PAGE_SIZE, "%d", ret);
+	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
 }
 
 static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf)
@@ -229,7 +229,7 @@ static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute
 	ret = dev_priv->rps.max_delay * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
-	return snprintf(buf, PAGE_SIZE, "%d", ret);
+	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
 }
 
 static ssize_t gt_max_freq_mhz_store(struct device *kdev,
@@ -280,7 +280,7 @@ static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute
 	ret = dev_priv->rps.min_delay * GT_FREQUENCY_MULTIPLIER;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
-	return snprintf(buf, PAGE_SIZE, "%d", ret);
+	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
 }
 
 static ssize_t gt_min_freq_mhz_store(struct device *kdev,
@@ -355,7 +355,7 @@ static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr
 	} else {
 		BUG();
 	}
-	return snprintf(buf, PAGE_SIZE, "%d", val);
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
 static const struct attribute *gen6_attrs[] = {

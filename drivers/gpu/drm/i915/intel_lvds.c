@@ -1019,12 +1019,15 @@ static bool intel_lvds_supported(struct drm_device *dev)
 {
 	/* With the introduction of the PCH we gained a dedicated
 	 * LVDS presence pin, use it. */
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
 		return true;
 
 	/* Otherwise LVDS was only attached to mobile products,
 	 * except for the inglorious 830gm */
-	return IS_MOBILE(dev) && !IS_I830(dev);
+	if (INTEL_INFO(dev)->gen <= 4 && IS_MOBILE(dev) && !IS_I830(dev))
+		return true;
+
+	return false;
 }
 
 /**

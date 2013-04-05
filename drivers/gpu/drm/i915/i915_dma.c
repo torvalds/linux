@@ -1453,6 +1453,22 @@ static void i915_dump_device_info(struct drm_i915_private *dev_priv)
 }
 
 /**
+ * intel_early_sanitize_regs - clean up BIOS state
+ * @dev: DRM device
+ *
+ * This function must be called before we do any I915_READ or I915_WRITE. Its
+ * purpose is to clean up any state left by the BIOS that may affect us when
+ * reading and/or writing registers.
+ */
+static void intel_early_sanitize_regs(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_HASWELL(dev))
+		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+}
+
+/**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
  * @flags: startup flags
@@ -1542,6 +1558,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto put_gmch;
 	}
 
+	intel_early_sanitize_regs(dev);
+
 	aperture_size = dev_priv->gtt.mappable_end;
 
 	dev_priv->gtt.mappable =
@@ -1612,14 +1630,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	mutex_init(&dev_priv->rps.hw_lock);
 	mutex_init(&dev_priv->modeset_restore_lock);
 
-	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
-		dev_priv->num_pipe = 3;
-	else if (IS_MOBILE(dev) || !IS_GEN2(dev))
-		dev_priv->num_pipe = 2;
-	else
-		dev_priv->num_pipe = 1;
-
-	ret = drm_vblank_init(dev, dev_priv->num_pipe);
+	ret = drm_vblank_init(dev, INTEL_INFO(dev)->num_pipes);
 	if (ret)
 		goto out_gem_unload;
 
