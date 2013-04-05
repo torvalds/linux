@@ -1840,12 +1840,11 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 	int ret;
 
 	/*
-	 * Method calls are ultimately read operations but they
-	 * don't involve object data (so no offset or length).
-	 * The result should placed into the inbound buffer
-	 * provided.  They also supply outbound data--parameters for
-	 * the object method.  Currently if this is present it will
-	 * be a snapshot id.
+	 * Method calls are ultimately read operations.  The result
+	 * should placed into the inbound buffer provided.  They
+	 * also supply outbound data--parameters for the object
+	 * method.  Currently if this is present it will be a
+	 * snapshot id.
 	 */
 	page_count = (u32) calc_pages_for(0, inbound_size);
 	pages = ceph_alloc_page_vector(page_count, GFP_KERNEL);
@@ -1853,7 +1852,7 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 		return PTR_ERR(pages);
 
 	ret = -ENOMEM;
-	obj_request = rbd_obj_request_create(object_name, 0, 0,
+	obj_request = rbd_obj_request_create(object_name, 0, inbound_size,
 							OBJ_REQUEST_PAGES);
 	if (!obj_request)
 		goto out;
