@@ -69,57 +69,57 @@
 			reg = <0 1>;
 			next-level-cache = <&L2_1>;
 		};
-		cpu1: PowerPC,e6500@1 {
+		cpu1: PowerPC,e6500@2 {
 			device_type = "cpu";
 			reg = <2 3>;
 			next-level-cache = <&L2_1>;
 		};
-		cpu2: PowerPC,e6500@2 {
+		cpu2: PowerPC,e6500@4 {
 			device_type = "cpu";
 			reg = <4 5>;
 			next-level-cache = <&L2_1>;
 		};
-		cpu3: PowerPC,e6500@3 {
+		cpu3: PowerPC,e6500@6 {
 			device_type = "cpu";
 			reg = <6 7>;
 			next-level-cache = <&L2_1>;
 		};
-		cpu4: PowerPC,e6500@4 {
+		cpu4: PowerPC,e6500@8 {
 			device_type = "cpu";
 			reg = <8 9>;
 			next-level-cache = <&L2_2>;
 		};
-		cpu5: PowerPC,e6500@5 {
+		cpu5: PowerPC,e6500@10 {
 			device_type = "cpu";
 			reg = <10 11>;
 			next-level-cache = <&L2_2>;
 		};
-		cpu6: PowerPC,e6500@6 {
+		cpu6: PowerPC,e6500@12 {
 			device_type = "cpu";
 			reg = <12 13>;
 			next-level-cache = <&L2_2>;
 		};
-		cpu7: PowerPC,e6500@7 {
+		cpu7: PowerPC,e6500@14 {
 			device_type = "cpu";
 			reg = <14 15>;
 			next-level-cache = <&L2_2>;
 		};
-		cpu8: PowerPC,e6500@8 {
+		cpu8: PowerPC,e6500@16 {
 			device_type = "cpu";
 			reg = <16 17>;
 			next-level-cache = <&L2_3>;
 		};
-		cpu9: PowerPC,e6500@9 {
+		cpu9: PowerPC,e6500@18 {
 			device_type = "cpu";
 			reg = <18 19>;
 			next-level-cache = <&L2_3>;
 		};
-		cpu10: PowerPC,e6500@10 {
+		cpu10: PowerPC,e6500@20 {
 			device_type = "cpu";
 			reg = <20 21>;
 			next-level-cache = <&L2_3>;
 		};
-		cpu11: PowerPC,e6500@11 {
+		cpu11: PowerPC,e6500@22 {
 			device_type = "cpu";
 			reg = <22 23>;
 			next-level-cache = <&L2_3>;
