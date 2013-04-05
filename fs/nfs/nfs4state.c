@@ -1876,8 +1876,8 @@ int nfs4_discover_server_trunking(struct nfs_client *clp,
 	i = 0;
 
 	mutex_lock(&nfs_clid_init_mutex);
-	status  = -ENOENT;
 again:
+	status  = -ENOENT;
 	cred = ops->get_clid_cred(clp);
 	if (cred == NULL)
 		goto out_unlock;
@@ -1916,6 +1916,11 @@ again:
 	case -NFS4ERR_NOT_SAME: /* FixMe: implement recovery
 				 * in nfs4_exchange_id */
 		status = -EKEYEXPIRED;
+		break;
+	default:
+		pr_warn("NFS: %s unhandled error %d. Exiting with error EIO\n",
+				__func__, status);
+		status = -EIO;
 	}
 
 out_unlock:
