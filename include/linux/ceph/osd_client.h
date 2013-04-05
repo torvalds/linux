@@ -93,8 +93,9 @@ struct ceph_osd_req_op {
 			const char *class_name;
 			const char *method_name;
 			const void *request_data;
-			u32 request_data_len;
+			struct ceph_osd_data *request_info;
 			struct ceph_osd_data *response_data;
+			u32 request_data_len;
 			__u8 class_len;
 			__u8 method_len;
 			__u8 argc;

@@ -399,27 +399,38 @@ void osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
 			const void *request_data, size_t request_data_size)
 {
 	struct ceph_osd_req_op *op = osd_req_op_init(osd_req, which, opcode);
+	struct ceph_pagelist *pagelist;
 	size_t payload_len = 0;
 	size_t size;
 
 	BUG_ON(opcode != CEPH_OSD_OP_CALL);
 
+	pagelist = kmalloc(sizeof (*pagelist), GFP_NOFS);
+	BUG_ON(!pagelist);
+	ceph_pagelist_init(pagelist);
+
 	op->cls.class_name = class;
 	size = strlen(class);
 	BUG_ON(size > (size_t) U8_MAX);
 	op->cls.class_len = size;
+	ceph_pagelist_append(pagelist, class, size);
 	payload_len += size;
 
 	op->cls.method_name = method;
 	size = strlen(method);
 	BUG_ON(size > (size_t) U8_MAX);
 	op->cls.method_len = size;
+	ceph_pagelist_append(pagelist, method, size);
 	payload_len += size;
 
 	op->cls.request_data = request_data;
 	BUG_ON(request_data_size > (size_t) U32_MAX);
 	op->cls.request_data_len = (u32) request_data_size;
+	ceph_pagelist_append(pagelist, request_data, request_data_size);
 	payload_len += request_data_size;
+
+	op->cls.request_info = &osd_req->r_data_out;
+	ceph_osd_data_pagelist_init(op->cls.request_info, pagelist);
 
 	op->cls.argc = 0;	/* currently unused */
 
@@ -456,7 +467,6 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 {
 	struct ceph_osd_req_op *src;
 	u64 request_data_len = 0;
-	struct ceph_pagelist *pagelist;
 
 	BUG_ON(which >= req->r_num_ops);
 	src = &req->r_ops[which];
@@ -485,23 +495,14 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 			WARN_ON(src->extent.osd_data != &req->r_data_in);
 		break;
 	case CEPH_OSD_OP_CALL:
-		pagelist = kmalloc(sizeof (*pagelist), GFP_NOFS);
-		BUG_ON(!pagelist);
-		ceph_pagelist_init(pagelist);
-
 		dst->cls.class_len = src->cls.class_len;
 		dst->cls.method_len = src->cls.method_len;
 		dst->cls.indata_len = cpu_to_le32(src->cls.request_data_len);
-		ceph_pagelist_append(pagelist, src->cls.class_name,
-				     src->cls.class_len);
-		ceph_pagelist_append(pagelist, src->cls.method_name,
-				     src->cls.method_len);
-		ceph_pagelist_append(pagelist, src->cls.request_data,
-				     src->cls.request_data_len);
-		ceph_osd_data_pagelist_init(&req->r_data_out, pagelist);
-
 		WARN_ON(src->cls.response_data != &req->r_data_in);
-		request_data_len = pagelist->length;
+		WARN_ON(src->cls.request_info != &req->r_data_out);
+		BUG_ON(src->cls.request_info->type !=
+					CEPH_OSD_DATA_TYPE_PAGELIST);
+		request_data_len = src->cls.request_info->pagelist->length;
 		break;
 	case CEPH_OSD_OP_STARTSYNC:
 		break;
