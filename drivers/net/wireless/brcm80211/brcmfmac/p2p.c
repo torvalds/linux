@@ -1431,7 +1431,8 @@ int brcmf_p2p_notify_action_frame_rx(struct brcmf_if *ifp,
 					      CHSPEC_IS2G(chanspec) ?
 					      IEEE80211_BAND_2GHZ :
 					      IEEE80211_BAND_5GHZ);
-	wdev = ifp->ndev->ieee80211_ptr;
+
+	wdev = &ifp->vif->wdev;
 	cfg80211_rx_mgmt(wdev, freq, 0, (u8 *)mgmt_frame, mgmt_frame_len,
 			 GFP_ATOMIC);
 
