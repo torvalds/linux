@@ -185,67 +185,53 @@ static int tty_read(struct file *f, int timeout)
 
 static void tty_setspeed(struct file *f, int speed)
 {
+	struct termios termios;
+	struct serial_struct serial;
 	mm_segment_t oldfs;
 
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
-	{
-		/*  Set speed */
-		struct termios settings;
 
-		tty_ioctl(f, TCGETS, (unsigned long)&settings);
-/* printk("Speed: %d\n", settings.c_cflag & (CBAUD | CBAUDEX)); */
-		settings.c_iflag = 0;
-		settings.c_oflag = 0;
-		settings.c_lflag = 0;
-		settings.c_cflag = CLOCAL | CS8 | CREAD;
-		settings.c_cc[VMIN] = 0;
-		settings.c_cc[VTIME] = 0;
-		switch (speed) {
-		case 2400:{
-				settings.c_cflag |= B2400;
-			}
-			break;
-		case 4800:{
-				settings.c_cflag |= B4800;
-			}
-			break;
-		case 9600:{
-				settings.c_cflag |= B9600;
-			}
-			break;
-		case 19200:{
-				settings.c_cflag |= B19200;
-			}
-			break;
-		case 38400:{
-				settings.c_cflag |= B38400;
-			}
-			break;
-		case 57600:{
-				settings.c_cflag |= B57600;
-			}
-			break;
-		case 115200:{
-				settings.c_cflag |= B115200;
-			}
-			break;
-		default:{
-				settings.c_cflag |= B9600;
-			}
-			break;
-		}
-		tty_ioctl(f, TCSETS, (unsigned long)&settings);
-/* printk("Speed: %d\n", settings.c_cflag & (CBAUD | CBAUDEX)); */
+	/* Set speed */
+	tty_ioctl(f, TCGETS, (unsigned long)&termios);
+	termios.c_iflag = 0;
+	termios.c_oflag = 0;
+	termios.c_lflag = 0;
+	termios.c_cflag = CLOCAL | CS8 | CREAD;
+	termios.c_cc[VMIN] = 0;
+	termios.c_cc[VTIME] = 0;
+	switch (speed) {
+	case 2400:
+		termios.c_cflag |= B2400;
+		break;
+	case 4800:
+		termios.c_cflag |= B4800;
+		break;
+	case 9600:
+		termios.c_cflag |= B9600;
+		break;
+	case 19200:
+		termios.c_cflag |= B19200;
+		break;
+	case 38400:
+		termios.c_cflag |= B38400;
+		break;
+	case 57600:
+		termios.c_cflag |= B57600;
+		break;
+	case 115200:
+		termios.c_cflag |= B115200;
+		break;
+	default:
+		termios.c_cflag |= B9600;
+		break;
 	}
-	{
-		/*  Set low latency */
-		struct serial_struct settings;
+	tty_ioctl(f, TCSETS, (unsigned long)&termios);
 
-		tty_ioctl(f, TIOCGSERIAL, (unsigned long)&settings);
-		settings.flags |= ASYNC_LOW_LATENCY;
-		tty_ioctl(f, TIOCSSERIAL, (unsigned long)&settings);
-	}
+	/* Set low latency */
+	tty_ioctl(f, TIOCGSERIAL, (unsigned long)&serial);
+	serial.flags |= ASYNC_LOW_LATENCY;
+	tty_ioctl(f, TIOCSSERIAL, (unsigned long)&serial);
 
 	set_fs(oldfs);
 }
