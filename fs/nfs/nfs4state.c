@@ -154,18 +154,6 @@ struct rpc_cred *nfs4_get_machine_cred_locked(struct nfs_client *clp)
 	return cred;
 }
 
-static void nfs4_clear_machine_cred(struct nfs_client *clp)
-{
-	struct rpc_cred *cred;
-
-	spin_lock(&clp->cl_lock);
-	cred = clp->cl_machine_cred;
-	clp->cl_machine_cred = NULL;
-	spin_unlock(&clp->cl_lock);
-	if (cred != NULL)
-		put_rpccred(cred);
-}
-
 static struct rpc_cred *
 nfs4_get_renew_cred_server_locked(struct nfs_server *server)
 {
@@ -1768,10 +1756,6 @@ static int nfs4_handle_reclaim_lease_error(struct nfs_client *clp, int status)
 		clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
 		return -EPERM;
 	case -EACCES:
-		if (clp->cl_machine_cred == NULL)
-			return -EACCES;
-		/* Handle case where the user hasn't set up machine creds */
-		nfs4_clear_machine_cred(clp);
 	case -NFS4ERR_DELAY:
 	case -ETIMEDOUT:
 	case -EAGAIN:
