@@ -156,7 +156,7 @@ static int brcmf_fweh_call_event_handler(struct brcmf_if *ifp,
 		fweh = &ifp->drvr->fweh;
 
 		/* handle the event if valid interface and handler */
-		if (ifp->ndev && fweh->evt_handler[code])
+		if (fweh->evt_handler[code])
 			err = fweh->evt_handler[code](ifp, emsg, data);
 		else
 			brcmf_err("unhandled event %d ignored\n", code);
