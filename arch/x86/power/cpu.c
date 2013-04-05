@@ -65,7 +65,6 @@ static void __save_processor_state(struct saved_context *ctxt)
 	store_idt(&ctxt->idt);
 #else
 /* CONFIG_X86_64 */
-	store_gdt((struct desc_ptr *)&ctxt->gdt_limit);
 	store_idt((struct desc_ptr *)&ctxt->idt_limit);
 #endif
 	store_tr(ctxt->tr);
@@ -186,7 +185,6 @@ static void __restore_processor_state(struct saved_context *ctxt)
 	load_idt(&ctxt->idt);
 #else
 /* CONFIG_X86_64 */
-	load_gdt((const struct desc_ptr *)&ctxt->gdt_limit);
 	load_idt((const struct desc_ptr *)&ctxt->idt_limit);
 #endif
 
