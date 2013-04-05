@@ -55,6 +55,14 @@
 		};
 	};
 
+	arm-pmu {
+		compatible = "arm,cortex-a15-pmu", "arm,cortex-a9-pmu";
+		interrupts = <0 52 4>,
+			     <0 53 4>,
+			     <0 54 4>,
+			     <0 55 4>;
+	};
+
 	timer {
 		compatible = "arm,cortex-a15-timer",
 			     "arm,armv7-timer";
