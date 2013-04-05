@@ -64,9 +64,11 @@ struct workqueue_struct *bcache_wq;
 
 static void bio_split_pool_free(struct bio_split_pool *p)
 {
+	if (p->bio_split_hook)
+		mempool_destroy(p->bio_split_hook);
+
 	if (p->bio_split)
 		bioset_free(p->bio_split);
-
 }
 
 static int bio_split_pool_init(struct bio_split_pool *p)
