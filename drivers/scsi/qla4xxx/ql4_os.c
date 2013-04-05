@@ -5916,6 +5916,14 @@ static int qla4xxx_sysfs_ddb_logout_sid(struct iscsi_cls_session *cls_sess)
 		goto exit_ddb_logout;
 	}
 
+	if (test_bit(DF_BOOT_TGT, &ddb_entry->flags)) {
+		ql4_printk(KERN_ERR, ha,
+			   "%s: Logout from boot target entry is not permitted.\n",
+			   __func__);
+		ret = -EPERM;
+		goto exit_ddb_logout;
+	}
+
 	options = LOGOUT_OPTION_CLOSE_SESSION;
 	if (qla4xxx_session_logout_ddb(ha, ddb_entry, options) == QLA_ERROR) {
 		ql4_printk(KERN_ERR, ha, "%s: Logout failed\n", __func__);
