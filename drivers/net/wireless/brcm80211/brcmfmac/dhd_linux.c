@@ -755,15 +755,23 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 		}
 	}
 
-	/* Allocate netdev, including space for private structure */
-	ndev = alloc_netdev(sizeof(struct brcmf_if), name, ether_setup);
-	if (!ndev) {
-		brcmf_err("OOM - alloc_netdev\n");
-		return ERR_PTR(-ENOMEM);
+	if (!brcmf_p2p_enable && bssidx == 1) {
+		/* this is P2P_DEVICE interface */
+		brcmf_dbg(INFO, "allocate non-netdev interface\n");
+		ifp = kzalloc(sizeof(*ifp), GFP_KERNEL);
+	} else {
+		brcmf_dbg(INFO, "allocate netdev interface\n");
+		/* Allocate netdev, including space for private structure */
+		ndev = alloc_netdev(sizeof(*ifp), name, ether_setup);
+		if (!ndev) {
+			brcmf_err("OOM - alloc_netdev\n");
+			return ERR_PTR(-ENOMEM);
+		}
+
+		ifp = netdev_priv(ndev);
+		ifp->ndev = ndev;
 	}
 
-	ifp = netdev_priv(ndev);
-	ifp->ndev = ndev;
 	ifp->drvr = drvr;
 	drvr->iflist[bssidx] = ifp;
 	ifp->ifidx = ifidx;
@@ -775,7 +783,7 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 		memcpy(ifp->mac_addr, mac_addr, ETH_ALEN);
 
 	brcmf_dbg(TRACE, " ==== pid:%x, if:%s (%pM) created ===\n",
-		  current->pid, ifp->ndev->name, ifp->mac_addr);
+		  current->pid, name, ifp->mac_addr);
 
 	return ifp;
 }
@@ -807,11 +815,13 @@ void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx)
 		}
 
 		unregister_netdev(ifp->ndev);
-		drvr->iflist[bssidx] = NULL;
 		if (bssidx == 0)
 			brcmf_cfg80211_detach(drvr->config);
 		free_netdev(ifp->ndev);
+	} else {
+		kfree(ifp);
 	}
+	drvr->iflist[bssidx] = NULL;
 }
 
 int brcmf_attach(uint bus_hdrlen, struct device *dev)

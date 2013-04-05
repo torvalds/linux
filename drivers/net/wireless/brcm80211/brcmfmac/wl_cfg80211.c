@@ -4568,9 +4568,11 @@ static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
 
 		ifp->vif = vif;
 		vif->ifp = ifp;
-		vif->wdev.netdev = ifp->ndev;
-		ifp->ndev->ieee80211_ptr = &vif->wdev;
-		SET_NETDEV_DEV(ifp->ndev, wiphy_dev(cfg->wiphy));
+		if (ifp->ndev) {
+			vif->wdev.netdev = ifp->ndev;
+			ifp->ndev->ieee80211_ptr = &vif->wdev;
+			SET_NETDEV_DEV(ifp->ndev, wiphy_dev(cfg->wiphy));
+		}
 		mutex_unlock(&event->vif_event_lock);
 		wake_up(&event->vif_wq);
 		return 0;

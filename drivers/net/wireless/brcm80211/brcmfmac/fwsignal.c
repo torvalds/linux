@@ -1786,7 +1786,7 @@ void brcmf_fws_add_interface(struct brcmf_if *ifp)
 
 	brcmf_dbg(TRACE, "enter: idx=%d, mac=%pM\n",
 		  ifp->bssidx, ifp->mac_addr);
-	if (!ifp->drvr->fw_signals)
+	if (!ifp->ndev || !ifp->drvr->fw_signals)
 		return;
 
 	entry = &fws->desc.iface[ifp->ifidx];
