@@ -3568,6 +3568,9 @@
 #define DISP_ARB_CTL	0x45000
 #define  DISP_TILE_SURFACE_SWIZZLING	(1<<13)
 #define  DISP_FBC_WM_DIS		(1<<15)
+#define GEN7_MSG_CTL	0x45010
+#define  WAIT_FOR_PCH_RESET_ACK		(1<<1)
+#define  WAIT_FOR_PCH_FLR_ACK		(1<<0)
 
 /* GEN7 chicken */
 #define GEN7_COMMON_SLICE_CHICKEN1		0x7010

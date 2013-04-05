@@ -3992,6 +3992,12 @@ i915_gem_init_hw(struct drm_device *dev)
 	if (IS_HASWELL(dev) && (I915_READ(0x120010) == 1))
 		I915_WRITE(0x9008, I915_READ(0x9008) | 0xf0000);
 
+	if (HAS_PCH_NOP(dev)) {
+		u32 temp = I915_READ(GEN7_MSG_CTL);
+		temp &= ~(WAIT_FOR_PCH_FLR_ACK | WAIT_FOR_PCH_RESET_ACK);
+		I915_WRITE(GEN7_MSG_CTL, temp);
+	}
+
 	i915_gem_l3_remap(dev);
 
 	i915_gem_init_swizzling(dev);
