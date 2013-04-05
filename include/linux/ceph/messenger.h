@@ -275,12 +275,12 @@ extern void ceph_msg_revoke_incoming(struct ceph_msg *msg);
 
 extern void ceph_con_keepalive(struct ceph_connection *con);
 
-extern void ceph_msg_data_set_pages(struct ceph_msg *msg, struct page **pages,
+extern void ceph_msg_data_add_pages(struct ceph_msg *msg, struct page **pages,
 				size_t length, size_t alignment);
-extern void ceph_msg_data_set_pagelist(struct ceph_msg *msg,
+extern void ceph_msg_data_add_pagelist(struct ceph_msg *msg,
 				struct ceph_pagelist *pagelist);
 #ifdef CONFIG_BLOCK
-extern void ceph_msg_data_set_bio(struct ceph_msg *msg, struct bio *bio,
+extern void ceph_msg_data_add_bio(struct ceph_msg *msg, struct bio *bio,
 				size_t length);
 #endif /* CONFIG_BLOCK */
 

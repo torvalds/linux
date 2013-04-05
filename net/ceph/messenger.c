@@ -3005,7 +3005,7 @@ static void ceph_msg_data_destroy(struct ceph_msg_data *data)
 	kfree(data);
 }
 
-void ceph_msg_data_set_pages(struct ceph_msg *msg, struct page **pages,
+void ceph_msg_data_add_pages(struct ceph_msg *msg, struct page **pages,
 		size_t length, size_t alignment)
 {
 	struct ceph_msg_data *data;
@@ -3023,9 +3023,9 @@ void ceph_msg_data_set_pages(struct ceph_msg *msg, struct page **pages,
 	list_add_tail(&data->links, &msg->data);
 	msg->data_length += length;
 }
-EXPORT_SYMBOL(ceph_msg_data_set_pages);
+EXPORT_SYMBOL(ceph_msg_data_add_pages);
 
-void ceph_msg_data_set_pagelist(struct ceph_msg *msg,
+void ceph_msg_data_add_pagelist(struct ceph_msg *msg,
 				struct ceph_pagelist *pagelist)
 {
 	struct ceph_msg_data *data;
@@ -3040,10 +3040,10 @@ void ceph_msg_data_set_pagelist(struct ceph_msg *msg,
 	list_add_tail(&data->links, &msg->data);
 	msg->data_length += pagelist->length;
 }
-EXPORT_SYMBOL(ceph_msg_data_set_pagelist);
+EXPORT_SYMBOL(ceph_msg_data_add_pagelist);
 
 #ifdef	CONFIG_BLOCK
-void ceph_msg_data_set_bio(struct ceph_msg *msg, struct bio *bio,
+void ceph_msg_data_add_bio(struct ceph_msg *msg, struct bio *bio,
 		size_t length)
 {
 	struct ceph_msg_data *data;
@@ -3058,7 +3058,7 @@ void ceph_msg_data_set_bio(struct ceph_msg *msg, struct bio *bio,
 	list_add_tail(&data->links, &msg->data);
 	msg->data_length += length;
 }
-EXPORT_SYMBOL(ceph_msg_data_set_bio);
+EXPORT_SYMBOL(ceph_msg_data_add_bio);
 #endif	/* CONFIG_BLOCK */
 
 /*

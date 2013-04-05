@@ -1724,7 +1724,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	if (req->r_data_len) {
 		/* outbound data set only by ceph_sync_setxattr() */
 		BUG_ON(!req->r_pages);
-		ceph_msg_data_set_pages(msg, req->r_pages, req->r_data_len, 0);
+		ceph_msg_data_add_pages(msg, req->r_pages, req->r_data_len, 0);
 	}
 
 	msg->hdr.data_len = cpu_to_le32(req->r_data_len);
@@ -2608,7 +2608,7 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	if (pagelist->length) {
 		/* set up outbound data if we have any */
 		reply->hdr.data_len = cpu_to_le32(pagelist->length);
-		ceph_msg_data_set_pagelist(reply, pagelist);
+		ceph_msg_data_add_pagelist(reply, pagelist);
 	}
 	ceph_con_send(&session->s_con, reply);
 

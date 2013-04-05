@@ -550,7 +550,7 @@ void osd_req_op_watch_init(struct ceph_osd_request *osd_req,
 }
 EXPORT_SYMBOL(osd_req_op_watch_init);
 
-static void ceph_osdc_msg_data_set(struct ceph_msg *msg,
+static void ceph_osdc_msg_data_add(struct ceph_msg *msg,
 				struct ceph_osd_data *osd_data)
 {
 	u64 length = ceph_osd_data_length(osd_data);
@@ -558,14 +558,14 @@ static void ceph_osdc_msg_data_set(struct ceph_msg *msg,
 	if (osd_data->type == CEPH_OSD_DATA_TYPE_PAGES) {
 		BUG_ON(length > (u64) SIZE_MAX);
 		if (length)
-			ceph_msg_data_set_pages(msg, osd_data->pages,
+			ceph_msg_data_add_pages(msg, osd_data->pages,
 					length, osd_data->alignment);
 	} else if (osd_data->type == CEPH_OSD_DATA_TYPE_PAGELIST) {
 		BUG_ON(!length);
-		ceph_msg_data_set_pagelist(msg, osd_data->pagelist);
+		ceph_msg_data_add_pagelist(msg, osd_data->pagelist);
 #ifdef CONFIG_BLOCK
 	} else if (osd_data->type == CEPH_OSD_DATA_TYPE_BIO) {
-		ceph_msg_data_set_bio(msg, osd_data->bio, length);
+		ceph_msg_data_add_bio(msg, osd_data->bio, length);
 #endif
 	} else {
 		BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_NONE);
@@ -600,18 +600,18 @@ static u64 osd_req_encode_op(struct ceph_osd_request *req,
 		dst->extent.truncate_seq =
 			cpu_to_le32(src->extent.truncate_seq);
 		if (src->op == CEPH_OSD_OP_WRITE)
-			ceph_osdc_msg_data_set(req->r_request,
+			ceph_osdc_msg_data_add(req->r_request,
 						&src->extent.osd_data);
 		else
-			ceph_osdc_msg_data_set(req->r_reply,
+			ceph_osdc_msg_data_add(req->r_reply,
 						&src->extent.osd_data);
 		break;
 	case CEPH_OSD_OP_CALL:
 		dst->cls.class_len = src->cls.class_len;
 		dst->cls.method_len = src->cls.method_len;
 		dst->cls.indata_len = cpu_to_le32(src->cls.request_data_len);
-		ceph_osdc_msg_data_set(req->r_reply, &src->cls.response_data);
-		ceph_osdc_msg_data_set(req->r_request, &src->cls.request_info);
+		ceph_osdc_msg_data_add(req->r_reply, &src->cls.response_data);
+		ceph_osdc_msg_data_add(req->r_request, &src->cls.request_info);
 		BUG_ON(src->cls.request_info.type !=
 					CEPH_OSD_DATA_TYPE_PAGELIST);
 		request_data_len = src->cls.request_info.pagelist->length;
