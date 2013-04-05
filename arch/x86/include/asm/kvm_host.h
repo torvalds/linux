@@ -972,7 +972,6 @@ enum {
  * Trap the fault and ignore the instruction if that happens.
  */
 asmlinkage void kvm_spurious_fault(void);
-extern bool kvm_rebooting;
 
 #define ____kvm_handle_fault_on_reboot(insn, cleanup_insn)	\
 	"666: " insn "\n\t" \
