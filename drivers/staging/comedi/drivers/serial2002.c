@@ -806,7 +806,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->range_table	= NULL;
 	s->insn_read	= serial2002_encoder_insn_read;
 
-	return 1;
+	return 0;
 }
 
 static void serial2002_detach(struct comedi_device *dev)
