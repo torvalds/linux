@@ -110,6 +110,8 @@ static void gma_resume_display(struct pci_dev *pdev)
 	PSB_WVDC32(dev_priv->pge_ctl | _PSB_PGETBL_ENABLED, PSB_PGETBL_CTL);
 	pci_write_config_word(pdev, PSB_GMCH_CTRL,
 			dev_priv->gmch_ctrl | _PSB_GMCH_ENABLED);
+
+	psb_gtt_restore(dev); /* Rebuild our GTT mappings */
 	dev_priv->ops->restore_regs(dev);
 }
 
