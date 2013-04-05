@@ -143,6 +143,8 @@ ssize_t brcmf_debugfs_fws_stats_read(struct file *f, char __user *data,
 			"tlv_parse_failed:  %u\n"
 			"tlv_invalid_type:  %u\n"
 			"mac_update_fails:  %u\n"
+			"ps_update_fails:   %u\n"
+			"if_update_fails:   %u\n"
 			"pkt2bus:           %u\n"
 			"generic_error:     %u\n"
 			"rollback_success:  %u\n"
@@ -161,6 +163,8 @@ ssize_t brcmf_debugfs_fws_stats_read(struct file *f, char __user *data,
 			fwstats->tlv_parse_failed,
 			fwstats->tlv_invalid_type,
 			fwstats->mac_update_failed,
+			fwstats->mac_ps_update_failed,
+			fwstats->if_update_failed,
 			fwstats->pkt2bus,
 			fwstats->generic_error,
 			fwstats->rollback_success,
