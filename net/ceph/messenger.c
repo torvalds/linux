@@ -2207,10 +2207,18 @@ static int read_partial_message(struct ceph_connection *con)
 		ret = ceph_con_in_msg_alloc(con, &skip);
 		if (ret < 0)
 			return ret;
+
+		BUG_ON(!con->in_msg ^ skip);
+		if (con->in_msg && data_len > con->in_msg->data_length) {
+			pr_warning("%s skipping long message (%u > %zd)\n",
+				__func__, data_len, con->in_msg->data_length);
+			ceph_msg_put(con->in_msg);
+			con->in_msg = NULL;
+			skip = 1;
+		}
 		if (skip) {
 			/* skip this message */
 			dout("alloc_msg said skip message\n");
-			BUG_ON(con->in_msg);
 			con->in_base_pos = -front_len - middle_len - data_len -
 				sizeof(m->footer);
 			con->in_tag = CEPH_MSGR_TAG_READY;
