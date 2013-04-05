@@ -62,7 +62,7 @@ static void	cache_cleaner_func(struct work_struct *unused);
 static int 	nfsd_reply_cache_shrink(struct shrinker *shrink,
 					struct shrink_control *sc);
 
-struct shrinker nfsd_reply_cache_shrinker = {
+static struct shrinker nfsd_reply_cache_shrinker = {
 	.shrink	= nfsd_reply_cache_shrink,
 	.seeks	= 1,
 };
