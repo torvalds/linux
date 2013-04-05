@@ -19,7 +19,7 @@
 #include <linux/nfc.h>
 #include <net/nfc/nfc.h>
 
-#define DEV_ERR(_dev, fmt, args...) nfc_dev_err(&_dev->nfc_dev->dev, \
+#define DEV_ERR(_dev, fmt, args...) nfc_err(&_dev->nfc_dev->dev, \
 						"%s: " fmt, __func__, ## args)
 
 #define DEV_DBG(_dev, fmt, args...) dev_dbg(&_dev->nfc_dev->dev, \
@@ -143,7 +143,7 @@ static int nfcsim_dep_link_up(struct nfc_dev *nfc_dev,
 
 	remote_gb = nfc_get_local_general_bytes(peer->nfc_dev, &remote_gb_len);
 	if (!remote_gb) {
-		DEV_ERR(peer, "Can't get remote general bytes");
+		DEV_ERR(peer, "Can't get remote general bytes\n");
 
 		mutex_unlock(&peer->lock);
 		return -EINVAL;
@@ -155,7 +155,7 @@ static int nfcsim_dep_link_up(struct nfc_dev *nfc_dev,
 
 	rc = nfc_set_remote_general_bytes(nfc_dev, remote_gb, remote_gb_len);
 	if (rc) {
-		DEV_ERR(dev, "Can't set remote general bytes");
+		DEV_ERR(dev, "Can't set remote general bytes\n");
 		mutex_unlock(&dev->lock);
 		return rc;
 	}
@@ -188,7 +188,7 @@ static int nfcsim_start_poll(struct nfc_dev *nfc_dev,
 	mutex_lock(&dev->lock);
 
 	if (dev->polling_mode != NFCSIM_POLL_NONE) {
-		DEV_ERR(dev, "Already in polling mode");
+		DEV_ERR(dev, "Already in polling mode\n");
 		rc = -EBUSY;
 		goto exit;
 	}
@@ -200,7 +200,7 @@ static int nfcsim_start_poll(struct nfc_dev *nfc_dev,
 		dev->polling_mode |= NFCSIM_POLL_TARGET;
 
 	if (dev->polling_mode == NFCSIM_POLL_NONE) {
-		DEV_ERR(dev, "Unsupported polling mode");
+		DEV_ERR(dev, "Unsupported polling mode\n");
 		rc = -EINVAL;
 		goto exit;
 	}
@@ -267,7 +267,7 @@ static void nfcsim_wq_recv(struct work_struct *work)
 
 	if (dev->initiator) {
 		if (!dev->cb) {
-			DEV_ERR(dev, "Null recv callback");
+			DEV_ERR(dev, "Null recv callback\n");
 			dev_kfree_skb(dev->clone_skb);
 			goto exit;
 		}
@@ -310,7 +310,7 @@ static int nfcsim_tx(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	peer->clone_skb = skb_clone(skb, GFP_KERNEL);
 
 	if (!peer->clone_skb) {
-		DEV_ERR(dev, "skb_clone failed");
+		DEV_ERR(dev, "skb_clone failed\n");
 		mutex_unlock(&peer->lock);
 		err = -ENOMEM;
 		goto exit;
