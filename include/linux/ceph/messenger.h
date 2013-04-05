@@ -116,7 +116,10 @@ struct ceph_msg_data {
 	enum ceph_msg_data_type		type;
 	union {
 #ifdef CONFIG_BLOCK
-		struct bio		*bio;
+		struct {
+			struct bio	*bio;
+			size_t		bio_length;
+		};
 #endif /* CONFIG_BLOCK */
 		struct {
 			struct page	**pages;	/* NOT OWNER. */

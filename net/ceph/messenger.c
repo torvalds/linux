@@ -3032,6 +3032,7 @@ void ceph_msg_data_set_bio(struct ceph_msg *msg, struct bio *bio,
 	data = ceph_msg_data_create(CEPH_MSG_DATA_BIO);
 	BUG_ON(!data);
 	data->bio = bio;
+	data->bio_length = length;
 
 	msg->data = data;
 	msg->data_length = length;
