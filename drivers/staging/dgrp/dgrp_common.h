@@ -66,7 +66,7 @@ extern void dgrp_register_dpa_hook(struct proc_dir_entry *de);
 extern void dgrp_dpa_data(struct nd_struct *, int, u8 *, int);
 
 /* from dgrp_sysfs.c */
-extern void dgrp_create_class_sysfs_files(void);
+extern int dgrp_create_class_sysfs_files(void);
 extern void dgrp_remove_class_sysfs_files(void);
 
 extern void dgrp_create_node_class_sysfs_files(struct nd_struct *nd);
