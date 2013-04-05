@@ -817,7 +817,7 @@ static bool ceph_msg_data_bio_advance(struct ceph_msg_data *data, size_t bytes)
 
 	return true;
 }
-#endif
+#endif /* CONFIG_BLOCK */
 
 /*
  * For a page array, a piece comes from the first page in the array
@@ -3011,6 +3011,7 @@ void ceph_msg_data_set_pagelist(struct ceph_msg *msg,
 }
 EXPORT_SYMBOL(ceph_msg_data_set_pagelist);
 
+#ifdef	CONFIG_BLOCK
 void ceph_msg_data_set_bio(struct ceph_msg *msg, struct bio *bio,
 		size_t length)
 {
@@ -3028,6 +3029,7 @@ void ceph_msg_data_set_bio(struct ceph_msg *msg, struct bio *bio,
 	msg->data_length = length;
 }
 EXPORT_SYMBOL(ceph_msg_data_set_bio);
+#endif	/* CONFIG_BLOCK */
 
 /*
  * construct a new message with given type, size

@@ -271,8 +271,10 @@ extern void ceph_msg_data_set_pages(struct ceph_msg *msg, struct page **pages,
 				size_t length, size_t alignment);
 extern void ceph_msg_data_set_pagelist(struct ceph_msg *msg,
 				struct ceph_pagelist *pagelist);
+#ifdef CONFIG_BLOCK
 extern void ceph_msg_data_set_bio(struct ceph_msg *msg, struct bio *bio,
 				size_t length);
+#endif /* CONFIG_BLOCK */
 
 extern struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 				     bool can_fail);
