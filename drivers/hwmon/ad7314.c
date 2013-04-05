@@ -116,7 +116,7 @@ static int ad7314_probe(struct spi_device *spi_dev)
 	if (chip == NULL)
 		return -ENOMEM;
 
-	dev_set_drvdata(&spi_dev->dev, chip);
+	spi_set_drvdata(spi_dev, chip);
 
 	ret = sysfs_create_group(&spi_dev->dev.kobj, &ad7314_group);
 	if (ret < 0)
@@ -137,7 +137,7 @@ error_remove_group:
 
 static int ad7314_remove(struct spi_device *spi_dev)
 {
-	struct ad7314_data *chip = dev_get_drvdata(&spi_dev->dev);
+	struct ad7314_data *chip = spi_get_drvdata(spi_dev);
 
 	hwmon_device_unregister(chip->hwmon_dev);
 	sysfs_remove_group(&spi_dev->dev.kobj, &ad7314_group);
