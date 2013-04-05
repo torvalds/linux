@@ -938,10 +938,7 @@ int sort_dimension__add(const char *tok)
 				return -EINVAL;
 			}
 			sort__has_parent = 1;
-		} else if (sd->entry == &sort_sym ||
-			   sd->entry == &sort_sym_from ||
-			   sd->entry == &sort_sym_to ||
-			   sd->entry == &sort_mem_daddr_sym) {
+		} else if (sd->entry == &sort_sym) {
 			sort__has_sym = 1;
 		}
 
