@@ -1777,8 +1777,7 @@ config FB_VT8500
 	select FB_SYS_COPYAREA if (!FB_WMT_GE_ROPS)
 	select FB_SYS_IMAGEBLIT
 	select FB_MODE_HELPERS
-	select OF_DISPLAY_TIMING
-	select OF_VIDEOMODE
+	select VIDEOMODE_HELPERS
 	help
 	  This is the framebuffer driver for VIA VT8500 integrated LCD
 	  controller.
@@ -1790,8 +1789,7 @@ config FB_WM8505
 	select FB_SYS_COPYAREA if (!FB_WMT_GE_ROPS)
 	select FB_SYS_IMAGEBLIT
 	select FB_MODE_HELPERS
-	select OF_DISPLAY_TIMING
-	select OF_VIDEOMODE
+	select VIDEOMODE_HELPERS
 	help
 	  This is the framebuffer driver for WonderMedia WM8xxx-series
 	  integrated LCD controller. This driver covers the WM8505, WM8650
