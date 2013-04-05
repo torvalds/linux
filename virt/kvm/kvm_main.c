@@ -1078,7 +1078,7 @@ static int kvm_read_hva_atomic(void *data, void __user *hva, int len)
 	return __copy_from_user_inatomic(data, hva, len);
 }
 
-int get_user_page_nowait(struct task_struct *tsk, struct mm_struct *mm,
+static int get_user_page_nowait(struct task_struct *tsk, struct mm_struct *mm,
 	unsigned long start, int write, struct page **page)
 {
 	int flags = FOLL_TOUCH | FOLL_NOWAIT | FOLL_HWPOISON | FOLL_GET;
@@ -2612,7 +2612,7 @@ static void kvm_io_bus_destroy(struct kvm_io_bus *bus)
 	kfree(bus);
 }
 
-int kvm_io_bus_sort_cmp(const void *p1, const void *p2)
+static int kvm_io_bus_sort_cmp(const void *p1, const void *p2)
 {
 	const struct kvm_io_range *r1 = p1;
 	const struct kvm_io_range *r2 = p2;
@@ -2624,7 +2624,7 @@ int kvm_io_bus_sort_cmp(const void *p1, const void *p2)
 	return 0;
 }
 
-int kvm_io_bus_insert_dev(struct kvm_io_bus *bus, struct kvm_io_device *dev,
+static int kvm_io_bus_insert_dev(struct kvm_io_bus *bus, struct kvm_io_device *dev,
 			  gpa_t addr, int len)
 {
 	bus->range[bus->dev_count++] = (struct kvm_io_range) {
@@ -2639,7 +2639,7 @@ int kvm_io_bus_insert_dev(struct kvm_io_bus *bus, struct kvm_io_device *dev,
 	return 0;
 }
 
-int kvm_io_bus_get_first_dev(struct kvm_io_bus *bus,
+static int kvm_io_bus_get_first_dev(struct kvm_io_bus *bus,
 			     gpa_t addr, int len)
 {
 	struct kvm_io_range *range, key;
