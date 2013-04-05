@@ -2804,20 +2804,17 @@ static int brcmf_sdio_trap_info(struct brcmf_sdio *bus, struct sdpcm_shared *sh,
 	int error, res;
 	char buf[350];
 	struct brcmf_trap_info tr;
-	int nbytes;
 	loff_t pos = 0;
 
-	if ((sh->flags & SDPCM_SHARED_TRAP) == 0)
+	if ((sh->flags & SDPCM_SHARED_TRAP) == 0) {
+		brcmf_dbg(INFO, "no trap in firmware\n");
 		return 0;
+	}
 
 	error = brcmf_sdbrcm_membytes(bus, false, sh->trap_addr, (u8 *)&tr,
 				      sizeof(struct brcmf_trap_info));
 	if (error < 0)
 		return error;
-
-	nbytes = brcmf_sdio_dump_console(bus, sh, data, count);
-	if (nbytes < 0)
-		return nbytes;
 
 	res = scnprintf(buf, sizeof(buf),
 			"dongle trap info: type 0x%x @ epc 0x%08x\n"
@@ -2834,12 +2831,7 @@ static int brcmf_sdio_trap_info(struct brcmf_sdio *bus, struct sdpcm_shared *sh,
 			le32_to_cpu(tr.r4), le32_to_cpu(tr.r5),
 			le32_to_cpu(tr.r6), le32_to_cpu(tr.r7));
 
-	error = simple_read_from_buffer(data+nbytes, count, &pos, buf, res);
-	if (error < 0)
-		return error;
-
-	nbytes += error;
-	return nbytes;
+	return simple_read_from_buffer(data, count, &pos, buf, res);
 }
 
 static int brcmf_sdio_assert_info(struct brcmf_sdio *bus,
@@ -2921,14 +2913,20 @@ static int brcmf_sdbrcm_died_dump(struct brcmf_sdio *bus, char __user *data,
 	error = brcmf_sdio_assert_info(bus, &sh, data, count);
 	if (error < 0)
 		goto done;
-
 	nbytes = error;
-	error = brcmf_sdio_trap_info(bus, &sh, data, count);
+
+	error = brcmf_sdio_trap_info(bus, &sh, data+nbytes, count);
 	if (error < 0)
 		goto done;
+	nbytes += error;
 
-	error += nbytes;
-	*ppos += error;
+	error = brcmf_sdio_dump_console(bus, &sh, data+nbytes, count);
+	if (error < 0)
+		goto done;
+	nbytes += error;
+
+	error = nbytes;
+	*ppos += nbytes;
 done:
 	return error;
 }
