@@ -35,9 +35,6 @@ void nf_log_set(struct net *net, u_int8_t pf, const struct nf_logger *logger)
 {
 	const struct nf_logger *log;
 
-	if (!net_eq(net, &init_net))
-		return;
-
 	if (pf == NFPROTO_UNSPEC)
 		return;
 
@@ -55,9 +52,6 @@ void nf_log_unset(struct net *net, const struct nf_logger *logger)
 {
 	int i;
 	const struct nf_logger *log;
-
-	if (!net_eq(net, &init_net))
-		return;
 
 	mutex_lock(&nf_log_mutex);
 	for (i = 0; i < NFPROTO_NUMPROTO; i++) {
@@ -94,7 +88,6 @@ int nf_log_register(u_int8_t pf, struct nf_logger *logger)
 
 	mutex_unlock(&nf_log_mutex);
 
-	nf_log_set(&init_net, pf, logger);
 	return 0;
 }
 EXPORT_SYMBOL(nf_log_register);
@@ -107,17 +100,12 @@ void nf_log_unregister(struct nf_logger *logger)
 	for (i = 0; i < NFPROTO_NUMPROTO; i++)
 		list_del(&logger->list[i]);
 	mutex_unlock(&nf_log_mutex);
-
-	nf_log_unset(&init_net, logger);
 }
 EXPORT_SYMBOL(nf_log_unregister);
 
 int nf_log_bind_pf(struct net *net, u_int8_t pf,
 		   const struct nf_logger *logger)
 {
-	if (!net_eq(net, &init_net))
-		return 0;
-
 	if (pf >= ARRAY_SIZE(net->nf.nf_loggers))
 		return -EINVAL;
 	mutex_lock(&nf_log_mutex);
@@ -133,9 +121,6 @@ EXPORT_SYMBOL(nf_log_bind_pf);
 
 void nf_log_unbind_pf(struct net *net, u_int8_t pf)
 {
-	if (!net_eq(net, &init_net))
-		return;
-
 	if (pf >= ARRAY_SIZE(net->nf.nf_loggers))
 		return;
 	mutex_lock(&nf_log_mutex);
@@ -156,9 +141,6 @@ void nf_log_packet(struct net *net,
 	va_list args;
 	char prefix[NF_LOG_PREFIXLEN];
 	const struct nf_logger *logger;
-
-	if (!net_eq(net, &init_net))
-		return;
 
 	rcu_read_lock();
 	logger = rcu_dereference(net->nf.nf_loggers[pf]);
@@ -274,9 +256,6 @@ static int nf_log_proc_dostring(ctl_table *table, int write,
 	struct net *net = current->nsproxy->net_ns;
 
 	if (write) {
-		if (!net_eq(net, &init_net))
-			return -EPERM;
-
 		if (size > sizeof(buf))
 			size = sizeof(buf);
 		if (copy_from_user(buf, buffer, size))
