@@ -29,7 +29,7 @@ int ip6_route_me_harder(struct sk_buff *skb)
 		IP6_INC_STATS(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
 		LIMIT_NETDEBUG(KERN_DEBUG "ip6_route_me_harder: No more route.\n");
 		dst_release(dst);
-		return -EINVAL;
+		return dst->error;
 	}
 
 	/* Drop old route. */
@@ -43,7 +43,7 @@ int ip6_route_me_harder(struct sk_buff *skb)
 		skb_dst_set(skb, NULL);
 		dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), skb->sk, 0);
 		if (IS_ERR(dst))
-			return -1;
+			return PTR_ERR(dst);
 		skb_dst_set(skb, dst);
 	}
 #endif
@@ -53,7 +53,7 @@ int ip6_route_me_harder(struct sk_buff *skb)
 	if (skb_headroom(skb) < hh_len &&
 	    pskb_expand_head(skb, HH_DATA_ALIGN(hh_len - skb_headroom(skb)),
 			     0, GFP_ATOMIC))
-		return -1;
+		return -ENOMEM;
 
 	return 0;
 }
