@@ -160,24 +160,6 @@ static void serial2002_tty_read_poll_wait(struct file *f, int timeout)
 	poll_freewait(&table);
 }
 
-#if 0
-/*
- * On 2.6.26.3 this occaisonally gave me page faults, worked around by
- * settings.c_cc[VMIN] = 0; settings.c_cc[VTIME] = 0
- */
-static int tty_available(struct file *f)
-{
-	long result = 0;
-	mm_segment_t oldfs;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	serial2002_tty_ioctl(f, FIONREAD, (unsigned long)&result);
-	set_fs(oldfs);
-	return result;
-}
-#endif
-
 static int serial2002_tty_read(struct file *f, int timeout)
 {
 	unsigned char ch;
