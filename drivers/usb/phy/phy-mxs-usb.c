@@ -48,12 +48,12 @@ static void mxs_phy_hw_init(struct mxs_phy *mxs_phy)
 	stmp_reset_block(base + HW_USBPHY_CTRL);
 
 	/* Power up the PHY */
-	writel_relaxed(0, base + HW_USBPHY_PWD);
+	writel(0, base + HW_USBPHY_PWD);
 
 	/* enable FS/LS device */
-	writel_relaxed(BM_USBPHY_CTRL_ENUTMILEVEL2 |
-			BM_USBPHY_CTRL_ENUTMILEVEL3,
-			base + HW_USBPHY_CTRL_SET);
+	writel(BM_USBPHY_CTRL_ENUTMILEVEL2 |
+	       BM_USBPHY_CTRL_ENUTMILEVEL3,
+	       base + HW_USBPHY_CTRL_SET);
 }
 
 static int mxs_phy_init(struct usb_phy *phy)
@@ -70,8 +70,8 @@ static void mxs_phy_shutdown(struct usb_phy *phy)
 {
 	struct mxs_phy *mxs_phy = to_mxs_phy(phy);
 
-	writel_relaxed(BM_USBPHY_CTRL_CLKGATE,
-			phy->io_priv + HW_USBPHY_CTRL_SET);
+	writel(BM_USBPHY_CTRL_CLKGATE,
+	       phy->io_priv + HW_USBPHY_CTRL_SET);
 
 	clk_disable_unprepare(mxs_phy->clk);
 }
@@ -81,15 +81,15 @@ static int mxs_phy_suspend(struct usb_phy *x, int suspend)
 	struct mxs_phy *mxs_phy = to_mxs_phy(x);
 
 	if (suspend) {
-		writel_relaxed(0xffffffff, x->io_priv + HW_USBPHY_PWD);
-		writel_relaxed(BM_USBPHY_CTRL_CLKGATE,
-			x->io_priv + HW_USBPHY_CTRL_SET);
+		writel(0xffffffff, x->io_priv + HW_USBPHY_PWD);
+		writel(BM_USBPHY_CTRL_CLKGATE,
+		       x->io_priv + HW_USBPHY_CTRL_SET);
 		clk_disable_unprepare(mxs_phy->clk);
 	} else {
 		clk_prepare_enable(mxs_phy->clk);
-		writel_relaxed(BM_USBPHY_CTRL_CLKGATE,
-			x->io_priv + HW_USBPHY_CTRL_CLR);
-		writel_relaxed(0, x->io_priv + HW_USBPHY_PWD);
+		writel(BM_USBPHY_CTRL_CLKGATE,
+		       x->io_priv + HW_USBPHY_CTRL_CLR);
+		writel(0, x->io_priv + HW_USBPHY_PWD);
 	}
 
 	return 0;
@@ -102,8 +102,8 @@ static int mxs_phy_on_connect(struct usb_phy *phy,
 		(speed == USB_SPEED_HIGH) ? "high" : "non-high");
 
 	if (speed == USB_SPEED_HIGH)
-		writel_relaxed(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
-				phy->io_priv + HW_USBPHY_CTRL_SET);
+		writel(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
+		       phy->io_priv + HW_USBPHY_CTRL_SET);
 
 	return 0;
 }
@@ -115,8 +115,8 @@ static int mxs_phy_on_disconnect(struct usb_phy *phy,
 		(speed == USB_SPEED_HIGH) ? "high" : "non-high");
 
 	if (speed == USB_SPEED_HIGH)
-		writel_relaxed(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
-				phy->io_priv + HW_USBPHY_CTRL_CLR);
+		writel(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
+		       phy->io_priv + HW_USBPHY_CTRL_CLR);
 
 	return 0;
 }
@@ -127,6 +127,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	void __iomem *base;
 	struct clk *clk;
 	struct mxs_phy *mxs_phy;
+	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -166,11 +167,19 @@ static int mxs_phy_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, &mxs_phy->phy);
 
+	ret = usb_add_phy_dev(&mxs_phy->phy);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
 static int mxs_phy_remove(struct platform_device *pdev)
 {
+	struct mxs_phy *mxs_phy = platform_get_drvdata(pdev);
+
+	usb_remove_phy(&mxs_phy->phy);
+
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;

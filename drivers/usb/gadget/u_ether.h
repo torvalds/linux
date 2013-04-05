@@ -21,6 +21,7 @@
 
 #include "gadget_chips.h"
 
+struct eth_dev;
 
 /*
  * This represents the USB side of an "ethernet" link, managed by a USB
@@ -70,7 +71,7 @@ struct gether {
 			|USB_CDC_PACKET_TYPE_DIRECTED)
 
 /* variant of gether_setup that allows customizing network device name */
-int gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
+struct eth_dev *gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
 		const char *netname);
 
 /* netdev setup/teardown as directed by the gadget driver */
@@ -86,12 +87,13 @@ int gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
  *
  * Returns negative errno, or zero on success
  */
-static inline int gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
+static inline struct eth_dev *gether_setup(struct usb_gadget *g,
+		u8 ethaddr[ETH_ALEN])
 {
 	return gether_setup_name(g, ethaddr, "usb");
 }
 
-void gether_cleanup(void);
+void gether_cleanup(struct eth_dev *dev);
 
 /* connect/disconnect is handled by individual functions */
 struct net_device *gether_connect(struct gether *);
@@ -111,21 +113,24 @@ static inline bool can_support_ecm(struct usb_gadget *gadget)
 }
 
 /* each configuration may bind one instance of an ethernet link */
-int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
-int ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
-int ncm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
-int eem_bind_config(struct usb_configuration *c);
+int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+		struct eth_dev *dev);
+int ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+		struct eth_dev *dev);
+int ncm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+		struct eth_dev *dev);
+int eem_bind_config(struct usb_configuration *c, struct eth_dev *dev);
 
 #ifdef USB_ETH_RNDIS
 
 int rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
-				u32 vendorID, const char *manufacturer);
+		u32 vendorID, const char *manufacturer, struct eth_dev *dev);
 
 #else
 
 static inline int
 rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
-				u32 vendorID, const char *manufacturer)
+		u32 vendorID, const char *manufacturer, struct eth_dev *dev)
 {
 	return 0;
 }
@@ -145,9 +150,9 @@ rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
  * for calling @gether_cleanup() before module unload.
  */
 static inline int rndis_bind_config(struct usb_configuration *c,
-				    u8 ethaddr[ETH_ALEN])
+		u8 ethaddr[ETH_ALEN], struct eth_dev *dev)
 {
-	return rndis_bind_config_vendor(c, ethaddr, 0, NULL);
+	return rndis_bind_config_vendor(c, ethaddr, 0, NULL, dev);
 }
 
 

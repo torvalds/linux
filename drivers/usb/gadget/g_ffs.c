@@ -13,7 +13,6 @@
 #define pr_fmt(fmt) "g_ffs: " fmt
 
 #include <linux/module.h>
-
 /*
  * kbuild is not very cooperative with respect to linking separately
  * compiled library objects into one module.  So for now we won't use
@@ -38,13 +37,16 @@
 #  include "u_ether.c"
 
 static u8 gfs_hostaddr[ETH_ALEN];
+static struct eth_dev *the_dev;
 #  ifdef CONFIG_USB_FUNCTIONFS_ETH
-static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN]);
+static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+		struct eth_dev *dev);
 #  endif
 #else
-#  define gether_cleanup() do { } while (0)
-#  define gether_setup(gadget, hostaddr)   ((int)0)
+#  define the_dev	NULL
+#  define gether_cleanup(dev) do { } while (0)
 #  define gfs_hostaddr NULL
+struct eth_dev;
 #endif
 
 #include "f_fs.c"
@@ -137,7 +139,8 @@ static struct usb_gadget_strings *gfs_dev_strings[] = {
 
 struct gfs_configuration {
 	struct usb_configuration c;
-	int (*eth)(struct usb_configuration *c, u8 *ethaddr);
+	int (*eth)(struct usb_configuration *c, u8 *ethaddr,
+			struct eth_dev *dev);
 } gfs_configurations[] = {
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
 	{
@@ -346,10 +349,13 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 
 	if (missing_funcs)
 		return -ENODEV;
-
-	ret = gether_setup(cdev->gadget, gfs_hostaddr);
-	if (unlikely(ret < 0))
+#if defined CONFIG_USB_FUNCTIONFS_ETH || defined CONFIG_USB_FUNCTIONFS_RNDIS
+	the_dev = gether_setup(cdev->gadget, gfs_hostaddr);
+#endif
+	if (IS_ERR(the_dev)) {
+		ret = PTR_ERR(the_dev);
 		goto error_quick;
+	}
 	gfs_ether_setup = true;
 
 	ret = usb_string_ids_tab(cdev, gfs_strings);
@@ -386,7 +392,7 @@ error_unbind:
 	for (i = 0; i < func_num; i++)
 		functionfs_unbind(ffs_tab[i].ffs_data);
 error:
-	gether_cleanup();
+	gether_cleanup(the_dev);
 error_quick:
 	gfs_ether_setup = false;
 	return ret;
@@ -410,7 +416,7 @@ static int gfs_unbind(struct usb_composite_dev *cdev)
 	 * do...?
 	 */
 	if (gfs_ether_setup)
-		gether_cleanup();
+		gether_cleanup(the_dev);
 	gfs_ether_setup = false;
 
 	for (i = func_num; i--; )
@@ -440,7 +446,7 @@ static int gfs_do_config(struct usb_configuration *c)
 	}
 
 	if (gc->eth) {
-		ret = gc->eth(c, gfs_hostaddr);
+		ret = gc->eth(c, gfs_hostaddr, the_dev);
 		if (unlikely(ret < 0))
 			return ret;
 	}
@@ -469,11 +475,12 @@ static int gfs_do_config(struct usb_configuration *c)
 
 #ifdef CONFIG_USB_FUNCTIONFS_ETH
 
-static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
+static int eth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+		struct eth_dev *dev)
 {
 	return can_support_ecm(c->cdev->gadget)
-		? ecm_bind_config(c, ethaddr)
-		: geth_bind_config(c, ethaddr);
+		? ecm_bind_config(c, ethaddr, dev)
+		: geth_bind_config(c, ethaddr, dev);
 }
 
 #endif

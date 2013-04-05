@@ -128,7 +128,7 @@ static int exynos_ohci_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
-	if (IS_ERR_OR_NULL(phy)) {
+	if (IS_ERR(phy)) {
 		/* Fallback to pdata */
 		if (!pdata) {
 			dev_warn(&pdev->dev, "no platform data or transceiver defined\n");

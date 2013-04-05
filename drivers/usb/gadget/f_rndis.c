@@ -813,7 +813,7 @@ static inline bool can_support_rndis(struct usb_configuration *c)
 
 int
 rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
-				u32 vendorID, const char *manufacturer)
+		u32 vendorID, const char *manufacturer, struct eth_dev *dev)
 {
 	struct f_rndis	*rndis;
 	int		status;
@@ -846,6 +846,7 @@ rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 	rndis->vendorID = vendorID;
 	rndis->manufacturer = manufacturer;
 
+	rndis->port.ioport = dev;
 	/* RNDIS activates when the host changes this filter */
 	rndis->port.cdc_filter = 0;
 

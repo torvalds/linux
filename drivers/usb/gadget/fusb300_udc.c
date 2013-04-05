@@ -394,7 +394,7 @@ static void fusb300_clear_epnstall(struct fusb300 *fusb300, u8 ep)
 
 	if (reg & FUSB300_EPSET0_STL) {
 		printk(KERN_DEBUG "EP%d stall... Clear!!\n", ep);
-		reg &= ~FUSB300_EPSET0_STL;
+		reg |= FUSB300_EPSET0_STL_CLR;
 		iowrite32(reg, fusb300->reg + FUSB300_OFFSET_EPSET0(ep));
 	}
 }
@@ -930,33 +930,33 @@ static void fusb300_wait_idma_finished(struct fusb300_ep *ep)
 
 	fusb300_clear_int(ep->fusb300, FUSB300_OFFSET_IGR0,
 		FUSB300_IGR0_EPn_PRD_INT(ep->epnum));
+	return;
+
 IDMA_RESET:
-	fusb300_clear_int(ep->fusb300, FUSB300_OFFSET_IGER0,
-		FUSB300_IGER0_EEPn_PRD_INT(ep->epnum));
+	reg = ioread32(ep->fusb300->reg + FUSB300_OFFSET_IGER0);
+	reg &= ~FUSB300_IGER0_EEPn_PRD_INT(ep->epnum);
+	iowrite32(reg, ep->fusb300->reg + FUSB300_OFFSET_IGER0);
 }
 
-static void  fusb300_set_idma(struct fusb300_ep *ep,
+static void fusb300_set_idma(struct fusb300_ep *ep,
 			struct fusb300_request *req)
 {
-	dma_addr_t d;
+	int ret;
 
-	d = dma_map_single(NULL, req->req.buf, req->req.length, DMA_TO_DEVICE);
-
-	if (dma_mapping_error(NULL, d)) {
-		printk(KERN_DEBUG "dma_mapping_error\n");
+	ret = usb_gadget_map_request(&ep->fusb300->gadget,
+			&req->req, DMA_TO_DEVICE);
+	if (ret)
 		return;
-	}
-
-	dma_sync_single_for_device(NULL, d, req->req.length, DMA_TO_DEVICE);
 
 	fusb300_enable_bit(ep->fusb300, FUSB300_OFFSET_IGER0,
 		FUSB300_IGER0_EEPn_PRD_INT(ep->epnum));
 
-	fusb300_fill_idma_prdtbl(ep, d, req->req.length);
+	fusb300_fill_idma_prdtbl(ep, req->req.dma, req->req.length);
 	/* check idma is done */
 	fusb300_wait_idma_finished(ep);
 
-	dma_unmap_single(NULL, d, req->req.length, DMA_TO_DEVICE);
+	usb_gadget_unmap_request(&ep->fusb300->gadget,
+			&req->req, DMA_TO_DEVICE);
 }
 
 static void in_ep_fifo_handler(struct fusb300_ep *ep)
@@ -1316,7 +1316,6 @@ static int fusb300_udc_start(struct usb_gadget *g,
 	/* hook up the driver */
 	driver->driver.bus = NULL;
 	fusb300->driver = driver;
-	fusb300->gadget.dev.driver = &driver->driver;
 
 	return 0;
 }
@@ -1327,7 +1326,6 @@ static int fusb300_udc_stop(struct usb_gadget *g,
 	struct fusb300 *fusb300 = to_fusb300(g);
 
 	driver->unbind(&fusb300->gadget);
-	fusb300->gadget.dev.driver = NULL;
 
 	init_controller(fusb300);
 	fusb300->driver = NULL;
@@ -1422,14 +1420,7 @@ static int __init fusb300_probe(struct platform_device *pdev)
 
 	fusb300->gadget.ops = &fusb300_gadget_ops;
 
-	device_initialize(&fusb300->gadget.dev);
-
-	dev_set_name(&fusb300->gadget.dev, "gadget");
-
 	fusb300->gadget.max_speed = USB_SPEED_HIGH;
-	fusb300->gadget.dev.parent = &pdev->dev;
-	fusb300->gadget.dev.dma_mask = pdev->dev.dma_mask;
-	fusb300->gadget.dev.release = pdev->dev.release;
 	fusb300->gadget.name = udc_name;
 	fusb300->reg = reg;
 
@@ -1478,18 +1469,9 @@ static int __init fusb300_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_add_udc;
 
-	ret = device_add(&fusb300->gadget.dev);
-	if (ret) {
-		pr_err("device_add error (%d)\n", ret);
-		goto err_add_device;
-	}
-
 	dev_info(&pdev->dev, "version %s\n", DRIVER_VERSION);
 
 	return 0;
-
-err_add_device:
-	usb_del_gadget_udc(&fusb300->gadget);
 
 err_add_udc:
 	fusb300_free_request(&fusb300->ep[0]->ep, fusb300->ep0_req);

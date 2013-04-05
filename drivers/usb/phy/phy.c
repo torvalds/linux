@@ -1,14 +1,13 @@
 /*
- * otg.c -- USB OTG utility code
+ * phy.c -- USB phy handling
  *
- * Copyright (C) 2004 Texas Instruments
+ * Copyright (C) 2004-2013 Texas Instruments
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/err.h>
@@ -17,7 +16,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 
-#include <linux/usb/otg.h>
+#include <linux/usb/phy.h>
 
 static LIST_HEAD(phy_list);
 static LIST_HEAD(phy_bind_list);
@@ -110,7 +109,7 @@ struct usb_phy *devm_usb_get_phy(struct device *dev, enum usb_phy_type type)
 
 	return phy;
 }
-EXPORT_SYMBOL(devm_usb_get_phy);
+EXPORT_SYMBOL_GPL(devm_usb_get_phy);
 
 /**
  * usb_get_phy - find the USB PHY
@@ -143,7 +142,7 @@ err0:
 
 	return phy;
 }
-EXPORT_SYMBOL(usb_get_phy);
+EXPORT_SYMBOL_GPL(usb_get_phy);
 
  /**
  * devm_usb_get_phy_by_phandle - find the USB PHY by phandle
@@ -207,7 +206,7 @@ err0:
 
 	return phy;
 }
-EXPORT_SYMBOL(devm_usb_get_phy_by_phandle);
+EXPORT_SYMBOL_GPL(devm_usb_get_phy_by_phandle);
 
 /**
  * usb_get_phy_dev - find the USB PHY
@@ -240,7 +239,7 @@ err0:
 
 	return phy;
 }
-EXPORT_SYMBOL(usb_get_phy_dev);
+EXPORT_SYMBOL_GPL(usb_get_phy_dev);
 
 /**
  * devm_usb_get_phy_dev - find the USB PHY using device ptr and index
@@ -270,7 +269,7 @@ struct usb_phy *devm_usb_get_phy_dev(struct device *dev, u8 index)
 
 	return phy;
 }
-EXPORT_SYMBOL(devm_usb_get_phy_dev);
+EXPORT_SYMBOL_GPL(devm_usb_get_phy_dev);
 
 /**
  * devm_usb_put_phy - release the USB PHY
@@ -289,7 +288,7 @@ void devm_usb_put_phy(struct device *dev, struct usb_phy *phy)
 	r = devres_destroy(dev, devm_usb_phy_release, devm_usb_phy_match, phy);
 	dev_WARN_ONCE(dev, r, "couldn't find PHY resource\n");
 }
-EXPORT_SYMBOL(devm_usb_put_phy);
+EXPORT_SYMBOL_GPL(devm_usb_put_phy);
 
 /**
  * usb_put_phy - release the USB PHY
@@ -308,7 +307,7 @@ void usb_put_phy(struct usb_phy *x)
 		module_put(owner);
 	}
 }
-EXPORT_SYMBOL(usb_put_phy);
+EXPORT_SYMBOL_GPL(usb_put_phy);
 
 /**
  * usb_add_phy - declare the USB PHY
@@ -348,7 +347,7 @@ out:
 	spin_unlock_irqrestore(&phy_lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL(usb_add_phy);
+EXPORT_SYMBOL_GPL(usb_add_phy);
 
 /**
  * usb_add_phy_dev - declare the USB PHY
@@ -378,7 +377,7 @@ int usb_add_phy_dev(struct usb_phy *x)
 	spin_unlock_irqrestore(&phy_lock, flags);
 	return 0;
 }
-EXPORT_SYMBOL(usb_add_phy_dev);
+EXPORT_SYMBOL_GPL(usb_add_phy_dev);
 
 /**
  * usb_remove_phy - remove the OTG PHY
@@ -400,7 +399,7 @@ void usb_remove_phy(struct usb_phy *x)
 	}
 	spin_unlock_irqrestore(&phy_lock, flags);
 }
-EXPORT_SYMBOL(usb_remove_phy);
+EXPORT_SYMBOL_GPL(usb_remove_phy);
 
 /**
  * usb_bind_phy - bind the phy and the controller that uses the phy
@@ -437,38 +436,3 @@ int __init usb_bind_phy(const char *dev_name, u8 index,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_bind_phy);
-
-const char *otg_state_string(enum usb_otg_state state)
-{
-	switch (state) {
-	case OTG_STATE_A_IDLE:
-		return "a_idle";
-	case OTG_STATE_A_WAIT_VRISE:
-		return "a_wait_vrise";
-	case OTG_STATE_A_WAIT_BCON:
-		return "a_wait_bcon";
-	case OTG_STATE_A_HOST:
-		return "a_host";
-	case OTG_STATE_A_SUSPEND:
-		return "a_suspend";
-	case OTG_STATE_A_PERIPHERAL:
-		return "a_peripheral";
-	case OTG_STATE_A_WAIT_VFALL:
-		return "a_wait_vfall";
-	case OTG_STATE_A_VBUS_ERR:
-		return "a_vbus_err";
-	case OTG_STATE_B_IDLE:
-		return "b_idle";
-	case OTG_STATE_B_SRP_INIT:
-		return "b_srp_init";
-	case OTG_STATE_B_PERIPHERAL:
-		return "b_peripheral";
-	case OTG_STATE_B_WAIT_ACON:
-		return "b_wait_acon";
-	case OTG_STATE_B_HOST:
-		return "b_host";
-	default:
-		return "UNDEFINED";
-	}
-}
-EXPORT_SYMBOL(otg_state_string);

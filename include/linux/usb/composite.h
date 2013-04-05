@@ -39,6 +39,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/log2.h>
+#include <linux/configfs.h>
 
 /*
  * USB function drivers should return USB_GADGET_DELAYED_STATUS if they
@@ -464,6 +465,8 @@ struct usb_function_driver {
 };
 
 struct usb_function_instance {
+	struct config_group group;
+	struct list_head cfs_list;
 	struct usb_function_driver *fd;
 	void (*free_func_inst)(struct usb_function_instance *inst);
 };

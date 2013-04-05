@@ -27,7 +27,7 @@
 #include <linux/usb/hcd.h>
 #include <linux/platform_data/mv_usb.h>
 
-#include "mv_otg.h"
+#include "phy-mv-usb.h"
 
 #define	DRIVER_DESC	"Marvell USB OTG transceiver driver"
 #define	DRIVER_VERSION	"Jan 20, 2010"
@@ -237,18 +237,12 @@ static void mv_otg_start_periphrals(struct mv_otg *mvotg, int on)
 
 static void otg_clock_enable(struct mv_otg *mvotg)
 {
-	unsigned int i;
-
-	for (i = 0; i < mvotg->clknum; i++)
-		clk_prepare_enable(mvotg->clk[i]);
+	clk_prepare_enable(mvotg->clk);
 }
 
 static void otg_clock_disable(struct mv_otg *mvotg)
 {
-	unsigned int i;
-
-	for (i = 0; i < mvotg->clknum; i++)
-		clk_disable_unprepare(mvotg->clk[i]);
+	clk_disable_unprepare(mvotg->clk);
 }
 
 static int mv_otg_enable_internal(struct mv_otg *mvotg)
@@ -684,16 +678,14 @@ static int mv_otg_probe(struct platform_device *pdev)
 	struct mv_otg *mvotg;
 	struct usb_otg *otg;
 	struct resource *r;
-	int retval = 0, clk_i, i;
-	size_t size;
+	int retval = 0, i;
 
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "failed to get platform data\n");
 		return -ENODEV;
 	}
 
-	size = sizeof(*mvotg) + sizeof(struct clk *) * pdata->clknum;
-	mvotg = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	mvotg = devm_kzalloc(&pdev->dev, sizeof(*mvotg), GFP_KERNEL);
 	if (!mvotg) {
 		dev_err(&pdev->dev, "failed to allocate memory!\n");
 		return -ENOMEM;
@@ -708,15 +700,9 @@ static int mv_otg_probe(struct platform_device *pdev)
 	mvotg->pdev = pdev;
 	mvotg->pdata = pdata;
 
-	mvotg->clknum = pdata->clknum;
-	for (clk_i = 0; clk_i < mvotg->clknum; clk_i++) {
-		mvotg->clk[clk_i] = devm_clk_get(&pdev->dev,
-						pdata->clkname[clk_i]);
-		if (IS_ERR(mvotg->clk[clk_i])) {
-			retval = PTR_ERR(mvotg->clk[clk_i]);
-			return retval;
-		}
-	}
+	mvotg->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(mvotg->clk))
+		return PTR_ERR(mvotg->clk);
 
 	mvotg->qwork = create_singlethread_workqueue("mv_otg_queue");
 	if (!mvotg->qwork) {

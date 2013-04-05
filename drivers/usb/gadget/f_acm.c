@@ -715,72 +715,6 @@ fail:
 	return status;
 }
 
-static struct f_acm *acm_alloc_basic_func(void)
-{
-	struct f_acm	*acm;
-
-	acm = kzalloc(sizeof(*acm), GFP_KERNEL);
-	if (!acm)
-		return NULL;
-
-	spin_lock_init(&acm->lock);
-
-	acm->port.connect = acm_connect;
-	acm->port.disconnect = acm_disconnect;
-	acm->port.send_break = acm_send_break;
-
-	acm->port.func.name = "acm";
-	/* descriptors are per-instance copies */
-	acm->port.func.bind = acm_bind;
-	acm->port.func.set_alt = acm_set_alt;
-	acm->port.func.setup = acm_setup;
-	acm->port.func.disable = acm_disable;
-
-	return acm;
-}
-
-#ifdef USB_FACM_INCLUDED
-static void
-acm_old_unbind(struct usb_configuration *c, struct usb_function *f)
-{
-	struct f_acm		*acm = func_to_acm(f);
-
-	usb_free_all_descriptors(f);
-	if (acm->notify_req)
-		gs_free_req(acm->notify, acm->notify_req);
-	kfree(acm);
-}
-
-/**
- * acm_bind_config - add a CDC ACM function to a configuration
- * @c: the configuration to support the CDC ACM instance
- * @port_num: /dev/ttyGS* port this interface will use
- * Context: single threaded during gadget setup
- *
- * Returns zero on success, else negative errno.
- *
- */
-int acm_bind_config(struct usb_configuration *c, u8 port_num)
-{
-	struct f_acm	*acm;
-	int		status;
-
-	/* allocate and initialize one new instance */
-	acm = acm_alloc_basic_func();
-	if (!acm)
-		return -ENOMEM;
-
-	acm->port_num = port_num;
-	acm->port.func.unbind = acm_old_unbind;
-
-	status = usb_add_function(c, &acm->port.func);
-	if (status)
-		kfree(acm);
-	return status;
-}
-
-#else
-
 static void acm_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_acm		*acm = func_to_acm(f);
@@ -803,9 +737,23 @@ static struct usb_function *acm_alloc_func(struct usb_function_instance *fi)
 	struct f_serial_opts *opts;
 	struct f_acm *acm;
 
-	acm = acm_alloc_basic_func();
+	acm = kzalloc(sizeof(*acm), GFP_KERNEL);
 	if (!acm)
 		return ERR_PTR(-ENOMEM);
+
+	spin_lock_init(&acm->lock);
+
+	acm->port.connect = acm_connect;
+	acm->port.disconnect = acm_disconnect;
+	acm->port.send_break = acm_send_break;
+
+	acm->port.func.name = "acm";
+	acm->port.func.strings = acm_strings;
+	/* descriptors are per-instance copies */
+	acm->port.func.bind = acm_bind;
+	acm->port.func.set_alt = acm_set_alt;
+	acm->port.func.setup = acm_setup;
+	acm->port.func.disable = acm_disable;
 
 	opts = container_of(fi, struct f_serial_opts, func_inst);
 	acm->port_num = opts->port_num;
@@ -815,24 +763,85 @@ static struct usb_function *acm_alloc_func(struct usb_function_instance *fi)
 	return &acm->port.func;
 }
 
+static inline struct f_serial_opts *to_f_serial_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_serial_opts,
+			func_inst.group);
+}
+
+CONFIGFS_ATTR_STRUCT(f_serial_opts);
+static ssize_t f_acm_attr_show(struct config_item *item,
+				 struct configfs_attribute *attr,
+				 char *page)
+{
+	struct f_serial_opts *opts = to_f_serial_opts(item);
+	struct f_serial_opts_attribute *f_serial_opts_attr =
+		container_of(attr, struct f_serial_opts_attribute, attr);
+	ssize_t ret = 0;
+
+	if (f_serial_opts_attr->show)
+		ret = f_serial_opts_attr->show(opts, page);
+	return ret;
+}
+
+static void acm_attr_release(struct config_item *item)
+{
+	struct f_serial_opts *opts = to_f_serial_opts(item);
+
+	usb_put_function_instance(&opts->func_inst);
+}
+
+static struct configfs_item_operations acm_item_ops = {
+	.release                = acm_attr_release,
+	.show_attribute		= f_acm_attr_show,
+};
+
+static ssize_t f_acm_port_num_show(struct f_serial_opts *opts, char *page)
+{
+	return sprintf(page, "%u\n", opts->port_num);
+}
+
+static struct f_serial_opts_attribute f_acm_port_num =
+	__CONFIGFS_ATTR_RO(port_num, f_acm_port_num_show);
+
+
+static struct configfs_attribute *acm_attrs[] = {
+	&f_acm_port_num.attr,
+	NULL,
+};
+
+static struct config_item_type acm_func_type = {
+	.ct_item_ops    = &acm_item_ops,
+	.ct_attrs	= acm_attrs,
+	.ct_owner       = THIS_MODULE,
+};
+
 static void acm_free_instance(struct usb_function_instance *fi)
 {
 	struct f_serial_opts *opts;
 
 	opts = container_of(fi, struct f_serial_opts, func_inst);
+	gserial_free_line(opts->port_num);
 	kfree(opts);
 }
 
 static struct usb_function_instance *acm_alloc_instance(void)
 {
 	struct f_serial_opts *opts;
+	int ret;
 
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
 	opts->func_inst.free_func_inst = acm_free_instance;
+	ret = gserial_alloc_line(&opts->port_num);
+	if (ret) {
+		kfree(opts);
+		return ERR_PTR(ret);
+	}
+	config_group_init_type_name(&opts->func_inst.group, "",
+			&acm_func_type);
 	return &opts->func_inst;
 }
 DECLARE_USB_FUNCTION_INIT(acm, acm_alloc_instance, acm_alloc_func);
 MODULE_LICENSE("GPL");
-#endif

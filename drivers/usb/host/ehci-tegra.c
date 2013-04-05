@@ -773,16 +773,14 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		goto fail_phy;
 	}
 
-#ifdef CONFIG_USB_OTG_UTILS
 	if (pdata->operating_mode == TEGRA_USB_OTG) {
 		tegra->transceiver =
 			devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
-		if (!IS_ERR_OR_NULL(tegra->transceiver))
+		if (!IS_ERR(tegra->transceiver))
 			otg_set_host(tegra->transceiver->otg, &hcd->self);
 	} else {
 		tegra->transceiver = ERR_PTR(-ENODEV);
 	}
-#endif
 
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err) {
@@ -801,10 +799,8 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	return err;
 
 fail:
-#ifdef CONFIG_USB_OTG_UTILS
-	if (!IS_ERR_OR_NULL(tegra->transceiver))
+	if (!IS_ERR(tegra->transceiver))
 		otg_set_host(tegra->transceiver->otg, NULL);
-#endif
 fail_phy:
 	usb_phy_shutdown(hcd->phy);
 fail_io:
@@ -823,10 +819,8 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
 
-#ifdef CONFIG_USB_OTG_UTILS
-	if (!IS_ERR_OR_NULL(tegra->transceiver))
+	if (!IS_ERR(tegra->transceiver))
 		otg_set_host(tegra->transceiver->otg, NULL);
-#endif
 
 	usb_phy_shutdown(hcd->phy);
 	usb_remove_hcd(hcd);

@@ -283,7 +283,6 @@ static void s3c_hsudc_nuke_ep(struct s3c_hsudc_ep *hsep, int status)
 /**
  * s3c_hsudc_stop_activity - Stop activity on all endpoints.
  * @hsudc: Device controller for which EP activity is to be stopped.
- * @driver: Reference to the gadget driver which is currently active.
  *
  * All the endpoints are stopped and any pending transfer requests if any on
  * the endpoint are terminated.
@@ -1154,7 +1153,6 @@ static int s3c_hsudc_start(struct usb_gadget *gadget,
 		return -EBUSY;
 
 	hsudc->driver = driver;
-	hsudc->gadget.dev.driver = &driver->driver;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(hsudc->supplies),
 				    hsudc->supplies);
@@ -1190,7 +1188,6 @@ err_otg:
 	regulator_bulk_disable(ARRAY_SIZE(hsudc->supplies), hsudc->supplies);
 err_supplies:
 	hsudc->driver = NULL;
-	hsudc->gadget.dev.driver = NULL;
 	return ret;
 }
 
@@ -1208,7 +1205,6 @@ static int s3c_hsudc_stop(struct usb_gadget *gadget,
 
 	spin_lock_irqsave(&hsudc->lock, flags);
 	hsudc->driver = NULL;
-	hsudc->gadget.dev.driver = NULL;
 	hsudc->gadget.speed = USB_SPEED_UNKNOWN;
 	s3c_hsudc_uninit_phy();
 
@@ -1303,15 +1299,10 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&hsudc->lock);
 
-	dev_set_name(&hsudc->gadget.dev, "gadget");
-
 	hsudc->gadget.max_speed = USB_SPEED_HIGH;
 	hsudc->gadget.ops = &s3c_hsudc_gadget_ops;
 	hsudc->gadget.name = dev_name(dev);
-	hsudc->gadget.dev.parent = dev;
-	hsudc->gadget.dev.dma_mask = dev->dma_mask;
 	hsudc->gadget.ep0 = &hsudc->ep[0].ep;
-
 	hsudc->gadget.is_otg = 0;
 	hsudc->gadget.is_a_peripheral = 0;
 	hsudc->gadget.speed = USB_SPEED_UNKNOWN;
@@ -1345,12 +1336,6 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	disable_irq(hsudc->irq);
 	local_irq_enable();
 
-	ret = device_register(&hsudc->gadget.dev);
-	if (ret) {
-		put_device(&hsudc->gadget.dev);
-		goto err_add_device;
-	}
-
 	ret = usb_add_gadget_udc(&pdev->dev, &hsudc->gadget);
 	if (ret)
 		goto err_add_udc;
@@ -1359,7 +1344,6 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 
 	return 0;
 err_add_udc:
-	device_unregister(&hsudc->gadget.dev);
 err_add_device:
 	clk_disable(hsudc->uclk);
 err_res:

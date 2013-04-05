@@ -51,8 +51,6 @@
 #define	DRIVER_DESC		"TC86C001 USB Device Controller"
 #define	DRIVER_VERSION		"30-Oct 2003"
 
-#define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
-
 static const char driver_name [] = "goku_udc";
 static const char driver_desc [] = DRIVER_DESC;
 
@@ -275,7 +273,6 @@ goku_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 	if (!req)
 		return NULL;
 
-	req->req.dma = DMA_ADDR_INVALID;
 	INIT_LIST_HEAD(&req->queue);
 	return &req->req;
 }
@@ -1354,7 +1351,6 @@ static int goku_udc_start(struct usb_gadget *g,
 	/* hook up the driver */
 	driver->driver.bus = NULL;
 	dev->driver = driver;
-	dev->gadget.dev.driver = &driver->driver;
 
 	/*
 	 * then enable host detection and ep0; and we're ready
@@ -1394,7 +1390,6 @@ static int goku_udc_stop(struct usb_gadget *g,
 	dev->driver = NULL;
 	stop_activity(dev, driver);
 	spin_unlock_irqrestore(&dev->lock, flags);
-	dev->gadget.dev.driver = NULL;
 
 	return 0;
 }
@@ -1716,8 +1711,6 @@ static void goku_remove(struct pci_dev *pdev)
 				pci_resource_len (pdev, 0));
 	if (dev->enabled)
 		pci_disable_device(pdev);
-	if (dev->registered)
-		device_unregister(&dev->gadget.dev);
 
 	pci_set_drvdata(pdev, NULL);
 	dev->regs = NULL;
@@ -1756,10 +1749,6 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->gadget.max_speed = USB_SPEED_FULL;
 
 	/* the "gadget" abstracts/virtualizes the controller */
-	dev_set_name(&dev->gadget.dev, "gadget");
-	dev->gadget.dev.parent = &pdev->dev;
-	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
-	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = driver_name;
 
 	/* now all the pci goodies ... */
@@ -1810,13 +1799,8 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	create_proc_read_entry(proc_node_name, 0, NULL, udc_proc_read, dev);
 #endif
 
-	retval = device_register(&dev->gadget.dev);
-	if (retval) {
-		put_device(&dev->gadget.dev);
-		goto err;
-	}
-	dev->registered = 1;
-	retval = usb_add_gadget_udc(&pdev->dev, &dev->gadget);
+	retval = usb_add_gadget_udc_release(&pdev->dev, &dev->gadget,
+			gadget_release);
 	if (retval)
 		goto err;
 

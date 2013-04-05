@@ -212,6 +212,8 @@ static int process_ep_req(struct mv_udc *udc, int index,
  * request is still in progress.
  */
 static void done(struct mv_ep *ep, struct mv_req *req, int status)
+	__releases(&ep->udc->lock)
+	__acquires(&ep->udc->lock)
 {
 	struct mv_udc *udc = NULL;
 	unsigned char stopped = ep->stopped;
@@ -237,18 +239,7 @@ static void done(struct mv_ep *ep, struct mv_req *req, int status)
 		dma_pool_free(udc->dtd_pool, curr_td, curr_td->td_dma);
 	}
 
-	if (req->mapped) {
-		dma_unmap_single(ep->udc->gadget.dev.parent,
-			req->req.dma, req->req.length,
-			((ep_dir(ep) == EP_DIR_IN) ?
-				DMA_TO_DEVICE : DMA_FROM_DEVICE));
-		req->req.dma = DMA_ADDR_INVALID;
-		req->mapped = 0;
-	} else
-		dma_sync_single_for_cpu(ep->udc->gadget.dev.parent,
-			req->req.dma, req->req.length,
-			((ep_dir(ep) == EP_DIR_IN) ?
-				DMA_TO_DEVICE : DMA_FROM_DEVICE));
+	usb_gadget_unmap_request(&udc->gadget, &req->req, ep_dir(ep));
 
 	if (status && (status != -ESHUTDOWN))
 		dev_info(&udc->dev->dev, "complete %s req %p stat %d len %u/%u",
@@ -732,21 +723,9 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	req->ep = ep;
 
 	/* map virtual address to hardware */
-	if (req->req.dma == DMA_ADDR_INVALID) {
-		req->req.dma = dma_map_single(ep->udc->gadget.dev.parent,
-					req->req.buf,
-					req->req.length, ep_dir(ep)
-						? DMA_TO_DEVICE
-						: DMA_FROM_DEVICE);
-		req->mapped = 1;
-	} else {
-		dma_sync_single_for_device(ep->udc->gadget.dev.parent,
-					req->req.dma, req->req.length,
-					ep_dir(ep)
-						? DMA_TO_DEVICE
-						: DMA_FROM_DEVICE);
-		req->mapped = 0;
-	}
+	retval = usb_gadget_map_request(&udc->gadget, _req, ep_dir(ep));
+	if (retval)
+		return retval;
 
 	req->req.status = -EINPROGRESS;
 	req->req.actual = 0;
@@ -780,18 +759,7 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	return 0;
 
 err_unmap_dma:
-	if (req->mapped) {
-		dma_unmap_single(ep->udc->gadget.dev.parent,
-				req->req.dma, req->req.length,
-				((ep_dir(ep) == EP_DIR_IN) ?
-				DMA_TO_DEVICE : DMA_FROM_DEVICE));
-		req->req.dma = DMA_ADDR_INVALID;
-		req->mapped = 0;
-	} else
-		dma_sync_single_for_cpu(ep->udc->gadget.dev.parent,
-				req->req.dma, req->req.length,
-				((ep_dir(ep) == EP_DIR_IN) ?
-				DMA_TO_DEVICE : DMA_FROM_DEVICE));
+	usb_gadget_unmap_request(&udc->gadget, _req, ep_dir(ep));
 
 	return retval;
 }
@@ -1006,18 +974,12 @@ static struct usb_ep_ops mv_ep_ops = {
 
 static void udc_clock_enable(struct mv_udc *udc)
 {
-	unsigned int i;
-
-	for (i = 0; i < udc->clknum; i++)
-		clk_prepare_enable(udc->clk[i]);
+	clk_prepare_enable(udc->clk);
 }
 
 static void udc_clock_disable(struct mv_udc *udc)
 {
-	unsigned int i;
-
-	for (i = 0; i < udc->clknum; i++)
-		clk_disable_unprepare(udc->clk[i]);
+	clk_disable_unprepare(udc->clk);
 }
 
 static void udc_stop(struct mv_udc *udc)
@@ -1386,7 +1348,6 @@ static int mv_udc_start(struct usb_gadget *gadget,
 	/* hook up the driver ... */
 	driver->driver.bus = NULL;
 	udc->driver = driver;
-	udc->gadget.dev.driver = &driver->driver;
 
 	udc->usb_state = USB_STATE_ATTACHED;
 	udc->ep0_state = WAIT_FOR_SETUP;
@@ -1401,7 +1362,6 @@ static int mv_udc_start(struct usb_gadget *gadget,
 			dev_err(&udc->dev->dev,
 				"unable to register peripheral to otg\n");
 			udc->driver = NULL;
-			udc->gadget.dev.driver = NULL;
 			return retval;
 		}
 	}
@@ -1437,7 +1397,6 @@ static int mv_udc_stop(struct usb_gadget *gadget,
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	/* unbind gadget driver */
-	udc->gadget.dev.driver = NULL;
 	udc->driver = NULL;
 
 	return 0;
@@ -1528,14 +1487,7 @@ udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 
 	return 0;
 out:
-	if (req->mapped) {
-		dma_unmap_single(ep->udc->gadget.dev.parent,
-				req->req.dma, req->req.length,
-				((ep_dir(ep) == EP_DIR_IN) ?
-				DMA_TO_DEVICE : DMA_FROM_DEVICE));
-		req->req.dma = DMA_ADDR_INVALID;
-		req->mapped = 0;
-	}
+	usb_gadget_unmap_request(&udc->gadget, &req->req, ep_dir(ep));
 
 	return retval;
 }
@@ -1695,6 +1647,8 @@ out:
 
 static void handle_setup_packet(struct mv_udc *udc, u8 ep_num,
 	struct usb_ctrlrequest *setup)
+	__releases(&ep->udc->lock)
+	__acquires(&ep->udc->lock)
 {
 	bool delegate = false;
 
@@ -1891,7 +1845,7 @@ static void irq_process_tr_complete(struct mv_udc *udc)
 	}
 }
 
-void irq_process_reset(struct mv_udc *udc)
+static void irq_process_reset(struct mv_udc *udc)
 {
 	u32 tmp;
 	unsigned int loops;
@@ -2138,8 +2092,6 @@ static int mv_udc_remove(struct platform_device *pdev)
 
 	mv_udc_disable(udc);
 
-	device_unregister(&udc->gadget.dev);
-
 	/* free dev, wait for the release() finished */
 	wait_for_completion(udc->done);
 
@@ -2151,7 +2103,6 @@ static int mv_udc_probe(struct platform_device *pdev)
 	struct mv_usb_platform_data *pdata = pdev->dev.platform_data;
 	struct mv_udc *udc;
 	int retval = 0;
-	int clk_i = 0;
 	struct resource *r;
 	size_t size;
 
@@ -2160,8 +2111,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	size = sizeof(*udc) + sizeof(struct clk *) * pdata->clknum;
-	udc = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	udc = devm_kzalloc(&pdev->dev, sizeof(*udc), GFP_KERNEL);
 	if (udc == NULL) {
 		dev_err(&pdev->dev, "failed to allocate memory for udc\n");
 		return -ENOMEM;
@@ -2173,26 +2123,24 @@ static int mv_udc_probe(struct platform_device *pdev)
 
 	udc->dev = pdev;
 
-#ifdef CONFIG_USB_OTG_UTILS
 	if (pdata->mode == MV_USB_MODE_OTG) {
 		udc->transceiver = devm_usb_get_phy(&pdev->dev,
 					USB_PHY_TYPE_USB2);
-		if (IS_ERR_OR_NULL(udc->transceiver)) {
-			udc->transceiver = NULL;
-			return -ENODEV;
-		}
-	}
-#endif
+		if (IS_ERR(udc->transceiver)) {
+			retval = PTR_ERR(udc->transceiver);
 
-	udc->clknum = pdata->clknum;
-	for (clk_i = 0; clk_i < udc->clknum; clk_i++) {
-		udc->clk[clk_i] = devm_clk_get(&pdev->dev,
-					pdata->clkname[clk_i]);
-		if (IS_ERR(udc->clk[clk_i])) {
-			retval = PTR_ERR(udc->clk[clk_i]);
-			return retval;
+			if (retval == -ENXIO)
+				return retval;
+
+			udc->transceiver = NULL;
+			return -EPROBE_DEFER;
 		}
 	}
+
+	/* udc only have one sysclk. */
+	udc->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(udc->clk))
+		return PTR_ERR(udc->clk);
 
 	r = platform_get_resource_byname(udc->dev, IORESOURCE_MEM, "capregs");
 	if (r == NULL) {
@@ -2311,15 +2259,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 	udc->gadget.max_speed = USB_SPEED_HIGH;	/* support dual speed */
 
 	/* the "gadget" abstracts/virtualizes the controller */
-	dev_set_name(&udc->gadget.dev, "gadget");
-	udc->gadget.dev.parent = &pdev->dev;
-	udc->gadget.dev.dma_mask = pdev->dev.dma_mask;
-	udc->gadget.dev.release = gadget_release;
 	udc->gadget.name = driver_name;		/* gadget name */
-
-	retval = device_register(&udc->gadget.dev);
-	if (retval)
-		goto err_destroy_dma;
 
 	eps_init(udc);
 
@@ -2342,7 +2282,7 @@ static int mv_udc_probe(struct platform_device *pdev)
 		if (!udc->qwork) {
 			dev_err(&pdev->dev, "cannot create workqueue\n");
 			retval = -ENOMEM;
-			goto err_unregister;
+			goto err_destroy_dma;
 		}
 
 		INIT_WORK(&udc->vbus_work, mv_udc_vbus_work);
@@ -2358,7 +2298,8 @@ static int mv_udc_probe(struct platform_device *pdev)
 	else
 		udc->vbus_active = 1;
 
-	retval = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
+	retval = usb_add_gadget_udc_release(&pdev->dev, &udc->gadget,
+			gadget_release);
 	if (retval)
 		goto err_create_workqueue;
 
@@ -2370,8 +2311,6 @@ static int mv_udc_probe(struct platform_device *pdev)
 
 err_create_workqueue:
 	destroy_workqueue(udc->qwork);
-err_unregister:
-	device_unregister(&udc->gadget.dev);
 err_destroy_dma:
 	dma_pool_destroy(udc->dtd_pool);
 err_free_dma:
