@@ -2643,11 +2643,10 @@ static void gen6_enable_rps(struct drm_device *dev)
 		pcu_mbox = 0;
 		ret = sandybridge_pcode_read(dev_priv, GEN6_READ_OC_PARAMS, &pcu_mbox);
 		if (!ret && (pcu_mbox & (1<<31))) { /* OC supported */
-			DRM_DEBUG_DRIVER("overclocking supported, adjusting frequency max from %dMHz to %dMHz\n",
+			DRM_DEBUG_DRIVER("Overclocking supported. Max: %dMHz, Overclock max: %dMHz\n",
 					 (dev_priv->rps.max_delay & 0xff) * 50,
 					 (pcu_mbox & 0xff) * 50);
 			dev_priv->rps.hw_max = pcu_mbox & 0xff;
-			dev_priv->rps.max_delay = pcu_mbox & 0xff;
 		}
 	} else {
 		DRM_DEBUG_DRIVER("Failed to set the min frequency\n");
