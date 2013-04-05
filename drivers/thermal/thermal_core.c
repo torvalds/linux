@@ -1754,6 +1754,44 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 }
 EXPORT_SYMBOL(thermal_zone_device_unregister);
 
+/**
+ * thermal_zone_get_zone_by_name() - search for a zone and returns its ref
+ * @name: thermal zone name to fetch the temperature
+ *
+ * When only one zone is found with the passed name, returns a reference to it.
+ *
+ * Return: On success returns a reference to an unique thermal zone with
+ * matching name equals to @name, an ERR_PTR otherwise (-EINVAL for invalid
+ * paramenters, -ENODEV for not found and -EEXIST for multiple matches).
+ */
+struct thermal_zone_device *thermal_zone_get_zone_by_name(const char *name)
+{
+	struct thermal_zone_device *pos = NULL, *ref = ERR_PTR(-EINVAL);
+	unsigned int found = 0;
+
+	if (!name)
+		goto exit;
+
+	mutex_lock(&thermal_list_lock);
+	list_for_each_entry(pos, &thermal_tz_list, node)
+		if (!strnicmp(name, pos->type, THERMAL_NAME_LENGTH)) {
+			found++;
+			ref = pos;
+		}
+	mutex_unlock(&thermal_list_lock);
+
+	/* nothing has been found, thus an error code for it */
+	if (found == 0)
+		ref = ERR_PTR(-ENODEV);
+	else if (found > 1)
+	/* Success only when an unique zone is found */
+		ref = ERR_PTR(-EEXIST);
+
+exit:
+	return ref;
+}
+EXPORT_SYMBOL_GPL(thermal_zone_get_zone_by_name);
+
 #ifdef CONFIG_NET
 static struct genl_family thermal_event_genl_family = {
 	.id = GENL_ID_GENERATE,
