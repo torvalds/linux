@@ -324,7 +324,7 @@ int __cpuinit omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 	/*
 	 * CPU never retuns back if targeted power state is OFF mode.
 	 * CPU ONLINE follows normal CPU ONLINE ptah via
-	 * omap_secondary_startup().
+	 * omap4_secondary_startup().
 	 */
 	omap_pm_ops.finish_suspend(cpu_state);
 
@@ -370,9 +370,9 @@ int __init omap4_mpuss_init(void)
 	pm_info->wkup_sar_addr = sar_base + CPU1_WAKEUP_NS_PA_ADDR_OFFSET;
 	pm_info->l2x0_sar_addr = sar_base + L2X0_SAVE_OFFSET1;
 	if (cpu_is_omap446x())
-		pm_info->secondary_startup = omap_secondary_startup_4460;
+		pm_info->secondary_startup = omap4460_secondary_startup;
 	else
-		pm_info->secondary_startup = omap_secondary_startup;
+		pm_info->secondary_startup = omap4_secondary_startup;
 
 	pm_info->pwrdm = pwrdm_lookup("cpu1_pwrdm");
 	if (!pm_info->pwrdm) {
