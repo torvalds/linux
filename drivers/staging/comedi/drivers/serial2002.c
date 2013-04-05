@@ -72,6 +72,38 @@ struct serial_data {
 	unsigned long value;
 };
 
+/*
+ * The configuration serial_data.value read from the device is
+ * a bitmask that defines specific options of a channel:
+ *
+ * 4:0 - the channel to configure
+ * 7:5 - the kind of channel
+ * 9:8 - the command used to configure the channel
+ *
+ * The remaining bits vary in use depending on the command:
+ *
+ * BITS     15:10 - the channel bits (maxdata)
+ * MIN/MAX  12:10 - the units multiplier for the scale
+ *          13    - the sign of the scale
+ *          33:14 - the base value for the range
+ */
+#define S2002_CFG_CHAN(x)		((x) & 0x1f)
+#define S2002_CFG_KIND(x)		(((x) >> 5) & 0x7)
+#define S2002_CFG_KIND_INVALID		0
+#define S2002_CFG_KIND_DIGITAL_IN	1
+#define S2002_CFG_KIND_DIGITAL_OUT	2
+#define S2002_CFG_KIND_ANALOG_IN	3
+#define S2002_CFG_KIND_ANALOG_OUT	4
+#define S2002_CFG_KIND_ENCODER_IN	5
+#define S2002_CFG_CMD(x)		(((x) >> 8) & 0x3)
+#define S2002_CFG_CMD_BITS		0
+#define S2002_CFG_CMD_MIN		1
+#define S2002_CFG_CMD_MAX		2
+#define S2002_CFG_BITS(x)		(((x) >> 10) & 0x3f)
+#define S2002_CFG_UNITS(x)		(((x) >> 10) & 0x7)
+#define S2002_CFG_SIGN(x)		(((x) >> 13) & 0x1)
+#define S2002_CFG_BASE(x)		(((x) >> 14) & 0xfffff)
+
 static long tty_ioctl(struct file *f, unsigned op, unsigned long param)
 {
 	if (f->f_op->unlocked_ioctl)
@@ -396,10 +428,10 @@ static int serial2002_setup_subdevs(struct comedi_device *dev)
 	struct config_t *ao_cfg;
 	struct config_t *cfg;
 	struct comedi_subdevice *s;
-	int result;
+	int result = 0;
 	int i;
 
-	result = 0;
+	/* Allocate the temporary structs to hold the configuration data */
 	di_cfg = kcalloc(32, sizeof(*cfg), GFP_KERNEL);
 	do_cfg = kcalloc(32, sizeof(*cfg), GFP_KERNEL);
 	ai_cfg = kcalloc(32, sizeof(*cfg), GFP_KERNEL);
@@ -409,86 +441,70 @@ static int serial2002_setup_subdevs(struct comedi_device *dev)
 		goto err_alloc_configs;
 	}
 
+	/* Read the configuration from the connected device */
 	tty_setspeed(devpriv->tty, devpriv->speed);
-	poll_channel(devpriv->tty, 31);	/*  Start reading configuration */
+	poll_channel(devpriv->tty, 31);
 	while (1) {
 		struct serial_data data;
 
 		data = serial_read(devpriv->tty, 1000);
 		if (data.kind != is_channel || data.index != 31 ||
-		    !(data.value & 0xe0)) {
+		    S2002_CFG_KIND(data.value) == S2002_CFG_KIND_INVALID) {
 			break;
 		} else {
-			int channel = data.value & 0x1f;
-			int kind = (data.value >> 5) & 0x7;
-			int command = (data.value >> 8) & 0x3;
+			int channel = S2002_CFG_CHAN(data.value);
+			int range = S2002_CFG_BASE(data.value);
 
-			switch (kind) {
-			case 1:
+			switch (S2002_CFG_KIND(data.value)) {
+			case S2002_CFG_KIND_DIGITAL_IN:
 				cfg = di_cfg;
 				break;
-			case 2:
+			case S2002_CFG_KIND_DIGITAL_OUT:
 				cfg = do_cfg;
 				break;
-			case 3:
+			case S2002_CFG_KIND_ANALOG_IN:
 				cfg = ai_cfg;
 				break;
-			case 4:
+			case S2002_CFG_KIND_ANALOG_OUT:
 				cfg = ao_cfg;
 				break;
-			case 5:
+			case S2002_CFG_KIND_ENCODER_IN:
 				cfg = ai_cfg;
 				break;
 			default:
 				cfg = NULL;
 				break;
 			}
+			if (!cfg)
+				continue;	/* unknown kind, skip it */
 
-			if (cfg) {
-				short int bits = (data.value >> 10) & 0x3f;
-				int unit = (data.value >> 10) & 0x7;
-				int sign = (data.value >> 13) & 0x1;
-				int min = (data.value >> 14) & 0xfffff;
-				int max = min;
+			cfg[channel].kind = S2002_CFG_KIND(data.value);
 
-				cfg[channel].kind = kind;
-				switch (command) {
+			switch (S2002_CFG_CMD(data.value)) {
+			case S2002_CFG_CMD_BITS:
+				cfg[channel].bits = S2002_CFG_BITS(data.value);
+				break;
+			case S2002_CFG_CMD_MIN:
+			case S2002_CFG_CMD_MAX:
+				switch (S2002_CFG_UNITS(data.value)) {
 				case 0:
-					cfg[channel].bits = bits;
+					range *= 1000000;
 					break;
 				case 1:
-					switch (unit) {
-					case 0:
-						min *= 1000000;
-						break;
-					case 1:
-						min *= 1000;
-						break;
-					case 2:
-						min *= 1;
-						break;
-					}
-					if (sign)
-						min = -min;
-					cfg[channel].min = min;
+					range *= 1000;
 					break;
 				case 2:
-					switch (unit) {
-					case 0:
-						max *= 1000000;
-						break;
-					case 1:
-						max *= 1000;
-						break;
-					case 2:
-						max *= 1;
-						break;
-					}
-					if (sign)
-						max = -max;
-					cfg[channel].max = max;
+					range *= 1;
 					break;
 				}
+				if (S2002_CFG_SIGN(data.value))
+					range = -range;
+				if (S2002_CFG_CMD(data.value) ==
+				    S2002_CFG_CMD_MIN)
+					cfg[channel].min = range;
+				else
+					cfg[channel].max = range;
+				break;
 			}
 		}
 	}
@@ -499,46 +515,41 @@ static int serial2002_setup_subdevs(struct comedi_device *dev)
 		struct serial2002_range_table_t *range = NULL;
 		int kind = 0;
 
+		s = &dev->subdevices[i];
+
 		switch (i) {
 		case 0:
 			cfg = di_cfg;
 			mapping = devpriv->digital_in_mapping;
-			kind = 1;
+			kind = S2002_CFG_KIND_DIGITAL_IN;
 			break;
 		case 1:
 			cfg = do_cfg;
 			mapping = devpriv->digital_out_mapping;
-			kind = 2;
+			kind = S2002_CFG_KIND_DIGITAL_OUT;
 			break;
 		case 2:
 			cfg = ai_cfg;
 			mapping = devpriv->analog_in_mapping;
 			range = devpriv->in_range;
-			kind = 3;
+			kind = S2002_CFG_KIND_ANALOG_IN;
 			break;
 		case 3:
 			cfg = ao_cfg;
 			mapping = devpriv->analog_out_mapping;
 			range = devpriv->out_range;
-			kind = 4;
+			kind = S2002_CFG_KIND_ANALOG_OUT;
 			break;
 		case 4:
 			cfg = ai_cfg;
 			mapping = devpriv->encoder_in_mapping;
 			range = devpriv->in_range;
-			kind = 5;
-			break;
-		default:
-			cfg = NULL;
+			kind = S2002_CFG_KIND_ENCODER_IN;
 			break;
 		}
 
-		if (cfg) {
-			s = &dev->subdevices[i];
-			if (serial2002_setup_subdevice(s, cfg, range, mapping,
-						       kind))
-				break;	/* err handled below */
-		}
+		if (serial2002_setup_subdevice(s, cfg, range, mapping, kind))
+			break;	/* err handled below */
 	}
 	if (i <= 4) {
 		/*
