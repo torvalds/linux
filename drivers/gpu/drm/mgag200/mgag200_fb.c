@@ -249,7 +249,7 @@ int mgag200_fbdev_init(struct mga_device *mdev)
 	struct mga_fbdev *mfbdev;
 	int ret;
 
-	mfbdev = kzalloc(sizeof(struct mga_fbdev), GFP_KERNEL);
+	mfbdev = devm_kzalloc(mdev->dev->dev, sizeof(struct mga_fbdev), GFP_KERNEL);
 	if (!mfbdev)
 		return -ENOMEM;
 
@@ -258,10 +258,9 @@ int mgag200_fbdev_init(struct mga_device *mdev)
 
 	ret = drm_fb_helper_init(mdev->dev, &mfbdev->helper,
 				 mdev->num_crtc, MGAG200FB_CONN_LIMIT);
-	if (ret) {
-		kfree(mfbdev);
+	if (ret)
 		return ret;
-	}
+
 	drm_fb_helper_single_add_all_connectors(&mfbdev->helper);
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
@@ -278,6 +277,4 @@ void mgag200_fbdev_fini(struct mga_device *mdev)
 		return;
 
 	mga_fbdev_destroy(mdev->dev, mdev->mfbdev);
-	kfree(mdev->mfbdev);
-	mdev->mfbdev = NULL;
 }
