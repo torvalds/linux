@@ -46,7 +46,7 @@ int acpi_suspend_lowlevel(void)
 	header->pmode_behavior = 0;
 
 #ifndef CONFIG_64BIT
-	store_gdt((struct desc_ptr *)&header->pmode_gdt);
+	native_store_gdt((struct desc_ptr *)&header->pmode_gdt);
 
 	if (!rdmsr_safe(MSR_EFER,
 			&header->pmode_efer_low,
