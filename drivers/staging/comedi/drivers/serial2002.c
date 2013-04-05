@@ -751,8 +751,6 @@ static int serial2002_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	dev->open = serial_2002_open;
-	dev->close = serial_2002_close;
 	devpriv->port = it->options[0];
 	devpriv->speed = it->options[1];
 
@@ -805,6 +803,9 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->maxdata	= 1;
 	s->range_table	= NULL;
 	s->insn_read	= serial2002_encoder_insn_read;
+
+	dev->open	= serial_2002_open;
+	dev->close	= serial_2002_close;
 
 	return 0;
 }
