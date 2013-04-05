@@ -607,9 +607,10 @@ static void serial_2002_close(struct comedi_device *dev)
 		filp_close(devpriv->tty, NULL);
 }
 
-static int serial2002_di_rinsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+static int serial2002_di_insn_read(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct serial2002_private *devpriv = dev->private;
 	int n;
@@ -630,9 +631,10 @@ static int serial2002_di_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-static int serial2002_do_winsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+static int serial2002_do_insn_write(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
 	struct serial2002_private *devpriv = dev->private;
 	int n;
@@ -650,9 +652,10 @@ static int serial2002_do_winsn(struct comedi_device *dev,
 	return n;
 }
 
-static int serial2002_ai_rinsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+static int serial2002_ai_insn_read(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct serial2002_private *devpriv = dev->private;
 	int n;
@@ -673,9 +676,10 @@ static int serial2002_ai_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-static int serial2002_ao_winsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+static int serial2002_ao_insn_write(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
 	struct serial2002_private *devpriv = dev->private;
 	int n;
@@ -694,9 +698,10 @@ static int serial2002_ao_winsn(struct comedi_device *dev,
 	return n;
 }
 
-static int serial2002_ao_rinsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+static int serial2002_ao_insn_read(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct serial2002_private *devpriv = dev->private;
 	int n;
@@ -708,9 +713,10 @@ static int serial2002_ao_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-static int serial2002_ei_rinsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+static int serial2002_encoder_insn_read(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
 	struct serial2002_private *devpriv = dev->private;
 	int n;
@@ -759,49 +765,49 @@ static int serial2002_attach(struct comedi_device *dev,
 
 	/* digital input subdevice */
 	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 0;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_read = &serial2002_di_rinsn;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 0;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_read	= serial2002_di_insn_read;
 
 	/* digital output subdevice */
 	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITEABLE;
-	s->n_chan = 0;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_write = &serial2002_do_winsn;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITEABLE;
+	s->n_chan	= 0;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_write	= serial2002_do_insn_write;
 
 	/* analog input subdevice */
 	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = 0;
-	s->maxdata = 1;
-	s->range_table = NULL;
-	s->insn_read = &serial2002_ai_rinsn;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
+	s->n_chan	= 0;
+	s->maxdata	= 1;
+	s->range_table	= NULL;
+	s->insn_read	= serial2002_ai_insn_read;
 
 	/* analog output subdevice */
 	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITEABLE;
-	s->n_chan = 0;
-	s->maxdata = 1;
-	s->range_table = NULL;
-	s->insn_write = &serial2002_ao_winsn;
-	s->insn_read = &serial2002_ao_rinsn;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITEABLE;
+	s->n_chan	= 0;
+	s->maxdata	= 1;
+	s->range_table	= NULL;
+	s->insn_write	= serial2002_ao_insn_write;
+	s->insn_read	= serial2002_ao_insn_read;
 
 	/* encoder input subdevice */
 	s = &dev->subdevices[4];
-	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_READABLE | SDF_LSAMPL;
-	s->n_chan = 0;
-	s->maxdata = 1;
-	s->range_table = NULL;
-	s->insn_read = &serial2002_ei_rinsn;
+	s->type		= COMEDI_SUBD_COUNTER;
+	s->subdev_flags	= SDF_READABLE | SDF_LSAMPL;
+	s->n_chan	= 0;
+	s->maxdata	= 1;
+	s->range_table	= NULL;
+	s->insn_read	= serial2002_encoder_insn_read;
 
 	return 1;
 }
