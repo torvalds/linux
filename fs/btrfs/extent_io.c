@@ -1777,6 +1777,64 @@ out:
 	return ret;
 }
 
+void extent_cache_csums_dio(struct extent_io_tree *tree, u64 start, u32 csums[],
+			    int count)
+{
+	struct rb_node *node;
+	struct extent_state *state;
+
+	spin_lock(&tree->lock);
+	/*
+	 * this search will find all the extents that end after
+	 * our range starts.
+	 */
+	node = tree_search(tree, start);
+	BUG_ON(!node);
+
+	state = rb_entry(node, struct extent_state, rb_node);
+	BUG_ON(state->start != start);
+
+	while (count) {
+		state->private = *csums++;
+		count--;
+		state = next_state(state);
+	}
+	spin_unlock(&tree->lock);
+}
+
+static inline u64 __btrfs_get_bio_offset(struct bio *bio, int bio_index)
+{
+	struct bio_vec *bvec = bio->bi_io_vec + bio_index;
+
+	return page_offset(bvec->bv_page) + bvec->bv_offset;
+}
+
+void extent_cache_csums(struct extent_io_tree *tree, struct bio *bio, int bio_index,
+			u32 csums[], int count)
+{
+	struct rb_node *node;
+	struct extent_state *state = NULL;
+	u64 start;
+
+	spin_lock(&tree->lock);
+	do {
+		start = __btrfs_get_bio_offset(bio, bio_index);
+		if (state == NULL || state->start != start) {
+			node = tree_search(tree, start);
+			BUG_ON(!node);
+
+			state = rb_entry(node, struct extent_state, rb_node);
+			BUG_ON(state->start != start);
+		}
+		state->private = *csums++;
+		count--;
+		bio_index++;
+
+		state = next_state(state);
+	} while (count);
+	spin_unlock(&tree->lock);
+}
+
 int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private)
 {
 	struct rb_node *node;
