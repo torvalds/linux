@@ -181,9 +181,9 @@ static void brcmf_fweh_handle_if_event(struct brcmf_pub *drvr,
 	struct brcmf_if *ifp;
 	int err = 0;
 
-	brcmf_dbg(EVENT, "action: %u idx: %u bsscfg: %u flags: %u\n",
-		  ifevent->action, ifevent->ifidx,
-		  ifevent->bssidx, ifevent->flags);
+	brcmf_dbg(EVENT, "action: %u idx: %u bsscfg: %u flags: %u role: %u\n",
+		  ifevent->action, ifevent->ifidx, ifevent->bssidx,
+		  ifevent->flags, ifevent->role);
 
 	if (ifevent->ifidx >= BRCMF_MAX_IFS) {
 		brcmf_err("invalid interface index: %u\n",

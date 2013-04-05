@@ -548,6 +548,7 @@ struct brcmf_if_event {
 	u8 action;
 	u8 flags;
 	u8 bssidx;
+	u8 role;
 };
 
 /* forward declarations */
