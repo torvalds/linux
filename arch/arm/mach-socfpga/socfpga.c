@@ -350,7 +350,8 @@ static void __init socfpga_cyclone5_init(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	u32 aux_ctrl = 0;
-	aux_ctrl |= (1 << L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT) |
+	aux_ctrl |= (1 << L2X0_AUX_CTRL_SHARE_OVERRIDE_SHIFT) |
+			(1 << L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT) |
 			(1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT);
 	l2x0_of_init(aux_ctrl, ~0UL);
 #endif
