@@ -496,7 +496,8 @@ static void tda8290_init_if(struct dvb_frontend *fe)
 	unsigned char set_GP00_CF[] = { 0x20, 0x01 };
 	unsigned char set_GP01_CF[] = { 0x20, 0x0B };
 
-	if ((priv->cfg.config == 1) || (priv->cfg.config == 2))
+	if ((priv->cfg.config == TDA8290_LNA_GP0_HIGH_ON) ||
+	    (priv->cfg.config == TDA8290_LNA_GP0_HIGH_OFF))
 		tuner_i2c_xfer_send(&priv->i2c_props, set_GP00_CF, 2);
 	else
 		tuner_i2c_xfer_send(&priv->i2c_props, set_GP01_CF, 2);
