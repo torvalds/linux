@@ -85,8 +85,6 @@ struct hdpvr_device {
 
 	/* holds the current device status */
 	__u8			status;
-	/* count the number of openers */
-	uint			open_count;
 
 	/* holds the cureent set options */
 	struct hdpvr_options	options;
@@ -107,6 +105,8 @@ struct hdpvr_device {
 	struct workqueue_struct	*workqueue;
 	/**/
 	struct work_struct	worker;
+	/* current stream owner */
+	struct v4l2_fh		*owner;
 
 	/* I2C adapter */
 	struct i2c_adapter	i2c_adapter;
