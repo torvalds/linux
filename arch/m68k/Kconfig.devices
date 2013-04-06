@@ -55,6 +55,16 @@ config NFETH
 	  which will emulate a regular ethernet device while presenting an
 	  ethertap device to the host system.
 
+config ATARI_ETHERNAT
+	bool "Atari EtherNAT Ethernet support"
+	depends on ATARI
+	---help---
+	  Say Y to include support for the EtherNAT network adapter for the
+	  CT/60 extension port.
+
+	  To compile the actual ethernet driver, choose Y or M for the SMC91X
+	  option in the network device section; the module will be called smc91x.
+
 endmenu
 
 menu "Character devices"

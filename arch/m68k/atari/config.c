@@ -31,6 +31,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
+#include <linux/platform_device.h>
 #include <linux/vt_kern.h>
 #include <linux/module.h>
 
@@ -655,3 +656,66 @@ static void atari_get_hardware_list(struct seq_file *m)
 	ATARIHW_ANNOUNCE(VME, "VME Bus");
 	ATARIHW_ANNOUNCE(DSP56K, "DSP56001 processor");
 }
+
+/*
+ * MSch: initial platform device support for Atari,
+ * required for EtherNAT driver
+ */
+
+#ifdef CONFIG_ATARI_ETHERNAT
+/*
+ * EtherNAT: SMC91C111 Ethernet chipset, handled by smc91x driver
+ */
+
+#define ATARI_ETHERNAT_IRQ		140
+
+static struct resource smc91x_resources[] = {
+	[0] = {
+		.name	= "smc91x-regs",
+		.start	= ATARI_ETHERNAT_PHYS_ADDR,
+		.end	= ATARI_ETHERNAT_PHYS_ADDR + 0xfffff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "smc91x-irq",
+		.start	= ATARI_ETHERNAT_IRQ,
+		.end	= ATARI_ETHERNAT_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device smc91x_device = {
+	.name		= "smc91x",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(smc91x_resources),
+	.resource	= smc91x_resources,
+};
+
+static struct platform_device *atari_ethernat_devices[] __initdata = {
+	&smc91x_device
+};
+#endif /* CONFIG_ATARI_ETHERNAT */
+
+int __init atari_platform_init(void)
+{
+	int rv = 0;
+
+	if (!MACH_IS_ATARI)
+		return -ENODEV;
+
+#ifdef CONFIG_ATARI_ETHERNAT
+	{
+		unsigned char *enatc_virt;
+		enatc_virt = (unsigned char *)ioremap((ATARI_ETHERNAT_PHYS_ADDR+0x23), 0xf);
+		if (hwreg_present(enatc_virt)) {
+			rv = platform_add_devices(atari_ethernat_devices,
+						ARRAY_SIZE(atari_ethernat_devices));
+		}
+		iounmap(enatc_virt);
+	}
+#endif
+
+	return rv;
+}
+
+arch_initcall(atari_platform_init);
