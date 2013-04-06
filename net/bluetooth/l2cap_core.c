@@ -1446,6 +1446,89 @@ static void l2cap_info_timeout(struct work_struct *work)
 	l2cap_conn_start(conn);
 }
 
+/*
+ * l2cap_user
+ * External modules can register l2cap_user objects on l2cap_conn. The ->probe
+ * callback is called during registration. The ->remove callback is called
+ * during unregistration.
+ * An l2cap_user object can either be explicitly unregistered or when the
+ * underlying l2cap_conn object is deleted. This guarantees that l2cap->hcon,
+ * l2cap->hchan, .. are valid as long as the remove callback hasn't been called.
+ * External modules must own a reference to the l2cap_conn object if they intend
+ * to call l2cap_unregister_user(). The l2cap_conn object might get destroyed at
+ * any time if they don't.
+ */
+
+int l2cap_register_user(struct l2cap_conn *conn, struct l2cap_user *user)
+{
+	struct hci_dev *hdev = conn->hcon->hdev;
+	int ret;
+
+	/* We need to check whether l2cap_conn is registered. If it is not, we
+	 * must not register the l2cap_user. l2cap_conn_del() is unregisters
+	 * l2cap_conn objects, but doesn't provide its own locking. Instead, it
+	 * relies on the parent hci_conn object to be locked. This itself relies
+	 * on the hci_dev object to be locked. So we must lock the hci device
+	 * here, too. */
+
+	hci_dev_lock(hdev);
+
+	if (user->list.next || user->list.prev) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	/* conn->hchan is NULL after l2cap_conn_del() was called */
+	if (!conn->hchan) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
+	ret = user->probe(conn, user);
+	if (ret)
+		goto out_unlock;
+
+	list_add(&user->list, &conn->users);
+	ret = 0;
+
+out_unlock:
+	hci_dev_unlock(hdev);
+	return ret;
+}
+EXPORT_SYMBOL(l2cap_register_user);
+
+void l2cap_unregister_user(struct l2cap_conn *conn, struct l2cap_user *user)
+{
+	struct hci_dev *hdev = conn->hcon->hdev;
+
+	hci_dev_lock(hdev);
+
+	if (!user->list.next || !user->list.prev)
+		goto out_unlock;
+
+	list_del(&user->list);
+	user->list.next = NULL;
+	user->list.prev = NULL;
+	user->remove(conn, user);
+
+out_unlock:
+	hci_dev_unlock(hdev);
+}
+EXPORT_SYMBOL(l2cap_unregister_user);
+
+static void l2cap_unregister_all_users(struct l2cap_conn *conn)
+{
+	struct l2cap_user *user;
+
+	while (!list_empty(&conn->users)) {
+		user = list_first_entry(&conn->users, struct l2cap_user, list);
+		list_del(&user->list);
+		user->list.next = NULL;
+		user->list.prev = NULL;
+		user->remove(conn, user);
+	}
+}
+
 static void l2cap_conn_del(struct hci_conn *hcon, int err)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
@@ -1457,6 +1540,8 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	BT_DBG("hcon %p conn %p, err %d", hcon, conn, err);
 
 	kfree_skb(conn->rx_skb);
+
+	l2cap_unregister_all_users(conn);
 
 	mutex_lock(&conn->chan_lock);
 
@@ -1550,6 +1635,7 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
 	mutex_init(&conn->chan_lock);
 
 	INIT_LIST_HEAD(&conn->chan_l);
+	INIT_LIST_HEAD(&conn->users);
 
 	if (hcon->type == LE_LINK)
 		INIT_DELAYED_WORK(&conn->security_timer, security_timeout);
