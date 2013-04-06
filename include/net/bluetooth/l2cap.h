@@ -583,6 +583,7 @@ struct l2cap_conn {
 
 	struct list_head	chan_l;
 	struct mutex		chan_lock;
+	struct kref		ref;
 };
 
 #define L2CAP_INFO_CL_MTU_REQ_SENT	0x01
@@ -812,5 +813,8 @@ void l2cap_move_start(struct l2cap_chan *chan);
 void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
 		       u8 status);
 void __l2cap_physical_cfm(struct l2cap_chan *chan, int result);
+
+void l2cap_conn_get(struct l2cap_conn *conn);
+void l2cap_conn_put(struct l2cap_conn *conn);
 
 #endif /* __L2CAP_H */

@@ -1486,7 +1486,8 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 	}
 
 	hcon->l2cap_data = NULL;
-	kfree(conn);
+	conn->hchan = NULL;
+	l2cap_conn_put(conn);
 }
 
 static void security_timeout(struct work_struct *work)
@@ -1520,8 +1521,10 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
 		return NULL;
 	}
 
+	kref_init(&conn->ref);
 	hcon->l2cap_data = conn;
 	conn->hcon = hcon;
+	hci_conn_get(conn->hcon);
 	conn->hchan = hchan;
 
 	BT_DBG("hcon %p conn %p hchan %p", hcon, conn, hchan);
@@ -1557,6 +1560,26 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
 
 	return conn;
 }
+
+static void l2cap_conn_free(struct kref *ref)
+{
+	struct l2cap_conn *conn = container_of(ref, struct l2cap_conn, ref);
+
+	hci_conn_put(conn->hcon);
+	kfree(conn);
+}
+
+void l2cap_conn_get(struct l2cap_conn *conn)
+{
+	kref_get(&conn->ref);
+}
+EXPORT_SYMBOL(l2cap_conn_get);
+
+void l2cap_conn_put(struct l2cap_conn *conn)
+{
+	kref_put(&conn->ref, l2cap_conn_free);
+}
+EXPORT_SYMBOL(l2cap_conn_put);
 
 /* ---- Socket interface ---- */
 
