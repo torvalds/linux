@@ -391,7 +391,7 @@ static void tda8295_agc2_out(struct dvb_frontend *fe, int enable)
 	tuner_i2c_xfer_send(&priv->i2c_props, set_gpio_val, 2);
 }
 
-static int tda8295_has_signal(struct dvb_frontend *fe)
+static int tda8295_has_signal(struct dvb_frontend *fe, u16 *signal)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
 
@@ -399,7 +399,8 @@ static int tda8295_has_signal(struct dvb_frontend *fe)
 	unsigned char ret;
 
 	tuner_i2c_xfer_send_recv(&priv->i2c_props, &hvpll_stat, 1, &ret, 1);
-	return (ret & 0x01) ? 65535 : 0;
+	*signal = (ret & 0x01) ? 65535 : 0;
+	return 0;
 }
 
 /*---------------------------------------------------------------------*/
@@ -408,7 +409,7 @@ static void tda8295_set_params(struct dvb_frontend *fe,
 			       struct analog_parameters *params)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
-
+	u16 signal = 0;
 	unsigned char blanking_mode[]     = { 0x1d, 0x00 };
 
 	set_audio(fe, params);
@@ -436,7 +437,8 @@ static void tda8295_set_params(struct dvb_frontend *fe,
 	if (priv->cfg.agcf)
 		priv->cfg.agcf(fe);
 
-	if (tda8295_has_signal(fe))
+	tda8295_has_signal(fe, &signal);
+	if (signal)
 		tuner_dbg("tda8295 is locked\n");
 	else
 		tuner_dbg("tda8295 not locked, no signal?\n");
@@ -447,7 +449,7 @@ static void tda8295_set_params(struct dvb_frontend *fe,
 
 /*---------------------------------------------------------------------*/
 
-static int tda8290_has_signal(struct dvb_frontend *fe)
+static int tda8290_has_signal(struct dvb_frontend *fe, u16 *signal)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
 
@@ -456,7 +458,8 @@ static int tda8290_has_signal(struct dvb_frontend *fe)
 
 	tuner_i2c_xfer_send_recv(&priv->i2c_props,
 				 i2c_get_afc, ARRAY_SIZE(i2c_get_afc), &afc, 1);
-	return (afc & 0x80)? 65535:0;
+	*signal = (afc & 0x80) ? 65535 : 0;
+	return 0;
 }
 
 /*---------------------------------------------------------------------*/
