@@ -2191,7 +2191,7 @@ void beiscsi_process_all_cqs(struct work_struct *work)
 
 static int be_iopoll(struct blk_iopoll *iop, int budget)
 {
-	static unsigned int ret;
+	unsigned int ret;
 	struct beiscsi_hba *phba;
 	struct be_eq_obj *pbe_eq;
 
