@@ -732,6 +732,16 @@ int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
 	return status;
 }
 
+/**
+ * be_cmd_fw_initialize()- Initialize FW
+ * @ctrl: Pointer to function control structure
+ *
+ * Send FW initialize pattern for the function.
+ *
+ * return
+ * Success: 0
+ * Failure: Non-Zero value
+ **/
 int be_cmd_fw_initialize(struct be_ctrl_info *ctrl)
 {
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
@@ -757,6 +767,47 @@ int be_cmd_fw_initialize(struct be_ctrl_info *ctrl)
 	if (status)
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 			    "BC_%d : be_cmd_fw_initialize Failed\n");
+
+	spin_unlock(&ctrl->mbox_lock);
+	return status;
+}
+
+/**
+ * be_cmd_fw_uninit()- Uinitialize FW
+ * @ctrl: Pointer to function control structure
+ *
+ * Send FW uninitialize pattern for the function
+ *
+ * return
+ * Success: 0
+ * Failure: Non-Zero value
+ **/
+int be_cmd_fw_uninit(struct be_ctrl_info *ctrl)
+{
+	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
+	int status;
+	u8 *endian_check;
+
+	spin_lock(&ctrl->mbox_lock);
+	memset(wrb, 0, sizeof(*wrb));
+
+	endian_check = (u8 *) wrb;
+	*endian_check++ = 0xFF;
+	*endian_check++ = 0xAA;
+	*endian_check++ = 0xBB;
+	*endian_check++ = 0xFF;
+	*endian_check++ = 0xFF;
+	*endian_check++ = 0xCC;
+	*endian_check++ = 0xDD;
+	*endian_check = 0xFF;
+
+	be_dws_cpu_to_le(wrb, sizeof(*wrb));
+
+	status = be_mbox_notify(ctrl);
+	if (status)
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BC_%d : be_cmd_fw_uninit Failed\n");
 
 	spin_unlock(&ctrl->mbox_lock);
 	return status;

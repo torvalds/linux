@@ -3430,6 +3430,7 @@ static void hwi_cleanup(struct beiscsi_hba *phba)
 			beiscsi_cmd_q_destroy(ctrl, q, QTYPE_EQ);
 	}
 	be_mcc_queues_destroy(phba);
+	be_cmd_fw_uninit(ctrl);
 }
 
 static int be_mcc_queues_create(struct beiscsi_hba *phba,
