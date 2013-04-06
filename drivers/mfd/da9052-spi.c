@@ -38,7 +38,7 @@ static int da9052_spi_probe(struct spi_device *spi)
 	da9052->dev = &spi->dev;
 	da9052->chip_irq = spi->irq;
 
-	dev_set_drvdata(&spi->dev, da9052);
+	spi_set_drvdata(spi, da9052);
 
 	da9052_regmap_config.read_flag_mask = 1;
 	da9052_regmap_config.write_flag_mask = 0;
@@ -60,7 +60,7 @@ static int da9052_spi_probe(struct spi_device *spi)
 
 static int da9052_spi_remove(struct spi_device *spi)
 {
-	struct da9052 *da9052 = dev_get_drvdata(&spi->dev);
+	struct da9052 *da9052 = spi_get_drvdata(spi);
 
 	da9052_device_exit(da9052);
 	return 0;
