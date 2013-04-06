@@ -600,6 +600,37 @@ int hci_conn_switch_role(struct hci_conn *conn, __u8 role);
 
 void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active);
 
+/*
+ * hci_conn_get() and hci_conn_put() are used to control the life-time of an
+ * "hci_conn" object. They do not guarantee that the hci_conn object is running,
+ * working or anything else. They just guarantee that the object is available
+ * and can be dereferenced. So you can use its locks, local variables and any
+ * other constant data.
+ * Before accessing runtime data, you _must_ lock the object and then check that
+ * it is still running. As soon as you release the locks, the connection might
+ * get dropped, though.
+ *
+ * On the other hand, hci_conn_hold() and hci_conn_drop() are used to control
+ * how long the underlying connection is held. So every channel that runs on the
+ * hci_conn object calls this to prevent the connection from disappearing. As
+ * long as you hold a device, you must also guarantee that you have a valid
+ * reference to the device via hci_conn_get() (or the initial reference from
+ * hci_conn_add()).
+ * The hold()/drop() ref-count is known to drop below 0 sometimes, which doesn't
+ * break because nobody cares for that. But this means, we cannot use
+ * _get()/_drop() in it, but require the caller to have a valid ref (FIXME).
+ */
+
+static inline void hci_conn_get(struct hci_conn *conn)
+{
+	get_device(&conn->dev);
+}
+
+static inline void hci_conn_put(struct hci_conn *conn)
+{
+	put_device(&conn->dev);
+}
+
 static inline void hci_conn_hold(struct hci_conn *conn)
 {
 	BT_DBG("hcon %p orig refcnt %d", conn, atomic_read(&conn->refcnt));
