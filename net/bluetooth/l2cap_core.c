@@ -571,7 +571,7 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 		chan->conn = NULL;
 
 		if (chan->chan_type != L2CAP_CHAN_CONN_FIX_A2MP)
-			hci_conn_put(conn->hcon);
+			hci_conn_drop(conn->hcon);
 
 		if (mgr && mgr->bredr_chan == chan)
 			mgr->bredr_chan = NULL;
@@ -1697,7 +1697,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 
 	conn = l2cap_conn_add(hcon, 0);
 	if (!conn) {
-		hci_conn_put(hcon);
+		hci_conn_drop(hcon);
 		err = -ENOMEM;
 		goto done;
 	}
@@ -1707,7 +1707,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 
 		if (!list_empty(&conn->chan_l)) {
 			err = -EBUSY;
-			hci_conn_put(hcon);
+			hci_conn_drop(hcon);
 		}
 
 		if (err)

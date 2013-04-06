@@ -2131,7 +2131,7 @@ static void pairing_complete(struct pending_cmd *cmd, u8 status)
 	conn->security_cfm_cb = NULL;
 	conn->disconn_cfm_cb = NULL;
 
-	hci_conn_put(conn);
+	hci_conn_drop(conn);
 
 	mgmt_pending_remove(cmd);
 }
@@ -2222,7 +2222,7 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	if (conn->connect_cfm_cb) {
-		hci_conn_put(conn);
+		hci_conn_drop(conn);
 		err = cmd_complete(sk, hdev->id, MGMT_OP_PAIR_DEVICE,
 				   MGMT_STATUS_BUSY, &rp, sizeof(rp));
 		goto unlock;
@@ -2231,7 +2231,7 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	cmd = mgmt_pending_add(sk, MGMT_OP_PAIR_DEVICE, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
-		hci_conn_put(conn);
+		hci_conn_drop(conn);
 		goto unlock;
 	}
 

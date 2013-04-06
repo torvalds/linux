@@ -185,7 +185,7 @@ static int sco_connect(struct sock *sk)
 
 	conn = sco_conn_add(hcon);
 	if (!conn) {
-		hci_conn_put(hcon);
+		hci_conn_drop(hcon);
 		err = -ENOMEM;
 		goto done;
 	}
@@ -353,7 +353,7 @@ static void __sco_sock_close(struct sock *sk)
 		if (sco_pi(sk)->conn->hcon) {
 			sk->sk_state = BT_DISCONN;
 			sco_sock_set_timer(sk, SCO_DISCONN_TIMEOUT);
-			hci_conn_put(sco_pi(sk)->conn->hcon);
+			hci_conn_drop(sco_pi(sk)->conn->hcon);
 			sco_pi(sk)->conn->hcon = NULL;
 		} else
 			sco_chan_del(sk, ECONNRESET);
@@ -882,7 +882,7 @@ static void sco_chan_del(struct sock *sk, int err)
 		sco_conn_unlock(conn);
 
 		if (conn->hcon)
-			hci_conn_put(conn->hcon);
+			hci_conn_drop(conn->hcon);
 	}
 
 	sk->sk_state = BT_CLOSED;
