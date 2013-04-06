@@ -123,8 +123,6 @@ struct hidp_connlist_req {
 
 int hidp_connection_add(struct hidp_connadd_req *req, struct socket *ctrl_sock, struct socket *intr_sock);
 int hidp_connection_del(struct hidp_conndel_req *req);
-int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, struct socket *intr_sock);
-int hidp_del_connection(struct hidp_conndel_req *req);
 int hidp_get_connlist(struct hidp_connlist_req *req);
 int hidp_get_conninfo(struct hidp_conninfo *ci);
 
@@ -147,7 +145,6 @@ struct hidp_session {
 
 	/* connection management */
 	bdaddr_t bdaddr;
-	struct hci_conn *hconn;
 	struct l2cap_conn *conn;
 	struct l2cap_user user;
 	struct socket *ctrl_sock;
@@ -180,9 +177,6 @@ struct hidp_session {
 
 	/* Used in hidp_output_raw_report() */
 	int output_report_success; /* boolean */
-
-	wait_queue_head_t startup_queue;
-	int waiting_for_startup;
 };
 
 /* HIDP init defines */
