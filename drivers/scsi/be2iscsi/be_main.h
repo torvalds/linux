@@ -68,6 +68,7 @@
 #define BEISCSI_MAX_NUM_CPUS	7
 #define OC_SKH_MAX_NUM_CPUS	31
 
+#define BEISCSI_VER_STRLEN 32
 
 #define BEISCSI_SGLIST_ELEMENTS	30
 
@@ -341,6 +342,7 @@ struct beiscsi_hba {
 	struct delayed_work beiscsi_hw_check_task;
 
 	u8 mac_address[ETH_ALEN];
+	char fw_ver_str[BEISCSI_VER_STRLEN];
 	char wq_name[20];
 	struct workqueue_struct *wq;	/* The actuak work queue */
 	struct be_ctrl_info ctrl;
