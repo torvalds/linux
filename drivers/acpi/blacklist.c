@@ -283,6 +283,14 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	 */
 	{
 	.callback = dmi_disable_osi_win8,
+	.ident = "Lenovo ThinkPad T430",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T430"),
+		},
+	},
+	{
+	.callback = dmi_disable_osi_win8,
 	.ident = "Lenovo ThinkPad T430s",
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
