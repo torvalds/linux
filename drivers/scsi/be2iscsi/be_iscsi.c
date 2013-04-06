@@ -990,9 +990,24 @@ static void beiscsi_put_cid(struct beiscsi_hba *phba, unsigned short cid)
 static void beiscsi_free_ep(struct beiscsi_endpoint *beiscsi_ep)
 {
 	struct beiscsi_hba *phba = beiscsi_ep->phba;
+	struct beiscsi_conn *beiscsi_conn;
 
 	beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
 	beiscsi_ep->phba = NULL;
+
+	/**
+	 * Check if any connection resource allocated by driver
+	 * is to be freed.This case occurs when target redirection
+	 * or connection retry is done.
+	 **/
+	if (!beiscsi_ep->conn)
+		return;
+
+	beiscsi_conn = beiscsi_ep->conn;
+	if (beiscsi_conn->login_in_progress) {
+		beiscsi_free_mgmt_task_handles(beiscsi_conn);
+		beiscsi_conn->login_in_progress = 0;
+	}
 }
 
 /**

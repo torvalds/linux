@@ -749,6 +749,7 @@ void
 free_mgmt_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle);
 
 void beiscsi_process_all_cqs(struct work_struct *work);
+void beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn);
 
 static inline bool beiscsi_error(struct beiscsi_hba *phba)
 {

@@ -4066,6 +4066,49 @@ static void beiscsi_clean_port(struct beiscsi_hba *phba)
 }
 
 /**
+ * beiscsi_free_mgmt_task_handles()- Free driver CXN resources
+ * @beiscsi_conn: ptr to the conn to be cleaned up
+ *
+ * Free driver mgmt resources binded to CXN.
+ **/
+void
+beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn)
+{
+	struct beiscsi_io_task *io_task;
+	struct beiscsi_hba *phba = beiscsi_conn->phba;
+	struct hwi_wrb_context *pwrb_context;
+	struct hwi_controller *phwi_ctrlr;
+
+	phwi_ctrlr = phba->phwi_ctrlr;
+	pwrb_context = &phwi_ctrlr->wrb_context
+		       [beiscsi_conn->beiscsi_conn_cid
+		       - phba->fw_config.iscsi_cid_start];
+	io_task = beiscsi_conn->task->dd_data;
+
+	if (io_task->pwrb_handle) {
+		memset(io_task->pwrb_handle->pwrb, 0,
+		       sizeof(struct iscsi_wrb));
+		free_wrb_handle(phba, pwrb_context,
+				io_task->pwrb_handle);
+		io_task->pwrb_handle = NULL;
+	}
+
+	if (io_task->psgl_handle) {
+		spin_lock_bh(&phba->mgmt_sgl_lock);
+		free_mgmt_sgl_handle(phba,
+				     io_task->psgl_handle);
+		spin_unlock_bh(&phba->mgmt_sgl_lock);
+		io_task->psgl_handle = NULL;
+	}
+
+	if (io_task->mtask_addr)
+		pci_unmap_single(phba->pcidev,
+				 io_task->mtask_addr,
+				 io_task->mtask_data_count,
+				 PCI_DMA_TODEVICE);
+}
+
+/**
  * beiscsi_cleanup_task()- Free driver resources of the task
  * @task: ptr to the iscsi task
  *
@@ -4104,27 +4147,8 @@ static void beiscsi_cleanup_task(struct iscsi_task *task)
 			io_task->psgl_handle = NULL;
 		}
 	} else {
-		if (!beiscsi_conn->login_in_progress) {
-			if (io_task->pwrb_handle) {
-				free_wrb_handle(phba, pwrb_context,
-						io_task->pwrb_handle);
-				io_task->pwrb_handle = NULL;
-			}
-			if (io_task->psgl_handle) {
-				spin_lock(&phba->mgmt_sgl_lock);
-				free_mgmt_sgl_handle(phba,
-						     io_task->psgl_handle);
-				spin_unlock(&phba->mgmt_sgl_lock);
-				io_task->psgl_handle = NULL;
-			}
-			if (io_task->mtask_addr) {
-				pci_unmap_single(phba->pcidev,
-						 io_task->mtask_addr,
-						 io_task->mtask_data_count,
-						 PCI_DMA_TODEVICE);
-				io_task->mtask_addr = 0;
-			}
-		}
+		if (!beiscsi_conn->login_in_progress)
+			beiscsi_free_mgmt_task_handles(beiscsi_conn);
 	}
 }
 
@@ -4237,6 +4261,7 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 	} else {
 		io_task->scsi_cmnd = NULL;
 		if ((opcode & ISCSI_OPCODE_MASK) == ISCSI_OP_LOGIN) {
+			beiscsi_conn->task = task;
 			if (!beiscsi_conn->login_in_progress) {
 				spin_lock(&phba->mgmt_sgl_lock);
 				io_task->psgl_handle = (struct sgl_handle *)
@@ -4279,7 +4304,6 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 				io_task->pwrb_handle =
 						beiscsi_conn->plogin_wrb_handle;
 			}
-			beiscsi_conn->task = task;
 		} else {
 			spin_lock(&phba->mgmt_sgl_lock);
 			io_task->psgl_handle = alloc_mgmt_sgl_handle(phba);
