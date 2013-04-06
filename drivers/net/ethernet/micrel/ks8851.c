@@ -1538,19 +1538,7 @@ static struct spi_driver ks8851_driver = {
 	.suspend = ks8851_suspend,
 	.resume = ks8851_resume,
 };
-
-static int __init ks8851_init(void)
-{
-	return spi_register_driver(&ks8851_driver);
-}
-
-static void __exit ks8851_exit(void)
-{
-	spi_unregister_driver(&ks8851_driver);
-}
-
-module_init(ks8851_init);
-module_exit(ks8851_exit);
+module_spi_driver(ks8851_driver);
 
 MODULE_DESCRIPTION("KS8851 Network driver");
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
