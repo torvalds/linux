@@ -82,6 +82,7 @@ enum rtl28xxu_tuner {
 	TUNER_RTL2832_E4000,
 	TUNER_RTL2832_TDA18272,
 	TUNER_RTL2832_FC0013,
+	TUNER_RTL2832_R820T,
 };
 
 struct rtl28xxu_req {
