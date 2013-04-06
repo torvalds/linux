@@ -659,7 +659,7 @@ static void atari_get_hardware_list(struct seq_file *m)
 
 /*
  * MSch: initial platform device support for Atari,
- * required for EtherNAT driver
+ * required for EtherNAT/EtherNEC drivers
  */
 
 #ifdef CONFIG_ATARI_ETHERNAT
@@ -696,6 +696,43 @@ static struct platform_device *atari_ethernat_devices[] __initdata = {
 };
 #endif /* CONFIG_ATARI_ETHERNAT */
 
+#ifdef CONFIG_ATARI_ETHERNEC
+/*
+ * EtherNEC: RTL8019 (NE2000 compatible) Ethernet chipset,
+ * handled by ne.c driver
+ */
+
+#define ATARI_ETHERNEC_PHYS_ADDR	0xfffa0000
+#define ATARI_ETHERNEC_BASE		0x300
+#define ATARI_ETHERNEC_IRQ		IRQ_MFP_TIMER1
+
+static struct resource rtl8019_resources[] = {
+	[0] = {
+		.name	= "rtl8019-regs",
+		.start	= ATARI_ETHERNEC_BASE,
+		.end	= ATARI_ETHERNEC_BASE + 0x20 - 1,
+		.flags	= IORESOURCE_IO,
+	},
+	[1] = {
+		.name	= "rtl8019-irq",
+		.start	= ATARI_ETHERNEC_IRQ,
+		.end	= ATARI_ETHERNEC_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device rtl8019_device = {
+	.name		= "ne",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(rtl8019_resources),
+	.resource	= rtl8019_resources,
+};
+
+static struct platform_device *atari_ethernec_devices[] __initdata = {
+	&rtl8019_device
+};
+#endif /* CONFIG_ATARI_ETHERNEC */
+
 int __init atari_platform_init(void)
 {
 	int rv = 0;
@@ -712,6 +749,21 @@ int __init atari_platform_init(void)
 						ARRAY_SIZE(atari_ethernat_devices));
 		}
 		iounmap(enatc_virt);
+	}
+#endif
+
+#ifdef CONFIG_ATARI_ETHERNEC
+	{
+		int error;
+		unsigned char *enec_virt;
+		enec_virt = (unsigned char *)ioremap((ATARI_ETHERNEC_PHYS_ADDR), 0xf);
+		if (hwreg_present(enec_virt)) {
+			error = platform_add_devices(atari_ethernec_devices,
+						ARRAY_SIZE(atari_ethernec_devices));
+			if (error && !rv)
+				rv = error;
+		}
+		iounmap(enec_virt);
 	}
 #endif
 
