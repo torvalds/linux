@@ -15,7 +15,13 @@
 #include <bcm63xx_io.h>
 #include <bcm63xx_regs.h>
 #include <bcm63xx_reset.h>
-#include <bcm63xx_clk.h>
+
+struct clk {
+	void		(*set)(struct clk *, int);
+	unsigned int	rate;
+	unsigned int	usage;
+	int		id;
+};
 
 static DEFINE_MUTEX(clocks_mutex);
 
