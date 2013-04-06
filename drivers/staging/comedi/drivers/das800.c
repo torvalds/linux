@@ -220,11 +220,6 @@ static const struct das800_board das800_boards[] = {
 	 },
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct das800_board *)dev->board_ptr)
-
 struct das800_private {
 	volatile unsigned int count;	/* number of data points left to be taken */
 	volatile int forever;	/* flag indicating whether we should take data forever */
@@ -271,6 +266,7 @@ static int das800_set_frequency(struct comedi_device *dev);
 /* checks and probes das-800 series board type */
 static int das800_probe(struct comedi_device *dev)
 {
+	const struct das800_board *thisboard = comedi_board(dev);
 	int id_bits;
 	unsigned long irq_flags;
 	int board;
@@ -342,6 +338,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	short i;		/* loop index */
 	short dataPoint = 0;
 	struct comedi_device *dev = d;
+	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;	/* analog input subdevice */
 	struct comedi_async *async;
@@ -437,6 +434,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 
 static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase = it->options[0];
@@ -473,6 +471,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENODEV;
 	}
 	dev->board_ptr = das800_boards + board;
+	thisboard = comedi_board(dev);
 
 	/* grab our IRQ */
 	if (irq == 1 || irq > 7) {
@@ -558,6 +557,7 @@ static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 /* enable_das800 makes the card start taking hardware triggered conversions */
 static void enable_das800(struct comedi_device *dev)
 {
+	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv = dev->private;
 	unsigned long irq_flags;
 
@@ -586,6 +586,7 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_cmd *cmd)
 {
+	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv = dev->private;
 	int err = 0;
 	int tmp;
@@ -677,6 +678,7 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 static int das800_ai_do_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
+	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv = dev->private;
 	int startChan, endChan, scan, gain;
 	int conv_bits;
@@ -761,6 +763,7 @@ static int das800_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv = dev->private;
 	int i, n;
 	int chan;
