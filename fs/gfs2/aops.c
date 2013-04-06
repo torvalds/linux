@@ -1055,7 +1055,7 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		if (atomic_read(&bh->b_count))
 			goto cannot_release;
 		bd = bh->b_private;
-		if (bd && bd->bd_ail)
+		if (bd && bd->bd_tr)
 			goto cannot_release;
 		if (buffer_pinned(bh) || buffer_dirty(bh))
 			goto not_possible;
