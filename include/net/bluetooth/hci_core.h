@@ -345,7 +345,6 @@ struct hci_conn {
 	struct timer_list auto_accept_timer;
 
 	struct device	dev;
-	atomic_t	devref;
 
 	struct hci_dev	*hdev;
 	void		*l2cap_data;
@@ -600,9 +599,6 @@ int hci_conn_change_link_key(struct hci_conn *conn);
 int hci_conn_switch_role(struct hci_conn *conn, __u8 role);
 
 void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active);
-
-void hci_conn_hold_device(struct hci_conn *conn);
-void hci_conn_put_device(struct hci_conn *conn);
 
 static inline void hci_conn_hold(struct hci_conn *conn)
 {

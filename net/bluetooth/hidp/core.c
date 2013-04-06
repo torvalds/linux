@@ -73,18 +73,6 @@ static struct hidp_session *__hidp_get_session(bdaddr_t *bdaddr)
 	return NULL;
 }
 
-static void __hidp_link_session(struct hidp_session *session)
-{
-	list_add(&session->list, &hidp_session_list);
-}
-
-static void __hidp_unlink_session(struct hidp_session *session)
-{
-	hci_conn_put_device(session->conn);
-
-	list_del(&session->list);
-}
-
 static void __hidp_copy_session(struct hidp_session *session, struct hidp_conninfo *ci)
 {
 	memset(ci, 0, sizeof(*ci));
@@ -760,7 +748,7 @@ static int hidp_session(void *arg)
 
 	fput(session->ctrl_sock->file);
 
-	__hidp_unlink_session(session);
+	list_del(&session->list);
 
 	up_write(&hidp_session_sem);
 
@@ -783,8 +771,6 @@ static struct hci_conn *hidp_get_connection(struct hidp_session *session)
 
 	hci_dev_lock(hdev);
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, dst);
-	if (conn)
-		hci_conn_hold_device(conn);
 	hci_dev_unlock(hdev);
 
 	hci_dev_put(hdev);
@@ -1026,7 +1012,7 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 	session->flags   = req->flags & (1 << HIDP_BLUETOOTH_VENDOR_ID);
 	session->idle_to = req->idle_to;
 
-	__hidp_link_session(session);
+	list_add(&session->list, &hidp_session_list);
 
 	if (req->rd_size > 0) {
 		err = hidp_setup_hid(session, req);
@@ -1106,7 +1092,7 @@ unlink:
 	session->rd_data = NULL;
 
 purge:
-	__hidp_unlink_session(session);
+	list_del(&session->list);
 
 	skb_queue_purge(&session->ctrl_transmit);
 	skb_queue_purge(&session->intr_transmit);
