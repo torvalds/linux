@@ -4835,6 +4835,7 @@ static int beiscsi_dev_probe(struct pci_dev *pcidev,
 	case OC_SKH_ID1:
 		phba->generation = BE_GEN4;
 		phba->iotask_fn = beiscsi_iotask_v2;
+		break;
 	default:
 		phba->generation = 0;
 	}
