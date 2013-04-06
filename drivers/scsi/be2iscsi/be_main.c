@@ -1367,8 +1367,6 @@ hwi_complete_drvr_msgs(struct beiscsi_conn *beiscsi_conn,
 	struct hwi_controller *phwi_ctrlr;
 	struct iscsi_task *task;
 	struct beiscsi_io_task *io_task;
-	struct iscsi_conn *conn = beiscsi_conn->conn;
-	struct iscsi_session *session = conn->session;
 	uint16_t wrb_index, cid;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
@@ -1390,12 +1388,8 @@ hwi_complete_drvr_msgs(struct beiscsi_conn *beiscsi_conn,
 	task = pwrb_handle->pio_handle;
 
 	io_task = task->dd_data;
-	spin_lock_bh(&phba->mgmt_sgl_lock);
-	free_mgmt_sgl_handle(phba, io_task->psgl_handle);
-	spin_unlock_bh(&phba->mgmt_sgl_lock);
-	spin_lock_bh(&session->lock);
-	free_wrb_handle(phba, pwrb_context, pwrb_handle);
-	spin_unlock_bh(&session->lock);
+	memset(io_task->pwrb_handle->pwrb, 0, sizeof(struct iscsi_wrb));
+	iscsi_put_task(task);
 }
 
 static void
@@ -4073,11 +4067,13 @@ static void beiscsi_clean_port(struct beiscsi_hba *phba)
 /**
  * beiscsi_free_mgmt_task_handles()- Free driver CXN resources
  * @beiscsi_conn: ptr to the conn to be cleaned up
+ * @task: ptr to iscsi_task resource to be freed.
  *
  * Free driver mgmt resources binded to CXN.
  **/
 void
-beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn)
+beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn,
+				struct iscsi_task *task)
 {
 	struct beiscsi_io_task *io_task;
 	struct beiscsi_hba *phba = beiscsi_conn->phba;
@@ -4088,7 +4084,7 @@ beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn)
 	pwrb_context = &phwi_ctrlr->wrb_context
 		       [beiscsi_conn->beiscsi_conn_cid
 		       - phba->fw_config.iscsi_cid_start];
-	io_task = beiscsi_conn->task->dd_data;
+	io_task = task->dd_data;
 
 	if (io_task->pwrb_handle) {
 		memset(io_task->pwrb_handle->pwrb, 0,
@@ -4102,8 +4098,8 @@ beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn)
 		spin_lock_bh(&phba->mgmt_sgl_lock);
 		free_mgmt_sgl_handle(phba,
 				     io_task->psgl_handle);
-		spin_unlock_bh(&phba->mgmt_sgl_lock);
 		io_task->psgl_handle = NULL;
+		spin_unlock_bh(&phba->mgmt_sgl_lock);
 	}
 
 	if (io_task->mtask_addr)
@@ -4153,7 +4149,7 @@ static void beiscsi_cleanup_task(struct iscsi_task *task)
 		}
 	} else {
 		if (!beiscsi_conn->login_in_progress)
-			beiscsi_free_mgmt_task_handles(beiscsi_conn);
+			beiscsi_free_mgmt_task_handles(beiscsi_conn, task);
 	}
 }
 
@@ -4381,7 +4377,6 @@ int beiscsi_iotask_v2(struct iscsi_task *task, struct scatterlist *sg,
 	unsigned int doorbell = 0;
 
 	pwrb = io_task->pwrb_handle->pwrb;
-	memset(pwrb, 0, sizeof(*pwrb));
 
 	io_task->cmd_bhs->iscsi_hdr.exp_statsn = 0;
 	io_task->bhs_len = sizeof(struct be_cmd_bhs);

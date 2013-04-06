@@ -1005,7 +1005,8 @@ static void beiscsi_free_ep(struct beiscsi_endpoint *beiscsi_ep)
 
 	beiscsi_conn = beiscsi_ep->conn;
 	if (beiscsi_conn->login_in_progress) {
-		beiscsi_free_mgmt_task_handles(beiscsi_conn);
+		beiscsi_free_mgmt_task_handles(beiscsi_conn,
+					       beiscsi_conn->task);
 		beiscsi_conn->login_in_progress = 0;
 	}
 }
