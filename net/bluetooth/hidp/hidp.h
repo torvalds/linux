@@ -135,7 +135,6 @@ struct hidp_session {
 
 	bdaddr_t bdaddr;
 
-	unsigned long state;
 	unsigned long flags;
 	unsigned long idle_to;
 

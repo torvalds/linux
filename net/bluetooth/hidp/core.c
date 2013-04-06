@@ -79,7 +79,7 @@ static void __hidp_copy_session(struct hidp_session *session, struct hidp_connin
 	bacpy(&ci->bdaddr, &session->bdaddr);
 
 	ci->flags = session->flags;
-	ci->state = session->state;
+	ci->state = BT_CONNECTED;
 
 	ci->vendor  = 0x0000;
 	ci->product = 0x0000;
@@ -970,7 +970,7 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 	down_write(&hidp_session_sem);
 
 	s = __hidp_get_session(&bt_sk(ctrl_sock->sk)->dst);
-	if (s && s->state == BT_CONNECTED) {
+	if (s) {
 		up_write(&hidp_session_sem);
 		return -EEXIST;
 	}
@@ -992,7 +992,6 @@ int hidp_add_connection(struct hidp_connadd_req *req, struct socket *ctrl_sock, 
 
 	session->ctrl_sock = ctrl_sock;
 	session->intr_sock = intr_sock;
-	session->state     = BT_CONNECTED;
 
 	session->conn = hidp_get_connection(session);
 	if (!session->conn) {
