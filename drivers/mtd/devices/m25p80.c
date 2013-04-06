@@ -972,7 +972,7 @@ static int m25p_probe(struct spi_device *spi)
 
 	flash->spi = spi;
 	mutex_init(&flash->lock);
-	dev_set_drvdata(&spi->dev, flash);
+	spi_set_drvdata(spi, flash);
 
 	/*
 	 * Atmel, SST and Intel/Numonyx serial flash tend to power
@@ -1080,7 +1080,7 @@ static int m25p_probe(struct spi_device *spi)
 
 static int m25p_remove(struct spi_device *spi)
 {
-	struct m25p	*flash = dev_get_drvdata(&spi->dev);
+	struct m25p	*flash = spi_get_drvdata(spi);
 	int		status;
 
 	/* Clean up MTD stuff. */
