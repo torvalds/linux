@@ -638,9 +638,9 @@ static void v4l_print_dbg_chip_ident(const void *arg, bool write_only)
 			p->ident, p->revision);
 }
 
-static void v4l_print_dbg_chip_name(const void *arg, bool write_only)
+static void v4l_print_dbg_chip_info(const void *arg, bool write_only)
 {
-	const struct v4l2_dbg_chip_name *p = arg;
+	const struct v4l2_dbg_chip_info *p = arg;
 
 	pr_cont("type=%u, ", p->match.type);
 	if (p->match.type == V4L2_CHIP_MATCH_I2C_DRIVER)
@@ -1854,12 +1854,12 @@ static int v4l_dbg_g_chip_ident(const struct v4l2_ioctl_ops *ops,
 	return ops->vidioc_g_chip_ident(file, fh, p);
 }
 
-static int v4l_dbg_g_chip_name(const struct v4l2_ioctl_ops *ops,
+static int v4l_dbg_g_chip_info(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	struct video_device *vfd = video_devdata(file);
-	struct v4l2_dbg_chip_name *p = arg;
+	struct v4l2_dbg_chip_info *p = arg;
 	struct v4l2_subdev *sd;
 	int idx = 0;
 
@@ -1875,8 +1875,8 @@ static int v4l_dbg_g_chip_name(const struct v4l2_ioctl_ops *ops,
 			strlcpy(p->name, vfd->parent->driver->name, sizeof(p->name));
 		else
 			strlcpy(p->name, "bridge", sizeof(p->name));
-		if (ops->vidioc_g_chip_name)
-			return ops->vidioc_g_chip_name(file, fh, arg);
+		if (ops->vidioc_g_chip_info)
+			return ops->vidioc_g_chip_info(file, fh, arg);
 		if (p->match.addr)
 			return -EINVAL;
 		return 0;
@@ -2116,7 +2116,7 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_STD(VIDIOC_QUERY_DV_TIMINGS, vidioc_query_dv_timings, v4l_print_dv_timings, 0),
 	IOCTL_INFO_STD(VIDIOC_DV_TIMINGS_CAP, vidioc_dv_timings_cap, v4l_print_dv_timings_cap, INFO_FL_CLEAR(v4l2_dv_timings_cap, type)),
 	IOCTL_INFO_FNC(VIDIOC_ENUM_FREQ_BANDS, v4l_enum_freq_bands, v4l_print_freq_band, 0),
-	IOCTL_INFO_FNC(VIDIOC_DBG_G_CHIP_NAME, v4l_dbg_g_chip_name, v4l_print_dbg_chip_name, INFO_FL_CLEAR(v4l2_dbg_chip_name, match)),
+	IOCTL_INFO_FNC(VIDIOC_DBG_G_CHIP_INFO, v4l_dbg_g_chip_info, v4l_print_dbg_chip_info, INFO_FL_CLEAR(v4l2_dbg_chip_info, match)),
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 

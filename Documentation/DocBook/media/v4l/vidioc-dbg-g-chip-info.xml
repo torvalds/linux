@@ -1,11 +1,11 @@
-<refentry id="vidioc-dbg-g-chip-name">
+<refentry id="vidioc-dbg-g-chip-info">
   <refmeta>
-    <refentrytitle>ioctl VIDIOC_DBG_G_CHIP_NAME</refentrytitle>
+    <refentrytitle>ioctl VIDIOC_DBG_G_CHIP_INFO</refentrytitle>
     &manvol;
   </refmeta>
 
   <refnamediv>
-    <refname>VIDIOC_DBG_G_CHIP_NAME</refname>
+    <refname>VIDIOC_DBG_G_CHIP_INFO</refname>
     <refpurpose>Identify the chips on a TV card</refpurpose>
   </refnamediv>
 
@@ -15,7 +15,7 @@
 	<funcdef>int <function>ioctl</function></funcdef>
 	<paramdef>int <parameter>fd</parameter></paramdef>
 	<paramdef>int <parameter>request</parameter></paramdef>
-	<paramdef>struct v4l2_dbg_chip_name
+	<paramdef>struct v4l2_dbg_chip_info
 *<parameter>argp</parameter></paramdef>
       </funcprototype>
     </funcsynopsis>
@@ -34,7 +34,7 @@
       <varlistentry>
 	<term><parameter>request</parameter></term>
 	<listitem>
-	  <para>VIDIOC_DBG_G_CHIP_NAME</para>
+	  <para>VIDIOC_DBG_G_CHIP_INFO</para>
 	</listitem>
       </varlistentry>
       <varlistentry>
@@ -69,8 +69,8 @@ so it can be fixed.</para>
     <para>To query the driver applications must initialize the
 <structfield>match.type</structfield> and
 <structfield>match.addr</structfield> or <structfield>match.name</structfield>
-fields of a &v4l2-dbg-chip-name;
-and call <constant>VIDIOC_DBG_G_CHIP_NAME</constant> with a pointer to
+fields of a &v4l2-dbg-chip-info;
+and call <constant>VIDIOC_DBG_G_CHIP_INFO</constant> with a pointer to
 this structure. On success the driver stores information about the
 selected chip in the <structfield>name</structfield> and
 <structfield>flags</structfield> fields. On failure the structure
@@ -81,7 +81,7 @@ remains unchanged.</para>
 <structfield>match.addr</structfield> selects the nth bridge 'chip'
 on the TV card. You can enumerate all chips by starting at zero and
 incrementing <structfield>match.addr</structfield> by one until
-<constant>VIDIOC_DBG_G_CHIP_NAME</constant> fails with an &EINVAL;.
+<constant>VIDIOC_DBG_G_CHIP_INFO</constant> fails with an &EINVAL;.
 The number zero always selects the bridge chip itself, &eg; the chip
 connected to the PCI or USB bus. Non-zero numbers identify specific
 parts of the bridge chip such as an AC97 register block.</para>
@@ -138,8 +138,8 @@ to the <structfield>type</structfield> field.</entry>
       </tgroup>
     </table>
 
-    <table pgwide="1" frame="none" id="v4l2-dbg-chip-name">
-      <title>struct <structname>v4l2_dbg_chip_name</structname></title>
+    <table pgwide="1" frame="none" id="v4l2-dbg-chip-info">
+      <title>struct <structname>v4l2_dbg_chip_info</structname></title>
       <tgroup cols="3">
 	&cs-str;
 	<tbody valign="top">

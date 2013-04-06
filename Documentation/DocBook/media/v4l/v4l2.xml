@@ -147,7 +147,7 @@ applications. -->
 	<revremark>Remove obsolete and unused DV_PRESET ioctls:
 	VIDIOC_G_DV_PRESET, VIDIOC_S_DV_PRESET, VIDIOC_QUERY_DV_PRESET and
 	VIDIOC_ENUM_DV_PRESET. Remove the related v4l2_input/output capability
-	flags V4L2_IN_CAP_PRESETS and V4L2_OUT_CAP_PRESETS. Added VIDIOC_DBG_G_CHIP_NAME.
+	flags V4L2_IN_CAP_PRESETS and V4L2_OUT_CAP_PRESETS. Added VIDIOC_DBG_G_CHIP_INFO.
 	</revremark>
       </revision>
 
@@ -548,7 +548,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-create-bufs;
     &sub-cropcap;
     &sub-dbg-g-chip-ident;
-    &sub-dbg-g-chip-name;
+    &sub-dbg-g-chip-info;
     &sub-dbg-g-register;
     &sub-decoder-cmd;
     &sub-dqevent;

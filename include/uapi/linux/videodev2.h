@@ -1839,8 +1839,8 @@ struct v4l2_dbg_chip_ident {
 #define V4L2_CHIP_FL_READABLE (1 << 0)
 #define V4L2_CHIP_FL_WRITABLE (1 << 1)
 
-/* VIDIOC_DBG_G_CHIP_NAME */
-struct v4l2_dbg_chip_name {
+/* VIDIOC_DBG_G_CHIP_INFO */
+struct v4l2_dbg_chip_info {
 	struct v4l2_dbg_match match;
 	char name[32];
 	__u32 flags;
@@ -1938,7 +1938,7 @@ struct v4l2_create_buffers {
 
 /* Experimental, meant for debugging, testing and internal use.
    Never use this ioctl in applications!
-   Note: this ioctl is deprecated in favor of VIDIOC_DBG_G_CHIP_NAME and
+   Note: this ioctl is deprecated in favor of VIDIOC_DBG_G_CHIP_INFO and
    will go away in the future. */
 #define VIDIOC_DBG_G_CHIP_IDENT _IOWR('V', 81, struct v4l2_dbg_chip_ident)
 
@@ -1976,7 +1976,7 @@ struct v4l2_create_buffers {
 
 /* Experimental, meant for debugging, testing and internal use.
    Never use these in applications! */
-#define VIDIOC_DBG_G_CHIP_NAME  _IOWR('V', 102, struct v4l2_dbg_chip_name)
+#define VIDIOC_DBG_G_CHIP_INFO  _IOWR('V', 102, struct v4l2_dbg_chip_info)
 
 /* Reminder: when adding new ioctls please add support for them to
    drivers/media/video/v4l2-compat-ioctl32.c as well! */

@@ -244,8 +244,8 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_s_register)       (struct file *file, void *fh,
 					const struct v4l2_dbg_register *reg);
 
-	int (*vidioc_g_chip_name)      (struct file *file, void *fh,
-					struct v4l2_dbg_chip_name *chip);
+	int (*vidioc_g_chip_info)      (struct file *file, void *fh,
+					struct v4l2_dbg_chip_info *chip);
 #endif
 	int (*vidioc_g_chip_ident)     (struct file *file, void *fh,
 					struct v4l2_dbg_chip_ident *chip);

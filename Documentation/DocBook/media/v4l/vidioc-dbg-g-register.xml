@@ -99,7 +99,7 @@ unchanged.</para>
 <structfield>match.addr</structfield> selects the nth non-sub-device chip
 on the TV card.  The number zero always selects the host chip, &eg; the
 chip connected to the PCI or USB bus. You can find out which chips are
-present with the &VIDIOC-DBG-G-CHIP-NAME; ioctl.</para>
+present with the &VIDIOC-DBG-G-CHIP-INFO; ioctl.</para>
 
     <para>When <structfield>match.type</structfield> is
 <constant>V4L2_CHIP_MATCH_I2C_DRIVER</constant>,
@@ -109,7 +109,7 @@ For instance
 supported by the saa7127 driver, regardless of its &i2c; bus address.
 When multiple chips supported by the same driver are present, the
 effect of these ioctls is undefined. Again with the
-&VIDIOC-DBG-G-CHIP-NAME; ioctl you can find out which &i2c; chips are
+&VIDIOC-DBG-G-CHIP-INFO; ioctl you can find out which &i2c; chips are
 present.</para>
 
     <para>When <structfield>match.type</structfield> is
@@ -131,14 +131,14 @@ on the TV card.</para>
 
       <para>Due to a flaw in the Linux &i2c; bus driver these ioctls may
 return successfully without actually reading or writing a register. To
-catch the most likely failure we recommend a &VIDIOC-DBG-G-CHIP-NAME;
+catch the most likely failure we recommend a &VIDIOC-DBG-G-CHIP-INFO;
 call confirming the presence of the selected &i2c; chip.</para>
     </note>
 
     <para>These ioctls are optional, not all drivers may support them.
 However when a driver supports these ioctls it must also support
-&VIDIOC-DBG-G-CHIP-NAME;. Conversely it may support
-<constant>VIDIOC_DBG_G_CHIP_NAME</constant> but not these ioctls.</para>
+&VIDIOC-DBG-G-CHIP-INFO;. Conversely it may support
+<constant>VIDIOC_DBG_G_CHIP_INFO</constant> but not these ioctls.</para>
 
     <para><constant>VIDIOC_DBG_G_REGISTER</constant> and
 <constant>VIDIOC_DBG_S_REGISTER</constant> were introduced in Linux
