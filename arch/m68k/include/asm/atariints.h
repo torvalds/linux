@@ -94,6 +94,15 @@
 #define IRQ_SCCA_RX	     (52)
 #define IRQ_SCCA_SPCOND	     (54)
 
+/* shared MFP timer D interrupts - hires timer for EtherNEC et al. */
+#define IRQ_MFP_TIMER1       (64)
+#define IRQ_MFP_TIMER2       (65)
+#define IRQ_MFP_TIMER3       (66)
+#define IRQ_MFP_TIMER4       (67)
+#define IRQ_MFP_TIMER5       (68)
+#define IRQ_MFP_TIMER6       (69)
+#define IRQ_MFP_TIMER7       (70)
+#define IRQ_MFP_TIMER8       (71)
 
 #define INT_CLK   24576	    /* CLK while int_clk =2.456MHz and divide = 100 */
 #define INT_TICKS 246	    /* to make sched_time = 99.902... HZ */
