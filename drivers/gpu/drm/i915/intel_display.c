@@ -2002,8 +2002,10 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 		alignment = 0;
 		break;
 	case I915_TILING_Y:
-		/* FIXME: Is this true? */
-		DRM_ERROR("Y tiled not allowed for scan out buffers\n");
+		/* Despite that we check this in framebuffer_init userspace can
+		 * screw us over and change the tiling after the fact. Only
+		 * pinned buffers can't change their tiling. */
+		DRM_DEBUG_DRIVER("Y tiled not allowed for scan out buffers\n");
 		return -EINVAL;
 	default:
 		BUG();
