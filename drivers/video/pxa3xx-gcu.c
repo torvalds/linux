@@ -369,15 +369,20 @@ pxa3xx_gcu_wait_free(struct pxa3xx_gcu_priv *priv)
 
 /* Misc device layer */
 
+static inline struct pxa3xx_gcu_priv *file_dev(struct file *file)
+{
+	struct miscdevice *dev = file->private_data;
+	return container_of(dev, struct pxa3xx_gcu_priv, misc_dev);
+}
+
 static ssize_t
-pxa3xx_gcu_misc_write(struct file *filp, const char *buff,
+pxa3xx_gcu_misc_write(struct file *file, const char *buff,
 		      size_t count, loff_t *offp)
 {
 	int ret;
 	unsigned long flags;
 	struct pxa3xx_gcu_batch	*buffer;
-	struct pxa3xx_gcu_priv *priv =
-		container_of(filp->f_op, struct pxa3xx_gcu_priv, misc_fops);
+	struct pxa3xx_gcu_priv *priv = file_dev(file);
 
 	int words = count / 4;
 
@@ -450,11 +455,10 @@ pxa3xx_gcu_misc_write(struct file *filp, const char *buff,
 
 
 static long
-pxa3xx_gcu_misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+pxa3xx_gcu_misc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long flags;
-	struct pxa3xx_gcu_priv *priv =
-		container_of(filp->f_op, struct pxa3xx_gcu_priv, misc_fops);
+	struct pxa3xx_gcu_priv *priv = file_dev(file);
 
 	switch (cmd) {
 	case PXA3XX_GCU_IOCTL_RESET:
@@ -471,11 +475,10 @@ pxa3xx_gcu_misc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 }
 
 static int
-pxa3xx_gcu_misc_mmap(struct file *filp, struct vm_area_struct *vma)
+pxa3xx_gcu_misc_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	unsigned int size = vma->vm_end - vma->vm_start;
-	struct pxa3xx_gcu_priv *priv =
-		container_of(filp->f_op, struct pxa3xx_gcu_priv, misc_fops);
+	struct pxa3xx_gcu_priv *priv = file_dev(file);
 
 	switch (vma->vm_pgoff) {
 	case 0:
