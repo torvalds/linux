@@ -822,7 +822,7 @@ int intel_gpu_reset(struct drm_device *dev)
 
 	/* Also reset the gpu hangman. */
 	if (dev_priv->gpu_error.stop_rings) {
-		DRM_DEBUG("Simulated gpu hang, resetting stop_rings\n");
+		DRM_INFO("Simulated gpu hang, resetting stop_rings\n");
 		dev_priv->gpu_error.stop_rings = 0;
 		if (ret == -ENODEV) {
 			DRM_ERROR("Reset not implemented, but ignoring "
