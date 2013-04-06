@@ -122,7 +122,8 @@ struct be_async_event_trailer {
 
 enum {
 	ASYNC_EVENT_LINK_DOWN = 0x0,
-	ASYNC_EVENT_LINK_UP = 0x1
+	ASYNC_EVENT_LINK_UP = 0x1,
+	ASYNC_EVENT_LOGICAL = 0x2
 };
 
 /**
@@ -134,6 +135,9 @@ struct be_async_event_link_state {
 	u8 port_link_status;
 	u8 port_duplex;
 	u8 port_speed;
+#define BEISCSI_PHY_LINK_FAULT_NONE	0x00
+#define BEISCSI_PHY_LINK_FAULT_LOCAL	0x01
+#define BEISCSI_PHY_LINK_FAULT_REMOTE	0x02
 	u8 port_fault;
 	u8 rsvd0[7];
 	struct be_async_event_trailer trailer;

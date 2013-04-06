@@ -348,30 +348,26 @@ static void be2iscsi_fail_session(struct iscsi_cls_session *cls_session)
 void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 		struct be_async_event_link_state *evt)
 {
-	switch (evt->port_link_status) {
-	case ASYNC_EVENT_LINK_DOWN:
+	if ((evt->port_link_status == ASYNC_EVENT_LINK_DOWN) ||
+	    ((evt->port_link_status & ASYNC_EVENT_LOGICAL) &&
+	     (evt->port_fault != BEISCSI_PHY_LINK_FAULT_NONE))) {
+		phba->state = BE_ADAPTER_LINK_DOWN;
+
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
-			    "BC_%d : Link Down on Physical Port %d\n",
+			    "BC_%d : Link Down on Port %d\n",
 			    evt->physical_port);
 
-		phba->state |= BE_ADAPTER_LINK_DOWN;
 		iscsi_host_for_each_session(phba->shost,
 					    be2iscsi_fail_session);
-		break;
-	case ASYNC_EVENT_LINK_UP:
+	} else if ((evt->port_link_status & ASYNC_EVENT_LINK_UP) ||
+		    ((evt->port_link_status & ASYNC_EVENT_LOGICAL) &&
+		     (evt->port_fault == BEISCSI_PHY_LINK_FAULT_NONE))) {
 		phba->state = BE_ADAPTER_UP;
+
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
-			    "BC_%d : Link UP on Physical Port %d\n",
-			    evt->physical_port);
-		break;
-	default:
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
-			    "BC_%d : Unexpected Async Notification %d on"
-			    "Physical Port %d\n",
-			    evt->port_link_status,
+			    "BC_%d : Link UP on Port %d\n",
 			    evt->physical_port);
 	}
 }
