@@ -133,7 +133,7 @@ void update_extent_cache(block_t blk_addr, struct dnode_of_data *dn)
 		goto end_update;
 	}
 
-	/* Frone merge */
+	/* Front merge */
 	if (fofs == start_fofs - 1 && blk_addr == start_blkaddr - 1) {
 		fi->ext.fofs--;
 		fi->ext.blk_addr--;
