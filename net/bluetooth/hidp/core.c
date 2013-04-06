@@ -143,13 +143,15 @@ static int hidp_send_intr_message(struct hidp_session *session,
 				 &session->intr_transmit, hdr, data, size);
 }
 
-static int hidp_queue_event(struct hidp_session *session, struct input_dev *dev,
-				unsigned int type, unsigned int code, int value)
+static int hidp_input_event(struct input_dev *dev, unsigned int type,
+			    unsigned int code, int value)
 {
+	struct hidp_session *session = input_get_drvdata(dev);
 	unsigned char newleds;
 	unsigned char hdr, data[2];
 
-	BT_DBG("session %p type %d code %d value %d", session, type, code, value);
+	BT_DBG("session %p type %d code %d value %d",
+	       session, type, code, value);
 
 	if (type != EV_LED)
 		return -1;
@@ -170,21 +172,6 @@ static int hidp_queue_event(struct hidp_session *session, struct input_dev *dev,
 	data[1] = newleds;
 
 	return hidp_send_intr_message(session, hdr, data, 2);
-}
-
-static int hidp_hidinput_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
-{
-	struct hid_device *hid = input_get_drvdata(dev);
-	struct hidp_session *session = hid->driver_data;
-
-	return hidp_queue_event(session, dev, type, code, value);
-}
-
-static int hidp_input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
-{
-	struct hidp_session *session = input_get_drvdata(dev);
-
-	return hidp_queue_event(session, dev, type, code, value);
 }
 
 static void hidp_input_report(struct hidp_session *session, struct sk_buff *skb)
@@ -732,7 +719,6 @@ static struct hid_ll_driver hidp_hid_driver = {
 	.stop = hidp_stop,
 	.open  = hidp_open,
 	.close = hidp_close,
-	.hidinput_input_event = hidp_hidinput_event,
 };
 
 /* This function sets up the hid device. It does not add it
