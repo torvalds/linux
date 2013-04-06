@@ -161,7 +161,9 @@ static int beiscsi_bindconn_cid(struct beiscsi_hba *phba,
 				struct beiscsi_conn *beiscsi_conn,
 				unsigned int cid)
 {
-	if (phba->conn_table[cid]) {
+	uint16_t cri_index = BE_GET_CRI_FROM_CID(cid);
+
+	if (phba->conn_table[cri_index]) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : Connection table already occupied. Detected clash\n");
 
@@ -169,9 +171,9 @@ static int beiscsi_bindconn_cid(struct beiscsi_hba *phba,
 	} else {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 			    "BS_%d : phba->conn_table[%d]=%p(beiscsi_conn)\n",
-			    cid, beiscsi_conn);
+			    cri_index, beiscsi_conn);
 
-		phba->conn_table[cid] = beiscsi_conn;
+		phba->conn_table[cri_index] = beiscsi_conn;
 	}
 	return 0;
 }
@@ -994,6 +996,8 @@ static void beiscsi_free_ep(struct beiscsi_endpoint *beiscsi_ep)
 
 	beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
 	beiscsi_ep->phba = NULL;
+	phba->ep_array[BE_GET_CRI_FROM_CID
+		       (beiscsi_ep->ep_cid)] = NULL;
 
 	/**
 	 * Check if any connection resource allocated by driver
@@ -1044,15 +1048,8 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		    "BS_%d : In beiscsi_open_conn, ep_cid=%d\n",
 		    beiscsi_ep->ep_cid);
 
-	phba->ep_array[beiscsi_ep->ep_cid -
-		       phba->fw_config.iscsi_cid_start] = ep;
-	if (beiscsi_ep->ep_cid > (phba->fw_config.iscsi_cid_start +
-				  phba->params.cxns_per_ctrl * 2)) {
-
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Failed in allocate iscsi cid\n");
-		goto free_ep;
-	}
+	phba->ep_array[BE_GET_CRI_FROM_CID
+		       (beiscsi_ep->ep_cid)] = ep;
 
 	beiscsi_ep->cid_vld = 0;
 	nonemb_cmd.va = pci_alloc_consistent(phba->ctrl.pdev,
@@ -1064,7 +1061,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 			    "BS_%d : Failed to allocate memory for"
 			    " mgmt_open_connection\n");
 
-		beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
+		beiscsi_free_ep(beiscsi_ep);
 		return -ENOMEM;
 	}
 	nonemb_cmd.size = sizeof(struct tcp_connect_and_offload_in);
@@ -1075,9 +1072,9 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 			    "BS_%d : mgmt_open_connection Failed for cid=%d\n",
 			    beiscsi_ep->ep_cid);
 
-		beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
 		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 				    nonemb_cmd.va, nonemb_cmd.dma);
+		beiscsi_free_ep(beiscsi_ep);
 		return -EAGAIN;
 	}
 
@@ -1089,7 +1086,8 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 
 		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 			    nonemb_cmd.va, nonemb_cmd.dma);
-		goto free_ep;
+		beiscsi_free_ep(beiscsi_ep);
+		return -EBUSY;
 	}
 
 	ptcpcnct_out = (struct tcp_connect_and_offload_out *)nonemb_cmd.va;
@@ -1102,10 +1100,6 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
 			    nonemb_cmd.va, nonemb_cmd.dma);
 	return 0;
-
-free_ep:
-	beiscsi_free_ep(beiscsi_ep);
-	return -EBUSY;
 }
 
 /**
@@ -1216,8 +1210,10 @@ static int beiscsi_close_conn(struct  beiscsi_endpoint *beiscsi_ep, int flag)
 static int beiscsi_unbind_conn_to_cid(struct beiscsi_hba *phba,
 				      unsigned int cid)
 {
-	if (phba->conn_table[cid])
-		phba->conn_table[cid] = NULL;
+	uint16_t cri_index = BE_GET_CRI_FROM_CID(cid);
+
+	if (phba->conn_table[cri_index])
+		phba->conn_table[cri_index] = NULL;
 	else {
 		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
 			    "BS_%d : Connection table Not occupied.\n");

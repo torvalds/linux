@@ -307,10 +307,15 @@ struct beiscsi_hba {
 	unsigned short avlbl_cids;
 	unsigned short cid_alloc;
 	unsigned short cid_free;
-	struct beiscsi_conn *conn_table[BE2_MAX_SESSIONS * 2];
 	struct list_head hba_queue;
+#define BE_MAX_SESSION 2048
+#define BE_SET_CID_TO_CRI(cri_index, cid) \
+			  (phba->cid_to_cri_map[cid] = cri_index)
+#define BE_GET_CRI_FROM_CID(cid) (phba->cid_to_cri_map[cid])
+	unsigned short cid_to_cri_map[BE_MAX_SESSION];
 	unsigned short *cid_array;
 	struct iscsi_endpoint **ep_array;
+	struct beiscsi_conn **conn_table;
 	struct iscsi_boot_kset *boot_kset;
 	struct Scsi_Host *shost;
 	struct iscsi_iface *ipv4_iface;
@@ -567,7 +572,7 @@ struct hwi_async_pdu_context {
 	 * This is a varying size list! Do not add anything
 	 * after this entry!!
 	 */
-	struct hwi_async_entry async_entry[BE2_MAX_SESSIONS * 2];
+	struct hwi_async_entry *async_entry;
 };
 
 #define PDUCQE_CODE_MASK	0x0000003F
@@ -939,7 +944,7 @@ struct hwi_controller {
 	struct sgl_handle *psgl_handle_base;
 	unsigned int wrb_mem_index;
 
-	struct hwi_wrb_context wrb_context[BE2_MAX_SESSIONS * 2];
+	struct hwi_wrb_context *wrb_context;
 	struct mcc_wrb *pmcc_wrb_base;
 	struct be_ring default_pdu_hdr;
 	struct be_ring default_pdu_data;
@@ -976,9 +981,7 @@ struct hwi_context_memory {
 	struct be_queue_info be_def_hdrq;
 	struct be_queue_info be_def_dataq;
 
-	struct be_queue_info be_wrbq[BE2_MAX_SESSIONS];
-	struct be_mcc_wrb_context *pbe_mcc_context;
-
+	struct be_queue_info *be_wrbq;
 	struct hwi_async_pdu_context *pasync_ctx;
 };
 
