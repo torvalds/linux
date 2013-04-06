@@ -248,8 +248,6 @@ struct dt282x_private {
 	int dma_dir;
 };
 
-#define boardtype (*(const struct dt282x_board *)dev->board_ptr)
-
 /*
  *    Some useless abstractions
  */
@@ -289,14 +287,15 @@ static int dt282x_grab_dma(struct comedi_device *dev, int dma1, int dma2);
 static void dt282x_munge(struct comedi_device *dev, short *buf,
 			 unsigned int nbytes)
 {
+	const struct dt282x_board *board = comedi_board(dev);
 	struct dt282x_private *devpriv = dev->private;
 	unsigned int i;
-	unsigned short mask = (1 << boardtype.adbits) - 1;
-	unsigned short sign = 1 << (boardtype.adbits - 1);
+	unsigned short mask = (1 << board->adbits) - 1;
+	unsigned short sign = 1 << (board->adbits - 1);
 	int n;
 
 	if (devpriv->ad_2scomp)
-		sign = 1 << (boardtype.adbits - 1);
+		sign = 1 << (board->adbits - 1);
 	else
 		sign = 0;
 
@@ -501,10 +500,10 @@ static irqreturn_t dt282x_interrupt(int irq, void *d)
 		short data;
 
 		data = (short)inw(dev->iobase + DT2821_ADDAT);
-		data &= (1 << boardtype.adbits) - 1;
+		data &= (1 << board->adbits) - 1;
 
 		if (devpriv->ad_2scomp)
-			data ^= 1 << (boardtype.adbits - 1);
+			data ^= 1 << (board->adbits - 1);
 		ret = comedi_buf_put(s->async, data);
 
 		if (ret == 0)
@@ -554,6 +553,7 @@ static int dt282x_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	const struct dt282x_board *board = comedi_board(dev);
 	struct dt282x_private *devpriv = dev->private;
 	int i;
 
@@ -574,9 +574,9 @@ static int dt282x_ai_insn_read(struct comedi_device *dev,
 
 		data[i] =
 		    inw(dev->iobase +
-			DT2821_ADDAT) & ((1 << boardtype.adbits) - 1);
+			DT2821_ADDAT) & ((1 << board->adbits) - 1);
 		if (devpriv->ad_2scomp)
-			data[i] ^= (1 << (boardtype.adbits - 1));
+			data[i] ^= (1 << (board->adbits - 1));
 	}
 
 	return i;
@@ -795,13 +795,14 @@ static int dt282x_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	const struct dt282x_board *board = comedi_board(dev);
 	struct dt282x_private *devpriv = dev->private;
 	short d;
 	unsigned int chan;
 
 	chan = CR_CHAN(insn->chanspec);
 	d = data[0];
-	d &= (1 << boardtype.dabits) - 1;
+	d &= (1 << board->dabits) - 1;
 	devpriv->ao[chan] = d;
 
 	devpriv->dacsr |= DT2821_SSEL;
@@ -810,11 +811,11 @@ static int dt282x_ao_insn_write(struct comedi_device *dev,
 		/* select channel */
 		devpriv->dacsr |= DT2821_YSEL;
 		if (devpriv->da0_2scomp)
-			d ^= (1 << (boardtype.dabits - 1));
+			d ^= (1 << (board->dabits - 1));
 	} else {
 		devpriv->dacsr &= ~DT2821_YSEL;
 		if (devpriv->da1_2scomp)
-			d ^= (1 << (boardtype.dabits - 1));
+			d ^= (1 << (board->dabits - 1));
 	}
 
 	outw(devpriv->dacsr, dev->iobase + DT2821_DACSR);
@@ -1223,20 +1224,20 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->subdev_flags = SDF_READABLE | SDF_CMD_READ |
 	    ((it->options[opt_diff]) ? SDF_DIFF : SDF_COMMON);
 	s->n_chan =
-	    (it->options[opt_diff]) ? boardtype.adchan_di : boardtype.adchan_se;
+	    (it->options[opt_diff]) ? board->adchan_di : board->adchan_se;
 	s->insn_read = dt282x_ai_insn_read;
 	s->do_cmdtest = dt282x_ai_cmdtest;
 	s->do_cmd = dt282x_ai_cmd;
 	s->cancel = dt282x_ai_cancel;
-	s->maxdata = (1 << boardtype.adbits) - 1;
+	s->maxdata = (1 << board->adbits) - 1;
 	s->len_chanlist = 16;
 	s->range_table =
-	    opt_ai_range_lkup(boardtype.ispgl, it->options[opt_ai_range]);
+	    opt_ai_range_lkup(board->ispgl, it->options[opt_ai_range]);
 	devpriv->ad_2scomp = it->options[opt_ai_twos];
 
 	s = &dev->subdevices[1];
 
-	s->n_chan = boardtype.dachan;
+	s->n_chan = board->dachan;
 	if (s->n_chan) {
 		/* ao subsystem */
 		s->type = COMEDI_SUBD_AO;
@@ -1247,7 +1248,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->do_cmdtest = dt282x_ao_cmdtest;
 		s->do_cmd = dt282x_ao_cmd;
 		s->cancel = dt282x_ao_cancel;
-		s->maxdata = (1 << boardtype.dabits) - 1;
+		s->maxdata = (1 << board->dabits) - 1;
 		s->len_chanlist = 2;
 		s->range_table_list = devpriv->darangelist;
 		devpriv->darangelist[0] =
