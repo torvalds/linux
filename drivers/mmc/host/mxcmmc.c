@@ -1052,11 +1052,11 @@ static int mxcmci_probe(struct platform_device *pdev)
 			goto out_free_irq;
 	}
 
-	mmc_add_host(mmc);
-
 	init_timer(&host->watchdog);
 	host->watchdog.function = &mxcmci_watchdog;
 	host->watchdog.data = (unsigned long)mmc;
+
+	mmc_add_host(mmc);
 
 	return 0;
 
