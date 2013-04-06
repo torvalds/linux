@@ -85,19 +85,8 @@ static struct platform_device bcm63xx_spi_device = {
 
 int __init bcm63xx_spi_register(void)
 {
-	struct clk *periph_clk;
-
 	if (BCMCPU_IS_6328() || BCMCPU_IS_6345())
 		return -ENODEV;
-
-	periph_clk = clk_get(NULL, "periph");
-	if (IS_ERR(periph_clk)) {
-		pr_err("unable to get periph clock\n");
-		return -ENODEV;
-	}
-
-	/* Set bus frequency */
-	spi_pdata.speed_hz = clk_get_rate(periph_clk);
 
 	spi_resources[0].start = bcm63xx_regset_address(RSET_SPI);
 	spi_resources[0].end = spi_resources[0].start;

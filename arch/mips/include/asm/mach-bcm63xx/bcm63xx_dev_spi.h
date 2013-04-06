@@ -13,7 +13,6 @@ struct bcm63xx_spi_pdata {
 	unsigned int	msg_ctl_width;
 	int		bus_num;
 	int		num_chipselect;
-	u32		speed_hz;
 };
 
 enum bcm63xx_regs_spi {

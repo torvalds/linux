@@ -46,7 +46,6 @@ struct bcm63xx_spi {
 	int			irq;
 
 	/* Platform data */
-	u32			speed_hz;
 	unsigned		fifo_size;
 	unsigned int		msg_type_shift;
 	unsigned int		msg_ctl_width;
@@ -436,7 +435,6 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	master->unprepare_transfer_hardware = bcm63xx_spi_unprepare_transfer;
 	master->transfer_one_message = bcm63xx_spi_transfer_one;
 	master->mode_bits = MODEBITS;
-	bs->speed_hz = pdata->speed_hz;
 	bs->msg_type_shift = pdata->msg_type_shift;
 	bs->msg_ctl_width = pdata->msg_ctl_width;
 	bs->tx_io = (u8 *)(bs->regs + bcm63xx_spireg(SPI_MSG_DATA));
