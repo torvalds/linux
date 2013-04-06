@@ -393,7 +393,7 @@ static int pcap_add_subdev(struct pcap_chip *pcap,
 
 static int ezx_pcap_remove(struct spi_device *spi)
 {
-	struct pcap_chip *pcap = dev_get_drvdata(&spi->dev);
+	struct pcap_chip *pcap = spi_get_drvdata(spi);
 	struct pcap_platform_data *pdata = spi->dev.platform_data;
 	int i, adc_irq;
 
@@ -439,7 +439,7 @@ static int ezx_pcap_probe(struct spi_device *spi)
 	mutex_init(&pcap->adc_mutex);
 	INIT_WORK(&pcap->isr_work, pcap_isr_work);
 	INIT_WORK(&pcap->msr_work, pcap_msr_work);
-	dev_set_drvdata(&spi->dev, pcap);
+	spi_set_drvdata(spi, pcap);
 
 	/* setup spi */
 	spi->bits_per_word = 32;
