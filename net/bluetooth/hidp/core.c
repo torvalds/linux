@@ -330,11 +330,13 @@ static int hidp_get_raw_report(struct hid_device *hid,
 
 	/* Wait for the return of the report. The returned report
 	   gets put in session->report_return.  */
-	while (test_bit(HIDP_WAITING_FOR_RETURN, &session->flags)) {
+	while (test_bit(HIDP_WAITING_FOR_RETURN, &session->flags) &&
+	       !atomic_read(&session->terminate)) {
 		int res;
 
 		res = wait_event_interruptible_timeout(session->report_queue,
-			!test_bit(HIDP_WAITING_FOR_RETURN, &session->flags),
+			!test_bit(HIDP_WAITING_FOR_RETURN, &session->flags)
+				|| atomic_read(&session->terminate),
 			5*HZ);
 		if (res == 0) {
 			/* timeout */
@@ -399,11 +401,13 @@ static int hidp_output_raw_report(struct hid_device *hid, unsigned char *data, s
 		goto err;
 
 	/* Wait for the ACK from the device. */
-	while (test_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags)) {
+	while (test_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags) &&
+	       !atomic_read(&session->terminate)) {
 		int res;
 
 		res = wait_event_interruptible_timeout(session->report_queue,
-			!test_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags),
+			!test_bit(HIDP_WAITING_FOR_SEND_ACK, &session->flags)
+				|| atomic_read(&session->terminate),
 			10*HZ);
 		if (res == 0) {
 			/* timeout */
