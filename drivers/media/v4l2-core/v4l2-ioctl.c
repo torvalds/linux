@@ -1869,16 +1869,16 @@ static int v4l_dbg_g_chip_name(const struct v4l2_ioctl_ops *ops,
 			p->flags |= V4L2_CHIP_FL_WRITABLE;
 		if (ops->vidioc_g_register)
 			p->flags |= V4L2_CHIP_FL_READABLE;
-		if (ops->vidioc_g_chip_name)
-			return ops->vidioc_g_chip_name(file, fh, arg);
-		if (p->match.addr)
-			return -EINVAL;
 		if (vfd->v4l2_dev)
 			strlcpy(p->name, vfd->v4l2_dev->name, sizeof(p->name));
 		else if (vfd->parent)
 			strlcpy(p->name, vfd->parent->driver->name, sizeof(p->name));
 		else
 			strlcpy(p->name, "bridge", sizeof(p->name));
+		if (ops->vidioc_g_chip_name)
+			return ops->vidioc_g_chip_name(file, fh, arg);
+		if (p->match.addr)
+			return -EINVAL;
 		return 0;
 
 	case V4L2_CHIP_MATCH_SUBDEV:
