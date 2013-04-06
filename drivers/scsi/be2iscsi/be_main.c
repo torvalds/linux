@@ -1326,8 +1326,9 @@ be_complete_logout(struct beiscsi_conn *beiscsi_conn,
 	hdr->t2retain = 0;
 	hdr->flags = csol_cqe->i_flags;
 	hdr->response = csol_cqe->i_resp;
-	hdr->exp_cmdsn = csol_cqe->exp_cmdsn;
-	hdr->max_cmdsn = (csol_cqe->exp_cmdsn + csol_cqe->cmd_wnd - 1);
+	hdr->exp_cmdsn = cpu_to_be32(csol_cqe->exp_cmdsn);
+	hdr->max_cmdsn = cpu_to_be32(csol_cqe->exp_cmdsn +
+				     csol_cqe->cmd_wnd - 1);
 
 	hdr->dlength[0] = 0;
 	hdr->dlength[1] = 0;
@@ -1350,9 +1351,9 @@ be_complete_tmf(struct beiscsi_conn *beiscsi_conn,
 	hdr->opcode = ISCSI_OP_SCSI_TMFUNC_RSP;
 	hdr->flags = csol_cqe->i_flags;
 	hdr->response = csol_cqe->i_resp;
-	hdr->exp_cmdsn = csol_cqe->exp_cmdsn;
-	hdr->max_cmdsn = (csol_cqe->exp_cmdsn +
-			  csol_cqe->cmd_wnd - 1);
+	hdr->exp_cmdsn = cpu_to_be32(csol_cqe->exp_cmdsn);
+	hdr->max_cmdsn = cpu_to_be32(csol_cqe->exp_cmdsn +
+				     csol_cqe->cmd_wnd - 1);
 
 	hdr->itt = io_task->libiscsi_itt;
 	__iscsi_complete_pdu(conn, (struct iscsi_hdr *)hdr, NULL, 0);
@@ -1404,8 +1405,8 @@ be_complete_nopin_resp(struct beiscsi_conn *beiscsi_conn,
 	hdr = (struct iscsi_nopin *)task->hdr;
 	hdr->flags = csol_cqe->i_flags;
 	hdr->exp_cmdsn = cpu_to_be32(csol_cqe->exp_cmdsn);
-	hdr->max_cmdsn = be32_to_cpu(hdr->exp_cmdsn +
-			 csol_cqe->cmd_wnd - 1);
+	hdr->max_cmdsn = cpu_to_be32(csol_cqe->exp_cmdsn +
+				     csol_cqe->cmd_wnd - 1);
 
 	hdr->opcode = ISCSI_OP_NOOP_IN;
 	hdr->itt = io_task->libiscsi_itt;
@@ -1446,7 +1447,7 @@ static void adapter_get_sol_cqe(struct beiscsi_hba *phba,
 					      cid, psol);
 		csol_cqe->hw_sts = AMAP_GET_BITS(struct amap_sol_cqe_v2,
 						 hw_sts, psol);
-		csol_cqe->cmd_wnd = AMAP_GET_BITS(struct amap_sol_cqe,
+		csol_cqe->cmd_wnd = AMAP_GET_BITS(struct amap_sol_cqe_v2,
 						  i_cmd_wnd, psol);
 		if (AMAP_GET_BITS(struct amap_sol_cqe_v2,
 				  cmd_cmpl, psol))
