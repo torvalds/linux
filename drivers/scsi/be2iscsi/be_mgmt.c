@@ -1281,6 +1281,26 @@ beiscsi_fw_ver_disp(struct device *dev, struct device_attribute *attr,
 }
 
 /**
+ * beiscsi_active_cid_disp()- Display Sessions Active
+ * @dev: ptr to device not used.
+ * @attr: device attribute, not used.
+ * @buf: contains formatted text Session Count
+ *
+ * return
+ * size of the formatted string
+ **/
+ssize_t
+beiscsi_active_cid_disp(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		       (phba->params.cxns_per_ctrl - phba->avlbl_cids));
+}
+
+/**
  * beiscsi_adap_family_disp()- Display adapter family.
  * @dev: ptr to device to get priv structure
  * @attr: device attribute, not used.

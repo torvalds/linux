@@ -315,6 +315,9 @@ ssize_t beiscsi_drvr_ver_disp(struct device *dev,
 ssize_t beiscsi_fw_ver_disp(struct device *dev,
 			     struct device_attribute *attr, char *buf);
 
+ssize_t beiscsi_active_cid_disp(struct device *dev,
+				 struct device_attribute *attr, char *buf);
+
 ssize_t beiscsi_adap_family_disp(struct device *dev,
 				  struct device_attribute *attr, char *buf);
 
