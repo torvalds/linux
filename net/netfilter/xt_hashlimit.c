@@ -3,6 +3,7 @@
  *	separately for each hashbucket (sourceip/sourceport/dstip/dstport)
  *
  *	(C) 2003-2004 by Harald Welte <laforge@netfilter.org>
+ *	(C) 2006-2012 Patrick McHardy <kaber@trash.net>
  *	Copyright © CC Computer Consultants GmbH, 2007 - 2008
  *
  * Development of this code was funded by Astaro AG, http://www.astaro.com/

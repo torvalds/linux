@@ -1,3 +1,9 @@
+/*
+ * IPv6 specific functions of netfilter core
+ *
+ * Rusty Russell (C) 2000 -- This code is GPL.
+ * Patrick McHardy (C) 2006-2012
+ */
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/ipv6.h>

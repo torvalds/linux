@@ -1,4 +1,9 @@
-/* IPv4 specific functions of netfilter core */
+/*
+ * IPv4 specific functions of netfilter core
+ *
+ * Rusty Russell (C) 2000 -- This code is GPL.
+ * Patrick McHardy (C) 2006-2012
+ */
 #include <linux/kernel.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>

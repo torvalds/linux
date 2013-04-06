@@ -3,6 +3,7 @@
  * nfetlink.
  *
  * (C) 2005 by Harald Welte <laforge@netfilter.org>
+ * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
  *
  * Based on the old ipv4-only ipt_ULOG.c:
  * (C) 2000-2004 by Harald Welte <laforge@netfilter.org>
