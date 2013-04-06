@@ -1368,15 +1368,15 @@ hwi_complete_drvr_msgs(struct beiscsi_conn *beiscsi_conn,
 	uint16_t wrb_index, cid;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
-	if (chip_skh_r(phba->pcidev)) {
-		wrb_index = AMAP_GET_BITS(struct amap_it_dmsg_cqe_v2,
-					  wrb_idx, psol);
-		cid = AMAP_GET_BITS(struct amap_it_dmsg_cqe_v2,
-				    cid, psol);
-	} else {
+	if (is_chip_be2_be3r(phba)) {
 		wrb_index = AMAP_GET_BITS(struct amap_it_dmsg_cqe,
 					  wrb_idx, psol);
 		cid = AMAP_GET_BITS(struct amap_it_dmsg_cqe,
+				    cid, psol);
+	} else {
+		wrb_index = AMAP_GET_BITS(struct amap_it_dmsg_cqe_v2,
+					  wrb_idx, psol);
+		cid = AMAP_GET_BITS(struct amap_it_dmsg_cqe_v2,
 				    cid, psol);
 	}
 
@@ -1418,7 +1418,26 @@ static void adapter_get_sol_cqe(struct beiscsi_hba *phba,
 		struct sol_cqe *psol,
 		struct common_sol_cqe *csol_cqe)
 {
-	if (chip_skh_r(phba->pcidev)) {
+	if (is_chip_be2_be3r(phba)) {
+		csol_cqe->exp_cmdsn = AMAP_GET_BITS(struct amap_sol_cqe,
+						    i_exp_cmd_sn, psol);
+		csol_cqe->res_cnt = AMAP_GET_BITS(struct amap_sol_cqe,
+						  i_res_cnt, psol);
+		csol_cqe->cmd_wnd = AMAP_GET_BITS(struct amap_sol_cqe,
+						  i_cmd_wnd, psol);
+		csol_cqe->wrb_index = AMAP_GET_BITS(struct amap_sol_cqe,
+						    wrb_index, psol);
+		csol_cqe->cid = AMAP_GET_BITS(struct amap_sol_cqe,
+					      cid, psol);
+		csol_cqe->hw_sts = AMAP_GET_BITS(struct amap_sol_cqe,
+						 hw_sts, psol);
+		csol_cqe->i_resp = AMAP_GET_BITS(struct amap_sol_cqe,
+						 i_resp, psol);
+		csol_cqe->i_sts = AMAP_GET_BITS(struct amap_sol_cqe,
+						i_sts, psol);
+		csol_cqe->i_flags = AMAP_GET_BITS(struct amap_sol_cqe,
+						  i_flags, psol);
+	} else {
 		csol_cqe->exp_cmdsn = AMAP_GET_BITS(struct amap_sol_cqe_v2,
 						    i_exp_cmd_sn, psol);
 		csol_cqe->res_cnt = AMAP_GET_BITS(struct amap_sol_cqe_v2,
@@ -1445,25 +1464,6 @@ static void adapter_get_sol_cqe(struct beiscsi_hba *phba,
 		if (AMAP_GET_BITS(struct amap_sol_cqe_v2,
 				  o, psol))
 			csol_cqe->i_flags |= ISCSI_FLAG_CMD_OVERFLOW;
-	} else {
-		csol_cqe->exp_cmdsn = AMAP_GET_BITS(struct amap_sol_cqe,
-						    i_exp_cmd_sn, psol);
-		csol_cqe->res_cnt = AMAP_GET_BITS(struct amap_sol_cqe,
-						  i_res_cnt, psol);
-		csol_cqe->cmd_wnd = AMAP_GET_BITS(struct amap_sol_cqe,
-						  i_cmd_wnd, psol);
-		csol_cqe->wrb_index = AMAP_GET_BITS(struct amap_sol_cqe,
-						    wrb_index, psol);
-		csol_cqe->cid = AMAP_GET_BITS(struct amap_sol_cqe,
-					      cid, psol);
-		csol_cqe->hw_sts = AMAP_GET_BITS(struct amap_sol_cqe,
-						 hw_sts, psol);
-		csol_cqe->i_resp = AMAP_GET_BITS(struct amap_sol_cqe,
-						 i_resp, psol);
-		csol_cqe->i_sts = AMAP_GET_BITS(struct amap_sol_cqe,
-						i_sts, psol);
-		csol_cqe->i_flags = AMAP_GET_BITS(struct amap_sol_cqe,
-						  i_flags, psol);
 	}
 }
 
@@ -1561,15 +1561,15 @@ hwi_get_async_handle(struct beiscsi_hba *phba,
 	unsigned char is_header = 0;
 	unsigned int index, dpl;
 
-	if (chip_skh_r(phba->pcidev)) {
-		dpl = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe_v2,
-				    dpl, pdpdu_cqe);
-		index = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe_v2,
-				      index, pdpdu_cqe);
-	} else {
+	if (is_chip_be2_be3r(phba)) {
 		dpl = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe,
 				    dpl, pdpdu_cqe);
 		index = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe,
+				      index, pdpdu_cqe);
+	} else {
+		dpl = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe_v2,
+				    dpl, pdpdu_cqe);
+		index = AMAP_GET_BITS(struct amap_i_t_dpdu_cqe_v2,
 				      index, pdpdu_cqe);
 	}
 
@@ -2028,7 +2028,9 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 			 32] & CQE_CODE_MASK);
 
 		 /* Get the CID */
-		if (chip_skh_r(phba->pcidev)) {
+		if (is_chip_be2_be3r(phba)) {
+			cid = AMAP_GET_BITS(struct amap_sol_cqe, cid, sol);
+		} else {
 			if ((code == DRIVERMSG_NOTIFY) ||
 			    (code == UNSOL_HDR_NOTIFY) ||
 			    (code == UNSOL_DATA_NOTIFY))
@@ -2038,8 +2040,7 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 			 else
 				 cid = AMAP_GET_BITS(struct amap_sol_cqe_v2,
 						     cid, sol);
-		   } else
-			 cid = AMAP_GET_BITS(struct amap_sol_cqe, cid, sol);
+		}
 
 		ep = phba->ep_array[cid - phba->fw_config.iscsi_cid_start];
 		beiscsi_ep = ep->dd_data;
@@ -2416,11 +2417,11 @@ static void hwi_write_buffer(struct iscsi_wrb *pwrb, struct iscsi_task *task)
 		/* Check for the data_count */
 		dsp_value = (task->data_count) ? 1 : 0;
 
-		if (chip_skh_r(phba->pcidev))
-			AMAP_SET_BITS(struct amap_iscsi_wrb_v2, dsp,
+		if (is_chip_be2_be3r(phba))
+			AMAP_SET_BITS(struct amap_iscsi_wrb, dsp,
 				      pwrb, dsp_value);
 		else
-			AMAP_SET_BITS(struct amap_iscsi_wrb, dsp,
+			AMAP_SET_BITS(struct amap_iscsi_wrb_v2, dsp,
 				      pwrb, dsp_value);
 
 		/* Map addr only if there is data_count */
@@ -4175,11 +4176,11 @@ beiscsi_offload_connection(struct beiscsi_conn *beiscsi_conn,
 				       phba->fw_config.iscsi_cid_start));
 
 	/* Check for the adapter family */
-	if (chip_skh_r(phba->pcidev))
-		beiscsi_offload_cxn_v2(params, pwrb_handle);
-	else
+	if (is_chip_be2_be3r(phba))
 		beiscsi_offload_cxn_v0(params, pwrb_handle,
 				       phba->init_mem);
+	else
+		beiscsi_offload_cxn_v2(params, pwrb_handle);
 
 	be_dws_le_to_cpu(pwrb_handle->pwrb,
 			 sizeof(struct iscsi_target_context_update_wrb));
@@ -4490,19 +4491,7 @@ static int beiscsi_mtask(struct iscsi_task *task)
 	pwrb = io_task->pwrb_handle->pwrb;
 	memset(pwrb, 0, sizeof(*pwrb));
 
-	if (chip_skh_r(phba->pcidev)) {
-		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, cmdsn_itt, pwrb,
-			      be32_to_cpu(task->cmdsn));
-		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, wrb_idx, pwrb,
-			      io_task->pwrb_handle->wrb_index);
-		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, sgl_idx, pwrb,
-			      io_task->psgl_handle->sgl_index);
-		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, r2t_exp_dtl, pwrb,
-			      task->data_count);
-		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, ptr2nextwrb, pwrb,
-			      io_task->pwrb_handle->nxt_wrb_index);
-		pwrb_typeoffset = SKH_WRB_TYPE_OFFSET;
-	} else {
+	if (is_chip_be2_be3r(phba)) {
 		AMAP_SET_BITS(struct amap_iscsi_wrb, cmdsn_itt, pwrb,
 			      be32_to_cpu(task->cmdsn));
 		AMAP_SET_BITS(struct amap_iscsi_wrb, wrb_idx, pwrb,
@@ -4514,6 +4503,18 @@ static int beiscsi_mtask(struct iscsi_task *task)
 		AMAP_SET_BITS(struct amap_iscsi_wrb, ptr2nextwrb, pwrb,
 			      io_task->pwrb_handle->nxt_wrb_index);
 		pwrb_typeoffset = BE_WRB_TYPE_OFFSET;
+	} else {
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, cmdsn_itt, pwrb,
+			      be32_to_cpu(task->cmdsn));
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, wrb_idx, pwrb,
+			      io_task->pwrb_handle->wrb_index);
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, sgl_idx, pwrb,
+			      io_task->psgl_handle->sgl_index);
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, r2t_exp_dtl, pwrb,
+			      task->data_count);
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, ptr2nextwrb, pwrb,
+			      io_task->pwrb_handle->nxt_wrb_index);
+		pwrb_typeoffset = SKH_WRB_TYPE_OFFSET;
 	}
 
 
@@ -4526,19 +4527,19 @@ static int beiscsi_mtask(struct iscsi_task *task)
 	case ISCSI_OP_NOOP_OUT:
 		if (task->hdr->ttt != ISCSI_RESERVED_TAG) {
 			ADAPTER_SET_WRB_TYPE(pwrb, TGT_DM_CMD, pwrb_typeoffset);
-			if (chip_skh_r(phba->pcidev))
-				AMAP_SET_BITS(struct amap_iscsi_wrb_v2,
+			if (is_chip_be2_be3r(phba))
+				AMAP_SET_BITS(struct amap_iscsi_wrb,
 					      dmsg, pwrb, 1);
 			else
-				AMAP_SET_BITS(struct amap_iscsi_wrb,
+				AMAP_SET_BITS(struct amap_iscsi_wrb_v2,
 					      dmsg, pwrb, 1);
 		} else {
 			ADAPTER_SET_WRB_TYPE(pwrb, INI_RD_CMD, pwrb_typeoffset);
-			if (chip_skh_r(phba->pcidev))
-				AMAP_SET_BITS(struct amap_iscsi_wrb_v2,
+			if (is_chip_be2_be3r(phba))
+				AMAP_SET_BITS(struct amap_iscsi_wrb,
 					      dmsg, pwrb, 0);
 			else
-				AMAP_SET_BITS(struct amap_iscsi_wrb,
+				AMAP_SET_BITS(struct amap_iscsi_wrb_v2,
 					      dmsg, pwrb, 0);
 		}
 		hwi_write_buffer(pwrb, task);
@@ -4565,9 +4566,9 @@ static int beiscsi_mtask(struct iscsi_task *task)
 	}
 
 	/* Set the task type */
-	io_task->wrb_type = (chip_skh_r(phba->pcidev)) ?
-		AMAP_GET_BITS(struct amap_iscsi_wrb_v2, type, pwrb) :
-		AMAP_GET_BITS(struct amap_iscsi_wrb, type, pwrb);
+	io_task->wrb_type = (is_chip_be2_be3r(phba)) ?
+		AMAP_GET_BITS(struct amap_iscsi_wrb, type, pwrb) :
+		AMAP_GET_BITS(struct amap_iscsi_wrb_v2, type, pwrb);
 
 	doorbell |= cid & DB_WRB_POST_CID_MASK;
 	doorbell |= (io_task->pwrb_handle->wrb_index &

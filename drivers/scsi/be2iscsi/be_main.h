@@ -265,7 +265,9 @@ struct invalidate_command_table {
 	unsigned short cid;
 } __packed;
 
-#define chip_skh_r(pdev)	(pdev->device == OC_SKH_ID1)
+#define chip_be2(phba)      (phba->generation == BE_GEN2)
+#define chip_be3_r(phba)    (phba->generation == BE_GEN3)
+#define is_chip_be2_be3r(phba) (chip_be3_r(phba) || (chip_be2(phba)))
 struct beiscsi_hba {
 	struct hba_parameters params;
 	struct hwi_controller *phwi_ctrlr;

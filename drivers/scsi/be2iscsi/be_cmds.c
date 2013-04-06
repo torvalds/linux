@@ -855,20 +855,7 @@ int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 			OPCODE_COMMON_CQ_CREATE, sizeof(*req));
 
 	req->num_pages = cpu_to_le16(PAGES_4K_SPANNED(q_mem->va, q_mem->size));
-	if (chip_skh_r(ctrl->pdev)) {
-		req->hdr.version = MBX_CMD_VER2;
-		req->page_size = 1;
-		AMAP_SET_BITS(struct amap_cq_context_v2, coalescwm,
-			      ctxt, coalesce_wm);
-		AMAP_SET_BITS(struct amap_cq_context_v2, nodelay,
-			      ctxt, no_delay);
-		AMAP_SET_BITS(struct amap_cq_context_v2, count, ctxt,
-			      __ilog2_u32(cq->len / 256));
-		AMAP_SET_BITS(struct amap_cq_context_v2, valid, ctxt, 1);
-		AMAP_SET_BITS(struct amap_cq_context_v2, eventable, ctxt, 1);
-		AMAP_SET_BITS(struct amap_cq_context_v2, eqid, ctxt, eq->id);
-		AMAP_SET_BITS(struct amap_cq_context_v2, armed, ctxt, 1);
-	} else {
+	if (is_chip_be2_be3r(phba)) {
 		AMAP_SET_BITS(struct amap_cq_context, coalescwm,
 			      ctxt, coalesce_wm);
 		AMAP_SET_BITS(struct amap_cq_context, nodelay, ctxt, no_delay);
@@ -881,6 +868,19 @@ int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 		AMAP_SET_BITS(struct amap_cq_context, armed, ctxt, 1);
 		AMAP_SET_BITS(struct amap_cq_context, func, ctxt,
 			      PCI_FUNC(ctrl->pdev->devfn));
+	} else {
+		req->hdr.version = MBX_CMD_VER2;
+		req->page_size = 1;
+		AMAP_SET_BITS(struct amap_cq_context_v2, coalescwm,
+			      ctxt, coalesce_wm);
+		AMAP_SET_BITS(struct amap_cq_context_v2, nodelay,
+			      ctxt, no_delay);
+		AMAP_SET_BITS(struct amap_cq_context_v2, count, ctxt,
+			      __ilog2_u32(cq->len / 256));
+		AMAP_SET_BITS(struct amap_cq_context_v2, valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_cq_context_v2, eventable, ctxt, 1);
+		AMAP_SET_BITS(struct amap_cq_context_v2, eqid, ctxt, eq->id);
+		AMAP_SET_BITS(struct amap_cq_context_v2, armed, ctxt, 1);
 	}
 
 	be_dws_cpu_to_le(ctxt, sizeof(req->context));
