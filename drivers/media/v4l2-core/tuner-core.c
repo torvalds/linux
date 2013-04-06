@@ -228,16 +228,6 @@ static int fe_has_signal(struct dvb_frontend *fe)
 	return strength;
 }
 
-static int fe_get_afc(struct dvb_frontend *fe)
-{
-	s32 afc;
-
-	if (fe->ops.tuner_ops.get_afc(fe, &afc) < 0)
-		return 0;
-
-	return afc;
-}
-
 static int fe_set_config(struct dvb_frontend *fe, void *priv_cfg)
 {
 	struct dvb_tuner_ops *fe_tuner_ops = &fe->ops.tuner_ops;
@@ -448,7 +438,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		if (fe_tuner_ops->get_rf_strength)
 			analog_ops->has_signal = fe_has_signal;
 		if (fe_tuner_ops->get_afc)
-			analog_ops->get_afc = fe_get_afc;
+			analog_ops->get_afc = fe_tuner_ops->get_afc;
 
 	} else {
 		t->name = analog_ops->info.name;
@@ -1190,7 +1180,7 @@ static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	if (check_mode(t, vt->type) == -EINVAL)
 		return 0;
 	if (vt->type == t->mode && analog_ops->get_afc)
-		vt->afc = analog_ops->get_afc(&t->fe);
+		analog_ops->get_afc(&t->fe, &vt->afc);
 	if (analog_ops->has_signal)
 		vt->signal = analog_ops->has_signal(&t->fe);
 	if (vt->type != V4L2_TUNER_RADIO) {
