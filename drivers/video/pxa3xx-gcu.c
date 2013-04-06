@@ -101,7 +101,6 @@ struct pxa3xx_gcu_priv {
 	dma_addr_t		  shared_phys;
 	struct resource		 *resource_mem;
 	struct miscdevice	  misc_dev;
-	struct file_operations	  misc_fops;
 	wait_queue_head_t	  wait_idle;
 	wait_queue_head_t	  wait_free;
 	spinlock_t		  spinlock;
@@ -577,6 +576,13 @@ free_buffers(struct platform_device *dev,
 	priv->free = NULL;
 }
 
+static const struct file_operations misc_fops = {
+	.owner	= THIS_MODULE,
+	.write	= pxa3xx_gcu_misc_write,
+	.unlocked_ioctl = pxa3xx_gcu_misc_ioctl,
+	.mmap	= pxa3xx_gcu_misc_mmap
+};
+
 static int pxa3xx_gcu_probe(struct platform_device *dev)
 {
 	int i, ret, irq;
@@ -604,14 +610,9 @@ static int pxa3xx_gcu_probe(struct platform_device *dev)
 	 * container_of(). This isn't really necessary as we have a fixed minor
 	 * number anyway, but this is to avoid statics. */
 
-	priv->misc_fops.owner	= THIS_MODULE;
-	priv->misc_fops.write	= pxa3xx_gcu_misc_write;
-	priv->misc_fops.unlocked_ioctl = pxa3xx_gcu_misc_ioctl;
-	priv->misc_fops.mmap	= pxa3xx_gcu_misc_mmap;
-
 	priv->misc_dev.minor	= MISCDEV_MINOR,
 	priv->misc_dev.name	= DRV_NAME,
-	priv->misc_dev.fops	= &priv->misc_fops,
+	priv->misc_dev.fops	= &misc_fops,
 
 	/* register misc device */
 	ret = misc_register(&priv->misc_dev);
