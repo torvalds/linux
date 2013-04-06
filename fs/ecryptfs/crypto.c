@@ -37,6 +37,9 @@
 #include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 
+#define DECRYPT		0
+#define ENCRYPT		1
+
 static int
 ecryptfs_decrypt_page_offset(struct ecryptfs_crypt_stat *crypt_stat,
 			     struct page *dst_page, struct page *src_page,
@@ -334,19 +337,20 @@ static void extent_crypt_complete(struct crypto_async_request *req, int rc)
 }
 
 /**
- * encrypt_scatterlist
+ * crypt_scatterlist
  * @crypt_stat: Pointer to the crypt_stat struct to initialize.
- * @dest_sg: Destination of encrypted data
- * @src_sg: Data to be encrypted
- * @size: Length of data to be encrypted
- * @iv: iv to use during encryption
+ * @dest_sg: Destination of the data after performing the crypto operation
+ * @src_sg: Data to be encrypted or decrypted
+ * @size: Length of data
+ * @iv: IV to use
+ * @op: ENCRYPT or DECRYPT to indicate the desired operation
  *
- * Returns the number of bytes encrypted; negative value on error
+ * Returns the number of bytes encrypted or decrypted; negative value on error
  */
-static int encrypt_scatterlist(struct ecryptfs_crypt_stat *crypt_stat,
-			       struct scatterlist *dest_sg,
-			       struct scatterlist *src_sg, int size,
-			       unsigned char *iv)
+static int crypt_scatterlist(struct ecryptfs_crypt_stat *crypt_stat,
+			     struct scatterlist *dest_sg,
+			     struct scatterlist *src_sg, int size,
+			     unsigned char *iv, int op)
 {
 	struct ablkcipher_request *req = NULL;
 	struct extent_crypt_result ecr;
@@ -389,9 +393,9 @@ static int encrypt_scatterlist(struct ecryptfs_crypt_stat *crypt_stat,
 		crypt_stat->flags |= ECRYPTFS_KEY_SET;
 	}
 	mutex_unlock(&crypt_stat->cs_tfm_mutex);
-	ecryptfs_printk(KERN_DEBUG, "Encrypting [%d] bytes.\n", size);
 	ablkcipher_request_set_crypt(req, src_sg, dest_sg, size, iv);
-	rc = crypto_ablkcipher_encrypt(req);
+	rc = op == ENCRYPT ? crypto_ablkcipher_encrypt(req) :
+			     crypto_ablkcipher_decrypt(req);
 	if (rc == -EINPROGRESS || rc == -EBUSY) {
 		struct extent_crypt_result *ecr = req->base.data;
 
@@ -624,78 +628,6 @@ out:
 }
 
 /**
- * decrypt_scatterlist
- * @crypt_stat: Cryptographic context
- * @dest_sg: The destination scatterlist to decrypt into
- * @src_sg: The source scatterlist to decrypt from
- * @size: The number of bytes to decrypt
- * @iv: The initialization vector to use for the decryption
- *
- * Returns the number of bytes decrypted; negative value on error
- */
-static int decrypt_scatterlist(struct ecryptfs_crypt_stat *crypt_stat,
-			       struct scatterlist *dest_sg,
-			       struct scatterlist *src_sg, int size,
-			       unsigned char *iv)
-{
-	struct ablkcipher_request *req = NULL;
-	struct extent_crypt_result ecr;
-	int rc = 0;
-
-	BUG_ON(!crypt_stat || !crypt_stat->tfm
-	       || !(crypt_stat->flags & ECRYPTFS_STRUCT_INITIALIZED));
-	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "Key size [%zd]; key:\n",
-				crypt_stat->key_size);
-		ecryptfs_dump_hex(crypt_stat->key,
-				  crypt_stat->key_size);
-	}
-
-	init_completion(&ecr.completion);
-
-	mutex_lock(&crypt_stat->cs_tfm_mutex);
-	req = ablkcipher_request_alloc(crypt_stat->tfm, GFP_NOFS);
-	if (!req) {
-		mutex_unlock(&crypt_stat->cs_tfm_mutex);
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	ablkcipher_request_set_callback(req,
-			CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
-			extent_crypt_complete, &ecr);
-	/* Consider doing this once, when the file is opened */
-	if (!(crypt_stat->flags & ECRYPTFS_KEY_SET)) {
-		rc = crypto_ablkcipher_setkey(crypt_stat->tfm, crypt_stat->key,
-					      crypt_stat->key_size);
-		if (rc) {
-			ecryptfs_printk(KERN_ERR,
-					"Error setting key; rc = [%d]\n",
-					rc);
-			mutex_unlock(&crypt_stat->cs_tfm_mutex);
-			rc = -EINVAL;
-			goto out;
-		}
-		crypt_stat->flags |= ECRYPTFS_KEY_SET;
-	}
-	mutex_unlock(&crypt_stat->cs_tfm_mutex);
-	ecryptfs_printk(KERN_DEBUG, "Decrypting [%d] bytes.\n", size);
-	ablkcipher_request_set_crypt(req, src_sg, dest_sg, size, iv);
-	rc = crypto_ablkcipher_decrypt(req);
-	if (rc == -EINPROGRESS || rc == -EBUSY) {
-		struct extent_crypt_result *ecr = req->base.data;
-
-		wait_for_completion(&ecr->completion);
-		rc = ecr->rc;
-		INIT_COMPLETION(ecr->completion);
-	}
-out:
-	ablkcipher_request_free(req);
-	return rc;
-
-}
-
-/**
  * ecryptfs_encrypt_page_offset
  * @crypt_stat: The cryptographic context
  * @dst_page: The page to encrypt into
@@ -718,7 +650,8 @@ ecryptfs_encrypt_page_offset(struct ecryptfs_crypt_stat *crypt_stat,
 
 	sg_set_page(&src_sg, src_page, size, offset);
 	sg_set_page(&dst_sg, dst_page, size, offset);
-	return encrypt_scatterlist(crypt_stat, &dst_sg, &src_sg, size, iv);
+	return crypt_scatterlist(crypt_stat, &dst_sg, &src_sg,
+				 size, iv, ENCRYPT);
 }
 
 /**
@@ -745,7 +678,8 @@ ecryptfs_decrypt_page_offset(struct ecryptfs_crypt_stat *crypt_stat,
 	sg_init_table(&dst_sg, 1);
 	sg_set_page(&dst_sg, dst_page, size, offset);
 
-	return decrypt_scatterlist(crypt_stat, &dst_sg, &src_sg, size, iv);
+	return crypt_scatterlist(crypt_stat, &dst_sg, &src_sg,
+				 size, iv, DECRYPT);
 }
 
 #define ECRYPTFS_MAX_SCATTERLIST_LEN 4
