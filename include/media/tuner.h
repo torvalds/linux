@@ -192,7 +192,7 @@ struct tuner_setup {
 	unsigned short	addr; 	/* I2C address */
 	unsigned int	type;   /* Tuner type */
 	unsigned int	mode_mask;  /* Allowed tuner modes */
-	unsigned int	config; /* configuraion for more complex tuners */
+	void		*config;    /* configuraion for more complex tuners */
 	int (*tuner_callback) (void *dev, int component, int cmd, int arg);
 };
 

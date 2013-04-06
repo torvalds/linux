@@ -45,6 +45,7 @@
 #if IS_ENABLED(CONFIG_VIDEO_SAA7134_DVB)
 #include <media/videobuf-dvb.h>
 #endif
+#include "tda8290.h"
 
 #define UNSET (-1U)
 
@@ -390,7 +391,7 @@ struct saa7134_board {
 	unsigned char		rds_addr;
 
 	unsigned int            tda9887_conf;
-	unsigned int            tuner_config;
+	struct tda829x_config   tda829x_conf;
 
 	/* peripheral I/O */
 	enum saa7134_video_out  video_out;

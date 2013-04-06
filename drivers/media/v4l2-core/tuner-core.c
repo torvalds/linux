@@ -132,7 +132,7 @@ struct tuner {
 	bool                standby;	/* Standby mode */
 
 	unsigned int        type; /* chip type id */
-	unsigned int        config;
+	void                *config;
 	const char          *name;
 };
 
@@ -270,9 +270,8 @@ static const struct analog_demod_ops tuner_analog_ops = {
  * @c:			i2c_client descriptoy
  * @type:		type of the tuner (e. g. tuner number)
  * @new_mode_mask:	Indicates if tuner supports TV and/or Radio
- * @new_config:		an optional parameter ranging from 0-255 used by
-			a few tuners to adjust an internal parameter,
-			like LNA mode
+ * @new_config:		an optional parameter used by a few tuners to adjust
+			internal parameters, like LNA mode
  * @tuner_callback:	an optional function to be called when switching
  *			to analog mode
  *
@@ -280,7 +279,7 @@ static const struct analog_demod_ops tuner_analog_ops = {
  * by tun_setup structure. It contains several per-tuner initialization "magic"
  */
 static void set_type(struct i2c_client *c, unsigned int type,
-		     unsigned int new_mode_mask, unsigned int new_config,
+		     unsigned int new_mode_mask, void *new_config,
 		     int (*tuner_callback) (void *dev, int component, int cmd, int arg))
 {
 	struct tuner *t = to_tuner(i2c_get_clientdata(c));
@@ -295,8 +294,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	}
 
 	t->type = type;
-	/* prevent invalid config values */
-	t->config = new_config < 256 ? new_config : 0;
+	t->config = new_config;
 	if (tuner_callback != NULL) {
 		tuner_dbg("defining GPIO callback\n");
 		t->fe.callback = tuner_callback;
@@ -314,11 +312,8 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	case TUNER_PHILIPS_TDA8290:
 	{
-		struct tda829x_config cfg = {
-			.lna_cfg        = t->config,
-		};
 		if (!dvb_attach(tda829x_attach, &t->fe, t->i2c->adapter,
-				t->i2c->addr, &cfg))
+				t->i2c->addr, t->config))
 			goto attach_failed;
 		break;
 	}
@@ -407,7 +402,6 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	case TUNER_NXP_TDA18271:
 	{
 		struct tda18271_config cfg = {
-			.config = t->config,
 			.small_i2c = TDA18271_03_BYTE_CHUNK_INIT,
 		};
 
@@ -509,7 +503,7 @@ static int tuner_s_type_addr(struct v4l2_subdev *sd,
 	struct tuner *t = to_tuner(sd);
 	struct i2c_client *c = v4l2_get_subdevdata(sd);
 
-	tuner_dbg("Calling set_type_addr for type=%d, addr=0x%02x, mode=0x%02x, config=0x%02x\n",
+	tuner_dbg("Calling set_type_addr for type=%d, addr=0x%02x, mode=0x%02x, config=%p\n",
 			tun_setup->type,
 			tun_setup->addr,
 			tun_setup->mode_mask,

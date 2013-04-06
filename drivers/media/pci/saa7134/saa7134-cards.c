@@ -2760,7 +2760,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.tuner_config   = 0,
+		.tda829x_conf   = { .lna_cfg = 0 },
 		.mpeg           = SAA7134_MPEG_DVB,
 		.gpiomask       = 0x0200000,
 		.inputs = {{
@@ -3291,7 +3291,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.tuner_config   = 1,
+		.tda829x_conf   = { .lna_cfg = 1 },
 		.mpeg           = SAA7134_MPEG_DVB,
 		.gpiomask       = 0x000200000,
 		.inputs         = {{
@@ -3395,7 +3395,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.tuner_config   = 1,
+		.tda829x_conf   = { .lna_cfg = 1 },
 		.mpeg           = SAA7134_MPEG_DVB,
 		.gpiomask       = 0x0200100,
 		.inputs         = {{
@@ -3426,7 +3426,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.tuner_config   = 3,
+		.tda829x_conf   = { .lna_cfg = 3 },
 		.mpeg           = SAA7134_MPEG_DVB,
 		.ts_type	= SAA7134_MPEG_TS_SERIAL,
 		.ts_force_val   = 1,
@@ -3459,7 +3459,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.tuner_config   = 3,
+		.tda829x_conf   = { .lna_cfg = 3 },
 		.mpeg           = SAA7134_MPEG_DVB,
 		.ts_type	= SAA7134_MPEG_TS_SERIAL,
 		.gpiomask       = 0x0800100, /* GPIO 21 is an INPUT */
@@ -3683,7 +3683,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.tuner_config   = 2,
+		.tda829x_conf   = { .lna_cfg = 2 },
 		.mpeg           = SAA7134_MPEG_DVB,
 		.gpiomask       = 0x0200000,
 		.inputs = {{
@@ -3736,7 +3736,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.tuner_config   = 2,
+		.tda829x_conf   = { .lna_cfg = 2 },
 		.mpeg           = SAA7134_MPEG_DVB,
 		.gpiomask       = 0x0200000,
 		.inputs = {{
@@ -3754,7 +3754,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.tuner_config   = 2,
+		.tda829x_conf   = { .lna_cfg = 2 },
 		.gpiomask	= 1 << 21,
 		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs         = {{
@@ -3887,7 +3887,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.tuner_config   = 0,
+		.tda829x_conf   = { .lna_cfg = 0 },
 		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs = {{
 			.name   = name_tv, /* FIXME: analog tv untested */
@@ -3903,7 +3903,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.tuner_config   = 2,
+		.tda829x_conf   = { .lna_cfg = 2 },
 		.gpiomask       = 0x020200000,
 		.inputs         = {{
 			.name = name_tv,
@@ -3937,7 +3937,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.tuner_config	= 0,
+		.tda829x_conf	= { .lna_cfg = 0 },
 		.gpiomask	= 0x020200000,
 		.inputs		= {{
 			.name = name_tv,
@@ -4737,7 +4737,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.tuner_config   = 2,
+		.tda829x_conf   = { .lna_cfg = 2 },
 		.mpeg           = SAA7134_MPEG_DVB,
 		.gpiomask       = 0x0200000,
 		.inputs = {{
@@ -4823,7 +4823,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type   = UNSET,
 		.tuner_addr   = ADDR_UNSET,
 		.radio_addr   = ADDR_UNSET,
-		.tuner_config = 0,
+		.tda829x_conf = { .lna_cfg = 0 },
 		.mpeg         = SAA7134_MPEG_DVB,
 		.inputs       = {{
 			.name = name_tv,
@@ -4847,7 +4847,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.tuner_config   = 2,
+		.tda829x_conf   = { .lna_cfg = 2 },
 		.mpeg           = SAA7134_MPEG_DVB,
 		.gpiomask       = 0x0200000,
 		.inputs = { {
@@ -5057,7 +5057,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.tuner_config   = 2,
+		.tda829x_conf   = { .lna_cfg = 2 },
 		.gpiomask       = 1 << 21,
 		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs         = {{
@@ -5087,7 +5087,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.tuner_config   = 2,
+		.tda829x_conf   = { .lna_cfg = 2 },
 		.gpiomask       = 1 << 21,
 		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs         = {{
@@ -5176,7 +5176,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		.tuner_config   = 0,
+		.tda829x_conf   = { .lna_cfg = 0 },
 		.mpeg           = SAA7134_MPEG_DVB,
 		.gpiomask       = 0x0200000,
 		.inputs = { {
@@ -5406,7 +5406,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.tuner_config   = 0,
+		.tda829x_conf   = { .lna_cfg = 0 },
 		.mpeg           = SAA7134_MPEG_DVB,
 		.ts_type	= SAA7134_MPEG_TS_PARALLEL,
 		.inputs         = {{
@@ -5629,7 +5629,7 @@ struct saa7134_board saa7134_boards[] = {
 		.audio_clock	= 0x00187de7,
 		.tuner_type	= TUNER_PHILIPS_TDA8290,
 		.radio_type	= UNSET,
-		.tuner_config	= 3,
+		.tda829x_conf	= { .lna_cfg = 3 },
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.gpiomask	= 0x02050000,
@@ -7633,7 +7633,7 @@ static void saa7134_tuner_setup(struct saa7134_dev *dev)
 	if ((dev->tuner_type != TUNER_ABSENT) && (dev->tuner_type != UNSET)) {
 		tun_setup.type = dev->tuner_type;
 		tun_setup.addr = dev->tuner_addr;
-		tun_setup.config = saa7134_boards[dev->board].tuner_config;
+		tun_setup.config = &saa7134_boards[dev->board].tda829x_conf;
 		tun_setup.tuner_callback = saa7134_tuner_callback;
 
 		tun_setup.mode_mask = mode_mask;
