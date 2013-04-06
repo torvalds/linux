@@ -636,40 +636,20 @@ static int hidp_send_frame(struct socket *sock, unsigned char *data, int len)
 	return kernel_sendmsg(sock, &msg, &iv, 1, len);
 }
 
-static void hidp_process_intr_transmit(struct hidp_session *session)
+/* dequeue message from @transmit and send via @sock */
+static void hidp_process_transmit(struct hidp_session *session,
+				  struct sk_buff_head *transmit,
+				  struct socket *sock)
 {
 	struct sk_buff *skb;
 	int ret;
 
 	BT_DBG("session %p", session);
 
-	while ((skb = skb_dequeue(&session->intr_transmit))) {
-		ret = hidp_send_frame(session->intr_sock, skb->data, skb->len);
+	while ((skb = skb_dequeue(transmit))) {
+		ret = hidp_send_frame(sock, skb->data, skb->len);
 		if (ret == -EAGAIN) {
-			skb_queue_head(&session->intr_transmit, skb);
-			break;
-		} else if (ret < 0) {
-			hidp_session_terminate(session);
-			kfree_skb(skb);
-			break;
-		}
-
-		hidp_set_timer(session);
-		kfree_skb(skb);
-	}
-}
-
-static void hidp_process_ctrl_transmit(struct hidp_session *session)
-{
-	struct sk_buff *skb;
-	int ret;
-
-	BT_DBG("session %p", session);
-
-	while ((skb = skb_dequeue(&session->ctrl_transmit))) {
-		ret = hidp_send_frame(session->ctrl_sock, skb->data, skb->len);
-		if (ret == -EAGAIN) {
-			skb_queue_head(&session->ctrl_transmit, skb);
+			skb_queue_head(transmit, skb);
 			break;
 		} else if (ret < 0) {
 			hidp_session_terminate(session);
@@ -1224,7 +1204,8 @@ static void hidp_session_run(struct hidp_session *session)
 		}
 
 		/* send pending intr-skbs */
-		hidp_process_intr_transmit(session);
+		hidp_process_transmit(session, &session->intr_transmit,
+				      session->intr_sock);
 
 		/* parse incoming ctrl-skbs */
 		while ((skb = skb_dequeue(&ctrl_sk->sk_receive_queue))) {
@@ -1236,7 +1217,8 @@ static void hidp_session_run(struct hidp_session *session)
 		}
 
 		/* send pending ctrl-skbs */
-		hidp_process_ctrl_transmit(session);
+		hidp_process_transmit(session, &session->ctrl_transmit,
+				      session->ctrl_sock);
 
 		schedule();
 	}
