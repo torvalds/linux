@@ -429,11 +429,6 @@ static const struct das1800_board das1800_boards[] = {
 	 },
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct das1800_board *)dev->board_ptr)
-
 struct das1800_private {
 	volatile unsigned int count;	/* number of data points left to be taken */
 	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
@@ -468,6 +463,8 @@ static const struct comedi_lrange range_ao_2 = {
 static inline uint16_t munge_bipolar_sample(const struct comedi_device *dev,
 					    uint16_t sample)
 {
+	const struct das1800_board *thisboard = comedi_board(dev);
+
 	sample += 1 << (thisboard->resolution - 1);
 	return sample;
 }
@@ -781,6 +778,7 @@ static int das1800_ai_do_cmdtest(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_cmd *cmd)
 {
+	const struct das1800_board *thisboard = comedi_board(dev);
 	struct das1800_private *devpriv = dev->private;
 	int err = 0;
 	unsigned int tmp_arg;
@@ -1224,6 +1222,7 @@ static int das1800_ai_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	const struct das1800_board *thisboard = comedi_board(dev);
 	int i, n;
 	int chan, range, aref, chan_range;
 	int timeout = 1000;
@@ -1287,6 +1286,7 @@ static int das1800_ao_winsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
+	const struct das1800_board *thisboard = comedi_board(dev);
 	struct das1800_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 /* int range = CR_RANGE(insn->chanspec); */
@@ -1508,6 +1508,7 @@ static int das1800_probe(struct comedi_device *dev)
 static int das1800_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	const struct das1800_board *thisboard = comedi_board(dev);
 	struct das1800_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase = it->options[0];
@@ -1556,6 +1557,7 @@ static int das1800_attach(struct comedi_device *dev,
 	}
 
 	dev->board_ptr = das1800_boards + board;
+	thisboard = comedi_board(dev);
 	dev->board_name = thisboard->name;
 
 	/*  if it is an 'ao' board with fancy analog out then we need extra io ports */
