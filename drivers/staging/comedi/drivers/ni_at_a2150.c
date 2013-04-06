@@ -154,11 +154,6 @@ static const struct a2150_board a2150_boards[] = {
 	 },
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct a2150_board *)dev->board_ptr)
-
 struct a2150_private {
 
 	volatile unsigned int count;	/* number of data points left to be taken */
@@ -319,6 +314,7 @@ static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static int a2150_ai_cmdtest(struct comedi_device *dev,
 			    struct comedi_subdevice *s, struct comedi_cmd *cmd)
 {
+	const struct a2150_board *thisboard = comedi_board(dev);
 	int err = 0;
 	int tmp;
 	int startChan;
@@ -604,6 +600,7 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			    int flags)
 {
+	const struct a2150_board *thisboard = comedi_board(dev);
 	struct a2150_private *devpriv = dev->private;
 	int lub, glb, temp;
 	int lub_divisor_shift, lub_index, glb_divisor_shift, glb_index;
@@ -719,6 +716,7 @@ static int a2150_probe(struct comedi_device *dev)
 
 static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct a2150_board *thisboard = comedi_board(dev);
 	struct a2150_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase = it->options[0];
@@ -797,6 +795,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	dev->board_ptr = a2150_boards + a2150_probe(dev);
+	thisboard = comedi_board(dev);
 	dev->board_name = thisboard->name;
 
 	ret = comedi_alloc_subdevices(dev, 1);
