@@ -60,6 +60,7 @@
  */
 #undef __NO_VERSION__
 
+#include <linux/file.h>
 #include "device.h"
 #include "card.h"
 #include "channel.h"
@@ -2946,87 +2947,51 @@ static int Config_FileGetParameter(unsigned char *string,
  return true;
 }
 
-int Config_FileOperation(PSDevice pDevice,bool fwrite,unsigned char *Parameter) {
-    unsigned char *config_path = CONFIG_PATH;
-    unsigned char *buffer = NULL;
-    unsigned char tmpbuffer[20];
-    struct file   *filp=NULL;
-    mm_segment_t old_fs = get_fs();
-    //int oldfsuid=0,oldfsgid=0;
-    int result=0;
+int Config_FileOperation(PSDevice pDevice,bool fwrite,unsigned char *Parameter)
+{
+	unsigned char *buffer = kmalloc(1024, GFP_KERNEL);
+	unsigned char tmpbuffer[20];
+	struct file *file;
+	int result=0;
 
-    set_fs (KERNEL_DS);
+	if (!buffer) {
+		printk("allocate mem for file fail?\n");
+		return -1;
+	}
+	file = filp_open(CONFIG_PATH, O_RDONLY, 0);
+	if (IS_ERR(file)) {
+		kfree(buffer);
+		printk("Config_FileOperation:open file fail?\n");
+		return -1;
+	}
 
-    /* Can't do this anymore, so we rely on correct filesystem permissions:
-    //Make sure a caller can read or write power as root
-    oldfsuid=current->cred->fsuid;
-    oldfsgid=current->cred->fsgid;
-    current->cred->fsuid = 0;
-    current->cred->fsgid = 0;
-    */
+	if (kernel_read(file, 0, buffer, 1024) < 0) {
+		printk("read file error?\n");
+		result = -1;
+		goto error1;
+	}
 
-    //open file
-      filp = filp_open(config_path, O_RDWR, 0);
-        if (IS_ERR(filp)) {
-	     printk("Config_FileOperation:open file fail?\n");
-	     result=-1;
-             goto error2;
-	  }
+	if (Config_FileGetParameter("ZONETYPE",tmpbuffer,buffer)!=true) {
+		printk("get parameter error?\n");
+		result = -1;
+		goto error1;
+	}
 
-     if(!(filp->f_op) || !(filp->f_op->read) ||!(filp->f_op->write)) {
-           printk("file %s cann't readable or writable?\n",config_path);
-	  result = -1;
-	  goto error1;
-     	}
-
-buffer = kmalloc(1024, GFP_KERNEL);
-if(buffer==NULL) {
-  printk("allocate mem for file fail?\n");
-  result = -1;
-  goto error1;
-}
-
-if(filp->f_op->read(filp, buffer, 1024, &filp->f_pos)<0) {
- printk("read file error?\n");
- result = -1;
- goto error1;
-}
-
-if(Config_FileGetParameter("ZONETYPE",tmpbuffer,buffer)!=true) {
-  printk("get parameter error?\n");
-  result = -1;
-  goto error1;
-}
-
-if(memcmp(tmpbuffer,"USA",3)==0) {
-  result=ZoneType_USA;
-}
-else if(memcmp(tmpbuffer,"JAPAN",5)==0) {
-  result=ZoneType_Japan;
-}
-else if(memcmp(tmpbuffer,"EUROPE",5)==0) {
- result=ZoneType_Europe;
-}
-else {
-  result = -1;
-  printk("Unknown Zonetype[%s]?\n",tmpbuffer);
-}
+	if (memcmp(tmpbuffer,"USA",3)==0) {
+		result = ZoneType_USA;
+	} else if(memcmp(tmpbuffer,"JAPAN",5)==0) {
+		result = ZoneType_Japan;
+	} else if(memcmp(tmpbuffer,"EUROPE",5)==0) {
+		result = ZoneType_Europe;
+	} else {
+		result = -1;
+		printk("Unknown Zonetype[%s]?\n",tmpbuffer);
+	}
 
 error1:
-  kfree(buffer);
-
-  if(filp_close(filp,NULL))
-       printk("Config_FileOperation:close file fail\n");
-
-error2:
-  set_fs (old_fs);
-
-  /*
-  current->cred->fsuid=oldfsuid;
-  current->cred->fsgid=oldfsgid;
-  */
-
-  return result;
+	kfree(buffer);
+	fput(file);
+	return result;
 }
 
 
