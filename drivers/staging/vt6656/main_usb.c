@@ -46,6 +46,7 @@
  */
 #undef __NO_VERSION__
 
+#include <linux/file.h>
 #include "device.h"
 #include "card.h"
 #include "baseband.h"
@@ -1316,53 +1317,29 @@ static int Config_FileGetParameter(unsigned char *string,
 /* if read fails, return NULL, or return data pointer */
 static unsigned char *Config_FileOperation(struct vnt_private *pDevice)
 {
-    unsigned char *config_path = CONFIG_PATH;
-    unsigned char *buffer = NULL;
-    struct file   *filp=NULL;
-    mm_segment_t old_fs = get_fs();
+	unsigned char *buffer = kmalloc(1024, GFP_KERNEL);
+	struct file   *file;
 
-    int result = 0;
+	if (!buffer) {
+		printk("allocate mem for file fail?\n");
+		return NULL;
+	}
 
-    set_fs (KERNEL_DS);
+	file = filp_open(CONFIG_PATH, O_RDONLY, 0);
+	if (IS_ERR(file)) {
+		kfree(buffer);
+		printk("Config_FileOperation file Not exist\n");
+		return NULL;
+	}
 
-    /* open file */
-      filp = filp_open(config_path, O_RDWR, 0);
-        if (IS_ERR(filp)) {
-	     printk("Config_FileOperation file Not exist\n");
-	     result=-1;
-             goto error2;
-	  }
+	if (kernel_read(file, 0, buffer, 1024) < 0) {
+		printk("read file error?\n");
+		kfree(buffer);
+		buffer = NULL;
+	}
 
-     if(!(filp->f_op) || !(filp->f_op->read) ||!(filp->f_op->write)) {
-           printk("file %s is not read or writeable?\n",config_path);
-	  result = -1;
-	  goto error1;
-     	}
-
-    buffer = kmalloc(1024, GFP_KERNEL);
-    if(buffer==NULL) {
-      printk("allocate mem for file fail?\n");
-      result = -1;
-      goto error1;
-    }
-
-    if(filp->f_op->read(filp, buffer, 1024, &filp->f_pos)<0) {
-     printk("read file error?\n");
-     result = -1;
-    }
-
-error1:
-  if(filp_close(filp,NULL))
-       printk("Config_FileOperation:close file fail\n");
-
-error2:
-  set_fs (old_fs);
-
-if(result!=0) {
-    kfree(buffer);
-    buffer=NULL;
-}
-  return buffer;
+	fput(file);
+	return buffer;
 }
 
 /* return --->-1:fail; >=0:successful */
