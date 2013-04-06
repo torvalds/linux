@@ -1364,35 +1364,39 @@ static int ks8851_read_selftest(struct ks8851_net *ks)
 
 /* driver bus management functions */
 
-#ifdef CONFIG_PM
-static int ks8851_suspend(struct spi_device *spi, pm_message_t state)
-{
-	struct ks8851_net *ks = spi_get_drvdata(spi);
-	struct net_device *dev = ks->netdev;
+#ifdef CONFIG_PM_SLEEP
 
-	if (netif_running(dev)) {
-		netif_device_detach(dev);
-		ks8851_net_stop(dev);
+static int ks8851_suspend(struct device *dev)
+{
+	struct ks8851_net *ks = dev_get_drvdata(dev);
+	struct net_device *netdev = ks->netdev;
+
+	if (netif_running(netdev)) {
+		netif_device_detach(netdev);
+		ks8851_net_stop(netdev);
 	}
 
 	return 0;
 }
 
-static int ks8851_resume(struct spi_device *spi)
+static int ks8851_resume(struct device *dev)
 {
-	struct ks8851_net *ks = spi_get_drvdata(spi);
-	struct net_device *dev = ks->netdev;
+	struct ks8851_net *ks = dev_get_drvdata(dev);
+	struct net_device *netdev = ks->netdev;
 
-	if (netif_running(dev)) {
-		ks8851_net_open(dev);
-		netif_device_attach(dev);
+	if (netif_running(netdev)) {
+		ks8851_net_open(netdev);
+		netif_device_attach(netdev);
 	}
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(ks8851_pm_ops, ks8851_suspend, ks8851_resume);
+#define KS8851_PM_OPS (&ks8851_pm_ops)
+
 #else
-#define ks8851_suspend NULL
-#define ks8851_resume NULL
+#define KS8851_PM_OPS NULL
 #endif
 
 static int ks8851_probe(struct spi_device *spi)
@@ -1532,11 +1536,10 @@ static struct spi_driver ks8851_driver = {
 	.driver = {
 		.name = "ks8851",
 		.owner = THIS_MODULE,
+		.pm = KS8851_PM_OPS,
 	},
 	.probe = ks8851_probe,
 	.remove = ks8851_remove,
-	.suspend = ks8851_suspend,
-	.resume = ks8851_resume,
 };
 module_spi_driver(ks8851_driver);
 
