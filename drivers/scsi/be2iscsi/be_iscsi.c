@@ -1128,6 +1128,13 @@ beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 		return ERR_PTR(ret);
 	}
 
+	if (beiscsi_error(phba)) {
+		ret = -EIO;
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+			    "BS_%d : The FW state Not Stable!!!\n");
+		return ERR_PTR(ret);
+	}
+
 	if (phba->state != BE_ADAPTER_UP) {
 		ret = -EBUSY;
 		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
