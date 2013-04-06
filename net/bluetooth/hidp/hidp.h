@@ -174,15 +174,6 @@ struct hidp_session {
 	int waiting_for_startup;
 };
 
-static inline void hidp_schedule(struct hidp_session *session)
-{
-	struct sock *ctrl_sk = session->ctrl_sock->sk;
-	struct sock *intr_sk = session->intr_sock->sk;
-
-	wake_up_interruptible(sk_sleep(ctrl_sk));
-	wake_up_interruptible(sk_sleep(intr_sk));
-}
-
 /* HIDP init defines */
 extern int __init hidp_init_sockets(void);
 extern void __exit hidp_cleanup_sockets(void);
