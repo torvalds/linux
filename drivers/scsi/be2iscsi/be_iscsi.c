@@ -1009,7 +1009,6 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 {
 	struct beiscsi_endpoint *beiscsi_ep = ep->dd_data;
 	struct beiscsi_hba *phba = beiscsi_ep->phba;
-	struct be_mcc_wrb *wrb;
 	struct tcp_connect_and_offload_out *ptcpcnct_out;
 	struct be_dma_mem nonemb_cmd;
 	unsigned int tag;
@@ -1055,7 +1054,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 	nonemb_cmd.size = sizeof(struct tcp_connect_and_offload_in);
 	memset(nonemb_cmd.va, 0, nonemb_cmd.size);
 	tag = mgmt_open_connection(phba, dst_addr, beiscsi_ep, &nonemb_cmd);
-	if (!tag) {
+	if (tag <= 0) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : mgmt_open_connection Failed for cid=%d\n",
 			    beiscsi_ep->ep_cid);
@@ -1066,7 +1065,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		return -EAGAIN;
 	}
 
-	ret = beiscsi_mccq_compl(phba, tag, &wrb, NULL);
+	ret = beiscsi_mccq_compl(phba, tag, NULL, nonemb_cmd.va);
 	if (ret) {
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
@@ -1077,7 +1076,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		goto free_ep;
 	}
 
-	ptcpcnct_out = embedded_payload(wrb);
+	ptcpcnct_out = (struct tcp_connect_and_offload_out *)nonemb_cmd.va;
 	beiscsi_ep = ep->dd_data;
 	beiscsi_ep->fw_handle = ptcpcnct_out->connection_handle;
 	beiscsi_ep->cid_vld = 1;

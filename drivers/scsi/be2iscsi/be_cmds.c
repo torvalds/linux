@@ -492,7 +492,7 @@ static int be_mbox_db_ready_wait(struct be_ctrl_info *ctrl)
 {
 	void __iomem *db = ctrl->db + MPU_MAILBOX_DB_OFFSET;
 	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
-	int wait = 0;
+	uint32_t wait = 0;
 	u32 ready;
 
 	do {
@@ -539,6 +539,10 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 	struct be_mcc_mailbox *mbox = mbox_mem->va;
 	struct be_mcc_compl *compl = &mbox->compl;
 	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
+
+	status = be_mbox_db_ready_wait(ctrl);
+	if (status)
+		return status;
 
 	val &= ~MPU_MAILBOX_DB_RDY_MASK;
 	val |= MPU_MAILBOX_DB_HI_MASK;
@@ -592,6 +596,10 @@ static int be_mbox_notify_wait(struct beiscsi_hba *phba)
 	struct be_mcc_mailbox *mbox = mbox_mem->va;
 	struct be_mcc_compl *compl = &mbox->compl;
 	struct be_ctrl_info *ctrl = &phba->ctrl;
+
+	status = be_mbox_db_ready_wait(ctrl);
+	if (status)
+		return status;
 
 	val |= MPU_MAILBOX_DB_HI_MASK;
 	/* at bits 2 - 31 place mbox dma addr msb bits 34 - 63 */
