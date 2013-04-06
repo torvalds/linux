@@ -52,6 +52,10 @@ struct be_mcc_wrb {
 
 /* Completion Status */
 #define MCC_STATUS_SUCCESS 0x0
+#define MCC_STATUS_FAILED 0x1
+#define MCC_STATUS_ILLEGAL_REQUEST 0x2
+#define MCC_STATUS_ILLEGAL_FIELD 0x3
+#define MCC_STATUS_INSUFFICIENT_BUFFER 0x4
 
 #define CQE_STATUS_COMPL_MASK 0xFFFF
 #define CQE_STATUS_COMPL_SHIFT 0	/* bits 0 - 15 */
