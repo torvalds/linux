@@ -61,9 +61,6 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_HWEIGHT
 	def_bool y
 
-config BINFMT_ELF
-	def_bool y
-
 config STACKTRACE_SUPPORT
 	def_bool y
 	select STACKTRACE
@@ -438,6 +435,10 @@ config ARC_BUILTIN_DTB_NAME
 	  Leaving it blank selects the minimal "skeleton" dtb
 
 source "kernel/Kconfig.preempt"
+
+menu "Executable file formats"
+source "fs/Kconfig.binfmt"
+endmenu
 
 endmenu	 # "ARC Architecture Configuration"
 
