@@ -1021,6 +1021,7 @@ int be_cmd_create_default_pdu_queue(struct be_ctrl_info *ctrl,
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
 	struct be_defq_create_req *req = embedded_payload(wrb);
 	struct be_dma_mem *q_mem = &dq->dma_mem;
+	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	void *ctxt = &req->context;
 	int status;
 
@@ -1033,17 +1034,36 @@ int be_cmd_create_default_pdu_queue(struct be_ctrl_info *ctrl,
 			   OPCODE_COMMON_ISCSI_DEFQ_CREATE, sizeof(*req));
 
 	req->num_pages = PAGES_4K_SPANNED(q_mem->va, q_mem->size);
-	AMAP_SET_BITS(struct amap_be_default_pdu_context, rx_pdid, ctxt, 0);
-	AMAP_SET_BITS(struct amap_be_default_pdu_context, rx_pdid_valid, ctxt,
-		      1);
-	AMAP_SET_BITS(struct amap_be_default_pdu_context, pci_func_id, ctxt,
-		      PCI_FUNC(ctrl->pdev->devfn));
-	AMAP_SET_BITS(struct amap_be_default_pdu_context, ring_size, ctxt,
-		      be_encoded_q_len(length / sizeof(struct phys_addr)));
-	AMAP_SET_BITS(struct amap_be_default_pdu_context, default_buffer_size,
-		      ctxt, entry_size);
-	AMAP_SET_BITS(struct amap_be_default_pdu_context, cq_id_recv, ctxt,
-		      cq->id);
+
+	if (is_chip_be2_be3r(phba)) {
+		AMAP_SET_BITS(struct amap_be_default_pdu_context,
+			      rx_pdid, ctxt, 0);
+		AMAP_SET_BITS(struct amap_be_default_pdu_context,
+			      rx_pdid_valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_be_default_pdu_context,
+			      pci_func_id, ctxt, PCI_FUNC(ctrl->pdev->devfn));
+		AMAP_SET_BITS(struct amap_be_default_pdu_context,
+			      ring_size, ctxt,
+			      be_encoded_q_len(length /
+			      sizeof(struct phys_addr)));
+		AMAP_SET_BITS(struct amap_be_default_pdu_context,
+			      default_buffer_size, ctxt, entry_size);
+		AMAP_SET_BITS(struct amap_be_default_pdu_context,
+			      cq_id_recv, ctxt,	cq->id);
+	} else {
+		AMAP_SET_BITS(struct amap_default_pdu_context_ext,
+			      rx_pdid, ctxt, 0);
+		AMAP_SET_BITS(struct amap_default_pdu_context_ext,
+			      rx_pdid_valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_default_pdu_context_ext,
+			      ring_size, ctxt,
+			      be_encoded_q_len(length /
+			      sizeof(struct phys_addr)));
+		AMAP_SET_BITS(struct amap_default_pdu_context_ext,
+			      default_buffer_size, ctxt, entry_size);
+		AMAP_SET_BITS(struct amap_default_pdu_context_ext,
+			      cq_id_recv, ctxt, cq->id);
+	}
 
 	be_dws_cpu_to_le(ctxt, sizeof(req->context));
 

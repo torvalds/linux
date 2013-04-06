@@ -756,6 +756,18 @@ struct amap_be_default_pdu_context {
 	u8 rsvd4[32];		/* dword 3 */
 } __packed;
 
+struct amap_default_pdu_context_ext {
+	u8 rsvd0[16];   /* dword 0 */
+	u8 ring_size[4];    /* dword 0 */
+	u8 rsvd1[12];   /* dword 0 */
+	u8 rsvd2[22];   /* dword 1 */
+	u8 rx_pdid[9];  /* dword 1 */
+	u8 rx_pdid_valid;   /* dword 1 */
+	u8 default_buffer_size[16]; /* dword 2 */
+	u8 cq_id_recv[16];  /* dword 2 */
+	u8 rsvd3[32];   /* dword 3 */
+} __packed;
+
 struct be_defq_create_req {
 	struct be_cmd_req_hdr hdr;
 	u16 num_pages;
@@ -901,7 +913,7 @@ struct amap_it_dmsg_cqe_v2 {
  * stack to notify the
  * controller of a posted Work Request Block
  */
-#define DB_WRB_POST_CID_MASK		0x3FF	/* bits 0 - 9 */
+#define DB_WRB_POST_CID_MASK		0xFFFF	/* bits 0 - 16 */
 #define DB_DEF_PDU_WRB_INDEX_MASK	0xFF	/* bits 0 - 9 */
 
 #define DB_DEF_PDU_WRB_INDEX_SHIFT	16
