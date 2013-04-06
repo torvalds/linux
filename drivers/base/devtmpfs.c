@@ -41,6 +41,8 @@ static struct req {
 	int err;
 	const char *name;
 	umode_t mode;	/* 0 => delete */
+	uid_t uid;
+	gid_t gid;
 	struct device *dev;
 } *requests;
 
@@ -85,7 +87,9 @@ int devtmpfs_create_node(struct device *dev)
 		return 0;
 
 	req.mode = 0;
-	req.name = device_get_devnode(dev, &req.mode, &tmp);
+	req.uid = 0;
+	req.gid = 0;
+	req.name = device_get_devnode(dev, &req.mode, &req.uid, &req.gid, &tmp);
 	if (!req.name)
 		return -ENOMEM;
 
@@ -121,7 +125,7 @@ int devtmpfs_delete_node(struct device *dev)
 	if (!thread)
 		return 0;
 
-	req.name = device_get_devnode(dev, NULL, &tmp);
+	req.name = device_get_devnode(dev, NULL, NULL, NULL, &tmp);
 	if (!req.name)
 		return -ENOMEM;
 
@@ -187,7 +191,8 @@ static int create_path(const char *nodepath)
 	return err;
 }
 
-static int handle_create(const char *nodename, umode_t mode, struct device *dev)
+static int handle_create(const char *nodename, umode_t mode, uid_t uid,
+			 gid_t gid, struct device *dev)
 {
 	struct dentry *dentry;
 	struct path path;
@@ -201,14 +206,14 @@ static int handle_create(const char *nodename, umode_t mode, struct device *dev)
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	err = vfs_mknod(path.dentry->d_inode,
-			dentry, mode, dev->devt);
+	err = vfs_mknod(path.dentry->d_inode, dentry, mode, dev->devt);
 	if (!err) {
 		struct iattr newattrs;
 
-		/* fixup possibly umasked mode */
 		newattrs.ia_mode = mode;
-		newattrs.ia_valid = ATTR_MODE;
+		newattrs.ia_uid = uid;
+		newattrs.ia_gid = gid;
+		newattrs.ia_valid = ATTR_MODE|ATTR_UID|ATTR_GID;
 		mutex_lock(&dentry->d_inode->i_mutex);
 		notify_change(dentry, &newattrs);
 		mutex_unlock(&dentry->d_inode->i_mutex);
@@ -358,10 +363,11 @@ int devtmpfs_mount(const char *mntdir)
 
 static DECLARE_COMPLETION(setup_done);
 
-static int handle(const char *name, umode_t mode, struct device *dev)
+static int handle(const char *name, umode_t mode, uid_t uid, gid_t gid,
+		  struct device *dev)
 {
 	if (mode)
-		return handle_create(name, mode, dev);
+		return handle_create(name, mode, uid, gid, dev);
 	else
 		return handle_remove(name, dev);
 }
@@ -387,7 +393,8 @@ static int devtmpfsd(void *p)
 			spin_unlock(&req_lock);
 			while (req) {
 				struct req *next = req->next;
-				req->err = handle(req->name, req->mode, req->dev);
+				req->err = handle(req->name, req->mode,
+						  req->uid, req->gid, req->dev);
 				complete(&req->done);
 				req = next;
 			}
