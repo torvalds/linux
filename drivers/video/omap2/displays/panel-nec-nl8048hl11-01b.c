@@ -303,16 +303,22 @@ static int nec_8048_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
-static int nec_8048_spi_suspend(struct spi_device *spi, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+
+static int nec_8048_spi_suspend(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
+
 	nec_8048_spi_send(spi, 2, 0x01);
 	mdelay(40);
 
 	return 0;
 }
 
-static int nec_8048_spi_resume(struct spi_device *spi)
+static int nec_8048_spi_resume(struct device *dev)
 {
+	struct spi_device *spi = to_spi_device(dev);
+
 	/* reinitialize the panel */
 	spi_setup(spi);
 	nec_8048_spi_send(spi, 2, 0x00);
@@ -321,14 +327,20 @@ static int nec_8048_spi_resume(struct spi_device *spi)
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(nec_8048_spi_pm_ops, nec_8048_spi_suspend,
+		nec_8048_spi_resume);
+#define NEC_8048_SPI_PM_OPS (&nec_8048_spi_pm_ops)
+#else
+#define NEC_8048_SPI_PM_OPS NULL
+#endif
+
 static struct spi_driver nec_8048_spi_driver = {
 	.probe		= nec_8048_spi_probe,
 	.remove		= nec_8048_spi_remove,
-	.suspend	= nec_8048_spi_suspend,
-	.resume		= nec_8048_spi_resume,
 	.driver		= {
 		.name	= "nec_8048_spi",
 		.owner	= THIS_MODULE,
+		.pm	= NEC_8048_SPI_PM_OPS,
 	},
 };
 
