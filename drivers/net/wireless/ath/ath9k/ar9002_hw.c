@@ -78,12 +78,6 @@ static int ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		/* Common for AR5416, AR913x, AR9160 */
 		INIT_INI_ARRAY(&ah->iniBB_RfGain, ar5416BB_RfGain);
 
-		INIT_INI_ARRAY(&ah->iniBank0, ar5416Bank0);
-		INIT_INI_ARRAY(&ah->iniBank1, ar5416Bank1);
-		INIT_INI_ARRAY(&ah->iniBank2, ar5416Bank2);
-		INIT_INI_ARRAY(&ah->iniBank3, ar5416Bank3);
-		INIT_INI_ARRAY(&ah->iniBank7, ar5416Bank7);
-
 		/* Common for AR913x, AR9160 */
 		if (!AR_SREV_5416(ah))
 			INIT_INI_ARRAY(&ah->iniBank6, ar5416Bank6TPC_9100);

@@ -33,6 +33,12 @@ struct ar5416IniArray {
 	u32 ia_columns;
 };
 
+#define STATIC_INI_ARRAY(array) {			\
+		.ia_array = (u32 *)(array),		\
+		.ia_rows = ARRAY_SIZE(array),		\
+		.ia_columns = ARRAY_SIZE(array[0]),	\
+	}
+
 #define INIT_INI_ARRAY(iniarray, array) do {	\
 		(iniarray)->ia_array = (u32 *)(array);		\
 		(iniarray)->ia_rows = ARRAY_SIZE(array);	\
