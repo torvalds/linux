@@ -226,7 +226,7 @@ struct audit_context {
 	union {
 		struct {
 			int nargs;
-			long args[6];
+			long args[AUDITSC_ARGS];
 		} socketcall;
 		struct {
 			kuid_t			uid;
@@ -2491,17 +2491,20 @@ int __audit_bprm(struct linux_binprm *bprm)
 
 /**
  * audit_socketcall - record audit data for sys_socketcall
- * @nargs: number of args
+ * @nargs: number of args, which should not be more than AUDITSC_ARGS.
  * @args: args array
  *
  */
-void __audit_socketcall(int nargs, unsigned long *args)
+int __audit_socketcall(int nargs, unsigned long *args)
 {
 	struct audit_context *context = current->audit_context;
 
+	if (nargs <= 0 || nargs > AUDITSC_ARGS || !args)
+		return -EINVAL;
 	context->type = AUDIT_SOCKETCALL;
 	context->socketcall.nargs = nargs;
 	memcpy(context->socketcall.args, args, nargs * sizeof(unsigned long));
+	return 0;
 }
 
 /**

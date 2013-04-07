@@ -84,6 +84,9 @@ extern int audit_classify_arch(int arch);
 #define	AUDIT_TYPE_CHILD_DELETE 3	/* a child being deleted */
 #define	AUDIT_TYPE_CHILD_CREATE 4	/* a child being created */
 
+/* maximized args number that audit_socketcall can process */
+#define AUDITSC_ARGS		6
+
 struct filename;
 
 #ifdef CONFIG_AUDITSYSCALL
@@ -190,7 +193,7 @@ extern void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk
 extern void __audit_ipc_obj(struct kern_ipc_perm *ipcp);
 extern void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, umode_t mode);
 extern int __audit_bprm(struct linux_binprm *bprm);
-extern void __audit_socketcall(int nargs, unsigned long *args);
+extern int __audit_socketcall(int nargs, unsigned long *args);
 extern int __audit_sockaddr(int len, void *addr);
 extern void __audit_fd_pair(int fd1, int fd2);
 extern void __audit_mq_open(int oflag, umode_t mode, struct mq_attr *attr);
@@ -224,10 +227,11 @@ static inline int audit_bprm(struct linux_binprm *bprm)
 		return __audit_bprm(bprm);
 	return 0;
 }
-static inline void audit_socketcall(int nargs, unsigned long *args)
+static inline int audit_socketcall(int nargs, unsigned long *args)
 {
 	if (unlikely(!audit_dummy_context()))
-		__audit_socketcall(nargs, args);
+		return __audit_socketcall(nargs, args);
+	return 0;
 }
 static inline int audit_sockaddr(int len, void *addr)
 {
@@ -354,8 +358,10 @@ static inline int audit_bprm(struct linux_binprm *bprm)
 {
 	return 0;
 }
-static inline void audit_socketcall(int nargs, unsigned long *args)
-{ }
+static inline int audit_socketcall(int nargs, unsigned long *args)
+{
+	return 0;
+}
 static inline void audit_fd_pair(int fd1, int fd2)
 { }
 static inline int audit_sockaddr(int len, void *addr)
