@@ -336,7 +336,7 @@ static inline struct cftype *__d_cft(struct dentry *dentry)
  * On success, returns true; the lock should be later released with
  * cgroup_unlock(). On failure returns false with no lock held.
  */
-bool cgroup_lock_live_group(struct cgroup *cgrp)
+static bool cgroup_lock_live_group(struct cgroup *cgrp)
 {
 	mutex_lock(&cgroup_mutex);
 	if (cgroup_is_removed(cgrp)) {
@@ -345,7 +345,6 @@ bool cgroup_lock_live_group(struct cgroup *cgrp)
 	}
 	return true;
 }
-EXPORT_SYMBOL_GPL(cgroup_lock_live_group);
 
 /* the list of cgroups eligible for automatic release. Protected by
  * release_list_lock */
@@ -824,22 +823,20 @@ static struct cgroup *task_cgroup_from_root(struct task_struct *task,
  * cgroup_lock - lock out any changes to cgroup structures
  *
  */
-void cgroup_lock(void)
+static void cgroup_lock(void)
 {
 	mutex_lock(&cgroup_mutex);
 }
-EXPORT_SYMBOL_GPL(cgroup_lock);
 
 /**
  * cgroup_unlock - release lock on cgroup changes
  *
  * Undo the lock taken in a previous cgroup_lock() call.
  */
-void cgroup_unlock(void)
+static void cgroup_unlock(void)
 {
 	mutex_unlock(&cgroup_mutex);
 }
-EXPORT_SYMBOL_GPL(cgroup_unlock);
 
 /*
  * A couple of forward declarations required, due to cyclic reference loop:
