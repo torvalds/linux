@@ -30,7 +30,6 @@ struct css_id;
 
 extern int cgroup_init_early(void);
 extern int cgroup_init(void);
-extern int cgroup_lock_is_held(void);
 extern void cgroup_fork(struct task_struct *p);
 extern void cgroup_post_fork(struct task_struct *p);
 extern void cgroup_exit(struct task_struct *p, int run_callbacks);
@@ -552,10 +551,16 @@ static inline struct cgroup_subsys_state *cgroup_subsys_state(
  * rcu_dereference_check() conditions, such as locks used during the
  * cgroup_subsys::attach() methods.
  */
+#ifdef CONFIG_PROVE_RCU
+extern struct mutex cgroup_mutex;
 #define task_subsys_state_check(task, subsys_id, __c)			\
-	rcu_dereference_check(task->cgroups->subsys[subsys_id],		\
-			      lockdep_is_held(&task->alloc_lock) ||	\
-			      cgroup_lock_is_held() || (__c))
+	rcu_dereference_check((task)->cgroups->subsys[(subsys_id)],	\
+			      lockdep_is_held(&(task)->alloc_lock) ||	\
+			      lockdep_is_held(&cgroup_mutex) || (__c))
+#else
+#define task_subsys_state_check(task, subsys_id, __c)			\
+	rcu_dereference((task)->cgroups->subsys[(subsys_id)])
+#endif
 
 static inline struct cgroup_subsys_state *
 task_subsys_state(struct task_struct *task, int subsys_id)
