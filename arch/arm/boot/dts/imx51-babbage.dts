@@ -11,7 +11,7 @@
  */
 
 /dts-v1/;
-/include/ "imx51.dtsi"
+#include "imx51.dtsi"
 
 / {
 	model = "Freescale i.MX51 Babbage Board";

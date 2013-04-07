@@ -10,7 +10,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "imx53.dtsi"
+#include "imx53.dtsi"
 
 / {
 	model = "TQ TQMa53";

@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "imx27.dtsi"
+#include "imx27.dtsi"
 
 / {
 	model = "Phytec pcm038";

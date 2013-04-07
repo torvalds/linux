@@ -11,7 +11,7 @@
  */
 
 /dts-v1/;
-/include/ "imx53.dtsi"
+#include "imx53.dtsi"
 
 / {
 	model = "Freescale i.MX53 Automotive Reference Design Board";

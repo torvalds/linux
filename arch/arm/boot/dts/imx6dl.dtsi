@@ -7,7 +7,7 @@
  *
  */
 
-/include/ "imx6qdl.dtsi"
+#include "imx6qdl.dtsi"
 
 / {
 	cpus {
