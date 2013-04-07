@@ -533,7 +533,7 @@ static int lpc32xx_of_xlate(struct gpio_chip *gc,
 {
 	/* Is this the correct bank? */
 	u32 bank = gpiospec->args[0];
-	if ((bank > ARRAY_SIZE(lpc32xx_gpiochip) ||
+	if ((bank >= ARRAY_SIZE(lpc32xx_gpiochip) ||
 	    (gc != &lpc32xx_gpiochip[bank].chip)))
 		return -EINVAL;
 
