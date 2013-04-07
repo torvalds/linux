@@ -186,7 +186,7 @@ static int mlx4_en_dcbnl_ieee_setpfc(struct net_device *dev,
 
 static u8 mlx4_en_dcbnl_getdcbx(struct net_device *dev)
 {
-	return DCB_CAP_DCBX_VER_IEEE;
+	return DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_IEEE;
 }
 
 static u8 mlx4_en_dcbnl_setdcbx(struct net_device *dev, u8 mode)
