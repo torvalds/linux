@@ -46,7 +46,6 @@ struct ab8500_shared_mode {
  * @desc: regulator description
  * @regulator_dev: regulator device
  * @shared_mode: used when mode is shared between two regulators
- * @is_enabled: status of regulator (on/off)
  * @load_lp_uA: maximum load in idle (low power) mode
  * @update_bank: bank to control on/off
  * @update_reg: register to control on/off
@@ -69,7 +68,6 @@ struct ab8500_regulator_info {
 	struct regulator_desc	desc;
 	struct regulator_dev	*regulator;
 	struct ab8500_shared_mode *shared_mode;
-	bool is_enabled;
 	int load_lp_uA;
 	u8 update_bank;
 	u8 update_reg;
@@ -259,8 +257,6 @@ static int ab8500_regulator_enable(struct regulator_dev *rdev)
 		return ret;
 	}
 
-	info->is_enabled = true;
-
 	dev_vdbg(rdev_get_dev(rdev),
 		"%s-enable (bank, reg, mask, value): 0x%x, 0x%x, 0x%x, 0x%x\n",
 		info->desc.name, info->update_bank, info->update_reg,
@@ -288,14 +284,43 @@ static int ab8500_regulator_disable(struct regulator_dev *rdev)
 		return ret;
 	}
 
-	info->is_enabled = false;
-
 	dev_vdbg(rdev_get_dev(rdev),
 		"%s-disable (bank, reg, mask, value): 0x%x, 0x%x, 0x%x, 0x%x\n",
 		info->desc.name, info->update_bank, info->update_reg,
 		info->update_mask, 0x0);
 
 	return ret;
+}
+
+static int ab8500_regulator_is_enabled(struct regulator_dev *rdev)
+{
+	int ret;
+	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
+	u8 regval;
+
+	if (info == NULL) {
+		dev_err(rdev_get_dev(rdev), "regulator info null pointer\n");
+		return -EINVAL;
+	}
+
+	ret = abx500_get_register_interruptible(info->dev,
+		info->update_bank, info->update_reg, &regval);
+	if (ret < 0) {
+		dev_err(rdev_get_dev(rdev),
+			"couldn't read 0x%x register\n", info->update_reg);
+		return ret;
+	}
+
+	dev_vdbg(rdev_get_dev(rdev),
+		"%s-is_enabled (bank, reg, mask, value): 0x%x, 0x%x, 0x%x,"
+		" 0x%x\n",
+		info->desc.name, info->update_bank, info->update_reg,
+		info->update_mask, regval);
+
+	if (regval & info->update_mask)
+		return 1;
+	else
+		return 0;
 }
 
 static unsigned int ab8500_regulator_get_optimum_mode(
@@ -398,7 +423,7 @@ static int ab8500_regulator_set_mode(struct regulator_dev *rdev,
 		mask = info->update_mask;
 	}
 
-	if (info->is_enabled || dmr) {
+	if (dmr || ab8500_regulator_is_enabled(rdev)) {
 		ret = abx500_mask_and_set_register_interruptible(info->dev,
 			bank, reg, mask, val);
 		if (ret < 0)
@@ -462,39 +487,6 @@ static unsigned int ab8500_regulator_get_mode(struct regulator_dev *rdev)
 		ret = -EINVAL;
 
 	return ret;
-}
-
-static int ab8500_regulator_is_enabled(struct regulator_dev *rdev)
-{
-	int ret;
-	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
-	u8 regval;
-
-	if (info == NULL) {
-		dev_err(rdev_get_dev(rdev), "regulator info null pointer\n");
-		return -EINVAL;
-	}
-
-	ret = abx500_get_register_interruptible(info->dev,
-		info->update_bank, info->update_reg, &regval);
-	if (ret < 0) {
-		dev_err(rdev_get_dev(rdev),
-			"couldn't read 0x%x register\n", info->update_reg);
-		return ret;
-	}
-
-	dev_vdbg(rdev_get_dev(rdev),
-		"%s-is_enabled (bank, reg, mask, value): 0x%x, 0x%x, 0x%x,"
-		" 0x%x\n",
-		info->desc.name, info->update_bank, info->update_reg,
-		info->update_mask, regval);
-
-	if (regval & info->update_mask)
-		info->is_enabled = true;
-	else
-		info->is_enabled = false;
-
-	return info->is_enabled;
 }
 
 static int ab8500_regulator_get_voltage_sel(struct regulator_dev *rdev)
