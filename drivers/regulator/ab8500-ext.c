@@ -237,21 +237,6 @@ static unsigned int ab8500_ext_regulator_get_mode(struct regulator_dev *rdev)
 	return ret;
 }
 
-static int ab8500_ext_fixed_get_voltage(struct regulator_dev *rdev)
-{
-	struct regulation_constraints *regu_constraints = rdev->constraints;
-
-	if (regu_constraints == NULL) {
-		dev_err(rdev_get_dev(rdev), "regulator constraints null pointer\n");
-		return -EINVAL;
-	}
-	if (regu_constraints->min_uV && regu_constraints->max_uV) {
-		if (regu_constraints->min_uV == regu_constraints->max_uV)
-			return regu_constraints->min_uV;
-	}
-	return -EINVAL;
-}
-
 static int ab8500_ext_list_voltage(struct regulator_dev *rdev,
 				   unsigned selector)
 {
@@ -275,7 +260,6 @@ static struct regulator_ops ab8500_ext_regulator_ops = {
 	.is_enabled		= ab8500_ext_regulator_is_enabled,
 	.set_mode		= ab8500_ext_regulator_set_mode,
 	.get_mode		= ab8500_ext_regulator_get_mode,
-	.get_voltage		= ab8500_ext_fixed_get_voltage,
 	.list_voltage		= ab8500_ext_list_voltage,
 };
 
