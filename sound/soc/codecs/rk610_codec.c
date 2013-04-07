@@ -37,25 +37,13 @@
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
 #endif
+#define HP_OUT 0
+#define HP_IN  1
 
 //if you find resume rk610 cannot work,you can try RESUME_PROBLEM 1.
 //if rk610 Normal working on RESUME_PROBLEM 1, you must detect Machine other driver queue.
 //you can look soc-core.c the resume source.s
 #define RESUME_PROBLEM 0
-
-//old control method,please filling rk610_codec_platform_data into Board-xx-xx.c
-//qjb 2013-01-14
-#if 0
-#if defined(CONFIG_MACH_RK3168_DS1006H)|| defined(CONFIG_MACH_RK3168_LR097)
-#define RK610_SPK_CTRL_PIN  RK30_PIN2_PD7
-#elif defined(CONFIG_ARCH_RK3066B)
-#define RK610_SPK_CTRL_PIN  RK30_PIN2_PA0
-#elif defined(CONFIG_ARCH_RK30)
-#define RK610_SPK_CTRL_PIN  RK30_PIN4_PC6
-#else
-#define RK610_SPK_CTRL_PIN  RK29_PIN6_PB6
-#endif
-#endif
 
 //1:set pll from rk610
 #define RK610_CTL_PLL 0
@@ -116,7 +104,30 @@ struct rk610_codec_priv {
 	int rk610_workstatus;
 #endif
 	struct rk610_codec_platform_data *pdata;
+	int call_enable;	
+	int headset_status;	
 };
+
+static void spk_ctrl_fun(int status)
+{
+	struct rk610_codec_priv *rk610_codec = NULL;
+	if(rk610_codec_codec == NULL)
+		return;
+	rk610_codec = snd_soc_codec_get_drvdata(rk610_codec_codec);
+	if(rk610_codec == NULL)
+		return;
+#ifdef CONFIG_MODEM_SOUND
+	if(rk610_codec->call_enable){
+		DBG("%s:: is calling cannot set spk\n",__FUNCTION__);
+		return;
+	}	
+#endif		
+	if(rk610_codec->spk_ctrl_io)
+	{
+		DBG("%s:: spk status = %d\n",__FUNCTION__,status);
+		gpio_set_value(rk610_codec->spk_ctrl_io, status);
+	}
+}
 
 void codec_set_spk(bool on)
 {
@@ -185,8 +196,13 @@ static inline void rk610_codec_write_reg_cache(struct snd_soc_codec *codec,
 static int rk610_codec_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int value)
 {
+	struct rk610_codec_priv *rk610_codec = snd_soc_codec_get_drvdata(rk610_codec_codec);
 	u8 data[2];
 	struct i2c_client *i2c;
+#ifdef CONFIG_MODEM_SOUND	
+	if(rk610_codec->call_enable)
+		return 0;
+#endif	
 	DBG("Enter::%s, %d, reg=0x%02X, value=0x%02X\n",__FUNCTION__,__LINE__, reg, value);
 	data[0] = value & 0x00ff;
 	rk610_codec_write_reg_cache (codec, reg, value);
@@ -202,6 +218,97 @@ static int rk610_codec_write(struct snd_soc_codec *codec, unsigned int reg,
 	}
 }
 
+#ifdef CONFIG_MODEM_SOUND
+static int rk610_codec_write_incall(struct snd_soc_codec *codec, unsigned int reg,
+	unsigned int value)
+{
+	u8 data[2];
+	struct i2c_client *i2c;
+	DBG("Enter::%s, %d, reg=0x%02X, value=0x%02X\n",__FUNCTION__,__LINE__, reg, value);
+	data[0] = value & 0x00ff;
+	rk610_codec_write_reg_cache (codec, reg, value);
+	i2c = (struct i2c_client *)codec->control_data;
+	i2c->addr = (i2c->addr & 0x60)|reg;
+
+	if (codec->hw_write(codec->control_data, data, 1) == 1)
+		return 0;
+	else
+		return -EIO;
+}
+
+void call_set_spk(int on)
+{
+	struct rk610_codec_priv *rk610_codec;
+	if(!rk610_codec_codec)
+		return;
+	rk610_codec = snd_soc_codec_get_drvdata(rk610_codec_codec);
+	if(!rk610_codec)
+		return;
+		
+	switch(on)
+	{
+	case 0:
+		//modem exit call,codec disable loopback
+		printk("%s modem exit call \n", __FUNCTION__);
+		rk610_codec_write(rk610_codec_codec,ACCELCODEC_R0E, 0x80);
+		rk610_codec->call_enable = 0;	
+		break;
+	case 1:
+		//modem calling,codec enable loopback,spk hp different volume
+		printk("%s spk incalling\n", __FUNCTION__);
+		rk610_codec_write(rk610_codec_codec,ACCELCODEC_R0E, 0x00);
+		rk610_codec->call_enable = 1;	
+		return;
+	case 2:
+		printk("%s hp incalling\n", __FUNCTION__);
+		rk610_codec_write(rk610_codec_codec,ACCELCODEC_R0E, 0x00);
+		rk610_codec->call_enable = 1;	
+		break;
+	case 3:
+		printk("%s bt incalling\n", __FUNCTION__);    
+		rk610_codec_write(rk610_codec_codec,ACCELCODEC_R0E, 0x00);	
+		rk610_codec->call_enable = 1;
+		break;
+	}
+
+	return;
+}
+#endif
+#ifdef CONFIG_RK_HEADSET_DET
+//for headset
+void rk2928_codec_set_spk(bool on)
+{
+	struct rk610_codec_priv *rk610_codec;
+	if(!rk610_codec_codec)
+		return;
+	rk610_codec=snd_soc_codec_get_drvdata(rk610_codec_codec);
+	if(!rk610_codec)
+		return;
+		
+	if(on)
+		rk610_codec->headset_status = HP_IN;
+	else
+		rk610_codec->headset_status = HP_OUT;
+		
+	if(rk610_codec->call_enable)
+		return;
+		
+	printk("%s: headset %s %s PA bias_level=%d\n",__FUNCTION__,on?"in":"out",on?"disable":"enable",codec->dapm.bias_level);
+	if(on) {
+		if(rk610_codec->spk_ctrl_io)
+			gpio_set_value(rk610_codec->spk_ctrl_io, GPIO_LOW);
+	}
+	else {
+		if(codec->dapm.bias_level == SND_SOC_BIAS_STANDBY 
+		|| codec->dapm.bias_level == SND_SOC_BIAS_OFF){
+			return;
+		}
+		if(rk610_codec->spk_ctrl_io)
+			gpio_set_value(rk610_codec->spk_ctrl_io, GPIO_HIGH);
+	}
+}
+#endif
+
 void rk610_codec_reg_read(void)
 {
     struct snd_soc_codec *codec = rk610_codec_codec;
@@ -212,22 +319,6 @@ void rk610_codec_reg_read(void)
         data = rk610_codec_read(codec, i);
         printk("reg[0x%x]=0x%x\n",i,data);
     }
-}
-
-static void spk_ctrl_fun(int status)
-{
-	struct rk610_codec_priv *rk610_codec = NULL;
-	if(rk610_codec_codec == NULL)
-		return;
-	rk610_codec = snd_soc_codec_get_drvdata(rk610_codec_codec);
-	if(rk610_codec == NULL)
-		return;
-		
-	if(rk610_codec->spk_ctrl_io)
-	{
-		DBG("--------%s----------status = %d\n",__FUNCTION__,status);
-		gpio_set_value(rk610_codec->spk_ctrl_io, status);
-	}
 }
 
 struct _coeff_div {
@@ -766,22 +857,6 @@ static int rk610_codec_probe(struct snd_soc_codec *codec)
 
 	INIT_DELAYED_WORK(&rk610_codec->rk610_delayed_work, rk610_delayedwork_fun);
 	
-//old control method,please filling rk610_codec_platform_data into Board-xx-xx.c
-//qjb 2013-01-14
-#if 0
-#ifdef RK610_SPK_CTRL_PIN
-	rk610_codec->spk_ctrl_io = RK610_SPK_CTRL_PIN;
-	ret = gpio_request(rk610_codec->spk_ctrl_io, "rk610 spk_ctrl");
-    if (ret){
-        printk("rk610_control request gpio fail!\n");
-		return ret;
-    }
-    gpio_direction_output(rk610_codec->spk_ctrl_io, GPIO_LOW);
-    gpio_set_value(rk610_codec->spk_ctrl_io, GPIO_LOW);
-#else
-	rk610_codec->spk_ctrl_io = 0;
-#endif
-#endif
 	if(rk610_codec->spk_ctrl_io)
 	{
 		ret = gpio_request(rk610_codec->spk_ctrl_io, "rk610 spk_ctrl");
@@ -794,6 +869,8 @@ static int rk610_codec_probe(struct snd_soc_codec *codec)
 	}
 	
 	rk610_codec->hdmi_ndet = true;
+	rk610_codec->call_enable = 0;
+	rk610_codec->headset_status = HP_OUT;
 #if RESUME_PROBLEM	
 	rk610_codec->rk610_workstatus = SND_SOC_DAPM_STREAM_NOP;
 #endif

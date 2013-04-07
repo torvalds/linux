@@ -23,7 +23,7 @@
 #define DISABLE            0
 
 static struct modem_sound_data *modem_sound;
-#ifdef CONFIG_SND_RK_SOC_RK2928
+#if defined(CONFIG_SND_RK_SOC_RK2928)|| defined(CONFIG_SND_RK29_SOC_RK610)
 extern void call_set_spk(int on);
 #endif
 int modem_sound_spkctl(int status)

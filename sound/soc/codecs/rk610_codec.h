@@ -134,7 +134,7 @@
 #define ASC_INT_ENABLE               (0x1 << 1)    //interpolate filter enable
 #define ASC_INT_DISABLE              (0x0 << 1)
 
-//Input
+//Input ACCELCODEC_R0E
 #define ASC_INPUT_MUTE               (0x1 << 7)
 #define ASC_INPUT_ACTIVE             (0x0 << 7)
 #define ASC_INPUT_VOL_0DB            (0x0)
