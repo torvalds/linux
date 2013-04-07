@@ -85,3 +85,36 @@ void save_stack_trace(struct stack_trace *trace)
 EXPORT_SYMBOL_GPL(save_stack_trace);
 
 #endif
+
+#ifdef CONFIG_FRAME_POINTER
+
+struct return_addr_data {
+	unsigned long addr;
+	unsigned skip;
+};
+
+static int return_address_cb(struct stackframe *frame, void *data)
+{
+	struct return_addr_data *r = data;
+
+	if (r->skip) {
+		--r->skip;
+		return 0;
+	}
+	if (!kernel_text_address(frame->pc))
+		return 0;
+	r->addr = frame->pc;
+	return 1;
+}
+
+unsigned long return_address(unsigned level)
+{
+	struct return_addr_data r = {
+		.skip = level + 1,
+	};
+	walk_stackframe(stack_pointer(NULL), return_address_cb, &r);
+	return r.addr;
+}
+EXPORT_SYMBOL(return_address);
+
+#endif
