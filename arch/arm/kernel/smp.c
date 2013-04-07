@@ -673,9 +673,6 @@ static int cpufreq_callback(struct notifier_block *nb,
 	if (freq->flags & CPUFREQ_CONST_LOOPS)
 		return NOTIFY_OK;
 
-	if (arm_delay_ops.const_clock)
-		return NOTIFY_OK;
-
 	if (!per_cpu(l_p_j_ref, cpu)) {
 		per_cpu(l_p_j_ref, cpu) =
 			per_cpu(cpu_data, cpu).loops_per_jiffy;

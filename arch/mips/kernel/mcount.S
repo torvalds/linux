@@ -46,10 +46,9 @@
 	PTR_L	a5, PT_R9(sp)
 	PTR_L	a6, PT_R10(sp)
 	PTR_L	a7, PT_R11(sp)
-#else
-	PTR_ADDIU	sp, PT_SIZE
 #endif
-.endm
+	PTR_ADDIU	sp, PT_SIZE
+	.endm
 
 	.macro RETURN_BACK
 	jr ra
@@ -68,7 +67,11 @@ NESTED(ftrace_caller, PT_SIZE, ra)
 	.globl _mcount
 _mcount:
 	b	ftrace_stub
-	addiu sp,sp,8
+#ifdef CONFIG_32BIT
+	 addiu sp,sp,8
+#else
+	 nop
+#endif
 
 	/* When tracing is activated, it calls ftrace_caller+8 (aka here) */
 	lw	t1, function_trace_stop
