@@ -608,7 +608,7 @@ static struct regulator_desc regulators[] = {
 /*
  *
  */
- int rk808_i2c_read(struct rk808 *rk808, char reg, int count,u16 *dest)
+ int rk808_i2c_read(struct rk808 *rk808, char reg, int count,u8 *dest)
 {
 	struct i2c_client *i2c = rk808->i2c;
 
@@ -630,7 +630,7 @@ static struct regulator_desc regulators[] = {
     msgs[0].len = 1;
     msgs[0].scl_rate = 200*1000;
     
-    msgs[1].buf = (u8 *)dest;
+    msgs[1].buf = dest;
     msgs[1].addr = i2c->addr;
     msgs[1].flags =  I2C_M_RD;
     msgs[1].len = count;
@@ -642,7 +642,7 @@ static struct regulator_desc regulators[] = {
     return 0;
 }
 
-int rk808_i2c_write(struct rk808 *rk808, char reg, int count,  const u16 src)
+int rk808_i2c_write(struct rk808 *rk808, char reg, int count,  const u8 src)
 {
 	int ret=-1;
 	struct i2c_client *i2c = rk808->i2c;
@@ -671,7 +671,7 @@ int rk808_i2c_write(struct rk808 *rk808, char reg, int count,  const u16 src)
 
 u8 rk808_reg_read(struct rk808 *rk808, u8 reg)
 {
-	u16 val = 0;
+	u8 val = 0;
 
 	mutex_lock(&rk808->io_lock);
 
@@ -700,9 +700,9 @@ int rk808_reg_write(struct rk808 *rk808, u8 reg, u8 val)
 }
 EXPORT_SYMBOL_GPL(rk808_reg_write);
 
- int rk808_set_bits(struct rk808 *rk808, u8 reg, u16 mask, u16 val)
+ int rk808_set_bits(struct rk808 *rk808, u8 reg, u8 mask, u8 val)
 {
-	u16 tmp;
+	u8 tmp;
 	int ret;
 
 	mutex_lock(&rk808->io_lock);
@@ -751,7 +751,7 @@ int rk808_bulk_read(struct rk808 *rk808, u8 reg,
 	int ret;
                     
 #if defined(CONFIG_MFD_RK610)    
-	int i;             //Solve communication conflict when rk610 and 808 on the same i2c 
+	int i;             //Solve communication conflict when rk610 and rk808 on the same i2c 
 
 	mutex_lock(&rk808->io_lock);
 	for(i=0; i<count; i++){
@@ -768,7 +768,7 @@ int rk808_bulk_read(struct rk808 *rk808, u8 reg,
 #else
 	mutex_lock(&rk808->io_lock);
 	
-	ret = rk808_i2c_read(rk808, reg, count, buf);
+	ret = rk808->read(rk808, reg, count, buf);
 
 	mutex_unlock(&rk808->io_lock);
 #endif
@@ -798,7 +798,7 @@ int rk808_bulk_write(struct rk808 *rk808, u8 reg,
 #else
 	mutex_lock(&rk808->io_lock);
 	
-	ret = rk808_i2c_write(rk808, reg, count, buf);
+	ret = rk808->write(rk808, reg, count, buf);
 
 	mutex_unlock(&rk808->io_lock);
 #endif
@@ -815,7 +815,6 @@ static ssize_t rk808_test_store(struct kobject *kobj, struct kobj_attribute *att
     u32 getdata[8];
     u16 regAddr;
     u8 data;
-    int ret=0;
     char cmd;
     const char *buftmp = buf;
     struct rk808 *rk808 = g_rk808;
@@ -1000,6 +999,8 @@ static int __devinit rk808_i2c_probe(struct i2c_client *i2c, const struct i2c_de
 	rk808->i2c = i2c;
 	rk808->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, rk808);
+	rk808->read = rk808_i2c_read;
+	rk808->write = rk808_i2c_write;
 	mutex_init(&rk808->io_lock);	
 
 	ret = mfd_add_devices(rk808->dev, -1,

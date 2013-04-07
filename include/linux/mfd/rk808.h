@@ -125,6 +125,8 @@ struct rk808 {
 	int irq_num;
 	int chip_irq;
 	u32 irq_mask;
+	int (*read)(struct rk808 *rk808, u8 reg, int size, void *dest);
+	int (*write)(struct rk808 *rk808, u8 reg, int size, void *src);
 };
 
 struct rk808_platform_data {
@@ -137,11 +139,11 @@ struct rk808_platform_data {
 };
 
 int rk808_irq_init(struct rk808 *rk808, int irq,struct rk808_platform_data *pdata);
- int rk808_i2c_read(struct rk808 *rk808, char reg, int count,u16 *dest);
+ int rk808_i2c_read(struct rk808 *rk808, char reg, int count,u8 *dest);
 //int rk808_i2c_read(struct i2c_client *i2c, char reg, int count,u16 *dest);
 // int rk808_i2c_read(struct rk808 *rk808 , u8 reg, int bytes,void *dest); 
-int rk808_i2c_write(struct rk808 *rk808, char reg, int count, const u16 src);
-int rk808_set_bits(struct rk808 *rk808, u8 reg, u16 mask, u16 val);
+int rk808_i2c_write(struct rk808 *rk808, char reg, int count, const u8 src);
+int rk808_set_bits(struct rk808 *rk808, u8 reg, u8 mask, u8 val);
 int rk808_clear_bits(struct rk808 *rk808, u8 reg, u8 mask);
 u8 rk808_reg_read(struct rk808 *rk808, u8 reg);
 int rk808_reg_write(struct rk808 *rk808, u8 reg, u8 val);

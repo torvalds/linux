@@ -630,11 +630,12 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 	}
 
 	//for rtc irq test
+	/*
 	rk808_set_bits(rk808_rtc->rk808, RK808_RTC_STATUS_REG,(0x1<< 6),(0x1 <<6));
 	rk808_set_bits(rk808_rtc->rk808, RK808_RTC_INT_REG,0x0c,0x0c);
 	rk808_set_bits(rk808_rtc->rk808,RK808_INT_STS_REG1,(0x3 << 5),(0x3 <<5));
 	rk808_set_bits(rk808_rtc->rk808, RK808_INT_STS_MSK_REG1,(0x3 <<5),0);
-
+*/
 
 	enable_irq_wake(alm_irq); // so rk808 alarm irq can wake up system
 	rk808_pdev = pdev;
