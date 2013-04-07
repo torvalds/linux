@@ -28,6 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 #include <linux/of_mdio.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
@@ -46,6 +47,7 @@
 struct orion_mdio_dev {
 	struct mutex lock;
 	void __iomem *regs;
+	struct clk *clk;
 	/*
 	 * If we have access to the error interrupt pin (which is
 	 * somewhat misnamed as it not only reflects internal errors
@@ -230,6 +232,10 @@ static int orion_mdio_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&dev->smi_busy_wait);
 
+	dev->clk = devm_clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(dev->clk))
+		clk_prepare_enable(dev->clk);
+
 	dev->err_interrupt = platform_get_irq(pdev, 0);
 	if (dev->err_interrupt != -ENXIO) {
 		ret = devm_request_irq(&pdev->dev, dev->err_interrupt,
@@ -258,6 +264,8 @@ static int orion_mdio_probe(struct platform_device *pdev)
 	return 0;
 
 out_mdio:
+	if (!IS_ERR(dev->clk))
+		clk_disable_unprepare(dev->clk);
 	kfree(bus->irq);
 	mdiobus_free(bus);
 	return ret;
@@ -272,6 +280,9 @@ static int orion_mdio_remove(struct platform_device *pdev)
 	mdiobus_unregister(bus);
 	kfree(bus->irq);
 	mdiobus_free(bus);
+	if (!IS_ERR(dev->clk))
+		clk_disable_unprepare(dev->clk);
+
 	return 0;
 }
 
