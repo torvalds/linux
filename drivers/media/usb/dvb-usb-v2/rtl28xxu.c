@@ -918,6 +918,10 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 	case TUNER_RTL2832_R820T:
 		fe = dvb_attach(r820t_attach, adap->fe[0], &d->i2c_adap,
 				&rtl2832u_r820t_config);
+
+		/* Use tuner to get the signal strength */
+		adap->fe[0]->ops.read_signal_strength =
+				adap->fe[0]->ops.tuner_ops.get_rf_strength;
 		break;
 	default:
 		fe = NULL;
