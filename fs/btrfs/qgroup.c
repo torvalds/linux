@@ -781,11 +781,15 @@ int btrfs_quota_enable(struct btrfs_trans_handle *trans,
 		       struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *quota_root;
+	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_path *path = NULL;
 	struct btrfs_qgroup_status_item *ptr;
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
+	struct btrfs_key found_key;
+	struct btrfs_qgroup *qgroup = NULL;
 	int ret = 0;
+	int slot;
 
 	spin_lock(&fs_info->qgroup_lock);
 	if (fs_info->quota_root) {
@@ -832,7 +836,58 @@ int btrfs_quota_enable(struct btrfs_trans_handle *trans,
 
 	btrfs_mark_buffer_dirty(leaf);
 
+	key.objectid = 0;
+	key.type = BTRFS_ROOT_REF_KEY;
+	key.offset = 0;
+
+	btrfs_release_path(path);
+	ret = btrfs_search_slot_for_read(tree_root, &key, path, 1, 0);
+	if (ret > 0)
+		goto out_add_root;
+	if (ret < 0)
+		goto out_free_path;
+
+
+	while (1) {
+		slot = path->slots[0];
+		leaf = path->nodes[0];
+		btrfs_item_key_to_cpu(leaf, &found_key, slot);
+
+		if (found_key.type == BTRFS_ROOT_REF_KEY) {
+			ret = add_qgroup_item(trans, quota_root,
+					      found_key.offset);
+			if (ret)
+				goto out_free_path;
+
+			spin_lock(&fs_info->qgroup_lock);
+			qgroup = add_qgroup_rb(fs_info, found_key.offset);
+			if (IS_ERR(qgroup)) {
+				spin_unlock(&fs_info->qgroup_lock);
+				ret = PTR_ERR(qgroup);
+				goto out_free_path;
+			}
+			spin_unlock(&fs_info->qgroup_lock);
+		}
+		ret = btrfs_next_item(tree_root, path);
+		if (ret < 0)
+			goto out_free_path;
+		if (ret)
+			break;
+	}
+
+out_add_root:
+	btrfs_release_path(path);
+	ret = add_qgroup_item(trans, quota_root, BTRFS_FS_TREE_OBJECTID);
+	if (ret)
+		goto out_free_path;
+
 	spin_lock(&fs_info->qgroup_lock);
+	qgroup = add_qgroup_rb(fs_info, BTRFS_FS_TREE_OBJECTID);
+	if (IS_ERR(qgroup)) {
+		spin_unlock(&fs_info->qgroup_lock);
+		ret = PTR_ERR(qgroup);
+		goto out_free_path;
+	}
 	fs_info->quota_root = quota_root;
 	fs_info->pending_quota_state = 1;
 	spin_unlock(&fs_info->qgroup_lock);
