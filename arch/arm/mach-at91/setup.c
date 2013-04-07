@@ -353,7 +353,7 @@ static void at91_dt_ramc(void)
 
 	np = of_find_matching_node(NULL, ramc_ids);
 	if (!np)
-		panic("unable to find compatible ram conroller node in dtb\n");
+		panic("unable to find compatible ram controller node in dtb\n");
 
 	at91_ramc_base[0] = of_iomap(np, 0);
 	if (!at91_ramc_base[0])
@@ -403,7 +403,7 @@ static void at91_dt_shdwc(void)
 
 	np = of_find_matching_node(NULL, shdwc_ids);
 	if (!np) {
-		pr_debug("AT91: unable to find compatible shutdown (shdwc) conroller node in dtb\n");
+		pr_debug("AT91: unable to find compatible shutdown (shdwc) controller node in dtb\n");
 		return;
 	}
 
@@ -419,7 +419,7 @@ static void at91_dt_shdwc(void)
 
 	if (!of_property_read_u32(np, "atmel,wakeup-counter", &reg)) {
 		if (reg > AT91_SHDW_CPTWK0_MAX) {
-			pr_warn("AT91: shdwc wakeup conter 0x%x > 0x%x reduce it to 0x%x\n",
+			pr_warn("AT91: shdwc wakeup counter 0x%x > 0x%x reduce it to 0x%x\n",
 				reg, AT91_SHDW_CPTWK0_MAX, AT91_SHDW_CPTWK0_MAX);
 			reg = AT91_SHDW_CPTWK0_MAX;
 		}
