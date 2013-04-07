@@ -1915,7 +1915,7 @@ static int mb86a20s_set_frontend(struct dvb_frontend *fe)
 	if (!c->isdbt_sb_mode) {
 		state->subchannel = 0;
 	} else {
-		if (c->isdbt_sb_subchannel > ARRAY_SIZE(mb86a20s_subchannel))
+		if (c->isdbt_sb_subchannel >= ARRAY_SIZE(mb86a20s_subchannel))
 			c->isdbt_sb_subchannel = 0;
 
 		state->subchannel = mb86a20s_subchannel[c->isdbt_sb_subchannel];
