@@ -1215,6 +1215,12 @@ static int generic_set_freq(struct dvb_frontend *fe,
 		goto err;
 
 	rc = r820t_sysfreq_sel(priv, freq, type, std, delsys);
+	if (rc < 0)
+		goto err;
+
+	tuner_dbg("%s: PLL locked on frequency %d Hz, gain=%d\n",
+		  __func__, freq, r820t_read_gain(priv));
+
 err:
 
 	if (rc < 0)
