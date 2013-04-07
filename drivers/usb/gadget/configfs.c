@@ -439,7 +439,7 @@ static int config_usb_cfg_unlink(
 		}
 	}
 	mutex_unlock(&gi->lock);
-	__WARN_printf("Unable to locate function to unbind\n");
+	WARN(1, "Unable to locate function to unbind\n");
 	return 0;
 }
 
@@ -730,7 +730,7 @@ USB_CONFIG_STRINGS_LANG(gadget_strings, gadget_info);
 
 static int configfs_do_nothing(struct usb_composite_dev *cdev)
 {
-	__WARN();
+	WARN_ON(1);
 	return -EINVAL;
 }
 
