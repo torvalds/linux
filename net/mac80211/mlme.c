@@ -1661,6 +1661,7 @@ static bool ieee80211_sta_wmm_params(struct ieee80211_local *local,
 		params.cw_max = ecw2cw((pos[1] & 0xf0) >> 4);
 		params.cw_min = ecw2cw(pos[1] & 0x0f);
 		params.txop = get_unaligned_le16(pos + 2);
+		params.acm = acm;
 		params.uapsd = uapsd;
 
 		mlme_dbg(sdata,

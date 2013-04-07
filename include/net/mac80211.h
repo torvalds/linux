@@ -128,6 +128,7 @@ enum ieee80211_ac_numbers {
  *	2^n-1 in the range 1..32767]
  * @cw_max: maximum contention window [like @cw_min]
  * @txop: maximum burst time in units of 32 usecs, 0 meaning disabled
+ * @acm: is mandatory admission control required for the access category
  * @uapsd: is U-APSD mode enabled for the queue
  */
 struct ieee80211_tx_queue_params {
@@ -135,6 +136,7 @@ struct ieee80211_tx_queue_params {
 	u16 cw_min;
 	u16 cw_max;
 	u8 aifs;
+	bool acm;
 	bool uapsd;
 };
 
