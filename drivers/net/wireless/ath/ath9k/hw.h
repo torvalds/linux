@@ -852,9 +852,7 @@ struct ath_hw {
 	u32 *analogBank2Data;
 	u32 *analogBank3Data;
 	u32 *analogBank6Data;
-	u32 *analogBank6TPCData;
 	u32 *analogBank7Data;
-	u32 *bank6Temp;
 
 	int coverage_class;
 	u32 slottime;
@@ -891,7 +889,6 @@ struct ath_hw {
 	struct ar5416IniArray iniBank2;
 	struct ar5416IniArray iniBank3;
 	struct ar5416IniArray iniBank6;
-	struct ar5416IniArray iniBank6TPC;
 	struct ar5416IniArray iniBank7;
 	struct ar5416IniArray iniAddac;
 	struct ar5416IniArray iniPcieSerdes;

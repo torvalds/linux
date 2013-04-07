@@ -67,12 +67,10 @@ static int ar9002_hw_init_mode_regs(struct ath_hw *ah)
 	} else if (AR_SREV_9100_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes_9100);
 		INIT_INI_ARRAY(&ah->iniCommon, ar5416Common_9100);
-		INIT_INI_ARRAY(&ah->iniBank6, ar5416Bank6_9100);
 		INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac_9100);
 	} else {
 		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes);
 		INIT_INI_ARRAY(&ah->iniCommon, ar5416Common);
-		INIT_INI_ARRAY(&ah->iniBank6TPC, ar5416Bank6TPC);
 		INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac);
 	}
 
@@ -86,14 +84,11 @@ static int ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniBank3, ar5416Bank3);
 		INIT_INI_ARRAY(&ah->iniBank7, ar5416Bank7);
 
-		/* Common for AR5416, AR9160 */
-		if (!AR_SREV_9100(ah))
-			INIT_INI_ARRAY(&ah->iniBank6, ar5416Bank6);
-
 		/* Common for AR913x, AR9160 */
 		if (!AR_SREV_5416(ah))
-			INIT_INI_ARRAY(&ah->iniBank6TPC,
-				      ar5416Bank6TPC_9100);
+			INIT_INI_ARRAY(&ah->iniBank6, ar5416Bank6TPC_9100);
+		else
+			INIT_INI_ARRAY(&ah->iniBank6, ar5416Bank6TPC);
 	}
 
 	/* iniAddac needs to be modified for these chips */
