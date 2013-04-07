@@ -97,6 +97,7 @@ enum {
 	DBG_CFG = 0x9,
 
 	/* station table */
+	ADD_STA_KEY = 0x17,
 	ADD_STA = 0x18,
 	REMOVE_STA = 0x19,
 
