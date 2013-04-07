@@ -1225,6 +1225,10 @@ static int do_test(int m)
 		ret += tcrypt_test("rfc4106(gcm(aes))");
 		break;
 
+	case 152:
+		ret += tcrypt_test("rfc4543(gcm(aes))");
+		break;
+
 	case 200:
 		test_cipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
 				speed_template_16_24_32);
