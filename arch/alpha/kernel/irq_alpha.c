@@ -229,7 +229,6 @@ process_mcheck_info(unsigned long vector, unsigned long la_ptr,
 
 struct irqaction timer_irqaction = {
 	.handler	= timer_interrupt,
-	.flags		= IRQF_DISABLED,
 	.name		= "timer",
 };
 
