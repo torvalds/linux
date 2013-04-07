@@ -2013,8 +2013,14 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	INIT_WORK(&priv->linkstate_task, mlx4_en_linkstate);
 	INIT_DELAYED_WORK(&priv->stats_task, mlx4_en_do_get_stats);
 #ifdef CONFIG_MLX4_EN_DCB
-	if (!mlx4_is_slave(priv->mdev->dev))
-		dev->dcbnl_ops = &mlx4_en_dcbnl_ops;
+	if (!mlx4_is_slave(priv->mdev->dev)) {
+		if (mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_SET_ETH_SCHED) {
+			dev->dcbnl_ops = &mlx4_en_dcbnl_ops;
+		} else {
+			en_info(priv, "enabling only PFC DCB ops\n");
+			dev->dcbnl_ops = &mlx4_en_dcbnl_pfc_ops;
+		}
+	}
 #endif
 
 	for (i = 0; i < MLX4_EN_MAC_HASH_SIZE; ++i)
