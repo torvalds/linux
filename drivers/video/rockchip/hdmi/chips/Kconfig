@@ -37,6 +37,16 @@ if HDMI_RK610
 source "drivers/video/rockchip/hdmi/chips/rk610/Kconfig"
 endif
 
+config  HDMI_RK616
+        bool "RK616 HDMI support"
+        depends on MFD_RK616
+        help
+           Support rk616 hdmi if you say y here
+
+if HDMI_RK616
+source "drivers/video/rockchip/hdmi/chips/rk616/Kconfig"
+endif
+
 choice
 	prompt "HDMI Source LCDC select"
 config HDMI_SOURCE_LCDC0
