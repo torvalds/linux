@@ -353,7 +353,7 @@ void nf_ct_helper_log(struct sk_buff *skb, const struct nf_conn *ct,
 	/* rcu_read_lock()ed by nf_hook_slow */
 	helper = rcu_dereference(help->helper);
 
-	nf_log_packet(nf_ct_l3num(ct), 0, skb, NULL, NULL, NULL,
+	nf_log_packet(nf_ct_net(ct), nf_ct_l3num(ct), 0, skb, NULL, NULL, NULL,
 		      "nf_ct_%s: dropping packet: %pV ", helper->name, &vaf);
 
 	va_end(args);

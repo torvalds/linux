@@ -289,11 +289,6 @@ nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 #endif
 }
 
-#ifdef CONFIG_PROC_FS
-#include <linux/proc_fs.h>
-extern struct proc_dir_entry *proc_net_netfilter;
-#endif
-
 #else /* !CONFIG_NETFILTER */
 #define NF_HOOK(pf, hook, skb, indev, outdev, okfn) (okfn)(skb)
 #define NF_HOOK_COND(pf, hook, skb, indev, outdev, okfn, cond) (okfn)(skb)

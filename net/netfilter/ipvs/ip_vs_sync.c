@@ -531,9 +531,9 @@ static void ip_vs_sync_conn_v0(struct net *net, struct ip_vs_conn *cp,
 	if (!ip_vs_sync_conn_needed(ipvs, cp, pkts))
 		return;
 
-	spin_lock(&ipvs->sync_buff_lock);
+	spin_lock_bh(&ipvs->sync_buff_lock);
 	if (!(ipvs->sync_state & IP_VS_STATE_MASTER)) {
-		spin_unlock(&ipvs->sync_buff_lock);
+		spin_unlock_bh(&ipvs->sync_buff_lock);
 		return;
 	}
 
@@ -552,7 +552,7 @@ static void ip_vs_sync_conn_v0(struct net *net, struct ip_vs_conn *cp,
 	if (!buff) {
 		buff = ip_vs_sync_buff_create_v0(ipvs);
 		if (!buff) {
-			spin_unlock(&ipvs->sync_buff_lock);
+			spin_unlock_bh(&ipvs->sync_buff_lock);
 			pr_err("ip_vs_sync_buff_create failed.\n");
 			return;
 		}
@@ -590,7 +590,7 @@ static void ip_vs_sync_conn_v0(struct net *net, struct ip_vs_conn *cp,
 		sb_queue_tail(ipvs, ms);
 		ms->sync_buff = NULL;
 	}
-	spin_unlock(&ipvs->sync_buff_lock);
+	spin_unlock_bh(&ipvs->sync_buff_lock);
 
 	/* synchronize its controller if it has */
 	cp = cp->control;
@@ -641,9 +641,9 @@ sloop:
 		pe_name_len = strnlen(cp->pe->name, IP_VS_PENAME_MAXLEN);
 	}
 
-	spin_lock(&ipvs->sync_buff_lock);
+	spin_lock_bh(&ipvs->sync_buff_lock);
 	if (!(ipvs->sync_state & IP_VS_STATE_MASTER)) {
-		spin_unlock(&ipvs->sync_buff_lock);
+		spin_unlock_bh(&ipvs->sync_buff_lock);
 		return;
 	}
 
@@ -683,7 +683,7 @@ sloop:
 	if (!buff) {
 		buff = ip_vs_sync_buff_create(ipvs);
 		if (!buff) {
-			spin_unlock(&ipvs->sync_buff_lock);
+			spin_unlock_bh(&ipvs->sync_buff_lock);
 			pr_err("ip_vs_sync_buff_create failed.\n");
 			return;
 		}
@@ -750,7 +750,7 @@ sloop:
 		}
 	}
 
-	spin_unlock(&ipvs->sync_buff_lock);
+	spin_unlock_bh(&ipvs->sync_buff_lock);
 
 control:
 	/* synchronize its controller if it has */
@@ -843,7 +843,7 @@ static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
 		kfree(param->pe_data);
 
 		dest = cp->dest;
-		spin_lock(&cp->lock);
+		spin_lock_bh(&cp->lock);
 		if ((cp->flags ^ flags) & IP_VS_CONN_F_INACTIVE &&
 		    !(flags & IP_VS_CONN_F_TEMPLATE) && dest) {
 			if (flags & IP_VS_CONN_F_INACTIVE) {
@@ -857,24 +857,21 @@ static void ip_vs_proc_conn(struct net *net, struct ip_vs_conn_param *param,
 		flags &= IP_VS_CONN_F_BACKUP_UPD_MASK;
 		flags |= cp->flags & ~IP_VS_CONN_F_BACKUP_UPD_MASK;
 		cp->flags = flags;
-		spin_unlock(&cp->lock);
-		if (!dest) {
-			dest = ip_vs_try_bind_dest(cp);
-			if (dest)
-				atomic_dec(&dest->refcnt);
-		}
+		spin_unlock_bh(&cp->lock);
+		if (!dest)
+			ip_vs_try_bind_dest(cp);
 	} else {
 		/*
 		 * Find the appropriate destination for the connection.
 		 * If it is not found the connection will remain unbound
 		 * but still handled.
 		 */
+		rcu_read_lock();
 		dest = ip_vs_find_dest(net, type, daddr, dport, param->vaddr,
 				       param->vport, protocol, fwmark, flags);
 
 		cp = ip_vs_conn_new(param, daddr, dport, flags, dest, fwmark);
-		if (dest)
-			atomic_dec(&dest->refcnt);
+		rcu_read_unlock();
 		if (!cp) {
 			if (param->pe_data)
 				kfree(param->pe_data);
@@ -1692,11 +1689,7 @@ static int sync_thread_backup(void *data)
 				break;
 			}
 
-			/* disable bottom half, because it accesses the data
-			   shared by softirq while getting/creating conns */
-			local_bh_disable();
 			ip_vs_process_message(tinfo->net, tinfo->buf, len);
-			local_bh_enable();
 		}
 	}
 
