@@ -249,25 +249,25 @@ void call_set_spk(int on)
 	{
 	case 0:
 		//modem exit call,codec disable loopback
-		printk("%s modem exit call \n", __FUNCTION__);
-		rk610_codec_write(rk610_codec_codec,ACCELCODEC_R0E, 0x80);
+		printk("%s modem exit call \n", __FUNCTION__);		
+		rk610_codec_write_incall(rk610_codec_codec,ACCELCODEC_R0E, 0x80);
 		rk610_codec->call_enable = 0;	
 		break;
 	case 1:
 		//modem calling,codec enable loopback,spk hp different volume
 		printk("%s spk incalling\n", __FUNCTION__);
-		rk610_codec_write(rk610_codec_codec,ACCELCODEC_R0E, 0x00);
 		rk610_codec->call_enable = 1;	
+		rk610_codec_write_incall(rk610_codec_codec,ACCELCODEC_R0E, 0x00);
 		return;
 	case 2:
 		printk("%s hp incalling\n", __FUNCTION__);
-		rk610_codec_write(rk610_codec_codec,ACCELCODEC_R0E, 0x00);
-		rk610_codec->call_enable = 1;	
+		rk610_codec->call_enable = 1;
+		rk610_codec_write_incall(rk610_codec_codec,ACCELCODEC_R0E, 0x00);	
 		break;
 	case 3:
 		printk("%s bt incalling\n", __FUNCTION__);    
-		rk610_codec_write(rk610_codec_codec,ACCELCODEC_R0E, 0x00);	
-		rk610_codec->call_enable = 1;
+		rk610_codec->call_enable = 1;	
+		rk610_codec_write_incall(rk610_codec_codec,ACCELCODEC_R0E, 0x00);
 		break;
 	}
 
