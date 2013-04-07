@@ -18,6 +18,8 @@
 
 #include <mach/pxa930.h>
 
+#include "devices.h"
+
 static struct mfp_addr_map pxa930_mfp_addr_map[] __initdata = {
 
 	MFP_ADDR(GPIO0, 0x02e0),
@@ -192,9 +194,12 @@ static struct mfp_addr_map pxa935_mfp_addr_map[] __initdata = {
 
 static int __init pxa930_init(void)
 {
+	int ret = 0;
+
 	if (cpu_is_pxa93x()) {
 		mfp_init_base(io_p2v(MFPR_BASE));
 		mfp_init_addr(pxa930_mfp_addr_map);
+		ret = platform_device_register(&pxa93x_device_gpio);
 	}
 
 	if (cpu_is_pxa935())

@@ -208,7 +208,11 @@ static struct clk_lookup pxa25x_clkregs[] = {
 	INIT_CLKREG(&clk_pxa25x_gpio11, NULL, "GPIO11_CLK"),
 	INIT_CLKREG(&clk_pxa25x_gpio12, NULL, "GPIO12_CLK"),
 	INIT_CLKREG(&clk_pxa25x_mem, "pxa2xx-pcmcia", NULL),
-	INIT_CLKREG(&clk_dummy, "pxa-gpio", NULL),
+#ifdef CONFIG_CPU_PXA26x
+	INIT_CLKREG(&clk_dummy, "pxa26x-gpio", NULL),
+#else
+	INIT_CLKREG(&clk_dummy, "pxa25x-gpio", NULL),
+#endif
 	INIT_CLKREG(&clk_dummy, "sa1100-rtc", NULL),
 };
 
@@ -375,7 +379,7 @@ static int __init pxa25x_init(void)
 		register_syscore_ops(&pxa2xx_mfp_syscore_ops);
 		register_syscore_ops(&pxa2xx_clock_syscore_ops);
 
-		pxa_register_device(&pxa_device_gpio, &pxa25x_gpio_info);
+		pxa_register_device(&pxa25x_device_gpio, &pxa25x_gpio_info);
 		ret = platform_add_devices(pxa25x_devices,
 					   ARRAY_SIZE(pxa25x_devices));
 		if (ret)

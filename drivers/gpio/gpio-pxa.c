@@ -86,19 +86,60 @@ struct pxa_gpio_chip {
 #endif
 };
 
-enum {
+enum pxa_gpio_type {
 	PXA25X_GPIO = 0,
 	PXA26X_GPIO,
 	PXA27X_GPIO,
 	PXA3XX_GPIO,
 	PXA93X_GPIO,
 	MMP_GPIO = 0x10,
+	MMP2_GPIO,
+};
+
+struct pxa_gpio_id {
+	enum pxa_gpio_type	type;
+	int			gpio_nums;
 };
 
 static DEFINE_SPINLOCK(gpio_lock);
 static struct pxa_gpio_chip *pxa_gpio_chips;
-static int gpio_type;
+static enum pxa_gpio_type gpio_type;
 static void __iomem *gpio_reg_base;
+
+static struct pxa_gpio_id pxa25x_id = {
+	.type		= PXA25X_GPIO,
+	.gpio_nums	= 85,
+};
+
+static struct pxa_gpio_id pxa26x_id = {
+	.type		= PXA26X_GPIO,
+	.gpio_nums	= 90,
+};
+
+static struct pxa_gpio_id pxa27x_id = {
+	.type		= PXA27X_GPIO,
+	.gpio_nums	= 121,
+};
+
+static struct pxa_gpio_id pxa3xx_id = {
+	.type		= PXA3XX_GPIO,
+	.gpio_nums	= 128,
+};
+
+static struct pxa_gpio_id pxa93x_id = {
+	.type		= PXA93X_GPIO,
+	.gpio_nums	= 192,
+};
+
+static struct pxa_gpio_id mmp_id = {
+	.type		= MMP_GPIO,
+	.gpio_nums	= 128,
+};
+
+static struct pxa_gpio_id mmp2_id = {
+	.type		= MMP2_GPIO,
+	.gpio_nums	= 192,
+};
 
 #define for_each_gpio_chip(i, c)			\
 	for (i = 0, c = &pxa_gpio_chips[0]; i <= pxa_last_gpio; i += 32, c++)
@@ -432,40 +473,27 @@ static struct irq_chip pxa_muxed_gpio_chip = {
 	.irq_set_wake	= pxa_gpio_set_wake,
 };
 
-static int pxa_gpio_nums(void)
+static int pxa_gpio_nums(struct platform_device *pdev)
 {
+	const struct platform_device_id *id = platform_get_device_id(pdev);
+	struct pxa_gpio_id *pxa_id = (struct pxa_gpio_id *)id->driver_data;
 	int count = 0;
 
-#ifdef CONFIG_ARCH_PXA
-	if (cpu_is_pxa25x()) {
-#ifdef CONFIG_CPU_PXA26x
-		count = 89;
-		gpio_type = PXA26X_GPIO;
-#elif defined(CONFIG_PXA25x)
-		count = 84;
-		gpio_type = PXA26X_GPIO;
-#endif /* CONFIG_CPU_PXA26x */
-	} else if (cpu_is_pxa27x()) {
-		count = 120;
-		gpio_type = PXA27X_GPIO;
-	} else if (cpu_is_pxa93x()) {
-		count = 191;
-		gpio_type = PXA93X_GPIO;
-	} else if (cpu_is_pxa3xx()) {
-		count = 127;
-		gpio_type = PXA3XX_GPIO;
+	switch (pxa_id->type) {
+	case PXA25X_GPIO:
+	case PXA26X_GPIO:
+	case PXA27X_GPIO:
+	case PXA3XX_GPIO:
+	case PXA93X_GPIO:
+	case MMP_GPIO:
+	case MMP2_GPIO:
+		gpio_type = pxa_id->type;
+		count = pxa_id->gpio_nums - 1;
+		break;
+	default:
+		count = -EINVAL;
+		break;
 	}
-#endif /* CONFIG_ARCH_PXA */
-
-#ifdef CONFIG_ARCH_MMP
-	if (cpu_is_pxa168() || cpu_is_pxa910()) {
-		count = 127;
-		gpio_type = MMP_GPIO;
-	} else if (cpu_is_mmp2()) {
-		count = 191;
-		gpio_type = MMP_GPIO;
-	}
-#endif /* CONFIG_ARCH_MMP */
 	return count;
 }
 
@@ -548,7 +576,7 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 
 	ret = pxa_gpio_probe_dt(pdev);
 	if (ret < 0) {
-		pxa_last_gpio = pxa_gpio_nums();
+		pxa_last_gpio = pxa_gpio_nums(pdev);
 #ifdef CONFIG_ARCH_PXA
 		if (gpio_is_pxa_type(gpio_type))
 			irq_base = PXA_GPIO_TO_IRQ(0);
@@ -635,12 +663,24 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id gpio_id_table[] = {
+	{ "pxa25x-gpio",	(unsigned long)&pxa25x_id },
+	{ "pxa26x-gpio",	(unsigned long)&pxa26x_id },
+	{ "pxa27x-gpio",	(unsigned long)&pxa27x_id },
+	{ "pxa3xx-gpio",	(unsigned long)&pxa3xx_id },
+	{ "pxa93x-gpio",	(unsigned long)&pxa93x_id },
+	{ "mmp-gpio",		(unsigned long)&mmp_id },
+	{ "mmp2-gpio",		(unsigned long)&mmp2_id },
+	{ },
+};
+
 static struct platform_driver pxa_gpio_driver = {
 	.probe		= pxa_gpio_probe,
 	.driver		= {
 		.name	= "pxa-gpio",
 		.of_match_table = of_match_ptr(pxa_gpio_dt_ids),
 	},
+	.id_table	= gpio_id_table,
 };
 module_platform_driver(pxa_gpio_driver);
 
