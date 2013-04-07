@@ -27,6 +27,34 @@
 /*
  * free a single branch
  */
+
+/* prohibit rmdir to the root of the branch */
+/* todo: another new flag? */
+static void au_br_dflags_force(struct au_branch *br)
+{
+	struct dentry *h_dentry;
+
+	h_dentry = au_br_dentry(br);
+	spin_lock(&h_dentry->d_lock);
+	br->br_dflags = h_dentry->d_flags & DCACHE_MOUNTED;
+	h_dentry->d_flags |= DCACHE_MOUNTED;
+	spin_unlock(&h_dentry->d_lock);
+}
+
+/* restore its d_flags */
+static void au_br_dflags_restore(struct au_branch *br)
+{
+	struct dentry *h_dentry;
+
+	if (br->br_dflags)
+		return;
+
+	h_dentry = au_br_dentry(br);
+	spin_lock(&h_dentry->d_lock);
+	h_dentry->d_flags &= ~DCACHE_MOUNTED;
+	spin_unlock(&h_dentry->d_lock);
+}
+
 static void au_br_do_free(struct au_branch *br)
 {
 	int i;
@@ -55,6 +83,8 @@ static void au_br_do_free(struct au_branch *br)
 			au_dy_put(*key);
 		else
 			break;
+
+	au_br_dflags_restore(br);
 
 	/* recursive lock, s_umount of branch's */
 	lockdep_off();
@@ -356,6 +386,9 @@ static int au_br_init(struct au_branch *br, struct super_block *sb,
 	memset(&br->br_xino, 0, sizeof(br->br_xino));
 	mutex_init(&br->br_xino.xi_nondir_mtx);
 	br->br_perm = add->perm;
+	BUILD_BUG_ON(sizeof(br->br_dflags)
+		     != sizeof(br->br_path.dentry->d_flags));
+	br->br_dflags = DCACHE_MOUNTED;
 	br->br_path = add->path; /* set first, path_get() later */
 	spin_lock_init(&br->br_dykey_lock);
 	memset(br->br_dykey, 0, sizeof(br->br_dykey));
@@ -443,6 +476,8 @@ static void au_br_do_add(struct super_block *sb, struct au_branch *br,
 	struct dentry *root, *h_dentry;
 	struct inode *root_inode;
 	aufs_bindex_t bend, amount;
+
+	au_br_dflags_force(br);
 
 	root = sb->s_root;
 	root_inode = root->d_inode;
@@ -1156,6 +1191,12 @@ int au_br_mod(struct super_block *sb, struct au_opt_mod *mod, int remount,
 	}
 
 	if (!err) {
+		if ((br->br_perm & AuBrAttr_UNPIN)
+		    && !(mod->perm & AuBrAttr_UNPIN))
+			au_br_dflags_force(br);
+		else if (!(br->br_perm & AuBrAttr_UNPIN)
+			 && (mod->perm & AuBrAttr_UNPIN))
+			au_br_dflags_restore(br);
 		*do_refresh |= need_sigen_inc(br->br_perm, mod->perm);
 		br->br_perm = mod->perm;
 	}

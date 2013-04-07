@@ -68,6 +68,7 @@ struct au_branch {
 	aufs_bindex_t		br_id;
 
 	int			br_perm;
+	unsigned int		br_dflags;
 	struct path		br_path;
 	spinlock_t		br_dykey_lock;
 	struct au_dykey		*br_dykey[AuBrDynOp];
@@ -117,6 +118,9 @@ static inline struct super_block *au_br_sb(struct au_branch *br)
 #define AuBrRAttr_WH		(1 << 3)	/* whiteout-able */
 
 #define AuBrWAttr_NoLinkWH	(1 << 4)	/* un-hardlinkable whiteouts */
+
+#define AuBrAttr_UNPIN		(1 << 5)	/* rename-able top dir of
+						   branch */
 
 static inline int au_br_writable(int brperm)
 {
