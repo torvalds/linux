@@ -985,7 +985,7 @@ static void ath9k_rx_skb_postprocess(struct ath_common *common,
 	hdr = (struct ieee80211_hdr *) skb->data;
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 	fc = hdr->frame_control;
-	padpos = ath9k_cmn_padpos(hdr->frame_control);
+	padpos = ieee80211_hdrlen(fc);
 
 	/* The MAC header is padded to have 32-bit boundary if the
 	 * packet payload is non-zero. The general calculation for

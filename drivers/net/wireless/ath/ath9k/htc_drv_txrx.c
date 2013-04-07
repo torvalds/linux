@@ -966,7 +966,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	struct sk_buff *skb = rxbuf->skb;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath_htc_rx_status *rxstatus;
-	int hdrlen, padpos, padsize;
+	int hdrlen, padsize;
 	int last_rssi = ATH_RSSI_DUMMY_MARKER;
 	__le16 fc;
 
@@ -996,11 +996,9 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	fc = hdr->frame_control;
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 
-	padpos = ath9k_cmn_padpos(fc);
-
-	padsize = padpos & 3;
-	if (padsize && skb->len >= padpos+padsize+FCS_LEN) {
-		memmove(skb->data + padsize, skb->data, padpos);
+	padsize = hdrlen & 3;
+	if (padsize && skb->len >= hdrlen+padsize+FCS_LEN) {
+		memmove(skb->data + padsize, skb->data, hdrlen);
 		skb_pull(skb, padsize);
 	}
 
