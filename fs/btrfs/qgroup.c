@@ -1092,6 +1092,11 @@ int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
+	qgroup = find_qgroup_rb(fs_info, qgroupid);
+	if (!qgroup) {
+		ret = -ENOENT;
+		goto out;
+	}
 	ret = update_qgroup_limit_item(trans, quota_root, qgroupid,
 				       limit->flags, limit->max_rfer,
 				       limit->max_excl, limit->rsv_rfer,
@@ -1102,11 +1107,6 @@ int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
 		       (unsigned long long)qgroupid);
 	}
 
-	qgroup = find_qgroup_rb(fs_info, qgroupid);
-	if (!qgroup) {
-		ret = -ENOENT;
-		goto out;
-	}
 	spin_lock(&fs_info->qgroup_lock);
 	qgroup->lim_flags = limit->flags;
 	qgroup->max_rfer = limit->max_rfer;
