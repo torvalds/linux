@@ -13,6 +13,53 @@ static int rk808_pre_init(struct rk808 *rk808)
 {
 	int ret,val;
 	 printk("%s,line=%d\n", __func__,__LINE__);
+	 /***********set ILIM ************/
+	val = rk808_reg_read(rk808,RK808_BUCK3_CONFIG_REG);
+	val &= (~(0x7 <<0));
+	val |= (0x2 <<0);
+	ret = rk808_reg_write(rk808,RK808_BUCK3_CONFIG_REG,val);
+	if (ret < 0) {
+                printk(KERN_ERR "Unable to write RK808_BUCK3_CONFIG_REG reg\n");
+                return ret;
+        }
+
+	val = rk808_reg_read(rk808,RK808_BUCK4_CONFIG_REG);
+	val &= (~(0x7 <<0));
+	val |= (0x3 <<0);
+	ret = rk808_reg_write(rk808,RK808_BUCK4_CONFIG_REG,val);
+	if (ret < 0) {
+                printk(KERN_ERR "Unable to write RK808_BUCK4_CONFIG_REG reg\n");
+                return ret;
+        }
+	
+	val = rk808_reg_read(rk808,RK808_BOOST_CONFIG_REG);
+	val &= (~(0x7 <<0));
+	val |= (0x1 <<0);
+	ret = rk808_reg_write(rk808,RK808_BOOST_CONFIG_REG,val);
+	if (ret < 0) {
+                printk(KERN_ERR "Unable to write RK808_BOOST_CONFIG_REG reg\n");
+                return ret;
+        }
+	/*****************************************/
+	/***********set buck OTP function************/
+	ret = rk808_reg_write(rk808,0x6f,0x5a);
+	if (ret < 0) {
+                printk(KERN_ERR "Unable to write 0x6f reg\n");
+                return ret;
+        }
+	
+	ret = rk808_reg_write(rk808,0x91,0x80);
+	if (ret < 0) {
+                printk(KERN_ERR "Unable to write 0x91 reg\n");
+                return ret;
+        }
+
+        ret = rk808_reg_write(rk808,0x92,0x55);
+	 if (ret <0) {
+                printk(KERN_ERR "Unable to write 0x92 reg\n");
+                return ret;
+        }
+	/*****************************************/
 	/***********set buck 12.5mv/us ************/
 	val = rk808_reg_read(rk808,RK808_BUCK1_CONFIG_REG);
 	val &= (~(0x3 <<3));

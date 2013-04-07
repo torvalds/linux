@@ -1846,14 +1846,14 @@ static  struct pmu_info  act8846_ldo_info[] = {
 static struct pmu_info  rk808_dcdc_info[] = {
 	{
 		.name          = "vdd_cpu",   //arm
-		.min_uv          = 1100000,
-		.max_uv         = 1100000,
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
 		.suspend_vol  =  900000,
 	},
 	{
 		.name          = "vdd_core",    //logic
-		.min_uv          = 1100000,
-		.max_uv         = 1100000,
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
 		.suspend_vol  =  900000,
 	},
 	{

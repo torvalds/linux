@@ -110,7 +110,7 @@ static int rk808_rtc_readtime(struct device *dev, struct rtc_time *tm)
 
 		tm->tm_sec = bcd2bin(rtc_data[0]);
 		tm->tm_min = bcd2bin(rtc_data[1]);
-		tm->tm_hour = bcd2bin(rtc_data[2]) -8;
+		tm->tm_hour = bcd2bin(rtc_data[2]) ;
 		tm->tm_mday = bcd2bin(rtc_data[3]);
 		tm->tm_mon = bcd2bin(rtc_data[4]) - 1;
 		tm->tm_year = bcd2bin(rtc_data[5]) + 100;	
@@ -118,7 +118,7 @@ static int rk808_rtc_readtime(struct device *dev, struct rtc_time *tm)
 
 		printk( "RTC date/time %4d-%02d-%02d(%d) %02d:%02d:%02d\n",
 			1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday, tm->tm_wday,
-			tm->tm_hour+8, tm->tm_min, tm->tm_sec);
+			tm->tm_hour, tm->tm_min, tm->tm_sec);
 		
 		return ret;
 
@@ -135,14 +135,14 @@ static int rk808_rtc_readtime(struct device *dev, struct rtc_time *tm)
 	
 	 tm->tm_sec = bcd2bin(rtc_data[0]);
          tm->tm_min = bcd2bin(rtc_data[1]);
-         tm->tm_hour = bcd2bin(rtc_data[2]) - 8;
+         tm->tm_hour = bcd2bin(rtc_data[2]) ;
          tm->tm_mday = bcd2bin(rtc_data[3]);
          tm->tm_mon = bcd2bin(rtc_data[4]) - 1;
          tm->tm_year = bcd2bin(rtc_data[5]) + 100;       
          tm->tm_wday = bcd2bin(rtc_data[6]);
 
 	  dev_dbg(dev, "RTC date/time %4d-%02d-%02d(%d) %02d:%02d:%02d\n",
-                        1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday, tm->tm_wday,tm->tm_hour + 8, tm->tm_min, tm->tm_sec);
+                        1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday, tm->tm_wday,tm->tm_hour , tm->tm_min, tm->tm_sec);
 
 #endif
 	return 0;
@@ -162,14 +162,14 @@ static int rk808_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	
 	rtc_data[0] = bin2bcd(tm->tm_sec);
 	rtc_data[1] = bin2bcd(tm->tm_min);
-	rtc_data[2] = bin2bcd(tm->tm_hour + 8);
+	rtc_data[2] = bin2bcd(tm->tm_hour );
 	rtc_data[3] = bin2bcd(tm->tm_mday);
 	rtc_data[4] = bin2bcd(tm->tm_mon + 1);
 	rtc_data[5] = bin2bcd(tm->tm_year - 100);
 	rtc_data[6] = bin2bcd(tm->tm_wday);
 
 	 dev_dbg(dev, "set RTC date/time %4d-%02d-%02d(%d) %02d:%02d:%02d\n",
-                        1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday, tm->tm_wday,tm->tm_hour + 8, tm->tm_min, tm->tm_sec);
+                        1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday, tm->tm_wday,tm->tm_hour , tm->tm_min, tm->tm_sec);
 
 	/*Dummy read*/	
 	ret = rk808_reg_read(rk808, RK808_RTC_CTRL_REG);
@@ -255,7 +255,7 @@ static int rk808_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	/* some of these fields may be wildcard/"match all" */
 	alrm->time.tm_sec = bcd2bin(alrm_data[0]);
 	alrm->time.tm_min = bcd2bin(alrm_data[1]);
-	alrm->time.tm_hour = bcd2bin(alrm_data[2]) -8;
+	alrm->time.tm_hour = bcd2bin(alrm_data[2]);
 	alrm->time.tm_mday = bcd2bin(alrm_data[3]);
 	alrm->time.tm_mon = bcd2bin(alrm_data[4]) - 1;
 	alrm->time.tm_year = bcd2bin(alrm_data[5]) + 100;
@@ -266,7 +266,7 @@ static int rk808_rtc_readalarm(struct device *dev, struct rtc_wkalrm *alrm)
 		return ret;
 	}
   	dev_dbg(dev,"alrm read RTC date/time %4d-%02d-%02d(%d) %02d:%02d:%02d\n",
-                        1900 + alrm->time.tm_year, alrm->time.tm_mon + 1, alrm->time.tm_mday, alrm->time.tm_wday, alrm->time.tm_hour +8, alrm->time.tm_min, alrm->time.tm_sec);
+                        1900 + alrm->time.tm_year, alrm->time.tm_mon + 1, alrm->time.tm_mday, alrm->time.tm_wday, alrm->time.tm_hour, alrm->time.tm_min, alrm->time.tm_sec);
 
 
 
@@ -308,12 +308,12 @@ static int rk808_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 		return ret;
 	}
 
-	 printk("alrm set RTC date/time %4d-%02d-%02d(%d) %02d:%02d:%02d\n",
-                        1900 + alrm->time.tm_year, alrm->time.tm_mon + 1, alrm->time.tm_mday, alrm->time.tm_wday, alrm->time.tm_hour +8, alrm->time.tm_min, alrm->time.tm_sec);
+	 dev_dbg(dev,"alrm set RTC date/time %4d-%02d-%02d(%d) %02d:%02d:%02d\n",
+                        1900 + alrm->time.tm_year, alrm->time.tm_mon + 1, alrm->time.tm_mday, alrm->time.tm_wday, alrm->time.tm_hour, alrm->time.tm_min, alrm->time.tm_sec);
 
 	alrm_data[0] = bin2bcd(alrm->time.tm_sec);
 	alrm_data[1] = bin2bcd(alrm->time.tm_min);
-	alrm_data[2] = bin2bcd(alrm->time.tm_hour + 8);
+	alrm_data[2] = bin2bcd(alrm->time.tm_hour );
 	alrm_data[3] = bin2bcd(alrm->time.tm_mday);
 	alrm_data[4] = bin2bcd(alrm->time.tm_mon + 1);
 	alrm_data[5] = bin2bcd(alrm->time.tm_year - 100);
