@@ -59,7 +59,7 @@
 			lcdif@80030000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_24bit_pins_a>;
-				panel-enable-gpios = <&gpio1 18 0>;
+				lcd-supply = <&reg_lcd_3v3>;
 				display = <&display>;
 				status = "okay";
 
@@ -119,6 +119,15 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio1 29 0>;
+		};
+
+		reg_lcd_3v3: lcd-3v3 {
+			compatible = "regulator-fixed";
+			regulator-name = "lcd-3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio1 18 0>;
+			enable-active-high;
 		};
 	};
 

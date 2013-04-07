@@ -7,9 +7,6 @@ Required properties:
 - interrupts: Should contain lcdif interrupts
 - display : phandle to display node (see below for details)
 
-Optional properties:
-- panel-enable-gpios : Should specify the gpio for panel enable
-
 * display node
 
 Required properties:
@@ -25,7 +22,6 @@ lcdif@80030000 {
 	compatible = "fsl,imx28-lcdif";
 	reg = <0x80030000 2000>;
 	interrupts = <38 86>;
-	panel-enable-gpios = <&gpio3 30 0>;
 
 	display: display {
 		bits-per-pixel = <32>;

@@ -42,7 +42,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <video/of_display_timing.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
@@ -50,6 +49,7 @@
 #include <linux/io.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/fb.h>
+#include <linux/regulator/consumer.h>
 #include <video/videomode.h>
 
 #define REG_SET	4
@@ -179,6 +179,7 @@ struct mxsfb_info {
 	unsigned dotclk_delay;
 	const struct mxsfb_devdata *devdata;
 	u32 sync;
+	struct regulator *reg_lcd;
 };
 
 #define mxsfb_is_v3(host) (host->devdata->ipversion == 3)
@@ -338,8 +339,18 @@ static void mxsfb_enable_controller(struct fb_info *fb_info)
 {
 	struct mxsfb_info *host = to_imxfb_host(fb_info);
 	u32 reg;
+	int ret;
 
 	dev_dbg(&host->pdev->dev, "%s\n", __func__);
+
+	if (host->reg_lcd) {
+		ret = regulator_enable(host->reg_lcd);
+		if (ret) {
+			dev_err(&host->pdev->dev,
+				"lcd regulator enable failed:	%d\n", ret);
+			return;
+		}
+	}
 
 	clk_prepare_enable(host->clk);
 	clk_set_rate(host->clk, PICOS2KHZ(fb_info->var.pixclock) * 1000U);
@@ -362,6 +373,7 @@ static void mxsfb_disable_controller(struct fb_info *fb_info)
 	struct mxsfb_info *host = to_imxfb_host(fb_info);
 	unsigned loop;
 	u32 reg;
+	int ret;
 
 	dev_dbg(&host->pdev->dev, "%s\n", __func__);
 
@@ -385,6 +397,13 @@ static void mxsfb_disable_controller(struct fb_info *fb_info)
 	clk_disable_unprepare(host->clk);
 
 	host->enabled = 0;
+
+	if (host->reg_lcd) {
+		ret = regulator_disable(host->reg_lcd);
+		if (ret)
+			dev_err(&host->pdev->dev,
+				"lcd regulator disable failed: %d\n", ret);
+	}
 }
 
 static int mxsfb_set_par(struct fb_info *fb_info)
@@ -859,8 +878,6 @@ static int mxsfb_probe(struct platform_device *pdev)
 	struct fb_info *fb_info;
 	struct fb_modelist *modelist;
 	struct pinctrl *pinctrl;
-	int panel_enable;
-	enum of_gpio_flags flags;
 	int ret;
 
 	if (of_id)
@@ -904,21 +921,9 @@ static int mxsfb_probe(struct platform_device *pdev)
 		goto fb_release;
 	}
 
-	panel_enable = of_get_named_gpio_flags(pdev->dev.of_node,
-					       "panel-enable-gpios", 0, &flags);
-	if (gpio_is_valid(panel_enable)) {
-		unsigned long f = GPIOF_OUT_INIT_HIGH;
-		if (flags == OF_GPIO_ACTIVE_LOW)
-			f = GPIOF_OUT_INIT_LOW;
-		ret = devm_gpio_request_one(&pdev->dev, panel_enable,
-					    f, "panel-enable");
-		if (ret) {
-			dev_err(&pdev->dev,
-				"failed to request gpio %d: %d\n",
-				panel_enable, ret);
-			goto fb_release;
-		}
-	}
+	host->reg_lcd = devm_regulator_get(&pdev->dev, "lcd");
+	if (IS_ERR(host->reg_lcd))
+		host->reg_lcd = NULL;
 
 	fb_info->pseudo_palette = devm_kzalloc(&pdev->dev, sizeof(u32) * 16,
 					       GFP_KERNEL);
