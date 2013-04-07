@@ -33,6 +33,10 @@
 	status = "okay";
 };
 
+&usbh1 {
+	status = "okay";
+};
+
 &usdhc3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc3_2>;
