@@ -1319,6 +1319,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			sc->rx.frag = skb;
 			goto requeue;
 		}
+		if (rs.rs_status & ATH9K_RXERR_CORRUPT_DESC)
+			goto requeue_drop_frag;
 
 		if (sc->rx.frag) {
 			int space = skb->len - skb_tailroom(hdr_skb);
