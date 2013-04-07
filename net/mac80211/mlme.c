@@ -604,7 +604,6 @@ static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 	u8 *pos;
 	u32 cap;
 	struct ieee80211_sta_vht_cap vht_cap;
-	int i;
 
 	BUILD_BUG_ON(sizeof(vht_cap) != sizeof(sband->vht_cap));
 
@@ -631,37 +630,6 @@ static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 	if (!(ap_vht_cap->vht_cap_info &
 			cpu_to_le32(IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE)))
 		cap &= ~IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE;
-
-	if (!(ap_vht_cap->vht_cap_info &
-			cpu_to_le32(IEEE80211_VHT_CAP_TXSTBC)))
-		cap &= ~(IEEE80211_VHT_CAP_RXSTBC_1 |
-			 IEEE80211_VHT_CAP_RXSTBC_3 |
-			 IEEE80211_VHT_CAP_RXSTBC_4);
-
-	for (i = 0; i < 8; i++) {
-		int shift = i * 2;
-		u16 mask = IEEE80211_VHT_MCS_NOT_SUPPORTED << shift;
-		u16 ap_mcs, our_mcs;
-
-		ap_mcs = (le16_to_cpu(ap_vht_cap->supp_mcs.tx_mcs_map) &
-								mask) >> shift;
-		our_mcs = (le16_to_cpu(vht_cap.vht_mcs.rx_mcs_map) &
-								mask) >> shift;
-
-		if (our_mcs == IEEE80211_VHT_MCS_NOT_SUPPORTED)
-			continue;
-
-		switch (ap_mcs) {
-		default:
-			if (our_mcs <= ap_mcs)
-				break;
-			/* fall through */
-		case IEEE80211_VHT_MCS_NOT_SUPPORTED:
-			vht_cap.vht_mcs.rx_mcs_map &= cpu_to_le16(~mask);
-			vht_cap.vht_mcs.rx_mcs_map |=
-				cpu_to_le16(ap_mcs << shift);
-		}
-	}
 
 	/* reserve and fill IE */
 	pos = skb_put(skb, sizeof(struct ieee80211_vht_cap) + 2);
