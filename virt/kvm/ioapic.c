@@ -124,7 +124,6 @@ void kvm_ioapic_calculate_eoi_exitmap(struct kvm_vcpu *vcpu,
 {
 	struct kvm_ioapic *ioapic = vcpu->kvm->arch.vioapic;
 	union kvm_ioapic_redirect_entry *e;
-	struct kvm_lapic_irq irqe;
 	int index;
 
 	spin_lock(&ioapic->lock);
@@ -135,11 +134,9 @@ void kvm_ioapic_calculate_eoi_exitmap(struct kvm_vcpu *vcpu,
 			(e->fields.trig_mode == IOAPIC_LEVEL_TRIG ||
 			 kvm_irq_has_notifier(ioapic->kvm, KVM_IRQCHIP_IOAPIC,
 				 index))) {
-			irqe.dest_id = e->fields.dest_id;
-			irqe.vector = e->fields.vector;
-			irqe.dest_mode = e->fields.dest_mode;
-			irqe.delivery_mode = e->fields.delivery_mode << 8;
-			kvm_calculate_eoi_exitmap(vcpu, &irqe, eoi_exit_bitmap);
+			if (kvm_apic_match_dest(vcpu, NULL, 0,
+				e->fields.dest_id, e->fields.dest_mode))
+				__set_bit(e->fields.vector, (unsigned long *)eoi_exit_bitmap);
 		}
 	}
 	spin_unlock(&ioapic->lock);

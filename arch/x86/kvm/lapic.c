@@ -145,53 +145,6 @@ static inline int kvm_apic_id(struct kvm_lapic *apic)
 	return (kvm_apic_get_reg(apic, APIC_ID) >> 24) & 0xff;
 }
 
-void kvm_calculate_eoi_exitmap(struct kvm_vcpu *vcpu,
-				struct kvm_lapic_irq *irq,
-				u64 *eoi_exit_bitmap)
-{
-	struct kvm_lapic **dst;
-	struct kvm_apic_map *map;
-	unsigned long bitmap = 1;
-	int i;
-
-	rcu_read_lock();
-	map = rcu_dereference(vcpu->kvm->arch.apic_map);
-
-	if (unlikely(!map)) {
-		__set_bit(irq->vector, (unsigned long *)eoi_exit_bitmap);
-		goto out;
-	}
-
-	if (irq->dest_mode == 0) { /* physical mode */
-		if (irq->delivery_mode == APIC_DM_LOWEST ||
-				irq->dest_id == 0xff) {
-			__set_bit(irq->vector,
-				  (unsigned long *)eoi_exit_bitmap);
-			goto out;
-		}
-		dst = &map->phys_map[irq->dest_id & 0xff];
-	} else {
-		u32 mda = irq->dest_id << (32 - map->ldr_bits);
-
-		dst = map->logical_map[apic_cluster_id(map, mda)];
-
-		bitmap = apic_logical_id(map, mda);
-	}
-
-	for_each_set_bit(i, &bitmap, 16) {
-		if (!dst[i])
-			continue;
-		if (dst[i]->vcpu == vcpu) {
-			__set_bit(irq->vector,
-				  (unsigned long *)eoi_exit_bitmap);
-			break;
-		}
-	}
-
-out:
-	rcu_read_unlock();
-}
-
 static void recalculate_apic_map(struct kvm *kvm)
 {
 	struct kvm_apic_map *new, *old = NULL;
