@@ -1082,6 +1082,18 @@ static int r820t_set_tv_standard(struct r820t_priv *priv,
 	return 0;
 }
 
+static int r820t_read_gain(struct r820t_priv *priv)
+{
+	u8 data[4];
+	int rc;
+
+	rc = r820_read(priv, 0x00, data, sizeof(data));
+	if (rc < 0)
+		return rc;
+
+	return ((data[3] & 0x0f) << 1) + ((data[3] & 0xf0) >> 4);
+}
+
 static int generic_set_freq(struct dvb_frontend *fe,
 			    u32 freq /* in HZ */,
 			    unsigned bw,
@@ -1353,11 +1365,23 @@ static int r820t_set_params(struct dvb_frontend *fe)
 static int r820t_signal(struct dvb_frontend *fe, u16 *strength)
 {
 	struct r820t_priv *priv = fe->tuner_priv;
+	int rc = 0;
 
-	if (priv->has_lock)
-		*strength = 0xffff;
-	else
+	if (priv->has_lock) {
+		rc = r820t_read_gain(priv);
+		if (rc < 0)
+			return rc;
+
+		/* A higher gain at LNA means a lower signal strength */
+		*strength = (45 - rc) << 4 | 0xff;
+	} else {
 		*strength = 0;
+	}
+
+	tuner_dbg("%s: %s, gain=%d strength=%d\n",
+		  __func__,
+		  priv->has_lock ? "PLL locked" : "no signal",
+		  rc, *strength);
 
 	return 0;
 }
