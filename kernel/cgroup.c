@@ -3269,6 +3269,34 @@ int cgroup_scan_tasks(struct cgroup_scanner *scan)
 	return 0;
 }
 
+static void cgroup_transfer_one_task(struct task_struct *task,
+				     struct cgroup_scanner *scan)
+{
+	struct cgroup *new_cgroup = scan->data;
+
+	cgroup_lock();
+	cgroup_attach_task(new_cgroup, task, false);
+	cgroup_unlock();
+}
+
+/**
+ * cgroup_trasnsfer_tasks - move tasks from one cgroup to another
+ * @to: cgroup to which the tasks will be moved
+ * @from: cgroup in which the tasks currently reside
+ */
+int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
+{
+	struct cgroup_scanner scan;
+
+	scan.cg = from;
+	scan.test_task = NULL; /* select all tasks in cgroup */
+	scan.process_task = cgroup_transfer_one_task;
+	scan.heap = NULL;
+	scan.data = to;
+
+	return cgroup_scan_tasks(&scan);
+}
+
 /*
  * Stuff for reading the 'tasks'/'procs' files.
  *
