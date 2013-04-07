@@ -29,7 +29,6 @@
  * @desc: regulator description
  * @rdev: regulator device
  * @cfg: regulator configuration (extension of regulator FW configuration)
- * @is_enabled: status of regulator (on/off)
  * @update_bank: bank to control on/off
  * @update_reg: register to control on/off
  * @update_mask: mask to enable/disable and set mode of regulator
@@ -46,7 +45,6 @@ struct ab8500_ext_regulator_info {
 	struct regulator_desc desc;
 	struct regulator_dev *rdev;
 	struct ab8500_ext_regulator_cfg *cfg;
-	bool is_enabled;
 	u8 update_bank;
 	u8 update_reg;
 	u8 update_mask;
@@ -77,8 +75,6 @@ static int enable(struct ab8500_ext_regulator_info *info, u8 *regval)
 			"couldn't set enable bits for regulator\n");
 		return ret;
 	}
-
-	info->is_enabled = true;
 
 	return ret;
 }
@@ -124,8 +120,6 @@ static int disable(struct ab8500_ext_regulator_info *info, u8 *regval)
 			"couldn't set disable bits for regulator\n");
 		return ret;
 	}
-
-	info->is_enabled = false;
 
 	return ret;
 }
@@ -177,11 +171,9 @@ static int ab8500_ext_regulator_is_enabled(struct regulator_dev *rdev)
 
 	if (((regval & info->update_mask) == info->update_val_lp) ||
 	    ((regval & info->update_mask) == info->update_val_hp))
-		info->is_enabled = true;
+		return 1;
 	else
-		info->is_enabled = false;
-
-	return info->is_enabled;
+		return 0;
 }
 
 static int ab8500_ext_regulator_set_mode(struct regulator_dev *rdev,
@@ -207,7 +199,7 @@ static int ab8500_ext_regulator_set_mode(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	if (info->is_enabled) {
+	if (ab8500_ext_regulator_is_enabled(rdev)) {
 		u8 regval;
 
 		ret = enable(info, &regval);
