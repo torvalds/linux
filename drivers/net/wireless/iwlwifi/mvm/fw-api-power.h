@@ -164,10 +164,10 @@ struct iwl_powertable_cmd {
  *			Use IEEE80211_WMM_IE_STA_QOSINFO_AC* for correct values.
  * @uapsd_max_sp:	Use IEEE80211_WMM_IE_STA_QOSINFO_SP_* for correct
  *			values.
- * @heavy_traffic_thr_tx_pkts:	TX threshold measured in number of packets
- * @heavy_traffic_thr_rx_pkts:	RX threshold measured in number of packets
- * @heavy_traffic_thr_tx_load:	TX threshold measured in load's percentage
- * @heavy_traffic_thr_rx_load:	RX threshold measured in load's percentage
+ * @heavy_tx_thld_packets:	TX threshold measured in number of packets
+ * @heavy_rx_thld_packets:	RX threshold measured in number of packets
+ * @heavy_tx_thld_percentage:	TX threshold measured in load's percentage
+ * @heavy_rx_thld_percentage:	RX threshold measured in load's percentage
  * @limited_ps_threshold:
 */
 struct iwl_mac_power_cmd {
@@ -189,10 +189,10 @@ struct iwl_mac_power_cmd {
 	u8 qndp_tid;
 	u8 uapsd_ac_flags;
 	u8 uapsd_max_sp;
-	u8 heavy_traffic_threshold_tx_packets;
-	u8 heavy_traffic_threshold_rx_packets;
-	u8 heavy_traffic_threshold_tx_percentage;
-	u8 heavy_traffic_threshold_rx_percentage;
+	u8 heavy_tx_thld_packets;
+	u8 heavy_rx_thld_packets;
+	u8 heavy_tx_thld_percentage;
+	u8 heavy_rx_thld_percentage;
 	u8 limited_ps_threshold;
 	u8 reserved;
 } __packed;

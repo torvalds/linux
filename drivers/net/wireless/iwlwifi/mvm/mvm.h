@@ -153,6 +153,11 @@ enum iwl_power_scheme {
 };
 
 #define IWL_CONN_MAX_LISTEN_INTERVAL	70
+#define IWL_UAPSD_AC_INFO		(IEEE80211_WMM_IE_STA_QOSINFO_AC_VO |\
+					 IEEE80211_WMM_IE_STA_QOSINFO_AC_VI |\
+					 IEEE80211_WMM_IE_STA_QOSINFO_AC_BK |\
+					 IEEE80211_WMM_IE_STA_QOSINFO_AC_BE)
+#define IWL_UAPSD_MAX_SP		IEEE80211_WMM_IE_STA_QOSINFO_SP_2
 
 struct iwl_mvm_power_ops {
 	int (*power_update_mode)(struct iwl_mvm *mvm,

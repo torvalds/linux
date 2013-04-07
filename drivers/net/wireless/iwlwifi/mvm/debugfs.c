@@ -424,7 +424,7 @@ static ssize_t iwl_dbgfs_pm_params_read(struct file *file,
 	struct ieee80211_vif *vif = file->private_data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->dbgfs_data;
-	char buf[256];
+	char buf[512];
 	int bufsz = sizeof(buf);
 	int pos;
 
