@@ -56,6 +56,24 @@
 		};
 	};
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a8";
+			reg = <0>;
+			clock-latency = <61036>; /* two CLK32 periods */
+			clocks = <&clks 24>;
+			clock-names = "cpu";
+			operating-points = <
+				/* kHz  uV (No regulator support) */
+				160000  0
+				800000  0
+			>;
+		};
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
