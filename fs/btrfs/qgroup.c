@@ -1412,6 +1412,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 	struct btrfs_qgroup *srcgroup;
 	struct btrfs_qgroup *dstgroup;
 	u32 level_size = 0;
+	u64 nums;
 
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	if (!fs_info->quota_enabled)
@@ -1420,6 +1421,20 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 	if (!quota_root) {
 		ret = -EINVAL;
 		goto out;
+	}
+
+	if (inherit) {
+		i_qgroups = (u64 *)(inherit + 1);
+		nums = inherit->num_qgroups + 2 * inherit->num_ref_copies +
+		       2 * inherit->num_excl_copies;
+		for (i = 0; i < nums; ++i) {
+			srcgroup = find_qgroup_rb(fs_info, *i_qgroups);
+			if (!srcgroup) {
+				ret = -EINVAL;
+				goto out;
+			}
+			++i_qgroups;
+		}
 	}
 
 	/*
