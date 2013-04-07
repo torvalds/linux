@@ -242,7 +242,7 @@ static inline bool IS_DNODE(struct page *node_page)
 		return false;
 	if (ofs >= 6 + 2 * NIDS_PER_BLOCK) {
 		ofs -= 6 + 2 * NIDS_PER_BLOCK;
-		if ((long int)ofs % (NIDS_PER_BLOCK + 1))
+		if (!((long int)ofs % (NIDS_PER_BLOCK + 1)))
 			return false;
 	}
 	return true;
