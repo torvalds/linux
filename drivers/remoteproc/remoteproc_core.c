@@ -37,6 +37,7 @@
 #include <linux/iommu.h>
 #include <linux/idr.h>
 #include <linux/elf.h>
+#include <linux/crc32.h>
 #include <linux/virtio_ids.h>
 #include <linux/virtio_ring.h>
 #include <asm/byteorder.h>
@@ -45,7 +46,8 @@
 
 typedef int (*rproc_handle_resources_t)(struct rproc *rproc,
 				struct resource_table *table, int len);
-typedef int (*rproc_handle_resource_t)(struct rproc *rproc, void *, int avail);
+typedef int (*rproc_handle_resource_t)(struct rproc *rproc,
+				 void *, int offset, int avail);
 
 /* Unique indices for remoteproc devices */
 static DEFINE_IDA(rproc_dev_index);
@@ -302,7 +304,7 @@ void rproc_free_vring(struct rproc_vring *rvring)
  * Returns 0 on success, or an appropriate error code otherwise
  */
 static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
-								int avail)
+							int offset, int avail)
 {
 	struct device *dev = &rproc->dev;
 	struct rproc_vdev *rvdev;
@@ -346,6 +348,9 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 	/* remember the device features */
 	rvdev->dfeatures = rsc->dfeatures;
 
+	/* remember the resource offset*/
+	rvdev->rsc_offset = offset;
+
 	list_add_tail(&rvdev->node, &rproc->rvdevs);
 
 	/* it is now safe to add the virtio device */
@@ -377,7 +382,7 @@ free_rvdev:
  * Returns 0 on success, or an appropriate error code otherwise
  */
 static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
-								int avail)
+							int offset, int avail)
 {
 	struct rproc_mem_entry *trace;
 	struct device *dev = &rproc->dev;
@@ -459,7 +464,7 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
  * are outside those ranges.
  */
 static int rproc_handle_devmem(struct rproc *rproc, struct fw_rsc_devmem *rsc,
-								int avail)
+							int offset, int avail)
 {
 	struct rproc_mem_entry *mapping;
 	struct device *dev = &rproc->dev;
@@ -532,7 +537,9 @@ out:
  * pressure is important; it may have a substantial impact on performance.
  */
 static int rproc_handle_carveout(struct rproc *rproc,
-				struct fw_rsc_carveout *rsc, int avail)
+						struct fw_rsc_carveout *rsc,
+						int offset, int avail)
+
 {
 	struct rproc_mem_entry *carveout, *mapping;
 	struct device *dev = &rproc->dev;
@@ -655,7 +662,7 @@ free_carv:
 }
 
 static int rproc_count_vrings(struct rproc *rproc, struct fw_rsc_vdev *rsc,
-				 int avail)
+			      int offset, int avail)
 {
 	/* Summarize the number of notification IDs */
 	rproc->max_notifyid += rsc->num_of_vrings;
@@ -683,17 +690,16 @@ static rproc_handle_resource_t rproc_count_vrings_handler[RSC_LAST] = {
 };
 
 /* handle firmware resource entries before booting the remote processor */
-static int rproc_handle_resources(struct rproc *rproc,
-				  struct resource_table *table, int len,
+static int rproc_handle_resources(struct rproc *rproc, int len,
 				  rproc_handle_resource_t handlers[RSC_LAST])
 {
 	struct device *dev = &rproc->dev;
 	rproc_handle_resource_t handler;
 	int ret = 0, i;
 
-	for (i = 0; i < table->num; i++) {
-		int offset = table->offset[i];
-		struct fw_rsc_hdr *hdr = (void *)table + offset;
+	for (i = 0; i < rproc->table_ptr->num; i++) {
+		int offset = rproc->table_ptr->offset[i];
+		struct fw_rsc_hdr *hdr = (void *)rproc->table_ptr + offset;
 		int avail = len - offset - sizeof(*hdr);
 		void *rsc = (void *)hdr + sizeof(*hdr);
 
@@ -714,7 +720,7 @@ static int rproc_handle_resources(struct rproc *rproc,
 		if (!handler)
 			continue;
 
-		ret = handler(rproc, rsc, avail);
+		ret = handler(rproc, rsc, offset + sizeof(*hdr), avail);
 		if (ret)
 			break;
 	}
@@ -772,8 +778,11 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 {
 	struct device *dev = &rproc->dev;
 	const char *name = rproc->firmware;
-	struct resource_table *table;
+	struct resource_table *table, *loaded_table;
 	int ret, tablesz;
+
+	if (!rproc->table_ptr)
+		return -ENOMEM;
 
 	ret = rproc_fw_sanity_check(rproc, fw);
 	if (ret)
@@ -800,9 +809,15 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 		goto clean_up;
 	}
 
+	/* Verify that resource table in loaded fw is unchanged */
+	if (rproc->table_csum != crc32(0, table, tablesz)) {
+		dev_err(dev, "resource checksum failed, fw changed?\n");
+		ret = -EINVAL;
+		goto clean_up;
+	}
+
 	/* handle fw resources which are required to boot rproc */
-	ret = rproc_handle_resources(rproc, table, tablesz,
-				     rproc_loading_handlers);
+	ret = rproc_handle_resources(rproc, tablesz, rproc_loading_handlers);
 	if (ret) {
 		dev_err(dev, "Failed to process resources: %d\n", ret);
 		goto clean_up;
@@ -815,12 +830,32 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 		goto clean_up;
 	}
 
+	/*
+	 * The starting device has been given the rproc->cached_table as the
+	 * resource table. The address of the vring along with the other
+	 * allocated resources (carveouts etc) is stored in cached_table.
+	 * In order to pass this information to the remote device we must
+	 * copy this information to device memory.
+	 */
+	loaded_table = rproc_find_loaded_rsc_table(rproc, fw);
+	if (!loaded_table)
+		goto clean_up;
+
+	memcpy(loaded_table, rproc->cached_table, tablesz);
+
 	/* power up the remote processor */
 	ret = rproc->ops->start(rproc);
 	if (ret) {
 		dev_err(dev, "can't start rproc %s: %d\n", rproc->name, ret);
 		goto clean_up;
 	}
+
+	/*
+	 * Update table_ptr so that all subsequent vring allocations and
+	 * virtio fields manipulation update the actual loaded resource table
+	 * in device memory.
+	 */
+	rproc->table_ptr = loaded_table;
 
 	rproc->state = RPROC_RUNNING;
 
@@ -856,15 +891,29 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 	if (!table)
 		goto out;
 
+	rproc->table_csum = crc32(0, table, tablesz);
+
+	/*
+	 * Create a copy of the resource table. When a virtio device starts
+	 * and calls vring_new_virtqueue() the address of the allocated vring
+	 * will be stored in the cached_table. Before the device is started,
+	 * cached_table will be copied into devic memory.
+	 */
+	rproc->cached_table = kmalloc(tablesz, GFP_KERNEL);
+	if (!rproc->cached_table)
+		goto out;
+
+	memcpy(rproc->cached_table, table, tablesz);
+	rproc->table_ptr = rproc->cached_table;
+
 	/* count the number of notify-ids */
 	rproc->max_notifyid = -1;
-	ret = rproc_handle_resources(rproc, table, tablesz,
-				    rproc_count_vrings_handler);
-
-	/* look for virtio devices and register them */
-	ret = rproc_handle_resources(rproc, table, tablesz, rproc_vdev_handler);
+	ret = rproc_handle_resources(rproc, tablesz, rproc_count_vrings_handler);
 	if (ret)
 		goto out;
+
+	/* look for virtio devices and register them */
+	ret = rproc_handle_resources(rproc, tablesz, rproc_vdev_handler);
 
 out:
 	release_firmware(fw);
@@ -922,6 +971,9 @@ int rproc_trigger_recovery(struct rproc *rproc)
 
 	/* wait until there is no more rproc users */
 	wait_for_completion(&rproc->crash_comp);
+
+	/* Free the copy of the resource table */
+	kfree(rproc->cached_table);
 
 	return rproc_add_virtio_devices(rproc);
 }
@@ -1077,6 +1129,9 @@ void rproc_shutdown(struct rproc *rproc)
 	rproc_resource_cleanup(rproc);
 
 	rproc_disable_iommu(rproc);
+
+	/* Give the next start a clean resource table */
+	rproc->table_ptr = rproc->cached_table;
 
 	/* if in crash state, unlock crash handler */
 	if (rproc->state == RPROC_CRASHED)
@@ -1287,6 +1342,9 @@ int rproc_del(struct rproc *rproc)
 	/* clean up remote vdev entries */
 	list_for_each_entry_safe(rvdev, tmp, &rproc->rvdevs, node)
 		rproc_remove_virtio_dev(rvdev);
+
+	/* Free the copy of the resource table */
+	kfree(rproc->cached_table);
 
 	device_del(&rproc->dev);
 

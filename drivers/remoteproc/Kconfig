@@ -4,6 +4,7 @@ menu "Remoteproc drivers"
 config REMOTEPROC
 	tristate
 	depends on HAS_DMA
+	select CRC32
 	select FW_CONFIG
 	select VIRTIO
 
