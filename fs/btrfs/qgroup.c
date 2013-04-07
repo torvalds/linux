@@ -791,6 +791,7 @@ int btrfs_quota_enable(struct btrfs_trans_handle *trans,
 	int ret = 0;
 	int slot;
 
+	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	spin_lock(&fs_info->qgroup_lock);
 	if (fs_info->quota_root) {
 		fs_info->pending_quota_state = 1;
@@ -900,6 +901,7 @@ out_free_root:
 		kfree(quota_root);
 	}
 out:
+	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	return ret;
 }
 
@@ -910,10 +912,11 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 	struct btrfs_root *quota_root;
 	int ret = 0;
 
+	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	spin_lock(&fs_info->qgroup_lock);
 	if (!fs_info->quota_root) {
 		spin_unlock(&fs_info->qgroup_lock);
-		return 0;
+		goto out;
 	}
 	fs_info->quota_enabled = 0;
 	fs_info->pending_quota_state = 0;
@@ -922,8 +925,10 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 	btrfs_free_qgroup_config(fs_info);
 	spin_unlock(&fs_info->qgroup_lock);
 
-	if (!quota_root)
-		return -EINVAL;
+	if (!quota_root) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = btrfs_clean_quota_tree(trans, quota_root);
 	if (ret)
@@ -944,6 +949,7 @@ int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 	free_extent_buffer(quota_root->commit_root);
 	kfree(quota_root);
 out:
+	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	return ret;
 }
 
@@ -959,24 +965,28 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 	struct btrfs_root *quota_root;
 	int ret = 0;
 
+	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	quota_root = fs_info->quota_root;
-	if (!quota_root)
-		return -EINVAL;
+	if (!quota_root) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = add_qgroup_relation_item(trans, quota_root, src, dst);
 	if (ret)
-		return ret;
+		goto out;
 
 	ret = add_qgroup_relation_item(trans, quota_root, dst, src);
 	if (ret) {
 		del_qgroup_relation_item(trans, quota_root, src, dst);
-		return ret;
+		goto out;
 	}
 
 	spin_lock(&fs_info->qgroup_lock);
 	ret = add_relation_rb(quota_root->fs_info, src, dst);
 	spin_unlock(&fs_info->qgroup_lock);
-
+out:
+	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	return ret;
 }
 
@@ -987,9 +997,12 @@ int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans,
 	int ret = 0;
 	int err;
 
+	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	quota_root = fs_info->quota_root;
-	if (!quota_root)
-		return -EINVAL;
+	if (!quota_root) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = del_qgroup_relation_item(trans, quota_root, src, dst);
 	err = del_qgroup_relation_item(trans, quota_root, dst, src);
@@ -1000,7 +1013,8 @@ int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans,
 	del_relation_rb(fs_info, src, dst);
 
 	spin_unlock(&fs_info->qgroup_lock);
-
+out:
+	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	return ret;
 }
 
@@ -1011,9 +1025,12 @@ int btrfs_create_qgroup(struct btrfs_trans_handle *trans,
 	struct btrfs_qgroup *qgroup;
 	int ret = 0;
 
+	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	quota_root = fs_info->quota_root;
-	if (!quota_root)
-		return -EINVAL;
+	if (!quota_root) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = add_qgroup_item(trans, quota_root, qgroupid);
 
@@ -1023,7 +1040,8 @@ int btrfs_create_qgroup(struct btrfs_trans_handle *trans,
 
 	if (IS_ERR(qgroup))
 		ret = PTR_ERR(qgroup);
-
+out:
+	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	return ret;
 }
 
@@ -1034,9 +1052,12 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans,
 	struct btrfs_qgroup *qgroup;
 	int ret = 0;
 
+	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	quota_root = fs_info->quota_root;
-	if (!quota_root)
-		return -EINVAL;
+	if (!quota_root) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	/* check if there are no relations to this qgroup */
 	spin_lock(&fs_info->qgroup_lock);
@@ -1044,7 +1065,8 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans,
 	if (qgroup) {
 		if (!list_empty(&qgroup->groups) || !list_empty(&qgroup->members)) {
 			spin_unlock(&fs_info->qgroup_lock);
-			return -EBUSY;
+			ret = -EBUSY;
+			goto out;
 		}
 	}
 	spin_unlock(&fs_info->qgroup_lock);
@@ -1054,7 +1076,8 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans,
 	spin_lock(&fs_info->qgroup_lock);
 	del_qgroup_rb(quota_root->fs_info, qgroupid);
 	spin_unlock(&fs_info->qgroup_lock);
-
+out:
+	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	return ret;
 }
 
@@ -1062,12 +1085,16 @@ int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
 		       struct btrfs_fs_info *fs_info, u64 qgroupid,
 		       struct btrfs_qgroup_limit *limit)
 {
-	struct btrfs_root *quota_root = fs_info->quota_root;
+	struct btrfs_root *quota_root;
 	struct btrfs_qgroup *qgroup;
 	int ret = 0;
 
-	if (!quota_root)
-		return -EINVAL;
+	mutex_lock(&fs_info->qgroup_ioctl_lock);
+	quota_root = fs_info->quota_root;
+	if (!quota_root) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = update_qgroup_limit_item(trans, quota_root, qgroupid,
 				       limit->flags, limit->max_rfer,
@@ -1094,7 +1121,8 @@ int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
 
 unlock:
 	spin_unlock(&fs_info->qgroup_lock);
-
+out:
+	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	return ret;
 }
 
@@ -1392,11 +1420,14 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 	struct btrfs_qgroup *dstgroup;
 	u32 level_size = 0;
 
+	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	if (!fs_info->quota_enabled)
-		return 0;
+		goto out;
 
-	if (!quota_root)
-		return -EINVAL;
+	if (!quota_root) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	/*
 	 * create a tracking group for the subvol itself
@@ -1523,6 +1554,7 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
 unlock:
 	spin_unlock(&fs_info->qgroup_lock);
 out:
+	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	return ret;
 }
 

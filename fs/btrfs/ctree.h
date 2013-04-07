@@ -1583,6 +1583,9 @@ struct btrfs_fs_info {
 	struct rb_root qgroup_tree;
 	spinlock_t qgroup_lock;
 
+	/* protect user change for quota operations */
+	struct mutex qgroup_ioctl_lock;
+
 	/* list of dirty qgroups to be written at next commit */
 	struct list_head dirty_qgroups;
 
