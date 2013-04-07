@@ -739,15 +739,6 @@ struct cgroup_subsys devices_subsys = {
 	.css_offline = devcgroup_offline,
 	.subsys_id = devices_subsys_id,
 	.base_cftypes = dev_cgroup_files,
-
-	/*
-	 * While devices cgroup has the rudimentary hierarchy support which
-	 * checks the parent's restriction, it doesn't properly propagates
-	 * config changes in ancestors to their descendents.  A child
-	 * should only be allowed to add more restrictions to the parent's
-	 * configuration.  Fix it and remove the following.
-	 */
-	.broken_hierarchy = true,
 };
 
 /**
