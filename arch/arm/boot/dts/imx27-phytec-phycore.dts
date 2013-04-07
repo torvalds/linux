@@ -71,3 +71,9 @@
 		#size-cells = <1>;
 	};
 };
+
+&nfc {
+	nand-bus-width = <8>;
+	nand-ecc-mode = "hw";
+	status = "okay";
+};
