@@ -954,11 +954,19 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 			      struct btrfs_fs_info *fs_info, u64 src, u64 dst)
 {
 	struct btrfs_root *quota_root;
+	struct btrfs_qgroup *parent;
+	struct btrfs_qgroup *member;
 	int ret = 0;
 
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	quota_root = fs_info->quota_root;
 	if (!quota_root) {
+		ret = -EINVAL;
+		goto out;
+	}
+	member = find_qgroup_rb(fs_info, src);
+	parent = find_qgroup_rb(fs_info, dst);
+	if (!member || !parent) {
 		ret = -EINVAL;
 		goto out;
 	}
