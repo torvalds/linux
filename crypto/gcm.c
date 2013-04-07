@@ -1099,6 +1099,21 @@ static int crypto_rfc4543_setauthsize(struct crypto_aead *parent,
 	return crypto_aead_setauthsize(ctx->child, authsize);
 }
 
+static void crypto_rfc4543_done(struct crypto_async_request *areq, int err)
+{
+	struct aead_request *req = areq->data;
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct crypto_rfc4543_req_ctx *rctx = crypto_rfc4543_reqctx(req);
+
+	if (!err) {
+		scatterwalk_map_and_copy(rctx->auth_tag, req->dst,
+					 req->cryptlen,
+					 crypto_aead_authsize(aead), 1);
+	}
+
+	aead_request_complete(req, err);
+}
+
 static struct aead_request *crypto_rfc4543_crypt(struct aead_request *req,
 						 bool enc)
 {
@@ -1145,8 +1160,8 @@ static struct aead_request *crypto_rfc4543_crypt(struct aead_request *req,
 	scatterwalk_crypto_chain(assoc, payload, 0, 2);
 
 	aead_request_set_tfm(subreq, ctx->child);
-	aead_request_set_callback(subreq, req->base.flags, req->base.complete,
-				  req->base.data);
+	aead_request_set_callback(subreq, req->base.flags, crypto_rfc4543_done,
+				  req);
 	aead_request_set_crypt(subreq, cipher, cipher, enc ? 0 : authsize, iv);
 	aead_request_set_assoc(subreq, assoc, assoclen);
 
