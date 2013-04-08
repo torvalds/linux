@@ -26,6 +26,8 @@
 #include "ti-bandgap.h"
 
 /* sensors gradient and offsets */
+#define OMAP_GRADIENT_SLOPE_4430				0
+#define OMAP_GRADIENT_CONST_4430				20000
 #define OMAP_GRADIENT_SLOPE_4460				348
 #define OMAP_GRADIENT_CONST_4460				-9301
 #define OMAP_GRADIENT_SLOPE_4470				308
@@ -37,6 +39,8 @@
 #define OMAP_GRADIENT_CONST_5430_GPU				978
 
 /* PCB sensor calculation constants */
+#define OMAP_GRADIENT_SLOPE_W_PCB_4430				0
+#define OMAP_GRADIENT_CONST_W_PCB_4430				20000
 #define OMAP_GRADIENT_SLOPE_W_PCB_4460				1142
 #define OMAP_GRADIENT_CONST_W_PCB_4460				-393
 #define OMAP_GRADIENT_SLOPE_W_PCB_4470				1063
