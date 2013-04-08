@@ -40,6 +40,8 @@ config DWC_OTG_MODE
 config DWC_DEVICE_ONLY
 	bool "DWC Device Only Mode"
 	select USB_GADGET_SELECTED
+	select USB_GADGET_DWC_HDRC
+	select USB_GADGET_DWC_OTG
 
 endchoice
 

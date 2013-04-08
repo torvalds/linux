@@ -999,7 +999,7 @@ static int dwc_otg_pcd_ep_set_halt_wedge(struct usb_ep *_ep, int val, int wedged
 	spin_lock_irqsave(&ep->pcd->lock, flags);
 
 	if (ep->dwc_ep.is_in && !list_empty(&ep->queue)) {
-		printk(KERN_DEBUG "%s() %s XFer In process\n", __func__, _ep->name);
+		pr_debug("%s() %s XFer In process\n", __func__, _ep->name);
 		retval = -EAGAIN;
 	} else if (val == 0) {
 		ep->wedged = 0;
@@ -1220,7 +1220,7 @@ static int dwc_gadget_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 
 }
 static int dwc_gadget_start(struct usb_gadget_driver *driver,
-			    int (*bind) (struct usb_gadget *));
+			    int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
 static int dwc_gadget_stop(struct usb_gadget_driver *driver);
 
 static const struct usb_gadget_ops dwc_otg_pcd_ops = {
@@ -1610,6 +1610,7 @@ int dwc_otg_pcd_init(struct device *dev)
 	pcd->gadget.dev.parent = dev;
 	pcd->gadget.dev.release = dwc_otg_pcd_gadget_release;
 	pcd->gadget.ops = &dwc_otg_pcd_ops;
+	pcd->gadget.max_speed = USB_SPEED_HIGH;
 
 	if (DWC_HWCFG4_DED_FIFO_ENA_RD(core_if->hwcfg4))
 		pr_info("Dedicated Tx FIFOs mode\n");
@@ -1717,7 +1718,7 @@ void dwc_otg_pcd_remove(struct device *dev)
  * then a host may connect again, or the driver might get unbound.
  */
 static int dwc_gadget_start(struct usb_gadget_driver *driver,
-			    int (*bind) (struct usb_gadget *))
+			    int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	int retval;
 
@@ -1735,7 +1736,7 @@ static int dwc_gadget_start(struct usb_gadget_driver *driver,
 	s_pcd->driver = driver;
 	s_pcd->gadget.dev.driver = &driver->driver;
 
-	retval = bind(&s_pcd->gadget);
+	retval = bind(&s_pcd->gadget, driver);
 	if (retval) {
 		struct core_if *core_if;
 
