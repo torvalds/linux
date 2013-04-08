@@ -95,11 +95,6 @@ config EXYNOS4_DEV_AHCI
 	help
 	  Compile in platform device definitions for AHCI
 
-config EXYNOS_DEV_DRM
-	bool
-	help
-	  Compile in platform device definitions for core DRM device
-
 config EXYNOS4_SETUP_FIMD0
 	bool
 	help
@@ -199,7 +194,6 @@ config MACH_SMDKV310
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
 	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_DRM
 	select EXYNOS_DEV_SYSMMU
 	select S3C24XX_PWM
 	select S3C_DEV_HSMMC
@@ -253,7 +247,6 @@ config MACH_UNIVERSAL_C210
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
 	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_DRM
 	select EXYNOS_DEV_SYSMMU
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC2
@@ -293,7 +286,6 @@ config MACH_NURI
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
 	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_DRM
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
@@ -329,7 +321,6 @@ config MACH_ORIGEN
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
 	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_DRM
 	select EXYNOS_DEV_SYSMMU
 	select S3C24XX_PWM
 	select S3C_DEV_HSMMC
@@ -365,7 +356,6 @@ config MACH_SMDK4212
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
 	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_DRM
 	select EXYNOS_DEV_SYSMMU
 	select S3C24XX_PWM
 	select S3C_DEV_HSMMC2
