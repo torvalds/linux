@@ -623,24 +623,40 @@ static void mxcmci_datawork(struct work_struct *work)
 
 static void mxcmci_data_done(struct mxcmci_host *host, unsigned int stat)
 {
-	struct mmc_data *data = host->data;
+	struct mmc_request *req;
 	int data_error;
+	unsigned long flags;
 
-	if (!data)
+	spin_lock_irqsave(&host->lock, flags);
+
+	if (!host->data) {
+		spin_unlock_irqrestore(&host->lock, flags);
 		return;
+	}
+
+	if (!host->req) {
+		spin_unlock_irqrestore(&host->lock, flags);
+		return;
+	}
+
+	req = host->req;
+	if (!req->stop)
+		host->req = NULL; /* we will handle finish req below */
 
 	data_error = mxcmci_finish_data(host, stat);
+
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	mxcmci_read_response(host, stat);
 	host->cmd = NULL;
 
-	if (host->req->stop) {
-		if (mxcmci_start_cmd(host, host->req->stop, 0)) {
-			mxcmci_finish_request(host, host->req);
+	if (req->stop) {
+		if (mxcmci_start_cmd(host, req->stop, 0)) {
+			mxcmci_finish_request(host, req);
 			return;
 		}
 	} else {
-		mxcmci_finish_request(host, host->req);
+		mxcmci_finish_request(host, req);
 	}
 }
 
@@ -931,7 +947,8 @@ static void mxcmci_watchdog(unsigned long data)
 
 	/* Mark transfer as erroneus and inform the upper layers */
 
-	host->data->error = -ETIMEDOUT;
+	if (host->data)
+		host->data->error = -ETIMEDOUT;
 	host->req = NULL;
 	host->cmd = NULL;
 	host->data = NULL;
