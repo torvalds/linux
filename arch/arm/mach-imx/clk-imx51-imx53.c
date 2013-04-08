@@ -319,7 +319,6 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk_register_clkdev(clk[dummy], NULL, "imx2-wdt.0");
 	clk_register_clkdev(clk[dummy], NULL, "imx2-wdt.1");
 	clk_register_clkdev(clk[dummy], NULL, "imx-keypad");
-	clk_register_clkdev(clk[tve_gate], NULL, "imx-tve.0");
 	clk_register_clkdev(clk[ipu_di1_gate], "di1", "imx-tve.0");
 	clk_register_clkdev(clk[gpc_dvfs], "gpc_dvfs", NULL);
 	clk_register_clkdev(clk[epit1_ipg_gate], "ipg", "imx-epit.0");
