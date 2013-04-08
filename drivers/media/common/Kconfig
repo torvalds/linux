@@ -18,6 +18,7 @@ config VIDEO_TVEEPROM
 
 config CYPRESS_FIRMWARE
 	tristate "Cypress firmware helper routines"
+	depends on USB
 
 source "drivers/media/common/b2c2/Kconfig"
 source "drivers/media/common/saa7146/Kconfig"
