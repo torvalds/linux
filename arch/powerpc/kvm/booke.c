@@ -745,6 +745,9 @@ static int emulation_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		kvmppc_core_queue_program(vcpu, ESR_PIL);
 		return RESUME_HOST;
 
+	case EMULATE_EXIT_USER:
+		return RESUME_HOST;
+
 	default:
 		BUG();
 	}
