@@ -178,7 +178,8 @@ static inline int em28xx_dvb_urb_data_copy(struct em28xx *dev, struct urb *urb)
 static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 {
 	int rc;
-	struct em28xx *dev = dvb->adapter.priv;
+	struct em28xx_i2c_bus *i2c_bus = dvb->adapter.priv;
+	struct em28xx *dev = i2c_bus->dev;
 	int dvb_max_packet_size, packet_multiplier, dvb_alt;
 
 	if (dev->dvb_xfer_bulk) {
@@ -217,7 +218,8 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 
 static int em28xx_stop_streaming(struct em28xx_dvb *dvb)
 {
-	struct em28xx *dev = dvb->adapter.priv;
+	struct em28xx_i2c_bus *i2c_bus = dvb->adapter.priv;
+	struct em28xx *dev = i2c_bus->dev;
 
 	em28xx_stop_urbs(dev);
 
@@ -839,7 +841,7 @@ static int em28xx_register_dvb(struct em28xx_dvb *dvb, struct module *module,
 	if (dvb->fe[1])
 		dvb->fe[1]->ops.ts_bus_ctrl = em28xx_dvb_bus_ctrl;
 
-	dvb->adapter.priv = dev;
+	dvb->adapter.priv = &dev->i2c_bus[dev->def_i2c_bus];
 
 	/* register frontend */
 	result = dvb_register_frontend(&dvb->adapter, dvb->fe[0]);
