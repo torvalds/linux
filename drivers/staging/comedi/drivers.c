@@ -383,6 +383,8 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* initialize dev->driver here so
 	 * comedi_error() can be called from attach */
 	dev->driver = driv;
+	dev->board_name = dev->board_ptr ? *(const char **)dev->board_ptr
+					 : dev->driver->driver_name;
 	ret = driv->attach(dev, it);
 	if (ret >= 0)
 		ret = comedi_device_postconfig(dev);
@@ -423,6 +425,7 @@ int comedi_auto_config(struct device *hardware_device,
 	/* Note: comedi_alloc_board_minor() locked dev->mutex. */
 
 	dev->driver = driver;
+	dev->board_name = dev->driver->driver_name;
 	ret = driver->auto_attach(dev, context);
 	if (ret >= 0)
 		ret = comedi_device_postconfig(dev);
