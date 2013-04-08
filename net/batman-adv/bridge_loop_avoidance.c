@@ -864,7 +864,7 @@ static int batadv_bla_process_claim(struct batadv_priv *bat_priv,
 	short vid = -1;
 	int ret;
 
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 
 	if (ntohs(ethhdr->h_proto) == ETH_P_8021Q) {
 		vhdr = (struct vlan_ethhdr *)ethhdr;
@@ -885,7 +885,7 @@ static int batadv_bla_process_claim(struct batadv_priv *bat_priv,
 		return 0;
 
 	/* pskb_may_pull() may have modified the pointers, get ethhdr again */
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 	arphdr = (struct arphdr *)((uint8_t *)ethhdr + headlen);
 
 	/* Check whether the ARP frame carries a valid
@@ -1432,7 +1432,7 @@ int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid,
 	struct batadv_hard_iface *primary_if;
 	int ret;
 
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
@@ -1539,7 +1539,7 @@ int batadv_bla_tx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid)
 	if (batadv_bla_process_claim(bat_priv, primary_if, skb))
 		goto handled;
 
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 
 	if (unlikely(atomic_read(&bat_priv->bla.num_requests)))
 		/* don't allow broadcasts while requests are in flight */

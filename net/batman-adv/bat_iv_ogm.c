@@ -1268,7 +1268,7 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 			   skb->len + ETH_HLEN);
 
 	packet_len = skb_headlen(skb);
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 	packet_buff = skb->data;
 	batadv_ogm_packet = (struct batadv_ogm_packet *)packet_buff;
 

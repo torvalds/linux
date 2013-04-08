@@ -256,7 +256,7 @@ bool batadv_check_management_packet(struct sk_buff *skb,
 	if (unlikely(!pskb_may_pull(skb, header_len)))
 		return false;
 
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 
 	/* packet with broadcast indication but unicast recipient */
 	if (!is_broadcast_ether_addr(ethhdr->h_dest))
@@ -392,7 +392,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 	if (unlikely(!pskb_may_pull(skb, hdr_size)))
 		goto out;
 
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 
 	/* packet with unicast indication but broadcast recipient */
 	if (is_broadcast_ether_addr(ethhdr->h_dest))
@@ -569,7 +569,7 @@ static int batadv_check_unicast_packet(struct batadv_priv *bat_priv,
 	if (unlikely(!pskb_may_pull(skb, hdr_size)))
 		return -ENODATA;
 
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 
 	/* packet with unicast indication but broadcast recipient */
 	if (is_broadcast_ether_addr(ethhdr->h_dest))
@@ -803,7 +803,7 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_neigh_node *neigh_node = NULL;
 	struct batadv_unicast_packet *unicast_packet;
-	struct ethhdr *ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	struct ethhdr *ethhdr = eth_hdr(skb);
 	int ret = NET_RX_DROP;
 	struct sk_buff *new_skb;
 
@@ -1165,7 +1165,7 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	if (unlikely(!pskb_may_pull(skb, hdr_size)))
 		goto out;
 
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 
 	/* packet with broadcast indication but unicast recipient */
 	if (!is_broadcast_ether_addr(ethhdr->h_dest))
@@ -1265,7 +1265,7 @@ int batadv_recv_vis_packet(struct sk_buff *skb,
 		return NET_RX_DROP;
 
 	vis_packet = (struct batadv_vis_packet *)skb->data;
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	ethhdr = eth_hdr(skb);
 
 	/* not for me */
 	if (!batadv_is_my_mac(bat_priv, ethhdr->h_dest))
