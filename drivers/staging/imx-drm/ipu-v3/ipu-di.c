@@ -413,9 +413,11 @@ static void ipu_di_sync_config_noninterlaced(struct ipu_di *di,
 		sig->v_end_width;
 	struct di_sync_config cfg[] = {
 		{
+			/* 1: INT_HSYNC */
 			.run_count = h_total - 1,
 			.run_src = DI_SYNC_CLK,
 		} , {
+			/* PIN2: HSYNC */
 			.run_count = h_total - 1,
 			.run_src = DI_SYNC_CLK,
 			.offset_count = div * sig->v_to_h_sync,
@@ -424,23 +426,28 @@ static void ipu_di_sync_config_noninterlaced(struct ipu_di *di,
 			.cnt_polarity_trigger_src = DI_SYNC_CLK,
 			.cnt_down = sig->h_sync_width * 2,
 		} , {
+			/* PIN3: VSYNC */
 			.run_count = v_total - 1,
 			.run_src = DI_SYNC_INT_HSYNC,
 			.cnt_polarity_gen_en = 1,
 			.cnt_polarity_trigger_src = DI_SYNC_INT_HSYNC,
 			.cnt_down = sig->v_sync_width * 2,
 		} , {
+			/* 4: Line Active */
 			.run_src = DI_SYNC_HSYNC,
 			.offset_count = sig->v_sync_width + sig->v_start_width,
 			.offset_src = DI_SYNC_HSYNC,
 			.repeat_count = sig->height,
 			.cnt_clr_src = DI_SYNC_VSYNC,
 		} , {
+			/* 5: DE, referenced by DC */
 			.run_src = DI_SYNC_CLK,
 			.offset_count = sig->h_sync_width + sig->h_start_width,
 			.offset_src = DI_SYNC_CLK,
 			.repeat_count = sig->width,
-			.cnt_clr_src = 5,
+			.cnt_clr_src = 5, /* Line Active */
+		} , {
+			/* unused */
 		} , {
 			/* unused */
 		} , {
