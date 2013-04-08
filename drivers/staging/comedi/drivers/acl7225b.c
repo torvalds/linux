@@ -40,15 +40,19 @@ static int acl7225b_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
+	unsigned long reg = (unsigned long)s->private;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
+
+		if (mask & 0x00ff)
+			outb(s->state & 0xff, dev->iobase + reg);
+		if (mask & 0xff00)
+			outb((s->state >> 8), dev->iobase + reg + 1);
 	}
-	if (data[0] & 0x00ff)
-		outb(s->state & 0xff, dev->iobase + (unsigned long)s->private);
-	if (data[0] & 0xff00)
-		outb((s->state >> 8),
-		     dev->iobase + (unsigned long)s->private + 1);
 
 	data[1] = s->state;
 
