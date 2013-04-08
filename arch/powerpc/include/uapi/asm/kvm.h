@@ -272,7 +272,30 @@ struct kvm_debug_exit_arch {
 
 /* for KVM_SET_GUEST_DEBUG */
 struct kvm_guest_debug_arch {
+	struct {
+		/* H/W breakpoint/watchpoint address */
+		__u64 addr;
+		/*
+		 * Type denotes h/w breakpoint, read watchpoint, write
+		 * watchpoint or watchpoint (both read and write).
+		 */
+#define KVMPPC_DEBUG_NONE		0x0
+#define KVMPPC_DEBUG_BREAKPOINT		(1UL << 1)
+#define KVMPPC_DEBUG_WATCH_WRITE	(1UL << 2)
+#define KVMPPC_DEBUG_WATCH_READ		(1UL << 3)
+		__u32 type;
+		__u32 reserved;
+	} bp[16];
 };
+
+/* Debug related defines */
+/*
+ * kvm_guest_debug->control is a 32 bit field. The lower 16 bits are generic
+ * and upper 16 bits are architecture specific. Architecture specific defines
+ * that ioctl is for setting hardware breakpoint or software breakpoint.
+ */
+#define KVM_GUESTDBG_USE_SW_BP		0x00010000
+#define KVM_GUESTDBG_USE_HW_BP		0x00020000
 
 /* definition of registers in kvm_run */
 struct kvm_sync_regs {

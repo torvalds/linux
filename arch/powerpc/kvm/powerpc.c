@@ -531,12 +531,6 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 #endif
 }
 
-int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
-                                        struct kvm_guest_debug *dbg)
-{
-	return -EINVAL;
-}
-
 static void kvmppc_complete_dcr_load(struct kvm_vcpu *vcpu,
                                      struct kvm_run *run)
 {
