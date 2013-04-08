@@ -21,7 +21,6 @@
 #include <linux/io.h>
 #include <linux/irqchip/arm-gic.h>
 
-#include <asm/cacheflush.h>
 #include <asm/smp_scu.h>
 
 #include "omap-secure.h"
@@ -96,9 +95,6 @@ static int __cpuinit omap4_boot_secondary(unsigned int cpu, struct task_struct *
 	else
 		__raw_writel(0x20, base + OMAP_AUX_CORE_BOOT_0);
 
-	flush_cache_all();
-	smp_wmb();
-
 	if (!cpu1_clkdm)
 		cpu1_clkdm = clkdm_lookup("mpu1_clkdm");
 
@@ -161,38 +157,6 @@ static int __cpuinit omap4_boot_secondary(unsigned int cpu, struct task_struct *
 	return 0;
 }
 
-static void __init wakeup_secondary(void)
-{
-	void *startup_addr = omap_secondary_startup;
-	void __iomem *base = omap_get_wakeupgen_base();
-
-	if (cpu_is_omap446x()) {
-		startup_addr = omap_secondary_startup_4460;
-		pm44xx_errata |= PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD;
-	}
-
-	/*
-	 * Write the address of secondary startup routine into the
-	 * AuxCoreBoot1 where ROM code will jump and start executing
-	 * on secondary core once out of WFE
-	 * A barrier is added to ensure that write buffer is drained
-	 */
-	if (omap_secure_apis_support())
-		omap_auxcoreboot_addr(virt_to_phys(startup_addr));
-	else
-		__raw_writel(virt_to_phys(omap5_secondary_startup),
-						base + OMAP_AUX_CORE_BOOT_1);
-
-	smp_wmb();
-
-	/*
-	 * Send a 'sev' to wake the secondary core from WFE.
-	 * Drain the outstanding writes to memory
-	 */
-	dsb_sev();
-	mb();
-}
-
 /*
  * Initialise the CPU possible map early - this describes the CPUs
  * which may be present or become present in the system.
@@ -228,6 +192,8 @@ static void __init omap4_smp_init_cpus(void)
 
 static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 {
+	void *startup_addr = omap_secondary_startup;
+	void __iomem *base = omap_get_wakeupgen_base();
 
 	/*
 	 * Initialise the SCU and wake up the secondary core using
@@ -235,7 +201,24 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 	 */
 	if (scu_base)
 		scu_enable(scu_base);
-	wakeup_secondary();
+
+	if (cpu_is_omap446x()) {
+		startup_addr = omap_secondary_startup_4460;
+		pm44xx_errata |= PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD;
+	}
+
+	/*
+	 * Write the address of secondary startup routine into the
+	 * AuxCoreBoot1 where ROM code will jump and start executing
+	 * on secondary core once out of WFE
+	 * A barrier is added to ensure that write buffer is drained
+	 */
+	if (omap_secure_apis_support())
+		omap_auxcoreboot_addr(virt_to_phys(startup_addr));
+	else
+		__raw_writel(virt_to_phys(omap5_secondary_startup),
+						base + OMAP_AUX_CORE_BOOT_1);
+
 }
 
 struct smp_operations omap4_smp_ops __initdata = {
