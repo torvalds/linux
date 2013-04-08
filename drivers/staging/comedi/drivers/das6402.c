@@ -288,8 +288,6 @@ static int das6402_attach(struct comedi_device *dev,
 	int ret;
 	struct comedi_subdevice *s;
 
-	dev->board_name = "das6402";
-
 	iobase = it->options[0];
 	if (iobase == 0)
 		iobase = 0x300;

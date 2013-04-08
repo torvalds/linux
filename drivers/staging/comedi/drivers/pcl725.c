@@ -54,7 +54,6 @@ static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
-	dev->board_name = "pcl725";
 	dev->iobase = iobase;
 	dev->irq = 0;
 

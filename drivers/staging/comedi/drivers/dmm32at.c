@@ -698,8 +698,6 @@ static int dmm32at_attach(struct comedi_device *dev,
 	unsigned long iobase;
 	unsigned int irq;
 
-	dev->board_name = dev->driver->driver_name;
-
 	iobase = it->options[0];
 	irq = it->options[1];
 

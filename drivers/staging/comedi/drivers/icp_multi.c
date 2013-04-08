@@ -503,8 +503,6 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	resource_size_t iobase;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;

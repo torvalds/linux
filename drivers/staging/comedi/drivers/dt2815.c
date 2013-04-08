@@ -171,7 +171,6 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	dev->iobase = iobase;
-	dev->board_name = "dt2815";
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)

@@ -168,8 +168,6 @@ static int pcmda12_attach(struct comedi_device *dev,
 	}
 	dev->iobase = iobase;
 
-	dev->board_name = dev->driver->driver_name;
-
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;

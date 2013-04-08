@@ -217,8 +217,6 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int unipolar, differential;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
 	iobase = it->options[0];
 	unipolar = it->options[1];
 	differential = it->options[2];

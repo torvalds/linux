@@ -573,8 +573,6 @@ static int das16m1_attach(struct comedi_device *dev,
 	unsigned int irq;
 	unsigned long iobase;
 
-	dev->board_name = dev->driver->driver_name;
-
 	iobase = it->options[0];
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);

@@ -481,10 +481,12 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	thisboard = comedi_board(dev);
 
-/*
- * Initialize dev->board_name.
- */
-	dev->board_name = thisboard->name;
+	/*
+	 * The dev->board_name is initialized by the comedi core before
+	 * calling the (*attach) function. It can be optionally set by
+	 * the driver if additional probing has been done.
+	 */
+	/* dev->board_name = thisboard->name; */
 
 	/* Allocate the private data */
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);

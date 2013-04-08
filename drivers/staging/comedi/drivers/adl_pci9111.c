@@ -865,8 +865,6 @@ static int pci9111_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
 	dev_private = kzalloc(sizeof(*dev_private), GFP_KERNEL);
 	if (!dev_private)
 		return -ENOMEM;

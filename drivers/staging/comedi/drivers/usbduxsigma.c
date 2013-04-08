@@ -2205,7 +2205,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 	down(&uds->sem);
 	/* pointer back to the corresponding comedi device */
 	uds->comedidev = dev;
-	dev->board_name = "usbduxsigma";
+
 	/* set number of subdevices */
 	if (uds->high_speed)
 		n_subdevs = 4;	/* with pwm */

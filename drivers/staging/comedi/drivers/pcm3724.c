@@ -230,8 +230,6 @@ static int pcm3724_attach(struct comedi_device *dev,
 	unsigned int iorange;
 	int ret, i;
 
-	dev->board_name = dev->driver->driver_name;
-
 	iobase = it->options[0];
 	iorange = PCM3724_SIZE;
 

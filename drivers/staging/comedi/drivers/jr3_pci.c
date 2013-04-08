@@ -700,7 +700,6 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 		return -EINVAL;
 		break;
 	}
-	dev->board_name = "jr3_pci";
 
 	result = comedi_pci_enable(dev);
 	if (result)

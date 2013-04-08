@@ -358,8 +358,6 @@ static int adv_pci1724_auto_attach(struct comedi_device *dev,
 		devpriv->gain_value[i] = -1;
 	}
 
-	dev->board_name = dev->driver->driver_name;
-
 	retval = comedi_pci_enable(dev);
 	if (retval)
 		return retval;

@@ -2207,8 +2207,6 @@ static int usbdux_attach_common(struct comedi_device *dev,
 	/* pointer back to the corresponding comedi device */
 	udev->comedidev = dev;
 
-	dev->board_name = "usbdux";
-
 	/* set number of subdevices */
 	if (udev->high_speed) {
 		/* with pwm */

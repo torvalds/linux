@@ -442,7 +442,6 @@ static int unioxx5_attach(struct comedi_device *dev,
 
 	iobase = it->options[0];
 
-	dev->board_name = DRIVER_NAME;
 	dev->iobase = iobase;
 	iobase += UNIOXX5_SUBDEV_BASE;
 

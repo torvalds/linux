@@ -252,7 +252,6 @@ static int multiq3_attach(struct comedi_device *dev,
 			dev->minor, irq);
 	else
 		printk(KERN_WARNING "comedi%d: no irq\n", dev->minor);
-	dev->board_name = "multiq3";
 
 	result = comedi_alloc_subdevices(dev, 5);
 	if (result)

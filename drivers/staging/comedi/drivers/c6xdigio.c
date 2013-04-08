@@ -431,7 +431,6 @@ static int c6xdigio_attach(struct comedi_device *dev,
 		return -EIO;
 	}
 	dev->iobase = iobase;
-	dev->board_name = "c6xdigio";
 
 	result = comedi_alloc_subdevices(dev, 2);
 	if (result)

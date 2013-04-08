@@ -287,8 +287,6 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;

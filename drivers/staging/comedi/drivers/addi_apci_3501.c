@@ -339,8 +339,6 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	int ao_n_chan;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;

@@ -555,8 +555,6 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int iobase;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
 	iobase = it->options[0];
 	if (!iobase || !request_region(iobase, S526_IOSIZE, dev->board_name)) {
 		comedi_error(dev, "I/O port conflict");

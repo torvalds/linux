@@ -1038,8 +1038,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned int irq[MAX_ASICS];
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
 	iobase = it->options[0];
 	irq[0] = it->options[1];
 

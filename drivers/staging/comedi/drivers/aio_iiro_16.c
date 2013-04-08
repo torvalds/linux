@@ -83,8 +83,6 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 
 	printk(KERN_INFO "comedi%d: aio_iiro_16: ", dev->minor);
 
-	dev->board_name = dev->driver->driver_name;
-
 	iobase = it->options[0];
 
 	if (!request_region(iobase, AIO_IIRO_16_SIZE, dev->board_name)) {

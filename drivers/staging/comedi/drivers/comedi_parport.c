@@ -266,8 +266,6 @@ static int parport_attach(struct comedi_device *dev,
 	unsigned long iobase;
 	struct comedi_subdevice *s;
 
-	dev->board_name = dev->driver->driver_name;
-
 	iobase = it->options[0];
 	if (!request_region(iobase, PARPORT_SIZE, dev->board_name)) {
 		dev_err(dev->class_dev, "I/O port conflict\n");

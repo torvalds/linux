@@ -255,7 +255,6 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 	}
 	dev->iobase = iobase;
-	dev->board_name = "dt2814";
 
 	outb(0, dev->iobase + DT2814_CSR);
 	udelay(100);

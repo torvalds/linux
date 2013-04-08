@@ -52,8 +52,6 @@ static int dio24_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
 	link->config_flags |= CONF_AUTO_SET_IO;
 	ret = comedi_pcmcia_enable(dev, NULL);
 	if (ret)

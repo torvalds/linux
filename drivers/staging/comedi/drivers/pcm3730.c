@@ -64,7 +64,6 @@ static int pcm3730_attach(struct comedi_device *dev,
 		return -EIO;
 	}
 	dev->iobase = iobase;
-	dev->board_name = "pcm3730";
 	dev->iobase = dev->iobase;
 	dev->irq = 0;
 

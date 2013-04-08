@@ -125,7 +125,6 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 	}
 	dev->iobase = iobase;
-	dev->board_name = "fl512";
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)

@@ -354,8 +354,6 @@ static int dev_8255_attach(struct comedi_device *dev,
 	unsigned long iobase;
 	int i;
 
-	dev->board_name = "8255";
-
 	for (i = 0; i < COMEDI_NDEVCONFOPTS; i++) {
 		iobase = it->options[i];
 		if (!iobase)
