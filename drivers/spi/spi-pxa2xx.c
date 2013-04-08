@@ -22,6 +22,7 @@
 #include <linux/device.h>
 #include <linux/ioport.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/spi/pxa2xx_spi.h>
@@ -1088,11 +1089,9 @@ pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 	ssp = &pdata->ssp;
 
 	ssp->phys_base = res->start;
-	ssp->mmio_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!ssp->mmio_base) {
-		dev_err(&pdev->dev, "failed to ioremap mmio_base\n");
-		return NULL;
-	}
+	ssp->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ssp->mmio_base))
+		return PTR_ERR(ssp->mmio_base);
 
 	ssp->clk = devm_clk_get(&pdev->dev, NULL);
 	ssp->irq = platform_get_irq(pdev, 0);
