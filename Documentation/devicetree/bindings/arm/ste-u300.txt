@@ -1,0 +1,9 @@
+ST-Ericsson U300 Device Tree Bindings
+
+For various board the "board" node may contain specific properties
+that pertain to this particular board, such as board-specific GPIOs
+or board power regulator supplies.
+
+Required root node property:
+
+compatible="stericsson,u300";

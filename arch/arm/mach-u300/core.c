@@ -33,6 +33,9 @@
 #include <linux/platform_data/pinctrl-coh901.h>
 #include <linux/platform_data/dma-coh901318.h>
 #include <linux/irqchip/arm-vic.h>
+#include <linux/irqchip.h>
+#include <linux/of_platform.h>
+#include <linux/clocksource.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -698,3 +701,81 @@ MACHINE_START(U300, "Ericsson AB U335 S335/B335 Prototype Board")
 	.init_machine	= u300_init_machine,
 	.restart	= u300_restart,
 MACHINE_END
+
+#ifdef CONFIG_OF
+
+/* These are mostly to get the right device names for the clock lookups */
+static struct of_dev_auxdata u300_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("stericsson,pinctrl-u300", U300_SYSCON_BASE,
+		"pinctrl-u300", NULL),
+	OF_DEV_AUXDATA("stericsson,gpio-coh901", U300_GPIO_BASE,
+		"u300-gpio", &u300_gpio_plat),
+	OF_DEV_AUXDATA("arm,primecell", U300_UART0_BASE,
+		"uart0", &uart0_plat_data),
+	OF_DEV_AUXDATA("arm,primecell", U300_UART1_BASE,
+		"uart1", &uart1_plat_data),
+	OF_DEV_AUXDATA("arm,primecell", U300_MMCSD_BASE,
+		"mmci", &mmcsd_platform_data),
+	{ /* sentinel */ },
+};
+
+static void __init u300_init_irq_dt(void)
+{
+	struct clk *clk;
+
+	/* initialize clocking early, we want to clock the INTCON */
+	u300_clk_init(U300_SYSCON_VBASE);
+
+	/* Bootstrap EMIF and SEMI clocks */
+	clk = clk_get_sys("pl172", NULL);
+	BUG_ON(IS_ERR(clk));
+	clk_prepare_enable(clk);
+	clk = clk_get_sys("semi", NULL);
+	BUG_ON(IS_ERR(clk));
+	clk_prepare_enable(clk);
+
+	/* Clock the interrupt controller */
+	clk = clk_get_sys("intcon", NULL);
+	BUG_ON(IS_ERR(clk));
+	clk_prepare_enable(clk);
+
+	irqchip_init();
+}
+
+static void __init u300_init_machine_dt(void)
+{
+	u16 val;
+
+	/* Check what platform we run and print some status information */
+	u300_init_check_chip();
+
+	u300_assign_physmem();
+
+	/* Initialize pinmuxing */
+	pinctrl_register_mappings(u300_pinmux_map,
+				  ARRAY_SIZE(u300_pinmux_map));
+
+	of_platform_populate(NULL, of_default_bus_match_table,
+			u300_auxdata_lookup, NULL);
+
+	/* Enable SEMI self refresh */
+	val = readw(U300_SYSCON_VBASE + U300_SYSCON_SMCR) |
+		U300_SYSCON_SMCR_SEMI_SREFREQ_ENABLE;
+	writew(val, U300_SYSCON_VBASE + U300_SYSCON_SMCR);
+}
+
+static const char * u300_board_compat[] = {
+	"stericsson,u300",
+	NULL,
+};
+
+DT_MACHINE_START(U300_DT, "U300 S335/B335 (Device Tree)")
+	.map_io		= u300_map_io,
+	.init_irq	= u300_init_irq_dt,
+	.init_time	= clocksource_of_init,
+	.init_machine	= u300_init_machine_dt,
+	.restart	= u300_restart,
+	.dt_compat      = u300_board_compat,
+MACHINE_END
+
+#endif /* CONFIG_OF */

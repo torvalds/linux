@@ -1,0 +1,86 @@
+/*
+ * Device Tree for the ST-Ericsson U300 Machine and SoC
+ */
+
+/dts-v1/;
+/include/ "skeleton.dtsi"
+
+/ {
+	model = "ST-Ericsson U300";
+	compatible = "stericsson,u300";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	chosen {
+		bootargs = "root=/dev/ram0 console=ttyAMA0,115200n8 earlyprintk";
+	};
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+        };
+
+	memory {
+		reg = <0x48000000 0x03c00000>;
+	};
+
+	timer: timer@c0014000 {
+		compatible = "stericsson,u300-apptimer";
+		reg = <0xc0014000 0x1000>;
+		interrupt-parent = <&vica>;
+		interrupts = <24 25 26 27>;
+	};
+
+	gpio: gpio@c0016000 {
+		compatible = "stericsson,gpio-coh901";
+		reg = <0xc0016000 0x1000>;
+		interrupt-parent = <&vicb>;
+		interrupts = <0 1 2 18 21 22 23>;
+		interrupt-names = "gpio0", "gpio1", "gpio2", "gpio3",
+				"gpio4", "gpio5", "gpio6";
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	pinctrl: pinctrl@c0011000 {
+		compatible = "stericsson,pinctrl-u300";
+		reg = <0xc0011000 0x1000>;
+	};
+
+	amba {
+		compatible = "arm,amba-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		vica: interrupt-controller@a0001000 {
+			compatible = "arm,versatile-vic";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0xa0001000 0x20>;
+		};
+
+		vicb: interrupt-controller@a0002000 {
+			compatible = "arm,versatile-vic";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0xa0002000 0x20>;
+		};
+
+		uart0: serial@c0013000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0xc0013000 0x1000>;
+			interrupt-parent = <&vica>;
+			interrupts = <22>;
+		};
+
+		uart1: serial@c0007000 {
+			compatible = "arm,pl011", "arm,primecell";
+			reg = <0xc0007000 0x1000>;
+			interrupt-parent = <&vicb>;
+			interrupts = <20>;
+		};
+	};
+};
