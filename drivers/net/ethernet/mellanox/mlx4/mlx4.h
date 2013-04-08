@@ -1235,7 +1235,7 @@ int mlx4_get_qp_per_mgm(struct mlx4_dev *dev);
 
 static inline void set_param_l(u64 *arg, u32 val)
 {
-	*((u32 *)arg) = val;
+	*arg = (*arg & 0xffffffff00000000ULL) | (u64) val;
 }
 
 static inline void set_param_h(u64 *arg, u32 val)

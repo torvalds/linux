@@ -174,9 +174,9 @@ int clk_foo_enable(struct clk_hw *hw)
 };
 
 Below is a matrix detailing which clk_ops are mandatory based upon the
-hardware capbilities of that clock.  A cell marked as "y" means
+hardware capabilities of that clock.  A cell marked as "y" means
 mandatory, a cell marked as "n" implies that either including that
-callback is invalid or otherwise uneccesary.  Empty cells are either
+callback is invalid or otherwise unnecessary.  Empty cells are either
 optional or must be evaluated on a case-by-case basis.
 
                            clock hardware characteristics
