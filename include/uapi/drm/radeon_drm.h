@@ -972,6 +972,9 @@ struct drm_radeon_cs {
 #define RADEON_INFO_MAX_SE		0x12
 /* max SH per SE */
 #define RADEON_INFO_MAX_SH_PER_SE	0x13
+/* fast fb access is enabled */
+#define RADEON_INFO_FASTFB_WORKING	0x14
+
 
 struct drm_radeon_info {
 	uint32_t		request;

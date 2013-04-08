@@ -376,6 +376,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		else
 			return -EINVAL;
 		break;
+	case RADEON_INFO_FASTFB_WORKING:
+		value = rdev->fastfb_working;
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;

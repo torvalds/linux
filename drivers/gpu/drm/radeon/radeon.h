@@ -95,6 +95,7 @@ extern int radeon_hw_i2c;
 extern int radeon_pcie_gen2;
 extern int radeon_msi;
 extern int radeon_lockup_timeout;
+extern int radeon_fastfb;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -1616,6 +1617,7 @@ struct radeon_device {
 	bool				suspend;
 	bool				need_dma32;
 	bool				accel_working;
+	bool				fastfb_working; /* IGP feature*/
 	struct radeon_surface_reg surface_regs[RADEON_GEM_MAX_SURFACES];
 	const struct firmware *me_fw;	/* all family ME firmware */
 	const struct firmware *pfp_fw;	/* r6/700 PFP firmware */
