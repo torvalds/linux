@@ -11,7 +11,6 @@
 
 #include <linux/module.h>
 #include <linux/cpuidle.h>
-#include <linux/clockchips.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
 #include <linux/smp.h>
@@ -29,8 +28,6 @@ static inline int ux500_enter_idle(struct cpuidle_device *dev,
 {
 	int this_cpu = smp_processor_id();
 	bool recouple = false;
-
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &this_cpu);
 
 	if (atomic_inc_return(&master) == num_online_cpus()) {
 
@@ -91,8 +88,6 @@ out:
 		spin_unlock(&master_lock);
 	}
 
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &this_cpu);
-
 	return index;
 }
 
@@ -106,7 +101,8 @@ static struct cpuidle_driver ux500_idle_driver = {
 			.enter		  = ux500_enter_idle,
 			.exit_latency	  = 70,
 			.target_residency = 260,
-			.flags		  = CPUIDLE_FLAG_TIME_VALID,
+			.flags		  = CPUIDLE_FLAG_TIME_VALID |
+			                    CPUIDLE_FLAG_TIMER_STOP,
 			.name		  = "ApIdle",
 			.desc		  = "ARM Retention",
 		},
@@ -114,16 +110,6 @@ static struct cpuidle_driver ux500_idle_driver = {
 	.safe_state_index = 0,
 	.state_count = 2,
 };
-
-/*
- * For each cpu, setup the broadcast timer because we will
- * need to migrate the timers for the states >= ApIdle.
- */
-static void ux500_setup_broadcast_timer(void *arg)
-{
-	int cpu = smp_processor_id();
-	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ON, &cpu);
-}
 
 int __init ux500_idle_init(void)
 {
@@ -133,13 +119,6 @@ int __init ux500_idle_init(void)
         /* Configure wake up reasons */
 	prcmu_enable_wakeups(PRCMU_WAKEUP(ARM) | PRCMU_WAKEUP(RTC) |
 			     PRCMU_WAKEUP(ABB));
-
-	/*
-	 * Configure the timer broadcast for each cpu, that must
-	 * be done from the cpu context, so we use a smp cross
-	 * call with 'on_each_cpu'.
-	 */
-	on_each_cpu(ux500_setup_broadcast_timer, NULL, 1);
 
 	ret = cpuidle_register_driver(&ux500_idle_driver);
 	if (ret) {
