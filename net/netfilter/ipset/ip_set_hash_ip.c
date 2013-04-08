@@ -255,15 +255,6 @@ hash_ip6_data_zero_out(struct hash_ip6_elem *elem)
 	ipv6_addr_set(&elem->ip.in6, 0, 0, 0, 0);
 }
 
-static inline void
-ip6_netmask(union nf_inet_addr *ip, u8 prefix)
-{
-	ip->ip6[0] &= ip_set_netmask6(prefix)[0];
-	ip->ip6[1] &= ip_set_netmask6(prefix)[1];
-	ip->ip6[2] &= ip_set_netmask6(prefix)[2];
-	ip->ip6[3] &= ip_set_netmask6(prefix)[3];
-}
-
 static bool
 hash_ip6_data_list(struct sk_buff *skb, const struct hash_ip6_elem *data)
 {

@@ -343,15 +343,6 @@ hash_net6_data_zero_out(struct hash_net6_elem *elem)
 }
 
 static inline void
-ip6_netmask(union nf_inet_addr *ip, u8 prefix)
-{
-	ip->ip6[0] &= ip_set_netmask6(prefix)[0];
-	ip->ip6[1] &= ip_set_netmask6(prefix)[1];
-	ip->ip6[2] &= ip_set_netmask6(prefix)[2];
-	ip->ip6[3] &= ip_set_netmask6(prefix)[3];
-}
-
-static inline void
 hash_net6_data_netmask(struct hash_net6_elem *elem, u8 cidr)
 {
 	ip6_netmask(&elem->ip, cidr);
