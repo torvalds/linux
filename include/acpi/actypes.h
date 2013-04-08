@@ -1128,7 +1128,6 @@ struct acpi_memory_list {
 	u16 object_size;
 	u16 max_depth;
 	u16 current_depth;
-	u16 link_offset;
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 
