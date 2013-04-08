@@ -1739,6 +1739,10 @@ static int nfs4_check_lease(struct nfs_client *clp)
 	}
 	status = ops->renew_lease(clp, cred);
 	put_rpccred(cred);
+	if (status == -ETIMEDOUT) {
+		set_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
+		return 0;
+	}
 out:
 	return nfs4_recovery_handle_error(clp, status);
 }
