@@ -53,6 +53,33 @@
 #define RCU_IND_INDEX           			0x100
 #define RCU_IND_DATA            			0x104
 
+/* discrete uvd clocks */
+#define CG_UPLL_FUNC_CNTL				0x718
+#	define UPLL_RESET_MASK				0x00000001
+#	define UPLL_SLEEP_MASK				0x00000002
+#	define UPLL_BYPASS_EN_MASK			0x00000004
+#	define UPLL_CTLREQ_MASK				0x00000008
+#	define UPLL_REF_DIV_MASK			0x001F0000
+#	define UPLL_VCO_MODE_MASK			0x00000200
+#	define UPLL_CTLACK_MASK				0x40000000
+#	define UPLL_CTLACK2_MASK			0x80000000
+#define CG_UPLL_FUNC_CNTL_2				0x71c
+#	define UPLL_PDIV_A(x)				((x) << 0)
+#	define UPLL_PDIV_A_MASK				0x0000007F
+#	define UPLL_PDIV_B(x)				((x) << 8)
+#	define UPLL_PDIV_B_MASK				0x00007F00
+#	define VCLK_SRC_SEL(x)				((x) << 20)
+#	define VCLK_SRC_SEL_MASK			0x01F00000
+#	define DCLK_SRC_SEL(x)				((x) << 25)
+#	define DCLK_SRC_SEL_MASK			0x3E000000
+#define CG_UPLL_FUNC_CNTL_3				0x720
+#	define UPLL_FB_DIV(x)				((x) << 0)
+#	define UPLL_FB_DIV_MASK				0x01FFFFFF
+#define CG_UPLL_FUNC_CNTL_4				0x854
+#	define UPLL_SPARE_ISPARE9			0x00020000
+#define CG_UPLL_SPREAD_SPECTRUM				0x79c
+#	define SSEN_MASK				0x00000001
+
 /* fusion uvd clocks */
 #define CG_DCLK_CNTL                                    0x610
 #       define DCLK_DIVIDER_MASK                        0x7f
