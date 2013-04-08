@@ -299,6 +299,7 @@ static struct file_system_type debug_fs_type = {
 	.mount =	debug_mount,
 	.kill_sb =	kill_litter_super,
 };
+MODULE_ALIAS_FS("debugfs");
 
 static struct dentry *__create_file(const char *name, umode_t mode,
 				    struct dentry *parent, void *data,

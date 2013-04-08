@@ -327,6 +327,10 @@ struct iwl_mvm {
 	struct led_classdev led;
 
 	struct ieee80211_vif *p2p_device_vif;
+
+#ifdef CONFIG_PM_SLEEP
+	int gtk_ivlen, gtk_icvlen, ptk_ivlen, ptk_icvlen;
+#endif
 };
 
 /* Extract MVM priv from op_mode and _hw */

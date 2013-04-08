@@ -22,6 +22,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 
+#include <asm/smp_plat.h>
 #include <asm/smp_twd.h>
 #include <asm/localtimer.h>
 
@@ -361,20 +362,11 @@ int __init twd_local_timer_register(struct twd_local_timer *tlt)
 }
 
 #ifdef CONFIG_OF
-const static struct of_device_id twd_of_match[] __initconst = {
-	{ .compatible = "arm,cortex-a9-twd-timer",	},
-	{ .compatible = "arm,cortex-a5-twd-timer",	},
-	{ .compatible = "arm,arm11mp-twd-timer",	},
-	{ },
-};
-
-void __init twd_local_timer_of_register(void)
+static void __init twd_local_timer_of_register(struct device_node *np)
 {
-	struct device_node *np;
 	int err;
 
-	np = of_find_matching_node(NULL, twd_of_match);
-	if (!np)
+	if (!is_smp() || !setup_max_cpus)
 		return;
 
 	twd_ppi = irq_of_parse_and_map(np, 0);
@@ -394,4 +386,7 @@ void __init twd_local_timer_of_register(void)
 out:
 	WARN(err, "twd_local_timer_of_register failed (%d)\n", err);
 }
+CLOCKSOURCE_OF_DECLARE(arm_twd_a9, "arm,cortex-a9-twd-timer", twd_local_timer_of_register);
+CLOCKSOURCE_OF_DECLARE(arm_twd_a5, "arm,cortex-a5-twd-timer", twd_local_timer_of_register);
+CLOCKSOURCE_OF_DECLARE(arm_twd_11mp, "arm,arm11mp-twd-timer", twd_local_timer_of_register);
 #endif

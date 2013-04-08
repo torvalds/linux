@@ -731,7 +731,7 @@ static inline void cpsw_add_default_vlan(struct cpsw_priv *priv)
 
 	writel(vlan, &priv->host_port_regs->port_vlan);
 
-	for (i = 0; i < 2; i++)
+	for (i = 0; i < priv->data.slaves; i++)
 		slave_write(priv->slaves + i, vlan, reg);
 
 	cpsw_ale_add_vlan(priv->ale, vlan, ALE_ALL_PORTS << port,
