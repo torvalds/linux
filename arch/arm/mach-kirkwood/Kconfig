@@ -258,8 +258,12 @@ config MACH_NETSPACE_MINI_V2_DT
 	select ARCH_KIRKWOOD_DT
 	help
 	  Say 'Y' here if you want your kernel to support the LaCie
-	  Network Space Mini v2 NAS (aka SafeBox), using Flattened
-	  Device Tree.
+	  Network Space Mini v2 NAS using Flattened Device Tree.
+
+	  This board is embedded in a product named CloudBox, which
+	  provides automatic backup on a 100GB cloud storage. This
+	  should not confused with a more recent LaCie NAS also named
+	  CloudBox. For this last, the disk capacity is 1TB or above.
 
 config MACH_NETSPACE_V2_DT
 	bool "LaCie Network Space v2 NAS (Flattened Device Tree)"

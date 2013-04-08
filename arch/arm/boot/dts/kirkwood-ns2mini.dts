@@ -3,6 +3,7 @@
 /include/ "kirkwood-ns2-common.dtsi"
 
 / {
+	/* This machine is embedded in the first LaCie CloudBox product. */
 	model = "LaCie Network Space Mini v2";
 	compatible = "lacie,netspace_mini_v2", "marvell,kirkwood-88f6192", "marvell,kirkwood";
 
