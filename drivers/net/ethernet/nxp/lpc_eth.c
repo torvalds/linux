@@ -1472,7 +1472,8 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, ndev);
 
-	if (lpc_mii_init(pldat) != 0)
+	ret = lpc_mii_init(pldat);
+	if (ret)
 		goto err_out_unregister_netdev;
 
 	netdev_info(ndev, "LPC mac at 0x%08x irq %d\n",

@@ -187,6 +187,13 @@ typedef enum {
  * This happens with the Renesas AG-AND chips, possibly others.
  */
 #define BBT_AUTO_REFRESH	0x00000080
+/*
+ * Chip requires ready check on read (for auto-incremented sequential read).
+ * True only for small page devices; large page devices do not support
+ * autoincrement.
+ */
+#define NAND_NEED_READRDY	0x00000100
+
 /* Chip does not allow subpage writes */
 #define NAND_NO_SUBPAGE_WRITE	0x00000200
 

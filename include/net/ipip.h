@@ -77,15 +77,11 @@ static inline void tunnel_ip_select_ident(struct sk_buff *skb,
 {
 	struct iphdr *iph = ip_hdr(skb);
 
-	if (iph->frag_off & htons(IP_DF))
-		iph->id	= 0;
-	else {
-		/* Use inner packet iph-id if possible. */
-		if (skb->protocol == htons(ETH_P_IP) && old_iph->id)
-			iph->id	= old_iph->id;
-		else
-			__ip_select_ident(iph, dst,
-					  (skb_shinfo(skb)->gso_segs ?: 1) - 1);
-	}
+	/* Use inner packet iph-id if possible. */
+	if (skb->protocol == htons(ETH_P_IP) && old_iph->id)
+		iph->id	= old_iph->id;
+	else
+		__ip_select_ident(iph, dst,
+				  (skb_shinfo(skb)->gso_segs ?: 1) - 1);
 }
 #endif
