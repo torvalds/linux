@@ -37,6 +37,8 @@
 
 #define ext_timeout(e, m)	\
 	(unsigned long *)((e) + (m)->offset[IPSET_OFFSET_TIMEOUT])
+#define ext_counter(e, m)	\
+	(struct ip_set_counter *)((e) + (m)->offset[IPSET_OFFSET_COUNTER])
 #define get_ext(map, id)	((map)->extensions + (map)->dsize * (id))
 
 static void
@@ -91,7 +93,10 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 				map->memsize +
 				map->dsize * map->elements)) ||
 	    (SET_WITH_TIMEOUT(set) &&
-	     nla_put_net32(skb, IPSET_ATTR_TIMEOUT, htonl(map->timeout))))
+	     nla_put_net32(skb, IPSET_ATTR_TIMEOUT, htonl(map->timeout))) ||
+	    (SET_WITH_COUNTER(set) &&
+	     nla_put_net32(skb, IPSET_ATTR_CADT_FLAGS,
+			   htonl(IPSET_FLAG_WITH_COUNTERS))))
 		goto nla_put_failure;
 	ipset_nest_end(skb, nested);
 
@@ -114,6 +119,8 @@ mtype_test(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	if (SET_WITH_TIMEOUT(set) &&
 	    ip_set_timeout_expired(ext_timeout(x, map)))
 		return 0;
+	if (SET_WITH_COUNTER(set))
+		ip_set_update_counter(ext_counter(x, map), ext, mext, flags);
 	return 1;
 }
 
@@ -141,6 +148,8 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		ip_set_timeout_set(ext_timeout(x, map), ext->timeout);
 #endif
 
+	if (SET_WITH_COUNTER(set))
+		ip_set_init_counter(ext_counter(x, map), ext);
 	return 0;
 }
 
@@ -205,6 +214,9 @@ mtype_list(const struct ip_set *set,
 				goto nla_put_failure;
 #endif
 		}
+		if (SET_WITH_COUNTER(set) &&
+		    ip_set_put_counter(skb, ext_counter(x, map)))
+			goto nla_put_failure;
 		ipset_nest_end(skb, nested);
 	}
 	ipset_nest_end(skb, adt);
