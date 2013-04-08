@@ -1183,6 +1183,7 @@ static struct radeon_asic rv770_asic = {
 		.get_pcie_lanes = &r600_get_pcie_lanes,
 		.set_pcie_lanes = &r600_set_pcie_lanes,
 		.set_clock_gating = &radeon_atom_set_clock_gating,
+		.set_uvd_clocks = &rv770_set_uvd_clocks,
 	},
 	.pflip = {
 		.pre_page_flip = &rs600_pre_page_flip,

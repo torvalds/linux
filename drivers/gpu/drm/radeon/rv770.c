@@ -42,6 +42,162 @@
 static void rv770_gpu_init(struct radeon_device *rdev);
 void rv770_fini(struct radeon_device *rdev);
 static void rv770_pcie_gen2_enable(struct radeon_device *rdev);
+int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
+
+static int rv770_uvd_calc_post_div(unsigned target_freq,
+				   unsigned vco_freq,
+				   unsigned *div)
+{
+	/* Fclk = Fvco / PDIV */
+	*div = vco_freq / target_freq;
+
+	/* we alway need a frequency less than or equal the target */
+	if ((vco_freq / *div) > target_freq)
+		*div += 1;
+
+	/* out of range ? */
+	if (*div > 30)
+		return -1; /* forget it */
+
+	*div -= 1;
+	return vco_freq / (*div + 1);
+}
+
+static int rv770_uvd_send_upll_ctlreq(struct radeon_device *rdev)
+{
+	unsigned i;
+
+	/* assert UPLL_CTLREQ */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_CTLREQ_MASK, ~UPLL_CTLREQ_MASK);
+
+	/* wait for CTLACK and CTLACK2 to get asserted */
+	for (i = 0; i < 100; ++i) {
+		uint32_t mask = UPLL_CTLACK_MASK | UPLL_CTLACK2_MASK;
+		if ((RREG32(CG_UPLL_FUNC_CNTL) & mask) == mask)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
+
+	/* deassert UPLL_CTLREQ */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_CTLREQ_MASK);
+
+	return 0;
+}
+
+int rv770_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
+{
+	/* start off with something large */
+	int optimal_diff_score = 0x7FFFFFF;
+	unsigned optimal_fb_div = 0, optimal_vclk_div = 0;
+	unsigned optimal_dclk_div = 0, optimal_vco_freq = 0;
+	unsigned vco_freq, vco_min = 50000, vco_max = 160000;
+	unsigned ref_freq = rdev->clock.spll.reference_freq;
+	int r;
+
+	/* RV740 uses evergreen uvd clk programming */
+	if (rdev->family == CHIP_RV740)
+		return evergreen_set_uvd_clocks(rdev, vclk, dclk);
+
+	/* loop through vco from low to high */
+	vco_min = max(max(vco_min, vclk), dclk);
+	for (vco_freq = vco_min; vco_freq <= vco_max; vco_freq += 500) {
+		uint64_t fb_div = (uint64_t)vco_freq * 43663;
+		int calc_clk, diff_score, diff_vclk, diff_dclk;
+		unsigned vclk_div, dclk_div;
+
+		do_div(fb_div, ref_freq);
+		fb_div |= 1;
+
+		/* fb div out of range ? */
+		if (fb_div > 0x03FFFFFF)
+			break; /* it can oly get worse */
+
+		/* calc vclk with current vco freq. */
+		calc_clk = rv770_uvd_calc_post_div(vclk, vco_freq, &vclk_div);
+		if (calc_clk == -1)
+			break; /* vco is too big, it has to stop. */
+		diff_vclk = vclk - calc_clk;
+
+		/* calc dclk with current vco freq. */
+		calc_clk = rv770_uvd_calc_post_div(dclk, vco_freq, &dclk_div);
+		if (calc_clk == -1)
+			break; /* vco is too big, it has to stop. */
+		diff_dclk = dclk - calc_clk;
+
+		/* determine if this vco setting is better than current optimal settings */
+		diff_score = abs(diff_vclk) + abs(diff_dclk);
+		if (diff_score < optimal_diff_score) {
+			optimal_fb_div = fb_div;
+			optimal_vclk_div = vclk_div;
+			optimal_dclk_div = dclk_div;
+			optimal_vco_freq = vco_freq;
+			optimal_diff_score = diff_score;
+			if (optimal_diff_score == 0)
+				break; /* it can't get better than this */
+		}
+	}
+
+	/* bypass vclk and dclk with bclk */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		 VCLK_SRC_SEL(1) | DCLK_SRC_SEL(1),
+		 ~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
+
+	/* set UPLL_FB_DIV to 0x50000 */
+	WREG32_P(CG_UPLL_FUNC_CNTL_3, UPLL_FB_DIV(0x50000), ~UPLL_FB_DIV_MASK);
+
+	/* deassert UPLL_RESET */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_RESET_MASK);
+
+	/* assert BYPASS EN and FB_DIV[0] <- ??? why? */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_BYPASS_EN_MASK, ~UPLL_BYPASS_EN_MASK);
+	WREG32_P(CG_UPLL_FUNC_CNTL_3, UPLL_FB_DIV(1), ~UPLL_FB_DIV(1));
+
+	r = rv770_uvd_send_upll_ctlreq(rdev);
+	if (r)
+		return r;
+
+	/* assert PLL_RESET */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_RESET_MASK, ~UPLL_RESET_MASK);
+
+	/* set the required FB_DIV, REF_DIV, Post divder values */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_REF_DIV(1), ~UPLL_REF_DIV_MASK);
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		 UPLL_SW_HILEN(optimal_vclk_div >> 1) |
+		 UPLL_SW_LOLEN((optimal_vclk_div >> 1) + (optimal_vclk_div & 1)) |
+		 UPLL_SW_HILEN2(optimal_dclk_div >> 1) |
+		 UPLL_SW_LOLEN2((optimal_dclk_div >> 1) + (optimal_dclk_div & 1)),
+		 ~UPLL_SW_MASK);
+
+	WREG32_P(CG_UPLL_FUNC_CNTL_3, UPLL_FB_DIV(optimal_fb_div),
+		 ~UPLL_FB_DIV_MASK);
+
+	/* give the PLL some time to settle */
+	mdelay(15);
+
+	/* deassert PLL_RESET */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_RESET_MASK);
+
+	mdelay(15);
+
+	/* deassert BYPASS EN and FB_DIV[0] <- ??? why? */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_BYPASS_EN_MASK);
+	WREG32_P(CG_UPLL_FUNC_CNTL_3, 0, ~UPLL_FB_DIV(1));
+
+	r = rv770_uvd_send_upll_ctlreq(rdev);
+	if (r)
+		return r;
+
+	/* switch VCLK and DCLK selection */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		 VCLK_SRC_SEL(2) | DCLK_SRC_SEL(2),
+		 ~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
+
+	mdelay(100);
+
+	return 0;
+}
 
 #define PCIE_BUS_CLK                10000
 #define TCLK                        (PCIE_BUS_CLK / 10)

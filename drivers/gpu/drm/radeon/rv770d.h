@@ -38,6 +38,30 @@
 #define R7XX_MAX_PIPES             8
 #define R7XX_MAX_PIPES_MASK        0xff
 
+/* discrete uvd clocks */
+#define CG_UPLL_FUNC_CNTL				0x718
+#	define UPLL_RESET_MASK				0x00000001
+#	define UPLL_SLEEP_MASK				0x00000002
+#	define UPLL_BYPASS_EN_MASK			0x00000004
+#	define UPLL_CTLREQ_MASK				0x00000008
+#	define UPLL_REF_DIV(x)				((x) << 16)
+#	define UPLL_REF_DIV_MASK			0x001F0000
+#	define UPLL_CTLACK_MASK				0x40000000
+#	define UPLL_CTLACK2_MASK			0x80000000
+#define CG_UPLL_FUNC_CNTL_2				0x71c
+#	define UPLL_SW_HILEN(x)				((x) << 0)
+#	define UPLL_SW_LOLEN(x)				((x) << 4)
+#	define UPLL_SW_HILEN2(x)			((x) << 8)
+#	define UPLL_SW_LOLEN2(x)			((x) << 12)
+#	define UPLL_SW_MASK				0x0000FFFF
+#	define VCLK_SRC_SEL(x)				((x) << 20)
+#	define VCLK_SRC_SEL_MASK			0x01F00000
+#	define DCLK_SRC_SEL(x)				((x) << 25)
+#	define DCLK_SRC_SEL_MASK			0x3E000000
+#define CG_UPLL_FUNC_CNTL_3				0x720
+#	define UPLL_FB_DIV(x)				((x) << 0)
+#	define UPLL_FB_DIV_MASK				0x01FFFFFF
+
 /* Registers */
 #define	CB_COLOR0_BASE					0x28040
 #define	CB_COLOR1_BASE					0x28044

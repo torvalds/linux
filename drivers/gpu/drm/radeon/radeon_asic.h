@@ -424,6 +424,7 @@ int rv770_copy_dma(struct radeon_device *rdev,
 		   struct radeon_fence **fence);
 u32 rv770_get_xclk(struct radeon_device *rdev);
 int rv770_uvd_resume(struct radeon_device *rdev);
+int rv770_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 
 /*
  * evergreen
