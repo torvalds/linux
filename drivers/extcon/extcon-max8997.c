@@ -646,7 +646,7 @@ static void max8997_muic_detect_cable_wq(struct work_struct *work)
 
 	ret = max8997_muic_detect_dev(info);
 	if (ret < 0)
-		pr_err("failed to detect cable type\n");
+		dev_err(info->dev, "failed to detect cable type\n");
 }
 
 static int max8997_muic_probe(struct platform_device *pdev)
