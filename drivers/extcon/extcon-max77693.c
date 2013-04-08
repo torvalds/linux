@@ -38,7 +38,7 @@
  * extcon-max77693 driver use 'default_init_data' to bring up base operation
  * of MAX77693 MUIC device.
  */
-struct max77693_reg_data default_init_data[] = {
+static struct max77693_reg_data default_init_data[] = {
 	{
 		/* STATUS2 - [3]ChgDetRun */
 		.addr = MAX77693_MUIC_REG_STATUS2,
