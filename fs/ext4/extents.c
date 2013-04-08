@@ -4735,6 +4735,10 @@ int ext4_ind_migrate(struct inode *inode)
 	    (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 		return -EINVAL;
 
+	handle = ext4_journal_start(inode, EXT4_HT_MIGRATE, 1);
+	if (IS_ERR(handle))
+		return PTR_ERR(handle);
+
 	down_write(&EXT4_I(inode)->i_data_sem);
 	ret = ext4_ext_check_inode(inode);
 	if (ret)
@@ -4758,19 +4762,13 @@ int ext4_ind_migrate(struct inode *inode)
 		}
 	}
 
-	handle = ext4_journal_start(inode, EXT4_HT_MIGRATE, 1);
-	if (IS_ERR(handle)) {
-		ret = PTR_ERR(handle);
-		goto errout;
-	}
-
 	ext4_clear_inode_flag(inode, EXT4_INODE_EXTENTS);
 	memset(ei->i_data, 0, sizeof(ei->i_data));
 	for (i=0; i < len; i++)
 		ei->i_data[i] = cpu_to_le32(blk++);
 	ext4_mark_inode_dirty(handle, inode);
-	ext4_journal_stop(handle);
 errout:
+	ext4_journal_stop(handle);
 	up_write(&EXT4_I(inode)->i_data_sem);
 	return ret;
 }
