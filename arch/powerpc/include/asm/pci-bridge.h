@@ -120,6 +120,12 @@ extern void setup_indirect_pci(struct pci_controller* hose,
 			       resource_size_t cfg_addr,
 			       resource_size_t cfg_data, u32 flags);
 
+extern int indirect_read_config(struct pci_bus *bus, unsigned int devfn,
+				int offset, int len, u32 *val);
+
+extern int indirect_write_config(struct pci_bus *bus, unsigned int devfn,
+				 int offset, int len, u32 val);
+
 static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
 {
 	return bus->sysdata;
