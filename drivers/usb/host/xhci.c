@@ -417,9 +417,9 @@ static void compliance_mode_recovery(unsigned long arg)
 			 * Compliance Mode Detected. Letting USB Core
 			 * handle the Warm Reset
 			 */
-			xhci_dbg(xhci, "Compliance Mode Detected->Port %d!\n",
+			xhci_dbg(xhci, "Compliance mode detected->port %d\n",
 					i + 1);
-			xhci_dbg(xhci, "Attempting Recovery routine!\n");
+			xhci_dbg(xhci, "Attempting compliance mode recovery\n");
 			hcd = xhci->shared_hcd;
 
 			if (hcd->state == HC_STATE_SUSPENDED)
@@ -457,7 +457,7 @@ static void compliance_mode_recovery_timer_init(struct xhci_hcd *xhci)
 	set_timer_slack(&xhci->comp_mode_recovery_timer,
 			msecs_to_jiffies(COMP_MODE_RCVRY_MSECS));
 	add_timer(&xhci->comp_mode_recovery_timer);
-	xhci_dbg(xhci, "Compliance Mode Recovery Timer Initialized.\n");
+	xhci_dbg(xhci, "Compliance mode recovery timer initialized\n");
 }
 
 /*
@@ -733,8 +733,11 @@ void xhci_stop(struct usb_hcd *hcd)
 
 	/* Deleting Compliance Mode Recovery Timer */
 	if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
-			(!(xhci_all_ports_seen_u0(xhci))))
+			(!(xhci_all_ports_seen_u0(xhci)))) {
 		del_timer_sync(&xhci->comp_mode_recovery_timer);
+		xhci_dbg(xhci, "%s: compliance mode recovery timer deleted\n",
+				__func__);
+	}
 
 	if (xhci->quirks & XHCI_AMD_PLL_FIX)
 		usb_amd_dev_put();
@@ -930,7 +933,8 @@ int xhci_suspend(struct xhci_hcd *xhci)
 	if ((xhci->quirks & XHCI_COMP_MODE_QUIRK) &&
 			(!(xhci_all_ports_seen_u0(xhci)))) {
 		del_timer_sync(&xhci->comp_mode_recovery_timer);
-		xhci_dbg(xhci, "Compliance Mode Recovery Timer Deleted!\n");
+		xhci_dbg(xhci, "%s: compliance mode recovery timer deleted\n",
+				__func__);
 	}
 
 	/* step 5: remove core well power */
