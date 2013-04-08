@@ -1261,6 +1261,7 @@ static int si4713_setup(struct si4713_device *sdev)
 	rval |= si4713_set_rds_radio_text(sdev, tmp->rds_info.radio_text);
 
 	/* Device procedure needs to set frequency first */
+	f.tuner = 0;
 	f.frequency = tmp->frequency ? tmp->frequency : DEFAULT_FREQUENCY;
 	f.frequency = si4713_to_v4l2(f.frequency);
 	rval |= si4713_s_frequency(&sdev->sd, &f);
@@ -1852,7 +1853,8 @@ static int si4713_g_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 	struct si4713_device *sdev = to_si4713_device(sd);
 	int rval = 0;
 
-	f->type = V4L2_TUNER_RADIO;
+	if (f->tuner)
+		return -EINVAL;
 
 	if (sdev->power_state) {
 		u16 freq;
@@ -1877,9 +1879,11 @@ static int si4713_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequenc
 	int rval = 0;
 	u16 frequency = v4l2_to_si4713(f->frequency);
 
+	if (f->tuner)
+		return -EINVAL;
+
 	/* Check frequency range */
-	if (frequency < FREQ_RANGE_LOW || frequency > FREQ_RANGE_HIGH)
-		return -EDOM;
+	frequency = clamp_t(u16, frequency, FREQ_RANGE_LOW, FREQ_RANGE_HIGH);
 
 	if (sdev->power_state) {
 		rval = si4713_tx_tune_freq(sdev, frequency);
