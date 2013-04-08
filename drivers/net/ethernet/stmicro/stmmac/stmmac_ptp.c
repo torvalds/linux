@@ -174,9 +174,7 @@ static struct ptp_clock_info stmmac_ptp_clock_ops = {
 
 /**
  * stmmac_ptp_register
- *
- * @ndev: net device pointer
- *
+ * @priv: driver private structure
  * Description: this function will register the ptp clock driver
  * to kernel. It also does some house keeping work.
  */
@@ -199,9 +197,7 @@ int stmmac_ptp_register(struct stmmac_priv *priv)
 
 /**
  * stmmac_ptp_unregister
- *
- * @ndev: net device pointer
- *
+ * @priv: driver private structure
  * Description: this function will remove/unregister the ptp clock driver
  * from the kernel.
  */
