@@ -1373,6 +1373,7 @@ static struct radeon_asic sumo_asic = {
 		.get_pcie_lanes = NULL,
 		.set_pcie_lanes = NULL,
 		.set_clock_gating = NULL,
+		.set_uvd_clocks = &sumo_set_uvd_clocks,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
@@ -1744,6 +1745,7 @@ static struct radeon_asic trinity_asic = {
 		.get_pcie_lanes = NULL,
 		.set_pcie_lanes = NULL,
 		.set_clock_gating = NULL,
+		.set_uvd_clocks = &sumo_set_uvd_clocks,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,

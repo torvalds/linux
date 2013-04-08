@@ -53,6 +53,16 @@
 #define RCU_IND_INDEX           			0x100
 #define RCU_IND_DATA            			0x104
 
+/* fusion uvd clocks */
+#define CG_DCLK_CNTL                                    0x610
+#       define DCLK_DIVIDER_MASK                        0x7f
+#       define DCLK_DIR_CNTL_EN                         (1 << 8)
+#define CG_DCLK_STATUS                                  0x614
+#       define DCLK_STATUS                              (1 << 0)
+#define CG_VCLK_CNTL                                    0x618
+#define CG_VCLK_STATUS                                  0x61c
+#define	CG_SCRATCH1					0x820
+
 #define GRBM_GFX_INDEX          			0x802C
 #define		INSTANCE_INDEX(x)			((x) << 0)
 #define		SE_INDEX(x)     			((x) << 16)
