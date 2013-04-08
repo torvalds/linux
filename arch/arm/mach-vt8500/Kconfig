@@ -7,6 +7,7 @@ config ARCH_VT8500
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
 	select VT8500_TIMER
+	select PINCTRL
 	help
 	  Support for VIA/WonderMedia VT8500/WM85xx System-on-Chip.
 

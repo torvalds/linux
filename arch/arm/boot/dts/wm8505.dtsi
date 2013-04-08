@@ -40,11 +40,13 @@
 			interrupts = <56 57 58 59 60 61 62 63>;
 		};
 
-		gpio: gpio-controller@d8110000 {
-			compatible = "wm,wm8505-gpio";
-			gpio-controller;
+		pinctrl: pinctrl@d8110000 {
+			compatible = "wm,wm8505-pinctrl";
 			reg = <0xd8110000 0x10000>;
-			#gpio-cells = <3>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		pmc@d8130000 {

@@ -227,12 +227,6 @@ config GPIO_TS5500
 	  blocks of the TS-5500: DIO1, DIO2 and the LCD port, and the TS-5600
 	  LCD port.
 
-config GPIO_VT8500
-	bool "VIA/Wondermedia SoC GPIO Support"
-	depends on ARCH_VT8500
-	help
-	  Say yes here to support the VT8500/WM8505/WM8650 GPIO controller.
-
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
 	depends on PPC_OF || MICROBLAZE
