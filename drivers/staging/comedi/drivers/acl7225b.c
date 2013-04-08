@@ -141,6 +141,6 @@ static struct comedi_driver acl7225b_driver = {
 };
 module_comedi_driver(acl7225b_driver);
 
+MODULE_DESCRIPTION("Comedi: NuDAQ ACL-7225B, 16 Relay & 16 Isolated DI Card");
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");
