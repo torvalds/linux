@@ -36,7 +36,7 @@
 #define EFX_RECYCLE_RING_SIZE_NOIOMMU (2 * EFX_RX_PREFERRED_BATCH)
 
 /* Size of buffer allocated for skb header area. */
-#define EFX_SKB_HEADERS  64u
+#define EFX_SKB_HEADERS  128u
 
 /* This is the percentage fill level below which new RX descriptors
  * will be added to the RX descriptor ring.
