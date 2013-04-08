@@ -4,7 +4,6 @@ on ti-bandgap.c:
 - Revisit PM support
 
 on ti-thermal-common.c/ti-thermal.h:
-- Revisit extrapolation constants for O4/O5
 - Revisit need for locking
 
 generally:
