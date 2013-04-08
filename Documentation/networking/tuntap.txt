@@ -105,6 +105,83 @@ Copyright (C) 1999-2000 Maxim Krasnyansky <max_mk@yahoo.com>
      Proto [2 bytes]
      Raw protocol(IP, IPv6, etc) frame.
 
+  3.3 Multiqueue tuntap interface:
+
+  From version 3.8, Linux supports multiqueue tuntap which can uses multiple
+  file descriptors (queues) to parallelize packets sending or receiving. The
+  device allocation is the same as before, and if user wants to create multiple
+  queues, TUNSETIFF with the same device name must be called many times with
+  IFF_MULTI_QUEUE flag.
+
+  char *dev should be the name of the device, queues is the number of queues to
+  be created, fds is used to store and return the file descriptors (queues)
+  created to the caller. Each file descriptor were served as the interface of a
+  queue which could be accessed by userspace.
+
+  #include <linux/if.h>
+  #include <linux/if_tun.h>
+
+  int tun_alloc_mq(char *dev, int queues, int *fds)
+  {
+      struct ifreq ifr;
+      int fd, err, i;
+
+      if (!dev)
+          return -1;
+
+      memset(&ifr, 0, sizeof(ifr));
+      /* Flags: IFF_TUN   - TUN device (no Ethernet headers)
+       *        IFF_TAP   - TAP device
+       *
+       *        IFF_NO_PI - Do not provide packet information
+       *        IFF_MULTI_QUEUE - Create a queue of multiqueue device
+       */
+      ifr.ifr_flags = IFF_TAP | IFF_NO_PI | IFF_MULTI_QUEUE;
+      strcpy(ifr.ifr_name, dev);
+
+      for (i = 0; i < queues; i++) {
+          if ((fd = open("/dev/net/tun", O_RDWR)) < 0)
+             goto err;
+          err = ioctl(fd, TUNSETIFF, (void *)&ifr);
+          if (err) {
+             close(fd);
+             goto err;
+          }
+          fds[i] = fd;
+      }
+
+      return 0;
+  err:
+      for (--i; i >= 0; i--)
+          close(fds[i]);
+      return err;
+  }
+
+  A new ioctl(TUNSETQUEUE) were introduced to enable or disable a queue. When
+  calling it with IFF_DETACH_QUEUE flag, the queue were disabled. And when
+  calling it with IFF_ATTACH_QUEUE flag, the queue were enabled. The queue were
+  enabled by default after it was created through TUNSETIFF.
+
+  fd is the file descriptor (queue) that we want to enable or disable, when
+  enable is true we enable it, otherwise we disable it
+
+  #include <linux/if.h>
+  #include <linux/if_tun.h>
+
+  int tun_set_queue(int fd, int enable)
+  {
+      struct ifreq ifr;
+
+      memset(&ifr, 0, sizeof(ifr));
+
+      if (enable)
+         ifr.ifr_flags = IFF_ATTACH_QUEUE;
+      else
+         ifr.ifr_flags = IFF_DETACH_QUEUE;
+
+      return ioctl(fd, TUNSETQUEUE, (void *)&ifr);
+  }
+
 Universal TUN/TAP device driver Frequently Asked Question.
    
 1. What platforms are supported by TUN/TAP driver ?
