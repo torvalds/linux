@@ -179,19 +179,21 @@ int ipu_dc_init_sync(struct ipu_dc *dc, struct ipu_di *di, bool interlaced,
 		if (dc->di) {
 			dc_link_event(dc, DC_EVT_NL, 2, 3);
 			dc_link_event(dc, DC_EVT_EOL, 3, 2);
-			dc_link_event(dc, DC_EVT_NEW_DATA, 4, 1);
+			dc_link_event(dc, DC_EVT_NEW_DATA, 1, 1);
 			/* Init template microcode */
 			dc_write_tmpl(dc, 2, WROD(0), 0, map, SYNC_WAVE, 8, 5, 1);
-			dc_write_tmpl(dc, 3, WROD(0), 0, map, SYNC_WAVE, 4, 5, 1);
-			dc_write_tmpl(dc, 4, WROD(0), 0, map, SYNC_WAVE, 0, 5, 1);
+			dc_write_tmpl(dc, 3, WROD(0), 0, map, SYNC_WAVE, 4, 5, 0);
+			dc_write_tmpl(dc, 4, WRG, 0, map, NULL_WAVE, 0, 0, 1);
+			dc_write_tmpl(dc, 1, WROD(0), 0, map, SYNC_WAVE, 0, 5, 1);
 		} else {
 			dc_link_event(dc, DC_EVT_NL, 5, 3);
 			dc_link_event(dc, DC_EVT_EOL, 6, 2);
-			dc_link_event(dc, DC_EVT_NEW_DATA, 7, 1);
+			dc_link_event(dc, DC_EVT_NEW_DATA, 8, 1);
 			/* Init template microcode */
 			dc_write_tmpl(dc, 5, WROD(0), 0, map, SYNC_WAVE, 8, 5, 1);
-			dc_write_tmpl(dc, 6, WROD(0), 0, map, SYNC_WAVE, 4, 5, 1);
-			dc_write_tmpl(dc, 7, WROD(0), 0, map, SYNC_WAVE, 0, 5, 1);
+			dc_write_tmpl(dc, 6, WROD(0), 0, map, SYNC_WAVE, 4, 5, 0);
+			dc_write_tmpl(dc, 7, WRG, 0, map, NULL_WAVE, 0, 0, 1);
+			dc_write_tmpl(dc, 8, WROD(0), 0, map, SYNC_WAVE, 0, 5, 1);
 		}
 	}
 	dc_link_event(dc, DC_EVT_NF, 0, 0);
