@@ -358,8 +358,9 @@ struct radeon_bo_list {
 	struct ttm_validate_buffer tv;
 	struct radeon_bo	*bo;
 	uint64_t		gpu_offset;
-	unsigned		rdomain;
-	unsigned		wdomain;
+	bool			written;
+	unsigned		domain;
+	unsigned		alt_domain;
 	u32			tiling_flags;
 };
 

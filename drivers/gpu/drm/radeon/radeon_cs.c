@@ -53,6 +53,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	}
 	for (i = 0; i < p->nrelocs; i++) {
 		struct drm_radeon_cs_reloc *r;
+		uint32_t domain;
 
 		duplicate = false;
 		r = (struct drm_radeon_cs_reloc *)&chunk->kdata[i*4];
@@ -63,28 +64,34 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 				break;
 			}
 		}
-		if (!duplicate) {
-			p->relocs[i].gobj = drm_gem_object_lookup(ddev,
-								  p->filp,
-								  r->handle);
-			if (p->relocs[i].gobj == NULL) {
-				DRM_ERROR("gem object lookup failed 0x%x\n",
-					  r->handle);
-				return -ENOENT;
-			}
-			p->relocs_ptr[i] = &p->relocs[i];
-			p->relocs[i].robj = gem_to_radeon_bo(p->relocs[i].gobj);
-			p->relocs[i].lobj.bo = p->relocs[i].robj;
-			p->relocs[i].lobj.wdomain = r->write_domain;
-			p->relocs[i].lobj.rdomain = r->read_domains;
-			p->relocs[i].lobj.tv.bo = &p->relocs[i].robj->tbo;
-			p->relocs[i].handle = r->handle;
-			p->relocs[i].flags = r->flags;
-			radeon_bo_list_add_object(&p->relocs[i].lobj,
-						  &p->validated);
-
-		} else
+		if (duplicate) {
 			p->relocs[i].handle = 0;
+			continue;
+		}
+
+		p->relocs[i].gobj = drm_gem_object_lookup(ddev, p->filp,
+							  r->handle);
+		if (p->relocs[i].gobj == NULL) {
+			DRM_ERROR("gem object lookup failed 0x%x\n",
+				  r->handle);
+			return -ENOENT;
+		}
+		p->relocs_ptr[i] = &p->relocs[i];
+		p->relocs[i].robj = gem_to_radeon_bo(p->relocs[i].gobj);
+		p->relocs[i].lobj.bo = p->relocs[i].robj;
+		p->relocs[i].lobj.written = !!r->write_domain;
+
+		domain = r->write_domain ? r->write_domain : r->read_domains;
+		p->relocs[i].lobj.domain = domain;
+		if (domain == RADEON_GEM_DOMAIN_VRAM)
+			domain |= RADEON_GEM_DOMAIN_GTT;
+		p->relocs[i].lobj.alt_domain = domain;
+
+		p->relocs[i].lobj.tv.bo = &p->relocs[i].robj->tbo;
+		p->relocs[i].handle = r->handle;
+
+		radeon_bo_list_add_object(&p->relocs[i].lobj,
+					  &p->validated);
 	}
 	return radeon_bo_list_validate(&p->validated);
 }

@@ -341,7 +341,7 @@ void radeon_bo_fini(struct radeon_device *rdev)
 void radeon_bo_list_add_object(struct radeon_bo_list *lobj,
 				struct list_head *head)
 {
-	if (lobj->wdomain) {
+	if (lobj->written) {
 		list_add(&lobj->tv.head, head);
 	} else {
 		list_add_tail(&lobj->tv.head, head);
@@ -362,15 +362,15 @@ int radeon_bo_list_validate(struct list_head *head)
 	list_for_each_entry(lobj, head, tv.head) {
 		bo = lobj->bo;
 		if (!bo->pin_count) {
-			domain = lobj->wdomain ? lobj->wdomain : lobj->rdomain;
+			domain = lobj->domain;
 			
 		retry:
 			radeon_ttm_placement_from_domain(bo, domain);
 			r = ttm_bo_validate(&bo->tbo, &bo->placement,
 						true, false);
 			if (unlikely(r)) {
-				if (r != -ERESTARTSYS && domain == RADEON_GEM_DOMAIN_VRAM) {
-					domain |= RADEON_GEM_DOMAIN_GTT;
+				if (r != -ERESTARTSYS && domain != lobj->alt_domain) {
+					domain = lobj->alt_domain;
 					goto retry;
 				}
 				return r;
