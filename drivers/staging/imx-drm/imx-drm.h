@@ -1,8 +1,18 @@
 #ifndef _IMX_DRM_H_
 #define _IMX_DRM_H_
 
+#include <linux/videodev2.h>
+
+#define IPU_PIX_FMT_GBR24	v4l2_fourcc('G', 'B', 'R', '3')
+
+struct drm_crtc;
+struct drm_connector;
+struct drm_device;
+struct drm_encoder;
 struct imx_drm_crtc;
 struct drm_fbdev_cma;
+struct drm_framebuffer;
+struct platform_device;
 
 struct imx_drm_crtc_helper_funcs {
 	int (*enable_vblank)(struct drm_crtc *crtc);

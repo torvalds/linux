@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 
+#include "../imx-drm.h"
 #include "imx-ipu-v3.h"
 #include "ipu-prv.h"
 
@@ -86,6 +87,7 @@ struct ipu_dc_priv;
 enum ipu_dc_map {
 	IPU_DC_MAP_RGB24,
 	IPU_DC_MAP_RGB565,
+	IPU_DC_MAP_GBR24, /* TVEv2 */
 };
 
 struct ipu_dc {
@@ -136,6 +138,8 @@ static int ipu_pixfmt_to_map(u32 fmt)
 		return IPU_DC_MAP_RGB24;
 	case V4L2_PIX_FMT_RGB565:
 		return IPU_DC_MAP_RGB565;
+	case IPU_PIX_FMT_GBR24:
+		return IPU_DC_MAP_GBR24;
 	default:
 		return -EINVAL;
 	}
@@ -363,6 +367,12 @@ int ipu_dc_init(struct ipu_soc *ipu, struct device *dev,
 	ipu_dc_map_config(priv, IPU_DC_MAP_RGB565, 0, 4, 0xf8); /* blue */
 	ipu_dc_map_config(priv, IPU_DC_MAP_RGB565, 1, 10, 0xfc); /* green */
 	ipu_dc_map_config(priv, IPU_DC_MAP_RGB565, 2, 15, 0xf8); /* red */
+
+	/* gbr24 */
+	ipu_dc_map_clear(priv, IPU_DC_MAP_GBR24);
+	ipu_dc_map_config(priv, IPU_DC_MAP_GBR24, 2, 15, 0xff); /* green */
+	ipu_dc_map_config(priv, IPU_DC_MAP_GBR24, 1, 7, 0xff); /* blue */
+	ipu_dc_map_config(priv, IPU_DC_MAP_GBR24, 0, 23, 0xff); /* red */
 
 	return 0;
 }
