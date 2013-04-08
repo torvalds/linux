@@ -23,7 +23,6 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <linux/irqchip/arm-gic.h>
 #include <mach/common.h>
 #include <mach/r8a7779.h>
 #include <asm/cacheflush.h>
@@ -80,11 +79,6 @@ static int r8a7779_platform_cpu_kill(unsigned int cpu)
 		ret = r8a7779_sysc_power_down(ch);
 
 	return ret ? ret : 1;
-}
-
-static void __cpuinit r8a7779_secondary_init(unsigned int cpu)
-{
-	gic_secondary_init(0);
 }
 
 static int __cpuinit r8a7779_boot_secondary(unsigned int cpu, struct task_struct *idle)
@@ -181,7 +175,6 @@ static int r8a7779_cpu_disable(unsigned int cpu)
 struct smp_operations r8a7779_smp_ops  __initdata = {
 	.smp_init_cpus		= r8a7779_smp_init_cpus,
 	.smp_prepare_cpus	= r8a7779_smp_prepare_cpus,
-	.smp_secondary_init	= r8a7779_secondary_init,
 	.smp_boot_secondary	= r8a7779_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_kill		= r8a7779_cpu_kill,
