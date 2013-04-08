@@ -804,7 +804,7 @@ static int hdmi_get_clocks(struct platform_device *pdev)
 {
 	struct clk *clk;
 
-	clk = clk_get(&pdev->dev, "sys_clk");
+	clk = devm_clk_get(&pdev->dev, "sys_clk");
 	if (IS_ERR(clk)) {
 		DSSERR("can't get sys_clk\n");
 		return PTR_ERR(clk);
@@ -813,12 +813,6 @@ static int hdmi_get_clocks(struct platform_device *pdev)
 	hdmi.sys_clk = clk;
 
 	return 0;
-}
-
-static void hdmi_put_clocks(void)
-{
-	if (hdmi.sys_clk)
-		clk_put(hdmi.sys_clk);
 }
 
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
@@ -1100,7 +1094,7 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 	r = hdmi_panel_init();
 	if (r) {
 		DSSERR("can't init panel\n");
-		goto err_panel_init;
+		return r;
 	}
 
 	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
@@ -1110,10 +1104,6 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 	hdmi_probe_pdata(pdev);
 
 	return 0;
-
-err_panel_init:
-	hdmi_put_clocks();
-	return r;
 }
 
 static int __exit hdmi_remove_child(struct device *dev, void *data)
@@ -1134,8 +1124,6 @@ static int __exit omapdss_hdmihw_remove(struct platform_device *pdev)
 	hdmi_uninit_output(pdev);
 
 	pm_runtime_disable(&pdev->dev);
-
-	hdmi_put_clocks();
 
 	return 0;
 }

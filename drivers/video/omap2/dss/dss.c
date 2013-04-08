@@ -767,13 +767,11 @@ int dss_dpi_select_source(enum omap_channel channel)
 static int dss_get_clocks(void)
 {
 	struct clk *clk;
-	int r;
 
-	clk = clk_get(&dss.pdev->dev, "fck");
+	clk = devm_clk_get(&dss.pdev->dev, "fck");
 	if (IS_ERR(clk)) {
 		DSSERR("can't get clock fck\n");
-		r = PTR_ERR(clk);
-		goto err;
+		return PTR_ERR(clk);
 	}
 
 	dss.dss_clk = clk;
@@ -782,8 +780,7 @@ static int dss_get_clocks(void)
 		clk = clk_get(NULL, dss.feat->clk_name);
 		if (IS_ERR(clk)) {
 			DSSERR("Failed to get %s\n", dss.feat->clk_name);
-			r = PTR_ERR(clk);
-			goto err;
+			return PTR_ERR(clk);
 		}
 	} else {
 		clk = NULL;
@@ -792,21 +789,12 @@ static int dss_get_clocks(void)
 	dss.dpll4_m4_ck = clk;
 
 	return 0;
-
-err:
-	if (dss.dss_clk)
-		clk_put(dss.dss_clk);
-	if (dss.dpll4_m4_ck)
-		clk_put(dss.dpll4_m4_ck);
-
-	return r;
 }
 
 static void dss_put_clocks(void)
 {
 	if (dss.dpll4_m4_ck)
 		clk_put(dss.dpll4_m4_ck);
-	clk_put(dss.dss_clk);
 }
 
 static int dss_runtime_get(void)
