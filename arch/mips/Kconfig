@@ -306,7 +306,6 @@ config MIPS_MALTA
 	select HW_HAS_PCI
 	select I8253
 	select I8259
-	select MIPS_BOARDS_GEN
 	select MIPS_BONITO64
 	select MIPS_CPU_SCACHE
 	select PCI_GT64XXX_PCI0
@@ -342,7 +341,6 @@ config MIPS_SEAD3
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select IRQ_GIC
-	select MIPS_BOARDS_GEN
 	select MIPS_CPU_SCACHE
 	select MIPS_MSC
 	select SYS_HAS_CPU_MIPS32_R1
@@ -1077,9 +1075,6 @@ config IRQ_GT641XX
 	bool
 
 config IRQ_GIC
-	bool
-
-config MIPS_BOARDS_GEN
 	bool
 
 config PCI_GT64XXX_PCI0
