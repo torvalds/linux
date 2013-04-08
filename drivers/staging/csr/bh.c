@@ -373,7 +373,7 @@ CsrResult unifi_run_bh(void *ospriv)
     unifi_priv_t *priv = ospriv;
 
     /*
-     * If an error has occured, we discard silently all messages from the bh
+     * If an error has occurred, we discard silently all messages from the bh
      * until the error has been processed and the unifi has been reinitialised.
      */
     if (priv->bh_thread.block_thread == 1) {

@@ -34,7 +34,7 @@ typedef u32 CsrLogLevelEnvironment;
 #define CSR_LOG_LEVEL_ENVIRONMENT_BGINT_START  ((CsrLogLevelEnvironment) 0x00000100) /* Background Interrupt start events are logged */
 #define CSR_LOG_LEVEL_ENVIRONMENT_BGINT_DONE   ((CsrLogLevelEnvironment) 0x00000200) /* Background Interrupt done events are logged */
 #define CSR_LOG_LEVEL_ENVIRONMENT_PROTO        ((CsrLogLevelEnvironment) 0x00000400) /* Transport protocol events are logged */
-#define CSR_LOG_LEVEL_ENVIRONMENT_PROTO_LOC    ((CsrLogLevelEnvironment) 0x00000800) /* The Location where the transport protocol event occured are logged NB: This is a supplement to CSR_LOG_LEVEL_ENVIRONMENT_PROTO, it has no effect without it */
+#define CSR_LOG_LEVEL_ENVIRONMENT_PROTO_LOC    ((CsrLogLevelEnvironment) 0x00000800) /* The Location where the transport protocol event occurred are logged NB: This is a supplement to CSR_LOG_LEVEL_ENVIRONMENT_PROTO, it has no effect without it */
 /* The bit masks between here are reserved for future usage */
 #define CSR_LOG_LEVEL_ENVIRONMENT_ALL          ((CsrLogLevelEnvironment) 0xFFFFFFFF) /* All possible environment data/events are logged WARNING: By using this define the application also accepts future possible environment data/events in the logs */
 
@@ -44,10 +44,10 @@ typedef u32 CsrLogLevelEnvironment;
 typedef u32 CsrLogLevelTask;
 #define CSR_LOG_LEVEL_TASK_OFF                 ((CsrLogLevelTask) 0x00000000) /* No events are logged for this task */
 #define CSR_LOG_LEVEL_TASK_TEXT                ((CsrLogLevelTask) 0x00000001) /* Text strings printed by a task are logged NB: This bit does not affect the CSR_LOG_TEXT_LEVEL interface. This has to be configured separately */
-#define CSR_LOG_LEVEL_TASK_TEXT_LOC            ((CsrLogLevelTask) 0x00000002) /* The locaction where the text string call occured are logged. NB: This is a supplement to CSR_LOG_LEVEL_TASK_TEXT, it has no effect without it */
+#define CSR_LOG_LEVEL_TASK_TEXT_LOC            ((CsrLogLevelTask) 0x00000002) /* The locaction where the text string call occurred are logged. NB: This is a supplement to CSR_LOG_LEVEL_TASK_TEXT, it has no effect without it */
 #define CSR_LOG_LEVEL_TASK_STATE               ((CsrLogLevelTask) 0x00000004) /* FSM state transitions in a task are logged */
 #define CSR_LOG_LEVEL_TASK_STATE_NAME          ((CsrLogLevelTask) 0x00000008) /* The name of each state in a FSM state transition are logged. NB: This is a supplement to CSR_LOG_LEVEL_TASK_STATE, it has no effect without it */
-#define CSR_LOG_LEVEL_TASK_STATE_LOC           ((CsrLogLevelTask) 0x00000010) /* The location where the FSM state transition occured are logged. NB: This is a supplement to CSR_LOG_LEVEL_TASK_STATE, it has no effect without it */
+#define CSR_LOG_LEVEL_TASK_STATE_LOC           ((CsrLogLevelTask) 0x00000010) /* The location where the FSM state transition occurred are logged. NB: This is a supplement to CSR_LOG_LEVEL_TASK_STATE, it has no effect without it */
 #define CSR_LOG_LEVEL_TASK_TASK_SWITCH         ((CsrLogLevelTask) 0x00000020) /* Activation and deactiation of a task are logged */
 #define CSR_LOG_LEVEL_TASK_MESSAGE_PUT         ((CsrLogLevelTask) 0x00000080) /* Message put operations are logged */
 #define CSR_LOG_LEVEL_TASK_MESSAGE_PUT_LOC     ((CsrLogLevelTask) 0x00000100) /* The location where a message was sent are logged. NB: This is a supplement to CSR_LOG_LEVEL_TASK_MESSAGE_PUT, it has no effect without it */
