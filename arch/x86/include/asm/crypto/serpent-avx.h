@@ -16,4 +16,9 @@ asmlinkage void serpent_cbc_dec_8way_avx(struct serpent_ctx *ctx, u8 *dst,
 asmlinkage void serpent_ctr_8way_avx(struct serpent_ctx *ctx, u8 *dst,
 				     const u8 *src, le128 *iv);
 
+asmlinkage void serpent_xts_enc_8way_avx(struct serpent_ctx *ctx, u8 *dst,
+					 const u8 *src, le128 *iv);
+asmlinkage void serpent_xts_dec_8way_avx(struct serpent_ctx *ctx, u8 *dst,
+					 const u8 *src, le128 *iv);
+
 #endif

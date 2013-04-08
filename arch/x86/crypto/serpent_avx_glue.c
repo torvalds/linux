@@ -4,8 +4,7 @@
  * Copyright (C) 2012 Johannes Goetzfried
  *     <Johannes.Goetzfried@informatik.stud.uni-erlangen.de>
  *
- * Glue code based on serpent_sse2_glue.c by:
- *  Copyright (C) 2011 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
+ * Copyright © 2011-2013 Jussi Kivilinna <jussi.kivilinna@iki.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,6 +52,18 @@ static void serpent_crypt_ctr(void *ctx, u128 *dst, const u128 *src, le128 *iv)
 	u128_xor(dst, src, (u128 *)&ctrblk);
 }
 
+static void serpent_xts_enc(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+{
+	glue_xts_crypt_128bit_one(ctx, dst, src, iv,
+				  GLUE_FUNC_CAST(__serpent_encrypt));
+}
+
+static void serpent_xts_dec(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+{
+	glue_xts_crypt_128bit_one(ctx, dst, src, iv,
+				  GLUE_FUNC_CAST(__serpent_decrypt));
+}
+
 static const struct common_glue_ctx serpent_enc = {
 	.num_funcs = 2,
 	.fpu_blocks_limit = SERPENT_PARALLEL_BLOCKS,
@@ -79,6 +90,19 @@ static const struct common_glue_ctx serpent_ctr = {
 	} }
 };
 
+static const struct common_glue_ctx serpent_enc_xts = {
+	.num_funcs = 2,
+	.fpu_blocks_limit = SERPENT_PARALLEL_BLOCKS,
+
+	.funcs = { {
+		.num_blocks = SERPENT_PARALLEL_BLOCKS,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(serpent_xts_enc_8way_avx) }
+	}, {
+		.num_blocks = 1,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(serpent_xts_enc) }
+	} }
+};
+
 static const struct common_glue_ctx serpent_dec = {
 	.num_funcs = 2,
 	.fpu_blocks_limit = SERPENT_PARALLEL_BLOCKS,
@@ -102,6 +126,19 @@ static const struct common_glue_ctx serpent_dec_cbc = {
 	}, {
 		.num_blocks = 1,
 		.fn_u = { .cbc = GLUE_CBC_FUNC_CAST(__serpent_decrypt) }
+	} }
+};
+
+static const struct common_glue_ctx serpent_dec_xts = {
+	.num_funcs = 2,
+	.fpu_blocks_limit = SERPENT_PARALLEL_BLOCKS,
+
+	.funcs = { {
+		.num_blocks = SERPENT_PARALLEL_BLOCKS,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(serpent_xts_dec_8way_avx) }
+	}, {
+		.num_blocks = 1,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(serpent_xts_dec) }
 	} }
 };
 
@@ -299,54 +336,20 @@ static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
 	struct serpent_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[SERPENT_PARALLEL_BLOCKS];
-	struct crypt_priv crypt_ctx = {
-		.ctx = &ctx->crypt_ctx,
-		.fpu_enabled = false,
-	};
-	struct xts_crypt_req req = {
-		.tbuf = buf,
-		.tbuflen = sizeof(buf),
 
-		.tweak_ctx = &ctx->tweak_ctx,
-		.tweak_fn = XTS_TWEAK_CAST(__serpent_encrypt),
-		.crypt_ctx = &crypt_ctx,
-		.crypt_fn = encrypt_callback,
-	};
-	int ret;
-
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	ret = xts_crypt(desc, dst, src, nbytes, &req);
-	serpent_fpu_end(crypt_ctx.fpu_enabled);
-
-	return ret;
+	return glue_xts_crypt_128bit(&serpent_enc_xts, desc, dst, src, nbytes,
+				     XTS_TWEAK_CAST(__serpent_encrypt),
+				     &ctx->tweak_ctx, &ctx->crypt_ctx);
 }
 
 static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
 	struct serpent_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[SERPENT_PARALLEL_BLOCKS];
-	struct crypt_priv crypt_ctx = {
-		.ctx = &ctx->crypt_ctx,
-		.fpu_enabled = false,
-	};
-	struct xts_crypt_req req = {
-		.tbuf = buf,
-		.tbuflen = sizeof(buf),
 
-		.tweak_ctx = &ctx->tweak_ctx,
-		.tweak_fn = XTS_TWEAK_CAST(__serpent_encrypt),
-		.crypt_ctx = &crypt_ctx,
-		.crypt_fn = decrypt_callback,
-	};
-	int ret;
-
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	ret = xts_crypt(desc, dst, src, nbytes, &req);
-	serpent_fpu_end(crypt_ctx.fpu_enabled);
-
-	return ret;
+	return glue_xts_crypt_128bit(&serpent_dec_xts, desc, dst, src, nbytes,
+				     XTS_TWEAK_CAST(__serpent_encrypt),
+				     &ctx->tweak_ctx, &ctx->crypt_ctx);
 }
 
 static struct crypto_alg serpent_algs[10] = { {
