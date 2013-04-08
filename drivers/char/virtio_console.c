@@ -78,8 +78,8 @@ struct ports_driver_data {
 };
 static struct ports_driver_data pdrvdata;
 
-DEFINE_SPINLOCK(pdrvdata_lock);
-DECLARE_COMPLETION(early_console_added);
+static DEFINE_SPINLOCK(pdrvdata_lock);
+static DECLARE_COMPLETION(early_console_added);
 
 /* This struct holds information that's relevant only for console ports */
 struct console {
@@ -1198,7 +1198,7 @@ int __init virtio_cons_early_init(int (*put_chars)(u32, const char *, int))
 	return hvc_instantiate(0, 0, &hv_ops);
 }
 
-int init_port_console(struct port *port)
+static int init_port_console(struct port *port)
 {
 	int ret;
 
