@@ -138,7 +138,7 @@ static int sdio_bus_probe(struct device *dev)
 	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD) {
 		ret = pm_runtime_get_sync(dev);
 		if (ret < 0)
-			goto out;
+			goto disable_runtimepm;
 	}
 
 	/* Set the default block size so the driver is sure it's something
@@ -158,7 +158,6 @@ static int sdio_bus_probe(struct device *dev)
 disable_runtimepm:
 	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
 		pm_runtime_put_noidle(dev);
-out:
 	return ret;
 }
 
