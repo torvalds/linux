@@ -87,6 +87,8 @@ static ssize_t qeth_l3_dev_route_store(struct qeth_card *card,
 			rc = qeth_l3_setrouting_v6(card);
 	}
 out:
+	if (rc)
+		route->type = old_route_type;
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
 }

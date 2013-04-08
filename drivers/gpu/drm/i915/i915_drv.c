@@ -125,6 +125,11 @@ MODULE_PARM_DESC(preliminary_hw_support,
 		"Enable Haswell and ValleyView Support. "
 		"(default: false)");
 
+int i915_disable_power_well __read_mostly = 0;
+module_param_named(disable_power_well, i915_disable_power_well, int, 0600);
+MODULE_PARM_DESC(disable_power_well,
+		 "Disable the power well when possible (default: false)");
+
 static struct drm_driver driver;
 extern int intel_agp_enabled;
 

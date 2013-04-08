@@ -4224,6 +4224,7 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	dd->isr_workq = create_workqueue(dd->workq_name);
 	if (!dd->isr_workq) {
 		dev_warn(&pdev->dev, "Can't create wq %d\n", dd->instance);
+		rv = -ENOMEM;
 		goto block_initialize_err;
 	}
 
@@ -4282,7 +4283,8 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 	INIT_WORK(&dd->work[7].work, mtip_workq_sdbf7);
 
 	pci_set_master(pdev);
-	if (pci_enable_msi(pdev)) {
+	rv = pci_enable_msi(pdev);
+	if (rv) {
 		dev_warn(&pdev->dev,
 			"Unable to enable MSI interrupt.\n");
 		goto block_initialize_err;

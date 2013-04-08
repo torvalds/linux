@@ -2358,7 +2358,7 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 
 	if (action == CPU_POST_DEAD) {
 		/* intentionally ignoring frozen here */
-		cmci_rediscover(cpu);
+		cmci_rediscover();
 	}
 
 	return NOTIFY_OK;

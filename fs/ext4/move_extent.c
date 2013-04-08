@@ -32,16 +32,18 @@
  */
 static inline int
 get_ext_path(struct inode *inode, ext4_lblk_t lblock,
-		struct ext4_ext_path **path)
+		struct ext4_ext_path **orig_path)
 {
 	int ret = 0;
+	struct ext4_ext_path *path;
 
-	*path = ext4_ext_find_extent(inode, lblock, *path);
-	if (IS_ERR(*path)) {
-		ret = PTR_ERR(*path);
-		*path = NULL;
-	} else if ((*path)[ext_depth(inode)].p_ext == NULL)
+	path = ext4_ext_find_extent(inode, lblock, *orig_path);
+	if (IS_ERR(path))
+		ret = PTR_ERR(path);
+	else if (path[ext_depth(inode)].p_ext == NULL)
 		ret = -ENODATA;
+	else
+		*orig_path = path;
 
 	return ret;
 }
@@ -611,24 +613,25 @@ mext_check_coverage(struct inode *inode, ext4_lblk_t from, ext4_lblk_t count,
 {
 	struct ext4_ext_path *path = NULL;
 	struct ext4_extent *ext;
+	int ret = 0;
 	ext4_lblk_t last = from + count;
 	while (from < last) {
 		*err = get_ext_path(inode, from, &path);
 		if (*err)
-			return 0;
+			goto out;
 		ext = path[ext_depth(inode)].p_ext;
-		if (!ext) {
-			ext4_ext_drop_refs(path);
-			return 0;
-		}
-		if (uninit != ext4_ext_is_uninitialized(ext)) {
-			ext4_ext_drop_refs(path);
-			return 0;
-		}
+		if (uninit != ext4_ext_is_uninitialized(ext))
+			goto out;
 		from += ext4_ext_get_actual_len(ext);
 		ext4_ext_drop_refs(path);
 	}
-	return 1;
+	ret = 1;
+out:
+	if (path) {
+		ext4_ext_drop_refs(path);
+		kfree(path);
+	}
+	return ret;
 }
 
 /**
@@ -665,6 +668,14 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 	int depth;
 	int replaced_count = 0;
 	int dext_alen;
+
+	*err = ext4_es_remove_extent(orig_inode, from, count);
+	if (*err)
+		goto out;
+
+	*err = ext4_es_remove_extent(donor_inode, from, count);
+	if (*err)
+		goto out;
 
 	/* Get the original extent for the block "orig_off" */
 	*err = get_ext_path(orig_inode, orig_off, &orig_path);
