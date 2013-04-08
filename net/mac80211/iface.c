@@ -78,7 +78,7 @@ void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_TXPOWER);
 }
 
-u32 ieee80211_idle_off(struct ieee80211_local *local)
+static u32 __ieee80211_idle_off(struct ieee80211_local *local)
 {
 	if (!(local->hw.conf.flags & IEEE80211_CONF_IDLE))
 		return 0;
@@ -87,7 +87,7 @@ u32 ieee80211_idle_off(struct ieee80211_local *local)
 	return IEEE80211_CONF_CHANGE_IDLE;
 }
 
-static u32 ieee80211_idle_on(struct ieee80211_local *local)
+static u32 __ieee80211_idle_on(struct ieee80211_local *local)
 {
 	if (local->hw.conf.flags & IEEE80211_CONF_IDLE)
 		return 0;
@@ -98,16 +98,18 @@ static u32 ieee80211_idle_on(struct ieee80211_local *local)
 	return IEEE80211_CONF_CHANGE_IDLE;
 }
 
-void ieee80211_recalc_idle(struct ieee80211_local *local)
+static u32 __ieee80211_recalc_idle(struct ieee80211_local *local,
+				   bool force_active)
 {
 	bool working = false, scanning, active;
 	unsigned int led_trig_start = 0, led_trig_stop = 0;
 	struct ieee80211_roc_work *roc;
-	u32 change;
 
 	lockdep_assert_held(&local->mtx);
 
-	active = !list_empty(&local->chanctx_list) || local->monitors;
+	active = force_active ||
+		 !list_empty(&local->chanctx_list) ||
+		 local->monitors;
 
 	if (!local->ops->remain_on_channel) {
 		list_for_each_entry(roc, &local->roc_list, list) {
@@ -132,9 +134,18 @@ void ieee80211_recalc_idle(struct ieee80211_local *local)
 	ieee80211_mod_tpt_led_trig(local, led_trig_start, led_trig_stop);
 
 	if (working || scanning || active)
-		change = ieee80211_idle_off(local);
-	else
-		change = ieee80211_idle_on(local);
+		return __ieee80211_idle_off(local);
+	return __ieee80211_idle_on(local);
+}
+
+u32 ieee80211_idle_off(struct ieee80211_local *local)
+{
+	return __ieee80211_recalc_idle(local, true);
+}
+
+void ieee80211_recalc_idle(struct ieee80211_local *local)
+{
+	u32 change = __ieee80211_recalc_idle(local, false);
 	if (change)
 		ieee80211_hw_config(local, change);
 }
