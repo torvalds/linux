@@ -38,7 +38,6 @@ clocks and IDs.
 	usb_phy_podf		23
 	cpu_podf		24
 	di_pred			25
-	tve_di			26
 	tve_s			27
 	uart1_ipg_gate		28
 	uart1_per_gate		29
