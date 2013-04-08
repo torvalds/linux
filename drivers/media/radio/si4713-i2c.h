@@ -220,7 +220,6 @@ struct si4713_device {
 	/* v4l2_subdev and i2c reference (v4l2_subdev priv data) */
 	struct v4l2_subdev sd;
 	/* private data structures */
-	struct mutex mutex;
 	struct completion work;
 	struct rds_info rds_info;
 	struct limiter_info limiter_info;

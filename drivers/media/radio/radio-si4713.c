@@ -49,6 +49,7 @@ MODULE_ALIAS("platform:radio-si4713");
 struct radio_si4713_device {
 	struct v4l2_device		v4l2_dev;
 	struct video_device		radio_dev;
+	struct mutex lock;
 };
 
 /* radio_si4713_fops - file operations interface */
@@ -247,6 +248,7 @@ static int radio_si4713_pdriver_probe(struct platform_device *pdev)
 		rval = -ENOMEM;
 		goto exit;
 	}
+	mutex_init(&rsdev->lock);
 
 	rval = v4l2_device_register(&pdev->dev, &rsdev->v4l2_dev);
 	if (rval) {
@@ -272,6 +274,8 @@ static int radio_si4713_pdriver_probe(struct platform_device *pdev)
 
 	rsdev->radio_dev = radio_si4713_vdev_template;
 	rsdev->radio_dev.v4l2_dev = &rsdev->v4l2_dev;
+	/* Serialize all access to the si4713 */
+	rsdev->radio_dev.lock = &rsdev->lock;
 	video_set_drvdata(&rsdev->radio_dev, rsdev);
 	if (video_register_device(&rsdev->radio_dev, VFL_TYPE_RADIO, radio_nr)) {
 		dev_err(&pdev->dev, "Could not register video device.\n");
