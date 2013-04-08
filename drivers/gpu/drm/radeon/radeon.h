@@ -206,6 +206,11 @@ void radeon_pm_suspend(struct radeon_device *rdev);
 void radeon_pm_resume(struct radeon_device *rdev);
 void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
+int radeon_atom_get_clock_dividers(struct radeon_device *rdev,
+				   u8 clock_type,
+				   u32 clock,
+				   bool strobe_mode,
+				   struct atom_clock_dividers *dividers);
 void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 voltage_type);
 void rs690_pm_info(struct radeon_device *rdev);
 extern int rv6xx_get_temp(struct radeon_device *rdev);

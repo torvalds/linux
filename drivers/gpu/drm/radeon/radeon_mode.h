@@ -492,6 +492,29 @@ struct radeon_framebuffer {
 #define ENCODER_MODE_IS_DP(em) (((em) == ATOM_ENCODER_MODE_DP) || \
 				((em) == ATOM_ENCODER_MODE_DP_MST))
 
+struct atom_clock_dividers {
+	u32 post_div;
+	union {
+		struct {
+#ifdef __BIG_ENDIAN
+			u32 reserved : 6;
+			u32 whole_fb_div : 12;
+			u32 frac_fb_div : 14;
+#else
+			u32 frac_fb_div : 14;
+			u32 whole_fb_div : 12;
+			u32 reserved : 6;
+#endif
+		};
+		u32 fb_div;
+	};
+	u32 ref_div;
+	bool enable_post_div;
+	bool enable_dithen;
+	u32 vco_mode;
+	u32 real_clock;
+};
+
 extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);
 extern enum radeon_tv_std

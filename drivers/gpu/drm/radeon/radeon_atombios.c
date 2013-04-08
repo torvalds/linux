@@ -2654,6 +2654,113 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 		rdev->pm.current_vddc = 0;
 }
 
+union get_clock_dividers {
+	struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS v1;
+	struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V2 v2;
+	struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V3 v3;
+	struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V4 v4;
+	struct _COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V5 v5;
+};
+
+int radeon_atom_get_clock_dividers(struct radeon_device *rdev,
+				   u8 clock_type,
+				   u32 clock,
+				   bool strobe_mode,
+				   struct atom_clock_dividers *dividers)
+{
+	union get_clock_dividers args;
+	int index = GetIndexIntoMasterTable(COMMAND, ComputeMemoryEnginePLL);
+	u8 frev, crev;
+
+	memset(&args, 0, sizeof(args));
+	memset(dividers, 0, sizeof(struct atom_clock_dividers));
+
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return -EINVAL;
+
+	switch (crev) {
+	case 1:
+		/* r4xx, r5xx */
+		args.v1.ucAction = clock_type;
+		args.v1.ulClock = cpu_to_le32(clock);	/* 10 khz */
+
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+		dividers->post_div = args.v1.ucPostDiv;
+		dividers->fb_div = args.v1.ucFbDiv;
+		dividers->enable_post_div = true;
+		break;
+	case 2:
+	case 3:
+		/* r6xx, r7xx, evergreen, ni */
+		if (rdev->family <= CHIP_RV770) {
+			args.v2.ucAction = clock_type;
+			args.v2.ulClock = cpu_to_le32(clock);	/* 10 khz */
+
+			atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+			dividers->post_div = args.v2.ucPostDiv;
+			dividers->fb_div = le16_to_cpu(args.v2.usFbDiv);
+			dividers->ref_div = args.v2.ucAction;
+			if (rdev->family == CHIP_RV770) {
+				dividers->enable_post_div = (le32_to_cpu(args.v2.ulClock) & (1 << 24)) ?
+					true : false;
+				dividers->vco_mode = (le32_to_cpu(args.v2.ulClock) & (1 << 25)) ? 1 : 0;
+			} else
+				dividers->enable_post_div = (dividers->fb_div & 1) ? true : false;
+		} else {
+			if (clock_type == COMPUTE_ENGINE_PLL_PARAM) {
+				args.v3.ulClock.ulComputeClockFlag = clock_type;
+				args.v3.ulClock.ulClockFreq = cpu_to_le32(clock);	/* 10 khz */
+
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+				dividers->post_div = args.v3.ucPostDiv;
+				dividers->enable_post_div = (args.v3.ucCntlFlag &
+							     ATOM_PLL_CNTL_FLAG_PLL_POST_DIV_EN) ? true : false;
+				dividers->enable_dithen = (args.v3.ucCntlFlag &
+							   ATOM_PLL_CNTL_FLAG_FRACTION_DISABLE) ? false : true;
+				dividers->fb_div = le16_to_cpu(args.v3.ulFbDiv.usFbDiv);
+				dividers->frac_fb_div = le16_to_cpu(args.v3.ulFbDiv.usFbDivFrac);
+				dividers->ref_div = args.v3.ucRefDiv;
+				dividers->vco_mode = (args.v3.ucCntlFlag &
+						      ATOM_PLL_CNTL_FLAG_MPLL_VCO_MODE) ? 1 : 0;
+			} else {
+				args.v5.ulClock.ulComputeClockFlag = clock_type;
+				args.v5.ulClock.ulClockFreq = cpu_to_le32(clock);	/* 10 khz */
+				if (strobe_mode)
+					args.v5.ucInputFlag = ATOM_PLL_INPUT_FLAG_PLL_STROBE_MODE_EN;
+
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+				dividers->post_div = args.v5.ucPostDiv;
+				dividers->enable_post_div = (args.v5.ucCntlFlag &
+							     ATOM_PLL_CNTL_FLAG_PLL_POST_DIV_EN) ? true : false;
+				dividers->enable_dithen = (args.v5.ucCntlFlag &
+							   ATOM_PLL_CNTL_FLAG_FRACTION_DISABLE) ? false : true;
+				dividers->whole_fb_div = le16_to_cpu(args.v5.ulFbDiv.usFbDiv);
+				dividers->frac_fb_div = le16_to_cpu(args.v5.ulFbDiv.usFbDivFrac);
+				dividers->ref_div = args.v5.ucRefDiv;
+				dividers->vco_mode = (args.v5.ucCntlFlag &
+						      ATOM_PLL_CNTL_FLAG_MPLL_VCO_MODE) ? 1 : 0;
+			}
+		}
+		break;
+	case 4:
+		/* fusion */
+		args.v4.ulClock = cpu_to_le32(clock);	/* 10 khz */
+
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+
+		dividers->post_div = args.v4.ucPostDiv;
+		dividers->real_clock = le32_to_cpu(args.v4.ulClock);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable)
 {
 	DYNAMIC_CLOCK_GATING_PS_ALLOCATION args;
