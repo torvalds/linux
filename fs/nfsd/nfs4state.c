@@ -1803,10 +1803,13 @@ nfsd4_replay_create_session(struct nfsd4_create_session *cr_ses,
 				/* seqid, slotID, slotID, slotID, status */ \
 			5 ) * sizeof(__be32))
 
-static bool check_forechannel_attrs(struct nfsd4_channel_attrs fchannel)
+static __be32 check_forechannel_attrs(struct nfsd4_channel_attrs *ca)
 {
-	return fchannel.maxreq_sz < NFSD_MIN_REQ_HDR_SEQ_SZ
-		|| fchannel.maxresp_sz < NFSD_MIN_RESP_HDR_SEQ_SZ;
+	if (ca->maxreq_sz < NFSD_MIN_REQ_HDR_SEQ_SZ)
+		return nfserr_toosmall;
+	if (ca->maxresp_sz < NFSD_MIN_RESP_HDR_SEQ_SZ)
+		return nfserr_toosmall;
+	return nfs_ok;
 }
 
 __be32
@@ -1824,8 +1827,9 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 
 	if (cr_ses->flags & ~SESSION4_FLAG_MASK_A)
 		return nfserr_inval;
-	if (check_forechannel_attrs(cr_ses->fore_channel))
-		return nfserr_toosmall;
+	status = check_forechannel_attrs(&cr_ses->fore_channel);
+	if (status)
+		return status;
 	new = alloc_session(&cr_ses->fore_channel, nn);
 	if (!new)
 		return nfserr_jukebox;
