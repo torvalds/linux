@@ -301,6 +301,29 @@ static void mxcmci_softreset(struct mxcmci_host *host)
 }
 static int mxcmci_setup_dma(struct mmc_host *mmc);
 
+#if IS_ENABLED(CONFIG_PPC_MPC512x)
+static inline void buffer_swap32(u32 *buf, int len)
+{
+	int i;
+
+	for (i = 0; i < ((len + 3) / 4); i++) {
+		st_le32(buf, *buf);
+		buf++;
+	}
+}
+
+static void mxcmci_swap_buffers(struct mmc_data *data)
+{
+	struct scatterlist *sg;
+	int i;
+
+	for_each_sg(data->sg, sg, data->sg_len, i)
+		buffer_swap32(sg_virt(sg), sg->length);
+}
+#else
+static inline void mxcmci_swap_buffers(struct mmc_data *data) {}
+#endif
+
 static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 {
 	unsigned int nob = data->blocks;
@@ -336,6 +359,8 @@ static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 	} else {
 		host->dma_dir = DMA_TO_DEVICE;
 		slave_dirn = DMA_MEM_TO_DEV;
+
+		mxcmci_swap_buffers(data);
 	}
 
 	nents = dma_map_sg(host->dma->device->dev, data->sg,
@@ -461,9 +486,11 @@ static int mxcmci_finish_data(struct mxcmci_host *host, unsigned int stat)
 	struct mmc_data *data = host->data;
 	int data_error;
 
-	if (mxcmci_use_dma(host))
+	if (mxcmci_use_dma(host)) {
 		dma_unmap_sg(host->dma->device->dev, data->sg, data->sg_len,
 				host->dma_dir);
+		mxcmci_swap_buffers(data);
+	}
 
 	if (stat & STATUS_ERR_MASK) {
 		dev_dbg(mmc_dev(host->mmc), "request failed. status: 0x%08x\n",
@@ -1050,7 +1077,6 @@ static int mxcmci_probe(struct platform_device *pdev)
 		mmc->caps |= MMC_CAP_SDIO_IRQ;
 
 	/* MMC core transfer sizes tunable parameters */
-	mmc->max_segs = 64;
 	mmc->max_blk_size = 2048;
 	mmc->max_blk_count = 65535;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
@@ -1069,6 +1095,11 @@ static int mxcmci_probe(struct platform_device *pdev)
 	} else {
 		host->devtype = pdev->id_entry->driver_data;
 	}
+
+	/* adjust max_segs after devtype detection */
+	if (!is_mpc512x_mmc(host))
+		mmc->max_segs = 64;
+
 	host->mmc = mmc;
 	host->pdata = pdata;
 	spin_lock_init(&host->lock);
