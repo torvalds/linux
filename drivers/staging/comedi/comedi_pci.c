@@ -50,9 +50,7 @@ int comedi_pci_enable(struct comedi_device *dev)
 	if (rc < 0)
 		return rc;
 
-	rc = pci_request_regions(pcidev, dev->board_name
-						? dev->board_name
-						: dev->driver->driver_name);
+	rc = pci_request_regions(pcidev, dev->board_name);
 	if (rc < 0)
 		pci_disable_device(pcidev);
 	else
