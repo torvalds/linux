@@ -1124,8 +1124,9 @@ static void cdc_ncm_status(struct usbnet *dev, struct urb *urb)
 		break;
 
 	default:
-		dev_err(&dev->udev->dev, "NCM: unexpected "
-			"notification 0x%02x!\n", event->bNotificationType);
+		dev_dbg(&dev->udev->dev,
+			"NCM: unexpected notification 0x%02x!\n",
+			event->bNotificationType);
 		break;
 	}
 }
