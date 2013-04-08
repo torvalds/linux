@@ -54,6 +54,9 @@ struct ipu_di_signal_cfg {
 #define IPU_DI_CLKMODE_SYNC	(1 << 0)
 #define IPU_DI_CLKMODE_EXT	(1 << 1)
 	unsigned long clkflags;
+
+	u8 hsync_pin;
+	u8 vsync_pin;
 };
 
 enum ipu_color_space {
