@@ -76,61 +76,6 @@ static int radio_si4713_querycap(struct file *file, void *priv,
 	return 0;
 }
 
-/* radio_si4713_queryctrl - enumerate control items */
-static int radio_si4713_queryctrl(struct file *file, void *priv,
-				  struct v4l2_queryctrl *qc)
-{
-	/* Must be sorted from low to high control ID! */
-	static const u32 user_ctrls[] = {
-		V4L2_CID_USER_CLASS,
-		V4L2_CID_AUDIO_MUTE,
-		0
-	};
-
-	/* Must be sorted from low to high control ID! */
-	static const u32 fmtx_ctrls[] = {
-		V4L2_CID_FM_TX_CLASS,
-		V4L2_CID_RDS_TX_DEVIATION,
-		V4L2_CID_RDS_TX_PI,
-		V4L2_CID_RDS_TX_PTY,
-		V4L2_CID_RDS_TX_PS_NAME,
-		V4L2_CID_RDS_TX_RADIO_TEXT,
-		V4L2_CID_AUDIO_LIMITER_ENABLED,
-		V4L2_CID_AUDIO_LIMITER_RELEASE_TIME,
-		V4L2_CID_AUDIO_LIMITER_DEVIATION,
-		V4L2_CID_AUDIO_COMPRESSION_ENABLED,
-		V4L2_CID_AUDIO_COMPRESSION_GAIN,
-		V4L2_CID_AUDIO_COMPRESSION_THRESHOLD,
-		V4L2_CID_AUDIO_COMPRESSION_ATTACK_TIME,
-		V4L2_CID_AUDIO_COMPRESSION_RELEASE_TIME,
-		V4L2_CID_PILOT_TONE_ENABLED,
-		V4L2_CID_PILOT_TONE_DEVIATION,
-		V4L2_CID_PILOT_TONE_FREQUENCY,
-		V4L2_CID_TUNE_PREEMPHASIS,
-		V4L2_CID_TUNE_POWER_LEVEL,
-		V4L2_CID_TUNE_ANTENNA_CAPACITOR,
-		0
-	};
-	static const u32 *ctrl_classes[] = {
-		user_ctrls,
-		fmtx_ctrls,
-		NULL
-	};
-	struct radio_si4713_device *rsdev;
-
-	rsdev = video_get_drvdata(video_devdata(file));
-
-	qc->id = v4l2_ctrl_next(ctrl_classes, qc->id);
-	if (qc->id == 0)
-		return -EINVAL;
-
-	if (qc->id == V4L2_CID_USER_CLASS || qc->id == V4L2_CID_FM_TX_CLASS)
-		return v4l2_ctrl_query_fill(qc, 0, 0, 0, 0);
-
-	return v4l2_device_call_until_err(&rsdev->v4l2_dev, 0, core,
-					  queryctrl, qc);
-}
-
 /*
  * v4l2 ioctl call backs.
  * we are just a wrapper for v4l2_sub_devs.
@@ -138,34 +83,6 @@ static int radio_si4713_queryctrl(struct file *file, void *priv,
 static inline struct v4l2_device *get_v4l2_dev(struct file *file)
 {
 	return &((struct radio_si4713_device *)video_drvdata(file))->v4l2_dev;
-}
-
-static int radio_si4713_g_ext_ctrls(struct file *file, void *p,
-				    struct v4l2_ext_controls *vecs)
-{
-	return v4l2_device_call_until_err(get_v4l2_dev(file), 0, core,
-					  g_ext_ctrls, vecs);
-}
-
-static int radio_si4713_s_ext_ctrls(struct file *file, void *p,
-				    struct v4l2_ext_controls *vecs)
-{
-	return v4l2_device_call_until_err(get_v4l2_dev(file), 0, core,
-					  s_ext_ctrls, vecs);
-}
-
-static int radio_si4713_g_ctrl(struct file *file, void *p,
-			       struct v4l2_control *vc)
-{
-	return v4l2_device_call_until_err(get_v4l2_dev(file), 0, core,
-					  g_ctrl, vc);
-}
-
-static int radio_si4713_s_ctrl(struct file *file, void *p,
-			       struct v4l2_control *vc)
-{
-	return v4l2_device_call_until_err(get_v4l2_dev(file), 0, core,
-					  s_ctrl, vc);
 }
 
 static int radio_si4713_g_modulator(struct file *file, void *p,
@@ -205,11 +122,6 @@ static long radio_si4713_default(struct file *file, void *p,
 
 static struct v4l2_ioctl_ops radio_si4713_ioctl_ops = {
 	.vidioc_querycap	= radio_si4713_querycap,
-	.vidioc_queryctrl	= radio_si4713_queryctrl,
-	.vidioc_g_ext_ctrls	= radio_si4713_g_ext_ctrls,
-	.vidioc_s_ext_ctrls	= radio_si4713_s_ext_ctrls,
-	.vidioc_g_ctrl		= radio_si4713_g_ctrl,
-	.vidioc_s_ctrl		= radio_si4713_s_ctrl,
 	.vidioc_g_modulator	= radio_si4713_g_modulator,
 	.vidioc_s_modulator	= radio_si4713_s_modulator,
 	.vidioc_g_frequency	= radio_si4713_g_frequency,
@@ -274,6 +186,7 @@ static int radio_si4713_pdriver_probe(struct platform_device *pdev)
 
 	rsdev->radio_dev = radio_si4713_vdev_template;
 	rsdev->radio_dev.v4l2_dev = &rsdev->v4l2_dev;
+	rsdev->radio_dev.ctrl_handler = sd->ctrl_handler;
 	/* Serialize all access to the si4713 */
 	rsdev->radio_dev.lock = &rsdev->lock;
 	video_set_drvdata(&rsdev->radio_dev, rsdev);
