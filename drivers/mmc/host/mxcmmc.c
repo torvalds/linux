@@ -38,6 +38,7 @@
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/of_gpio.h>
+#include <linux/mmc/slot-gpio.h>
 
 #include <asm/dma.h>
 #include <asm/irq.h>
@@ -917,10 +918,11 @@ static int mxcmci_get_ro(struct mmc_host *mmc)
 	if (host->pdata && host->pdata->get_ro)
 		return !!host->pdata->get_ro(mmc_dev(mmc));
 	/*
-	 * Board doesn't support read only detection; let the mmc core
-	 * decide what to do.
+	 * If board doesn't support read only detection (no mmc_gpio
+	 * context or gpio is invalid), then let the mmc core decide
+	 * what to do.
 	 */
-	return -ENOSYS;
+	return mmc_gpio_get_ro(mmc);
 }
 
 static void mxcmci_enable_sdio_irq(struct mmc_host *mmc, int enable)
