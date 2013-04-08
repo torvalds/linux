@@ -188,6 +188,8 @@ int radeon_uvd_resume(struct radeon_device *rdev)
 
 	radeon_bo_unreserve(rdev->uvd.vcpu_bo);
 
+	radeon_set_uvd_clocks(rdev, 53300, 40000);
+
 	return 0;
 }
 
