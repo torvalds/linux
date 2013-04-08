@@ -67,7 +67,10 @@ static int radio_si4713_querycap(struct file *file, void *priv,
 	strlcpy(capability->driver, "radio-si4713", sizeof(capability->driver));
 	strlcpy(capability->card, "Silicon Labs Si4713 Modulator",
 		sizeof(capability->card));
-	capability->capabilities = V4L2_CAP_MODULATOR | V4L2_CAP_RDS_OUTPUT;
+	strlcpy(capability->bus_info, "platform:radio-si4713",
+		sizeof(capability->bus_info));
+	capability->device_caps = V4L2_CAP_MODULATOR | V4L2_CAP_RDS_OUTPUT;
+	capability->capabilities = capability->device_caps | V4L2_CAP_DEVICE_CAPS;
 
 	return 0;
 }
