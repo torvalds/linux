@@ -4,6 +4,8 @@
  * Copyright (C) 2012 Johannes Goetzfried
  *     <Johannes.Goetzfried@informatik.stud.uni-erlangen.de>
  *
+ * Copyright © 2013 Jussi Kivilinna <jussi.kivilinna@iki.fi>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -56,10 +58,27 @@ asmlinkage void twofish_cbc_dec_8way(struct twofish_ctx *ctx, u8 *dst,
 asmlinkage void twofish_ctr_8way(struct twofish_ctx *ctx, u8 *dst,
 				 const u8 *src, le128 *iv);
 
+asmlinkage void twofish_xts_enc_8way(struct twofish_ctx *ctx, u8 *dst,
+				     const u8 *src, le128 *iv);
+asmlinkage void twofish_xts_dec_8way(struct twofish_ctx *ctx, u8 *dst,
+				     const u8 *src, le128 *iv);
+
 static inline void twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
 					const u8 *src)
 {
 	__twofish_enc_blk_3way(ctx, dst, src, false);
+}
+
+static void twofish_xts_enc(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+{
+	glue_xts_crypt_128bit_one(ctx, dst, src, iv,
+				  GLUE_FUNC_CAST(twofish_enc_blk));
+}
+
+static void twofish_xts_dec(void *ctx, u128 *dst, const u128 *src, le128 *iv)
+{
+	glue_xts_crypt_128bit_one(ctx, dst, src, iv,
+				  GLUE_FUNC_CAST(twofish_dec_blk));
 }
 
 
@@ -95,6 +114,19 @@ static const struct common_glue_ctx twofish_ctr = {
 	} }
 };
 
+static const struct common_glue_ctx twofish_enc_xts = {
+	.num_funcs = 2,
+	.fpu_blocks_limit = TWOFISH_PARALLEL_BLOCKS,
+
+	.funcs = { {
+		.num_blocks = TWOFISH_PARALLEL_BLOCKS,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(twofish_xts_enc_8way) }
+	}, {
+		.num_blocks = 1,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(twofish_xts_enc) }
+	} }
+};
+
 static const struct common_glue_ctx twofish_dec = {
 	.num_funcs = 3,
 	.fpu_blocks_limit = TWOFISH_PARALLEL_BLOCKS,
@@ -124,6 +156,19 @@ static const struct common_glue_ctx twofish_dec_cbc = {
 	}, {
 		.num_blocks = 1,
 		.fn_u = { .cbc = GLUE_CBC_FUNC_CAST(twofish_dec_blk) }
+	} }
+};
+
+static const struct common_glue_ctx twofish_dec_xts = {
+	.num_funcs = 2,
+	.fpu_blocks_limit = TWOFISH_PARALLEL_BLOCKS,
+
+	.funcs = { {
+		.num_blocks = TWOFISH_PARALLEL_BLOCKS,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(twofish_xts_dec_8way) }
+	}, {
+		.num_blocks = 1,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(twofish_xts_dec) }
 	} }
 };
 
@@ -275,54 +320,20 @@ static int xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
 	struct twofish_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[TWOFISH_PARALLEL_BLOCKS];
-	struct crypt_priv crypt_ctx = {
-		.ctx = &ctx->crypt_ctx,
-		.fpu_enabled = false,
-	};
-	struct xts_crypt_req req = {
-		.tbuf = buf,
-		.tbuflen = sizeof(buf),
 
-		.tweak_ctx = &ctx->tweak_ctx,
-		.tweak_fn = XTS_TWEAK_CAST(twofish_enc_blk),
-		.crypt_ctx = &crypt_ctx,
-		.crypt_fn = encrypt_callback,
-	};
-	int ret;
-
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	ret = xts_crypt(desc, dst, src, nbytes, &req);
-	twofish_fpu_end(crypt_ctx.fpu_enabled);
-
-	return ret;
+	return glue_xts_crypt_128bit(&twofish_enc_xts, desc, dst, src, nbytes,
+				     XTS_TWEAK_CAST(twofish_enc_blk),
+				     &ctx->tweak_ctx, &ctx->crypt_ctx);
 }
 
 static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
 	struct twofish_xts_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[TWOFISH_PARALLEL_BLOCKS];
-	struct crypt_priv crypt_ctx = {
-		.ctx = &ctx->crypt_ctx,
-		.fpu_enabled = false,
-	};
-	struct xts_crypt_req req = {
-		.tbuf = buf,
-		.tbuflen = sizeof(buf),
 
-		.tweak_ctx = &ctx->tweak_ctx,
-		.tweak_fn = XTS_TWEAK_CAST(twofish_enc_blk),
-		.crypt_ctx = &crypt_ctx,
-		.crypt_fn = decrypt_callback,
-	};
-	int ret;
-
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
-	ret = xts_crypt(desc, dst, src, nbytes, &req);
-	twofish_fpu_end(crypt_ctx.fpu_enabled);
-
-	return ret;
+	return glue_xts_crypt_128bit(&twofish_dec_xts, desc, dst, src, nbytes,
+				     XTS_TWEAK_CAST(twofish_enc_blk),
+				     &ctx->tweak_ctx, &ctx->crypt_ctx);
 }
 
 static struct crypto_alg twofish_algs[10] = { {
