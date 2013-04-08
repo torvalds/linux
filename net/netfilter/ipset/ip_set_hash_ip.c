@@ -24,7 +24,7 @@
 #include <linux/netfilter/ipset/ip_set_hash.h>
 
 #define REVISION_MIN	0
-#define REVISION_MAX	0
+#define REVISION_MAX	1	/* Counters support */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
@@ -45,6 +45,17 @@ struct hash_ip4_elem {
 
 struct hash_ip4t_elem {
 	__be32 ip;
+	unsigned long timeout;
+};
+
+struct hash_ip4c_elem {
+	__be32 ip;
+	struct ip_set_counter counter;
+};
+
+struct hash_ip4ct_elem {
+	__be32 ip;
+	struct ip_set_counter counter;
 	unsigned long timeout;
 };
 
@@ -112,7 +123,9 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	int ret = 0;
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT)))
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES)))
 		return -IPSET_ERR_PROTOCOL;
 
 	if (tb[IPSET_ATTR_LINENO])
@@ -174,6 +187,17 @@ struct hash_ip6_elem {
 
 struct hash_ip6t_elem {
 	union nf_inet_addr ip;
+	unsigned long timeout;
+};
+
+struct hash_ip6c_elem {
+	union nf_inet_addr ip;
+	struct ip_set_counter counter;
+};
+
+struct hash_ip6ct_elem {
+	union nf_inet_addr ip;
+	struct ip_set_counter counter;
 	unsigned long timeout;
 };
 
@@ -251,6 +275,8 @@ hash_ip6_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES) ||
 		     tb[IPSET_ATTR_IP_TO] ||
 		     tb[IPSET_ATTR_CIDR]))
 		return -IPSET_ERR_PROTOCOL;
@@ -288,6 +314,7 @@ static struct ip_set_type hash_ip_type __read_mostly = {
 		[IPSET_ATTR_RESIZE]	= { .type = NLA_U8  },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
 		[IPSET_ATTR_NETMASK]	= { .type = NLA_U8  },
+		[IPSET_ATTR_CADT_FLAGS]	= { .type = NLA_U32 },
 	},
 	.adt_policy	= {
 		[IPSET_ATTR_IP]		= { .type = NLA_NESTED },
@@ -295,6 +322,8 @@ static struct ip_set_type hash_ip_type __read_mostly = {
 		[IPSET_ATTR_CIDR]	= { .type = NLA_U8 },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
 		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
+		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
+		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
 	},
 	.me		= THIS_MODULE,
 };

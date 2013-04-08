@@ -177,6 +177,8 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 
 #define ext_timeout(e, h)	\
 (unsigned long *)(((void *)(e)) + (h)->offset[IPSET_OFFSET_TIMEOUT])
+#define ext_counter(e, h)	\
+(struct ip_set_counter *)(((void *)(e)) + (h)->offset[IPSET_OFFSET_COUNTER])
 
 #endif /* _IP_SET_HASH_GEN_H */
 
@@ -660,6 +662,8 @@ reuse_slot:
 #endif
 	if (SET_WITH_TIMEOUT(set))
 		ip_set_timeout_set(ext_timeout(data, h), ext->timeout);
+	if (SET_WITH_COUNTER(set))
+		ip_set_init_counter(ext_counter(data, h), ext);
 
 out:
 	rcu_read_unlock_bh();
@@ -721,6 +725,10 @@ static inline int
 mtype_data_match(struct mtype_elem *data, const struct ip_set_ext *ext,
 		 struct ip_set_ext *mext, struct ip_set *set, u32 flags)
 {
+	if (SET_WITH_COUNTER(set))
+		ip_set_update_counter(ext_counter(data,
+						  (struct htype *)(set->data)),
+				      ext, mext, flags);
 	return mtype_do_data_match(data);
 }
 
@@ -826,7 +834,10 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 	if (nla_put_net32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1)) ||
 	    nla_put_net32(skb, IPSET_ATTR_MEMSIZE, htonl(memsize)) ||
 	    ((set->extensions & IPSET_EXT_TIMEOUT) &&
-	     nla_put_net32(skb, IPSET_ATTR_TIMEOUT, htonl(h->timeout))))
+	     nla_put_net32(skb, IPSET_ATTR_TIMEOUT, htonl(h->timeout))) ||
+	    ((set->extensions & IPSET_EXT_COUNTER) &&
+	     nla_put_net32(skb, IPSET_ATTR_CADT_FLAGS,
+			   htonl(IPSET_FLAG_WITH_COUNTERS))))
 		goto nla_put_failure;
 	ipset_nest_end(skb, nested);
 
@@ -880,6 +891,9 @@ mtype_list(const struct ip_set *set,
 					  htonl(ip_set_timeout_get(
 						ext_timeout(e, h)))))
 				goto nla_put_failure;
+			if (SET_WITH_COUNTER(set) &&
+			    ip_set_put_counter(skb, ext_counter(e, h)))
+				goto nla_put_failure;
 			ipset_nest_end(skb, nested);
 		}
 	}
@@ -931,6 +945,7 @@ static int
 TOKEN(HTYPE, _create)(struct ip_set *set, struct nlattr *tb[], u32 flags)
 {
 	u32 hashsize = IPSET_DEFAULT_HASHSIZE, maxelem = IPSET_DEFAULT_MAXELEM;
+	u32 cadt_flags = 0;
 	u8 hbits;
 #ifdef IP_SET_HASH_WITH_NETMASK
 	u8 netmask;
@@ -1007,7 +1022,53 @@ TOKEN(HTYPE, _create)(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	else
 		set->variant = &TOKEN(HTYPE, 6_variant);
 
-	if (tb[IPSET_ATTR_TIMEOUT]) {
+	if (tb[IPSET_ATTR_CADT_FLAGS])
+		cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
+	if (cadt_flags & IPSET_FLAG_WITH_COUNTERS) {
+		set->extensions |= IPSET_EXT_COUNTER;
+		if (tb[IPSET_ATTR_TIMEOUT]) {
+			h->timeout =
+				ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
+			set->extensions |= IPSET_EXT_TIMEOUT;
+			if (set->family == NFPROTO_IPV4) {
+				h->dsize =
+					sizeof(struct TOKEN(HTYPE, 4ct_elem));
+				h->offset[IPSET_OFFSET_TIMEOUT] =
+					offsetof(struct TOKEN(HTYPE, 4ct_elem),
+						 timeout);
+				h->offset[IPSET_OFFSET_COUNTER] =
+					offsetof(struct TOKEN(HTYPE, 4ct_elem),
+						 counter);
+				TOKEN(HTYPE, 4_gc_init)(set,
+					TOKEN(HTYPE, 4_gc));
+			} else {
+				h->dsize =
+					sizeof(struct TOKEN(HTYPE, 6ct_elem));
+				h->offset[IPSET_OFFSET_TIMEOUT] =
+					offsetof(struct TOKEN(HTYPE, 6ct_elem),
+						 timeout);
+				h->offset[IPSET_OFFSET_COUNTER] =
+					offsetof(struct TOKEN(HTYPE, 6ct_elem),
+						 counter);
+				TOKEN(HTYPE, 6_gc_init)(set,
+					TOKEN(HTYPE, 6_gc));
+			}
+		} else {
+			if (set->family == NFPROTO_IPV4) {
+				h->dsize =
+					sizeof(struct TOKEN(HTYPE, 4c_elem));
+				h->offset[IPSET_OFFSET_COUNTER] =
+					offsetof(struct TOKEN(HTYPE, 4c_elem),
+						 counter);
+			} else {
+				h->dsize =
+					sizeof(struct TOKEN(HTYPE, 6c_elem));
+				h->offset[IPSET_OFFSET_COUNTER] =
+					offsetof(struct TOKEN(HTYPE, 6c_elem),
+						 counter);
+			}
+		}
+	} else if (tb[IPSET_ATTR_TIMEOUT]) {
 		h->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 		set->extensions |= IPSET_EXT_TIMEOUT;
 		if (set->family == NFPROTO_IPV4) {

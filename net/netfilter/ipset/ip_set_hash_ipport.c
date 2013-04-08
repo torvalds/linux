@@ -25,7 +25,8 @@
 #include <linux/netfilter/ipset/ip_set_hash.h>
 
 #define REVISION_MIN	0
-#define REVISION_MAX	1 /* SCTP and UDPLITE support added */
+/*			1    SCTP and UDPLITE support added */
+#define REVISION_MAX	2 /* Counters support added */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
@@ -50,6 +51,23 @@ struct hash_ipport4t_elem {
 	__be16 port;
 	u8 proto;
 	u8 padding;
+	unsigned long timeout;
+};
+
+struct hash_ipport4c_elem {
+	__be32 ip;
+	__be16 port;
+	u8 proto;
+	u8 padding;
+	struct ip_set_counter counter;
+};
+
+struct hash_ipport4ct_elem {
+	__be32 ip;
+	__be16 port;
+	u8 proto;
+	u8 padding;
+	struct ip_set_counter counter;
 	unsigned long timeout;
 };
 
@@ -126,7 +144,9 @@ hash_ipport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
 		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT)))
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES)))
 		return -IPSET_ERR_PROTOCOL;
 
 	if (tb[IPSET_ATTR_LINENO])
@@ -219,6 +239,23 @@ struct hash_ipport6t_elem {
 	unsigned long timeout;
 };
 
+struct hash_ipport6c_elem {
+	union nf_inet_addr ip;
+	__be16 port;
+	u8 proto;
+	u8 padding;
+	struct ip_set_counter counter;
+};
+
+struct hash_ipport6ct_elem {
+	union nf_inet_addr ip;
+	__be16 port;
+	u8 proto;
+	u8 padding;
+	struct ip_set_counter counter;
+	unsigned long timeout;
+};
+
 /* Common functions */
 
 static inline bool
@@ -298,6 +335,8 @@ hash_ipport6_uadt(struct ip_set *set, struct nlattr *tb[],
 		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES) ||
 		     tb[IPSET_ATTR_IP_TO] ||
 		     tb[IPSET_ATTR_CIDR]))
 		return -IPSET_ERR_PROTOCOL;
@@ -367,6 +406,7 @@ static struct ip_set_type hash_ipport_type __read_mostly = {
 		[IPSET_ATTR_RESIZE]	= { .type = NLA_U8  },
 		[IPSET_ATTR_PROTO]	= { .type = NLA_U8 },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
+		[IPSET_ATTR_CADT_FLAGS]	= { .type = NLA_U32 },
 	},
 	.adt_policy	= {
 		[IPSET_ATTR_IP]		= { .type = NLA_NESTED },
@@ -377,6 +417,8 @@ static struct ip_set_type hash_ipport_type __read_mostly = {
 		[IPSET_ATTR_PROTO]	= { .type = NLA_U8 },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
 		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
+		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
+		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
 	},
 	.me		= THIS_MODULE,
 };

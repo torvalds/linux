@@ -26,7 +26,8 @@
 #define REVISION_MIN	0
 /*			1    SCTP and UDPLITE support added */
 /*			2    Range as input support for IPv4 added */
-#define REVISION_MAX	3 /* nomatch flag support added */
+/*			3    nomatch flag support added */
+#define REVISION_MAX	4 /* Counters support added */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
@@ -61,6 +62,25 @@ struct hash_netport4t_elem {
 	u8 proto;
 	u8 cidr:7;
 	u8 nomatch:1;
+	unsigned long timeout;
+};
+
+struct hash_netport4c_elem {
+	__be32 ip;
+	__be16 port;
+	u8 proto;
+	u8 cidr:7;
+	u8 nomatch:1;
+	struct ip_set_counter counter;
+};
+
+struct hash_netport4ct_elem {
+	__be32 ip;
+	__be16 port;
+	u8 proto;
+	u8 cidr:7;
+	u8 nomatch:1;
+	struct ip_set_counter counter;
 	unsigned long timeout;
 };
 
@@ -176,7 +196,9 @@ hash_netport4_uadt(struct ip_set *set, struct nlattr *tb[],
 		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS)))
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES)))
 		return -IPSET_ERR_PROTOCOL;
 
 	if (tb[IPSET_ATTR_LINENO])
@@ -281,6 +303,25 @@ struct hash_netport6t_elem {
 	u8 proto;
 	u8 cidr:7;
 	u8 nomatch:1;
+	unsigned long timeout;
+};
+
+struct hash_netport6c_elem {
+	union nf_inet_addr ip;
+	__be16 port;
+	u8 proto;
+	u8 cidr:7;
+	u8 nomatch:1;
+	struct ip_set_counter counter;
+};
+
+struct hash_netport6ct_elem {
+	union nf_inet_addr ip;
+	__be16 port;
+	u8 proto;
+	u8 cidr:7;
+	u8 nomatch:1;
+	struct ip_set_counter counter;
 	unsigned long timeout;
 };
 
@@ -400,7 +441,9 @@ hash_netport6_uadt(struct ip_set *set, struct nlattr *tb[],
 		     !ip_set_attr_netorder(tb, IPSET_ATTR_PORT) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS)))
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES)))
 		return -IPSET_ERR_PROTOCOL;
 	if (unlikely(tb[IPSET_ATTR_IP_TO]))
 		return -IPSET_ERR_HASH_RANGE_UNSUPPORTED;
@@ -497,6 +540,8 @@ static struct ip_set_type hash_netport_type __read_mostly = {
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
 		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
 		[IPSET_ATTR_CADT_FLAGS]	= { .type = NLA_U32 },
+		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
+		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
 	},
 	.me		= THIS_MODULE,
 };

@@ -25,7 +25,8 @@
 
 #define REVISION_MIN	0
 /*			1    nomatch flag support added */
-#define REVISION_MAX	2 /* /0 support added */
+/*			2    /0 support added */
+#define REVISION_MAX	3 /* Counters support added */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
@@ -160,6 +161,27 @@ struct hash_netiface4t_elem {
 	u8 nomatch;
 	u8 elem;
 	const char *iface;
+	unsigned long timeout;
+};
+
+struct hash_netiface4c_elem {
+	__be32 ip;
+	u8 physdev;
+	u8 cidr;
+	u8 nomatch;
+	u8 elem;
+	const char *iface;
+	struct ip_set_counter counter;
+};
+
+struct hash_netiface4ct_elem {
+	__be32 ip;
+	u8 physdev;
+	u8 cidr;
+	u8 nomatch;
+	u8 elem;
+	const char *iface;
+	struct ip_set_counter counter;
 	unsigned long timeout;
 };
 
@@ -305,7 +327,9 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
 		     !tb[IPSET_ATTR_IFACE] ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS)))
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES)))
 		return -IPSET_ERR_PROTOCOL;
 
 	if (tb[IPSET_ATTR_LINENO])
@@ -401,6 +425,27 @@ struct hash_netiface6t_elem {
 	u8 nomatch;
 	u8 elem;
 	const char *iface;
+	unsigned long timeout;
+};
+
+struct hash_netiface6c_elem {
+	union nf_inet_addr ip;
+	u8 physdev;
+	u8 cidr;
+	u8 nomatch;
+	u8 elem;
+	const char *iface;
+	struct ip_set_counter counter;
+};
+
+struct hash_netiface6ct_elem {
+	union nf_inet_addr ip;
+	u8 physdev;
+	u8 cidr;
+	u8 nomatch;
+	u8 elem;
+	const char *iface;
+	struct ip_set_counter counter;
 	unsigned long timeout;
 };
 
@@ -546,7 +591,9 @@ hash_netiface6_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
 		     !tb[IPSET_ATTR_IFACE] ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT) ||
-		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS)))
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PACKETS) ||
+		     !ip_set_optattr_netorder(tb, IPSET_ATTR_BYTES)))
 		return -IPSET_ERR_PROTOCOL;
 	if (unlikely(tb[IPSET_ATTR_IP_TO]))
 		return -IPSET_ERR_HASH_RANGE_UNSUPPORTED;
@@ -619,6 +666,8 @@ static struct ip_set_type hash_netiface_type __read_mostly = {
 		[IPSET_ATTR_CIDR]	= { .type = NLA_U8 },
 		[IPSET_ATTR_TIMEOUT]	= { .type = NLA_U32 },
 		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
+		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
+		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
 	},
 	.me		= THIS_MODULE,
 };
