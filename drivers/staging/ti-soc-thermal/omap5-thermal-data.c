@@ -314,7 +314,6 @@ omap5430_adc_to_temp[
 };
 
 /* OMAP54xx ES2.0 data */
-/* TODO : Need to update the slope/constant for ES2.0 silicon */
 const struct ti_bandgap_data omap5430_data = {
 	.features = TI_BANDGAP_FEATURE_TSHUT_CONFIG |
 			TI_BANDGAP_FEATURE_FREEZE_BIT |
