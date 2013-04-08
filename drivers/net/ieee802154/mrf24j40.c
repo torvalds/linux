@@ -759,18 +759,7 @@ static struct spi_driver mrf24j40_driver = {
 	.remove = mrf24j40_remove,
 };
 
-static int __init mrf24j40_init(void)
-{
-	return spi_register_driver(&mrf24j40_driver);
-}
-
-static void __exit mrf24j40_exit(void)
-{
-	spi_unregister_driver(&mrf24j40_driver);
-}
-
-module_init(mrf24j40_init);
-module_exit(mrf24j40_exit);
+module_spi_driver(mrf24j40_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alan Ott");
