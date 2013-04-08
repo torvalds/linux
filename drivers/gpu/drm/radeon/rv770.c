@@ -866,6 +866,11 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 	WREG32(HDP_TILING_CONFIG, (gb_tiling_config & 0xffff));
 	WREG32(DMA_TILING_CONFIG, (gb_tiling_config & 0xffff));
 	WREG32(DMA_TILING_CONFIG2, (gb_tiling_config & 0xffff));
+	if (rdev->family == CHIP_RV730) {
+		WREG32(UVD_UDEC_DB_TILING_CONFIG, (gb_tiling_config & 0xffff));
+		WREG32(UVD_UDEC_DBW_TILING_CONFIG, (gb_tiling_config & 0xffff));
+		WREG32(UVD_UDEC_TILING_CONFIG, (gb_tiling_config & 0xffff));
+	}
 
 	WREG32(CGTS_SYS_TCC_DISABLE, 0);
 	WREG32(CGTS_TCC_DISABLE, 0);

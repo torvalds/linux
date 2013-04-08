@@ -136,6 +136,11 @@
 #define DMA_TILING_CONFIG                               0x3ec8
 #define DMA_TILING_CONFIG2                              0xd0b8
 
+/* RV730 only */
+#define UVD_UDEC_TILING_CONFIG                          0xef40
+#define UVD_UDEC_DB_TILING_CONFIG                       0xef44
+#define UVD_UDEC_DBW_TILING_CONFIG                      0xef48
+
 #define	GC_USER_SHADER_PIPE_CONFIG			0x8954
 #define		INACTIVE_QD_PIPES(x)				((x) << 8)
 #define		INACTIVE_QD_PIPES_MASK				0x0000FF00
