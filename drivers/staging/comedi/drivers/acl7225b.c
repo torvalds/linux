@@ -74,9 +74,8 @@ static int acl7225b_attach(struct comedi_device *dev,
 
 	iobase = it->options[0];
 	iorange = board->io_range;
-	if (!request_region(iobase, iorange, "acl7225b"))
+	if (!request_region(iobase, iorange, dev->board_name))
 		return -EIO;
-	dev->board_name = board->name;
 	dev->iobase = iobase;
 	dev->irq = 0;
 
