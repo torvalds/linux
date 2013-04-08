@@ -272,13 +272,8 @@ static int comedi_device_postconfig(struct comedi_device *dev)
 	int ret;
 
 	ret = __comedi_device_postconfig(dev);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
-	if (!dev->board_name) {
-		dev_warn(dev->class_dev, "BUG: dev->board_name=NULL\n");
-		dev->board_name = "BUG";
-	}
 	smp_wmb();
 	dev->attached = true;
 	return 0;
