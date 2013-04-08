@@ -329,6 +329,9 @@
 			interrupts = <0 35 0>;
 			clocks = <&clock 292>;
 			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
 		};
 
 		pdma1: pdma@12690000 {
@@ -337,6 +340,9 @@
 			interrupts = <0 36 0>;
 			clocks = <&clock 293>;
 			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
 		};
 
 		mdma1: mdma@12850000 {
@@ -345,6 +351,9 @@
 			interrupts = <0 34 0>;
 			clocks = <&clock 279>;
 			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <1>;
 		};
 	};
 };

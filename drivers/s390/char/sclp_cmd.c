@@ -627,6 +627,8 @@ static int __init sclp_detect_standby_memory(void)
 	struct read_storage_sccb *sccb;
 	int i, id, assigned, rc;
 
+	if (OLDMEM_BASE) /* No standby memory in kdump mode */
+		return 0;
 	if (!early_read_info_sccb_valid)
 		return 0;
 	if ((sclp_facilities & 0xe00000000000ULL) != 0xe00000000000ULL)

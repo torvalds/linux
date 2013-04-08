@@ -2574,7 +2574,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 	I915_WRITE(GEN6_RC1e_THRESHOLD, 1000);
 	I915_WRITE(GEN6_RC6_THRESHOLD, 50000);
-	I915_WRITE(GEN6_RC6p_THRESHOLD, 100000);
+	I915_WRITE(GEN6_RC6p_THRESHOLD, 150000);
 	I915_WRITE(GEN6_RC6pp_THRESHOLD, 64000); /* unused */
 
 	/* Check if we are enabling RC6 */
@@ -4077,6 +4077,9 @@ void intel_set_power_well(struct drm_device *dev, bool enable)
 	uint32_t tmp;
 
 	if (!IS_HASWELL(dev))
+		return;
+
+	if (!i915_disable_power_well && !enable)
 		return;
 
 	tmp = I915_READ(HSW_PWR_WELL_DRIVER);

@@ -1909,12 +1909,12 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 	} while (rc == -EAGAIN);
 
 	for (i = 0; i < wdata->nr_pages; i++) {
+		unlock_page(wdata->pages[i]);
 		if (rc != 0) {
 			SetPageError(wdata->pages[i]);
 			end_page_writeback(wdata->pages[i]);
 			page_cache_release(wdata->pages[i]);
 		}
-		unlock_page(wdata->pages[i]);
 	}
 
 	mapping_set_error(inode->i_mapping, rc);

@@ -2284,6 +2284,12 @@ static u32 si_gpu_check_soft_reset(struct radeon_device *rdev)
 	if (tmp & L2_BUSY)
 		reset_mask |= RADEON_RESET_VMC;
 
+	/* Skip MC reset as it's mostly likely not hung, just busy */
+	if (reset_mask & RADEON_RESET_MC) {
+		DRM_DEBUG("MC busy: 0x%08X, clearing.\n", reset_mask);
+		reset_mask &= ~RADEON_RESET_MC;
+	}
+
 	return reset_mask;
 }
 
@@ -4463,6 +4469,7 @@ int si_resume(struct radeon_device *rdev)
 
 int si_suspend(struct radeon_device *rdev)
 {
+	radeon_vm_manager_fini(rdev);
 	si_cp_enable(rdev, false);
 	cayman_dma_stop(rdev);
 	si_irq_suspend(rdev);

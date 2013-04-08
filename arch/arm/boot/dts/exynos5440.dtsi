@@ -154,6 +154,9 @@
 			interrupts = <0 34 0>;
 			clocks = <&clock 21>;
 			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
 		};
 
 		pdma1: pdma@121B0000 {
@@ -162,6 +165,9 @@
 			interrupts = <0 35 0>;
 			clocks = <&clock 21>;
 			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			#dma-channels = <8>;
+			#dma-requests = <32>;
 		};
 	};
 
