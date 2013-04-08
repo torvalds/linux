@@ -20,6 +20,7 @@ obj-$(CONFIG_MACH_TS219)		+= ts219-setup.o tsx1x-common.o
 obj-$(CONFIG_MACH_TS41X)		+= ts41x-setup.o tsx1x-common.o
 
 obj-$(CONFIG_ARCH_KIRKWOOD_DT)		+= board-dt.o
+obj-$(CONFIG_MACH_CLOUDBOX_DT)		+= board-ns2.o
 obj-$(CONFIG_MACH_DLINK_KIRKWOOD_DT)	+= board-dnskw.o
 obj-$(CONFIG_MACH_DOCKSTAR_DT)		+= board-dockstar.o
 obj-$(CONFIG_MACH_DREAMPLUG_DT)		+= board-dreamplug.o

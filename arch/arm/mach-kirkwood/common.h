@@ -153,6 +153,12 @@ void usi_topkick_init(void);
 static inline void usi_topkick_init(void) {};
 #endif
 
+#ifdef CONFIG_MACH_CLOUDBOX_DT
+void cloudbox_init(void);
+#else
+static inline void cloudbox_init(void) {};
+#endif
+
 /* early init functions not converted to fdt yet */
 char *kirkwood_id(void);
 void kirkwood_l2_init(void);
