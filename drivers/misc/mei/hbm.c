@@ -145,7 +145,7 @@ void mei_hbm_start_req(struct mei_device *dev)
 
 	dev->recvd_msg = false;
 	if (mei_write_message(dev, mei_hdr, dev->wr_msg.data)) {
-		dev_dbg(&dev->pdev->dev, "write send version message to FW fail.\n");
+		dev_err(&dev->pdev->dev, "version message writet failed\n");
 		dev->dev_state = MEI_DEV_RESETING;
 		mei_reset(dev, 1);
 	}
@@ -175,7 +175,7 @@ static void mei_hbm_enum_clients_req(struct mei_device *dev)
 
 	if (mei_write_message(dev, mei_hdr, dev->wr_msg.data)) {
 		dev->dev_state = MEI_DEV_RESETING;
-		dev_dbg(&dev->pdev->dev, "write send enumeration request message to FW fail.\n");
+		dev_err(&dev->pdev->dev, "enumeration request write failed.\n");
 		mei_reset(dev, 1);
 	}
 	dev->init_clients_state = MEI_ENUM_CLIENTS_MESSAGE;
@@ -227,7 +227,7 @@ static int mei_hbm_prop_req(struct mei_device *dev)
 
 	if (mei_write_message(dev, mei_hdr, dev->wr_msg.data)) {
 		dev->dev_state = MEI_DEV_RESETING;
-		dev_err(&dev->pdev->dev, "Properties request command failed\n");
+		dev_err(&dev->pdev->dev, "properties request write failed\n");
 		mei_reset(dev, 1);
 
 		return -EIO;
@@ -557,7 +557,7 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 			mei_hbm_enum_clients_req(dev);
 		} else {
 			dev->recvd_msg = false;
-			dev_dbg(&dev->pdev->dev, "reset due to received hbm: host start\n");
+			dev_err(&dev->pdev->dev, "reset: wrong host start response\n");
 			mei_reset(dev, 1);
 			return;
 		}
@@ -591,23 +591,20 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		me_client = &dev->me_clients[dev->me_client_presentation_num];
 
 		if (props_res->status || !dev->me_clients) {
-			dev_dbg(&dev->pdev->dev, "reset due to received host client properties response bus message wrong status.\n");
+			dev_err(&dev->pdev->dev, "reset: properties response hbm wrong status.\n");
 			mei_reset(dev, 1);
 			return;
 		}
 
 		if (me_client->client_id != props_res->address) {
-			dev_err(&dev->pdev->dev,
-				"Host client properties reply mismatch\n");
+			dev_err(&dev->pdev->dev, "reset: host properties response address mismatch\n");
 			mei_reset(dev, 1);
-
 			return;
 		}
 
 		if (dev->dev_state != MEI_DEV_INIT_CLIENTS ||
 		    dev->init_clients_state != MEI_CLIENT_PROPERTIES_MESSAGE) {
-			dev_err(&dev->pdev->dev,
-				"Unexpected client properties reply\n");
+			dev_err(&dev->pdev->dev, "reset: unexpected properties response\n");
 			mei_reset(dev, 1);
 
 			return;
@@ -637,7 +634,7 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 				/* first property reqeust */
 				mei_hbm_prop_req(dev);
 		} else {
-			dev_dbg(&dev->pdev->dev, "reset due to received host enumeration clients response bus message.\n");
+			dev_err(&dev->pdev->dev, "reset: unexpected enumeration response hbm.\n");
 			mei_reset(dev, 1);
 			return;
 		}
@@ -645,7 +642,7 @@ void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 
 	case HOST_STOP_RES_CMD:
 		dev->dev_state = MEI_DEV_DISABLED;
-		dev_dbg(&dev->pdev->dev, "resetting because of FW stop response.\n");
+		dev_info(&dev->pdev->dev, "reset: FW stop response.\n");
 		mei_reset(dev, 1);
 		break;
 

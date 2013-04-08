@@ -623,7 +623,7 @@ void mei_timer(struct work_struct *work)
 		if (dev->dev_state == MEI_DEV_INIT_CLIENTS) {
 			if (dev->init_clients_timer) {
 				if (--dev->init_clients_timer == 0) {
-					dev_dbg(&dev->pdev->dev, "IMEI reset due to init clients timeout ,init clients state = %d.\n",
+					dev_err(&dev->pdev->dev, "reset: init clients timeout ,init clients state = %d.\n",
 						dev->init_clients_state);
 					mei_reset(dev, 1);
 				}
@@ -635,7 +635,7 @@ void mei_timer(struct work_struct *work)
 	list_for_each_entry_safe(cl_pos, cl_next, &dev->file_list, link) {
 		if (cl_pos->timer_count) {
 			if (--cl_pos->timer_count == 0) {
-				dev_dbg(&dev->pdev->dev, "HECI reset due to connect/disconnect timeout.\n");
+				dev_err(&dev->pdev->dev, "reset: connect/disconnect timeout.\n");
 				mei_reset(dev, 1);
 				goto out;
 			}
@@ -644,7 +644,7 @@ void mei_timer(struct work_struct *work)
 
 	if (dev->iamthif_stall_timer) {
 		if (--dev->iamthif_stall_timer == 0) {
-			dev_dbg(&dev->pdev->dev, "resetting because of hang to amthi.\n");
+			dev_err(&dev->pdev->dev, "reset: amthif  hanged.\n");
 			mei_reset(dev, 1);
 			dev->iamthif_msg_buf_size = 0;
 			dev->iamthif_msg_buf_index = 0;
