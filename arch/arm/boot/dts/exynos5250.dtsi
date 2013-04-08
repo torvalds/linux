@@ -136,6 +136,7 @@
 		interrupts = <0 43 0>, <0 44 0>;
 		clocks = <&clock 337>;
 		clock-names = "rtc";
+		status = "disabled";
 	};
 
 	tmu@10060000 {
