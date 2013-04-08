@@ -1181,7 +1181,7 @@ static int ami_decode_var(struct fb_var_screeninfo *var, struct amifb_par *par,
 	}
 
 	/*
-	 * FB_VMODE_SMOOTH_XPAN will be cleared, if one of the folloing
+	 * FB_VMODE_SMOOTH_XPAN will be cleared, if one of the following
 	 * checks failed and smooth scrolling is not possible
 	 */
 

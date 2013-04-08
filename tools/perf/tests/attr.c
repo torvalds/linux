@@ -173,6 +173,6 @@ int test__attr(void)
 	    !lstat(path_perf, &st))
 		return run_dir(path_dir, path_perf);
 
-	fprintf(stderr, " (ommitted)");
+	fprintf(stderr, " (omitted)");
 	return 0;
 }

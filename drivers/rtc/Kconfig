@@ -402,7 +402,7 @@ config RTC_DRV_TPS6586X
 	tristate "TI TPS6586X RTC driver"
 	depends on MFD_TPS6586X
 	help
-	  TI Power Managment IC TPS6586X supports RTC functionality
+	  TI Power Management IC TPS6586X supports RTC functionality
 	  along with alarm. This driver supports the RTC driver for
 	  the TPS6586X RTC module.
 
@@ -420,7 +420,7 @@ config RTC_DRV_TPS80031
 	tristate "TI TPS80031/TPS80032 RTC driver"
 	depends on MFD_TPS80031
 	help
-	  TI Power Managment IC TPS80031 supports RTC functionality
+	  TI Power Management IC TPS80031 supports RTC functionality
 	  along with alarm. This driver supports the RTC driver for
 	  the TPS80031 RTC module.
 

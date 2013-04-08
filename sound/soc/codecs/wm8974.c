@@ -125,7 +125,7 @@ SOC_ENUM("Equaliser EQ4 Bandwidth", wm8974_enum[9]),
 SOC_ENUM("EQ4 Cut Off", wm8974_enum[10]),
 SOC_SINGLE_TLV("EQ4 Volume", WM8974_EQ4,  0, 24, 1, eq_tlv),
 
-SOC_ENUM("Equaliser EQ5 Bandwith", wm8974_enum[11]),
+SOC_ENUM("Equaliser EQ5 Bandwidth", wm8974_enum[11]),
 SOC_ENUM("EQ5 Cut Off", wm8974_enum[12]),
 SOC_SINGLE_TLV("EQ5 Volume", WM8974_EQ5,  0, 24, 1, eq_tlv),
 
