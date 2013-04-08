@@ -616,6 +616,7 @@ enum {
 #define EXT4_IOC_ALLOC_DA_BLKS		_IO('f', 12)
 #define EXT4_IOC_MOVE_EXT		_IOWR('f', 15, struct move_extent)
 #define EXT4_IOC_RESIZE_FS		_IOW('f', 16, __u64)
+#define EXT4_IOC_SWAP_BOOT		_IO('f', 17)
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /*
@@ -1341,6 +1342,7 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 	return ino == EXT4_ROOT_INO ||
 		ino == EXT4_USR_QUOTA_INO ||
 		ino == EXT4_GRP_QUOTA_INO ||
+		ino == EXT4_BOOT_LOADER_INO ||
 		ino == EXT4_JOURNAL_INO ||
 		ino == EXT4_RESIZE_INO ||
 		(ino >= EXT4_FIRST_INO(sb) &&
@@ -2624,6 +2626,12 @@ extern int ext4_ind_migrate(struct inode *inode);
 
 
 /* move_extent.c */
+extern void ext4_double_down_write_data_sem(struct inode *first,
+					    struct inode *second);
+extern void ext4_double_up_write_data_sem(struct inode *orig_inode,
+					  struct inode *donor_inode);
+void ext4_inode_double_lock(struct inode *inode1, struct inode *inode2);
+void ext4_inode_double_unlock(struct inode *inode1, struct inode *inode2);
 extern int ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			     __u64 start_orig, __u64 start_donor,
 			     __u64 len, __u64 *moved_len);

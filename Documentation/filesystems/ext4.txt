@@ -587,6 +587,16 @@ Table of Ext4 specific ioctls
 			      bitmaps and inode table, the userspace tool thus
 			      just passes the new number of blocks.
 
+EXT4_IOC_SWAP_BOOT	      Swap i_blocks and associated attributes
+			      (like i_blocks, i_size, i_flags, ...) from
+			      the specified inode with inode
+			      EXT4_BOOT_LOADER_INO (#5). This is typically
+			      used to store a boot loader in a secure part of
+			      the filesystem, where it can't be changed by a
+			      normal user by accident.
+			      The data blocks of the previous boot loader
+			      will be associated with the given inode.
+
 ..............................................................................
 
 References
