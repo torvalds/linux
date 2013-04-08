@@ -397,7 +397,7 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 int comedi_auto_config(struct device *hardware_device,
 		       struct comedi_driver *driver, unsigned long context)
 {
-	struct comedi_device *comedi_dev;
+	struct comedi_device *dev;
 	int ret;
 
 	if (!hardware_device) {
@@ -417,18 +417,18 @@ int comedi_auto_config(struct device *hardware_device,
 		return -EINVAL;
 	}
 
-	comedi_dev = comedi_alloc_board_minor(hardware_device);
-	if (IS_ERR(comedi_dev))
-		return PTR_ERR(comedi_dev);
-	/* Note: comedi_alloc_board_minor() locked comedi_dev->mutex. */
+	dev = comedi_alloc_board_minor(hardware_device);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
+	/* Note: comedi_alloc_board_minor() locked dev->mutex. */
 
-	comedi_dev->driver = driver;
-	ret = driver->auto_attach(comedi_dev, context);
+	dev->driver = driver;
+	ret = driver->auto_attach(dev, context);
 	if (ret >= 0)
-		ret = comedi_device_postconfig(comedi_dev);
+		ret = comedi_device_postconfig(dev);
 	if (ret < 0)
-		comedi_device_detach(comedi_dev);
-	mutex_unlock(&comedi_dev->mutex);
+		comedi_device_detach(dev);
+	mutex_unlock(&dev->mutex);
 
 	if (ret < 0)
 		comedi_release_hardware_device(hardware_device);
