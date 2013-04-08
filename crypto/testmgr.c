@@ -1913,6 +1913,24 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "cmac(aes)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = {
+				.vecs = aes_cmac128_tv_template,
+				.count = CMAC_AES_TEST_VECTORS
+			}
+		}
+	}, {
+		.alg = "cmac(des3_ede)",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = {
+				.vecs = des3_ede_cmac64_tv_template,
+				.count = CMAC_DES3_EDE_TEST_VECTORS
+			}
+		}
+	}, {
 		.alg = "compress_null",
 		.test = alg_test_null,
 	}, {

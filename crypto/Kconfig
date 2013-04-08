@@ -283,6 +283,17 @@ config CRYPTO_XTS
 
 comment "Hash modes"
 
+config CRYPTO_CMAC
+	tristate "CMAC support"
+	select CRYPTO_HASH
+	select CRYPTO_MANAGER
+	help
+	  Cipher-based Message Authentication Code (CMAC) specified by
+	  The National Institute of Standards and Technology (NIST).
+
+	  https://tools.ietf.org/html/rfc4493
+	  http://csrc.nist.gov/publications/nistpubs/800-38B/SP_800-38B.pdf
+
 config CRYPTO_HMAC
 	tristate "HMAC support"
 	select CRYPTO_HASH
