@@ -89,6 +89,7 @@ typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
  *            that the call back has its own recursion protection. If it does
  *            not set this, then the ftrace infrastructure will add recursion
  *            protection for the caller.
+ * STUB   - The ftrace_ops is just a place holder.
  */
 enum {
 	FTRACE_OPS_FL_ENABLED			= 1 << 0,
@@ -98,6 +99,7 @@ enum {
 	FTRACE_OPS_FL_SAVE_REGS			= 1 << 4,
 	FTRACE_OPS_FL_SAVE_REGS_IF_SUPPORTED	= 1 << 5,
 	FTRACE_OPS_FL_RECURSION_SAFE		= 1 << 6,
+	FTRACE_OPS_FL_STUB			= 1 << 7,
 };
 
 struct ftrace_ops {
