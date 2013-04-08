@@ -25,6 +25,7 @@
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/etherdevice.h>
+#include <linux/platform_device.h>
 #include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/ktime.h>
@@ -1687,6 +1688,7 @@ static void mac80211_hwsim_free(void)
 		debugfs_remove(data->debugfs_ps);
 		debugfs_remove(data->debugfs);
 		ieee80211_unregister_hw(data->hw);
+		device_release_driver(data->dev);
 		device_unregister(data->dev);
 		ieee80211_free_hw(data->hw);
 	}
@@ -1695,7 +1697,9 @@ static void mac80211_hwsim_free(void)
 
 
 static struct device_driver mac80211_hwsim_driver = {
-	.name = "mac80211_hwsim"
+	.name = "mac80211_hwsim",
+	.bus = &platform_bus_type,
+	.owner = THIS_MODULE,
 };
 
 static const struct net_device_ops hwsim_netdev_ops = {
@@ -2187,9 +2191,15 @@ static int __init init_mac80211_hwsim(void)
 	spin_lock_init(&hwsim_radio_lock);
 	INIT_LIST_HEAD(&hwsim_radios);
 
+	err = driver_register(&mac80211_hwsim_driver);
+	if (err)
+		return err;
+
 	hwsim_class = class_create(THIS_MODULE, "mac80211_hwsim");
-	if (IS_ERR(hwsim_class))
-		return PTR_ERR(hwsim_class);
+	if (IS_ERR(hwsim_class)) {
+		err = PTR_ERR(hwsim_class);
+		goto failed_unregister_driver;
+	}
 
 	memset(addr, 0, ETH_ALEN);
 	addr[0] = 0x02;
@@ -2211,12 +2221,20 @@ static int __init init_mac80211_hwsim(void)
 					  "hwsim%d", i);
 		if (IS_ERR(data->dev)) {
 			printk(KERN_DEBUG
-			       "mac80211_hwsim: device_create "
-			       "failed (%ld)\n", PTR_ERR(data->dev));
+			       "mac80211_hwsim: device_create failed (%ld)\n",
+			       PTR_ERR(data->dev));
 			err = -ENOMEM;
 			goto failed_drvdata;
 		}
 		data->dev->driver = &mac80211_hwsim_driver;
+		err = device_bind_driver(data->dev);
+		if (err != 0) {
+			printk(KERN_DEBUG
+			       "mac80211_hwsim: device_bind_driver failed (%d)\n",
+			       err);
+			goto failed_hw;
+		}
+
 		skb_queue_head_init(&data->pending);
 
 		SET_IEEE80211_DEV(hw, data->dev);
@@ -2515,6 +2533,8 @@ failed_drvdata:
 	ieee80211_free_hw(hw);
 failed:
 	mac80211_hwsim_free();
+failed_unregister_driver:
+	driver_unregister(&mac80211_hwsim_driver);
 	return err;
 }
 module_init(init_mac80211_hwsim);
@@ -2527,5 +2547,6 @@ static void __exit exit_mac80211_hwsim(void)
 
 	mac80211_hwsim_free();
 	unregister_netdev(hwsim_mon);
+	driver_unregister(&mac80211_hwsim_driver);
 }
 module_exit(exit_mac80211_hwsim);
