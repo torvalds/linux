@@ -235,6 +235,7 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
+		return 1;
 	}
 
 	/* Should not even reach here */
