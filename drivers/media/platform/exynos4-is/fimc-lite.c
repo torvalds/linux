@@ -130,23 +130,43 @@ static const struct fimc_fmt *fimc_lite_find_format(const u32 *pixelformat,
 	return def_fmt;
 }
 
+/* Called with the media graph mutex held or @me stream_count > 0. */
+static struct v4l2_subdev *__find_remote_sensor(struct media_entity *me)
+{
+	struct media_pad *pad = &me->pads[0];
+	struct v4l2_subdev *sd;
+
+	while (pad->flags & MEDIA_PAD_FL_SINK) {
+		/* source pad */
+		pad = media_entity_remote_source(pad);
+		if (pad == NULL ||
+		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+			break;
+
+		sd = media_entity_to_v4l2_subdev(pad->entity);
+
+		if (sd->grp_id == GRP_ID_FIMC_IS_SENSOR ||
+		    sd->grp_id == GRP_ID_SENSOR)
+			return sd;
+		/* sink pad */
+		pad = &sd->entity.pads[0];
+	}
+	return NULL;
+}
+
 static int fimc_lite_hw_init(struct fimc_lite *fimc, bool isp_output)
 {
-	struct fimc_pipeline *pipeline = &fimc->pipeline;
-	struct v4l2_subdev *sensor;
 	struct fimc_sensor_info *si;
 	unsigned long flags;
 
-	sensor = isp_output ? fimc->sensor : pipeline->subdevs[IDX_SENSOR];
-
-	if (sensor == NULL)
+	if (fimc->sensor == NULL)
 		return -ENXIO;
 
 	if (fimc->inp_frame.fmt == NULL || fimc->out_frame.fmt == NULL)
 		return -EINVAL;
 
 	/* Get sensor configuration data from the sensor subdev */
-	si = v4l2_get_subdev_hostdata(sensor);
+	si = v4l2_get_subdev_hostdata(fimc->sensor);
 	spin_lock_irqsave(&fimc->slock, flags);
 
 	flite_hw_set_camera_bus(fimc, &si->pdata);
@@ -801,6 +821,8 @@ static int fimc_lite_streamon(struct file *file, void *priv,
 	if (ret < 0)
 		goto err_p_stop;
 
+	fimc->sensor = __find_remote_sensor(&fimc->subdev.entity);
+
 	ret = vb2_ioctl_streamon(file, priv, type);
 	if (!ret) {
 		fimc->streaming = true;
@@ -928,29 +950,6 @@ static const struct v4l2_ioctl_ops fimc_lite_ioctl_ops = {
 	.vidioc_streamon		= fimc_lite_streamon,
 	.vidioc_streamoff		= fimc_lite_streamoff,
 };
-
-/* Called with the media graph mutex held */
-static struct v4l2_subdev *__find_remote_sensor(struct media_entity *me)
-{
-	struct media_pad *pad = &me->pads[0];
-	struct v4l2_subdev *sd;
-
-	while (pad->flags & MEDIA_PAD_FL_SINK) {
-		/* source pad */
-		pad = media_entity_remote_source(pad);
-		if (pad == NULL ||
-		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
-			break;
-
-		sd = media_entity_to_v4l2_subdev(pad->entity);
-
-		if (sd->grp_id == GRP_ID_FIMC_IS_SENSOR)
-			return sd;
-		/* sink pad */
-		pad = &sd->entity.pads[0];
-	}
-	return NULL;
-}
 
 /* Capture subdev media entity operations */
 static int fimc_lite_link_setup(struct media_entity *entity,
