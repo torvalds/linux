@@ -200,22 +200,17 @@ static int omap2_can_sleep(void)
 
 static void omap2_pm_idle(void)
 {
-	local_fiq_disable();
-
 	if (!omap2_can_sleep()) {
 		if (omap_irq_pending())
-			goto out;
+			return;
 		omap2_enter_mpu_retention();
-		goto out;
+		return;
 	}
 
 	if (omap_irq_pending())
-		goto out;
+		return;
 
 	omap2_enter_full_retention();
-
-out:
-	local_fiq_enable();
 }
 
 static void __init prcm_setup_regs(void)

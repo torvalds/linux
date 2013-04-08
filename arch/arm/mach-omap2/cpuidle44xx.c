@@ -70,10 +70,7 @@ static int omap4_enter_idle_simple(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
 			int index)
 {
-	local_fiq_disable();
 	omap_do_wfi();
-	local_fiq_enable();
-
 	return index;
 }
 
@@ -83,8 +80,6 @@ static int omap4_enter_idle_coupled(struct cpuidle_device *dev,
 {
 	struct omap4_idle_statedata *cx = &omap4_idle_data[index];
 	int cpu_id = smp_processor_id();
-
-	local_fiq_disable();
 
 	/*
 	 * CPU0 has to wait and stay ON until CPU1 is OFF state.
@@ -136,6 +131,7 @@ static int omap4_enter_idle_coupled(struct cpuidle_device *dev,
 	/* Wakeup CPU1 only if it is not offlined */
 	if (dev->cpu == 0 && cpumask_test_cpu(1, cpu_online_mask)) {
 		clkdm_wakeup(cpu_clkdm[1]);
+		omap_set_pwrdm_state(cpu_pd[1], PWRDM_POWER_ON);
 		clkdm_allow_idle(cpu_clkdm[1]);
 	}
 
@@ -157,8 +153,6 @@ static int omap4_enter_idle_coupled(struct cpuidle_device *dev,
 fail:
 	cpuidle_coupled_parallel_barrier(dev, &abort_barrier);
 	cpu_done[dev->cpu] = false;
-
-	local_fiq_enable();
 
 	return index;
 }

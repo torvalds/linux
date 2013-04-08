@@ -107,8 +107,6 @@ static int __omap3_enter_idle(struct cpuidle_device *dev,
 {
 	struct omap3_idle_statedata *cx = &omap3_idle_data[index];
 
-	local_fiq_disable();
-
 	if (omap_irq_pending() || need_resched())
 		goto return_sleep_time;
 
@@ -143,7 +141,6 @@ static int __omap3_enter_idle(struct cpuidle_device *dev,
 		clkdm_allow_idle(mpu_pd->pwrdm_clkdms[0]);
 
 return_sleep_time:
-	local_fiq_enable();
 
 	return index;
 }
