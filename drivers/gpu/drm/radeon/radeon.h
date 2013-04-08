@@ -1315,6 +1315,7 @@ struct radeon_asic {
 		int (*get_pcie_lanes)(struct radeon_device *rdev);
 		void (*set_pcie_lanes)(struct radeon_device *rdev, int lanes);
 		void (*set_clock_gating)(struct radeon_device *rdev, int enable);
+		int (*set_uvd_clocks)(struct radeon_device *rdev, u32 vclk, u32 dclk);
 	} pm;
 	/* pageflipping */
 	struct {
@@ -1882,6 +1883,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_get_pcie_lanes(rdev) (rdev)->asic->pm.get_pcie_lanes((rdev))
 #define radeon_set_pcie_lanes(rdev, l) (rdev)->asic->pm.set_pcie_lanes((rdev), (l))
 #define radeon_set_clock_gating(rdev, e) (rdev)->asic->pm.set_clock_gating((rdev), (e))
+#define radeon_set_uvd_clocks(rdev, v, d) (rdev)->asic->pm.set_uvd_clocks((rdev), (v), (d))
 #define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->surface.set_reg((rdev), (r), (f), (p), (o), (s)))
 #define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->surface.clear_reg((rdev), (r)))
 #define radeon_bandwidth_update(rdev) (rdev)->asic->display.bandwidth_update((rdev))
