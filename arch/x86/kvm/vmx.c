@@ -6785,10 +6785,11 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	put_cpu();
 	if (err)
 		goto free_vmcs;
-	if (vm_need_virtualize_apic_accesses(kvm))
+	if (vm_need_virtualize_apic_accesses(kvm)) {
 		err = alloc_apic_access_page(kvm);
 		if (err)
 			goto free_vmcs;
+	}
 
 	if (enable_ept) {
 		if (!kvm->arch.ept_identity_map_addr)
