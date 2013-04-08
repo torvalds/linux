@@ -48,7 +48,7 @@ MODULE_ALIAS("platform:radio-si4713");
 /* Driver state struct */
 struct radio_si4713_device {
 	struct v4l2_device		v4l2_dev;
-	struct video_device		*radio_dev;
+	struct video_device		radio_dev;
 };
 
 /* radio_si4713_fops - file operations interface */
@@ -217,7 +217,7 @@ static struct v4l2_ioctl_ops radio_si4713_ioctl_ops = {
 static struct video_device radio_si4713_vdev_template = {
 	.fops			= &radio_si4713_fops,
 	.name			= "radio-si4713",
-	.release		= video_device_release,
+	.release		= video_device_release_empty,
 	.ioctl_ops		= &radio_si4713_ioctl_ops,
 	.vfl_dir		= VFL_DIR_TX,
 };
@@ -267,27 +267,18 @@ static int radio_si4713_pdriver_probe(struct platform_device *pdev)
 		goto put_adapter;
 	}
 
-	rsdev->radio_dev = video_device_alloc();
-	if (!rsdev->radio_dev) {
-		dev_err(&pdev->dev, "Failed to alloc video device.\n");
-		rval = -ENOMEM;
-		goto put_adapter;
-	}
-
-	memcpy(rsdev->radio_dev, &radio_si4713_vdev_template,
-	       sizeof(radio_si4713_vdev_template));
-	video_set_drvdata(rsdev->radio_dev, rsdev);
-	if (video_register_device(rsdev->radio_dev, VFL_TYPE_RADIO, radio_nr)) {
+	rsdev->radio_dev = radio_si4713_vdev_template;
+	rsdev->radio_dev.v4l2_dev = &rsdev->v4l2_dev;
+	video_set_drvdata(&rsdev->radio_dev, rsdev);
+	if (video_register_device(&rsdev->radio_dev, VFL_TYPE_RADIO, radio_nr)) {
 		dev_err(&pdev->dev, "Could not register video device.\n");
 		rval = -EIO;
-		goto free_vdev;
+		goto put_adapter;
 	}
 	dev_info(&pdev->dev, "New device successfully probed\n");
 
 	goto exit;
 
-free_vdev:
-	video_device_release(rsdev->radio_dev);
 put_adapter:
 	i2c_put_adapter(adapter);
 unregister_v4l2_dev:
@@ -306,7 +297,7 @@ static int radio_si4713_pdriver_remove(struct platform_device *pdev)
 	struct radio_si4713_device *rsdev;
 
 	rsdev = container_of(v4l2_dev, struct radio_si4713_device, v4l2_dev);
-	video_unregister_device(rsdev->radio_dev);
+	video_unregister_device(&rsdev->radio_dev);
 	i2c_put_adapter(client->adapter);
 	v4l2_device_unregister(&rsdev->v4l2_dev);
 
