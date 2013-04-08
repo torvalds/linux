@@ -339,6 +339,11 @@ int ti_thermal_register_cpu_cooling(struct ti_bandgap *bgp, int id)
 	if (!data)
 		return -EINVAL;
 
+	if (!cpufreq_get_current_driver()) {
+		dev_dbg(bgp->dev, "no cpufreq driver yet\n");
+		return -EPROBE_DEFER;
+	}
+
 	/* Register cooling device */
 	data->cool_dev = cpufreq_cooling_register(cpu_present_mask);
 	if (IS_ERR_OR_NULL(data->cool_dev)) {

@@ -1305,12 +1305,18 @@ int ti_bandgap_probe(struct platform_device *pdev)
 	for (i = 0; i < bgp->conf->sensor_count; i++) {
 		char *domain;
 
-		if (bgp->conf->sensors[i].register_cooling)
-			bgp->conf->sensors[i].register_cooling(bgp, i);
+		if (bgp->conf->sensors[i].register_cooling) {
+			ret = bgp->conf->sensors[i].register_cooling(bgp, i);
+			if (ret)
+				goto remove_sensors;
+		}
 
-		domain = bgp->conf->sensors[i].domain;
-		if (bgp->conf->expose_sensor)
-			bgp->conf->expose_sensor(bgp, i, domain);
+		if (bgp->conf->expose_sensor) {
+			domain = bgp->conf->sensors[i].domain;
+			ret = bgp->conf->expose_sensor(bgp, i, domain);
+			if (ret)
+				goto remove_last_cooling;
+		}
 	}
 
 	/*
@@ -1329,6 +1335,17 @@ int ti_bandgap_probe(struct platform_device *pdev)
 
 	return 0;
 
+remove_last_cooling:
+	if (bgp->conf->sensors[i].unregister_cooling)
+		bgp->conf->sensors[i].unregister_cooling(bgp, i);
+remove_sensors:
+	for (i--; i >= 0; i--) {
+		if (bgp->conf->sensors[i].unregister_cooling)
+			bgp->conf->sensors[i].unregister_cooling(bgp, i);
+		if (bgp->conf->remove_sensor)
+			bgp->conf->remove_sensor(bgp, i);
+	}
+	ti_bandgap_power(bgp, false);
 disable_clk:
 	if (TI_BANDGAP_HAS(bgp, CLK_CTRL))
 		clk_disable_unprepare(bgp->fclock);
