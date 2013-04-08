@@ -24,4 +24,6 @@ struct gpio_rcar_config {
 	unsigned has_both_edge_trigger:1;
 };
 
+#define RCAR_GP_PIN(bank, pin)		(((bank) * 32) + (pin))
+
 #endif /* __GPIO_RCAR_H__ */
