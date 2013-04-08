@@ -15,16 +15,24 @@ Devices: [Adlink] ACL-7225b (acl7225b), [ICP] P16R16DIO (p16r16dio)
 
 #include <linux/ioport.h>
 
-#define ACL7225_SIZE   8	/* Requires 8 ioports, but only 4 are used */
-#define P16R16DIO_SIZE 4
 #define ACL7225_RIO_LO 0	/* Relays input/output low byte (R0-R7) */
 #define ACL7225_RIO_HI 1	/* Relays input/output high byte (R8-R15) */
 #define ACL7225_DI_LO  2	/* Digital input low byte (DI0-DI7) */
 #define ACL7225_DI_HI  3	/* Digital input high byte (DI8-DI15) */
 
-struct boardtype {
-	const char *name;	/*  driver name */
-	int io_range;		/*  len of I/O space */
+struct acl7225b_boardinfo {
+	const char *name;
+	int io_range;
+};
+
+static const struct acl7225b_boardinfo acl7225b_boards[] = {
+	{
+		.name		= "acl7225b",
+		.io_range	= 8,		/* only 4 are used */
+	}, {
+		.name		= "p16r16dio",
+		.io_range	= 4,
+	},
 };
 
 static int acl7225b_do_insn(struct comedi_device *dev,
@@ -59,7 +67,7 @@ static int acl7225b_di_insn(struct comedi_device *dev,
 static int acl7225b_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
-	const struct boardtype *board = comedi_board(dev);
+	const struct acl7225b_boardinfo *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int iobase, iorange;
 	int ret;
@@ -116,25 +124,20 @@ static int acl7225b_attach(struct comedi_device *dev,
 
 static void acl7225b_detach(struct comedi_device *dev)
 {
-	const struct boardtype *board = comedi_board(dev);
+	const struct acl7225b_boardinfo *board = comedi_board(dev);
 
 	if (dev->iobase)
 		release_region(dev->iobase, board->io_range);
 }
-
-static const struct boardtype boardtypes[] = {
-	{ "acl7225b", ACL7225_SIZE, },
-	{ "p16r16dio", P16R16DIO_SIZE, },
-};
 
 static struct comedi_driver acl7225b_driver = {
 	.driver_name	= "acl7225b",
 	.module		= THIS_MODULE,
 	.attach		= acl7225b_attach,
 	.detach		= acl7225b_detach,
-	.board_name	= &boardtypes[0].name,
-	.num_names	= ARRAY_SIZE(boardtypes),
-	.offset		= sizeof(struct boardtype),
+	.board_name	= &acl7225b_boards[0].name,
+	.num_names	= ARRAY_SIZE(acl7225b_boards),
+	.offset		= sizeof(struct acl7225b_boardinfo),
 };
 module_comedi_driver(acl7225b_driver);
 
