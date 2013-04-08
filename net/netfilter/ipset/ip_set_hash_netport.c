@@ -272,16 +272,17 @@ hash_netport4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	with_ports = with_ports && tb[IPSET_ATTR_PORT_TO];
 
-	if (tb[IPSET_ATTR_CADT_FLAGS] && adt == IPSET_ADD) {
+	if (tb[IPSET_ATTR_CADT_FLAGS]) {
 		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
 		if (cadt_flags & IPSET_FLAG_NOMATCH)
-			flags |= (cadt_flags << 16);
+			flags |= (IPSET_FLAG_NOMATCH << 16);
 	}
 
 	if (adt == IPSET_TEST || !(with_ports || tb[IPSET_ATTR_IP_TO])) {
 		data.ip = htonl(ip & ip_set_hostmask(data.cidr + 1));
 		ret = adtfn(set, &data, timeout, flags);
-		return ip_set_eexist(ret, flags) ? 0 : ret;
+		return ip_set_enomatch(ret, flags, adt) ? 1 :
+		       ip_set_eexist(ret, flags) ? 0 : ret;
 	}
 
 	port = port_to = ntohs(data.port);
@@ -561,15 +562,16 @@ hash_netport6_uadt(struct ip_set *set, struct nlattr *tb[],
 		timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 	}
 
-	if (tb[IPSET_ATTR_CADT_FLAGS] && adt == IPSET_ADD) {
+	if (tb[IPSET_ATTR_CADT_FLAGS]) {
 		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
 		if (cadt_flags & IPSET_FLAG_NOMATCH)
-			flags |= (cadt_flags << 16);
+			flags |= (IPSET_FLAG_NOMATCH << 16);
 	}
 
 	if (adt == IPSET_TEST || !with_ports || !tb[IPSET_ATTR_PORT_TO]) {
 		ret = adtfn(set, &data, timeout, flags);
-		return ip_set_eexist(ret, flags) ? 0 : ret;
+		return ip_set_enomatch(ret, flags, adt) ? 1 :
+		       ip_set_eexist(ret, flags) ? 0 : ret;
 	}
 
 	port = ntohs(data.port);

@@ -200,6 +200,14 @@ ip_set_eexist(int ret, u32 flags)
 	return ret == -IPSET_ERR_EXIST && (flags & IPSET_FLAG_EXIST);
 }
 
+/* Match elements marked with nomatch */
+static inline bool
+ip_set_enomatch(int ret, u32 flags, enum ipset_adt adt)
+{
+	return adt == IPSET_TEST &&
+	       ret == -ENOTEMPTY && ((flags >> 16) & IPSET_FLAG_NOMATCH);
+}
+
 /* Check the NLA_F_NET_BYTEORDER flag */
 static inline bool
 ip_set_attr_netorder(struct nlattr *tb[], int type)

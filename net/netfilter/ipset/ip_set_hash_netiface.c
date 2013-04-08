@@ -396,13 +396,14 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
 		if (cadt_flags & IPSET_FLAG_PHYSDEV)
 			data.physdev = 1;
-		if (adt == IPSET_ADD && (cadt_flags & IPSET_FLAG_NOMATCH))
-			flags |= (cadt_flags << 16);
+		if (cadt_flags & IPSET_FLAG_NOMATCH)
+			flags |= (IPSET_FLAG_NOMATCH << 16);
 	}
 	if (adt == IPSET_TEST || !tb[IPSET_ATTR_IP_TO]) {
 		data.ip = htonl(ip & ip_set_hostmask(data.cidr));
 		ret = adtfn(set, &data, timeout, flags);
-		return ip_set_eexist(ret, flags) ? 0 : ret;
+		return ip_set_enomatch(ret, flags, adt) ? 1 :
+		       ip_set_eexist(ret, flags) ? 0 : ret;
 	}
 
 	if (tb[IPSET_ATTR_IP_TO]) {
@@ -704,13 +705,14 @@ hash_netiface6_uadt(struct ip_set *set, struct nlattr *tb[],
 		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
 		if (cadt_flags & IPSET_FLAG_PHYSDEV)
 			data.physdev = 1;
-		if (adt == IPSET_ADD && (cadt_flags & IPSET_FLAG_NOMATCH))
-			flags |= (cadt_flags << 16);
+		if (cadt_flags & IPSET_FLAG_NOMATCH)
+			flags |= (IPSET_FLAG_NOMATCH << 16);
 	}
 
 	ret = adtfn(set, &data, timeout, flags);
 
-	return ip_set_eexist(ret, flags) ? 0 : ret;
+	return ip_set_enomatch(ret, flags, adt) ? 1 :
+	       ip_set_eexist(ret, flags) ? 0 : ret;
 }
 
 /* Create hash:ip type of sets */
