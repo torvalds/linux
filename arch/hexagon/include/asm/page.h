@@ -140,6 +140,11 @@ static inline void clear_page(void *page)
  */
 #define page_to_phys(page)      (page_to_pfn(page) << PAGE_SHIFT)
 
+#define virt_to_pfn(kaddr)      (__pa(kaddr) >> PAGE_SHIFT)
+#define pfn_to_virt(pfn)        __va((pfn) << PAGE_SHIFT)
+
+#define page_to_virt(page)	__va(page_to_phys(page))
+
 /*
  * For port to Hexagon Virtual Machine, MAYBE we check for attempts
  * to reference reserved HVM space, but in any case, the VM will be
