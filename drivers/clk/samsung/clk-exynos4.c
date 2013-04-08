@@ -175,6 +175,11 @@ enum exynos4_clks {
 	/* mux clocks */
 	mout_fimc0 = 384, mout_fimc1, mout_fimc2, mout_fimc3, mout_cam0,
 	mout_cam1, mout_csis0, mout_csis1, mout_g3d0, mout_g3d1, mout_g3d,
+	aclk400_mcuisp,
+
+	/* div clocks */
+	div_isp0 = 450, div_isp1, div_mcuisp0, div_mcuisp1, div_aclk200,
+	div_aclk400_mcuisp,
 
 	nr_clks,
 };
@@ -429,7 +434,7 @@ struct samsung_mux_clock exynos4x12_mux_clks[] __initdata = {
 	MUX(none, "mout_user_aclk266_gps", mout_user_aclk266_gps_p4x12,
 			SRC_TOP1, 16, 1),
 	MUX(aclk200, "aclk200", mout_user_aclk200_p4x12, SRC_TOP1, 20, 1),
-	MUX(none, "aclk400_mcuisp", mout_user_aclk400_mcuisp_p4x12,
+	MUX(aclk400_mcuisp, "aclk400_mcuisp", mout_user_aclk400_mcuisp_p4x12,
 			SRC_TOP1, 24, 1),
 	MUX(none, "mout_aclk200", aclk_p4412, SRC_TOP0, 12, 1),
 	MUX(none, "mout_aclk100", aclk_p4412, SRC_TOP0, 16, 1),
@@ -563,20 +568,21 @@ struct samsung_div_clock exynos4x12_div_clks[] __initdata = {
 	DIV(none, "div_mdnie_pwm_pre0", "div_mdnie_pwm0", DIV_LCD0, 12, 4),
 	DIV(none, "div_mipihsi", "mout_mipihsi", DIV_FSYS0, 20, 4),
 	DIV(none, "div_jpeg", "mout_jpeg", E4X12_DIV_CAM1, 0, 4),
-	DIV(none, "div_aclk200", "mout_aclk200", DIV_TOP, 0, 3),
+	DIV(div_aclk200, "div_aclk200", "mout_aclk200", DIV_TOP, 0, 3),
 	DIV(none, "div_aclk266_gps", "mout_aclk266_gps", DIV_TOP, 20, 3),
-	DIV(none, "div_aclk400_mcuisp", "mout_aclk400_mcuisp", DIV_TOP, 24, 3),
+	DIV(div_aclk400_mcuisp, "div_aclk400_mcuisp", "mout_aclk400_mcuisp",
+						DIV_TOP, 24, 3),
 	DIV(none, "div_pwm_isp", "mout_pwm_isp", E4X12_DIV_ISP, 0, 4),
 	DIV(none, "div_spi0_isp", "mout_spi0_isp", E4X12_DIV_ISP, 4, 4),
 	DIV(none, "div_spi0_isp_pre", "div_spi0_isp", E4X12_DIV_ISP, 8, 8),
 	DIV(none, "div_spi1_isp", "mout_spi1_isp", E4X12_DIV_ISP, 16, 4),
 	DIV(none, "div_spi1_isp_pre", "div_spi1_isp", E4X12_DIV_ISP, 20, 8),
 	DIV(none, "div_uart_isp", "mout_uart_isp", E4X12_DIV_ISP, 28, 4),
-	DIV(none, "div_isp0", "aclk200", E4X12_DIV_ISP0, 0, 3),
-	DIV(none, "div_isp1", "aclk200", E4X12_DIV_ISP0, 4, 3),
+	DIV(div_isp0, "div_isp0", "aclk200", E4X12_DIV_ISP0, 0, 3),
+	DIV(div_isp1, "div_isp1", "aclk200", E4X12_DIV_ISP0, 4, 3),
 	DIV(none, "div_mpwm", "div_isp1", E4X12_DIV_ISP1, 0, 3),
-	DIV(none, "div_mcuisp0", "aclk400_mcuisp", E4X12_DIV_ISP1, 4, 3),
-	DIV(none, "div_mcuisp1", "div_mcuisp0", E4X12_DIV_ISP1, 8, 3),
+	DIV(div_mcuisp0, "div_mcuisp0", "aclk400_mcuisp", E4X12_DIV_ISP1, 4, 3),
+	DIV(div_mcuisp1, "div_mcuisp1", "div_mcuisp0", E4X12_DIV_ISP1, 8, 3),
 };
 
 /* list of gate clocks supported in all exynos4 soc's */

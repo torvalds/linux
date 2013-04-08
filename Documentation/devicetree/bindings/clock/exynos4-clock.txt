@@ -236,22 +236,36 @@ Exynos4 SoC and this is specified where applicable.
   spi1_isp_sclk       381     Exynos4x12
   uart_isp_sclk       382     Exynos4x12
 
-			[Mux Clocks]
+		[Mux Clocks]
 
-	Clock		ID	SoC (if specific)
-	-----------------------------------------------
+  Clock			ID	SoC (if specific)
+  -----------------------------------------------
 
-	mout_fimc0	384
-	mout_fimc1	385
-	mout_fimc2	386
-	mout_fimc3	387
-	mout_cam0	388
-	mout_cam1	389
-	mout_csis0	390
-	mout_csis1	391
-	mout_g3d0	392
-	mout_g3d1	393
-	mout_g3d	394
+  mout_fimc0		384
+  mout_fimc1		385
+  mout_fimc2		386
+  mout_fimc3		387
+  mout_cam0		388
+  mout_cam1		389
+  mout_csis0		390
+  mout_csis1		391
+  mout_g3d0		392
+  mout_g3d1		393
+  mout_g3d		394
+  aclk400_mcuisp	395	Exynos4x12
+
+		[Div Clocks]
+
+  Clock			ID	SoC (if specific)
+  -----------------------------------------------
+
+  div_isp0		450	Exynos4x12
+  div_isp1		451	Exynos4x12
+  div_mcuisp0		452	Exynos4x12
+  div_mcuisp1		453	Exynos4x12
+  div_aclk200		454	Exynos4x12
+  div_aclk400_mcuisp	455	Exynos4x12
+
 
 Example 1: An example of a clock controller node is listed below.
 
