@@ -949,6 +949,16 @@ static int fimd_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = clk_prepare(ctx->bus_clk);
+	if (ret < 0)
+		return ret;
+
+	ret = clk_prepare(ctx->lcd_clk);
+	if  (ret < 0) {
+		clk_unprepare(ctx->bus_clk);
+		return ret;
+	}
+
 	ctx->vidcon0 = pdata->vidcon0;
 	ctx->vidcon1 = pdata->vidcon1;
 	ctx->default_win = pdata->default_win;
@@ -996,8 +1006,8 @@ static int fimd_remove(struct platform_device *pdev)
 	if (ctx->suspended)
 		goto out;
 
-	clk_disable(ctx->lcd_clk);
-	clk_disable(ctx->bus_clk);
+	clk_unprepare(ctx->lcd_clk);
+	clk_unprepare(ctx->bus_clk);
 
 	pm_runtime_set_suspended(dev);
 	pm_runtime_put_sync(dev);
