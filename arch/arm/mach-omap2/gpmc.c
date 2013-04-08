@@ -716,7 +716,7 @@ static int gpmc_setup_irq(void)
 		return -EINVAL;
 
 	gpmc_irq_start = irq_alloc_descs(-1, 0, GPMC_NR_IRQ, 0);
-	if (IS_ERR_VALUE(gpmc_irq_start)) {
+	if (gpmc_irq_start < 0) {
 		pr_err("irq_alloc_descs failed\n");
 		return gpmc_irq_start;
 	}
@@ -801,7 +801,7 @@ static int gpmc_mem_init(void)
 			continue;
 		gpmc_cs_get_memconf(cs, &base, &size);
 		rc = gpmc_cs_insert_mem(cs, base, size);
-		if (IS_ERR_VALUE(rc)) {
+		if (rc < 0) {
 			while (--cs >= 0)
 				if (gpmc_cs_mem_enabled(cs))
 					gpmc_cs_delete_mem(cs);
@@ -1370,14 +1370,14 @@ static int gpmc_probe(struct platform_device *pdev)
 		 GPMC_REVISION_MINOR(l));
 
 	rc = gpmc_mem_init();
-	if (IS_ERR_VALUE(rc)) {
+	if (rc < 0) {
 		clk_disable_unprepare(gpmc_l3_clk);
 		clk_put(gpmc_l3_clk);
 		dev_err(gpmc_dev, "failed to reserve memory\n");
 		return rc;
 	}
 
-	if (IS_ERR_VALUE(gpmc_setup_irq()))
+	if (gpmc_setup_irq() < 0)
 		dev_warn(gpmc_dev, "gpmc_setup_irq failed\n");
 
 	/* Now the GPMC is initialised, unreserve the chip-selects */

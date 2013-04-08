@@ -3945,12 +3945,10 @@ static int is_extent_unchanged(struct send_ctx *sctx,
 		    found_key.type != key.type) {
 			key.offset += right_len;
 			break;
-		} else {
-			if (found_key.offset != key.offset + right_len) {
-				/* Should really not happen */
-				ret = -EIO;
-				goto out;
-			}
+		}
+		if (found_key.offset != key.offset + right_len) {
+			ret = 0;
+			goto out;
 		}
 		key = found_key;
 	}
