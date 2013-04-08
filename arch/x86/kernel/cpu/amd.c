@@ -20,11 +20,11 @@
 
 static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
 {
-	struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
 	u32 gprs[8] = { 0 };
 	int err;
 
-	WARN_ONCE((c->x86 != 0xf), "%s should only be used on K8!\n", __func__);
+	WARN_ONCE((boot_cpu_data.x86 != 0xf),
+		  "%s should only be used on K8!\n", __func__);
 
 	gprs[1] = msr;
 	gprs[7] = 0x9c5a203a;
@@ -38,10 +38,10 @@ static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
 
 static inline int wrmsrl_amd_safe(unsigned msr, unsigned long long val)
 {
-	struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
 	u32 gprs[8] = { 0 };
 
-	WARN_ONCE((c->x86 != 0xf), "%s should only be used on K8!\n", __func__);
+	WARN_ONCE((boot_cpu_data.x86 != 0xf),
+		  "%s should only be used on K8!\n", __func__);
 
 	gprs[0] = (u32)val;
 	gprs[1] = msr;
