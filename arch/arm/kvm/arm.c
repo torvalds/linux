@@ -206,7 +206,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 		r = KVM_MAX_VCPUS;
 		break;
 	default:
-		r = 0;
+		r = kvm_arch_dev_ioctl_check_extension(ext);
 		break;
 	}
 	return r;

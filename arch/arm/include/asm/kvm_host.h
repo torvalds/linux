@@ -214,6 +214,11 @@ static inline void __cpu_init_hyp_mode(unsigned long long boot_pgd_ptr,
 	kvm_call_hyp((void*)hyp_stack_ptr, vector_ptr, pgd_ptr);
 }
 
+static inline int kvm_arch_dev_ioctl_check_extension(long ext)
+{
+	return 0;
+}
+
 int kvm_perf_init(void);
 int kvm_perf_teardown(void);
 
