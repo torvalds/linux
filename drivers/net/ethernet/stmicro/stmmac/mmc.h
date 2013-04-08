@@ -28,8 +28,7 @@
 /* MMC control register */
 /* When set, all counter are reset */
 #define MMC_CNTRL_COUNTER_RESET		0x1
-/* When set, do not roll over zero
- * after reaching the max value*/
+/* When set, do not roll over zero after reaching the max value*/
 #define MMC_CNTRL_COUNTER_STOP_ROLLOVER	0x2
 #define MMC_CNTRL_RESET_ON_READ		0x4	/* Reset after reading */
 #define MMC_CNTRL_COUNTER_FREEZER	0x8	/* Freeze counter values to the

@@ -72,22 +72,22 @@ static void dwmac1000_dump_regs(void __iomem *ioaddr)
 }
 
 static void dwmac1000_set_umac_addr(void __iomem *ioaddr, unsigned char *addr,
-				unsigned int reg_n)
+				    unsigned int reg_n)
 {
 	stmmac_set_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
-				GMAC_ADDR_LOW(reg_n));
+			    GMAC_ADDR_LOW(reg_n));
 }
 
 static void dwmac1000_get_umac_addr(void __iomem *ioaddr, unsigned char *addr,
-				unsigned int reg_n)
+				    unsigned int reg_n)
 {
 	stmmac_get_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
-				GMAC_ADDR_LOW(reg_n));
+			    GMAC_ADDR_LOW(reg_n));
 }
 
 static void dwmac1000_set_filter(struct net_device *dev, int id)
 {
-	void __iomem *ioaddr = (void __iomem *) dev->base_addr;
+	void __iomem *ioaddr = (void __iomem *)dev->base_addr;
 	unsigned int value = 0;
 	unsigned int perfect_addr_number;
 
@@ -97,7 +97,7 @@ static void dwmac1000_set_filter(struct net_device *dev, int id)
 	if (dev->flags & IFF_PROMISC)
 		value = GMAC_FRAME_FILTER_PR;
 	else if ((netdev_mc_count(dev) > HASH_TABLE_SIZE)
-		   || (dev->flags & IFF_ALLMULTI)) {
+		 || (dev->flags & IFF_ALLMULTI)) {
 		value = GMAC_FRAME_FILTER_PM;	/* pass all multi */
 		writel(0xffffffff, ioaddr + GMAC_HASH_HIGH);
 		writel(0xffffffff, ioaddr + GMAC_HASH_LOW);
@@ -111,12 +111,13 @@ static void dwmac1000_set_filter(struct net_device *dev, int id)
 		memset(mc_filter, 0, sizeof(mc_filter));
 		netdev_for_each_mc_addr(ha, dev) {
 			/* The upper 6 bits of the calculated CRC are used to
-			   index the contens of the hash table */
-			int bit_nr =
-			    bitrev32(~crc32_le(~0, ha->addr, 6)) >> 26;
+			 * index the contens of the hash table
+			 */
+			int bit_nr = bitrev32(~crc32_le(~0, ha->addr, 6)) >> 26;
 			/* The most significant bit determines the register to
 			 * use (H/L) while the other 5 bits determine the bit
-			 * within the register. */
+			 * within the register.
+			 */
 			mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
 		}
 		writel(mc_filter[0], ioaddr + GMAC_HASH_LOW);
@@ -129,10 +130,11 @@ static void dwmac1000_set_filter(struct net_device *dev, int id)
 	else
 		perfect_addr_number = GMAC_MAX_PERFECT_ADDRESSES / 2;
 
-	/* Handle multiple unicast addresses (perfect filtering)*/
+	/* Handle multiple unicast addresses (perfect filtering) */
 	if (netdev_uc_count(dev) > perfect_addr_number)
-		/* Switch to promiscuous mode is more than 16 addrs
-		   are required */
+		/* Switch to promiscuous mode if more than 16 addrs
+		 * are required
+		 */
 		value |= GMAC_FRAME_FILTER_PR;
 	else {
 		int reg = 1;
@@ -150,13 +152,13 @@ static void dwmac1000_set_filter(struct net_device *dev, int id)
 #endif
 	writel(value, ioaddr + GMAC_FRAME_FILTER);
 
-	CHIP_DBG(KERN_INFO "\tFrame Filter reg: 0x%08x\n\tHash regs: "
-	    "HI 0x%08x, LO 0x%08x\n", readl(ioaddr + GMAC_FRAME_FILTER),
-	    readl(ioaddr + GMAC_HASH_HIGH), readl(ioaddr + GMAC_HASH_LOW));
+	CHIP_DBG(KERN_INFO "\tFilter: 0x%08x\n\tHash: HI 0x%08x, LO 0x%08x\n",
+		 readl(ioaddr + GMAC_FRAME_FILTER),
+		 readl(ioaddr + GMAC_HASH_HIGH), readl(ioaddr + GMAC_HASH_LOW));
 }
 
 static void dwmac1000_flow_ctrl(void __iomem *ioaddr, unsigned int duplex,
-			   unsigned int fc, unsigned int pause_time)
+				unsigned int fc, unsigned int pause_time)
 {
 	unsigned int flow = 0;
 
@@ -203,23 +205,22 @@ static int dwmac1000_irq_status(void __iomem *ioaddr,
 	/* Not used events (e.g. MMC interrupts) are not handled. */
 	if ((intr_status & mmc_tx_irq)) {
 		CHIP_DBG(KERN_INFO "GMAC: MMC tx interrupt: 0x%08x\n",
-		    readl(ioaddr + GMAC_MMC_TX_INTR));
+			 readl(ioaddr + GMAC_MMC_TX_INTR));
 		x->mmc_tx_irq_n++;
 	}
 	if (unlikely(intr_status & mmc_rx_irq)) {
 		CHIP_DBG(KERN_INFO "GMAC: MMC rx interrupt: 0x%08x\n",
-		    readl(ioaddr + GMAC_MMC_RX_INTR));
+			 readl(ioaddr + GMAC_MMC_RX_INTR));
 		x->mmc_rx_irq_n++;
 	}
 	if (unlikely(intr_status & mmc_rx_csum_offload_irq)) {
 		CHIP_DBG(KERN_INFO "GMAC: MMC rx csum offload: 0x%08x\n",
-		    readl(ioaddr + GMAC_MMC_RX_CSUM_OFFLOAD));
+			 readl(ioaddr + GMAC_MMC_RX_CSUM_OFFLOAD));
 		x->mmc_rx_csum_offload_irq_n++;
 	}
 	if (unlikely(intr_status & pmt_irq)) {
 		CHIP_DBG(KERN_INFO "GMAC: received Magic frame\n");
-		/* clear the PMT bits 5 and 6 by reading the PMT
-		 * status register. */
+		/* clear the PMT bits 5 and 6 by reading the PMT status reg */
 		readl(ioaddr + GMAC_PMT);
 		x->irq_receive_pmt_irq_n++;
 	}
@@ -252,14 +253,14 @@ static int dwmac1000_irq_status(void __iomem *ioaddr,
 		x->irq_pcs_ane_n++;
 	}
 	if (intr_status & rgmii_irq) {
-		u32 status  = readl(ioaddr + GMAC_S_R_GMII);
+		u32 status = readl(ioaddr + GMAC_S_R_GMII);
 		CHIP_DBG(KERN_INFO "GMAC RGMII/SGMII interrupt\n");
 		x->irq_rgmii_n++;
 
 		/* Save and dump the link status. */
 		if (status & GMAC_S_R_GMII_LINK) {
 			int speed_value = (status & GMAC_S_R_GMII_SPEED) >>
-					  GMAC_S_R_GMII_SPEED_SHIFT;
+			    GMAC_S_R_GMII_SPEED_SHIFT;
 			x->pcs_duplex = (status & GMAC_S_R_GMII_MODE);
 
 			if (speed_value == GMAC_S_R_GMII_SPEED_125)
@@ -270,7 +271,7 @@ static int dwmac1000_irq_status(void __iomem *ioaddr,
 				x->pcs_speed = SPEED_10;
 
 			x->pcs_link = 1;
-			pr_debug("Link is Up - %d/%s\n", (int) x->pcs_speed,
+			pr_debug("Link is Up - %d/%s\n", (int)x->pcs_speed,
 				 x->pcs_duplex ? "Full" : "Half");
 		} else {
 			x->pcs_link = 0;
@@ -281,19 +282,20 @@ static int dwmac1000_irq_status(void __iomem *ioaddr,
 	return ret;
 }
 
-static void  dwmac1000_set_eee_mode(void __iomem *ioaddr)
+static void dwmac1000_set_eee_mode(void __iomem *ioaddr)
 {
 	u32 value;
 
 	/* Enable the link status receive on RGMII, SGMII ore SMII
 	 * receive path and instruct the transmit to enter in LPI
-	 * state. */
+	 * state.
+	 */
 	value = readl(ioaddr + LPI_CTRL_STATUS);
 	value |= LPI_CTRL_STATUS_LPIEN | LPI_CTRL_STATUS_LPITXA;
 	writel(value, ioaddr + LPI_CTRL_STATUS);
 }
 
-static void  dwmac1000_reset_eee_mode(void __iomem *ioaddr)
+static void dwmac1000_reset_eee_mode(void __iomem *ioaddr)
 {
 	u32 value;
 
@@ -302,7 +304,7 @@ static void  dwmac1000_reset_eee_mode(void __iomem *ioaddr)
 	writel(value, ioaddr + LPI_CTRL_STATUS);
 }
 
-static void  dwmac1000_set_eee_pls(void __iomem *ioaddr, int link)
+static void dwmac1000_set_eee_pls(void __iomem *ioaddr, int link)
 {
 	u32 value;
 
@@ -316,7 +318,7 @@ static void  dwmac1000_set_eee_pls(void __iomem *ioaddr, int link)
 	writel(value, ioaddr + LPI_CTRL_STATUS);
 }
 
-static void  dwmac1000_set_eee_timer(void __iomem *ioaddr, int ls, int tw)
+static void dwmac1000_set_eee_timer(void __iomem *ioaddr, int ls, int tw)
 {
 	int value = ((tw & 0xffff)) | ((ls & 0x7ff) << 16);
 
@@ -375,10 +377,10 @@ static const struct stmmac_ops dwmac1000_ops = {
 	.pmt = dwmac1000_pmt,
 	.set_umac_addr = dwmac1000_set_umac_addr,
 	.get_umac_addr = dwmac1000_get_umac_addr,
-	.set_eee_mode =  dwmac1000_set_eee_mode,
-	.reset_eee_mode =  dwmac1000_reset_eee_mode,
-	.set_eee_timer =  dwmac1000_set_eee_timer,
-	.set_eee_pls =  dwmac1000_set_eee_pls,
+	.set_eee_mode = dwmac1000_set_eee_mode,
+	.reset_eee_mode = dwmac1000_reset_eee_mode,
+	.set_eee_timer = dwmac1000_set_eee_timer,
+	.set_eee_pls = dwmac1000_set_eee_pls,
 	.ctrl_ane = dwmac1000_ctrl_ane,
 	.get_adv = dwmac1000_get_adv,
 };

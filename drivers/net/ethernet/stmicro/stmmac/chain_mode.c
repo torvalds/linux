@@ -30,7 +30,7 @@
 
 static unsigned int stmmac_jumbo_frm(void *p, struct sk_buff *skb, int csum)
 {
-	struct stmmac_priv *priv = (struct stmmac_priv *) p;
+	struct stmmac_priv *priv = (struct stmmac_priv *)p;
 	unsigned int txsize = priv->dma_tx_size;
 	unsigned int entry = priv->cur_tx % txsize;
 	struct dma_desc *desc = priv->dma_tx + entry;
@@ -103,7 +103,7 @@ static void stmmac_init_dma_chain(void *des, dma_addr_t phy_addr,
 	dma_addr_t dma_phy = phy_addr;
 
 	if (extend_desc) {
-		struct dma_extended_desc *p = (struct dma_extended_desc *) des;
+		struct dma_extended_desc *p = (struct dma_extended_desc *)des;
 		for (i = 0; i < (size - 1); i++) {
 			dma_phy += sizeof(struct dma_extended_desc);
 			p->basic.des3 = (unsigned int)dma_phy;
@@ -112,7 +112,7 @@ static void stmmac_init_dma_chain(void *des, dma_addr_t phy_addr,
 		p->basic.des3 = (unsigned int)phy_addr;
 
 	} else {
-		struct dma_desc *p = (struct dma_desc *) des;
+		struct dma_desc *p = (struct dma_desc *)des;
 		for (i = 0; i < (size - 1); i++) {
 			dma_phy += sizeof(struct dma_desc);
 			p->des3 = (unsigned int)dma_phy;
@@ -133,7 +133,7 @@ static void stmmac_refill_desc3(void *priv_ptr, struct dma_desc *p)
 		 */
 		p->des3 = (unsigned int)(priv->dma_rx_phy +
 					 (((priv->dirty_rx) + 1) %
-					 priv->dma_rx_size) *
+					  priv->dma_rx_size) *
 					 sizeof(struct dma_desc));
 }
 
@@ -148,8 +148,8 @@ static void stmmac_clean_desc3(void *priv_ptr, struct dma_desc *p)
 		 */
 		p->des3 = (unsigned int)(priv->dma_tx_phy +
 					 (((priv->dirty_tx + 1) %
-					 priv->dma_tx_size) *
-					 sizeof(struct dma_desc)));
+					   priv->dma_tx_size) *
+					  sizeof(struct dma_desc)));
 }
 
 const struct stmmac_chain_mode_ops chain_mode_ops = {

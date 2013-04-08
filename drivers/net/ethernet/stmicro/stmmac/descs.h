@@ -192,9 +192,9 @@ struct dma_extended_desc {
 			u32 reserved;
 		} etx;
 	} des4;
-	unsigned int des5; /* Reserved */
-	unsigned int des6; /* Tx/Rx Timestamp Low */
-	unsigned int des7; /* Tx/Rx Timestamp High */
+	unsigned int des5;	/* Reserved */
+	unsigned int des6;	/* Tx/Rx Timestamp Low */
+	unsigned int des7;	/* Tx/Rx Timestamp High */
 };
 
 /* Transmit checksum insertion control */

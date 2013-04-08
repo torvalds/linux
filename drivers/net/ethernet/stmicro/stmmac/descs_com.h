@@ -117,8 +117,7 @@ static inline void ndesc_rx_set_on_chain(struct dma_desc *p, int end)
 	p->des01.rx.second_address_chained = 1;
 }
 
-static inline void ndesc_tx_set_on_chain(struct dma_desc *p, int
-						 ring_size)
+static inline void ndesc_tx_set_on_chain(struct dma_desc *p, int ring_size)
 {
 	p->des01.tx.second_address_chained = 1;
 }

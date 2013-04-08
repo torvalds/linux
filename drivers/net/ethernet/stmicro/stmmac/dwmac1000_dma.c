@@ -60,7 +60,7 @@ static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
 	 * depending on pbl value.
 	 */
 	value = DMA_BUS_MODE_PBL | ((pbl << DMA_BUS_MODE_PBL_SHIFT) |
-		(pbl << DMA_BUS_MODE_RPBL_SHIFT));
+				    (pbl << DMA_BUS_MODE_RPBL_SHIFT));
 
 	/* Set the Fixed burst mode */
 	if (fb)
@@ -94,14 +94,16 @@ static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
 	 *
 	 *  For Non Fixed Burst Mode: provide the maximum value of the
 	 *  burst length. Any burst equal or below the provided burst
-	 *  length would be allowed to perform. */
+	 *  length would be allowed to perform.
+	 */
 	writel(burst_len, ioaddr + DMA_AXI_BUS_MODE);
 
 	/* Mask interrupts by writing to CSR7 */
 	writel(DMA_INTR_DEFAULT_MASK, ioaddr + DMA_INTR_ENA);
 
-	/* The base address of the RX/TX descriptor lists must be written into
-	 * DMA CSR3 and CSR4, respectively. */
+	/* RX/TX descriptor base address lists must be written into
+	 * DMA CSR3 and CSR4, respectively
+	 */
 	writel(dma_tx, ioaddr + DMA_TX_BASE_ADDR);
 	writel(dma_rx, ioaddr + DMA_RCV_BASE_ADDR);
 
@@ -109,7 +111,7 @@ static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
 }
 
 static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
-				    int rxmode)
+					 int rxmode)
 {
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
 
@@ -118,11 +120,12 @@ static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
 		/* Transmit COE type 2 cannot be done in cut-through mode. */
 		csr6 |= DMA_CONTROL_TSF;
 		/* Operating on second frame increase the performance
-		 * especially when transmit store-and-forward is used.*/
+		 * especially when transmit store-and-forward is used.
+		 */
 		csr6 |= DMA_CONTROL_OSF;
 	} else {
-		CHIP_DBG(KERN_DEBUG "GMAC: disabling TX store and forward mode"
-			      " (threshold = %d)\n", txmode);
+		CHIP_DBG(KERN_DEBUG "GMAC: disabling TX SF (threshold %d)\n",
+			 txmode);
 		csr6 &= ~DMA_CONTROL_TSF;
 		csr6 &= DMA_CONTROL_TC_TX_MASK;
 		/* Set the transmit threshold */
@@ -142,8 +145,8 @@ static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
 		CHIP_DBG(KERN_DEBUG "GMAC: enable RX store and forward mode\n");
 		csr6 |= DMA_CONTROL_RSF;
 	} else {
-		CHIP_DBG(KERN_DEBUG "GMAC: disabling RX store and forward mode"
-			      " (threshold = %d)\n", rxmode);
+		CHIP_DBG(KERN_DEBUG "GMAC: disable RX SF mode (threshold %d)\n",
+			 rxmode);
 		csr6 &= ~DMA_CONTROL_RSF;
 		csr6 &= DMA_CONTROL_TC_RX_MASK;
 		if (rxmode <= 32)

@@ -174,37 +174,37 @@ struct stmmac_extra_stats {
 #define STMMAC_PCS_TBI		(1 << 2)
 #define STMMAC_PCS_RTBI		(1 << 3)
 
-#define SF_DMA_MODE 1 /* DMA STORE-AND-FORWARD Operation Mode */
+#define SF_DMA_MODE 1		/* DMA STORE-AND-FORWARD Operation Mode */
 
 /* DAM HW feature register fields */
-#define DMA_HW_FEAT_MIISEL	0x00000001 /* 10/100 Mbps Support */
-#define DMA_HW_FEAT_GMIISEL	0x00000002 /* 1000 Mbps Support */
-#define DMA_HW_FEAT_HDSEL	0x00000004 /* Half-Duplex Support */
-#define DMA_HW_FEAT_EXTHASHEN	0x00000008 /* Expanded DA Hash Filter */
-#define DMA_HW_FEAT_HASHSEL	0x00000010 /* HASH Filter */
-#define DMA_HW_FEAT_ADDMACADRSEL	0x00000020 /* Multiple MAC Addr Reg */
-#define DMA_HW_FEAT_PCSSEL	0x00000040 /* PCS registers */
-#define DMA_HW_FEAT_L3L4FLTREN	0x00000080 /* Layer 3 & Layer 4 Feature */
-#define DMA_HW_FEAT_SMASEL	0x00000100 /* SMA(MDIO) Interface */
-#define DMA_HW_FEAT_RWKSEL	0x00000200 /* PMT Remote Wakeup */
-#define DMA_HW_FEAT_MGKSEL	0x00000400 /* PMT Magic Packet */
-#define DMA_HW_FEAT_MMCSEL	0x00000800 /* RMON Module */
-#define DMA_HW_FEAT_TSVER1SEL	0x00001000 /* Only IEEE 1588-2002 Timestamp */
-#define DMA_HW_FEAT_TSVER2SEL	0x00002000 /* IEEE 1588-2008 Adv Timestamp */
-#define DMA_HW_FEAT_EEESEL	0x00004000 /* Energy Efficient Ethernet */
-#define DMA_HW_FEAT_AVSEL	0x00008000 /* AV Feature */
-#define DMA_HW_FEAT_TXCOESEL	0x00010000 /* Checksum Offload in Tx */
-#define DMA_HW_FEAT_RXTYP1COE	0x00020000 /* IP csum Offload(Type 1) in Rx */
-#define DMA_HW_FEAT_RXTYP2COE	0x00040000 /* IP csum Offload(Type 2) in Rx */
-#define DMA_HW_FEAT_RXFIFOSIZE	0x00080000 /* Rx FIFO > 2048 Bytes */
-#define DMA_HW_FEAT_RXCHCNT	0x00300000 /* No. of additional Rx Channels */
-#define DMA_HW_FEAT_TXCHCNT	0x00c00000 /* No. of additional Tx Channels */
-#define DMA_HW_FEAT_ENHDESSEL	0x01000000 /* Alternate (Enhanced Descriptor) */
-#define DMA_HW_FEAT_INTTSEN	0x02000000 /* Timestamping with Internal
-					      System Time */
-#define DMA_HW_FEAT_FLEXIPPSEN	0x04000000 /* Flexible PPS Output */
-#define DMA_HW_FEAT_SAVLANINS	0x08000000 /* Source Addr or VLAN Insertion */
-#define DMA_HW_FEAT_ACTPHYIF	0x70000000 /* Active/selected PHY interface */
+#define DMA_HW_FEAT_MIISEL	0x00000001	/* 10/100 Mbps Support */
+#define DMA_HW_FEAT_GMIISEL	0x00000002	/* 1000 Mbps Support */
+#define DMA_HW_FEAT_HDSEL	0x00000004	/* Half-Duplex Support */
+#define DMA_HW_FEAT_EXTHASHEN	0x00000008	/* Expanded DA Hash Filter */
+#define DMA_HW_FEAT_HASHSEL	0x00000010	/* HASH Filter */
+#define DMA_HW_FEAT_ADDMAC	0x00000020	/* Multiple MAC Addr Reg */
+#define DMA_HW_FEAT_PCSSEL	0x00000040	/* PCS registers */
+#define DMA_HW_FEAT_L3L4FLTREN	0x00000080	/* Layer 3 & Layer 4 Feature */
+#define DMA_HW_FEAT_SMASEL	0x00000100	/* SMA(MDIO) Interface */
+#define DMA_HW_FEAT_RWKSEL	0x00000200	/* PMT Remote Wakeup */
+#define DMA_HW_FEAT_MGKSEL	0x00000400	/* PMT Magic Packet */
+#define DMA_HW_FEAT_MMCSEL	0x00000800	/* RMON Module */
+#define DMA_HW_FEAT_TSVER1SEL	0x00001000	/* Only IEEE 1588-2002 */
+#define DMA_HW_FEAT_TSVER2SEL	0x00002000	/* IEEE 1588-2008 PTPv2 */
+#define DMA_HW_FEAT_EEESEL	0x00004000	/* Energy Efficient Ethernet */
+#define DMA_HW_FEAT_AVSEL	0x00008000	/* AV Feature */
+#define DMA_HW_FEAT_TXCOESEL	0x00010000	/* Checksum Offload in Tx */
+#define DMA_HW_FEAT_RXTYP1COE	0x00020000	/* IP COE (Type 1) in Rx */
+#define DMA_HW_FEAT_RXTYP2COE	0x00040000	/* IP COE (Type 2) in Rx */
+#define DMA_HW_FEAT_RXFIFOSIZE	0x00080000	/* Rx FIFO > 2048 Bytes */
+#define DMA_HW_FEAT_RXCHCNT	0x00300000	/* No. additional Rx Channels */
+#define DMA_HW_FEAT_TXCHCNT	0x00c00000	/* No. additional Tx Channels */
+#define DMA_HW_FEAT_ENHDESSEL	0x01000000	/* Alternate Descriptor */
+/* Timestamping with Internal System Time */
+#define DMA_HW_FEAT_INTTSEN	0x02000000
+#define DMA_HW_FEAT_FLEXIPPSEN	0x04000000	/* Flexible PPS Output */
+#define DMA_HW_FEAT_SAVLANINS	0x08000000	/* Source Addr or VLAN */
+#define DMA_HW_FEAT_ACTPHYIF	0x70000000	/* Active/selected PHY iface */
 #define DEFAULT_DMA_PBL		8
 
 /* Max/Min RI Watchdog Timer count value */
@@ -216,7 +216,8 @@ struct stmmac_extra_stats {
 #define STMMAC_TX_MAX_FRAMES	256
 #define STMMAC_TX_FRAMES	64
 
-enum rx_frame_status { /* IPC status */
+/* Rx IPC status */
+enum rx_frame_status {
 	good_frame = 0,
 	discard_frame = 1,
 	csum_none = 2,
@@ -261,9 +262,9 @@ struct dma_features {
 	unsigned int pmt_remote_wake_up;
 	unsigned int pmt_magic_frame;
 	unsigned int rmon;
-	/* IEEE 1588-2002*/
+	/* IEEE 1588-2002 */
 	unsigned int time_stamp;
-	/* IEEE 1588-2008*/
+	/* IEEE 1588-2008 */
 	unsigned int atime_stamp;
 	/* 802.3az - Energy-Efficient Ethernet (EEE) */
 	unsigned int eee;
@@ -276,7 +277,7 @@ struct dma_features {
 	/* TX and RX number of channels */
 	unsigned int number_rx_channel;
 	unsigned int number_tx_channel;
-	/* Alternate (enhanced) DESC mode*/
+	/* Alternate (enhanced) DESC mode */
 	unsigned int enh_desc;
 };
 
@@ -344,7 +345,7 @@ struct stmmac_desc_ops {
 	/* get tx timestamp status */
 	int (*get_tx_timestamp_status) (struct dma_desc *p);
 	/* get timestamp value */
-	u64 (*get_timestamp) (void *desc, u32 ats);
+	 u64(*get_timestamp) (void *desc, u32 ats);
 	/* get rx timestamp status */
 	int (*get_rx_timestamp_status) (void *desc, u32 ats);
 };
@@ -378,7 +379,7 @@ struct stmmac_dma_ops {
 
 struct stmmac_ops {
 	/* MAC core initialization */
-	void (*core_init) (void __iomem *ioaddr) ____cacheline_aligned;
+	void (*core_init) (void __iomem *ioaddr);
 	/* Enable and verify that the IPC module is supported */
 	int (*rx_ipc) (void __iomem *ioaddr);
 	/* Dump MAC registers */
@@ -410,10 +411,10 @@ struct stmmac_hwtimestamp {
 	void (*config_hw_tstamping) (void __iomem *ioaddr, u32 data);
 	void (*config_sub_second_increment) (void __iomem *ioaddr);
 	int (*init_systime) (void __iomem *ioaddr, u32 sec, u32 nsec);
-	int (*config_addend)(void __iomem *ioaddr, u32 addend);
-	int (*adjust_systime)(void __iomem *ioaddr, u32 sec, u32 nsec,
-			      int add_sub);
-	u64 (*get_systime)(void __iomem *ioaddr);
+	int (*config_addend) (void __iomem *ioaddr, u32 addend);
+	int (*adjust_systime) (void __iomem *ioaddr, u32 sec, u32 nsec,
+			       int add_sub);
+	 u64(*get_systime) (void __iomem *ioaddr);
 };
 
 struct mac_link {
@@ -446,11 +447,11 @@ struct stmmac_chain_mode_ops {
 };
 
 struct mac_device_info {
-	const struct stmmac_ops		*mac;
-	const struct stmmac_desc_ops	*desc;
-	const struct stmmac_dma_ops	*dma;
-	const struct stmmac_ring_mode_ops	*ring;
-	const struct stmmac_chain_mode_ops	*chain;
+	const struct stmmac_ops *mac;
+	const struct stmmac_desc_ops *desc;
+	const struct stmmac_dma_ops *dma;
+	const struct stmmac_ring_mode_ops *ring;
+	const struct stmmac_chain_mode_ops *chain;
 	const struct stmmac_hwtimestamp *ptp;
 	struct mii_regs mii;	/* MII register Addresses */
 	struct mac_link link;

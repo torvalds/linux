@@ -142,6 +142,7 @@ static inline int stmmac_register_platform(void)
 
 	return err;
 }
+
 static inline void stmmac_unregister_platform(void)
 {
 	platform_driver_unregister(&stmmac_pltfr_driver);
@@ -153,6 +154,7 @@ static inline int stmmac_register_platform(void)
 
 	return 0;
 }
+
 static inline void stmmac_unregister_platform(void)
 {
 }
@@ -170,6 +172,7 @@ static inline int stmmac_register_pci(void)
 
 	return err;
 }
+
 static inline void stmmac_unregister_pci(void)
 {
 	pci_unregister_driver(&stmmac_pci_driver);
@@ -181,6 +184,7 @@ static inline int stmmac_register_pci(void)
 
 	return 0;
 }
+
 static inline void stmmac_unregister_pci(void)
 {
 }
