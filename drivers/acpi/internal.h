@@ -41,6 +41,17 @@ void acpi_container_init(void);
 #else
 static inline void acpi_container_init(void) {}
 #endif
+#ifdef CONFIG_ACPI_HOTPLUG_MEMORY
+void acpi_memory_hotplug_init(void);
+#else
+static inline void acpi_memory_hotplug_init(void) {}
+#endif
+
+void acpi_sysfs_add_hotplug_profile(struct acpi_hotplug_profile *hotplug,
+				    const char *name);
+int acpi_scan_add_handler_with_hotplug(struct acpi_scan_handler *handler,
+				       const char *hotplug_profile_name);
+void acpi_scan_hotplug_enabled(struct acpi_hotplug_profile *hotplug, bool val);
 
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *acpi_debugfs_dir;
@@ -60,7 +71,7 @@ int acpi_device_add(struct acpi_device *device,
 void acpi_init_device_object(struct acpi_device *device, acpi_handle handle,
 			     int type, unsigned long long sta);
 void acpi_device_add_finalize(struct acpi_device *device);
-void acpi_free_ids(struct acpi_device *device);
+void acpi_free_pnp_ids(struct acpi_device_pnp *pnp);
 
 /* --------------------------------------------------------------------------
                                   Power Resource
