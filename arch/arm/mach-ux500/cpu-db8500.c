@@ -94,8 +94,6 @@ void __init u8500_map_io(void)
 		iotable_init(u9540_io_desc, ARRAY_SIZE(u9540_io_desc));
 	else
 		iotable_init(u8500_io_desc, ARRAY_SIZE(u8500_io_desc));
-
-	_PRCMU_BASE = __io_address(U8500_PRCMU_BASE);
 }
 
 static struct resource db8500_pmu_resources[] = {
