@@ -6,6 +6,9 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/mfd/rk616.h>
+#include <linux/clk.h>
+#include <mach/iomux.h>
+#include <linux/err.h>
 
 
 static struct mfd_cell rk616_devs[] = {
@@ -85,11 +88,17 @@ static int rk616_i2c_write_reg(struct mfd_rk616 *rk616, u16 reg,u32 *pval)
 	return (ret == 1) ? 4 : ret;
 }
 
+
+static int rk616_clk_route_init(struct mfd_rk616 *rk616)
+{
+
+	return 0;
+}
 static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id *id)
 {
 	int ret;
 	struct mfd_rk616 *rk616 = NULL;
-	
+	struct clk *iis_clk;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) 
 	{
@@ -111,14 +120,37 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 	
 	if(rk616->pdata->power_init)
 		rk616->pdata->power_init();
-	
+
+#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)        
+	iis_clk = clk_get_sys("rk29_i2s.0", "i2s");
+#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
+	iis_clk = clk_get_sys("rk29_i2s.1", "i2s");
+#else
+	iis_clk = clk_get_sys("rk29_i2s.2", "i2s");
+#endif
+	if (IS_ERR(iis_clk)) 
+	{
+		dev_err(&client->dev,"failed to get i2s clk\n");
+		ret = PTR_ERR(iis_clk);
+	}
+	else
+	{
+		#if defined(CONFIG_ARCH_RK29)
+		rk29_mux_api_set(GPIO2D0_I2S0CLK_MIIRXCLKIN_NAME, GPIO2H_I2S0_CLK);
+		#else
+		iomux_set(I2S0_CLK);
+		#endif
+		clk_enable(iis_clk);
+		clk_set_rate(iis_clk, 11289600);
+		clk_put(iis_clk);
+	}
 	rk616->read_dev = rk616_i2c_read_reg;
 	rk616->write_dev = rk616_i2c_write_reg;
 	ret = mfd_add_devices(rk616->dev, -1,
 				      rk616_devs, ARRAY_SIZE(rk616_devs),
 				      NULL, rk616->irq_base);
 	
-	printk("%s.........\n",__func__);
+	dev_info(&client->dev,"rk616 core probe success!\n");
 	return 0;
 }
 

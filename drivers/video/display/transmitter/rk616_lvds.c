@@ -8,6 +8,23 @@
 struct mfd_rk616 *g_rk616;
 
 
+/********************************************
+LCDC1------>HDMI
+LCDC0------>Dither------->LVDS/MIPI
+*********************************************/
+static struct rk616_route rk616_route = {
+	.vif0_bypass = 1,
+	.vif0_en     = 0,
+	.vif1_bypass = 1,
+	.vif1_en     = 0,
+	.sclin_sel   = 0,
+	.scl_en      = 0,
+	.dither_sel  = 0,
+	.hdmi_sel    = 0,
+	.lcd1_input  = 1,
+	.lvds_mode   = 1, //lvds out put 
+};
+
 /*rk616 video interface config*/
 static int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 {
@@ -55,7 +72,7 @@ static int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 	
 }
 
-static int rk616_vif_bypass(struct mfd_rk616 *rk616,int id)
+static int rk616_vif_disable(struct mfd_rk616 *rk616,int id)
 {
 	int ret;
 	u32 val = 0;
@@ -74,7 +91,7 @@ static int rk616_vif_bypass(struct mfd_rk616 *rk616,int id)
 	return ret;
 	
 }
-static int rk616_scaler_bypass(struct mfd_rk616 *rk616)
+static int rk616_scaler_disable(struct mfd_rk616 *rk616)
 {
 	u32 val = 0;
 	int ret;
@@ -87,6 +104,34 @@ static int rk616_scaler_bypass(struct mfd_rk616 *rk616)
 	
 }
 
+
+static int rk616_display_router_cfg(struct mfd_rk616 *rk616)
+{
+	u32 val = 0;
+	int ret;
+	struct rk616_route *route = rk616->route;
+	
+	val = (0xffff<<16) | (route->sclin_sel<<15) | (route->dither_sel<<14) | 
+		(route->hdmi_sel<<12) | (route->vif1_bypass<<7) | 
+		(route->vif0_bypass<<1) ; 
+	ret = rk616->write_dev(rk616,CRU_CLKSE2_CON,&val);
+
+	val = 0;
+	val = (LVDS_CH0TTL_DISABLE) | (LVDS_CH1TTL_DISABLE) | (LVDS_CH0_PWR_EN) |
+		(LVDS_CBG_PWR_EN) | (LVDS_CH0TTL_DISABLE << 16) | (LVDS_CH1TTL_DISABLE << 16) |
+		(LVDS_CH0_PWR_EN << 16) | (LVDS_CBG_PWR_EN << 16);
+	ret = rk616->write_dev(rk616,CRU_LVDS_CON0,&val);
+	
+	if(!route->vif0_en)
+		rk616_vif_disable(rk616,0); //disable vif0 
+	if(!route->vif1_en)
+		rk616_vif_disable(rk616,1); //disable vif1
+	if(!route->scl_en)
+		rk616_scaler_disable(rk616);
+
+	return 0;
+	
+}
 int rk610_lcd_scaler_set_param(rk_screen *screen,bool enable )//enable:0 bypass 1: scale
 {
 	int ret;
@@ -96,10 +141,7 @@ int rk610_lcd_scaler_set_param(rk_screen *screen,bool enable )//enable:0 bypass 
 		printk(KERN_ERR "%s:mfd rk616 is null!\n",__func__);
 		return -1;
 	}
-	rk616_vif_bypass(rk616,0);
-	rk616_vif_bypass(rk616,1);
-	rk616_scaler_bypass(rk616);
-	
+	rk616_display_router_cfg(rk616);
 	return ret;
 }
 
@@ -114,6 +156,8 @@ static int rk616_lvds_probe(struct platform_device *pdev)
 	}
 	else
 		g_rk616 = rk616;
+	
+	rk616->route = &rk616_route;
 
 	dev_info(&pdev->dev,"rk616 lvds probe success!\n");
 
