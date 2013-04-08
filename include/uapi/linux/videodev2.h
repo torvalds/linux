@@ -1844,7 +1844,7 @@ struct v4l2_dbg_chip_info {
 	struct v4l2_dbg_match match;
 	char name[32];
 	__u32 flags;
-	__u32 reserved[8];
+	__u32 reserved[32];
 } __attribute__ ((packed));
 
 /**
