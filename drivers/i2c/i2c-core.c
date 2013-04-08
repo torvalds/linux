@@ -93,7 +93,6 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-#ifdef	CONFIG_HOTPLUG
 
 /* uevent helps with hotplug: modprobe -q $(MODALIAS) */
 static int i2c_device_uevent(struct device *dev, struct kobj_uevent_env *env)
@@ -106,10 +105,6 @@ static int i2c_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 	dev_dbg(dev, "uevent\n");
 	return 0;
 }
-
-#else
-#define i2c_device_uevent	NULL
-#endif	/* CONFIG_HOTPLUG */
 
 /* i2c bus recovery routines */
 static int get_scl_gpio_value(struct i2c_adapter *adap)
