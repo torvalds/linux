@@ -669,8 +669,10 @@ gc_more:
 	if (!(sbi->sb->s_flags & MS_ACTIVE))
 		goto stop;
 
-	if (gc_type == BG_GC && has_not_enough_free_secs(sbi, nfree))
+	if (gc_type == BG_GC && has_not_enough_free_secs(sbi, nfree)) {
 		gc_type = FG_GC;
+		write_checkpoint(sbi, false);
+	}
 
 	if (!__get_victim(sbi, &segno, gc_type, NO_CHECK_TYPE))
 		goto stop;
