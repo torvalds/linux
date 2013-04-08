@@ -87,7 +87,7 @@ struct kvm_vcpu_fault_info {
 	u32 hyp_pc;		/* PC when exception was taken from Hyp mode */
 };
 
-typedef struct vfp_hard_struct kvm_kernel_vfp_t;
+typedef struct vfp_hard_struct kvm_cpu_context_t;
 
 struct kvm_vcpu_arch {
 	struct kvm_regs regs;
@@ -105,8 +105,10 @@ struct kvm_vcpu_arch {
 	struct kvm_vcpu_fault_info fault;
 
 	/* Floating point registers (VFP and Advanced SIMD/NEON) */
-	kvm_kernel_vfp_t vfp_guest;
-	kvm_kernel_vfp_t *vfp_host;
+	struct vfp_hard_struct vfp_guest;
+
+	/* Host FP context */
+	kvm_cpu_context_t *host_cpu_context;
 
 	/* VGIC state */
 	struct vgic_cpu vgic_cpu;

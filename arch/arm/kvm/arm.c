@@ -49,7 +49,7 @@ __asm__(".arch_extension	virt");
 #endif
 
 static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
-static kvm_kernel_vfp_t __percpu *kvm_host_vfp_state;
+static kvm_cpu_context_t __percpu *kvm_host_cpu_state;
 static unsigned long hyp_default_vectors;
 
 /* Per-CPU variable containing the currently running vcpu. */
@@ -317,7 +317,7 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	vcpu->cpu = cpu;
-	vcpu->arch.vfp_host = this_cpu_ptr(kvm_host_vfp_state);
+	vcpu->arch.host_cpu_context = this_cpu_ptr(kvm_host_cpu_state);
 
 	/*
 	 * Check whether this vcpu requires the cache to be flushed on
@@ -882,24 +882,24 @@ static int init_hyp_mode(void)
 	}
 
 	/*
-	 * Map the host VFP structures
+	 * Map the host CPU structures
 	 */
-	kvm_host_vfp_state = alloc_percpu(kvm_kernel_vfp_t);
-	if (!kvm_host_vfp_state) {
+	kvm_host_cpu_state = alloc_percpu(kvm_cpu_context_t);
+	if (!kvm_host_cpu_state) {
 		err = -ENOMEM;
-		kvm_err("Cannot allocate host VFP state\n");
+		kvm_err("Cannot allocate host CPU state\n");
 		goto out_free_mappings;
 	}
 
 	for_each_possible_cpu(cpu) {
-		kvm_kernel_vfp_t *vfp;
+		kvm_cpu_context_t *cpu_ctxt;
 
-		vfp = per_cpu_ptr(kvm_host_vfp_state, cpu);
-		err = create_hyp_mappings(vfp, vfp + 1);
+		cpu_ctxt = per_cpu_ptr(kvm_host_cpu_state, cpu);
+		err = create_hyp_mappings(cpu_ctxt, cpu_ctxt + 1);
 
 		if (err) {
-			kvm_err("Cannot map host VFP state: %d\n", err);
-			goto out_free_vfp;
+			kvm_err("Cannot map host CPU state: %d\n", err);
+			goto out_free_context;
 		}
 	}
 
@@ -913,7 +913,7 @@ static int init_hyp_mode(void)
 	 */
 	err = kvm_vgic_hyp_init();
 	if (err)
-		goto out_free_vfp;
+		goto out_free_context;
 
 #ifdef CONFIG_KVM_ARM_VGIC
 		vgic_present = true;
@@ -935,8 +935,8 @@ static int init_hyp_mode(void)
 	kvm_info("Hyp mode initialized successfully\n");
 
 	return 0;
-out_free_vfp:
-	free_percpu(kvm_host_vfp_state);
+out_free_context:
+	free_percpu(kvm_host_cpu_state);
 out_free_mappings:
 	free_hyp_pgds();
 out_free_stack_pages:
