@@ -96,7 +96,7 @@ static struct cpufreq_frequency_table logic_high_arm_table[] = {
         {.frequency = 1608 * DVFS_KHZ, .index = 50 * DVFS_MV},
         {.frequency = CPUFREQ_TABLE_END},
 };
-#elif defined(CONFIG_SOC_RK3066)
+#elif defined(CONFIG_ARCH_RK30XX)
 static struct cpufreq_frequency_table arm_high_logic_table[] = {
         {.frequency = 1416 * DVFS_KHZ, .index = 50 * DVFS_MV},
         {.frequency = 1608 * DVFS_KHZ, .index = 100 * DVFS_MV},
