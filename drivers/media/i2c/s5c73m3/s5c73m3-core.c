@@ -357,7 +357,7 @@ static int s5c73m3_load_fw(struct v4l2_subdev *sd)
 		return -EINVAL;
 	}
 
-	v4l2_info(sd, "Loading firmware (%s, %d B)\n", fw_name, fw->size);
+	v4l2_info(sd, "Loading firmware (%s, %zu B)\n", fw_name, fw->size);
 
 	ret = s5c73m3_spi_write(state, fw->data, fw->size, 64);
 
