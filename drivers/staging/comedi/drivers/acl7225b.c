@@ -64,8 +64,10 @@ static int acl7225b_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	data[1] = inb(dev->iobase + (unsigned long)s->private) |
-	    (inb(dev->iobase + (unsigned long)s->private + 1) << 8);
+	unsigned long reg = (unsigned long)s->private;
+
+	data[1] = inb(dev->iobase + reg) |
+		  (inb(dev->iobase + reg + 1) << 8);
 
 	return insn->n;
 }
