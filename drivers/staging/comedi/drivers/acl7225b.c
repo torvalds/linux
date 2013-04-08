@@ -35,9 +35,10 @@ static const struct acl7225b_boardinfo acl7225b_boards[] = {
 	},
 };
 
-static int acl7225b_do_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int acl7225b_do_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	if (data[0]) {
 		s->state &= ~data[0];
@@ -54,9 +55,10 @@ static int acl7225b_do_insn(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int acl7225b_di_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int acl7225b_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	data[1] = inb(dev->iobase + (unsigned long)s->private) |
 	    (inb(dev->iobase + (unsigned long)s->private + 1) << 8);
@@ -87,7 +89,7 @@ static int acl7225b_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_WRITABLE;
 	s->maxdata	= 1;
 	s->n_chan	= 16;
-	s->insn_bits	= acl7225b_do_insn;
+	s->insn_bits	= acl7225b_do_insn_bits;
 	s->range_table	= &range_digital;
 	s->private	= (void *)ACL7225_RIO_LO;
 
@@ -97,7 +99,7 @@ static int acl7225b_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_READABLE;
 	s->maxdata	= 1;
 	s->n_chan	= 16;
-	s->insn_bits	= acl7225b_di_insn;
+	s->insn_bits	= acl7225b_di_insn_bits;
 	s->range_table	= &range_digital;
 	s->private	= (void *)ACL7225_RIO_LO;
 
@@ -107,7 +109,7 @@ static int acl7225b_attach(struct comedi_device *dev,
 	s->subdev_flags	= SDF_READABLE;
 	s->maxdata	= 1;
 	s->n_chan	= 16;
-	s->insn_bits	= acl7225b_di_insn;
+	s->insn_bits	= acl7225b_di_insn_bits;
 	s->range_table	= &range_digital;
 	s->private	= (void *)ACL7225_DI_LO;
 
