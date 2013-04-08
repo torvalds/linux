@@ -57,20 +57,20 @@
 
 		ti,nand-ecc-opt = "sw";
 		gpmc,device-nand;
-		gpmc,cs-on = <0>;
-		gpmc,cs-rd-off = <36>;
-		gpmc,cs-wr-off = <36>;
-		gpmc,adv-on = <6>;
-		gpmc,adv-rd-off = <24>;
-		gpmc,adv-wr-off = <36>;
-		gpmc,oe-on = <6>;
-		gpmc,oe-off = <48>;
-		gpmc,we-on = <6>;
-		gpmc,we-off = <30>;
-		gpmc,rd-cycle = <72>;
-		gpmc,wr-cycle = <72>;
-		gpmc,access = <54>;
-		gpmc,wr-access = <30>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <36>;
+		gpmc,cs-wr-off-ns = <36>;
+		gpmc,adv-on-ns = <6>;
+		gpmc,adv-rd-off-ns = <24>;
+		gpmc,adv-wr-off-ns = <36>;
+		gpmc,oe-on-ns = <6>;
+		gpmc,oe-off-ns = <48>;
+		gpmc,we-on-ns = <6>;
+		gpmc,we-off-ns = <30>;
+		gpmc,rd-cycle-ns = <72>;
+		gpmc,wr-cycle-ns = <72>;
+		gpmc,access-ns = <54>;
+		gpmc,wr-access-ns = <30>;
 
 		partition@0 {
 			label = "xloader-nand";
@@ -102,20 +102,20 @@
 
 		gpmc,device-width = <2>;
 		gpmc,mux-add-data = <2>;
-		gpmc,cs-on = <0>;
-		gpmc,cs-rd-off = <84>;
-		gpmc,cs-wr-off = <72>;
-		gpmc,adv-on = <0>;
-		gpmc,adv-rd-off = <18>;
-		gpmc,adv-wr-off = <18>;
-		gpmc,oe-on = <30>;
-		gpmc,oe-off = <84>;
-		gpmc,we-on = <0>;
-		gpmc,we-off = <42>;
-		gpmc,rd-cycle = <108>;
-		gpmc,wr-cycle = <96>;
-		gpmc,access = <78>;
-		gpmc,wr-data-mux-bus = <30>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <84>;
+		gpmc,cs-wr-off-ns = <72>;
+		gpmc,adv-on-ns = <0>;
+		gpmc,adv-rd-off-ns = <18>;
+		gpmc,adv-wr-off-ns = <18>;
+		gpmc,oe-on-ns = <30>;
+		gpmc,oe-off-ns = <84>;
+		gpmc,we-on-ns = <0>;
+		gpmc,we-off-ns = <42>;
+		gpmc,rd-cycle-ns = <108>;
+		gpmc,wr-cycle-ns = <96>;
+		gpmc,access-ns = <78>;
+		gpmc,wr-data-mux-bus-ns = <30>;
 
 		partition@0 {
 			label = "xloader-onenand";
