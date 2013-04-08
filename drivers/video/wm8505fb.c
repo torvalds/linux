@@ -18,6 +18,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/fb.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -303,9 +304,9 @@ static int wm8505fb_probe(struct platform_device *pdev)
 	fbi->fb.pseudo_palette	= addr;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	fbi->regbase = devm_request_and_ioremap(&pdev->dev, res);
-	if (fbi->regbase == NULL)
-		return -EBUSY;
+	fbi->regbase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(fbi->regbase))
+		return PTR_ERR(fbi->regbase);
 
 	disp_timing = of_get_display_timings(pdev->dev.of_node);
 	if (!disp_timing)
