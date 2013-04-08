@@ -3699,7 +3699,7 @@ static long btrfs_ioctl_quota_ctl(struct file *file, void __user *arg)
 
 	down_write(&root->fs_info->subvol_sem);
 	if (sa->cmd != BTRFS_QUOTA_CTL_RESCAN) {
-		trans = btrfs_start_transaction(root, 2);
+		trans = btrfs_start_transaction(root->fs_info->tree_root, 2);
 		if (IS_ERR(trans)) {
 			ret = PTR_ERR(trans);
 			goto out;
@@ -3725,7 +3725,7 @@ static long btrfs_ioctl_quota_ctl(struct file *file, void __user *arg)
 		ret = -EFAULT;
 
 	if (trans) {
-		err = btrfs_commit_transaction(trans, root);
+		err = btrfs_commit_transaction(trans, root->fs_info->tree_root);
 		if (err && !ret)
 			ret = err;
 	}
