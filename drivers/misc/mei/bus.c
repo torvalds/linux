@@ -153,7 +153,8 @@ static struct mei_cl *mei_bus_find_mei_cl_by_uuid(struct mei_device *dev,
 	return NULL;
 }
 struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
-				  uuid_le uuid, char *name)
+					uuid_le uuid, char *name,
+					struct mei_cl_ops *ops)
 {
 	struct mei_cl_device *device;
 	struct mei_cl *cl;
@@ -168,6 +169,7 @@ struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
 		return NULL;
 
 	device->cl = cl;
+	device->ops = ops;
 
 	device->dev.parent = &dev->pdev->dev;
 	device->dev.bus = &mei_cl_bus_type;
@@ -407,6 +409,101 @@ void mei_cl_set_drvdata(struct mei_cl_device *device, void *data)
 	dev_set_drvdata(&device->dev, data);
 }
 EXPORT_SYMBOL_GPL(mei_cl_set_drvdata);
+
+int mei_cl_enable_device(struct mei_cl_device *device)
+{
+	int err;
+	struct mei_device *dev;
+	struct mei_cl *cl = device->cl;
+
+	if (cl == NULL)
+		return -ENODEV;
+
+	dev = cl->dev;
+
+	mutex_lock(&dev->device_lock);
+
+	cl->state = MEI_FILE_CONNECTING;
+
+	err = mei_cl_connect(cl, NULL);
+	if (err < 0) {
+		mutex_unlock(&dev->device_lock);
+		dev_err(&dev->pdev->dev, "Could not connect to the ME client");
+
+		return err;
+	}
+
+	mutex_unlock(&dev->device_lock);
+
+	if (device->event_cb && !cl->read_cb)
+		mei_cl_read_start(device->cl);
+
+	if (!device->ops || !device->ops->enable)
+		return 0;
+
+	return device->ops->enable(device);
+}
+EXPORT_SYMBOL_GPL(mei_cl_enable_device);
+
+int mei_cl_disable_device(struct mei_cl_device *device)
+{
+	int err;
+	struct mei_device *dev;
+	struct mei_cl *cl = device->cl;
+
+	if (cl == NULL)
+		return -ENODEV;
+
+	dev = cl->dev;
+
+	mutex_lock(&dev->device_lock);
+
+	if (cl->state != MEI_FILE_CONNECTED) {
+		mutex_unlock(&dev->device_lock);
+		dev_err(&dev->pdev->dev, "Already disconnected");
+
+		return 0;
+	}
+
+	cl->state = MEI_FILE_DISCONNECTING;
+
+	err = mei_cl_disconnect(cl);
+	if (err < 0) {
+		mutex_unlock(&dev->device_lock);
+		dev_err(&dev->pdev->dev,
+			"Could not disconnect from the ME client");
+
+		return err;
+	}
+
+	/* Flush queues and remove any pending read */
+	mei_cl_flush_queues(cl);
+
+	if (cl->read_cb) {
+		struct mei_cl_cb *cb = NULL;
+
+		cb = mei_cl_find_read_cb(cl);
+		/* Remove entry from read list */
+		if (cb)
+			list_del(&cb->list);
+
+		cb = cl->read_cb;
+		cl->read_cb = NULL;
+
+		if (cb) {
+			mei_io_cb_free(cb);
+			cb = NULL;
+		}
+	}
+
+	mutex_unlock(&dev->device_lock);
+
+	if (!device->ops || !device->ops->disable)
+		return 0;
+
+	return device->ops->disable(device);
+}
+EXPORT_SYMBOL_GPL(mei_cl_disable_device);
 
 void mei_cl_bus_rx_event(struct mei_cl *cl)
 {

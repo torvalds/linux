@@ -269,30 +269,36 @@ struct mei_hw_ops {
 };
 
 /* MEI bus API*/
-struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
-				  uuid_le uuid, char *name);
-void mei_cl_remove_device(struct mei_cl_device *device);
-
-int __mei_cl_async_send(struct mei_cl *cl, u8 *buf, size_t length);
-int __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length);
-int __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length);
 
 /**
- * struct mei_cl_transport_ops - MEI CL device transport ops
+ * struct mei_cl_ops - MEI CL device ops
  * This structure allows ME host clients to implement technology
- * specific transport layers.
+ * specific operations.
  *
+ * @enable: Enable an MEI CL device. Some devices require specific
+ *	HECI commands to initialize completely.
+ * @disable: Disable an MEI CL device.
  * @send: Tx hook for the device. This allows ME host clients to trap
  *	the device driver buffers before actually physically
  *	pushing it to the ME.
  * @recv: Rx hook for the device. This allows ME host clients to trap the
  *	ME buffers before forwarding them to the device driver.
  */
-struct mei_cl_transport_ops {
+struct mei_cl_ops {
+	int (*enable)(struct mei_cl_device *device);
+	int (*disable)(struct mei_cl_device *device);
 	int (*send)(struct mei_cl_device *device, u8 *buf, size_t length);
 	int (*recv)(struct mei_cl_device *device, u8 *buf, size_t length);
 };
 
+struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
+					uuid_le uuid, char *name,
+					struct mei_cl_ops *ops);
+void mei_cl_remove_device(struct mei_cl_device *device);
+
+int __mei_cl_async_send(struct mei_cl *cl, u8 *buf, size_t length);
+int __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length);
+int __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length);
 void mei_cl_bus_rx_event(struct mei_cl *cl);
 int mei_cl_bus_init(void);
 void mei_cl_bus_exit(void);
@@ -319,7 +325,7 @@ struct mei_cl_device {
 
 	struct mei_cl *cl;
 
-	const struct mei_cl_transport_ops *ops;
+	const struct mei_cl_ops *ops;
 
 	struct work_struct event_work;
 	mei_cl_event_cb_t event_cb;

@@ -104,13 +104,16 @@ int contact_probe(struct mei_cl_device *dev, struct mei_cl_device_id *id)
 	struct contact_driver *contact;
 
 	[...]
+	mei_cl_enable_device(dev);
+
 	mei_cl_register_event_cb(dev, contact_event_cb, contact);
 
 	return 0;
  }
 
-In the probe routine the driver basically registers an ME bus event handler
-which is as close as it can get to registering a threaded IRQ handler.
+In the probe routine the driver first enable the MEI device and then registers
+an ME bus event handler which is as close as it can get to registering a
+threaded IRQ handler.
 The handler implementation will typically call some I/O routine depending on
 the pending events:
 
