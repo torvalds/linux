@@ -5,7 +5,10 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-/include/ "omap4-panda.dts"
+/dts-v1/;
+
+/include/ "omap443x.dtsi"
+/include/ "omap4-panda-common.dtsi"
 
 /* Pandaboard Rev A4+ have external pullups on SCL & SDA */
 &dss_hdmi_pins {

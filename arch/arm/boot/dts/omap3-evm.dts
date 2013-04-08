@@ -7,11 +7,17 @@
  */
 /dts-v1/;
 
-/include/ "omap3.dtsi"
+/include/ "omap34xx.dtsi"
 
 / {
 	model = "TI OMAP3 EVM (OMAP3530, AM/DM37x)";
 	compatible = "ti,omap3-evm", "ti,omap3";
+
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&vcc>;
+		};
+	};
 
 	memory {
 		device_type = "memory";
@@ -58,4 +64,10 @@
 
 &twl_gpio {
 	ti,use-leds;
+};
+
+&usb_otg_hs {
+	interface-type = <0>;
+	mode = <3>;
+	power = <50>;
 };
