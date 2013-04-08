@@ -22,6 +22,7 @@
 		pio: pinctrl@01c20800 {
 			compatible = "allwinner,sun5i-a13-pinctrl";
 			reg = <0x01c20800 0x400>;
+			clocks = <&apb0_gates 5>;
 			gpio-controller;
 			#address-cells = <1>;
 			#size-cells = <0>;
