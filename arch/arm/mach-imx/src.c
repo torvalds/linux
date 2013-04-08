@@ -43,6 +43,18 @@ void imx_set_cpu_jump(int cpu, void *jump_addr)
 		       src_base + SRC_GPR1 + cpu * 8);
 }
 
+u32 imx_get_cpu_arg(int cpu)
+{
+	cpu = cpu_logical_map(cpu);
+	return readl_relaxed(src_base + SRC_GPR1 + cpu * 8 + 4);
+}
+
+void imx_set_cpu_arg(int cpu, u32 arg)
+{
+	cpu = cpu_logical_map(cpu);
+	writel_relaxed(arg, src_base + SRC_GPR1 + cpu * 8 + 4);
+}
+
 void imx_src_prepare_restart(void)
 {
 	u32 val;
