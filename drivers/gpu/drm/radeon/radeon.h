@@ -517,6 +517,7 @@ struct radeon_mc {
 	bool			vram_is_ddr;
 	bool			igp_sideport_enabled;
 	u64                     gtt_base_align;
+	u64                     mc_mask;
 };
 
 bool radeon_combios_sideport_present(struct radeon_device *rdev);
