@@ -348,7 +348,7 @@ void radeon_bo_list_add_object(struct radeon_bo_list *lobj,
 	}
 }
 
-int radeon_bo_list_validate(struct list_head *head)
+int radeon_bo_list_validate(struct list_head *head, int ring)
 {
 	struct radeon_bo_list *lobj;
 	struct radeon_bo *bo;
@@ -366,6 +366,8 @@ int radeon_bo_list_validate(struct list_head *head)
 			
 		retry:
 			radeon_ttm_placement_from_domain(bo, domain);
+			if (ring == R600_RING_TYPE_UVD_INDEX)
+				radeon_uvd_force_into_uvd_segment(bo);
 			r = ttm_bo_validate(&bo->tbo, &bo->placement,
 						true, false);
 			if (unlikely(r)) {

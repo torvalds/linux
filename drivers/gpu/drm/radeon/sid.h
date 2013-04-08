@@ -800,6 +800,12 @@
 #       define THREAD_TRACE_FINISH                      (55 << 0)
 
 /*
+ * UVD
+ */
+#define UVD_RBC_RB_RPTR					0xF690
+#define UVD_RBC_RB_WPTR					0xF694
+
+/*
  * PM4
  */
 #define PACKET0(reg, n)	((RADEON_PACKET_TYPE0 << 30) |			\

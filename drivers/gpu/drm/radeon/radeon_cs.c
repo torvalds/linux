@@ -53,7 +53,6 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 	}
 	for (i = 0; i < p->nrelocs; i++) {
 		struct drm_radeon_cs_reloc *r;
-		uint32_t domain;
 
 		duplicate = false;
 		r = (struct drm_radeon_cs_reloc *)&chunk->kdata[i*4];
@@ -81,11 +80,25 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		p->relocs[i].lobj.bo = p->relocs[i].robj;
 		p->relocs[i].lobj.written = !!r->write_domain;
 
-		domain = r->write_domain ? r->write_domain : r->read_domains;
-		p->relocs[i].lobj.domain = domain;
-		if (domain == RADEON_GEM_DOMAIN_VRAM)
-			domain |= RADEON_GEM_DOMAIN_GTT;
-		p->relocs[i].lobj.alt_domain = domain;
+		/* the first reloc of an UVD job is the
+		   msg and that must be in VRAM */
+		if (p->ring == R600_RING_TYPE_UVD_INDEX && i == 0) {
+			/* TODO: is this still needed for NI+ ? */
+			p->relocs[i].lobj.domain =
+				RADEON_GEM_DOMAIN_VRAM;
+
+			p->relocs[i].lobj.alt_domain =
+				RADEON_GEM_DOMAIN_VRAM;
+
+		} else {
+			uint32_t domain = r->write_domain ?
+				r->write_domain : r->read_domains;
+
+			p->relocs[i].lobj.domain = domain;
+			if (domain == RADEON_GEM_DOMAIN_VRAM)
+				domain |= RADEON_GEM_DOMAIN_GTT;
+			p->relocs[i].lobj.alt_domain = domain;
+		}
 
 		p->relocs[i].lobj.tv.bo = &p->relocs[i].robj->tbo;
 		p->relocs[i].handle = r->handle;
@@ -93,7 +106,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		radeon_bo_list_add_object(&p->relocs[i].lobj,
 					  &p->validated);
 	}
-	return radeon_bo_list_validate(&p->validated);
+	return radeon_bo_list_validate(&p->validated, p->ring);
 }
 
 static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority)
@@ -127,6 +140,9 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 		} else {
 			return -EINVAL;
 		}
+		break;
+	case RADEON_CS_RING_UVD:
+		p->ring = R600_RING_TYPE_UVD_INDEX;
 		break;
 	}
 	return 0;

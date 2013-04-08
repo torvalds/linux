@@ -110,23 +110,26 @@ extern int radeon_fastfb;
 #define RADEON_BIOS_NUM_SCRATCH			8
 
 /* max number of rings */
-#define RADEON_NUM_RINGS			5
+#define RADEON_NUM_RINGS			6
 
 /* fence seq are set to this number when signaled */
 #define RADEON_FENCE_SIGNALED_SEQ		0LL
 
 /* internal ring indices */
 /* r1xx+ has gfx CP ring */
-#define RADEON_RING_TYPE_GFX_INDEX		0
+#define RADEON_RING_TYPE_GFX_INDEX	0
 
 /* cayman has 2 compute CP rings */
-#define CAYMAN_RING_TYPE_CP1_INDEX		1
-#define CAYMAN_RING_TYPE_CP2_INDEX		2
+#define CAYMAN_RING_TYPE_CP1_INDEX	1
+#define CAYMAN_RING_TYPE_CP2_INDEX	2
 
 /* R600+ has an async dma ring */
 #define R600_RING_TYPE_DMA_INDEX		3
 /* cayman add a second async dma ring */
 #define CAYMAN_RING_TYPE_DMA1_INDEX		4
+
+/* R600+ */
+#define R600_RING_TYPE_UVD_INDEX	5
 
 /* hardcode those limit for now */
 #define RADEON_VA_IB_OFFSET			(1 << 20)
@@ -921,6 +924,7 @@ struct radeon_wb {
 #define R600_WB_DMA_RPTR_OFFSET   1792
 #define R600_WB_IH_WPTR_OFFSET   2048
 #define CAYMAN_WB_DMA1_RPTR_OFFSET   2304
+#define R600_WB_UVD_RPTR_OFFSET  2560
 #define R600_WB_EVENT_OFFSET     3072
 
 /**
@@ -1121,6 +1125,33 @@ struct radeon_pm {
 int radeon_pm_get_type_index(struct radeon_device *rdev,
 			     enum radeon_pm_state_type ps_type,
 			     int instance);
+/*
+ * UVD
+ */
+#define RADEON_MAX_UVD_HANDLES	10
+#define RADEON_UVD_STACK_SIZE	(1024*1024)
+#define RADEON_UVD_HEAP_SIZE	(1024*1024)
+
+struct radeon_uvd {
+	struct radeon_bo	*vcpu_bo;
+	void			*cpu_addr;
+	uint64_t		gpu_addr;
+	atomic_t		handles[RADEON_MAX_UVD_HANDLES];
+	struct drm_file		*filp[RADEON_MAX_UVD_HANDLES];
+};
+
+int radeon_uvd_init(struct radeon_device *rdev);
+void radeon_uvd_fini(struct radeon_device *rdev);
+int radeon_uvd_suspend(struct radeon_device *rdev);
+int radeon_uvd_resume(struct radeon_device *rdev);
+int radeon_uvd_get_create_msg(struct radeon_device *rdev, int ring,
+			      uint32_t handle, struct radeon_fence **fence);
+int radeon_uvd_get_destroy_msg(struct radeon_device *rdev, int ring,
+			       uint32_t handle, struct radeon_fence **fence);
+void radeon_uvd_force_into_uvd_segment(struct radeon_bo *rbo);
+void radeon_uvd_free_handles(struct radeon_device *rdev,
+			     struct drm_file *filp);
+int radeon_uvd_cs_parse(struct radeon_cs_parser *parser);
 
 struct r600_audio {
 	int			channels;
@@ -1611,6 +1642,7 @@ struct radeon_device {
 	struct radeon_asic		*asic;
 	struct radeon_gem		gem;
 	struct radeon_pm		pm;
+	struct radeon_uvd		uvd;
 	uint32_t			bios_scratch[RADEON_BIOS_NUM_SCRATCH];
 	struct radeon_wb		wb;
 	struct radeon_dummy_page	dummy_page;
@@ -1625,6 +1657,7 @@ struct radeon_device {
 	const struct firmware *rlc_fw;	/* r6/700 RLC firmware */
 	const struct firmware *mc_fw;	/* NI MC firmware */
 	const struct firmware *ce_fw;	/* SI CE firmware */
+	const struct firmware *uvd_fw;	/* UVD firmware */
 	struct r600_blit r600_blit;
 	struct r600_vram_scratch vram_scratch;
 	int msi_enabled; /* msi enabled */

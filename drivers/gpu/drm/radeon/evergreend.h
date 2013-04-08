@@ -992,6 +992,13 @@
 #       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
 #       define SELECTABLE_DEEMPHASIS                      (1 << 6)
 
+
+/*
+ * UVD
+ */
+#define UVD_RBC_RB_RPTR					0xf690
+#define UVD_RBC_RB_WPTR					0xf694
+
 /*
  * PM4
  */

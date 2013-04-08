@@ -516,6 +516,7 @@ void radeon_driver_preclose_kms(struct drm_device *dev,
 		rdev->hyperz_filp = NULL;
 	if (rdev->cmask_filp == file_priv)
 		rdev->cmask_filp = NULL;
+	radeon_uvd_free_handles(rdev, file_priv);
 }
 
 /*

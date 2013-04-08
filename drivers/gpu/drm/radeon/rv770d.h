@@ -671,4 +671,18 @@
 #       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
 #       define SELECTABLE_DEEMPHASIS                      (1 << 6)
 
+/* UVD */
+#define UVD_LMI_EXT40_ADDR				0xf498
+#define UVD_VCPU_CHIP_ID				0xf4d4
+#define UVD_VCPU_CACHE_OFFSET0				0xf4d8
+#define UVD_VCPU_CACHE_SIZE0				0xf4dc
+#define UVD_VCPU_CACHE_OFFSET1				0xf4e0
+#define UVD_VCPU_CACHE_SIZE1				0xf4e4
+#define UVD_VCPU_CACHE_OFFSET2				0xf4e8
+#define UVD_VCPU_CACHE_SIZE2				0xf4ec
+#define UVD_LMI_ADDR_EXT				0xf594
+
+#define UVD_RBC_RB_RPTR					0xf690
+#define UVD_RBC_RB_WPTR					0xf694
+
 #endif

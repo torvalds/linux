@@ -490,6 +490,15 @@
 #       define CACHE_FLUSH_AND_INV_EVENT                        (0x16 << 0)
 
 /*
+ * UVD
+ */
+#define UVD_SEMA_ADDR_LOW				0xEF00
+#define UVD_SEMA_ADDR_HIGH				0xEF04
+#define UVD_SEMA_CMD					0xEF08
+#define UVD_RBC_RB_RPTR					0xF690
+#define UVD_RBC_RB_WPTR					0xF694
+
+/*
  * PM4
  */
 #define PACKET0(reg, n)	((RADEON_PACKET_TYPE0 << 30) |			\
