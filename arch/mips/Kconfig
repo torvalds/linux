@@ -981,9 +981,6 @@ config MIPS_MSC
 config MIPS_NILE4
 	bool
 
-config MIPS_DISABLE_OBSOLETE_IDE
-	bool
-
 config SYNC_R4K
 	bool
 
