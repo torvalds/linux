@@ -83,33 +83,33 @@ static int acl7225b_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[0];
 	/* Relays outputs */
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->maxdata = 1;
-	s->n_chan = 16;
-	s->insn_bits = acl7225b_do_insn;
-	s->range_table = &range_digital;
-	s->private = (void *)ACL7225_RIO_LO;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->maxdata	= 1;
+	s->n_chan	= 16;
+	s->insn_bits	= acl7225b_do_insn;
+	s->range_table	= &range_digital;
+	s->private	= (void *)ACL7225_RIO_LO;
 
 	s = &dev->subdevices[1];
 	/* Relays status */
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->maxdata = 1;
-	s->n_chan = 16;
-	s->insn_bits = acl7225b_di_insn;
-	s->range_table = &range_digital;
-	s->private = (void *)ACL7225_RIO_LO;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->maxdata	= 1;
+	s->n_chan	= 16;
+	s->insn_bits	= acl7225b_di_insn;
+	s->range_table	= &range_digital;
+	s->private	= (void *)ACL7225_RIO_LO;
 
 	s = &dev->subdevices[2];
 	/* Isolated digital inputs */
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->maxdata = 1;
-	s->n_chan = 16;
-	s->insn_bits = acl7225b_di_insn;
-	s->range_table = &range_digital;
-	s->private = (void *)ACL7225_DI_LO;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->maxdata	= 1;
+	s->n_chan	= 16;
+	s->insn_bits	= acl7225b_di_insn;
+	s->range_table	= &range_digital;
+	s->private	= (void *)ACL7225_DI_LO;
 
 	return 0;
 }
