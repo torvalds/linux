@@ -187,6 +187,8 @@ struct inet6_dev {
 	struct list_head	tempaddr_list;
 #endif
 
+	struct in6_addr		token;
+
 	struct neigh_parms	*nd_parms;
 	struct inet6_dev	*next;
 	struct ipv6_devconf	cnf;
