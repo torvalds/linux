@@ -165,7 +165,7 @@ struct mxcmci_host {
 	enum mxcmci_type	devtype;
 };
 
-static struct platform_device_id mxcmci_devtype[] = {
+static const struct platform_device_id mxcmci_devtype[] = {
 	{
 		.name = "imx21-mmc",
 		.driver_data = IMX21_MMC,
