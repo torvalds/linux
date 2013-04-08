@@ -3220,9 +3220,9 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 							    e->bEndpointAddress;
 					} else {
 						if (usb_endpoint_xfer_isoc(e)) {
-							dev->dvb_ep_isoc = e->bEndpointAddress;
 							if (size > dev->dvb_max_pkt_size_isoc) {
 								has_dvb = true; /* see NOTE (~) */
+								dev->dvb_ep_isoc = e->bEndpointAddress;
 								dev->dvb_max_pkt_size_isoc = size;
 								dev->dvb_alt_isoc = i;
 							}
