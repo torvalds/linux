@@ -4958,13 +4958,6 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	tmp |= (0x12 << 24);
 	intel_sbi_write(dev_priv, 0x8008, tmp, SBI_MPHY);
 
-	if (!is_sdv) {
-		tmp = intel_sbi_read(dev_priv, 0x808C, SBI_MPHY);
-		tmp &= ~(0x3 << 6);
-		tmp |= (1 << 6) | (1 << 0);
-		intel_sbi_write(dev_priv, 0x808C, tmp, SBI_MPHY);
-	}
-
 	if (is_sdv) {
 		tmp = intel_sbi_read(dev_priv, 0x800C, SBI_MPHY);
 		tmp |= 0x7FFF;
