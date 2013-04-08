@@ -2006,7 +2006,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 #endif
 	while (count < limit) {
 		int status;
-		struct dma_desc *p, *p_next;
+		struct dma_desc *p;
 
 		if (priv->extend_desc)
 			p = (struct dma_desc *)(priv->dma_erx + entry);
@@ -2020,12 +2020,9 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 
 		next_entry = (++priv->cur_rx) % rxsize;
 		if (priv->extend_desc)
-			p_next = (struct dma_desc *)(priv->dma_erx +
-						     next_entry);
+			prefetch(priv->dma_erx + next_entry);
 		else
-			p_next = priv->dma_rx + next_entry;
-
-		prefetch(p_next);
+			prefetch(priv->dma_rx + next_entry);
 
 		/* read the status of the incoming frame */
 		status = priv->hw->desc->rx_status(&priv->dev->stats,
