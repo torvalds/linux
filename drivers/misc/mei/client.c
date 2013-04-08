@@ -678,6 +678,111 @@ err:
 }
 
 /**
+ * mei_cl_write - submit a write cb to mei device
+	assumes device_lock is locked
+ *
+ * @cl: host client
+ * @cl: write callback with filled data
+ *
+ * returns numbe of bytes sent on success, <0 on failure.
+ */
+int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
+{
+	struct mei_device *dev;
+	struct mei_msg_data *buf;
+	struct mei_msg_hdr mei_hdr;
+	int rets;
+
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -ENODEV;
+
+	if (WARN_ON(!cb))
+		return -EINVAL;
+
+	dev = cl->dev;
+
+
+	buf = &cb->request_buffer;
+
+	dev_dbg(&dev->pdev->dev, "mei_cl_write %d\n", buf->size);
+
+
+	cb->fop_type = MEI_FOP_WRITE;
+
+	rets = mei_cl_flow_ctrl_creds(cl);
+	if (rets < 0)
+		goto err;
+
+	/* Host buffer is not ready, we queue the request */
+	if (rets == 0 || !dev->hbuf_is_ready) {
+		cb->buf_idx = 0;
+		/* unseting complete will enqueue the cb for write */
+		mei_hdr.msg_complete = 0;
+		cl->writing_state = MEI_WRITING;
+		rets = buf->size;
+		goto out;
+	}
+
+	dev->hbuf_is_ready = false;
+
+	/* Check for a maximum length */
+	if (buf->size > mei_hbuf_max_len(dev)) {
+		mei_hdr.length = mei_hbuf_max_len(dev);
+		mei_hdr.msg_complete = 0;
+	} else {
+		mei_hdr.length = buf->size;
+		mei_hdr.msg_complete = 1;
+	}
+
+	mei_hdr.host_addr = cl->host_client_id;
+	mei_hdr.me_addr = cl->me_client_id;
+	mei_hdr.reserved = 0;
+
+	dev_dbg(&dev->pdev->dev, "write " MEI_HDR_FMT "\n",
+		MEI_HDR_PRM(&mei_hdr));
+
+
+	if (mei_write_message(dev, &mei_hdr, buf->data)) {
+		rets = -EIO;
+		goto err;
+	}
+
+	cl->writing_state = MEI_WRITING;
+	cb->buf_idx = mei_hdr.length;
+
+	rets = buf->size;
+out:
+	if (mei_hdr.msg_complete) {
+		if (mei_cl_flow_ctrl_reduce(cl)) {
+			rets = -ENODEV;
+			goto err;
+		}
+		list_add_tail(&cb->list, &dev->write_waiting_list.list);
+	} else {
+		list_add_tail(&cb->list, &dev->write_list.list);
+	}
+
+
+	if (blocking && cl->writing_state != MEI_WRITE_COMPLETE) {
+
+		mutex_unlock(&dev->device_lock);
+		if (wait_event_interruptible(cl->tx_wait,
+			cl->writing_state == MEI_WRITE_COMPLETE)) {
+				if (signal_pending(current))
+					rets = -EINTR;
+				else
+					rets = -ERESTARTSYS;
+		}
+		mutex_lock(&dev->device_lock);
+	}
+err:
+	return rets;
+}
+
+
+
+/**
  * mei_cl_all_disconnect - disconnect forcefully all connected clients
  *
  * @dev - mei device

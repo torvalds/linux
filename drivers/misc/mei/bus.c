@@ -226,112 +226,47 @@ static int ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 			bool blocking)
 {
 	struct mei_device *dev;
-	struct mei_msg_hdr mei_hdr;
 	struct mei_cl_cb *cb;
-	int me_cl_id, err;
+	int id;
+	int rets;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
 
+	dev = cl->dev;
+
 	if (cl->state != MEI_FILE_CONNECTED)
 		return -ENODEV;
+
+	/* Check if we have an ME client device */
+	id = mei_me_cl_by_id(dev, cl->me_client_id);
+	if (id < 0)
+		return -ENODEV;
+
+	if (length > dev->me_clients[id].props.max_msg_length)
+		return -EINVAL;
 
 	cb = mei_io_cb_init(cl, NULL);
 	if (!cb)
 		return -ENOMEM;
 
-	err = mei_io_cb_alloc_req_buf(cb, length);
-	if (err < 0) {
+	rets = mei_io_cb_alloc_req_buf(cb, length);
+	if (rets < 0) {
 		mei_io_cb_free(cb);
-		return err;
+		return rets;
 	}
 
 	memcpy(cb->request_buffer.data, buf, length);
-	cb->fop_type = MEI_FOP_WRITE;
-
-	dev = cl->dev;
 
 	mutex_lock(&dev->device_lock);
 
-	/* Check if we have an ME client device */
-	me_cl_id = mei_me_cl_by_id(dev, cl->me_client_id);
-	if (me_cl_id == dev->me_clients_num) {
-		err = -ENODEV;
-		goto out_err;
-	}
-
-	if (length > dev->me_clients[me_cl_id].props.max_msg_length) {
-		err = -EINVAL;
-		goto out_err;
-	}
-
-	err = mei_cl_flow_ctrl_creds(cl);
-	if (err < 0)
-		goto out_err;
-
-	/* Host buffer is not ready, we queue the request */
-	if (err == 0 || !dev->hbuf_is_ready) {
-		cb->buf_idx = 0;
-		mei_hdr.msg_complete = 0;
-		cl->writing_state = MEI_WRITING;
-
-		goto out;
-	}
-
-	dev->hbuf_is_ready = false;
-
-	/* Check for a maximum length */
-	if (length > mei_hbuf_max_len(dev)) {
-		mei_hdr.length = mei_hbuf_max_len(dev);
-		mei_hdr.msg_complete = 0;
-	} else {
-		mei_hdr.length = length;
-		mei_hdr.msg_complete = 1;
-	}
-
-	mei_hdr.host_addr = cl->host_client_id;
-	mei_hdr.me_addr = cl->me_client_id;
-	mei_hdr.reserved = 0;
-
-	if (mei_write_message(dev, &mei_hdr, buf)) {
-		err = -EIO;
-		goto out_err;
-	}
-
-	cl->writing_state = MEI_WRITING;
-	cb->buf_idx = mei_hdr.length;
-
-out:
-	if (mei_hdr.msg_complete) {
-		if (mei_cl_flow_ctrl_reduce(cl)) {
-			err = -ENODEV;
-			goto out_err;
-		}
-		list_add_tail(&cb->list, &dev->write_waiting_list.list);
-	} else {
-		list_add_tail(&cb->list, &dev->write_list.list);
-	}
+	rets = mei_cl_write(cl, cb, blocking);
 
 	mutex_unlock(&dev->device_lock);
+	if (rets < 0)
+		mei_io_cb_free(cb);
 
-	if (blocking && cl->writing_state != MEI_WRITE_COMPLETE) {
-		if (wait_event_interruptible(cl->tx_wait,
-			cl->writing_state == MEI_WRITE_COMPLETE)) {
-				if (signal_pending(current))
-					err = -EINTR;
-			err = -ERESTARTSYS;
-			mutex_lock(&dev->device_lock);
-			goto out_err;
-		}
-	}
-
-	return mei_hdr.length;
-
-out_err:
-	mutex_unlock(&dev->device_lock);
-	mei_io_cb_free(cb);
-
-	return err;
+	return rets;
 }
 
 int __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
