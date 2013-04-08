@@ -162,7 +162,7 @@
 		interrupts = <0 31 4>;
 		interrupt-names = "macirq";
 		phy-mode = "sgmii";
-		clocks = <&clock 12>;
+		clocks = <&clock 25>;
 		clock-names = "stmmaceth";
 	};
 
