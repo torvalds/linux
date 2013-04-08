@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_qtaguid.h>
+#include <linux/ratelimit.h>
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
 #include <net/addrconf.h>
@@ -1328,12 +1329,12 @@ static void iface_stat_update_from_skb(const struct sk_buff *skb,
 	}
 
 	if (unlikely(!el_dev)) {
-		pr_err("qtaguid[%d]: %s(): no par->in/out?!!\n",
-		       par->hooknum, __func__);
+		pr_err_ratelimited("qtaguid[%d]: %s(): no par->in/out?!!\n",
+				   par->hooknum, __func__);
 		BUG();
 	} else if (unlikely(!el_dev->name)) {
-		pr_err("qtaguid[%d]: %s(): no dev->name?!!\n",
-		       par->hooknum, __func__);
+		pr_err_ratelimited("qtaguid[%d]: %s(): no dev->name?!!\n",
+				   par->hooknum, __func__);
 		BUG();
 	} else {
 		proto = ipx_proto(skb, par);
@@ -1416,8 +1417,8 @@ static void if_tag_stat_update(const char *ifname, uid_t uid,
 
 	iface_entry = get_iface_entry(ifname);
 	if (!iface_entry) {
-		pr_err("qtaguid: iface_stat: stat_update() %s not found\n",
-		       ifname);
+		pr_err_ratelimited("qtaguid: iface_stat: stat_update() "
+				   "%s not found\n", ifname);
 		return;
 	}
 	/* It is ok to process data when an iface_entry is inactive */
