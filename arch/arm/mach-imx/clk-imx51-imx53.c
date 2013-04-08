@@ -362,8 +362,8 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 				mx51_ipu_di0_sel, ARRAY_SIZE(mx51_ipu_di0_sel));
 	clk[ipu_di1_sel] = imx_clk_mux("ipu_di1_sel", MXC_CCM_CSCMR2, 29, 3,
 				mx51_ipu_di1_sel, ARRAY_SIZE(mx51_ipu_di1_sel));
-	clk[tve_ext_sel] = imx_clk_mux("tve_ext_sel", MXC_CCM_CSCMR1, 6, 1,
-				mx51_tve_ext_sel, ARRAY_SIZE(mx51_tve_ext_sel));
+	clk[tve_ext_sel] = imx_clk_mux_flags("tve_ext_sel", MXC_CCM_CSCMR1, 6, 1,
+				mx51_tve_ext_sel, ARRAY_SIZE(mx51_tve_ext_sel), CLK_SET_RATE_PARENT);
 	clk[tve_s] = imx_clk_mux("tve_sel", MXC_CCM_CSCMR1, 7, 1,
 				mx51_tve_sel, ARRAY_SIZE(mx51_tve_sel));
 	clk[tve_gate] = imx_clk_gate2("tve_gate", "tve_sel", MXC_CCM_CCGR2, 30);
