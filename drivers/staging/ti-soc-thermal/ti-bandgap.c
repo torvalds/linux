@@ -1369,7 +1369,7 @@ int ti_bandgap_remove(struct platform_device *pdev)
 
 	/* First thing is to remove sensor interfaces */
 	for (i = 0; i < bgp->conf->sensor_count; i++) {
-		if (bgp->conf->sensors[i].register_cooling)
+		if (bgp->conf->sensors[i].unregister_cooling)
 			bgp->conf->sensors[i].unregister_cooling(bgp, i);
 
 		if (bgp->conf->remove_sensor)
