@@ -33,9 +33,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/cpufreq.h>
 #include <linux/platform_data/ux500_wdt.h>
-#include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/db8500-regs.h>
 #include "dbx500-prcmu-regs.h"
 
 /* Index of different voltages to be used when accessing AVSData */
