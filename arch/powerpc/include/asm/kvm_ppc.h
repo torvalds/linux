@@ -44,7 +44,7 @@ enum emulation_result {
 	EMULATE_DO_DCR,       /* kvm_run filled with DCR request */
 	EMULATE_FAIL,         /* can't emulate this instruction */
 	EMULATE_AGAIN,        /* something went wrong. go again */
-	EMULATE_DO_PAPR,      /* kvm_run filled with PAPR request */
+	EMULATE_EXIT_USER,    /* emulation requires exit to user-space */
 };
 
 extern int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);

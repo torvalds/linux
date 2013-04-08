@@ -194,7 +194,7 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				run->papr_hcall.args[i] = gpr;
 			}
 
-			emulated = EMULATE_DO_PAPR;
+			emulated = EMULATE_EXIT_USER;
 			break;
 		}
 #endif
