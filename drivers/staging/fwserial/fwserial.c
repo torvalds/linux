@@ -1527,7 +1527,7 @@ static void fwtty_debugfs_show_port(struct seq_file *m, struct fwtty_port *port)
 		   stats.watermark);
 
 	if (port->port.console) {
-		seq_printf(m, "\n    ");
+		seq_puts(m, "\n    ");
 		(*port->fwcon_ops->proc_show)(m, port->con_data);
 	}
 
@@ -1559,7 +1559,7 @@ static int fwtty_proc_show(struct seq_file *m, void *v)
 		if (capable(CAP_SYS_ADMIN))
 			fwtty_proc_show_port(m, port);
 		fwtty_port_put(port);
-		seq_printf(m, "\n");
+		seq_puts(m, "\n");
 	}
 	return 0;
 }
@@ -1577,7 +1577,7 @@ static int fwtty_debugfs_stats_show(struct seq_file *m, void *v)
 			fwtty_proc_show_port(m, port);
 			fwtty_debugfs_show_port(m, port);
 			fwtty_port_put(port);
-			seq_printf(m, "\n");
+			seq_puts(m, "\n");
 		}
 	}
 	return 0;
