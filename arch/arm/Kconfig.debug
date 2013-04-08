@@ -89,6 +89,10 @@ choice
 		bool "Kernel low-level debugging on 9263 and 9g45"
 		depends on HAVE_AT91_DBGU1
 
+	config DEBUG_BCM2835
+		bool "Kernel low-level debugging on BCM2835 PL011 UART"
+		depends on ARCH_BCM2835
+
 	config DEBUG_CLPS711X_UART1
 		bool "Kernel low-level debugging messages via UART1"
 		depends on ARCH_CLPS711X
@@ -593,6 +597,7 @@ endchoice
 
 config DEBUG_LL_INCLUDE
 	string
+	default "debug/bcm2835.S" if DEBUG_BCM2835
 	default "debug/cns3xxx.S" if DEBUG_CNS3XXX
 	default "debug/icedcc.S" if DEBUG_ICEDCC
 	default "debug/imx.S" if DEBUG_IMX1_UART || \
