@@ -28,6 +28,7 @@
 #include <linux/leds.h>
 #include <linux/dma-mapping.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/platform_data/gpio-rcar.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
@@ -173,15 +174,15 @@ static struct platform_device usb_phy_device = {
 static struct gpio_led marzen_leds[] = {
 	{
 		.name		= "led2",
-		.gpio		= 157,
+		.gpio		= RCAR_GP_PIN(4, 29),
 		.default_state	= LEDS_GPIO_DEFSTATE_ON,
 	}, {
 		.name		= "led3",
-		.gpio		= 158,
+		.gpio		= RCAR_GP_PIN(4, 30),
 		.default_state	= LEDS_GPIO_DEFSTATE_ON,
 	}, {
 		.name		= "led4",
-		.gpio		= 159,
+		.gpio		= RCAR_GP_PIN(4, 31),
 		.default_state	= LEDS_GPIO_DEFSTATE_ON,
 	},
 };
