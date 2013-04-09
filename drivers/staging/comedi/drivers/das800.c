@@ -437,33 +437,19 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase = it->options[0];
 	unsigned int irq = it->options[1];
 	unsigned long irq_flags;
 	int board;
 	int ret;
-
-	dev_info(dev->class_dev, "das800: io 0x%lx\n", iobase);
-	if (irq)
-		dev_dbg(dev->class_dev, "irq %u\n", irq);
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	if (iobase == 0) {
-		dev_err(dev->class_dev,
-			"io base address required for das800\n");
-		return -EINVAL;
-	}
-
-	/* check if io addresses are available */
-	if (!request_region(iobase, DAS800_SIZE, "das800")) {
-		dev_err(dev->class_dev, "I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], DAS800_SIZE);
+	if (ret)
+		return ret;
 
 	board = das800_probe(dev);
 	if (board < 0) {
