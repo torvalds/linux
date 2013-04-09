@@ -120,8 +120,8 @@ Required properties :
   90	clk_d
   91	unassigned
   92	sus
-  93	cdev1
-  94	cdev2
+  93	cdev2
+  94	cdev1
   95	unassigned
 
   96	uart2
