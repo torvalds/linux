@@ -284,21 +284,12 @@ static int das6402_attach(struct comedi_device *dev,
 {
 	struct das6402_private *devpriv;
 	unsigned int irq;
-	unsigned long iobase;
 	int ret;
 	struct comedi_subdevice *s;
 
-	iobase = it->options[0];
-	if (iobase == 0)
-		iobase = 0x300;
-
-	if (!request_region(iobase, DAS6402_SIZE, "das6402")) {
-		dev_err(dev->class_dev, "I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
-
-	/* should do a probe here */
+	ret = comedi_request_region(dev, it->options[0], DAS6402_SIZE);
+	if (ret)
+		return ret;
 
 	irq = it->options[0];
 	dev_dbg(dev->class_dev, "( irq = %u )\n", irq);
