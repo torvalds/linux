@@ -536,6 +536,7 @@ struct nvme_dev {
 	char model[40];
 	char firmware_rev[8];
 	u32 max_hw_sectors;
+	u32 stripe_size;
 	u16 oncs;
 };
 
