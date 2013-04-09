@@ -349,12 +349,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 		subs->interface = fmt->iface;
 		subs->altset_idx = fmt->altset_idx;
 
-		/*
-		 * "Playback Design" products need a 50ms delay after setting the
-		 * USB interface.
-		 */
-		if (le16_to_cpu(dev->descriptor.idVendor) == 0x23ba)
-			mdelay(50);
+		snd_usb_set_interface_quirk(dev);
 	}
 
 	subs->data_endpoint = snd_usb_add_endpoint(subs->stream->chip,

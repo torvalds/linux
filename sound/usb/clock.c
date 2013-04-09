@@ -32,6 +32,7 @@
 #include "card.h"
 #include "helper.h"
 #include "clock.h"
+#include "quirks.h"
 
 static struct uac_clock_source_descriptor *
 	snd_usb_find_clock_source(struct usb_host_interface *ctrl_iface,
@@ -392,7 +393,9 @@ static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 	 * interface is active. */
 	if (rate != prev_rate) {
 		usb_set_interface(dev, iface, 0);
+		snd_usb_set_interface_quirk(dev);
 		usb_set_interface(dev, iface, fmt->altsetting);
+		snd_usb_set_interface_quirk(dev);
 	}
 
 	return 0;

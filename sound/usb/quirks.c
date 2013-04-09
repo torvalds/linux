@@ -892,6 +892,16 @@ void snd_usb_endpoint_start_quirk(struct snd_usb_endpoint *ep)
 		ep->skip_packets = 16;
 }
 
+void snd_usb_set_interface_quirk(struct usb_device *dev)
+{
+	/*
+	 * "Playback Design" products need a 50ms delay after setting the
+	 * USB interface.
+	 */
+	if (le16_to_cpu(dev->descriptor.idVendor) == 0x23ba)
+		mdelay(50);
+}
+
 void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 			   __u8 request, __u8 requesttype, __u16 value,
 			   __u16 index, void *data, __u16 size)
