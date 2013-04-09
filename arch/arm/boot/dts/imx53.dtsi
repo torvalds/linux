@@ -27,6 +27,9 @@
 		gpio4 = &gpio5;
 		gpio5 = &gpio6;
 		gpio6 = &gpio7;
+		i2c0 = &i2c1;
+		i2c1 = &i2c2;
+		i2c2 = &i2c3;
 	};
 
 	tzic: tz-interrupt-controller@0fffc000 {
