@@ -45,17 +45,11 @@ static int pcl725_di_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: pcl725: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, PCL725_SIZE, "pcl725")) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
-	dev->irq = 0;
+	ret = comedi_request_region(dev, it->options[0], PCL725_SIZE);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
