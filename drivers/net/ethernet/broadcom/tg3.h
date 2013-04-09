@@ -2371,6 +2371,13 @@
 #define MII_TG3_FET_SHDW_AUXSTAT2	0x1b
 #define  MII_TG3_FET_SHDW_AUXSTAT2_APD	0x0020
 
+/* Serdes PHY Register Definitions */
+#define SERDES_TG3_1000X_STATUS		0x14
+#define  SERDES_TG3_SGMII_MODE		 0x0001
+#define  SERDES_TG3_LINK_UP		 0x0002
+#define  SERDES_TG3_FULL_DUPLEX		 0x0004
+#define  SERDES_TG3_SPEED_100		 0x0008
+#define  SERDES_TG3_SPEED_1000		 0x0010
 
 /* APE registers.  Accessible through BAR1 */
 #define TG3_APE_GPIO_MSG		0x0008

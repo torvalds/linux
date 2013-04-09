@@ -5465,11 +5465,50 @@ static int tg3_setup_fiber_phy(struct tg3 *tp, int force_reset)
 
 static int tg3_setup_fiber_mii_phy(struct tg3 *tp, int force_reset)
 {
-	int current_link_up, err = 0;
+	int current_link_up = 0, err = 0;
 	u32 bmsr, bmcr;
-	u16 current_speed;
-	u8 current_duplex;
-	u32 local_adv, remote_adv;
+	u16 current_speed = SPEED_UNKNOWN;
+	u8 current_duplex = DUPLEX_UNKNOWN;
+	u32 local_adv, remote_adv, sgsr;
+
+	if ((tg3_asic_rev(tp) == ASIC_REV_5719 ||
+	     tg3_asic_rev(tp) == ASIC_REV_5720) &&
+	     !tg3_readphy(tp, SERDES_TG3_1000X_STATUS, &sgsr) &&
+	     (sgsr & SERDES_TG3_SGMII_MODE)) {
+
+		if (force_reset)
+			tg3_phy_reset(tp);
+
+		tp->mac_mode &= ~MAC_MODE_PORT_MODE_MASK;
+
+		if (!(sgsr & SERDES_TG3_LINK_UP)) {
+			tp->mac_mode |= MAC_MODE_PORT_MODE_GMII;
+		} else {
+			current_link_up = 1;
+			if (sgsr & SERDES_TG3_SPEED_1000) {
+				current_speed = SPEED_1000;
+				tp->mac_mode |= MAC_MODE_PORT_MODE_GMII;
+			} else if (sgsr & SERDES_TG3_SPEED_100) {
+				current_speed = SPEED_100;
+				tp->mac_mode |= MAC_MODE_PORT_MODE_MII;
+			} else {
+				current_speed = SPEED_10;
+				tp->mac_mode |= MAC_MODE_PORT_MODE_MII;
+			}
+
+			if (sgsr & SERDES_TG3_FULL_DUPLEX)
+				current_duplex = DUPLEX_FULL;
+			else
+				current_duplex = DUPLEX_HALF;
+		}
+
+		tw32_f(MAC_MODE, tp->mac_mode);
+		udelay(40);
+
+		tg3_clear_mac_status(tp);
+
+		goto fiber_setup_done;
+	}
 
 	tp->mac_mode |= MAC_MODE_PORT_MODE_GMII;
 	tw32_f(MAC_MODE, tp->mac_mode);
@@ -5480,9 +5519,6 @@ static int tg3_setup_fiber_mii_phy(struct tg3 *tp, int force_reset)
 	if (force_reset)
 		tg3_phy_reset(tp);
 
-	current_link_up = 0;
-	current_speed = SPEED_UNKNOWN;
-	current_duplex = DUPLEX_UNKNOWN;
 	tp->link_config.rmt_adv = 0;
 
 	err |= tg3_readphy(tp, MII_BMSR, &bmsr);
@@ -5600,6 +5636,7 @@ static int tg3_setup_fiber_mii_phy(struct tg3 *tp, int force_reset)
 		}
 	}
 
+fiber_setup_done:
 	if (current_link_up == 1 && current_duplex == DUPLEX_FULL)
 		tg3_setup_flow_control(tp, local_adv, remote_adv);
 
