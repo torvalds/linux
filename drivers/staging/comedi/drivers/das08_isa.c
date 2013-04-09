@@ -179,17 +179,18 @@ static int das08_isa_attach(struct comedi_device *dev,
 {
 	const struct das08_board_struct *thisboard = comedi_board(dev);
 	struct das08_private_struct *devpriv;
+	int ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	if (!request_region(it->options[0], thisboard->iosize,
-			    thisboard->name))
-		return -EIO;
+	ret = comedi_request_region(dev, it->options[0], thisboard->iosize);
+	if (ret)
+		return ret;
 
-	return das08_common_attach(dev, it->options[0]);
+	return das08_common_attach(dev, dev->iobase);
 }
 
 static void das08_isa_detach(struct comedi_device *dev)
