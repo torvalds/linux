@@ -100,7 +100,7 @@ struct labpc_private {
 	void (*write_byte) (unsigned int byte, unsigned long address);
 };
 
-int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
+int labpc_common_attach(struct comedi_device *dev,
 			unsigned int irq, unsigned int dma);
 void labpc_common_detach(struct comedi_device *dev);
 

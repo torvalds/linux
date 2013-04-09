@@ -1606,7 +1606,7 @@ static int labpc_eeprom_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
+int labpc_common_attach(struct comedi_device *dev,
 			unsigned int irq, unsigned int dma_chan)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
@@ -1615,14 +1615,6 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	unsigned long isr_flags;
 	int ret;
 	int i;
-
-	if (iobase == 0)
-		return -EINVAL;
-	if (board->bustype == isa_bustype) {
-		if (!request_region(iobase, LABPC_SIZE, dev->board_name))
-			return -EIO;
-	}
-	dev->iobase = iobase;
 
 	if (board->has_mmio) {
 		devpriv->read_byte = labpc_readb;
@@ -1782,6 +1774,9 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		iobase = it->options[0];
 		irq = it->options[1];
 		dma_chan = it->options[2];
+		if (!request_region(iobase, LABPC_SIZE, dev->board_name))
+			return -EIO;
+		dev->iobase = iobase;
 #else
 		dev_err(dev->class_dev,
 			"ni_labpc driver has not been built with ISA DMA support.\n");
@@ -1807,7 +1802,7 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		break;
 	}
 
-	return labpc_common_attach(dev, iobase, irq, dma_chan);
+	return labpc_common_attach(dev, irq, dma_chan);
 }
 
 static const struct labpc_boardinfo *
@@ -1831,7 +1826,6 @@ static int labpc_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct labpc_boardinfo *board;
 	struct labpc_private *devpriv;
-	unsigned long iobase;
 	unsigned int irq;
 	int ret;
 
@@ -1858,9 +1852,9 @@ static int labpc_auto_attach(struct comedi_device *dev,
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0)
 		return ret;
-	iobase = (unsigned long)devpriv->mite->daq_io_addr;
+	dev->iobase = (unsigned long)devpriv->mite->daq_io_addr;
 	irq = mite_irq(devpriv->mite);
-	return labpc_common_attach(dev, iobase, irq, 0);
+	return labpc_common_attach(dev, irq, 0);
 }
 
 void labpc_common_detach(struct comedi_device *dev)
