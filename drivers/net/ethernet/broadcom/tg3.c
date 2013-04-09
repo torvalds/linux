@@ -4587,9 +4587,7 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 		} else {
 			if (!(bmcr & BMCR_ANENABLE) &&
 			    tp->link_config.speed == current_speed &&
-			    tp->link_config.duplex == current_duplex &&
-			    tp->link_config.flowctrl ==
-			    tp->link_config.active_flowctrl) {
+			    tp->link_config.duplex == current_duplex) {
 				current_link_up = 1;
 			}
 		}
