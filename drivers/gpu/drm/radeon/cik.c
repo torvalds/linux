@@ -33,6 +33,7 @@
 
 extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
 extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save);
+extern void si_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 
 /*
  * Core functions
@@ -1387,3 +1388,363 @@ int cik_asic_reset(struct radeon_device *rdev)
 
 	return cik_gfx_gpu_soft_reset(rdev);
 }
+
+/* MC */
+/**
+ * cik_mc_program - program the GPU memory controller
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Set the location of vram, gart, and AGP in the GPU's
+ * physical address space (CIK).
+ */
+static void cik_mc_program(struct radeon_device *rdev)
+{
+	struct evergreen_mc_save save;
+	u32 tmp;
+	int i, j;
+
+	/* Initialize HDP */
+	for (i = 0, j = 0; i < 32; i++, j += 0x18) {
+		WREG32((0x2c14 + j), 0x00000000);
+		WREG32((0x2c18 + j), 0x00000000);
+		WREG32((0x2c1c + j), 0x00000000);
+		WREG32((0x2c20 + j), 0x00000000);
+		WREG32((0x2c24 + j), 0x00000000);
+	}
+	WREG32(HDP_REG_COHERENCY_FLUSH_CNTL, 0);
+
+	evergreen_mc_stop(rdev, &save);
+	if (radeon_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
+	}
+	/* Lockout access through VGA aperture*/
+	WREG32(VGA_HDP_CONTROL, VGA_MEMORY_DISABLE);
+	/* Update configuration */
+	WREG32(MC_VM_SYSTEM_APERTURE_LOW_ADDR,
+	       rdev->mc.vram_start >> 12);
+	WREG32(MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+	       rdev->mc.vram_end >> 12);
+	WREG32(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR,
+	       rdev->vram_scratch.gpu_addr >> 12);
+	tmp = ((rdev->mc.vram_end >> 24) & 0xFFFF) << 16;
+	tmp |= ((rdev->mc.vram_start >> 24) & 0xFFFF);
+	WREG32(MC_VM_FB_LOCATION, tmp);
+	/* XXX double check these! */
+	WREG32(HDP_NONSURFACE_BASE, (rdev->mc.vram_start >> 8));
+	WREG32(HDP_NONSURFACE_INFO, (2 << 7) | (1 << 30));
+	WREG32(HDP_NONSURFACE_SIZE, 0x3FFFFFFF);
+	WREG32(MC_VM_AGP_BASE, 0);
+	WREG32(MC_VM_AGP_TOP, 0x0FFFFFFF);
+	WREG32(MC_VM_AGP_BOT, 0x0FFFFFFF);
+	if (radeon_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
+	}
+	evergreen_mc_resume(rdev, &save);
+	/* we need to own VRAM, so turn off the VGA renderer here
+	 * to stop it overwriting our objects */
+	rv515_vga_render_disable(rdev);
+}
+
+/**
+ * cik_mc_init - initialize the memory controller driver params
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Look up the amount of vram, vram width, and decide how to place
+ * vram and gart within the GPU's physical address space (CIK).
+ * Returns 0 for success.
+ */
+static int cik_mc_init(struct radeon_device *rdev)
+{
+	u32 tmp;
+	int chansize, numchan;
+
+	/* Get VRAM informations */
+	rdev->mc.vram_is_ddr = true;
+	tmp = RREG32(MC_ARB_RAMCFG);
+	if (tmp & CHANSIZE_MASK) {
+		chansize = 64;
+	} else {
+		chansize = 32;
+	}
+	tmp = RREG32(MC_SHARED_CHMAP);
+	switch ((tmp & NOOFCHAN_MASK) >> NOOFCHAN_SHIFT) {
+	case 0:
+	default:
+		numchan = 1;
+		break;
+	case 1:
+		numchan = 2;
+		break;
+	case 2:
+		numchan = 4;
+		break;
+	case 3:
+		numchan = 8;
+		break;
+	case 4:
+		numchan = 3;
+		break;
+	case 5:
+		numchan = 6;
+		break;
+	case 6:
+		numchan = 10;
+		break;
+	case 7:
+		numchan = 12;
+		break;
+	case 8:
+		numchan = 16;
+		break;
+	}
+	rdev->mc.vram_width = numchan * chansize;
+	/* Could aper size report 0 ? */
+	rdev->mc.aper_base = pci_resource_start(rdev->pdev, 0);
+	rdev->mc.aper_size = pci_resource_len(rdev->pdev, 0);
+	/* size in MB on si */
+	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
+	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
+	rdev->mc.visible_vram_size = rdev->mc.aper_size;
+	si_vram_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
+
+	return 0;
+}
+
+/*
+ * GART
+ * VMID 0 is the physical GPU addresses as used by the kernel.
+ * VMIDs 1-15 are used for userspace clients and are handled
+ * by the radeon vm/hsa code.
+ */
+/**
+ * cik_pcie_gart_tlb_flush - gart tlb flush callback
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Flush the TLB for the VMID 0 page table (CIK).
+ */
+void cik_pcie_gart_tlb_flush(struct radeon_device *rdev)
+{
+	/* flush hdp cache */
+	WREG32(HDP_MEM_COHERENCY_FLUSH_CNTL, 0);
+
+	/* bits 0-15 are the VM contexts0-15 */
+	WREG32(VM_INVALIDATE_REQUEST, 0x1);
+}
+
+/**
+ * cik_pcie_gart_enable - gart enable
+ *
+ * @rdev: radeon_device pointer
+ *
+ * This sets up the TLBs, programs the page tables for VMID0,
+ * sets up the hw for VMIDs 1-15 which are allocated on
+ * demand, and sets up the global locations for the LDS, GDS,
+ * and GPUVM for FSA64 clients (CIK).
+ * Returns 0 for success, errors for failure.
+ */
+static int cik_pcie_gart_enable(struct radeon_device *rdev)
+{
+	int r, i;
+
+	if (rdev->gart.robj == NULL) {
+		dev_err(rdev->dev, "No VRAM object for PCIE GART.\n");
+		return -EINVAL;
+	}
+	r = radeon_gart_table_vram_pin(rdev);
+	if (r)
+		return r;
+	radeon_gart_restore(rdev);
+	/* Setup TLB control */
+	WREG32(MC_VM_MX_L1_TLB_CNTL,
+	       (0xA << 7) |
+	       ENABLE_L1_TLB |
+	       SYSTEM_ACCESS_MODE_NOT_IN_SYS |
+	       ENABLE_ADVANCED_DRIVER_MODEL |
+	       SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU);
+	/* Setup L2 cache */
+	WREG32(VM_L2_CNTL, ENABLE_L2_CACHE |
+	       ENABLE_L2_FRAGMENT_PROCESSING |
+	       ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE |
+	       ENABLE_L2_PDE0_CACHE_LRU_UPDATE_BY_WRITE |
+	       EFFECTIVE_L2_QUEUE_SIZE(7) |
+	       CONTEXT1_IDENTITY_ACCESS_MODE(1));
+	WREG32(VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS | INVALIDATE_L2_CACHE);
+	WREG32(VM_L2_CNTL3, L2_CACHE_BIGK_ASSOCIATIVITY |
+	       L2_CACHE_BIGK_FRAGMENT_SIZE(6));
+	/* setup context0 */
+	WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR, rdev->mc.gtt_start >> 12);
+	WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR, rdev->mc.gtt_end >> 12);
+	WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR, rdev->gart.table_addr >> 12);
+	WREG32(VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR,
+			(u32)(rdev->dummy_page.addr >> 12));
+	WREG32(VM_CONTEXT0_CNTL2, 0);
+	WREG32(VM_CONTEXT0_CNTL, (ENABLE_CONTEXT | PAGE_TABLE_DEPTH(0) |
+				  RANGE_PROTECTION_FAULT_ENABLE_DEFAULT));
+
+	WREG32(0x15D4, 0);
+	WREG32(0x15D8, 0);
+	WREG32(0x15DC, 0);
+
+	/* empty context1-15 */
+	/* FIXME start with 4G, once using 2 level pt switch to full
+	 * vm size space
+	 */
+	/* set vm size, must be a multiple of 4 */
+	WREG32(VM_CONTEXT1_PAGE_TABLE_START_ADDR, 0);
+	WREG32(VM_CONTEXT1_PAGE_TABLE_END_ADDR, rdev->vm_manager.max_pfn);
+	for (i = 1; i < 16; i++) {
+		if (i < 8)
+			WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (i << 2),
+			       rdev->gart.table_addr >> 12);
+		else
+			WREG32(VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + ((i - 8) << 2),
+			       rdev->gart.table_addr >> 12);
+	}
+
+	/* enable context1-15 */
+	WREG32(VM_CONTEXT1_PROTECTION_FAULT_DEFAULT_ADDR,
+	       (u32)(rdev->dummy_page.addr >> 12));
+	WREG32(VM_CONTEXT1_CNTL2, 0);
+	WREG32(VM_CONTEXT1_CNTL, ENABLE_CONTEXT | PAGE_TABLE_DEPTH(1) |
+				RANGE_PROTECTION_FAULT_ENABLE_DEFAULT);
+
+	/* TC cache setup ??? */
+	WREG32(TC_CFG_L1_LOAD_POLICY0, 0);
+	WREG32(TC_CFG_L1_LOAD_POLICY1, 0);
+	WREG32(TC_CFG_L1_STORE_POLICY, 0);
+
+	WREG32(TC_CFG_L2_LOAD_POLICY0, 0);
+	WREG32(TC_CFG_L2_LOAD_POLICY1, 0);
+	WREG32(TC_CFG_L2_STORE_POLICY0, 0);
+	WREG32(TC_CFG_L2_STORE_POLICY1, 0);
+	WREG32(TC_CFG_L2_ATOMIC_POLICY, 0);
+
+	WREG32(TC_CFG_L1_VOLATILE, 0);
+	WREG32(TC_CFG_L2_VOLATILE, 0);
+
+	if (rdev->family == CHIP_KAVERI) {
+		u32 tmp = RREG32(CHUB_CONTROL);
+		tmp &= ~BYPASS_VM;
+		WREG32(CHUB_CONTROL, tmp);
+	}
+
+	/* XXX SH_MEM regs */
+	/* where to put LDS, scratch, GPUVM in FSA64 space */
+	for (i = 0; i < 16; i++) {
+		WREG32(SRBM_GFX_CNTL, VMID(i));
+		WREG32(SH_MEM_CONFIG, 0);
+		WREG32(SH_MEM_APE1_BASE, 1);
+		WREG32(SH_MEM_APE1_LIMIT, 0);
+		WREG32(SH_MEM_BASES, 0);
+	}
+	WREG32(SRBM_GFX_CNTL, 0);
+
+	cik_pcie_gart_tlb_flush(rdev);
+	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
+		 (unsigned)(rdev->mc.gtt_size >> 20),
+		 (unsigned long long)rdev->gart.table_addr);
+	rdev->gart.ready = true;
+	return 0;
+}
+
+/**
+ * cik_pcie_gart_disable - gart disable
+ *
+ * @rdev: radeon_device pointer
+ *
+ * This disables all VM page table (CIK).
+ */
+static void cik_pcie_gart_disable(struct radeon_device *rdev)
+{
+	/* Disable all tables */
+	WREG32(VM_CONTEXT0_CNTL, 0);
+	WREG32(VM_CONTEXT1_CNTL, 0);
+	/* Setup TLB control */
+	WREG32(MC_VM_MX_L1_TLB_CNTL, SYSTEM_ACCESS_MODE_NOT_IN_SYS |
+	       SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU);
+	/* Setup L2 cache */
+	WREG32(VM_L2_CNTL,
+	       ENABLE_L2_FRAGMENT_PROCESSING |
+	       ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE |
+	       ENABLE_L2_PDE0_CACHE_LRU_UPDATE_BY_WRITE |
+	       EFFECTIVE_L2_QUEUE_SIZE(7) |
+	       CONTEXT1_IDENTITY_ACCESS_MODE(1));
+	WREG32(VM_L2_CNTL2, 0);
+	WREG32(VM_L2_CNTL3, L2_CACHE_BIGK_ASSOCIATIVITY |
+	       L2_CACHE_BIGK_FRAGMENT_SIZE(6));
+	radeon_gart_table_vram_unpin(rdev);
+}
+
+/**
+ * cik_pcie_gart_fini - vm fini callback
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Tears down the driver GART/VM setup (CIK).
+ */
+static void cik_pcie_gart_fini(struct radeon_device *rdev)
+{
+	cik_pcie_gart_disable(rdev);
+	radeon_gart_table_vram_free(rdev);
+	radeon_gart_fini(rdev);
+}
+
+/* vm parser */
+/**
+ * cik_ib_parse - vm ib_parse callback
+ *
+ * @rdev: radeon_device pointer
+ * @ib: indirect buffer pointer
+ *
+ * CIK uses hw IB checking so this is a nop (CIK).
+ */
+int cik_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
+{
+	return 0;
+}
+
+/*
+ * vm
+ * VMID 0 is the physical GPU addresses as used by the kernel.
+ * VMIDs 1-15 are used for userspace clients and are handled
+ * by the radeon vm/hsa code.
+ */
+/**
+ * cik_vm_init - cik vm init callback
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Inits cik specific vm parameters (number of VMs, base of vram for
+ * VMIDs 1-15) (CIK).
+ * Returns 0 for success.
+ */
+int cik_vm_init(struct radeon_device *rdev)
+{
+	/* number of VMs */
+	rdev->vm_manager.nvm = 16;
+	/* base offset of vram pages */
+	if (rdev->flags & RADEON_IS_IGP) {
+		u64 tmp = RREG32(MC_VM_FB_OFFSET);
+		tmp <<= 22;
+		rdev->vm_manager.vram_base_offset = tmp;
+	} else
+		rdev->vm_manager.vram_base_offset = 0;
+
+	return 0;
+}
+
+/**
+ * cik_vm_fini - cik vm fini callback
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Tear down any asic specific VM setup (CIK).
+ */
+void cik_vm_fini(struct radeon_device *rdev)
+{
+}
+

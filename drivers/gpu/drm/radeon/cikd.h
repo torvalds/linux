@@ -28,15 +28,105 @@
 
 #define CIK_RB_BITMAP_WIDTH_PER_SH  2
 
+#define VGA_HDP_CONTROL  				0x328
+#define		VGA_MEMORY_DISABLE				(1 << 4)
+
 #define DMIF_ADDR_CALC  				0xC00
+
+#define	SRBM_GFX_CNTL				        0xE44
+#define		PIPEID(x)					((x) << 0)
+#define		MEID(x)						((x) << 2)
+#define		VMID(x)						((x) << 4)
+#define		QUEUEID(x)					((x) << 8)
 
 #define	SRBM_STATUS2				        0xE4C
 #define	SRBM_STATUS				        0xE50
+
+#define VM_L2_CNTL					0x1400
+#define		ENABLE_L2_CACHE					(1 << 0)
+#define		ENABLE_L2_FRAGMENT_PROCESSING			(1 << 1)
+#define		L2_CACHE_PTE_ENDIAN_SWAP_MODE(x)		((x) << 2)
+#define		L2_CACHE_PDE_ENDIAN_SWAP_MODE(x)		((x) << 4)
+#define		ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE		(1 << 9)
+#define		ENABLE_L2_PDE0_CACHE_LRU_UPDATE_BY_WRITE	(1 << 10)
+#define		EFFECTIVE_L2_QUEUE_SIZE(x)			(((x) & 7) << 15)
+#define		CONTEXT1_IDENTITY_ACCESS_MODE(x)		(((x) & 3) << 19)
+#define VM_L2_CNTL2					0x1404
+#define		INVALIDATE_ALL_L1_TLBS				(1 << 0)
+#define		INVALIDATE_L2_CACHE				(1 << 1)
+#define		INVALIDATE_CACHE_MODE(x)			((x) << 26)
+#define			INVALIDATE_PTE_AND_PDE_CACHES		0
+#define			INVALIDATE_ONLY_PTE_CACHES		1
+#define			INVALIDATE_ONLY_PDE_CACHES		2
+#define VM_L2_CNTL3					0x1408
+#define		BANK_SELECT(x)					((x) << 0)
+#define		L2_CACHE_UPDATE_MODE(x)				((x) << 6)
+#define		L2_CACHE_BIGK_FRAGMENT_SIZE(x)			((x) << 15)
+#define		L2_CACHE_BIGK_ASSOCIATIVITY			(1 << 20)
+#define	VM_L2_STATUS					0x140C
+#define		L2_BUSY						(1 << 0)
+#define VM_CONTEXT0_CNTL				0x1410
+#define		ENABLE_CONTEXT					(1 << 0)
+#define		PAGE_TABLE_DEPTH(x)				(((x) & 3) << 1)
+#define		RANGE_PROTECTION_FAULT_ENABLE_DEFAULT		(1 << 4)
+#define VM_CONTEXT1_CNTL				0x1414
+#define VM_CONTEXT0_CNTL2				0x1430
+#define VM_CONTEXT1_CNTL2				0x1434
+#define	VM_CONTEXT8_PAGE_TABLE_BASE_ADDR		0x1438
+#define	VM_CONTEXT9_PAGE_TABLE_BASE_ADDR		0x143c
+#define	VM_CONTEXT10_PAGE_TABLE_BASE_ADDR		0x1440
+#define	VM_CONTEXT11_PAGE_TABLE_BASE_ADDR		0x1444
+#define	VM_CONTEXT12_PAGE_TABLE_BASE_ADDR		0x1448
+#define	VM_CONTEXT13_PAGE_TABLE_BASE_ADDR		0x144c
+#define	VM_CONTEXT14_PAGE_TABLE_BASE_ADDR		0x1450
+#define	VM_CONTEXT15_PAGE_TABLE_BASE_ADDR		0x1454
+
+#define VM_INVALIDATE_REQUEST				0x1478
+#define VM_INVALIDATE_RESPONSE				0x147c
+
+#define VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR	0x1518
+#define VM_CONTEXT1_PROTECTION_FAULT_DEFAULT_ADDR	0x151c
+
+#define	VM_CONTEXT0_PAGE_TABLE_BASE_ADDR		0x153c
+#define	VM_CONTEXT1_PAGE_TABLE_BASE_ADDR		0x1540
+#define	VM_CONTEXT2_PAGE_TABLE_BASE_ADDR		0x1544
+#define	VM_CONTEXT3_PAGE_TABLE_BASE_ADDR		0x1548
+#define	VM_CONTEXT4_PAGE_TABLE_BASE_ADDR		0x154c
+#define	VM_CONTEXT5_PAGE_TABLE_BASE_ADDR		0x1550
+#define	VM_CONTEXT6_PAGE_TABLE_BASE_ADDR		0x1554
+#define	VM_CONTEXT7_PAGE_TABLE_BASE_ADDR		0x1558
+#define	VM_CONTEXT0_PAGE_TABLE_START_ADDR		0x155c
+#define	VM_CONTEXT1_PAGE_TABLE_START_ADDR		0x1560
+
+#define	VM_CONTEXT0_PAGE_TABLE_END_ADDR			0x157C
+#define	VM_CONTEXT1_PAGE_TABLE_END_ADDR			0x1580
 
 #define MC_SHARED_CHMAP						0x2004
 #define		NOOFCHAN_SHIFT					12
 #define		NOOFCHAN_MASK					0x0000f000
 #define MC_SHARED_CHREMAP					0x2008
+
+#define CHUB_CONTROL					0x1864
+#define		BYPASS_VM					(1 << 0)
+
+#define	MC_VM_FB_LOCATION				0x2024
+#define	MC_VM_AGP_TOP					0x2028
+#define	MC_VM_AGP_BOT					0x202C
+#define	MC_VM_AGP_BASE					0x2030
+#define	MC_VM_SYSTEM_APERTURE_LOW_ADDR			0x2034
+#define	MC_VM_SYSTEM_APERTURE_HIGH_ADDR			0x2038
+#define	MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR		0x203C
+
+#define	MC_VM_MX_L1_TLB_CNTL				0x2064
+#define		ENABLE_L1_TLB					(1 << 0)
+#define		ENABLE_L1_FRAGMENT_PROCESSING			(1 << 1)
+#define		SYSTEM_ACCESS_MODE_PA_ONLY			(0 << 3)
+#define		SYSTEM_ACCESS_MODE_USE_SYS_MAP			(1 << 3)
+#define		SYSTEM_ACCESS_MODE_IN_SYS			(2 << 3)
+#define		SYSTEM_ACCESS_MODE_NOT_IN_SYS			(3 << 3)
+#define		SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU	(0 << 5)
+#define		ENABLE_ADVANCED_DRIVER_MODEL			(1 << 6)
+#define	MC_VM_FB_OFFSET					0x2068
 
 #define	MC_ARB_RAMCFG					0x2760
 #define		NOOFBANK_SHIFT					0
@@ -61,9 +151,15 @@
 #define HDP_MISC_CNTL					0x2F4C
 #define 	HDP_FLUSH_INVALIDATE_CACHE			(1 << 0)
 
+#define	CONFIG_MEMSIZE					0x5428
+
+#define HDP_MEM_COHERENCY_FLUSH_CNTL			0x5480
+
 #define	BIF_FB_EN						0x5490
 #define		FB_READ_EN					(1 << 0)
 #define		FB_WRITE_EN					(1 << 1)
+
+#define HDP_REG_COHERENCY_FLUSH_CNTL			0x54A0
 
 #define	GRBM_CNTL					0x8000
 #define		GRBM_READ_TIMEOUT(x)				((x) << 0)
@@ -189,6 +285,24 @@
 
 #define	SQ_CONFIG					0x8C00
 
+#define	SH_MEM_BASES					0x8C28
+/* if PTR32, these are the bases for scratch and lds */
+#define		PRIVATE_BASE(x)					((x) << 0) /* scratch */
+#define		SHARED_BASE(x)					((x) << 16) /* LDS */
+#define	SH_MEM_APE1_BASE				0x8C2C
+/* if PTR32, this is the base location of GPUVM */
+#define	SH_MEM_APE1_LIMIT				0x8C30
+/* if PTR32, this is the upper limit of GPUVM */
+#define	SH_MEM_CONFIG					0x8C34
+#define		PTR32						(1 << 0)
+#define		ALIGNMENT_MODE(x)				((x) << 2)
+#define			SH_MEM_ALIGNMENT_MODE_DWORD			0
+#define			SH_MEM_ALIGNMENT_MODE_DWORD_STRICT		1
+#define			SH_MEM_ALIGNMENT_MODE_STRICT			2
+#define			SH_MEM_ALIGNMENT_MODE_UNALIGNED			3
+#define		DEFAULT_MTYPE(x)				((x) << 4)
+#define		APE1_MTYPE(x)					((x) << 7)
+
 #define	SX_DEBUG_1					0x9060
 
 #define	SPI_CONFIG_CNTL					0x9100
@@ -292,6 +406,17 @@
 
 #define	TCP_CHAN_STEER_LO				0xac0c
 #define	TCP_CHAN_STEER_HI				0xac10
+
+#define	TC_CFG_L1_LOAD_POLICY0				0xAC68
+#define	TC_CFG_L1_LOAD_POLICY1				0xAC6C
+#define	TC_CFG_L1_STORE_POLICY				0xAC70
+#define	TC_CFG_L2_LOAD_POLICY0				0xAC74
+#define	TC_CFG_L2_LOAD_POLICY1				0xAC78
+#define	TC_CFG_L2_STORE_POLICY0				0xAC7C
+#define	TC_CFG_L2_STORE_POLICY1				0xAC80
+#define	TC_CFG_L2_ATOMIC_POLICY				0xAC84
+#define	TC_CFG_L1_VOLATILE				0xAC88
+#define	TC_CFG_L2_VOLATILE				0xAC8C
 
 #define PA_SC_RASTER_CONFIG                             0x28350
 #       define RASTER_CONFIG_RB_MAP_0                   0

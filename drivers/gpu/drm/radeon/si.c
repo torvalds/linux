@@ -3535,8 +3535,8 @@ static void si_mc_program(struct radeon_device *rdev)
 	}
 }
 
-static void si_vram_gtt_location(struct radeon_device *rdev,
-				 struct radeon_mc *mc)
+void si_vram_gtt_location(struct radeon_device *rdev,
+			  struct radeon_mc *mc)
 {
 	if (mc->mc_vram_size > 0xFFC0000000ULL) {
 		/* leave room for at least 1024M GTT */
