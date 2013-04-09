@@ -201,8 +201,6 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		ppgtt->pt_dma_addr[i] = pt_addr;
 	}
 
-	ppgtt->scratch_page_dma_addr = dev_priv->gtt.scratch_page_dma;
-
 	ppgtt->clear_range(ppgtt, 0,
 			   ppgtt->num_pd_entries*I915_PPGTT_PT_ENTRIES);
 
@@ -238,6 +236,7 @@ static int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 		return -ENOMEM;
 
 	ppgtt->dev = dev;
+	ppgtt->scratch_page_dma_addr = dev_priv->gtt.scratch_page_dma;
 
 	ret = gen6_ppgtt_init(ppgtt);
 	if (ret)
