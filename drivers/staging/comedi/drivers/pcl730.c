@@ -64,20 +64,11 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl730_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
-	unsigned long iobase;
-	unsigned int iorange;
 	int ret;
 
-	iobase = it->options[0];
-	iorange = board->io_range;
-	printk(KERN_INFO "comedi%d: pcl730: board=%s 0x%04lx ", dev->minor,
-	       board->name, iobase);
-	if (!request_region(iobase, iorange, dev->board_name)) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
-	dev->irq = 0;
+	ret = comedi_request_region(dev, it->options[0], board->io_range);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
