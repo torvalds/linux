@@ -58,36 +58,34 @@
 
 #include <linux/ioport.h>
 
-#define RTI800_SIZE 16
-
-#define RTI800_CSR 0
-#define RTI800_MUXGAIN 1
-#define RTI800_CONVERT 2
-#define RTI800_ADCLO 3
-#define RTI800_ADCHI 4
-#define RTI800_DAC0LO 5
-#define RTI800_DAC0HI 6
-#define RTI800_DAC1LO 7
-#define RTI800_DAC1HI 8
-#define RTI800_CLRFLAGS 9
-#define RTI800_DI 10
-#define RTI800_DO 11
-#define RTI800_9513A_DATA 12
-#define RTI800_9513A_CNTRL 13
-#define RTI800_9513A_STATUS 13
-
 /*
- * flags for CSR register
+ * Register map
  */
+#define RTI800_CSR		0x00
+#define RTI800_CSR_BUSY		(1 << 7)
+#define RTI800_CSR_DONE		(1 << 6)
+#define RTI800_CSR_OVERRUN	(1 << 5)
+#define RTI800_CSR_TCR		(1 << 4)
+#define RTI800_CSR_DMA_ENAB	(1 << 3)
+#define RTI800_CSR_INTR_TC	(1 << 2)
+#define RTI800_CSR_INTR_EC	(1 << 1)
+#define RTI800_CSR_INTR_OVRN	(1 << 0)
+#define RTI800_MUXGAIN		0x01
+#define RTI800_CONVERT		0x02
+#define RTI800_ADCLO		0x03
+#define RTI800_ADCHI		0x04
+#define RTI800_DAC0LO		0x05
+#define RTI800_DAC0HI		0x06
+#define RTI800_DAC1LO		0x07
+#define RTI800_DAC1HI		0x08
+#define RTI800_CLRFLAGS		0x09
+#define RTI800_DI		0x0a
+#define RTI800_DO		0x0b
+#define RTI800_9513A_DATA	0x0c
+#define RTI800_9513A_CNTRL	0x0d
+#define RTI800_9513A_STATUS	0x0d
 
-#define RTI800_BUSY		0x80
-#define RTI800_DONE		0x40
-#define RTI800_OVERRUN		0x20
-#define RTI800_TCR		0x10
-#define RTI800_DMA_ENAB		0x08
-#define RTI800_INTR_TC		0x04
-#define RTI800_INTR_EC		0x02
-#define RTI800_INTR_OVRN	0x01
+#define RTI800_IOSIZE		0x10
 
 #define RTI800_AI_TIMEOUT	100
 
@@ -159,11 +157,11 @@ static int rti800_ai_wait_for_conversion(struct comedi_device *dev,
 
 	for (i = 0; i < timeout; i++) {
 		status = inb(dev->iobase + RTI800_CSR);
-		if (status & RTI800_OVERRUN) {
+		if (status & RTI800_CSR_OVERRUN) {
 			outb(0, dev->iobase + RTI800_CLRFLAGS);
 			return -EIO;
 		}
-		if (status & RTI800_DONE)
+		if (status & RTI800_CSR_DONE)
 			return 0;
 		udelay(1);
 	}
@@ -190,7 +188,7 @@ static int rti800_ai_insn_read(struct comedi_device *dev,
 		devpriv->muxgain_bits = muxgain_bits;
 		outb(devpriv->muxgain_bits, dev->iobase + RTI800_MUXGAIN);
 		/*
-		 * Without a delay here, the RTI_OVERRUN bit
+		 * Without a delay here, the RTI_CSR_OVERRUN bit
 		 * gets set, and you will have an error.
 		 */
 		if (insn->n > 0) {
@@ -298,7 +296,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 
 	iobase = it->options[0];
-	if (!request_region(iobase, RTI800_SIZE, dev->board_name))
+	if (!request_region(iobase, RTI800_IOSIZE, dev->board_name))
 		return -EIO;
 	dev->iobase = iobase;
 
@@ -383,7 +381,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static void rti800_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
-		release_region(dev->iobase, RTI800_SIZE);
+		release_region(dev->iobase, RTI800_IOSIZE);
 }
 
 static struct comedi_driver rti800_driver = {
