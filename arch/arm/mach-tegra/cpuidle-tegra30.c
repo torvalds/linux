@@ -72,10 +72,6 @@ static bool tegra30_cpu_cluster_power_down(struct cpuidle_device *dev,
 					   struct cpuidle_driver *drv,
 					   int index)
 {
-	struct cpuidle_state *state = &drv->states[index];
-	u32 cpu_on_time = state->exit_latency;
-	u32 cpu_off_time = state->target_residency - state->exit_latency;
-
 	/* All CPUs entering LP2 is not working.
 	 * Don't let CPU0 enter LP2 when any secondary CPU is online.
 	 */
@@ -86,7 +82,7 @@ static bool tegra30_cpu_cluster_power_down(struct cpuidle_device *dev,
 
 	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu);
 
-	tegra_idle_lp2_last(cpu_on_time, cpu_off_time);
+	tegra_idle_lp2_last();
 
 	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
 
