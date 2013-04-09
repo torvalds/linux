@@ -1594,7 +1594,6 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcl818_board *board = comedi_board(dev);
 	struct pcl818_private *devpriv;
 	int ret;
-	unsigned long iobase;
 	unsigned int irq;
 	int dma;
 	unsigned long pages;
@@ -1605,25 +1604,17 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	/* claim our I/O space */
-	iobase = it->options[0];
-	printk
-	    ("comedi%d: pcl818:  board=%s, ioport=0x%03lx",
-	     dev->minor, board->name, iobase);
 	devpriv->io_range = board->io_range;
 	if ((board->fifo) && (it->options[2] == -1)) {
 		/*  we've board with FIFO and we want to use FIFO */
 		devpriv->io_range = PCLx1xFIFO_RANGE;
 		devpriv->usefifo = 1;
 	}
-	if (!request_region(iobase, devpriv->io_range, dev->board_name)) {
-		comedi_error(dev, "I/O port conflict\n");
-		return -EIO;
-	}
+	ret = comedi_request_region(dev, it->options[0], devpriv->io_range);
+	if (ret)
+		return ret;
 
-	dev->iobase = iobase;
-
-	if (pcl818_check(iobase)) {
+	if (pcl818_check(dev->iobase)) {
 		comedi_error(dev, "I can't detect board. FAIL!\n");
 		return -EIO;
 	}
