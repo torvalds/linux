@@ -188,10 +188,8 @@
 
 #if defined(CONFIG_CPU_S3C2416)
 #define NR_IRQS (IRQ_S3C2416_I2S1 + 1)
-#elif defined(CONFIG_CPU_S3C2443)
-#define NR_IRQS (IRQ_S3C2443_AC97+1)
 #else
-#define NR_IRQS (IRQ_S3C2440_AC97+1)
+#define NR_IRQS (IRQ_S3C2443_AC97 + 1)
 #endif
 
 /* compatibility define. */
