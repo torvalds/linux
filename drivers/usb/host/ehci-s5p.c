@@ -173,7 +173,7 @@ static int s5p_ehci_probe(struct platform_device *pdev)
 		goto fail_add_hcd;
 	}
 
-	platform_set_drvdata(pdev, s5p_ehci);
+	platform_set_drvdata(pdev, hcd);
 
 	return 0;
 
