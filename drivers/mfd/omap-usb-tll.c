@@ -226,12 +226,9 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	tll->base = devm_request_and_ioremap(dev, res);
-	if (!tll->base) {
-		ret = -EADDRNOTAVAIL;
-		dev_err(dev, "Resource request/ioremap failed:%d\n", ret);
-		return ret;
-	}
+	tll->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(tll->base))
+		return PTR_ERR(tll->base);
 
 	platform_set_drvdata(pdev, tll);
 	pm_runtime_enable(dev);
