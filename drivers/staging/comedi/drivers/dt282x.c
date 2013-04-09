@@ -1123,18 +1123,10 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int i, irq;
 	int ret;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 
-	iobase = it->options[opt_iobase];
-	if (!iobase)
-		iobase = 0x240;
-
-	printk(KERN_INFO "comedi%d: dt282x: 0x%04lx", dev->minor, iobase);
-	if (!request_region(iobase, DT2821_SIZE, dev->board_name)) {
-		printk(KERN_INFO " I/O port conflict\n");
-		return -EBUSY;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], DT2821_SIZE);
+	if (ret)
+		return ret;
 
 	outw(DT2821_BDINIT, dev->iobase + DT2821_SUPCSR);
 	i = inw(dev->iobase + DT2821_ADCSR);
