@@ -413,21 +413,16 @@ static struct pnp_driver c6xdigio_pnp_driver = {
 static int c6xdigio_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
-	int result = 0;
-	unsigned long iobase;
 	struct comedi_subdevice *s;
+	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_DEBUG "comedi%d: c6xdigio: 0x%04lx\n", dev->minor, iobase);
-	if (!request_region(iobase, C6XDIGIO_SIZE, "c6xdigio")) {
-		printk(KERN_ERR "comedi%d: I/O port conflict\n", dev->minor);
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], C6XDIGIO_SIZE);
+	if (ret)
+		return ret;
 
-	result = comedi_alloc_subdevices(dev, 2);
-	if (result)
-		return result;
+	ret = comedi_alloc_subdevices(dev, 2);
+	if (ret)
+		return ret;
 
 	/*  Make sure that PnP ports get activated */
 	pnp_register_driver(&c6xdigio_pnp_driver);
