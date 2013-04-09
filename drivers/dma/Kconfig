@@ -326,6 +326,10 @@ config DMA_ENGINE
 config DMA_VIRTUAL_CHANNELS
 	tristate
 
+config DMA_ACPI
+	def_bool y
+	depends on ACPI
+
 config DMA_OF
 	def_bool y
 	depends on OF
