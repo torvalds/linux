@@ -92,10 +92,13 @@ static void drm_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 static void drm_gem_dmabuf_release(struct dma_buf *dma_buf)
 {
 	struct drm_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->dev;
 
 	if (obj->export_dma_buf == dma_buf) {
 		/* drop the reference on the export fd holds */
 		obj->export_dma_buf = NULL;
+		if (dev->driver->gem_prime_unpin)
+			dev->driver->gem_prime_unpin(obj);
 		drm_gem_object_unreference_unlocked(obj);
 	}
 }
@@ -185,13 +188,19 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
 struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
 				     struct drm_gem_object *obj, int flags)
 {
+	struct dma_buf *buf;
+
 	if (dev->driver->gem_prime_pin) {
 		int ret = dev->driver->gem_prime_pin(obj);
 		if (ret)
 			return ERR_PTR(ret);
 	}
-	return dma_buf_export(obj, &drm_gem_prime_dmabuf_ops, obj->size,
-			      0600);
+	buf = dma_buf_export(obj, &drm_gem_prime_dmabuf_ops, obj->size,
+			     0600);
+
+	if (IS_ERR(buf) && dev->driver->gem_prime_unpin)
+		dev->driver->gem_prime_unpin(obj);
+	return buf;
 }
 EXPORT_SYMBOL(drm_gem_prime_export);
 
