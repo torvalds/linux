@@ -62,6 +62,7 @@
 #define	DRIVER_VERSION	"4 October 2004"
 
 #define OMAP_DMA_USB_W2FC_TX0		29
+#define OMAP_DMA_USB_W2FC_RX0		26
 
 /*
  * The OMAP UDC needs _very_ early endpoint setup:  before enabling the
@@ -1310,7 +1311,7 @@ static int omap_pullup(struct usb_gadget *gadget, int is_on)
 }
 
 static int omap_udc_start(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+		struct usb_gadget_driver *driver);
 static int omap_udc_stop(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
 

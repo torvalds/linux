@@ -447,7 +447,7 @@ struct igb_adapter {
 #endif
 	struct i2c_algo_bit_data i2c_algo;
 	struct i2c_adapter i2c_adap;
-	struct igb_i2c_client_list *i2c_clients;
+	struct i2c_client *i2c_client;
 };
 
 #define IGB_FLAG_HAS_MSI		(1 << 0)

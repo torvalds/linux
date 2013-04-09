@@ -472,6 +472,12 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 						VMXNET3_RX_RING_MAX_SIZE)
 		return -EINVAL;
 
+	/* if adapter not yet initialized, do nothing */
+	if (adapter->rx_buf_per_pkt == 0) {
+		netdev_err(netdev, "adapter not completely initialized, "
+			   "ring size cannot be changed yet\n");
+		return -EOPNOTSUPP;
+	}
 
 	/* round it up to a multiple of VMXNET3_RING_SIZE_ALIGN */
 	new_tx_ring_size = (param->tx_pending + VMXNET3_RING_SIZE_MASK) &

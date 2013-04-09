@@ -188,7 +188,7 @@ void __init mem_init(void)
 		}
 	}
 
-#if !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
+#if defined(CONFIG_MMU) && !defined(CONFIG_SUN3) && !defined(CONFIG_COLDFIRE)
 	/* insert pointer tables allocated so far into the tablelist */
 	init_pointer_table((unsigned long)kernel_pg_dir);
 	for (i = 0; i < PTRS_PER_PGD; i++) {
