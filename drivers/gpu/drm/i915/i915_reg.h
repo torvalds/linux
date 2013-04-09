@@ -430,6 +430,7 @@
 
 #define FENCE_REG_SANDYBRIDGE_0		0x100000
 #define   SANDYBRIDGE_FENCE_PITCH_SHIFT	32
+#define   GEN7_FENCE_MAX_PITCH_VAL	0x0800
 
 /* control register for cpu gtt access */
 #define TILECTL				0x101000
