@@ -383,7 +383,7 @@
 							  "USB_LINK_STATUS",
 							  "USB_ADP_PROBE_PLUG",
 							  "USB_ADP_PROBE_UNPLUG";
-					vddulpivio18-supply = <&ab8500_ldo_initcore_reg>;
+					vddulpivio18-supply = <&ab8500_ldo_intcore_reg>;
 					v-ape-supply = <&db8500_vape_reg>;
 					musb_1v8-supply = <&db8500_vsmps2_reg>;
 				};
@@ -441,8 +441,8 @@
 					};
 
 					// supply for v-intcore12; VINTCORE12 LDO
-					ab8500_ldo_initcore_reg: ab8500_ldo_initcore {
-						regulator-compatible = "ab8500_ldo_initcore";
+					ab8500_ldo_intcore_reg: ab8500_ldo_intcore {
+						regulator-compatible = "ab8500_ldo_intcore";
 					};
 
 					// supply for tvout; gpadc; TVOUT LDO

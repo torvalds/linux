@@ -172,7 +172,7 @@
 						regulator-name = "V-MMC-SD";
 					};
 
-					ab8500_ldo_initcore_reg: ab8500_ldo_initcore {
+					ab8500_ldo_intcore_reg: ab8500_ldo_intcore {
 						regulator-name = "V-INTCORE";
 					};
 
