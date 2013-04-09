@@ -37,7 +37,7 @@
 #include "mipi-csis.h"
 
 static int __fimc_md_set_camclk(struct fimc_md *fmd,
-				struct fimc_sensor_info *s_info,
+				struct fimc_source_info *si,
 				bool on);
 /**
  * fimc_pipeline_prepare - update pipeline information with subdevice pointers
@@ -281,36 +281,36 @@ static const struct fimc_pipeline_ops fimc_pipeline_ops = {
  * Sensor subdevice helper functions
  */
 static struct v4l2_subdev *fimc_md_register_sensor(struct fimc_md *fmd,
-				   struct fimc_sensor_info *s_info)
+						struct fimc_source_info *si)
 {
 	struct i2c_adapter *adapter;
 	struct v4l2_subdev *sd = NULL;
 
-	if (!s_info || !fmd)
+	if (!si || !fmd)
 		return NULL;
 	/*
 	 * If FIMC bus type is not Writeback FIFO assume it is same
 	 * as sensor_bus_type.
 	 */
-	s_info->pdata.fimc_bus_type = s_info->pdata.sensor_bus_type;
+	si->fimc_bus_type = si->sensor_bus_type;
 
-	adapter = i2c_get_adapter(s_info->pdata.i2c_bus_num);
+	adapter = i2c_get_adapter(si->i2c_bus_num);
 	if (!adapter) {
 		v4l2_warn(&fmd->v4l2_dev,
 			  "Failed to get I2C adapter %d, deferring probe\n",
-			  s_info->pdata.i2c_bus_num);
+			  si->i2c_bus_num);
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 	sd = v4l2_i2c_new_subdev_board(&fmd->v4l2_dev, adapter,
-				       s_info->pdata.board_info, NULL);
+						si->board_info, NULL);
 	if (IS_ERR_OR_NULL(sd)) {
 		i2c_put_adapter(adapter);
 		v4l2_warn(&fmd->v4l2_dev,
 			  "Failed to acquire subdev %s, deferring probe\n",
-			  s_info->pdata.board_info->type);
+			  si->board_info->type);
 		return ERR_PTR(-EPROBE_DEFER);
 	}
-	v4l2_set_subdev_hostdata(sd, s_info);
+	v4l2_set_subdev_hostdata(sd, si);
 	sd->grp_id = GRP_ID_SENSOR;
 
 	v4l2_info(&fmd->v4l2_dev, "Registered sensor subdevice %s\n",
@@ -365,17 +365,17 @@ static int fimc_md_of_add_sensor(struct fimc_md *fmd,
 	}
 
 	/* Enable sensor's master clock */
-	ret = __fimc_md_set_camclk(fmd, si, true);
+	ret = __fimc_md_set_camclk(fmd, &si->pdata, true);
 	if (ret < 0)
 		goto mod_put;
 	sd = i2c_get_clientdata(client);
 
 	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
-	__fimc_md_set_camclk(fmd, si, false);
+	__fimc_md_set_camclk(fmd, &si->pdata, false);
 	if (ret < 0)
 		goto mod_put;
 
-	v4l2_set_subdev_hostdata(sd, si);
+	v4l2_set_subdev_hostdata(sd, &si->pdata);
 	if (si->pdata.fimc_bus_type == FIMC_BUS_TYPE_ISP_WRITEBACK)
 		sd->grp_id = GRP_ID_FIMC_IS_SENSOR;
 	else
@@ -559,21 +559,22 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 		fmd->num_sensors = num_clients;
 
 		for (i = 0; i < num_clients; i++) {
+			struct fimc_sensor_info *si = &fmd->sensor[i];
 			struct v4l2_subdev *sd;
 
-			fmd->sensor[i].pdata = pdata->source_info[i];
-			ret = __fimc_md_set_camclk(fmd, &fmd->sensor[i], true);
+			si->pdata = pdata->source_info[i];
+			ret = __fimc_md_set_camclk(fmd, &si->pdata, true);
 			if (ret)
 				break;
-			sd = fimc_md_register_sensor(fmd, &fmd->sensor[i]);
-			ret = __fimc_md_set_camclk(fmd, &fmd->sensor[i], false);
+			sd = fimc_md_register_sensor(fmd, &si->pdata);
+			ret = __fimc_md_set_camclk(fmd, &si->pdata, false);
 
 			if (IS_ERR(sd)) {
-				fmd->sensor[i].subdev = NULL;
+				si->subdev = NULL;
 				ret = PTR_ERR(sd);
 				break;
 			}
-			fmd->sensor[i].subdev = sd;
+			si->subdev = sd;
 			if (ret)
 				break;
 		}
@@ -838,7 +839,7 @@ static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 					    struct v4l2_subdev *sensor,
 					    int pad, int link_mask)
 {
-	struct fimc_sensor_info *si = NULL;
+	struct fimc_source_info *si = NULL;
 	struct media_entity *sink;
 	unsigned int flags = 0;
 	int i, ret = 0;
@@ -846,7 +847,7 @@ static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 	if (sensor) {
 		si = v4l2_get_subdev_hostdata(sensor);
 		/* Skip direct FIMC links in the logical FIMC-IS sensor path */
-		if (si && si->pdata.fimc_bus_type == FIMC_BUS_TYPE_ISP_WRITEBACK)
+		if (si && si->fimc_bus_type == FIMC_BUS_TYPE_ISP_WRITEBACK)
 			ret = 1;
 	}
 
@@ -882,8 +883,10 @@ static int __fimc_md_create_fimc_sink_links(struct fimc_md *fmd,
 
 		if (!WARN_ON(si == NULL)) {
 			unsigned long irq_flags;
+			struct fimc_sensor_info *inf = source_to_sensor_info(si);
+
 			spin_lock_irqsave(&fmd->slock, irq_flags);
-			si->host = fmd->fimc[i];
+			inf->host = fmd->fimc[i];
 			spin_unlock_irqrestore(&fmd->slock, irq_flags);
 		}
 	}
@@ -980,7 +983,6 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 	struct v4l2_subdev *csi_sensors[CSIS_MAX_ENTITIES] = { NULL };
 	struct v4l2_subdev *sensor, *csis;
 	struct fimc_source_info *pdata;
-	struct fimc_sensor_info *s_info;
 	struct media_entity *source, *sink;
 	int i, pad, fimc_id = 0, ret = 0;
 	u32 flags, link_mask = 0;
@@ -990,12 +992,11 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 			continue;
 
 		sensor = fmd->sensor[i].subdev;
-		s_info = v4l2_get_subdev_hostdata(sensor);
-		if (!s_info)
+		pdata = v4l2_get_subdev_hostdata(sensor);
+		if (!pdata)
 			continue;
 
 		source = NULL;
-		pdata = &s_info->pdata;
 
 		switch (pdata->sensor_bus_type) {
 		case FIMC_BUS_TYPE_MIPI_CSI2:
@@ -1164,34 +1165,33 @@ static int fimc_md_get_clocks(struct fimc_md *fmd)
 }
 
 static int __fimc_md_set_camclk(struct fimc_md *fmd,
-				struct fimc_sensor_info *s_info,
+				struct fimc_source_info *si,
 				bool on)
 {
-	struct fimc_source_info *pdata = &s_info->pdata;
 	struct fimc_camclk_info *camclk;
 	int ret = 0;
 
-	if (WARN_ON(pdata->clk_id >= FIMC_MAX_CAMCLKS) || !fmd || !fmd->pmf)
+	if (WARN_ON(si->clk_id >= FIMC_MAX_CAMCLKS) || !fmd || !fmd->pmf)
 		return -EINVAL;
 
-	camclk = &fmd->camclk[pdata->clk_id];
+	camclk = &fmd->camclk[si->clk_id];
 
 	dbg("camclk %d, f: %lu, use_count: %d, on: %d",
-	    pdata->clk_id, pdata->clk_frequency, camclk->use_count, on);
+	    si->clk_id, si->clk_frequency, camclk->use_count, on);
 
 	if (on) {
 		if (camclk->use_count > 0 &&
-		    camclk->frequency != pdata->clk_frequency)
+		    camclk->frequency != si->clk_frequency)
 			return -EINVAL;
 
 		if (camclk->use_count++ == 0) {
-			clk_set_rate(camclk->clock, pdata->clk_frequency);
-			camclk->frequency = pdata->clk_frequency;
+			clk_set_rate(camclk->clock, si->clk_frequency);
+			camclk->frequency = si->clk_frequency;
 			ret = pm_runtime_get_sync(fmd->pmf);
 			if (ret < 0)
 				return ret;
 			ret = clk_enable(camclk->clock);
-			dbg("Enabled camclk %d: f: %lu", pdata->clk_id,
+			dbg("Enabled camclk %d: f: %lu", si->clk_id,
 			    clk_get_rate(camclk->clock));
 		}
 		return ret;
@@ -1203,7 +1203,7 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
 	if (--camclk->use_count == 0) {
 		clk_disable(camclk->clock);
 		pm_runtime_put(fmd->pmf);
-		dbg("Disabled camclk %d", pdata->clk_id);
+		dbg("Disabled camclk %d", si->clk_id);
 	}
 	return ret;
 }
@@ -1222,10 +1222,10 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
  */
 int fimc_md_set_camclk(struct v4l2_subdev *sd, bool on)
 {
-	struct fimc_sensor_info *s_info = v4l2_get_subdev_hostdata(sd);
+	struct fimc_source_info *si = v4l2_get_subdev_hostdata(sd);
 	struct fimc_md *fmd = entity_to_fimc_mdev(&sd->entity);
 
-	return __fimc_md_set_camclk(fmd, s_info, on);
+	return __fimc_md_set_camclk(fmd, si, on);
 }
 
 static int fimc_md_link_notify(struct media_pad *source,

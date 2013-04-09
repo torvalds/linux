@@ -115,6 +115,12 @@ struct fimc_md {
 
 #define subdev_has_devnode(__sd) (__sd->flags & V4L2_SUBDEV_FL_HAS_DEVNODE)
 
+static inline
+struct fimc_sensor_info *source_to_sensor_info(struct fimc_source_info *si)
+{
+	return container_of(si, struct fimc_sensor_info, pdata);
+}
+
 static inline struct fimc_md *entity_to_fimc_mdev(struct media_entity *me)
 {
 	return me->parent == NULL ? NULL :

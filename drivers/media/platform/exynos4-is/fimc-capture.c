@@ -1450,7 +1450,7 @@ static const struct media_entity_operations fimc_sd_media_ops = {
 void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
 			void *arg)
 {
-	struct fimc_sensor_info	*sensor;
+	struct fimc_source_info	*si;
 	struct fimc_vid_buffer *buf;
 	struct fimc_md *fmd;
 	struct fimc_dev *fimc;
@@ -1459,11 +1459,12 @@ void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
 	if (sd == NULL)
 		return;
 
-	sensor = v4l2_get_subdev_hostdata(sd);
+	si = v4l2_get_subdev_hostdata(sd);
 	fmd = entity_to_fimc_mdev(&sd->entity);
 
 	spin_lock_irqsave(&fmd->slock, flags);
-	fimc = sensor ? sensor->host : NULL;
+
+	fimc = si ? source_to_sensor_info(si)->host : NULL;
 
 	if (fimc && arg && notification == S5P_FIMC_TX_END_NOTIFY &&
 	    test_bit(ST_CAPT_PEND, &fimc->state)) {

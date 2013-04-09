@@ -11,6 +11,7 @@
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
 #include <linux/bug.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -31,7 +32,7 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/s5p_fimc.h>
 
-#include "media-dev.h"
+#include "fimc-core.h"
 #include "fimc-lite.h"
 #include "fimc-lite-reg.h"
 
@@ -156,7 +157,7 @@ static struct v4l2_subdev *__find_remote_sensor(struct media_entity *me)
 
 static int fimc_lite_hw_init(struct fimc_lite *fimc, bool isp_output)
 {
-	struct fimc_sensor_info *si;
+	struct fimc_source_info *si;
 	unsigned long flags;
 
 	if (fimc->sensor == NULL)
@@ -167,9 +168,12 @@ static int fimc_lite_hw_init(struct fimc_lite *fimc, bool isp_output)
 
 	/* Get sensor configuration data from the sensor subdev */
 	si = v4l2_get_subdev_hostdata(fimc->sensor);
+	if (!si)
+		return -EINVAL;
+
 	spin_lock_irqsave(&fimc->slock, flags);
 
-	flite_hw_set_camera_bus(fimc, &si->pdata);
+	flite_hw_set_camera_bus(fimc, si);
 	flite_hw_set_source_format(fimc, &fimc->inp_frame);
 	flite_hw_set_window_offset(fimc, &fimc->inp_frame);
 	flite_hw_set_output_dma(fimc, &fimc->out_frame, !isp_output);
