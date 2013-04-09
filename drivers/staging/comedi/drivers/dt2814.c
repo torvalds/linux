@@ -246,15 +246,10 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int i, irq;
 	int ret;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: dt2814: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, DT2814_SIZE, "dt2814")) {
-		printk(KERN_ERR "I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], DT2814_SIZE);
+	if (ret)
+		return ret;
 
 	outb(0, dev->iobase + DT2814_CSR);
 	udelay(100);
