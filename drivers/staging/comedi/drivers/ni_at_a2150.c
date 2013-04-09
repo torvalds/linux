@@ -719,43 +719,20 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct a2150_board *thisboard = comedi_board(dev);
 	struct a2150_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase = it->options[0];
 	unsigned int irq = it->options[1];
 	unsigned int dma = it->options[2];
 	static const int timeout = 2000;
 	int i;
 	int ret;
 
-	printk("comedi%d: %s: io 0x%lx", dev->minor, dev->driver->driver_name,
-	       iobase);
-	if (irq) {
-		printk(", irq %u", irq);
-	} else {
-		printk(", no irq");
-	}
-	if (dma) {
-		printk(", dma %u", dma);
-	} else {
-		printk(", no dma");
-	}
-	printk("\n");
-
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	if (iobase == 0) {
-		printk(" io base address required\n");
-		return -EINVAL;
-	}
-
-	/* check if io addresses are available */
-	if (!request_region(iobase, A2150_SIZE, dev->driver->driver_name)) {
-		printk(" I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], A2150_SIZE);
+	if (ret)
+		return ret;
 
 	/* grab our IRQ */
 	if (irq) {
