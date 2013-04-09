@@ -81,12 +81,6 @@ static struct sh_timer_config sh_tmu1_platform_data = {
 	.clocksource_rating	= 200,
 };
 
-/* Ether */
-static struct resource ether_resources[] = {
-	DEFINE_RES_MEM(0xfde00000, 0x400),
-	DEFINE_RES_IRQ(gic_iid(0x89)),
-};
-
 #define r8a7778_register_tmu(idx)			\
 	platform_device_register_resndata(		\
 		&platform_bus, "sh_tmu", idx,		\
@@ -94,6 +88,20 @@ static struct resource ether_resources[] = {
 		ARRAY_SIZE(sh_tmu##idx##_resources),	\
 		&sh_tmu##idx##_platform_data,		\
 		sizeof(sh_tmu##idx##_platform_data))
+
+/* Ether */
+static struct resource ether_resources[] = {
+	DEFINE_RES_MEM(0xfde00000, 0x400),
+	DEFINE_RES_IRQ(gic_iid(0x89)),
+};
+
+void __init r8a7778_add_ether_device(struct sh_eth_plat_data *pdata)
+{
+	platform_device_register_resndata(&platform_bus, "sh_eth", -1,
+					  ether_resources,
+					  ARRAY_SIZE(ether_resources),
+					  pdata, sizeof(*pdata));
+}
 
 /* PFC/GPIO */
 static struct resource pfc_resources[] = {
@@ -163,14 +171,6 @@ void __init r8a7778_add_standard_devices(void)
 
 	r8a7778_register_tmu(0);
 	r8a7778_register_tmu(1);
-}
-
-void __init r8a7778_add_ether_device(struct sh_eth_plat_data *pdata)
-{
-	platform_device_register_resndata(&platform_bus, "sh_eth", -1,
-					  ether_resources,
-					  ARRAY_SIZE(ether_resources),
-					  pdata, sizeof(*pdata));
 }
 
 static struct renesas_intc_irqpin_config irqpin_platform_data = {
