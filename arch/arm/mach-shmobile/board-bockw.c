@@ -26,6 +26,14 @@
 #include <mach/r8a7778.h>
 #include <asm/mach/arch.h>
 
+/*
+ *	CN9(Upper side) SCIF/RCAN selection
+ *
+ *		1,4	3,6
+ * SW40		SCIF	RCAN
+ * SW41		SCIF	RCAN
+ */
+
 static struct smsc911x_platform_config smsc911x_data = {
 	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
 	.irq_type	= SMSC911X_IRQ_TYPE_PUSH_PULL,
