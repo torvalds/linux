@@ -226,22 +226,16 @@ static int multiq3_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
 	struct multiq3_private *devpriv;
-	int result = 0;
-	unsigned long iobase;
 	struct comedi_subdevice *s;
+	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: multiq3: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, MULTIQ3_SIZE, "multiq3")) {
-		printk(KERN_ERR "comedi%d: I/O port conflict\n", dev->minor);
-		return -EIO;
-	}
+	ret = comedi_request_region(dev, it->options[0], MULTIQ3_SIZE);
+	if (ret)
+		return ret;
 
-	dev->iobase = iobase;
-
-	result = comedi_alloc_subdevices(dev, 5);
-	if (result)
-		return result;
+	ret = comedi_alloc_subdevices(dev, 5);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
