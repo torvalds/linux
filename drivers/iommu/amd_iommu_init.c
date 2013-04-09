@@ -219,6 +219,7 @@ static struct devid_map __initdata early_ioapic_map[EARLY_MAP_SIZE];
 static struct devid_map __initdata early_hpet_map[EARLY_MAP_SIZE];
 static int __initdata early_ioapic_map_size;
 static int __initdata early_hpet_map_size;
+static bool __initdata cmdline_maps;
 
 static enum iommu_init_state init_state = IOMMU_START_STATE;
 
@@ -1686,18 +1687,28 @@ static void __init free_on_init_error(void)
 
 static bool __init check_ioapic_information(void)
 {
+	const char *fw_bug = FW_BUG;
 	bool ret, has_sb_ioapic;
 	int idx;
 
 	has_sb_ioapic = false;
 	ret           = false;
 
+	/*
+	 * If we have map overrides on the kernel command line the
+	 * messages in this function might not describe firmware bugs
+	 * anymore - so be careful
+	 */
+	if (cmdline_maps)
+		fw_bug = "";
+
 	for (idx = 0; idx < nr_ioapics; idx++) {
 		int devid, id = mpc_ioapic_id(idx);
 
 		devid = get_ioapic_devid(id);
 		if (devid < 0) {
-			pr_err(FW_BUG "AMD-Vi: IOAPIC[%d] not in IVRS table\n", id);
+			pr_err("%sAMD-Vi: IOAPIC[%d] not in IVRS table\n",
+				fw_bug, id);
 			ret = false;
 		} else if (devid == IOAPIC_SB_DEVID) {
 			has_sb_ioapic = true;
@@ -1714,11 +1725,11 @@ static bool __init check_ioapic_information(void)
 		 * when the BIOS is buggy and provides us the wrong
 		 * device id for the IOAPIC in the system.
 		 */
-		pr_err(FW_BUG "AMD-Vi: No southbridge IOAPIC found in IVRS table\n");
+		pr_err("%sAMD-Vi: No southbridge IOAPIC found\n", fw_bug);
 	}
 
 	if (!ret)
-		pr_err("AMD-Vi: Disabling interrupt remapping due to BIOS Bug(s)\n");
+		pr_err("AMD-Vi: Disabling interrupt remapping\n");
 
 	return ret;
 }
@@ -2166,6 +2177,7 @@ static int __init parse_ivrs_ioapic(char *str)
 
 	devid = ((bus & 0xff) << 8) | ((dev & 0x1f) << 3) | (fn & 0x7);
 
+	cmdline_maps			= true;
 	i				= early_ioapic_map_size++;
 	early_ioapic_map[i].id		= id;
 	early_ioapic_map[i].devid	= devid;
@@ -2195,6 +2207,7 @@ static int __init parse_ivrs_hpet(char *str)
 
 	devid = ((bus & 0xff) << 8) | ((dev & 0x1f) << 3) | (fn & 0x7);
 
+	cmdline_maps			= true;
 	i				= early_hpet_map_size++;
 	early_hpet_map[i].id		= id;
 	early_hpet_map[i].devid		= devid;
