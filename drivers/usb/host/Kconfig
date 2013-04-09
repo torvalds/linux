@@ -2,11 +2,9 @@
 # USB Host Controller Drivers
 #
 comment "USB Host Controller Drivers"
-	depends on USB
 
 config USB_C67X00_HCD
 	tristate "Cypress C67x00 HCD support"
-	depends on USB
 	help
 	  The Cypress C67x00 (EZ-Host/EZ-OTG) chips are dual-role
 	  host/peripheral/OTG USB controllers.
@@ -19,7 +17,7 @@ config USB_C67X00_HCD
 
 config USB_XHCI_HCD
 	tristate "xHCI HCD (USB 3.0) support"
-	depends on USB && USB_ARCH_HAS_XHCI
+	depends on USB_ARCH_HAS_XHCI
 	---help---
 	  The eXtensible Host Controller Interface (xHCI) is standard for USB 3.0
 	  "SuperSpeed" host controller hardware.
@@ -43,7 +41,7 @@ config USB_XHCI_HCD_DEBUGGING
 
 config USB_EHCI_HCD
 	tristate "EHCI HCD (USB 2.0) support"
-	depends on USB && USB_ARCH_HAS_EHCI
+	depends on USB_ARCH_HAS_EHCI
 	---help---
 	  The Enhanced Host Controller Interface (EHCI) is standard for USB 2.0
 	  "high speed" (480 Mbit/sec, 60 Mbyte/sec) host controller hardware.
@@ -280,7 +278,7 @@ config USB_EHCI_ATH79
 
 config USB_OXU210HP_HCD
 	tristate "OXU210HP HCD support"
-	depends on USB && GENERIC_HARDIRQS
+	depends on GENERIC_HARDIRQS
 	---help---
 	  The OXU210HP is an USB host/OTG/device controller. Enable this
 	  option if your board has this chip. If unsure, say N.
@@ -293,7 +291,6 @@ config USB_OXU210HP_HCD
 
 config USB_ISP116X_HCD
 	tristate "ISP116X HCD support"
-	depends on USB
 	---help---
 	  The ISP1160 and ISP1161 chips are USB host controllers. Enable this
 	  option if your board has this chip. If unsure, say N.
@@ -305,7 +302,6 @@ config USB_ISP116X_HCD
 
 config USB_ISP1760_HCD
 	tristate "ISP 1760 HCD support"
-	depends on USB
 	---help---
 	  The ISP1760 chip is a USB 2.0 host controller.
 
@@ -320,7 +316,6 @@ config USB_ISP1760_HCD
 
 config USB_ISP1362_HCD
 	tristate "ISP1362 HCD support"
-	depends on USB
 	default N
 	---help---
 	  Supports the Philips ISP1362 chip as a host controller
@@ -332,7 +327,7 @@ config USB_ISP1362_HCD
 
 config USB_OHCI_HCD
 	tristate "OHCI HCD support"
-	depends on USB && USB_ARCH_HAS_OHCI
+	depends on USB_ARCH_HAS_OHCI
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3
 	depends on USB_ISP1301 || !ARCH_LPC32XX
 	---help---
@@ -490,7 +485,7 @@ config USB_OHCI_LITTLE_ENDIAN
 
 config USB_UHCI_HCD
 	tristate "UHCI HCD (most Intel and VIA) support"
-	depends on USB && (PCI || SPARC_LEON || ARCH_VT8500)
+	depends on PCI || SPARC_LEON || ARCH_VT8500
 	---help---
 	  The Universal Host Controller Interface is a standard by Intel for
 	  accessing the USB hardware in the PC (which is also called the USB
@@ -530,7 +525,7 @@ config USB_UHCI_BIG_ENDIAN_DESC
 
 config USB_FHCI_HCD
 	tristate "Freescale QE USB Host Controller support"
-	depends on USB && OF_GPIO && QE_GPIO && QUICC_ENGINE
+	depends on OF_GPIO && QE_GPIO && QUICC_ENGINE
 	select FSL_GTM
 	select QE_USB
 	help
@@ -547,7 +542,7 @@ config FHCI_DEBUG
 
 config USB_U132_HCD
 	tristate "Elan U132 Adapter Host Controller"
-	depends on USB && USB_FTDI_ELAN
+	depends on USB_FTDI_ELAN
 	default M
 	help
 	  The U132 adapter is a USB to CardBus adapter specifically designed
@@ -575,7 +570,6 @@ config USB_U132_HCD
 
 config USB_SL811_HCD
 	tristate "SL811HS HCD support"
-	depends on USB
 	help
 	  The SL811HS is a single-port USB controller that supports either
 	  host side or peripheral side roles.  Enable this option if your
@@ -607,7 +601,6 @@ config USB_SL811_CS
 
 config USB_R8A66597_HCD
 	tristate "R8A66597 HCD support"
-	depends on USB
 	help
 	  The R8A66597 is a USB 2.0 host and peripheral controller.
 
@@ -619,7 +612,6 @@ config USB_R8A66597_HCD
 
 config USB_RENESAS_USBHS_HCD
 	tristate "Renesas USBHS HCD support"
-	depends on USB
 	depends on USB_RENESAS_USBHS
 	help
 	  The Renesas USBHS is a USB 2.0 host and peripheral controller.
@@ -644,7 +636,7 @@ config USB_WHCI_HCD
 
 config USB_HWA_HCD
 	tristate "Host Wire Adapter (HWA) driver"
-	depends on USB && UWB
+	depends on UWB
 	select USB_WUSB
 	select UWB_HWA
 	help
@@ -658,7 +650,7 @@ config USB_HWA_HCD
 
 config USB_IMX21_HCD
        tristate "i.MX21 HCD support"
-       depends on USB && ARM && ARCH_MXC
+       depends on ARM && ARCH_MXC
        help
          This driver enables support for the on-chip USB host in the
          i.MX21 processor.
@@ -668,7 +660,7 @@ config USB_IMX21_HCD
 
 config USB_OCTEON_EHCI
 	bool "Octeon on-chip EHCI support"
-	depends on USB && USB_EHCI_HCD && CPU_CAVIUM_OCTEON
+	depends on USB_EHCI_HCD && CPU_CAVIUM_OCTEON
 	default n
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	help
@@ -679,7 +671,7 @@ config USB_OCTEON_EHCI
 
 config USB_OCTEON_OHCI
 	bool "Octeon on-chip OHCI support"
-	depends on USB && USB_OHCI_HCD && CPU_CAVIUM_OCTEON
+	depends on USB_OHCI_HCD && CPU_CAVIUM_OCTEON
 	default USB_OCTEON_EHCI
 	select USB_OHCI_BIG_ENDIAN_MMIO
 	select USB_OHCI_LITTLE_ENDIAN
