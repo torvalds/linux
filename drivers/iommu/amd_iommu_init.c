@@ -703,25 +703,35 @@ static void __init set_dev_entry_from_acpi(struct amd_iommu *iommu,
 	set_iommu_for_device(iommu, devid);
 }
 
-static int __init add_special_device(u8 type, u8 id, u16 devid)
+static int __init add_special_device(u8 type, u8 id, u16 devid, bool cmd_line)
 {
 	struct devid_map *entry;
 	struct list_head *list;
 
-	if (type != IVHD_SPECIAL_IOAPIC && type != IVHD_SPECIAL_HPET)
+	if (type == IVHD_SPECIAL_IOAPIC)
+		list = &ioapic_map;
+	else if (type == IVHD_SPECIAL_HPET)
+		list = &hpet_map;
+	else
 		return -EINVAL;
+
+	list_for_each_entry(entry, list, list) {
+		if (!(entry->id == id && entry->cmd_line))
+			continue;
+
+		pr_info("AMD-Vi: Command-line override present for %s id %d - ignoring\n",
+			type == IVHD_SPECIAL_IOAPIC ? "IOAPIC" : "HPET", id);
+
+		return 0;
+	}
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 
-	entry->id    = id;
-	entry->devid = devid;
-
-	if (type == IVHD_SPECIAL_IOAPIC)
-		list = &ioapic_map;
-	else
-		list = &hpet_map;
+	entry->id	= id;
+	entry->devid	= devid;
+	entry->cmd_line	= cmd_line;
 
 	list_add_tail(&entry->list, list);
 
@@ -929,7 +939,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 				    PCI_FUNC(devid));
 
 			set_dev_entry_from_acpi(iommu, devid, e->flags, 0);
-			ret = add_special_device(type, handle, devid);
+			ret = add_special_device(type, handle, devid, false);
 			if (ret)
 				return ret;
 			break;

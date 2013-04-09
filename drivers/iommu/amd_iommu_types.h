@@ -592,6 +592,7 @@ struct devid_map {
 	struct list_head list;
 	u8 id;
 	u16 devid;
+	bool cmd_line;
 };
 
 /* Map HPET and IOAPIC ids to the devid used by the IOMMU */
