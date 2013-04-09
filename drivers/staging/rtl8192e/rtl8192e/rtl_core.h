@@ -1085,10 +1085,4 @@ void ActUpdateChannelAccessSetting(struct net_device *dev,
 			   enum wireless_mode WirelessMode,
 			   struct channel_access_setting *ChnlAccessSetting);
 
-/* proc stuff from rtl_debug.c */
-void rtl8192_proc_init_one(struct net_device *dev);
-void rtl8192_proc_remove_one(struct net_device *dev);
-void rtl8192_proc_module_init(void);
-void rtl8192_proc_module_remove(void);
-
 #endif
