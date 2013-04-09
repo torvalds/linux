@@ -3272,6 +3272,7 @@ extern int rk3188_dvfs_init(void);
 
 void __init rk30_clock_data_init(unsigned long gpll, unsigned long cpll, u32 flags)
 {
+	printk("clock: gpll %lu cpll %lu flags 0x%x con2 0x%x/0x%x\n", gpll, cpll, flags, cru_readl(PLL_CONS(DPLL_ID, 2)), cru_readl(PLL_CONS(CPLL_ID, 2)));
 	_rk30_clock_data_init(gpll, cpll, flags);
 	rk3188_dvfs_init();
 }
