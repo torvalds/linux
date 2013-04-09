@@ -25,6 +25,8 @@
 #include <linux/irqdomain.h>
 #include <linux/irqchip.h>
 #include <linux/of_address.h>
+#include <linux/clocksource.h>
+#include <linux/clk-provider.h>
 #include <linux/irqchip/arm-gic.h>
 
 #include <asm/proc-fns.h>
@@ -39,7 +41,6 @@
 #include <mach/regs-gpio.h>
 
 #include <plat/cpu.h>
-#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
 #include <plat/sdhci.h>
@@ -65,17 +66,16 @@ static const char name_exynos5440[] = "EXYNOS5440";
 static void exynos4_map_io(void);
 static void exynos5_map_io(void);
 static void exynos5440_map_io(void);
-static void exynos4_init_clocks(int xtal);
-static void exynos5_init_clocks(int xtal);
 static void exynos4_init_uarts(struct s3c2410_uartcfg *cfg, int no);
 static int exynos_init(void);
+
+unsigned long xxti_f = 0, xusbxti_f = 0;
 
 static struct cpu_table cpu_ids[] __initdata = {
 	{
 		.idcode		= EXYNOS4210_CPU_ID,
 		.idmask		= EXYNOS4_CPU_MASK,
 		.map_io		= exynos4_map_io,
-		.init_clocks	= exynos4_init_clocks,
 		.init_uarts	= exynos4_init_uarts,
 		.init		= exynos_init,
 		.name		= name_exynos4210,
@@ -83,7 +83,6 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.idcode		= EXYNOS4212_CPU_ID,
 		.idmask		= EXYNOS4_CPU_MASK,
 		.map_io		= exynos4_map_io,
-		.init_clocks	= exynos4_init_clocks,
 		.init_uarts	= exynos4_init_uarts,
 		.init		= exynos_init,
 		.name		= name_exynos4212,
@@ -91,7 +90,6 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.idcode		= EXYNOS4412_CPU_ID,
 		.idmask		= EXYNOS4_CPU_MASK,
 		.map_io		= exynos4_map_io,
-		.init_clocks	= exynos4_init_clocks,
 		.init_uarts	= exynos4_init_uarts,
 		.init		= exynos_init,
 		.name		= name_exynos4412,
@@ -99,7 +97,6 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.idcode		= EXYNOS5250_SOC_ID,
 		.idmask		= EXYNOS5_SOC_MASK,
 		.map_io		= exynos5_map_io,
-		.init_clocks	= exynos5_init_clocks,
 		.init		= exynos_init,
 		.name		= name_exynos5250,
 	}, {
@@ -397,43 +394,26 @@ static void __init exynos5_map_io(void)
 	iotable_init(exynos5_iodesc, ARRAY_SIZE(exynos5_iodesc));
 }
 
-static void __init exynos4_init_clocks(int xtal)
-{
-	printk(KERN_DEBUG "%s: initializing clocks\n", __func__);
-
-	s3c24xx_register_baseclocks(xtal);
-	s5p_register_clocks(xtal);
-
-	if (soc_is_exynos4210())
-		exynos4210_register_clocks();
-	else if (soc_is_exynos4212() || soc_is_exynos4412())
-		exynos4212_register_clocks();
-
-	exynos4_register_clocks();
-	exynos4_setup_clocks();
-}
-
 static void __init exynos5440_map_io(void)
 {
 	iotable_init(exynos5440_iodesc0, ARRAY_SIZE(exynos5440_iodesc0));
 }
 
-static void __init exynos5_init_clocks(int xtal)
+void __init exynos_init_time(void)
 {
-	printk(KERN_DEBUG "%s: initializing clocks\n", __func__);
-
-	/* EXYNOS5440 can support only common clock framework */
-
-	if (soc_is_exynos5440())
-		return;
-
-#ifdef CONFIG_SOC_EXYNOS5250
-	s3c24xx_register_baseclocks(xtal);
-	s5p_register_clocks(xtal);
-
-	exynos5_register_clocks();
-	exynos5_setup_clocks();
+	if (of_have_populated_dt()) {
+#ifdef CONFIG_OF
+		of_clk_init(NULL);
+		clocksource_of_init();
 #endif
+	} else {
+		/* todo: remove after migrating legacy E4 platforms to dt */
+#ifdef CONFIG_ARCH_EXYNOS4
+		exynos4_clk_init(NULL);
+		exynos4_clk_register_fixed_ext(xxti_f, xusbxti_f);
+#endif
+		mct_init();
+	}
 }
 
 void __init exynos4_init_irq(void)

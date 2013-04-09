@@ -1092,9 +1092,10 @@ static struct platform_device *universal_devices[] __initdata = {
 static void __init universal_map_io(void)
 {
 	exynos_init_io(NULL, 0);
-	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(universal_uartcfgs, ARRAY_SIZE(universal_uartcfgs));
 	samsung_set_timer_source(SAMSUNG_PWM2, SAMSUNG_PWM4);
+	xxti_f = 0;
+	xusbxti_f = 24000000;
 }
 
 static void s5p_tv_setup(void)

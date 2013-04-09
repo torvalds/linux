@@ -55,6 +55,8 @@
 		interrupt-parent = <&mct_map>;
 		interrupts = <0 0>, <1 0>, <2 0>, <3 0>,
 			     <4 0>, <5 0>;
+		clocks = <&clock 3>, <&clock 344>;
+		clock-names = "fin_pll", "mct";
 
 		mct_map: mct-map {
 			#interrupt-cells = <2>;
@@ -67,6 +69,12 @@
 					<0x4 0 &gic 0 42 0>,
 					<0x5 0 &gic 0 48 0>;
 		};
+	};
+
+	clock: clock-controller@0x10030000 {
+		compatible = "samsung,exynos4210-clock";
+		reg = <0x10030000 0x20000>;
+		#clock-cells = <1>;
 	};
 
 	pinctrl_0: pinctrl@11400000 {

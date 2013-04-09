@@ -477,12 +477,20 @@ static struct local_timer_ops exynos4_mct_tick_ops __cpuinitdata = {
 };
 #endif /* CONFIG_LOCAL_TIMERS */
 
-static void __init exynos4_timer_resources(void __iomem *base)
+static void __init exynos4_timer_resources(struct device_node *np, void __iomem *base)
 {
-	struct clk *mct_clk;
-	mct_clk = clk_get(NULL, "xtal");
+	struct clk *mct_clk, *tick_clk;
 
-	clk_rate = clk_get_rate(mct_clk);
+	tick_clk = np ? of_clk_get_by_name(np, "fin_pll") :
+				clk_get(NULL, "fin_pll");
+	if (IS_ERR(tick_clk))
+		panic("%s: unable to determine tick clock rate\n", __func__);
+	clk_rate = clk_get_rate(tick_clk);
+
+	mct_clk = np ? of_clk_get_by_name(np, "mct") : clk_get(NULL, "mct");
+	if (IS_ERR(mct_clk))
+		panic("%s: unable to retrieve mct clock instance\n", __func__);
+	clk_prepare_enable(mct_clk);
 
 	reg_base = base;
 	if (!reg_base)
@@ -514,7 +522,7 @@ void __init mct_init(void)
 		panic("unable to determine mct controller type\n");
 	}
 
-	exynos4_timer_resources(S5P_VA_SYSTIMER);
+	exynos4_timer_resources(NULL, S5P_VA_SYSTIMER);
 	exynos4_clocksource_init();
 	exynos4_clockevent_init();
 }
@@ -537,7 +545,7 @@ static void __init mct_init_dt(struct device_node *np, unsigned int int_type)
 	for (i = MCT_L0_IRQ; i < nr_irqs; i++)
 		mct_irqs[i] = irq_of_parse_and_map(np, i);
 
-	exynos4_timer_resources(of_iomap(np, 0));
+	exynos4_timer_resources(np, of_iomap(np, 0));
 	exynos4_clocksource_init();
 	exynos4_clockevent_init();
 }
