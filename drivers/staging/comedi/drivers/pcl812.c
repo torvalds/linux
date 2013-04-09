@@ -1122,22 +1122,15 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcl812_board *board = comedi_board(dev);
 	struct pcl812_private *devpriv;
 	int ret, subdev;
-	unsigned long iobase;
 	unsigned int irq;
 	unsigned int dma;
 	unsigned long pages;
 	struct comedi_subdevice *s;
 	int n_subdevices;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: pcl812:  board=%s, ioport=0x%03lx",
-	       dev->minor, board->name, iobase);
-
-	if (!request_region(iobase, board->io_range, dev->board_name)) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], board->io_range);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv) {
