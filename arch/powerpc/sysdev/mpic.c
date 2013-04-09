@@ -48,6 +48,12 @@
 #define DBG(fmt...)
 #endif
 
+struct bus_type mpic_subsys = {
+	.name = "mpic",
+	.dev_name = "mpic",
+};
+EXPORT_SYMBOL_GPL(mpic_subsys);
+
 static struct mpic *mpics;
 static struct mpic *mpic_primary;
 static DEFINE_RAW_SPINLOCK(mpic_lock);
@@ -2035,6 +2041,8 @@ static struct syscore_ops mpic_syscore_ops = {
 static int mpic_init_sys(void)
 {
 	register_syscore_ops(&mpic_syscore_ops);
+	subsys_system_register(&mpic_subsys, NULL);
+
 	return 0;
 }
 
