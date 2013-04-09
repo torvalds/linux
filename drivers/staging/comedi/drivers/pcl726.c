@@ -225,23 +225,14 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcl726_board *board = comedi_board(dev);
 	struct pcl726_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
-	unsigned int iorange;
 	int ret, i;
 #ifdef ACL6126_IRQ
 	unsigned int irq;
 #endif
 
-	iobase = it->options[0];
-	iorange = board->io_range;
-	printk(KERN_WARNING "comedi%d: pcl726: board=%s, 0x%03lx ", dev->minor,
-	       board->name, iobase);
-	if (!request_region(iobase, iorange, dev->board_name)) {
-		printk(KERN_WARNING "I/O port conflict\n");
-		return -EIO;
-	}
-
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], board->io_range);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
