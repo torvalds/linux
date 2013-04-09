@@ -217,7 +217,7 @@ static int rti800_ai_insn_read(struct comedi_device *dev,
 			return ret;
 
 		data[i] = inb(dev->iobase + RTI800_ADCLO);
-		data[i] |= (0xf & inb(dev->iobase + RTI800_ADCHI)) << 8;
+		data[i] |= (inb(dev->iobase + RTI800_ADCHI) & 0xf) << 8;
 
 		if (devpriv->adc_2comp)
 			data[i] ^= 0x800;
