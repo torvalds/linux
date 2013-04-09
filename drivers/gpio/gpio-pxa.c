@@ -499,8 +499,13 @@ static int pxa_gpio_nums(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static struct of_device_id pxa_gpio_dt_ids[] = {
-	{ .compatible = "mrvl,pxa-gpio" },
-	{ .compatible = "mrvl,mmp-gpio", .data = (void *)MMP_GPIO },
+	{ .compatible = "intel,pxa25x-gpio",	.data = &pxa25x_id, },
+	{ .compatible = "intel,pxa26x-gpio",	.data = &pxa26x_id, },
+	{ .compatible = "intel,pxa27x-gpio",	.data = &pxa27x_id, },
+	{ .compatible = "intel,pxa3xx-gpio",	.data = &pxa3xx_id, },
+	{ .compatible = "marvell,pxa93x-gpio",	.data = &pxa93x_id, },
+	{ .compatible = "marvell,mmp-gpio",	.data = &mmp_id, },
+	{ .compatible = "marvell,mmp2-gpio",	.data = &mmp2_id, },
 	{}
 };
 
@@ -520,16 +525,18 @@ const struct irq_domain_ops pxa_irq_domain_ops = {
 
 static int pxa_gpio_probe_dt(struct platform_device *pdev)
 {
-	int ret, nr_banks, nr_gpios;
+	int ret, nr_gpios;
 	struct device_node *prev, *next, *np = pdev->dev.of_node;
 	const struct of_device_id *of_id =
 				of_match_device(pxa_gpio_dt_ids, &pdev->dev);
+	const struct pxa_gpio_id *gpio_id;
 
-	if (!of_id) {
+	if (!of_id || !of_id->data) {
 		dev_err(&pdev->dev, "Failed to find gpio controller\n");
 		return -EFAULT;
 	}
-	gpio_type = (int)of_id->data;
+	gpio_id = of_id->data;
+	gpio_type = gpio_id->type;
 
 	next = of_get_next_child(np, NULL);
 	prev = next;
@@ -538,14 +545,8 @@ static int pxa_gpio_probe_dt(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err;
 	}
-	for (nr_banks = 1; ; nr_banks++) {
-		next = of_get_next_child(np, prev);
-		if (!next)
-			break;
-		prev = next;
-	}
 	of_node_put(prev);
-	nr_gpios = nr_banks << 5;
+	nr_gpios = gpio_id->gpio_nums;
 	pxa_last_gpio = nr_gpios - 1;
 
 	irq_base = irq_alloc_descs(-1, 0, nr_gpios, 0);
