@@ -49,6 +49,17 @@ enum fimc_bus_type {
 #define fimc_input_is_parallel(x) ((x) == 1 || (x) == 2)
 #define fimc_input_is_mipi_csi(x) ((x) == 3 || (x) == 4)
 
+/*
+ * The subdevices' group IDs.
+ */
+#define GRP_ID_SENSOR		(1 << 8)
+#define GRP_ID_FIMC_IS_SENSOR	(1 << 9)
+#define GRP_ID_WRITEBACK	(1 << 10)
+#define GRP_ID_CSIS		(1 << 11)
+#define GRP_ID_FIMC		(1 << 12)
+#define GRP_ID_FLITE		(1 << 13)
+#define GRP_ID_FIMC_IS		(1 << 14)
+
 struct i2c_board_info;
 
 /**

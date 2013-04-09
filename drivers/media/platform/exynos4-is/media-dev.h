@@ -30,15 +30,6 @@
 
 #define PINCTRL_STATE_IDLE	"idle"
 
-/* Group IDs of sensor, MIPI-CSIS, FIMC-LITE and the writeback subdevs. */
-#define GRP_ID_SENSOR		(1 << 8)
-#define GRP_ID_FIMC_IS_SENSOR	(1 << 9)
-#define GRP_ID_WRITEBACK	(1 << 10)
-#define GRP_ID_CSIS		(1 << 11)
-#define GRP_ID_FIMC		(1 << 12)
-#define GRP_ID_FLITE		(1 << 13)
-#define GRP_ID_FIMC_IS		(1 << 14)
-
 #define FIMC_MAX_SENSORS	8
 #define FIMC_MAX_CAMCLKS	2
 
