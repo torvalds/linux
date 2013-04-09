@@ -11,22 +11,53 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk/mxs.h>
 #include <linux/clkdev.h>
+#include <linux/clocksource.h>
 #include <linux/can/platform/flexcan.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
+#include <linux/irqchip.h>
+#include <linux/irqchip/mxs.h>
 #include <linux/micrel_phy.h>
 #include <linux/mxsfb.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/phy.h>
 #include <linux/pinctrl/consumer.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <mach/common.h>
-#include <mach/digctl.h>
-#include <mach/mxs.h>
+#include <asm/system_misc.h>
+
+/* MXS DIGCTL SAIF CLKMUX */
+#define MXS_DIGCTL_SAIF_CLKMUX_DIRECT		0x0
+#define MXS_DIGCTL_SAIF_CLKMUX_CROSSINPUT	0x1
+#define MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR0		0x2
+#define MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR1		0x3
+
+#define MXS_GPIO_NR(bank, nr)	((bank) * 32 + (nr))
+
+#define MXS_SET_ADDR		0x4
+#define MXS_CLR_ADDR		0x8
+#define MXS_TOG_ADDR		0xc
+
+static inline void __mxs_setl(u32 mask, void __iomem *reg)
+{
+	__raw_writel(mask, reg + MXS_SET_ADDR);
+}
+
+static inline void __mxs_clrl(u32 mask, void __iomem *reg)
+{
+	__raw_writel(mask, reg + MXS_CLR_ADDR);
+}
+
+static inline void __mxs_togl(u32 mask, void __iomem *reg)
+{
+	__raw_writel(mask, reg + MXS_TOG_ADDR);
+}
 
 static struct fb_videomode mx23evk_video_modes[] = {
 	{
@@ -41,8 +72,6 @@ static struct fb_videomode mx23evk_video_modes[] = {
 		.lower_margin	= 4,
 		.hsync_len	= 1,
 		.vsync_len	= 1,
-		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT |
-				  FB_SYNC_DOTCLK_FAILING_ACT,
 	},
 };
 
@@ -59,8 +88,6 @@ static struct fb_videomode mx28evk_video_modes[] = {
 		.lower_margin	= 10,
 		.hsync_len	= 10,
 		.vsync_len	= 10,
-		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT |
-				  FB_SYNC_DOTCLK_FAILING_ACT,
 	},
 };
 
@@ -77,7 +104,6 @@ static struct fb_videomode m28evk_video_modes[] = {
 		.lower_margin	= 45,
 		.hsync_len	= 1,
 		.vsync_len	= 1,
-		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT,
 	},
 };
 
@@ -94,9 +120,7 @@ static struct fb_videomode apx4devkit_video_modes[] = {
 		.lower_margin	= 13,
 		.hsync_len	= 48,
 		.vsync_len	= 3,
-		.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT |
-				  FB_SYNC_DATA_ENABLE_HIGH_ACT |
-				  FB_SYNC_DOTCLK_FAILING_ACT,
+		.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	},
 };
 
@@ -113,9 +137,7 @@ static struct fb_videomode apf28dev_video_modes[] = {
 		.lower_margin = 0x15,
 		.hsync_len = 64,
 		.vsync_len = 4,
-		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT |
-				FB_SYNC_DATA_ENABLE_HIGH_ACT |
-				FB_SYNC_DOTCLK_FAILING_ACT,
+		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	},
 };
 
@@ -132,7 +154,6 @@ static struct fb_videomode cfa10049_video_modes[] = {
 		.lower_margin	= 2,
 		.hsync_len	= 15,
 		.vsync_len	= 15,
-		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT
 	},
 };
 
@@ -175,14 +196,80 @@ static struct of_dev_auxdata mxs_auxdata_lookup[] __initdata = {
 	{ /* sentinel */ }
 };
 
-static void __init imx23_timer_init(void)
-{
-	mx23_clocks_init();
-}
+#define OCOTP_WORD_OFFSET		0x20
+#define OCOTP_WORD_COUNT		0x20
 
-static void __init imx28_timer_init(void)
+#define BM_OCOTP_CTRL_BUSY		(1 << 8)
+#define BM_OCOTP_CTRL_ERROR		(1 << 9)
+#define BM_OCOTP_CTRL_RD_BANK_OPEN	(1 << 12)
+
+static DEFINE_MUTEX(ocotp_mutex);
+static u32 ocotp_words[OCOTP_WORD_COUNT];
+
+static const u32 *mxs_get_ocotp(void)
 {
-	mx28_clocks_init();
+	struct device_node *np;
+	void __iomem *ocotp_base;
+	int timeout = 0x400;
+	size_t i;
+	static int once;
+
+	if (once)
+		return ocotp_words;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,ocotp");
+	ocotp_base = of_iomap(np, 0);
+	WARN_ON(!ocotp_base);
+
+	mutex_lock(&ocotp_mutex);
+
+	/*
+	 * clk_enable(hbus_clk) for ocotp can be skipped
+	 * as it must be on when system is running.
+	 */
+
+	/* try to clear ERROR bit */
+	__mxs_clrl(BM_OCOTP_CTRL_ERROR, ocotp_base);
+
+	/* check both BUSY and ERROR cleared */
+	while ((__raw_readl(ocotp_base) &
+		(BM_OCOTP_CTRL_BUSY | BM_OCOTP_CTRL_ERROR)) && --timeout)
+		cpu_relax();
+
+	if (unlikely(!timeout))
+		goto error_unlock;
+
+	/* open OCOTP banks for read */
+	__mxs_setl(BM_OCOTP_CTRL_RD_BANK_OPEN, ocotp_base);
+
+	/* approximately wait 32 hclk cycles */
+	udelay(1);
+
+	/* poll BUSY bit becoming cleared */
+	timeout = 0x400;
+	while ((__raw_readl(ocotp_base) & BM_OCOTP_CTRL_BUSY) && --timeout)
+		cpu_relax();
+
+	if (unlikely(!timeout))
+		goto error_unlock;
+
+	for (i = 0; i < OCOTP_WORD_COUNT; i++)
+		ocotp_words[i] = __raw_readl(ocotp_base + OCOTP_WORD_OFFSET +
+						i * 0x10);
+
+	/* close banks for power saving */
+	__mxs_clrl(BM_OCOTP_CTRL_RD_BANK_OPEN, ocotp_base);
+
+	once = 1;
+
+	mutex_unlock(&ocotp_mutex);
+
+	return ocotp_words;
+
+error_unlock:
+	mutex_unlock(&ocotp_mutex);
+	pr_err("%s: timeout in reading OCOTP\n", __func__);
+	return NULL;
 }
 
 enum mac_oui {
@@ -259,6 +346,8 @@ static void __init imx23_evk_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(mx23evk_video_modes);
 	mxsfb_pdata.default_bpp = 32;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
+				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 }
 
 static inline void enable_clk_enet_out(void)
@@ -278,6 +367,8 @@ static void __init imx28_evk_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(mx28evk_video_modes);
 	mxsfb_pdata.default_bpp = 32;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
+				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 
 	mxs_saif_clkmux_select(MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR0);
 }
@@ -297,6 +388,7 @@ static void __init m28evk_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(m28evk_video_modes);
 	mxsfb_pdata.default_bpp = 16;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT;
 }
 
 static void __init sc_sps1_init(void)
@@ -322,6 +414,8 @@ static void __init apx4devkit_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(apx4devkit_video_modes);
 	mxsfb_pdata.default_bpp = 32;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
+				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 }
 
 #define ENET0_MDC__GPIO_4_0	MXS_GPIO_NR(4, 0)
@@ -407,6 +501,7 @@ static void __init cfa10049_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(cfa10049_video_modes);
 	mxsfb_pdata.default_bpp = 32;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT;
 }
 
 static void __init cfa10037_init(void)
@@ -423,6 +518,8 @@ static void __init apf28_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(apf28dev_video_modes);
 	mxsfb_pdata.default_bpp = 16;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_16BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
+				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 }
 
 static void __init mxs_machine_init(void)
@@ -454,32 +551,62 @@ static void __init mxs_machine_init(void)
 		imx28_evk_post_init();
 }
 
-static const char *imx23_dt_compat[] __initdata = {
+#define MX23_CLKCTRL_RESET_OFFSET	0x120
+#define MX28_CLKCTRL_RESET_OFFSET	0x1e0
+#define MXS_CLKCTRL_RESET_CHIP		(1 << 1)
+
+/*
+ * Reset the system. It is called by machine_restart().
+ */
+static void mxs_restart(char mode, const char *cmd)
+{
+	struct device_node *np;
+	void __iomem *reset_addr;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,clkctrl");
+	reset_addr = of_iomap(np, 0);
+	if (!reset_addr)
+		goto soft;
+
+	if (of_device_is_compatible(np, "fsl,imx23-clkctrl"))
+		reset_addr += MX23_CLKCTRL_RESET_OFFSET;
+	else
+		reset_addr += MX28_CLKCTRL_RESET_OFFSET;
+
+	/* reset the chip */
+	__mxs_setl(MXS_CLKCTRL_RESET_CHIP, reset_addr);
+
+	pr_err("Failed to assert the chip reset\n");
+
+	/* Delay to allow the serial port to show the message */
+	mdelay(50);
+
+soft:
+	/* We'll take a jump through zero as a poor second */
+	soft_restart(0);
+}
+
+static void __init mxs_timer_init(void)
+{
+	if (of_machine_is_compatible("fsl,imx23"))
+		mx23_clocks_init();
+	else
+		mx28_clocks_init();
+	clocksource_of_init();
+}
+
+static const char *mxs_dt_compat[] __initdata = {
+	"fsl,imx28",
 	"fsl,imx23",
 	NULL,
 };
 
-static const char *imx28_dt_compat[] __initdata = {
-	"fsl,imx28",
-	NULL,
-};
-
-DT_MACHINE_START(IMX23, "Freescale i.MX23 (Device Tree)")
-	.map_io		= mx23_map_io,
-	.init_irq	= icoll_init_irq,
+DT_MACHINE_START(MXS, "Freescale MXS (Device Tree)")
+	.map_io		= debug_ll_io_init,
+	.init_irq	= irqchip_init,
 	.handle_irq	= icoll_handle_irq,
-	.init_time	= imx23_timer_init,
+	.init_time	= mxs_timer_init,
 	.init_machine	= mxs_machine_init,
-	.dt_compat	= imx23_dt_compat,
-	.restart	= mxs_restart,
-MACHINE_END
-
-DT_MACHINE_START(IMX28, "Freescale i.MX28 (Device Tree)")
-	.map_io		= mx28_map_io,
-	.init_irq	= icoll_init_irq,
-	.handle_irq	= icoll_handle_irq,
-	.init_time	= imx28_timer_init,
-	.init_machine	= mxs_machine_init,
-	.dt_compat	= imx28_dt_compat,
+	.dt_compat	= mxs_dt_compat,
 	.restart	= mxs_restart,
 MACHINE_END

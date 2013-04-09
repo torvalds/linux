@@ -427,12 +427,14 @@ config ARCH_MXS
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
+	select CLKSRC_OF
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK_PREPARE
 	select MULTI_IRQ_HANDLER
 	select PINCTRL
 	select SPARSE_IRQ
+	select STMP_DEVICE
 	select USE_OF
 	help
 	  Support for Freescale MXS-based family of processors
@@ -696,6 +698,7 @@ config ARCH_RPC
 	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
 	select NO_IOPORT
+	select VIRT_TO_BUS
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
 	  CD-ROM interface, serial and parallel port, and the floppy drive.
@@ -831,6 +834,7 @@ config ARCH_SHARK
 	select ISA_DMA
 	select NEED_MACH_MEMORY_H
 	select PCI
+	select VIRT_TO_BUS
 	select ZONE_DMA
 	help
 	  Support for the StrongARM based Digital DNARD machine, also known
@@ -913,12 +917,12 @@ config ARCH_MULTI_V4_V5
 	bool
 
 config ARCH_MULTI_V6
-	bool "ARMv6 based platforms (ARM11, Scorpion, ...)"
+	bool "ARMv6 based platforms (ARM11)"
 	select ARCH_MULTI_V6_V7
 	select CPU_V6
 
 config ARCH_MULTI_V7
-	bool "ARMv7 based platforms (Cortex-A, PJ4, Krait)"
+	bool "ARMv7 based platforms (Cortex-A, PJ4, Scorpion, Krait)"
 	default y
 	select ARCH_MULTI_V6_V7
 	select ARCH_VEXPRESS
@@ -1370,10 +1374,6 @@ config ISA
 config ISA_DMA
 	bool
 	select ISA_DMA_API
-
-config ARCH_NO_VIRT_TO_BUS
-	def_bool y
-	depends on !ARCH_RPC && !ARCH_NETWINDER && !ARCH_SHARK
 
 # Select ISA DMA interface
 config ISA_DMA_API
