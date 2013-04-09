@@ -152,7 +152,7 @@ static int syscon_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, syscon);
 
-	dev_info(dev, "regmap 0x%x-0x%x registered\n", res->start, res->end);
+	dev_info(dev, "regmap %pR registered\n", res);
 
 	return 0;
 }
