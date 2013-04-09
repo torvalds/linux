@@ -338,13 +338,13 @@ static void comedi_report_boards(struct comedi_driver *driv)
 }
 
 /**
- * comedi_request_region() - Request an I/O reqion for a legacy driver.
+ * __comedi_request_region() - Request an I/O reqion for a legacy driver.
  * @dev: comedi_device struct
  * @start: base address of the I/O reqion
  * @len: length of the I/O region
  */
-int comedi_request_region(struct comedi_device *dev,
-			  unsigned long start, unsigned long len)
+int __comedi_request_region(struct comedi_device *dev,
+			    unsigned long start, unsigned long len)
 {
 	if (!start) {
 		dev_warn(dev->class_dev,
@@ -358,9 +358,27 @@ int comedi_request_region(struct comedi_device *dev,
 			 dev->board_name, start, len);
 		return -EIO;
 	}
-	dev->iobase = start;
 
 	return 0;
+}
+EXPORT_SYMBOL_GPL(__comedi_request_region);
+
+/**
+ * comedi_request_region() - Request an I/O reqion for a legacy driver.
+ * @dev: comedi_device struct
+ * @start: base address of the I/O reqion
+ * @len: length of the I/O region
+ */
+int comedi_request_region(struct comedi_device *dev,
+			  unsigned long start, unsigned long len)
+{
+	int ret;
+
+	ret = __comedi_request_region(dev, start, len);
+	if (ret == 0)
+		dev->iobase = start;
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(comedi_request_region);
 
