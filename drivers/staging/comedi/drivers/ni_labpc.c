@@ -1758,9 +1758,9 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv;
-	unsigned long iobase = 0;
 	unsigned int irq = 0;
 	unsigned int dma_chan = 0;
+	int ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -1771,12 +1771,11 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	switch (board->bustype) {
 	case isa_bustype:
 #ifdef CONFIG_ISA_DMA_API
-		iobase = it->options[0];
 		irq = it->options[1];
 		dma_chan = it->options[2];
-		if (!request_region(iobase, LABPC_SIZE, dev->board_name))
-			return -EIO;
-		dev->iobase = iobase;
+		ret = comedi_request_region(dev, it->options[0], LABPC_SIZE);
+		if (ret)
+			return ret;
 #else
 		dev_err(dev->class_dev,
 			"ni_labpc driver has not been built with ISA DMA support.\n");
