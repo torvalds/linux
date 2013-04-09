@@ -981,25 +981,16 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcl816_board *board = comedi_board(dev);
 	struct pcl816_private *devpriv;
 	int ret;
-	unsigned long iobase;
 	unsigned int irq, dma;
 	unsigned long pages;
 	/* int i; */
 	struct comedi_subdevice *s;
 
-	/* claim our I/O space */
-	iobase = it->options[0];
-	printk("comedi%d: pcl816:  board=%s, ioport=0x%03lx", dev->minor,
-	       board->name, iobase);
+	ret = comedi_request_region(dev, it->options[0], board->io_range);
+	if (ret)
+		return ret;
 
-	if (!request_region(iobase, board->io_range, dev->board_name)) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-
-	dev->iobase = iobase;
-
-	if (pcl816_check(iobase)) {
+	if (pcl816_check(dev->iobase)) {
 		printk(KERN_ERR ", I cann't detect board. FAIL!\n");
 		return -EIO;
 	}
