@@ -222,11 +222,6 @@ static void encoder_reset(struct comedi_device *dev)
 	}
 }
 
-/*
-   options[0] - I/O port
-   options[2] - number of encoder chips installed
- */
-
 static int multiq3_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
