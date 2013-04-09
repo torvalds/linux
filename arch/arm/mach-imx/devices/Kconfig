@@ -86,7 +86,3 @@ config IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 
 config IMX_HAVE_PLATFORM_SPI_IMX
 	bool
-
-config IMX_HAVE_PLATFORM_AHCI
-	bool
-	default y if ARCH_MX53
