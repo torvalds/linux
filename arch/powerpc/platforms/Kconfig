@@ -98,6 +98,15 @@ config MPIC_TIMER
 	  chip, but it can potentially support other global timers
 	  complying with the OpenPIC standard.
 
+config FSL_MPIC_TIMER_WAKEUP
+	tristate "Freescale MPIC global timer wakeup driver"
+	depends on FSL_SOC &&  MPIC_TIMER && PM
+	default n
+	help
+	  The driver provides a way to wake up the system by MPIC
+	  timer.
+	  e.g. "echo 5 > /sys/devices/system/mpic/timer_wakeup"
+
 config PPC_EPAPR_HV_PIC
 	bool
 	default n
