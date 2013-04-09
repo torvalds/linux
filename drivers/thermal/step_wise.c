@@ -59,9 +59,12 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 
 	switch (trend) {
 	case THERMAL_TREND_RAISING:
-		if (throttle)
+		if (throttle) {
 			cur_state = cur_state < instance->upper ?
 				    (cur_state + 1) : instance->upper;
+			if (cur_state < instance->lower)
+				cur_state = instance->lower;
+		}
 		break;
 	case THERMAL_TREND_RAISE_FULL:
 		if (throttle)
@@ -71,8 +74,11 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 		if (cur_state == instance->lower) {
 			if (!throttle)
 				cur_state = -1;
-		} else
+		} else {
 			cur_state -= 1;
+			if (cur_state > instance->upper)
+				cur_state = instance->upper;
+		}
 		break;
 	case THERMAL_TREND_DROP_FULL:
 		if (cur_state == instance->lower) {
