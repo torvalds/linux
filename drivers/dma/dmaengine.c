@@ -62,6 +62,8 @@
 #include <linux/rculist.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
+#include <linux/acpi_dma.h>
 #include <linux/of_dma.h>
 
 static DEFINE_MUTEX(dma_list_mutex);
@@ -563,6 +565,10 @@ struct dma_chan *dma_request_slave_channel(struct device *dev, char *name)
 	/* If device-tree is present get slave info from here */
 	if (dev->of_node)
 		return of_dma_request_slave_channel(dev->of_node, name);
+
+	/* If device was enumerated by ACPI get slave info from here */
+	if (ACPI_HANDLE(dev))
+		return acpi_dma_request_slave_chan_by_name(dev, name);
 
 	return NULL;
 }
