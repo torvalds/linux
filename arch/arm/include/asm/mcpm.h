@@ -167,6 +167,8 @@ int __mcpm_cluster_state(unsigned int cluster);
 int __init mcpm_sync_init(
 	void (*power_up_setup)(unsigned int affinity_level));
 
+void __init mcpm_smp_set_ops(void);
+
 #else
 
 /* 
