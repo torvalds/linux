@@ -140,9 +140,6 @@ static const struct rti800_board rti800_boardtypes[] = {
 
 struct rti800_private {
 	enum {
-		adc_diff, adc_pseudodiff, adc_singleended
-	} adc_mux;
-	enum {
 		adc_bipolar10, adc_bipolar5, adc_unipolar10
 	} adc_range;
 	enum {
@@ -316,7 +313,6 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	devpriv->adc_mux = it->options[2];
 	devpriv->adc_range = it->options[3];
 	devpriv->adc_coding = it->options[4];
 	devpriv->dac0_range = it->options[5];
@@ -333,7 +329,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* ai subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = (devpriv->adc_mux ? 16 : 8);
+	s->n_chan = (it->options[2] ? 16 : 8);
 	s->insn_read = rti800_ai_insn_read;
 	s->maxdata = 0xfff;
 	switch (devpriv->adc_range) {
