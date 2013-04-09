@@ -309,7 +309,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 
 	iobase = it->options[0];
-	if (!request_region(iobase, RTI800_SIZE, "rti800"))
+	if (!request_region(iobase, RTI800_SIZE, dev->board_name))
 		return -EIO;
 	dev->iobase = iobase;
 
@@ -319,13 +319,12 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	irq = it->options[1];
 	if (irq) {
-		ret = request_irq(irq, rti800_interrupt, 0, "rti800", dev);
+		ret = request_irq(irq, rti800_interrupt, 0, dev->board_name,
+				  dev);
 		if (ret < 0)
 			return ret;
 		dev->irq = irq;
 	}
-
-	dev->board_name = board->name;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
