@@ -209,21 +209,6 @@ static struct pci_dev *pc236_find_pci_dev(struct comedi_device *dev,
 }
 
 /*
- * This function checks and requests an I/O region, reporting an error
- * if there is a conflict.
- */
-static int pc236_request_region(struct comedi_device *dev, unsigned long from,
-				unsigned long extent)
-{
-	if (!from || !request_region(from, extent, PC236_DRIVER_NAME)) {
-		dev_err(dev->class_dev, "I/O port conflict (%#lx,%lu)!\n",
-		       from, extent);
-		return -EIO;
-	}
-	return 0;
-}
-
-/*
  * This function is called to mark the interrupt as disabled (no command
  * configured on subdevice 1) and to physically disable the interrupt
  * (not possible on the PC36AT, except by removing the IRQ jumper!).
@@ -491,8 +476,6 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pc236_private *devpriv;
 	int ret;
 
-	dev_info(dev->class_dev, PC236_DRIVER_NAME ": attach\n");
-
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
@@ -500,12 +483,11 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* Process options according to bus type. */
 	if (is_isa_board(thisboard)) {
-		unsigned long iobase = it->options[0];
-		unsigned int irq = it->options[1];
-		ret = pc236_request_region(dev, iobase, PC236_IO_SIZE);
-		if (ret < 0)
+		ret = comedi_request_region(dev, it->options[0], PC236_IO_SIZE);
+		if (ret)
 			return ret;
-		return pc236_common_attach(dev, iobase, irq, 0);
+
+		return pc236_common_attach(dev, dev->iobase, it->options[1], 0);
 	} else if (is_pci_board(thisboard)) {
 		struct pci_dev *pci_dev;
 
