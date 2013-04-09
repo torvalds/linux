@@ -29,11 +29,13 @@
  * block to complete the transaction.
  *
  * For extents-enabled fs we may have to allocate and modify up to
- * 5 levels of tree + root which are stored in the inode. */
+ * 5 levels of tree, data block (for each of these we need bitmap + group
+ * summaries), root which is stored in the inode, sb
+ */
 
 #define EXT4_SINGLEDATA_TRANS_BLOCKS(sb)				\
 	(EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS)   \
-	 ? 27U : 8U)
+	 ? 20U : 8U)
 
 /* Extended attribute operations touch at most two data buffers,
  * two bitmap buffers, and two group summaries, in addition to the inode
