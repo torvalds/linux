@@ -126,15 +126,10 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: dt2817: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, DT2817_SIZE, "dt2817")) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], DT2817_SIZE);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
@@ -152,8 +147,6 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	s->state = 0;
 	outb(0, dev->iobase + DT2817_CR);
-
-	printk(KERN_INFO "\n");
 
 	return 0;
 }
