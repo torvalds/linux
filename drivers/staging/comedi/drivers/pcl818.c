@@ -1616,7 +1616,7 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->io_range = PCLx1xFIFO_RANGE;
 		devpriv->usefifo = 1;
 	}
-	if (!request_region(iobase, devpriv->io_range, "pcl818")) {
+	if (!request_region(iobase, devpriv->io_range, dev->board_name)) {
 		comedi_error(dev, "I/O port conflict\n");
 		return -EIO;
 	}
@@ -1627,8 +1627,6 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		comedi_error(dev, "I can't detect board. FAIL!\n");
 		return -EIO;
 	}
-
-	dev->board_name = board->name;
 
 	/* grab our IRQ */
 	irq = 0;
@@ -1641,8 +1639,8 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				     irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
-				if (request_irq
-				    (irq, interrupt_pcl818, 0, "pcl818", dev)) {
+				if (request_irq(irq, interrupt_pcl818, 0,
+						dev->board_name, dev)) {
 					printk
 					    (", unable to allocate IRQ %u, DISABLING IT",
 					     irq);
@@ -1707,7 +1705,7 @@ no_rtc:
 			printk(KERN_ERR "DMA is out of allowed range, FAIL!\n");
 			return -EINVAL;	/* Bad DMA */
 		}
-		ret = request_dma(dma, "pcl818");
+		ret = request_dma(dma, dev->board_name);
 		if (ret)
 			return -EBUSY;	/* DMA isn't free */
 		devpriv->dma = dma;
