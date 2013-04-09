@@ -1511,7 +1511,6 @@ static int das1800_attach(struct comedi_device *dev,
 	const struct das1800_board *thisboard = comedi_board(dev);
 	struct das1800_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase = it->options[0];
 	unsigned int irq = it->options[1];
 	unsigned int dma0 = it->options[2];
 	unsigned int dma1 = it->options[3];
@@ -1524,31 +1523,9 @@ static int das1800_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	printk(KERN_DEBUG "comedi%d: %s: io 0x%lx", dev->minor,
-	       dev->driver->driver_name, iobase);
-	if (irq) {
-		printk(KERN_CONT ", irq %u", irq);
-		if (dma0) {
-			printk(KERN_CONT ", dma %u", dma0);
-			if (dma1)
-				printk(KERN_CONT " and %u", dma1);
-		}
-	}
-	printk(KERN_CONT "\n");
-
-	if (iobase == 0) {
-		dev_err(dev->class_dev, "io base address required\n");
-		return -EINVAL;
-	}
-
-	/* check if io addresses are available */
-	if (!request_region(iobase, DAS1800_SIZE, dev->driver->driver_name)) {
-		printk
-		    (" I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n",
-		     iobase, iobase + DAS1800_SIZE - 1);
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	retval = comedi_request_region(dev, it->options[0], DAS1800_SIZE);
+	if (retval)
+		return retval;
 
 	board = das1800_probe(dev);
 	if (board < 0) {
@@ -1562,12 +1539,14 @@ static int das1800_attach(struct comedi_device *dev,
 
 	/*  if it is an 'ao' board with fancy analog out then we need extra io ports */
 	if (thisboard->ao_ability == 2) {
-		iobase2 = iobase + IOBASE2;
-		if (!request_region(iobase2, DAS1800_SIZE,
-				    dev->driver->driver_name)) {
-			printk
-			    (" I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n",
-			     iobase2, iobase2 + DAS1800_SIZE - 1);
+		iobase2 = dev->iobase + IOBASE2;
+		if (!request_region(iobase2, DAS1800_SIZE, dev->board_name)) {
+			release_region(dev->iobase, DAS1800_SIZE);
+			dev_warn(dev->class_dev,
+				 "%s: I/O port conflict (%#lx,%d)\n",
+				 dev->board_name,
+				 iobase2, DAS1800_SIZE);
+			dev->iobase = 0;
 			return -EIO;
 		}
 		devpriv->iobase2 = iobase2;
