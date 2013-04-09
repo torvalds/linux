@@ -52,8 +52,8 @@
 #include <linux/mutex.h>
 #include <linux/sctp.h>
 #include <linux/slab.h>
+#include <linux/sctp.h>
 #include <net/sctp/sctp.h>
-#include <net/sctp/user.h>
 #include <net/ipv6.h>
 
 #include "dlm_internal.h"

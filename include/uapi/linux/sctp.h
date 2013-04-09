@@ -42,15 +42,17 @@
  *    Jon Grimm                <jgrimm@us.ibm.com>
  *    Daisy Chang              <daisyc@us.ibm.com>
  *    Ryan Layer               <rmlayer@us.ibm.com>
- *    Ardelle Fan	       <ardelle.fan@intel.com>
+ *    Ardelle Fan              <ardelle.fan@intel.com>
  *    Sridhar Samudrala        <sri@us.ibm.com>
+ *    Inaky Perez-Gonzalez     <inaky.gonzalez@intel.com>
+ *    Vlad Yasevich            <vladislav.yasevich@hp.com>
  *
  * Any bugs reported given to us we will try to fix... any fixes shared will
  * be incorporated into the next SCTP release.
  */
 
-#ifndef __net_sctp_user_h__
-#define __net_sctp_user_h__
+#ifndef _UAPI_SCTP_H
+#define _UAPI_SCTP_H
 
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -165,16 +167,22 @@ enum sctp_sinfo_flags {
 	SCTP_ADDR_OVER = 2,  /* Override the primary destination. */
 	SCTP_ABORT=4,        /* Send an ABORT message to the peer. */
 	SCTP_SACK_IMMEDIATELY = 8,	/* SACK should be sent without delay */
-	SCTP_EOF=MSG_FIN,    /* Initiate graceful shutdown process. */	
+	SCTP_EOF=MSG_FIN,    /* Initiate graceful shutdown process. */
 };
 
+typedef union {
+	__u8   			raw;
+	struct sctp_initmsg	init;
+	struct sctp_sndrcvinfo	sndrcv;
+} sctp_cmsg_data_t;
 
 /* These are cmsg_types.  */
 typedef enum sctp_cmsg_type {
 	SCTP_INIT,              /* 5.2.1 SCTP Initiation Structure */
+#define SCTP_INIT	SCTP_INIT
 	SCTP_SNDRCV,            /* 5.2.2 SCTP Header Information Structure */
+#define SCTP_SNDRCV	SCTP_SNDRCV
 } sctp_cmsg_t;
-
 
 /*
  * 5.3.1.1 SCTP_ASSOC_CHANGE
@@ -345,6 +353,12 @@ struct sctp_pdapi_event {
 
 enum { SCTP_PARTIAL_DELIVERY_ABORTED=0, };
 
+/*
+ * 5.3.1.8.  SCTP_AUTHENTICATION_EVENT
+ *
+ *  When a receiver is using authentication this message will provide
+ *  notifications regarding new keys being made active as well as errors.
+ */
 struct sctp_authkey_event {
 	__u16 auth_type;
 	__u16 auth_flags;
@@ -421,15 +435,23 @@ union sctp_notification {
 enum sctp_sn_type {
 	SCTP_SN_TYPE_BASE     = (1<<15),
 	SCTP_ASSOC_CHANGE,
+#define SCTP_ASSOC_CHANGE		SCTP_ASSOC_CHANGE
 	SCTP_PEER_ADDR_CHANGE,
+#define SCTP_PEER_ADDR_CHANGE		SCTP_PEER_ADDR_CHANGE
 	SCTP_SEND_FAILED,
+#define SCTP_SEND_FAILED		SCTP_SEND_FAILED
 	SCTP_REMOTE_ERROR,
+#define SCTP_REMOTE_ERROR		SCTP_REMOTE_ERROR
 	SCTP_SHUTDOWN_EVENT,
+#define SCTP_SHUTDOWN_EVENT		SCTP_SHUTDOWN_EVENT
 	SCTP_PARTIAL_DELIVERY_EVENT,
+#define SCTP_PARTIAL_DELIVERY_EVENT	SCTP_PARTIAL_DELIVERY_EVENT
 	SCTP_ADAPTATION_INDICATION,
+#define SCTP_ADAPTATION_INDICATION	SCTP_ADAPTATION_INDICATION
 	SCTP_AUTHENTICATION_EVENT,
 #define SCTP_AUTHENTICATION_INDICATION	SCTP_AUTHENTICATION_EVENT
 	SCTP_SENDER_DRY_EVENT,
+#define SCTP_SENDER_DRY_EVENT		SCTP_SENDER_DRY_EVENT
 };
 
 /* Notification error codes used to fill up the error fields in some
@@ -454,7 +476,7 @@ typedef enum sctp_sn_error {
  *
  *   The protocol parameters used to initialize and bound retransmission
  *   timeout (RTO) are tunable.  See [SCTP] for more information on how
- *   these parameters are used in RTO calculation. 
+ *   these parameters are used in RTO calculation.
  */
 struct sctp_rtoinfo {
 	sctp_assoc_t	srto_assoc_id;
@@ -503,6 +525,9 @@ struct sctp_prim {
 	sctp_assoc_t            ssp_assoc_id;
 	struct sockaddr_storage ssp_addr;
 } __attribute__((packed, aligned(4)));
+
+/* For backward compatibility use, define the old name too */
+#define sctp_setprim	sctp_prim
 
 /*
  * 7.1.11 Set Adaptation Layer Indicator (SCTP_ADAPTATION_LAYER)
@@ -564,11 +589,26 @@ struct sctp_authchunk {
  *
  * This option gets or sets the list of HMAC algorithms that the local
  * endpoint requires the peer to use.
-*/
+ */
+#ifndef __KERNEL__
+/* This here is only used by user space as is. It might not be a good idea
+ * to export/reveal the whole structure with reserved fields etc.
+ */
+enum {
+	SCTP_AUTH_HMAC_ID_SHA1 = 1,
+	SCTP_AUTH_HMAC_ID_SHA256 = 3,
+};
+#endif
+
 struct sctp_hmacalgo {
 	__u32		shmac_num_idents;
 	__u16		shmac_idents[];
 };
+
+/* Sadly, user and kernel space have different names for
+ * this structure member, so this is to not break anything.
+ */
+#define shmac_number_of_idents	shmac_num_idents
 
 /*
  * 7.1.20.  Set a shared key (SCTP_AUTH_KEY)
@@ -691,6 +731,24 @@ struct sctp_authchunks {
 	uint8_t		gauth_chunks[];
 };
 
+/* The broken spelling has been released already in lksctp-tools header,
+ * so don't break anyone, now that it's fixed.
+ */
+#define guth_number_of_chunks	gauth_number_of_chunks
+
+/* Association states.  */
+enum sctp_sstat_state {
+	SCTP_EMPTY                = 0,
+	SCTP_CLOSED               = 1,
+	SCTP_COOKIE_WAIT          = 2,
+	SCTP_COOKIE_ECHOED        = 3,
+	SCTP_ESTABLISHED          = 4,
+	SCTP_SHUTDOWN_PENDING     = 5,
+	SCTP_SHUTDOWN_SENT        = 6,
+	SCTP_SHUTDOWN_RECEIVED    = 7,
+	SCTP_SHUTDOWN_ACK_SENT    = 8,
+};
+
 /*
  * 8.2.6. Get the Current Identifiers of Associations
  *        (SCTP_GET_ASSOC_ID_LIST)
@@ -705,15 +763,20 @@ struct sctp_assoc_ids {
 
 /*
  * 8.3, 8.5 get all peer/local addresses in an association.
- * This parameter struct is used by SCTP_GET_PEER_ADDRS and 
+ * This parameter struct is used by SCTP_GET_PEER_ADDRS and
  * SCTP_GET_LOCAL_ADDRS socket options used internally to implement
- * sctp_getpaddrs() and sctp_getladdrs() API. 
+ * sctp_getpaddrs() and sctp_getladdrs() API.
  */
 struct sctp_getaddrs_old {
 	sctp_assoc_t            assoc_id;
 	int			addr_num;
+#ifdef __KERNEL__
 	struct sockaddr		__user *addrs;
+#else
+	struct sockaddr		*addrs;
+#endif
 };
+
 struct sctp_getaddrs {
 	sctp_assoc_t		assoc_id; /*input*/
 	__u32			addr_num; /*output*/
@@ -779,4 +842,5 @@ struct sctp_paddrthlds {
 	__u16 spt_pathmaxrxt;
 	__u16 spt_pathpfthld;
 };
-#endif /* __net_sctp_user_h__ */
+
+#endif /* _UAPI_SCTP_H */
