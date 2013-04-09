@@ -28,6 +28,13 @@
 
 #define CIK_RB_BITMAP_WIDTH_PER_SH  2
 
+/* SMC IND registers */
+#define GENERAL_PWRMGT                                    0xC0200000
+#       define GPU_COUNTER_CLK                            (1 << 15)
+
+#define CG_CLKPIN_CNTL                                    0xC05001A0
+#       define XTALIN_DIVIDE                              (1 << 1)
+
 #define VGA_HDP_CONTROL  				0x328
 #define		VGA_MEMORY_DISABLE				(1 << 4)
 

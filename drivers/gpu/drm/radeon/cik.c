@@ -78,6 +78,28 @@ extern void si_rlc_fini(struct radeon_device *rdev);
 extern int si_rlc_init(struct radeon_device *rdev);
 static void cik_rlc_stop(struct radeon_device *rdev);
 
+/**
+ * cik_get_xclk - get the xclk
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Returns the reference clock used by the gfx engine
+ * (CIK).
+ */
+u32 cik_get_xclk(struct radeon_device *rdev)
+{
+        u32 reference_clock = rdev->clock.spll.reference_freq;
+
+	if (rdev->flags & RADEON_IS_IGP) {
+		if (RREG32_SMC(GENERAL_PWRMGT) & GPU_COUNTER_CLK)
+			return reference_clock / 2;
+	} else {
+		if (RREG32_SMC(CG_CLKPIN_CNTL) & XTALIN_DIVIDE)
+			return reference_clock / 4;
+	}
+	return reference_clock;
+}
+
 #define BONAIRE_IO_MC_REGS_SIZE 36
 
 static const u32 bonaire_io_mc_regs[BONAIRE_IO_MC_REGS_SIZE][2] =

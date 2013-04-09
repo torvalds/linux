@@ -557,5 +557,6 @@ int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
  * cik
  */
 uint64_t cik_get_gpu_clock_counter(struct radeon_device *rdev);
+u32 cik_get_xclk(struct radeon_device *rdev);
 
 #endif
