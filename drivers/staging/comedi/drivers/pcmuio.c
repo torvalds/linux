@@ -800,25 +800,16 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pcmuio_private *devpriv;
 	struct comedi_subdevice *s;
 	int sdev_no, chans_left, n_subdevs, port, asic, thisasic_chanct = 0;
-	unsigned long iobase;
 	unsigned int irq[MAX_ASICS];
 	int ret;
 
-	iobase = it->options[0];
 	irq[0] = it->options[1];
 	irq[1] = it->options[2];
 
-	dev_dbg(dev->class_dev, "%s: io: %lx attach\n",
-		dev->driver->driver_name, iobase);
-
-	dev->iobase = iobase;
-
-	if (!iobase || !request_region(iobase,
-				       board->num_asics * ASIC_IOSIZE,
-				       dev->driver->driver_name)) {
-		dev_err(dev->class_dev, "I/O port conflict\n");
-		return -EIO;
-	}
+	ret = comedi_request_region(dev, it->options[0],
+				    board->num_asics * ASIC_IOSIZE);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
