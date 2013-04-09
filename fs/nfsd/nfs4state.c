@@ -3456,13 +3456,22 @@ static __be32 nfsd4_validate_stateid(struct nfs4_client *cl, stateid_t *stateid)
 	status = check_stateid_generation(stateid, &s->sc_stateid, 1);
 	if (status)
 		return status;
-	if (!(s->sc_type & (NFS4_OPEN_STID | NFS4_LOCK_STID)))
+	switch (s->sc_type) {
+	case NFS4_DELEG_STID:
 		return nfs_ok;
-	ols = openlockstateid(s);
-	if (ols->st_stateowner->so_is_open_owner
-	    && !(openowner(ols->st_stateowner)->oo_flags & NFS4_OO_CONFIRMED))
+	case NFS4_OPEN_STID:
+	case NFS4_LOCK_STID:
+		ols = openlockstateid(s);
+		if (ols->st_stateowner->so_is_open_owner
+	    			&& !(openowner(ols->st_stateowner)->oo_flags
+						& NFS4_OO_CONFIRMED))
+			return nfserr_bad_stateid;
+		return nfs_ok;
+	default:
+		printk("unknown stateid type %x\n", s->sc_type);
+	case NFS4_CLOSED_STID:
 		return nfserr_bad_stateid;
-	return nfs_ok;
+	}
 }
 
 static __be32 nfsd4_lookup_stateid(stateid_t *stateid, unsigned char typemask,
