@@ -451,19 +451,12 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcl711_board *board = comedi_board(dev);
 	struct pcl711_private *devpriv;
 	int ret;
-	unsigned long iobase;
 	unsigned int irq;
 	struct comedi_subdevice *s;
 
-	/* claim our I/O space */
-
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: pcl711: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, PCL711_SIZE, dev->board_name)) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], PCL711_SIZE);
+	if (ret)
+		return ret;
 
 	/* grab our IRQ */
 	irq = it->options[1];
