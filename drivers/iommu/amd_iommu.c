@@ -3990,7 +3990,7 @@ static int alloc_irq_index(struct irq_cfg *cfg, u16 devid, int count)
 			c = 0;
 
 		if (c == count)	{
-			struct irq_2_iommu *irte_info;
+			struct irq_2_irte *irte_info;
 
 			for (; c != 0; --c)
 				table->table[index - c + 1] = IRTE_ALLOCATED;
@@ -3998,9 +3998,9 @@ static int alloc_irq_index(struct irq_cfg *cfg, u16 devid, int count)
 			index -= count - 1;
 
 			cfg->remapped	      = 1;
-			irte_info             = &cfg->irq_2_iommu;
-			irte_info->sub_handle = devid;
-			irte_info->irte_index = index;
+			irte_info             = &cfg->irq_2_irte;
+			irte_info->devid      = devid;
+			irte_info->index      = index;
 
 			goto out;
 		}
@@ -4081,7 +4081,7 @@ static int setup_ioapic_entry(int irq, struct IO_APIC_route_entry *entry,
 			      struct io_apic_irq_attr *attr)
 {
 	struct irq_remap_table *table;
-	struct irq_2_iommu *irte_info;
+	struct irq_2_irte *irte_info;
 	struct irq_cfg *cfg;
 	union irte irte;
 	int ioapic_id;
@@ -4093,7 +4093,7 @@ static int setup_ioapic_entry(int irq, struct IO_APIC_route_entry *entry,
 	if (!cfg)
 		return -EINVAL;
 
-	irte_info = &cfg->irq_2_iommu;
+	irte_info = &cfg->irq_2_irte;
 	ioapic_id = mpc_ioapic_id(attr->ioapic);
 	devid     = get_ioapic_devid(ioapic_id);
 
@@ -4108,8 +4108,8 @@ static int setup_ioapic_entry(int irq, struct IO_APIC_route_entry *entry,
 
 	/* Setup IRQ remapping info */
 	cfg->remapped	      = 1;
-	irte_info->sub_handle = devid;
-	irte_info->irte_index = index;
+	irte_info->devid      = devid;
+	irte_info->index      = index;
 
 	/* Setup IRTE for IOMMU */
 	irte.val		= 0;
@@ -4143,7 +4143,7 @@ static int setup_ioapic_entry(int irq, struct IO_APIC_route_entry *entry,
 static int set_affinity(struct irq_data *data, const struct cpumask *mask,
 			bool force)
 {
-	struct irq_2_iommu *irte_info;
+	struct irq_2_irte *irte_info;
 	unsigned int dest, irq;
 	struct irq_cfg *cfg;
 	union irte irte;
@@ -4154,12 +4154,12 @@ static int set_affinity(struct irq_data *data, const struct cpumask *mask,
 
 	cfg       = data->chip_data;
 	irq       = data->irq;
-	irte_info = &cfg->irq_2_iommu;
+	irte_info = &cfg->irq_2_irte;
 
 	if (!cpumask_intersects(mask, cpu_online_mask))
 		return -EINVAL;
 
-	if (get_irte(irte_info->sub_handle, irte_info->irte_index, &irte))
+	if (get_irte(irte_info->devid, irte_info->index, &irte))
 		return -EBUSY;
 
 	if (assign_irq_vector(irq, cfg, mask))
@@ -4175,7 +4175,7 @@ static int set_affinity(struct irq_data *data, const struct cpumask *mask,
 	irte.fields.vector      = cfg->vector;
 	irte.fields.destination = dest;
 
-	modify_irte(irte_info->sub_handle, irte_info->irte_index, irte);
+	modify_irte(irte_info->devid, irte_info->index, irte);
 
 	if (cfg->move_in_progress)
 		send_cleanup_vector(cfg);
@@ -4187,16 +4187,16 @@ static int set_affinity(struct irq_data *data, const struct cpumask *mask,
 
 static int free_irq(int irq)
 {
-	struct irq_2_iommu *irte_info;
+	struct irq_2_irte *irte_info;
 	struct irq_cfg *cfg;
 
 	cfg = irq_get_chip_data(irq);
 	if (!cfg)
 		return -EINVAL;
 
-	irte_info = &cfg->irq_2_iommu;
+	irte_info = &cfg->irq_2_irte;
 
-	free_irte(irte_info->sub_handle, irte_info->irte_index);
+	free_irte(irte_info->devid, irte_info->index);
 
 	return 0;
 }
@@ -4205,7 +4205,7 @@ static void compose_msi_msg(struct pci_dev *pdev,
 			    unsigned int irq, unsigned int dest,
 			    struct msi_msg *msg, u8 hpet_id)
 {
-	struct irq_2_iommu *irte_info;
+	struct irq_2_irte *irte_info;
 	struct irq_cfg *cfg;
 	union irte irte;
 
@@ -4213,7 +4213,7 @@ static void compose_msi_msg(struct pci_dev *pdev,
 	if (!cfg)
 		return;
 
-	irte_info = &cfg->irq_2_iommu;
+	irte_info = &cfg->irq_2_irte;
 
 	irte.val		= 0;
 	irte.fields.vector	= cfg->vector;
@@ -4222,11 +4222,11 @@ static void compose_msi_msg(struct pci_dev *pdev,
 	irte.fields.dm		= apic->irq_dest_mode;
 	irte.fields.valid	= 1;
 
-	modify_irte(irte_info->sub_handle, irte_info->irte_index, irte);
+	modify_irte(irte_info->devid, irte_info->index, irte);
 
 	msg->address_hi = MSI_ADDR_BASE_HI;
 	msg->address_lo = MSI_ADDR_BASE_LO;
-	msg->data       = irte_info->irte_index;
+	msg->data       = irte_info->index;
 }
 
 static int msi_alloc_irq(struct pci_dev *pdev, int irq, int nvec)
@@ -4251,7 +4251,7 @@ static int msi_alloc_irq(struct pci_dev *pdev, int irq, int nvec)
 static int msi_setup_irq(struct pci_dev *pdev, unsigned int irq,
 			 int index, int offset)
 {
-	struct irq_2_iommu *irte_info;
+	struct irq_2_irte *irte_info;
 	struct irq_cfg *cfg;
 	u16 devid;
 
@@ -4266,18 +4266,18 @@ static int msi_setup_irq(struct pci_dev *pdev, unsigned int irq,
 		return 0;
 
 	devid		= get_device_id(&pdev->dev);
-	irte_info	= &cfg->irq_2_iommu;
+	irte_info	= &cfg->irq_2_irte;
 
 	cfg->remapped	      = 1;
-	irte_info->sub_handle = devid;
-	irte_info->irte_index = index + offset;
+	irte_info->devid      = devid;
+	irte_info->index      = index + offset;
 
 	return 0;
 }
 
 static int setup_hpet_msi(unsigned int irq, unsigned int id)
 {
-	struct irq_2_iommu *irte_info;
+	struct irq_2_irte *irte_info;
 	struct irq_cfg *cfg;
 	int index, devid;
 
@@ -4285,7 +4285,7 @@ static int setup_hpet_msi(unsigned int irq, unsigned int id)
 	if (!cfg)
 		return -EINVAL;
 
-	irte_info = &cfg->irq_2_iommu;
+	irte_info = &cfg->irq_2_irte;
 	devid     = get_hpet_devid(id);
 	if (devid < 0)
 		return devid;
@@ -4295,8 +4295,8 @@ static int setup_hpet_msi(unsigned int irq, unsigned int id)
 		return index;
 
 	cfg->remapped	      = 1;
-	irte_info->sub_handle = devid;
-	irte_info->irte_index = index;
+	irte_info->devid      = devid;
+	irte_info->index      = index;
 
 	return 0;
 }
