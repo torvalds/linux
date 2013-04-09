@@ -344,9 +344,9 @@ char *spk_xlate(char *s)
 			p1++;
 		} else if (*p1 >= '0' && *p1 <= '7') {
 			num = (*p1++)&7;
-			while (num < 256 && *p1 >= '0' && *p1 <= '7') {
+			while (num < 32 && *p1 >= '0' && *p1 <= '7') {
 				num <<= 3;
-				num = (*p1++)&7;
+				num += (*p1++)&7;
 			}
 			*p++ = num;
 		} else if (*p1 == 'x' &&
