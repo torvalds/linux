@@ -124,6 +124,17 @@ static const struct comedi_lrange range_rti800_ai_unipolar = {
 	}
 };
 
+static const struct comedi_lrange *const rti800_ai_ranges[] = {
+	&range_rti800_ai_10_bipolar,
+	&range_rti800_ai_5_bipolar,
+	&range_rti800_ai_unipolar,
+};
+
+static const struct comedi_lrange *const rti800_ao_ranges[] = {
+	&range_bipolar10,
+	&range_unipolar10,
+};
+
 struct rti800_board {
 	const char *name;
 	int has_ao;
@@ -323,17 +334,9 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan = (it->options[2] ? 16 : 8);
 	s->insn_read = rti800_ai_insn_read;
 	s->maxdata = 0xfff;
-	switch (it->options[3]) {
-	case 0:
-		s->range_table = &range_rti800_ai_10_bipolar;
-		break;
-	case 1:
-		s->range_table = &range_rti800_ai_5_bipolar;
-		break;
-	case 2:
-		s->range_table = &range_rti800_ai_unipolar;
-		break;
-	}
+	s->range_table	= (it->options[3] < ARRAY_SIZE(rti800_ai_ranges))
+				? rti800_ai_ranges[it->options[3]]
+				: &range_unknown;
 
 	s = &dev->subdevices[1];
 	if (board->has_ao) {
@@ -345,22 +348,14 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->insn_write = rti800_ao_insn_write;
 		s->maxdata = 0xfff;
 		s->range_table_list = devpriv->ao_range_type_list;
-		switch (it->options[5]) {
-		case 0:
-			devpriv->ao_range_type_list[0] = &range_bipolar10;
-			break;
-		case 1:
-			devpriv->ao_range_type_list[0] = &range_unipolar10;
-			break;
-		}
-		switch (it->options[7]) {
-		case 0:
-			devpriv->ao_range_type_list[1] = &range_bipolar10;
-			break;
-		case 1:
-			devpriv->ao_range_type_list[1] = &range_unipolar10;
-			break;
-		}
+		devpriv->ao_range_type_list[0] =
+			(it->options[5] < ARRAY_SIZE(rti800_ao_ranges))
+				? rti800_ao_ranges[it->options[5]]
+				: &range_unknown;
+		devpriv->ao_range_type_list[1] =
+			(it->options[7] < ARRAY_SIZE(rti800_ao_ranges))
+				? rti800_ao_ranges[it->options[7]]
+				: &range_unknown;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
