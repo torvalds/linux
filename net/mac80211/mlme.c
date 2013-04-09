@@ -2215,7 +2215,6 @@ void ieee80211_beacon_loss(struct ieee80211_vif *vif)
 
 	trace_api_beacon_loss(sdata);
 
-	WARN_ON(hw->flags & IEEE80211_HW_CONNECTION_MONITOR);
 	sdata->u.mgd.connection_loss = false;
 	ieee80211_queue_work(hw, &sdata->u.mgd.beacon_connection_loss_work);
 }
