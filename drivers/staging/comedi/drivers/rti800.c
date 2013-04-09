@@ -316,14 +316,6 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->iobase = iobase;
 
-#ifdef DEBUG
-	printk(KERN_DEBUG "fingerprint=%x,%x,%x,%x,%x ",
-	       inb(dev->iobase + 0),
-	       inb(dev->iobase + 1),
-	       inb(dev->iobase + 2),
-	       inb(dev->iobase + 3), inb(dev->iobase + 4));
-#endif
-
 	outb(0, dev->iobase + RTI800_CSR);
 	inb(dev->iobase + RTI800_ADCHI);
 	outb(0, dev->iobase + RTI800_CLRFLAGS);
