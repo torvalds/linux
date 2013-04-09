@@ -318,18 +318,20 @@ void __cpuinit setup_processor(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-#ifdef CONFIG_CMDLINE_UBOOT
-	/* Make sure that a whitespace is inserted before */
-	strlcat(command_line, " ", sizeof(command_line));
-#endif
-
-	/* Save unparsed command line copy for /proc/cmdline */
-	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
-	*cmdline_p = command_line;
-
+	/* This also populates @boot_command_line from /bootargs */
 	machine_desc = setup_machine_fdt(__dtb_start);
 	if (!machine_desc)
 		panic("Embedded DT invalid\n");
+
+	/* Append any u-boot provided cmdline */
+#ifdef CONFIG_CMDLINE_UBOOT
+	/* Add a whitespace seperator between the 2 cmdlines */
+	strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
+	strlcat(boot_command_line, command_line, COMMAND_LINE_SIZE);
+#endif
+
+	/* Save unparsed command line copy for /proc/cmdline */
+	*cmdline_p = boot_command_line;
 
 	/* To force early parsing of things like mem=xxx */
 	parse_early_param();
