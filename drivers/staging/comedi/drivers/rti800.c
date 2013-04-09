@@ -88,6 +88,8 @@ Configuration options:
 #define RTI800_INTR_EC		0x02
 #define RTI800_INTR_OVRN	0x01
 
+#define RTI800_AI_TIMEOUT	100
+
 #define Am9513_8BITBUS
 
 #define Am9513_output_control(a)	outb(a, dev->iobase+RTI800_9513A_CNTRL)
@@ -159,7 +161,24 @@ struct rti800_private {
 	unsigned char muxgain_bits;
 };
 
-#define RTI800_TIMEOUT 100
+static int rti800_ai_wait_for_conversion(struct comedi_device *dev,
+					 int timeout)
+{
+	unsigned char status;
+	int i;
+
+	for (i = 0; i < timeout; i++) {
+		status = inb(dev->iobase + RTI800_CSR);
+		if (status & RTI800_OVERRUN) {
+			outb(0, dev->iobase + RTI800_CLRFLAGS);
+			return -EIO;
+		}
+		if (status & RTI800_DONE)
+			return 0;
+		udelay(1);
+	}
+	return -ETIME;
+}
 
 static int rti800_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
@@ -170,8 +189,8 @@ static int rti800_ai_insn_read(struct comedi_device *dev,
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int gain = CR_RANGE(insn->chanspec);
 	unsigned char muxgain_bits;
-	int i, t;
-	int status;
+	int ret;
+	int i;
 
 	inb(dev->iobase + RTI800_ADCHI);
 	outb(0, dev->iobase + RTI800_CLRFLAGS);
@@ -195,21 +214,10 @@ static int rti800_ai_insn_read(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		outb(0, dev->iobase + RTI800_CONVERT);
-		for (t = RTI800_TIMEOUT; t; t--) {
-			status = inb(dev->iobase + RTI800_CSR);
-			if (status & RTI800_OVERRUN) {
-				printk(KERN_WARNING "rti800: a/d overrun\n");
-				outb(0, dev->iobase + RTI800_CLRFLAGS);
-				return -EIO;
-			}
-			if (status & RTI800_DONE)
-				break;
-			udelay(1);
-		}
-		if (t == 0) {
-			printk(KERN_WARNING "rti800: timeout\n");
-			return -ETIME;
-		}
+		ret = rti800_ai_wait_for_conversion(dev, RTI800_AI_TIMEOUT);
+		if (ret)
+			return ret;
+
 		data[i] = inb(dev->iobase + RTI800_ADCLO);
 		data[i] |= (0xf & inb(dev->iobase + RTI800_ADCHI)) << 8;
 
