@@ -1889,6 +1889,23 @@ static void azx_timecounter_init(struct snd_pcm_substream *substream,
 		tc->cycle_last = last;
 }
 
+static u64 azx_subtract_codec_delay(struct snd_pcm_substream *substream,
+				u64 nsec)
+{
+	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
+	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
+	u64 codec_frames, codec_nsecs;
+
+	if (!hinfo->ops.get_delay)
+		return nsec;
+
+	codec_frames = hinfo->ops.get_delay(hinfo, apcm->codec, substream);
+	codec_nsecs = div_u64(codec_frames * 1000000000LL,
+			      substream->runtime->rate);
+
+	return (nsec > codec_nsecs) ? nsec - codec_nsecs : 0;
+}
+
 static int azx_get_wallclock_tstamp(struct snd_pcm_substream *substream,
 				struct timespec *ts)
 {
@@ -1897,6 +1914,7 @@ static int azx_get_wallclock_tstamp(struct snd_pcm_substream *substream,
 
 	nsec = timecounter_read(&azx_dev->azx_tc);
 	nsec = div_u64(nsec, 3); /* can be optimized */
+	nsec = azx_subtract_codec_delay(substream, nsec);
 
 	*ts = ns_to_timespec(nsec);
 
