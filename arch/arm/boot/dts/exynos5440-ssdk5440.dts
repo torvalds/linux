@@ -28,19 +28,10 @@
 		status = "disabled";
 	};
 
-	i2c@F0000 {
-		status = "disabled";
-	};
-
-	i2c@100000 {
-		status = "disabled";
-	};
-
-	watchdog {
-		status = "disabled";
-	};
-
-	rtc {
-		status = "disabled";
+	fixed-rate-clocks {
+		xtal {
+			compatible = "samsung,clock-xtal";
+			clock-frequency = <50000000>;
+		};
 	};
 };
