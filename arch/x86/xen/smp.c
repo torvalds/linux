@@ -428,7 +428,7 @@ static int xen_cpu_disable(void)
 
 static void xen_cpu_die(unsigned int cpu)
 {
-	while (HYPERVISOR_vcpu_op(VCPUOP_is_up, cpu, NULL)) {
+	while (xen_pv_domain() && HYPERVISOR_vcpu_op(VCPUOP_is_up, cpu, NULL)) {
 		current->state = TASK_UNINTERRUPTIBLE;
 		schedule_timeout(HZ/10);
 	}
@@ -436,7 +436,8 @@ static void xen_cpu_die(unsigned int cpu)
 	unbind_from_irqhandler(per_cpu(xen_callfunc_irq, cpu), NULL);
 	unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu), NULL);
 	unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(xen_irq_work, cpu), NULL);
+	if (!xen_hvm_domain())
+		unbind_from_irqhandler(per_cpu(xen_irq_work, cpu), NULL);
 	xen_uninit_lock_cpu(cpu);
 	xen_teardown_timer(cpu);
 }
@@ -667,14 +668,7 @@ static int __cpuinit xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
 
 static void xen_hvm_cpu_die(unsigned int cpu)
 {
-	unbind_from_irqhandler(per_cpu(xen_resched_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(xen_callfunc_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu), NULL);
-	if (!xen_hvm_domain())
-		unbind_from_irqhandler(per_cpu(xen_irq_work, cpu), NULL);
-	xen_uninit_lock_cpu(cpu);
-	xen_teardown_timer(cpu);
+	xen_cpu_die(cpu);
 	native_cpu_die(cpu);
 }
 
