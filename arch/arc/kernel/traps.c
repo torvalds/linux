@@ -21,6 +21,7 @@
 #include <linux/kgdb.h>
 #include <asm/setup.h>
 #include <asm/unaligned.h>
+#include <asm/kprobes.h>
 
 void __init trap_init(void)
 {
