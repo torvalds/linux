@@ -130,8 +130,6 @@ struct rti800_board {
 	int has_ao;
 };
 
-static irqreturn_t rti800_interrupt(int irq, void *dev);
-
 struct rti800_private {
 	enum {
 		adc_diff, adc_pseudodiff, adc_singleended
