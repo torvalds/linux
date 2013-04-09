@@ -703,7 +703,7 @@ static void __init set_dev_entry_from_acpi(struct amd_iommu *iommu,
 	set_iommu_for_device(iommu, devid);
 }
 
-static int add_special_device(u8 type, u8 id, u16 devid)
+static int __init add_special_device(u8 type, u8 id, u16 devid)
 {
 	struct devid_map *entry;
 	struct list_head *list;
