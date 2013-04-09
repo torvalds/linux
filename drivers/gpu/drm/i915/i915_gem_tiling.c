@@ -235,6 +235,9 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 		}
 	}
 
+	if (stride < tile_width)
+		return false;
+
 	/* 965+ just needs multiples of tile width */
 	if (INTEL_INFO(dev)->gen >= 4) {
 		if (stride & (tile_width - 1))
@@ -243,9 +246,6 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	}
 
 	/* Pre-965 needs power of two tile widths */
-	if (stride < tile_width)
-		return false;
-
 	if (stride & (stride - 1))
 		return false;
 
