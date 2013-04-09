@@ -75,7 +75,7 @@ static inline gen6_gtt_pte_t gen6_pte_encode(struct drm_device *dev,
 	return pte;
 }
 
-static void gen6_ppgtt_enable(struct drm_device *dev)
+static int gen6_ppgtt_enable(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t pd_offset;
@@ -128,6 +128,7 @@ static void gen6_ppgtt_enable(struct drm_device *dev)
 		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
 		I915_WRITE(RING_PP_DIR_BASE(ring), pd_offset);
 	}
+	return 0;
 }
 
 /* PPGTT support for Sandybdrige/Gen6 and later */

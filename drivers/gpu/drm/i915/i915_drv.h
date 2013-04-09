@@ -449,7 +449,7 @@ struct i915_hw_ppgtt {
 			       struct sg_table *st,
 			       unsigned int pg_start,
 			       enum i915_cache_level cache_level);
-	void (*enable)(struct drm_device *dev);
+	int (*enable)(struct drm_device *dev);
 	void (*cleanup)(struct i915_hw_ppgtt *ppgtt);
 };
 

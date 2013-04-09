@@ -4029,8 +4029,13 @@ i915_gem_init_hw(struct drm_device *dev)
 	 * contexts before PPGTT.
 	 */
 	i915_gem_context_init(dev);
-	if (dev_priv->mm.aliasing_ppgtt)
-		dev_priv->mm.aliasing_ppgtt->enable(dev);
+	if (dev_priv->mm.aliasing_ppgtt) {
+		ret = dev_priv->mm.aliasing_ppgtt->enable(dev);
+		if (ret) {
+			i915_gem_cleanup_aliasing_ppgtt(dev);
+			DRM_INFO("PPGTT enable failed. This is not fatal, but unexpected\n");
+		}
+	}
 
 	return 0;
 }
