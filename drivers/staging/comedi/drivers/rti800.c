@@ -132,7 +132,6 @@ struct rti800_board {
 static const struct rti800_board rti800_boardtypes[] = {
 	{
 		.name		= "rti800",
-		.has_ao		= 0,
 	}, {
 		.name		= "rti815",
 		.has_ao		= 1,
