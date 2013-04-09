@@ -61,12 +61,24 @@
 			hsadc@80002000 {
 				reg = <0x80002000 0x2000>;
 				interrupts = <13 87>;
+				dmas = <&dma_apbh 12>;
+				dma-names = "rx";
 				status = "disabled";
 			};
 
-			dma-apbh@80004000 {
+			dma_apbh: dma-apbh@80004000 {
 				compatible = "fsl,imx28-dma-apbh";
 				reg = <0x80004000 0x2000>;
+				interrupts = <82 83 84 85
+					      88 88 88 88
+					      88 88 88 88
+					      87 86 0 0>;
+				interrupt-names = "ssp0", "ssp1", "ssp2", "ssp3",
+						  "gpmi0", "gmpi1", "gpmi2", "gmpi3",
+						  "gpmi4", "gmpi5", "gpmi6", "gmpi7",
+						  "hsadc", "lcdif", "empty", "empty";
+				#dma-cells = <1>;
+				dma-channels = <16>;
 				clocks = <&clks 25>;
 			};
 
@@ -86,6 +98,8 @@
 				interrupt-names = "gpmi-dma", "bch";
 				clocks = <&clks 50>;
 				clock-names = "gpmi_io";
+				dmas = <&dma_apbh 4>;
+				dma-names = "rx-tx";
 				fsl,gpmi-dma-channel = <4>;
 				status = "disabled";
 			};
@@ -96,6 +110,8 @@
 				reg = <0x80010000 0x2000>;
 				interrupts = <96 82>;
 				clocks = <&clks 46>;
+				dmas = <&dma_apbh 0>;
+				dma-names = "rx-tx";
 				fsl,ssp-dma-channel = <0>;
 				status = "disabled";
 			};
@@ -106,6 +122,8 @@
 				reg = <0x80012000 0x2000>;
 				interrupts = <97 83>;
 				clocks = <&clks 47>;
+				dmas = <&dma_apbh 1>;
+				dma-names = "rx-tx";
 				fsl,ssp-dma-channel = <1>;
 				status = "disabled";
 			};
@@ -116,6 +134,8 @@
 				reg = <0x80014000 0x2000>;
 				interrupts = <98 84>;
 				clocks = <&clks 48>;
+				dmas = <&dma_apbh 2>;
+				dma-names = "rx-tx";
 				fsl,ssp-dma-channel = <2>;
 				status = "disabled";
 			};
@@ -126,6 +146,8 @@
 				reg = <0x80016000 0x2000>;
 				interrupts = <99 85>;
 				clocks = <&clks 49>;
+				dmas = <&dma_apbh 3>;
+				dma-names = "rx-tx";
 				fsl,ssp-dma-channel = <3>;
 				status = "disabled";
 			};
@@ -658,9 +680,19 @@
 				status = "disabled";
 			};
 
-			dma-apbx@80024000 {
+			dma_apbx: dma-apbx@80024000 {
 				compatible = "fsl,imx28-dma-apbx";
 				reg = <0x80024000 0x2000>;
+				interrupts = <78 79 66 0
+					      80 81 68 69
+					      70 71 72 73
+					      74 75 76 77>;
+				interrupt-names = "auart4-rx", "aurat4-tx", "spdif-tx", "empty",
+						  "saif0", "saif1", "i2c0", "i2c1",
+						  "auart0-rx", "auart0-tx", "auart1-rx", "auart1-tx",
+						  "auart2-rx", "auart2-tx", "auart3-rx", "auart3-tx";
+				#dma-cells = <1>;
+				dma-channels = <16>;
 				clocks = <&clks 26>;
 			};
 
@@ -692,6 +724,8 @@
 				reg = <0x80030000 0x2000>;
 				interrupts = <38 86>;
 				clocks = <&clks 55>;
+				dmas = <&dma_apbh 13>;
+				dma-names = "rx";
 				status = "disabled";
 			};
 
@@ -767,6 +801,8 @@
 				reg = <0x80042000 0x2000>;
 				interrupts = <59 80>;
 				clocks = <&clks 53>;
+				dmas = <&dma_apbx 4>;
+				dma-names = "rx-tx";
 				fsl,saif-dma-channel = <4>;
 				status = "disabled";
 			};
@@ -781,6 +817,8 @@
 				reg = <0x80046000 0x2000>;
 				interrupts = <58 81>;
 				clocks = <&clks 54>;
+				dmas = <&dma_apbx 5>;
+				dma-names = "rx-tx";
 				fsl,saif-dma-channel = <5>;
 				status = "disabled";
 			};
@@ -796,6 +834,8 @@
 			spdif@80054000 {
 				reg = <0x80054000 0x2000>;
 				interrupts = <45 66>;
+				dmas = <&dma_apbx 2>;
+				dma-names = "tx";
 				status = "disabled";
 			};
 
@@ -812,6 +852,8 @@
 				reg = <0x80058000 0x2000>;
 				interrupts = <111 68>;
 				clock-frequency = <100000>;
+				dmas = <&dma_apbx 6>;
+				dma-names = "rx-tx";
 				fsl,i2c-dma-channel = <6>;
 				status = "disabled";
 			};
@@ -823,6 +865,8 @@
 				reg = <0x8005a000 0x2000>;
 				interrupts = <110 69>;
 				clock-frequency = <100000>;
+				dmas = <&dma_apbx 7>;
+				dma-names = "rx-tx";
 				fsl,i2c-dma-channel = <7>;
 				status = "disabled";
 			};
@@ -847,6 +891,8 @@
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006a000 0x2000>;
 				interrupts = <112 70 71>;
+				dmas = <&dma_apbx 8>, <&dma_apbx 9>;
+				dma-names = "rx", "tx";
 				fsl,auart-dma-channel = <8 9>;
 				clocks = <&clks 45>;
 				status = "disabled";
@@ -856,6 +902,8 @@
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006c000 0x2000>;
 				interrupts = <113 72 73>;
+				dmas = <&dma_apbx 10>, <&dma_apbx 11>;
+				dma-names = "rx", "tx";
 				clocks = <&clks 45>;
 				status = "disabled";
 			};
@@ -864,6 +912,8 @@
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006e000 0x2000>;
 				interrupts = <114 74 75>;
+				dmas = <&dma_apbx 12>, <&dma_apbx 13>;
+				dma-names = "rx", "tx";
 				clocks = <&clks 45>;
 				status = "disabled";
 			};
@@ -872,6 +922,8 @@
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x80070000 0x2000>;
 				interrupts = <115 76 77>;
+				dmas = <&dma_apbx 14>, <&dma_apbx 15>;
+				dma-names = "rx", "tx";
 				clocks = <&clks 45>;
 				status = "disabled";
 			};
@@ -880,6 +932,8 @@
 				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x80072000 0x2000>;
 				interrupts = <116 78 79>;
+				dmas = <&dma_apbx 0>, <&dma_apbx 1>;
+				dma-names = "rx", "tx";
 				clocks = <&clks 45>;
 				status = "disabled";
 			};
@@ -943,8 +997,8 @@
 			compatible = "fsl,imx28-fec";
 			reg = <0x800f0000 0x4000>;
 			interrupts = <101>;
-			clocks = <&clks 57>, <&clks 57>;
-			clock-names = "ipg", "ahb";
+			clocks = <&clks 57>, <&clks 57>, <&clks 64>;
+			clock-names = "ipg", "ahb", "enet_out";
 			status = "disabled";
 		};
 

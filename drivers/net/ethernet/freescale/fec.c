@@ -1802,18 +1802,23 @@ fec_probe(struct platform_device *pdev)
 		goto failed_clk;
 	}
 
+	/* enet_out is optional, depends on board */
+	fep->clk_enet_out = devm_clk_get(&pdev->dev, "enet_out");
+	if (IS_ERR(fep->clk_enet_out))
+		fep->clk_enet_out = NULL;
+
 	fep->clk_ptp = devm_clk_get(&pdev->dev, "ptp");
 	fep->bufdesc_ex =
 		pdev->id_entry->driver_data & FEC_QUIRK_HAS_BUFDESC_EX;
 	if (IS_ERR(fep->clk_ptp)) {
-		ret = PTR_ERR(fep->clk_ptp);
+		fep->clk_ptp = NULL;
 		fep->bufdesc_ex = 0;
 	}
 
 	clk_prepare_enable(fep->clk_ahb);
 	clk_prepare_enable(fep->clk_ipg);
-	if (!IS_ERR(fep->clk_ptp))
-		clk_prepare_enable(fep->clk_ptp);
+	clk_prepare_enable(fep->clk_enet_out);
+	clk_prepare_enable(fep->clk_ptp);
 
 	reg_phy = devm_regulator_get(&pdev->dev, "phy");
 	if (!IS_ERR(reg_phy)) {
@@ -1878,8 +1883,8 @@ failed_irq:
 failed_regulator:
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
-	if (!IS_ERR(fep->clk_ptp))
-		clk_disable_unprepare(fep->clk_ptp);
+	clk_disable_unprepare(fep->clk_enet_out);
+	clk_disable_unprepare(fep->clk_ptp);
 failed_pin:
 failed_clk:
 	iounmap(fep->hwp);
@@ -1905,6 +1910,7 @@ fec_drv_remove(struct platform_device *pdev)
 	clk_disable_unprepare(fep->clk_ptp);
 	if (fep->ptp_clock)
 		ptp_clock_unregister(fep->ptp_clock);
+	clk_disable_unprepare(fep->clk_enet_out);
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
 	for (i = 0; i < FEC_IRQ_NUM; i++) {
@@ -1935,6 +1941,7 @@ fec_suspend(struct device *dev)
 		fec_stop(ndev);
 		netif_device_detach(ndev);
 	}
+	clk_disable_unprepare(fep->clk_enet_out);
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
 
@@ -1947,6 +1954,7 @@ fec_resume(struct device *dev)
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
+	clk_prepare_enable(fep->clk_enet_out);
 	clk_prepare_enable(fep->clk_ahb);
 	clk_prepare_enable(fep->clk_ipg);
 	if (netif_running(ndev)) {
