@@ -422,7 +422,7 @@ static struct inet6_dev *ipv6_add_dev(struct net_device *dev)
 		ipv6_regen_rndid((unsigned long) ndev);
 	}
 #endif
-	memset(ndev->token.s6_addr, 0, sizeof(ndev->token.s6_addr));
+	ndev->token = in6addr_any;
 
 	if (netif_running(dev) && addrconf_qdisc_ok(dev))
 		ndev->if_flags |= IF_READY;
