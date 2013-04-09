@@ -268,44 +268,24 @@ static const struct dio200_board dio200_isa_boards[] = {
 	},
 };
 
-/*
- * This function checks and requests an I/O region, reporting an error
- * if there is a conflict.
- */
-static int
-dio200_request_region(struct comedi_device *dev,
-		      unsigned long from, unsigned long extent)
-{
-	if (!from || !request_region(from, extent, dev->board_name)) {
-		dev_err(dev->class_dev, "I/O port conflict (%#lx,%lu)!\n",
-			from, extent);
-		return -EIO;
-	}
-	return 0;
-}
-
 static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
 	struct dio200_private *devpriv;
-	unsigned long iobase;
 	unsigned int irq;
 	int ret;
 
-	iobase = it->options[0];
 	irq = it->options[1];
-	dev_info(dev->class_dev, "%s: attach %s 0x%lX,%u\n",
-		 dev->driver->driver_name, dev->board_name, iobase, irq);
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	ret = dio200_request_region(dev, iobase, thisboard->mainsize);
-	if (ret < 0)
+	ret = comedi_request_region(dev, it->options[0], thisboard->mainsize);
+	if (ret)
 		return ret;
-	devpriv->io.u.iobase = iobase;
+	devpriv->io.u.iobase = dev->iobase;
 	devpriv->io.regtype = io_regtype;
 	return amplc_dio200_common_attach(dev, irq, 0);
 }
