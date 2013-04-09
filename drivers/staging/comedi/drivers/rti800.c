@@ -311,10 +311,6 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	inb(dev->iobase + RTI800_ADCHI);
 	outb(0, dev->iobase + RTI800_CLRFLAGS);
 
-	ret = comedi_alloc_subdevices(dev, 4);
-	if (ret)
-		return ret;
-
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
@@ -328,6 +324,10 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->dac1_range = it->options[7];
 	devpriv->dac1_coding = it->options[8];
 	devpriv->muxgain_bits = -1;
+
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[0];
 	/* ai subdevice */
