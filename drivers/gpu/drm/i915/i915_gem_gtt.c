@@ -623,9 +623,12 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 
 	if (intel_enable_ppgtt(dev) && HAS_ALIASING_PPGTT(dev)) {
 		int ret;
-		/* PPGTT pdes are stolen from global gtt ptes, so shrink the
-		 * aperture accordingly when using aliasing ppgtt. */
-		gtt_size -= I915_PPGTT_PD_ENTRIES*PAGE_SIZE;
+
+		if (INTEL_INFO(dev)->gen <= 7) {
+			/* PPGTT pdes are stolen from global gtt ptes, so shrink the
+			 * aperture accordingly when using aliasing ppgtt. */
+			gtt_size -= I915_PPGTT_PD_ENTRIES*PAGE_SIZE;
+		}
 
 		i915_gem_setup_global_gtt(dev, 0, mappable_size, gtt_size);
 
