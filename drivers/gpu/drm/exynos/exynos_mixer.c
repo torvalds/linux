@@ -818,7 +818,7 @@ static void mixer_win_disable(void *ctx, int win)
 	mixer_ctx->win_data[win].enabled = false;
 }
 
-int mixer_check_timing(void *ctx, struct fb_videomode *timing)
+static int mixer_check_timing(void *ctx, struct fb_videomode *timing)
 {
 	struct mixer_context *mixer_ctx = ctx;
 	u32 w, h;

@@ -1545,7 +1545,6 @@ void net_enable_timestamp(void)
 		return;
 	}
 #endif
-	WARN_ON(in_interrupt());
 	static_key_slow_inc(&netstamp_needed);
 }
 EXPORT_SYMBOL(net_enable_timestamp);
@@ -2219,9 +2218,9 @@ struct sk_buff *skb_mac_gso_segment(struct sk_buff *skb,
 	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
 	struct packet_offload *ptype;
 	__be16 type = skb->protocol;
+	int vlan_depth = ETH_HLEN;
 
 	while (type == htons(ETH_P_8021Q)) {
-		int vlan_depth = ETH_HLEN;
 		struct vlan_hdr *vh;
 
 		if (unlikely(!pskb_may_pull(skb, vlan_depth + VLAN_HLEN)))

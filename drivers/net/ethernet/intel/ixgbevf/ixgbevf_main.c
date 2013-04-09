@@ -944,9 +944,17 @@ free_queue_irqs:
 		free_irq(adapter->msix_entries[vector].vector,
 			 adapter->q_vector[vector]);
 	}
-	pci_disable_msix(adapter->pdev);
-	kfree(adapter->msix_entries);
-	adapter->msix_entries = NULL;
+	/* This failure is non-recoverable - it indicates the system is
+	 * out of MSIX vector resources and the VF driver cannot run
+	 * without them.  Set the number of msix vectors to zero
+	 * indicating that not enough can be allocated.  The error
+	 * will be returned to the user indicating device open failed.
+	 * Any further attempts to force the driver to open will also
+	 * fail.  The only way to recover is to unload the driver and
+	 * reload it again.  If the system has recovered some MSIX
+	 * vectors then it may succeed.
+	 */
+	adapter->num_msix_vectors = 0;
 	return err;
 }
 
@@ -2572,6 +2580,15 @@ static int ixgbevf_open(struct net_device *netdev)
 	struct ixgbe_hw *hw = &adapter->hw;
 	int err;
 
+	/* A previous failure to open the device because of a lack of
+	 * available MSIX vector resources may have reset the number
+	 * of msix vectors variable to zero.  The only way to recover
+	 * is to unload/reload the driver and hope that the system has
+	 * been able to recover some MSIX vector resources.
+	 */
+	if (!adapter->num_msix_vectors)
+		return -ENOMEM;
+
 	/* disallow open during test */
 	if (test_bit(__IXGBEVF_TESTING, &adapter->state))
 		return -EBUSY;
@@ -2628,7 +2645,6 @@ static int ixgbevf_open(struct net_device *netdev)
 
 err_req_irq:
 	ixgbevf_down(adapter);
-	ixgbevf_free_irq(adapter);
 err_setup_rx:
 	ixgbevf_free_all_rx_resources(adapter);
 err_setup_tx:
