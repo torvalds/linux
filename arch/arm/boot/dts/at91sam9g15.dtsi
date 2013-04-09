@@ -10,7 +10,7 @@
 
 / {
 	model = "Atmel AT91SAM9G15 SoC";
-	compatible = "atmel, at91sam9g15, atmel,at91sam9x5";
+	compatible = "atmel,at91sam9g15", "atmel,at91sam9x5";
 
 	ahb {
 		apb {

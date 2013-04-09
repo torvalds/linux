@@ -535,6 +535,9 @@
 				atmel,adc-drdy-mask = <0x1000000>;
 				atmel,adc-status-register = <0x30>;
 				atmel,adc-trigger-register = <0xc0>;
+				atmel,adc-res = <8 10>;
+				atmel,adc-res-names = "lowres", "highres";
+				atmel,adc-use-res = "highres";
 
 				trigger@0 {
 					trigger-name = "external-rising";
@@ -558,6 +561,13 @@
 					trigger-name = "continuous";
 					trigger-value = <0x6>;
 				};
+			};
+
+			rtc@fffffeb0 {
+				compatible = "atmel,at91rm9200-rtc";
+				reg = <0xfffffeb0 0x40>;
+				interrupts = <1 4 7>;
+				status = "disabled";
 			};
 		};
 

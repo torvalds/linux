@@ -27,6 +27,7 @@ dtb-$(CONFIG_ARCH_AT91) += pm9g45.dtb
 # sam9n12
 dtb-$(CONFIG_ARCH_AT91) += at91sam9n12ek.dtb
 # sam9x5
+dtb-$(CONFIG_ARCH_AT91) += at91-ariag25.dtb
 dtb-$(CONFIG_ARCH_AT91) += at91sam9g15ek.dtb
 dtb-$(CONFIG_ARCH_AT91) += at91sam9g25ek.dtb
 dtb-$(CONFIG_ARCH_AT91) += at91sam9g35ek.dtb
