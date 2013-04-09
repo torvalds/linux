@@ -265,11 +265,16 @@ static int rti800_di_insn_bits(struct comedi_device *dev,
 
 static int rti800_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
+
 		/* Outputs are inverted... */
 		outb(s->state ^ 0xff, dev->iobase + RTI800_DO);
 	}
