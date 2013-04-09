@@ -337,22 +337,14 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct atao_board *board = comedi_board(dev);
 	struct atao_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 	int ao_unipolar;
 	int ret;
 
-	iobase = it->options[0];
-	if (iobase == 0)
-		iobase = 0x1c0;
 	ao_unipolar = it->options[3];
 
-	printk(KERN_INFO "comedi%d: ni_at_ao: 0x%04lx", dev->minor, iobase);
-
-	if (!request_region(iobase, ATAO_SIZE, dev->board_name)) {
-		printk(" I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], ATAO_SIZE);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
