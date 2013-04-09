@@ -371,13 +371,13 @@ config MFD_VIPERBOARD
 	  The drivers do not support all features the board exposes.
 
 config MFD_RETU
-	tristate "Nokia Retu multi-function device"
+	tristate "Nokia Retu and Tahvo multi-function device"
 	select MFD_CORE
 	depends on I2C && GENERIC_HARDIRQS
 	select REGMAP_IRQ
 	help
-	  Retu is a multi-function device found on Nokia Internet Tablets
-	  (770, N800 and N810).
+	  Retu and Tahvo are a multi-function devices found on Nokia
+	  Internet Tablets (770, N800 and N810).
 
 config MFD_PCF50633
 	tristate "NXP PCF50633"
