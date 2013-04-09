@@ -992,7 +992,7 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk("comedi%d: pcl816:  board=%s, ioport=0x%03lx", dev->minor,
 	       board->name, iobase);
 
-	if (!request_region(iobase, board->io_range, "pcl816")) {
+	if (!request_region(iobase, board->io_range, dev->board_name)) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
@@ -1009,8 +1009,6 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	dev->board_name = board->name;
-
 	/* grab our IRQ */
 	irq = 0;
 	if (board->IRQbits != 0) {	/* board support IRQ */
@@ -1022,8 +1020,8 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				     "DISABLING IT", irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
-				if (request_irq
-				    (irq, interrupt_pcl816, 0, "pcl816", dev)) {
+				if (request_irq(irq, interrupt_pcl816, 0,
+						dev->board_name, dev)) {
 					printk
 					    (", unable to allocate IRQ %u, "
 					     "DISABLING IT", irq);
@@ -1095,7 +1093,7 @@ no_rtc:
 			printk(", DMA is out of allowed range, FAIL!\n");
 			return -EINVAL;	/* Bad DMA */
 		}
-		ret = request_dma(dma, "pcl816");
+		ret = request_dma(dma, dev->board_name);
 		if (ret) {
 			printk(KERN_ERR
 			       ", unable to allocate DMA %u, FAIL!\n", dma);
