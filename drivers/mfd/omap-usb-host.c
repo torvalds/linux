@@ -30,6 +30,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/err.h>
 
 #include "omap-usb.h"
 
@@ -608,11 +609,9 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	omap->uhh_base = devm_request_and_ioremap(dev, res);
-	if (!omap->uhh_base) {
-		dev_err(dev, "Resource request/ioremap failed\n");
-		return -EADDRNOTAVAIL;
-	}
+	omap->uhh_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(omap->uhh_base))
+		return PTR_ERR(omap->uhh_base);
 
 	omap->pdata = pdata;
 
