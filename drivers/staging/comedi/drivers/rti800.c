@@ -152,9 +152,7 @@ static const struct rti800_board rti800_boardtypes[] = {
 };
 
 struct rti800_private {
-	enum {
-		adc_2comp, adc_straight
-	} adc_coding;
+	bool adc_2comp;
 	bool dac_2comp[2];
 	const struct comedi_lrange *ao_range_type_list[2];
 	unsigned int ao_readback[2];
@@ -221,7 +219,7 @@ static int rti800_ai_insn_read(struct comedi_device *dev,
 		data[i] = inb(dev->iobase + RTI800_ADCLO);
 		data[i] |= (0xf & inb(dev->iobase + RTI800_ADCHI)) << 8;
 
-		if (devpriv->adc_coding == adc_2comp)
+		if (devpriv->adc_2comp)
 			data[i] ^= 0x800;
 	}
 
@@ -338,7 +336,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	devpriv->adc_coding = it->options[4];
+	devpriv->adc_2comp = (it->options[4] == 0);
 	devpriv->dac_2comp[0] = (it->options[6] == 0);
 	devpriv->dac_2comp[1] = (it->options[8] == 0);
 	/* invalid, forces the MUXGAIN register to be set when first used */
