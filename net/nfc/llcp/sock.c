@@ -270,13 +270,17 @@ struct sock *nfc_llcp_accept_dequeue(struct sock *parent,
 		}
 
 		if (sk->sk_state == LLCP_CONNECTED || !newsock) {
-			nfc_llcp_accept_unlink(sk);
+			list_del_init(&lsk->accept_queue);
+			sock_put(sk);
+
 			if (newsock)
 				sock_graft(sk, newsock);
 
 			release_sock(sk);
 
 			pr_debug("Returning sk state %d\n", sk->sk_state);
+
+			sk_acceptq_removed(parent);
 
 			return sk;
 		}
@@ -462,8 +466,6 @@ static int llcp_sock_release(struct socket *sock)
 			nfc_llcp_accept_unlink(accept_sk);
 
 			release_sock(accept_sk);
-
-			sock_orphan(accept_sk);
 		}
 	}
 

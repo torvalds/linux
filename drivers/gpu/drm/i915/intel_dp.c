@@ -820,6 +820,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	struct intel_link_m_n m_n;
 	int pipe = intel_crtc->pipe;
 	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
+	int target_clock;
 
 	/*
 	 * Find the lane count in the intel_encoder private
@@ -835,13 +836,22 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		}
 	}
 
+	target_clock = mode->clock;
+	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
+		if (intel_encoder->type == INTEL_OUTPUT_EDP) {
+			target_clock = intel_edp_target_clock(intel_encoder,
+							      mode);
+			break;
+		}
+	}
+
 	/*
 	 * Compute the GMCH and Link ratios. The '3' here is
 	 * the number of bytes_per_pixel post-LUT, which we always
 	 * set up for 8-bits of R/G/B, or 3 bytes total.
 	 */
 	intel_link_compute_m_n(intel_crtc->bpp, lane_count,
-			       mode->clock, adjusted_mode->clock, &m_n);
+			       target_clock, adjusted_mode->clock, &m_n);
 
 	if (IS_HASWELL(dev)) {
 		I915_WRITE(PIPE_DATA_M1(cpu_transcoder),
@@ -1930,7 +1940,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 		for (i = 0; i < intel_dp->lane_count; i++)
 			if ((intel_dp->train_set[i] & DP_TRAIN_MAX_SWING_REACHED) == 0)
 				break;
-		if (i == intel_dp->lane_count && voltage_tries == 5) {
+		if (i == intel_dp->lane_count) {
 			++loop_tries;
 			if (loop_tries == 5) {
 				DRM_DEBUG_KMS("too many full retries, give up\n");
@@ -2549,12 +2559,15 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
 	i2c_del_adapter(&intel_dp->adapter);
 	drm_encoder_cleanup(encoder);
 	if (is_edp(intel_dp)) {
 		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
+		mutex_lock(&dev->mode_config.mutex);
 		ironlake_panel_vdd_off_sync(intel_dp);
+		mutex_unlock(&dev->mode_config.mutex);
 	}
 	kfree(intel_dig_port);
 }

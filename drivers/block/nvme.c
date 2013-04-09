@@ -135,6 +135,7 @@ static inline void _nvme_check_size(void)
 	BUILD_BUG_ON(sizeof(struct nvme_id_ctrl) != 4096);
 	BUILD_BUG_ON(sizeof(struct nvme_id_ns) != 4096);
 	BUILD_BUG_ON(sizeof(struct nvme_lba_range_type) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_smart_log) != 512);
 }
 
 typedef void (*nvme_completion_fn)(struct nvme_dev *, void *,
@@ -237,7 +238,8 @@ static void *free_cmdid(struct nvme_queue *nvmeq, int cmdid,
 		*fn = special_completion;
 		return CMD_CTX_INVALID;
 	}
-	*fn = info[cmdid].fn;
+	if (fn)
+		*fn = info[cmdid].fn;
 	ctx = info[cmdid].ctx;
 	info[cmdid].fn = special_completion;
 	info[cmdid].ctx = CMD_CTX_COMPLETED;
@@ -335,6 +337,7 @@ nvme_alloc_iod(unsigned nseg, unsigned nbytes, gfp_t gfp)
 		iod->offset = offsetof(struct nvme_iod, sg[nseg]);
 		iod->npages = -1;
 		iod->length = nbytes;
+		iod->nents = 0;
 	}
 
 	return iod;
@@ -375,7 +378,8 @@ static void bio_completion(struct nvme_dev *dev, void *ctx,
 	struct bio *bio = iod->private;
 	u16 status = le16_to_cpup(&cqe->status) >> 1;
 
-	dma_unmap_sg(&dev->pci_dev->dev, iod->sg, iod->nents,
+	if (iod->nents)
+		dma_unmap_sg(&dev->pci_dev->dev, iod->sg, iod->nents,
 			bio_data_dir(bio) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	nvme_free_iod(dev, iod);
 	if (status) {
@@ -589,7 +593,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 
 	result = nvme_map_bio(nvmeq->q_dmadev, iod, bio, dma_dir, psegs);
 	if (result < 0)
-		goto free_iod;
+		goto free_cmdid;
 	length = result;
 
 	cmnd->rw.command_id = cmdid;
@@ -609,6 +613,8 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 
 	return 0;
 
+ free_cmdid:
+	free_cmdid(nvmeq, cmdid, NULL);
  free_iod:
 	nvme_free_iod(nvmeq->dev, iod);
  nomem:
@@ -835,8 +841,8 @@ static int nvme_identify(struct nvme_dev *dev, unsigned nsid, unsigned cns,
 	return nvme_submit_admin_cmd(dev, &c, NULL);
 }
 
-static int nvme_get_features(struct nvme_dev *dev, unsigned fid,
-				unsigned nsid, dma_addr_t dma_addr)
+static int nvme_get_features(struct nvme_dev *dev, unsigned fid, unsigned nsid,
+					dma_addr_t dma_addr, u32 *result)
 {
 	struct nvme_command c;
 
@@ -846,7 +852,7 @@ static int nvme_get_features(struct nvme_dev *dev, unsigned fid,
 	c.features.prp1 = cpu_to_le64(dma_addr);
 	c.features.fid = cpu_to_le32(fid);
 
-	return nvme_submit_admin_cmd(dev, &c, NULL);
+	return nvme_submit_admin_cmd(dev, &c, result);
 }
 
 static int nvme_set_features(struct nvme_dev *dev, unsigned fid,
@@ -906,6 +912,10 @@ static void nvme_free_queue(struct nvme_dev *dev, int qid)
 
 	spin_lock_irq(&nvmeq->q_lock);
 	nvme_cancel_ios(nvmeq, false);
+	while (bio_list_peek(&nvmeq->sq_cong)) {
+		struct bio *bio = bio_list_pop(&nvmeq->sq_cong);
+		bio_endio(bio, -EIO);
+	}
 	spin_unlock_irq(&nvmeq->q_lock);
 
 	irq_set_affinity_hint(vector, NULL);
@@ -1230,12 +1240,17 @@ static int nvme_user_admin_cmd(struct nvme_dev *dev,
 	if (length != cmd.data_len)
 		status = -ENOMEM;
 	else
-		status = nvme_submit_admin_cmd(dev, &c, NULL);
+		status = nvme_submit_admin_cmd(dev, &c, &cmd.result);
 
 	if (cmd.data_len) {
 		nvme_unmap_user_pages(dev, cmd.opcode & 1, iod);
 		nvme_free_iod(dev, iod);
 	}
+
+	if (!status && copy_to_user(&ucmd->result, &cmd.result,
+							sizeof(cmd.result)))
+		status = -EFAULT;
+
 	return status;
 }
 
@@ -1523,9 +1538,9 @@ static int nvme_dev_add(struct nvme_dev *dev)
 			continue;
 
 		res = nvme_get_features(dev, NVME_FEAT_LBA_RANGE, i,
-							dma_addr + 4096);
+							dma_addr + 4096, NULL);
 		if (res)
-			continue;
+			memset(mem + 4096, 0, 4096);
 
 		ns = nvme_alloc_ns(dev, i, mem, mem + 4096);
 		if (ns)

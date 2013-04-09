@@ -171,7 +171,7 @@ SYSCALL_DEFINE6(32_ipc, u32, call, long, first, long, second, long, third,
 		err = compat_sys_shmctl(first, second, compat_ptr(ptr));
 		break;
 	default:
-		err = -EINVAL;
+		err = -ENOSYS;
 		break;
 	}
 

@@ -152,6 +152,20 @@ static void mei_me_intr_disable(struct mei_device *dev)
 }
 
 /**
+ * mei_me_hw_reset_release - release device from the reset
+ *
+ * @dev: the device structure
+ */
+static void mei_me_hw_reset_release(struct mei_device *dev)
+{
+	struct mei_me_hw *hw = to_me_hw(dev);
+	u32 hcsr = mei_hcsr_read(hw);
+
+	hcsr |= H_IG;
+	hcsr &= ~H_RST;
+	mei_hcsr_set(hw, hcsr);
+}
+/**
  * mei_me_hw_reset - resets fw via mei csr register.
  *
  * @dev: the device structure
@@ -169,18 +183,14 @@ static void mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 	if (intr_enable)
 		hcsr |= H_IE;
 	else
-		hcsr &= ~H_IE;
+		hcsr |= ~H_IE;
 
 	mei_hcsr_set(hw, hcsr);
 
-	hcsr = mei_hcsr_read(hw) | H_IG;
-	hcsr &= ~H_RST;
+	if (dev->dev_state == MEI_DEV_POWER_DOWN)
+		mei_me_hw_reset_release(dev);
 
-	mei_hcsr_set(hw, hcsr);
-
-	hcsr = mei_hcsr_read(hw);
-
-	dev_dbg(&dev->pdev->dev, "current HCSR = 0x%08x.\n", hcsr);
+	dev_dbg(&dev->pdev->dev, "current HCSR = 0x%08x.\n", mei_hcsr_read(hw));
 }
 
 /**
@@ -466,7 +476,8 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 			mutex_unlock(&dev->device_lock);
 			return IRQ_HANDLED;
 		} else {
-			dev_dbg(&dev->pdev->dev, "FW not ready.\n");
+			dev_dbg(&dev->pdev->dev, "Reset Completed.\n");
+			mei_me_hw_reset_release(dev);
 			mutex_unlock(&dev->device_lock);
 			return IRQ_HANDLED;
 		}

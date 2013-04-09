@@ -496,8 +496,10 @@ static int rtnl_link_fill(struct sk_buff *skb, const struct net_device *dev)
 	}
 	if (ops->fill_info) {
 		data = nla_nest_start(skb, IFLA_INFO_DATA);
-		if (data == NULL)
+		if (data == NULL) {
+			err = -EMSGSIZE;
 			goto err_cancel_link;
+		}
 		err = ops->fill_info(skb, dev);
 		if (err < 0)
 			goto err_cancel_data;
@@ -2621,7 +2623,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		struct rtattr *attr = (void *)nlh + NLMSG_ALIGN(min_len);
 
 		while (RTA_OK(attr, attrlen)) {
-			unsigned int flavor = attr->rta_type;
+			unsigned int flavor = attr->rta_type & NLA_TYPE_MASK;
 			if (flavor) {
 				if (flavor > rta_max[sz_idx])
 					return -EINVAL;

@@ -547,12 +547,16 @@ static struct regulator_consumer_supply rx51_vio_supplies[] = {
 	REGULATOR_SUPPLY("DVDD", "2-0019"),
 	/* Si4713 IO supply */
 	REGULATOR_SUPPLY("vio", "2-0063"),
+	/* lis3lv02d */
+	REGULATOR_SUPPLY("Vdd_IO", "3-001d"),
 };
 
 static struct regulator_consumer_supply rx51_vaux1_consumers[] = {
 	REGULATOR_SUPPLY("vdds_sdi", "omapdss"),
 	/* Si4713 supply */
 	REGULATOR_SUPPLY("vdd", "2-0063"),
+	/* lis3lv02d */
+	REGULATOR_SUPPLY("Vdd", "3-001d"),
 };
 
 static struct regulator_init_data rx51_vaux1 = {

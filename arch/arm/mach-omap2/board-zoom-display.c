@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
-#include <linux/i2c/twl.h>
 #include <linux/spi/spi.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <video/omapdss.h>
@@ -49,59 +48,6 @@ static void zoom_panel_disable_lcd(struct omap_dss_device *dssdev)
 {
 }
 
-/* Register offsets in TWL4030_MODULE_INTBR */
-#define TWL_INTBR_PMBR1	0xD
-#define TWL_INTBR_GPBR1	0xC
-
-/* Register offsets in TWL_MODULE_PWM */
-#define TWL_LED_PWMON	0x3
-#define TWL_LED_PWMOFF	0x4
-
-static int zoom_set_bl_intensity(struct omap_dss_device *dssdev, int level)
-{
-#ifdef CONFIG_TWL4030_CORE
-	unsigned char c;
-	u8 mux_pwm, enb_pwm;
-
-	if (level > 100)
-		return -1;
-
-	twl_i2c_read_u8(TWL4030_MODULE_INTBR, &mux_pwm, TWL_INTBR_PMBR1);
-	twl_i2c_read_u8(TWL4030_MODULE_INTBR, &enb_pwm, TWL_INTBR_GPBR1);
-
-	if (level == 0) {
-		/* disable pwm1 output and clock */
-		enb_pwm = enb_pwm & 0xF5;
-		/* change pwm1 pin to gpio pin */
-		mux_pwm = mux_pwm & 0xCF;
-		twl_i2c_write_u8(TWL4030_MODULE_INTBR,
-					enb_pwm, TWL_INTBR_GPBR1);
-		twl_i2c_write_u8(TWL4030_MODULE_INTBR,
-					mux_pwm, TWL_INTBR_PMBR1);
-		return 0;
-	}
-
-	if (!((enb_pwm & 0xA) && (mux_pwm & 0x30))) {
-		/* change gpio pin to pwm1 pin */
-		mux_pwm = mux_pwm | 0x30;
-		/* enable pwm1 output and clock*/
-		enb_pwm = enb_pwm | 0x0A;
-		twl_i2c_write_u8(TWL4030_MODULE_INTBR,
-					mux_pwm, TWL_INTBR_PMBR1);
-		twl_i2c_write_u8(TWL4030_MODULE_INTBR,
-					enb_pwm, TWL_INTBR_GPBR1);
-	}
-
-	c = ((50 * (100 - level)) / 100) + 1;
-	twl_i2c_write_u8(TWL_MODULE_PWM, 0x7F, TWL_LED_PWMOFF);
-	twl_i2c_write_u8(TWL_MODULE_PWM, c, TWL_LED_PWMON);
-#else
-	pr_warn("Backlight not enabled\n");
-#endif
-
-	return 0;
-}
-
 static struct omap_dss_device zoom_lcd_device = {
 	.name			= "lcd",
 	.driver_name		= "NEC_8048_panel",
@@ -109,8 +55,6 @@ static struct omap_dss_device zoom_lcd_device = {
 	.phy.dpi.data_lines	= 24,
 	.platform_enable	= zoom_panel_enable_lcd,
 	.platform_disable	= zoom_panel_disable_lcd,
-	.max_backlight_level	= 100,
-	.set_backlight		= zoom_set_bl_intensity,
 };
 
 static struct omap_dss_device *zoom_dss_devices[] = {
