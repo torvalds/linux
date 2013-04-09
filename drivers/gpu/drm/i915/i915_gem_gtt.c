@@ -738,8 +738,10 @@ static int gen6_gmch_probe(struct drm_device *dev,
 
 	*gtt_total = (gtt_size / sizeof(gtt_pte_t)) << PAGE_SHIFT;
 
-	/* For GEN6+ the PTEs for the ggtt live at 2MB + BAR0 */
-	gtt_bus_addr = pci_resource_start(dev->pdev, 0) + (2<<20);
+	/* For Modern GENs the PTEs and register space are split in the BAR */
+	gtt_bus_addr = pci_resource_start(dev->pdev, 0) +
+		(pci_resource_len(dev->pdev, 0) / 2);
+
 	dev_priv->gtt.gsm = ioremap_wc(gtt_bus_addr, gtt_size);
 	if (!dev_priv->gtt.gsm) {
 		DRM_ERROR("Failed to map the gtt page table\n");
