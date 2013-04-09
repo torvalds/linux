@@ -1518,6 +1518,28 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto free_priv;
 	}
 
+	mmio_bar = IS_GEN2(dev) ? 1 : 0;
+	/* Before gen4, the registers and the GTT are behind different BARs.
+	 * However, from gen4 onwards, the registers and the GTT are shared
+	 * in the same BAR, so we want to restrict this ioremap from
+	 * clobbering the GTT which we want ioremap_wc instead. Fortunately,
+	 * the register BAR remains the same size for all the earlier
+	 * generations up to Ironlake.
+	 */
+	if (info->gen < 5)
+		mmio_size = 512*1024;
+	else
+		mmio_size = 2*1024*1024;
+
+	dev_priv->regs = pci_iomap(dev->pdev, mmio_bar, mmio_size);
+	if (!dev_priv->regs) {
+		DRM_ERROR("failed to map registers\n");
+		ret = -EIO;
+		goto put_bridge;
+	}
+
+	intel_early_sanitize_regs(dev);
+
 	ret = i915_gem_gtt_init(dev);
 	if (ret)
 		goto put_bridge;
@@ -1541,28 +1563,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 */
 	if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
 		dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(32));
-
-	mmio_bar = IS_GEN2(dev) ? 1 : 0;
-	/* Before gen4, the registers and the GTT are behind different BARs.
-	 * However, from gen4 onwards, the registers and the GTT are shared
-	 * in the same BAR, so we want to restrict this ioremap from
-	 * clobbering the GTT which we want ioremap_wc instead. Fortunately,
-	 * the register BAR remains the same size for all the earlier
-	 * generations up to Ironlake.
-	 */
-	if (info->gen < 5)
-		mmio_size = 512*1024;
-	else
-		mmio_size = 2*1024*1024;
-
-	dev_priv->regs = pci_iomap(dev->pdev, mmio_bar, mmio_size);
-	if (!dev_priv->regs) {
-		DRM_ERROR("failed to map registers\n");
-		ret = -EIO;
-		goto put_gmch;
-	}
-
-	intel_early_sanitize_regs(dev);
 
 	aperture_size = dev_priv->gtt.mappable_end;
 
@@ -1686,10 +1686,9 @@ out_mtrrfree:
 		dev_priv->mm.gtt_mtrr = -1;
 	}
 	io_mapping_free(dev_priv->gtt.mappable);
+	dev_priv->gtt.gtt_remove(dev);
 out_rmmap:
 	pci_iounmap(dev->pdev, dev_priv->regs);
-put_gmch:
-	dev_priv->gtt.gtt_remove(dev);
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 free_priv:
