@@ -236,14 +236,12 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	iorange = board->io_range;
 	printk(KERN_WARNING "comedi%d: pcl726: board=%s, 0x%03lx ", dev->minor,
 	       board->name, iobase);
-	if (!request_region(iobase, iorange, "pcl726")) {
+	if (!request_region(iobase, iorange, dev->board_name)) {
 		printk(KERN_WARNING "I/O port conflict\n");
 		return -EIO;
 	}
 
 	dev->iobase = iobase;
-
-	dev->board_name = board->name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -268,7 +266,7 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				irq = 0;	/* Bad IRQ */
 			} else {
 				if (request_irq(irq, interrupt_pcl818, 0,
-						"pcl726", dev)) {
+						dev->board_name, dev)) {
 					printk(KERN_WARNING
 						", unable to allocate IRQ %d,"
 						" DISABLING IT", irq);
