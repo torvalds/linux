@@ -153,9 +153,7 @@ struct rti800_private {
 	enum {
 		adc_2comp, adc_straight
 	} adc_coding;
-	enum {
-		dac_2comp, dac_straight
-	} dac0_coding, dac1_coding;
+	bool dac_2comp[2];
 	const struct comedi_lrange *ao_range_type_list[2];
 	unsigned int ao_readback[2];
 	int muxgain_bits;
@@ -235,24 +233,28 @@ static int rti800_ao_insn_read(struct comedi_device *dev,
 
 static int rti800_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
 	struct rti800_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
-	int d;
+	int reg_lo = chan ? RTI800_DAC1LO : RTI800_DAC0LO;
+	int reg_hi = chan ? RTI800_DAC1HI : RTI800_DAC0HI;
+	int val = devpriv->ao_readback[chan];
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		devpriv->ao_readback[chan] = d = data[i];
-		if (devpriv->dac0_coding == dac_2comp)
-			d ^= 0x800;
+		val = data[i];
+		if (devpriv->dac_2comp[chan])
+			val ^= 0x800;
 
-		outb(d & 0xff,
-		     dev->iobase + (chan ? RTI800_DAC1LO : RTI800_DAC0LO));
-		outb(d >> 8,
-		     dev->iobase + (chan ? RTI800_DAC1HI : RTI800_DAC0HI));
+		outb(val & 0xff, dev->iobase + reg_lo);
+		outb((val >> 8) & 0xff, dev->iobase + reg_hi);
 	}
-	return i;
+
+	devpriv->ao_readback[chan] = val;
+
+	return insn->n;
 }
 
 static int rti800_di_insn_bits(struct comedi_device *dev,
@@ -325,8 +327,8 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->private = devpriv;
 
 	devpriv->adc_coding = it->options[4];
-	devpriv->dac0_coding = it->options[6];
-	devpriv->dac1_coding = it->options[8];
+	devpriv->dac_2comp[0] = (it->options[6] == 0);
+	devpriv->dac_2comp[1] = (it->options[8] == 0);
 	devpriv->muxgain_bits = -1;
 
 	ret = comedi_alloc_subdevices(dev, 4);
