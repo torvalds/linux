@@ -200,15 +200,11 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	const struct aio12_8_boardtype *board = comedi_board(dev);
 	struct aio12_8_private *devpriv;
 	struct comedi_subdevice *s;
-	int iobase;
 	int ret;
 
-	iobase = it->options[0];
-	if (!request_region(iobase, 32, dev->board_name)) {
-		printk(KERN_ERR "I/O port conflict");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], 32);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -248,8 +244,8 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[2];
 	/* 8255 Digital i/o subdevice */
-	iobase = dev->iobase + AIO12_8_8255_BASE_REG;
-	ret = subdev_8255_init(dev, s, NULL, iobase);
+	ret = subdev_8255_init(dev, s, NULL,
+			       dev->iobase + AIO12_8_8255_BASE_REG);
 	if (ret)
 		return ret;
 
