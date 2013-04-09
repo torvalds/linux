@@ -588,7 +588,7 @@ int wmt_pinctrl_probe(struct platform_device *pdev,
 	data->dev = &pdev->dev;
 
 	data->pctl_dev = pinctrl_register(&wmt_desc, &pdev->dev, data);
-	if (IS_ERR(data->pctl_dev)) {
+	if (!data->pctl_dev) {
 		dev_err(&pdev->dev, "Failed to register pinctrl\n");
 		return -EINVAL;
 	}
