@@ -11,8 +11,8 @@
 #ifndef __SH_PFC_H
 #define __SH_PFC_H
 
+#include <linux/bug.h>
 #include <linux/stringify.h>
-#include <asm-generic/gpio.h>
 
 typedef unsigned short pinmux_enum_t;
 
