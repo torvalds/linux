@@ -536,6 +536,63 @@ int arizona_dev_init(struct arizona *arizona)
 
 	regcache_cache_only(arizona->regmap, false);
 
+	/* Verify that this is a chip we know about */
+	ret = regmap_read(arizona->regmap, ARIZONA_SOFTWARE_RESET, &reg);
+	if (ret != 0) {
+		dev_err(dev, "Failed to read ID register: %d\n", ret);
+		goto err_reset;
+	}
+
+	switch (reg) {
+	case 0x5102:
+	case 0x5110:
+		break;
+	default:
+		dev_err(arizona->dev, "Unknown device ID: %x\n", reg);
+		goto err_reset;
+	}
+
+	/* If we have a /RESET GPIO we'll already be reset */
+	if (!arizona->pdata.reset) {
+		regcache_mark_dirty(arizona->regmap);
+
+		ret = regmap_write(arizona->regmap, ARIZONA_SOFTWARE_RESET, 0);
+		if (ret != 0) {
+			dev_err(dev, "Failed to reset device: %d\n", ret);
+			goto err_reset;
+		}
+
+		msleep(1);
+
+		ret = regcache_sync(arizona->regmap);
+		if (ret != 0) {
+			dev_err(dev, "Failed to sync device: %d\n", ret);
+			goto err_reset;
+		}
+	}
+
+	/* Ensure device startup is complete */
+	switch (arizona->type) {
+	case WM5102:
+		ret = regmap_read(arizona->regmap, 0x19, &val);
+		if (ret != 0)
+			dev_err(dev,
+				"Failed to check write sequencer state: %d\n",
+				ret);
+		else if (val & 0x01)
+			break;
+		/* Fall through */
+	default:
+		ret = arizona_wait_for_boot(arizona);
+		if (ret != 0) {
+			dev_err(arizona->dev,
+				"Device failed initial boot: %d\n", ret);
+			goto err_reset;
+		}
+		break;
+	}
+
+	/* Read the device ID information & do device specific stuff */
 	ret = regmap_read(arizona->regmap, ARIZONA_SOFTWARE_RESET, &reg);
 	if (ret != 0) {
 		dev_err(dev, "Failed to read ID register: %d\n", ret);
@@ -580,45 +637,6 @@ int arizona_dev_init(struct arizona *arizona)
 	}
 
 	dev_info(dev, "%s revision %c\n", type_name, arizona->rev + 'A');
-
-	/* If we have a /RESET GPIO we'll already be reset */
-	if (!arizona->pdata.reset) {
-		regcache_mark_dirty(arizona->regmap);
-
-		ret = regmap_write(arizona->regmap, ARIZONA_SOFTWARE_RESET, 0);
-		if (ret != 0) {
-			dev_err(dev, "Failed to reset device: %d\n", ret);
-			goto err_reset;
-		}
-
-		msleep(1);
-
-		ret = regcache_sync(arizona->regmap);
-		if (ret != 0) {
-			dev_err(dev, "Failed to sync device: %d\n", ret);
-			goto err_reset;
-		}
-	}
-
-	switch (arizona->type) {
-	case WM5102:
-		ret = regmap_read(arizona->regmap, 0x19, &val);
-		if (ret != 0)
-			dev_err(dev,
-				"Failed to check write sequencer state: %d\n",
-				ret);
-		else if (val & 0x01)
-			break;
-		/* Fall through */
-	default:
-		ret = arizona_wait_for_boot(arizona);
-		if (ret != 0) {
-			dev_err(arizona->dev,
-				"Device failed initial boot: %d\n", ret);
-			goto err_reset;
-		}
-		break;
-	}
 
 	if (apply_patch) {
 		ret = apply_patch(arizona);
