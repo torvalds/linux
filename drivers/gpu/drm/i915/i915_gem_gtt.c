@@ -316,6 +316,7 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 		return;
 
 	ppgtt->cleanup(ppgtt);
+	dev_priv->mm.aliasing_ppgtt = NULL;
 }
 
 void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
