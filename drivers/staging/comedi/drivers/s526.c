@@ -552,15 +552,11 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct s526_private *devpriv;
 	struct comedi_subdevice *s;
-	int iobase;
 	int ret;
 
-	iobase = it->options[0];
-	if (!iobase || !request_region(iobase, S526_IOSIZE, dev->board_name)) {
-		comedi_error(dev, "I/O port conflict");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], S526_IOSIZE);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -613,8 +609,6 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->insn_bits = s526_dio_insn_bits;
 	s->insn_config = s526_dio_insn_config;
-
-	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
 	return 1;
 }
