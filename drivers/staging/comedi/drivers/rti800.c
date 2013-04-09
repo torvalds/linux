@@ -30,7 +30,7 @@ Devices: [Analog Devices] RTI-800 (rti800), RTI-815 (rti815)
 
 Configuration options:
   [0] - I/O port base address
-  [1] - IRQ
+  [1] - IRQ (not supported / unused)
   [2] - A/D reference
 	0 = differential
 	1 = pseudodifferential (common)
@@ -160,11 +160,6 @@ struct rti800_private {
 };
 
 #define RTI800_TIMEOUT 100
-
-static irqreturn_t rti800_interrupt(int irq, void *dev)
-{
-	return IRQ_HANDLED;
-}
 
 /* settling delay times in usec for different gains */
 static const int gaindelay[] = { 10, 20, 40, 80 };
@@ -303,7 +298,6 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct rti800_board *board = comedi_board(dev);
 	struct rti800_private *devpriv;
-	unsigned int irq;
 	unsigned long iobase;
 	int ret;
 	struct comedi_subdevice *s;
@@ -316,15 +310,6 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	outb(0, dev->iobase + RTI800_CSR);
 	inb(dev->iobase + RTI800_ADCHI);
 	outb(0, dev->iobase + RTI800_CLRFLAGS);
-
-	irq = it->options[1];
-	if (irq) {
-		ret = request_irq(irq, rti800_interrupt, 0, dev->board_name,
-				  dev);
-		if (ret < 0)
-			return ret;
-		dev->irq = irq;
-	}
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -425,8 +410,6 @@ static void rti800_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		release_region(dev->iobase, RTI800_SIZE);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 }
 
 static struct comedi_driver rti800_driver = {
