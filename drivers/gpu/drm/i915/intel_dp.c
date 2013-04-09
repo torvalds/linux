@@ -353,10 +353,14 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 			aux_clock_divider = 200; /* SNB & IVB eDP input clock at 400Mhz */
 		else
 			aux_clock_divider = 225; /* eDP input clock at 450Mhz */
-	} else if (HAS_PCH_SPLIT(dev))
+	} else if (dev_priv->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
+		/* Workaround for non-ULT HSW */
+		aux_clock_divider = 74;
+	} else if (HAS_PCH_SPLIT(dev)) {
 		aux_clock_divider = DIV_ROUND_UP(intel_pch_rawclk(dev), 2);
-	else
+	} else {
 		aux_clock_divider = intel_hrawclk(dev) / 2;
+	}
 
 	if (IS_GEN6(dev))
 		precharge = 3;
