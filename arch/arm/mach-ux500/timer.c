@@ -14,10 +14,10 @@
 
 #include <asm/smp_twd.h>
 
-#include <mach/setup.h>
-#include <mach/hardware.h>
-#include <mach/irqs.h>
+#include "setup.h"
+#include "irqs.h"
 
+#include "db8500-regs.h"
 #include "id.h"
 
 #ifdef CONFIG_HAVE_ARM_TWD

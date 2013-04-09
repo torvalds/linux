@@ -14,9 +14,9 @@
 #include <asm/cacheflush.h>
 #include <asm/mach/map.h>
 
-#include <mach/hardware.h>
-#include <mach/setup.h>
+#include "setup.h"
 
+#include "db8500-regs.h"
 #include "id.h"
 
 struct dbx500_asic_id dbx500_id;

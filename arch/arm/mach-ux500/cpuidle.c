@@ -16,9 +16,12 @@
 #include <linux/atomic.h>
 #include <linux/smp.h>
 #include <linux/mfd/dbx500-prcmu.h>
+#include <linux/platform_data/arm-ux500-pm.h>
 
 #include <asm/cpuidle.h>
 #include <asm/proc-fns.h>
+
+#include "db8500-regs.h"
 
 static atomic_t master = ATOMIC_INIT(0);
 static DEFINE_SPINLOCK(master_lock);
@@ -130,7 +133,7 @@ int __init ux500_idle_init(void)
 	int ret, cpu;
 	struct cpuidle_device *device;
 
-        /* Configure wake up reasons */
+	/* Configure wake up reasons */
 	prcmu_enable_wakeups(PRCMU_WAKEUP(ARM) | PRCMU_WAKEUP(RTC) |
 			     PRCMU_WAKEUP(ABB));
 

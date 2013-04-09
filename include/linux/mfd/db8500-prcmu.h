@@ -489,7 +489,7 @@ struct prcmu_auto_pm_config {
 
 #ifdef CONFIG_MFD_DB8500_PRCMU
 
-void db8500_prcmu_early_init(void);
+void db8500_prcmu_early_init(u32 phy_base, u32 size);
 int prcmu_set_rc_a2p(enum romcode_write);
 enum romcode_read prcmu_get_rc_p2a(void);
 enum ap_pwrst prcmu_get_xp70_current_state(void);
@@ -522,12 +522,6 @@ int db8500_prcmu_load_a9wdog(u8 id, u32 val);
 void db8500_prcmu_system_reset(u16 reset_code);
 int db8500_prcmu_set_power_state(u8 state, bool keep_ulp_clk, bool keep_ap_pll);
 u8 db8500_prcmu_get_power_state_result(void);
-int db8500_prcmu_gic_decouple(void);
-int db8500_prcmu_gic_recouple(void);
-int db8500_prcmu_copy_gic_settings(void);
-bool db8500_prcmu_gic_pending_irq(void);
-bool db8500_prcmu_pending_irq(void);
-bool db8500_prcmu_is_cpu_in_wfi(int cpu);
 void db8500_prcmu_enable_wakeups(u32 wakeups);
 int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state);
 int db8500_prcmu_request_clock(u8 clock, bool enable);
@@ -553,7 +547,7 @@ void db8500_prcmu_write_masked(unsigned int reg, u32 mask, u32 value);
 
 #else /* !CONFIG_MFD_DB8500_PRCMU */
 
-static inline void db8500_prcmu_early_init(void) {}
+static inline void db8500_prcmu_early_init(u32 phy_base, u32 size) {}
 
 static inline int prcmu_set_rc_a2p(enum romcode_write code)
 {

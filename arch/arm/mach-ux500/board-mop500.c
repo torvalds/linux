@@ -41,13 +41,13 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/hardware.h>
-#include <mach/setup.h>
-#include <mach/devices.h>
-#include <mach/irqs.h>
+#include "setup.h"
+#include "devices.h"
+#include "irqs.h"
 #include <linux/platform_data/crypto-ux500.h>
 
 #include "ste-dma40-db8500.h"
+#include "db8500-regs.h"
 #include "devices-db8500.h"
 #include "board-mop500.h"
 #include "board-mop500-regulators.h"
@@ -204,63 +204,6 @@ struct ab8500_platform_data ab8500_platdata = {
 	.num_regulator	= ARRAY_SIZE(ab8500_regulators),
 	.gpio		= &ab8500_gpio_pdata,
 	.codec		= &ab8500_codec_pdata,
-};
-
-/*
- * Thermal Sensor
- */
-
-static struct resource db8500_thsens_resources[] = {
-	{
-		.name = "IRQ_HOTMON_LOW",
-		.start  = IRQ_PRCMU_HOTMON_LOW,
-		.end    = IRQ_PRCMU_HOTMON_LOW,
-		.flags  = IORESOURCE_IRQ,
-	},
-	{
-		.name = "IRQ_HOTMON_HIGH",
-		.start  = IRQ_PRCMU_HOTMON_HIGH,
-		.end    = IRQ_PRCMU_HOTMON_HIGH,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-static struct db8500_thsens_platform_data db8500_thsens_data = {
-	.trip_points[0] = {
-		.temp = 70000,
-		.type = THERMAL_TRIP_ACTIVE,
-		.cdev_name = {
-			[0] = "thermal-cpufreq-0",
-		},
-	},
-	.trip_points[1] = {
-		.temp = 75000,
-		.type = THERMAL_TRIP_ACTIVE,
-		.cdev_name = {
-			[0] = "thermal-cpufreq-0",
-		},
-	},
-	.trip_points[2] = {
-		.temp = 80000,
-		.type = THERMAL_TRIP_ACTIVE,
-		.cdev_name = {
-			[0] = "thermal-cpufreq-0",
-		},
-	},
-	.trip_points[3] = {
-		.temp = 85000,
-		.type = THERMAL_TRIP_CRITICAL,
-	},
-	.num_trips = 4,
-};
-
-static struct platform_device u8500_thsens_device = {
-	.name           = "db8500-thermal",
-	.resource       = db8500_thsens_resources,
-	.num_resources  = ARRAY_SIZE(db8500_thsens_resources),
-	.dev	= {
-		.platform_data	= &db8500_thsens_data,
-	},
 };
 
 static struct platform_device u8500_cpufreq_cooling_device = {
@@ -622,7 +565,6 @@ static struct platform_device *snowball_platform_devs[] __initdata = {
 	&snowball_key_dev,
 	&snowball_sbnet_dev,
 	&snowball_gpio_en_3v3_regulator_dev,
-	&u8500_thsens_device,
 	&u8500_cpufreq_cooling_device,
 };
 

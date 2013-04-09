@@ -19,9 +19,7 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/dbx500-prcmu.h>
-
-#include <mach/hardware.h>
-#include <mach/msp.h>
+#include <linux/platform_data/asoc-ux500-msp.h>
 
 #include <sound/soc.h>
 #include <sound/soc-dai.h>

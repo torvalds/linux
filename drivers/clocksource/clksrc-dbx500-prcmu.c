@@ -17,9 +17,6 @@
 
 #include <asm/sched_clock.h>
 
-#include <mach/setup.h>
-#include <mach/hardware.h>
-
 #define RATE_32K		32768
 
 #define TIMER_MODE_CONTINOUS	0x1

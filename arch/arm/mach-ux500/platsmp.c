@@ -22,9 +22,9 @@
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 
-#include <mach/hardware.h>
-#include <mach/setup.h>
+#include "setup.h"
 
+#include "db8500-regs.h"
 #include "id.h"
 
 /* This is called from headsmp.S to wakeup the secondary core */
