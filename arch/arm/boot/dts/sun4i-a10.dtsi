@@ -42,17 +42,11 @@
 			clock-frequency = <0>;
 		};
 
-		osc24M_fixed: osc24M_fixed {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <24000000>;
-		};
-
 		osc24M: osc24M@01c20050 {
 			#clock-cells = <0>;
 			compatible = "allwinner,sun4i-osc-clk";
 			reg = <0x01c20050 0x4>;
-			clocks = <&osc24M_fixed>;
+			clock-frequency = <24000000>;
 		};
 
 		osc32k: osc32k {
