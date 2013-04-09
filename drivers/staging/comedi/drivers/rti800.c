@@ -90,15 +90,6 @@ Configuration options:
 
 #define RTI800_AI_TIMEOUT	100
 
-#define Am9513_8BITBUS
-
-#define Am9513_output_control(a)	outb(a, dev->iobase+RTI800_9513A_CNTRL)
-#define Am9513_output_data(a)		outb(a, dev->iobase+RTI800_9513A_DATA)
-#define Am9513_input_data()		inb(dev->iobase+RTI800_9513A_DATA)
-#define Am9513_input_status()		inb(dev->iobase+RTI800_9513A_STATUS)
-
-#include "am9513.h"
-
 static const struct comedi_lrange range_rti800_ai_10_bipolar = {
 	4, {
 		BIP_RANGE(10),
