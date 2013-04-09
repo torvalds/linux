@@ -24,12 +24,6 @@
 #include "mei_dev.h"
 #include "hw.h"
 
-static int mei_dbgfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t mei_dbgfs_read_meclients(struct file *fp, char __user *ubuf,
 					size_t cnt, loff_t *ppos)
 {
@@ -76,7 +70,7 @@ out:
 }
 
 static const struct file_operations mei_dbgfs_fops_meclients = {
-	.open = mei_dbgfs_open,
+	.open = simple_open,
 	.read = mei_dbgfs_read_meclients,
 	.llseek = generic_file_llseek,
 };
@@ -100,7 +94,7 @@ static ssize_t mei_dbgfs_read_devstate(struct file *fp, char __user *ubuf,
 	return ret;
 }
 static const struct file_operations mei_dbgfs_fops_devstate = {
-	.open = mei_dbgfs_open,
+	.open = simple_open,
 	.read = mei_dbgfs_read_devstate,
 	.llseek = generic_file_llseek,
 };
