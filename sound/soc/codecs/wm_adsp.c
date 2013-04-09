@@ -565,6 +565,22 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 			  be32_to_cpu(adsp1_id.fw.ver) & 0xff,
 			  algs);
 
+		region = kzalloc(sizeof(*region), GFP_KERNEL);
+		if (!region)
+			return -ENOMEM;
+		region->type = WMFW_ADSP1_ZM;
+		region->alg = be32_to_cpu(adsp1_id.fw.id);
+		region->base = be32_to_cpu(adsp1_id.zm);
+		list_add_tail(&region->list, &dsp->alg_regions);
+
+		region = kzalloc(sizeof(*region), GFP_KERNEL);
+		if (!region)
+			return -ENOMEM;
+		region->type = WMFW_ADSP1_DM;
+		region->alg = be32_to_cpu(adsp1_id.fw.id);
+		region->base = be32_to_cpu(adsp1_id.dm);
+		list_add_tail(&region->list, &dsp->alg_regions);
+
 		pos = sizeof(adsp1_id) / 2;
 		term = pos + ((sizeof(*adsp1_alg) * algs) / 2);
 		break;
@@ -589,6 +605,30 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 			  (be32_to_cpu(adsp2_id.fw.ver) & 0xff00) >> 8,
 			  be32_to_cpu(adsp2_id.fw.ver) & 0xff,
 			  algs);
+
+		region = kzalloc(sizeof(*region), GFP_KERNEL);
+		if (!region)
+			return -ENOMEM;
+		region->type = WMFW_ADSP2_XM;
+		region->alg = be32_to_cpu(adsp2_id.fw.id);
+		region->base = be32_to_cpu(adsp2_id.xm);
+		list_add_tail(&region->list, &dsp->alg_regions);
+
+		region = kzalloc(sizeof(*region), GFP_KERNEL);
+		if (!region)
+			return -ENOMEM;
+		region->type = WMFW_ADSP2_YM;
+		region->alg = be32_to_cpu(adsp2_id.fw.id);
+		region->base = be32_to_cpu(adsp2_id.ym);
+		list_add_tail(&region->list, &dsp->alg_regions);
+
+		region = kzalloc(sizeof(*region), GFP_KERNEL);
+		if (!region)
+			return -ENOMEM;
+		region->type = WMFW_ADSP2_ZM;
+		region->alg = be32_to_cpu(adsp2_id.fw.id);
+		region->base = be32_to_cpu(adsp2_id.zm);
+		list_add_tail(&region->list, &dsp->alg_regions);
 
 		pos = sizeof(adsp2_id) / 2;
 		term = pos + ((sizeof(*adsp2_alg) * algs) / 2);
