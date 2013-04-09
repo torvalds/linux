@@ -11720,7 +11720,7 @@ static int tg3_set_ringparam(struct net_device *dev, struct ethtool_ringparam *e
 
 	if (netif_running(dev)) {
 		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
-		err = tg3_restart_hw(tp, 1);
+		err = tg3_restart_hw(tp, 0);
 		if (!err)
 			tg3_netif_start(tp);
 	}
@@ -11841,7 +11841,7 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 
 		if (netif_running(dev)) {
 			tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
-			err = tg3_restart_hw(tp, 1);
+			err = tg3_restart_hw(tp, 0);
 			if (!err)
 				tg3_netif_start(tp);
 		}
