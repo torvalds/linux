@@ -309,11 +309,8 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 
 	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: rti800: 0x%04lx\n", dev->minor, iobase);
-	if (!request_region(iobase, RTI800_SIZE, "rti800")) {
-		printk(KERN_WARNING "I/O port conflict\n");
+	if (!request_region(iobase, RTI800_SIZE, "rti800"))
 		return -EIO;
-	}
 	dev->iobase = iobase;
 
 	outb(0, dev->iobase + RTI800_CSR);
@@ -322,15 +319,10 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	irq = it->options[1];
 	if (irq) {
-		printk(KERN_INFO "( irq = %u )\n", irq);
 		ret = request_irq(irq, rti800_interrupt, 0, "rti800", dev);
-		if (ret < 0) {
-			printk(KERN_WARNING " Failed to allocate IRQ\n");
+		if (ret < 0)
 			return ret;
-		}
 		dev->irq = irq;
-	} else {
-		printk(KERN_INFO "( no irq )\n");
 	}
 
 	dev->board_name = board->name;
