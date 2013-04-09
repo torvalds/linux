@@ -246,6 +246,7 @@
 #define AUDIT_OBJ_TYPE	21
 #define AUDIT_OBJ_LEV_LOW	22
 #define AUDIT_OBJ_LEV_HIGH	23
+#define AUDIT_LOGINUID_SET	24
 
 				/* These are ONLY useful when checking
 				 * at syscall exit time (AUDIT_AT_EXIT). */

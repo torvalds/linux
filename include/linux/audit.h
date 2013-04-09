@@ -391,6 +391,11 @@ static inline void audit_ptrace(struct task_struct *t)
 #define audit_signals 0
 #endif /* CONFIG_AUDITSYSCALL */
 
+static inline bool audit_loginuid_set(struct task_struct *tsk)
+{
+	return uid_valid(audit_get_loginuid(tsk));
+}
+
 #ifdef CONFIG_AUDIT
 /* These are defined in audit.c */
 				/* Public API */

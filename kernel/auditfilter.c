@@ -365,7 +365,10 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 	case AUDIT_DIR:
 	case AUDIT_FILTERKEY:
 		break;
-	/* arch is only allowed to be = or != */
+	case AUDIT_LOGINUID_SET:
+		if ((f->val != 0) && (f->val != 1))
+			return -EINVAL;
+	/* FALL THROUGH */
 	case AUDIT_ARCH:
 		if (f->op != Audit_not_equal && f->op != Audit_equal)
 			return -EINVAL;
@@ -419,17 +422,23 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		f->lsm_str = NULL;
 		f->lsm_rule = NULL;
 
+		/* Support legacy tests for a valid loginuid */
+		if ((f->type == AUDIT_LOGINUID) && (f->val == 4294967295)) {
+			f->type = AUDIT_LOGINUID_SET;
+			f->val = 0;
+		}
+
 		err = audit_field_valid(entry, f);
 		if (err)
 			goto exit_free;
 
 		err = -EINVAL;
 		switch (f->type) {
+		case AUDIT_LOGINUID:
 		case AUDIT_UID:
 		case AUDIT_EUID:
 		case AUDIT_SUID:
 		case AUDIT_FSUID:
-		case AUDIT_LOGINUID:
 		case AUDIT_OBJ_UID:
 			f->uid = make_kuid(current_user_ns(), f->val);
 			if (!uid_valid(f->uid))
@@ -1221,6 +1230,10 @@ static int audit_filter_user_rules(struct audit_krule *rule, int type,
 		case AUDIT_LOGINUID:
 			result = audit_uid_comparator(audit_get_loginuid(current),
 						  f->op, f->uid);
+			break;
+		case AUDIT_LOGINUID_SET:
+			result = audit_comparator(audit_loginuid_set(current),
+						  f->op, f->val);
 			break;
 		case AUDIT_MSGTYPE:
 			result = audit_comparator(type, f->op, f->val);

@@ -613,6 +613,9 @@ static int audit_filter_rules(struct task_struct *tsk,
 			if (ctx)
 				result = audit_uid_comparator(tsk->loginuid, f->op, f->uid);
 			break;
+		case AUDIT_LOGINUID_SET:
+			result = audit_comparator(audit_loginuid_set(tsk), f->op, f->val);
+			break;
 		case AUDIT_SUBJ_USER:
 		case AUDIT_SUBJ_ROLE:
 		case AUDIT_SUBJ_TYPE:
@@ -1970,7 +1973,7 @@ int audit_set_loginuid(kuid_t loginuid)
 	unsigned int sessionid;
 
 #ifdef CONFIG_AUDIT_LOGINUID_IMMUTABLE
-	if (uid_valid(task->loginuid))
+	if (audit_loginuid_set(task))
 		return -EPERM;
 #else /* CONFIG_AUDIT_LOGINUID_IMMUTABLE */
 	if (!capable(CAP_AUDIT_CONTROL))
