@@ -257,7 +257,8 @@ static int rti800_ao_insn_write(struct comedi_device *dev,
 
 static int rti800_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	data[1] = inb(dev->iobase + RTI800_DI);
 	return insn->n;
