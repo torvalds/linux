@@ -393,6 +393,7 @@ config MFD_STMPE
 
 		STMPE811: GPIO, Touchscreen
 		STMPE1601: GPIO, Keypad
+		STMPE1801: GPIO, Keypad
 		STMPE2401: GPIO, Keypad
 		STMPE2403: GPIO, Keypad
 
