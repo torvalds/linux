@@ -1616,8 +1616,6 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	int ret;
 	int i;
 
-	dev->board_name = board->name;
-
 	if (iobase == 0)
 		return -EINVAL;
 	if (board->bustype == isa_bustype) {
@@ -1831,6 +1829,7 @@ static int labpc_auto_attach(struct comedi_device *dev,
 				       unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct labpc_boardinfo *board;
 	struct labpc_private *devpriv;
 	unsigned long iobase;
 	unsigned int irq;
@@ -1848,9 +1847,11 @@ static int labpc_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	dev->board_ptr = labpc_pci_find_boardinfo(pcidev);
-	if (!dev->board_ptr)
+	board = labpc_pci_find_boardinfo(pcidev);
+	if (!board)
 		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
 	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
 		return -ENOMEM;
