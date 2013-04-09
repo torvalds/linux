@@ -5,7 +5,7 @@ The main aim of CFQ scheduler is to provide a fair allocation of the disk
 I/O bandwidth for all the processes which requests an I/O operation.
 
 CFQ maintains the per process queue for the processes which request I/O
-operation(syncronous requests). In case of asynchronous requests, all the
+operation(synchronous requests). In case of asynchronous requests, all the
 requests from all the processes are batched together according to their
 process's I/O priority.
 
@@ -66,6 +66,47 @@ This parameter is used to set the timeout of synchronous requests. Default
 value of this is 124ms. In case to favor synchronous requests over asynchronous
 one, this value should be decreased relative to fifo_expire_async.
 
+group_idle
+-----------
+This parameter forces idling at the CFQ group level instead of CFQ
+queue level. This was introduced after after a bottleneck was observed
+in higher end storage due to idle on sequential queue and allow dispatch
+from a single queue. The idea with this parameter is that it can be run with
+slice_idle=0 and group_idle=8, so that idling does not happen on individual
+queues in the group but happens overall on the group and thus still keeps the
+IO controller working.
+Not idling on individual queues in the group will dispatch requests from
+multiple queues in the group at the same time and achieve higher throughput
+on higher end storage.
+
+Default value for this parameter is 8ms.
+
+latency
+-------
+This parameter is used to enable/disable the latency mode of the CFQ
+scheduler. If latency mode (called low_latency) is enabled, CFQ tries
+to recompute the slice time for each process based on the target_latency set
+for the system. This favors fairness over throughput. Disabling low
+latency (setting it to 0) ignores target latency, allowing each process in the
+system to get a full time slice.
+
+By default low latency mode is enabled.
+
+target_latency
+--------------
+This parameter is used to calculate the time slice for a process if cfq's
+latency mode is enabled. It will ensure that sync requests have an estimated
+latency. But if sequential workload is higher(e.g. sequential read),
+then to meet the latency constraints, throughput may decrease because of less
+time for each process to issue I/O request before the cfq queue is switched.
+
+Though this can be overcome by disabling the latency_mode, it may increase
+the read latency for some applications. This parameter allows for changing
+target_latency through the sysfs interface which can provide the balanced
+throughput and read latency.
+
+Default value for target_latency is 300ms.
+
 slice_async
 -----------
 This parameter is same as of slice_sync but for asynchronous queue. The
@@ -98,8 +139,8 @@ in the device exceeds this parameter. This parameter is used for synchronous
 request.
 
 In case of storage with several disk, this setting can limit the parallel
-processing of request. Therefore, increasing the value can imporve the
-performace although this can cause the latency of some I/O to increase due
+processing of request. Therefore, increasing the value can improve the
+performance although this can cause the latency of some I/O to increase due
 to more number of requests.
 
 CFQ Group scheduling
