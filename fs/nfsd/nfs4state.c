@@ -42,6 +42,7 @@
 #include <linux/sunrpc/svcauth_gss.h>
 #include <linux/sunrpc/addr.h>
 #include "xdr4.h"
+#include "xdr4cb.h"
 #include "vfs.h"
 #include "current_stateid.h"
 
@@ -1794,6 +1795,27 @@ static __be32 check_forechannel_attrs(struct nfsd4_channel_attrs *ca, struct nfs
 	return nfs_ok;
 }
 
+static __be32 check_backchannel_attrs(struct nfsd4_channel_attrs *ca)
+{
+	ca->headerpadsz = 0;
+
+	/*
+	 * These RPC_MAX_HEADER macros are overkill, especially since we
+	 * don't even do gss on the backchannel yet.  But this is still
+	 * less than 1k.  Tighten up this estimate in the unlikely event
+	 * it turns out to be a problem for some client:
+	 */
+	if (ca->maxreq_sz < NFS4_enc_cb_recall_sz + RPC_MAX_HEADER_WITH_AUTH)
+		return nfserr_toosmall;
+	if (ca->maxresp_sz < NFS4_dec_cb_recall_sz + RPC_MAX_REPHEADER_WITH_AUTH)
+		return nfserr_toosmall;
+	ca->maxresp_cached = 0;
+	if (ca->maxops < 2)
+		return nfserr_toosmall;
+
+	return nfs_ok;
+}
+
 __be32
 nfsd4_create_session(struct svc_rqst *rqstp,
 		     struct nfsd4_compound_state *cstate,
@@ -1810,6 +1832,9 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	if (cr_ses->flags & ~SESSION4_FLAG_MASK_A)
 		return nfserr_inval;
 	status = check_forechannel_attrs(&cr_ses->fore_channel, nn);
+	if (status)
+		return status;
+	status = check_backchannel_attrs(&cr_ses->back_channel);
 	if (status)
 		return status;
 	status = nfserr_jukebox;
