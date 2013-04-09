@@ -600,25 +600,6 @@ config ARCH_LPC32XX
 	help
 	  Support for the NXP LPC32XX family of processors
 
-config ARCH_TEGRA
-	bool "NVIDIA Tegra"
-	select ARCH_HAS_CPUFREQ
-	select ARCH_REQUIRE_GPIOLIB
-	select CLKDEV_LOOKUP
-	select CLKSRC_MMIO
-	select CLKSRC_OF
-	select COMMON_CLK
-	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
-	select HAVE_SMP
-	select MIGHT_HAVE_CACHE_L2X0
-	select SOC_BUS
-	select SPARSE_IRQ
-	select USE_OF
-	help
-	  This enables support for NVIDIA Tegra based systems (Tegra APX,
-	  Tegra 6xx and Tegra 2 series).
-
 config ARCH_PXA
 	bool "PXA2xx/PXA3xx-based"
 	depends on MMU

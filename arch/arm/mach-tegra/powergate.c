@@ -27,8 +27,7 @@
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/clk/tegra.h>
-
-#include <mach/powergate.h>
+#include <linux/tegra-powergate.h>
 
 #include "fuse.h"
 #include "iomap.h"
