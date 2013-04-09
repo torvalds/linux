@@ -449,6 +449,7 @@ struct i915_hw_ppgtt {
 			       struct sg_table *st,
 			       unsigned int pg_start,
 			       enum i915_cache_level cache_level);
+	void (*enable)(struct drm_device *dev);
 	void (*cleanup)(struct i915_hw_ppgtt *ppgtt);
 };
 
@@ -1642,7 +1643,6 @@ int __must_check i915_gem_init(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
 void i915_gem_l3_remap(struct drm_device *dev);
 void i915_gem_init_swizzling(struct drm_device *dev);
-void i915_gem_init_ppgtt(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int __must_check i915_gpu_idle(struct drm_device *dev);
 int __must_check i915_gem_idle(struct drm_device *dev);

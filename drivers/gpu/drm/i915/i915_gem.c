@@ -4029,7 +4029,8 @@ i915_gem_init_hw(struct drm_device *dev)
 	 * contexts before PPGTT.
 	 */
 	i915_gem_context_init(dev);
-	i915_gem_init_ppgtt(dev);
+	if (dev_priv->mm.aliasing_ppgtt)
+		dev_priv->mm.aliasing_ppgtt->enable(dev);
 
 	return 0;
 }

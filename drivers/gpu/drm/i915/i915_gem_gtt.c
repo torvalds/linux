@@ -75,6 +75,61 @@ static inline gen6_gtt_pte_t gen6_pte_encode(struct drm_device *dev,
 	return pte;
 }
 
+static void gen6_ppgtt_enable(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	uint32_t pd_offset;
+	struct intel_ring_buffer *ring;
+	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
+	gen6_gtt_pte_t __iomem *pd_addr;
+	uint32_t pd_entry;
+	int i;
+
+	pd_addr = (gen6_gtt_pte_t __iomem*)dev_priv->gtt.gsm +
+		ppgtt->pd_offset / sizeof(gen6_gtt_pte_t);
+	for (i = 0; i < ppgtt->num_pd_entries; i++) {
+		dma_addr_t pt_addr;
+
+		pt_addr = ppgtt->pt_dma_addr[i];
+		pd_entry = GEN6_PDE_ADDR_ENCODE(pt_addr);
+		pd_entry |= GEN6_PDE_VALID;
+
+		writel(pd_entry, pd_addr + i);
+	}
+	readl(pd_addr);
+
+	pd_offset = ppgtt->pd_offset;
+	pd_offset /= 64; /* in cachelines, */
+	pd_offset <<= 16;
+
+	if (INTEL_INFO(dev)->gen == 6) {
+		uint32_t ecochk, gab_ctl, ecobits;
+
+		ecobits = I915_READ(GAC_ECO_BITS);
+		I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_PPGTT_CACHE64B);
+
+		gab_ctl = I915_READ(GAB_CTL);
+		I915_WRITE(GAB_CTL, gab_ctl | GAB_CTL_CONT_AFTER_PAGEFAULT);
+
+		ecochk = I915_READ(GAM_ECOCHK);
+		I915_WRITE(GAM_ECOCHK, ecochk | ECOCHK_SNB_BIT |
+				       ECOCHK_PPGTT_CACHE64B);
+		I915_WRITE(GFX_MODE, _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+	} else if (INTEL_INFO(dev)->gen >= 7) {
+		I915_WRITE(GAM_ECOCHK, ECOCHK_PPGTT_CACHE64B);
+		/* GFX_MODE is per-ring on gen7+ */
+	}
+
+	for_each_ring(ring, dev_priv, i) {
+		if (INTEL_INFO(dev)->gen >= 7)
+			I915_WRITE(RING_MODE_GEN7(ring),
+				   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
+
+		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
+		I915_WRITE(RING_PP_DIR_BASE(ring), pd_offset);
+	}
+}
+
 /* PPGTT support for Sandybdrige/Gen6 and later */
 static void gen6_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 				   unsigned first_entry,
@@ -168,6 +223,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 		gtt_total_entries(dev_priv->gtt) - I915_PPGTT_PD_ENTRIES;
 
 	ppgtt->num_pd_entries = I915_PPGTT_PD_ENTRIES;
+	ppgtt->enable = gen6_ppgtt_enable;
 	ppgtt->clear_range = gen6_ppgtt_clear_range;
 	ppgtt->insert_entries = gen6_ppgtt_insert_entries;
 	ppgtt->cleanup = gen6_ppgtt_cleanup;
@@ -277,64 +333,6 @@ void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
 	ppgtt->clear_range(ppgtt,
 			   obj->gtt_space->start >> PAGE_SHIFT,
 			   obj->base.size >> PAGE_SHIFT);
-}
-
-void i915_gem_init_ppgtt(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t pd_offset;
-	struct intel_ring_buffer *ring;
-	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-	gen6_gtt_pte_t __iomem *pd_addr;
-	uint32_t pd_entry;
-	int i;
-
-	if (!dev_priv->mm.aliasing_ppgtt)
-		return;
-
-	pd_addr = (gen6_gtt_pte_t __iomem *)dev_priv->gtt.gsm +
-		ppgtt->pd_offset / sizeof(gen6_gtt_pte_t);
-	for (i = 0; i < ppgtt->num_pd_entries; i++) {
-		dma_addr_t pt_addr;
-
-		pt_addr = ppgtt->pt_dma_addr[i];
-		pd_entry = GEN6_PDE_ADDR_ENCODE(pt_addr);
-		pd_entry |= GEN6_PDE_VALID;
-
-		writel(pd_entry, pd_addr + i);
-	}
-	readl(pd_addr);
-
-	pd_offset = ppgtt->pd_offset;
-	pd_offset /= 64; /* in cachelines, */
-	pd_offset <<= 16;
-
-	if (INTEL_INFO(dev)->gen == 6) {
-		uint32_t ecochk, gab_ctl, ecobits;
-
-		ecobits = I915_READ(GAC_ECO_BITS);
-		I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_PPGTT_CACHE64B);
-
-		gab_ctl = I915_READ(GAB_CTL);
-		I915_WRITE(GAB_CTL, gab_ctl | GAB_CTL_CONT_AFTER_PAGEFAULT);
-
-		ecochk = I915_READ(GAM_ECOCHK);
-		I915_WRITE(GAM_ECOCHK, ecochk | ECOCHK_SNB_BIT |
-				       ECOCHK_PPGTT_CACHE64B);
-		I915_WRITE(GFX_MODE, _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
-	} else if (INTEL_INFO(dev)->gen >= 7) {
-		I915_WRITE(GAM_ECOCHK, ECOCHK_PPGTT_CACHE64B);
-		/* GFX_MODE is per-ring on gen7+ */
-	}
-
-	for_each_ring(ring, dev_priv, i) {
-		if (INTEL_INFO(dev)->gen >= 7)
-			I915_WRITE(RING_MODE_GEN7(ring),
-				   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
-
-		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
-		I915_WRITE(RING_PP_DIR_BASE(ring), pd_offset);
-	}
 }
 
 extern int intel_iommu_gfx_mapped;

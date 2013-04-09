@@ -927,7 +927,8 @@ int i915_reset(struct drm_device *dev)
 			ring->init(ring);
 
 		i915_gem_context_init(dev);
-		i915_gem_init_ppgtt(dev);
+		if (dev_priv->mm.aliasing_ppgtt)
+			dev_priv->mm.aliasing_ppgtt->enable(dev);
 
 		/*
 		 * It would make sense to re-init all the other hw state, at
