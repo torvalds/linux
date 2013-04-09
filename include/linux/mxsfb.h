@@ -24,8 +24,8 @@
 #define STMLCDIF_18BIT 2 /** pixel data bus to the display is of 18 bit width */
 #define STMLCDIF_24BIT 3 /** pixel data bus to the display is of 24 bit width */
 
-#define FB_SYNC_DATA_ENABLE_HIGH_ACT	(1 << 6)
-#define FB_SYNC_DOTCLK_FAILING_ACT	(1 << 7) /* failing/negtive edge sampling */
+#define MXSFB_SYNC_DATA_ENABLE_HIGH_ACT	(1 << 6)
+#define MXSFB_SYNC_DOTCLK_FAILING_ACT	(1 << 7) /* failing/negtive edge sampling */
 
 struct mxsfb_platform_data {
 	struct fb_videomode *mode_list;
@@ -43,6 +43,9 @@ struct mxsfb_platform_data {
 				 * zero the framebuffer memory will be dynamically
 				 * allocated. If specified,fb_size must also be specified.
 				 * fb_phys must be unused by Linux.
+				 */
+	u32 sync;		/* sync mask, contains MXSFB specifics not
+				 * carried in fb_info->var.sync
 				 */
 };
 

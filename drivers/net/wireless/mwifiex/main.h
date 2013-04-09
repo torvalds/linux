@@ -723,7 +723,6 @@ struct mwifiex_adapter {
 	u16 cmd_wait_q_required;
 	struct mwifiex_wait_queue cmd_wait_q;
 	u8 scan_wait_q_woken;
-	struct cmd_ctrl_node *cmd_queued;
 	spinlock_t queue_lock;		/* lock for tx queues */
 	struct completion fw_load;
 	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
@@ -1018,7 +1017,8 @@ int mwifiex_request_set_multicast_list(struct mwifiex_private *priv,
 			struct mwifiex_multicast_list *mcast_list);
 int mwifiex_copy_mcast_addr(struct mwifiex_multicast_list *mlist,
 			    struct net_device *dev);
-int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter);
+int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter,
+				struct cmd_ctrl_node *cmd_queued);
 int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		      struct cfg80211_ssid *req_ssid);
 int mwifiex_cancel_hs(struct mwifiex_private *priv, int cmd_type);

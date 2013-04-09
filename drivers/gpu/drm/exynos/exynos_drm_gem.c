@@ -164,6 +164,27 @@ out:
 	exynos_gem_obj = NULL;
 }
 
+unsigned long exynos_drm_gem_get_size(struct drm_device *dev,
+						unsigned int gem_handle,
+						struct drm_file *file_priv)
+{
+	struct exynos_drm_gem_obj *exynos_gem_obj;
+	struct drm_gem_object *obj;
+
+	obj = drm_gem_object_lookup(dev, file_priv, gem_handle);
+	if (!obj) {
+		DRM_ERROR("failed to lookup gem object.\n");
+		return 0;
+	}
+
+	exynos_gem_obj = to_exynos_gem_obj(obj);
+
+	drm_gem_object_unreference_unlocked(obj);
+
+	return exynos_gem_obj->buffer->size;
+}
+
+
 struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
 						      unsigned long size)
 {

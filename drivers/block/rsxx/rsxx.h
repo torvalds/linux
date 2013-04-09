@@ -27,15 +27,17 @@
 
 /*----------------- IOCTL Definitions -------------------*/
 
+#define RSXX_MAX_DATA 8
+
 struct rsxx_reg_access {
 	__u32 addr;
 	__u32 cnt;
 	__u32 stat;
 	__u32 stream;
-	__u32 data[8];
+	__u32 data[RSXX_MAX_DATA];
 };
 
-#define RSXX_MAX_REG_CNT	(8 * (sizeof(__u32)))
+#define RSXX_MAX_REG_CNT	(RSXX_MAX_DATA * (sizeof(__u32)))
 
 #define RSXX_IOC_MAGIC 'r'
 
