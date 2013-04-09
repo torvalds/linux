@@ -224,7 +224,6 @@ static void encoder_reset(struct comedi_device *dev)
 
 /*
    options[0] - I/O port
-   options[1] - irq
    options[2] - number of encoder chips installed
  */
 
@@ -234,7 +233,6 @@ static int multiq3_attach(struct comedi_device *dev,
 	struct multiq3_private *devpriv;
 	int result = 0;
 	unsigned long iobase;
-	unsigned int irq;
 	struct comedi_subdevice *s;
 
 	iobase = it->options[0];
@@ -245,13 +243,6 @@ static int multiq3_attach(struct comedi_device *dev,
 	}
 
 	dev->iobase = iobase;
-
-	irq = it->options[1];
-	if (irq)
-		printk(KERN_WARNING "comedi%d: irq = %u ignored\n",
-			dev->minor, irq);
-	else
-		printk(KERN_WARNING "comedi%d: no irq\n", dev->minor);
 
 	result = comedi_alloc_subdevices(dev, 5);
 	if (result)
@@ -318,8 +309,6 @@ static void multiq3_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		release_region(dev->iobase, MULTIQ3_SIZE);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 }
 
 static struct comedi_driver multiq3_driver = {
