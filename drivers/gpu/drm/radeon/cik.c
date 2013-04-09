@@ -27,8 +27,12 @@
 #include <linux/module.h>
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "cikd.h"
 #include "atom.h"
+
+extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
+extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save);
 
 /*
  * Core functions
@@ -1190,3 +1194,196 @@ static void cik_gpu_init(struct radeon_device *rdev)
 	udelay(50);
 }
 
+/**
+ * cik_gpu_is_lockup - check if the 3D engine is locked up
+ *
+ * @rdev: radeon_device pointer
+ * @ring: radeon_ring structure holding ring information
+ *
+ * Check if the 3D engine is locked up (CIK).
+ * Returns true if the engine is locked, false if not.
+ */
+bool cik_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
+{
+	u32 srbm_status, srbm_status2;
+	u32 grbm_status, grbm_status2;
+	u32 grbm_status_se0, grbm_status_se1, grbm_status_se2, grbm_status_se3;
+
+	srbm_status = RREG32(SRBM_STATUS);
+	srbm_status2 = RREG32(SRBM_STATUS2);
+	grbm_status = RREG32(GRBM_STATUS);
+	grbm_status2 = RREG32(GRBM_STATUS2);
+	grbm_status_se0 = RREG32(GRBM_STATUS_SE0);
+	grbm_status_se1 = RREG32(GRBM_STATUS_SE1);
+	grbm_status_se2 = RREG32(GRBM_STATUS_SE2);
+	grbm_status_se3 = RREG32(GRBM_STATUS_SE3);
+	if (!(grbm_status & GUI_ACTIVE)) {
+		radeon_ring_lockup_update(ring);
+		return false;
+	}
+	/* force CP activities */
+	radeon_ring_force_activity(rdev, ring);
+	return radeon_ring_test_lockup(rdev, ring);
+}
+
+/**
+ * cik_gfx_gpu_soft_reset - soft reset the 3D engine and CPG
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Soft reset the GFX engine and CPG blocks (CIK).
+ * XXX: deal with reseting RLC and CPF
+ * Returns 0 for success.
+ */
+static int cik_gfx_gpu_soft_reset(struct radeon_device *rdev)
+{
+	struct evergreen_mc_save save;
+	u32 grbm_reset = 0;
+
+	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
+		return 0;
+
+	dev_info(rdev->dev, "GPU GFX softreset \n");
+	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
+		RREG32(GRBM_STATUS));
+	dev_info(rdev->dev, "  GRBM_STATUS2=0x%08X\n",
+		RREG32(GRBM_STATUS2));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
+		RREG32(GRBM_STATUS_SE0));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
+		RREG32(GRBM_STATUS_SE1));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE2=0x%08X\n",
+		RREG32(GRBM_STATUS_SE2));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE3=0x%08X\n",
+		RREG32(GRBM_STATUS_SE3));
+	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
+		RREG32(SRBM_STATUS));
+	dev_info(rdev->dev, "  SRBM_STATUS2=0x%08X\n",
+		RREG32(SRBM_STATUS2));
+	evergreen_mc_stop(rdev, &save);
+	if (radeon_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
+	}
+	/* Disable CP parsing/prefetching */
+	WREG32(CP_ME_CNTL, CP_ME_HALT | CP_PFP_HALT | CP_CE_HALT);
+
+	/* reset all the gfx block and all CPG blocks */
+	grbm_reset = SOFT_RESET_CPG | SOFT_RESET_GFX;
+
+	dev_info(rdev->dev, "  GRBM_SOFT_RESET=0x%08X\n", grbm_reset);
+	WREG32(GRBM_SOFT_RESET, grbm_reset);
+	(void)RREG32(GRBM_SOFT_RESET);
+	udelay(50);
+	WREG32(GRBM_SOFT_RESET, 0);
+	(void)RREG32(GRBM_SOFT_RESET);
+	/* Wait a little for things to settle down */
+	udelay(50);
+	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
+		RREG32(GRBM_STATUS));
+	dev_info(rdev->dev, "  GRBM_STATUS2=0x%08X\n",
+		RREG32(GRBM_STATUS2));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
+		RREG32(GRBM_STATUS_SE0));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
+		RREG32(GRBM_STATUS_SE1));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE2=0x%08X\n",
+		RREG32(GRBM_STATUS_SE2));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE3=0x%08X\n",
+		RREG32(GRBM_STATUS_SE3));
+	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
+		RREG32(SRBM_STATUS));
+	dev_info(rdev->dev, "  SRBM_STATUS2=0x%08X\n",
+		RREG32(SRBM_STATUS2));
+	evergreen_mc_resume(rdev, &save);
+	return 0;
+}
+
+/**
+ * cik_compute_gpu_soft_reset - soft reset CPC
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Soft reset the CPC blocks (CIK).
+ * XXX: deal with reseting RLC and CPF
+ * Returns 0 for success.
+ */
+static int cik_compute_gpu_soft_reset(struct radeon_device *rdev)
+{
+	struct evergreen_mc_save save;
+	u32 grbm_reset = 0;
+
+	dev_info(rdev->dev, "GPU compute softreset \n");
+	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
+		RREG32(GRBM_STATUS));
+	dev_info(rdev->dev, "  GRBM_STATUS2=0x%08X\n",
+		RREG32(GRBM_STATUS2));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
+		RREG32(GRBM_STATUS_SE0));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
+		RREG32(GRBM_STATUS_SE1));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE2=0x%08X\n",
+		RREG32(GRBM_STATUS_SE2));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE3=0x%08X\n",
+		RREG32(GRBM_STATUS_SE3));
+	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
+		RREG32(SRBM_STATUS));
+	dev_info(rdev->dev, "  SRBM_STATUS2=0x%08X\n",
+		RREG32(SRBM_STATUS2));
+	evergreen_mc_stop(rdev, &save);
+	if (radeon_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
+	}
+	/* Disable CP parsing/prefetching */
+	WREG32(CP_MEC_CNTL, MEC_ME1_HALT | MEC_ME2_HALT);
+
+	/* reset all the CPC blocks */
+	grbm_reset = SOFT_RESET_CPG;
+
+	dev_info(rdev->dev, "  GRBM_SOFT_RESET=0x%08X\n", grbm_reset);
+	WREG32(GRBM_SOFT_RESET, grbm_reset);
+	(void)RREG32(GRBM_SOFT_RESET);
+	udelay(50);
+	WREG32(GRBM_SOFT_RESET, 0);
+	(void)RREG32(GRBM_SOFT_RESET);
+	/* Wait a little for things to settle down */
+	udelay(50);
+	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
+		RREG32(GRBM_STATUS));
+	dev_info(rdev->dev, "  GRBM_STATUS2=0x%08X\n",
+		RREG32(GRBM_STATUS2));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
+		RREG32(GRBM_STATUS_SE0));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
+		RREG32(GRBM_STATUS_SE1));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE2=0x%08X\n",
+		RREG32(GRBM_STATUS_SE2));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE3=0x%08X\n",
+		RREG32(GRBM_STATUS_SE3));
+	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
+		RREG32(SRBM_STATUS));
+	dev_info(rdev->dev, "  SRBM_STATUS2=0x%08X\n",
+		RREG32(SRBM_STATUS2));
+	evergreen_mc_resume(rdev, &save);
+	return 0;
+}
+
+/**
+ * cik_asic_reset - soft reset compute and gfx
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Soft reset the CPC blocks (CIK).
+ * XXX: make this more fine grained and only reset
+ * what is necessary.
+ * Returns 0 for success.
+ */
+int cik_asic_reset(struct radeon_device *rdev)
+{
+	int r;
+
+	r = cik_compute_gpu_soft_reset(rdev);
+	if (r)
+		dev_info(rdev->dev, "Compute reset failed!\n");
+
+	return cik_gfx_gpu_soft_reset(rdev);
+}

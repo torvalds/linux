@@ -30,6 +30,9 @@
 
 #define DMIF_ADDR_CALC  				0xC00
 
+#define	SRBM_STATUS2				        0xE4C
+#define	SRBM_STATUS				        0xE50
+
 #define MC_SHARED_CHMAP						0x2004
 #define		NOOFCHAN_SHIFT					12
 #define		NOOFCHAN_MASK					0x0000f000
@@ -64,6 +67,83 @@
 
 #define	GRBM_CNTL					0x8000
 #define		GRBM_READ_TIMEOUT(x)				((x) << 0)
+
+#define	GRBM_STATUS2					0x8008
+#define		ME0PIPE1_CMDFIFO_AVAIL_MASK			0x0000000F
+#define		ME0PIPE1_CF_RQ_PENDING				(1 << 4)
+#define		ME0PIPE1_PF_RQ_PENDING				(1 << 5)
+#define		ME1PIPE0_RQ_PENDING				(1 << 6)
+#define		ME1PIPE1_RQ_PENDING				(1 << 7)
+#define		ME1PIPE2_RQ_PENDING				(1 << 8)
+#define		ME1PIPE3_RQ_PENDING				(1 << 9)
+#define		ME2PIPE0_RQ_PENDING				(1 << 10)
+#define		ME2PIPE1_RQ_PENDING				(1 << 11)
+#define		ME2PIPE2_RQ_PENDING				(1 << 12)
+#define		ME2PIPE3_RQ_PENDING				(1 << 13)
+#define		RLC_RQ_PENDING 					(1 << 14)
+#define		RLC_BUSY 					(1 << 24)
+#define		TC_BUSY 					(1 << 25)
+#define		CPF_BUSY 					(1 << 28)
+#define		CPC_BUSY 					(1 << 29)
+#define		CPG_BUSY 					(1 << 30)
+
+#define	GRBM_STATUS					0x8010
+#define		ME0PIPE0_CMDFIFO_AVAIL_MASK			0x0000000F
+#define		SRBM_RQ_PENDING					(1 << 5)
+#define		ME0PIPE0_CF_RQ_PENDING				(1 << 7)
+#define		ME0PIPE0_PF_RQ_PENDING				(1 << 8)
+#define		GDS_DMA_RQ_PENDING				(1 << 9)
+#define		DB_CLEAN					(1 << 12)
+#define		CB_CLEAN					(1 << 13)
+#define		TA_BUSY 					(1 << 14)
+#define		GDS_BUSY 					(1 << 15)
+#define		WD_BUSY_NO_DMA 					(1 << 16)
+#define		VGT_BUSY					(1 << 17)
+#define		IA_BUSY_NO_DMA					(1 << 18)
+#define		IA_BUSY						(1 << 19)
+#define		SX_BUSY 					(1 << 20)
+#define		WD_BUSY 					(1 << 21)
+#define		SPI_BUSY					(1 << 22)
+#define		BCI_BUSY					(1 << 23)
+#define		SC_BUSY 					(1 << 24)
+#define		PA_BUSY 					(1 << 25)
+#define		DB_BUSY 					(1 << 26)
+#define		CP_COHERENCY_BUSY      				(1 << 28)
+#define		CP_BUSY 					(1 << 29)
+#define		CB_BUSY 					(1 << 30)
+#define		GUI_ACTIVE					(1 << 31)
+#define	GRBM_STATUS_SE0					0x8014
+#define	GRBM_STATUS_SE1					0x8018
+#define	GRBM_STATUS_SE2					0x8038
+#define	GRBM_STATUS_SE3					0x803C
+#define		SE_DB_CLEAN					(1 << 1)
+#define		SE_CB_CLEAN					(1 << 2)
+#define		SE_BCI_BUSY					(1 << 22)
+#define		SE_VGT_BUSY					(1 << 23)
+#define		SE_PA_BUSY					(1 << 24)
+#define		SE_TA_BUSY					(1 << 25)
+#define		SE_SX_BUSY					(1 << 26)
+#define		SE_SPI_BUSY					(1 << 27)
+#define		SE_SC_BUSY					(1 << 29)
+#define		SE_DB_BUSY					(1 << 30)
+#define		SE_CB_BUSY					(1 << 31)
+
+#define	GRBM_SOFT_RESET					0x8020
+#define		SOFT_RESET_CP					(1 << 0)  /* All CP blocks */
+#define		SOFT_RESET_RLC					(1 << 2)  /* RLC */
+#define		SOFT_RESET_GFX					(1 << 16) /* GFX */
+#define		SOFT_RESET_CPF					(1 << 17) /* CP fetcher shared by gfx and compute */
+#define		SOFT_RESET_CPC					(1 << 18) /* CP Compute (MEC1/2) */
+#define		SOFT_RESET_CPG					(1 << 19) /* CP GFX (PFP, ME, CE) */
+
+#define CP_MEC_CNTL					0x8234
+#define		MEC_ME2_HALT					(1 << 28)
+#define		MEC_ME1_HALT					(1 << 30)
+
+#define CP_ME_CNTL					0x86D8
+#define		CP_CE_HALT					(1 << 24)
+#define		CP_PFP_HALT					(1 << 26)
+#define		CP_ME_HALT					(1 << 28)
 
 #define CP_MEQ_THRESHOLDS				0x8764
 #define		MEQ1_START(x)				((x) << 0)
