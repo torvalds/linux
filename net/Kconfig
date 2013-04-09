@@ -84,13 +84,13 @@ endif # if INET
 
 config ANDROID_PARANOID_NETWORK
 	bool "Only allow certain groups to create sockets"
-	default y
+	default ANDROID
 	help
 		none
 
 config NET_ACTIVITY_STATS
 	bool "Network activity statistics tracking"
-	default y
+	default ANDROID
 	help
 	 Network activity statistics are useful for tracking wireless
 	 modem activity on 2G, 3G, 4G wireless networks. Counts number of
