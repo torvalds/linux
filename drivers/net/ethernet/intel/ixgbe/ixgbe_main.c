@@ -149,6 +149,52 @@ MODULE_DESCRIPTION("Intel(R) 10 Gigabit PCI Express Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
+static int ixgbe_read_pci_cfg_word_parent(struct ixgbe_adapter *adapter,
+					  u32 reg, u16 *value)
+{
+	int pos = 0;
+	struct pci_dev *parent_dev;
+	struct pci_bus *parent_bus;
+
+	parent_bus = adapter->pdev->bus->parent;
+	if (!parent_bus)
+		return -1;
+
+	parent_dev = parent_bus->self;
+	if (!parent_dev)
+		return -1;
+
+	pos = pci_find_capability(parent_dev, PCI_CAP_ID_EXP);
+	if (!pos)
+		return -1;
+
+	pci_read_config_word(parent_dev, pos + reg, value);
+	return 0;
+}
+
+static s32 ixgbe_get_parent_bus_info(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u16 link_status = 0;
+	int err;
+
+	hw->bus.type = ixgbe_bus_type_pci_express;
+
+	/* Get the negotiated link width and speed from PCI config space of the
+	 * parent, as this device is behind a switch
+	 */
+	err = ixgbe_read_pci_cfg_word_parent(adapter, 18, &link_status);
+
+	/* assume caller will handle error case */
+	if (err)
+		return err;
+
+	hw->bus.width = ixgbe_convert_bus_width(link_status);
+	hw->bus.speed = ixgbe_convert_bus_speed(link_status);
+
+	return 0;
+}
+
 static void ixgbe_service_event_schedule(struct ixgbe_adapter *adapter)
 {
 	if (!test_bit(__IXGBE_DOWN, &adapter->state) &&
@@ -7487,6 +7533,8 @@ skip_sriov:
 
 	/* pick up the PCI bus settings for reporting later */
 	hw->mac.ops.get_bus_info(hw);
+	if (hw->device_id == IXGBE_DEV_ID_82599_SFP_SF_QP)
+		ixgbe_get_parent_bus_info(adapter);
 
 	/* print bus type/speed/width info */
 	e_dev_info("(PCI Express:%s:%s) %pM\n",
