@@ -62,7 +62,11 @@ int __init harmony_pcie_init(void)
 		goto err_reg;
 	}
 
-	regulator_enable(regulator);
+	err = regulator_enable(regulator);
+	if (err) {
+		pr_err("%s: regulator_enable failed: %d\n", __func__, err);
+		goto err_en;
+	}
 
 	err = tegra_pcie_init(true, true);
 	if (err) {
@@ -74,6 +78,7 @@ int __init harmony_pcie_init(void)
 
 err_pcie:
 	regulator_disable(regulator);
+err_en:
 	regulator_put(regulator);
 err_reg:
 	gpio_free(en_vdd_1v05);

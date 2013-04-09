@@ -19,13 +19,76 @@
 #include <linux/of.h>
 #include <linux/device.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 
 static DEFINE_SPINLOCK(enable_lock);
 static DEFINE_MUTEX(prepare_lock);
 
+static struct task_struct *prepare_owner;
+static struct task_struct *enable_owner;
+
+static int prepare_refcnt;
+static int enable_refcnt;
+
 static HLIST_HEAD(clk_root_list);
 static HLIST_HEAD(clk_orphan_list);
 static LIST_HEAD(clk_notifier_list);
+
+/***           locking             ***/
+static void clk_prepare_lock(void)
+{
+	if (!mutex_trylock(&prepare_lock)) {
+		if (prepare_owner == current) {
+			prepare_refcnt++;
+			return;
+		}
+		mutex_lock(&prepare_lock);
+	}
+	WARN_ON_ONCE(prepare_owner != NULL);
+	WARN_ON_ONCE(prepare_refcnt != 0);
+	prepare_owner = current;
+	prepare_refcnt = 1;
+}
+
+static void clk_prepare_unlock(void)
+{
+	WARN_ON_ONCE(prepare_owner != current);
+	WARN_ON_ONCE(prepare_refcnt == 0);
+
+	if (--prepare_refcnt)
+		return;
+	prepare_owner = NULL;
+	mutex_unlock(&prepare_lock);
+}
+
+static unsigned long clk_enable_lock(void)
+{
+	unsigned long flags;
+
+	if (!spin_trylock_irqsave(&enable_lock, flags)) {
+		if (enable_owner == current) {
+			enable_refcnt++;
+			return flags;
+		}
+		spin_lock_irqsave(&enable_lock, flags);
+	}
+	WARN_ON_ONCE(enable_owner != NULL);
+	WARN_ON_ONCE(enable_refcnt != 0);
+	enable_owner = current;
+	enable_refcnt = 1;
+	return flags;
+}
+
+static void clk_enable_unlock(unsigned long flags)
+{
+	WARN_ON_ONCE(enable_owner != current);
+	WARN_ON_ONCE(enable_refcnt == 0);
+
+	if (--enable_refcnt)
+		return;
+	enable_owner = NULL;
+	spin_unlock_irqrestore(&enable_lock, flags);
+}
 
 /***        debugfs support        ***/
 
@@ -69,7 +132,7 @@ static int clk_summary_show(struct seq_file *s, void *data)
 	seq_printf(s, "   clock                        enable_cnt  prepare_cnt  rate\n");
 	seq_printf(s, "---------------------------------------------------------------------\n");
 
-	mutex_lock(&prepare_lock);
+	clk_prepare_lock();
 
 	hlist_for_each_entry(c, &clk_root_list, child_node)
 		clk_summary_show_subtree(s, c, 0);
@@ -77,7 +140,7 @@ static int clk_summary_show(struct seq_file *s, void *data)
 	hlist_for_each_entry(c, &clk_orphan_list, child_node)
 		clk_summary_show_subtree(s, c, 0);
 
-	mutex_unlock(&prepare_lock);
+	clk_prepare_unlock();
 
 	return 0;
 }
@@ -130,7 +193,7 @@ static int clk_dump(struct seq_file *s, void *data)
 
 	seq_printf(s, "{");
 
-	mutex_lock(&prepare_lock);
+	clk_prepare_lock();
 
 	hlist_for_each_entry(c, &clk_root_list, child_node) {
 		if (!first_node)
@@ -144,7 +207,7 @@ static int clk_dump(struct seq_file *s, void *data)
 		clk_dump_subtree(s, c, 0);
 	}
 
-	mutex_unlock(&prepare_lock);
+	clk_prepare_unlock();
 
 	seq_printf(s, "}");
 	return 0;
@@ -316,7 +379,7 @@ static int __init clk_debug_init(void)
 	if (!orphandir)
 		return -ENOMEM;
 
-	mutex_lock(&prepare_lock);
+	clk_prepare_lock();
 
 	hlist_for_each_entry(clk, &clk_root_list, child_node)
 		clk_debug_create_subtree(clk, rootdir);
@@ -326,7 +389,7 @@ static int __init clk_debug_init(void)
 
 	inited = 1;
 
-	mutex_unlock(&prepare_lock);
+	clk_prepare_unlock();
 
 	return 0;
 }
@@ -334,6 +397,31 @@ late_initcall(clk_debug_init);
 #else
 static inline int clk_debug_register(struct clk *clk) { return 0; }
 #endif
+
+/* caller must hold prepare_lock */
+static void clk_unprepare_unused_subtree(struct clk *clk)
+{
+	struct clk *child;
+
+	if (!clk)
+		return;
+
+	hlist_for_each_entry(child, &clk->children, child_node)
+		clk_unprepare_unused_subtree(child);
+
+	if (clk->prepare_count)
+		return;
+
+	if (clk->flags & CLK_IGNORE_UNUSED)
+		return;
+
+	if (__clk_is_prepared(clk)) {
+		if (clk->ops->unprepare_unused)
+			clk->ops->unprepare_unused(clk->hw);
+		else if (clk->ops->unprepare)
+			clk->ops->unprepare(clk->hw);
+	}
+}
 
 /* caller must hold prepare_lock */
 static void clk_disable_unused_subtree(struct clk *clk)
@@ -347,7 +435,7 @@ static void clk_disable_unused_subtree(struct clk *clk)
 	hlist_for_each_entry(child, &clk->children, child_node)
 		clk_disable_unused_subtree(child);
 
-	spin_lock_irqsave(&enable_lock, flags);
+	flags = clk_enable_lock();
 
 	if (clk->enable_count)
 		goto unlock_out;
@@ -368,7 +456,7 @@ static void clk_disable_unused_subtree(struct clk *clk)
 	}
 
 unlock_out:
-	spin_unlock_irqrestore(&enable_lock, flags);
+	clk_enable_unlock(flags);
 
 out:
 	return;
@@ -378,7 +466,7 @@ static int clk_disable_unused(void)
 {
 	struct clk *clk;
 
-	mutex_lock(&prepare_lock);
+	clk_prepare_lock();
 
 	hlist_for_each_entry(clk, &clk_root_list, child_node)
 		clk_disable_unused_subtree(clk);
@@ -386,7 +474,13 @@ static int clk_disable_unused(void)
 	hlist_for_each_entry(clk, &clk_orphan_list, child_node)
 		clk_disable_unused_subtree(clk);
 
-	mutex_unlock(&prepare_lock);
+	hlist_for_each_entry(clk, &clk_root_list, child_node)
+		clk_unprepare_unused_subtree(clk);
+
+	hlist_for_each_entry(clk, &clk_orphan_list, child_node)
+		clk_unprepare_unused_subtree(clk);
+
+	clk_prepare_unlock();
 
 	return 0;
 }
@@ -449,6 +543,27 @@ out:
 unsigned long __clk_get_flags(struct clk *clk)
 {
 	return !clk ? 0 : clk->flags;
+}
+
+bool __clk_is_prepared(struct clk *clk)
+{
+	int ret;
+
+	if (!clk)
+		return false;
+
+	/*
+	 * .is_prepared is optional for clocks that can prepare
+	 * fall back to software usage counter if it is missing
+	 */
+	if (!clk->ops->is_prepared) {
+		ret = clk->prepare_count ? 1 : 0;
+		goto out;
+	}
+
+	ret = clk->ops->is_prepared(clk->hw);
+out:
+	return !!ret;
 }
 
 bool __clk_is_enabled(struct clk *clk)
@@ -548,9 +663,9 @@ void __clk_unprepare(struct clk *clk)
  */
 void clk_unprepare(struct clk *clk)
 {
-	mutex_lock(&prepare_lock);
+	clk_prepare_lock();
 	__clk_unprepare(clk);
-	mutex_unlock(&prepare_lock);
+	clk_prepare_unlock();
 }
 EXPORT_SYMBOL_GPL(clk_unprepare);
 
@@ -596,9 +711,9 @@ int clk_prepare(struct clk *clk)
 {
 	int ret;
 
-	mutex_lock(&prepare_lock);
+	clk_prepare_lock();
 	ret = __clk_prepare(clk);
-	mutex_unlock(&prepare_lock);
+	clk_prepare_unlock();
 
 	return ret;
 }
@@ -640,9 +755,9 @@ void clk_disable(struct clk *clk)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&enable_lock, flags);
+	flags = clk_enable_lock();
 	__clk_disable(clk);
-	spin_unlock_irqrestore(&enable_lock, flags);
+	clk_enable_unlock(flags);
 }
 EXPORT_SYMBOL_GPL(clk_disable);
 
@@ -693,9 +808,9 @@ int clk_enable(struct clk *clk)
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&enable_lock, flags);
+	flags = clk_enable_lock();
 	ret = __clk_enable(clk);
-	spin_unlock_irqrestore(&enable_lock, flags);
+	clk_enable_unlock(flags);
 
 	return ret;
 }
@@ -740,9 +855,9 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	unsigned long ret;
 
-	mutex_lock(&prepare_lock);
+	clk_prepare_lock();
 	ret = __clk_round_rate(clk, rate);
-	mutex_unlock(&prepare_lock);
+	clk_prepare_unlock();
 
 	return ret;
 }
@@ -837,13 +952,13 @@ unsigned long clk_get_rate(struct clk *clk)
 {
 	unsigned long rate;
 
-	mutex_lock(&prepare_lock);
+	clk_prepare_lock();
 
 	if (clk && (clk->flags & CLK_GET_RATE_NOCACHE))
 		__clk_recalc_rates(clk, 0);
 
 	rate = __clk_get_rate(clk);
-	mutex_unlock(&prepare_lock);
+	clk_prepare_unlock();
 
 	return rate;
 }
@@ -974,7 +1089,7 @@ static struct clk *clk_propagate_rate_change(struct clk *clk, unsigned long even
 	int ret = NOTIFY_DONE;
 
 	if (clk->rate == clk->new_rate)
-		return 0;
+		return NULL;
 
 	if (clk->notifier_count) {
 		ret = __clk_notify(clk, event, clk->rate, clk->new_rate);
@@ -1048,7 +1163,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	int ret = 0;
 
 	/* prevent racing with updates to the clock topology */
-	mutex_lock(&prepare_lock);
+	clk_prepare_lock();
 
 	/* bail early if nothing to do */
 	if (rate == clk->rate)
@@ -1080,7 +1195,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	clk_change_rate(top);
 
 out:
-	mutex_unlock(&prepare_lock);
+	clk_prepare_unlock();
 
 	return ret;
 }
@@ -1096,9 +1211,9 @@ struct clk *clk_get_parent(struct clk *clk)
 {
 	struct clk *parent;
 
-	mutex_lock(&prepare_lock);
+	clk_prepare_lock();
 	parent = __clk_get_parent(clk);
-	mutex_unlock(&prepare_lock);
+	clk_prepare_unlock();
 
 	return parent;
 }
@@ -1242,19 +1357,19 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent)
 		__clk_prepare(parent);
 
 	/* FIXME replace with clk_is_enabled(clk) someday */
-	spin_lock_irqsave(&enable_lock, flags);
+	flags = clk_enable_lock();
 	if (clk->enable_count)
 		__clk_enable(parent);
-	spin_unlock_irqrestore(&enable_lock, flags);
+	clk_enable_unlock(flags);
 
 	/* change clock input source */
 	ret = clk->ops->set_parent(clk->hw, i);
 
 	/* clean up old prepare and enable */
-	spin_lock_irqsave(&enable_lock, flags);
+	flags = clk_enable_lock();
 	if (clk->enable_count)
 		__clk_disable(old_parent);
-	spin_unlock_irqrestore(&enable_lock, flags);
+	clk_enable_unlock(flags);
 
 	if (clk->prepare_count)
 		__clk_unprepare(old_parent);
@@ -1286,7 +1401,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 		return -ENOSYS;
 
 	/* prevent racing with updates to the clock topology */
-	mutex_lock(&prepare_lock);
+	clk_prepare_lock();
 
 	if (clk->parent == parent)
 		goto out;
@@ -1315,7 +1430,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	__clk_reparent(clk, parent);
 
 out:
-	mutex_unlock(&prepare_lock);
+	clk_prepare_unlock();
 
 	return ret;
 }
@@ -1338,7 +1453,7 @@ int __clk_init(struct device *dev, struct clk *clk)
 	if (!clk)
 		return -EINVAL;
 
-	mutex_lock(&prepare_lock);
+	clk_prepare_lock();
 
 	/* check to see if a clock with this name is already registered */
 	if (__clk_lookup(clk->name)) {
@@ -1462,7 +1577,7 @@ int __clk_init(struct device *dev, struct clk *clk)
 	clk_debug_register(clk);
 
 out:
-	mutex_unlock(&prepare_lock);
+	clk_prepare_unlock();
 
 	return ret;
 }
@@ -1696,7 +1811,7 @@ int clk_notifier_register(struct clk *clk, struct notifier_block *nb)
 	if (!clk || !nb)
 		return -EINVAL;
 
-	mutex_lock(&prepare_lock);
+	clk_prepare_lock();
 
 	/* search the list of notifiers for this clk */
 	list_for_each_entry(cn, &clk_notifier_list, node)
@@ -1720,7 +1835,7 @@ int clk_notifier_register(struct clk *clk, struct notifier_block *nb)
 	clk->notifier_count++;
 
 out:
-	mutex_unlock(&prepare_lock);
+	clk_prepare_unlock();
 
 	return ret;
 }
@@ -1745,7 +1860,7 @@ int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb)
 	if (!clk || !nb)
 		return -EINVAL;
 
-	mutex_lock(&prepare_lock);
+	clk_prepare_lock();
 
 	list_for_each_entry(cn, &clk_notifier_list, node)
 		if (cn->clk == clk)
@@ -1766,7 +1881,7 @@ int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb)
 		ret = -ENOENT;
 	}
 
-	mutex_unlock(&prepare_lock);
+	clk_prepare_unlock();
 
 	return ret;
 }
