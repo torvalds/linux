@@ -2531,6 +2531,13 @@ static void tg3_carrier_off(struct tg3 *tp)
 	tp->link_up = false;
 }
 
+static void tg3_warn_mgmt_link_flap(struct tg3 *tp)
+{
+	if (tg3_flag(tp, ENABLE_ASF))
+		netdev_warn(tp->dev,
+			    "Management side-band traffic will be interrupted during phy settings change\n");
+}
+
 /* This will reset the tigon3 PHY if there is no valid
  * link unless the FORCE argument is non-zero.
  */
@@ -11565,6 +11572,8 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		tp->link_config.duplex = cmd->duplex;
 	}
 
+	tg3_warn_mgmt_link_flap(tp);
+
 	if (netif_running(dev))
 		tg3_setup_phy(tp, 1);
 
@@ -11642,6 +11651,8 @@ static int tg3_nway_reset(struct net_device *dev)
 
 	if (tp->phy_flags & TG3_PHYFLG_PHY_SERDES)
 		return -EINVAL;
+
+	tg3_warn_mgmt_link_flap(tp);
 
 	if (tg3_flag(tp, USE_PHYLIB)) {
 		if (!(tp->phy_flags & TG3_PHYFLG_IS_CONNECTED))
@@ -11754,6 +11765,9 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 {
 	struct tg3 *tp = netdev_priv(dev);
 	int err = 0;
+
+	if (tp->link_config.autoneg == AUTONEG_ENABLE)
+		tg3_warn_mgmt_link_flap(tp);
 
 	if (tg3_flag(tp, USE_PHYLIB)) {
 		u32 newadv;
