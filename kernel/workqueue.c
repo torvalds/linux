@@ -3750,7 +3750,7 @@ static void free_unbound_pwq(struct pool_workqueue *pwq)
 
 	if (pwq) {
 		put_unbound_pool(pwq->pool);
-		kfree(pwq);
+		kmem_cache_free(pwq_cache, pwq);
 	}
 }
 
