@@ -1108,6 +1108,7 @@ static struct mfd_cell ab8500_devs[] = {
 	},
 	{
 		.name = "ab8500-usb",
+		.of_compatible = "stericsson,ab8500-usb",
 		.num_resources = ARRAY_SIZE(ab8500_usb_resources),
 		.resources = ab8500_usb_resources,
 	},
