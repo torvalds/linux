@@ -390,8 +390,6 @@ int truncate_hole(struct inode *inode, pgoff_t pg_start, pgoff_t pg_end)
 		struct dnode_of_data dn;
 		struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 
-		f2fs_balance_fs(sbi);
-
 		mutex_lock_op(sbi, DATA_TRUNC);
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 		err = get_dnode_of_data(&dn, index, LOOKUP_NODE);
@@ -435,6 +433,9 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len, int mode)
 		if (pg_start < pg_end) {
 			struct address_space *mapping = inode->i_mapping;
 			loff_t blk_start, blk_end;
+			struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+
+			f2fs_balance_fs(sbi);
 
 			blk_start = pg_start << PAGE_CACHE_SHIFT;
 			blk_end = pg_end << PAGE_CACHE_SHIFT;
