@@ -28,7 +28,7 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
-typedef uint32_t gtt_pte_t;
+typedef uint32_t gen6_gtt_pte_t;
 
 /* PPGTT stuff */
 #define GEN6_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0xff0))
@@ -44,11 +44,11 @@ typedef uint32_t gtt_pte_t;
 #define GEN6_PTE_CACHE_LLC_MLC		(3 << 1)
 #define GEN6_PTE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
 
-static inline gtt_pte_t gen6_pte_encode(struct drm_device *dev,
+static inline gen6_gtt_pte_t gen6_pte_encode(struct drm_device *dev,
 					dma_addr_t addr,
 					enum i915_cache_level level)
 {
-	gtt_pte_t pte = GEN6_PTE_VALID;
+	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
 
 	switch (level) {
@@ -72,7 +72,6 @@ static inline gtt_pte_t gen6_pte_encode(struct drm_device *dev,
 		BUG();
 	}
 
-
 	return pte;
 }
 
@@ -81,8 +80,7 @@ static void gen6_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 				   unsigned first_entry,
 				   unsigned num_entries)
 {
-	gtt_pte_t *pt_vaddr;
-	gtt_pte_t scratch_pte;
+	gen6_gtt_pte_t *pt_vaddr, scratch_pte;
 	unsigned act_pt = first_entry / I915_PPGTT_PT_ENTRIES;
 	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	unsigned last_pte, i;
@@ -114,7 +112,7 @@ static void gen6_ppgtt_insert_entries(struct i915_hw_ppgtt *ppgtt,
 				      unsigned first_entry,
 				      enum i915_cache_level cache_level)
 {
-	gtt_pte_t *pt_vaddr;
+	gen6_gtt_pte_t *pt_vaddr;
 	unsigned act_pt = first_entry / I915_PPGTT_PT_ENTRIES;
 	unsigned act_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	struct sg_page_iter sg_iter;
@@ -208,7 +206,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	ppgtt->clear_range(ppgtt, 0,
 			   ppgtt->num_pd_entries*I915_PPGTT_PT_ENTRIES);
 
-	ppgtt->pd_offset = (first_pd_entry_in_global_pt)*sizeof(gtt_pte_t);
+	ppgtt->pd_offset = first_pd_entry_in_global_pt * sizeof(gen6_gtt_pte_t);
 
 	return 0;
 
@@ -284,7 +282,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 	uint32_t pd_offset;
 	struct intel_ring_buffer *ring;
 	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-	gtt_pte_t __iomem *pd_addr;
+	gen6_gtt_pte_t __iomem *pd_addr;
 	uint32_t pd_entry;
 	int i;
 
@@ -292,7 +290,8 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 		return;
 
 
-	pd_addr = (gtt_pte_t __iomem*)dev_priv->gtt.gsm + ppgtt->pd_offset/sizeof(gtt_pte_t);
+	pd_addr = (gen6_gtt_pte_t __iomem *)dev_priv->gtt.gsm +
+		ppgtt->pd_offset / sizeof(gen6_gtt_pte_t);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		dma_addr_t pt_addr;
 
@@ -416,8 +415,8 @@ static void gen6_ggtt_insert_entries(struct drm_device *dev,
 				     enum i915_cache_level level)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	gtt_pte_t __iomem *gtt_entries =
-		(gtt_pte_t __iomem *)dev_priv->gtt.gsm + first_entry;
+	gen6_gtt_pte_t __iomem *gtt_entries =
+		(gen6_gtt_pte_t __iomem *)dev_priv->gtt.gsm + first_entry;
 	int i = 0;
 	struct sg_page_iter sg_iter;
 	dma_addr_t addr;
@@ -451,8 +450,8 @@ static void gen6_ggtt_clear_range(struct drm_device *dev,
 				  unsigned int num_entries)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	gtt_pte_t scratch_pte;
-	gtt_pte_t __iomem *gtt_base = (gtt_pte_t __iomem *) dev_priv->gtt.gsm + first_entry;
+	gen6_gtt_pte_t scratch_pte, __iomem *gtt_base =
+		(gen6_gtt_pte_t __iomem *) dev_priv->gtt.gsm + first_entry;
 	const int max_entries = gtt_total_entries(dev_priv->gtt) - first_entry;
 	int i;
 
@@ -736,7 +735,7 @@ static int gen6_gmch_probe(struct drm_device *dev,
 	else
 		*stolen = gen6_get_stolen_size(snb_gmch_ctl);
 
-	*gtt_total = (gtt_size / sizeof(gtt_pte_t)) << PAGE_SHIFT;
+	*gtt_total = (gtt_size / sizeof(gen6_gtt_pte_t)) << PAGE_SHIFT;
 
 	/* For Modern GENs the PTEs and register space are split in the BAR */
 	gtt_bus_addr = pci_resource_start(dev->pdev, 0) +
@@ -816,7 +815,7 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	gtt_size = (dev_priv->gtt.total >> PAGE_SHIFT) * sizeof(gtt_pte_t);
+	gtt_size = (dev_priv->gtt.total >> PAGE_SHIFT) * sizeof(gen6_gtt_pte_t);
 
 	/* GMADR is the PCI mmio aperture into the global GTT. */
 	DRM_INFO("Memory usable by graphics device = %zdM\n",
