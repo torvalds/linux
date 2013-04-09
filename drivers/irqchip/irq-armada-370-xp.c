@@ -48,7 +48,9 @@
 
 #define ARMADA_370_XP_TIMER0_PER_CPU_IRQ	(5)
 
-#define ACTIVE_DOORBELLS			(8)
+#define IPI_DOORBELL_START                      (0)
+#define IPI_DOORBELL_END                        (8)
+#define IPI_DOORBELL_MASK                       0xFF
 
 static DEFINE_RAW_SPINLOCK(irq_controller_lock);
 
@@ -192,7 +194,7 @@ void armada_xp_mpic_smp_cpu_init(void)
 	writel(0, per_cpu_int_base + ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS);
 
 	/* Enable first 8 IPIs */
-	writel((1 << ACTIVE_DOORBELLS) - 1, per_cpu_int_base +
+	writel(IPI_DOORBELL_MASK, per_cpu_int_base +
 		ARMADA_370_XP_IN_DRBEL_MSK_OFFS);
 
 	/* Unmask IPI interrupt */
@@ -231,13 +233,14 @@ armada_370_xp_handle_irq(struct pt_regs *regs)
 
 			ipimask = readl_relaxed(per_cpu_int_base +
 						ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS)
-				& 0xFF;
+				& IPI_DOORBELL_MASK;
 
-			writel(0x0, per_cpu_int_base +
+			writel(~IPI_DOORBELL_MASK, per_cpu_int_base +
 				ARMADA_370_XP_IN_DRBEL_CAUSE_OFFS);
 
 			/* Handle all pending doorbells */
-			for (ipinr = 0; ipinr < ACTIVE_DOORBELLS; ipinr++) {
+			for (ipinr = IPI_DOORBELL_START;
+			     ipinr < IPI_DOORBELL_END; ipinr++) {
 				if (ipimask & (0x1 << ipinr))
 					handle_IPI(ipinr, regs);
 			}
