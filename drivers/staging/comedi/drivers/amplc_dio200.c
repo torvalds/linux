@@ -292,7 +292,6 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned int irq;
 	int ret;
 
-	dev->board_name = thisboard->name;
 	iobase = it->options[0];
 	irq = it->options[1];
 	dev_info(dev->class_dev, "%s: attach %s 0x%lX,%u\n",
