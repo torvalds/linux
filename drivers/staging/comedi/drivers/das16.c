@@ -1120,13 +1120,10 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (ret)
 			return ret;
 		/* Request an additional region for the 8255 */
-		if (!request_region(dev->iobase + 0x400, board->size & 0x3ff,
-				    dev->board_name)) {
+		ret = __comedi_request_region(dev, dev->iobase + 0x400,
+					      board->size & 0x3ff);
+		if (ret) {
 			release_region(dev->iobase, 0x10);
-			dev_warn(dev->class_dev,
-				 "%s: I/O port conflict (%#lx,%d)\n",
-				 dev->board_name,
-				 dev->iobase + 0x400, board->size & 0x3ff);
 			dev->iobase = 0;
 			return -EIO;
 		}
