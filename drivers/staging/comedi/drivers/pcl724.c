@@ -114,14 +114,12 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		iorange = PCL722_96_SIZE; /* PCL-724 in 96 DIO configuration */
 	printk(KERN_INFO "comedi%d: pcl724: board=%s, 0x%03lx ", dev->minor,
 	       board->name, iobase);
-	if (!request_region(iobase, iorange, "pcl724")) {
+	if (!request_region(iobase, iorange, dev->board_name)) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
 
 	dev->iobase = iobase;
-
-	dev->board_name = board->name;
 
 #ifdef PCL724_IRQ
 	irq = 0;
@@ -134,8 +132,8 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				       "DISABLING IT", irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
-				if (request_irq
-				    (irq, interrupt_pcl724, 0, "pcl724", dev)) {
+				if (request_irq(irq, interrupt_pcl724, 0,
+					        dev->board_name, dev)) {
 					printk(KERN_WARNING
 					       ", unable to allocate IRQ %u, "
 					       "DISABLING IT", irq);
