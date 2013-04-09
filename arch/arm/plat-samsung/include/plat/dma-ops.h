@@ -18,7 +18,6 @@
 
 struct samsung_dma_req {
 	enum dma_transaction_type cap;
-	struct property *dt_dmach_prop;
 	struct s3c2410_dma_client *client;
 };
 
