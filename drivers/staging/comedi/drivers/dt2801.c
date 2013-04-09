@@ -593,17 +593,13 @@ static int dt2801_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct dt2801_board *board = comedi_board(dev);
 	struct dt2801_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 	int board_code, type;
 	int ret = 0;
 	int n_ai_chans;
 
-	iobase = it->options[0];
-	if (!request_region(iobase, DT2801_IOSIZE, "dt2801")) {
-		comedi_error(dev, "I/O port conflict");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], DT2801_IOSIZE);
+	if (ret)
+		return ret;
 
 	/* do some checking */
 
@@ -624,10 +620,8 @@ static int dt2801_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 havetype:
 	dev->board_ptr = boardtypes + type;
 	board = comedi_board(dev);
-	printk("dt2801: %s at port 0x%lx", board->name, iobase);
 
 	n_ai_chans = probe_number_of_ai_chans(dev);
-	printk(" (ai channels = %d)\n", n_ai_chans);
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
