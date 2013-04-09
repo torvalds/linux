@@ -975,7 +975,7 @@ static int r820t_set_tv_standard(struct r820t_priv *priv,
 			return rc;
 		msleep(1);
 	}
-	priv->int_freq = if_khz;
+	priv->int_freq = if_khz * 1000;
 
 	/* Check if standard changed. If so, filter calibration is needed */
 	if (type != priv->type)
