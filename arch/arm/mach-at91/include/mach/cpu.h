@@ -86,7 +86,7 @@ enum at91_soc_type {
 	AT91_SOC_SAMA5D3,
 
 	/* Unknown type */
-	AT91_SOC_NONE
+	AT91_SOC_UNKNOWN,
 };
 
 enum at91_soc_subtype {
@@ -107,8 +107,11 @@ enum at91_soc_subtype {
 	AT91_SOC_SAMA5D31, AT91_SOC_SAMA5D33, AT91_SOC_SAMA5D34,
 	AT91_SOC_SAMA5D35,
 
+	/* No subtype for this SoC */
+	AT91_SOC_SUBTYPE_NONE,
+
 	/* Unknown subtype */
-	AT91_SOC_SUBTYPE_NONE
+	AT91_SOC_SUBTYPE_UNKNOWN,
 };
 
 struct at91_socinfo {
@@ -122,7 +125,7 @@ const char *at91_get_soc_subtype(struct at91_socinfo *c);
 
 static inline int at91_soc_is_detected(void)
 {
-	return at91_soc_initdata.type != AT91_SOC_NONE;
+	return at91_soc_initdata.type != AT91_SOC_UNKNOWN;
 }
 
 #ifdef CONFIG_SOC_AT91RM9200
