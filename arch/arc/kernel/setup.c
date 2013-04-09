@@ -322,11 +322,6 @@ void __init setup_arch(char **cmdline_p)
 	/* Make sure that a whitespace is inserted before */
 	strlcat(command_line, " ", sizeof(command_line));
 #endif
-	/*
-	 * Append .config cmdline to base command line, which might already
-	 * contain u-boot "bootargs" (handled by head.S, if so configured)
-	 */
-	strlcat(command_line, CONFIG_CMDLINE, sizeof(command_line));
 
 	/* Save unparsed command line copy for /proc/cmdline */
 	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);

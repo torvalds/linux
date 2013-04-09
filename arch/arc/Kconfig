@@ -408,13 +408,6 @@ config ARC_DBG_TLB_MISS_COUNT
 	  Counts number of I and D TLB Misses and exports them via Debugfs
 	  The counters can be cleared via Debugfs as well
 
-config CMDLINE
-	string "Kernel command line to built-in"
-	default "print-fatal-signals=1"
-	help
-	  The default command line which will be appended to the optional
-	  u-boot provided command line (see below)
-
 config CMDLINE_UBOOT
 	bool "Support U-boot kernel command line passing"
 	default n
@@ -423,8 +416,8 @@ config CMDLINE_UBOOT
 	  command line from the U-boot environment to the Linux kernel then
 	  switch this option on.
 	  ARC U-boot will setup the cmdline in RAM/flash and set r2 to point
-	  to it. kernel startup code will copy the string into cmdline buffer
-	  and also append CONFIG_CMDLINE.
+	  to it. kernel startup code will append this to DeviceTree
+	  /bootargs provided cmdline args.
 
 config ARC_BUILTIN_DTB_NAME
 	string "Built in DTB"
