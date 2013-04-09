@@ -1117,7 +1117,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (board->size < 0x400) {
 		printk(" 0x%04lx-0x%04lx\n", iobase, iobase + board->size);
-		if (!request_region(iobase, board->size, "das16")) {
+		if (!request_region(iobase, board->size, dev->board_name)) {
 			printk(KERN_ERR " I/O port conflict\n");
 			return -EIO;
 		}
@@ -1126,13 +1126,13 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		       iobase, iobase + 0x0f,
 		       iobase + 0x400,
 		       iobase + 0x400 + (board->size & 0x3ff));
-		if (!request_region(iobase, 0x10, "das16")) {
+		if (!request_region(iobase, 0x10, dev->board_name)) {
 			printk(KERN_ERR " I/O port conflict:  0x%04lx-0x%04lx\n",
 			       iobase, iobase + 0x0f);
 			return -EIO;
 		}
 		if (!request_region(iobase + 0x400, board->size & 0x3ff,
-				    "das16")) {
+				    dev->board_name)) {
 			release_region(iobase, 0x10);
 			printk(KERN_ERR " I/O port conflict:  0x%04lx-0x%04lx\n",
 			       iobase + 0x400,
@@ -1148,7 +1148,6 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		printk(KERN_ERR " id bits do not match selected board, aborting\n");
 		return -EINVAL;
 	}
-	dev->board_name = board->name;
 
 	/*  get master clock speed */
 	if (board->size < 0x400) {
@@ -1162,7 +1161,8 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* now for the irq */
 	if (irq > 1 && irq < 8) {
-		ret = request_irq(irq, das16_dma_interrupt, 0, "das16", dev);
+		ret = request_irq(irq, das16_dma_interrupt, 0,
+				  dev->board_name, dev);
 
 		if (ret < 0)
 			return ret;
@@ -1188,7 +1188,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			if (devpriv->dma_buffer[i] == NULL)
 				return -ENOMEM;
 		}
-		if (request_dma(dma_chan, "das16")) {
+		if (request_dma(dma_chan, dev->board_name)) {
 			printk(KERN_ERR " failed to allocate dma channel %i\n",
 			       dma_chan);
 			return -EINVAL;
