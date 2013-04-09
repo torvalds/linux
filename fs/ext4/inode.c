@@ -2609,7 +2609,7 @@ out_writepages:
 
 static int ext4_nonda_switch(struct super_block *sb)
 {
-	s64 free_blocks, dirty_blocks;
+	s64 free_clusters, dirty_clusters;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
 	/*
@@ -2620,17 +2620,18 @@ static int ext4_nonda_switch(struct super_block *sb)
 	 * Delalloc need an accurate free block accounting. So switch
 	 * to non delalloc when we are near to error range.
 	 */
-	free_blocks  = EXT4_C2B(sbi,
-		percpu_counter_read_positive(&sbi->s_freeclusters_counter));
-	dirty_blocks = percpu_counter_read_positive(&sbi->s_dirtyclusters_counter);
+	free_clusters =
+		percpu_counter_read_positive(&sbi->s_freeclusters_counter);
+	dirty_clusters =
+		percpu_counter_read_positive(&sbi->s_dirtyclusters_counter);
 	/*
 	 * Start pushing delalloc when 1/2 of free blocks are dirty.
 	 */
-	if (dirty_blocks && (free_blocks < 2 * dirty_blocks))
+	if (dirty_clusters && (free_clusters < 2 * dirty_clusters))
 		try_to_writeback_inodes_sb(sb, WB_REASON_FS_FREE_SPACE);
 
-	if (2 * free_blocks < 3 * dirty_blocks ||
-		free_blocks < (dirty_blocks + EXT4_FREECLUSTERS_WATERMARK)) {
+	if (2 * free_clusters < 3 * dirty_clusters ||
+	    free_clusters < (dirty_clusters + EXT4_FREECLUSTERS_WATERMARK)) {
 		/*
 		 * free block count is less than 150% of dirty blocks
 		 * or free blocks is less than watermark
