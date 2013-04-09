@@ -42,6 +42,24 @@
 #define	SRBM_STATUS2				        0xE4C
 #define	SRBM_STATUS				        0xE50
 
+#define	SRBM_SOFT_RESET				        0xE60
+#define		SOFT_RESET_BIF				(1 << 1)
+#define		SOFT_RESET_R0PLL			(1 << 4)
+#define		SOFT_RESET_DC				(1 << 5)
+#define		SOFT_RESET_SDMA1			(1 << 6)
+#define		SOFT_RESET_GRBM				(1 << 8)
+#define		SOFT_RESET_HDP				(1 << 9)
+#define		SOFT_RESET_IH				(1 << 10)
+#define		SOFT_RESET_MC				(1 << 11)
+#define		SOFT_RESET_ROM				(1 << 14)
+#define		SOFT_RESET_SEM				(1 << 15)
+#define		SOFT_RESET_VMC				(1 << 17)
+#define		SOFT_RESET_SDMA				(1 << 20)
+#define		SOFT_RESET_TST				(1 << 21)
+#define		SOFT_RESET_REGBB		       	(1 << 22)
+#define		SOFT_RESET_ORB				(1 << 23)
+#define		SOFT_RESET_VCE				(1 << 24)
+
 #define VM_L2_CNTL					0x1400
 #define		ENABLE_L2_CACHE					(1 << 0)
 #define		ENABLE_L2_FRAGMENT_PROCESSING			(1 << 1)
@@ -1038,5 +1056,117 @@
 #define	PACKET3_WAIT_ON_CE_COUNTER			0x86
 #define	PACKET3_WAIT_ON_DE_COUNTER_DIFF			0x88
 #define	PACKET3_SWITCH_BUFFER				0x8B
+
+/* SDMA - first instance at 0xd000, second at 0xd800 */
+#define SDMA0_REGISTER_OFFSET                             0x0 /* not a register */
+#define SDMA1_REGISTER_OFFSET                             0x800 /* not a register */
+
+#define	SDMA0_UCODE_ADDR                                  0xD000
+#define	SDMA0_UCODE_DATA                                  0xD004
+
+#define SDMA0_CNTL                                        0xD010
+#       define TRAP_ENABLE                                (1 << 0)
+#       define SEM_INCOMPLETE_INT_ENABLE                  (1 << 1)
+#       define SEM_WAIT_INT_ENABLE                        (1 << 2)
+#       define DATA_SWAP_ENABLE                           (1 << 3)
+#       define FENCE_SWAP_ENABLE                          (1 << 4)
+#       define AUTO_CTXSW_ENABLE                          (1 << 18)
+#       define CTXEMPTY_INT_ENABLE                        (1 << 28)
+
+#define SDMA0_TILING_CONFIG  				  0xD018
+
+#define SDMA0_SEM_INCOMPLETE_TIMER_CNTL                   0xD020
+#define SDMA0_SEM_WAIT_FAIL_TIMER_CNTL                    0xD024
+
+#define SDMA0_STATUS_REG                                  0xd034
+#       define SDMA_IDLE                                  (1 << 0)
+
+#define SDMA0_ME_CNTL                                     0xD048
+#       define SDMA_HALT                                  (1 << 0)
+
+#define SDMA0_GFX_RB_CNTL                                 0xD200
+#       define SDMA_RB_ENABLE                             (1 << 0)
+#       define SDMA_RB_SIZE(x)                            ((x) << 1) /* log2 */
+#       define SDMA_RB_SWAP_ENABLE                        (1 << 9) /* 8IN32 */
+#       define SDMA_RPTR_WRITEBACK_ENABLE                 (1 << 12)
+#       define SDMA_RPTR_WRITEBACK_SWAP_ENABLE            (1 << 13)  /* 8IN32 */
+#       define SDMA_RPTR_WRITEBACK_TIMER(x)               ((x) << 16) /* log2 */
+#define SDMA0_GFX_RB_BASE                                 0xD204
+#define SDMA0_GFX_RB_BASE_HI                              0xD208
+#define SDMA0_GFX_RB_RPTR                                 0xD20C
+#define SDMA0_GFX_RB_WPTR                                 0xD210
+
+#define SDMA0_GFX_RB_RPTR_ADDR_HI                         0xD220
+#define SDMA0_GFX_RB_RPTR_ADDR_LO                         0xD224
+#define SDMA0_GFX_IB_CNTL                                 0xD228
+#       define SDMA_IB_ENABLE                             (1 << 0)
+#       define SDMA_IB_SWAP_ENABLE                        (1 << 4)
+#       define SDMA_SWITCH_INSIDE_IB                      (1 << 8)
+#       define SDMA_CMD_VMID(x)                           ((x) << 16)
+
+#define SDMA0_GFX_VIRTUAL_ADDR                            0xD29C
+#define SDMA0_GFX_APE1_CNTL                               0xD2A0
+
+#define SDMA_PACKET(op, sub_op, e)	((((e) & 0xFFFF) << 16) |	\
+					 (((sub_op) & 0xFF) << 8) |	\
+					 (((op) & 0xFF) << 0))
+/* sDMA opcodes */
+#define	SDMA_OPCODE_NOP					  0
+#define	SDMA_OPCODE_COPY				  1
+#       define SDMA_COPY_SUB_OPCODE_LINEAR                0
+#       define SDMA_COPY_SUB_OPCODE_TILED                 1
+#       define SDMA_COPY_SUB_OPCODE_SOA                   3
+#       define SDMA_COPY_SUB_OPCODE_LINEAR_SUB_WINDOW     4
+#       define SDMA_COPY_SUB_OPCODE_TILED_SUB_WINDOW      5
+#       define SDMA_COPY_SUB_OPCODE_T2T_SUB_WINDOW        6
+#define	SDMA_OPCODE_WRITE				  2
+#       define SDMA_WRITE_SUB_OPCODE_LINEAR               0
+#       define SDMA_WRTIE_SUB_OPCODE_TILED                1
+#define	SDMA_OPCODE_INDIRECT_BUFFER			  4
+#define	SDMA_OPCODE_FENCE				  5
+#define	SDMA_OPCODE_TRAP				  6
+#define	SDMA_OPCODE_SEMAPHORE				  7
+#       define SDMA_SEMAPHORE_EXTRA_O                     (1 << 13)
+                /* 0 - increment
+		 * 1 - write 1
+		 */
+#       define SDMA_SEMAPHORE_EXTRA_S                     (1 << 14)
+                /* 0 - wait
+		 * 1 - signal
+		 */
+#       define SDMA_SEMAPHORE_EXTRA_M                     (1 << 15)
+                /* mailbox */
+#define	SDMA_OPCODE_POLL_REG_MEM			  8
+#       define SDMA_POLL_REG_MEM_EXTRA_OP(x)              ((x) << 10)
+                /* 0 - wait_reg_mem
+		 * 1 - wr_wait_wr_reg
+		 */
+#       define SDMA_POLL_REG_MEM_EXTRA_FUNC(x)            ((x) << 12)
+                /* 0 - always
+		 * 1 - <
+		 * 2 - <=
+		 * 3 - ==
+		 * 4 - !=
+		 * 5 - >=
+		 * 6 - >
+		 */
+#       define SDMA_POLL_REG_MEM_EXTRA_M                  (1 << 15)
+                /* 0 = register
+		 * 1 = memory
+		 */
+#define	SDMA_OPCODE_COND_EXEC				  9
+#define	SDMA_OPCODE_CONSTANT_FILL			  11
+#       define SDMA_CONSTANT_FILL_EXTRA_SIZE(x)           ((x) << 14)
+                /* 0 = byte fill
+		 * 2 = DW fill
+		 */
+#define	SDMA_OPCODE_GENERATE_PTE_PDE			  12
+#define	SDMA_OPCODE_TIMESTAMP				  13
+#       define SDMA_TIMESTAMP_SUB_OPCODE_SET_LOCAL        0
+#       define SDMA_TIMESTAMP_SUB_OPCODE_GET_LOCAL        1
+#       define SDMA_TIMESTAMP_SUB_OPCODE_GET_GLOBAL       2
+#define	SDMA_OPCODE_SRBM_WRITE				  14
+#       define SDMA_SRBM_WRITE_EXTRA_BYTE_ENABLE(x)       ((x) << 12)
+                /* byte mask */
 
 #endif

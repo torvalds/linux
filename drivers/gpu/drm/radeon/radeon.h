@@ -1726,6 +1726,7 @@ struct radeon_device {
 	const struct firmware *ce_fw;	/* SI CE firmware */
 	const struct firmware *uvd_fw;	/* UVD firmware */
 	const struct firmware *mec_fw;	/* CIK MEC firmware */
+	const struct firmware *sdma_fw;	/* CIK SDMA firmware */
 	struct r600_blit r600_blit;
 	struct r600_vram_scratch vram_scratch;
 	int msi_enabled; /* msi enabled */
