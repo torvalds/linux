@@ -213,11 +213,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct adq12b_private *devpriv;
 	struct comedi_subdevice *s;
-	int unipolar, differential;
 	int ret;
-
-	unipolar = it->options[1];
-	differential = it->options[2];
 
 	ret = comedi_request_region(dev, it->options[0], ADQ12B_SIZE);
 	if (ret)
@@ -228,8 +224,8 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	devpriv->unipolar = unipolar;
-	devpriv->differential = differential;
+	devpriv->unipolar = it->options[1];
+	devpriv->differential = it->options[2];
 	devpriv->digital_state = 0;
 	/*
 	 * initialize channel and range to -1 so we make sure we
@@ -245,7 +241,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
-	if (differential) {
+	if (devpriv->differential) {
 		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
 		s->n_chan = 8;
 	} else {
@@ -253,7 +249,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->n_chan = 16;
 	}
 
-	if (unipolar)
+	if (devpriv->unipolar)
 		s->range_table = &range_adq12b_ai_unipolar;
 	else
 		s->range_table = &range_adq12b_ai_bipolar;
