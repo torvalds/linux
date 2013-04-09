@@ -1038,8 +1038,9 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->dma_rtc = 0;
 	if (it->options[2] > 0) {	/*  we want to use DMA */
 		if (RTC_lock == 0) {
-			if (!request_region(RTC_PORT(0), RTC_IO_EXTENT,
-					    "pcl816 (RTC)"))
+			ret = __comedi_request_region(dev, RTC_PORT(0),
+						      RTC_IO_EXTENT);
+			if (ret)
 				goto no_rtc;
 		}
 		devpriv->rtc_iobase = RTC_PORT(0);
