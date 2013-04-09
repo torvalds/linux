@@ -143,9 +143,6 @@ struct rti800_private {
 		adc_2comp, adc_straight
 	} adc_coding;
 	enum {
-		dac_bipolar10, dac_unipolar10
-	} dac0_range, dac1_range;
-	enum {
 		dac_2comp, dac_straight
 	} dac0_coding, dac1_coding;
 	const struct comedi_lrange *ao_range_type_list[2];
@@ -311,9 +308,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->private = devpriv;
 
 	devpriv->adc_coding = it->options[4];
-	devpriv->dac0_range = it->options[5];
 	devpriv->dac0_coding = it->options[6];
-	devpriv->dac1_range = it->options[7];
 	devpriv->dac1_coding = it->options[8];
 	devpriv->muxgain_bits = -1;
 
@@ -350,19 +345,19 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->insn_write = rti800_ao_insn_write;
 		s->maxdata = 0xfff;
 		s->range_table_list = devpriv->ao_range_type_list;
-		switch (devpriv->dac0_range) {
-		case dac_bipolar10:
+		switch (it->options[5]) {
+		case 0:
 			devpriv->ao_range_type_list[0] = &range_bipolar10;
 			break;
-		case dac_unipolar10:
+		case 1:
 			devpriv->ao_range_type_list[0] = &range_unipolar10;
 			break;
 		}
-		switch (devpriv->dac1_range) {
-		case dac_bipolar10:
+		switch (it->options[7]) {
+		case 0:
 			devpriv->ao_range_type_list[1] = &range_bipolar10;
 			break;
-		case dac_unipolar10:
+		case 1:
 			devpriv->ao_range_type_list[1] = &range_unipolar10;
 			break;
 		}
