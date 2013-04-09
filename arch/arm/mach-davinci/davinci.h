@@ -44,6 +44,7 @@
 #define SYSMOD_PUPDCTL1			0x7c
 
 /* VPSS CLKCTL bit definitions */
+#define VPSS_MUXSEL_EXTCLK_ENABLE	BIT(1)
 #define VPSS_VENCCLKEN_ENABLE		BIT(3)
 #define VPSS_DACCLKEN_ENABLE		BIT(4)
 #define VPSS_PLLC2SYSCLK5_ENABLE	BIT(5)
@@ -80,7 +81,7 @@ void __init dm355_init(void);
 void dm355_init_spi0(unsigned chipselect_mask,
 		const struct spi_board_info *info, unsigned len);
 void __init dm355_init_asp1(u32 evt_enable, struct snd_platform_data *pdata);
-void dm355_set_vpfe_config(struct vpfe_config *cfg);
+int dm355_init_video(struct vpfe_config *, struct vpbe_config *);
 
 /* DM365 function declarations */
 void __init dm365_init(void);

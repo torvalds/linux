@@ -253,8 +253,6 @@ static struct davinci_uart_config uart_config __initdata = {
 
 static void __init dm355_evm_map_io(void)
 {
-	/* setup input configuration for VPFE input devices */
-	dm355_set_vpfe_config(&vpfe_cfg);
 	dm355_init();
 }
 
@@ -343,6 +341,8 @@ static __init void dm355_evm_init(void)
 
 	davinci_setup_mmc(0, &dm355evm_mmc_config);
 	davinci_setup_mmc(1, &dm355evm_mmc_config);
+
+	dm355_init_video(&vpfe_cfg, NULL);
 
 	dm355_init_spi0(BIT(0), dm355_evm_spi_info,
 			ARRAY_SIZE(dm355_evm_spi_info));
