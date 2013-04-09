@@ -22,10 +22,12 @@
 #include <linux/irqdomain.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/stmp_device.h>
 #include <asm/exception.h>
-#include <mach/mxs.h>
-#include <mach/common.h>
+
+#include "irqchip.h"
 
 #define HW_ICOLL_VECTOR				0x0000
 #define HW_ICOLL_LEVELACK			0x0010
@@ -38,7 +40,7 @@
 
 #define ICOLL_NUM_IRQS		128
 
-static void __iomem *icoll_base = MXS_IO_ADDRESS(MXS_ICOLL_BASE_ADDR);
+static void __iomem *icoll_base;
 static struct irq_domain *icoll_domain;
 
 static void icoll_ack_irq(struct irq_data *d)
@@ -103,23 +105,17 @@ static struct irq_domain_ops icoll_irq_domain_ops = {
 static void __init icoll_of_init(struct device_node *np,
 			  struct device_node *interrupt_parent)
 {
+	icoll_base = of_iomap(np, 0);
+	WARN_ON(!icoll_base);
+
 	/*
 	 * Interrupt Collector reset, which initializes the priority
 	 * for each irq to level 0.
 	 */
-	mxs_reset_block(icoll_base + HW_ICOLL_CTRL);
+	stmp_reset_block(icoll_base + HW_ICOLL_CTRL);
 
 	icoll_domain = irq_domain_add_linear(np, ICOLL_NUM_IRQS,
 					     &icoll_irq_domain_ops, NULL);
 	WARN_ON(!icoll_domain);
 }
-
-static const struct of_device_id icoll_of_match[] __initconst = {
-	{.compatible = "fsl,icoll", .data = icoll_of_init},
-	{ /* sentinel */ }
-};
-
-void __init icoll_init_irq(void)
-{
-	of_irq_init(icoll_of_match);
-}
+IRQCHIP_DECLARE(mxs, "fsl,icoll", icoll_of_init);

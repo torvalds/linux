@@ -340,6 +340,7 @@ extern void clocksource_of_init(void);
 		__used __section(__clksrc_of_table)			\
 		 = { .compatible = compat, .data = fn };
 #else
+static inline void clocksource_of_init(void) {}
 #define CLOCKSOURCE_OF_DECLARE(name, compat, fn)
 #endif
 
