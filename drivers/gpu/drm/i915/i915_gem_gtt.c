@@ -45,8 +45,8 @@ typedef uint32_t gen6_gtt_pte_t;
 #define GEN6_PTE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
 
 static inline gen6_gtt_pte_t gen6_pte_encode(struct drm_device *dev,
-					dma_addr_t addr,
-					enum i915_cache_level level)
+					     dma_addr_t addr,
+					     enum i915_cache_level level)
 {
 	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
@@ -288,7 +288,6 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 
 	if (!dev_priv->mm.aliasing_ppgtt)
 		return;
-
 
 	pd_addr = (gen6_gtt_pte_t __iomem *)dev_priv->gtt.gsm +
 		ppgtt->pd_offset / sizeof(gen6_gtt_pte_t);
