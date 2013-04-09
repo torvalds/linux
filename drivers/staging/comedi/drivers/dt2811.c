@@ -399,18 +399,10 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct dt2811_private *devpriv;
 	int ret;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 
-	iobase = it->options[0];
-
-	printk(KERN_INFO "comedi%d: dt2811:base=0x%04lx\n", dev->minor, iobase);
-
-	if (!request_region(iobase, DT2811_SIZE, dev->board_name)) {
-		printk(KERN_ERR "I/O port conflict\n");
-		return -EIO;
-	}
-
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], DT2811_SIZE);
+	if (ret)
+		return ret;
 
 #if 0
 	outb(0, dev->iobase + DT2811_ADCSR);
