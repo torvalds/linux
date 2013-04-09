@@ -1,8 +1,9 @@
 /**
  * omap-usb-host.c - The USBHS core driver for OMAP EHCI & OHCI
  *
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2011-2013 Texas Instruments Incorporated - http://www.ti.com
  * Author: Keshava Munegowda <keshava_mgowda@ti.com>
+ * Author: Roger Quadros <rogerq@ti.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2  of
@@ -27,6 +28,8 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/usb-omap.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 
 #include "omap-usb.h"
 
@@ -136,6 +139,49 @@ static inline u8 usbhs_readb(void __iomem *base, u8 reg)
 }
 
 /*-------------------------------------------------------------------------*/
+
+/**
+ * Map 'enum usbhs_omap_port_mode' found in <linux/platform_data/usb-omap.h>
+ * to the device tree binding portN-mode found in
+ * 'Documentation/devicetree/bindings/mfd/omap-usb-host.txt'
+ */
+static const char * const port_modes[] = {
+	[OMAP_USBHS_PORT_MODE_UNUSED]	= "",
+	[OMAP_EHCI_PORT_MODE_PHY]	= "ehci-phy",
+	[OMAP_EHCI_PORT_MODE_TLL]	= "ehci-tll",
+	[OMAP_EHCI_PORT_MODE_HSIC]	= "ehci-hsic",
+	[OMAP_OHCI_PORT_MODE_PHY_6PIN_DATSE0]	= "ohci-phy-6pin-datse0",
+	[OMAP_OHCI_PORT_MODE_PHY_6PIN_DPDM]	= "ohci-phy-6pin-dpdm",
+	[OMAP_OHCI_PORT_MODE_PHY_3PIN_DATSE0]	= "ohci-phy-3pin-datse0",
+	[OMAP_OHCI_PORT_MODE_PHY_4PIN_DPDM]	= "ohci-phy-4pin-dpdm",
+	[OMAP_OHCI_PORT_MODE_TLL_6PIN_DATSE0]	= "ohci-tll-6pin-datse0",
+	[OMAP_OHCI_PORT_MODE_TLL_6PIN_DPDM]	= "ohci-tll-6pin-dpdm",
+	[OMAP_OHCI_PORT_MODE_TLL_3PIN_DATSE0]	= "ohci-tll-3pin-datse0",
+	[OMAP_OHCI_PORT_MODE_TLL_4PIN_DPDM]	= "ohci-tll-4pin-dpdm",
+	[OMAP_OHCI_PORT_MODE_TLL_2PIN_DATSE0]	= "ohci-tll-2pin-datse0",
+	[OMAP_OHCI_PORT_MODE_TLL_2PIN_DPDM]	= "ohci-tll-2pin-dpdm",
+};
+
+/**
+ * omap_usbhs_get_dt_port_mode - Get the 'enum usbhs_omap_port_mode'
+ * from the port mode string.
+ * @mode: The port mode string, usually obtained from device tree.
+ *
+ * The function returns the 'enum usbhs_omap_port_mode' that matches the
+ * provided port mode string as per the port_modes table.
+ * If no match is found it returns -ENODEV
+ */
+static const int omap_usbhs_get_dt_port_mode(const char *mode)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(port_modes); i++) {
+		if (!strcmp(mode, port_modes[i]))
+			return i;
+	}
+
+	return -ENODEV;
+}
 
 static struct platform_device *omap_usbhs_alloc_child(const char *name,
 			struct resource	*res, int num_resources, void *pdata,
@@ -464,6 +510,58 @@ static void omap_usbhs_init(struct device *dev)
 	pm_runtime_put_sync(dev);
 }
 
+static int usbhs_omap_get_dt_pdata(struct device *dev,
+					struct usbhs_omap_platform_data *pdata)
+{
+	int ret, i;
+	struct device_node *node = dev->of_node;
+
+	ret = of_property_read_u32(node, "num-ports", &pdata->nports);
+	if (ret)
+		pdata->nports = 0;
+
+	if (pdata->nports > OMAP3_HS_USB_PORTS) {
+		dev_warn(dev, "Too many num_ports <%d> in device tree. Max %d\n",
+				pdata->nports, OMAP3_HS_USB_PORTS);
+		return -ENODEV;
+	}
+
+	/* get port modes */
+	for (i = 0; i < OMAP3_HS_USB_PORTS; i++) {
+		char prop[11];
+		const char *mode;
+
+		pdata->port_mode[i] = OMAP_USBHS_PORT_MODE_UNUSED;
+
+		snprintf(prop, sizeof(prop), "port%d-mode", i + 1);
+		ret = of_property_read_string(node, prop, &mode);
+		if (ret < 0)
+			continue;
+
+		ret = omap_usbhs_get_dt_port_mode(mode);
+		if (ret < 0) {
+			dev_warn(dev, "Invalid port%d-mode \"%s\" in device tree\n",
+					i, mode);
+			return -ENODEV;
+		}
+
+		dev_dbg(dev, "port%d-mode: %s -> %d\n", i, mode, ret);
+		pdata->port_mode[i] = ret;
+	}
+
+	/* get flags */
+	pdata->single_ulpi_bypass = of_property_read_bool(node,
+						"single-ulpi-bypass");
+
+	return 0;
+}
+
+static struct of_device_id usbhs_child_match_table[] = {
+	{ .compatible = "ti,omap-ehci", },
+	{ .compatible = "ti,omap-ohci", },
+	{ }
+};
+
 /**
  * usbhs_omap_probe - initialize TI-based HCDs
  *
@@ -479,8 +577,27 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 	int				i;
 	bool				need_logic_fck;
 
+	if (dev->of_node) {
+		/* For DT boot we populate platform data from OF node */
+		pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+
+		ret = usbhs_omap_get_dt_pdata(dev, pdata);
+		if (ret)
+			return ret;
+
+		dev->platform_data = pdata;
+	}
+
 	if (!pdata) {
 		dev_err(dev, "Missing platform data\n");
+		return -ENODEV;
+	}
+
+	if (pdata->nports > OMAP3_HS_USB_PORTS) {
+		dev_info(dev, "Too many num_ports <%d> in platform_data. Max %d\n",
+				pdata->nports, OMAP3_HS_USB_PORTS);
 		return -ENODEV;
 	}
 
@@ -490,7 +607,7 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "uhh");
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	omap->uhh_base = devm_request_and_ioremap(dev, res);
 	if (!omap->uhh_base) {
 		dev_err(dev, "Resource request/ioremap failed\n");
@@ -661,10 +778,23 @@ static int usbhs_omap_probe(struct platform_device *pdev)
 	}
 
 	omap_usbhs_init(dev);
-	ret = omap_usbhs_alloc_children(pdev);
-	if (ret) {
-		dev_err(dev, "omap_usbhs_alloc_children failed\n");
-		goto err_alloc;
+
+	if (dev->of_node) {
+		ret = of_platform_populate(dev->of_node,
+				usbhs_child_match_table, NULL, dev);
+
+		if (ret) {
+			dev_err(dev, "Failed to create DT children: %d\n", ret);
+			goto err_alloc;
+		}
+
+	} else {
+		ret = omap_usbhs_alloc_children(pdev);
+		if (ret) {
+			dev_err(dev, "omap_usbhs_alloc_children failed: %d\n",
+						ret);
+			goto err_alloc;
+		}
 	}
 
 	return 0;
@@ -703,6 +833,13 @@ err_mem:
 	return ret;
 }
 
+static int usbhs_omap_remove_child(struct device *dev, void *data)
+{
+	dev_info(dev, "unregistering\n");
+	platform_device_unregister(to_platform_device(dev));
+	return 0;
+}
+
 /**
  * usbhs_omap_remove - shutdown processing for UHH & TLL HCDs
  * @pdev: USB Host Controller being removed
@@ -734,6 +871,8 @@ static int usbhs_omap_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
+	/* remove children */
+	device_for_each_child(&pdev->dev, NULL, usbhs_omap_remove_child);
 	return 0;
 }
 
@@ -742,16 +881,26 @@ static const struct dev_pm_ops usbhsomap_dev_pm_ops = {
 	.runtime_resume		= usbhs_runtime_resume,
 };
 
+static const struct of_device_id usbhs_omap_dt_ids[] = {
+	{ .compatible = "ti,usbhs-host" },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, usbhs_omap_dt_ids);
+
+
 static struct platform_driver usbhs_omap_driver = {
 	.driver = {
 		.name		= (char *)usbhs_driver_name,
 		.owner		= THIS_MODULE,
 		.pm		= &usbhsomap_dev_pm_ops,
+		.of_match_table = of_match_ptr(usbhs_omap_dt_ids),
 	},
 	.remove		= usbhs_omap_remove,
 };
 
 MODULE_AUTHOR("Keshava Munegowda <keshava_mgowda@ti.com>");
+MODULE_AUTHOR("Roger Quadros <rogerq@ti.com>");
 MODULE_ALIAS("platform:" USBHS_DRIVER_NAME);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("usb host common core driver for omap EHCI and OHCI");
