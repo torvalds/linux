@@ -80,7 +80,7 @@
 #define _GP_PORT_ALL(bank, pin, name, sfx)	name##_##sfx
 
 #define _GP_GPIO(bank, pin, _name, sfx)					\
-	[(bank * 32) + pin] = {						\
+	[RCAR_GP_PIN(bank, pin)] = {					\
 		.name = __stringify(_name),				\
 		.enum_id = _name##_DATA,				\
 	}
