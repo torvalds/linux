@@ -238,7 +238,11 @@ static int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 	ppgtt->dev = dev;
 	ppgtt->scratch_page_dma_addr = dev_priv->gtt.scratch_page_dma;
 
-	ret = gen6_ppgtt_init(ppgtt);
+	if (INTEL_INFO(dev)->gen < 8)
+		ret = gen6_ppgtt_init(ppgtt);
+	else
+		BUG();
+
 	if (ret)
 		kfree(ppgtt);
 	else
