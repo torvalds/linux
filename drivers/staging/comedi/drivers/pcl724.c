@@ -100,26 +100,19 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl724_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 	unsigned int iorange;
 	int ret, i, n_subdevices;
 #ifdef PCL724_IRQ
 	unsigned int irq;
 #endif
 
-	iobase = it->options[0];
 	iorange = board->io_range;
-	if ((board->can_have96) && ((it->options[1] == 1)
-					 || (it->options[1] == 96)))
+	if ((board->can_have96) &&
+	    ((it->options[1] == 1) || (it->options[1] == 96)))
 		iorange = PCL722_96_SIZE; /* PCL-724 in 96 DIO configuration */
-	printk(KERN_INFO "comedi%d: pcl724: board=%s, 0x%03lx ", dev->minor,
-	       board->name, iobase);
-	if (!request_region(iobase, iorange, dev->board_name)) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], iorange);
+	if (ret)
+		return ret;
 
 #ifdef PCL724_IRQ
 	irq = 0;
