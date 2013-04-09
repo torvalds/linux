@@ -8,6 +8,7 @@
 
 int acpi_get_gpio(char *path, int pin);
 void acpi_gpiochip_request_interrupts(struct gpio_chip *chip);
+void acpi_gpiochip_free_interrupts(struct gpio_chip *chip);
 
 #else /* CONFIG_GPIO_ACPI */
 
@@ -17,6 +18,7 @@ static inline int acpi_get_gpio(char *path, int pin)
 }
 
 static inline void acpi_gpiochip_request_interrupts(struct gpio_chip *chip) { }
+static inline void acpi_gpiochip_free_interrupts(struct gpio_chip *chip) { }
 
 #endif /* CONFIG_GPIO_ACPI */
 

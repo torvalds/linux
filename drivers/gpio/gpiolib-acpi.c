@@ -17,6 +17,13 @@
 #include <linux/acpi.h>
 #include <linux/interrupt.h>
 
+struct acpi_gpio_evt_pin {
+	struct list_head node;
+	acpi_handle *evt_handle;
+	unsigned int pin;
+	unsigned int irq;
+};
+
 static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
 {
 	if (!gc->dev)
@@ -54,7 +61,6 @@ int acpi_get_gpio(char *path, int pin)
 }
 EXPORT_SYMBOL_GPL(acpi_get_gpio);
 
-
 static irqreturn_t acpi_gpio_irq_handler(int irq, void *data)
 {
 	acpi_handle handle = data;
@@ -62,6 +68,27 @@ static irqreturn_t acpi_gpio_irq_handler(int irq, void *data)
 	acpi_evaluate_object(handle, NULL, NULL, NULL);
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t acpi_gpio_irq_handler_evt(int irq, void *data)
+{
+	struct acpi_gpio_evt_pin *evt_pin = data;
+	struct acpi_object_list args;
+	union acpi_object arg;
+
+	arg.type = ACPI_TYPE_INTEGER;
+	arg.integer.value = evt_pin->pin;
+	args.count = 1;
+	args.pointer = &arg;
+
+	acpi_evaluate_object(evt_pin->evt_handle, NULL, &args, NULL);
+
+	return IRQ_HANDLED;
+}
+
+static void acpi_gpio_evt_dh(acpi_handle handle, void *data)
+{
+	/* The address of this function is used as a key. */
 }
 
 /**
@@ -73,15 +100,13 @@ static irqreturn_t acpi_gpio_irq_handler(int irq, void *data)
  * chip's interrupt handler. acpi_gpiochip_request_interrupts finds out which
  * gpio pins have acpi event methods and assigns interrupt handlers that calls
  * the acpi event methods for those pins.
- *
- * Interrupts are automatically freed on driver detach
  */
-
 void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 {
 	struct acpi_buffer buf = {ACPI_ALLOCATE_BUFFER, NULL};
 	struct acpi_resource *res;
-	acpi_handle handle, ev_handle;
+	acpi_handle handle, evt_handle;
+	struct list_head *evt_pins = NULL;
 	acpi_status status;
 	unsigned int pin;
 	int irq, ret;
@@ -98,13 +123,30 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 	if (ACPI_FAILURE(status))
 		return;
 
-	/* If a gpio interrupt has an acpi event handler method, then
-	 * set up an interrupt handler that calls the acpi event handler
-	 */
+	status = acpi_get_handle(handle, "_EVT", &evt_handle);
+	if (ACPI_SUCCESS(status)) {
+		evt_pins = kzalloc(sizeof(*evt_pins), GFP_KERNEL);
+		if (evt_pins) {
+			INIT_LIST_HEAD(evt_pins);
+			status = acpi_attach_data(handle, acpi_gpio_evt_dh,
+						  evt_pins);
+			if (ACPI_FAILURE(status)) {
+				kfree(evt_pins);
+				evt_pins = NULL;
+			}
+		}
+	}
 
+	/*
+	 * If a GPIO interrupt has an ACPI event handler method, or _EVT is
+	 * present, set up an interrupt handler that calls the ACPI event
+	 * handler.
+	 */
 	for (res = buf.pointer;
 	     res && (res->type != ACPI_RESOURCE_TYPE_END_TAG);
 	     res = ACPI_NEXT_RESOURCE(res)) {
+		irq_handler_t handler = NULL;
+		void *data;
 
 		if (res->type != ACPI_RESOURCE_TYPE_GPIO ||
 		    res->data.gpio.connection_type !=
@@ -115,23 +157,42 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 		if (pin > chip->ngpio)
 			continue;
 
-		sprintf(ev_name, "_%c%02X",
-		res->data.gpio.triggering ? 'E' : 'L', pin);
-
-		status = acpi_get_handle(handle, ev_name, &ev_handle);
-		if (ACPI_FAILURE(status))
-			continue;
-
 		irq = chip->to_irq(chip, pin);
 		if (irq < 0)
 			continue;
 
+		if (pin <= 255) {
+			acpi_handle ev_handle;
+
+			sprintf(ev_name, "_%c%02X",
+				res->data.gpio.triggering ? 'E' : 'L', pin);
+			status = acpi_get_handle(handle, ev_name, &ev_handle);
+			if (ACPI_SUCCESS(status)) {
+				handler = acpi_gpio_irq_handler;
+				data = ev_handle;
+			}
+		}
+		if (!handler && evt_pins) {
+			struct acpi_gpio_evt_pin *evt_pin;
+
+			evt_pin = kzalloc(sizeof(*evt_pin), GFP_KERNEL);
+			if (!evt_pin)
+				continue;
+
+			list_add_tail(&evt_pin->node, evt_pins);
+			evt_pin->evt_handle = evt_handle;
+			evt_pin->pin = pin;
+			evt_pin->irq = irq;
+			handler = acpi_gpio_irq_handler_evt;
+			data = evt_pin;
+		}
+		if (!handler)
+			continue;
+
 		/* Assume BIOS sets the triggering, so no flags */
-		ret = devm_request_threaded_irq(chip->dev, irq, NULL,
-					  acpi_gpio_irq_handler,
-					  0,
-					  "GPIO-signaled-ACPI-event",
-					  ev_handle);
+		ret = devm_request_threaded_irq(chip->dev, irq, NULL, handler,
+						0, "GPIO-signaled-ACPI-event",
+						data);
 		if (ret)
 			dev_err(chip->dev,
 				"Failed to request IRQ %d ACPI event handler\n",
@@ -139,3 +200,42 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip)
 	}
 }
 EXPORT_SYMBOL(acpi_gpiochip_request_interrupts);
+
+
+/**
+ * acpi_gpiochip_free_interrupts() - Free GPIO _EVT ACPI event interrupts.
+ * @chip:      gpio chip
+ *
+ * Free interrupts associated with the _EVT method for the given GPIO chip.
+ *
+ * The remaining ACPI event interrupts associated with the chip are freed
+ * automatically.
+ */
+void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
+{
+	acpi_handle handle;
+	acpi_status status;
+	struct list_head *evt_pins;
+	struct acpi_gpio_evt_pin *evt_pin, *ep;
+
+	if (!chip->dev || !chip->to_irq)
+		return;
+
+	handle = ACPI_HANDLE(chip->dev);
+	if (!handle)
+		return;
+
+	status = acpi_get_data(handle, acpi_gpio_evt_dh, (void **)&evt_pins);
+	if (ACPI_FAILURE(status))
+		return;
+
+	list_for_each_entry_safe_reverse(evt_pin, ep, evt_pins, node) {
+		devm_free_irq(chip->dev, evt_pin->irq, evt_pin);
+		list_del(&evt_pin->node);
+		kfree(evt_pin);
+	}
+
+	acpi_detach_data(handle, acpi_gpio_evt_dh);
+	kfree(evt_pins);
+}
+EXPORT_SYMBOL(acpi_gpiochip_free_interrupts);
