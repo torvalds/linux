@@ -4631,6 +4631,8 @@ int cik_irq_set(struct radeon_device *rdev)
 {
 	u32 cp_int_cntl = CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE |
 		PRIV_INSTR_INT_ENABLE | PRIV_REG_INT_ENABLE;
+	u32 cp_m1p0, cp_m1p1, cp_m1p2, cp_m1p3;
+	u32 cp_m2p0, cp_m2p1, cp_m2p2, cp_m2p3;
 	u32 crtc1 = 0, crtc2 = 0, crtc3 = 0, crtc4 = 0, crtc5 = 0, crtc6 = 0;
 	u32 hpd1, hpd2, hpd3, hpd4, hpd5, hpd6;
 	u32 grbm_int_cntl = 0;
@@ -4658,13 +4660,106 @@ int cik_irq_set(struct radeon_device *rdev)
 	dma_cntl = RREG32(SDMA0_CNTL + SDMA0_REGISTER_OFFSET) & ~TRAP_ENABLE;
 	dma_cntl1 = RREG32(SDMA0_CNTL + SDMA1_REGISTER_OFFSET) & ~TRAP_ENABLE;
 
+	cp_m1p0 = RREG32(CP_ME1_PIPE0_INT_CNTL) & ~TIME_STAMP_INT_ENABLE;
+	cp_m1p1 = RREG32(CP_ME1_PIPE1_INT_CNTL) & ~TIME_STAMP_INT_ENABLE;
+	cp_m1p2 = RREG32(CP_ME1_PIPE2_INT_CNTL) & ~TIME_STAMP_INT_ENABLE;
+	cp_m1p3 = RREG32(CP_ME1_PIPE3_INT_CNTL) & ~TIME_STAMP_INT_ENABLE;
+	cp_m2p0 = RREG32(CP_ME2_PIPE0_INT_CNTL) & ~TIME_STAMP_INT_ENABLE;
+	cp_m2p1 = RREG32(CP_ME2_PIPE1_INT_CNTL) & ~TIME_STAMP_INT_ENABLE;
+	cp_m2p2 = RREG32(CP_ME2_PIPE2_INT_CNTL) & ~TIME_STAMP_INT_ENABLE;
+	cp_m2p3 = RREG32(CP_ME2_PIPE3_INT_CNTL) & ~TIME_STAMP_INT_ENABLE;
+
 	/* enable CP interrupts on all rings */
 	if (atomic_read(&rdev->irq.ring_int[RADEON_RING_TYPE_GFX_INDEX])) {
 		DRM_DEBUG("cik_irq_set: sw int gfx\n");
 		cp_int_cntl |= TIME_STAMP_INT_ENABLE;
 	}
-	/* TODO: compute queues! */
-	/* CP_ME[1-2]_PIPE[0-3]_INT_CNTL */
+	if (atomic_read(&rdev->irq.ring_int[CAYMAN_RING_TYPE_CP1_INDEX])) {
+		struct radeon_ring *ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
+		DRM_DEBUG("si_irq_set: sw int cp1\n");
+		if (ring->me == 1) {
+			switch (ring->pipe) {
+			case 0:
+				cp_m1p0 |= TIME_STAMP_INT_ENABLE;
+				break;
+			case 1:
+				cp_m1p1 |= TIME_STAMP_INT_ENABLE;
+				break;
+			case 2:
+				cp_m1p2 |= TIME_STAMP_INT_ENABLE;
+				break;
+			case 3:
+				cp_m1p2 |= TIME_STAMP_INT_ENABLE;
+				break;
+			default:
+				DRM_DEBUG("si_irq_set: sw int cp1 invalid pipe %d\n", ring->pipe);
+				break;
+			}
+		} else if (ring->me == 2) {
+			switch (ring->pipe) {
+			case 0:
+				cp_m2p0 |= TIME_STAMP_INT_ENABLE;
+				break;
+			case 1:
+				cp_m2p1 |= TIME_STAMP_INT_ENABLE;
+				break;
+			case 2:
+				cp_m2p2 |= TIME_STAMP_INT_ENABLE;
+				break;
+			case 3:
+				cp_m2p2 |= TIME_STAMP_INT_ENABLE;
+				break;
+			default:
+				DRM_DEBUG("si_irq_set: sw int cp1 invalid pipe %d\n", ring->pipe);
+				break;
+			}
+		} else {
+			DRM_DEBUG("si_irq_set: sw int cp1 invalid me %d\n", ring->me);
+		}
+	}
+	if (atomic_read(&rdev->irq.ring_int[CAYMAN_RING_TYPE_CP2_INDEX])) {
+		struct radeon_ring *ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
+		DRM_DEBUG("si_irq_set: sw int cp2\n");
+		if (ring->me == 1) {
+			switch (ring->pipe) {
+			case 0:
+				cp_m1p0 |= TIME_STAMP_INT_ENABLE;
+				break;
+			case 1:
+				cp_m1p1 |= TIME_STAMP_INT_ENABLE;
+				break;
+			case 2:
+				cp_m1p2 |= TIME_STAMP_INT_ENABLE;
+				break;
+			case 3:
+				cp_m1p2 |= TIME_STAMP_INT_ENABLE;
+				break;
+			default:
+				DRM_DEBUG("si_irq_set: sw int cp2 invalid pipe %d\n", ring->pipe);
+				break;
+			}
+		} else if (ring->me == 2) {
+			switch (ring->pipe) {
+			case 0:
+				cp_m2p0 |= TIME_STAMP_INT_ENABLE;
+				break;
+			case 1:
+				cp_m2p1 |= TIME_STAMP_INT_ENABLE;
+				break;
+			case 2:
+				cp_m2p2 |= TIME_STAMP_INT_ENABLE;
+				break;
+			case 3:
+				cp_m2p2 |= TIME_STAMP_INT_ENABLE;
+				break;
+			default:
+				DRM_DEBUG("si_irq_set: sw int cp2 invalid pipe %d\n", ring->pipe);
+				break;
+			}
+		} else {
+			DRM_DEBUG("si_irq_set: sw int cp2 invalid me %d\n", ring->me);
+		}
+	}
 
 	if (atomic_read(&rdev->irq.ring_int[R600_RING_TYPE_DMA_INDEX])) {
 		DRM_DEBUG("cik_irq_set: sw int dma\n");
@@ -4735,6 +4830,15 @@ int cik_irq_set(struct radeon_device *rdev)
 
 	WREG32(SDMA0_CNTL + SDMA0_REGISTER_OFFSET, dma_cntl);
 	WREG32(SDMA0_CNTL + SDMA1_REGISTER_OFFSET, dma_cntl1);
+
+	WREG32(CP_ME1_PIPE0_INT_CNTL, cp_m1p0);
+	WREG32(CP_ME1_PIPE1_INT_CNTL, cp_m1p1);
+	WREG32(CP_ME1_PIPE2_INT_CNTL, cp_m1p2);
+	WREG32(CP_ME1_PIPE3_INT_CNTL, cp_m1p3);
+	WREG32(CP_ME2_PIPE0_INT_CNTL, cp_m2p0);
+	WREG32(CP_ME2_PIPE1_INT_CNTL, cp_m2p1);
+	WREG32(CP_ME2_PIPE2_INT_CNTL, cp_m2p2);
+	WREG32(CP_ME2_PIPE3_INT_CNTL, cp_m2p3);
 
 	WREG32(GRBM_INT_CNTL, grbm_int_cntl);
 
@@ -4957,6 +5061,8 @@ static inline u32 cik_get_ih_wptr(struct radeon_device *rdev)
  */
 int cik_irq_process(struct radeon_device *rdev)
 {
+	struct radeon_ring *cp1_ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
+	struct radeon_ring *cp2_ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
 	u32 wptr;
 	u32 rptr;
 	u32 src_id, src_data, ring_id;
@@ -5222,10 +5328,11 @@ restart_ih:
 				radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
 				break;
 			case 1:
-				/* XXX compute */
-				break;
 			case 2:
-				/* XXX compute */
+				if ((cp1_ring->me == me_id) & (cp1_ring->pipe == pipe_id))
+					radeon_fence_process(rdev, CAYMAN_RING_TYPE_CP1_INDEX);
+				if ((cp2_ring->me == me_id) & (cp2_ring->pipe == pipe_id))
+					radeon_fence_process(rdev, CAYMAN_RING_TYPE_CP2_INDEX);
 				break;
 			}
 			break;
@@ -5244,9 +5351,11 @@ restart_ih:
 				break;
 			case 1:
 				/* XXX compute */
+				queue_reset = true;
 				break;
 			case 2:
 				/* XXX compute */
+				queue_reset = true;
 				break;
 			}
 			break;
@@ -5265,9 +5374,11 @@ restart_ih:
 				break;
 			case 1:
 				/* XXX compute */
+				queue_reset = true;
 				break;
 			case 2:
 				/* XXX compute */
+				queue_reset = true;
 				break;
 			}
 			break;
