@@ -3930,6 +3930,9 @@ static struct irq_remap_table *get_irq_table(u16 devid, bool ioapic)
 	if (!table)
 		goto out;
 
+	/* Initialize table spin-lock */
+	spin_lock_init(&table->lock);
+
 	if (ioapic)
 		/* Keep the first 32 indexes free for IOAPIC interrupts */
 		table->min_index = 32;
