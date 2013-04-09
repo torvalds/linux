@@ -19,6 +19,7 @@
 #include <linux/time-armada-370-xp.h>
 #include <linux/clk/mvebu.h>
 #include <linux/dma-mapping.h>
+#include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -54,6 +55,10 @@ void __init armada_370_xp_init_early(void)
 	 * to make sure such the allocations won't fail.
 	 */
 	init_dma_coherent_pool_size(SZ_1M);
+
+#ifdef CONFIG_CACHE_L2X0
+	l2x0_of_init(0, ~0UL);
+#endif
 }
 
 static void __init armada_370_xp_dt_init(void)
