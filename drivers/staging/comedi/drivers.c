@@ -337,6 +337,33 @@ static void comedi_report_boards(struct comedi_driver *driv)
 		pr_info(" %s\n", driv->driver_name);
 }
 
+/**
+ * comedi_request_region() - Request an I/O reqion for a legacy driver.
+ * @dev: comedi_device struct
+ * @start: base address of the I/O reqion
+ * @len: length of the I/O region
+ */
+int comedi_request_region(struct comedi_device *dev,
+			  unsigned long start, unsigned long len)
+{
+	if (!start) {
+		dev_warn(dev->class_dev,
+			 "%s: a I/O base address must be specified\n",
+			 dev->board_name);
+		return -EINVAL;
+	}
+
+	if (!request_region(start, len, dev->board_name)) {
+		dev_warn(dev->class_dev, "%s: I/O port conflict (%#lx,%lu)\n",
+			 dev->board_name, start, len);
+		return -EIO;
+	}
+	dev->iobase = start;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(comedi_request_region);
+
 int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_driver *driv;
