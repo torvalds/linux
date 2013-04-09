@@ -156,24 +156,22 @@ struct rti800_private {
 	bool dac_2comp[2];
 	const struct comedi_lrange *ao_range_type_list[2];
 	unsigned int ao_readback[2];
-	int muxgain_bits;
+	unsigned char muxgain_bits;
 };
 
 #define RTI800_TIMEOUT 100
 
-/* settling delay times in usec for different gains */
-static const int gaindelay[] = { 10, 20, 40, 80 };
-
 static int rti800_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct rti800_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int gain = CR_RANGE(insn->chanspec);
+	unsigned char muxgain_bits;
 	int i, t;
 	int status;
-	unsigned muxgain_bits;
 
 	inb(dev->iobase + RTI800_ADCHI);
 	outb(0, dev->iobase + RTI800_CLRFLAGS);
@@ -182,11 +180,16 @@ static int rti800_ai_insn_read(struct comedi_device *dev,
 	if (muxgain_bits != devpriv->muxgain_bits) {
 		devpriv->muxgain_bits = muxgain_bits;
 		outb(devpriv->muxgain_bits, dev->iobase + RTI800_MUXGAIN);
-		/* without a delay here, the RTI_OVERRUN bit
-		 * gets set, and you will have an error. */
+		/*
+		 * Without a delay here, the RTI_OVERRUN bit
+		 * gets set, and you will have an error.
+		 */
 		if (insn->n > 0) {
-			BUG_ON(gain >= ARRAY_SIZE(gaindelay));
-			udelay(gaindelay[gain]);
+			int delay = (gain == 0) ? 10 :
+				    (gain == 1) ? 20 :
+				    (gain == 2) ? 40 : 80;
+
+			udelay(delay);
 		}
 	}
 
@@ -330,7 +333,8 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->adc_coding = it->options[4];
 	devpriv->dac_2comp[0] = (it->options[6] == 0);
 	devpriv->dac_2comp[1] = (it->options[8] == 0);
-	devpriv->muxgain_bits = -1;
+	/* invalid, forces the MUXGAIN register to be set when first used */
+	devpriv->muxgain_bits = 0xff;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
