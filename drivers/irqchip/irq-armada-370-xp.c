@@ -206,49 +206,6 @@ static struct irq_domain_ops armada_370_xp_mpic_irq_ops = {
 };
 
 static asmlinkage void __exception_irq_entry
-armada_370_xp_handle_irq(struct pt_regs *regs);
-
-static int __init armada_370_xp_mpic_of_init(struct device_node *node,
-					     struct device_node *parent)
-{
-	u32 control;
-
-	main_int_base = of_iomap(node, 0);
-	per_cpu_int_base = of_iomap(node, 1);
-
-	BUG_ON(!main_int_base);
-	BUG_ON(!per_cpu_int_base);
-
-	control = readl(main_int_base + ARMADA_370_XP_INT_CONTROL);
-
-	armada_370_xp_mpic_domain =
-		irq_domain_add_linear(node, (control >> 2) & 0x3ff,
-				&armada_370_xp_mpic_irq_ops, NULL);
-
-	if (!armada_370_xp_mpic_domain)
-		panic("Unable to add Armada_370_Xp MPIC irq domain (DT)\n");
-
-	irq_set_default_host(armada_370_xp_mpic_domain);
-
-#ifdef CONFIG_SMP
-	armada_xp_mpic_smp_cpu_init();
-
-	/*
-	 * Set the default affinity from all CPUs to the boot cpu.
-	 * This is required since the MPIC doesn't limit several CPUs
-	 * from acknowledging the same interrupt.
-	 */
-	cpumask_clear(irq_default_affinity);
-	cpumask_set_cpu(smp_processor_id(), irq_default_affinity);
-
-#endif
-
-	set_handle_irq(armada_370_xp_handle_irq);
-
-	return 0;
-}
-
-static asmlinkage void __exception_irq_entry
 armada_370_xp_handle_irq(struct pt_regs *regs)
 {
 	u32 irqstat, irqnr;
@@ -289,6 +246,46 @@ armada_370_xp_handle_irq(struct pt_regs *regs)
 #endif
 
 	} while (1);
+}
+
+static int __init armada_370_xp_mpic_of_init(struct device_node *node,
+					     struct device_node *parent)
+{
+	u32 control;
+
+	main_int_base = of_iomap(node, 0);
+	per_cpu_int_base = of_iomap(node, 1);
+
+	BUG_ON(!main_int_base);
+	BUG_ON(!per_cpu_int_base);
+
+	control = readl(main_int_base + ARMADA_370_XP_INT_CONTROL);
+
+	armada_370_xp_mpic_domain =
+		irq_domain_add_linear(node, (control >> 2) & 0x3ff,
+				&armada_370_xp_mpic_irq_ops, NULL);
+
+	if (!armada_370_xp_mpic_domain)
+		panic("Unable to add Armada_370_Xp MPIC irq domain (DT)\n");
+
+	irq_set_default_host(armada_370_xp_mpic_domain);
+
+#ifdef CONFIG_SMP
+	armada_xp_mpic_smp_cpu_init();
+
+	/*
+	 * Set the default affinity from all CPUs to the boot cpu.
+	 * This is required since the MPIC doesn't limit several CPUs
+	 * from acknowledging the same interrupt.
+	 */
+	cpumask_clear(irq_default_affinity);
+	cpumask_set_cpu(smp_processor_id(), irq_default_affinity);
+
+#endif
+
+	set_handle_irq(armada_370_xp_handle_irq);
+
+	return 0;
 }
 
 IRQCHIP_DECLARE(armada_370_xp_mpic, "marvell,mpic", armada_370_xp_mpic_of_init);
