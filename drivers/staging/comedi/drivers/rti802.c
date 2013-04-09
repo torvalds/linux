@@ -92,16 +92,11 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct rti802_private *devpriv;
 	struct comedi_subdevice *s;
 	int i;
-	unsigned long iobase;
 	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: rti802: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, RTI802_SIZE, "rti802")) {
-		printk(KERN_WARNING "I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], RTI802_SIZE);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
