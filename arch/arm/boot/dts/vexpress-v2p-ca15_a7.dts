@@ -134,7 +134,7 @@
 	};
 
 	pmu {
-		compatible = "arm,cortex-a15-pmu", "arm,cortex-a9-pmu";
+		compatible = "arm,cortex-a15-pmu";
 		interrupts = <0 68 4>,
 			     <0 69 4>;
 	};
