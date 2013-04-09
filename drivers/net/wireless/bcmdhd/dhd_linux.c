@@ -3504,6 +3504,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	int ret = 0;
 	char eventmask[WL_EVENTING_MASK_LEN];
 	char iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" + '\0' + bitvec  */
+	uint32 buf_key_b4_m4 = 1;
 #ifdef CUSTOM_AMPDU_BA_WSIZE
 	uint32 ampdu_ba_wsize = CUSTOM_AMPDU_BA_WSIZE;
 #endif /* CUSTOM_AMPDU_BA_WSIZE */
@@ -3797,6 +3798,9 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 			__FUNCTION__, CUSTOM_AMPDU_BA_WSIZE, ret));
 	}
 #endif /* CUSTOM_AMPDU_BA_WSIZE */
+
+	bcm_mkiovar("buf_key_b4_m4", (char *)&buf_key_b4_m4, 4, iovbuf, sizeof(iovbuf));
+	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 
 	/* Read event_msgs mask */
 	bcm_mkiovar("event_msgs", eventmask, WL_EVENTING_MASK_LEN, iovbuf, sizeof(iovbuf));

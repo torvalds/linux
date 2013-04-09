@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.c 389705 2013-03-07 20:04:22Z $
+ * $Id: wl_cfgp2p.c 394172 2013-04-01 09:44:27Z $
  *
  */
 #include <typedefs.h>
@@ -1676,24 +1676,28 @@ wl_cfgp2p_action_tx_complete(struct wl_priv *wl, struct net_device *ndev,
 	u32 event_type = ntoh32(e->event_type);
 	u32 status = ntoh32(e->status);
 	CFGP2P_DBG((" Enter\n"));
-	if (event_type == WLC_E_ACTION_FRAME_COMPLETE) {
+	if (wl_get_drv_status_all(wl, SENDING_ACT_FRM)) {
+		if (event_type == WLC_E_ACTION_FRAME_COMPLETE) {
 
-		CFGP2P_INFO((" WLC_E_ACTION_FRAME_COMPLETE is received : %d\n", status));
-		if (status == WLC_E_STATUS_SUCCESS) {
-			wl_set_p2p_status(wl, ACTION_TX_COMPLETED);
-			CFGP2P_DBG(("WLC_E_ACTION_FRAME_COMPLETE : ACK\n"));
-		}
-		else {
-			wl_set_p2p_status(wl, ACTION_TX_NOACK);
-			CFGP2P_INFO(("WLC_E_ACTION_FRAME_COMPLETE : NO ACK\n"));
-			wl_stop_wait_next_action_frame(wl, ndev);
-		}
-	} else {
-		CFGP2P_INFO((" WLC_E_ACTION_FRAME_OFFCHAN_COMPLETE is received,"
-					"status : %d\n", status));
+			CFGP2P_INFO((" WLC_E_ACTION_FRAME_COMPLETE is received : %d\n", status));
+			if (status == WLC_E_STATUS_SUCCESS) {
+				wl_set_p2p_status(wl, ACTION_TX_COMPLETED);
+				CFGP2P_DBG(("WLC_E_ACTION_FRAME_COMPLETE : ACK\n"));
+			}
+			else {
+				if (!wl_get_p2p_status(wl, ACTION_TX_COMPLETED)) {
+				wl_set_p2p_status(wl, ACTION_TX_NOACK);
+				CFGP2P_INFO(("WLC_E_ACTION_FRAME_COMPLETE : NO ACK\n"));
+				wl_stop_wait_next_action_frame(wl, ndev);
+				}
+			}
+		} else {
+			CFGP2P_INFO((" WLC_E_ACTION_FRAME_OFFCHAN_COMPLETE is received,"
+						"status : %d\n", status));
 
-		if (wl_get_drv_status_all(wl, SENDING_ACT_FRM))
-			complete(&wl->send_af_done);
+			if (wl_get_drv_status_all(wl, SENDING_ACT_FRM))
+				complete(&wl->send_af_done);
+		}
 	}
 	return ret;
 }

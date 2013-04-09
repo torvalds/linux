@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_wlfc.c 390836 2013-03-13 23:43:53Z $
+ * $Id: dhd_wlfc.c 395161 2013-04-05 13:19:38Z $
  *
  */
 
@@ -59,6 +59,9 @@ typedef struct dhd_wlfc_commit_info {
 
 
 #ifdef PROP_TXSTATUS
+
+#define DHD_WLFC_QMON_COMPLETE(entry)
+
 void
 dhd_wlfc_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 {
@@ -1709,6 +1712,7 @@ dhd_wlfc_compressed_txstatus_update(dhd_pub_t *dhd, uint8* pkt_info, uint8 len)
 				/* indicate failure and free the packet */
 				dhd_txcomplete(dhd, pktbuf, FALSE);
 				entry->transit_count--;
+				DHD_WLFC_QMON_COMPLETE(entry);
 				/* packet is transmitted Successfully by dongle
 				 * after first suppress.
 				 */
@@ -1727,6 +1731,7 @@ dhd_wlfc_compressed_txstatus_update(dhd_pub_t *dhd, uint8* pkt_info, uint8 len)
 		else {
 			dhd_txcomplete(dhd, pktbuf, TRUE);
 			entry->transit_count--;
+			DHD_WLFC_QMON_COMPLETE(entry);
 
 			/* This packet is transmitted Successfully by dongle
 			 * even after first suppress.
@@ -1870,7 +1875,10 @@ dhd_wlfc_txstatus_update(dhd_pub_t *dhd, uint8* pkt_info)
 			/* indicate failure and free the packet */
 			dhd_txcomplete(dhd, pktbuf, FALSE);
 			entry->transit_count--;
-			/* packet is transmitted Successfully by dongle after first suppress. */
+			DHD_WLFC_QMON_COMPLETE(entry);
+			/* This packet is transmitted Successfully by
+			 *  dongle even after first suppress.
+			 */
 			if (entry->suppressed) {
 				entry->suppr_transit_count--;
 			}
@@ -1886,6 +1894,7 @@ dhd_wlfc_txstatus_update(dhd_pub_t *dhd, uint8* pkt_info)
 	else {
 		dhd_txcomplete(dhd, pktbuf, TRUE);
 		entry->transit_count--;
+		DHD_WLFC_QMON_COMPLETE(entry);
 
 		/* This packet is transmitted Successfully by dongle even after first suppress. */
 		if (entry->suppressed) {

@@ -2184,8 +2184,10 @@ dhd_bus_rxctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 #endif /* DHD_DEBUG */
 	}
 	if (timeleft == 0) {
-		bus->dhd->rxcnt_timeout++;
-		DHD_ERROR(("%s: rxcnt_timeout=%d\n", __FUNCTION__, bus->dhd->rxcnt_timeout));
+		if (rxlen == 0)
+			bus->dhd->rxcnt_timeout++;
+		DHD_ERROR(("%s: rxcnt_timeout=%d, rxlen=%d\n", __FUNCTION__,
+			bus->dhd->rxcnt_timeout, rxlen));
 	}
 	else
 		bus->dhd->rxcnt_timeout = 0;
