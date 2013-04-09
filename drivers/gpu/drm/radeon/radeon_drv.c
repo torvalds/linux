@@ -72,9 +72,10 @@
  *   2.29.0 - R500 FP16 color clear registers
  *   2.30.0 - fix for FMASK texturing
  *   2.31.0 - Add fastfb support for rs690
+ *   2.32.0 - new info request for rings working
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	31
+#define KMS_DRIVER_MINOR	32
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);

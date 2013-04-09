@@ -379,6 +379,23 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	case RADEON_INFO_FASTFB_WORKING:
 		value = rdev->fastfb_working;
 		break;
+	case RADEON_INFO_RING_WORKING:
+		switch (value) {
+		case RADEON_CS_RING_GFX:
+		case RADEON_CS_RING_COMPUTE:
+			value = rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready;
+			break;
+		case RADEON_CS_RING_DMA:
+			value = rdev->ring[R600_RING_TYPE_DMA_INDEX].ready;
+			value |= rdev->ring[CAYMAN_RING_TYPE_DMA1_INDEX].ready;
+			break;
+		case RADEON_CS_RING_UVD:
+			value = rdev->ring[R600_RING_TYPE_UVD_INDEX].ready;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;

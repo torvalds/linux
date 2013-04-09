@@ -975,6 +975,8 @@ struct drm_radeon_cs {
 #define RADEON_INFO_MAX_SH_PER_SE	0x13
 /* fast fb access is enabled */
 #define RADEON_INFO_FASTFB_WORKING	0x14
+/* query if a RADEON_CS_RING_* submission is supported */
+#define RADEON_INFO_RING_WORKING	0x15
 
 
 struct drm_radeon_info {
