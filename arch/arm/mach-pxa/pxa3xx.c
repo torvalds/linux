@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/gpio-pxa.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
@@ -436,6 +437,10 @@ void __init pxa3xx_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 	pxa_register_device(&pxa3xx_device_i2c_power, info);
 }
 
+static struct pxa_gpio_platform_data pxa3xx_gpio_pdata = {
+	.irq_base	= PXA_GPIO_TO_IRQ(0),
+};
+
 static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_udc,
 	&pxa_device_pmu,
@@ -488,8 +493,12 @@ static int __init pxa3xx_init(void)
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 		if (ret)
 			return ret;
-		if (cpu_is_pxa300() || cpu_is_pxa310() || cpu_is_pxa320())
+		if (cpu_is_pxa300() || cpu_is_pxa310() || cpu_is_pxa320()) {
+			platform_device_add_data(&pxa3xx_device_gpio,
+						 &pxa3xx_gpio_pdata,
+						 sizeof(pxa3xx_gpio_pdata));
 			ret = platform_device_register(&pxa3xx_device_gpio);
+		}
 	}
 
 	return ret;

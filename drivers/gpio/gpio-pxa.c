@@ -574,19 +574,18 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 	int gpio, irq, ret, use_of = 0;
 	int irq0 = 0, irq1 = 0, irq_mux, gpio_offset = 0;
 
-	ret = pxa_gpio_probe_dt(pdev);
-	if (ret < 0) {
+	info = dev_get_platdata(&pdev->dev);
+	if (info) {
+		irq_base = info->irq_base;
+		if (irq_base <= 0)
+			return -EINVAL;
 		pxa_last_gpio = pxa_gpio_nums(pdev);
-#ifdef CONFIG_ARCH_PXA
-		if (gpio_is_pxa_type(gpio_type))
-			irq_base = PXA_GPIO_TO_IRQ(0);
-#endif
-#ifdef CONFIG_ARCH_MMP
-		if (gpio_is_mmp_type(gpio_type))
-			irq_base = MMP_GPIO_TO_IRQ(0);
-#endif
 	} else {
+		irq_base = 0;
 		use_of = 1;
+		ret = pxa_gpio_probe_dt(pdev);
+		if (ret < 0)
+			return -EINVAL;
 	}
 
 	if (!pxa_last_gpio)
@@ -623,7 +622,6 @@ static int pxa_gpio_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize GPIO chips */
-	info = dev_get_platdata(&pdev->dev);
 	pxa_init_gpio_chip(pxa_last_gpio, info ? info->gpio_set_wake : NULL);
 
 	/* clear all GPIO edge detects */

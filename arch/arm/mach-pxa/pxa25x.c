@@ -344,7 +344,8 @@ void __init pxa25x_map_io(void)
 }
 
 static struct pxa_gpio_platform_data pxa25x_gpio_info __initdata = {
-	.gpio_set_wake = gpio_set_wake,
+	.irq_base	= PXA_GPIO_TO_IRQ(0),
+	.gpio_set_wake	= gpio_set_wake,
 };
 
 static struct platform_device *pxa25x_devices[] __initdata = {
