@@ -31,6 +31,7 @@ struct combiner_chip_data {
 	unsigned int irq_offset;
 	unsigned int irq_mask;
 	void __iomem *base;
+	unsigned int parent_irq;
 };
 
 static struct irq_domain *combiner_irq_domain;
@@ -87,22 +88,46 @@ static void combiner_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+#ifdef CONFIG_SMP
+static int combiner_set_affinity(struct irq_data *d,
+				 const struct cpumask *mask_val, bool force)
+{
+	struct combiner_chip_data *chip_data = irq_data_get_irq_chip_data(d);
+	struct irq_chip *chip = irq_get_chip(chip_data->parent_irq);
+	struct irq_data *data = irq_get_irq_data(chip_data->parent_irq);
+
+	if (chip && chip->irq_set_affinity)
+		return chip->irq_set_affinity(data, mask_val, force);
+	else
+		return -EINVAL;
+}
+#endif
+
 static struct irq_chip combiner_chip = {
-	.name		= "COMBINER",
-	.irq_mask	= combiner_mask_irq,
-	.irq_unmask	= combiner_unmask_irq,
+	.name			= "COMBINER",
+	.irq_mask		= combiner_mask_irq,
+	.irq_unmask		= combiner_unmask_irq,
+#ifdef CONFIG_SMP
+	.irq_set_affinity	= combiner_set_affinity,
+#endif
 };
 
-static void __init combiner_cascade_irq(unsigned int combiner_nr, unsigned int irq)
+static unsigned int max_combiner_nr(void)
 {
-	unsigned int max_nr;
-
 	if (soc_is_exynos5250())
-		max_nr = EXYNOS5_MAX_COMBINER_NR;
+		return EXYNOS5_MAX_COMBINER_NR;
+	else if (soc_is_exynos4412())
+		return EXYNOS4412_MAX_COMBINER_NR;
+	else if (soc_is_exynos4212())
+		return EXYNOS4212_MAX_COMBINER_NR;
 	else
-		max_nr = EXYNOS4_MAX_COMBINER_NR;
+		return EXYNOS4210_MAX_COMBINER_NR;
+}
 
-	if (combiner_nr >= max_nr)
+static void __init combiner_cascade_irq(unsigned int combiner_nr,
+					unsigned int irq)
+{
+	if (combiner_nr >= max_combiner_nr())
 		BUG();
 	if (irq_set_handler_data(irq, &combiner_data[combiner_nr]) != 0)
 		BUG();
@@ -110,12 +135,13 @@ static void __init combiner_cascade_irq(unsigned int combiner_nr, unsigned int i
 }
 
 static void __init combiner_init_one(unsigned int combiner_nr,
-				     void __iomem *base)
+				     void __iomem *base, unsigned int irq)
 {
 	combiner_data[combiner_nr].base = base;
 	combiner_data[combiner_nr].irq_offset = irq_find_mapping(
 		combiner_irq_domain, combiner_nr * MAX_IRQ_IN_COMBINER);
 	combiner_data[combiner_nr].irq_mask = 0xff << ((combiner_nr % 4) << 3);
+	combiner_data[combiner_nr].parent_irq = irq;
 
 	/* Disable all interrupts */
 	__raw_writel(combiner_data[combiner_nr].irq_mask,
@@ -166,23 +192,38 @@ static struct irq_domain_ops combiner_irq_domain_ops = {
 	.map	= combiner_irq_domain_map,
 };
 
+static unsigned int exynos4x12_combiner_extra_irq(int group)
+{
+	switch (group) {
+	case 16:
+		return IRQ_SPI(107);
+	case 17:
+		return IRQ_SPI(108);
+	case 18:
+		return IRQ_SPI(48);
+	case 19:
+		return IRQ_SPI(42);
+	default:
+		return 0;
+	}
+}
+
 void __init combiner_init(void __iomem *combiner_base,
 			  struct device_node *np)
 {
 	int i, irq, irq_base;
 	unsigned int max_nr, nr_irq;
 
+	max_nr = max_combiner_nr();
+
 	if (np) {
 		if (of_property_read_u32(np, "samsung,combiner-nr", &max_nr)) {
-			pr_warning("%s: number of combiners not specified, "
+			pr_info("%s: number of combiners not specified, "
 				"setting default as %d.\n",
-				__func__, EXYNOS4_MAX_COMBINER_NR);
-			max_nr = EXYNOS4_MAX_COMBINER_NR;
+				__func__, max_nr);
 		}
-	} else {
-		max_nr = soc_is_exynos5250() ? EXYNOS5_MAX_COMBINER_NR :
-						EXYNOS4_MAX_COMBINER_NR;
 	}
+
 	nr_irq = max_nr * MAX_IRQ_IN_COMBINER;
 
 	irq_base = irq_alloc_descs(COMBINER_IRQ(0, 0), 1, nr_irq, 0);
@@ -199,12 +240,15 @@ void __init combiner_init(void __iomem *combiner_base,
 	}
 
 	for (i = 0; i < max_nr; i++) {
-		combiner_init_one(i, combiner_base + (i >> 2) * 0x10);
-		irq = IRQ_SPI(i);
+		if (i < EXYNOS4210_MAX_COMBINER_NR || soc_is_exynos5250())
+			irq = IRQ_SPI(i);
+		else
+			irq = exynos4x12_combiner_extra_irq(i);
 #ifdef CONFIG_OF
 		if (np)
 			irq = irq_of_parse_and_map(np, i);
 #endif
+		combiner_init_one(i, combiner_base + (i >> 2) * 0x10, irq);
 		combiner_cascade_irq(i, irq);
 	}
 }
