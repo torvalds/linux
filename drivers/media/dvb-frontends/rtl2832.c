@@ -432,21 +432,11 @@ static int rtl2832_init(struct dvb_frontend *fe)
 		{DVBT_TR_THD_SET2,		0x6},
 		{DVBT_TRK_KC_I2,		0x5},
 		{DVBT_CR_THD_SET2,		0x1},
-		{DVBT_SPEC_INV,			0x0},
 	};
 
 	dev_dbg(&priv->i2c->dev, "%s:\n", __func__);
 
 	en_bbin = (priv->cfg.if_dvbt == 0 ? 0x1 : 0x0);
-
-	/*
-	* PSET_IFFREQ = - floor((IfFreqHz % CrystalFreqHz) * pow(2, 22)
-	*		/ CrystalFreqHz)
-	*/
-	pset_iffreq = priv->cfg.if_dvbt % priv->cfg.xtal;
-	pset_iffreq *= 0x400000;
-	pset_iffreq = div_u64(pset_iffreq, priv->cfg.xtal);
-	pset_iffreq = pset_iffreq & 0x3fffff;
 
 	for (i = 0; i < ARRAY_SIZE(rtl2832_initial_regs); i++) {
 		ret = rtl2832_wr_demod_reg(priv, rtl2832_initial_regs[i].reg,
@@ -472,6 +462,10 @@ static int rtl2832_init(struct dvb_frontend *fe)
 		len = ARRAY_SIZE(rtl2832_tuner_init_e4000);
 		init = rtl2832_tuner_init_e4000;
 		break;
+	case RTL2832_TUNER_R820T:
+		len = ARRAY_SIZE(rtl2832_tuner_init_r820t);
+		init = rtl2832_tuner_init_r820t;
+		break;
 	default:
 		ret = -EINVAL;
 		goto err;
@@ -483,14 +477,43 @@ static int rtl2832_init(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	/* if frequency settings */
-	ret = rtl2832_wr_demod_reg(priv, DVBT_EN_BBIN, en_bbin);
-		if (ret)
-			goto err;
+	/*
+	 * if frequency settings
+	 * Some tuners (r820t) don't initialize IF here; instead; they do it
+	 * at set_params()
+	 */
+	if (!fe->ops.tuner_ops.get_if_frequency) {
+		/*
+		* PSET_IFFREQ = - floor((IfFreqHz % CrystalFreqHz) * pow(2, 22)
+		*		/ CrystalFreqHz)
+		*/
+		pset_iffreq = priv->cfg.if_dvbt % priv->cfg.xtal;
+		pset_iffreq *= 0x400000;
+		pset_iffreq = div_u64(pset_iffreq, priv->cfg.xtal);
+		pset_iffreq = pset_iffreq & 0x3fffff;
+		ret = rtl2832_wr_demod_reg(priv, DVBT_EN_BBIN, en_bbin);
+			if (ret)
+				goto err;
 
-	ret = rtl2832_wr_demod_reg(priv, DVBT_PSET_IFFREQ, pset_iffreq);
-		if (ret)
-			goto err;
+		ret = rtl2832_wr_demod_reg(priv, DVBT_PSET_IFFREQ, pset_iffreq);
+			if (ret)
+				goto err;
+	}
+
+	/*
+	 * r820t NIM code does a software reset here at the demod -
+	 * may not be needed, as there's already a software reset at set_params()
+	 */
+#if 1
+	/* soft reset */
+	ret = rtl2832_wr_demod_reg(priv, DVBT_SOFT_RST, 0x1);
+	if (ret)
+		goto err;
+
+	ret = rtl2832_wr_demod_reg(priv, DVBT_SOFT_RST, 0x0);
+	if (ret)
+		goto err;
+#endif
 
 	priv->sleeping = false;
 
@@ -563,6 +586,25 @@ static int rtl2832_set_frontend(struct dvb_frontend *fe)
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
 		fe->ops.tuner_ops.set_params(fe);
+
+	/* If the frontend has get_if_frequency(), use it */
+	if (fe->ops.tuner_ops.get_if_frequency) {
+		u32 if_freq;
+		u64 pset_iffreq;
+
+		ret = fe->ops.tuner_ops.get_if_frequency(fe, &if_freq);
+		if (ret)
+			goto err;
+
+		pset_iffreq = if_freq % priv->cfg.xtal;
+		pset_iffreq *= 0x400000;
+		pset_iffreq = div_u64(pset_iffreq, priv->cfg.xtal);
+		pset_iffreq = pset_iffreq & 0x3fffff;
+
+		ret = rtl2832_wr_demod_reg(priv, DVBT_PSET_IFFREQ, pset_iffreq);
+		if (ret)
+			goto err;
+	}
 
 	switch (c->bandwidth_hz) {
 	case 6000000:
