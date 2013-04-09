@@ -1495,6 +1495,9 @@ static void cik_gpu_init(struct radeon_device *rdev)
 	WREG32(DMIF_ADDR_CALC, gb_addr_config);
 	WREG32(SDMA0_TILING_CONFIG + SDMA0_REGISTER_OFFSET, gb_addr_config & 0x70);
 	WREG32(SDMA0_TILING_CONFIG + SDMA1_REGISTER_OFFSET, gb_addr_config & 0x70);
+	WREG32(UVD_UDEC_ADDR_CONFIG, gb_addr_config);
+	WREG32(UVD_UDEC_DB_ADDR_CONFIG, gb_addr_config);
+	WREG32(UVD_UDEC_DBW_ADDR_CONFIG, gb_addr_config);
 
 	cik_tiling_mode_table_init(rdev);
 
@@ -4906,6 +4909,16 @@ static int cik_startup(struct radeon_device *rdev)
 		return r;
 	}
 
+	r = cik_uvd_resume(rdev);
+	if (!r) {
+		r = radeon_fence_driver_start_ring(rdev,
+						   R600_RING_TYPE_UVD_INDEX);
+		if (r)
+			dev_err(rdev->dev, "UVD fences init error (%d).\n", r);
+	}
+	if (r)
+		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
+
 	/* Enable IRQ */
 	if (!rdev->irq.installed) {
 		r = radeon_irq_kms_init(rdev);
@@ -4951,6 +4964,18 @@ static int cik_startup(struct radeon_device *rdev)
 	r = cik_sdma_resume(rdev);
 	if (r)
 		return r;
+
+	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+	if (ring->ring_size) {
+		r = radeon_ring_init(rdev, ring, ring->ring_size,
+				     R600_WB_UVD_RPTR_OFFSET,
+				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
+				     0, 0xfffff, RADEON_CP_PACKET2);
+		if (!r)
+			r = r600_uvd_init(rdev);
+		if (r)
+			DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
+	}
 
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
@@ -5009,6 +5034,8 @@ int cik_suspend(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	cik_cp_enable(rdev, false);
 	cik_sdma_enable(rdev, false);
+	r600_uvd_rbc_stop(rdev);
+	radeon_uvd_suspend(rdev);
 	cik_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	cik_pcie_gart_disable(rdev);
@@ -5092,6 +5119,13 @@ int cik_init(struct radeon_device *rdev)
 	ring->ring_obj = NULL;
 	r600_ring_init(rdev, ring, 256 * 1024);
 
+	r = radeon_uvd_init(rdev);
+	if (!r) {
+		ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+		ring->ring_obj = NULL;
+		r600_ring_init(rdev, ring, 4096);
+	}
+
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
 
@@ -5146,6 +5180,7 @@ void cik_fini(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
+	radeon_uvd_fini(rdev);
 	cik_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
@@ -5713,3 +5748,79 @@ uint64_t cik_get_gpu_clock_counter(struct radeon_device *rdev)
 	return clock;
 }
 
+static int cik_set_uvd_clock(struct radeon_device *rdev, u32 clock,
+                              u32 cntl_reg, u32 status_reg)
+{
+	int r, i;
+	struct atom_clock_dividers dividers;
+	uint32_t tmp;
+
+	r = radeon_atom_get_clock_dividers(rdev, COMPUTE_GPUCLK_INPUT_FLAG_DEFAULT_GPUCLK,
+					   clock, false, &dividers);
+	if (r)
+		return r;
+
+	tmp = RREG32_SMC(cntl_reg);
+	tmp &= ~(DCLK_DIR_CNTL_EN|DCLK_DIVIDER_MASK);
+	tmp |= dividers.post_divider;
+	WREG32_SMC(cntl_reg, tmp);
+
+	for (i = 0; i < 100; i++) {
+		if (RREG32_SMC(status_reg) & DCLK_STATUS)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+int cik_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
+{
+	int r = 0;
+
+	r = cik_set_uvd_clock(rdev, vclk, CG_VCLK_CNTL, CG_VCLK_STATUS);
+	if (r)
+		return r;
+
+	r = cik_set_uvd_clock(rdev, dclk, CG_DCLK_CNTL, CG_DCLK_STATUS);
+	return r;
+}
+
+int cik_uvd_resume(struct radeon_device *rdev)
+{
+	uint64_t addr;
+	uint32_t size;
+	int r;
+
+	r = radeon_uvd_resume(rdev);
+	if (r)
+		return r;
+
+	/* programm the VCPU memory controller bits 0-27 */
+	addr = rdev->uvd.gpu_addr >> 3;
+	size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 4) >> 3;
+	WREG32(UVD_VCPU_CACHE_OFFSET0, addr);
+	WREG32(UVD_VCPU_CACHE_SIZE0, size);
+
+	addr += size;
+	size = RADEON_UVD_STACK_SIZE >> 3;
+	WREG32(UVD_VCPU_CACHE_OFFSET1, addr);
+	WREG32(UVD_VCPU_CACHE_SIZE1, size);
+
+	addr += size;
+	size = RADEON_UVD_HEAP_SIZE >> 3;
+	WREG32(UVD_VCPU_CACHE_OFFSET2, addr);
+	WREG32(UVD_VCPU_CACHE_SIZE2, size);
+
+	/* bits 28-31 */
+	addr = (rdev->uvd.gpu_addr >> 28) & 0xF;
+	WREG32(UVD_LMI_ADDR_EXT, (addr << 12) | (addr << 0));
+
+	/* bits 32-39 */
+	addr = (rdev->uvd.gpu_addr >> 32) & 0xFF;
+	WREG32(UVD_LMI_EXT40_ADDR, addr | (0x9 << 16) | (0x1 << 31));
+
+	return 0;
+}

@@ -44,11 +44,13 @@
 #define FIRMWARE_CYPRESS	"radeon/CYPRESS_uvd.bin"
 #define FIRMWARE_SUMO		"radeon/SUMO_uvd.bin"
 #define FIRMWARE_TAHITI		"radeon/TAHITI_uvd.bin"
+#define FIRMWARE_BONAIRE	"radeon/BONAIRE_uvd.bin"
 
 MODULE_FIRMWARE(FIRMWARE_RV710);
 MODULE_FIRMWARE(FIRMWARE_CYPRESS);
 MODULE_FIRMWARE(FIRMWARE_SUMO);
 MODULE_FIRMWARE(FIRMWARE_TAHITI);
+MODULE_FIRMWARE(FIRMWARE_BONAIRE);
 
 static void radeon_uvd_idle_work_handler(struct work_struct *work);
 
@@ -98,6 +100,12 @@ int radeon_uvd_init(struct radeon_device *rdev)
 	case CHIP_PITCAIRN:
 	case CHIP_ARUBA:
 		fw_name = FIRMWARE_TAHITI;
+		break;
+
+	case CHIP_BONAIRE:
+	case CHIP_KABINI:
+	case CHIP_KAVERI:
+		fw_name = FIRMWARE_BONAIRE;
 		break;
 
 	default:

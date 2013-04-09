@@ -1204,4 +1204,32 @@
 #       define SDMA_SRBM_WRITE_EXTRA_BYTE_ENABLE(x)       ((x) << 12)
                 /* byte mask */
 
+/* UVD */
+
+#define UVD_UDEC_ADDR_CONFIG		0xef4c
+#define UVD_UDEC_DB_ADDR_CONFIG		0xef50
+#define UVD_UDEC_DBW_ADDR_CONFIG	0xef54
+
+#define UVD_LMI_EXT40_ADDR		0xf498
+#define UVD_LMI_ADDR_EXT		0xf594
+#define UVD_VCPU_CACHE_OFFSET0		0xf608
+#define UVD_VCPU_CACHE_SIZE0		0xf60c
+#define UVD_VCPU_CACHE_OFFSET1		0xf610
+#define UVD_VCPU_CACHE_SIZE1		0xf614
+#define UVD_VCPU_CACHE_OFFSET2		0xf618
+#define UVD_VCPU_CACHE_SIZE2		0xf61c
+
+#define UVD_RBC_RB_RPTR			0xf690
+#define UVD_RBC_RB_WPTR			0xf694
+
+/* UVD clocks */
+
+#define CG_DCLK_CNTL			0xC050009C
+#	define DCLK_DIVIDER_MASK	0x7f
+#	define DCLK_DIR_CNTL_EN		(1 << 8)
+#define CG_DCLK_STATUS			0xC05000A0
+#	define DCLK_STATUS		(1 << 0)
+#define CG_VCLK_CNTL			0xC05000A4
+#define CG_VCLK_STATUS			0xC05000A8
+
 #endif
