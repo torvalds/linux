@@ -372,16 +372,13 @@ static int dev_8255_attach(struct comedi_device *dev,
 		s = &dev->subdevices[i];
 		iobase = it->options[i];
 
-		if (!request_region(iobase, _8255_SIZE, "8255")) {
-			dev_warn(dev->class_dev,
-				"0x%04lx (I/O port conflict)\n", iobase);
-
+		ret = __comedi_request_region(dev, iobase, _8255_SIZE);
+		if (ret) {
 			s->type = COMEDI_SUBD_UNUSED;
 		} else {
 			ret = subdev_8255_init(dev, s, NULL, iobase);
 			if (ret)
 				return ret;
-			dev_info(dev->class_dev, "0x%04lx\n", iobase);
 		}
 	}
 
