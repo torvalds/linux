@@ -2261,6 +2261,14 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	}
 	/* enabled rb are just the one not disabled :) */
 	disabled_rb_mask = tmp;
+	tmp = 0;
+	for (i = 0; i < rdev->config.evergreen.max_backends; i++)
+		tmp |= (1 << i);
+	/* if all the backends are disabled, fix it up here */
+	if ((disabled_rb_mask & tmp) == tmp) {
+		for (i = 0; i < rdev->config.evergreen.max_backends; i++)
+			disabled_rb_mask &= ~(1 << i);
+	}
 
 	WREG32(GRBM_GFX_INDEX, INSTANCE_BROADCAST_WRITES | SE_BROADCAST_WRITES);
 	WREG32(RLC_GFX_INDEX, INSTANCE_BROADCAST_WRITES | SE_BROADCAST_WRITES);
