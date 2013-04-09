@@ -5,8 +5,6 @@
 if ARCH_SHMOBILE || SUPERH
 
 config PINCTRL_SH_PFC
-	# XXX move off the gpio dependency
-	depends on GPIOLIB
 	select GPIO_SH_PFC if ARCH_REQUIRE_GPIOLIB
 	select PINMUX
 	select PINCONF
