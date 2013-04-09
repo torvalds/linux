@@ -22,7 +22,7 @@
 #include <linux/cpumask.h>
 #include <linux/delay.h>
 #include <linux/cpu_pm.h>
-#include <linux/clk.h>
+#include <linux/suspend.h>
 #include <linux/err.h>
 #include <linux/clk/tegra.h>
 
@@ -37,66 +37,12 @@
 #include "reset.h"
 #include "flowctrl.h"
 #include "fuse.h"
+#include "pmc.h"
 #include "sleep.h"
 
-#define TEGRA_POWER_CPU_PWRREQ_OE	(1 << 16)  /* CPU pwr req enable */
-
-#define PMC_CTRL		0x0
-#define PMC_CPUPWRGOOD_TIMER	0xc8
-#define PMC_CPUPWROFF_TIMER	0xcc
-
 #ifdef CONFIG_PM_SLEEP
-static unsigned int g_diag_reg;
 static DEFINE_SPINLOCK(tegra_lp2_lock);
-static void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
-static struct clk *tegra_pclk;
 void (*tegra_tear_down_cpu)(void);
-
-void save_cpu_arch_register(void)
-{
-	/* read diagnostic register */
-	asm("mrc p15, 0, %0, c15, c0, 1" : "=r"(g_diag_reg) : : "cc");
-	return;
-}
-
-void restore_cpu_arch_register(void)
-{
-	/* write diagnostic register */
-	asm("mcr p15, 0, %0, c15, c0, 1" : : "r"(g_diag_reg) : "cc");
-	return;
-}
-
-static void set_power_timers(unsigned long us_on, unsigned long us_off)
-{
-	unsigned long long ticks;
-	unsigned long long pclk;
-	unsigned long rate;
-	static unsigned long tegra_last_pclk;
-
-	if (tegra_pclk == NULL) {
-		tegra_pclk = clk_get_sys(NULL, "pclk");
-		WARN_ON(IS_ERR(tegra_pclk));
-	}
-
-	rate = clk_get_rate(tegra_pclk);
-
-	if (WARN_ON_ONCE(rate <= 0))
-		pclk = 100000000;
-	else
-		pclk = rate;
-
-	if ((rate != tegra_last_pclk)) {
-		ticks = (us_on * pclk) + 999999ull;
-		do_div(ticks, 1000000);
-		writel((unsigned long)ticks, pmc + PMC_CPUPWRGOOD_TIMER);
-
-		ticks = (us_off * pclk) + 999999ull;
-		do_div(ticks, 1000000);
-		writel((unsigned long)ticks, pmc + PMC_CPUPWROFF_TIMER);
-		wmb();
-	}
-	tegra_last_pclk = pclk;
-}
 
 /*
  * restore_cpu_complex
@@ -119,8 +65,6 @@ static void restore_cpu_complex(void)
 	tegra_cpu_clock_resume();
 
 	flowctrl_cpu_suspend_exit(cpu);
-
-	restore_cpu_arch_register();
 }
 
 /*
@@ -145,8 +89,6 @@ static void suspend_cpu_complex(void)
 	tegra_cpu_clock_suspend();
 
 	flowctrl_cpu_suspend_enter(cpu);
-
-	save_cpu_arch_register();
 }
 
 void tegra_clear_cpu_in_lp2(int phy_cpu_id)
@@ -197,16 +139,9 @@ static int tegra_sleep_cpu(unsigned long v2p)
 	return 0;
 }
 
-void tegra_idle_lp2_last(u32 cpu_on_time, u32 cpu_off_time)
+void tegra_idle_lp2_last(void)
 {
-	u32 mode;
-
-	/* Only the last cpu down does the final suspend steps */
-	mode = readl(pmc + PMC_CTRL);
-	mode |= TEGRA_POWER_CPU_PWRREQ_OE;
-	writel(mode, pmc + PMC_CTRL);
-
-	set_power_timers(cpu_on_time, cpu_off_time);
+	tegra_pmc_pm_set(TEGRA_SUSPEND_LP2);
 
 	cpu_cluster_pm_enter();
 	suspend_cpu_complex();
@@ -215,5 +150,82 @@ void tegra_idle_lp2_last(u32 cpu_on_time, u32 cpu_off_time)
 
 	restore_cpu_complex();
 	cpu_cluster_pm_exit();
+}
+
+enum tegra_suspend_mode tegra_pm_validate_suspend_mode(
+				enum tegra_suspend_mode mode)
+{
+	/* Tegra114 didn't support any suspending mode yet. */
+	if (tegra_chip_id == TEGRA114)
+		return TEGRA_SUSPEND_NONE;
+
+	/*
+	 * The Tegra devices only support suspending to LP2 currently.
+	 */
+	if (mode > TEGRA_SUSPEND_LP2)
+		return TEGRA_SUSPEND_LP2;
+
+	return mode;
+}
+
+static const char *lp_state[TEGRA_MAX_SUSPEND_MODE] = {
+	[TEGRA_SUSPEND_NONE] = "none",
+	[TEGRA_SUSPEND_LP2] = "LP2",
+	[TEGRA_SUSPEND_LP1] = "LP1",
+	[TEGRA_SUSPEND_LP0] = "LP0",
+};
+
+static int __cpuinit tegra_suspend_enter(suspend_state_t state)
+{
+	enum tegra_suspend_mode mode = tegra_pmc_get_suspend_mode();
+
+	if (WARN_ON(mode < TEGRA_SUSPEND_NONE ||
+		    mode >= TEGRA_MAX_SUSPEND_MODE))
+		return -EINVAL;
+
+	pr_info("Entering suspend state %s\n", lp_state[mode]);
+
+	tegra_pmc_pm_set(mode);
+
+	local_fiq_disable();
+
+	suspend_cpu_complex();
+	switch (mode) {
+	case TEGRA_SUSPEND_LP2:
+		tegra_set_cpu_in_lp2(0);
+		break;
+	default:
+		break;
+	}
+
+	cpu_suspend(PHYS_OFFSET - PAGE_OFFSET, &tegra_sleep_cpu);
+
+	switch (mode) {
+	case TEGRA_SUSPEND_LP2:
+		tegra_clear_cpu_in_lp2(0);
+		break;
+	default:
+		break;
+	}
+	restore_cpu_complex();
+
+	local_fiq_enable();
+
+	return 0;
+}
+
+static const struct platform_suspend_ops tegra_suspend_ops = {
+	.valid		= suspend_valid_only_mem,
+	.enter		= tegra_suspend_enter,
+};
+
+void __init tegra_init_suspend(void)
+{
+	if (tegra_pmc_get_suspend_mode() == TEGRA_SUSPEND_NONE)
+		return;
+
+	tegra_pmc_suspend_init();
+
+	suspend_set_ops(&tegra_suspend_ops);
 }
 #endif

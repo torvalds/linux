@@ -1,6 +1,7 @@
 /*
- * nVidia Tegra device tree board support
+ * NVIDIA Tegra SoC device tree board support
  *
+ * Copyright (C) 2011, 2013, NVIDIA Corporation
  * Copyright (C) 2010 Secret Lab Technologies, Ltd.
  * Copyright (C) 2010 Google, Inc.
  *
@@ -32,6 +33,8 @@
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/i2c-tegra.h>
+#include <linux/slab.h>
+#include <linux/sys_soc.h>
 #include <linux/usb/tegra_usb_phy.h>
 
 #include <asm/mach-types.h>
@@ -41,6 +44,7 @@
 
 #include "board.h"
 #include "common.h"
+#include "fuse.h"
 #include "iomap.h"
 
 static struct tegra_ehci_platform_data tegra_ehci1_pdata = {
@@ -79,12 +83,36 @@ static struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
 
 static void __init tegra_dt_init(void)
 {
+	struct soc_device_attribute *soc_dev_attr;
+	struct soc_device *soc_dev;
+	struct device *parent = NULL;
+
+	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		goto out;
+
+	soc_dev_attr->family = kasprintf(GFP_KERNEL, "Tegra");
+	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%d", tegra_revision);
+	soc_dev_attr->soc_id = kasprintf(GFP_KERNEL, "%d", tegra_chip_id);
+
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR(soc_dev)) {
+		kfree(soc_dev_attr->family);
+		kfree(soc_dev_attr->revision);
+		kfree(soc_dev_attr->soc_id);
+		kfree(soc_dev_attr);
+		goto out;
+	}
+
+	parent = soc_device_to_device(soc_dev);
+
 	/*
 	 * Finished with the static registrations now; fill in the missing
 	 * devices
 	 */
+out:
 	of_platform_populate(NULL, of_default_bus_match_table,
-				tegra20_auxdata_lookup, NULL);
+				tegra20_auxdata_lookup, parent);
 }
 
 static void __init trimslice_init(void)
@@ -111,7 +139,8 @@ static void __init harmony_init(void)
 
 static void __init paz00_init(void)
 {
-	tegra_paz00_wifikill_init();
+	if (IS_ENABLED(CONFIG_ARCH_TEGRA_2x_SOC))
+		tegra_paz00_wifikill_init();
 }
 
 static struct {
@@ -137,19 +166,21 @@ static void __init tegra_dt_init_late(void)
 	}
 }
 
-static const char *tegra20_dt_board_compat[] = {
+static const char * const tegra_dt_board_compat[] = {
+	"nvidia,tegra114",
+	"nvidia,tegra30",
 	"nvidia,tegra20",
 	NULL
 };
 
-DT_MACHINE_START(TEGRA_DT, "nVidia Tegra20 (Flattened Device Tree)")
+DT_MACHINE_START(TEGRA_DT, "NVIDIA Tegra SoC (Flattened Device Tree)")
 	.map_io		= tegra_map_common_io,
 	.smp		= smp_ops(tegra_smp_ops),
-	.init_early	= tegra20_init_early,
+	.init_early	= tegra_init_early,
 	.init_irq	= tegra_dt_init_irq,
 	.init_time	= clocksource_of_init,
 	.init_machine	= tegra_dt_init,
 	.init_late	= tegra_dt_init_late,
 	.restart	= tegra_assert_system_reset,
-	.dt_compat	= tegra20_dt_board_compat,
+	.dt_compat	= tegra_dt_board_compat,
 MACHINE_END

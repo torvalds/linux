@@ -99,8 +99,10 @@
 	};
 
 	pmc {
-		compatible = "nvidia,tegra114-pmc", "nvidia,tegra30-pmc";
+		compatible = "nvidia,tegra114-pmc";
 		reg = <0x7000e400 0x400>;
+		clocks = <&tegra_car 261>, <&clk32k_in>;
+		clock-names = "pclk", "clk32k_in";
 	};
 
 	iommu {
