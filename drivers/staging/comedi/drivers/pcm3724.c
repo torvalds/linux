@@ -226,27 +226,16 @@ static int pcm3724_attach(struct comedi_device *dev,
 {
 	struct priv_pcm3724 *priv;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
-	unsigned int iorange;
 	int ret, i;
-
-	iobase = it->options[0];
-	iorange = PCM3724_SIZE;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 	dev->private = priv;
 
-	printk(KERN_INFO "comedi%d: pcm3724: board=%s, 0x%03lx ", dev->minor,
-	       dev->board_name, iobase);
-	if (!iobase || !request_region(iobase, iorange, "pcm3724")) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-
-	dev->iobase = iobase;
-	printk(KERN_INFO "\n");
+	ret = comedi_request_region(dev, it->options[0], PCM3724_SIZE);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
