@@ -160,17 +160,11 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int i;
 	const struct comedi_lrange *current_range_type, *voltage_range_type;
-	unsigned long iobase;
 	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: dt2815: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, DT2815_SIZE, "dt2815")) {
-		printk(KERN_WARNING "I/O port conflict\n");
-		return -EIO;
-	}
-
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], DT2815_SIZE);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
