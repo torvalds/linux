@@ -25,6 +25,7 @@
 #include <linux/opp.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 
 #include <asm/smp_plat.h>
@@ -243,7 +244,7 @@ static struct cpufreq_driver omap_driver = {
 	.attr		= omap_cpufreq_attr,
 };
 
-static int __init omap_cpufreq_init(void)
+static int omap_cpufreq_probe(struct platform_device *pdev)
 {
 	mpu_dev = get_cpu_device(0);
 	if (!mpu_dev) {
@@ -271,12 +272,20 @@ static int __init omap_cpufreq_init(void)
 	return cpufreq_register_driver(&omap_driver);
 }
 
-static void __exit omap_cpufreq_exit(void)
+static int omap_cpufreq_remove(struct platform_device *pdev)
 {
-	cpufreq_unregister_driver(&omap_driver);
+	return cpufreq_unregister_driver(&omap_driver);
 }
+
+static struct platform_driver omap_cpufreq_platdrv = {
+	.driver = {
+		.name	= "omap-cpufreq",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= omap_cpufreq_probe,
+	.remove		= omap_cpufreq_remove,
+};
+module_platform_driver(omap_cpufreq_platdrv);
 
 MODULE_DESCRIPTION("cpufreq driver for OMAP SoCs");
 MODULE_LICENSE("GPL");
-module_init(omap_cpufreq_init);
-module_exit(omap_cpufreq_exit);
