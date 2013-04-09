@@ -657,7 +657,7 @@ resume_kernel:
 	/* Clear _TIF_EMULATE_STACK_STORE flag */
 	lis	r11,_TIF_EMULATE_STACK_STORE@h
 	addi	r5,r9,TI_FLAGS
-	ldarx	r4,0,r5
+0:	ldarx	r4,0,r5
 	andc	r4,r4,r11
 	stdcx.	r4,0,r5
 	bne-	0b
