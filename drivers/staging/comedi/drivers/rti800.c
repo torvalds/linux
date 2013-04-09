@@ -169,10 +169,10 @@ static int rti800_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_insn *insn, unsigned int *data)
 {
 	struct rti800_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int gain = CR_RANGE(insn->chanspec);
 	int i, t;
 	int status;
-	int chan = CR_CHAN(insn->chanspec);
-	unsigned gain = CR_RANGE(insn->chanspec);
 	unsigned muxgain_bits;
 
 	inb(dev->iobase + RTI800_ADCHI);
@@ -223,7 +223,7 @@ static int rti800_ao_insn_read(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct rti800_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
 
 	for (i = 0; i < insn->n; i++)
@@ -238,7 +238,7 @@ static int rti800_ao_insn_write(struct comedi_device *dev,
 				unsigned int *data)
 {
 	struct rti800_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int reg_lo = chan ? RTI800_DAC1LO : RTI800_DAC0LO;
 	int reg_hi = chan ? RTI800_DAC1HI : RTI800_DAC0HI;
 	int val = devpriv->ao_readback[chan];
