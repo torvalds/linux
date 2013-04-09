@@ -583,6 +583,7 @@ static int dwc3_remove(struct platform_device *pdev)
 		break;
 	}
 
+	dwc3_free_event_buffers(dwc);
 	dwc3_core_exit(dwc);
 
 	return 0;
