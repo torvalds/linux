@@ -437,15 +437,9 @@ static int ni_atmio_attach(struct comedi_device *dev,
 		devpriv->isapnp_dev = isapnp_dev;
 	}
 
-	/* reserve our I/O region */
-
-	printk("comedi%d: ni_atmio: 0x%04lx", dev->minor, iobase);
-	if (!request_region(iobase, NI_SIZE, "ni_atmio")) {
-		printk(" I/O port conflict\n");
-		return -EIO;
-	}
-
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, iobase, NI_SIZE);
+	if (ret)
+		return ret;
 
 #ifdef DEBUG
 	/* board existence sanity check */
