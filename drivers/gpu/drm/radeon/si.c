@@ -1211,6 +1211,7 @@ static void si_tiling_mode_table_init(struct radeon_device *rdev)
 				gb_tile_moden = 0;
 				break;
 			}
+			rdev->config.si.tile_mode_array[reg_offset] = gb_tile_moden;
 			WREG32(GB_TILE_MODE0 + (reg_offset * 4), gb_tile_moden);
 		}
 	} else if ((rdev->family == CHIP_VERDE) ||
@@ -1451,6 +1452,7 @@ static void si_tiling_mode_table_init(struct radeon_device *rdev)
 				gb_tile_moden = 0;
 				break;
 			}
+			rdev->config.si.tile_mode_array[reg_offset] = gb_tile_moden;
 			WREG32(GB_TILE_MODE0 + (reg_offset * 4), gb_tile_moden);
 		}
 	} else

@@ -977,6 +977,8 @@ struct drm_radeon_cs {
 #define RADEON_INFO_FASTFB_WORKING	0x14
 /* query if a RADEON_CS_RING_* submission is supported */
 #define RADEON_INFO_RING_WORKING	0x15
+/* SI tile mode array */
+#define RADEON_INFO_SI_TILE_MODE_ARRAY	0x16
 
 
 struct drm_radeon_info {
@@ -984,5 +986,23 @@ struct drm_radeon_info {
 	uint32_t		pad;
 	uint64_t		value;
 };
+
+/* Those correspond to the tile index to use, this is to explicitly state
+ * the API that is implicitly defined by the tile mode array.
+ */
+#define SI_TILE_MODE_COLOR_LINEAR_ALIGNED	8
+#define SI_TILE_MODE_COLOR_1D			13
+#define SI_TILE_MODE_COLOR_1D_SCANOUT		9
+#define SI_TILE_MODE_COLOR_2D_8BPP		14
+#define SI_TILE_MODE_COLOR_2D_16BPP		15
+#define SI_TILE_MODE_COLOR_2D_32BPP		16
+#define SI_TILE_MODE_COLOR_2D_64BPP		17
+#define SI_TILE_MODE_COLOR_2D_SCANOUT_16BPP	11
+#define SI_TILE_MODE_COLOR_2D_SCANOUT_32BPP	12
+#define SI_TILE_MODE_DEPTH_STENCIL_1D		4
+#define SI_TILE_MODE_DEPTH_STENCIL_2D		0
+#define SI_TILE_MODE_DEPTH_STENCIL_2D_2AA	3
+#define SI_TILE_MODE_DEPTH_STENCIL_2D_4AA	3
+#define SI_TILE_MODE_DEPTH_STENCIL_2D_8AA	2
 
 #endif
