@@ -329,11 +329,11 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	s = &dev->subdevices[0];
 	/* ai subdevice */
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = (it->options[2] ? 16 : 8);
-	s->insn_read = rti800_ai_insn_read;
-	s->maxdata = 0xfff;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
+	s->n_chan	= (it->options[2] ? 16 : 8);
+	s->insn_read	= rti800_ai_insn_read;
+	s->maxdata	= 0x0fff;
 	s->range_table	= (it->options[3] < ARRAY_SIZE(rti800_ai_ranges))
 				? rti800_ai_ranges[it->options[3]]
 				: &range_unknown;
@@ -341,12 +341,12 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[1];
 	if (board->has_ao) {
 		/* ao subdevice (only on rti815) */
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITABLE;
-		s->n_chan = 2;
-		s->insn_read = rti800_ao_insn_read;
-		s->insn_write = rti800_ao_insn_write;
-		s->maxdata = 0xfff;
+		s->type		= COMEDI_SUBD_AO;
+		s->subdev_flags	= SDF_WRITABLE;
+		s->n_chan	= 2;
+		s->insn_read	= rti800_ao_insn_read;
+		s->insn_write	= rti800_ao_insn_write;
+		s->maxdata	= 0x0fff;
 		s->range_table_list = devpriv->ao_range_type_list;
 		devpriv->ao_range_type_list[0] =
 			(it->options[5] < ARRAY_SIZE(rti800_ao_ranges))
@@ -357,33 +357,31 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				? rti800_ao_ranges[it->options[7]]
 				: &range_unknown;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	s = &dev->subdevices[2];
 	/* di */
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 8;
-	s->insn_bits = rti800_di_insn_bits;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 8;
+	s->insn_bits	= rti800_di_insn_bits;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
 
 	s = &dev->subdevices[3];
 	/* do */
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 8;
-	s->insn_bits = rti800_do_insn_bits;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 8;
+	s->insn_bits	= rti800_do_insn_bits;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
 
-/* don't yet know how to deal with counter/timers */
-#if 0
-	s = &dev->subdevices[4];
-	/* do */
-	s->type = COMEDI_SUBD_TIMER;
-#endif
+	/*
+	 * There is also an Am9513 timer on these boards. This subdevice
+	 * is not currently supported.
+	 */
 
 	return 0;
 }
