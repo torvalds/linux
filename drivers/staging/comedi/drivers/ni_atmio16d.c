@@ -638,20 +638,13 @@ static int atmio16d_attach(struct comedi_device *dev,
 {
 	const struct atmio16_board_t *board = comedi_board(dev);
 	struct atmio16d_private *devpriv;
+	struct comedi_subdevice *s;
 	unsigned int irq;
-	unsigned long iobase;
 	int ret;
 
-	struct comedi_subdevice *s;
-
-	/* make sure the address range is free and allocate it */
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: atmio16d: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, ATMIO16D_SIZE, dev->board_name)) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], ATMIO16D_SIZE);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
