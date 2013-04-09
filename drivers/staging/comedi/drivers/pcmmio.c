@@ -1034,22 +1034,14 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int sdev_no, chans_left, n_dio_subdevs, n_subdevs, port, asic,
 	    thisasic_chanct = 0;
-	unsigned long iobase;
 	unsigned int irq[MAX_ASICS];
 	int ret;
 
-	iobase = it->options[0];
 	irq[0] = it->options[1];
 
-	printk(KERN_INFO "comedi%d: %s: io: %lx attaching...\n", dev->minor,
-			dev->board_name, iobase);
-
-	dev->iobase = iobase;
-
-	if (!iobase || !request_region(iobase, 32, dev->board_name)) {
-		printk(KERN_ERR "comedi%d: I/O port conflict\n", dev->minor);
-		return -EIO;
-	}
+	ret = comedi_request_region(dev, it->options[0], 32);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -1205,8 +1197,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				 * grr.. wish comedi dev struct supported
 				 * multiple irqs..
 				 */
-
-	printk(KERN_INFO "comedi%d: attached\n", dev->minor);
 
 	return 1;
 }
