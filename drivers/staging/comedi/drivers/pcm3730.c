@@ -54,18 +54,11 @@ static int pcm3730_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: pcm3730: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, PCM3730_SIZE, "pcm3730")) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
-	dev->iobase = dev->iobase;
-	dev->irq = 0;
+	ret = comedi_request_region(dev, it->options[0], PCM3730_SIZE);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 6);
 	if (ret)
