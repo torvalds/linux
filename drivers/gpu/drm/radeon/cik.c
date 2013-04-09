@@ -72,9 +72,11 @@ extern int r600_ih_ring_alloc(struct radeon_device *rdev);
 extern void r600_ih_ring_fini(struct radeon_device *rdev);
 extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
 extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save);
+extern bool evergreen_is_display_hung(struct radeon_device *rdev);
 extern void si_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern void si_rlc_fini(struct radeon_device *rdev);
 extern int si_rlc_init(struct radeon_device *rdev);
+static void cik_rlc_stop(struct radeon_device *rdev);
 
 #define BONAIRE_IO_MC_REGS_SIZE 36
 
@@ -2733,8 +2735,269 @@ int cik_sdma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	return r;
 }
 
+
+static void cik_print_gpu_status_regs(struct radeon_device *rdev)
+{
+	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
+		RREG32(GRBM_STATUS));
+	dev_info(rdev->dev, "  GRBM_STATUS2=0x%08X\n",
+		RREG32(GRBM_STATUS2));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
+		RREG32(GRBM_STATUS_SE0));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
+		RREG32(GRBM_STATUS_SE1));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE2=0x%08X\n",
+		RREG32(GRBM_STATUS_SE2));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE3=0x%08X\n",
+		RREG32(GRBM_STATUS_SE3));
+	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
+		RREG32(SRBM_STATUS));
+	dev_info(rdev->dev, "  SRBM_STATUS2=0x%08X\n",
+		RREG32(SRBM_STATUS2));
+	dev_info(rdev->dev, "  SDMA0_STATUS_REG   = 0x%08X\n",
+		RREG32(SDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET));
+	dev_info(rdev->dev, "  SDMA1_STATUS_REG   = 0x%08X\n",
+		 RREG32(SDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET));
+}
+
 /**
- * cik_gpu_is_lockup - check if the 3D engine is locked up
+ * cik_gpu_check_soft_reset - check which blocks are busy
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Check which blocks are busy and return the relevant reset
+ * mask to be used by cik_gpu_soft_reset().
+ * Returns a mask of the blocks to be reset.
+ */
+static u32 cik_gpu_check_soft_reset(struct radeon_device *rdev)
+{
+	u32 reset_mask = 0;
+	u32 tmp;
+
+	/* GRBM_STATUS */
+	tmp = RREG32(GRBM_STATUS);
+	if (tmp & (PA_BUSY | SC_BUSY |
+		   BCI_BUSY | SX_BUSY |
+		   TA_BUSY | VGT_BUSY |
+		   DB_BUSY | CB_BUSY |
+		   GDS_BUSY | SPI_BUSY |
+		   IA_BUSY | IA_BUSY_NO_DMA))
+		reset_mask |= RADEON_RESET_GFX;
+
+	if (tmp & (CP_BUSY | CP_COHERENCY_BUSY))
+		reset_mask |= RADEON_RESET_CP;
+
+	/* GRBM_STATUS2 */
+	tmp = RREG32(GRBM_STATUS2);
+	if (tmp & RLC_BUSY)
+		reset_mask |= RADEON_RESET_RLC;
+
+	/* SDMA0_STATUS_REG */
+	tmp = RREG32(SDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET);
+	if (!(tmp & SDMA_IDLE))
+		reset_mask |= RADEON_RESET_DMA;
+
+	/* SDMA1_STATUS_REG */
+	tmp = RREG32(SDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET);
+	if (!(tmp & SDMA_IDLE))
+		reset_mask |= RADEON_RESET_DMA1;
+
+	/* SRBM_STATUS2 */
+	tmp = RREG32(SRBM_STATUS2);
+	if (tmp & SDMA_BUSY)
+		reset_mask |= RADEON_RESET_DMA;
+
+	if (tmp & SDMA1_BUSY)
+		reset_mask |= RADEON_RESET_DMA1;
+
+	/* SRBM_STATUS */
+	tmp = RREG32(SRBM_STATUS);
+
+	if (tmp & IH_BUSY)
+		reset_mask |= RADEON_RESET_IH;
+
+	if (tmp & SEM_BUSY)
+		reset_mask |= RADEON_RESET_SEM;
+
+	if (tmp & GRBM_RQ_PENDING)
+		reset_mask |= RADEON_RESET_GRBM;
+
+	if (tmp & VMC_BUSY)
+		reset_mask |= RADEON_RESET_VMC;
+
+	if (tmp & (MCB_BUSY | MCB_NON_DISPLAY_BUSY |
+		   MCC_BUSY | MCD_BUSY))
+		reset_mask |= RADEON_RESET_MC;
+
+	if (evergreen_is_display_hung(rdev))
+		reset_mask |= RADEON_RESET_DISPLAY;
+
+	/* Skip MC reset as it's mostly likely not hung, just busy */
+	if (reset_mask & RADEON_RESET_MC) {
+		DRM_DEBUG("MC busy: 0x%08X, clearing.\n", reset_mask);
+		reset_mask &= ~RADEON_RESET_MC;
+	}
+
+	return reset_mask;
+}
+
+/**
+ * cik_gpu_soft_reset - soft reset GPU
+ *
+ * @rdev: radeon_device pointer
+ * @reset_mask: mask of which blocks to reset
+ *
+ * Soft reset the blocks specified in @reset_mask.
+ */
+static void cik_gpu_soft_reset(struct radeon_device *rdev, u32 reset_mask)
+{
+	struct evergreen_mc_save save;
+	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
+	u32 tmp;
+
+	if (reset_mask == 0)
+		return;
+
+	dev_info(rdev->dev, "GPU softreset: 0x%08X\n", reset_mask);
+
+	cik_print_gpu_status_regs(rdev);
+	dev_info(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
+		 RREG32(VM_CONTEXT1_PROTECTION_FAULT_ADDR));
+	dev_info(rdev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
+		 RREG32(VM_CONTEXT1_PROTECTION_FAULT_STATUS));
+
+	/* stop the rlc */
+	cik_rlc_stop(rdev);
+
+	/* Disable GFX parsing/prefetching */
+	WREG32(CP_ME_CNTL, CP_ME_HALT | CP_PFP_HALT | CP_CE_HALT);
+
+	/* Disable MEC parsing/prefetching */
+	WREG32(CP_MEC_CNTL, MEC_ME1_HALT | MEC_ME2_HALT);
+
+	if (reset_mask & RADEON_RESET_DMA) {
+		/* sdma0 */
+		tmp = RREG32(SDMA0_ME_CNTL + SDMA0_REGISTER_OFFSET);
+		tmp |= SDMA_HALT;
+		WREG32(SDMA0_ME_CNTL + SDMA0_REGISTER_OFFSET, tmp);
+	}
+	if (reset_mask & RADEON_RESET_DMA1) {
+		/* sdma1 */
+		tmp = RREG32(SDMA0_ME_CNTL + SDMA1_REGISTER_OFFSET);
+		tmp |= SDMA_HALT;
+		WREG32(SDMA0_ME_CNTL + SDMA1_REGISTER_OFFSET, tmp);
+	}
+
+	evergreen_mc_stop(rdev, &save);
+	if (evergreen_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
+	}
+
+	if (reset_mask & (RADEON_RESET_GFX | RADEON_RESET_COMPUTE | RADEON_RESET_CP))
+		grbm_soft_reset = SOFT_RESET_CP | SOFT_RESET_GFX;
+
+	if (reset_mask & RADEON_RESET_CP) {
+		grbm_soft_reset |= SOFT_RESET_CP;
+
+		srbm_soft_reset |= SOFT_RESET_GRBM;
+	}
+
+	if (reset_mask & RADEON_RESET_DMA)
+		srbm_soft_reset |= SOFT_RESET_SDMA;
+
+	if (reset_mask & RADEON_RESET_DMA1)
+		srbm_soft_reset |= SOFT_RESET_SDMA1;
+
+	if (reset_mask & RADEON_RESET_DISPLAY)
+		srbm_soft_reset |= SOFT_RESET_DC;
+
+	if (reset_mask & RADEON_RESET_RLC)
+		grbm_soft_reset |= SOFT_RESET_RLC;
+
+	if (reset_mask & RADEON_RESET_SEM)
+		srbm_soft_reset |= SOFT_RESET_SEM;
+
+	if (reset_mask & RADEON_RESET_IH)
+		srbm_soft_reset |= SOFT_RESET_IH;
+
+	if (reset_mask & RADEON_RESET_GRBM)
+		srbm_soft_reset |= SOFT_RESET_GRBM;
+
+	if (reset_mask & RADEON_RESET_VMC)
+		srbm_soft_reset |= SOFT_RESET_VMC;
+
+	if (!(rdev->flags & RADEON_IS_IGP)) {
+		if (reset_mask & RADEON_RESET_MC)
+			srbm_soft_reset |= SOFT_RESET_MC;
+	}
+
+	if (grbm_soft_reset) {
+		tmp = RREG32(GRBM_SOFT_RESET);
+		tmp |= grbm_soft_reset;
+		dev_info(rdev->dev, "GRBM_SOFT_RESET=0x%08X\n", tmp);
+		WREG32(GRBM_SOFT_RESET, tmp);
+		tmp = RREG32(GRBM_SOFT_RESET);
+
+		udelay(50);
+
+		tmp &= ~grbm_soft_reset;
+		WREG32(GRBM_SOFT_RESET, tmp);
+		tmp = RREG32(GRBM_SOFT_RESET);
+	}
+
+	if (srbm_soft_reset) {
+		tmp = RREG32(SRBM_SOFT_RESET);
+		tmp |= srbm_soft_reset;
+		dev_info(rdev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
+		WREG32(SRBM_SOFT_RESET, tmp);
+		tmp = RREG32(SRBM_SOFT_RESET);
+
+		udelay(50);
+
+		tmp &= ~srbm_soft_reset;
+		WREG32(SRBM_SOFT_RESET, tmp);
+		tmp = RREG32(SRBM_SOFT_RESET);
+	}
+
+	/* Wait a little for things to settle down */
+	udelay(50);
+
+	evergreen_mc_resume(rdev, &save);
+	udelay(50);
+
+	cik_print_gpu_status_regs(rdev);
+}
+
+/**
+ * cik_asic_reset - soft reset GPU
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Look up which blocks are hung and attempt
+ * to reset them.
+ * Returns 0 for success.
+ */
+int cik_asic_reset(struct radeon_device *rdev)
+{
+	u32 reset_mask;
+
+	reset_mask = cik_gpu_check_soft_reset(rdev);
+
+	if (reset_mask)
+		r600_set_bios_scratch_engine_hung(rdev, true);
+
+	cik_gpu_soft_reset(rdev, reset_mask);
+
+	reset_mask = cik_gpu_check_soft_reset(rdev);
+
+	if (!reset_mask)
+		r600_set_bios_scratch_engine_hung(rdev, false);
+
+	return 0;
+}
+
+/**
+ * cik_gfx_is_lockup - check if the 3D engine is locked up
  *
  * @rdev: radeon_device pointer
  * @ring: radeon_ring structure holding ring information
@@ -2742,189 +3005,19 @@ int cik_sdma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
  * Check if the 3D engine is locked up (CIK).
  * Returns true if the engine is locked, false if not.
  */
-bool cik_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
+bool cik_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	u32 srbm_status, srbm_status2;
-	u32 grbm_status, grbm_status2;
-	u32 grbm_status_se0, grbm_status_se1, grbm_status_se2, grbm_status_se3;
+	u32 reset_mask = cik_gpu_check_soft_reset(rdev);
 
-	srbm_status = RREG32(SRBM_STATUS);
-	srbm_status2 = RREG32(SRBM_STATUS2);
-	grbm_status = RREG32(GRBM_STATUS);
-	grbm_status2 = RREG32(GRBM_STATUS2);
-	grbm_status_se0 = RREG32(GRBM_STATUS_SE0);
-	grbm_status_se1 = RREG32(GRBM_STATUS_SE1);
-	grbm_status_se2 = RREG32(GRBM_STATUS_SE2);
-	grbm_status_se3 = RREG32(GRBM_STATUS_SE3);
-	if (!(grbm_status & GUI_ACTIVE)) {
+	if (!(reset_mask & (RADEON_RESET_GFX |
+			    RADEON_RESET_COMPUTE |
+			    RADEON_RESET_CP))) {
 		radeon_ring_lockup_update(ring);
 		return false;
 	}
 	/* force CP activities */
 	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
-}
-
-/**
- * cik_gfx_gpu_soft_reset - soft reset the 3D engine and CPG
- *
- * @rdev: radeon_device pointer
- *
- * Soft reset the GFX engine and CPG blocks (CIK).
- * XXX: deal with reseting RLC and CPF
- * Returns 0 for success.
- */
-static int cik_gfx_gpu_soft_reset(struct radeon_device *rdev)
-{
-	struct evergreen_mc_save save;
-	u32 grbm_reset = 0;
-
-	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
-		return 0;
-
-	dev_info(rdev->dev, "GPU GFX softreset \n");
-	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
-		RREG32(GRBM_STATUS));
-	dev_info(rdev->dev, "  GRBM_STATUS2=0x%08X\n",
-		RREG32(GRBM_STATUS2));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
-		RREG32(GRBM_STATUS_SE0));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
-		RREG32(GRBM_STATUS_SE1));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE2=0x%08X\n",
-		RREG32(GRBM_STATUS_SE2));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE3=0x%08X\n",
-		RREG32(GRBM_STATUS_SE3));
-	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
-		RREG32(SRBM_STATUS));
-	dev_info(rdev->dev, "  SRBM_STATUS2=0x%08X\n",
-		RREG32(SRBM_STATUS2));
-	evergreen_mc_stop(rdev, &save);
-	if (radeon_mc_wait_for_idle(rdev)) {
-		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
-	}
-	/* Disable CP parsing/prefetching */
-	WREG32(CP_ME_CNTL, CP_ME_HALT | CP_PFP_HALT | CP_CE_HALT);
-
-	/* reset all the gfx block and all CPG blocks */
-	grbm_reset = SOFT_RESET_CPG | SOFT_RESET_GFX;
-
-	dev_info(rdev->dev, "  GRBM_SOFT_RESET=0x%08X\n", grbm_reset);
-	WREG32(GRBM_SOFT_RESET, grbm_reset);
-	(void)RREG32(GRBM_SOFT_RESET);
-	udelay(50);
-	WREG32(GRBM_SOFT_RESET, 0);
-	(void)RREG32(GRBM_SOFT_RESET);
-	/* Wait a little for things to settle down */
-	udelay(50);
-	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
-		RREG32(GRBM_STATUS));
-	dev_info(rdev->dev, "  GRBM_STATUS2=0x%08X\n",
-		RREG32(GRBM_STATUS2));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
-		RREG32(GRBM_STATUS_SE0));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
-		RREG32(GRBM_STATUS_SE1));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE2=0x%08X\n",
-		RREG32(GRBM_STATUS_SE2));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE3=0x%08X\n",
-		RREG32(GRBM_STATUS_SE3));
-	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
-		RREG32(SRBM_STATUS));
-	dev_info(rdev->dev, "  SRBM_STATUS2=0x%08X\n",
-		RREG32(SRBM_STATUS2));
-	evergreen_mc_resume(rdev, &save);
-	return 0;
-}
-
-/**
- * cik_compute_gpu_soft_reset - soft reset CPC
- *
- * @rdev: radeon_device pointer
- *
- * Soft reset the CPC blocks (CIK).
- * XXX: deal with reseting RLC and CPF
- * Returns 0 for success.
- */
-static int cik_compute_gpu_soft_reset(struct radeon_device *rdev)
-{
-	struct evergreen_mc_save save;
-	u32 grbm_reset = 0;
-
-	dev_info(rdev->dev, "GPU compute softreset \n");
-	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
-		RREG32(GRBM_STATUS));
-	dev_info(rdev->dev, "  GRBM_STATUS2=0x%08X\n",
-		RREG32(GRBM_STATUS2));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
-		RREG32(GRBM_STATUS_SE0));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
-		RREG32(GRBM_STATUS_SE1));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE2=0x%08X\n",
-		RREG32(GRBM_STATUS_SE2));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE3=0x%08X\n",
-		RREG32(GRBM_STATUS_SE3));
-	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
-		RREG32(SRBM_STATUS));
-	dev_info(rdev->dev, "  SRBM_STATUS2=0x%08X\n",
-		RREG32(SRBM_STATUS2));
-	evergreen_mc_stop(rdev, &save);
-	if (radeon_mc_wait_for_idle(rdev)) {
-		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
-	}
-	/* Disable CP parsing/prefetching */
-	WREG32(CP_MEC_CNTL, MEC_ME1_HALT | MEC_ME2_HALT);
-
-	/* reset all the CPC blocks */
-	grbm_reset = SOFT_RESET_CPG;
-
-	dev_info(rdev->dev, "  GRBM_SOFT_RESET=0x%08X\n", grbm_reset);
-	WREG32(GRBM_SOFT_RESET, grbm_reset);
-	(void)RREG32(GRBM_SOFT_RESET);
-	udelay(50);
-	WREG32(GRBM_SOFT_RESET, 0);
-	(void)RREG32(GRBM_SOFT_RESET);
-	/* Wait a little for things to settle down */
-	udelay(50);
-	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
-		RREG32(GRBM_STATUS));
-	dev_info(rdev->dev, "  GRBM_STATUS2=0x%08X\n",
-		RREG32(GRBM_STATUS2));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
-		RREG32(GRBM_STATUS_SE0));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
-		RREG32(GRBM_STATUS_SE1));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE2=0x%08X\n",
-		RREG32(GRBM_STATUS_SE2));
-	dev_info(rdev->dev, "  GRBM_STATUS_SE3=0x%08X\n",
-		RREG32(GRBM_STATUS_SE3));
-	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
-		RREG32(SRBM_STATUS));
-	dev_info(rdev->dev, "  SRBM_STATUS2=0x%08X\n",
-		RREG32(SRBM_STATUS2));
-	evergreen_mc_resume(rdev, &save);
-	return 0;
-}
-
-/**
- * cik_asic_reset - soft reset compute and gfx
- *
- * @rdev: radeon_device pointer
- *
- * Soft reset the CPC blocks (CIK).
- * XXX: make this more fine grained and only reset
- * what is necessary.
- * Returns 0 for success.
- */
-int cik_asic_reset(struct radeon_device *rdev)
-{
-	int r;
-
-	r = cik_compute_gpu_soft_reset(rdev);
-	if (r)
-		dev_info(rdev->dev, "Compute reset failed!\n");
-
-	return cik_gfx_gpu_soft_reset(rdev);
 }
 
 /**
@@ -2938,13 +3031,15 @@ int cik_asic_reset(struct radeon_device *rdev)
  */
 bool cik_sdma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	u32 dma_status_reg;
+	u32 reset_mask = cik_gpu_check_soft_reset(rdev);
+	u32 mask;
 
 	if (ring->idx == R600_RING_TYPE_DMA_INDEX)
-		dma_status_reg = RREG32(SDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET);
+		mask = RADEON_RESET_DMA;
 	else
-		dma_status_reg = RREG32(SDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET);
-	if (dma_status_reg & SDMA_IDLE) {
+		mask = RADEON_RESET_DMA1;
+
+	if (!(reset_mask & mask)) {
 		radeon_ring_lockup_update(ring);
 		return false;
 	}
