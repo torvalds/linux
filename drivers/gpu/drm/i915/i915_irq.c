@@ -1213,7 +1213,7 @@ static void i915_gem_record_fences(struct drm_device *dev,
 	switch (INTEL_INFO(dev)->gen) {
 	case 7:
 	case 6:
-		for (i = 0; i < 16; i++)
+		for (i = 0; i < dev_priv->num_fence_regs; i++)
 			error->fence[i] = I915_READ64(FENCE_REG_SANDYBRIDGE_0 + (i * 8));
 		break;
 	case 5:
