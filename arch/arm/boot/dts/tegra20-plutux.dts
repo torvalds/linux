@@ -52,5 +52,8 @@
 
 		nvidia,spkr-en-gpios = <&wm8903 2 0>;
 		nvidia,hp-det-gpios = <&gpio 178 0>; /* gpio PW2 */
+
+		clocks = <&tegra_car 112>, <&tegra_car 113>, <&tegra_car 94>;
+		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 };
