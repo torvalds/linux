@@ -147,8 +147,6 @@ static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(KERN_INFO "comedi%d: poc: using %s iobase 0x%lx\n", dev->minor,
 	       board->name, iobase);
 
-	dev->board_name = board->name;
-
 	if (iobase == 0) {
 		printk(KERN_ERR "io base address required\n");
 		return -EINVAL;
@@ -156,7 +154,7 @@ static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	iosize = board->iosize;
 	/* check if io addresses are available */
-	if (!request_region(iobase, iosize, "dac02")) {
+	if (!request_region(iobase, iosize, dev->board_name)) {
 		printk(KERN_ERR "I/O port conflict: failed to allocate ports "
 			"0x%lx to 0x%lx\n", iobase, iobase + iosize - 1);
 		return -EIO;
