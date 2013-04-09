@@ -364,7 +364,7 @@ kmem_cache *slab)
 		min_stateid = 0;
 	return stid;
 out_free:
-	kfree(stid);
+	kmem_cache_free(slab, stid);
 	return NULL;
 }
 
