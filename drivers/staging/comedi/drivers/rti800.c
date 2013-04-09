@@ -223,7 +223,7 @@ static int rti800_ai_insn_read(struct comedi_device *dev,
 			data[i] ^= 0x800;
 	}
 
-	return i;
+	return insn->n;
 }
 
 static int rti800_ao_insn_read(struct comedi_device *dev,
