@@ -559,6 +559,9 @@ u32 si_get_xclk(struct radeon_device *rdev);
 uint64_t si_get_gpu_clock_counter(struct radeon_device *rdev);
 int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 
+/* DCE8 - CIK */
+void dce8_bandwidth_update(struct radeon_device *rdev);
+
 /*
  * cik
  */
@@ -568,5 +571,55 @@ uint32_t cik_pciep_rreg(struct radeon_device *rdev, uint32_t reg);
 void cik_pciep_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 int cik_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
 int cik_uvd_resume(struct radeon_device *rdev);
+void cik_sdma_fence_ring_emit(struct radeon_device *rdev,
+			      struct radeon_fence *fence);
+void cik_sdma_semaphore_ring_emit(struct radeon_device *rdev,
+				  struct radeon_ring *ring,
+				  struct radeon_semaphore *semaphore,
+				  bool emit_wait);
+void cik_sdma_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
+int cik_copy_dma(struct radeon_device *rdev,
+		 uint64_t src_offset, uint64_t dst_offset,
+		 unsigned num_gpu_pages,
+		 struct radeon_fence **fence);
+int cik_sdma_ring_test(struct radeon_device *rdev, struct radeon_ring *ring);
+int cik_sdma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
+bool cik_sdma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring);
+void cik_fence_gfx_ring_emit(struct radeon_device *rdev,
+			     struct radeon_fence *fence);
+void cik_fence_compute_ring_emit(struct radeon_device *rdev,
+				 struct radeon_fence *fence);
+void cik_semaphore_ring_emit(struct radeon_device *rdev,
+			     struct radeon_ring *cp,
+			     struct radeon_semaphore *semaphore,
+			     bool emit_wait);
+void cik_pcie_gart_tlb_flush(struct radeon_device *rdev);
+int cik_init(struct radeon_device *rdev);
+void cik_fini(struct radeon_device *rdev);
+int cik_suspend(struct radeon_device *rdev);
+int cik_resume(struct radeon_device *rdev);
+bool cik_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *cp);
+int cik_asic_reset(struct radeon_device *rdev);
+void cik_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
+int cik_ring_test(struct radeon_device *rdev, struct radeon_ring *ring);
+int cik_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
+int cik_irq_set(struct radeon_device *rdev);
+int cik_irq_process(struct radeon_device *rdev);
+int cik_vm_init(struct radeon_device *rdev);
+void cik_vm_fini(struct radeon_device *rdev);
+void cik_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
+void cik_vm_set_page(struct radeon_device *rdev,
+		     struct radeon_ib *ib,
+		     uint64_t pe,
+		     uint64_t addr, unsigned count,
+		     uint32_t incr, uint32_t flags);
+void cik_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
+int cik_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
+u32 cik_compute_ring_get_rptr(struct radeon_device *rdev,
+			      struct radeon_ring *ring);
+u32 cik_compute_ring_get_wptr(struct radeon_device *rdev,
+			      struct radeon_ring *ring);
+void cik_compute_ring_set_wptr(struct radeon_device *rdev,
+			       struct radeon_ring *ring);
 
 #endif
