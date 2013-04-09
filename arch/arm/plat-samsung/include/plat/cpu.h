@@ -183,7 +183,6 @@ extern void s3c_init_cpu(unsigned long idcode,
 
 /* core initialisation functions */
 
-extern void s3c24xx_init_irq(void);
 extern void s5p_init_irq(u32 *vic, u32 num_vic);
 
 extern void s3c24xx_init_io(struct map_desc *mach_desc, int size);

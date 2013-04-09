@@ -116,7 +116,7 @@ MACHINE_START(OTOM, "Nex Vision - Otom 1.1")
 	.atag_offset	= 0x100,
 	.map_io		= otom11_map_io,
 	.init_machine	= otom11_init,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2410_init_irq,
 	.init_time	= samsung_timer_init,
 	.restart	= s3c2410_restart,
 MACHINE_END

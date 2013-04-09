@@ -667,11 +667,6 @@ static void __init h1940_reserve(void)
 	memblock_reserve(0x30081000, 0x1000);
 }
 
-static void __init h1940_init_irq(void)
-{
-	s3c24xx_init_irq();
-}
-
 static void __init h1940_init(void)
 {
 	u32 tmp;
@@ -740,7 +735,7 @@ MACHINE_START(H1940, "IPAQ-H1940")
 	.atag_offset	= 0x100,
 	.map_io		= h1940_map_io,
 	.reserve	= h1940_reserve,
-	.init_irq	= h1940_init_irq,
+	.init_irq	= s3c2410_init_irq,
 	.init_machine	= h1940_init,
 	.init_time	= samsung_timer_init,
 	.restart	= s3c2410_restart,

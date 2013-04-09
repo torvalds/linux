@@ -149,7 +149,7 @@ static void __init tct_hammer_init(void)
 MACHINE_START(TCT_HAMMER, "TCT_HAMMER")
 	.atag_offset	= 0x100,
 	.map_io		= tct_hammer_map_io,
-	.init_irq	= s3c24xx_init_irq,
+	.init_irq	= s3c2410_init_irq,
 	.init_machine	= tct_hammer_init,
 	.init_time	= samsung_timer_init,
 	.restart	= s3c2410_restart,
