@@ -71,6 +71,8 @@ struct inet6_ifaddr {
 	struct inet6_ifaddr	*ifpub;
 	int			regen_count;
 #endif
+	bool			tokenized;
+
 	struct rcu_head		rcu;
 };
 
