@@ -4491,6 +4491,32 @@ static int tg3_init_5401phy_dsp(struct tg3 *tp)
 	return err;
 }
 
+static bool tg3_phy_eee_config_ok(struct tg3 *tp)
+{
+	u32 val;
+	u32 tgtadv = 0;
+	u32 advertising = tp->link_config.advertising;
+
+	if (!(tp->phy_flags & TG3_PHYFLG_EEE_CAP))
+		return true;
+
+	if (tg3_phy_cl45_read(tp, MDIO_MMD_AN, MDIO_AN_EEE_ADV, &val))
+		return false;
+
+	val &= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
+
+
+	if (advertising & ADVERTISED_100baseT_Full)
+		tgtadv |= MDIO_AN_EEE_ADV_100TX;
+	if (advertising & ADVERTISED_1000baseT_Full)
+		tgtadv |= MDIO_AN_EEE_ADV_1000T;
+
+	if (val != tgtadv)
+		return false;
+
+	return true;
+}
+
 static bool tg3_phy_copper_an_config_ok(struct tg3 *tp, u32 *lcladv)
 {
 	u32 advmsk, tgtadv, advertising;
@@ -4739,10 +4765,22 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 		tp->link_config.active_duplex = current_duplex;
 
 		if (tp->link_config.autoneg == AUTONEG_ENABLE) {
+			bool eee_config_ok = tg3_phy_eee_config_ok(tp);
+
 			if ((bmcr & BMCR_ANENABLE) &&
+			    eee_config_ok &&
 			    tg3_phy_copper_an_config_ok(tp, &lcl_adv) &&
 			    tg3_phy_copper_fetch_rmtadv(tp, &rmt_adv))
 				current_link_up = 1;
+
+			/* EEE settings changes take effect only after a phy
+			 * reset.  If we have skipped a reset due to Link Flap
+			 * Avoidance being enabled, do it now.
+			 */
+			if (!eee_config_ok &&
+			    (tp->phy_flags & TG3_PHYFLG_KEEP_LINK_ON_PWRDN) &&
+			    !force_reset)
+				tg3_phy_reset(tp);
 		} else {
 			if (!(bmcr & BMCR_ANENABLE) &&
 			    tp->link_config.speed == current_speed &&
