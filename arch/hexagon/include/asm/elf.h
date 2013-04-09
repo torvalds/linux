@@ -104,6 +104,16 @@ typedef unsigned long elf_fpregset_t;
  * Bypass the whole "regsets" thing for now and use the define.
  */
 
+#if CONFIG_HEXAGON_ARCH_VERSION >= 4
+#define CS_COPYREGS(DEST,REGS) \
+do {\
+	DEST.cs0 = REGS->cs0;\
+	DEST.cs1 = REGS->cs1;\
+} while (0)
+#else
+#define CS_COPYREGS(DEST,REGS)
+#endif
+
 #define ELF_CORE_COPY_REGS(DEST, REGS)	\
 do {					\
 	DEST.r0 = REGS->r00;		\
@@ -148,12 +158,11 @@ do {					\
 	DEST.p3_0 = REGS->preds;	\
 	DEST.gp = REGS->gp;		\
 	DEST.ugp = REGS->ugp;		\
-	DEST.pc = pt_elr(REGS);	\
+	CS_COPYREGS(DEST,REGS);		\
+	DEST.pc = pt_elr(REGS);		\
 	DEST.cause = pt_cause(REGS);	\
 	DEST.badva = pt_badva(REGS);	\
 } while (0);
-
-
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
