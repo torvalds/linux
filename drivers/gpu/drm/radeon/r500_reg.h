@@ -358,6 +358,7 @@
 #define AVIVO_D1CRTC_STATUS_HV_COUNT                            0x60ac
 #define AVIVO_D1CRTC_STEREO_CONTROL                             0x60c4
 
+#define AVIVO_D1MODE_MASTER_UPDATE_LOCK                         0x60e0
 #define AVIVO_D1MODE_MASTER_UPDATE_MODE                         0x60e4
 
 /* master controls */
