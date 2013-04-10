@@ -1080,7 +1080,6 @@ struct ext_clock_info {
 /* this structure is for data unique to this hardware driver. */
 struct pcidas64_private {
 	/*  base addresses (physical) */
-	resource_size_t plx9080_phys_iobase;
 	resource_size_t main_phys_iobase;
 	resource_size_t dio_counter_phys_iobase;
 	/*  base addresses (ioremapped) */
@@ -4053,13 +4052,8 @@ static int auto_attach(struct comedi_device *dev,
 	/* Initialize dev->board_name */
 	dev->board_name = thisboard->name;
 
-	dev->iobase = pci_resource_start(pcidev, 2);
-
-	devpriv->plx9080_phys_iobase =
-		pci_resource_start(pcidev, 0);
-	devpriv->main_phys_iobase = dev->iobase;
-	devpriv->dio_counter_phys_iobase =
-		pci_resource_start(pcidev, 3);
+	devpriv->main_phys_iobase = pci_resource_start(pcidev, 2);
+	devpriv->dio_counter_phys_iobase = pci_resource_start(pcidev, 3);
 
 	devpriv->plx9080_iobase = pci_ioremap_bar(pcidev, 0);
 	devpriv->main_iobase = pci_ioremap_bar(pcidev, 2);
