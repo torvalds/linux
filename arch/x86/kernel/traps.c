@@ -56,6 +56,7 @@
 #include <asm/fpu-internal.h>
 #include <asm/mce.h>
 #include <asm/context_tracking.h>
+#include <asm/fixmap.h>
 
 #include <asm/mach_traps.h>
 
@@ -751,6 +752,14 @@ void __init trap_init(void)
 	set_system_trap_gate(SYSCALL_VECTOR, &system_call);
 	set_bit(SYSCALL_VECTOR, used_vectors);
 #endif
+
+	/*
+	 * Set the IDT descriptor to a fixed read-only location, so that the
+	 * "sidt" instruction will not leak the location of the kernel, and
+	 * to defend the IDT against arbitrary memory write vulnerabilities.
+	 * It will be reloaded in cpu_init() */
+	__set_fixmap(FIX_RO_IDT, __pa_symbol(idt_table), PAGE_KERNEL_RO);
+	idt_descr.address = fix_to_virt(FIX_RO_IDT);
 
 	/*
 	 * Should be a barrier for any external CPU state:
