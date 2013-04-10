@@ -2055,6 +2055,14 @@ static int r820t_imr_callibrate(struct r820t_priv *priv)
 	return 0;
 }
 
+#if 0
+/* Not used, for now */
+static int r820t_gpio(struct r820t_priv *priv, bool enable)
+{
+	return r820t_write_reg_mask(priv, 0x0f, enable ? 1 : 0, 0x01);
+}
+#endif
+
 /*
  *  r820t frontend operations and tuner attach code
  *
