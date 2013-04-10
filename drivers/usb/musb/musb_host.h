@@ -37,15 +37,9 @@
 
 #include <linux/scatterlist.h>
 
-static inline struct usb_hcd *musb_to_hcd(struct musb *musb)
-{
-	return container_of((void *) musb, struct usb_hcd, hcd_priv);
-}
+#define musb_to_hcd(MUSB) ((MUSB)->hcd)
 
-static inline struct musb *hcd_to_musb(struct usb_hcd *hcd)
-{
-	return (struct musb *) (hcd->hcd_priv);
-}
+extern struct musb *hcd_to_musb(struct usb_hcd *);
 
 /* stored in "usb_host_endpoint.hcpriv" for scheduled endpoints */
 struct musb_qh {
@@ -85,10 +79,15 @@ static inline struct musb_qh *first_qh(struct list_head *q)
 }
 
 extern irqreturn_t musb_h_ep0_irq(struct musb *);
+extern int musb_host_alloc(struct musb *);
 extern void musb_host_tx(struct musb *, u8);
 extern void musb_host_rx(struct musb *, u8);
 extern void musb_root_disconnect(struct musb *musb);
-
+extern void musb_host_free(struct musb *);
+extern void musb_host_cleanup(struct musb *);
+extern void musb_host_tx(struct musb *, u8);
+extern void musb_host_rx(struct musb *, u8);
+extern void musb_root_disconnect(struct musb *musb);
 extern void musb_host_resume_root_hub(struct musb *musb);
 extern void musb_host_poke_root_hub(struct musb *musb);
 
@@ -98,8 +97,6 @@ extern int musb_hub_status_data(struct usb_hcd *hcd, char *buf);
 extern int musb_hub_control(struct usb_hcd *hcd,
 			u16 typeReq, u16 wValue, u16 wIndex,
 			char *buf, u16 wLength);
-
-extern const struct hc_driver musb_hc_driver;
 
 static inline struct urb *next_urb(struct musb_qh *qh)
 {

@@ -401,6 +401,7 @@ struct musb {
 	enum musb_g_ep0_state	ep0_state;
 	struct usb_gadget	g;			/* the gadget */
 	struct usb_gadget_driver *gadget_driver;	/* its driver */
+	struct usb_hcd		*hcd;			/* the usb hcd */
 
 	/*
 	 * FIXME: Remove this flag.

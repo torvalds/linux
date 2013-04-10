@@ -95,6 +95,11 @@
  * of transfers between endpoints, or anything clever.
  */
 
+struct musb *hcd_to_musb(struct usb_hcd *hcd)
+{
+	return *(struct musb **) hcd->hcd_priv;
+}
+
 
 static void musb_ep_program(struct musb *musb, u8 epnum,
 			struct urb *urb, int is_out,
@@ -2464,7 +2469,6 @@ static int musb_bus_resume(struct usb_hcd *hcd)
 	return 0;
 }
 
-
 #ifndef CONFIG_MUSB_PIO_ONLY
 
 #define MUSB_USB_DMA_ALIGN 4
@@ -2576,10 +2580,10 @@ static void musb_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
 }
 #endif /* !CONFIG_MUSB_PIO_ONLY */
 
-const struct hc_driver musb_hc_driver = {
+static const struct hc_driver musb_hc_driver = {
 	.description		= "musb-hcd",
 	.product_desc		= "MUSB HDRC host driver",
-	.hcd_priv_size		= sizeof(struct musb),
+	.hcd_priv_size		= sizeof(struct musb *),
 	.flags			= HCD_USB2 | HCD_MEMORY,
 
 	/* not using irq handler or reset hooks from usbcore, since
@@ -2608,16 +2612,44 @@ const struct hc_driver musb_hc_driver = {
 	/* .hub_irq_enable	= NULL, */
 };
 
+int musb_host_alloc(struct musb *musb)
+{
+	struct device	*dev = musb->controller;
+
+	/* usbcore sets dev->driver_data to hcd, and sometimes uses that... */
+	musb->hcd = usb_create_hcd(&musb_hc_driver, dev, dev_name(dev));
+	if (!musb->hcd)
+		return -EINVAL;
+
+	*musb->hcd->hcd_priv = (unsigned long) musb;
+	musb->hcd->self.uses_pio_for_control = 1;
+	musb->hcd->uses_new_polling = 1;
+	musb->hcd->has_tt = 1;
+
+	return 0;
+}
+
+void musb_host_cleanup(struct musb *musb)
+{
+	usb_remove_hcd(musb->hcd);
+	musb->hcd = NULL;
+}
+
+void musb_host_free(struct musb *musb)
+{
+	usb_put_hcd(musb->hcd);
+}
+
 void musb_host_resume_root_hub(struct musb *musb)
 {
-	usb_hcd_resume_root_hub(musb_to_hcd(musb));
+	usb_hcd_resume_root_hub(musb->hcd);
 }
 
 void musb_host_poke_root_hub(struct musb *musb)
 {
 	MUSB_HST_MODE(musb);
-	if (musb_to_hcd(musb)->status_urb)
-		usb_hcd_poll_rh_status(musb_to_hcd(musb));
+	if (musb->hcd->status_urb)
+		usb_hcd_poll_rh_status(musb->hcd);
 	else
-		usb_hcd_resume_root_hub(musb_to_hcd(musb));
+		usb_hcd_resume_root_hub(musb->hcd);
 }

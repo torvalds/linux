@@ -403,7 +403,8 @@ void musb_hnp_stop(struct musb *musb)
 		break;
 	case OTG_STATE_B_HOST:
 		dev_dbg(musb->controller, "HNP: Disabling HR\n");
-		hcd->self.is_b_host = 0;
+		if (hcd)
+			hcd->self.is_b_host = 0;
 		musb->xceiv->state = OTG_STATE_B_PERIPHERAL;
 		MUSB_DEV_MODE(musb);
 		reg = musb_readb(mbase, MUSB_POWER);
@@ -725,7 +726,8 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 			dev_dbg(musb->controller, "HNP: CONNECT, now b_host\n");
 b_host:
 			musb->xceiv->state = OTG_STATE_B_HOST;
-			hcd->self.is_b_host = 1;
+			if (musb->hcd)
+				musb->hcd->self.is_b_host = 1;
 			del_timer(&musb->otg_timer);
 			break;
 		default:
@@ -766,7 +768,8 @@ b_host:
 			 * in hnp_stop() is currently not used...
 			 */
 			musb_root_disconnect(musb);
-			musb_to_hcd(musb)->self.is_b_host = 0;
+			if (musb->hcd)
+				musb->hcd->self.is_b_host = 0;
 			musb->xceiv->state = OTG_STATE_B_PERIPHERAL;
 			MUSB_DEV_MODE(musb);
 			musb_g_disconnect(musb);
@@ -1706,24 +1709,18 @@ static struct musb *allocate_instance(struct device *dev,
 	struct musb		*musb;
 	struct musb_hw_ep	*ep;
 	int			epnum;
-	struct usb_hcd	*hcd;
+	int			ret;
 
-	hcd = usb_create_hcd(&musb_hc_driver, dev, dev_name(dev));
-	if (!hcd)
+	musb = devm_kzalloc(dev, sizeof(*musb), GFP_KERNEL);
+	if (!musb)
 		return NULL;
-	/* usbcore sets dev->driver_data to hcd, and sometimes uses that... */
 
-	musb = hcd_to_musb(hcd);
 	INIT_LIST_HEAD(&musb->control);
 	INIT_LIST_HEAD(&musb->in_bulk);
 	INIT_LIST_HEAD(&musb->out_bulk);
 
-	hcd->uses_new_polling = 1;
-	hcd->has_tt = 1;
-
 	musb->vbuserr_retry = VBUSERR_RETRY_COUNT;
 	musb->a_wait_bcon = OTG_TIME_A_WAIT_BCON;
-	dev_set_drvdata(dev, musb);
 	musb->mregs = mbase;
 	musb->ctrl_base = mbase;
 	musb->nIrq = -ENODEV;
@@ -1738,7 +1735,16 @@ static struct musb *allocate_instance(struct device *dev,
 
 	musb->controller = dev;
 
+	ret = musb_host_alloc(musb);
+	if (ret < 0)
+		goto err_free;
+
+	dev_set_drvdata(dev, musb);
+
 	return musb;
+
+err_free:
+	return NULL;
 }
 
 static void musb_free(struct musb *musb)
@@ -1764,7 +1770,7 @@ static void musb_free(struct musb *musb)
 		dma_controller_destroy(c);
 	}
 
-	usb_put_hcd(musb_to_hcd(musb));
+	musb_host_free(musb);
 }
 
 /*
@@ -1781,7 +1787,6 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	int			status;
 	struct musb		*musb;
 	struct musb_hdrc_platform_data *plat = dev->platform_data;
-	struct usb_hcd		*hcd;
 
 	/* The driver might handle more features than the board; OK.
 	 * Fail when the board needs a feature that's not enabled.
@@ -1881,13 +1886,6 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	} else {
 		musb->irq_wake = 0;
 	}
-
-	/* host side needs more setup */
-	hcd = musb_to_hcd(musb);
-	otg_set_host(musb->xceiv->otg, &hcd->self);
-	hcd->self.otg_port = 1;
-	musb->xceiv->otg->host = &hcd->self;
-	hcd->power_budget = 2 * (plat->power ? : 250);
 
 	/* program PHY to use external vBus if required */
 	if (plat->extvbus) {
