@@ -39,8 +39,6 @@
 
 #define musb_to_hcd(MUSB) ((MUSB)->hcd)
 
-extern struct musb *hcd_to_musb(struct usb_hcd *);
-
 /* stored in "usb_host_endpoint.hcpriv" for scheduled endpoints */
 struct musb_qh {
 	struct usb_host_endpoint *hep;		/* usbcore info */
@@ -78,6 +76,9 @@ static inline struct musb_qh *first_qh(struct list_head *q)
 	return list_entry(q->next, struct musb_qh, ring);
 }
 
+
+#if IS_ENABLED(CONFIG_USB_MUSB_HOST) || IS_ENABLED(CONFIG_USB_MUSB_DUAL_ROLE)
+extern struct musb *hcd_to_musb(struct usb_hcd *);
 extern irqreturn_t musb_h_ep0_irq(struct musb *);
 extern int musb_host_alloc(struct musb *);
 extern void musb_host_tx(struct musb *, u8);
@@ -90,6 +91,30 @@ extern void musb_host_rx(struct musb *, u8);
 extern void musb_root_disconnect(struct musb *musb);
 extern void musb_host_resume_root_hub(struct musb *musb);
 extern void musb_host_poke_root_hub(struct musb *musb);
+#else
+static inline struct musb *hcd_to_musb(struct usb_hcd *hcd)
+{
+	return NULL;
+}
+
+static inline irqreturn_t musb_h_ep0_irq(struct musb *musb)
+{
+	return 0;
+}
+
+static inline int musb_host_alloc(struct musb *musb)
+{
+	return 0;
+}
+
+static inline void musb_host_free(struct musb *musb)		{}
+static inline void musb_host_tx(struct musb *musb, u8 epnum)	{}
+static inline void musb_host_rx(struct musb *musb, u8 epnum)	{}
+static inline void musb_root_disconnect(struct musb *musb)	{}
+static inline void musb_host_resume_root_hub(struct musb *musb)	{}
+static inline void musb_host_poll_rh_status(struct musb *musb)	{}
+static inline void musb_host_poke_root_hub(struct musb *musb)	{}
+#endif
 
 struct usb_hcd;
 
