@@ -337,6 +337,7 @@ config MIPS_SEAD3
 	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
+	select CSRC_GIC
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select DMA_NONCOHERENT

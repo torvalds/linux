@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/irq.h>
+#include <linux/clocksource.h>
 
 #include <asm/io.h>
 #include <asm/gic.h>
@@ -31,6 +32,21 @@ struct gic_shared_intr_map gic_shared_intr_map[GIC_NUM_INTRS];
 static struct gic_pcpu_mask pcpu_masks[NR_CPUS];
 static struct gic_pending_regs pending_regs[NR_CPUS];
 static struct gic_intrmask_regs intrmask_regs[NR_CPUS];
+
+#ifdef CONFIG_CSRC_GIC
+cycle_t gic_read_count(void)
+{
+	unsigned int hi, hi2, lo;
+
+	do {
+		GICREAD(GIC_REG(SHARED, GIC_SH_COUNTER_63_32), hi);
+		GICREAD(GIC_REG(SHARED, GIC_SH_COUNTER_31_00), lo);
+		GICREAD(GIC_REG(SHARED, GIC_SH_COUNTER_63_32), hi2);
+	} while (hi2 != hi);
+
+	return (((cycle_t) hi) << 32) + lo;
+}
+#endif
 
 unsigned int gic_get_timer_pending(void)
 {

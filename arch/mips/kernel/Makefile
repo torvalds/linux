@@ -23,11 +23,11 @@ obj-$(CONFIG_CEVT_GT641XX)	+= cevt-gt641xx.o
 obj-$(CONFIG_CEVT_SB1250)	+= cevt-sb1250.o
 obj-$(CONFIG_CEVT_TXX9)		+= cevt-txx9.o
 obj-$(CONFIG_CSRC_BCM1480)	+= csrc-bcm1480.o
+obj-$(CONFIG_CSRC_GIC)		+= csrc-gic.o
 obj-$(CONFIG_CSRC_IOASIC)	+= csrc-ioasic.o
 obj-$(CONFIG_CSRC_POWERTV)	+= csrc-powertv.o
 obj-$(CONFIG_CSRC_R4K)		+= csrc-r4k.o
 obj-$(CONFIG_CSRC_SB1250)	+= csrc-sb1250.o
-obj-$(CONFIG_CSRC_GIC)		+= csrc-gic.o
 obj-$(CONFIG_SYNC_R4K)		+= sync-r4k.o
 
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o

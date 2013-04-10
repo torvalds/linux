@@ -359,6 +359,9 @@ struct gic_shared_intr_map {
 /* Mapped interrupt to pin X, then GIC will generate the vector (X+1). */
 #define GIC_PIN_TO_VEC_OFFSET	(1)
 
+#include <linux/clocksource.h>
+#include <linux/irq.h>
+
 extern unsigned int gic_present;
 extern unsigned int gic_frequency;
 extern unsigned long _gic_base;
@@ -372,6 +375,7 @@ extern void gic_init(unsigned long gic_base_addr,
 
 extern void gic_clocksource_init(unsigned int);
 extern unsigned int gic_get_int(void);
+extern cycle_t gic_read_count(void);
 extern void gic_send_ipi(unsigned int intr);
 extern unsigned int plat_ipi_call_int_xlate(unsigned int);
 extern unsigned int plat_ipi_resched_int_xlate(unsigned int);
