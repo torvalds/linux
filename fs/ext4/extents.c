@@ -4756,7 +4756,7 @@ int ext4_ind_migrate(struct inode *inode)
 	eh = ext_inode_hdr(inode);
 	ex  = EXT_FIRST_EXTENT(eh);
 	if (ext4_blocks_count(es) > EXT4_MAX_BLOCK_FILE_PHYS ||
-	    eh->eh_depth != 0 || eh->eh_entries > 1) {
+	    eh->eh_depth != 0 || le16_to_cpu(eh->eh_entries) > 1) {
 		ret = -EOPNOTSUPP;
 		goto errout;
 	}
