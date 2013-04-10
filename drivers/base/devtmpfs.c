@@ -212,8 +212,8 @@ static int handle_create(const char *nodename, umode_t mode, uid_t uid,
 		struct iattr newattrs;
 
 		newattrs.ia_mode = mode;
-		newattrs.ia_uid = uid;
-		newattrs.ia_gid = gid;
+		newattrs.ia_uid = KUIDT_INIT(uid);
+		newattrs.ia_gid = KGIDT_INIT(gid);
 		newattrs.ia_valid = ATTR_MODE|ATTR_UID|ATTR_GID;
 		mutex_lock(&dentry->d_inode->i_mutex);
 		notify_change(dentry, &newattrs);
