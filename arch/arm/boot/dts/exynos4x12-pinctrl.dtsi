@@ -778,62 +778,6 @@
 			samsung,pin-drv = <3>;
 		};
 
-		keypad_col0: keypad-col0 {
-			samsung,pins = "gpl2-0";
-			samsung,pin-function = <3>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
-		};
-
-		keypad_col1: keypad-col1 {
-			samsung,pins = "gpl2-1";
-			samsung,pin-function = <3>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
-		};
-
-		keypad_col2: keypad-col2 {
-			samsung,pins = "gpl2-2";
-			samsung,pin-function = <3>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
-		};
-
-		keypad_col3: keypad-col3 {
-			samsung,pins = "gpl2-3";
-			samsung,pin-function = <3>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
-		};
-
-		keypad_col4: keypad-col4 {
-			samsung,pins = "gpl2-4";
-			samsung,pin-function = <3>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
-		};
-
-		keypad_col5: keypad-col5 {
-			samsung,pins = "gpl2-5";
-			samsung,pin-function = <3>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
-		};
-
-		keypad_col6: keypad-col6 {
-			samsung,pins = "gpl2-6";
-			samsung,pin-function = <3>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
-		};
-
-		keypad_col7: keypad-col7 {
-			samsung,pins = "gpl2-7";
-			samsung,pin-function = <3>;
-			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
-		};
-
 		cam_port_b: cam-port-b {
 			samsung,pins = "gpm0-0", "gpm0-1", "gpm0-2", "gpm0-3",
 					"gpm0-4", "gpm0-5", "gpm0-6", "gpm0-7",
