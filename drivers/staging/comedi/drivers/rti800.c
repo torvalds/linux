@@ -291,14 +291,12 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct rti800_board *board = comedi_board(dev);
 	struct rti800_private *devpriv;
-	unsigned long iobase;
-	int ret;
 	struct comedi_subdevice *s;
+	int ret;
 
-	iobase = it->options[0];
-	if (!request_region(iobase, RTI800_IOSIZE, dev->board_name))
-		return -EIO;
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], RTI800_IOSIZE);
+	if (ret)
+		return ret;
 
 	outb(0, dev->iobase + RTI800_CSR);
 	inb(dev->iobase + RTI800_ADCHI);
