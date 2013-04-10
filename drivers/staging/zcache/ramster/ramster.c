@@ -67,12 +67,32 @@ static int ramster_remote_target_nodenum __read_mostly = -1;
 static long ramster_flnodes;
 static atomic_t ramster_flnodes_atomic = ATOMIC_INIT(0);
 static unsigned long ramster_flnodes_max;
+static inline void inc_ramster_flnodes(void)
+{
+	ramster_flnodes = atomic_inc_return(&ramster_flnodes_atomic);
+	if (ramster_flnodes > ramster_flnodes_max)
+		ramster_flnodes_max = ramster_flnodes;
+}
 static ssize_t ramster_foreign_eph_pages;
 static atomic_t ramster_foreign_eph_pages_atomic = ATOMIC_INIT(0);
 static ssize_t ramster_foreign_eph_pages_max;
+static inline void inc_ramster_foreign_eph_pages(void)
+{
+	ramster_foreign_eph_pages = atomic_inc_return(
+			&ramster_foreign_eph_pages_atomic);
+	if (ramster_foreign_eph_pages > ramster_foreign_eph_pages_max)
+		ramster_foreign_eph_pages_max = ramster_foreign_eph_pages;
+}
 static ssize_t ramster_foreign_pers_pages;
 static atomic_t ramster_foreign_pers_pages_atomic = ATOMIC_INIT(0);
 static ssize_t ramster_foreign_pers_pages_max;
+static inline void inc_ramster_foreign_pers_pages(void)
+{
+	ramster_foreign_pers_pages = atomic_inc_return(
+		&ramster_foreign_pers_pages_atomic);
+	if (ramster_foreign_pers_pages > ramster_foreign_pers_pages_max)
+		ramster_foreign_pers_pages_max = ramster_foreign_pers_pages;
+}
 static ssize_t ramster_eph_pages_remoted;
 static ssize_t ramster_pers_pages_remoted;
 static ssize_t ramster_eph_pages_remote_failed;
@@ -159,9 +179,7 @@ static struct flushlist_node *ramster_flnode_alloc(struct tmem_pool *pool)
 	flnode = kp->flnode;
 	BUG_ON(flnode == NULL);
 	kp->flnode = NULL;
-	ramster_flnodes = atomic_inc_return(&ramster_flnodes_atomic);
-	if (ramster_flnodes > ramster_flnodes_max)
-		ramster_flnodes_max = ramster_flnodes;
+	inc_ramster_flnodes();
 	return flnode;
 }
 
@@ -471,10 +489,7 @@ void ramster_count_foreign_pages(bool eph, int count)
 	BUG_ON(count != 1 && count != -1);
 	if (eph) {
 		if (count > 0) {
-			c = atomic_inc_return(
-					&ramster_foreign_eph_pages_atomic);
-			if (c > ramster_foreign_eph_pages_max)
-				ramster_foreign_eph_pages_max = c;
+			inc_ramster_foreign_eph_pages();
 		} else {
 			c = atomic_dec_return(&ramster_foreign_eph_pages_atomic);
 			WARN_ON_ONCE(c < 0);
@@ -482,10 +497,7 @@ void ramster_count_foreign_pages(bool eph, int count)
 		ramster_foreign_eph_pages = c;
 	} else {
 		if (count > 0) {
-			c = atomic_inc_return(
-					&ramster_foreign_pers_pages_atomic);
-			if (c > ramster_foreign_pers_pages_max)
-				ramster_foreign_pers_pages_max = c;
+			inc_ramster_foreign_pers_pages();
 		} else {
 			c = atomic_dec_return(
 					&ramster_foreign_pers_pages_atomic);
