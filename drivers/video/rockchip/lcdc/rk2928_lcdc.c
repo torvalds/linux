@@ -658,22 +658,27 @@ static int win1_set_par(struct rk2928_lcdc_device *lcdc_dev,rk_screen *screen,
 		switch(par->format)
 	       {	
 			case XBGR888:
+                		fmt_cfg = 0;
 				LcdMskReg(lcdc_dev,WIN_VIR,m_WIN1_VIR,v_WIN1_ARGB888_VIRWIDTH(xvir));
 				LcdMskReg(lcdc_dev,SYS_CFG,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
 				break;
 			case ABGR888:
+                		fmt_cfg = 0;
 				LcdMskReg(lcdc_dev,WIN_VIR,m_WIN1_VIR,v_WIN1_ARGB888_VIRWIDTH(xvir));
 				LcdMskReg(lcdc_dev,SYS_CFG,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
 				break;
 			case ARGB888:
+                		fmt_cfg = 0;
 				LcdMskReg(lcdc_dev,WIN_VIR,m_WIN1_VIR,v_WIN1_ARGB888_VIRWIDTH(xvir));
 				LcdMskReg(lcdc_dev,SYS_CFG,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(0));
 				break;
 			case RGB888:  //rgb888
+                		fmt_cfg = 1;
 				LcdMskReg(lcdc_dev,WIN_VIR,m_WIN1_VIR,v_WIN1_RGB888_VIRWIDTH(xvir));
 				LcdMskReg(lcdc_dev,DSP_CTRL,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(0));
 				break;
 			case RGB565:  //rgb565
+                		fmt_cfg = 2;
 				LcdMskReg(lcdc_dev,WIN_VIR,m_WIN1_VIR,v_WIN1_RGB565_VIRWIDTH(xvir));
 				LcdMskReg(lcdc_dev,SYS_CFG,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(0));
 				break;
