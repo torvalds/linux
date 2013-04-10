@@ -415,7 +415,7 @@ create_in_new_page:
 got_pampd:
 	inc_zcache_eph_zbytes(clen);
 	inc_zcache_eph_zpages();
-	if (ramster_enabled && raw)
+	if (ramster_enabled && raw && !zero_filled)
 		ramster_count_foreign_pages(true, 1);
 	if (zero_filled)
 		pampd = (void *)ZERO_FILLED;
@@ -500,7 +500,7 @@ create_in_new_page:
 got_pampd:
 	inc_zcache_pers_zpages();
 	inc_zcache_pers_zbytes(clen);
-	if (ramster_enabled && raw)
+	if (ramster_enabled && raw && !zero_filled)
 		ramster_count_foreign_pages(false, 1);
 	if (zero_filled)
 		pampd = (void *)ZERO_FILLED;
@@ -681,7 +681,7 @@ zero_fill:
 		dec_zcache_pers_zpages(zpages);
 		dec_zcache_pers_zbytes(zsize);
 	}
-	if (!is_local_client(pool->client))
+	if (!is_local_client(pool->client) && !zero_filled)
 		ramster_count_foreign_pages(eph, -1);
 	if (page && !zero_filled)
 		zcache_free_page(page);
@@ -732,7 +732,7 @@ static void zcache_pampd_free(void *pampd, struct tmem_pool *pool,
 		dec_zcache_pers_zpages(zpages);
 		dec_zcache_pers_zbytes(zsize);
 	}
-	if (!is_local_client(pool->client))
+	if (!is_local_client(pool->client) && !zero_filled)
 		ramster_count_foreign_pages(is_ephemeral(pool), -1);
 	if (page && !zero_filled)
 		zcache_free_page(page);
