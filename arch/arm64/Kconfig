@@ -180,6 +180,15 @@ config HW_PERF_EVENTS
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
 
+config SYS_SUPPORTS_HUGETLBFS
+	def_bool y
+
+config ARCH_WANT_GENERAL_HUGETLB
+	def_bool y
+
+config ARCH_WANT_HUGE_PMD_SHARE
+	def_bool y if !ARM64_64K_PAGES
+
 source "mm/Kconfig"
 
 endmenu
