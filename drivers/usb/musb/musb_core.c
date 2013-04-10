@@ -483,7 +483,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 
 				musb->xceiv->state = OTG_STATE_A_HOST;
 				musb->is_active = 1;
-				usb_hcd_resume_root_hub(musb_to_hcd(musb));
+				musb_host_resume_root_hub(musb);
 				break;
 			case OTG_STATE_B_WAIT_ACON:
 				musb->xceiv->state = OTG_STATE_B_PERIPHERAL;
@@ -500,7 +500,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 			case OTG_STATE_A_SUSPEND:
 				/* possibly DISCONNECT is upcoming */
 				musb->xceiv->state = OTG_STATE_A_HOST;
-				usb_hcd_resume_root_hub(musb_to_hcd(musb));
+				musb_host_resume_root_hub(musb);
 				break;
 			case OTG_STATE_B_WAIT_ACON:
 			case OTG_STATE_B_PERIPHERAL:
@@ -642,7 +642,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 			 * undesired detour through A_WAIT_BCON.
 			 */
 			musb_hnp_stop(musb);
-			usb_hcd_resume_root_hub(musb_to_hcd(musb));
+			musb_host_resume_root_hub(musb);
 			musb_root_disconnect(musb);
 			musb_platform_try_idle(musb, jiffies
 					+ msecs_to_jiffies(musb->a_wait_bcon
@@ -732,17 +732,13 @@ b_host:
 			if ((devctl & MUSB_DEVCTL_VBUS)
 					== (3 << MUSB_DEVCTL_VBUS_SHIFT)) {
 				musb->xceiv->state = OTG_STATE_A_HOST;
-				hcd->self.is_b_host = 0;
+				if (hcd)
+					hcd->self.is_b_host = 0;
 			}
 			break;
 		}
 
-		/* poke the root hub */
-		MUSB_HST_MODE(musb);
-		if (hcd->status_urb)
-			usb_hcd_poll_rh_status(hcd);
-		else
-			usb_hcd_resume_root_hub(hcd);
+		musb_host_poke_root_hub(musb);
 
 		dev_dbg(musb->controller, "CONNECT (%s) devctl %02x\n",
 				usb_otg_state_string(musb->xceiv->state), devctl);
@@ -757,7 +753,7 @@ b_host:
 		switch (musb->xceiv->state) {
 		case OTG_STATE_A_HOST:
 		case OTG_STATE_A_SUSPEND:
-			usb_hcd_resume_root_hub(musb_to_hcd(musb));
+			musb_host_resume_root_hub(musb);
 			musb_root_disconnect(musb);
 			if (musb->a_wait_bcon != 0)
 				musb_platform_try_idle(musb, jiffies

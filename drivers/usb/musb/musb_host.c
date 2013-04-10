@@ -46,7 +46,6 @@
 #include "musb_core.h"
 #include "musb_host.h"
 
-
 /* MUSB HOST status 22-mar-2006
  *
  * - There's still lots of partial code duplication for fault paths, so
@@ -2608,3 +2607,17 @@ const struct hc_driver musb_hc_driver = {
 	/* .start_port_reset	= NULL, */
 	/* .hub_irq_enable	= NULL, */
 };
+
+void musb_host_resume_root_hub(struct musb *musb)
+{
+	usb_hcd_resume_root_hub(musb_to_hcd(musb));
+}
+
+void musb_host_poke_root_hub(struct musb *musb)
+{
+	MUSB_HST_MODE(musb);
+	if (musb_to_hcd(musb)->status_urb)
+		usb_hcd_poll_rh_status(musb_to_hcd(musb));
+	else
+		usb_hcd_resume_root_hub(musb_to_hcd(musb));
+}

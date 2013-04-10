@@ -89,6 +89,9 @@ extern void musb_host_tx(struct musb *, u8);
 extern void musb_host_rx(struct musb *, u8);
 extern void musb_root_disconnect(struct musb *musb);
 
+extern void musb_host_resume_root_hub(struct musb *musb);
+extern void musb_host_poke_root_hub(struct musb *musb);
+
 struct usb_hcd;
 
 extern int musb_hub_status_data(struct usb_hcd *hcd, char *buf);
