@@ -82,23 +82,6 @@ struct musb_ep;
 #define MUSB_CONFIG_PROC_FS
 #endif
 
-/****************************** PERIPHERAL ROLE *****************************/
-
-extern irqreturn_t musb_g_ep0_irq(struct musb *);
-extern void musb_g_tx(struct musb *, u8);
-extern void musb_g_rx(struct musb *, u8);
-extern void musb_g_reset(struct musb *);
-extern void musb_g_suspend(struct musb *);
-extern void musb_g_resume(struct musb *);
-extern void musb_g_wakeup(struct musb *);
-extern void musb_g_disconnect(struct musb *);
-
-/****************************** HOST ROLE ***********************************/
-
-extern irqreturn_t musb_h_ep0_irq(struct musb *);
-extern void musb_host_tx(struct musb *, u8);
-extern void musb_host_rx(struct musb *, u8);
-
 /****************************** CONSTANTS ********************************/
 
 #ifndef MUSB_C_NUM_EPS
