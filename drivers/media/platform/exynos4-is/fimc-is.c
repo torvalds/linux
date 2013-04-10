@@ -530,8 +530,8 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 			break;
 
 		case HIC_SET_PARAMETER:
-			is->cfg_param[is->scenario_id].p_region_index1 = 0;
-			is->cfg_param[is->scenario_id].p_region_index2 = 0;
+			is->config[is->config_index].p_region_index1 = 0;
+			is->config[is->config_index].p_region_index2 = 0;
 			set_bit(IS_ST_BLOCK_CMD_CLEARED, &is->state);
 			pr_debug("HIC_SET_PARAMETER\n");
 			break;
@@ -590,8 +590,8 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 
 		switch (is->i2h_cmd.args[0]) {
 		case HIC_SET_PARAMETER:
-			is->cfg_param[is->scenario_id].p_region_index1 = 0;
-			is->cfg_param[is->scenario_id].p_region_index2 = 0;
+			is->config[is->config_index].p_region_index1 = 0;
+			is->config[is->config_index].p_region_index2 = 0;
 			set_bit(IS_ST_BLOCK_CMD_CLEARED, &is->state);
 			break;
 		}
@@ -656,7 +656,7 @@ static int fimc_is_hw_open_sensor(struct fimc_is *is,
 
 int fimc_is_hw_initialize(struct fimc_is *is)
 {
-	const int scenario_ids[] = {
+	const int config_ids[] = {
 		IS_SC_PREVIEW_STILL, IS_SC_PREVIEW_VIDEO,
 		IS_SC_CAPTURE_STILL, IS_SC_CAPTURE_VIDEO
 	};
@@ -718,23 +718,23 @@ int fimc_is_hw_initialize(struct fimc_is *is)
 	}
 
 	/* Preserve previous mode. */
-	prev_id = is->scenario_id;
+	prev_id = is->config_index;
 
 	/* Set initial parameter values. */
-	for (i = 0; i < ARRAY_SIZE(scenario_ids); i++) {
-		is->scenario_id = scenario_ids[i];
+	for (i = 0; i < ARRAY_SIZE(config_ids); i++) {
+		is->config_index = config_ids[i];
 		fimc_is_set_initial_params(is);
 		ret = fimc_is_itf_s_param(is, true);
 		if (ret < 0) {
-			is->scenario_id = prev_id;
+			is->config_index = prev_id;
 			return ret;
 		}
 	}
-	is->scenario_id = prev_id;
+	is->config_index = prev_id;
 
 	set_bit(IS_ST_INIT_DONE, &is->state);
 	dev_info(dev, "initialization sequence completed (%d)\n",
-						is->scenario_id);
+						is->config_index);
 	return 0;
 }
 

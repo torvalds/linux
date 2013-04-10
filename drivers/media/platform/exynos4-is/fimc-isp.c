@@ -236,7 +236,7 @@ static int fimc_isp_subdev_s_stream(struct v4l2_subdev *sd, int on)
 		}
 
 		v4l2_dbg(1, debug, sd, "changing mode to %d\n",
-						is->scenario_id);
+						is->config_index);
 		ret = fimc_is_itf_mode_change(is);
 		if (ret)
 			return -EINVAL;
@@ -317,8 +317,8 @@ static int fimc_isp_subdev_s_power(struct v4l2_subdev *sd, int on)
 		clear_bit(IS_ST_PWR_ON, &is->state);
 		clear_bit(IS_ST_INIT_DONE, &is->state);
 		is->state = 0;
-		is->cfg_param[is->scenario_id].p_region_index1 = 0;
-		is->cfg_param[is->scenario_id].p_region_index2 = 0;
+		is->config[is->config_index].p_region_index1 = 0;
+		is->config[is->config_index].p_region_index2 = 0;
 		set_bit(IS_ST_IDLE, &is->state);
 		wmb();
 	}

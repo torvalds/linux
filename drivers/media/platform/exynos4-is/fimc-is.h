@@ -219,7 +219,7 @@ struct fimc_is_setfile {
 	u32 base;
 };
 
-struct is_config_param {
+struct chain_config {
 	struct global_param	global;
 	struct sensor_param	sensor;
 	struct isp_param	isp;
@@ -279,12 +279,13 @@ struct fimc_is {
 	struct h2i_cmd			h2i_cmd;
 	struct is_fd_result_header	fd_header;
 
-	struct is_config_param		cfg_param[IS_SC_MAX];
+	struct chain_config		config[IS_SC_MAX];
+	unsigned			config_index;
+
 	struct is_region		*is_p_region;
 	dma_addr_t			is_dma_p_region;
 	struct is_share_region		*is_shared_region;
 	struct is_af_info		af;
-	u32				scenario_id;
 
 	struct dentry			*debugfs_entry;
 };
@@ -301,7 +302,7 @@ static inline void fimc_is_mem_barrier(void)
 
 static inline void fimc_is_set_param_bit(struct fimc_is *is, int num)
 {
-	struct is_config_param *cfg = &is->cfg_param[is->scenario_id];
+	struct chain_config *cfg = &is->config[is->config_index];
 
 	if (num >= 32)
 		set_bit(num - 32, &cfg->p_region_index2);

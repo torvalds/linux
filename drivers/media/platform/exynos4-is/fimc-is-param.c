@@ -43,7 +43,7 @@ void __fimc_is_hw_update_param_global_shotmode(struct fimc_is *is)
 	struct param_global_shotmode *dst, *src;
 
 	dst = &is->is_p_region->parameter.global.shotmode;
-	src = &is->cfg_param[is->scenario_id].global.shotmode;
+	src = &is->config[is->config_index].global.shotmode;
 	__hw_param_copy(dst, src);
 }
 
@@ -52,14 +52,14 @@ void __fimc_is_hw_update_param_sensor_framerate(struct fimc_is *is)
 	struct param_sensor_framerate *dst, *src;
 
 	dst = &is->is_p_region->parameter.sensor.frame_rate;
-	src = &is->cfg_param[is->scenario_id].sensor.frame_rate;
+	src = &is->config[is->config_index].sensor.frame_rate;
 	__hw_param_copy(dst, src);
 }
 
 int __fimc_is_hw_update_param(struct fimc_is *is, u32 offset)
 {
 	struct is_param_region *par = &is->is_p_region->parameter;
-	struct is_config_param *cfg = &is->cfg_param[is->scenario_id];
+	struct chain_config *cfg = &is->config[is->config_index];
 
 	switch (offset) {
 	case PARAM_ISP_CONTROL:
@@ -163,7 +163,7 @@ int __fimc_is_hw_update_param(struct fimc_is *is, u32 offset)
 
 unsigned int __get_pending_param_count(struct fimc_is *is)
 {
-	struct is_config_param *config = &is->cfg_param[is->scenario_id];
+	struct chain_config *config = &is->config[is->config_index];
 	unsigned long flags;
 	unsigned int count;
 
@@ -180,9 +180,9 @@ int __is_hw_update_params(struct fimc_is *is)
 	unsigned long *p_index1, *p_index2;
 	int i, id, ret = 0;
 
-	id = is->scenario_id;
-	p_index1 = &is->cfg_param[id].p_region_index1;
-	p_index2 = &is->cfg_param[id].p_region_index2;
+	id = is->config_index;
+	p_index1 = &is->config[id].p_region_index1;
+	p_index2 = &is->config[id].p_region_index2;
 
 	if (test_bit(PARAM_GLOBAL_SHOTMODE, p_index1))
 		__fimc_is_hw_update_param_global_shotmode(is);
@@ -212,22 +212,21 @@ void __is_get_frame_size(struct fimc_is *is, struct v4l2_mbus_framefmt *mf)
 {
 	struct isp_param *isp;
 
-	isp = &is->cfg_param[is->scenario_id].isp;
+	isp = &is->config[is->config_index].isp;
 	mf->width = isp->otf_input.width;
 	mf->height = isp->otf_input.height;
 }
 
 void __is_set_frame_size(struct fimc_is *is, struct v4l2_mbus_framefmt *mf)
 {
+	unsigned int index = is->config_index;
 	struct isp_param *isp;
 	struct drc_param *drc;
 	struct fd_param *fd;
-	unsigned int mode;
 
-	mode = is->scenario_id;
-	isp = &is->cfg_param[mode].isp;
-	drc = &is->cfg_param[mode].drc;
-	fd = &is->cfg_param[mode].fd;
+	isp = &is->config[index].isp;
+	drc = &is->config[index].drc;
+	fd = &is->config[index].fd;
 
 	/* Update isp size info (OTF only) */
 	isp->otf_input.width = mf->width;
@@ -244,7 +243,7 @@ void __is_set_frame_size(struct fimc_is *is, struct v4l2_mbus_framefmt *mf)
 	fd->otf_input.height = mf->height;
 
 	if (test_bit(PARAM_ISP_OTF_INPUT,
-		      &is->cfg_param[mode].p_region_index1))
+		      &is->config[index].p_region_index1))
 		return;
 
 	/* Update field */
@@ -267,14 +266,14 @@ int fimc_is_hw_get_sensor_max_framerate(struct fimc_is *is)
 
 void __is_set_sensor(struct fimc_is *is, int fps)
 {
+	unsigned int index = is->config_index;
 	struct sensor_param *sensor;
 	struct isp_param *isp;
-	unsigned long *p_index, mode;
+	unsigned long *p_index;
 
-	mode = is->scenario_id;
-	p_index = &is->cfg_param[mode].p_region_index1;
-	sensor = &is->cfg_param[mode].sensor;
-	isp = &is->cfg_param[mode].isp;
+	p_index = &is->config[index].p_region_index1;
+	sensor = &is->config[index].sensor;
+	isp = &is->config[index].isp;
 
 	if (fps == 0) {
 		sensor->frame_rate.frame_rate =
@@ -298,7 +297,7 @@ void __is_set_init_isp_aa(struct fimc_is *is)
 {
 	struct isp_param *isp;
 
-	isp = &is->cfg_param[is->scenario_id].isp;
+	isp = &is->config[is->config_index].isp;
 
 	isp->aa.cmd = ISP_AA_COMMAND_START;
 	isp->aa.target = ISP_AA_TARGET_AF | ISP_AA_TARGET_AE |
@@ -317,8 +316,8 @@ void __is_set_init_isp_aa(struct fimc_is *is)
 
 void __is_set_isp_flash(struct fimc_is *is, u32 cmd, u32 redeye)
 {
-	unsigned int mode = is->scenario_id;
-	struct is_config_param *cfg = &is->cfg_param[mode];
+	unsigned int index = is->config_index;
+	struct chain_config *cfg = &is->config[index];
 	struct isp_param *isp = &cfg->isp;
 
 	isp->flash.cmd = cmd;
@@ -331,12 +330,12 @@ void __is_set_isp_flash(struct fimc_is *is, u32 cmd, u32 redeye)
 
 void __is_set_isp_awb(struct fimc_is *is, u32 cmd, u32 val)
 {
-	unsigned int mode = is->scenario_id;
+	unsigned int index = is->config_index;
 	struct isp_param *isp;
 	unsigned long *p_index;
 
-	p_index = &is->cfg_param[mode].p_region_index1;
-	isp = &is->cfg_param[mode].isp;
+	p_index = &is->config[index].p_region_index1;
+	isp = &is->config[index].isp;
 
 	isp->awb.cmd = cmd;
 	isp->awb.illumination = val;
@@ -348,12 +347,12 @@ void __is_set_isp_awb(struct fimc_is *is, u32 cmd, u32 val)
 
 void __is_set_isp_effect(struct fimc_is *is, u32 cmd)
 {
-	unsigned int mode = is->scenario_id;
+	unsigned int index = is->config_index;
 	struct isp_param *isp;
 	unsigned long *p_index;
 
-	p_index = &is->cfg_param[mode].p_region_index1;
-	isp = &is->cfg_param[mode].isp;
+	p_index = &is->config[index].p_region_index1;
+	isp = &is->config[index].isp;
 
 	isp->effect.cmd = cmd;
 	isp->effect.err = ISP_IMAGE_EFFECT_ERROR_NONE;
@@ -364,12 +363,12 @@ void __is_set_isp_effect(struct fimc_is *is, u32 cmd)
 
 void __is_set_isp_iso(struct fimc_is *is, u32 cmd, u32 val)
 {
-	unsigned int mode = is->scenario_id;
+	unsigned int index = is->config_index;
 	struct isp_param *isp;
 	unsigned long *p_index;
 
-	p_index = &is->cfg_param[mode].p_region_index1;
-	isp = &is->cfg_param[mode].isp;
+	p_index = &is->config[index].p_region_index1;
+	isp = &is->config[index].isp;
 
 	isp->iso.cmd = cmd;
 	isp->iso.value = val;
@@ -381,12 +380,12 @@ void __is_set_isp_iso(struct fimc_is *is, u32 cmd, u32 val)
 
 void __is_set_isp_adjust(struct fimc_is *is, u32 cmd, u32 val)
 {
-	unsigned int mode = is->scenario_id;
+	unsigned int index = is->config_index;
 	unsigned long *p_index;
 	struct isp_param *isp;
 
-	p_index = &is->cfg_param[mode].p_region_index1;
-	isp = &is->cfg_param[mode].isp;
+	p_index = &is->config[index].p_region_index1;
+	isp = &is->config[index].isp;
 
 	switch (cmd) {
 	case ISP_ADJUST_COMMAND_MANUAL_CONTRAST:
@@ -428,12 +427,12 @@ void __is_set_isp_adjust(struct fimc_is *is, u32 cmd, u32 val)
 
 void __is_set_isp_metering(struct fimc_is *is, u32 id, u32 val)
 {
+	unsigned int index = is->config_index;
 	struct isp_param *isp;
-	unsigned long *p_index, mode;
+	unsigned long *p_index;
 
-	mode = is->scenario_id;
-	p_index = &is->cfg_param[mode].p_region_index1;
-	isp = &is->cfg_param[mode].isp;
+	p_index = &is->config[index].p_region_index1;
+	isp = &is->config[index].isp;
 
 	switch (id) {
 	case IS_METERING_CONFIG_CMD:
@@ -463,12 +462,12 @@ void __is_set_isp_metering(struct fimc_is *is, u32 id, u32 val)
 
 void __is_set_isp_afc(struct fimc_is *is, u32 cmd, u32 val)
 {
+	unsigned int index = is->config_index;
 	struct isp_param *isp;
-	unsigned long *p_index, mode;
+	unsigned long *p_index;
 
-	mode = is->scenario_id;
-	p_index = &is->cfg_param[mode].p_region_index1;
-	isp = &is->cfg_param[mode].isp;
+	p_index = &is->config[index].p_region_index1;
+	isp = &is->config[index].isp;
 
 	isp->afc.cmd = cmd;
 	isp->afc.manual = val;
@@ -480,12 +479,12 @@ void __is_set_isp_afc(struct fimc_is *is, u32 cmd, u32 val)
 
 void __is_set_drc_control(struct fimc_is *is, u32 val)
 {
+	unsigned int index = is->config_index;
 	struct drc_param *drc;
-	unsigned long *p_index, mode;
+	unsigned long *p_index;
 
-	mode = is->scenario_id;
-	p_index = &is->cfg_param[mode].p_region_index1;
-	drc = &is->cfg_param[mode].drc;
+	p_index = &is->config[index].p_region_index1;
+	drc = &is->config[index].drc;
 
 	drc->control.bypass = val;
 
@@ -495,12 +494,12 @@ void __is_set_drc_control(struct fimc_is *is, u32 val)
 
 void __is_set_fd_control(struct fimc_is *is, u32 val)
 {
+	unsigned int index = is->config_index;
 	struct fd_param *fd;
-	unsigned long *p_index, mode;
+	unsigned long *p_index;
 
-	mode = is->scenario_id;
-	p_index = &is->cfg_param[mode].p_region_index2;
-	fd = &is->cfg_param[mode].fd;
+	p_index = &is->config[index].p_region_index2;
+	fd = &is->config[index].fd;
 
 	fd->control.cmd = val;
 
@@ -510,12 +509,12 @@ void __is_set_fd_control(struct fimc_is *is, u32 val)
 
 void __is_set_fd_config_maxface(struct fimc_is *is, u32 val)
 {
+	unsigned int index = is->config_index;
 	struct fd_param *fd;
-	unsigned long *p_index, mode;
+	unsigned long *p_index;
 
-	mode = is->scenario_id;
-	p_index = &is->cfg_param[mode].p_region_index2;
-	fd = &is->cfg_param[mode].fd;
+	p_index = &is->config[index].p_region_index2;
+	fd = &is->config[index].fd;
 
 	fd->config.max_number = val;
 
@@ -530,12 +529,12 @@ void __is_set_fd_config_maxface(struct fimc_is *is, u32 val)
 
 void __is_set_fd_config_rollangle(struct fimc_is *is, u32 val)
 {
+	unsigned int index = is->config_index;
 	struct fd_param *fd;
-	unsigned long *p_index, mode;
+	unsigned long *p_index;
 
-	mode = is->scenario_id;
-	p_index = &is->cfg_param[mode].p_region_index2;
-	fd = &is->cfg_param[mode].fd;
+	p_index = &is->config[index].p_region_index2;
+	fd = &is->config[index].fd;
 
 	fd->config.roll_angle = val;
 
@@ -550,12 +549,12 @@ void __is_set_fd_config_rollangle(struct fimc_is *is, u32 val)
 
 void __is_set_fd_config_yawangle(struct fimc_is *is, u32 val)
 {
+	unsigned int index = is->config_index;
 	struct fd_param *fd;
-	unsigned long *p_index, mode;
+	unsigned long *p_index;
 
-	mode = is->scenario_id;
-	p_index = &is->cfg_param[mode].p_region_index2;
-	fd = &is->cfg_param[mode].fd;
+	p_index = &is->config[index].p_region_index2;
+	fd = &is->config[index].fd;
 
 	fd->config.yaw_angle = val;
 
@@ -570,12 +569,12 @@ void __is_set_fd_config_yawangle(struct fimc_is *is, u32 val)
 
 void __is_set_fd_config_smilemode(struct fimc_is *is, u32 val)
 {
+	unsigned int index = is->config_index;
 	struct fd_param *fd;
-	unsigned long *p_index, mode;
+	unsigned long *p_index;
 
-	mode = is->scenario_id;
-	p_index = &is->cfg_param[mode].p_region_index2;
-	fd = &is->cfg_param[mode].fd;
+	p_index = &is->config[index].p_region_index2;
+	fd = &is->config[index].fd;
 
 	fd->config.smile_mode = val;
 
@@ -590,12 +589,12 @@ void __is_set_fd_config_smilemode(struct fimc_is *is, u32 val)
 
 void __is_set_fd_config_blinkmode(struct fimc_is *is, u32 val)
 {
+	unsigned int index = is->config_index;
 	struct fd_param *fd;
-	unsigned long *p_index, mode;
+	unsigned long *p_index;
 
-	mode = is->scenario_id;
-	p_index = &is->cfg_param[mode].p_region_index2;
-	fd = &is->cfg_param[mode].fd;
+	p_index = &is->config[index].p_region_index2;
+	fd = &is->config[index].fd;
 
 	fd->config.blink_mode = val;
 
@@ -610,12 +609,12 @@ void __is_set_fd_config_blinkmode(struct fimc_is *is, u32 val)
 
 void __is_set_fd_config_eyedetect(struct fimc_is *is, u32 val)
 {
+	unsigned int index = is->config_index;
 	struct fd_param *fd;
-	unsigned long *p_index, mode;
+	unsigned long *p_index;
 
-	mode = is->scenario_id;
-	p_index = &is->cfg_param[mode].p_region_index2;
-	fd = &is->cfg_param[mode].fd;
+	p_index = &is->config[index].p_region_index2;
+	fd = &is->config[index].fd;
 
 	fd->config.eye_detect = val;
 
@@ -630,12 +629,12 @@ void __is_set_fd_config_eyedetect(struct fimc_is *is, u32 val)
 
 void __is_set_fd_config_mouthdetect(struct fimc_is *is, u32 val)
 {
+	unsigned int index = is->config_index;
 	struct fd_param *fd;
-	unsigned long *p_index, mode;
+	unsigned long *p_index;
 
-	mode = is->scenario_id;
-	p_index = &is->cfg_param[mode].p_region_index2;
-	fd = &is->cfg_param[mode].fd;
+	p_index = &is->config[index].p_region_index2;
+	fd = &is->config[index].fd;
 
 	fd->config.mouth_detect = val;
 
@@ -650,12 +649,12 @@ void __is_set_fd_config_mouthdetect(struct fimc_is *is, u32 val)
 
 void __is_set_fd_config_orientation(struct fimc_is *is, u32 val)
 {
+	unsigned int index = is->config_index;
 	struct fd_param *fd;
-	unsigned long *p_index, mode;
+	unsigned long *p_index;
 
-	mode = is->scenario_id;
-	p_index = &is->cfg_param[mode].p_region_index2;
-	fd = &is->cfg_param[mode].fd;
+	p_index = &is->config[index].p_region_index2;
+	fd = &is->config[index].fd;
 
 	fd->config.orientation = val;
 
@@ -670,12 +669,12 @@ void __is_set_fd_config_orientation(struct fimc_is *is, u32 val)
 
 void __is_set_fd_config_orientation_val(struct fimc_is *is, u32 val)
 {
+	unsigned int index = is->config_index;
 	struct fd_param *fd;
-	unsigned long *p_index, mode;
+	unsigned long *p_index;
 
-	mode = is->scenario_id;
-	p_index = &is->cfg_param[mode].p_region_index2;
-	fd = &is->cfg_param[mode].fd;
+	p_index = &is->config[index].p_region_index2;
+	fd = &is->config[index].fd;
 
 	fd->config.orientation_value = val;
 
@@ -696,16 +695,16 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 	struct drc_param *drc;
 	struct fd_param *fd;
 	unsigned long *p_index1, *p_index2;
-	unsigned int mode;
+	unsigned int index;
 
-	mode = is->scenario_id;
-	global = &is->cfg_param[mode].global;
-	sensor = &is->cfg_param[mode].sensor;
-	isp = &is->cfg_param[mode].isp;
-	drc = &is->cfg_param[mode].drc;
-	fd = &is->cfg_param[mode].fd;
-	p_index1 = &is->cfg_param[mode].p_region_index1;
-	p_index2 = &is->cfg_param[mode].p_region_index2;
+	index = is->config_index;
+	global = &is->config[index].global;
+	sensor = &is->config[index].sensor;
+	isp = &is->config[index].isp;
+	drc = &is->config[index].drc;
+	fd = &is->config[index].fd;
+	p_index1 = &is->config[index].p_region_index1;
+	p_index2 = &is->config[index].p_region_index2;
 
 	/* Global */
 	global->shotmode.cmd = 1;
@@ -841,7 +840,7 @@ void fimc_is_set_initial_params(struct fimc_is *is)
 
 	/* Sensor */
 	if (!test_bit(PARAM_SENSOR_FRAME_RATE, p_index1)) {
-		if (!mode)
+		if (is->config_index == 0)
 			__is_set_sensor(is, 0);
 	}
 
