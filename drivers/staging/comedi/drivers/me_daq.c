@@ -515,13 +515,11 @@ static int me_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	dev_private->plx_regbase = ioremap(pci_resource_start(pcidev, 0),
-					   pci_resource_len(pcidev, 0));
+	dev_private->plx_regbase = pci_ioremap_bar(pcidev, 0);
 	if (!dev_private->plx_regbase)
 		return -ENOMEM;
 
-	dev_private->me_regbase = ioremap(pci_resource_start(pcidev, 2),
-					  pci_resource_len(pcidev, 2));
+	dev_private->me_regbase = pci_ioremap_bar(pcidev, 2);
 	if (!dev_private->me_regbase)
 		return -ENOMEM;
 
