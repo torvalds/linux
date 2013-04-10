@@ -398,7 +398,7 @@ dt3155_open(struct file *filp)
 		pd->field_count = 0;
 		ret = vb2_queue_init(pd->q);
 		if (ret < 0)
-			return ret;
+			goto err_request_irq;
 		INIT_LIST_HEAD(&pd->dmaq);
 		spin_lock_init(&pd->lock);
 		/* disable all irqs, clear all irq flags */
@@ -410,6 +410,7 @@ dt3155_open(struct file *filp)
 			goto err_request_irq;
 	}
 	pd->users++;
+	mutex_unlock(&pd->mux);
 	return 0; /* success */
 err_request_irq:
 	kfree(pd->q);
