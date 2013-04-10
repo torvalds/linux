@@ -42,7 +42,6 @@
 #include <asm/mips-boards/maltaint.h>
 
 unsigned long cpu_khz;
-int gic_frequency;
 
 static int mips_cpu_timer_irq;
 static int mips_cpu_perf_irq;

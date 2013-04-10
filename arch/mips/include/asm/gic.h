@@ -360,6 +360,7 @@ struct gic_shared_intr_map {
 #define GIC_PIN_TO_VEC_OFFSET	(1)
 
 extern unsigned int gic_present;
+extern unsigned int gic_frequency;
 extern unsigned long _gic_base;
 extern unsigned int gic_irq_base;
 extern unsigned int gic_irq_flags[];
