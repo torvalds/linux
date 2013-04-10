@@ -1012,6 +1012,10 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	This hook can be used by the module to update any security state
  *	associated with the TUN device's security structure.
  *	@security pointer to the TUN devices's security structure.
+ * @skb_owned_by:
+ *	This hook sets the packet's owning sock.
+ *	@skb is the packet.
+ *	@sk the sock which owns the packet.
  *
  * Security hooks for XFRM operations.
  *
