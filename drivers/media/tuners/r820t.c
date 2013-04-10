@@ -1506,6 +1506,8 @@ static int r820t_signal(struct dvb_frontend *fe, u16 *strength)
 
 		/* A higher gain at LNA means a lower signal strength */
 		*strength = (45 - rc) << 4 | 0xff;
+		if (*strength == 0xff)
+			*strength = 0;
 	} else {
 		*strength = 0;
 	}
