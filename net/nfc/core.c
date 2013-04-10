@@ -143,6 +143,11 @@ int nfc_start_poll(struct nfc_dev *dev, u32 im_protocols, u32 tm_protocols)
 		goto error;
 	}
 
+	if (!dev->dev_up) {
+		rc = -ENODEV;
+		goto error;
+	}
+
 	if (dev->polling) {
 		rc = -EBUSY;
 		goto error;
