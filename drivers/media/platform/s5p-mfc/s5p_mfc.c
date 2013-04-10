@@ -1020,7 +1020,7 @@ static void *mfc_get_drv_data(struct platform_device *pdev);
 
 static int s5p_mfc_alloc_memdevs(struct s5p_mfc_dev *dev)
 {
-	unsigned int mem_info[2];
+	unsigned int mem_info[2] = { };
 
 	dev->mem_dev_l = devm_kzalloc(&dev->plat_dev->dev,
 			sizeof(struct device), GFP_KERNEL);
