@@ -402,15 +402,25 @@ static int r820t_write_reg(struct r820t_priv *priv, u8 reg, u8 val)
 	return r820t_write(priv, reg, &val, 1);
 }
 
+static int r820t_read_cache_reg(struct r820t_priv *priv, int reg)
+{
+	reg -= REG_SHADOW_START;
+
+	if (reg >= 0 && reg < NUM_REGS)
+		return priv->regs[reg];
+	else
+		return -EINVAL;
+}
+
 static int r820t_write_reg_mask(struct r820t_priv *priv, u8 reg, u8 val,
 				u8 bit_mask)
 {
-	int r = reg - REG_SHADOW_START;
+	int rc = r820t_read_cache_reg(priv, reg);
 
-	if (r >= 0 && r < NUM_REGS)
-		val = (priv->regs[r] & ~bit_mask) | (val & bit_mask);
-	else
-		return -EINVAL;
+	if (rc < 0)
+		return rc;
+
+	val = (rc & ~bit_mask) | (val & bit_mask);
 
 	return r820t_write(priv, reg, &val, 1);
 }
