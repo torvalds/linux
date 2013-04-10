@@ -116,7 +116,6 @@ static int rk616_display_router_cfg(struct mfd_rk616 *rk616)
 		(route->vif0_bypass<<1) ; 
 	ret = rk616->write_dev(rk616,CRU_CLKSE2_CON,&val);
 
-	val = 0;
 	val = (LVDS_CH0TTL_DISABLE) | (LVDS_CH1TTL_DISABLE) | (LVDS_CH0_PWR_EN) |
 		(LVDS_CBG_PWR_EN) | (LVDS_CH0TTL_DISABLE << 16) | (LVDS_CH1TTL_DISABLE << 16) |
 		(LVDS_CH0_PWR_EN << 16) | (LVDS_CBG_PWR_EN << 16);

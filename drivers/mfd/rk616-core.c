@@ -4,11 +4,16 @@
 #include <linux/delay.h>
 #include <linux/mfd/core.h>
 #include <linux/slab.h>
-#include <linux/irq.h>
 #include <linux/mfd/rk616.h>
 #include <linux/clk.h>
 #include <mach/iomux.h>
 #include <linux/err.h>
+#include <linux/uaccess.h>
+#if defined(CONFIG_DEBUG_FS)
+#include <linux/fs.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+#endif
 
 
 static struct mfd_cell rk616_devs[] = {
@@ -89,8 +94,85 @@ static int rk616_i2c_write_reg(struct mfd_rk616 *rk616, u16 reg,u32 *pval)
 }
 
 
-static int rk616_clk_route_init(struct mfd_rk616 *rk616)
+#if defined(CONFIG_DEBUG_FS)
+static int rk616_reg_show(struct seq_file *s, void *v)
 {
+	int i = 0;
+	u32 val = 0;
+	struct mfd_rk616 *rk616 = s->private;
+	if(!rk616)
+	{
+		dev_err(rk616->dev,"no mfd rk616!\n");
+		return 0;
+	}
+
+	for(i=0;i<= CRU_CFGMISC_CON;i+=4)
+	{
+		rk616->read_dev(rk616,i,&val);
+		seq_printf(s,"0x%04x>>0x%08x\n",i,val);
+	}
+
+	return 0;
+}
+
+static ssize_t rk616_reg_write (struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+{ 
+	struct mfd_rk616 *rk616 = file->f_path.dentry->d_inode->i_private;
+	u32 reg;
+	u32 val;
+	char kbuf[25];
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+	sscanf(kbuf, "%x%x", &reg,&val);
+	dev_dbg(rk616->dev,"%s:reg:0x%04x val:0x%08x\n",__func__,reg,val);
+	rk616->write_dev(rk616,reg,&val);
+	return count;
+}
+
+static int rk616_reg_open(struct inode *inode, struct file *file)
+{
+	struct mfd_rk616 *rk616 = inode->i_private;
+	return single_open(file,rk616_reg_show,rk616);
+}
+
+static const struct file_operations rk616_reg_fops = {
+	.owner		= THIS_MODULE,
+	.open		= rk616_reg_open,
+	.read		= seq_read,
+	.write          = rk616_reg_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+#endif
+
+/***********************************
+default clk patch settiing:
+CLKIN-------->CODEC
+LCD_DCLK0--->PLL0--->Dither--->LVDS/MIPI
+LCD_DCLK1--->PLL1--->HDMI
+************************************/
+
+static int rk616_clk_common_init(struct mfd_rk616 *rk616)
+{
+	u32 val = 0;
+	int ret;
+
+	val = PLL1_CLK_SEL(1) | PLL0_CLK_SEL(0) | LCD1_CLK_DIV(0) | LCD0_CLK_DIV(0) |
+		PLL1_CLK_SEL_MASK | PLL0_CLK_SEL_MASK | LCD1_CLK_DIV_MASK | 
+		LCD0_CLK_DIV_MASK; //pll1 clk from lcdc1_dclk,pll0 clk from lcdc0_dclk,mux_lcdx = lcdx_clk
+	ret = rk616->write_dev(rk616,CRU_CLKSEL0_CON,&val);
+
+	val = CODEC_MCLK_SEL(2) | CODEC_MCLK_SEL_MASK; //codec mclk from clkin
+	ret = rk616->write_dev(rk616,CRU_CLKSEL1_CON,&val);
+	
+	val = 0; //codec mck = clkin
+	ret = rk616->write_dev(rk616,CRU_CODEC_DIV,&val);
+
+	val = (PLL0_BYPASS) | (PLL0_BYPASS << 16);  //bypass pll0 
+	ret = rk616->write_dev(rk616,CRU_PLL0_CON0,&val);
+
+	val = (PLL1_BYPASS) | (PLL1_BYPASS << 16);
+	ret = rk616->write_dev(rk616,CRU_PLL1_CON0,&val);
 
 	return 0;
 }
@@ -146,6 +228,10 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 	}
 	rk616->read_dev = rk616_i2c_read_reg;
 	rk616->write_dev = rk616_i2c_write_reg;
+#if defined(CONFIG_DEBUG_FS)
+	debugfs_create_file("rk616-reg", S_IRUSR,NULL,rk616,&rk616_reg_fops);
+#endif
+	rk616_clk_common_init(rk616);
 	ret = mfd_add_devices(rk616->dev, -1,
 				      rk616_devs, ARRAY_SIZE(rk616_devs),
 				      NULL, rk616->irq_base);

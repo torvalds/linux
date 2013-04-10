@@ -11,122 +11,128 @@
 #define VIF0_DDR_MODE_EN	(1<<1)
 #define VIF0_EN			(1<<0)
 
-#define VIF0_REG1 	0x0004
-#define VIF0_REG2 	0x0008
-#define VIF0_REG3 	0x000C
-#define VIF0_REG4 	0x0010
-#define VIF0_REG5 	0x0014
-#define VIF1_REG0 	0x0018
-#define VIF1_REG1 	0x001C
-#define VIF1_REG2 	0x0020
-#define VIF1_REG3 	0x0024
-#define VIF1_REG4 	0x0028
-#define VIF1_REG5 	0x002C
-#define SCL_REG0  	0x0030
-#define SCL_EN          (1<<0)
+#define VIF0_REG1 		0x0004
+#define VIF0_REG2 		0x0008
+#define VIF0_REG3 		0x000C
+#define VIF0_REG4 		0x0010
+#define VIF0_REG5 		0x0014
+#define VIF1_REG0 		0x0018
+#define VIF1_REG1 		0x001C
+#define VIF1_REG2 		0x0020
+#define VIF1_REG3 		0x0024
+#define VIF1_REG4 		0x0028
+#define VIF1_REG5 		0x002C
+#define SCL_REG0  		0x0030
+#define SCL_EN          	(1<<0)
 
-#define SCL_REG1  	0x0034
-#define SCL_REG2  	0x0038
-#define SCL_REG3  	0x003C
-#define SCL_REG4  	0x0040
-#define SCL_REG5  	0x0044
-#define SCL_REG6  	0x0048
-#define SCL_REG7  	0x004C
-#define SCL_REG8  	0x0050
-#define FRC_REG   	0x0054
+#define SCL_REG1  		0x0034
+#define SCL_REG2  		0x0038
+#define SCL_REG3  		0x003C
+#define SCL_REG4  		0x0040
+#define SCL_REG5  		0x0044
+#define SCL_REG6  		0x0048
+#define SCL_REG7  		0x004C
+#define SCL_REG8  		0x0050
+#define FRC_REG   		0x0054
 
-#define CRU_CLKSEL0_CON 0x0058
-#define PLL1_IN_SEL(x)  (((x)&3)<<8)
-#define PLL0_IN_SEL(x)  (((x)&3)<<6)
-#define LCD1_CLK_DIV(x) (((x)&7)<<3)
-#define LCD0_CLK_DIV(x) (((x)&7)<<0)
+#define CRU_CLKSEL0_CON 	0x0058
+#define PLL1_CLK_SEL_MASK	(0x3<<24)
+#define PLL0_CLK_SEL_MASK	(0x3<<22)
+#define LCD1_CLK_DIV_MASK	(0x7<<19)
+#define LCD0_CLK_DIV_MASK	(0x7<<16)
+#define PLL1_CLK_SEL(x)  	(((x)&3)<<8)
+#define PLL0_CLK_SEL(x)  	(((x)&3)<<6)
+#define LCD1_CLK_DIV(x) 	(((x)&7)<<3)
+#define LCD0_CLK_DIV(x) 	(((x)&7)<<0)
 
-#define CRU_CLKSEL1_CON 0x005C
-#define LCDC_CLK_GATE	(1<<12)
-#define LCDC1_CLK_GATE	(1<<11)
-#define MIPI_CLK_GATE	(1<<10)
-#define LVDS_CLK_GATE	(1<<9)
-#define HDMI_CLK_GATE	(1<<8)
-#define SCL_CLK_DIV	(((x)&7)<<5)
-#define SCL_CLK_GATE	(1<<4)
-#define SCL_CLK_IN_SEL	(1<<3)
-#define CODEC_CLK_GATE	(1<<2)
-#define CODEC_CLK_IN_SEL(x)	(((x)&3)<<0)
-#define CRU_CODEC_DIV	0x0060
+#define CRU_CLKSEL1_CON 	0x005C
+#define CODEC_MCLK_SEL_MASK	(3<<16)
+#define LCDC_CLK_GATE		(1<<12)
+#define LCDC1_CLK_GATE		(1<<11)
+#define MIPI_CLK_GATE		(1<<10)
+#define LVDS_CLK_GATE		(1<<9)
+#define HDMI_CLK_GATE		(1<<8)
+#define SCL_CLK_DIV(x)		(((x)&7)<<5)
+#define SCL_CLK_GATE		(1<<4)
+#define SCL_CLK_IN_SEL		(1<<3)
+#define CODEC_CLK_GATE		(1<<2)
+#define CODEC_MCLK_SEL(x)	(((x)&3)<<0)
 
-#define CRU_CLKSE2_CON  0x0064
-#define SCLIN_CLK_SEL	(1<<15)
-#define DITHER_CLK_SEL	(1<<14)
-#define HDMI_CLK_SEL(x)	(((x)&3)<<12)
-#define VIF1_CLK_DIV(x) (((x)&7)<<9)
-#define VIF1_CLK_GATE	(1<<8)
-#define VIF1_CLK_BYPASS	(1<<7)
-#define VIF1_CLK_SEL	(1<<6)
-#define VIF0_CLK_DIV(x)	(((x)&7)<<3)
-#define VIF0_CLK_GATE	(1<<2)
-#define VIF0_CLK_BYPASS	(1<<1)
-#define VIF0_CLK_SEL	(1<<0)
+#define CRU_CODEC_DIV		0x0060
 
-#define CRU_PLL0_CON0   0x0068
-#define PLL0_BYPASS	(1<<15)
-#define PLL0_POSTDIV1(x) (((x)&7)<<12)
-#define PLL0_FBDIV(x)	  (((x)&0xfff)<<0)
+#define CRU_CLKSE2_CON  	0x0064
+#define SCLIN_CLK_SEL		(1<<15)
+#define DITHER_CLK_SEL		(1<<14)
+#define HDMI_CLK_SEL(x)		(((x)&3)<<12)
+#define VIF1_CLK_DIV(x) 	(((x)&7)<<9)
+#define VIF1_CLK_GATE		(1<<8)
+#define VIF1_CLK_BYPASS		(1<<7)
+#define VIF1_CLK_SEL		(1<<6)
+#define VIF0_CLK_DIV(x)		(((x)&7)<<3)
+#define VIF0_CLK_GATE		(1<<2)
+#define VIF0_CLK_BYPASS		(1<<1)
+#define VIF0_CLK_SEL		(1<<0)
 
-#define CRU_PLL0_CON1   0x006C
-#define PLL0_PWR_DN	(1<<10)
-#define PLL0_DIV_MODE	(1<<9)
-#define PLL0_POSTDIV2(x)(((x)&7)<<6)
-#define PLL0_REFDIV(x)	(((x)&0x3f)<<0)
+#define CRU_PLL0_CON0   	0x0068
+#define PLL0_BYPASS		(1<<15)
+#define PLL0_POSTDIV1(x) 	(((x)&7)<<12)
+#define PLL0_FBDIV(x)	  	(((x)&0xfff)<<0)
 
-#define CRU_PLL0_CON2   0x0070
+#define CRU_PLL0_CON1   	0x006C
+#define PLL0_PWR_DN		(1<<10)
+#define PLL0_DIV_MODE		(1<<9)
+#define PLL0_POSTDIV2(x)	(((x)&7)<<6)
+#define PLL0_REFDIV(x)		(((x)&0x3f)<<0)
+
+#define CRU_PLL0_CON2   	0x0070
 #define PLL0_FOUT4_PWR_DN	(1<<27)
 #define PLL0_FOUTVCO_PWR_DN	(1<<26)
 #define PLL0_POSTDIV_PWR_DN	(1<<25)
 #define PLL0_DAC_PWR_DN		(1<<24)
 #define PLL0_FRAC(x)		(((x)&0xffffff)<0)
 
-#define CRU_PLL1_CON0   0x0074
-#define PLL1_BYPASS	(1<<15)
-#define PLL1_POSTDIV1(x) (((x)&7)<<12)
-#define PLL1_FBDIV(x)	  (((x)&0xfff)<<0)
+#define CRU_PLL1_CON0   	0x0074
+#define PLL1_BYPASS		(1<<15)
+#define PLL1_POSTDIV1(x) 	(((x)&7)<<12)
+#define PLL1_FBDIV(x)	  	(((x)&0xfff)<<0)
 
-#define CRU_PLL1_CON1   0x0078
-#define PLL1_PWR_DN	(1<<10)
-#define PLL1_DIV_MODE	(1<<9)
-#define PLL1_POSTDIV2(x)(((x)&7)<<6)
-#define PLL1_REFDIV(x)	(((x)&0x3f)<<0)
+#define CRU_PLL1_CON1   	0x0078
+#define PLL1_PWR_DN		(1<<10)
+#define PLL1_DIV_MODE		(1<<9)
+#define PLL1_POSTDIV2(x)	(((x)&7)<<6)
+#define PLL1_REFDIV(x)		(((x)&0x3f)<<0)
 
-#define CRU_PLL1_CON2   0x007C
+#define CRU_PLL1_CON2   	0x007C
 #define PLL1_FOUT4_PWR_DN	(1<<27)
 #define PLL1_FOUTVCO_PWR_DN	(1<<26)
 #define PLL1_POSTDIV_PWR_DN	(1<<25)
 #define PLL1_DAC_PWR_DN		(1<<24)
 #define PLL1_FRAC(x)		(((x)&0xffffff)<0)
 
-#define CRU_I2C_CON0    0x0080
+#define CRU_I2C_CON0    	0x0080
 
-#define CRU_LVDS_CON0   0x0084
-#define LVDS_CON_ST_PHASE (1<<14)
-#define LVDS_DCLK_INV	  (1<<13)
-#define LVDS_CH1_LOAD	  (1<<12)
-#define LVDS_CH0_LOAD	  (1<<11)
-#define LVDS_CH1TTL_DISABLE (1<<10)
-#define LVDS_CH0TTL_DISABLE (1<<9)
-#define LVDS_CH1_PWR_EN	    (1<<8)
-#define LVDS_CH0_PWR_EN	    (1<<7)
-#define LVDS_CBG_PWR_EN	    (1<<6)
-#define LVDS_PLL_PWR_DN	    (1<<5)
-#define LVDS_START_CH_SEL   (1<<4)
-#define LVDS_CH_SEL	    (1<<3)
-#define LVDS_MSB_SEL	    (1<<2)
-#define LVDS_OUT_FORMAT	    (1<<0)
+#define CRU_LVDS_CON0   	0x0084
+#define LVDS_CON_ST_PHASE 	(1<<14)
+#define LVDS_DCLK_INV	  	(1<<13)
+#define LVDS_CH1_LOAD	  	(1<<12)
+#define LVDS_CH0_LOAD	  	(1<<11)
+#define LVDS_CH1TTL_DISABLE 	(1<<10)
+#define LVDS_CH0TTL_DISABLE 	(1<<9)
+#define LVDS_CH1_PWR_EN	    	(1<<8)
+#define LVDS_CH0_PWR_EN	    	(1<<7)
+#define LVDS_CBG_PWR_EN	    	(1<<6)
+#define LVDS_PLL_PWR_DN	    	(1<<5)
+#define LVDS_START_CH_SEL   	(1<<4)
+#define LVDS_CH_SEL	    	(1<<3)
+#define LVDS_MSB_SEL	    	(1<<2)
+#define LVDS_OUT_FORMAT	    	(1<<0)
 
 
-#define CRU_IO_CON0    	0x0088
-#define I2S1_OUT_EN	(1<<13)
-#define I2S0_OUT_EN	(1<<12)
-#define LVDS_OUT_EN	(1<<11)
-#define LCD1_INPUT_EN	(1<<10)
+#define CRU_IO_CON0    		0x0088
+#define I2S1_OUT_EN		(1<<13)
+#define I2S0_OUT_EN		(1<<12)
+#define LVDS_OUT_EN		(1<<11)
+#define LCD1_INPUT_EN		(1<<10)
 #define LVDS_RGBIO_PD_DISABLE	(1<<9)
 #define LCD1_IO_PD_DISABLE	(1<<8)
 #define LCD0_IO_PD_DISABLE	(1<<7)
@@ -158,17 +164,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 struct rk616_platform_data {
 	int (*power_init)(void);
 	int scl_rate;
@@ -195,7 +190,7 @@ struct mfd_rk616 {
 	struct rk616_platform_data *pdata;
 	struct rk616_route *route;  //display path router
 	struct i2c_client *client;
-	int (*read_dev)(struct mfd_rk616 *rk616, u16 reg,u32 *pval);
+	int (*read_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);
 	int (*write_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);
 };
 
