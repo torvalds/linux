@@ -5953,6 +5953,8 @@ static __init int tracer_init_debugfs(void)
 	trace_access_lock_init();
 
 	d_tracer = tracing_init_dentry();
+	if (!d_tracer)
+		return 0;
 
 	init_tracer_debugfs(&global_trace, d_tracer);
 
