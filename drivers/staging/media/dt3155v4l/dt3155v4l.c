@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-common.h>
 #include <media/videobuf2-dma-contig.h>
 
 #include "dt3155v4l.h"
@@ -341,7 +342,7 @@ dt3155_irq_handler_even(int irq, void *dev_id)
 
 	spin_lock(&ipd->lock);
 	if (ipd->curr_buf) {
-		do_gettimeofday(&ipd->curr_buf->v4l2_buf.timestamp);
+		v4l2_get_timestamp(&ipd->curr_buf->v4l2_buf.timestamp);
 		ipd->curr_buf->v4l2_buf.sequence = (ipd->field_count) >> 1;
 		vb2_buffer_done(ipd->curr_buf, VB2_BUF_STATE_DONE);
 	}
@@ -390,6 +391,7 @@ dt3155_open(struct file *filp)
 			goto err_alloc_queue;
 		}
 		pd->q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		pd->q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		pd->q->io_modes = VB2_READ | VB2_MMAP;
 		pd->q->ops = &q_ops;
 		pd->q->mem_ops = &vb2_dma_contig_memops;
