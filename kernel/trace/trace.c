@@ -1637,15 +1637,6 @@ trace_function(struct trace_array *tr,
 		__buffer_unlock_commit(buffer, event);
 }
 
-void
-ftrace(struct trace_array *tr, struct trace_array_cpu *data,
-       unsigned long ip, unsigned long parent_ip, unsigned long flags,
-       int pc)
-{
-	if (likely(!atomic_read(&data->disabled)))
-		trace_function(tr, ip, parent_ip, flags, pc);
-}
-
 #ifdef CONFIG_STACKTRACE
 
 #define FTRACE_STACK_MAX_ENTRIES (PAGE_SIZE / sizeof(unsigned long))

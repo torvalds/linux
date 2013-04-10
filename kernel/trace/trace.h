@@ -559,11 +559,6 @@ void tracing_iter_reset(struct trace_iterator *iter, int cpu);
 
 void poll_wait_pipe(struct trace_iterator *iter);
 
-void ftrace(struct trace_array *tr,
-			    struct trace_array_cpu *data,
-			    unsigned long ip,
-			    unsigned long parent_ip,
-			    unsigned long flags, int pc);
 void tracing_sched_switch_trace(struct trace_array *tr,
 				struct task_struct *prev,
 				struct task_struct *next,
