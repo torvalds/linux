@@ -1511,6 +1511,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 		/* (!csum && gso) case will be fixed by register_netdev() */
 	}
 
+	dev->vlan_features = dev->features;
+
 	/* Configuration may specify what MAC to use.  Otherwise random. */
 	if (virtio_config_val_len(vdev, VIRTIO_NET_F_MAC,
 				  offsetof(struct virtio_net_config, mac),
