@@ -120,8 +120,7 @@ static int addi_auto_attach(struct comedi_device *dev,
 		/* board has an ADDIDATA_9054 eeprom */
 		dev->iobase = pci_resource_start(pcidev, 2);
 		devpriv->iobase = pci_resource_start(pcidev, 2);
-		devpriv->dw_AiBase = ioremap(pci_resource_start(pcidev, 3),
-					     this_board->i_IorangeBase3);
+		devpriv->dw_AiBase = pci_ioremap_bar(pcidev, 3);
 	}
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 
