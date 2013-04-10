@@ -1820,7 +1820,6 @@ static int musb_gadget_start(struct usb_gadget *g,
 {
 	struct musb		*musb = gadget_to_musb(g);
 	struct usb_otg		*otg = musb->xceiv->otg;
-	struct usb_hcd		*hcd = musb_to_hcd(musb);
 	unsigned long		flags;
 	int			retval = 0;
 
@@ -1847,16 +1846,8 @@ static int musb_gadget_start(struct usb_gadget *g,
 	 * handles power budgeting ... this way also
 	 * ensures HdrcStart is indirectly called.
 	 */
-	retval = usb_add_hcd(hcd, 0, 0);
-	if (retval < 0) {
-		dev_dbg(musb->controller, "add_hcd failed, %d\n", retval);
-		goto err;
-	}
-
 	if (musb->xceiv->last_event == USB_EVENT_ID)
 		musb_platform_set_vbus(musb, 1);
-
-	hcd->self.uses_pio_for_control = 1;
 
 	if (musb->xceiv->last_event == USB_EVENT_NONE)
 		pm_runtime_put(musb->controller);
@@ -1942,7 +1933,6 @@ static int musb_gadget_stop(struct usb_gadget *g,
 	musb_platform_try_idle(musb, 0);
 	spin_unlock_irqrestore(&musb->lock, flags);
 
-	usb_remove_hcd(musb_to_hcd(musb));
 	/*
 	 * FIXME we need to be able to register another
 	 * gadget driver here and have everything work;
