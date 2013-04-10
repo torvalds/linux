@@ -363,7 +363,7 @@
 		spi-max-frequency = <24000000>;
 		reg = <0>;
 		interrupt-parent = <&gpio2>;
-		interrupts = <2>; /* gpio line 34 */
+		interrupts = <2 8>; /* gpio line 34, low triggered */
 		vdd-supply = <&vdd_eth>;
 	};
 };
