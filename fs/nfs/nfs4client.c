@@ -482,6 +482,7 @@ int nfs41_walk_client_list(struct nfs_client *new,
 
 		atomic_inc(&pos->cl_count);
 		*result = pos;
+		status = 0;
 		dprintk("NFS: <-- %s using nfs_client = %p ({%d})\n",
 			__func__, pos, atomic_read(&pos->cl_count));
 		break;
