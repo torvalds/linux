@@ -351,9 +351,9 @@ static int elm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	info->elm_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!info->elm_base)
-		return -EADDRNOTAVAIL;
+	info->elm_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(info->elm_base))
+		return PTR_ERR(info->elm_base);
 
 	ret = devm_request_irq(&pdev->dev, irq->start, elm_isr, 0,
 			pdev->name, info);
