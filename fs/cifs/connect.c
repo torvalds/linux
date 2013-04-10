@@ -3836,7 +3836,7 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 	if (rc) {
 		cifs_dbg(VFS, "Send error in SessSetup = %d\n", rc);
 	} else {
-		mutex_lock(&ses->server->srv_mutex);
+		mutex_lock(&server->srv_mutex);
 		if (!server->session_estab) {
 			server->session_key.response = ses->auth_key.response;
 			server->session_key.len = ses->auth_key.len;
