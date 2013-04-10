@@ -693,11 +693,12 @@ struct  anx6345_platform_data {
 struct edp_anx6345 {
 	struct i2c_client *client;
 	struct anx6345_platform_data *pdata;
-	int (*edp_anx_init)(struct i2c_client *client);
 	rk_screen screen;
+	struct dentry *debugfs_dir;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif 
+	int (*edp_anx_init)(struct i2c_client *client);
 };
 
 #endif

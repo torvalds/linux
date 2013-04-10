@@ -1,7 +1,5 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/fs.h>
-#include <linux/seq_file.h>
 #include <linux/time.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -9,7 +7,13 @@
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/anx6345.h>
+
+#if defined(CONFIG_DEBUG_FS)
+#include <linux/fs.h>
 #include <linux/debugfs.h>
+#include <linux/seq_file.h>
+#endif
+
 
 //#define BIST_MODE 0
 
@@ -63,6 +67,7 @@ static int anx6345_i2c_write_p1_reg(struct i2c_client *client, char reg, char *v
 	return ret;
 }
 
+#if defined(CONFIG_DEBUG_FS)
 static int edp_reg_show(struct seq_file *s, void *v)
 {
 	int i = 0;
@@ -104,7 +109,7 @@ static const struct file_operations edp_reg_fops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
-
+#endif
 
 //get chip ID. Make sure I2C is OK
 static int get_dp_chip_id(struct i2c_client *client)
@@ -778,8 +783,16 @@ static int anx6345_i2c_probe(struct i2c_client *client,const struct i2c_device_i
 	if(anx6345->pdata->power_ctl)
 		anx6345->pdata->power_ctl();
 
-	debugfs_create_file("edp-reg", S_IRUSR,NULL,anx6345,&edp_reg_fops);
-	
+#if defined(CONFIG_DEBUG_FS)
+	anx6345->debugfs_dir = debugfs_create_dir("edp", NULL);
+	if (IS_ERR(anx6345->debugfs_dir))
+	{
+		printk(KERN_ERR "failed to create debugfs dir for edp!\n");
+	}
+	else
+		debugfs_create_file("edp-reg", S_IRUSR,anx6345->debugfs_dir,anx6345,&edp_reg_fops);
+#endif
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	anx6345->early_suspend.suspend = anx6345_early_suspend;
 	anx6345->early_suspend.resume = anx6345_late_resume;
