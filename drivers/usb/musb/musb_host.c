@@ -2640,6 +2640,27 @@ void musb_host_free(struct musb *musb)
 	usb_put_hcd(musb->hcd);
 }
 
+int musb_host_setup(struct musb *musb, int power_budget)
+{
+	int ret;
+	struct usb_hcd *hcd = musb->hcd;
+
+	MUSB_HST_MODE(musb);
+	musb->xceiv->otg->default_a = 1;
+	musb->xceiv->state = OTG_STATE_A_IDLE;
+
+	otg_set_host(musb->xceiv->otg, &hcd->self);
+	hcd->self.otg_port = 1;
+	musb->xceiv->otg->host = &hcd->self;
+	hcd->power_budget = 2 * (power_budget ? : 250);
+
+	ret = usb_add_hcd(hcd, 0, 0);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 void musb_host_resume_root_hub(struct musb *musb)
 {
 	usb_hcd_resume_root_hub(musb->hcd);

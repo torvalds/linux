@@ -953,6 +953,7 @@ static void musb_shutdown(struct platform_device *pdev)
 
 	pm_runtime_get_sync(musb->controller);
 
+	musb_host_cleanup(musb);
 	musb_gadget_cleanup(musb);
 
 	spin_lock_irqsave(&musb->lock, flags);
@@ -1901,6 +1902,10 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		MUSB_DEV_MODE(musb);
 		musb->xceiv->state = OTG_STATE_B_IDLE;
 	}
+
+	status = musb_host_setup(musb, plat->power);
+	if (status < 0)
+		goto fail3;
 
 	status = musb_gadget_setup(musb);
 
