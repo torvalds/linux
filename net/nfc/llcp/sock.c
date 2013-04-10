@@ -646,6 +646,8 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	pr_debug("%p %zu\n", sk, len);
 
+	msg->msg_namelen = 0;
+
 	lock_sock(sk);
 
 	if (sk->sk_state == LLCP_CLOSED &&
@@ -691,6 +693,7 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 		pr_debug("Datagram socket %d %d\n", ui_cb->dsap, ui_cb->ssap);
 
+		memset(sockaddr, 0, sizeof(*sockaddr));
 		sockaddr->sa_family = AF_NFC;
 		sockaddr->nfc_protocol = NFC_PROTO_NFC_DEP;
 		sockaddr->dsap = ui_cb->dsap;
