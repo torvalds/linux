@@ -897,51 +897,6 @@ b_host:
 
 /*-------------------------------------------------------------------------*/
 
-/*
-* Program the HDRC to start (enable interrupts, dma, etc.).
-*/
-void musb_start(struct musb *musb)
-{
-	void __iomem	*regs = musb->mregs;
-	u8		devctl = musb_readb(regs, MUSB_DEVCTL);
-
-	dev_dbg(musb->controller, "<== devctl %02x\n", devctl);
-
-	/*  Set INT enable registers, enable interrupts */
-	musb->intrtxe = musb->epmask;
-	musb_writew(regs, MUSB_INTRTXE, musb->intrtxe);
-	musb->intrrxe = musb->epmask & 0xfffe;
-	musb_writew(regs, MUSB_INTRRXE, musb->intrrxe);
-	musb_writeb(regs, MUSB_INTRUSBE, 0xf7);
-
-	musb_writeb(regs, MUSB_TESTMODE, 0);
-
-	/* put into basic highspeed mode and start session */
-	musb_writeb(regs, MUSB_POWER, MUSB_POWER_ISOUPDATE
-						| MUSB_POWER_HSENAB
-						/* ENSUSPEND wedges tusb */
-						/* | MUSB_POWER_ENSUSPEND */
-						);
-
-	musb->is_active = 0;
-	devctl = musb_readb(regs, MUSB_DEVCTL);
-	devctl &= ~MUSB_DEVCTL_SESSION;
-
-	/* session started after:
-	 * (a) ID-grounded irq, host mode;
-	 * (b) vbus present/connect IRQ, peripheral mode;
-	 * (c) peripheral initiates, using SRP
-	 */
-	if ((devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS)
-		musb->is_active = 1;
-	else
-		devctl |= MUSB_DEVCTL_SESSION;
-
-	musb_platform_enable(musb);
-	musb_writeb(regs, MUSB_DEVCTL, devctl);
-}
-
-
 static void musb_generic_disable(struct musb *musb)
 {
 	void __iomem	*mbase = musb->mregs;
