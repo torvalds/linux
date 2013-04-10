@@ -713,10 +713,8 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 	if (result)
 		return result;
 
-	devpriv->plx = ioremap(pci_resource_start(pcidev, 0),
-			       pci_resource_len(pcidev, 0));
-	devpriv->daq = ioremap(pci_resource_start(pcidev, 2),
-			       pci_resource_len(pcidev, 2));
+	devpriv->plx = pci_ioremap_bar(pcidev, 0);
+	devpriv->daq = pci_ioremap_bar(pcidev, 2);
 	if (!devpriv->plx || !devpriv->daq)
 		return -ENOMEM;
 
