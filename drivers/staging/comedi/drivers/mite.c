@@ -58,10 +58,6 @@
 #include "comedi_fc.h"
 #include "mite.h"
 
-#define PCI_MITE_SIZE		4096
-#define PCI_DAQ_SIZE		4096
-#define PCI_DAQ_SIZE_660X       8192
-
 #define TOP_OF_PAGE(x) ((x)|(~(PAGE_MASK)))
 
 struct mite_struct *mite_alloc(struct pci_dev *pcidev)
@@ -104,35 +100,28 @@ static unsigned mite_fifo_size(struct mite_struct *mite, unsigned channel)
 int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 {
 	unsigned long length;
-	resource_size_t addr;
 	int i;
 	u32 csigr_bits;
 	unsigned unknown_dma_burst_bits;
 
 	pci_set_master(mite->pcidev);
 
-	addr = pci_resource_start(mite->pcidev, 0);
-	mite->mite_phys_addr = addr;
-	mite->mite_io_addr = ioremap(addr, PCI_MITE_SIZE);
+	mite->mite_io_addr = pci_ioremap_bar(mite->pcidev, 0);
 	if (!mite->mite_io_addr) {
 		dev_err(&mite->pcidev->dev,
 			"Failed to remap mite io memory address\n");
 		return -ENOMEM;
 	}
+	mite->mite_phys_addr = pci_resource_start(mite->pcidev, 0);
 
-	addr = pci_resource_start(mite->pcidev, 1);
-	mite->daq_phys_addr = addr;
-	length = pci_resource_len(mite->pcidev, 1);
-	/*
-	 * In case of a 660x board, DAQ size is 8k instead of 4k
-	 * (see as shown by lspci output)
-	 */
-	mite->daq_io_addr = ioremap(mite->daq_phys_addr, length);
+	mite->daq_io_addr = pci_ioremap_bar(mite->pcidev, 1);
 	if (!mite->daq_io_addr) {
 		dev_err(&mite->pcidev->dev,
 			"Failed to remap daq io memory address\n");
 		return -ENOMEM;
 	}
+	mite->daq_phys_addr = pci_resource_start(mite->pcidev, 1);
+	length = pci_resource_len(mite->pcidev, 1);
 
 	if (use_iodwbsr_1) {
 		writel(0, mite->mite_io_addr + MITE_IODWBSR);
