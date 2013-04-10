@@ -64,20 +64,10 @@ enum {
 	VHOST_NET_VQ_MAX = 2,
 };
 
-enum vhost_net_poll_state {
-	VHOST_NET_POLL_DISABLED = 0,
-	VHOST_NET_POLL_STARTED = 1,
-	VHOST_NET_POLL_STOPPED = 2,
-};
-
 struct vhost_net {
 	struct vhost_dev dev;
 	struct vhost_virtqueue vqs[VHOST_NET_VQ_MAX];
 	struct vhost_poll poll[VHOST_NET_VQ_MAX];
-	/* Tells us whether we are polling a socket for TX.
-	 * We only do this when socket buffer fills up.
-	 * Protected by tx vq lock. */
-	enum vhost_net_poll_state tx_poll_state;
 	/* Number of TX recently submitted.
 	 * Protected by tx vq lock. */
 	unsigned tx_packets;
@@ -155,28 +145,6 @@ static void copy_iovec_hdr(const struct iovec *from, struct iovec *to,
 	}
 }
 
-/* Caller must have TX VQ lock */
-static void tx_poll_stop(struct vhost_net *net)
-{
-	if (likely(net->tx_poll_state != VHOST_NET_POLL_STARTED))
-		return;
-	vhost_poll_stop(net->poll + VHOST_NET_VQ_TX);
-	net->tx_poll_state = VHOST_NET_POLL_STOPPED;
-}
-
-/* Caller must have TX VQ lock */
-static int tx_poll_start(struct vhost_net *net, struct socket *sock)
-{
-	int ret;
-
-	if (unlikely(net->tx_poll_state != VHOST_NET_POLL_STOPPED))
-		return 0;
-	ret = vhost_poll_start(net->poll + VHOST_NET_VQ_TX, sock->file);
-	if (!ret)
-		net->tx_poll_state = VHOST_NET_POLL_STARTED;
-	return ret;
-}
-
 /* In case of DMA done not in order in lower device driver for some reason.
  * upend_idx is used to track end of used idx, done_idx is used to track head
  * of used idx. Once lower device DMA done contiguously, we will signal KVM
@@ -242,7 +210,7 @@ static void handle_tx(struct vhost_net *net)
 		.msg_flags = MSG_DONTWAIT,
 	};
 	size_t len, total_len = 0;
-	int err, wmem;
+	int err;
 	size_t hdr_size;
 	struct socket *sock;
 	struct vhost_ubuf_ref *uninitialized_var(ubufs);
@@ -253,19 +221,9 @@ static void handle_tx(struct vhost_net *net)
 	if (!sock)
 		return;
 
-	wmem = atomic_read(&sock->sk->sk_wmem_alloc);
-	if (wmem >= sock->sk->sk_sndbuf) {
-		mutex_lock(&vq->mutex);
-		tx_poll_start(net, sock);
-		mutex_unlock(&vq->mutex);
-		return;
-	}
-
 	mutex_lock(&vq->mutex);
 	vhost_disable_notify(&net->dev, vq);
 
-	if (wmem < sock->sk->sk_sndbuf / 2)
-		tx_poll_stop(net);
 	hdr_size = vq->vhost_hlen;
 	zcopy = vq->ubufs;
 
@@ -285,23 +243,14 @@ static void handle_tx(struct vhost_net *net)
 		if (head == vq->num) {
 			int num_pends;
 
-			wmem = atomic_read(&sock->sk->sk_wmem_alloc);
-			if (wmem >= sock->sk->sk_sndbuf * 3 / 4) {
-				tx_poll_start(net, sock);
-				set_bit(SOCK_ASYNC_NOSPACE, &sock->flags);
-				break;
-			}
 			/* If more outstanding DMAs, queue the work.
 			 * Handle upend_idx wrap around
 			 */
 			num_pends = likely(vq->upend_idx >= vq->done_idx) ?
 				    (vq->upend_idx - vq->done_idx) :
 				    (vq->upend_idx + UIO_MAXIOV - vq->done_idx);
-			if (unlikely(num_pends > VHOST_MAX_PEND)) {
-				tx_poll_start(net, sock);
-				set_bit(SOCK_ASYNC_NOSPACE, &sock->flags);
+			if (unlikely(num_pends > VHOST_MAX_PEND))
 				break;
-			}
 			if (unlikely(vhost_enable_notify(&net->dev, vq))) {
 				vhost_disable_notify(&net->dev, vq);
 				continue;
@@ -364,8 +313,6 @@ static void handle_tx(struct vhost_net *net)
 					UIO_MAXIOV;
 			}
 			vhost_discard_vq_desc(vq, 1);
-			if (err == -EAGAIN || err == -ENOBUFS)
-				tx_poll_start(net, sock);
 			break;
 		}
 		if (err != len)
@@ -628,7 +575,6 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 
 	vhost_poll_init(n->poll + VHOST_NET_VQ_TX, handle_tx_net, POLLOUT, dev);
 	vhost_poll_init(n->poll + VHOST_NET_VQ_RX, handle_rx_net, POLLIN, dev);
-	n->tx_poll_state = VHOST_NET_POLL_DISABLED;
 
 	f->private_data = n;
 
@@ -638,32 +584,24 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 static void vhost_net_disable_vq(struct vhost_net *n,
 				 struct vhost_virtqueue *vq)
 {
+	struct vhost_poll *poll = n->poll + (vq - n->vqs);
 	if (!vq->private_data)
 		return;
-	if (vq == n->vqs + VHOST_NET_VQ_TX) {
-		tx_poll_stop(n);
-		n->tx_poll_state = VHOST_NET_POLL_DISABLED;
-	} else
-		vhost_poll_stop(n->poll + VHOST_NET_VQ_RX);
+	vhost_poll_stop(poll);
 }
 
 static int vhost_net_enable_vq(struct vhost_net *n,
 				struct vhost_virtqueue *vq)
 {
+	struct vhost_poll *poll = n->poll + (vq - n->vqs);
 	struct socket *sock;
-	int ret;
 
 	sock = rcu_dereference_protected(vq->private_data,
 					 lockdep_is_held(&vq->mutex));
 	if (!sock)
 		return 0;
-	if (vq == n->vqs + VHOST_NET_VQ_TX) {
-		n->tx_poll_state = VHOST_NET_POLL_STOPPED;
-		ret = tx_poll_start(n, sock);
-	} else
-		ret = vhost_poll_start(n->poll + VHOST_NET_VQ_RX, sock->file);
 
-	return ret;
+	return vhost_poll_start(poll, sock->file);
 }
 
 static struct socket *vhost_net_stop_vq(struct vhost_net *n,
