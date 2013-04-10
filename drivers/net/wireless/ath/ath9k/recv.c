@@ -381,6 +381,10 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	rfilt = ATH9K_RX_FILTER_UCAST | ATH9K_RX_FILTER_BCAST
 		| ATH9K_RX_FILTER_MCAST;
 
+	/* if operating on a DFS channel, enable radar pulse detection */
+	if (sc->hw->conf.radar_enabled)
+		rfilt |= ATH9K_RX_FILTER_PHYRADAR | ATH9K_RX_FILTER_PHYERR;
+
 	if (sc->rx.rxfilter & FIF_PROBE_REQ)
 		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
 
@@ -1227,6 +1231,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (rs.rs_tstamp < tsf_lower &&
 		    unlikely(tsf_lower - rs.rs_tstamp > 0x10000000))
 			rxs->mactime += 0x100000000ULL;
+
+		if (rs.rs_phyerr == ATH9K_PHYERR_RADAR)
+			ath9k_dfs_process_phyerr(sc, hdr, &rs, rxs->mactime);
 
 		if (rs.rs_status & ATH9K_RXERR_PHY) {
 			if (ath_process_fft(sc, hdr, &rs, rxs->mactime)) {

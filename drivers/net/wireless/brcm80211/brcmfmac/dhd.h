@@ -72,6 +72,7 @@
 #define BRCMF_C_SET_WSEC			134
 #define BRCMF_C_GET_PHY_NOISE			135
 #define BRCMF_C_GET_BSS_INFO			136
+#define BRCMF_C_GET_BANDLIST			140
 #define BRCMF_C_SET_SCB_TIMEOUT			158
 #define BRCMF_C_GET_PHYLIST			180
 #define BRCMF_C_SET_SCAN_CHANNEL_TIME		185
@@ -475,6 +476,11 @@ struct brcmf_sta_info_le {
 	__le32	rx_decrypt_failures;	/* # of packet decrypted failed */
 };
 
+struct brcmf_chanspec_list {
+	__le32	count;		/* # of entries */
+	__le32	element[1];	/* variable length uint32 list */
+};
+
 /*
  * WLC_E_PROBRESP_MSG
  * WLC_E_P2P_PROBREQ_MSG
@@ -542,10 +548,25 @@ struct brcmf_if_event {
 	u8 action;
 	u8 flags;
 	u8 bssidx;
+	u8 role;
 };
 
-/* forward declaration */
+/* forward declarations */
 struct brcmf_cfg80211_vif;
+struct brcmf_fws_mac_descriptor;
+
+/**
+ * enum brcmf_netif_stop_reason - reason for stopping netif queue.
+ *
+ * @BRCMF_NETIF_STOP_REASON_FWS_FC:
+ *	netif stopped due to firmware signalling flow control.
+ * @BRCMF_NETIF_STOP_REASON_BLOCK_BUS:
+ *	netif stopped due to bus blocking.
+ */
+enum brcmf_netif_stop_reason {
+	BRCMF_NETIF_STOP_REASON_FWS_FC = 1,
+	BRCMF_NETIF_STOP_REASON_BLOCK_BUS = 2
+};
 
 /**
  * struct brcmf_if - interface control information.
@@ -554,9 +575,13 @@ struct brcmf_cfg80211_vif;
  * @vif: points to cfg80211 specific interface information.
  * @ndev: associated network device.
  * @stats: interface specific network statistics.
+ * @setmacaddr_work: worker object for setting mac address.
+ * @multicast_work: worker object for multicast provisioning.
+ * @fws_desc: interface specific firmware-signalling descriptor.
  * @ifidx: interface index in device firmware.
  * @bssidx: index of bss associated with this interface.
  * @mac_addr: assigned mac address.
+ * @netif_stop: bitmap indicates reason why netif queues are stopped.
  * @pend_8021x_cnt: tracks outstanding number of 802.1x frames.
  * @pend_8021x_wait: used for signalling change in count.
  */
@@ -567,9 +592,11 @@ struct brcmf_if {
 	struct net_device_stats stats;
 	struct work_struct setmacaddr_work;
 	struct work_struct multicast_work;
+	struct brcmf_fws_mac_descriptor *fws_desc;
 	int ifidx;
 	s32 bssidx;
 	u8 mac_addr[ETH_ALEN];
+	u8 netif_stop;
 	atomic_t pend_8021x_cnt;
 	wait_queue_head_t pend_8021x_wait;
 };
@@ -594,6 +621,10 @@ extern int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked);
 extern struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx,
 				     s32 ifidx, char *name, u8 *mac_addr);
 extern void brcmf_del_if(struct brcmf_pub *drvr, s32 bssidx);
+void brcmf_txflowblock_if(struct brcmf_if *ifp,
+			  enum brcmf_netif_stop_reason reason, bool state);
 extern u32 brcmf_get_chip_info(struct brcmf_if *ifp);
+extern void brcmf_txfinalize(struct brcmf_pub *drvr, struct sk_buff *txp,
+			     bool success);
 
 #endif				/* _BRCMF_H_ */

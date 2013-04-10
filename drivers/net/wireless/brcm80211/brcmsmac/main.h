@@ -492,6 +492,8 @@ struct brcms_c_info {
 	bool radio_monitor;
 	bool going_down;
 
+	bool beacon_template_virgin;
+
 	struct brcms_timer *wdtimer;
 	struct brcms_timer *radio_timer;
 
@@ -561,6 +563,11 @@ struct brcms_c_info {
 
 	struct wiphy *wiphy;
 	struct scb pri_scb;
+
+	struct sk_buff *beacon;
+	u16 beacon_tim_offset;
+	u16 beacon_dtim_period;
+	struct sk_buff *probe_resp;
 };
 
 /* antsel module specific state */
@@ -576,14 +583,17 @@ struct antsel_info {
 	struct brcms_antselcfg antcfg_cur; /* current antenna config (auto) */
 };
 
+enum brcms_bss_type {
+	BRCMS_TYPE_STATION,
+	BRCMS_TYPE_AP,
+	BRCMS_TYPE_ADHOC,
+};
+
 /*
  * BSS configuration state
  *
  * wlc: wlc to which this bsscfg belongs to.
- * up: is this configuration up operational
- * enable: is this configuration enabled
- * associated: is BSS in ASSOCIATED state
- * BSS: infraustructure or adhoc
+ * type: interface type
  * SSID_len: the length of SSID
  * SSID: SSID string
  *
@@ -599,14 +609,10 @@ struct antsel_info {
  */
 struct brcms_bss_cfg {
 	struct brcms_c_info *wlc;
-	bool up;
-	bool enable;
-	bool associated;
-	bool BSS;
+	enum brcms_bss_type type;
 	u8 SSID_len;
 	u8 SSID[IEEE80211_MAX_SSID_LEN];
 	u8 BSSID[ETH_ALEN];
-	u8 cur_etheraddr[ETH_ALEN];
 	struct brcms_bss_info *current_bss;
 };
 
@@ -631,7 +637,6 @@ extern u16 brcms_c_compute_rtscts_dur(struct brcms_c_info *wlc, bool cts_only,
 extern void brcms_c_inval_dma_pkts(struct brcms_hardware *hw,
 			       struct ieee80211_sta *sta,
 			       void (*dma_callback_fn));
-extern void brcms_c_update_beacon(struct brcms_c_info *wlc);
 extern void brcms_c_update_probe_resp(struct brcms_c_info *wlc, bool suspend);
 extern int brcms_c_set_nmode(struct brcms_c_info *wlc);
 extern void brcms_c_beacon_phytxctl_txant_upd(struct brcms_c_info *wlc,

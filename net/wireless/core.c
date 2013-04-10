@@ -1126,8 +1126,10 @@ static int __init cfg80211_init(void)
 		goto out_fail_reg;
 
 	cfg80211_wq = create_singlethread_workqueue("cfg80211");
-	if (!cfg80211_wq)
+	if (!cfg80211_wq) {
+		err = -ENOMEM;
 		goto out_fail_wq;
+	}
 
 	return 0;
 

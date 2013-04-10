@@ -228,6 +228,7 @@ void cfg80211_conn_work(struct work_struct *work)
 	rtnl_lock();
 	cfg80211_lock_rdev(rdev);
 	mutex_lock(&rdev->devlist_mtx);
+	mutex_lock(&rdev->sched_scan_mtx);
 
 	list_for_each_entry(wdev, &rdev->wdev_list, list) {
 		wdev_lock(wdev);
@@ -235,7 +236,7 @@ void cfg80211_conn_work(struct work_struct *work)
 			wdev_unlock(wdev);
 			continue;
 		}
-		if (wdev->sme_state != CFG80211_SME_CONNECTING) {
+		if (wdev->sme_state != CFG80211_SME_CONNECTING || !wdev->conn) {
 			wdev_unlock(wdev);
 			continue;
 		}
@@ -252,6 +253,7 @@ void cfg80211_conn_work(struct work_struct *work)
 		wdev_unlock(wdev);
 	}
 
+	mutex_unlock(&rdev->sched_scan_mtx);
 	mutex_unlock(&rdev->devlist_mtx);
 	cfg80211_unlock_rdev(rdev);
 	rtnl_unlock();

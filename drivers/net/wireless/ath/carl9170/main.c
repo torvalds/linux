@@ -939,7 +939,7 @@ static int carl9170_op_config(struct ieee80211_hw *hw, u32 changed)
 			goto out;
 
 		err = carl9170_set_channel(ar, hw->conf.channel,
-			hw->conf.channel_type, CARL9170_RFI_NONE);
+					   hw->conf.channel_type);
 		if (err)
 			goto out;
 
@@ -1703,7 +1703,7 @@ found:
 	return 0;
 }
 
-static void carl9170_op_flush(struct ieee80211_hw *hw, bool drop)
+static void carl9170_op_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 {
 	struct ar9170 *ar = hw->priv;
 	unsigned int vid;

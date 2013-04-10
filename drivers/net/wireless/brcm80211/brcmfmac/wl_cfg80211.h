@@ -238,9 +238,8 @@ struct escan_info {
 	u32 escan_state;
 	u8 escan_buf[WL_ESCAN_BUF_SIZE];
 	struct wiphy *wiphy;
-	struct net_device *ndev;
-	s32 (*run)(struct brcmf_cfg80211_info *cfg,
-		   struct net_device *ndev,
+	struct brcmf_if *ifp;
+	s32 (*run)(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
 		   struct cfg80211_scan_request *request, u16 action);
 };
 
@@ -493,9 +492,9 @@ bool brcmf_cfg80211_vif_event_armed(struct brcmf_cfg80211_info *cfg);
 int brcmf_cfg80211_wait_vif_event_timeout(struct brcmf_cfg80211_info *cfg,
 					  u8 action, ulong timeout);
 s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
-				struct net_device *ndev,
-				bool aborted, bool fw_abort);
-void brcmf_set_mpc(struct net_device *ndev, int mpc);
+				struct brcmf_if *ifp, bool aborted,
+				bool fw_abort);
+void brcmf_set_mpc(struct brcmf_if *ndev, int mpc);
 void brcmf_abort_scanning(struct brcmf_cfg80211_info *cfg);
 
 #endif				/* _wl_cfg80211_h_ */

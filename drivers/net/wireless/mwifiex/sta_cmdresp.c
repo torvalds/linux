@@ -95,7 +95,7 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
 		break;
 	}
 	/* Handling errors here */
-	mwifiex_insert_cmd_to_free_q(adapter, adapter->curr_cmd);
+	mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
 
 	spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
 	adapter->curr_cmd = NULL;
@@ -906,6 +906,8 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_REMAIN_ON_CHAN:
 		ret = mwifiex_ret_remain_on_chan(priv, resp, data_buf);
+		break;
+	case HostCmd_CMD_11AC_CFG:
 		break;
 	case HostCmd_CMD_P2P_MODE_CFG:
 		ret = mwifiex_ret_p2p_mode_cfg(priv, resp, data_buf);

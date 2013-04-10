@@ -233,6 +233,7 @@ ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 
 	if (local->hw.conf.flags & IEEE80211_CONF_PS) {
 		ieee80211_stop_queues_by_reason(&local->hw,
+						IEEE80211_MAX_QUEUE_MAP,
 						IEEE80211_QUEUE_STOP_REASON_PS);
 		ifmgd->flags &= ~IEEE80211_STA_NULLFUNC_ACKED;
 		ieee80211_queue_work(&local->hw,
@@ -991,15 +992,18 @@ static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb;
+	int ac = -1;
 
 	if (!tx->sta)
 		return TX_CONTINUE;
 
-	tx->sta->tx_packets++;
 	skb_queue_walk(&tx->skbs, skb) {
+		ac = skb_get_queue_mapping(skb);
 		tx->sta->tx_fragments++;
-		tx->sta->tx_bytes += skb->len;
+		tx->sta->tx_bytes[ac] += skb->len;
 	}
+	if (ac >= 0)
+		tx->sta->tx_packets[ac]++;
 
 	return TX_CONTINUE;
 }

@@ -18,6 +18,7 @@
  */
 
 #include "main.h"
+#include "11ac.h"
 
 /* This function parses security related parameters from cfg80211_ap_settings
  * and sets into FW understandable bss_config structure.
@@ -173,6 +174,60 @@ mwifiex_set_ht_params(struct mwifiex_private *priv,
 		bss_cfg->ht_cap.cap_info = cpu_to_le16(MWIFIEX_DEF_HT_CAP);
 		bss_cfg->ht_cap.ampdu_params_info = MWIFIEX_DEF_AMPDU;
 	}
+
+	return;
+}
+
+/* This function updates 11ac related parameters from IE
+ * and sets them into bss_config structure.
+ */
+void mwifiex_set_vht_params(struct mwifiex_private *priv,
+			    struct mwifiex_uap_bss_param *bss_cfg,
+			    struct cfg80211_ap_settings *params)
+{
+	const u8 *vht_ie;
+
+	vht_ie = cfg80211_find_ie(WLAN_EID_VHT_CAPABILITY, params->beacon.tail,
+				  params->beacon.tail_len);
+	if (vht_ie) {
+		memcpy(&bss_cfg->vht_cap, vht_ie + 2,
+		       sizeof(struct ieee80211_vht_cap));
+		priv->ap_11ac_enabled = 1;
+	} else {
+		priv->ap_11ac_enabled = 0;
+	}
+
+	return;
+}
+
+/* Enable VHT only when cfg80211_ap_settings has VHT IE.
+ * Otherwise disable VHT.
+ */
+void mwifiex_set_vht_width(struct mwifiex_private *priv,
+			   enum nl80211_chan_width width,
+			   bool ap_11ac_enable)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct mwifiex_11ac_vht_cfg vht_cfg;
+
+	vht_cfg.band_config = VHT_CFG_5GHZ;
+	vht_cfg.cap_info = adapter->hw_dot_11ac_dev_cap;
+
+	if (!ap_11ac_enable) {
+		vht_cfg.mcs_tx_set = DISABLE_VHT_MCS_SET;
+		vht_cfg.mcs_rx_set = DISABLE_VHT_MCS_SET;
+	} else {
+		vht_cfg.mcs_tx_set = DEFAULT_VHT_MCS_SET;
+		vht_cfg.mcs_rx_set = DEFAULT_VHT_MCS_SET;
+	}
+
+	vht_cfg.misc_config  = VHT_CAP_UAP_ONLY;
+
+	if (ap_11ac_enable && width >= NL80211_CHAN_WIDTH_80)
+		vht_cfg.misc_config |= VHT_BW_80_160_80P80;
+
+	mwifiex_send_cmd_sync(priv, HostCmd_CMD_11AC_CFG,
+			      HostCmd_ACT_GEN_SET, 0, &vht_cfg);
 
 	return;
 }

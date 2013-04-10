@@ -457,6 +457,7 @@ struct d11regs {
 /*== maccontrol register ==*/
 #define	MCTL_GMODE		(1U << 31)
 #define	MCTL_DISCARD_PMQ	(1 << 30)
+#define	MCTL_TBTTHOLD		(1 << 28)
 #define	MCTL_WAKE		(1 << 26)
 #define	MCTL_HPS		(1 << 25)
 #define	MCTL_PROMISC		(1 << 24)

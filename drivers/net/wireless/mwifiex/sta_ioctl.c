@@ -59,9 +59,6 @@ int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter,
 {
 	int status;
 
-	dev_dbg(adapter->dev, "cmd pending\n");
-	atomic_inc(&adapter->cmd_pending);
-
 	/* Wait for completion */
 	status = wait_event_interruptible(adapter->cmd_wait_q.wait,
 					  *(cmd_queued->condition));

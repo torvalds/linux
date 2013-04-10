@@ -866,17 +866,13 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			cpu_to_le32(IWL_WOWLAN_WAKEUP_PATTERN_MATCH);
 
 	if (wowlan->rfkill_release)
-		d3_cfg_cmd.wakeup_flags |=
+		wowlan_config_cmd.wakeup_filter |=
 			cpu_to_le32(IWL_WOWLAN_WAKEUP_RF_KILL_DEASSERT);
 
 	if (wowlan->tcp) {
 		/*
-		 * The firmware currently doesn't really look at these, only
-		 * the IWL_WOWLAN_WAKEUP_LINK_CHANGE bit. We have to set that
-		 * reason bit since losing the connection to the AP implies
-		 * losing the TCP connection.
-		 * Set the flags anyway as long as they exist, in case this
-		 * will be changed in the firmware.
+		 * Set the "link change" (really "link lost") flag as well
+		 * since that implies losing the TCP connection.
 		 */
 		wowlan_config_cmd.wakeup_filter |=
 			cpu_to_le32(IWL_WOWLAN_WAKEUP_REMOTE_LINK_LOSS |

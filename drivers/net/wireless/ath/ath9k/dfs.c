@@ -193,9 +193,7 @@ void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
 		DFS_STAT_INC(sc, pulses_processed);
 		if (pd != NULL && pd->add_pulse(pd, &pe)) {
 			DFS_STAT_INC(sc, radar_detected);
-			/*
-			 * TODO: forward radar event to DFS management layer
-			 */
+			ieee80211_radar_detected(sc->hw);
 		}
 	}
 }
