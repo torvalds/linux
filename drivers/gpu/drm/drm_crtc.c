@@ -412,7 +412,7 @@ struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
 	mutex_lock(&dev->mode_config.fb_lock);
 	fb = __drm_framebuffer_lookup(dev, id);
 	if (fb)
-		kref_get(&fb->refcount);
+		drm_framebuffer_reference(fb);
 	mutex_unlock(&dev->mode_config.fb_lock);
 
 	return fb;
