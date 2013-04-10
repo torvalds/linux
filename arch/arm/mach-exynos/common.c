@@ -368,6 +368,9 @@ static void __init exynos4_map_io(void)
 	else
 		iotable_init(exynos4_iodesc1, ARRAY_SIZE(exynos4_iodesc1));
 
+	if (!IS_ENABLED(CONFIG_EXYNOS_ATAGS))
+		return
+
 	/* initialize device information early */
 	exynos4_default_sdhci0();
 	exynos4_default_sdhci1();
@@ -570,6 +573,8 @@ static void __init exynos4_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	s3c24xx_init_uartdevs("exynos4210-uart", exynos4_uart_resources, cfg, no);
 }
 
+
+#ifdef CONFIG_EXYNOS_ATAGS
 static void __iomem *exynos_eint_base;
 
 static DEFINE_SPINLOCK(eint_lock);
@@ -875,3 +880,4 @@ static int __init exynos_init_irq_eint(void)
 	return 0;
 }
 arch_initcall(exynos_init_irq_eint);
+#endif
