@@ -571,13 +571,14 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *private_data,
+static int vidioc_s_std(struct file *file, void *_fh,
 			v4l2_std_id std)
 {
 	struct hdpvr_device *dev = video_drvdata(file);
+	struct hdpvr_fh *fh = _fh;
 	u8 std_type = 1;
 
-	if (dev->options.video_input == HDPVR_COMPONENT)
+	if (!fh->legacy_mode && dev->options.video_input == HDPVR_COMPONENT)
 		return -ENODATA;
 	if (dev->status != STATUS_IDLE)
 		return -EBUSY;
@@ -590,25 +591,27 @@ static int vidioc_s_std(struct file *file, void *private_data,
 	return hdpvr_config_call(dev, CTRL_VIDEO_STD_TYPE, std_type);
 }
 
-static int vidioc_g_std(struct file *file, void *private_data,
+static int vidioc_g_std(struct file *file, void *_fh,
 			v4l2_std_id *std)
 {
 	struct hdpvr_device *dev = video_drvdata(file);
+	struct hdpvr_fh *fh = _fh;
 
-	if (dev->options.video_input == HDPVR_COMPONENT)
+	if (!fh->legacy_mode && dev->options.video_input == HDPVR_COMPONENT)
 		return -ENODATA;
 	*std = dev->cur_std;
 	return 0;
 }
 
-static int vidioc_querystd(struct file *file, void *fh, v4l2_std_id *a)
+static int vidioc_querystd(struct file *file, void *_fh, v4l2_std_id *a)
 {
 	struct hdpvr_device *dev = video_drvdata(file);
 	struct hdpvr_video_info *vid_info;
+	struct hdpvr_fh *fh = _fh;
 
-	if (dev->options.video_input == HDPVR_COMPONENT)
-		return -ENODATA;
 	*a = V4L2_STD_ALL;
+	if (dev->options.video_input == HDPVR_COMPONENT)
+		return fh->legacy_mode ? 0 : -ENODATA;
 	vid_info = get_video_info(dev);
 	if (vid_info == NULL)
 		return 0;
@@ -742,8 +745,7 @@ static const char *iname[] = {
 	[HDPVR_COMPOSITE] = "Composite",
 };
 
-static int vidioc_enum_input(struct file *file, void *priv,
-				struct v4l2_input *i)
+static int vidioc_enum_input(struct file *file, void *_fh, struct v4l2_input *i)
 {
 	unsigned int n;
 
@@ -764,7 +766,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_input(struct file *file, void *private_data,
+static int vidioc_s_input(struct file *file, void *_fh,
 			  unsigned int index)
 {
 	struct hdpvr_device *dev = video_drvdata(file);
@@ -779,8 +781,20 @@ static int vidioc_s_input(struct file *file, void *private_data,
 	retval = hdpvr_config_call(dev, CTRL_VIDEO_INPUT_VALUE, index+1);
 	if (!retval) {
 		dev->options.video_input = index;
+		/*
+		 * Unfortunately gstreamer calls ENUMSTD and bails out if it
+		 * won't find any formats, even though component input is
+		 * selected. This means that we have to leave tvnorms at
+		 * V4L2_STD_ALL. We cannot use the 'legacy' trick since
+		 * tvnorms is set at the device node level and not at the
+		 * filehandle level.
+		 *
+		 * Comment this out for now, but if the legacy mode can be
+		 * removed in the future, then this code should be enabled
+		 * again.
 		dev->video_dev->tvnorms =
-			index != HDPVR_COMPONENT ? V4L2_STD_ALL : 0;
+			(index != HDPVR_COMPONENT) ? V4L2_STD_ALL : 0;
+		 */
 	}
 
 	return retval;
@@ -1126,6 +1140,7 @@ static const struct video_device hdpvr_video_template = {
 	.fops			= &hdpvr_fops,
 	.release		= hdpvr_device_release,
 	.ioctl_ops 		= &hdpvr_ioctl_ops,
+	.tvnorms		= V4L2_STD_ALL,
 };
 
 static const struct v4l2_ctrl_ops hdpvr_ctrl_ops = {
