@@ -35,8 +35,10 @@
 #include <linux/videodev2.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include "tuner-i2c.h"
+#include <linux/bitrev.h>
 #include <asm/div64.h>
+
+#include "tuner-i2c.h"
 #include "r820t.h"
 
 /*
@@ -414,7 +416,7 @@ static int r820t_write_reg_mask(struct r820t_priv *priv, u8 reg, u8 val,
 
 static int r820_read(struct r820t_priv *priv, u8 reg, u8 *val, int len)
 {
-	int rc;
+	int rc, i;
 	u8 *p = &priv->buf[1];
 
 	priv->buf[0] = reg;
@@ -431,7 +433,8 @@ static int r820_read(struct r820t_priv *priv, u8 reg, u8 *val, int len)
 		  __func__, reg, len, len, p);
 
 	/* Copy data to the output buffer */
-	memcpy(val, p, len);
+	for (i = 0; i < len; i++)
+		val[i] = bitrev8(p[i]);
 
 	return 0;
 }
