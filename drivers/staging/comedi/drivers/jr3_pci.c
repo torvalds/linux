@@ -705,9 +705,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	if (result)
 		return result;
 
-	devpriv->iobase = ioremap(pci_resource_start(pcidev, 0),
-				  offsetof(struct jr3_t,
-					   channel[devpriv->n_channels]));
+	devpriv->iobase = pci_ioremap_bar(pcidev, 0);
 	if (!devpriv->iobase)
 		return -ENOMEM;
 
