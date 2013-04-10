@@ -494,6 +494,17 @@ Files in /sys/fs/ext4/<devname>
  session_write_kbytes         This file is read-only and shows the number of
                               kilobytes of data that have been written to this
                               filesystem since it was mounted.
+
+ reserved_clusters            This is RW file and contains number of reserved
+                              clusters in the file system which will be used
+                              in the specific situations to avoid costly
+                              zeroout, unexpected ENOSPC, or possible data
+                              loss. The default is 2% or 4096 clusters,
+                              whichever is smaller and this can be changed
+                              however it can never exceed number of clusters
+                              in the file system. If there is not enough space
+                              for the reserved space when mounting the file
+                              mount will _not_ fail.
 ..............................................................................
 
 Ioctls
