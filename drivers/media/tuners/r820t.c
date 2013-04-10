@@ -101,6 +101,7 @@ struct r820t_freq_range {
 };
 
 #define VCO_POWER_REF   0x02
+#define DIP_FREQ	32000000
 
 /*
  * Static constants
@@ -749,6 +750,17 @@ static int r820t_sysfreq_sel(struct r820t_priv *priv, u32 freq,
 		div_buf_cur = 0x30;	/* 11, 150u */
 		filter_cur = 0x40;	/* 10, low */
 		break;
+	}
+
+	if (priv->cfg->use_diplexer &&
+	   ((priv->cfg->rafael_chip == CHIP_R820T) ||
+	   (priv->cfg->rafael_chip == CHIP_R828S) ||
+	   (priv->cfg->rafael_chip == CHIP_R820C))) {
+		if (freq > DIP_FREQ)
+			air_cable1_in = 0x00;
+		else
+			air_cable1_in = 0x60;
+		cable2_in = 0x00;
 	}
 
 	rc = r820t_write_reg_mask(priv, 0x1d, lna_top, 0xc7);

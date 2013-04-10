@@ -32,10 +32,10 @@ enum r820t_chip {
 
 struct r820t_config {
 	u8 i2c_addr;		/* 0x34 */
-
 	u32 xtal;
 	enum r820t_chip rafael_chip;
 	unsigned max_i2c_msg_len;
+	bool use_diplexer;
 };
 
 #if IS_ENABLED(CONFIG_MEDIA_TUNER_R820T)
