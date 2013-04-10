@@ -249,7 +249,6 @@ extern int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state);
 extern int omap4_finish_suspend(unsigned long cpu_state);
 extern void omap4_cpu_resume(void);
 extern int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state);
-extern u32 omap4_mpuss_read_prev_context_state(void);
 #else
 static inline int omap4_enter_lowpower(unsigned int cpu,
 					unsigned int power_state)
@@ -277,10 +276,6 @@ static inline int omap4_finish_suspend(unsigned long cpu_state)
 static inline void omap4_cpu_resume(void)
 {}
 
-static inline u32 omap4_mpuss_read_prev_context_state(void)
-{
-	return 0;
-}
 #endif
 
 struct omap_sdrc_params;
@@ -292,6 +287,9 @@ extern void omap_reserve(void);
 
 struct omap_hwmod;
 extern int omap_dss_reset(struct omap_hwmod *);
+
+/* SoC specific clock initializer */
+extern int (*omap_clk_init)(void);
 
 #endif /* __ASSEMBLER__ */
 #endif /* __ARCH_ARM_MACH_OMAP2PLUS_COMMON_H */

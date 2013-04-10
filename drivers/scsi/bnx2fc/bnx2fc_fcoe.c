@@ -940,6 +940,7 @@ static int bnx2fc_libfc_config(struct fc_lport *lport)
 	fc_exch_init(lport);
 	fc_rport_init(lport);
 	fc_disc_init(lport);
+	fc_disc_config(lport, lport);
 	return 0;
 }
 
@@ -2133,6 +2134,7 @@ static int _bnx2fc_create(struct net_device *netdev,
 	}
 
 	ctlr = bnx2fc_to_ctlr(interface);
+	cdev = fcoe_ctlr_to_ctlr_dev(ctlr);
 	interface->vlan_id = vlan_id;
 
 	interface->timer_work_queue =
@@ -2143,7 +2145,7 @@ static int _bnx2fc_create(struct net_device *netdev,
 		goto ifput_err;
 	}
 
-	lport = bnx2fc_if_create(interface, &interface->hba->pcidev->dev, 0);
+	lport = bnx2fc_if_create(interface, &cdev->dev, 0);
 	if (!lport) {
 		printk(KERN_ERR PFX "Failed to create interface (%s)\n",
 			netdev->name);
@@ -2158,8 +2160,6 @@ static int _bnx2fc_create(struct net_device *netdev,
 
 	/* Make this master N_port */
 	ctlr->lp = lport;
-
-	cdev = fcoe_ctlr_to_ctlr_dev(ctlr);
 
 	if (link_state == BNX2FC_CREATE_LINK_UP)
 		cdev->enabled = FCOE_CTLR_ENABLED;

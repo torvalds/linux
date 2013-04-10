@@ -824,7 +824,7 @@ static void acpi_release_power_resource(struct device *dev)
 	list_del(&resource->list_node);
 	mutex_unlock(&power_resource_list_lock);
 
-	acpi_free_ids(device);
+	acpi_free_pnp_ids(&device->pnp);
 	kfree(resource);
 }
 

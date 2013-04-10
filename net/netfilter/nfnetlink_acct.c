@@ -49,6 +49,8 @@ nfnl_acct_new(struct sock *nfnl, struct sk_buff *skb,
 		return -EINVAL;
 
 	acct_name = nla_data(tb[NFACCT_NAME]);
+	if (strlen(acct_name) == 0)
+		return -EINVAL;
 
 	list_for_each_entry(nfacct, &nfnl_acct_list, head) {
 		if (strncmp(nfacct->name, acct_name, NFACCT_NAME_MAX) != 0)

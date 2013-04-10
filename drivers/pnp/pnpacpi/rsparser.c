@@ -634,6 +634,7 @@ int pnpacpi_build_resource_template(struct pnp_dev *dev,
 	}
 	/* resource will pointer the end resource now */
 	resource->type = ACPI_RESOURCE_TYPE_END_TAG;
+	resource->length = sizeof(struct acpi_resource);
 
 	return 0;
 }

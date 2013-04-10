@@ -182,7 +182,6 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	adap->algo = &i2c_dw_algo;
 	adap->dev.parent = &pdev->dev;
 	adap->dev.of_node = pdev->dev.of_node;
-	ACPI_HANDLE_SET(&adap->dev, ACPI_HANDLE(&pdev->dev));
 
 	r = i2c_add_numbered_adapter(adap);
 	if (r) {
