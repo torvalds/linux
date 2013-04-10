@@ -72,6 +72,7 @@ struct mxs_mmc_host {
 	int				sdio_irq_en;
 	int				wp_gpio;
 	bool				wp_inverted;
+	bool				cd_inverted;
 };
 
 static int mxs_mmc_get_ro(struct mmc_host *mmc)
@@ -96,7 +97,7 @@ static int mxs_mmc_get_cd(struct mmc_host *mmc)
 	struct mxs_ssp *ssp = &host->ssp;
 
 	return !(readl(ssp->base + HW_SSP_STATUS(ssp)) &
-		 BM_SSP_STATUS_CARD_DETECT);
+		 BM_SSP_STATUS_CARD_DETECT)) ^ host->cd_inverted;
 }
 
 static void mxs_mmc_reset(struct mxs_mmc_host *host)
@@ -690,6 +691,8 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 
 	if (flags & OF_GPIO_ACTIVE_LOW)
 		host->wp_inverted = 1;
+
+	host->cd_inverted = of_property_read_bool(np, "cd-inverted");
 
 	mmc->f_min = 400000;
 	mmc->f_max = 288000000;
