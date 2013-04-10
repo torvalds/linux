@@ -68,8 +68,6 @@ Configuration options: not applicable, uses PCI auto config
 #define ICP_MULTI_CNTR2		0x14	/* R/W: Counter 2 */
 #define ICP_MULTI_CNTR3		0x16	/* R/W: Counter 3 */
 
-#define ICP_MULTI_SIZE		0x20	/* 32 bytes */
-
 /*  Define bits from ADC command/status register */
 #define	ADC_ST		0x0001	/* Start ADC */
 #define	ADC_BSY		0x0001	/* ADC busy */
@@ -500,7 +498,6 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct icp_multi_private *devpriv;
 	struct comedi_subdevice *s;
-	resource_size_t iobase;
 	int ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
@@ -511,10 +508,8 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	iobase = pci_resource_start(pcidev, 2);
-	dev->iobase = iobase;
 
-	devpriv->io_addr = ioremap(iobase, ICP_MULTI_SIZE);
+	devpriv->io_addr = pci_ioremap_bar(pcidev, 2);
 	if (!devpriv->io_addr)
 		return -ENOMEM;
 
