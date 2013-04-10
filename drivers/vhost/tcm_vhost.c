@@ -703,7 +703,7 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs,
 		if (IS_ERR(tv_cmd)) {
 			vq_err(vq, "vhost_scsi_allocate_cmd failed %ld\n",
 					PTR_ERR(tv_cmd));
-			break;
+			goto err_cmd;
 		}
 		pr_debug("Allocated tv_cmd: %p exp_data_len: %d, data_direction"
 			": %d\n", tv_cmd, exp_data_len, data_direction);
@@ -729,7 +729,7 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs,
 				" exceeds SCSI_MAX_VARLEN_CDB_SIZE: %d\n",
 				scsi_command_size(tv_cmd->tvc_cdb),
 				TCM_VHOST_MAX_CDB_SIZE);
-			goto err;
+			goto err_free;
 		}
 		tv_cmd->tvc_lun = ((v_req.lun[2] << 8) | v_req.lun[3]) & 0x3FFF;
 
@@ -742,7 +742,7 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs,
 					data_direction == DMA_TO_DEVICE);
 			if (unlikely(ret)) {
 				vq_err(vq, "Failed to map iov to sgl\n");
-				goto err;
+				goto err_free;
 			}
 		}
 
@@ -765,8 +765,10 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs,
 	mutex_unlock(&vq->mutex);
 	return;
 
-err:
+err_free:
 	vhost_scsi_free_cmd(tv_cmd);
+err_cmd:
+	vhost_scsi_send_bad_target(vs, vq, head, out);
 	mutex_unlock(&vq->mutex);
 }
 
