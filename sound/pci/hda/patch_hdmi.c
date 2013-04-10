@@ -1018,6 +1018,41 @@ static void hdmi_unsol_event(struct hda_codec *codec, unsigned int res)
 		hdmi_non_intrinsic_event(codec, res);
 }
 
+static void haswell_verify_pin_D0(struct hda_codec *codec, hda_nid_t nid)
+{
+	int pwr, lamp, ramp;
+
+	pwr = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_POWER_STATE, 0);
+	pwr = (pwr & AC_PWRST_ACTUAL) >> AC_PWRST_ACTUAL_SHIFT;
+	if (pwr != AC_PWRST_D0) {
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_POWER_STATE,
+				    AC_PWRST_D0);
+		msleep(40);
+		pwr = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_POWER_STATE, 0);
+		pwr = (pwr & AC_PWRST_ACTUAL) >> AC_PWRST_ACTUAL_SHIFT;
+		snd_printd("Haswell HDMI audio: Power for pin 0x%x is now D%d\n", nid, pwr);
+	}
+
+	lamp = snd_hda_codec_read(codec, nid, 0,
+				  AC_VERB_GET_AMP_GAIN_MUTE,
+				  AC_AMP_GET_LEFT | AC_AMP_GET_OUTPUT);
+	ramp = snd_hda_codec_read(codec, nid, 0,
+				  AC_VERB_GET_AMP_GAIN_MUTE,
+				  AC_AMP_GET_RIGHT | AC_AMP_GET_OUTPUT);
+	if (lamp != ramp) {
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				    AC_AMP_SET_RIGHT | AC_AMP_SET_OUTPUT | lamp);
+
+		lamp = snd_hda_codec_read(codec, nid, 0,
+				  AC_VERB_GET_AMP_GAIN_MUTE,
+				  AC_AMP_GET_LEFT | AC_AMP_GET_OUTPUT);
+		ramp = snd_hda_codec_read(codec, nid, 0,
+				  AC_VERB_GET_AMP_GAIN_MUTE,
+				  AC_AMP_GET_RIGHT | AC_AMP_GET_OUTPUT);
+		snd_printd("Haswell HDMI audio: Mute after set on pin 0x%x: [0x%x 0x%x]\n", nid, lamp, ramp);
+	}
+}
+
 /*
  * Callbacks
  */
@@ -1031,6 +1066,9 @@ static int hdmi_setup_stream(struct hda_codec *codec, hda_nid_t cvt_nid,
 {
 	int pinctl;
 	int new_pinctl = 0;
+
+	if (codec->vendor_id == 0x80862807)
+		haswell_verify_pin_D0(codec, pin_nid);
 
 	if (snd_hda_query_pin_caps(codec, pin_nid) & AC_PINCAP_HBR) {
 		pinctl = snd_hda_codec_read(codec, pin_nid, 0,
