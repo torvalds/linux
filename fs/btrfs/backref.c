@@ -582,7 +582,8 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 		default:
 			WARN_ON(1);
 		}
-		BUG_ON(ret);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -680,7 +681,8 @@ static int __add_inline_refs(struct btrfs_fs_info *fs_info,
 		default:
 			WARN_ON(1);
 		}
-		BUG_ON(ret);
+		if (ret)
+			return ret;
 		ptr += btrfs_extent_inline_ref_size(type);
 	}
 
@@ -762,7 +764,9 @@ static int __add_keyed_refs(struct btrfs_fs_info *fs_info,
 		default:
 			WARN_ON(1);
 		}
-		BUG_ON(ret);
+		if (ret)
+			return ret;
+
 	}
 
 	return ret;
