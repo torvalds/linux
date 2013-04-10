@@ -36,9 +36,6 @@
 #define DW_UART_CPR	0xf4 /* Component Parameter Register */
 #define DW_UART_UCV	0xf8 /* UART Component Version */
 
-/* Intel Low Power Subsystem specific */
-#define LPSS_PRV_CLOCK_PARAMS 0x800
-
 /* Component Parameter Register bits */
 #define DW_UART_CPR_ABP_DATA_WIDTH	(3 << 0)
 #define DW_UART_CPR_AFCE_MODE		(1 << 4)
@@ -226,7 +223,6 @@ static int dw8250_probe_acpi(struct uart_port *p)
 {
 	const struct acpi_device_id *id;
 	acpi_status status;
-	u32 reg;
 
 	id = acpi_match_device(p->dev->driver->acpi_match_table, p->dev);
 	if (!id)
@@ -236,7 +232,9 @@ static int dw8250_probe_acpi(struct uart_port *p)
 	p->serial_in = dw8250_serial_in32;
 	p->serial_out = dw8250_serial_out32;
 	p->regshift = 2;
-	p->uartclk = (unsigned int)id->driver_data;
+
+	if (!p->uartclk)
+		p->uartclk = (unsigned int)id->driver_data;
 
 	status = acpi_walk_resources(ACPI_HANDLE(p->dev), METHOD_NAME__CRS,
 				     dw8250_acpi_walk_resource, p);
@@ -244,12 +242,6 @@ static int dw8250_probe_acpi(struct uart_port *p)
 		dev_err_ratelimited(p->dev, "%s failed \"%s\"\n", __func__,
 				    acpi_format_exception(status));
 		return -ENODEV;
-	}
-
-	/* Fix Haswell issue where the clocks do not get enabled */
-	if (!strcmp(id->id, "INT33C4") || !strcmp(id->id, "INT33C5")) {
-		reg = readl(p->membase + LPSS_PRV_CLOCK_PARAMS);
-		writel(reg | 1, p->membase + LPSS_PRV_CLOCK_PARAMS);
 	}
 
 	return 0;
@@ -425,8 +417,8 @@ static const struct of_device_id dw8250_of_match[] = {
 MODULE_DEVICE_TABLE(of, dw8250_of_match);
 
 static const struct acpi_device_id dw8250_acpi_match[] = {
-	{ "INT33C4", 100000000 },
-	{ "INT33C5", 100000000 },
+	{ "INT33C4", 0 },
+	{ "INT33C5", 0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, dw8250_acpi_match);
