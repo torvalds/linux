@@ -912,7 +912,7 @@ int gfs2_glock_wait(struct gfs2_holder *gh)
  */
 
 static void handle_callback(struct gfs2_glock *gl, unsigned int state,
-			    unsigned long delay)
+			    unsigned long delay, bool remote)
 {
 	int bit = delay ? GLF_PENDING_DEMOTE : GLF_DEMOTE;
 
@@ -925,7 +925,7 @@ static void handle_callback(struct gfs2_glock *gl, unsigned int state,
 		gl->gl_demote_state = LM_ST_UNLOCKED;
 	}
 	if (gl->gl_ops->go_callback)
-		gl->gl_ops->go_callback(gl);
+		gl->gl_ops->go_callback(gl, remote);
 	trace_gfs2_demote_rq(gl);
 }
 
@@ -1091,7 +1091,7 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 
 	spin_lock(&gl->gl_spin);
 	if (gh->gh_flags & GL_NOCACHE)
-		handle_callback(gl, LM_ST_UNLOCKED, 0);
+		handle_callback(gl, LM_ST_UNLOCKED, 0, false);
 
 	list_del_init(&gh->gh_list);
 	if (find_first_holder(gl) == NULL) {
@@ -1296,7 +1296,7 @@ void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
 	}
 
 	spin_lock(&gl->gl_spin);
-	handle_callback(gl, state, delay);
+	handle_callback(gl, state, delay, true);
 	spin_unlock(&gl->gl_spin);
 	if (queue_delayed_work(glock_workqueue, &gl->gl_work, delay) == 0)
 		gfs2_glock_put(gl);
@@ -1409,7 +1409,7 @@ __acquires(&lru_lock)
 		spin_unlock(&lru_lock);
 		spin_lock(&gl->gl_spin);
 		if (demote_ok(gl))
-			handle_callback(gl, LM_ST_UNLOCKED, 0);
+			handle_callback(gl, LM_ST_UNLOCKED, 0, false);
 		WARN_ON(!test_and_clear_bit(GLF_LOCK, &gl->gl_flags));
 		smp_mb__after_clear_bit();
 		if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
@@ -1534,7 +1534,7 @@ static void clear_glock(struct gfs2_glock *gl)
 
 	spin_lock(&gl->gl_spin);
 	if (gl->gl_state != LM_ST_UNLOCKED)
-		handle_callback(gl, LM_ST_UNLOCKED, 0);
+		handle_callback(gl, LM_ST_UNLOCKED, 0, false);
 	spin_unlock(&gl->gl_spin);
 	gfs2_glock_hold(gl);
 	if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
