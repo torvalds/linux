@@ -78,12 +78,6 @@ static int dio_config_block_size(struct comedi_device *dev, unsigned int *data);
 #define NUM_DMA_BUFFERS 4
 #define NUM_DMA_DESCRIPTORS 256
 
-/* indices of base address regions */
-enum base_address_regions {
-	PLX9080_BADDRINDEX = 0,
-	HPDI_BADDRINDEX = 2,
-};
-
 enum hpdi_registers {
 	FIRMWARE_REV_REG = 0x0,
 	BOARD_CONTROL_REG = 0x4,
@@ -505,11 +499,11 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 	pci_set_master(pcidev);
 
 	devpriv->plx9080_iobase =
-		ioremap(pci_resource_start(pcidev, PLX9080_BADDRINDEX),
-			pci_resource_len(pcidev, PLX9080_BADDRINDEX));
+		ioremap(pci_resource_start(pcidev, 0),
+			pci_resource_len(pcidev, 0));
 	devpriv->hpdi_iobase =
-		ioremap(pci_resource_start(pcidev, HPDI_BADDRINDEX),
-			pci_resource_len(pcidev, HPDI_BADDRINDEX));
+		ioremap(pci_resource_start(pcidev, 2),
+			pci_resource_len(pcidev, 2));
 	if (!devpriv->plx9080_iobase || !devpriv->hpdi_iobase) {
 		dev_warn(dev->class_dev, "failed to remap io memory\n");
 		return -ENOMEM;
