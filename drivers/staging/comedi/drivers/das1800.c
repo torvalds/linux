@@ -1514,18 +1514,17 @@ static int das1800_attach(struct comedi_device *dev,
 	unsigned int irq = it->options[1];
 	unsigned int dma0 = it->options[2];
 	unsigned int dma1 = it->options[3];
-	unsigned long iobase2;
 	int board;
-	int retval;
+	int ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	retval = comedi_request_region(dev, it->options[0], DAS1800_SIZE);
-	if (retval)
-		return retval;
+	ret = comedi_request_region(dev, it->options[0], DAS1800_SIZE);
+	if (ret)
+		return ret;
 
 	board = das1800_probe(dev);
 	if (board < 0) {
@@ -1539,13 +1538,11 @@ static int das1800_attach(struct comedi_device *dev,
 
 	/*  if it is an 'ao' board with fancy analog out then we need extra io ports */
 	if (thisboard->ao_ability == 2) {
-		iobase2 = dev->iobase + IOBASE2;
-		if (!request_region(iobase2, DAS1800_SIZE, dev->board_name)) {
+		unsigned long iobase2 = dev->iobase + IOBASE2;
+
+		ret = __comedi_request_region(dev, iobase2, DAS1800_SIZE);
+		if (ret) {
 			release_region(dev->iobase, DAS1800_SIZE);
-			dev_warn(dev->class_dev,
-				 "%s: I/O port conflict (%#lx,%d)\n",
-				 dev->board_name,
-				 iobase2, DAS1800_SIZE);
 			dev->iobase = 0;
 			return -EIO;
 		}
@@ -1591,9 +1588,9 @@ static int das1800_attach(struct comedi_device *dev,
 		break;
 	}
 
-	retval = das1800_init_dma(dev, dma0, dma1);
-	if (retval < 0)
-		return retval;
+	ret = das1800_init_dma(dev, dma0, dma1);
+	if (ret < 0)
+		return ret;
 
 	if (devpriv->ai_buf0 == NULL) {
 		devpriv->ai_buf0 =
@@ -1602,9 +1599,9 @@ static int das1800_attach(struct comedi_device *dev,
 			return -ENOMEM;
 	}
 
-	retval = comedi_alloc_subdevices(dev, 4);
-	if (retval)
-		return retval;
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
 
 	/* analog input subdevice */
 	s = &dev->subdevices[0];
