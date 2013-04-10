@@ -1948,7 +1948,7 @@ TRACE_EVENT(ext4_remove_blocks,
 		__entry->to		= to;
 		__entry->partial	= partial_cluster;
 		__entry->ee_pblk	= ext4_ext_pblock(ex);
-		__entry->ee_lblk	= cpu_to_le32(ex->ee_block);
+		__entry->ee_lblk	= le32_to_cpu(ex->ee_block);
 		__entry->ee_len		= ext4_ext_get_actual_len(ex);
 	),
 
@@ -2052,7 +2052,7 @@ TRACE_EVENT(ext4_ext_remove_space,
 
 TRACE_EVENT(ext4_ext_remove_space_done,
 	TP_PROTO(struct inode *inode, ext4_lblk_t start, int depth,
-		ext4_lblk_t partial, unsigned short eh_entries),
+		ext4_lblk_t partial, __le16 eh_entries),
 
 	TP_ARGS(inode, start, depth, partial, eh_entries),
 
@@ -2071,7 +2071,7 @@ TRACE_EVENT(ext4_ext_remove_space_done,
 		__entry->start		= start;
 		__entry->depth		= depth;
 		__entry->partial	= partial;
-		__entry->eh_entries	= eh_entries;
+		__entry->eh_entries	= le16_to_cpu(eh_entries);
 	),
 
 	TP_printk("dev %d,%d ino %lu since %u depth %d partial %u "
