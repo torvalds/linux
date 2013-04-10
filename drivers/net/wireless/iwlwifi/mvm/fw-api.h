@@ -480,15 +480,34 @@ enum {
 	TE_DEP_TSF		= 2,
 	TE_EVENT_SOCIOPATHIC	= 4,
 }; /* MAC_EVENT_DEPENDENCY_POLICY_API_E_VER_2 */
-
-/* When to send Time Event notifications and to whom (internal = FW) */
+/*
+ * Supported Time event notifications configuration.
+ * A notification (both event and fragment) includes a status indicating weather
+ * the FW was able to schedule the event or not. For fragment start/end
+ * notification the status is always success. There is no start/end fragment
+ * notification for monolithic events.
+ *
+ * @TE_NOTIF_NONE: no notifications
+ * @TE_NOTIF_HOST_EVENT_START: request/receive notification on event start
+ * @TE_NOTIF_HOST_EVENT_END:request/receive notification on event end
+ * @TE_NOTIF_INTERNAL_EVENT_START: internal FW use
+ * @TE_NOTIF_INTERNAL_EVENT_END: internal FW use.
+ * @TE_NOTIF_HOST_FRAG_START: request/receive notification on frag start
+ * @TE_NOTIF_HOST_FRAG_END:request/receive notification on frag end
+ * @TE_NOTIF_INTERNAL_FRAG_START: internal FW use.
+ * @TE_NOTIF_INTERNAL_FRAG_END: internal FW use.
+ */
 enum {
 	TE_NOTIF_NONE = 0,
-	TE_NOTIF_HOST_START = 0x1,
-	TE_NOTIF_HOST_END = 0x2,
-	TE_NOTIF_INTERNAL_START = 0x4,
-	TE_NOTIF_INTERNAL_END = 0x8
-}; /* MAC_EVENT_ACTION_API_E_VER_1 */
+	TE_NOTIF_HOST_EVENT_START = 0x1,
+	TE_NOTIF_HOST_EVENT_END = 0x2,
+	TE_NOTIF_INTERNAL_EVENT_START = 0x4,
+	TE_NOTIF_INTERNAL_EVENT_END = 0x8,
+	TE_NOTIF_HOST_FRAG_START = 0x10,
+	TE_NOTIF_HOST_FRAG_END = 0x20,
+	TE_NOTIF_INTERNAL_FRAG_START = 0x40,
+	TE_NOTIF_INTERNAL_FRAG_END = 0x80
+}; /* MAC_EVENT_ACTION_API_E_VER_2 */
 
 /*
  * @TE_FRAG_NONE: fragmentation of the time event is NOT allowed.

@@ -502,11 +502,15 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	/*
 	 * TODO: remove this temporary code.
 	 * Currently MVM FW supports power management only on single MAC.
-	 * Iterate and disable PM on all active interfaces.
+	 * If new interface added, disable PM on existing interface.
+	 * P2P device is a special case, since it is handled by FW similary to
+	 * scan. If P2P deviced is added, PM remains enabled on existing
+	 * interface.
 	 * Note: the method below does not count the new interface being added
 	 * at this moment.
 	 */
-	mvm->vif_count++;
+	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
+		mvm->vif_count++;
 	if (mvm->vif_count > 1) {
 		IWL_DEBUG_MAC80211(mvm,
 				   "Disable power on existing interfaces\n");
@@ -562,6 +566,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		mvm->p2p_device_vif = vif;
 	}
 
+	iwl_mvm_vif_dbgfs_register(mvm, vif);
 	goto out_unlock;
 
  out_unbind:
@@ -575,10 +580,11 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	/*
 	 * TODO: remove this temporary code.
 	 * Currently MVM FW supports power management only on single MAC.
-	 * Check if only one additional interface remains after rereasing
+	 * Check if only one additional interface remains after releasing
 	 * current one. Update power mode on the remaining interface.
 	 */
-	mvm->vif_count--;
+	if (vif->type != NL80211_IFTYPE_P2P_DEVICE)
+		mvm->vif_count--;
 	IWL_DEBUG_MAC80211(mvm, "Currently %d interfaces active\n",
 			   mvm->vif_count);
 	if (mvm->vif_count == 1) {
@@ -640,6 +646,8 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 
+	iwl_mvm_vif_dbgfs_clean(mvm, vif);
+
 	/*
 	 * For AP/GO interface, the tear down of the resources allocated to the
 	 * interface is be handled as part of the stop_ap flow.
@@ -663,7 +671,7 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 	 * Check if only one additional interface remains after removing
 	 * current one. Update power mode on the remaining interface.
 	 */
-	if (mvm->vif_count)
+	if (mvm->vif_count && vif->type != NL80211_IFTYPE_P2P_DEVICE)
 		mvm->vif_count--;
 	IWL_DEBUG_MAC80211(mvm, "Currently %d interfaces active\n",
 			   mvm->vif_count);
@@ -713,6 +721,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				IWL_ERR(mvm, "failed to update quotas\n");
 				return;
 			}
+			iwl_mvm_bt_coex_vif_assoc(mvm, vif);
 		} else if (mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
 			/* remove AP station now that the MAC is unassoc */
 			ret = iwl_mvm_rm_sta_id(mvm, vif, mvmvif->ap_sta_id);
@@ -931,7 +940,7 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 		 */
 		break;
 	case STA_NOTIFY_AWAKE:
-		if (WARN_ON(mvmsta->sta_id == IWL_INVALID_STATION))
+		if (WARN_ON(mvmsta->sta_id == IWL_MVM_STATION_COUNT))
 			break;
 		iwl_mvm_sta_modify_ps_wake(mvm, sta);
 		break;
@@ -1326,6 +1335,15 @@ static int iwl_mvm_set_tim(struct ieee80211_hw *hw,
 	return iwl_mvm_mac_ctxt_beacon_changed(mvm, mvm_sta->vif);
 }
 
+static void iwl_mvm_mac_rssi_callback(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      enum ieee80211_rssi_event rssi_event)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	iwl_mvm_bt_rssi_event(mvm, vif, rssi_event);
+}
+
 struct ieee80211_ops iwl_mvm_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.ampdu_action = iwl_mvm_mac_ampdu_action,
@@ -1349,6 +1367,7 @@ struct ieee80211_ops iwl_mvm_hw_ops = {
 	.update_tkip_key = iwl_mvm_mac_update_tkip_key,
 	.remain_on_channel = iwl_mvm_roc,
 	.cancel_remain_on_channel = iwl_mvm_cancel_roc,
+	.rssi_callback = iwl_mvm_mac_rssi_callback,
 
 	.add_chanctx = iwl_mvm_add_chanctx,
 	.remove_chanctx = iwl_mvm_remove_chanctx,

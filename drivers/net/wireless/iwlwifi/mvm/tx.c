@@ -205,7 +205,7 @@ static void iwl_mvm_set_tx_cmd_rate(struct iwl_mvm *mvm,
 	rate_plcp = iwl_mvm_mac80211_idx_to_hwrate(rate_idx);
 
 	mvm->mgmt_last_antenna_idx =
-		iwl_mvm_next_antenna(mvm, mvm->nvm_data->valid_tx_ant,
+		iwl_mvm_next_antenna(mvm, iwl_fw_valid_tx_ant(mvm->fw),
 				     mvm->mgmt_last_antenna_idx);
 	rate_flags = BIT(mvm->mgmt_last_antenna_idx) << RATE_MCS_ANT_POS;
 
@@ -365,7 +365,7 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (WARN_ON_ONCE(!mvmsta))
 		return -1;
 
-	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_INVALID_STATION))
+	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_MVM_STATION_COUNT))
 		return -1;
 
 	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, sta, mvmsta->sta_id);
@@ -641,10 +641,12 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	}
 
 	IWL_DEBUG_TX_REPLY(mvm,
-			   "TXQ %d status %s (0x%08x)\n\t\t\t\tinitial_rate 0x%x "
-			    "retries %d, idx=%d ssn=%d next_reclaimed=0x%x seq_ctl=0x%x\n",
-			   txq_id, iwl_mvm_get_tx_fail_reason(status),
-			   status, le32_to_cpu(tx_resp->initial_rate),
+			   "TXQ %d status %s (0x%08x)\n",
+			   txq_id, iwl_mvm_get_tx_fail_reason(status), status);
+
+	IWL_DEBUG_TX_REPLY(mvm,
+			   "\t\t\t\tinitial_rate 0x%x retries %d, idx=%d ssn=%d next_reclaimed=0x%x seq_ctl=0x%x\n",
+			   le32_to_cpu(tx_resp->initial_rate),
 			   tx_resp->failure_frame, SEQ_TO_INDEX(sequence),
 			   ssn, next_reclaimed, seq_ctl);
 

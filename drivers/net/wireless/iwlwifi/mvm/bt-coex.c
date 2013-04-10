@@ -61,6 +61,8 @@
  *
  *****************************************************************************/
 
+#include <net/mac80211.h>
+
 #include "fw-api-bt-coex.h"
 #include "iwl-modparams.h"
 #include "mvm.h"
@@ -95,6 +97,20 @@ static const u8 iwl_bt_prio_tbl[BT_COEX_PRIO_TBL_EVT_MAX] = {
 };
 
 #undef EVENT_PRIO_ANT
+
+/* BT Antenna Coupling Threshold (dB) */
+#define IWL_BT_ANTENNA_COUPLING_THRESHOLD	(35)
+#define IWL_BT_LOAD_FORCE_SISO_THRESHOLD	(3)
+
+#define BT_ENABLE_REDUCED_TXPOWER_THRESHOLD	(-62)
+#define BT_DISABLE_REDUCED_TXPOWER_THRESHOLD	(-65)
+#define BT_REDUCED_TX_POWER_BIT			BIT(7)
+
+static inline bool is_loose_coex(void)
+{
+	return iwlwifi_mod_params.ant_coupling >
+		IWL_BT_ANTENNA_COUPLING_THRESHOLD;
+}
 
 int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm)
 {
@@ -186,11 +202,6 @@ static const __le32 iwl_concurrent_lookup[BT_COEX_LUT_SIZE] = {
 	cpu_to_le32(0x00000000),
 };
 
-/* BT Antenna Coupling Threshold (dB) */
-#define IWL_BT_ANTENNA_COUPLING_THRESHOLD	(35)
-#define IWL_BT_LOAD_FORCE_SISO_THRESHOLD	(3)
-
-
 int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 {
 	struct iwl_bt_coex_cmd cmd = {
@@ -203,8 +214,7 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 
 	cmd.flags = iwlwifi_mod_params.bt_coex_active ?
 			BT_COEX_NW : BT_COEX_DISABLE;
-	cmd.flags |= iwlwifi_mod_params.bt_ch_announce ? BT_CH_PRIMARY_EN : 0;
-	cmd.flags |= BT_SYNC_2_BT_DISABLE;
+	cmd.flags |= BT_CH_PRIMARY_EN | BT_SYNC_2_BT_DISABLE;
 
 	cmd.valid_bit_msk = cpu_to_le16(BT_VALID_ENABLE |
 					BT_VALID_BT_PRIO_BOOST |
@@ -215,7 +225,7 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 					BT_VALID_REDUCED_TX_POWER |
 					BT_VALID_LUT);
 
-	if (iwlwifi_mod_params.ant_coupling > IWL_BT_ANTENNA_COUPLING_THRESHOLD)
+	if (is_loose_coex())
 		memcpy(&cmd.decision_lut, iwl_loose_lookup,
 		       sizeof(iwl_tight_lookup));
 	else
@@ -227,6 +237,8 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 		cpu_to_le32(iwl_bt_ack_kill_msk[BT_KILL_MSK_DEFAULT]);
 	cmd.kill_cts_msk =
 		cpu_to_le32(iwl_bt_cts_kill_msk[BT_KILL_MSK_DEFAULT]);
+
+	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
 
 	/* go to CALIB state in internal BT-Coex state machine */
 	ret = iwl_send_bt_env(mvm, BT_COEX_ENV_OPEN,
@@ -243,19 +255,101 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm)
 				    sizeof(cmd), &cmd);
 }
 
-struct iwl_bt_notif_iterator_data {
-	struct iwl_mvm *mvm;
+static int iwl_mvm_bt_udpate_ctrl_kill_msk(struct iwl_mvm *mvm,
+					   bool reduced_tx_power)
+{
+	enum iwl_bt_kill_msk bt_kill_msk;
+	struct iwl_bt_coex_cmd cmd = {};
+	struct iwl_bt_coex_profile_notif *notif = &mvm->last_bt_notif;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (reduced_tx_power) {
+		/* Reduced Tx power has precedence on the type of the profile */
+		bt_kill_msk = BT_KILL_MSK_REDUCED_TXPOW;
+	} else {
+		/* Low latency BT profile is active: give higher prio to BT */
+		if (BT_MBOX_MSG(notif, 3, SCO_STATE)  ||
+		    BT_MBOX_MSG(notif, 3, A2DP_STATE) ||
+		    BT_MBOX_MSG(notif, 3, SNIFF_STATE))
+			bt_kill_msk = BT_KILL_MSK_SCO_HID_A2DP;
+		else
+			bt_kill_msk = BT_KILL_MSK_DEFAULT;
+	}
+
+	IWL_DEBUG_COEX(mvm,
+		       "Update kill_msk: %d - SCO %sactive A2DP %sactive SNIFF %sactive\n",
+		       bt_kill_msk,
+		       BT_MBOX_MSG(notif, 3, SCO_STATE) ? "" : "in",
+		       BT_MBOX_MSG(notif, 3, A2DP_STATE) ? "" : "in",
+		       BT_MBOX_MSG(notif, 3, SNIFF_STATE) ? "" : "in");
+
+	/* Don't send HCMD if there is no update */
+	if (bt_kill_msk == mvm->bt_kill_msk)
+		return 0;
+
+	mvm->bt_kill_msk = bt_kill_msk;
+	cmd.kill_ack_msk = cpu_to_le32(iwl_bt_ack_kill_msk[bt_kill_msk]);
+	cmd.kill_cts_msk = cpu_to_le32(iwl_bt_cts_kill_msk[bt_kill_msk]);
+	cmd.valid_bit_msk = cpu_to_le16(BT_VALID_KILL_ACK | BT_VALID_KILL_CTS);
+
+	IWL_DEBUG_COEX(mvm, "bt_kill_msk = %d\n", bt_kill_msk);
+	return iwl_mvm_send_cmd_pdu(mvm, BT_CONFIG, CMD_SYNC,
+				    sizeof(cmd), &cmd);
+}
+
+static int iwl_mvm_bt_coex_reduced_txp(struct iwl_mvm *mvm, u8 sta_id,
+				       bool enable)
+{
+	struct iwl_bt_coex_cmd cmd = {
+		.valid_bit_msk = cpu_to_le16(BT_VALID_REDUCED_TX_POWER),
+		.bt_reduced_tx_power = sta_id,
+	};
+	struct ieee80211_sta *sta;
+	struct iwl_mvm_sta *mvmsta;
+
+	/* This can happen if the station has been removed right now */
+	if (sta_id == IWL_MVM_STATION_COUNT)
+		return 0;
+
+	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
+					lockdep_is_held(&mvm->mutex));
+	mvmsta = (void *)sta->drv_priv;
+
+	/* nothing to do */
+	if (mvmsta->bt_reduced_txpower == enable)
+		return 0;
+
+	if (enable)
+		cmd.bt_reduced_tx_power |= BT_REDUCED_TX_POWER_BIT;
+
+	IWL_DEBUG_COEX(mvm, "%sable reduced Tx Power for sta %d\n",
+		       enable ? "en" : "dis", sta_id);
+
+	mvmsta->bt_reduced_txpower = enable;
+
+	/* Send ASYNC since this can be sent from an atomic context */
+	return iwl_mvm_send_cmd_pdu(mvm, BT_CONFIG, CMD_ASYNC,
+				    sizeof(cmd), &cmd);
+}
+
+struct iwl_bt_iterator_data {
 	struct iwl_bt_coex_profile_notif *notif;
+	struct iwl_mvm *mvm;
+	u32 num_bss_ifaces;
+	bool reduced_tx_power;
 };
 
 static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 				      struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_bt_notif_iterator_data *data = _data;
+	struct iwl_bt_iterator_data *data = _data;
+	struct iwl_mvm *mvm = data->mvm;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	enum ieee80211_smps_mode smps_mode;
 	enum ieee80211_band band;
+	int ave_rssi;
 
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return;
@@ -268,10 +362,12 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		band = -1;
 	rcu_read_unlock();
 
-	if (band != IEEE80211_BAND_2GHZ)
-		return;
-
 	smps_mode = IEEE80211_SMPS_AUTOMATIC;
+
+	if (band != IEEE80211_BAND_2GHZ) {
+		ieee80211_request_smps(vif, smps_mode);
+		return;
+	}
 
 	if (data->notif->bt_status)
 		smps_mode = IEEE80211_SMPS_DYNAMIC;
@@ -285,20 +381,88 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 		       data->notif->bt_traffic_load, smps_mode);
 
 	ieee80211_request_smps(vif, smps_mode);
+
+	/* don't reduce the Tx power if in loose scheme */
+	if (is_loose_coex())
+		return;
+
+	data->num_bss_ifaces++;
+
+	/* reduced Txpower only if there are open BT connections, so ...*/
+	if (!BT_MBOX_MSG(data->notif, 3, OPEN_CON_2)) {
+		/* ... cancel reduced Tx power ... */
+		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false))
+			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
+		data->reduced_tx_power = false;
+
+		/* ... and there is no need to get reports on RSSI any more. */
+		ieee80211_disable_rssi_reports(vif);
+		return;
+	}
+
+	ave_rssi = ieee80211_ave_rssi(vif);
+
+	/* if the RSSI isn't valid, fake it is very low */
+	if (!ave_rssi)
+		ave_rssi = -100;
+	if (ave_rssi > BT_ENABLE_REDUCED_TXPOWER_THRESHOLD) {
+		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, true))
+			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
+
+		/*
+		 * bt_kill_msk can be BT_KILL_MSK_REDUCED_TXPOW only if all the
+		 * BSS / P2P clients have rssi above threshold.
+		 * We set the bt_kill_msk to BT_KILL_MSK_REDUCED_TXPOW before
+		 * the iteration, if one interface's rssi isn't good enough,
+		 * bt_kill_msk will be set to default values.
+		 */
+	} else if (ave_rssi < BT_DISABLE_REDUCED_TXPOWER_THRESHOLD) {
+		if (iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, false))
+			IWL_ERR(mvm, "Couldn't send BT_CONFIG cmd\n");
+
+		/*
+		 * One interface hasn't rssi above threshold, bt_kill_msk must
+		 * be set to default values.
+		 */
+		data->reduced_tx_power = false;
+	}
+
+	/* Begin to monitor the RSSI: it may influence the reduced Tx power */
+	ieee80211_enable_rssi_reports(vif, BT_DISABLE_REDUCED_TXPOWER_THRESHOLD,
+				      BT_ENABLE_REDUCED_TXPOWER_THRESHOLD);
 }
 
+static void iwl_mvm_bt_coex_notif_handle(struct iwl_mvm *mvm)
+{
+	struct iwl_bt_iterator_data data = {
+		.mvm = mvm,
+		.notif = &mvm->last_bt_notif,
+		.reduced_tx_power = true,
+	};
+
+	ieee80211_iterate_active_interfaces_atomic(
+					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+					iwl_mvm_bt_notif_iterator, &data);
+
+	/*
+	 * If there are no BSS / P2P client interfaces, reduced Tx Power is
+	 * irrelevant since it is based on the RSSI coming from the beacon.
+	 * Use BT_KILL_MSK_DEFAULT in that case.
+	 */
+	data.reduced_tx_power = data.reduced_tx_power && data.num_bss_ifaces;
+
+	if (iwl_mvm_bt_udpate_ctrl_kill_msk(mvm, data.reduced_tx_power))
+		IWL_ERR(mvm, "Failed to update the ctrl_kill_msk\n");
+}
+
+/* upon association, the fw will send in BT Coex notification */
 int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 			     struct iwl_rx_cmd_buffer *rxb,
 			     struct iwl_device_cmd *dev_cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bt_coex_profile_notif *notif = (void *)pkt->data;
-	struct iwl_bt_notif_iterator_data data = {
-		.mvm = mvm,
-		.notif = notif,
-	};
-	struct iwl_bt_coex_cmd cmd = {};
-	enum iwl_bt_kill_msk bt_kill_msk;
+
 
 	IWL_DEBUG_COEX(mvm, "BT Coex Notification received\n");
 	IWL_DEBUG_COEX(mvm, "\tBT %salive\n", notif->bt_status ? "" : "not ");
@@ -311,38 +475,115 @@ int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 	/* remember this notification for future use: rssi fluctuations */
 	memcpy(&mvm->last_bt_notif, notif, sizeof(mvm->last_bt_notif));
 
-	ieee80211_iterate_active_interfaces_atomic(
-					mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-					iwl_mvm_bt_notif_iterator, &data);
+	iwl_mvm_bt_coex_notif_handle(mvm);
 
-	/* Low latency BT profile is active: give higher prio to BT */
-	if (BT_MBOX_MSG(notif, 3, SCO_STATE)  ||
-	    BT_MBOX_MSG(notif, 3, A2DP_STATE) ||
-	    BT_MBOX_MSG(notif, 3, SNIFF_STATE))
-		bt_kill_msk = BT_KILL_MSK_SCO_HID_A2DP;
-	else
-		bt_kill_msk = BT_KILL_MSK_DEFAULT;
-
-	/* Don't send HCMD if there is no update */
-	if (bt_kill_msk == mvm->bt_kill_msk)
-		return 0;
-
-	IWL_DEBUG_COEX(mvm,
-		       "Update kill_msk: %d - SCO %sactive A2DP %sactive SNIFF %sactive\n",
-		       bt_kill_msk,
-		       BT_MBOX_MSG(notif, 3, SCO_STATE) ? "" : "in",
-		       BT_MBOX_MSG(notif, 3, A2DP_STATE) ? "" : "in",
-		       BT_MBOX_MSG(notif, 3, SNIFF_STATE) ? "" : "in");
-
-	mvm->bt_kill_msk = bt_kill_msk;
-	cmd.kill_ack_msk = cpu_to_le32(iwl_bt_ack_kill_msk[bt_kill_msk]);
-	cmd.kill_cts_msk = cpu_to_le32(iwl_bt_cts_kill_msk[bt_kill_msk]);
-
-	cmd.valid_bit_msk = cpu_to_le16(BT_VALID_KILL_ACK | BT_VALID_KILL_CTS);
-
-	if (iwl_mvm_send_cmd_pdu(mvm, BT_CONFIG, CMD_SYNC, sizeof(cmd), &cmd))
-		IWL_ERR(mvm, "Failed to sent BT Coex CMD\n");
-
-	/* This handler is ASYNC */
+	/*
+	 * This is an async handler for a notification, returning anything other
+	 * than 0 doesn't make sense even if HCMD failed.
+	 */
 	return 0;
+}
+
+static void iwl_mvm_bt_rssi_iterator(void *_data, u8 *mac,
+				   struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = (void *)vif->drv_priv;
+	struct iwl_bt_iterator_data *data = _data;
+	struct iwl_mvm *mvm = data->mvm;
+
+	struct ieee80211_sta *sta;
+	struct iwl_mvm_sta *mvmsta;
+
+	if (vif->type != NL80211_IFTYPE_STATION ||
+	    mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT)
+		return;
+
+	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id],
+					lockdep_is_held(&mvm->mutex));
+	mvmsta = (void *)sta->drv_priv;
+
+	/*
+	 * This interface doesn't support reduced Tx power (because of low
+	 * RSSI probably), then set bt_kill_msk to default values.
+	 */
+	if (!mvmsta->bt_reduced_txpower)
+		data->reduced_tx_power = false;
+	/* else - possibly leave it to BT_KILL_MSK_REDUCED_TXPOW */
+}
+
+void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			   enum ieee80211_rssi_event rssi_event)
+{
+	struct iwl_mvm_vif *mvmvif = (void *)vif->drv_priv;
+	struct iwl_bt_iterator_data data = {
+		.mvm = mvm,
+		.reduced_tx_power = true,
+	};
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+
+	/* Rssi update while not associated ?! */
+	if (WARN_ON_ONCE(mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT))
+		goto out_unlock;
+
+	/* No open connection - reports should be disabled */
+	if (!BT_MBOX_MSG(&mvm->last_bt_notif, 3, OPEN_CON_2))
+		goto out_unlock;
+
+	IWL_DEBUG_COEX(mvm, "RSSI for %pM is now %s\n", vif->bss_conf.bssid,
+		       rssi_event == RSSI_EVENT_HIGH ? "HIGH" : "LOW");
+
+	/*
+	 * Check if rssi is good enough for reduced Tx power, but not in loose
+	 * scheme.
+	 */
+	if (rssi_event == RSSI_EVENT_LOW || is_loose_coex())
+		ret = iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id,
+						  false);
+	else
+		ret = iwl_mvm_bt_coex_reduced_txp(mvm, mvmvif->ap_sta_id, true);
+
+	if (ret)
+		IWL_ERR(mvm, "couldn't send BT_CONFIG HCMD upon RSSI event\n");
+
+	ieee80211_iterate_active_interfaces_atomic(
+		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		iwl_mvm_bt_rssi_iterator, &data);
+
+	/*
+	 * If there are no BSS / P2P client interfaces, reduced Tx Power is
+	 * irrelevant since it is based on the RSSI coming from the beacon.
+	 * Use BT_KILL_MSK_DEFAULT in that case.
+	 */
+	data.reduced_tx_power = data.reduced_tx_power && data.num_bss_ifaces;
+
+	if (iwl_mvm_bt_udpate_ctrl_kill_msk(mvm, data.reduced_tx_power))
+		IWL_ERR(mvm, "Failed to update the ctrl_kill_msk\n");
+
+ out_unlock:
+	mutex_unlock(&mvm->mutex);
+}
+
+void iwl_mvm_bt_coex_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	enum ieee80211_band band;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(vif->chanctx_conf);
+	if (chanctx_conf && chanctx_conf->def.chan)
+		band = chanctx_conf->def.chan->band;
+	else
+		band = -1;
+	rcu_read_unlock();
+
+	/* if we are in 2GHz we will get a notification from the fw */
+	if (band == IEEE80211_BAND_2GHZ)
+		return;
+
+	/* else, we can remove all the constraints */
+	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
+
+	iwl_mvm_bt_coex_notif_handle(mvm);
 }

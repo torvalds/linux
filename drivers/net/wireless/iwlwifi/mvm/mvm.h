@@ -212,6 +212,7 @@ struct iwl_mvm_vif {
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct dentry *dbgfs_dir;
+	struct dentry *dbgfs_slink;
 	void *dbgfs_data;
 #endif
 };
@@ -321,6 +322,13 @@ struct iwl_mvm {
 	 * can hold 16 keys at most. Reflect this fact.
 	 */
 	unsigned long fw_key_table[BITS_TO_LONGS(STA_KEY_MAX_NUM)];
+
+	/*
+	 * This counter of created interfaces is referenced only in conjunction
+	 * with FW limitation related to power management. Currently PM is
+	 * supported only on a single interface.
+	 * IMPORTANT: this variable counts all interfaces except P2P device.
+	 */
 	u8 vif_count;
 
 	struct led_classdev led;
@@ -471,15 +479,21 @@ void iwl_mvm_cancel_scan(struct iwl_mvm *mvm);
 /* MVM debugfs */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir);
-int iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       struct dentry *dbgfs_dir);
-void iwl_power_get_params(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			  struct iwl_powertable_cmd *cmd);
+void iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_vif_dbgfs_clean(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 #else
 static inline int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm,
 					 struct dentry *dbgfs_dir)
 {
 	return 0;
+}
+static inline void
+iwl_mvm_vif_dbgfs_register(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+}
+static inline void
+iwl_mvm_vif_dbgfs_clean(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
 }
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
@@ -490,6 +504,8 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq,
 /* power managment */
 int iwl_mvm_power_update_mode(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 int iwl_mvm_power_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     struct iwl_powertable_cmd *cmd);
 
 int iwl_mvm_leds_init(struct iwl_mvm *mvm);
 void iwl_mvm_leds_exit(struct iwl_mvm *mvm);
@@ -513,5 +529,8 @@ int iwl_send_bt_init_conf(struct iwl_mvm *mvm);
 int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 			     struct iwl_rx_cmd_buffer *rxb,
 			     struct iwl_device_cmd *cmd);
+void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			   enum ieee80211_rssi_event rssi_event);
+void iwl_mvm_bt_coex_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 
 #endif /* __IWL_MVM_H__ */

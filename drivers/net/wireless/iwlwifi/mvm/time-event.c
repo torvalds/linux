@@ -166,7 +166,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 	WARN_ONCE(!le32_to_cpu(notif->status),
 		  "Failed to schedule time event\n");
 
-	if (le32_to_cpu(notif->action) == TE_NOTIF_HOST_END) {
+	if (le32_to_cpu(notif->action) & TE_NOTIF_HOST_EVENT_END) {
 		IWL_DEBUG_TE(mvm,
 			     "TE ended - current time %lu, estimated end %lu\n",
 			     jiffies, te_data->end_jiffies);
@@ -189,7 +189,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 		}
 
 		iwl_mvm_te_clear_data(mvm, te_data);
-	} else if (le32_to_cpu(notif->action) == TE_NOTIF_HOST_START) {
+	} else if (le32_to_cpu(notif->action) & TE_NOTIF_HOST_EVENT_START) {
 		te_data->running = true;
 		te_data->end_jiffies = jiffies +
 			TU_TO_JIFFIES(te_data->duration);
@@ -368,7 +368,8 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 	time_cmd.interval_reciprocal = cpu_to_le32(iwl_mvm_reciprocal(1));
 	time_cmd.duration = cpu_to_le32(duration);
 	time_cmd.repeat = cpu_to_le32(1);
-	time_cmd.notify = cpu_to_le32(TE_NOTIF_HOST_START | TE_NOTIF_HOST_END);
+	time_cmd.notify = cpu_to_le32(TE_NOTIF_HOST_EVENT_START |
+				      TE_NOTIF_HOST_EVENT_END);
 
 	iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd);
 }
@@ -485,7 +486,8 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	time_cmd.max_delay = cpu_to_le32(MSEC_TO_TU(duration/2));
 	time_cmd.duration = cpu_to_le32(MSEC_TO_TU(duration));
 	time_cmd.repeat = cpu_to_le32(1);
-	time_cmd.notify = cpu_to_le32(TE_NOTIF_HOST_START | TE_NOTIF_HOST_END);
+	time_cmd.notify = cpu_to_le32(TE_NOTIF_HOST_EVENT_START |
+				      TE_NOTIF_HOST_EVENT_END);
 
 	return iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd);
 }
