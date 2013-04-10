@@ -71,10 +71,8 @@ static int nfs_delegation_claim_locks(struct nfs_open_context *ctx, struct nfs4_
 	int status = 0;
 
 	if (inode->i_flock == NULL)
-		return 0;
-
-	if (inode->i_flock == NULL)
 		goto out;
+
 	/* Protect inode->i_flock using the file locks lock */
 	lock_flocks();
 	for (fl = inode->i_flock; fl != NULL; fl = fl->fl_next) {
