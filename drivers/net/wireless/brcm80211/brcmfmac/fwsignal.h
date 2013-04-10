@@ -20,6 +20,14 @@
 
 int brcmf_fws_init(struct brcmf_pub *drvr);
 void brcmf_fws_deinit(struct brcmf_pub *drvr);
+bool brcmf_fws_fc_active(struct brcmf_fws_info *fws);
 int brcmf_fws_hdrpull(struct brcmf_pub *drvr, int ifidx, s16 signal_len,
 		      struct sk_buff *skb);
+int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb);
+
+void brcmf_fws_reset_interface(struct brcmf_if *ifp);
+void brcmf_fws_add_interface(struct brcmf_if *ifp);
+void brcmf_fws_del_interface(struct brcmf_if *ifp);
+void brcmf_fws_bustxfail(struct brcmf_fws_info *fws, struct sk_buff *skb);
+
 #endif /* FWSIGNAL_H_ */

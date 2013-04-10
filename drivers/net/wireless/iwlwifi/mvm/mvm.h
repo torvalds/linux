@@ -90,10 +90,6 @@ enum iwl_mvm_tx_fifo {
 	IWL_MVM_TX_FIFO_VO,
 };
 
-/* Placeholder */
-#define IWL_OFFCHANNEL_QUEUE 8
-#define IWL_FIRST_AMPDU_QUEUE 11
-
 extern struct ieee80211_ops iwl_mvm_hw_ops;
 /**
  * struct iwl_mvm_mod_params - module parameters for iwlmvm
@@ -161,6 +157,8 @@ enum iwl_power_scheme {
  * @uploaded: indicates the MAC context has been added to the device
  * @ap_active: indicates that ap context is configured, and that the interface
  *  should get quota etc.
+ * @monitor_active: indicates that monitor context is configured, and that the
+ * interface should get quota etc.
  * @queue_params: QoS params for this MAC
  * @bcast_sta: station used for broadcast packets. Used by the following
  *  vifs: P2P_DEVICE, GO and AP.
@@ -173,6 +171,7 @@ struct iwl_mvm_vif {
 
 	bool uploaded;
 	bool ap_active;
+	bool monitor_active;
 
 	u32 ap_beacon_time;
 
@@ -281,10 +280,7 @@ struct iwl_mvm {
 	atomic_t queue_stop_count[IWL_MAX_HW_QUEUES];
 
 	struct iwl_nvm_data *nvm_data;
-	/* eeprom blob for debugfs/testmode */
-	u8 *eeprom_blob;
-	size_t eeprom_blob_size;
-	/* NVM sections for 7000 family */
+	/* NVM sections */
 	struct iwl_nvm_section nvm_sections[NVM_NUM_OF_SECTIONS];
 
 	/* EEPROM MAC addresses */
@@ -451,6 +447,9 @@ u32 iwl_mvm_mac_get_queues_mask(struct iwl_mvm *mvm,
 				struct ieee80211_vif *vif);
 int iwl_mvm_mac_ctxt_beacon_changed(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif);
+int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
+			    struct iwl_rx_cmd_buffer *rxb,
+			    struct iwl_device_cmd *cmd);
 
 /* Bindings */
 int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);

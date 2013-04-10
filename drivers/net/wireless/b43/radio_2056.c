@@ -2980,7 +2980,7 @@ static const struct b2056_inittab_entry b2056_inittab_rev8_rx[] = {
 	.rx		= prefix##_rx,			\
 	.rx_length	= ARRAY_SIZE(prefix##_rx)
 
-struct b2056_inittabs_pts b2056_inittabs[] = {
+static const struct b2056_inittabs_pts b2056_inittabs[] = {
 	[3] = { INITTABSPTS(b2056_inittab_rev3) },
 	[4] = { INITTABSPTS(b2056_inittab_rev4) },
 	[5] = { INITTABSPTS(b2056_inittab_rev5) },
@@ -9035,7 +9035,7 @@ static void b2056_upload_inittab(struct b43_wldev *dev, bool ghz5,
 void b2056_upload_inittabs(struct b43_wldev *dev,
 			   bool ghz5, bool ignore_uploadflag)
 {
-	struct b2056_inittabs_pts *pts;
+	const struct b2056_inittabs_pts *pts;
 
 	if (dev->phy.rev >= ARRAY_SIZE(b2056_inittabs)) {
 		B43_WARN_ON(1);
@@ -9057,7 +9057,7 @@ void b2056_upload_inittabs(struct b43_wldev *dev,
 
 void b2056_upload_syn_pll_cp2(struct b43_wldev *dev, bool ghz5)
 {
-	struct b2056_inittabs_pts *pts;
+	const struct b2056_inittabs_pts *pts;
 	const struct b2056_inittab_entry *e;
 
 	if (dev->phy.rev >= ARRAY_SIZE(b2056_inittabs)) {

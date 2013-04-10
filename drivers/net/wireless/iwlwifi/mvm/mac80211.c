@@ -143,8 +143,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		    IEEE80211_HW_AMPDU_AGGREGATION |
 		    IEEE80211_HW_TIMING_BEACON_ONLY;
 
-	hw->queues = IWL_FIRST_AMPDU_QUEUE;
-	hw->offchannel_tx_hw_queue = IWL_OFFCHANNEL_QUEUE;
+	hw->queues = IWL_MVM_FIRST_AGG_QUEUE;
+	hw->offchannel_tx_hw_queue = IWL_MVM_OFFCHANNEL_QUEUE;
 	hw->rate_control_algorithm = "iwl-mvm-rs";
 
 	/*
@@ -174,7 +174,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	hw->wiphy->n_iface_combinations =
 		ARRAY_SIZE(iwl_mvm_iface_combinations);
 
-	hw->wiphy->max_remain_on_channel_duration = 500;
+	hw->wiphy->max_remain_on_channel_duration = 10000;
 	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
 
 	/* Extract MAC address */
@@ -257,7 +257,7 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 		goto drop;
 	}
 
-	if (IEEE80211_SKB_CB(skb)->hw_queue == IWL_OFFCHANNEL_QUEUE &&
+	if (IEEE80211_SKB_CB(skb)->hw_queue == IWL_MVM_OFFCHANNEL_QUEUE &&
 	    !test_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status))
 		goto drop;
 
@@ -1087,6 +1087,13 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 
 	switch (cmd) {
 	case SET_KEY:
+		if (vif->type == NL80211_IFTYPE_AP && !sta) {
+			/* GTK on AP interface is a TX-only key, return 0 */
+			ret = 0;
+			key->hw_key_idx = STA_KEY_IDX_INVALID;
+			break;
+		}
+
 		IWL_DEBUG_MAC80211(mvm, "set hwcrypto key\n");
 		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, false);
 		if (ret) {
@@ -1095,11 +1102,17 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			 * can't add key for RX, but we don't need it
 			 * in the device for TX so still return 0
 			 */
+			key->hw_key_idx = STA_KEY_IDX_INVALID;
 			ret = 0;
 		}
 
 		break;
 	case DISABLE_KEY:
+		if (key->hw_key_idx == STA_KEY_IDX_INVALID) {
+			ret = 0;
+			break;
+		}
+
 		IWL_DEBUG_MAC80211(mvm, "disable hwcrypto key\n");
 		ret = iwl_mvm_remove_sta_key(mvm, vif, sta, key);
 		break;
@@ -1148,7 +1161,7 @@ static int iwl_mvm_roc(struct ieee80211_hw *hw,
 				       &chandef, 1, 1);
 
 	/* Schedule the time events */
-	ret = iwl_mvm_start_p2p_roc(mvm, vif, duration);
+	ret = iwl_mvm_start_p2p_roc(mvm, vif, duration, type);
 
 	mutex_unlock(&mvm->mutex);
 	IWL_DEBUG_MAC80211(mvm, "leave\n");
@@ -1252,6 +1265,7 @@ static int iwl_mvm_assign_vif_chanctx(struct ieee80211_hw *hw,
 	 * will handle quota settings.
 	 */
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
+		mvmvif->monitor_active = true;
 		ret = iwl_mvm_update_quotas(mvm, vif);
 		if (ret)
 			goto out_remove_binding;
@@ -1282,15 +1296,16 @@ static void iwl_mvm_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	if (vif->type == NL80211_IFTYPE_AP)
 		goto out_unlock;
 
-	iwl_mvm_binding_remove_vif(mvm, vif);
 	switch (vif->type) {
 	case NL80211_IFTYPE_MONITOR:
-		iwl_mvm_update_quotas(mvm, vif);
+		mvmvif->monitor_active = false;
+		iwl_mvm_update_quotas(mvm, NULL);
 		break;
 	default:
 		break;
 	}
 
+	iwl_mvm_binding_remove_vif(mvm, vif);
 out_unlock:
 	mvmvif->phy_ctxt = NULL;
 	mutex_unlock(&mvm->mutex);

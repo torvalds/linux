@@ -453,7 +453,8 @@ void ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
 }
 
 void ieee80211_stop_queues_by_reason(struct ieee80211_hw *hw,
-				    enum queue_stop_reason reason)
+				     unsigned long queues,
+				     enum queue_stop_reason reason)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	unsigned long flags;
@@ -461,7 +462,7 @@ void ieee80211_stop_queues_by_reason(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 
-	for (i = 0; i < hw->queues; i++)
+	for_each_set_bit(i, &queues, hw->queues)
 		__ieee80211_stop_queue(hw, i, reason);
 
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
@@ -469,7 +470,7 @@ void ieee80211_stop_queues_by_reason(struct ieee80211_hw *hw,
 
 void ieee80211_stop_queues(struct ieee80211_hw *hw)
 {
-	ieee80211_stop_queues_by_reason(hw,
+	ieee80211_stop_queues_by_reason(hw, IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_DRIVER);
 }
 EXPORT_SYMBOL(ieee80211_stop_queues);
@@ -491,6 +492,7 @@ int ieee80211_queue_stopped(struct ieee80211_hw *hw, int queue)
 EXPORT_SYMBOL(ieee80211_queue_stopped);
 
 void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
+				     unsigned long queues,
 				     enum queue_stop_reason reason)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -499,7 +501,7 @@ void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 
-	for (i = 0; i < hw->queues; i++)
+	for_each_set_bit(i, &queues, hw->queues)
 		__ieee80211_wake_queue(hw, i, reason);
 
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
@@ -507,9 +509,41 @@ void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
 
 void ieee80211_wake_queues(struct ieee80211_hw *hw)
 {
-	ieee80211_wake_queues_by_reason(hw, IEEE80211_QUEUE_STOP_REASON_DRIVER);
+	ieee80211_wake_queues_by_reason(hw, IEEE80211_MAX_QUEUE_MAP,
+					IEEE80211_QUEUE_STOP_REASON_DRIVER);
 }
 EXPORT_SYMBOL(ieee80211_wake_queues);
+
+void ieee80211_flush_queues(struct ieee80211_local *local,
+			    struct ieee80211_sub_if_data *sdata)
+{
+	u32 queues;
+
+	if (!local->ops->flush)
+		return;
+
+	if (sdata && local->hw.flags & IEEE80211_HW_QUEUE_CONTROL) {
+		int ac;
+
+		queues = 0;
+
+		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+			queues |= BIT(sdata->vif.hw_queue[ac]);
+		if (sdata->vif.cab_queue != IEEE80211_INVAL_HW_QUEUE)
+			queues |= BIT(sdata->vif.cab_queue);
+	} else {
+		/* all queues */
+		queues = BIT(local->hw.queues) - 1;
+	}
+
+	ieee80211_stop_queues_by_reason(&local->hw, IEEE80211_MAX_QUEUE_MAP,
+					IEEE80211_QUEUE_STOP_REASON_FLUSH);
+
+	drv_flush(local, queues, false);
+
+	ieee80211_wake_queues_by_reason(&local->hw, IEEE80211_MAX_QUEUE_MAP,
+					IEEE80211_QUEUE_STOP_REASON_FLUSH);
+}
 
 void ieee80211_iterate_active_interfaces(
 	struct ieee80211_hw *hw, u32 iter_flags,
@@ -1651,8 +1685,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		mutex_unlock(&local->sta_mtx);
 	}
 
-	ieee80211_wake_queues_by_reason(hw,
-			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
+	ieee80211_wake_queues_by_reason(hw, IEEE80211_MAX_QUEUE_MAP,
+					IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 
 	/*
 	 * If this is for hw restart things are still running.

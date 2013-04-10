@@ -253,8 +253,6 @@ error:
 void __exit bnep_sock_cleanup(void)
 {
 	bt_procfs_cleanup(&init_net, "bnep");
-	if (bt_sock_unregister(BTPROTO_BNEP) < 0)
-		BT_ERR("Can't unregister BNEP socket");
-
+	bt_sock_unregister(BTPROTO_BNEP);
 	proto_unregister(&bnep_proto);
 }

@@ -678,6 +678,7 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 	wl->sched_scan_templ_id_2_4 = CMD_TEMPL_PROBE_REQ_2_4_PERIODIC;
 	wl->sched_scan_templ_id_5 = CMD_TEMPL_PROBE_REQ_5_PERIODIC;
 	wl->max_channels_5 = WL18XX_MAX_CHANNELS_5GHZ;
+	wl->ba_rx_session_count_max = WL18XX_RX_BA_MAX_SESSIONS;
 out:
 	return ret;
 }
@@ -1144,6 +1145,7 @@ static u32 wl18xx_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 static int wl18xx_get_pg_ver(struct wl1271 *wl, s8 *ver)
 {
 	u32 fuse;
+	s8 rom = 0, metal = 0, pg_ver = 0, rdl_ver = 0;
 	int ret;
 
 	ret = wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
@@ -1154,8 +1156,29 @@ static int wl18xx_get_pg_ver(struct wl1271 *wl, s8 *ver)
 	if (ret < 0)
 		goto out;
 
+	pg_ver = (fuse & WL18XX_PG_VER_MASK) >> WL18XX_PG_VER_OFFSET;
+	rom = (fuse & WL18XX_ROM_VER_MASK) >> WL18XX_ROM_VER_OFFSET;
+
+	if (rom <= 0xE)
+		metal = (fuse & WL18XX_METAL_VER_MASK) >>
+			WL18XX_METAL_VER_OFFSET;
+	else
+		metal = (fuse & WL18XX_NEW_METAL_VER_MASK) >>
+			WL18XX_NEW_METAL_VER_OFFSET;
+
+	ret = wlcore_read32(wl, WL18XX_REG_FUSE_DATA_2_3, &fuse);
+	if (ret < 0)
+		goto out;
+
+	rdl_ver = (fuse & WL18XX_RDL_VER_MASK) >> WL18XX_RDL_VER_OFFSET;
+	if (rdl_ver > RDL_MAX)
+		rdl_ver = RDL_NONE;
+
+	wl1271_info("wl18xx HW: RDL %d, %s, PG %x.%x (ROM %x)",
+		    rdl_ver, rdl_names[rdl_ver], pg_ver, metal, rom);
+
 	if (ver)
-		*ver = (fuse & WL18XX_PG_VER_MASK) >> WL18XX_PG_VER_OFFSET;
+		*ver = pg_ver;
 
 	ret = wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
 

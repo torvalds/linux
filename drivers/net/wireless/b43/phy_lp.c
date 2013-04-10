@@ -104,14 +104,8 @@ static void lpphy_read_band_sprom(struct b43_wldev *dev)
 		maxpwr = sprom->maxpwr_bg;
 		lpphy->max_tx_pwr_med_band = maxpwr;
 		cckpo = sprom->cck2gpo;
-		/*
-		 * We don't read SPROM's opo as specs say. On rev8 SPROMs
-		 * opo == ofdm2gpo and we don't know any SSB with LP-PHY
-		 * and SPROM rev below 8.
-		 */
-		B43_WARN_ON(sprom->revision < 8);
-		ofdmpo = sprom->ofdm2gpo;
 		if (cckpo) {
+			ofdmpo = sprom->ofdm2gpo;
 			for (i = 0; i < 4; i++) {
 				lpphy->tx_max_rate[i] =
 					maxpwr - (ofdmpo & 0xF) * 2;
@@ -124,11 +118,11 @@ static void lpphy_read_band_sprom(struct b43_wldev *dev)
 				ofdmpo >>= 4;
 			}
 		} else {
-			ofdmpo &= 0xFF;
+			u8 opo = sprom->opo;
 			for (i = 0; i < 4; i++)
 				lpphy->tx_max_rate[i] = maxpwr;
 			for (i = 4; i < 15; i++)
-				lpphy->tx_max_rate[i] = maxpwr - ofdmpo;
+				lpphy->tx_max_rate[i] = maxpwr - opo;
 		}
 	} else { /* 5GHz */
 		lpphy->tx_isolation_low_band = sprom->tri5gl;

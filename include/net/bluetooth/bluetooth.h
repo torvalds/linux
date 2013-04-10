@@ -232,7 +232,7 @@ struct bt_sock_list {
 };
 
 int  bt_sock_register(int proto, const struct net_proto_family *ops);
-int  bt_sock_unregister(int proto);
+void bt_sock_unregister(int proto);
 void bt_sock_link(struct bt_sock_list *l, struct sock *s);
 void bt_sock_unlink(struct bt_sock_list *l, struct sock *s);
 int  bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
@@ -260,12 +260,22 @@ struct l2cap_ctrl {
 	__u8		retries;
 };
 
+struct hci_dev;
+
+typedef void (*hci_req_complete_t)(struct hci_dev *hdev, u8 status);
+
+struct hci_req_ctrl {
+	bool			start;
+	hci_req_complete_t	complete;
+};
+
 struct bt_skb_cb {
 	__u8 pkt_type;
 	__u8 incoming;
 	__u16 expect;
 	__u8 force_active;
 	struct l2cap_ctrl control;
+	struct hci_req_ctrl req;
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 
