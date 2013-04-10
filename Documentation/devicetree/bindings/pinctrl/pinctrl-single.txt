@@ -126,7 +126,7 @@ pmx_core: pinmux@4a100040 {
 
 /* second controller instance for pins in wkup domain */
 pmx_wkup: pinmux@4a31e040 {
-	compatible = "pinctrl-single;
+	compatible = "pinctrl-single";
 	reg = <0x4a31e040 0x0038>;
 	#address-cells = <1>;
 	#size-cells = <0>;
