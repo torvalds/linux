@@ -22,15 +22,6 @@ config GS_MMA8452
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
-config GS_KXTF9
-  bool "gs_kxtf9"
-	depends on SYSFS && I2C_RK29
-	help	 
-		If you say yes here you get support for the Kionix KXTF9 digital tri-axis
-		accelerometer.
-		This driver can also be built as a module. If so, the module will be
-		called kxtf9.
-
 config GS_LIS3DH
   bool "gs_lis3dh"
 	help	 
