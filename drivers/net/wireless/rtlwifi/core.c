@@ -370,7 +370,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		struct ieee80211_channel *channel = hw->conf.channel;
+		struct ieee80211_channel *channel = hw->conf.chandef.chan;
 		u8 wide_chan = (u8) channel->hw_value;
 
 		if (mac->act_scanning)
@@ -392,7 +392,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 		 *info for cisco1253 bw20, so we modify
 		 *it here based on UPPER & LOWER
 		 */
-		switch (hw->conf.channel_type) {
+		switch (cfg80211_get_chandef_type(&hw->conf.chandef)) {
 		case NL80211_CHAN_HT20:
 		case NL80211_CHAN_NO_HT:
 			/* SC */
@@ -450,7 +450,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 		rtlpriv->cfg->ops->switch_channel(hw);
 		rtlpriv->cfg->ops->set_channel_access(hw);
 		rtlpriv->cfg->ops->set_bw_mode(hw,
-					       hw->conf.channel_type);
+				cfg80211_get_chandef_type(&hw->conf.chandef));
 	}
 
 	mutex_unlock(&rtlpriv->locks.conf_mutex);

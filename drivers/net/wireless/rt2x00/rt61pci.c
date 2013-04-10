@@ -848,7 +848,7 @@ static void rt61pci_config_lna_gain(struct rt2x00_dev *rt2x00dev,
 	u16 eeprom;
 	short lna_gain = 0;
 
-	if (libconf->conf->channel->band == IEEE80211_BAND_2GHZ) {
+	if (libconf->conf->chandef.chan->band == IEEE80211_BAND_2GHZ) {
 		if (test_bit(CAPABILITY_EXTERNAL_LNA_BG, &rt2x00dev->cap_flags))
 			lna_gain += 14;
 

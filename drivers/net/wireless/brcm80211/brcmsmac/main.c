@@ -5135,7 +5135,7 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	wlc->pub->up = true;
 
 	if (wlc->bandinit_pending) {
-		ch = wlc->pub->ieee_hw->conf.channel;
+		ch = wlc->pub->ieee_hw->conf.chandef.chan;
 		brcms_c_suspend_mac_and_wait(wlc);
 		brcms_c_set_chanspec(wlc, ch20mhz_chspec(ch->hw_value));
 		wlc->bandinit_pending = false;
@@ -7919,7 +7919,7 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 void brcms_c_init(struct brcms_c_info *wlc, bool mute_tx)
 {
 	struct bcma_device *core = wlc->hw->d11core;
-	struct ieee80211_channel *ch = wlc->pub->ieee_hw->conf.channel;
+	struct ieee80211_channel *ch = wlc->pub->ieee_hw->conf.chandef.chan;
 	u16 chanspec;
 
 	brcms_dbg_info(core, "wl%d\n", wlc->pub->unit);

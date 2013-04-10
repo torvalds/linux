@@ -443,7 +443,7 @@ struct ieee80211_if_managed {
 
 	u8 use_4addr;
 
-	u8 p2p_noa_index;
+	s16 p2p_noa_index;
 
 	/* Signal strength from the last Beacon frame in the current BSS. */
 	int last_beacon_signal;
@@ -509,8 +509,7 @@ struct ieee80211_if_ibss {
 
 	unsigned long ibss_join_req;
 	/* probe response/beacon for IBSS */
-	struct sk_buff __rcu *presp;
-	struct sk_buff *skb;
+	struct beacon_data __rcu *presp;
 
 	spinlock_t incomplete_lock;
 	struct list_head incomplete_stations;
@@ -1023,8 +1022,7 @@ struct ieee80211_local {
 	struct ieee80211_sub_if_data __rcu *scan_sdata;
 	struct ieee80211_channel *csa_channel;
 	/* For backward compatibility only -- do not use */
-	struct ieee80211_channel *_oper_channel;
-	enum nl80211_channel_type _oper_channel_type;
+	struct cfg80211_chan_def _oper_chandef;
 
 	/* Temporary remain-on-channel for off-channel operations */
 	struct ieee80211_channel *tmp_channel;
@@ -1160,11 +1158,8 @@ struct ieee802_11_elems {
 	/* pointers to IEs */
 	const u8 *ssid;
 	const u8 *supp_rates;
-	const u8 *fh_params;
 	const u8 *ds_params;
-	const u8 *cf_params;
 	const struct ieee80211_tim_ie *tim;
-	const u8 *ibss_params;
 	const u8 *challenge;
 	const u8 *rsn;
 	const u8 *erp_info;
@@ -1186,21 +1181,15 @@ struct ieee802_11_elems {
 	const struct ieee80211_channel_sw_ie *ch_switch_ie;
 	const u8 *country_elem;
 	const u8 *pwr_constr_elem;
-	const u8 *quiet_elem;	/* first quite element */
-	const u8 *timeout_int;
+	const struct ieee80211_timeout_interval_ie *timeout_int;
 	const u8 *opmode_notif;
 
 	/* length of them, respectively */
 	u8 ssid_len;
 	u8 supp_rates_len;
-	u8 fh_params_len;
-	u8 ds_params_len;
-	u8 cf_params_len;
 	u8 tim_len;
-	u8 ibss_params_len;
 	u8 challenge_len;
 	u8 rsn_len;
-	u8 erp_info_len;
 	u8 ext_supp_rates_len;
 	u8 wmm_info_len;
 	u8 wmm_param_len;
@@ -1210,9 +1199,6 @@ struct ieee802_11_elems {
 	u8 prep_len;
 	u8 perr_len;
 	u8 country_elem_len;
-	u8 quiet_elem_len;
-	u8 num_of_quiet_elem;	/* can be more the one */
-	u8 timeout_int_len;
 
 	/* whether a parse error occurred while retrieving these elements */
 	bool parse_error;
@@ -1330,7 +1316,8 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local);
 void ieee80211_offchannel_return(struct ieee80211_local *local);
 void ieee80211_roc_setup(struct ieee80211_local *local);
 void ieee80211_start_next_roc(struct ieee80211_local *local);
-void ieee80211_roc_purge(struct ieee80211_sub_if_data *sdata);
+void ieee80211_roc_purge(struct ieee80211_local *local,
+			 struct ieee80211_sub_if_data *sdata);
 void ieee80211_roc_notify_destroy(struct ieee80211_roc_work *roc, bool free);
 void ieee80211_sw_roc_work(struct work_struct *work);
 void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc);
@@ -1351,6 +1338,8 @@ void ieee80211_adjust_monitor_flags(struct ieee80211_sub_if_data *sdata,
 				    const int offset);
 int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up);
 void ieee80211_sdata_stop(struct ieee80211_sub_if_data *sdata);
+int ieee80211_add_virtual_monitor(struct ieee80211_local *local);
+void ieee80211_del_virtual_monitor(struct ieee80211_local *local);
 
 bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
 void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
@@ -1505,11 +1494,15 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_skb_tid(sdata, skb, 7);
 }
 
-void ieee802_11_parse_elems(u8 *start, size_t len,
-			    struct ieee802_11_elems *elems);
 u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			       struct ieee802_11_elems *elems,
 			       u64 filter, u32 crc);
+static inline void ieee802_11_parse_elems(u8 *start, size_t len,
+					  struct ieee802_11_elems *elems)
+{
+	ieee802_11_parse_elems_crc(start, len, elems, 0, 0);
+}
+
 u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 			      enum ieee80211_band band);
 

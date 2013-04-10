@@ -445,15 +445,15 @@ void ieee80211_roc_setup(struct ieee80211_local *local)
 	INIT_LIST_HEAD(&local->roc_list);
 }
 
-void ieee80211_roc_purge(struct ieee80211_sub_if_data *sdata)
+void ieee80211_roc_purge(struct ieee80211_local *local,
+			 struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_roc_work *roc, *tmp;
 	LIST_HEAD(tmp_list);
 
 	mutex_lock(&local->mtx);
 	list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
-		if (roc->sdata != sdata)
+		if (sdata && roc->sdata != sdata)
 			continue;
 
 		if (roc->started && local->ops->remain_on_channel) {

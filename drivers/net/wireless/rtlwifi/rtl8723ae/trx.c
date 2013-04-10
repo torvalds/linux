@@ -304,8 +304,8 @@ bool rtl8723ae_rx_query_desc(struct ieee80211_hw *hw,
 
 	status->is_cck = RTL8723E_RX_HAL_IS_CCK_RATE(status->rate);
 
-	rx_status->freq = hw->conf.channel->center_freq;
-	rx_status->band = hw->conf.channel->band;
+	rx_status->freq = hw->conf.chandef.chan->center_freq;
+	rx_status->band = hw->conf.chandef.chan->band;
 
 	if (status->crc)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;

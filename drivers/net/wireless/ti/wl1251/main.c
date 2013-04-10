@@ -572,7 +572,8 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 	struct ieee80211_conf *conf = &hw->conf;
 	int channel, ret = 0;
 
-	channel = ieee80211_frequency_to_channel(conf->channel->center_freq);
+	channel = ieee80211_frequency_to_channel(
+			conf->chandef.chan->center_freq);
 
 	wl1251_debug(DEBUG_MAC80211, "mac80211 config ch %d psm %s power %d",
 		     channel,
@@ -1223,7 +1224,7 @@ static int wl1251_op_get_survey(struct ieee80211_hw *hw, int idx,
 	if (idx != 0)
 		return -ENOENT;
  
-	survey->channel = conf->channel;
+	survey->channel = conf->chandef.chan;
 	survey->filled = SURVEY_INFO_NOISE_DBM;
 	survey->noise = wl->noise;
  

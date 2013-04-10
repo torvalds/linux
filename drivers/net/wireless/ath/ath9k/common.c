@@ -133,13 +133,14 @@ EXPORT_SYMBOL(ath9k_cmn_update_ichannel);
 struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,
 					       struct ath_hw *ah)
 {
-	struct ieee80211_channel *curchan = hw->conf.channel;
+	struct ieee80211_channel *curchan = hw->conf.chandef.chan;
 	struct ath9k_channel *channel;
 	u8 chan_idx;
 
 	chan_idx = curchan->hw_value;
 	channel = &ah->channels[chan_idx];
-	ath9k_cmn_update_ichannel(channel, curchan, hw->conf.channel_type);
+	ath9k_cmn_update_ichannel(channel, curchan,
+				  cfg80211_get_chandef_type(&hw->conf.chandef));
 
 	return channel;
 }

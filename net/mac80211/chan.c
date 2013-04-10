@@ -22,7 +22,7 @@ static void ieee80211_change_chanctx(struct ieee80211_local *local,
 	drv_change_chanctx(local, ctx, IEEE80211_CHANCTX_CHANGE_WIDTH);
 
 	if (!local->use_chanctx) {
-		local->_oper_channel_type = cfg80211_get_chandef_type(chandef);
+		local->_oper_chandef = *chandef;
 		ieee80211_hw_config(local, 0);
 	}
 }
@@ -85,9 +85,7 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 		ieee80211_hw_config(local, changed);
 
 	if (!local->use_chanctx) {
-		local->_oper_channel_type =
-			cfg80211_get_chandef_type(chandef);
-		local->_oper_channel = chandef->chan;
+		local->_oper_chandef = *chandef;
 		ieee80211_hw_config(local, 0);
 	} else {
 		err = drv_add_chanctx(local, ctx);
@@ -117,7 +115,10 @@ static void ieee80211_free_chanctx(struct ieee80211_local *local,
 	WARN_ON_ONCE(ctx->refcount != 0);
 
 	if (!local->use_chanctx) {
-		local->_oper_channel_type = NL80211_CHAN_NO_HT;
+		struct cfg80211_chan_def *chandef = &local->_oper_chandef;
+		chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
+		chandef->center_freq1 = chandef->chan->center_freq;
+		chandef->center_freq2 = 0;
 		ieee80211_hw_config(local, 0);
 	} else {
 		drv_remove_chanctx(local, ctx);

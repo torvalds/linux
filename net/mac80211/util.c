@@ -738,17 +738,11 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			elems->supp_rates = pos;
 			elems->supp_rates_len = elen;
 			break;
-		case WLAN_EID_FH_PARAMS:
-			elems->fh_params = pos;
-			elems->fh_params_len = elen;
-			break;
 		case WLAN_EID_DS_PARAMS:
-			elems->ds_params = pos;
-			elems->ds_params_len = elen;
-			break;
-		case WLAN_EID_CF_PARAMS:
-			elems->cf_params = pos;
-			elems->cf_params_len = elen;
+			if (elen >= 1)
+				elems->ds_params = pos;
+			else
+				elem_parse_failed = true;
 			break;
 		case WLAN_EID_TIM:
 			if (elen >= sizeof(struct ieee80211_tim_ie)) {
@@ -756,10 +750,6 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 				elems->tim_len = elen;
 			} else
 				elem_parse_failed = true;
-			break;
-		case WLAN_EID_IBSS_PARAMS:
-			elems->ibss_params = pos;
-			elems->ibss_params_len = elen;
 			break;
 		case WLAN_EID_CHALLENGE:
 			elems->challenge = pos;
@@ -790,8 +780,10 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			elems->rsn_len = elen;
 			break;
 		case WLAN_EID_ERP_INFO:
-			elems->erp_info = pos;
-			elems->erp_info_len = elen;
+			if (elen >= 1)
+				elems->erp_info = pos;
+			else
+				elem_parse_failed = true;
 			break;
 		case WLAN_EID_EXT_SUPP_RATES:
 			elems->ext_supp_rates = pos;
@@ -870,13 +862,6 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			}
 			elems->ch_switch_ie = (void *)pos;
 			break;
-		case WLAN_EID_QUIET:
-			if (!elems->quiet_elem) {
-				elems->quiet_elem = pos;
-				elems->quiet_elem_len = elen;
-			}
-			elems->num_of_quiet_elem++;
-			break;
 		case WLAN_EID_COUNTRY:
 			elems->country_elem = pos;
 			elems->country_elem_len = elen;
@@ -889,8 +874,10 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			elems->pwr_constr_elem = pos;
 			break;
 		case WLAN_EID_TIMEOUT_INTERVAL:
-			elems->timeout_int = pos;
-			elems->timeout_int_len = elen;
+			if (elen >= sizeof(struct ieee80211_timeout_interval_ie))
+				elems->timeout_int = (void *)pos;
+			else
+				elem_parse_failed = true;
 			break;
 		default:
 			break;
@@ -909,12 +896,6 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 		elems->parse_error = true;
 
 	return crc;
-}
-
-void ieee802_11_parse_elems(u8 *start, size_t len,
-			    struct ieee802_11_elems *elems)
-{
-	ieee802_11_parse_elems_crc(start, len, elems, 0, 0);
 }
 
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
@@ -1474,6 +1455,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	/* add interfaces */
 	sdata = rtnl_dereference(local->monitor_sdata);
 	if (sdata) {
+		/* in HW restart it exists already */
+		WARN_ON(local->resuming);
 		res = drv_add_interface(local, sdata);
 		if (WARN_ON(res)) {
 			rcu_assign_pointer(local->monitor_sdata, NULL);
@@ -1662,6 +1645,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
  wake_up:
 	local->in_reconfig = false;
 	barrier();
+
+	if (local->monitors == local->open_count && local->monitors > 0)
+		ieee80211_add_virtual_monitor(local);
 
 	/*
 	 * Clear the WLAN_STA_BLOCK_BA flag so new aggregation
@@ -2056,7 +2042,7 @@ int ieee80211_ave_rssi(struct ieee80211_vif *vif)
 		/* non-managed type inferfaces */
 		return 0;
 	}
-	return ifmgd->ave_beacon_signal;
+	return ifmgd->ave_beacon_signal / 16;
 }
 EXPORT_SYMBOL_GPL(ieee80211_ave_rssi);
 
@@ -2171,8 +2157,7 @@ void ieee80211_dfs_radar_detected_work(struct work_struct *work)
 		/* currently not handled */
 		WARN_ON(1);
 	else {
-		cfg80211_chandef_create(&chandef, local->hw.conf.channel,
-					local->hw.conf.channel_type);
+		chandef = local->hw.conf.chandef;
 		cfg80211_radar_event(local->hw.wiphy, &chandef, GFP_KERNEL);
 	}
 }
