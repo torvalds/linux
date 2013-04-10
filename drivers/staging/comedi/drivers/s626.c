@@ -2599,8 +2599,7 @@ static int s626_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv->mmio = ioremap(pci_resource_start(pcidev, 0),
-				pci_resource_len(pcidev, 0));
+	devpriv->mmio = pci_ioremap_bar(pcidev, 0);
 	if (!devpriv->mmio)
 		return -ENOMEM;
 
