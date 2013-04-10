@@ -837,6 +837,7 @@ __ioat3_prep_pq_lock(struct dma_chan *c, enum sum_check_flags *result,
 {
 	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
 	struct ioat_chan_common *chan = &ioat->base;
+	struct ioatdma_device *device = chan->device;
 	struct ioat_ring_ent *compl_desc;
 	struct ioat_ring_ent *desc;
 	struct ioat_ring_ent *ext;
@@ -847,6 +848,7 @@ __ioat3_prep_pq_lock(struct dma_chan *c, enum sum_check_flags *result,
 	u32 offset = 0;
 	u8 op = result ? IOAT_OP_PQ_VAL : IOAT_OP_PQ;
 	int i, s, idx, with_ext, num_descs;
+	int cb32 = (device->version < IOAT_VER_3_3) ? 1 : 0;
 
 	dev_dbg(to_dev(chan), "%s\n", __func__);
 	/* the engine requires at least two sources (we provide
@@ -872,7 +874,7 @@ __ioat3_prep_pq_lock(struct dma_chan *c, enum sum_check_flags *result,
 	 * order.
 	 */
 	if (likely(num_descs) &&
-	    ioat2_check_space_lock(ioat, num_descs+1) == 0)
+	    ioat2_check_space_lock(ioat, num_descs + cb32) == 0)
 		idx = ioat->head;
 	else
 		return NULL;
@@ -926,16 +928,23 @@ __ioat3_prep_pq_lock(struct dma_chan *c, enum sum_check_flags *result,
 	pq->ctl_f.fence = !!(flags & DMA_PREP_FENCE);
 	dump_pq_desc_dbg(ioat, desc, ext);
 
-	/* completion descriptor carries interrupt bit */
-	compl_desc = ioat2_get_ring_ent(ioat, idx + i);
-	compl_desc->txd.flags = flags & DMA_PREP_INTERRUPT;
-	hw = compl_desc->hw;
-	hw->ctl = 0;
-	hw->ctl_f.null = 1;
-	hw->ctl_f.int_en = !!(flags & DMA_PREP_INTERRUPT);
-	hw->ctl_f.compl_write = 1;
-	hw->size = NULL_DESC_BUFFER_SIZE;
-	dump_desc_dbg(ioat, compl_desc);
+	if (!cb32) {
+		pq->ctl_f.int_en = !!(flags & DMA_PREP_INTERRUPT);
+		pq->ctl_f.compl_write = 1;
+		compl_desc = desc;
+	} else {
+		/* completion descriptor carries interrupt bit */
+		compl_desc = ioat2_get_ring_ent(ioat, idx + i);
+		compl_desc->txd.flags = flags & DMA_PREP_INTERRUPT;
+		hw = compl_desc->hw;
+		hw->ctl = 0;
+		hw->ctl_f.null = 1;
+		hw->ctl_f.int_en = !!(flags & DMA_PREP_INTERRUPT);
+		hw->ctl_f.compl_write = 1;
+		hw->size = NULL_DESC_BUFFER_SIZE;
+		dump_desc_dbg(ioat, compl_desc);
+	}
+
 
 	/* we leave the channel locked to ensure in order submission */
 	return &compl_desc->txd;
