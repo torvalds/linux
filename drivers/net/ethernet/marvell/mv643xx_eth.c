@@ -268,7 +268,7 @@ struct mv643xx_eth_shared_private {
 	int extended_rx_coal_limit;
 	int tx_bw_control;
 	int tx_csum_limit;
-
+	struct clk *clk;
 };
 
 #define TX_BW_CONTROL_ABSENT		0
@@ -410,9 +410,7 @@ struct mv643xx_eth_private {
 	/*
 	 * Hardware-specific parameters.
 	 */
-#if defined(CONFIG_HAVE_CLK)
 	struct clk *clk;
-#endif
 	unsigned int t_clk;
 };
 
@@ -2569,6 +2567,10 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	if (msp->base == NULL)
 		goto out_free;
 
+	msp->clk = devm_clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(msp->clk))
+		clk_prepare_enable(msp->clk);
+
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
 	 */
@@ -2595,6 +2597,8 @@ static int mv643xx_eth_shared_remove(struct platform_device *pdev)
 	struct mv643xx_eth_shared_private *msp = platform_get_drvdata(pdev);
 
 	iounmap(msp->base);
+	if (!IS_ERR(msp->clk))
+		clk_disable_unprepare(msp->clk);
 	kfree(msp);
 
 	return 0;
@@ -2801,13 +2805,12 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	 * it to override the default.
 	 */
 	mp->t_clk = 133000000;
-#if defined(CONFIG_HAVE_CLK)
-	mp->clk = clk_get(&pdev->dev, (pdev->id ? "1" : "0"));
+	mp->clk = devm_clk_get(&pdev->dev, NULL);
 	if (!IS_ERR(mp->clk)) {
 		clk_prepare_enable(mp->clk);
 		mp->t_clk = clk_get_rate(mp->clk);
 	}
-#endif
+
 	set_params(mp, pd);
 	netif_set_real_num_tx_queues(dev, mp->txq_count);
 	netif_set_real_num_rx_queues(dev, mp->rxq_count);
@@ -2889,12 +2892,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	return 0;
 
 out:
-#if defined(CONFIG_HAVE_CLK)
-	if (!IS_ERR(mp->clk)) {
+	if (!IS_ERR(mp->clk))
 		clk_disable_unprepare(mp->clk);
-		clk_put(mp->clk);
-	}
-#endif
 	free_netdev(dev);
 
 	return err;
@@ -2909,12 +2908,8 @@ static int mv643xx_eth_remove(struct platform_device *pdev)
 		phy_detach(mp->phy);
 	cancel_work_sync(&mp->tx_timeout_task);
 
-#if defined(CONFIG_HAVE_CLK)
-	if (!IS_ERR(mp->clk)) {
+	if (!IS_ERR(mp->clk))
 		clk_disable_unprepare(mp->clk);
-		clk_put(mp->clk);
-	}
-#endif
 
 	free_netdev(mp->dev);
 
