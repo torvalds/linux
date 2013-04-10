@@ -1813,6 +1813,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	musb->board_set_power = plat->set_power;
 	musb->min_power = plat->min_power;
 	musb->ops = plat->platform_ops;
+	musb->port_mode = plat->mode;
 
 	/* The musb_platform_init() call:
 	 *   - adjusts musb->mregs

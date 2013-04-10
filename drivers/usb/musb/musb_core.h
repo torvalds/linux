@@ -77,6 +77,12 @@ struct musb_ep;
 #define is_peripheral_active(m)		(!(m)->is_host)
 #define is_host_active(m)		((m)->is_host)
 
+enum {
+	MUSB_PORT_MODE_HOST	= 1,
+	MUSB_PORT_MODE_GADGET,
+	MUSB_PORT_MODE_DUAL_ROLE,
+};
+
 #ifdef CONFIG_PROC_FS
 #include <linux/fs.h>
 #define MUSB_CONFIG_PROC_FS
@@ -356,6 +362,7 @@ struct musb {
 
 	u8			min_power;	/* vbus for periph, in mA/2 */
 
+	int			port_mode;	/* MUSB_PORT_MODE_* */
 	bool			is_host;
 
 	int			a_wait_bcon;	/* VBUS timeout in msecs */
