@@ -1823,7 +1823,7 @@ extern void pci_set_bus_of_node(struct pci_bus *bus);
 extern void pci_release_bus_of_node(struct pci_bus *bus);
 
 /* Arch may override this (weak) */
-extern struct device_node * __weak pcibios_get_phb_of_node(struct pci_bus *bus);
+extern struct device_node *pcibios_get_phb_of_node(struct pci_bus *bus);
 
 static inline struct device_node *
 pci_device_to_OF_node(const struct pci_dev *pdev)
