@@ -532,7 +532,6 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 		case HIC_SET_PARAMETER:
 			is->cfg_param[is->scenario_id].p_region_index1 = 0;
 			is->cfg_param[is->scenario_id].p_region_index2 = 0;
-			atomic_set(&is->cfg_param[is->scenario_id].p_region_num, 0);
 			set_bit(IS_ST_BLOCK_CMD_CLEARED, &is->state);
 			pr_debug("HIC_SET_PARAMETER\n");
 			break;
@@ -593,7 +592,6 @@ static void fimc_is_general_irq_handler(struct fimc_is *is)
 		case HIC_SET_PARAMETER:
 			is->cfg_param[is->scenario_id].p_region_index1 = 0;
 			is->cfg_param[is->scenario_id].p_region_index2 = 0;
-			atomic_set(&is->cfg_param[is->scenario_id].p_region_num, 0);
 			set_bit(IS_ST_BLOCK_CMD_CLEARED, &is->state);
 			break;
 		}

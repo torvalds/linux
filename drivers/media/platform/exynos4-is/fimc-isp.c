@@ -229,8 +229,11 @@ static int fimc_isp_subdev_s_stream(struct v4l2_subdev *sd, int on)
 	fimc_is_mem_barrier();
 
 	if (on) {
-		if (atomic_read(&is->cfg_param[is->scenario_id].p_region_num))
+		if (__get_pending_param_count(is)) {
 			ret = fimc_is_itf_s_param(is, true);
+			if (ret < 0)
+				return ret;
+		}
 
 		v4l2_dbg(1, debug, sd, "changing mode to %d\n",
 						is->scenario_id);
@@ -414,7 +417,6 @@ static int __ctrl_set_aewb_lock(struct fimc_is *is,
 	isp->aa.cmd = cmd;
 	isp->aa.target = ISP_AA_TARGET_AE;
 	fimc_is_set_param_bit(is, PARAM_ISP_AA);
-	fimc_is_inc_param_num(is);
 	is->af.ae_lock_state = ae_lock;
 	wmb();
 
@@ -426,7 +428,6 @@ static int __ctrl_set_aewb_lock(struct fimc_is *is,
 	isp->aa.cmd = cmd;
 	isp->aa.target = ISP_AA_TARGET_AE;
 	fimc_is_set_param_bit(is, PARAM_ISP_AA);
-	fimc_is_inc_param_num(is);
 	is->af.awb_lock_state = awb_lock;
 	wmb();
 

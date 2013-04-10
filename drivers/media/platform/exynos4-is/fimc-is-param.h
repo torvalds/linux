@@ -985,13 +985,11 @@ struct sensor_open_extended {
 	u32 i2c_sclk;
 };
 
-#define fimc_is_inc_param_num(is) \
-	atomic_inc(&(is)->cfg_param[(is)->scenario_id].p_region_num)
-
 struct fimc_is;
 
 int fimc_is_hw_get_sensor_max_framerate(struct fimc_is *is);
 void fimc_is_set_initial_params(struct fimc_is *is);
+unsigned int __get_pending_param_count(struct fimc_is *is);
 
 int  __is_hw_update_params(struct fimc_is *is);
 void __is_get_frame_size(struct fimc_is *is, struct v4l2_mbus_framefmt *mf);

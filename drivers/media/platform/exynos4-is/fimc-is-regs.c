@@ -80,6 +80,7 @@ int fimc_is_hw_wait_intmsr0_intmsd0(struct fimc_is *is)
 int fimc_is_hw_set_param(struct fimc_is *is)
 {
 	struct is_config_param *cfg = &is->cfg_param[is->scenario_id];
+	unsigned int param_count = __get_pending_param_count(is);
 
 	fimc_is_hw_wait_intmsr0_intmsd0(is);
 
@@ -87,7 +88,7 @@ int fimc_is_hw_set_param(struct fimc_is *is)
 	mcuctl_write(is->sensor_index, is, MCUCTL_REG_ISSR(1));
 	mcuctl_write(is->scenario_id, is, MCUCTL_REG_ISSR(2));
 
-	mcuctl_write(atomic_read(&cfg->p_region_num), is, MCUCTL_REG_ISSR(3));
+	mcuctl_write(param_count, is, MCUCTL_REG_ISSR(3));
 	mcuctl_write(cfg->p_region_index1, is, MCUCTL_REG_ISSR(4));
 	mcuctl_write(cfg->p_region_index2, is, MCUCTL_REG_ISSR(5));
 

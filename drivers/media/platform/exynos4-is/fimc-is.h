@@ -226,7 +226,6 @@ struct is_config_param {
 	struct drc_param	drc;
 	struct fd_param		fd;
 
-	atomic_t		p_region_num;
 	unsigned long		p_region_index1;
 	unsigned long		p_region_index2;
 };
