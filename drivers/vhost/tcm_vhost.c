@@ -724,7 +724,7 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs,
 				" exceeds SCSI_MAX_VARLEN_CDB_SIZE: %d\n",
 				scsi_command_size(tv_cmd->tvc_cdb),
 				TCM_VHOST_MAX_CDB_SIZE);
-			break; /* TODO */
+			goto err;
 		}
 		tv_cmd->tvc_lun = ((v_req.lun[2] << 8) | v_req.lun[3]) & 0x3FFF;
 
@@ -737,7 +737,7 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs,
 					data_direction == DMA_TO_DEVICE);
 			if (unlikely(ret)) {
 				vq_err(vq, "Failed to map iov to sgl\n");
-				break; /* TODO */
+				goto err;
 			}
 		}
 
@@ -757,6 +757,11 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs,
 		queue_work(tcm_vhost_workqueue, &tv_cmd->work);
 	}
 
+	mutex_unlock(&vq->mutex);
+	return;
+
+err:
+	vhost_scsi_free_cmd(tv_cmd);
 	mutex_unlock(&vq->mutex);
 }
 
