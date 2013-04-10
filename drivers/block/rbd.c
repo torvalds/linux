@@ -2781,6 +2781,7 @@ static int rbd_dev_refresh(struct rbd_device *rbd_dev, u64 *hver)
 	else
 		ret = rbd_dev_v2_refresh(rbd_dev, hver);
 	mutex_unlock(&ctl_mutex);
+	revalidate_disk(rbd_dev->disk);
 
 	return ret;
 }
