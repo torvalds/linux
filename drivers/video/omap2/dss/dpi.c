@@ -222,10 +222,10 @@ static bool dpi_dss_clk_calc(unsigned long pck, struct dpi_clk_calc_ctx *ctx)
 	 * DSS fck gives us very few possibilities, so finding a good pixel
 	 * clock may not be possible. We try multiple times to find the clock,
 	 * each time widening the pixel clock range we look for, up to
-	 * +/- 1MHz.
+	 * +/- ~15MHz.
 	 */
 
-	for (i = 0; i < 10; ++i) {
+	for (i = 0; i < 25; ++i) {
 		bool ok;
 
 		memset(ctx, 0, sizeof(*ctx));
