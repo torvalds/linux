@@ -149,8 +149,14 @@ int serial8250_request_dma(struct uart_8250_port *p)
 	struct uart_8250_dma	*dma = p->dma;
 	dma_cap_mask_t		mask;
 
-	dma->rxconf.src_addr = p->port.mapbase + UART_RX;
-	dma->txconf.dst_addr = p->port.mapbase + UART_TX;
+	/* Default slave configuration parameters */
+	dma->rxconf.direction		= DMA_DEV_TO_MEM;
+	dma->rxconf.src_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE;
+	dma->rxconf.src_addr		= p->port.mapbase + UART_RX;
+
+	dma->txconf.direction		= DMA_MEM_TO_DEV;
+	dma->txconf.dst_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE;
+	dma->txconf.dst_addr		= p->port.mapbase + UART_TX;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
