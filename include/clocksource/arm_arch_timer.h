@@ -31,17 +31,11 @@
 
 #ifdef CONFIG_ARM_ARCH_TIMER
 
-extern int arch_timer_init(void);
 extern u32 arch_timer_get_rate(void);
 extern u64 (*arch_timer_read_counter)(void);
 extern struct timecounter *arch_timer_get_timecounter(void);
 
 #else
-
-static inline int arch_timer_init(void)
-{
-	return -ENXIO;
-}
 
 static inline u32 arch_timer_get_rate(void)
 {

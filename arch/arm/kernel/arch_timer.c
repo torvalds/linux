@@ -39,25 +39,14 @@ static void __init arch_timer_delay_timer_register(void)
 	register_current_timer_delay(&arch_delay_timer);
 }
 
-int __init arch_timer_of_register(void)
-{
-	int ret;
-
-	ret = arch_timer_init();
-	if (ret)
-		return ret;
-
-	arch_timer_delay_timer_register();
-
-	return 0;
-}
-
-int __init arch_timer_sched_clock_init(void)
+int __init arch_timer_arch_init(void)
 {
         u32 arch_timer_rate = arch_timer_get_rate();
 
 	if (arch_timer_rate == 0)
 		return -ENXIO;
+
+	arch_timer_delay_timer_register();
 
 	/* Cache the sched_clock multiplier to save a divide in the hot path. */
 	sched_clock_mult = NSEC_PER_SEC / arch_timer_rate;

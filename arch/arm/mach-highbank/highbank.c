@@ -15,6 +15,7 @@
  */
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/clocksource.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -28,7 +29,6 @@
 #include <linux/amba/bus.h>
 #include <linux/clk-provider.h>
 
-#include <asm/arch_timer.h>
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
 #include <asm/smp_plat.h>
@@ -117,9 +117,6 @@ static void __init highbank_timer_init(void)
 
 	sp804_clocksource_and_sched_clock_init(timer_base + 0x20, "timer1");
 	sp804_clockevents_init(timer_base, irq, "timer0");
-
-	arch_timer_of_register();
-	arch_timer_sched_clock_init();
 
 	clocksource_of_init();
 }

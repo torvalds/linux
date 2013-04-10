@@ -21,7 +21,6 @@
 #include <linux/percpu.h>
 #include <linux/of.h>
 
-#include <asm/arch_timer.h>
 #include <asm/localtimer.h>
 
 #include <plat/cpu.h>
@@ -469,11 +468,6 @@ static void __init exynos4_timer_resources(void)
 
 void __init exynos4_timer_init(void)
 {
-	if (soc_is_exynos5440()) {
-		arch_timer_of_register();
-		return;
-	}
-
 	if ((soc_is_exynos4210()) || (soc_is_exynos5250()))
 		mct_int_type = MCT_INT_SPI;
 	else
