@@ -45,7 +45,6 @@
 /* structure for the boardtype */
 struct addi_board {
 	const char *pc_DriverName;	/*  driver name */
-	int i_IorangeBase0;
 	int i_IorangeBase1;
 	int i_PCIEeprom;	/*  eeprom present or not */
 	char *pc_EepromChip;	/*  type of chip */

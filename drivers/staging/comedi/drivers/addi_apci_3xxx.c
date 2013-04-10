@@ -41,7 +41,6 @@ enum apci3xxx_boardid {
 static const struct addi_board apci3xxx_boardtypes[] = {
 	[BOARD_APCI3000_16] = {
 		.pc_DriverName		= "apci3000-16",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -64,7 +63,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3000_8] = {
 		.pc_DriverName		= "apci3000-8",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -87,7 +85,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3000_4] = {
 		.pc_DriverName		= "apci3000-4",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -110,7 +107,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3006_16] = {
 		.pc_DriverName		= "apci3006-16",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -133,7 +129,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3006_8] = {
 		.pc_DriverName		= "apci3006-8",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -156,7 +151,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3006_4] = {
 		.pc_DriverName		= "apci3006-4",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -179,7 +173,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3010_16] = {
 		.pc_DriverName		= "apci3010-16",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -207,7 +200,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3010_8] = {
 		.pc_DriverName		= "apci3010-8",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -235,7 +227,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3010_4] = {
 		.pc_DriverName		= "apci3010-4",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -263,7 +254,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3016_16] = {
 		.pc_DriverName		= "apci3016-16",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -291,7 +281,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3016_8] = {
 		.pc_DriverName		= "apci3016-8",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -319,7 +308,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3016_4] = {
 		.pc_DriverName		= "apci3016-4",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -347,7 +335,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3100_16_4] = {
 		.pc_DriverName		= "apci3100-16-4",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -374,7 +361,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3100_8_4] = {
 		.pc_DriverName		= "apci3100-8-4",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -401,7 +387,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3106_16_4] = {
 		.pc_DriverName		= "apci3106-16-4",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -428,7 +413,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3106_8_4] = {
 		.pc_DriverName		= "apci3106-8-4",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -455,7 +439,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3110_16_4] = {
 		.pc_DriverName		= "apci3110-16-4",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -487,7 +470,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3110_8_4] = {
 		.pc_DriverName		= "apci3110-8-4",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -519,7 +501,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3116_16_4] = {
 		.pc_DriverName		= "apci3116-16-4",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -551,7 +532,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3116_8_4] = {
 		.pc_DriverName		= "apci3116-8-4",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -583,7 +563,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3003] = {
 		.pc_DriverName		= "apci3003",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -605,7 +584,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3002_16] = {
 		.pc_DriverName		= "apci3002-16",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -627,7 +605,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3002_8] = {
 		.pc_DriverName		= "apci3002-8",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -649,7 +626,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3002_4] = {
 		.pc_DriverName		= "apci3002-4",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,
@@ -671,7 +647,6 @@ static const struct addi_board apci3xxx_boardtypes[] = {
 	},
 	[BOARD_APCI3500] = {
 		.pc_DriverName		= "apci3500",
-		.i_IorangeBase0		= 256,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.pc_EepromChip		= ADDIDATA_9054,

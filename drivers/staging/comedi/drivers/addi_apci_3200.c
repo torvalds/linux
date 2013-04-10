@@ -30,7 +30,6 @@ enum apci3200_boardid {
 static const struct addi_board apci3200_boardtypes[] = {
 	[BOARD_APCI3200] = {
 		.pc_DriverName		= "apci3200",
-		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_EEPROM,
 		.pc_EepromChip		= ADDIDATA_S5920,
@@ -57,7 +56,6 @@ static const struct addi_board apci3200_boardtypes[] = {
 	},
 	[BOARD_APCI3300] = {
 		.pc_DriverName		= "apci3300",
-		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= 256,
 		.i_PCIEeprom		= ADDIDATA_EEPROM,
 		.pc_EepromChip		= ADDIDATA_S5920,
