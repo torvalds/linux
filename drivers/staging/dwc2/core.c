@@ -717,7 +717,8 @@ static void dwc2_hc_enable_slave_ints(struct dwc2_hsotg *hsotg,
 		break;
 
 	case USB_ENDPOINT_XFER_INT:
-		dev_vdbg(hsotg->dev, "intr\n");
+		if (dbg_perio())
+			dev_vdbg(hsotg->dev, "intr\n");
 		hcintmsk |= HCINTMSK_XFERCOMPL;
 		hcintmsk |= HCINTMSK_NAK;
 		hcintmsk |= HCINTMSK_STALL;
@@ -738,7 +739,8 @@ static void dwc2_hc_enable_slave_ints(struct dwc2_hsotg *hsotg,
 		break;
 
 	case USB_ENDPOINT_XFER_ISOC:
-		dev_vdbg(hsotg->dev, "isoc\n");
+		if (dbg_perio())
+			dev_vdbg(hsotg->dev, "isoc\n");
 		hcintmsk |= HCINTMSK_XFERCOMPL;
 		hcintmsk |= HCINTMSK_FRMOVRUN;
 		hcintmsk |= HCINTMSK_ACK;
@@ -754,7 +756,8 @@ static void dwc2_hc_enable_slave_ints(struct dwc2_hsotg *hsotg,
 	}
 
 	writel(hcintmsk, hsotg->regs + HCINTMSK(chan->hc_num));
-	dev_vdbg(hsotg->dev, "set HCINTMSK to %08x\n", hcintmsk);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "set HCINTMSK to %08x\n", hcintmsk);
 }
 
 static void dwc2_hc_enable_dma_ints(struct dwc2_hsotg *hsotg,
@@ -767,17 +770,20 @@ static void dwc2_hc_enable_dma_ints(struct dwc2_hsotg *hsotg,
 	 * Interrupt is not required.
 	 */
 	if (hsotg->core_params->dma_desc_enable <= 0) {
-		dev_vdbg(hsotg->dev, "desc DMA disabled\n");
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev, "desc DMA disabled\n");
 		hcintmsk |= HCINTMSK_AHBERR;
 	} else {
-		dev_vdbg(hsotg->dev, "desc DMA enabled\n");
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev, "desc DMA enabled\n");
 		if (chan->ep_type == USB_ENDPOINT_XFER_ISOC)
 			hcintmsk |= HCINTMSK_XFERCOMPL;
 	}
 
 	if (chan->error_state && !chan->do_split &&
 	    chan->ep_type != USB_ENDPOINT_XFER_ISOC) {
-		dev_vdbg(hsotg->dev, "setting ACK\n");
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev, "setting ACK\n");
 		hcintmsk |= HCINTMSK_ACK;
 		if (chan->ep_is_in) {
 			hcintmsk |= HCINTMSK_DATATGLERR;
@@ -787,7 +793,8 @@ static void dwc2_hc_enable_dma_ints(struct dwc2_hsotg *hsotg,
 	}
 
 	writel(hcintmsk, hsotg->regs + HCINTMSK(chan->hc_num));
-	dev_vdbg(hsotg->dev, "set HCINTMSK to %08x\n", hcintmsk);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "set HCINTMSK to %08x\n", hcintmsk);
 }
 
 static void dwc2_hc_enable_ints(struct dwc2_hsotg *hsotg,
@@ -796,10 +803,12 @@ static void dwc2_hc_enable_ints(struct dwc2_hsotg *hsotg,
 	u32 intmsk;
 
 	if (hsotg->core_params->dma_enable > 0) {
-		dev_vdbg(hsotg->dev, "DMA enabled\n");
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev, "DMA enabled\n");
 		dwc2_hc_enable_dma_ints(hsotg, chan);
 	} else {
-		dev_vdbg(hsotg->dev, "DMA disabled\n");
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev, "DMA disabled\n");
 		dwc2_hc_enable_slave_ints(hsotg, chan);
 	}
 
@@ -807,13 +816,15 @@ static void dwc2_hc_enable_ints(struct dwc2_hsotg *hsotg,
 	intmsk = readl(hsotg->regs + HAINTMSK);
 	intmsk |= 1 << chan->hc_num;
 	writel(intmsk, hsotg->regs + HAINTMSK);
-	dev_vdbg(hsotg->dev, "set HAINTMSK to %08x\n", intmsk);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "set HAINTMSK to %08x\n", intmsk);
 
 	/* Make sure host channel interrupts are enabled */
 	intmsk = readl(hsotg->regs + GINTMSK);
 	intmsk |= GINTSTS_HCHINT;
 	writel(intmsk, hsotg->regs + GINTMSK);
-	dev_vdbg(hsotg->dev, "set GINTMSK to %08x\n", intmsk);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "set GINTMSK to %08x\n", intmsk);
 }
 
 /**
@@ -834,7 +845,8 @@ void dwc2_hc_init(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan)
 	u32 hcchar;
 	u32 hcsplt = 0;
 
-	dev_vdbg(hsotg->dev, "%s()\n", __func__);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
 	/* Clear old interrupt conditions for this host channel */
 	hcintmsk = 0xffffffff;
@@ -857,32 +869,39 @@ void dwc2_hc_init(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan)
 	hcchar |= chan->ep_type << HCCHAR_EPTYPE_SHIFT & HCCHAR_EPTYPE_MASK;
 	hcchar |= chan->max_packet << HCCHAR_MPS_SHIFT & HCCHAR_MPS_MASK;
 	writel(hcchar, hsotg->regs + HCCHAR(hc_num));
-	dev_vdbg(hsotg->dev, "set HCCHAR(%d) to %08x\n", hc_num, hcchar);
+	if (dbg_hc(chan)) {
+		dev_vdbg(hsotg->dev, "set HCCHAR(%d) to %08x\n",
+			 hc_num, hcchar);
 
-	dev_vdbg(hsotg->dev, "%s: Channel %d\n", __func__, hc_num);
-	dev_vdbg(hsotg->dev, "	 Dev Addr: %d\n",
-		 hcchar >> HCCHAR_DEVADDR_SHIFT &
-		 HCCHAR_DEVADDR_MASK >> HCCHAR_DEVADDR_SHIFT);
-	dev_vdbg(hsotg->dev, "	 Ep Num: %d\n",
-		 hcchar >> HCCHAR_EPNUM_SHIFT &
-		 HCCHAR_EPNUM_MASK >> HCCHAR_EPNUM_SHIFT);
-	dev_vdbg(hsotg->dev, "	 Is In: %d\n", !!(hcchar & HCCHAR_EPDIR));
-	dev_vdbg(hsotg->dev, "	 Is Low Speed: %d\n",
-		 !!(hcchar & HCCHAR_LSPDDEV));
-	dev_vdbg(hsotg->dev, "	 Ep Type: %d\n",
-		 hcchar >> HCCHAR_EPTYPE_SHIFT &
-		 HCCHAR_EPTYPE_MASK >> HCCHAR_EPTYPE_SHIFT);
-	dev_vdbg(hsotg->dev, "	 Max Pkt: %d\n",
-		 hcchar >> HCCHAR_MPS_SHIFT &
-		 HCCHAR_MPS_MASK >> HCCHAR_MPS_SHIFT);
-	dev_vdbg(hsotg->dev, "	 Multi Cnt: %d\n",
-		 hcchar >> HCCHAR_MULTICNT_SHIFT &
-		 HCCHAR_MULTICNT_MASK >> HCCHAR_MULTICNT_SHIFT);
+		dev_vdbg(hsotg->dev, "%s: Channel %d\n", __func__, hc_num);
+		dev_vdbg(hsotg->dev, "	 Dev Addr: %d\n",
+			 hcchar >> HCCHAR_DEVADDR_SHIFT &
+			 HCCHAR_DEVADDR_MASK >> HCCHAR_DEVADDR_SHIFT);
+		dev_vdbg(hsotg->dev, "	 Ep Num: %d\n",
+			 hcchar >> HCCHAR_EPNUM_SHIFT &
+			 HCCHAR_EPNUM_MASK >> HCCHAR_EPNUM_SHIFT);
+		dev_vdbg(hsotg->dev, "	 Is In: %d\n",
+			 !!(hcchar & HCCHAR_EPDIR));
+		dev_vdbg(hsotg->dev, "	 Is Low Speed: %d\n",
+			 !!(hcchar & HCCHAR_LSPDDEV));
+		dev_vdbg(hsotg->dev, "	 Ep Type: %d\n",
+			 hcchar >> HCCHAR_EPTYPE_SHIFT &
+			 HCCHAR_EPTYPE_MASK >> HCCHAR_EPTYPE_SHIFT);
+		dev_vdbg(hsotg->dev, "	 Max Pkt: %d\n",
+			 hcchar >> HCCHAR_MPS_SHIFT &
+			 HCCHAR_MPS_MASK >> HCCHAR_MPS_SHIFT);
+		dev_vdbg(hsotg->dev, "	 Multi Cnt: %d\n",
+			 hcchar >> HCCHAR_MULTICNT_SHIFT &
+			 HCCHAR_MULTICNT_MASK >> HCCHAR_MULTICNT_SHIFT);
+	}
 
 	/* Program the HCSPLT register for SPLITs */
 	if (chan->do_split) {
-		dev_vdbg(hsotg->dev, "Programming HC %d with split --> %s\n",
-			 hc_num, chan->complete_split ? "CSPLIT" : "SSPLIT");
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev,
+				 "Programming HC %d with split --> %s\n",
+				 hc_num,
+				 chan->complete_split ? "CSPLIT" : "SSPLIT");
 		if (chan->complete_split)
 			hcsplt |= HCSPLT_COMPSPLT;
 		hcsplt |= chan->xact_pos << HCSPLT_XACTPOS_SHIFT &
@@ -891,16 +910,23 @@ void dwc2_hc_init(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan)
 			  HCSPLT_HUBADDR_MASK;
 		hcsplt |= chan->hub_port << HCSPLT_PRTADDR_SHIFT &
 			  HCSPLT_PRTADDR_MASK;
-		dev_vdbg(hsotg->dev, "	  comp split %d\n",
-			 chan->complete_split);
-		dev_vdbg(hsotg->dev, "	  xact pos %d\n", chan->xact_pos);
-		dev_vdbg(hsotg->dev, "	  hub addr %d\n", chan->hub_addr);
-		dev_vdbg(hsotg->dev, "	  hub port %d\n", chan->hub_port);
-		dev_vdbg(hsotg->dev, "	  is_in %d\n", chan->ep_is_in);
-		dev_vdbg(hsotg->dev, "	  Max Pkt %d\n",
-			 hcchar >> HCCHAR_MPS_SHIFT &
-			 HCCHAR_MPS_MASK >> HCCHAR_MPS_SHIFT);
-		dev_vdbg(hsotg->dev, "	  xferlen %d\n", chan->xfer_len);
+		if (dbg_hc(chan)) {
+			dev_vdbg(hsotg->dev, "	  comp split %d\n",
+				 chan->complete_split);
+			dev_vdbg(hsotg->dev, "	  xact pos %d\n",
+				 chan->xact_pos);
+			dev_vdbg(hsotg->dev, "	  hub addr %d\n",
+				 chan->hub_addr);
+			dev_vdbg(hsotg->dev, "	  hub port %d\n",
+				 chan->hub_port);
+			dev_vdbg(hsotg->dev, "	  is_in %d\n",
+				 chan->ep_is_in);
+			dev_vdbg(hsotg->dev, "	  Max Pkt %d\n",
+				 hcchar >> HCCHAR_MPS_SHIFT &
+				 HCCHAR_MPS_MASK >> HCCHAR_MPS_SHIFT);
+			dev_vdbg(hsotg->dev, "	  xferlen %d\n",
+				 chan->xfer_len);
+		}
 	}
 
 	writel(hcsplt, hsotg->regs + HCSPLT(hc_num));
@@ -939,7 +965,8 @@ void dwc2_hc_halt(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan,
 {
 	u32 nptxsts, hptxsts, hcchar;
 
-	dev_vdbg(hsotg->dev, "%s()\n", __func__);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "%s()\n", __func__);
 	if (halt_status == DWC2_HC_XFER_NO_HALT_STATUS)
 		dev_err(hsotg->dev, "!!! halt_status = %d !!!\n", halt_status);
 
@@ -1003,15 +1030,18 @@ void dwc2_hc_halt(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan,
 	/* No need to set the bit in DDMA for disabling the channel */
 	/* TODO check it everywhere channel is disabled */
 	if (hsotg->core_params->dma_desc_enable <= 0) {
-		dev_vdbg(hsotg->dev, "desc DMA disabled\n");
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev, "desc DMA disabled\n");
 		hcchar |= HCCHAR_CHENA;
 	} else {
-		dev_dbg(hsotg->dev, "desc DMA enabled\n");
+		if (dbg_hc(chan))
+			dev_dbg(hsotg->dev, "desc DMA enabled\n");
 	}
 	hcchar |= HCCHAR_CHDIS;
 
 	if (hsotg->core_params->dma_enable <= 0) {
-		dev_vdbg(hsotg->dev, "DMA not enabled\n");
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev, "DMA not enabled\n");
 		hcchar |= HCCHAR_CHENA;
 
 		/* Check for space in the request queue to issue the halt */
@@ -1024,35 +1054,47 @@ void dwc2_hc_halt(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan,
 				hcchar &= ~HCCHAR_CHENA;
 			}
 		} else {
-			dev_vdbg(hsotg->dev, "isoc/intr\n");
+			if (dbg_perio())
+				dev_vdbg(hsotg->dev, "isoc/intr\n");
 			hptxsts = readl(hsotg->regs + HPTXSTS);
 			if ((hptxsts & TXSTS_QSPCAVAIL_MASK) == 0 ||
 			    hsotg->queuing_high_bandwidth) {
-				dev_vdbg(hsotg->dev, "Disabling channel\n");
+				if (dbg_perio())
+					dev_vdbg(hsotg->dev, "Disabling channel\n");
 				hcchar &= ~HCCHAR_CHENA;
 			}
 		}
 	} else {
-		dev_vdbg(hsotg->dev, "DMA enabled\n");
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev, "DMA enabled\n");
 	}
 
 	writel(hcchar, hsotg->regs + HCCHAR(chan->hc_num));
 	chan->halt_status = halt_status;
 
 	if (hcchar & HCCHAR_CHENA) {
-		dev_vdbg(hsotg->dev, "Channel enabled\n");
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev, "Channel enabled\n");
 		chan->halt_pending = 1;
 		chan->halt_on_queue = 0;
 	} else {
-		dev_vdbg(hsotg->dev, "Channel disabled\n");
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev, "Channel disabled\n");
 		chan->halt_on_queue = 1;
 	}
 
-	dev_vdbg(hsotg->dev, "%s: Channel %d\n", __func__, chan->hc_num);
-	dev_vdbg(hsotg->dev, "	 hcchar: 0x%08x\n", hcchar);
-	dev_vdbg(hsotg->dev, "	 halt_pending: %d\n", chan->halt_pending);
-	dev_vdbg(hsotg->dev, "	 halt_on_queue: %d\n", chan->halt_on_queue);
-	dev_vdbg(hsotg->dev, "	 halt_status: %d\n", chan->halt_status);
+	if (dbg_hc(chan)) {
+		dev_vdbg(hsotg->dev, "%s: Channel %d\n", __func__,
+			 chan->hc_num);
+		dev_vdbg(hsotg->dev, "	 hcchar: 0x%08x\n",
+			 hcchar);
+		dev_vdbg(hsotg->dev, "	 halt_pending: %d\n",
+			 chan->halt_pending);
+		dev_vdbg(hsotg->dev, "	 halt_on_queue: %d\n",
+			 chan->halt_on_queue);
+		dev_vdbg(hsotg->dev, "	 halt_status: %d\n",
+			 chan->halt_status);
+	}
 }
 
 /**
@@ -1153,7 +1195,8 @@ static void dwc2_hc_write_packet(struct dwc2_hsotg *hsotg,
 	u32 __iomem *data_fifo;
 	u32 *data_buf = (u32 *)chan->xfer_buf;
 
-	dev_vdbg(hsotg->dev, "%s()\n", __func__);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
 	data_fifo = (u32 __iomem *)(hsotg->regs + HCFIFO(chan->hc_num));
 
@@ -1224,22 +1267,26 @@ void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 	u32 hctsiz = 0;
 	u16 num_packets;
 
-	dev_vdbg(hsotg->dev, "%s()\n", __func__);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
 	if (chan->do_ping) {
 		if (hsotg->core_params->dma_enable <= 0) {
-			dev_vdbg(hsotg->dev, "ping, no DMA\n");
+			if (dbg_hc(chan))
+				dev_vdbg(hsotg->dev, "ping, no DMA\n");
 			dwc2_hc_do_ping(hsotg, chan);
 			chan->xfer_started = 1;
 			return;
 		} else {
-			dev_vdbg(hsotg->dev, "ping, DMA\n");
+			if (dbg_hc(chan))
+				dev_vdbg(hsotg->dev, "ping, DMA\n");
 			hctsiz |= TSIZ_DOPNG;
 		}
 	}
 
 	if (chan->do_split) {
-		dev_vdbg(hsotg->dev, "split\n");
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev, "split\n");
 		num_packets = 1;
 
 		if (chan->complete_split && !chan->ep_is_in)
@@ -1256,7 +1303,8 @@ void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 		hctsiz |= chan->xfer_len << TSIZ_XFERSIZE_SHIFT &
 			  TSIZ_XFERSIZE_MASK;
 	} else {
-		dev_vdbg(hsotg->dev, "no split\n");
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev, "no split\n");
 		/*
 		 * Ensure that the transfer length and packet count will fit
 		 * in the widths allocated for them in the HCTSIZn register
@@ -1323,32 +1371,37 @@ void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 	hctsiz |= chan->data_pid_start << TSIZ_SC_MC_PID_SHIFT &
 		  TSIZ_SC_MC_PID_MASK;
 	writel(hctsiz, hsotg->regs + HCTSIZ(chan->hc_num));
-	dev_vdbg(hsotg->dev, "Wrote %08x to HCTSIZ(%d)\n",
-		 hctsiz, chan->hc_num);
+	if (dbg_hc(chan)) {
+		dev_vdbg(hsotg->dev, "Wrote %08x to HCTSIZ(%d)\n",
+			 hctsiz, chan->hc_num);
 
-	dev_vdbg(hsotg->dev, "%s: Channel %d\n", __func__, chan->hc_num);
-	dev_vdbg(hsotg->dev, "	 Xfer Size: %d\n",
-		 hctsiz >> TSIZ_XFERSIZE_SHIFT &
-		 TSIZ_XFERSIZE_MASK >> TSIZ_XFERSIZE_SHIFT);
-	dev_vdbg(hsotg->dev, "	 Num Pkts: %d\n",
-		 hctsiz >> TSIZ_PKTCNT_SHIFT &
-		 TSIZ_PKTCNT_MASK >> TSIZ_PKTCNT_SHIFT);
-	dev_vdbg(hsotg->dev, "	 Start PID: %d\n",
-		 hctsiz >> TSIZ_SC_MC_PID_SHIFT &
-		 TSIZ_SC_MC_PID_MASK >> TSIZ_SC_MC_PID_SHIFT);
+		dev_vdbg(hsotg->dev, "%s: Channel %d\n", __func__,
+			 chan->hc_num);
+		dev_vdbg(hsotg->dev, "	 Xfer Size: %d\n",
+			 hctsiz >> TSIZ_XFERSIZE_SHIFT &
+			 TSIZ_XFERSIZE_MASK >> TSIZ_XFERSIZE_SHIFT);
+		dev_vdbg(hsotg->dev, "	 Num Pkts: %d\n",
+			 hctsiz >> TSIZ_PKTCNT_SHIFT &
+			 TSIZ_PKTCNT_MASK >> TSIZ_PKTCNT_SHIFT);
+		dev_vdbg(hsotg->dev, "	 Start PID: %d\n",
+			 hctsiz >> TSIZ_SC_MC_PID_SHIFT &
+			 TSIZ_SC_MC_PID_MASK >> TSIZ_SC_MC_PID_SHIFT);
+	}
 
 	if (hsotg->core_params->dma_enable > 0) {
 		dma_addr_t dma_addr;
 
 		if (chan->align_buf) {
-			dev_vdbg(hsotg->dev, "align_buf\n");
+			if (dbg_hc(chan))
+				dev_vdbg(hsotg->dev, "align_buf\n");
 			dma_addr = chan->align_buf;
 		} else {
 			dma_addr = chan->xfer_dma;
 		}
 		writel((u32)dma_addr, hsotg->regs + HCDMA(chan->hc_num));
-		dev_vdbg(hsotg->dev, "Wrote %08lx to HCDMA(%d)\n",
-			 (unsigned long)dma_addr, chan->hc_num);
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev, "Wrote %08lx to HCDMA(%d)\n",
+				 (unsigned long)dma_addr, chan->hc_num);
 	}
 
 	/* Start the split */
@@ -1374,13 +1427,15 @@ void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 	hcchar |= HCCHAR_CHENA;
 	hcchar &= ~HCCHAR_CHDIS;
 
-	dev_vdbg(hsotg->dev, "	 Multi Cnt: %d\n",
-		 hcchar >> HCCHAR_MULTICNT_SHIFT &
-		 HCCHAR_MULTICNT_MASK >> HCCHAR_MULTICNT_SHIFT);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "	 Multi Cnt: %d\n",
+			 hcchar >> HCCHAR_MULTICNT_SHIFT &
+			 HCCHAR_MULTICNT_MASK >> HCCHAR_MULTICNT_SHIFT);
 
 	writel(hcchar, hsotg->regs + HCCHAR(chan->hc_num));
-	dev_vdbg(hsotg->dev, "Wrote %08x to HCCHAR(%d)\n", hcchar,
-		 chan->hc_num);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "Wrote %08x to HCCHAR(%d)\n", hcchar,
+			 chan->hc_num);
 
 	chan->xfer_started = 1;
 	chan->requests++;
@@ -1428,9 +1483,13 @@ void dwc2_hc_start_transfer_ddma(struct dwc2_hsotg *hsotg,
 	/* Non-zero only for high-speed interrupt endpoints */
 	hctsiz |= chan->schinfo << TSIZ_SCHINFO_SHIFT & TSIZ_SCHINFO_MASK;
 
-	dev_vdbg(hsotg->dev, "%s: Channel %d\n", __func__, chan->hc_num);
-	dev_vdbg(hsotg->dev, "	 Start PID: %d\n", chan->data_pid_start);
-	dev_vdbg(hsotg->dev, "	 NTD: %d\n", chan->ntd - 1);
+	if (dbg_hc(chan)) {
+		dev_vdbg(hsotg->dev, "%s: Channel %d\n", __func__,
+			 chan->hc_num);
+		dev_vdbg(hsotg->dev, "	 Start PID: %d\n",
+			 chan->data_pid_start);
+		dev_vdbg(hsotg->dev, "	 NTD: %d\n", chan->ntd - 1);
+	}
 
 	writel(hctsiz, hsotg->regs + HCTSIZ(chan->hc_num));
 
@@ -1439,7 +1498,9 @@ void dwc2_hc_start_transfer_ddma(struct dwc2_hsotg *hsotg,
 	/* Always start from first descriptor */
 	hc_dma &= ~HCDMA_CTD_MASK;
 	writel(hc_dma, hsotg->regs + HCDMA(chan->hc_num));
-	dev_vdbg(hsotg->dev, "Wrote %08x to HCDMA(%d)\n", hc_dma, chan->hc_num);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "Wrote %08x to HCDMA(%d)\n",
+			 hc_dma, chan->hc_num);
 
 	hcchar = readl(hsotg->regs + HCCHAR(chan->hc_num));
 	hcchar &= ~HCCHAR_MULTICNT_MASK;
@@ -1455,13 +1516,15 @@ void dwc2_hc_start_transfer_ddma(struct dwc2_hsotg *hsotg,
 	hcchar |= HCCHAR_CHENA;
 	hcchar &= ~HCCHAR_CHDIS;
 
-	dev_vdbg(hsotg->dev, "	 Multi Cnt: %d\n",
-		 hcchar >> HCCHAR_MULTICNT_SHIFT &
-		 HCCHAR_MULTICNT_MASK >> HCCHAR_MULTICNT_SHIFT);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "	 Multi Cnt: %d\n",
+			 hcchar >> HCCHAR_MULTICNT_SHIFT &
+			 HCCHAR_MULTICNT_MASK >> HCCHAR_MULTICNT_SHIFT);
 
 	writel(hcchar, hsotg->regs + HCCHAR(chan->hc_num));
-	dev_vdbg(hsotg->dev, "Wrote %08x to HCCHAR(%d)\n", hcchar,
-		 chan->hc_num);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "Wrote %08x to HCCHAR(%d)\n", hcchar,
+			 chan->hc_num);
 
 	chan->xfer_started = 1;
 	chan->requests++;
@@ -1490,7 +1553,9 @@ void dwc2_hc_start_transfer_ddma(struct dwc2_hsotg *hsotg,
 int dwc2_hc_continue_transfer(struct dwc2_hsotg *hsotg,
 			      struct dwc2_host_chan *chan)
 {
-	dev_vdbg(hsotg->dev, "%s: Channel %d\n", __func__, chan->hc_num);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "%s: Channel %d\n", __func__,
+			 chan->hc_num);
 
 	if (chan->do_split)
 		/* SPLITs always queue just once per channel */
@@ -1518,7 +1583,9 @@ int dwc2_hc_continue_transfer(struct dwc2_hsotg *hsotg,
 		dwc2_hc_set_even_odd_frame(hsotg, chan, &hcchar);
 		hcchar |= HCCHAR_CHENA;
 		hcchar &= ~HCCHAR_CHDIS;
-		dev_vdbg(hsotg->dev, "	 IN xfer: hcchar = 0x%08x\n", hcchar);
+		if (dbg_hc(chan))
+			dev_vdbg(hsotg->dev, "	 IN xfer: hcchar = 0x%08x\n",
+				 hcchar);
 		writel(hcchar, hsotg->regs + HCCHAR(chan->hc_num));
 		chan->requests++;
 		return 1;
@@ -1559,7 +1626,10 @@ void dwc2_hc_do_ping(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan)
 	u32 hcchar;
 	u32 hctsiz;
 
-	dev_vdbg(hsotg->dev, "%s: Channel %d\n", __func__, chan->hc_num);
+	if (dbg_hc(chan))
+		dev_vdbg(hsotg->dev, "%s: Channel %d\n", __func__,
+			 chan->hc_num);
+
 
 	hctsiz = TSIZ_DOPNG;
 	hctsiz |= 1 << TSIZ_PKTCNT_SHIFT;

@@ -725,7 +725,8 @@ static void dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg,
 	struct dwc2_qtd *qtd;
 	void *bufptr = NULL;
 
-	dev_vdbg(hsotg->dev, "%s(%p,%p)\n", __func__, hsotg, qh);
+	if (dbg_qh(qh))
+		dev_vdbg(hsotg->dev, "%s(%p,%p)\n", __func__, hsotg, qh);
 
 	if (list_empty(&qh->qtd_list)) {
 		dev_dbg(hsotg->dev, "No QTDs in QH list\n");
@@ -1001,17 +1002,21 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 	int no_fifo_space = 0;
 	u32 qspcavail;
 
-	dev_vdbg(hsotg->dev, "Queue periodic transactions\n");
+	if (dbg_perio())
+		dev_vdbg(hsotg->dev, "Queue periodic transactions\n");
 
 	tx_status = readl(hsotg->regs + HPTXSTS);
 	qspcavail = tx_status >> TXSTS_QSPCAVAIL_SHIFT &
 		    TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT;
 	fspcavail = tx_status >> TXSTS_FSPCAVAIL_SHIFT &
 		    TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT;
-	dev_vdbg(hsotg->dev, "  P Tx Req Queue Space Avail (before queue): %d\n",
-		 qspcavail);
-	dev_vdbg(hsotg->dev, "  P Tx FIFO Space Avail (before queue): %d\n",
-		 fspcavail);
+
+	if (dbg_perio()) {
+		dev_vdbg(hsotg->dev, "  P Tx Req Queue Space Avail (before queue): %d\n",
+			 qspcavail);
+		dev_vdbg(hsotg->dev, "  P Tx FIFO Space Avail (before queue): %d\n",
+			 fspcavail);
+	}
 
 	qh_ptr = hsotg->periodic_sched_assigned.next;
 	while (qh_ptr != &hsotg->periodic_sched_assigned) {
@@ -1078,12 +1083,14 @@ static void dwc2_process_periodic_channels(struct dwc2_hsotg *hsotg)
 			    TXSTS_QSPCAVAIL_MASK >> TXSTS_QSPCAVAIL_SHIFT;
 		fspcavail = tx_status >> TXSTS_FSPCAVAIL_SHIFT &
 			    TXSTS_FSPCAVAIL_MASK >> TXSTS_FSPCAVAIL_SHIFT;
-		dev_vdbg(hsotg->dev,
-			 "  P Tx Req Queue Space Avail (after queue): %d\n",
-			 qspcavail);
-		dev_vdbg(hsotg->dev,
-			 "  P Tx FIFO Space Avail (after queue): %d\n",
-			 fspcavail);
+		if (dbg_perio()) {
+			dev_vdbg(hsotg->dev,
+				 "  P Tx Req Queue Space Avail (after queue): %d\n",
+				 qspcavail);
+			dev_vdbg(hsotg->dev,
+				 "  P Tx FIFO Space Avail (after queue): %d\n",
+				 fspcavail);
+		}
 
 		if (!list_empty(&hsotg->periodic_sched_assigned) ||
 		    no_queue_space || no_fifo_space) {
@@ -1722,8 +1729,6 @@ static int dwc2_hcd_is_status_changed(struct dwc2_hsotg *hsotg, int port)
 {
 	int retval;
 
-	dev_vdbg(hsotg->dev, "%s()\n", __func__);
-
 	if (port != 1)
 		return -EINVAL;
 
@@ -1787,9 +1792,12 @@ static void dwc2_hcd_urb_set_pipeinfo(struct dwc2_hsotg *hsotg,
 				      struct dwc2_hcd_urb *urb, u8 dev_addr,
 				      u8 ep_num, u8 ep_type, u8 ep_dir, u16 mps)
 {
-	dev_vdbg(hsotg->dev,
-		 "addr=%d, ep_num=%d, ep_dir=%1x, ep_type=%1x, mps=%d\n",
-		 dev_addr, ep_num, ep_dir, ep_type, mps);
+	if (dbg_perio() ||
+	    ep_type == USB_ENDPOINT_XFER_BULK ||
+	    ep_type == USB_ENDPOINT_XFER_CONTROL)
+		dev_vdbg(hsotg->dev,
+			 "addr=%d, ep_num=%d, ep_dir=%1x, ep_type=%1x, mps=%d\n",
+			 dev_addr, ep_num, ep_dir, ep_type, mps);
 	urb->pipe_info.dev_addr = dev_addr;
 	urb->pipe_info.ep_num = ep_num;
 	urb->pipe_info.pipe_type = ep_type;
@@ -2098,14 +2106,15 @@ void dwc2_host_complete(struct dwc2_hsotg *hsotg, void *context,
 
 	urb->actual_length = dwc2_hcd_urb_get_actual_length(dwc2_urb);
 
-	dev_vdbg(hsotg->dev,
-		 "%s: urb %p device %d ep %d-%s status %d actual %d\n",
-		 __func__, urb, usb_pipedevice(urb->pipe),
-		 usb_pipeendpoint(urb->pipe),
-		 usb_pipein(urb->pipe) ? "IN" : "OUT", status,
-		 urb->actual_length);
+	if (dbg_urb(urb))
+		dev_vdbg(hsotg->dev,
+			 "%s: urb %p device %d ep %d-%s status %d actual %d\n",
+			 __func__, urb, usb_pipedevice(urb->pipe),
+			 usb_pipeendpoint(urb->pipe),
+			 usb_pipein(urb->pipe) ? "IN" : "OUT", status,
+			 urb->actual_length);
 
-	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
+	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS && dbg_perio()) {
 		for (i = 0; i < urb->number_of_packets; i++)
 			dev_vdbg(hsotg->dev, " ISO Desc %d status %d\n",
 				 i, urb->iso_frame_desc[i].status);
@@ -2335,8 +2344,10 @@ static int _dwc2_hcd_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	void *buf;
 	unsigned long flags;
 
-	dev_vdbg(hsotg->dev, "DWC OTG HCD URB Enqueue\n");
-	dwc2_dump_urb_info(hcd, urb, "urb_enqueue");
+	if (dbg_urb(urb)) {
+		dev_vdbg(hsotg->dev, "DWC OTG HCD URB Enqueue\n");
+		dwc2_dump_urb_info(hcd, urb, "urb_enqueue");
+	}
 
 	if (ep == NULL)
 		return -EINVAL;

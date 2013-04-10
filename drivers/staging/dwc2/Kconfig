@@ -39,4 +39,14 @@ config USB_DWC2_TRACK_MISSED_SOFS
 	  Say Y here to enable logging of missed SOF events to the dmesg log.
 	  If in doubt, say N.
 
+config USB_DWC2_DEBUG_PERIODIC
+	bool "Enable Debugging Messages For Periodic Transfers"
+	depends on USB_DWC2_DEBUG || USB_DWC2_VERBOSE
+	default y
+	help
+	  Say N here to disable (verbose) debugging messages to be
+	  logged for periodic transfers. This allows better debugging of
+	  non-periodic transfers, but of course the debug logs will be
+	  incomplete. Note that this also disables some debug messages
+	  for which the transfer type cannot be deduced.
 endif

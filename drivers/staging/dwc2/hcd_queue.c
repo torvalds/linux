@@ -439,7 +439,8 @@ int dwc2_hcd_qh_add(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 	int status = 0;
 	u32 intr_mask;
 
-	dev_vdbg(hsotg->dev, "%s()\n", __func__);
+	if (dbg_qh(qh))
+		dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
 	if (!list_empty(&qh->qh_list_entry))
 		/* QH already in a schedule */
@@ -549,7 +550,8 @@ static void dwc2_sched_periodic_split(struct dwc2_hsotg *hsotg,
 void dwc2_hcd_qh_deactivate(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 			    int sched_next_periodic_split)
 {
-	dev_vdbg(hsotg->dev, "%s()\n", __func__);
+	if (dbg_qh(qh))
+		dev_vdbg(hsotg->dev, "%s()\n", __func__);
 
 	if (dwc2_qh_is_non_per(qh)) {
 		dwc2_hcd_qh_unlink(hsotg, qh);
