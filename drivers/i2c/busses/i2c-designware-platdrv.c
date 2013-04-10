@@ -56,20 +56,11 @@ static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
 static int dw_i2c_acpi_configure(struct platform_device *pdev)
 {
 	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
-	struct acpi_device *adev;
-	int busno, ret;
 
 	if (!ACPI_HANDLE(&pdev->dev))
 		return -ENODEV;
 
-	ret = acpi_bus_get_device(ACPI_HANDLE(&pdev->dev), &adev);
-	if (ret)
-		return -ENODEV;
-
 	dev->adapter.nr = -1;
-	if (adev->pnp.unique_id && !kstrtoint(adev->pnp.unique_id, 0, &busno))
-		dev->adapter.nr = busno;
-
 	dev->tx_fifo_depth = 32;
 	dev->rx_fifo_depth = 32;
 	return 0;
