@@ -425,7 +425,7 @@ static int r820t_write_reg_mask(struct r820t_priv *priv, u8 reg, u8 val,
 	return r820t_write(priv, reg, &val, 1);
 }
 
-static int r820_read(struct r820t_priv *priv, u8 reg, u8 *val, int len)
+static int r820t_read(struct r820t_priv *priv, u8 reg, u8 *val, int len)
 {
 	int rc, i;
 	u8 *p = &priv->buf[1];
@@ -573,7 +573,7 @@ static int r820t_set_pll(struct r820t_priv *priv, u32 freq)
 		mix_div = mix_div << 1;
 	}
 
-	rc = r820_read(priv, 0x00, data, sizeof(data));
+	rc = r820t_read(priv, 0x00, data, sizeof(data));
 	if (rc < 0)
 		return rc;
 
@@ -660,7 +660,7 @@ static int r820t_set_pll(struct r820t_priv *priv, u32 freq)
 		msleep(10);
 
 		/* Check if PLL has locked */
-		rc = r820_read(priv, 0x00, data, 3);
+		rc = r820t_read(priv, 0x00, data, 3);
 		if (rc < 0)
 			return rc;
 		if (data[2] & 0x40)
@@ -1062,7 +1062,7 @@ static int r820t_set_tv_standard(struct r820t_priv *priv,
 				return rc;
 
 			/* Check if calibration worked */
-			rc = r820_read(priv, 0x00, data, sizeof(data));
+			rc = r820t_read(priv, 0x00, data, sizeof(data));
 			if (rc < 0)
 				return rc;
 
@@ -1135,7 +1135,7 @@ static int r820t_read_gain(struct r820t_priv *priv)
 	u8 data[4];
 	int rc;
 
-	rc = r820_read(priv, 0x00, data, sizeof(data));
+	rc = r820t_read(priv, 0x00, data, sizeof(data));
 	if (rc < 0)
 		return rc;
 
@@ -1163,7 +1163,7 @@ static int r820t_set_gain_mode(struct r820t_priv *priv,
 		if (rc < 0)
 			return rc;
 
-		rc = r820_read(priv, 0x00, data, sizeof(data));
+		rc = r820t_read(priv, 0x00, data, sizeof(data));
 		if (rc < 0)
 			return rc;
 
@@ -1349,7 +1349,7 @@ static int r820t_xtal_check(struct r820t_priv *priv)
 
 		msleep(5);
 
-		rc = r820_read(priv, 0x00, data, sizeof(data));
+		rc = r820t_read(priv, 0x00, data, sizeof(data));
 		if (rc < 0)
 			return rc;
 		if ((!data[2]) & 0x40)
@@ -1621,7 +1621,7 @@ struct dvb_frontend *r820t_attach(struct dvb_frontend *fe,
 		fe->ops.i2c_gate_ctrl(fe, 1);
 
 	/* check if the tuner is there */
-	rc = r820_read(priv, 0x00, data, sizeof(data));
+	rc = r820t_read(priv, 0x00, data, sizeof(data));
 	if (rc < 0)
 		goto err;
 
