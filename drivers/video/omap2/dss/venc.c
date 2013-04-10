@@ -264,7 +264,7 @@ static const struct venc_config venc_config_pal_bdghi = {
 const struct omap_video_timings omap_dss_pal_timings = {
 	.x_res		= 720,
 	.y_res		= 574,
-	.pixel_clock	= 13500,
+	.pixelclock	= 13500000,
 	.hsw		= 64,
 	.hfp		= 12,
 	.hbp		= 68,
@@ -279,7 +279,7 @@ EXPORT_SYMBOL(omap_dss_pal_timings);
 const struct omap_video_timings omap_dss_ntsc_timings = {
 	.x_res		= 720,
 	.y_res		= 482,
-	.pixel_clock	= 13500,
+	.pixelclock	= 13500000,
 	.hsw		= 64,
 	.hfp		= 16,
 	.hbp		= 58,

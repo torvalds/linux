@@ -23,7 +23,7 @@ static struct omap_video_timings lb035q02_timings = {
 	.x_res = 320,
 	.y_res = 240,
 
-	.pixel_clock	= 6500,
+	.pixelclock	= 6500000,
 
 	.hsw		= 2,
 	.hfp		= 20,

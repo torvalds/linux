@@ -4616,7 +4616,7 @@ static void print_dsi_vm(const char *str,
 
 static void print_dispc_vm(const char *str, const struct omap_video_timings *t)
 {
-	unsigned long pck = t->pixel_clock * 1000;
+	unsigned long pck = t->pixelclock;
 	int hact, bl, tot;
 
 	hact = t->x_res;
@@ -4656,7 +4656,7 @@ static void print_dsi_dispc_vm(const char *str,
 	dsi_hact = DIV_ROUND_UP(DIV_ROUND_UP(t->hact * t->bitspp, 8) + 6, t->ndl);
 	dsi_htot = t->hss + t->hsa + t->hse + t->hbp + dsi_hact + t->hfp;
 
-	vm.pixel_clock = pck / 1000;
+	vm.pixelclock = pck;
 	vm.hsw = div64_u64((u64)(t->hsa + t->hse) * pck, byteclk);
 	vm.hbp = div64_u64((u64)t->hbp * pck, byteclk);
 	vm.hfp = div64_u64((u64)t->hfp * pck, byteclk);
@@ -4678,7 +4678,7 @@ static bool dsi_cm_calc_dispc_cb(int lckd, int pckd, unsigned long lck,
 	ctx->dispc_cinfo.pck = pck;
 
 	*t = *ctx->config->timings;
-	t->pixel_clock = pck / 1000;
+	t->pixelclock = pck;
 	t->x_res = ctx->config->timings->x_res;
 	t->y_res = ctx->config->timings->y_res;
 	t->hsw = t->hfp = t->hbp = t->vsw = 1;
@@ -4732,7 +4732,7 @@ static bool dsi_cm_calc(struct dsi_data *dsi,
 	 * especially as we go to LP between each pixel packet due to HW
 	 * "feature". So let's just estimate very roughly and multiply by 1.5.
 	 */
-	pck = cfg->timings->pixel_clock * 1000;
+	pck = cfg->timings->pixelclock;
 	pck = pck * 3 / 2;
 	txbyteclk = pck * bitspp / 8 / ndl;
 
@@ -4909,7 +4909,7 @@ static bool dsi_vm_calc_blanking(struct dsi_clk_calc_ctx *ctx)
 
 	dispc_vm = &ctx->dispc_vm;
 	*dispc_vm = *req_vm;
-	dispc_vm->pixel_clock = dispc_pck / 1000;
+	dispc_vm->pixelclock = dispc_pck;
 
 	if (cfg->trans_mode == OMAP_DSS_DSI_PULSE_MODE) {
 		hsa = div64_u64((u64)req_vm->hsw * dispc_pck,
@@ -5031,9 +5031,9 @@ static bool dsi_vm_calc(struct dsi_data *dsi,
 	ctx->dsi_cinfo.clkin = clkin;
 
 	/* these limits should come from the panel driver */
-	ctx->req_pck_min = t->pixel_clock * 1000 - 1000;
-	ctx->req_pck_nom = t->pixel_clock * 1000;
-	ctx->req_pck_max = t->pixel_clock * 1000 + 1000;
+	ctx->req_pck_min = t->pixelclock - 1000;
+	ctx->req_pck_nom = t->pixelclock;
+	ctx->req_pck_max = t->pixelclock + 1000;
 
 	byteclk_min = div64_u64((u64)ctx->req_pck_min * bitspp, ndl * 8);
 	pll_min = max(cfg->hs_clk_min * 4, byteclk_min * 4 * 4);

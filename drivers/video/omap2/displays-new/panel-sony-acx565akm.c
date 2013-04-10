@@ -93,7 +93,7 @@ struct panel_drv_data {
 static const struct omap_video_timings acx565akm_panel_timings = {
 	.x_res		= 800,
 	.y_res		= 480,
-	.pixel_clock	= 24000,
+	.pixelclock	= 24000000,
 	.hfp		= 28,
 	.hsw		= 4,
 	.hbp		= 24,

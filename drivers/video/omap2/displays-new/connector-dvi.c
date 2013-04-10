@@ -23,7 +23,7 @@ static const struct omap_video_timings dvic_default_timings = {
 	.x_res		= 640,
 	.y_res		= 480,
 
-	.pixel_clock	= 23500,
+	.pixelclock	= 23500000,
 
 	.hfp		= 48,
 	.hsw		= 32,

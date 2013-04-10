@@ -21,7 +21,7 @@
 static const struct omap_video_timings hdmic_default_timings = {
 	.x_res		= 640,
 	.y_res		= 480,
-	.pixel_clock	= 25175,
+	.pixelclock	= 25175000,
 	.hsw		= 96,
 	.hfp		= 16,
 	.hbp		= 48,

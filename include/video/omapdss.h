@@ -343,8 +343,8 @@ struct omap_video_timings {
 	u16 x_res;
 	/* Unit: pixels */
 	u16 y_res;
-	/* Unit: KHz */
-	u32 pixel_clock;
+	/* Unit: Hz */
+	u32 pixelclock;
 	/* Unit: pixel clocks */
 	u16 hsw;	/* Horizontal synchronization pulse width */
 	/* Unit: pixel clocks */

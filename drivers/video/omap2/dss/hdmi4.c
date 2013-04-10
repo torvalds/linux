@@ -153,7 +153,8 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 
 	DSSDBG("hdmi_power_on x_res= %d y_res = %d\n", p->x_res, p->y_res);
 
-	phy = p->pixel_clock;
+	/* the functions below use kHz pixel clock. TODO: change to Hz */
+	phy = p->pixelclock / 1000;
 
 	hdmi_pll_compute(&hdmi.pll, clk_get_rate(hdmi.sys_clk), phy);
 
@@ -238,13 +239,13 @@ static void hdmi_display_set_timing(struct omap_dss_device *dssdev,
 	if (t != NULL) {
 		hdmi.cfg = *t;
 
-		dispc_set_tv_pclk(t->timings.pixel_clock * 1000);
+		dispc_set_tv_pclk(t->timings.pixelclock);
 	} else {
 		hdmi.cfg.timings = *timings;
 		hdmi.cfg.cm.code = 0;
 		hdmi.cfg.cm.mode = HDMI_DVI;
 
-		dispc_set_tv_pclk(timings->pixel_clock * 1000);
+		dispc_set_tv_pclk(timings->pixelclock);
 	}
 
 	DSSDBG("using mode: %s, code %d\n", hdmi.cfg.cm.mode == HDMI_DVI ?
@@ -509,7 +510,7 @@ static int hdmi_audio_config(struct omap_dss_device *dssdev,
 		struct omap_dss_audio *audio)
 {
 	int r;
-	u32 pclk = hdmi.cfg.timings.pixel_clock;
+	u32 pclk = hdmi.cfg.timings.pixelclock;
 
 	mutex_lock(&hdmi.lock);
 

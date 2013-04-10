@@ -37,7 +37,7 @@ struct omap_connector {
 void copy_timings_omap_to_drm(struct drm_display_mode *mode,
 		struct omap_video_timings *timings)
 {
-	mode->clock = timings->pixel_clock;
+	mode->clock = timings->pixelclock / 1000;
 
 	mode->hdisplay = timings->x_res;
 	mode->hsync_start = mode->hdisplay + timings->hfp;
@@ -68,7 +68,7 @@ void copy_timings_omap_to_drm(struct drm_display_mode *mode,
 void copy_timings_drm_to_omap(struct omap_video_timings *timings,
 		struct drm_display_mode *mode)
 {
-	timings->pixel_clock = mode->clock;
+	timings->pixelclock = mode->clock * 1000;
 
 	timings->x_res = mode->hdisplay;
 	timings->hfp = mode->hsync_start - mode->hdisplay;
@@ -220,7 +220,7 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 	if (!r) {
 		/* check if vrefresh is still valid */
 		new_mode = drm_mode_duplicate(dev, mode);
-		new_mode->clock = timings.pixel_clock;
+		new_mode->clock = timings.pixelclock / 1000;
 		new_mode->vrefresh = 0;
 		if (mode->vrefresh == drm_mode_vrefresh(new_mode))
 			ret = MODE_OK;
