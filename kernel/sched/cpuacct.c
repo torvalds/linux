@@ -6,6 +6,7 @@
 #include <linux/seq_file.h>
 #include <linux/rcupdate.h>
 #include <linux/kernel_stat.h>
+#include <linux/err.h>
 
 #include "sched.h"
 
