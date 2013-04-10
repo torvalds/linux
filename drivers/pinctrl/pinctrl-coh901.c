@@ -773,8 +773,7 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 		port->number = portno;
 		port->gpio = gpio;
 
-		port->irq = platform_get_irq_byname(pdev,
-						    port->name);
+		port->irq = platform_get_irq(pdev, portno);
 
 		dev_dbg(gpio->dev, "register IRQ %d for port %s\n", port->irq,
 			port->name);
@@ -811,6 +810,9 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 	}
 	dev_dbg(gpio->dev, "initialized %d GPIO ports\n", portno);
 
+#ifdef CONFIG_OF_GPIO
+	gpio->chip.of_node = pdev->dev.of_node;
+#endif
 	err = gpiochip_add(&gpio->chip);
 	if (err) {
 		dev_err(gpio->dev, "unable to add gpiochip: %d\n", err);
@@ -864,9 +866,15 @@ static int __exit u300_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id u300_gpio_match[] = {
+	{ .compatible = "stericsson,gpio-coh901" },
+	{},
+};
+
 static struct platform_driver u300_gpio_driver = {
 	.driver		= {
 		.name	= "u300-gpio",
+		.of_match_table = u300_gpio_match,
 	},
 	.remove		= __exit_p(u300_gpio_remove),
 };
