@@ -404,7 +404,7 @@ static int ioctl_gem_info(struct drm_device *dev, void *data,
 	return ret;
 }
 
-struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = {
+static struct drm_ioctl_desc ioctls[DRM_COMMAND_END - DRM_COMMAND_BASE] = {
 	DRM_IOCTL_DEF_DRV(OMAP_GET_PARAM, ioctl_get_param, DRM_UNLOCKED|DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(OMAP_SET_PARAM, ioctl_set_param, DRM_UNLOCKED|DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(OMAP_GEM_NEW, ioctl_gem_new, DRM_UNLOCKED|DRM_AUTH),
@@ -668,7 +668,7 @@ static const struct dev_pm_ops omapdrm_pm_ops = {
 };
 #endif
 
-struct platform_driver pdev = {
+static struct platform_driver pdev = {
 		.driver = {
 			.name = DRIVER_NAME,
 			.owner = THIS_MODULE,
