@@ -101,19 +101,28 @@ int serial8250_rx_dma(struct uart_8250_port *p, unsigned int iir)
 	struct dma_tx_state		state;
 	int				dma_status;
 
-	/*
-	 * If RCVR FIFO trigger level was not reached, complete the transfer and
-	 * let 8250.c copy the remaining data.
-	 */
-	if ((iir & 0x3f) == UART_IIR_RX_TIMEOUT) {
-		dma_status = dmaengine_tx_status(dma->rxchan, dma->rx_cookie,
-						&state);
+	dma_status = dmaengine_tx_status(dma->rxchan, dma->rx_cookie, &state);
+
+	switch (iir & 0x3f) {
+	case UART_IIR_RLSI:
+		/* 8250_core handles errors and break interrupts */
+		return -EIO;
+	case UART_IIR_RX_TIMEOUT:
+		/*
+		 * If RCVR FIFO trigger level was not reached, complete the
+		 * transfer and let 8250_core copy the remaining data.
+		 */
 		if (dma_status == DMA_IN_PROGRESS) {
 			dmaengine_pause(dma->rxchan);
 			__dma_rx_complete(p);
 		}
 		return -ETIMEDOUT;
+	default:
+		break;
 	}
+
+	if (dma_status)
+		return 0;
 
 	desc = dmaengine_prep_slave_single(dma->rxchan, dma->rx_addr,
 					   dma->rx_size, DMA_DEV_TO_MEM,
