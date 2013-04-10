@@ -291,7 +291,8 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	/* Increase reference counter */
 	get_device(&pdev->dev);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
+	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 
 	return 0;
