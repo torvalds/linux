@@ -915,6 +915,14 @@ static int r820t_set_tv_standard(struct r820t_priv *priv,
 			flt_ext_widest = 0x00;	/* r15[7]: flt_ext_wide off */
 			polyfil_cur = 0x60;	/* r25[6:5]:min */
 		} else if (bw == 7) {
+#if 0
+			/*
+			 * There are two 7 MHz tables defined on the original
+			 * driver, but just the second one seems to be visible
+			 * by rtl2832. Keep this one here commented, as it
+			 * might be needed in the future
+			 */
+
 			if_khz = 4070;
 			filt_cal_lo = 60000;
 			filt_gain = 0x10;	/* +3db, 6mhz on */
@@ -926,7 +934,8 @@ static int r820t_set_tv_standard(struct r820t_priv *priv,
 			lt_att = 0x00;		/* r31[7], lt att enable */
 			flt_ext_widest = 0x00;	/* r15[7]: flt_ext_wide off */
 			polyfil_cur = 0x60;	/* r25[6:5]:min */
-#if 0 /* 7 MHz type 2 - nor sure why/where this is used - Perhaps Australia? */
+#endif
+			/* 7 MHz, second table */
 			if_khz = 4570;
 			filt_cal_lo = 63000;
 			filt_gain = 0x10;	/* +3db, 6mhz on */
@@ -938,7 +947,6 @@ static int r820t_set_tv_standard(struct r820t_priv *priv,
 			lt_att = 0x00;		/* r31[7], lt att enable */
 			flt_ext_widest = 0x00;	/* r15[7]: flt_ext_wide off */
 			polyfil_cur = 0x60;	/* r25[6:5]:min */
-#endif
 		} else {
 			if_khz = 4570;
 			filt_cal_lo = 68500;
