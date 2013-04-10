@@ -4061,16 +4061,9 @@ static int auto_attach(struct comedi_device *dev,
 	devpriv->dio_counter_phys_iobase =
 		pci_resource_start(pcidev, 3);
 
-	/*  remap, won't work with 2.0 kernels but who cares */
-	devpriv->plx9080_iobase =
-		ioremap(devpriv->plx9080_phys_iobase,
-			pci_resource_len(pcidev, 0));
-	devpriv->main_iobase =
-		ioremap(devpriv->main_phys_iobase,
-			pci_resource_len(pcidev, 2));
-	devpriv->dio_counter_iobase =
-		ioremap(devpriv->dio_counter_phys_iobase,
-			pci_resource_len(pcidev, 3));
+	devpriv->plx9080_iobase = pci_ioremap_bar(pcidev, 0);
+	devpriv->main_iobase = pci_ioremap_bar(pcidev, 2);
+	devpriv->dio_counter_iobase = pci_ioremap_bar(pcidev, 3);
 
 	if (!devpriv->plx9080_iobase || !devpriv->main_iobase
 	    || !devpriv->dio_counter_iobase) {
