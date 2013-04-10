@@ -815,7 +815,6 @@ int i915_gem_gtt_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_gtt *gtt = &dev_priv->gtt;
-	unsigned long gtt_size;
 	int ret;
 
 	if (INTEL_INFO(dev)->gen <= 5) {
@@ -832,8 +831,6 @@ int i915_gem_gtt_init(struct drm_device *dev)
 				     &gtt->mappable_end);
 	if (ret)
 		return ret;
-
-	gtt_size = (dev_priv->gtt.total >> PAGE_SHIFT) * sizeof(gen6_gtt_pte_t);
 
 	/* GMADR is the PCI mmio aperture into the global GTT. */
 	DRM_INFO("Memory usable by graphics device = %zdM\n",
