@@ -322,7 +322,7 @@ static void put_cluster_clk_and_freq_table(struct device *cpu_dev)
 static int _get_cluster_clk_and_freq_table(struct device *cpu_dev)
 {
 	u32 cluster = cpu_to_cluster(cpu_dev->id);
-	char name[14] = "cpu-cluster.";
+	char name[14] = "cpu-cluster.X";
 	int ret;
 
 	if (atomic_inc_return(&cluster_usage[cluster]) != 1)
