@@ -77,13 +77,11 @@ static int acl7225b_attach(struct comedi_device *dev,
 {
 	const struct acl7225b_boardinfo *board = comedi_board(dev);
 	struct comedi_subdevice *s;
-	int iobase;
 	int ret;
 
-	iobase = it->options[0];
-	if (!request_region(iobase, board->io_range, dev->board_name))
-		return -EIO;
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], board->io_range);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
