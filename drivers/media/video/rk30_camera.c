@@ -1070,14 +1070,16 @@ static int rk_register_camera_devices(void)
             new_camera++;
         }
     }
-
+    #if RK_SUPPORT_CIF0
     if (host_registered_0) {
         platform_device_register(&rk_device_camera_host_0);
     }
-
+    #endif
+    #if RK_SUPPORT_CIF1
     if (host_registered_1) {
         platform_device_register(&rk_device_camera_host_1);
     }  
+    #endif
 
     for (i=0; i<RK_CAM_NUM; i++) {
         if (rk_camera_platform_data.register_dev[i].device_info.name) {
