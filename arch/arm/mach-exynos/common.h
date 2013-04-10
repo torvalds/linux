@@ -14,7 +14,7 @@
 
 #include <linux/of.h>
 
-extern void mct_init(void);
+void mct_init(void __iomem *base, int irq_g0, int irq_l0, int irq_l1);
 void exynos_init_time(void);
 extern unsigned long xxti_f, xusbxti_f;
 
