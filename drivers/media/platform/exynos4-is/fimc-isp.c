@@ -30,7 +30,7 @@
 #include "fimc-is-regs.h"
 #include "fimc-is.h"
 
-static int debug = 10;
+static int debug;
 module_param_named(debug_isp, debug, int, S_IRUGO | S_IWUSR);
 
 static const struct fimc_fmt fimc_isp_formats[FIMC_ISP_NUM_FORMATS] = {
