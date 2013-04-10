@@ -4529,9 +4529,11 @@ static int send_subvol(struct send_ctx *sctx)
 {
 	int ret;
 
-	ret = send_header(sctx);
-	if (ret < 0)
-		goto out;
+	if (!(sctx->flags & BTRFS_SEND_FLAG_OMIT_STREAM_HEADER)) {
+		ret = send_header(sctx);
+		if (ret < 0)
+			goto out;
+	}
 
 	ret = send_subvol_begin(sctx);
 	if (ret < 0)
@@ -4593,7 +4595,7 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 		goto out;
 	}
 
-	if (arg->flags & ~BTRFS_SEND_FLAG_NO_FILE_DATA) {
+	if (arg->flags & ~BTRFS_SEND_FLAG_MASK) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -4704,12 +4706,14 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 	if (ret < 0)
 		goto out;
 
-	ret = begin_cmd(sctx, BTRFS_SEND_C_END);
-	if (ret < 0)
-		goto out;
-	ret = send_cmd(sctx);
-	if (ret < 0)
-		goto out;
+	if (!(sctx->flags & BTRFS_SEND_FLAG_OMIT_END_CMD)) {
+		ret = begin_cmd(sctx, BTRFS_SEND_C_END);
+		if (ret < 0)
+			goto out;
+		ret = send_cmd(sctx);
+		if (ret < 0)
+			goto out;
+	}
 
 out:
 	kfree(arg);

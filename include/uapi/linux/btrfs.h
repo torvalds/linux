@@ -412,7 +412,25 @@ struct btrfs_ioctl_received_subvol_args {
  * search of clone sources doesn't find an extent. UPDATE_EXTENT
  * commands will be sent instead of WRITE commands.
  */
-#define BTRFS_SEND_FLAG_NO_FILE_DATA     0x1
+#define BTRFS_SEND_FLAG_NO_FILE_DATA		0x1
+
+/*
+ * Do not add the leading stream header. Used when multiple snapshots
+ * are sent back to back.
+ */
+#define BTRFS_SEND_FLAG_OMIT_STREAM_HEADER	0x2
+
+/*
+ * Omit the command at the end of the stream that indicated the end
+ * of the stream. This option is used when multiple snapshots are
+ * sent back to back.
+ */
+#define BTRFS_SEND_FLAG_OMIT_END_CMD		0x4
+
+#define BTRFS_SEND_FLAG_MASK \
+	(BTRFS_SEND_FLAG_NO_FILE_DATA | \
+	 BTRFS_SEND_FLAG_OMIT_STREAM_HEADER | \
+	 BTRFS_SEND_FLAG_OMIT_END_CMD)
 
 struct btrfs_ioctl_send_args {
 	__s64 send_fd;			/* in */
