@@ -187,8 +187,6 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 	const struct pci_8255_boardinfo *board = NULL;
 	struct pci_8255_private *devpriv;
 	struct comedi_subdevice *s;
-	resource_size_t iobase;
-	unsigned long len;
 	int ret;
 	int i;
 
@@ -207,15 +205,14 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	iobase = pci_resource_start(pcidev, board->dio_badr);
-	len = pci_resource_len(pcidev, board->dio_badr);
 
 	if (board->is_mmio) {
-		devpriv->mmio_base = ioremap(iobase, len);
+		devpriv->mmio_base = pci_ioremap_bar(pcidev, board->dio_badr);
 		if (!devpriv->mmio_base)
 			return -ENOMEM;
+	} else {
+		dev->iobase = pci_resource_start(pcidev, board->dio_badr);
 	}
-	dev->iobase = iobase;
 
 	/*
 	 * One, two, or four subdevices are setup by this driver depending
@@ -227,6 +224,8 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	for (i = 0; i < board->n_8255; i++) {
+		unsigned long iobase;
+
 		s = &dev->subdevices[i];
 		if (board->is_mmio) {
 			iobase = (unsigned long)(devpriv->mmio_base + (i * 4));
