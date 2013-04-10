@@ -884,8 +884,6 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 
 	first_block = page->index * blocks_per_page;
 	for (i = 0; i < blocks_per_page; i++) {
-		int group;
-
 		group = (first_block + i) >> 1;
 		if (group >= ngroups)
 			break;

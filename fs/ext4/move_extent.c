@@ -858,7 +858,6 @@ mext_page_mkuptodate(struct page *page, unsigned from, unsigned to)
 		if (buffer_uptodate(bh))
 			continue;
 		if (!buffer_mapped(bh)) {
-			int err = 0;
 			err = ext4_get_block(inode, block, bh, 0);
 			if (err) {
 				SetPageError(page);
