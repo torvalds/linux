@@ -480,6 +480,7 @@ bool dss_div_calc(unsigned long fck_min, dss_div_calc_func func, void *data)
 	unsigned long fck_hw_max;
 	unsigned long fckd_hw_max;
 	unsigned long prate;
+	unsigned m;
 
 	if (dss.dpll4_m4_ck == NULL) {
 		/*
@@ -495,15 +496,16 @@ bool dss_div_calc(unsigned long fck_min, dss_div_calc_func func, void *data)
 	fck_hw_max = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
 	fckd_hw_max = dss.feat->fck_div_max;
 
-	prate = dss_get_dpll4_rate() * dss.feat->dss_fck_multiplier;
+	m = dss.feat->dss_fck_multiplier;
+	prate = dss_get_dpll4_rate();
 
 	fck_min = fck_min ? fck_min : 1;
 
-	fckd_start = min(prate / fck_min, fckd_hw_max);
-	fckd_stop = max(DIV_ROUND_UP(prate, fck_hw_max), 1ul);
+	fckd_start = min(prate * m / fck_min, fckd_hw_max);
+	fckd_stop = max(DIV_ROUND_UP(prate * m, fck_hw_max), 1ul);
 
 	for (fckd = fckd_start; fckd >= fckd_stop; --fckd) {
-		fck = prate / fckd;
+		fck = prate / fckd * m;
 
 		if (func(fckd, fck, data))
 			return true;
@@ -521,7 +523,8 @@ int dss_set_clock_div(struct dss_clock_info *cinfo)
 		prate = clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
 		DSSDBG("dpll4_m4 = %ld\n", prate);
 
-		r = clk_set_rate(dss.dpll4_m4_ck, prate / cinfo->fck_div);
+		r = clk_set_rate(dss.dpll4_m4_ck,
+				DIV_ROUND_UP(prate, cinfo->fck_div));
 		if (r)
 			return r;
 	} else {
@@ -531,7 +534,9 @@ int dss_set_clock_div(struct dss_clock_info *cinfo)
 
 	dss.dss_clk_rate = clk_get_rate(dss.dss_clk);
 
-	WARN_ONCE(dss.dss_clk_rate != cinfo->fck, "clk rate mismatch");
+	WARN_ONCE(dss.dss_clk_rate != cinfo->fck,
+			"clk rate mismatch: %lu != %lu", dss.dss_clk_rate,
+			cinfo->fck);
 
 	DSSDBG("fck = %ld (%d)\n", cinfo->fck, cinfo->fck_div);
 
