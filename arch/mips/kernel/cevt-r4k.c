@@ -23,7 +23,6 @@
  */
 
 #ifndef CONFIG_MIPS_MT_SMTC
-
 static int mips_next_event(unsigned long delta,
 			   struct clock_event_device *evt)
 {
@@ -49,7 +48,6 @@ DEFINE_PER_CPU(struct clock_event_device, mips_clockevent_device);
 int cp0_timer_irq_installed;
 
 #ifndef CONFIG_MIPS_MT_SMTC
-
 irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 {
 	const int r2 = cpu_has_mips_r2;
@@ -166,7 +164,6 @@ int c0_compare_int_usable(void)
 }
 
 #ifndef CONFIG_MIPS_MT_SMTC
-
 int __cpuinit r4k_clockevent_init(void)
 {
 	unsigned int cpu = smp_processor_id();
