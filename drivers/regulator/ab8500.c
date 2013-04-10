@@ -521,7 +521,7 @@ static int ab8500_regulator_get_voltage_sel(struct regulator_dev *rdev)
 
 static int ab8540_aux3_regulator_get_voltage_sel(struct regulator_dev *rdev)
 {
-	int ret, val;
+	int ret;
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
 	u8 regval, regval_expand;
 
@@ -531,18 +531,25 @@ static int ab8540_aux3_regulator_get_voltage_sel(struct regulator_dev *rdev)
 	}
 
 	ret = abx500_get_register_interruptible(info->dev,
-			info->voltage_bank, info->voltage_reg, &regval);
-
-	if (ret < 0) {
-		dev_err(rdev_get_dev(rdev),
-			"couldn't read voltage reg for regulator\n");
-		return ret;
-	}
-
-	ret = abx500_get_register_interruptible(info->dev,
 			info->expand_register.voltage_bank,
 			info->expand_register.voltage_reg, &regval_expand);
+	if (ret < 0) {
+		dev_err(rdev_get_dev(rdev),
+			"couldn't read voltage expand reg for regulator\n");
+		return ret;
+	}
 
+	dev_vdbg(rdev_get_dev(rdev),
+		 "%s-get_voltage expand (bank, reg, mask, value): 0x%x, 0x%x, 0x%x, 0x%x\n",
+		 info->desc.name, info->expand_register.voltage_bank,
+		 info->expand_register.voltage_reg,
+		 info->expand_register.voltage_mask, regval_expand);
+
+	if (regval_expand & info->expand_register.voltage_mask)
+		return info->expand_register.voltage_limit;
+
+	ret = abx500_get_register_interruptible(info->dev,
+			info->voltage_bank, info->voltage_reg, &regval);
 	if (ret < 0) {
 		dev_err(rdev_get_dev(rdev),
 			"couldn't read voltage reg for regulator\n");
@@ -550,24 +557,11 @@ static int ab8540_aux3_regulator_get_voltage_sel(struct regulator_dev *rdev)
 	}
 
 	dev_vdbg(rdev_get_dev(rdev),
-		"%s-get_voltage (bank, reg, mask, value): 0x%x, 0x%x, 0x%x,"
-		" 0x%x\n",
-		info->desc.name, info->voltage_bank, info->voltage_reg,
-		info->voltage_mask, regval);
-	dev_vdbg(rdev_get_dev(rdev),
-		"%s-get_voltage expand (bank, reg, mask, value): 0x%x, 0x%x, 0x%x,"
-		" 0x%x\n",
-		info->desc.name, info->expand_register.voltage_bank,
-		info->expand_register.voltage_reg,
-		info->expand_register.voltage_mask, regval_expand);
+		 "%s-get_voltage (bank, reg, mask, value): 0x%x, 0x%x, 0x%x, 0x%x\n",
+		 info->desc.name, info->voltage_bank, info->voltage_reg,
+		 info->voltage_mask, regval);
 
-	if (regval_expand&(info->expand_register.voltage_mask))
-		/* Vaux3 has a different layout */
-		val = info->expand_register.voltage_limit;
-	else
-		val = (regval & info->voltage_mask) >> info->voltage_shift;
-
-	return val;
+	return (regval & info->voltage_mask) >> info->voltage_shift;
 }
 
 static int ab8500_regulator_set_voltage_sel(struct regulator_dev *rdev,
