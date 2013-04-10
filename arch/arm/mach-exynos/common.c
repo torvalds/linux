@@ -420,6 +420,19 @@ void __init exynos_init_time(void)
 	}
 }
 
+static unsigned int max_combiner_nr(void)
+{
+	if (soc_is_exynos5250())
+		return EXYNOS5_MAX_COMBINER_NR;
+	else if (soc_is_exynos4412())
+		return EXYNOS4412_MAX_COMBINER_NR;
+	else if (soc_is_exynos4212())
+		return EXYNOS4212_MAX_COMBINER_NR;
+	else
+		return EXYNOS4210_MAX_COMBINER_NR;
+}
+
+
 void __init exynos4_init_irq(void)
 {
 	unsigned int gic_bank_offset;
@@ -434,7 +447,7 @@ void __init exynos4_init_irq(void)
 #endif
 
 	if (!of_have_populated_dt())
-		combiner_init(S5P_VA_COMBINER_BASE, NULL);
+		combiner_init(S5P_VA_COMBINER_BASE, NULL, max_combiner_nr());
 
 	/*
 	 * The parameters of s5p_init_irq() are for VIC init.
