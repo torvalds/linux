@@ -926,7 +926,7 @@ static void handle_callback(struct gfs2_glock *gl, unsigned int state,
 	}
 	if (gl->gl_ops->go_callback)
 		gl->gl_ops->go_callback(gl, remote);
-	trace_gfs2_demote_rq(gl);
+	trace_gfs2_demote_rq(gl, remote);
 }
 
 void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...)
