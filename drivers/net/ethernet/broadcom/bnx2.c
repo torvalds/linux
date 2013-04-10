@@ -416,7 +416,7 @@ static int bnx2_unregister_cnic(struct net_device *dev)
 	return 0;
 }
 
-struct cnic_eth_dev *bnx2_cnic_probe(struct net_device *dev)
+static struct cnic_eth_dev *bnx2_cnic_probe(struct net_device *dev)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 	struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
