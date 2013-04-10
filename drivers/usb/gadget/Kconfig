@@ -334,14 +334,6 @@ config USB_MV_U3D
 # Controllers available in both integrated and discrete versions
 #
 
-# musb builds in ../musb along with host support
-config USB_GADGET_MUSB_HDRC
-	tristate "Inventra HDRC USB Peripheral (TI, ADI, ...)"
-	depends on USB_MUSB_HDRC
-	help
-	  This OTG-capable silicon IP is used in dual designs including
-	  the TI DaVinci, OMAP 243x, OMAP 343x, TUSB 6010, and ADI Blackfin
-
 config USB_M66592
 	tristate "Renesas M66592 USB Peripheral Controller"
 	help
