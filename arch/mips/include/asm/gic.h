@@ -359,7 +359,7 @@ struct gic_shared_intr_map {
 /* Mapped interrupt to pin X, then GIC will generate the vector (X+1). */
 #define GIC_PIN_TO_VEC_OFFSET	(1)
 
-extern int gic_present;
+extern unsigned int gic_present;
 extern unsigned long _gic_base;
 extern unsigned int gic_irq_base;
 extern unsigned int gic_irq_flags[];
