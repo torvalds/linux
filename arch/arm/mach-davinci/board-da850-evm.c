@@ -401,7 +401,7 @@ enum da850_evm_ui_exp_pins {
 	DA850_EVM_UI_EXP_PB1,
 };
 
-static const char const *da850_evm_ui_exp[] = {
+static const char * const da850_evm_ui_exp[] = {
 	[DA850_EVM_UI_EXP_SEL_C]        = "sel_c",
 	[DA850_EVM_UI_EXP_SEL_B]        = "sel_b",
 	[DA850_EVM_UI_EXP_SEL_A]        = "sel_a",
@@ -565,7 +565,7 @@ enum da850_evm_bb_exp_pins {
 	DA850_EVM_BB_EXP_USER_SW8
 };
 
-static const char const *da850_evm_bb_exp[] = {
+static const char * const da850_evm_bb_exp[] = {
 	[DA850_EVM_BB_EXP_DEEP_SLEEP_EN]	= "deep_sleep_en",
 	[DA850_EVM_BB_EXP_SW_RST]		= "sw_rst",
 	[DA850_EVM_BB_EXP_TP_23]		= "tp_23",
