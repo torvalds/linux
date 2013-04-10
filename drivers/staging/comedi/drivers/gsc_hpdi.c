@@ -498,12 +498,8 @@ static int hpdi_auto_attach(struct comedi_device *dev,
 		return retval;
 	pci_set_master(pcidev);
 
-	devpriv->plx9080_iobase =
-		ioremap(pci_resource_start(pcidev, 0),
-			pci_resource_len(pcidev, 0));
-	devpriv->hpdi_iobase =
-		ioremap(pci_resource_start(pcidev, 2),
-			pci_resource_len(pcidev, 2));
+	devpriv->plx9080_iobase = pci_ioremap_bar(pcidev, 0);
+	devpriv->hpdi_iobase = pci_ioremap_bar(pcidev, 2);
 	if (!devpriv->plx9080_iobase || !devpriv->hpdi_iobase) {
 		dev_warn(dev->class_dev, "failed to remap io memory\n");
 		return -ENOMEM;
