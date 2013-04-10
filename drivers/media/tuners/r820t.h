@@ -26,6 +26,9 @@
 
 enum r820t_chip {
 	CHIP_R820T,
+	CHIP_R620D,
+	CHIP_R828D,
+	CHIP_R828,
 	CHIP_R828S,
 	CHIP_R820C,
 };
