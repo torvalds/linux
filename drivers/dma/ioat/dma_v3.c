@@ -510,6 +510,36 @@ static bool ioat3_cleanup_preamble(struct ioat_chan_common *chan,
 	return true;
 }
 
+static void
+desc_get_errstat(struct ioat2_dma_chan *ioat, struct ioat_ring_ent *desc)
+{
+	struct ioat_dma_descriptor *hw = desc->hw;
+
+	switch (hw->ctl_f.op) {
+	case IOAT_OP_PQ_VAL:
+	case IOAT_OP_PQ_VAL_16S:
+	{
+		struct ioat_pq_descriptor *pq = desc->pq;
+
+		/* check if there's error written */
+		if (!pq->dwbes_f.wbes)
+			return;
+
+		/* need to set a chanerr var for checking to clear later */
+
+		if (pq->dwbes_f.p_val_err)
+			*desc->result |= SUM_CHECK_P_RESULT;
+
+		if (pq->dwbes_f.q_val_err)
+			*desc->result |= SUM_CHECK_Q_RESULT;
+
+		return;
+	}
+	default:
+		return;
+	}
+}
+
 /**
  * __cleanup - reclaim used descriptors
  * @ioat: channel (ring) to clean
@@ -547,6 +577,11 @@ static void __cleanup(struct ioat2_dma_chan *ioat, dma_addr_t phys_complete)
 		prefetch(ioat2_get_ring_ent(ioat, idx + i + 1));
 		desc = ioat2_get_ring_ent(ioat, idx + i);
 		dump_desc_dbg(ioat, desc);
+
+		/* set err stat if we are using dwbes */
+		if (device->cap & IOAT_CAP_DWBES)
+			desc_get_errstat(ioat, desc);
+
 		tx = &desc->txd;
 		if (tx->cookie) {
 			dma_cookie_complete(tx);
@@ -1090,6 +1125,9 @@ __ioat3_prep_pq_lock(struct dma_chan *c, enum sum_check_flags *result,
 		pq->q_addr = dst[1] + offset;
 		pq->ctl = 0;
 		pq->ctl_f.op = op;
+		/* we turn on descriptor write back error status */
+		if (device->cap & IOAT_CAP_DWBES)
+			pq->ctl_f.wb_en = result ? 1 : 0;
 		pq->ctl_f.src_cnt = src_cnt_to_hw(s);
 		pq->ctl_f.p_disable = !!(flags & DMA_PREP_PQ_DISABLE_P);
 		pq->ctl_f.q_disable = !!(flags & DMA_PREP_PQ_DISABLE_Q);
@@ -1206,6 +1244,9 @@ __ioat3_prep_pq16_lock(struct dma_chan *c, enum sum_check_flags *result,
 		pq->ctl = 0;
 		pq->ctl_f.op = op;
 		pq->ctl_f.src_cnt = src16_cnt_to_hw(s);
+		/* we turn on descriptor write back error status */
+		if (device->cap & IOAT_CAP_DWBES)
+			pq->ctl_f.wb_en = result ? 1 : 0;
 		pq->ctl_f.p_disable = !!(flags & DMA_PREP_PQ_DISABLE_P);
 		pq->ctl_f.q_disable = !!(flags & DMA_PREP_PQ_DISABLE_Q);
 
@@ -1792,6 +1833,32 @@ static int ioat3_reset_hw(struct ioat_chan_common *chan)
 	return err;
 }
 
+static void ioat3_intr_quirk(struct ioatdma_device *device)
+{
+	struct dma_device *dma;
+	struct dma_chan *c;
+	struct ioat_chan_common *chan;
+	u32 errmask;
+
+	dma = &device->common;
+
+	/*
+	 * if we have descriptor write back error status, we mask the
+	 * error interrupts
+	 */
+	if (device->cap & IOAT_CAP_DWBES) {
+		list_for_each_entry(c, &dma->channels, device_node) {
+			chan = to_chan_common(c);
+			errmask = readl(chan->reg_base +
+					IOAT_CHANERR_MASK_OFFSET);
+			errmask |= IOAT_CHANERR_XOR_P_OR_CRC_ERR |
+				   IOAT_CHANERR_XOR_Q_ERR;
+			writel(errmask, chan->reg_base +
+					IOAT_CHANERR_MASK_OFFSET);
+		}
+	}
+}
+
 int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 {
 	struct pci_dev *pdev = device->pdev;
@@ -1801,11 +1868,11 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	struct ioat_chan_common *chan;
 	bool is_raid_device = false;
 	int err;
-	u32 cap;
 
 	device->enumerate_channels = ioat2_enumerate_channels;
 	device->reset_hw = ioat3_reset_hw;
 	device->self_test = ioat3_dma_self_test;
+	device->intr_quirk = ioat3_intr_quirk;
 	dma = &device->common;
 	dma->device_prep_dma_memcpy = ioat2_dma_prep_memcpy_lock;
 	dma->device_issue_pending = ioat2_issue_pending;
@@ -1818,16 +1885,16 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	dma_cap_set(DMA_INTERRUPT, dma->cap_mask);
 	dma->device_prep_dma_interrupt = ioat3_prep_interrupt_lock;
 
-	cap = readl(device->reg_base + IOAT_DMA_CAP_OFFSET);
+	device->cap = readl(device->reg_base + IOAT_DMA_CAP_OFFSET);
 
 	if (is_bwd_noraid(pdev))
-		cap &= ~(IOAT_CAP_XOR | IOAT_CAP_PQ | IOAT_CAP_RAID16SS);
+		device->cap &= ~(IOAT_CAP_XOR | IOAT_CAP_PQ | IOAT_CAP_RAID16SS);
 
 	/* dca is incompatible with raid operations */
-	if (dca_en && (cap & (IOAT_CAP_XOR|IOAT_CAP_PQ)))
-		cap &= ~(IOAT_CAP_XOR|IOAT_CAP_PQ);
+	if (dca_en && (device->cap & (IOAT_CAP_XOR|IOAT_CAP_PQ)))
+		device->cap &= ~(IOAT_CAP_XOR|IOAT_CAP_PQ);
 
-	if (cap & IOAT_CAP_XOR) {
+	if (device->cap & IOAT_CAP_XOR) {
 		is_raid_device = true;
 		dma->max_xor = 8;
 		dma->xor_align = 6;
@@ -1839,10 +1906,15 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 		dma->device_prep_dma_xor_val = ioat3_prep_xor_val;
 	}
 
-	if (cap & IOAT_CAP_PQ) {
+	if (device->cap & IOAT_CAP_PQ) {
 		is_raid_device = true;
 
-		if (cap & IOAT_CAP_RAID16SS) {
+		dma->device_prep_dma_pq = ioat3_prep_pq;
+		dma->device_prep_dma_pq_val = ioat3_prep_pq_val;
+		dma_cap_set(DMA_PQ, dma->cap_mask);
+		dma_cap_set(DMA_PQ_VAL, dma->cap_mask);
+
+		if (device->cap & IOAT_CAP_RAID16SS) {
 			dma_set_maxpq(dma, 16, 0);
 			dma->pq_align = 0;
 		} else {
@@ -1853,14 +1925,13 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 				dma->pq_align = 0;
 		}
 
-		dma_cap_set(DMA_PQ, dma->cap_mask);
-		dma->device_prep_dma_pq = ioat3_prep_pq;
+		if (!(device->cap & IOAT_CAP_XOR)) {
+			dma->device_prep_dma_xor = ioat3_prep_pqxor;
+			dma->device_prep_dma_xor_val = ioat3_prep_pqxor_val;
+			dma_cap_set(DMA_XOR, dma->cap_mask);
+			dma_cap_set(DMA_XOR_VAL, dma->cap_mask);
 
-		dma_cap_set(DMA_PQ_VAL, dma->cap_mask);
-		dma->device_prep_dma_pq_val = ioat3_prep_pq_val;
-
-		if (!(cap & IOAT_CAP_XOR)) {
-			if (cap & IOAT_CAP_RAID16SS) {
+			if (device->cap & IOAT_CAP_RAID16SS) {
 				dma->max_xor = 16;
 				dma->xor_align = 0;
 			} else {
@@ -1870,16 +1941,10 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 				else
 					dma->xor_align = 0;
 			}
-
-			dma_cap_set(DMA_XOR, dma->cap_mask);
-			dma->device_prep_dma_xor = ioat3_prep_pqxor;
-
-			dma_cap_set(DMA_XOR_VAL, dma->cap_mask);
-			dma->device_prep_dma_xor_val = ioat3_prep_pqxor_val;
 		}
 	}
 
-	if (is_raid_device && (cap & IOAT_CAP_FILL_BLOCK)) {
+	if (is_raid_device && (device->cap & IOAT_CAP_FILL_BLOCK)) {
 		dma_cap_set(DMA_MEMSET, dma->cap_mask);
 		dma->device_prep_dma_memset = ioat3_prep_memset_lock;
 	}
@@ -1898,7 +1963,7 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	}
 
 	/* starting with CB3.3 super extended descriptors are supported */
-	if (cap & IOAT_CAP_RAID16SS) {
+	if (device->cap & IOAT_CAP_RAID16SS) {
 		char pool_name[14];
 		int i;
 

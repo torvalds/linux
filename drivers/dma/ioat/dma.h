@@ -90,6 +90,7 @@ struct ioatdma_device {
 	struct ioat_chan_common *idx[4];
 	struct dca_provider *dca;
 	enum ioat_irq_mode irq_mode;
+	u32 cap;
 	void (*intr_quirk)(struct ioatdma_device *device);
 	int (*enumerate_channels)(struct ioatdma_device *device);
 	int (*reset_hw)(struct ioat_chan_common *chan);
