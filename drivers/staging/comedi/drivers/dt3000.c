@@ -165,8 +165,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	},
 };
 
-#define DT3000_SIZE		(4*0x1000)
-
 /* dual-ported RAM location definitions */
 
 #define DPR_DAC_buffer		(4*0x000)
@@ -720,7 +718,6 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	const struct dt3k_boardtype *this_board = NULL;
 	struct dt3k_private *devpriv;
 	struct comedi_subdevice *s;
-	resource_size_t pci_base;
 	int ret = 0;
 
 	if (context < ARRAY_SIZE(dt3k_boardtypes))
@@ -739,8 +736,7 @@ static int dt3000_auto_attach(struct comedi_device *dev,
 	if (ret < 0)
 		return ret;
 
-	pci_base  = pci_resource_start(pcidev, 0);
-	devpriv->io_addr = ioremap(pci_base, DT3000_SIZE);
+	devpriv->io_addr = pci_ioremap_bar(pcidev, 0);
 	if (!devpriv->io_addr)
 		return -ENOMEM;
 
