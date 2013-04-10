@@ -763,6 +763,11 @@
 			vsys-l1-supply = <&vdd_ac_bat_reg>;
 			vsys-l2-supply = <&vdd_ac_bat_reg>;
 
+			charger {
+				compatible = "ti,tps65090-charger";
+				ti,enable-low-current-chrg;
+			};
+
 			regulators {
 				tps65090_dcdc1_reg: dcdc1 {
 					regulator-name = "vdd-sys-5v0";
