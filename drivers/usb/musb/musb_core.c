@@ -388,7 +388,7 @@ static void musb_otg_timer_func(unsigned long data)
  */
 void musb_hnp_stop(struct musb *musb)
 {
-	struct usb_hcd	*hcd = musb_to_hcd(musb);
+	struct usb_hcd	*hcd = musb->hcd;
 	void __iomem	*mbase = musb->mregs;
 	u8	reg;
 
@@ -685,7 +685,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 	}
 
 	if (int_usb & MUSB_INTR_CONNECT) {
-		struct usb_hcd *hcd = musb_to_hcd(musb);
+		struct usb_hcd *hcd = musb->hcd;
 
 		handled = IRQ_HANDLED;
 		musb->is_active = 1;

@@ -37,8 +37,6 @@
 
 #include <linux/scatterlist.h>
 
-#define musb_to_hcd(MUSB) ((MUSB)->hcd)
-
 /* stored in "usb_host_endpoint.hcpriv" for scheduled endpoints */
 struct musb_qh {
 	struct usb_host_endpoint *hep;		/* usbcore info */

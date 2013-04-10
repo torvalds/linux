@@ -315,9 +315,9 @@ __acquires(musb->lock)
 			urb->actual_length, urb->transfer_buffer_length
 			);
 
-	usb_hcd_unlink_urb_from_ep(musb_to_hcd(musb), urb);
+	usb_hcd_unlink_urb_from_ep(musb->hcd, urb);
 	spin_unlock(&musb->lock);
-	usb_hcd_giveback_urb(musb_to_hcd(musb), urb, status);
+	usb_hcd_giveback_urb(musb->hcd, urb, status);
 	spin_lock(&musb->lock);
 }
 
@@ -1460,7 +1460,7 @@ done:
 	if (length > qh->maxpacket)
 		length = qh->maxpacket;
 	/* Unmap the buffer so that CPU can use it */
-	usb_hcd_unmap_urb_for_dma(musb_to_hcd(musb), urb);
+	usb_hcd_unmap_urb_for_dma(musb->hcd, urb);
 
 	/*
 	 * We need to map sg if the transfer_buffer is
@@ -1875,7 +1875,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 			unsigned int received_len;
 
 			/* Unmap the buffer so that CPU can use it */
-			usb_hcd_unmap_urb_for_dma(musb_to_hcd(musb), urb);
+			usb_hcd_unmap_urb_for_dma(musb->hcd, urb);
 
 			/*
 			 * We need to map sg if the transfer_buffer is

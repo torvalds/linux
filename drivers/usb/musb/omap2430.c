@@ -87,7 +87,7 @@ static void musb_do_idle(unsigned long _musb)
 			musb->port1_status &= ~(USB_PORT_STAT_SUSPEND
 						| MUSB_PORT_STAT_RESUME);
 			musb->port1_status |= USB_PORT_STAT_C_SUSPEND << 16;
-			usb_hcd_poll_rh_status(musb_to_hcd(musb));
+			usb_hcd_poll_rh_status(musb->hcd);
 			/* NOTE: it might really be A_WAIT_BCON ... */
 			musb->xceiv->state = OTG_STATE_A_HOST;
 		}
