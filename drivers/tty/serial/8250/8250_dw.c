@@ -221,7 +221,11 @@ static void dw8250_setup_port(struct uart_8250_port *up)
 		p->flags |= UPF_FIXED_TYPE;
 		p->fifosize = DW_UART_CPR_FIFO_SIZE(reg);
 		up->tx_loadsz = p->fifosize;
+		up->capabilities = UART_CAP_FIFO;
 	}
+
+	if (reg & DW_UART_CPR_AFCE_MODE)
+		up->capabilities |= UART_CAP_AFE;
 }
 
 static int dw8250_probe(struct platform_device *pdev)
