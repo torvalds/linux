@@ -91,20 +91,6 @@ APICs
 		 apicmaintimer. Useful when your PIT timer is totally
 		 broken.
 
-Early Console
-
-   syntax: earlyprintk=vga
-           earlyprintk=serial[,ttySn[,baudrate]]
-
-   The early console is useful when the kernel crashes before the
-   normal console is initialized. It is not enabled by
-   default because it has some cosmetic problems.
-   Append ,keep to not disable it when the real console takes over.
-   Only vga or serial at a time, not both.
-   Currently only ttyS0 and ttyS1 are supported.
-   Interaction with the standard serial driver is not very good.
-   The VGA output is eventually overwritten by the real console.
-
 Timing
 
   notsc
