@@ -1656,6 +1656,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST |
 			TUN_USER_FEATURES;
 		dev->features = dev->hw_features;
+		dev->vlan_features = dev->features;
 
 		INIT_LIST_HEAD(&tun->disabled);
 		err = tun_attach(tun, file);
