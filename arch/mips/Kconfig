@@ -912,6 +912,9 @@ config CEVT_GT641XX
 config CEVT_R4K
 	bool
 
+config CEVT_GIC
+	bool
+
 config CEVT_SB1250
 	bool
 
@@ -1818,6 +1821,15 @@ config FORCE_MAX_ZONEORDER
 
 	  The page size is not necessarily 4KB.  Keep this in mind
 	  when choosing a value for this option.
+
+config CEVT_GIC
+	bool "Use GIC global counter for clock events"
+	depends on IRQ_GIC && !(MIPS_SEAD3 || MIPS_MT_SMTC)
+	help
+	  Use the GIC global counter for the clock events. The R4K clock
+	  event driver is always present, so if the platform ends up not
+	  detecting a GIC, it will fall back to the R4K timer for the
+	  generation of clock events.
 
 config BOARD_SCACHE
 	bool

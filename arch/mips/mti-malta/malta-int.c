@@ -133,6 +133,9 @@ static void malta_ipi_irqdispatch(void)
 {
 	int irq;
 
+	if (gic_compare_int())
+		do_IRQ(MIPS_GIC_IRQ_BASE);
+
 	irq = gic_get_int();
 	if (irq < 0)
 		return;	 /* interrupt has already been cleared */

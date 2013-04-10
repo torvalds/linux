@@ -202,7 +202,7 @@
 #define GIC_VPE_WD_COUNT0_OFS		0x0094
 #define GIC_VPE_WD_INITIAL0_OFS		0x0098
 #define GIC_VPE_COMPARE_LO_OFS		0x00a0
-#define GIC_VPE_COMPARE_HI		0x00a4
+#define GIC_VPE_COMPARE_HI_OFS		0x00a4
 
 #define GIC_VPE_EIC_SHADOW_SET_BASE	0x0100
 #define GIC_VPE_EIC_SS(intr) \
@@ -373,7 +373,10 @@ extern void gic_init(unsigned long gic_base_addr,
 	unsigned long gic_addrspace_size, struct gic_intr_map *intrmap,
 	unsigned int intrmap_size, unsigned int irqbase);
 extern void gic_clocksource_init(unsigned int);
+extern unsigned int gic_compare_int (void);
 extern cycle_t gic_read_count(void);
+extern cycle_t gic_read_compare(void);
+extern void gic_write_compare(cycle_t cnt);
 extern void gic_send_ipi(unsigned int intr);
 extern unsigned int plat_ipi_call_int_xlate(unsigned int);
 extern unsigned int plat_ipi_resched_int_xlate(unsigned int);
