@@ -214,6 +214,7 @@ struct rbd_img_request {
 	spinlock_t		completion_lock;/* protects next_completion */
 	u32			next_completion;
 	rbd_img_callback_t	callback;
+	u64			xferred;/* aggregate bytes transferred */
 	int			result;	/* first nonzero obj_request result */
 
 	u32			obj_request_count;
@@ -1148,7 +1149,24 @@ static int rbd_obj_request_submit(struct ceph_osd_client *osdc,
 
 static void rbd_img_request_complete(struct rbd_img_request *img_request)
 {
+
 	dout("%s: img %p\n", __func__, img_request);
+
+	/*
+	 * If no error occurred, compute the aggregate transfer
+	 * count for the image request.  We could instead use
+	 * atomic64_cmpxchg() to update it as each object request
+	 * completes; not clear which way is better off hand.
+	 */
+	if (!img_request->result) {
+		struct rbd_obj_request *obj_request;
+		u64 xferred = 0;
+
+		for_each_obj_request(img_request, obj_request)
+			xferred += obj_request->xferred;
+		img_request->xferred = xferred;
+	}
+
 	if (img_request->callback)
 		img_request->callback(img_request);
 	else
