@@ -657,7 +657,7 @@ static int r820t_set_pll(struct r820t_priv *priv, u32 freq)
 		 * FIXME: Rafael chips R620D, R828D and R828 seems to
 		 * need 20 ms for analog TV
 		 */
-		msleep(10);
+		usleep_range(10000, 11000);
 
 		/* Check if PLL has locked */
 		rc = r820t_read(priv, 0x00, data, 3);
@@ -1007,7 +1007,7 @@ static int r820t_set_tv_standard(struct r820t_priv *priv,
 		rc = r820t_write_reg_mask(priv, 0x1d, 0x00, 0x38);
 		if (rc < 0)
 			return rc;
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 	priv->int_freq = if_khz * 1000;
 
@@ -1049,7 +1049,7 @@ static int r820t_set_tv_standard(struct r820t_priv *priv,
 			if (rc < 0)
 				return rc;
 
-			msleep(1);
+			usleep_range(1000, 2000);
 
 			/* Stop Trigger */
 			rc = r820t_write_reg_mask(priv, 0x0b, 0x00, 0x10);
@@ -1347,7 +1347,7 @@ static int r820t_xtal_check(struct r820t_priv *priv)
 		if (rc < 0)
 			return rc;
 
-		msleep(5);
+		usleep_range(5000, 6000);
 
 		rc = r820t_read(priv, 0x00, data, sizeof(data));
 		if (rc < 0)
