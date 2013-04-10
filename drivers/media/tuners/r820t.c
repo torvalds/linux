@@ -429,12 +429,13 @@ static int r820_read(struct r820t_priv *priv, u8 reg, u8 *val, int len)
 			return rc;
 		return -EREMOTEIO;
 	}
-	tuner_dbg("%s: i2c rd reg=%02x len=%d: %*ph\n",
-		  __func__, reg, len, len, p);
 
 	/* Copy data to the output buffer */
 	for (i = 0; i < len; i++)
 		val[i] = bitrev8(p[i]);
+
+	tuner_dbg("%s: i2c rd reg=%02x len=%d: %*ph\n",
+		  __func__, reg, len, len, val);
 
 	return 0;
 }
