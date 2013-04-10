@@ -27,7 +27,7 @@ void exynos5_restart(char mode, const char *cmd);
 void exynos_init_late(void);
 
 /* ToDo: remove these after migrating legacy exynos4 platforms to dt */
-void exynos4_clk_init(struct device_node *np);
+void exynos4_clk_init(struct device_node *np, int is_exynos4210, void __iomem *reg_base, unsigned long xom);
 void exynos4_clk_register_fixed_ext(unsigned long, unsigned long);
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS
