@@ -31,6 +31,7 @@
 #define INTC_INT_GLOBAL		BIT(31)
 
 #define RALINK_CPU_IRQ_INTC	(MIPS_CPU_IRQ_BASE + 2)
+#define RALINK_CPU_IRQ_PCI	(MIPS_CPU_IRQ_BASE + 4)
 #define RALINK_CPU_IRQ_FE	(MIPS_CPU_IRQ_BASE + 5)
 #define RALINK_CPU_IRQ_WIFI	(MIPS_CPU_IRQ_BASE + 6)
 #define RALINK_CPU_IRQ_COUNTER	(MIPS_CPU_IRQ_BASE + 7)
@@ -103,6 +104,9 @@ asmlinkage void plat_irq_dispatch(void)
 
 	else if (pending & STATUSF_IP6)
 		do_IRQ(RALINK_CPU_IRQ_WIFI);
+
+	else if (pending & STATUSF_IP4)
+		do_IRQ(RALINK_CPU_IRQ_PCI);
 
 	else if (pending & STATUSF_IP2)
 		do_IRQ(RALINK_CPU_IRQ_INTC);
