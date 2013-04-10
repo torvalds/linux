@@ -1193,14 +1193,14 @@ static int generic_set_freq(struct dvb_frontend *fe,
 	tuner_dbg("should set frequency to %d kHz, bw %d MHz\n",
 		  freq / 1000, bw);
 
+	rc = r820t_set_tv_standard(priv, bw, type, std, delsys);
+	if (rc < 0)
+		goto err;
+
 	if ((type == V4L2_TUNER_ANALOG_TV) && (std == V4L2_STD_SECAM_LC))
 		lo_freq = freq - priv->int_freq;
 	 else
 		lo_freq = freq + priv->int_freq;
-
-	rc = r820t_set_tv_standard(priv, bw, type, std, delsys);
-	if (rc < 0)
-		goto err;
 
 	rc = r820t_set_mux(priv, lo_freq);
 	if (rc < 0)
