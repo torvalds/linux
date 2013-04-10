@@ -77,9 +77,6 @@ options for PCI-20341M:
 	     3  200
 */
 
-/* XXX needs to use ioremap() for compatibility with 2.4 kernels.  Should also
- * check_mem_region() etc. - fmhess */
-
 #include "../comedidev.h"
 
 #define PCI20000_ID			0x1d
