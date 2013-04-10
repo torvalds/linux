@@ -626,7 +626,7 @@ static const struct mvebu_mbus_soc_data armada_xp_mbus_data = {
 
 static const struct mvebu_mbus_mapping kirkwood_map[] = {
 	MAPDEF("pcie0.0", 4, 0xe0, MAPDEF_PCIMASK),
-	MAPDEF("pcie1.0", 8, 0xe0, MAPDEF_PCIMASK),
+	MAPDEF("pcie1.0", 4, 0xd0, MAPDEF_PCIMASK),
 	MAPDEF("sram",    3, 0x01, MAPDEF_NOMASK),
 	MAPDEF("nand",    1, 0x2f, MAPDEF_NOMASK),
 	{},
