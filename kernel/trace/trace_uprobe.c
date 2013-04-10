@@ -811,7 +811,6 @@ static void uprobe_perf_print(struct trace_uprobe *tu,
 	struct ftrace_event_call *call = &tu->call;
 	struct uprobe_trace_entry_head *entry;
 	struct hlist_head *head;
-	unsigned long ip;
 	void *data;
 	int size, rctx, i;
 
@@ -825,13 +824,12 @@ static void uprobe_perf_print(struct trace_uprobe *tu,
 	if (!entry)
 		goto out;
 
-	ip = instruction_pointer(regs);
 	if (is_ret_probe(tu)) {
 		entry->vaddr[0] = func;
-		entry->vaddr[1] = ip;
+		entry->vaddr[1] = instruction_pointer(regs);
 		data = DATAOF_TRACE_ENTRY(entry, true);
 	} else {
-		entry->vaddr[0] = ip;
+		entry->vaddr[0] = instruction_pointer(regs);
 		data = DATAOF_TRACE_ENTRY(entry, false);
 	}
 
@@ -839,7 +837,7 @@ static void uprobe_perf_print(struct trace_uprobe *tu,
 		call_fetch(&tu->args[i].fetch, regs, data + tu->args[i].offset);
 
 	head = this_cpu_ptr(call->perf_events);
-	perf_trace_buf_submit(entry, size, rctx, ip, 1, regs, head, NULL);
+	perf_trace_buf_submit(entry, size, rctx, 0, 1, regs, head, NULL);
  out:
 	preempt_enable();
 }
