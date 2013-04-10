@@ -118,13 +118,6 @@ static const int max_counter_value = 0xffffff;
 
 /* PCI-DAS64xxx base addresses */
 
-/* indices of base address regions */
-enum base_address_regions {
-	PLX9080_BADDRINDEX = 0,
-	MAIN_BADDRINDEX = 2,
-	DIO_COUNTER_BADDRINDEX = 3,
-};
-
 /* devpriv->main_iobase registers */
 enum write_only_registers {
 	INTR_ENABLE_REG = 0x0,	/*  interrupt enable register */
@@ -4060,24 +4053,24 @@ static int auto_attach(struct comedi_device *dev,
 	/* Initialize dev->board_name */
 	dev->board_name = thisboard->name;
 
-	dev->iobase = pci_resource_start(pcidev, MAIN_BADDRINDEX);
+	dev->iobase = pci_resource_start(pcidev, 2);
 
 	devpriv->plx9080_phys_iobase =
-		pci_resource_start(pcidev, PLX9080_BADDRINDEX);
+		pci_resource_start(pcidev, 0);
 	devpriv->main_phys_iobase = dev->iobase;
 	devpriv->dio_counter_phys_iobase =
-		pci_resource_start(pcidev, DIO_COUNTER_BADDRINDEX);
+		pci_resource_start(pcidev, 3);
 
 	/*  remap, won't work with 2.0 kernels but who cares */
 	devpriv->plx9080_iobase =
 		ioremap(devpriv->plx9080_phys_iobase,
-			pci_resource_len(pcidev, PLX9080_BADDRINDEX));
+			pci_resource_len(pcidev, 0));
 	devpriv->main_iobase =
 		ioremap(devpriv->main_phys_iobase,
-			pci_resource_len(pcidev, MAIN_BADDRINDEX));
+			pci_resource_len(pcidev, 2));
 	devpriv->dio_counter_iobase =
 		ioremap(devpriv->dio_counter_phys_iobase,
-			pci_resource_len(pcidev, DIO_COUNTER_BADDRINDEX));
+			pci_resource_len(pcidev, 3));
 
 	if (!devpriv->plx9080_iobase || !devpriv->main_iobase
 	    || !devpriv->dio_counter_iobase) {
