@@ -79,7 +79,8 @@ static void musb_start(struct musb *musb)
 	 * (b) vbus present/connect IRQ, peripheral mode;
 	 * (c) peripheral initiates, using SRP
 	 */
-	if ((devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS) {
+	if (musb->port_mode != MUSB_PORT_MODE_HOST &&
+	    (devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS) {
 		musb->is_active = 1;
 	} else {
 		devctl |= MUSB_DEVCTL_SESSION;
