@@ -132,7 +132,7 @@ struct soc_camera_link {
 	struct i2c_board_info *board_info;
 	const char *module_name;
 	void *priv;
-
+    void *priv_usr;                        /* ddl@rock-chips.com: add priv_usr */
 	/* Optional regulators that have to be managed on power on/off events */
 	struct regulator_bulk_data *regulators;
 	int num_regulators;
@@ -219,7 +219,7 @@ struct soc_camera_ops {
 	int (*enum_input)(struct soc_camera_device *, struct v4l2_input *);
 
 	const struct v4l2_queryctrl *controls;
-	const struct v4l2_querymenu *menus;                /* ddl@rock-chips.com : Add ioctrl -VIDIOC_QUERYMENU */
+	struct v4l2_querymenu *menus;                /* ddl@rock-chips.com : Add ioctrl -VIDIOC_QUERYMENU */
 	int num_controls;
 	int num_menus;      /* ddl@rock-chips.com : Add ioctrl -VIDIOC_QUERYMENU */
 };

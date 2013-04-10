@@ -46,11 +46,8 @@
     #define CAMERA_SCALE_CROP_MACHINE  "pp"
 #endif
 
-#if (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_ARM)
-    #define CAMERA_VIDEOBUF_ARM_ACCESS   1
-#else
-    #define CAMERA_VIDEOBUF_ARM_ACCESS   0
-#endif
+
+#define CAMERA_VIDEOBUF_ARM_ACCESS   1
 
 #endif
 

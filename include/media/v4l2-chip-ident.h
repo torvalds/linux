@@ -350,17 +350,27 @@ enum {
     V4L2_IDENT_GC2015 = 64114,      /* ddl@rock-chips.com : gc2015 support */
     V4L2_IDENT_GC0329 = 64115,      /* ddl@rock-chips.com : GC0329 support */
     V4L2_IDENT_GC2035= 64116,      /* ddl@rock-chips.com : GC0329 support */
+    V4L2_IDENT_GC0328 = 64117,
+    
     V4L2_IDENT_SP0838 = 64120,      /* ddl@rock-chips.com : SP0838 support */
-    V4L2_IDENT_SP2518 = 64121,      /* ddl@rock-chips.com : SP2518 support */
+    V4L2_IDENT_SP2518 = 64121,      /* ddl@rock-chips.com : SP2518 support */	      
+    V4L2_IDENT_SP0718 = 64122,      /* ddl@rock-chips.com : SP0718 support */
 
     V4L2_IDENT_HI253 = 64130,      /* ddl@rock-chips.com : hi253 support */
     V4L2_IDENT_HI704 = 64131,      /* ddl@rock-chips.com : hi704 support */    
     
     V4L2_IDENT_SIV120B = 64140,      /* ddl@rock-chips.com : siv120b support */
     V4L2_IDENT_SIV121D= 64141,      /* ddl@rock-chips.com : sid130B support */
-    
 
+
+    V4L2_IDENT_HM2057 = 64150,
     V4L2_IDENT_HM5065 = 64151,
+
+	V4L2_IDENT_NT99160 = 64161,    /* oyyf@rock-chips.com : nt99160 support */
+	V4L2_IDENT_NT99340 = 64162,    /* oyyf@rock-chips.com : nt99340 support */
+	V4L2_IDENT_NT99252 = 64163,    /* oyyf@rock-chips.com : nt99252 support */
+	V4L2_IDENT_NT99240 = 64164,    /* oyyf@rock-chips.com : nt99252 support */
+
 
 	/* Don't just add new IDs at the end: KEEP THIS LIST ORDERED BY ID! */
 };

@@ -937,12 +937,76 @@ static void rk_init_camera_plateform_data(void)
 
 static void rk30_camera_request_reserve_mem(void)
 {
+    int i,max_resolution;
+    int cam_ipp_mem=PMEM_CAMIPP_NECESSARY, cam_pmem=PMEM_CAM_NECESSARY;
+
+    i =0;
+    max_resolution = 0x00;
+    while (strstr(new_camera[i].dev.device_info.dev.init_name,"end")==NULL) {
+        if (new_camera[i].resolution > max_resolution)
+            max_resolution = new_camera[i].resolution;
+        i++;
+    }
+
+    if (max_resolution < PMEM_SENSOR_FULL_RESOLUTION_CIF_1)
+        max_resolution = PMEM_SENSOR_FULL_RESOLUTION_CIF_1;
+    if (max_resolution < PMEM_SENSOR_FULL_RESOLUTION_CIF_0)
+        max_resolution = PMEM_SENSOR_FULL_RESOLUTION_CIF_0;
+
+    switch (max_resolution)
+    {
+        case 0x800000:
+        default:
+        {
+            cam_ipp_mem = 0x800000;
+            cam_pmem = 0x1900000;
+            break;
+        }
+
+        case 0x500000:
+        {
+            cam_ipp_mem = 0x800000;
+            cam_pmem = 0x1400000;
+            break;
+        }
+
+        case 0x300000:
+        {
+            cam_ipp_mem = 0x600000;
+            cam_pmem = 0xf00000;
+            break;
+        }
+
+        case 0x200000:
+        {
+            cam_ipp_mem = 0x600000;
+            cam_pmem = 0xc00000;
+            break;
+        }
+
+        case 0x100000:
+        {
+            cam_ipp_mem = 0x600000;
+            cam_pmem = 0xa00000;
+            break;
+        }
+
+        case 0x30000:
+        {
+            cam_ipp_mem = 0x600000;
+            cam_pmem = 0x600000;
+            break;
+        }
+    }
+
+    
+
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
         rk_camera_platform_data.meminfo.vbase = rk_camera_platform_data.meminfo_cif1.vbase = NULL;
     #if defined(CONFIG_VIDEO_RKCIF_WORK_SIMUL_OFF) || ((RK_SUPPORT_CIF0 && RK_SUPPORT_CIF1) == 0)
         rk_camera_platform_data.meminfo.name = "camera_ipp_mem";
-        rk_camera_platform_data.meminfo.start = board_mem_reserve_add("camera_ipp_mem",PMEM_CAMIPP_NECESSARY);
-        rk_camera_platform_data.meminfo.size= PMEM_CAMIPP_NECESSARY;
+        rk_camera_platform_data.meminfo.start = board_mem_reserve_add("camera_ipp_mem",cam_ipp_mem);
+        rk_camera_platform_data.meminfo.size= cam_ipp_mem;
 
         memcpy(&rk_camera_platform_data.meminfo_cif1,&rk_camera_platform_data.meminfo,sizeof(struct rk29camera_mem_res));
     #else
@@ -956,8 +1020,8 @@ static void rk30_camera_request_reserve_mem(void)
     #endif
  #endif
  #if PMEM_CAM_NECESSARY
-        android_pmem_cam_pdata.start = board_mem_reserve_add((char*)(android_pmem_cam_pdata.name),PMEM_CAM_NECESSARY);
-        android_pmem_cam_pdata.size= PMEM_CAM_NECESSARY;
+        android_pmem_cam_pdata.start = board_mem_reserve_add((char*)(android_pmem_cam_pdata.name),cam_pmem);
+        android_pmem_cam_pdata.size= cam_pmem;
  #endif
 
 }
@@ -965,20 +1029,19 @@ static int rk_register_camera_devices(void)
 {
     int i;
     int host_registered_0,host_registered_1;
+    struct rkcamera_platform_data *new_camera;
     
 	rk_init_camera_plateform_data();
 
     host_registered_0 = 0;
     host_registered_1 = 0;
+    
     for (i=0; i<RK_CAM_NUM; i++) {
         if (rk_camera_platform_data.register_dev[i].device_info.name) {
             
             if (rk_camera_platform_data.register_dev[i].link_info.bus_id == RK_CAM_PLATFORM_DEV_ID_0) {
-            #if RK_SUPPORT_CIF0
-                if (!host_registered_0) {
-                    platform_device_register(&rk_device_camera_host_0);
-                    host_registered_0 = 1;
-                }
+            #if RK_SUPPORT_CIF0                
+                host_registered_0 = 1;
             #else
                 printk(KERN_ERR "%s(%d) : This chip isn't support CIF0, Please user check ...\n",__FUNCTION__,__LINE__);
             #endif
@@ -986,10 +1049,7 @@ static int rk_register_camera_devices(void)
 
             if (rk_camera_platform_data.register_dev[i].link_info.bus_id == RK_CAM_PLATFORM_DEV_ID_1) {
             #if RK_SUPPORT_CIF1
-                if (!host_registered_1) {
-                    platform_device_register(&rk_device_camera_host_1);
-                    host_registered_1 = 1;
-                }
+                host_registered_1 = 1;
             #else
                 printk(KERN_ERR "%s(%d) : This chip isn't support CIF1, Please user check ...\n",__FUNCTION__,__LINE__);
             #endif
@@ -997,11 +1057,37 @@ static int rk_register_camera_devices(void)
         }
     }
 
+    
+    i=0;
+    new_camera = rk_camera_platform_data.register_dev_new;
+    if (new_camera != NULL) {
+        while (strstr(new_camera->dev.device_info.dev.init_name,"end")==NULL) {
+            if (new_camera->dev.link_info.bus_id == RK_CAM_PLATFORM_DEV_ID_1) {
+                host_registered_1 = 1;
+            } else if (new_camera->dev.link_info.bus_id == RK_CAM_PLATFORM_DEV_ID_0) {
+                host_registered_0 = 1;
+            }
+            new_camera++;
+        }
+    }
+
+    if (host_registered_0) {
+        platform_device_register(&rk_device_camera_host_0);
+    }
+
+    if (host_registered_1) {
+        platform_device_register(&rk_device_camera_host_1);
+    }  
+
     for (i=0; i<RK_CAM_NUM; i++) {
         if (rk_camera_platform_data.register_dev[i].device_info.name) {
             platform_device_register(&rk_camera_platform_data.register_dev[i].device_info);
         }
     }
+
+    if (rk_camera_platform_data.sensor_register)
+       (rk_camera_platform_data.sensor_register)(); 
+    
  #if PMEM_CAM_NECESSARY
     platform_device_register(&android_pmem_cam_device);
  #endif
