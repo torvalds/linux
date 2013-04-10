@@ -485,7 +485,8 @@ int ieee80211_queue_stopped(struct ieee80211_hw *hw, int queue)
 		return true;
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
-	ret = !!local->queue_stop_reasons[queue];
+	ret = test_bit(IEEE80211_QUEUE_STOP_REASON_DRIVER,
+		       &local->queue_stop_reasons[queue]);
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 	return ret;
 }
