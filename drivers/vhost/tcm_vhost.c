@@ -705,15 +705,6 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs,
 
 		tv_cmd->tvc_vhost = vs;
 		tv_cmd->tvc_vq = vq;
-
-		if (unlikely(vq->iov[out].iov_len !=
-				sizeof(struct virtio_scsi_cmd_resp))) {
-			vq_err(vq, "Expecting virtio_scsi_cmd_resp, got %zu"
-				" bytes, out: %d, in: %d\n",
-				vq->iov[out].iov_len, out, in);
-			break;
-		}
-
 		tv_cmd->tvc_resp = vq->iov[out].iov_base;
 
 		/*
