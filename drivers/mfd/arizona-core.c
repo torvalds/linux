@@ -409,6 +409,26 @@ static int arizona_runtime_suspend(struct device *dev)
 #endif
 
 #ifdef CONFIG_PM_SLEEP
+static int arizona_suspend(struct device *dev)
+{
+	struct arizona *arizona = dev_get_drvdata(dev);
+
+	dev_dbg(arizona->dev, "Suspend, disabling IRQ\n");
+	disable_irq(arizona->irq);
+
+	return 0;
+}
+
+static int arizona_suspend_late(struct device *dev)
+{
+	struct arizona *arizona = dev_get_drvdata(dev);
+
+	dev_dbg(arizona->dev, "Late suspend, reenabling IRQ\n");
+	enable_irq(arizona->irq);
+
+	return 0;
+}
+
 static int arizona_resume_noirq(struct device *dev)
 {
 	struct arizona *arizona = dev_get_drvdata(dev);
@@ -434,8 +454,9 @@ const struct dev_pm_ops arizona_pm_ops = {
 	SET_RUNTIME_PM_OPS(arizona_runtime_suspend,
 			   arizona_runtime_resume,
 			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(NULL, arizona_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(arizona_suspend, arizona_resume)
 #ifdef CONFIG_PM_SLEEP
+	.suspend_late = arizona_suspend_late,
 	.resume_noirq = arizona_resume_noirq,
 #endif
 };
