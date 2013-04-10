@@ -3953,6 +3953,7 @@ static void et131x_pci_remove(struct pci_dev *pdev)
 	unregister_netdev(netdev);
 	phy_disconnect(adapter->phydev);
 	mdiobus_unregister(adapter->mii_bus);
+	cancel_work_sync(&adapter->task);
 	kfree(adapter->mii_bus->irq);
 	mdiobus_free(adapter->mii_bus);
 
