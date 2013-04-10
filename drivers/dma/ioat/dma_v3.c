@@ -238,6 +238,18 @@ static bool is_bwd_ioat(struct pci_dev *pdev)
 	}
 }
 
+static bool is_bwd_noraid(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_IOAT_BWD2:
+	case PCI_DEVICE_ID_INTEL_IOAT_BWD3:
+		return true;
+	default:
+		return false;
+	}
+
+}
+
 static void pq16_set_src(struct ioat_raw_descriptor *desc[3],
 			dma_addr_t addr, u32 offset, u8 coef, int idx)
 {
@@ -1807,6 +1819,9 @@ int ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	dma->device_prep_dma_interrupt = ioat3_prep_interrupt_lock;
 
 	cap = readl(device->reg_base + IOAT_DMA_CAP_OFFSET);
+
+	if (is_bwd_noraid(pdev))
+		cap &= ~(IOAT_CAP_XOR | IOAT_CAP_PQ | IOAT_CAP_RAID16SS);
 
 	/* dca is incompatible with raid operations */
 	if (dca_en && (cap & (IOAT_CAP_XOR|IOAT_CAP_PQ)))
