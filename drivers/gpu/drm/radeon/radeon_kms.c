@@ -423,15 +423,15 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_SI_TILE_MODE_ARRAY:
 		if (rdev->family >= CHIP_BONAIRE) {
-			DRM_DEBUG_KMS("tile mode array is not implemented yet\n");
+			value = rdev->config.cik.tile_mode_array;
+			value_size = sizeof(uint32_t)*32;
+		} else if (rdev->family >= CHIP_TAHITI) {
+			value = rdev->config.si.tile_mode_array;
+			value_size = sizeof(uint32_t)*32;
+		} else {
+			DRM_DEBUG_KMS("tile mode array is si+ only!\n");
 			return -EINVAL;
 		}
-		if (rdev->family < CHIP_TAHITI) {
-			DRM_DEBUG_KMS("tile mode array is si only!\n");
-			return -EINVAL;
-		}
-		value = rdev->config.si.tile_mode_array;
-		value_size = sizeof(uint32_t)*32;
 		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);

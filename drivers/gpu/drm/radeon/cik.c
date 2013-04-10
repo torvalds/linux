@@ -1059,6 +1059,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				gb_tile_moden = 0;
 				break;
 			}
+			rdev->config.cik.tile_mode_array[reg_offset] = gb_tile_moden;
 			WREG32(GB_TILE_MODE0 + (reg_offset * 4), gb_tile_moden);
 		}
 		for (reg_offset = 0; reg_offset < num_secondary_tile_mode_states; reg_offset++) {
@@ -1277,6 +1278,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 					gb_tile_moden = 0;
 					break;
 				}
+				rdev->config.cik.tile_mode_array[reg_offset] = gb_tile_moden;
 				WREG32(GB_TILE_MODE0 + (reg_offset * 4), gb_tile_moden);
 			}
 		} else if (num_rbs < 4) {
@@ -1402,6 +1404,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 					gb_tile_moden = 0;
 					break;
 				}
+				rdev->config.cik.tile_mode_array[reg_offset] = gb_tile_moden;
 				WREG32(GB_TILE_MODE0 + (reg_offset * 4), gb_tile_moden);
 			}
 		}
@@ -1619,6 +1622,7 @@ static void cik_tiling_mode_table_init(struct radeon_device *rdev)
 				gb_tile_moden = 0;
 				break;
 			}
+			rdev->config.cik.tile_mode_array[reg_offset] = gb_tile_moden;
 			WREG32(GB_TILE_MODE0 + (reg_offset * 4), gb_tile_moden);
 		}
 		for (reg_offset = 0; reg_offset < num_secondary_tile_mode_states; reg_offset++) {

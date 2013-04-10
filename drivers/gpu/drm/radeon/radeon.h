@@ -1587,6 +1587,7 @@ struct cik_asic {
 	unsigned multi_gpu_tile_size;
 
 	unsigned tile_config;
+	uint32_t tile_mode_array[32];
 };
 
 union radeon_asic_config {
