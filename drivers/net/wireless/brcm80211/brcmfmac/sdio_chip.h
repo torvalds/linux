@@ -73,15 +73,17 @@ struct chip_info {
 	u32 pmurev;
 	u32 pmucaps;
 	u32 ramsize;
+	u32 rambase;
+	u32 rst_vec;	/* reset vertor for ARM CR4 core */
 
 	bool (*iscoreup)(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
 			 u16 coreid);
 	u32 (*corerev)(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
 			 u16 coreid);
 	void (*coredisable)(struct brcmf_sdio_dev *sdiodev,
-			struct chip_info *ci, u16 coreid);
+			struct chip_info *ci, u16 coreid, u32 core_bits);
 	void (*resetcore)(struct brcmf_sdio_dev *sdiodev,
-			struct chip_info *ci, u16 coreid);
+			struct chip_info *ci, u16 coreid, u32 core_bits);
 };
 
 struct sbconfig {

@@ -52,6 +52,9 @@
 #define CIB_REV_MASK		0xff000000
 #define CIB_REV_SHIFT		24
 
+/* ARM CR4 core specific control flag bits */
+#define ARMCR4_BCMA_IOCTL_CPUHALT	0x0020
+
 #define SDIOD_DRVSTR_KEY(chip, pmu)     (((chip) << 16) | (pmu))
 /* SDIO Pad drive strength to select value mappings */
 struct sdiod_drive_str {
@@ -149,7 +152,7 @@ brcmf_sdio_ai_iscoreup(struct brcmf_sdio_dev *sdiodev,
 
 static void
 brcmf_sdio_sb_coredisable(struct brcmf_sdio_dev *sdiodev,
-			  struct chip_info *ci, u16 coreid)
+			  struct chip_info *ci, u16 coreid, u32 core_bits)
 {
 	u32 regdata, base;
 	u8 idx;
@@ -235,7 +238,7 @@ brcmf_sdio_sb_coredisable(struct brcmf_sdio_dev *sdiodev,
 
 static void
 brcmf_sdio_ai_coredisable(struct brcmf_sdio_dev *sdiodev,
-			  struct chip_info *ci, u16 coreid)
+			  struct chip_info *ci, u16 coreid, u32 core_bits)
 {
 	u8 idx;
 	u32 regdata;
@@ -249,19 +252,36 @@ brcmf_sdio_ai_coredisable(struct brcmf_sdio_dev *sdiodev,
 	if ((regdata & BCMA_RESET_CTL_RESET) != 0)
 		return;
 
-	brcmf_sdio_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL, 0, NULL);
-	regdata = brcmf_sdio_regrl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
+	/* ensure no pending backplane operation
+	 * 300uc should be sufficient for backplane ops to be finish
+	 * extra 10ms is taken into account for firmware load stage
+	 * after 10300us carry on disabling the core anyway
+	 */
+	SPINWAIT(brcmf_sdio_regrl(sdiodev,
+				  ci->c_inf[idx].wrapbase+BCMA_RESET_ST,
+				  NULL), 10300);
+	regdata = brcmf_sdio_regrl(sdiodev,
+				   ci->c_inf[idx].wrapbase+BCMA_RESET_ST,
 				   NULL);
-	udelay(10);
+	if (regdata)
+		brcmf_err("disabling core 0x%x with reset status %x\n",
+			  coreid, regdata);
 
 	brcmf_sdio_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
 			 BCMA_RESET_CTL_RESET, NULL);
 	udelay(1);
+
+	brcmf_sdio_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
+			 core_bits, NULL);
+	regdata = brcmf_sdio_regrl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
+				   NULL);
+	usleep_range(10, 20);
+
 }
 
 static void
 brcmf_sdio_sb_resetcore(struct brcmf_sdio_dev *sdiodev,
-			struct chip_info *ci, u16 coreid)
+			struct chip_info *ci, u16 coreid, u32 core_bits)
 {
 	u32 regdata;
 	u8 idx;
@@ -272,7 +292,7 @@ brcmf_sdio_sb_resetcore(struct brcmf_sdio_dev *sdiodev,
 	 * Must do the disable sequence first to work for
 	 * arbitrary current core state.
 	 */
-	brcmf_sdio_sb_coredisable(sdiodev, ci, coreid);
+	brcmf_sdio_sb_coredisable(sdiodev, ci, coreid, 0);
 
 	/*
 	 * Now do the initialization sequence.
@@ -325,7 +345,7 @@ brcmf_sdio_sb_resetcore(struct brcmf_sdio_dev *sdiodev,
 
 static void
 brcmf_sdio_ai_resetcore(struct brcmf_sdio_dev *sdiodev,
-			struct chip_info *ci, u16 coreid)
+			struct chip_info *ci, u16 coreid, u32 core_bits)
 {
 	u8 idx;
 	u32 regdata;
@@ -333,28 +353,67 @@ brcmf_sdio_ai_resetcore(struct brcmf_sdio_dev *sdiodev,
 	idx = brcmf_sdio_chip_getinfidx(ci, coreid);
 
 	/* must disable first to work for arbitrary current core state */
-	brcmf_sdio_ai_coredisable(sdiodev, ci, coreid);
+	brcmf_sdio_ai_coredisable(sdiodev, ci, coreid, core_bits);
 
 	/* now do initialization sequence */
 	brcmf_sdio_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
-			 BCMA_IOCTL_FGC | BCMA_IOCTL_CLK, NULL);
+			 core_bits | BCMA_IOCTL_FGC | BCMA_IOCTL_CLK, NULL);
 	regdata = brcmf_sdio_regrl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
 				   NULL);
 	brcmf_sdio_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
 			 0, NULL);
+	regdata = brcmf_sdio_regrl(sdiodev,
+				   ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
+				   NULL);
 	udelay(1);
 
 	brcmf_sdio_regwl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
-			 BCMA_IOCTL_CLK, NULL);
+			 core_bits | BCMA_IOCTL_CLK, NULL);
 	regdata = brcmf_sdio_regrl(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
 				   NULL);
 	udelay(1);
 }
 
+#ifdef DEBUG
+/* safety check for chipinfo */
+static int brcmf_sdio_chip_cichk(struct chip_info *ci)
+{
+	u8 core_idx;
+
+	/* check RAM core presence for ARM CM3 core */
+	core_idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_ARM_CM3);
+	if (BRCMF_MAX_CORENUM != core_idx) {
+		core_idx = brcmf_sdio_chip_getinfidx(ci,
+						     BCMA_CORE_INTERNAL_MEM);
+		if (BRCMF_MAX_CORENUM == core_idx) {
+			brcmf_err("RAM core not provided with ARM CM3 core\n");
+			return -ENODEV;
+		}
+	}
+
+	/* check RAM base for ARM CR4 core */
+	core_idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_ARM_CR4);
+	if (BRCMF_MAX_CORENUM != core_idx) {
+		if (ci->rambase == 0) {
+			brcmf_err("RAM base not provided with ARM CR4 core\n");
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+#else	/* DEBUG */
+static inline int brcmf_sdio_chip_cichk(struct chip_info *ci)
+{
+	return 0;
+}
+#endif
+
 static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 				       struct chip_info *ci, u32 regs)
 {
 	u32 regdata;
+	int ret;
 
 	/* Get CC core rev
 	 * Chipid is assume to be at offset 0 from regs arg
@@ -438,6 +497,10 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 		brcmf_err("chipid 0x%x is not supported\n", ci->chip);
 		return -ENODEV;
 	}
+
+	ret = brcmf_sdio_chip_cichk(ci);
+	if (ret)
+		return ret;
 
 	switch (ci->socitype) {
 	case SOCI_SB:
@@ -538,7 +601,7 @@ brcmf_sdio_chip_buscoresetup(struct brcmf_sdio_dev *sdiodev,
 	 * Make sure any on-chip ARM is off (in case strapping is wrong),
 	 * or downloaded code was already running.
 	 */
-	ci->coredisable(sdiodev, ci, BCMA_CORE_ARM_CM3);
+	ci->coredisable(sdiodev, ci, BCMA_CORE_ARM_CM3, 0);
 }
 
 int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
@@ -701,7 +764,7 @@ static bool brcmf_sdio_chip_writenvram(struct brcmf_sdio_dev *sdiodev,
 	u32 token;
 	__le32 token_le;
 
-	nvram_addr = (ci->ramsize - 4) - nvram_sz;
+	nvram_addr = (ci->ramsize - 4) - nvram_sz + ci->rambase;
 
 	/* Write the vars list */
 	err = brcmf_sdio_ramrw(sdiodev, true, nvram_addr, nvram_dat, nvram_sz);
@@ -728,7 +791,7 @@ static bool brcmf_sdio_chip_writenvram(struct brcmf_sdio_dev *sdiodev,
 		  nvram_addr, nvram_sz, token);
 
 	/* Write the length token to the last word */
-	if (brcmf_sdio_ramrw(sdiodev, true, (ci->ramsize - 4),
+	if (brcmf_sdio_ramrw(sdiodev, true, (ci->ramsize - 4 + ci->rambase),
 			     (u8 *)&token_le, 4))
 		return false;
 
@@ -741,8 +804,8 @@ brcmf_sdio_chip_cm3_enterdl(struct brcmf_sdio_dev *sdiodev,
 {
 	u32 zeros = 0;
 
-	ci->coredisable(sdiodev, ci, BCMA_CORE_ARM_CM3);
-	ci->resetcore(sdiodev, ci, BCMA_CORE_INTERNAL_MEM);
+	ci->coredisable(sdiodev, ci, BCMA_CORE_ARM_CM3, 0);
+	ci->resetcore(sdiodev, ci, BCMA_CORE_INTERNAL_MEM, 0);
 
 	/* clear length token */
 	brcmf_sdio_ramrw(sdiodev, true, ci->ramsize - 4, (u8 *)&zeros, 4);
@@ -769,7 +832,41 @@ brcmf_sdio_chip_cm3_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
 	reg_addr += offsetof(struct sdpcmd_regs, intstatus);
 	brcmf_sdio_regwl(sdiodev, reg_addr, 0xFFFFFFFF, NULL);
 
-	ci->resetcore(sdiodev, ci, BCMA_CORE_ARM_CM3);
+	ci->resetcore(sdiodev, ci, BCMA_CORE_ARM_CM3, 0);
+
+	return true;
+}
+
+static inline void
+brcmf_sdio_chip_cr4_enterdl(struct brcmf_sdio_dev *sdiodev,
+			    struct chip_info *ci)
+{
+	ci->resetcore(sdiodev, ci, BCMA_CORE_ARM_CR4,
+		      ARMCR4_BCMA_IOCTL_CPUHALT);
+}
+
+static bool
+brcmf_sdio_chip_cr4_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
+			   char *nvram_dat, uint nvram_sz)
+{
+	u8 core_idx;
+	u32 reg_addr;
+
+	if (!brcmf_sdio_chip_writenvram(sdiodev, ci, nvram_dat, nvram_sz))
+		return false;
+
+	/* clear all interrupts */
+	core_idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_SDIO_DEV);
+	reg_addr = ci->c_inf[core_idx].base;
+	reg_addr += offsetof(struct sdpcmd_regs, intstatus);
+	brcmf_sdio_regwl(sdiodev, reg_addr, 0xFFFFFFFF, NULL);
+
+	/* Write reset vector to address 0 */
+	brcmf_sdio_ramrw(sdiodev, true, 0, (void *)&ci->rst_vec,
+			 sizeof(ci->rst_vec));
+
+	/* restore ARM */
+	ci->resetcore(sdiodev, ci, BCMA_CORE_ARM_CR4, 0);
 
 	return true;
 }
@@ -777,12 +874,27 @@ brcmf_sdio_chip_cm3_exitdl(struct brcmf_sdio_dev *sdiodev, struct chip_info *ci,
 void brcmf_sdio_chip_enter_download(struct brcmf_sdio_dev *sdiodev,
 				    struct chip_info *ci)
 {
-	brcmf_sdio_chip_cm3_enterdl(sdiodev, ci);
+	u8 arm_core_idx;
+
+	arm_core_idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_ARM_CM3);
+	if (BRCMF_MAX_CORENUM != arm_core_idx) {
+		brcmf_sdio_chip_cm3_enterdl(sdiodev, ci);
+		return;
+	}
+
+	brcmf_sdio_chip_cr4_enterdl(sdiodev, ci);
 }
 
 bool brcmf_sdio_chip_exit_download(struct brcmf_sdio_dev *sdiodev,
 				   struct chip_info *ci, char *nvram_dat,
 				   uint nvram_sz)
 {
-	return brcmf_sdio_chip_cm3_exitdl(sdiodev, ci, nvram_dat, nvram_sz);
+	u8 arm_core_idx;
+
+	arm_core_idx = brcmf_sdio_chip_getinfidx(ci, BCMA_CORE_ARM_CM3);
+	if (BRCMF_MAX_CORENUM != arm_core_idx)
+		return brcmf_sdio_chip_cm3_exitdl(sdiodev, ci, nvram_dat,
+						  nvram_sz);
+
+	return brcmf_sdio_chip_cr4_exitdl(sdiodev, ci, nvram_dat, nvram_sz);
 }

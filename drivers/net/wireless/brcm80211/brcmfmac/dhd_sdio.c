@@ -2652,7 +2652,7 @@ static int brcmf_sdio_readshared(struct brcmf_sdio *bus,
 	struct sdpcm_shared_le sh_le;
 	__le32 addr_le;
 
-	shaddr = bus->ramsize - 4;
+	shaddr = bus->ci->rambase + bus->ramsize - 4;
 
 	/*
 	 * Read last word in socram to determine
@@ -3030,10 +3030,11 @@ static int brcmf_sdbrcm_get_image(char *buf, int len, struct brcmf_sdio *bus)
 
 static int brcmf_sdbrcm_download_code_file(struct brcmf_sdio *bus)
 {
-	int offset = 0;
+	int offset;
 	uint len;
 	u8 *memblock = NULL, *memptr;
 	int ret;
+	u8 idx;
 
 	brcmf_dbg(INFO, "Enter\n");
 
@@ -3054,9 +3055,14 @@ static int brcmf_sdbrcm_download_code_file(struct brcmf_sdio *bus)
 		memptr += (BRCMF_SDALIGN -
 			   ((u32)(unsigned long)memblock % BRCMF_SDALIGN));
 
+	offset = bus->ci->rambase;
+
 	/* Download image */
-	while ((len =
-		brcmf_sdbrcm_get_image((char *)memptr, MEMBLOCK, bus))) {
+	len = brcmf_sdbrcm_get_image((char *)memptr, MEMBLOCK, bus);
+	idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_ARM_CR4);
+	if (BRCMF_MAX_CORENUM != idx)
+		memcpy(&bus->ci->rst_vec, memptr, sizeof(bus->ci->rst_vec));
+	while (len) {
 		ret = brcmf_sdio_ramrw(bus->sdiodev, true, offset, memptr, len);
 		if (ret) {
 			brcmf_err("error %d on writing %d membytes at 0x%08x\n",
@@ -3065,6 +3071,7 @@ static int brcmf_sdbrcm_download_code_file(struct brcmf_sdio *bus)
 		}
 
 		offset += MEMBLOCK;
+		len = brcmf_sdbrcm_get_image((char *)memptr, MEMBLOCK, bus);
 	}
 
 err:
