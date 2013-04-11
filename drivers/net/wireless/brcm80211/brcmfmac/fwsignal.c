@@ -31,8 +31,11 @@
 #include "dhd_dbg.h"
 #include "dhd_bus.h"
 #include "fwil.h"
+#include "fwil_types.h"
 #include "fweh.h"
 #include "fwsignal.h"
+#include "p2p.h"
+#include "wl_cfg80211.h"
 
 /**
  * DOC: Firmware Signalling
@@ -683,7 +686,7 @@ brcmf_fws_find_mac_desc(struct brcmf_fws_info *fws, int ifidx, u8 *da)
 	struct brcmf_fws_mac_descriptor *entry = &fws->desc.other;
 	struct brcmf_if *ifp;
 	bool multicast;
-
+	enum nl80211_iftype iftype;
 	brcmf_dbg(TRACE, "enter: ifidx=%d\n", ifidx);
 
 	multicast = is_multicast_ether_addr(da);
@@ -691,15 +694,18 @@ brcmf_fws_find_mac_desc(struct brcmf_fws_info *fws, int ifidx, u8 *da)
 	if (WARN_ON(!ifp))
 		goto done;
 
+	iftype = brcmf_cfg80211_get_iftype(ifp);
+
 	/* Multicast destination and P2P clients get the interface entry.
 	 * STA gets the interface entry if there is no exact match. For
 	 * example, TDLS destinations have their own entry.
 	 */
 	entry = NULL;
-	if (multicast && ifp->fws_desc)
+	if ((multicast || iftype == NL80211_IFTYPE_STATION ||
+	     iftype == NL80211_IFTYPE_P2P_CLIENT) && ifp->fws_desc)
 		entry = ifp->fws_desc;
 
-	if (entry != NULL && multicast)
+	if (entry != NULL && iftype != NL80211_IFTYPE_STATION)
 		goto done;
 
 	entry = brcmf_fws_mac_descriptor_lookup(fws, da);
