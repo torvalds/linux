@@ -40,6 +40,15 @@
 #define BCM4329_CORE_ARM_BASE		0x18002000
 #define BCM4329_RAMSIZE			0x48000
 
+/* bcm43143 */
+/* SDIO device core */
+#define BCM43143_CORE_BUS_BASE		0x18002000
+/* internal memory core */
+#define BCM43143_CORE_SOCRAM_BASE	0x18004000
+/* ARM Cortex M3 core, ID 0x82a */
+#define BCM43143_CORE_ARM_BASE		0x18003000
+#define BCM43143_RAMSIZE		0x70000
+
 #define	SBCOREREV(sbidh) \
 	((((sbidh) & SSB_IDHIGH_RCHI) >> SSB_IDHIGH_RCHI_SHIFT) | \
 	  ((sbidh) & SSB_IDHIGH_RCLO))
@@ -433,6 +442,23 @@ static int brcmf_sdio_chip_recognition(struct brcmf_sdio_dev *sdiodev,
 
 	/* Address of cores for new chips should be added here */
 	switch (ci->chip) {
+	case BCM43143_CHIP_ID:
+		ci->c_inf[0].wrapbase = ci->c_inf[0].base + 0x00100000;
+		ci->c_inf[0].cib = 0x2b000000;
+		ci->c_inf[1].id = BCMA_CORE_SDIO_DEV;
+		ci->c_inf[1].base = BCM43143_CORE_BUS_BASE;
+		ci->c_inf[1].wrapbase = ci->c_inf[1].base + 0x00100000;
+		ci->c_inf[1].cib = 0x18000000;
+		ci->c_inf[2].id = BCMA_CORE_INTERNAL_MEM;
+		ci->c_inf[2].base = BCM43143_CORE_SOCRAM_BASE;
+		ci->c_inf[2].wrapbase = ci->c_inf[2].base + 0x00100000;
+		ci->c_inf[2].cib = 0x14000000;
+		ci->c_inf[3].id = BCMA_CORE_ARM_CM3;
+		ci->c_inf[3].base = BCM43143_CORE_ARM_BASE;
+		ci->c_inf[3].wrapbase = ci->c_inf[3].base + 0x00100000;
+		ci->c_inf[3].cib = 0x07000000;
+		ci->ramsize = BCM43143_RAMSIZE;
+		break;
 	case BCM43241_CHIP_ID:
 		ci->c_inf[0].wrapbase = 0x18100000;
 		ci->c_inf[0].cib = 0x2a084411;
