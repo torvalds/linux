@@ -299,6 +299,36 @@ config RTC_DRV_MAX77686
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-max77686.
 
+config MAX77686_RTC_WTSR
+	bool "MAX77686_RTC_WTSR"
+	depends on RTC_DRV_MAX77686
+	help
+	  MAX77686 rtc can supports WTSR(Watchdog Timeout and Software Reset).
+	  WTSR event would keep the PMIC on regardless of PWRHOLD signal.
+	  When PWRHOLD signal is falling, it turns on WTSR timer rather executes
+	  reset imidiately. After timer expiring, it determine to reset the PMIC
+	  depends on PWRHOLD state.
+
+config MAX77686_RTC_SMPL
+	bool "MAX77686_RTC_SMPL"
+	depends on RTC_DRV_MAX77686
+	help
+	  MAX77686 rtc can supports SMPL(Sudden Momentary Power Loss).
+	  SMPL function can be used to intiate a power up sequence after momentarily
+	  loosing contact to the battery pack. If battery goes under UVLO(Under
+	  Lock Out) it starts SMPL timer. After timer exipiring, it checks battery
+	  whether its state recovers from UVLO or not to make power supplies keep on.
+
+config RTC_DRV_MAX77XXX
+	tristate "Maxim MAX77XXX"
+	depends on MFD_MAX77XXX
+	help
+	  If you say yes here you will get support for the
+	  RTC of Maxim MAX77XXX PMIC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max77xxx.
+
 config RTC_DRV_RS5C372
 	tristate "Ricoh R2025S/D, RS5C372A/B, RV5C386, RV5C387A"
 	help
