@@ -34,6 +34,17 @@ struct kvm_vcpu;
 #define	IOAPIC_INIT			0x5
 #define	IOAPIC_EXTINT			0x7
 
+#ifdef CONFIG_X86
+#define RTC_GSI 8
+#else
+#define RTC_GSI -1U
+#endif
+
+struct rtc_status {
+	int pending_eoi;
+	DECLARE_BITMAP(dest_map, KVM_MAX_VCPUS);
+};
+
 struct kvm_ioapic {
 	u64 base_address;
 	u32 ioregsel;
@@ -47,6 +58,7 @@ struct kvm_ioapic {
 	void (*ack_notifier)(void *opaque, int irq);
 	spinlock_t lock;
 	DECLARE_BITMAP(handled_vectors, 256);
+	struct rtc_status rtc_status;
 };
 
 #ifdef DEBUG
