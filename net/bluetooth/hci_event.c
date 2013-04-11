@@ -1860,7 +1860,6 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		} else {
 			conn->state = BT_CONNECT2;
 			hci_proto_connect_cfm(conn, 0);
-			hci_conn_drop(conn);
 		}
 	} else {
 		/* Connection rejected */
