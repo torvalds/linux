@@ -163,9 +163,13 @@ struct pn533_fw_version {
 };
 
 /* PN533_CMD_RF_CONFIGURATION */
-#define PN533_CFGITEM_TIMING 0x02
+#define PN533_CFGITEM_RF_FIELD    0x01
+#define PN533_CFGITEM_TIMING      0x02
 #define PN533_CFGITEM_MAX_RETRIES 0x05
-#define PN533_CFGITEM_PASORI 0x82
+#define PN533_CFGITEM_PASORI      0x82
+
+#define PN533_CFGITEM_RF_FIELD_ON  0x1
+#define PN533_CFGITEM_RF_FIELD_OFF 0x0
 
 #define PN533_CONFIG_TIMING_102 0xb
 #define PN533_CONFIG_TIMING_204 0xc
@@ -2540,9 +2544,36 @@ static int pn533_acr122_poweron_rdr(struct pn533 *dev)
 	return arg.rc;
 }
 
+static int pn533_rf_field(struct nfc_dev *nfc_dev, u8 rf)
+{
+	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
+	u8 rf_field = !!rf;
+	int rc;
+
+	rc = pn533_set_configuration(dev, PN533_CFGITEM_RF_FIELD,
+				     (u8 *)&rf_field, 1);
+	if (rc) {
+		nfc_dev_err(&dev->interface->dev,
+			    "Error on setting RF field");
+		return rc;
+	}
+
+	return rc;
+}
+
+int pn533_dev_up(struct nfc_dev *nfc_dev)
+{
+	return pn533_rf_field(nfc_dev, 1);
+}
+
+int pn533_dev_down(struct nfc_dev *nfc_dev)
+{
+	return pn533_rf_field(nfc_dev, 0);
+}
+
 static struct nfc_ops pn533_nfc_ops = {
-	.dev_up = NULL,
-	.dev_down = NULL,
+	.dev_up = pn533_dev_up,
+	.dev_down = pn533_dev_down,
 	.dep_link_up = pn533_dep_link_up,
 	.dep_link_down = pn533_dep_link_down,
 	.start_poll = pn533_start_poll,
