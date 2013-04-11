@@ -559,6 +559,8 @@ static int r820t_set_pll(struct r820t_priv *priv, enum v4l2_tuner_type type,
 	freq = freq / 1000;
 	pll_ref = priv->cfg->xtal / 1000;
 
+#if 0
+	/* Doesn't exist on rtl-sdk, and on field tests, caused troubles */
 	if ((priv->cfg->rafael_chip == CHIP_R620D) ||
 	   (priv->cfg->rafael_chip == CHIP_R828D) ||
 	   (priv->cfg->rafael_chip == CHIP_R828)) {
@@ -574,6 +576,7 @@ static int r820t_set_pll(struct r820t_priv *priv, enum v4l2_tuner_type type,
 			refdiv2 = 0x10;
 		}
 	}
+#endif
 
 	rc = r820t_write_reg_mask(priv, 0x10, refdiv2, 0x10);
 	if (rc < 0)
