@@ -681,19 +681,16 @@ brcmf_fws_mac_descriptor_lookup(struct brcmf_fws_info *fws, u8 *ea)
 }
 
 static struct brcmf_fws_mac_descriptor*
-brcmf_fws_find_mac_desc(struct brcmf_fws_info *fws, int ifidx, u8 *da)
+brcmf_fws_find_mac_desc(struct brcmf_fws_info *fws, struct brcmf_if *ifp,
+			u8 *da)
 {
 	struct brcmf_fws_mac_descriptor *entry = &fws->desc.other;
-	struct brcmf_if *ifp;
 	bool multicast;
 	enum nl80211_iftype iftype;
-	brcmf_dbg(TRACE, "enter: ifidx=%d\n", ifidx);
+
+	brcmf_dbg(TRACE, "enter: idx=%d\n", ifp->bssidx);
 
 	multicast = is_multicast_ether_addr(da);
-	ifp = fws->drvr->iflist[ifidx ? ifidx + 1 : 0];
-	if (WARN_ON(!ifp))
-		goto done;
-
 	iftype = brcmf_cfg80211_get_iftype(ifp);
 
 	/* Multicast destination and P2P clients get the interface entry.
@@ -1750,7 +1747,7 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 
 	/* set control buffer information */
 	skcb->if_flags = 0;
-	skcb->mac = brcmf_fws_find_mac_desc(drvr->fws, ifidx, eh->h_dest);
+	skcb->mac = brcmf_fws_find_mac_desc(drvr->fws, ifp, eh->h_dest);
 	skcb->state = BRCMF_FWS_SKBSTATE_NEW;
 	brcmf_skb_if_flags_set_field(skb, INDEX, ifidx);
 	if (!multicast)
