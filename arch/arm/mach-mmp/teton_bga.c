@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/gpio-pxa.h>
 #include <linux/input.h>
 #include <linux/platform_data/keypad-pxa27x.h>
 #include <linux/i2c.h>
@@ -49,6 +50,10 @@ static unsigned long teton_bga_pin_config[] __initdata = {
 	GPIO78_GPIO,
 };
 
+static struct pxa_gpio_platform_data pxa168_gpio_pdata = {
+	.irq_base	= MMP_GPIO_TO_IRQ(0),
+};
+
 static unsigned int teton_bga_matrix_key_map[] = {
 	KEY(0, 6, KEY_ESC),
 	KEY(0, 7, KEY_ENTER),
@@ -79,6 +84,8 @@ static void __init teton_bga_init(void)
 	pxa168_add_uart(1);
 	pxa168_add_keypad(&teton_bga_keypad_info);
 	pxa168_add_twsi(0, NULL, ARRAY_AND_SIZE(teton_bga_i2c_info));
+	platform_device_add_data(&pxa168_device_gpio, &pxa168_gpio_pdata,
+				 sizeof(struct pxa_gpio_platform_data));
 	platform_device_register(&pxa168_device_gpio);
 }
 
