@@ -365,8 +365,9 @@ static void dwc2_gusbcfg_init(struct dwc2_hsotg *hsotg)
  *
  * @hsotg:      Programming view of the DWC_otg controller
  * @select_phy: If true then also set the Phy type
+ * @irq:        If >= 0, the irq to register
  */
-int dwc2_core_init(struct dwc2_hsotg *hsotg, bool select_phy)
+int dwc2_core_init(struct dwc2_hsotg *hsotg, bool select_phy, int irq)
 {
 	u32 usbcfg, otgctl;
 	int retval;
@@ -429,6 +430,16 @@ int dwc2_core_init(struct dwc2_hsotg *hsotg, bool select_phy)
 
 	/* Clear the SRP success bit for FS-I2c */
 	hsotg->srp_success = 0;
+
+	if (irq >= 0) {
+		dev_dbg(hsotg->dev, "registering common handler for irq%d\n",
+			irq);
+		retval = devm_request_irq(hsotg->dev, irq,
+					  dwc2_handle_common_intr, IRQF_SHARED,
+					  dev_name(hsotg->dev), hsotg);
+		if (retval)
+			return retval;
+	}
 
 	/* Enable common interrupts */
 	dwc2_enable_common_interrupts(hsotg);

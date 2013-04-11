@@ -155,13 +155,6 @@ static int dwc2_driver_probe(struct pci_dev *dev,
 	pci_set_drvdata(dev, hsotg);
 	dev_dbg(&dev->dev, "hsotg=%p\n", hsotg);
 
-	dev_dbg(&dev->dev, "registering common handler for irq%d\n", dev->irq);
-	retval = devm_request_irq(&dev->dev, dev->irq, dwc2_handle_common_intr,
-				  IRQF_SHARED, dev_name(&dev->dev),
-				  hsotg);
-	if (retval)
-		dwc2_hcd_remove(hsotg);
-
 	return retval;
 }
 

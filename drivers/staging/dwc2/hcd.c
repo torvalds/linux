@@ -1313,7 +1313,7 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 			dev_err(hsotg->dev,
 				"Connection id status change timed out");
 		hsotg->op_state = OTG_STATE_B_PERIPHERAL;
-		dwc2_core_init(hsotg, false);
+		dwc2_core_init(hsotg, false, -1);
 		dwc2_enable_global_interrupts(hsotg);
 	} else {
 		/* A-Device connector (Host Mode) */
@@ -1332,7 +1332,7 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 		hsotg->op_state = OTG_STATE_A_HOST;
 
 		/* Initialize the Core for Host mode */
-		dwc2_core_init(hsotg, false);
+		dwc2_core_init(hsotg, false, -1);
 		dwc2_enable_global_interrupts(hsotg);
 		dwc2_hcd_start(hsotg);
 	}
@@ -2818,16 +2818,16 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	((struct wrapper_priv_data *) &hcd->hcd_priv)->hsotg = hsotg;
 	hsotg->priv = hcd;
 
-	/* Initialize the DWC_otg core, and select the Phy type */
-	retval = dwc2_core_init(hsotg, true);
-	if (retval)
-		goto error2;
-
 	/*
 	 * Disable the global interrupt until all the interrupt handlers are
 	 * installed
 	 */
 	dwc2_disable_global_interrupts(hsotg);
+
+	/* Initialize the DWC_otg core, and select the Phy type */
+	retval = dwc2_core_init(hsotg, true, irq);
+	if (retval)
+		goto error2;
 
 	/* Create new workqueue and init work */
 	hsotg->wq_otg = create_singlethread_workqueue("dwc_otg");
