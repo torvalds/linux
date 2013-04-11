@@ -87,7 +87,15 @@ static void __init socfpga_init_irq(void)
 
 static void socfpga_cyclone5_restart(char mode, const char *cmd)
 {
-	/* TODO: */
+	u32 temp;
+
+	temp = readl(rst_manager_base_addr + SOCFPGA_RSTMGR_CTRL);
+
+	if (mode == 'h')
+		temp |= RSTMGR_CTRL_SWCOLDRSTREQ;
+	else
+		temp |= RSTMGR_CTRL_SWWARMRSTREQ;
+	writel(temp, rst_manager_base_addr + SOCFPGA_RSTMGR_CTRL);
 }
 
 static void __init socfpga_cyclone5_init(void)

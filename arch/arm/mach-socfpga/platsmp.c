@@ -30,9 +30,6 @@
 
 #include "core.h"
 
-extern void __iomem *sys_manager_base_addr;
-extern void __iomem *rst_manager_base_addr;
-
 static void __cpuinit socfpga_secondary_init(unsigned int cpu)
 {
 	/*
