@@ -217,7 +217,7 @@ out:
 	if (old)
 		kfree_rcu(old, rcu);
 
-	kvm_ioapic_make_eoibitmap_request(kvm);
+	kvm_vcpu_request_scan_ioapic(kvm);
 }
 
 static inline void kvm_apic_set_id(struct kvm_lapic *apic, u8 id)

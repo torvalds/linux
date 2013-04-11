@@ -193,15 +193,13 @@ static void update_handled_vectors(struct kvm_ioapic *ioapic)
 	smp_wmb();
 }
 
-void kvm_ioapic_calculate_eoi_exitmap(struct kvm_vcpu *vcpu,
-					u64 *eoi_exit_bitmap)
+void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
 {
 	struct kvm_ioapic *ioapic = vcpu->kvm->arch.vioapic;
 	union kvm_ioapic_redirect_entry *e;
 	int index;
 
 	spin_lock(&ioapic->lock);
-	/* traverse ioapic entry to set eoi exit bitmap*/
 	for (index = 0; index < IOAPIC_NUM_PINS; index++) {
 		e = &ioapic->redirtbl[index];
 		if (!e->fields.mask &&
@@ -215,16 +213,22 @@ void kvm_ioapic_calculate_eoi_exitmap(struct kvm_vcpu *vcpu,
 	}
 	spin_unlock(&ioapic->lock);
 }
-EXPORT_SYMBOL_GPL(kvm_ioapic_calculate_eoi_exitmap);
 
-void kvm_ioapic_make_eoibitmap_request(struct kvm *kvm)
+#ifdef CONFIG_X86
+void kvm_vcpu_request_scan_ioapic(struct kvm *kvm)
 {
 	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
 
-	if (!kvm_apic_vid_enabled(kvm) || !ioapic)
+	if (!ioapic)
 		return;
-	kvm_make_update_eoibitmap_request(kvm);
+	kvm_make_scan_ioapic_request(kvm);
 }
+#else
+void kvm_vcpu_request_scan_ioapic(struct kvm *kvm)
+{
+	return;
+}
+#endif
 
 static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 {
@@ -267,7 +271,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 		if (e->fields.trig_mode == IOAPIC_LEVEL_TRIG
 		    && ioapic->irr & (1 << index))
 			ioapic_service(ioapic, index, false);
-		kvm_ioapic_make_eoibitmap_request(ioapic->kvm);
+		kvm_vcpu_request_scan_ioapic(ioapic->kvm);
 		break;
 	}
 }
@@ -586,7 +590,7 @@ int kvm_set_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state)
 	spin_lock(&ioapic->lock);
 	memcpy(ioapic, state, sizeof(struct kvm_ioapic_state));
 	update_handled_vectors(ioapic);
-	kvm_ioapic_make_eoibitmap_request(kvm);
+	kvm_vcpu_request_scan_ioapic(kvm);
 	kvm_rtc_eoi_tracking_restore_all(ioapic);
 	spin_unlock(&ioapic->lock);
 	return 0;
