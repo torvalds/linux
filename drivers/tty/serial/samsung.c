@@ -1183,6 +1183,7 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	return 0;
 }
 
+#ifdef CONFIG_SAMSUNG_CLOCK
 static ssize_t s3c24xx_serial_show_clksrc(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
@@ -1198,7 +1199,7 @@ static ssize_t s3c24xx_serial_show_clksrc(struct device *dev,
 }
 
 static DEVICE_ATTR(clock_source, S_IRUGO, s3c24xx_serial_show_clksrc, NULL);
-
+#endif
 
 /* Device driver serial port probe */
 
@@ -1256,9 +1257,11 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	uart_add_one_port(&s3c24xx_uart_drv, &ourport->port);
 	platform_set_drvdata(pdev, &ourport->port);
 
+#ifdef CONFIG_SAMSUNG_CLOCK
 	ret = device_create_file(&pdev->dev, &dev_attr_clock_source);
 	if (ret < 0)
 		dev_err(&pdev->dev, "failed to add clock source attr.\n");
+#endif
 
 	ret = s3c24xx_serial_cpufreq_register(ourport);
 	if (ret < 0)
@@ -1276,7 +1279,9 @@ static int s3c24xx_serial_remove(struct platform_device *dev)
 
 	if (port) {
 		s3c24xx_serial_cpufreq_deregister(to_ourport(port));
+#ifdef CONFIG_SAMSUNG_CLOCK
 		device_remove_file(&dev->dev, &dev_attr_clock_source);
+#endif
 		uart_remove_one_port(&s3c24xx_uart_drv, port);
 	}
 
