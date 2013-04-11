@@ -2006,18 +2006,17 @@ static int r820t_imr_callibrate(struct r820t_priv *priv)
 	if (priv->init_done)
 		return 0;
 
-	/* Initialize registers */
-	rc = r820t_write(priv, 0x05,
-			 r820t_init_array, sizeof(r820t_init_array));
-	if (rc < 0)
-		return rc;
-
 	/* Detect Xtal capacitance */
 	if ((priv->cfg->rafael_chip == CHIP_R820T) ||
 	    (priv->cfg->rafael_chip == CHIP_R828S) ||
 	    (priv->cfg->rafael_chip == CHIP_R820C)) {
 		priv->xtal_cap_sel = XTAL_HIGH_CAP_0P;
 	} else {
+		/* Initialize registers */
+		rc = r820t_write(priv, 0x05,
+				r820t_init_array, sizeof(r820t_init_array));
+		if (rc < 0)
+			return rc;
 		for (i = 0; i < 3; i++) {
 			rc = r820t_xtal_check(priv);
 			if (rc < 0)
