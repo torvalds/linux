@@ -175,12 +175,20 @@
 				};
 			};
 
+			usbphy0: usbphy@0 {
+				compatible = "usb-nop-xceiv";
+				clocks = <&clks 124>;
+				clock-names = "main_clk";
+				status = "okay";
+			};
+
 			usbotg: usb@73f80000 {
 				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
 				reg = <0x73f80000 0x0200>;
 				interrupts = <18>;
 				clocks = <&clks 108>;
 				fsl,usbmisc = <&usbmisc 0>;
+				fsl,usbphy = <&usbphy0>;
 				status = "disabled";
 			};
 
