@@ -452,6 +452,7 @@ extern int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 extern void dwc2_hcd_remove(struct dwc2_hsotg *hsotg);
 extern int dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 			       struct dwc2_core_params *params);
+extern void dwc2_set_all_params(struct dwc2_core_params *params, int value);
 
 /* Transaction Execution Functions */
 extern enum dwc2_transaction_type dwc2_hcd_select_transactions(

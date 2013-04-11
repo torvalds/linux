@@ -162,6 +162,10 @@ enum dwc2_lx_state {
  * parameters define how the DWC_otg controller should be configured.
  */
 struct dwc2_core_params {
+	/*
+	 * Don't add any non-int members here, this will break
+	 * dwc2_set_all_params!
+	 */
 	int otg_cap;
 	int otg_ver;
 	int dma_enable;

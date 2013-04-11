@@ -2679,8 +2679,15 @@ static void dwc2_hcd_release(struct dwc2_hsotg *hsotg)
 	dwc2_hcd_free(hsotg);
 }
 
-static void dwc2_set_uninitialized(int *p, int size)
+/*
+ * Sets all parameters to the given value.
+ *
+ * Assumes that the dwc2_core_params struct contains only integers.
+ */
+void dwc2_set_all_params(struct dwc2_core_params *params, int value)
 {
+	int *p = (int *)params;
+	size_t size = sizeof(*params) / sizeof(*p);
 	int i;
 
 	for (i = 0; i < size; i++)
@@ -2789,8 +2796,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	if (!hsotg->core_params)
 		goto error1;
 
-	dwc2_set_uninitialized((int *)hsotg->core_params,
-			       sizeof(*hsotg->core_params) / sizeof(int));
+	dwc2_set_all_params(hsotg->core_params, -1);
 
 	/* Validate parameter values */
 	dwc2_set_parameters(hsotg, params);
