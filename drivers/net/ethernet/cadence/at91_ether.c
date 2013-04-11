@@ -394,7 +394,8 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	if (res)
 		goto err_disable_clock;
 
-	if (macb_mii_init(lp) != 0)
+	res = macb_mii_init(lp);
+	if (res)
 		goto err_out_unregister_netdev;
 
 	/* will be enabled in open() */
