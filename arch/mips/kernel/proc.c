@@ -12,7 +12,7 @@
 #include <asm/cpu-features.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
-#include <asm/mips_machine.h>
+#include <asm/prom.h>
 
 unsigned int vced_count, vcei_count;
 
