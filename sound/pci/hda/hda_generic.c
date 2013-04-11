@@ -2333,6 +2333,7 @@ static int create_hp_mic(struct hda_codec *codec)
 
 	cfg->inputs[cfg->num_inputs].pin = nid;
 	cfg->inputs[cfg->num_inputs].type = AUTO_PIN_MIC;
+	cfg->inputs[cfg->num_inputs].is_headphone_mic = 1;
 	cfg->num_inputs++;
 	spec->hp_mic = 1;
 	spec->hp_mic_pin = nid;

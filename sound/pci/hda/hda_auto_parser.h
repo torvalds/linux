@@ -37,6 +37,7 @@ struct auto_pin_cfg_item {
 	hda_nid_t pin;
 	int type;
 	unsigned int is_headset_mic:1;
+	unsigned int is_headphone_mic:1; /* Mic-only in headphone jack */
 };
 
 struct auto_pin_cfg;
@@ -79,9 +80,10 @@ struct auto_pin_cfg {
 };
 
 /* bit-flags for snd_hda_parse_pin_def_config() behavior */
-#define HDA_PINCFG_NO_HP_FIXUP	(1 << 0) /* no HP-split */
-#define HDA_PINCFG_NO_LO_FIXUP	(1 << 1) /* don't take other outs as LO */
-#define HDA_PINCFG_HEADSET_MIC  (1 << 2) /* Take first mic as headset mic */
+#define HDA_PINCFG_NO_HP_FIXUP   (1 << 0) /* no HP-split */
+#define HDA_PINCFG_NO_LO_FIXUP   (1 << 1) /* don't take other outs as LO */
+#define HDA_PINCFG_HEADSET_MIC   (1 << 2) /* Try to find headset mic; mark seq number as 0xc to trigger */
+#define HDA_PINCFG_HEADPHONE_MIC (1 << 3) /* Try to find headphone mic; mark seq number as 0xd to trigger */
 
 int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			     struct auto_pin_cfg *cfg,
