@@ -1706,7 +1706,7 @@ int cik_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 }
 
 /**
- * cik_fence_ring_emit - emit a fence on the gfx ring
+ * cik_fence_gfx_ring_emit - emit a fence on the gfx ring
  *
  * @rdev: radeon_device pointer
  * @fence: radeon fence object
@@ -1714,8 +1714,8 @@ int cik_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
  * Emits a fence sequnce number on the gfx ring and flushes
  * GPU caches.
  */
-void cik_fence_ring_emit(struct radeon_device *rdev,
-			 struct radeon_fence *fence)
+void cik_fence_gfx_ring_emit(struct radeon_device *rdev,
+			     struct radeon_fence *fence)
 {
 	struct radeon_ring *ring = &rdev->ring[fence->ring];
 	u64 addr = rdev->fence_drv[fence->ring].gpu_addr;
@@ -1728,6 +1728,44 @@ void cik_fence_ring_emit(struct radeon_device *rdev,
 				 EVENT_INDEX(5)));
 	radeon_ring_write(ring, addr & 0xfffffffc);
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xffff) | DATA_SEL(1) | INT_SEL(2));
+	radeon_ring_write(ring, fence->seq);
+	radeon_ring_write(ring, 0);
+	/* HDP flush */
+	/* We should be using the new WAIT_REG_MEM special op packet here
+	 * but it causes the CP to hang
+	 */
+	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+				 WRITE_DATA_DST_SEL(0)));
+	radeon_ring_write(ring, HDP_MEM_COHERENCY_FLUSH_CNTL >> 2);
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, 0);
+}
+
+/**
+ * cik_fence_compute_ring_emit - emit a fence on the compute ring
+ *
+ * @rdev: radeon_device pointer
+ * @fence: radeon fence object
+ *
+ * Emits a fence sequnce number on the compute ring and flushes
+ * GPU caches.
+ */
+void cik_fence_compute_ring_emit(struct radeon_device *rdev,
+				 struct radeon_fence *fence)
+{
+	struct radeon_ring *ring = &rdev->ring[fence->ring];
+	u64 addr = rdev->fence_drv[fence->ring].gpu_addr;
+
+	/* RELEASE_MEM - flush caches, send int */
+	radeon_ring_write(ring, PACKET3(PACKET3_RELEASE_MEM, 5));
+	radeon_ring_write(ring, (EOP_TCL1_ACTION_EN |
+				 EOP_TC_ACTION_EN |
+				 EVENT_TYPE(CACHE_FLUSH_AND_INV_TS_EVENT) |
+				 EVENT_INDEX(5)));
+	radeon_ring_write(ring, DATA_SEL(1) | INT_SEL(2));
+	radeon_ring_write(ring, addr & 0xfffffffc);
+	radeon_ring_write(ring, upper_32_bits(addr));
 	radeon_ring_write(ring, fence->seq);
 	radeon_ring_write(ring, 0);
 	/* HDP flush */
@@ -4051,9 +4089,12 @@ void cik_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 	radeon_ring_write(ring, 0);
 	radeon_ring_write(ring, 1 << vm->id);
 
-	/* sync PFP to ME, otherwise we might get invalid PFP reads */
-	radeon_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
-	radeon_ring_write(ring, 0x0);
+	/* compute doesn't have PFP */
+	if (ridx == RADEON_RING_TYPE_GFX_INDEX) {
+		/* sync PFP to ME, otherwise we might get invalid PFP reads */
+		radeon_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
+		radeon_ring_write(ring, 0x0);
+	}
 }
 
 /**
