@@ -89,13 +89,13 @@ int pin_config_get(const char *dev_name, const char *name,
 	struct pinctrl_dev *pctldev;
 	int pin;
 
-	mutex_lock(&pinctrl_mutex);
-
 	pctldev = get_pinctrl_dev_from_devname(dev_name);
 	if (!pctldev) {
 		pin = -EINVAL;
-		goto unlock;
+		return pin;
 	}
+
+	mutex_lock(&pctldev->mutex);
 
 	pin = pin_get_from_name(pctldev, name);
 	if (pin < 0)
@@ -104,7 +104,7 @@ int pin_config_get(const char *dev_name, const char *name,
 	pin = pin_config_get_for_pin(pctldev, pin, config);
 
 unlock:
-	mutex_unlock(&pinctrl_mutex);
+	mutex_unlock(&pctldev->mutex);
 	return pin;
 }
 EXPORT_SYMBOL(pin_config_get);
@@ -145,13 +145,13 @@ int pin_config_set(const char *dev_name, const char *name,
 	struct pinctrl_dev *pctldev;
 	int pin, ret;
 
-	mutex_lock(&pinctrl_mutex);
-
 	pctldev = get_pinctrl_dev_from_devname(dev_name);
 	if (!pctldev) {
 		ret = -EINVAL;
-		goto unlock;
+		return ret;
 	}
+
+	mutex_lock(&pctldev->mutex);
 
 	pin = pin_get_from_name(pctldev, name);
 	if (pin < 0) {
@@ -162,7 +162,7 @@ int pin_config_set(const char *dev_name, const char *name,
 	ret = pin_config_set_for_pin(pctldev, pin, config);
 
 unlock:
-	mutex_unlock(&pinctrl_mutex);
+	mutex_unlock(&pctldev->mutex);
 	return ret;
 }
 EXPORT_SYMBOL(pin_config_set);
@@ -174,13 +174,14 @@ int pin_config_group_get(const char *dev_name, const char *pin_group,
 	const struct pinconf_ops *ops;
 	int selector, ret;
 
-	mutex_lock(&pinctrl_mutex);
-
 	pctldev = get_pinctrl_dev_from_devname(dev_name);
 	if (!pctldev) {
 		ret = -EINVAL;
-		goto unlock;
+		return ret;
 	}
+
+	mutex_lock(&pctldev->mutex);
+
 	ops = pctldev->desc->confops;
 
 	if (!ops || !ops->pin_config_group_get) {
@@ -200,7 +201,7 @@ int pin_config_group_get(const char *dev_name, const char *pin_group,
 	ret = ops->pin_config_group_get(pctldev, selector, config);
 
 unlock:
-	mutex_unlock(&pinctrl_mutex);
+	mutex_unlock(&pctldev->mutex);
 	return ret;
 }
 EXPORT_SYMBOL(pin_config_group_get);
@@ -217,13 +218,14 @@ int pin_config_group_set(const char *dev_name, const char *pin_group,
 	int ret;
 	int i;
 
-	mutex_lock(&pinctrl_mutex);
-
 	pctldev = get_pinctrl_dev_from_devname(dev_name);
 	if (!pctldev) {
 		ret = -EINVAL;
-		goto unlock;
+		return ret;
 	}
+
+	mutex_lock(&pctldev->mutex);
+
 	ops = pctldev->desc->confops;
 	pctlops = pctldev->desc->pctlops;
 
@@ -279,7 +281,7 @@ int pin_config_group_set(const char *dev_name, const char *pin_group,
 	ret = 0;
 
 unlock:
-	mutex_unlock(&pinctrl_mutex);
+	mutex_unlock(&pctldev->mutex);
 
 	return ret;
 }
@@ -487,7 +489,7 @@ static int pinconf_pins_show(struct seq_file *s, void *what)
 	seq_puts(s, "Pin config settings per pin\n");
 	seq_puts(s, "Format: pin (name): configs\n");
 
-	mutex_lock(&pinctrl_mutex);
+	mutex_lock(&pctldev->mutex);
 
 	/* The pin number can be retrived from the pin controller descriptor */
 	for (i = 0; i < pctldev->desc->npins; i++) {
@@ -507,7 +509,7 @@ static int pinconf_pins_show(struct seq_file *s, void *what)
 		seq_printf(s, "\n");
 	}
 
-	mutex_unlock(&pinctrl_mutex);
+	mutex_unlock(&pctldev->mutex);
 
 	return 0;
 }
@@ -608,7 +610,7 @@ static int pinconf_dbg_config_print(struct seq_file *s, void *d)
 	bool found = false;
 	unsigned long config;
 
-	mutex_lock(&pinctrl_mutex);
+	mutex_lock(&pctldev->mutex);
 
 	/* Parse the pinctrl map and look for the elected pin/state */
 	for_each_maps(maps_node, i, map) {
@@ -657,7 +659,7 @@ static int pinconf_dbg_config_print(struct seq_file *s, void *d)
 		confops->pin_config_config_dbg_show(pctldev, s, config);
 
 exit:
-	mutex_unlock(&pinctrl_mutex);
+	mutex_unlock(&pctldev->mutex);
 
 	return 0;
 }
@@ -747,7 +749,7 @@ static int pinconf_dbg_config_write(struct file *file,
 		return -EINVAL;
 	strncpy(config, token, MAX_NAME_LEN);
 
-	mutex_lock(&pinctrl_mutex);
+	mutex_lock(&pinctrl_maps_mutex);
 
 	/* Parse the pinctrl map and look for the selected dev/state/pin */
 	for_each_maps(maps_node, i, map) {
@@ -785,7 +787,7 @@ static int pinconf_dbg_config_write(struct file *file,
 	}
 
 exit:
-	mutex_unlock(&pinctrl_mutex);
+	mutex_unlock(&pinctrl_maps_mutex);
 
 	return count;
 }
