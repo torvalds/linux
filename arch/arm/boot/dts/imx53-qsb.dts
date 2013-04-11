@@ -268,3 +268,11 @@
 	phy-reset-gpios = <&gpio7 6 0>;
 	status = "okay";
 };
+
+&usbh1 {
+       status = "okay";
+};
+
+&usbotg {
+       status = "okay";
+};
