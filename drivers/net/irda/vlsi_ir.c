@@ -1678,7 +1678,7 @@ vlsi_irda_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			IRDA_WARNING("%s: failed to create proc entry\n",
 				     __func__);
 		} else {
-			ent->size = 0;
+			proc_set_size(ent, 0);
 		}
 		idev->proc_entry = ent;
 	}

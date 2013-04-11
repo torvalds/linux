@@ -139,7 +139,7 @@ static int __init zorro_proc_attach_device(unsigned int slot)
 				 &zorro_autocon[slot]);
 	if (!entry)
 		return -ENOMEM;
-	entry->size = sizeof(struct zorro_dev);
+	proc_set_size(entry, sizeof(struct zorro_dev));
 	return 0;
 }
 

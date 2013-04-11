@@ -130,6 +130,9 @@ static inline struct proc_dir_entry *proc_create(const char *name, umode_t mode,
 extern struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
 	struct proc_dir_entry *parent);
 
+extern void proc_set_size(struct proc_dir_entry *, loff_t);
+extern void proc_set_user(struct proc_dir_entry *, kuid_t, kgid_t);
+
 extern struct file *proc_ns_fget(int fd);
 extern bool proc_ns_inode(struct inode *inode);
 
@@ -158,6 +161,8 @@ static inline struct proc_dir_entry *proc_mkdir(const char *name,
 	struct proc_dir_entry *parent) {return NULL;}
 static inline struct proc_dir_entry *proc_mkdir_mode(const char *name,
 	umode_t mode, struct proc_dir_entry *parent) { return NULL; }
+static inline void proc_set_size(struct proc_dir_entry *de, loff_t size) {}
+static inline void proc_set_user(struct proc_dir_entry *de, kuid_t uid, kgid_t gid) {}
 
 struct tty_driver;
 static inline void proc_tty_register_driver(struct tty_driver *driver) {};

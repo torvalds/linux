@@ -419,7 +419,7 @@ int pci_proc_attach_device(struct pci_dev *dev)
 			     &proc_bus_pci_operations, dev);
 	if (!e)
 		return -ENOMEM;
-	e->size = dev->cfg_size;
+	proc_set_size(e, dev->cfg_size);
 	dev->procent = e;
 
 	return 0;

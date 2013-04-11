@@ -401,8 +401,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 		ret = -ENOMEM;
 		goto out;
 	}
-	pde->uid = uid;
-	pde->gid = gid;
+	proc_set_user(pde, uid, gid);
 #endif
 	spin_lock_bh(&recent_lock);
 	list_add_tail(&t->list, &recent_net->tables);

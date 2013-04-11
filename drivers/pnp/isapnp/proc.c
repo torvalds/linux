@@ -105,7 +105,7 @@ static int isapnp_proc_attach_device(struct pnp_dev *dev)
 			&isapnp_proc_bus_file_operations, dev);
 	if (!e)
 		return -ENOMEM;
-	e->size = 256;
+	proc_set_size(e, 256);
 	return 0;
 }
 

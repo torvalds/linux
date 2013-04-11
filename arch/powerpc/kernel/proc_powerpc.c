@@ -83,7 +83,7 @@ static int __init proc_ppc64_init(void)
 			       &page_map_fops, vdso_data);
 	if (!pde)
 		return 1;
-	pde->size = PAGE_SIZE;
+	proc_set_size(pde, PAGE_SIZE);
 
 	return 0;
 }
