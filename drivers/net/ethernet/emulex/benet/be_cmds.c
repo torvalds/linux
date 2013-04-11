@@ -2343,7 +2343,6 @@ int be_cmd_get_seeprom_data(struct be_adapter *adapter,
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_seeprom_read *req;
-	struct be_sge *sge;
 	int status;
 
 	spin_lock_bh(&adapter->mcc_lock);
@@ -2354,7 +2353,6 @@ int be_cmd_get_seeprom_data(struct be_adapter *adapter,
 		goto err;
 	}
 	req = nonemb_cmd->va;
-	sge = nonembedded_sgl(wrb);
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 			OPCODE_COMMON_SEEPROM_READ, sizeof(*req), wrb,
