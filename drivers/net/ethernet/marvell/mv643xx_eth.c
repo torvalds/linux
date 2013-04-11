@@ -56,8 +56,8 @@
 #include <linux/phy.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/io.h>
+#include <linux/interrupt.h>
 #include <linux/types.h>
-#include <linux/inet_lro.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
 
@@ -316,12 +316,6 @@ struct mib_counters {
 	u32 rx_overrun;
 };
 
-struct lro_counters {
-	u32 lro_aggregated;
-	u32 lro_flushed;
-	u32 lro_no_desc;
-};
-
 struct rx_queue {
 	int index;
 
@@ -335,9 +329,6 @@ struct rx_queue {
 	dma_addr_t rx_desc_dma;
 	int rx_desc_area_size;
 	struct sk_buff **rx_skb;
-
-	struct net_lro_mgr lro_mgr;
-	struct net_lro_desc lro_arr[8];
 };
 
 struct tx_queue {
@@ -372,8 +363,6 @@ struct mv643xx_eth_private {
 	struct timer_list mib_counters_timer;
 	spinlock_t mib_counters_lock;
 	struct mib_counters mib_counters;
-
-	struct lro_counters lro_counters;
 
 	struct work_struct tx_timeout_task;
 
@@ -503,42 +492,12 @@ static void txq_maybe_wake(struct tx_queue *txq)
 	}
 }
 
-
-/* rx napi ******************************************************************/
-static int
-mv643xx_get_skb_header(struct sk_buff *skb, void **iphdr, void **tcph,
-		       u64 *hdr_flags, void *priv)
-{
-	unsigned long cmd_sts = (unsigned long)priv;
-
-	/*
-	 * Make sure that this packet is Ethernet II, is not VLAN
-	 * tagged, is IPv4, has a valid IP header, and is TCP.
-	 */
-	if ((cmd_sts & (RX_IP_HDR_OK | RX_PKT_IS_IPV4 |
-		       RX_PKT_IS_ETHERNETV2 | RX_PKT_LAYER4_TYPE_MASK |
-		       RX_PKT_IS_VLAN_TAGGED)) !=
-	    (RX_IP_HDR_OK | RX_PKT_IS_IPV4 |
-	     RX_PKT_IS_ETHERNETV2 | RX_PKT_LAYER4_TYPE_TCP_IPV4))
-		return -1;
-
-	skb_reset_network_header(skb);
-	skb_set_transport_header(skb, ip_hdrlen(skb));
-	*iphdr = ip_hdr(skb);
-	*tcph = tcp_hdr(skb);
-	*hdr_flags = LRO_IPV4 | LRO_TCP;
-
-	return 0;
-}
-
 static int rxq_process(struct rx_queue *rxq, int budget)
 {
 	struct mv643xx_eth_private *mp = rxq_to_mp(rxq);
 	struct net_device_stats *stats = &mp->dev->stats;
-	int lro_flush_needed;
 	int rx;
 
-	lro_flush_needed = 0;
 	rx = 0;
 	while (rx < budget && rxq->rx_desc_count) {
 		struct rx_desc *rx_desc;
@@ -599,12 +558,7 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->protocol = eth_type_trans(skb, mp->dev);
 
-		if (skb->dev->features & NETIF_F_LRO &&
-		    skb->ip_summed == CHECKSUM_UNNECESSARY) {
-			lro_receive_skb(&rxq->lro_mgr, skb, (void *)cmd_sts);
-			lro_flush_needed = 1;
-		} else
-			napi_gro_receive(&mp->napi, skb);
+		napi_gro_receive(&mp->napi, skb);
 
 		continue;
 
@@ -623,9 +577,6 @@ err:
 
 		dev_kfree_skb(skb);
 	}
-
-	if (lro_flush_needed)
-		lro_flush_all(&rxq->lro_mgr);
 
 	if (rx < budget)
 		mp->work_rx &= ~(1 << rxq->index);
@@ -1118,26 +1069,6 @@ static struct net_device_stats *mv643xx_eth_get_stats(struct net_device *dev)
 	return stats;
 }
 
-static void mv643xx_eth_grab_lro_stats(struct mv643xx_eth_private *mp)
-{
-	u32 lro_aggregated = 0;
-	u32 lro_flushed = 0;
-	u32 lro_no_desc = 0;
-	int i;
-
-	for (i = 0; i < mp->rxq_count; i++) {
-		struct rx_queue *rxq = mp->rxq + i;
-
-		lro_aggregated += rxq->lro_mgr.stats.aggregated;
-		lro_flushed += rxq->lro_mgr.stats.flushed;
-		lro_no_desc += rxq->lro_mgr.stats.no_desc;
-	}
-
-	mp->lro_counters.lro_aggregated = lro_aggregated;
-	mp->lro_counters.lro_flushed = lro_flushed;
-	mp->lro_counters.lro_no_desc = lro_no_desc;
-}
-
 static inline u32 mib_read(struct mv643xx_eth_private *mp, int offset)
 {
 	return rdl(mp, MIB_COUNTERS(mp->port_num) + offset);
@@ -1301,10 +1232,6 @@ struct mv643xx_eth_stats {
 	{ #m, FIELD_SIZEOF(struct mib_counters, m),		\
 	  -1, offsetof(struct mv643xx_eth_private, mib_counters.m) }
 
-#define LROSTAT(m)						\
-	{ #m, FIELD_SIZEOF(struct lro_counters, m),		\
-	  -1, offsetof(struct mv643xx_eth_private, lro_counters.m) }
-
 static const struct mv643xx_eth_stats mv643xx_eth_stats[] = {
 	SSTAT(rx_packets),
 	SSTAT(tx_packets),
@@ -1346,9 +1273,6 @@ static const struct mv643xx_eth_stats mv643xx_eth_stats[] = {
 	MIBSTAT(late_collision),
 	MIBSTAT(rx_discard),
 	MIBSTAT(rx_overrun),
-	LROSTAT(lro_aggregated),
-	LROSTAT(lro_flushed),
-	LROSTAT(lro_no_desc),
 };
 
 static int
@@ -1578,7 +1502,6 @@ static void mv643xx_eth_get_ethtool_stats(struct net_device *dev,
 
 	mv643xx_eth_get_stats(dev);
 	mib_counters_update(mp);
-	mv643xx_eth_grab_lro_stats(mp);
 
 	for (i = 0; i < ARRAY_SIZE(mv643xx_eth_stats); i++) {
 		const struct mv643xx_eth_stats *stat;
@@ -1850,19 +1773,6 @@ static int rxq_init(struct mv643xx_eth_private *mp, int index)
 		rx_desc[i].next_desc_ptr = rxq->rx_desc_dma +
 					nexti * sizeof(struct rx_desc);
 	}
-
-	rxq->lro_mgr.dev = mp->dev;
-	memset(&rxq->lro_mgr.stats, 0, sizeof(rxq->lro_mgr.stats));
-	rxq->lro_mgr.features = LRO_F_NAPI;
-	rxq->lro_mgr.ip_summed = CHECKSUM_UNNECESSARY;
-	rxq->lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
-	rxq->lro_mgr.max_desc = ARRAY_SIZE(rxq->lro_arr);
-	rxq->lro_mgr.max_aggr = 32;
-	rxq->lro_mgr.frag_align_pad = 0;
-	rxq->lro_mgr.lro_arr = rxq->lro_arr;
-	rxq->lro_mgr.get_skb_header = mv643xx_get_skb_header;
-
-	memset(&rxq->lro_arr, 0, sizeof(rxq->lro_arr));
 
 	return 0;
 
@@ -2851,8 +2761,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->watchdog_timeo = 2 * HZ;
 	dev->base_addr = 0;
 
-	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
-		NETIF_F_RXCSUM | NETIF_F_LRO;
+	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
 	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM;
 

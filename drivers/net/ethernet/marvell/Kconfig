@@ -21,7 +21,6 @@ if NET_VENDOR_MARVELL
 config MV643XX_ETH
 	tristate "Marvell Discovery (643XX) and Orion ethernet support"
 	depends on (MV64X60 || PPC32 || PLAT_ORION) && INET
-	select INET_LRO
 	select PHYLIB
 	select MVMDIO
 	---help---
