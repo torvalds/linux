@@ -428,13 +428,15 @@ int kvmppc_core_set_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 int kvmppc_get_one_reg(struct kvm_vcpu *vcpu, u64 id,
 			union kvmppc_one_reg *val)
 {
-	return -EINVAL;
+	int r = kvmppc_get_one_reg_e500_tlb(vcpu, id, val);
+	return r;
 }
 
 int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id,
 		       union kvmppc_one_reg *val)
 {
-	return -EINVAL;
+	int r = kvmppc_get_one_reg_e500_tlb(vcpu, id, val);
+	return r;
 }
 
 struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
