@@ -673,9 +673,9 @@ static void wm8994_device_exit(struct wm8994 *wm8994)
 }
 
 static const struct of_device_id wm8994_of_match[] = {
-	{ .compatible = "wlf,wm1811", },
-	{ .compatible = "wlf,wm8994", },
-	{ .compatible = "wlf,wm8958", },
+	{ .compatible = "wlf,wm1811", .data = (void *)WM1811 },
+	{ .compatible = "wlf,wm8994", .data = (void *)WM8994 },
+	{ .compatible = "wlf,wm8958", .data = (void *)WM8958 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, wm8994_of_match);
