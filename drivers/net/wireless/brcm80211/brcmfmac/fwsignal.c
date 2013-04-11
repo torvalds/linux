@@ -1718,7 +1718,6 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 	struct brcmf_skbuff_cb *skcb = brcmf_skbcb(skb);
 	struct ethhdr *eh = (struct ethhdr *)(skb->data);
 	ulong flags;
-	u8 ifidx = ifp->ifidx;
 	int fifo = BRCMF_FWS_FIFO_BCMC;
 	bool multicast = is_multicast_ether_addr(eh->h_dest);
 
@@ -1732,7 +1731,7 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 
 	if (!brcmf_fws_fc_active(drvr->fws)) {
 		/* If the protocol uses a data header, apply it */
-		brcmf_proto_hdrpush(drvr, ifidx, 0, skb);
+		brcmf_proto_hdrpush(drvr, ifp->ifidx, 0, skb);
 
 		/* Use bus module to send data frame */
 		return brcmf_bus_txdata(drvr->bus_if, skb);
@@ -1742,7 +1741,7 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 	skcb->if_flags = 0;
 	skcb->mac = brcmf_fws_find_mac_desc(drvr->fws, ifp, eh->h_dest);
 	skcb->state = BRCMF_FWS_SKBSTATE_NEW;
-	brcmf_skb_if_flags_set_field(skb, INDEX, ifidx);
+	brcmf_skb_if_flags_set_field(skb, INDEX, ifp->ifidx);
 	if (!multicast)
 		fifo = brcmf_fws_prio2fifo[skb->priority];
 	brcmf_skb_if_flags_set_field(skb, FIFO, fifo);
