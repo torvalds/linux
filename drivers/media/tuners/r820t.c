@@ -56,6 +56,11 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
+static int no_imr_cal;
+module_param(no_imr_cal, int, 0444);
+MODULE_PARM_DESC(no_imr_cal, "Disable IMR calibration at module init");
+
+
 /*
  * enums and structures
  */
@@ -87,7 +92,8 @@ struct r820t_priv {
 	u32				int_freq;
 	u8				fil_cal_code;
 	bool				imr_done;
-
+	bool				has_lock;
+	bool				init_done;
 	struct r820t_sect_type		imr_data[NUM_IMR];
 
 	/* Store current mode */
@@ -95,8 +101,6 @@ struct r820t_priv {
 	enum v4l2_tuner_type		type;
 	v4l2_std_id			std;
 	u32				bw;	/* in MHz */
-
-	bool				has_lock;
 };
 
 struct r820t_freq_range {
@@ -1999,7 +2003,7 @@ static int r820t_imr_callibrate(struct r820t_priv *priv)
 	int rc, i;
 	int xtal_cap = 0;
 
-	if (priv->imr_done)
+	if (priv->init_done)
 		return 0;
 
 	/* Initialize registers */
@@ -2022,6 +2026,16 @@ static int r820t_imr_callibrate(struct r820t_priv *priv)
 				xtal_cap = rc;
 		}
 		priv->xtal_cap_sel = xtal_cap;
+	}
+
+	/*
+	 * Disables IMR callibration. That emulates the same behaviour
+	 * as what is done by rtl-sdr userspace library. Useful for testing
+	 */
+	if (no_imr_cal) {
+		priv->init_done = true;
+
+		return 0;
 	}
 
 	/* Initialize registers */
@@ -2050,6 +2064,7 @@ static int r820t_imr_callibrate(struct r820t_priv *priv)
 	if (rc < 0)
 		return rc;
 
+	priv->init_done = true;
 	priv->imr_done = true;
 
 	return 0;
