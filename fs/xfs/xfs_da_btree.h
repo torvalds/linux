@@ -47,6 +47,29 @@ typedef struct xfs_da_blkinfo {
 } xfs_da_blkinfo_t;
 
 /*
+ * CRC enabled directory structure types
+ *
+ * The headers change size for the additional verification information, but
+ * otherwise the tree layouts and contents are unchanged.
+ */
+#define	XFS_DIR3_LEAF1_MAGIC	0x3df1	/* magic number: v2 dirlf single blks */
+#define	XFS_DIR3_LEAFN_MAGIC	0x3dff	/* magic number: v2 dirlf multi blks */
+
+struct xfs_da3_blkinfo {
+	/*
+	 * the node link manipulation code relies on the fact that the first
+	 * element of this structure is the struct xfs_da_blkinfo so it can
+	 * ignore the differences in the rest of the structures.
+	 */
+	struct xfs_da_blkinfo	hdr;
+	__be32			crc;	/* CRC of block */
+	__be64			blkno;	/* first block of the buffer */
+	__be64			lsn;	/* sequence number of last write */
+	uuid_t			uuid;	/* filesystem we belong to */
+	__be64			owner;	/* inode that owns the block */
+};
+
+/*
  * This is the structure of the root and intermediate nodes in the Btree.
  * The leaf nodes are defined above.
  *

@@ -139,7 +139,8 @@ xfs_da_node_read_verify(
 			bp->b_ops->verify_read(bp);
 			return;
 		case XFS_DIR2_LEAFN_MAGIC:
-			bp->b_ops = &xfs_dir2_leafn_buf_ops;
+		case XFS_DIR3_LEAFN_MAGIC:
+			bp->b_ops = &xfs_dir3_leafn_buf_ops;
 			bp->b_ops->verify_read(bp);
 			return;
 		default:
@@ -396,11 +397,18 @@ xfs_da_root_split(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 		size = (int)((char *)&oldroot->btree[be16_to_cpu(oldroot->hdr.count)] -
 			     (char *)oldroot);
 	} else {
-		ASSERT(oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC));
+		struct xfs_dir3_icleaf_hdr leafhdr;
+		struct xfs_dir2_leaf_entry *ents;
+
 		leaf = (xfs_dir2_leaf_t *)oldroot;
-		size = (int)((char *)&leaf->ents[be16_to_cpu(leaf->hdr.count)] -
-			     (char *)leaf);
+		xfs_dir3_leaf_hdr_from_disk(&leafhdr, leaf);
+		ents = xfs_dir3_leaf_ents_p(leaf);
+
+		ASSERT(leafhdr.magic == XFS_DIR2_LEAFN_MAGIC ||
+		       leafhdr.magic == XFS_DIR3_LEAFN_MAGIC);
+		size = (int)((char *)&ents[leafhdr.count] - (char *)leaf);
 	}
+	/* XXX: can't just copy CRC headers from one block to another */
 	memcpy(node, oldroot, size);
 	xfs_trans_log_buf(tp, bp, 0, size - 1);
 
@@ -424,7 +432,8 @@ xfs_da_root_split(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 	node->hdr.count = cpu_to_be16(2);
 
 #ifdef DEBUG
-	if (oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC)) {
+	if (oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC) ||
+	    oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC)) {
 		ASSERT(blk1->blkno >= mp->m_dirleafblk &&
 		       blk1->blkno < mp->m_dirfreeblk);
 		ASSERT(blk2->blkno >= mp->m_dirleafblk &&
@@ -782,6 +791,7 @@ xfs_da_blkinfo_onlychild_validate(struct xfs_da_blkinfo *blkinfo, __u16 level)
 
 	if (level == 1) {
 		ASSERT(magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC) ||
+		       magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC) ||
 		       magic == cpu_to_be16(XFS_ATTR_LEAF_MAGIC));
 	} else
 		ASSERT(magic == cpu_to_be16(XFS_DA_NODE_MAGIC));
@@ -1565,6 +1575,7 @@ xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
 		info = blk->bp->b_addr;
 		ASSERT(info->magic == cpu_to_be16(XFS_DA_NODE_MAGIC) ||
 		       info->magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC) ||
+		       info->magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC) ||
 		       info->magic == cpu_to_be16(XFS_ATTR_LEAF_MAGIC));
 		blk->magic = be16_to_cpu(info->magic);
 		if (blk->magic == XFS_DA_NODE_MAGIC) {
@@ -1584,12 +1595,13 @@ xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
 								      NULL);
 				break;
 			case XFS_DIR2_LEAFN_MAGIC:
+			case XFS_DIR3_LEAFN_MAGIC:
+				blk->magic = XFS_DIR2_LEAFN_MAGIC;
 				blk->hashval = xfs_dir2_leafn_lasthash(blk->bp,
 								       NULL);
 				break;
 			default:
-				ASSERT(blk->magic == XFS_ATTR_LEAF_MAGIC ||
-				       blk->magic == XFS_DIR2_LEAFN_MAGIC);
+				ASSERT(0);
 				break;
 			}
 		}
@@ -1833,10 +1845,16 @@ xfs_da_swap_lastblock(
 	/*
 	 * Get values from the moved block.
 	 */
-	if (dead_info->magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC)) {
+	if (dead_info->magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC) ||
+	    dead_info->magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC)) {
+		struct xfs_dir3_icleaf_hdr leafhdr;
+		struct xfs_dir2_leaf_entry *ents;
+
 		dead_leaf2 = (xfs_dir2_leaf_t *)dead_info;
+		xfs_dir3_leaf_hdr_from_disk(&leafhdr, dead_leaf2);
+		ents = xfs_dir3_leaf_ents_p(dead_leaf2);
 		dead_level = 0;
-		dead_hash = be32_to_cpu(dead_leaf2->ents[be16_to_cpu(dead_leaf2->hdr.count) - 1].hashval);
+		dead_hash = be32_to_cpu(ents[leafhdr.count - 1].hashval);
 	} else {
 		ASSERT(dead_info->magic == cpu_to_be16(XFS_DA_NODE_MAGIC));
 		dead_node = (xfs_da_intnode_t *)dead_info;
@@ -2281,10 +2299,17 @@ xfs_da_read_buf(
 		    XFS_TEST_ERROR((magic != XFS_DA_NODE_MAGIC) &&
 				   (magic != XFS_ATTR_LEAF_MAGIC) &&
 				   (magic != XFS_DIR2_LEAF1_MAGIC) &&
+				   (magic != XFS_DIR3_LEAF1_MAGIC) &&
 				   (magic != XFS_DIR2_LEAFN_MAGIC) &&
+				   (magic != XFS_DIR3_LEAFN_MAGIC) &&
 				   (magic1 != XFS_DIR2_BLOCK_MAGIC) &&
+				   (magic1 != XFS_DIR3_BLOCK_MAGIC) &&
 				   (magic1 != XFS_DIR2_DATA_MAGIC) &&
-				   (free->hdr.magic != cpu_to_be32(XFS_DIR2_FREE_MAGIC)),
+				   (magic1 != XFS_DIR3_DATA_MAGIC) &&
+				   (free->hdr.magic !=
+					cpu_to_be32(XFS_DIR2_FREE_MAGIC)) &&
+				   (free->hdr.magic !=
+					cpu_to_be32(XFS_DIR3_FREE_MAGIC)),
 				mp, XFS_ERRTAG_DA_READ_BUF,
 				XFS_RANDOM_DA_READ_BUF))) {
 			trace_xfs_da_btree_corrupt(bp, _RET_IP_);

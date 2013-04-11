@@ -470,6 +470,21 @@ typedef struct xfs_dir2_leaf_hdr {
 	__be16			stale;		/* count of stale entries */
 } xfs_dir2_leaf_hdr_t;
 
+struct xfs_dir3_leaf_hdr {
+	struct xfs_da3_blkinfo	info;		/* header for da routines */
+	__be16			count;		/* count of entries */
+	__be16			stale;		/* count of stale entries */
+	__be32			pad;
+};
+
+struct xfs_dir3_icleaf_hdr {
+	__uint32_t		forw;
+	__uint32_t		back;
+	__uint16_t		magic;
+	__uint16_t		count;
+	__uint16_t		stale;
+};
+
 /*
  * Leaf block entry.
  */
@@ -489,18 +504,45 @@ typedef struct xfs_dir2_leaf_tail {
  * Leaf block.
  */
 typedef struct xfs_dir2_leaf {
-	xfs_dir2_leaf_hdr_t	hdr;		/* leaf header */
-	xfs_dir2_leaf_entry_t	ents[];		/* entries */
+	xfs_dir2_leaf_hdr_t	hdr;			/* leaf header */
+	xfs_dir2_leaf_entry_t	__ents[];		/* entries */
 } xfs_dir2_leaf_t;
 
-/*
- * DB blocks here are logical directory block numbers, not filesystem blocks.
- */
+struct xfs_dir3_leaf {
+	struct xfs_dir3_leaf_hdr	hdr;		/* leaf header */
+	struct xfs_dir2_leaf_entry	__ents[];	/* entries */
+};
 
-static inline int xfs_dir2_max_leaf_ents(struct xfs_mount *mp)
+#define XFS_DIR3_LEAF_CRC_OFF  offsetof(struct xfs_dir3_leaf_hdr, info.crc)
+
+static inline int
+xfs_dir3_leaf_hdr_size(struct xfs_dir2_leaf *lp)
 {
-	return (mp->m_dirblksize - (uint)sizeof(struct xfs_dir2_leaf_hdr)) /
+	if (lp->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAF1_MAGIC) ||
+	    lp->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC))
+		return sizeof(struct xfs_dir3_leaf_hdr);
+	return sizeof(struct xfs_dir2_leaf_hdr);
+}
+
+static inline int
+xfs_dir3_max_leaf_ents(struct xfs_mount *mp, struct xfs_dir2_leaf *lp)
+{
+	return (mp->m_dirblksize - xfs_dir3_leaf_hdr_size(lp)) /
 		(uint)sizeof(struct xfs_dir2_leaf_entry);
+}
+
+/*
+ * Get address of the bestcount field in the single-leaf block.
+ */
+static inline struct xfs_dir2_leaf_entry *
+xfs_dir3_leaf_ents_p(struct xfs_dir2_leaf *lp)
+{
+	if (lp->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAF1_MAGIC) ||
+	    lp->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC)) {
+		struct xfs_dir3_leaf *lp3 = (struct xfs_dir3_leaf *)lp;
+		return lp3->__ents;
+	}
+	return lp->__ents;
 }
 
 /*
@@ -522,6 +564,10 @@ xfs_dir2_leaf_bests_p(struct xfs_dir2_leaf_tail *ltp)
 {
 	return (__be16 *)ltp - be32_to_cpu(ltp->bestcount);
 }
+
+/*
+ * DB blocks here are logical directory block numbers, not filesystem blocks.
+ */
 
 /*
  * Convert dataptr to byte in file space
