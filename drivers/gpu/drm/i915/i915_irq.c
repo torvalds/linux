@@ -532,6 +532,21 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
 						     crtc);
 }
 
+static int intel_hpd_irq_event(struct drm_device *dev, struct drm_connector *connector)
+{
+	enum drm_connector_status old_status;
+
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+	old_status = connector->status;
+
+	connector->status = connector->funcs->detect(connector, false);
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %d to %d\n",
+		      connector->base.id,
+		      drm_get_connector_name(connector),
+		      old_status, connector->status);
+	return (old_status != connector->status);
+}
+
 /*
  * Handle hotplug events outside the interrupt handler proper.
  */
@@ -548,6 +563,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	struct drm_connector *connector;
 	unsigned long irqflags;
 	bool hpd_disabled = false;
+	bool changed = false;
 	u32 hpd_event_bits;
 
 	/* HPD irq before everything is fully set up. */
@@ -591,14 +607,20 @@ static void i915_hotplug_work_func(struct work_struct *work)
 
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
-	list_for_each_entry(intel_encoder, &mode_config->encoder_list, base.head)
-		if (intel_encoder->hot_plug)
-			intel_encoder->hot_plug(intel_encoder);
-
+	list_for_each_entry(connector, &mode_config->connector_list, head) {
+		intel_connector = to_intel_connector(connector);
+		intel_encoder = intel_connector->encoder;
+		if (hpd_event_bits & (1 << intel_encoder->hpd_pin)) {
+			if (intel_encoder->hot_plug)
+				intel_encoder->hot_plug(intel_encoder);
+			if (intel_hpd_irq_event(dev, connector))
+				changed = true;
+		}
+	}
 	mutex_unlock(&mode_config->mutex);
 
-	/* Just fire off a uevent and let userspace tell us what to do */
-	drm_helper_hpd_irq_event(dev);
+	if (changed)
+		drm_kms_helper_hotplug_event(dev);
 }
 
 static void ironlake_handle_rps_change(struct drm_device *dev)
