@@ -178,6 +178,14 @@ enum igb_tx_flags {
 #define TXD_USE_COUNT(S) DIV_ROUND_UP((S), IGB_MAX_DATA_PER_TXD)
 #define DESC_NEEDED (MAX_SKB_FRAGS + 4)
 
+/* EEPROM byte offsets */
+#define IGB_SFF_8472_SWAP		0x5C
+#define IGB_SFF_8472_COMP		0x5E
+
+/* Bitmasks */
+#define IGB_SFF_ADDRESSING_MODE		0x4
+#define IGB_SFF_8472_UNSUP		0x00
+
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer */
 struct igb_tx_buffer {

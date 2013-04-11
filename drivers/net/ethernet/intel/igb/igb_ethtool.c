@@ -2622,6 +2622,85 @@ static int igb_set_eee(struct net_device *netdev,
 	return 0;
 }
 
+static int igb_get_module_info(struct net_device *netdev,
+			       struct ethtool_modinfo *modinfo)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	u32 status = E1000_SUCCESS;
+	u16 sff8472_rev, addr_mode;
+	bool page_swap = false;
+
+	if ((hw->phy.media_type == e1000_media_type_copper) ||
+	    (hw->phy.media_type == e1000_media_type_unknown))
+		return -EOPNOTSUPP;
+
+	/* Check whether we support SFF-8472 or not */
+	status = igb_read_phy_reg_i2c(hw, IGB_SFF_8472_COMP, &sff8472_rev);
+	if (status != E1000_SUCCESS)
+		return -EIO;
+
+	/* addressing mode is not supported */
+	status = igb_read_phy_reg_i2c(hw, IGB_SFF_8472_SWAP, &addr_mode);
+	if (status != E1000_SUCCESS)
+		return -EIO;
+
+	/* addressing mode is not supported */
+	if ((addr_mode & 0xFF) & IGB_SFF_ADDRESSING_MODE) {
+		hw_dbg("Address change required to access page 0xA2, but not supported. Please report the module type to the driver maintainers.\n");
+		page_swap = true;
+	}
+
+	if ((sff8472_rev & 0xFF) == IGB_SFF_8472_UNSUP || page_swap) {
+		/* We have an SFP, but it does not support SFF-8472 */
+		modinfo->type = ETH_MODULE_SFF_8079;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+	} else {
+		/* We have an SFP which supports a revision of SFF-8472 */
+		modinfo->type = ETH_MODULE_SFF_8472;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
+	}
+
+	return 0;
+}
+
+static int igb_get_module_eeprom(struct net_device *netdev,
+				 struct ethtool_eeprom *ee, u8 *data)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	u32 status = E1000_SUCCESS;
+	u16 *dataword;
+	u16 first_word, last_word;
+	int i = 0;
+
+	if (ee->len == 0)
+		return -EINVAL;
+
+	first_word = ee->offset >> 1;
+	last_word = (ee->offset + ee->len - 1) >> 1;
+
+	dataword = kmalloc(sizeof(u16) * (last_word - first_word + 1),
+			   GFP_KERNEL);
+	if (!dataword)
+		return -ENOMEM;
+
+	/* Read EEPROM block, SFF-8079/SFF-8472, word at a time */
+	for (i = 0; i < last_word - first_word + 1; i++) {
+		status = igb_read_phy_reg_i2c(hw, first_word + i, &dataword[i]);
+		if (status != E1000_SUCCESS)
+			/* Error occurred while reading module */
+			return -EIO;
+
+		be16_to_cpus(&dataword[i]);
+	}
+
+	memcpy(data, (u8 *)dataword + (ee->offset & 1), ee->len);
+	kfree(dataword);
+
+	return 0;
+}
+
 static int igb_ethtool_begin(struct net_device *netdev)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
@@ -2666,6 +2745,8 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.set_rxnfc		= igb_set_rxnfc,
 	.get_eee		= igb_get_eee,
 	.set_eee		= igb_set_eee,
+	.get_module_info	= igb_get_module_info,
+	.get_module_eeprom	= igb_get_module_eeprom,
 	.begin			= igb_ethtool_begin,
 	.complete		= igb_ethtool_complete,
 };
