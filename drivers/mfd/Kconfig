@@ -351,6 +351,20 @@ config MFD_MAX77686
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_MAX77XXX
+	bool "Maxim Semiconductor MAX77686/802 PMIC Support"
+	depends on I2C=y
+	select MFD_CORE
+	select REGMAP_I2C
+	select IRQ_DOMAIN
+	help
+	  Say yes here to support for Maxim Semiconductor MAX77xxx. The
+	  driver supports MAX77686 and MAX77802. These are companion
+	  Power Management ICs with RTC.
+	  This driver provides common support for accessing the device;
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
+
 config MFD_MAX77693
 	bool "Maxim Semiconductor MAX77693 PMIC Support"
 	depends on I2C=y
