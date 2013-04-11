@@ -358,6 +358,9 @@ void mei_host_client_init(struct work_struct *work)
 			mei_amthif_host_init(dev);
 		else if (!uuid_le_cmp(client_props->protocol_name, mei_wd_guid))
 			mei_wd_host_init(dev);
+		else if (!uuid_le_cmp(client_props->protocol_name, mei_nfc_guid))
+			mei_nfc_host_init(dev);
+
 	}
 
 	dev->dev_state = MEI_DEV_ENABLED;

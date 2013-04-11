@@ -219,6 +219,8 @@ void mei_stop(struct mei_device *dev)
 
 	mei_wd_stop(dev);
 
+	mei_nfc_host_exit();
+
 	dev->dev_state = MEI_DEV_POWER_DOWN;
 	mei_reset(dev, 0);
 
