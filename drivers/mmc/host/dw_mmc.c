@@ -1952,14 +1952,6 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	else
 		bus_width = 1;
 
-	if (drv_data && drv_data->setup_bus) {
-		struct device_node *slot_np;
-		slot_np = dw_mci_of_find_slot_node(host->dev, slot->id);
-		ret = drv_data->setup_bus(host, slot_np, bus_width);
-		if (ret)
-			goto err_setup_bus;
-	}
-
 	switch (bus_width) {
 	case 8:
 		mmc->caps |= MMC_CAP_8_BIT_DATA;
