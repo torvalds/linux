@@ -43,7 +43,7 @@ static int usb_gsi_openclose(struct usb_serial_port *port, int value)
 		USB_DIR_OUT|USB_TYPE_VENDOR|USB_RECIP_INTERFACE,
 		value, /* wValue = device is open(1) or closed(0) */
 		port->serial->interface->cur_altsetting->desc.bInterfaceNumber,
-		0, 0,  /* There is no data stage */
+		NULL, 0,  /* There is no data stage */
 		5000); /* Timeout till operation fails */
 }
 
