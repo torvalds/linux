@@ -1474,6 +1474,8 @@ static void intel_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	int reg;
 	u32 val;
 
+	assert_pipe_disabled(dev_priv, pipe);
+
 	/* No really, not for ILK+ */
 	BUG_ON(!IS_VALLEYVIEW(dev_priv->dev) && dev_priv->info->gen >= 5);
 
@@ -1834,6 +1836,9 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 	enum pipe pch_transcoder;
 	int reg;
 	u32 val;
+
+	assert_planes_disabled(dev_priv, pipe);
+	assert_sprites_disabled(dev_priv, pipe);
 
 	if (HAS_PCH_LPT(dev_priv->dev))
 		pch_transcoder = TRANSCODER_A;
