@@ -2136,6 +2136,7 @@ extern long ext4_compat_ioctl(struct file *, unsigned int, unsigned long);
 
 /* migrate.c */
 extern int ext4_ext_migrate(struct inode *);
+extern int ext4_ind_migrate(struct inode *inode);
 
 /* namei.c */
 extern int ext4_dirent_csum_verify(struct inode *inode,
@@ -2625,7 +2626,6 @@ extern int ext4_find_delalloc_range(struct inode *inode,
 extern int ext4_find_delalloc_cluster(struct inode *inode, ext4_lblk_t lblk);
 extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			__u64 start, __u64 len);
-extern int ext4_ind_migrate(struct inode *inode);
 
 
 /* move_extent.c */
