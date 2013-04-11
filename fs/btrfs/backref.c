@@ -443,7 +443,7 @@ static int __add_missing_keys(struct btrfs_fs_info *fs_info,
  *           having a parent).
  * mode = 2: merge identical parents
  */
-static int __merge_refs(struct list_head *head, int mode)
+static void __merge_refs(struct list_head *head, int mode)
 {
 	struct list_head *pos1;
 
@@ -489,7 +489,6 @@ static int __merge_refs(struct list_head *head, int mode)
 		}
 
 	}
-	return 0;
 }
 
 /*
@@ -884,18 +883,14 @@ again:
 	if (ret)
 		goto out;
 
-	ret = __merge_refs(&prefs, 1);
-	if (ret)
-		goto out;
+	__merge_refs(&prefs, 1);
 
 	ret = __resolve_indirect_refs(fs_info, search_commit_root, time_seq,
 				      &prefs, extent_item_pos);
 	if (ret)
 		goto out;
 
-	ret = __merge_refs(&prefs, 2);
-	if (ret)
-		goto out;
+	__merge_refs(&prefs, 2);
 
 	while (!list_empty(&prefs)) {
 		ref = list_first_entry(&prefs, struct __prelim_ref, list);
