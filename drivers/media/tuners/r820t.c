@@ -36,7 +36,6 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/bitrev.h>
-#include <asm/div64.h>
 
 #include "tuner-i2c.h"
 #include "r820t.h"
@@ -540,7 +539,7 @@ static int r820t_set_mux(struct r820t_priv *priv, u32 freq)
 static int r820t_set_pll(struct r820t_priv *priv, enum v4l2_tuner_type type,
 			 u32 freq)
 {
-	u64 tmp64, vco_freq;
+	u32 vco_freq;
 	int rc, i;
 	unsigned sleep_time = 10000;
 	u32 vco_fra;		/* VCO contribution by SDM (kHz) */
@@ -575,9 +574,6 @@ static int r820t_set_pll(struct r820t_priv *priv, enum v4l2_tuner_type type,
 			refdiv2 = 0x10;
 		}
 	}
-
-	tuner_dbg("set r820t pll for frequency %d kHz = %d%s\n",
-		  freq, pll_ref, refdiv2 ? " / 2" : "");
 
 	rc = r820t_write_reg_mask(priv, 0x10, refdiv2, 0x10);
 	if (rc < 0)
@@ -622,15 +618,9 @@ static int r820t_set_pll(struct r820t_priv *priv, enum v4l2_tuner_type type,
 	if (rc < 0)
 		return rc;
 
-	vco_freq = (u64)(freq * (u64)mix_div);
-
-	tmp64 = vco_freq;
-	do_div(tmp64, 2 * pll_ref);
-	nint = (u8)tmp64;
-
-	tmp64 = vco_freq - ((u64)2) * pll_ref * nint;
-	do_div(tmp64, 1000);
-	vco_fra  = (u16)(tmp64);
+	vco_freq = freq * mix_div;
+	nint = vco_freq / (2 * pll_ref);
+	vco_fra = vco_freq - 2 * pll_ref * nint;
 
 	/* boundary spur prevention */
 	if (vco_fra < pll_ref / 64) {
@@ -677,10 +667,13 @@ static int r820t_set_pll(struct r820t_priv *priv, enum v4l2_tuner_type type,
 		n_sdm = n_sdm << 1;
 	}
 
-	rc = r820t_write_reg_mask(priv, 0x16, sdm >> 8, 0x08);
+	tuner_dbg("freq %d kHz, pll ref %d%s, sdm=0x%04x\n",
+		  freq, pll_ref, refdiv2 ? " / 2" : "", sdm);
+
+	rc = r820t_write_reg(priv, 0x16, sdm >> 8);
 	if (rc < 0)
 		return rc;
-	rc = r820t_write_reg_mask(priv, 0x15, sdm & 0xff, 0x08);
+	rc = r820t_write_reg(priv, 0x15, sdm & 0xff);
 	if (rc < 0)
 		return rc;
 
@@ -1068,7 +1061,7 @@ static int r820t_set_tv_standard(struct r820t_priv *priv,
 			if (rc < 0)
 				return rc;
 
-			rc = r820t_set_pll(priv, type, filt_cal_lo);
+			rc = r820t_set_pll(priv, type, filt_cal_lo * 1000);
 			if (rc < 0 || !priv->has_lock)
 				return rc;
 
