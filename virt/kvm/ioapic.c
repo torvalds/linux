@@ -217,7 +217,7 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 	irqe.level = 1;
 	irqe.shorthand = 0;
 
-	return kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe);
+	return kvm_irq_delivery_to_apic(ioapic->kvm, NULL, &irqe, NULL);
 }
 
 int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int irq_source_id,
