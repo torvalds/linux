@@ -34,7 +34,7 @@ static void exynos_ohci_phy_enable(struct exynos_ohci_hcd *exynos_ohci)
 
 	if (exynos_ohci->phy)
 		usb_phy_init(exynos_ohci->phy);
-	else if (exynos_ohci->pdata->phy_init)
+	else if (exynos_ohci->pdata && exynos_ohci->pdata->phy_init)
 		exynos_ohci->pdata->phy_init(pdev, USB_PHY_TYPE_HOST);
 }
 
@@ -44,7 +44,7 @@ static void exynos_ohci_phy_disable(struct exynos_ohci_hcd *exynos_ohci)
 
 	if (exynos_ohci->phy)
 		usb_phy_shutdown(exynos_ohci->phy);
-	else if (exynos_ohci->pdata->phy_exit)
+	else if (exynos_ohci->pdata && exynos_ohci->pdata->phy_exit)
 		exynos_ohci->pdata->phy_exit(pdev, USB_PHY_TYPE_HOST);
 }
 
@@ -127,6 +127,10 @@ static int exynos_ohci_probe(struct platform_device *pdev)
 	if (!exynos_ohci)
 		return -ENOMEM;
 
+	if (of_device_is_compatible(pdev->dev.of_node,
+					"samsung,exynos5440-ohci"))
+		goto skip_phy;
+
 	phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
 	if (IS_ERR(phy)) {
 		/* Fallback to pdata */
@@ -140,6 +144,8 @@ static int exynos_ohci_probe(struct platform_device *pdev)
 		exynos_ohci->phy = phy;
 		exynos_ohci->otg = phy->otg;
 	}
+
+skip_phy:
 
 	exynos_ohci->dev = &pdev->dev;
 
@@ -311,6 +317,7 @@ static const struct dev_pm_ops exynos_ohci_pm_ops = {
 #ifdef CONFIG_OF
 static const struct of_device_id exynos_ohci_match[] = {
 	{ .compatible = "samsung,exynos4210-ohci" },
+	{ .compatible = "samsung,exynos5440-ohci" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_ohci_match);
