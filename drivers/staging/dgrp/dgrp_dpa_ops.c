@@ -40,6 +40,7 @@
 #include <linux/cred.h>
 #include <linux/sched.h>
 #include <linux/ratelimit.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 
 #include "dgrp_common.h"

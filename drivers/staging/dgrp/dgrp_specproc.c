@@ -37,6 +37,7 @@
 #include <linux/sched.h>
 #include <linux/cred.h>
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>

@@ -37,6 +37,7 @@
 #include <linux/tty.h>
 #include <linux/sched.h>
 #include <asm/unaligned.h>
+#include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 
