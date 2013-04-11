@@ -47,11 +47,6 @@ enum {
  * non-directory entries).
  */
 
-typedef	int (read_proc_t)(char *page, char **start, off_t off,
-			  int count, int *eof, void *data);
-typedef	int (write_proc_t)(struct file *file, const char __user *buffer,
-			   unsigned long count, void *data);
-
 struct proc_dir_entry {
 	unsigned int low_ino;
 	umode_t mode;
@@ -63,7 +58,6 @@ struct proc_dir_entry {
 	const struct file_operations *proc_fops;
 	struct proc_dir_entry *next, *parent, *subdir;
 	void *data;
-	read_proc_t *read_proc;
 	atomic_t count;		/* use count */
 	atomic_t in_use;	/* number of callers into module in progress; */
 			/* negative -> it's going away RSN */
@@ -154,11 +148,6 @@ static inline struct proc_dir_entry *proc_create(const char *name, umode_t mode,
 {
 	return proc_create_data(name, mode, parent, proc_fops, NULL);
 }
-
-extern __deprecated
-struct proc_dir_entry *create_proc_read_entry(const char *name,
-	umode_t mode, struct proc_dir_entry *base, 
-	read_proc_t *read_proc, void *data);
  
 extern struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
 	struct proc_dir_entry *parent);
@@ -191,11 +180,6 @@ static inline struct proc_dir_entry *proc_mkdir(const char *name,
 	struct proc_dir_entry *parent) {return NULL;}
 static inline struct proc_dir_entry *proc_mkdir_mode(const char *name,
 	umode_t mode, struct proc_dir_entry *parent) { return NULL; }
-
-static inline __deprecated
-struct proc_dir_entry *create_proc_read_entry(const char *name,
-	umode_t mode, struct proc_dir_entry *base, 
-	read_proc_t *read_proc, void * data) { return NULL; }
 
 struct tty_driver;
 static inline void proc_tty_register_driver(struct tty_driver *driver) {};

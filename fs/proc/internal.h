@@ -157,8 +157,6 @@ struct pde_opener {
 	struct completion *c;
 };
 
-ssize_t __proc_file_read(struct file *, char __user *, size_t, loff_t *);
-extern const struct file_operations proc_file_operations;
 void proc_entry_rundown(struct proc_dir_entry *);
 
 extern spinlock_t proc_subdir_lock;

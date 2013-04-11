@@ -36,141 +36,6 @@ static int proc_match(unsigned int len, const char *name, struct proc_dir_entry 
 	return !memcmp(name, de->name, len);
 }
 
-/* buffer size is one page but our output routines use some slack for overruns */
-#define PROC_BLOCK_SIZE	(PAGE_SIZE - 1024)
-
-ssize_t
-__proc_file_read(struct file *file, char __user *buf, size_t nbytes,
-	       loff_t *ppos)
-{
-	struct inode * inode = file_inode(file);
-	char 	*page;
-	ssize_t	retval=0;
-	int	eof=0;
-	ssize_t	n, count;
-	char	*start;
-	struct proc_dir_entry * dp;
-	unsigned long long pos;
-
-	/*
-	 * Gaah, please just use "seq_file" instead. The legacy /proc
-	 * interfaces cut loff_t down to off_t for reads, and ignore
-	 * the offset entirely for writes..
-	 */
-	pos = *ppos;
-	if (pos > MAX_NON_LFS)
-		return 0;
-	if (nbytes > MAX_NON_LFS - pos)
-		nbytes = MAX_NON_LFS - pos;
-
-	dp = PDE(inode);
-	if (!(page = (char*) __get_free_page(GFP_TEMPORARY)))
-		return -ENOMEM;
-
-	while ((nbytes > 0) && !eof) {
-		count = min_t(size_t, PROC_BLOCK_SIZE, nbytes);
-
-		start = NULL;
-		if (!dp->read_proc)
-			break;
-
-		/* How to be a proc read function
-		 * ------------------------------
-		 * Prototype:
-		 *    int f(char *buffer, char **start, off_t offset,
-		 *          int count, int *peof, void *dat)
-		 *
-		 * Assume that the buffer is "count" bytes in size.
-		 *
-		 * If you know you have supplied all the data you have, set
-		 * *peof.
-		 *
-		 * You have three ways to return data:
-		 *
-		 * 0) Leave *start = NULL.  (This is the default.)  Put the
-		 *    data of the requested offset at that offset within the
-		 *    buffer.  Return the number (n) of bytes there are from
-		 *    the beginning of the buffer up to the last byte of data.
-		 *    If the number of supplied bytes (= n - offset) is greater
-		 *    than zero and you didn't signal eof and the reader is
-		 *    prepared to take more data you will be called again with
-		 *    the requested offset advanced by the number of bytes
-		 *    absorbed.  This interface is useful for files no larger
-		 *    than the buffer.
-		 *
-		 * 1) Set *start = an unsigned long value less than the buffer
-		 *    address but greater than zero.  Put the data of the
-		 *    requested offset at the beginning of the buffer.  Return
-		 *    the number of bytes of data placed there.  If this number
-		 *    is greater than zero and you didn't signal eof and the
-		 *    reader is prepared to take more data you will be called
-		 *    again with the requested offset advanced by *start.  This
-		 *    interface is useful when you have a large file consisting
-		 *    of a series of blocks which you want to count and return
-		 *    as wholes.
-		 *    (Hack by Paul.Russell@rustcorp.com.au)
-		 *
-		 * 2) Set *start = an address within the buffer.  Put the data
-		 *    of the requested offset at *start.  Return the number of
-		 *    bytes of data placed there.  If this number is greater
-		 *    than zero and you didn't signal eof and the reader is
-		 *    prepared to take more data you will be called again with
-		 *    the requested offset advanced by the number of bytes
-		 *    absorbed.
-		 */
-		n = dp->read_proc(page, &start, *ppos, count, &eof, dp->data);
-
-		if (n == 0)   /* end of file */
-			break;
-		if (n < 0) {  /* error */
-			if (retval == 0)
-				retval = n;
-			break;
-		}
-
-		if (start == NULL) {
-			if (n > PAGE_SIZE)	/* Apparent buffer overflow */
-				n = PAGE_SIZE;
-			n -= *ppos;
-			if (n <= 0)
-				break;
-			if (n > count)
-				n = count;
-			start = page + *ppos;
-		} else if (start < page) {
-			if (n > PAGE_SIZE)	/* Apparent buffer overflow */
-				n = PAGE_SIZE;
-			if (n > count) {
-				/*
-				 * Don't reduce n because doing so might
-				 * cut off part of a data block.
-				 */
-				pr_warn("proc_file_read: count exceeded\n");
-			}
-		} else /* start >= page */ {
-			unsigned long startoff = (unsigned long)(start - page);
-			if (n > (PAGE_SIZE - startoff))	/* buffer overflow? */
-				n = PAGE_SIZE - startoff;
-			if (n > count)
-				n = count;
-		}
-		
- 		n -= copy_to_user(buf, start < page ? page : start, n);
-		if (n == 0) {
-			if (retval == 0)
-				retval = -EFAULT;
-			break;
-		}
-
-		*ppos += start < page ? (unsigned long)start : n;
-		nbytes -= n;
-		buf += n;
-		retval += n;
-	}
-	free_page((unsigned long) page);
-	return retval;
-}
-
 static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = dentry->d_inode;
@@ -476,8 +341,7 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 	} else if (S_ISLNK(dp->mode)) {
 		dp->proc_iops = &proc_link_inode_operations;
 	} else if (S_ISREG(dp->mode)) {
-		if (dp->proc_fops == NULL)
-			dp->proc_fops = &proc_file_operations;
+		BUG_ON(dp->proc_fops == NULL);
 		dp->proc_iops = &proc_file_inode_operations;
 	} else {
 		WARN_ON(1);
@@ -603,36 +467,6 @@ struct proc_dir_entry *proc_mkdir(const char *name,
 	return proc_mkdir_mode(name, S_IRUGO | S_IXUGO, parent);
 }
 EXPORT_SYMBOL(proc_mkdir);
-
-struct proc_dir_entry *create_proc_read_entry(
-	const char *name, umode_t mode, struct proc_dir_entry *parent, 
-	read_proc_t *read_proc, void *data)
-{
-	struct proc_dir_entry *ent;
-
-	if ((mode & S_IFMT) == 0)
-		mode |= S_IFREG;
-
-	if (!S_ISREG(mode)) {
-		WARN_ON(1);	/* use proc_mkdir(), damnit */
-		return NULL;
-	}
-
-	if ((mode & S_IALLUGO) == 0)
-		mode |= S_IRUGO;
-
-	ent = __proc_create(&parent, name, mode, 1);
-	if (ent) {
-		ent->read_proc = read_proc;
-		ent->data = data;
-		if (proc_register(parent, ent) < 0) {
-			kfree(ent);
-			ent = NULL;
-		}
-	}
-	return ent;
-}
-EXPORT_SYMBOL(create_proc_read_entry);
 
 struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 					struct proc_dir_entry *parent,
