@@ -35,7 +35,8 @@
 #include "ioapic.h"
 
 static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
-			   struct kvm *kvm, int irq_source_id, int level)
+			   struct kvm *kvm, int irq_source_id, int level,
+			   bool line_status)
 {
 #ifdef CONFIG_X86
 	struct kvm_pic *pic = pic_irqchip(kvm);
@@ -46,10 +47,12 @@ static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
 }
 
 static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
-			      struct kvm *kvm, int irq_source_id, int level)
+			      struct kvm *kvm, int irq_source_id, int level,
+			      bool line_status)
 {
 	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
-	return kvm_ioapic_set_irq(ioapic, e->irqchip.pin, irq_source_id, level);
+	return kvm_ioapic_set_irq(ioapic, e->irqchip.pin, irq_source_id, level,
+				line_status);
 }
 
 inline static bool kvm_is_dm_lowest_prio(struct kvm_lapic_irq *irq)
@@ -121,7 +124,7 @@ static inline void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
 }
 
 int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
-		struct kvm *kvm, int irq_source_id, int level)
+		struct kvm *kvm, int irq_source_id, int level, bool line_status)
 {
 	struct kvm_lapic_irq irq;
 
@@ -159,7 +162,7 @@ int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi)
 	route.msi.address_hi = msi->address_hi;
 	route.msi.data = msi->data;
 
-	return kvm_set_msi(&route, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1);
+	return kvm_set_msi(&route, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1, false);
 }
 
 /*
@@ -168,7 +171,8 @@ int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi)
  *  = 0   Interrupt was coalesced (previous irq is still pending)
  *  > 0   Number of CPUs interrupt was delivered to
  */
-int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level)
+int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
+		bool line_status)
 {
 	struct kvm_kernel_irq_routing_entry *e, irq_set[KVM_NR_IRQCHIPS];
 	int ret = -1, i = 0;
@@ -189,7 +193,8 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 
 	while(i--) {
 		int r;
-		r = irq_set[i].set(&irq_set[i], kvm, irq_source_id, level);
+		r = irq_set[i].set(&irq_set[i], kvm, irq_source_id, level,
+				line_status);
 		if (r < 0)
 			continue;
 

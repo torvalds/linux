@@ -2258,7 +2258,8 @@ static long kvm_vm_ioctl(struct file *filp,
 		if (copy_from_user(&irq_event, argp, sizeof irq_event))
 			goto out;
 
-		r = kvm_vm_ioctl_irq_line(kvm, &irq_event);
+		r = kvm_vm_ioctl_irq_line(kvm, &irq_event,
+					ioctl == KVM_IRQ_LINE_STATUS);
 		if (r)
 			goto out;
 

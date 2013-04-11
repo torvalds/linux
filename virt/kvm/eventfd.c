@@ -100,11 +100,13 @@ irqfd_inject(struct work_struct *work)
 	struct kvm *kvm = irqfd->kvm;
 
 	if (!irqfd->resampler) {
-		kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID, irqfd->gsi, 1);
-		kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID, irqfd->gsi, 0);
+		kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID, irqfd->gsi, 1,
+				false);
+		kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID, irqfd->gsi, 0,
+				false);
 	} else
 		kvm_set_irq(kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
-			    irqfd->gsi, 1);
+			    irqfd->gsi, 1, false);
 }
 
 /*
@@ -121,7 +123,7 @@ irqfd_resampler_ack(struct kvm_irq_ack_notifier *kian)
 	resampler = container_of(kian, struct _irqfd_resampler, notifier);
 
 	kvm_set_irq(resampler->kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
-		    resampler->notifier.gsi, 0);
+		    resampler->notifier.gsi, 0, false);
 
 	rcu_read_lock();
 
@@ -146,7 +148,7 @@ irqfd_resampler_shutdown(struct _irqfd *irqfd)
 		list_del(&resampler->link);
 		kvm_unregister_irq_ack_notifier(kvm, &resampler->notifier);
 		kvm_set_irq(kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
-			    resampler->notifier.gsi, 0);
+			    resampler->notifier.gsi, 0, false);
 		kfree(resampler);
 	}
 
@@ -225,7 +227,8 @@ irqfd_wakeup(wait_queue_t *wait, unsigned mode, int sync, void *key)
 		irq = rcu_dereference(irqfd->irq_entry);
 		/* An event has been signaled, inject an interrupt */
 		if (irq)
-			kvm_set_msi(irq, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1);
+			kvm_set_msi(irq, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1,
+					false);
 		else
 			schedule_work(&irqfd->inject);
 		rcu_read_unlock();

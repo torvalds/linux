@@ -50,7 +50,8 @@
 #else
 #define ioapic_debug(fmt, arg...)
 #endif
-static int ioapic_deliver(struct kvm_ioapic *vioapic, int irq);
+static int ioapic_deliver(struct kvm_ioapic *vioapic, int irq,
+		bool line_status);
 
 static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
 					  unsigned long addr,
@@ -146,7 +147,8 @@ static void kvm_rtc_eoi_tracking_restore_all(struct kvm_ioapic *ioapic)
 	    __rtc_irq_eoi_tracking_restore_one(vcpu);
 }
 
-static int ioapic_service(struct kvm_ioapic *ioapic, unsigned int idx)
+static int ioapic_service(struct kvm_ioapic *ioapic, unsigned int idx,
+		bool line_status)
 {
 	union kvm_ioapic_redirect_entry *pent;
 	int injected = -1;
@@ -154,7 +156,7 @@ static int ioapic_service(struct kvm_ioapic *ioapic, unsigned int idx)
 	pent = &ioapic->redirtbl[idx];
 
 	if (!pent->fields.mask) {
-		injected = ioapic_deliver(ioapic, idx);
+		injected = ioapic_deliver(ioapic, idx, line_status);
 		if (injected && pent->fields.trig_mode == IOAPIC_LEVEL_TRIG)
 			pent->fields.remote_irr = 1;
 	}
@@ -248,13 +250,13 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 			kvm_fire_mask_notifiers(ioapic->kvm, KVM_IRQCHIP_IOAPIC, index, mask_after);
 		if (e->fields.trig_mode == IOAPIC_LEVEL_TRIG
 		    && ioapic->irr & (1 << index))
-			ioapic_service(ioapic, index);
+			ioapic_service(ioapic, index, false);
 		kvm_ioapic_make_eoibitmap_request(ioapic->kvm);
 		break;
 	}
 }
 
-static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
+static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq, bool line_status)
 {
 	union kvm_ioapic_redirect_entry *entry = &ioapic->redirtbl[irq];
 	struct kvm_lapic_irq irqe;
@@ -277,7 +279,7 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 }
 
 int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int irq_source_id,
-		       int level)
+		       int level, bool line_status)
 {
 	u32 old_irr;
 	u32 mask = 1 << irq;
@@ -300,7 +302,7 @@ int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int irq_source_id,
 		ioapic->irr |= mask;
 		if ((edge && old_irr != ioapic->irr) ||
 		    (!edge && !entry.fields.remote_irr))
-			ret = ioapic_service(ioapic, irq);
+			ret = ioapic_service(ioapic, irq, line_status);
 		else
 			ret = 0; /* report coalesced interrupt */
 	}
@@ -349,7 +351,7 @@ static void __kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu,
 		ASSERT(ent->fields.trig_mode == IOAPIC_LEVEL_TRIG);
 		ent->fields.remote_irr = 0;
 		if (!ent->fields.mask && (ioapic->irr & (1 << i)))
-			ioapic_service(ioapic, i);
+			ioapic_service(ioapic, i, false);
 	}
 }
 

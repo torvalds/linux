@@ -80,11 +80,12 @@ kvm_assigned_dev_raise_guest_irq(struct kvm_assigned_dev_kernel *assigned_dev,
 		spin_lock(&assigned_dev->intx_mask_lock);
 		if (!(assigned_dev->flags & KVM_DEV_ASSIGN_MASK_INTX))
 			kvm_set_irq(assigned_dev->kvm,
-				    assigned_dev->irq_source_id, vector, 1);
+				    assigned_dev->irq_source_id, vector, 1,
+				    false);
 		spin_unlock(&assigned_dev->intx_mask_lock);
 	} else
 		kvm_set_irq(assigned_dev->kvm, assigned_dev->irq_source_id,
-			    vector, 1);
+			    vector, 1, false);
 }
 
 static irqreturn_t kvm_assigned_dev_thread_intx(int irq, void *dev_id)
@@ -165,7 +166,7 @@ static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 		container_of(kian, struct kvm_assigned_dev_kernel,
 			     ack_notifier);
 
-	kvm_set_irq(dev->kvm, dev->irq_source_id, dev->guest_irq, 0);
+	kvm_set_irq(dev->kvm, dev->irq_source_id, dev->guest_irq, 0, false);
 
 	spin_lock(&dev->intx_mask_lock);
 
@@ -188,7 +189,7 @@ static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 
 		if (reassert)
 			kvm_set_irq(dev->kvm, dev->irq_source_id,
-				    dev->guest_irq, 1);
+				    dev->guest_irq, 1, false);
 	}
 
 	spin_unlock(&dev->intx_mask_lock);
@@ -202,7 +203,7 @@ static void deassign_guest_irq(struct kvm *kvm,
 						&assigned_dev->ack_notifier);
 
 	kvm_set_irq(assigned_dev->kvm, assigned_dev->irq_source_id,
-		    assigned_dev->guest_irq, 0);
+		    assigned_dev->guest_irq, 0, false);
 
 	if (assigned_dev->irq_source_id != -1)
 		kvm_free_irq_source_id(kvm, assigned_dev->irq_source_id);
@@ -901,7 +902,7 @@ static int kvm_vm_ioctl_set_pci_irq_mask(struct kvm *kvm,
 	if (match->irq_requested_type & KVM_DEV_IRQ_GUEST_INTX) {
 		if (assigned_dev->flags & KVM_DEV_ASSIGN_MASK_INTX) {
 			kvm_set_irq(match->kvm, match->irq_source_id,
-				    match->guest_irq, 0);
+				    match->guest_irq, 0, false);
 			/*
 			 * Masking at hardware-level is performed on demand,
 			 * i.e. when an IRQ actually arrives at the host.
