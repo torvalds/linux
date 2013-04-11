@@ -71,6 +71,7 @@
 #define PIN_BASED_NMI_EXITING                   0x00000008
 #define PIN_BASED_VIRTUAL_NMIS                  0x00000020
 #define PIN_BASED_VMX_PREEMPTION_TIMER          0x00000040
+#define PIN_BASED_POSTED_INTR                   0x00000080
 
 #define PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR	0x00000016
 
@@ -102,6 +103,7 @@
 /* VMCS Encodings */
 enum vmcs_field {
 	VIRTUAL_PROCESSOR_ID            = 0x00000000,
+	POSTED_INTR_NV                  = 0x00000002,
 	GUEST_ES_SELECTOR               = 0x00000800,
 	GUEST_CS_SELECTOR               = 0x00000802,
 	GUEST_SS_SELECTOR               = 0x00000804,
@@ -136,6 +138,8 @@ enum vmcs_field {
 	VIRTUAL_APIC_PAGE_ADDR_HIGH     = 0x00002013,
 	APIC_ACCESS_ADDR		= 0x00002014,
 	APIC_ACCESS_ADDR_HIGH		= 0x00002015,
+	POSTED_INTR_DESC_ADDR           = 0x00002016,
+	POSTED_INTR_DESC_ADDR_HIGH      = 0x00002017,
 	EPT_POINTER                     = 0x0000201a,
 	EPT_POINTER_HIGH                = 0x0000201b,
 	EOI_EXIT_BITMAP0                = 0x0000201c,

@@ -84,7 +84,8 @@ module_param(vmm_exclusive, bool, S_IRUGO);
 static bool __read_mostly fasteoi = 1;
 module_param(fasteoi, bool, S_IRUGO);
 
-static bool __read_mostly enable_apicv_reg_vid;
+static bool __read_mostly enable_apicv;
+module_param(enable_apicv, bool, S_IRUGO);
 
 /*
  * If nested=1, nested virtualization is supported, i.e., guests may use
@@ -366,6 +367,14 @@ struct nested_vmx {
 	struct page *apic_access_page;
 };
 
+#define POSTED_INTR_ON  0
+/* Posted-Interrupt Descriptor */
+struct pi_desc {
+	u32 pir[8];     /* Posted interrupt requested */
+	u32 control;	/* bit 0 of control is outstanding notification bit */
+	u32 rsvd[7];
+} __aligned(64);
+
 struct vcpu_vmx {
 	struct kvm_vcpu       vcpu;
 	unsigned long         host_rsp;
@@ -429,6 +438,9 @@ struct vcpu_vmx {
 	u32 exit_reason;
 
 	bool rdtscp_enabled;
+
+	/* Posted interrupt descriptor */
+	struct pi_desc pi_desc;
 
 	/* Support for a guest hypervisor (nested VMX) */
 	struct nested_vmx nested;
@@ -783,6 +795,18 @@ static inline bool cpu_has_vmx_virtual_intr_delivery(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY;
+}
+
+static inline bool cpu_has_vmx_posted_intr(void)
+{
+	return vmcs_config.pin_based_exec_ctrl & PIN_BASED_POSTED_INTR;
+}
+
+static inline bool cpu_has_vmx_apicv(void)
+{
+	return cpu_has_vmx_apic_register_virt() &&
+		cpu_has_vmx_virtual_intr_delivery() &&
+		cpu_has_vmx_posted_intr();
 }
 
 static inline bool cpu_has_vmx_flexpriority(void)
@@ -2552,12 +2576,6 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	u32 _vmexit_control = 0;
 	u32 _vmentry_control = 0;
 
-	min = PIN_BASED_EXT_INTR_MASK | PIN_BASED_NMI_EXITING;
-	opt = PIN_BASED_VIRTUAL_NMIS;
-	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PINBASED_CTLS,
-				&_pin_based_exec_control) < 0)
-		return -EIO;
-
 	min = CPU_BASED_HLT_EXITING |
 #ifdef CONFIG_X86_64
 	      CPU_BASED_CR8_LOAD_EXITING |
@@ -2633,6 +2651,17 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_EXIT_CTLS,
 				&_vmexit_control) < 0)
 		return -EIO;
+
+	min = PIN_BASED_EXT_INTR_MASK | PIN_BASED_NMI_EXITING;
+	opt = PIN_BASED_VIRTUAL_NMIS | PIN_BASED_POSTED_INTR;
+	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PINBASED_CTLS,
+				&_pin_based_exec_control) < 0)
+		return -EIO;
+
+	if (!(_cpu_based_2nd_exec_control &
+		SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY) ||
+		!(_vmexit_control & VM_EXIT_ACK_INTR_ON_EXIT))
+		_pin_based_exec_control &= ~PIN_BASED_POSTED_INTR;
 
 	min = 0;
 	opt = VM_ENTRY_LOAD_IA32_PAT;
@@ -2812,11 +2841,10 @@ static __init int hardware_setup(void)
 	if (!cpu_has_vmx_ple())
 		ple_gap = 0;
 
-	if (!cpu_has_vmx_apic_register_virt() ||
-				!cpu_has_vmx_virtual_intr_delivery())
-		enable_apicv_reg_vid = 0;
+	if (!cpu_has_vmx_apicv())
+		enable_apicv = 0;
 
-	if (enable_apicv_reg_vid)
+	if (enable_apicv)
 		kvm_x86_ops->update_cr8_intercept = NULL;
 	else
 		kvm_x86_ops->hwapic_irr_update = NULL;
@@ -3875,6 +3903,11 @@ static void vmx_disable_intercept_msr_write_x2apic(u32 msr)
 			msr, MSR_TYPE_W);
 }
 
+static int vmx_vm_has_apicv(struct kvm *kvm)
+{
+	return enable_apicv && irqchip_in_kernel(kvm);
+}
+
 /*
  * Set up the vmcs's constant host-state fields, i.e., host-state fields that
  * will not change in the lifetime of the guest.
@@ -3935,6 +3968,15 @@ static void set_cr4_guest_host_mask(struct vcpu_vmx *vmx)
 	vmcs_writel(CR4_GUEST_HOST_MASK, ~vmx->vcpu.arch.cr4_guest_owned_bits);
 }
 
+static u32 vmx_pin_based_exec_ctrl(struct vcpu_vmx *vmx)
+{
+	u32 pin_based_exec_ctrl = vmcs_config.pin_based_exec_ctrl;
+
+	if (!vmx_vm_has_apicv(vmx->vcpu.kvm))
+		pin_based_exec_ctrl &= ~PIN_BASED_POSTED_INTR;
+	return pin_based_exec_ctrl;
+}
+
 static u32 vmx_exec_control(struct vcpu_vmx *vmx)
 {
 	u32 exec_control = vmcs_config.cpu_based_exec_ctrl;
@@ -3950,11 +3992,6 @@ static u32 vmx_exec_control(struct vcpu_vmx *vmx)
 				CPU_BASED_CR3_LOAD_EXITING  |
 				CPU_BASED_INVLPG_EXITING;
 	return exec_control;
-}
-
-static int vmx_vm_has_apicv(struct kvm *kvm)
-{
-	return enable_apicv_reg_vid && irqchip_in_kernel(kvm);
 }
 
 static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
@@ -4012,8 +4049,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_write64(VMCS_LINK_POINTER, -1ull); /* 22.3.1.5 */
 
 	/* Control */
-	vmcs_write32(PIN_BASED_VM_EXEC_CONTROL,
-		vmcs_config.pin_based_exec_ctrl);
+	vmcs_write32(PIN_BASED_VM_EXEC_CONTROL, vmx_pin_based_exec_ctrl(vmx));
 
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, vmx_exec_control(vmx));
 
@@ -4022,13 +4058,16 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 				vmx_secondary_exec_control(vmx));
 	}
 
-	if (enable_apicv_reg_vid) {
+	if (vmx_vm_has_apicv(vmx->vcpu.kvm)) {
 		vmcs_write64(EOI_EXIT_BITMAP0, 0);
 		vmcs_write64(EOI_EXIT_BITMAP1, 0);
 		vmcs_write64(EOI_EXIT_BITMAP2, 0);
 		vmcs_write64(EOI_EXIT_BITMAP3, 0);
 
 		vmcs_write16(GUEST_INTR_STATUS, 0);
+
+		vmcs_write64(POSTED_INTR_NV, POSTED_INTR_VECTOR);
+		vmcs_write64(POSTED_INTR_DESC_ADDR, __pa((&vmx->pi_desc)));
 	}
 
 	if (ple_gap) {
@@ -4169,6 +4208,9 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	if (vm_need_virtualize_apic_accesses(vmx->vcpu.kvm))
 		vmcs_write64(APIC_ACCESS_ADDR,
 			     page_to_phys(vmx->vcpu.kvm->arch.apic_access_page));
+
+	if (vmx_vm_has_apicv(vcpu->kvm))
+		memset(&vmx->pi_desc, 0, sizeof(struct pi_desc));
 
 	if (vmx->vpid != 0)
 		vmcs_write16(VIRTUAL_PROCESSOR_ID, vmx->vpid);
@@ -7842,7 +7884,7 @@ static int __init vmx_init(void)
 	memcpy(vmx_msr_bitmap_longmode_x2apic,
 			vmx_msr_bitmap_longmode, PAGE_SIZE);
 
-	if (enable_apicv_reg_vid) {
+	if (enable_apicv) {
 		for (msr = 0x800; msr <= 0x8ff; msr++)
 			vmx_disable_intercept_msr_read_x2apic(msr);
 
