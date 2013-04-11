@@ -105,7 +105,7 @@ init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
 	if (parent)
 		panic("DeviceTree incore intc not a root irq controller\n");
 
-	root_domain = irq_domain_add_legacy(intc, NR_IRQS, 0, 0,
+	root_domain = irq_domain_add_legacy(intc, NR_CPU_IRQS, 0, 0,
 					    &arc_intc_domain_ops, NULL);
 
 	if (!root_domain)
