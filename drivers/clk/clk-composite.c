@@ -150,17 +150,26 @@ struct clk *clk_register_composite(struct device *dev, const char *name,
 	}
 
 	if (rate_hw && rate_ops) {
-		if (!rate_ops->recalc_rate || !rate_ops->round_rate ||
-		    !rate_ops->set_rate) {
+		if (!rate_ops->recalc_rate) {
 			clk = ERR_PTR(-EINVAL);
 			goto err;
+		}
+
+		/* .round_rate is a prerequisite for .set_rate */
+		if (rate_ops->round_rate) {
+			clk_composite_ops->round_rate = clk_composite_round_rate;
+			if (rate_ops->set_rate) {
+				clk_composite_ops->set_rate = clk_composite_set_rate;
+			}
+		} else {
+			WARN(rate_ops->set_rate,
+				"%s: missing round_rate op is required\n",
+				__func__);
 		}
 
 		composite->rate_hw = rate_hw;
 		composite->rate_ops = rate_ops;
 		clk_composite_ops->recalc_rate = clk_composite_recalc_rate;
-		clk_composite_ops->round_rate = clk_composite_round_rate;
-		clk_composite_ops->set_rate = clk_composite_set_rate;
 	}
 
 	if (gate_hw && gate_ops) {
