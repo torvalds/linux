@@ -548,6 +548,7 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	struct drm_connector *connector;
 	unsigned long irqflags;
 	bool hpd_disabled = false;
+	u32 hpd_event_bits;
 
 	/* HPD irq before everything is fully set up. */
 	if (!dev_priv->enable_hotplug_processing)
@@ -557,6 +558,9 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	DRM_DEBUG_KMS("running encoder hotplug functions\n");
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+
+	hpd_event_bits = dev_priv->hpd_event_bits;
+	dev_priv->hpd_event_bits = 0;
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		intel_connector = to_intel_connector(connector);
 		intel_encoder = intel_connector->encoder;
@@ -570,6 +574,10 @@ static void i915_hotplug_work_func(struct work_struct *work)
 			connector->polled = DRM_CONNECTOR_POLL_CONNECT
 				| DRM_CONNECTOR_POLL_DISCONNECT;
 			hpd_disabled = true;
+		}
+		if (hpd_event_bits & (1 << intel_encoder->hpd_pin)) {
+			DRM_DEBUG_KMS("Connector %s (pin %i) received hotplug event.\n",
+				      drm_get_connector_name(connector), intel_encoder->hpd_pin);
 		}
 	}
 	 /* if there were no outputs to poll, poll was disabled,
@@ -835,6 +843,7 @@ static inline bool hotplug_irq_storm_detect(struct drm_device *dev,
 
 		if (!(hpd[i] & hotplug_trigger) ||
 		    dev_priv->hpd_stats[i].hpd_mark != HPD_ENABLED)
+			dev_priv->hpd_event_bits |= (1 << i);
 			continue;
 
 		if (!time_in_range(jiffies, dev_priv->hpd_stats[i].hpd_last_jiffies,
@@ -844,6 +853,7 @@ static inline bool hotplug_irq_storm_detect(struct drm_device *dev,
 			dev_priv->hpd_stats[i].hpd_cnt = 0;
 		} else if (dev_priv->hpd_stats[i].hpd_cnt > HPD_STORM_THRESHOLD) {
 			dev_priv->hpd_stats[i].hpd_mark = HPD_MARK_DISABLED;
+			dev_priv->hpd_event_bits &= ~(1 << i);
 			DRM_DEBUG_KMS("HPD interrupt storm detected on PIN %d\n", i);
 			ret = true;
 		} else {
