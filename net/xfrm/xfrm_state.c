@@ -1187,6 +1187,7 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 		goto error;
 
 	x->props.flags = orig->props.flags;
+	x->props.extra_flags = orig->props.extra_flags;
 
 	x->curlft.add_time = orig->curlft.add_time;
 	x->km.state = orig->km.state;
