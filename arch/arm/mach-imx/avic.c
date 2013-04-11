@@ -51,7 +51,7 @@
 
 #define AVIC_NUM_IRQS 64
 
-void __iomem *avic_base;
+static void __iomem *avic_base;
 static struct irq_domain *domain;
 
 static u32 avic_saved_mask_reg[2];
