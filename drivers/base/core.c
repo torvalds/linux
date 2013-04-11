@@ -283,8 +283,8 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 		const char *tmp;
 		const char *name;
 		umode_t mode = 0;
-		uid_t uid = 0;
-		gid_t gid = 0;
+		kuid_t uid = GLOBAL_ROOT_UID;
+		kgid_t gid = GLOBAL_ROOT_GID;
 
 		add_uevent_var(env, "MAJOR=%u", MAJOR(dev->devt));
 		add_uevent_var(env, "MINOR=%u", MINOR(dev->devt));
@@ -293,10 +293,10 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 			add_uevent_var(env, "DEVNAME=%s", name);
 			if (mode)
 				add_uevent_var(env, "DEVMODE=%#o", mode & 0777);
-			if (uid)
-				add_uevent_var(env, "DEVUID=%u", uid);
-			if (gid)
-				add_uevent_var(env, "DEVGID=%u", gid);
+			if (!uid_eq(uid, GLOBAL_ROOT_UID))
+				add_uevent_var(env, "DEVUID=%u", from_kuid(&init_user_ns, uid));
+			if (!gid_eq(gid, GLOBAL_ROOT_GID))
+				add_uevent_var(env, "DEVGID=%u", from_kgid(&init_user_ns, gid));
 			kfree(tmp);
 		}
 	}
@@ -1297,7 +1297,7 @@ static struct device *next_device(struct klist_iter *i)
  * freed by the caller.
  */
 const char *device_get_devnode(struct device *dev,
-			       umode_t *mode, uid_t *uid, gid_t *gid,
+			       umode_t *mode, kuid_t *uid, kgid_t *gid,
 			       const char **tmp)
 {
 	char *s;

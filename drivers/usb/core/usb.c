@@ -318,7 +318,7 @@ static const struct dev_pm_ops usb_device_pm_ops = {
 
 
 static char *usb_devnode(struct device *dev,
-			 umode_t *mode, uid_t *uid, gid_t *gid)
+			 umode_t *mode, kuid_t *uid, kgid_t *gid)
 {
 	struct usb_device *usb_dev;
 
