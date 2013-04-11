@@ -394,7 +394,7 @@ int ab8500_ext_regulator_init(struct platform_device *pdev)
 	return 0;
 }
 
-int ab8500_ext_regulator_exit(struct platform_device *pdev)
+void ab8500_ext_regulator_exit(struct platform_device *pdev)
 {
 	int i;
 
@@ -407,8 +407,6 @@ int ab8500_ext_regulator_exit(struct platform_device *pdev)
 
 		regulator_unregister(info->rdev);
 	}
-
-	return 0;
 }
 
 MODULE_LICENSE("GPL v2");

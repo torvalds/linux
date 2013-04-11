@@ -338,6 +338,6 @@ static inline int ab8500_regulator_debug_exit(struct platform_device *pdev)
 
 /* AB8500 external regulator functions. */
 int ab8500_ext_regulator_init(struct platform_device *pdev);
-int ab8500_ext_regulator_exit(struct platform_device *pdev);
+void ab8500_ext_regulator_exit(struct platform_device *pdev);
 
 #endif

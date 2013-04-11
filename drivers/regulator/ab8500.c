@@ -3194,12 +3194,9 @@ static int ab8500_regulator_remove(struct platform_device *pdev)
 		regulator_unregister(info->regulator);
 	}
 
-	if (!is_ab8505(ab8500)) {
-		/* remove external regulators (after Vaux1, 2 and 3) */
-		err = ab8500_ext_regulator_exit(pdev);
-		if (err)
-			return err;
-	}
+	/* remove external regulators (after Vaux1, 2 and 3) */
+	if (!is_ab8505(ab8500))
+		ab8500_ext_regulator_exit(pdev);
 
 	/* remove regulator debug */
 	err = ab8500_regulator_debug_exit(pdev);
