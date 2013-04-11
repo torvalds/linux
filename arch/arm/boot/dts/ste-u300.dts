@@ -49,6 +49,24 @@
 		reg = <0xc0011000 0x1000>;
 	};
 
+	i2c0: i2c@c0004000 {
+		compatible = "st,ddci2c";
+		reg = <0xc0004000 0x1000>;
+		interrupt-parent = <&vicb>;
+		interrupts = <8>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	i2c1: i2c@c0005000 {
+		compatible = "st,ddci2c";
+		reg = <0xc0005000 0x1000>;
+		interrupt-parent = <&vicb>;
+		interrupts = <9>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
 	amba {
 		compatible = "arm,amba-bus";
 		#address-cells = <1>;
