@@ -3919,8 +3919,7 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			 * In the 4.0 case we need to keep the owners around a
 			 * little while to handle CLOSE replay.
 			 */
-			if (list_empty(&oo->oo_owner.so_stateids))
-				move_to_close_lru(oo, SVC_NET(rqstp));
+			move_to_close_lru(oo, SVC_NET(rqstp));
 		}
 	}
 out:
