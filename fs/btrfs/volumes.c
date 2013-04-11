@@ -3674,18 +3674,10 @@ static u32 find_raid56_stripe_len(u32 data_devices, u32 dev_stripe_target)
 
 static void check_raid56_incompat_flag(struct btrfs_fs_info *info, u64 type)
 {
-	u64 features;
-
 	if (!(type & (BTRFS_BLOCK_GROUP_RAID5 | BTRFS_BLOCK_GROUP_RAID6)))
 		return;
 
-	features = btrfs_super_incompat_flags(info->super_copy);
-	if (features & BTRFS_FEATURE_INCOMPAT_RAID56)
-		return;
-
-	features |= BTRFS_FEATURE_INCOMPAT_RAID56;
-	btrfs_set_super_incompat_flags(info->super_copy, features);
-	printk(KERN_INFO "btrfs: setting RAID5/6 feature flag\n");
+	btrfs_set_fs_incompat(info, RAID56);
 }
 
 static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,

@@ -2086,6 +2086,7 @@ int open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->defrag_inodes_lock);
 	spin_lock_init(&fs_info->free_chunk_lock);
 	spin_lock_init(&fs_info->tree_mod_seq_lock);
+	spin_lock_init(&fs_info->super_lock);
 	rwlock_init(&fs_info->tree_mod_log_lock);
 	mutex_init(&fs_info->reloc_mutex);
 	seqlock_init(&fs_info->profiles_lock);
@@ -2349,6 +2350,10 @@ int open_ctree(struct super_block *sb,
 		goto fail_alloc;
 	}
 
+	/*
+	 * Needn't use the lock because there is no other task which will
+	 * update the flag.
+	 */
 	btrfs_set_super_incompat_flags(disk_super, features);
 
 	features = btrfs_super_compat_ro_flags(disk_super) &

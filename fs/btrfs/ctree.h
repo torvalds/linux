@@ -1362,6 +1362,17 @@ struct btrfs_fs_info {
 	wait_queue_head_t transaction_blocked_wait;
 	wait_queue_head_t async_submit_wait;
 
+	/*
+	 * Used to protect the incompat_flags, compat_flags, compat_ro_flags
+	 * when they are updated.
+	 *
+	 * Because we do not clear the flags for ever, so we needn't use
+	 * the lock on the read side.
+	 *
+	 * We also needn't use the lock when we mount the fs, because
+	 * there is no other task which will update the flag.
+	 */
+	spinlock_t super_lock;
 	struct btrfs_super_block *super_copy;
 	struct btrfs_super_block *super_for_commit;
 	struct block_device *__bdev;
@@ -3688,8 +3699,15 @@ static inline void __btrfs_set_fs_incompat(struct btrfs_fs_info *fs_info,
 	disk_super = fs_info->super_copy;
 	features = btrfs_super_incompat_flags(disk_super);
 	if (!(features & flag)) {
-		features |= flag;
-		btrfs_set_super_incompat_flags(disk_super, features);
+		spin_lock(&fs_info->super_lock);
+		features = btrfs_super_incompat_flags(disk_super);
+		if (!(features & flag)) {
+			features |= flag;
+			btrfs_set_super_incompat_flags(disk_super, features);
+			printk(KERN_INFO "btrfs: setting %llu feature flag\n",
+					 flag);
+		}
+		spin_unlock(&fs_info->super_lock);
 	}
 }
 
