@@ -1578,11 +1578,20 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 
 	memset(&seg_desc, 0, sizeof seg_desc);
 
-	if ((seg <= VCPU_SREG_GS && ctxt->mode == X86EMUL_MODE_VM86)
-	    || ctxt->mode == X86EMUL_MODE_REAL) {
-		/* set real mode segment descriptor */
+	if (ctxt->mode == X86EMUL_MODE_REAL) {
+		/* set real mode segment descriptor (keep limit etc. for
+		 * unreal mode) */
 		ctxt->ops->get_segment(ctxt, &dummy, &seg_desc, NULL, seg);
 		set_desc_base(&seg_desc, selector << 4);
+		goto load;
+	} else if (seg <= VCPU_SREG_GS && ctxt->mode == X86EMUL_MODE_VM86) {
+		/* VM86 needs a clean new segment descriptor */
+		set_desc_base(&seg_desc, selector << 4);
+		set_desc_limit(&seg_desc, 0xffff);
+		seg_desc.type = 3;
+		seg_desc.p = 1;
+		seg_desc.s = 1;
+		seg_desc.dpl = 3;
 		goto load;
 	}
 
