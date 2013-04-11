@@ -94,6 +94,14 @@ static inline int apic_test_vector(int vec, void *bitmap)
 	return test_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
 }
 
+bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+
+	return apic_test_vector(vector, apic->regs + APIC_ISR) ||
+		apic_test_vector(vector, apic->regs + APIC_IRR);
+}
+
 static inline void apic_set_vector(int vec, void *bitmap)
 {
 	set_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
@@ -1618,6 +1626,7 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
 	apic->highest_isr_cache = -1;
 	kvm_x86_ops->hwapic_isr_update(vcpu->kvm, apic_find_highest_isr(apic));
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
+	kvm_rtc_eoi_tracking_restore_one(vcpu);
 }
 
 void __kvm_migrate_apic_timer(struct kvm_vcpu *vcpu)

@@ -90,6 +90,62 @@ static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
 	return result;
 }
 
+static void rtc_irq_eoi_tracking_reset(struct kvm_ioapic *ioapic)
+{
+	ioapic->rtc_status.pending_eoi = 0;
+	bitmap_zero(ioapic->rtc_status.dest_map, KVM_MAX_VCPUS);
+}
+
+static void __rtc_irq_eoi_tracking_restore_one(struct kvm_vcpu *vcpu)
+{
+	bool new_val, old_val;
+	struct kvm_ioapic *ioapic = vcpu->kvm->arch.vioapic;
+	union kvm_ioapic_redirect_entry *e;
+
+	e = &ioapic->redirtbl[RTC_GSI];
+	if (!kvm_apic_match_dest(vcpu, NULL, 0,	e->fields.dest_id,
+				e->fields.dest_mode))
+		return;
+
+	new_val = kvm_apic_pending_eoi(vcpu, e->fields.vector);
+	old_val = test_bit(vcpu->vcpu_id, ioapic->rtc_status.dest_map);
+
+	if (new_val == old_val)
+		return;
+
+	if (new_val) {
+		__set_bit(vcpu->vcpu_id, ioapic->rtc_status.dest_map);
+		ioapic->rtc_status.pending_eoi++;
+	} else {
+		__clear_bit(vcpu->vcpu_id, ioapic->rtc_status.dest_map);
+		ioapic->rtc_status.pending_eoi--;
+	}
+
+	WARN_ON(ioapic->rtc_status.pending_eoi < 0);
+}
+
+void kvm_rtc_eoi_tracking_restore_one(struct kvm_vcpu *vcpu)
+{
+	struct kvm_ioapic *ioapic = vcpu->kvm->arch.vioapic;
+
+	spin_lock(&ioapic->lock);
+	__rtc_irq_eoi_tracking_restore_one(vcpu);
+	spin_unlock(&ioapic->lock);
+}
+
+static void kvm_rtc_eoi_tracking_restore_all(struct kvm_ioapic *ioapic)
+{
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	if (RTC_GSI >= IOAPIC_NUM_PINS)
+		return;
+
+	rtc_irq_eoi_tracking_reset(ioapic);
+	kvm_for_each_vcpu(i, vcpu, ioapic->kvm)
+	    __rtc_irq_eoi_tracking_restore_one(vcpu);
+}
+
 static int ioapic_service(struct kvm_ioapic *ioapic, unsigned int idx)
 {
 	union kvm_ioapic_redirect_entry *pent;
@@ -428,6 +484,7 @@ void kvm_ioapic_reset(struct kvm_ioapic *ioapic)
 	ioapic->ioregsel = 0;
 	ioapic->irr = 0;
 	ioapic->id = 0;
+	rtc_irq_eoi_tracking_reset(ioapic);
 	update_handled_vectors(ioapic);
 }
 
@@ -494,6 +551,7 @@ int kvm_set_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state)
 	memcpy(ioapic, state, sizeof(struct kvm_ioapic_state));
 	update_handled_vectors(ioapic);
 	kvm_ioapic_make_eoibitmap_request(kvm);
+	kvm_rtc_eoi_tracking_restore_all(ioapic);
 	spin_unlock(&ioapic->lock);
 	return 0;
 }
