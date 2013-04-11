@@ -117,6 +117,16 @@ static void hci_acl_create_connection_cancel(struct hci_conn *conn)
 	hci_send_cmd(conn->hdev, HCI_OP_CREATE_CONN_CANCEL, sizeof(cp), &cp);
 }
 
+static void hci_reject_sco(struct hci_conn *conn)
+{
+	struct hci_cp_reject_sync_conn_req cp;
+
+	cp.reason = HCI_ERROR_REMOTE_USER_TERM;
+	bacpy(&cp.bdaddr, &conn->dst);
+
+	hci_send_cmd(conn->hdev, HCI_OP_REJECT_SYNC_CONN_REQ, sizeof(cp), &cp);
+}
+
 void hci_disconnect(struct hci_conn *conn, __u8 reason)
 {
 	struct hci_cp_disconnect cp;
@@ -276,6 +286,8 @@ static void hci_conn_timeout(struct work_struct *work)
 				hci_acl_create_connection_cancel(conn);
 			else if (conn->type == LE_LINK)
 				hci_le_create_connection_cancel(conn);
+		} else if (conn->type == SCO_LINK || conn->type == ESCO_LINK) {
+			hci_reject_sco(conn);
 		}
 		break;
 	case BT_CONFIG:
