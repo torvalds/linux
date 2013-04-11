@@ -1105,7 +1105,9 @@ static int __cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif
 
 	WARN_ON(lock_policy_rwsem_write(cpu));
 	cpus = cpumask_weight(data->cpus);
-	cpumask_clear_cpu(cpu, data->cpus);
+
+	if (cpus > 1)
+		cpumask_clear_cpu(cpu, data->cpus);
 	unlock_policy_rwsem_write(cpu);
 
 	if (cpu != data->cpu) {
