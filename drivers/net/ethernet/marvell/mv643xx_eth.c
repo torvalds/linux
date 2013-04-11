@@ -604,7 +604,7 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 			lro_receive_skb(&rxq->lro_mgr, skb, (void *)cmd_sts);
 			lro_flush_needed = 1;
 		} else
-			netif_receive_skb(skb);
+			napi_gro_receive(&mp->napi, skb);
 
 		continue;
 
