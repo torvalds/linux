@@ -631,6 +631,13 @@ int kvmppc_get_one_reg_e500_tlb(struct kvm_vcpu *vcpu, u64 id,
 		i = id - KVM_REG_PPC_TLB0CFG;
 		*val = get_reg_val(id, vcpu->arch.tlbcfg[i]);
 		break;
+	case KVM_REG_PPC_TLB0PS:
+	case KVM_REG_PPC_TLB1PS:
+	case KVM_REG_PPC_TLB2PS:
+	case KVM_REG_PPC_TLB3PS:
+		i = id - KVM_REG_PPC_TLB0PS;
+		*val = get_reg_val(id, vcpu->arch.tlbps[i]);
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -679,6 +686,16 @@ int kvmppc_set_one_reg_e500_tlb(struct kvm_vcpu *vcpu, u64 id,
 		u32 reg = set_reg_val(id, *val);
 		i = id - KVM_REG_PPC_TLB0CFG;
 		if (reg != vcpu->arch.tlbcfg[i])
+			r = -EINVAL;
+		break;
+	}
+	case KVM_REG_PPC_TLB0PS:
+	case KVM_REG_PPC_TLB1PS:
+	case KVM_REG_PPC_TLB2PS:
+	case KVM_REG_PPC_TLB3PS: {
+		u32 reg = set_reg_val(id, *val);
+		i = id - KVM_REG_PPC_TLB0PS;
+		if (reg != vcpu->arch.tlbps[i])
 			r = -EINVAL;
 		break;
 	}
@@ -854,6 +871,11 @@ static int vcpu_mmu_init(struct kvm_vcpu *vcpu,
 			     ~(TLBnCFG_N_ENTRY | TLBnCFG_ASSOC);
 	vcpu->arch.tlbcfg[1] |= params[1].entries;
 	vcpu->arch.tlbcfg[1] |= params[1].ways << TLBnCFG_ASSOC_SHIFT;
+
+	if (has_feature(vcpu, VCPU_FTR_MMU_V2)) {
+		vcpu->arch.tlbps[0] = mfspr(SPRN_TLB0PS);
+		vcpu->arch.tlbps[1] = mfspr(SPRN_TLB1PS);
+	}
 
 	return 0;
 }

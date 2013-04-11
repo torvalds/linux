@@ -1803,6 +1803,10 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_TLB1CFG	| 32
   PPC   | KVM_REG_PPC_TLB2CFG	| 32
   PPC   | KVM_REG_PPC_TLB3CFG	| 32
+  PPC   | KVM_REG_PPC_TLB0PS	| 32
+  PPC   | KVM_REG_PPC_TLB1PS	| 32
+  PPC   | KVM_REG_PPC_TLB2PS	| 32
+  PPC   | KVM_REG_PPC_TLB3PS	| 32
 
 ARM registers are mapped using the lower 32 bits.  The upper 16 of that
 is the register group type, or coprocessor number:

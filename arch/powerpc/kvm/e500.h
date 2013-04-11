@@ -23,6 +23,10 @@
 #include <asm/mmu-book3e.h>
 #include <asm/tlb.h>
 
+enum vcpu_ftr {
+	VCPU_FTR_MMU_V2
+};
+
 #define E500_PID_NUM   3
 #define E500_TLB_NUM   2
 
@@ -298,5 +302,19 @@ static inline unsigned int get_tlbmiss_tid(struct kvm_vcpu *vcpu)
 /* Force TS=1 for all guest mappings. */
 #define get_tlb_sts(gtlbe)              (MAS1_TS)
 #endif /* !BOOKE_HV */
+
+static inline bool has_feature(const struct kvm_vcpu *vcpu,
+			       enum vcpu_ftr ftr)
+{
+	bool has_ftr;
+	switch (ftr) {
+	case VCPU_FTR_MMU_V2:
+		has_ftr = ((vcpu->arch.mmucfg & MMUCFG_MAVN) == MMUCFG_MAVN_V2);
+		break;
+	default:
+		return false;
+	}
+	return has_ftr;
+}
 
 #endif /* KVM_E500_H */
