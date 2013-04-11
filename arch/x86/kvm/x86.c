@@ -5820,7 +5820,9 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 
 	vcpu->mode = OUTSIDE_GUEST_MODE;
 	smp_wmb();
-	local_irq_enable();
+
+	/* Interrupt is enabled by handle_external_intr() */
+	kvm_x86_ops->handle_external_intr(vcpu);
 
 	++vcpu->stat.exits;
 

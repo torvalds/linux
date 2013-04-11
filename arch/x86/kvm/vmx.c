@@ -378,6 +378,7 @@ struct vcpu_vmx {
 	struct shared_msr_entry *guest_msrs;
 	int                   nmsrs;
 	int                   save_nmsrs;
+	unsigned long	      host_idt_base;
 #ifdef CONFIG_X86_64
 	u64 		      msr_host_kernel_gs_base;
 	u64 		      msr_guest_kernel_gs_base;
@@ -2627,7 +2628,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 #ifdef CONFIG_X86_64
 	min |= VM_EXIT_HOST_ADDR_SPACE_SIZE;
 #endif
-	opt = VM_EXIT_SAVE_IA32_PAT | VM_EXIT_LOAD_IA32_PAT;
+	opt = VM_EXIT_SAVE_IA32_PAT | VM_EXIT_LOAD_IA32_PAT |
+		VM_EXIT_ACK_INTR_ON_EXIT;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_EXIT_CTLS,
 				&_vmexit_control) < 0)
 		return -EIO;
@@ -3879,7 +3881,7 @@ static void vmx_disable_intercept_msr_write_x2apic(u32 msr)
  * Note that host-state that does change is set elsewhere. E.g., host-state
  * that is set differently for each CPU is set in vmx_vcpu_load(), not here.
  */
-static void vmx_set_constant_host_state(void)
+static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 {
 	u32 low32, high32;
 	unsigned long tmpl;
@@ -3907,6 +3909,7 @@ static void vmx_set_constant_host_state(void)
 
 	native_store_idt(&dt);
 	vmcs_writel(HOST_IDTR_BASE, dt.address);   /* 22.2.4 */
+	vmx->host_idt_base = dt.address;
 
 	vmcs_writel(HOST_RIP, vmx_return); /* 22.2.5 */
 
@@ -4039,7 +4042,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 
 	vmcs_write16(HOST_FS_SELECTOR, 0);            /* 22.2.4 */
 	vmcs_write16(HOST_GS_SELECTOR, 0);            /* 22.2.4 */
-	vmx_set_constant_host_state();
+	vmx_set_constant_host_state(vmx);
 #ifdef CONFIG_X86_64
 	rdmsrl(MSR_FS_BASE, a);
 	vmcs_writel(HOST_FS_BASE, a); /* 22.2.4 */
@@ -6399,6 +6402,52 @@ static void vmx_complete_atomic_exit(struct vcpu_vmx *vmx)
 	}
 }
 
+static void vmx_handle_external_intr(struct kvm_vcpu *vcpu)
+{
+	u32 exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+
+	/*
+	 * If external interrupt exists, IF bit is set in rflags/eflags on the
+	 * interrupt stack frame, and interrupt will be enabled on a return
+	 * from interrupt handler.
+	 */
+	if ((exit_intr_info & (INTR_INFO_VALID_MASK | INTR_INFO_INTR_TYPE_MASK))
+			== (INTR_INFO_VALID_MASK | INTR_TYPE_EXT_INTR)) {
+		unsigned int vector;
+		unsigned long entry;
+		gate_desc *desc;
+		struct vcpu_vmx *vmx = to_vmx(vcpu);
+#ifdef CONFIG_X86_64
+		unsigned long tmp;
+#endif
+
+		vector =  exit_intr_info & INTR_INFO_VECTOR_MASK;
+		desc = (gate_desc *)vmx->host_idt_base + vector;
+		entry = gate_offset(*desc);
+		asm volatile(
+#ifdef CONFIG_X86_64
+			"mov %%" _ASM_SP ", %[sp]\n\t"
+			"and $0xfffffffffffffff0, %%" _ASM_SP "\n\t"
+			"push $%c[ss]\n\t"
+			"push %[sp]\n\t"
+#endif
+			"pushf\n\t"
+			"orl $0x200, (%%" _ASM_SP ")\n\t"
+			__ASM_SIZE(push) " $%c[cs]\n\t"
+			"call *%[entry]\n\t"
+			:
+#ifdef CONFIG_X86_64
+			[sp]"=&r"(tmp)
+#endif
+			:
+			[entry]"r"(entry),
+			[ss]"i"(__KERNEL_DS),
+			[cs]"i"(__KERNEL_CS)
+			);
+	} else
+		local_irq_enable();
+}
+
 static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
 {
 	u32 exit_intr_info;
@@ -7041,7 +7090,7 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	 * Other fields are different per CPU, and will be set later when
 	 * vmx_vcpu_load() is called, and when vmx_save_host_state() is called.
 	 */
-	vmx_set_constant_host_state();
+	vmx_set_constant_host_state(vmx);
 
 	/*
 	 * HOST_RSP is normally set correctly in vmx_vcpu_run() just before
@@ -7718,6 +7767,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.set_tdp_cr3 = vmx_set_cr3,
 
 	.check_intercept = vmx_check_intercept,
+	.handle_external_intr = vmx_handle_external_intr,
 };
 
 static int __init vmx_init(void)
