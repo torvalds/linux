@@ -457,36 +457,80 @@ done:
 	return err;
 }
 
-int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
-			u8 *buf, uint nbytes)
+int
+brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write, u32 address,
+		 u8 *data, uint size)
 {
-	struct sk_buff *mypkt;
-	bool write = rw ? SDIOH_WRITE : SDIOH_READ;
-	int err;
+	int bcmerror = 0;
+	struct sk_buff *pkt;
+	u32 sdaddr;
+	uint dsize;
 
-	addr &= SBSDIO_SB_OFT_ADDR_MASK;
-	addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
-
-	mypkt = brcmu_pkt_buf_get_skb(nbytes);
-	if (!mypkt) {
-		brcmf_err("brcmu_pkt_buf_get_skb failed: len %d\n",
-			  nbytes);
+	dsize = min_t(uint, SBSDIO_SB_OFT_ADDR_LIMIT, size);
+	pkt = dev_alloc_skb(dsize);
+	if (!pkt) {
+		brcmf_err("dev_alloc_skb failed: len %d\n", dsize);
 		return -EIO;
 	}
+	pkt->priority = 0;
 
-	/* For a write, copy the buffer data into the packet. */
-	if (write)
-		memcpy(mypkt->data, buf, nbytes);
+	/* Determine initial transfer parameters */
+	sdaddr = address & SBSDIO_SB_OFT_ADDR_MASK;
+	if ((sdaddr + size) & SBSDIO_SBWINDOW_MASK)
+		dsize = (SBSDIO_SB_OFT_ADDR_LIMIT - sdaddr);
+	else
+		dsize = size;
 
-	err = brcmf_sdioh_request_buffer(sdiodev, SDIOH_DATA_INC, write,
-					 SDIO_FUNC_1, addr, mypkt);
+	sdio_claim_host(sdiodev->func[1]);
 
-	/* For a read, copy the packet data back to the buffer. */
-	if (!err && !write)
-		memcpy(buf, mypkt->data, nbytes);
+	/* Do the transfer(s) */
+	while (size) {
+		/* Set the backplane window to include the start address */
+		bcmerror = brcmf_sdcard_set_sbaddr_window(sdiodev, address);
+		if (bcmerror)
+			break;
 
-	brcmu_pkt_buf_free_skb(mypkt);
-	return err;
+		brcmf_dbg(SDIO, "%s %d bytes at offset 0x%08x in window 0x%08x\n",
+			  write ? "write" : "read", dsize,
+			  sdaddr, address & SBSDIO_SBWINDOW_MASK);
+
+		sdaddr &= SBSDIO_SB_OFT_ADDR_MASK;
+		sdaddr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
+
+		skb_put(pkt, dsize);
+		if (write)
+			memcpy(pkt->data, data, dsize);
+		bcmerror = brcmf_sdioh_request_buffer(sdiodev, SDIOH_DATA_INC,
+						      write, SDIO_FUNC_1,
+						      sdaddr, pkt);
+		if (bcmerror) {
+			brcmf_err("membytes transfer failed\n");
+			break;
+		}
+		if (!write)
+			memcpy(data, pkt->data, dsize);
+		skb_trim(pkt, dsize);
+
+		/* Adjust for next transfer (if any) */
+		size -= dsize;
+		if (size) {
+			data += dsize;
+			address += dsize;
+			sdaddr = 0;
+			dsize = min_t(uint, SBSDIO_SB_OFT_ADDR_LIMIT, size);
+		}
+	}
+
+	dev_kfree_skb(pkt);
+
+	/* Return the window to backplane enumeration space for core access */
+	if (brcmf_sdcard_set_sbaddr_window(sdiodev, sdiodev->sbwad))
+		brcmf_err("FAILED to set window back to 0x%x\n",
+			  sdiodev->sbwad);
+
+	sdio_release_host(sdiodev->func[1]);
+
+	return bcmerror;
 }
 
 int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn)

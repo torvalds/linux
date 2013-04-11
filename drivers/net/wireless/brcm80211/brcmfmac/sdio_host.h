@@ -242,6 +242,8 @@ brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
  */
 extern int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw,
 			       u32 addr, u8 *buf, uint nbytes);
+extern int brcmf_sdio_ramrw(struct brcmf_sdio_dev *sdiodev, bool write,
+			    u32 address, u8 *data, uint size);
 
 /* Issue an abort to the specified function */
 extern int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn);
