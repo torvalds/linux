@@ -75,6 +75,7 @@ struct res_gid {
 	u8			gid[16];
 	enum mlx4_protocol	prot;
 	enum mlx4_steer_type	steer;
+	u64			reg_id;
 };
 
 enum res_qp_states {
@@ -2934,7 +2935,7 @@ static struct res_gid *find_gid(struct mlx4_dev *dev, int slave,
 
 static int add_mcg_res(struct mlx4_dev *dev, int slave, struct res_qp *rqp,
 		       u8 *gid, enum mlx4_protocol prot,
-		       enum mlx4_steer_type steer)
+		       enum mlx4_steer_type steer, u64 reg_id)
 {
 	struct res_gid *res;
 	int err;
@@ -2951,6 +2952,7 @@ static int add_mcg_res(struct mlx4_dev *dev, int slave, struct res_qp *rqp,
 		memcpy(res->gid, gid, 16);
 		res->prot = prot;
 		res->steer = steer;
+		res->reg_id = reg_id;
 		list_add_tail(&res->list, &rqp->mcg_list);
 		err = 0;
 	}
@@ -2961,7 +2963,7 @@ static int add_mcg_res(struct mlx4_dev *dev, int slave, struct res_qp *rqp,
 
 static int rem_mcg_res(struct mlx4_dev *dev, int slave, struct res_qp *rqp,
 		       u8 *gid, enum mlx4_protocol prot,
-		       enum mlx4_steer_type steer)
+		       enum mlx4_steer_type steer, u64 *reg_id)
 {
 	struct res_gid *res;
 	int err;
@@ -2971,6 +2973,7 @@ static int rem_mcg_res(struct mlx4_dev *dev, int slave, struct res_qp *rqp,
 	if (!res || res->prot != prot || res->steer != steer)
 		err = -EINVAL;
 	else {
+		*reg_id = res->reg_id;
 		list_del(&res->list);
 		kfree(res);
 		err = 0;
@@ -2978,6 +2981,37 @@ static int rem_mcg_res(struct mlx4_dev *dev, int slave, struct res_qp *rqp,
 	spin_unlock_irq(&rqp->mcg_spl);
 
 	return err;
+}
+
+static int qp_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
+		     int block_loopback, enum mlx4_protocol prot,
+		     enum mlx4_steer_type type, u64 *reg_id)
+{
+	switch (dev->caps.steering_mode) {
+	case MLX4_STEERING_MODE_DEVICE_MANAGED:
+		return mlx4_trans_to_dmfs_attach(dev, qp, gid, gid[5],
+						block_loopback, prot,
+						reg_id);
+	case MLX4_STEERING_MODE_B0:
+		return mlx4_qp_attach_common(dev, qp, gid,
+					    block_loopback, prot, type);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int qp_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
+		     enum mlx4_protocol prot, enum mlx4_steer_type type,
+		     u64 reg_id)
+{
+	switch (dev->caps.steering_mode) {
+	case MLX4_STEERING_MODE_DEVICE_MANAGED:
+		return mlx4_flow_detach(dev, reg_id);
+	case MLX4_STEERING_MODE_B0:
+		return mlx4_qp_detach_common(dev, qp, gid, prot, type);
+	default:
+		return -EINVAL;
+	}
 }
 
 int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
@@ -2992,13 +3026,11 @@ int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 	int err;
 	int qpn;
 	struct res_qp *rqp;
+	u64 reg_id = 0;
 	int attach = vhcr->op_modifier;
 	int block_loopback = vhcr->in_modifier >> 31;
 	u8 steer_type_mask = 2;
 	enum mlx4_steer_type type = (gid[7] & steer_type_mask) >> 1;
-
-	if (dev->caps.steering_mode != MLX4_STEERING_MODE_B0)
-		return -EINVAL;
 
 	qpn = vhcr->in_modifier & 0xffffff;
 	err = get_res(dev, slave, qpn, RES_QP, &rqp);
@@ -3007,30 +3039,32 @@ int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 
 	qp.qpn = qpn;
 	if (attach) {
-		err = add_mcg_res(dev, slave, rqp, gid, prot, type);
-		if (err)
+		err = qp_attach(dev, &qp, gid, block_loopback, prot,
+				type, &reg_id);
+		if (err) {
+			pr_err("Fail to attach rule to qp 0x%x\n", qpn);
 			goto ex_put;
-
-		err = mlx4_qp_attach_common(dev, &qp, gid,
-					    block_loopback, prot, type);
+		}
+		err = add_mcg_res(dev, slave, rqp, gid, prot, type, reg_id);
 		if (err)
-			goto ex_rem;
+			goto ex_detach;
 	} else {
-		err = rem_mcg_res(dev, slave, rqp, gid, prot, type);
+		err = rem_mcg_res(dev, slave, rqp, gid, prot, type, &reg_id);
 		if (err)
 			goto ex_put;
-		err = mlx4_qp_detach_common(dev, &qp, gid, prot, type);
+
+		err = qp_detach(dev, &qp, gid, prot, type, reg_id);
+		if (err)
+			pr_err("Fail to detach rule from qp 0x%x reg_id = 0x%llx\n",
+			       qpn, reg_id);
 	}
-
 	put_res(dev, slave, qpn, RES_QP);
-	return 0;
+	return err;
 
-ex_rem:
-	/* ignore error return below, already in error */
-	(void) rem_mcg_res(dev, slave, rqp, gid, prot, type);
+ex_detach:
+	qp_detach(dev, &qp, gid, prot, type, reg_id);
 ex_put:
 	put_res(dev, slave, qpn, RES_QP);
-
 	return err;
 }
 
@@ -3266,9 +3300,16 @@ static void detach_qp(struct mlx4_dev *dev, int slave, struct res_qp *rqp)
 	struct mlx4_qp qp; /* dummy for calling attach/detach */
 
 	list_for_each_entry_safe(rgid, tmp, &rqp->mcg_list, list) {
-		qp.qpn = rqp->local_qpn;
-		(void) mlx4_qp_detach_common(dev, &qp, rgid->gid, rgid->prot,
-					     rgid->steer);
+		switch (dev->caps.steering_mode) {
+		case MLX4_STEERING_MODE_DEVICE_MANAGED:
+			mlx4_flow_detach(dev, rgid->reg_id);
+			break;
+		case MLX4_STEERING_MODE_B0:
+			qp.qpn = rqp->local_qpn;
+			(void) mlx4_qp_detach_common(dev, &qp, rgid->gid,
+						     rgid->prot, rgid->steer);
+			break;
+		}
 		list_del(&rgid->list);
 		kfree(rgid);
 	}
