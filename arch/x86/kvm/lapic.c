@@ -739,7 +739,7 @@ static void kvm_ioapic_send_eoi(struct kvm_lapic *apic, int vector)
 			trigger_mode = IOAPIC_LEVEL_TRIG;
 		else
 			trigger_mode = IOAPIC_EDGE_TRIG;
-		kvm_ioapic_update_eoi(apic->vcpu->kvm, vector, trigger_mode);
+		kvm_ioapic_update_eoi(apic->vcpu, vector, trigger_mode);
 	}
 }
 
