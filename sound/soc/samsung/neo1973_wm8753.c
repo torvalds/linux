@@ -22,7 +22,6 @@
 
 #include <asm/mach-types.h>
 #include "regs-iis.h"
-#include <mach/gta02.h>
 
 #include "../codecs/wm8753.h"
 #include "s3c24xx-i2s.h"
