@@ -72,6 +72,7 @@ struct usbnet {
 #		define EVENT_DEVICE_REPORT_IDLE	8
 #		define EVENT_NO_RUNTIME_PM	9
 #		define EVENT_RX_KILL	10
+#		define EVENT_LINK_CHANGE	11
 };
 
 static inline struct usb_driver *driver_of(struct usb_interface *intf)
