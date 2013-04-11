@@ -1671,6 +1671,7 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 			smp_send_reschedule(cpu);
 	put_cpu();
 }
+EXPORT_SYMBOL_GPL(kvm_vcpu_kick);
 #endif /* !CONFIG_S390 */
 
 void kvm_resched(struct kvm_vcpu *vcpu)
