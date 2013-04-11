@@ -3172,8 +3172,11 @@ static int ab8500_regulator_probe(struct platform_device *pdev)
 	for (i = 0; i < abx500_regulator.info_size; i++) {
 		err = ab8500_regulator_register(pdev, &pdata->regulator[i],
 						i, NULL);
-		if (err < 0)
+		if (err < 0) {
+			if (!is_ab8505(ab8500))
+				ab8500_ext_regulator_exit(pdev);
 			return err;
+		}
 	}
 
 	return 0;
