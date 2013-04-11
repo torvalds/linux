@@ -83,7 +83,7 @@ static struct sco_conn *sco_conn_add(struct hci_conn *hcon)
 	if (conn)
 		return conn;
 
-	conn = kzalloc(sizeof(struct sco_conn), GFP_ATOMIC);
+	conn = kzalloc(sizeof(struct sco_conn), GFP_KERNEL);
 	if (!conn)
 		return NULL;
 
