@@ -47,36 +47,36 @@ static unsigned long clk_composite_recalc_rate(struct clk_hw *hw,
 					    unsigned long parent_rate)
 {
 	struct clk_composite *composite = to_clk_composite(hw);
-	const struct clk_ops *div_ops = composite->div_ops;
-	struct clk_hw *div_hw = composite->div_hw;
+	const struct clk_ops *rate_ops = composite->rate_ops;
+	struct clk_hw *rate_hw = composite->rate_hw;
 
-	div_hw->clk = hw->clk;
+	rate_hw->clk = hw->clk;
 
-	return div_ops->recalc_rate(div_hw, parent_rate);
+	return rate_ops->recalc_rate(rate_hw, parent_rate);
 }
 
 static long clk_composite_round_rate(struct clk_hw *hw, unsigned long rate,
 				  unsigned long *prate)
 {
 	struct clk_composite *composite = to_clk_composite(hw);
-	const struct clk_ops *div_ops = composite->div_ops;
-	struct clk_hw *div_hw = composite->div_hw;
+	const struct clk_ops *rate_ops = composite->rate_ops;
+	struct clk_hw *rate_hw = composite->rate_hw;
 
-	div_hw->clk = hw->clk;
+	rate_hw->clk = hw->clk;
 
-	return div_ops->round_rate(div_hw, rate, prate);
+	return rate_ops->round_rate(rate_hw, rate, prate);
 }
 
 static int clk_composite_set_rate(struct clk_hw *hw, unsigned long rate,
 			       unsigned long parent_rate)
 {
 	struct clk_composite *composite = to_clk_composite(hw);
-	const struct clk_ops *div_ops = composite->div_ops;
-	struct clk_hw *div_hw = composite->div_hw;
+	const struct clk_ops *rate_ops = composite->rate_ops;
+	struct clk_hw *rate_hw = composite->rate_hw;
 
-	div_hw->clk = hw->clk;
+	rate_hw->clk = hw->clk;
 
-	return div_ops->set_rate(div_hw, rate, parent_rate);
+	return rate_ops->set_rate(rate_hw, rate, parent_rate);
 }
 
 static int clk_composite_is_enabled(struct clk_hw *hw)
@@ -115,7 +115,7 @@ static void clk_composite_disable(struct clk_hw *hw)
 struct clk *clk_register_composite(struct device *dev, const char *name,
 			const char **parent_names, int num_parents,
 			struct clk_hw *mux_hw, const struct clk_ops *mux_ops,
-			struct clk_hw *div_hw, const struct clk_ops *div_ops,
+			struct clk_hw *rate_hw, const struct clk_ops *rate_ops,
 			struct clk_hw *gate_hw, const struct clk_ops *gate_ops,
 			unsigned long flags)
 {
@@ -149,15 +149,15 @@ struct clk *clk_register_composite(struct device *dev, const char *name,
 		clk_composite_ops->set_parent = clk_composite_set_parent;
 	}
 
-	if (div_hw && div_ops) {
-		if (!div_ops->recalc_rate || !div_ops->round_rate ||
-		    !div_ops->set_rate) {
+	if (rate_hw && rate_ops) {
+		if (!rate_ops->recalc_rate || !rate_ops->round_rate ||
+		    !rate_ops->set_rate) {
 			clk = ERR_PTR(-EINVAL);
 			goto err;
 		}
 
-		composite->div_hw = div_hw;
-		composite->div_ops = div_ops;
+		composite->rate_hw = rate_hw;
+		composite->rate_ops = rate_ops;
 		clk_composite_ops->recalc_rate = clk_composite_recalc_rate;
 		clk_composite_ops->round_rate = clk_composite_round_rate;
 		clk_composite_ops->set_rate = clk_composite_set_rate;
@@ -187,8 +187,8 @@ struct clk *clk_register_composite(struct device *dev, const char *name,
 	if (composite->mux_hw)
 		composite->mux_hw->clk = clk;
 
-	if (composite->div_hw)
-		composite->div_hw->clk = clk;
+	if (composite->rate_hw)
+		composite->rate_hw->clk = clk;
 
 	if (composite->gate_hw)
 		composite->gate_hw->clk = clk;
