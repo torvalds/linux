@@ -4745,8 +4745,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 
 	i9xx_set_pipeconf(intel_crtc);
 
-	intel_wait_for_vblank(dev, pipe);
-
 	I915_WRITE(DSPCNTR(plane), dspcntr);
 	POSTING_READ(DSPCNTR(plane));
 
@@ -5715,8 +5713,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	fdi_config_ok = ironlake_check_fdi_lanes(intel_crtc);
 
 	ironlake_set_pipeconf(crtc, adjusted_mode, dither);
-
-	intel_wait_for_vblank(dev, pipe);
 
 	/* Set up the display plane register */
 	I915_WRITE(DSPCNTR(plane), DISPPLANE_GAMMA_ENABLE);
