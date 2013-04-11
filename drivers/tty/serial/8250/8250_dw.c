@@ -250,7 +250,8 @@ static int dw8250_probe(struct platform_device *pdev)
 	uart.port.flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_FIXED_PORT;
 	uart.port.dev = &pdev->dev;
 
-	uart.port.membase = ioremap(regs->start, resource_size(regs));
+	uart.port.membase = devm_ioremap(&pdev->dev, regs->start,
+					 resource_size(regs));
 	if (!uart.port.membase)
 		return -ENOMEM;
 
