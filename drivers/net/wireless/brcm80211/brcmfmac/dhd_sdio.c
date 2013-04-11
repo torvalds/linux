@@ -3635,7 +3635,6 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 	int err = 0;
 	int reg_addr;
 	u32 reg_val;
-	u8 idx;
 
 	bus->alp_only = true;
 
@@ -3686,12 +3685,37 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 		goto fail;
 	}
 
-	/* Set core control so an SDIO reset does a backplane reset */
-	idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
-	reg_addr = bus->ci->c_inf[idx].base +
-		   offsetof(struct sdpcmd_regs, corecontrol);
-	reg_val = brcmf_sdio_regrl(bus->sdiodev, reg_addr, NULL);
-	brcmf_sdio_regwl(bus->sdiodev, reg_addr, reg_val | CC_BPRESEN, NULL);
+	/* Set card control so an SDIO card reset does a WLAN backplane reset */
+	reg_val = brcmf_sdio_regrb(bus->sdiodev,
+				   SDIO_CCCR_BRCM_CARDCTRL, &err);
+	if (err)
+		goto fail;
+
+	reg_val |= SDIO_CCCR_BRCM_CARDCTRL_WLANRESET;
+
+	brcmf_sdio_regwb(bus->sdiodev,
+			 SDIO_CCCR_BRCM_CARDCTRL, reg_val, &err);
+	if (err)
+		goto fail;
+
+	/* set PMUControl so a backplane reset does PMU state reload */
+	reg_addr = CORE_CC_REG(bus->ci->c_inf[0].base,
+			       pmucontrol);
+	reg_val = brcmf_sdio_regrl(bus->sdiodev,
+				   reg_addr,
+				   &err);
+	if (err)
+		goto fail;
+
+	reg_val |= (BCMA_CC_PMU_CTL_RES_RELOAD << BCMA_CC_PMU_CTL_RES_SHIFT);
+
+	brcmf_sdio_regwl(bus->sdiodev,
+			 reg_addr,
+			 reg_val,
+			 &err);
+	if (err)
+		goto fail;
+
 
 	sdio_release_host(bus->sdiodev->func[1]);
 
