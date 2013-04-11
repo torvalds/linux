@@ -288,6 +288,13 @@ static void init_contrast(struct atmel_lcdfb_info *sinfo)
 		init_backlight(sinfo);
 }
 
+static inline void atmel_lcdfb_power_control(struct atmel_lcdfb_info *sinfo, int on)
+{
+	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
+
+	if (pdata->atmel_lcdfb_power_control)
+		pdata->atmel_lcdfb_power_control(on);
+}
 
 static struct fb_fix_screeninfo atmel_lcdfb_fix __initdata = {
 	.type		= FB_TYPE_PACKED_PIXELS,
@@ -1122,8 +1129,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	fb_add_videomode(&fbmode, &info->modelist);
 
 	/* Power up the LCDC screen */
-	if (pdata->atmel_lcdfb_power_control)
-		pdata->atmel_lcdfb_power_control(1);
+	atmel_lcdfb_power_control(sinfo, 1);
 
 	dev_info(dev, "fb%d: Atmel LCDC at 0x%08lx (mapped at %p), irq %d\n",
 		       info->node, info->fix.mmio_start, sinfo->mmio, sinfo->irq_base);
@@ -1175,8 +1181,7 @@ static int __exit atmel_lcdfb_remove(struct platform_device *pdev)
 
 	cancel_work_sync(&sinfo->task);
 	exit_backlight(sinfo);
-	if (pdata->atmel_lcdfb_power_control)
-		pdata->atmel_lcdfb_power_control(0);
+	atmel_lcdfb_power_control(sinfo, 0);
 	unregister_framebuffer(info);
 	atmel_lcdfb_stop_clock(sinfo);
 	clk_put(sinfo->lcdc_clk);
@@ -1203,7 +1208,6 @@ static int atmel_lcdfb_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct atmel_lcdfb_info *sinfo = info->par;
-	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
 
 	/*
 	 * We don't want to handle interrupts while the clock is
@@ -1213,9 +1217,7 @@ static int atmel_lcdfb_suspend(struct platform_device *pdev, pm_message_t mesg)
 
 	sinfo->saved_lcdcon = lcdc_readl(sinfo, ATMEL_LCDC_CONTRAST_CTR);
 	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, 0);
-	if (pdata->atmel_lcdfb_power_control)
-		pdata->atmel_lcdfb_power_control(0);
-
+	atmel_lcdfb_power_control(sinfo, 0);
 	atmel_lcdfb_stop(sinfo);
 	atmel_lcdfb_stop_clock(sinfo);
 
@@ -1226,12 +1228,10 @@ static int atmel_lcdfb_resume(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct atmel_lcdfb_info *sinfo = info->par;
-	struct atmel_lcdfb_pdata *pdata = &sinfo->pdata;
 
 	atmel_lcdfb_start_clock(sinfo);
 	atmel_lcdfb_start(sinfo);
-	if (pdata->atmel_lcdfb_power_control)
-		pdata->atmel_lcdfb_power_control(1);
+	atmel_lcdfb_power_control(sinfo, 1);
 	lcdc_writel(sinfo, ATMEL_LCDC_CONTRAST_CTR, sinfo->saved_lcdcon);
 
 	/* Enable FIFO & DMA errors */
