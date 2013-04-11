@@ -4383,7 +4383,7 @@ done_prefixes:
 	ctxt->intercept = opcode.intercept;
 
 	/* Unrecognised? */
-	if (ctxt->d == 0 || (ctxt->d & NotImpl) || (ctxt->d & Undefined))
+	if (ctxt->d == 0 || (ctxt->d & NotImpl))
 		return EMULATION_FAILED;
 
 	if (!(ctxt->d & VendorSpecific) && ctxt->only_vendor_specific_insn)
@@ -4521,7 +4521,8 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 
 	ctxt->mem_read.pos = 0;
 
-	if (ctxt->mode == X86EMUL_MODE_PROT64 && (ctxt->d & No64)) {
+	if ((ctxt->mode == X86EMUL_MODE_PROT64 && (ctxt->d & No64)) ||
+			(ctxt->d & Undefined)) {
 		rc = emulate_ud(ctxt);
 		goto done;
 	}
