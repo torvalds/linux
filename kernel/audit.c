@@ -755,7 +755,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			else {
 				int size;
 
-				audit_log_format(ab, " msg=");
+				audit_log_format(ab, " data=");
 				size = nlmsg_len(nlh);
 				if (size > 0 &&
 				    ((unsigned char *)data)[size - 1] == '\0')
