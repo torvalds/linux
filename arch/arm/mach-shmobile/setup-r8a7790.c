@@ -31,6 +31,7 @@
 
 static const struct resource pfc_resources[] = {
 	DEFINE_RES_MEM(0xe6060000, 0x250),
+	DEFINE_RES_MEM(0xe6050000, 0x5050),
 };
 
 void __init r8a7790_pinmux_init(void)
@@ -117,6 +118,18 @@ void __init r8a7790_add_standard_devices(void)
 	r8a7790_register_irqc(0);
 }
 
+void __init r8a7790_timer_init(void)
+{
+	void __iomem *cntcr;
+
+	/* make sure arch timer is started by setting bit 0 of CNTCT */
+	cntcr = ioremap(0xe6080000, PAGE_SIZE);
+	iowrite32(1, cntcr);
+	iounmap(cntcr);
+
+	shmobile_timer_init();
+}
+
 #ifdef CONFIG_USE_OF
 void __init r8a7790_add_standard_devices_dt(void)
 {
@@ -131,7 +144,7 @@ static const char *r8a7790_boards_compat_dt[] __initdata = {
 DT_MACHINE_START(R8A7790_DT, "Generic R8A7790 (Flattened Device Tree)")
 	.init_irq	= irqchip_init,
 	.init_machine	= r8a7790_add_standard_devices_dt,
-	.init_time	= shmobile_timer_init,
+	.init_time	= r8a7790_timer_init,
 	.dt_compat	= r8a7790_boards_compat_dt,
 MACHINE_END
 #endif /* CONFIG_USE_OF */
