@@ -61,7 +61,7 @@ static inline void sched_info_reset_dequeued(struct task_struct *t)
  */
 static inline void sched_info_dequeued(struct task_struct *t)
 {
-	unsigned long long now = task_rq(t)->clock, delta = 0;
+	unsigned long long now = rq_clock(task_rq(t)), delta = 0;
 
 	if (unlikely(sched_info_on()))
 		if (t->sched_info.last_queued)
@@ -79,7 +79,7 @@ static inline void sched_info_dequeued(struct task_struct *t)
  */
 static void sched_info_arrive(struct task_struct *t)
 {
-	unsigned long long now = task_rq(t)->clock, delta = 0;
+	unsigned long long now = rq_clock(task_rq(t)), delta = 0;
 
 	if (t->sched_info.last_queued)
 		delta = now - t->sched_info.last_queued;
@@ -100,7 +100,7 @@ static inline void sched_info_queued(struct task_struct *t)
 {
 	if (unlikely(sched_info_on()))
 		if (!t->sched_info.last_queued)
-			t->sched_info.last_queued = task_rq(t)->clock;
+			t->sched_info.last_queued = rq_clock(task_rq(t));
 }
 
 /*
@@ -112,7 +112,7 @@ static inline void sched_info_queued(struct task_struct *t)
  */
 static inline void sched_info_depart(struct task_struct *t)
 {
-	unsigned long long delta = task_rq(t)->clock -
+	unsigned long long delta = rq_clock(task_rq(t)) -
 					t->sched_info.last_arrival;
 
 	rq_sched_info_depart(task_rq(t), delta);
