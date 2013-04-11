@@ -132,8 +132,9 @@
 #define Priv        (1<<27) /* instruction generates #GP if current CPL != 0 */
 #define No64	    (1<<28)
 #define PageTable   (1 << 29)   /* instruction used to write page table */
+#define NotImpl     (1 << 30)   /* instruction is not implemented */
 /* Source 2 operand type */
-#define Src2Shift   (30)
+#define Src2Shift   (31)
 #define Src2None    (OpNone << Src2Shift)
 #define Src2CL      (OpCL << Src2Shift)
 #define Src2ImmByte (OpImmByte << Src2Shift)
@@ -3624,7 +3625,7 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 #define DI(_y, _i) { .flags = (_y), .intercept = x86_intercept_##_i }
 #define DIP(_y, _i, _p) { .flags = (_y), .intercept = x86_intercept_##_i, \
 		      .check_perm = (_p) }
-#define N    D(0)
+#define N    D(NotImpl)
 #define EXT(_f, _e) { .flags = ((_f) | RMExt), .u.group = (_e) }
 #define G(_f, _g) { .flags = ((_f) | Group | ModRM), .u.group = (_g) }
 #define GD(_f, _g) { .flags = ((_f) | GroupDual | ModRM), .u.gdual = (_g) }
@@ -4382,7 +4383,7 @@ done_prefixes:
 	ctxt->intercept = opcode.intercept;
 
 	/* Unrecognised? */
-	if (ctxt->d == 0 || (ctxt->d & Undefined))
+	if (ctxt->d == 0 || (ctxt->d & NotImpl) || (ctxt->d & Undefined))
 		return EMULATION_FAILED;
 
 	if (!(ctxt->d & VendorSpecific) && ctxt->only_vendor_specific_insn)
