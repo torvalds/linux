@@ -11,6 +11,8 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip.h>
+#include "../../drivers/irqchip/irqchip.h"
 #include <asm/sections.h>
 #include <asm/irq.h>
 #include <asm/mach_desc.h>
@@ -97,13 +99,11 @@ static const struct irq_domain_ops arc_intc_domain_ops = {
 
 static struct irq_domain *root_domain;
 
-void __init init_onchip_IRQ(void)
+static int __init
+init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
 {
-	struct device_node *intc = NULL;
-
-	intc = of_find_compatible_node(NULL, NULL, "snps,arc700-intc");
-	if (!intc)
-		panic("DeviceTree Missing incore intc\n");
+	if (parent)
+		panic("DeviceTree incore intc not a root irq controller\n");
 
 	root_domain = irq_domain_add_legacy(intc, NR_IRQS, 0, 0,
 					    &arc_intc_domain_ops, NULL);
@@ -113,7 +113,11 @@ void __init init_onchip_IRQ(void)
 
 	/* with this we don't need to export root_domain */
 	irq_set_default_host(root_domain);
+
+	return 0;
 }
+
+IRQCHIP_DECLARE(arc_intc, "snps,arc700-intc", init_onchip_IRQ);
 
 /*
  * Late Interrupt system init called from start_kernel for Boot CPU only
@@ -123,11 +127,12 @@ void __init init_onchip_IRQ(void)
  */
 void __init init_IRQ(void)
 {
-	init_onchip_IRQ();
-
 	/* Any external intc can be setup here */
 	if (machine_desc->init_irq)
 		machine_desc->init_irq();
+
+	/* process the entire interrupt tree in one go */
+	irqchip_init();
 
 #ifdef CONFIG_SMP
 	/* Master CPU can initialize it's side of IPI */
