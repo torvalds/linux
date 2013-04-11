@@ -3723,7 +3723,7 @@ static const struct opcode group5[] = {
 	I(SrcMemFAddr | ImplicitOps | Stack,	em_call_far),
 	I(SrcMem | Stack,			em_grp45),
 	I(SrcMemFAddr | ImplicitOps,		em_grp45),
-	I(SrcMem | Stack,			em_grp45), N,
+	I(SrcMem | Stack,			em_grp45), D(Undefined),
 };
 
 static const struct opcode group6[] = {
