@@ -110,15 +110,7 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 
 	sb->flags		= le64_to_cpu(s->flags);
 	sb->seq			= le64_to_cpu(s->seq);
-
-	sb->nbuckets		= le64_to_cpu(s->nbuckets);
-	sb->block_size		= le16_to_cpu(s->block_size);
-	sb->bucket_size		= le16_to_cpu(s->bucket_size);
-
-	sb->nr_in_set		= le16_to_cpu(s->nr_in_set);
-	sb->nr_this_dev		= le16_to_cpu(s->nr_this_dev);
 	sb->last_mount		= le32_to_cpu(s->last_mount);
-
 	sb->first_bucket	= le16_to_cpu(s->first_bucket);
 	sb->keys		= le16_to_cpu(s->keys);
 
@@ -147,53 +139,77 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 	if (bch_is_zero(sb->uuid, 16))
 		goto err;
 
-	err = "Unsupported superblock version";
-	if (sb->version > BCACHE_SB_VERSION)
-		goto err;
+	switch (sb->version) {
+	case BCACHE_SB_VERSION_BDEV:
+		sb->block_size	= le16_to_cpu(s->block_size);
+		sb->data_offset	= BDEV_DATA_START_DEFAULT;
+		break;
+	case BCACHE_SB_VERSION_BDEV_WITH_OFFSET:
+		sb->block_size	= le16_to_cpu(s->block_size);
+		sb->data_offset	= le64_to_cpu(s->data_offset);
 
-	err = "Bad block/bucket size";
-	if (!is_power_of_2(sb->block_size) || sb->block_size > PAGE_SECTORS ||
-	    !is_power_of_2(sb->bucket_size) || sb->bucket_size < PAGE_SECTORS)
-		goto err;
-
-	err = "Too many buckets";
-	if (sb->nbuckets > LONG_MAX)
-		goto err;
-
-	err = "Not enough buckets";
-	if (sb->nbuckets < 1 << 7)
-		goto err;
-
-	err = "Invalid superblock: device too small";
-	if (get_capacity(bdev->bd_disk) < sb->bucket_size * sb->nbuckets)
-		goto err;
-
-	if (sb->version == CACHE_BACKING_DEV)
-		goto out;
-
-	err = "Bad UUID";
-	if (bch_is_zero(sb->set_uuid, 16))
-		goto err;
-
-	err = "Bad cache device number in set";
-	if (!sb->nr_in_set ||
-	    sb->nr_in_set <= sb->nr_this_dev ||
-	    sb->nr_in_set > MAX_CACHES_PER_SET)
-		goto err;
-
-	err = "Journal buckets not sequential";
-	for (i = 0; i < sb->keys; i++)
-		if (sb->d[i] != sb->first_bucket + i)
+		err = "Bad data offset";
+		if (sb->data_offset < BDEV_DATA_START_DEFAULT)
 			goto err;
 
-	err = "Too many journal buckets";
-	if (sb->first_bucket + sb->keys > sb->nbuckets)
-		goto err;
+		break;
+	case BCACHE_SB_VERSION_CDEV:
+	case BCACHE_SB_VERSION_CDEV_WITH_UUID:
+		sb->nbuckets	= le64_to_cpu(s->nbuckets);
+		sb->block_size	= le16_to_cpu(s->block_size);
+		sb->bucket_size	= le16_to_cpu(s->bucket_size);
 
-	err = "Invalid superblock: first bucket comes before end of super";
-	if (sb->first_bucket * sb->bucket_size < 16)
+		sb->nr_in_set	= le16_to_cpu(s->nr_in_set);
+		sb->nr_this_dev	= le16_to_cpu(s->nr_this_dev);
+
+		err = "Too many buckets";
+		if (sb->nbuckets > LONG_MAX)
+			goto err;
+
+		err = "Not enough buckets";
+		if (sb->nbuckets < 1 << 7)
+			goto err;
+
+		err = "Bad block/bucket size";
+		if (!is_power_of_2(sb->block_size) ||
+		    sb->block_size > PAGE_SECTORS ||
+		    !is_power_of_2(sb->bucket_size) ||
+		    sb->bucket_size < PAGE_SECTORS)
+			goto err;
+
+		err = "Invalid superblock: device too small";
+		if (get_capacity(bdev->bd_disk) < sb->bucket_size * sb->nbuckets)
+			goto err;
+
+		err = "Bad UUID";
+		if (bch_is_zero(sb->set_uuid, 16))
+			goto err;
+
+		err = "Bad cache device number in set";
+		if (!sb->nr_in_set ||
+		    sb->nr_in_set <= sb->nr_this_dev ||
+		    sb->nr_in_set > MAX_CACHES_PER_SET)
+			goto err;
+
+		err = "Journal buckets not sequential";
+		for (i = 0; i < sb->keys; i++)
+			if (sb->d[i] != sb->first_bucket + i)
+				goto err;
+
+		err = "Too many journal buckets";
+		if (sb->first_bucket + sb->keys > sb->nbuckets)
+			goto err;
+
+		err = "Invalid superblock: first bucket comes before end of super";
+		if (sb->first_bucket * sb->bucket_size < 16)
+			goto err;
+
+		break;
+	default:
+		err = "Unsupported superblock version";
 		goto err;
-out:
+	}
+
 	sb->last_mount = get_seconds();
 	err = NULL;
 
@@ -286,7 +302,7 @@ void bcache_write_super(struct cache_set *c)
 	for_each_cache(ca, c, i) {
 		struct bio *bio = &ca->sb_bio;
 
-		ca->sb.version		= BCACHE_SB_VERSION;
+		ca->sb.version		= BCACHE_SB_VERSION_CDEV_WITH_UUID;
 		ca->sb.seq		= c->sb.seq;
 		ca->sb.last_mount	= c->sb.last_mount;
 
@@ -1049,7 +1065,7 @@ static const char *register_bdev(struct cache_sb *sb, struct page *sb_page,
 
 	g = dc->disk.disk;
 
-	set_capacity(g, dc->bdev->bd_part->nr_sects - 16);
+	set_capacity(g, dc->bdev->bd_part->nr_sects - dc->sb.data_offset);
 
 	bch_cached_dev_request_init(dc);
 
@@ -1802,7 +1818,7 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 	if (err)
 		goto err_close;
 
-	if (sb->version == CACHE_BACKING_DEV) {
+	if (SB_IS_BDEV(sb)) {
 		struct cached_dev *dc = kzalloc(sizeof(*dc), GFP_KERNEL);
 
 		err = register_bdev(sb, sb_page, bdev, dc);
