@@ -3724,6 +3724,26 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 		encoder->enable(encoder);
 }
 
+static void i9xx_pfit_disable(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum pipe pipe;
+	uint32_t pctl = I915_READ(PFIT_CONTROL);
+
+	assert_pipe_disabled(dev_priv, crtc->pipe);
+
+	if (INTEL_INFO(dev)->gen >= 4)
+		pipe = (pctl & PFIT_PIPE_MASK) >> PFIT_PIPE_SHIFT;
+	else
+		pipe = PIPE_B;
+
+	if (pipe == crtc->pipe) {
+		DRM_DEBUG_DRIVER("disabling pfit, current: 0x%08x\n", pctl);
+		I915_WRITE(PFIT_CONTROL, 0);
+	}
+}
+
 static void i9xx_crtc_disable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -3732,8 +3752,6 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
-	u32 pctl;
-
 
 	if (!intel_crtc->active)
 		return;
@@ -3753,11 +3771,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	intel_disable_plane(dev_priv, plane, pipe);
 	intel_disable_pipe(dev_priv, pipe);
 
-	/* Disable pannel fitter if it is on this pipe. */
-	pctl = I915_READ(PFIT_CONTROL);
-	if ((pctl & PFIT_ENABLE) &&
-	    ((pctl & PFIT_PIPE_MASK) >> PFIT_PIPE_SHIFT) == pipe)
-		I915_WRITE(PFIT_CONTROL, 0);
+	i9xx_pfit_disable(intel_crtc);
 
 	intel_disable_pll(dev_priv, pipe);
 
