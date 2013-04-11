@@ -2909,6 +2909,14 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			break;
 		case CHIP_ID_EM2820:
 			chip_name = "em2710/2820";
+			if (dev->udev->descriptor.idVendor == 0xeb1a) {
+				__le16 idProd = dev->udev->descriptor.idProduct;
+				if (le16_to_cpu(idProd) == 0x2710)
+					chip_name = "em2710";
+				else if (le16_to_cpu(idProd) == 0x2820)
+					chip_name = "em2820";
+			}
+			/* NOTE: the em2820 is used in webcams, too ! */
 			break;
 		case CHIP_ID_EM2840:
 			chip_name = "em2840";
@@ -2973,14 +2981,6 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 		dev->reg_gpo = retval;
 
 	em28xx_pre_card_setup(dev);
-
-	if (dev->chip_id == CHIP_ID_EM2820) {
-		if (dev->board.is_webcam)
-			chip_name = "em2710";
-		else
-			chip_name = "em2820";
-		snprintf(dev->name, sizeof(dev->name), "%s #%d", chip_name, dev->devno);
-	}
 
 	if (!dev->board.is_em2800) {
 		/* Resets I2C speed */
