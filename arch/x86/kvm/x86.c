@@ -4765,10 +4765,14 @@ static int handle_emulation_failure(struct kvm_vcpu *vcpu)
 }
 
 static bool reexecute_instruction(struct kvm_vcpu *vcpu, gva_t cr2,
-				  bool write_fault_to_shadow_pgtable)
+				  bool write_fault_to_shadow_pgtable,
+				  int emulation_type)
 {
 	gpa_t gpa = cr2;
 	pfn_t pfn;
+
+	if (emulation_type & EMULTYPE_NO_REEXECUTE)
+		return false;
 
 	if (!vcpu->arch.mmu.direct_map) {
 		/*
@@ -4912,8 +4916,8 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 		if (r != EMULATION_OK)  {
 			if (emulation_type & EMULTYPE_TRAP_UD)
 				return EMULATE_FAIL;
-			if (reexecute_instruction(vcpu, cr2,
-						  write_fault_to_spt))
+			if (reexecute_instruction(vcpu, cr2, write_fault_to_spt,
+						emulation_type))
 				return EMULATE_DONE;
 			if (emulation_type & EMULTYPE_SKIP)
 				return EMULATE_FAIL;
@@ -4943,7 +4947,8 @@ restart:
 		return EMULATE_DONE;
 
 	if (r == EMULATION_FAILED) {
-		if (reexecute_instruction(vcpu, cr2, write_fault_to_spt))
+		if (reexecute_instruction(vcpu, cr2, write_fault_to_spt,
+					emulation_type))
 			return EMULATE_DONE;
 
 		return handle_emulation_failure(vcpu);
