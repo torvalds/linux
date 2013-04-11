@@ -1102,7 +1102,7 @@ static int r820t_set_tv_standard(struct r820t_priv *priv,
 		return rc;
 
 	/* Set BW, Filter_gain, & HP corner */
-	rc = r820t_write_reg_mask(priv, 0x0b, hp_cor, 0x10);
+	rc = r820t_write_reg_mask(priv, 0x0b, hp_cor, 0xef);
 	if (rc < 0)
 		return rc;
 
