@@ -411,6 +411,7 @@ void idma_reg_addr_init(void __iomem *regs, dma_addr_t addr)
 	idma.regs = regs;
 	idma.lp_tx_addr = addr;
 }
+EXPORT_SYMBOL_GPL(idma_reg_addr_init);
 
 static struct snd_soc_platform_driver asoc_idma_platform = {
 	.ops = &idma_ops,
