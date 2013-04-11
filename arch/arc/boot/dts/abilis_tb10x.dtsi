@@ -1,0 +1,247 @@
+/*
+ * Abilis Systems TB10X SOC device tree
+ *
+ * Copyright (C) Abilis Systems 2013
+ *
+ * Author: Christian Ruppert <christian.ruppert@abilis.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ */
+
+/* interrupt specifiers
+ * --------------------
+ * 0: rising, 1: low, 2: high, 3: falling,
+ */
+
+/ {
+	compatible		= "abilis,arc-tb10x";
+	#address-cells		= <1>;
+	#size-cells		= <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "snps,arc770d";
+			reg = <0>;
+		};
+	};
+
+	soc100 {
+		#address-cells	= <1>;
+		#size-cells	= <1>;
+		device_type	= "soc";
+		ranges		= <0xfe000000 0xfe000000 0x02000000
+				0x000F0000 0x000F0000 0x00010000>;
+		compatible	= "abilis,tb10x", "simple-bus";
+
+		pll0: oscillator {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-output-names = "pll0";
+		};
+		cpu_clk: clkdiv_cpu {
+			compatible = "fixed-factor-clkdiv";
+			#clock-cells = <0>;
+			clocks = <&pll0>;
+			clock-output-names = "cpu_clk";
+		};
+		ahb_clk: clkdiv_ahb {
+			compatible = "fixed-factor-clkdiv";
+			#clock-cells = <0>;
+			clocks = <&pll0>;
+			clock-output-names = "ahb_clk";
+		};
+
+		iomux: iomux@FF10601c {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "abilis,tb10x-iomux";
+			reg = <0xFF10601c 0x4>;
+		};
+
+		intc: interrupt-controller {
+			compatible = "snps,arc700-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+		tb10x_ictl: pic@fe002000 {
+			compatible = "abilis,tb10x_ictl";
+			reg = <0xFE002000 0x20>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupt-parent = <&intc>;
+			interrupts = <5 6 7 8 9 10 11 12 13 14 15 16 17 18 19
+					20 21 22 23 24 25 26 27 28 29 30 31>;
+		};
+
+		uart@FF100000 {
+			compatible = "snps,dw-apb-uart",
+					"abilis,simple-pinctrl";
+			reg = <0xFF100000 0x100>;
+			clock-frequency = <166666666>;
+			interrupts = <25 1>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			interrupt-parent = <&tb10x_ictl>;
+		};
+		ethernet@FE100000 {
+			compatible = "snps,dwmac-3.70a","snps,dwmac";
+			reg = <0xFE100000 0x1058>;
+			interrupt-parent = <&tb10x_ictl>;
+			interrupts = <6 1>;
+			interrupt-names = "macirq";
+			clocks = <&ahb_clk>;
+			clock-names = "stmmaceth";
+		};
+		dma@FE000000 {
+			compatible = "snps,dma-spear1340";
+			reg = <0xFE000000 0x400>;
+			interrupt-parent = <&tb10x_ictl>;
+			interrupts = <14 1>;
+			dma-channels = <6>;
+			dma-requests = <0>;
+			dma-masters = <1>;
+			#dma-cells = <3>;
+			chan_allocation_order = <0>;
+			chan_priority = <1>;
+			block_size = <0x7ff>;
+			data_width = <2 0 0 0>;
+			clocks = <&ahb_clk>;
+			clock-names = "hclk";
+		};
+
+		i2c0: i2c@FF120000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0xFF120000 0x1000>;
+			interrupt-parent = <&tb10x_ictl>;
+			interrupts = <12 1>;
+			clocks = <&ahb_clk>;
+		};
+		i2c1: i2c@FF121000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0xFF121000 0x1000>;
+			interrupt-parent = <&tb10x_ictl>;
+			interrupts = <12 1>;
+			clocks = <&ahb_clk>;
+		};
+		i2c2: i2c@FF122000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0xFF122000 0x1000>;
+			interrupt-parent = <&tb10x_ictl>;
+			interrupts = <12 1>;
+			clocks = <&ahb_clk>;
+		};
+		i2c3: i2c@FF123000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0xFF123000 0x1000>;
+			interrupt-parent = <&tb10x_ictl>;
+			interrupts = <12 1>;
+			clocks = <&ahb_clk>;
+		};
+		i2c4: i2c@FF124000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0xFF124000 0x1000>;
+			interrupt-parent = <&tb10x_ictl>;
+			interrupts = <12 1>;
+			clocks = <&ahb_clk>;
+		};
+
+		spi0: spi@0xFE010000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			compatible = "abilis,tb100-spi";
+			num-cs = <1>;
+			reg = <0xFE010000 0x20>;
+			interrupt-parent = <&tb10x_ictl>;
+			interrupts = <26 1>;
+			clocks = <&ahb_clk>;
+		};
+		spi1: spi@0xFE011000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <1>;
+			compatible = "abilis,tb100-spi",
+					"abilis,simple-pinctrl";
+			num-cs = <2>;
+			reg = <0xFE011000 0x20>;
+			interrupt-parent = <&tb10x_ictl>;
+			interrupts = <10 1>;
+			clocks = <&ahb_clk>;
+		};
+
+		tb10x_tsm: tb10x-tsm@ff316000 {
+			compatible = "abilis,tb100-tsm";
+			reg = <0xff316000 0x400>;
+			interrupt-parent = <&tb10x_ictl>;
+			interrupts = <17 1>;
+			output-clkdiv = <4>;
+			global-packet-delay = <0x21>;
+			port-packet-delay = <0>;
+		};
+		tb10x_stream_proc: tb10x-stream-proc {
+			compatible = "abilis,tb100-streamproc";
+			reg =   <0xfff00000 0x200>,
+				<0x000f0000 0x10000>,
+				<0xfff00200 0x105>,
+				<0xff10600c 0x1>,
+				<0xfe001018 0x1>;
+			reg-names =     "mbox",
+					"sp_iccm",
+					"mbox_irq",
+					"cpuctrl",
+					"a6it_int_force";
+			interrupt-parent = <&tb10x_ictl>;
+			interrupts = <20 1>, <19 1>;
+			interrupt-names = "cmd_irq", "event_irq";
+		};
+		tb10x_mdsc0: tb10x-mdscr@FF300000 {
+			compatible = "abilis,tb100-mdscr";
+			reg = <0xFF300000 0x7000>;
+			tb100-mdscr-manage-tsin;
+		};
+		tb10x_mscr0: tb10x-mdscr@FF307000 {
+			compatible = "abilis,tb100-mdscr";
+			reg = <0xFF307000 0x7000>;
+		};
+		tb10x_scr0: tb10x-mdscr@ff30e000 {
+			compatible = "abilis,tb100-mdscr";
+			reg = <0xFF30e000 0x4000>;
+			tb100-mdscr-manage-tsin;
+		};
+		tb10x_scr1: tb10x-mdscr@ff312000 {
+			compatible = "abilis,tb100-mdscr";
+			reg = <0xFF312000 0x4000>;
+			tb100-mdscr-manage-tsin;
+		};
+		tb10x_wfb: tb10x-wfb@ff319000 {
+			compatible = "abilis,tb100-wfb";
+			reg = <0xff319000 0x1000>;
+			interrupt-parent = <&tb10x_ictl>;
+			interrupts = <16 1>;
+		};
+	};
+};
