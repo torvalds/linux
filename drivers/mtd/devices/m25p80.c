@@ -48,6 +48,12 @@
 #define	OPCODE_SE		0xd8	/* Sector erase (usually 64KiB) */
 #define	OPCODE_RDID		0x9f	/* Read JEDEC ID */
 
+/* 4-byte address opcodes - used on Spansion and some Macronix flashes. */
+#define	OPCODE_NORM_READ_4B	0x13	/* Read data bytes (low frequency) */
+#define	OPCODE_FAST_READ_4B	0x0c	/* Read data bytes (high frequency) */
+#define	OPCODE_PP_4B		0x12	/* Page program (up to 256 bytes) */
+#define	OPCODE_SE_4B		0xdc	/* Sector erase (usually 64KiB) */
+
 /* Used for SST flashes only. */
 #define	OPCODE_BP		0x02	/* Byte program */
 #define	OPCODE_WRDI		0x04	/* Write disable */
@@ -84,6 +90,8 @@ struct m25p {
 	u16			page_size;
 	u16			addr_width;
 	u8			erase_opcode;
+	u8			read_opcode;
+	u8			program_opcode;
 	u8			*command;
 	bool			fast_read;
 };
@@ -371,7 +379,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	 */
 
 	/* Set up the write data buffer. */
-	opcode = flash->fast_read ? OPCODE_FAST_READ : OPCODE_NORM_READ;
+	opcode = flash->read_opcode;
 	flash->command[0] = opcode;
 	m25p_addr2cmd(flash, from, flash->command);
 
@@ -422,7 +430,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 	write_enable(flash);
 
 	/* Set up the opcode in the write buffer. */
-	flash->command[0] = OPCODE_PP;
+	flash->command[0] = flash->program_opcode;
 	m25p_addr2cmd(flash, to, flash->command);
 
 	page_offset = to & (flash->page_size - 1);
@@ -1037,15 +1045,32 @@ static int m25p_probe(struct spi_device *spi)
 	flash->fast_read = true;
 #endif
 
+	/* Default commands */
+	if (flash->fast_read)
+		flash->read_opcode = OPCODE_FAST_READ;
+	else
+		flash->read_opcode = OPCODE_NORM_READ;
+
+	flash->program_opcode = OPCODE_PP;
+
 	if (info->addr_width)
 		flash->addr_width = info->addr_width;
-	else {
+	else if (flash->mtd.size > 0x1000000) {
 		/* enable 4-byte addressing if the device exceeds 16MiB */
-		if (flash->mtd.size > 0x1000000) {
-			flash->addr_width = 4;
-			set_4byte(flash, info->jedec_id, 1);
+		flash->addr_width = 4;
+		if (JEDEC_MFR(info->jedec_id) == CFI_MFR_AMD) {
+			/* Dedicated 4-byte command set */
+			flash->read_opcode = flash->fast_read ?
+				OPCODE_FAST_READ_4B :
+				OPCODE_NORM_READ_4B;
+			flash->program_opcode = OPCODE_PP_4B;
+			/* No small sector erase for 4-byte command set */
+			flash->erase_opcode = OPCODE_SE_4B;
+			flash->mtd.erasesize = info->sector_size;
 		} else
-			flash->addr_width = 3;
+			set_4byte(flash, info->jedec_id, 1);
+	} else {
+		flash->addr_width = 3;
 	}
 
 	dev_info(&spi->dev, "%s (%lld Kbytes)\n", id->name,
