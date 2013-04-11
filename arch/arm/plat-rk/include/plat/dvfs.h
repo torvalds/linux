@@ -17,12 +17,11 @@
 
 #include <mach/clock.h>
 
-typedef int (*vd_dvfs_target_callback)(struct clk *clk, unsigned long rate);
-
+//typedef int (*vd_dvfs_target_callback)(struct clk *clk, unsigned long rate);
 typedef int (*dvfs_set_rate_callback)(struct clk *clk, unsigned long rate);
-
 typedef int (*clk_dvfs_target_callback)(struct clk *clk, unsigned long rate,
                                         dvfs_set_rate_callback set_rate);
+typedef int (*dvfs_clk_disable_callback)(struct clk *clk,int on);
 
 /**
  * struct vd_node:	To Store All Voltage Domains' info
@@ -52,7 +51,8 @@ struct vd_node {
 	struct list_head	pd_list;
 	struct list_head	req_volt_list;
 	//struct mutex		dvfs_mutex;
-	vd_dvfs_target_callback	vd_dvfs_target;
+	dvfs_clk_disable_callback	vd_clk_disable_target;
+	dvfs_set_rate_callback      vd_dvfs_target;
 	unsigned n_voltages;
 	int volt_list[VD_VOL_LIST_CNT];
 };
@@ -107,7 +107,10 @@ struct depend_lookup {
 	struct depend_list	dep_list;
 	struct cpufreq_frequency_table	*dep_table;
 };
-
+struct clk_disable_ctr {
+	dvfs_clk_disable_callback clk_disable_target;
+	struct clk_node *dvfs_clk;
+};
 /**
  * struct clk_node:	To Store All dvfs clocks' info
  * @name:		Dvfs clock's Name
@@ -137,6 +140,7 @@ struct clk_node {
 	struct notifier_block	*dvfs_nb;
 	struct cpufreq_frequency_table	*dvfs_table;
 	clk_dvfs_target_callback	clk_dvfs_target;
+	struct clk_disable_ctr *disable_ctr;
 };
 
 struct dvfs_arm_table {
@@ -182,8 +186,6 @@ struct dvfs_arm_table {
 #define dvfs_clk_get(a,b) clk_get((a),(b))
 #define dvfs_clk_get_rate_kz(a) (clk_get_rate((a))/1000)
 #define dvfs_clk_set_rate(a,b) clk_set_rate((a),(b))
-#define dvfs_clk_enable(a) clk_enable((a))
-#define dvfs_clk_disable(a) clk_disable((a))
 
 
 
@@ -215,11 +217,12 @@ int rk_regist_clk(struct clk_node *dvfs_clk);
 int rk_regist_depends(struct depend_lookup *dep_node);
 struct clk_node *dvfs_get_dvfs_clk_byname(char *name);
 int vd_regulator_round_volt(struct vd_node *vd, int volt,int flags);
+int dvfs_vd_clk_disable_target(struct clk *clk, int on);
+void dvfs_clk_disable_delay_work(struct work_struct *work);
 
-/******************************************************************************/
-
-int is_support_dvfs(struct clk_node *dvfs_info);
-int dvfs_set_rate(struct clk *clk, unsigned long rate);
+/*********************************if not define dvfs ,the following function is need defined func{}******************************/
+int dvfs_vd_clk_set_rate(struct clk *clk, unsigned long rate);
+int dvfs_vd_clk_disable(struct clk *clk, int on);
 int clk_enable_dvfs(struct clk *clk);
 int clk_disable_dvfs(struct clk *clk);
 void dvfs_clk_register_set_rate_callback(struct clk *clk, clk_dvfs_target_callback clk_dvfs_target);
@@ -231,15 +234,27 @@ struct regulator* dvfs_get_regulator(char *regulator_name);
 int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate);
 int dvfs_clk_disable_limit(struct clk *clk);
 int dvfs_scale_volt_direct(struct vd_node *vd_clk, int volt_new);
-
+/******************************** inline *******************************/
+static inline bool dvfs_support_clk_set_rate(struct clk_node *dvfs_info)
+{
+	return (dvfs_info&&dvfs_info->enable_dvfs);
+}
+static inline bool dvfs_support_clk_disable(struct clk_node *dvfs_info)
+{
+	return (dvfs_info&&dvfs_info->disable_ctr&&dvfs_info->enable_dvfs);
+}
+/********************************avs*******************************/
 void avs_init(void);
 void avs_init_val_get(int index,int vol,char *s);
 int avs_set_scal_val(u8 avs_base);
 void avs_board_init(struct avs_ctr_st *data);
 
 #else
-static inline int is_support_dvfs(struct clk_node *dvfs_info) { return 0; }
-static inline int dvfs_set_rate(struct clk *clk, unsigned long rate) { return 0; }
+static inline bool dvfs_support_clk_set_rate(struct clk_node *dvfs_info) { return 0; }
+static inline bool dvfs_support_clk_disable(struct clk_node *dvfs_info) { return 0; }
+
+static inline int dvfs_vd_clk_set_rate(struct clk *clk, unsigned long rate) { return 0; }
+static inline int dvfs_vd_clk_disable(struct clk *clk, int on) { return 0; }
 static inline int clk_enable_dvfs(struct clk *clk) { return 0; }
 static inline int clk_disable_dvfs(struct clk *clk) { return 0; }
 static inline void dvfs_clk_register_set_rate_callback(struct clk *clk, clk_dvfs_target_callback clk_dvfs_target) {}

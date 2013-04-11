@@ -36,6 +36,7 @@ static int dump_dbg_map(char *buf);
 
 #define PD_ON	1
 #define PD_OFF	0
+#define DVFS_STR_DISABLE(on) ((on)?"enable":"disable")
 
 #define get_volt_up_delay(new_volt, old_volt)	\
 	((new_volt) > (old_volt) ? (((new_volt) - (old_volt)) >> 9) : 0)
@@ -280,30 +281,69 @@ int dvfs_clk_disable_limit(struct clk *clk)
 	return 0;
 }
 
-int is_support_dvfs(struct clk_node *dvfs_info)
+int dvfs_vd_clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	return (dvfs_info->vd && dvfs_info->vd->vd_dvfs_target && dvfs_info->enable_dvfs);
-}
+	int ret = -1;
+	struct clk_node *dvfs_info=clk_get_dvfs_info(clk);
+	
+	DVFS_DBG("%s(%s(%lu))\n", __func__, dvfs_info->name, rate);
 
-int dvfs_set_rate(struct clk *clk, unsigned long rate)
-{
-	int ret = 0;
-	struct vd_node *vd;
-	DVFS_DBG("%s(%s(%lu))\n", __func__, clk->name, rate);
-	if (!clk->dvfs_info) {
-		DVFS_ERR("%s :This clk do not support dvfs!\n", __func__);
-		ret = -1;
-	} else {
-		vd = clk->dvfs_info->vd;
+	#if 0 // judge by reference func in rk
+	if (dvfs_support_clk_set_rate(dvfs_info)==false) {
+		DVFS_ERR("dvfs func:%s is not support!\n", __func__);
+		return ret;
+	}
+	#endif
+	
+	if(dvfs_info->vd&&dvfs_info->vd->vd_dvfs_target){
 		// mutex_lock(&vd->dvfs_mutex);
 		mutex_lock(&rk_dvfs_mutex);
-		ret = vd->vd_dvfs_target(clk, rate);
+		ret = dvfs_info->vd->vd_dvfs_target(clk, rate);
 		mutex_unlock(&rk_dvfs_mutex);
 		// mutex_unlock(&vd->dvfs_mutex);
+	}
+	else
+	{
+		DVFS_WARNING("%s(%s),vd is no target callback\n", __func__, clk->name);	
+		return -1;
 	}
 	DVFS_DBG("%s(%s(%lu)),is end\n", __func__, clk->name, rate);
 	return ret;
 }
+EXPORT_SYMBOL(dvfs_vd_clk_set_rate);
+
+int dvfs_vd_clk_disable(struct clk *clk, int on)
+{
+	int ret = -1;
+	struct clk_node *dvfs_info=clk_get_dvfs_info(clk);	
+	DVFS_DBG("%s(%s(%s,%lu))\n", __func__, dvfs_info->name, DVFS_STR_DISABLE(on),clk_get_rate(clk));
+
+
+	#if 0 // judge by reference func in rk
+	if (dvfs_support_clk_disable(dvfs_info)==false) {
+		DVFS_ERR("dvfs func:%s is not support!\n", __func__);
+		return ret;
+	}
+	#endif
+	
+	if(dvfs_info->vd&&dvfs_info->vd->vd_clk_disable_target){
+		// mutex_lock(&vd->dvfs_mutex);
+		mutex_lock(&rk_dvfs_mutex);
+		ret = dvfs_info->vd->vd_clk_disable_target(clk, on);
+		mutex_unlock(&rk_dvfs_mutex);
+		// mutex_unlock(&vd->dvfs_mutex);
+	}
+	else
+	{
+		DVFS_WARNING("%s(%s),vd is no target callback\n", __func__, clk->name);	
+		return -1;
+	}
+	DVFS_DBG("%s(%s(%lu)),is end\n", __func__, dvfs_info->name, DVFS_STR_ON(on));
+
+	return ret;
+}
+
+EXPORT_SYMBOL(dvfs_vd_clk_disable);
 
 static void dvfs_table_round_clk_rate(struct clk_node  *dvfs_clk)
 {
