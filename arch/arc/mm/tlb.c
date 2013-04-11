@@ -422,12 +422,18 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
  * when a new PTE is entered in Page Tables or an existing one
  * is modified. We aggresively pre-install a TLB entry
  */
-
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddress,
+void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 		      pte_t *ptep)
 {
+	unsigned long vaddr = vaddr_unaligned & PAGE_MASK;
 
-	create_tlb(vma, vaddress, ptep);
+	create_tlb(vma, vaddr, ptep);
+
+	/* icache doesn't snoop dcache, thus needs to be made coherent here */
+	if (vma->vm_flags & VM_EXEC) {
+		unsigned long paddr =  pte_val(*ptep) & PAGE_MASK;
+		__inv_icache_page(paddr, vaddr);
+	}
 }
 
 /* Read the Cache Build Confuration Registers, Decode them and save into
