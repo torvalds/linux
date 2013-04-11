@@ -94,4 +94,25 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 #define snd_hda_parse_pin_def_config(codec, cfg, ignore) \
 	snd_hda_parse_pin_defcfg(codec, cfg, ignore, 0)
 
+static inline int auto_cfg_hp_outs(const struct auto_pin_cfg *cfg)
+{
+	return (cfg->line_out_type == AUTO_PIN_HP_OUT) ?
+	       cfg->line_outs : cfg->hp_outs;
+}
+static inline const hda_nid_t *auto_cfg_hp_pins(const struct auto_pin_cfg *cfg)
+{
+	return (cfg->line_out_type == AUTO_PIN_HP_OUT) ?
+	       cfg->line_out_pins : cfg->hp_pins;
+}
+static inline int auto_cfg_speaker_outs(const struct auto_pin_cfg *cfg)
+{
+	return (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT) ?
+	       cfg->line_outs : cfg->speaker_outs;
+}
+static inline const hda_nid_t *auto_cfg_speaker_pins(const struct auto_pin_cfg *cfg)
+{
+	return (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT) ?
+	       cfg->line_out_pins : cfg->speaker_pins;
+}
+
 #endif /* __SOUND_HDA_AUTO_PARSER_H */
