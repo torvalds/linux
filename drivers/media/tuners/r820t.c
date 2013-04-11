@@ -1163,6 +1163,8 @@ static int r820t_read_gain(struct r820t_priv *priv)
 	return ((data[3] & 0x0f) << 1) + ((data[3] & 0xf0) >> 4);
 }
 
+#if 0
+/* FIXME: This routine requires more testing */
 static int r820t_set_gain_mode(struct r820t_priv *priv,
 			       bool set_manual_gain,
 			       int gain)
@@ -1233,7 +1235,7 @@ static int r820t_set_gain_mode(struct r820t_priv *priv,
 
 	return 0;
 }
-
+#endif
 
 static int generic_set_freq(struct dvb_frontend *fe,
 			    u32 freq /* in HZ */,
@@ -1258,10 +1260,6 @@ static int generic_set_freq(struct dvb_frontend *fe,
 		lo_freq = freq + priv->int_freq;
 
 	rc = r820t_set_mux(priv, lo_freq);
-	if (rc < 0)
-		goto err;
-
-	rc = r820t_set_gain_mode(priv, false, 0);
 	if (rc < 0)
 		goto err;
 
