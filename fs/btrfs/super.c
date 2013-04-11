@@ -1191,11 +1191,14 @@ static void btrfs_resize_thread_pool(struct btrfs_fs_info *fs_info,
 			      new_pool_size);
 }
 
-static inline void btrfs_remount_prepare(struct btrfs_fs_info *fs_info,
-					 unsigned long old_opts, int flags)
+static inline void btrfs_remount_prepare(struct btrfs_fs_info *fs_info)
 {
 	set_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state);
+}
 
+static inline void btrfs_remount_begin(struct btrfs_fs_info *fs_info,
+				       unsigned long old_opts, int flags)
+{
 	if (btrfs_raw_test_opt(old_opts, AUTO_DEFRAG) &&
 	    (!btrfs_raw_test_opt(fs_info->mount_opt, AUTO_DEFRAG) ||
 	     (flags & MS_RDONLY))) {
@@ -1236,7 +1239,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	unsigned int old_metadata_ratio = fs_info->metadata_ratio;
 	int ret;
 
-	btrfs_remount_prepare(fs_info, old_opts, *flags);
+	btrfs_remount_prepare(fs_info);
 
 	ret = btrfs_parse_options(root, data);
 	if (ret) {
@@ -1244,6 +1247,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		goto restore;
 	}
 
+	btrfs_remount_begin(fs_info, old_opts, *flags);
 	btrfs_resize_thread_pool(fs_info,
 		fs_info->thread_pool_size, old_thread_pool_size);
 
