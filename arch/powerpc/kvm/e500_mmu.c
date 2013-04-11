@@ -624,6 +624,9 @@ int kvmppc_get_one_reg_e500_tlb(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_MMUCFG:
 		*val = get_reg_val(id, vcpu->arch.mmucfg);
 		break;
+	case KVM_REG_PPC_EPTCFG:
+		*val = get_reg_val(id, vcpu->arch.eptcfg);
+		break;
 	case KVM_REG_PPC_TLB0CFG:
 	case KVM_REG_PPC_TLB1CFG:
 	case KVM_REG_PPC_TLB2CFG:
@@ -675,6 +678,12 @@ int kvmppc_set_one_reg_e500_tlb(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_MMUCFG: {
 		u32 reg = set_reg_val(id, *val);
 		if (reg != vcpu->arch.mmucfg)
+			r = -EINVAL;
+		break;
+	}
+	case KVM_REG_PPC_EPTCFG: {
+		u32 reg = set_reg_val(id, *val);
+		if (reg != vcpu->arch.eptcfg)
 			r = -EINVAL;
 		break;
 	}
@@ -875,6 +884,9 @@ static int vcpu_mmu_init(struct kvm_vcpu *vcpu,
 	if (has_feature(vcpu, VCPU_FTR_MMU_V2)) {
 		vcpu->arch.tlbps[0] = mfspr(SPRN_TLB0PS);
 		vcpu->arch.tlbps[1] = mfspr(SPRN_TLB1PS);
+
+		/* Guest mmu emulation currently doesn't handle E.PT */
+		vcpu->arch.eptcfg = 0;
 	}
 
 	return 0;

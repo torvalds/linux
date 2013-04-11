@@ -317,6 +317,15 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 	case SPRN_MMUCFG:
 		*spr_val = vcpu->arch.mmucfg;
 		break;
+	case SPRN_EPTCFG:
+		if (!has_feature(vcpu, VCPU_FTR_MMU_V2))
+			return EMULATE_FAIL;
+		/*
+		 * Legacy Linux guests access EPTCFG register even if the E.PT
+		 * category is disabled in the VM. Give them a chance to live.
+		 */
+		*spr_val = vcpu->arch.eptcfg;
+		break;
 
 	/* extra exceptions */
 	case SPRN_IVOR32:
