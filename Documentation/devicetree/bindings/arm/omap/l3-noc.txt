@@ -6,6 +6,7 @@ provided by Arteris.
 Required properties:
 - compatible : Should be "ti,omap3-l3-smx" for OMAP3 family
                Should be "ti,omap4-l3-noc" for OMAP4 family
+- reg:	Contains L3 register address range for each noc domain.
 - ti,hwmods: "l3_main_1", ... One hwmod for each noc domain.
 
 Examples:
