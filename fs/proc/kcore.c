@@ -28,6 +28,7 @@
 #include <linux/ioport.h>
 #include <linux/memory.h>
 #include <asm/sections.h>
+#include "internal.h"
 
 #define CORE_STR "CORE"
 
