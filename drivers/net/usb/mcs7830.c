@@ -576,10 +576,7 @@ static void mcs7830_status(struct usbnet *dev, struct urb *urb)
 		 */
 		if (data->link_counter > 20) {
 			data->link_counter = 0;
-			if (link)
-				netif_carrier_on(dev->net);
-			else
-				netif_carrier_off(dev->net);
+			usbnet_link_change(dev, link, 0);
 			netdev_dbg(dev->net, "Link Status is: %d\n", link);
 		}
 	} else
