@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/of_i2c.h>
 
 /* the name of this kernel module */
 #define NAME "stu300"
@@ -923,6 +924,7 @@ stu300_probe(struct platform_device *pdev)
 	adap->nr = bus_nr;
 	adap->algo = &stu300_algo;
 	adap->dev.parent = &pdev->dev;
+	adap->dev.of_node = pdev->dev.of_node;
 	i2c_set_adapdata(adap, dev);
 
 	/* i2c device drivers may be active on return from add_adapter() */
@@ -934,6 +936,10 @@ stu300_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, dev);
+	dev_info(&pdev->dev, "ST DDC I2C @ %p, irq %d\n",
+		 dev->virtbase, dev->irq);
+	of_i2c_register_devices(adap);
+
 	return 0;
 }
 
@@ -978,11 +984,17 @@ stu300_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id stu300_dt_match[] = {
+	{ .compatible = "st,ddci2c" },
+	{},
+};
+
 static struct platform_driver stu300_i2c_driver = {
 	.driver = {
 		.name	= NAME,
 		.owner	= THIS_MODULE,
 		.pm	= STU300_I2C_PM,
+		.of_match_table = stu300_dt_match,
 	},
 	.remove		= __exit_p(stu300_remove),
 
