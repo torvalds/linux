@@ -684,6 +684,11 @@ static inline int sensor_face_detect_default_cb(struct soc_camera_device *icd, s
     int config_flash = 0;\
     int sensor_config;\
  \
+    if (pdata == NULL) {\
+        printk("WARNING: Camera sensor device is registered in board by CONFIG_SENSOR_XX,\n"\
+               "Please register camera sesnor deivce in struct rkcamera_platform_data new_camera[]\n");\
+        BUG();\
+    }\
     sensor_config = SensorConfiguration;\
     new_camera = pdata->register_dev_new; \
     while (strstr(new_camera->dev_name,"end")==NULL) { \
