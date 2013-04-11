@@ -1762,10 +1762,11 @@ static int mxt_parse_object_table(struct mxt_data *data,
 			data->T7_address = object->start_address;
 			break;
 		case MXT_TOUCH_MULTI_T9:
+			/* Only handle messages from first T9 instance */
 			data->T9_reportid_min = min_id;
-			data->T9_reportid_max = max_id;
-			data->num_touchids = object->num_report_ids
-						* mxt_obj_instances(object);
+			data->T9_reportid_max = min_id +
+						object->num_report_ids - 1;
+			data->num_touchids = object->num_report_ids;
 			break;
 		case MXT_TOUCH_KEYARRAY_T15:
 			data->T15_reportid_min = min_id;
@@ -1788,10 +1789,10 @@ static int mxt_parse_object_table(struct mxt_data *data,
 			data->T48_reportid = min_id;
 			break;
 		case MXT_PROCI_ACTIVE_STYLUS_T63:
+			/* Only handle messages from first T63 instance */
 			data->T63_reportid_min = min_id;
-			data->T63_reportid_max = max_id;
-			data->num_stylusids = object->num_report_ids
-						* mxt_obj_instances(object);
+			data->T63_reportid_max = min_id;
+			data->num_stylusids = 1;
 			break;
 		case MXT_TOUCH_MULTITOUCHSCREEN_T100:
 			data->T100_reportid_min = min_id;
