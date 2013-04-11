@@ -390,11 +390,7 @@ static int bgpio_setup_direction(struct bgpio_chip *bgc,
 
 int bgpio_remove(struct bgpio_chip *bgc)
 {
-	int err = gpiochip_remove(&bgc->gc);
-
-	kfree(bgc);
-
-	return err;
+	return gpiochip_remove(&bgc->gc);
 }
 EXPORT_SYMBOL_GPL(bgpio_remove);
 
