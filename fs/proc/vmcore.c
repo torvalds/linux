@@ -8,7 +8,7 @@
  */
 
 #include <linux/mm.h>
-#include <linux/proc_fs.h>
+#include <linux/kcore.h>
 #include <linux/user.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>
@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
+#include "internal.h"
 
 /* List representing chunks of contiguous memory areas and their offsets in
  * vmcore file.
