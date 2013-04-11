@@ -239,6 +239,11 @@ void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 
 /* Serial port registrations */
 
+#define S3C2410_PA_UART0      (S3C24XX_PA_UART)
+#define S3C2410_PA_UART1      (S3C24XX_PA_UART + 0x4000 )
+#define S3C2410_PA_UART2      (S3C24XX_PA_UART + 0x8000 )
+#define S3C2443_PA_UART3      (S3C24XX_PA_UART + 0xC000 )
+
 static struct resource s3c2410_uart0_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C2410_PA_UART0, SZ_16K),
 	[1] = DEFINE_RES_NAMED(IRQ_S3CUART_RX0, \

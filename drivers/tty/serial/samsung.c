@@ -39,6 +39,7 @@
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
+#include <linux/serial_s3c.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
@@ -46,10 +47,9 @@
 
 #include <asm/irq.h>
 
-#include <mach/hardware.h>
-
-#include <plat/regs-serial.h>
+#ifdef CONFIG_SAMSUNG_CLOCK
 #include <plat/clock.h>
+#endif
 
 #include "samsung.h"
 
