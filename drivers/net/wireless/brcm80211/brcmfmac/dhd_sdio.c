@@ -336,95 +336,6 @@ static uint prio2prec(u32 prio)
 	       (prio^2) : prio;
 }
 
-/* core registers */
-struct sdpcmd_regs {
-	u32 corecontrol;		/* 0x00, rev8 */
-	u32 corestatus;			/* rev8 */
-	u32 PAD[1];
-	u32 biststatus;			/* rev8 */
-
-	/* PCMCIA access */
-	u16 pcmciamesportaladdr;	/* 0x010, rev8 */
-	u16 PAD[1];
-	u16 pcmciamesportalmask;	/* rev8 */
-	u16 PAD[1];
-	u16 pcmciawrframebc;		/* rev8 */
-	u16 PAD[1];
-	u16 pcmciaunderflowtimer;	/* rev8 */
-	u16 PAD[1];
-
-	/* interrupt */
-	u32 intstatus;			/* 0x020, rev8 */
-	u32 hostintmask;		/* rev8 */
-	u32 intmask;			/* rev8 */
-	u32 sbintstatus;		/* rev8 */
-	u32 sbintmask;			/* rev8 */
-	u32 funcintmask;		/* rev4 */
-	u32 PAD[2];
-	u32 tosbmailbox;		/* 0x040, rev8 */
-	u32 tohostmailbox;		/* rev8 */
-	u32 tosbmailboxdata;		/* rev8 */
-	u32 tohostmailboxdata;		/* rev8 */
-
-	/* synchronized access to registers in SDIO clock domain */
-	u32 sdioaccess;			/* 0x050, rev8 */
-	u32 PAD[3];
-
-	/* PCMCIA frame control */
-	u8 pcmciaframectrl;		/* 0x060, rev8 */
-	u8 PAD[3];
-	u8 pcmciawatermark;		/* rev8 */
-	u8 PAD[155];
-
-	/* interrupt batching control */
-	u32 intrcvlazy;			/* 0x100, rev8 */
-	u32 PAD[3];
-
-	/* counters */
-	u32 cmd52rd;			/* 0x110, rev8 */
-	u32 cmd52wr;			/* rev8 */
-	u32 cmd53rd;			/* rev8 */
-	u32 cmd53wr;			/* rev8 */
-	u32 abort;			/* rev8 */
-	u32 datacrcerror;		/* rev8 */
-	u32 rdoutofsync;		/* rev8 */
-	u32 wroutofsync;		/* rev8 */
-	u32 writebusy;			/* rev8 */
-	u32 readwait;			/* rev8 */
-	u32 readterm;			/* rev8 */
-	u32 writeterm;			/* rev8 */
-	u32 PAD[40];
-	u32 clockctlstatus;		/* rev8 */
-	u32 PAD[7];
-
-	u32 PAD[128];			/* DMA engines */
-
-	/* SDIO/PCMCIA CIS region */
-	char cis[512];			/* 0x400-0x5ff, rev6 */
-
-	/* PCMCIA function control registers */
-	char pcmciafcr[256];		/* 0x600-6ff, rev6 */
-	u16 PAD[55];
-
-	/* PCMCIA backplane access */
-	u16 backplanecsr;		/* 0x76E, rev6 */
-	u16 backplaneaddr0;		/* rev6 */
-	u16 backplaneaddr1;		/* rev6 */
-	u16 backplaneaddr2;		/* rev6 */
-	u16 backplaneaddr3;		/* rev6 */
-	u16 backplanedata0;		/* rev6 */
-	u16 backplanedata1;		/* rev6 */
-	u16 backplanedata2;		/* rev6 */
-	u16 backplanedata3;		/* rev6 */
-	u16 PAD[31];
-
-	/* sprom "size" & "blank" info */
-	u16 spromstatus;		/* 0x7BE, rev2 */
-	u32 PAD[464];
-
-	u16 PAD[0x80];
-};
-
 #ifdef DEBUG
 /* Device console log buffer state */
 struct brcmf_console {
@@ -3082,84 +2993,8 @@ brcmf_sdbrcm_bus_rxctl(struct device *dev, unsigned char *msg, uint msglen)
 	return rxlen ? (int)rxlen : -ETIMEDOUT;
 }
 
-static int brcmf_sdbrcm_write_vars(struct brcmf_sdio *bus)
+static bool brcmf_sdbrcm_download_state(struct brcmf_sdio *bus, bool enter)
 {
-	int bcmerror = 0;
-	u32 varaddr;
-	u32 varsizew;
-	__le32 varsizew_le;
-#ifdef DEBUG
-	char *nvram_ularray;
-#endif				/* DEBUG */
-
-	/* Even if there are no vars are to be written, we still
-		 need to set the ramsize. */
-	varaddr = (bus->ramsize - 4) - bus->varsz;
-
-	if (bus->vars) {
-		/* Write the vars list */
-		bcmerror = brcmf_sdio_ramrw(bus->sdiodev, true, varaddr,
-					    bus->vars, bus->varsz);
-#ifdef DEBUG
-		/* Verify NVRAM bytes */
-		brcmf_dbg(INFO, "Compare NVRAM dl & ul; varsize=%d\n",
-			  bus->varsz);
-		nvram_ularray = kmalloc(bus->varsz, GFP_ATOMIC);
-		if (!nvram_ularray)
-			return -ENOMEM;
-
-		/* Upload image to verify downloaded contents. */
-		memset(nvram_ularray, 0xaa, bus->varsz);
-
-		/* Read the vars list to temp buffer for comparison */
-		bcmerror = brcmf_sdio_ramrw(bus->sdiodev, false, varaddr,
-					    nvram_ularray, bus->varsz);
-		if (bcmerror) {
-			brcmf_err("error %d on reading %d nvram bytes at 0x%08x\n",
-				  bcmerror, bus->varsz, varaddr);
-		}
-		/* Compare the org NVRAM with the one read from RAM */
-		if (memcmp(bus->vars, nvram_ularray, bus->varsz))
-			brcmf_err("Downloaded NVRAM image is corrupted\n");
-		else
-			brcmf_err("Download/Upload/Compare of NVRAM ok\n");
-
-		kfree(nvram_ularray);
-#endif				/* DEBUG */
-	}
-
-	/* adjust to the user specified RAM */
-	brcmf_dbg(INFO, "Physical memory size: %d\n", bus->ramsize);
-	brcmf_dbg(INFO, "Vars are at %d, orig varsize is %d\n",
-		  varaddr, bus->varsz);
-
-	/*
-	 * Determine the length token:
-	 * Varsize, converted to words, in lower 16-bits, checksum
-	 * in upper 16-bits.
-	 */
-	if (bcmerror) {
-		varsizew = 0;
-		varsizew_le = cpu_to_le32(0);
-	} else {
-		varsizew = bus->varsz / 4;
-		varsizew = (~varsizew << 16) | (varsizew & 0x0000FFFF);
-		varsizew_le = cpu_to_le32(varsizew);
-	}
-
-	brcmf_dbg(INFO, "New varsize is %d, length token=0x%08x\n",
-		  bus->varsz, varsizew);
-
-	/* Write the length token to the last word */
-	bcmerror = brcmf_sdio_ramrw(bus->sdiodev, true, (bus->ramsize - 4),
-				    (u8 *)&varsizew_le, 4);
-
-	return bcmerror;
-}
-
-static int brcmf_sdbrcm_download_state(struct brcmf_sdio *bus, bool enter)
-{
-	int bcmerror = 0;
 	struct chip_info *ci = bus->ci;
 
 	/* To enter download state, disable ARM and reset SOCRAM.
@@ -3168,41 +3003,19 @@ static int brcmf_sdbrcm_download_state(struct brcmf_sdio *bus, bool enter)
 	if (enter) {
 		bus->alp_only = true;
 
-		ci->coredisable(bus->sdiodev, ci, BCMA_CORE_ARM_CM3);
-
-		ci->resetcore(bus->sdiodev, ci, BCMA_CORE_INTERNAL_MEM);
-
-		/* Clear the top bit of memory */
-		if (bus->ramsize) {
-			u32 zeros = 0;
-			brcmf_sdio_ramrw(bus->sdiodev, true, bus->ramsize - 4,
-					 (u8 *)&zeros, 4);
-		}
+		brcmf_sdio_chip_enter_download(bus->sdiodev, ci);
 	} else {
-		if (!ci->iscoreup(bus->sdiodev, ci, BCMA_CORE_INTERNAL_MEM)) {
-			brcmf_err("SOCRAM core is down after reset?\n");
-			bcmerror = -EBADE;
-			goto fail;
-		}
-
-		bcmerror = brcmf_sdbrcm_write_vars(bus);
-		if (bcmerror) {
-			brcmf_err("no vars written to RAM\n");
-			bcmerror = 0;
-		}
-
-		w_sdreg32(bus, 0xFFFFFFFF,
-			  offsetof(struct sdpcmd_regs, intstatus));
-
-		ci->resetcore(bus->sdiodev, ci, BCMA_CORE_ARM_CM3);
+		if (!brcmf_sdio_chip_exit_download(bus->sdiodev, ci, bus->vars,
+						   bus->varsz))
+			return false;
 
 		/* Allow HT Clock now that the ARM is running. */
 		bus->alp_only = false;
 
 		bus->sdiodev->bus_if->state = BRCMF_BUS_LOAD;
 	}
-fail:
-	return bcmerror;
+
+	return true;
 }
 
 static int brcmf_sdbrcm_get_image(char *buf, int len, struct brcmf_sdio *bus)
@@ -3359,7 +3172,7 @@ static int _brcmf_sdbrcm_download_firmware(struct brcmf_sdio *bus)
 	int bcmerror = -1;
 
 	/* Keep arm in reset */
-	if (brcmf_sdbrcm_download_state(bus, true)) {
+	if (!brcmf_sdbrcm_download_state(bus, true)) {
 		brcmf_err("error placing ARM core in reset\n");
 		goto err;
 	}
@@ -3375,7 +3188,7 @@ static int _brcmf_sdbrcm_download_firmware(struct brcmf_sdio *bus)
 	}
 
 	/* Take arm out of reset */
-	if (brcmf_sdbrcm_download_state(bus, false)) {
+	if (!brcmf_sdbrcm_download_state(bus, false)) {
 		brcmf_err("error getting out of ARM core reset\n");
 		goto err;
 	}
