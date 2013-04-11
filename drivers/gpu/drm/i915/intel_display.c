@@ -4745,8 +4745,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 
 	i9xx_set_pipeconf(intel_crtc);
 
-	intel_enable_pipe(dev_priv, pipe, false);
-
 	intel_wait_for_vblank(dev, pipe);
 
 	I915_WRITE(DSPCNTR(plane), dspcntr);
