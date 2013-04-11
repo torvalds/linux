@@ -80,6 +80,7 @@
 #include <linux/slab.h>
 #include <linux/pstore.h>
 #include <linux/ctype.h>
+#include <linux/magic.h>
 
 #include <linux/fs.h>
 #include <linux/ramfs.h>
