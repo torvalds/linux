@@ -73,11 +73,14 @@
 
 /* Feature bits */
 
-#define RBD_FEATURE_LAYERING      1
+#define RBD_FEATURE_LAYERING	(1<<0)
+#define RBD_FEATURE_STRIPINGV2	(1<<1)
+#define RBD_FEATURES_ALL \
+	    (RBD_FEATURE_LAYERING | RBD_FEATURE_STRIPINGV2)
 
 /* Features supported by this (client software) implementation. */
 
-#define RBD_FEATURES_ALL          (0)
+#define RBD_FEATURES_SUPPORTED	(0)
 
 /*
  * An RBD device name will be "rbd#", where the "rbd" comes from
@@ -2843,7 +2846,7 @@ static int _rbd_dev_v2_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
 		return ret;
 
 	incompat = le64_to_cpu(features_buf.incompat);
-	if (incompat & ~RBD_FEATURES_ALL)
+	if (incompat & ~RBD_FEATURES_SUPPORTED)
 		return -ENXIO;
 
 	*snap_features = le64_to_cpu(features_buf.features);
