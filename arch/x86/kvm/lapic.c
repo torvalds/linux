@@ -468,6 +468,15 @@ static inline int apic_find_highest_isr(struct kvm_lapic *apic)
 	return result;
 }
 
+void kvm_apic_update_tmr(struct kvm_vcpu *vcpu, u32 *tmr)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	int i;
+
+	for (i = 0; i < 8; i++)
+		apic_set_reg(apic, APIC_TMR + 0x10 * i, tmr[i]);
+}
+
 static void apic_update_ppr(struct kvm_lapic *apic)
 {
 	u32 tpr, isrv, ppr, old_ppr;
@@ -660,12 +669,6 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 
 		if (dest_map)
 			__set_bit(vcpu->vcpu_id, dest_map);
-
-		if (trig_mode) {
-			apic_debug("level trig mode for vector %d", vector);
-			apic_set_vector(vector, apic->regs + APIC_TMR);
-		} else
-			apic_clear_vector(vector, apic->regs + APIC_TMR);
 
 		result = !apic_test_and_set_irr(vector, apic);
 		trace_kvm_apic_accept_irq(vcpu->vcpu_id, delivery_mode,
