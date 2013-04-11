@@ -1125,28 +1125,11 @@ static int mlx4_QP_ATTACH(struct mlx4_dev *dev, struct mlx4_qp *qp,
 	return err;
 }
 
-int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
-			  u8 port, int block_mcast_loopback,
-			  enum mlx4_protocol prot, u64 *reg_id)
+int mlx4_trans_to_dmfs_attach(struct mlx4_dev *dev, struct mlx4_qp *qp,
+			      u8 gid[16], u8 port,
+			      int block_mcast_loopback,
+			      enum mlx4_protocol prot, u64 *reg_id)
 {
-
-	switch (dev->caps.steering_mode) {
-	case MLX4_STEERING_MODE_A0:
-		if (prot == MLX4_PROT_ETH)
-			return 0;
-
-	case MLX4_STEERING_MODE_B0:
-		if (prot == MLX4_PROT_ETH)
-			gid[7] |= (MLX4_MC_STEER << 1);
-
-		if (mlx4_is_mfunc(dev))
-			return mlx4_QP_ATTACH(dev, qp, gid, 1,
-					      block_mcast_loopback, prot);
-		return mlx4_qp_attach_common(dev, qp, gid,
-					     block_mcast_loopback, prot,
-					     MLX4_MC_STEER);
-
-	case MLX4_STEERING_MODE_DEVICE_MANAGED: {
 		struct mlx4_spec_list spec = { {NULL} };
 		__be64 mac_mask = cpu_to_be64(MLX4_MAC_MASK << 16);
 
@@ -1180,8 +1163,32 @@ int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 		list_add_tail(&spec.list, &rule.list);
 
 		return mlx4_flow_attach(dev, &rule, reg_id);
-	}
+}
 
+int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
+			  u8 port, int block_mcast_loopback,
+			  enum mlx4_protocol prot, u64 *reg_id)
+{
+	switch (dev->caps.steering_mode) {
+	case MLX4_STEERING_MODE_A0:
+		if (prot == MLX4_PROT_ETH)
+			return 0;
+
+	case MLX4_STEERING_MODE_B0:
+		if (prot == MLX4_PROT_ETH)
+			gid[7] |= (MLX4_MC_STEER << 1);
+
+		if (mlx4_is_mfunc(dev))
+			return mlx4_QP_ATTACH(dev, qp, gid, 1,
+					      block_mcast_loopback, prot);
+		return mlx4_qp_attach_common(dev, qp, gid,
+					     block_mcast_loopback, prot,
+					     MLX4_MC_STEER);
+
+	case MLX4_STEERING_MODE_DEVICE_MANAGED:
+		return mlx4_trans_to_dmfs_attach(dev, qp, gid, port,
+						 block_mcast_loopback,
+						 prot, reg_id);
 	default:
 		return -EINVAL;
 	}
