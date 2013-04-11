@@ -324,6 +324,9 @@ MODULE_FIRMWARE(BRCMF_SDIO_NV_NAME);
 					 */
 #define BRCMF_IDLE_INTERVAL	1
 
+#define KSO_WAIT_US 50
+#define MAX_KSO_ATTEMPTS (PMU_MAX_TRANSITION_DLY/KSO_WAIT_US)
+
 /*
  * Conversion of 802.1D priority to precedence level
  */
@@ -588,12 +591,14 @@ struct brcmf_sdio {
 
 	bool txoff;		/* Transmit flow-controlled */
 	struct brcmf_sdio_count sdcnt;
+	bool sr_enabled; /* SaveRestore enabled */
+	bool sleeping; /* SDIO bus sleeping */
 };
 
 /* clkstate */
 #define CLK_NONE	0
 #define CLK_SDONLY	1
-#define CLK_PENDING	2	/* Not used yet */
+#define CLK_PENDING	2
 #define CLK_AVAIL	3
 
 #ifdef DEBUG
@@ -665,6 +670,62 @@ w_sdreg32(struct brcmf_sdio *bus, u32 regval, u32 reg_offset)
 	return ret;
 }
 
+static int
+brcmf_sdbrcm_kso_control(struct brcmf_sdio *bus, bool on)
+{
+	u8 wr_val = 0, rd_val, cmp_val, bmask;
+	int err = 0;
+	int try_cnt = 0;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	wr_val = (on << SBSDIO_FUNC1_SLEEPCSR_KSO_SHIFT);
+	/* 1st KSO write goes to AOS wake up core if device is asleep  */
+	brcmf_sdio_regwb(bus->sdiodev, SBSDIO_FUNC1_SLEEPCSR,
+			 wr_val, &err);
+	if (err) {
+		brcmf_err("SDIO_AOS KSO write error: %d\n", err);
+		return err;
+	}
+
+	if (on) {
+		/* device WAKEUP through KSO:
+		 * write bit 0 & read back until
+		 * both bits 0 (kso bit) & 1 (dev on status) are set
+		 */
+		cmp_val = SBSDIO_FUNC1_SLEEPCSR_KSO_MASK |
+			  SBSDIO_FUNC1_SLEEPCSR_DEVON_MASK;
+		bmask = cmp_val;
+		usleep_range(2000, 3000);
+	} else {
+		/* Put device to sleep, turn off KSO */
+		cmp_val = 0;
+		/* only check for bit0, bit1(dev on status) may not
+		 * get cleared right away
+		 */
+		bmask = SBSDIO_FUNC1_SLEEPCSR_KSO_MASK;
+	}
+
+	do {
+		/* reliable KSO bit set/clr:
+		 * the sdiod sleep write access is synced to PMU 32khz clk
+		 * just one write attempt may fail,
+		 * read it back until it matches written value
+		 */
+		rd_val = brcmf_sdio_regrb(bus->sdiodev, SBSDIO_FUNC1_SLEEPCSR,
+					  &err);
+		if (((rd_val & bmask) == cmp_val) && !err)
+			break;
+		brcmf_dbg(SDIO, "KSO wr/rd retry:%d (max: %d) ERR:%x\n",
+			  try_cnt, MAX_KSO_ATTEMPTS, err);
+		udelay(KSO_WAIT_US);
+		brcmf_sdio_regwb(bus->sdiodev, SBSDIO_FUNC1_SLEEPCSR,
+				 wr_val, &err);
+	} while (try_cnt++ < MAX_KSO_ATTEMPTS);
+
+	return err;
+}
+
 #define PKT_AVAILABLE()		(intstatus & I_HMB_FRAME_IND)
 
 #define HOSTINTMASK		(I_HMB_SW_MASK | I_CHIPACTIVE)
@@ -679,6 +740,11 @@ static int brcmf_sdbrcm_htclk(struct brcmf_sdio *bus, bool on, bool pendok)
 	brcmf_dbg(SDIO, "Enter\n");
 
 	clkctl = 0;
+
+	if (bus->sr_enabled) {
+		bus->clkstate = (on ? CLK_AVAIL : CLK_SDONLY);
+		return 0;
+	}
 
 	if (on) {
 		/* Request HT Avail */
@@ -854,6 +920,63 @@ static int brcmf_sdbrcm_clkctl(struct brcmf_sdio *bus, uint target, bool pendok)
 #endif				/* DEBUG */
 
 	return 0;
+}
+
+static int
+brcmf_sdbrcm_bus_sleep(struct brcmf_sdio *bus, bool sleep, bool pendok)
+{
+	int err = 0;
+	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(SDIO, "request %s currently %s\n",
+		  (sleep ? "SLEEP" : "WAKE"),
+		  (bus->sleeping ? "SLEEP" : "WAKE"));
+
+	/* If SR is enabled control bus state with KSO */
+	if (bus->sr_enabled) {
+		/* Done if we're already in the requested state */
+		if (sleep == bus->sleeping)
+			goto end;
+
+		/* Going to sleep */
+		if (sleep) {
+			/* Don't sleep if something is pending */
+			if (atomic_read(&bus->intstatus) ||
+			    atomic_read(&bus->ipend) > 0 ||
+			    (!atomic_read(&bus->fcstate) &&
+			    brcmu_pktq_mlen(&bus->txq, ~bus->flowcontrol) &&
+			    data_ok(bus)))
+				 return -EBUSY;
+			err = brcmf_sdbrcm_kso_control(bus, false);
+			/* disable watchdog */
+			if (!err)
+				brcmf_sdbrcm_wd_timer(bus, 0);
+		} else {
+			bus->idlecount = 0;
+			err = brcmf_sdbrcm_kso_control(bus, true);
+		}
+		if (!err) {
+			/* Change state */
+			bus->sleeping = sleep;
+			brcmf_dbg(SDIO, "new state %s\n",
+				  (sleep ? "SLEEP" : "WAKE"));
+		} else {
+			brcmf_err("error while changing bus sleep state %d\n",
+				  err);
+			return err;
+		}
+	}
+
+end:
+	/* control clocks */
+	if (sleep) {
+		if (!bus->sr_enabled)
+			brcmf_sdbrcm_clkctl(bus, CLK_NONE, pendok);
+	} else {
+		brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, pendok);
+	}
+
+	return err;
+
 }
 
 static u32 brcmf_sdbrcm_hostmail(struct brcmf_sdio *bus)
@@ -1960,7 +2083,7 @@ static void brcmf_sdbrcm_bus_stop(struct device *dev)
 	sdio_claim_host(bus->sdiodev->func[1]);
 
 	/* Enable clock for device interrupts */
-	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
+	brcmf_sdbrcm_bus_sleep(bus, false, false);
 
 	/* Disable and clear interrupts at the chip level also */
 	w_sdreg32(bus, 0, offsetof(struct sdpcmd_regs, hostintmask));
@@ -2096,7 +2219,7 @@ static void brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 	sdio_claim_host(bus->sdiodev->func[1]);
 
 	/* If waiting for HTAVAIL, check status */
-	if (bus->clkstate == CLK_PENDING) {
+	if (!bus->sr_enabled && bus->clkstate == CLK_PENDING) {
 		u8 clkctl, devctl = 0;
 
 #ifdef DEBUG
@@ -2142,7 +2265,7 @@ static void brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 	}
 
 	/* Make sure backplane clock is on */
-	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, true);
+	brcmf_sdbrcm_bus_sleep(bus, false, true);
 
 	/* Pending interrupt indicates new device status */
 	if (atomic_read(&bus->ipend) > 0) {
@@ -2288,8 +2411,9 @@ static void brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 	if ((bus->clkstate != CLK_PENDING)
 	    && bus->idletime == BRCMF_IDLE_IMMEDIATE) {
 		bus->activity = false;
+		brcmf_dbg(SDIO, "idle state\n");
 		sdio_claim_host(bus->sdiodev->func[1]);
-		brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
+		brcmf_sdbrcm_bus_sleep(bus, true, false);
 		sdio_release_host(bus->sdiodev->func[1]);
 	}
 }
@@ -2592,7 +2716,7 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 
 	/* Make sure backplane clock is on */
 	sdio_claim_host(bus->sdiodev->func[1]);
-	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
+	brcmf_sdbrcm_bus_sleep(bus, false, false);
 	sdio_release_host(bus->sdiodev->func[1]);
 
 	/* Hardware tag: 2 byte len followed by 2 byte ~len check (all LE) */
@@ -2650,6 +2774,7 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 
 		bus->activity = false;
 		sdio_claim_host(bus->sdiodev->func[1]);
+		brcmf_dbg(INFO, "idle\n");
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, true);
 		sdio_release_host(bus->sdiodev->func[1]);
 	} else {
@@ -2686,7 +2811,7 @@ static int brcmf_sdio_readshared(struct brcmf_sdio *bus,
 	 * address of sdpcm_shared structure
 	 */
 	sdio_claim_host(bus->sdiodev->func[1]);
-	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
+	brcmf_sdbrcm_bus_sleep(bus, false, false);
 	rv = brcmf_sdbrcm_membytes(bus, false, shaddr,
 				   (u8 *)&addr_le, 4);
 	sdio_release_host(bus->sdiodev->func[1]);
@@ -3325,6 +3450,103 @@ err:
 	return bcmerror;
 }
 
+static bool brcmf_sdbrcm_sr_capable(struct brcmf_sdio *bus)
+{
+	u32 addr, reg;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	/* old chips with PMU version less than 17 don't support save restore */
+	if (bus->ci->pmurev < 17)
+		return false;
+
+	/* read PMU chipcontrol register 3*/
+	addr = CORE_CC_REG(bus->ci->c_inf[0].base, chipcontrol_addr);
+	brcmf_sdio_regwl(bus->sdiodev, addr, 3, NULL);
+	addr = CORE_CC_REG(bus->ci->c_inf[0].base, chipcontrol_data);
+	reg = brcmf_sdio_regrl(bus->sdiodev, addr, NULL);
+
+	return (bool)reg;
+}
+
+static void brcmf_sdbrcm_sr_init(struct brcmf_sdio *bus)
+{
+	int err = 0;
+	u8 val;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	val = brcmf_sdio_regrb(bus->sdiodev, SBSDIO_FUNC1_WAKEUPCTRL,
+			       &err);
+	if (err) {
+		brcmf_err("error reading SBSDIO_FUNC1_WAKEUPCTRL\n");
+		return;
+	}
+
+	val |= 1 << SBSDIO_FUNC1_WCTRL_HTWAIT_SHIFT;
+	brcmf_sdio_regwb(bus->sdiodev, SBSDIO_FUNC1_WAKEUPCTRL,
+			 val, &err);
+	if (err) {
+		brcmf_err("error writing SBSDIO_FUNC1_WAKEUPCTRL\n");
+		return;
+	}
+
+	/* Add CMD14 Support */
+	brcmf_sdio_regwb(bus->sdiodev, SDIO_CCCR_BRCM_CARDCAP,
+			 (SDIO_CCCR_BRCM_CARDCAP_CMD14_SUPPORT |
+			  SDIO_CCCR_BRCM_CARDCAP_CMD14_EXT),
+			 &err);
+	if (err) {
+		brcmf_err("error writing SDIO_CCCR_BRCM_CARDCAP\n");
+		return;
+	}
+
+	brcmf_sdio_regwb(bus->sdiodev, SBSDIO_FUNC1_CHIPCLKCSR,
+			 SBSDIO_FORCE_HT, &err);
+	if (err) {
+		brcmf_err("error writing SBSDIO_FUNC1_CHIPCLKCSR\n");
+		return;
+	}
+
+	/* set flag */
+	bus->sr_enabled = true;
+	brcmf_dbg(INFO, "SR enabled\n");
+}
+
+/* enable KSO bit */
+static int brcmf_sdbrcm_kso_init(struct brcmf_sdio *bus)
+{
+	u8 val;
+	int err = 0;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	/* KSO bit added in SDIO core rev 12 */
+	if (bus->ci->c_inf[1].rev < 12)
+		return 0;
+
+	val = brcmf_sdio_regrb(bus->sdiodev, SBSDIO_FUNC1_SLEEPCSR,
+			       &err);
+	if (err) {
+		brcmf_err("error reading SBSDIO_FUNC1_SLEEPCSR\n");
+		return err;
+	}
+
+	if (!(val & SBSDIO_FUNC1_SLEEPCSR_KSO_MASK)) {
+		val |= (SBSDIO_FUNC1_SLEEPCSR_KSO_EN <<
+			SBSDIO_FUNC1_SLEEPCSR_KSO_SHIFT);
+		brcmf_sdio_regwb(bus->sdiodev, SBSDIO_FUNC1_SLEEPCSR,
+				 val, &err);
+		if (err) {
+			brcmf_err("error writing SBSDIO_FUNC1_SLEEPCSR\n");
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+
 static bool
 brcmf_sdbrcm_download_firmware(struct brcmf_sdio *bus)
 {
@@ -3423,8 +3645,13 @@ static int brcmf_sdbrcm_bus_init(struct device *dev)
 		ret = -ENODEV;
 	}
 
-	/* Restore previous clock setting */
-	brcmf_sdio_regwb(bus->sdiodev, SBSDIO_FUNC1_CHIPCLKCSR, saveclk, &err);
+	if (brcmf_sdbrcm_sr_capable(bus)) {
+		brcmf_sdbrcm_sr_init(bus);
+	} else {
+		/* Restore previous clock setting */
+		brcmf_sdio_regwb(bus->sdiodev, SBSDIO_FUNC1_CHIPCLKCSR,
+				 saveclk, &err);
+	}
 
 	if (ret == 0) {
 		ret = brcmf_sdio_intr_register(bus->sdiodev);
@@ -3485,7 +3712,8 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 	brcmf_dbg(TIMER, "Enter\n");
 
 	/* Poll period: check device if appropriate. */
-	if (bus->poll && (++bus->polltick >= bus->pollrate)) {
+	if (!bus->sr_enabled &&
+	    bus->poll && (++bus->polltick >= bus->pollrate)) {
 		u32 intstatus = 0;
 
 		/* Reset poll tick */
@@ -3536,7 +3764,7 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 			bus->console.count -= bus->console_interval;
 			sdio_claim_host(bus->sdiodev->func[1]);
 			/* Make sure backplane clock is on */
-			brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
+			brcmf_sdbrcm_bus_sleep(bus, false, false);
 			if (brcmf_sdbrcm_readconsole(bus) < 0)
 				/* stop on error */
 				bus->console_interval = 0;
@@ -3553,8 +3781,9 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 				bus->activity = false;
 				brcmf_sdbrcm_wd_timer(bus, BRCMF_WD_POLL_MS);
 			} else {
+				brcmf_dbg(SDIO, "idle\n");
 				sdio_claim_host(bus->sdiodev->func[1]);
-				brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
+				brcmf_sdbrcm_bus_sleep(bus, true, false);
 				sdio_release_host(bus->sdiodev->func[1]);
 			}
 		}
@@ -3686,6 +3915,11 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 		goto fail;
 	}
 
+	if (brcmf_sdbrcm_kso_init(bus)) {
+		brcmf_err("error enabling KSO\n");
+		goto fail;
+	}
+
 	brcmf_sdio_chip_drivestrengthinit(bus->sdiodev, bus->ci,
 					  SDIO_DRIVE_STRENGTH);
 
@@ -3754,6 +3988,10 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_sdio *bus)
 	/* bus module does not support packet chaining */
 	bus->use_rxchain = false;
 	bus->sd_rxchain = false;
+
+	/* SR state */
+	bus->sleeping = false;
+	bus->sr_enabled = false;
 
 	return true;
 }
