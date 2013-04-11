@@ -1216,12 +1216,12 @@ static int r820t_set_gain_mode(struct r820t_priv *priv,
 			return rc;
 	} else {
 		/* LNA */
-		rc = r820t_write_reg_mask(priv, 0x05, 0, 0xef);
+		rc = r820t_write_reg_mask(priv, 0x05, 0, 0x10);
 		if (rc < 0)
 			return rc;
 
 		/* Mixer */
-		rc = r820t_write_reg_mask(priv, 0x07, 0x10, 0xef);
+		rc = r820t_write_reg_mask(priv, 0x07, 0x10, 0x10);
 		if (rc < 0)
 			return rc;
 
@@ -1261,7 +1261,7 @@ static int generic_set_freq(struct dvb_frontend *fe,
 	if (rc < 0)
 		goto err;
 
-	rc = r820t_set_gain_mode(priv, true, 0);
+	rc = r820t_set_gain_mode(priv, false, 0);
 	if (rc < 0)
 		goto err;
 
