@@ -403,7 +403,7 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 	return 0;
 }
 
-void vxlan_fdb_free(struct rcu_head *head)
+static void vxlan_fdb_free(struct rcu_head *head)
 {
 	struct vxlan_fdb *f = container_of(head, struct vxlan_fdb, rcu);
 
@@ -1108,7 +1108,7 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 		group.remote_vni = vxlan->vni;
 		group.remote_ip = vxlan->gaddr;
 		group.remote_ifindex = vxlan->link;
-		group.remote_next = 0;
+		group.remote_next = NULL;
 		rdst0 = &group;
 
 		if (group.remote_ip == htonl(INADDR_ANY) &&
