@@ -494,7 +494,7 @@ int comedi_driver_register(struct comedi_driver *driver)
 
 	return 0;
 }
-EXPORT_SYMBOL(comedi_driver_register);
+EXPORT_SYMBOL_GPL(comedi_driver_register);
 
 int comedi_driver_unregister(struct comedi_driver *driver)
 {
@@ -532,4 +532,4 @@ int comedi_driver_unregister(struct comedi_driver *driver)
 	}
 	return -EINVAL;
 }
-EXPORT_SYMBOL(comedi_driver_unregister);
+EXPORT_SYMBOL_GPL(comedi_driver_unregister);

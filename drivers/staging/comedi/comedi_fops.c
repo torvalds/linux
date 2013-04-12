@@ -55,7 +55,7 @@
 
 #ifdef CONFIG_COMEDI_DEBUG
 int comedi_debug;
-EXPORT_SYMBOL(comedi_debug);
+EXPORT_SYMBOL_GPL(comedi_debug);
 module_param(comedi_debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(comedi_debug,
 		 "enable comedi core and driver debugging if non-zero (default 0)"
@@ -2344,7 +2344,7 @@ void comedi_error(const struct comedi_device *dev, const char *s)
 {
 	dev_err(dev->class_dev, "%s: %s\n", dev->driver->driver_name, s);
 }
-EXPORT_SYMBOL(comedi_error);
+EXPORT_SYMBOL_GPL(comedi_error);
 
 void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 {
@@ -2387,7 +2387,7 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 	s->async->events = 0;
 }
-EXPORT_SYMBOL(comedi_event);
+EXPORT_SYMBOL_GPL(comedi_event);
 
 /* Note: the ->mutex is pre-locked on successful return */
 struct comedi_device *comedi_alloc_board_minor(struct device *hardware_device)
