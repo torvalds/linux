@@ -304,9 +304,13 @@ static int nfs4_handle_exception(struct nfs_server *server, int errorcode, struc
 		case -NFS4ERR_DELEG_REVOKED:
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_BAD_STATEID:
+			if (inode != NULL && nfs4_have_delegation(inode, FMODE_READ)) {
+				nfs_remove_bad_delegation(inode);
+				exception->retry = 1;
+				break;
+			}
 			if (state == NULL)
 				break;
-			nfs_remove_bad_delegation(state->inode);
 			ret = nfs4_schedule_stateid_recovery(server, state);
 			if (ret < 0)
 				break;
