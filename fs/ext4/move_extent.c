@@ -739,6 +739,7 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 		donor_off += dext_alen;
 		orig_off += dext_alen;
 
+		BUG_ON(replaced_count > count);
 		/* Already moved the expected blocks */
 		if (replaced_count >= count)
 			break;
@@ -816,7 +817,13 @@ mext_page_double_lock(struct inode *inode1, struct inode *inode2,
 		page_cache_release(page[0]);
 		return -ENOMEM;
 	}
-
+	/*
+	 * grab_cache_page_write_begin() may not wait on page's writeback if
+	 * BDI not demand that. But it is reasonable to be very conservative
+	 * here and explicitly wait on page's writeback
+	 */
+	wait_on_page_writeback(page[0]);
+	wait_on_page_writeback(page[1]);
 	if (inode1 > inode2) {
 		struct page *tmp;
 		tmp = page[0];
@@ -1034,7 +1041,7 @@ data_copy:
 	}
 	/* Perform all necessary steps similar write_begin()/write_end()
 	 * but keeping in mind that i_size will not change */
-	*err = __block_write_begin(pagep[0], from, from + replaced_size,
+	*err = __block_write_begin(pagep[0], from, replaced_size,
 				   ext4_get_block);
 	if (!*err)
 		*err = block_commit_write(pagep[0], from, from + replaced_size);
