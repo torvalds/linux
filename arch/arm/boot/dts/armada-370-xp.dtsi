@@ -28,25 +28,25 @@
 		};
 	};
 
-	mpic: interrupt-controller@d0020000 {
-	      compatible = "marvell,mpic";
-	      #interrupt-cells = <1>;
-	      #size-cells = <1>;
-	      interrupt-controller;
-	};
-
-	coherency-fabric@d0020200 {
-		compatible = "marvell,coherency-fabric";
-		reg = <0xd0020200 0xb0>,
-		      <0xd0021810 0x1c>;
-	};
-
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		interrupt-parent = <&mpic>;
 		ranges;
+
+		mpic: interrupt-controller@d0020000 {
+			compatible = "marvell,mpic";
+			#interrupt-cells = <1>;
+			#size-cells = <1>;
+			interrupt-controller;
+		};
+
+		coherency-fabric@d0020200 {
+			compatible = "marvell,coherency-fabric";
+			reg = <0xd0020200 0xb0>,
+			      <0xd0021810 0x1c>;
+		};
 
 		serial@d0012000 {
 				compatible = "snps,dw-apb-uart";
