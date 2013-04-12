@@ -288,14 +288,7 @@ void rtl8180_proc_module_remove(void)
 
 void rtl8180_proc_remove_one(struct net_device *dev)
 {
-	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-	if (priv->dir_dev) {
-		remove_proc_entry("stats-hw", priv->dir_dev);
-		remove_proc_entry("stats-tx", priv->dir_dev);
-		remove_proc_entry("stats-rx", priv->dir_dev);
-		remove_proc_entry("registers", priv->dir_dev);
-		priv->dir_dev = NULL;
-	}
+	remove_proc_subtree(dev->name, rtl8180_proc);
 }
 
 /*
@@ -335,22 +328,19 @@ static const struct rtl8180_proc_file rtl8180_proc_files[] = {
 void rtl8180_proc_init_one(struct net_device *dev)
 {
 	const struct rtl8180_proc_file *f;
-	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
+	struct proc_dir_entry *dir;
 
-	priv->dir_dev = rtl8180_proc;
-	if (!priv->dir_dev) {
-		DMESGE("Unable to initialize /proc/net/r8180/%s\n",
-		      dev->name);
+	dir = proc_mkdir_data(dev->name, 0, rtl8180_proc, dev);
+	if (!dir) {
+		DMESGE("Unable to initialize /proc/net/r8180/%s\n", dev->name);
 		return;
 	}
-	priv->dir_dev->data = dev;
 
 	for (f = rtl8180_proc_files; f->name[0]; f++) {
-		if (!proc_create_data(f->name, S_IFREG | S_IRUGO,
-				      priv->dir_dev,
+		if (!proc_create_data(f->name, S_IFREG | S_IRUGO, dir,
 				      &rtl8180_proc_fops, f->show)) {
-			DMESGE("Unable to initialize /proc/net/r8180/%s\n",
-			       f->name);
+			DMESGE("Unable to initialize /proc/net/r8180/%s/%s\n",
+			       dev->name, f->name);
 			return;
 		}
 	}
