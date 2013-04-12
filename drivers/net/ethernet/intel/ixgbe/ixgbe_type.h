@@ -2928,6 +2928,7 @@ struct ixgbe_mac_info {
 	u32                             max_tx_queues;
 	u32                             max_rx_queues;
 	u32                             orig_autoc;
+	u32                             cached_autoc;
 	u32                             orig_autoc2;
 	bool                            orig_link_settings_stored;
 	bool                            autotry_restart;
