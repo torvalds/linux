@@ -187,11 +187,6 @@ struct dw_mci {
 	struct regulator	*vmmc;	/* Power regulator */
 	unsigned long		irq_flags; /* IRQ flags */
 	int			irq;
-
-	/* Set to one for SDR12 and SDR25 */
-	unsigned int use_hold_reg;
-	/*Card needs power enable bit */
-	u32 pwr_en;
 };
 
 /* DMA ops for Internal/External DMAC interface */
@@ -235,8 +230,6 @@ struct dw_mci_board {
 
 	u32 quirks; /* Workaround / Quirk flags */
 	unsigned int bus_hz; /* Clock speed at the cclk_in pad */
-	/*Card needs power enable bit */
-	u32 pwr_en;
 
 	u32 caps;	/* Capabilities */
 	u32 caps2;	/* More capabilities */

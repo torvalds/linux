@@ -41,6 +41,18 @@
 			};
 		};
 
+		dwmmc0@ff704000 {
+			num-slots = <1>;
+			supports-highspeed;
+			broken-cd;
+			altr,dw-mshc-ciu-div = <4>;
+
+			slot@0 {
+				reg = <0>;
+				bus-width = <4>;
+			};
+		};		
+
 		timer0@ffc08000 {
 			clock-frequency = <7000000>;
 		};

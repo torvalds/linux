@@ -39,13 +39,9 @@
 #include "dw_mmc.h"
 
 /* Common flag combinations */
-
-/* According to Synopsys, the data starvation interrupt (HTO) should not treat
- * as error. Software should continue the data transfer. We have verified this
- * in Virtual Target. The same is applied to FIFO under/overrun (FRUN) as well.
- */
-#define DW_MCI_DATA_ERROR_FLAGS (SDMMC_INT_DTO | SDMMC_INT_DCRC | \
-				 SDMMC_INT_HTO | SDMMC_INT_FRUN | SDMMC_INT_SBE | SDMMC_INT_EBE)
+#define DW_MCI_DATA_ERROR_FLAGS	(SDMMC_INT_DTO | SDMMC_INT_DCRC | \
+				 SDMMC_INT_HTO | SDMMC_INT_FRUN | \
+				 SDMMC_INT_SBE | SDMMC_INT_EBE)
 
 #define DW_MCI_CMD_ERROR_FLAGS	(SDMMC_INT_RTO | SDMMC_INT_RCRC | \
 				 SDMMC_INT_RESP_ERR)
@@ -275,9 +271,6 @@ static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 
 	if (drv_data && drv_data->prepare_command)
 		drv_data->prepare_command(slot->host, &cmdr);
-
-	if (slot->host->use_hold_reg)
-		cmdr |= SDMMC_CMD_USE_HOLD_REG;
 
 	return cmdr;
 }
@@ -2139,16 +2132,6 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	if (of_property_read_u32(dev->of_node, "bus-hz", &pdata->bus_hz)) {
-		dev_err(dev, "couldn't determine bus-hz\n");
-		pdata->bus_hz = 50000000;
-	}
-
-	if (of_property_read_u32(dev->of_node, "pwr-en", &pdata->pwr_en)) {
-		dev_info(dev, "couldn't determine pwr-en, assuming pwr-en = 0\n");
-		pdata->pwr_en = 0;
-	}
-
 	/* find out number of slots supported */
 	if (of_property_read_u32(dev->of_node, "num-slots",
 				&pdata->num_slots)) {
@@ -2285,9 +2268,6 @@ int dw_mci_probe(struct dw_mci *host)
 		host->data_shift = 2;
 	}
 
-	/* Get the USE_HOLD_REG */
-	host->use_hold_reg = mci_readl(host, CMD) & SDMMC_CMD_USE_HOLD_REG;
-
 	/* Reset all blocks */
 	if (!mci_wait_reset(host->dev, host))
 		return -ENODEV;
@@ -2298,9 +2278,6 @@ int dw_mci_probe(struct dw_mci *host)
 	/* Clear the interrupts for the host controller */
 	mci_writel(host, RINTSTS, 0xFFFFFFFF);
 	mci_writel(host, INTMASK, 0); /* disable all mmc interrupt first */
-
-	/* Set PWREN bit */
-	mci_writel(host, PWREN, host->pdata->pwr_en);
 
 	/* Put in max timeout */
 	mci_writel(host, TMOUT, 0xFFFFFFFF);

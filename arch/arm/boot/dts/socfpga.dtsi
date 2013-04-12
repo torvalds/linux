@@ -80,7 +80,6 @@
 			level_trigger = <0>;
 		};
 
-
 		amba {
 			compatible = "arm,amba-bus";
 			#address-cells = <1>;
@@ -591,20 +590,14 @@
 		};
 
 		mmc: dwmmc0@ff704000 {
-			compatible = "snps,dw-mshc";
+			compatible = "altr,socfpga-dw-mshc";
 			reg = <0xff704000 0x1000>;
 			interrupts = <0 139 4>;
-			bus-hz = <12500000>; /*12.5 MHz*/
+			fifo-depth = <0x400>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			num-slots = <1>;
-			supports-highspeed;
-			broken-cd;
-			fifo-depth = <0x400>;
-			slot@0 {
-				reg = <0>;
-				bus-width = <4>;
-			};
+			clocks = <&l4_mp_clk>, <&sdmmc_clk>;
+			clock-names = "biu", "ciu";
 		};
 
 		nand: nand@ff900000 {
@@ -733,32 +726,31 @@
 		};
 
 		usb0: usb@ffb00000 {
-				compatible = "snps,dwc-otg";
-				reg = <0xffb00000 0xffff>;
-				interrupts = <0 125 4>;
-				dma-mask = <0xffffffff>;
-				ulpi-ddr = <0>;
-				host-rx-fifo-size = <512>;
-				dev-rx-fifo-size = <512>;
-				dev-nperio-tx-fifo-size = <4096>;
-				dev-perio-tx-fifo-size = <512 512 512 512 512 512
-					512 512 512 512 512 512 512 512 512>;
-				dev-tx-fifo-size = <512 512 512 512 512 512
-					512 512 512 512 512 512 512 512 512>;
+			compatible = "snps,dwc-otg";
+			reg = <0xffb00000 0xffff>;
+			interrupts = <0 125 4>;
+			dma-mask = <0xffffffff>;
+			host-rx-fifo-size = <512>;
+			dev-rx-fifo-size = <512>;
+			dev-nperio-tx-fifo-size = <4096>;
+			dev-perio-tx-fifo-size = <512 512 512 512 512 512
+				512 512 512 512 512 512 512 512 512>;
+			dev-tx-fifo-size = <512 512 512 512 512 512
+				512 512 512 512 512 512 512 512 512>;
 		};
 
 		usb1: usb@ffb40000 {
-				compatible = "snps,dwc-otg";
-				reg = <0xffb40000 0xffff>;
-				interrupts = <0 128 4>;
-				dma-mask = <0xffffffff>;
-				host-rx-fifo-size = <512>;
-				dev-rx-fifo-size = <512>;
-				dev-nperio-tx-fifo-size = <4096>;
-				dev-perio-tx-fifo-size = <512 512 512 512 512 512
-					512 512 512 512 512 512 512 512 512>;
-				dev-tx-fifo-size = <512 512 512 512 512 512
-					512 512 512 512 512 512 512 512 512>;
+			compatible = "snps,dwc-otg";
+			reg = <0xffb40000 0xffff>;
+			interrupts = <0 128 4>;
+			dma-mask = <0xffffffff>;
+			host-rx-fifo-size = <512>;
+			dev-rx-fifo-size = <512>;
+			dev-nperio-tx-fifo-size = <4096>;
+			dev-perio-tx-fifo-size = <512 512 512 512 512 512
+				512 512 512 512 512 512 512 512 512>;
+			dev-tx-fifo-size = <512 512 512 512 512 512
+				512 512 512 512 512 512 512 512 512>;
 		};
 	};
 };
