@@ -21,7 +21,7 @@
 #include <linux/fs_struct.h>	/* get_fs_root et.al. */
 #include <linux/fsnotify.h>	/* fsnotify_vfsmount_delete */
 #include <linux/uaccess.h>
-#include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
 #include "pnode.h"
 #include "internal.h"
 
@@ -1350,13 +1350,13 @@ static bool mnt_ns_loop(struct path *path)
 	 * mount namespace loop?
 	 */
 	struct inode *inode = path->dentry->d_inode;
-	struct proc_inode *ei;
+	struct proc_ns *ei;
 	struct mnt_namespace *mnt_ns;
 
 	if (!proc_ns_inode(inode))
 		return false;
 
-	ei = PROC_I(inode);
+	ei = get_proc_ns(inode);
 	if (ei->ns_ops != &mntns_operations)
 		return false;
 

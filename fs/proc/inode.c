@@ -51,8 +51,8 @@ static void proc_evict_inode(struct inode *inode)
 		sysctl_head_put(head);
 	}
 	/* Release any associated namespace */
-	ns_ops = PROC_I(inode)->ns_ops;
-	ns = PROC_I(inode)->ns;
+	ns_ops = PROC_I(inode)->ns.ns_ops;
+	ns = PROC_I(inode)->ns.ns;
 	if (ns_ops && ns)
 		ns_ops->put(ns);
 }
@@ -73,8 +73,8 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	ei->pde = NULL;
 	ei->sysctl = NULL;
 	ei->sysctl_entry = NULL;
-	ei->ns = NULL;
-	ei->ns_ops = NULL;
+	ei->ns.ns = NULL;
+	ei->ns.ns_ops = NULL;
 	inode = &ei->vfs_inode;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	return inode;

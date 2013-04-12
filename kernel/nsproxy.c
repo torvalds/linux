@@ -22,7 +22,7 @@
 #include <linux/pid_namespace.h>
 #include <net/net_namespace.h>
 #include <linux/ipc_namespace.h>
-#include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
 #include <linux/file.h>
 #include <linux/syscalls.h>
 
@@ -241,7 +241,7 @@ SYSCALL_DEFINE2(setns, int, fd, int, nstype)
 	const struct proc_ns_operations *ops;
 	struct task_struct *tsk = current;
 	struct nsproxy *new_nsproxy;
-	struct proc_inode *ei;
+	struct proc_ns *ei;
 	struct file *file;
 	int err;
 
@@ -250,7 +250,7 @@ SYSCALL_DEFINE2(setns, int, fd, int, nstype)
 		return PTR_ERR(file);
 
 	err = -EINVAL;
-	ei = PROC_I(file_inode(file));
+	ei = get_proc_ns(file_inode(file));
 	ops = ei->ns_ops;
 	if (nstype && (ops->type != nstype))
 		goto out;

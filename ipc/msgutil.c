@@ -16,7 +16,7 @@
 #include <linux/msg.h>
 #include <linux/ipc_namespace.h>
 #include <linux/utsname.h>
-#include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
 #include <asm/uaccess.h>
 
 #include "util.h"
