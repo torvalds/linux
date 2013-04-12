@@ -51,6 +51,7 @@
 #define SMSTPCR7 0xe615014c
 
 #define MODEMR		0xE6160060
+#define SDCKCR		0xE6150074
 
 static struct clk_mapping cpg_mapping = {
 	.phys   = CPG_BASE,
@@ -131,6 +132,29 @@ static struct clk *main_clks[] = {
 	&cp_clk,
 };
 
+/* SDHI (DIV4) clock */
+static int divisors[] = { 2, 3, 4, 6, 8, 12, 16, 18, 24, 0, 36, 48, 10 };
+
+static struct clk_div_mult_table div4_div_mult_table = {
+	.divisors = divisors,
+	.nr_divisors = ARRAY_SIZE(divisors),
+};
+
+static struct clk_div4_table div4_table = {
+	.div_mult_table = &div4_div_mult_table,
+};
+
+enum {
+	DIV4_SDH, DIV4_SD0, DIV4_SD1, DIV4_NR
+};
+
+struct clk div4_clks[DIV4_NR] = {
+	[DIV4_SDH] = SH_CLK_DIV4(&pll1_clk, SDCKCR, 8, 0x0dff, CLK_ENABLE_ON_INIT),
+	[DIV4_SD0] = SH_CLK_DIV4(&pll1_clk, SDCKCR, 4, 0x1de0, CLK_ENABLE_ON_INIT),
+	[DIV4_SD1] = SH_CLK_DIV4(&pll1_clk, SDCKCR, 0, 0x1de0, CLK_ENABLE_ON_INIT),
+};
+
+/* MSTP */
 enum { MSTP721, MSTP720,
 	MSTP216, MSTP207, MSTP206, MSTP204, MSTP203, MSTP202, MSTP_NR };
 static struct clk mstp_clks[MSTP_NR] = {
@@ -172,6 +196,11 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("mp",		&mp_clk),
 	CLKDEV_CON_ID("qspi",		&qspi_clk),
 	CLKDEV_CON_ID("cp",		&cp_clk),
+
+	/* DIV4 */
+	CLKDEV_CON_ID("sdh",		&div4_clks[DIV4_SDH]),
+	CLKDEV_CON_ID("sd0",		&div4_clks[DIV4_SD0]),
+	CLKDEV_CON_ID("sd1",		&div4_clks[DIV4_SD1]),
 
 	/* MSTP */
 	CLKDEV_DEV_ID("sh-sci.0", &mstp_clks[MSTP204]),
@@ -231,6 +260,9 @@ void __init r8a7790_clock_init(void)
 
 	for (k = 0; !ret && (k < ARRAY_SIZE(main_clks)); k++)
 		ret = clk_register(main_clks[k]);
+
+	if (!ret)
+		ret = sh_clk_div4_register(div4_clks, DIV4_NR, &div4_table);
 
 	if (!ret)
 		ret = sh_clk_mstp_register(mstp_clks, MSTP_NR);
