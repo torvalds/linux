@@ -287,6 +287,30 @@ static struct pci_platform_pm_ops acpi_pci_platform_pm = {
 	.run_wake = acpi_pci_run_wake,
 };
 
+void acpi_pci_add_bus(struct pci_bus *bus)
+{
+	acpi_handle handle = NULL;
+
+	if (bus->bridge)
+		handle = ACPI_HANDLE(bus->bridge);
+	if (acpi_pci_disabled || handle == NULL)
+		return;
+
+	/* TODO: add PCI slots and acpiphp hotplug slots */
+}
+
+void acpi_pci_remove_bus(struct pci_bus *bus)
+{
+	/*
+	 * bus->bridge->acpi_node.handle has already been reset to NULL
+	 * when acpi_pci_remove_bus() is called, so don't check ACPI handle.
+	 */
+	if (acpi_pci_disabled)
+		return;
+
+	/* TODO: remove PCI slots and acpiphp hotplug slots */
+}
+
 /* ACPI bus type */
 static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
 {

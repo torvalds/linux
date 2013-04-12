@@ -41,7 +41,13 @@ static inline acpi_handle acpi_pci_get_bridge_handle(struct pci_bus *pbus)
 
 	return DEVICE_ACPI_HANDLE(dev);
 }
-#endif
+
+void acpi_pci_add_bus(struct pci_bus *bus);
+void acpi_pci_remove_bus(struct pci_bus *bus);
+#else	/* CONFIG_ACPI */
+static inline void acpi_pci_add_bus(struct pci_bus *bus) { }
+static inline void acpi_pci_remove_bus(struct pci_bus *bus) { }
+#endif	/* CONFIG_ACPI */
 
 #ifdef CONFIG_ACPI_APEI
 extern bool aer_acpi_firmware_first(void);
