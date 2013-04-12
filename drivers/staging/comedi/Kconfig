@@ -230,9 +230,9 @@ config COMEDI_AMPLC_PC236_ISA
 
 config COMEDI_AMPLC_PC263_ISA
 	tristate "Amplicon PC263 relay board support"
-	select COMEDI_AMPLC_PC263
 	---help---
-	  Enable support for Amplicon PC263 ISA relay board.
+	  Enable support for Amplicon PC263 ISA relay board.  This board has
+	  16 reed relay output channels.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called amplc_pc263.
@@ -771,12 +771,12 @@ config COMEDI_AMPLC_PC236_PCI
 
 config COMEDI_AMPLC_PC263_PCI
 	tristate "Amplicon PCI263 relay board support"
-	select COMEDI_AMPLC_PC263
 	---help---
-	  Enable support for Amplicon PCI263 relay board.
+	  Enable support for Amplicon PCI263 relay board.  This is a PCI board
+	  with 16 reed relay output channels.
 
 	  To compile this driver as a module, choose M here: the module will be
-	  called amplc_pc263.
+	  called amplc_pci263.
 
 config COMEDI_AMPLC_PCI224
 	tristate "Amplicon PCI224 and PCI234 support"
@@ -1250,9 +1250,6 @@ config COMEDI_AMPLC_DIO200
 config COMEDI_AMPLC_PC236
 	tristate
 	select COMEDI_8255
-
-config COMEDI_AMPLC_PC263
-	tristate
 
 config COMEDI_DAS08
 	tristate
