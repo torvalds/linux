@@ -116,14 +116,13 @@ static int drm_proc_create_files(const struct drm_info_list *files, int count,
 		ent = proc_create_data(files[i].name, S_IRUGO, root,
 				       &drm_proc_fops, tmp);
 		if (!ent) {
-			DRM_ERROR("Cannot create /proc/dri/%s/%s\n",
-				  root->name, files[i].name);
+			DRM_ERROR("Cannot create /proc/dri/%u/%s\n",
+				  minor->index, files[i].name);
 			list_del(&tmp->list);
 			kfree(tmp);
 			ret = -1;
 			goto fail;
 		}
-
 	}
 	return 0;
 
@@ -137,7 +136,6 @@ fail:
  * Initialize the DRI proc filesystem for a device
  *
  * \param dev DRM device
- * \param minor device minor number
  * \param root DRI proc dir entry.
  * \param dev_root resulting DRI device proc dir entry.
  * \return root entry pointer on success, or NULL on failure.
@@ -146,14 +144,13 @@ fail:
  * "/proc/dri/%minor%/", and each entry in proc_list as
  * "/proc/dri/%minor%/%name%".
  */
-int drm_proc_init(struct drm_minor *minor, int minor_id,
-		  struct proc_dir_entry *root)
+int drm_proc_init(struct drm_minor *minor, struct proc_dir_entry *root)
 {
-	char name[64];
+	char name[12];
 	int ret;
 
 	INIT_LIST_HEAD(&minor->proc_nodes.list);
-	sprintf(name, "%d", minor_id);
+	sprintf(name, "%u", minor->index);
 	minor->proc_root = proc_mkdir(name, root);
 	if (!minor->proc_root) {
 		DRM_ERROR("Cannot create /proc/dri/%s\n", name);
