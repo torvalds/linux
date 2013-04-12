@@ -559,8 +559,12 @@ static void acpi_tb_validate_fadt(void)
 		/*
 		 * For each extended field, check for length mismatch between the
 		 * legacy length field and the corresponding 64-bit X length field.
+		 * Note: If the legacy length field is > 0xFF bits, ignore this
+		 * check. (GPE registers can be larger than the 64-bit GAS structure
+		 * can accomodate, 0xFF bits).
 		 */
 		if (address64->address &&
+		    (ACPI_MUL_8(length) <= ACPI_UINT8_MAX) &&
 		    (address64->bit_width != ACPI_MUL_8(length))) {
 			ACPI_BIOS_WARNING((AE_INFO,
 					   "32/64X length mismatch in FADT/%s: %u/%u",
