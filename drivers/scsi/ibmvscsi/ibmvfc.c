@@ -2190,10 +2190,12 @@ static int ibmvfc_cancel_all(struct scsi_device *sdev, int type)
 		tmf->common.length = sizeof(*tmf);
 		tmf->scsi_id = rport->port_id;
 		int_to_scsilun(sdev->lun, &tmf->lun);
+		if (!(vhost->login_buf->resp.capabilities & IBMVFC_CAN_SUPPRESS_ABTS))
+			type &= ~IBMVFC_TMF_SUPPRESS_ABTS;
 		if (vhost->state == IBMVFC_ACTIVE)
 			tmf->flags = (type | IBMVFC_TMF_LUA_VALID);
 		else
-			tmf->flags = IBMVFC_TMF_LUA_VALID;
+			tmf->flags = ((type & IBMVFC_TMF_SUPPRESS_ABTS) | IBMVFC_TMF_LUA_VALID);
 		tmf->cancel_key = (unsigned long)sdev->hostdata;
 		tmf->my_cancel_key = (unsigned long)starget->hostdata;
 
@@ -2402,7 +2404,7 @@ static int ibmvfc_eh_abort_handler(struct scsi_cmnd *cmd)
 		cancel_rc = ibmvfc_cancel_all(sdev, IBMVFC_TMF_ABORT_TASK_SET);
 		ibmvfc_abort_task_set(sdev);
 	} else
-		cancel_rc = ibmvfc_cancel_all(sdev, 0);
+		cancel_rc = ibmvfc_cancel_all(sdev, IBMVFC_TMF_SUPPRESS_ABTS);
 
 	if (!cancel_rc)
 		rc = ibmvfc_wait_for_ops(vhost, sdev, ibmvfc_match_lun);
@@ -2435,7 +2437,7 @@ static int ibmvfc_eh_device_reset_handler(struct scsi_cmnd *cmd)
 		cancel_rc = ibmvfc_cancel_all(sdev, IBMVFC_TMF_LUN_RESET);
 		reset_rc = ibmvfc_reset_device(sdev, IBMVFC_LUN_RESET, "LUN");
 	} else
-		cancel_rc = ibmvfc_cancel_all(sdev, 0);
+		cancel_rc = ibmvfc_cancel_all(sdev, IBMVFC_TMF_SUPPRESS_ABTS);
 
 	if (!cancel_rc && !reset_rc)
 		rc = ibmvfc_wait_for_ops(vhost, sdev, ibmvfc_match_lun);
@@ -2456,7 +2458,7 @@ static int ibmvfc_eh_device_reset_handler(struct scsi_cmnd *cmd)
 static void ibmvfc_dev_cancel_all_noreset(struct scsi_device *sdev, void *data)
 {
 	unsigned long *rc = data;
-	*rc |= ibmvfc_cancel_all(sdev, 0);
+	*rc |= ibmvfc_cancel_all(sdev, IBMVFC_TMF_SUPPRESS_ABTS);
 }
 
 /**
@@ -2547,8 +2549,7 @@ static void ibmvfc_terminate_rport_io(struct fc_rport *rport)
 		dev_rport = starget_to_rport(scsi_target(sdev));
 		if (dev_rport != rport)
 			continue;
-		ibmvfc_cancel_all(sdev, IBMVFC_TMF_ABORT_TASK_SET);
-		ibmvfc_abort_task_set(sdev);
+		ibmvfc_cancel_all(sdev, IBMVFC_TMF_SUPPRESS_ABTS);
 	}
 
 	rc = ibmvfc_wait_for_ops(vhost, rport, ibmvfc_match_rport);

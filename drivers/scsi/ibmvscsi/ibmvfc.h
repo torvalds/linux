@@ -208,10 +208,10 @@ struct ibmvfc_npiv_login_resp {
 	u16 error;
 	u32 flags;
 #define IBMVFC_NATIVE_FC		0x01
-#define IBMVFC_CAN_FLUSH_ON_HALT	0x08
 	u32 reserved;
 	u64 capabilities;
 #define IBMVFC_CAN_FLUSH_ON_HALT	0x08
+#define IBMVFC_CAN_SUPPRESS_ABTS	0x10
 	u32 max_cmds;
 	u32 scsi_id_sz;
 	u64 max_dma_len;
@@ -351,6 +351,7 @@ struct ibmvfc_tmf {
 #define IBMVFC_TMF_LUN_RESET		0x10
 #define IBMVFC_TMF_TGT_RESET		0x20
 #define IBMVFC_TMF_LUA_VALID		0x40
+#define IBMVFC_TMF_SUPPRESS_ABTS	0x80
 	u32 cancel_key;
 	u32 my_cancel_key;
 	u32 pad;
