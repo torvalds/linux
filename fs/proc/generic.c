@@ -428,43 +428,37 @@ struct proc_dir_entry *proc_symlink(const char *name,
 }
 EXPORT_SYMBOL(proc_symlink);
 
-struct proc_dir_entry *proc_mkdir_mode(const char *name, umode_t mode,
-		struct proc_dir_entry *parent)
+struct proc_dir_entry *proc_mkdir_data(const char *name, umode_t mode,
+		struct proc_dir_entry *parent, void *data)
 {
 	struct proc_dir_entry *ent;
+
+	if (mode == 0)
+		mode = S_IRUGO | S_IXUGO;
 
 	ent = __proc_create(&parent, name, S_IFDIR | mode, 2);
 	if (ent) {
+		ent->data = data;
 		if (proc_register(parent, ent) < 0) {
 			kfree(ent);
 			ent = NULL;
 		}
 	}
 	return ent;
+}
+EXPORT_SYMBOL_GPL(proc_mkdir_data);
+
+struct proc_dir_entry *proc_mkdir_mode(const char *name, umode_t mode,
+				       struct proc_dir_entry *parent)
+{
+	return proc_mkdir_data(name, mode, parent, NULL);
 }
 EXPORT_SYMBOL(proc_mkdir_mode);
-
-struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
-		struct proc_dir_entry *parent)
-{
-	struct proc_dir_entry *ent;
-
-	ent = __proc_create(&parent, name, S_IFDIR | S_IRUGO | S_IXUGO, 2);
-	if (ent) {
-		ent->data = net;
-		if (proc_register(parent, ent) < 0) {
-			kfree(ent);
-			ent = NULL;
-		}
-	}
-	return ent;
-}
-EXPORT_SYMBOL_GPL(proc_net_mkdir);
 
 struct proc_dir_entry *proc_mkdir(const char *name,
 		struct proc_dir_entry *parent)
 {
-	return proc_mkdir_mode(name, S_IRUGO | S_IXUGO, parent);
+	return proc_mkdir_data(name, 0, parent, NULL);
 }
 EXPORT_SYMBOL(proc_mkdir);
 

@@ -672,13 +672,12 @@ void rtl8192_proc_init_one(struct net_device *dev)
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 
 	if (rtl8192_proc) {
-		priv->dir_dev = proc_mkdir(dev->name, rtl8192_proc);
+		priv->dir_dev = proc_mkdir_data(dev->name, 0, rtl8192_proc, dev);
 		if (!priv->dir_dev) {
 			RT_TRACE(COMP_ERR, "Unable to initialize /proc/net/rtl8192/%s\n",
 				 dev->name);
 			return;
 		}
-		priv->dir_dev->data = dev;
 
 		for (f = rtl8192_proc_files; f->name[0]; f++) {
 			if (!proc_create_data(f->name, S_IFREG | S_IRUGO,

@@ -2818,12 +2818,12 @@ mega_create_proc_entry(int index, struct proc_dir_entry *parent)
 
 	sprintf(string, "hba%d", adapter->host->host_no);
 
-	dir = adapter->controller_proc_dir_entry = proc_mkdir(string, parent);
+	dir = adapter->controller_proc_dir_entry =
+		proc_mkdir_data(string, 0, parent, adapter);
 	if(!dir) {
 		printk(KERN_WARNING "\nmegaraid: proc_mkdir failed\n");
 		return;
 	}
-	dir->data = adapter;
 
 	for (f = mega_proc_files; f->name; f++) {
 		de = proc_create_data(f->name, S_IRUSR, dir, &mega_proc_fops,

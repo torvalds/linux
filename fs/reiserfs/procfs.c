@@ -479,9 +479,8 @@ int reiserfs_proc_info_init(struct super_block *sb)
 		*s = '!';
 
 	spin_lock_init(&__PINFO(sb).lock);
-	REISERFS_SB(sb)->procdir = proc_mkdir(b, proc_info_root);
+	REISERFS_SB(sb)->procdir = proc_mkdir_data(b, 0, proc_info_root, sb);
 	if (REISERFS_SB(sb)->procdir) {
-		REISERFS_SB(sb)->procdir->data = sb;
 		add_file(sb, "version", show_version);
 		add_file(sb, "super", show_super);
 		add_file(sb, "per-level", show_per_level);

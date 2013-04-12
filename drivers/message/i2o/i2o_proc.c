@@ -1913,13 +1913,11 @@ static void i2o_proc_device_add(struct proc_dir_entry *dir,
 
 	osm_debug("adding device /proc/i2o/%s/%s\n", dev->iop->name, buff);
 
-	devdir = proc_mkdir(buff, dir);
+	devdir = proc_mkdir_data(buff, 0, dir, dev);
 	if (!devdir) {
 		osm_warn("Could not allocate procdir!\n");
 		return;
 	}
-
-	devdir->data = dev;
 
 	i2o_proc_create_entries(devdir, generic_dev_entries, dev);
 
@@ -1954,11 +1952,9 @@ static int i2o_proc_iop_add(struct proc_dir_entry *dir,
 
 	osm_debug("adding IOP /proc/i2o/%s\n", c->name);
 
-	iopdir = proc_mkdir(c->name, dir);
+	iopdir = proc_mkdir_data(c->name, 0, dir, c);
 	if (!iopdir)
 		return -1;
-
-	iopdir->data = c;
 
 	i2o_proc_create_entries(iopdir, i2o_proc_generic_iop_entries, c);
 
