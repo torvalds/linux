@@ -1400,5 +1400,5 @@ void pm_runtime_remove(struct device *dev)
 	if (dev->power.runtime_status == RPM_ACTIVE)
 		pm_runtime_set_suspended(dev);
 	if (dev->power.irq_safe && dev->parent)
-		pm_runtime_put_sync(dev->parent);
+		pm_runtime_put(dev->parent);
 }
