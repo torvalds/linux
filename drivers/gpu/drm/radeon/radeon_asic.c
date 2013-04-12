@@ -1242,6 +1242,18 @@ static struct radeon_asic rs780_asic = {
 		.set_clock_gating = NULL,
 		.get_temperature = &rv6xx_get_temp,
 	},
+	.dpm = {
+		.init = &rs780_dpm_init,
+		.setup_asic = &rs780_dpm_setup_asic,
+		.enable = &rs780_dpm_enable,
+		.disable = &rs780_dpm_disable,
+		.set_power_state = &rs780_dpm_set_power_state,
+		.display_configuration_changed = &rs780_dpm_display_configuration_changed,
+		.fini = &rs780_dpm_fini,
+		.get_sclk = &rs780_dpm_get_sclk,
+		.get_mclk = &rs780_dpm_get_mclk,
+		.print_power_state = &rs780_dpm_print_power_state,
+	},
 	.pflip = {
 		.pre_page_flip = &rs600_pre_page_flip,
 		.page_flip = &rs600_page_flip,

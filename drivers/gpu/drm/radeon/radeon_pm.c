@@ -1030,6 +1030,13 @@ int radeon_pm_init(struct radeon_device *rdev)
 {
 	/* enable dpm on rv6xx+ */
 	switch (rdev->family) {
+	case CHIP_RS780:
+	case CHIP_RS880:
+		if (radeon_dpm == 1)
+			rdev->pm.pm_method = PM_METHOD_DPM;
+		else
+			rdev->pm.pm_method = PM_METHOD_PROFILE;
+		break;
 	default:
 		/* default to profile method */
 		rdev->pm.pm_method = PM_METHOD_PROFILE;
