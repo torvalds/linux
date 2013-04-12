@@ -573,7 +573,7 @@ void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 		bc->event_handler = tick_handle_oneshot_broadcast;
 
 		/* Take the do_timer update */
-		if (!tick_nohz_extended_cpu(cpu))
+		if (!tick_nohz_full_cpu(cpu))
 			tick_do_timer_cpu = cpu;
 
 		/*

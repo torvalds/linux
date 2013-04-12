@@ -96,7 +96,7 @@ config NO_HZ_IDLE
 
 	  Most of the time you want to say Y here.
 
-config NO_HZ_EXTENDED
+config NO_HZ_FULL
 	bool "Full dynticks system (tickless single task)"
 	# NO_HZ_COMMON dependency
 	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
@@ -115,7 +115,7 @@ config NO_HZ_EXTENDED
 	 task on the CPU. Chances for running tickless are maximized when
 	 the task mostly runs in userspace and has few kernel activity.
 
-	 You need to fill up the nohz_extended boot parameter with the
+	 You need to fill up the nohz_full boot parameter with the
 	 desired range of dynticks CPUs.
 
 	 This is implemented at the expense of some overhead in user <-> kernel

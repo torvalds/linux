@@ -113,7 +113,7 @@ static void tick_sched_do_timer(ktime_t now)
 	 * jiffies_lock.
 	 */
 	if (unlikely(tick_do_timer_cpu == TICK_DO_TIMER_NONE)
-	    && !tick_nohz_extended_cpu(cpu))
+	    && !tick_nohz_full_cpu(cpu))
 		tick_do_timer_cpu = cpu;
 #endif
 
@@ -143,29 +143,29 @@ static void tick_sched_handle(struct tick_sched *ts, struct pt_regs *regs)
 	profile_tick(CPU_PROFILING);
 }
 
-#ifdef CONFIG_NO_HZ_EXTENDED
-static cpumask_var_t nohz_extended_mask;
-bool have_nohz_extended_mask;
+#ifdef CONFIG_NO_HZ_FULL
+static cpumask_var_t nohz_full_mask;
+bool have_nohz_full_mask;
 
-int tick_nohz_extended_cpu(int cpu)
+int tick_nohz_full_cpu(int cpu)
 {
-	if (!have_nohz_extended_mask)
+	if (!have_nohz_full_mask)
 		return 0;
 
-	return cpumask_test_cpu(cpu, nohz_extended_mask);
+	return cpumask_test_cpu(cpu, nohz_full_mask);
 }
 
 /* Parse the boot-time nohz CPU list from the kernel parameters. */
-static int __init tick_nohz_extended_setup(char *str)
+static int __init tick_nohz_full_setup(char *str)
 {
-	alloc_bootmem_cpumask_var(&nohz_extended_mask);
-	if (cpulist_parse(str, nohz_extended_mask) < 0)
-		pr_warning("NOHZ: Incorrect nohz_extended cpumask\n");
+	alloc_bootmem_cpumask_var(&nohz_full_mask);
+	if (cpulist_parse(str, nohz_full_mask) < 0)
+		pr_warning("NOHZ: Incorrect nohz_full cpumask\n");
 	else
-		have_nohz_extended_mask = true;
+		have_nohz_full_mask = true;
 	return 1;
 }
-__setup("nohz_extended=", tick_nohz_extended_setup);
+__setup("nohz_full=", tick_nohz_full_setup);
 
 static int __cpuinit tick_nohz_cpu_down_callback(struct notifier_block *nfb,
 						 unsigned long action,
@@ -179,7 +179,7 @@ static int __cpuinit tick_nohz_cpu_down_callback(struct notifier_block *nfb,
 		 * If we handle the timekeeping duty for full dynticks CPUs,
 		 * we can't safely shutdown that CPU.
 		 */
-		if (have_nohz_extended_mask && tick_do_timer_cpu == cpu)
+		if (have_nohz_full_mask && tick_do_timer_cpu == cpu)
 			return -EINVAL;
 		break;
 	}
@@ -191,20 +191,20 @@ static int __cpuinit tick_nohz_cpu_down_callback(struct notifier_block *nfb,
  * separations: 0,2,4,6,...
  * This is NR_CPUS + sizeof('\0')
  */
-static char __initdata nohz_ext_buf[NR_CPUS + 1];
+static char __initdata nohz_full_buf[NR_CPUS + 1];
 
-static int __init init_tick_nohz_extended(void)
+static int __init init_tick_nohz_full(void)
 {
 	cpumask_var_t online_nohz;
 	int cpu;
 
-	if (!have_nohz_extended_mask)
+	if (!have_nohz_full_mask)
 		return 0;
 
 	cpu_notifier(tick_nohz_cpu_down_callback, 0);
 
 	if (!zalloc_cpumask_var(&online_nohz, GFP_KERNEL)) {
-		pr_warning("NO_HZ: Not enough memory to check extended nohz mask\n");
+		pr_warning("NO_HZ: Not enough memory to check full nohz mask\n");
 		return -ENOMEM;
 	}
 
@@ -215,31 +215,31 @@ static int __init init_tick_nohz_extended(void)
 	get_online_cpus();
 
 	/* Ensure we keep a CPU outside the dynticks range for timekeeping */
-	cpumask_and(online_nohz, cpu_online_mask, nohz_extended_mask);
+	cpumask_and(online_nohz, cpu_online_mask, nohz_full_mask);
 	if (cpumask_equal(online_nohz, cpu_online_mask)) {
 		pr_warning("NO_HZ: Must keep at least one online CPU "
-			   "out of nohz_extended range\n");
+			   "out of nohz_full range\n");
 		/*
 		 * We know the current CPU doesn't have its tick stopped.
 		 * Let's use it for the timekeeping duty.
 		 */
 		preempt_disable();
 		cpu = smp_processor_id();
-		pr_warning("NO_HZ: Clearing %d from nohz_extended range\n", cpu);
-		cpumask_clear_cpu(cpu, nohz_extended_mask);
+		pr_warning("NO_HZ: Clearing %d from nohz_full range\n", cpu);
+		cpumask_clear_cpu(cpu, nohz_full_mask);
 		preempt_enable();
 	}
 	put_online_cpus();
 	free_cpumask_var(online_nohz);
 
-	cpulist_scnprintf(nohz_ext_buf, sizeof(nohz_ext_buf), nohz_extended_mask);
-	pr_info("NO_HZ: Full dynticks CPUs: %s.\n", nohz_ext_buf);
+	cpulist_scnprintf(nohz_full_buf, sizeof(nohz_full_buf), nohz_full_mask);
+	pr_info("NO_HZ: Full dynticks CPUs: %s.\n", nohz_full_buf);
 
 	return 0;
 }
-core_initcall(init_tick_nohz_extended);
+core_initcall(init_tick_nohz_full);
 #else
-#define have_nohz_extended_mask (0)
+#define have_nohz_full_mask (0)
 #endif
 
 /*
@@ -589,7 +589,7 @@ static bool can_stop_idle_tick(int cpu, struct tick_sched *ts)
 		return false;
 	}
 
-	if (have_nohz_extended_mask) {
+	if (have_nohz_full_mask) {
 		/*
 		 * Keep the tick alive to guarantee timekeeping progression
 		 * if there are full dynticks CPUs around

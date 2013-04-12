@@ -1913,8 +1913,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Valid arguments: on, off
 			Default: on
 
-	nohz_extended=  [KNL,BOOT]
-			In kernels built with CONFIG_NO_HZ_EXTENDED=y, set
+	nohz_full=	[KNL,BOOT]
+			In kernels built with CONFIG_NO_HZ_FULL=y, set
 			the specified list of CPUs whose tick will be stopped
 			whenever possible. You need to keep at least one online
 			CPU outside the range to maintain the timekeeping.
