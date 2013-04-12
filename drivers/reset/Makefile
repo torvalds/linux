@@ -1,0 +1,1 @@
+obj-$(CONFIG_RESET_CONTROLLER) += core.o
