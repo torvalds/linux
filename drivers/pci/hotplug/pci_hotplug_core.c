@@ -520,10 +520,8 @@ int pci_hp_deregister(struct hotplug_slot *hotplug)
 int __must_check pci_hp_change_slot_info(struct hotplug_slot *hotplug,
 					 struct hotplug_slot_info *info)
 {
-	struct pci_slot *slot;
 	if (!hotplug || !info)
 		return -ENODEV;
-	slot = hotplug->pci_slot;
 
 	memcpy(hotplug->info, info, sizeof(struct hotplug_slot_info));
 

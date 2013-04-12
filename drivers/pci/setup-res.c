@@ -261,7 +261,6 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 {
 	struct resource *res = dev->resource + resno;
 	resource_size_t align, size;
-	struct pci_bus *bus;
 	int ret;
 
 	align = pci_resource_alignment(dev, res);
@@ -271,7 +270,6 @@ int pci_assign_resource(struct pci_dev *dev, int resno)
 		return -EINVAL;
 	}
 
-	bus = dev->bus;
 	size = resource_size(res);
 	ret = _pci_assign_resource(dev, resno, size, align);
 
