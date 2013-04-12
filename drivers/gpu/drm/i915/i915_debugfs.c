@@ -1357,7 +1357,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	if (ret)
 		return ret;
 
-	seq_printf(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\n");
+	seq_printf(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\tEffective Ring freq (MHz)\n");
 
 	for (gpu_freq = dev_priv->rps.min_delay;
 	     gpu_freq <= dev_priv->rps.max_delay;
@@ -1366,7 +1366,10 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 		sandybridge_pcode_read(dev_priv,
 				       GEN6_PCODE_READ_MIN_FREQ_TABLE,
 				       &ia_freq);
-		seq_printf(m, "%d\t\t%d\n", gpu_freq * GT_FREQUENCY_MULTIPLIER, ia_freq * 100);
+		seq_printf(m, "%d\t\t%d\t\t\t\t%d\n",
+			   gpu_freq * GT_FREQUENCY_MULTIPLIER,
+			   ((ia_freq >> 0) & 0xff) * 100,
+			   ((ia_freq >> 8) & 0xff) * 100);
 	}
 
 	mutex_unlock(&dev_priv->rps.hw_lock);

@@ -2684,8 +2684,8 @@ static void gen6_update_ring_freq(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int min_freq = 15;
-	int gpu_freq;
-	unsigned int ia_freq, max_ia_freq;
+	unsigned int gpu_freq;
+	unsigned int max_ia_freq, min_ring_freq;
 	int scaling_factor = 180;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
@@ -2701,6 +2701,10 @@ static void gen6_update_ring_freq(struct drm_device *dev)
 	/* Convert from kHz to MHz */
 	max_ia_freq /= 1000;
 
+	min_ring_freq = I915_READ(MCHBAR_MIRROR_BASE_SNB + DCLK);
+	/* convert DDR frequency from units of 133.3MHz to bandwidth */
+	min_ring_freq = (2 * 4 * min_ring_freq + 2) / 3;
+
 	/*
 	 * For each potential GPU frequency, load a ring frequency we'd like
 	 * to use for memory access.  We do this by specifying the IA frequency
@@ -2709,21 +2713,32 @@ static void gen6_update_ring_freq(struct drm_device *dev)
 	for (gpu_freq = dev_priv->rps.max_delay; gpu_freq >= dev_priv->rps.min_delay;
 	     gpu_freq--) {
 		int diff = dev_priv->rps.max_delay - gpu_freq;
+		unsigned int ia_freq = 0, ring_freq = 0;
 
-		/*
-		 * For GPU frequencies less than 750MHz, just use the lowest
-		 * ring freq.
-		 */
-		if (gpu_freq < min_freq)
-			ia_freq = 800;
-		else
-			ia_freq = max_ia_freq - ((diff * scaling_factor) / 2);
-		ia_freq = DIV_ROUND_CLOSEST(ia_freq, 100);
-		ia_freq <<= GEN6_PCODE_FREQ_IA_RATIO_SHIFT;
+		if (IS_HASWELL(dev)) {
+			ring_freq = (gpu_freq * 5 + 3) / 4;
+			ring_freq = max(min_ring_freq, ring_freq);
+			/* leave ia_freq as the default, chosen by cpufreq */
+		} else {
+			/* On older processors, there is no separate ring
+			 * clock domain, so in order to boost the bandwidth
+			 * of the ring, we need to upclock the CPU (ia_freq).
+			 *
+			 * For GPU frequencies less than 750MHz,
+			 * just use the lowest ring freq.
+			 */
+			if (gpu_freq < min_freq)
+				ia_freq = 800;
+			else
+				ia_freq = max_ia_freq - ((diff * scaling_factor) / 2);
+			ia_freq = DIV_ROUND_CLOSEST(ia_freq, 100);
+		}
 
 		sandybridge_pcode_write(dev_priv,
 					GEN6_PCODE_WRITE_MIN_FREQ_TABLE,
-					ia_freq | gpu_freq);
+					ia_freq << GEN6_PCODE_FREQ_IA_RATIO_SHIFT |
+					ring_freq << GEN6_PCODE_FREQ_RING_RATIO_SHIFT |
+					gpu_freq);
 	}
 }
 
