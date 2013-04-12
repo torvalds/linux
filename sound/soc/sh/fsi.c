@@ -296,7 +296,6 @@ struct fsi_core {
 
 struct fsi_master {
 	void __iomem *base;
-	int irq;
 	struct fsi_priv fsia;
 	struct fsi_priv fsib;
 	const struct fsi_core *core;
@@ -2006,7 +2005,6 @@ static int fsi_probe(struct platform_device *pdev)
 	}
 
 	/* master setting */
-	master->irq		= irq;
 	master->core		= core;
 	spin_lock_init(&master->lock);
 
