@@ -41,6 +41,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 
 #include "tegra20_i2s.h"
 
@@ -407,14 +408,14 @@ static int tegra20_i2s_platform_probe(struct platform_device *pdev)
 	}
 
 	i2s->capture_dma_data.addr = mem->start + TEGRA20_I2S_FIFO2;
-	i2s->capture_dma_data.wrap = 4;
-	i2s->capture_dma_data.width = 32;
-	i2s->capture_dma_data.req_sel = dma_ch;
+	i2s->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	i2s->capture_dma_data.maxburst = 4;
+	i2s->capture_dma_data.slave_id = dma_ch;
 
 	i2s->playback_dma_data.addr = mem->start + TEGRA20_I2S_FIFO1;
-	i2s->playback_dma_data.wrap = 4;
-	i2s->playback_dma_data.width = 32;
-	i2s->playback_dma_data.req_sel = dma_ch;
+	i2s->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	i2s->playback_dma_data.maxburst = 4;
+	i2s->playback_dma_data.slave_id = dma_ch;
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {

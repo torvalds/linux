@@ -757,9 +757,9 @@ static int mxs_saif_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	saif->dma_param.chan_irq = platform_get_irq(pdev, 1);
-	if (saif->dma_param.chan_irq < 0) {
-		ret = saif->dma_param.chan_irq;
+	saif->dma_param.dma_data.chan_irq = platform_get_irq(pdev, 1);
+	if (saif->dma_param.dma_data.chan_irq < 0) {
+		ret = saif->dma_param.dma_data.chan_irq;
 		dev_err(&pdev->dev, "failed to get dma irq resource: %d\n",
 			ret);
 		return ret;

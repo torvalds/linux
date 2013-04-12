@@ -34,7 +34,6 @@
 
 #include "omap-dmic.h"
 #include "omap-mcpdm.h"
-#include "omap-pcm.h"
 #include "../codecs/twl6040.h"
 
 struct abe_twl6040 {

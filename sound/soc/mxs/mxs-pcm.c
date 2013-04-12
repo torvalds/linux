@@ -28,7 +28,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/dmaengine.h>
-#include <linux/fsl/mxs-dma.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -38,11 +37,6 @@
 #include <sound/dmaengine_pcm.h>
 
 #include "mxs-pcm.h"
-
-struct mxs_pcm_dma_data {
-	struct mxs_dma_data dma_data;
-	struct mxs_pcm_dma_params *dma_params;
-};
 
 static struct snd_pcm_hardware snd_mxs_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
@@ -66,8 +60,7 @@ static struct snd_pcm_hardware snd_mxs_hardware = {
 
 static bool filter(struct dma_chan *chan, void *param)
 {
-	struct mxs_pcm_dma_data *pcm_dma_data = param;
-	struct mxs_pcm_dma_params *dma_params = pcm_dma_data->dma_params;
+	struct mxs_pcm_dma_params *dma_params = param;
 
 	if (!mxs_dma_is_apbx(chan))
 		return false;
@@ -75,7 +68,7 @@ static bool filter(struct dma_chan *chan, void *param)
 	if (chan->chan_id != dma_params->chan_num)
 		return false;
 
-	chan->private = &pcm_dma_data->dma_data;
+	chan->private = &dma_params->dma_data;
 
 	return true;
 }
@@ -91,37 +84,11 @@ static int snd_mxs_pcm_hw_params(struct snd_pcm_substream *substream,
 static int snd_mxs_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct mxs_pcm_dma_data *pcm_dma_data;
-	int ret;
-
-	pcm_dma_data = kzalloc(sizeof(*pcm_dma_data), GFP_KERNEL);
-	if (pcm_dma_data == NULL)
-		return -ENOMEM;
-
-	pcm_dma_data->dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-	pcm_dma_data->dma_data.chan_irq = pcm_dma_data->dma_params->chan_irq;
-
-	ret = snd_dmaengine_pcm_open(substream, filter, pcm_dma_data);
-	if (ret) {
-		kfree(pcm_dma_data);
-		return ret;
-	}
 
 	snd_soc_set_runtime_hwparams(substream, &snd_mxs_hardware);
 
-	snd_dmaengine_pcm_set_data(substream, pcm_dma_data);
-
-	return 0;
-}
-
-static int snd_mxs_close(struct snd_pcm_substream *substream)
-{
-	struct mxs_pcm_dma_data *pcm_dma_data = snd_dmaengine_pcm_get_data(substream);
-
-	snd_dmaengine_pcm_close(substream);
-	kfree(pcm_dma_data);
-
-	return 0;
+	return snd_dmaengine_pcm_open(substream, filter,
+		snd_soc_dai_get_dma_data(rtd->cpu_dai, substream));
 }
 
 static int snd_mxs_pcm_mmap(struct snd_pcm_substream *substream,
@@ -137,7 +104,7 @@ static int snd_mxs_pcm_mmap(struct snd_pcm_substream *substream,
 
 static struct snd_pcm_ops mxs_pcm_ops = {
 	.open		= snd_mxs_open,
-	.close		= snd_mxs_close,
+	.close		= snd_dmaengine_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= snd_mxs_pcm_hw_params,
 	.trigger	= snd_dmaengine_pcm_trigger,

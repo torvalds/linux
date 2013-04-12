@@ -35,6 +35,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 
 #include "tegra_asoc_utils.h"
 #include "tegra20_ac97.h"
@@ -393,14 +394,14 @@ static int tegra20_ac97_platform_probe(struct platform_device *pdev)
 	}
 
 	ac97->capture_dma_data.addr = mem->start + TEGRA20_AC97_FIFO_RX1;
-	ac97->capture_dma_data.wrap = 4;
-	ac97->capture_dma_data.width = 32;
-	ac97->capture_dma_data.req_sel = of_dma[1];
+	ac97->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	ac97->capture_dma_data.maxburst = 4;
+	ac97->capture_dma_data.slave_id = of_dma[1];
 
 	ac97->playback_dma_data.addr = mem->start + TEGRA20_AC97_FIFO_TX1;
-	ac97->playback_dma_data.wrap = 4;
-	ac97->playback_dma_data.width = 32;
-	ac97->playback_dma_data.req_sel = of_dma[1];
+	ac97->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	ac97->capture_dma_data.maxburst = 4;
+	ac97->capture_dma_data.slave_id = of_dma[0];
 
 	ret = snd_soc_register_component(&pdev->dev, &tegra20_ac97_component,
 					 &tegra20_ac97_dai, 1);
