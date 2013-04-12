@@ -131,11 +131,12 @@ static void create_hyp_pte_mappings(pmd_t *pmd, unsigned long start,
 	pte_t *pte;
 	unsigned long addr;
 
-	for (addr = start; addr < end; addr += PAGE_SIZE) {
+	addr = start;
+	do {
 		pte = pte_offset_kernel(pmd, addr);
 		kvm_set_pte(pte, pfn_pte(pfn, prot));
 		pfn++;
-	}
+	} while (addr += PAGE_SIZE, addr != end);
 }
 
 static int create_hyp_pmd_mappings(pud_t *pud, unsigned long start,
@@ -146,7 +147,8 @@ static int create_hyp_pmd_mappings(pud_t *pud, unsigned long start,
 	pte_t *pte;
 	unsigned long addr, next;
 
-	for (addr = start; addr < end; addr = next) {
+	addr = start;
+	do {
 		pmd = pmd_offset(pud, addr);
 
 		BUG_ON(pmd_sect(*pmd));
@@ -164,7 +166,7 @@ static int create_hyp_pmd_mappings(pud_t *pud, unsigned long start,
 
 		create_hyp_pte_mappings(pmd, addr, next, pfn, prot);
 		pfn += (next - addr) >> PAGE_SHIFT;
-	}
+	} while (addr = next, addr != end);
 
 	return 0;
 }
@@ -179,11 +181,10 @@ static int __create_hyp_mappings(pgd_t *pgdp,
 	unsigned long addr, next;
 	int err = 0;
 
-	if (start >= end)
-		return -EINVAL;
-
 	mutex_lock(&kvm_hyp_pgd_mutex);
-	for (addr = start & PAGE_MASK; addr < end; addr = next) {
+	addr = start & PAGE_MASK;
+	end = PAGE_ALIGN(end);
+	do {
 		pgd = pgdp + pgd_index(addr);
 		pud = pud_offset(pgd, addr);
 
@@ -202,7 +203,7 @@ static int __create_hyp_mappings(pgd_t *pgdp,
 		if (err)
 			goto out;
 		pfn += (next - addr) >> PAGE_SHIFT;
-	}
+	} while (addr = next, addr != end);
 out:
 	mutex_unlock(&kvm_hyp_pgd_mutex);
 	return err;
@@ -216,8 +217,6 @@ out:
  * The same virtual address as the kernel virtual address is also used
  * in Hyp-mode mapping (modulo HYP_PAGE_OFFSET) to the same underlying
  * physical pages.
- *
- * Note: Wrapping around zero in the "to" address is not supported.
  */
 int create_hyp_mappings(void *from, void *to)
 {
