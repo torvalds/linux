@@ -105,12 +105,26 @@ Comprehensive camera device registration:
                           
 */
 static struct rkcamera_platform_data new_camera[] = { 
+    new_camera_device(RK29_CAM_SENSOR_OV5642,
+                        back,
+                        RK29_PIN6_PB7,
+                        0,
+                        0,
+                        1,
+                        0),
+    new_camera_device(RK29_CAM_SENSOR_OV2659,
+                        front,
+                        RK29_PIN5_PD7,
+                        0,
+                        0,
+                        1,
+                        0),
     new_camera_device_end
 };
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
 #define CONFIG_SENSOR_0 RK29_CAM_SENSOR_OV5642                      /* back camera sensor 0 */
-#define CONFIG_SENSOR_IIC_ADDR_0 	    0x78
+#define CONFIG_SENSOR_IIC_ADDR_0 	    0x00
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_0    1
 #define CONFIG_SENSOR_ORIENTATION_0       90
 #define CONFIG_SENSOR_POWER_PIN_0         INVALID_GPIO
@@ -176,7 +190,7 @@ static struct rkcamera_platform_data new_camera[] = {
 #define CONFIG_SENSOR_720P_FPS_FIXED_02      30000
 
 #define CONFIG_SENSOR_1 RK29_CAM_SENSOR_OV2659                      /* front camera sensor 0 */
-#define CONFIG_SENSOR_IIC_ADDR_1 	    0x60
+#define CONFIG_SENSOR_IIC_ADDR_1 	    0
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1    1
 #define CONFIG_SENSOR_ORIENTATION_1       270
 #define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO

@@ -34,12 +34,59 @@ Comprehensive camera device registration:
                           
 */
 static struct rkcamera_platform_data new_camera[] = { 
+    new_camera_device(RK29_CAM_SENSOR_OV2659,
+                        back,
+                        RK30_PIN3_PB5,
+                        0,
+                        0,
+                        3,
+                        0), 
+
+    new_camera_device(RK29_CAM_SENSOR_SP2518,
+                        back,
+                        RK30_PIN3_PB5,
+                        0,
+                        0,
+                        3,
+                        0),
+
+    new_camera_device(RK29_CAM_SENSOR_GC2035,
+                        back,
+                        RK30_PIN3_PB5,
+                        0,
+                        0,
+                        3,
+                        0),
+
+    new_camera_device(RK29_CAM_SENSOR_OV2659,
+                        front,
+                        RK30_PIN3_PB4,
+                        0,
+                        0,
+                        3,
+                        0), 
+
+    new_camera_device(RK29_CAM_SENSOR_SP2518,
+                        front,
+                        RK30_PIN3_PB4,
+                        0,
+                        0,
+                        3,
+                        0),
+
+    new_camera_device(RK29_CAM_SENSOR_GC2035,
+                        front,
+                        RK30_PIN3_PB4,
+                        0,
+                        0,
+                        3,
+                        0),
     new_camera_device_end
 };
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
 #define CONFIG_SENSOR_0 RK29_CAM_SENSOR_OV2659				 /* back camera sensor */
-#define CONFIG_SENSOR_IIC_ADDR_0		0x60
+#define CONFIG_SENSOR_IIC_ADDR_0		0x00
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_0	  3
 #define CONFIG_SENSOR_ORIENTATION_0 	  90
 #define CONFIG_SENSOR_POWER_PIN_0		  INVALID_GPIO
@@ -61,7 +108,7 @@ static struct rkcamera_platform_data new_camera[] = {
 #define CONFIG_SENSOR_720P_FPS_FIXED_0		30000
 
 #define CONFIG_SENSOR_01  RK29_CAM_SENSOR_SP2518                   /* back camera sensor 1 */
-#define CONFIG_SENSOR_IIC_ADDR_01 	    0x60
+#define CONFIG_SENSOR_IIC_ADDR_01 	    0x00
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_01    3
 #define CONFIG_SENSOR_ORIENTATION_01       90
 #define CONFIG_SENSOR_POWER_PIN_01         INVALID_GPIO
@@ -83,7 +130,7 @@ static struct rkcamera_platform_data new_camera[] = {
 #define CONFIG_SENSOR_720P_FPS_FIXED_01     30000
 
 #define CONFIG_SENSOR_02 RK29_CAM_SENSOR_GC2035                      /* back camera sensor 2 */
-#define CONFIG_SENSOR_IIC_ADDR_02 	    0x78
+#define CONFIG_SENSOR_IIC_ADDR_02 	    0x00
 #define CONFIG_SENSOR_CIF_INDEX_02                    0
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_02    3
 #define CONFIG_SENSOR_ORIENTATION_02       90
@@ -106,7 +153,7 @@ static struct rkcamera_platform_data new_camera[] = {
 #define CONFIG_SENSOR_720P_FPS_FIXED_02      30000
 
 #define CONFIG_SENSOR_1 RK29_CAM_SENSOR_OV2659                      /* front camera sensor 0 */
-#define CONFIG_SENSOR_IIC_ADDR_1 	    0x60
+#define CONFIG_SENSOR_IIC_ADDR_1 	    0x00
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1	  3
 #define CONFIG_SENSOR_ORIENTATION_1       270
 #define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO
@@ -128,7 +175,7 @@ static struct rkcamera_platform_data new_camera[] = {
 #define CONFIG_SENSOR_720P_FPS_FIXED_1		30000
 
 #define CONFIG_SENSOR_11 RK29_CAM_SENSOR_SP2518                      /* front camera sensor 1 */
-#define CONFIG_SENSOR_IIC_ADDR_11 	    0x60
+#define CONFIG_SENSOR_IIC_ADDR_11 	    0x00
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_11    3
 #define CONFIG_SENSOR_ORIENTATION_11       270
 #define CONFIG_SENSOR_POWER_PIN_11         INVALID_GPIO
@@ -150,7 +197,7 @@ static struct rkcamera_platform_data new_camera[] = {
 #define CONFIG_SENSOR_720P_FPS_FIXED_11      30000
 
 #define CONFIG_SENSOR_12 RK29_CAM_SENSOR_GC2035//RK29_CAM_SENSOR_OV2655                      /* front camera sensor 2 */
-#define CONFIG_SENSOR_IIC_ADDR_12 	   0x78
+#define CONFIG_SENSOR_IIC_ADDR_12 	   0x00
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_12    3
 #define CONFIG_SENSOR_ORIENTATION_12       270
 #define CONFIG_SENSOR_POWER_PIN_12         INVALID_GPIO

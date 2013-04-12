@@ -34,6 +34,23 @@ Comprehensive camera device registration:
                           
 */
 static struct rkcamera_platform_data new_camera[] = { 
+#if defined(CONFIG_MACH_RK2928_SDK)
+    new_camera_device(RK29_CAM_SENSOR_GC0308,
+                        front,
+                        RK2928_PIN3_PD7,
+                        0,
+                        0,
+                        1,
+                        0),
+#else
+    new_camera_device(RK29_CAM_SENSOR_GC0308,
+                        front,
+                        RK2928_PIN3_PB3,
+                        0,
+                        0,
+                        1,
+                        0),
+#endif
     new_camera_device_end
 };
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
@@ -108,7 +125,7 @@ static struct rkcamera_platform_data new_camera[] = {
 #define CONFIG_SENSOR_720P_FPS_FIXED_02      30000
 
 #define CONFIG_SENSOR_1 RK29_CAM_SENSOR_GC0308                      /* front camera sensor 0 */
-#define CONFIG_SENSOR_IIC_ADDR_1 	   0x42
+#define CONFIG_SENSOR_IIC_ADDR_1 	   0
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1	  1
 #define CONFIG_SENSOR_CIF_INDEX_1				  0
 #define CONFIG_SENSOR_ORIENTATION_1       270

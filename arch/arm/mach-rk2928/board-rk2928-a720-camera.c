@@ -33,7 +33,14 @@ Comprehensive camera device registration:
                              mclk)\           // sensor input clock rate, 24 or 48
                           
 */
-static struct rkcamera_platform_data new_camera[] = { 
+static struct rkcamera_platform_data new_camera[] = {
+    new_camera_device(RK29_CAM_SENSOR_GC0308,
+                        front,
+                        RK2928_PIN3_PB3,
+                        0,
+                        0,
+                        1,
+                        0),
     new_camera_device_end
 };
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
@@ -108,7 +115,7 @@ static struct rkcamera_platform_data new_camera[] = {
 #define CONFIG_SENSOR_720P_FPS_FIXED_02      30000
 
 #define CONFIG_SENSOR_1 RK29_CAM_SENSOR_GC0308                      /* front camera sensor 0 */
-#define CONFIG_SENSOR_IIC_ADDR_1 	   0x42
+#define CONFIG_SENSOR_IIC_ADDR_1 	   0x00
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1	  1
 #define CONFIG_SENSOR_CIF_INDEX_1				  0
 #define CONFIG_SENSOR_ORIENTATION_1       270
