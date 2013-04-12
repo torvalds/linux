@@ -1979,6 +1979,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type    = TUNER_ABSENT,
 		.tuner_gpio    = maxmedia_ub425_tc,
 		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_REDDO,
 		.def_i2c_bus   = 1,
 		.i2c_speed     = EM28XX_I2C_CLK_WAIT_ENABLE |
 				EM28XX_I2C_FREQ_400_KHZ,
