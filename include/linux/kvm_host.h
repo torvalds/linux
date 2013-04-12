@@ -1064,6 +1064,41 @@ static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
 
 extern bool kvm_rebooting;
 
+struct kvm_device_ops;
+
+struct kvm_device {
+	struct kvm_device_ops *ops;
+	struct kvm *kvm;
+	atomic_t users;
+	void *private;
+};
+
+/* create, destroy, and name are mandatory */
+struct kvm_device_ops {
+	const char *name;
+	int (*create)(struct kvm_device *dev, u32 type);
+
+	/*
+	 * Destroy is responsible for freeing dev.
+	 *
+	 * Destroy may be called before or after destructors are called
+	 * on emulated I/O regions, depending on whether a reference is
+	 * held by a vcpu or other kvm component that gets destroyed
+	 * after the emulated I/O.
+	 */
+	void (*destroy)(struct kvm_device *dev);
+
+	int (*set_attr)(struct kvm_device *dev, struct kvm_device_attr *attr);
+	int (*get_attr)(struct kvm_device *dev, struct kvm_device_attr *attr);
+	int (*has_attr)(struct kvm_device *dev, struct kvm_device_attr *attr);
+	long (*ioctl)(struct kvm_device *dev, unsigned int ioctl,
+		      unsigned long arg);
+};
+
+void kvm_device_get(struct kvm_device *dev);
+void kvm_device_put(struct kvm_device *dev);
+struct kvm_device *kvm_device_from_filp(struct file *filp);
+
 #ifdef CONFIG_HAVE_KVM_CPU_RELAX_INTERCEPT
 
 static inline void kvm_vcpu_set_in_spin_loop(struct kvm_vcpu *vcpu, bool val)
