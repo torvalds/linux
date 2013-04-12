@@ -2179,7 +2179,7 @@ static int ibmvfc_cancel_all(struct scsi_device *sdev, int type)
 		return 0;
 	}
 
-	if (vhost->state == IBMVFC_ACTIVE) {
+	if (vhost->logged_in) {
 		evt = ibmvfc_get_event(vhost);
 		ibmvfc_init_event(evt, ibmvfc_sync_completion, IBMVFC_MAD_FORMAT);
 
@@ -2190,7 +2190,10 @@ static int ibmvfc_cancel_all(struct scsi_device *sdev, int type)
 		tmf->common.length = sizeof(*tmf);
 		tmf->scsi_id = rport->port_id;
 		int_to_scsilun(sdev->lun, &tmf->lun);
-		tmf->flags = (type | IBMVFC_TMF_LUA_VALID);
+		if (vhost->state == IBMVFC_ACTIVE)
+			tmf->flags = (type | IBMVFC_TMF_LUA_VALID);
+		else
+			tmf->flags = IBMVFC_TMF_LUA_VALID;
 		tmf->cancel_key = (unsigned long)sdev->hostdata;
 		tmf->my_cancel_key = (unsigned long)starget->hostdata;
 
@@ -2389,7 +2392,7 @@ static int ibmvfc_eh_abort_handler(struct scsi_cmnd *cmd)
 {
 	struct scsi_device *sdev = cmd->device;
 	struct ibmvfc_host *vhost = shost_priv(sdev->host);
-	int cancel_rc, block_rc, abort_rc = 0;
+	int cancel_rc, block_rc;
 	int rc = FAILED;
 
 	ENTER;
@@ -2397,11 +2400,11 @@ static int ibmvfc_eh_abort_handler(struct scsi_cmnd *cmd)
 	ibmvfc_wait_while_resetting(vhost);
 	if (block_rc != FAST_IO_FAIL) {
 		cancel_rc = ibmvfc_cancel_all(sdev, IBMVFC_TMF_ABORT_TASK_SET);
-		abort_rc = ibmvfc_abort_task_set(sdev);
+		ibmvfc_abort_task_set(sdev);
 	} else
 		cancel_rc = ibmvfc_cancel_all(sdev, 0);
 
-	if (!cancel_rc && !abort_rc)
+	if (!cancel_rc)
 		rc = ibmvfc_wait_for_ops(vhost, sdev, ibmvfc_match_lun);
 
 	if (block_rc == FAST_IO_FAIL && rc != FAILED)
