@@ -80,7 +80,6 @@ enum pci_8255_boardid {
 struct pci_8255_boardinfo {
 	const char *name;
 	int dio_badr;
-	int is_mmio;
 	int n_8255;
 };
 
@@ -123,43 +122,36 @@ static const struct pci_8255_boardinfo pci_8255_boards[] = {
 	[BOARD_NI_PCIDIO96] = {
 		.name		= "ni_pci-dio-96",
 		.dio_badr	= 1,
-		.is_mmio	= 1,
 		.n_8255		= 4,
 	},
 	[BOARD_NI_PCIDIO96B] = {
 		.name		= "ni_pci-dio-96b",
 		.dio_badr	= 1,
-		.is_mmio	= 1,
 		.n_8255		= 4,
 	},
 	[BOARD_NI_PXI6508] = {
 		.name		= "ni_pxi-6508",
 		.dio_badr	= 1,
-		.is_mmio	= 1,
 		.n_8255		= 4,
 	},
 	[BOARD_NI_PCI6503] = {
 		.name		= "ni_pci-6503",
 		.dio_badr	= 1,
-		.is_mmio	= 1,
 		.n_8255		= 1,
 	},
 	[BOARD_NI_PCI6503B] = {
 		.name		= "ni_pci-6503b",
 		.dio_badr	= 1,
-		.is_mmio	= 1,
 		.n_8255		= 1,
 	},
 	[BOARD_NI_PCI6503X] = {
 		.name		= "ni_pci-6503x",
 		.dio_badr	= 1,
-		.is_mmio	= 1,
 		.n_8255		= 1,
 	},
 	[BOARD_NI_PXI_6503] = {
 		.name		= "ni_pxi-6503",
 		.dio_badr	= 1,
-		.is_mmio	= 1,
 		.n_8255		= 1,
 	},
 };
@@ -187,6 +179,7 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 	const struct pci_8255_boardinfo *board = NULL;
 	struct pci_8255_private *devpriv;
 	struct comedi_subdevice *s;
+	bool is_mmio;
 	int ret;
 	int i;
 
@@ -206,7 +199,9 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	if (board->is_mmio) {
+	is_mmio = (pci_resource_flags(pcidev, board->dio_badr) &
+		   IORESOURCE_MEM) != 0;
+	if (is_mmio) {
 		devpriv->mmio_base = pci_ioremap_bar(pcidev, board->dio_badr);
 		if (!devpriv->mmio_base)
 			return -ENOMEM;
@@ -227,7 +222,7 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 		unsigned long iobase;
 
 		s = &dev->subdevices[i];
-		if (board->is_mmio) {
+		if (is_mmio) {
 			iobase = (unsigned long)(devpriv->mmio_base + (i * 4));
 			ret = subdev_8255_init(dev, s, pci_8255_mmio, iobase);
 		} else {
