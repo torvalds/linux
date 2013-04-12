@@ -108,9 +108,14 @@ static struct acpi_interface_info acpi_default_supported_interfaces[] = {
 
 acpi_status acpi_ut_initialize_interfaces(void)
 {
+	acpi_status status;
 	u32 i;
 
-	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
+
 	acpi_gbl_supported_interfaces = acpi_default_supported_interfaces;
 
 	/* Link the static list of supported interfaces */
@@ -132,20 +137,24 @@ acpi_status acpi_ut_initialize_interfaces(void)
  *
  * PARAMETERS:  None
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Delete all interfaces in the global list. Sets
  *              acpi_gbl_supported_interfaces to NULL.
  *
  ******************************************************************************/
 
-void acpi_ut_interface_terminate(void)
+acpi_status acpi_ut_interface_terminate(void)
 {
+	acpi_status status;
 	struct acpi_interface_info *next_interface;
 
-	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
-	next_interface = acpi_gbl_supported_interfaces;
+	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
 
+	next_interface = acpi_gbl_supported_interfaces;
 	while (next_interface) {
 		acpi_gbl_supported_interfaces = next_interface->next;
 
@@ -160,6 +169,7 @@ void acpi_ut_interface_terminate(void)
 	}
 
 	acpi_os_release_mutex(acpi_gbl_osi_mutex);
+	return (AE_OK);
 }
 
 /*******************************************************************************
@@ -315,6 +325,7 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state * walk_state)
 	union acpi_operand_object *return_desc;
 	struct acpi_interface_info *interface_info;
 	acpi_interface_handler interface_handler;
+	acpi_status status;
 	u32 return_value;
 
 	ACPI_FUNCTION_TRACE(ut_osi_implementation);
@@ -336,7 +347,10 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state * walk_state)
 	/* Default return value is 0, NOT SUPPORTED */
 
 	return_value = 0;
-	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
 
 	/* Lookup the interface in the global _OSI list */
 

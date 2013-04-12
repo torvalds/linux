@@ -421,7 +421,7 @@ acpi_ut_get_object_size(union acpi_operand_object *obj, acpi_size * obj_length);
  */
 acpi_status acpi_ut_initialize_interfaces(void);
 
-void acpi_ut_interface_terminate(void);
+acpi_status acpi_ut_interface_terminate(void);
 
 acpi_status acpi_ut_install_interface(acpi_string interface_name);
 
