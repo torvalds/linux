@@ -642,8 +642,8 @@ void dma_cache_wback(unsigned long start, unsigned long sz)
 EXPORT_SYMBOL(dma_cache_wback);
 
 /*
- * This is API for making I/D Caches consistent when modifying code
- * (loadable modules, kprobes,  etc)
+ * This is API for making I/D Caches consistent when modifying
+ * kernel code (loadable modules, kprobes, kgdb...)
  * This is called on insmod, with kernel virtual address for CODE of
  * the module. ARC cache maintenance ops require PHY address thus we
  * need to convert vmalloc addr to PHY addr
@@ -673,7 +673,13 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 
 	/* Case: Kernel Phy addr (0x8000_0000 onwards) */
 	if (likely(kstart > PAGE_OFFSET)) {
-		__ic_line_inv(kstart, kend - kstart);
+		/*
+		 * The 2nd arg despite being paddr will be used to index icache
+		 * This is OK since no alternate virtual mappings will exist
+		 * given the callers for this case: kprobe/kgdb in built-in
+		 * kernel code only.
+		 */
+		__ic_line_inv_vaddr(kstart, kstart, kend - kstart);
 		__dc_line_op(kstart, kend - kstart, OP_FLUSH);
 		return;
 	}
@@ -694,7 +700,7 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 		sz = min_t(unsigned int, tot_sz, PAGE_SIZE - off);
 		local_irq_save(flags);
 		__dc_line_op(phy, sz, OP_FLUSH);
-		__ic_line_inv(phy, sz);
+		__ic_line_inv_vaddr(phy, kstart, sz);
 		local_irq_restore(flags);
 		kstart += sz;
 		tot_sz -= sz;
