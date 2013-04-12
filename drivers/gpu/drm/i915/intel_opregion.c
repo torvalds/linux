@@ -152,7 +152,6 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct opregion_asle __iomem *asle = dev_priv->opregion.asle;
-	u32 max;
 
 	DRM_DEBUG_DRIVER("bclp = 0x%08x\n", bclp);
 
@@ -163,8 +162,7 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 	if (bclp > 255)
 		return ASLE_BACKLIGHT_FAILED;
 
-	max = intel_panel_get_max_backlight(dev);
-	intel_panel_set_backlight(dev, bclp * max / 255);
+	intel_panel_set_backlight(dev, bclp, 255);
 	iowrite32((bclp*0x64)/0xff | ASLE_CBLV_VALID, &asle->cblv);
 
 	return 0;

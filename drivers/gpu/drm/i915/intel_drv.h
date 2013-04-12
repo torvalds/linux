@@ -554,8 +554,8 @@ extern void intel_pch_panel_fitting(struct drm_device *dev,
 				    int fitting_mode,
 				    const struct drm_display_mode *mode,
 				    struct drm_display_mode *adjusted_mode);
-extern u32 intel_panel_get_max_backlight(struct drm_device *dev);
-extern void intel_panel_set_backlight(struct drm_device *dev, u32 level);
+extern void intel_panel_set_backlight(struct drm_device *dev,
+				      u32 level, u32 max);
 extern int intel_panel_setup_backlight(struct drm_connector *connector);
 extern void intel_panel_enable_backlight(struct drm_device *dev,
 					 enum pipe pipe);
