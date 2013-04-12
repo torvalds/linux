@@ -1621,6 +1621,15 @@ int pid_revalidate(struct dentry *dentry, unsigned int flags)
 	return 0;
 }
 
+int pid_delete_dentry(const struct dentry *dentry)
+{
+	/* Is the task we represent dead?
+	 * If so, then don't put the dentry on the lru list,
+	 * kill it immediately.
+	 */
+	return !proc_pid(dentry->d_inode)->tasks[PIDTYPE_PID].first;
+}
+
 const struct dentry_operations pid_dentry_operations =
 {
 	.d_revalidate	= pid_revalidate,

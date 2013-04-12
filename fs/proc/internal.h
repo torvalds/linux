@@ -114,15 +114,6 @@ static inline int task_dumpable(struct task_struct *task)
 	return 0;
 }
 
-static inline int pid_delete_dentry(const struct dentry * dentry)
-{
-	/* Is the task we represent dead?
-	 * If so, then don't put the dentry on the lru list,
-	 * kill it immediately.
-	 */
-	return !proc_pid(dentry->d_inode)->tasks[PIDTYPE_PID].first;
-}
-
 static inline unsigned name_to_int(struct dentry *dentry)
 {
 	const char *name = dentry->d_name.name;
@@ -144,6 +135,11 @@ static inline unsigned name_to_int(struct dentry *dentry)
 out:
 	return ~0U;
 }
+
+/*
+ * base.c
+ */
+extern int pid_delete_dentry(const struct dentry *);
 
 struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *ino,
 		struct dentry *dentry);
