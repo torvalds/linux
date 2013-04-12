@@ -46,6 +46,10 @@ choice
 		bool "RT3883 eval kit"
 		depends on SOC_RT3883
 
+	config DTB_MT7620A_EVAL
+		bool "MT7620A eval kit"
+		depends on SOC_MT7620
+
 endchoice
 
 endif
