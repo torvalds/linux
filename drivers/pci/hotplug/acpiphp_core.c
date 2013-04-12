@@ -48,6 +48,7 @@
 #define SLOT_NAME_SIZE  21              /* {_SUN} */
 
 bool acpiphp_debug;
+bool acpiphp_disabled;
 
 /* local variables */
 static struct acpiphp_attention_info *attention_info;
@@ -60,7 +61,9 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
+MODULE_PARM_DESC(disable, "disable acpiphp driver");
 module_param_named(debug, acpiphp_debug, bool, 0644);
+module_param_named(disable, acpiphp_disabled, bool, 0444);
 
 /* export the attention callback registration methods */
 EXPORT_SYMBOL_GPL(acpiphp_register_attention);
@@ -353,9 +356,11 @@ void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 
 static int __init acpiphp_init(void)
 {
-	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
+	info(DRIVER_DESC " version: " DRIVER_VERSION "%s\n",
+		acpiphp_disabled ? ", disabled by user; please report a bug"
+				 : "");
 
-	if (acpi_pci_disabled)
+	if (acpi_pci_disabled || acpiphp_disabled)
 		return 0;
 
 	/* read all the ACPI info from the system */
@@ -364,14 +369,4 @@ static int __init acpiphp_init(void)
 }
 
 
-static void __exit acpiphp_exit(void)
-{
-	if (acpi_pci_disabled)
-		return;
-
-	/* deallocate internal data structures etc. */
-	acpiphp_glue_exit();
-}
-
 module_init(acpiphp_init);
-module_exit(acpiphp_exit);
