@@ -44,6 +44,9 @@
 #define EVERGREEN_AUDIO_PLL1_DIV			0x5b4
 #define EVERGREEN_AUDIO_PLL1_UNK			0x5bc
 
+#define EVERGREEN_CG_IND_ADDR                           0x8f8
+#define EVERGREEN_CG_IND_DATA                           0x8fc
+
 #define EVERGREEN_AUDIO_ENABLE				0x5e78
 #define EVERGREEN_AUDIO_VENDOR_ID			0x5ec0
 

@@ -1852,6 +1852,8 @@ void cik_mm_wdoorbell(struct radeon_device *rdev, u32 offset, u32 v);
 #define WREG32_SMC(reg, v) tn_smc_wreg(rdev, (reg), (v))
 #define RREG32_RCU(reg) r600_rcu_rreg(rdev, (reg))
 #define WREG32_RCU(reg, v) r600_rcu_wreg(rdev, (reg), (v))
+#define RREG32_CG(reg) eg_cg_rreg(rdev, (reg))
+#define WREG32_CG(reg, v) eg_cg_wreg(rdev, (reg), (v))
 #define WREG32_P(reg, val, mask)				\
 	do {							\
 		uint32_t tmp_ = RREG32(reg);			\
@@ -1921,6 +1923,21 @@ static inline void r600_rcu_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 {
 	WREG32(R600_RCU_INDEX, ((reg) & 0x1fff));
 	WREG32(R600_RCU_DATA, (v));
+}
+
+static inline u32 eg_cg_rreg(struct radeon_device *rdev, u32 reg)
+{
+	u32 r;
+
+	WREG32(EVERGREEN_CG_IND_ADDR, ((reg) & 0xffff));
+	r = RREG32(EVERGREEN_CG_IND_DATA);
+	return r;
+}
+
+static inline void eg_cg_wreg(struct radeon_device *rdev, u32 reg, u32 v)
+{
+	WREG32(EVERGREEN_CG_IND_ADDR, ((reg) & 0xffff));
+	WREG32(EVERGREEN_CG_IND_DATA, (v));
 }
 
 void r100_pll_errata_after_index(struct radeon_device *rdev);
