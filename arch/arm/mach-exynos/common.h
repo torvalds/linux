@@ -70,7 +70,7 @@ void exynos4212_register_clocks(void);
 
 struct device_node;
 void combiner_init(void __iomem *combiner_base, struct device_node *np,
-			unsigned int max_nr);
+			unsigned int max_nr, int irq_base);
 
 extern struct smp_operations exynos_smp_ops;
 
