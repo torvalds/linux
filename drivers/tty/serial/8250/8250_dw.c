@@ -190,7 +190,7 @@ static int dw8250_probe_acpi(struct uart_8250_port *up)
 	return 0;
 }
 #else
-static inline int dw8250_probe_acpi(struct uart_port *p)
+static inline int dw8250_probe_acpi(struct uart_8250_port *up)
 {
 	return -ENODEV;
 }
