@@ -1,7 +1,7 @@
 /*
  *  sst_platform.c - Intel MID Platform driver
  *
- *  Copyright (C) 2010-2012 Intel Corp
+ *  Copyright (C) 2010-2013 Intel Corp
  *  Author: Vinod Koul <vinod.koul@intel.com>
  *  Author: Harsha Priya <priya.harsha@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -656,11 +656,21 @@ static int sst_platform_compr_get_codec_caps(struct snd_compr_stream *cstream,
 	return stream->compr_ops->get_codec_caps(codec);
 }
 
+static int sst_platform_compr_set_metadata(struct snd_compr_stream *cstream,
+					struct snd_compr_metadata *metadata)
+{
+	struct sst_runtime_stream *stream  =
+		 cstream->runtime->private_data;
+
+	return stream->compr_ops->set_metadata(stream->id, metadata);
+}
+
 static struct snd_compr_ops sst_platform_compr_ops = {
 
 	.open = sst_platform_compr_open,
 	.free = sst_platform_compr_free,
 	.set_params = sst_platform_compr_set_params,
+	.set_metadata = sst_platform_compr_set_metadata,
 	.trigger = sst_platform_compr_trigger,
 	.pointer = sst_platform_compr_pointer,
 	.ack = sst_platform_compr_ack,
