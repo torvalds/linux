@@ -258,7 +258,7 @@ u32 acpi_ev_fixed_event_detect(void)
  * DESCRIPTION: Clears the status bit for the requested event, calls the
  *              handler that previously registered for the event.
  *              NOTE: If there is no handler for the event, the event is
- *              disabled to prevent futher interrupts.
+ *              disabled to prevent further interrupts.
  *
  ******************************************************************************/
 
