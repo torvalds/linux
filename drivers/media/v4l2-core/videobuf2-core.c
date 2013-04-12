@@ -1886,6 +1886,11 @@ int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 
 	vb = q->bufs[buffer];
 
+	if (vb->v4l2_planes[plane].length < (vma->vm_end - vma->vm_start)) {
+		dprintk(1, "Invalid length\n");
+		return -EINVAL;
+	}
+
 	ret = call_memop(q, mmap, vb->planes[plane].mem_priv, vma);
 	if (ret)
 		return ret;
