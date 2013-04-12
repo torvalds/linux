@@ -97,6 +97,7 @@ static void r600_gpu_init(struct radeon_device *rdev);
 void r600_fini(struct radeon_device *rdev);
 void r600_irq_disable(struct radeon_device *rdev);
 static void r600_pcie_gen2_enable(struct radeon_device *rdev);
+extern int evergreen_rlc_resume(struct radeon_device *rdev);
 
 /**
  * r600_get_xclk - get the xclk
@@ -3778,7 +3779,7 @@ static void r600_rlc_start(struct radeon_device *rdev)
 	WREG32(RLC_CNTL, RLC_ENABLE);
 }
 
-static int r600_rlc_init(struct radeon_device *rdev)
+static int r600_rlc_resume(struct radeon_device *rdev)
 {
 	u32 i;
 	const __be32 *fw_data;
@@ -3790,39 +3791,16 @@ static int r600_rlc_init(struct radeon_device *rdev)
 
 	WREG32(RLC_HB_CNTL, 0);
 
-	if (rdev->family == CHIP_ARUBA) {
-		WREG32(TN_RLC_SAVE_AND_RESTORE_BASE, rdev->rlc.save_restore_gpu_addr >> 8);
-		WREG32(TN_RLC_CLEAR_STATE_RESTORE_BASE, rdev->rlc.clear_state_gpu_addr >> 8);
-	}
-	if (rdev->family <= CHIP_CAYMAN) {
-		WREG32(RLC_HB_BASE, 0);
-		WREG32(RLC_HB_RPTR, 0);
-		WREG32(RLC_HB_WPTR, 0);
-	}
-	if (rdev->family <= CHIP_CAICOS) {
-		WREG32(RLC_HB_WPTR_LSB_ADDR, 0);
-		WREG32(RLC_HB_WPTR_MSB_ADDR, 0);
-	}
+	WREG32(RLC_HB_BASE, 0);
+	WREG32(RLC_HB_RPTR, 0);
+	WREG32(RLC_HB_WPTR, 0);
+	WREG32(RLC_HB_WPTR_LSB_ADDR, 0);
+	WREG32(RLC_HB_WPTR_MSB_ADDR, 0);
 	WREG32(RLC_MC_CNTL, 0);
 	WREG32(RLC_UCODE_CNTL, 0);
 
 	fw_data = (const __be32 *)rdev->rlc_fw->data;
-	if (rdev->family >= CHIP_ARUBA) {
-		for (i = 0; i < ARUBA_RLC_UCODE_SIZE; i++) {
-			WREG32(RLC_UCODE_ADDR, i);
-			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
-		}
-	} else if (rdev->family >= CHIP_CAYMAN) {
-		for (i = 0; i < CAYMAN_RLC_UCODE_SIZE; i++) {
-			WREG32(RLC_UCODE_ADDR, i);
-			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
-		}
-	} else if (rdev->family >= CHIP_CEDAR) {
-		for (i = 0; i < EVERGREEN_RLC_UCODE_SIZE; i++) {
-			WREG32(RLC_UCODE_ADDR, i);
-			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
-		}
-	} else if (rdev->family >= CHIP_RV770) {
+	if (rdev->family >= CHIP_RV770) {
 		for (i = 0; i < R700_RLC_UCODE_SIZE; i++) {
 			WREG32(RLC_UCODE_ADDR, i);
 			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
@@ -3936,7 +3914,10 @@ int r600_irq_init(struct radeon_device *rdev)
 	r600_disable_interrupts(rdev);
 
 	/* init rlc */
-	ret = r600_rlc_init(rdev);
+	if (rdev->family >= CHIP_CEDAR)
+		ret = evergreen_rlc_resume(rdev);
+	else
+		ret = r600_rlc_resume(rdev);
 	if (ret) {
 		r600_ih_ring_fini(rdev);
 		return ret;

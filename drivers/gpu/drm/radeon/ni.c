@@ -34,6 +34,134 @@
 #include "ni_reg.h"
 #include "cayman_blit_shaders.h"
 #include "radeon_ucode.h"
+#include "clearstate_cayman.h"
+
+static u32 tn_rlc_save_restore_register_list[] =
+{
+	0x98fc,
+	0x98f0,
+	0x9834,
+	0x9838,
+	0x9870,
+	0x9874,
+	0x8a14,
+	0x8b24,
+	0x8bcc,
+	0x8b10,
+	0x8c30,
+	0x8d00,
+	0x8d04,
+	0x8c00,
+	0x8c04,
+	0x8c10,
+	0x8c14,
+	0x8d8c,
+	0x8cf0,
+	0x8e38,
+	0x9508,
+	0x9688,
+	0x9608,
+	0x960c,
+	0x9610,
+	0x9614,
+	0x88c4,
+	0x8978,
+	0x88d4,
+	0x900c,
+	0x9100,
+	0x913c,
+	0x90e8,
+	0x9354,
+	0xa008,
+	0x98f8,
+	0x9148,
+	0x914c,
+	0x3f94,
+	0x98f4,
+	0x9b7c,
+	0x3f8c,
+	0x8950,
+	0x8954,
+	0x8a18,
+	0x8b28,
+	0x9144,
+	0x3f90,
+	0x915c,
+	0x9160,
+	0x9178,
+	0x917c,
+	0x9180,
+	0x918c,
+	0x9190,
+	0x9194,
+	0x9198,
+	0x919c,
+	0x91a8,
+	0x91ac,
+	0x91b0,
+	0x91b4,
+	0x91b8,
+	0x91c4,
+	0x91c8,
+	0x91cc,
+	0x91d0,
+	0x91d4,
+	0x91e0,
+	0x91e4,
+	0x91ec,
+	0x91f0,
+	0x91f4,
+	0x9200,
+	0x9204,
+	0x929c,
+	0x8030,
+	0x9150,
+	0x9a60,
+	0x920c,
+	0x9210,
+	0x9228,
+	0x922c,
+	0x9244,
+	0x9248,
+	0x91e8,
+	0x9294,
+	0x9208,
+	0x9224,
+	0x9240,
+	0x9220,
+	0x923c,
+	0x9258,
+	0x9744,
+	0xa200,
+	0xa204,
+	0xa208,
+	0xa20c,
+	0x8d58,
+	0x9030,
+	0x9034,
+	0x9038,
+	0x903c,
+	0x9040,
+	0x9654,
+	0x897c,
+	0xa210,
+	0xa214,
+	0x9868,
+	0xa02c,
+	0x9664,
+	0x9698,
+	0x949c,
+	0x8e10,
+	0x8e18,
+	0x8c50,
+	0x8c58,
+	0x8c60,
+	0x8c68,
+	0x89b4,
+	0x9830,
+	0x802c,
+};
+static u32 tn_rlc_save_restore_register_list_size = ARRAY_SIZE(tn_rlc_save_restore_register_list);
 
 extern bool evergreen_is_display_hung(struct radeon_device *rdev);
 extern void evergreen_print_gpu_status_regs(struct radeon_device *rdev);
@@ -45,8 +173,8 @@ extern void evergreen_irq_suspend(struct radeon_device *rdev);
 extern int evergreen_mc_init(struct radeon_device *rdev);
 extern void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev);
 extern void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
-extern void si_rlc_fini(struct radeon_device *rdev);
-extern int si_rlc_init(struct radeon_device *rdev);
+extern void sumo_rlc_fini(struct radeon_device *rdev);
+extern int sumo_rlc_init(struct radeon_device *rdev);
 
 /* Firmware Names */
 MODULE_FIRMWARE("radeon/BARTS_pfp.bin");
@@ -1969,7 +2097,10 @@ static int cayman_startup(struct radeon_device *rdev)
 
 	/* allocate rlc buffers */
 	if (rdev->flags & RADEON_IS_IGP) {
-		r = si_rlc_init(rdev);
+		rdev->rlc.reg_list = tn_rlc_save_restore_register_list;
+		rdev->rlc.reg_list_size = tn_rlc_save_restore_register_list_size;
+		rdev->rlc.cs_data = cayman_cs_data;
+		r = sumo_rlc_init(rdev);
 		if (r) {
 			DRM_ERROR("Failed to init rlc BOs!\n");
 			return r;
@@ -2226,7 +2357,7 @@ int cayman_init(struct radeon_device *rdev)
 		cayman_dma_fini(rdev);
 		r600_irq_fini(rdev);
 		if (rdev->flags & RADEON_IS_IGP)
-			si_rlc_fini(rdev);
+			sumo_rlc_fini(rdev);
 		radeon_wb_fini(rdev);
 		radeon_ib_pool_fini(rdev);
 		radeon_vm_manager_fini(rdev);
@@ -2257,7 +2388,7 @@ void cayman_fini(struct radeon_device *rdev)
 	cayman_dma_fini(rdev);
 	r600_irq_fini(rdev);
 	if (rdev->flags & RADEON_IS_IGP)
-		si_rlc_fini(rdev);
+		sumo_rlc_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_vm_manager_fini(rdev);
 	radeon_ib_pool_fini(rdev);

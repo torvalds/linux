@@ -684,10 +684,6 @@
 #define RLC_UCODE_ADDR                                    0x3f2c
 #define RLC_UCODE_DATA                                    0x3f30
 
-/* new for TN */
-#define TN_RLC_SAVE_AND_RESTORE_BASE                      0x3f10
-#define TN_RLC_CLEAR_STATE_RESTORE_BASE                   0x3f20
-
 #define SRBM_SOFT_RESET                                   0xe60
 #       define SOFT_RESET_DMA                             (1 << 12)
 #       define SOFT_RESET_RLC                             (1 << 13)

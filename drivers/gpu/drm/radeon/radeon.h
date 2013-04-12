@@ -821,15 +821,22 @@ struct r600_blit {
 };
 
 /*
- * SI RLC stuff
+ * RLC stuff
  */
-struct si_rlc {
+#include "clearstate_defs.h"
+
+struct radeon_rlc {
 	/* for power gating */
 	struct radeon_bo	*save_restore_obj;
 	uint64_t		save_restore_gpu_addr;
+	volatile uint32_t	*sr_ptr;
+	u32                     *reg_list;
+	u32                     reg_list_size;
 	/* for clear state */
 	struct radeon_bo	*clear_state_obj;
 	uint64_t		clear_state_gpu_addr;
+	volatile uint32_t	*cs_ptr;
+	struct cs_section_def   *cs_data;
 };
 
 int radeon_ib_get(struct radeon_device *rdev, int ring,
@@ -1773,7 +1780,7 @@ struct radeon_device {
 	struct r600_vram_scratch vram_scratch;
 	int msi_enabled; /* msi enabled */
 	struct r600_ih ih; /* r6/700 interrupt ring */
-	struct si_rlc rlc;
+	struct radeon_rlc rlc;
 	struct radeon_mec mec;
 	struct work_struct hotplug_work;
 	struct work_struct audio_work;

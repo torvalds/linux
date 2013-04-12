@@ -90,6 +90,25 @@
 #define CG_VCLK_STATUS                                  0x61c
 #define	CG_SCRATCH1					0x820
 
+#define RLC_CNTL                                        0x3f00
+#       define RLC_ENABLE                               (1 << 0)
+#       define GFX_POWER_GATING_ENABLE                  (1 << 7)
+#       define GFX_POWER_GATING_SRC                     (1 << 8)
+#define RLC_HB_BASE                                       0x3f10
+#define RLC_HB_CNTL                                       0x3f0c
+#define RLC_HB_RPTR                                       0x3f20
+#define RLC_HB_WPTR                                       0x3f1c
+#define RLC_HB_WPTR_LSB_ADDR                              0x3f14
+#define RLC_HB_WPTR_MSB_ADDR                              0x3f18
+#define RLC_MC_CNTL                                       0x3f44
+#define RLC_UCODE_CNTL                                    0x3f48
+#define RLC_UCODE_ADDR                                    0x3f2c
+#define RLC_UCODE_DATA                                    0x3f30
+
+/* new for TN */
+#define TN_RLC_SAVE_AND_RESTORE_BASE                      0x3f10
+#define TN_RLC_CLEAR_STATE_RESTORE_BASE                   0x3f20
+
 #define GRBM_GFX_INDEX          			0x802C
 #define		INSTANCE_INDEX(x)			((x) << 0)
 #define		SE_INDEX(x)     			((x) << 16)
