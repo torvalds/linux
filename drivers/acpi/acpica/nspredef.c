@@ -76,21 +76,7 @@ static acpi_status
 acpi_ns_check_reference(struct acpi_predefined_data *data,
 			union acpi_operand_object *return_object);
 
-static void acpi_ns_get_expected_types(char *buffer, u32 expected_btypes);
-
 static u32 acpi_ns_get_bitmapped_type(union acpi_operand_object *return_object);
-
-/*
- * Names for the types that can be returned by the predefined objects.
- * Used for warning messages. Must be in the same order as the ACPI_RTYPEs
- */
-static const char *acpi_rtype_names[] = {
-	"/Integer",
-	"/String",
-	"/Buffer",
-	"/Package",
-	"/Reference",
-};
 
 /*******************************************************************************
  *
@@ -121,7 +107,7 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 
 	/* Match the name for this method/object against the predefined list */
 
-	predefined = acpi_ns_check_for_predefined_name(node);
+	predefined = acpi_ut_match_predefined_method(node->name.ascii);
 
 	/* Get the full pathname to the object, for use in warning messages */
 
@@ -292,8 +278,10 @@ acpi_ns_check_parameter_count(char *pathname,
 	 * Validate the user-supplied parameter count.
 	 * Allow two different legal argument counts (_SCP, etc.)
 	 */
-	required_params_current = predefined->info.param_count & 0x0F;
-	required_params_old = predefined->info.param_count >> 4;
+	required_params_current =
+	    predefined->info.argument_list & METHOD_ARG_MASK;
+	required_params_old =
+	    predefined->info.argument_list >> METHOD_ARG_BIT_WIDTH;
 
 	if (user_param_count != ACPI_UINT32_MAX) {
 		if ((user_param_count != required_params_current) &&
@@ -318,52 +306,6 @@ acpi_ns_check_parameter_count(char *pathname,
 				      "Parameter count mismatch - ASL declared %u, ACPI requires %u",
 				      param_count, required_params_current));
 	}
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ns_check_for_predefined_name
- *
- * PARAMETERS:  node            - Namespace node for the method/object
- *
- * RETURN:      Pointer to entry in predefined table. NULL indicates not found.
- *
- * DESCRIPTION: Check an object name against the predefined object list.
- *
- ******************************************************************************/
-
-const union acpi_predefined_info *acpi_ns_check_for_predefined_name(struct
-								    acpi_namespace_node
-								    *node)
-{
-	const union acpi_predefined_info *this_name;
-
-	/* Quick check for a predefined name, first character must be underscore */
-
-	if (node->name.ascii[0] != '_') {
-		return (NULL);
-	}
-
-	/* Search info table for a predefined method/object name */
-
-	this_name = predefined_names;
-	while (this_name->info.name[0]) {
-		if (ACPI_COMPARE_NAME(node->name.ascii, this_name->info.name)) {
-			return (this_name);
-		}
-
-		/*
-		 * Skip next entry in the table if this name returns a Package
-		 * (next entry contains the package info)
-		 */
-		if (this_name->info.expected_btypes & ACPI_RTYPE_PACKAGE) {
-			this_name++;
-		}
-
-		this_name++;
-	}
-
-	return (NULL);		/* Not found */
 }
 
 /*******************************************************************************
@@ -438,7 +380,7 @@ acpi_ns_check_object_type(struct acpi_predefined_data *data,
 
 	/* Create a string with all expected types for this predefined object */
 
-	acpi_ns_get_expected_types(type_buffer, expected_btypes);
+	acpi_ut_get_expected_return_types(type_buffer, expected_btypes);
 
 	if (package_index == ACPI_NOT_PACKAGE_ELEMENT) {
 		ACPI_WARN_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
@@ -547,40 +489,4 @@ static u32 acpi_ns_get_bitmapped_type(union acpi_operand_object *return_object)
 	}
 
 	return (return_btype);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ns_get_expected_types
- *
- * PARAMETERS:  buffer          - Pointer to where the string is returned
- *              expected_btypes - Bitmap of expected return type(s)
- *
- * RETURN:      Buffer is populated with type names.
- *
- * DESCRIPTION: Translate the expected types bitmap into a string of ascii
- *              names of expected types, for use in warning messages.
- *
- ******************************************************************************/
-
-static void acpi_ns_get_expected_types(char *buffer, u32 expected_btypes)
-{
-	u32 this_rtype;
-	u32 i;
-	u32 j;
-
-	j = 1;
-	buffer[0] = 0;
-	this_rtype = ACPI_RTYPE_INTEGER;
-
-	for (i = 0; i < ACPI_NUM_RTYPES; i++) {
-
-		/* If one of the expected types, concatenate the name of this type */
-
-		if (expected_btypes & this_rtype) {
-			ACPI_STRCAT(buffer, &acpi_rtype_names[i][j]);
-			j = 0;	/* Use name separator from now on */
-		}
-		this_rtype <<= 1;	/* Next Rtype */
-	}
 }

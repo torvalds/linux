@@ -432,6 +432,26 @@ struct acpi_interface_info *acpi_ut_get_interface(acpi_string interface_name);
 acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state);
 
 /*
+ * utpredef - support for predefined names
+ */
+const union acpi_predefined_info *acpi_ut_get_next_predefined_method(const union
+								     acpi_predefined_info
+								     *this_name);
+
+const union acpi_predefined_info *acpi_ut_match_predefined_method(char *name);
+
+const union acpi_predefined_info *acpi_ut_match_resource_name(char *name);
+
+void
+acpi_ut_display_predefined_method(char *buffer,
+				  const union acpi_predefined_info *this_name,
+				  u8 multi_line);
+
+void acpi_ut_get_expected_return_types(char *buffer, u32 expected_btypes);
+
+u32 acpi_ut_get_resource_bit_width(char *buffer, u16 types);
+
+/*
  * utstate - Generic state creation/cache routines
  */
 void

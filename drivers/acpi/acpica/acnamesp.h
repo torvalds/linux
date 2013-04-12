@@ -231,10 +231,6 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 			       acpi_status return_status,
 			       union acpi_operand_object **return_object);
 
-const union acpi_predefined_info *acpi_ns_check_for_predefined_name(struct
-								    acpi_namespace_node
-								    *node);
-
 void
 acpi_ns_check_parameter_count(char *pathname,
 			      struct acpi_namespace_node *node,

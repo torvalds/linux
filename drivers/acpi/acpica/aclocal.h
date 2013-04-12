@@ -294,6 +294,8 @@ acpi_status(*acpi_internal_method) (struct acpi_walk_state * walk_state);
 #define ACPI_BTYPE_OBJECTS_AND_REFS     0x0001FFFF	/* ARG or LOCAL */
 #define ACPI_BTYPE_ALL_OBJECTS          0x0000FFFF
 
+#pragma pack(1)
+
 /*
  * Information structure for ACPI predefined names.
  * Each entry in the table contains the following items:
@@ -304,7 +306,7 @@ acpi_status(*acpi_internal_method) (struct acpi_walk_state * walk_state);
  */
 struct acpi_name_info {
 	char name[ACPI_NAME_SIZE];
-	u8 param_count;
+	u16 argument_list;
 	u8 expected_btypes;
 };
 
@@ -327,7 +329,7 @@ struct acpi_package_info {
 	u8 count1;
 	u8 object_type2;
 	u8 count2;
-	u8 reserved;
+	u16 reserved;
 };
 
 /* Used for ACPI_PTYPE2_FIXED */
@@ -336,6 +338,7 @@ struct acpi_package_info2 {
 	u8 type;
 	u8 count;
 	u8 object_type[4];
+	u8 reserved;
 };
 
 /* Used for ACPI_PTYPE1_OPTION */
@@ -345,7 +348,7 @@ struct acpi_package_info3 {
 	u8 count;
 	u8 object_type[2];
 	u8 tail_object_type;
-	u8 reserved;
+	u16 reserved;
 };
 
 union acpi_predefined_info {
@@ -354,6 +357,10 @@ union acpi_predefined_info {
 	struct acpi_package_info2 ret_info2;
 	struct acpi_package_info3 ret_info3;
 };
+
+/* Reset to default packing */
+
+#pragma pack()
 
 /* Data block used during object validation */
 
