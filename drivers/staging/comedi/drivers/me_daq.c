@@ -41,9 +41,10 @@
 
 #include "../comedidev.h"
 
+#include "plx9052.h"
+
 #define ME2600_FIRMWARE		"me2600_firmware.bin"
 
-#define PLX_INTCSR		0x4C	/* PLX interrupt status register */
 #define XILINX_DOWNLOAD_RESET	0x42	/* Xilinx registers */
 
 #define ME_CONTROL_1			0x0000	/* - | W */
@@ -398,7 +399,7 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 	unsigned int i;
 
 	/* disable irq's on PLX */
-	writel(0x00, dev_private->plx_regbase + PLX_INTCSR);
+	writel(0x00, dev_private->plx_regbase + PLX9052_INTCSR);
 
 	/* First, make a dummy read to reset xilinx */
 	value = readw(dev_private->me_regbase + XILINX_DOWNLOAD_RESET);
@@ -439,10 +440,10 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 		writeb(0x00, dev_private->me_regbase + 0x0);
 
 	/* Test if there was an error during download -> INTB was thrown */
-	value = readl(dev_private->plx_regbase + PLX_INTCSR);
-	if (value & 0x20) {
+	value = readl(dev_private->plx_regbase + PLX9052_INTCSR);
+	if (value & PLX9052_INTCSR_LI2STAT) {
 		/* Disable interrupt */
-		writel(0x00, dev_private->plx_regbase + PLX_INTCSR);
+		writel(0x00, dev_private->plx_regbase + PLX9052_INTCSR);
 		dev_err(dev->class_dev, "Xilinx download failed\n");
 		return -EIO;
 	}
@@ -451,7 +452,10 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 	sleep(1);
 
 	/* Enable PLX-Interrupts */
-	writel(0x43, dev_private->plx_regbase + PLX_INTCSR);
+	writel(PLX9052_INTCSR_LI1ENAB |
+	       PLX9052_INTCSR_LI1POL |
+	       PLX9052_INTCSR_PCIENAB,
+	       dev_private->plx_regbase + PLX9052_INTCSR);
 
 	return 0;
 }
