@@ -1130,7 +1130,7 @@ static struct ab8500_regulator_info
 		.update_val		= 0x02,
 		.voltage_bank		= 0x01,
 		.voltage_reg		= 0x57,
-		.voltage_mask		= 0x7,
+		.voltage_mask		= 0x70,
 		.voltage_shift		= 4,
 	},
 	[AB8505_LDO_ANAMIC1] = {
