@@ -8495,7 +8495,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		I915_WRITE(PFIT_CONTROL, 0);
 	}
 
-	if (!(HAS_DDI(dev) && (I915_READ(DDI_BUF_CTL(PORT_A)) & DDI_A_4_LANES)))
+	if (!IS_ULT(dev))
 		intel_crt_init(dev);
 
 	if (HAS_DDI(dev)) {
