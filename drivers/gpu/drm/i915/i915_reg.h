@@ -638,6 +638,7 @@
 
 #define ERROR_GEN6	0x040a0
 #define GEN7_ERR_INT	0x44040
+#define   ERR_INT_POISON		(1<<31)
 #define   ERR_INT_MMIO_UNCLAIMED	(1<<13)
 #define   ERR_INT_FIFO_UNDERRUN_C	(1<<6)
 #define   ERR_INT_FIFO_UNDERRUN_B	(1<<3)
@@ -3814,6 +3815,7 @@
 #define SDEIER  0xc400c
 
 #define SERR_INT			0xc4040
+#define  SERR_INT_POISON		(1<<31)
 #define  SERR_INT_TRANS_C_FIFO_UNDERRUN	(1<<6)
 #define  SERR_INT_TRANS_B_FIFO_UNDERRUN	(1<<3)
 #define  SERR_INT_TRANS_A_FIFO_UNDERRUN	(1<<0)

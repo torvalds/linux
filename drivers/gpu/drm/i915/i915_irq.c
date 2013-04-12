@@ -1014,6 +1014,9 @@ static void ivb_err_int_handler(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 err_int = I915_READ(GEN7_ERR_INT);
 
+	if (err_int & ERR_INT_POISON)
+		DRM_ERROR("Poison interrupt\n");
+
 	if (err_int & ERR_INT_FIFO_UNDERRUN_A)
 		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_A, false))
 			DRM_DEBUG_DRIVER("Pipe A FIFO underrun\n");
@@ -1033,6 +1036,9 @@ static void cpt_serr_int_handler(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 serr_int = I915_READ(SERR_INT);
+
+	if (serr_int & SERR_INT_POISON)
+		DRM_ERROR("PCH poison interrupt\n");
 
 	if (serr_int & SERR_INT_TRANS_A_FIFO_UNDERRUN)
 		if (intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A,
@@ -1251,6 +1257,9 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 
 	if (de_iir & DE_PIPEB_VBLANK)
 		drm_handle_vblank(dev, 1);
+
+	if (de_iir & DE_POISON)
+		DRM_ERROR("Poison interrupt\n");
 
 	if (de_iir & DE_PIPEA_FIFO_UNDERRUN)
 		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_A, false))
@@ -2533,7 +2542,7 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 
 	if (HAS_PCH_IBX(dev)) {
 		mask = SDE_GMBUS | SDE_AUX_MASK | SDE_TRANSB_FIFO_UNDER |
-		       SDE_TRANSA_FIFO_UNDER;
+		       SDE_TRANSA_FIFO_UNDER | SDE_POISON;
 	} else {
 		mask = SDE_GMBUS_CPT | SDE_AUX_MASK_CPT | SDE_ERROR_CPT;
 
@@ -2554,7 +2563,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
 			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
 			   DE_AUX_CHANNEL_A | DE_PIPEB_FIFO_UNDERRUN |
-			   DE_PIPEA_FIFO_UNDERRUN;
+			   DE_PIPEA_FIFO_UNDERRUN | DE_POISON;
 	u32 render_irqs;
 
 	dev_priv->irq_mask = ~display_mask;
