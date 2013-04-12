@@ -32,6 +32,7 @@
 #include "sid.h"
 #include "atom.h"
 #include "si_blit_shaders.h"
+#include "clearstate_si.h"
 
 #define SI_PFP_UCODE_SIZE 2144
 #define SI_PM4_UCODE_SIZE 2144
@@ -4583,10 +4584,16 @@ void si_rlc_fini(struct radeon_device *rdev)
 	}
 }
 
+#define RLC_CLEAR_STATE_END_MARKER          0x00000001
+
 int si_rlc_init(struct radeon_device *rdev)
 {
-	int r, i;
 	volatile u32 *dst_ptr;
+	u32 dws, data, i, j, k, reg_num;
+	u32 reg_list_num, reg_list_hdr_blk_index, reg_list_blk_index;
+	u64 reg_list_mc_addr;
+	const struct cs_section_def *cs_data = si_cs_data;
+	int r;
 
 	/* save restore block */
 	if (rdev->rlc.save_restore_obj == NULL) {
@@ -4630,10 +4637,20 @@ int si_rlc_init(struct radeon_device *rdev)
 	radeon_bo_unreserve(rdev->rlc.save_restore_obj);
 
 	/* clear state block */
+	reg_list_num = 0;
+	dws = 0;
+	for (i = 0; cs_data[i].section != NULL; i++) {
+		for (j = 0; cs_data[i].section[j].extent != NULL; j++) {
+			reg_list_num++;
+			dws += cs_data[i].section[j].reg_count;
+		}
+	}
+	reg_list_blk_index = (3 * reg_list_num + 2);
+	dws += reg_list_blk_index;
+
 	if (rdev->rlc.clear_state_obj == NULL) {
-		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE, PAGE_SIZE, true,
-				     RADEON_GEM_DOMAIN_VRAM, NULL,
-				     &rdev->rlc.clear_state_obj);
+		r = radeon_bo_create(rdev, dws * 4, PAGE_SIZE, true,
+				     RADEON_GEM_DOMAIN_VRAM, NULL, &rdev->rlc.clear_state_obj);
 		if (r) {
 			dev_warn(rdev->dev, "(%d) create RLC c bo failed\n", r);
 			si_rlc_fini(rdev);
@@ -4647,12 +4664,53 @@ int si_rlc_init(struct radeon_device *rdev)
 	}
 	r = radeon_bo_pin(rdev->rlc.clear_state_obj, RADEON_GEM_DOMAIN_VRAM,
 			  &rdev->rlc.clear_state_gpu_addr);
-	radeon_bo_unreserve(rdev->rlc.clear_state_obj);
 	if (r) {
+
+		radeon_bo_unreserve(rdev->rlc.clear_state_obj);
 		dev_warn(rdev->dev, "(%d) pin RLC c bo failed\n", r);
 		si_rlc_fini(rdev);
 		return r;
 	}
+	r = radeon_bo_kmap(rdev->rlc.clear_state_obj, (void **)&rdev->rlc.cs_ptr);
+	if (r) {
+		dev_warn(rdev->dev, "(%d) map RLC c bo failed\n", r);
+		si_rlc_fini(rdev);
+		return r;
+	}
+	/* set up the cs buffer */
+	dst_ptr = rdev->rlc.cs_ptr;
+	reg_list_hdr_blk_index = 0;
+	reg_list_mc_addr = rdev->rlc.clear_state_gpu_addr + (reg_list_blk_index * 4);
+	data = upper_32_bits(reg_list_mc_addr);
+	dst_ptr[reg_list_hdr_blk_index] = data;
+	reg_list_hdr_blk_index++;
+	for (i = 0; cs_data[i].section != NULL; i++) {
+		for (j = 0; cs_data[i].section[j].extent != NULL; j++) {
+			reg_num = cs_data[i].section[j].reg_count;
+			data = reg_list_mc_addr & 0xffffffff;
+			dst_ptr[reg_list_hdr_blk_index] = data;
+			reg_list_hdr_blk_index++;
+
+			data = (cs_data[i].section[j].reg_index * 4) & 0xffffffff;
+			dst_ptr[reg_list_hdr_blk_index] = data;
+			reg_list_hdr_blk_index++;
+
+			data = 0x08000000 | (reg_num * 4);
+			dst_ptr[reg_list_hdr_blk_index] = data;
+			reg_list_hdr_blk_index++;
+
+			for (k = 0; k < reg_num; k++) {
+				data = cs_data[i].section[j].extent[k];
+				dst_ptr[reg_list_blk_index + k] = data;
+			}
+			reg_list_mc_addr += reg_num * 4;
+			reg_list_blk_index += reg_num;
+		}
+	}
+	dst_ptr[reg_list_hdr_blk_index] = RLC_CLEAR_STATE_END_MARKER;
+
+	radeon_bo_kunmap(rdev->rlc.clear_state_obj);
+	radeon_bo_unreserve(rdev->rlc.clear_state_obj);
 
 	return 0;
 }
