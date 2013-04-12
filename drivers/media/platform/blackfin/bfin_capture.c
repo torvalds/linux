@@ -649,18 +649,30 @@ static int bcap_s_std(struct file *file, void *priv, v4l2_std_id std)
 	return 0;
 }
 
+static int bcap_enum_dv_timings(struct file *file, void *priv,
+				struct v4l2_enum_dv_timings *timings)
+{
+	struct bcap_device *bcap_dev = video_drvdata(file);
+
+	return v4l2_subdev_call(bcap_dev->sd, video,
+			enum_dv_timings, timings);
+}
+
+static int bcap_query_dv_timings(struct file *file, void *priv,
+				struct v4l2_dv_timings *timings)
+{
+	struct bcap_device *bcap_dev = video_drvdata(file);
+
+	return v4l2_subdev_call(bcap_dev->sd, video,
+				query_dv_timings, timings);
+}
+
 static int bcap_g_dv_timings(struct file *file, void *priv,
 				struct v4l2_dv_timings *timings)
 {
 	struct bcap_device *bcap_dev = video_drvdata(file);
-	int ret;
 
-	ret = v4l2_subdev_call(bcap_dev->sd, video,
-				g_dv_timings, timings);
-	if (ret < 0)
-		return ret;
-
-	bcap_dev->dv_timings = *timings;
+	*timings = bcap_dev->dv_timings;
 	return 0;
 }
 
@@ -921,6 +933,8 @@ static const struct v4l2_ioctl_ops bcap_ioctl_ops = {
 	.vidioc_g_std            = bcap_g_std,
 	.vidioc_s_dv_timings     = bcap_s_dv_timings,
 	.vidioc_g_dv_timings     = bcap_g_dv_timings,
+	.vidioc_query_dv_timings = bcap_query_dv_timings,
+	.vidioc_enum_dv_timings  = bcap_enum_dv_timings,
 	.vidioc_reqbufs          = bcap_reqbufs,
 	.vidioc_querybuf         = bcap_querybuf,
 	.vidioc_qbuf             = bcap_qbuf,
