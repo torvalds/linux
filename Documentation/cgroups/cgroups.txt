@@ -211,9 +211,10 @@ matches, and any of the requested subsystems are in use in an existing
 hierarchy, the mount will fail with -EBUSY. Otherwise, a new hierarchy
 is activated, associated with the requested subsystems.
 
-It's not possible to bind a new subsystem to an active cgroup
-hierarchy, or to unbind a subsystem from an active cgroup
-hierarchy.
+It's not currently possible to bind a new subsystem to an active
+cgroup hierarchy, or to unbind a subsystem from an active cgroup
+hierarchy. This may be possible in future, but is fraught with nasty
+error-recovery issues.
 
 When a cgroup filesystem is unmounted, if there are any
 child cgroups created below the top-level cgroup, that hierarchy
@@ -381,8 +382,10 @@ To Specify a hierarchy's release_agent:
 
 Note that specifying 'release_agent' more than once will return failure.
 
-Note that changing the set of subsystems is only supported when the
-hierarchy consists of a single (root) cgroup.
+Note that changing the set of subsystems is currently only supported
+when the hierarchy consists of a single (root) cgroup. Supporting
+the ability to arbitrarily bind/unbind subsystems from an existing
+cgroup hierarchy is intended to be implemented in the future.
 
 Then under /sys/fs/cgroup/rg1 you can find a tree that corresponds to the
 tree of the cgroups in the system. For instance, /sys/fs/cgroup/rg1
@@ -640,6 +643,13 @@ void exit(struct task_struct *task)
 
 Called during task exit.
 
+void bind(struct cgroup *root)
+(cgroup_mutex held by caller)
+
+Called when a cgroup subsystem is rebound to a different hierarchy
+and root cgroup. Currently this will only involve movement between
+the default hierarchy (which never has sub-cgroups) and a hierarchy
+that is being created/destroyed (and hence has no sub-cgroups).
 
 4. Extended attribute usage
 ===========================
