@@ -671,7 +671,7 @@ static int ceph_writepages_start(struct address_space *mapping,
 	unsigned wsize = 1 << inode->i_blkbits;
 	struct ceph_osd_request *req = NULL;
 	int do_sync;
-	u64 snap_size = 0;
+	u64 snap_size;
 
 	/*
 	 * Include a 'sync' in the OSD request if this is a data
@@ -717,6 +717,7 @@ static int ceph_writepages_start(struct address_space *mapping,
 retry:
 	/* find oldest snap context with dirty data */
 	ceph_put_snap_context(snapc);
+	snap_size = 0;
 	snapc = get_oldest_context(inode, &snap_size);
 	if (!snapc) {
 		/* hmm, why does writepages get called when there
@@ -724,6 +725,8 @@ retry:
 		dout(" no snap context with dirty data?\n");
 		goto out;
 	}
+	if (snap_size == 0)
+		snap_size = i_size_read(inode);
 	dout(" oldest snapc is %p seq %lld (%d snaps)\n",
 	     snapc, snapc->seq, snapc->num_snaps);
 	if (last_snapc && snapc != last_snapc) {
@@ -795,11 +798,8 @@ get_more_pages:
 				dout("waiting on writeback %p\n", page);
 				wait_on_page_writeback(page);
 			}
-			if ((snap_size && page_offset(page) > snap_size) ||
-			    (!snap_size &&
-			     page_offset(page) > i_size_read(inode))) {
-				dout("%p page eof %llu\n", page, snap_size ?
-				     snap_size : i_size_read(inode));
+			if (page_offset(page) >= snap_size) {
+				dout("%p page eof %llu\n", page, snap_size);
 				done = 1;
 				unlock_page(page);
 				break;
@@ -911,7 +911,7 @@ get_more_pages:
 		/* Format the osd request message and submit the write */
 
 		offset = page_offset(pages[0]);
-		len = min((snap_size ? snap_size : i_size_read(inode)) - offset,
+		len = min(snap_size - offset,
 			  (u64)locked_pages << PAGE_CACHE_SHIFT);
 		dout("writepages got %d pages at %llu~%llu\n",
 		     locked_pages, offset, len);
