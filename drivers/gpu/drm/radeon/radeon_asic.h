@@ -542,6 +542,17 @@ int btc_dpm_enable(struct radeon_device *rdev);
 void btc_dpm_disable(struct radeon_device *rdev);
 int btc_dpm_set_power_state(struct radeon_device *rdev);
 void btc_dpm_fini(struct radeon_device *rdev);
+int sumo_dpm_init(struct radeon_device *rdev);
+int sumo_dpm_enable(struct radeon_device *rdev);
+void sumo_dpm_disable(struct radeon_device *rdev);
+int sumo_dpm_set_power_state(struct radeon_device *rdev);
+void sumo_dpm_setup_asic(struct radeon_device *rdev);
+void sumo_dpm_display_configuration_changed(struct radeon_device *rdev);
+void sumo_dpm_fini(struct radeon_device *rdev);
+u32 sumo_dpm_get_sclk(struct radeon_device *rdev, bool low);
+u32 sumo_dpm_get_mclk(struct radeon_device *rdev, bool low);
+void sumo_dpm_print_power_state(struct radeon_device *rdev,
+				struct radeon_ps *ps);
 
 /*
  * cayman

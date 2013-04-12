@@ -1614,6 +1614,18 @@ static struct radeon_asic sumo_asic = {
 		.set_uvd_clocks = &sumo_set_uvd_clocks,
 		.get_temperature = &sumo_get_temp,
 	},
+	.dpm = {
+		.init = &sumo_dpm_init,
+		.setup_asic = &sumo_dpm_setup_asic,
+		.enable = &sumo_dpm_enable,
+		.disable = &sumo_dpm_disable,
+		.set_power_state = &sumo_dpm_set_power_state,
+		.display_configuration_changed = &sumo_dpm_display_configuration_changed,
+		.fini = &sumo_dpm_fini,
+		.get_sclk = &sumo_dpm_get_sclk,
+		.get_mclk = &sumo_dpm_get_mclk,
+		.print_power_state = &sumo_dpm_print_power_state,
+	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
 		.page_flip = &evergreen_page_flip,
