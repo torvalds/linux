@@ -25,7 +25,7 @@
 #include <sound/soc.h>
 #include <sound/spear_dma.h>
 
-struct snd_pcm_hardware spear_pcm_hardware = {
+static struct snd_pcm_hardware spear_pcm_hardware = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME),
@@ -164,7 +164,7 @@ static int spear_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-struct snd_soc_platform_driver spear_soc_platform = {
+static struct snd_soc_platform_driver spear_soc_platform = {
 	.ops		=	&spear_pcm_ops,
 	.pcm_new	=	spear_pcm_new,
 	.pcm_free	=	spear_pcm_free,
