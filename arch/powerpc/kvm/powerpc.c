@@ -317,6 +317,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_ENABLE_CAP:
 	case KVM_CAP_ONE_REG:
 	case KVM_CAP_IOEVENTFD:
+	case KVM_CAP_DEVICE_CTRL:
 		r = 1;
 		break;
 #ifndef CONFIG_KVM_BOOK3S_64_HV
@@ -762,7 +763,10 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_CAP_PPC_EPR:
 		r = 0;
-		vcpu->arch.epr_enabled = cap->args[0];
+		if (cap->args[0])
+			vcpu->arch.epr_flags |= KVMPPC_EPR_USER;
+		else
+			vcpu->arch.epr_flags &= ~KVMPPC_EPR_USER;
 		break;
 #ifdef CONFIG_BOOKE
 	case KVM_CAP_PPC_BOOKE_WATCHDOG:
@@ -908,6 +912,7 @@ static int kvm_vm_ioctl_get_pvinfo(struct kvm_ppc_pvinfo *pvinfo)
 long kvm_arch_vm_ioctl(struct file *filp,
                        unsigned int ioctl, unsigned long arg)
 {
+	struct kvm *kvm __maybe_unused = filp->private_data;
 	void __user *argp = (void __user *)arg;
 	long r;
 
@@ -926,7 +931,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 #ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_CREATE_SPAPR_TCE: {
 		struct kvm_create_spapr_tce create_tce;
-		struct kvm *kvm = filp->private_data;
 
 		r = -EFAULT;
 		if (copy_from_user(&create_tce, argp, sizeof(create_tce)))
@@ -938,7 +942,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	case KVM_ALLOCATE_RMA: {
-		struct kvm *kvm = filp->private_data;
 		struct kvm_allocate_rma rma;
 
 		r = kvm_vm_ioctl_allocate_rma(kvm, &rma);
@@ -948,7 +951,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	}
 
 	case KVM_PPC_ALLOCATE_HTAB: {
-		struct kvm *kvm = filp->private_data;
 		u32 htab_order;
 
 		r = -EFAULT;
@@ -965,7 +967,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	}
 
 	case KVM_PPC_GET_HTAB_FD: {
-		struct kvm *kvm = filp->private_data;
 		struct kvm_get_htab_fd ghf;
 
 		r = -EFAULT;
@@ -978,7 +979,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_PPC_GET_SMMU_INFO: {
-		struct kvm *kvm = filp->private_data;
 		struct kvm_ppc_smmu_info info;
 
 		memset(&info, 0, sizeof(info));

@@ -164,6 +164,8 @@ extern int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu);
 
 extern int kvm_vm_ioctl_get_htab_fd(struct kvm *kvm, struct kvm_get_htab_fd *);
 
+int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq);
+
 /*
  * Cuts out inst bits with ordering according to spec.
  * That means the leftmost bit is zero. All given bits are included.
@@ -245,6 +247,9 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *);
 
 void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid);
 
+struct openpic;
+void kvmppc_mpic_put(struct openpic *opp);
+
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 {
@@ -269,6 +274,18 @@ static inline void kvmppc_set_epr(struct kvm_vcpu *vcpu, u32 epr)
 	vcpu->arch.epr = epr;
 #endif
 }
+
+#ifdef CONFIG_KVM_MPIC
+
+void kvmppc_mpic_set_epr(struct kvm_vcpu *vcpu);
+
+#else
+
+static inline void kvmppc_mpic_set_epr(struct kvm_vcpu *vcpu)
+{
+}
+
+#endif /* CONFIG_KVM_MPIC */
 
 int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 			      struct kvm_config_tlb *cfg);

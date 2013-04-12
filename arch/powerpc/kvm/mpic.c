@@ -23,6 +23,19 @@
  * THE SOFTWARE.
  */
 
+#include <linux/slab.h>
+#include <linux/mutex.h>
+#include <linux/kvm_host.h>
+#include <linux/errno.h>
+#include <linux/fs.h>
+#include <linux/anon_inodes.h>
+#include <asm/uaccess.h>
+#include <asm/mpic.h>
+#include <asm/kvm_para.h>
+#include <asm/kvm_host.h>
+#include <asm/kvm_ppc.h>
+#include "iodev.h"
+
 #define MAX_CPU     32
 #define MAX_SRC     256
 #define MAX_TMR     4
@@ -36,6 +49,7 @@
 #define OPENPIC_FLAG_ILR          (2 << 0)
 
 /* OpenPIC address map */
+#define OPENPIC_REG_SIZE             0x40000
 #define OPENPIC_GLB_REG_START        0x0
 #define OPENPIC_GLB_REG_SIZE         0x10F0
 #define OPENPIC_TMR_REG_START        0x10F0
@@ -89,6 +103,7 @@ static struct fsl_mpic_info fsl_mpic_42 = {
 #define ILR_INTTGT_INT    0x00
 #define ILR_INTTGT_CINT   0x01	/* critical */
 #define ILR_INTTGT_MCP    0x02	/* machine check */
+#define NUM_OUTPUTS       3
 
 #define MSIIR_OFFSET       0x140
 #define MSIIR_SRS_SHIFT    29
@@ -98,18 +113,19 @@ static struct fsl_mpic_info fsl_mpic_42 = {
 
 static int get_current_cpu(void)
 {
-	CPUState *cpu_single_cpu;
-
-	if (!cpu_single_env)
-		return -1;
-
-	cpu_single_cpu = ENV_GET_CPU(cpu_single_env);
-	return cpu_single_cpu->cpu_index;
+#if defined(CONFIG_KVM) && defined(CONFIG_BOOKE)
+	struct kvm_vcpu *vcpu = current->thread.kvm_vcpu;
+	return vcpu ? vcpu->vcpu_id : -1;
+#else
+	/* XXX */
+	return -1;
+#endif
 }
 
-static uint32_t openpic_cpu_read_internal(void *opaque, gpa_t addr, int idx);
-static void openpic_cpu_write_internal(void *opaque, gpa_t addr,
-				       uint32_t val, int idx);
+static int openpic_cpu_write_internal(void *opaque, gpa_t addr,
+				      u32 val, int idx);
+static int openpic_cpu_read_internal(void *opaque, gpa_t addr,
+				     u32 *ptr, int idx);
 
 enum irq_type {
 	IRQ_TYPE_NORMAL = 0,
@@ -131,7 +147,7 @@ struct irq_source {
 	uint32_t idr;		/* IRQ destination register */
 	uint32_t destmask;	/* bitmap of CPU destinations */
 	int last_cpu;
-	int output;		/* IRQ level, e.g. OPENPIC_OUTPUT_INT */
+	int output;		/* IRQ level, e.g. ILR_INTTGT_INT */
 	int pending;		/* TRUE if IRQ is pending */
 	enum irq_type type;
 	bool level:1;		/* level-triggered */
@@ -158,16 +174,27 @@ struct irq_source {
 #define IDR_CI      0x40000000	/* critical interrupt */
 
 struct irq_dest {
+	struct kvm_vcpu *vcpu;
+
 	int32_t ctpr;		/* CPU current task priority */
 	struct irq_queue raised;
 	struct irq_queue servicing;
-	qemu_irq *irqs;
 
 	/* Count of IRQ sources asserting on non-INT outputs */
-	uint32_t outputs_active[OPENPIC_OUTPUT_NB];
+	uint32_t outputs_active[NUM_OUTPUTS];
 };
 
 struct openpic {
+	struct kvm *kvm;
+	struct kvm_device *dev;
+	struct kvm_io_device mmio;
+	struct list_head mmio_regions;
+	atomic_t users;
+	bool mmio_mapped;
+
+	gpa_t reg_base;
+	spinlock_t lock;
+
 	/* Behavior control */
 	struct fsl_mpic_info *fsl;
 	uint32_t model;
@@ -207,6 +234,47 @@ struct openpic {
 	uint32_t irq_tim0;
 	uint32_t irq_msi;
 };
+
+
+static void mpic_irq_raise(struct openpic *opp, struct irq_dest *dst,
+			   int output)
+{
+	struct kvm_interrupt irq = {
+		.irq = KVM_INTERRUPT_SET_LEVEL,
+	};
+
+	if (!dst->vcpu) {
+		pr_debug("%s: destination cpu %d does not exist\n",
+			 __func__, (int)(dst - &opp->dst[0]));
+		return;
+	}
+
+	pr_debug("%s: cpu %d output %d\n", __func__, dst->vcpu->vcpu_id,
+		output);
+
+	if (output != ILR_INTTGT_INT)	/* TODO */
+		return;
+
+	kvm_vcpu_ioctl_interrupt(dst->vcpu, &irq);
+}
+
+static void mpic_irq_lower(struct openpic *opp, struct irq_dest *dst,
+			   int output)
+{
+	if (!dst->vcpu) {
+		pr_debug("%s: destination cpu %d does not exist\n",
+			 __func__, (int)(dst - &opp->dst[0]));
+		return;
+	}
+
+	pr_debug("%s: cpu %d output %d\n", __func__, dst->vcpu->vcpu_id,
+		output);
+
+	if (output != ILR_INTTGT_INT)	/* TODO */
+		return;
+
+	kvmppc_core_dequeue_external(dst->vcpu);
+}
 
 static inline void IRQ_setbit(struct irq_queue *q, int n_IRQ)
 {
@@ -268,7 +336,7 @@ static void IRQ_local_pipe(struct openpic *opp, int n_CPU, int n_IRQ,
 	pr_debug("%s: IRQ %d active %d was %d\n",
 		__func__, n_IRQ, active, was_active);
 
-	if (src->output != OPENPIC_OUTPUT_INT) {
+	if (src->output != ILR_INTTGT_INT) {
 		pr_debug("%s: output %d irq %d active %d was %d count %d\n",
 			__func__, src->output, n_IRQ, active, was_active,
 			dst->outputs_active[src->output]);
@@ -282,14 +350,14 @@ static void IRQ_local_pipe(struct openpic *opp, int n_CPU, int n_IRQ,
 			    dst->outputs_active[src->output]++ == 0) {
 				pr_debug("%s: Raise OpenPIC output %d cpu %d irq %d\n",
 					__func__, src->output, n_CPU, n_IRQ);
-				qemu_irq_raise(dst->irqs[src->output]);
+				mpic_irq_raise(opp, dst, src->output);
 			}
 		} else {
 			if (was_active &&
 			    --dst->outputs_active[src->output] == 0) {
 				pr_debug("%s: Lower OpenPIC output %d cpu %d irq %d\n",
 					__func__, src->output, n_CPU, n_IRQ);
-				qemu_irq_lower(dst->irqs[src->output]);
+				mpic_irq_lower(opp, dst, src->output);
 			}
 		}
 
@@ -322,8 +390,7 @@ static void IRQ_local_pipe(struct openpic *opp, int n_CPU, int n_IRQ,
 		} else {
 			pr_debug("%s: Raise OpenPIC INT output cpu %d irq %d/%d\n",
 				__func__, n_CPU, n_IRQ, dst->raised.next);
-			qemu_irq_raise(opp->dst[n_CPU].
-				       irqs[OPENPIC_OUTPUT_INT]);
+			mpic_irq_raise(opp, dst, ILR_INTTGT_INT);
 		}
 	} else {
 		IRQ_get_next(opp, &dst->servicing);
@@ -338,8 +405,7 @@ static void IRQ_local_pipe(struct openpic *opp, int n_CPU, int n_IRQ,
 			pr_debug("%s: IRQ %d inactive, current prio %d/%d, CPU %d\n",
 				__func__, n_IRQ, dst->ctpr,
 				dst->servicing.priority, n_CPU);
-			qemu_irq_lower(opp->dst[n_CPU].
-				       irqs[OPENPIC_OUTPUT_INT]);
+			mpic_irq_lower(opp, dst, ILR_INTTGT_INT);
 		}
 	}
 }
@@ -415,8 +481,8 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
 	struct irq_source *src;
 
 	if (n_IRQ >= MAX_IRQ) {
-		pr_err("%s: IRQ %d out of range\n", __func__, n_IRQ);
-		abort();
+		WARN_ONCE(1, "%s: IRQ %d out of range\n", __func__, n_IRQ);
+		return;
 	}
 
 	src = &opp->src[n_IRQ];
@@ -433,7 +499,7 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
 			openpic_update_irq(opp, n_IRQ);
 		}
 
-		if (src->output != OPENPIC_OUTPUT_INT) {
+		if (src->output != ILR_INTTGT_INT) {
 			/* Edge-triggered interrupts shouldn't be used
 			 * with non-INT delivery, but just in case,
 			 * try to make it do something sane rather than
@@ -446,15 +512,13 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
 	}
 }
 
-static void openpic_reset(DeviceState *d)
+static void openpic_reset(struct openpic *opp)
 {
-	struct openpic *opp = FROM_SYSBUS(typeof(*opp), SYS_BUS_DEVICE(d));
 	int i;
 
 	opp->gcr = GCR_RESET;
 	/* Initialise controller registers */
 	opp->frr = ((opp->nb_irqs - 1) << FRR_NIRQ_SHIFT) |
-	    ((opp->nb_cpus - 1) << FRR_NCPU_SHIFT) |
 	    (opp->vid << FRR_VID_SHIFT);
 
 	opp->pir = 0;
@@ -504,7 +568,7 @@ static inline uint32_t read_IRQreg_idr(struct openpic *opp, int n_IRQ)
 static inline uint32_t read_IRQreg_ilr(struct openpic *opp, int n_IRQ)
 {
 	if (opp->flags & OPENPIC_FLAG_ILR)
-		return output_to_inttgt(opp->src[n_IRQ].output);
+		return opp->src[n_IRQ].output;
 
 	return 0xffffffff;
 }
@@ -539,7 +603,7 @@ static inline void write_IRQreg_idr(struct openpic *opp, int n_IRQ,
 					__func__);
 			}
 
-			src->output = OPENPIC_OUTPUT_CINT;
+			src->output = ILR_INTTGT_CINT;
 			src->nomask = true;
 			src->destmask = 0;
 
@@ -550,7 +614,7 @@ static inline void write_IRQreg_idr(struct openpic *opp, int n_IRQ,
 					src->destmask |= 1UL << i;
 			}
 		} else {
-			src->output = OPENPIC_OUTPUT_INT;
+			src->output = ILR_INTTGT_INT;
 			src->nomask = false;
 			src->destmask = src->idr & normal_mask;
 		}
@@ -565,7 +629,7 @@ static inline void write_IRQreg_ilr(struct openpic *opp, int n_IRQ,
 	if (opp->flags & OPENPIC_FLAG_ILR) {
 		struct irq_source *src = &opp->src[n_IRQ];
 
-		src->output = inttgt_to_output(val & ILR_INTTGT_MASK);
+		src->output = val & ILR_INTTGT_MASK;
 		pr_debug("Set ILR %d to 0x%08x, output %d\n", n_IRQ, src->idr,
 			src->output);
 
@@ -614,34 +678,23 @@ static inline void write_IRQreg_ivpr(struct openpic *opp, int n_IRQ,
 
 static void openpic_gcr_write(struct openpic *opp, uint64_t val)
 {
-	bool mpic_proxy = false;
-
 	if (val & GCR_RESET) {
-		openpic_reset(&opp->busdev.qdev);
+		openpic_reset(opp);
 		return;
 	}
 
 	opp->gcr &= ~opp->mpic_mode_mask;
 	opp->gcr |= val & opp->mpic_mode_mask;
-
-	/* Set external proxy mode */
-	if ((val & opp->mpic_mode_mask) == GCR_MODE_PROXY)
-		mpic_proxy = true;
-
-	ppce500_set_mpic_proxy(mpic_proxy);
 }
 
-static void openpic_gbl_write(void *opaque, gpa_t addr, uint64_t val,
-			      unsigned len)
+static int openpic_gbl_write(void *opaque, gpa_t addr, u32 val)
 {
 	struct openpic *opp = opaque;
-	struct irq_dest *dst;
-	int idx;
+	int err = 0;
 
-	pr_debug("%s: addr %#" HWADDR_PRIx " <= %08" PRIx64 "\n",
-		__func__, addr, val);
+	pr_debug("%s: addr %#llx <= %08x\n", __func__, addr, val);
 	if (addr & 0xF)
-		return;
+		return 0;
 
 	switch (addr) {
 	case 0x00:	/* Block Revision Register1 (BRR1) is Readonly */
@@ -654,7 +707,8 @@ static void openpic_gbl_write(void *opaque, gpa_t addr, uint64_t val,
 	case 0x90:
 	case 0xA0:
 	case 0xB0:
-		openpic_cpu_write_internal(opp, addr, val, get_current_cpu());
+		err = openpic_cpu_write_internal(opp, addr, val,
+						 get_current_cpu());
 		break;
 	case 0x1000:		/* FRR */
 		break;
@@ -664,21 +718,11 @@ static void openpic_gbl_write(void *opaque, gpa_t addr, uint64_t val,
 	case 0x1080:		/* VIR */
 		break;
 	case 0x1090:		/* PIR */
-		for (idx = 0; idx < opp->nb_cpus; idx++) {
-			if ((val & (1 << idx)) && !(opp->pir & (1 << idx))) {
-				pr_debug("Raise OpenPIC RESET output for CPU %d\n",
-					idx);
-				dst = &opp->dst[idx];
-				qemu_irq_raise(dst->irqs[OPENPIC_OUTPUT_RESET]);
-			} else if (!(val & (1 << idx)) &&
-				   (opp->pir & (1 << idx))) {
-				pr_debug("Lower OpenPIC RESET output for CPU %d\n",
-					idx);
-				dst = &opp->dst[idx];
-				qemu_irq_lower(dst->irqs[OPENPIC_OUTPUT_RESET]);
-			}
-		}
-		opp->pir = val;
+		/*
+		 * This register is used to reset a CPU core --
+		 * let userspace handle it.
+		 */
+		err = -ENXIO;
 		break;
 	case 0x10A0:		/* IPI_IVPR */
 	case 0x10B0:
@@ -695,21 +739,25 @@ static void openpic_gbl_write(void *opaque, gpa_t addr, uint64_t val,
 	default:
 		break;
 	}
+
+	return err;
 }
 
-static uint64_t openpic_gbl_read(void *opaque, gpa_t addr, unsigned len)
+static int openpic_gbl_read(void *opaque, gpa_t addr, u32 *ptr)
 {
 	struct openpic *opp = opaque;
-	uint32_t retval;
+	u32 retval;
+	int err = 0;
 
-	pr_debug("%s: addr %#" HWADDR_PRIx "\n", __func__, addr);
+	pr_debug("%s: addr %#llx\n", __func__, addr);
 	retval = 0xFFFFFFFF;
 	if (addr & 0xF)
-		return retval;
+		goto out;
 
 	switch (addr) {
 	case 0x1000:		/* FRR */
 		retval = opp->frr;
+		retval |= (opp->nb_cpus - 1) << FRR_NCPU_SHIFT;
 		break;
 	case 0x1020:		/* GCR */
 		retval = opp->gcr;
@@ -731,8 +779,8 @@ static uint64_t openpic_gbl_read(void *opaque, gpa_t addr, unsigned len)
 	case 0x90:
 	case 0xA0:
 	case 0xB0:
-		retval =
-		    openpic_cpu_read_internal(opp, addr, get_current_cpu());
+		err = openpic_cpu_read_internal(opp, addr,
+			&retval, get_current_cpu());
 		break;
 	case 0x10A0:		/* IPI_IVPR */
 	case 0x10B0:
@@ -750,28 +798,28 @@ static uint64_t openpic_gbl_read(void *opaque, gpa_t addr, unsigned len)
 	default:
 		break;
 	}
-	pr_debug("%s: => 0x%08x\n", __func__, retval);
 
-	return retval;
+out:
+	pr_debug("%s: => 0x%08x\n", __func__, retval);
+	*ptr = retval;
+	return err;
 }
 
-static void openpic_tmr_write(void *opaque, gpa_t addr, uint64_t val,
-			      unsigned len)
+static int openpic_tmr_write(void *opaque, gpa_t addr, u32 val)
 {
 	struct openpic *opp = opaque;
 	int idx;
 
 	addr += 0x10f0;
 
-	pr_debug("%s: addr %#" HWADDR_PRIx " <= %08" PRIx64 "\n",
-		__func__, addr, val);
+	pr_debug("%s: addr %#llx <= %08x\n", __func__, addr, val);
 	if (addr & 0xF)
-		return;
+		return 0;
 
 	if (addr == 0x10f0) {
 		/* TFRR */
 		opp->tfrr = val;
-		return;
+		return 0;
 	}
 
 	idx = (addr >> 6) & 0x3;
@@ -795,15 +843,17 @@ static void openpic_tmr_write(void *opaque, gpa_t addr, uint64_t val,
 		write_IRQreg_idr(opp, opp->irq_tim0 + idx, val);
 		break;
 	}
+
+	return 0;
 }
 
-static uint64_t openpic_tmr_read(void *opaque, gpa_t addr, unsigned len)
+static int openpic_tmr_read(void *opaque, gpa_t addr, u32 *ptr)
 {
 	struct openpic *opp = opaque;
 	uint32_t retval = -1;
 	int idx;
 
-	pr_debug("%s: addr %#" HWADDR_PRIx "\n", __func__, addr);
+	pr_debug("%s: addr %#llx\n", __func__, addr);
 	if (addr & 0xF)
 		goto out;
 
@@ -813,6 +863,7 @@ static uint64_t openpic_tmr_read(void *opaque, gpa_t addr, unsigned len)
 		retval = opp->tfrr;
 		goto out;
 	}
+
 	switch (addr & 0x30) {
 	case 0x00:		/* TCCR */
 		retval = opp->timers[idx].tccr;
@@ -830,18 +881,16 @@ static uint64_t openpic_tmr_read(void *opaque, gpa_t addr, unsigned len)
 
 out:
 	pr_debug("%s: => 0x%08x\n", __func__, retval);
-
-	return retval;
+	*ptr = retval;
+	return 0;
 }
 
-static void openpic_src_write(void *opaque, gpa_t addr, uint64_t val,
-			      unsigned len)
+static int openpic_src_write(void *opaque, gpa_t addr, u32 val)
 {
 	struct openpic *opp = opaque;
 	int idx;
 
-	pr_debug("%s: addr %#" HWADDR_PRIx " <= %08" PRIx64 "\n",
-		__func__, addr, val);
+	pr_debug("%s: addr %#llx <= %08x\n", __func__, addr, val);
 
 	addr = addr & 0xffff;
 	idx = addr >> 5;
@@ -857,15 +906,17 @@ static void openpic_src_write(void *opaque, gpa_t addr, uint64_t val,
 		write_IRQreg_ilr(opp, idx, val);
 		break;
 	}
+
+	return 0;
 }
 
-static uint64_t openpic_src_read(void *opaque, uint64_t addr, unsigned len)
+static int openpic_src_read(void *opaque, gpa_t addr, u32 *ptr)
 {
 	struct openpic *opp = opaque;
 	uint32_t retval;
 	int idx;
 
-	pr_debug("%s: addr %#" HWADDR_PRIx "\n", __func__, addr);
+	pr_debug("%s: addr %#llx\n", __func__, addr);
 	retval = 0xFFFFFFFF;
 
 	addr = addr & 0xffff;
@@ -884,20 +935,19 @@ static uint64_t openpic_src_read(void *opaque, uint64_t addr, unsigned len)
 	}
 
 	pr_debug("%s: => 0x%08x\n", __func__, retval);
-	return retval;
+	*ptr = retval;
+	return 0;
 }
 
-static void openpic_msi_write(void *opaque, gpa_t addr, uint64_t val,
-			      unsigned size)
+static int openpic_msi_write(void *opaque, gpa_t addr, u32 val)
 {
 	struct openpic *opp = opaque;
 	int idx = opp->irq_msi;
 	int srs, ibs;
 
-	pr_debug("%s: addr %#" HWADDR_PRIx " <= 0x%08" PRIx64 "\n",
-		__func__, addr, val);
+	pr_debug("%s: addr %#llx <= 0x%08x\n", __func__, addr, val);
 	if (addr & 0xF)
-		return;
+		return 0;
 
 	switch (addr) {
 	case MSIIR_OFFSET:
@@ -911,17 +961,19 @@ static void openpic_msi_write(void *opaque, gpa_t addr, uint64_t val,
 		/* most registers are read-only, thus ignored */
 		break;
 	}
+
+	return 0;
 }
 
-static uint64_t openpic_msi_read(void *opaque, gpa_t addr, unsigned size)
+static int openpic_msi_read(void *opaque, gpa_t addr, u32 *ptr)
 {
 	struct openpic *opp = opaque;
-	uint64_t r = 0;
+	uint32_t r = 0;
 	int i, srs;
 
-	pr_debug("%s: addr %#" HWADDR_PRIx "\n", __func__, addr);
+	pr_debug("%s: addr %#llx\n", __func__, addr);
 	if (addr & 0xF)
-		return -1;
+		return -ENXIO;
 
 	srs = addr >> 4;
 
@@ -945,45 +997,47 @@ static uint64_t openpic_msi_read(void *opaque, gpa_t addr, unsigned size)
 		break;
 	}
 
-	return r;
+	pr_debug("%s: => 0x%08x\n", __func__, r);
+	*ptr = r;
+	return 0;
 }
 
-static uint64_t openpic_summary_read(void *opaque, gpa_t addr, unsigned size)
+static int openpic_summary_read(void *opaque, gpa_t addr, u32 *ptr)
 {
-	uint64_t r = 0;
+	uint32_t r = 0;
 
-	pr_debug("%s: addr %#" HWADDR_PRIx "\n", __func__, addr);
+	pr_debug("%s: addr %#llx\n", __func__, addr);
 
 	/* TODO: EISR/EIMR */
 
-	return r;
+	*ptr = r;
+	return 0;
 }
 
-static void openpic_summary_write(void *opaque, gpa_t addr, uint64_t val,
-				  unsigned size)
+static int openpic_summary_write(void *opaque, gpa_t addr, u32 val)
 {
-	pr_debug("%s: addr %#" HWADDR_PRIx " <= 0x%08" PRIx64 "\n",
-		__func__, addr, val);
+	pr_debug("%s: addr %#llx <= 0x%08x\n", __func__, addr, val);
 
 	/* TODO: EISR/EIMR */
+	return 0;
 }
 
-static void openpic_cpu_write_internal(void *opaque, gpa_t addr,
-				       uint32_t val, int idx)
+static int openpic_cpu_write_internal(void *opaque, gpa_t addr,
+				      u32 val, int idx)
 {
 	struct openpic *opp = opaque;
 	struct irq_source *src;
 	struct irq_dest *dst;
 	int s_IRQ, n_IRQ;
 
-	pr_debug("%s: cpu %d addr %#" HWADDR_PRIx " <= 0x%08x\n", __func__, idx,
+	pr_debug("%s: cpu %d addr %#llx <= 0x%08x\n", __func__, idx,
 		addr, val);
 
 	if (idx < 0)
-		return;
+		return 0;
 
 	if (addr & 0xF)
-		return;
+		return 0;
 
 	dst = &opp->dst[idx];
 	addr &= 0xFF0;
@@ -1008,11 +1062,11 @@ static void openpic_cpu_write_internal(void *opaque, gpa_t addr,
 		if (dst->raised.priority <= dst->ctpr) {
 			pr_debug("%s: Lower OpenPIC INT output cpu %d due to ctpr\n",
 				__func__, idx);
-			qemu_irq_lower(dst->irqs[OPENPIC_OUTPUT_INT]);
+			mpic_irq_lower(opp, dst, ILR_INTTGT_INT);
 		} else if (dst->raised.priority > dst->servicing.priority) {
 			pr_debug("%s: Raise OpenPIC INT output cpu %d irq %d\n",
 				__func__, idx, dst->raised.next);
-			qemu_irq_raise(dst->irqs[OPENPIC_OUTPUT_INT]);
+			mpic_irq_raise(opp, dst, ILR_INTTGT_INT);
 		}
 
 		break;
@@ -1043,18 +1097,22 @@ static void openpic_cpu_write_internal(void *opaque, gpa_t addr,
 		     IVPR_PRIORITY(src->ivpr) > dst->servicing.priority)) {
 			pr_debug("Raise OpenPIC INT output cpu %d irq %d\n",
 				idx, n_IRQ);
-			qemu_irq_raise(opp->dst[idx].irqs[OPENPIC_OUTPUT_INT]);
+			mpic_irq_raise(opp, dst, ILR_INTTGT_INT);
 		}
 		break;
 	default:
 		break;
 	}
+
+	return 0;
 }
 
-static void openpic_cpu_write(void *opaque, gpa_t addr, uint64_t val,
-			      unsigned len)
+static int openpic_cpu_write(void *opaque, gpa_t addr, u32 val)
 {
-	openpic_cpu_write_internal(opaque, addr, val, (addr & 0x1f000) >> 12);
+	struct openpic *opp = opaque;
+
+	return openpic_cpu_write_internal(opp, addr, val,
+					 (addr & 0x1f000) >> 12);
 }
 
 static uint32_t openpic_iack(struct openpic *opp, struct irq_dest *dst,
@@ -1064,7 +1122,7 @@ static uint32_t openpic_iack(struct openpic *opp, struct irq_dest *dst,
 	int retval, irq;
 
 	pr_debug("Lower OpenPIC INT output\n");
-	qemu_irq_lower(dst->irqs[OPENPIC_OUTPUT_INT]);
+	mpic_irq_lower(opp, dst, ILR_INTTGT_INT);
 
 	irq = IRQ_get_next(opp, &dst->raised);
 	pr_debug("IACK: irq=%d\n", irq);
@@ -1107,20 +1165,21 @@ static uint32_t openpic_iack(struct openpic *opp, struct irq_dest *dst,
 	return retval;
 }
 
-static uint32_t openpic_cpu_read_internal(void *opaque, gpa_t addr, int idx)
+static int openpic_cpu_read_internal(void *opaque, gpa_t addr,
+				     u32 *ptr, int idx)
 {
 	struct openpic *opp = opaque;
 	struct irq_dest *dst;
 	uint32_t retval;
 
-	pr_debug("%s: cpu %d addr %#" HWADDR_PRIx "\n", __func__, idx, addr);
+	pr_debug("%s: cpu %d addr %#llx\n", __func__, idx, addr);
 	retval = 0xFFFFFFFF;
 
 	if (idx < 0)
-		return retval;
+		goto out;
 
 	if (addr & 0xF)
-		return retval;
+		goto out;
 
 	dst = &opp->dst[idx];
 	addr &= 0xFF0;
@@ -1142,55 +1201,76 @@ static uint32_t openpic_cpu_read_internal(void *opaque, gpa_t addr, int idx)
 	}
 	pr_debug("%s: => 0x%08x\n", __func__, retval);
 
-	return retval;
+out:
+	*ptr = retval;
+	return 0;
 }
 
-static uint64_t openpic_cpu_read(void *opaque, gpa_t addr, unsigned len)
+static int openpic_cpu_read(void *opaque, gpa_t addr, u32 *ptr)
 {
-	return openpic_cpu_read_internal(opaque, addr, (addr & 0x1f000) >> 12);
+	struct openpic *opp = opaque;
+
+	return openpic_cpu_read_internal(opp, addr, ptr,
+					 (addr & 0x1f000) >> 12);
 }
-
-static const struct kvm_io_device_ops openpic_glb_ops_be = {
-	.write = openpic_gbl_write,
-	.read = openpic_gbl_read,
-};
-
-static const struct kvm_io_device_ops openpic_tmr_ops_be = {
-	.write = openpic_tmr_write,
-	.read = openpic_tmr_read,
-};
-
-static const struct kvm_io_device_ops openpic_cpu_ops_be = {
-	.write = openpic_cpu_write,
-	.read = openpic_cpu_read,
-};
-
-static const struct kvm_io_device_ops openpic_src_ops_be = {
-	.write = openpic_src_write,
-	.read = openpic_src_read,
-};
-
-static const struct kvm_io_device_ops openpic_msi_ops_be = {
-	.read = openpic_msi_read,
-	.write = openpic_msi_write,
-};
-
-static const struct kvm_io_device_ops openpic_summary_ops_be = {
-	.read = openpic_summary_read,
-	.write = openpic_summary_write,
-};
 
 struct mem_reg {
-	const char *name;
-	const struct kvm_io_device_ops *ops;
+	struct list_head list;
+	int (*read)(void *opaque, gpa_t addr, u32 *ptr);
+	int (*write)(void *opaque, gpa_t addr, u32 val);
 	gpa_t start_addr;
 	int size;
+};
+
+static struct mem_reg openpic_gbl_mmio = {
+	.write = openpic_gbl_write,
+	.read = openpic_gbl_read,
+	.start_addr = OPENPIC_GLB_REG_START,
+	.size = OPENPIC_GLB_REG_SIZE,
+};
+
+static struct mem_reg openpic_tmr_mmio = {
+	.write = openpic_tmr_write,
+	.read = openpic_tmr_read,
+	.start_addr = OPENPIC_TMR_REG_START,
+	.size = OPENPIC_TMR_REG_SIZE,
+};
+
+static struct mem_reg openpic_cpu_mmio = {
+	.write = openpic_cpu_write,
+	.read = openpic_cpu_read,
+	.start_addr = OPENPIC_CPU_REG_START,
+	.size = OPENPIC_CPU_REG_SIZE,
+};
+
+static struct mem_reg openpic_src_mmio = {
+	.write = openpic_src_write,
+	.read = openpic_src_read,
+	.start_addr = OPENPIC_SRC_REG_START,
+	.size = OPENPIC_SRC_REG_SIZE,
+};
+
+static struct mem_reg openpic_msi_mmio = {
+	.read = openpic_msi_read,
+	.write = openpic_msi_write,
+	.start_addr = OPENPIC_MSI_REG_START,
+	.size = OPENPIC_MSI_REG_SIZE,
+};
+
+static struct mem_reg openpic_summary_mmio = {
+	.read = openpic_summary_read,
+	.write = openpic_summary_write,
+	.start_addr = OPENPIC_SUMMARY_REG_START,
+	.size = OPENPIC_SUMMARY_REG_SIZE,
 };
 
 static void fsl_common_init(struct openpic *opp)
 {
 	int i;
 	int virq = MAX_SRC;
+
+	list_add(&openpic_msi_mmio.list, &opp->mmio_regions);
+	list_add(&openpic_summary_mmio.list, &opp->mmio_regions);
 
 	opp->vid = VID_REVISION_1_2;
 	opp->vir = VIR_GENERIC;
@@ -1205,11 +1285,10 @@ static void fsl_common_init(struct openpic *opp)
 	opp->irq_tim0 = virq;
 	virq += MAX_TMR;
 
-	assert(virq <= MAX_IRQ);
+	BUG_ON(virq > MAX_IRQ);
 
 	opp->irq_msi = 224;
 
-	msi_supported = true;
 	for (i = 0; i < opp->fsl->max_ext; i++)
 		opp->src[i].level = false;
 
@@ -1226,63 +1305,352 @@ static void fsl_common_init(struct openpic *opp)
 	}
 }
 
-static void map_list(struct openpic *opp, const struct mem_reg *list,
-		     int *count)
+static int kvm_mpic_read_internal(struct openpic *opp, gpa_t addr, u32 *ptr)
 {
-	while (list->name) {
-		assert(*count < ARRAY_SIZE(opp->sub_io_mem));
+	struct list_head *node;
 
-		memory_region_init_io(&opp->sub_io_mem[*count], list->ops, opp,
-				      list->name, list->size);
+	list_for_each(node, &opp->mmio_regions) {
+		struct mem_reg *mr = list_entry(node, struct mem_reg, list);
 
-		memory_region_add_subregion(&opp->mem, list->start_addr,
-					    &opp->sub_io_mem[*count]);
+		if (mr->start_addr > addr || addr >= mr->start_addr + mr->size)
+			continue;
 
-		(*count)++;
-		list++;
+		return mr->read(opp, addr - mr->start_addr, ptr);
 	}
+
+	return -ENXIO;
 }
 
-static int openpic_init(SysBusDevice *dev)
+static int kvm_mpic_write_internal(struct openpic *opp, gpa_t addr, u32 val)
 {
-	struct openpic *opp = FROM_SYSBUS(typeof(*opp), dev);
-	int i, j;
-	int list_count = 0;
-	static const struct mem_reg list_le[] = {
-		{"glb", &openpic_glb_ops_le,
-		 OPENPIC_GLB_REG_START, OPENPIC_GLB_REG_SIZE},
-		{"tmr", &openpic_tmr_ops_le,
-		 OPENPIC_TMR_REG_START, OPENPIC_TMR_REG_SIZE},
-		{"src", &openpic_src_ops_le,
-		 OPENPIC_SRC_REG_START, OPENPIC_SRC_REG_SIZE},
-		{"cpu", &openpic_cpu_ops_le,
-		 OPENPIC_CPU_REG_START, OPENPIC_CPU_REG_SIZE},
-		{NULL}
-	};
-	static const struct mem_reg list_be[] = {
-		{"glb", &openpic_glb_ops_be,
-		 OPENPIC_GLB_REG_START, OPENPIC_GLB_REG_SIZE},
-		{"tmr", &openpic_tmr_ops_be,
-		 OPENPIC_TMR_REG_START, OPENPIC_TMR_REG_SIZE},
-		{"src", &openpic_src_ops_be,
-		 OPENPIC_SRC_REG_START, OPENPIC_SRC_REG_SIZE},
-		{"cpu", &openpic_cpu_ops_be,
-		 OPENPIC_CPU_REG_START, OPENPIC_CPU_REG_SIZE},
-		{NULL}
-	};
-	static const struct mem_reg list_fsl[] = {
-		{"msi", &openpic_msi_ops_be,
-		 OPENPIC_MSI_REG_START, OPENPIC_MSI_REG_SIZE},
-		{"summary", &openpic_summary_ops_be,
-		 OPENPIC_SUMMARY_REG_START, OPENPIC_SUMMARY_REG_SIZE},
-		{NULL}
-	};
+	struct list_head *node;
 
-	memory_region_init(&opp->mem, "openpic", 0x40000);
+	list_for_each(node, &opp->mmio_regions) {
+		struct mem_reg *mr = list_entry(node, struct mem_reg, list);
+
+		if (mr->start_addr > addr || addr >= mr->start_addr + mr->size)
+			continue;
+
+		return mr->write(opp, addr - mr->start_addr, val);
+	}
+
+	return -ENXIO;
+}
+
+static int kvm_mpic_read(struct kvm_io_device *this, gpa_t addr,
+			 int len, void *ptr)
+{
+	struct openpic *opp = container_of(this, struct openpic, mmio);
+	int ret;
+	union {
+		u32 val;
+		u8 bytes[4];
+	} u;
+
+	if (addr & (len - 1)) {
+		pr_debug("%s: bad alignment %llx/%d\n",
+			 __func__, addr, len);
+		return -EINVAL;
+	}
+
+	spin_lock_irq(&opp->lock);
+	ret = kvm_mpic_read_internal(opp, addr - opp->reg_base, &u.val);
+	spin_unlock_irq(&opp->lock);
+
+	/*
+	 * Technically only 32-bit accesses are allowed, but be nice to
+	 * people dumping registers a byte at a time -- it works in real
+	 * hardware (reads only, not writes).
+	 */
+	if (len == 4) {
+		*(u32 *)ptr = u.val;
+		pr_debug("%s: addr %llx ret %d len 4 val %x\n",
+			 __func__, addr, ret, u.val);
+	} else if (len == 1) {
+		*(u8 *)ptr = u.bytes[addr & 3];
+		pr_debug("%s: addr %llx ret %d len 1 val %x\n",
+			 __func__, addr, ret, u.bytes[addr & 3]);
+	} else {
+		pr_debug("%s: bad length %d\n", __func__, len);
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static int kvm_mpic_write(struct kvm_io_device *this, gpa_t addr,
+			  int len, const void *ptr)
+{
+	struct openpic *opp = container_of(this, struct openpic, mmio);
+	int ret;
+
+	if (len != 4) {
+		pr_debug("%s: bad length %d\n", __func__, len);
+		return -EOPNOTSUPP;
+	}
+	if (addr & 3) {
+		pr_debug("%s: bad alignment %llx/%d\n", __func__, addr, len);
+		return -EOPNOTSUPP;
+	}
+
+	spin_lock_irq(&opp->lock);
+	ret = kvm_mpic_write_internal(opp, addr - opp->reg_base,
+				      *(const u32 *)ptr);
+	spin_unlock_irq(&opp->lock);
+
+	pr_debug("%s: addr %llx ret %d val %x\n",
+		 __func__, addr, ret, *(const u32 *)ptr);
+
+	return ret;
+}
+
+static void kvm_mpic_dtor(struct kvm_io_device *this)
+{
+	struct openpic *opp = container_of(this, struct openpic, mmio);
+
+	opp->mmio_mapped = false;
+}
+
+static const struct kvm_io_device_ops mpic_mmio_ops = {
+	.read = kvm_mpic_read,
+	.write = kvm_mpic_write,
+	.destructor = kvm_mpic_dtor,
+};
+
+static void map_mmio(struct openpic *opp)
+{
+	BUG_ON(opp->mmio_mapped);
+	opp->mmio_mapped = true;
+
+	kvm_iodevice_init(&opp->mmio, &mpic_mmio_ops);
+
+	kvm_io_bus_register_dev(opp->kvm, KVM_MMIO_BUS,
+				opp->reg_base, OPENPIC_REG_SIZE,
+				&opp->mmio);
+}
+
+static void unmap_mmio(struct openpic *opp)
+{
+	BUG_ON(opp->mmio_mapped);
+	opp->mmio_mapped = false;
+
+	kvm_io_bus_unregister_dev(opp->kvm, KVM_MMIO_BUS, &opp->mmio);
+}
+
+static int set_base_addr(struct openpic *opp, struct kvm_device_attr *attr)
+{
+	u64 base;
+
+	if (copy_from_user(&base, (u64 __user *)(long)attr->addr, sizeof(u64)))
+		return -EFAULT;
+
+	if (base & 0x3ffff) {
+		pr_debug("kvm mpic %s: KVM_DEV_MPIC_BASE_ADDR %08llx not aligned\n",
+			 __func__, base);
+		return -EINVAL;
+	}
+
+	if (base == opp->reg_base)
+		return 0;
+
+	mutex_lock(&opp->kvm->slots_lock);
+
+	unmap_mmio(opp);
+	opp->reg_base = base;
+
+	pr_debug("kvm mpic %s: KVM_DEV_MPIC_BASE_ADDR %08llx\n",
+		 __func__, base);
+
+	if (base == 0)
+		goto out;
+
+	map_mmio(opp);
+
+	mutex_unlock(&opp->kvm->slots_lock);
+out:
+	return 0;
+}
+
+#define ATTR_SET		0
+#define ATTR_GET		1
+
+static int access_reg(struct openpic *opp, gpa_t addr, u32 *val, int type)
+{
+	int ret;
+
+	if (addr & 3)
+		return -ENXIO;
+
+	spin_lock_irq(&opp->lock);
+
+	if (type == ATTR_SET)
+		ret = kvm_mpic_write_internal(opp, addr, *val);
+	else
+		ret = kvm_mpic_read_internal(opp, addr, val);
+
+	spin_unlock_irq(&opp->lock);
+
+	pr_debug("%s: type %d addr %llx val %x\n", __func__, type, addr, *val);
+
+	return ret;
+}
+
+static int mpic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
+{
+	struct openpic *opp = dev->private;
+	u32 attr32;
+
+	switch (attr->group) {
+	case KVM_DEV_MPIC_GRP_MISC:
+		switch (attr->attr) {
+		case KVM_DEV_MPIC_BASE_ADDR:
+			return set_base_addr(opp, attr);
+		}
+
+		break;
+
+	case KVM_DEV_MPIC_GRP_REGISTER:
+		if (get_user(attr32, (u32 __user *)(long)attr->addr))
+			return -EFAULT;
+
+		return access_reg(opp, attr->attr, &attr32, ATTR_SET);
+
+	case KVM_DEV_MPIC_GRP_IRQ_ACTIVE:
+		if (attr->attr > MAX_SRC)
+			return -EINVAL;
+
+		if (get_user(attr32, (u32 __user *)(long)attr->addr))
+			return -EFAULT;
+
+		if (attr32 != 0 && attr32 != 1)
+			return -EINVAL;
+
+		spin_lock_irq(&opp->lock);
+		openpic_set_irq(opp, attr->attr, attr32);
+		spin_unlock_irq(&opp->lock);
+		return 0;
+	}
+
+	return -ENXIO;
+}
+
+static int mpic_get_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
+{
+	struct openpic *opp = dev->private;
+	u64 attr64;
+	u32 attr32;
+	int ret;
+
+	switch (attr->group) {
+	case KVM_DEV_MPIC_GRP_MISC:
+		switch (attr->attr) {
+		case KVM_DEV_MPIC_BASE_ADDR:
+			mutex_lock(&opp->kvm->slots_lock);
+			attr64 = opp->reg_base;
+			mutex_unlock(&opp->kvm->slots_lock);
+
+			if (copy_to_user((u64 __user *)(long)attr->addr,
+					 &attr64, sizeof(u64)))
+				return -EFAULT;
+
+			return 0;
+		}
+
+		break;
+
+	case KVM_DEV_MPIC_GRP_REGISTER:
+		ret = access_reg(opp, attr->attr, &attr32, ATTR_GET);
+		if (ret)
+			return ret;
+
+		if (put_user(attr32, (u32 __user *)(long)attr->addr))
+			return -EFAULT;
+
+		return 0;
+
+	case KVM_DEV_MPIC_GRP_IRQ_ACTIVE:
+		if (attr->attr > MAX_SRC)
+			return -EINVAL;
+
+		spin_lock_irq(&opp->lock);
+		attr32 = opp->src[attr->attr].pending;
+		spin_unlock_irq(&opp->lock);
+
+		if (put_user(attr32, (u32 __user *)(long)attr->addr))
+			return -EFAULT;
+
+		return 0;
+	}
+
+	return -ENXIO;
+}
+
+static int mpic_has_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
+{
+	switch (attr->group) {
+	case KVM_DEV_MPIC_GRP_MISC:
+		switch (attr->attr) {
+		case KVM_DEV_MPIC_BASE_ADDR:
+			return 0;
+		}
+
+		break;
+
+	case KVM_DEV_MPIC_GRP_REGISTER:
+		return 0;
+
+	case KVM_DEV_MPIC_GRP_IRQ_ACTIVE:
+		if (attr->attr > MAX_SRC)
+			break;
+
+		return 0;
+	}
+
+	return -ENXIO;
+}
+
+static void mpic_destroy(struct kvm_device *dev)
+{
+	struct openpic *opp = dev->private;
+
+	if (opp->mmio_mapped) {
+		/*
+		 * Normally we get unmapped by kvm_io_bus_destroy(),
+		 * which happens before the VCPUs release their references.
+		 *
+		 * Thus, we should only get here if no VCPUs took a reference
+		 * to us in the first place.
+		 */
+		WARN_ON(opp->nb_cpus != 0);
+		unmap_mmio(opp);
+	}
+
+	kfree(opp);
+}
+
+static int mpic_create(struct kvm_device *dev, u32 type)
+{
+	struct openpic *opp;
+	int ret;
+
+	opp = kzalloc(sizeof(struct openpic), GFP_KERNEL);
+	if (!opp)
+		return -ENOMEM;
+
+	dev->private = opp;
+	opp->kvm = dev->kvm;
+	opp->dev = dev;
+	opp->model = type;
+	spin_lock_init(&opp->lock);
+
+	INIT_LIST_HEAD(&opp->mmio_regions);
+	list_add(&openpic_gbl_mmio.list, &opp->mmio_regions);
+	list_add(&openpic_tmr_mmio.list, &opp->mmio_regions);
+	list_add(&openpic_src_mmio.list, &opp->mmio_regions);
+	list_add(&openpic_cpu_mmio.list, &opp->mmio_regions);
 
 	switch (opp->model) {
-	case OPENPIC_MODEL_FSL_MPIC_20:
-	default:
+	case KVM_DEV_TYPE_FSL_MPIC_20:
 		opp->fsl = &fsl_mpic_20;
 		opp->brr1 = 0x00400200;
 		opp->flags |= OPENPIC_FLAG_IDR_CRIT;
@@ -1290,12 +1658,10 @@ static int openpic_init(SysBusDevice *dev)
 		opp->mpic_mode_mask = GCR_MODE_MIXED;
 
 		fsl_common_init(opp);
-		map_list(opp, list_be, &list_count);
-		map_list(opp, list_fsl, &list_count);
 
 		break;
 
-	case OPENPIC_MODEL_FSL_MPIC_42:
+	case KVM_DEV_TYPE_FSL_MPIC_42:
 		opp->fsl = &fsl_mpic_42;
 		opp->brr1 = 0x00400402;
 		opp->flags |= OPENPIC_FLAG_ILR;
@@ -1303,11 +1669,27 @@ static int openpic_init(SysBusDevice *dev)
 		opp->mpic_mode_mask = GCR_MODE_PROXY;
 
 		fsl_common_init(opp);
-		map_list(opp, list_be, &list_count);
-		map_list(opp, list_fsl, &list_count);
 
 		break;
+
+	default:
+		ret = -ENODEV;
+		goto err;
 	}
 
+	openpic_reset(opp);
 	return 0;
+
+err:
+	kfree(opp);
+	return ret;
 }
+
+struct kvm_device_ops kvm_mpic_ops = {
+	.name = "kvm-mpic",
+	.create = mpic_create,
+	.destroy = mpic_destroy,
+	.set_attr = mpic_set_attr,
+	.get_attr = mpic_get_attr,
+	.has_attr = mpic_has_attr,
+};

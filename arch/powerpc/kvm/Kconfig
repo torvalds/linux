@@ -151,6 +151,15 @@ config KVM_E500MC
 
 	  If unsure, say N.
 
+config KVM_MPIC
+	bool "KVM in-kernel MPIC emulation"
+	depends on KVM
+	help
+	  Enable support for emulating MPIC devices inside the
+          host kernel, rather than relying on userspace to emulate.
+          Currently, support is limited to certain versions of
+          Freescale's MPIC implementation.
+
 source drivers/vhost/Kconfig
 
 endif # VIRTUALIZATION

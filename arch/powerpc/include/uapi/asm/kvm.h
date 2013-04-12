@@ -382,6 +382,14 @@ struct kvm_get_htab_header {
 	__u16	n_invalid;
 };
 
+/* Device control API: PPC-specific devices */
+#define KVM_DEV_MPIC_GRP_MISC		1
+#define   KVM_DEV_MPIC_BASE_ADDR	0	/* 64-bit */
+
+#define KVM_DEV_MPIC_GRP_REGISTER	2	/* 32-bit */
+#define KVM_DEV_MPIC_GRP_IRQ_ACTIVE	3	/* 32-bit */
+
+/* One-Reg API: PPC-specific registers */
 #define KVM_REG_PPC_HIOR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x1)
 #define KVM_REG_PPC_IAC1	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x2)
 #define KVM_REG_PPC_IAC2	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x3)
