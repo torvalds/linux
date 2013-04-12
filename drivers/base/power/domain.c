@@ -920,7 +920,7 @@ static int pm_genpd_prepare(struct device *dev)
 		pm_wakeup_event(dev, 0);
 
 	if (pm_wakeup_pending()) {
-		pm_runtime_put_sync(dev);
+		pm_runtime_put(dev);
 		return -EBUSY;
 	}
 
@@ -961,7 +961,7 @@ static int pm_genpd_prepare(struct device *dev)
 		pm_runtime_enable(dev);
 	}
 
-	pm_runtime_put_sync(dev);
+	pm_runtime_put(dev);
 	return ret;
 }
 
