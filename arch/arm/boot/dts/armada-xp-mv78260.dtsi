@@ -47,7 +47,7 @@
 	soc {
 		pinctrl {
 			compatible = "marvell,mv78260-pinctrl";
-			reg = <0xd0018000 0x38>;
+			reg = <0x18000 0x38>;
 
 			sdio_pins: sdio-pins {
 				marvell,pins = "mpp30", "mpp31", "mpp32",
@@ -56,9 +56,9 @@
 			};
 		};
 
-		gpio0: gpio@d0018100 {
+		gpio0: gpio@18100 {
 			compatible = "marvell,orion-gpio";
-			reg = <0xd0018100 0x40>;
+			reg = <0x18100 0x40>;
 			ngpios = <32>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -67,9 +67,9 @@
 			interrupts = <82>, <83>, <84>, <85>;
 		};
 
-		gpio1: gpio@d0018140 {
+		gpio1: gpio@18140 {
 			compatible = "marvell,orion-gpio";
-			reg = <0xd0018140 0x40>;
+			reg = <0x18140 0x40>;
 			ngpios = <32>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -78,9 +78,9 @@
 			interrupts = <87>, <88>, <89>, <90>;
 		};
 
-		gpio2: gpio@d0018180 {
+		gpio2: gpio@18180 {
 			compatible = "marvell,orion-gpio";
-			reg = <0xd0018180 0x40>;
+			reg = <0x18180 0x40>;
 			ngpios = <3>;
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -89,9 +89,9 @@
 			interrupts = <91>;
 		};
 
-		ethernet@d0034000 {
+		ethernet@34000 {
 				compatible = "marvell,armada-370-neta";
-				reg = <0xd0034000 0x2500>;
+				reg = <0x34000 0x2500>;
 				interrupts = <14>;
 				clocks = <&gateclk 1>;
 				status = "disabled";
@@ -112,19 +112,19 @@
 
 			bus-range = <0x00 0xff>;
 
-			ranges = <0x82000000 0 0xd0040000 0xd0040000 0 0x00002000   /* Port 0.0 registers */
-				  0x82000000 0 0xd0042000 0xd0042000 0 0x00002000   /* Port 2.0 registers */
-				  0x82000000 0 0xd0044000 0xd0044000 0 0x00002000   /* Port 0.1 registers */
-				  0x82000000 0 0xd0048000 0xd0048000 0 0x00002000   /* Port 0.2 registers */
-				  0x82000000 0 0xd004c000 0xd004c000 0 0x00002000   /* Port 0.3 registers */
-				  0x82000000 0 0xd0080000 0xd0080000 0 0x00002000   /* Port 1.0 registers */
-				  0x82000000 0 0xd0082000 0xd0082000 0 0x00002000   /* Port 3.0 registers */
+			ranges = <0x82000000 0 0x40000 0x40000 0 0x00002000   /* Port 0.0 registers */
+				  0x82000000 0 0x42000 0x42000 0 0x00002000   /* Port 2.0 registers */
+				  0x82000000 0 0x44000 0x44000 0 0x00002000   /* Port 0.1 registers */
+				  0x82000000 0 0x48000 0x48000 0 0x00002000   /* Port 0.2 registers */
+				  0x82000000 0 0x4c000 0x4c000 0 0x00002000   /* Port 0.3 registers */
+				  0x82000000 0 0x80000 0x80000 0 0x00002000   /* Port 1.0 registers */
+				  0x82000000 0 0x82000 0x82000 0 0x00002000   /* Port 3.0 registers */
 				  0x82000000 0 0xe0000000 0xe0000000 0 0x08000000   /* non-prefetchable memory */
 				  0x81000000 0 0	  0xe8000000 0 0x00100000>; /* downstream I/O */
 
 			pcie@1,0 {
 				device_type = "pci";
-				assigned-addresses = <0x82000800 0 0xd0040000 0 0x2000>;
+				assigned-addresses = <0x82000800 0 0x40000 0 0x2000>;
 				reg = <0x0800 0 0 0 0>;
 				#address-cells = <3>;
 				#size-cells = <2>;
@@ -140,7 +140,7 @@
 
 			pcie@2,0 {
 				device_type = "pci";
-				assigned-addresses = <0x82000800 0 0xd0044000 0 0x2000>;
+				assigned-addresses = <0x82000800 0 0x44000 0 0x2000>;
 				reg = <0x1000 0 0 0 0>;
 				#address-cells = <3>;
 				#size-cells = <2>;
@@ -156,7 +156,7 @@
 
 			pcie@3,0 {
 				device_type = "pci";
-				assigned-addresses = <0x82000800 0 0xd0048000 0 0x2000>;
+				assigned-addresses = <0x82000800 0 0x48000 0 0x2000>;
 				reg = <0x1800 0 0 0 0>;
 				#address-cells = <3>;
 				#size-cells = <2>;
@@ -172,7 +172,7 @@
 
 			pcie@4,0 {
 				device_type = "pci";
-				assigned-addresses = <0x82000800 0 0xd004c000 0 0x2000>;
+				assigned-addresses = <0x82000800 0 0x4c000 0 0x2000>;
 				reg = <0x2000 0 0 0 0>;
 				#address-cells = <3>;
 				#size-cells = <2>;
@@ -188,7 +188,7 @@
 
 			pcie@9,0 {
 				device_type = "pci";
-				assigned-addresses = <0x82000800 0 0xd0042000 0 0x2000>;
+				assigned-addresses = <0x82000800 0 0x42000 0 0x2000>;
 				reg = <0x4800 0 0 0 0>;
 				#address-cells = <3>;
 				#size-cells = <2>;
@@ -204,7 +204,7 @@
 
 			pcie@10,0 {
 				device_type = "pci";
-				assigned-addresses = <0x82000800 0 0xd0082000 0 0x2000>;
+				assigned-addresses = <0x82000800 0 0x82000 0 0x2000>;
 				reg = <0x5000 0 0 0 0>;
 				#address-cells = <3>;
 				#size-cells = <2>;

@@ -27,11 +27,11 @@
 	};
 
 	soc {
-		serial@d0012000 {
+		serial@12000 {
 			clock-frequency = <250000000>;
 			status = "okay";
 		};
-		serial@d0012100 {
+		serial@12100 {
 			clock-frequency = <250000000>;
 			status = "okay";
 		};
@@ -96,31 +96,31 @@
 			};
 		};
 
-		ethernet@d0070000 {
+		ethernet@70000 {
 			status = "okay";
 			phy = <&phy0>;
 			phy-mode = "sgmii";
 		};
-		ethernet@d0074000 {
+		ethernet@74000 {
 			status = "okay";
 			phy = <&phy1>;
 			phy-mode = "sgmii";
 		};
-		ethernet@d0030000 {
+		ethernet@30000 {
 			status = "okay";
 			phy = <&phy2>;
 			phy-mode = "sgmii";
 		};
-		ethernet@d0034000 {
+		ethernet@34000 {
 			status = "okay";
 			phy = <&phy3>;
 			phy-mode = "sgmii";
 		};
-		i2c@d0011000 {
+		i2c@11000 {
 			status = "okay";
 			clock-frequency = <400000>;
 		};
-		i2c@d0011100 {
+		i2c@11100 {
 			status = "okay";
 			clock-frequency = <400000>;
 
@@ -129,18 +129,18 @@
 				reg = <0x30>;
 			};
 		};
-		sata@d00a0000 {
+		sata@a0000 {
 			nr-ports = <2>;
 			status = "okay";
 		};
-		usb@d0050000 {
+		usb@50000 {
 			status = "okay";
 		};
-		usb@d0051000 {
+		usb@51000 {
 			status = "okay";
 		};
 
-		devbus-bootcs@d0010400 {
+		devbus-bootcs@10400 {
 			status = "okay";
 			ranges = <0 0xf0000000 0x8000000>; /* @addr 0xf000000, size 0x8000000 */
 

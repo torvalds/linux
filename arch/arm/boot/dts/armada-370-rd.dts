@@ -28,11 +28,11 @@
 	};
 
 	soc {
-		serial@d0012000 {
+		serial@12000 {
 			clock-frequency = <200000000>;
 			status = "okay";
 		};
-		sata@d00a0000 {
+		sata@a0000 {
 			nr-ports = <2>;
 			status = "okay";
 		};
@@ -47,29 +47,29 @@
 			};
 		};
 
-		ethernet@d0070000 {
+		ethernet@70000 {
 			status = "okay";
 			phy = <&phy0>;
 			phy-mode = "sgmii";
 		};
-		ethernet@d0074000 {
+		ethernet@74000 {
 			status = "okay";
 			phy = <&phy1>;
 			phy-mode = "rgmii-id";
 		};
 
-		mvsdio@d00d4000 {
+		mvsdio@d4000 {
 			pinctrl-0 = <&sdio_pins1>;
 			pinctrl-names = "default";
 			status = "okay";
 			/* No CD or WP GPIOs */
 		};
 
-		usb@d0050000 {
+		usb@50000 {
 			status = "okay";
 		};
 
-		usb@d0051000 {
+		usb@51000 {
 			status = "okay";
 		};
 	};

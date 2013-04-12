@@ -25,11 +25,11 @@
 	};
 
 	soc {
-		serial@d0012000 {
+		serial@12000 {
 			clock-frequency = <200000000>;
 			status = "okay";
 		};
-		timer@d0020300 {
+		timer@20300 {
 			clock-frequency = <600000000>;
 			status = "okay";
 		};
@@ -79,18 +79,18 @@
 				reg = <1>;
 			};
 		};
-		ethernet@d0070000 {
+		ethernet@70000 {
 			status = "okay";
 			phy = <&phy0>;
 			phy-mode = "rgmii-id";
 		};
-		ethernet@d0074000 {
+		ethernet@74000 {
 			status = "okay";
 			phy = <&phy1>;
 			phy-mode = "rgmii-id";
 		};
 
-		mvsdio@d00d4000 {
+		mvsdio@d4000 {
 			pinctrl-0 = <&sdio_pins3>;
 			pinctrl-names = "default";
 			status = "okay";
@@ -100,15 +100,15 @@
 			 */
 		};
 
-		usb@d0050000 {
+		usb@50000 {
 			status = "okay";
 		};
 
-		usb@d0051000 {
+		usb@51000 {
 			status = "okay";
 		};
 
-		i2c@d0011000 {
+		i2c@11000 {
 			status = "okay";
 			clock-frequency = <100000>;
 			pca9505: pca9505@25 {

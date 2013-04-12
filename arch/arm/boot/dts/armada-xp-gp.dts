@@ -37,24 +37,24 @@
 	};
 
 	soc {
-		serial@d0012000 {
+		serial@12000 {
 			clock-frequency = <250000000>;
 			status = "okay";
 		};
-		serial@d0012100 {
+		serial@12100 {
 			clock-frequency = <250000000>;
 			status = "okay";
 		};
-		serial@d0012200 {
+		serial@12200 {
 			clock-frequency = <250000000>;
 			status = "okay";
 		};
-		serial@d0012300 {
+		serial@12300 {
 			clock-frequency = <250000000>;
 			status = "okay";
 		};
 
-		sata@d00a0000 {
+		sata@a0000 {
 			nr-ports = <2>;
 			status = "okay";
 		};
@@ -77,28 +77,28 @@
 			};
 		};
 
-		ethernet@d0070000 {
+		ethernet@70000 {
 			status = "okay";
 			phy = <&phy0>;
 			phy-mode = "rgmii-id";
 		};
-		ethernet@d0074000 {
+		ethernet@74000 {
 			status = "okay";
 			phy = <&phy1>;
 			phy-mode = "rgmii-id";
 		};
-		ethernet@d0030000 {
+		ethernet@30000 {
 			status = "okay";
 			phy = <&phy2>;
 			phy-mode = "rgmii-id";
 		};
-		ethernet@d0034000 {
+		ethernet@34000 {
 			status = "okay";
 			phy = <&phy3>;
 			phy-mode = "rgmii-id";
 		};
 
-		spi0: spi@d0010600 {
+		spi0: spi@10600 {
 			status = "okay";
 
 			spi-flash@0 {
@@ -110,7 +110,7 @@
 			};
 		};
 
-		devbus-bootcs@d0010400 {
+		devbus-bootcs@10400 {
 			status = "okay";
 			ranges = <0 0xf0000000 0x1000000>; /* @addr 0xf000000, size 0x1000000 */
 
