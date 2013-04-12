@@ -96,6 +96,7 @@ extern int radeon_pcie_gen2;
 extern int radeon_msi;
 extern int radeon_lockup_timeout;
 extern int radeon_fastfb;
+extern int radeon_dpm;
 
 /*
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
@@ -1043,6 +1044,7 @@ struct radeon_wb {
 enum radeon_pm_method {
 	PM_METHOD_PROFILE,
 	PM_METHOD_DYNPM,
+	PM_METHOD_DPM,
 };
 
 enum radeon_dynpm_state {
@@ -1068,11 +1070,23 @@ enum radeon_voltage_type {
 };
 
 enum radeon_pm_state_type {
+	/* not used for dpm */
 	POWER_STATE_TYPE_DEFAULT,
 	POWER_STATE_TYPE_POWERSAVE,
+	/* user selectable states */
 	POWER_STATE_TYPE_BATTERY,
 	POWER_STATE_TYPE_BALANCED,
 	POWER_STATE_TYPE_PERFORMANCE,
+	/* internal states */
+	POWER_STATE_TYPE_INTERNAL_UVD,
+	POWER_STATE_TYPE_INTERNAL_UVD_SD,
+	POWER_STATE_TYPE_INTERNAL_UVD_HD,
+	POWER_STATE_TYPE_INTERNAL_UVD_HD2,
+	POWER_STATE_TYPE_INTERNAL_UVD_MVC,
+	POWER_STATE_TYPE_INTERNAL_BOOT,
+	POWER_STATE_TYPE_INTERNAL_THERMAL,
+	POWER_STATE_TYPE_INTERNAL_ACPI,
+	POWER_STATE_TYPE_INTERNAL_ULV,
 };
 
 enum radeon_pm_profile_type {
@@ -1101,12 +1115,16 @@ struct radeon_pm_profile {
 
 enum radeon_int_thermal_type {
 	THERMAL_TYPE_NONE,
+	THERMAL_TYPE_EXTERNAL,
+	THERMAL_TYPE_EXTERNAL_GPIO,
 	THERMAL_TYPE_RV6XX,
 	THERMAL_TYPE_RV770,
+	THERMAL_TYPE_ADT7473_WITH_INTERNAL,
 	THERMAL_TYPE_EVERGREEN,
 	THERMAL_TYPE_SUMO,
 	THERMAL_TYPE_NI,
 	THERMAL_TYPE_SI,
+	THERMAL_TYPE_EMC2103_WITH_INTERNAL,
 	THERMAL_TYPE_CI,
 };
 
@@ -1161,6 +1179,60 @@ struct radeon_power_state {
  */
 #define RADEON_MODE_OVERCLOCK_MARGIN 500 /* 5 MHz */
 
+struct radeon_ps {
+	u32 caps; /* vbios flags */
+	u32 class; /* vbios flags */
+	u32 class2; /* vbios flags */
+	/* UVD clocks */
+	u32 vclk;
+	u32 dclk;
+	/* asic priv */
+	void *ps_priv;
+};
+
+struct radeon_dpm_thermal {
+	/* thermal interrupt work */
+	struct work_struct work;
+	/* low temperature threshold */
+	int                min_temp;
+	/* high temperature threshold */
+	int                max_temp;
+	/* was interrupt low to high or high to low */
+	bool               high_to_low;
+};
+
+struct radeon_dpm {
+	struct radeon_ps        *ps;
+	/* number of valid power states */
+	int                     num_ps;
+	/* current power state that is active */
+	struct radeon_ps        *current_ps;
+	/* requested power state */
+	struct radeon_ps        *requested_ps;
+	/* boot up power state */
+	struct radeon_ps        *boot_ps;
+	/* default uvd power state */
+	struct radeon_ps        *uvd_ps;
+	enum radeon_pm_state_type state;
+	enum radeon_pm_state_type user_state;
+	u32                     platform_caps;
+	u32                     voltage_response_time;
+	u32                     backbias_response_time;
+	void                    *priv;
+	u32			new_active_crtcs;
+	int			new_active_crtc_count;
+	u32			current_active_crtcs;
+	int			current_active_crtc_count;
+	/* special states active */
+	bool                    thermal_active;
+	/* thermal handling */
+	struct radeon_dpm_thermal thermal;
+};
+
+void radeon_dpm_enable_power_state(struct radeon_device *rdev,
+				    enum radeon_pm_state_type dpm_state);
+
+
 struct radeon_pm {
 	struct mutex		mutex;
 	/* write locked while reprogramming mclk */
@@ -1214,6 +1286,9 @@ struct radeon_pm {
 	/* internal thermal controller on rv6xx+ */
 	enum radeon_int_thermal_type int_thermal_type;
 	struct device	        *int_hwmon_dev;
+	/* dpm */
+	bool                    dpm_enabled;
+	struct radeon_dpm       dpm;
 };
 
 int radeon_pm_get_type_index(struct radeon_device *rdev,
@@ -1415,7 +1490,7 @@ struct radeon_asic {
 		bool (*sense)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
 		void (*set_polarity)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
 	} hpd;
-	/* power management */
+	/* static power management */
 	struct {
 		void (*misc)(struct radeon_device *rdev);
 		void (*prepare)(struct radeon_device *rdev);
@@ -1432,6 +1507,19 @@ struct radeon_asic {
 		int (*set_uvd_clocks)(struct radeon_device *rdev, u32 vclk, u32 dclk);
 		int (*get_temperature)(struct radeon_device *rdev);
 	} pm;
+	/* dynamic power management */
+	struct {
+		int (*init)(struct radeon_device *rdev);
+		void (*setup_asic)(struct radeon_device *rdev);
+		int (*enable)(struct radeon_device *rdev);
+		void (*disable)(struct radeon_device *rdev);
+		int (*set_power_state)(struct radeon_device *rdev);
+		void (*display_configuration_changed)(struct radeon_device *rdev);
+		void (*fini)(struct radeon_device *rdev);
+		u32 (*get_sclk)(struct radeon_device *rdev, bool low);
+		u32 (*get_mclk)(struct radeon_device *rdev, bool low);
+		void (*print_power_state)(struct radeon_device *rdev, struct radeon_ps *ps);
+	} dpm;
 	/* pageflipping */
 	struct {
 		void (*pre_page_flip)(struct radeon_device *rdev, int crtc);
@@ -2124,6 +2212,16 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_mc_wait_for_idle(rdev) (rdev)->asic->mc_wait_for_idle((rdev))
 #define radeon_get_xclk(rdev) (rdev)->asic->get_xclk((rdev))
 #define radeon_get_gpu_clock_counter(rdev) (rdev)->asic->get_gpu_clock_counter((rdev))
+#define radeon_dpm_init(rdev) rdev->asic->dpm.init((rdev))
+#define radeon_dpm_setup_asic(rdev) rdev->asic->dpm.setup_asic((rdev))
+#define radeon_dpm_enable(rdev) rdev->asic->dpm.enable((rdev))
+#define radeon_dpm_disable(rdev) rdev->asic->dpm.disable((rdev))
+#define radeon_dpm_set_power_state(rdev) rdev->asic->dpm.set_power_state((rdev))
+#define radeon_dpm_display_configuration_changed(rdev) rdev->asic->dpm.display_configuration_changed((rdev))
+#define radeon_dpm_fini(rdev) rdev->asic->dpm.fini((rdev))
+#define radeon_dpm_get_sclk(rdev, l) rdev->asic->dpm.get_sclk((rdev), (l))
+#define radeon_dpm_get_mclk(rdev, l) rdev->asic->dpm.get_mclk((rdev), (l))
+#define radeon_dpm_print_power_state(rdev, ps) rdev->asic->dpm.print_power_state((rdev), (ps))
 
 /* Common functions */
 /* AGP */

@@ -388,7 +388,8 @@ static ssize_t radeon_get_pm_method(struct device *dev,
 	int pm = rdev->pm.pm_method;
 
 	return snprintf(buf, PAGE_SIZE, "%s\n",
-			(pm == PM_METHOD_DYNPM) ? "dynpm" : "profile");
+			(pm == PM_METHOD_DYNPM) ? "dynpm" :
+			(pm == PM_METHOD_PROFILE) ? "profile" : "dpm");
 }
 
 static ssize_t radeon_set_pm_method(struct device *dev,
@@ -399,6 +400,11 @@ static ssize_t radeon_set_pm_method(struct device *dev,
 	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
 	struct radeon_device *rdev = ddev->dev_private;
 
+	/* we don't support the legacy modes with dpm */
+	if (rdev->pm.pm_method == PM_METHOD_DPM) {
+		count = -EINVAL;
+		goto fail;
+	}
 
 	if (strncmp("dynpm", buf, strlen("dynpm")) == 0) {
 		mutex_lock(&rdev->pm.mutex);
@@ -423,8 +429,48 @@ fail:
 	return count;
 }
 
+static ssize_t radeon_get_dpm_state(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct radeon_device *rdev = ddev->dev_private;
+	enum radeon_pm_state_type pm = rdev->pm.dpm.user_state;
+
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			(pm == POWER_STATE_TYPE_BATTERY) ? "battery" :
+			(pm == POWER_STATE_TYPE_BALANCED) ? "balanced" : "performance");
+}
+
+static ssize_t radeon_set_dpm_state(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf,
+				    size_t count)
+{
+	struct drm_device *ddev = pci_get_drvdata(to_pci_dev(dev));
+	struct radeon_device *rdev = ddev->dev_private;
+
+	mutex_lock(&rdev->pm.mutex);
+	if (strncmp("battery", buf, strlen("battery")) == 0)
+		rdev->pm.dpm.user_state = POWER_STATE_TYPE_BATTERY;
+	else if (strncmp("balanced", buf, strlen("balanced")) == 0)
+		rdev->pm.dpm.user_state = POWER_STATE_TYPE_BALANCED;
+	else if (strncmp("performance", buf, strlen("performance")) == 0)
+		rdev->pm.dpm.user_state = POWER_STATE_TYPE_PERFORMANCE;
+	else {
+		mutex_unlock(&rdev->pm.mutex);
+		count = -EINVAL;
+		goto fail;
+	}
+	mutex_unlock(&rdev->pm.mutex);
+	radeon_pm_compute_clocks(rdev);
+fail:
+	return count;
+}
+
 static DEVICE_ATTR(power_profile, S_IRUGO | S_IWUSR, radeon_get_pm_profile, radeon_set_pm_profile);
 static DEVICE_ATTR(power_method, S_IRUGO | S_IWUSR, radeon_get_pm_method, radeon_set_pm_method);
+static DEVICE_ATTR(power_dpm_state, S_IRUGO | S_IWUSR, radeon_get_dpm_state, radeon_set_dpm_state);
 
 static ssize_t radeon_hwmon_show_temp(struct device *dev,
 				      struct device_attribute *attr,
@@ -508,7 +554,228 @@ static void radeon_hwmon_fini(struct radeon_device *rdev)
 	}
 }
 
-void radeon_pm_suspend(struct radeon_device *rdev)
+static void radeon_dpm_thermal_work_handler(struct work_struct *work)
+{
+	struct radeon_device *rdev =
+		container_of(work, struct radeon_device,
+			     pm.dpm.thermal.work);
+	/* switch to the thermal state */
+	enum radeon_pm_state_type dpm_state = POWER_STATE_TYPE_INTERNAL_THERMAL;
+
+	if (!rdev->pm.dpm_enabled)
+		return;
+
+	if (rdev->asic->pm.get_temperature) {
+		int temp = radeon_get_temperature(rdev);
+
+		if (temp < rdev->pm.dpm.thermal.min_temp)
+			/* switch back the user state */
+			dpm_state = rdev->pm.dpm.user_state;
+	} else {
+		if (rdev->pm.dpm.thermal.high_to_low)
+			/* switch back the user state */
+			dpm_state = rdev->pm.dpm.user_state;
+	}
+	radeon_dpm_enable_power_state(rdev, dpm_state);
+}
+
+static struct radeon_ps *radeon_dpm_pick_power_state(struct radeon_device *rdev,
+						     enum radeon_pm_state_type dpm_state)
+{
+	int i;
+	struct radeon_ps *ps;
+	u32 ui_class;
+
+restart_search:
+	/* balanced states don't exist at the moment */
+	if (dpm_state == POWER_STATE_TYPE_BALANCED)
+		dpm_state = POWER_STATE_TYPE_PERFORMANCE;
+
+	/* Pick the best power state based on current conditions */
+	for (i = 0; i < rdev->pm.dpm.num_ps; i++) {
+		ps = &rdev->pm.dpm.ps[i];
+		ui_class = ps->class & ATOM_PPLIB_CLASSIFICATION_UI_MASK;
+		switch (dpm_state) {
+		/* user states */
+		case POWER_STATE_TYPE_BATTERY:
+			if (ui_class == ATOM_PPLIB_CLASSIFICATION_UI_BATTERY) {
+				if (ps->caps & ATOM_PPLIB_SINGLE_DISPLAY_ONLY) {
+					if (rdev->pm.dpm.new_active_crtc_count < 2)
+						return ps;
+				} else
+					return ps;
+			}
+			break;
+		case POWER_STATE_TYPE_BALANCED:
+			if (ui_class == ATOM_PPLIB_CLASSIFICATION_UI_BALANCED) {
+				if (ps->caps & ATOM_PPLIB_SINGLE_DISPLAY_ONLY) {
+					if (rdev->pm.dpm.new_active_crtc_count < 2)
+						return ps;
+				} else
+					return ps;
+			}
+			break;
+		case POWER_STATE_TYPE_PERFORMANCE:
+			if (ui_class == ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE) {
+				if (ps->caps & ATOM_PPLIB_SINGLE_DISPLAY_ONLY) {
+					if (rdev->pm.dpm.new_active_crtc_count < 2)
+						return ps;
+				} else
+					return ps;
+			}
+			break;
+		/* internal states */
+		case POWER_STATE_TYPE_INTERNAL_UVD:
+			return rdev->pm.dpm.uvd_ps;
+		case POWER_STATE_TYPE_INTERNAL_UVD_SD:
+			if (ps->class & ATOM_PPLIB_CLASSIFICATION_SDSTATE)
+				return ps;
+			break;
+		case POWER_STATE_TYPE_INTERNAL_UVD_HD:
+			if (ps->class & ATOM_PPLIB_CLASSIFICATION_HDSTATE)
+				return ps;
+			break;
+		case POWER_STATE_TYPE_INTERNAL_UVD_HD2:
+			if (ps->class & ATOM_PPLIB_CLASSIFICATION_HD2STATE)
+				return ps;
+			break;
+		case POWER_STATE_TYPE_INTERNAL_UVD_MVC:
+			if (ps->class2 & ATOM_PPLIB_CLASSIFICATION2_MVC)
+				return ps;
+			break;
+		case POWER_STATE_TYPE_INTERNAL_BOOT:
+			return rdev->pm.dpm.boot_ps;
+		case POWER_STATE_TYPE_INTERNAL_THERMAL:
+			if (ps->class & ATOM_PPLIB_CLASSIFICATION_THERMAL)
+				return ps;
+			break;
+		case POWER_STATE_TYPE_INTERNAL_ACPI:
+			if (ps->class & ATOM_PPLIB_CLASSIFICATION_ACPI)
+				return ps;
+			break;
+		case POWER_STATE_TYPE_INTERNAL_ULV:
+			if (ps->class2 & ATOM_PPLIB_CLASSIFICATION2_ULV)
+				return ps;
+			break;
+		default:
+			break;
+		}
+	}
+	/* use a fallback state if we didn't match */
+	switch (dpm_state) {
+	case POWER_STATE_TYPE_INTERNAL_UVD_SD:
+	case POWER_STATE_TYPE_INTERNAL_UVD_HD:
+	case POWER_STATE_TYPE_INTERNAL_UVD_HD2:
+	case POWER_STATE_TYPE_INTERNAL_UVD_MVC:
+		return rdev->pm.dpm.uvd_ps;
+	case POWER_STATE_TYPE_INTERNAL_THERMAL:
+		dpm_state = POWER_STATE_TYPE_INTERNAL_ACPI;
+		goto restart_search;
+	case POWER_STATE_TYPE_INTERNAL_ACPI:
+		dpm_state = POWER_STATE_TYPE_BATTERY;
+		goto restart_search;
+	case POWER_STATE_TYPE_BATTERY:
+		dpm_state = POWER_STATE_TYPE_PERFORMANCE;
+		goto restart_search;
+	default:
+		break;
+	}
+
+	return NULL;
+}
+
+static void radeon_dpm_change_power_state_locked(struct radeon_device *rdev)
+{
+	int i;
+	struct radeon_ps *ps;
+	enum radeon_pm_state_type dpm_state;
+
+	/* if dpm init failed */
+	if (!rdev->pm.dpm_enabled)
+		return;
+
+	if (rdev->pm.dpm.user_state != rdev->pm.dpm.state) {
+		/* add other state override checks here */
+		if (!rdev->pm.dpm.thermal_active)
+			rdev->pm.dpm.state = rdev->pm.dpm.user_state;
+	}
+	dpm_state = rdev->pm.dpm.state;
+
+	ps = radeon_dpm_pick_power_state(rdev, dpm_state);
+	if (ps)
+		rdev->pm.dpm.requested_ps = ps;
+	else
+		return;
+
+	/* no need to reprogram if nothing changed */
+	if (rdev->pm.dpm.current_ps == rdev->pm.dpm.requested_ps) {
+		/* update display watermarks based on new power state */
+		if (rdev->pm.dpm.new_active_crtcs != rdev->pm.dpm.current_active_crtcs) {
+			radeon_bandwidth_update(rdev);
+			/* update displays */
+			radeon_dpm_display_configuration_changed(rdev);
+			rdev->pm.dpm.current_active_crtcs = rdev->pm.dpm.new_active_crtcs;
+			rdev->pm.dpm.current_active_crtc_count = rdev->pm.dpm.new_active_crtc_count;
+		}
+		return;
+	}
+
+	printk("switching from power state:\n");
+	radeon_dpm_print_power_state(rdev, rdev->pm.dpm.current_ps);
+	printk("switching to power state:\n");
+	radeon_dpm_print_power_state(rdev, rdev->pm.dpm.requested_ps);
+
+	mutex_lock(&rdev->ddev->struct_mutex);
+	down_write(&rdev->pm.mclk_lock);
+	mutex_lock(&rdev->ring_lock);
+
+	/* update display watermarks based on new power state */
+	radeon_bandwidth_update(rdev);
+	/* update displays */
+	radeon_dpm_display_configuration_changed(rdev);
+
+	rdev->pm.dpm.current_active_crtcs = rdev->pm.dpm.new_active_crtcs;
+	rdev->pm.dpm.current_active_crtc_count = rdev->pm.dpm.new_active_crtc_count;
+
+	/* wait for the rings to drain */
+	for (i = 0; i < RADEON_NUM_RINGS; i++) {
+		struct radeon_ring *ring = &rdev->ring[i];
+		if (ring->ready)
+			radeon_fence_wait_empty_locked(rdev, i);
+	}
+
+	/* program the new power state */
+	radeon_dpm_set_power_state(rdev);
+
+	/* update current power state */
+	rdev->pm.dpm.current_ps = rdev->pm.dpm.requested_ps;
+
+	mutex_unlock(&rdev->ring_lock);
+	up_write(&rdev->pm.mclk_lock);
+	mutex_unlock(&rdev->ddev->struct_mutex);
+}
+
+void radeon_dpm_enable_power_state(struct radeon_device *rdev,
+				   enum radeon_pm_state_type dpm_state)
+{
+	if (!rdev->pm.dpm_enabled)
+		return;
+
+	mutex_lock(&rdev->pm.mutex);
+	switch (dpm_state) {
+	case POWER_STATE_TYPE_INTERNAL_THERMAL:
+		rdev->pm.dpm.thermal_active = true;
+		break;
+	default:
+		rdev->pm.dpm.thermal_active = false;
+		break;
+	}
+	rdev->pm.dpm.state = dpm_state;
+	mutex_unlock(&rdev->pm.mutex);
+	radeon_pm_compute_clocks(rdev);
+}
+
+static void radeon_pm_suspend_old(struct radeon_device *rdev)
 {
 	mutex_lock(&rdev->pm.mutex);
 	if (rdev->pm.pm_method == PM_METHOD_DYNPM) {
@@ -520,7 +787,26 @@ void radeon_pm_suspend(struct radeon_device *rdev)
 	cancel_delayed_work_sync(&rdev->pm.dynpm_idle_work);
 }
 
-void radeon_pm_resume(struct radeon_device *rdev)
+static void radeon_pm_suspend_dpm(struct radeon_device *rdev)
+{
+	mutex_lock(&rdev->pm.mutex);
+	/* disable dpm */
+	radeon_dpm_disable(rdev);
+	/* reset the power state */
+	rdev->pm.dpm.current_ps = rdev->pm.dpm.requested_ps = rdev->pm.dpm.boot_ps;
+	rdev->pm.dpm_enabled = false;
+	mutex_unlock(&rdev->pm.mutex);
+}
+
+void radeon_pm_suspend(struct radeon_device *rdev)
+{
+	if (rdev->pm.pm_method == PM_METHOD_DPM)
+		radeon_pm_suspend_dpm(rdev);
+	else
+		radeon_pm_suspend_old(rdev);
+}
+
+static void radeon_pm_resume_old(struct radeon_device *rdev)
 {
 	/* set up the default clocks if the MC ucode is loaded */
 	if ((rdev->family >= CHIP_BARTS) &&
@@ -555,12 +841,50 @@ void radeon_pm_resume(struct radeon_device *rdev)
 	radeon_pm_compute_clocks(rdev);
 }
 
-int radeon_pm_init(struct radeon_device *rdev)
+static void radeon_pm_resume_dpm(struct radeon_device *rdev)
 {
 	int ret;
 
-	/* default to profile method */
-	rdev->pm.pm_method = PM_METHOD_PROFILE;
+	/* asic init will reset to the boot state */
+	mutex_lock(&rdev->pm.mutex);
+	rdev->pm.dpm.current_ps = rdev->pm.dpm.requested_ps = rdev->pm.dpm.boot_ps;
+	radeon_dpm_setup_asic(rdev);
+	ret = radeon_dpm_enable(rdev);
+	mutex_unlock(&rdev->pm.mutex);
+	if (ret) {
+		DRM_ERROR("radeon: dpm resume failed\n");
+		if ((rdev->family >= CHIP_BARTS) &&
+		    (rdev->family <= CHIP_CAYMAN) &&
+		    rdev->mc_fw) {
+			if (rdev->pm.default_vddc)
+				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
+							SET_VOLTAGE_TYPE_ASIC_VDDC);
+			if (rdev->pm.default_vddci)
+				radeon_atom_set_voltage(rdev, rdev->pm.default_vddci,
+							SET_VOLTAGE_TYPE_ASIC_VDDCI);
+			if (rdev->pm.default_sclk)
+				radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
+			if (rdev->pm.default_mclk)
+				radeon_set_memory_clock(rdev, rdev->pm.default_mclk);
+		}
+	} else {
+		rdev->pm.dpm_enabled = true;
+		radeon_pm_compute_clocks(rdev);
+	}
+}
+
+void radeon_pm_resume(struct radeon_device *rdev)
+{
+	if (rdev->pm.pm_method == PM_METHOD_DPM)
+		radeon_pm_resume_dpm(rdev);
+	else
+		radeon_pm_resume_old(rdev);
+}
+
+static int radeon_pm_init_old(struct radeon_device *rdev)
+{
+	int ret;
+
 	rdev->pm.profile = PM_PROFILE_DEFAULT;
 	rdev->pm.dynpm_state = DYNPM_STATE_DISABLED;
 	rdev->pm.dynpm_planned_action = DYNPM_ACTION_NONE;
@@ -622,7 +946,103 @@ int radeon_pm_init(struct radeon_device *rdev)
 	return 0;
 }
 
-void radeon_pm_fini(struct radeon_device *rdev)
+static void radeon_dpm_print_power_states(struct radeon_device *rdev)
+{
+	int i;
+
+	for (i = 0; i < rdev->pm.dpm.num_ps; i++) {
+		printk("== power state %d ==\n", i);
+		radeon_dpm_print_power_state(rdev, &rdev->pm.dpm.ps[i]);
+	}
+}
+
+static int radeon_pm_init_dpm(struct radeon_device *rdev)
+{
+	int ret;
+
+	/* default to performance state */
+	rdev->pm.dpm.state = POWER_STATE_TYPE_PERFORMANCE;
+	rdev->pm.dpm.user_state = POWER_STATE_TYPE_PERFORMANCE;
+	rdev->pm.default_sclk = rdev->clock.default_sclk;
+	rdev->pm.default_mclk = rdev->clock.default_mclk;
+	rdev->pm.current_sclk = rdev->clock.default_sclk;
+	rdev->pm.current_mclk = rdev->clock.default_mclk;
+	rdev->pm.int_thermal_type = THERMAL_TYPE_NONE;
+
+	if (rdev->bios && rdev->is_atom_bios)
+		radeon_atombios_get_power_modes(rdev);
+	else
+		return -EINVAL;
+
+	/* set up the internal thermal sensor if applicable */
+	ret = radeon_hwmon_init(rdev);
+	if (ret)
+		return ret;
+
+	INIT_WORK(&rdev->pm.dpm.thermal.work, radeon_dpm_thermal_work_handler);
+	mutex_lock(&rdev->pm.mutex);
+	radeon_dpm_init(rdev);
+	rdev->pm.dpm.current_ps = rdev->pm.dpm.requested_ps = rdev->pm.dpm.boot_ps;
+	radeon_dpm_print_power_states(rdev);
+	radeon_dpm_setup_asic(rdev);
+	ret = radeon_dpm_enable(rdev);
+	mutex_unlock(&rdev->pm.mutex);
+	if (ret) {
+		rdev->pm.dpm_enabled = false;
+		if ((rdev->family >= CHIP_BARTS) &&
+		    (rdev->family <= CHIP_CAYMAN) &&
+		    rdev->mc_fw) {
+			if (rdev->pm.default_vddc)
+				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
+							SET_VOLTAGE_TYPE_ASIC_VDDC);
+			if (rdev->pm.default_vddci)
+				radeon_atom_set_voltage(rdev, rdev->pm.default_vddci,
+							SET_VOLTAGE_TYPE_ASIC_VDDCI);
+			if (rdev->pm.default_sclk)
+				radeon_set_engine_clock(rdev, rdev->pm.default_sclk);
+			if (rdev->pm.default_mclk)
+				radeon_set_memory_clock(rdev, rdev->pm.default_mclk);
+		}
+		DRM_ERROR("radeon: dpm initialization failed\n");
+		return ret;
+	}
+	rdev->pm.dpm_enabled = true;
+	radeon_pm_compute_clocks(rdev);
+
+	if (rdev->pm.num_power_states > 1) {
+		ret = device_create_file(rdev->dev, &dev_attr_power_dpm_state);
+		if (ret)
+			DRM_ERROR("failed to create device file for dpm state\n");
+		/* XXX: these are noops for dpm but are here for backwards compat */
+		ret = device_create_file(rdev->dev, &dev_attr_power_profile);
+		if (ret)
+			DRM_ERROR("failed to create device file for power profile\n");
+		ret = device_create_file(rdev->dev, &dev_attr_power_method);
+		if (ret)
+			DRM_ERROR("failed to create device file for power method\n");
+		DRM_INFO("radeon: dpm initialized\n");
+	}
+
+	return 0;
+}
+
+int radeon_pm_init(struct radeon_device *rdev)
+{
+	/* enable dpm on rv6xx+ */
+	switch (rdev->family) {
+	default:
+		/* default to profile method */
+		rdev->pm.pm_method = PM_METHOD_PROFILE;
+		break;
+	}
+
+	if (rdev->pm.pm_method == PM_METHOD_DPM)
+		return radeon_pm_init_dpm(rdev);
+	else
+		return radeon_pm_init_old(rdev);
+}
+
+static void radeon_pm_fini_old(struct radeon_device *rdev)
 {
 	if (rdev->pm.num_power_states > 1) {
 		mutex_lock(&rdev->pm.mutex);
@@ -650,7 +1070,35 @@ void radeon_pm_fini(struct radeon_device *rdev)
 	radeon_hwmon_fini(rdev);
 }
 
-void radeon_pm_compute_clocks(struct radeon_device *rdev)
+static void radeon_pm_fini_dpm(struct radeon_device *rdev)
+{
+	if (rdev->pm.num_power_states > 1) {
+		mutex_lock(&rdev->pm.mutex);
+		radeon_dpm_disable(rdev);
+		mutex_unlock(&rdev->pm.mutex);
+
+		device_remove_file(rdev->dev, &dev_attr_power_dpm_state);
+		/* XXX backwards compat */
+		device_remove_file(rdev->dev, &dev_attr_power_profile);
+		device_remove_file(rdev->dev, &dev_attr_power_method);
+	}
+	radeon_dpm_fini(rdev);
+
+	if (rdev->pm.power_state)
+		kfree(rdev->pm.power_state);
+
+	radeon_hwmon_fini(rdev);
+}
+
+void radeon_pm_fini(struct radeon_device *rdev)
+{
+	if (rdev->pm.pm_method == PM_METHOD_DPM)
+		radeon_pm_fini_dpm(rdev);
+	else
+		radeon_pm_fini_old(rdev);
+}
+
+static void radeon_pm_compute_clocks_old(struct radeon_device *rdev)
 {
 	struct drm_device *ddev = rdev->ddev;
 	struct drm_crtc *crtc;
@@ -719,6 +1167,38 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 	}
 
 	mutex_unlock(&rdev->pm.mutex);
+}
+
+static void radeon_pm_compute_clocks_dpm(struct radeon_device *rdev)
+{
+	struct drm_device *ddev = rdev->ddev;
+	struct drm_crtc *crtc;
+	struct radeon_crtc *radeon_crtc;
+
+	mutex_lock(&rdev->pm.mutex);
+
+	rdev->pm.dpm.new_active_crtcs = 0;
+	rdev->pm.dpm.new_active_crtc_count = 0;
+	list_for_each_entry(crtc,
+		&ddev->mode_config.crtc_list, head) {
+		radeon_crtc = to_radeon_crtc(crtc);
+		if (crtc->enabled) {
+			rdev->pm.dpm.new_active_crtcs |= (1 << radeon_crtc->crtc_id);
+			rdev->pm.dpm.new_active_crtc_count++;
+		}
+	}
+
+	radeon_dpm_change_power_state_locked(rdev);
+
+	mutex_unlock(&rdev->pm.mutex);
+}
+
+void radeon_pm_compute_clocks(struct radeon_device *rdev)
+{
+	if (rdev->pm.pm_method == PM_METHOD_DPM)
+		radeon_pm_compute_clocks_dpm(rdev);
+	else
+		radeon_pm_compute_clocks_old(rdev);
 }
 
 static bool radeon_pm_in_vbl(struct radeon_device *rdev)
