@@ -375,14 +375,14 @@ static int __unioxx5_subdev_init(struct comedi_device *dev,
 	int i, to, ndef_flag = 0;
 	int ret;
 
+	usp = kzalloc(sizeof(*usp), GFP_KERNEL);
+	if (usp == NULL)
+		return -ENOMEM;
+
 	ret = __comedi_request_region(dev, iobase, UNIOXX5_SIZE);
 	if (ret)
 		return ret;
 	usp->usp_iobase = iobase;
-
-	usp = kzalloc(sizeof(*usp), GFP_KERNEL);
-	if (usp == NULL)
-		return -ENOMEM;
 
 	/* defining modules types */
 	for (i = 0; i < 12; i++) {
