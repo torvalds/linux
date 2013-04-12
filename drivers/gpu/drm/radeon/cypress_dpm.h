@@ -141,5 +141,9 @@ void cypress_enable_mclk_control(struct radeon_device *rdev,
 				 bool enable);
 void cypress_start_dpm(struct radeon_device *rdev);
 void cypress_advertise_gen2_capability(struct radeon_device *rdev);
+u32 cypress_map_clkf_to_ibias(struct radeon_device *rdev, u32 clkf);
+u8 cypress_get_mclk_frequency_ratio(struct radeon_device *rdev,
+				    u32 memory_clock, bool strobe_mode);
+u8 cypress_get_strobe_mode_settings(struct radeon_device *rdev, u32 mclk);
 
 #endif

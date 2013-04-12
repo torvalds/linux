@@ -45,9 +45,6 @@ struct rv7xx_ps *rv770_get_ps(struct radeon_ps *rps);
 struct rv7xx_power_info *rv770_get_pi(struct radeon_device *rdev);
 struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
 
-static u8 cypress_get_mclk_frequency_ratio(struct radeon_device *rdev,
-					   u32 memory_clock, bool strobe_mode);
-
 static void cypress_enable_bif_dynamic_pcie_gen2(struct radeon_device *rdev,
 						 bool enable)
 {
@@ -416,7 +413,7 @@ static int cypress_populate_voltage_value(struct radeon_device *rdev,
 	return 0;
 }
 
-static u8 cypress_get_strobe_mode_settings(struct radeon_device *rdev, u32 mclk)
+u8 cypress_get_strobe_mode_settings(struct radeon_device *rdev, u32 mclk)
 {
 	struct rv7xx_power_info *pi = rv770_get_pi(rdev);
 	u8 result = 0;
@@ -434,7 +431,7 @@ static u8 cypress_get_strobe_mode_settings(struct radeon_device *rdev, u32 mclk)
 	return result;
 }
 
-static u32 cypress_map_clkf_to_ibias(struct radeon_device *rdev, u32 clkf)
+u32 cypress_map_clkf_to_ibias(struct radeon_device *rdev, u32 clkf)
 {
 	u32 ref_clk = rdev->clock.mpll.reference_freq;
 	u32 vco = clkf * ref_clk;
@@ -603,8 +600,8 @@ static int cypress_populate_mclk_value(struct radeon_device *rdev,
 	return 0;
 }
 
-static u8 cypress_get_mclk_frequency_ratio(struct radeon_device *rdev,
-					   u32 memory_clock, bool strobe_mode)
+u8 cypress_get_mclk_frequency_ratio(struct radeon_device *rdev,
+				    u32 memory_clock, bool strobe_mode)
 {
 	u8 mc_para_index;
 

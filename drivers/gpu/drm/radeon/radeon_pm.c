@@ -1097,6 +1097,7 @@ int radeon_pm_init(struct radeon_device *rdev)
 	case CHIP_BARTS:
 	case CHIP_TURKS:
 	case CHIP_CAICOS:
+	case CHIP_CAYMAN:
 	case CHIP_ARUBA:
 		if (radeon_dpm == 1)
 			rdev->pm.pm_method = PM_METHOD_DPM;

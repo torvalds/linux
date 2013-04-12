@@ -1906,6 +1906,18 @@ static struct radeon_asic cayman_asic = {
 		.set_uvd_clocks = &evergreen_set_uvd_clocks,
 		.get_temperature = &evergreen_get_temp,
 	},
+	.dpm = {
+		.init = &ni_dpm_init,
+		.setup_asic = &ni_dpm_setup_asic,
+		.enable = &ni_dpm_enable,
+		.disable = &ni_dpm_disable,
+		.set_power_state = &ni_dpm_set_power_state,
+		.display_configuration_changed = &cypress_dpm_display_configuration_changed,
+		.fini = &ni_dpm_fini,
+		.get_sclk = &ni_dpm_get_sclk,
+		.get_mclk = &ni_dpm_get_mclk,
+		.print_power_state = &ni_dpm_print_power_state,
+	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
 		.page_flip = &evergreen_page_flip,

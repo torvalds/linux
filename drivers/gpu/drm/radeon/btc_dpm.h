@@ -33,6 +33,24 @@
 #define BTC_CGULVPARAMETER_DFLT                       0x00040035
 #define BTC_CGULVCONTROL_DFLT                         0x00001450
 
-extern u32 btc_valid_sclk[];
+extern u32 btc_valid_sclk[40];
+
+void btc_read_arb_registers(struct radeon_device *rdev);
+void btc_program_mgcg_hw_sequence(struct radeon_device *rdev,
+				  const u32 *sequence, u32 count);
+void btc_skip_blacklist_clocks(struct radeon_device *rdev,
+			       const u32 max_sclk, const u32 max_mclk,
+			       u32 *sclk, u32 *mclk);
+void btc_adjust_clock_combinations(struct radeon_device *rdev,
+				   const struct radeon_clock_and_voltage_limits *max_limits,
+				   struct rv7xx_pl *pl);
+void btc_apply_voltage_dependency_rules(struct radeon_clock_voltage_dependency_table *table,
+					u32 clock, u16 max_voltage, u16 *voltage);
+void btc_apply_voltage_delta_rules(struct radeon_device *rdev,
+				   u16 max_vddc, u16 max_vddci,
+				   u16 *vddc, u16 *vddci);
+bool btc_dpm_enabled(struct radeon_device *rdev);
+int btc_reset_to_default(struct radeon_device *rdev);
+void btc_notify_uvd_to_smc(struct radeon_device *rdev);
 
 #endif

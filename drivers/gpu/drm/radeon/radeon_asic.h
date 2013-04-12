@@ -587,6 +587,16 @@ bool cayman_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring);
 bool cayman_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring);
 void cayman_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
 
+int ni_dpm_init(struct radeon_device *rdev);
+void ni_dpm_setup_asic(struct radeon_device *rdev);
+int ni_dpm_enable(struct radeon_device *rdev);
+void ni_dpm_disable(struct radeon_device *rdev);
+int ni_dpm_set_power_state(struct radeon_device *rdev);
+void ni_dpm_fini(struct radeon_device *rdev);
+u32 ni_dpm_get_sclk(struct radeon_device *rdev, bool low);
+u32 ni_dpm_get_mclk(struct radeon_device *rdev, bool low);
+void ni_dpm_print_power_state(struct radeon_device *rdev,
+			      struct radeon_ps *ps);
 int trinity_dpm_init(struct radeon_device *rdev);
 int trinity_dpm_enable(struct radeon_device *rdev);
 void trinity_dpm_disable(struct radeon_device *rdev);

@@ -1152,7 +1152,7 @@ static const u32 turks_sysls_enable[] =
 
 #endif
 
-u32 btc_valid_sclk[] =
+u32 btc_valid_sclk[40] =
 {
 	5000,   10000,  15000,  20000,  25000,  30000,  35000,  40000,  45000,  50000,
 	55000,  60000,  65000,  70000,  75000,  80000,  85000,  90000,  95000,  100000,
@@ -1168,8 +1168,8 @@ static const struct radeon_blacklist_clocks btc_blacklist_clocks[] =
         { 25000, 30000, RADEON_SCLK_UP }
 };
 
-static void btc_apply_voltage_dependency_rules(struct radeon_clock_voltage_dependency_table *table,
-					       u32 clock, u16 max_voltage, u16 *voltage)
+void btc_apply_voltage_dependency_rules(struct radeon_clock_voltage_dependency_table *table,
+					u32 clock, u16 max_voltage, u16 *voltage)
 {
 	u32 i;
 
@@ -1219,9 +1219,9 @@ static u32 btc_get_valid_sclk(struct radeon_device *rdev,
 				    max_sclk, requested_sclk);
 }
 
-static void btc_skip_blacklist_clocks(struct radeon_device *rdev,
-				      const u32 max_sclk, const u32 max_mclk,
-				      u32 *sclk, u32 *mclk)
+void btc_skip_blacklist_clocks(struct radeon_device *rdev,
+			       const u32 max_sclk, const u32 max_mclk,
+			       u32 *sclk, u32 *mclk)
 {
 	int i, num_blacklist_clocks;
 
@@ -1246,9 +1246,9 @@ static void btc_skip_blacklist_clocks(struct radeon_device *rdev,
 	}
 }
 
-static void btc_adjust_clock_combinations(struct radeon_device *rdev,
-					  const struct radeon_clock_and_voltage_limits *max_limits,
-					  struct rv7xx_pl *pl)
+void btc_adjust_clock_combinations(struct radeon_device *rdev,
+				   const struct radeon_clock_and_voltage_limits *max_limits,
+				   struct rv7xx_pl *pl)
 {
 
 	if ((pl->mclk == 0) || (pl->sclk == 0))
@@ -1285,9 +1285,9 @@ static u16 btc_find_voltage(struct atom_voltage_table *table, u16 voltage)
 	return table->entries[table->count - 1].value;
 }
 
-static void btc_apply_voltage_delta_rules(struct radeon_device *rdev,
-					  u16 max_vddc, u16 max_vddci,
-					  u16 *vddc, u16 *vddci)
+void btc_apply_voltage_delta_rules(struct radeon_device *rdev,
+				   u16 max_vddc, u16 max_vddci,
+				   u16 *vddc, u16 *vddci)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	u16 new_voltage;
@@ -1417,8 +1417,8 @@ static int btc_populate_smc_acpi_state(struct radeon_device *rdev,
 	return ret;
 }
 
-static void btc_program_mgcg_hw_sequence(struct radeon_device *rdev,
-					 const u32 *sequence, u32 count)
+void btc_program_mgcg_hw_sequence(struct radeon_device *rdev,
+				  const u32 *sequence, u32 count)
 {
 	u32 i, length = count * 3;
 	u32 tmp;
@@ -1596,7 +1596,7 @@ static void btc_ls_clock_gating_enable(struct radeon_device *rdev,
 	btc_program_mgcg_hw_sequence(rdev, p, count);
 }
 
-static bool btc_dpm_enabled(struct radeon_device *rdev)
+bool btc_dpm_enabled(struct radeon_device *rdev)
 {
 	if (rv770_is_smc_running(rdev))
 		return true;
@@ -1692,7 +1692,7 @@ static void btc_set_at_for_uvd(struct radeon_device *rdev)
 
 }
 
-static void btc_notify_uvd_to_smc(struct radeon_device *rdev)
+void btc_notify_uvd_to_smc(struct radeon_device *rdev)
 {
 	struct radeon_ps *radeon_new_state = rdev->pm.dpm.requested_ps;
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
@@ -1708,7 +1708,7 @@ static void btc_notify_uvd_to_smc(struct radeon_device *rdev)
 	}
 }
 
-static int btc_reset_to_default(struct radeon_device *rdev)
+int btc_reset_to_default(struct radeon_device *rdev)
 {
 	if (rv770_send_msg_to_smc(rdev, PPSMC_MSG_ResetToDefaults) != PPSMC_Result_OK)
 		return -EINVAL;
@@ -1730,7 +1730,7 @@ static void btc_stop_smc(struct radeon_device *rdev)
 	r7xx_stop_smc(rdev);
 }
 
-static void btc_read_arb_registers(struct radeon_device *rdev)
+void btc_read_arb_registers(struct radeon_device *rdev)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
 	struct evergreen_arb_registers *arb_registers =

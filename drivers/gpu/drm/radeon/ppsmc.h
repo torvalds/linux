@@ -46,6 +46,7 @@
 #define PPSMC_DISPLAY_WATERMARK_HIGH                    1
 
 #define PPSMC_STATEFLAG_AUTO_PULSE_SKIP    0x01
+#define PPSMC_STATEFLAG_POWERBOOST         0x02
 
 #define PPSMC_Result_OK             ((uint8_t)0x01)
 #define PPSMC_Result_Failed         ((uint8_t)0xFF)
@@ -58,17 +59,29 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_OneLevelsDisabled         ((uint8_t)0x14)
 #define PPSMC_MSG_TwoLevelsDisabled         ((uint8_t)0x15)
 #define PPSMC_MSG_EnableThermalInterrupt    ((uint8_t)0x16)
+#define PPSMC_MSG_RunningOnAC               ((uint8_t)0x17)
 #define PPSMC_MSG_SwitchToSwState           ((uint8_t)0x20)
 #define PPSMC_MSG_SwitchToInitialState      ((uint8_t)0x40)
 #define PPSMC_MSG_NoForcedLevel             ((uint8_t)0x41)
 #define PPSMC_MSG_SwitchToMinimumPower      ((uint8_t)0x51)
 #define PPSMC_MSG_ResumeFromMinimumPower    ((uint8_t)0x52)
+#define PPSMC_MSG_EnableCac                 ((uint8_t)0x53)
+#define PPSMC_MSG_DisableCac                ((uint8_t)0x54)
+#define PPSMC_TDPClampingActive             ((uint8_t)0x59)
+#define PPSMC_TDPClampingInactive           ((uint8_t)0x5A)
 #define PPSMC_MSG_NoDisplay                 ((uint8_t)0x5D)
 #define PPSMC_MSG_HasDisplay                ((uint8_t)0x5E)
+#define PPSMC_MSG_UVDPowerOFF               ((uint8_t)0x60)
+#define PPSMC_MSG_UVDPowerON                ((uint8_t)0x61)
 #define PPSMC_MSG_EnableULV                 ((uint8_t)0x62)
 #define PPSMC_MSG_DisableULV                ((uint8_t)0x63)
 #define PPSMC_MSG_EnterULV                  ((uint8_t)0x64)
 #define PPSMC_MSG_ExitULV                   ((uint8_t)0x65)
+#define PPSMC_CACLongTermAvgEnable          ((uint8_t)0x6E)
+#define PPSMC_CACLongTermAvgDisable         ((uint8_t)0x6F)
+#define PPSMC_MSG_CollectCAC_PowerCorreln   ((uint8_t)0x7A)
+#define PPSMC_MSG_SetEnabledLevels          ((uint8_t)0x82)
+#define PPSMC_MSG_SetForcedLevels           ((uint8_t)0x83)
 #define PPSMC_MSG_ResetToDefaults           ((uint8_t)0x84)
 
 /* TN */
