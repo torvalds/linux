@@ -146,10 +146,6 @@ struct acpiphp_attention_info
 #define ACPI_PCI_HOST_HID		"PNP0A03"
 
 /* ACPI _STA method value (ignore bit 4; battery present) */
-#define ACPI_STA_PRESENT		(0x00000001)
-#define ACPI_STA_ENABLED		(0x00000002)
-#define ACPI_STA_SHOW_IN_UI		(0x00000004)
-#define ACPI_STA_FUNCTIONING		(0x00000008)
 #define ACPI_STA_ALL			(0x0000000f)
 
 /* bridge flags */

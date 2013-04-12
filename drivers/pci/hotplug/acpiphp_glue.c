@@ -487,7 +487,7 @@ static int add_bridge(struct acpi_pci_root *root)
 			dbg("%s: _STA evaluation failure\n", __func__);
 			return 0;
 		}
-		if ((tmp & ACPI_STA_FUNCTIONING) == 0)
+		if ((tmp & ACPI_STA_DEVICE_FUNCTIONING) == 0)
 			/* don't register this object */
 			return 0;
 	}
@@ -1389,7 +1389,7 @@ u8 acpiphp_get_latch_status(struct acpiphp_slot *slot)
 
 	sta = get_slot_status(slot);
 
-	return (sta & ACPI_STA_SHOW_IN_UI) ? 0 : 1;
+	return (sta & ACPI_STA_DEVICE_UI) ? 0 : 1;
 }
 
 
