@@ -1372,7 +1372,7 @@ static void b43_nphy_rev3_rssi_select(struct b43_wldev *dev, u8 code,
 						val = 0x11;
 					reg = (i == 0) ? 0x2000 : 0x3000;
 					reg |= B2055_PADDRV;
-					b43_radio_write16(dev, reg, val);
+					b43_radio_write(dev, reg, val);
 
 					reg = (i == 0) ?
 						B43_NPHY_AFECTL_OVER1 :
@@ -1822,21 +1822,21 @@ static void b43_nphy_rev2_rssi_cal(struct b43_wldev *dev, enum n_rssi_type type)
 		override = 0x110;
 
 	regs_save_phy[0] = b43_phy_read(dev, B43_NPHY_RFCTL_INTC1);
-	regs_save_radio[0] = b43_radio_read16(dev, B2055_C1_PD_RXTX);
+	regs_save_radio[0] = b43_radio_read(dev, B2055_C1_PD_RXTX);
 	b43_phy_write(dev, B43_NPHY_RFCTL_INTC1, override);
-	b43_radio_write16(dev, B2055_C1_PD_RXTX, val);
+	b43_radio_write(dev, B2055_C1_PD_RXTX, val);
 
 	regs_save_phy[1] = b43_phy_read(dev, B43_NPHY_RFCTL_INTC2);
-	regs_save_radio[1] = b43_radio_read16(dev, B2055_C2_PD_RXTX);
+	regs_save_radio[1] = b43_radio_read(dev, B2055_C2_PD_RXTX);
 	b43_phy_write(dev, B43_NPHY_RFCTL_INTC2, override);
-	b43_radio_write16(dev, B2055_C2_PD_RXTX, val);
+	b43_radio_write(dev, B2055_C2_PD_RXTX, val);
 
-	state[0] = b43_radio_read16(dev, B2055_C1_PD_RSSIMISC) & 0x07;
-	state[1] = b43_radio_read16(dev, B2055_C2_PD_RSSIMISC) & 0x07;
+	state[0] = b43_radio_read(dev, B2055_C1_PD_RSSIMISC) & 0x07;
+	state[1] = b43_radio_read(dev, B2055_C2_PD_RSSIMISC) & 0x07;
 	b43_radio_mask(dev, B2055_C1_PD_RSSIMISC, 0xF8);
 	b43_radio_mask(dev, B2055_C2_PD_RSSIMISC, 0xF8);
-	state[2] = b43_radio_read16(dev, B2055_C1_SP_RSSI) & 0x07;
-	state[3] = b43_radio_read16(dev, B2055_C2_SP_RSSI) & 0x07;
+	state[2] = b43_radio_read(dev, B2055_C1_SP_RSSI) & 0x07;
+	state[3] = b43_radio_read(dev, B2055_C2_SP_RSSI) & 0x07;
 
 	b43_nphy_rssi_select(dev, 5, type);
 	b43_nphy_scale_offset_rssi(dev, 0, 0, 5, N_RAIL_I, type);
@@ -1932,9 +1932,9 @@ static void b43_nphy_rev2_rssi_cal(struct b43_wldev *dev, enum n_rssi_type type)
 	b43_nphy_rssi_select(dev, 0, type);
 
 	b43_phy_write(dev, B43_NPHY_RFCTL_INTC1, regs_save_phy[0]);
-	b43_radio_write16(dev, B2055_C1_PD_RXTX, regs_save_radio[0]);
+	b43_radio_write(dev, B2055_C1_PD_RXTX, regs_save_radio[0]);
 	b43_phy_write(dev, B43_NPHY_RFCTL_INTC2, regs_save_phy[1]);
-	b43_radio_write16(dev, B2055_C2_PD_RXTX, regs_save_radio[1]);
+	b43_radio_write(dev, B2055_C2_PD_RXTX, regs_save_radio[1]);
 
 	b43_nphy_classifier(dev, 7, class);
 	b43_nphy_write_clip_detection(dev, clip_state);
@@ -3941,75 +3941,75 @@ static void b43_nphy_tx_cal_radio_setup(struct b43_wldev *dev)
 		tmp = (i == 0) ? 0x2000 : 0x3000;
 		offset = i * 11;
 
-		save[offset + 0] = b43_radio_read16(dev, B2055_CAL_RVARCTL);
-		save[offset + 1] = b43_radio_read16(dev, B2055_CAL_LPOCTL);
-		save[offset + 2] = b43_radio_read16(dev, B2055_CAL_TS);
-		save[offset + 3] = b43_radio_read16(dev, B2055_CAL_RCCALRTS);
-		save[offset + 4] = b43_radio_read16(dev, B2055_CAL_RCALRTS);
-		save[offset + 5] = b43_radio_read16(dev, B2055_PADDRV);
-		save[offset + 6] = b43_radio_read16(dev, B2055_XOCTL1);
-		save[offset + 7] = b43_radio_read16(dev, B2055_XOCTL2);
-		save[offset + 8] = b43_radio_read16(dev, B2055_XOREGUL);
-		save[offset + 9] = b43_radio_read16(dev, B2055_XOMISC);
-		save[offset + 10] = b43_radio_read16(dev, B2055_PLL_LFC1);
+		save[offset + 0] = b43_radio_read(dev, B2055_CAL_RVARCTL);
+		save[offset + 1] = b43_radio_read(dev, B2055_CAL_LPOCTL);
+		save[offset + 2] = b43_radio_read(dev, B2055_CAL_TS);
+		save[offset + 3] = b43_radio_read(dev, B2055_CAL_RCCALRTS);
+		save[offset + 4] = b43_radio_read(dev, B2055_CAL_RCALRTS);
+		save[offset + 5] = b43_radio_read(dev, B2055_PADDRV);
+		save[offset + 6] = b43_radio_read(dev, B2055_XOCTL1);
+		save[offset + 7] = b43_radio_read(dev, B2055_XOCTL2);
+		save[offset + 8] = b43_radio_read(dev, B2055_XOREGUL);
+		save[offset + 9] = b43_radio_read(dev, B2055_XOMISC);
+		save[offset + 10] = b43_radio_read(dev, B2055_PLL_LFC1);
 
 		if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ) {
-			b43_radio_write16(dev, tmp | B2055_CAL_RVARCTL, 0x0A);
-			b43_radio_write16(dev, tmp | B2055_CAL_LPOCTL, 0x40);
-			b43_radio_write16(dev, tmp | B2055_CAL_TS, 0x55);
-			b43_radio_write16(dev, tmp | B2055_CAL_RCCALRTS, 0);
-			b43_radio_write16(dev, tmp | B2055_CAL_RCALRTS, 0);
+			b43_radio_write(dev, tmp | B2055_CAL_RVARCTL, 0x0A);
+			b43_radio_write(dev, tmp | B2055_CAL_LPOCTL, 0x40);
+			b43_radio_write(dev, tmp | B2055_CAL_TS, 0x55);
+			b43_radio_write(dev, tmp | B2055_CAL_RCCALRTS, 0);
+			b43_radio_write(dev, tmp | B2055_CAL_RCALRTS, 0);
 			if (nphy->ipa5g_on) {
-				b43_radio_write16(dev, tmp | B2055_PADDRV, 4);
-				b43_radio_write16(dev, tmp | B2055_XOCTL1, 1);
+				b43_radio_write(dev, tmp | B2055_PADDRV, 4);
+				b43_radio_write(dev, tmp | B2055_XOCTL1, 1);
 			} else {
-				b43_radio_write16(dev, tmp | B2055_PADDRV, 0);
-				b43_radio_write16(dev, tmp | B2055_XOCTL1, 0x2F);
+				b43_radio_write(dev, tmp | B2055_PADDRV, 0);
+				b43_radio_write(dev, tmp | B2055_XOCTL1, 0x2F);
 			}
-			b43_radio_write16(dev, tmp | B2055_XOCTL2, 0);
+			b43_radio_write(dev, tmp | B2055_XOCTL2, 0);
 		} else {
-			b43_radio_write16(dev, tmp | B2055_CAL_RVARCTL, 0x06);
-			b43_radio_write16(dev, tmp | B2055_CAL_LPOCTL, 0x40);
-			b43_radio_write16(dev, tmp | B2055_CAL_TS, 0x55);
-			b43_radio_write16(dev, tmp | B2055_CAL_RCCALRTS, 0);
-			b43_radio_write16(dev, tmp | B2055_CAL_RCALRTS, 0);
-			b43_radio_write16(dev, tmp | B2055_XOCTL1, 0);
+			b43_radio_write(dev, tmp | B2055_CAL_RVARCTL, 0x06);
+			b43_radio_write(dev, tmp | B2055_CAL_LPOCTL, 0x40);
+			b43_radio_write(dev, tmp | B2055_CAL_TS, 0x55);
+			b43_radio_write(dev, tmp | B2055_CAL_RCCALRTS, 0);
+			b43_radio_write(dev, tmp | B2055_CAL_RCALRTS, 0);
+			b43_radio_write(dev, tmp | B2055_XOCTL1, 0);
 			if (nphy->ipa2g_on) {
-				b43_radio_write16(dev, tmp | B2055_PADDRV, 6);
-				b43_radio_write16(dev, tmp | B2055_XOCTL2,
+				b43_radio_write(dev, tmp | B2055_PADDRV, 6);
+				b43_radio_write(dev, tmp | B2055_XOCTL2,
 					(dev->phy.rev < 5) ? 0x11 : 0x01);
 			} else {
-				b43_radio_write16(dev, tmp | B2055_PADDRV, 0);
-				b43_radio_write16(dev, tmp | B2055_XOCTL2, 0);
+				b43_radio_write(dev, tmp | B2055_PADDRV, 0);
+				b43_radio_write(dev, tmp | B2055_XOCTL2, 0);
 			}
 		}
-		b43_radio_write16(dev, tmp | B2055_XOREGUL, 0);
-		b43_radio_write16(dev, tmp | B2055_XOMISC, 0);
-		b43_radio_write16(dev, tmp | B2055_PLL_LFC1, 0);
+		b43_radio_write(dev, tmp | B2055_XOREGUL, 0);
+		b43_radio_write(dev, tmp | B2055_XOMISC, 0);
+		b43_radio_write(dev, tmp | B2055_PLL_LFC1, 0);
 	    }
 	} else {
-		save[0] = b43_radio_read16(dev, B2055_C1_TX_RF_IQCAL1);
-		b43_radio_write16(dev, B2055_C1_TX_RF_IQCAL1, 0x29);
+		save[0] = b43_radio_read(dev, B2055_C1_TX_RF_IQCAL1);
+		b43_radio_write(dev, B2055_C1_TX_RF_IQCAL1, 0x29);
 
-		save[1] = b43_radio_read16(dev, B2055_C1_TX_RF_IQCAL2);
-		b43_radio_write16(dev, B2055_C1_TX_RF_IQCAL2, 0x54);
+		save[1] = b43_radio_read(dev, B2055_C1_TX_RF_IQCAL2);
+		b43_radio_write(dev, B2055_C1_TX_RF_IQCAL2, 0x54);
 
-		save[2] = b43_radio_read16(dev, B2055_C2_TX_RF_IQCAL1);
-		b43_radio_write16(dev, B2055_C2_TX_RF_IQCAL1, 0x29);
+		save[2] = b43_radio_read(dev, B2055_C2_TX_RF_IQCAL1);
+		b43_radio_write(dev, B2055_C2_TX_RF_IQCAL1, 0x29);
 
-		save[3] = b43_radio_read16(dev, B2055_C2_TX_RF_IQCAL2);
-		b43_radio_write16(dev, B2055_C2_TX_RF_IQCAL2, 0x54);
+		save[3] = b43_radio_read(dev, B2055_C2_TX_RF_IQCAL2);
+		b43_radio_write(dev, B2055_C2_TX_RF_IQCAL2, 0x54);
 
-		save[3] = b43_radio_read16(dev, B2055_C1_PWRDET_RXTX);
-		save[4] = b43_radio_read16(dev, B2055_C2_PWRDET_RXTX);
+		save[3] = b43_radio_read(dev, B2055_C1_PWRDET_RXTX);
+		save[4] = b43_radio_read(dev, B2055_C2_PWRDET_RXTX);
 
 		if (!(b43_phy_read(dev, B43_NPHY_BANDCTL) &
 		    B43_NPHY_BANDCTL_5GHZ)) {
-			b43_radio_write16(dev, B2055_C1_PWRDET_RXTX, 0x04);
-			b43_radio_write16(dev, B2055_C2_PWRDET_RXTX, 0x04);
+			b43_radio_write(dev, B2055_C1_PWRDET_RXTX, 0x04);
+			b43_radio_write(dev, B2055_C2_PWRDET_RXTX, 0x04);
 		} else {
-			b43_radio_write16(dev, B2055_C1_PWRDET_RXTX, 0x20);
-			b43_radio_write16(dev, B2055_C2_PWRDET_RXTX, 0x20);
+			b43_radio_write(dev, B2055_C1_PWRDET_RXTX, 0x20);
+			b43_radio_write(dev, B2055_C2_PWRDET_RXTX, 0x20);
 		}
 
 		if (dev->phy.rev < 2) {
