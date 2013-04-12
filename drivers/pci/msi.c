@@ -484,12 +484,12 @@ static struct msi_attribute mode_attribute =
 	__ATTR(mode, S_IRUGO, show_msi_mode, NULL);
 
 
-struct attribute *msi_irq_default_attrs[] = {
+static struct attribute *msi_irq_default_attrs[] = {
 	&mode_attribute.attr,
 	NULL
 };
 
-void msi_kobj_release(struct kobject *kobj)
+static void msi_kobj_release(struct kobject *kobj)
 {
 	struct msi_desc *entry = to_msi_desc(kobj);
 

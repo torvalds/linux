@@ -212,8 +212,8 @@ out:
 	return ops->read(bus, devfn, where, size, val);
 }
 
-int pci_write_aer(struct pci_bus *bus, unsigned int devfn, int where, int size,
-		  u32 val)
+static int pci_write_aer(struct pci_bus *bus, unsigned int devfn, int where,
+			 int size, u32 val)
 {
 	u32 *sim;
 	struct aer_error *err;
