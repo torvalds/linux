@@ -130,6 +130,9 @@ static int is_backlight_combination_mode(struct drm_device *dev)
 	return 0;
 }
 
+/* XXX: query mode clock or hardware clock and program max PWM appropriately
+ * when it's 0.
+ */
 static u32 i915_read_blc_pwm_ctl(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -164,7 +167,7 @@ static u32 i915_read_blc_pwm_ctl(struct drm_device *dev)
 	return val;
 }
 
-static u32 _intel_panel_get_max_backlight(struct drm_device *dev)
+static u32 intel_panel_get_max_backlight(struct drm_device *dev)
 {
 	u32 max;
 
@@ -182,23 +185,8 @@ static u32 _intel_panel_get_max_backlight(struct drm_device *dev)
 			max *= 0xff;
 	}
 
-	return max;
-}
-
-u32 intel_panel_get_max_backlight(struct drm_device *dev)
-{
-	u32 max;
-
-	max = _intel_panel_get_max_backlight(dev);
-	if (max == 0) {
-		/* XXX add code here to query mode clock or hardware clock
-		 * and program max PWM appropriately.
-		 */
-		pr_warn_once("fixme: max PWM is zero\n");
-		return 1;
-	}
-
 	DRM_DEBUG_DRIVER("max backlight PWM = %d\n", max);
+
 	return max;
 }
 
@@ -217,8 +205,11 @@ static u32 intel_panel_compute_brightness(struct drm_device *dev, u32 val)
 		return val;
 
 	if (i915_panel_invert_brightness > 0 ||
-	    dev_priv->quirks & QUIRK_INVERT_BRIGHTNESS)
-		return intel_panel_get_max_backlight(dev) - val;
+	    dev_priv->quirks & QUIRK_INVERT_BRIGHTNESS) {
+		u32 max = intel_panel_get_max_backlight(dev);
+		if (max)
+			return max - val;
+	}
 
 	return val;
 }
@@ -270,6 +261,10 @@ static void intel_panel_actually_set_backlight(struct drm_device *dev, u32 level
 		u32 max = intel_panel_get_max_backlight(dev);
 		u8 lbpc;
 
+		/* we're screwed, but keep behaviour backwards compatible */
+		if (!max)
+			max = 1;
+
 		lbpc = level * 0xfe / max + 1;
 		level /= lbpc;
 		pci_write_config_byte(dev->pdev, PCI_LBPC, lbpc);
@@ -282,9 +277,20 @@ static void intel_panel_actually_set_backlight(struct drm_device *dev, u32 level
 	I915_WRITE(BLC_PWM_CTL, tmp | level);
 }
 
-void intel_panel_set_backlight(struct drm_device *dev, u32 level)
+/* set backlight brightness to level in range [0..max] */
+void intel_panel_set_backlight(struct drm_device *dev, u32 level, u32 max)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 freq;
+
+	freq = intel_panel_get_max_backlight(dev);
+	if (!freq) {
+		/* we are screwed, bail out */
+		return;
+	}
+
+	/* scale to hardware */
+	level = level * freq / max;
 
 	dev_priv->backlight.level = level;
 	if (dev_priv->backlight.device)
@@ -405,7 +411,8 @@ intel_panel_detect(struct drm_device *dev)
 static int intel_panel_update_status(struct backlight_device *bd)
 {
 	struct drm_device *dev = bl_get_data(bd);
-	intel_panel_set_backlight(dev, bd->props.brightness);
+	intel_panel_set_backlight(dev, bd->props.brightness,
+				  bd->props.max_brightness);
 	return 0;
 }
 
@@ -434,7 +441,7 @@ int intel_panel_setup_backlight(struct drm_connector *connector)
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_RAW;
 	props.brightness = dev_priv->backlight.level;
-	props.max_brightness = _intel_panel_get_max_backlight(dev);
+	props.max_brightness = intel_panel_get_max_backlight(dev);
 	if (props.max_brightness == 0) {
 		DRM_DEBUG_DRIVER("Failed to get maximum backlight value\n");
 		return -ENODEV;
