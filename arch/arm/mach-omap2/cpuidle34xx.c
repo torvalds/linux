@@ -99,11 +99,15 @@ static struct omap3_idle_statedata omap3_idle_data[] = {
 	},
 };
 
-/* Private functions */
-
-static int __omap3_enter_idle(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv,
-				int index)
+/**
+ * omap3_enter_idle - Programs OMAP3 to enter the specified state
+ * @dev: cpuidle device
+ * @drv: cpuidle driver
+ * @index: the index of state to be entered
+ */
+static int omap3_enter_idle(struct cpuidle_device *dev,
+			    struct cpuidle_driver *drv,
+			    int index)
 {
 	struct omap3_idle_statedata *cx = &omap3_idle_data[index];
 
@@ -146,22 +150,6 @@ return_sleep_time:
 	local_fiq_enable();
 
 	return index;
-}
-
-/**
- * omap3_enter_idle - Programs OMAP3 to enter the specified state
- * @dev: cpuidle device
- * @drv: cpuidle driver
- * @index: the index of state to be entered
- *
- * Called from the CPUidle framework to program the device to the
- * specified target state selected by the governor.
- */
-static inline int omap3_enter_idle(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv,
-				int index)
-{
-	return cpuidle_wrap_enter(dev, drv, index, __omap3_enter_idle);
 }
 
 /**
