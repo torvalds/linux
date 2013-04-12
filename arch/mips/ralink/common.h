@@ -23,6 +23,9 @@ struct ralink_pinmux {
 	struct ralink_pinmux_grp *uart;
 	int uart_shift;
 	void (*wdt_reset)(void);
+	struct ralink_pinmux_grp *pci;
+	int pci_shift;
+	u32 pci_mask;
 };
 extern struct ralink_pinmux rt_gpio_pinmux;
 
