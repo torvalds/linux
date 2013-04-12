@@ -2705,7 +2705,7 @@ struct tvcard bttv_tvcards[] = {
 		.has_radio      = 1,
 		.has_remote     = 1,
 	},
-		[BTTV_BOARD_VD012] = {
+	[BTTV_BOARD_VD012] = {
 		/* D.Heer@Phytec.de */
 		.name           = "PHYTEC VD-012 (bt878)",
 		.video_inputs   = 4,
@@ -2718,7 +2718,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 	},
-		[BTTV_BOARD_VD012_X1] = {
+	[BTTV_BOARD_VD012_X1] = {
 		/* D.Heer@Phytec.de */
 		.name           = "PHYTEC VD-012-X1 (bt878)",
 		.video_inputs   = 4,
@@ -2731,7 +2731,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 	},
-		[BTTV_BOARD_VD012_X2] = {
+	[BTTV_BOARD_VD012_X2] = {
 		/* D.Heer@Phytec.de */
 		.name           = "PHYTEC VD-012-X2 (bt878)",
 		.video_inputs   = 4,
@@ -2744,7 +2744,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 	},
-		[BTTV_BOARD_GEOVISION_GV800S] = {
+	[BTTV_BOARD_GEOVISION_GV800S] = {
 		/* Bruno Christo <bchristo@inf.ufsm.br>
 		 *
 		 * GeoVision GV-800(S) has 4 Conexant Fusion 878A:
@@ -2771,7 +2771,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda7432	= 1,
 		.muxsel_hook    = gv800s_muxsel,
 	},
-		[BTTV_BOARD_GEOVISION_GV800S_SL] = {
+	[BTTV_BOARD_GEOVISION_GV800S_SL] = {
 		/* Bruno Christo <bchristo@inf.ufsm.br>
 		 *
 		 * GeoVision GV-800(S) has 4 Conexant Fusion 878A:
@@ -2808,6 +2808,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 	},
+	/* ---- card 0xa0---------------------------------- */
 	[BTTV_BOARD_TVT_TD3116] = {
 		.name           = "Tongwei Video Technology TD-3116",
 		.video_inputs   = 16,
@@ -2824,6 +2825,17 @@ struct tvcard bttv_tvcards[] = {
 		.svhs           = NO_SVHS,
 		.muxsel         = MUXSEL(2, 3, 1, 0),
 		.tuner_type     = TUNER_ABSENT,
+	},
+	[BTTV_BOARD_ADLINK_MPG24] = {
+		/* Adlink MPG24 */
+		.name           = "Adlink MPG24",
+		.video_inputs   = 1,
+		/* .audio_inputs= 1, */
+		.svhs           = NO_SVHS,
+		.muxsel         = MUXSEL(2, 2, 2, 2),
+		.tuner_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.pll            = PLL_28,
 	},
 
 };

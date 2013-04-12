@@ -185,6 +185,7 @@
 #define BTTV_BOARD_PV183                   0x9f
 #define BTTV_BOARD_TVT_TD3116		   0xa0
 #define BTTV_BOARD_APOSONIC_WDVR           0xa1
+#define BTTV_BOARD_ADLINK_MPG24            0xa2
 
 /* more card-specific defines */
 #define PT2254_L_CHANNEL 0x10
