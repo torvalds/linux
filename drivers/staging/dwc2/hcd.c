@@ -2836,6 +2836,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 		goto error2;
 
 	/* Create new workqueue and init work */
+	retval = -ENOMEM;
 	hsotg->wq_otg = create_singlethread_workqueue("dwc2");
 	if (!hsotg->wq_otg) {
 		dev_err(hsotg->dev, "Failed to create workqueue\n");
