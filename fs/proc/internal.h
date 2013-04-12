@@ -94,11 +94,6 @@ static inline struct task_struct *get_proc_task(struct inode *inode)
 	return get_pid_task(proc_pid(inode), PIDTYPE_PID);
 }
 
-static inline int proc_fd(struct inode *inode)
-{
-	return PROC_I(inode)->fd;
-}
-
 static inline int task_dumpable(struct task_struct *task)
 {
 	int dumpable = 0;
