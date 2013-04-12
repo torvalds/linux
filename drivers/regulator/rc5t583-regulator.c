@@ -49,10 +49,6 @@ struct rc5t583_regulator_info {
 
 struct rc5t583_regulator {
 	struct rc5t583_regulator_info *reg_info;
-
-	/* Devices */
-	struct device		*dev;
-	struct rc5t583		*mfd;
 	struct regulator_dev	*rdev;
 };
 
@@ -155,8 +151,6 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
 		reg = &regs[id];
 		ri = &rc5t583_reg_info[id];
 		reg->reg_info = ri;
-		reg->mfd = rc5t583;
-		reg->dev = &pdev->dev;
 
 		if (ri->deepsleep_id == RC5T583_DS_NONE)
 			goto skip_ext_pwr_config;
