@@ -928,7 +928,7 @@ static int init_hyp_mode(void)
 out_free_vfp:
 	free_percpu(kvm_host_vfp_state);
 out_free_mappings:
-	free_hyp_pmds();
+	free_hyp_pgds();
 out_free_stack_pages:
 	for_each_possible_cpu(cpu)
 		free_page(per_cpu(kvm_arm_hyp_stack_page, cpu));
