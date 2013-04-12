@@ -560,6 +560,12 @@ int rs780_dpm_enable(struct radeon_device *rdev)
 	if (pi->gfx_clock_gating)
 		r600_gfx_clockgating_enable(rdev, true);
 
+	if (rdev->irq.installed && (rdev->pm.int_thermal_type == THERMAL_TYPE_RV6XX)) {
+		r600_set_thermal_temperature_range(rdev, R600_TEMP_RANGE_MIN, R600_TEMP_RANGE_MAX);
+		rdev->irq.dpm_thermal = true;
+		radeon_irq_set(rdev);
+	}
+
 	return 0;
 }
 
@@ -574,6 +580,12 @@ void rs780_dpm_disable(struct radeon_device *rdev)
 
 	if (pi->gfx_clock_gating)
 		r600_gfx_clockgating_enable(rdev, false);
+
+	if (rdev->irq.installed &&
+	    (rdev->pm.int_thermal_type == THERMAL_TYPE_RV6XX)) {
+		rdev->irq.dpm_thermal = false;
+		radeon_irq_set(rdev);
+	}
 }
 
 int rs780_dpm_set_power_state(struct radeon_device *rdev)

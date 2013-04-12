@@ -1147,6 +1147,18 @@ static struct radeon_asic rv6xx_asic = {
 		.set_clock_gating = NULL,
 		.get_temperature = &rv6xx_get_temp,
 	},
+	.dpm = {
+		.init = &rv6xx_dpm_init,
+		.setup_asic = &rv6xx_setup_asic,
+		.enable = &rv6xx_dpm_enable,
+		.disable = &rv6xx_dpm_disable,
+		.set_power_state = &rv6xx_dpm_set_power_state,
+		.display_configuration_changed = &rv6xx_dpm_display_configuration_changed,
+		.fini = &rv6xx_dpm_fini,
+		.get_sclk = &rv6xx_dpm_get_sclk,
+		.get_mclk = &rv6xx_dpm_get_mclk,
+		.print_power_state = &rv6xx_dpm_print_power_state,
+	},
 	.pflip = {
 		.pre_page_flip = &rs600_pre_page_flip,
 		.page_flip = &rs600_page_flip,

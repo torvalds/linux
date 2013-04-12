@@ -1030,6 +1030,11 @@ int radeon_pm_init(struct radeon_device *rdev)
 {
 	/* enable dpm on rv6xx+ */
 	switch (rdev->family) {
+	case CHIP_RV610:
+	case CHIP_RV630:
+	case CHIP_RV620:
+	case CHIP_RV635:
+	case CHIP_RV670:
 	case CHIP_RS780:
 	case CHIP_RS880:
 		if (radeon_dpm == 1)
@@ -1114,6 +1119,7 @@ static void radeon_pm_compute_clocks_old(struct radeon_device *rdev)
 	if (rdev->pm.num_power_states < 2)
 		return;
 
+	INIT_WORK(&rdev->pm.dpm.thermal.work, radeon_dpm_thermal_work_handler);
 	mutex_lock(&rdev->pm.mutex);
 
 	rdev->pm.active_crtcs = 0;

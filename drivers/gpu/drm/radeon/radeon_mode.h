@@ -580,6 +580,8 @@ extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);
 extern enum radeon_tv_std
 radeon_atombios_get_tv_info(struct radeon_device *rdev);
+extern void radeon_atombios_get_default_voltages(struct radeon_device *rdev,
+						 u16 *vddc, u16 *vddci);
 
 extern struct drm_connector *
 radeon_get_connector_for_encoder(struct drm_encoder *encoder);

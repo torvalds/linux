@@ -3998,6 +3998,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 hdmi0, hdmi1;
 	u32 d1grph = 0, d2grph = 0;
 	u32 dma_cntl;
+	u32 thermal_int = 0;
 
 	if (!rdev->irq.installed) {
 		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
@@ -4032,7 +4033,17 @@ int r600_irq_set(struct radeon_device *rdev)
 		hdmi0 = RREG32(HDMI0_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
 		hdmi1 = RREG32(HDMI1_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
 	}
+
 	dma_cntl = RREG32(DMA_CNTL) & ~TRAP_ENABLE;
+
+	if ((rdev->family > CHIP_R600) && (rdev->family < CHIP_RV770)) {
+		thermal_int = RREG32(CG_THERMAL_INT) &
+			~(THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW);
+		if (rdev->irq.dpm_thermal) {
+			DRM_DEBUG("dpm thermal\n");
+			thermal_int |= THERM_INT_MASK_HIGH | THERM_INT_MASK_LOW;
+		}
+	}
 
 	if (atomic_read(&rdev->irq.ring_int[RADEON_RING_TYPE_GFX_INDEX])) {
 		DRM_DEBUG("r600_irq_set: sw int\n");
@@ -4114,6 +4125,9 @@ int r600_irq_set(struct radeon_device *rdev)
 		WREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL, hpd3);
 		WREG32(HDMI0_AUDIO_PACKET_CONTROL, hdmi0);
 		WREG32(HDMI1_AUDIO_PACKET_CONTROL, hdmi1);
+	}
+	if ((rdev->family > CHIP_R600) && (rdev->family < CHIP_RV770)) {
+		WREG32(CG_THERMAL_INT, thermal_int);
 	}
 
 	return 0;
@@ -4306,6 +4320,7 @@ int r600_irq_process(struct radeon_device *rdev)
 	u32 ring_index;
 	bool queue_hotplug = false;
 	bool queue_hdmi = false;
+	bool queue_thermal = false;
 
 	if (!rdev->ih.enabled || rdev->shutdown)
 		return IRQ_NONE;
@@ -4473,6 +4488,16 @@ restart_ih:
 			DRM_DEBUG("IH: DMA trap\n");
 			radeon_fence_process(rdev, R600_RING_TYPE_DMA_INDEX);
 			break;
+		case 230: /* thermal low to high */
+			DRM_DEBUG("IH: thermal low to high\n");
+			rdev->pm.dpm.thermal.high_to_low = false;
+			queue_thermal = true;
+			break;
+		case 231: /* thermal high to low */
+			DRM_DEBUG("IH: thermal high to low\n");
+			rdev->pm.dpm.thermal.high_to_low = true;
+			queue_thermal = true;
+			break;
 		case 233: /* GUI IDLE */
 			DRM_DEBUG("IH: GUI idle\n");
 			break;
@@ -4489,6 +4514,8 @@ restart_ih:
 		schedule_work(&rdev->hotplug_work);
 	if (queue_hdmi)
 		schedule_work(&rdev->audio_work);
+	if (queue_thermal && rdev->pm.dpm_enabled)
+		schedule_work(&rdev->pm.dpm.thermal.work);
 	rdev->ih.rptr = rptr;
 	WREG32(IH_RB_RPTR, rdev->ih.rptr);
 	atomic_set(&rdev->ih.lock, 0);

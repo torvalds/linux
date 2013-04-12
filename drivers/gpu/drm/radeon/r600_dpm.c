@@ -676,3 +676,48 @@ bool r600_is_uvd_state(u32 class, u32 class2)
 		return true;
 	return false;
 }
+
+int r600_set_thermal_temperature_range(struct radeon_device *rdev,
+				       int min_temp, int max_temp)
+{
+	int low_temp = 0 * 1000;
+	int high_temp = 255 * 1000;
+
+	if (low_temp < min_temp)
+		low_temp = min_temp;
+	if (high_temp > max_temp)
+		high_temp = max_temp;
+	if (high_temp < low_temp) {
+		DRM_ERROR("invalid thermal range: %d - %d\n", low_temp, high_temp);
+		return -EINVAL;
+	}
+
+	WREG32_P(CG_THERMAL_INT, DIG_THERM_INTH(high_temp / 1000), ~DIG_THERM_INTH_MASK);
+	WREG32_P(CG_THERMAL_INT, DIG_THERM_INTL(low_temp / 1000), ~DIG_THERM_INTL_MASK);
+	WREG32_P(CG_THERMAL_CTRL, DIG_THERM_DPM(high_temp / 1000), ~DIG_THERM_DPM_MASK);
+
+	rdev->pm.dpm.thermal.min_temp = low_temp;
+	rdev->pm.dpm.thermal.max_temp = high_temp;
+
+	return 0;
+}
+
+bool r600_is_internal_thermal_sensor(enum radeon_int_thermal_type sensor)
+{
+	switch (sensor) {
+	case THERMAL_TYPE_RV6XX:
+	case THERMAL_TYPE_RV770:
+	case THERMAL_TYPE_EVERGREEN:
+	case THERMAL_TYPE_SUMO:
+	case THERMAL_TYPE_NI:
+		return true;
+	case THERMAL_TYPE_ADT7473_WITH_INTERNAL:
+	case THERMAL_TYPE_EMC2103_WITH_INTERNAL:
+		return false; /* need special handling */
+	case THERMAL_TYPE_NONE:
+	case THERMAL_TYPE_EXTERNAL:
+	case THERMAL_TYPE_EXTERNAL_GPIO:
+	default:
+		return false;
+	}
+}

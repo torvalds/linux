@@ -227,6 +227,8 @@ void radeon_atom_set_engine_dram_timings(struct radeon_device *rdev,
 					 u32 eng_clock, u32 mem_clock);
 int radeon_atom_get_voltage_step(struct radeon_device *rdev,
 				 u8 voltage_type, u16 *voltage_step);
+int radeon_atom_get_max_vddc(struct radeon_device *rdev, u8 voltage_type,
+			     u16 voltage_id, u16 *voltage);
 int radeon_atom_round_to_true_voltage(struct radeon_device *rdev,
 				      u8 voltage_type,
 				      u16 nominal_voltage,
@@ -681,6 +683,7 @@ struct radeon_irq {
 	bool				hpd[RADEON_MAX_HPD_PINS];
 	bool				afmt[RADEON_MAX_AFMT_BLOCKS];
 	union radeon_irq_stat_regs	stat_regs;
+	bool				dpm_thermal;
 };
 
 int radeon_irq_kms_init(struct radeon_device *rdev);

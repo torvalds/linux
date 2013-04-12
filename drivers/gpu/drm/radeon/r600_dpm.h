@@ -92,6 +92,10 @@
 #define R600_PM_NUMBER_OF_VOLTAGE_LEVELS 4
 #define R600_PM_NUMBER_OF_ACTIVITY_LEVELS 3
 
+/* XXX are these ok? */
+#define R600_TEMP_RANGE_MIN (90 * 1000)
+#define R600_TEMP_RANGE_MAX (120 * 1000)
+
 enum r600_power_level {
 	R600_POWER_LEVEL_LOW = 0,
 	R600_POWER_LEVEL_MEDIUM = 1,
@@ -206,5 +210,9 @@ void r600_wait_for_power_level(struct radeon_device *rdev,
 			       enum r600_power_level index);
 void r600_start_dpm(struct radeon_device *rdev);
 void r600_stop_dpm(struct radeon_device *rdev);
+
+int r600_set_thermal_temperature_range(struct radeon_device *rdev,
+				       int min_temp, int max_temp);
+bool r600_is_internal_thermal_sensor(enum radeon_int_thermal_type sensor);
 
 #endif

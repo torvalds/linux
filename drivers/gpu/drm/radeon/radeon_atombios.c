@@ -2268,8 +2268,8 @@ static void radeon_atombios_add_pplib_thermal_controller(struct radeon_device *r
 	}
 }
 
-static void radeon_atombios_get_default_voltages(struct radeon_device *rdev,
-						 u16 *vddc, u16 *vddci)
+void radeon_atombios_get_default_voltages(struct radeon_device *rdev,
+					  u16 *vddc, u16 *vddci)
 {
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
 	int index = GetIndexIntoMasterTable(DATA, FirmwareInfo);

@@ -116,6 +116,7 @@ void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
 	/* Disable *all* interrupts */
 	for (i = 0; i < RADEON_NUM_RINGS; i++)
 		atomic_set(&rdev->irq.ring_int[i], 0);
+	rdev->irq.dpm_thermal = false;
 	for (i = 0; i < RADEON_MAX_HPD_PINS; i++)
 		rdev->irq.hpd[i] = false;
 	for (i = 0; i < RADEON_MAX_CRTCS; i++) {
@@ -163,6 +164,7 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 	/* Disable *all* interrupts */
 	for (i = 0; i < RADEON_NUM_RINGS; i++)
 		atomic_set(&rdev->irq.ring_int[i], 0);
+	rdev->irq.dpm_thermal = false;
 	for (i = 0; i < RADEON_MAX_HPD_PINS; i++)
 		rdev->irq.hpd[i] = false;
 	for (i = 0; i < RADEON_MAX_CRTCS; i++) {
