@@ -125,54 +125,34 @@ void free_hyp_pmds(void)
 }
 
 static void create_hyp_pte_mappings(pmd_t *pmd, unsigned long start,
-				    unsigned long end)
-{
-	pte_t *pte;
-	unsigned long addr;
-	struct page *page;
-
-	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
-		unsigned long hyp_addr = KERN_TO_HYP(addr);
-
-		pte = pte_offset_kernel(pmd, hyp_addr);
-		BUG_ON(!virt_addr_valid(addr));
-		page = virt_to_page(addr);
-		kvm_set_pte(pte, mk_pte(page, PAGE_HYP));
-	}
-}
-
-static void create_hyp_io_pte_mappings(pmd_t *pmd, unsigned long start,
-				       unsigned long end,
-				       unsigned long *pfn_base)
+				    unsigned long end, unsigned long pfn,
+				    pgprot_t prot)
 {
 	pte_t *pte;
 	unsigned long addr;
 
-	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
-		unsigned long hyp_addr = KERN_TO_HYP(addr);
-
-		pte = pte_offset_kernel(pmd, hyp_addr);
-		BUG_ON(pfn_valid(*pfn_base));
-		kvm_set_pte(pte, pfn_pte(*pfn_base, PAGE_HYP_DEVICE));
-		(*pfn_base)++;
+	for (addr = start; addr < end; addr += PAGE_SIZE) {
+		pte = pte_offset_kernel(pmd, addr);
+		kvm_set_pte(pte, pfn_pte(pfn, prot));
+		pfn++;
 	}
 }
 
 static int create_hyp_pmd_mappings(pud_t *pud, unsigned long start,
-				   unsigned long end, unsigned long *pfn_base)
+				   unsigned long end, unsigned long pfn,
+				   pgprot_t prot)
 {
 	pmd_t *pmd;
 	pte_t *pte;
 	unsigned long addr, next;
 
 	for (addr = start; addr < end; addr = next) {
-		unsigned long hyp_addr = KERN_TO_HYP(addr);
-		pmd = pmd_offset(pud, hyp_addr);
+		pmd = pmd_offset(pud, addr);
 
 		BUG_ON(pmd_sect(*pmd));
 
 		if (pmd_none(*pmd)) {
-			pte = pte_alloc_one_kernel(NULL, hyp_addr);
+			pte = pte_alloc_one_kernel(NULL, addr);
 			if (!pte) {
 				kvm_err("Cannot allocate Hyp pte\n");
 				return -ENOMEM;
@@ -182,25 +162,17 @@ static int create_hyp_pmd_mappings(pud_t *pud, unsigned long start,
 
 		next = pmd_addr_end(addr, end);
 
-		/*
-		 * If pfn_base is NULL, we map kernel pages into HYP with the
-		 * virtual address. Otherwise, this is considered an I/O
-		 * mapping and we map the physical region starting at
-		 * *pfn_base to [start, end[.
-		 */
-		if (!pfn_base)
-			create_hyp_pte_mappings(pmd, addr, next);
-		else
-			create_hyp_io_pte_mappings(pmd, addr, next, pfn_base);
+		create_hyp_pte_mappings(pmd, addr, next, pfn, prot);
+		pfn += (next - addr) >> PAGE_SHIFT;
 	}
 
 	return 0;
 }
 
-static int __create_hyp_mappings(void *from, void *to, unsigned long *pfn_base)
+static int __create_hyp_mappings(pgd_t *pgdp,
+				 unsigned long start, unsigned long end,
+				 unsigned long pfn, pgprot_t prot)
 {
-	unsigned long start = (unsigned long)from;
-	unsigned long end = (unsigned long)to;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -209,21 +181,14 @@ static int __create_hyp_mappings(void *from, void *to, unsigned long *pfn_base)
 
 	if (start >= end)
 		return -EINVAL;
-	/* Check for a valid kernel memory mapping */
-	if (!pfn_base && (!virt_addr_valid(from) || !virt_addr_valid(to - 1)))
-		return -EINVAL;
-	/* Check for a valid kernel IO mapping */
-	if (pfn_base && (!is_vmalloc_addr(from) || !is_vmalloc_addr(to - 1)))
-		return -EINVAL;
 
 	mutex_lock(&kvm_hyp_pgd_mutex);
-	for (addr = start; addr < end; addr = next) {
-		unsigned long hyp_addr = KERN_TO_HYP(addr);
-		pgd = hyp_pgd + pgd_index(hyp_addr);
-		pud = pud_offset(pgd, hyp_addr);
+	for (addr = start & PAGE_MASK; addr < end; addr = next) {
+		pgd = pgdp + pgd_index(addr);
+		pud = pud_offset(pgd, addr);
 
 		if (pud_none_or_clear_bad(pud)) {
-			pmd = pmd_alloc_one(NULL, hyp_addr);
+			pmd = pmd_alloc_one(NULL, addr);
 			if (!pmd) {
 				kvm_err("Cannot allocate Hyp pmd\n");
 				err = -ENOMEM;
@@ -233,9 +198,10 @@ static int __create_hyp_mappings(void *from, void *to, unsigned long *pfn_base)
 		}
 
 		next = pgd_addr_end(addr, end);
-		err = create_hyp_pmd_mappings(pud, addr, next, pfn_base);
+		err = create_hyp_pmd_mappings(pud, addr, next, pfn, prot);
 		if (err)
 			goto out;
+		pfn += (next - addr) >> PAGE_SHIFT;
 	}
 out:
 	mutex_unlock(&kvm_hyp_pgd_mutex);
@@ -255,22 +221,38 @@ out:
  */
 int create_hyp_mappings(void *from, void *to)
 {
-	return __create_hyp_mappings(from, to, NULL);
+	unsigned long phys_addr = virt_to_phys(from);
+	unsigned long start = KERN_TO_HYP((unsigned long)from);
+	unsigned long end = KERN_TO_HYP((unsigned long)to);
+
+	/* Check for a valid kernel memory mapping */
+	if (!virt_addr_valid(from) || !virt_addr_valid(to - 1))
+		return -EINVAL;
+
+	return __create_hyp_mappings(hyp_pgd, start, end,
+				     __phys_to_pfn(phys_addr), PAGE_HYP);
 }
 
 /**
  * create_hyp_io_mappings - duplicate a kernel IO mapping into Hyp mode
  * @from:	The kernel start VA of the range
  * @to:		The kernel end VA of the range (exclusive)
- * @addr:	The physical start address which gets mapped
+ * @phys_addr:	The physical start address which gets mapped
  *
  * The resulting HYP VA is the same as the kernel VA, modulo
  * HYP_PAGE_OFFSET.
  */
-int create_hyp_io_mappings(void *from, void *to, phys_addr_t addr)
+int create_hyp_io_mappings(void *from, void *to, phys_addr_t phys_addr)
 {
-	unsigned long pfn = __phys_to_pfn(addr);
-	return __create_hyp_mappings(from, to, &pfn);
+	unsigned long start = KERN_TO_HYP((unsigned long)from);
+	unsigned long end = KERN_TO_HYP((unsigned long)to);
+
+	/* Check for a valid kernel IO mapping */
+	if (!is_vmalloc_addr(from) || !is_vmalloc_addr(to - 1))
+		return -EINVAL;
+
+	return __create_hyp_mappings(hyp_pgd, start, end,
+				     __phys_to_pfn(phys_addr), PAGE_HYP_DEVICE);
 }
 
 /**
