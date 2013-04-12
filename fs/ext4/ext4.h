@@ -198,19 +198,8 @@ struct mpage_da_data {
 #define EXT4_IO_END_ERROR	0x0002
 #define EXT4_IO_END_DIRECT	0x0004
 
-struct ext4_io_page {
-	struct page	*p_page;
-	atomic_t	p_count;
-};
-
-#define MAX_IO_PAGES 128
-
 /*
  * For converting uninitialized extents on a work queue.
- *
- * 'page' is only used from the writepage() path; 'pages' is only used for
- * buffered writes; they are used to keep page references until conversion
- * takes place.  For AIO/DIO, neither field is filled in.
  */
 typedef struct ext4_io_end {
 	struct list_head	list;		/* per-file finished IO list */
@@ -220,15 +209,12 @@ typedef struct ext4_io_end {
 	ssize_t			size;		/* size of the extent */
 	struct kiocb		*iocb;		/* iocb struct for AIO */
 	int			result;		/* error value for AIO */
-	int			num_io_pages;   /* for writepages() */
-	struct ext4_io_page	*pages[MAX_IO_PAGES]; /* for writepages() */
 } ext4_io_end_t;
 
 struct ext4_io_submit {
 	int			io_op;
 	struct bio		*io_bio;
 	ext4_io_end_t		*io_end;
-	struct ext4_io_page	*io_page;
 	sector_t		io_next_block;
 };
 
