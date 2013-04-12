@@ -868,6 +868,15 @@ static struct resource ab8500_chargalg_resources[] = {};
 #ifdef CONFIG_DEBUG_FS
 static struct resource ab8500_debug_resources[] = {
 	{
+		.name	= "IRQ_AB8500",
+		/*
+		 * Number will be filled in. NOTE: this is deliberately
+		 * not flagged as an IRQ in ordet to avoid remapping using
+		 * the irqdomain in the MFD core, so that this IRQ passes
+		 * unremapped to the debug code.
+		 */
+	},
+	{
 		.name	= "IRQ_FIRST",
 		.start	= AB8500_INT_MAIN_EXT_CH_NOT_OK,
 		.end	= AB8500_INT_MAIN_EXT_CH_NOT_OK,
@@ -1711,6 +1720,12 @@ static int ab8500_probe(struct platform_device *pdev)
 			"ab8500", ab8500);
 	if (ret)
 		return ret;
+
+#if CONFIG_DEBUG_FS
+	/* Pass to debugfs */
+	ab8500_debug_resources[0].start = ab8500->irq;
+	ab8500_debug_resources[0].end = ab8500->irq;
+#endif
 
 	if (is_ab9540(ab8500))
 		ret = mfd_add_devices(ab8500->dev, 0, ab9540_devs,
