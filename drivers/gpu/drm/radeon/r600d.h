@@ -1144,6 +1144,219 @@
 #       define AFMT_AZ_FORMAT_WTRIG_ACK      (1 << 29)
 #       define AFMT_AZ_AUDIO_ENABLE_CHG_ACK  (1 << 30)
 
+/* Power management */
+#define CG_SPLL_FUNC_CNTL                                 0x600
+#       define SPLL_RESET                                (1 << 0)
+#       define SPLL_SLEEP                                (1 << 1)
+#       define SPLL_REF_DIV(x)                           ((x) << 2)
+#       define SPLL_REF_DIV_MASK                         (7 << 2)
+#       define SPLL_FB_DIV(x)                            ((x) << 5)
+#       define SPLL_FB_DIV_MASK                          (0xff << 5)
+#       define SPLL_PULSEEN                              (1 << 13)
+#       define SPLL_PULSENUM(x)                          ((x) << 14)
+#       define SPLL_PULSENUM_MASK                        (3 << 14)
+#       define SPLL_SW_HILEN(x)                          ((x) << 16)
+#       define SPLL_SW_HILEN_MASK                        (0xf << 16)
+#       define SPLL_SW_LOLEN(x)                          ((x) << 20)
+#       define SPLL_SW_LOLEN_MASK                        (0xf << 20)
+#       define SPLL_DIVEN                                (1 << 24)
+#       define SPLL_BYPASS_EN                            (1 << 25)
+#       define SPLL_CHG_STATUS                           (1 << 29)
+#       define SPLL_CTLREQ                               (1 << 30)
+#       define SPLL_CTLACK                               (1 << 31)
+
+#define GENERAL_PWRMGT                                    0x618
+#       define GLOBAL_PWRMGT_EN                           (1 << 0)
+#       define STATIC_PM_EN                               (1 << 1)
+#       define MOBILE_SU                                  (1 << 2)
+#       define THERMAL_PROTECTION_DIS                     (1 << 3)
+#       define THERMAL_PROTECTION_TYPE                    (1 << 4)
+#       define ENABLE_GEN2PCIE                            (1 << 5)
+#       define SW_GPIO_INDEX(x)                           ((x) << 6)
+#       define SW_GPIO_INDEX_MASK                         (3 << 6)
+#       define LOW_VOLT_D2_ACPI                           (1 << 8)
+#       define LOW_VOLT_D3_ACPI                           (1 << 9)
+#       define VOLT_PWRMGT_EN                             (1 << 10)
+#define CG_TPC                                            0x61c
+#       define TPCC(x)                                    ((x) << 0)
+#       define TPCC_MASK                                  (0x7fffff << 0)
+#       define TPU(x)                                     ((x) << 23)
+#       define TPU_MASK                                   (0x1f << 23)
+#define SCLK_PWRMGT_CNTL                                  0x620
+#       define SCLK_PWRMGT_OFF                            (1 << 0)
+#       define SCLK_TURNOFF                               (1 << 1)
+#       define SPLL_TURNOFF                               (1 << 2)
+#       define SU_SCLK_USE_BCLK                           (1 << 3)
+#       define DYNAMIC_GFX_ISLAND_PWR_DOWN                (1 << 4)
+#       define DYNAMIC_GFX_ISLAND_PWR_LP                  (1 << 5)
+#       define CLK_TURN_ON_STAGGER                        (1 << 6)
+#       define CLK_TURN_OFF_STAGGER                       (1 << 7)
+#       define FIR_FORCE_TREND_SEL                        (1 << 8)
+#       define FIR_TREND_MODE                             (1 << 9)
+#       define DYN_GFX_CLK_OFF_EN                         (1 << 10)
+#       define VDDC3D_TURNOFF_D1                          (1 << 11)
+#       define VDDC3D_TURNOFF_D2                          (1 << 12)
+#       define VDDC3D_TURNOFF_D3                          (1 << 13)
+#       define SPLL_TURNOFF_D2                            (1 << 14)
+#       define SCLK_LOW_D1                                (1 << 15)
+#       define DYN_GFX_CLK_OFF_MC_EN                      (1 << 16)
+#define MCLK_PWRMGT_CNTL                                  0x624
+#       define MPLL_PWRMGT_OFF                            (1 << 0)
+#       define YCLK_TURNOFF                               (1 << 1)
+#       define MPLL_TURNOFF                               (1 << 2)
+#       define SU_MCLK_USE_BCLK                           (1 << 3)
+#       define DLL_READY                                  (1 << 4)
+#       define MC_BUSY                                    (1 << 5)
+#       define MC_INT_CNTL                                (1 << 7)
+#       define MRDCKA_SLEEP                               (1 << 8)
+#       define MRDCKB_SLEEP                               (1 << 9)
+#       define MRDCKC_SLEEP                               (1 << 10)
+#       define MRDCKD_SLEEP                               (1 << 11)
+#       define MRDCKE_SLEEP                               (1 << 12)
+#       define MRDCKF_SLEEP                               (1 << 13)
+#       define MRDCKG_SLEEP                               (1 << 14)
+#       define MRDCKH_SLEEP                               (1 << 15)
+#       define MRDCKA_RESET                               (1 << 16)
+#       define MRDCKB_RESET                               (1 << 17)
+#       define MRDCKC_RESET                               (1 << 18)
+#       define MRDCKD_RESET                               (1 << 19)
+#       define MRDCKE_RESET                               (1 << 20)
+#       define MRDCKF_RESET                               (1 << 21)
+#       define MRDCKG_RESET                               (1 << 22)
+#       define MRDCKH_RESET                               (1 << 23)
+#       define DLL_READY_READ                             (1 << 24)
+#       define USE_DISPLAY_GAP                            (1 << 25)
+#       define USE_DISPLAY_URGENT_NORMAL                  (1 << 26)
+#       define USE_DISPLAY_GAP_CTXSW                      (1 << 27)
+#       define MPLL_TURNOFF_D2                            (1 << 28)
+#       define USE_DISPLAY_URGENT_CTXSW                   (1 << 29)
+
+#define MPLL_TIME                                         0x634
+#       define MPLL_LOCK_TIME(x)                          ((x) << 0)
+#       define MPLL_LOCK_TIME_MASK                        (0xffff << 0)
+#       define MPLL_RESET_TIME(x)                         ((x) << 16)
+#       define MPLL_RESET_TIME_MASK                       (0xffff << 16)
+
+#define SCLK_FREQ_SETTING_STEP_0_PART1                    0x648
+#       define STEP_0_SPLL_POST_DIV(x)                    ((x) << 0)
+#       define STEP_0_SPLL_POST_DIV_MASK                  (0xff << 0)
+#       define STEP_0_SPLL_FB_DIV(x)                      ((x) << 8)
+#       define STEP_0_SPLL_FB_DIV_MASK                    (0xff << 8)
+#       define STEP_0_SPLL_REF_DIV(x)                     ((x) << 16)
+#       define STEP_0_SPLL_REF_DIV_MASK                   (7 << 16)
+#       define STEP_0_SPLL_STEP_TIME(x)                   ((x) << 19)
+#       define STEP_0_SPLL_STEP_TIME_MASK                 (0x1fff << 19)
+#define SCLK_FREQ_SETTING_STEP_0_PART2                    0x64c
+#       define STEP_0_PULSE_HIGH_CNT(x)                   ((x) << 0)
+#       define STEP_0_PULSE_HIGH_CNT_MASK                 (0x1ff << 0)
+#       define STEP_0_POST_DIV_EN                         (1 << 9)
+#       define STEP_0_SPLL_STEP_ENABLE                    (1 << 30)
+#       define STEP_0_SPLL_ENTRY_VALID                    (1 << 31)
+
+#define VID_RT                                            0x6f8
+#       define VID_CRT(x)                                 ((x) << 0)
+#       define VID_CRT_MASK                               (0x1fff << 0)
+#       define VID_CRTU(x)                                ((x) << 13)
+#       define VID_CRTU_MASK                              (7 << 13)
+#       define SSTU(x)                                    ((x) << 16)
+#       define SSTU_MASK                                  (7 << 16)
+#define CTXSW_PROFILE_INDEX                               0x6fc
+#       define CTXSW_FREQ_VIDS_CFG_INDEX(x)               ((x) << 0)
+#       define CTXSW_FREQ_VIDS_CFG_INDEX_MASK             (3 << 0)
+#       define CTXSW_FREQ_VIDS_CFG_INDEX_SHIFT            0
+#       define CTXSW_FREQ_MCLK_CFG_INDEX(x)               ((x) << 2)
+#       define CTXSW_FREQ_MCLK_CFG_INDEX_MASK             (3 << 2)
+#       define CTXSW_FREQ_MCLK_CFG_INDEX_SHIFT            2
+#       define CTXSW_FREQ_SCLK_CFG_INDEX(x)               ((x) << 4)
+#       define CTXSW_FREQ_SCLK_CFG_INDEX_MASK             (0x1f << 4)
+#       define CTXSW_FREQ_SCLK_CFG_INDEX_SHIFT            4
+#       define CTXSW_FREQ_STATE_SPLL_RESET_EN             (1 << 9)
+#       define CTXSW_FREQ_STATE_ENABLE                    (1 << 10)
+#       define CTXSW_FREQ_DISPLAY_WATERMARK               (1 << 11)
+#       define CTXSW_FREQ_GEN2PCIE_VOLT                   (1 << 12)
+
+#define TARGET_AND_CURRENT_PROFILE_INDEX                  0x70c
+#       define TARGET_PROFILE_INDEX_MASK                  (3 << 0)
+#       define TARGET_PROFILE_INDEX_SHIFT                 0
+#       define CURRENT_PROFILE_INDEX_MASK                 (3 << 2)
+#       define CURRENT_PROFILE_INDEX_SHIFT                2
+#       define DYN_PWR_ENTER_INDEX(x)                     ((x) << 4)
+#       define DYN_PWR_ENTER_INDEX_MASK                   (3 << 4)
+#       define DYN_PWR_ENTER_INDEX_SHIFT                  4
+#       define CURR_MCLK_INDEX_MASK                       (3 << 6)
+#       define CURR_MCLK_INDEX_SHIFT                      6
+#       define CURR_SCLK_INDEX_MASK                       (0x1f << 8)
+#       define CURR_SCLK_INDEX_SHIFT                      8
+#       define CURR_VID_INDEX_MASK                        (3 << 13)
+#       define CURR_VID_INDEX_SHIFT                       13
+
+#define LOWER_GPIO_ENABLE                                 0x710
+#define UPPER_GPIO_ENABLE                                 0x714
+#define CTXSW_VID_LOWER_GPIO_CNTL                         0x718
+
+#define VID_UPPER_GPIO_CNTL                               0x740
+#define CG_CTX_CGTT3D_R                                   0x744
+#       define PHC(x)                                     ((x) << 0)
+#       define PHC_MASK                                   (0x1ff << 0)
+#       define SDC(x)                                     ((x) << 9)
+#       define SDC_MASK                                   (0x3fff << 9)
+#define CG_VDDC3D_OOR                                     0x748
+#       define SU(x)                                      ((x) << 23)
+#       define SU_MASK                                    (0xf << 23)
+#define CG_FTV                                            0x74c
+#define CG_FFCT_0                                         0x750
+#       define UTC_0(x)                                   ((x) << 0)
+#       define UTC_0_MASK                                 (0x3ff << 0)
+#       define DTC_0(x)                                   ((x) << 10)
+#       define DTC_0_MASK                                 (0x3ff << 10)
+
+#define CG_BSP                                            0x78c
+#       define BSP(x)                                     ((x) << 0)
+#       define BSP_MASK                                   (0xffff << 0)
+#       define BSU(x)                                     ((x) << 16)
+#       define BSU_MASK                                   (0xf << 16)
+#define CG_RT                                             0x790
+#       define FLS(x)                                     ((x) << 0)
+#       define FLS_MASK                                   (0xffff << 0)
+#       define FMS(x)                                     ((x) << 16)
+#       define FMS_MASK                                   (0xffff << 16)
+#define CG_LT                                             0x794
+#       define FHS(x)                                     ((x) << 0)
+#       define FHS_MASK                                   (0xffff << 0)
+#define CG_GIT                                            0x798
+#       define CG_GICST(x)                                ((x) << 0)
+#       define CG_GICST_MASK                              (0xffff << 0)
+#       define CG_GIPOT(x)                                ((x) << 16)
+#       define CG_GIPOT_MASK                              (0xffff << 16)
+
+#define CG_SSP                                            0x7a8
+#       define CG_SST(x)                                  ((x) << 0)
+#       define CG_SST_MASK                                (0xffff << 0)
+#       define CG_SSTU(x)                                 ((x) << 16)
+#       define CG_SSTU_MASK                               (0xf << 16)
+
+#define CG_RLC_REQ_AND_RSP                                0x7c4
+#       define RLC_CG_REQ_TYPE_MASK                       0xf
+#       define RLC_CG_REQ_TYPE_SHIFT                      0
+#       define CG_RLC_RSP_TYPE_MASK                       0xf0
+#       define CG_RLC_RSP_TYPE_SHIFT                      4
+
+#define CG_FC_T                                           0x7cc
+#       define FC_T(x)                                    ((x) << 0)
+#       define FC_T_MASK                                  (0xffff << 0)
+#       define FC_TU(x)                                   ((x) << 16)
+#       define FC_TU_MASK                                 (0x1f << 16)
+
+#define GPIOPAD_MASK                                      0x1798
+#define GPIOPAD_A                                         0x179c
+#define GPIOPAD_EN                                        0x17a0
+
+#define GRBM_PWR_CNTL                                     0x800c
+#       define REQ_TYPE_MASK                              0xf
+#       define REQ_TYPE_SHIFT                             0
+#       define RSP_TYPE_MASK                              0xf0
+#       define RSP_TYPE_SHIFT                             4
+
 /*
  * UVD
  */

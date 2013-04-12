@@ -1179,6 +1179,19 @@ struct radeon_power_state {
  */
 #define RADEON_MODE_OVERCLOCK_MARGIN 500 /* 5 MHz */
 
+enum radeon_dpm_auto_throttle_src {
+	RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL,
+	RADEON_DPM_AUTO_THROTTLE_SRC_EXTERNAL
+};
+
+enum radeon_dpm_event_src {
+	RADEON_DPM_EVENT_SRC_ANALOG = 0,
+	RADEON_DPM_EVENT_SRC_EXTERNAL = 1,
+	RADEON_DPM_EVENT_SRC_DIGITAL = 2,
+	RADEON_DPM_EVENT_SRC_ANALOG_OR_EXTERNAL = 3,
+	RADEON_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL = 4
+};
+
 struct radeon_ps {
 	u32 caps; /* vbios flags */
 	u32 class; /* vbios flags */
