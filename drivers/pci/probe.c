@@ -673,6 +673,8 @@ add_dev:
 	ret = device_register(&child->dev);
 	WARN_ON(ret < 0);
 
+	pcibios_add_bus(child);
+
 	/* Create legacy_io and legacy_mem files for this bus */
 	pci_create_legacy_files(child);
 
@@ -1660,6 +1662,14 @@ int __weak pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 	return 0;
 }
 
+void __weak pcibios_add_bus(struct pci_bus *bus)
+{
+}
+
+void __weak pcibios_remove_bus(struct pci_bus *bus)
+{
+}
+
 struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 		struct pci_ops *ops, void *sysdata, struct list_head *resources)
 {
@@ -1713,6 +1723,8 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 	error = device_register(&b->dev);
 	if (error)
 		goto class_dev_reg_err;
+
+	pcibios_add_bus(b);
 
 	/* Create legacy_io and legacy_mem files for this bus */
 	pci_create_legacy_files(b);
