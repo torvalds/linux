@@ -198,7 +198,16 @@ hash_netiface4_data_copy(struct hash_netiface4_elem *dst,
 static inline void
 hash_netiface4_data_flags(struct hash_netiface4_elem *dst, u32 flags)
 {
-	dst->nomatch = flags & IPSET_FLAG_NOMATCH;
+	dst->nomatch = !!(flags & IPSET_FLAG_NOMATCH);
+}
+
+static inline void
+hash_netiface4_data_reset_flags(struct hash_netiface4_elem *dst, u32 *flags)
+{
+	if (dst->nomatch) {
+		*flags = IPSET_FLAG_NOMATCH;
+		dst->nomatch = 0;
+	}
 }
 
 static inline int
@@ -494,13 +503,22 @@ hash_netiface6_data_copy(struct hash_netiface6_elem *dst,
 static inline void
 hash_netiface6_data_flags(struct hash_netiface6_elem *dst, u32 flags)
 {
-	dst->nomatch = flags & IPSET_FLAG_NOMATCH;
+	dst->nomatch = !!(flags & IPSET_FLAG_NOMATCH);
 }
 
 static inline int
 hash_netiface6_data_match(const struct hash_netiface6_elem *elem)
 {
 	return elem->nomatch ? -ENOTEMPTY : 1;
+}
+
+static inline void
+hash_netiface6_data_reset_flags(struct hash_netiface6_elem *dst, u32 *flags)
+{
+	if (dst->nomatch) {
+		*flags = IPSET_FLAG_NOMATCH;
+		dst->nomatch = 0;
+	}
 }
 
 static inline void

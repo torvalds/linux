@@ -104,6 +104,15 @@ hash_netport4_data_flags(struct hash_netport4_elem *dst, u32 flags)
 	dst->nomatch = !!(flags & IPSET_FLAG_NOMATCH);
 }
 
+static inline void
+hash_netport4_data_reset_flags(struct hash_netport4_elem *dst, u32 *flags)
+{
+	if (dst->nomatch) {
+		*flags = IPSET_FLAG_NOMATCH;
+		dst->nomatch = 0;
+	}
+}
+
 static inline int
 hash_netport4_data_match(const struct hash_netport4_elem *elem)
 {
@@ -373,6 +382,15 @@ static inline void
 hash_netport6_data_flags(struct hash_netport6_elem *dst, u32 flags)
 {
 	dst->nomatch = !!(flags & IPSET_FLAG_NOMATCH);
+}
+
+static inline void
+hash_netport6_data_reset_flags(struct hash_netport6_elem *dst, u32 *flags)
+{
+	if (dst->nomatch) {
+		*flags = IPSET_FLAG_NOMATCH;
+		dst->nomatch = 0;
+	}
 }
 
 static inline int
