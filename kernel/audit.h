@@ -60,7 +60,6 @@ struct audit_entry {
 };
 
 #ifdef CONFIG_AUDIT
-extern int audit_enabled;
 extern int audit_ever_enabled;
 #endif
 
