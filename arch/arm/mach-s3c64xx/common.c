@@ -27,6 +27,7 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/irqchip/arm-vic.h>
+#include <clocksource/samsung_pwm.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -43,6 +44,7 @@
 #include <plat/gpio-cfg.h>
 #include <plat/irq-uart.h>
 #include <plat/irq-vic-timer.h>
+#include <plat/pwm-core.h>
 #include <plat/regs-irqtype.h>
 #include <plat/regs-serial.h>
 #include <plat/watchdog-reset.h>
@@ -149,6 +151,13 @@ static struct device s3c64xx_dev = {
 	.bus	= &s3c64xx_subsys,
 };
 
+static struct samsung_pwm_variant s3c64xx_pwm_variant = {
+	.bits		= 32,
+	.div_base	= 0,
+	.has_tint_cstat	= true,
+	.tclk_mask	= (1 << 7) | (1 << 6) | (1 << 5),
+};
+
 /* read cpu identification code */
 
 void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
@@ -161,6 +170,8 @@ void __init s3c64xx_init_io(struct map_desc *mach_desc, int size)
 	s3c64xx_init_cpu();
 
 	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
+
+	samsung_pwm_set_platdata(&s3c64xx_pwm_variant);
 }
 
 static __init int s3c64xx_dev_init(void)

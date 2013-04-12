@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
+#include <clocksource/samsung_pwm.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -49,6 +50,7 @@
 #include <plat/clock.h>
 #include <plat/cpu-freq.h>
 #include <plat/pll.h>
+#include <plat/pwm-core.h>
 
 #include "common.h"
 
@@ -216,6 +218,13 @@ static void s3c24xx_default_idle(void)
 		     S3C2410_CLKCON);
 }
 
+static struct samsung_pwm_variant s3c24xx_pwm_variant = {
+	.bits		= 16,
+	.div_base	= 1,
+	.has_tint_cstat	= false,
+	.tclk_mask	= (1 << 4),
+};
+
 void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 {
 	arm_pm_idle = s3c24xx_default_idle;
@@ -232,6 +241,8 @@ void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 	s3c24xx_init_cpu();
 
 	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
+
+	samsung_pwm_set_platdata(&s3c24xx_pwm_variant);
 }
 
 /* Serial port registrations */

@@ -19,6 +19,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/device.h>
+#include <clocksource/samsung_pwm.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
@@ -42,6 +43,7 @@
 #include <plat/fimc-core.h>
 #include <plat/iic-core.h>
 #include <plat/keypad-core.h>
+#include <plat/pwm-core.h>
 #include <plat/tv-core.h>
 #include <plat/spi-core.h>
 #include <plat/regs-serial.h>
@@ -148,6 +150,13 @@ void s5pv210_restart(enum reboot_mode mode, const char *cmd)
 	__raw_writel(0x1, S5P_SWRESET);
 }
 
+static struct samsung_pwm_variant s5pv210_pwm_variant = {
+	.bits		= 32,
+	.div_base	= 0,
+	.has_tint_cstat	= true,
+	.tclk_mask	= (1 << 5),
+};
+
 /*
  * s5pv210_map_io
  *
@@ -165,6 +174,8 @@ void __init s5pv210_init_io(struct map_desc *mach_desc, int size)
 	s5p_init_cpu(S5P_VA_CHIPID);
 
 	s3c_init_cpu(samsung_cpu_id, cpu_ids, ARRAY_SIZE(cpu_ids));
+
+	samsung_pwm_set_platdata(&s5pv210_pwm_variant);
 }
 
 void __init s5pv210_map_io(void)
