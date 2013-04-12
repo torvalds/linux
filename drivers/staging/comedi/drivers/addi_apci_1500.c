@@ -57,7 +57,7 @@ static int apci1500_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci1500_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, 0x80fc) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMCC, 0x80fc) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, apci1500_pci_table);

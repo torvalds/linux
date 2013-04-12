@@ -238,8 +238,8 @@ static int apci3120_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci3120_pci_table) = {
-	{ PCI_VDEVICE(ADDIDATA_OLD, 0x818d), BOARD_APCI3120 },
-	{ PCI_VDEVICE(ADDIDATA_OLD, 0x828d), BOARD_APCI3001 },
+	{ PCI_VDEVICE(AMCC, 0x818d), BOARD_APCI3120 },
+	{ PCI_VDEVICE(AMCC, 0x828d), BOARD_APCI3001 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, apci3120_pci_table);

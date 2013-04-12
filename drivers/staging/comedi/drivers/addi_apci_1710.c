@@ -81,7 +81,7 @@ static int apci1710_pci_probe(struct pci_dev *dev,
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci1710_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, APCI1710_BOARD_DEVICE_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMCC, APCI1710_BOARD_DEVICE_ID) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, apci1710_pci_table);
