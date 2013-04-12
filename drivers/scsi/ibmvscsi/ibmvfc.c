@@ -2383,23 +2383,29 @@ out:
  * @cmd:	scsi command to abort
  *
  * Returns:
- *	SUCCESS / FAILED
+ *	SUCCESS / FAST_IO_FAIL / FAILED
  **/
 static int ibmvfc_eh_abort_handler(struct scsi_cmnd *cmd)
 {
 	struct scsi_device *sdev = cmd->device;
 	struct ibmvfc_host *vhost = shost_priv(sdev->host);
-	int cancel_rc, abort_rc;
+	int cancel_rc, block_rc, abort_rc = 0;
 	int rc = FAILED;
 
 	ENTER;
-	fc_block_scsi_eh(cmd);
+	block_rc = fc_block_scsi_eh(cmd);
 	ibmvfc_wait_while_resetting(vhost);
-	cancel_rc = ibmvfc_cancel_all(sdev, IBMVFC_TMF_ABORT_TASK_SET);
-	abort_rc = ibmvfc_abort_task_set(sdev);
+	if (block_rc != FAST_IO_FAIL) {
+		cancel_rc = ibmvfc_cancel_all(sdev, IBMVFC_TMF_ABORT_TASK_SET);
+		abort_rc = ibmvfc_abort_task_set(sdev);
+	} else
+		cancel_rc = ibmvfc_cancel_all(sdev, 0);
 
 	if (!cancel_rc && !abort_rc)
 		rc = ibmvfc_wait_for_ops(vhost, sdev, ibmvfc_match_lun);
+
+	if (block_rc == FAST_IO_FAIL && rc != FAILED)
+		rc = FAST_IO_FAIL;
 
 	LEAVE;
 	return rc;
@@ -2410,26 +2416,44 @@ static int ibmvfc_eh_abort_handler(struct scsi_cmnd *cmd)
  * @cmd:	scsi command struct
  *
  * Returns:
- *	SUCCESS / FAILED
+ *	SUCCESS / FAST_IO_FAIL / FAILED
  **/
 static int ibmvfc_eh_device_reset_handler(struct scsi_cmnd *cmd)
 {
 	struct scsi_device *sdev = cmd->device;
 	struct ibmvfc_host *vhost = shost_priv(sdev->host);
-	int cancel_rc, reset_rc;
+	int cancel_rc, block_rc, reset_rc = 0;
 	int rc = FAILED;
 
 	ENTER;
-	fc_block_scsi_eh(cmd);
+	block_rc = fc_block_scsi_eh(cmd);
 	ibmvfc_wait_while_resetting(vhost);
-	cancel_rc = ibmvfc_cancel_all(sdev, IBMVFC_TMF_LUN_RESET);
-	reset_rc = ibmvfc_reset_device(sdev, IBMVFC_LUN_RESET, "LUN");
+	if (block_rc != FAST_IO_FAIL) {
+		cancel_rc = ibmvfc_cancel_all(sdev, IBMVFC_TMF_LUN_RESET);
+		reset_rc = ibmvfc_reset_device(sdev, IBMVFC_LUN_RESET, "LUN");
+	} else
+		cancel_rc = ibmvfc_cancel_all(sdev, 0);
 
 	if (!cancel_rc && !reset_rc)
 		rc = ibmvfc_wait_for_ops(vhost, sdev, ibmvfc_match_lun);
 
+	if (block_rc == FAST_IO_FAIL && rc != FAILED)
+		rc = FAST_IO_FAIL;
+
 	LEAVE;
 	return rc;
+}
+
+/**
+ * ibmvfc_dev_cancel_all_noreset - Device iterated cancel all function
+ * @sdev:	scsi device struct
+ * @data:	return code
+ *
+ **/
+static void ibmvfc_dev_cancel_all_noreset(struct scsi_device *sdev, void *data)
+{
+	unsigned long *rc = data;
+	*rc |= ibmvfc_cancel_all(sdev, 0);
 }
 
 /**
@@ -2449,25 +2473,32 @@ static void ibmvfc_dev_cancel_all_reset(struct scsi_device *sdev, void *data)
  * @cmd:	scsi command struct
  *
  * Returns:
- *	SUCCESS / FAILED
+ *	SUCCESS / FAST_IO_FAIL / FAILED
  **/
 static int ibmvfc_eh_target_reset_handler(struct scsi_cmnd *cmd)
 {
 	struct scsi_device *sdev = cmd->device;
 	struct ibmvfc_host *vhost = shost_priv(sdev->host);
 	struct scsi_target *starget = scsi_target(sdev);
-	int reset_rc;
+	int block_rc;
+	int reset_rc = 0;
 	int rc = FAILED;
 	unsigned long cancel_rc = 0;
 
 	ENTER;
-	fc_block_scsi_eh(cmd);
+	block_rc = fc_block_scsi_eh(cmd);
 	ibmvfc_wait_while_resetting(vhost);
-	starget_for_each_device(starget, &cancel_rc, ibmvfc_dev_cancel_all_reset);
-	reset_rc = ibmvfc_reset_device(sdev, IBMVFC_TARGET_RESET, "target");
+	if (block_rc != FAST_IO_FAIL) {
+		starget_for_each_device(starget, &cancel_rc, ibmvfc_dev_cancel_all_reset);
+		reset_rc = ibmvfc_reset_device(sdev, IBMVFC_TARGET_RESET, "target");
+	} else
+		starget_for_each_device(starget, &cancel_rc, ibmvfc_dev_cancel_all_noreset);
 
 	if (!cancel_rc && !reset_rc)
 		rc = ibmvfc_wait_for_ops(vhost, starget, ibmvfc_match_target);
+
+	if (block_rc == FAST_IO_FAIL && rc != FAILED)
+		rc = FAST_IO_FAIL;
 
 	LEAVE;
 	return rc;
@@ -2480,12 +2511,16 @@ static int ibmvfc_eh_target_reset_handler(struct scsi_cmnd *cmd)
  **/
 static int ibmvfc_eh_host_reset_handler(struct scsi_cmnd *cmd)
 {
-	int rc;
+	int rc, block_rc;
 	struct ibmvfc_host *vhost = shost_priv(cmd->device->host);
 
-	fc_block_scsi_eh(cmd);
+	block_rc = fc_block_scsi_eh(cmd);
 	dev_err(vhost->dev, "Resetting connection due to error recovery\n");
 	rc = ibmvfc_issue_fc_host_lip(vhost->host);
+
+	if (block_rc == FAST_IO_FAIL)
+		return FAST_IO_FAIL;
+
 	return rc ? FAILED : SUCCESS;
 }
 
