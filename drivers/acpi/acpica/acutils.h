@@ -113,9 +113,10 @@ struct acpi_pkg_info {
 	u32 num_packages;
 };
 
+/* Object reference counts */
+
 #define REF_INCREMENT       (u16) 0
 #define REF_DECREMENT       (u16) 1
-#define REF_FORCE_DELETE    (u16) 2
 
 /* acpi_ut_dump_buffer */
 

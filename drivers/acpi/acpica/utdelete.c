@@ -424,17 +424,6 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
 		}
 		break;
 
-	case REF_FORCE_DELETE:
-
-		ACPI_DEBUG_PRINT((ACPI_DB_ALLOCATIONS,
-				  "Obj %p Refs=%X, Force delete! (Set to 0)\n",
-				  object, count));
-
-		new_count = 0;
-		object->common.reference_count = new_count;
-		acpi_ut_delete_internal_obj(object);
-		break;
-
 	default:
 
 		ACPI_ERROR((AE_INFO, "Unknown action (0x%X)", action));
@@ -458,8 +447,7 @@ acpi_ut_update_ref_count(union acpi_operand_object *object, u32 action)
  *
  * PARAMETERS:  object              - Increment ref count for this object
  *                                    and all sub-objects
- *              action              - Either REF_INCREMENT or REF_DECREMENT or
- *                                    REF_FORCE_DELETE
+ *              action              - Either REF_INCREMENT or REF_DECREMENT
  *
  * RETURN:      Status
  *
