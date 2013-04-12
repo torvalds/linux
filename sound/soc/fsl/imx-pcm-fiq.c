@@ -34,7 +34,7 @@
 #include "imx-ssi.h"
 
 struct imx_pcm_runtime_data {
-	int period;
+	unsigned int period;
 	int periods;
 	unsigned long offset;
 	unsigned long last_offset;
