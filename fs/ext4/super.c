@@ -2394,19 +2394,6 @@ static int parse_strtoull(const char *buf,
 	return ret;
 }
 
-static int parse_strtoul(const char *buf,
-		unsigned long max, unsigned long *value)
-{
-	char *endp;
-
-	*value = simple_strtoul(skip_spaces(buf), &endp, 0);
-	endp = skip_spaces(endp);
-	if (*endp || *value > max)
-		return -EINVAL;
-
-	return 0;
-}
-
 static ssize_t delayed_allocation_blocks_show(struct ext4_attr *a,
 					      struct ext4_sb_info *sbi,
 					      char *buf)
@@ -2446,11 +2433,13 @@ static ssize_t inode_readahead_blks_store(struct ext4_attr *a,
 					  const char *buf, size_t count)
 {
 	unsigned long t;
+	int ret;
 
-	if (parse_strtoul(buf, 0x40000000, &t))
-		return -EINVAL;
+	ret = kstrtoul(skip_spaces(buf), 0, &t);
+	if (ret)
+		return ret;
 
-	if (t && !is_power_of_2(t))
+	if (t && (!is_power_of_2(t) || t > 0x40000000))
 		return -EINVAL;
 
 	sbi->s_inode_readahead_blks = t;
@@ -2471,9 +2460,11 @@ static ssize_t sbi_ui_store(struct ext4_attr *a,
 {
 	unsigned int *ui = (unsigned int *) (((char *) sbi) + a->offset);
 	unsigned long t;
+	int ret;
 
-	if (parse_strtoul(buf, 0xffffffff, &t))
-		return -EINVAL;
+	ret = kstrtoul(skip_spaces(buf), 0, &t);
+	if (ret)
+		return ret;
 	*ui = t;
 	return count;
 }
