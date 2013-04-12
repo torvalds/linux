@@ -534,7 +534,8 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	set_opt(sbi, POSIX_ACL);
 #endif
 	/* parse mount options */
-	if (parse_options(sb, sbi, (char *)data))
+	err = parse_options(sb, sbi, (char *)data);
+	if (err)
 		goto free_sb_buf;
 
 	sb->s_maxbytes = max_file_size(le32_to_cpu(raw_super->log_blocksize));
