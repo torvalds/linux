@@ -53,13 +53,13 @@
 			clock-output-names = "pll0";
 		};
 		cpu_clk: clkdiv_cpu {
-			compatible = "fixed-factor-clkdiv";
+			compatible = "fixed-factor-clock";
 			#clock-cells = <0>;
 			clocks = <&pll0>;
 			clock-output-names = "cpu_clk";
 		};
 		ahb_clk: clkdiv_ahb {
-			compatible = "fixed-factor-clkdiv";
+			compatible = "fixed-factor-clock";
 			#clock-cells = <0>;
 			clocks = <&pll0>;
 			clock-output-names = "ahb_clk";
