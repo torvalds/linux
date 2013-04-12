@@ -414,7 +414,6 @@ static struct cpuidle_driver sh7372_cpuidle_driver = {
 	.state_count		= 5,
 	.safe_state_index	= 0, /* C1 */
 	.states[0] = ARM_CPUIDLE_WFI_STATE,
-	.states[0].enter = shmobile_enter_wfi,
 	.states[1] = {
 		.name = "C2",
 		.desc = "Core Standby Mode",
