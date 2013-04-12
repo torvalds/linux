@@ -1651,6 +1651,7 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 	default:				/* checked by xdr code */
 		WARN_ON_ONCE(1);
 	case SP4_SSV:
+		return nfserr_encr_alg_unsupp;
 	case SP4_MACH_CRED:
 		return nfserr_serverfault;	/* no excuse :-/ */
 	}
