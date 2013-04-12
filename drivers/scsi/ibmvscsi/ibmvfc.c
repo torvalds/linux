@@ -2327,7 +2327,7 @@ static int ibmvfc_abort_task_set(struct scsi_device *sdev)
 	timeout = wait_for_completion_timeout(&evt->comp, timeout);
 
 	if (!timeout) {
-		rc = ibmvfc_cancel_all(sdev, IBMVFC_TMF_ABORT_TASK_SET);
+		rc = ibmvfc_cancel_all(sdev, 0);
 		if (!rc) {
 			rc = ibmvfc_wait_for_ops(vhost, sdev->hostdata, ibmvfc_match_key);
 			if (rc == SUCCESS)
