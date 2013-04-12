@@ -2744,3 +2744,11 @@ to receive the topmost interrupt vector.
 When disabled (args[0] == 0), behavior is as if this facility is unsupported.
 
 When this capability is enabled, KVM_EXIT_EPR can occur.
+
+6.6 KVM_CAP_IRQ_MPIC
+
+Architectures: ppc
+Parameters: args[0] is the MPIC device fd
+            args[1] is the MPIC CPU number for this vcpu
+
+This capability connects the vcpu to an in-kernel MPIC device.

@@ -115,7 +115,7 @@ static int get_current_cpu(void)
 {
 #if defined(CONFIG_KVM) && defined(CONFIG_BOOKE)
 	struct kvm_vcpu *vcpu = current->thread.kvm_vcpu;
-	return vcpu ? vcpu->vcpu_id : -1;
+	return vcpu ? vcpu->arch.irq_cpu_id : -1;
 #else
 	/* XXX */
 	return -1;
@@ -249,7 +249,7 @@ static void mpic_irq_raise(struct openpic *opp, struct irq_dest *dst,
 		return;
 	}
 
-	pr_debug("%s: cpu %d output %d\n", __func__, dst->vcpu->vcpu_id,
+	pr_debug("%s: cpu %d output %d\n", __func__, dst->vcpu->arch.irq_cpu_id,
 		output);
 
 	if (output != ILR_INTTGT_INT)	/* TODO */
@@ -267,7 +267,7 @@ static void mpic_irq_lower(struct openpic *opp, struct irq_dest *dst,
 		return;
 	}
 
-	pr_debug("%s: cpu %d output %d\n", __func__, dst->vcpu->vcpu_id,
+	pr_debug("%s: cpu %d output %d\n", __func__, dst->vcpu->arch.irq_cpu_id,
 		output);
 
 	if (output != ILR_INTTGT_INT)	/* TODO */
@@ -1165,6 +1165,20 @@ static uint32_t openpic_iack(struct openpic *opp, struct irq_dest *dst,
 	return retval;
 }
 
+void kvmppc_mpic_set_epr(struct kvm_vcpu *vcpu)
+{
+	struct openpic *opp = vcpu->arch.mpic;
+	int cpu = vcpu->arch.irq_cpu_id;
+	unsigned long flags;
+
+	spin_lock_irqsave(&opp->lock, flags);
+
+	if ((opp->gcr & opp->mpic_mode_mask) == GCR_MODE_PROXY)
+		kvmppc_set_epr(vcpu, openpic_iack(opp, &opp->dst[cpu], cpu));
+
+	spin_unlock_irqrestore(&opp->lock, flags);
+}
+
 static int openpic_cpu_read_internal(void *opaque, gpa_t addr,
 				     u32 *ptr, int idx)
 {
@@ -1431,10 +1445,10 @@ static void map_mmio(struct openpic *opp)
 
 static void unmap_mmio(struct openpic *opp)
 {
-	BUG_ON(opp->mmio_mapped);
-	opp->mmio_mapped = false;
-
-	kvm_io_bus_unregister_dev(opp->kvm, KVM_MMIO_BUS, &opp->mmio);
+	if (opp->mmio_mapped) {
+		opp->mmio_mapped = false;
+		kvm_io_bus_unregister_dev(opp->kvm, KVM_MMIO_BUS, &opp->mmio);
+	}
 }
 
 static int set_base_addr(struct openpic *opp, struct kvm_device_attr *attr)
@@ -1693,3 +1707,57 @@ struct kvm_device_ops kvm_mpic_ops = {
 	.get_attr = mpic_get_attr,
 	.has_attr = mpic_has_attr,
 };
+
+int kvmppc_mpic_connect_vcpu(struct kvm_device *dev, struct kvm_vcpu *vcpu,
+			     u32 cpu)
+{
+	struct openpic *opp = dev->private;
+	int ret = 0;
+
+	if (dev->ops != &kvm_mpic_ops)
+		return -EPERM;
+	if (opp->kvm != vcpu->kvm)
+		return -EPERM;
+	if (cpu < 0 || cpu >= MAX_CPU)
+		return -EPERM;
+
+	spin_lock_irq(&opp->lock);
+
+	if (opp->dst[cpu].vcpu) {
+		ret = -EEXIST;
+		goto out;
+	}
+	if (vcpu->arch.irq_type) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	opp->dst[cpu].vcpu = vcpu;
+	opp->nb_cpus = max(opp->nb_cpus, cpu + 1);
+
+	vcpu->arch.mpic = opp;
+	vcpu->arch.irq_cpu_id = cpu;
+	vcpu->arch.irq_type = KVMPPC_IRQ_MPIC;
+
+	/* This might need to be changed if GCR gets extended */
+	if (opp->mpic_mode_mask == GCR_MODE_PROXY)
+		vcpu->arch.epr_flags |= KVMPPC_EPR_KERNEL;
+
+	kvm_device_get(dev);
+out:
+	spin_unlock_irq(&opp->lock);
+	return ret;
+}
+
+/*
+ * This should only happen immediately before the mpic is destroyed,
+ * so we shouldn't need to worry about anything still trying to
+ * access the vcpu pointer.
+ */
+void kvmppc_mpic_disconnect_vcpu(struct openpic *opp, struct kvm_vcpu *vcpu)
+{
+	BUG_ON(!opp->dst[vcpu->arch.irq_cpu_id].vcpu);
+
+	opp->dst[vcpu->arch.irq_cpu_id].vcpu = NULL;
+	kvm_device_put(opp->dev);
+}

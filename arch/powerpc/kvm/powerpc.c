@@ -25,6 +25,7 @@
 #include <linux/hrtimer.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/file.h>
 #include <asm/cputable.h>
 #include <asm/uaccess.h>
 #include <asm/kvm_ppc.h>
@@ -327,6 +328,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 #if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)
 	case KVM_CAP_SW_TLB:
 #endif
+#ifdef CONFIG_KVM_MPIC
+	case KVM_CAP_IRQ_MPIC:
+#endif
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -460,6 +464,13 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 	tasklet_kill(&vcpu->arch.tasklet);
 
 	kvmppc_remove_vcpu_debugfs(vcpu);
+
+	switch (vcpu->arch.irq_type) {
+	case KVMPPC_IRQ_MPIC:
+		kvmppc_mpic_disconnect_vcpu(vcpu->arch.mpic, vcpu);
+		break;
+	}
+
 	kvmppc_core_vcpu_free(vcpu);
 }
 
@@ -784,6 +795,25 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 			break;
 
 		r = kvm_vcpu_ioctl_config_tlb(vcpu, &cfg);
+		break;
+	}
+#endif
+#ifdef CONFIG_KVM_MPIC
+	case KVM_CAP_IRQ_MPIC: {
+		struct file *filp;
+		struct kvm_device *dev;
+
+		r = -EBADF;
+		filp = fget(cap->args[0]);
+		if (!filp)
+			break;
+
+		r = -EPERM;
+		dev = kvm_device_from_filp(filp);
+		if (dev)
+			r = kvmppc_mpic_connect_vcpu(dev, vcpu, cap->args[1]);
+
+		fput(filp);
 		break;
 	}
 #endif

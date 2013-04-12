@@ -248,7 +248,6 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *);
 void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid);
 
 struct openpic;
-void kvmppc_mpic_put(struct openpic *opp);
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
@@ -278,10 +277,24 @@ static inline void kvmppc_set_epr(struct kvm_vcpu *vcpu, u32 epr)
 #ifdef CONFIG_KVM_MPIC
 
 void kvmppc_mpic_set_epr(struct kvm_vcpu *vcpu);
+int kvmppc_mpic_connect_vcpu(struct kvm_device *dev, struct kvm_vcpu *vcpu,
+			     u32 cpu);
+void kvmppc_mpic_disconnect_vcpu(struct openpic *opp, struct kvm_vcpu *vcpu);
 
 #else
 
 static inline void kvmppc_mpic_set_epr(struct kvm_vcpu *vcpu)
+{
+}
+
+static inline int kvmppc_mpic_connect_vcpu(struct kvm_device *dev,
+		struct kvm_vcpu *vcpu, u32 cpu)
+{
+	return -EINVAL;
+}
+
+static inline void kvmppc_mpic_disconnect_vcpu(struct openpic *opp,
+		struct kvm_vcpu *vcpu)
 {
 }
 

@@ -430,6 +430,10 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 		if (update_epr == true) {
 			if (vcpu->arch.epr_flags & KVMPPC_EPR_USER)
 				kvm_make_request(KVM_REQ_EPR_EXIT, vcpu);
+			else if (vcpu->arch.epr_flags & KVMPPC_EPR_KERNEL) {
+				BUG_ON(vcpu->arch.irq_type != KVMPPC_IRQ_MPIC);
+				kvmppc_mpic_set_epr(vcpu);
+			}
 		}
 
 		new_msr &= msr_mask;

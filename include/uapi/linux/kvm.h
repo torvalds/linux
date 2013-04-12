@@ -667,6 +667,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_ARM_PSCI 87
 #define KVM_CAP_ARM_SET_DEVICE_ADDR 88
 #define KVM_CAP_DEVICE_CTRL 89
+#define KVM_CAP_IRQ_MPIC 90
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

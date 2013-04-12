@@ -377,6 +377,11 @@ struct kvmppc_booke_debug_reg {
 	u64 dac[KVMPPC_BOOKE_MAX_DAC];
 };
 
+#define KVMPPC_IRQ_DEFAULT	0
+#define KVMPPC_IRQ_MPIC		1
+
+struct openpic;
+
 struct kvm_vcpu_arch {
 	ulong host_stack;
 	u32 host_pid;
@@ -557,6 +562,10 @@ struct kvm_vcpu_arch {
 	struct kvm_vcpu_arch_shared *shared;
 	unsigned long magic_page_pa; /* phys addr to map the magic page to */
 	unsigned long magic_page_ea; /* effect. addr to map the magic page to */
+
+	int irq_type;		/* one of KVM_IRQ_* */
+	int irq_cpu_id;
+	struct openpic *mpic;	/* KVM_IRQ_MPIC */
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	struct kvm_vcpu_arch_shared shregs;
