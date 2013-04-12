@@ -750,13 +750,18 @@ static struct snd_soc_dai_driver atmel_ssc_dai = {
 		.ops = &atmel_ssc_dai_ops,
 };
 
+static const struct snd_soc_component_driver atmel_ssc_component = {
+	.name		= "atmel-ssc",
+};
+
 static int asoc_ssc_init(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ssc_device *ssc = platform_get_drvdata(pdev);
 	int ret;
 
-	ret = snd_soc_register_dai(dev, &atmel_ssc_dai);
+	ret = snd_soc_register_component(dev, &atmel_ssc_component,
+					 &atmel_ssc_dai, 1);
 	if (ret) {
 		dev_err(dev, "Could not register DAI: %d\n", ret);
 		goto err;
@@ -775,7 +780,7 @@ static int asoc_ssc_init(struct device *dev)
 	return 0;
 
 err_unregister_dai:
-	snd_soc_unregister_dai(dev);
+	snd_soc_unregister_component(dev);
 err:
 	return ret;
 }
@@ -790,7 +795,7 @@ static void asoc_ssc_exit(struct device *dev)
 	else
 		atmel_pcm_pdc_platform_unregister(dev);
 
-	snd_soc_unregister_dai(dev);
+	snd_soc_unregister_component(dev);
 }
 
 /**

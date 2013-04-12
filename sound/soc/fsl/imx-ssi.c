@@ -413,6 +413,10 @@ static struct snd_soc_dai_driver imx_ac97_dai = {
 	.ops = &imx_ssi_pcm_dai_ops,
 };
 
+static const struct snd_soc_component_driver imx_component = {
+	.name		= DRV_NAME,
+};
+
 static void setup_channel_to_ac97(struct imx_ssi *imx_ssi)
 {
 	void __iomem *base = imx_ssi->base;
@@ -591,7 +595,8 @@ static int imx_ssi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ssi);
 
-	ret = snd_soc_register_dai(&pdev->dev, dai);
+	ret = snd_soc_register_component(&pdev->dev, &imx_component,
+					 dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "register DAI failed\n");
 		goto failed_register;
@@ -632,7 +637,7 @@ failed_pdev_alloc:
 failed_pdev_fiq_add:
 	platform_device_put(ssi->soc_platform_pdev_fiq);
 failed_pdev_fiq_alloc:
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 failed_register:
 	release_mem_region(res->start, resource_size(res));
 failed_get_resource:
@@ -650,7 +655,7 @@ static int imx_ssi_remove(struct platform_device *pdev)
 	platform_device_unregister(ssi->soc_platform_pdev);
 	platform_device_unregister(ssi->soc_platform_pdev_fiq);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	if (ssi->flags & IMX_SSI_USE_AC97)
 		ac97_ssi = NULL;

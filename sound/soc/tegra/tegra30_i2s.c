@@ -336,6 +336,10 @@ static const struct snd_soc_dai_driver tegra30_i2s_dai_template = {
 	.symmetric_rates = 1,
 };
 
+static const struct snd_soc_component_driver tegra30_i2s_component = {
+	.name		= DRV_NAME,
+};
+
 static bool tegra30_i2s_wr_rd_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
@@ -464,7 +468,8 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 			goto err_pm_disable;
 	}
 
-	ret = snd_soc_register_dai(&pdev->dev, &i2s->dai);
+	ret = snd_soc_register_component(&pdev->dev, &tegra30_i2s_component,
+				   &i2s->dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
 		ret = -ENOMEM;
@@ -474,13 +479,13 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 	ret = tegra_pcm_platform_register(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
-		goto err_unregister_dai;
+		goto err_unregister_component;
 	}
 
 	return 0;
 
-err_unregister_dai:
-	snd_soc_unregister_dai(&pdev->dev);
+err_unregister_component:
+	snd_soc_unregister_component(&pdev->dev);
 err_suspend:
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		tegra30_i2s_runtime_suspend(&pdev->dev);
@@ -501,7 +506,7 @@ static int tegra30_i2s_platform_remove(struct platform_device *pdev)
 		tegra30_i2s_runtime_suspend(&pdev->dev);
 
 	tegra_pcm_platform_unregister(&pdev->dev);
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	clk_put(i2s->clk_i2s);
 

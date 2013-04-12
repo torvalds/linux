@@ -353,6 +353,10 @@ static struct snd_soc_dai_driver ep93xx_ac97_dai = {
 	.ops			= &ep93xx_ac97_dai_ops,
 };
 
+static const struct snd_soc_component_driver ep93xx_ac97_component = {
+	.name		= "ep93xx-ac97",
+};
+
 static int ep93xx_ac97_probe(struct platform_device *pdev)
 {
 	struct ep93xx_ac97_info *info;
@@ -390,7 +394,8 @@ static int ep93xx_ac97_probe(struct platform_device *pdev)
 	ep93xx_ac97_info = info;
 	platform_set_drvdata(pdev, info);
 
-	ret = snd_soc_register_dai(&pdev->dev, &ep93xx_ac97_dai);
+	ret = snd_soc_register_component(&pdev->dev, &ep93xx_ac97_component,
+					 &ep93xx_ac97_dai, 1);
 	if (ret)
 		goto fail;
 
@@ -407,7 +412,7 @@ static int ep93xx_ac97_remove(struct platform_device *pdev)
 {
 	struct ep93xx_ac97_info	*info = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	/* disable the AC97 controller */
 	ep93xx_ac97_write_reg(info, AC97GCR, 0);
