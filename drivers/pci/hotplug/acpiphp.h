@@ -73,8 +73,8 @@ static inline const char *slot_name(struct slot *slot)
  */
 struct acpiphp_bridge {
 	struct list_head list;
+	struct list_head slots;
 	acpi_handle handle;
-	struct acpiphp_slot *slots;
 
 	/* Ejectable PCI-to-PCI bridge (PCI bridge and PCI function) */
 	struct acpiphp_func *func;
@@ -97,7 +97,7 @@ struct acpiphp_bridge {
  * PCI slot information for each *physical* PCI slot
  */
 struct acpiphp_slot {
-	struct acpiphp_slot *next;
+	struct list_head node;
 	struct acpiphp_bridge *bridge;	/* parent */
 	struct list_head funcs;		/* one slot may have different
 					   objects (i.e. for each function) */

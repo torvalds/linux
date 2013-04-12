@@ -154,7 +154,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	acpi_handle tmp;
 	acpi_status status = AE_OK;
 	unsigned long long adr, sun;
-	int device, function, retval;
+	int device, function, retval, found = 0;
 	struct pci_bus *pbus = bridge->pci_bus;
 	struct pci_dev *pdev;
 	u32 val;
@@ -208,14 +208,15 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	}
 
 	/* search for objects that share the same slot */
-	for (slot = bridge->slots; slot; slot = slot->next)
+	list_for_each_entry(slot, &bridge->slots, node)
 		if (slot->device == device) {
 			if (slot->sun != sun)
 				warn("sibling found, but _SUN doesn't match!\n");
+			found = 1;
 			break;
 		}
 
-	if (!slot) {
+	if (!found) {
 		slot = kzalloc(sizeof(struct acpiphp_slot), GFP_KERNEL);
 		if (!slot) {
 			kfree(newfunc);
@@ -228,9 +229,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 		INIT_LIST_HEAD(&slot->funcs);
 		mutex_init(&slot->crit_sect);
 
-		slot->next = bridge->slots;
-		bridge->slots = slot;
-
+		list_add_tail(&slot->node, &bridge->slots);
 		bridge->nr_slots++;
 
 		dbg("found ACPI PCI Hotplug slot %llu at PCI %04x:%02x:%02x\n",
@@ -289,7 +288,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 
  err_exit:
 	bridge->nr_slots--;
-	bridge->slots = slot->next;
+	list_del(&slot->node);
 	kfree(slot);
 	kfree(newfunc);
 
@@ -353,7 +352,7 @@ static struct acpiphp_func *acpiphp_bridge_handle_to_function(acpi_handle handle
 	struct acpiphp_func *func;
 
 	list_for_each_entry(bridge, &bridge_list, list) {
-		for (slot = bridge->slots; slot; slot = slot->next) {
+		list_for_each_entry(slot, &bridge->slots, node) {
 			list_for_each_entry(func, &slot->funcs, sibling) {
 				if (func->handle == handle)
 					return func;
@@ -400,9 +399,7 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 			err("failed to install interrupt notify handler\n");
 	}
 
-	slot = bridge->slots;
-	while (slot) {
-		next = slot->next;
+	list_for_each_entry_safe(slot, next, &bridge->slots, node) {
 		list_for_each_entry_safe(func, tmp, &slot->funcs, sibling) {
 			if (is_dock_device(func->handle)) {
 				unregister_hotplug_dock_device(func->handle);
@@ -421,7 +418,6 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 		acpiphp_unregister_hotplug_slot(slot);
 		list_del(&slot->funcs);
 		kfree(slot);
-		slot = next;
 	}
 
 	put_device(&bridge->pci_bus->dev);
@@ -820,7 +816,7 @@ static int acpiphp_check_bridge(struct acpiphp_bridge *bridge)
 
 	enabled = disabled = 0;
 
-	for (slot = bridge->slots; slot; slot = slot->next) {
+	list_for_each_entry(slot, &bridge->slots, node) {
 		unsigned int status = get_slot_status(slot);
 		if (slot->flags & SLOT_ENABLED) {
 			if (status == ACPI_STA_ALL)
@@ -1098,6 +1094,7 @@ void acpiphp_enumerate_slots(struct pci_bus *bus, acpi_handle handle)
 		return;
 	}
 
+	INIT_LIST_HEAD(&bridge->slots);
 	bridge->handle = handle;
 	bridge->pci_dev = pci_dev_get(bus->self);
 	bridge->pci_bus = bus;
