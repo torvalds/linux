@@ -37,6 +37,22 @@ $(obj)/test_get_len.o: $(srctree)/arch/x86/lib/insn.c $(srctree)/arch/x86/lib/in
 
 $(obj)/insn_sanity.o: $(srctree)/arch/x86/lib/insn.c $(srctree)/arch/x86/lib/inat.c $(srctree)/arch/x86/include/asm/inat_types.h $(srctree)/arch/x86/include/asm/inat.h $(srctree)/arch/x86/include/asm/insn.h $(objtree)/arch/x86/lib/inat-tables.c
 
+HOSTCFLAGS_relocs_32.o += -DELF_BITS=32
+HOSTCFLAGS_relocs_64.o += -DELF_BITS=64
+
+quiet_cmd_cp_reloc = GEN     $@
+      cmd_cp_reloc = cp $< $@
+
+$(obj)/relocs_%.c: $(srctree)/arch/x86/tools/relocs.c
+	$(call cmd,cp_reloc)
+
 HOST_EXTRACFLAGS += -I$(srctree)/tools/include
-hostprogs-y	+= relocs
-relocs: $(obj)/relocs
+hostprogs-y    += relocs_$(BITS)
+relocs_binaries = relocs_$(BITS)
+ifeq ($(CONFIG_64BIT),y)
+	hostprogs-y  += relocs_32
+	relocs_binaries += relocs_32
+endif
+relocs: $(relocs_binaries)
+relocs_32: $(obj)/relocs_32
+relocs_64: $(obj)/relocs_64
