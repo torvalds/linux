@@ -16,6 +16,7 @@
  */
 
 /include/ "armada-370-xp.dtsi"
+/include/ "skeleton.dtsi"
 
 / {
 	model = "Marvell Armada 370 family SoC";
@@ -28,6 +29,7 @@
 	};
 
 	soc {
+		ranges = <0 0xd0000000 0x100000>;
 		internal-regs {
 			system-controller@18200 {
 				compatible = "marvell,armada-370-xp-system-controller";

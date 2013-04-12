@@ -23,7 +23,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x00000000 0xC0000000>; /* 3 GB */
+		reg = <0 0x00000000 0 0xC0000000>; /* 3 GB */
 	};
 
 	soc {

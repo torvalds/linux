@@ -16,7 +16,7 @@
  * 370 and Armada XP SoC.
  */
 
-/include/ "skeleton.dtsi"
+/include/ "skeleton64.dtsi"
 
 / {
 	model = "Marvell Armada 370 and XP SoC";
@@ -33,7 +33,7 @@
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		interrupt-parent = <&mpic>;
-		ranges = <0 0xd0000000 0x100000>;
+		ranges = <0 0 0xd0000000 0x100000>;
 
 		internal-regs {
 			compatible = "simple-bus";
