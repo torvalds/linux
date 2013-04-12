@@ -339,7 +339,6 @@ static int dio200_pcie_board_setup(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	void __iomem *brbase;
-	resource_size_t brlen;
 
 	/*
 	 * The board uses Altera Cyclone IV with PCI-Express hard IP.
@@ -351,13 +350,11 @@ static int dio200_pcie_board_setup(struct comedi_device *dev)
 	 * Enable" register at offset 0x50 to allow generation of PCIe
 	 * interrupts when RXmlrq_i is asserted in the SOPC Builder system.
 	 */
-	brlen = pci_resource_len(pcidev, 0);
-	if (brlen < 0x4000 ||
-			!(pci_resource_flags(pcidev, 0) & IORESOURCE_MEM)) {
+	if (pci_resource_len(pcidev, 0) < 0x4000) {
 		dev_err(dev->class_dev, "error! bad PCI region!\n");
 		return -EINVAL;
 	}
-	brbase = ioremap_nocache(pci_resource_start(pcidev, 0), brlen);
+	brbase = pci_ioremap_bar(pcidev, 0);
 	if (!brbase) {
 		dev_err(dev->class_dev, "error! failed to map registers!\n");
 		return -ENOMEM;
@@ -375,7 +372,6 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
 	const struct dio200_board *thisboard = NULL;
 	struct dio200_private *devpriv;
-	resource_size_t base, len;
 	unsigned int bar;
 	int ret;
 
@@ -399,14 +395,12 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	bar = thisboard->mainbar;
-	base = pci_resource_start(pci_dev, bar);
-	len = pci_resource_len(pci_dev, bar);
-	if (len < thisboard->mainsize) {
+	if (pci_resource_len(pci_dev, bar) < thisboard->mainsize) {
 		dev_err(dev->class_dev, "error! PCI region size too small!\n");
 		return -EINVAL;
 	}
 	if (pci_resource_flags(pci_dev, bar) & IORESOURCE_MEM) {
-		devpriv->io.u.membase = ioremap_nocache(base, len);
+		devpriv->io.u.membase = pci_ioremap_bar(pci_dev, bar);
 		if (!devpriv->io.u.membase) {
 			dev_err(dev->class_dev,
 				"error! cannot remap registers\n");
@@ -414,7 +408,7 @@ static int dio200_pci_auto_attach(struct comedi_device *dev,
 		}
 		devpriv->io.regtype = mmio_regtype;
 	} else {
-		devpriv->io.u.iobase = (unsigned long)base;
+		devpriv->io.u.iobase = pci_resource_start(pci_dev, bar);
 		devpriv->io.regtype = io_regtype;
 	}
 	switch (context_model) {
