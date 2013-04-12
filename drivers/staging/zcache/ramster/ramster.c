@@ -508,6 +508,7 @@ void ramster_count_foreign_pages(bool eph, int count)
 		if (count > 0) {
 			inc_ramster_foreign_pers_pages();
 		} else {
+			dec_ramster_foreign_pers_pages();
 			WARN_ON_ONCE(ramster_foreign_pers_pages < 0);
 		}
 	}
