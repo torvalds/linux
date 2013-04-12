@@ -622,7 +622,7 @@ static struct vpbe_enc_mode_info dm644xevm_enc_std_timing[] = {
 	{
 		.name		= "ntsc",
 		.timings_type	= VPBE_ENC_STD,
-		.std_id		= V4L2_STD_525_60,
+		.std_id		= V4L2_STD_NTSC,
 		.interlaced	= 1,
 		.xres		= 720,
 		.yres		= 480,
@@ -634,7 +634,7 @@ static struct vpbe_enc_mode_info dm644xevm_enc_std_timing[] = {
 	{
 		.name		= "pal",
 		.timings_type	= VPBE_ENC_STD,
-		.std_id		= V4L2_STD_625_50,
+		.std_id		= V4L2_STD_PAL,
 		.interlaced	= 1,
 		.xres		= 720,
 		.yres		= 576,
