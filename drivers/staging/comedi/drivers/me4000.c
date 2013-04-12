@@ -170,19 +170,6 @@ broken.
 #define ME4000_AO_DEMUX_ADJUST_VALUE		0x4c
 #define ME4000_AI_SAMPLE_COUNTER_REG		0xc0
 
-/*
- * PLX Register map and bit defines
- */
-#define PLX_ICR					0x50
-#define PLX_ICR_BIT_EEPROM_CLOCK_SET		(1 << 24)
-#define PLX_ICR_BIT_EEPROM_CHIP_SELECT		(1 << 25)
-#define PLX_ICR_BIT_EEPROM_WRITE		(1 << 26)
-#define PLX_ICR_BIT_EEPROM_READ			(1 << 27)
-#define PLX_ICR_BIT_EEPROM_VALID		(1 << 28)
-#define PLX_ICR_MASK_EEPROM			(0x1f << 24)
-
-#define EEPROM_DELAY				1
-
 #define ME4000_AI_FIFO_COUNT			2048
 
 #define ME4000_AI_MIN_TICKS			66
@@ -382,9 +369,9 @@ static int xilinx_download(struct comedi_device *dev)
 	outl(PLX9052_INTCSR_LI2POL, info->plx_regbase + PLX9052_INTCSR);
 
 	/* Set /CS and /WRITE of the Xilinx */
-	value = inl(info->plx_regbase + PLX_ICR);
-	value |= 0x100;
-	outl(value, info->plx_regbase + PLX_ICR);
+	value = inl(info->plx_regbase + PLX9052_CNTRL);
+	value |= PLX9052_CNTRL_UIO2_DATA;
+	outl(value, info->plx_regbase + PLX9052_CNTRL);
 
 	/* Init Xilinx with CS1 */
 	inb(xilinx_iobase + 0xC8);
@@ -398,9 +385,9 @@ static int xilinx_download(struct comedi_device *dev)
 	}
 
 	/* Reset /CS and /WRITE of the Xilinx */
-	value = inl(info->plx_regbase + PLX_ICR);
-	value &= ~0x100;
-	outl(value, info->plx_regbase + PLX_ICR);
+	value = inl(info->plx_regbase + PLX9052_CNTRL);
+	value &= ~PLX9052_CNTRL_UIO2_DATA;
+	outl(value, info->plx_regbase + PLX9052_CNTRL);
 	if (FIRMWARE_NOT_AVAILABLE) {
 		dev_err(dev->class_dev,
 			"xilinx firmware unavailable due to licensing, aborting");
@@ -416,7 +403,7 @@ static int xilinx_download(struct comedi_device *dev)
 			udelay(10);
 
 			/* Check if BUSY flag is low */
-			if (inl(info->plx_regbase + PLX_ICR) & 0x20) {
+			if (inl(info->plx_regbase + PLX9052_CNTRL) & PLX9052_CNTRL_UIO1_DATA) {
 				dev_err(dev->class_dev,
 					"Xilinx is still busy (idx = %d)\n",
 					idx);
@@ -426,7 +413,7 @@ static int xilinx_download(struct comedi_device *dev)
 	}
 
 	/* If done flag is high download was successful */
-	if (inl(info->plx_regbase + PLX_ICR) & 0x4) {
+	if (inl(info->plx_regbase + PLX9052_CNTRL) & PLX9052_CNTRL_UIO0_DATA) {
 	} else {
 		dev_err(dev->class_dev, "DONE flag is not set\n");
 		dev_err(dev->class_dev, "Download not successful\n");
@@ -434,9 +421,9 @@ static int xilinx_download(struct comedi_device *dev)
 	}
 
 	/* Set /CS and /WRITE */
-	value = inl(info->plx_regbase + PLX_ICR);
-	value |= 0x100;
-	outl(value, info->plx_regbase + PLX_ICR);
+	value = inl(info->plx_regbase + PLX9052_CNTRL);
+	value |= PLX9052_CNTRL_UIO2_DATA;
+	outl(value, info->plx_regbase + PLX9052_CNTRL);
 
 	return 0;
 }
@@ -448,11 +435,11 @@ static void me4000_reset(struct comedi_device *dev)
 	int chan;
 
 	/* Make a hardware reset */
-	val = inl(info->plx_regbase + PLX_ICR);
-	val |= 0x40000000;
-	outl(val, info->plx_regbase + PLX_ICR);
-	val &= ~0x40000000;
-	outl(val , info->plx_regbase + PLX_ICR);
+	val = inl(info->plx_regbase + PLX9052_CNTRL);
+	val |= PLX9052_CNTRL_PCI_RESET;
+	outl(val, info->plx_regbase + PLX9052_CNTRL);
+	val &= ~PLX9052_CNTRL_PCI_RESET;
+	outl(val , info->plx_regbase + PLX9052_CNTRL);
 
 	/* 0x8000 to the DACs means an output voltage of 0V */
 	for (chan = 0; chan < 4; chan++)
