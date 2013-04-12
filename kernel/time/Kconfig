@@ -75,10 +75,6 @@ config NO_HZ_COMMON
 	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
 	select TICK_ONESHOT
 
-# Kept around for compatibility, maps to NO_HZ_IDLE
-config NO_HZ
-	bool
-
 choice
 	prompt "Timer tick handling"
 	default NO_HZ_IDLE if NO_HZ
@@ -129,6 +125,14 @@ config NO_HZ_EXTENDED
 	 Say N.
 
 endchoice
+
+config NO_HZ
+	bool "Old Idle dynticks config"
+	depends on !ARCH_USES_GETTIMEOFFSET && GENERIC_CLOCKEVENTS
+	help
+	  This is the old config entry that enables dynticks idle.
+	  We keep it around for a little while to enforce backward
+	  compatibility with older config files.
 
 config HIGH_RES_TIMERS
 	bool "High Resolution Timer Support"
