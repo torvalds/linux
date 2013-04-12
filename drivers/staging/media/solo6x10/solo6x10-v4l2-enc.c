@@ -872,6 +872,7 @@ static int solo_enc_set_fmt_cap(struct file *file, void *priv,
 	if (pix->priv)
 		solo_enc->type = SOLO_ENC_TYPE_EXT;
 	 */
+	solo_update_mode(solo_enc);
 	return 0;
 }
 
