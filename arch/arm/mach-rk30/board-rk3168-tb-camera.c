@@ -48,7 +48,7 @@ static struct rkcamera_platform_data new_camera[] = {
                         0,
                         3,
                         0),                        
-    new_camera_device_end
+    new_camera_device_end  
 };
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
@@ -120,7 +120,7 @@ static struct rkcamera_platform_data new_camera[] = {
 #define CONFIG_SENSOR_720P_FPS_FIXED_02      30000
 
 #define CONFIG_SENSOR_1 RK29_CAM_SENSOR_OV2659                      /* front camera sensor 0 */
-#define CONFIG_SENSOR_IIC_ADDR_1 	    0x60
+#define CONFIG_SENSOR_IIC_ADDR_1 	    0x00
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_1	  3
 #define CONFIG_SENSOR_ORIENTATION_1       270
 #define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO
