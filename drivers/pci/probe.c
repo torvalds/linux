@@ -1627,8 +1627,7 @@ unsigned int pci_scan_child_bus(struct pci_bus *bus)
 	if (!bus->is_added) {
 		dev_dbg(&bus->dev, "fixups for bus\n");
 		pcibios_fixup_bus(bus);
-		if (pci_is_root_bus(bus))
-			bus->is_added = 1;
+		bus->is_added = 1;
 	}
 
 	for (pass=0; pass < 2; pass++)
