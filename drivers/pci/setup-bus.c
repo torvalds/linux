@@ -1545,6 +1545,8 @@ again:
 
 enable_all:
 	retval = pci_reenable_device(bridge);
+	if (retval)
+		dev_err(&bridge->dev, "Error reenabling bridge (%d)\n", retval);
 	pci_set_master(bridge);
 	pci_enable_bridges(parent);
 }
