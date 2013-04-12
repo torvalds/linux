@@ -198,3 +198,19 @@ extern const struct inode_operations proc_ns_dir_inode_operations;
 extern const struct file_operations proc_ns_dir_operations;
 
 extern int proc_setup_self(struct super_block *);
+
+/*
+ * proc_devtree.c
+ */
+#ifdef CONFIG_PROC_DEVICETREE
+extern void proc_device_tree_init(void);
+#endif /* CONFIG_PROC_DEVICETREE */
+
+/*
+ * proc_tty.c
+ */
+#ifdef CONFIG_TTY
+extern void proc_tty_init(void);
+#else
+static inline void proc_tty_init(void) {}
+#endif
