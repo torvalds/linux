@@ -406,9 +406,18 @@ static void __ic_line_inv_vaddr(unsigned long phy_start, unsigned long vaddr,
 	int num_lines, slack;
 	unsigned int addr;
 
-	slack = phy_start & ~ICACHE_LINE_MASK;
-	sz += slack;
-	phy_start -= slack;
+	/*
+	 * Ensure we properly floor/ceil the non-line aligned/sized requests:
+	 * However page sized flushes can be compile time optimised.
+	 *  -@phy_start will be cache-line aligned already (being page aligned)
+	 *  -@sz will be integral multiple of line size (being page sized).
+	 */
+	if (!(__builtin_constant_p(sz) && sz == PAGE_SIZE)) {
+		slack = phy_start & ~ICACHE_LINE_MASK;
+		sz += slack;
+		phy_start -= slack;
+	}
+
 	num_lines = DIV_ROUND_UP(sz, ARC_ICACHE_LINE_LEN);
 
 #if (CONFIG_ARC_MMU_VER > 2)
