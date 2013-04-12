@@ -297,6 +297,7 @@ void acpi_pci_add_bus(struct pci_bus *bus)
 		return;
 
 	acpi_pci_slot_enumerate(bus, handle);
+	acpiphp_enumerate_slots(bus, handle);
 }
 
 void acpi_pci_remove_bus(struct pci_bus *bus)
@@ -308,6 +309,7 @@ void acpi_pci_remove_bus(struct pci_bus *bus)
 	if (acpi_pci_disabled)
 		return;
 
+	acpiphp_remove_slots(bus);
 	acpi_pci_slot_remove(bus);
 }
 
@@ -388,6 +390,7 @@ static int __init acpi_pci_init(void)
 
 	pci_set_platform_pm(&acpi_pci_platform_pm);
 	acpi_pci_slot_init();
+	acpiphp_init();
 
 	return 0;
 }
