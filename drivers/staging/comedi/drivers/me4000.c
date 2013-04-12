@@ -55,6 +55,7 @@ broken.
 
 #include "comedi_fc.h"
 #include "8253.h"
+#include "plx9052.h"
 
 #if 0
 /* file removed due to GPL incompatibility */
@@ -172,15 +173,6 @@ broken.
 /*
  * PLX Register map and bit defines
  */
-#define PLX_INTCSR				0x4c
-#define PLX_INTCSR_LOCAL_INT1_EN		(1 << 0)
-#define PLX_INTCSR_LOCAL_INT1_POL		(1 << 1)
-#define PLX_INTCSR_LOCAL_INT1_STATE		(1 << 2)
-#define PLX_INTCSR_LOCAL_INT2_EN		(1 << 3)
-#define PLX_INTCSR_LOCAL_INT2_POL		(1 << 4)
-#define PLX_INTCSR_LOCAL_INT2_STATE		(1 << 5)
-#define PLX_INTCSR_PCI_INT_EN			(1 << 6)
-#define PLX_INTCSR_SOFT_INT			(1 << 7)
 #define PLX_ICR					0x50
 #define PLX_ICR_BIT_EEPROM_CLOCK_SET		(1 << 24)
 #define PLX_ICR_BIT_EEPROM_CHIP_SELECT		(1 << 25)
@@ -376,6 +368,7 @@ static int xilinx_download(struct comedi_device *dev)
 	wait_queue_head_t queue;
 	int idx = 0;
 	int size = 0;
+	unsigned int intcsr;
 
 	if (!xilinx_iobase)
 		return -ENODEV;
@@ -386,7 +379,7 @@ static int xilinx_download(struct comedi_device *dev)
 	 * Set PLX local interrupt 2 polarity to high.
 	 * Interrupt is thrown by init pin of xilinx.
 	 */
-	outl(0x10, info->plx_regbase + PLX_INTCSR);
+	outl(PLX9052_INTCSR_LI2POL, info->plx_regbase + PLX9052_INTCSR);
 
 	/* Set /CS and /WRITE of the Xilinx */
 	value = inl(info->plx_regbase + PLX_ICR);
@@ -398,7 +391,8 @@ static int xilinx_download(struct comedi_device *dev)
 
 	/* Wait until /INIT pin is set */
 	udelay(20);
-	if (!(inl(info->plx_regbase + PLX_INTCSR) & 0x20)) {
+	intcsr = inl(info->plx_regbase + PLX9052_INTCSR);
+	if (!(intcsr & PLX9052_INTCSR_LI2STAT)) {
 		dev_err(dev->class_dev, "Can't init Xilinx\n");
 		return -EIO;
 	}
@@ -474,7 +468,9 @@ static void me4000_reset(struct comedi_device *dev)
 		outl(val, dev->iobase + ME4000_AO_CTRL_REG(chan));
 
 	/* Enable interrupts on the PLX */
-	outl(0x43, info->plx_regbase + PLX_INTCSR);
+	outl(PLX9052_INTCSR_LI1ENAB |
+	     PLX9052_INTCSR_LI1POL |
+	     PLX9052_INTCSR_PCIENAB, info->plx_regbase + PLX9052_INTCSR);
 
 	/* Set the adustment register for AO demux */
 	outl(ME4000_AO_DEMUX_ADJUST_VALUE,
