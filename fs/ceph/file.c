@@ -651,7 +651,6 @@ static ssize_t ceph_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	dout("aio_read %p %llx.%llx %llu~%u trying to get caps on %p\n",
 	     inode, ceph_vinop(inode), pos, (unsigned)len, inode);
 again:
-	__ceph_do_pending_vmtruncate(inode, true);
 	if (fi->fmode & CEPH_FILE_MODE_LAZY)
 		want = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
 	else
@@ -728,7 +727,7 @@ retry_snap:
 		ret = -ENOSPC;
 		goto out;
 	}
-	__ceph_do_pending_vmtruncate(inode, true);
+	mutex_lock(&inode->i_mutex);
 	dout("aio_write %p %llx.%llx %llu~%u getting caps. i_size %llu\n",
 	     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len,
 	     inode->i_size);
@@ -737,8 +736,10 @@ retry_snap:
 	else
 		want = CEPH_CAP_FILE_BUFFER;
 	ret = ceph_get_caps(ci, CEPH_CAP_FILE_WR, want, &got, endoff);
-	if (ret < 0)
-		goto out_put;
+	if (ret < 0) {
+		mutex_unlock(&inode->i_mutex);
+		goto out;
+	}
 
 	dout("aio_write %p %llx.%llx %llu~%u  got cap refs on %s\n",
 	     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len,
@@ -748,10 +749,10 @@ retry_snap:
 	    (iocb->ki_filp->f_flags & O_DIRECT) ||
 	    (inode->i_sb->s_flags & MS_SYNCHRONOUS) ||
 	    (fi->flags & CEPH_F_SYNC)) {
+		mutex_unlock(&inode->i_mutex);
 		ret = ceph_sync_write(file, iov->iov_base, iov->iov_len,
 			&iocb->ki_pos);
 	} else {
-		mutex_lock(&inode->i_mutex);
 		ret = __generic_file_aio_write(iocb, iov, nr_segs,
 					       &iocb->ki_pos);
 		mutex_unlock(&inode->i_mutex);
@@ -766,7 +767,6 @@ retry_snap:
 			__mark_inode_dirty(inode, dirty);
 	}
 
-out_put:
 	dout("aio_write %p %llx.%llx %llu~%u  dropping cap refs on %s\n",
 	     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len,
 	     ceph_cap_string(got));

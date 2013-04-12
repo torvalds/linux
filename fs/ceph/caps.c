@@ -2052,6 +2052,13 @@ static int try_get_cap_refs(struct ceph_inode_info *ci, int need, int want,
 		goto out;
 	}
 
+	/* finish pending truncate */
+	while (ci->i_truncate_pending) {
+		spin_unlock(&ci->i_ceph_lock);
+		__ceph_do_pending_vmtruncate(inode, !(need & CEPH_CAP_FILE_WR));
+		spin_lock(&ci->i_ceph_lock);
+	}
+
 	if (need & CEPH_CAP_FILE_WR) {
 		if (endoff >= 0 && endoff > (loff_t)ci->i_max_size) {
 			dout("get_cap_refs %p endoff %llu > maxsize %llu\n",
@@ -2072,12 +2079,6 @@ static int try_get_cap_refs(struct ceph_inode_info *ci, int need, int want,
 		}
 	}
 	have = __ceph_caps_issued(ci, &implemented);
-
-	/*
-	 * disallow writes while a truncate is pending
-	 */
-	if (ci->i_truncate_pending)
-		have &= ~CEPH_CAP_FILE_WR;
 
 	if ((have & need) == need) {
 		/*
