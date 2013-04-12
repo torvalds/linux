@@ -505,6 +505,9 @@ static int __init xen_acpi_processor_init(void)
 
 		pr = per_cpu(processors, i);
 		perf = per_cpu_ptr(acpi_perf_data, i);
+		if (!pr)
+			continue;
+
 		pr->performance = perf;
 		rc = acpi_processor_get_performance_info(pr);
 		if (rc)
