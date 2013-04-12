@@ -79,11 +79,6 @@ static int tegra_wm9712_driver_probe(struct platform_device *pdev)
 	struct tegra_wm9712 *machine;
 	int ret;
 
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "No platform data supplied\n");
-		return -EINVAL;
-	}
-
 	machine = devm_kzalloc(&pdev->dev, sizeof(struct tegra_wm9712),
 			       GFP_KERNEL);
 	if (!machine) {
