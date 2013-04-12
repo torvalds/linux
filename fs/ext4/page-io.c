@@ -387,7 +387,7 @@ submit_and_retry:
 	if (ret != bh->b_size)
 		goto submit_and_retry;
 	io_end = io->io_end;
-	if (buffer_uninit(bh))
+	if (test_clear_buffer_uninit(bh))
 		ext4_set_io_unwritten_flag(inode, io_end);
 	io_end->size += bh->b_size;
 	io->io_next_block++;
