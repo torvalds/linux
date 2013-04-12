@@ -652,7 +652,6 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 {
 	unsigned int tot_sz, off, sz;
 	unsigned long phy, pfn;
-	unsigned long flags;
 
 	/* printk("Kernel Cache Cohenercy: %lx to %lx\n",kstart, kend); */
 
@@ -679,8 +678,7 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 		 * given the callers for this case: kprobe/kgdb in built-in
 		 * kernel code only.
 		 */
-		__ic_line_inv_vaddr(kstart, kstart, kend - kstart);
-		__dc_line_op(kstart, kend - kstart, OP_FLUSH);
+		__sync_icache_dcache(kstart, kstart, kend - kstart);
 		return;
 	}
 
@@ -698,28 +696,30 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 		pfn = vmalloc_to_pfn((void *)kstart);
 		phy = (pfn << PAGE_SHIFT) + off;
 		sz = min_t(unsigned int, tot_sz, PAGE_SIZE - off);
-		local_irq_save(flags);
-		__dc_line_op(phy, sz, OP_FLUSH);
-		__ic_line_inv_vaddr(phy, kstart, sz);
-		local_irq_restore(flags);
+		__sync_icache_dcache(phy, kstart, sz);
 		kstart += sz;
 		tot_sz -= sz;
 	}
 }
 
 /*
- * Optimised ver of flush_icache_range() with spec callers: ptrace/signals
- * where vaddr is also available. This allows passing both vaddr and paddr
- * bits to CDU for cache flush, short-circuting the current pessimistic algo
- * which kills all possible aliases.
- * An added adv of knowing that vaddr is user-vaddr avoids various checks
- * and handling for k-vaddr, k-paddr as done in orig ver above
+ * General purpose helper to make I and D cache lines consistent.
+ * @paddr is phy addr of region
+ * @vaddr is typically user or kernel vaddr (vmalloc)
+ *    Howver in one instance, flush_icache_range() by kprobe (for a breakpt in
+ *    builtin kernel code) @vaddr will be paddr only, meaning CDU operation will
+ *    use a paddr to index the cache (despite VIPT). This is fine since since a
+ *    built-in kernel page will not have any virtual mappings (not even kernel)
+ *    kprobe on loadable module is different as it will have kvaddr.
  */
-void flush_icache_range_vaddr(unsigned long paddr, unsigned long u_vaddr,
-			      int len)
+void __sync_icache_dcache(unsigned long paddr, unsigned long vaddr, int len)
 {
-	__ic_line_inv_vaddr(paddr, u_vaddr, len);
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__ic_line_inv_vaddr(paddr, vaddr, len);
 	__dc_line_op(paddr, len, OP_FLUSH);
+	local_irq_restore(flags);
 }
 
 /* wrapper to compile time eliminate alignment checks in flush loop */
