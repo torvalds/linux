@@ -165,7 +165,7 @@ void proc_free_inum(unsigned int inum)
 
 static void *proc_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	nd_set_link(nd, PDE_DATA(dentry->d_inode));
+	nd_set_link(nd, __PDE_DATA(dentry->d_inode));
 	return NULL;
 }
 
@@ -631,3 +631,9 @@ void proc_remove(struct proc_dir_entry *de)
 		remove_proc_subtree(de->name, de->parent);
 }
 EXPORT_SYMBOL(proc_remove);
+
+void *PDE_DATA(const struct inode *inode)
+{
+	return __PDE_DATA(inode);
+}
+EXPORT_SYMBOL(PDE_DATA);

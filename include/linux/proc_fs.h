@@ -87,6 +87,7 @@ static inline struct proc_dir_entry *proc_create(const char *name, umode_t mode,
  
 extern void proc_set_size(struct proc_dir_entry *, loff_t);
 extern void proc_set_user(struct proc_dir_entry *, kuid_t, kgid_t);
+extern void *PDE_DATA(const struct inode *);
 extern void *proc_get_parent_data(const struct inode *);
 #else
 
@@ -116,6 +117,7 @@ static inline struct proc_dir_entry *proc_mkdir_mode(const char *name,
 	umode_t mode, struct proc_dir_entry *parent) { return NULL; }
 static inline void proc_set_size(struct proc_dir_entry *de, loff_t size) {}
 static inline void proc_set_user(struct proc_dir_entry *de, kuid_t uid, kgid_t gid) {}
+static inline void *PDE_DATA(const struct inode *inode) {BUG(); return NULL;}
 
 #endif /* CONFIG_PROC_FS */
 
@@ -141,21 +143,6 @@ struct proc_inode {
 	struct proc_ns ns;
 	struct inode vfs_inode;
 };
-
-static inline struct proc_inode *PROC_I(const struct inode *inode)
-{
-	return container_of(inode, struct proc_inode, vfs_inode);
-}
-
-static inline struct proc_dir_entry *PDE(const struct inode *inode)
-{
-	return PROC_I(inode)->pde;
-}
-
-static inline void *PDE_DATA(const struct inode *inode)
-{
-	return PROC_I(inode)->pde->data;
-}
 
 static inline struct proc_dir_entry *proc_net_mkdir(
 	struct net *net, const char *name, struct proc_dir_entry *parent)

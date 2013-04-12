@@ -84,6 +84,24 @@ struct proc_maps_private {
 
 void proc_init_inodecache(void);
 
+/*
+ * General functions
+ */
+static inline struct proc_inode *PROC_I(const struct inode *inode)
+{
+	return container_of(inode, struct proc_inode, vfs_inode);
+}
+
+static inline struct proc_dir_entry *PDE(const struct inode *inode)
+{
+	return PROC_I(inode)->pde;
+}
+
+static inline void *__PDE_DATA(const struct inode *inode)
+{
+	return PDE(inode)->data;
+}
+
 static inline struct pid *proc_pid(struct inode *inode)
 {
 	return PROC_I(inode)->pid;
