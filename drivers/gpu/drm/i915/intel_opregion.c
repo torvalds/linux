@@ -280,9 +280,7 @@ void intel_opregion_enable_asle(struct drm_device *dev)
 		if (IS_MOBILE(dev))
 			intel_enable_asle(dev);
 
-		iowrite32(ASLE_ALS_EN | ASLE_BLC_EN | ASLE_PFIT_EN |
-			  ASLE_PFMB_EN,
-			  &asle->tche);
+		iowrite32(ASLE_BLC_EN, &asle->tche);
 		iowrite32(1, &asle->ardy);
 	}
 }
