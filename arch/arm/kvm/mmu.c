@@ -32,6 +32,7 @@
 
 extern char  __hyp_idmap_text_start[], __hyp_idmap_text_end[];
 
+static pgd_t *hyp_pgd;
 static DEFINE_MUTEX(kvm_hyp_pgd_mutex);
 
 static void kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
@@ -715,12 +716,33 @@ phys_addr_t kvm_mmu_get_httbr(void)
 
 int kvm_mmu_init(void)
 {
+	unsigned long hyp_idmap_start = virt_to_phys(__hyp_idmap_text_start);
+	unsigned long hyp_idmap_end = virt_to_phys(__hyp_idmap_text_end);
+	int err;
+
+	hyp_pgd = kzalloc(PTRS_PER_PGD * sizeof(pgd_t), GFP_KERNEL);
 	if (!hyp_pgd) {
 		kvm_err("Hyp mode PGD not allocated\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out;
+	}
+
+	/* Create the idmap in the boot page tables */
+	err = 	__create_hyp_mappings(boot_hyp_pgd,
+				      hyp_idmap_start, hyp_idmap_end,
+				      __phys_to_pfn(hyp_idmap_start),
+				      PAGE_HYP);
+
+	if (err) {
+		kvm_err("Failed to idmap %lx-%lx\n",
+			hyp_idmap_start, hyp_idmap_end);
+		goto out;
 	}
 
 	return 0;
+out:
+	kfree(hyp_pgd);
+	return err;
 }
 
 /**
