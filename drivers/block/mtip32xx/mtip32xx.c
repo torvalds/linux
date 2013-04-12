@@ -1520,10 +1520,12 @@ static int mtip_get_identify(struct mtip_port *port, void __user *user_buffer)
 	}
 #endif
 
+#ifdef MTIP_TRIM /* Disabling TRIM support temporarily */
 	/* Demux ID.DRAT & ID.RZAT to determine trim support */
 	if (port->identify[69] & (1 << 14) && port->identify[69] & (1 << 5))
 		port->dd->trim_supp = true;
 	else
+#endif
 		port->dd->trim_supp = false;
 
 	/* Set the identify buffer as valid. */
