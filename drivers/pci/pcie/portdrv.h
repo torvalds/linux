@@ -21,18 +21,18 @@
 #define get_descriptor_id(type, service) (((type - 4) << 4) | service)
 
 extern struct bus_type pcie_port_bus_type;
-extern int pcie_port_device_register(struct pci_dev *dev);
+int pcie_port_device_register(struct pci_dev *dev);
 #ifdef CONFIG_PM
-extern int pcie_port_device_suspend(struct device *dev);
-extern int pcie_port_device_resume(struct device *dev);
+int pcie_port_device_suspend(struct device *dev);
+int pcie_port_device_resume(struct device *dev);
 #endif
-extern void pcie_port_device_remove(struct pci_dev *dev);
-extern int __must_check pcie_port_bus_register(void);
-extern void pcie_port_bus_unregister(void);
+void pcie_port_device_remove(struct pci_dev *dev);
+int __must_check pcie_port_bus_register(void);
+void pcie_port_bus_unregister(void);
 
 struct pci_dev;
 
-extern void pcie_clear_root_pme_status(struct pci_dev *dev);
+void pcie_clear_root_pme_status(struct pci_dev *dev);
 
 #ifdef CONFIG_HOTPLUG_PCI_PCIE
 extern bool pciehp_msi_disabled;
@@ -59,7 +59,7 @@ static inline bool pcie_pme_no_msi(void)
 	return pcie_pme_msi_disabled;
 }
 
-extern void pcie_pme_interrupt_enable(struct pci_dev *dev, bool enable);
+void pcie_pme_interrupt_enable(struct pci_dev *dev, bool enable);
 #else /* !CONFIG_PCIE_PME */
 static inline void pcie_pme_disable_msi(void) {}
 static inline bool pcie_pme_no_msi(void) { return false; }
@@ -67,7 +67,7 @@ static inline void pcie_pme_interrupt_enable(struct pci_dev *dev, bool en) {}
 #endif /* !CONFIG_PCIE_PME */
 
 #ifdef CONFIG_ACPI
-extern int pcie_port_acpi_setup(struct pci_dev *port, int *mask);
+int pcie_port_acpi_setup(struct pci_dev *port, int *mask);
 
 static inline int pcie_port_platform_notify(struct pci_dev *port, int *mask)
 {

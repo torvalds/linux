@@ -86,18 +86,18 @@ extern struct list_head rpaphp_slot_head;
 /* function prototypes */
 
 /* rpaphp_pci.c */
-extern int rpaphp_enable_slot(struct slot *slot);
-extern int rpaphp_get_sensor_state(struct slot *slot, int *state);
+int rpaphp_enable_slot(struct slot *slot);
+int rpaphp_get_sensor_state(struct slot *slot, int *state);
 
 /* rpaphp_core.c */
-extern int rpaphp_add_slot(struct device_node *dn);
-extern int rpaphp_get_drc_props(struct device_node *dn, int *drc_index,
+int rpaphp_add_slot(struct device_node *dn);
+int rpaphp_get_drc_props(struct device_node *dn, int *drc_index,
 		char **drc_name, char **drc_type, int *drc_power_domain);
 
 /* rpaphp_slot.c */
-extern void dealloc_slot_struct(struct slot *slot);
-extern struct slot *alloc_slot_struct(struct device_node *dn, int drc_index, char *drc_name, int power_domain);
-extern int rpaphp_register_slot(struct slot *slot);
-extern int rpaphp_deregister_slot(struct slot *slot);
+void dealloc_slot_struct(struct slot *slot);
+struct slot *alloc_slot_struct(struct device_node *dn, int drc_index, char *drc_name, int power_domain);
+int rpaphp_register_slot(struct slot *slot);
+int rpaphp_deregister_slot(struct slot *slot);
 	
 #endif				/* _PPC64PHP_H */
