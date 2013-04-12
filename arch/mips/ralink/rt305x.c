@@ -22,7 +22,7 @@
 
 enum rt305x_soc_type rt305x_soc;
 
-struct ralink_pinmux_grp mode_mux[] = {
+static struct ralink_pinmux_grp mode_mux[] = {
 	{
 		.name = "i2c",
 		.mask = RT305X_GPIO_MODE_I2C,
@@ -61,7 +61,7 @@ struct ralink_pinmux_grp mode_mux[] = {
 	}, {0}
 };
 
-struct ralink_pinmux_grp uart_mux[] = {
+static struct ralink_pinmux_grp uart_mux[] = {
 	{
 		.name = "uartf",
 		.mask = RT305X_GPIO_MODE_UARTF,
@@ -103,7 +103,7 @@ struct ralink_pinmux_grp uart_mux[] = {
 	}, {0}
 };
 
-void rt305x_wdt_reset(void)
+static void rt305x_wdt_reset(void)
 {
 	u32 t;
 
