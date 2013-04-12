@@ -172,29 +172,22 @@ static u32 asle_set_als_illum(struct drm_device *dev, u32 alsi)
 {
 	/* alsi is the current ALS reading in lux. 0 indicates below sensor
 	   range, 0xffff indicates above sensor range. 1-0xfffe are valid */
-	return 0;
+	DRM_DEBUG_DRIVER("Illum is not supported\n");
+	return ASLE_ALS_ILLUM_FAILED;
 }
 
 static u32 asle_set_pwm_freq(struct drm_device *dev, u32 pfmb)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	if (pfmb & ASLE_PFMB_PWM_VALID) {
-		u32 blc_pwm_ctl = I915_READ(BLC_PWM_CTL);
-		u32 pwm = pfmb & ASLE_PFMB_PWM_MASK;
-		blc_pwm_ctl &= BACKLIGHT_DUTY_CYCLE_MASK;
-		pwm = pwm >> 9;
-		/* FIXME - what do we do with the PWM? */
-	}
-	return 0;
+	DRM_DEBUG_DRIVER("PWM freq is not supported\n");
+	return ASLE_PWM_FREQ_FAILED;
 }
 
 static u32 asle_set_pfit(struct drm_device *dev, u32 pfit)
 {
 	/* Panel fitting is currently controlled by the X code, so this is a
 	   noop until modesetting support works fully */
-	if (!(pfit & ASLE_PFIT_VALID))
-		return ASLE_PFIT_FAILED;
-	return 0;
+	DRM_DEBUG_DRIVER("Pfit is not supported\n");
+	return ASLE_PFIT_FAILED;
 }
 
 void intel_opregion_asle_intr(struct drm_device *dev)
