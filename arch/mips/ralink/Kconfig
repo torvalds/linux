@@ -42,6 +42,10 @@ choice
 		bool "RT305x eval kit"
 		depends on SOC_RT305X
 
+	config DTB_RT3883_EVAL
+		bool "RT3883 eval kit"
+		depends on SOC_RT3883
+
 endchoice
 
 endif
