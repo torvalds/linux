@@ -22,39 +22,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-/*
- *
- * Based on OpenPic implementations:
- * - Intel GW80314 I/O companion chip developer's manual
- * - Motorola MPC8245 & MPC8540 user manuals.
- * - Motorola MCP750 (aka Raven) programmer manual.
- * - Motorola Harrier programmer manuel
- *
- * Serial interrupts, as implemented in Raven chipset are not supported yet.
- *
- */
-#include "hw.h"
-#include "ppc/mac.h"
-#include "pci/pci.h"
-#include "openpic.h"
-#include "sysbus.h"
-#include "pci/msi.h"
-#include "qemu/bitops.h"
-#include "ppc.h"
-
-//#define DEBUG_OPENPIC
-
-#ifdef DEBUG_OPENPIC
-static const int debug_openpic = 1;
-#else
-static const int debug_openpic = 0;
-#endif
-
-#define DPRINTF(fmt, ...) do { \
-        if (debug_openpic) { \
-            printf(fmt , ## __VA_ARGS__); \
-        } \
-    } while (0)
 
 #define MAX_CPU     32
 #define MAX_SRC     256
@@ -81,21 +48,6 @@ static const int debug_openpic = 0;
 #define OPENPIC_SRC_REG_SIZE         (MAX_SRC * 0x20)
 #define OPENPIC_CPU_REG_START        0x20000
 #define OPENPIC_CPU_REG_SIZE         0x100 + ((MAX_CPU - 1) * 0x1000)
-
-/* Raven */
-#define RAVEN_MAX_CPU      2
-#define RAVEN_MAX_EXT     48
-#define RAVEN_MAX_IRQ     64
-#define RAVEN_MAX_TMR      MAX_TMR
-#define RAVEN_MAX_IPI      MAX_IPI
-
-/* Interrupt definitions */
-#define RAVEN_FE_IRQ     (RAVEN_MAX_EXT)	/* Internal functional IRQ */
-#define RAVEN_ERR_IRQ    (RAVEN_MAX_EXT + 1)	/* Error IRQ */
-#define RAVEN_TMR_IRQ    (RAVEN_MAX_EXT + 2)	/* First timer IRQ */
-#define RAVEN_IPI_IRQ    (RAVEN_TMR_IRQ + RAVEN_MAX_TMR)	/* First IPI IRQ */
-/* First doorbell IRQ */
-#define RAVEN_DBL_IRQ    (RAVEN_IPI_IRQ + (RAVEN_MAX_CPU * RAVEN_MAX_IPI))
 
 typedef struct FslMpicInfo {
 	int max_ext;
@@ -137,44 +89,6 @@ static FslMpicInfo fsl_mpic_42 = {
 #define ILR_INTTGT_INT    0x00
 #define ILR_INTTGT_CINT   0x01	/* critical */
 #define ILR_INTTGT_MCP    0x02	/* machine check */
-
-/* The currently supported INTTGT values happen to be the same as QEMU's
- * openpic output codes, but don't depend on this.  The output codes
- * could change (unlikely, but...) or support could be added for
- * more INTTGT values.
- */
-static const int inttgt_output[][2] = {
-	{ILR_INTTGT_INT, OPENPIC_OUTPUT_INT},
-	{ILR_INTTGT_CINT, OPENPIC_OUTPUT_CINT},
-	{ILR_INTTGT_MCP, OPENPIC_OUTPUT_MCK},
-};
-
-static int inttgt_to_output(int inttgt)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(inttgt_output); i++) {
-		if (inttgt_output[i][0] == inttgt) {
-			return inttgt_output[i][1];
-		}
-	}
-
-	fprintf(stderr, "%s: unsupported inttgt %d\n", __func__, inttgt);
-	return OPENPIC_OUTPUT_INT;
-}
-
-static int output_to_inttgt(int output)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(inttgt_output); i++) {
-		if (inttgt_output[i][1] == output) {
-			return inttgt_output[i][0];
-		}
-	}
-
-	abort();
-}
 
 #define MSIIR_OFFSET       0x140
 #define MSIIR_SRS_SHIFT    29
@@ -1265,227 +1179,35 @@ static uint64_t openpic_cpu_read(void *opaque, hwaddr addr, unsigned len)
 	return openpic_cpu_read_internal(opaque, addr, (addr & 0x1f000) >> 12);
 }
 
-static const MemoryRegionOps openpic_glb_ops_le = {
-	.write = openpic_gbl_write,
-	.read = openpic_gbl_read,
-	.endianness = DEVICE_LITTLE_ENDIAN,
-	.impl = {
-		 .min_access_size = 4,
-		 .max_access_size = 4,
-		 },
-};
-
 static const MemoryRegionOps openpic_glb_ops_be = {
 	.write = openpic_gbl_write,
 	.read = openpic_gbl_read,
-	.endianness = DEVICE_BIG_ENDIAN,
-	.impl = {
-		 .min_access_size = 4,
-		 .max_access_size = 4,
-		 },
-};
-
-static const MemoryRegionOps openpic_tmr_ops_le = {
-	.write = openpic_tmr_write,
-	.read = openpic_tmr_read,
-	.endianness = DEVICE_LITTLE_ENDIAN,
-	.impl = {
-		 .min_access_size = 4,
-		 .max_access_size = 4,
-		 },
 };
 
 static const MemoryRegionOps openpic_tmr_ops_be = {
 	.write = openpic_tmr_write,
 	.read = openpic_tmr_read,
-	.endianness = DEVICE_BIG_ENDIAN,
-	.impl = {
-		 .min_access_size = 4,
-		 .max_access_size = 4,
-		 },
-};
-
-static const MemoryRegionOps openpic_cpu_ops_le = {
-	.write = openpic_cpu_write,
-	.read = openpic_cpu_read,
-	.endianness = DEVICE_LITTLE_ENDIAN,
-	.impl = {
-		 .min_access_size = 4,
-		 .max_access_size = 4,
-		 },
 };
 
 static const MemoryRegionOps openpic_cpu_ops_be = {
 	.write = openpic_cpu_write,
 	.read = openpic_cpu_read,
-	.endianness = DEVICE_BIG_ENDIAN,
-	.impl = {
-		 .min_access_size = 4,
-		 .max_access_size = 4,
-		 },
-};
-
-static const MemoryRegionOps openpic_src_ops_le = {
-	.write = openpic_src_write,
-	.read = openpic_src_read,
-	.endianness = DEVICE_LITTLE_ENDIAN,
-	.impl = {
-		 .min_access_size = 4,
-		 .max_access_size = 4,
-		 },
 };
 
 static const MemoryRegionOps openpic_src_ops_be = {
 	.write = openpic_src_write,
 	.read = openpic_src_read,
-	.endianness = DEVICE_BIG_ENDIAN,
-	.impl = {
-		 .min_access_size = 4,
-		 .max_access_size = 4,
-		 },
 };
 
 static const MemoryRegionOps openpic_msi_ops_be = {
 	.read = openpic_msi_read,
 	.write = openpic_msi_write,
-	.endianness = DEVICE_BIG_ENDIAN,
-	.impl = {
-		 .min_access_size = 4,
-		 .max_access_size = 4,
-		 },
 };
 
 static const MemoryRegionOps openpic_summary_ops_be = {
 	.read = openpic_summary_read,
 	.write = openpic_summary_write,
-	.endianness = DEVICE_BIG_ENDIAN,
-	.impl = {
-		 .min_access_size = 4,
-		 .max_access_size = 4,
-		 },
 };
-
-static void openpic_save_IRQ_queue(QEMUFile * f, IRQQueue * q)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(q->queue); i++) {
-		/* Always put the lower half of a 64-bit long first, in case we
-		 * restore on a 32-bit host.  The least significant bits correspond
-		 * to lower IRQ numbers in the bitmap.
-		 */
-		qemu_put_be32(f, (uint32_t) q->queue[i]);
-#if LONG_MAX > 0x7FFFFFFF
-		qemu_put_be32(f, (uint32_t) (q->queue[i] >> 32));
-#endif
-	}
-
-	qemu_put_sbe32s(f, &q->next);
-	qemu_put_sbe32s(f, &q->priority);
-}
-
-static void openpic_save(QEMUFile * f, void *opaque)
-{
-	OpenPICState *opp = (OpenPICState *) opaque;
-	unsigned int i;
-
-	qemu_put_be32s(f, &opp->gcr);
-	qemu_put_be32s(f, &opp->vir);
-	qemu_put_be32s(f, &opp->pir);
-	qemu_put_be32s(f, &opp->spve);
-	qemu_put_be32s(f, &opp->tfrr);
-
-	qemu_put_be32s(f, &opp->nb_cpus);
-
-	for (i = 0; i < opp->nb_cpus; i++) {
-		qemu_put_sbe32s(f, &opp->dst[i].ctpr);
-		openpic_save_IRQ_queue(f, &opp->dst[i].raised);
-		openpic_save_IRQ_queue(f, &opp->dst[i].servicing);
-		qemu_put_buffer(f, (uint8_t *) & opp->dst[i].outputs_active,
-				sizeof(opp->dst[i].outputs_active));
-	}
-
-	for (i = 0; i < MAX_TMR; i++) {
-		qemu_put_be32s(f, &opp->timers[i].tccr);
-		qemu_put_be32s(f, &opp->timers[i].tbcr);
-	}
-
-	for (i = 0; i < opp->max_irq; i++) {
-		qemu_put_be32s(f, &opp->src[i].ivpr);
-		qemu_put_be32s(f, &opp->src[i].idr);
-		qemu_get_be32s(f, &opp->src[i].destmask);
-		qemu_put_sbe32s(f, &opp->src[i].last_cpu);
-		qemu_put_sbe32s(f, &opp->src[i].pending);
-	}
-}
-
-static void openpic_load_IRQ_queue(QEMUFile * f, IRQQueue * q)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(q->queue); i++) {
-		unsigned long val;
-
-		val = qemu_get_be32(f);
-#if LONG_MAX > 0x7FFFFFFF
-		val <<= 32;
-		val |= qemu_get_be32(f);
-#endif
-
-		q->queue[i] = val;
-	}
-
-	qemu_get_sbe32s(f, &q->next);
-	qemu_get_sbe32s(f, &q->priority);
-}
-
-static int openpic_load(QEMUFile * f, void *opaque, int version_id)
-{
-	OpenPICState *opp = (OpenPICState *) opaque;
-	unsigned int i;
-
-	if (version_id != 1) {
-		return -EINVAL;
-	}
-
-	qemu_get_be32s(f, &opp->gcr);
-	qemu_get_be32s(f, &opp->vir);
-	qemu_get_be32s(f, &opp->pir);
-	qemu_get_be32s(f, &opp->spve);
-	qemu_get_be32s(f, &opp->tfrr);
-
-	qemu_get_be32s(f, &opp->nb_cpus);
-
-	for (i = 0; i < opp->nb_cpus; i++) {
-		qemu_get_sbe32s(f, &opp->dst[i].ctpr);
-		openpic_load_IRQ_queue(f, &opp->dst[i].raised);
-		openpic_load_IRQ_queue(f, &opp->dst[i].servicing);
-		qemu_get_buffer(f, (uint8_t *) & opp->dst[i].outputs_active,
-				sizeof(opp->dst[i].outputs_active));
-	}
-
-	for (i = 0; i < MAX_TMR; i++) {
-		qemu_get_be32s(f, &opp->timers[i].tccr);
-		qemu_get_be32s(f, &opp->timers[i].tbcr);
-	}
-
-	for (i = 0; i < opp->max_irq; i++) {
-		uint32_t val;
-
-		val = qemu_get_be32(f);
-		write_IRQreg_idr(opp, i, val);
-		val = qemu_get_be32(f);
-		write_IRQreg_ivpr(opp, i, val);
-
-		qemu_get_be32s(f, &opp->src[i].ivpr);
-		qemu_get_be32s(f, &opp->src[i].idr);
-		qemu_get_be32s(f, &opp->src[i].destmask);
-		qemu_get_sbe32s(f, &opp->src[i].last_cpu);
-		qemu_get_sbe32s(f, &opp->src[i].pending);
-	}
-
-	return 0;
-}
 
 typedef struct MemReg {
 	const char *name;
@@ -1614,73 +1336,7 @@ static int openpic_init(SysBusDevice * dev)
 		map_list(opp, list_fsl, &list_count);
 
 		break;
-
-	case OPENPIC_MODEL_RAVEN:
-		opp->nb_irqs = RAVEN_MAX_EXT;
-		opp->vid = VID_REVISION_1_3;
-		opp->vir = VIR_GENERIC;
-		opp->vector_mask = 0xFF;
-		opp->tfrr_reset = 4160000;
-		opp->ivpr_reset = IVPR_MASK_MASK | IVPR_MODE_MASK;
-		opp->idr_reset = 0;
-		opp->max_irq = RAVEN_MAX_IRQ;
-		opp->irq_ipi0 = RAVEN_IPI_IRQ;
-		opp->irq_tim0 = RAVEN_TMR_IRQ;
-		opp->brr1 = -1;
-		opp->mpic_mode_mask = GCR_MODE_MIXED;
-
-		/* Only UP supported today */
-		if (opp->nb_cpus != 1) {
-			return -EINVAL;
-		}
-
-		map_list(opp, list_le, &list_count);
-		break;
 	}
-
-	for (i = 0; i < opp->nb_cpus; i++) {
-		opp->dst[i].irqs = g_new(qemu_irq, OPENPIC_OUTPUT_NB);
-		for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
-			sysbus_init_irq(dev, &opp->dst[i].irqs[j]);
-		}
-	}
-
-	register_savevm(&opp->busdev.qdev, "openpic", 0, 2,
-			openpic_save, openpic_load, opp);
-
-	sysbus_init_mmio(dev, &opp->mem);
-	qdev_init_gpio_in(&dev->qdev, openpic_set_irq, opp->max_irq);
 
 	return 0;
 }
-
-static Property openpic_properties[] = {
-	DEFINE_PROP_UINT32("model", OpenPICState, model,
-			   OPENPIC_MODEL_FSL_MPIC_20),
-	DEFINE_PROP_UINT32("nb_cpus", OpenPICState, nb_cpus, 1),
-	DEFINE_PROP_END_OF_LIST(),
-};
-
-static void openpic_class_init(ObjectClass * klass, void *data)
-{
-	DeviceClass *dc = DEVICE_CLASS(klass);
-	SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-
-	k->init = openpic_init;
-	dc->props = openpic_properties;
-	dc->reset = openpic_reset;
-}
-
-static const TypeInfo openpic_info = {
-	.name = "openpic",
-	.parent = TYPE_SYS_BUS_DEVICE,
-	.instance_size = sizeof(OpenPICState),
-	.class_init = openpic_class_init,
-};
-
-static void openpic_register_types(void)
-{
-	type_register_static(&openpic_info);
-}
-
-type_init(openpic_register_types)
