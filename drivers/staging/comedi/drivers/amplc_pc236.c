@@ -75,23 +75,19 @@ unused.
 #define PC236_IO_SIZE		4
 #define PC236_LCR_IO_SIZE	128
 
-/*
- * INTCSR values for PCI236.
- */
-/* Disable interrupt, also clear any interrupt there */
-#define PCI236_INTR_DISABLE (PLX9052_INTCSR_LI1ENAB_DISABLED \
-	| PLX9052_INTCSR_LI1POL_HIGH \
-	| PLX9052_INTCSR_LI2POL_HIGH \
-	| PLX9052_INTCSR_PCIENAB_DISABLED \
-	| PLX9052_INTCSR_LI1SEL_EDGE \
-	| PLX9052_INTCSR_LI1CLRINT_ASSERTED)
-/* Enable interrupt, also clear any interrupt there. */
-#define PCI236_INTR_ENABLE (PLX9052_INTCSR_LI1ENAB_ENABLED \
-	| PLX9052_INTCSR_LI1POL_HIGH \
-	| PLX9052_INTCSR_LI2POL_HIGH \
-	| PLX9052_INTCSR_PCIENAB_ENABLED \
-	| PLX9052_INTCSR_LI1SEL_EDGE \
-	| PLX9052_INTCSR_LI1CLRINT_ASSERTED)
+/* Disable, and clear, interrupts */
+#define PCI236_INTR_DISABLE	(PLX9052_INTCSR_LI1POL |	\
+				 PLX9052_INTCSR_LI2POL |	\
+				 PLX9052_INTCSR_LI1SEL |	\
+				 PLX9052_INTCSR_LI1CLRINT)
+
+/* Enable, and clear, interrupts */
+#define PCI236_INTR_ENABLE	(PLX9052_INTCSR_LI1ENAB |	\
+				 PLX9052_INTCSR_LI1POL |	\
+				 PLX9052_INTCSR_LI2POL |	\
+				 PLX9052_INTCSR_PCIENAB |	\
+				 PLX9052_INTCSR_LI1SEL |	\
+				 PLX9052_INTCSR_LI1CLRINT)
 
 /*
  * Board descriptions for Amplicon PC36AT and PCI236.
@@ -257,14 +253,14 @@ static int pc236_intr_check(struct comedi_device *dev)
 	struct pc236_private *devpriv = dev->private;
 	int retval = 0;
 	unsigned long flags;
+	unsigned int intcsr;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	if (devpriv->enable_irq) {
 		retval = 1;
 		if (is_pci_board(thisboard)) {
-			if ((inl(devpriv->lcr_iobase + PLX9052_INTCSR)
-			     & PLX9052_INTCSR_LI1STAT_MASK)
-			    == PLX9052_INTCSR_LI1STAT_INACTIVE) {
+			intcsr = inl(devpriv->lcr_iobase + PLX9052_INTCSR);
+			if (!(intcsr & PLX9052_INTCSR_LI1STAT)) {
 				retval = 0;
 			} else {
 				/* Clear interrupt and keep it enabled. */

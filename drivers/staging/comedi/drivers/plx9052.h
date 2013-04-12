@@ -27,60 +27,21 @@
 #define _PLX9052_H_
 
 /*
- * PLX PCI9052 INTCSR register.
+ * INTCSR - Interrupt Control/Status register
  */
-#define PLX9052_INTCSR	0x4C	/* Offset in Local Configuration Registers */
-/* Local Interrupt 1 Enable */
-#define PLX9052_INTCSR_LI1ENAB_MASK		0x0001
-#define PLX9052_INTCSR_LI1ENAB_DISABLED		0x0000
-#define PLX9052_INTCSR_LI1ENAB_ENABLED		0x0001
-/* Local Interrupt 1 Polarity */
-#define PLX9052_INTCSR_LI1POL_MASK		0x0002
-#define PLX9052_INTCSR_LI1POL_LOW		0x0000
-#define PLX9052_INTCSR_LI1POL_HIGH		0x0002
-/* Local Interrupt 1 Status (read-only) */
-#define PLX9052_INTCSR_LI1STAT_MASK		0x0004
-#define PLX9052_INTCSR_LI1STAT_INACTIVE		0x0000
-#define PLX9052_INTCSR_LI1STAT_ACTIVE		0x0004
-/* Local Interrupt 2 Enable */
-#define PLX9052_INTCSR_LI2ENAB_MASK		0x0008
-#define PLX9052_INTCSR_LI2ENAB_DISABLED		0x0000
-#define PLX9052_INTCSR_LI2ENAB_ENABLED		0x0008
-/* Local Interrupt 2 Polarity */
-#define PLX9052_INTCSR_LI2POL_MASK		0x0010
-#define PLX9052_INTCSR_LI2POL_LOW		0x0000
-#define PLX9052_INTCSR_LI2POL_HIGH		0x0010
-/* Local Interrupt 2 Status (read-only) */
-#define PLX9052_INTCSR_LI2STAT_MASK		0x0020
-#define PLX9052_INTCSR_LI2STAT_INACTIVE		0x0000
-#define PLX9052_INTCSR_LI2STAT_ACTIVE		0x0020
-/* PCI Interrupt Enable */
-#define PLX9052_INTCSR_PCIENAB_MASK		0x0040
-#define PLX9052_INTCSR_PCIENAB_DISABLED		0x0000
-#define PLX9052_INTCSR_PCIENAB_ENABLED		0x0040
-/* Software Interrupt */
-#define PLX9052_INTCSR_SOFTINT_MASK		0x0080
-#define PLX9052_INTCSR_SOFTINT_UNASSERTED	0x0000
-#define PLX9052_INTCSR_SOFTINT_ASSERTED		0x0080
-/* Local Interrupt 1 Select Enable */
-#define PLX9052_INTCSR_LI1SEL_MASK		0x0100
-#define PLX9052_INTCSR_LI1SEL_LEVEL		0x0000
-#define PLX9052_INTCSR_LI1SEL_EDGE		0x0100
-/* Local Interrupt 2 Select Enable */
-#define PLX9052_INTCSR_LI2SEL_MASK		0x0200
-#define PLX9052_INTCSR_LI2SEL_LEVEL		0x0000
-#define PLX9052_INTCSR_LI2SEL_EDGE		0x0200
-/* Local Edge Triggerable Interrupt 1 Clear Bit */
-#define PLX9052_INTCSR_LI1CLRINT_MASK		0x0400
-#define PLX9052_INTCSR_LI1CLRINT_UNASSERTED	0x0000
-#define PLX9052_INTCSR_LI1CLRINT_ASSERTED	0x0400
-/* Local Edge Triggerable Interrupt 2 Clear Bit */
-#define PLX9052_INTCSR_LI2CLRINT_MASK		0x0800
-#define PLX9052_INTCSR_LI2CLRINT_UNASSERTED	0x0000
-#define PLX9052_INTCSR_LI2CLRINT_ASSERTED	0x0800
-/* ISA Interface Mode Enable (read-only over PCI bus) */
-#define PLX9052_INTCSR_ISAMODE_MASK		0x1000
-#define PLX9052_INTCSR_ISAMODE_DISABLED		0x0000
-#define PLX9052_INTCSR_ISAMODE_ENABLED		0x1000
+#define PLX9052_INTCSR			0x4c
+#define PLX9052_INTCSR_LI1ENAB		(1 << 0)  /* LI1 enabled */
+#define PLX9052_INTCSR_LI1POL		(1 << 1)  /* LI1 active high */
+#define PLX9052_INTCSR_LI1STAT		(1 << 2)  /* LI1 active */
+#define PLX9052_INTCSR_LI2ENAB		(1 << 3)  /* LI2 enabled */
+#define PLX9052_INTCSR_LI2POL		(1 << 4)  /* LI2 active high */
+#define PLX9052_INTCSR_LI2STAT		(1 << 5)  /* LI2 active */
+#define PLX9052_INTCSR_PCIENAB		(1 << 6)  /* PCIINT enabled */
+#define PLX9052_INTCSR_SOFTINT		(1 << 7)  /* generate soft int */
+#define PLX9052_INTCSR_LI1SEL		(1 << 8)  /* LI1 edge */
+#define PLX9052_INTCSR_LI2SEL		(1 << 9)  /* LI2 edge */
+#define PLX9052_INTCSR_LI1CLRINT	(1 << 10) /* LI1 clear int */
+#define PLX9052_INTCSR_LI2CLRINT	(1 << 11) /* LI2 clear int */
+#define PLX9052_INTCSR_ISAMODE		(1 << 12) /* ISA interface mode */
 
 #endif /* _PLX9052_H_ */
