@@ -914,13 +914,6 @@ static int disable_device(struct acpiphp_slot *slot)
 	struct pci_dev *pdev;
 	struct pci_bus *bus = slot->bridge->pci_bus;
 
-	/* The slot will be enabled when func 0 is added, so check
-	   func 0 before disable the slot. */
-	pdev = pci_get_slot(bus, PCI_DEVFN(slot->device, 0));
-	if (!pdev)
-		goto err_exit;
-	pci_dev_put(pdev);
-
 	list_for_each_entry(func, &slot->funcs, sibling) {
 		if (func->bridge) {
 			/* cleanup p2p bridges under this P2P bridge */
