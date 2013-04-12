@@ -46,7 +46,6 @@ See http://www.mccdaq.com/PDFs/Manuals/pcim-das1602-16.pdf for more details.
 
 #include "../comedidev.h"
 
-#include "plx9052.h"
 #include "8255.h"
 
 /* #define CBPCIMDAS_DEBUG */
