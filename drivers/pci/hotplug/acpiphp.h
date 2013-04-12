@@ -74,6 +74,7 @@ static inline const char *slot_name(struct slot *slot)
 struct acpiphp_bridge {
 	struct list_head list;
 	struct list_head slots;
+	struct kref ref;
 	acpi_handle handle;
 
 	/* Ejectable PCI-to-PCI bridge (PCI bridge and PCI function) */
