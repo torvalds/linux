@@ -832,11 +832,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 
 
 	for (i = 0; i < sizeof(dacvalue); i++) {
-		if ((i <= 0x03) ||
-		    (i == 0x07) ||
-		    (i == 0x0b) ||
-		    (i == 0x0f) ||
-		    ((i >= 0x13) && (i <= 0x17)) ||
+		if ((i <= 0x17) ||
 		    (i == 0x1b) ||
 		    (i == 0x1c) ||
 		    ((i >= 0x1f) && (i <= 0x29)) ||
