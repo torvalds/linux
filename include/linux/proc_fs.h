@@ -187,11 +187,6 @@ static inline void *PDE_DATA(const struct inode *inode)
 	return PROC_I(inode)->pde->data;
 }
 
-static inline struct net *PDE_NET(struct proc_dir_entry *pde)
-{
-	return pde->parent->data;
-}
-
 #include <linux/signal.h>
 
 void render_sigset_t(struct seq_file *m, const char *header, sigset_t *set);
