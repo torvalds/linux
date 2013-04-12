@@ -32,8 +32,14 @@
 
 extern char  __hyp_idmap_text_start[], __hyp_idmap_text_end[];
 
+static pgd_t *boot_hyp_pgd;
 static pgd_t *hyp_pgd;
 static DEFINE_MUTEX(kvm_hyp_pgd_mutex);
+
+static void *init_bounce_page;
+static unsigned long hyp_idmap_start;
+static unsigned long hyp_idmap_end;
+static phys_addr_t hyp_idmap_vector;
 
 static void kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa)
 {
@@ -152,15 +158,24 @@ static void unmap_range(pgd_t *pgdp, unsigned long long start, u64 size)
 /**
  * free_hyp_pgds - free Hyp-mode page tables
  *
- * Assumes hyp_pgd is a page table used strictly in Hyp-mode and therefore contains
- * either mappings in the kernel memory area (above PAGE_OFFSET), or
- * device mappings in the vmalloc range (from VMALLOC_START to VMALLOC_END).
+ * Assumes hyp_pgd is a page table used strictly in Hyp-mode and
+ * therefore contains either mappings in the kernel memory area (above
+ * PAGE_OFFSET), or device mappings in the vmalloc range (from
+ * VMALLOC_START to VMALLOC_END).
+ *
+ * boot_hyp_pgd should only map two pages for the init code.
  */
 void free_hyp_pgds(void)
 {
 	unsigned long addr;
 
 	mutex_lock(&kvm_hyp_pgd_mutex);
+
+	if (boot_hyp_pgd) {
+		unmap_range(boot_hyp_pgd, hyp_idmap_start, PAGE_SIZE);
+		unmap_range(boot_hyp_pgd, TRAMPOLINE_VA, PAGE_SIZE);
+		kfree(boot_hyp_pgd);
+	}
 
 	if (hyp_pgd) {
 		for (addr = PAGE_OFFSET; virt_addr_valid(addr); addr += PGDIR_SIZE)
@@ -170,6 +185,7 @@ void free_hyp_pgds(void)
 		kfree(hyp_pgd);
 	}
 
+	kfree(init_bounce_page);
 	mutex_unlock(&kvm_hyp_pgd_mutex);
 }
 
@@ -185,6 +201,7 @@ static void create_hyp_pte_mappings(pmd_t *pmd, unsigned long start,
 		pte = pte_offset_kernel(pmd, addr);
 		kvm_set_pte(pte, pfn_pte(pfn, prot));
 		get_page(virt_to_page(pte));
+		kvm_flush_dcache_to_poc(pte, sizeof(*pte));
 		pfn++;
 	} while (addr += PAGE_SIZE, addr != end);
 }
@@ -211,6 +228,7 @@ static int create_hyp_pmd_mappings(pud_t *pud, unsigned long start,
 			}
 			pmd_populate_kernel(NULL, pmd, pte);
 			get_page(virt_to_page(pmd));
+			kvm_flush_dcache_to_poc(pmd, sizeof(*pmd));
 		}
 
 		next = pmd_addr_end(addr, end);
@@ -248,6 +266,7 @@ static int __create_hyp_mappings(pgd_t *pgdp,
 			}
 			pud_populate(NULL, pud, pmd);
 			get_page(virt_to_page(pud));
+			kvm_flush_dcache_to_poc(pud, sizeof(*pud));
 		}
 
 		next = pgd_addr_end(addr, end);
@@ -689,18 +708,64 @@ void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu)
 
 phys_addr_t kvm_mmu_get_httbr(void)
 {
-	VM_BUG_ON(!virt_addr_valid(hyp_pgd));
 	return virt_to_phys(hyp_pgd);
+}
+
+phys_addr_t kvm_mmu_get_boot_httbr(void)
+{
+	return virt_to_phys(boot_hyp_pgd);
+}
+
+phys_addr_t kvm_get_idmap_vector(void)
+{
+	return hyp_idmap_vector;
 }
 
 int kvm_mmu_init(void)
 {
-	unsigned long hyp_idmap_start = virt_to_phys(__hyp_idmap_text_start);
-	unsigned long hyp_idmap_end = virt_to_phys(__hyp_idmap_text_end);
 	int err;
 
+	hyp_idmap_start = virt_to_phys(__hyp_idmap_text_start);
+	hyp_idmap_end = virt_to_phys(__hyp_idmap_text_end);
+	hyp_idmap_vector = virt_to_phys(__kvm_hyp_init);
+
+	if ((hyp_idmap_start ^ hyp_idmap_end) & PAGE_MASK) {
+		/*
+		 * Our init code is crossing a page boundary. Allocate
+		 * a bounce page, copy the code over and use that.
+		 */
+		size_t len = __hyp_idmap_text_end - __hyp_idmap_text_start;
+		phys_addr_t phys_base;
+
+		init_bounce_page = kmalloc(PAGE_SIZE, GFP_KERNEL);
+		if (!init_bounce_page) {
+			kvm_err("Couldn't allocate HYP init bounce page\n");
+			err = -ENOMEM;
+			goto out;
+		}
+
+		memcpy(init_bounce_page, __hyp_idmap_text_start, len);
+		/*
+		 * Warning: the code we just copied to the bounce page
+		 * must be flushed to the point of coherency.
+		 * Otherwise, the data may be sitting in L2, and HYP
+		 * mode won't be able to observe it as it runs with
+		 * caches off at that point.
+		 */
+		kvm_flush_dcache_to_poc(init_bounce_page, len);
+
+		phys_base = virt_to_phys(init_bounce_page);
+		hyp_idmap_vector += phys_base - hyp_idmap_start;
+		hyp_idmap_start = phys_base;
+		hyp_idmap_end = phys_base + len;
+
+		kvm_info("Using HYP init bounce page @%lx\n",
+			 (unsigned long)phys_base);
+	}
+
 	hyp_pgd = kzalloc(PTRS_PER_PGD * sizeof(pgd_t), GFP_KERNEL);
-	if (!hyp_pgd) {
+	boot_hyp_pgd = kzalloc(PTRS_PER_PGD * sizeof(pgd_t), GFP_KERNEL);
+	if (!hyp_pgd || !boot_hyp_pgd) {
 		kvm_err("Hyp mode PGD not allocated\n");
 		err = -ENOMEM;
 		goto out;
@@ -718,39 +783,30 @@ int kvm_mmu_init(void)
 		goto out;
 	}
 
+	/* Map the very same page at the trampoline VA */
+	err = 	__create_hyp_mappings(boot_hyp_pgd,
+				      TRAMPOLINE_VA, TRAMPOLINE_VA + PAGE_SIZE,
+				      __phys_to_pfn(hyp_idmap_start),
+				      PAGE_HYP);
+	if (err) {
+		kvm_err("Failed to map trampoline @%lx into boot HYP pgd\n",
+			TRAMPOLINE_VA);
+		goto out;
+	}
+
+	/* Map the same page again into the runtime page tables */
+	err = 	__create_hyp_mappings(hyp_pgd,
+				      TRAMPOLINE_VA, TRAMPOLINE_VA + PAGE_SIZE,
+				      __phys_to_pfn(hyp_idmap_start),
+				      PAGE_HYP);
+	if (err) {
+		kvm_err("Failed to map trampoline @%lx into runtime HYP pgd\n",
+			TRAMPOLINE_VA);
+		goto out;
+	}
+
 	return 0;
 out:
 	free_hyp_pgds();
 	return err;
-}
-
-/**
- * kvm_clear_idmap - remove all idmaps from the hyp pgd
- *
- * Free the underlying pmds for all pgds in range and clear the pgds (but
- * don't free them) afterwards.
- */
-void kvm_clear_hyp_idmap(void)
-{
-	unsigned long addr, end;
-	unsigned long next;
-	pgd_t *pgd = hyp_pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-
-	addr = virt_to_phys(__hyp_idmap_text_start);
-	end = virt_to_phys(__hyp_idmap_text_end);
-
-	pgd += pgd_index(addr);
-	do {
-		next = pgd_addr_end(addr, end);
-		if (pgd_none_or_clear_bad(pgd))
-			continue;
-		pud = pud_offset(pgd, addr);
-		pmd = pmd_offset(pud, addr);
-
-		pud_clear(pud);
-		kvm_clean_pmd_entry(pmd);
-		pmd_free(NULL, (pmd_t *)((unsigned long)pmd & PAGE_MASK));
-	} while (pgd++, addr = next, addr < end);
 }
