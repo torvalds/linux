@@ -32,7 +32,6 @@ TAR_CONTENT := $(KBUILD_ALLDIRS) kernel.spec .config .scmversion Makefile \
                Kbuild Kconfig COPYING $(wildcard localversion*)
 TAR_CONTENT := $(addprefix $(KERNELPATH)/,$(TAR_CONTENT))
 MKSPEC     := $(srctree)/scripts/package/mkspec
-PREV       := set -e; cd -P ..;
 
 # rpm-pkg
 # ---------------------------------------------------------------------------
@@ -47,18 +46,17 @@ rpm-pkg rpm: $(objtree)/kernel.spec FORCE
 		false; \
 	fi
 	$(MAKE) clean
-	$(PREV) ln -sf $(srctree) $(KERNELPATH)
+	ln -sf $(srctree) $(KERNELPATH)
 	$(CONFIG_SHELL) $(srctree)/scripts/setlocalversion --save-scmversion
-	$(PREV) tar -cz $(RCS_TAR_IGNORE) -f $(KERNELPATH).tar.gz $(TAR_CONTENT)
-	$(PREV) rm $(KERNELPATH)
+	tar -cz $(RCS_TAR_IGNORE) -f $(KERNELPATH).tar.gz $(TAR_CONTENT)
+	rm $(KERNELPATH)
 	rm -f $(objtree)/.scmversion
 	set -e; \
 	$(CONFIG_SHELL) $(srctree)/scripts/mkversion > $(objtree)/.tmp_version
 	set -e; \
 	mv -f $(objtree)/.tmp_version $(objtree)/.version
-
-	$(RPM) $(RPMOPTS) --target $(UTS_MACHINE) -ta ../$(KERNELPATH).tar.gz
-	rm ../$(KERNELPATH).tar.gz
+	$(RPM) $(RPMOPTS) --target $(UTS_MACHINE) -ta $(KERNELPATH).tar.gz
+	rm $(KERNELPATH).tar.gz
 
 clean-files := $(objtree)/kernel.spec
 
