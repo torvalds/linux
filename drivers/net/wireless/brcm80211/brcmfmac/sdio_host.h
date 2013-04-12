@@ -174,13 +174,11 @@ struct brcmf_sdio_dev {
 	wait_queue_head_t request_buffer_wait;
 	struct device *dev;
 	struct brcmf_bus *bus_if;
-#ifdef CONFIG_BRCMFMAC_SDIO_OOB
-	unsigned int irq;		/* oob interrupt number */
-	unsigned long irq_flags;	/* board specific oob flags */
+	struct brcmfmac_sdio_platform_data *pdata;
+	bool oob_irq_requested;
 	bool irq_en;			/* irq enable flags */
 	spinlock_t irq_en_lock;
 	bool irq_wake;			/* irq wake enable flags */
-#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
 };
 
 /* Register/deregister interrupt handler. */

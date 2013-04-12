@@ -37,15 +37,6 @@ config BRCMFMAC_SDIO
 	  IEEE802.11n embedded FullMAC WLAN driver. Say Y if you want to
 	  use the driver for a SDIO wireless card.
 
-config BRCMFMAC_SDIO_OOB
-	bool "Out of band interrupt support for SDIO interface chipset"
-	depends on BRCMFMAC_SDIO
-	---help---
-	  This option enables out-of-band interrupt support for Broadcom
-	  SDIO Wifi chipset using fullmac in order to gain better
-	  performance and deep sleep wake up capability on certain
-	  platforms. Say N if you are unsure.
-
 config BRCMFMAC_USB
 	bool "USB bus interface support for FullMAC driver"
 	depends on USB

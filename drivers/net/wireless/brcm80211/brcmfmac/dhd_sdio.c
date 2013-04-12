@@ -31,6 +31,7 @@
 #include <linux/bcma/bcma.h>
 #include <linux/debugfs.h>
 #include <linux/vmalloc.h>
+#include <linux/platform_data/brcmfmac-sdio.h>
 #include <asm/unaligned.h>
 #include <defs.h>
 #include <brcmu_wifi.h>
@@ -517,7 +518,7 @@ static int qcount[NUMPRIO];
 static int tx_packets[NUMPRIO];
 #endif				/* DEBUG */
 
-#define SDIO_DRIVE_STRENGTH	6	/* in milliamps */
+#define DEFAULT_SDIO_DRIVE_STRENGTH	6	/* in milliamps */
 
 #define RETRYCHAN(chan) ((chan) == SDPCM_EVENT_CHANNEL)
 
@@ -2046,23 +2047,19 @@ static void brcmf_sdbrcm_bus_stop(struct device *dev)
 	bus->tx_seq = bus->rx_seq = 0;
 }
 
-#ifdef CONFIG_BRCMFMAC_SDIO_OOB
 static inline void brcmf_sdbrcm_clrintr(struct brcmf_sdio *bus)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&bus->sdiodev->irq_en_lock, flags);
-	if (!bus->sdiodev->irq_en && !atomic_read(&bus->ipend)) {
-		enable_irq(bus->sdiodev->irq);
-		bus->sdiodev->irq_en = true;
+	if (bus->sdiodev->oob_irq_requested) {
+		spin_lock_irqsave(&bus->sdiodev->irq_en_lock, flags);
+		if (!bus->sdiodev->irq_en && !atomic_read(&bus->ipend)) {
+			enable_irq(bus->sdiodev->pdata->oob_irq_nr);
+			bus->sdiodev->irq_en = true;
+		}
+		spin_unlock_irqrestore(&bus->sdiodev->irq_en_lock, flags);
 	}
-	spin_unlock_irqrestore(&bus->sdiodev->irq_en_lock, flags);
 }
-#else
-static inline void brcmf_sdbrcm_clrintr(struct brcmf_sdio *bus)
-{
-}
-#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
 
 static inline void brcmf_sdbrcm_adddpctsk(struct brcmf_sdio *bus)
 {
@@ -3639,6 +3636,7 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 	int err = 0;
 	int reg_addr;
 	u32 reg_val;
+	u32 drivestrength;
 
 	bus->alp_only = true;
 
@@ -3679,8 +3677,11 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 		goto fail;
 	}
 
-	brcmf_sdio_chip_drivestrengthinit(bus->sdiodev, bus->ci,
-					  SDIO_DRIVE_STRENGTH);
+	if ((bus->sdiodev->pdata) && (bus->sdiodev->pdata->drive_strength))
+		drivestrength = bus->sdiodev->pdata->drive_strength;
+	else
+		drivestrength = DEFAULT_SDIO_DRIVE_STRENGTH;
+	brcmf_sdio_chip_drivestrengthinit(bus->sdiodev, bus->ci, drivestrength);
 
 	/* Get info on the SOCRAM cores... */
 	bus->ramsize = bus->ci->ramsize;

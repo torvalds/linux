@@ -25,6 +25,7 @@
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/card.h>
+#include <linux/platform_data/brcmfmac-sdio.h>
 
 #include <defs.h>
 #include <brcm_hw_ids.h>
@@ -37,16 +38,15 @@
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
 
-#ifdef CONFIG_BRCMFMAC_SDIO_OOB
-static irqreturn_t brcmf_sdio_irqhandler(int irq, void *dev_id)
+
+static irqreturn_t brcmf_sdio_oob_irqhandler(int irq, void *dev_id)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev_id);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 
-	brcmf_dbg(INTR, "oob intr triggered\n");
+	brcmf_dbg(INTR, "OOB intr triggered\n");
 
-	/*
-	 * out-of-band interrupt is level-triggered which won't
+	/* out-of-band interrupt is level-triggered which won't
 	 * be cleared until dpc
 	 */
 	if (sdiodev->irq_en) {
@@ -59,72 +59,12 @@ static irqreturn_t brcmf_sdio_irqhandler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
-{
-	int ret = 0;
-	u8 data;
-	unsigned long flags;
-
-	brcmf_dbg(SDIO, "Entering: irq %d\n", sdiodev->irq);
-
-	ret = request_irq(sdiodev->irq, brcmf_sdio_irqhandler,
-			  sdiodev->irq_flags, "brcmf_oob_intr",
-			  &sdiodev->func[1]->dev);
-	if (ret != 0)
-		return ret;
-	spin_lock_init(&sdiodev->irq_en_lock);
-	spin_lock_irqsave(&sdiodev->irq_en_lock, flags);
-	sdiodev->irq_en = true;
-	spin_unlock_irqrestore(&sdiodev->irq_en_lock, flags);
-
-	ret = enable_irq_wake(sdiodev->irq);
-	if (ret != 0)
-		return ret;
-	sdiodev->irq_wake = true;
-
-	sdio_claim_host(sdiodev->func[1]);
-
-	/* must configure SDIO_CCCR_IENx to enable irq */
-	data = brcmf_sdio_regrb(sdiodev, SDIO_CCCR_IENx, &ret);
-	data |= 1 << SDIO_FUNC_1 | 1 << SDIO_FUNC_2 | 1;
-	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_IENx, data, &ret);
-
-	/* redirect, configure and enable io for interrupt signal */
-	data = SDIO_SEPINT_MASK | SDIO_SEPINT_OE;
-	if (sdiodev->irq_flags & IRQF_TRIGGER_HIGH)
-		data |= SDIO_SEPINT_ACT_HI;
-	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, data, &ret);
-
-	sdio_release_host(sdiodev->func[1]);
-
-	return 0;
-}
-
-int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
-{
-	brcmf_dbg(SDIO, "Entering\n");
-
-	sdio_claim_host(sdiodev->func[1]);
-	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, 0, NULL);
-	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_IENx, 0, NULL);
-	sdio_release_host(sdiodev->func[1]);
-
-	if (sdiodev->irq_wake) {
-		disable_irq_wake(sdiodev->irq);
-		sdiodev->irq_wake = false;
-	}
-	free_irq(sdiodev->irq, &sdiodev->func[1]->dev);
-	sdiodev->irq_en = false;
-
-	return 0;
-}
-#else		/* CONFIG_BRCMFMAC_SDIO_OOB */
-static void brcmf_sdio_irqhandler(struct sdio_func *func)
+static void brcmf_sdio_ib_irqhandler(struct sdio_func *func)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(&func->dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 
-	brcmf_dbg(INTR, "ib intr triggered\n");
+	brcmf_dbg(INTR, "IB intr triggered\n");
 
 	brcmf_sdbrcm_isr(sdiodev->bus);
 }
@@ -136,12 +76,56 @@ static void brcmf_sdio_dummy_irqhandler(struct sdio_func *func)
 
 int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
 {
-	brcmf_dbg(SDIO, "Entering\n");
+	int ret = 0;
+	u8 data;
+	unsigned long flags;
 
-	sdio_claim_host(sdiodev->func[1]);
-	sdio_claim_irq(sdiodev->func[1], brcmf_sdio_irqhandler);
-	sdio_claim_irq(sdiodev->func[2], brcmf_sdio_dummy_irqhandler);
-	sdio_release_host(sdiodev->func[1]);
+	if ((sdiodev->pdata) && (sdiodev->pdata->oob_irq_supported)) {
+		brcmf_dbg(SDIO, "Enter, register OOB IRQ %d\n",
+			  sdiodev->pdata->oob_irq_nr);
+		ret = request_irq(sdiodev->pdata->oob_irq_nr,
+				  brcmf_sdio_oob_irqhandler,
+				  sdiodev->pdata->oob_irq_flags,
+				  "brcmf_oob_intr",
+				  &sdiodev->func[1]->dev);
+		if (ret != 0) {
+			brcmf_err("request_irq failed %d\n", ret);
+			return ret;
+		}
+		sdiodev->oob_irq_requested = true;
+		spin_lock_init(&sdiodev->irq_en_lock);
+		spin_lock_irqsave(&sdiodev->irq_en_lock, flags);
+		sdiodev->irq_en = true;
+		spin_unlock_irqrestore(&sdiodev->irq_en_lock, flags);
+
+		ret = enable_irq_wake(sdiodev->pdata->oob_irq_nr);
+		if (ret != 0) {
+			brcmf_err("enable_irq_wake failed %d\n", ret);
+			return ret;
+		}
+		sdiodev->irq_wake = true;
+
+		sdio_claim_host(sdiodev->func[1]);
+
+		/* must configure SDIO_CCCR_IENx to enable irq */
+		data = brcmf_sdio_regrb(sdiodev, SDIO_CCCR_IENx, &ret);
+		data |= 1 << SDIO_FUNC_1 | 1 << SDIO_FUNC_2 | 1;
+		brcmf_sdio_regwb(sdiodev, SDIO_CCCR_IENx, data, &ret);
+
+		/* redirect, configure and enable io for interrupt signal */
+		data = SDIO_SEPINT_MASK | SDIO_SEPINT_OE;
+		if (sdiodev->pdata->oob_irq_flags & IRQF_TRIGGER_HIGH)
+			data |= SDIO_SEPINT_ACT_HI;
+		brcmf_sdio_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, data, &ret);
+
+		sdio_release_host(sdiodev->func[1]);
+	} else {
+		brcmf_dbg(SDIO, "Entering\n");
+		sdio_claim_host(sdiodev->func[1]);
+		sdio_claim_irq(sdiodev->func[1], brcmf_sdio_ib_irqhandler);
+		sdio_claim_irq(sdiodev->func[2], brcmf_sdio_dummy_irqhandler);
+		sdio_release_host(sdiodev->func[1]);
+	}
 
 	return 0;
 }
@@ -150,14 +134,31 @@ int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 {
 	brcmf_dbg(SDIO, "Entering\n");
 
-	sdio_claim_host(sdiodev->func[1]);
-	sdio_release_irq(sdiodev->func[2]);
-	sdio_release_irq(sdiodev->func[1]);
-	sdio_release_host(sdiodev->func[1]);
+	if ((sdiodev->pdata) && (sdiodev->pdata->oob_irq_supported)) {
+		sdio_claim_host(sdiodev->func[1]);
+		brcmf_sdio_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, 0, NULL);
+		brcmf_sdio_regwb(sdiodev, SDIO_CCCR_IENx, 0, NULL);
+		sdio_release_host(sdiodev->func[1]);
+
+		if (sdiodev->oob_irq_requested) {
+			sdiodev->oob_irq_requested = false;
+			if (sdiodev->irq_wake) {
+				disable_irq_wake(sdiodev->pdata->oob_irq_nr);
+				sdiodev->irq_wake = false;
+			}
+			free_irq(sdiodev->pdata->oob_irq_nr,
+				 &sdiodev->func[1]->dev);
+			sdiodev->irq_en = false;
+		}
+	} else {
+		sdio_claim_host(sdiodev->func[1]);
+		sdio_release_irq(sdiodev->func[2]);
+		sdio_release_irq(sdiodev->func[1]);
+		sdio_release_host(sdiodev->func[1]);
+	}
 
 	return 0;
 }
-#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
 
 int
 brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
