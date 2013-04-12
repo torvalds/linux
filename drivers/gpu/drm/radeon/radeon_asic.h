@@ -587,6 +587,18 @@ bool cayman_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring);
 bool cayman_dma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring);
 void cayman_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm);
 
+int trinity_dpm_init(struct radeon_device *rdev);
+int trinity_dpm_enable(struct radeon_device *rdev);
+void trinity_dpm_disable(struct radeon_device *rdev);
+int trinity_dpm_set_power_state(struct radeon_device *rdev);
+void trinity_dpm_setup_asic(struct radeon_device *rdev);
+void trinity_dpm_display_configuration_changed(struct radeon_device *rdev);
+void trinity_dpm_fini(struct radeon_device *rdev);
+u32 trinity_dpm_get_sclk(struct radeon_device *rdev, bool low);
+u32 trinity_dpm_get_mclk(struct radeon_device *rdev, bool low);
+void trinity_dpm_print_power_state(struct radeon_device *rdev,
+				   struct radeon_ps *ps);
+
 /* DCE6 - SI */
 void dce6_bandwidth_update(struct radeon_device *rdev);
 

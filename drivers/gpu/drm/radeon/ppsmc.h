@@ -71,7 +71,15 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_ExitULV                   ((uint8_t)0x65)
 #define PPSMC_MSG_ResetToDefaults           ((uint8_t)0x84)
 
-typedef uint8_t PPSMC_Msg;
+/* TN */
+#define PPSMC_MSG_DPM_Config                ((uint32_t) 0x102)
+#define PPSMC_MSG_DPM_ForceState            ((uint32_t) 0x104)
+#define PPSMC_MSG_PG_SIMD_Config            ((uint32_t) 0x108)
+#define PPSMC_MSG_DCE_RemoveVoltageAdjustment   ((uint32_t) 0x11d)
+#define PPSMC_MSG_DCE_AllowVoltageAdjustment    ((uint32_t) 0x11e)
+
+
+typedef uint16_t PPSMC_Msg;
 
 #pragma pack(pop)
 

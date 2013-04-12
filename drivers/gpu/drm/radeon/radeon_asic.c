@@ -2064,6 +2064,18 @@ static struct radeon_asic trinity_asic = {
 		.set_uvd_clocks = &sumo_set_uvd_clocks,
 		.get_temperature = &tn_get_temp,
 	},
+	.dpm = {
+		.init = &trinity_dpm_init,
+		.setup_asic = &trinity_dpm_setup_asic,
+		.enable = &trinity_dpm_enable,
+		.disable = &trinity_dpm_disable,
+		.set_power_state = &trinity_dpm_set_power_state,
+		.display_configuration_changed = &trinity_dpm_display_configuration_changed,
+		.fini = &trinity_dpm_fini,
+		.get_sclk = &trinity_dpm_get_sclk,
+		.get_mclk = &trinity_dpm_get_mclk,
+		.print_power_state = &trinity_dpm_print_power_state,
+	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
 		.page_flip = &evergreen_page_flip,

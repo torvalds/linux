@@ -823,6 +823,16 @@
 #define 	THERM_INT_MASK_HIGH			(1 << 24)
 #define 	THERM_INT_MASK_LOW			(1 << 25)
 
+#define	TN_CG_THERMAL_INT_CTRL				0x738
+#define		TN_DIG_THERM_INTH(x)			((x) << 0)
+#define		TN_DIG_THERM_INTH_MASK			0x000000FF
+#define		TN_DIG_THERM_INTH_SHIFT			0
+#define		TN_DIG_THERM_INTL(x)			((x) << 8)
+#define		TN_DIG_THERM_INTL_MASK			0x0000FF00
+#define		TN_DIG_THERM_INTL_SHIFT			8
+#define 	TN_THERM_INT_MASK_HIGH			(1 << 24)
+#define 	TN_THERM_INT_MASK_LOW			(1 << 25)
+
 #define	CG_MULT_THERMAL_STATUS				0x740
 #define		ASIC_T(x)			        ((x) << 16)
 #define		ASIC_T_MASK			        0x07FF0000

@@ -23,6 +23,8 @@
 #ifndef __SUMO_DPM_H__
 #define __SUMO_DPM_H__
 
+#include "atom.h"
+
 #define SUMO_MAX_HARDWARE_POWERLEVELS 5
 #define SUMO_PM_NUMBER_OF_TC 15
 
@@ -184,7 +186,24 @@ struct sumo_power_info {
 
 /* sumo_dpm.c */
 u32 sumo_get_xclk(struct radeon_device *rdev);
-
+void sumo_gfx_clockgating_initialize(struct radeon_device *rdev);
+void sumo_program_vc(struct radeon_device *rdev, u32 vrc);
+void sumo_clear_vc(struct radeon_device *rdev);
+void sumo_program_sstp(struct radeon_device *rdev);
+void sumo_take_smu_control(struct radeon_device *rdev, bool enable);
+void sumo_construct_sclk_voltage_mapping_table(struct radeon_device *rdev,
+					       struct sumo_sclk_voltage_mapping_table *sclk_voltage_mapping_table,
+					       ATOM_AVAILABLE_SCLK_LIST *table);
+void sumo_construct_vid_mapping_table(struct radeon_device *rdev,
+				      struct sumo_vid_mapping_table *vid_mapping_table,
+				      ATOM_AVAILABLE_SCLK_LIST *table);
+u32 sumo_convert_vid2_to_vid7(struct radeon_device *rdev,
+			      struct sumo_vid_mapping_table *vid_mapping_table,
+			      u32 vid_2bit);
+u32 sumo_get_sleep_divider_from_id(u32 id);
+u32 sumo_get_sleep_divider_id_from_clock(struct radeon_device *rdev,
+					 u32 sclk,
+					 u32 min_sclk_in_sr);
 
 /* sumo_smc.c */
 void sumo_initialize_m3_arb(struct radeon_device *rdev);

@@ -27,7 +27,6 @@
 #include "r600_dpm.h"
 #include "cypress_dpm.h"
 #include "sumo_dpm.h"
-#include "atom.h"
 
 #define SUMO_MAX_DEEPSLEEP_DIVIDER_ID 5
 #define SUMO_MINIMUM_ENGINE_CLOCK 800
@@ -144,7 +143,7 @@ static void sumo_program_grsd(struct radeon_device *rdev)
 	WREG32(CG_GCOOR, PHC(grs) | SDC(p) | SU(u));
 }
 
-static void sumo_gfx_clockgating_initialize(struct radeon_device *rdev)
+void sumo_gfx_clockgating_initialize(struct radeon_device *rdev)
 {
 	sumo_program_git(rdev);
 	sumo_program_grsd(rdev);
@@ -452,17 +451,17 @@ static void sumo_program_tp(struct radeon_device *rdev)
 		WREG32_P(SCLK_PWRMGT_CNTL, FIR_TREND_MODE, ~FIR_TREND_MODE);
 }
 
-static void sumo_program_vc(struct radeon_device *rdev)
+void sumo_program_vc(struct radeon_device *rdev, u32 vrc)
 {
-	WREG32(CG_FTV, SUMO_VRC_DFLT);
+	WREG32(CG_FTV, vrc);
 }
 
-static void sumo_clear_vc(struct radeon_device *rdev)
+void sumo_clear_vc(struct radeon_device *rdev)
 {
 	WREG32(CG_FTV, 0);
 }
 
-static void sumo_program_sstp(struct radeon_device *rdev)
+void sumo_program_sstp(struct radeon_device *rdev)
 {
 	u32 p, u;
 	u32 xclk = sumo_get_xclk(rdev);
@@ -812,7 +811,7 @@ static void sumo_program_bootup_state(struct radeon_device *rdev)
 		sumo_power_level_enable(rdev, i, false);
 }
 
-static void sumo_take_smu_control(struct radeon_device *rdev, bool enable)
+void sumo_take_smu_control(struct radeon_device *rdev, bool enable)
 {
 	u32 v = RREG32(DOUT_SCRATCH3);
 
@@ -933,14 +932,14 @@ static void sumo_force_nbp_state(struct radeon_device *rdev)
 	}
 }
 
-static u32 sumo_get_sleep_divider_from_id(u32 id)
+u32 sumo_get_sleep_divider_from_id(u32 id)
 {
 	return 1 << id;
 }
 
-static u32 sumo_get_sleep_divider_id_from_clock(struct radeon_device *rdev,
-						u32 sclk,
-						u32 min_sclk_in_sr)
+u32 sumo_get_sleep_divider_id_from_clock(struct radeon_device *rdev,
+					 u32 sclk,
+					 u32 min_sclk_in_sr)
 {
 	struct sumo_power_info *pi = sumo_get_pi(rdev);
 	u32 i;
@@ -1136,7 +1135,7 @@ int sumo_dpm_enable(struct radeon_device *rdev)
 	sumo_program_power_level_enter_state(rdev);
 	sumo_enable_voltage_scaling(rdev, true);
 	sumo_program_sstp(rdev);
-	sumo_program_vc(rdev);
+	sumo_program_vc(rdev, SUMO_VRC_DFLT);
 	sumo_override_cnb_thermal_events(rdev);
 	sumo_start_dpm(rdev);
 	sumo_wait_for_level_0(rdev);
@@ -1393,23 +1392,25 @@ static int sumo_parse_power_table(struct radeon_device *rdev)
 	return 0;
 }
 
-static u32 sumo_convert_vid2_to_vid7(struct radeon_device *rdev, u32 vid_2bit)
+u32 sumo_convert_vid2_to_vid7(struct radeon_device *rdev,
+			      struct sumo_vid_mapping_table *vid_mapping_table,
+			      u32 vid_2bit)
 {
-	struct sumo_power_info *pi = sumo_get_pi(rdev);
 	u32 i;
 
-	for (i = 0; i < pi->sys_info.vid_mapping_table.num_entries; i++) {
-		if (pi->sys_info.vid_mapping_table.entries[i].vid_2bit == vid_2bit)
-			return pi->sys_info.vid_mapping_table.entries[i].vid_7bit;
+	for (i = 0; i < vid_mapping_table->num_entries; i++) {
+		if (vid_mapping_table->entries[i].vid_2bit == vid_2bit)
+			return vid_mapping_table->entries[i].vid_7bit;
 	}
 
-	return pi->sys_info.vid_mapping_table.entries[pi->sys_info.vid_mapping_table.num_entries - 1].vid_7bit;
+	return vid_mapping_table->entries[vid_mapping_table->num_entries - 1].vid_7bit;
 }
 
 static u16 sumo_convert_voltage_index_to_value(struct radeon_device *rdev,
 					       u32 vid_2bit)
 {
-	u32 vid_7bit = sumo_convert_vid2_to_vid7(rdev, vid_2bit);
+	struct sumo_power_info *pi = sumo_get_pi(rdev);
+	u32 vid_7bit = sumo_convert_vid2_to_vid7(rdev, &pi->sys_info.vid_mapping_table, vid_2bit);
 
 	if (vid_7bit > 0x7C)
 		return 0;
@@ -1418,71 +1419,71 @@ static u16 sumo_convert_voltage_index_to_value(struct radeon_device *rdev,
 }
 
 static void sumo_construct_display_voltage_mapping_table(struct radeon_device *rdev,
+							 struct sumo_disp_clock_voltage_mapping_table *disp_clk_voltage_mapping_table,
 							 ATOM_CLK_VOLT_CAPABILITY *table)
 {
-	struct sumo_power_info *pi = sumo_get_pi(rdev);
 	u32 i;
 
 	for (i = 0; i < SUMO_MAX_NUMBER_VOLTAGES; i++) {
 		if (table[i].ulMaximumSupportedCLK == 0)
 			break;
 
-		pi->sys_info.disp_clk_voltage_mapping_table.display_clock_frequency[i] =
+		disp_clk_voltage_mapping_table->display_clock_frequency[i] =
 			table[i].ulMaximumSupportedCLK;
 	}
 
-	pi->sys_info.disp_clk_voltage_mapping_table.num_max_voltage_levels = i;
+	disp_clk_voltage_mapping_table->num_max_voltage_levels = i;
 
-	if (pi->sys_info.disp_clk_voltage_mapping_table.num_max_voltage_levels == 0) {
-		pi->sys_info.disp_clk_voltage_mapping_table.display_clock_frequency[0] = 80000;
-		pi->sys_info.disp_clk_voltage_mapping_table.num_max_voltage_levels = 1;
+	if (disp_clk_voltage_mapping_table->num_max_voltage_levels == 0) {
+		disp_clk_voltage_mapping_table->display_clock_frequency[0] = 80000;
+		disp_clk_voltage_mapping_table->num_max_voltage_levels = 1;
 	}
 }
 
-static void sumo_construct_sclk_voltage_mapping_table(struct radeon_device *rdev,
-						      ATOM_AVAILABLE_SCLK_LIST *table)
+void sumo_construct_sclk_voltage_mapping_table(struct radeon_device *rdev,
+					       struct sumo_sclk_voltage_mapping_table *sclk_voltage_mapping_table,
+					       ATOM_AVAILABLE_SCLK_LIST *table)
 {
-	struct sumo_power_info *pi = sumo_get_pi(rdev);
 	u32 i;
 	u32 n = 0;
 	u32 prev_sclk = 0;
 
 	for (i = 0; i < SUMO_MAX_HARDWARE_POWERLEVELS; i++) {
 		if (table[i].ulSupportedSCLK > prev_sclk) {
-			pi->sys_info.sclk_voltage_mapping_table.entries[n].sclk_frequency =
+			sclk_voltage_mapping_table->entries[n].sclk_frequency =
 				table[i].ulSupportedSCLK;
-			pi->sys_info.sclk_voltage_mapping_table.entries[n].vid_2bit =
+			sclk_voltage_mapping_table->entries[n].vid_2bit =
 				table[i].usVoltageIndex;
 			prev_sclk = table[i].ulSupportedSCLK;
 			n++;
 		}
 	}
 
-	pi->sys_info.sclk_voltage_mapping_table.num_max_dpm_entries = n;
+	sclk_voltage_mapping_table->num_max_dpm_entries = n;
 }
 
-static void sumo_construct_vid_mapping_table(struct radeon_device *rdev,
-					     ATOM_AVAILABLE_SCLK_LIST *table)
+void sumo_construct_vid_mapping_table(struct radeon_device *rdev,
+				      struct sumo_vid_mapping_table *vid_mapping_table,
+				      ATOM_AVAILABLE_SCLK_LIST *table)
 {
-	struct sumo_power_info *pi = sumo_get_pi(rdev);
 	u32 i, j;
 
 	for (i = 0; i < SUMO_MAX_HARDWARE_POWERLEVELS; i++) {
 		if (table[i].ulSupportedSCLK != 0) {
-			pi->sys_info.vid_mapping_table.entries[table[i].usVoltageIndex].vid_7bit =
+			vid_mapping_table->entries[table[i].usVoltageIndex].vid_7bit =
 				table[i].usVoltageID;
-			pi->sys_info.vid_mapping_table.entries[table[i].usVoltageIndex].vid_2bit =
+			vid_mapping_table->entries[table[i].usVoltageIndex].vid_2bit =
 				table[i].usVoltageIndex;
 		}
 	}
 
 	for (i = 0; i < SUMO_MAX_NUMBER_VOLTAGES; i++) {
-		if (pi->sys_info.vid_mapping_table.entries[i].vid_7bit == 0) {
+		if (vid_mapping_table->entries[i].vid_7bit == 0) {
 			for (j = i + 1; j < SUMO_MAX_NUMBER_VOLTAGES; j++) {
-				if (pi->sys_info.vid_mapping_table.entries[j].vid_7bit != 0) {
-					pi->sys_info.vid_mapping_table.entries[i] =
-						pi->sys_info.vid_mapping_table.entries[j];
-					pi->sys_info.vid_mapping_table.entries[j].vid_7bit = 0;
+				if (vid_mapping_table->entries[j].vid_7bit != 0) {
+					vid_mapping_table->entries[i] =
+						vid_mapping_table->entries[j];
+					vid_mapping_table->entries[j].vid_7bit = 0;
 					break;
 				}
 			}
@@ -1492,7 +1493,7 @@ static void sumo_construct_vid_mapping_table(struct radeon_device *rdev,
 		}
 	}
 
-	pi->sys_info.vid_mapping_table.num_entries = i;
+	vid_mapping_table->num_entries = i;
 }
 
 union igp_info {
@@ -1561,10 +1562,13 @@ static int sumo_parse_sys_info_table(struct radeon_device *rdev)
 		else
 			pi->sys_info.enable_boost = false;
 		sumo_construct_display_voltage_mapping_table(rdev,
+							     &pi->sys_info.disp_clk_voltage_mapping_table,
 							     igp_info->info_6.sDISPCLK_Voltage);
 		sumo_construct_sclk_voltage_mapping_table(rdev,
+							  &pi->sys_info.sclk_voltage_mapping_table,
 							  igp_info->info_6.sAvail_SCLK);
-		sumo_construct_vid_mapping_table(rdev, igp_info->info_6.sAvail_SCLK);
+		sumo_construct_vid_mapping_table(rdev, &pi->sys_info.vid_mapping_table,
+						 igp_info->info_6.sAvail_SCLK);
 
 	}
 	return 0;

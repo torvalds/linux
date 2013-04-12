@@ -21,13 +21,11 @@
  *
  */
 
-#include <linux/firmware.h>
 #include "drmP.h"
 #include "radeon.h"
 #include "sumod.h"
 #include "sumo_dpm.h"
 #include "ppsmc.h"
-#include "radeon_ucode.h"
 
 #define SUMO_SMU_SERVICE_ROUTINE_PG_INIT        1
 #define SUMO_SMU_SERVICE_ROUTINE_ALTVDDNB_NOTIFY  27
