@@ -517,8 +517,8 @@ int pci_hp_deregister(struct hotplug_slot *hotplug)
  *
  * Returns 0 if successful, anything else for an error.
  */
-int __must_check pci_hp_change_slot_info(struct hotplug_slot *hotplug,
-					 struct hotplug_slot_info *info)
+int pci_hp_change_slot_info(struct hotplug_slot *hotplug,
+			    struct hotplug_slot_info *info)
 {
 	if (!hotplug || !info)
 		return -ENODEV;
