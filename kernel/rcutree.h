@@ -539,6 +539,7 @@ static void rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp);
 static void rcu_spawn_nocb_kthreads(struct rcu_state *rsp);
 static void init_nocb_callback_list(struct rcu_data *rdp);
 static void __init rcu_init_nocb(void);
+static void rcu_kick_nohz_cpu(int cpu);
 
 #endif /* #ifndef RCU_TREE_NONCORE */
 
