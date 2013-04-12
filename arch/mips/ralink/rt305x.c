@@ -114,7 +114,7 @@ void rt305x_wdt_reset(void)
 	rt_sysc_w32(t, SYSC_REG_SYSTEM_CONFIG);
 }
 
-struct ralink_pinmux gpio_pinmux = {
+struct ralink_pinmux rt_gpio_pinmux = {
 	.mode = mode_mux,
 	.uart = uart_mux,
 	.uart_shift = RT305X_GPIO_MODE_UART0_SHIFT,

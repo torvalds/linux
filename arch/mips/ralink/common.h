@@ -24,7 +24,7 @@ struct ralink_pinmux {
 	int uart_shift;
 	void (*wdt_reset)(void);
 };
-extern struct ralink_pinmux gpio_pinmux;
+extern struct ralink_pinmux rt_gpio_pinmux;
 
 struct ralink_soc_info {
 	unsigned char sys_type[RAMIPS_SYS_TYPE_LEN];
