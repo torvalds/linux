@@ -901,7 +901,7 @@ i915_next_seqno_set(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_next_seqno_fops,
 			i915_next_seqno_get, i915_next_seqno_set,
-			"next_seqno :  0x%llx\n");
+			"0x%llx\n");
 
 static int i915_rstdby_delays(struct seq_file *m, void *unused)
 {
@@ -1690,7 +1690,7 @@ i915_wedged_set(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 			i915_wedged_get, i915_wedged_set,
-			"wedged :  %llu\n");
+			"%llu\n");
 
 static int
 i915_ring_stop_get(void *data, u64 *val)
@@ -1844,7 +1844,7 @@ i915_max_freq_set(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_max_freq_fops,
 			i915_max_freq_get, i915_max_freq_set,
-			"max freq: %llu\n");
+			"%llu\n");
 
 static int
 i915_min_freq_get(void *data, u64 *val)
@@ -1895,7 +1895,7 @@ i915_min_freq_set(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_min_freq_fops,
 			i915_min_freq_get, i915_min_freq_set,
-			"min freq: %llu\n");
+			"%llu\n");
 
 static int
 i915_cache_sharing_get(void *data, u64 *val)
