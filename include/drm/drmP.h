@@ -1022,7 +1022,7 @@ struct drm_info_list {
 struct drm_info_node {
 	struct list_head list;
 	struct drm_minor *minor;
-	struct drm_info_list *info_ent;
+	const struct drm_info_list *info_ent;
 	struct dentry *dent;
 };
 
