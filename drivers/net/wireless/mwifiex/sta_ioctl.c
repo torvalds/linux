@@ -140,12 +140,13 @@ int mwifiex_request_set_multicast_list(struct mwifiex_private *priv,
 /*
  * This function fills bss descriptor structure using provided
  * information.
+ * beacon_ie buffer is allocated in this function. It is caller's
+ * responsibility to free the memory.
  */
 int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 			      struct cfg80211_bss *bss,
 			      struct mwifiex_bssdescriptor *bss_desc)
 {
-	int ret;
 	u8 *beacon_ie;
 	size_t beacon_ie_len;
 	struct mwifiex_bss_priv *bss_priv = (void *)bss->priv;
@@ -165,6 +166,7 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 
 	memcpy(bss_desc->mac_address, bss->bssid, ETH_ALEN);
 	bss_desc->rssi = bss->signal;
+	/* The caller of this function will free beacon_ie */
 	bss_desc->beacon_buf = beacon_ie;
 	bss_desc->beacon_buf_size = beacon_ie_len;
 	bss_desc->beacon_period = bss->beacon_interval;
@@ -182,10 +184,7 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	else
 		bss_desc->bss_mode = NL80211_IFTYPE_STATION;
 
-	ret = mwifiex_update_bss_desc_with_ie(priv->adapter, bss_desc);
-
-	kfree(beacon_ie);
-	return ret;
+	return mwifiex_update_bss_desc_with_ie(priv->adapter, bss_desc);
 }
 
 static int mwifiex_process_country_ie(struct mwifiex_private *priv,
@@ -349,6 +348,11 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 	}
 
 done:
+	/* beacon_ie buffer was allocated in function
+	 * mwifiex_fill_new_bss_desc(). Free it now.
+	 */
+	if (bss_desc)
+		kfree(bss_desc->beacon_buf);
 	kfree(bss_desc);
 	return ret;
 }

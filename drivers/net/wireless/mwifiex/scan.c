@@ -1533,10 +1533,18 @@ static int mwifiex_update_curr_bss_params(struct mwifiex_private *priv,
 	/* Make a copy of current BSSID descriptor */
 	memcpy(&priv->curr_bss_params.bss_descriptor, bss_desc,
 	       sizeof(priv->curr_bss_params.bss_descriptor));
+
+	/* The contents of beacon_ie will be copied to its own buffer
+	 * in mwifiex_save_curr_bcn()
+	 */
 	mwifiex_save_curr_bcn(priv);
 	spin_unlock_irqrestore(&priv->curr_bcn_buf_lock, flags);
 
 done:
+	/* beacon_ie buffer was allocated in function
+	 * mwifiex_fill_new_bss_desc(). Free it now.
+	 */
+	kfree(bss_desc->beacon_buf);
 	kfree(bss_desc);
 	return 0;
 }
