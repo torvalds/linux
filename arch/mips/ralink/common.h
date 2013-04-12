@@ -22,6 +22,7 @@ struct ralink_pinmux {
 	struct ralink_pinmux_grp *mode;
 	struct ralink_pinmux_grp *uart;
 	int uart_shift;
+	u32 uart_mask;
 	void (*wdt_reset)(void);
 	struct ralink_pinmux_grp *pci;
 	int pci_shift;
