@@ -193,17 +193,25 @@ static void wm_adsp_buf_free(struct list_head *list)
 
 #define WM_ADSP_NUM_FW 4
 
+#define WM_ADSP_FW_MBC_VSS 0
+#define WM_ADSP_FW_TX      1
+#define WM_ADSP_FW_TX_SPK  2
+#define WM_ADSP_FW_RX_ANC  3
+
 static const char *wm_adsp_fw_text[WM_ADSP_NUM_FW] = {
-	"MBC/VSS", "Tx", "Tx Speaker", "Rx ANC"
+	[WM_ADSP_FW_MBC_VSS] = "MBC/VSS",
+	[WM_ADSP_FW_TX] =      "Tx",
+	[WM_ADSP_FW_TX_SPK] =  "Tx Speaker",
+	[WM_ADSP_FW_RX_ANC] =  "Rx ANC",
 };
 
 static struct {
 	const char *file;
 } wm_adsp_fw[WM_ADSP_NUM_FW] = {
-	{ .file = "mbc-vss" },
-	{ .file = "tx" },
-	{ .file = "tx-spk" },
-	{ .file = "rx-anc" },
+	[WM_ADSP_FW_MBC_VSS] = { .file = "mbc-vss" },
+	[WM_ADSP_FW_TX] =      { .file = "tx" },
+	[WM_ADSP_FW_TX_SPK] =  { .file = "tx-spk" },
+	[WM_ADSP_FW_RX_ANC] =  { .file = "rx-anc" },
 };
 
 static int wm_adsp_fw_get(struct snd_kcontrol *kcontrol,
@@ -549,12 +557,29 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 		buf_size = sizeof(adsp1_id);
 
 		algs = be32_to_cpu(adsp1_id.algs);
+		dsp->fw_id = be32_to_cpu(adsp1_id.fw.id);
 		adsp_info(dsp, "Firmware: %x v%d.%d.%d, %zu algorithms\n",
-			  be32_to_cpu(adsp1_id.fw.id),
+			  dsp->fw_id,
 			  (be32_to_cpu(adsp1_id.fw.ver) & 0xff0000) >> 16,
 			  (be32_to_cpu(adsp1_id.fw.ver) & 0xff00) >> 8,
 			  be32_to_cpu(adsp1_id.fw.ver) & 0xff,
 			  algs);
+
+		region = kzalloc(sizeof(*region), GFP_KERNEL);
+		if (!region)
+			return -ENOMEM;
+		region->type = WMFW_ADSP1_ZM;
+		region->alg = be32_to_cpu(adsp1_id.fw.id);
+		region->base = be32_to_cpu(adsp1_id.zm);
+		list_add_tail(&region->list, &dsp->alg_regions);
+
+		region = kzalloc(sizeof(*region), GFP_KERNEL);
+		if (!region)
+			return -ENOMEM;
+		region->type = WMFW_ADSP1_DM;
+		region->alg = be32_to_cpu(adsp1_id.fw.id);
+		region->base = be32_to_cpu(adsp1_id.dm);
+		list_add_tail(&region->list, &dsp->alg_regions);
 
 		pos = sizeof(adsp1_id) / 2;
 		term = pos + ((sizeof(*adsp1_alg) * algs) / 2);
@@ -573,12 +598,37 @@ static int wm_adsp_setup_algs(struct wm_adsp *dsp)
 		buf_size = sizeof(adsp2_id);
 
 		algs = be32_to_cpu(adsp2_id.algs);
+		dsp->fw_id = be32_to_cpu(adsp2_id.fw.id);
 		adsp_info(dsp, "Firmware: %x v%d.%d.%d, %zu algorithms\n",
-			  be32_to_cpu(adsp2_id.fw.id),
+			  dsp->fw_id,
 			  (be32_to_cpu(adsp2_id.fw.ver) & 0xff0000) >> 16,
 			  (be32_to_cpu(adsp2_id.fw.ver) & 0xff00) >> 8,
 			  be32_to_cpu(adsp2_id.fw.ver) & 0xff,
 			  algs);
+
+		region = kzalloc(sizeof(*region), GFP_KERNEL);
+		if (!region)
+			return -ENOMEM;
+		region->type = WMFW_ADSP2_XM;
+		region->alg = be32_to_cpu(adsp2_id.fw.id);
+		region->base = be32_to_cpu(adsp2_id.xm);
+		list_add_tail(&region->list, &dsp->alg_regions);
+
+		region = kzalloc(sizeof(*region), GFP_KERNEL);
+		if (!region)
+			return -ENOMEM;
+		region->type = WMFW_ADSP2_YM;
+		region->alg = be32_to_cpu(adsp2_id.fw.id);
+		region->base = be32_to_cpu(adsp2_id.ym);
+		list_add_tail(&region->list, &dsp->alg_regions);
+
+		region = kzalloc(sizeof(*region), GFP_KERNEL);
+		if (!region)
+			return -ENOMEM;
+		region->type = WMFW_ADSP2_ZM;
+		region->alg = be32_to_cpu(adsp2_id.fw.id);
+		region->base = be32_to_cpu(adsp2_id.zm);
+		list_add_tail(&region->list, &dsp->alg_regions);
 
 		pos = sizeof(adsp2_id) / 2;
 		term = pos + ((sizeof(*adsp2_alg) * algs) / 2);
@@ -781,8 +831,24 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		case (WMFW_INFO_TEXT << 8):
 			break;
 		case (WMFW_ABSOLUTE << 8):
-			region_name = "register";
-			reg = offset;
+			/*
+			 * Old files may use this for global
+			 * coefficients.
+			 */
+			if (le32_to_cpu(blk->id) == dsp->fw_id &&
+			    offset == 0) {
+				region_name = "global coefficients";
+				mem = wm_adsp_find_region(dsp, type);
+				if (!mem) {
+					adsp_err(dsp, "No ZM\n");
+					break;
+				}
+				reg = wm_adsp_region_to_reg(mem, 0);
+
+			} else {
+				region_name = "register";
+				reg = offset;
+			}
 			break;
 
 		case WMFW_ADSP1_DM:

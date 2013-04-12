@@ -46,6 +46,8 @@ struct wm_adsp {
 
 	struct list_head alg_regions;
 
+	int fw_id;
+
 	const struct wm_adsp_region *mem;
 	int num_mems;
 
