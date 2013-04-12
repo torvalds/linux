@@ -617,3 +617,10 @@ int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
 	return 0;
 }
 EXPORT_SYMBOL(remove_proc_subtree);
+
+void *proc_get_parent_data(const struct inode *inode)
+{
+	struct proc_dir_entry *de = PDE(inode);
+	return de->parent->data;
+}
+EXPORT_SYMBOL_GPL(proc_get_parent_data);

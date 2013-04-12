@@ -86,6 +86,7 @@ static inline struct proc_dir_entry *proc_create(const char *name, umode_t mode,
  
 extern void proc_set_size(struct proc_dir_entry *, loff_t);
 extern void proc_set_user(struct proc_dir_entry *, kuid_t, kgid_t);
+extern void *proc_get_parent_data(const struct inode *);
 #else
 
 static inline void proc_flush_task(struct task_struct *task)

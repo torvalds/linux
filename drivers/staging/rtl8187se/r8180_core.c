@@ -296,7 +296,7 @@ void rtl8180_proc_remove_one(struct net_device *dev)
  */
 static int rtl8180_proc_open(struct inode *inode, struct file *file)
 {
-	struct net_device *dev = PDE(inode)->parent->data;
+	struct net_device *dev = proc_get_parent_data(inode);
 	int (*show)(struct seq_file *, void *) = PDE_DATA(inode);
 
 	return single_open(file, show, dev);

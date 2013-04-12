@@ -2760,7 +2760,7 @@ proc_show_rdrv_40(struct seq_file *m, void *v)
  */
 static int mega_proc_open(struct inode *inode, struct file *file)
 {
-	adapter_t *adapter = PDE(inode)->parent->data;
+	adapter_t *adapter = proc_get_parent_data(inode);
 	int (*show)(struct seq_file *, void *) = PDE_DATA(inode);
 
 	return single_open(file, show, adapter);
