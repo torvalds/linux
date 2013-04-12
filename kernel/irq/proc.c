@@ -366,11 +366,7 @@ void unregister_irq_proc(unsigned int irq, struct irq_desc *desc)
 
 void unregister_handler_proc(unsigned int irq, struct irqaction *action)
 {
-	if (action->dir) {
-		struct irq_desc *desc = irq_to_desc(irq);
-
-		remove_proc_entry(action->dir->name, desc->dir);
-	}
+	proc_remove(action->dir);
 }
 
 static void register_default_affinity_proc(void)

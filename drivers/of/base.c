@@ -1452,16 +1452,7 @@ int of_attach_node(struct device_node *np)
 #ifdef CONFIG_PROC_DEVICETREE
 static void of_remove_proc_dt_entry(struct device_node *dn)
 {
-	struct device_node *parent = dn->parent;
-	struct property *prop = dn->properties;
-
-	while (prop) {
-		remove_proc_entry(prop->name, dn->pde);
-		prop = prop->next;
-	}
-
-	if (dn->pde)
-		remove_proc_entry(dn->pde->name, parent->pde);
+	proc_remove(dn->pde);
 }
 #else
 static void of_remove_proc_dt_entry(struct device_node *dn)

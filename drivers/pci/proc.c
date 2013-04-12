@@ -427,20 +427,14 @@ int pci_proc_attach_device(struct pci_dev *dev)
 
 int pci_proc_detach_device(struct pci_dev *dev)
 {
-	struct proc_dir_entry *e;
-
-	if ((e = dev->procent)) {
-		remove_proc_entry(e->name, dev->bus->procdir);
-		dev->procent = NULL;
-	}
+	proc_remove(dev->procent);
+	dev->procent = NULL;
 	return 0;
 }
 
 int pci_proc_detach_bus(struct pci_bus* bus)
 {
-	struct proc_dir_entry *de = bus->procdir;
-	if (de)
-		remove_proc_entry(de->name, proc_bus_pci_dir);
+	proc_remove(bus->procdir);
 	return 0;
 }
 

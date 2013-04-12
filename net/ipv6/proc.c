@@ -287,8 +287,7 @@ int snmp6_unregister_dev(struct inet6_dev *idev)
 		return -ENOENT;
 	if (!idev->stats.proc_dir_entry)
 		return -EINVAL;
-	remove_proc_entry(idev->stats.proc_dir_entry->name,
-			  net->mib.proc_net_devsnmp6);
+	proc_remove(idev->stats.proc_dir_entry);
 	idev->stats.proc_dir_entry = NULL;
 	return 0;
 }

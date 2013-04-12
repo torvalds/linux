@@ -4541,7 +4541,7 @@ static void __exit cleanup_ipmi(void)
 	del_timer_sync(&ipmi_timer);
 
 #ifdef CONFIG_PROC_FS
-	remove_proc_entry(proc_ipmi_root->name, NULL);
+	proc_remove(proc_ipmi_root);
 #endif /* CONFIG_PROC_FS */
 
 	driver_unregister(&ipmidriver.driver);

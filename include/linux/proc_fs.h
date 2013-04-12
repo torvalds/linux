@@ -67,6 +67,7 @@ struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 				struct proc_dir_entry *parent,
 				const struct file_operations *proc_fops,
 				void *data);
+extern void proc_remove(struct proc_dir_entry *);
 extern void remove_proc_entry(const char *name, struct proc_dir_entry *parent);
 extern int remove_proc_subtree(const char *name, struct proc_dir_entry *parent);
 
@@ -101,6 +102,7 @@ static inline struct proc_dir_entry *proc_create_data(const char *name,
 {
 	return NULL;
 }
+static inline void proc_remove(struct proc_dir_entry *de) {}
 #define remove_proc_entry(name, parent) do {} while (0)
 #define remove_proc_subtree(name, parent) do {} while (0)
 
