@@ -44,6 +44,18 @@ static inline acpi_handle acpi_pci_get_bridge_handle(struct pci_bus *pbus)
 
 void acpi_pci_add_bus(struct pci_bus *bus);
 void acpi_pci_remove_bus(struct pci_bus *bus);
+
+#ifdef	CONFIG_ACPI_PCI_SLOT
+void acpi_pci_slot_init(void);
+void acpi_pci_slot_enumerate(struct pci_bus *bus, acpi_handle handle);
+void acpi_pci_slot_remove(struct pci_bus *bus);
+#else
+static inline void acpi_pci_slot_init(void) { }
+static inline void acpi_pci_slot_enumerate(struct pci_bus *bus,
+					   acpi_handle handle) { }
+static inline void acpi_pci_slot_remove(struct pci_bus *bus) { }
+#endif
+
 #else	/* CONFIG_ACPI */
 static inline void acpi_pci_add_bus(struct pci_bus *bus) { }
 static inline void acpi_pci_remove_bus(struct pci_bus *bus) { }

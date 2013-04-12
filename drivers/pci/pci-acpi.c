@@ -296,7 +296,7 @@ void acpi_pci_add_bus(struct pci_bus *bus)
 	if (acpi_pci_disabled || handle == NULL)
 		return;
 
-	/* TODO: add PCI slots and acpiphp hotplug slots */
+	acpi_pci_slot_enumerate(bus, handle);
 }
 
 void acpi_pci_remove_bus(struct pci_bus *bus)
@@ -308,7 +308,7 @@ void acpi_pci_remove_bus(struct pci_bus *bus)
 	if (acpi_pci_disabled)
 		return;
 
-	/* TODO: remove PCI slots and acpiphp hotplug slots */
+	acpi_pci_slot_remove(bus);
 }
 
 /* ACPI bus type */
@@ -385,7 +385,10 @@ static int __init acpi_pci_init(void)
 	ret = register_acpi_bus_type(&acpi_pci_bus);
 	if (ret)
 		return 0;
+
 	pci_set_platform_pm(&acpi_pci_platform_pm);
+	acpi_pci_slot_init();
+
 	return 0;
 }
 arch_initcall(acpi_pci_init);
