@@ -638,7 +638,10 @@
 
 #define ERROR_GEN6	0x040a0
 #define GEN7_ERR_INT	0x44040
-#define   ERR_INT_MMIO_UNCLAIMED (1<<13)
+#define   ERR_INT_MMIO_UNCLAIMED	(1<<13)
+#define   ERR_INT_FIFO_UNDERRUN_C	(1<<6)
+#define   ERR_INT_FIFO_UNDERRUN_B	(1<<3)
+#define   ERR_INT_FIFO_UNDERRUN_A	(1<<0)
 
 #define FPGA_DBG		0x42300
 #define   FPGA_DBG_RM_NOCLAIM	(1<<31)
@@ -3626,7 +3629,7 @@
 #define DE_PIPEA_FIFO_UNDERRUN  (1 << 0)
 
 /* More Ivybridge lolz */
-#define DE_ERR_DEBUG_IVB		(1<<30)
+#define DE_ERR_INT_IVB			(1<<30)
 #define DE_GSE_IVB			(1<<29)
 #define DE_PCH_EVENT_IVB		(1<<28)
 #define DE_DP_A_HOTPLUG_IVB		(1<<27)
@@ -3785,6 +3788,7 @@
 				 SDE_PORTC_HOTPLUG_CPT |	\
 				 SDE_PORTB_HOTPLUG_CPT)
 #define SDE_GMBUS_CPT		(1 << 17)
+#define SDE_ERROR_CPT		(1 << 16)
 #define SDE_AUDIO_CP_REQ_C_CPT	(1 << 10)
 #define SDE_AUDIO_CP_CHG_C_CPT	(1 << 9)
 #define SDE_FDI_RXC_CPT		(1 << 8)
@@ -3808,6 +3812,11 @@
 #define SDEIMR  0xc4004
 #define SDEIIR  0xc4008
 #define SDEIER  0xc400c
+
+#define SERR_INT			0xc4040
+#define  SERR_INT_TRANS_C_FIFO_UNDERRUN	(1<<6)
+#define  SERR_INT_TRANS_B_FIFO_UNDERRUN	(1<<3)
+#define  SERR_INT_TRANS_A_FIFO_UNDERRUN	(1<<0)
 
 /* digital port hotplug */
 #define PCH_PORT_HOTPLUG        0xc4030		/* SHOTPLUG_CTL */

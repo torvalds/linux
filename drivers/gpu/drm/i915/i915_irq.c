@@ -103,6 +103,213 @@ ironlake_disable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
 	}
 }
 
+static bool ivb_can_enable_err_int(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc;
+	enum pipe pipe;
+
+	for_each_pipe(pipe) {
+		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+
+		if (crtc->cpu_fifo_underrun_disabled)
+			return false;
+	}
+
+	return true;
+}
+
+static bool cpt_can_enable_serr_int(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum pipe pipe;
+	struct intel_crtc *crtc;
+
+	for_each_pipe(pipe) {
+		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+
+		if (crtc->pch_fifo_underrun_disabled)
+			return false;
+	}
+
+	return true;
+}
+
+static void ironlake_set_fifo_underrun_reporting(struct drm_device *dev,
+						 enum pipe pipe, bool enable)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t bit = (pipe == PIPE_A) ? DE_PIPEA_FIFO_UNDERRUN :
+					  DE_PIPEB_FIFO_UNDERRUN;
+
+	if (enable)
+		ironlake_enable_display_irq(dev_priv, bit);
+	else
+		ironlake_disable_display_irq(dev_priv, bit);
+}
+
+static void ivybridge_set_fifo_underrun_reporting(struct drm_device *dev,
+						  bool enable)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (enable) {
+		if (!ivb_can_enable_err_int(dev))
+			return;
+
+		I915_WRITE(GEN7_ERR_INT, ERR_INT_FIFO_UNDERRUN_A |
+					 ERR_INT_FIFO_UNDERRUN_B |
+					 ERR_INT_FIFO_UNDERRUN_C);
+
+		ironlake_enable_display_irq(dev_priv, DE_ERR_INT_IVB);
+	} else {
+		ironlake_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
+	}
+}
+
+static void ibx_set_fifo_underrun_reporting(struct intel_crtc *crtc,
+					    bool enable)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t bit = (crtc->pipe == PIPE_A) ? SDE_TRANSA_FIFO_UNDER :
+						SDE_TRANSB_FIFO_UNDER;
+
+	if (enable)
+		I915_WRITE(SDEIMR, I915_READ(SDEIMR) & ~bit);
+	else
+		I915_WRITE(SDEIMR, I915_READ(SDEIMR) | bit);
+
+	POSTING_READ(SDEIMR);
+}
+
+static void cpt_set_fifo_underrun_reporting(struct drm_device *dev,
+					    enum transcoder pch_transcoder,
+					    bool enable)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (enable) {
+		if (!cpt_can_enable_serr_int(dev))
+			return;
+
+		I915_WRITE(SERR_INT, SERR_INT_TRANS_A_FIFO_UNDERRUN |
+				     SERR_INT_TRANS_B_FIFO_UNDERRUN |
+				     SERR_INT_TRANS_C_FIFO_UNDERRUN);
+
+		I915_WRITE(SDEIMR, I915_READ(SDEIMR) & ~SDE_ERROR_CPT);
+	} else {
+		I915_WRITE(SDEIMR, I915_READ(SDEIMR) | SDE_ERROR_CPT);
+	}
+
+	POSTING_READ(SDEIMR);
+}
+
+/**
+ * intel_set_cpu_fifo_underrun_reporting - enable/disable FIFO underrun messages
+ * @dev: drm device
+ * @pipe: pipe
+ * @enable: true if we want to report FIFO underrun errors, false otherwise
+ *
+ * This function makes us disable or enable CPU fifo underruns for a specific
+ * pipe. Notice that on some Gens (e.g. IVB, HSW), disabling FIFO underrun
+ * reporting for one pipe may also disable all the other CPU error interruts for
+ * the other pipes, due to the fact that there's just one interrupt mask/enable
+ * bit for all the pipes.
+ *
+ * Returns the previous state of underrun reporting.
+ */
+bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
+					   enum pipe pipe, bool enable)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	unsigned long flags;
+	bool ret;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+
+	ret = !intel_crtc->cpu_fifo_underrun_disabled;
+
+	if (enable == ret)
+		goto done;
+
+	intel_crtc->cpu_fifo_underrun_disabled = !enable;
+
+	if (IS_GEN5(dev) || IS_GEN6(dev))
+		ironlake_set_fifo_underrun_reporting(dev, pipe, enable);
+	else if (IS_GEN7(dev))
+		ivybridge_set_fifo_underrun_reporting(dev, enable);
+
+done:
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+	return ret;
+}
+
+/**
+ * intel_set_pch_fifo_underrun_reporting - enable/disable FIFO underrun messages
+ * @dev: drm device
+ * @pch_transcoder: the PCH transcoder (same as pipe on IVB and older)
+ * @enable: true if we want to report FIFO underrun errors, false otherwise
+ *
+ * This function makes us disable or enable PCH fifo underruns for a specific
+ * PCH transcoder. Notice that on some PCHs (e.g. CPT/PPT), disabling FIFO
+ * underrun reporting for one transcoder may also disable all the other PCH
+ * error interruts for the other transcoders, due to the fact that there's just
+ * one interrupt mask/enable bit for all the transcoders.
+ *
+ * Returns the previous state of underrun reporting.
+ */
+bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
+					   enum transcoder pch_transcoder,
+					   bool enable)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum pipe p;
+	struct drm_crtc *crtc;
+	struct intel_crtc *intel_crtc;
+	unsigned long flags;
+	bool ret;
+
+	if (HAS_PCH_LPT(dev)) {
+		crtc = NULL;
+		for_each_pipe(p) {
+			struct drm_crtc *c = dev_priv->pipe_to_crtc_mapping[p];
+			if (intel_pipe_has_type(c, INTEL_OUTPUT_ANALOG)) {
+				crtc = c;
+				break;
+			}
+		}
+		if (!crtc) {
+			DRM_ERROR("PCH FIFO underrun, but no CRTC using the PCH found\n");
+			return false;
+		}
+	} else {
+		crtc = dev_priv->pipe_to_crtc_mapping[pch_transcoder];
+	}
+	intel_crtc = to_intel_crtc(crtc);
+
+	spin_lock_irqsave(&dev_priv->irq_lock, flags);
+
+	ret = !intel_crtc->pch_fifo_underrun_disabled;
+
+	if (enable == ret)
+		goto done;
+
+	intel_crtc->pch_fifo_underrun_disabled = !enable;
+
+	if (HAS_PCH_IBX(dev))
+		ibx_set_fifo_underrun_reporting(intel_crtc, enable);
+	else
+		cpt_set_fifo_underrun_reporting(dev, pch_transcoder, enable);
+
+done:
+	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
+	return ret;
+}
+
+
 void
 i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask)
 {
@@ -791,10 +998,58 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 	if (pch_iir & (SDE_TRANSB_CRC_ERR | SDE_TRANSA_CRC_ERR))
 		DRM_DEBUG_DRIVER("PCH transcoder CRC error interrupt\n");
 
-	if (pch_iir & SDE_TRANSB_FIFO_UNDER)
-		DRM_DEBUG_DRIVER("PCH transcoder B underrun interrupt\n");
 	if (pch_iir & SDE_TRANSA_FIFO_UNDER)
-		DRM_DEBUG_DRIVER("PCH transcoder A underrun interrupt\n");
+		if (intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A,
+							  false))
+			DRM_DEBUG_DRIVER("PCH transcoder A FIFO underrun\n");
+
+	if (pch_iir & SDE_TRANSB_FIFO_UNDER)
+		if (intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_B,
+							  false))
+			DRM_DEBUG_DRIVER("PCH transcoder B FIFO underrun\n");
+}
+
+static void ivb_err_int_handler(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 err_int = I915_READ(GEN7_ERR_INT);
+
+	if (err_int & ERR_INT_FIFO_UNDERRUN_A)
+		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_A, false))
+			DRM_DEBUG_DRIVER("Pipe A FIFO underrun\n");
+
+	if (err_int & ERR_INT_FIFO_UNDERRUN_B)
+		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_B, false))
+			DRM_DEBUG_DRIVER("Pipe B FIFO underrun\n");
+
+	if (err_int & ERR_INT_FIFO_UNDERRUN_C)
+		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_C, false))
+			DRM_DEBUG_DRIVER("Pipe C FIFO underrun\n");
+
+	I915_WRITE(GEN7_ERR_INT, err_int);
+}
+
+static void cpt_serr_int_handler(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 serr_int = I915_READ(SERR_INT);
+
+	if (serr_int & SERR_INT_TRANS_A_FIFO_UNDERRUN)
+		if (intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A,
+							  false))
+			DRM_DEBUG_DRIVER("PCH transcoder A FIFO underrun\n");
+
+	if (serr_int & SERR_INT_TRANS_B_FIFO_UNDERRUN)
+		if (intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_B,
+							  false))
+			DRM_DEBUG_DRIVER("PCH transcoder B FIFO underrun\n");
+
+	if (serr_int & SERR_INT_TRANS_C_FIFO_UNDERRUN)
+		if (intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_C,
+							  false))
+			DRM_DEBUG_DRIVER("PCH transcoder C FIFO underrun\n");
+
+	I915_WRITE(SERR_INT, serr_int);
 }
 
 static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
@@ -832,6 +1087,9 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 			DRM_DEBUG_DRIVER("  pipe %c FDI IIR: 0x%08x\n",
 					 pipe_name(pipe),
 					 I915_READ(FDI_RX_IIR(pipe)));
+
+	if (pch_iir & SDE_ERROR_CPT)
+		cpt_serr_int_handler(dev);
 }
 
 static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
@@ -843,6 +1101,14 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 	int i;
 
 	atomic_inc(&dev_priv->irq_received);
+
+	/* We get interrupts on unclaimed registers, so check for this before we
+	 * do any I915_{READ,WRITE}. */
+	if (IS_HASWELL(dev) &&
+	    (I915_READ_NOTRACE(FPGA_DBG) & FPGA_DBG_RM_NOCLAIM)) {
+		DRM_ERROR("Unclaimed register before interrupt\n");
+		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+	}
 
 	/* disable master interrupt before clearing iir  */
 	de_ier = I915_READ(DEIER);
@@ -859,6 +1125,12 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 		POSTING_READ(SDEIER);
 	}
 
+	/* On Haswell, also mask ERR_INT because we don't want to risk
+	 * generating "unclaimed register" interrupts from inside the interrupt
+	 * handler. */
+	if (IS_HASWELL(dev))
+		ironlake_disable_display_irq(dev_priv, DE_ERR_INT_IVB);
+
 	gt_iir = I915_READ(GTIIR);
 	if (gt_iir) {
 		snb_gt_irq_handler(dev, dev_priv, gt_iir);
@@ -868,6 +1140,9 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 
 	de_iir = I915_READ(DEIIR);
 	if (de_iir) {
+		if (de_iir & DE_ERR_INT_IVB)
+			ivb_err_int_handler(dev);
+
 		if (de_iir & DE_AUX_CHANNEL_A_IVB)
 			dp_aux_irq_handler(dev);
 
@@ -904,6 +1179,9 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 		I915_WRITE(GEN6_PMIIR, pm_iir);
 		ret = IRQ_HANDLED;
 	}
+
+	if (IS_HASWELL(dev) && ivb_can_enable_err_int(dev))
+		ironlake_enable_display_irq(dev_priv, DE_ERR_INT_IVB);
 
 	I915_WRITE(DEIER, de_ier);
 	POSTING_READ(DEIER);
@@ -973,6 +1251,14 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 
 	if (de_iir & DE_PIPEB_VBLANK)
 		drm_handle_vblank(dev, 1);
+
+	if (de_iir & DE_PIPEA_FIFO_UNDERRUN)
+		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_A, false))
+			DRM_DEBUG_DRIVER("Pipe A FIFO underrun\n");
+
+	if (de_iir & DE_PIPEB_FIFO_UNDERRUN)
+		if (intel_set_cpu_fifo_underrun_reporting(dev, PIPE_B, false))
+			DRM_DEBUG_DRIVER("Pipe B FIFO underrun\n");
 
 	if (de_iir & DE_PLANEA_FLIP_DONE) {
 		intel_prepare_page_flip(dev, 0);
@@ -2245,10 +2531,14 @@ static void ibx_irq_postinstall(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 mask;
 
-	if (HAS_PCH_IBX(dev))
-		mask = SDE_GMBUS | SDE_AUX_MASK;
-	else
-		mask = SDE_GMBUS_CPT | SDE_AUX_MASK_CPT;
+	if (HAS_PCH_IBX(dev)) {
+		mask = SDE_GMBUS | SDE_AUX_MASK | SDE_TRANSB_FIFO_UNDER |
+		       SDE_TRANSA_FIFO_UNDER;
+	} else {
+		mask = SDE_GMBUS_CPT | SDE_AUX_MASK_CPT | SDE_ERROR_CPT;
+
+		I915_WRITE(SERR_INT, I915_READ(SERR_INT));
+	}
 
 	if (HAS_PCH_NOP(dev))
 		return;
@@ -2263,7 +2553,8 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	/* enable kind of interrupts always enabled */
 	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
 			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
-			   DE_AUX_CHANNEL_A;
+			   DE_AUX_CHANNEL_A | DE_PIPEB_FIFO_UNDERRUN |
+			   DE_PIPEA_FIFO_UNDERRUN;
 	u32 render_irqs;
 
 	dev_priv->irq_mask = ~display_mask;
@@ -2313,12 +2604,14 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 		DE_PLANEC_FLIP_DONE_IVB |
 		DE_PLANEB_FLIP_DONE_IVB |
 		DE_PLANEA_FLIP_DONE_IVB |
-		DE_AUX_CHANNEL_A_IVB;
+		DE_AUX_CHANNEL_A_IVB |
+		DE_ERR_INT_IVB;
 	u32 render_irqs;
 
 	dev_priv->irq_mask = ~display_mask;
 
 	/* should always can generate irq */
+	I915_WRITE(GEN7_ERR_INT, I915_READ(GEN7_ERR_INT));
 	I915_WRITE(DEIIR, I915_READ(DEIIR));
 	I915_WRITE(DEIMR, dev_priv->irq_mask);
 	I915_WRITE(DEIER,
@@ -2446,6 +2739,8 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 	I915_WRITE(DEIMR, 0xffffffff);
 	I915_WRITE(DEIER, 0x0);
 	I915_WRITE(DEIIR, I915_READ(DEIIR));
+	if (IS_GEN7(dev))
+		I915_WRITE(GEN7_ERR_INT, I915_READ(GEN7_ERR_INT));
 
 	I915_WRITE(GTIMR, 0xffffffff);
 	I915_WRITE(GTIER, 0x0);
@@ -2457,6 +2752,8 @@ static void ironlake_irq_uninstall(struct drm_device *dev)
 	I915_WRITE(SDEIMR, 0xffffffff);
 	I915_WRITE(SDEIER, 0x0);
 	I915_WRITE(SDEIIR, I915_READ(SDEIIR));
+	if (HAS_PCH_CPT(dev) || HAS_PCH_LPT(dev))
+		I915_WRITE(SERR_INT, I915_READ(SERR_INT));
 }
 
 static void i8xx_irq_preinstall(struct drm_device * dev)

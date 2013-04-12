@@ -265,6 +265,10 @@ struct intel_crtc {
 
 	/* reset counter value when the last flip was submitted */
 	unsigned int reset_counter;
+
+	/* Access to these should be protected by dev_priv->irq_lock. */
+	bool cpu_fifo_underrun_disabled;
+	bool pch_fifo_underrun_disabled;
 };
 
 struct intel_plane {
@@ -487,6 +491,7 @@ int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
 extern void intel_attach_force_audio_property(struct drm_connector *connector);
 extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
 
+extern bool intel_pipe_has_type(struct drm_crtc *crtc, int type);
 extern void intel_crt_init(struct drm_device *dev);
 extern void intel_hdmi_init(struct drm_device *dev,
 			    int hdmi_reg, enum port port);
@@ -744,5 +749,11 @@ intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
 extern void intel_ddi_fdi_disable(struct drm_crtc *crtc);
 
 extern void intel_display_handle_reset(struct drm_device *dev);
+extern bool intel_set_cpu_fifo_underrun_reporting(struct drm_device *dev,
+						  enum pipe pipe,
+						  bool enable);
+extern bool intel_set_pch_fifo_underrun_reporting(struct drm_device *dev,
+						 enum transcoder pch_transcoder,
+						 bool enable);
 
 #endif /* __INTEL_DRV_H__ */

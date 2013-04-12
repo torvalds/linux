@@ -3346,6 +3346,10 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		return;
 
 	intel_crtc->active = true;
+
+	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
+	intel_set_pch_fifo_underrun_reporting(dev, pipe, true);
+
 	intel_update_watermarks(dev);
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
@@ -3437,6 +3441,11 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 		return;
 
 	intel_crtc->active = true;
+
+	intel_set_cpu_fifo_underrun_reporting(dev, pipe, true);
+	if (intel_crtc->config.has_pch_encoder)
+		intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A, true);
+
 	intel_update_watermarks(dev);
 
 	if (intel_crtc->config.has_pch_encoder)
@@ -3523,6 +3532,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	if (dev_priv->cfb_plane == plane)
 		intel_disable_fbc(dev);
 
+	intel_set_pch_fifo_underrun_reporting(dev, pipe, false);
 	intel_disable_pipe(dev_priv, pipe);
 
 	/* Disable PF */
@@ -3536,6 +3546,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	ironlake_fdi_disable(crtc);
 
 	ironlake_disable_pch_transcoder(dev_priv, pipe);
+	intel_set_pch_fifo_underrun_reporting(dev, pipe, true);
 
 	if (HAS_PCH_CPT(dev)) {
 		/* disable TRANS_DP_CTL */
@@ -3602,6 +3613,8 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	if (dev_priv->cfb_plane == plane)
 		intel_disable_fbc(dev);
 
+	if (intel_crtc->config.has_pch_encoder)
+		intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A, false);
 	intel_disable_pipe(dev_priv, pipe);
 
 	intel_ddi_disable_transcoder_func(dev_priv, cpu_transcoder);
@@ -3622,6 +3635,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	if (intel_crtc->config.has_pch_encoder) {
 		lpt_disable_pch_transcoder(dev_priv);
+		intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A, true);
 		intel_ddi_fdi_disable(crtc);
 	}
 
