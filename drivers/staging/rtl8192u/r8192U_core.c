@@ -669,20 +669,19 @@ static const struct rtl8192_proc_file rtl8192_proc_files[] = {
 void rtl8192_proc_init_one(struct net_device *dev)
 {
 	const struct rtl8192_proc_file *f;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	struct proc_dir_entry *dir;
 
 	if (rtl8192_proc) {
-		priv->dir_dev = proc_mkdir_data(dev->name, 0, rtl8192_proc, dev);
-		if (!priv->dir_dev) {
+		dir = proc_mkdir_data(dev->name, 0, rtl8192_proc, dev);
+		if (!dir) {
 			RT_TRACE(COMP_ERR, "Unable to initialize /proc/net/rtl8192/%s\n",
 				 dev->name);
 			return;
 		}
 
 		for (f = rtl8192_proc_files; f->name[0]; f++) {
-			if (!proc_create_data(f->name, S_IFREG | S_IRUGO,
-					      priv->dir_dev,
-					      rtl8192_proc_fops, f->show)) {
+			if (!proc_create_data(f->name, S_IFREG | S_IRUGO, dir,
+					      &rtl8192_proc_fops, f->show)) {
 				RT_TRACE(COMP_ERR, "Unable to initialize "
 					 "/proc/net/rtl8192/%s/%s\n",
 					 dev->name, f->name);
@@ -694,12 +693,7 @@ void rtl8192_proc_init_one(struct net_device *dev)
 
 void rtl8192_proc_remove_one(struct net_device *dev)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-
-	if (priv->dir_dev) {
-		remove_proc_subtree(dev->name, rtl8192_proc);
-		priv->dir_dev = NULL;
-	}
+	remove_proc_subtree(dev->name, rtl8192_proc);
 }
 
 /****************************************************************************
