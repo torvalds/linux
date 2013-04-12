@@ -25,7 +25,6 @@ config PLAT_S5P
 	select S5P_GPIO_DRVSTR
 	select SAMSUNG_CLKSRC if !COMMON_CLK
 	select SAMSUNG_GPIOLIB_4BIT
-	select SAMSUNG_IRQ_VIC_TIMER
 	help
 	  Base platform code for Samsung's S5P series SoC.
 
@@ -97,11 +96,6 @@ config S5P_CLOCK
 	  Support common clock part for ARCH_S5P and ARCH_EXYNOS SoCs
 
 # options for IRQ support
-
-config SAMSUNG_IRQ_VIC_TIMER
-       bool
-       help
-         Internal configuration to build the VIC timer interrupt code.
 
 config S5P_IRQ
 	def_bool (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)

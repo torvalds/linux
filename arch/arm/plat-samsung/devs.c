@@ -1099,22 +1099,9 @@ arch_initcall(s5p_pmu_init);
 
 #ifdef CONFIG_SAMSUNG_DEV_PWM
 
-#define TIMER_RESOURCE_SIZE (1)
-
-#define TIMER_RESOURCE(_tmr, _irq)			\
-	(struct resource [TIMER_RESOURCE_SIZE]) {	\
-		[0] = {					\
-			.start	= _irq,			\
-			.end	= _irq,			\
-			.flags	= IORESOURCE_IRQ	\
-		}					\
-	}
-
-#define DEFINE_S3C_TIMER(_tmr_no, _irq)			\
+#define DEFINE_S3C_TIMER(_tmr_no)			\
 	.name		= "s3c24xx-pwm",		\
 	.id		= _tmr_no,			\
-	.num_resources	= TIMER_RESOURCE_SIZE,		\
-	.resource	= TIMER_RESOURCE(_tmr_no, _irq),	\
 
 /*
  * since we already have an static mapping for the timer,
@@ -1122,11 +1109,11 @@ arch_initcall(s5p_pmu_init);
  */
 
 struct platform_device s3c_device_timer[] = {
-	[0] = { DEFINE_S3C_TIMER(0, IRQ_TIMER0) },
-	[1] = { DEFINE_S3C_TIMER(1, IRQ_TIMER1) },
-	[2] = { DEFINE_S3C_TIMER(2, IRQ_TIMER2) },
-	[3] = { DEFINE_S3C_TIMER(3, IRQ_TIMER3) },
-	[4] = { DEFINE_S3C_TIMER(4, IRQ_TIMER4) },
+	[0] = { DEFINE_S3C_TIMER(0) },
+	[1] = { DEFINE_S3C_TIMER(1) },
+	[2] = { DEFINE_S3C_TIMER(2) },
+	[3] = { DEFINE_S3C_TIMER(3) },
+	[4] = { DEFINE_S3C_TIMER(4) },
 };
 
 static struct resource samsung_pwm_resource[] = {
