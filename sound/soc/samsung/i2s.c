@@ -1304,7 +1304,7 @@ static struct platform_device_id samsung_i2s_driver_ids[] = {
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(platform, samsung-i2s-driver-ids);
+MODULE_DEVICE_TABLE(platform, samsung_i2s_driver_ids);
 
 #ifdef CONFIG_OF
 static struct samsung_i2s_dai_data samsung_i2s_dai_data_array[] = {
