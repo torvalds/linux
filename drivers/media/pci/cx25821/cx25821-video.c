@@ -923,21 +923,14 @@ static int vidioc_log_status(struct file *file, void *priv)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 	struct cx25821_fh *fh = priv;
-	char name[32 + 2];
-
-	struct sram_channel *sram_ch = dev->channels[fh->channel_id]
-								.sram_channels;
+	struct sram_channel *sram_ch =
+		dev->channels[fh->channel_id].sram_channels;
 	u32 tmp = 0;
 
-	snprintf(name, sizeof(name), "%s/2", dev->name);
-	pr_info("%s/2: ============  START LOG STATUS  ============\n",
-		dev->name);
 	cx25821_call_all(dev, core, log_status);
 	tmp = cx_read(sram_ch->dma_ctl);
 	pr_info("Video input 0 is %s\n",
 		(tmp & 0x11) ? "streaming" : "stopped");
-	pr_info("%s/2: =============  END LOG STATUS  =============\n",
-		dev->name);
 	return 0;
 }
 
@@ -1027,13 +1020,19 @@ int cx25821_vidioc_querycap(struct file *file, void *priv,
 			    struct v4l2_capability *cap)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
+	struct cx25821_fh *fh = priv;
+	const u32 cap_input = V4L2_CAP_VIDEO_CAPTURE |
+			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+	const u32 cap_output = V4L2_CAP_VIDEO_OUTPUT;
 
 	strcpy(cap->driver, "cx25821");
 	strlcpy(cap->card, cx25821_boards[dev->board].name, sizeof(cap->card));
 	sprintf(cap->bus_info, "PCIe:%s", pci_name(dev->pci));
-	cap->version = CX25821_VERSION_CODE;
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
-		V4L2_CAP_STREAMING;
+	if (fh->channel_id >= VID_CHANNEL_NUM)
+		cap->device_caps = cap_output;
+	else
+		cap->device_caps = cap_input;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
