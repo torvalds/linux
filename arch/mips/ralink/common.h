@@ -33,6 +33,11 @@ extern struct ralink_pinmux rt_gpio_pinmux;
 struct ralink_soc_info {
 	unsigned char sys_type[RAMIPS_SYS_TYPE_LEN];
 	unsigned char *compatible;
+
+	unsigned long mem_base;
+	unsigned long mem_size;
+	unsigned long mem_size_min;
+	unsigned long mem_size_max;
 };
 extern struct ralink_soc_info soc_info;
 
