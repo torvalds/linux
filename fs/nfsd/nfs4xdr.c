@@ -3321,6 +3321,14 @@ nfsd4_encode_write(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_w
 	return nfserr;
 }
 
+static const u32 nfs4_minimal_spo_must_enforce[2] = {
+	[1] = 1 << (OP_BIND_CONN_TO_SESSION - 32) |
+	      1 << (OP_EXCHANGE_ID - 32) |
+	      1 << (OP_CREATE_SESSION - 32) |
+	      1 << (OP_DESTROY_SESSION - 32) |
+	      1 << (OP_DESTROY_CLIENTID - 32)
+};
+
 static __be32
 nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 			 struct nfsd4_exchange_id *exid)
@@ -3359,6 +3367,20 @@ nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 	/* state_protect4_r. Currently only support SP4_NONE */
 	BUG_ON(exid->spa_how != SP4_NONE);
 	WRITE32(exid->spa_how);
+	switch (exid->spa_how) {
+	case SP4_NONE:
+		break;
+	case SP4_MACH_CRED:
+		/* spo_must_enforce bitmap: */
+		WRITE32(2);
+		WRITE32(nfs4_minimal_spo_must_enforce[0]);
+		WRITE32(nfs4_minimal_spo_must_enforce[1]);
+		/* empty spo_must_allow bitmap: */
+		WRITE32(0);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+	}
 
 	/* The server_owner struct */
 	WRITE64(minor_id);      /* Minor id */

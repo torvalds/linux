@@ -1265,6 +1265,31 @@ same_creds(struct svc_cred *cr1, struct svc_cred *cr2)
 	return 0 == strcmp(cr1->cr_principal, cr2->cr_principal);
 }
 
+static bool svc_rqst_integrity_protected(struct svc_rqst *rqstp)
+{
+	struct svc_cred *cr = &rqstp->rq_cred;
+	u32 service;
+
+	service = gss_pseudoflavor_to_service(cr->cr_gss_mech, cr->cr_flavor);
+	return service == RPC_GSS_SVC_INTEGRITY ||
+	       service == RPC_GSS_SVC_PRIVACY;
+}
+
+static bool mach_creds_match(struct nfs4_client *cl, struct svc_rqst *rqstp)
+{
+	struct svc_cred *cr = &rqstp->rq_cred;
+
+	if (!cl->cl_mach_cred)
+		return true;
+	if (cl->cl_cred.cr_gss_mech != cr->cr_gss_mech)
+		return false;
+	if (!svc_rqst_integrity_protected(rqstp))
+		return false;
+	if (!cr->cr_principal)
+		return false;
+	return 0 == strcmp(cl->cl_cred.cr_principal, cr->cr_principal);
+}
+
 static void gen_clid(struct nfs4_client *clp, struct nfsd_net *nn)
 {
 	static u32 current_clientid = 1;
@@ -1642,16 +1667,16 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 	if (exid->flags & ~EXCHGID4_FLAG_MASK_A)
 		return nfserr_inval;
 
-	/* Currently only support SP4_NONE */
 	switch (exid->spa_how) {
+	case SP4_MACH_CRED:
+		if (!svc_rqst_integrity_protected(rqstp))
+			return nfserr_inval;
 	case SP4_NONE:
 		break;
 	default:				/* checked by xdr code */
 		WARN_ON_ONCE(1);
 	case SP4_SSV:
 		return nfserr_encr_alg_unsupp;
-	case SP4_MACH_CRED:
-		return nfserr_serverfault;	/* no excuse :-/ */
 	}
 
 	/* Cases below refer to rfc 5661 section 18.35.4: */
@@ -1664,6 +1689,10 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 		if (update) {
 			if (!clp_used_exchangeid(conf)) { /* buggy client */
 				status = nfserr_inval;
+				goto out;
+			}
+			if (!mach_creds_match(conf, rqstp)) {
+				status = nfserr_wrong_cred;
 				goto out;
 			}
 			if (!creds_match) { /* case 9 */
@@ -1713,6 +1742,7 @@ out_new:
 		goto out;
 	}
 	new->cl_minorversion = cstate->minorversion;
+	new->cl_mach_cred = (exid->spa_how == SP4_MACH_CRED);
 
 	gen_clid(new, nn);
 	add_to_unconfirmed(new);
@@ -1877,6 +1907,9 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	WARN_ON_ONCE(conf && unconf);
 
 	if (conf) {
+		status = nfserr_wrong_cred;
+		if (!mach_creds_match(conf, rqstp))
+			goto out_free_conn;
 		cs_slot = &conf->cl_cs_slot;
 		status = check_slot_seqid(cr_ses->seqid, cs_slot->sl_seqid, 0);
 		if (status == nfserr_replay_cache) {
@@ -1893,6 +1926,9 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 			status = nfserr_clid_inuse;
 			goto out_free_conn;
 		}
+		status = nfserr_wrong_cred;
+		if (!mach_creds_match(unconf, rqstp))
+			goto out_free_conn;
 		cs_slot = &unconf->cl_cs_slot;
 		status = check_slot_seqid(cr_ses->seqid, cs_slot->sl_seqid, 0);
 		if (status) {
@@ -1989,6 +2025,9 @@ __be32 nfsd4_bind_conn_to_session(struct svc_rqst *rqstp,
 	status = nfserr_badsession;
 	if (!session)
 		goto out;
+	status = nfserr_wrong_cred;
+	if (!mach_creds_match(session->se_client, rqstp))
+		goto out;
 	status = nfsd4_map_bcts_dir(&bcts->dir);
 	if (status)
 		goto out;
@@ -2031,6 +2070,9 @@ nfsd4_destroy_session(struct svc_rqst *r,
 	status = nfserr_badsession;
 	if (!ses)
 		goto out_client_lock;
+	status = nfserr_wrong_cred;
+	if (!mach_creds_match(ses->se_client, r))
+		goto out_client_lock;
 	status = mark_session_dead_locked(ses);
 	if (status)
 		goto out_client_lock;
@@ -2061,26 +2103,31 @@ static struct nfsd4_conn *__nfsd4_find_conn(struct svc_xprt *xpt, struct nfsd4_s
 	return NULL;
 }
 
-static void nfsd4_sequence_check_conn(struct nfsd4_conn *new, struct nfsd4_session *ses)
+static __be32 nfsd4_sequence_check_conn(struct nfsd4_conn *new, struct nfsd4_session *ses)
 {
 	struct nfs4_client *clp = ses->se_client;
 	struct nfsd4_conn *c;
+	__be32 status = nfs_ok;
 	int ret;
 
 	spin_lock(&clp->cl_lock);
 	c = __nfsd4_find_conn(new->cn_xprt, ses);
-	if (c) {
-		spin_unlock(&clp->cl_lock);
-		free_conn(new);
-		return;
-	}
+	if (c)
+		goto out_free;
+	status = nfserr_conn_not_bound_to_session;
+	if (clp->cl_mach_cred)
+		goto out_free;
 	__nfsd4_hash_conn(new, ses);
 	spin_unlock(&clp->cl_lock);
 	ret = nfsd4_register_conn(new);
 	if (ret)
 		/* oops; xprt is already down: */
 		nfsd4_conn_lost(&new->cn_xpt_user);
-	return;
+	return nfs_ok;
+out_free:
+	spin_unlock(&clp->cl_lock);
+	free_conn(new);
+	return status;
 }
 
 static bool nfsd4_session_too_many_ops(struct svc_rqst *rqstp, struct nfsd4_session *session)
@@ -2172,8 +2219,10 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	if (status)
 		goto out_put_session;
 
-	nfsd4_sequence_check_conn(conn, session);
+	status = nfsd4_sequence_check_conn(conn, session);
 	conn = NULL;
+	if (status)
+		goto out_put_session;
 
 	/* Success! bump slot seqid */
 	slot->sl_seqid = seq->seqid;
@@ -2235,7 +2284,10 @@ nfsd4_destroy_clientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *csta
 		status = nfserr_stale_clientid;
 		goto out;
 	}
-
+	if (!mach_creds_match(clp, rqstp)) {
+		status = nfserr_wrong_cred;
+		goto out;
+	}
 	expire_client(clp);
 out:
 	nfs4_unlock_state();
