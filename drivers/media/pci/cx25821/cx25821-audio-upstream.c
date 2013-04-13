@@ -45,7 +45,7 @@ static int _intr_msk = FLD_AUD_SRC_RISCI1 | FLD_AUD_SRC_OF |
 			FLD_AUD_SRC_SYNC | FLD_AUD_SRC_OPC_ERR;
 
 static int cx25821_sram_channel_setup_upstream_audio(struct cx25821_dev *dev,
-					      struct sram_channel *ch,
+					      const struct sram_channel *ch,
 					      unsigned int bpl, u32 risc)
 {
 	unsigned int i, lines;
@@ -106,7 +106,7 @@ static __le32 *cx25821_risc_field_upstream_audio(struct cx25821_dev *dev,
 						 int fifo_enable)
 {
 	unsigned int line;
-	struct sram_channel *sram_ch =
+	const struct sram_channel *sram_ch =
 		dev->channels[dev->_audio_upstream_channel].sram_channels;
 	int offset = 0;
 
@@ -215,7 +215,7 @@ static void cx25821_free_memory_audio(struct cx25821_dev *dev)
 
 void cx25821_stop_upstream_audio(struct cx25821_dev *dev)
 {
-	struct sram_channel *sram_ch =
+	const struct sram_channel *sram_ch =
 		dev->channels[AUDIO_UPSTREAM_SRAM_CHANNEL_B].sram_channels;
 	u32 tmp = 0;
 
@@ -257,7 +257,7 @@ void cx25821_free_mem_upstream_audio(struct cx25821_dev *dev)
 }
 
 static int cx25821_get_audio_data(struct cx25821_dev *dev,
-			   struct sram_channel *sram_ch)
+			   const struct sram_channel *sram_ch)
 {
 	struct file *myfile;
 	int frame_index_temp = dev->_audioframe_index;
@@ -352,7 +352,7 @@ static void cx25821_audioups_handler(struct work_struct *work)
 }
 
 static int cx25821_openfile_audio(struct cx25821_dev *dev,
-			   struct sram_channel *sram_ch)
+			   const struct sram_channel *sram_ch)
 {
 	struct file *myfile;
 	int i = 0, j = 0;
@@ -433,7 +433,7 @@ static int cx25821_openfile_audio(struct cx25821_dev *dev,
 }
 
 static int cx25821_audio_upstream_buffer_prepare(struct cx25821_dev *dev,
-						 struct sram_channel *sram_ch,
+						 const struct sram_channel *sram_ch,
 						 int bpl)
 {
 	int ret = 0;
@@ -495,7 +495,7 @@ static int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
 {
 	int i = 0;
 	u32 int_msk_tmp;
-	struct sram_channel *channel = dev->channels[chan_num].sram_channels;
+	const struct sram_channel *channel = dev->channels[chan_num].sram_channels;
 	dma_addr_t risc_phys_jump_addr;
 	__le32 *rp;
 
@@ -587,7 +587,7 @@ static irqreturn_t cx25821_upstream_irq_audio(int irq, void *dev_id)
 	struct cx25821_dev *dev = dev_id;
 	u32 audio_status;
 	int handled = 0;
-	struct sram_channel *sram_ch;
+	const struct sram_channel *sram_ch;
 
 	if (!dev)
 		return -1;
@@ -611,7 +611,7 @@ static irqreturn_t cx25821_upstream_irq_audio(int irq, void *dev_id)
 }
 
 static void cx25821_wait_fifo_enable(struct cx25821_dev *dev,
-				     struct sram_channel *sram_ch)
+				     const struct sram_channel *sram_ch)
 {
 	int count = 0;
 	u32 tmp;
@@ -635,7 +635,7 @@ static void cx25821_wait_fifo_enable(struct cx25821_dev *dev,
 }
 
 static int cx25821_start_audio_dma_upstream(struct cx25821_dev *dev,
-					    struct sram_channel *sram_ch)
+					    const struct sram_channel *sram_ch)
 {
 	u32 tmp = 0;
 	int err = 0;
@@ -699,7 +699,7 @@ fail_irq:
 
 int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 {
-	struct sram_channel *sram_ch;
+	const struct sram_channel *sram_ch;
 	int err = 0;
 
 	if (dev->_audio_is_running) {

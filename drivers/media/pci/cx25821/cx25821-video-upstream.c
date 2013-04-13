@@ -44,7 +44,7 @@ static int _intr_msk = FLD_VID_SRC_RISC1 | FLD_VID_SRC_UF | FLD_VID_SRC_SYNC |
 			FLD_VID_SRC_OPC_ERR;
 
 int cx25821_sram_channel_setup_upstream(struct cx25821_dev *dev,
-					struct sram_channel *ch,
+					const struct sram_channel *ch,
 					unsigned int bpl, u32 risc)
 {
 	unsigned int i, lines;
@@ -135,7 +135,7 @@ static __le32 *cx25821_risc_field_upstream(struct cx25821_dev *dev, __le32 * rp,
 					   int fifo_enable, int field_type)
 {
 	unsigned int line, i;
-	struct sram_channel *sram_ch =
+	const struct sram_channel *sram_ch =
 		dev->channels[dev->_channel_upstream_select].sram_channels;
 	int dist_betwn_starts = bpl * 2;
 
@@ -247,7 +247,7 @@ static int cx25821_risc_buffer_upstream(struct cx25821_dev *dev,
 
 void cx25821_stop_upstream_video_ch1(struct cx25821_dev *dev)
 {
-	struct sram_channel *sram_ch =
+	const struct sram_channel *sram_ch =
 		dev->channels[VID_UPSTREAM_SRAM_CHANNEL_I].sram_channels;
 	u32 tmp = 0;
 
@@ -301,7 +301,7 @@ void cx25821_free_mem_upstream_ch1(struct cx25821_dev *dev)
 }
 
 static int cx25821_get_frame(struct cx25821_dev *dev,
-			     struct sram_channel *sram_ch)
+			     const struct sram_channel *sram_ch)
 {
 	struct file *myfile;
 	int frame_index_temp = dev->_frame_index;
@@ -407,7 +407,7 @@ static void cx25821_vidups_handler(struct work_struct *work)
 }
 
 static int cx25821_openfile(struct cx25821_dev *dev,
-			    struct sram_channel *sram_ch)
+			    const struct sram_channel *sram_ch)
 {
 	struct file *myfile;
 	int i = 0, j = 0;
@@ -489,7 +489,7 @@ static int cx25821_openfile(struct cx25821_dev *dev,
 }
 
 static int cx25821_upstream_buffer_prepare(struct cx25821_dev *dev,
-					   struct sram_channel *sram_ch,
+					   const struct sram_channel *sram_ch,
 					   int bpl)
 {
 	int ret = 0;
@@ -555,7 +555,7 @@ static int cx25821_video_upstream_irq(struct cx25821_dev *dev, int chan_num,
 				      u32 status)
 {
 	u32 int_msk_tmp;
-	struct sram_channel *channel = dev->channels[chan_num].sram_channels;
+	const struct sram_channel *channel = dev->channels[chan_num].sram_channels;
 	int singlefield_lines = NTSC_FIELD_HEIGHT;
 	int line_size_in_bytes = Y422_LINE_SZ;
 	int odd_risc_prog_size = 0;
@@ -643,7 +643,7 @@ static irqreturn_t cx25821_upstream_irq(int irq, void *dev_id)
 	u32 vid_status;
 	int handled = 0;
 	int channel_num = 0;
-	struct sram_channel *sram_ch;
+	const struct sram_channel *sram_ch;
 
 	if (!dev)
 		return -1;
@@ -668,7 +668,7 @@ static irqreturn_t cx25821_upstream_irq(int irq, void *dev_id)
 }
 
 static void cx25821_set_pixelengine(struct cx25821_dev *dev,
-				    struct sram_channel *ch,
+				    const struct sram_channel *ch,
 				    int pix_format)
 {
 	int width = WIDTH_D1;
@@ -701,7 +701,7 @@ static void cx25821_set_pixelengine(struct cx25821_dev *dev,
 }
 
 static int cx25821_start_video_dma_upstream(struct cx25821_dev *dev,
-					    struct sram_channel *sram_ch)
+					    const struct sram_channel *sram_ch)
 {
 	u32 tmp = 0;
 	int err = 0;
@@ -755,7 +755,7 @@ fail_irq:
 int cx25821_vidupstream_init_ch1(struct cx25821_dev *dev, int channel_select,
 				 int pixel_format)
 {
-	struct sram_channel *sram_ch;
+	const struct sram_channel *sram_ch;
 	u32 tmp;
 	int err = 0;
 	int data_frame_size = 0;

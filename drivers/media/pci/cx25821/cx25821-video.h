@@ -63,19 +63,6 @@ do {									\
 #define MEDUSA_READ		    910
 #define MEDUSA_WRITE		    911
 
-extern struct sram_channel *channel0;
-extern struct sram_channel *channel1;
-extern struct sram_channel *channel2;
-extern struct sram_channel *channel3;
-extern struct sram_channel *channel4;
-extern struct sram_channel *channel5;
-extern struct sram_channel *channel6;
-extern struct sram_channel *channel7;
-extern struct sram_channel *channel9;
-extern struct sram_channel *channel10;
-extern struct sram_channel *channel11;
-/* extern const u32 *ctrl_classes[]; */
-
 extern unsigned int vid_limit;
 
 #define FORMAT_FLAGS_PACKED       0x01
@@ -98,7 +85,7 @@ extern int cx25821_video_mux(struct cx25821_dev *dev, unsigned int input);
 extern int cx25821_start_video_dma(struct cx25821_dev *dev,
 				   struct cx25821_dmaqueue *q,
 				   struct cx25821_buffer *buf,
-				   struct sram_channel *channel);
+				   const struct sram_channel *channel);
 
 extern int cx25821_set_scale(struct cx25821_dev *dev, unsigned int width,
 			     unsigned int height, enum v4l2_field field);

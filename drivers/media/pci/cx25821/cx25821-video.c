@@ -258,7 +258,7 @@ int cx25821_video_mux(struct cx25821_dev *dev, unsigned int input)
 int cx25821_start_video_dma(struct cx25821_dev *dev,
 			    struct cx25821_dmaqueue *q,
 			    struct cx25821_buffer *buf,
-			    struct sram_channel *channel)
+			    const struct sram_channel *channel)
 {
 	int tmp = 0;
 
@@ -285,7 +285,7 @@ int cx25821_start_video_dma(struct cx25821_dev *dev,
 
 static int cx25821_restart_video_queue(struct cx25821_dev *dev,
 				       struct cx25821_dmaqueue *q,
-				       struct sram_channel *channel)
+				       const struct sram_channel *channel)
 {
 	struct cx25821_buffer *buf, *prev;
 	struct list_head *item;
@@ -338,7 +338,7 @@ static void cx25821_vid_timeout(unsigned long data)
 {
 	struct cx25821_data *timeout_data = (struct cx25821_data *)data;
 	struct cx25821_dev *dev = timeout_data->dev;
-	struct sram_channel *channel = timeout_data->channel;
+	const struct sram_channel *channel = timeout_data->channel;
 	struct cx25821_dmaqueue *q = &dev->channels[channel->i].vidq;
 	struct cx25821_buffer *buf;
 	unsigned long flags;
@@ -365,7 +365,7 @@ int cx25821_video_irq(struct cx25821_dev *dev, int chan_num, u32 status)
 	u32 count = 0;
 	int handled = 0;
 	u32 mask;
-	struct sram_channel *channel = dev->channels[chan_num].sram_channels;
+	const struct sram_channel *channel = dev->channels[chan_num].sram_channels;
 
 	mask = cx_read(channel->int_msk);
 	if (0 == (status & mask))
@@ -787,9 +787,11 @@ static int video_release(struct file *file)
 {
 	struct cx25821_fh *fh = file->private_data;
 	struct cx25821_dev *dev = fh->dev;
+	const struct sram_channel *sram_ch =
+		dev->channels[0].sram_channels;
 
 	/* stop the risc engine and fifo */
-	cx_write(channel0->dma_ctl, 0); /* FIFO and RISC disable */
+	cx_write(sram_ch->dma_ctl, 0); /* FIFO and RISC disable */
 
 	/* stop video capture */
 	if (cx25821_res_check(fh, RESOURCE_VIDEO0)) {
@@ -923,7 +925,7 @@ static int vidioc_log_status(struct file *file, void *priv)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 	struct cx25821_fh *fh = priv;
-	struct sram_channel *sram_ch =
+	const struct sram_channel *sram_ch =
 		dev->channels[fh->channel_id].sram_channels;
 	u32 tmp = 0;
 

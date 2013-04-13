@@ -48,7 +48,7 @@ EXPORT_SYMBOL(cx25821_devlist_mutex);
 LIST_HEAD(cx25821_devlist);
 EXPORT_SYMBOL(cx25821_devlist);
 
-struct sram_channel cx25821_sram_channels[] = {
+const struct sram_channel cx25821_sram_channels[] = {
 	[SRAM_CH00] = {
 		.i = SRAM_CH00,
 		.name = "VID A",
@@ -317,20 +317,6 @@ struct sram_channel cx25821_sram_channels[] = {
 };
 EXPORT_SYMBOL(cx25821_sram_channels);
 
-struct sram_channel *channel0 = &cx25821_sram_channels[SRAM_CH00];
-struct sram_channel *channel1 = &cx25821_sram_channels[SRAM_CH01];
-struct sram_channel *channel2 = &cx25821_sram_channels[SRAM_CH02];
-struct sram_channel *channel3 = &cx25821_sram_channels[SRAM_CH03];
-struct sram_channel *channel4 = &cx25821_sram_channels[SRAM_CH04];
-struct sram_channel *channel5 = &cx25821_sram_channels[SRAM_CH05];
-struct sram_channel *channel6 = &cx25821_sram_channels[SRAM_CH06];
-struct sram_channel *channel7 = &cx25821_sram_channels[SRAM_CH07];
-struct sram_channel *channel9 = &cx25821_sram_channels[SRAM_CH09];
-struct sram_channel *channel10 = &cx25821_sram_channels[SRAM_CH10];
-struct sram_channel *channel11 = &cx25821_sram_channels[SRAM_CH11];
-
-struct cx25821_dmaqueue mpegq;
-
 static int cx25821_risc_decode(u32 risc)
 {
 	static const char * const instr[16] = {
@@ -457,7 +443,7 @@ static void cx25821_registers_init(struct cx25821_dev *dev)
 }
 
 int cx25821_sram_channel_setup(struct cx25821_dev *dev,
-			       struct sram_channel *ch,
+			       const struct sram_channel *ch,
 			       unsigned int bpl, u32 risc)
 {
 	unsigned int i, lines;
@@ -523,10 +509,9 @@ int cx25821_sram_channel_setup(struct cx25821_dev *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(cx25821_sram_channel_setup);
 
 int cx25821_sram_channel_setup_audio(struct cx25821_dev *dev,
-				     struct sram_channel *ch,
+				     const struct sram_channel *ch,
 				     unsigned int bpl, u32 risc)
 {
 	unsigned int i, lines;
@@ -592,7 +577,7 @@ int cx25821_sram_channel_setup_audio(struct cx25821_dev *dev,
 }
 EXPORT_SYMBOL(cx25821_sram_channel_setup_audio);
 
-void cx25821_sram_channel_dump(struct cx25821_dev *dev, struct sram_channel *ch)
+void cx25821_sram_channel_dump(struct cx25821_dev *dev, const struct sram_channel *ch)
 {
 	static char *name[] = {
 		"init risc lo",
@@ -652,10 +637,9 @@ void cx25821_sram_channel_dump(struct cx25821_dev *dev, struct sram_channel *ch)
 	pr_warn("        :   cnt2_reg: 0x%08x\n",
 		cx_read(ch->cnt2_reg));
 }
-EXPORT_SYMBOL(cx25821_sram_channel_dump);
 
 void cx25821_sram_channel_dump_audio(struct cx25821_dev *dev,
-				     struct sram_channel *ch)
+				     const struct sram_channel *ch)
 {
 	static const char * const name[] = {
 		"init risc lo",
@@ -803,7 +787,7 @@ void cx25821_set_pixel_format(struct cx25821_dev *dev, int channel_select,
 }
 
 static void cx25821_set_vip_mode(struct cx25821_dev *dev,
-				 struct sram_channel *ch)
+				 const struct sram_channel *ch)
 {
 	cx_write(ch->pix_frmt, PIXEL_FRMT_422);
 	cx_write(ch->vip_ctl, PIXEL_ENGINE_VIP1);

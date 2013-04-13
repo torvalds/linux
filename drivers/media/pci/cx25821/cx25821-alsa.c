@@ -151,7 +151,7 @@ static int _cx25821_start_audio_dma(struct cx25821_audio_dev *chip)
 {
 	struct cx25821_audio_buffer *buf = chip->buf;
 	struct cx25821_dev *dev = chip->dev;
-	struct sram_channel *audio_ch =
+	const struct sram_channel *audio_ch =
 	    &cx25821_sram_channels[AUDIO_SRAM_CHANNEL];
 	u32 tmp = 0;
 
