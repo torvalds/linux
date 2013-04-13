@@ -62,6 +62,59 @@ extern ssize_t ramster_remote_page_flushes_failed;
 
 int ramster_debugfs_init(void);
 
+static inline void inc_ramster_eph_pages_remoted(void)
+{
+	ramster_eph_pages_remoted++;
+};
+static inline void inc_ramster_pers_pages_remoted(void)
+{
+	ramster_pers_pages_remoted++;
+};
+static inline void inc_ramster_eph_pages_remote_failed(void)
+{
+	ramster_eph_pages_remote_failed++;
+};
+static inline void inc_ramster_pers_pages_remote_failed(void)
+{
+	ramster_pers_pages_remote_failed++;
+};
+static inline void inc_ramster_remote_eph_pages_succ_get(void)
+{
+	ramster_remote_eph_pages_succ_get++;
+};
+static inline void inc_ramster_remote_pers_pages_succ_get(void)
+{
+	ramster_remote_pers_pages_succ_get++;
+};
+static inline void inc_ramster_remote_eph_pages_unsucc_get(void)
+{
+	ramster_remote_eph_pages_unsucc_get++;
+};
+static inline void inc_ramster_remote_pers_pages_unsucc_get(void)
+{
+	ramster_remote_pers_pages_unsucc_get++;
+};
+static inline void inc_ramster_pers_pages_remote_nomem(void)
+{
+	ramster_pers_pages_remote_nomem++;
+};
+static inline void inc_ramster_remote_objects_flushed(void)
+{
+	ramster_remote_objects_flushed++;
+};
+static inline void inc_ramster_remote_object_flushes_failed(void)
+{
+	ramster_remote_object_flushes_failed++;
+};
+static inline void inc_ramster_remote_pages_flushed(void)
+{
+	ramster_remote_pages_flushed++;
+};
+static inline void inc_ramster_remote_page_flushes_failed(void)
+{
+	ramster_remote_page_flushes_failed++;
+};
+
 #else
 
 static inline void inc_ramster_flnodes(void) { };
@@ -70,6 +123,20 @@ static inline void inc_ramster_foreign_eph_pages(void) { };
 static inline void dec_ramster_foreign_eph_pages(void) { };
 static inline void inc_ramster_foreign_pers_pages(void) { };
 static inline void dec_ramster_foreign_pers_pages(void) { };
+
+static inline void inc_ramster_eph_pages_remoted(void) { };
+static inline void inc_ramster_pers_pages_remoted(void) { };
+static inline void inc_ramster_eph_pages_remote_failed(void) { };
+static inline void inc_ramster_pers_pages_remote_failed(void) { };
+static inline void inc_ramster_remote_eph_pages_succ_get(void) { };
+static inline void inc_ramster_remote_pers_pages_succ_get(void) { };
+static inline void inc_ramster_remote_eph_pages_unsucc_get(void) { };
+static inline void inc_ramster_remote_pers_pages_unsucc_get(void) { };
+static inline void inc_ramster_pers_pages_remote_nomem(void) { };
+static inline void inc_ramster_remote_objects_flushed(void) { };
+static inline void inc_ramster_remote_object_flushes_failed(void) { };
+static inline void inc_ramster_remote_pages_flushed(void) { };
+static inline void inc_ramster_remote_page_flushes_failed(void) { };
 
 static inline int ramster_debugfs_init(void)
 {
