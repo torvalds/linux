@@ -1014,7 +1014,8 @@ static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	/* Bypass encapsulation if the destination is local */
-	if (rt->rt_flags & RTCF_LOCAL) {
+	if (rt->rt_flags & RTCF_LOCAL &&
+	    !(rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST))) {
 		struct vxlan_dev *dst_vxlan;
 
 		ip_rt_put(rt);
