@@ -1274,7 +1274,7 @@ void raw3270_pm_unfreeze(struct raw3270_view *view)
 
 	rp = view->dev;
 	if (rp && test_bit(RAW3270_FLAGS_FROZEN, &rp->flags))
-		ccw_device_force_console();
+		ccw_device_force_console(rp->cdev);
 #endif
 }
 

@@ -858,7 +858,7 @@ static void con3215_flush(void)
 	raw = raw3215[0];  /* console 3215 is the first one */
 	if (raw->port.flags & ASYNC_SUSPENDED)
 		/* The console is still frozen for suspend. */
-		if (ccw_device_force_console())
+		if (ccw_device_force_console(raw->cdev))
 			/* Forcing didn't work, no panic message .. */
 			return;
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);

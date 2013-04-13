@@ -1680,11 +1680,9 @@ void ccw_device_wait_idle(struct ccw_device *cdev)
 
 static int ccw_device_pm_restore(struct device *dev);
 
-int ccw_device_force_console(void)
+int ccw_device_force_console(struct ccw_device *cdev)
 {
-	if (!console_cdev_in_use)
-		return -ENODEV;
-	return ccw_device_pm_restore(&console_cdev.dev);
+	return ccw_device_pm_restore(&cdev->dev);
 }
 EXPORT_SYMBOL_GPL(ccw_device_force_console);
 #endif
