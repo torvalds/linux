@@ -63,17 +63,9 @@ do {									\
 #define MEDUSA_READ		    910
 #define MEDUSA_WRITE		    911
 
-extern unsigned int vid_limit;
-
 #define FORMAT_FLAGS_PACKED       0x01
-extern struct cx25821_fmt formats[];
-extern struct cx25821_fmt *cx25821_format_by_fourcc(unsigned int fourcc);
-extern struct cx25821_data timeout_data[MAX_VID_CHANNEL_NUM];
-
 extern void cx25821_video_wakeup(struct cx25821_dev *dev,
 				 struct cx25821_dmaqueue *q, u32 count);
-
-extern int cx25821_set_tvnorm(struct cx25821_dev *dev, v4l2_std_id norm);
 
 extern int cx25821_res_get(struct cx25821_dev *dev, struct cx25821_fh *fh,
 			   unsigned int bit);
@@ -81,79 +73,13 @@ extern int cx25821_res_check(struct cx25821_fh *fh, unsigned int bit);
 extern int cx25821_res_locked(struct cx25821_fh *fh, unsigned int bit);
 extern void cx25821_res_free(struct cx25821_dev *dev, struct cx25821_fh *fh,
 			     unsigned int bits);
-extern int cx25821_video_mux(struct cx25821_dev *dev, unsigned int input);
 extern int cx25821_start_video_dma(struct cx25821_dev *dev,
 				   struct cx25821_dmaqueue *q,
 				   struct cx25821_buffer *buf,
 				   const struct sram_channel *channel);
 
-extern int cx25821_set_scale(struct cx25821_dev *dev, unsigned int width,
-			     unsigned int height, enum v4l2_field field);
 extern int cx25821_video_irq(struct cx25821_dev *dev, int chan_num, u32 status);
 extern void cx25821_video_unregister(struct cx25821_dev *dev, int chan_num);
 extern int cx25821_video_register(struct cx25821_dev *dev);
-extern int cx25821_get_format_size(void);
 
-extern int cx25821_buffer_setup(struct videobuf_queue *q, unsigned int *count,
-				unsigned int *size);
-extern int cx25821_buffer_prepare(struct videobuf_queue *q,
-				  struct videobuf_buffer *vb,
-				  enum v4l2_field field);
-extern void cx25821_buffer_release(struct videobuf_queue *q,
-				   struct videobuf_buffer *vb);
-extern struct videobuf_queue *get_queue(struct cx25821_fh *fh);
-extern int cx25821_get_resource(struct cx25821_fh *fh, int resource);
-extern int cx25821_video_mmap(struct file *file, struct vm_area_struct *vma);
-extern int cx25821_vidioc_try_fmt_vid_cap(struct file *file, void *priv,
-					  struct v4l2_format *f);
-extern int cx25821_vidioc_querycap(struct file *file, void *priv,
-				   struct v4l2_capability *cap);
-extern int cx25821_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
-					   struct v4l2_fmtdesc *f);
-extern int cx25821_vidioc_reqbufs(struct file *file, void *priv,
-				  struct v4l2_requestbuffers *p);
-extern int cx25821_vidioc_querybuf(struct file *file, void *priv,
-				   struct v4l2_buffer *p);
-extern int cx25821_vidioc_qbuf(struct file *file, void *priv,
-			       struct v4l2_buffer *p);
-extern int cx25821_vidioc_s_std(struct file *file, void *priv,
-				v4l2_std_id tvnorms);
-extern int cx25821_enum_input(struct cx25821_dev *dev, struct v4l2_input *i);
-extern int cx25821_vidioc_enum_input(struct file *file, void *priv,
-				     struct v4l2_input *i);
-extern int cx25821_vidioc_g_input(struct file *file, void *priv,
-				  unsigned int *i);
-extern int cx25821_vidioc_s_input(struct file *file, void *priv,
-				  unsigned int i);
-extern int cx25821_vidioc_g_ctrl(struct file *file, void *priv,
-				 struct v4l2_control *ctl);
-extern int cx25821_vidioc_g_fmt_vid_cap(struct file *file, void *priv,
-					struct v4l2_format *f);
-extern int cx25821_vidioc_g_register(struct file *file, void *fh,
-				     struct v4l2_dbg_register *reg);
-extern int cx25821_vidioc_s_register(struct file *file, void *fh,
-				     const struct v4l2_dbg_register *reg);
-
-extern int cx25821_is_valid_width(u32 width, v4l2_std_id tvnorm);
-extern int cx25821_is_valid_height(u32 height, v4l2_std_id tvnorm);
-
-extern int cx25821_vidioc_g_priority(struct file *file, void *f,
-				     enum v4l2_priority *p);
-extern int cx25821_vidioc_s_priority(struct file *file, void *f,
-				     enum v4l2_priority prio);
-
-extern int cx25821_vidioc_queryctrl(struct file *file, void *priv,
-				    struct v4l2_queryctrl *qctrl);
-extern int cx25821_set_control(struct cx25821_dev *dev,
-			       struct v4l2_control *ctrl, int chan_num);
-
-extern int cx25821_vidioc_cropcap(struct file *file, void *fh,
-				  struct v4l2_cropcap *cropcap);
-extern int cx25821_vidioc_s_crop(struct file *file, void *priv,
-				 const struct v4l2_crop *crop);
-extern int cx25821_vidioc_g_crop(struct file *file, void *priv,
-				 struct v4l2_crop *crop);
-
-extern int cx25821_vidioc_querystd(struct file *file, void *priv,
-				   v4l2_std_id *norm);
 #endif

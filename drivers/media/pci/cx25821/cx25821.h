@@ -127,7 +127,7 @@ struct cx25821_fh {
 	enum v4l2_priority prio;
 
 	/* video capture */
-	struct cx25821_fmt *fmt;
+	const struct cx25821_fmt *fmt;
 	unsigned int width, height;
 	int channel_id;
 	struct videobuf_queue vidq;
@@ -152,7 +152,7 @@ struct cx25821_buffer {
 	/* cx25821 specific */
 	unsigned int bpl;
 	struct btcx_riscmem risc;
-	struct cx25821_fmt *fmt;
+	const struct cx25821_fmt *fmt;
 	u32 count;
 };
 
@@ -565,8 +565,5 @@ extern int cx25821_sram_channel_setup_upstream(struct cx25821_dev *dev,
 					       unsigned int bpl, u32 risc);
 extern void cx25821_set_pixel_format(struct cx25821_dev *dev, int channel,
 				     u32 format);
-extern struct video_device *cx25821_vdev_init(struct cx25821_dev *dev,
-					      struct pci_dev *pci,
-					      const struct video_device *template,
-					      char *type);
+
 #endif
