@@ -988,17 +988,6 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 
 	cx25821_video_register(dev);
 
-	/* register IOCTL device */
-	dev->ioctl_dev = cx25821_vdev_init(dev, dev->pci,
-			&cx25821_videoioctl_template, "video");
-
-	if (video_register_device
-	    (dev->ioctl_dev, VFL_TYPE_GRABBER, VIDEO_IOCTL_CH) < 0) {
-		cx25821_videoioctl_unregister(dev);
-		pr_err("%s(): Failed to register video adapter for IOCTL, so unregistering videoioctl device\n",
-		       __func__);
-	}
-
 	cx25821_dev_checkrevision(dev);
 	CX25821_INFO("setup done!\n");
 
@@ -1056,8 +1045,6 @@ void cx25821_dev_unregister(struct cx25821_dev *dev)
 			continue;
 		cx25821_video_unregister(dev, i);
 	}
-
-	cx25821_videoioctl_unregister(dev);
 
 	cx25821_i2c_unregister(&dev->i2c_bus[0]);
 	cx25821_iounmap(dev);

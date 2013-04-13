@@ -80,7 +80,6 @@
 #define RESOURCE_VIDEO9       512
 #define RESOURCE_VIDEO10      1024
 #define RESOURCE_VIDEO11      2048
-#define RESOURCE_VIDEO_IOCTL  4096
 
 #define BUFFER_TIMEOUT     (HZ)	/* 0.5 seconds */
 
@@ -125,7 +124,6 @@ struct cx25821_tvnorm {
 struct cx25821_fh {
 	struct cx25821_dev *dev;
 	enum v4l2_buf_type type;
-	int radio;
 	u32 resources;
 
 	enum v4l2_priority prio;
@@ -139,10 +137,7 @@ struct cx25821_fh {
 	struct cx25821_fmt *fmt;
 	unsigned int width, height;
 	int channel_id;
-
-	/* vbi capture */
 	struct videobuf_queue vidq;
-	struct videobuf_queue vbiq;
 
 	/* H264 Encoder specifics ONLY */
 	struct videobuf_queue mpegq;
@@ -153,7 +148,6 @@ enum cx25821_itype {
 	CX25821_VMUX_COMPOSITE = 1,
 	CX25821_VMUX_SVIDEO,
 	CX25821_VMUX_DEBUG,
-	CX25821_RADIO,
 };
 
 enum cx25821_src_sel_type {
@@ -191,9 +185,7 @@ struct cx25821_board {
 	enum port portb;
 	enum port portc;
 	unsigned int tuner_type;
-	unsigned int radio_type;
 	unsigned char tuner_addr;
-	unsigned char radio_addr;
 
 	u32 clk_freq;
 	struct cx25821_input input[CX25821_NR_INPUT];
@@ -295,9 +287,6 @@ struct cx25821_dev {
 	v4l2_std_id tvnorm;
 	unsigned int tuner_type;
 	unsigned char tuner_addr;
-	unsigned int radio_type;
-	unsigned char radio_addr;
-	unsigned int has_radio;
 	unsigned int videc_type;
 	unsigned char videc_addr;
 	unsigned short _max_num_decoders;
@@ -326,9 +315,6 @@ struct cx25821_dev {
 
 	/* V4l */
 	u32 freq;
-	struct video_device *vbi_dev;
-	struct video_device *radio_dev;
-	struct video_device *ioctl_dev;
 
 	spinlock_t slock;
 
@@ -467,7 +453,6 @@ extern struct cx25821_subid cx25821_subids[];
 #define VID_UPSTREAM_SRAM_CHANNEL_I     SRAM_CH09
 #define VID_UPSTREAM_SRAM_CHANNEL_J     SRAM_CH10
 #define AUDIO_UPSTREAM_SRAM_CHANNEL_B   SRAM_CH11
-#define VIDEO_IOCTL_CH  11
 
 struct sram_channel {
 	char *name;
@@ -607,7 +592,6 @@ extern int cx25821_sram_channel_setup_upstream(struct cx25821_dev *dev,
 					       unsigned int bpl, u32 risc);
 extern void cx25821_set_pixel_format(struct cx25821_dev *dev, int channel,
 				     u32 format);
-extern void cx25821_videoioctl_unregister(struct cx25821_dev *dev);
 extern struct video_device *cx25821_vdev_init(struct cx25821_dev *dev,
 					      struct pci_dev *pci,
 					      const struct video_device *template,

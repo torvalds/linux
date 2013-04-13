@@ -33,13 +33,10 @@ MODULE_AUTHOR("Hiep Huynh <hiep.huynh@conexant.com>");
 MODULE_LICENSE("GPL");
 
 static unsigned int video_nr[] = {[0 ... (CX25821_MAXBOARDS - 1)] = UNSET };
-static unsigned int radio_nr[] = {[0 ... (CX25821_MAXBOARDS - 1)] = UNSET };
 
 module_param_array(video_nr, int, NULL, 0444);
-module_param_array(radio_nr, int, NULL, 0444);
 
 MODULE_PARM_DESC(video_nr, "video device numbers");
-MODULE_PARM_DESC(radio_nr, "radio device numbers");
 
 static unsigned int video_debug = VIDEO_DEBUG;
 module_param(video_debug, int, 0644);
@@ -54,9 +51,6 @@ module_param(vid_limit, int, 0644);
 MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
 
 static void cx25821_init_controls(struct cx25821_dev *dev, int chan_num);
-
-static const struct v4l2_file_operations video_fops;
-static const struct v4l2_ioctl_ops video_ioctl_ops;
 
 #define FORMAT_FLAGS_PACKED       0x01
 
@@ -409,111 +403,6 @@ int cx25821_video_irq(struct cx25821_dev *dev, int chan_num, u32 status)
 		handled++;
 	}
 	return handled;
-}
-
-void cx25821_videoioctl_unregister(struct cx25821_dev *dev)
-{
-	if (dev->ioctl_dev) {
-		if (video_is_registered(dev->ioctl_dev))
-			video_unregister_device(dev->ioctl_dev);
-		else
-			video_device_release(dev->ioctl_dev);
-
-		dev->ioctl_dev = NULL;
-	}
-}
-
-void cx25821_video_unregister(struct cx25821_dev *dev, int chan_num)
-{
-	cx_clear(PCI_INT_MSK, 1);
-
-	if (dev->channels[chan_num].video_dev) {
-		if (video_is_registered(dev->channels[chan_num].video_dev))
-			video_unregister_device(
-					dev->channels[chan_num].video_dev);
-		else
-			video_device_release(
-					dev->channels[chan_num].video_dev);
-
-		dev->channels[chan_num].video_dev = NULL;
-
-		btcx_riscmem_free(dev->pci,
-				&dev->channels[chan_num].vidq.stopper);
-
-		pr_warn("device %d released!\n", chan_num);
-	}
-
-}
-
-int cx25821_video_register(struct cx25821_dev *dev)
-{
-	static const struct video_device cx25821_video_device = {
-		.name = "cx25821-video",
-		.fops = &video_fops,
-		.minor = -1,
-		.ioctl_ops = &video_ioctl_ops,
-		.tvnorms = CX25821_NORMS,
-		.current_norm = V4L2_STD_NTSC_M,
-	};
-	int err;
-	int i;
-
-	spin_lock_init(&dev->slock);
-
-	for (i = 0; i < VID_CHANNEL_NUM; ++i) {
-		if (i == SRAM_CH08) /* audio channel */
-			continue;
-
-		cx25821_init_controls(dev, i);
-
-		cx25821_risc_stopper(dev->pci, &dev->channels[i].vidq.stopper,
-			dev->channels[i].sram_channels->dma_ctl, 0x11, 0);
-
-		dev->channels[i].sram_channels = &cx25821_sram_channels[i];
-		dev->channels[i].video_dev = NULL;
-		dev->channels[i].resources = 0;
-
-		cx_write(dev->channels[i].sram_channels->int_stat, 0xffffffff);
-
-		INIT_LIST_HEAD(&dev->channels[i].vidq.active);
-		INIT_LIST_HEAD(&dev->channels[i].vidq.queued);
-
-		dev->channels[i].timeout_data.dev = dev;
-		dev->channels[i].timeout_data.channel =
-			&cx25821_sram_channels[i];
-		dev->channels[i].vidq.timeout.function = cx25821_vid_timeout;
-		dev->channels[i].vidq.timeout.data =
-			(unsigned long)&dev->channels[i].timeout_data;
-		init_timer(&dev->channels[i].vidq.timeout);
-
-		/* register v4l devices */
-		dev->channels[i].video_dev = cx25821_vdev_init(dev, dev->pci,
-				&cx25821_video_device, "video");
-
-		err = video_register_device(dev->channels[i].video_dev,
-				VFL_TYPE_GRABBER, video_nr[dev->nr]);
-
-		if (err < 0)
-			goto fail_unreg;
-
-	}
-
-	/* set PCI interrupt */
-	cx_set(PCI_INT_MSK, 0xff);
-
-	/* initial device configuration */
-	mutex_lock(&dev->lock);
-#ifdef TUNER_FLAG
-	dev->tvnorm = cx25821_video_device.current_norm;
-	cx25821_set_tvnorm(dev, dev->tvnorm);
-#endif
-	mutex_unlock(&dev->lock);
-
-	return 0;
-
-fail_unreg:
-	cx25821_video_unregister(dev, i);
-	return err;
 }
 
 int cx25821_buffer_setup(struct videobuf_queue *q, unsigned int *count,
@@ -1983,10 +1872,96 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 #endif
 };
 
-struct video_device cx25821_videoioctl_template = {
-	.name = "cx25821-videoioctl",
+static const struct video_device cx25821_video_device = {
+	.name = "cx25821-video",
 	.fops = &video_fops,
+	.minor = -1,
 	.ioctl_ops = &video_ioctl_ops,
 	.tvnorms = CX25821_NORMS,
 	.current_norm = V4L2_STD_NTSC_M,
 };
+
+void cx25821_video_unregister(struct cx25821_dev *dev, int chan_num)
+{
+	cx_clear(PCI_INT_MSK, 1);
+
+	if (dev->channels[chan_num].video_dev) {
+		if (video_is_registered(dev->channels[chan_num].video_dev))
+			video_unregister_device(
+					dev->channels[chan_num].video_dev);
+		else
+			video_device_release(
+					dev->channels[chan_num].video_dev);
+
+		dev->channels[chan_num].video_dev = NULL;
+
+		btcx_riscmem_free(dev->pci,
+				&dev->channels[chan_num].vidq.stopper);
+
+		pr_warn("device %d released!\n", chan_num);
+	}
+
+}
+
+int cx25821_video_register(struct cx25821_dev *dev)
+{
+	int err;
+	int i;
+
+	spin_lock_init(&dev->slock);
+
+	for (i = 0; i < VID_CHANNEL_NUM; ++i) {
+		if (i == SRAM_CH08) /* audio channel */
+			continue;
+
+		cx25821_init_controls(dev, i);
+
+		cx25821_risc_stopper(dev->pci, &dev->channels[i].vidq.stopper,
+			dev->channels[i].sram_channels->dma_ctl, 0x11, 0);
+
+		dev->channels[i].sram_channels = &cx25821_sram_channels[i];
+		dev->channels[i].video_dev = NULL;
+		dev->channels[i].resources = 0;
+
+		cx_write(dev->channels[i].sram_channels->int_stat, 0xffffffff);
+
+		INIT_LIST_HEAD(&dev->channels[i].vidq.active);
+		INIT_LIST_HEAD(&dev->channels[i].vidq.queued);
+
+		dev->channels[i].timeout_data.dev = dev;
+		dev->channels[i].timeout_data.channel =
+			&cx25821_sram_channels[i];
+		dev->channels[i].vidq.timeout.function = cx25821_vid_timeout;
+		dev->channels[i].vidq.timeout.data =
+			(unsigned long)&dev->channels[i].timeout_data;
+		init_timer(&dev->channels[i].vidq.timeout);
+
+		/* register v4l devices */
+		dev->channels[i].video_dev = cx25821_vdev_init(dev, dev->pci,
+				&cx25821_video_device, "video");
+
+		err = video_register_device(dev->channels[i].video_dev,
+				VFL_TYPE_GRABBER, video_nr[dev->nr]);
+
+		if (err < 0)
+			goto fail_unreg;
+
+	}
+
+	/* set PCI interrupt */
+	cx_set(PCI_INT_MSK, 0xff);
+
+	/* initial device configuration */
+	mutex_lock(&dev->lock);
+#ifdef TUNER_FLAG
+	dev->tvnorm = cx25821_video_device.current_norm;
+	cx25821_set_tvnorm(dev, dev->tvnorm);
+#endif
+	mutex_unlock(&dev->lock);
+
+	return 0;
+
+fail_unreg:
+	cx25821_video_unregister(dev, i);
+	return err;
+}

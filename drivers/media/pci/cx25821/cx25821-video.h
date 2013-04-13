@@ -76,7 +76,6 @@ extern struct sram_channel *channel7;
 extern struct sram_channel *channel9;
 extern struct sram_channel *channel10;
 extern struct sram_channel *channel11;
-extern struct video_device cx25821_videoioctl_template;
 /* extern const u32 *ctrl_classes[]; */
 
 extern unsigned int vid_limit;
