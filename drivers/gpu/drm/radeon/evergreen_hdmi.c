@@ -143,6 +143,27 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 
 	evergreen_hdmi_update_ACR(encoder, mode->clock);
 
+	WREG32(AFMT_60958_0 + offset,
+	       AFMT_60958_CS_CHANNEL_NUMBER_L(1));
+
+	WREG32(AFMT_60958_1 + offset,
+	       AFMT_60958_CS_CHANNEL_NUMBER_R(2));
+
+	WREG32(AFMT_60958_2 + offset,
+	       AFMT_60958_CS_CHANNEL_NUMBER_2(3) |
+	       AFMT_60958_CS_CHANNEL_NUMBER_3(4) |
+	       AFMT_60958_CS_CHANNEL_NUMBER_4(5) |
+	       AFMT_60958_CS_CHANNEL_NUMBER_5(6) |
+	       AFMT_60958_CS_CHANNEL_NUMBER_6(7) |
+	       AFMT_60958_CS_CHANNEL_NUMBER_7(8));
+
+	/* fglrx sets 0x0001005f | (x & 0x00fc0000) in 0x5f78 here */
+
+	WREG32(AFMT_AUDIO_PACKET_CONTROL2 + offset,
+	       AFMT_AUDIO_CHANNEL_ENABLE(0xff));
+
+	/* fglrx sets 0x40 in 0x5f80 here */
+
 	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
 	if (err < 0) {
 		DRM_ERROR("failed to setup AVI infoframe: %zd\n", err);
