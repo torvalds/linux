@@ -43,6 +43,7 @@ endif
 # These modules require assembler to support AVX2.
 ifeq ($(avx2_supported),yes)
 	obj-$(CONFIG_CRYPTO_BLOWFISH_AVX2_X86_64) += blowfish-avx2.o
+	obj-$(CONFIG_CRYPTO_TWOFISH_AVX2_X86_64) += twofish-avx2.o
 endif
 
 aes-i586-y := aes-i586-asm_32.o aes_glue.o
@@ -71,6 +72,7 @@ endif
 
 ifeq ($(avx2_supported),yes)
 	blowfish-avx2-y := blowfish-avx2-asm_64.o blowfish_avx2_glue.o
+	twofish-avx2-y := twofish-avx2-asm_64.o twofish_avx2_glue.o
 endif
 
 aesni-intel-y := aesni-intel_asm.o aesni-intel_glue.o fpu.o

@@ -1,75 +1,47 @@
 /*
- * Glue Code for AVX assembler version of Twofish Cipher
+ * Glue Code for x86_64/AVX2 assembler optimized version of Twofish
  *
- * Copyright (C) 2012 Johannes Goetzfried
- *     <Johannes.Goetzfried@informatik.stud.uni-erlangen.de>
- *
- * Copyright © 2013 Jussi Kivilinna <jussi.kivilinna@iki.fi>
+ * Copyright © 2012-2013 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- * USA
- *
  */
 
 #include <linux/module.h>
-#include <linux/hardirq.h>
 #include <linux/types.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
 #include <crypto/algapi.h>
-#include <crypto/twofish.h>
-#include <crypto/cryptd.h>
-#include <crypto/b128ops.h>
 #include <crypto/ctr.h>
+#include <crypto/twofish.h>
 #include <crypto/lrw.h>
 #include <crypto/xts.h>
-#include <asm/i387.h>
 #include <asm/xcr.h>
 #include <asm/xsave.h>
 #include <asm/crypto/twofish.h>
 #include <asm/crypto/ablk_helper.h>
 #include <asm/crypto/glue_helper.h>
 #include <crypto/scatterwalk.h>
-#include <linux/workqueue.h>
-#include <linux/spinlock.h>
 
-#define TWOFISH_PARALLEL_BLOCKS 8
+#define TF_AVX2_PARALLEL_BLOCKS 16
 
-/* 8-way parallel cipher functions */
-asmlinkage void twofish_ecb_enc_8way(struct twofish_ctx *ctx, u8 *dst,
-				     const u8 *src);
-EXPORT_SYMBOL_GPL(twofish_ecb_enc_8way);
+/* 16-way AVX2 parallel cipher functions */
+asmlinkage void twofish_ecb_enc_16way(struct twofish_ctx *ctx, u8 *dst,
+				      const u8 *src);
+asmlinkage void twofish_ecb_dec_16way(struct twofish_ctx *ctx, u8 *dst,
+				      const u8 *src);
+asmlinkage void twofish_cbc_dec_16way(void *ctx, u128 *dst, const u128 *src);
 
-asmlinkage void twofish_ecb_dec_8way(struct twofish_ctx *ctx, u8 *dst,
-				     const u8 *src);
-EXPORT_SYMBOL_GPL(twofish_ecb_dec_8way);
+asmlinkage void twofish_ctr_16way(void *ctx, u128 *dst, const u128 *src,
+				  le128 *iv);
 
-asmlinkage void twofish_cbc_dec_8way(struct twofish_ctx *ctx, u8 *dst,
-				     const u8 *src);
-EXPORT_SYMBOL_GPL(twofish_cbc_dec_8way);
-
-asmlinkage void twofish_ctr_8way(struct twofish_ctx *ctx, u8 *dst,
-				 const u8 *src, le128 *iv);
-EXPORT_SYMBOL_GPL(twofish_ctr_8way);
-
-asmlinkage void twofish_xts_enc_8way(struct twofish_ctx *ctx, u8 *dst,
-				     const u8 *src, le128 *iv);
-EXPORT_SYMBOL_GPL(twofish_xts_enc_8way);
-asmlinkage void twofish_xts_dec_8way(struct twofish_ctx *ctx, u8 *dst,
-				     const u8 *src, le128 *iv);
-EXPORT_SYMBOL_GPL(twofish_xts_dec_8way);
+asmlinkage void twofish_xts_enc_16way(struct twofish_ctx *ctx, u8 *dst,
+				      const u8 *src, le128 *iv);
+asmlinkage void twofish_xts_dec_16way(struct twofish_ctx *ctx, u8 *dst,
+				      const u8 *src, le128 *iv);
 
 static inline void twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
 					const u8 *src)
@@ -77,27 +49,15 @@ static inline void twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
 	__twofish_enc_blk_3way(ctx, dst, src, false);
 }
 
-void twofish_xts_enc(void *ctx, u128 *dst, const u128 *src, le128 *iv)
-{
-	glue_xts_crypt_128bit_one(ctx, dst, src, iv,
-				  GLUE_FUNC_CAST(twofish_enc_blk));
-}
-EXPORT_SYMBOL_GPL(twofish_xts_enc);
-
-void twofish_xts_dec(void *ctx, u128 *dst, const u128 *src, le128 *iv)
-{
-	glue_xts_crypt_128bit_one(ctx, dst, src, iv,
-				  GLUE_FUNC_CAST(twofish_dec_blk));
-}
-EXPORT_SYMBOL_GPL(twofish_xts_dec);
-
-
 static const struct common_glue_ctx twofish_enc = {
-	.num_funcs = 3,
-	.fpu_blocks_limit = TWOFISH_PARALLEL_BLOCKS,
+	.num_funcs = 4,
+	.fpu_blocks_limit = 8,
 
 	.funcs = { {
-		.num_blocks = TWOFISH_PARALLEL_BLOCKS,
+		.num_blocks = 16,
+		.fn_u = { .ecb = GLUE_FUNC_CAST(twofish_ecb_enc_16way) }
+	}, {
+		.num_blocks = 8,
 		.fn_u = { .ecb = GLUE_FUNC_CAST(twofish_ecb_enc_8way) }
 	}, {
 		.num_blocks = 3,
@@ -109,11 +69,14 @@ static const struct common_glue_ctx twofish_enc = {
 };
 
 static const struct common_glue_ctx twofish_ctr = {
-	.num_funcs = 3,
-	.fpu_blocks_limit = TWOFISH_PARALLEL_BLOCKS,
+	.num_funcs = 4,
+	.fpu_blocks_limit = 8,
 
 	.funcs = { {
-		.num_blocks = TWOFISH_PARALLEL_BLOCKS,
+		.num_blocks = 16,
+		.fn_u = { .ctr = GLUE_CTR_FUNC_CAST(twofish_ctr_16way) }
+	},  {
+		.num_blocks = 8,
 		.fn_u = { .ctr = GLUE_CTR_FUNC_CAST(twofish_ctr_8way) }
 	}, {
 		.num_blocks = 3,
@@ -125,11 +88,14 @@ static const struct common_glue_ctx twofish_ctr = {
 };
 
 static const struct common_glue_ctx twofish_enc_xts = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = TWOFISH_PARALLEL_BLOCKS,
+	.num_funcs = 3,
+	.fpu_blocks_limit = 8,
 
 	.funcs = { {
-		.num_blocks = TWOFISH_PARALLEL_BLOCKS,
+		.num_blocks = 16,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(twofish_xts_enc_16way) }
+	}, {
+		.num_blocks = 8,
 		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(twofish_xts_enc_8way) }
 	}, {
 		.num_blocks = 1,
@@ -138,11 +104,14 @@ static const struct common_glue_ctx twofish_enc_xts = {
 };
 
 static const struct common_glue_ctx twofish_dec = {
-	.num_funcs = 3,
-	.fpu_blocks_limit = TWOFISH_PARALLEL_BLOCKS,
+	.num_funcs = 4,
+	.fpu_blocks_limit = 8,
 
 	.funcs = { {
-		.num_blocks = TWOFISH_PARALLEL_BLOCKS,
+		.num_blocks = 16,
+		.fn_u = { .ecb = GLUE_FUNC_CAST(twofish_ecb_dec_16way) }
+	}, {
+		.num_blocks = 8,
 		.fn_u = { .ecb = GLUE_FUNC_CAST(twofish_ecb_dec_8way) }
 	}, {
 		.num_blocks = 3,
@@ -154,11 +123,14 @@ static const struct common_glue_ctx twofish_dec = {
 };
 
 static const struct common_glue_ctx twofish_dec_cbc = {
-	.num_funcs = 3,
-	.fpu_blocks_limit = TWOFISH_PARALLEL_BLOCKS,
+	.num_funcs = 4,
+	.fpu_blocks_limit = 8,
 
 	.funcs = { {
-		.num_blocks = TWOFISH_PARALLEL_BLOCKS,
+		.num_blocks = 16,
+		.fn_u = { .cbc = GLUE_CBC_FUNC_CAST(twofish_cbc_dec_16way) }
+	}, {
+		.num_blocks = 8,
 		.fn_u = { .cbc = GLUE_CBC_FUNC_CAST(twofish_cbc_dec_8way) }
 	}, {
 		.num_blocks = 3,
@@ -170,11 +142,14 @@ static const struct common_glue_ctx twofish_dec_cbc = {
 };
 
 static const struct common_glue_ctx twofish_dec_xts = {
-	.num_funcs = 2,
-	.fpu_blocks_limit = TWOFISH_PARALLEL_BLOCKS,
+	.num_funcs = 3,
+	.fpu_blocks_limit = 8,
 
 	.funcs = { {
-		.num_blocks = TWOFISH_PARALLEL_BLOCKS,
+		.num_blocks = 16,
+		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(twofish_xts_dec_16way) }
+	}, {
+		.num_blocks = 8,
 		.fn_u = { .xts = GLUE_XTS_FUNC_CAST(twofish_xts_dec_8way) }
 	}, {
 		.num_blocks = 1,
@@ -216,8 +191,8 @@ static int ctr_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 
 static inline bool twofish_fpu_begin(bool fpu_enabled, unsigned int nbytes)
 {
-	return glue_fpu_begin(TF_BLOCK_SIZE, TWOFISH_PARALLEL_BLOCKS, NULL,
-			      fpu_enabled, nbytes);
+	/* since reusing AVX functions, starts using FPU at 8 parallel blocks */
+	return glue_fpu_begin(TF_BLOCK_SIZE, 8, NULL, fpu_enabled, nbytes);
 }
 
 static inline void twofish_fpu_end(bool fpu_enabled)
@@ -238,15 +213,23 @@ static void encrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
 
 	ctx->fpu_enabled = twofish_fpu_begin(ctx->fpu_enabled, nbytes);
 
-	if (nbytes == bsize * TWOFISH_PARALLEL_BLOCKS) {
-		twofish_ecb_enc_8way(ctx->ctx, srcdst, srcdst);
-		return;
+	while (nbytes >= TF_AVX2_PARALLEL_BLOCKS * bsize) {
+		twofish_ecb_enc_16way(ctx->ctx, srcdst, srcdst);
+		srcdst += bsize * TF_AVX2_PARALLEL_BLOCKS;
+		nbytes -= bsize * TF_AVX2_PARALLEL_BLOCKS;
 	}
 
-	for (i = 0; i < nbytes / (bsize * 3); i++, srcdst += bsize * 3)
-		twofish_enc_blk_3way(ctx->ctx, srcdst, srcdst);
+	while (nbytes >= 8 * bsize) {
+		twofish_ecb_enc_8way(ctx->ctx, srcdst, srcdst);
+		srcdst += bsize * 8;
+		nbytes -= bsize * 8;
+	}
 
-	nbytes %= bsize * 3;
+	while (nbytes >= 3 * bsize) {
+		twofish_enc_blk_3way(ctx->ctx, srcdst, srcdst);
+		srcdst += bsize * 3;
+		nbytes -= bsize * 3;
+	}
 
 	for (i = 0; i < nbytes / bsize; i++, srcdst += bsize)
 		twofish_enc_blk(ctx->ctx, srcdst, srcdst);
@@ -260,15 +243,23 @@ static void decrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
 
 	ctx->fpu_enabled = twofish_fpu_begin(ctx->fpu_enabled, nbytes);
 
-	if (nbytes == bsize * TWOFISH_PARALLEL_BLOCKS) {
-		twofish_ecb_dec_8way(ctx->ctx, srcdst, srcdst);
-		return;
+	while (nbytes >= TF_AVX2_PARALLEL_BLOCKS * bsize) {
+		twofish_ecb_dec_16way(ctx->ctx, srcdst, srcdst);
+		srcdst += bsize * TF_AVX2_PARALLEL_BLOCKS;
+		nbytes -= bsize * TF_AVX2_PARALLEL_BLOCKS;
 	}
 
-	for (i = 0; i < nbytes / (bsize * 3); i++, srcdst += bsize * 3)
-		twofish_dec_blk_3way(ctx->ctx, srcdst, srcdst);
+	while (nbytes >= 8 * bsize) {
+		twofish_ecb_dec_8way(ctx->ctx, srcdst, srcdst);
+		srcdst += bsize * 8;
+		nbytes -= bsize * 8;
+	}
 
-	nbytes %= bsize * 3;
+	while (nbytes >= 3 * bsize) {
+		twofish_dec_blk_3way(ctx->ctx, srcdst, srcdst);
+		srcdst += bsize * 3;
+		nbytes -= bsize * 3;
+	}
 
 	for (i = 0; i < nbytes / bsize; i++, srcdst += bsize)
 		twofish_dec_blk(ctx->ctx, srcdst, srcdst);
@@ -278,7 +269,7 @@ static int lrw_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
 	struct twofish_lrw_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[TWOFISH_PARALLEL_BLOCKS];
+	be128 buf[TF_AVX2_PARALLEL_BLOCKS];
 	struct crypt_priv crypt_ctx = {
 		.ctx = &ctx->twofish_ctx,
 		.fpu_enabled = false,
@@ -304,7 +295,7 @@ static int lrw_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 		       struct scatterlist *src, unsigned int nbytes)
 {
 	struct twofish_lrw_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
-	be128 buf[TWOFISH_PARALLEL_BLOCKS];
+	be128 buf[TF_AVX2_PARALLEL_BLOCKS];
 	struct crypt_priv crypt_ctx = {
 		.ctx = &ctx->twofish_ctx,
 		.fpu_enabled = false,
@@ -346,9 +337,9 @@ static int xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 				     &ctx->tweak_ctx, &ctx->crypt_ctx);
 }
 
-static struct crypto_alg twofish_algs[10] = { {
-	.cra_name		= "__ecb-twofish-avx",
-	.cra_driver_name	= "__driver-ecb-twofish-avx",
+static struct crypto_alg tf_algs[10] = { {
+	.cra_name		= "__ecb-twofish-avx2",
+	.cra_driver_name	= "__driver-ecb-twofish-avx2",
 	.cra_priority		= 0,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		= TF_BLOCK_SIZE,
@@ -366,8 +357,8 @@ static struct crypto_alg twofish_algs[10] = { {
 		},
 	},
 }, {
-	.cra_name		= "__cbc-twofish-avx",
-	.cra_driver_name	= "__driver-cbc-twofish-avx",
+	.cra_name		= "__cbc-twofish-avx2",
+	.cra_driver_name	= "__driver-cbc-twofish-avx2",
 	.cra_priority		= 0,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		= TF_BLOCK_SIZE,
@@ -385,8 +376,8 @@ static struct crypto_alg twofish_algs[10] = { {
 		},
 	},
 }, {
-	.cra_name		= "__ctr-twofish-avx",
-	.cra_driver_name	= "__driver-ctr-twofish-avx",
+	.cra_name		= "__ctr-twofish-avx2",
+	.cra_driver_name	= "__driver-ctr-twofish-avx2",
 	.cra_priority		= 0,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		= 1,
@@ -405,8 +396,8 @@ static struct crypto_alg twofish_algs[10] = { {
 		},
 	},
 }, {
-	.cra_name		= "__lrw-twofish-avx",
-	.cra_driver_name	= "__driver-lrw-twofish-avx",
+	.cra_name		= "__lrw-twofish-avx2",
+	.cra_driver_name	= "__driver-lrw-twofish-avx2",
 	.cra_priority		= 0,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		= TF_BLOCK_SIZE,
@@ -428,8 +419,8 @@ static struct crypto_alg twofish_algs[10] = { {
 		},
 	},
 }, {
-	.cra_name		= "__xts-twofish-avx",
-	.cra_driver_name	= "__driver-xts-twofish-avx",
+	.cra_name		= "__xts-twofish-avx2",
+	.cra_driver_name	= "__driver-xts-twofish-avx2",
 	.cra_priority		= 0,
 	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		= TF_BLOCK_SIZE,
@@ -449,8 +440,8 @@ static struct crypto_alg twofish_algs[10] = { {
 	},
 }, {
 	.cra_name		= "ecb(twofish)",
-	.cra_driver_name	= "ecb-twofish-avx",
-	.cra_priority		= 400,
+	.cra_driver_name	= "ecb-twofish-avx2",
+	.cra_priority		= 500,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize		= TF_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct async_helper_ctx),
@@ -470,8 +461,8 @@ static struct crypto_alg twofish_algs[10] = { {
 	},
 }, {
 	.cra_name		= "cbc(twofish)",
-	.cra_driver_name	= "cbc-twofish-avx",
-	.cra_priority		= 400,
+	.cra_driver_name	= "cbc-twofish-avx2",
+	.cra_priority		= 500,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize		= TF_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct async_helper_ctx),
@@ -492,8 +483,8 @@ static struct crypto_alg twofish_algs[10] = { {
 	},
 }, {
 	.cra_name		= "ctr(twofish)",
-	.cra_driver_name	= "ctr-twofish-avx",
-	.cra_priority		= 400,
+	.cra_driver_name	= "ctr-twofish-avx2",
+	.cra_priority		= 500,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize		= 1,
 	.cra_ctxsize		= sizeof(struct async_helper_ctx),
@@ -515,8 +506,8 @@ static struct crypto_alg twofish_algs[10] = { {
 	},
 }, {
 	.cra_name		= "lrw(twofish)",
-	.cra_driver_name	= "lrw-twofish-avx",
-	.cra_priority		= 400,
+	.cra_driver_name	= "lrw-twofish-avx2",
+	.cra_priority		= 500,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize		= TF_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct async_helper_ctx),
@@ -539,8 +530,8 @@ static struct crypto_alg twofish_algs[10] = { {
 	},
 }, {
 	.cra_name		= "xts(twofish)",
-	.cra_driver_name	= "xts-twofish-avx",
-	.cra_priority		= 400,
+	.cra_driver_name	= "xts-twofish-avx2",
+	.cra_priority		= 500,
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize		= TF_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct async_helper_ctx),
@@ -561,32 +552,33 @@ static struct crypto_alg twofish_algs[10] = { {
 	},
 } };
 
-static int __init twofish_init(void)
+static int __init init(void)
 {
 	u64 xcr0;
 
-	if (!cpu_has_avx || !cpu_has_osxsave) {
-		printk(KERN_INFO "AVX instructions are not detected.\n");
+	if (!cpu_has_avx2 || !cpu_has_osxsave) {
+		pr_info("AVX2 instructions are not detected.\n");
 		return -ENODEV;
 	}
 
 	xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
 	if ((xcr0 & (XSTATE_SSE | XSTATE_YMM)) != (XSTATE_SSE | XSTATE_YMM)) {
-		printk(KERN_INFO "AVX detected but unusable.\n");
+		pr_info("AVX2 detected but unusable.\n");
 		return -ENODEV;
 	}
 
-	return crypto_register_algs(twofish_algs, ARRAY_SIZE(twofish_algs));
+	return crypto_register_algs(tf_algs, ARRAY_SIZE(tf_algs));
 }
 
-static void __exit twofish_exit(void)
+static void __exit fini(void)
 {
-	crypto_unregister_algs(twofish_algs, ARRAY_SIZE(twofish_algs));
+	crypto_unregister_algs(tf_algs, ARRAY_SIZE(tf_algs));
 }
 
-module_init(twofish_init);
-module_exit(twofish_exit);
+module_init(init);
+module_exit(fini);
 
-MODULE_DESCRIPTION("Twofish Cipher Algorithm, AVX optimized");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Twofish Cipher Algorithm, AVX2 optimized");
 MODULE_ALIAS("twofish");
+MODULE_ALIAS("twofish-asm");
