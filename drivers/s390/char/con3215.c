@@ -502,7 +502,7 @@ static void raw3215_make_room(struct raw3215_info *raw, unsigned int length)
 		raw3215_try_io(raw);
 		raw->flags &= ~RAW3215_FLUSHING;
 #ifdef CONFIG_TN3215_CONSOLE
-		wait_cons_dev();
+		ccw_device_wait_idle(raw->cdev);
 #endif
 		/* Enough room freed up ? */
 		if (RAW3215_BUFFER_SIZE - raw->count >= length)

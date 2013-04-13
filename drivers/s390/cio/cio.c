@@ -656,9 +656,9 @@ static int console_subchannel_in_use;
 
 /*
  * Use cio_tsch to update the subchannel status and call the interrupt handler
- * if status had been pending. Called with the console_subchannel lock.
+ * if status had been pending. Called with the subchannel's lock held.
  */
-static void cio_tsch(struct subchannel *sch)
+void cio_tsch(struct subchannel *sch)
 {
 	struct irb *irb;
 	int irq_context;
@@ -688,22 +688,6 @@ static void cio_tsch(struct subchannel *sch)
 void *cio_get_console_priv(void)
 {
 	return &console_priv;
-}
-
-/*
- * busy wait for the next interrupt on the console
- */
-void wait_cons_dev(void)
-{
-	if (!console_subchannel_in_use)
-		return;
-
-	while (1) {
-		cio_tsch(&console_subchannel);
-		if (console_subchannel.schib.scsw.cmd.actl == 0)
-			break;
-		udelay_simple(100);
-	}
 }
 
 static int

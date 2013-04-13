@@ -19,6 +19,7 @@
 #include <linux/list.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
+#include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/kernel_stat.h>
 
@@ -1612,13 +1613,15 @@ static int ccw_device_console_enable(struct ccw_device *cdev,
 	/* Now wait for the async. recognition to come to an end. */
 	spin_lock_irq(cdev->ccwlock);
 	while (!dev_fsm_final_state(cdev))
-		wait_cons_dev();
+		ccw_device_wait_idle(cdev);
+
 	rc = -EIO;
 	if (cdev->private->state != DEV_STATE_OFFLINE)
 		goto out_unlock;
 	ccw_device_online(cdev);
 	while (!dev_fsm_final_state(cdev))
-		wait_cons_dev();
+		ccw_device_wait_idle(cdev);
+
 	if (cdev->private->state != DEV_STATE_ONLINE)
 		goto out_unlock;
 	rc = 0;
@@ -1653,6 +1656,26 @@ ccw_device_probe_console(void)
 	}
 	console_cdev.online = 1;
 	return &console_cdev;
+}
+
+/**
+ * ccw_device_wait_idle() - busy wait for device to become idle
+ * @cdev: ccw device
+ *
+ * Poll until activity control is zero, that is, no function or data
+ * transfer is pending/active.
+ * Called with device lock being held.
+ */
+void ccw_device_wait_idle(struct ccw_device *cdev)
+{
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+
+	while (1) {
+		cio_tsch(sch);
+		if (sch->schib.scsw.cmd.actl == 0)
+			break;
+		udelay_simple(100);
+	}
 }
 
 static int ccw_device_pm_restore(struct device *dev);
