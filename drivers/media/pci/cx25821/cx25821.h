@@ -33,6 +33,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 #include <media/videobuf-dma-sg.h>
 
 #include "btcx-risc.h"
@@ -208,13 +209,14 @@ struct cx25821_data {
 	const struct sram_channel *channel;
 };
 
+struct cx25821_dev;
+
 struct cx25821_channel {
+	unsigned id;
+	struct cx25821_dev *dev;
 	struct v4l2_prio_state prio;
 
-	int ctl_bright;
-	int ctl_contrast;
-	int ctl_hue;
-	int ctl_saturation;
+	struct v4l2_ctrl_handler hdl;
 	struct cx25821_data timeout_data;
 
 	struct video_device vdev;

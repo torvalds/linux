@@ -880,8 +880,11 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 
 	/* Apply a sensible clock frequency for the PCIe bridge */
 	dev->clk_freq = 28000000;
-	for (i = 0; i < MAX_VID_CHANNEL_NUM; i++)
+	for (i = 0; i < MAX_VID_CHANNEL_NUM; i++) {
+		dev->channels[i].dev = dev;
+		dev->channels[i].id = i;
 		dev->channels[i].sram_channels = &cx25821_sram_channels[i];
+	}
 
 	if (dev->nr > 1)
 		CX25821_INFO("dev->nr > 1!");

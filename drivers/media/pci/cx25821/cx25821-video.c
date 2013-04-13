@@ -1188,192 +1188,29 @@ int cx25821_vidioc_s_register(struct file *file, void *fh,
 
 #endif
 
-/*****************************************************************************/
-static const struct v4l2_queryctrl no_ctl = {
-	.name = "42",
-	.flags = V4L2_CTRL_FLAG_DISABLED,
-};
-
-static struct v4l2_queryctrl cx25821_ctls[] = {
-	/* --- video --- */
-	{
-		.id = V4L2_CID_BRIGHTNESS,
-		.name = "Brightness",
-		.minimum = 0,
-		.maximum = 10000,
-		.step = 1,
-		.default_value = 6200,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-	}, {
-		.id = V4L2_CID_CONTRAST,
-		.name = "Contrast",
-		.minimum = 0,
-		.maximum = 10000,
-		.step = 1,
-		.default_value = 5000,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-	}, {
-		.id = V4L2_CID_SATURATION,
-		.name = "Saturation",
-		.minimum = 0,
-		.maximum = 10000,
-		.step = 1,
-		.default_value = 5000,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-	}, {
-		.id = V4L2_CID_HUE,
-		.name = "Hue",
-		.minimum = 0,
-		.maximum = 10000,
-		.step = 1,
-		.default_value = 5000,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-	}
-};
-static const int CX25821_CTLS = ARRAY_SIZE(cx25821_ctls);
-
-static int cx25821_ctrl_query(struct v4l2_queryctrl *qctrl)
+static int cx25821_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	int i;
+	struct cx25821_channel *chan =
+		container_of(ctrl->handler, struct cx25821_channel, hdl);
+	struct cx25821_dev *dev = chan->dev;
 
-	if (qctrl->id < V4L2_CID_BASE || qctrl->id >= V4L2_CID_LASTP1)
-		return -EINVAL;
-	for (i = 0; i < CX25821_CTLS; i++)
-		if (cx25821_ctls[i].id == qctrl->id)
-			break;
-	if (i == CX25821_CTLS) {
-		*qctrl = no_ctl;
-		return 0;
-	}
-	*qctrl = cx25821_ctls[i];
-	return 0;
-}
-
-static int cx25821_vidioc_queryctrl(struct file *file, void *priv,
-		     struct v4l2_queryctrl *qctrl)
-{
-	return cx25821_ctrl_query(qctrl);
-}
-
-/* ------------------------------------------------------------------ */
-/* VIDEO CTRL IOCTLS                                                  */
-
-static const struct v4l2_queryctrl *ctrl_by_id(unsigned int id)
-{
-	unsigned int i;
-
-	for (i = 0; i < CX25821_CTLS; i++)
-		if (cx25821_ctls[i].id == id)
-			return cx25821_ctls + i;
-	return NULL;
-}
-
-static int cx25821_vidioc_g_ctrl(struct file *file, void *priv,
-			  struct v4l2_control *ctl)
-{
-	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
-	struct cx25821_fh *fh = priv;
-
-	const struct v4l2_queryctrl *ctrl;
-
-	ctrl = ctrl_by_id(ctl->id);
-
-	if (NULL == ctrl)
-		return -EINVAL;
-	switch (ctl->id) {
+	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
-		ctl->value = dev->channels[fh->channel_id].ctl_bright;
+		medusa_set_brightness(dev, ctrl->val, chan->id);
 		break;
 	case V4L2_CID_HUE:
-		ctl->value = dev->channels[fh->channel_id].ctl_hue;
+		medusa_set_hue(dev, ctrl->val, chan->id);
 		break;
 	case V4L2_CID_CONTRAST:
-		ctl->value = dev->channels[fh->channel_id].ctl_contrast;
+		medusa_set_contrast(dev, ctrl->val, chan->id);
 		break;
 	case V4L2_CID_SATURATION:
-		ctl->value = dev->channels[fh->channel_id].ctl_saturation;
-		break;
-	}
-	return 0;
-}
-
-static int cx25821_set_control(struct cx25821_dev *dev,
-			struct v4l2_control *ctl, int chan_num)
-{
-	int err;
-	const struct v4l2_queryctrl *ctrl;
-
-	err = -EINVAL;
-
-	ctrl = ctrl_by_id(ctl->id);
-
-	if (NULL == ctrl)
-		return err;
-
-	switch (ctrl->type) {
-	case V4L2_CTRL_TYPE_BOOLEAN:
-	case V4L2_CTRL_TYPE_MENU:
-	case V4L2_CTRL_TYPE_INTEGER:
-		if (ctl->value < ctrl->minimum)
-			ctl->value = ctrl->minimum;
-		if (ctl->value > ctrl->maximum)
-			ctl->value = ctrl->maximum;
+		medusa_set_saturation(dev, ctrl->val, chan->id);
 		break;
 	default:
-		/* nothing */ ;
+		return -EINVAL;
 	}
-
-	switch (ctl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		dev->channels[chan_num].ctl_bright = ctl->value;
-		medusa_set_brightness(dev, ctl->value, chan_num);
-		break;
-	case V4L2_CID_HUE:
-		dev->channels[chan_num].ctl_hue = ctl->value;
-		medusa_set_hue(dev, ctl->value, chan_num);
-		break;
-	case V4L2_CID_CONTRAST:
-		dev->channels[chan_num].ctl_contrast = ctl->value;
-		medusa_set_contrast(dev, ctl->value, chan_num);
-		break;
-	case V4L2_CID_SATURATION:
-		dev->channels[chan_num].ctl_saturation = ctl->value;
-		medusa_set_saturation(dev, ctl->value, chan_num);
-		break;
-	}
-
-	err = 0;
-
-	return err;
-}
-
-static int vidioc_s_ctrl(struct file *file, void *priv,
-			struct v4l2_control *ctl)
-{
-	struct cx25821_fh *fh = priv;
-	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
-	int err;
-
-	if (fh) {
-		err = v4l2_prio_check(&dev->channels[fh->channel_id].prio,
-				      fh->prio);
-		if (0 != err)
-			return err;
-	}
-
-	return cx25821_set_control(dev, ctl, fh->channel_id);
-}
-
-static void cx25821_init_controls(struct cx25821_dev *dev, int chan_num)
-{
-	struct v4l2_control ctrl;
-	int i;
-	for (i = 0; i < CX25821_CTLS; i++) {
-		ctrl.id = cx25821_ctls[i].id;
-		ctrl.value = cx25821_ctls[i].default_value;
-
-		cx25821_set_control(dev, &ctrl, chan_num);
-	}
+	return 0;
 }
 
 static long video_ioctl_upstream9(struct file *file, unsigned int cmd,
@@ -1629,7 +1466,10 @@ static long cx25821_video_ioctl(struct file *file,
 	return video_ioctl2(file, cmd, arg);
 }
 
-/* exported stuff */
+static const struct v4l2_ctrl_ops cx25821_ctrl_ops = {
+	.s_ctrl = cx25821_s_ctrl,
+};
+
 static const struct v4l2_file_operations video_fops = {
 	.owner = THIS_MODULE,
 	.open = video_open,
@@ -1655,9 +1495,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_enum_input = cx25821_vidioc_enum_input,
 	.vidioc_g_input = cx25821_vidioc_g_input,
 	.vidioc_s_input = cx25821_vidioc_s_input,
-	.vidioc_g_ctrl = cx25821_vidioc_g_ctrl,
-	.vidioc_s_ctrl = vidioc_s_ctrl,
-	.vidioc_queryctrl = cx25821_vidioc_queryctrl,
 	.vidioc_streamon = vidioc_streamon,
 	.vidioc_streamoff = vidioc_streamoff,
 	.vidioc_log_status = vidioc_log_status,
@@ -1684,6 +1521,7 @@ void cx25821_video_unregister(struct cx25821_dev *dev, int chan_num)
 
 	if (video_is_registered(&dev->channels[chan_num].vdev)) {
 		video_unregister_device(&dev->channels[chan_num].vdev);
+		v4l2_ctrl_handler_free(&dev->channels[chan_num].hdl);
 
 		btcx_riscmem_free(dev->pci,
 				&dev->channels[chan_num].vidq.stopper);
@@ -1699,11 +1537,24 @@ int cx25821_video_register(struct cx25821_dev *dev)
 
 	for (i = 0; i < VID_CHANNEL_NUM; ++i) {
 		struct video_device *vdev = &dev->channels[i].vdev;
+		struct v4l2_ctrl_handler *hdl = &dev->channels[i].hdl;
 
 		if (i == SRAM_CH08) /* audio channel */
 			continue;
 
-		cx25821_init_controls(dev, i);
+		v4l2_ctrl_handler_init(hdl, 4);
+		v4l2_ctrl_new_std(hdl, &cx25821_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 10000, 1, 6200);
+		v4l2_ctrl_new_std(hdl, &cx25821_ctrl_ops,
+			V4L2_CID_CONTRAST, 0, 10000, 1, 5000);
+		v4l2_ctrl_new_std(hdl, &cx25821_ctrl_ops,
+			V4L2_CID_SATURATION, 0, 10000, 1, 5000);
+		v4l2_ctrl_new_std(hdl, &cx25821_ctrl_ops,
+			V4L2_CID_HUE, 0, 10000, 1, 5000);
+		if (hdl->error) {
+			err = hdl->error;
+			goto fail_unreg;
+		}
 
 		cx25821_risc_stopper(dev->pci, &dev->channels[i].vidq.stopper,
 			dev->channels[i].sram_channels->dma_ctl, 0x11, 0);
@@ -1727,6 +1578,7 @@ int cx25821_video_register(struct cx25821_dev *dev)
 		/* register v4l devices */
 		*vdev = cx25821_video_device;
 		vdev->v4l2_dev = &dev->v4l2_dev;
+		vdev->ctrl_handler = hdl;
 		snprintf(vdev->name, sizeof(vdev->name), "%s #%d", dev->name, i);
 		video_set_drvdata(vdev, dev);
 
