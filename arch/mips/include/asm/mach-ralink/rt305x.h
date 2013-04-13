@@ -157,4 +157,10 @@ static inline int soc_is_rt5350(void)
 #define RT3352_RSTCTRL_UDEV		BIT(25)
 #define RT3352_SYSCFG1_USB0_HOST_MODE	BIT(10)
 
+#define RT305X_SDRAM_BASE		0x00000000
+#define RT305X_MEM_SIZE_MIN		2
+#define RT305X_MEM_SIZE_MAX		64
+#define RT3352_MEM_SIZE_MIN		2
+#define RT3352_MEM_SIZE_MAX		256
+
 #endif
