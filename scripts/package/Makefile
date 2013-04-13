@@ -35,10 +35,7 @@ MKSPEC     := $(srctree)/scripts/package/mkspec
 
 # rpm-pkg
 # ---------------------------------------------------------------------------
-$(objtree)/kernel.spec: $(MKSPEC) $(srctree)/Makefile
-	$(CONFIG_SHELL) $(MKSPEC) > $@
-
-rpm-pkg rpm: $(objtree)/kernel.spec FORCE
+rpm-pkg rpm: FORCE
 	@if test "$(objtree)" != "$(srctree)"; then \
 		echo "Building source + binary RPM is not possible outside the"; \
 		echo "kernel source tree. Don't set KBUILD_OUTPUT, or use the"; \
@@ -47,6 +44,7 @@ rpm-pkg rpm: $(objtree)/kernel.spec FORCE
 	fi
 	$(MAKE) clean
 	ln -sf $(srctree) $(KERNELPATH)
+	$(CONFIG_SHELL) $(MKSPEC) >$(objtree)/kernel.spec
 	$(CONFIG_SHELL) $(srctree)/scripts/setlocalversion --save-scmversion
 	tar -cz $(RCS_TAR_IGNORE) -f $(KERNELPATH).tar.gz $(TAR_CONTENT)
 	rm $(KERNELPATH)
@@ -56,17 +54,13 @@ rpm-pkg rpm: $(objtree)/kernel.spec FORCE
 	set -e; \
 	mv -f $(objtree)/.tmp_version $(objtree)/.version
 	$(RPM) $(RPMOPTS) --target $(UTS_MACHINE) -ta $(KERNELPATH).tar.gz
-	rm $(KERNELPATH).tar.gz
-
-clean-files := $(objtree)/kernel.spec
+	rm $(KERNELPATH).tar.gz kernel.spec
 
 # binrpm-pkg
 # ---------------------------------------------------------------------------
-$(objtree)/binkernel.spec: $(MKSPEC) $(srctree)/Makefile
-	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $@
-
-binrpm-pkg: $(objtree)/binkernel.spec FORCE
+binrpm-pkg: FORCE
 	$(MAKE) KBUILD_SRC=
+	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $(objtree)/binkernel.spec
 	set -e; \
 	$(CONFIG_SHELL) $(srctree)/scripts/mkversion > $(objtree)/.tmp_version
 	set -e; \
@@ -74,8 +68,7 @@ binrpm-pkg: $(objtree)/binkernel.spec FORCE
 
 	$(RPM) $(RPMOPTS) --define "_builddir $(objtree)" --target \
 		$(UTS_MACHINE) -bb $<
-
-clean-files += $(objtree)/binkernel.spec
+	rm binkernel.spec
 
 # Deb target
 # ---------------------------------------------------------------------------
