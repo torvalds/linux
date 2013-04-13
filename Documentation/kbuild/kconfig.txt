@@ -98,6 +98,33 @@ You can set this to the integer value used to seed the RNG, if you want
 to somehow debug the behaviour of the kconfig parser/frontends.
 If not set, the current time will be used.
 
+KCONFIG_PROBABILITY
+--------------------------------------------------
+This variable can be used to skew the probabilities. This variable can
+be unset or empty, or set to three different formats:
+	KCONFIG_PROBABILITY     y:n split           y:m:n split
+	-----------------------------------------------------------------
+	unset or empty          50  : 50            33  : 33  : 34
+	N                        N  : 100-N         N/2 : N/2 : 100-N
+    [1] N:M                     N+M : 100-(N+M)      N  :  M  : 100-(N+M)
+    [2] N:M:L                    N  : 100-N          M  :  L  : 100-(M+L)
+
+where N, M and L are integers (in base 10) in the range [0,100], and so
+that:
+    [1] N+M is in the range [0,100]
+    [2] M+L is in the range [0,100]
+
+Examples:
+	KCONFIG_PROBABILITY=10
+		10% of booleans will be set to 'y', 90% to 'n'
+		5% of tristates will be set to 'y', 5% to 'm', 90% to 'n'
+	KCONFIG_PROBABILITY=15:25
+		40% of booleans will be set to 'y', 60% to 'n'
+		15% of tristates will be set to 'y', 25% to 'm', 60% to 'n'
+	KCONFIG_PROBABILITY=10:15:15
+		10% of booleans will be set to 'y', 90% to 'n'
+		15% of tristates will be set to 'y', 15% to 'm', 70% to 'n'
+
 ______________________________________________________________________
 Environment variables for 'silentoldconfig'
 
