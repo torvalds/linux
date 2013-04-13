@@ -136,4 +136,8 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		name,
 		(id >> CHIP_ID_ID_SHIFT) & CHIP_ID_ID_MASK,
 		(id & CHIP_ID_REV_MASK));
+
+	soc_info->mem_base = RT2880_SDRAM_BASE;
+	soc_info->mem_size_min = RT2880_MEM_SIZE_MIN;
+	soc_info->mem_size_max = RT2880_MEM_SIZE_MAX;
 }

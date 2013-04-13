@@ -46,4 +46,8 @@
 
 #define CLKCFG_SRAM_CS_N_WDT		BIT(9)
 
+#define RT2880_SDRAM_BASE		0x08000000
+#define RT2880_MEM_SIZE_MIN		2
+#define RT2880_MEM_SIZE_MAX		128
+
 #endif
