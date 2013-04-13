@@ -396,7 +396,7 @@ config ACPI_CUSTOM_METHOD
 
 config ACPI_BGRT
 	bool "Boottime Graphics Resource Table support"
-	depends on EFI
+	depends on EFI && X86
         help
 	  This driver adds support for exposing the ACPI Boottime Graphics
 	  Resource Table, which allows the operating system to obtain

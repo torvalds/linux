@@ -8,6 +8,8 @@ Required properties:
 - interrupts: Should contain sync interrupt and error interrupt,
   in this order.
 - #crtc-cells: 1, See below
+- resets: phandle pointing to the system reset controller and
+          reset line index, see reset/fsl,imx-src.txt for details
 
 example:
 
@@ -16,6 +18,7 @@ ipu: ipu@18000000 {
 	compatible = "fsl,imx53-ipu";
 	reg = <0x18000000 0x080000000>;
 	interrupts = <11 10>;
+	resets = <&src 2>;
 };
 
 Parallel display support

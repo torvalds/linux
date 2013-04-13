@@ -7922,12 +7922,19 @@ static int __init ixgbe_init_module(void)
 	ixgbe_dbg_init();
 #endif /* CONFIG_DEBUG_FS */
 
+	ret = pci_register_driver(&ixgbe_driver);
+	if (ret) {
+#ifdef CONFIG_DEBUG_FS
+		ixgbe_dbg_exit();
+#endif /* CONFIG_DEBUG_FS */
+		return ret;
+	}
+
 #ifdef CONFIG_IXGBE_DCA
 	dca_register_notify(&dca_notifier);
 #endif
 
-	ret = pci_register_driver(&ixgbe_driver);
-	return ret;
+	return 0;
 }
 
 module_init(ixgbe_init_module);

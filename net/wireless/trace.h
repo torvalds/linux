@@ -27,7 +27,8 @@
 #define WIPHY_PR_ARG	__entry->wiphy_name
 
 #define WDEV_ENTRY	__field(u32, id)
-#define WDEV_ASSIGN	(__entry->id) = (wdev ? wdev->identifier : 0)
+#define WDEV_ASSIGN	(__entry->id) = (!IS_ERR_OR_NULL(wdev)	\
+					 ? wdev->identifier : 0)
 #define WDEV_PR_FMT	"wdev(%u)"
 #define WDEV_PR_ARG	(__entry->id)
 
@@ -1778,7 +1779,7 @@ TRACE_EVENT(rdev_set_mac_acl,
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
-		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
 		__entry->acl_policy = params->acl_policy;
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", acl policy: %d",

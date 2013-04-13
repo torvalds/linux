@@ -68,8 +68,8 @@ static void __init imx_smp_init_cpus(void)
 
 	ncores = scu_get_core_count(scu_base);
 
-	for (i = 0; i < ncores; i++)
-		set_cpu_possible(i, true);
+	for (i = ncores; i < NR_CPUS; i++)
+		set_cpu_possible(i, false);
 }
 
 void imx_smp_prepare(void)
