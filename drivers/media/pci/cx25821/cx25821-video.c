@@ -654,44 +654,27 @@ static struct videobuf_queue_ops cx25821_video_qops = {
 static int video_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
-	struct cx25821_dev *h, *dev = video_drvdata(file);
+	struct cx25821_dev *dev = video_drvdata(file);
 	struct cx25821_fh *fh;
-	struct list_head *list;
-	int minor = video_devdata(file)->minor;
 	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	u32 pix_format;
-	int ch_id = 0;
-	int i;
+	int ch_id;
 
 	dprintk(1, "open dev=%s type=%s\n", video_device_node_name(vdev),
 			v4l2_type_names[type]);
+
+	for (ch_id = 0; ch_id < MAX_VID_CHANNEL_NUM - 1; ch_id++)
+		if (dev->channels[ch_id].video_dev == vdev)
+			break;
+
+	/* Can't happen */
+	if (ch_id >= MAX_VID_CHANNEL_NUM - 1)
+		return -ENODEV;
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	if (NULL == fh)
 		return -ENOMEM;
-
-	mutex_lock(&cx25821_devlist_mutex);
-
-	list_for_each(list, &cx25821_devlist)
-	{
-		h = list_entry(list, struct cx25821_dev, devlist);
-
-		for (i = 0; i < MAX_VID_CHANNEL_NUM - 1; i++) {
-			if (h->channels[i].video_dev &&
-			    h->channels[i].video_dev->minor == minor) {
-				dev = h;
-				ch_id = i;
-				type  = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-			}
-		}
-	}
-
-	if (NULL == dev) {
-		mutex_unlock(&cx25821_devlist_mutex);
-		kfree(fh);
-		return -ENODEV;
-	}
 
 	file->private_data = fh;
 	fh->dev = dev;
@@ -719,7 +702,6 @@ static int video_open(struct file *file)
 			fh, NULL);
 
 	dprintk(1, "post videobuf_queue_init()\n");
-	mutex_unlock(&cx25821_devlist_mutex);
 
 	return 0;
 }

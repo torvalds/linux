@@ -41,13 +41,6 @@ static unsigned int card[] = {[0 ... (CX25821_MAXBOARDS - 1)] = UNSET };
 module_param_array(card, int, NULL, 0444);
 MODULE_PARM_DESC(card, "card type");
 
-static unsigned int cx25821_devcount;
-
-DEFINE_MUTEX(cx25821_devlist_mutex);
-EXPORT_SYMBOL(cx25821_devlist_mutex);
-LIST_HEAD(cx25821_devlist);
-EXPORT_SYMBOL(cx25821_devlist);
-
 const struct sram_channel cx25821_sram_channels[] = {
 	[SRAM_CH00] = {
 		.i = SRAM_CH00,
@@ -871,6 +864,7 @@ static void cx25821_iounmap(struct cx25821_dev *dev)
 
 static int cx25821_dev_setup(struct cx25821_dev *dev)
 {
+	static unsigned int cx25821_devcount;
 	int i;
 
 	pr_info("\n***********************************\n");
@@ -879,14 +873,8 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 
 	mutex_init(&dev->lock);
 
-	atomic_inc(&dev->refcount);
-
 	dev->nr = ++cx25821_devcount;
 	sprintf(dev->name, "cx25821[%d]", dev->nr);
-
-	mutex_lock(&cx25821_devlist_mutex);
-	list_add_tail(&dev->devlist, &cx25821_devlist);
-	mutex_unlock(&cx25821_devlist_mutex);
 
 	if (dev->pci->device != 0x8210) {
 		pr_info("%s(): Exiting. Incorrect Hardware device = 0x%02x\n",
@@ -1020,9 +1008,6 @@ void cx25821_dev_unregister(struct cx25821_dev *dev)
 	cx25821_free_mem_upstream_audio(dev);
 
 	release_mem_region(dev->base_io_addr, pci_resource_len(dev->pci, 0));
-
-	if (!atomic_dec_and_test(&dev->refcount))
-		return;
 
 	for (i = 0; i < MAX_VID_CHANNEL_NUM - 1; i++) {
 		if (i == SRAM_CH08) /* audio channel */
@@ -1413,10 +1398,6 @@ static void cx25821_finidev(struct pci_dev *pci_dev)
 	/* unregister stuff */
 	if (pci_dev->irq)
 		free_irq(pci_dev->irq, dev);
-
-	mutex_lock(&cx25821_devlist_mutex);
-	list_del(&dev->devlist);
-	mutex_unlock(&cx25821_devlist_mutex);
 
 	cx25821_dev_unregister(dev);
 	v4l2_device_unregister(v4l2_dev);

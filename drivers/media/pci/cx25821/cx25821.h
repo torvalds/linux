@@ -238,9 +238,9 @@ struct cx25821_channel {
 	int cif_width;
 };
 
+struct snd_card;
+
 struct cx25821_dev {
-	struct list_head devlist;
-	atomic_t refcount;
 	struct v4l2_device v4l2_dev;
 
 	/* pci stuff */
@@ -252,6 +252,8 @@ struct cx25821_dev {
 	u8 __iomem *bmmio;
 	int pci_irqmask;
 	int hwrevision;
+	/* used by cx25821-alsa */
+	struct snd_card *card;
 
 	u32 clk_freq;
 
@@ -402,9 +404,6 @@ static inline struct cx25821_dev *get_cx25821(struct v4l2_device *v4l2_dev)
 
 #define cx25821_call_all(dev, o, f, args...) \
 	v4l2_device_call_all(&dev->v4l2_dev, 0, o, f, ##args)
-
-extern struct list_head cx25821_devlist;
-extern struct mutex cx25821_devlist_mutex;
 
 extern struct cx25821_board cx25821_boards[];
 extern struct cx25821_subid cx25821_subids[];
