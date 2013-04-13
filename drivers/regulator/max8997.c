@@ -1035,8 +1035,8 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 	int i, ret, size, nr_dvs;
 	u8 max_buck1 = 0, max_buck2 = 0, max_buck5 = 0;
 
-	if (IS_ERR_OR_NULL(pdata)) {
-		dev_err(pdev->dev.parent, "No platform init data supplied.\n");
+	if (!pdata) {
+		dev_err(&pdev->dev, "No platform init data supplied.\n");
 		return -ENODEV;
 	}
 
