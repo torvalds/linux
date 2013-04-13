@@ -14,6 +14,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 
@@ -858,13 +860,11 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	/* Reserve FEC control zone */
 	rv = of_address_to_resource(np, 0, &mem);
 	if (rv) {
-		printk(KERN_ERR DRIVER_NAME ": "
-				"Error while parsing device node resource\n" );
+		pr_err("Error while parsing device node resource\n");
 		goto err_netdev;
 	}
 	if (resource_size(&mem) < sizeof(struct mpc52xx_fec)) {
-		printk(KERN_ERR DRIVER_NAME
-		       " - invalid resource size (%lx < %x), check mpc52xx_devices.c\n",
+		pr_err("invalid resource size (%lx < %x), check mpc52xx_devices.c\n",
 		       (unsigned long)resource_size(&mem),
 		       sizeof(struct mpc52xx_fec));
 		rv = -EINVAL;
@@ -902,7 +902,7 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 	priv->tx_dmatsk = bcom_fec_tx_init(FEC_TX_NUM_BD, tx_fifo);
 
 	if (!priv->rx_dmatsk || !priv->tx_dmatsk) {
-		printk(KERN_ERR DRIVER_NAME ": Can not init SDMA tasks\n" );
+		pr_err("Can not init SDMA tasks\n");
 		rv = -ENOMEM;
 		goto err_rx_tx_dmatsk;
 	}
@@ -982,8 +982,8 @@ static int mpc52xx_fec_probe(struct platform_device *op)
 
 	/* We're done ! */
 	dev_set_drvdata(&op->dev, ndev);
-	printk(KERN_INFO "%s: %s MAC %pM\n",
-	       ndev->name, op->dev.of_node->full_name, ndev->dev_addr);
+	netdev_info(ndev, "%s MAC %pM\n",
+		    op->dev.of_node->full_name, ndev->dev_addr);
 
 	return 0;
 
@@ -1094,7 +1094,7 @@ mpc52xx_fec_init(void)
 	int ret;
 	ret = platform_driver_register(&mpc52xx_fec_mdio_driver);
 	if (ret) {
-		printk(KERN_ERR DRIVER_NAME ": failed to register mdio driver\n");
+		pr_err("failed to register mdio driver\n");
 		return ret;
 	}
 #endif
