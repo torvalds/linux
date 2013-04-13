@@ -55,14 +55,6 @@ do {									\
 #define UPSTREAM_START_AUDIO        702
 #define UPSTREAM_STOP_AUDIO         703
 #define UPSTREAM_DUMP_REGISTERS     702
-#define SET_VIDEO_STD               800
-#define SET_PIXEL_FORMAT            1000
-#define ENABLE_CIF_RESOLUTION       1001
-
-#define REG_READ		    900
-#define REG_WRITE		    901
-#define MEDUSA_READ		    910
-#define MEDUSA_WRITE		    911
 
 #define FORMAT_FLAGS_PACKED       0x01
 extern void cx25821_video_wakeup(struct cx25821_dev *dev,

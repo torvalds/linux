@@ -360,19 +360,6 @@ struct upstream_user_struct {
 	int command;
 };
 
-struct downstream_user_struct {
-	char *vid_stdname;
-	int pixel_format;
-	int cif_resolution_enable;
-	int cif_width;
-	int decoder_select;
-	int command;
-	int reg_address;
-	int reg_data;
-};
-
-extern struct upstream_user_struct *up_data;
-
 static inline struct cx25821_dev *get_cx25821(struct v4l2_device *v4l2_dev)
 {
 	return container_of(v4l2_dev, struct cx25821_dev, v4l2_dev);
