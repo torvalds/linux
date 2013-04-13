@@ -789,8 +789,6 @@ static int sccnxp_probe(struct platform_device *pdev)
 		return -EADDRNOTAVAIL;
 	}
 
-	dev_set_name(&pdev->dev, SCCNXP_NAME);
-
 	s = devm_kzalloc(&pdev->dev, sizeof(struct sccnxp_port), GFP_KERNEL);
 	if (!s) {
 		dev_err(&pdev->dev, "Error allocating port structure\n");
