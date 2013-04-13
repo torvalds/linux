@@ -471,15 +471,6 @@ int cio_disable_subchannel(struct subchannel *sch)
 }
 EXPORT_SYMBOL_GPL(cio_disable_subchannel);
 
-int cio_create_sch_lock(struct subchannel *sch)
-{
-	sch->lock = kmalloc(sizeof(spinlock_t), GFP_KERNEL);
-	if (!sch->lock)
-		return -ENOMEM;
-	spin_lock_init(sch->lock);
-	return 0;
-}
-
 static int cio_check_devno_blacklisted(struct subchannel *sch)
 {
 	if (is_blacklisted(sch->schid.ssid, sch->schib.pmcw.dev)) {
@@ -536,28 +527,19 @@ int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
 	sprintf(dbf_txt, "valsch%x", schid.sch_no);
 	CIO_TRACE_EVENT(4, dbf_txt);
 
-	/* Nuke all fields. */
-	memset(sch, 0, sizeof(struct subchannel));
-
-	sch->schid = schid;
-	err = cio_create_sch_lock(sch);
-	if (err)
-		goto out;
-	mutex_init(&sch->reg_mutex);
-
 	/*
 	 * The first subchannel that is not-operational (ccode==3)
-	 *  indicates that there aren't any more devices available.
+	 * indicates that there aren't any more devices available.
 	 * If stsch gets an exception, it means the current subchannel set
-	 *  is not valid.
+	 * is not valid.
 	 */
-	ccode = stsch_err (schid, &sch->schib);
+	ccode = stsch_err(schid, &sch->schib);
 	if (ccode) {
 		err = (ccode == 3) ? -ENXIO : ccode;
 		goto out;
 	}
-	/* Copy subchannel type from path management control word. */
 	sch->st = sch->schib.pmcw.st;
+	sch->schid = schid;
 
 	switch (sch->st) {
 	case SUBCHANNEL_TYPE_IO:
@@ -574,10 +556,7 @@ int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
 
 	CIO_MSG_EVENT(4, "Subchannel 0.%x.%04x reports subchannel type %04X\n",
 		      sch->schid.ssid, sch->schid.sch_no, sch->st);
-	return 0;
 out:
-	kfree(sch->lock);
-	sch->lock = NULL;
 	return err;
 }
 

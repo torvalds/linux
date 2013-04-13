@@ -137,6 +137,18 @@ out:
 
 static void css_sch_todo(struct work_struct *work);
 
+static int css_sch_create_locks(struct subchannel *sch)
+{
+	sch->lock = kmalloc(sizeof(*sch->lock), GFP_KERNEL);
+	if (!sch->lock)
+		return -ENOMEM;
+
+	spin_lock_init(sch->lock);
+	mutex_init(&sch->reg_mutex);
+
+	return 0;
+}
+
 static void css_subchannel_release(struct device *dev)
 {
 	struct subchannel *sch = to_subchannel(dev);
@@ -152,18 +164,26 @@ struct subchannel *css_alloc_subchannel(struct subchannel_id schid)
 	struct subchannel *sch;
 	int ret;
 
-	sch = kmalloc (sizeof (*sch), GFP_KERNEL | GFP_DMA);
-	if (sch == NULL)
+	sch = kzalloc(sizeof(*sch), GFP_KERNEL | GFP_DMA);
+	if (!sch)
 		return ERR_PTR(-ENOMEM);
-	ret = cio_validate_subchannel (sch, schid);
-	if (ret < 0) {
-		kfree(sch);
-		return ERR_PTR(ret);
-	}
+
+	ret = cio_validate_subchannel(sch, schid);
+	if (ret < 0)
+		goto err;
+
+	ret = css_sch_create_locks(sch);
+	if (ret)
+		goto err;
+
 	INIT_WORK(&sch->todo_work, css_sch_todo);
 	sch->dev.release = &css_subchannel_release;
 	device_initialize(&sch->dev);
 	return sch;
+
+err:
+	kfree(sch);
+	return ERR_PTR(ret);
 }
 
 static int css_sch_device_register(struct subchannel *sch)
@@ -756,7 +776,7 @@ static int __init setup_css(int nr)
 	css->pseudo_subchannel->dev.release = css_subchannel_release;
 	dev_set_name(&css->pseudo_subchannel->dev, "defunct");
 	mutex_init(&css->pseudo_subchannel->reg_mutex);
-	ret = cio_create_sch_lock(css->pseudo_subchannel);
+	ret = css_sch_create_locks(css->pseudo_subchannel);
 	if (ret) {
 		kfree(css->pseudo_subchannel);
 		return ret;

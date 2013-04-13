@@ -121,7 +121,6 @@ extern int cio_commit_config(struct subchannel *sch);
 int cio_tm_start_key(struct subchannel *sch, struct tcw *tcw, u8 lpm, u8 key);
 int cio_tm_intrg(struct subchannel *sch);
 
-int cio_create_sch_lock(struct subchannel *);
 void do_adapter_IO(u8 isc);
 void do_IRQ(struct pt_regs *);
 
