@@ -239,4 +239,8 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		name,
 		(id >> RT3883_REVID_VER_ID_SHIFT) & RT3883_REVID_VER_ID_MASK,
 		(id & RT3883_REVID_ECO_ID_MASK));
+
+	soc_info->mem_base = RT3883_SDRAM_BASE;
+	soc_info->mem_size_min = RT3883_MEM_SIZE_MIN;
+	soc_info->mem_size_max = RT3883_MEM_SIZE_MAX;
 }
