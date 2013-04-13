@@ -26,6 +26,7 @@
 #include <linux/pm2301_charger.h>
 #include <linux/gpio.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm.h>
 
 #include "pm2301_charger.h"
 
@@ -906,8 +907,13 @@ static struct pm2xxx_irq pm2xxx_charger_irq[] = {
 	{"PM2XXX_IRQ_INT", pm2xxx_irq_int},
 };
 
-static int pm2xxx_wall_charger_resume(struct i2c_client *i2c_client)
+#ifdef CONFIG_PM
+
+#ifdef CONFIG_PM_SLEEP
+
+static int pm2xxx_wall_charger_resume(struct device *dev)
 {
+	struct i2c_client *i2c_client = to_i2c_client(dev);
 	struct pm2xxx_charger *pm2;
 
 	pm2 =  (struct pm2xxx_charger *)i2c_get_clientdata(i2c_client);
@@ -921,9 +927,9 @@ static int pm2xxx_wall_charger_resume(struct i2c_client *i2c_client)
 	return 0;
 }
 
-static int pm2xxx_wall_charger_suspend(struct i2c_client *i2c_client,
-	pm_message_t state)
+static int pm2xxx_wall_charger_suspend(struct device *dev)
 {
+	struct i2c_client *i2c_client = to_i2c_client(dev);
 	struct pm2xxx_charger *pm2;
 
 	pm2 =  (struct pm2xxx_charger *)i2c_get_clientdata(i2c_client);
@@ -939,7 +945,10 @@ static int pm2xxx_wall_charger_suspend(struct i2c_client *i2c_client,
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#endif
+
+#ifdef CONFIG_PM_RUNTIME
+
 static int  pm2xxx_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *pm2xxx_i2c_client = to_i2c_client(dev);
@@ -977,9 +986,12 @@ static int  pm2xxx_runtime_resume(struct device *dev)
 	return ret;
 }
 
+#endif
+
 static const struct dev_pm_ops pm2xxx_pm_ops = {
-	.runtime_suspend = pm2xxx_runtime_suspend,
-	.runtime_resume = pm2xxx_runtime_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(pm2xxx_wall_charger_suspend,
+		pm2xxx_wall_charger_resume)
+	SET_RUNTIME_PM_OPS(pm2xxx_runtime_suspend, pm2xxx_runtime_resume, NULL)
 };
 #define  PM2XXX_PM_OPS (&pm2xxx_pm_ops)
 #else
@@ -1234,8 +1246,6 @@ MODULE_DEVICE_TABLE(i2c, pm2xxx_id);
 static struct i2c_driver pm2xxx_charger_driver = {
 	.probe = pm2xxx_wall_charger_probe,
 	.remove = pm2xxx_wall_charger_remove,
-	.suspend = pm2xxx_wall_charger_suspend,
-	.resume = pm2xxx_wall_charger_resume,
 	.driver = {
 		.name = "pm2xxx-wall_charger",
 		.owner = THIS_MODULE,
