@@ -90,6 +90,15 @@ disable the options that are explicitly listed in the specified
 mini-config files.
 
 ______________________________________________________________________
+Environment variables for 'randconfig'
+
+KCONFIG_SEED
+--------------------------------------------------
+You can set this to the integer value used to seed the RNG, if you want
+to somehow debug the behaviour of the kconfig parser/frontends.
+If not set, the current time will be used.
+
+______________________________________________________________________
 Environment variables for 'silentoldconfig'
 
 KCONFIG_NOSILENTUPDATE
