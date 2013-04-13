@@ -1585,22 +1585,11 @@ static struct ccw_device console_cdev;
 static struct ccw_device_private console_private;
 static int console_cdev_in_use;
 
-static DEFINE_SPINLOCK(ccw_console_lock);
-
-spinlock_t * cio_get_console_lock(void)
-{
-	return &ccw_console_lock;
-}
-
 static int ccw_device_console_enable(struct ccw_device *cdev,
 				     struct subchannel *sch)
 {
-	struct io_subchannel_private *io_priv = cio_get_console_priv();
 	int rc;
 
-	/* Attach subchannel private data. */
-	memset(io_priv, 0, sizeof(*io_priv));
-	set_io_private(sch, io_priv);
 	io_subchannel_init_fields(sch);
 	rc = cio_commit_config(sch);
 	if (rc)
@@ -1633,6 +1622,7 @@ out_unlock:
 struct ccw_device *
 ccw_device_probe_console(void)
 {
+	struct io_subchannel_private *io_priv;
 	struct subchannel *sch;
 	int ret;
 
@@ -1648,10 +1638,20 @@ ccw_device_probe_console(void)
 	console_cdev.private = &console_private;
 	console_private.cdev = &console_cdev;
 	console_private.int_class = IRQIO_CIO;
+
+	io_priv = kzalloc(sizeof(*io_priv), GFP_KERNEL | GFP_DMA);
+	if (!io_priv) {
+		put_device(&sch->dev);
+		return ERR_PTR(-ENOMEM);
+	}
+	set_io_private(sch, io_priv);
+
 	ret = ccw_device_console_enable(&console_cdev, sch);
 	if (ret) {
-		cio_release_console();
 		console_cdev_in_use = 0;
+		set_io_private(sch, NULL);
+		put_device(&sch->dev);
+		kfree(io_priv);
 		return ERR_PTR(ret);
 	}
 	console_cdev.online = 1;

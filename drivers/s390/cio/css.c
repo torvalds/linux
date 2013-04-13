@@ -139,19 +139,15 @@ static void css_sch_todo(struct work_struct *work);
 
 static void css_subchannel_release(struct device *dev)
 {
-	struct subchannel *sch;
+	struct subchannel *sch = to_subchannel(dev);
 
-	sch = to_subchannel(dev);
-	if (!cio_is_console(sch->schid)) {
-		/* Reset intparm to zeroes. */
-		sch->config.intparm = 0;
-		cio_commit_config(sch);
-		kfree(sch->lock);
-		kfree(sch);
-	}
+	sch->config.intparm = 0;
+	cio_commit_config(sch);
+	kfree(sch->lock);
+	kfree(sch);
 }
 
-static struct subchannel *css_alloc_subchannel(struct subchannel_id schid)
+struct subchannel *css_alloc_subchannel(struct subchannel_id schid)
 {
 	struct subchannel *sch;
 	int ret;
@@ -326,10 +322,9 @@ int css_probe_device(struct subchannel_id schid)
 			return PTR_ERR(sch);
 	}
 	ret = css_register_subchannel(sch);
-	if (ret) {
-		if (!cio_is_console(schid))
-			put_device(&sch->dev);
-	}
+	if (ret)
+		put_device(&sch->dev);
+
 	return ret;
 }
 
