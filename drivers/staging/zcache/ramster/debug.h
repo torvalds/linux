@@ -1,6 +1,6 @@
 #include <linux/bug.h>
 
-#ifdef CONFIG_RAMSTER
+#ifdef CONFIG_RAMSTER_DEBUG
 
 extern long ramster_flnodes;
 static atomic_t ramster_flnodes_atomic = ATOMIC_INIT(0);
