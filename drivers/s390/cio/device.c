@@ -1087,19 +1087,12 @@ static int io_subchannel_probe(struct subchannel *sch)
 		dev_set_uevent_suppress(&sch->dev, 0);
 		kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 		cdev = sch_get_cdev(sch);
-		cdev->dev.groups = ccwdev_attr_groups;
-		device_initialize(&cdev->dev);
-		cdev->private->flags.initialized = 1;
-		ccw_device_register(cdev);
-		/*
-		 * Check if the device is already online. If it is
-		 * the reference count needs to be corrected since we
-		 * didn't obtain a reference in ccw_device_set_online.
-		 */
-		if (cdev->private->state != DEV_STATE_NOT_OPER &&
-		    cdev->private->state != DEV_STATE_OFFLINE &&
-		    cdev->private->state != DEV_STATE_BOXED)
-			get_device(&cdev->dev);
+		rc = ccw_device_register(cdev);
+		if (rc) {
+			/* Release online reference. */
+			put_device(&cdev->dev);
+			goto out_schedule;
+		}
 		return 0;
 	}
 	io_subchannel_init_fields(sch);
@@ -1581,10 +1574,6 @@ out:
 }
 
 #ifdef CONFIG_CCW_CONSOLE
-static struct ccw_device console_cdev;
-static struct ccw_device_private console_private;
-static int console_cdev_in_use;
-
 static int ccw_device_console_enable(struct ccw_device *cdev,
 				     struct subchannel *sch)
 {
@@ -1595,8 +1584,6 @@ static int ccw_device_console_enable(struct ccw_device *cdev,
 	if (rc)
 		return rc;
 	sch->driver = &io_subchannel_driver;
-	/* Initialize the ccw_device structure. */
-	cdev->dev.parent= &sch->dev;
 	sch_set_cdev(sch, cdev);
 	io_subchannel_recog(cdev, sch);
 	/* Now wait for the async. recognition to come to an end. */
@@ -1604,58 +1591,58 @@ static int ccw_device_console_enable(struct ccw_device *cdev,
 	while (!dev_fsm_final_state(cdev))
 		ccw_device_wait_idle(cdev);
 
-	rc = -EIO;
-	if (cdev->private->state != DEV_STATE_OFFLINE)
+	/* Hold on to an extra reference while device is online. */
+	get_device(&cdev->dev);
+	rc = ccw_device_online(cdev);
+	if (rc)
 		goto out_unlock;
-	ccw_device_online(cdev);
+
 	while (!dev_fsm_final_state(cdev))
 		ccw_device_wait_idle(cdev);
 
-	if (cdev->private->state != DEV_STATE_ONLINE)
-		goto out_unlock;
-	rc = 0;
+	if (cdev->private->state == DEV_STATE_ONLINE)
+		cdev->online = 1;
+	else
+		rc = -EIO;
 out_unlock:
 	spin_unlock_irq(cdev->ccwlock);
+	if (rc) /* Give up online reference since onlining failed. */
+		put_device(&cdev->dev);
 	return rc;
 }
 
-struct ccw_device *
-ccw_device_probe_console(void)
+struct ccw_device *ccw_device_probe_console(void)
 {
 	struct io_subchannel_private *io_priv;
+	struct ccw_device *cdev;
 	struct subchannel *sch;
 	int ret;
 
-	if (xchg(&console_cdev_in_use, 1) != 0)
-		return ERR_PTR(-EBUSY);
 	sch = cio_probe_console();
-	if (IS_ERR(sch)) {
-		console_cdev_in_use = 0;
-		return (void *) sch;
-	}
-	memset(&console_cdev, 0, sizeof(struct ccw_device));
-	memset(&console_private, 0, sizeof(struct ccw_device_private));
-	console_cdev.private = &console_private;
-	console_private.cdev = &console_cdev;
-	console_private.int_class = IRQIO_CIO;
+	if (IS_ERR(sch))
+		return ERR_CAST(sch);
 
 	io_priv = kzalloc(sizeof(*io_priv), GFP_KERNEL | GFP_DMA);
 	if (!io_priv) {
 		put_device(&sch->dev);
 		return ERR_PTR(-ENOMEM);
 	}
+	cdev = io_subchannel_create_ccwdev(sch);
+	if (IS_ERR(cdev)) {
+		put_device(&sch->dev);
+		kfree(io_priv);
+		return cdev;
+	}
 	set_io_private(sch, io_priv);
-
-	ret = ccw_device_console_enable(&console_cdev, sch);
+	ret = ccw_device_console_enable(cdev, sch);
 	if (ret) {
-		console_cdev_in_use = 0;
 		set_io_private(sch, NULL);
 		put_device(&sch->dev);
+		put_device(&cdev->dev);
 		kfree(io_priv);
 		return ERR_PTR(ret);
 	}
-	console_cdev.online = 1;
-	return &console_cdev;
+	return cdev;
 }
 
 /**
