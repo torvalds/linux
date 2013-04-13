@@ -379,7 +379,5 @@ void fec_ptp_init(struct net_device *ndev, struct platform_device *pdev)
 	if (IS_ERR(fep->ptp_clock)) {
 		fep->ptp_clock = NULL;
 		pr_err("ptp_clock_register failed\n");
-	} else {
-		pr_info("registered PHC device on %s\n", ndev->name);
 	}
 }

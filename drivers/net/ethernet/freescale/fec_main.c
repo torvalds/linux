@@ -1858,6 +1858,9 @@ fec_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed_register;
 
+	if (fep->bufdesc_ex && fep->ptp_clock)
+		netdev_info(ndev, "registered PHC device %d\n", fep->dev_id);
+
 	return 0;
 
 failed_register:
