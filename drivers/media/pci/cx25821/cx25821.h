@@ -33,7 +33,6 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
-#include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
 #include <media/videobuf-dvb.h>
@@ -43,7 +42,6 @@
 #include "cx25821-medusa-reg.h"
 #include "cx25821-sram.h"
 #include "cx25821-audio.h"
-#include "media/cx2341x.h"
 
 #include <linux/version.h>
 #include <linux/mutex.h>
@@ -184,8 +182,6 @@ struct cx25821_board {
 	enum port porta;
 	enum port portb;
 	enum port portc;
-	unsigned int tuner_type;
-	unsigned char tuner_addr;
 
 	u32 clk_freq;
 	struct cx25821_input input[CX25821_NR_INPUT];
@@ -283,12 +279,7 @@ struct cx25821_dev {
 	/* Analog video */
 	u32 resources;
 	unsigned int input;
-	u32 tvaudio;
 	v4l2_std_id tvnorm;
-	unsigned int tuner_type;
-	unsigned char tuner_addr;
-	unsigned int videc_type;
-	unsigned char videc_addr;
 	unsigned short _max_num_decoders;
 
 	/* Analog Audio Upstream */
@@ -314,8 +305,6 @@ struct cx25821_dev {
 	char *_audiofilename;
 
 	/* V4l */
-	u32 freq;
-
 	spinlock_t slock;
 
 	/* Video Upstream */
@@ -362,13 +351,6 @@ struct cx25821_dev {
 	dma_addr_t _data_buf_phys_addr_ch2;
 	char *_filename_ch2;
 	char *_defaultname_ch2;
-
-	/* MPEG Encoder ONLY settings */
-	u32 cx23417_mailbox;
-	struct cx2341x_mpeg_params mpeg_params;
-	struct video_device *v4l_device;
-	atomic_t v4l_reader_count;
-	struct cx25821_tvnorm encodernorm;
 
 	u32 upstream_riscbuf_size;
 	u32 upstream_databuf_size;

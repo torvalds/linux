@@ -30,7 +30,6 @@
 #include <media/cx25840.h>
 
 #include "cx25821.h"
-#include "tuner-xc2028.h"
 
 /* board config info */
 

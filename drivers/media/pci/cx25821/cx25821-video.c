@@ -138,7 +138,6 @@ void cx25821_video_wakeup(struct cx25821_dev *dev, struct cx25821_dmaqueue *q,
 		pr_err("%s: %d buffers handled (should be 1)\n", __func__, bc);
 }
 
-#ifdef TUNER_FLAG
 int cx25821_set_tvnorm(struct cx25821_dev *dev, v4l2_std_id norm)
 {
 	dprintk(1, "%s(norm = 0x%08x) name: [%s]\n",
@@ -151,7 +150,6 @@ int cx25821_set_tvnorm(struct cx25821_dev *dev, v4l2_std_id norm)
 
 	return 0;
 }
-#endif
 
 struct video_device *cx25821_vdev_init(struct cx25821_dev *dev,
 				       struct pci_dev *pci,
@@ -1036,8 +1034,6 @@ int cx25821_vidioc_querycap(struct file *file, void *priv,
 	cap->version = CX25821_VERSION_CODE;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 		V4L2_CAP_STREAMING;
-	if (UNSET != dev->tuner_type)
-		cap->capabilities |= V4L2_CAP_TUNER;
 	return 0;
 }
 
@@ -1093,7 +1089,14 @@ int cx25821_vidioc_s_priority(struct file *file, void *f,
 			prio);
 }
 
-#ifdef TUNER_FLAG
+int cx25821_vidioc_g_std(struct file *file, void *priv, v4l2_std_id *tvnorms)
+{
+	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
+
+	*tvnorms = dev->tvnorm;
+	return 0;
+}
+
 int cx25821_vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
 {
 	struct cx25821_fh *fh = priv;
@@ -1120,7 +1123,6 @@ int cx25821_vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
 
 	return 0;
 }
-#endif
 
 int cx25821_enum_input(struct cx25821_dev *dev, struct v4l2_input *i)
 {
@@ -1189,57 +1191,6 @@ int cx25821_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
-#ifdef TUNER_FLAG
-int cx25821_vidioc_g_frequency(struct file *file, void *priv,
-			       struct v4l2_frequency *f)
-{
-	struct cx25821_fh *fh = priv;
-	struct cx25821_dev *dev = fh->dev;
-
-	f->frequency = dev->freq;
-
-	cx25821_call_all(dev, tuner, g_frequency, f);
-
-	return 0;
-}
-
-int cx25821_set_freq(struct cx25821_dev *dev, const struct v4l2_frequency *f)
-{
-	mutex_lock(&dev->lock);
-	dev->freq = f->frequency;
-
-	cx25821_call_all(dev, tuner, s_frequency, f);
-
-	/* When changing channels it is required to reset TVAUDIO */
-	msleep(10);
-
-	mutex_unlock(&dev->lock);
-
-	return 0;
-}
-
-int cx25821_vidioc_s_frequency(struct file *file, void *priv,
-			       const struct v4l2_frequency *f)
-{
-	struct cx25821_fh *fh = priv;
-	struct cx25821_dev *dev;
-	int err;
-
-	if (fh) {
-		dev = fh->dev;
-		err = v4l2_prio_check(&dev->channels[fh->channel_id].prio,
-				      fh->prio);
-		if (0 != err)
-			return err;
-	} else {
-		pr_err("Invalid fh pointer!\n");
-		return -EINVAL;
-	}
-
-	return cx25821_set_freq(dev, f);
-}
-#endif
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 int cx25821_vidioc_g_register(struct file *file, void *fh,
 		      struct v4l2_dbg_register *reg)
@@ -1269,48 +1220,6 @@ int cx25821_vidioc_s_register(struct file *file, void *fh,
 
 #endif
 
-#ifdef TUNER_FLAG
-int cx25821_vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
-{
-	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
-
-	if (unlikely(UNSET == dev->tuner_type))
-		return -EINVAL;
-	if (0 != t->index)
-		return -EINVAL;
-
-	strcpy(t->name, "Television");
-	t->type = V4L2_TUNER_ANALOG_TV;
-	t->capability = V4L2_TUNER_CAP_NORM;
-	t->rangehigh = 0xffffffffUL;
-
-	t->signal = 0xffff;	/* LOCKED */
-	return 0;
-}
-
-int cx25821_vidioc_s_tuner(struct file *file, void *priv, const struct v4l2_tuner *t)
-{
-	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
-	struct cx25821_fh *fh = priv;
-	int err;
-
-	if (fh) {
-		err = v4l2_prio_check(&dev->channels[fh->channel_id].prio,
-				      fh->prio);
-		if (0 != err)
-			return err;
-	}
-
-	dprintk(1, "%s()\n", __func__);
-	if (UNSET == dev->tuner_type)
-		return -EINVAL;
-	if (0 != t->index)
-		return -EINVAL;
-
-	return 0;
-}
-
-#endif
 /*****************************************************************************/
 static const struct v4l2_queryctrl no_ctl = {
 	.name = "42",
@@ -1521,14 +1430,6 @@ int cx25821_vidioc_g_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 {
 	/* cx25821_vidioc_g_crop not supported */
 	return -EINVAL;
-}
-
-int cx25821_vidioc_querystd(struct file *file, void *priv, v4l2_std_id * norm)
-{
-	/* medusa does not support video standard sensing of current input */
-	*norm = CX25821_NORMS;
-
-	return 0;
 }
 
 int cx25821_is_valid_width(u32 width, v4l2_std_id tvnorm)
@@ -1842,10 +1743,8 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querybuf = cx25821_vidioc_querybuf,
 	.vidioc_qbuf = cx25821_vidioc_qbuf,
 	.vidioc_dqbuf = vidioc_dqbuf,
-#ifdef TUNER_FLAG
+	.vidioc_g_std = cx25821_vidioc_g_std,
 	.vidioc_s_std = cx25821_vidioc_s_std,
-	.vidioc_querystd = cx25821_vidioc_querystd,
-#endif
 	.vidioc_cropcap = cx25821_vidioc_cropcap,
 	.vidioc_s_crop = cx25821_vidioc_s_crop,
 	.vidioc_g_crop = cx25821_vidioc_g_crop,
@@ -1860,12 +1759,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_log_status = vidioc_log_status,
 	.vidioc_g_priority = cx25821_vidioc_g_priority,
 	.vidioc_s_priority = cx25821_vidioc_s_priority,
-#ifdef TUNER_FLAG
-	.vidioc_g_tuner = cx25821_vidioc_g_tuner,
-	.vidioc_s_tuner = cx25821_vidioc_s_tuner,
-	.vidioc_g_frequency = cx25821_vidioc_g_frequency,
-	.vidioc_s_frequency = cx25821_vidioc_s_frequency,
-#endif
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register = cx25821_vidioc_g_register,
 	.vidioc_s_register = cx25821_vidioc_s_register,
@@ -1878,7 +1771,6 @@ static const struct video_device cx25821_video_device = {
 	.minor = -1,
 	.ioctl_ops = &video_ioctl_ops,
 	.tvnorms = CX25821_NORMS,
-	.current_norm = V4L2_STD_NTSC_M,
 };
 
 void cx25821_video_unregister(struct cx25821_dev *dev, int chan_num)
@@ -1953,10 +1845,8 @@ int cx25821_video_register(struct cx25821_dev *dev)
 
 	/* initial device configuration */
 	mutex_lock(&dev->lock);
-#ifdef TUNER_FLAG
-	dev->tvnorm = cx25821_video_device.current_norm;
+	dev->tvnorm = V4L2_STD_NTSC_M,
 	cx25821_set_tvnorm(dev, dev->tvnorm);
-#endif
 	mutex_unlock(&dev->lock);
 
 	return 0;

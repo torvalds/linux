@@ -40,8 +40,6 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 
-#define TUNER_FLAG
-
 #define VIDEO_DEBUG 0
 
 #define dprintk(level, fmt, arg...)					\
@@ -88,9 +86,7 @@ extern struct cx25821_data timeout_data[MAX_VID_CHANNEL_NUM];
 extern void cx25821_video_wakeup(struct cx25821_dev *dev,
 				 struct cx25821_dmaqueue *q, u32 count);
 
-#ifdef TUNER_FLAG
 extern int cx25821_set_tvnorm(struct cx25821_dev *dev, v4l2_std_id norm);
-#endif
 
 extern int cx25821_res_get(struct cx25821_dev *dev, struct cx25821_fh *fh,
 			   unsigned int bit);
@@ -146,19 +142,10 @@ extern int cx25821_vidioc_g_ctrl(struct file *file, void *priv,
 				 struct v4l2_control *ctl);
 extern int cx25821_vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f);
-extern int cx25821_vidioc_g_frequency(struct file *file, void *priv,
-				      struct v4l2_frequency *f);
-extern int cx25821_set_freq(struct cx25821_dev *dev, const struct v4l2_frequency *f);
-extern int cx25821_vidioc_s_frequency(struct file *file, void *priv,
-				      const struct v4l2_frequency *f);
 extern int cx25821_vidioc_g_register(struct file *file, void *fh,
 				     struct v4l2_dbg_register *reg);
 extern int cx25821_vidioc_s_register(struct file *file, void *fh,
 				     const struct v4l2_dbg_register *reg);
-extern int cx25821_vidioc_g_tuner(struct file *file, void *priv,
-				  struct v4l2_tuner *t);
-extern int cx25821_vidioc_s_tuner(struct file *file, void *priv,
-				  const struct v4l2_tuner *t);
 
 extern int cx25821_is_valid_width(u32 width, v4l2_std_id tvnorm);
 extern int cx25821_is_valid_height(u32 height, v4l2_std_id tvnorm);
