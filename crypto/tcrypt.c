@@ -1768,6 +1768,21 @@ static int do_test(int m)
 				   speed_template_32_64);
 		break;
 
+	case 509:
+		test_acipher_speed("ecb(blowfish)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("ecb(blowfish)", DECRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("cbc(blowfish)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("cbc(blowfish)", DECRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("ctr(blowfish)", ENCRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		test_acipher_speed("ctr(blowfish)", DECRYPT, sec, NULL, 0,
+				   speed_template_8_32);
+		break;
+
 	case 1000:
 		test_available();
 		break;
