@@ -111,37 +111,6 @@ void cx25821_video_wakeup(struct cx25821_dev *dev, struct cx25821_dmaqueue *q,
 		pr_err("%s: %d buffers handled (should be 1)\n", __func__, bc);
 }
 
-static int cx25821_set_tvnorm(struct cx25821_dev *dev, v4l2_std_id norm)
-{
-	dprintk(1, "%s(norm = 0x%08x) name: [%s]\n",
-		__func__, (unsigned int)norm, v4l2_norm_to_name(norm));
-
-	dev->tvnorm = norm;
-
-	/* Tell the internal A/V decoder */
-	cx25821_call_all(dev, core, s_std, norm);
-
-	return 0;
-}
-
-static int cx25821_video_mux(struct cx25821_dev *dev, unsigned int input)
-{
-	struct v4l2_routing route;
-	memset(&route, 0, sizeof(route));
-
-	dprintk(1, "%s(): video_mux: %d [vmux=%d, gpio=0x%x,0x%x,0x%x,0x%x]\n",
-		__func__, input, INPUT(input)->vmux, INPUT(input)->gpio0,
-		INPUT(input)->gpio1, INPUT(input)->gpio2, INPUT(input)->gpio3);
-	dev->input = input;
-
-	route.input = INPUT(input)->vmux;
-
-	/* Tell the internal A/V decoder */
-	cx25821_call_all(dev, video, s_routing, INPUT(input)->vmux, 0, 0);
-
-	return 0;
-}
-
 int cx25821_start_video_dma(struct cx25821_dev *dev,
 			    struct cx25821_dmaqueue *q,
 			    struct cx25821_buffer *buf,
@@ -673,9 +642,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct cx25821_channel *chan = video_drvdata(file);
 	struct cx25821_dev *dev = chan->dev;
-	struct v4l2_mbus_framefmt mbus_fmt;
-	int err;
 	int pix_format = PIXEL_FRMT_422;
+	int err;
 
 	err = cx25821_vidioc_try_fmt_vid_cap(file, priv, f);
 
@@ -702,10 +670,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 	chan->cif_width = chan->width;
 	medusa_set_resolution(dev, chan->width, SRAM_CH00);
-
-	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
-	cx25821_call_all(dev, video, s_mbus_fmt, &mbus_fmt);
-
 	return 0;
 }
 
@@ -727,7 +691,6 @@ static int vidioc_log_status(struct file *file, void *priv)
 	const struct sram_channel *sram_ch = chan->sram_channels;
 	u32 tmp = 0;
 
-	cx25821_call_all(dev, core, log_status);
 	tmp = cx_read(sram_ch->dma_ctl);
 	pr_info("Video input 0 is %s\n",
 		(tmp & 0x11) ? "streaming" : "stopped");
@@ -806,7 +769,7 @@ int cx25821_vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
 	if (dev->tvnorm == tvnorms)
 		return 0;
 
-	cx25821_set_tvnorm(dev, tvnorms);
+	dev->tvnorm = tvnorms;
 	chan->width = 720;
 	chan->height = (dev->tvnorm & V4L2_STD_625_50) ? 576 : 480;
 
@@ -818,80 +781,25 @@ int cx25821_vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
 static int cx25821_vidioc_enum_input(struct file *file, void *priv,
 			      struct v4l2_input *i)
 {
-	static const char * const iname[] = {
-		[CX25821_VMUX_COMPOSITE] = "Composite",
-		[CX25821_VMUX_SVIDEO] = "S-Video",
-		[CX25821_VMUX_DEBUG] = "for debug only",
-	};
-	struct cx25821_channel *chan = video_drvdata(file);
-	struct cx25821_dev *dev = chan->dev;
-	unsigned int n;
-
-	n = i->index;
-	if (n >= CX25821_NR_INPUT)
-		return -EINVAL;
-
-	if (0 == INPUT(n)->type)
+	if (i->index)
 		return -EINVAL;
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
-	strcpy(i->name, iname[INPUT(n)->type]);
-
 	i->std = CX25821_NORMS;
+	strcpy(i->name, "Composite");
 	return 0;
 }
 
 static int cx25821_vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 {
-	struct cx25821_channel *chan = video_drvdata(file);
-	struct cx25821_dev *dev = chan->dev;
-
-	*i = dev->input;
+	*i = 0;
 	return 0;
 }
 
 static int cx25821_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
-	struct cx25821_channel *chan = video_drvdata(file);
-	struct cx25821_dev *dev = chan->dev;
-
-	if (i >= CX25821_NR_INPUT || INPUT(i)->type == 0)
-		return -EINVAL;
-
-	cx25821_video_mux(dev, i);
-	return 0;
+	return i ? -EINVAL : 0;
 }
-
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-int cx25821_vidioc_g_register(struct file *file, void *fh,
-		      struct v4l2_dbg_register *reg)
-{
-	struct cx25821_channel *chan = video_drvdata(file);
-	struct cx25821_dev *dev = chan->dev;
-
-	if (!v4l2_chip_match_host(&reg->match))
-		return -EINVAL;
-
-	cx25821_call_all(dev, core, g_register, reg);
-
-	return 0;
-}
-
-int cx25821_vidioc_s_register(struct file *file, void *fh,
-		      const struct v4l2_dbg_register *reg)
-{
-	struct cx25821_channel *chan = video_drvdata(file);
-	struct cx25821_dev *dev = chan->dev;
-
-	if (!v4l2_chip_match_host(&reg->match))
-		return -EINVAL;
-
-	cx25821_call_all(dev, core, s_register, reg);
-
-	return 0;
-}
-
-#endif
 
 static int cx25821_s_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1088,10 +996,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_log_status = vidioc_log_status,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register = cx25821_vidioc_g_register,
-	.vidioc_s_register = cx25821_vidioc_s_register,
-#endif
 };
 
 static const struct video_device cx25821_video_device = {
@@ -1122,8 +1026,7 @@ int cx25821_video_register(struct cx25821_dev *dev)
 	int i;
 
 	/* initial device configuration */
-	dev->tvnorm = V4L2_STD_NTSC_M,
-	cx25821_set_tvnorm(dev, dev->tvnorm);
+	dev->tvnorm = V4L2_STD_NTSC_M;
 
 	spin_lock_init(&dev->slock);
 

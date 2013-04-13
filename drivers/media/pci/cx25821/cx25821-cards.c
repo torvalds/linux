@@ -42,7 +42,6 @@ struct cx25821_board cx25821_boards[] = {
 		.name = "CX25821",
 		.portb = CX25821_RAW,
 		.portc = CX25821_264,
-		.input[0].type = CX25821_VMUX_COMPOSITE,
 	},
 
 };

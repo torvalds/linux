@@ -62,7 +62,6 @@
 
 /* Max number of inputs by card */
 #define MAX_CX25821_INPUT     8
-#define INPUT(nr) (&cx25821_boards[dev->board].input[nr])
 #define RESOURCE_VIDEO0       1
 #define RESOURCE_VIDEO1       2
 #define RESOURCE_VIDEO2       4
@@ -91,7 +90,6 @@
 #define CX25821_BOARD_CONEXANT_ATHENA10 1
 #define MAX_VID_CHANNEL_NUM     12
 #define VID_CHANNEL_NUM 8
-#define CX25821_NR_INPUT 2
 
 struct cx25821_fmt {
 	char *name;
@@ -101,25 +99,11 @@ struct cx25821_fmt {
 	u32 cxformat;
 };
 
-struct cx25821_ctrl {
-	struct v4l2_queryctrl v;
-	u32 off;
-	u32 reg;
-	u32 mask;
-	u32 shift;
-};
-
 struct cx25821_tvnorm {
 	char *name;
 	v4l2_std_id id;
 	u32 cxiformat;
 	u32 cxoformat;
-};
-
-enum cx25821_itype {
-	CX25821_VMUX_COMPOSITE = 1,
-	CX25821_VMUX_SVIDEO,
-	CX25821_VMUX_DEBUG,
 };
 
 enum cx25821_src_sel_type {
@@ -139,12 +123,6 @@ struct cx25821_buffer {
 	u32 count;
 };
 
-struct cx25821_input {
-	enum cx25821_itype type;
-	unsigned int vmux;
-	u32 gpio0, gpio1, gpio2, gpio3;
-};
-
 enum port {
 	CX25821_UNDEFINED = 0,
 	CX25821_RAW,
@@ -158,7 +136,6 @@ struct cx25821_board {
 	enum port portc;
 
 	u32 clk_freq;
-	struct cx25821_input input[CX25821_NR_INPUT];
 };
 
 struct cx25821_i2c {
@@ -364,9 +341,6 @@ static inline struct cx25821_dev *get_cx25821(struct v4l2_device *v4l2_dev)
 {
 	return container_of(v4l2_dev, struct cx25821_dev, v4l2_dev);
 }
-
-#define cx25821_call_all(dev, o, f, args...) \
-	v4l2_device_call_all(&dev->v4l2_dev, 0, o, f, ##args)
 
 extern struct cx25821_board cx25821_boards[];
 
