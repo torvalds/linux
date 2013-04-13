@@ -137,26 +137,7 @@ out:
 
 static void css_sch_todo(struct work_struct *work);
 
-static struct subchannel *
-css_alloc_subchannel(struct subchannel_id schid)
-{
-	struct subchannel *sch;
-	int ret;
-
-	sch = kmalloc (sizeof (*sch), GFP_KERNEL | GFP_DMA);
-	if (sch == NULL)
-		return ERR_PTR(-ENOMEM);
-	ret = cio_validate_subchannel (sch, schid);
-	if (ret < 0) {
-		kfree(sch);
-		return ERR_PTR(ret);
-	}
-	INIT_WORK(&sch->todo_work, css_sch_todo);
-	return sch;
-}
-
-static void
-css_subchannel_release(struct device *dev)
+static void css_subchannel_release(struct device *dev)
 {
 	struct subchannel *sch;
 
@@ -170,6 +151,25 @@ css_subchannel_release(struct device *dev)
 	}
 }
 
+static struct subchannel *css_alloc_subchannel(struct subchannel_id schid)
+{
+	struct subchannel *sch;
+	int ret;
+
+	sch = kmalloc (sizeof (*sch), GFP_KERNEL | GFP_DMA);
+	if (sch == NULL)
+		return ERR_PTR(-ENOMEM);
+	ret = cio_validate_subchannel (sch, schid);
+	if (ret < 0) {
+		kfree(sch);
+		return ERR_PTR(ret);
+	}
+	INIT_WORK(&sch->todo_work, css_sch_todo);
+	sch->dev.release = &css_subchannel_release;
+	device_initialize(&sch->dev);
+	return sch;
+}
+
 static int css_sch_device_register(struct subchannel *sch)
 {
 	int ret;
@@ -177,7 +177,7 @@ static int css_sch_device_register(struct subchannel *sch)
 	mutex_lock(&sch->reg_mutex);
 	dev_set_name(&sch->dev, "0.%x.%04x", sch->schid.ssid,
 		     sch->schid.sch_no);
-	ret = device_register(&sch->dev);
+	ret = device_add(&sch->dev);
 	mutex_unlock(&sch->reg_mutex);
 	return ret;
 }
@@ -282,7 +282,6 @@ static int css_register_subchannel(struct subchannel *sch)
 	/* Initialize the subchannel structure */
 	sch->dev.parent = &channel_subsystems[0]->device;
 	sch->dev.bus = &css_bus_type;
-	sch->dev.release = &css_subchannel_release;
 	sch->dev.groups = default_subch_attr_groups;
 	/*
 	 * We don't want to generate uevents for I/O subchannels that don't
