@@ -689,6 +689,7 @@ static void sdio_wimax_remove(struct sdio_func *func)
 	struct phy_dev *phy_dev = sdio_get_drvdata(func);
 	struct sdiowm_dev *sdev = phy_dev->priv_dev;
 
+	cancel_work_sync(&sdev->ws);
 	if (phy_dev->netdev)
 		unregister_wimax_device(phy_dev);
 	sdio_claim_host(func);
