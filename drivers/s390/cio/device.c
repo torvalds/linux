@@ -44,6 +44,10 @@ static DEFINE_SPINLOCK(recovery_lock);
 static int recovery_phase;
 static const unsigned long recovery_delay[] = { 3, 30, 300 };
 
+static atomic_t ccw_device_init_count = ATOMIC_INIT(0);
+static DECLARE_WAIT_QUEUE_HEAD(ccw_device_init_wq);
+static struct bus_type ccw_bus_type;
+
 /******************* bus type handling ***********************/
 
 /* The Linux driver model distinguishes between a bus type and
@@ -128,8 +132,6 @@ static int ccw_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return ret;
 }
 
-static struct bus_type ccw_bus_type;
-
 static void io_subchannel_irq(struct subchannel *);
 static int io_subchannel_probe(struct subchannel *);
 static int io_subchannel_remove(struct subchannel *);
@@ -138,8 +140,6 @@ static int io_subchannel_sch_event(struct subchannel *, int);
 static int io_subchannel_chp_event(struct subchannel *, struct chp_link *,
 				   int);
 static void recovery_func(unsigned long data);
-wait_queue_head_t ccw_device_init_wq;
-atomic_t ccw_device_init_count;
 
 static struct css_device_id io_subchannel_ids[] = {
 	{ .match_flags = 0x1, .type = SUBCHANNEL_TYPE_IO, },
@@ -192,10 +192,7 @@ int __init io_subchannel_init(void)
 {
 	int ret;
 
-	init_waitqueue_head(&ccw_device_init_wq);
-	atomic_set(&ccw_device_init_count, 0);
 	setup_timer(&recovery_timer, recovery_func, 0);
-
 	ret = bus_register(&ccw_bus_type);
 	if (ret)
 		return ret;
@@ -1093,6 +1090,8 @@ static int io_subchannel_probe(struct subchannel *sch)
 			put_device(&cdev->dev);
 			goto out_schedule;
 		}
+		if (atomic_dec_and_test(&ccw_device_init_count))
+			wake_up(&ccw_device_init_wq);
 		return 0;
 	}
 	io_subchannel_init_fields(sch);
