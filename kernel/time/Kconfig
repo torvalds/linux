@@ -79,7 +79,7 @@ choice
 	prompt "Timer tick handling"
 	default NO_HZ_IDLE if NO_HZ
 
-config PERIODIC_HZ
+config HZ_PERIODIC
 	bool "Periodic timer ticks (constant rate, no dynticks)"
 	help
 	  This option keeps the tick running periodically at a constant
