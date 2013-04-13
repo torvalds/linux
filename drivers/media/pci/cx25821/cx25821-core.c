@@ -845,8 +845,7 @@ static void cx25821_dev_checkrevision(struct cx25821_dev *dev)
 {
 	dev->hwrevision = cx_read(RDR_CFG2) & 0xff;
 
-	pr_info("%s(): Hardware revision = 0x%02x\n",
-		__func__, dev->hwrevision);
+	pr_info("Hardware revision = 0x%02x\n", dev->hwrevision);
 }
 
 static void cx25821_iounmap(struct cx25821_dev *dev)
@@ -856,7 +855,6 @@ static void cx25821_iounmap(struct cx25821_dev *dev)
 
 	/* Releasing IO memory */
 	if (dev->lmmio != NULL) {
-		CX25821_INFO("Releasing lmmio.\n");
 		iounmap(dev->lmmio);
 		dev->lmmio = NULL;
 	}
@@ -866,10 +864,6 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 {
 	static unsigned int cx25821_devcount;
 	int i;
-
-	pr_info("\n***********************************\n");
-	pr_info("cx25821 set up\n");
-	pr_info("***********************************\n\n");
 
 	mutex_init(&dev->lock);
 
@@ -950,17 +944,12 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 /*  cx25821_i2c_register(&dev->i2c_bus[1]);
  *  cx25821_i2c_register(&dev->i2c_bus[2]); */
 
-	CX25821_INFO("i2c register! bus->i2c_rc = %d\n",
-			dev->i2c_bus[0].i2c_rc);
-
 	if (medusa_video_init(dev) < 0)
 		CX25821_ERR("%s(): Failed to initialize medusa!\n", __func__);
 
 	cx25821_video_register(dev);
 
 	cx25821_dev_checkrevision(dev);
-	CX25821_INFO("setup done!\n");
-
 	return 0;
 }
 
@@ -1336,8 +1325,6 @@ static int cx25821_initdev(struct pci_dev *pci_dev,
 
 		goto fail_unregister_device;
 	}
-
-	pr_info("Athena pci enable !\n");
 
 	err = cx25821_dev_setup(dev);
 	if (err) {

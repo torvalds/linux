@@ -217,7 +217,7 @@ struct cx25821_channel {
 	int ctl_saturation;
 	struct cx25821_data timeout_data;
 
-	struct video_device *video_dev;
+	struct video_device vdev;
 	struct cx25821_dmaqueue vidq;
 
 	const struct sram_channel *sram_channels;

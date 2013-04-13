@@ -144,26 +144,6 @@ static int cx25821_set_tvnorm(struct cx25821_dev *dev, v4l2_std_id norm)
 	return 0;
 }
 
-static struct video_device *cx25821_vdev_init(struct cx25821_dev *dev,
-				       struct pci_dev *pci,
-				       const struct video_device *template,
-				       char *type)
-{
-	struct video_device *vfd;
-	dprintk(1, "%s()\n", __func__);
-
-	vfd = video_device_alloc();
-	if (NULL == vfd)
-		return NULL;
-	*vfd = *template;
-	vfd->v4l2_dev = &dev->v4l2_dev;
-	vfd->release = video_device_release;
-	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)", dev->name, type,
-		 cx25821_boards[dev->board].name);
-	video_set_drvdata(vfd, dev);
-	return vfd;
-}
-
 /*
 static int cx25821_ctrl_query(struct v4l2_queryctrl *qctrl)
 {
@@ -657,7 +637,7 @@ static int video_open(struct file *file)
 			v4l2_type_names[type]);
 
 	for (ch_id = 0; ch_id < MAX_VID_CHANNEL_NUM - 1; ch_id++)
-		if (dev->channels[ch_id].video_dev == vdev)
+		if (&dev->channels[ch_id].vdev == vdev)
 			break;
 
 	/* Can't happen */
@@ -1692,6 +1672,7 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 static const struct video_device cx25821_video_device = {
 	.name = "cx25821-video",
 	.fops = &video_fops,
+	.release = video_device_release_empty,
 	.minor = -1,
 	.ioctl_ops = &video_ioctl_ops,
 	.tvnorms = CX25821_NORMS,
@@ -1701,22 +1682,12 @@ void cx25821_video_unregister(struct cx25821_dev *dev, int chan_num)
 {
 	cx_clear(PCI_INT_MSK, 1);
 
-	if (dev->channels[chan_num].video_dev) {
-		if (video_is_registered(dev->channels[chan_num].video_dev))
-			video_unregister_device(
-					dev->channels[chan_num].video_dev);
-		else
-			video_device_release(
-					dev->channels[chan_num].video_dev);
-
-		dev->channels[chan_num].video_dev = NULL;
+	if (video_is_registered(&dev->channels[chan_num].vdev)) {
+		video_unregister_device(&dev->channels[chan_num].vdev);
 
 		btcx_riscmem_free(dev->pci,
 				&dev->channels[chan_num].vidq.stopper);
-
-		pr_warn("device %d released!\n", chan_num);
 	}
-
 }
 
 int cx25821_video_register(struct cx25821_dev *dev)
@@ -1727,6 +1698,8 @@ int cx25821_video_register(struct cx25821_dev *dev)
 	spin_lock_init(&dev->slock);
 
 	for (i = 0; i < VID_CHANNEL_NUM; ++i) {
+		struct video_device *vdev = &dev->channels[i].vdev;
+
 		if (i == SRAM_CH08) /* audio channel */
 			continue;
 
@@ -1736,7 +1709,6 @@ int cx25821_video_register(struct cx25821_dev *dev)
 			dev->channels[i].sram_channels->dma_ctl, 0x11, 0);
 
 		dev->channels[i].sram_channels = &cx25821_sram_channels[i];
-		dev->channels[i].video_dev = NULL;
 		dev->channels[i].resources = 0;
 
 		cx_write(dev->channels[i].sram_channels->int_stat, 0xffffffff);
@@ -1753,15 +1725,16 @@ int cx25821_video_register(struct cx25821_dev *dev)
 		init_timer(&dev->channels[i].vidq.timeout);
 
 		/* register v4l devices */
-		dev->channels[i].video_dev = cx25821_vdev_init(dev, dev->pci,
-				&cx25821_video_device, "video");
+		*vdev = cx25821_video_device;
+		vdev->v4l2_dev = &dev->v4l2_dev;
+		snprintf(vdev->name, sizeof(vdev->name), "%s #%d", dev->name, i);
+		video_set_drvdata(vdev, dev);
 
-		err = video_register_device(dev->channels[i].video_dev,
-				VFL_TYPE_GRABBER, video_nr[dev->nr]);
+		err = video_register_device(vdev, VFL_TYPE_GRABBER,
+					    video_nr[dev->nr]);
 
 		if (err < 0)
 			goto fail_unreg;
-
 	}
 
 	/* set PCI interrupt */
@@ -1776,6 +1749,7 @@ int cx25821_video_register(struct cx25821_dev *dev)
 	return 0;
 
 fail_unreg:
-	cx25821_video_unregister(dev, i);
+	while (i >= 0)
+		cx25821_video_unregister(dev, i--);
 	return err;
 }
