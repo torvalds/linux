@@ -1163,10 +1163,8 @@ int cx25821_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 			return err;
 	}
 
-	if (i >= CX25821_NR_INPUT) {
-		dprintk(1, "%s(): -EINVAL\n", __func__);
+	if (i >= CX25821_NR_INPUT || INPUT(i)->type == 0)
 		return -EINVAL;
-	}
 
 	mutex_lock(&dev->lock);
 	cx25821_video_mux(dev, i);
