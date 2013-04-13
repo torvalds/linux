@@ -211,11 +211,9 @@ static void nand_select_chip(struct mtd_info *mtd, int chipnr)
  */
 static void nand_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
-	int i;
 	struct nand_chip *chip = mtd->priv;
 
-	for (i = 0; i < len; i++)
-		writeb(buf[i], chip->IO_ADDR_W);
+	iowrite8_rep(chip->IO_ADDR_W, buf, len);
 }
 
 /**
@@ -228,11 +226,9 @@ static void nand_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
  */
 static void nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
-	int i;
 	struct nand_chip *chip = mtd->priv;
 
-	for (i = 0; i < len; i++)
-		buf[i] = readb(chip->IO_ADDR_R);
+	ioread8_rep(chip->IO_ADDR_R, buf, len);
 }
 
 /**
@@ -245,14 +241,10 @@ static void nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
  */
 static void nand_write_buf16(struct mtd_info *mtd, const uint8_t *buf, int len)
 {
-	int i;
 	struct nand_chip *chip = mtd->priv;
 	u16 *p = (u16 *) buf;
-	len >>= 1;
 
-	for (i = 0; i < len; i++)
-		writew(p[i], chip->IO_ADDR_W);
-
+	iowrite16_rep(chip->IO_ADDR_W, p, len >> 1);
 }
 
 /**
@@ -265,13 +257,10 @@ static void nand_write_buf16(struct mtd_info *mtd, const uint8_t *buf, int len)
  */
 static void nand_read_buf16(struct mtd_info *mtd, uint8_t *buf, int len)
 {
-	int i;
 	struct nand_chip *chip = mtd->priv;
 	u16 *p = (u16 *) buf;
-	len >>= 1;
 
-	for (i = 0; i < len; i++)
-		p[i] = readw(chip->IO_ADDR_R);
+	ioread16_rep(chip->IO_ADDR_R, p, len >> 1);
 }
 
 /**
