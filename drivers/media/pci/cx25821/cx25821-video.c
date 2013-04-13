@@ -161,7 +161,7 @@ int cx25821_set_tvnorm(struct cx25821_dev *dev, v4l2_std_id norm)
 
 struct video_device *cx25821_vdev_init(struct cx25821_dev *dev,
 				       struct pci_dev *pci,
-				       struct video_device *template,
+				       const struct video_device *template,
 				       char *type)
 {
 	struct video_device *vfd;
@@ -447,10 +447,7 @@ void cx25821_video_unregister(struct cx25821_dev *dev, int chan_num)
 
 int cx25821_video_register(struct cx25821_dev *dev)
 {
-	int err;
-	int i;
-
-	struct video_device cx25821_video_device = {
+	static const struct video_device cx25821_video_device = {
 		.name = "cx25821-video",
 		.fops = &video_fops,
 		.minor = -1,
@@ -458,6 +455,8 @@ int cx25821_video_register(struct cx25821_dev *dev)
 		.tvnorms = CX25821_NORMS,
 		.current_norm = V4L2_STD_NTSC_M,
 	};
+	int err;
+	int i;
 
 	spin_lock_init(&dev->slock);
 

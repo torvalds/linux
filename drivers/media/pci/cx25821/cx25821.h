@@ -610,6 +610,6 @@ extern void cx25821_set_pixel_format(struct cx25821_dev *dev, int channel,
 extern void cx25821_videoioctl_unregister(struct cx25821_dev *dev);
 extern struct video_device *cx25821_vdev_init(struct cx25821_dev *dev,
 					      struct pci_dev *pci,
-					      struct video_device *template,
+					      const struct video_device *template,
 					      char *type);
 #endif
