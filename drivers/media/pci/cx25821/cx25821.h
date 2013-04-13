@@ -123,10 +123,7 @@ struct cx25821_fh {
 	enum v4l2_priority prio;
 
 	/* video capture */
-	const struct cx25821_fmt *fmt;
-	unsigned int width, height;
 	int channel_id;
-	struct videobuf_queue vidq;
 };
 
 enum cx25821_itype {
@@ -217,12 +214,15 @@ struct cx25821_channel {
 	struct cx25821_data timeout_data;
 
 	struct video_device vdev;
-	struct cx25821_dmaqueue vidq;
+	struct cx25821_dmaqueue dma_vidq;
+	struct videobuf_queue vidq;
 
 	const struct sram_channel *sram_channels;
 
 	int resources;
 
+	const struct cx25821_fmt *fmt;
+	unsigned int width, height;
 	int pixel_formats;
 	int use_cif_resolution;
 	int cif_width;
