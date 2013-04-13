@@ -1954,9 +1954,10 @@ static int cx8800_suspend(struct pci_dev *pci_dev, pm_message_t state)
 {
 	struct cx8800_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
+	unsigned long flags;
 
 	/* stop video+vbi capture */
-	spin_lock(&dev->slock);
+	spin_lock_irqsave(&dev->slock, flags);
 	if (!list_empty(&dev->vidq.active)) {
 		printk("%s/0: suspend video\n", core->name);
 		stop_video_dma(dev);
@@ -1967,7 +1968,7 @@ static int cx8800_suspend(struct pci_dev *pci_dev, pm_message_t state)
 		cx8800_stop_vbi_dma(dev);
 		del_timer(&dev->vbiq.timeout);
 	}
-	spin_unlock(&dev->slock);
+	spin_unlock_irqrestore(&dev->slock, flags);
 
 	if (core->ir)
 		cx88_ir_stop(core);
@@ -1986,6 +1987,7 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 {
 	struct cx8800_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
+	unsigned long flags;
 	int err;
 
 	if (dev->state.disabled) {
@@ -2016,7 +2018,7 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 	cx_set(MO_PCI_INTMSK, core->pci_irqmask);
 
 	/* restart video+vbi capture */
-	spin_lock(&dev->slock);
+	spin_lock_irqsave(&dev->slock, flags);
 	if (!list_empty(&dev->vidq.active)) {
 		printk("%s/0: resume video\n", core->name);
 		restart_video_queue(dev,&dev->vidq);
@@ -2025,7 +2027,7 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 		printk("%s/0: resume vbi\n", core->name);
 		cx8800_restart_vbi_queue(dev,&dev->vbiq);
 	}
-	spin_unlock(&dev->slock);
+	spin_unlock_irqrestore(&dev->slock, flags);
 
 	return 0;
 }
