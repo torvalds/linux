@@ -33,9 +33,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
-#include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
-#include <media/videobuf-dvb.h>
 
 #include "btcx-risc.h"
 #include "cx25821-reg.h"
@@ -176,12 +174,6 @@ struct cx25821_board {
 
 	u32 clk_freq;
 	struct cx25821_input input[CX25821_NR_INPUT];
-};
-
-struct cx25821_subid {
-	u16 subvendor;
-	u16 subdevice;
-	u32 card;
 };
 
 struct cx25821_i2c {
@@ -406,7 +398,6 @@ static inline struct cx25821_dev *get_cx25821(struct v4l2_device *v4l2_dev)
 	v4l2_device_call_all(&dev->v4l2_dev, 0, o, f, ##args)
 
 extern struct cx25821_board cx25821_boards[];
-extern struct cx25821_subid cx25821_subids[];
 
 #define SRAM_CH00  0		/* Video A */
 #define SRAM_CH01  1		/* Video B */
@@ -487,8 +478,6 @@ extern const struct sram_channel cx25821_sram_channels[];
 	pr_info("(%d): " fmt, dev->board, ##args)
 
 extern int cx25821_i2c_register(struct cx25821_i2c *bus);
-extern void cx25821_card_setup(struct cx25821_dev *dev);
-extern int cx25821_ir_init(struct cx25821_dev *dev);
 extern int cx25821_i2c_read(struct cx25821_i2c *bus, u16 reg_addr, int *value);
 extern int cx25821_i2c_write(struct cx25821_i2c *bus, u16 reg_addr, int value);
 extern int cx25821_i2c_unregister(struct cx25821_i2c *bus);

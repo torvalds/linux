@@ -953,8 +953,6 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 	CX25821_INFO("i2c register! bus->i2c_rc = %d\n",
 			dev->i2c_bus[0].i2c_rc);
 
-	cx25821_card_setup(dev);
-
 	if (medusa_video_init(dev) < 0)
 		CX25821_ERR("%s(): Failed to initialize medusa!\n", __func__);
 
