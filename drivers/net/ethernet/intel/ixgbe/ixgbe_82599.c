@@ -1055,7 +1055,7 @@ mac_reset_top:
 		 * LMS state either.
 		 */
 		if ((hw->phy.multispeed_fiber && hw->mng_fw_enabled) ||
-		    hw->wol_supported)
+		    hw->wol_enabled)
 			hw->mac.orig_autoc =
 				(hw->mac.orig_autoc & ~IXGBE_AUTOC_LMS_MASK) |
 				curr_lms;
