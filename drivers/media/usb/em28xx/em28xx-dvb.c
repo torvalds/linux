@@ -1216,6 +1216,7 @@ static int em28xx_dvb_init(struct em28xx *dev)
 			dvb_attach(a8293_attach, dvb->fe[0], &dev->i2c_adap[dev->def_i2c_bus],
 				&em28xx_a8293_config);
 		break;
+	case EM2874_BOARD_DELOCK_61959:
 	case EM2874_BOARD_MAXMEDIA_UB425_TC:
 		/* attach demodulator */
 		dvb->fe[0] = dvb_attach(drxk_attach, &maxmedia_ub425_tc_drxk,
@@ -1235,8 +1236,8 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		}
 
 		/* TODO: we need drx-3913k firmware in order to support DVB-T */
-		em28xx_info("MaxMedia UB425-TC: only DVB-C supported by that " \
-				"driver version\n");
+		em28xx_info("MaxMedia UB425-TC/Delock 61959: only DVB-C " \
+				"supported by that driver version\n");
 
 		break;
 	case EM2884_BOARD_PCTV_510E:
