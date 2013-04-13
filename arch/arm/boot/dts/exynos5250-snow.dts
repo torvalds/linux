@@ -16,12 +16,27 @@
 	model = "Google Snow";
 	compatible = "google,snow", "samsung,exynos5250";
 
+	pinctrl@11400000 {
+		sd3_clk: sd3-clk {
+			samsung,pin-drv = <0>;
+		};
+
+		sd3_cmd: sd3-cmd {
+			samsung,pin-pud = <3>;
+			samsung,pin-drv = <0>;
+		};
+
+		sd3_bus4: sd3-bus-width4 {
+			samsung,pin-drv = <0>;
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
 		lid-switch {
 			label = "Lid";
-			gpios = <&gpx3 5 0 0x10000 0>;
+			gpios = <&gpx3 5 1>;
 			linux,input-type = <5>; /* EV_SW */
 			linux,code = <0>; /* SW_LID */
 			debounce-interval = <1>;
@@ -35,9 +50,19 @@
 	 */
 	dwmmc3@12230000 {
 		slot@0 {
-			gpios = <&gpc4 0 2 0 0>, <&gpc4 1 2 3 0>,
-				<&gpc4 3 2 3 0>, <&gpc4 4 2 3 0>,
-				<&gpc4 5 2 3 0>, <&gpc4 6 2 3 0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&sd3_clk &sd3_cmd &sd3_bus4>;
+		};
+	};
+
+	usb@12110000 {
+		samsung,vbus-gpio = <&gpx1 1 1 3 3>;
+	};
+
+	fixed-rate-clocks {
+		xxti {
+			compatible = "samsung,clock-xxti";
+			clock-frequency = <24000000>;
 		};
 	};
 };

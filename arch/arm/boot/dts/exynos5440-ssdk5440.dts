@@ -16,31 +16,18 @@
 	model = "SAMSUNG SSDK5440 board based on EXYNOS5440";
 	compatible = "samsung,ssdk5440", "samsung,exynos5440";
 
-	memory {
-		reg = <0x80000000 0x80000000>;
-	};
-
 	chosen {
-		bootargs = "root=/dev/ram0 rw ramdisk=8192 initrd=0x81000000,8M console=ttySAC0,115200 init=/linuxrc";
+		bootargs = "root=/dev/sda2 rw rootwait ignore_loglevel early_printk no_console_suspend mem=2048M@0x80000000 console=ttySAC0,115200";
 	};
 
 	spi {
 		status = "disabled";
 	};
 
-	i2c@F0000 {
-		status = "disabled";
-	};
-
-	i2c@100000 {
-		status = "disabled";
-	};
-
-	watchdog {
-		status = "disabled";
-	};
-
-	rtc {
-		status = "disabled";
+	fixed-rate-clocks {
+		xtal {
+			compatible = "samsung,clock-xtal";
+			clock-frequency = <50000000>;
+		};
 	};
 };

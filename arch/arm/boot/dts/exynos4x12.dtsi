@@ -36,6 +36,12 @@
 			     <0 16 0>, <0 17 0>, <0 18 0>, <0 19 0>;
 	};
 
+	clock: clock-controller@0x10030000 {
+		compatible = "samsung,exynos4412-clock";
+		reg = <0x10030000 0x20000>;
+		#clock-cells = <1>;
+	};
+
 	pinctrl_0: pinctrl@11400000 {
 		compatible = "samsung,exynos4x12-pinctrl";
 		reg = <0x11400000 0x1000>;
@@ -65,5 +71,12 @@
 		compatible = "samsung,exynos4x12-pinctrl";
 		reg = <0x106E0000 0x1000>;
 		interrupts = <0 72 0>;
+	};
+
+	g2d@10800000 {
+		compatible = "samsung,exynos4212-g2d";
+		reg = <0x10800000 0x1000>;
+		interrupts = <0 89 0>;
+		status = "disabled";
 	};
 };

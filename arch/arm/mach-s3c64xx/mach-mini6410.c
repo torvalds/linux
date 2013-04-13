@@ -41,6 +41,7 @@
 
 #include <video/platform_lcd.h>
 #include <video/samsung_fimd.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "regs-modem.h"
@@ -232,6 +233,7 @@ static void __init mini6410_map_io(void)
 	s3c64xx_init_io(NULL, 0);
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(mini6410_uartcfgs, ARRAY_SIZE(mini6410_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	/* set the LCD type */
 	tmp = __raw_readl(S3C64XX_SPCON);
@@ -354,6 +356,6 @@ MACHINE_START(MINI6410, "MINI6410")
 	.map_io		= mini6410_map_io,
 	.init_machine	= mini6410_machine_init,
 	.init_late	= s3c64xx_init_late,
-	.init_time	= s3c24xx_timer_init,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c64xx_restart,
 MACHINE_END
