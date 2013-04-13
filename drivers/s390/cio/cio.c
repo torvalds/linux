@@ -749,9 +749,16 @@ int cio_is_console(struct subchannel_id schid)
 	return schid_equal(&schid, &console_sch->schid);
 }
 
-struct subchannel *cio_get_console_subchannel(void)
+void cio_register_early_subchannels(void)
 {
-	return console_sch;
+	int ret;
+
+	if (!console_sch)
+		return;
+
+	ret = css_register_subchannel(console_sch);
+	if (ret)
+		put_device(&console_sch->dev);
 }
 #endif /* CONFIG_CCW_CONSOLE */
 

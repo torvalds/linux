@@ -224,16 +224,11 @@ void css_update_ssd_info(struct subchannel *sch)
 {
 	int ret;
 
-	if (cio_is_console(sch->schid)) {
-		/* Console is initialized too early for functions requiring
-		 * memory allocation. */
+	ret = chsc_get_ssd_info(sch->schid, &sch->ssd_info);
+	if (ret)
 		ssd_from_pmcw(&sch->ssd_info, &sch->schib.pmcw);
-	} else {
-		ret = chsc_get_ssd_info(sch->schid, &sch->ssd_info);
-		if (ret)
-			ssd_from_pmcw(&sch->ssd_info, &sch->schib.pmcw);
-		ssd_register_chpids(&sch->ssd_info);
-	}
+
+	ssd_register_chpids(&sch->ssd_info);
 }
 
 static ssize_t type_show(struct device *dev, struct device_attribute *attr,
@@ -271,7 +266,7 @@ static const struct attribute_group *default_subch_attr_groups[] = {
 	NULL,
 };
 
-static int css_register_subchannel(struct subchannel *sch)
+int css_register_subchannel(struct subchannel *sch)
 {
 	int ret;
 
@@ -314,13 +309,10 @@ int css_probe_device(struct subchannel_id schid)
 	int ret;
 	struct subchannel *sch;
 
-	if (cio_is_console(schid))
-		sch = cio_get_console_subchannel();
-	else {
-		sch = css_alloc_subchannel(schid);
-		if (IS_ERR(sch))
-			return PTR_ERR(sch);
-	}
+	sch = css_alloc_subchannel(schid);
+	if (IS_ERR(sch))
+		return PTR_ERR(sch);
+
 	ret = css_register_subchannel(sch);
 	if (ret)
 		put_device(&sch->dev);
@@ -864,8 +856,7 @@ static struct notifier_block css_power_notifier = {
 
 /*
  * Now that the driver core is running, we can setup our channel subsystem.
- * The struct subchannel's are created during probing (except for the
- * static console subchannel).
+ * The struct subchannel's are created during probing.
  */
 static int __init css_bus_init(void)
 {
@@ -1044,6 +1035,8 @@ int css_complete_work(void)
  */
 static int __init channel_subsystem_init_sync(void)
 {
+	/* Register subchannels which are already in use. */
+	cio_register_early_subchannels();
 	/* Start initial subchannel evaluation. */
 	css_schedule_eval_all();
 	css_complete_work();
