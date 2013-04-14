@@ -194,8 +194,7 @@ static int root_count;
  * rules as other root ops - both cgroup_mutex and cgroup_root_mutex for
  * writes, either for reads.
  */
-static DEFINE_IDA(hierarchy_ida);
-static int next_hierarchy_id;
+static DEFINE_IDR(cgroup_hierarchy_idr);
 
 /* dummytop is a shorthand for the dummy hierarchy's top cgroup */
 #define dummytop (&rootnode.top_cgroup)
@@ -1432,27 +1431,16 @@ static void init_cgroup_root(struct cgroupfs_root *root)
 
 static int cgroup_init_root_id(struct cgroupfs_root *root)
 {
-	int ret;
+	int id;
 
 	lockdep_assert_held(&cgroup_mutex);
 	lockdep_assert_held(&cgroup_root_mutex);
 
-	do {
-		if (!ida_pre_get(&hierarchy_ida, GFP_KERNEL))
-			return -ENOMEM;
-		/* Try to allocate the next unused ID */
-		ret = ida_get_new_above(&hierarchy_ida, next_hierarchy_id,
-					&root->hierarchy_id);
-		if (ret == -ENOSPC)
-			/* Try again starting from 0 */
-			ret = ida_get_new(&hierarchy_ida, &root->hierarchy_id);
-		if (!ret) {
-			next_hierarchy_id = root->hierarchy_id + 1;
-		} else if (ret != -EAGAIN) {
-			/* Can only get here if the 31-bit IDR is full ... */
-			BUG_ON(ret);
-		}
-	} while (ret);
+	id = idr_alloc_cyclic(&cgroup_hierarchy_idr, root, 2, 0, GFP_KERNEL);
+	if (id < 0)
+		return id;
+
+	root->hierarchy_id = id;
 	return 0;
 }
 
@@ -1462,7 +1450,7 @@ static void cgroup_exit_root_id(struct cgroupfs_root *root)
 	lockdep_assert_held(&cgroup_root_mutex);
 
 	if (root->hierarchy_id) {
-		ida_remove(&hierarchy_ida, root->hierarchy_id);
+		idr_remove(&cgroup_hierarchy_idr, root->hierarchy_id);
 		root->hierarchy_id = 0;
 	}
 }
