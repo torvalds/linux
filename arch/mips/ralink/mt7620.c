@@ -211,4 +211,24 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 
 	cfg0 = __raw_readl(sysc + SYSC_REG_SYSTEM_CONFIG0);
 	dram_type = (cfg0 >> SYSCFG0_DRAM_TYPE_SHIFT) & SYSCFG0_DRAM_TYPE_MASK;
+
+	switch (dram_type) {
+	case SYSCFG0_DRAM_TYPE_SDRAM:
+		soc_info->mem_size_min = MT7620_SDRAM_SIZE_MIN;
+		soc_info->mem_size_max = MT7620_SDRAM_SIZE_MAX;
+		break;
+
+	case SYSCFG0_DRAM_TYPE_DDR1:
+		soc_info->mem_size_min = MT7620_DDR1_SIZE_MIN;
+		soc_info->mem_size_max = MT7620_DDR1_SIZE_MAX;
+		break;
+
+	case SYSCFG0_DRAM_TYPE_DDR2:
+		soc_info->mem_size_min = MT7620_DDR2_SIZE_MIN;
+		soc_info->mem_size_max = MT7620_DDR2_SIZE_MAX;
+		break;
+	default:
+		BUG();
+	}
+	soc_info->mem_base = MT7620_DRAM_BASE;
 }
