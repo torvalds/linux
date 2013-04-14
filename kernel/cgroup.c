@@ -189,9 +189,13 @@ struct cgroup_event {
 static LIST_HEAD(roots);
 static int root_count;
 
+/*
+ * Hierarchy ID allocation and mapping.  It follows the same exclusion
+ * rules as other root ops - both cgroup_mutex and cgroup_root_mutex for
+ * writes, either for reads.
+ */
 static DEFINE_IDA(hierarchy_ida);
 static int next_hierarchy_id;
-static DEFINE_SPINLOCK(hierarchy_id_lock);
 
 /* dummytop is a shorthand for the dummy hierarchy's top cgroup */
 #define dummytop (&rootnode.top_cgroup)
@@ -1430,10 +1434,12 @@ static int cgroup_init_root_id(struct cgroupfs_root *root)
 {
 	int ret;
 
+	lockdep_assert_held(&cgroup_mutex);
+	lockdep_assert_held(&cgroup_root_mutex);
+
 	do {
 		if (!ida_pre_get(&hierarchy_ida, GFP_KERNEL))
 			return -ENOMEM;
-		spin_lock(&hierarchy_id_lock);
 		/* Try to allocate the next unused ID */
 		ret = ida_get_new_above(&hierarchy_ida, next_hierarchy_id,
 					&root->hierarchy_id);
@@ -1446,18 +1452,17 @@ static int cgroup_init_root_id(struct cgroupfs_root *root)
 			/* Can only get here if the 31-bit IDR is full ... */
 			BUG_ON(ret);
 		}
-		spin_unlock(&hierarchy_id_lock);
 	} while (ret);
 	return 0;
 }
 
 static void cgroup_exit_root_id(struct cgroupfs_root *root)
 {
-	if (root->hierarchy_id) {
-		spin_lock(&hierarchy_id_lock);
-		ida_remove(&hierarchy_ida, root->hierarchy_id);
-		spin_unlock(&hierarchy_id_lock);
+	lockdep_assert_held(&cgroup_mutex);
+	lockdep_assert_held(&cgroup_root_mutex);
 
+	if (root->hierarchy_id) {
+		ida_remove(&hierarchy_ida, root->hierarchy_id);
 		root->hierarchy_id = 0;
 	}
 }
@@ -4656,7 +4661,13 @@ int __init cgroup_init(void)
 	hash_add(css_set_table, &init_css_set.hlist, key);
 
 	/* allocate id for the dummy hierarchy */
+	mutex_lock(&cgroup_mutex);
+	mutex_lock(&cgroup_root_mutex);
+
 	BUG_ON(cgroup_init_root_id(&rootnode));
+
+	mutex_unlock(&cgroup_root_mutex);
+	mutex_unlock(&cgroup_mutex);
 
 	cgroup_kobj = kobject_create_and_add("cgroup", fs_kobj);
 	if (!cgroup_kobj) {
