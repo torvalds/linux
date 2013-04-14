@@ -1811,11 +1811,17 @@ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen)
 	int ret = -ENAMETOOLONG;
 	char *start;
 
+	if (!cgrp->parent) {
+		if (strlcpy(buf, "/", buflen) >= buflen)
+			return -ENAMETOOLONG;
+		return 0;
+	}
+
 	start = buf + buflen - 1;
 	*start = '\0';
 
 	rcu_read_lock();
-	while (cgrp) {
+	do {
 		const char *name = cgroup_name(cgrp);
 		int len;
 
@@ -1824,15 +1830,12 @@ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen)
 			goto out;
 		memcpy(start, name, len);
 
-		if (!cgrp->parent)
-			break;
-
 		if (--start < buf)
 			goto out;
 		*start = '/';
 
 		cgrp = cgrp->parent;
-	}
+	} while (cgrp->parent);
 	ret = 0;
 	memmove(buf, start, buf + buflen - start);
 out:
