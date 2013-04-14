@@ -151,7 +151,7 @@ nvc0_ltcg_init_tag_ram(struct nouveau_fb *pfb, struct nvc0_ltcg_priv *priv)
 		u64 tag_base = (priv->tag_ram->offset << 12) + tag_margin;
 
 		tag_base += tag_align - 1;
-		tag_base /= tag_align;
+		ret = do_div(tag_base, tag_align);
 
 		nv_wr32(priv, 0x17e8d4, tag_base);
 	}
