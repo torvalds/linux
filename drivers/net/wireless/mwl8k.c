@@ -193,10 +193,10 @@ struct mwl8k_priv {
 	struct rxd_ops *rxd_ops;
 	struct ieee80211_supported_band band_24;
 	struct ieee80211_channel channels_24[14];
-	struct ieee80211_rate rates_24[14];
+	struct ieee80211_rate rates_24[13];
 	struct ieee80211_supported_band band_50;
 	struct ieee80211_channel channels_50[4];
-	struct ieee80211_rate rates_50[9];
+	struct ieee80211_rate rates_50[8];
 	u32 ap_macids_supported;
 	u32 sta_macids_supported;
 
@@ -366,7 +366,6 @@ static const struct ieee80211_rate mwl8k_rates_24[] = {
 	{ .bitrate = 360, .hw_value = 72, },
 	{ .bitrate = 480, .hw_value = 96, },
 	{ .bitrate = 540, .hw_value = 108, },
-	{ .bitrate = 720, .hw_value = 144, },
 };
 
 static const struct ieee80211_channel mwl8k_channels_50[] = {
@@ -385,7 +384,6 @@ static const struct ieee80211_rate mwl8k_rates_50[] = {
 	{ .bitrate = 360, .hw_value = 72, },
 	{ .bitrate = 480, .hw_value = 96, },
 	{ .bitrate = 540, .hw_value = 108, },
-	{ .bitrate = 720, .hw_value = 144, },
 };
 
 /* Set or get info from Firmware */
@@ -3083,11 +3081,11 @@ static void legacy_rate_mask_to_array(u8 *rates, u32 mask)
 	int j;
 
 	/*
-	 * Clear nonstandard rates 4 and 13.
+	 * Clear nonstandard rate 4.
 	 */
 	mask &= 0x1fef;
 
-	for (i = 0, j = 0; i < 14; i++) {
+	for (i = 0, j = 0; i < 13; i++) {
 		if (mask & (1 << i))
 			rates[j++] = mwl8k_rates_24[i].hw_value;
 	}
