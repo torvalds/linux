@@ -44,22 +44,24 @@ http://www.tux.org/lkml/).
 
 [Some of this is taken from Frohwalt Egerer's original linux-kernel FAQ]
 
-What follows is a suggested procedure for reporting Linux bugs. You aren't
-obliged to use the bug reporting format, it is provided as a guide to the
-kind of information that can be useful to developers - no more.
+Gather information
+------------------
 
-If the failure includes an "OOPS:" type message in your log or on screen
-please read "Documentation/oops-tracing.txt" before posting your bug
-report. This explains what you should do with the "Oops" information to
-make it useful to the recipient.
+The most important information in a bug report is how to reproduce the
+bug.  This includes system information, and (most importantly)
+step-by-step instructions for how a user can trigger the bug.
 
-If it occurs repeatably try and describe how to recreate it. That is worth
-even more than the oops itself.
+If the failure includes an "OOPS:", take a picture of the screen, capture
+a netconsole trace, or type the message from your screen into the bug
+report.  Please read "Documentation/oops-tracing.txt" before posting your
+bug report. This explains what you should do with the "Oops" information
+to make it useful to the recipient.
 
-This is a suggested format for a bug report sent to the Linux kernel mailing
-list. Having a standardized bug report form makes it easier for you not to
+This is a suggested format for a bug report sent via email or bugzilla.
+Having a standardized bug report form makes it easier for you not to
 overlook things, and easier for the developers to find the pieces of
-information they're really interested in. Don't feel you have to follow it.
+information they're really interested in.  If some information is not
+relevant to your bug, feel free to exclude it.
 
 First run the ver_linux script included as scripts/ver_linux, which
 reports the version of some important subsystems.  Run this script with
