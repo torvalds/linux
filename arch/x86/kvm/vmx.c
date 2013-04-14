@@ -6112,14 +6112,9 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 	case EXIT_REASON_TRIPLE_FAULT:
 		return 1;
 	case EXIT_REASON_PENDING_INTERRUPT:
+		return nested_cpu_has(vmcs12, CPU_BASED_VIRTUAL_INTR_PENDING);
 	case EXIT_REASON_NMI_WINDOW:
-		/*
-		 * prepare_vmcs02() set the CPU_BASED_VIRTUAL_INTR_PENDING bit
-		 * (aka Interrupt Window Exiting) only when L1 turned it on,
-		 * so if we got a PENDING_INTERRUPT exit, this must be for L1.
-		 * Same for NMI Window Exiting.
-		 */
-		return 1;
+		return nested_cpu_has(vmcs12, CPU_BASED_VIRTUAL_NMI_PENDING);
 	case EXIT_REASON_TASK_SWITCH:
 		return 1;
 	case EXIT_REASON_CPUID:
