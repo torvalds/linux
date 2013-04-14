@@ -7426,7 +7426,11 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	vmcs12->exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 
 	vmcs12->vm_exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
-	vmcs12->vm_exit_intr_error_code = vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
+	if ((vmcs12->vm_exit_intr_info &
+	     (INTR_INFO_VALID_MASK | INTR_INFO_DELIVER_CODE_MASK)) ==
+	    (INTR_INFO_VALID_MASK | INTR_INFO_DELIVER_CODE_MASK))
+		vmcs12->vm_exit_intr_error_code =
+			vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
 	vmcs12->idt_vectoring_info_field = 0;
 	vmcs12->vm_exit_instruction_len = vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
 	vmcs12->vmx_instruction_info = vmcs_read32(VMX_INSTRUCTION_INFO);
