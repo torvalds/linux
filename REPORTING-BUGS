@@ -1,30 +1,31 @@
 [Some of this is taken from Frohwalt Egerer's original linux-kernel FAQ]
 
-     What follows is a suggested procedure for reporting Linux bugs. You
-aren't obliged to use the bug reporting format, it is provided as a guide
-to the kind of information that can be useful to developers - no more.
+What follows is a suggested procedure for reporting Linux bugs. You aren't
+obliged to use the bug reporting format, it is provided as a guide to the
+kind of information that can be useful to developers - no more.
 
-     If the failure includes an "OOPS:" type message in your log or on
-screen please read "Documentation/oops-tracing.txt" before posting your
-bug report. This explains what you should do with the "Oops" information
-to make it useful to the recipient.
+If the failure includes an "OOPS:" type message in your log or on screen
+please read "Documentation/oops-tracing.txt" before posting your bug
+report. This explains what you should do with the "Oops" information to
+make it useful to the recipient.
 
-      Send the output to the maintainer of the kernel area that seems to
-be involved with the problem, and cc the relevant mailing list. Don't
-worry too much about getting the wrong person. If you are unsure send it
-to the person responsible for the code relevant to what you were doing.
-If it occurs repeatably try and describe how to recreate it. That is
-worth even more than the oops itself.  The list of maintainers and
-mailing lists is in the MAINTAINERS file in this directory.  If you
-know the file name that causes the problem you can use the following
-command in this directory to find some of the maintainers of that file:
+Send the output to the maintainer of the kernel area that seems to be
+involved with the problem, and cc the relevant mailing list. Don't worry
+too much about getting the wrong person. If you are unsure send it to the
+person responsible for the code relevant to what you were doing.  If it
+occurs repeatably try and describe how to recreate it. That is worth even
+more than the oops itself.  The list of maintainers and mailing lists is
+in the MAINTAINERS file in this directory.  If you know the file name that
+causes the problem you can use the following command in this directory to
+find some of the maintainers of that file:
+
      perl scripts/get_maintainer.pl -f <filename>
 
-      If it is a security bug, please copy the Security Contact listed
-in the MAINTAINERS file.  They can help coordinate bugfix and disclosure.
-See Documentation/SecurityBugs for more information.
+If it is a security bug, please copy the Security Contact listed in the
+MAINTAINERS file.  They can help coordinate bugfix and disclosure.  See
+Documentation/SecurityBugs for more information.
 
-      If you are totally stumped as to whom to send the report, send it to
+If you are totally stumped as to whom to send the report, send it to
 linux-kernel@vger.kernel.org. (For more information on the linux-kernel
 mailing list see http://www.tux.org/lkml/).
 
@@ -33,7 +34,7 @@ list. Having a standardized bug report form makes it easier for you not to
 overlook things, and easier for the developers to find the pieces of
 information they're really interested in. Don't feel you have to follow it.
 
-      First run the ver_linux script included as scripts/ver_linux, which
+First run the ver_linux script included as scripts/ver_linux, which
 reports the version of some important subsystems.  Run this script with
 the command "sh scripts/ver_linux".
 
