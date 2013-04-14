@@ -70,5 +70,8 @@ source "drivers/iio/gyro/Kconfig"
 source "drivers/iio/imu/Kconfig"
 source "drivers/iio/light/Kconfig"
 source "drivers/iio/magnetometer/Kconfig"
+if IIO_TRIGGER
+   source "drivers/iio/trigger/Kconfig"
+endif #IIO_TRIGGER
 
 endif # IIO
