@@ -64,6 +64,19 @@ information on the linux-kernel mailing list see
 http://www.tux.org/lkml/).
 
 
+Tips for reporting bugs
+-----------------------
+
+If you haven't reported a bug before, please read:
+
+http://www.chiark.greenend.org.uk/~sgtatham/bugs.html
+http://www.catb.org/esr/faqs/smart-questions.html
+
+It's REALLY important to report bugs that seem unrelated as separate email
+threads or separate bugzilla entries.  If you report several unrelated
+bugs at once, it's difficult for maintainers to tease apart the relevant
+data.
+
 [Some of this is taken from Frohwalt Egerer's original linux-kernel FAQ]
 
 Gather information
