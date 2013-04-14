@@ -975,7 +975,7 @@ static int fsl_pci_resume(struct device *dev)
 		return -ENODEV;
 	}
 
-	setup_pci_atmu(hose, &pci_rsrc);
+	setup_pci_atmu(hose);
 
 	return 0;
 }
