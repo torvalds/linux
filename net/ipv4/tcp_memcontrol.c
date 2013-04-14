@@ -64,7 +64,6 @@ void tcp_destroy_cgroup(struct mem_cgroup *memcg)
 {
 	struct cg_proto *cg_proto;
 	struct tcp_memcontrol *tcp;
-	u64 val;
 
 	cg_proto = tcp_prot.proto_cgroup(memcg);
 	if (!cg_proto)
