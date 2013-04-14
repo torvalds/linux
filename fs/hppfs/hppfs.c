@@ -580,17 +580,10 @@ static int hppfs_readdir(struct file *file, void *ent, filldir_t filldir)
 	return err;
 }
 
-static int hppfs_fsync(struct file *file, loff_t start, loff_t end,
-		       int datasync)
-{
-	return filemap_write_and_wait_range(file->f_mapping, start, end);
-}
-
 static const struct file_operations hppfs_dir_fops = {
 	.owner		= NULL,
 	.readdir	= hppfs_readdir,
 	.open		= hppfs_dir_open,
-	.fsync		= hppfs_fsync,
 	.llseek		= default_llseek,
 	.release	= hppfs_release,
 };
