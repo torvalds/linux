@@ -506,24 +506,12 @@ static void cx25821_buffer_release(struct videobuf_queue *q,
 
 static struct videobuf_queue *get_queue(struct cx25821_fh *fh)
 {
-	switch (fh->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		return &fh->vidq;
-	default:
-		BUG();
-		return NULL;
-	}
+	return &fh->vidq;
 }
 
 static int cx25821_get_resource(struct cx25821_fh *fh, int resource)
 {
-	switch (fh->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		return resource;
-	default:
-		BUG();
-		return 0;
-	}
+	return resource;
 }
 
 static int cx25821_video_mmap(struct file *file, struct vm_area_struct *vma)
@@ -605,7 +593,6 @@ static int video_open(struct file *file)
 	struct video_device *vdev = video_devdata(file);
 	struct cx25821_dev *dev = video_drvdata(file);
 	struct cx25821_fh *fh;
-	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	u32 pix_format;
 	int ch_id;
 
@@ -624,7 +611,6 @@ static int video_open(struct file *file)
 
 	file->private_data = fh;
 	fh->dev = dev;
-	fh->type = type;
 	fh->width = 720;
 	fh->channel_id = ch_id;
 
@@ -659,22 +645,15 @@ static ssize_t video_read(struct file *file, char __user * data, size_t count,
 	struct cx25821_dev *dev = fh->dev;
 	int err;
 
-	switch (fh->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		if (mutex_lock_interruptible(&dev->lock))
-			return -ERESTARTSYS;
-		if (cx25821_res_locked(fh, RESOURCE_VIDEO0))
-			err = -EBUSY;
-		else
-			err = videobuf_read_one(&fh->vidq, data, count, ppos,
-					file->f_flags & O_NONBLOCK);
-		mutex_unlock(&dev->lock);
-		return err;
-
-	default:
-		return -ENODEV;
-	}
-
+	if (mutex_lock_interruptible(&dev->lock))
+		return -ERESTARTSYS;
+	if (cx25821_res_locked(fh, RESOURCE_VIDEO0))
+		err = -EBUSY;
+	else
+		err = videobuf_read_one(&fh->vidq, data, count, ppos,
+				file->f_flags & O_NONBLOCK);
+	mutex_unlock(&dev->lock);
+	return err;
 }
 
 static unsigned int video_poll(struct file *file,
@@ -818,14 +797,11 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	struct cx25821_fh *fh = priv;
 	struct cx25821_dev *dev = fh->dev;
 
-	if (unlikely(fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE))
+	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	if (unlikely(i != fh->type))
-		return -EINVAL;
-
-	if (unlikely(!cx25821_res_get(dev, fh, cx25821_get_resource(fh,
-						RESOURCE_VIDEO0))))
+	if (!cx25821_res_get(dev, fh,
+			cx25821_get_resource(fh, RESOURCE_VIDEO0)))
 		return -EBUSY;
 
 	return videobuf_streamon(get_queue(fh));
@@ -837,9 +813,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	struct cx25821_dev *dev = fh->dev;
 	int err, res;
 
-	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-	if (i != fh->type)
+	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
 	res = cx25821_get_resource(fh, RESOURCE_VIDEO0);
