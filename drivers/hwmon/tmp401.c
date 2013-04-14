@@ -351,6 +351,8 @@ static ssize_t store_temp_crit_hyst(struct device *dev, struct device_attribute
 static ssize_t reset_temp_history(struct device *dev,
 	struct device_attribute	*devattr, const char *buf, size_t count)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+	struct tmp401_data *data = i2c_get_clientdata(client);
 	long val;
 
 	if (kstrtol(buf, 10, &val))
@@ -362,8 +364,10 @@ static ssize_t reset_temp_history(struct device *dev,
 			val);
 		return -EINVAL;
 	}
-	i2c_smbus_write_byte_data(to_i2c_client(dev),
-				  TMP401_TEMP_MSB_WRITE[5][0], val);
+	mutex_lock(&data->update_lock);
+	i2c_smbus_write_byte_data(client, TMP401_TEMP_MSB_WRITE[5][0], val);
+	data->valid = 0;
+	mutex_unlock(&data->update_lock);
 
 	return count;
 }
