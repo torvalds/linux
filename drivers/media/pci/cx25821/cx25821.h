@@ -52,8 +52,6 @@
 
 #define CX25821_MAXBOARDS 2
 
-#define TRUE    1
-#define FALSE   0
 #define LINE_SIZE_D1    1440
 
 /* Number of decoders and encoders */
@@ -455,9 +453,6 @@ struct sram_channel {
 };
 
 extern const struct sram_channel cx25821_sram_channels[];
-
-#define STATUS_SUCCESS         0
-#define STATUS_UNSUCCESSFUL    -1
 
 #define cx_read(reg)             readl(dev->lmmio + ((reg)>>2))
 #define cx_write(reg, value)     writel((value), dev->lmmio + ((reg)>>2))

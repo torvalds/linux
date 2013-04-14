@@ -404,7 +404,7 @@ static int medusa_initialize_pal(struct cx25821_dev *dev)
 
 int medusa_set_videostandard(struct cx25821_dev *dev)
 {
-	int status = STATUS_SUCCESS;
+	int status = 0;
 	u32 value = 0, tmp = 0;
 
 	if (dev->tvnorm & V4L2_STD_PAL_BG || dev->tvnorm & V4L2_STD_PAL_DK)

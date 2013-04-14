@@ -814,7 +814,7 @@ static void cx25821_initialize(struct cx25821_dev *dev)
 		cx25821_sram_channel_setup(dev, dev->channels[i].sram_channels,
 						1440, 0);
 		dev->channels[i].pixel_formats = PIXEL_FRMT_422;
-		dev->channels[i].use_cif_resolution = FALSE;
+		dev->channels[i].use_cif_resolution = 0;
 	}
 
 	/* Probably only affect Downstream */
