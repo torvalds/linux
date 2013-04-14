@@ -3605,7 +3605,7 @@ static bool guest_state_valid(struct kvm_vcpu *vcpu)
 		return true;
 
 	/* real mode guest state checks */
-	if (!is_protmode(vcpu)) {
+	if (!is_protmode(vcpu) || (vmx_get_rflags(vcpu) & X86_EFLAGS_VM)) {
 		if (!rmode_segment_valid(vcpu, VCPU_SREG_CS))
 			return false;
 		if (!rmode_segment_valid(vcpu, VCPU_SREG_SS))
