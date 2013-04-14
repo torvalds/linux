@@ -222,7 +222,6 @@ struct cx25821_channel {
 
 	const struct sram_channel *sram_channels;
 
-	struct mutex lock;
 	int resources;
 
 	int pixel_formats;

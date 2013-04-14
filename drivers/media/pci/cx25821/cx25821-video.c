@@ -144,27 +144,8 @@ static int cx25821_set_tvnorm(struct cx25821_dev *dev, v4l2_std_id norm)
 	return 0;
 }
 
-/*
-static int cx25821_ctrl_query(struct v4l2_queryctrl *qctrl)
-{
-	int i;
-
-	if (qctrl->id < V4L2_CID_BASE || qctrl->id >= V4L2_CID_LASTP1)
-		return -EINVAL;
-	for (i = 0; i < CX25821_CTLS; i++)
-		if (cx25821_ctls[i].v.id == qctrl->id)
-			break;
-	if (i == CX25821_CTLS) {
-		*qctrl = no_ctl;
-		return 0;
-	}
-	*qctrl = cx25821_ctls[i].v;
-	return 0;
-}
-*/
-
 /* resource management */
-int cx25821_res_get(struct cx25821_dev *dev, struct cx25821_fh *fh,
+static int cx25821_res_get(struct cx25821_dev *dev, struct cx25821_fh *fh,
 		    unsigned int bit)
 {
 	dprintk(1, "%s()\n", __func__);
@@ -173,41 +154,36 @@ int cx25821_res_get(struct cx25821_dev *dev, struct cx25821_fh *fh,
 		return 1;
 
 	/* is it free? */
-	mutex_lock(&dev->lock);
 	if (dev->channels[fh->channel_id].resources & bit) {
 		/* no, someone else uses it */
-		mutex_unlock(&dev->lock);
 		return 0;
 	}
 	/* it's free, grab it */
 	fh->resources |= bit;
 	dev->channels[fh->channel_id].resources |= bit;
 	dprintk(1, "res: get %d\n", bit);
-	mutex_unlock(&dev->lock);
 	return 1;
 }
 
-int cx25821_res_check(struct cx25821_fh *fh, unsigned int bit)
+static int cx25821_res_check(struct cx25821_fh *fh, unsigned int bit)
 {
 	return fh->resources & bit;
 }
 
-int cx25821_res_locked(struct cx25821_fh *fh, unsigned int bit)
+static int cx25821_res_locked(struct cx25821_fh *fh, unsigned int bit)
 {
 	return fh->dev->channels[fh->channel_id].resources & bit;
 }
 
-void cx25821_res_free(struct cx25821_dev *dev, struct cx25821_fh *fh,
+static void cx25821_res_free(struct cx25821_dev *dev, struct cx25821_fh *fh,
 		      unsigned int bits)
 {
 	BUG_ON((fh->resources & bits) != bits);
 	dprintk(1, "%s()\n", __func__);
 
-	mutex_lock(&dev->lock);
 	fh->resources &= ~bits;
 	dev->channels[fh->channel_id].resources &= ~bits;
 	dprintk(1, "res: put %d\n", bits);
-	mutex_unlock(&dev->lock);
 }
 
 static int cx25821_video_mux(struct cx25821_dev *dev, unsigned int input)
@@ -669,7 +645,7 @@ static int video_open(struct file *file)
 	videobuf_queue_sg_init(&fh->vidq, &cx25821_video_qops, &dev->pci->dev,
 			&dev->slock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			V4L2_FIELD_INTERLACED, sizeof(struct cx25821_buffer),
-			fh, NULL);
+			fh, &dev->lock);
 
 	dprintk(1, "post videobuf_queue_init()\n");
 
@@ -680,19 +656,25 @@ static ssize_t video_read(struct file *file, char __user * data, size_t count,
 			 loff_t *ppos)
 {
 	struct cx25821_fh *fh = file->private_data;
+	struct cx25821_dev *dev = fh->dev;
+	int err;
 
 	switch (fh->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+		if (mutex_lock_interruptible(&dev->lock))
+			return -ERESTARTSYS;
 		if (cx25821_res_locked(fh, RESOURCE_VIDEO0))
-			return -EBUSY;
-
-		return videobuf_read_one(&fh->vidq, data, count, ppos,
+			err = -EBUSY;
+		else
+			err = videobuf_read_one(&fh->vidq, data, count, ppos,
 					file->f_flags & O_NONBLOCK);
+		mutex_unlock(&dev->lock);
+		return err;
 
 	default:
-		BUG();
-		return 0;
+		return -ENODEV;
 	}
+
 }
 
 static unsigned int video_poll(struct file *file,
@@ -742,6 +724,7 @@ static int video_release(struct file *file)
 	const struct sram_channel *sram_ch =
 		dev->channels[0].sram_channels;
 
+	mutex_lock(&dev->lock);
 	/* stop the risc engine and fifo */
 	cx_write(sram_ch->dma_ctl, 0); /* FIFO and RISC disable */
 
@@ -750,6 +733,7 @@ static int video_release(struct file *file)
 		videobuf_queue_cancel(&fh->vidq);
 		cx25821_res_free(dev, fh, RESOURCE_VIDEO0);
 	}
+	mutex_unlock(&dev->lock);
 
 	if (fh->vidq.read_buf) {
 		cx25821_buffer_release(&fh->vidq, fh->vidq.read_buf);
@@ -1083,9 +1067,7 @@ int cx25821_vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
 	if (dev->tvnorm == tvnorms)
 		return 0;
 
-	mutex_lock(&dev->lock);
 	cx25821_set_tvnorm(dev, tvnorms);
-	mutex_unlock(&dev->lock);
 
 	medusa_set_videostandard(dev);
 
@@ -1141,9 +1123,7 @@ static int cx25821_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	if (i >= CX25821_NR_INPUT || INPUT(i)->type == 0)
 		return -EINVAL;
 
-	mutex_lock(&dev->lock);
 	cx25821_video_mux(dev, i);
-	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -1465,7 +1445,7 @@ static const struct v4l2_file_operations video_fops = {
 	.read = video_read,
 	.poll = video_poll,
 	.mmap = cx25821_video_mmap,
-	.ioctl = cx25821_video_ioctl,
+	.unlocked_ioctl = cx25821_video_ioctl,
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {
@@ -1521,6 +1501,10 @@ int cx25821_video_register(struct cx25821_dev *dev)
 	int err;
 	int i;
 
+	/* initial device configuration */
+	dev->tvnorm = V4L2_STD_NTSC_M,
+	cx25821_set_tvnorm(dev, dev->tvnorm);
+
 	spin_lock_init(&dev->slock);
 
 	for (i = 0; i < VID_CHANNEL_NUM; ++i) {
@@ -1543,6 +1527,9 @@ int cx25821_video_register(struct cx25821_dev *dev)
 			err = hdl->error;
 			goto fail_unreg;
 		}
+		err = v4l2_ctrl_handler_setup(hdl);
+		if (err)
+			goto fail_unreg;
 
 		cx25821_risc_stopper(dev->pci, &dev->channels[i].vidq.stopper,
 			dev->channels[i].sram_channels->dma_ctl, 0x11, 0);
@@ -1567,6 +1554,7 @@ int cx25821_video_register(struct cx25821_dev *dev)
 		*vdev = cx25821_video_device;
 		vdev->v4l2_dev = &dev->v4l2_dev;
 		vdev->ctrl_handler = hdl;
+		vdev->lock = &dev->lock;
 		snprintf(vdev->name, sizeof(vdev->name), "%s #%d", dev->name, i);
 		video_set_drvdata(vdev, dev);
 
@@ -1579,12 +1567,6 @@ int cx25821_video_register(struct cx25821_dev *dev)
 
 	/* set PCI interrupt */
 	cx_set(PCI_INT_MSK, 0xff);
-
-	/* initial device configuration */
-	mutex_lock(&dev->lock);
-	dev->tvnorm = V4L2_STD_NTSC_M,
-	cx25821_set_tvnorm(dev, dev->tvnorm);
-	mutex_unlock(&dev->lock);
 
 	return 0;
 
