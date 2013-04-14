@@ -551,6 +551,19 @@ static int video_release(struct file *file)
 }
 
 /* VIDEO IOCTLS */
+
+static int cx25821_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
+			    struct v4l2_fmtdesc *f)
+{
+	if (unlikely(f->index >= ARRAY_SIZE(formats)))
+		return -EINVAL;
+
+	strlcpy(f->description, formats[f->index].name, sizeof(f->description));
+	f->pixelformat = formats[f->index].fourcc;
+
+	return 0;
+}
+
 static int cx25821_vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 				 struct v4l2_format *f)
 {
@@ -607,35 +620,6 @@ static int cx25821_vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 
 	return 0;
 }
-static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
-{
-	struct cx25821_channel *chan = video_drvdata(file);
-
-	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	if (chan->streaming_fh && chan->streaming_fh != priv)
-		return -EBUSY;
-	chan->streaming_fh = priv;
-
-	return videobuf_streamon(&chan->vidq);
-}
-
-static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
-{
-	struct cx25821_channel *chan = video_drvdata(file);
-
-	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	if (chan->streaming_fh && chan->streaming_fh != priv)
-		return -EBUSY;
-	if (chan->streaming_fh == NULL)
-		return 0;
-
-	chan->streaming_fh = NULL;
-	return videobuf_streamoff(&chan->vidq);
-}
 
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
@@ -671,6 +655,36 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	chan->cif_width = chan->width;
 	medusa_set_resolution(dev, chan->width, SRAM_CH00);
 	return 0;
+}
+
+static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
+{
+	struct cx25821_channel *chan = video_drvdata(file);
+
+	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	if (chan->streaming_fh && chan->streaming_fh != priv)
+		return -EBUSY;
+	chan->streaming_fh = priv;
+
+	return videobuf_streamon(&chan->vidq);
+}
+
+static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
+{
+	struct cx25821_channel *chan = video_drvdata(file);
+
+	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	if (chan->streaming_fh && chan->streaming_fh != priv)
+		return -EBUSY;
+	if (chan->streaming_fh == NULL)
+		return 0;
+
+	chan->streaming_fh = NULL;
+	return videobuf_streamoff(&chan->vidq);
 }
 
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
@@ -715,18 +729,6 @@ static int cx25821_vidioc_querycap(struct file *file, void *priv,
 	else
 		cap->device_caps = cap_input;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-	return 0;
-}
-
-static int cx25821_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
-			    struct v4l2_fmtdesc *f)
-{
-	if (unlikely(f->index >= ARRAY_SIZE(formats)))
-		return -EINVAL;
-
-	strlcpy(f->description, formats[f->index].name, sizeof(f->description));
-	f->pixelformat = formats[f->index].fourcc;
-
 	return 0;
 }
 
