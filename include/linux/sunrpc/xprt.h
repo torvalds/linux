@@ -255,6 +255,8 @@ static inline int bc_prealloc(struct rpc_rqst *req)
 }
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
+#define XPRT_CREATE_INFINITE_SLOTS	(1U)
+
 struct xprt_create {
 	int			ident;		/* XPRT_TRANSPORT identifier */
 	struct net *		net;
@@ -263,6 +265,7 @@ struct xprt_create {
 	size_t			addrlen;
 	const char		*servername;
 	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
+	unsigned int		flags;
 };
 
 struct xprt_class {
