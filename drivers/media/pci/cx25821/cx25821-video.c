@@ -893,15 +893,47 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 	return 0;
 }
 
+static ssize_t video_write(struct file *file, const char __user *data, size_t count,
+			 loff_t *ppos)
+{
+	struct cx25821_channel *chan = video_drvdata(file);
+	struct cx25821_dev *dev = chan->dev;
+	struct v4l2_fh *fh = file->private_data;
+	int err = 0;
+
+	if (mutex_lock_interruptible(&dev->lock))
+		return -ERESTARTSYS;
+	if (chan->streaming_fh && chan->streaming_fh != fh) {
+		err = -EBUSY;
+		goto unlock;
+	}
+	if (!chan->streaming_fh) {
+		err = cx25821_vidupstream_init(chan, chan->pixel_formats);
+		if (err)
+			goto unlock;
+		chan->streaming_fh = fh;
+	}
+
+	err = cx25821_write_frame(chan, data, count);
+	count -= err;
+	*ppos += err;
+
+unlock:
+	mutex_unlock(&dev->lock);
+	return err;
+}
+
 static int video_out_release(struct file *file)
 {
 	struct cx25821_channel *chan = video_drvdata(file);
-	struct cx25821_video_out_data *out = chan->out;
 	struct cx25821_dev *dev = chan->dev;
+	struct v4l2_fh *fh = file->private_data;
 
 	mutex_lock(&dev->lock);
-	if ((chan->id == SRAM_CH09 || chan->id == SRAM_CH10) && out->_is_running)
+	if (chan->streaming_fh == fh) {
 		cx25821_stop_upstream_video(chan);
+		chan->streaming_fh = NULL;
+	}
 	mutex_unlock(&dev->lock);
 
 	return v4l2_fh_release(file);
@@ -955,6 +987,7 @@ static const struct video_device cx25821_video_device = {
 static const struct v4l2_file_operations video_out_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l2_fh_open,
+	.write = video_write,
 	.release = video_out_release,
 	.unlocked_ioctl = video_ioctl2,
 };

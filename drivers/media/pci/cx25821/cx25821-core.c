@@ -775,8 +775,8 @@ void cx25821_set_pixel_format(struct cx25821_dev *dev, int channel_select,
 	if (channel_select <= 7 && channel_select >= 0) {
 		cx_write(dev->channels[channel_select].sram_channels->pix_frmt,
 				format);
-		dev->channels[channel_select].pixel_formats = format;
 	}
+	dev->channels[channel_select].pixel_formats = format;
 }
 
 static void cx25821_set_vip_mode(struct cx25821_dev *dev,
@@ -820,6 +820,7 @@ static void cx25821_initialize(struct cx25821_dev *dev)
 	/* Probably only affect Downstream */
 	for (i = VID_UPSTREAM_SRAM_CHANNEL_I;
 		i <= VID_UPSTREAM_SRAM_CHANNEL_J; i++) {
+		dev->channels[i].pixel_formats = PIXEL_FRMT_422;
 		cx25821_set_vip_mode(dev, dev->channels[i].sram_channels);
 	}
 

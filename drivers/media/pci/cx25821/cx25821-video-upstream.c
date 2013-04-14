@@ -25,16 +25,11 @@
 #include "cx25821-video.h"
 #include "cx25821-video-upstream.h"
 
-#include <linux/fs.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/syscalls.h>
-#include <linux/file.h>
-#include <linux/fcntl.h>
 #include <linux/slab.h>
-#include <linux/uaccess.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx25821 based TV cards");
 MODULE_AUTHOR("Hiep Huynh <hiep.huynh@conexant.com>");
@@ -258,6 +253,10 @@ void cx25821_stop_upstream_video(struct cx25821_channel *chan)
 		pr_info("No video file is currently running so return!\n");
 		return;
 	}
+
+	/* Set the interrupt mask register, disable irq. */
+	cx_set(PCI_INT_MSK, cx_read(PCI_INT_MSK) & ~(1 << sram_ch->irq_bit));
+
 	/* Disable RISC interrupts */
 	tmp = cx_read(sram_ch->int_msk);
 	cx_write(sram_ch->int_msk, tmp & ~_intr_msk);
@@ -265,6 +264,8 @@ void cx25821_stop_upstream_video(struct cx25821_channel *chan)
 	/* Turn OFF risc and fifo enable */
 	tmp = cx_read(sram_ch->dma_ctl);
 	cx_write(sram_ch->dma_ctl, tmp & ~(FLD_VID_FIFO_EN | FLD_VID_RISC_EN));
+
+	free_irq(dev->pci->irq, chan);
 
 	/* Clear data buffer memory */
 	if (out->_data_buf_virt_addr)
@@ -274,11 +275,6 @@ void cx25821_stop_upstream_video(struct cx25821_channel *chan)
 	out->_is_first_frame = 0;
 	out->_frame_count = 0;
 	out->_file_status = END_OF_FILE;
-
-	destroy_workqueue(out->_irq_queues);
-	out->_irq_queues = NULL;
-
-	kfree(out->_filename);
 
 	tmp = cx_read(VID_CH_MODE_SEL);
 	cx_write(VID_CH_MODE_SEL, tmp & 0xFFFFFE00);
@@ -306,25 +302,15 @@ void cx25821_free_mem_upstream(struct cx25821_channel *chan)
 	}
 }
 
-static int cx25821_get_frame(struct cx25821_channel *chan,
-			     const struct sram_channel *sram_ch)
+int cx25821_write_frame(struct cx25821_channel *chan,
+		const char __user *data, size_t count)
 {
 	struct cx25821_video_out_data *out = chan->out;
-	struct file *myfile;
-	int frame_index_temp = out->_frame_index;
-	int i = 0;
 	int line_size = (out->_pixel_format == PIXEL_FRMT_411) ?
 		Y411_LINE_SZ : Y422_LINE_SZ;
 	int frame_size = 0;
 	int frame_offset = 0;
-	ssize_t vfs_read_retval = 0;
-	char mybuf[line_size];
-	loff_t file_offset;
-	loff_t pos;
-	mm_segment_t old_fs;
-
-	if (out->_file_status == END_OF_FILE)
-		return 0;
+	int curpos = out->curpos;
 
 	if (out->is_60hz)
 		frame_size = (line_size == Y411_LINE_SZ) ?
@@ -333,160 +319,27 @@ static int cx25821_get_frame(struct cx25821_channel *chan,
 		frame_size = (line_size == Y411_LINE_SZ) ?
 			FRAME_SIZE_PAL_Y411 : FRAME_SIZE_PAL_Y422;
 
-	frame_offset = (frame_index_temp > 0) ? frame_size : 0;
-	file_offset = out->_frame_count * frame_size;
-
-	myfile = filp_open(out->_filename, O_RDONLY | O_LARGEFILE, 0);
-
-	if (IS_ERR(myfile)) {
-		const int open_errno = -PTR_ERR(myfile);
-		pr_err("%s(): ERROR opening file(%s) with errno = %d!\n",
-		       __func__, out->_filename, open_errno);
-		return PTR_ERR(myfile);
-	} else {
-		if (!(myfile->f_op)) {
-			pr_err("%s(): File has no file operations registered!\n",
-			       __func__);
-			filp_close(myfile, NULL);
-			return -EIO;
-		}
-
-		if (!myfile->f_op->read) {
-			pr_err("%s(): File has no READ operations registered!\n",
-			       __func__);
-			filp_close(myfile, NULL);
-			return -EIO;
-		}
-
-		pos = myfile->f_pos;
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-
-		for (i = 0; i < out->_lines_count; i++) {
-			pos = file_offset;
-
-			vfs_read_retval = vfs_read(myfile, mybuf, line_size,
-					&pos);
-
-			if (vfs_read_retval > 0 && vfs_read_retval == line_size
-			    && out->_data_buf_virt_addr != NULL) {
-				memcpy((void *)(out->_data_buf_virt_addr +
-						frame_offset / 4), mybuf,
-				       vfs_read_retval);
-			}
-
-			file_offset += vfs_read_retval;
-			frame_offset += vfs_read_retval;
-
-			if (vfs_read_retval < line_size) {
-				pr_info("Done: exit %s() since no more bytes to read from Video file\n",
-					__func__);
-				break;
-			}
-		}
-
-		if (i > 0)
-			out->_frame_count++;
-
-		out->_file_status = (vfs_read_retval == line_size) ?
-			IN_PROGRESS : END_OF_FILE;
-
-		set_fs(old_fs);
-		filp_close(myfile, NULL);
+	if (curpos == 0) {
+		out->cur_frame_index = out->_frame_index;
+		if (wait_event_interruptible(out->waitq, out->cur_frame_index != out->_frame_index))
+			return -EINTR;
+		out->cur_frame_index = out->_frame_index;
 	}
 
-	return 0;
-}
+	frame_offset = out->cur_frame_index ? frame_size : 0;
 
-static void cx25821_vidups_handler(struct work_struct *work)
-{
-	struct cx25821_video_out_data *out =
-		container_of(work, struct cx25821_video_out_data, _irq_work_entry);
-
-	cx25821_get_frame(out->chan, out->chan->sram_channels);
-}
-
-static int cx25821_openfile(struct cx25821_channel *chan,
-			    const struct sram_channel *sram_ch)
-{
-	struct cx25821_video_out_data *out = chan->out;
-	struct file *myfile;
-	int i = 0, j = 0;
-	int line_size = (out->_pixel_format == PIXEL_FRMT_411) ?
-		Y411_LINE_SZ : Y422_LINE_SZ;
-	ssize_t vfs_read_retval = 0;
-	char mybuf[line_size];
-	loff_t pos;
-	loff_t offset = (unsigned long)0;
-	mm_segment_t old_fs;
-
-	myfile = filp_open(out->_filename, O_RDONLY | O_LARGEFILE, 0);
-
-	if (IS_ERR(myfile)) {
-		const int open_errno = -PTR_ERR(myfile);
-		pr_err("%s(): ERROR opening file(%s) with errno = %d!\n",
-		       __func__, out->_filename, open_errno);
-		return PTR_ERR(myfile);
-	} else {
-		if (!(myfile->f_op)) {
-			pr_err("%s(): File has no file operations registered!\n",
-			       __func__);
-			filp_close(myfile, NULL);
-			return -EIO;
-		}
-
-		if (!myfile->f_op->read) {
-			pr_err("%s(): File has no READ operations registered!  Returning\n",
-			       __func__);
-			filp_close(myfile, NULL);
-			return -EIO;
-		}
-
-		pos = myfile->f_pos;
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-
-		for (j = 0; j < NUM_FRAMES; j++) {
-			for (i = 0; i < out->_lines_count; i++) {
-				pos = offset;
-
-				vfs_read_retval = vfs_read(myfile, mybuf,
-						line_size, &pos);
-
-				if (vfs_read_retval > 0
-				    && vfs_read_retval == line_size
-				    && out->_data_buf_virt_addr != NULL) {
-					memcpy((void *)(out->
-							_data_buf_virt_addr +
-							offset / 4), mybuf,
-					       vfs_read_retval);
-				}
-
-				offset += vfs_read_retval;
-
-				if (vfs_read_retval < line_size) {
-					pr_info("Done: exit %s() since no more bytes to read from Video file\n",
-						__func__);
-					break;
-				}
-			}
-
-			if (i > 0)
-				out->_frame_count++;
-
-			if (vfs_read_retval < line_size)
-				break;
-		}
-
-		out->_file_status = (vfs_read_retval == line_size) ?
-			IN_PROGRESS : END_OF_FILE;
-
-		set_fs(old_fs);
-		myfile->f_pos = 0;
-		filp_close(myfile, NULL);
+	if (frame_size - curpos < count)
+		count = frame_size - curpos;
+	memcpy((char *)out->_data_buf_virt_addr + frame_offset + curpos,
+			data, count);
+	curpos += count;
+	if (curpos == frame_size) {
+		out->_frame_count++;
+		curpos = 0;
 	}
+	out->curpos = curpos;
 
-	return 0;
+	return count;
 }
 
 static int cx25821_upstream_buffer_prepare(struct cx25821_channel *chan,
@@ -536,10 +389,6 @@ static int cx25821_upstream_buffer_prepare(struct cx25821_channel *chan,
 	/* Clear memory at address */
 	memset(out->_data_buf_virt_addr, 0, out->_data_buf_size);
 
-	ret = cx25821_openfile(chan, sram_ch);
-	if (ret < 0)
-		return ret;
-
 	/* Create RISC programs */
 	ret = cx25821_risc_buffer_upstream(chan, dev->pci, 0, bpl,
 			out->_lines_count);
@@ -576,11 +425,11 @@ static int cx25821_video_upstream_irq(struct cx25821_channel *chan, u32 status)
 		cx_write(channel->int_msk, int_msk_tmp & ~_intr_msk);
 		cx_write(channel->int_stat, _intr_msk);
 
+		wake_up(&out->waitq);
+
 		spin_lock(&dev->slock);
 
 		out->_frame_index = prog_cnt;
-
-		queue_work(out->_irq_queues, &out->_irq_work_entry);
 
 		if (out->_is_first_frame) {
 			out->_is_first_frame = 0;
@@ -762,7 +611,6 @@ int cx25821_vidupstream_init(struct cx25821_channel *chan,
 	int err = 0;
 	int data_frame_size = 0;
 	int risc_buffer_size = 0;
-	int str_length = 0;
 
 	if (out->_is_running) {
 		pr_info("Video Channel is still running so return!\n");
@@ -771,13 +619,8 @@ int cx25821_vidupstream_init(struct cx25821_channel *chan,
 
 	sram_ch = chan->sram_channels;
 
-	INIT_WORK(&out->_irq_work_entry, cx25821_vidups_handler);
-	out->_irq_queues = create_singlethread_workqueue("cx25821_workqueue");
+	out->is_60hz = dev->tvnorm & V4L2_STD_525_60;
 
-	if (!out->_irq_queues) {
-		pr_err("create_singlethread_workqueue() for Video FAILED!\n");
-		return -ENOMEM;
-	}
 	/* 656/VIP SRC Upstream Channel I & J and 7 - Host Bus Interface for
 	 * channel A-C
 	 */
@@ -795,39 +638,6 @@ int cx25821_vidupstream_init(struct cx25821_channel *chan,
 	risc_buffer_size = out->is_60hz ?
 		NTSC_RISC_BUF_SIZE : PAL_RISC_BUF_SIZE;
 
-	if (out->input_filename) {
-		str_length = strlen(out->input_filename);
-		out->_filename = kmemdup(out->input_filename, str_length + 1,
-					 GFP_KERNEL);
-
-		if (!out->_filename) {
-			err = -ENOENT;
-			goto error;
-		}
-	} else {
-		str_length = strlen(out->_defaultname);
-		out->_filename = kmemdup(out->_defaultname, str_length + 1,
-					 GFP_KERNEL);
-
-		if (!out->_filename) {
-			err = -ENOENT;
-			goto error;
-		}
-	}
-
-	/* Default if filename is empty string */
-	if (strcmp(out->_filename, "") == 0) {
-		if (out->is_60hz) {
-			out->_filename =
-				(out->_pixel_format == PIXEL_FRMT_411) ?
-				"/root/vid411.yuv" : "/root/vidtest.yuv";
-		} else {
-			out->_filename =
-				(out->_pixel_format == PIXEL_FRMT_411) ?
-				"/root/pal411.yuv" : "/root/pal422.yuv";
-		}
-	}
-
 	out->_is_running = 0;
 	out->_frame_count = 0;
 	out->_file_status = RESET_STATUS;
@@ -835,6 +645,8 @@ int cx25821_vidupstream_init(struct cx25821_channel *chan,
 	out->_pixel_format = pixel_format;
 	out->_line_size = (out->_pixel_format == PIXEL_FRMT_422) ?
 		(WIDTH_D1 * 2) : (WIDTH_D1 * 3) / 2;
+	out->curpos = 0;
+	init_waitqueue_head(&out->waitq);
 
 	err = cx25821_sram_channel_setup_upstream(dev, sram_ch,
 			out->_line_size, 0);
