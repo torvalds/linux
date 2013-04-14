@@ -1426,13 +1426,13 @@ static void init_cgroup_root(struct cgroupfs_root *root)
 	list_add_tail(&cgrp->allcg_node, &root->allcg_list);
 }
 
-static bool init_root_id(struct cgroupfs_root *root)
+static int cgroup_init_root_id(struct cgroupfs_root *root)
 {
-	int ret = 0;
+	int ret;
 
 	do {
 		if (!ida_pre_get(&hierarchy_ida, GFP_KERNEL))
-			return false;
+			return -ENOMEM;
 		spin_lock(&hierarchy_id_lock);
 		/* Try to allocate the next unused ID */
 		ret = ida_get_new_above(&hierarchy_ida, next_hierarchy_id,
@@ -1448,7 +1448,18 @@ static bool init_root_id(struct cgroupfs_root *root)
 		}
 		spin_unlock(&hierarchy_id_lock);
 	} while (ret);
-	return true;
+	return 0;
+}
+
+static void cgroup_exit_root_id(struct cgroupfs_root *root)
+{
+	if (root->hierarchy_id) {
+		spin_lock(&hierarchy_id_lock);
+		ida_remove(&hierarchy_ida, root->hierarchy_id);
+		spin_unlock(&hierarchy_id_lock);
+
+		root->hierarchy_id = 0;
+	}
 }
 
 static int cgroup_test_super(struct super_block *sb, void *data)
@@ -1482,10 +1493,6 @@ static struct cgroupfs_root *cgroup_root_from_opts(struct cgroup_sb_opts *opts)
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 
-	if (!init_root_id(root)) {
-		kfree(root);
-		return ERR_PTR(-ENOMEM);
-	}
 	init_cgroup_root(root);
 
 	root->subsys_mask = opts->subsys_mask;
@@ -1500,17 +1507,15 @@ static struct cgroupfs_root *cgroup_root_from_opts(struct cgroup_sb_opts *opts)
 	return root;
 }
 
-static void cgroup_drop_root(struct cgroupfs_root *root)
+static void cgroup_free_root(struct cgroupfs_root *root)
 {
-	if (!root)
-		return;
+	if (root) {
+		/* hierarhcy ID shoulid already have been released */
+		WARN_ON_ONCE(root->hierarchy_id);
 
-	BUG_ON(!root->hierarchy_id);
-	spin_lock(&hierarchy_id_lock);
-	ida_remove(&hierarchy_ida, root->hierarchy_id);
-	spin_unlock(&hierarchy_id_lock);
-	ida_destroy(&root->cgroup_ida);
-	kfree(root);
+		ida_destroy(&root->cgroup_ida);
+		kfree(root);
+	}
 }
 
 static int cgroup_set_super(struct super_block *sb, void *data)
@@ -1597,7 +1602,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	sb = sget(fs_type, cgroup_test_super, cgroup_set_super, 0, &opts);
 	if (IS_ERR(sb)) {
 		ret = PTR_ERR(sb);
-		cgroup_drop_root(opts.new_root);
+		cgroup_free_root(opts.new_root);
 		goto drop_modules;
 	}
 
@@ -1638,6 +1643,10 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		 * have some link structures left over
 		 */
 		ret = allocate_cg_links(css_set_count, &tmp_cg_links);
+		if (ret)
+			goto unlock_drop;
+
+		ret = cgroup_init_root_id(root);
 		if (ret)
 			goto unlock_drop;
 
@@ -1684,7 +1693,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		 * We re-used an existing hierarchy - the new root (if
 		 * any) is not needed
 		 */
-		cgroup_drop_root(opts.new_root);
+		cgroup_free_root(opts.new_root);
 
 		if (((root->flags | opts.flags) & CGRP_ROOT_SANE_BEHAVIOR) &&
 		    root->flags != opts.flags) {
@@ -1702,6 +1711,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 	return dget(sb->s_root);
 
  unlock_drop:
+	cgroup_exit_root_id(root);
 	mutex_unlock(&cgroup_root_mutex);
 	mutex_unlock(&cgroup_mutex);
 	mutex_unlock(&inode->i_mutex);
@@ -1754,13 +1764,15 @@ static void cgroup_kill_sb(struct super_block *sb) {
 		root_count--;
 	}
 
+	cgroup_exit_root_id(root);
+
 	mutex_unlock(&cgroup_root_mutex);
 	mutex_unlock(&cgroup_mutex);
 
 	simple_xattrs_free(&cgrp->xattrs);
 
 	kill_litter_super(sb);
-	cgroup_drop_root(root);
+	cgroup_free_root(root);
 }
 
 static struct file_system_type cgroup_fs_type = {
@@ -4642,7 +4654,9 @@ int __init cgroup_init(void)
 	/* Add init_css_set to the hash table */
 	key = css_set_hash(init_css_set.subsys);
 	hash_add(css_set_table, &init_css_set.hlist, key);
-	BUG_ON(!init_root_id(&rootnode));
+
+	/* allocate id for the dummy hierarchy */
+	BUG_ON(cgroup_init_root_id(&rootnode));
 
 	cgroup_kobj = kobject_create_and_add("cgroup", fs_kobj);
 	if (!cgroup_kobj) {
