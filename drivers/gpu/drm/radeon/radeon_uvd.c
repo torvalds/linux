@@ -415,22 +415,24 @@ static int radeon_uvd_cs_reloc(struct radeon_cs_parser *p,
 		return -EINVAL;
 	}
 
-	if (cmd == 0) {
-		if (end & 0xFFFFFFFFF0000000) {
-			DRM_ERROR("msg buffer %LX-%LX out of 256MB segment!\n",
-				  start, end);
-			return -EINVAL;
-		}
-
-		r = radeon_uvd_cs_msg(p, reloc->robj, offset, buf_sizes);
-		if (r)
-			return r;
-	}
-
-	if ((start & 0xFFFFFFFFF0000000) != (end & 0xFFFFFFFFF0000000)) {
+	if ((start >> 28) != (end >> 28)) {
 		DRM_ERROR("reloc %LX-%LX crossing 256MB boundary!\n",
 			  start, end);
 		return -EINVAL;
+	}
+
+	/* TODO: is this still necessary on NI+ ? */
+	if ((cmd == 0 || cmd == 0x3) &&
+	    (start >> 28) != (p->rdev->uvd.gpu_addr >> 28)) {
+		DRM_ERROR("msg/fb buffer %LX-%LX out of 256MB segment!\n",
+			  start, end);
+		return -EINVAL;
+	}
+
+	if (cmd == 0) {
+		r = radeon_uvd_cs_msg(p, reloc->robj, offset, buf_sizes);
+		if (r)
+			return r;
 	}
 
 	return 0;
