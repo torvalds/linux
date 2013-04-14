@@ -89,6 +89,14 @@
 				clock-names = "ipg", "per";
 			};
 
+			pwm0: pwm@10006000 {
+				compatible = "fsl,imx27-pwm";
+				reg = <0x10006000 0x1000>;
+				interrupts = <23>;
+				clocks = <&clks 34>, <&clks 61>;
+				clock-names = "ipg", "per";
+			};
+
 			uart1: serial@1000a000 {
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1000a000 0x1000>;
