@@ -1602,9 +1602,9 @@ static int __init macb_probe(struct platform_device *pdev)
 		goto err_out_free_irq;
 	}
 
-	if (macb_mii_init(bp) != 0) {
+	err = macb_mii_init(bp);
+	if (err)
 		goto err_out_unregister_netdev;
-	}
 
 	platform_set_drvdata(pdev, dev);
 
