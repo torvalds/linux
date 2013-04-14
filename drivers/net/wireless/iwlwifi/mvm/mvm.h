@@ -181,6 +181,7 @@ enum iwl_dbgfs_pm_mask {
 	MVM_DEBUGFS_PM_LPRX_ENA = BIT(6),
 	MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD = BIT(7),
 	MVM_DEBUGFS_PM_SNOOZE_ENABLE = BIT(8),
+	MVM_DEBUGFS_PM_UAPSD_MISBEHAVING = BIT(9),
 };
 
 struct iwl_dbgfs_pm {
@@ -193,6 +194,7 @@ struct iwl_dbgfs_pm {
 	bool lprx_ena;
 	u32 lprx_rssi_threshold;
 	bool snooze_ena;
+	bool uapsd_misbehaving;
 	int mask;
 };
 
@@ -331,6 +333,9 @@ struct iwl_mvm_vif {
 #endif
 
 	enum ieee80211_smps_mode smps_requests[NUM_IWL_MVM_SMPS_REQ];
+
+	/* FW identified misbehaving AP */
+	u8 uapsd_misbehaving_bssid[ETH_ALEN];
 };
 
 static inline struct iwl_mvm_vif *
@@ -780,6 +785,11 @@ static inline int iwl_mvm_power_update_device_mode(struct iwl_mvm *mvm)
 		return mvm->pm_ops->power_update_device_mode(mvm);
 	return 0;
 }
+
+void iwl_mvm_power_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+int iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
+					     struct iwl_rx_cmd_buffer *rxb,
+					     struct iwl_device_cmd *cmd);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 static inline int iwl_mvm_power_dbgfs_read(struct iwl_mvm *mvm,

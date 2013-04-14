@@ -236,6 +236,8 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		   false),
 
 	RX_HANDLER(REPLY_ERROR, iwl_mvm_rx_fw_error, false),
+	RX_HANDLER(PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION,
+		   iwl_mvm_power_uapsd_misbehaving_ap_notif, false),
 };
 #undef RX_HANDLER
 #define CMD(x) [x] = #x
@@ -311,6 +313,7 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(REPLY_THERMAL_MNG_BACKOFF),
 	CMD(MAC_PM_POWER_TABLE),
 	CMD(BT_COEX_CI),
+	CMD(PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION),
 };
 #undef CMD
 

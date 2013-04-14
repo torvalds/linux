@@ -858,6 +858,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			}
 
 			iwl_mvm_sf_update(mvm, vif, false);
+			iwl_mvm_power_vif_assoc(mvm, vif);
 		} else if (mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
 			/*
 			 * If update fails - SF might be running in associated
