@@ -964,8 +964,6 @@ void cx25821_dev_unregister(struct cx25821_dev *dev)
 	if (!dev->base_io_addr)
 		return;
 
-	cx25821_free_mem_upstream_audio(dev);
-
 	release_mem_region(dev->base_io_addr, pci_resource_len(dev->pci, 0));
 
 	for (i = 0; i < MAX_VID_CHANNEL_NUM - 1; i++) {
