@@ -253,8 +253,9 @@ int iwl_mvm_rx_fw_error(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
 u8 first_antenna(u8 mask)
 {
 	BUILD_BUG_ON(ANT_A != BIT(0)); /* using ffs is wrong if not */
-	WARN_ON_ONCE(!mask); /* ffs will return 0 if mask is zeroed */
-	return (u8)(BIT(ffs(mask)));
+	if (WARN_ON_ONCE(!mask)) /* ffs will return 0 if mask is zeroed */
+		return BIT(0);
+	return BIT(ffs(mask) - 1);
 }
 
 /*
