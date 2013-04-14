@@ -613,10 +613,10 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 	if (map->nr_extents != 0)
 		goto out;
 
-	/* Require the appropriate privilege CAP_SETUID or CAP_SETGID
-	 * over the user namespace in order to set the id mapping.
+	/*
+	 * Adjusting namespace settings requires capabilities on the target.
 	 */
-	if (cap_valid(cap_setid) && !ns_capable(ns, cap_setid))
+	if (cap_valid(cap_setid) && !file_ns_capable(file, ns, CAP_SYS_ADMIN))
 		goto out;
 
 	/* Get a buffer */
