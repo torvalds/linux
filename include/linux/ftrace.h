@@ -396,7 +396,6 @@ ssize_t ftrace_filter_write(struct file *file, const char __user *ubuf,
 			    size_t cnt, loff_t *ppos);
 ssize_t ftrace_notrace_write(struct file *file, const char __user *ubuf,
 			     size_t cnt, loff_t *ppos);
-loff_t ftrace_regex_lseek(struct file *file, loff_t offset, int whence);
 int ftrace_regex_release(struct inode *inode, struct file *file);
 
 void __init
@@ -568,6 +567,8 @@ static inline loff_t ftrace_regex_lseek(struct file *file, loff_t offset, int wh
 static inline int
 ftrace_regex_release(struct inode *inode, struct file *file) { return -ENODEV; }
 #endif /* CONFIG_DYNAMIC_FTRACE */
+
+loff_t ftrace_filter_lseek(struct file *file, loff_t offset, int whence);
 
 /* totally disable ftrace - can not re-enable after this */
 void ftrace_kill(void);
