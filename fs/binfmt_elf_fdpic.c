@@ -926,7 +926,6 @@ static int elf_fdpic_map_file_constdisp_on_uclinux(
 	struct elf32_fdpic_loadseg *seg;
 	struct elf32_phdr *phdr;
 	unsigned long load_addr, base = ULONG_MAX, top = 0, maddr = 0, mflags;
-	loff_t fpos;
 	int loop, ret;
 
 	load_addr = params->load_addr;
@@ -964,14 +963,12 @@ static int elf_fdpic_map_file_constdisp_on_uclinux(
 		if (params->phdrs[loop].p_type != PT_LOAD)
 			continue;
 
-		fpos = phdr->p_offset;
-
 		seg->addr = maddr + (phdr->p_vaddr - base);
 		seg->p_vaddr = phdr->p_vaddr;
 		seg->p_memsz = phdr->p_memsz;
 
-		ret = file->f_op->read(file, (void *) seg->addr,
-				       phdr->p_filesz, &fpos);
+		ret = read_code(file, seg->addr, phdr->p_offset,
+				       phdr->p_filesz);
 		if (ret < 0)
 			return ret;
 
