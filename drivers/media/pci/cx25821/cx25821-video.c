@@ -719,7 +719,7 @@ static int cx25821_vidioc_querycap(struct file *file, void *priv,
 	struct cx25821_dev *dev = chan->dev;
 	const u32 cap_input = V4L2_CAP_VIDEO_CAPTURE |
 			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-	const u32 cap_output = V4L2_CAP_VIDEO_OUTPUT;
+	const u32 cap_output = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_READWRITE;
 
 	strcpy(cap->driver, "cx25821");
 	strlcpy(cap->card, cx25821_boards[dev->board].name, sizeof(cap->card));
@@ -728,7 +728,7 @@ static int cx25821_vidioc_querycap(struct file *file, void *priv,
 		cap->device_caps = cap_output;
 	else
 		cap->device_caps = cap_input;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
+	cap->capabilities = cap_input | cap_output | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
