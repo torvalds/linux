@@ -144,48 +144,6 @@ static int cx25821_set_tvnorm(struct cx25821_dev *dev, v4l2_std_id norm)
 	return 0;
 }
 
-/* resource management */
-static int cx25821_res_get(struct cx25821_dev *dev, struct cx25821_fh *fh,
-		    unsigned int bit)
-{
-	dprintk(1, "%s()\n", __func__);
-	if (fh->resources & bit)
-		/* have it already allocated */
-		return 1;
-
-	/* is it free? */
-	if (dev->channels[fh->channel_id].resources & bit) {
-		/* no, someone else uses it */
-		return 0;
-	}
-	/* it's free, grab it */
-	fh->resources |= bit;
-	dev->channels[fh->channel_id].resources |= bit;
-	dprintk(1, "res: get %d\n", bit);
-	return 1;
-}
-
-static int cx25821_res_check(struct cx25821_fh *fh, unsigned int bit)
-{
-	return fh->resources & bit;
-}
-
-static int cx25821_res_locked(struct cx25821_fh *fh, unsigned int bit)
-{
-	return fh->dev->channels[fh->channel_id].resources & bit;
-}
-
-static void cx25821_res_free(struct cx25821_dev *dev, struct cx25821_fh *fh,
-		      unsigned int bits)
-{
-	BUG_ON((fh->resources & bits) != bits);
-	dprintk(1, "%s()\n", __func__);
-
-	fh->resources &= ~bits;
-	dev->channels[fh->channel_id].resources &= ~bits;
-	dprintk(1, "res: put %d\n", bits);
-}
-
 static int cx25821_video_mux(struct cx25821_dev *dev, unsigned int input)
 {
 	struct v4l2_routing route;
@@ -503,11 +461,6 @@ static void cx25821_buffer_release(struct videobuf_queue *q,
 	cx25821_free_buffer(q, buf);
 }
 
-static int cx25821_get_resource(struct cx25821_fh *fh, int resource)
-{
-	return resource;
-}
-
 static int cx25821_video_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct cx25821_channel *chan = video_drvdata(file);
@@ -611,15 +564,19 @@ static ssize_t video_read(struct file *file, char __user * data, size_t count,
 	struct cx25821_fh *fh = file->private_data;
 	struct cx25821_channel *chan = video_drvdata(file);
 	struct cx25821_dev *dev = fh->dev;
-	int err;
+	int err = 0;
 
 	if (mutex_lock_interruptible(&dev->lock))
 		return -ERESTARTSYS;
-	if (cx25821_res_locked(fh, RESOURCE_VIDEO0))
+	if (chan->streaming_fh && chan->streaming_fh != fh) {
 		err = -EBUSY;
-	else
-		err = videobuf_read_one(&chan->vidq, data, count, ppos,
+		goto unlock;
+	}
+	chan->streaming_fh = fh;
+
+	err = videobuf_read_one(&chan->vidq, data, count, ppos,
 				file->f_flags & O_NONBLOCK);
+unlock:
 	mutex_unlock(&dev->lock);
 	return err;
 }
@@ -627,41 +584,25 @@ static ssize_t video_read(struct file *file, char __user * data, size_t count,
 static unsigned int video_poll(struct file *file,
 			      struct poll_table_struct *wait)
 {
-	struct cx25821_fh *fh = file->private_data;
 	struct cx25821_channel *chan = video_drvdata(file);
-	struct cx25821_buffer *buf;
 
-	if (cx25821_res_check(fh, RESOURCE_VIDEO0)) {
-		/* streaming capture */
-		if (list_empty(&chan->vidq.stream))
-			return POLLERR;
-		buf = list_entry(chan->vidq.stream.next,
-				struct cx25821_buffer, vb.stream);
-	} else {
-		/* read() capture */
-		buf = (struct cx25821_buffer *)chan->vidq.read_buf;
-		if (NULL == buf)
-			return POLLERR;
-	}
+	return videobuf_poll_stream(file, &chan->vidq, wait);
 
-	poll_wait(file, &buf->vb.done, wait);
-	if (buf->vb.state == VIDEOBUF_DONE || buf->vb.state == VIDEOBUF_ERROR) {
-		if (buf->vb.state == VIDEOBUF_DONE) {
-			struct cx25821_dev *dev = fh->dev;
+	/* This doesn't belong in poll(). This can be done
+	 * much better with vb2. We keep this code here as a
+	 * reminder.
+	if ((res & POLLIN) && buf->vb.state == VIDEOBUF_DONE) {
+		struct cx25821_dev *dev = chan->dev;
 
-			if (dev && chan->use_cif_resolution) {
-				u8 cam_id = *((char *)buf->vb.baddr + 3);
-				memcpy((char *)buf->vb.baddr,
-				      (char *)buf->vb.baddr + (chan->width * 2),
-				      (chan->width * 2));
-				*((char *)buf->vb.baddr + 3) = cam_id;
-			}
+		if (dev && chan->use_cif_resolution) {
+			u8 cam_id = *((char *)buf->vb.baddr + 3);
+			memcpy((char *)buf->vb.baddr,
+					(char *)buf->vb.baddr + (chan->width * 2),
+					(chan->width * 2));
+			*((char *)buf->vb.baddr + 3) = cam_id;
 		}
-
-		return POLLIN | POLLRDNORM;
 	}
-
-	return 0;
+	 */
 }
 
 static int video_release(struct file *file)
@@ -677,11 +618,10 @@ static int video_release(struct file *file)
 	cx_write(sram_ch->dma_ctl, 0); /* FIFO and RISC disable */
 
 	/* stop video capture */
-	if (cx25821_res_check(fh, RESOURCE_VIDEO0)) {
+	if (chan->streaming_fh == fh) {
 		videobuf_queue_cancel(&chan->vidq);
-		cx25821_res_free(dev, fh, RESOURCE_VIDEO0);
+		chan->streaming_fh = NULL;
 	}
-	mutex_unlock(&dev->lock);
 
 	if (chan->vidq.read_buf) {
 		cx25821_buffer_release(&chan->vidq, chan->vidq.read_buf);
@@ -689,6 +629,7 @@ static int video_release(struct file *file)
 	}
 
 	videobuf_mmap_free(&chan->vidq);
+	mutex_unlock(&dev->lock);
 
 	v4l2_prio_close(&chan->prio, fh->prio);
 	file->private_data = NULL;
@@ -765,14 +706,13 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct cx25821_channel *chan = video_drvdata(file);
 	struct cx25821_fh *fh = priv;
-	struct cx25821_dev *dev = fh->dev;
 
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	if (!cx25821_res_get(dev, fh,
-			cx25821_get_resource(fh, RESOURCE_VIDEO0)))
+	if (chan->streaming_fh && chan->streaming_fh != fh)
 		return -EBUSY;
+	chan->streaming_fh = fh;
 
 	return videobuf_streamon(&chan->vidq);
 }
@@ -781,18 +721,17 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct cx25821_channel *chan = video_drvdata(file);
 	struct cx25821_fh *fh = priv;
-	struct cx25821_dev *dev = fh->dev;
-	int err, res;
 
 	if (i != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	res = cx25821_get_resource(fh, RESOURCE_VIDEO0);
-	err = videobuf_streamoff(&chan->vidq);
-	if (err < 0)
-		return err;
-	cx25821_res_free(dev, fh, res);
-	return 0;
+	if (chan->streaming_fh && chan->streaming_fh != fh)
+		return -EBUSY;
+	if (chan->streaming_fh == NULL)
+		return 0;
+
+	chan->streaming_fh = NULL;
+	return videobuf_streamoff(&chan->vidq);
 }
 
 static int cx25821_is_valid_width(u32 width, v4l2_std_id tvnorm)
@@ -1483,7 +1422,6 @@ int cx25821_video_register(struct cx25821_dev *dev)
 			chan->sram_channels->dma_ctl, 0x11, 0);
 
 		chan->sram_channels = &cx25821_sram_channels[i];
-		chan->resources = 0;
 		chan->width = 720;
 		if (dev->tvnorm & V4L2_STD_625_50)
 			chan->height = 576;

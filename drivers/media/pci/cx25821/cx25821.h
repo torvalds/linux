@@ -118,7 +118,6 @@ struct cx25821_tvnorm {
 
 struct cx25821_fh {
 	struct cx25821_dev *dev;
-	u32 resources;
 
 	enum v4l2_priority prio;
 
@@ -208,6 +207,7 @@ struct cx25821_dev;
 struct cx25821_channel {
 	unsigned id;
 	struct cx25821_dev *dev;
+	struct cx25821_fh *streaming_fh;
 	struct v4l2_prio_state prio;
 
 	struct v4l2_ctrl_handler hdl;
@@ -218,8 +218,6 @@ struct cx25821_channel {
 	struct videobuf_queue vidq;
 
 	const struct sram_channel *sram_channels;
-
-	int resources;
 
 	const struct cx25821_fmt *fmt;
 	unsigned int width, height;
@@ -260,7 +258,6 @@ struct cx25821_dev {
 	char name[32];
 
 	/* Analog video */
-	u32 resources;
 	unsigned int input;
 	v4l2_std_id tvnorm;
 	unsigned short _max_num_decoders;
