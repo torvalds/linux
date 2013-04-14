@@ -2159,10 +2159,9 @@ static inline void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
  * @sk:		socket sending this packet
  * @tx_flags:	filled with instructions for time stamping
  *
- * Currently only depends on SOCK_TIMESTAMPING* flags. Returns error code if
- * parameters are invalid.
+ * Currently only depends on SOCK_TIMESTAMPING* flags.
  */
-extern int sock_tx_timestamp(struct sock *sk, __u8 *tx_flags);
+extern void sock_tx_timestamp(struct sock *sk, __u8 *tx_flags);
 
 /**
  * sk_eat_skb - Release a skb if it is no longer needed
