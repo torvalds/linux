@@ -131,7 +131,7 @@ MODULE_PARM_DESC(vsfx,"set VSFX pci config bit "
 		 "[yet another chipset flaw workaround]");
 MODULE_PARM_DESC(latency,"pci latency timer");
 MODULE_PARM_DESC(card,"specify TV/grabber card model, see CARDLIST file for a list");
-MODULE_PARM_DESC(pll,"specify installed crystal (0=none, 28=28 MHz, 35=35 MHz)");
+MODULE_PARM_DESC(pll, "specify installed crystal (0=none, 28=28 MHz, 35=35 MHz, 14=14 MHz)");
 MODULE_PARM_DESC(tuner,"specify installed tuner type");
 MODULE_PARM_DESC(autoload, "obsolete option, please do not use anymore");
 MODULE_PARM_DESC(audiodev, "specify audio device:\n"
@@ -2837,6 +2837,14 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.pll            = PLL_28,
 	},
+	[BTTV_BOARD_BT848_CAP_14] = {
+		.name		= "Bt848 Capture 14MHz",
+		.video_inputs	= 4,
+		.svhs		= 2,
+		.muxsel		= MUXSEL(2, 3, 1, 0),
+		.pll		= PLL_14,
+		.tuner_type	= TUNER_ABSENT,
+	},
 
 };
 
@@ -3402,6 +3410,10 @@ void bttv_init_card2(struct bttv *btv)
 			btv->pll.pll_ifreq=35468950;
 			btv->pll.pll_crystal=BT848_IFORM_XT1;
 		}
+		if (PLL_14 == bttv_tvcards[btv->c.type].pll) {
+			btv->pll.pll_ifreq = 14318181;
+			btv->pll.pll_crystal = BT848_IFORM_XT0;
+		}
 		/* insmod options can override */
 		switch (pll[btv->c.nr]) {
 		case 0: /* none */
@@ -3420,6 +3432,12 @@ void bttv_init_card2(struct bttv *btv)
 			btv->pll.pll_ifreq   = 35468950;
 			btv->pll.pll_ofreq   = 0;
 			btv->pll.pll_crystal = BT848_IFORM_XT1;
+			break;
+		case 3: /* 14 MHz */
+		case 14:
+			btv->pll.pll_ifreq   = 14318181;
+			btv->pll.pll_ofreq   = 0;
+			btv->pll.pll_crystal = BT848_IFORM_XT0;
 			break;
 		}
 	}
