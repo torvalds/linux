@@ -2845,6 +2845,16 @@ struct tvcard bttv_tvcards[] = {
 		.pll		= PLL_14,
 		.tuner_type	= TUNER_ABSENT,
 	},
+	[BTTV_BOARD_CYBERVISION_CV06] = {
+		.name		= "CyberVision CV06 (SV)",
+		.video_inputs	= 4,
+		/* .audio_inputs= 0, */
+		.svhs		= NO_SVHS,
+		.muxsel		= MUXSEL(2, 3, 1, 0),
+		.pll		= PLL_28,
+		.tuner_type	= TUNER_ABSENT,
+		.tuner_addr	= ADDR_UNSET,
+	},
 
 };
 
