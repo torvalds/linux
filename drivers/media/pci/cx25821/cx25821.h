@@ -116,15 +116,6 @@ struct cx25821_tvnorm {
 	u32 cxoformat;
 };
 
-struct cx25821_fh {
-	struct cx25821_dev *dev;
-
-	enum v4l2_priority prio;
-
-	/* video capture */
-	int channel_id;
-};
-
 enum cx25821_itype {
 	CX25821_VMUX_COMPOSITE = 1,
 	CX25821_VMUX_SVIDEO,
@@ -207,8 +198,7 @@ struct cx25821_dev;
 struct cx25821_channel {
 	unsigned id;
 	struct cx25821_dev *dev;
-	struct cx25821_fh *streaming_fh;
-	struct v4l2_prio_state prio;
+	struct v4l2_fh *streaming_fh;
 
 	struct v4l2_ctrl_handler hdl;
 	struct cx25821_data timeout_data;
@@ -360,7 +350,6 @@ struct cx25821_dev {
 	int pixel_format;
 	int channel_select;
 	int command;
-	int channel_opened;
 };
 
 struct upstream_user_struct {

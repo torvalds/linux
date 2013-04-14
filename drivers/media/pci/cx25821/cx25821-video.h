@@ -39,6 +39,7 @@
 #include "cx25821.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-event.h>
 
 #define VIDEO_DEBUG 0
 
