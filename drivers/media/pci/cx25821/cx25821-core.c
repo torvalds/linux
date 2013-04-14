@@ -1051,11 +1051,9 @@ void cx25821_dev_unregister(struct cx25821_dev *dev)
 	if (!atomic_dec_and_test(&dev->refcount))
 		return;
 
-	for (i = 0; i < VID_CHANNEL_NUM; i++)
-		cx25821_video_unregister(dev, i);
-
-	for (i = VID_UPSTREAM_SRAM_CHANNEL_I;
-	     i <= AUDIO_UPSTREAM_SRAM_CHANNEL_B; i++) {
+	for (i = 0; i < MAX_VID_CHANNEL_NUM - 1; i++) {
+		if (i == SRAM_CH08) /* audio channel */
+			continue;
 		cx25821_video_unregister(dev, i);
 	}
 

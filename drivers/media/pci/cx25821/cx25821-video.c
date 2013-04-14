@@ -462,6 +462,9 @@ int cx25821_video_register(struct cx25821_dev *dev)
 	spin_lock_init(&dev->slock);
 
 	for (i = 0; i < VID_CHANNEL_NUM; ++i) {
+		if (i == SRAM_CH08) /* audio channel */
+			continue;
+
 		cx25821_init_controls(dev, i);
 
 		cx25821_risc_stopper(dev->pci, &dev->channels[i].vidq.stopper,
@@ -788,7 +791,7 @@ static int video_open(struct file *file)
 	{
 		h = list_entry(list, struct cx25821_dev, devlist);
 
-		for (i = 0; i < MAX_VID_CHANNEL_NUM; i++) {
+		for (i = 0; i < MAX_VID_CHANNEL_NUM - 1; i++) {
 			if (h->channels[i].video_dev &&
 			    h->channels[i].video_dev->minor == minor) {
 				dev = h;
