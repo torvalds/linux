@@ -117,4 +117,44 @@ summary from [1.]>" for easy identification by the developers.
 [X.] Other notes, patches, fixes, workarounds:
 
 
-Thank you
+Follow up
+=========
+
+Expectations for bug reporters
+------------------------------
+
+Linux kernel maintainers expect bug reporters to be able to follow up on
+bug reports.  That may include running new tests, applying patches,
+recompiling your kernel, and/or re-triggering your bug.  The most
+frustrating thing for maintainers is for someone to report a bug, and then
+never follow up on a request to try out a fix.
+
+That said, it's still useful for a kernel maintainer to know a bug exists
+on a supported kernel, even if you can't follow up with retests.  Follow
+up reports, such as replying to the email thread with "I tried the latest
+kernel and I can't reproduce my bug anymore" are also helpful, because
+maintainers have to assume silence means things are still broken.
+
+Expectations for kernel maintainers
+-----------------------------------
+
+Linux kernel maintainers are busy, overworked human beings.  Some times
+they may not be able to address your bug in a day, a week, or two weeks.
+If they don't answer your email, they may be on vacation, or at a Linux
+conference.  Check the conference schedule at LWN.net for more info:
+	https://lwn.net/Calendar/
+
+In general, kernel maintainers take 1 to 5 business days to respond to
+bugs.  The majority of kernel maintainers are employed to work on the
+kernel, and they may not work on the weekends.  Maintainers are scattered
+around the world, and they may not work in your time zone.  Unless you
+have a high priority bug, please wait at least a week after the first bug
+report before sending the maintainer a reminder email.
+
+The exceptions to this rule are regressions, kernel crashes, security holes,
+or userspace breakage caused by new kernel behavior.  Those bugs should be
+addressed by the maintainers ASAP.  If you suspect a maintainer is not
+responding to these types of bugs in a timely manner (especially during a
+merge window), escalate the bug to LKML and Linus Torvalds.
+
+Thank you!
