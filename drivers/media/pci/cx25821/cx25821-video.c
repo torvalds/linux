@@ -461,7 +461,7 @@ int cx25821_video_register(struct cx25821_dev *dev)
 
 	spin_lock_init(&dev->slock);
 
-	for (i = 0; i < MAX_VID_CHANNEL_NUM - 1; ++i) {
+	for (i = 0; i < VID_CHANNEL_NUM; ++i) {
 		cx25821_init_controls(dev, i);
 
 		cx25821_risc_stopper(dev->pci, &dev->channels[i].vidq.stopper,
