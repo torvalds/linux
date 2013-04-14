@@ -77,7 +77,6 @@ threads or separate bugzilla entries.  If you report several unrelated
 bugs at once, it's difficult for maintainers to tease apart the relevant
 data.
 
-[Some of this is taken from Frohwalt Egerer's original linux-kernel FAQ]
 
 Gather information
 ------------------
@@ -171,3 +170,5 @@ responding to these types of bugs in a timely manner (especially during a
 merge window), escalate the bug to LKML and Linus Torvalds.
 
 Thank you!
+
+[Some of this is taken from Frohwalt Egerer's original linux-kernel FAQ]
