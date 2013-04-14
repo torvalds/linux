@@ -956,36 +956,6 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 	return 0;
 }
 
-void cx25821_start_upstream_video_ch1(struct cx25821_dev *dev,
-				      struct upstream_user_struct *up_data)
-{
-	dev->_isNTSC = !strcmp(dev->vid_stdname, "NTSC") ? 1 : 0;
-
-	dev->tvnorm = !dev->_isNTSC ? V4L2_STD_PAL_BG : V4L2_STD_NTSC_M;
-	medusa_set_videostandard(dev);
-
-	cx25821_vidupstream_init_ch1(dev, dev->channel_select,
-				     dev->pixel_format);
-}
-
-void cx25821_start_upstream_video_ch2(struct cx25821_dev *dev,
-				      struct upstream_user_struct *up_data)
-{
-	dev->_isNTSC_ch2 = !strcmp(dev->vid_stdname_ch2, "NTSC") ? 1 : 0;
-
-	dev->tvnorm = !dev->_isNTSC_ch2 ? V4L2_STD_PAL_BG : V4L2_STD_NTSC_M;
-	medusa_set_videostandard(dev);
-
-	cx25821_vidupstream_init_ch2(dev, dev->channel_select_ch2,
-				     dev->pixel_format_ch2);
-}
-
-void cx25821_start_upstream_audio(struct cx25821_dev *dev,
-				  struct upstream_user_struct *up_data)
-{
-	cx25821_audio_upstream_init(dev, AUDIO_UPSTREAM_SRAM_CHANNEL_B);
-}
-
 void cx25821_dev_unregister(struct cx25821_dev *dev)
 {
 	int i;

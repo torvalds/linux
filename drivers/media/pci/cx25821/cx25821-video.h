@@ -49,13 +49,6 @@ do {									\
 		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ##arg);	\
 } while (0)
 
-/* For IOCTL to identify running upstream */
-#define UPSTREAM_START_VIDEO        700
-#define UPSTREAM_STOP_VIDEO         701
-#define UPSTREAM_START_AUDIO        702
-#define UPSTREAM_STOP_AUDIO         703
-#define UPSTREAM_DUMP_REGISTERS     702
-
 #define FORMAT_FLAGS_PACKED       0x01
 extern void cx25821_video_wakeup(struct cx25821_dev *dev,
 				 struct cx25821_dmaqueue *q, u32 count);

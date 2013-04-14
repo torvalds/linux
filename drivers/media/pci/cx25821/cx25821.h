@@ -329,14 +329,6 @@ struct cx25821_dev {
 	int command;
 };
 
-struct upstream_user_struct {
-	char *input_filename;
-	char *vid_stdname;
-	int pixel_format;
-	int channel_select;
-	int command;
-};
-
 static inline struct cx25821_dev *get_cx25821(struct v4l2_device *v4l2_dev)
 {
 	return container_of(v4l2_dev, struct cx25821_dev, v4l2_dev);
@@ -480,14 +472,6 @@ extern int cx25821_audio_upstream_init(struct cx25821_dev *dev,
 extern void cx25821_free_mem_upstream_ch1(struct cx25821_dev *dev);
 extern void cx25821_free_mem_upstream_ch2(struct cx25821_dev *dev);
 extern void cx25821_free_mem_upstream_audio(struct cx25821_dev *dev);
-extern void cx25821_start_upstream_video_ch1(struct cx25821_dev *dev,
-					     struct upstream_user_struct
-					     *up_data);
-extern void cx25821_start_upstream_video_ch2(struct cx25821_dev *dev,
-					     struct upstream_user_struct
-					     *up_data);
-extern void cx25821_start_upstream_audio(struct cx25821_dev *dev,
-					 struct upstream_user_struct *up_data);
 extern void cx25821_stop_upstream_video_ch1(struct cx25821_dev *dev);
 extern void cx25821_stop_upstream_video_ch2(struct cx25821_dev *dev);
 extern void cx25821_stop_upstream_audio(struct cx25821_dev *dev);
