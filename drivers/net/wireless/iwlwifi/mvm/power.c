@@ -146,14 +146,8 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	keep_alive = DIV_ROUND_UP(keep_alive, MSEC_PER_SEC);
 	cmd->keep_alive_seconds = keep_alive;
 
-	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP) {
-		/* TODO: Also for D3 (device sleep / WoWLAN) */
-		cmd->rx_data_timeout = cpu_to_le32(10 * USEC_PER_MSEC);
-		cmd->tx_data_timeout = cpu_to_le32(10 * USEC_PER_MSEC);
-	} else {
-		cmd->rx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
-		cmd->tx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
-	}
+	cmd->rx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
+	cmd->tx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
 }
 
 int iwl_mvm_power_update_mode(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
