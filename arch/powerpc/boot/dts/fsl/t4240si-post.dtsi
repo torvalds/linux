@@ -52,6 +52,7 @@
 		#size-cells = <2>;
 		#address-cells = <3>;
 		device_type = "pci";
+		reg = <0 0 0 0 0>;
 		interrupts = <20 2 0 0>;
 		interrupt-map-mask = <0xf800 0 0 7>;
 		interrupt-map = <
@@ -77,6 +78,7 @@
 		#size-cells = <2>;
 		#address-cells = <3>;
 		device_type = "pci";
+		reg = <0 0 0 0 0>;
 		interrupts = <21 2 0 0>;
 		interrupt-map-mask = <0xf800 0 0 7>;
 		interrupt-map = <
@@ -102,6 +104,7 @@
 		#size-cells = <2>;
 		#address-cells = <3>;
 		device_type = "pci";
+		reg = <0 0 0 0 0>;
 		interrupts = <22 2 0 0>;
 		interrupt-map-mask = <0xf800 0 0 7>;
 		interrupt-map = <
@@ -127,6 +130,7 @@
 		#size-cells = <2>;
 		#address-cells = <3>;
 		device_type = "pci";
+		reg = <0 0 0 0 0>;
 		interrupts = <23 2 0 0>;
 		interrupt-map-mask = <0xf800 0 0 7>;
 		interrupt-map = <
