@@ -893,6 +893,20 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 	return 0;
 }
 
+static int video_out_release(struct file *file)
+{
+	struct cx25821_channel *chan = video_drvdata(file);
+	struct cx25821_video_out_data *out = chan->out;
+	struct cx25821_dev *dev = chan->dev;
+
+	mutex_lock(&dev->lock);
+	if ((chan->id == SRAM_CH09 || chan->id == SRAM_CH10) && out->_is_running)
+		cx25821_stop_upstream_video(chan);
+	mutex_unlock(&dev->lock);
+
+	return v4l2_fh_release(file);
+}
+
 static const struct v4l2_ctrl_ops cx25821_ctrl_ops = {
 	.s_ctrl = cx25821_s_ctrl,
 };
@@ -941,7 +955,7 @@ static const struct video_device cx25821_video_device = {
 static const struct v4l2_file_operations video_out_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l2_fh_open,
-	.release = v4l2_fh_release,
+	.release = video_out_release,
 	.unlocked_ioctl = video_ioctl2,
 };
 
@@ -1017,6 +1031,9 @@ int cx25821_video_register(struct cx25821_dev *dev)
 			err = v4l2_ctrl_handler_setup(hdl);
 			if (err)
 				goto fail_unreg;
+		} else {
+			chan->out = &dev->vid_out_data[i - SRAM_CH09];
+			chan->out->chan = chan;
 		}
 
 		cx25821_risc_stopper(dev->pci, &chan->dma_vidq.stopper,

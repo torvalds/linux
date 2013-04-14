@@ -172,6 +172,42 @@ struct cx25821_data {
 
 struct cx25821_dev;
 
+struct cx25821_channel;
+
+struct cx25821_video_out_data {
+	struct cx25821_channel *chan;
+	int _line_size;
+	int _prog_cnt;
+	int _pixel_format;
+	int _is_first_frame;
+	int _is_running;
+	int _file_status;
+	int _lines_count;
+	int _frame_count;
+	unsigned int _risc_size;
+
+	__le32 *_dma_virt_start_addr;
+	__le32 *_dma_virt_addr;
+	dma_addr_t _dma_phys_addr;
+	dma_addr_t _dma_phys_start_addr;
+
+	unsigned int _data_buf_size;
+	__le32 *_data_buf_virt_addr;
+	dma_addr_t _data_buf_phys_addr;
+
+	u32 upstream_riscbuf_size;
+	u32 upstream_databuf_size;
+	struct workqueue_struct *_irq_queues;
+	struct work_struct _irq_work_entry;
+	int is_60hz;
+	int _frame_index;
+	char *input_filename;
+	char *vid_stdname;
+	int pixel_format;
+	char *_filename;
+	char *_defaultname;
+};
+
 struct cx25821_channel {
 	unsigned id;
 	struct cx25821_dev *dev;
@@ -191,6 +227,9 @@ struct cx25821_channel {
 	int pixel_formats;
 	int use_cif_resolution;
 	int cif_width;
+
+	/* video output data for the video output channel */
+	struct cx25821_video_out_data *out;
 };
 
 struct snd_card;
@@ -250,83 +289,18 @@ struct cx25821_dev {
 	__le32 *_audiodata_buf_virt_addr;
 	dma_addr_t _audiodata_buf_phys_addr;
 	char *_audiofilename;
+	u32 audio_upstream_riscbuf_size;
+	u32 audio_upstream_databuf_size;
+	int _audioframe_index;
+	struct workqueue_struct *_irq_audio_queues;
+	struct work_struct _audio_work_entry;
+	char *input_audiofilename;
 
 	/* V4l */
 	spinlock_t slock;
 
 	/* Video Upstream */
-	int _line_size;
-	int _prog_cnt;
-	int _pixel_format;
-	int _is_first_frame;
-	int _is_running;
-	int _file_status;
-	int _lines_count;
-	int _frame_count;
-	int _channel_upstream_select;
-	unsigned int _risc_size;
-
-	__le32 *_dma_virt_start_addr;
-	__le32 *_dma_virt_addr;
-	dma_addr_t _dma_phys_addr;
-	dma_addr_t _dma_phys_start_addr;
-
-	unsigned int _data_buf_size;
-	__le32 *_data_buf_virt_addr;
-	dma_addr_t _data_buf_phys_addr;
-	char *_filename;
-	char *_defaultname;
-
-	int _line_size_ch2;
-	int _prog_cnt_ch2;
-	int _pixel_format_ch2;
-	int _is_first_frame_ch2;
-	int _is_running_ch2;
-	int _file_status_ch2;
-	int _lines_count_ch2;
-	int _frame_count_ch2;
-	int _channel2_upstream_select;
-	unsigned int _risc_size_ch2;
-
-	__le32 *_dma_virt_start_addr_ch2;
-	__le32 *_dma_virt_addr_ch2;
-	dma_addr_t _dma_phys_addr_ch2;
-	dma_addr_t _dma_phys_start_addr_ch2;
-
-	unsigned int _data_buf_size_ch2;
-	__le32 *_data_buf_virt_addr_ch2;
-	dma_addr_t _data_buf_phys_addr_ch2;
-	char *_filename_ch2;
-	char *_defaultname_ch2;
-
-	u32 upstream_riscbuf_size;
-	u32 upstream_databuf_size;
-	u32 upstream_riscbuf_size_ch2;
-	u32 upstream_databuf_size_ch2;
-	u32 audio_upstream_riscbuf_size;
-	u32 audio_upstream_databuf_size;
-	int _isNTSC;
-	int _frame_index;
-	int _audioframe_index;
-	struct workqueue_struct *_irq_queues;
-	struct work_struct _irq_work_entry;
-	struct workqueue_struct *_irq_queues_ch2;
-	struct work_struct _irq_work_entry_ch2;
-	struct workqueue_struct *_irq_audio_queues;
-	struct work_struct _audio_work_entry;
-	char *input_filename;
-	char *input_filename_ch2;
-	int _frame_index_ch2;
-	int _isNTSC_ch2;
-	char *vid_stdname_ch2;
-	int pixel_format_ch2;
-	int channel_select_ch2;
-	int command_ch2;
-	char *input_audiofilename;
-	char *vid_stdname;
-	int pixel_format;
-	int channel_select;
-	int command;
+	struct cx25821_video_out_data vid_out_data[2];
 };
 
 static inline struct cx25821_dev *get_cx25821(struct v4l2_device *v4l2_dev)
@@ -463,17 +437,12 @@ extern int cx25821_sram_channel_setup_audio(struct cx25821_dev *dev,
 					    const struct sram_channel *ch,
 					    unsigned int bpl, u32 risc);
 
-extern int cx25821_vidupstream_init_ch1(struct cx25821_dev *dev,
-					int channel_select, int pixel_format);
-extern int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev,
-					int channel_select, int pixel_format);
+extern int cx25821_vidupstream_init(struct cx25821_channel *chan, int pixel_format);
 extern int cx25821_audio_upstream_init(struct cx25821_dev *dev,
 				       int channel_select);
-extern void cx25821_free_mem_upstream_ch1(struct cx25821_dev *dev);
-extern void cx25821_free_mem_upstream_ch2(struct cx25821_dev *dev);
+extern void cx25821_free_mem_upstream(struct cx25821_channel *chan);
 extern void cx25821_free_mem_upstream_audio(struct cx25821_dev *dev);
-extern void cx25821_stop_upstream_video_ch1(struct cx25821_dev *dev);
-extern void cx25821_stop_upstream_video_ch2(struct cx25821_dev *dev);
+extern void cx25821_stop_upstream_video(struct cx25821_channel *chan);
 extern void cx25821_stop_upstream_audio(struct cx25821_dev *dev);
 extern int cx25821_sram_channel_setup_upstream(struct cx25821_dev *dev,
 					       const struct sram_channel *ch,
