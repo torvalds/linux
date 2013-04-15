@@ -324,8 +324,10 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 		/*
 		 * Do not touch buswidth bits here. This is done in
 		 * esdhc_pltfm_bus_width.
+		 * Do not touch the D3CD bit either which is used for the
+		 * SDIO interrupt errata workaround.
 		 */
-		mask = 0xffff & ~ESDHC_CTRL_BUSWIDTH_MASK;
+		mask = 0xffff & ~(ESDHC_CTRL_BUSWIDTH_MASK | ESDHC_CTRL_D3CD);
 
 		esdhc_clrset_le(host, mask, new_val, reg);
 		return;
