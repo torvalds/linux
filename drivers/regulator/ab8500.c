@@ -1729,6 +1729,7 @@ static struct ab8500_regulator_info
 		.voltage_bank		= 0x03,
 		.voltage_reg		= 0x83,
 		.voltage_mask		= 0xc0,
+		.voltage_shift		= 6,
 	},
 
 	/*
