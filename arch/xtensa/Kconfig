@@ -1,11 +1,9 @@
-config FRAME_POINTER
-	def_bool n
-
 config ZONE_DMA
 	def_bool y
 
 config XTENSA
 	def_bool y
+	select ARCH_WANT_FRAME_POINTERS
 	select HAVE_IDE
 	select GENERIC_ATOMIC64
 	select HAVE_GENERIC_HARDIRQS
@@ -51,6 +49,9 @@ config HZ
 
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
+
+config LOCKDEP_SUPPORT
+	def_bool y
 
 config STACKTRACE_SUPPORT
 	def_bool y
