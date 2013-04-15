@@ -163,7 +163,8 @@ dev_expire_timer(unsigned long data)
 	u_long			flags;
 
 	spin_lock_irqsave(&timer->dev->lock, flags);
-	list_move_tail(&timer->list, &timer->dev->expired);
+	if (timer->id >= 0)
+		list_move_tail(&timer->list, &timer->dev->expired);
 	spin_unlock_irqrestore(&timer->dev->lock, flags);
 	wake_up_interruptible(&timer->dev->wait);
 }
@@ -203,26 +204,21 @@ misdn_add_timer(struct mISDNtimerdev *dev, int timeout)
 static int
 misdn_del_timer(struct mISDNtimerdev *dev, int id)
 {
-	u_long			flags;
 	struct mISDNtimer	*timer;
-	int			ret = 0;
 
-	spin_lock_irqsave(&dev->lock, flags);
+	spin_lock_irq(&dev->lock);
 	list_for_each_entry(timer, &dev->pending, list) {
 		if (timer->id == id) {
 			list_del_init(&timer->list);
-			/* RED-PEN AK: race -- timer can be still running on
-			 * other CPU. Needs reference count I think
-			 */
-			del_timer(&timer->tl);
-			ret = timer->id;
+			timer->id = -1;
+			spin_unlock_irq(&dev->lock);
+			del_timer_sync(&timer->tl);
 			kfree(timer);
-			goto unlock;
+			return id;
 		}
 	}
-unlock:
-	spin_unlock_irqrestore(&dev->lock, flags);
-	return ret;
+	spin_unlock_irq(&dev->lock);
+	return 0;
 }
 
 static long
