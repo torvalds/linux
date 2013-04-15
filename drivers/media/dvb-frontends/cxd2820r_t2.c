@@ -125,7 +125,7 @@ int cxd2820r_set_frontend_t2(struct dvb_frontend *fe)
 	buf[2] = ((if_ctl >>  0) & 0xff);
 
 	/* PLP filtering */
-	if (c->stream_id < 0 || c->stream_id > 255) {
+	if (c->stream_id > 255) {
 		dev_dbg(&priv->i2c->dev, "%s: Disable PLP filtering\n", __func__);
 		ret = cxd2820r_wr_reg(priv, 0x023ad , 0);
 		if (ret)
