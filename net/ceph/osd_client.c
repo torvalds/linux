@@ -117,7 +117,7 @@ static void ceph_osd_data_bio_init(struct ceph_osd_data *osd_data,
 
 struct ceph_osd_data *
 osd_req_op_extent_osd_data(struct ceph_osd_request *osd_req,
-			unsigned int which, bool write_request)
+			unsigned int which)
 {
 	BUG_ON(which >= osd_req->r_num_ops);
 
@@ -156,37 +156,34 @@ osd_req_op_cls_response_data(struct ceph_osd_request *osd_req,
 EXPORT_SYMBOL(osd_req_op_cls_response_data);	/* ??? */
 
 void osd_req_op_extent_osd_data_pages(struct ceph_osd_request *osd_req,
-			unsigned int which, bool write_request,
-			struct page **pages, u64 length, u32 alignment,
+			unsigned int which, struct page **pages,
+			u64 length, u32 alignment,
 			bool pages_from_pool, bool own_pages)
 {
 	struct ceph_osd_data *osd_data;
 
-	osd_data = osd_req_op_extent_osd_data(osd_req, which, write_request);
+	osd_data = osd_req_op_extent_osd_data(osd_req, which);
 	ceph_osd_data_pages_init(osd_data, pages, length, alignment,
 				pages_from_pool, own_pages);
 }
 EXPORT_SYMBOL(osd_req_op_extent_osd_data_pages);
 
 void osd_req_op_extent_osd_data_pagelist(struct ceph_osd_request *osd_req,
-			unsigned int which, bool write_request,
-			struct ceph_pagelist *pagelist)
+			unsigned int which, struct ceph_pagelist *pagelist)
 {
 	struct ceph_osd_data *osd_data;
 
-	osd_data = osd_req_op_extent_osd_data(osd_req, which, write_request);
+	osd_data = osd_req_op_extent_osd_data(osd_req, which);
 	ceph_osd_data_pagelist_init(osd_data, pagelist);
 }
 EXPORT_SYMBOL(osd_req_op_extent_osd_data_pagelist);
 
 #ifdef CONFIG_BLOCK
 void osd_req_op_extent_osd_data_bio(struct ceph_osd_request *osd_req,
-			unsigned int which, bool write_request,
-			struct bio *bio, size_t bio_length)
+			unsigned int which, struct bio *bio, size_t bio_length)
 {
 	struct ceph_osd_data *osd_data;
-
-	osd_data = osd_req_op_extent_osd_data(osd_req, which, write_request);
+	osd_data = osd_req_op_extent_osd_data(osd_req, which);
 	ceph_osd_data_bio_init(osd_data, bio, bio_length);
 }
 EXPORT_SYMBOL(osd_req_op_extent_osd_data_bio);
@@ -2284,7 +2281,7 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 
 	/* it may be a short read due to an object boundary */
 
-	osd_req_op_extent_osd_data_pages(req, 0, false,
+	osd_req_op_extent_osd_data_pages(req, 0,
 				pages, *plen, page_align, false, false);
 
 	dout("readpages  final extent is %llu~%llu (%llu bytes align %d)\n",
@@ -2327,7 +2324,7 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 		return PTR_ERR(req);
 
 	/* it may be a short write due to an object boundary */
-	osd_req_op_extent_osd_data_pages(req, 0, true, pages, len, page_align,
+	osd_req_op_extent_osd_data_pages(req, 0, pages, len, page_align,
 				false, false);
 	dout("writepages %llu~%llu (%llu bytes)\n", off, len, len);
 
@@ -2428,7 +2425,7 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 		 * XXX page data.  Probably OK for reads, but this
 		 * XXX ought to be done more generally.
 		 */
-		osd_data = osd_req_op_extent_osd_data(req, 0, false);
+		osd_data = osd_req_op_extent_osd_data(req, 0);
 		if (osd_data->type == CEPH_OSD_DATA_TYPE_PAGES) {
 			if (osd_data->pages &&
 				unlikely(osd_data->length < data_len)) {

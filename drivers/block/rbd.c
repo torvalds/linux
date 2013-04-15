@@ -1779,7 +1779,7 @@ static int rbd_img_request_fill_bio(struct rbd_img_request *img_request,
 
 		osd_req_op_extent_init(osd_req, 0, opcode, offset, length,
 						0, 0);
-		osd_req_op_extent_osd_data_bio(osd_req, 0, write_request,
+		osd_req_op_extent_osd_data_bio(osd_req, 0,
 				obj_request->bio_list, obj_request->length);
 		rbd_osd_req_format(obj_request, write_request);
 
@@ -2281,7 +2281,7 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 
 	osd_req_op_extent_init(obj_request->osd_req, 0, CEPH_OSD_OP_READ,
 					offset, length, 0, 0);
-	osd_req_op_extent_osd_data_pages(obj_request->osd_req, 0, false,
+	osd_req_op_extent_osd_data_pages(obj_request->osd_req, 0,
 					obj_request->pages,
 					obj_request->length,
 					obj_request->offset & ~PAGE_MASK,

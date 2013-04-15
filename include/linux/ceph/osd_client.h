@@ -241,22 +241,22 @@ extern void osd_req_op_extent_update(struct ceph_osd_request *osd_req,
 
 extern struct ceph_osd_data *osd_req_op_extent_osd_data(
 					struct ceph_osd_request *osd_req,
-					unsigned int which, bool write_request);
+					unsigned int which);
 extern struct ceph_osd_data *osd_req_op_cls_response_data(
 					struct ceph_osd_request *osd_req,
 					unsigned int which);
 
 extern void osd_req_op_extent_osd_data_pages(struct ceph_osd_request *,
-					unsigned int which, bool write_request,
+					unsigned int which,
 					struct page **pages, u64 length,
 					u32 alignment, bool pages_from_pool,
 					bool own_pages);
 extern void osd_req_op_extent_osd_data_pagelist(struct ceph_osd_request *,
-					unsigned int which, bool write_request,
+					unsigned int which,
 					struct ceph_pagelist *pagelist);
 #ifdef CONFIG_BLOCK
 extern void osd_req_op_extent_osd_data_bio(struct ceph_osd_request *,
-					unsigned int which, bool write_request,
+					unsigned int which,
 					struct bio *bio, size_t bio_length);
 #endif /* CONFIG_BLOCK */
 
