@@ -2519,6 +2519,7 @@ static int sInitController(CONTROLLER_T * CtlP, int CtlNum, ByteIO_t MudbacIO,
 		return (CtlP->NumAiop);
 }
 
+#ifdef CONFIG_PCI
 /***************************************************************************
 Function: sPCIInitController
 Purpose:  Initialization of controller global registers and controller
@@ -2638,6 +2639,26 @@ static int sPCIInitController(CONTROLLER_T * CtlP, int CtlNum,
 	else
 		return (CtlP->NumAiop);
 }
+
+/*  Resets the speaker controller on RocketModem II and III devices */
+static void rmSpeakerReset(CONTROLLER_T * CtlP, unsigned long model)
+{
+	ByteIO_t addr;
+
+	/* RocketModem II speaker control is at the 8th port location of offset 0x40 */
+	if ((model == MODEL_RP4M) || (model == MODEL_RP6M)) {
+		addr = CtlP->AiopIO[0] + 0x4F;
+		sOutB(addr, 0);
+	}
+
+	/* RocketModem III speaker control is at the 1st port location of offset 0x80 */
+	if ((model == MODEL_UPCI_RM3_8PORT)
+	    || (model == MODEL_UPCI_RM3_4PORT)) {
+		addr = CtlP->AiopIO[0] + 0x88;
+		sOutB(addr, 0);
+	}
+}
+#endif
 
 /***************************************************************************
 Function: sReadAiopID
@@ -3126,25 +3147,6 @@ static void sPCIModemReset(CONTROLLER_T * CtlP, int chan, int on)
 	if (!on)
 		addr += 8;
 	sOutB(addr + chan, 0);	/* apply or remove reset */
-}
-
-/*  Resets the speaker controller on RocketModem II and III devices */
-static void rmSpeakerReset(CONTROLLER_T * CtlP, unsigned long model)
-{
-	ByteIO_t addr;
-
-	/* RocketModem II speaker control is at the 8th port location of offset 0x40 */
-	if ((model == MODEL_RP4M) || (model == MODEL_RP6M)) {
-		addr = CtlP->AiopIO[0] + 0x4F;
-		sOutB(addr, 0);
-	}
-
-	/* RocketModem III speaker control is at the 1st port location of offset 0x80 */
-	if ((model == MODEL_UPCI_RM3_8PORT)
-	    || (model == MODEL_UPCI_RM3_4PORT)) {
-		addr = CtlP->AiopIO[0] + 0x88;
-		sOutB(addr, 0);
-	}
 }
 
 /*  Returns the line number given the controller (board), aiop and channel number */
