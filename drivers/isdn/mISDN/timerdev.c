@@ -102,36 +102,41 @@ static ssize_t
 mISDN_read(struct file *filep, char __user *buf, size_t count, loff_t *off)
 {
 	struct mISDNtimerdev	*dev = filep->private_data;
+	struct list_head *list = &dev->expired;
 	struct mISDNtimer	*timer;
-	u_long	flags;
 	int	ret = 0;
 
 	if (*debug & DEBUG_TIMER)
 		printk(KERN_DEBUG "%s(%p, %p, %d, %p)\n", __func__,
 		       filep, buf, (int)count, off);
 
-	if (list_empty(&dev->expired) && (dev->work == 0)) {
+	if (count < sizeof(int))
+		return -ENOSPC;
+
+	spin_lock_irq(&dev->lock);
+	while (list_empty(list) && (dev->work == 0)) {
+		spin_unlock_irq(&dev->lock);
 		if (filep->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 		wait_event_interruptible(dev->wait, (dev->work ||
-						     !list_empty(&dev->expired)));
+						     !list_empty(list)));
 		if (signal_pending(current))
 			return -ERESTARTSYS;
+		spin_lock_irq(&dev->lock);
 	}
-	if (count < sizeof(int))
-		return -ENOSPC;
 	if (dev->work)
 		dev->work = 0;
-	if (!list_empty(&dev->expired)) {
-		spin_lock_irqsave(&dev->lock, flags);
-		timer = (struct mISDNtimer *)dev->expired.next;
+	if (!list_empty(list)) {
+		timer = list_first_entry(list, struct mISDNtimer, list);
 		list_del(&timer->list);
-		spin_unlock_irqrestore(&dev->lock, flags);
+		spin_unlock_irq(&dev->lock);
 		if (put_user(timer->id, (int __user *)buf))
 			ret = -EFAULT;
 		else
 			ret = sizeof(int);
 		kfree(timer);
+	} else {
+		spin_unlock_irq(&dev->lock);
 	}
 	return ret;
 }
