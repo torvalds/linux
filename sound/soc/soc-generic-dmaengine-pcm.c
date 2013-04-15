@@ -29,6 +29,7 @@ struct dmaengine_pcm {
 	struct dma_chan *chan[SNDRV_PCM_STREAM_CAPTURE + 1];
 	const struct snd_dmaengine_pcm_config *config;
 	struct snd_soc_platform platform;
+	bool compat;
 };
 
 static struct dmaengine_pcm *soc_platform_to_pcm(struct snd_soc_platform *p)
@@ -121,6 +122,19 @@ static void dmaengine_pcm_free(struct snd_pcm *pcm)
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
+static struct dma_chan *dmaengine_pcm_compat_request_channel(
+	struct snd_soc_pcm_runtime *rtd,
+	struct snd_pcm_substream *substream)
+{
+	struct dmaengine_pcm *pcm = soc_platform_to_pcm(rtd->platform);
+
+	if (pcm->config->compat_request_channel)
+		return pcm->config->compat_request_channel(rtd, substream);
+
+	return snd_dmaengine_pcm_request_channel(pcm->config->compat_filter_fn,
+		snd_soc_dai_get_dma_data(rtd->cpu_dai, substream));
+}
+
 static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct dmaengine_pcm *pcm = soc_platform_to_pcm(rtd->platform);
@@ -133,6 +147,11 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		substream = rtd->pcm->streams[i].substream;
 		if (!substream)
 			continue;
+
+		if (!pcm->chan[i] && pcm->compat) {
+			pcm->chan[i] = dmaengine_pcm_compat_request_channel(rtd,
+				substream);
+		}
 
 		if (!pcm->chan[i]) {
 			dev_err(rtd->platform->dev,
@@ -171,6 +190,7 @@ static const struct snd_soc_platform_driver dmaengine_pcm_platform = {
 	.ops		= &dmaengine_pcm_ops,
 	.pcm_new	= dmaengine_pcm_new,
 	.pcm_free	= dmaengine_pcm_free,
+	.probe_order	= SND_SOC_COMP_ORDER_LATE,
 };
 
 static const char * const dmaengine_pcm_dma_channel_names[] = {
@@ -190,18 +210,20 @@ int snd_dmaengine_pcm_register(struct device *dev,
 	struct dmaengine_pcm *pcm;
 	unsigned int i;
 
-	if (!dev->of_node)
-		return -EINVAL;
-
 	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
 		return -ENOMEM;
 
 	pcm->config = config;
 
-	for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_CAPTURE; i++) {
-		pcm->chan[i] = of_dma_request_slave_channel(dev->of_node,
+	if (flags & SND_DMAENGINE_PCM_FLAG_COMPAT)
+		pcm->compat = true;
+
+	if (!(flags & SND_DMAENGINE_PCM_FLAG_NO_DT) && dev->of_node) {
+		for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_CAPTURE; i++) {
+			pcm->chan[i] = of_dma_request_slave_channel(dev->of_node,
 					dmaengine_pcm_dma_channel_names[i]);
+		}
 	}
 
 	return snd_soc_add_platform(dev, &pcm->platform,

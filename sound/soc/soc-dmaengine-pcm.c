@@ -254,7 +254,16 @@ snd_pcm_uframes_t snd_dmaengine_pcm_pointer(struct snd_pcm_substream *substream)
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_pointer);
 
-static struct dma_chan *dmaengine_pcm_request_channel(dma_filter_fn filter_fn,
+/**
+ * snd_dmaengine_pcm_request_channel - Request channel for the dmaengine PCM
+ * @filter_fn: Filter function used to request the DMA channel
+ * @filter_data: Data passed to the DMA filter function
+ *
+ * Returns NULL or the requested DMA channel.
+ *
+ * This function request a DMA channel for usage with dmaengine PCM.
+ */
+struct dma_chan *snd_dmaengine_pcm_request_channel(dma_filter_fn filter_fn,
 	void *filter_data)
 {
 	dma_cap_mask_t mask;
@@ -265,6 +274,7 @@ static struct dma_chan *dmaengine_pcm_request_channel(dma_filter_fn filter_fn,
 
 	return dma_request_channel(mask, filter_fn, filter_data);
 }
+EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_request_channel);
 
 /**
  * snd_dmaengine_pcm_open - Open a dmaengine based PCM substream
@@ -320,7 +330,7 @@ int snd_dmaengine_pcm_open_request_chan(struct snd_pcm_substream *substream,
 	dma_filter_fn filter_fn, void *filter_data)
 {
 	return snd_dmaengine_pcm_open(substream,
-		    dmaengine_pcm_request_channel(filter_fn, filter_data));
+		    snd_dmaengine_pcm_request_channel(filter_fn, filter_data));
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_open_request_chan);
 
