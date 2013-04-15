@@ -59,6 +59,12 @@
 					     "mpp50", "mpp51", "mpp52";
 			      marvell,function = "sd0";
 			};
+
+			sdio_pins3: sdio-pins3 {
+			      marvell,pins = "mpp48", "mpp49", "mpp50",
+					     "mpp51", "mpp52", "mpp53";
+			      marvell,function = "sd0";
+			};
 	        };
 
 		gpio0: gpio@d0018100 {
