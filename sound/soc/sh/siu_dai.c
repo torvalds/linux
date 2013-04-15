@@ -726,6 +726,10 @@ static struct snd_soc_dai_driver siu_i2s_dai = {
 	.ops = &siu_dai_ops,
 };
 
+static const struct snd_soc_component_driver siu_i2s_component = {
+	.name		= "siu-i2s",
+};
+
 static int siu_probe(struct platform_device *pdev)
 {
 	const struct firmware *fw_entry;
@@ -783,7 +787,8 @@ static int siu_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, info);
 
 	/* register using ARRAY version so we can keep dai name */
-	ret = snd_soc_register_dais(&pdev->dev, &siu_i2s_dai, 1);
+	ret = snd_soc_register_component(&pdev->dev, &siu_i2s_component,
+					 &siu_i2s_dai, 1);
 	if (ret < 0)
 		goto edaiinit;
 
@@ -796,7 +801,7 @@ static int siu_probe(struct platform_device *pdev)
 	return ret;
 
 esocregp:
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 edaiinit:
 	iounmap(info->reg);
 emapreg:
@@ -823,7 +828,7 @@ static int siu_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	snd_soc_unregister_platform(&pdev->dev);
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	iounmap(info->reg);
 	iounmap(info->yram);

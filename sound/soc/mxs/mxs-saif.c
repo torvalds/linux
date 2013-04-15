@@ -627,6 +627,10 @@ static struct snd_soc_dai_driver mxs_saif_dai = {
 	.ops = &mxs_saif_dai_ops,
 };
 
+static const struct snd_soc_component_driver mxs_saif_component = {
+	.name		= "mxs-saif",
+};
+
 static irqreturn_t mxs_saif_irq(int irq, void *dev_id)
 {
 	struct mxs_saif *saif = dev_id;
@@ -753,9 +757,9 @@ static int mxs_saif_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	saif->dma_param.chan_irq = platform_get_irq(pdev, 1);
-	if (saif->dma_param.chan_irq < 0) {
-		ret = saif->dma_param.chan_irq;
+	saif->dma_param.dma_data.chan_irq = platform_get_irq(pdev, 1);
+	if (saif->dma_param.dma_data.chan_irq < 0) {
+		ret = saif->dma_param.dma_data.chan_irq;
 		dev_err(&pdev->dev, "failed to get dma irq resource: %d\n",
 			ret);
 		return ret;
@@ -763,7 +767,8 @@ static int mxs_saif_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, saif);
 
-	ret = snd_soc_register_dai(&pdev->dev, &mxs_saif_dai);
+	ret = snd_soc_register_component(&pdev->dev, &mxs_saif_component,
+					 &mxs_saif_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "register DAI failed\n");
 		return ret;
@@ -778,7 +783,7 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	return 0;
 
 failed_pdev_alloc:
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	return ret;
 }
@@ -786,7 +791,7 @@ failed_pdev_alloc:
 static int mxs_saif_remove(struct platform_device *pdev)
 {
 	mxs_pcm_platform_unregister(&pdev->dev);
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	return 0;
 }

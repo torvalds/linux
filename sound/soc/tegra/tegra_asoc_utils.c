@@ -43,8 +43,10 @@ int tegra_asoc_utils_set_rate(struct tegra_asoc_utils_data *data, int srate,
 	case 88200:
 		if (data->soc == TEGRA_ASOC_UTILS_SOC_TEGRA20)
 			new_baseclock = 56448000;
-		else
+		else if (data->soc == TEGRA_ASOC_UTILS_SOC_TEGRA30)
 			new_baseclock = 564480000;
+		else
+			new_baseclock = 282240000;
 		break;
 	case 8000:
 	case 16000:
@@ -54,8 +56,10 @@ int tegra_asoc_utils_set_rate(struct tegra_asoc_utils_data *data, int srate,
 	case 96000:
 		if (data->soc == TEGRA_ASOC_UTILS_SOC_TEGRA20)
 			new_baseclock = 73728000;
-		else
+		else if (data->soc == TEGRA_ASOC_UTILS_SOC_TEGRA30)
 			new_baseclock = 552960000;
+		else
+			new_baseclock = 368640000;
 		break;
 	default:
 		return -EINVAL;
@@ -169,6 +173,7 @@ int tegra_asoc_utils_init(struct tegra_asoc_utils_data *data,
 			  struct device *dev)
 {
 	int ret;
+	bool new_clocks = false;
 
 	data->dev = dev;
 
@@ -176,28 +181,37 @@ int tegra_asoc_utils_init(struct tegra_asoc_utils_data *data,
 		data->soc = TEGRA_ASOC_UTILS_SOC_TEGRA20;
 	else if (of_machine_is_compatible("nvidia,tegra30"))
 		data->soc = TEGRA_ASOC_UTILS_SOC_TEGRA30;
-	else if (!dev->of_node)
-		/* non-DT is always Tegra20 */
-		data->soc = TEGRA_ASOC_UTILS_SOC_TEGRA20;
-	else
-		/* DT boot, but unknown SoC */
+	else if (of_machine_is_compatible("nvidia,tegra114")) {
+		data->soc = TEGRA_ASOC_UTILS_SOC_TEGRA114;
+		new_clocks = true;
+	} else {
+		dev_err(data->dev, "SoC unknown to Tegra ASoC utils\n");
 		return -EINVAL;
+	}
 
-	data->clk_pll_a = clk_get_sys(NULL, "pll_a");
+	if (new_clocks)
+		data->clk_pll_a = clk_get(dev, "pll_a");
+	else
+		data->clk_pll_a = clk_get_sys(NULL, "pll_a");
 	if (IS_ERR(data->clk_pll_a)) {
 		dev_err(data->dev, "Can't retrieve clk pll_a\n");
 		ret = PTR_ERR(data->clk_pll_a);
 		goto err;
 	}
 
-	data->clk_pll_a_out0 = clk_get_sys(NULL, "pll_a_out0");
+	if (new_clocks)
+		data->clk_pll_a_out0 = clk_get(dev, "pll_a_out0");
+	else
+		data->clk_pll_a_out0 = clk_get_sys(NULL, "pll_a_out0");
 	if (IS_ERR(data->clk_pll_a_out0)) {
 		dev_err(data->dev, "Can't retrieve clk pll_a_out0\n");
 		ret = PTR_ERR(data->clk_pll_a_out0);
 		goto err_put_pll_a;
 	}
 
-	if (data->soc == TEGRA_ASOC_UTILS_SOC_TEGRA20)
+	if (new_clocks)
+		data->clk_cdev1 = clk_get(dev, "mclk");
+	else if (data->soc == TEGRA_ASOC_UTILS_SOC_TEGRA20)
 		data->clk_cdev1 = clk_get_sys(NULL, "cdev1");
 	else
 		data->clk_cdev1 = clk_get_sys("extern1", NULL);

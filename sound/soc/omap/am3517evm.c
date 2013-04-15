@@ -28,7 +28,6 @@
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 
 #include "omap-mcbsp.h"
-#include "omap-pcm.h"
 
 #include "../codecs/tlv320aic23.h"
 

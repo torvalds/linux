@@ -27,6 +27,7 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 
 #include "fsl_ssi.h"
 #include "imx-pcm.h"
@@ -122,8 +123,10 @@ struct fsl_ssi_private {
 	bool ssi_on_imx;
 	struct clk *clk;
 	struct platform_device *imx_pcm_pdev;
-	struct imx_pcm_dma_params dma_params_tx;
-	struct imx_pcm_dma_params dma_params_rx;
+	struct snd_dmaengine_dai_dma_data dma_params_tx;
+	struct snd_dmaengine_dai_dma_data dma_params_rx;
+	struct imx_dma_data filter_data_tx;
+	struct imx_dma_data filter_data_rx;
 
 	struct {
 		unsigned int rfrc;
@@ -574,6 +577,10 @@ static struct snd_soc_dai_driver fsl_ssi_dai_template = {
 	.ops = &fsl_ssi_dai_ops,
 };
 
+static const struct snd_soc_component_driver fsl_ssi_component = {
+	.name		= "fsl-ssi",
+};
+
 /* Show the statistics of a flag only if its interrupt is enabled.  The
  * compiler will optimze this code to a no-op if the interrupt is not
  * enabled.
@@ -649,6 +656,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	const uint32_t *iprop;
 	struct resource res;
 	char name[64];
+	bool shared;
 
 	/* SSIs that are not connected on the board should have a
 	 *      status = "disabled"
@@ -737,14 +745,18 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		 * We have burstsize be "fifo_depth - 2" to match the SSI
 		 * watermark setting in fsl_ssi_startup().
 		 */
-		ssi_private->dma_params_tx.burstsize =
+		ssi_private->dma_params_tx.maxburst =
 			ssi_private->fifo_depth - 2;
-		ssi_private->dma_params_rx.burstsize =
+		ssi_private->dma_params_rx.maxburst =
 			ssi_private->fifo_depth - 2;
-		ssi_private->dma_params_tx.dma_addr =
+		ssi_private->dma_params_tx.addr =
 			ssi_private->ssi_phys + offsetof(struct ccsr_ssi, stx0);
-		ssi_private->dma_params_rx.dma_addr =
+		ssi_private->dma_params_rx.addr =
 			ssi_private->ssi_phys + offsetof(struct ccsr_ssi, srx0);
+		ssi_private->dma_params_tx.filter_data =
+			&ssi_private->filter_data_tx;
+		ssi_private->dma_params_rx.filter_data =
+			&ssi_private->filter_data_rx;
 		/*
 		 * TODO: This is a temporary solution and should be changed
 		 * to use generic DMA binding later when the helplers get in.
@@ -755,14 +767,14 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "could not get dma events\n");
 			goto error_clk;
 		}
-		ssi_private->dma_params_tx.dma = dma_events[0];
-		ssi_private->dma_params_rx.dma = dma_events[1];
 
-		ssi_private->dma_params_tx.shared_peripheral =
-				of_device_is_compatible(of_get_parent(np),
-							"fsl,spba-bus");
-		ssi_private->dma_params_rx.shared_peripheral =
-				ssi_private->dma_params_tx.shared_peripheral;
+		shared = of_device_is_compatible(of_get_parent(np),
+			    "fsl,spba-bus");
+
+		imx_pcm_dma_params_init_data(&ssi_private->filter_data_tx,
+			dma_events[0], shared);
+		imx_pcm_dma_params_init_data(&ssi_private->filter_data_rx,
+			dma_events[1], shared);
 	}
 
 	/* Initialize the the device_attribute structure */
@@ -782,7 +794,8 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	/* Register with ASoC */
 	dev_set_drvdata(&pdev->dev, ssi_private);
 
-	ret = snd_soc_register_dai(&pdev->dev, &ssi_private->cpu_dai_drv);
+	ret = snd_soc_register_component(&pdev->dev, &fsl_ssi_component,
+					 &ssi_private->cpu_dai_drv, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DAI: %d\n", ret);
 		goto error_dev;
@@ -835,7 +848,7 @@ done:
 error_dai:
 	if (ssi_private->ssi_on_imx)
 		platform_device_unregister(ssi_private->imx_pcm_pdev);
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 error_dev:
 	dev_set_drvdata(&pdev->dev, NULL);
@@ -873,7 +886,7 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 		clk_disable_unprepare(ssi_private->clk);
 		clk_put(ssi_private->clk);
 	}
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	device_remove_file(&pdev->dev, &ssi_private->dev_attr);
 
 	free_irq(ssi_private->irq, ssi_private);

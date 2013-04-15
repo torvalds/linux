@@ -705,6 +705,7 @@ struct sh_eth_private {
 	const u16 *reg_offset;
 	void __iomem *addr;
 	void __iomem *tsu_addr;
+	struct bb_info *bitbang;
 	u32 num_rx_ring;
 	u32 num_tx_ring;
 	dma_addr_t rx_desc_dma;
@@ -722,7 +723,7 @@ struct sh_eth_private {
 	u32 phy_id;					/* PHY ID */
 	struct mii_bus *mii_bus;	/* MDIO bus control */
 	struct phy_device *phydev;	/* PHY device control */
-	enum phy_state link;
+	int link;
 	phy_interface_t phy_interface;
 	int msg_enable;
 	int speed;

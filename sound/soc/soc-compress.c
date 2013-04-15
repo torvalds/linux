@@ -211,19 +211,27 @@ static int soc_compr_set_params(struct snd_compr_stream *cstream,
 	if (platform->driver->compr_ops && platform->driver->compr_ops->set_params) {
 		ret = platform->driver->compr_ops->set_params(cstream, params);
 		if (ret < 0)
-			goto out;
+			goto err;
 	}
 
 	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->set_params) {
 		ret = rtd->dai_link->compr_ops->set_params(cstream);
 		if (ret < 0)
-			goto out;
+			goto err;
 	}
 
 	snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_PLAYBACK,
 				SND_SOC_DAPM_STREAM_START);
 
-out:
+	/* cancel any delayed stream shutdown that is pending */
+	rtd->pop_wait = 0;
+	mutex_unlock(&rtd->pcm_mutex);
+
+	cancel_delayed_work_sync(&rtd->delayed_work);
+
+	return ret;
+
+err:
 	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
 }
@@ -322,11 +330,38 @@ static int soc_compr_copy(struct snd_compr_stream *cstream,
 	return ret;
 }
 
+static int sst_compr_set_metadata(struct snd_compr_stream *cstream,
+				struct snd_compr_metadata *metadata)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_platform *platform = rtd->platform;
+	int ret = 0;
+
+	if (platform->driver->compr_ops && platform->driver->compr_ops->set_metadata)
+		ret = platform->driver->compr_ops->set_metadata(cstream, metadata);
+
+	return ret;
+}
+
+static int sst_compr_get_metadata(struct snd_compr_stream *cstream,
+				struct snd_compr_metadata *metadata)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_platform *platform = rtd->platform;
+	int ret = 0;
+
+	if (platform->driver->compr_ops && platform->driver->compr_ops->get_metadata)
+		ret = platform->driver->compr_ops->get_metadata(cstream, metadata);
+
+	return ret;
+}
 /* ASoC Compress operations */
 static struct snd_compr_ops soc_compr_ops = {
 	.open		= soc_compr_open,
 	.free		= soc_compr_free,
 	.set_params	= soc_compr_set_params,
+	.set_metadata   = sst_compr_set_metadata,
+	.get_metadata	= sst_compr_get_metadata,
 	.get_params	= soc_compr_get_params,
 	.trigger	= soc_compr_trigger,
 	.pointer	= soc_compr_pointer,
