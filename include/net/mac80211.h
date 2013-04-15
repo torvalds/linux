@@ -601,8 +601,8 @@ static inline void ieee80211_rate_set_vht(struct ieee80211_tx_rate *rate,
 					  u8 mcs, u8 nss)
 {
 	WARN_ON(mcs & ~0xF);
-	WARN_ON(nss & ~0x7);
-	rate->idx = (nss << 4) | mcs;
+	WARN_ON((nss - 1) & ~0x7);
+	rate->idx = ((nss - 1) << 4) | mcs;
 }
 
 static inline u8
@@ -614,7 +614,7 @@ ieee80211_rate_get_vht_mcs(const struct ieee80211_tx_rate *rate)
 static inline u8
 ieee80211_rate_get_vht_nss(const struct ieee80211_tx_rate *rate)
 {
-	return rate->idx >> 4;
+	return (rate->idx >> 4) + 1;
 }
 
 /**
