@@ -115,43 +115,25 @@ static void ceph_osd_data_bio_init(struct ceph_osd_data *osd_data,
 }
 #endif /* CONFIG_BLOCK */
 
+#define osd_req_op_data(oreq, whch, typ, fld)	\
+	({						\
+		BUG_ON(whch >= (oreq)->r_num_ops);	\
+		&(oreq)->r_ops[whch].typ.fld;		\
+	})
+
 struct ceph_osd_data *
 osd_req_op_extent_osd_data(struct ceph_osd_request *osd_req,
 			unsigned int which)
 {
-	BUG_ON(which >= osd_req->r_num_ops);
-
-	return &osd_req->r_ops[which].extent.osd_data;
+	return osd_req_op_data(osd_req, which, extent, osd_data);
 }
 EXPORT_SYMBOL(osd_req_op_extent_osd_data);
-
-struct ceph_osd_data *
-osd_req_op_cls_request_info(struct ceph_osd_request *osd_req,
-			unsigned int which)
-{
-	BUG_ON(which >= osd_req->r_num_ops);
-
-	return &osd_req->r_ops[which].cls.request_info;
-}
-EXPORT_SYMBOL(osd_req_op_cls_request_info);	/* ??? */
-
-struct ceph_osd_data *
-osd_req_op_cls_request_data(struct ceph_osd_request *osd_req,
-			unsigned int which)
-{
-	BUG_ON(which >= osd_req->r_num_ops);
-
-	return &osd_req->r_ops[which].cls.request_data;
-}
-EXPORT_SYMBOL(osd_req_op_cls_request_data);	/* ??? */
 
 struct ceph_osd_data *
 osd_req_op_cls_response_data(struct ceph_osd_request *osd_req,
 			unsigned int which)
 {
-	BUG_ON(which >= osd_req->r_num_ops);
-
-	return &osd_req->r_ops[which].cls.response_data;
+	return osd_req_op_data(osd_req, which, cls, response_data);
 }
 EXPORT_SYMBOL(osd_req_op_cls_response_data);	/* ??? */
 
@@ -162,7 +144,7 @@ void osd_req_op_extent_osd_data_pages(struct ceph_osd_request *osd_req,
 {
 	struct ceph_osd_data *osd_data;
 
-	osd_data = osd_req_op_extent_osd_data(osd_req, which);
+	osd_data = osd_req_op_data(osd_req, which, extent, osd_data);
 	ceph_osd_data_pages_init(osd_data, pages, length, alignment,
 				pages_from_pool, own_pages);
 }
@@ -173,7 +155,7 @@ void osd_req_op_extent_osd_data_pagelist(struct ceph_osd_request *osd_req,
 {
 	struct ceph_osd_data *osd_data;
 
-	osd_data = osd_req_op_extent_osd_data(osd_req, which);
+	osd_data = osd_req_op_data(osd_req, which, extent, osd_data);
 	ceph_osd_data_pagelist_init(osd_data, pagelist);
 }
 EXPORT_SYMBOL(osd_req_op_extent_osd_data_pagelist);
@@ -183,7 +165,8 @@ void osd_req_op_extent_osd_data_bio(struct ceph_osd_request *osd_req,
 			unsigned int which, struct bio *bio, size_t bio_length)
 {
 	struct ceph_osd_data *osd_data;
-	osd_data = osd_req_op_extent_osd_data(osd_req, which);
+
+	osd_data = osd_req_op_data(osd_req, which, extent, osd_data);
 	ceph_osd_data_bio_init(osd_data, bio, bio_length);
 }
 EXPORT_SYMBOL(osd_req_op_extent_osd_data_bio);
@@ -195,7 +178,7 @@ static void osd_req_op_cls_request_info_pagelist(
 {
 	struct ceph_osd_data *osd_data;
 
-	osd_data = osd_req_op_cls_request_info(osd_req, which);
+	osd_data = osd_req_op_data(osd_req, which, cls, request_info);
 	ceph_osd_data_pagelist_init(osd_data, pagelist);
 }
 
@@ -205,7 +188,7 @@ void osd_req_op_cls_request_data_pagelist(
 {
 	struct ceph_osd_data *osd_data;
 
-	osd_data = osd_req_op_cls_request_data(osd_req, which);
+	osd_data = osd_req_op_data(osd_req, which, cls, request_data);
 	ceph_osd_data_pagelist_init(osd_data, pagelist);
 }
 EXPORT_SYMBOL(osd_req_op_cls_request_data_pagelist);
@@ -216,7 +199,7 @@ void osd_req_op_cls_response_data_pages(struct ceph_osd_request *osd_req,
 {
 	struct ceph_osd_data *osd_data;
 
-	osd_data = osd_req_op_cls_response_data(osd_req, which);
+	osd_data = osd_req_op_data(osd_req, which, cls, response_data);
 	ceph_osd_data_pages_init(osd_data, pages, length, alignment,
 				pages_from_pool, own_pages);
 }
@@ -240,7 +223,6 @@ static u64 ceph_osd_data_length(struct ceph_osd_data *osd_data)
 		return 0;
 	}
 }
-
 
 static void ceph_osd_data_release(struct ceph_osd_data *osd_data)
 {
