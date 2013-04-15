@@ -72,14 +72,24 @@ static int
 mISDN_close(struct inode *ino, struct file *filep)
 {
 	struct mISDNtimerdev	*dev = filep->private_data;
+	struct list_head	*list = &dev->pending;
 	struct mISDNtimer	*timer, *next;
 
 	if (*debug & DEBUG_TIMER)
 		printk(KERN_DEBUG "%s(%p,%p)\n", __func__, ino, filep);
-	list_for_each_entry_safe(timer, next, &dev->pending, list) {
-		del_timer(&timer->tl);
+
+	spin_lock_irq(&dev->lock);
+	while (!list_empty(list)) {
+		timer = list_first_entry(list, struct mISDNtimer, list);
+		spin_unlock_irq(&dev->lock);
+		del_timer_sync(&timer->tl);
+		spin_lock_irq(&dev->lock);
+		/* it might have been moved to ->expired */
+		list_del(&timer->list);
 		kfree(timer);
 	}
+	spin_unlock_irq(&dev->lock);
+
 	list_for_each_entry_safe(timer, next, &dev->expired, list) {
 		kfree(timer);
 	}
