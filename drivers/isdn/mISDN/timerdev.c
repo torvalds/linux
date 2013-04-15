@@ -64,7 +64,6 @@ mISDN_open(struct inode *ino, struct file *filep)
 	dev->work = 0;
 	init_waitqueue_head(&dev->wait);
 	filep->private_data = dev;
-	__module_get(THIS_MODULE);
 	return nonseekable_open(ino, filep);
 }
 
@@ -94,7 +93,6 @@ mISDN_close(struct inode *ino, struct file *filep)
 		kfree(timer);
 	}
 	kfree(dev);
-	module_put(THIS_MODULE);
 	return 0;
 }
 
@@ -269,6 +267,7 @@ mISDN_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 }
 
 static const struct file_operations mISDN_fops = {
+	.owner		= THIS_MODULE,
 	.read		= mISDN_read,
 	.poll		= mISDN_poll,
 	.unlocked_ioctl	= mISDN_ioctl,
