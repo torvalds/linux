@@ -275,19 +275,18 @@ static int __init eisa_request_resources(struct eisa_root_device *root,
 		}
 		
 		if (slot) {
-			edev->res[i].name  = NULL;
 			edev->res[i].start = SLOT_ADDRESS(root, slot)
 					     + (i * 0x400);
 			edev->res[i].end   = edev->res[i].start + 0xff;
 			edev->res[i].flags = IORESOURCE_IO;
 		} else {
-			edev->res[i].name  = NULL;
 			edev->res[i].start = SLOT_ADDRESS(root, slot)
 					     + EISA_VENDOR_ID_OFFSET;
 			edev->res[i].end   = edev->res[i].start + 3;
-			edev->res[i].flags = IORESOURCE_BUSY;
+			edev->res[i].flags = IORESOURCE_IO | IORESOURCE_BUSY;
 		}
 
+		dev_printk(KERN_DEBUG, &edev->dev, "%pR\n", &edev->res[i]);
 		if (request_resource(root->res, &edev->res[i]))
 			goto failed;
 	}
@@ -314,41 +313,40 @@ static int __init eisa_probe(struct eisa_root_device *root)
 {
         int i, c;
 	struct eisa_device *edev;
+	char *enabled_str;
 
-	printk(KERN_INFO "EISA: Probing bus %d at %s\n",
-	       root->bus_nr, dev_name(root->dev));
+	dev_info(root->dev, "Probing EISA bus %d\n", root->bus_nr);
 
 	/* First try to get hold of slot 0. If there is no device
 	 * here, simply fail, unless root->force_probe is set. */
 	
 	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
 	if (!edev) {
-		printk(KERN_ERR "EISA: Couldn't allocate mainboard slot\n");
+		dev_err(root->dev, "EISA: Couldn't allocate mainboard slot\n");
 		return -ENOMEM;
 	}
 		
-	if (eisa_request_resources(root, edev, 0)) {
-		printk(KERN_WARNING \
-		       "EISA: Cannot allocate resource for mainboard\n");
-		kfree(edev);
-		if (!root->force_probe)
-			return -EBUSY;
-		goto force_probe;
-	}
-
 	if (eisa_init_device(root, edev, 0)) {
-		eisa_release_resources(edev);
 		kfree(edev);
 		if (!root->force_probe)
 			return -ENODEV;
 		goto force_probe;
 	}
 
-	printk(KERN_INFO "EISA: Mainboard %s detected.\n", edev->id.sig);
+	if (eisa_request_resources(root, edev, 0)) {
+		dev_warn(root->dev,
+		         "EISA: Cannot allocate resource for mainboard\n");
+		kfree(edev);
+		if (!root->force_probe)
+			return -EBUSY;
+		goto force_probe;
+	}
+
+	dev_info(&edev->dev, "EISA: Mainboard %s detected\n", edev->id.sig);
 
 	if (eisa_register_device(edev)) {
-		printk(KERN_ERR "EISA: Failed to register %s\n",
-		       edev->id.sig);
+		dev_err(&edev->dev, "EISA: Failed to register %s\n",
+		        edev->id.sig);
 		eisa_release_resources(edev);
 		kfree(edev);
 	}
@@ -358,55 +356,47 @@ static int __init eisa_probe(struct eisa_root_device *root)
         for (c = 0, i = 1; i <= root->slots; i++) {
 		edev = kzalloc(sizeof(*edev), GFP_KERNEL);
 		if (!edev) {
-			printk(KERN_ERR "EISA: Out of memory for slot %d\n", i);
-			continue;
-		}
-
-		if (eisa_request_resources(root, edev, i)) {
-			printk(KERN_WARNING \
-			       "Cannot allocate resource for EISA slot %d\n",
-			       i);
-			kfree(edev);
+			dev_err(root->dev, "EISA: Out of memory for slot %d\n",
+				i);
 			continue;
 		}
 
 		if (eisa_init_device(root, edev, i)) {
-			eisa_release_resources(edev);
 			kfree(edev);
 			continue;
 		}
-		
-		printk(KERN_INFO "EISA: slot %d : %s detected",
-		       i, edev->id.sig);
-			
-		switch (edev->state) {
-		case EISA_CONFIG_ENABLED | EISA_CONFIG_FORCED:
-			printk(" (forced enabled)");
-			break;
 
-		case EISA_CONFIG_FORCED:
-			printk(" (forced disabled)");
-			break;
-
-		case 0:
-			printk(" (disabled)");
-			break;
+		if (eisa_request_resources(root, edev, i)) {
+			dev_warn(root->dev,
+			         "Cannot allocate resource for EISA slot %d\n",
+			         i);
+			kfree(edev);
+			continue;
 		}
-			
-		printk (".\n");
+
+		if (edev->state == (EISA_CONFIG_ENABLED | EISA_CONFIG_FORCED))
+			enabled_str = " (forced enabled)";
+		else if (edev->state == EISA_CONFIG_FORCED)
+			enabled_str = " (forced disabled)";
+		else if (edev->state == 0)
+			enabled_str = " (disabled)";
+		else
+			enabled_str = "";
+
+		dev_info(&edev->dev, "EISA: slot %d: %s detected%s\n", i,
+			 edev->id.sig, enabled_str);
 
 		c++;
 
 		if (eisa_register_device(edev)) {
-			printk(KERN_ERR "EISA: Failed to register %s\n",
-			       edev->id.sig);
+			dev_err(&edev->dev, "EISA: Failed to register %s\n",
+			        edev->id.sig);
 			eisa_release_resources(edev);
 			kfree(edev);
 		}
         }
 
-	printk(KERN_INFO "EISA: Detected %d card%s.\n", c, c == 1 ? "" : "s");
-
+	dev_info(root->dev, "EISA: Detected %d card%s\n", c, c == 1 ? "" : "s");
 	return 0;
 }
 
