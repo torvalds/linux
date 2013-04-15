@@ -207,7 +207,7 @@ static struct sock *__vsock_find_bound_socket(struct sockaddr_vm *addr)
 	struct vsock_sock *vsk;
 
 	list_for_each_entry(vsk, vsock_bound_sockets(addr), bound_table)
-		if (vsock_addr_equals_addr_any(addr, &vsk->local_addr))
+		if (addr->svm_port == vsk->local_addr.svm_port)
 			return sk_vsock(vsk);
 
 	return NULL;
@@ -220,8 +220,8 @@ static struct sock *__vsock_find_connected_socket(struct sockaddr_vm *src,
 
 	list_for_each_entry(vsk, vsock_connected_sockets(src, dst),
 			    connected_table) {
-		if (vsock_addr_equals_addr(src, &vsk->remote_addr)
-		    && vsock_addr_equals_addr(dst, &vsk->local_addr)) {
+		if (vsock_addr_equals_addr(src, &vsk->remote_addr) &&
+		    dst->svm_port == vsk->local_addr.svm_port) {
 			return sk_vsock(vsk);
 		}
 	}
@@ -1669,6 +1669,8 @@ vsock_stream_recvmsg(struct kiocb *kiocb,
 	sk = sock->sk;
 	vsk = vsock_sk(sk);
 	err = 0;
+
+	msg->msg_namelen = 0;
 
 	lock_sock(sk);
 
