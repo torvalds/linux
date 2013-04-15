@@ -193,6 +193,23 @@ static const struct snd_soc_platform_driver dmaengine_pcm_platform = {
 	.probe_order	= SND_SOC_COMP_ORDER_LATE,
 };
 
+static const struct snd_pcm_ops dmaengine_no_residue_pcm_ops = {
+	.open		= dmaengine_pcm_open,
+	.close		= snd_dmaengine_pcm_close,
+	.ioctl		= snd_pcm_lib_ioctl,
+	.hw_params	= dmaengine_pcm_hw_params,
+	.hw_free	= snd_pcm_lib_free_pages,
+	.trigger	= snd_dmaengine_pcm_trigger,
+	.pointer	= snd_dmaengine_pcm_pointer_no_residue,
+};
+
+static const struct snd_soc_platform_driver dmaengine_no_residue_pcm_platform = {
+	.ops		= &dmaengine_no_residue_pcm_ops,
+	.pcm_new	= dmaengine_pcm_new,
+	.pcm_free	= dmaengine_pcm_free,
+	.probe_order	= SND_SOC_COMP_ORDER_LATE,
+};
+
 static const char * const dmaengine_pcm_dma_channel_names[] = {
 	[SNDRV_PCM_STREAM_PLAYBACK] = "tx",
 	[SNDRV_PCM_STREAM_CAPTURE] = "rx",
@@ -226,7 +243,11 @@ int snd_dmaengine_pcm_register(struct device *dev,
 		}
 	}
 
-	return snd_soc_add_platform(dev, &pcm->platform,
+	if (flags & SND_DMAENGINE_PCM_FLAG_NO_RESIDUE)
+		return snd_soc_add_platform(dev, &pcm->platform,
+				&dmaengine_no_residue_pcm_platform);
+	else
+		return snd_soc_add_platform(dev, &pcm->platform,
 				&dmaengine_pcm_platform);
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_register);

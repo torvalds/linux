@@ -86,6 +86,11 @@ void snd_dmaengine_pcm_set_config_from_dai_data(
  * makes sense if SND_DMAENGINE_PCM_FLAG_COMPAT is set as well.
  */
 #define SND_DMAENGINE_PCM_FLAG_NO_DT BIT(1)
+/*
+ * The platforms dmaengine driver does not support reporting the ammount of
+ * bytes that are still left to transfer.
+ */
+#define SND_DMAENGINE_PCM_FLAG_NO_RESIDUE BIT(2)
 
 /**
  * struct snd_dmaengine_pcm_config - Configuration data for dmaengine based PCM
