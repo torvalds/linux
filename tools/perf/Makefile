@@ -124,14 +124,14 @@ strip-libs = $(filter-out -l%,$(1))
 LK_PATH=$(LK_DIR)
 
 ifneq ($(OUTPUT),)
-	TE_PATH=$(OUTPUT)
+  TE_PATH=$(OUTPUT)
 ifneq ($(subdir),)
-	LK_PATH=$(OUTPUT)$(LK_DIR)
+  LK_PATH=$(OUTPUT)$(LK_DIR)
 else
-	LK_PATH=$(OUTPUT)
+  LK_PATH=$(OUTPUT)
 endif
 else
-	TE_PATH=$(TRACE_EVENT_DIR)
+  TE_PATH=$(TRACE_EVENT_DIR)
 endif
 
 LIBTRACEEVENT = $(TE_PATH)libtraceevent.a
@@ -175,10 +175,10 @@ OTHER_PROGRAMS = $(OUTPUT)perf
 
 # Set paths to tools early so that they can be used for version tests.
 ifndef SHELL_PATH
-	SHELL_PATH = /bin/sh
+  SHELL_PATH = /bin/sh
 endif
 ifndef PERL_PATH
-	PERL_PATH = /usr/bin/perl
+  PERL_PATH = /usr/bin/perl
 endif
 
 export PERL_PATH
@@ -433,7 +433,7 @@ PERFLIBS = $(LIB_FILE) $(LIBLK) $(LIBTRACEEVENT)
 -include arch/$(ARCH)/Makefile
 
 ifneq ($(OUTPUT),)
-	CFLAGS += -I$(OUTPUT)
+  CFLAGS += -I$(OUTPUT)
 endif
 
 ifdef NO_LIBELF
@@ -452,67 +452,67 @@ LIB_OBJS += $(OUTPUT)util/symbol-minimal.o
 
 else # NO_LIBELF
 ifndef NO_DWARF
-	LIB_OBJS += $(OUTPUT)util/probe-finder.o
-	LIB_OBJS += $(OUTPUT)util/dwarf-aux.o
+  LIB_OBJS += $(OUTPUT)util/probe-finder.o
+  LIB_OBJS += $(OUTPUT)util/dwarf-aux.o
 endif # NO_DWARF
 endif # NO_LIBELF
 
 ifndef NO_LIBUNWIND
-	LIB_OBJS += $(OUTPUT)util/unwind.o
+  LIB_OBJS += $(OUTPUT)util/unwind.o
 endif
 
 ifndef NO_LIBAUDIT
-	BUILTIN_OBJS += $(OUTPUT)builtin-trace.o
+  BUILTIN_OBJS += $(OUTPUT)builtin-trace.o
 endif
 
 ifndef NO_SLANG
-	LIB_OBJS += $(OUTPUT)ui/browser.o
-	LIB_OBJS += $(OUTPUT)ui/browsers/annotate.o
-	LIB_OBJS += $(OUTPUT)ui/browsers/hists.o
-	LIB_OBJS += $(OUTPUT)ui/browsers/map.o
-	LIB_OBJS += $(OUTPUT)ui/browsers/scripts.o
-	LIB_OBJS += $(OUTPUT)ui/tui/setup.o
-	LIB_OBJS += $(OUTPUT)ui/tui/util.o
-	LIB_OBJS += $(OUTPUT)ui/tui/helpline.o
-	LIB_OBJS += $(OUTPUT)ui/tui/progress.o
-	LIB_H += ui/browser.h
-	LIB_H += ui/browsers/map.h
-	LIB_H += ui/keysyms.h
-	LIB_H += ui/libslang.h
+  LIB_OBJS += $(OUTPUT)ui/browser.o
+  LIB_OBJS += $(OUTPUT)ui/browsers/annotate.o
+  LIB_OBJS += $(OUTPUT)ui/browsers/hists.o
+  LIB_OBJS += $(OUTPUT)ui/browsers/map.o
+  LIB_OBJS += $(OUTPUT)ui/browsers/scripts.o
+  LIB_OBJS += $(OUTPUT)ui/tui/setup.o
+  LIB_OBJS += $(OUTPUT)ui/tui/util.o
+  LIB_OBJS += $(OUTPUT)ui/tui/helpline.o
+  LIB_OBJS += $(OUTPUT)ui/tui/progress.o
+  LIB_H += ui/browser.h
+  LIB_H += ui/browsers/map.h
+  LIB_H += ui/keysyms.h
+  LIB_H += ui/libslang.h
 endif
 
 ifndef NO_GTK2
-	LIB_OBJS += $(OUTPUT)ui/gtk/browser.o
-	LIB_OBJS += $(OUTPUT)ui/gtk/hists.o
-	LIB_OBJS += $(OUTPUT)ui/gtk/setup.o
-	LIB_OBJS += $(OUTPUT)ui/gtk/util.o
-	LIB_OBJS += $(OUTPUT)ui/gtk/helpline.o
-	LIB_OBJS += $(OUTPUT)ui/gtk/progress.o
-	LIB_OBJS += $(OUTPUT)ui/gtk/annotate.o
+  LIB_OBJS += $(OUTPUT)ui/gtk/browser.o
+  LIB_OBJS += $(OUTPUT)ui/gtk/hists.o
+  LIB_OBJS += $(OUTPUT)ui/gtk/setup.o
+  LIB_OBJS += $(OUTPUT)ui/gtk/util.o
+  LIB_OBJS += $(OUTPUT)ui/gtk/helpline.o
+  LIB_OBJS += $(OUTPUT)ui/gtk/progress.o
+  LIB_OBJS += $(OUTPUT)ui/gtk/annotate.o
 endif
 
 ifndef NO_LIBPERL
-	LIB_OBJS += $(OUTPUT)util/scripting-engines/trace-event-perl.o
-	LIB_OBJS += $(OUTPUT)scripts/perl/Perf-Trace-Util/Context.o
+  LIB_OBJS += $(OUTPUT)util/scripting-engines/trace-event-perl.o
+  LIB_OBJS += $(OUTPUT)scripts/perl/Perf-Trace-Util/Context.o
 endif
 
 ifndef NO_LIBPYTHON
-	LIB_OBJS += $(OUTPUT)util/scripting-engines/trace-event-python.o
-	LIB_OBJS += $(OUTPUT)scripts/python/Perf-Trace-Util/Context.o
+  LIB_OBJS += $(OUTPUT)util/scripting-engines/trace-event-python.o
+  LIB_OBJS += $(OUTPUT)scripts/python/Perf-Trace-Util/Context.o
 endif
 
 ifeq ($(NO_PERF_REGS),0)
-	ifeq ($(ARCH),x86)
-		LIB_H += arch/x86/include/perf_regs.h
-	endif
+  ifeq ($(ARCH),x86)
+    LIB_H += arch/x86/include/perf_regs.h
+  endif
 endif
 
 ifndef NO_LIBNUMA
-	BUILTIN_OBJS += $(OUTPUT)bench/numa.o
+  BUILTIN_OBJS += $(OUTPUT)bench/numa.o
 endif
 
 ifdef ASCIIDOC8
-	export ASCIIDOC8
+  export ASCIIDOC8
 endif
 
 LIBS = -Wl,--whole-archive $(PERFLIBS) -Wl,--no-whole-archive -Wl,--start-group $(EXTLIBS) -Wl,--end-group
