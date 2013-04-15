@@ -769,6 +769,7 @@ struct qeth_card {
 	unsigned long thread_start_mask;
 	unsigned long thread_allowed_mask;
 	unsigned long thread_running_mask;
+	struct task_struct *recovery_task;
 	spinlock_t ip_lock;
 	struct list_head ip_list;
 	struct list_head *ip_tbd_list;
@@ -862,6 +863,8 @@ extern struct qeth_card_list_struct qeth_core_card_list;
 extern struct kmem_cache *qeth_core_header_cache;
 extern struct qeth_dbf_info qeth_dbf[QETH_DBF_INFOS];
 
+void qeth_set_recovery_task(struct qeth_card *);
+void qeth_clear_recovery_task(struct qeth_card *);
 void qeth_set_allowed_threads(struct qeth_card *, unsigned long , int);
 int qeth_threads_running(struct qeth_card *, unsigned long);
 int qeth_wait_for_threads(struct qeth_card *, unsigned long);

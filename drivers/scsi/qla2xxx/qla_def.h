@@ -863,7 +863,6 @@ typedef struct {
 #define	MBX_1		BIT_1
 #define	MBX_0		BIT_0
 
-#define RNID_TYPE_SET_VERSION	0x9
 #define RNID_TYPE_ASIC_TEMP	0xC
 
 /*

@@ -159,6 +159,7 @@ static int si476x_codec_hw_params(struct snd_pcm_substream *substream,
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
 		width = SI476X_PCM_FORMAT_S8;
+		break;
 	case SNDRV_PCM_FORMAT_S16_LE:
 		width = SI476X_PCM_FORMAT_S16_LE;
 		break;

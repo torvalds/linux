@@ -1539,9 +1539,9 @@ static int free_hole_blocks(handle_t *handle, struct inode *inode,
 		blk = *i_data;
 		if (level > 0) {
 			ext4_lblk_t first2;
-			bh = sb_bread(inode->i_sb, blk);
+			bh = sb_bread(inode->i_sb, le32_to_cpu(blk));
 			if (!bh) {
-				EXT4_ERROR_INODE_BLOCK(inode, blk,
+				EXT4_ERROR_INODE_BLOCK(inode, le32_to_cpu(blk),
 						       "Read failure");
 				return -EIO;
 			}
