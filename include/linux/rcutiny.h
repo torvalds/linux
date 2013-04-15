@@ -37,8 +37,6 @@ static inline void rcu_barrier_sched(void)
 	wait_rcu_gp(call_rcu_sched);
 }
 
-#ifdef CONFIG_TINY_RCU
-
 static inline void synchronize_rcu_expedited(void)
 {
 	synchronize_sched();	/* Only one CPU, so pretty fast anyway!!! */
@@ -48,8 +46,6 @@ static inline void rcu_barrier(void)
 {
 	rcu_barrier_sched();  /* Only one CPU, so only one list of callbacks! */
 }
-
-#endif /* #ifdef CONFIG_TINY_RCU */
 
 static inline void synchronize_rcu_bh(void)
 {
@@ -72,8 +68,6 @@ static inline void kfree_call_rcu(struct rcu_head *head,
 	call_rcu(head, func);
 }
 
-#ifdef CONFIG_TINY_RCU
-
 static inline void rcu_preempt_note_context_switch(void)
 {
 }
@@ -83,8 +77,6 @@ static inline int rcu_needs_cpu(int cpu, unsigned long *delta_jiffies)
 	*delta_jiffies = ULONG_MAX;
 	return 0;
 }
-
-#endif /* #ifdef CONFIG_TINY_RCU */
 
 static inline void rcu_note_context_switch(int cpu)
 {
