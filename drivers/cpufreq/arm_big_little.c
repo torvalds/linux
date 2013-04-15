@@ -77,8 +77,6 @@ static int bL_cpufreq_set_target(struct cpufreq_policy *policy,
 			target_freq, relation, &freq_tab_idx);
 	freqs.new = freq_table[cur_cluster][freq_tab_idx].frequency;
 
-	freqs.cpu = policy->cpu;
-
 	pr_debug("%s: cpu: %d, cluster: %d, oldfreq: %d, target freq: %d, new freq: %d\n",
 			__func__, cpu, cur_cluster, freqs.old, target_freq,
 			freqs.new);
@@ -86,8 +84,7 @@ static int bL_cpufreq_set_target(struct cpufreq_policy *policy,
 	if (freqs.old == freqs.new)
 		return 0;
 
-	for_each_cpu(freqs.cpu, policy->cpus)
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	ret = clk_set_rate(clk[cur_cluster], freqs.new * 1000);
 	if (ret) {
@@ -97,8 +94,7 @@ static int bL_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	policy->cur = freqs.new;
 
-	for_each_cpu(freqs.cpu, policy->cpus)
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return ret;
 }
@@ -231,7 +227,7 @@ static struct cpufreq_driver bL_cpufreq_driver = {
 	.get			= bL_cpufreq_get,
 	.init			= bL_cpufreq_init,
 	.exit			= bL_cpufreq_exit,
-	.have_multiple_policies	= true,
+	.have_governor_per_policy = true,
 	.attr			= bL_cpufreq_attr,
 };
 
