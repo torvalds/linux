@@ -1120,44 +1120,6 @@ int drm_mode_create_dirty_info_property(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_mode_create_dirty_info_property);
 
-/**
- * drm_mode_config_init - initialize DRM mode_configuration structure
- * @dev: DRM device
- *
- * Initialize @dev's mode_config structure, used for tracking the graphics
- * configuration of @dev.
- *
- * Since this initializes the modeset locks, no locking is possible. Which is no
- * problem, since this should happen single threaded at init time. It is the
- * driver's problem to ensure this guarantee.
- *
- */
-void drm_mode_config_init(struct drm_device *dev)
-{
-	mutex_init(&dev->mode_config.mutex);
-	mutex_init(&dev->mode_config.idr_mutex);
-	mutex_init(&dev->mode_config.fb_lock);
-	INIT_LIST_HEAD(&dev->mode_config.fb_list);
-	INIT_LIST_HEAD(&dev->mode_config.crtc_list);
-	INIT_LIST_HEAD(&dev->mode_config.connector_list);
-	INIT_LIST_HEAD(&dev->mode_config.encoder_list);
-	INIT_LIST_HEAD(&dev->mode_config.property_list);
-	INIT_LIST_HEAD(&dev->mode_config.property_blob_list);
-	INIT_LIST_HEAD(&dev->mode_config.plane_list);
-	idr_init(&dev->mode_config.crtc_idr);
-
-	drm_modeset_lock_all(dev);
-	drm_mode_create_standard_connector_properties(dev);
-	drm_modeset_unlock_all(dev);
-
-	/* Just to be sure */
-	dev->mode_config.num_fb = 0;
-	dev->mode_config.num_connector = 0;
-	dev->mode_config.num_crtc = 0;
-	dev->mode_config.num_encoder = 0;
-}
-EXPORT_SYMBOL(drm_mode_config_init);
-
 int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *group)
 {
 	uint32_t total_objects = 0;
@@ -1201,69 +1163,6 @@ int drm_mode_group_init_legacy_group(struct drm_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL(drm_mode_group_init_legacy_group);
-
-/**
- * drm_mode_config_cleanup - free up DRM mode_config info
- * @dev: DRM device
- *
- * Free up all the connectors and CRTCs associated with this DRM device, then
- * free up the framebuffers and associated buffer objects.
- *
- * Note that since this /should/ happen single-threaded at driver/device
- * teardown time, no locking is required. It's the driver's job to ensure that
- * this guarantee actually holds true.
- *
- * FIXME: cleanup any dangling user buffer objects too
- */
-void drm_mode_config_cleanup(struct drm_device *dev)
-{
-	struct drm_connector *connector, *ot;
-	struct drm_crtc *crtc, *ct;
-	struct drm_encoder *encoder, *enct;
-	struct drm_framebuffer *fb, *fbt;
-	struct drm_property *property, *pt;
-	struct drm_plane *plane, *plt;
-
-	list_for_each_entry_safe(encoder, enct, &dev->mode_config.encoder_list,
-				 head) {
-		encoder->funcs->destroy(encoder);
-	}
-
-	list_for_each_entry_safe(connector, ot,
-				 &dev->mode_config.connector_list, head) {
-		connector->funcs->destroy(connector);
-	}
-
-	list_for_each_entry_safe(property, pt, &dev->mode_config.property_list,
-				 head) {
-		drm_property_destroy(dev, property);
-	}
-
-	/*
-	 * Single-threaded teardown context, so it's not required to grab the
-	 * fb_lock to protect against concurrent fb_list access. Contrary, it
-	 * would actually deadlock with the drm_framebuffer_cleanup function.
-	 *
-	 * Also, if there are any framebuffers left, that's a driver leak now,
-	 * so politely WARN about this.
-	 */
-	WARN_ON(!list_empty(&dev->mode_config.fb_list));
-	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
-		drm_framebuffer_remove(fb);
-	}
-
-	list_for_each_entry_safe(plane, plt, &dev->mode_config.plane_list,
-				 head) {
-		plane->funcs->destroy(plane);
-	}
-
-	list_for_each_entry_safe(crtc, ct, &dev->mode_config.crtc_list, head) {
-		crtc->funcs->destroy(crtc);
-	}
-
-	idr_destroy(&dev->mode_config.crtc_idr);
-}
-EXPORT_SYMBOL(drm_mode_config_cleanup);
 
 /**
  * drm_crtc_convert_to_umode - convert a drm_display_mode into a modeinfo
@@ -4064,3 +3963,110 @@ int drm_format_vert_chroma_subsampling(uint32_t format)
 	}
 }
 EXPORT_SYMBOL(drm_format_vert_chroma_subsampling);
+
+/**
+ * drm_mode_config_init - initialize DRM mode_configuration structure
+ * @dev: DRM device
+ *
+ * Initialize @dev's mode_config structure, used for tracking the graphics
+ * configuration of @dev.
+ *
+ * Since this initializes the modeset locks, no locking is possible. Which is no
+ * problem, since this should happen single threaded at init time. It is the
+ * driver's problem to ensure this guarantee.
+ *
+ */
+void drm_mode_config_init(struct drm_device *dev)
+{
+	mutex_init(&dev->mode_config.mutex);
+	mutex_init(&dev->mode_config.idr_mutex);
+	mutex_init(&dev->mode_config.fb_lock);
+	INIT_LIST_HEAD(&dev->mode_config.fb_list);
+	INIT_LIST_HEAD(&dev->mode_config.crtc_list);
+	INIT_LIST_HEAD(&dev->mode_config.connector_list);
+	INIT_LIST_HEAD(&dev->mode_config.encoder_list);
+	INIT_LIST_HEAD(&dev->mode_config.property_list);
+	INIT_LIST_HEAD(&dev->mode_config.property_blob_list);
+	INIT_LIST_HEAD(&dev->mode_config.plane_list);
+	idr_init(&dev->mode_config.crtc_idr);
+
+	drm_modeset_lock_all(dev);
+	drm_mode_create_standard_connector_properties(dev);
+	drm_modeset_unlock_all(dev);
+
+	/* Just to be sure */
+	dev->mode_config.num_fb = 0;
+	dev->mode_config.num_connector = 0;
+	dev->mode_config.num_crtc = 0;
+	dev->mode_config.num_encoder = 0;
+}
+EXPORT_SYMBOL(drm_mode_config_init);
+
+/**
+ * drm_mode_config_cleanup - free up DRM mode_config info
+ * @dev: DRM device
+ *
+ * Free up all the connectors and CRTCs associated with this DRM device, then
+ * free up the framebuffers and associated buffer objects.
+ *
+ * Note that since this /should/ happen single-threaded at driver/device
+ * teardown time, no locking is required. It's the driver's job to ensure that
+ * this guarantee actually holds true.
+ *
+ * FIXME: cleanup any dangling user buffer objects too
+ */
+void drm_mode_config_cleanup(struct drm_device *dev)
+{
+	struct drm_connector *connector, *ot;
+	struct drm_crtc *crtc, *ct;
+	struct drm_encoder *encoder, *enct;
+	struct drm_framebuffer *fb, *fbt;
+	struct drm_property *property, *pt;
+	struct drm_property_blob *blob, *bt;
+	struct drm_plane *plane, *plt;
+
+	list_for_each_entry_safe(encoder, enct, &dev->mode_config.encoder_list,
+				 head) {
+		encoder->funcs->destroy(encoder);
+	}
+
+	list_for_each_entry_safe(connector, ot,
+				 &dev->mode_config.connector_list, head) {
+		connector->funcs->destroy(connector);
+	}
+
+	list_for_each_entry_safe(property, pt, &dev->mode_config.property_list,
+				 head) {
+		drm_property_destroy(dev, property);
+	}
+
+	list_for_each_entry_safe(blob, bt, &dev->mode_config.property_blob_list,
+				 head) {
+		drm_property_destroy_blob(dev, blob);
+	}
+
+	/*
+	 * Single-threaded teardown context, so it's not required to grab the
+	 * fb_lock to protect against concurrent fb_list access. Contrary, it
+	 * would actually deadlock with the drm_framebuffer_cleanup function.
+	 *
+	 * Also, if there are any framebuffers left, that's a driver leak now,
+	 * so politely WARN about this.
+	 */
+	WARN_ON(!list_empty(&dev->mode_config.fb_list));
+	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
+		drm_framebuffer_remove(fb);
+	}
+
+	list_for_each_entry_safe(plane, plt, &dev->mode_config.plane_list,
+				 head) {
+		plane->funcs->destroy(plane);
+	}
+
+	list_for_each_entry_safe(crtc, ct, &dev->mode_config.crtc_list, head) {
+		crtc->funcs->destroy(crtc);
+	}
+
+	idr_destroy(&dev->mode_config.crtc_idr);
+}
+EXPORT_SYMBOL(drm_mode_config_cleanup);
