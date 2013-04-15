@@ -1280,6 +1280,7 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 
 	host->mmc->pm_caps = MMC_PM_KEEP_POWER | MMC_PM_WAKE_SDIO_IRQ;
 	host->mmc->slotno = slotno;
+	host->mmc->caps2 |= MMC_CAP2_NO_PRESCAN_POWERUP;
 
 	ret = sdhci_add_host(host);
 	if (ret)
