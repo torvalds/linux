@@ -1854,12 +1854,11 @@ static void psb_intel_sdvo_restore(struct drm_connector *connector)
 
 	REG_WRITE(sdvo->sdvo_reg, sdvo->saveSDVO);
 
-	/* Force dpms on upon resume */
-	psb_intel_sdvo_dpms(encoder, DRM_MODE_DPMS_ON);
-
 	/* Force a full mode set on the crtc. We're supposed to have the
 	   mode_config lock already. */
-	drm_crtc_helper_set_mode(crtc, &crtc->mode, crtc->x, crtc->y, NULL);
+	if (connector->status == connector_status_connected)
+		drm_crtc_helper_set_mode(crtc, &crtc->mode, crtc->x, crtc->y,
+					 NULL);
 }
 
 static const struct drm_encoder_helper_funcs psb_intel_sdvo_helper_funcs = {
