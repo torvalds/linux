@@ -156,7 +156,7 @@ int tty_throttle_safe(struct tty_struct *tty)
 		if (tty->flow_change != TTY_THROTTLE_SAFE)
 			ret = 1;
 		else {
-			__set_bit(TTY_THROTTLED, &tty->flags);
+			set_bit(TTY_THROTTLED, &tty->flags);
 			if (tty->ops->throttle)
 				tty->ops->throttle(tty);
 		}
@@ -187,7 +187,7 @@ int tty_unthrottle_safe(struct tty_struct *tty)
 		if (tty->flow_change != TTY_UNTHROTTLE_SAFE)
 			ret = 1;
 		else {
-			__clear_bit(TTY_THROTTLED, &tty->flags);
+			clear_bit(TTY_THROTTLED, &tty->flags);
 			if (tty->ops->unthrottle)
 				tty->ops->unthrottle(tty);
 		}
