@@ -56,7 +56,7 @@ ENTRY(memmove)
 3:
 	sub $0x20, %rdx
 	/*
-	 * We gobble 32byts forward in each loop.
+	 * We gobble 32 bytes forward in each loop.
 	 */
 5:
 	sub $0x20, %rdx
@@ -122,7 +122,7 @@ ENTRY(memmove)
 	addq %rdx, %rdi
 	subq $0x20, %rdx
 	/*
-	 * We gobble 32byts backward in each loop.
+	 * We gobble 32 bytes backward in each loop.
 	 */
 8:
 	subq $0x20, %rdx
