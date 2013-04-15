@@ -52,6 +52,9 @@ config HZ
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
 
+config STACKTRACE_SUPPORT
+	def_bool y
+
 config MMU
 	def_bool n
 

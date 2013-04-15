@@ -11,7 +11,7 @@
  *
  * Essentially rewritten for the Xtensa architecture port.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2013 Tensilica Inc.
  *
  * Joe Taylor	<joe@tensilica.com, joetylr@yahoo.com>
  * Chris Zankel	<chris@zankel.net>
@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/hardirq.h>
 
+#include <asm/stacktrace.h>
 #include <asm/ptrace.h>
 #include <asm/timex.h>
 #include <asm/uaccess.h>
@@ -402,53 +403,25 @@ void show_regs(struct pt_regs * regs)
 		       regs->syscall);
 }
 
-static __always_inline unsigned long *stack_pointer(struct task_struct *task)
+static int show_trace_cb(struct stackframe *frame, void *data)
 {
-	unsigned long *sp;
-
-	if (!task || task == current)
-		__asm__ __volatile__ ("mov %0, a1\n" : "=a"(sp));
-	else
-		sp = (unsigned long *)task->thread.sp;
-
-	return sp;
+	if (kernel_text_address(frame->pc)) {
+		printk(" [<%08lx>] ", frame->pc);
+		print_symbol("%s\n", frame->pc);
+	}
+	return 0;
 }
 
 void show_trace(struct task_struct *task, unsigned long *sp)
 {
-	unsigned long a0, a1, pc;
-	unsigned long sp_start, sp_end;
-
-	if (sp)
-		a1 = (unsigned long)sp;
-	else
-		a1 = (unsigned long)stack_pointer(task);
-
-	sp_start = a1 & ~(THREAD_SIZE-1);
-	sp_end = sp_start + THREAD_SIZE;
+	if (!sp)
+		sp = stack_pointer(task);
 
 	printk("Call Trace:");
 #ifdef CONFIG_KALLSYMS
 	printk("\n");
 #endif
-	spill_registers();
-
-	while (a1 > sp_start && a1 < sp_end) {
-		sp = (unsigned long*)a1;
-
-		a0 = *(sp - 4);
-		a1 = *(sp - 3);
-
-		if (a1 <= (unsigned long) sp)
-			break;
-
-		pc = MAKE_PC_FROM_RA(a0, a1);
-
-		if (kernel_text_address(pc)) {
-			printk(" [<%08lx>] ", pc);
-			print_symbol("%s\n", pc);
-		}
-	}
+	walk_stackframe(sp, show_trace_cb, NULL);
 	printk("\n");
 }
 
