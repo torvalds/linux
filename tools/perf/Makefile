@@ -82,7 +82,7 @@ FIND    = find
 INSTALL = install
 FLEX    = flex
 BISON   = bison
-STRIP  ?= strip
+STRIP   = strip
 
 LK_DIR          = $(srctree)/tools/lib/lk/
 TRACE_EVENT_DIR = $(srctree)/tools/lib/traceevent/
