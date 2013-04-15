@@ -380,8 +380,10 @@ static int __unioxx5_subdev_init(struct comedi_device *dev,
 		return -ENOMEM;
 
 	ret = __comedi_request_region(dev, iobase, UNIOXX5_SIZE);
-	if (ret)
+	if (ret) {
+		kfree(usp);
 		return ret;
+	}
 	usp->usp_iobase = iobase;
 
 	/* defining modules types */
