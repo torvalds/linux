@@ -683,7 +683,6 @@ int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	if (!kvm_io_bus_write(vcpu->kvm, KVM_MMIO_BUS, run->mmio.phys_addr,
 			      bytes, &run->mmio.data)) {
-		kvmppc_complete_mmio_load(vcpu, run);
 		vcpu->mmio_needed = 0;
 		return EMULATE_DONE;
 	}
