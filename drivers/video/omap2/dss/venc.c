@@ -712,7 +712,7 @@ static int venc_get_clocks(struct platform_device *pdev)
 	struct clk *clk;
 
 	if (dss_has_feature(FEAT_VENC_REQUIRES_TV_DAC_CLK)) {
-		clk = clk_get(&pdev->dev, "tv_dac_clk");
+		clk = devm_clk_get(&pdev->dev, "tv_dac_clk");
 		if (IS_ERR(clk)) {
 			DSSERR("can't get tv_dac_clk\n");
 			return PTR_ERR(clk);
@@ -724,12 +724,6 @@ static int venc_get_clocks(struct platform_device *pdev)
 	venc.tv_dac_clk = clk;
 
 	return 0;
-}
-
-static void venc_put_clocks(void)
-{
-	if (venc.tv_dac_clk)
-		clk_put(venc.tv_dac_clk);
 }
 
 static struct omap_dss_device * __init venc_find_dssdev(struct platform_device *pdev)
@@ -777,8 +771,6 @@ static void __init venc_probe_pdata(struct platform_device *vencdev)
 
 	dss_copy_device_pdata(dssdev, plat_dssdev);
 
-	dssdev->channel = OMAP_DSS_CHANNEL_DIGIT;
-
 	r = venc_init_display(dssdev);
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
@@ -810,6 +802,8 @@ static void __init venc_init_output(struct platform_device *pdev)
 	out->pdev = pdev;
 	out->id = OMAP_DSS_OUTPUT_VENC;
 	out->type = OMAP_DISPLAY_TYPE_VENC;
+	out->name = "venc.0";
+	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
 
 	dss_register_output(out);
 }
@@ -877,7 +871,6 @@ static int __init omap_venchw_probe(struct platform_device *pdev)
 err_panel_init:
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
-	venc_put_clocks();
 	return r;
 }
 
@@ -895,7 +888,6 @@ static int __exit omap_venchw_remove(struct platform_device *pdev)
 	venc_uninit_output(pdev);
 
 	pm_runtime_disable(&pdev->dev);
-	venc_put_clocks();
 
 	return 0;
 }

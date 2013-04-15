@@ -178,7 +178,7 @@ out_unlock:
 	return omap_gem_mmap_obj(obj, vma);
 }
 
-struct dma_buf_ops omap_dmabuf_ops = {
+static struct dma_buf_ops omap_dmabuf_ops = {
 		.map_dma_buf = omap_gem_map_dma_buf,
 		.unmap_dma_buf = omap_gem_unmap_dma_buf,
 		.release = omap_gem_dmabuf_release,

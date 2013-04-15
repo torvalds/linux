@@ -1025,6 +1025,8 @@ static void __init rfbi_init_output(struct platform_device *pdev)
 	out->pdev = pdev;
 	out->id = OMAP_DSS_OUTPUT_DBI;
 	out->type = OMAP_DISPLAY_TYPE_DBI;
+	out->name = "rfbi.0";
+	out->dispc_channel = OMAP_DSS_CHANNEL_LCD;
 
 	dss_register_output(out);
 }
