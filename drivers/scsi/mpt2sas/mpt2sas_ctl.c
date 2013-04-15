@@ -505,19 +505,6 @@ _ctl_fasync(int fd, struct file *filep, int mode)
 }
 
 /**
- * _ctl_release -
- * @inode -
- * @filep -
- *
- * Called when application releases the fasyn callback handler.
- */
-static int
-_ctl_release(struct inode *inode, struct file *filep)
-{
-	return fasync_helper(-1, filep, 0, &async_queue);
-}
-
-/**
  * _ctl_poll -
  * @file -
  * @wait -
@@ -3027,7 +3014,6 @@ struct device_attribute *mpt2sas_dev_attrs[] = {
 static const struct file_operations ctl_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = _ctl_ioctl,
-	.release = _ctl_release,
 	.poll = _ctl_poll,
 	.fasync = _ctl_fasync,
 #ifdef CONFIG_COMPAT
