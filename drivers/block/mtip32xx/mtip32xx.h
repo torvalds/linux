@@ -129,9 +129,9 @@ enum {
 	MTIP_PF_EH_ACTIVE_BIT       = 1, /* error handling */
 	MTIP_PF_SE_ACTIVE_BIT       = 2, /* secure erase */
 	MTIP_PF_DM_ACTIVE_BIT       = 3, /* download microcde */
-	MTIP_PF_PAUSE_IO      =	((1 << MTIP_PF_IC_ACTIVE_BIT) | \
-				(1 << MTIP_PF_EH_ACTIVE_BIT) | \
-				(1 << MTIP_PF_SE_ACTIVE_BIT) | \
+	MTIP_PF_PAUSE_IO      =	((1 << MTIP_PF_IC_ACTIVE_BIT) |
+				(1 << MTIP_PF_EH_ACTIVE_BIT) |
+				(1 << MTIP_PF_SE_ACTIVE_BIT) |
 				(1 << MTIP_PF_DM_ACTIVE_BIT)),
 
 	MTIP_PF_SVC_THD_ACTIVE_BIT  = 4,
@@ -144,9 +144,9 @@ enum {
 	MTIP_DDF_REMOVE_PENDING_BIT = 1,
 	MTIP_DDF_OVER_TEMP_BIT      = 2,
 	MTIP_DDF_WRITE_PROTECT_BIT  = 3,
-	MTIP_DDF_STOP_IO      = ((1 << MTIP_DDF_REMOVE_PENDING_BIT) | \
-				(1 << MTIP_DDF_SEC_LOCK_BIT) | \
-				(1 << MTIP_DDF_OVER_TEMP_BIT) | \
+	MTIP_DDF_STOP_IO      = ((1 << MTIP_DDF_REMOVE_PENDING_BIT) |
+				(1 << MTIP_DDF_SEC_LOCK_BIT) |
+				(1 << MTIP_DDF_OVER_TEMP_BIT) |
 				(1 << MTIP_DDF_WRITE_PROTECT_BIT)),
 
 	MTIP_DDF_CLEANUP_BIT        = 5,
@@ -180,7 +180,7 @@ struct mtip_work {
 
 #define MTIP_TRIM_TIMEOUT_MS		240000
 #define MTIP_MAX_TRIM_ENTRIES		8
-#define MTIP_MAX_TRIM_ENTRY_LEN 	0xfff8
+#define MTIP_MAX_TRIM_ENTRY_LEN		0xfff8
 
 struct mtip_trim_entry {
 	u32 lba;   /* starting lba of region */
@@ -501,6 +501,10 @@ struct driver_data {
 	atomic_t irq_workers_active;
 
 	int isr_binding;
+
+	struct list_head online_list; /* linkage for online list */
+
+	struct list_head remove_list; /* linkage for removing list */
 };
 
 #endif

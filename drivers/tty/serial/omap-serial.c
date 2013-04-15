@@ -886,6 +886,17 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 	serial_out(up, UART_MCR, up->mcr | UART_MCR_TCRTLR);
 	/* FIFO ENABLE, DMA MODE */
 
+	up->scr |= OMAP_UART_SCR_RX_TRIG_GRANU1_MASK;
+	/*
+	 * NOTE: Setting OMAP_UART_SCR_RX_TRIG_GRANU1_MASK
+	 * sets Enables the granularity of 1 for TRIGGER RX
+	 * level. Along with setting RX FIFO trigger level
+	 * to 1 (as noted below, 16 characters) and TLR[3:0]
+	 * to zero this will result RX FIFO threshold level
+	 * to 1 character, instead of 16 as noted in comment
+	 * below.
+	 */
+
 	/* Set receive FIFO threshold to 16 characters and
 	 * transmit FIFO threshold to 16 spaces
 	 */

@@ -623,7 +623,7 @@ static int qeth_l3_send_setrouting(struct qeth_card *card,
 	return rc;
 }
 
-static void qeth_l3_correct_routing_type(struct qeth_card *card,
+static int qeth_l3_correct_routing_type(struct qeth_card *card,
 		enum qeth_routing_types *type, enum qeth_prot_versions prot)
 {
 	if (card->info.type == QETH_CARD_TYPE_IQD) {
@@ -632,7 +632,7 @@ static void qeth_l3_correct_routing_type(struct qeth_card *card,
 		case PRIMARY_CONNECTOR:
 		case SECONDARY_CONNECTOR:
 		case MULTICAST_ROUTER:
-			return;
+			return 0;
 		default:
 			goto out_inval;
 		}
@@ -641,17 +641,18 @@ static void qeth_l3_correct_routing_type(struct qeth_card *card,
 		case NO_ROUTER:
 		case PRIMARY_ROUTER:
 		case SECONDARY_ROUTER:
-			return;
+			return 0;
 		case MULTICAST_ROUTER:
 			if (qeth_is_ipafunc_supported(card, prot,
 						      IPA_OSA_MC_ROUTER))
-				return;
+				return 0;
 		default:
 			goto out_inval;
 		}
 	}
 out_inval:
 	*type = NO_ROUTER;
+	return -EINVAL;
 }
 
 int qeth_l3_setrouting_v4(struct qeth_card *card)
@@ -660,8 +661,10 @@ int qeth_l3_setrouting_v4(struct qeth_card *card)
 
 	QETH_CARD_TEXT(card, 3, "setrtg4");
 
-	qeth_l3_correct_routing_type(card, &card->options.route4.type,
+	rc = qeth_l3_correct_routing_type(card, &card->options.route4.type,
 				  QETH_PROT_IPV4);
+	if (rc)
+		return rc;
 
 	rc = qeth_l3_send_setrouting(card, card->options.route4.type,
 				  QETH_PROT_IPV4);
@@ -683,8 +686,10 @@ int qeth_l3_setrouting_v6(struct qeth_card *card)
 
 	if (!qeth_is_supported(card, IPA_IPV6))
 		return 0;
-	qeth_l3_correct_routing_type(card, &card->options.route6.type,
+	rc = qeth_l3_correct_routing_type(card, &card->options.route6.type,
 				  QETH_PROT_IPV6);
+	if (rc)
+		return rc;
 
 	rc = qeth_l3_send_setrouting(card, card->options.route6.type,
 				  QETH_PROT_IPV6);
@@ -2898,7 +2903,9 @@ static inline int qeth_l3_tso_elements(struct sk_buff *skb)
 		tcp_hdr(skb)->doff * 4;
 	int tcpd_len = skb->len - (tcpd - (unsigned long)skb->data);
 	int elements = PFN_UP(tcpd + tcpd_len - 1) - PFN_DOWN(tcpd);
-	elements += skb_shinfo(skb)->nr_frags;
+
+	elements += qeth_get_elements_for_frags(skb);
+
 	return elements;
 }
 
@@ -3348,7 +3355,6 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		rc = -ENODEV;
 		goto out_remove;
 	}
-	qeth_trace_features(card);
 
 	if (!card->dev && qeth_l3_setup_netdev(card)) {
 		rc = -ENODEV;
@@ -3425,6 +3431,7 @@ contin:
 		qeth_l3_set_multicast_list(card->dev);
 		rtnl_unlock();
 	}
+	qeth_trace_features(card);
 	/* let user_space know that device is online */
 	kobject_uevent(&gdev->dev.kobj, KOBJ_CHANGE);
 	mutex_unlock(&card->conf_mutex);
@@ -3508,6 +3515,7 @@ static int qeth_l3_recover(void *ptr)
 	QETH_CARD_TEXT(card, 2, "recover2");
 	dev_warn(&card->gdev->dev,
 		"A recovery process has been started for the device\n");
+	qeth_set_recovery_task(card);
 	__qeth_l3_set_offline(card->gdev, 1);
 	rc = __qeth_l3_set_online(card->gdev, 1);
 	if (!rc)
@@ -3518,6 +3526,7 @@ static int qeth_l3_recover(void *ptr)
 		dev_warn(&card->gdev->dev, "The qeth device driver "
 				"failed to recover an error on the device\n");
 	}
+	qeth_clear_recovery_task(card);
 	qeth_clear_thread_start_bit(card, QETH_RECOVER_THREAD);
 	qeth_clear_thread_running_bit(card, QETH_RECOVER_THREAD);
 	return 0;

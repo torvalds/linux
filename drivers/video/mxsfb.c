@@ -169,6 +169,7 @@ struct mxsfb_info {
 	unsigned dotclk_delay;
 	const struct mxsfb_devdata *devdata;
 	int mapped;
+	u32 sync;
 };
 
 #define mxsfb_is_v3(host) (host->devdata->ipversion == 3)
@@ -456,9 +457,9 @@ static int mxsfb_set_par(struct fb_info *fb_info)
 		vdctrl0 |= VDCTRL0_HSYNC_ACT_HIGH;
 	if (fb_info->var.sync & FB_SYNC_VERT_HIGH_ACT)
 		vdctrl0 |= VDCTRL0_VSYNC_ACT_HIGH;
-	if (fb_info->var.sync & FB_SYNC_DATA_ENABLE_HIGH_ACT)
+	if (host->sync & MXSFB_SYNC_DATA_ENABLE_HIGH_ACT)
 		vdctrl0 |= VDCTRL0_ENABLE_ACT_HIGH;
-	if (fb_info->var.sync & FB_SYNC_DOTCLK_FAILING_ACT)
+	if (host->sync & MXSFB_SYNC_DOTCLK_FAILING_ACT)
 		vdctrl0 |= VDCTRL0_DOTCLK_ACT_FAILING;
 
 	writel(vdctrl0, host->base + LCDC_VDCTRL0);
@@ -860,6 +861,8 @@ static int mxsfb_probe(struct platform_device *pdev)
 	}
 
 	INIT_LIST_HEAD(&fb_info->modelist);
+
+	host->sync = pdata->sync;
 
 	ret = mxsfb_init_fbinfo(host);
 	if (ret != 0)

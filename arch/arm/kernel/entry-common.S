@@ -276,7 +276,13 @@ ENDPROC(ftrace_graph_caller_old)
  */
 
 .macro mcount_enter
+/*
+ * This pad compensates for the push {lr} at the call site.  Note that we are
+ * unable to unwind through a function which does not otherwise save its lr.
+ */
+ UNWIND(.pad	#4)
 	stmdb	sp!, {r0-r3, lr}
+ UNWIND(.save	{r0-r3, lr})
 .endm
 
 .macro mcount_get_lr reg
@@ -289,6 +295,7 @@ ENDPROC(ftrace_graph_caller_old)
 .endm
 
 ENTRY(__gnu_mcount_nc)
+UNWIND(.fnstart)
 #ifdef CONFIG_DYNAMIC_FTRACE
 	mov	ip, lr
 	ldmia	sp!, {lr}
@@ -296,17 +303,22 @@ ENTRY(__gnu_mcount_nc)
 #else
 	__mcount
 #endif
+UNWIND(.fnend)
 ENDPROC(__gnu_mcount_nc)
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 ENTRY(ftrace_caller)
+UNWIND(.fnstart)
 	__ftrace_caller
+UNWIND(.fnend)
 ENDPROC(ftrace_caller)
 #endif
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 ENTRY(ftrace_graph_caller)
+UNWIND(.fnstart)
 	__ftrace_graph_caller
+UNWIND(.fnend)
 ENDPROC(ftrace_graph_caller)
 #endif
 

@@ -578,6 +578,8 @@ static int xuartps_startup(struct uart_port *port)
 	/* Receive Timeout register is enabled with value of 10 */
 	xuartps_writel(10, XUARTPS_RXTOUT_OFFSET);
 
+	/* Clear out any pending interrupts before enabling them */
+	xuartps_writel(xuartps_readl(XUARTPS_ISR_OFFSET), XUARTPS_ISR_OFFSET);
 
 	/* Set the Interrupt Registers with desired interrupts */
 	xuartps_writel(XUARTPS_IXR_TXEMPTY | XUARTPS_IXR_PARITY |
