@@ -1167,7 +1167,7 @@ static inline void rbd_img_obj_request_add(struct rbd_img_request *img_request,
 {
 	rbd_assert(obj_request->img_request == NULL);
 
-	rbd_obj_request_get(obj_request);
+	/* Image request now owns object's original reference */
 	obj_request->img_request = img_request;
 	obj_request->which = img_request->obj_request_count;
 	rbd_assert(!obj_request_img_data_test(obj_request));
@@ -1815,12 +1815,6 @@ static int rbd_img_request_submit(struct rbd_img_request *img_request)
 		ret = rbd_obj_request_submit(osdc, obj_request);
 		if (ret)
 			return ret;
-		/*
-		 * The image request has its own reference to each
-		 * of its object requests, so we can safely drop the
-		 * initial one here.
-		 */
-		rbd_obj_request_put(obj_request);
 	}
 
 	return 0;
