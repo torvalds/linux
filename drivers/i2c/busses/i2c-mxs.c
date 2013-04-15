@@ -56,6 +56,7 @@
 #define MXS_I2C_CTRL1_SET	(0x44)
 #define MXS_I2C_CTRL1_CLR	(0x48)
 
+#define MXS_I2C_CTRL1_CLR_GOT_A_NAK		0x10000000
 #define MXS_I2C_CTRL1_BUS_FREE_IRQ		0x80
 #define MXS_I2C_CTRL1_DATA_ENGINE_CMPLT_IRQ	0x40
 #define MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ		0x20
@@ -340,6 +341,23 @@ static int mxs_i2c_pio_wait_cplt(struct mxs_i2c_dev *i2c, int last)
 	return 0;
 }
 
+static int mxs_i2c_pio_check_error_state(struct mxs_i2c_dev *i2c)
+{
+	u32 state;
+
+	state = readl(i2c->regs + MXS_I2C_CTRL1_CLR) & MXS_I2C_IRQ_MASK;
+
+	if (state & MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ)
+		i2c->cmd_err = -ENXIO;
+	else if (state & (MXS_I2C_CTRL1_EARLY_TERM_IRQ |
+			  MXS_I2C_CTRL1_MASTER_LOSS_IRQ |
+			  MXS_I2C_CTRL1_SLAVE_STOP_IRQ |
+			  MXS_I2C_CTRL1_SLAVE_IRQ))
+		i2c->cmd_err = -EIO;
+
+	return i2c->cmd_err;
+}
+
 static void mxs_i2c_pio_trigger_cmd(struct mxs_i2c_dev *i2c, u32 cmd)
 {
 	u32 reg;
@@ -379,6 +397,9 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 		ret = mxs_i2c_pio_wait_cplt(i2c, 0);
 		if (ret)
 			return ret;
+
+		if (mxs_i2c_pio_check_error_state(i2c))
+			goto cleanup;
 
 		/* READ command. */
 		mxs_i2c_pio_trigger_cmd(i2c,
@@ -440,6 +461,10 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 	if (ret)
 		return ret;
 
+	/* make sure we capture any occurred error into cmd_err */
+	mxs_i2c_pio_check_error_state(i2c);
+
+cleanup:
 	/* Clear any dangling IRQs and re-enable interrupts. */
 	writel(MXS_I2C_IRQ_MASK, i2c->regs + MXS_I2C_CTRL1_CLR);
 	writel(MXS_I2C_IRQ_MASK << 8, i2c->regs + MXS_I2C_CTRL1_SET);
@@ -471,12 +496,12 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	 * using PIO mode while longer transfers use DMA. The 8 byte border is
 	 * based on this empirical measurement and a lot of previous frobbing.
 	 */
+	i2c->cmd_err = 0;
 	if (msg->len < 8) {
 		ret = mxs_i2c_pio_setup_xfer(adap, msg, flags);
 		if (ret)
 			mxs_i2c_reset(i2c);
 	} else {
-		i2c->cmd_err = 0;
 		INIT_COMPLETION(i2c->cmd_complete);
 		ret = mxs_i2c_dma_setup_xfer(adap, msg, flags);
 		if (ret)
@@ -486,12 +511,18 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 						msecs_to_jiffies(1000));
 		if (ret == 0)
 			goto timeout;
-
-		if (i2c->cmd_err == -ENXIO)
-			mxs_i2c_reset(i2c);
-
-		ret = i2c->cmd_err;
 	}
+
+	if (i2c->cmd_err == -ENXIO) {
+		/*
+		 * If the transfer fails with a NAK from the slave the
+		 * controller halts until it gets told to return to idle state.
+		 */
+		writel(MXS_I2C_CTRL1_CLR_GOT_A_NAK,
+		       i2c->regs + MXS_I2C_CTRL1_SET);
+	}
+
+	ret = i2c->cmd_err;
 
 	dev_dbg(i2c->dev, "Done with err=%d\n", ret);
 
