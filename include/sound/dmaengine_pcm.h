@@ -72,4 +72,29 @@ void snd_dmaengine_pcm_set_config_from_dai_data(
 	const struct snd_dmaengine_dai_dma_data *dma_data,
 	struct dma_slave_config *config);
 
+/**
+ * struct snd_dmaengine_pcm_config - Configuration data for dmaengine based PCM
+ * @prepare_slave_config: Callback used to fill in the DMA slave_config for a
+ *   PCM substream. Will be called from the PCM drivers hwparams callback.
+ * @pcm_hardware: snd_pcm_hardware struct to be used for the PCM.
+ * @prealloc_buffer_size: Size of the preallocated audio buffer.
+ */
+struct snd_dmaengine_pcm_config {
+	int (*prepare_slave_config)(struct snd_pcm_substream *substream,
+			struct snd_pcm_hw_params *params,
+			struct dma_slave_config *slave_config);
+
+	const struct snd_pcm_hardware *pcm_hardware;
+	unsigned int prealloc_buffer_size;
+};
+
+int snd_dmaengine_pcm_register(struct device *dev,
+	const struct snd_dmaengine_pcm_config *config,
+	unsigned int flags);
+void snd_dmaengine_pcm_unregister(struct device *dev);
+
+int snd_dmaengine_pcm_prepare_slave_config(struct snd_pcm_substream *substream,
+	struct snd_pcm_hw_params *params,
+	struct dma_slave_config *slave_config);
+
 #endif
