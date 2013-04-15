@@ -78,13 +78,12 @@ ifdef PARSER_DEBUG
   CFLAGS             += -DPARSER_DEBUG
 endif
 
-CFLAGS += \
-  -fno-omit-frame-pointer \
-  -ggdb3 \
-  -funwind-tables \
-  -Wall \
-  -Wextra \
-  -std=gnu99
+CFLAGS += -fno-omit-frame-pointer
+CFLAGS += -ggdb3
+CFLAGS += -funwind-tables
+CFLAGS += -Wall
+CFLAGS += -Wextra
+CFLAGS += -std=gnu99
 
 EXTLIBS = -lpthread -lrt -lelf -lm
 
@@ -106,30 +105,26 @@ ifndef PERF_DEBUG
   endif
 endif
 
-CFLAGS += \
-  -I$(src-perf)/util/include \
-  -I$(src-perf)/arch/$(ARCH)/include \
-  -I$(srctree)/arch/$(ARCH)/include/uapi \
-  -I$(srctree)/arch/$(ARCH)/include \
-  -I$(srctree)/include/uapi \
-  -I$(srctree)/include
+CFLAGS += -I$(src-perf)/util/include
+CFLAGS += -I$(src-perf)/arch/$(ARCH)/include
+CFLAGS += -I$(srctree)/arch/$(ARCH)/include/uapi
+CFLAGS += -I$(srctree)/arch/$(ARCH)/include
+CFLAGS += -I$(srctree)/include/uapi
+CFLAGS += -I$(srctree)/include
 
 # $(obj-perf)      for generated common-cmds.h
 # $(obj-perf)/util for generated bison/flex headers
 ifneq ($(OUTPUT),)
-CFLAGS += \
-  -I$(obj-perf)/util \
-  -I$(obj-perf)
+CFLAGS += -I$(obj-perf)/util
+CFLAGS += -I$(obj-perf)
 endif
 
-CFLAGS += \
-  -I$(src-perf)/util \
-  -I$(src-perf) \
-  -I$(TRACE_EVENT_DIR) \
-  -I$(srctree)/tools/lib/
+CFLAGS += -I$(src-perf)/util
+CFLAGS += -I$(src-perf)
+CFLAGS += -I$(TRACE_EVENT_DIR)
+CFLAGS += -I$(srctree)/tools/lib/
 
-CFLAGS += \
-  -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
+CFLAGS += -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
 
 ifndef NO_BIONIC
 ifeq ($(call try-cc,$(SOURCE_BIONIC),$(CFLAGS),bionic),y)
