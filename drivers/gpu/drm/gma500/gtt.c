@@ -563,6 +563,7 @@ int psb_gtt_restore(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct resource *r = dev_priv->gtt_mem->child;
 	struct gtt_range *range;
+	unsigned int restored = 0, total = 0, size = 0;
 
 	/* On resume, the gtt_mutex is already initialized */
 	mutex_lock(&dev_priv->gtt_mutex);
@@ -570,11 +571,17 @@ int psb_gtt_restore(struct drm_device *dev)
 
 	while (r != NULL) {
 		range = container_of(r, struct gtt_range, resource);
-		if (range->pages)
+		if (range->pages) {
 			psb_gtt_insert(dev, range, 1);
+			size += range->resource.end - range->resource.start;
+			restored++;
+		}
 		r = r->sibling;
+		total++;
 	}
 	mutex_unlock(&dev_priv->gtt_mutex);
+	DRM_DEBUG_DRIVER("Restored %u of %u gtt ranges (%u KB)", restored,
+			 total, (size / 1024));
 
 	return 0;
 }
