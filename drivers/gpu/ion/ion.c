@@ -1342,8 +1342,8 @@ static bool ion_heap_drain_freelist(struct ion_heap *heap)
 		return false;
 	rt_mutex_lock(&heap->lock);
 	list_for_each_entry_safe(buffer, tmp, &heap->free_list, list) {
-		_ion_buffer_destroy(buffer);
 		list_del(&buffer->list);
+		_ion_buffer_destroy(buffer);
 	}
 	BUG_ON(!list_empty(&heap->free_list));
 	rt_mutex_unlock(&heap->lock);
