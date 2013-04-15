@@ -87,7 +87,7 @@ static int snd_mxs_open(struct snd_pcm_substream *substream)
 
 	snd_soc_set_runtime_hwparams(substream, &snd_mxs_hardware);
 
-	return snd_dmaengine_pcm_open(substream, filter,
+	return snd_dmaengine_pcm_open_request_chan(substream, filter,
 		snd_soc_dai_get_dma_data(rtd->cpu_dai, substream));
 }
 
@@ -104,7 +104,7 @@ static int snd_mxs_pcm_mmap(struct snd_pcm_substream *substream,
 
 static struct snd_pcm_ops mxs_pcm_ops = {
 	.open		= snd_mxs_open,
-	.close		= snd_dmaengine_pcm_close,
+	.close		= snd_dmaengine_pcm_close_release_chan,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= snd_mxs_pcm_hw_params,
 	.trigger	= snd_dmaengine_pcm_trigger,

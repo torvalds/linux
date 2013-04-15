@@ -66,7 +66,7 @@ static int tegra_pcm_open(struct snd_pcm_substream *substream)
 	/* Set HW params now that initialization is complete */
 	snd_soc_set_runtime_hwparams(substream, &tegra_pcm_hardware);
 
-	ret = snd_dmaengine_pcm_open(substream, NULL, NULL);
+	ret = snd_dmaengine_pcm_open_request_chan(substream, NULL, NULL);
 	if (ret) {
 		dev_err(dev, "dmaengine pcm open failed with err %d\n", ret);
 		return ret;
@@ -144,7 +144,7 @@ static int tegra_pcm_mmap(struct snd_pcm_substream *substream,
 
 static struct snd_pcm_ops tegra_pcm_ops = {
 	.open		= tegra_pcm_open,
-	.close		= snd_dmaengine_pcm_close,
+	.close		= snd_dmaengine_pcm_close_release_chan,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= tegra_pcm_hw_params,
 	.hw_free	= tegra_pcm_hw_free,

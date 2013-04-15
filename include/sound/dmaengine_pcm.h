@@ -39,8 +39,12 @@ snd_pcm_uframes_t snd_dmaengine_pcm_pointer(struct snd_pcm_substream *substream)
 snd_pcm_uframes_t snd_dmaengine_pcm_pointer_no_residue(struct snd_pcm_substream *substream);
 
 int snd_dmaengine_pcm_open(struct snd_pcm_substream *substream,
-	dma_filter_fn filter_fn, void *filter_data);
+	struct dma_chan *chan);
 int snd_dmaengine_pcm_close(struct snd_pcm_substream *substream);
+
+int snd_dmaengine_pcm_open_request_chan(struct snd_pcm_substream *substream,
+	dma_filter_fn filter_fn, void *filter_data);
+int snd_dmaengine_pcm_close_release_chan(struct snd_pcm_substream *substream);
 
 struct dma_chan *snd_dmaengine_pcm_get_chan(struct snd_pcm_substream *substream);
 

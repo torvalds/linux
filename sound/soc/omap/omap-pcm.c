@@ -118,8 +118,9 @@ static int omap_pcm_open(struct snd_pcm_substream *substream)
 
 	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
-	return snd_dmaengine_pcm_open(substream, omap_dma_filter_fn,
-				      dma_data->filter_data);
+	return snd_dmaengine_pcm_open_request_chan(substream,
+						   omap_dma_filter_fn,
+						   dma_data->filter_data);
 }
 
 static int omap_pcm_mmap(struct snd_pcm_substream *substream,
@@ -135,7 +136,7 @@ static int omap_pcm_mmap(struct snd_pcm_substream *substream,
 
 static struct snd_pcm_ops omap_pcm_ops = {
 	.open		= omap_pcm_open,
-	.close		= snd_dmaengine_pcm_close,
+	.close		= snd_dmaengine_pcm_close_release_chan,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= omap_pcm_hw_params,
 	.hw_free	= omap_pcm_hw_free,

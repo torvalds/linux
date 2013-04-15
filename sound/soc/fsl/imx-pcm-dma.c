@@ -100,7 +100,7 @@ static int snd_imx_open(struct snd_pcm_substream *substream)
 
 static struct snd_pcm_ops imx_pcm_ops = {
 	.open		= snd_imx_open,
-	.close		= snd_dmaengine_pcm_close,
+	.close		= snd_dmaengine_pcm_close_release_chan,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= snd_imx_pcm_hw_params,
 	.trigger	= snd_dmaengine_pcm_trigger,

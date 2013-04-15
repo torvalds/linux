@@ -69,7 +69,8 @@ static int ep93xx_pcm_open(struct snd_pcm_substream *substream)
 
 	snd_soc_set_runtime_hwparams(substream, &ep93xx_pcm_hardware);
 
-	return snd_dmaengine_pcm_open(substream, ep93xx_pcm_dma_filter,
+	return snd_dmaengine_pcm_open_request_chan(substream,
+			ep93xx_pcm_dma_filter,
 			snd_soc_dai_get_dma_data(rtd->cpu_dai, substream));
 }
 
@@ -100,7 +101,7 @@ static int ep93xx_pcm_mmap(struct snd_pcm_substream *substream,
 
 static struct snd_pcm_ops ep93xx_pcm_ops = {
 	.open		= ep93xx_pcm_open,
-	.close		= snd_dmaengine_pcm_close,
+	.close		= snd_dmaengine_pcm_close_release_chan,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= ep93xx_pcm_hw_params,
 	.hw_free	= ep93xx_pcm_hw_free,

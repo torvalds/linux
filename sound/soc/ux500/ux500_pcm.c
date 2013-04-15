@@ -125,8 +125,8 @@ static int ux500_pcm_open(struct snd_pcm_substream *substream)
 		dma_cfg->dst_info.data_width = mem_data_width;
 	}
 
-
-	ret = snd_dmaengine_pcm_open(substream, stedma40_filter, dma_cfg);
+	ret = snd_dmaengine_pcm_open_request_chan(substream, stedma40_filter,
+			dma_cfg);
 	if (ret) {
 		dev_dbg(dai->dev,
 			"%s: ERROR: snd_dmaengine_pcm_open failed (%d)!\n",
@@ -211,7 +211,7 @@ static int ux500_pcm_mmap(struct snd_pcm_substream *substream,
 
 static struct snd_pcm_ops ux500_pcm_ops = {
 	.open		= ux500_pcm_open,
-	.close		= snd_dmaengine_pcm_close,
+	.close		= snd_dmaengine_pcm_close_release_chan,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= ux500_pcm_hw_params,
 	.hw_free	= ux500_pcm_hw_free,
