@@ -1748,13 +1748,17 @@ static void *m2v(phys_addr_t maddr)
 }
 
 /* Set the page permissions on an identity-mapped pages */
-static void set_page_prot(void *addr, pgprot_t prot)
+static void set_page_prot_flags(void *addr, pgprot_t prot, unsigned long flags)
 {
 	unsigned long pfn = __pa(addr) >> PAGE_SHIFT;
 	pte_t pte = pfn_pte(pfn, prot);
 
-	if (HYPERVISOR_update_va_mapping((unsigned long)addr, pte, 0))
+	if (HYPERVISOR_update_va_mapping((unsigned long)addr, pte, flags))
 		BUG();
+}
+static void set_page_prot(void *addr, pgprot_t prot)
+{
+	return set_page_prot_flags(addr, prot, UVMF_NONE);
 }
 #ifdef CONFIG_X86_32
 static void __init xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
@@ -1839,12 +1843,12 @@ static void __init check_pt_base(unsigned long *pt_base, unsigned long *pt_end,
 				 unsigned long addr)
 {
 	if (*pt_base == PFN_DOWN(__pa(addr))) {
-		set_page_prot((void *)addr, PAGE_KERNEL);
+		set_page_prot_flags((void *)addr, PAGE_KERNEL, UVMF_INVLPG);
 		clear_page((void *)addr);
 		(*pt_base)++;
 	}
 	if (*pt_end == PFN_DOWN(__pa(addr))) {
-		set_page_prot((void *)addr, PAGE_KERNEL);
+		set_page_prot_flags((void *)addr, PAGE_KERNEL, UVMF_INVLPG);
 		clear_page((void *)addr);
 		(*pt_end)--;
 	}
@@ -2196,6 +2200,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 	.lazy_mode = {
 		.enter = paravirt_enter_lazy_mmu,
 		.leave = xen_leave_lazy_mmu,
+		.flush = paravirt_flush_lazy_mmu,
 	},
 
 	.set_fixmap = xen_set_fixmap,

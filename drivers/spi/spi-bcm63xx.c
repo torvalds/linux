@@ -152,7 +152,6 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 static int bcm63xx_spi_setup(struct spi_device *spi)
 {
 	struct bcm63xx_spi *bs;
-	int ret;
 
 	bs = spi_master_get_devdata(spi->master);
 
@@ -490,7 +489,7 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 	default:
 		dev_err(dev, "unsupported MSG_CTL width: %d\n",
 			 bs->msg_ctl_width);
-		goto out_clk_disable;
+		goto out_err;
 	}
 
 	/* Initialize hardware */
