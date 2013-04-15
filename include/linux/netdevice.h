@@ -209,6 +209,7 @@ struct netdev_hw_addr {
 #define NETDEV_HW_ADDR_T_UNICAST	4
 #define NETDEV_HW_ADDR_T_MULTICAST	5
 	bool			global_use;
+	int			sync_cnt;
 	int			refcount;
 	int			synced;
 	struct rcu_head		rcu_head;
@@ -2627,6 +2628,7 @@ extern int dev_uc_add(struct net_device *dev, const unsigned char *addr);
 extern int dev_uc_add_excl(struct net_device *dev, const unsigned char *addr);
 extern int dev_uc_del(struct net_device *dev, const unsigned char *addr);
 extern int dev_uc_sync(struct net_device *to, struct net_device *from);
+extern int dev_uc_sync_multiple(struct net_device *to, struct net_device *from);
 extern void dev_uc_unsync(struct net_device *to, struct net_device *from);
 extern void dev_uc_flush(struct net_device *dev);
 extern void dev_uc_init(struct net_device *dev);
@@ -2638,6 +2640,7 @@ extern int dev_mc_add_excl(struct net_device *dev, const unsigned char *addr);
 extern int dev_mc_del(struct net_device *dev, const unsigned char *addr);
 extern int dev_mc_del_global(struct net_device *dev, const unsigned char *addr);
 extern int dev_mc_sync(struct net_device *to, struct net_device *from);
+extern int dev_mc_sync_multiple(struct net_device *to, struct net_device *from);
 extern void dev_mc_unsync(struct net_device *to, struct net_device *from);
 extern void dev_mc_flush(struct net_device *dev);
 extern void dev_mc_init(struct net_device *dev);

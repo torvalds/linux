@@ -1504,8 +1504,8 @@ static void team_set_rx_mode(struct net_device *dev)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(port, &team->port_list, list) {
-		dev_uc_sync(port->dev, dev);
-		dev_mc_sync(port->dev, dev);
+		dev_uc_sync_multiple(port->dev, dev);
+		dev_mc_sync_multiple(port->dev, dev);
 	}
 	rcu_read_unlock();
 }
