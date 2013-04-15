@@ -31,22 +31,28 @@
 
 static int dt_init_opp_table(struct device *cpu_dev)
 {
-	struct device_node *np = NULL;
+	struct device_node *np, *parent;
 	int count = 0, ret;
 
-	for_each_child_of_node(of_find_node_by_path("/cpus"), np) {
+	parent = of_find_node_by_path("/cpus");
+	if (!parent) {
+		pr_err("failed to find OF /cpus\n");
+		return -ENOENT;
+	}
+
+	for_each_child_of_node(parent, np) {
 		if (count++ != cpu_dev->id)
 			continue;
-		if (!of_get_property(np, "operating-points", NULL))
-			return -ENODATA;
+		if (!of_get_property(np, "operating-points", NULL)) {
+			ret = -ENODATA;
+		} else {
+			cpu_dev->of_node = np;
+			ret = of_init_opp_table(cpu_dev);
+		}
+		of_node_put(np);
+		of_node_put(parent);
 
-		cpu_dev->of_node = np;
-
-		ret = of_init_opp_table(cpu_dev);
-		if (ret)
-			return ret;
-
-		return 0;
+		return ret;
 	}
 
 	return -ENODEV;
@@ -54,15 +60,24 @@ static int dt_init_opp_table(struct device *cpu_dev)
 
 static int dt_get_transition_latency(struct device *cpu_dev)
 {
-	struct device_node *np = NULL;
+	struct device_node *np, *parent;
 	u32 transition_latency = CPUFREQ_ETERNAL;
 	int count = 0;
 
-	for_each_child_of_node(of_find_node_by_path("/cpus"), np) {
+	parent = of_find_node_by_path("/cpus");
+	if (!parent) {
+		pr_err("failed to find OF /cpus\n");
+		return -ENOENT;
+	}
+
+	for_each_child_of_node(parent, np) {
 		if (count++ != cpu_dev->id)
 			continue;
 
 		of_property_read_u32(np, "clock-latency", &transition_latency);
+		of_node_put(np);
+		of_node_put(parent);
+
 		return 0;
 	}
 
