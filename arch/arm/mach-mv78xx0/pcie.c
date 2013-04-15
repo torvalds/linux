@@ -10,11 +10,11 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/mbus.h>
 #include <video/vga.h>
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
-#include <plat/addr-map.h>
 #include <mach/mv78xx0.h>
 #include "common.h"
 
@@ -54,7 +54,6 @@ static void __init mv78xx0_pcie_preinit(void)
 	int i;
 	u32 size_each;
 	u32 start;
-	int win = 0;
 
 	pcie_io_space.name = "PCIe I/O Space";
 	pcie_io_space.start = MV78XX0_PCIE_IO_PHYS_BASE(0);
@@ -72,6 +71,7 @@ static void __init mv78xx0_pcie_preinit(void)
 	start = MV78XX0_PCIE_MEM_PHYS_BASE;
 	for (i = 0; i < num_pcie_ports; i++) {
 		struct pcie_port *pp = pcie_port + i;
+		char winname[MVEBU_MBUS_MAX_WINNAME_SZ];
 
 		snprintf(pp->mem_space_name, sizeof(pp->mem_space_name),
 			"PCIe %d.%d MEM", pp->maj, pp->min);
@@ -85,12 +85,17 @@ static void __init mv78xx0_pcie_preinit(void)
 		if (request_resource(&iomem_resource, &pp->res))
 			panic("can't allocate PCIe MEM sub-space");
 
-		mv78xx0_setup_pcie_mem_win(win + i + 8, pp->res.start,
-					   resource_size(&pp->res),
-					   pp->maj, pp->min);
+		snprintf(winname, sizeof(winname), "pcie%d.%d",
+			 pp->maj, pp->min);
 
-		mv78xx0_setup_pcie_io_win(win + i, i * SZ_64K, SZ_64K,
-					  pp->maj, pp->min);
+		mvebu_mbus_add_window_remap_flags(winname,
+						  pp->res.start,
+						  resource_size(&pp->res),
+						  MVEBU_MBUS_NO_REMAP,
+						  MVEBU_MBUS_PCI_MEM);
+		mvebu_mbus_add_window_remap_flags(winname,
+						  i * SZ_64K, SZ_64K,
+						  0, MVEBU_MBUS_PCI_IO);
 	}
 }
 

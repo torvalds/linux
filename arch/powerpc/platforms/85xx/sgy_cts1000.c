@@ -69,7 +69,7 @@ static irqreturn_t gpio_halt_irq(int irq, void *__data)
         return IRQ_HANDLED;
 };
 
-static int __devinit gpio_halt_probe(struct platform_device *pdev)
+static int gpio_halt_probe(struct platform_device *pdev)
 {
 	enum of_gpio_flags flags;
 	struct device_node *node = pdev->dev.of_node;
@@ -128,7 +128,7 @@ static int __devinit gpio_halt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit gpio_halt_remove(struct platform_device *pdev)
+static int gpio_halt_remove(struct platform_device *pdev)
 {
 	if (halt_node) {
 		int gpio = of_get_gpio(halt_node, 0);
@@ -165,7 +165,7 @@ static struct platform_driver gpio_halt_driver = {
 		.of_match_table = gpio_halt_match,
 	},
 	.probe		= gpio_halt_probe,
-	.remove		= __devexit_p(gpio_halt_remove),
+	.remove		= gpio_halt_remove,
 };
 
 module_platform_driver(gpio_halt_driver);

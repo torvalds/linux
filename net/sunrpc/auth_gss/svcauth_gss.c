@@ -447,17 +447,21 @@ static int rsc_parse(struct cache_detail *cd,
 	else {
 		int N, i;
 
+		/*
+		 * NOTE: we skip uid_valid()/gid_valid() checks here:
+		 * instead, * -1 id's are later mapped to the
+		 * (export-specific) anonymous id by nfsd_setuser.
+		 *
+		 * (But supplementary gid's get no such special
+		 * treatment so are checked for validity here.)
+		 */
 		/* uid */
 		rsci.cred.cr_uid = make_kuid(&init_user_ns, id);
-		if (!uid_valid(rsci.cred.cr_uid))
-			goto out;
 
 		/* gid */
 		if (get_int(&mesg, &id))
 			goto out;
 		rsci.cred.cr_gid = make_kgid(&init_user_ns, id);
-		if (!gid_valid(rsci.cred.cr_gid))
-			goto out;
 
 		/* number of additional gid's */
 		if (get_int(&mesg, &N))

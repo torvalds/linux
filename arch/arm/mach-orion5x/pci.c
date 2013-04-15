@@ -157,8 +157,11 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	if (dev == MV88F5181_DEV_ID || dev == MV88F5182_DEV_ID) {
 		printk(KERN_NOTICE "Applying Orion-1/Orion-NAS PCIe config "
 				   "read transaction workaround\n");
-		orion5x_setup_pcie_wa_win(ORION5X_PCIE_WA_PHYS_BASE,
-					  ORION5X_PCIE_WA_SIZE);
+		mvebu_mbus_add_window_remap_flags("pcie0.0",
+						  ORION5X_PCIE_WA_PHYS_BASE,
+						  ORION5X_PCIE_WA_SIZE,
+						  MVEBU_MBUS_NO_REMAP,
+						  MVEBU_MBUS_PCI_WA);
 		pcie_ops.read = pcie_rd_conf_wa;
 	}
 
@@ -402,8 +405,9 @@ static void __init orion5x_pci_master_slave_enable(void)
 	orion5x_pci_hw_wr_conf(bus_nr, 0, func, reg, 4, val | 0x7);
 }
 
-static void __init orion5x_setup_pci_wins(struct mbus_dram_target_info *dram)
+static void __init orion5x_setup_pci_wins(void)
 {
+	const struct mbus_dram_target_info *dram = mv_mbus_dram_info();
 	u32 win_enable;
 	int bus;
 	int i;
@@ -420,7 +424,7 @@ static void __init orion5x_setup_pci_wins(struct mbus_dram_target_info *dram)
 	bus = orion5x_pci_local_bus_nr();
 
 	for (i = 0; i < dram->num_cs; i++) {
-		struct mbus_dram_window *cs = dram->cs + i;
+		const struct mbus_dram_window *cs = dram->cs + i;
 		u32 func = PCI_CONF_FUNC_BAR_CS(cs->cs_index);
 		u32 reg;
 		u32 val;
@@ -467,7 +471,7 @@ static int __init pci_setup(struct pci_sys_data *sys)
 	/*
 	 * Point PCI unit MBUS decode windows to DRAM space.
 	 */
-	orion5x_setup_pci_wins(&orion_mbus_dram_info);
+	orion5x_setup_pci_wins();
 
 	/*
 	 * Master + Slave enable
