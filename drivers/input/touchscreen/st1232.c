@@ -19,13 +19,16 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/of_gpio.h>
 #include <linux/pm_qos.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/platform_data/st1232_pdata.h>
 
 #define ST1232_TS_NAME	"st1232-ts"
 
@@ -48,6 +51,7 @@ struct st1232_ts_data {
 	struct input_dev *input_dev;
 	struct st1232_ts_finger finger[MAX_FINGERS];
 	struct dev_pm_qos_request low_latency_req;
+	int reset_gpio;
 };
 
 static int st1232_ts_read_data(struct st1232_ts_data *ts)
@@ -139,10 +143,17 @@ end:
 	return IRQ_HANDLED;
 }
 
+static void st1232_ts_power(struct st1232_ts_data *ts, bool poweron)
+{
+	if (gpio_is_valid(ts->reset_gpio))
+		gpio_direction_output(ts->reset_gpio, poweron);
+}
+
 static int st1232_ts_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct st1232_ts_data *ts;
+	struct st1232_pdata *pdata = client->dev.platform_data;
 	struct input_dev *input_dev;
 	int error;
 
@@ -166,6 +177,25 @@ static int st1232_ts_probe(struct i2c_client *client,
 
 	ts->client = client;
 	ts->input_dev = input_dev;
+
+	if (pdata)
+		ts->reset_gpio = pdata->reset_gpio;
+	else if (client->dev.of_node)
+		ts->reset_gpio = of_get_gpio(client->dev.of_node, 0);
+	else
+		ts->reset_gpio = -ENODEV;
+
+	if (gpio_is_valid(ts->reset_gpio)) {
+		error = devm_gpio_request(&client->dev, ts->reset_gpio, NULL);
+		if (error) {
+			dev_err(&client->dev,
+				"Unable to request GPIO pin %d.\n",
+				ts->reset_gpio);
+				return error;
+		}
+	}
+
+	st1232_ts_power(ts, true);
 
 	input_dev->name = "st1232-touchscreen";
 	input_dev->id.bustype = BUS_I2C;
@@ -203,7 +233,10 @@ static int st1232_ts_probe(struct i2c_client *client,
 
 static int st1232_ts_remove(struct i2c_client *client)
 {
+	struct st1232_ts_data *ts = i2c_get_clientdata(client);
+
 	device_init_wakeup(&client->dev, 0);
+	st1232_ts_power(ts, false);
 
 	return 0;
 }
@@ -212,11 +245,14 @@ static int st1232_ts_remove(struct i2c_client *client)
 static int st1232_ts_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	struct st1232_ts_data *ts = i2c_get_clientdata(client);
 
-	if (device_may_wakeup(&client->dev))
+	if (device_may_wakeup(&client->dev)) {
 		enable_irq_wake(client->irq);
-	else
+	} else {
 		disable_irq(client->irq);
+		st1232_ts_power(ts, false);
+	}
 
 	return 0;
 }
@@ -224,11 +260,14 @@ static int st1232_ts_suspend(struct device *dev)
 static int st1232_ts_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	struct st1232_ts_data *ts = i2c_get_clientdata(client);
 
-	if (device_may_wakeup(&client->dev))
+	if (device_may_wakeup(&client->dev)) {
 		disable_irq_wake(client->irq);
-	else
+	} else {
+		st1232_ts_power(ts, true);
 		enable_irq(client->irq);
+	}
 
 	return 0;
 }
