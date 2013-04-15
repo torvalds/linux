@@ -1230,6 +1230,41 @@ void low_hash_fault(struct pt_regs *regs, unsigned long address, int rc)
 		bad_page_fault(regs, address, SIGBUS);
 }
 
+long hpte_insert_repeating(unsigned long hash, unsigned long vpn,
+			   unsigned long pa, unsigned long rflags,
+			   unsigned long vflags, int psize, int ssize)
+{
+	unsigned long hpte_group;
+	long slot;
+
+repeat:
+	hpte_group = ((hash & htab_hash_mask) *
+		       HPTES_PER_GROUP) & ~0x7UL;
+
+	/* Insert into the hash table, primary slot */
+	slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags, vflags,
+				  psize, ssize);
+
+	/* Primary is full, try the secondary */
+	if (unlikely(slot == -1)) {
+		hpte_group = ((~hash & htab_hash_mask) *
+			      HPTES_PER_GROUP) & ~0x7UL;
+		slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags,
+					  vflags | HPTE_V_SECONDARY,
+					  psize, ssize);
+		if (slot == -1) {
+			if (mftb() & 0x1)
+				hpte_group = ((hash & htab_hash_mask) *
+					      HPTES_PER_GROUP)&~0x7UL;
+
+			ppc_md.hpte_remove(hpte_group);
+			goto repeat;
+		}
+	}
+
+	return slot;
+}
+
 #ifdef CONFIG_DEBUG_PAGEALLOC
 static void kernel_map_linear_page(unsigned long vaddr, unsigned long lmi)
 {
