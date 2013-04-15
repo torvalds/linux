@@ -144,7 +144,12 @@ static void batadv_tt_orig_list_entry_free_rcu(struct rcu_head *rcu)
 	struct batadv_tt_orig_list_entry *orig_entry;
 
 	orig_entry = container_of(rcu, struct batadv_tt_orig_list_entry, rcu);
-	batadv_orig_node_free_ref(orig_entry->orig_node);
+
+	/* We are in an rcu callback here, therefore we cannot use
+	 * batadv_orig_node_free_ref() and its call_rcu():
+	 * An rcu_barrier() wouldn't wait for that to finish
+	 */
+	batadv_orig_node_free_ref_now(orig_entry->orig_node);
 	kfree(orig_entry);
 }
 
