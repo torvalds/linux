@@ -26,7 +26,7 @@ void *memmove(void *dest, const void *src, size_t n)
 	char *ret = dest;
 
 	__asm__ __volatile__(
-		/* Handle more 16bytes in loop */
+		/* Handle more 16 bytes in loop */
 		"cmp $0x10, %0\n\t"
 		"jb	1f\n\t"
 

@@ -27,7 +27,7 @@
 ENTRY(memmove)
 	CFI_STARTPROC
 
-	/* Handle more 32bytes in loop */
+	/* Handle more 32 bytes in loop */
 	mov %rdi, %rax
 	cmp $0x20, %rdx
 	jb	1f
