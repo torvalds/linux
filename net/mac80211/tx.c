@@ -742,16 +742,18 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	}
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
+		struct ieee80211_tx_rate *rc_rate = &info->control.rates[i];
+
 		/*
 		 * make sure there's no valid rate following
 		 * an invalid one, just in case drivers don't
 		 * take the API seriously to stop at -1.
 		 */
 		if (inval) {
-			info->control.rates[i].idx = -1;
+			rc_rate->idx = -1;
 			continue;
 		}
-		if (info->control.rates[i].idx < 0) {
+		if (rc_rate->idx < 0) {
 			inval = true;
 			continue;
 		}
@@ -760,36 +762,37 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 		 * For now assume MCS is already set up correctly, this
 		 * needs to be fixed.
 		 */
-		if (info->control.rates[i].flags & IEEE80211_TX_RC_MCS) {
-			WARN_ON(info->control.rates[i].idx > 76);
+		if (rc_rate->flags & IEEE80211_TX_RC_MCS) {
+			WARN_ON(rc_rate->idx > 76);
+			continue;
+		}
+
+		if (rc_rate->flags & IEEE80211_TX_RC_VHT_MCS) {
+			WARN_ON(ieee80211_rate_get_vht_mcs(rc_rate) > 9);
 			continue;
 		}
 
 		/* set up RTS protection if desired */
 		if (rts)
-			info->control.rates[i].flags |=
-				IEEE80211_TX_RC_USE_RTS_CTS;
+			rc_rate->flags |= IEEE80211_TX_RC_USE_RTS_CTS;
 
 		/* RC is busted */
-		if (WARN_ON_ONCE(info->control.rates[i].idx >=
-				 sband->n_bitrates)) {
-			info->control.rates[i].idx = -1;
+		if (WARN_ON_ONCE(rc_rate->idx >= sband->n_bitrates)) {
+			rc_rate->idx = -1;
 			continue;
 		}
 
-		rate = &sband->bitrates[info->control.rates[i].idx];
+		rate = &sband->bitrates[rc_rate->idx];
 
 		/* set up short preamble */
 		if (short_preamble &&
 		    rate->flags & IEEE80211_RATE_SHORT_PREAMBLE)
-			info->control.rates[i].flags |=
-				IEEE80211_TX_RC_USE_SHORT_PREAMBLE;
+			rc_rate->flags |= IEEE80211_TX_RC_USE_SHORT_PREAMBLE;
 
 		/* set up G protection */
 		if (!rts && tx->sdata->vif.bss_conf.use_cts_prot &&
 		    rate->flags & IEEE80211_RATE_ERP_G)
-			info->control.rates[i].flags |=
-				IEEE80211_TX_RC_USE_CTS_PROTECT;
+			rc_rate->flags |= IEEE80211_TX_RC_USE_CTS_PROTECT;
 	}
 
 	return TX_CONTINUE;
