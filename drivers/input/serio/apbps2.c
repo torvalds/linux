@@ -147,11 +147,9 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 
 	/* Find Device Address */
 	res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
-	priv->regs = devm_request_and_ioremap(&ofdev->dev, res);
-	if (!priv->regs) {
-		dev_err(&ofdev->dev, "io-regs mapping failed\n");
-		return -EBUSY;
-	}
+	priv->regs = devm_ioremap_resource(&ofdev->dev, res);
+	if (IS_ERR(priv->regs))
+		return PTR_ERR(priv->regs);
 
 	/* Reset hardware, disable interrupt */
 	iowrite32be(0, &priv->regs->ctrl);
