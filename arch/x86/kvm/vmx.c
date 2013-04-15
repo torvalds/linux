@@ -7106,7 +7106,6 @@ static void prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		vmcs12->vm_entry_instruction_len);
 	vmcs_write32(GUEST_INTERRUPTIBILITY_INFO,
 		vmcs12->guest_interruptibility_info);
-	vmcs_write32(GUEST_ACTIVITY_STATE, vmcs12->guest_activity_state);
 	vmcs_write32(GUEST_SYSENTER_CS, vmcs12->guest_sysenter_cs);
 	kvm_set_dr(vcpu, 7, vmcs12->guest_dr7);
 	vmcs_writel(GUEST_RFLAGS, vmcs12->guest_rflags);
@@ -7322,6 +7321,11 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 		nested_vmx_failValid(vcpu,
 			launch ? VMXERR_VMLAUNCH_NONCLEAR_VMCS
 			       : VMXERR_VMRESUME_NONLAUNCHED_VMCS);
+		return 1;
+	}
+
+	if (vmcs12->guest_activity_state != GUEST_ACTIVITY_ACTIVE) {
+		nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
 		return 1;
 	}
 
@@ -7555,7 +7559,6 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	vmcs12->guest_gdtr_base = vmcs_readl(GUEST_GDTR_BASE);
 	vmcs12->guest_idtr_base = vmcs_readl(GUEST_IDTR_BASE);
 
-	vmcs12->guest_activity_state = vmcs_read32(GUEST_ACTIVITY_STATE);
 	vmcs12->guest_interruptibility_info =
 		vmcs_read32(GUEST_INTERRUPTIBILITY_INFO);
 	vmcs12->guest_pending_dbg_exceptions =
