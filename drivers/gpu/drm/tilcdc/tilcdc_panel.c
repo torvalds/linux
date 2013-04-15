@@ -173,7 +173,7 @@ static int panel_connector_get_modes(struct drm_connector *connector)
 		struct drm_display_mode *mode = drm_mode_create(dev);
 		struct videomode vm;
 
-		if (videomode_from_timing(timings, &vm, i))
+		if (videomode_from_timings(timings, &vm, i))
 			break;
 
 		drm_display_mode_from_videomode(&vm, mode);

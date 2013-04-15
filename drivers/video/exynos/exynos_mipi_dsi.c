@@ -35,8 +35,6 @@
 
 #include <video/exynos_mipi_dsim.h>
 
-#include <plat/fb.h>
-
 #include "exynos_mipi_dsi_common.h"
 #include "exynos_mipi_dsi_lowlevel.h"
 

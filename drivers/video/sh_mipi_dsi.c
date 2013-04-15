@@ -581,17 +581,7 @@ static struct platform_driver sh_mipi_driver = {
 	},
 };
 
-static int __init sh_mipi_init(void)
-{
-	return platform_driver_probe(&sh_mipi_driver, sh_mipi_probe);
-}
-module_init(sh_mipi_init);
-
-static void __exit sh_mipi_exit(void)
-{
-	platform_driver_unregister(&sh_mipi_driver);
-}
-module_exit(sh_mipi_exit);
+module_platform_driver_probe(sh_mipi_driver, sh_mipi_probe);
 
 MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de>");
 MODULE_DESCRIPTION("SuperH / ARM-shmobile MIPI DSI driver");

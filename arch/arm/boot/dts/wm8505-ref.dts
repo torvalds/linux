@@ -11,26 +11,22 @@
 
 / {
 	model = "Wondermedia WM8505 Netbook";
+};
 
-	/*
-	 * Display node is based on Sascha Hauer's patch on dri-devel.
-	 * Added a bpp property to calculate the size of the framebuffer
-	 * until the binding is formalized.
-	 */
-	display: display@0 {
-		modes {
-			mode0: mode@0 {
-				hactive = <800>;
-				vactive = <480>;
-				hback-porch = <88>;
-				hfront-porch = <40>;
-				hsync-len = <0>;
-				vback-porch = <32>;
-				vfront-porch = <11>;
-				vsync-len = <1>;
-				clock = <0>;	/* unused but required */
-				bpp = <32>;	/* non-standard but required */
-			};
+&fb {
+	bits-per-pixel = <32>;
+	display-timings {
+		native-mode = <&timing0>;
+		timing0: 800x480 {
+			clock-frequency = <0>; /* unused but required */
+			hactive = <800>;
+			vactive = <480>;
+			hfront-porch = <40>;
+			hback-porch = <88>;
+			hsync-len = <0>;
+			vback-porch = <32>;
+			vfront-porch = <11>;
+			vsync-len = <1>;
 		};
 	};
 };

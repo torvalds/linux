@@ -31,8 +31,6 @@
 #include <video/mipi_display.h>
 #include <video/exynos_mipi_dsim.h>
 
-#include <mach/map.h>
-
 #include "exynos_mipi_dsi_regs.h"
 #include "exynos_mipi_dsi_lowlevel.h"
 #include "exynos_mipi_dsi_common.h"

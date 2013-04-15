@@ -397,18 +397,7 @@ static struct platform_driver vrfb_driver = {
 	.remove		= __exit_p(vrfb_remove),
 };
 
-static int __init vrfb_init(void)
-{
-	return platform_driver_probe(&vrfb_driver, &vrfb_probe);
-}
-
-static void __exit vrfb_exit(void)
-{
-	platform_driver_unregister(&vrfb_driver);
-}
-
-module_init(vrfb_init);
-module_exit(vrfb_exit);
+module_platform_driver_probe(vrfb_driver, vrfb_probe);
 
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@ti.com>");
 MODULE_DESCRIPTION("OMAP VRFB");

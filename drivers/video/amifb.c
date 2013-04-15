@@ -3788,19 +3788,7 @@ static struct platform_driver amifb_driver = {
 	},
 };
 
-static int __init amifb_init(void)
-{
-	return platform_driver_probe(&amifb_driver, amifb_probe);
-}
-
-module_init(amifb_init);
-
-static void __exit amifb_exit(void)
-{
-	platform_driver_unregister(&amifb_driver);
-}
-
-module_exit(amifb_exit);
+module_platform_driver_probe(amifb_driver, amifb_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:amiga-video");
