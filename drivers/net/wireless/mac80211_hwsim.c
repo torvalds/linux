@@ -718,9 +718,17 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	rx_status.flag |= RX_FLAG_MACTIME_START;
 	rx_status.freq = chan->center_freq;
 	rx_status.band = chan->band;
-	rx_status.rate_idx = info->control.rates[0].idx;
-	if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS)
-		rx_status.flag |= RX_FLAG_HT;
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_VHT_MCS) {
+		rx_status.rate_idx =
+			ieee80211_rate_get_vht_mcs(&info->control.rates[0]);
+		rx_status.vht_nss =
+			ieee80211_rate_get_vht_nss(&info->control.rates[0]);
+		rx_status.flag |= RX_FLAG_VHT;
+	} else {
+		rx_status.rate_idx = info->control.rates[0].idx;
+		if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS)
+			rx_status.flag |= RX_FLAG_HT;
+	}
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
 		rx_status.flag |= RX_FLAG_40MHZ;
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
