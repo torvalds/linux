@@ -719,11 +719,6 @@ void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
 void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 			     bool mask);
 
-#ifdef __KVM_HAVE_IOAPIC
-void kvm_get_intr_delivery_bitmask(struct kvm_ioapic *ioapic,
-				   union kvm_ioapic_redirect_entry *entry,
-				   unsigned long *deliver_bitmask);
-#endif
 int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 		bool line_status);
 int kvm_set_irq_inatomic(struct kvm *kvm, int irq_source_id, u32 irq, int level);
