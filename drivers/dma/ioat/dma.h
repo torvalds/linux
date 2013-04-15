@@ -81,6 +81,9 @@ struct ioatdma_device {
 	void __iomem *reg_base;
 	struct pci_pool *dma_pool;
 	struct pci_pool *completion_pool;
+#define MAX_SED_POOLS	5
+	struct dma_pool *sed_hw_pool[MAX_SED_POOLS];
+	struct kmem_cache *sed_pool;
 	struct dma_device common;
 	u8 version;
 	struct msix_entry msix_entries[4];
@@ -139,6 +142,20 @@ struct ioat_dma_chan {
 	int pending;
 	u16 desccount;
 	u16 active;
+};
+
+/**
+ * struct ioat_sed_ent - wrapper around super extended hardware descriptor
+ * @hw: hardware SED
+ * @sed_dma: dma address for the SED
+ * @list: list member
+ * @parent: point to the dma descriptor that's the parent
+ */
+struct ioat_sed_ent {
+	struct ioat_sed_raw_descriptor *hw;
+	dma_addr_t dma;
+	struct ioat_ring_ent *parent;
+	unsigned int hw_pool;
 };
 
 static inline struct ioat_chan_common *to_chan_common(struct dma_chan *c)
