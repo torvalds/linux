@@ -307,7 +307,7 @@ struct kvm_kernel_irq_routing_entry {
 #ifdef __KVM_HAVE_IOAPIC
 
 struct kvm_irq_routing_table {
-	int chip[KVM_NR_IRQCHIPS][KVM_IOAPIC_NUM_PINS];
+	int chip[KVM_NR_IRQCHIPS][KVM_IRQCHIP_NUM_PINS];
 	struct kvm_kernel_irq_routing_entry *rt_entries;
 	u32 nr_rt_entries;
 	/*

@@ -480,7 +480,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 
 	new->nr_rt_entries = nr_rt_entries;
 	for (i = 0; i < 3; i++)
-		for (j = 0; j < KVM_IOAPIC_NUM_PINS; j++)
+		for (j = 0; j < KVM_IRQCHIP_NUM_PINS; j++)
 			new->chip[i][j] = -1;
 
 	for (i = 0; i < nr; ++i) {
