@@ -7244,14 +7244,13 @@ F:	arch/arm/mach-davinci
 F:	drivers/i2c/busses/i2c-davinci.c
 
 TI DAVINCI SERIES MEDIA DRIVER
-M:	Manjunath Hadli <manjunath.hadli@ti.com>
-M:	Prabhakar Lad <prabhakar.lad@ti.com>
+M:	Lad, Prabhakar <prabhakar.csengg@gmail.com>
 L:	linux-media@vger.kernel.org
 L:	davinci-linux-open-source@linux.davincidsp.com (moderated for non-subscribers)
 W:	http://linuxtv.org/
 Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 T:	git git://linuxtv.org/mhadli/v4l-dvb-davinci_devices.git
-S:	Supported
+S:	Maintained
 F:	drivers/media/platform/davinci/
 F:	include/media/davinci/
 
