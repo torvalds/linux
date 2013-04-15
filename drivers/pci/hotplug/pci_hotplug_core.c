@@ -41,6 +41,7 @@
 #include <linux/pci_hotplug.h>
 #include <asm/uaccess.h>
 #include "../pci.h"
+#include "cpci_hotplug.h"
 
 #define MY_NAME	"pci_hotplug"
 
@@ -62,14 +63,6 @@ static bool debug;
 
 static LIST_HEAD(pci_hotplug_slot_list);
 static DEFINE_MUTEX(pci_hp_mutex);
-
-#ifdef CONFIG_HOTPLUG_PCI_CPCI
-extern int cpci_hotplug_init(int debug);
-extern void cpci_hotplug_exit(void);
-#else
-static inline int cpci_hotplug_init(int debug) { return 0; }
-static inline void cpci_hotplug_exit(void) { }
-#endif
 
 /* Weee, fun with macros... */
 #define GET_STATUS(name,type)	\
