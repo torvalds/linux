@@ -579,9 +579,7 @@ struct kvm_ppc_smmu_info {
 #ifdef __KVM_HAVE_PIT
 #define KVM_CAP_REINJECT_CONTROL 24
 #endif
-#ifdef __KVM_HAVE_IOAPIC
 #define KVM_CAP_IRQ_ROUTING 25
-#endif
 #define KVM_CAP_IRQ_INJECT_STATUS 26
 #ifdef __KVM_HAVE_DEVICE_ASSIGNMENT
 #define KVM_CAP_DEVICE_DEASSIGNMENT 27
