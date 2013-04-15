@@ -285,7 +285,7 @@ static int __init eisa_request_resources(struct eisa_root_device *root,
 			edev->res[i].start = SLOT_ADDRESS(root, slot)
 					     + EISA_VENDOR_ID_OFFSET;
 			edev->res[i].end   = edev->res[i].start + 3;
-			edev->res[i].flags = IORESOURCE_BUSY;
+			edev->res[i].flags = IORESOURCE_IO | IORESOURCE_BUSY;
 		}
 
 		if (request_resource(root->res, &edev->res[i]))
