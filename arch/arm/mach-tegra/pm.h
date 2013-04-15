@@ -39,7 +39,7 @@ enum tegra_suspend_mode tegra_pm_validate_suspend_mode(
 				enum tegra_suspend_mode mode);
 void tegra_init_suspend(void);
 #else
-enum tegra_suspend_mode tegra_pm_validate_suspend_mode(
+static inline enum tegra_suspend_mode tegra_pm_validate_suspend_mode(
 				enum tegra_suspend_mode mode)
 {
 	return TEGRA_SUSPEND_NONE;
