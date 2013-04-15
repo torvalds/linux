@@ -1641,6 +1641,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 void xhci_copy_ep0_dequeue_into_input_ctx(struct xhci_hcd *xhci,
 		struct usb_device *udev);
 unsigned int xhci_get_endpoint_index(struct usb_endpoint_descriptor *desc);
+unsigned int xhci_get_endpoint_address(unsigned int ep_index);
 unsigned int xhci_get_endpoint_flag(struct usb_endpoint_descriptor *desc);
 unsigned int xhci_get_endpoint_flag_from_index(unsigned int ep_index);
 unsigned int xhci_last_valid_endpoint(u32 added_ctxs);

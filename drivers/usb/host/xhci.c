@@ -1111,6 +1111,16 @@ unsigned int xhci_get_endpoint_index(struct usb_endpoint_descriptor *desc)
 	return index;
 }
 
+/* The reverse operation to xhci_get_endpoint_index. Calculate the USB endpoint
+ * address from the XHCI endpoint index.
+ */
+unsigned int xhci_get_endpoint_address(unsigned int ep_index)
+{
+	unsigned int number = DIV_ROUND_UP(ep_index, 2);
+	unsigned int direction = ep_index % 2 ? USB_DIR_OUT : USB_DIR_IN;
+	return direction | number;
+}
+
 /* Find the flag for this endpoint (for use in the control context).  Use the
  * endpoint index to create a bitmask.  The slot context is bit 0, endpoint 0 is
  * bit 1, etc.
