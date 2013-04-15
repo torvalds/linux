@@ -1087,7 +1087,7 @@ struct efx_nic_type {
 	void (*rx_write)(struct efx_rx_queue *rx_queue);
 	void (*rx_defer_refill)(struct efx_rx_queue *rx_queue);
 	int (*ev_probe)(struct efx_channel *channel);
-	void (*ev_init)(struct efx_channel *channel);
+	int (*ev_init)(struct efx_channel *channel);
 	void (*ev_fini)(struct efx_channel *channel);
 	void (*ev_remove)(struct efx_channel *channel);
 	int (*ev_process)(struct efx_channel *channel, int quota);

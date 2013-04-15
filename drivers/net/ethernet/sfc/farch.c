@@ -1325,7 +1325,7 @@ int efx_farch_ev_probe(struct efx_channel *channel)
 					entries * sizeof(efx_qword_t));
 }
 
-void efx_farch_ev_init(struct efx_channel *channel)
+int efx_farch_ev_init(struct efx_channel *channel)
 {
 	efx_oword_t reg;
 	struct efx_nic *efx = channel->efx;
@@ -1358,6 +1358,8 @@ void efx_farch_ev_init(struct efx_channel *channel)
 			 channel->channel);
 
 	efx->type->push_irq_moderation(channel);
+
+	return 0;
 }
 
 void efx_farch_ev_fini(struct efx_channel *channel)

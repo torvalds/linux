@@ -503,9 +503,9 @@ static inline int efx_nic_probe_eventq(struct efx_channel *channel)
 {
 	return channel->efx->type->ev_probe(channel);
 }
-static inline void efx_nic_init_eventq(struct efx_channel *channel)
+static inline int efx_nic_init_eventq(struct efx_channel *channel)
 {
-	channel->efx->type->ev_init(channel);
+	return channel->efx->type->ev_init(channel);
 }
 static inline void efx_nic_fini_eventq(struct efx_channel *channel)
 {
@@ -539,7 +539,7 @@ extern void efx_farch_rx_remove(struct efx_rx_queue *rx_queue);
 extern void efx_farch_rx_write(struct efx_rx_queue *rx_queue);
 extern void efx_farch_rx_defer_refill(struct efx_rx_queue *rx_queue);
 extern int efx_farch_ev_probe(struct efx_channel *channel);
-extern void efx_farch_ev_init(struct efx_channel *channel);
+extern int efx_farch_ev_init(struct efx_channel *channel);
 extern void efx_farch_ev_fini(struct efx_channel *channel);
 extern void efx_farch_ev_remove(struct efx_channel *channel);
 extern int efx_farch_ev_process(struct efx_channel *channel, int quota);
