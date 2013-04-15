@@ -897,7 +897,7 @@ int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vma,
 
 	if (pci_resource_len(pdev, resno) == 0)
 		return 0;
-	nr = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	nr = vma_pages(vma);
 	start = vma->vm_pgoff;
 	size = ((pci_resource_len(pdev, resno) - 1) >> PAGE_SHIFT) + 1;
 	pci_start = (mmap_api == PCI_MMAP_PROCFS) ?
