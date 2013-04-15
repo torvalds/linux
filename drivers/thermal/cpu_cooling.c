@@ -108,6 +108,105 @@ static int is_cpufreq_valid(int cpu)
 	return !cpufreq_get_policy(&policy, cpu);
 }
 
+enum cpufreq_cooling_property {
+	GET_LEVEL,
+	GET_FREQ,
+	GET_MAXL,
+};
+
+/*
+ * this is the common function to
+ * 1. get maximum cpu cooling states
+ * 2. translate frequency to cooling state
+ * 3. translate cooling state to frequency
+ * Note that the code may be not in good shape
+ * but it is written in this way in order to:
+ * a) reduce duplicate code as most of the code can be shared.
+ * b) make sure the logic is consistent when translating between
+ *    cooling states and frequencies.
+*/
+static int get_property(unsigned int cpu, unsigned long input,
+	unsigned int* output, enum cpufreq_cooling_property property)
+{
+	int i, j;
+	unsigned long max_level = 0, level;
+	unsigned int freq = CPUFREQ_ENTRY_INVALID;
+	int descend = -1;
+	struct cpufreq_frequency_table *table =
+					cpufreq_frequency_get_table(cpu);
+	
+	if (!output)
+		return -EINVAL;
+
+	if (!table)
+		return -EINVAL;
+
+	
+	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		/* ignore invalid entries */
+		if (table[i].frequency == CPUFREQ_ENTRY_INVALID)
+			continue;
+
+		/* ignore duplicate entry */
+		if (freq == table[i].frequency)
+			continue;
+
+		/* get the frequency order */
+		if (freq != CPUFREQ_ENTRY_INVALID && descend != -1)
+			descend = !!(freq > table[i].frequency);
+
+		freq = table[i].frequency;
+		max_level++;
+	}
+
+	/* get max level */
+	if (property == GET_MAXL) {
+		*output = (unsigned int)max_level;
+		return 0;
+	}
+
+	if (property == GET_FREQ)
+		level = descend ? input : (max_level - input -1);
+
+
+	for (i = 0, j = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		/* ignore invalid entry */
+		if (table[i].frequency == CPUFREQ_ENTRY_INVALID)
+			continue;
+
+		/* ignore duplicate entry */
+		if (freq == table[i].frequency)
+			continue;
+
+		/* now we have a valid frequency entry */
+		freq = table[i].frequency;
+
+		if (property == GET_LEVEL && (unsigned int)input == freq) {
+			/* get level by frequency */
+			*output = descend ? j : (max_level - j - 1);
+			return 0;
+		}
+		if (property == GET_FREQ && level == j) {
+			/* get frequency by level */
+			*output = freq;
+			return 0;
+		}
+		j++;
+	}
+	return -EINVAL;
+}
+
+unsigned long cpufreq_cooling_get_level(unsigned int cpu, unsigned int freq)
+{
+	unsigned int val;
+
+	if (get_property(cpu, (unsigned long)freq, &val, GET_LEVEL))
+		return THERMAL_CSTATE_INVALID;
+	return (unsigned long)val;
+}
+
+EXPORT_SYMBOL(cpufreq_cooling_get_level);
+
 /**
  * get_cpu_frequency - get the absolute value of frequency from level.
  * @cpu: cpu for which frequency is fetched.
@@ -116,46 +215,13 @@ static int is_cpufreq_valid(int cpu)
  */
 static unsigned int get_cpu_frequency(unsigned int cpu, unsigned long level)
 {
-	int ret = 0, i = 0;
-	unsigned long level_index;
-	bool descend = false;
-	struct cpufreq_frequency_table *table =
-					cpufreq_frequency_get_table(cpu);
-	if (!table)
-		return ret;
+	int ret = 0;
+	unsigned int freq;
 
-	while (table[i].frequency != CPUFREQ_TABLE_END) {
-		if (table[i].frequency == CPUFREQ_ENTRY_INVALID)
-			continue;
-
-		/*check if table in ascending or descending order*/
-		if ((table[i + 1].frequency != CPUFREQ_TABLE_END) &&
-			(table[i + 1].frequency < table[i].frequency)
-			&& !descend) {
-			descend = true;
-		}
-
-		/*return if level matched and table in descending order*/
-		if (descend && i == level)
-			return table[i].frequency;
-		i++;
-	}
-	i--;
-
-	if (level > i || descend)
-		return ret;
-	level_index = i - level;
-
-	/*Scan the table in reverse order and match the level*/
-	while (i >= 0) {
-		if (table[i].frequency == CPUFREQ_ENTRY_INVALID)
-			continue;
-		/*return if level matched*/
-		if (i == level_index)
-			return table[i].frequency;
-		i--;
-	}
-	return ret;
+	ret = get_property(cpu, level, &freq, GET_FREQ);
+	if (ret)
+		return 0;
+	return freq;
 }
 
 /**
@@ -237,29 +303,17 @@ static int cpufreq_get_max_state(struct thermal_cooling_device *cdev,
 	struct cpufreq_cooling_device *cpufreq_device = cdev->devdata;
 	struct cpumask *mask = &cpufreq_device->allowed_cpus;
 	unsigned int cpu;
-	struct cpufreq_frequency_table *table;
 	unsigned long count = 0;
-	int i = 0;
+	int ret;
 
 	cpu = cpumask_any(mask);
-	table = cpufreq_frequency_get_table(cpu);
-	if (!table) {
-		*state = 0;
-		return 0;
-	}
 
-	for (i = 0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
-		if (table[i].frequency == CPUFREQ_ENTRY_INVALID)
-			continue;
-		count++;
-	}
+	ret = get_property(cpu, 0, (unsigned int *)&count, GET_MAXL);
 
-	if (count > 0) {
-		*state = --count;
-		return 0;
-	}
+	if (count > 0)
+		*state = count;
 
-	return -EINVAL;
+	return ret;
 }
 
 /**

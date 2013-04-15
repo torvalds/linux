@@ -22,9 +22,6 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#include <linux/module.h>
 #include <linux/thermal.h>
 
 #include "thermal_core.h"
@@ -59,9 +56,12 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 
 	switch (trend) {
 	case THERMAL_TREND_RAISING:
-		if (throttle)
+		if (throttle) {
 			cur_state = cur_state < instance->upper ?
 				    (cur_state + 1) : instance->upper;
+			if (cur_state < instance->lower)
+				cur_state = instance->lower;
+		}
 		break;
 	case THERMAL_TREND_RAISE_FULL:
 		if (throttle)
@@ -71,8 +71,11 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 		if (cur_state == instance->lower) {
 			if (!throttle)
 				cur_state = -1;
-		} else
+		} else {
 			cur_state -= 1;
+			if (cur_state > instance->upper)
+				cur_state = instance->upper;
+		}
 		break;
 	case THERMAL_TREND_DROP_FULL:
 		if (cur_state == instance->lower) {
@@ -180,23 +183,14 @@ static int step_wise_throttle(struct thermal_zone_device *tz, int trip)
 static struct thermal_governor thermal_gov_step_wise = {
 	.name		= "step_wise",
 	.throttle	= step_wise_throttle,
-	.owner		= THIS_MODULE,
 };
 
-static int __init thermal_gov_step_wise_init(void)
+int thermal_gov_step_wise_register(void)
 {
 	return thermal_register_governor(&thermal_gov_step_wise);
 }
 
-static void __exit thermal_gov_step_wise_exit(void)
+void thermal_gov_step_wise_unregister(void)
 {
 	thermal_unregister_governor(&thermal_gov_step_wise);
 }
-
-/* This should load after thermal framework */
-fs_initcall(thermal_gov_step_wise_init);
-module_exit(thermal_gov_step_wise_exit);
-
-MODULE_AUTHOR("Durgadoss R");
-MODULE_DESCRIPTION("A step-by-step thermal throttling governor");
-MODULE_LICENSE("GPL");

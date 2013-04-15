@@ -265,6 +265,10 @@ emul_temp
 	Unit: millidegree Celsius
 	WO, Optional
 
+	  WARNING: Be careful while enabling this option on production systems,
+	  because userland can easily disable the thermal policy by simply
+	  flooding this sysfs node with low temperature values.
+
 *****************************
 * Cooling device attributes *
 *****************************
@@ -375,11 +379,3 @@ platform data is provided, this uses the step_wise throttling policy.
 This function serves as an arbitrator to set the state of a cooling
 device. It sets the cooling device to the deepest cooling state if
 possible.
-
-5.5:thermal_register_governor:
-This function lets the various thermal governors to register themselves
-with the Thermal framework. At run time, depending on a zone's platform
-data, a particular governor is used for throttling.
-
-5.6:thermal_unregister_governor:
-This function unregisters a governor from the thermal framework.
