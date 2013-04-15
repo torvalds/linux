@@ -104,7 +104,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	/* Initialize the object handling fields.  */
 	atomic_set(&asoc->base.refcnt, 1);
-	asoc->base.dead = 0;
+	asoc->base.dead = false;
 
 	/* Initialize the bind addr area.  */
 	sctp_bind_addr_init(&asoc->base.bind_addr, ep->base.bind_addr.port);
@@ -407,7 +407,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	/* Mark as dead, so other users can know this structure is
 	 * going away.
 	 */
-	asoc->base.dead = 1;
+	asoc->base.dead = true;
 
 	/* Dispose of any data lying around in the outqueue. */
 	sctp_outq_free(&asoc->outqueue);
