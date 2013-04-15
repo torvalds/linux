@@ -268,6 +268,9 @@ enum {
 	 *
 	 * - Remount is disallowed.
 	 *
+	 * - memcg: use_hierarchy is on by default and the cgroup file for
+	 *   the flag is not created.
+	 *
 	 * The followings are planned changes.
 	 *
 	 * - release_agent will be disallowed once replacement notification
