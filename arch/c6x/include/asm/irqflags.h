@@ -27,7 +27,7 @@ static inline unsigned long arch_local_save_flags(void)
 /* set interrupt enabled status */
 static inline void arch_local_irq_restore(unsigned long flags)
 {
-	asm volatile (" mvc .s2 %0,CSR\n" : : "b"(flags));
+	asm volatile (" mvc .s2 %0,CSR\n" : : "b"(flags) : "memory");
 }
 
 /* unconditionally enable interrupts */

@@ -132,7 +132,7 @@ static char *default_bootup_tracer;
 
 static int __init set_cmdline_ftrace(char *str)
 {
-	strncpy(bootup_tracer_buf, str, MAX_TRACER_SIZE);
+	strlcpy(bootup_tracer_buf, str, MAX_TRACER_SIZE);
 	default_bootup_tracer = bootup_tracer_buf;
 	/* We are using ftrace early, expand it */
 	ring_buffer_expanded = 1;
@@ -162,7 +162,7 @@ static char *trace_boot_options __initdata;
 
 static int __init set_trace_boot_options(char *str)
 {
-	strncpy(trace_boot_options_buf, str, MAX_TRACER_SIZE);
+	strlcpy(trace_boot_options_buf, str, MAX_TRACER_SIZE);
 	trace_boot_options = trace_boot_options_buf;
 	return 0;
 }
@@ -744,8 +744,11 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 		return;
 
 	WARN_ON_ONCE(!irqs_disabled());
-	if (WARN_ON_ONCE(!current_trace->allocated_snapshot))
+	if (!current_trace->allocated_snapshot) {
+		/* Only the nop tracer should hit this when disabling */
+		WARN_ON_ONCE(current_trace != &nop_trace);
 		return;
+	}
 
 	arch_spin_lock(&ftrace_max_lock);
 

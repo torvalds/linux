@@ -464,19 +464,16 @@ static struct sock *vmci_transport_get_pending(
 	struct vsock_sock *vlistener;
 	struct vsock_sock *vpending;
 	struct sock *pending;
+	struct sockaddr_vm src;
+
+	vsock_addr_init(&src, pkt->dg.src.context, pkt->src_port);
 
 	vlistener = vsock_sk(listener);
 
 	list_for_each_entry(vpending, &vlistener->pending_links,
 			    pending_links) {
-		struct sockaddr_vm src;
-		struct sockaddr_vm dst;
-
-		vsock_addr_init(&src, pkt->dg.src.context, pkt->src_port);
-		vsock_addr_init(&dst, pkt->dg.dst.context, pkt->dst_port);
-
 		if (vsock_addr_equals_addr(&src, &vpending->remote_addr) &&
-		    vsock_addr_equals_addr(&dst, &vpending->local_addr)) {
+		    pkt->dst_port == vpending->local_addr.svm_port) {
 			pending = sk_vsock(vpending);
 			sock_hold(pending);
 			goto found;
@@ -739,10 +736,15 @@ static int vmci_transport_recv_stream_cb(void *data, struct vmci_datagram *dg)
 	 */
 	bh_lock_sock(sk);
 
-	if (!sock_owned_by_user(sk) && sk->sk_state == SS_CONNECTED)
-		vmci_trans(vsk)->notify_ops->handle_notify_pkt(
-				sk, pkt, true, &dst, &src,
-				&bh_process_pkt);
+	if (!sock_owned_by_user(sk)) {
+		/* The local context ID may be out of date, update it. */
+		vsk->local_addr.svm_cid = dst.svm_cid;
+
+		if (sk->sk_state == SS_CONNECTED)
+			vmci_trans(vsk)->notify_ops->handle_notify_pkt(
+					sk, pkt, true, &dst, &src,
+					&bh_process_pkt);
+	}
 
 	bh_unlock_sock(sk);
 
@@ -902,6 +904,9 @@ static void vmci_transport_recv_pkt_work(struct work_struct *work)
 
 	lock_sock(sk);
 
+	/* The local context ID may be out of date. */
+	vsock_sk(sk)->local_addr.svm_cid = pkt->dg.dst.context;
+
 	switch (sk->sk_state) {
 	case SS_LISTEN:
 		vmci_transport_recv_listen(sk, pkt);
@@ -958,6 +963,10 @@ static int vmci_transport_recv_listen(struct sock *sk,
 	pending = vmci_transport_get_pending(sk, pkt);
 	if (pending) {
 		lock_sock(pending);
+
+		/* The local context ID may be out of date. */
+		vsock_sk(pending)->local_addr.svm_cid = pkt->dg.dst.context;
+
 		switch (pending->sk_state) {
 		case SS_CONNECTING:
 			err = vmci_transport_recv_connecting_server(sk,
@@ -1727,6 +1736,8 @@ static int vmci_transport_dgram_dequeue(struct kiocb *kiocb,
 	if (flags & MSG_OOB || flags & MSG_ERRQUEUE)
 		return -EOPNOTSUPP;
 
+	msg->msg_namelen = 0;
+
 	/* Retrieve the head sk_buff from the socket's receive queue. */
 	err = 0;
 	skb = skb_recv_datagram(&vsk->sk, flags, noblock, &err);
@@ -1759,7 +1770,6 @@ static int vmci_transport_dgram_dequeue(struct kiocb *kiocb,
 	if (err)
 		goto out;
 
-	msg->msg_namelen = 0;
 	if (msg->msg_name) {
 		struct sockaddr_vm *vm_addr;
 
