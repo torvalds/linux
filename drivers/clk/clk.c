@@ -458,6 +458,7 @@ static void clk_unprepare_unused_subtree(struct clk *clk)
 			clk->ops->unprepare(clk->hw);
 	}
 }
+EXPORT_SYMBOL_GPL(__clk_get_flags);
 
 /* caller must hold prepare_lock */
 static void clk_disable_unused_subtree(struct clk *clk)
