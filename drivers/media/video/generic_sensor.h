@@ -109,6 +109,7 @@ enum rk_sensor_focus_wq_cmd
 	WqCmd_af_init =1,
 	WqCmd_af_single,
 	WqCmd_af_continues,
+	WqCmd_af_continues_pause,     /* ddl@rock-chips.com: v0.1.1 */
 	WqCmd_af_update_zone,
 	WqCmd_af_close,
 	WqCmd_af_special_pos,
@@ -145,6 +146,7 @@ struct rk_sensor_focus_cb{
 	int (*sensor_focus_init_cb)(struct i2c_client *client);	
     int (*sensor_af_single_cb)(struct i2c_client *client);
     int (*sensor_af_const_cb)(struct i2c_client *client);
+    int (*sensor_af_const_pause_cb)(struct i2c_client *client);
     int (*sensor_af_zoneupdate_cb)(struct i2c_client *client, int *zone_tm_pos);
     int (*sensor_af_close_cb)(struct i2c_client *client);
     int (*sensor_af_near_cb)(struct i2c_client *client);
@@ -1118,8 +1120,10 @@ static inline int sensor_face_detect_default_cb(struct soc_camera_device *icd, s
 		spsensor->common_sensor.sensor_focus.focus_cb.sensor_af_near_cb = sensor_focus_af_near_usr_cb; \
 		spsensor->common_sensor.sensor_focus.focus_cb.sensor_af_far_cb = sensor_focus_af_far_usr_cb; \
 		spsensor->common_sensor.sensor_focus.focus_cb.sensor_af_specialpos_cb = sensor_focus_af_specialpos_usr_cb; \
-		if(CFG_FunChk(sensor_config,CFG_FocusContinues))\
+		if(CFG_FunChk(sensor_config,CFG_FocusContinues)) {\
 			spsensor->common_sensor.sensor_focus.focus_cb.sensor_af_const_cb = sensor_focus_af_const_usr_cb; \
+			spsensor->common_sensor.sensor_focus.focus_cb.sensor_af_const_pause_cb = sensor_focus_af_const_pause_usr_cb; \
+		}\
 		if(CFG_FunChk(sensor_config,CFG_FocusZone)) \
 			spsensor->common_sensor.sensor_focus.focus_cb.sensor_af_zoneupdate_cb = sensor_focus_af_zoneupdate_usr_cb; \
 		spsensor->common_sensor.sensor_focus.focus_cb.sensor_af_close_cb = sensor_focus_af_close_usr_cb; \

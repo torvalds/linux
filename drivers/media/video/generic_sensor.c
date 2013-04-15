@@ -16,8 +16,10 @@
 /*
 *      Driver Version Note
 *v0.0.1: this driver is compatible with generic_sensor
+*v0.1.1:
+*        add WqCmd_af_continues_pause;
 */
-static int version = KERNEL_VERSION(0,1,0);
+static int version = KERNEL_VERSION(0,1,1);
 module_param(version, int, S_IRUGO);
 
 
@@ -1267,6 +1269,17 @@ int generic_sensor_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			   sensor_work->result = WqRet_success;
 			break;
 		}
+        case WqCmd_af_continues_pause:
+		{
+			if(sensor->sensor_focus.focus_cb.sensor_af_const_pause_cb!=NULL){
+				ret = (sensor->sensor_focus.focus_cb.sensor_af_const_pause_cb)(client);
+			}
+			if (ret < 0)
+			   sensor_work->result = WqRet_fail;
+			else 
+			   sensor_work->result = WqRet_success;
+			break;
+		} 
 		case WqCmd_af_update_zone:
 		{
             mutex_lock(&sensor->sensor_focus.focus_lock);

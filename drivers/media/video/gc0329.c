@@ -4,8 +4,10 @@
 /*
 *      Driver Version Note
 *v0.0.1: this driver is compatible with generic_sensor
+*v0.0.3:
+*        add sensor_focus_af_const_pause_usr_cb;
 */
-static int version = KERNEL_VERSION(0,0,1);
+static int version = KERNEL_VERSION(0,0,3);
 module_param(version, int, S_IRUGO);
 
 
@@ -1041,6 +1043,10 @@ static int sensor_focus_af_specialpos_usr_cb(struct i2c_client *client,int pos){
 
 static int sensor_focus_af_const_usr_cb(struct i2c_client *client){
 	return 0;
+}
+static int sensor_focus_af_const_pause_usr_cb(struct i2c_client *client)
+{
+    return 0;
 }
 static int sensor_focus_af_close_usr_cb(struct i2c_client *client){
 	return 0;
