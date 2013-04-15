@@ -80,6 +80,8 @@ struct dfs_pattern_detector {
 	enum nl80211_dfs_regions region;
 	u8 num_radar_types;
 	u64 last_pulse_ts;
+	/* needed for ath_dbg() */
+	struct ath_hw *ah;
 
 	const struct radar_detector_specs *radar_spec;
 	struct list_head channel_detectors;
@@ -92,10 +94,10 @@ struct dfs_pattern_detector {
  */
 #if defined(CONFIG_ATH9K_DFS_CERTIFIED)
 extern struct dfs_pattern_detector *
-dfs_pattern_detector_init(enum nl80211_dfs_regions region);
+dfs_pattern_detector_init(struct ath_hw *ah, enum nl80211_dfs_regions region);
 #else
 static inline struct dfs_pattern_detector *
-dfs_pattern_detector_init(enum nl80211_dfs_regions region)
+dfs_pattern_detector_init(struct ath_hw *ah, enum nl80211_dfs_regions region)
 {
 	return NULL;
 }

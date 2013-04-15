@@ -19,6 +19,7 @@
 
 #include "dfs_pattern_detector.h"
 #include "dfs_pri_detector.h"
+#include "ath9k.h"
 
 /*
  * tolerated deviation of radar time stamp in usecs on both sides
@@ -142,6 +143,7 @@ channel_detector_create(struct dfs_pattern_detector *dpd, u16 freq)
 {
 	u32 sz, i;
 	struct channel_detector *cd;
+	struct ath_common *common = ath9k_hw_common(dpd->ah);
 
 	cd = kmalloc(sizeof(*cd), GFP_KERNEL);
 	if (cd == NULL)
@@ -165,7 +167,8 @@ channel_detector_create(struct dfs_pattern_detector *dpd, u16 freq)
 	return cd;
 
 fail:
-	pr_err("failed to allocate channel_detector for freq=%d\n", freq);
+	ath_dbg(common, DFS,
+		"failed to allocate channel_detector for freq=%d\n", freq);
 	channel_detector_exit(dpd, cd);
 	return NULL;
 }
@@ -216,34 +219,34 @@ static bool
 dpd_add_pulse(struct dfs_pattern_detector *dpd, struct pulse_event *event)
 {
 	u32 i;
-	bool ts_wraparound;
 	struct channel_detector *cd;
 
-	if (dpd->region == NL80211_DFS_UNSET) {
-		/*
-		 * pulses received for a non-supported or un-initialized
-		 * domain are treated as detected radars
-		 */
+	/*
+	 * pulses received for a non-supported or un-initialized
+	 * domain are treated as detected radars for fail-safety
+	 */
+	if (dpd->region == NL80211_DFS_UNSET)
 		return true;
-	}
 
 	cd = channel_detector_get(dpd, event->freq);
 	if (cd == NULL)
 		return false;
 
-	ts_wraparound = (event->ts < dpd->last_pulse_ts);
 	dpd->last_pulse_ts = event->ts;
-	if (ts_wraparound) {
-		/*
-		 * reset detector on time stamp wraparound
-		 * with monotonic time stamps, this should never happen
-		 */
-		pr_warn("DFS: time stamp wraparound detected, resetting\n");
+	/* reset detector on time stamp wraparound, caused by TSF reset */
+	if (event->ts < dpd->last_pulse_ts)
 		dpd_reset(dpd);
-	}
+
 	/* do type individual pattern matching */
 	for (i = 0; i < dpd->num_radar_types; i++) {
-		if (cd->detectors[i]->add_pulse(cd->detectors[i], event) != 0) {
+		struct pri_detector *pd = cd->detectors[i];
+		struct pri_sequence *ps = pd->add_pulse(pd, event);
+		if (ps != NULL) {
+			ath_dbg(ath9k_hw_common(dpd->ah), DFS,
+				"DFS: radar found on freq=%d: id=%d, pri=%d, "
+				"count=%d, count_false=%d\n",
+				event->freq, pd->rs->type_id,
+				ps->pri, ps->count, ps->count_falses);
 			channel_detector_reset(dpd, cd);
 			return true;
 		}
@@ -285,9 +288,10 @@ static struct dfs_pattern_detector default_dpd = {
 };
 
 struct dfs_pattern_detector *
-dfs_pattern_detector_init(enum nl80211_dfs_regions region)
+dfs_pattern_detector_init(struct ath_hw *ah, enum nl80211_dfs_regions region)
 {
 	struct dfs_pattern_detector *dpd;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	dpd = kmalloc(sizeof(*dpd), GFP_KERNEL);
 	if (dpd == NULL)
@@ -296,10 +300,11 @@ dfs_pattern_detector_init(enum nl80211_dfs_regions region)
 	*dpd = default_dpd;
 	INIT_LIST_HEAD(&dpd->channel_detectors);
 
+	dpd->ah = ah;
 	if (dpd->set_dfs_domain(dpd, region))
 		return dpd;
 
-	pr_err("Could not set DFS domain to %d. ", region);
+	ath_dbg(common, DFS,"Could not set DFS domain to %d", region);
 	kfree(dpd);
 	return NULL;
 }

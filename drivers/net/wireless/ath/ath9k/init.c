@@ -577,7 +577,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	atomic_set(&ah->intr_ref_cnt, -1);
 	sc->sc_ah = ah;
 
-	sc->dfs_detector = dfs_pattern_detector_init(NL80211_DFS_UNSET);
+	sc->dfs_detector = dfs_pattern_detector_init(ah, NL80211_DFS_UNSET);
 
 	if (!pdata) {
 		ah->ah_flags |= AH_USE_EEPROM;
