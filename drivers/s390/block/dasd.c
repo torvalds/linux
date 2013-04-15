@@ -2752,6 +2752,26 @@ static void _dasd_wake_block_flush_cb(struct dasd_ccw_req *cqr, void *data)
 }
 
 /*
+ * Requeue a request back to the block request queue
+ * only works for block requests
+ */
+static int _dasd_requeue_request(struct dasd_ccw_req *cqr)
+{
+	struct dasd_block *block = cqr->block;
+	struct request *req;
+	unsigned long flags;
+
+	if (!block)
+		return -EINVAL;
+	spin_lock_irqsave(&block->queue_lock, flags);
+	req = (struct request *) cqr->callback_data;
+	blk_requeue_request(block->request_queue, req);
+	spin_unlock_irqrestore(&block->queue_lock, flags);
+
+	return 0;
+}
+
+/*
  * Go through all request on the dasd_block request queue, cancel them
  * on the respective dasd_device, and return them to the generic
  * block layer.
@@ -3469,10 +3489,11 @@ EXPORT_SYMBOL_GPL(dasd_generic_verify_path);
 
 int dasd_generic_pm_freeze(struct ccw_device *cdev)
 {
-	struct dasd_ccw_req *cqr, *n;
-	int rc;
-	struct list_head freeze_queue;
 	struct dasd_device *device = dasd_device_from_cdev(cdev);
+	struct list_head freeze_queue;
+	struct dasd_ccw_req *cqr, *n;
+	struct dasd_ccw_req *refers;
+	int rc;
 
 	if (IS_ERR(device))
 		return PTR_ERR(device);
@@ -3485,7 +3506,8 @@ int dasd_generic_pm_freeze(struct ccw_device *cdev)
 
 	/* disallow new I/O  */
 	dasd_device_set_stop_bits(device, DASD_STOPPED_PM);
-	/* clear active requests */
+
+	/* clear active requests and requeue them to block layer if possible */
 	INIT_LIST_HEAD(&freeze_queue);
 	spin_lock_irq(get_ccwdev_lock(cdev));
 	rc = 0;
@@ -3505,7 +3527,6 @@ int dasd_generic_pm_freeze(struct ccw_device *cdev)
 		}
 		list_move_tail(&cqr->devlist, &freeze_queue);
 	}
-
 	spin_unlock_irq(get_ccwdev_lock(cdev));
 
 	list_for_each_entry_safe(cqr, n, &freeze_queue, devlist) {
@@ -3513,12 +3534,38 @@ int dasd_generic_pm_freeze(struct ccw_device *cdev)
 			   (cqr->status != DASD_CQR_CLEAR_PENDING));
 		if (cqr->status == DASD_CQR_CLEARED)
 			cqr->status = DASD_CQR_QUEUED;
-	}
-	/* move freeze_queue to start of the ccw_queue */
-	spin_lock_irq(get_ccwdev_lock(cdev));
-	list_splice_tail(&freeze_queue, &device->ccw_queue);
-	spin_unlock_irq(get_ccwdev_lock(cdev));
 
+		/* requeue requests to blocklayer will only work for
+		   block device requests */
+		if (_dasd_requeue_request(cqr))
+			continue;
+
+		/* remove requests from device and block queue */
+		list_del_init(&cqr->devlist);
+		while (cqr->refers != NULL) {
+			refers = cqr->refers;
+			/* remove the request from the block queue */
+			list_del(&cqr->blocklist);
+			/* free the finished erp request */
+			dasd_free_erp_request(cqr, cqr->memdev);
+			cqr = refers;
+		}
+		if (cqr->block)
+			list_del_init(&cqr->blocklist);
+		cqr->block->base->discipline->free_cp(
+			cqr, (struct request *) cqr->callback_data);
+	}
+
+	/*
+	 * if requests remain then they are internal request
+	 * and go back to the device queue
+	 */
+	if (!list_empty(&freeze_queue)) {
+		/* move freeze_queue to start of the ccw_queue */
+		spin_lock_irq(get_ccwdev_lock(cdev));
+		list_splice_tail(&freeze_queue, &device->ccw_queue);
+		spin_unlock_irq(get_ccwdev_lock(cdev));
+	}
 	dasd_put_device(device);
 	return rc;
 }
