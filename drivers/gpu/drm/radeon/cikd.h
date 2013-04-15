@@ -905,6 +905,7 @@
 #define RLC_LB_CNTR_MAX                                   0xC348
 
 #define RLC_LB_CNTL                                       0xC364
+#       define LOAD_BALANCE_ENABLE                        (1 << 0)
 
 #define RLC_LB_CNTR_INIT                                  0xC36C
 

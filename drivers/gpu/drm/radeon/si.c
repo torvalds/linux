@@ -5435,7 +5435,7 @@ int si_rlc_init(struct radeon_device *rdev)
 	return 0;
 }
 
-static void si_rlc_reset(struct radeon_device *rdev)
+void si_rlc_reset(struct radeon_device *rdev)
 {
 	u32 tmp = RREG32(GRBM_SOFT_RESET);
 

@@ -60,6 +60,7 @@ extern bool evergreen_is_display_hung(struct radeon_device *rdev);
 extern void si_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern void si_rlc_fini(struct radeon_device *rdev);
 extern int si_rlc_init(struct radeon_device *rdev);
+extern void si_rlc_reset(struct radeon_device *rdev);
 static void cik_rlc_stop(struct radeon_device *rdev);
 static void cik_pcie_gen3_enable(struct radeon_device *rdev);
 static void cik_program_aspm(struct radeon_device *rdev);
@@ -4728,31 +4729,34 @@ void cik_dma_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm
  * variety of functions, the most important of which is
  * the interrupt controller.
  */
-/**
- * cik_rlc_stop - stop the RLC ME
- *
- * @rdev: radeon_device pointer
- *
- * Halt the RLC ME (MicroEngine) (CIK).
- */
-static void cik_rlc_stop(struct radeon_device *rdev)
+static void cik_enable_gui_idle_interrupt(struct radeon_device *rdev,
+					  bool enable)
 {
-	int i, j, k;
-	u32 mask, tmp;
+	u32 tmp = RREG32(CP_INT_CNTL_RING0);
 
-	tmp = RREG32(CP_INT_CNTL_RING0);
-	tmp &= ~(CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+	if (enable)
+		tmp |= (CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+	else
+		tmp &= ~(CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
 	WREG32(CP_INT_CNTL_RING0, tmp);
+}
 
-	RREG32(CB_CGTT_SCLK_CTRL);
-	RREG32(CB_CGTT_SCLK_CTRL);
-	RREG32(CB_CGTT_SCLK_CTRL);
-	RREG32(CB_CGTT_SCLK_CTRL);
+static void cik_enable_lbpw(struct radeon_device *rdev, bool enable)
+{
+	u32 tmp;
 
-	tmp = RREG32(RLC_CGCG_CGLS_CTRL) & 0xfffffffc;
-	WREG32(RLC_CGCG_CGLS_CTRL, tmp);
+	tmp = RREG32(RLC_LB_CNTL);
+	if (enable)
+		tmp |= LOAD_BALANCE_ENABLE;
+	else
+		tmp &= ~LOAD_BALANCE_ENABLE;
+	WREG32(RLC_LB_CNTL, tmp);
+}
 
-	WREG32(RLC_CNTL, 0);
+static void cik_wait_for_rlc_serdes(struct radeon_device *rdev)
+{
+	u32 i, j, k;
+	u32 mask;
 
 	for (i = 0; i < rdev->config.cik.max_shader_engines; i++) {
 		for (j = 0; j < rdev->config.cik.max_sh_per_se; j++) {
@@ -4775,6 +4779,32 @@ static void cik_rlc_stop(struct radeon_device *rdev)
 }
 
 /**
+ * cik_rlc_stop - stop the RLC ME
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Halt the RLC ME (MicroEngine) (CIK).
+ */
+static void cik_rlc_stop(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	cik_enable_gui_idle_interrupt(rdev, false);
+
+	RREG32(CB_CGTT_SCLK_CTRL);
+	RREG32(CB_CGTT_SCLK_CTRL);
+	RREG32(CB_CGTT_SCLK_CTRL);
+	RREG32(CB_CGTT_SCLK_CTRL);
+
+	tmp = RREG32(RLC_CGCG_CGLS_CTRL) & 0xfffffffc;
+	WREG32(RLC_CGCG_CGLS_CTRL, tmp);
+
+	WREG32(RLC_CNTL, 0);
+
+	cik_wait_for_rlc_serdes(rdev);
+}
+
+/**
  * cik_rlc_start - start the RLC ME
  *
  * @rdev: radeon_device pointer
@@ -4783,13 +4813,9 @@ static void cik_rlc_stop(struct radeon_device *rdev)
  */
 static void cik_rlc_start(struct radeon_device *rdev)
 {
-	u32 tmp;
-
 	WREG32(RLC_CNTL, RLC_ENABLE);
 
-	tmp = RREG32(CP_INT_CNTL_RING0);
-	tmp |= (CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
-	WREG32(CP_INT_CNTL_RING0, tmp);
+	cik_enable_gui_idle_interrupt(rdev, true);
 
 	udelay(50);
 }
@@ -4827,12 +4853,7 @@ static int cik_rlc_resume(struct radeon_device *rdev)
 
 	cik_rlc_stop(rdev);
 
-	WREG32(GRBM_SOFT_RESET, SOFT_RESET_RLC);
-	RREG32(GRBM_SOFT_RESET);
-	udelay(50);
-	WREG32(GRBM_SOFT_RESET, 0);
-	RREG32(GRBM_SOFT_RESET);
-	udelay(50);
+	si_rlc_reset(rdev);
 
 	WREG32(RLC_LB_CNTR_INIT, 0);
 	WREG32(RLC_LB_CNTR_MAX, 0x00008000);
@@ -4850,6 +4871,9 @@ static int cik_rlc_resume(struct radeon_device *rdev)
 	for (i = 0; i < size; i++)
 		WREG32(RLC_GPM_UCODE_DATA, be32_to_cpup(fw_data++));
 	WREG32(RLC_GPM_UCODE_ADDR, 0);
+
+	/* XXX - find out what chips support lbpw */
+	cik_enable_lbpw(rdev, false);
 
 	/* XXX */
 	clear_state_info[0] = 0;//upper_32_bits(rdev->rlc.save_restore_gpu_addr);
