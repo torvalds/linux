@@ -1036,7 +1036,7 @@ static int port_fops_open(struct inode *inode, struct file *filp)
 	spin_lock_irq(&port->inbuf_lock);
 	if (port->guest_connected) {
 		spin_unlock_irq(&port->inbuf_lock);
-		ret = -EMFILE;
+		ret = -EBUSY;
 		goto out;
 	}
 
