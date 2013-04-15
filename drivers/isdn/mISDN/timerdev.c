@@ -173,7 +173,6 @@ static int
 misdn_add_timer(struct mISDNtimerdev *dev, int timeout)
 {
 	int			id;
-	u_long			flags;
 	struct mISDNtimer	*timer;
 
 	if (!timeout) {
@@ -184,19 +183,16 @@ misdn_add_timer(struct mISDNtimerdev *dev, int timeout)
 		timer = kzalloc(sizeof(struct mISDNtimer), GFP_KERNEL);
 		if (!timer)
 			return -ENOMEM;
-		spin_lock_irqsave(&dev->lock, flags);
-		timer->id = dev->next_id++;
+		timer->dev = dev;
+		setup_timer(&timer->tl, dev_expire_timer, (long)timer);
+		spin_lock_irq(&dev->lock);
+		id = timer->id = dev->next_id++;
 		if (dev->next_id < 0)
 			dev->next_id = 1;
 		list_add_tail(&timer->list, &dev->pending);
-		spin_unlock_irqrestore(&dev->lock, flags);
-		timer->dev = dev;
-		timer->tl.data = (long)timer;
-		timer->tl.function = dev_expire_timer;
-		init_timer(&timer->tl);
 		timer->tl.expires = jiffies + ((HZ * (u_long)timeout) / 1000);
 		add_timer(&timer->tl);
-		id = timer->id;
+		spin_unlock_irq(&dev->lock);
 	}
 	return id;
 }
