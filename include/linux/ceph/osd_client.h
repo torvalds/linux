@@ -29,6 +29,7 @@ struct ceph_authorizer;
  */
 typedef void (*ceph_osdc_callback_t)(struct ceph_osd_request *,
 				     struct ceph_msg *);
+typedef void (*ceph_osdc_unsafe_callback_t)(struct ceph_osd_request *, bool);
 
 /* a given osd we're communicating with */
 struct ceph_osd {
@@ -149,7 +150,8 @@ struct ceph_osd_request {
 	struct kref       r_kref;
 	bool              r_mempool;
 	struct completion r_completion, r_safe_completion;
-	ceph_osdc_callback_t r_callback, r_safe_callback;
+	ceph_osdc_callback_t r_callback;
+	ceph_osdc_unsafe_callback_t r_unsafe_callback;
 	struct ceph_eversion r_reassert_version;
 	struct list_head  r_unsafe_item;
 

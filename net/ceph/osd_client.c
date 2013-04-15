@@ -1314,8 +1314,14 @@ static void __send_request(struct ceph_osd_client *osdc,
 	list_move_tail(&req->r_req_lru_item, &osdc->req_lru);
 
 	ceph_msg_get(req->r_request); /* send consumes a ref */
-	ceph_con_send(&req->r_osd->o_con, req->r_request);
+
+	/* Mark the request unsafe if this is the first timet's being sent. */
+
+	if (!req->r_sent && req->r_unsafe_callback)
+		req->r_unsafe_callback(req, true);
 	req->r_sent = req->r_osd->o_incarnation;
+
+	ceph_con_send(&req->r_osd->o_con, req->r_request);
 }
 
 /*
@@ -1403,8 +1409,8 @@ static void handle_osds_timeout(struct work_struct *work)
 
 static void complete_request(struct ceph_osd_request *req)
 {
-	if (req->r_safe_callback)
-		req->r_safe_callback(req, NULL);
+	if (req->r_unsafe_callback)
+		req->r_unsafe_callback(req, false);
 	complete_all(&req->r_safe_completion);  /* fsync waiter */
 }
 
