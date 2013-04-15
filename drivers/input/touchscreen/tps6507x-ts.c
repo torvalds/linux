@@ -44,12 +44,8 @@ struct tps6507x_ts {
 	struct delayed_work	work;
 	struct ts_event		tc;
 	struct tps6507x_dev	*mfd;
-	u16			model;
 	u16			min_pressure;
-	int			irq;
-	void			(*clear_penirq)(void);
 	unsigned long		poll_period;	/* ms */
-	int			vref;		/* non-zero to leave vref on */
 	bool			pendown;
 };
 
@@ -291,7 +287,6 @@ static int tps6507x_ts_probe(struct platform_device *pdev)
 
 	if (init_data) {
 		tsc->poll_period = init_data->poll_period;
-		tsc->vref = init_data->vref;
 		tsc->min_pressure = init_data->min_pressure;
 		input_dev->id.vendor = init_data->vendor;
 		input_dev->id.product = init_data->product;
