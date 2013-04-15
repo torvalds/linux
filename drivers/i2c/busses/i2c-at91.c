@@ -605,11 +605,16 @@ static const struct of_device_id atmel_twi_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, atmel_twi_dt_ids);
 #endif
 
-static bool filter(struct dma_chan *chan, void *slave)
+static bool filter(struct dma_chan *chan, void *pdata)
 {
-	struct at_dma_slave *sl = slave;
+	struct at91_twi_pdata *sl_pdata = pdata;
+	struct at_dma_slave *sl;
 
-	if (sl->dma_dev == chan->device->dev) {
+	if (!sl_pdata)
+		return false;
+
+	sl = &sl_pdata->dma_slave;
+	if (sl && (sl->dma_dev == chan->device->dev)) {
 		chan->private = sl;
 		return true;
 	} else {
@@ -620,11 +625,10 @@ static bool filter(struct dma_chan *chan, void *slave)
 static int at91_twi_configure_dma(struct at91_twi_dev *dev, u32 phy_addr)
 {
 	int ret = 0;
-	struct at_dma_slave *sdata;
+	struct at91_twi_pdata *pdata = dev->pdata;
 	struct dma_slave_config slave_config;
 	struct at91_twi_dma *dma = &dev->dma;
-
-	sdata = &dev->pdata->dma_slave;
+	dma_cap_mask_t mask;
 
 	memset(&slave_config, 0, sizeof(slave_config));
 	slave_config.src_addr = (dma_addr_t)phy_addr + AT91_TWI_RHR;
@@ -635,25 +639,22 @@ static int at91_twi_configure_dma(struct at91_twi_dev *dev, u32 phy_addr)
 	slave_config.dst_maxburst = 1;
 	slave_config.device_fc = false;
 
-	if (sdata && sdata->dma_dev) {
-		dma_cap_mask_t mask;
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
 
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_SLAVE, mask);
-		dma->chan_tx = dma_request_channel(mask, filter, sdata);
-		if (!dma->chan_tx) {
-			dev_err(dev->dev, "no DMA channel available for tx\n");
-			ret = -EBUSY;
-			goto error;
-		}
-		dma->chan_rx = dma_request_channel(mask, filter, sdata);
-		if (!dma->chan_rx) {
-			dev_err(dev->dev, "no DMA channel available for rx\n");
-			ret = -EBUSY;
-			goto error;
-		}
-	} else {
-		ret = -EINVAL;
+	dma->chan_tx = dma_request_slave_channel_compat(mask, filter, pdata,
+							dev->dev, "tx");
+	if (!dma->chan_tx) {
+		dev_err(dev->dev, "can't get a DMA channel for tx\n");
+		ret = -EBUSY;
+		goto error;
+	}
+
+	dma->chan_rx = dma_request_slave_channel_compat(mask, filter, pdata,
+							dev->dev, "rx");
+	if (!dma->chan_rx) {
+		dev_err(dev->dev, "can't get a DMA channel for rx\n");
+		ret = -EBUSY;
 		goto error;
 	}
 
