@@ -545,8 +545,7 @@ static void pc236_detach(struct comedi_device *dev)
 		pc236_intr_disable(dev);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[0]);
+	comedi_spriv_free(dev, 0);
 	if (is_isa_board(thisboard)) {
 		if (dev->iobase)
 			release_region(dev->iobase, PC236_IO_SIZE);

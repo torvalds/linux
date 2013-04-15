@@ -241,20 +241,12 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 
 static void pci_8255_detach(struct comedi_device *dev)
 {
-	const struct pci_8255_boardinfo *board = comedi_board(dev);
 	struct pci_8255_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
 	int i;
 
-	if (!board || !devpriv)
-		return;
-	if (dev->subdevices) {
-		for (i = 0; i < board->n_8255; i++) {
-			s = &dev->subdevices[i];
-			subdev_8255_cleanup(dev, s);
-		}
-	}
-	if (devpriv->mmio_base)
+	for (i = 0; i < dev->n_subdevices; i++)
+		comedi_spriv_free(dev, i);
+	if (devpriv && devpriv->mmio_base)
 		iounmap(devpriv->mmio_base);
 	comedi_pci_disable(dev);
 }

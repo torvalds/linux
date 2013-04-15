@@ -2832,11 +2832,9 @@ static int pci230_auto_attach(struct comedi_device *dev,
 
 static void pci230_detach(struct comedi_device *dev)
 {
-	const struct pci230_board *thisboard = comedi_board(dev);
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
-	if (dev->subdevices && thisboard->have_dio)
-		subdev_8255_cleanup(dev, &dev->subdevices[2]);
+	comedi_spriv_free(dev, 2);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	comedi_pci_disable(dev);

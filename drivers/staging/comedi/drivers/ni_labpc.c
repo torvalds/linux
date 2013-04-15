@@ -1860,14 +1860,10 @@ void labpc_common_detach(struct comedi_device *dev)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
 
 	if (!board)
 		return;
-	if (dev->subdevices) {
-		s = &dev->subdevices[2];
-		subdev_8255_cleanup(dev, s);
-	}
+	comedi_spriv_free(dev, 2);
 #ifdef CONFIG_ISA_DMA_API
 	/* only free stuff if it has been allocated by _attach */
 	kfree(devpriv->dma_buffer);

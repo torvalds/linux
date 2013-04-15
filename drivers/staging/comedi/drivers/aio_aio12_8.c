@@ -261,8 +261,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 
 static void aio_aio12_8_detach(struct comedi_device *dev)
 {
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[2]);
+	comedi_spriv_free(dev, 2);
 	if (dev->iobase)
 		release_region(dev->iobase, 24);
 }

@@ -4068,19 +4068,14 @@ static int ni_serial_sw_readwrite8(struct comedi_device *dev,
 
 static void mio_common_detach(struct comedi_device *dev)
 {
-	const struct ni_board_struct *board = comedi_board(dev);
 	struct ni_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
 
 	if (devpriv) {
 		if (devpriv->counter_dev) {
 			ni_gpct_device_destroy(devpriv->counter_dev);
 		}
 	}
-	if (dev->subdevices && board->has_8255) {
-		s = &dev->subdevices[NI_8255_DIO_SUBDEV];
-		subdev_8255_cleanup(dev, s);
-	}
+	comedi_spriv_free(dev, NI_8255_DIO_SUBDEV);
 }
 
 static void init_ao_67xx(struct comedi_device *dev, struct comedi_subdevice *s)

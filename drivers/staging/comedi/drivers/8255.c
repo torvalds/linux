@@ -334,12 +334,6 @@ int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 EXPORT_SYMBOL_GPL(subdev_8255_init_irq);
 
-void subdev_8255_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
-{
-	kfree(s->private);
-}
-EXPORT_SYMBOL_GPL(subdev_8255_cleanup);
-
 /*
 
    Start of the 8255 standalone device
@@ -397,7 +391,7 @@ static void dev_8255_detach(struct comedi_device *dev)
 			spriv = s->private;
 			release_region(spriv->iobase, _8255_SIZE);
 		}
-		subdev_8255_cleanup(dev, s);
+		comedi_spriv_free(dev, i);
 	}
 }
 

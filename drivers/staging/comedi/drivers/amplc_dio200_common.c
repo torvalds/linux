@@ -595,17 +595,6 @@ dio200_subdev_intr_init(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 /*
- * This function cleans up an 'INTERRUPT' subdevice.
- */
-static void
-dio200_subdev_intr_cleanup(struct comedi_device *dev,
-			   struct comedi_subdevice *s)
-{
-	struct dio200_subdev_intr *subpriv = s->private;
-	kfree(subpriv);
-}
-
-/*
  * Interrupt service routine.
  */
 static irqreturn_t dio200_interrupt(int irq, void *d)
@@ -938,17 +927,6 @@ dio200_subdev_8254_init(struct comedi_device *dev, struct comedi_subdevice *s,
 }
 
 /*
- * This function cleans up an '8254' counter subdevice.
- */
-static void
-dio200_subdev_8254_cleanup(struct comedi_device *dev,
-			   struct comedi_subdevice *s)
-{
-	struct dio200_subdev_intr *subpriv = s->private;
-	kfree(subpriv);
-}
-
-/*
  * This function sets I/O directions for an '8255' DIO subdevice.
  */
 static void dio200_subdev_8255_set_dir(struct comedi_device *dev,
@@ -1065,17 +1043,6 @@ static int dio200_subdev_8255_init(struct comedi_device *dev,
 }
 
 /*
- * This function cleans up an '8255' DIO subdevice.
- */
-static void dio200_subdev_8255_cleanup(struct comedi_device *dev,
-				       struct comedi_subdevice *s)
-{
-	struct dio200_subdev_8255 *subpriv = s->private;
-
-	kfree(subpriv);
-}
-
-/*
  * Handle 'insn_read' for a timer subdevice.
  */
 static int dio200_subdev_timer_read(struct comedi_device *dev,
@@ -1178,15 +1145,6 @@ static int dio200_subdev_timer_init(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * This function cleans up a timer subdevice.
- */
-static void dio200_subdev_timer_cleanup(struct comedi_device *dev,
-					struct comedi_subdevice *s)
-{
-	/* Nothing to do. */
-}
-
 void amplc_dio200_set_enhance(struct comedi_device *dev, unsigned char val)
 {
 	dio200_write8(dev, DIO200_ENHANCE, val);
@@ -1282,20 +1240,13 @@ void amplc_dio200_common_detach(struct comedi_device *dev)
 	if (dev->subdevices) {
 		layout = dio200_board_layout(thisboard);
 		for (n = 0; n < dev->n_subdevices; n++) {
-			struct comedi_subdevice *s = &dev->subdevices[n];
 			switch (layout->sdtype[n]) {
 			case sd_8254:
-				dio200_subdev_8254_cleanup(dev, s);
-				break;
 			case sd_8255:
-				dio200_subdev_8255_cleanup(dev, s);
-				break;
 			case sd_intr:
-				dio200_subdev_intr_cleanup(dev, s);
+				comedi_spriv_free(dev, n);
 				break;
 			case sd_timer:
-				dio200_subdev_timer_cleanup(dev, s);
-				break;
 			default:
 				break;
 			}

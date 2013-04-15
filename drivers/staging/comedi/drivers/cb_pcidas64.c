@@ -4163,8 +4163,7 @@ static void detach(struct comedi_device *dev)
 					devpriv->ao_dma_desc_bus_addr);
 		}
 	}
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[4]);
+	comedi_spriv_free(dev, 4);
 	comedi_pci_disable(dev);
 }
 

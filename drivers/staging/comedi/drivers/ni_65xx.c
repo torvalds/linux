@@ -730,6 +730,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 static void ni_65xx_detach(struct comedi_device *dev)
 {
 	struct ni_65xx_private *devpriv = dev->private;
+	int i;
 
 	if (devpriv && devpriv->mite && devpriv->mite->daq_io_addr) {
 		writeb(0x00,
@@ -738,15 +739,9 @@ static void ni_65xx_detach(struct comedi_device *dev)
 	}
 	if (dev->irq)
 		free_irq(dev->irq, dev);
+	for (i = 0; i < dev->n_subdevices; ++i)
+		comedi_spriv_free(dev, i);
 	if (devpriv) {
-		struct comedi_subdevice *s;
-		unsigned i;
-
-		for (i = 0; i < dev->n_subdevices; ++i) {
-			s = &dev->subdevices[i];
-			kfree(s->private);
-			s->private = NULL;
-		}
 		if (devpriv->mite) {
 			mite_unsetup(devpriv->mite);
 			mite_free(devpriv->mite);

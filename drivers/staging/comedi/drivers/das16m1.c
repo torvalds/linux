@@ -669,8 +669,7 @@ static int das16m1_attach(struct comedi_device *dev,
 
 static void das16m1_detach(struct comedi_device *dev)
 {
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[3]);
+	comedi_spriv_free(dev, 3);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->iobase) {

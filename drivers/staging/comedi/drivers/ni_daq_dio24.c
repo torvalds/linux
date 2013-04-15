@@ -73,8 +73,7 @@ static int dio24_auto_attach(struct comedi_device *dev,
 
 static void dio24_detach(struct comedi_device *dev)
 {
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[0]);
+	comedi_spriv_free(dev, 0);
 	comedi_pcmcia_disable(dev);
 }
 

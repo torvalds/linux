@@ -767,13 +767,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 
 static void atmio16d_detach(struct comedi_device *dev)
 {
-	const struct atmio16_board_t *board = comedi_board(dev);
-	struct comedi_subdevice *s;
-
-	if (dev->subdevices && board->has_8255) {
-		s = &dev->subdevices[3];
-		subdev_8255_cleanup(dev, s);
-	}
+	comedi_spriv_free(dev, 3);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	reset_atmio16d(dev);

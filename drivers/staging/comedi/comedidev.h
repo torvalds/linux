@@ -348,6 +348,8 @@ void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 
 int comedi_alloc_subdevices(struct comedi_device *, int);
 
+void comedi_spriv_free(struct comedi_device *, int subdev_num);
+
 int __comedi_request_region(struct comedi_device *,
 			    unsigned long start, unsigned long len);
 int comedi_request_region(struct comedi_device *,

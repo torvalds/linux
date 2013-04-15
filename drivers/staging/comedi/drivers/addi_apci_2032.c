@@ -354,8 +354,7 @@ static void apci2032_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (dev->read_subdev)
 		kfree(dev->read_subdev->private);
-	if (dev->subdevices)
-		addi_watchdog_cleanup(&dev->subdevices[1]);
+	comedi_spriv_free(dev, 1);
 	comedi_pci_disable(dev);
 }
 

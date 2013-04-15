@@ -199,8 +199,7 @@ static int cb_pcimdda_auto_attach(struct comedi_device *dev,
 
 static void cb_pcimdda_detach(struct comedi_device *dev)
 {
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[1]);
+	comedi_spriv_free(dev, 1);
 	comedi_pci_disable(dev);
 }
 

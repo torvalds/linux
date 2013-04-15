@@ -1180,13 +1180,11 @@ static void pci_dio_detach(struct comedi_device *dev)
 		if (devpriv->valid)
 			pci_dio_reset(dev);
 	}
-	if (dev->subdevices) {
-		for (i = 0; i < dev->n_subdevices; i++) {
-			s = &dev->subdevices[i];
-			if (s->type == COMEDI_SUBD_DIO)
-				subdev_8255_cleanup(dev, s);
-			s->private = NULL;
-		}
+	for (i = 0; i < dev->n_subdevices; i++) {
+		s = &dev->subdevices[i];
+		if (s->type == COMEDI_SUBD_DIO)
+			comedi_spriv_free(dev, i);
+		s->private = NULL; /* some private data is static */
 	}
 	comedi_pci_disable(dev);
 }

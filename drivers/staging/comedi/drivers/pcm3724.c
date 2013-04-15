@@ -252,15 +252,10 @@ static int pcm3724_attach(struct comedi_device *dev,
 
 static void pcm3724_detach(struct comedi_device *dev)
 {
-	struct comedi_subdevice *s;
 	int i;
 
-	if (dev->subdevices) {
-		for (i = 0; i < dev->n_subdevices; i++) {
-			s = &dev->subdevices[i];
-			subdev_8255_cleanup(dev, s);
-		}
-	}
+	for (i = 0; i < dev->n_subdevices; i++)
+		comedi_spriv_free(dev, i);
 	if (dev->iobase)
 		release_region(dev->iobase, PCM3724_SIZE);
 }

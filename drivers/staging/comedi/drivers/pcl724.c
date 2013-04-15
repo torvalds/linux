@@ -170,13 +170,10 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static void pcl724_detach(struct comedi_device *dev)
 {
 	const struct pcl724_board *board = comedi_board(dev);
-	struct comedi_subdevice *s;
 	int i;
 
-	for (i = 0; i < dev->n_subdevices; i++) {
-		s = &dev->subdevices[i];
-		subdev_8255_cleanup(dev, s);
-	}
+	for (i = 0; i < dev->n_subdevices; i++)
+		comedi_spriv_free(dev, i);
 #ifdef PCL724_IRQ
 	if (dev->irq)
 		free_irq(dev->irq, dev);
