@@ -1080,6 +1080,8 @@ static int cgroup_show_options(struct seq_file *seq, struct dentry *dentry)
 	mutex_lock(&cgroup_root_mutex);
 	for_each_subsys(root, ss)
 		seq_printf(seq, ",%s", ss->name);
+	if (root->flags & CGRP_ROOT_SANE_BEHAVIOR)
+		seq_puts(seq, ",sane_behavior");
 	if (root->flags & CGRP_ROOT_NOPREFIX)
 		seq_puts(seq, ",noprefix");
 	if (root->flags & CGRP_ROOT_XATTR)
@@ -1142,6 +1144,10 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 			if (one_ss)
 				return -EINVAL;
 			all_ss = true;
+			continue;
+		}
+		if (!strcmp(token, "__DEVEL__sane_behavior")) {
+			opts->flags |= CGRP_ROOT_SANE_BEHAVIOR;
 			continue;
 		}
 		if (!strcmp(token, "noprefix")) {
@@ -1231,6 +1237,20 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 
 	/* Consistency checks */
 
+	if (opts->flags & CGRP_ROOT_SANE_BEHAVIOR) {
+		pr_warning("cgroup: sane_behavior: this is still under development and its behaviors will change, proceed at your own risk\n");
+
+		if (opts->flags & CGRP_ROOT_NOPREFIX) {
+			pr_err("cgroup: sane_behavior: noprefix is not allowed\n");
+			return -EINVAL;
+		}
+
+		if (opts->cpuset_clone_children) {
+			pr_err("cgroup: sane_behavior: clone_children is not allowed\n");
+			return -EINVAL;
+		}
+	}
+
 	/*
 	 * Option noprefix was introduced just for backward compatibility
 	 * with the old cpuset, so we allow noprefix only if mounting just
@@ -1306,6 +1326,11 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 	struct cgroup *cgrp = &root->top_cgroup;
 	struct cgroup_sb_opts opts;
 	unsigned long added_mask, removed_mask;
+
+	if (root->flags & CGRP_ROOT_SANE_BEHAVIOR) {
+		pr_err("cgroup: sane_behavior: remount is not allowed\n");
+		return -EINVAL;
+	}
 
 	mutex_lock(&cgrp->dentry->d_inode->i_mutex);
 	mutex_lock(&cgroup_mutex);
@@ -1657,6 +1682,14 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		 * any) is not needed
 		 */
 		cgroup_drop_root(opts.new_root);
+
+		if (((root->flags | opts.flags) & CGRP_ROOT_SANE_BEHAVIOR) &&
+		    root->flags != opts.flags) {
+			pr_err("cgroup: sane_behavior: new mount options should match the existing superblock\n");
+			ret = -EINVAL;
+			goto drop_new_super;
+		}
+
 		/* no subsys rebinding, so refcounts don't change */
 		drop_parsed_module_refcounts(opts.subsys_mask);
 	}
@@ -2200,6 +2233,13 @@ static int cgroup_release_agent_show(struct cgroup *cgrp, struct cftype *cft,
 	return 0;
 }
 
+static int cgroup_sane_behavior_show(struct cgroup *cgrp, struct cftype *cft,
+				     struct seq_file *seq)
+{
+	seq_printf(seq, "%d\n", cgroup_sane_behavior(cgrp));
+	return 0;
+}
+
 /* A buffer size big enough for numbers or short strings */
 #define CGROUP_LOCAL_BUFFER_SIZE 64
 
@@ -2681,6 +2721,8 @@ static int cgroup_addrm_files(struct cgroup *cgrp, struct cgroup_subsys *subsys,
 
 	for (cft = cfts; cft->name[0] != '\0'; cft++) {
 		/* does cft->flags tell us to skip this file on @cgrp? */
+		if ((cft->flags & CFTYPE_INSANE) && cgroup_sane_behavior(cgrp))
+			continue;
 		if ((cft->flags & CFTYPE_NOT_ON_ROOT) && !cgrp->parent)
 			continue;
 		if ((cft->flags & CFTYPE_ONLY_ON_ROOT) && cgrp->parent)
@@ -3918,8 +3960,14 @@ static struct cftype files[] = {
 	},
 	{
 		.name = "cgroup.clone_children",
+		.flags = CFTYPE_INSANE,
 		.read_u64 = cgroup_clone_children_read,
 		.write_u64 = cgroup_clone_children_write,
+	},
+	{
+		.name = "cgroup.sane_behavior",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.read_seq_string = cgroup_sane_behavior_show,
 	},
 	{
 		.name = "release_agent",
