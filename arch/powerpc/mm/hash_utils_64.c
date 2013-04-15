@@ -1268,21 +1268,22 @@ repeat:
 #ifdef CONFIG_DEBUG_PAGEALLOC
 static void kernel_map_linear_page(unsigned long vaddr, unsigned long lmi)
 {
-	unsigned long hash, hpteg;
+	unsigned long hash;
 	unsigned long vsid = get_kernel_vsid(vaddr, mmu_kernel_ssize);
 	unsigned long vpn = hpt_vpn(vaddr, vsid, mmu_kernel_ssize);
 	unsigned long mode = htab_convert_pte_flags(PAGE_KERNEL);
-	int ret;
+	long ret;
 
 	hash = hpt_hash(vpn, PAGE_SHIFT, mmu_kernel_ssize);
-	hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
 	/* Don't create HPTE entries for bad address */
 	if (!vsid)
 		return;
-	ret = ppc_md.hpte_insert(hpteg, vpn, __pa(vaddr),
-				 mode, HPTE_V_BOLTED,
-				 mmu_linear_psize, mmu_kernel_ssize);
+
+	ret = hpte_insert_repeating(hash, vpn, __pa(vaddr), mode,
+				    HPTE_V_BOLTED,
+				    mmu_linear_psize, mmu_kernel_ssize);
+
 	BUG_ON (ret < 0);
 	spin_lock(&linear_map_hash_lock);
 	BUG_ON(linear_map_hash_slots[lmi] & 0x80);
