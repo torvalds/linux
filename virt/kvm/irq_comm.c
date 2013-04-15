@@ -151,59 +151,6 @@ static int kvm_set_msi_inatomic(struct kvm_kernel_irq_routing_entry *e,
 		return -EWOULDBLOCK;
 }
 
-int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi)
-{
-	struct kvm_kernel_irq_routing_entry route;
-
-	if (!irqchip_in_kernel(kvm) || msi->flags != 0)
-		return -EINVAL;
-
-	route.msi.address_lo = msi->address_lo;
-	route.msi.address_hi = msi->address_hi;
-	route.msi.data = msi->data;
-
-	return kvm_set_msi(&route, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1, false);
-}
-
-/*
- * Return value:
- *  < 0   Interrupt was ignored (masked or not delivered for other reasons)
- *  = 0   Interrupt was coalesced (previous irq is still pending)
- *  > 0   Number of CPUs interrupt was delivered to
- */
-int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
-		bool line_status)
-{
-	struct kvm_kernel_irq_routing_entry *e, irq_set[KVM_NR_IRQCHIPS];
-	int ret = -1, i = 0;
-	struct kvm_irq_routing_table *irq_rt;
-
-	trace_kvm_set_irq(irq, level, irq_source_id);
-
-	/* Not possible to detect if the guest uses the PIC or the
-	 * IOAPIC.  So set the bit in both. The guest will ignore
-	 * writes to the unused one.
-	 */
-	rcu_read_lock();
-	irq_rt = rcu_dereference(kvm->irq_routing);
-	if (irq < irq_rt->nr_rt_entries)
-		hlist_for_each_entry(e, &irq_rt->map[irq], link)
-			irq_set[i++] = *e;
-	rcu_read_unlock();
-
-	while(i--) {
-		int r;
-		r = irq_set[i].set(&irq_set[i], kvm, irq_source_id, level,
-				line_status);
-		if (r < 0)
-			continue;
-
-		ret = r + ((ret < 0) ? 0 : ret);
-	}
-
-	return ret;
-}
-
 /*
  * Deliver an IRQ in an atomic context if we can, or return a failure,
  * user can retry in a process context.
@@ -239,63 +186,6 @@ int kvm_set_irq_inatomic(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 		}
 	rcu_read_unlock();
 	return ret;
-}
-
-bool kvm_irq_has_notifier(struct kvm *kvm, unsigned irqchip, unsigned pin)
-{
-	struct kvm_irq_ack_notifier *kian;
-	int gsi;
-
-	rcu_read_lock();
-	gsi = rcu_dereference(kvm->irq_routing)->chip[irqchip][pin];
-	if (gsi != -1)
-		hlist_for_each_entry_rcu(kian, &kvm->irq_ack_notifier_list,
-					 link)
-			if (kian->gsi == gsi) {
-				rcu_read_unlock();
-				return true;
-			}
-
-	rcu_read_unlock();
-
-	return false;
-}
-EXPORT_SYMBOL_GPL(kvm_irq_has_notifier);
-
-void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
-{
-	struct kvm_irq_ack_notifier *kian;
-	int gsi;
-
-	trace_kvm_ack_irq(irqchip, pin);
-
-	rcu_read_lock();
-	gsi = rcu_dereference(kvm->irq_routing)->chip[irqchip][pin];
-	if (gsi != -1)
-		hlist_for_each_entry_rcu(kian, &kvm->irq_ack_notifier_list,
-					 link)
-			if (kian->gsi == gsi)
-				kian->irq_acked(kian);
-	rcu_read_unlock();
-}
-
-void kvm_register_irq_ack_notifier(struct kvm *kvm,
-				   struct kvm_irq_ack_notifier *kian)
-{
-	mutex_lock(&kvm->irq_lock);
-	hlist_add_head_rcu(&kian->link, &kvm->irq_ack_notifier_list);
-	mutex_unlock(&kvm->irq_lock);
-	kvm_vcpu_request_scan_ioapic(kvm);
-}
-
-void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
-				    struct kvm_irq_ack_notifier *kian)
-{
-	mutex_lock(&kvm->irq_lock);
-	hlist_del_init_rcu(&kian->link);
-	mutex_unlock(&kvm->irq_lock);
-	synchronize_rcu();
-	kvm_vcpu_request_scan_ioapic(kvm);
 }
 
 int kvm_request_irq_source_id(struct kvm *kvm)
@@ -381,13 +271,6 @@ void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 	rcu_read_unlock();
 }
 
-void kvm_free_irq_routing(struct kvm *kvm)
-{
-	/* Called only during vm destruction. Nobody can use the pointer
-	   at this stage */
-	kfree(kvm->irq_routing);
-}
-
 static int setup_routing_entry(struct kvm_irq_routing_table *rt,
 			       struct kvm_kernel_irq_routing_entry *e,
 			       const struct kvm_irq_routing_entry *ue)
@@ -450,7 +333,6 @@ static int setup_routing_entry(struct kvm_irq_routing_table *rt,
 out:
 	return r;
 }
-
 
 int kvm_set_irq_routing(struct kvm *kvm,
 			const struct kvm_irq_routing_entry *ue,
