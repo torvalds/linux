@@ -396,7 +396,11 @@ static int rtl2832_set_if(struct dvb_frontend *fe, u32 if_freq)
 	pset_iffreq = if_freq % priv->cfg.xtal;
 	pset_iffreq *= 0x400000;
 	pset_iffreq = div_u64(pset_iffreq, priv->cfg.xtal);
+	pset_iffreq = -pset_iffreq;
 	pset_iffreq = pset_iffreq & 0x3fffff;
+	dev_dbg(&priv->i2c->dev, "%s: if_frequency=%d pset_iffreq=%08x\n",
+			__func__, if_freq, (unsigned)pset_iffreq);
+
 	ret = rtl2832_wr_demod_reg(priv, DVBT_EN_BBIN, en_bbin);
 	if (ret)
 		return ret;
