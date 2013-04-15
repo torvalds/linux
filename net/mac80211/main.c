@@ -668,6 +668,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	int channels, max_bitrates;
 	bool supp_ht, supp_vht;
 	netdev_features_t feature_whitelist;
+	struct cfg80211_chan_def dflt_chandef = {};
 	static const u32 cipher_suites[] = {
 		/* keep WEP first, it may be removed below */
 		WLAN_CIPHER_SUITE_WEP40,
@@ -745,19 +746,19 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		sband = local->hw.wiphy->bands[band];
 		if (!sband)
 			continue;
-		if (!local->use_chanctx && !local->_oper_chandef.chan) {
+
+		if (!dflt_chandef.chan) {
+			cfg80211_chandef_create(&dflt_chandef,
+						&sband->channels[0],
+						NL80211_CHAN_NO_HT);
 			/* init channel we're on */
-			struct cfg80211_chan_def chandef = {
-				.chan = &sband->channels[0],
-				.width = NL80211_CHAN_NO_HT,
-				.center_freq1 = sband->channels[0].center_freq,
-				.center_freq2 = 0
-			};
-			local->hw.conf.chandef = local->_oper_chandef = chandef;
+			if (!local->use_chanctx && !local->_oper_chandef.chan) {
+				local->hw.conf.chandef = dflt_chandef;
+				local->_oper_chandef = dflt_chandef;
+			}
+			local->monitor_chandef = dflt_chandef;
 		}
-		cfg80211_chandef_create(&local->monitor_chandef,
-					&sband->channels[0],
-					NL80211_CHAN_NO_HT);
+
 		channels += sband->n_channels;
 
 		if (max_bitrates < sband->n_bitrates)
