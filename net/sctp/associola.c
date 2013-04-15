@@ -105,7 +105,6 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	/* Initialize the object handling fields.  */
 	atomic_set(&asoc->base.refcnt, 1);
 	asoc->base.dead = 0;
-	asoc->base.malloced = 0;
 
 	/* Initialize the bind addr area.  */
 	sctp_bind_addr_init(&asoc->base.bind_addr, ep->base.bind_addr.port);
@@ -371,7 +370,6 @@ struct sctp_association *sctp_association_new(const struct sctp_endpoint *ep,
 	if (!sctp_association_init(asoc, ep, sk, scope, gfp))
 		goto fail_init;
 
-	asoc->base.malloced = 1;
 	SCTP_DBG_OBJCNT_INC(assoc);
 	SCTP_DEBUG_PRINTK("Created asoc %p\n", asoc);
 
@@ -484,10 +482,8 @@ static void sctp_association_destroy(struct sctp_association *asoc)
 
 	WARN_ON(atomic_read(&asoc->rmem_alloc));
 
-	if (asoc->base.malloced) {
-		kfree(asoc);
-		SCTP_DBG_OBJCNT_DEC(assoc);
-	}
+	kfree(asoc);
+	SCTP_DBG_OBJCNT_DEC(assoc);
 }
 
 /* Change the primary destination address for the peer. */
