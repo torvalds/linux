@@ -1418,7 +1418,6 @@ static void init_cgroup_root(struct cgroupfs_root *root)
 	root->number_of_cgroups = 1;
 	cgrp->root = root;
 	cgrp->name = &root_cgroup_name;
-	cgrp->top_cgroup = cgrp;
 	init_cgroup_housekeeping(cgrp);
 	list_add_tail(&cgrp->allcg_node, &root->allcg_list);
 }
@@ -4145,7 +4144,6 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 
 	cgrp->parent = parent;
 	cgrp->root = parent->root;
-	cgrp->top_cgroup = parent->top_cgroup;
 
 	if (notify_on_release(parent))
 		set_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);

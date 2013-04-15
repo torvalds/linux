@@ -204,7 +204,6 @@ struct cgroup {
 	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
 
 	struct cgroupfs_root *root;
-	struct cgroup *top_cgroup;
 
 	/*
 	 * List of cg_cgroup_links pointing at css_sets with
