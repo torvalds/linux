@@ -2079,28 +2079,57 @@ void cayman_vm_set_page(struct radeon_device *rdev,
 			}
 		}
 	} else {
-		while (count) {
-			ndw = count * 2;
-			if (ndw > 0xFFFFE)
-				ndw = 0xFFFFE;
+		if ((flags & RADEON_VM_PAGE_SYSTEM) ||
+		    (count == 1)) {
+			while (count) {
+				ndw = count * 2;
+				if (ndw > 0xFFFFE)
+					ndw = 0xFFFFE;
 
-			/* for non-physically contiguous pages (system) */
-			ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_WRITE, 0, 0, ndw);
-			ib->ptr[ib->length_dw++] = pe;
-			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
-			for (; ndw > 0; ndw -= 2, --count, pe += 8) {
-				if (flags & RADEON_VM_PAGE_SYSTEM) {
-					value = radeon_vm_map_gart(rdev, addr);
-					value &= 0xFFFFFFFFFFFFF000ULL;
-				} else if (flags & RADEON_VM_PAGE_VALID) {
-					value = addr;
-				} else {
-					value = 0;
+				/* for non-physically contiguous pages (system) */
+				ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_WRITE, 0, 0, ndw);
+				ib->ptr[ib->length_dw++] = pe;
+				ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+				for (; ndw > 0; ndw -= 2, --count, pe += 8) {
+					if (flags & RADEON_VM_PAGE_SYSTEM) {
+						value = radeon_vm_map_gart(rdev, addr);
+						value &= 0xFFFFFFFFFFFFF000ULL;
+					} else if (flags & RADEON_VM_PAGE_VALID) {
+						value = addr;
+					} else {
+						value = 0;
+					}
+					addr += incr;
+					value |= r600_flags;
+					ib->ptr[ib->length_dw++] = value;
+					ib->ptr[ib->length_dw++] = upper_32_bits(value);
 				}
-				addr += incr;
-				value |= r600_flags;
-				ib->ptr[ib->length_dw++] = value;
+			}
+			while (ib->length_dw & 0x7)
+				ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0);
+		} else {
+			while (count) {
+				ndw = count * 2;
+				if (ndw > 0xFFFFE)
+					ndw = 0xFFFFE;
+
+				if (flags & RADEON_VM_PAGE_VALID)
+					value = addr;
+				else
+					value = 0;
+				/* for physically contiguous pages (vram) */
+				ib->ptr[ib->length_dw++] = DMA_PTE_PDE_PACKET(ndw);
+				ib->ptr[ib->length_dw++] = pe; /* dst addr */
+				ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+				ib->ptr[ib->length_dw++] = r600_flags; /* mask */
+				ib->ptr[ib->length_dw++] = 0;
+				ib->ptr[ib->length_dw++] = value; /* value */
 				ib->ptr[ib->length_dw++] = upper_32_bits(value);
+				ib->ptr[ib->length_dw++] = incr; /* increment size */
+				ib->ptr[ib->length_dw++] = 0;
+				pe += ndw * 4;
+				addr += (ndw / 2) * incr;
+				count -= ndw / 2;
 			}
 		}
 		while (ib->length_dw & 0x7)
