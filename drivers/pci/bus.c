@@ -206,16 +206,9 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		BUG_ON(!dev->is_added);
-
 		child = dev->subordinate;
-
-		if (!child)
-			continue;
-		pci_bus_add_devices(child);
-
-		if (child->is_added)
-			continue;
-		child->is_added = 1;
+		if (child)
+			pci_bus_add_devices(child);
 	}
 }
 

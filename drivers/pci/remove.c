@@ -50,10 +50,8 @@ void pci_remove_bus(struct pci_bus *bus)
 	list_del(&bus->node);
 	pci_bus_release_busn_res(bus);
 	up_write(&pci_bus_sem);
-	if (!bus->is_added)
-		return;
-
 	pci_remove_legacy_files(bus);
+	pcibios_remove_bus(bus);
 	device_unregister(&bus->dev);
 }
 EXPORT_SYMBOL(pci_remove_bus);
