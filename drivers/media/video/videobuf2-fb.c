@@ -235,6 +235,36 @@ static int vb2_fb_activate(struct fb_info *info)
 	info->screen_base = data->vaddr;
 	info->screen_size = size;
 	info->fix.line_length = bpl;
+
+#if    defined(CONFIG_BOARD_ODROID_X)  || \
+       defined(CONFIG_BOARD_ODROID_X2) || \
+       defined(CONFIG_BOARD_ODROID_U)  || \
+       defined(CONFIG_BOARD_ODROID_U2) || \
+       defined(CONFIG_BOARD_ODROID_Q)  || \
+       defined(CONFIG_BOARD_ODROID_Q2)
+       /*
+        * This goes in against the laziness of the author of this code, who
+        * claimed that real life users do not need such a thing as a physical
+        * adress, so that he didn't need to bother implementing something
+        * complex. He never took into account that we might need to get UMP
+        * (for the mali) and the crappily implemented exynos HDMI FB driver
+        * talking over videobuf2. Guess which vendors hw this sort of
+        * combination actually happens, and then check the email address of the
+        * author.
+        *
+        * Now, if only vb2 had a way of querying whether memory is contiguous
+        * and if only there were a useful way to retrieve the physical address
+        * in such a case... But no, we have to abuse the fact that the exynos
+        * mixer uses cma, and that the cookie is actually the paddr. Horrid,
+        * but at least I get a working lima driver under exynos, which can
+        * talk to FB directly, without breaking the binary driver or properly
+        * implementing the display engine in raw FB.
+        *
+        * 2x NIH clashing... Who would've thought it possible. --libv
+        */
+        info->fix.smem_start = (unsigned long) vb2_plane_cookie(q->bufs[0], 0);
+#endif /* BOARD_ODROID */
+
 	info->fix.smem_len = info->fix.mmio_len = size;
 
 	var = &info->var;
