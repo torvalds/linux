@@ -875,7 +875,7 @@ static void nvme_cancel_ios(struct nvme_queue *nvmeq, bool timeout)
 		void *ctx;
 		nvme_completion_fn fn;
 		static struct nvme_completion cqe = {
-			.status = cpu_to_le16(NVME_SC_ABORT_REQ) << 1,
+			.status = cpu_to_le16(NVME_SC_ABORT_REQ << 1),
 		};
 
 		if (timeout && !time_after(now, info[cmdid].timeout))
