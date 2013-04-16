@@ -158,15 +158,11 @@ static void check_cpu_stall(struct rcu_ctrlblk *rcp)
 		rcp->jiffies_stall = jiffies + rcu_jiffies_till_stall_check();
 }
 
-#endif /* #ifdef CONFIG_RCU_TRACE */
-
 static void reset_cpu_stall_ticks(struct rcu_ctrlblk *rcp)
 {
-#ifdef CONFIG_RCU_TRACE
 	rcp->ticks_this_gp = 0;
 	rcp->gp_start = jiffies;
 	rcp->jiffies_stall = jiffies + rcu_jiffies_till_stall_check();
-#endif /* #ifdef CONFIG_RCU_TRACE */
 }
 
 static void check_cpu_stalls(void)
@@ -174,3 +170,5 @@ static void check_cpu_stalls(void)
 	RCU_TRACE(check_cpu_stall(&rcu_bh_ctrlblk));
 	RCU_TRACE(check_cpu_stall(&rcu_sched_ctrlblk));
 }
+
+#endif /* #ifdef CONFIG_RCU_TRACE */
