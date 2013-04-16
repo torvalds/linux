@@ -154,9 +154,9 @@ static void omninet_close(struct usb_serial_port *port)
 }
 
 
-#define OMNINET_DATAOFFSET	0x04
-#define OMNINET_HEADERLEN	sizeof(struct omninet_header)
-#define OMNINET_BULKOUTSIZE 	(64 - OMNINET_HEADERLEN)
+#define OMNINET_HEADERLEN	4
+#define OMNINET_BULKOUTSIZE	64
+#define OMNINET_PAYLOADSIZE	(OMNINET_BULKOUTSIZE - OMNINET_HEADERLEN)
 
 static void omninet_read_bulk_callback(struct urb *urb)
 {
@@ -173,7 +173,7 @@ static void omninet_read_bulk_callback(struct urb *urb)
 	}
 
 	if (urb->actual_length && header->oh_len) {
-		tty_insert_flip_string(&port->port, data + OMNINET_DATAOFFSET,
+		tty_insert_flip_string(&port->port, data + OMNINET_HEADERLEN,
 				header->oh_len);
 		tty_flip_buffer_push(&port->port);
 	}
@@ -208,9 +208,9 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 		return 0;
 	}
 
-	count = (count > OMNINET_BULKOUTSIZE) ? OMNINET_BULKOUTSIZE : count;
+	count = (count > OMNINET_PAYLOADSIZE) ? OMNINET_PAYLOADSIZE : count;
 
-	memcpy(wport->write_urb->transfer_buffer + OMNINET_DATAOFFSET,
+	memcpy(wport->write_urb->transfer_buffer + OMNINET_HEADERLEN,
 								buf, count);
 
 	usb_serial_debug_data(&port->dev, __func__, count,
@@ -222,7 +222,7 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 	header->oh_pad 	= 0x00;
 
 	/* send the data out the bulk port, always 64 bytes */
-	wport->write_urb->transfer_buffer_length = 64;
+	wport->write_urb->transfer_buffer_length = OMNINET_BULKOUTSIZE;
 
 	result = usb_submit_urb(wport->write_urb, GFP_ATOMIC);
 	if (result) {
