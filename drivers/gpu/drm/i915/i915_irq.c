@@ -88,7 +88,8 @@ static const u32 hpd_status_i915[] = { /* i915 and valleyview are the same */
 	[HPD_PORT_D] = PORTD_HOTPLUG_INT_STATUS
 };
 
-
+static void ibx_hpd_irq_setup(struct drm_device *dev);
+static void i915_hpd_irq_setup(struct drm_device *dev);
 
 /* For display hotplug interrupt */
 static void
@@ -342,7 +343,11 @@ static void i915_hotplug_work_func(struct work_struct *work)
 						    hotplug_work);
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct intel_encoder *encoder;
+	struct intel_connector *intel_connector;
+	struct intel_encoder *intel_encoder;
+	struct drm_connector *connector;
+	unsigned long irqflags;
+	bool hpd_disabled = false;
 
 	/* HPD irq before everything is fully set up. */
 	if (!dev_priv->enable_hotplug_processing)
@@ -351,9 +356,33 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	mutex_lock(&mode_config->mutex);
 	DRM_DEBUG_KMS("running encoder hotplug functions\n");
 
-	list_for_each_entry(encoder, &mode_config->encoder_list, base.head)
-		if (encoder->hot_plug)
-			encoder->hot_plug(encoder);
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	list_for_each_entry(connector, &mode_config->connector_list, head) {
+		intel_connector = to_intel_connector(connector);
+		intel_encoder = intel_connector->encoder;
+		if (intel_encoder->hpd_pin > HPD_NONE &&
+		    dev_priv->hpd_stats[intel_encoder->hpd_pin].hpd_mark == HPD_MARK_DISABLED &&
+		    connector->polled == DRM_CONNECTOR_POLL_HPD) {
+			DRM_INFO("HPD interrupt storm detected on connector %s: "
+				 "switching from hotplug detection to polling\n",
+				drm_get_connector_name(connector));
+			dev_priv->hpd_stats[intel_encoder->hpd_pin].hpd_mark = HPD_DISABLED;
+			connector->polled = DRM_CONNECTOR_POLL_CONNECT
+				| DRM_CONNECTOR_POLL_DISCONNECT;
+			hpd_disabled = true;
+		}
+	}
+	 /* if there were no outputs to poll, poll was disabled,
+	  * therefore make sure it's enabled when disabling HPD on
+	  * some connectors */
+	if (hpd_disabled)
+		drm_kms_helper_poll_enable(dev);
+
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+	list_for_each_entry(intel_encoder, &mode_config->encoder_list, base.head)
+		if (intel_encoder->hot_plug)
+			intel_encoder->hot_plug(intel_encoder);
 
 	mutex_unlock(&mode_config->mutex);
 
@@ -585,13 +614,14 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 #define HPD_STORM_DETECT_PERIOD 1000
 #define HPD_STORM_THRESHOLD 5
 
-static inline void hotplug_irq_storm_detect(struct drm_device *dev,
+static inline bool hotplug_irq_storm_detect(struct drm_device *dev,
 					    u32 hotplug_trigger,
 					    const u32 *hpd)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	unsigned long irqflags;
 	int i;
+	bool ret = false;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 
@@ -609,12 +639,15 @@ static inline void hotplug_irq_storm_detect(struct drm_device *dev,
 		} else if (dev_priv->hpd_stats[i].hpd_cnt > HPD_STORM_THRESHOLD) {
 			dev_priv->hpd_stats[i].hpd_mark = HPD_MARK_DISABLED;
 			DRM_DEBUG_KMS("HPD interrupt storm detected on PIN %d\n", i);
+			ret = true;
 		} else {
 			dev_priv->hpd_stats[i].hpd_cnt++;
 		}
 	}
 
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+	return ret;
 }
 
 static void gmbus_irq_handler(struct drm_device *dev)
@@ -690,7 +723,8 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
 					 hotplug_status);
 			if (hotplug_trigger) {
-				hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_status_i915);
+				if (hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_status_i915))
+					i915_hpd_irq_setup(dev);
 				queue_work(dev_priv->wq,
 					   &dev_priv->hotplug_work);
 			}
@@ -720,7 +754,8 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK;
 
 	if (hotplug_trigger) {
-		hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_ibx);
+		if (hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_ibx))
+			ibx_hpd_irq_setup(dev);
 		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
 	}
 	if (pch_iir & SDE_AUDIO_POWER_MASK)
@@ -768,7 +803,8 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_CPT;
 
 	if (hotplug_trigger) {
-		hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_cpt);
+		if (hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_cpt))
+			ibx_hpd_irq_setup(dev);
 		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
 	}
 	if (pch_iir & SDE_AUDIO_POWER_MASK_CPT)
@@ -2130,11 +2166,13 @@ static void ibx_hpd_irq_setup(struct drm_device *dev)
 	if (HAS_PCH_IBX(dev)) {
 		mask &= ~SDE_HOTPLUG_MASK;
 		list_for_each_entry(intel_encoder, &mode_config->encoder_list, base.head)
-			mask |= hpd_ibx[intel_encoder->hpd_pin];
+			if (dev_priv->hpd_stats[intel_encoder->hpd_pin].hpd_mark == HPD_ENABLED)
+				mask |= hpd_ibx[intel_encoder->hpd_pin];
 	} else {
 		mask &= ~SDE_HOTPLUG_MASK_CPT;
 		list_for_each_entry(intel_encoder, &mode_config->encoder_list, base.head)
-			mask |= hpd_cpt[intel_encoder->hpd_pin];
+			if (dev_priv->hpd_stats[intel_encoder->hpd_pin].hpd_mark == HPD_ENABLED)
+				mask |= hpd_cpt[intel_encoder->hpd_pin];
 	}
 
 	I915_WRITE(SDEIMR, ~mask);
@@ -2669,7 +2707,8 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
 				  hotplug_status);
 			if (hotplug_trigger) {
-				hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_status_i915);
+				if (hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_status_i915))
+					i915_hpd_irq_setup(dev);
 				queue_work(dev_priv->wq,
 					   &dev_priv->hotplug_work);
 			}
@@ -2819,7 +2858,7 @@ static void i915_hpd_irq_setup(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct intel_encoder *encoder;
+	struct intel_encoder *intel_encoder;
 	u32 hotplug_en;
 
 	if (I915_HAS_HOTPLUG(dev)) {
@@ -2827,8 +2866,9 @@ static void i915_hpd_irq_setup(struct drm_device *dev)
 		hotplug_en &= ~HOTPLUG_INT_EN_MASK;
 		/* Note HDMI and DP share hotplug bits */
 		/* enable bits are the same for all generations */
-		list_for_each_entry(encoder, &mode_config->encoder_list, base.head)
-			hotplug_en |= hpd_mask_i915[encoder->hpd_pin];
+		list_for_each_entry(intel_encoder, &mode_config->encoder_list, base.head)
+			if (dev_priv->hpd_stats[intel_encoder->hpd_pin].hpd_mark == HPD_ENABLED)
+				hotplug_en |= hpd_mask_i915[intel_encoder->hpd_pin];
 		/* Programming the CRT detection parameters tends
 		   to generate a spurious hotplug event about three
 		   seconds later.  So just do it once.
@@ -2906,8 +2946,9 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
 				  hotplug_status);
 			if (hotplug_trigger) {
-				hotplug_irq_storm_detect(dev, hotplug_trigger,
-							 IS_G4X(dev) ? hpd_status_gen4 : hpd_status_i965);
+				if (hotplug_irq_storm_detect(dev, hotplug_trigger,
+							    IS_G4X(dev) ? hpd_status_gen4 : hpd_status_i965))
+					i915_hpd_irq_setup(dev);
 				queue_work(dev_priv->wq,
 					   &dev_priv->hotplug_work);
 			}
