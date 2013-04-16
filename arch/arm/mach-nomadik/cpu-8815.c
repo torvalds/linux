@@ -280,28 +280,12 @@ device_initcall(cpu8815_mmcsd_init);
 
 /* These are mostly to get the right device names for the clock lookups */
 static struct of_dev_auxdata cpu8815_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("st,nomadik-gpio", NOMADIK_GPIO0_BASE,
-		"gpio.0", NULL),
-	OF_DEV_AUXDATA("st,nomadik-gpio", NOMADIK_GPIO1_BASE,
-		"gpio.1", NULL),
-	OF_DEV_AUXDATA("st,nomadik-gpio", NOMADIK_GPIO2_BASE,
-		"gpio.2", NULL),
-	OF_DEV_AUXDATA("st,nomadik-gpio", NOMADIK_GPIO3_BASE,
-		"gpio.3", NULL),
 	OF_DEV_AUXDATA("stericsson,nmk-pinctrl-stn8815", 0,
 		"pinctrl-stn8815", NULL),
-	OF_DEV_AUXDATA("arm,primecell", NOMADIK_UART0_BASE,
-		"uart0", NULL),
-	OF_DEV_AUXDATA("arm,primecell", NOMADIK_UART1_BASE,
-		"uart1", NULL),
-	OF_DEV_AUXDATA("arm,primecell", NOMADIK_RNG_BASE,
-		"rng", NULL),
-	OF_DEV_AUXDATA("arm,primecell", NOMADIK_RTC_BASE,
-		"rtc-pl031", NULL),
 	OF_DEV_AUXDATA("stericsson,fsmc-nand", NOMADIK_FSMC_BASE,
-		"fsmc-nand", &cpu8815_nand_data),
+		NULL, &cpu8815_nand_data),
 	OF_DEV_AUXDATA("arm,primecell", NOMADIK_SDI_BASE,
-		"mmci", &mmcsd_plat_data),
+		NULL, &mmcsd_plat_data),
 	{ /* sentinel */ },
 };
 

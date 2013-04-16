@@ -45,6 +45,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <0>;
+		clocks = <&pclk>;
 	};
 
 	gpio1: gpio@101e5000 {
@@ -57,6 +58,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <1>;
+		clocks = <&pclk>;
 	};
 
 	gpio2: gpio@101e6000 {
@@ -69,6 +71,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <2>;
+		clocks = <&pclk>;
 	};
 
 	gpio3: gpio@101e7000 {
@@ -81,10 +84,48 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <3>;
+		clocks = <&pclk>;
 	};
 
 	pinctrl {
 		compatible = "stericsson,nmk-pinctrl-stn8815";
+	};
+
+	src: src@101e0000 {
+		compatible = "stericsson,nomadik-src";
+		reg = <0x101e0000 0x1000>;
+		clocks {
+			/*
+			 * Dummy clock for primecells
+			 */
+			pclk: pclk@0 {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <2400000>;
+			};
+			/*
+			 * The 2.4 MHz TIMCLK reference clock is active at
+			 * boot time, this is actually the MXTALCLK @19.2 MHz
+			 * divided by 8. This clock is used by the timers and
+			 * watchdog. See page 105 ff.
+			 */
+			timclk: timclk@2.4M {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <2400000>;
+			};
+			/*
+			 * At boot time, PLL2 is set to generate a set of
+			 * fixed clocks, one of them is CLK48, the 48 MHz
+			 * clock, routed to the UART, MMC/SD, I2C, IrDA,
+			 * USB and SSP blocks.
+			 */
+			clk48: clk48@48M {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <48000000>;
+			};
+		};
 	};
 
 	/* A NAND flash of 128 MiB */
@@ -97,6 +138,7 @@
 			<0x41000000 0x2000>,	/* NAND Base ADDR */
 			<0x40800000 0x2000>;	/* NAND Base CMD */
 		reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
+		clocks = <&pclk>;
 		status = "okay";
 
 		partition@0 {
@@ -211,6 +253,8 @@
 			reg = <0x101fd000 0x1000>;
 			interrupt-parent = <&vica>;
 			interrupts = <12>;
+			clocks = <&clk48>, <&pclk>;
+			clock-names = "uartclk", "apb_pclk";
 		};
 
 		uart1: uart@101fb000 {
@@ -218,6 +262,8 @@
 			reg = <0x101fb000 0x1000>;
 			interrupt-parent = <&vica>;
 			interrupts = <17>;
+			clocks = <&clk48>, <&pclk>;
+			clock-names = "uartclk", "apb_pclk";
 		};
 
 		uart2: uart@101f2000 {
@@ -225,17 +271,23 @@
 			reg = <0x101f2000 0x1000>;
 			interrupt-parent = <&vica>;
 			interrupts = <28>;
+			clocks = <&clk48>, <&pclk>;
+			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
 
 		rng: rng@101b0000 {
 			compatible = "arm,primecell";
 			reg = <0x101b0000 0x1000>;
+			clocks = <&clk48>, <&pclk>;
+			clock-names = "rng", "apb_pclk";
 		};
 
 		rtc: rtc@101e8000 {
 			compatible = "arm,pl031", "arm,primecell";
 			reg = <0x101e8000 0x1000>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
 			interrupt-parent = <&vica>;
 			interrupts = <10>;
 		};
@@ -243,6 +295,8 @@
 		mmcsd: sdi@101f6000 {
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x101f6000 0x1000>;
+			clocks = <&clk48>, <&pclk>;
+			clock-names = "mclk", "apb_pclk";
 			interrupt-parent = <&vica>;
 			interrupts = <22>;
 			max-frequency = <48000000>;
