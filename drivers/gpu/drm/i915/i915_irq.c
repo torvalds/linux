@@ -2128,9 +2128,11 @@ static void ibx_hpd_irq_setup(struct drm_device *dev)
 	u32 hotplug;
 
 	if (HAS_PCH_IBX(dev)) {
+		mask &= ~SDE_HOTPLUG_MASK;
 		list_for_each_entry(intel_encoder, &mode_config->encoder_list, base.head)
 			mask |= hpd_ibx[intel_encoder->hpd_pin];
 	} else {
+		mask &= ~SDE_HOTPLUG_MASK_CPT;
 		list_for_each_entry(intel_encoder, &mode_config->encoder_list, base.head)
 			mask |= hpd_cpt[intel_encoder->hpd_pin];
 	}
