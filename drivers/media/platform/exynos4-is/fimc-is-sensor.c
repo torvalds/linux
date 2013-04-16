@@ -294,7 +294,6 @@ static const struct of_device_id fimc_is_sensor_of_match[] = {
 	},
 	{  }
 };
-MODULE_DEVICE_TABLE(of, fimc_is_sensor_of_match);
 
 static struct i2c_driver fimc_is_sensor_driver = {
 	.driver = {

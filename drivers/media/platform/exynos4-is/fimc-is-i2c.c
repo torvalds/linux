@@ -103,7 +103,6 @@ static const struct of_device_id fimc_is_i2c_of_match[] = {
 	{ .compatible = FIMC_IS_I2C_COMPATIBLE },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, fimc_is_i2c_of_match);
 
 static struct platform_driver fimc_is_i2c_driver = {
 	.probe		= fimc_is_i2c_probe,
@@ -120,10 +119,8 @@ int fimc_is_register_i2c_driver(void)
 {
 	return platform_driver_register(&fimc_is_i2c_driver);
 }
-EXPORT_SYMBOL(fimc_is_register_i2c_driver);
 
 void fimc_is_unregister_i2c_driver(void)
 {
 	platform_driver_unregister(&fimc_is_i2c_driver);
 }
-EXPORT_SYMBOL(fimc_is_unregister_i2c_driver);
