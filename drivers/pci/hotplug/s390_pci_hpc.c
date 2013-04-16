@@ -16,6 +16,7 @@
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
 #include <linux/init.h>
+#include <asm/pci_debug.h>
 #include <asm/sclp.h>
 
 #define SLOT_NAME_SIZE	10
@@ -49,6 +50,7 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 		return -EIO;
 
 	rc = sclp_pci_configure(slot->zdev->fid);
+	zpci_dbg(3, "conf fid:%x, rc:%d\n", slot->zdev->fid, rc);
 	if (!rc) {
 		slot->zdev->state = ZPCI_FN_STATE_CONFIGURED;
 		/* automatically scan the device after is was configured */
@@ -70,6 +72,7 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	 *	 or do we need to trigger that here?
 	 */
 	rc = sclp_pci_deconfigure(slot->zdev->fid);
+	zpci_dbg(3, "deconf fid:%x, rc:%d\n", slot->zdev->fid, rc);
 	if (!rc) {
 		/* Fixme: better call List-PCI to find the disabled FH
 		   for the FID since the FH should be opaque... */

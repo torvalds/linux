@@ -99,9 +99,6 @@ static int __read_mostly aisb_max;
 static struct kmem_cache *zdev_irq_cache;
 static struct kmem_cache *zdev_fmb_cache;
 
-debug_info_t *pci_debug_msg_id;
-debug_info_t *pci_debug_err_id;
-
 static inline int irq_to_msi_nr(unsigned int irq)
 {
 	return irq & ZPCI_MSI_MASK;
