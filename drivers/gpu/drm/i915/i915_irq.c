@@ -582,6 +582,40 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 	queue_work(dev_priv->wq, &dev_priv->rps.work);
 }
 
+#define HPD_STORM_DETECT_PERIOD 1000
+#define HPD_STORM_THRESHOLD 5
+
+static inline void hotplug_irq_storm_detect(struct drm_device *dev,
+					    u32 hotplug_trigger,
+					    const u32 *hpd)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	unsigned long irqflags;
+	int i;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+
+	for (i = 1; i < HPD_NUM_PINS; i++) {
+		if (!(hpd[i] & hotplug_trigger) ||
+		    dev_priv->hpd_stats[i].hpd_mark != HPD_ENABLED)
+			continue;
+
+		if (!time_in_range(jiffies, dev_priv->hpd_stats[i].hpd_last_jiffies,
+				   dev_priv->hpd_stats[i].hpd_last_jiffies
+				   + msecs_to_jiffies(HPD_STORM_DETECT_PERIOD))) {
+			dev_priv->hpd_stats[i].hpd_last_jiffies = jiffies;
+			dev_priv->hpd_stats[i].hpd_cnt = 0;
+		} else if (dev_priv->hpd_stats[i].hpd_cnt > HPD_STORM_THRESHOLD) {
+			dev_priv->hpd_stats[i].hpd_mark = HPD_MARK_DISABLED;
+			DRM_DEBUG_KMS("HPD interrupt storm detected on PIN %d\n", i);
+		} else {
+			dev_priv->hpd_stats[i].hpd_cnt++;
+		}
+	}
+
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+}
+
 static void gmbus_irq_handler(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -650,13 +684,15 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		/* Consume port.  Then clear IIR or we'll miss events */
 		if (iir & I915_DISPLAY_PORT_INTERRUPT) {
 			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
+			u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_I915;
 
 			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
 					 hotplug_status);
-			if (hotplug_status & HOTPLUG_INT_STATUS_I915)
+			if (hotplug_trigger) {
+				hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_status_i915);
 				queue_work(dev_priv->wq,
 					   &dev_priv->hotplug_work);
-
+			}
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			I915_READ(PORT_HOTPLUG_STAT);
 		}
@@ -680,10 +716,12 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int pipe;
+	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK;
 
-	if (pch_iir & SDE_HOTPLUG_MASK)
+	if (hotplug_trigger) {
+		hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_ibx);
 		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-
+	}
 	if (pch_iir & SDE_AUDIO_POWER_MASK)
 		DRM_DEBUG_DRIVER("PCH audio power change on port %d\n",
 				 (pch_iir & SDE_AUDIO_POWER_MASK) >>
@@ -726,10 +764,12 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int pipe;
+	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_CPT;
 
-	if (pch_iir & SDE_HOTPLUG_MASK_CPT)
+	if (hotplug_trigger) {
+		hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_cpt);
 		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-
+	}
 	if (pch_iir & SDE_AUDIO_POWER_MASK_CPT)
 		DRM_DEBUG_DRIVER("PCH audio power change on port %d\n",
 				 (pch_iir & SDE_AUDIO_POWER_MASK_CPT) >>
@@ -2621,13 +2661,15 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		if ((I915_HAS_HOTPLUG(dev)) &&
 		    (iir & I915_DISPLAY_PORT_INTERRUPT)) {
 			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
+			u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_I915;
 
 			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
 				  hotplug_status);
-			if (hotplug_status & HOTPLUG_INT_STATUS_I915)
+			if (hotplug_trigger) {
+				hotplug_irq_storm_detect(dev, hotplug_trigger, hpd_status_i915);
 				queue_work(dev_priv->wq,
 					   &dev_priv->hotplug_work);
-
+			}
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			POSTING_READ(PORT_HOTPLUG_STAT);
 		}
@@ -2854,15 +2896,18 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		/* Consume port.  Then clear IIR or we'll miss events */
 		if (iir & I915_DISPLAY_PORT_INTERRUPT) {
 			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
+			u32 hotplug_trigger = hotplug_status & (IS_G4X(dev) ?
+								  HOTPLUG_INT_STATUS_G4X :
+								  HOTPLUG_INT_STATUS_I965);
 
 			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
 				  hotplug_status);
-			if (hotplug_status & (IS_G4X(dev) ?
-					      HOTPLUG_INT_STATUS_G4X :
-					      HOTPLUG_INT_STATUS_I965))
+			if (hotplug_trigger) {
+				hotplug_irq_storm_detect(dev, hotplug_trigger,
+							 IS_G4X(dev) ? hpd_status_gen4 : hpd_status_i965);
 				queue_work(dev_priv->wq,
 					   &dev_priv->hotplug_work);
-
+			}
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
 			I915_READ(PORT_HOTPLUG_STAT);
 		}

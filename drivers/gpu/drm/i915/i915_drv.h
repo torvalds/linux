@@ -932,6 +932,15 @@ typedef struct drm_i915_private {
 
 	struct work_struct hotplug_work;
 	bool enable_hotplug_processing;
+	struct {
+		unsigned long hpd_last_jiffies;
+		int hpd_cnt;
+		enum {
+			HPD_ENABLED = 0,
+			HPD_DISABLED = 1,
+			HPD_MARK_DISABLED = 2
+		} hpd_mark;
+	} hpd_stats[HPD_NUM_PINS];
 
 	int num_pch_pll;
 	int num_plane;
