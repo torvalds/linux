@@ -181,6 +181,7 @@ static int ab8500_ext_regulator_set_mode(struct regulator_dev *rdev,
 {
 	int ret = 0;
 	struct ab8500_ext_regulator_info *info = rdev_get_drvdata(rdev);
+	u8 regval;
 
 	if (info == NULL) {
 		dev_err(rdev_get_dev(rdev), "regulator info null pointer\n");
@@ -189,23 +190,30 @@ static int ab8500_ext_regulator_set_mode(struct regulator_dev *rdev,
 
 	switch (mode) {
 	case REGULATOR_MODE_NORMAL:
-		info->update_val = info->update_val_hp;
+		regval = info->update_val_hp;
 		break;
 	case REGULATOR_MODE_IDLE:
-		info->update_val = info->update_val_lp;
+		regval = info->update_val_lp;
 		break;
 
 	default:
 		return -EINVAL;
 	}
 
-	if (ab8500_ext_regulator_is_enabled(rdev)) {
-		u8 regval;
-
-		ret = enable(info, &regval);
-		if (ret < 0)
+	/* If regulator is enabled and info->cfg->hwreq is set, the regulator
+	   must be on in high power, so we don't need to write the register with
+	   the same value.
+	 */
+	if (ab8500_ext_regulator_is_enabled(rdev) &&
+	    !(info->cfg && info->cfg->hwreq)) {
+		ret = abx500_mask_and_set_register_interruptible(info->dev,
+					info->update_bank, info->update_reg,
+					info->update_mask, regval);
+		if (ret < 0) {
 			dev_err(rdev_get_dev(rdev),
 				"Could not set regulator mode.\n");
+			return ret;
+		}
 
 		dev_dbg(rdev_get_dev(rdev),
 			"%s-set_mode (bank, reg, mask, value): "
@@ -214,7 +222,9 @@ static int ab8500_ext_regulator_set_mode(struct regulator_dev *rdev,
 			info->update_mask, regval);
 	}
 
-	return ret;
+	info->update_val = regval;
+
+	return 0;
 }
 
 static unsigned int ab8500_ext_regulator_get_mode(struct regulator_dev *rdev)
