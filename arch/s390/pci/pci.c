@@ -868,6 +868,17 @@ static void zpci_free_iomap(struct zpci_dev *zdev, int entry)
 	spin_unlock(&zpci_iomap_lock);
 }
 
+int pcibios_add_device(struct pci_dev *pdev)
+{
+	struct zpci_dev *zdev = get_zdev(pdev);
+
+	zpci_debug_init_device(zdev);
+	zpci_fmb_enable_device(zdev);
+	zpci_map_resources(zdev);
+
+	return 0;
+}
+
 static int zpci_create_device_bus(struct zpci_dev *zdev)
 {
 	struct resource *res;
@@ -1019,9 +1030,6 @@ int zpci_scan_device(struct zpci_dev *zdev)
 		goto out;
 	}
 
-	zpci_debug_init_device(zdev);
-	zpci_fmb_enable_device(zdev);
-	zpci_map_resources(zdev);
 	pci_bus_add_devices(zdev->bus);
 
 	/* now that pdev was added to the bus mark it as used */
