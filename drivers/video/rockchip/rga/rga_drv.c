@@ -880,6 +880,8 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
     printk("*** rga_blit_sync proc ***\n");
     print_info(req);
     #endif
+
+    atomic_set(&session->done, 0);
     
     ret = rga_blit(session, req);
     if(ret < 0)
