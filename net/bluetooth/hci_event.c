@@ -2931,8 +2931,19 @@ static void hci_remote_ext_features_evt(struct hci_dev *hdev,
 		if (ie)
 			ie->data.ssp_mode = (ev->features[0] & LMP_HOST_SSP);
 
-		if (ev->features[0] & LMP_HOST_SSP)
+		if (ev->features[0] & LMP_HOST_SSP) {
 			set_bit(HCI_CONN_SSP_ENABLED, &conn->flags);
+		} else {
+			/* It is mandatory by the Bluetooth specification that
+			 * Extended Inquiry Results are only used when Secure
+			 * Simple Pairing is enabled, but some devices violate
+			 * this.
+			 *
+			 * To make these devices work, the internal SSP
+			 * enabled flag needs to be cleared if the remote host
+			 * features do not indicate SSP support */
+			clear_bit(HCI_CONN_SSP_ENABLED, &conn->flags);
+		}
 	}
 
 	if (conn->state != BT_CONFIG)
