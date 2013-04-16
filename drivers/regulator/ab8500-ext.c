@@ -54,31 +54,6 @@ struct ab8500_ext_regulator_info {
 	u8 update_val_hw;
 };
 
-static int enable(struct ab8500_ext_regulator_info *info, u8 *regval)
-{
-	int ret;
-
-	*regval = info->update_val;
-
-	/*
-	 * To satisfy both HW high power request and SW request, the regulator
-	 * must be on in high power.
-	 */
-	if (info->cfg && info->cfg->hwreq)
-		*regval = info->update_val_hp;
-
-	ret = abx500_mask_and_set_register_interruptible(info->dev,
-		info->update_bank, info->update_reg,
-		info->update_mask, *regval);
-	if (ret < 0) {
-		dev_err(rdev_get_dev(info->rdev),
-			"couldn't set enable bits for regulator\n");
-		return ret;
-	}
-
-	return ret;
-}
-
 static int ab8500_ext_regulator_enable(struct regulator_dev *rdev)
 {
 	int ret;
@@ -90,38 +65,30 @@ static int ab8500_ext_regulator_enable(struct regulator_dev *rdev)
 		return -EINVAL;
 	}
 
-	ret = enable(info, &regval);
-
-	dev_dbg(rdev_get_dev(rdev), "%s-enable (bank, reg, mask, value):"
-		" 0x%02x, 0x%02x, 0x%02x, 0x%02x\n",
-		info->desc.name, info->update_bank, info->update_reg,
-		info->update_mask, regval);
-
-	return ret;
-}
-
-static int disable(struct ab8500_ext_regulator_info *info, u8 *regval)
-{
-	int ret;
-
-	*regval = 0x0;
-
 	/*
-	 * Set the regulator in HW request mode if configured
+	 * To satisfy both HW high power request and SW request, the regulator
+	 * must be on in high power.
 	 */
 	if (info->cfg && info->cfg->hwreq)
-		*regval = info->update_val_hw;
+		regval = info->update_val_hp;
+	else
+		regval = info->update_val;
 
 	ret = abx500_mask_and_set_register_interruptible(info->dev,
 		info->update_bank, info->update_reg,
-		info->update_mask, *regval);
+		info->update_mask, regval);
 	if (ret < 0) {
 		dev_err(rdev_get_dev(info->rdev),
-			"couldn't set disable bits for regulator\n");
+			"couldn't set enable bits for regulator\n");
 		return ret;
 	}
 
-	return ret;
+	dev_dbg(rdev_get_dev(rdev),
+		"%s-enable (bank, reg, mask, value): 0x%02x, 0x%02x, 0x%02x, 0x%02x\n",
+		info->desc.name, info->update_bank, info->update_reg,
+		info->update_mask, regval);
+
+	return 0;
 }
 
 static int ab8500_ext_regulator_disable(struct regulator_dev *rdev)
@@ -135,14 +102,29 @@ static int ab8500_ext_regulator_disable(struct regulator_dev *rdev)
 		return -EINVAL;
 	}
 
-	ret = disable(info, &regval);
+	/*
+	 * Set the regulator in HW request mode if configured
+	 */
+	if (info->cfg && info->cfg->hwreq)
+		regval = info->update_val_hw;
+	else
+		regval = 0;
+
+	ret = abx500_mask_and_set_register_interruptible(info->dev,
+		info->update_bank, info->update_reg,
+		info->update_mask, regval);
+	if (ret < 0) {
+		dev_err(rdev_get_dev(info->rdev),
+			"couldn't set disable bits for regulator\n");
+		return ret;
+	}
 
 	dev_dbg(rdev_get_dev(rdev), "%s-disable (bank, reg, mask, value):"
 		" 0x%02x, 0x%02x, 0x%02x, 0x%02x\n",
 		info->desc.name, info->update_bank, info->update_reg,
 		info->update_mask, regval);
 
-	return ret;
+	return 0;
 }
 
 static int ab8500_ext_regulator_is_enabled(struct regulator_dev *rdev)
