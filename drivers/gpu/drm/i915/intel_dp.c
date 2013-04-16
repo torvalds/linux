@@ -2787,7 +2787,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	drm_connector_init(dev, connector, &intel_dp_connector_funcs, type);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
 
-	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 

@@ -596,6 +596,7 @@ static inline void hotplug_irq_storm_detect(struct drm_device *dev,
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 
 	for (i = 1; i < HPD_NUM_PINS; i++) {
+
 		if (!(hpd[i] & hotplug_trigger) ||
 		    dev_priv->hpd_stats[i].hpd_mark != HPD_ENABLED)
 			continue;
@@ -3062,7 +3063,20 @@ void intel_irq_init(struct drm_device *dev)
 void intel_hpd_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct drm_connector *connector;
+	int i;
 
+	for (i = 1; i < HPD_NUM_PINS; i++) {
+		dev_priv->hpd_stats[i].hpd_cnt = 0;
+		dev_priv->hpd_stats[i].hpd_mark = HPD_ENABLED;
+	}
+	list_for_each_entry(connector, &mode_config->connector_list, head) {
+		struct intel_connector *intel_connector = to_intel_connector(connector);
+		connector->polled = intel_connector->polled;
+		if (!connector->polled && I915_HAS_HOTPLUG(dev) && intel_connector->encoder->hpd_pin > HPD_NONE)
+			connector->polled = DRM_CONNECTOR_POLL_HPD;
+	}
 	if (dev_priv->display.hpd_irq_setup)
 		dev_priv->display.hpd_irq_setup(dev);
 }
