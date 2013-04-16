@@ -1659,8 +1659,7 @@ out:
  * helper to add new inline back ref
  */
 static noinline_for_stack
-void setup_inline_extent_backref(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root,
+void setup_inline_extent_backref(struct btrfs_root *root,
 				 struct btrfs_path *path,
 				 struct btrfs_extent_inline_ref *iref,
 				 u64 parent, u64 root_objectid,
@@ -1833,7 +1832,7 @@ int insert_inline_extent_backref(struct btrfs_trans_handle *trans,
 		update_inline_extent_backref(root, path, iref,
 					     refs_to_add, extent_op);
 	} else if (ret == -ENOENT) {
-		setup_inline_extent_backref(trans, root, path, iref, parent,
+		setup_inline_extent_backref(root, path, iref, parent,
 					    root_objectid, owner, offset,
 					    refs_to_add, extent_op);
 		ret = 0;
