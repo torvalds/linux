@@ -112,7 +112,7 @@ static int omninet_port_probe(struct usb_serial_port *port)
 {
 	struct omninet_data *od;
 
-	od = kmalloc(sizeof(struct omninet_data), GFP_KERNEL);
+	od = kzalloc(sizeof(*od), GFP_KERNEL);
 	if (!od)
 		return -ENOMEM;
 
