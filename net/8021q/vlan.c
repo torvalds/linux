@@ -108,13 +108,6 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 	grp = rtnl_dereference(real_dev->vlgrp);
 	BUG_ON(!grp);
 
-	/* Take it out of our own structures, but be sure to interlock with
-	 * HW accelerating devices or SW vlan input packet processing if
-	 * VLAN is not 0 (leave it there for 802.1p).
-	 */
-	if (vlan_id && (real_dev->features & NETIF_F_HW_VLAN_FILTER))
-		ops->ndo_vlan_rx_kill_vid(real_dev, vlan_id);
-
 	grp->nr_vlans--;
 
 	if (vlan->flags & VLAN_FLAG_GVRP)
@@ -138,6 +131,13 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 		/* Free the group, after all cpu's are done. */
 		call_rcu(&grp->rcu, vlan_rcu_free);
 	}
+
+	/* Take it out of our own structures, but be sure to interlock with
+	 * HW accelerating devices or SW vlan input packet processing if
+	 * VLAN is not 0 (leave it there for 802.1p).
+	 */
+	if (vlan_id && (real_dev->features & NETIF_F_HW_VLAN_FILTER))
+		ops->ndo_vlan_rx_kill_vid(real_dev, vlan_id);
 
 	/* Get rid of the vlan's reference to real_dev */
 	dev_put(real_dev);

@@ -2374,11 +2374,12 @@ static void nfs4_xdr_enc_getacl(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->fh, &hdr);
-	replen = hdr.replen + op_decode_hdr_maxsz + nfs4_fattr_bitmap_maxsz + 1;
+	replen = hdr.replen + op_decode_hdr_maxsz + 1;
 	encode_getattr_two(xdr, FATTR4_WORD0_ACL, 0, &hdr);
 
 	xdr_inline_pages(&req->rq_rcv_buf, replen << 2,
 		args->acl_pages, args->acl_pgbase, args->acl_len);
+
 	encode_nops(&hdr);
 }
 
@@ -4714,17 +4715,18 @@ decode_restorefh(struct xdr_stream *xdr)
 }
 
 static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
-		size_t *acl_len)
+			 struct nfs_getaclres *res)
 {
-	__be32 *savep;
+	__be32 *savep, *bm_p;
 	uint32_t attrlen,
 		 bitmap[2] = {0};
 	struct kvec *iov = req->rq_rcv_buf.head;
 	int status;
 
-	*acl_len = 0;
+	res->acl_len = 0;
 	if ((status = decode_op_hdr(xdr, OP_GETATTR)) != 0)
 		goto out;
+	bm_p = xdr->p;
 	if ((status = decode_attr_bitmap(xdr, bitmap)) != 0)
 		goto out;
 	if ((status = decode_attr_length(xdr, &attrlen, &savep)) != 0)
@@ -4736,18 +4738,30 @@ static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 		size_t hdrlen;
 		u32 recvd;
 
+		/* The bitmap (xdr len + bitmaps) and the attr xdr len words
+		 * are stored with the acl data to handle the problem of
+		 * variable length bitmaps.*/
+		xdr->p = bm_p;
+		res->acl_data_offset = be32_to_cpup(bm_p) + 2;
+		res->acl_data_offset <<= 2;
+
 		/* We ignore &savep and don't do consistency checks on
 		 * the attr length.  Let userspace figure it out.... */
 		hdrlen = (u8 *)xdr->p - (u8 *)iov->iov_base;
+		attrlen += res->acl_data_offset;
 		recvd = req->rq_rcv_buf.len - hdrlen;
 		if (attrlen > recvd) {
-			dprintk("NFS: server cheating in getattr"
-					" acl reply: attrlen %u > recvd %u\n",
+			if (res->acl_flags & NFS4_ACL_LEN_REQUEST) {
+				/* getxattr interface called with a NULL buf */
+				res->acl_len = attrlen;
+				goto out;
+			}
+			dprintk("NFS: acl reply: attrlen %u > recvd %u\n",
 					attrlen, recvd);
 			return -EINVAL;
 		}
 		xdr_read_pages(xdr, attrlen);
-		*acl_len = attrlen;
+		res->acl_len = attrlen;
 	} else
 		status = -EOPNOTSUPP;
 
@@ -5673,6 +5687,10 @@ nfs4_xdr_dec_getacl(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 	struct compound_hdr hdr;
 	int status;
 
+	if (res->acl_scratch != NULL) {
+		void *p = page_address(res->acl_scratch);
+		xdr_set_scratch_buffer(xdr, p, PAGE_SIZE);
+	}
 	status = decode_compound_hdr(xdr, &hdr);
 	if (status)
 		goto out;
@@ -5682,7 +5700,7 @@ nfs4_xdr_dec_getacl(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 	status = decode_putfh(xdr);
 	if (status)
 		goto out;
-	status = decode_getacl(xdr, rqstp, &res->acl_len);
+	status = decode_getacl(xdr, rqstp, res);
 
 out:
 	return status;
