@@ -406,7 +406,8 @@ static struct pri_sequence *pri_detector_add_pulse(struct pri_detector *de,
 struct pri_detector *pri_detector_init(const struct radar_detector_specs *rs)
 {
 	struct pri_detector *de;
-	de = kzalloc(sizeof(*de), GFP_KERNEL);
+
+	de = kzalloc(sizeof(*de), GFP_ATOMIC);
 	if (de == NULL)
 		return NULL;
 	de->exit = pri_detector_exit;
