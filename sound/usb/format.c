@@ -136,6 +136,9 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 		snd_printk(KERN_INFO "%d:%u:%d : unsupported format bits %#x\n",
 			   chip->dev->devnum, fp->iface, fp->altsetting, format);
 	}
+
+	pcm_formats |= snd_usb_interface_dsd_format_quirks(chip, fp, sample_bytes);
+
 	return pcm_formats;
 }
 
