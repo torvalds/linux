@@ -92,6 +92,9 @@ static inline int zpci_read_single(u64 req, u64 *dst, u64 offset, u8 len)
 	int cc;
 
 	cc = s390pci_load(&data, req, offset);
+	if (cc)
+		goto out;
+
 	switch (len) {
 	case 1:
 		*((u8 *) dst) = (u8) data;
@@ -106,6 +109,7 @@ static inline int zpci_read_single(u64 req, u64 *dst, u64 offset, u8 len)
 		*((u64 *) dst) = (u64) data;
 		break;
 	}
+out:
 	return cc;
 }
 

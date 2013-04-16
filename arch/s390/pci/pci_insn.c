@@ -103,7 +103,9 @@ static inline int __pcilg(u64 *data, u64 req, u64 offset, u8 *status)
 		:  "d" (__offset)
 		: "cc");
 	*status = __req >> 24 & 0xff;
-	*data = __data;
+	if (!cc)
+		*data = __data;
+
 	return cc;
 }
 

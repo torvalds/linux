@@ -281,11 +281,11 @@ static int zpci_cfg_load(struct zpci_dev *zdev, int offset, u32 *val, u8 len)
 	int rc;
 
 	rc = s390pci_load(&data, req, offset);
-	data = data << ((8 - len) * 8);
-	data = le64_to_cpu(data);
-	if (!rc)
+	if (!rc) {
+		data = data << ((8 - len) * 8);
+		data = le64_to_cpu(data);
 		*val = (u32) data;
-	else
+	} else
 		*val = 0xffffffff;
 	return rc;
 }
