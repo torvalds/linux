@@ -1698,12 +1698,11 @@ static void ath9k_hw_reset_opmode(struct ath_hw *ah,
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
-	REG_WRITE(ah, AR_STA_ID0, get_unaligned_le32(common->macaddr));
-	REG_WRITE(ah, AR_STA_ID1, get_unaligned_le16(common->macaddr + 4)
-		  | macStaId1
+	REG_RMW(ah, AR_STA_ID1, macStaId1
 		  | AR_STA_ID1_RTS_USE_DEF
 		  | (ah->config.ack_6mb ? AR_STA_ID1_ACKCTS_6MB : 0)
-		  | ah->sta_id1_defaults);
+		  | ah->sta_id1_defaults,
+		  ~AR_STA_ID1_SADH_MASK);
 	ath_hw_setbssidmask(common);
 	REG_WRITE(ah, AR_DEF_ANTENNA, saveDefAntenna);
 	ath9k_hw_write_associd(ah);

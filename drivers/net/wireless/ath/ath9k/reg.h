@@ -1493,9 +1493,6 @@ enum {
 #define AR9271_RADIO_RF_RST			0x20
 #define AR9271_GATE_MAC_CTL			0x4000
 
-#define AR_STA_ID0                 0x8000
-#define AR_STA_ID1                 0x8004
-#define AR_STA_ID1_SADH_MASK       0x0000FFFF
 #define AR_STA_ID1_STA_AP          0x00010000
 #define AR_STA_ID1_ADHOC           0x00020000
 #define AR_STA_ID1_PWR_SAV         0x00040000
