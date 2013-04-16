@@ -148,8 +148,19 @@
 #define SNBEP_C0_MSR_PMON_CTL0			0xd10
 #define SNBEP_C0_MSR_PMON_BOX_CTL		0xd04
 #define SNBEP_C0_MSR_PMON_BOX_FILTER		0xd14
-#define SNBEP_CB0_MSR_PMON_BOX_FILTER_MASK	0xfffffc1f
 #define SNBEP_CBO_MSR_OFFSET			0x20
+
+#define SNBEP_CB0_MSR_PMON_BOX_FILTER_TID	0x1f
+#define SNBEP_CB0_MSR_PMON_BOX_FILTER_NID	0x3fc00
+#define SNBEP_CB0_MSR_PMON_BOX_FILTER_STATE	0x7c0000
+#define SNBEP_CB0_MSR_PMON_BOX_FILTER_OPC	0xff800000
+
+#define SNBEP_CBO_EVENT_EXTRA_REG(e, m, i) {	\
+	.event = (e),				\
+	.msr = SNBEP_C0_MSR_PMON_BOX_FILTER,	\
+	.config_mask = (m),			\
+	.idx = (i)				\
+}
 
 /* SNB-EP PCU register */
 #define SNBEP_PCU_MSR_PMON_CTR0			0xc36

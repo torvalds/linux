@@ -17,6 +17,9 @@ static struct event_constraint constraint_fixed =
 static struct event_constraint constraint_empty =
 	EVENT_CONSTRAINT(0, 0, 0);
 
+#define __BITS_VALUE(x, i, n)  ((typeof(x))(((x) >> ((i) * (n))) & \
+				((1ULL << (n)) - 1)))
+
 DEFINE_UNCORE_FORMAT_ATTR(event, event, "config:0-7");
 DEFINE_UNCORE_FORMAT_ATTR(event_ext, event, "config:0-7,21");
 DEFINE_UNCORE_FORMAT_ATTR(umask, umask, "config:8-15");
@@ -108,6 +111,21 @@ static void uncore_put_constraint(struct intel_uncore_box *box, struct perf_even
 	er = &box->shared_regs[reg1->idx];
 	atomic_dec(&er->ref);
 	reg1->alloc = 0;
+}
+
+static u64 uncore_shared_reg_config(struct intel_uncore_box *box, int idx)
+{
+	struct intel_uncore_extra_reg *er;
+	unsigned long flags;
+	u64 config;
+
+	er = &box->shared_regs[idx];
+
+	raw_spin_lock_irqsave(&er->lock, flags);
+	config = er->config;
+	raw_spin_unlock_irqrestore(&er->lock, flags);
+
+	return config;
 }
 
 /* Sandy Bridge-EP uncore support */
@@ -205,7 +223,7 @@ static void snbep_uncore_msr_enable_event(struct intel_uncore_box *box, struct p
 	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
 
 	if (reg1->idx != EXTRA_REG_NONE)
-		wrmsrl(reg1->reg, reg1->config);
+		wrmsrl(reg1->reg, uncore_shared_reg_config(box, 0));
 
 	wrmsrl(hwc->config_base, hwc->config | SNBEP_PMON_CTL_EN);
 }
@@ -224,29 +242,6 @@ static void snbep_uncore_msr_init_box(struct intel_uncore_box *box)
 
 	if (msr)
 		wrmsrl(msr, SNBEP_PMON_BOX_CTL_INT);
-}
-
-static int snbep_uncore_hw_config(struct intel_uncore_box *box, struct perf_event *event)
-{
-	struct hw_perf_event *hwc = &event->hw;
-	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
-
-	if (box->pmu->type == &snbep_uncore_cbox) {
-		reg1->reg = SNBEP_C0_MSR_PMON_BOX_FILTER +
-			SNBEP_CBO_MSR_OFFSET * box->pmu->pmu_idx;
-		reg1->config = event->attr.config1 &
-			SNBEP_CB0_MSR_PMON_BOX_FILTER_MASK;
-	} else {
-		if (box->pmu->type == &snbep_uncore_pcu) {
-			reg1->reg = SNBEP_PCU_MSR_PMON_BOX_FILTER;
-			reg1->config = event->attr.config1 & SNBEP_PCU_MSR_PMON_BOX_FILTER_MASK;
-		} else {
-			return 0;
-		}
-	}
-	reg1->idx = 0;
-
-	return 0;
 }
 
 static struct attribute *snbep_uncore_formats_attr[] = {
@@ -345,16 +340,16 @@ static struct attribute_group snbep_uncore_qpi_format_group = {
 	.attrs = snbep_uncore_qpi_formats_attr,
 };
 
+#define SNBEP_UNCORE_MSR_OPS_COMMON_INIT()			\
+	.init_box	= snbep_uncore_msr_init_box,		\
+	.disable_box	= snbep_uncore_msr_disable_box,		\
+	.enable_box	= snbep_uncore_msr_enable_box,		\
+	.disable_event	= snbep_uncore_msr_disable_event,	\
+	.enable_event	= snbep_uncore_msr_enable_event,	\
+	.read_counter	= uncore_msr_read_counter
+
 static struct intel_uncore_ops snbep_uncore_msr_ops = {
-	.init_box	= snbep_uncore_msr_init_box,
-	.disable_box	= snbep_uncore_msr_disable_box,
-	.enable_box	= snbep_uncore_msr_enable_box,
-	.disable_event	= snbep_uncore_msr_disable_event,
-	.enable_event	= snbep_uncore_msr_enable_event,
-	.read_counter	= uncore_msr_read_counter,
-	.get_constraint = uncore_get_constraint,
-	.put_constraint = uncore_put_constraint,
-	.hw_config	= snbep_uncore_hw_config,
+	SNBEP_UNCORE_MSR_OPS_COMMON_INIT(),
 };
 
 static struct intel_uncore_ops snbep_uncore_pci_ops = {
@@ -446,6 +441,145 @@ static struct intel_uncore_type snbep_uncore_ubox = {
 	.format_group	= &snbep_uncore_ubox_format_group,
 };
 
+static struct extra_reg snbep_uncore_cbox_extra_regs[] = {
+	SNBEP_CBO_EVENT_EXTRA_REG(SNBEP_CBO_PMON_CTL_TID_EN,
+				  SNBEP_CBO_PMON_CTL_TID_EN, 0x1),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x0334, 0xffff, 0x4),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x0534, 0xffff, 0x4),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x0934, 0xffff, 0x4),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x4134, 0xffff, 0x6),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x0135, 0xffff, 0x8),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x0335, 0xffff, 0x8),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x4135, 0xffff, 0xc),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x4335, 0xffff, 0xc),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x4435, 0xffff, 0x2),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x4835, 0xffff, 0x2),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x4a35, 0xffff, 0x2),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x5035, 0xffff, 0x2),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x0136, 0xffff, 0x8),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x0336, 0xffff, 0x8),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x4136, 0xffff, 0xc),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x4336, 0xffff, 0xc),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x4436, 0xffff, 0x2),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x4836, 0xffff, 0x2),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x4a36, 0xffff, 0x2),
+	SNBEP_CBO_EVENT_EXTRA_REG(0x4037, 0x40ff, 0x2),
+	EVENT_EXTRA_END
+};
+
+static void snbep_cbox_put_constraint(struct intel_uncore_box *box, struct perf_event *event)
+{
+	struct hw_perf_event_extra *reg1 = &event->hw.extra_reg;
+	struct intel_uncore_extra_reg *er = &box->shared_regs[0];
+	int i;
+
+	if (uncore_box_is_fake(box))
+		return;
+
+	for (i = 0; i < 5; i++) {
+		if (reg1->alloc & (0x1 << i))
+			atomic_sub(1 << (i * 6), &er->ref);
+	}
+	reg1->alloc = 0;
+}
+
+static struct event_constraint *
+__snbep_cbox_get_constraint(struct intel_uncore_box *box, struct perf_event *event,
+			    u64 (*cbox_filter_mask)(int fields))
+{
+	struct hw_perf_event_extra *reg1 = &event->hw.extra_reg;
+	struct intel_uncore_extra_reg *er = &box->shared_regs[0];
+	int i, alloc = 0;
+	unsigned long flags;
+	u64 mask;
+
+	if (reg1->idx == EXTRA_REG_NONE)
+		return NULL;
+
+	raw_spin_lock_irqsave(&er->lock, flags);
+	for (i = 0; i < 5; i++) {
+		if (!(reg1->idx & (0x1 << i)))
+			continue;
+		if (!uncore_box_is_fake(box) && (reg1->alloc & (0x1 << i)))
+			continue;
+
+		mask = cbox_filter_mask(0x1 << i);
+		if (!__BITS_VALUE(atomic_read(&er->ref), i, 6) ||
+		    !((reg1->config ^ er->config) & mask)) {
+			atomic_add(1 << (i * 6), &er->ref);
+			er->config &= ~mask;
+			er->config |= reg1->config & mask;
+			alloc |= (0x1 << i);
+		} else {
+			break;
+		}
+	}
+	raw_spin_unlock_irqrestore(&er->lock, flags);
+	if (i < 5)
+		goto fail;
+
+	if (!uncore_box_is_fake(box))
+		reg1->alloc |= alloc;
+
+	return 0;
+fail:
+	for (; i >= 0; i--) {
+		if (alloc & (0x1 << i))
+			atomic_sub(1 << (i * 6), &er->ref);
+	}
+	return &constraint_empty;
+}
+
+static u64 snbep_cbox_filter_mask(int fields)
+{
+	u64 mask = 0;
+
+	if (fields & 0x1)
+		mask |= SNBEP_CB0_MSR_PMON_BOX_FILTER_TID;
+	if (fields & 0x2)
+		mask |= SNBEP_CB0_MSR_PMON_BOX_FILTER_NID;
+	if (fields & 0x4)
+		mask |= SNBEP_CB0_MSR_PMON_BOX_FILTER_STATE;
+	if (fields & 0x8)
+		mask |= SNBEP_CB0_MSR_PMON_BOX_FILTER_OPC;
+
+	return mask;
+}
+
+static struct event_constraint *
+snbep_cbox_get_constraint(struct intel_uncore_box *box, struct perf_event *event)
+{
+	return __snbep_cbox_get_constraint(box, event, snbep_cbox_filter_mask);
+}
+
+static int snbep_cbox_hw_config(struct intel_uncore_box *box, struct perf_event *event)
+{
+	struct hw_perf_event_extra *reg1 = &event->hw.extra_reg;
+	struct extra_reg *er;
+	int idx = 0;
+
+	for (er = snbep_uncore_cbox_extra_regs; er->msr; er++) {
+		if (er->event != (event->hw.config & er->config_mask))
+			continue;
+		idx |= er->idx;
+	}
+
+	if (idx) {
+		reg1->reg = SNBEP_C0_MSR_PMON_BOX_FILTER +
+			SNBEP_CBO_MSR_OFFSET * box->pmu->pmu_idx;
+		reg1->config = event->attr.config1 & snbep_cbox_filter_mask(idx);
+		reg1->idx = idx;
+	}
+	return 0;
+}
+
+static struct intel_uncore_ops snbep_uncore_cbox_ops = {
+	SNBEP_UNCORE_MSR_OPS_COMMON_INIT(),
+	.hw_config		= snbep_cbox_hw_config,
+	.get_constraint		= snbep_cbox_get_constraint,
+	.put_constraint		= snbep_cbox_put_constraint,
+};
+
 static struct intel_uncore_type snbep_uncore_cbox = {
 	.name			= "cbox",
 	.num_counters		= 4,
@@ -458,8 +592,102 @@ static struct intel_uncore_type snbep_uncore_cbox = {
 	.msr_offset		= SNBEP_CBO_MSR_OFFSET,
 	.num_shared_regs	= 1,
 	.constraints		= snbep_uncore_cbox_constraints,
-	.ops			= &snbep_uncore_msr_ops,
+	.ops			= &snbep_uncore_cbox_ops,
 	.format_group		= &snbep_uncore_cbox_format_group,
+};
+
+static u64 snbep_pcu_alter_er(struct perf_event *event, int new_idx, bool modify)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
+	u64 config = reg1->config;
+
+	if (new_idx > reg1->idx)
+		config <<= 8 * (new_idx - reg1->idx);
+	else
+		config >>= 8 * (reg1->idx - new_idx);
+
+	if (modify) {
+		hwc->config += new_idx - reg1->idx;
+		reg1->config = config;
+		reg1->idx = new_idx;
+	}
+	return config;
+}
+
+static struct event_constraint *
+snbep_pcu_get_constraint(struct intel_uncore_box *box, struct perf_event *event)
+{
+	struct hw_perf_event_extra *reg1 = &event->hw.extra_reg;
+	struct intel_uncore_extra_reg *er = &box->shared_regs[0];
+	unsigned long flags;
+	int idx = reg1->idx;
+	u64 mask, config1 = reg1->config;
+	bool ok = false;
+
+	if (reg1->idx == EXTRA_REG_NONE ||
+	    (!uncore_box_is_fake(box) && reg1->alloc))
+		return NULL;
+again:
+	mask = 0xff << (idx * 8);
+	raw_spin_lock_irqsave(&er->lock, flags);
+	if (!__BITS_VALUE(atomic_read(&er->ref), idx, 8) ||
+	    !((config1 ^ er->config) & mask)) {
+		atomic_add(1 << (idx * 8), &er->ref);
+		er->config &= ~mask;
+		er->config |= config1 & mask;
+		ok = true;
+	}
+	raw_spin_unlock_irqrestore(&er->lock, flags);
+
+	if (!ok) {
+		idx = (idx + 1) % 4;
+		if (idx != reg1->idx) {
+			config1 = snbep_pcu_alter_er(event, idx, false);
+			goto again;
+		}
+		return &constraint_empty;
+	}
+
+	if (!uncore_box_is_fake(box)) {
+		if (idx != reg1->idx)
+			snbep_pcu_alter_er(event, idx, true);
+		reg1->alloc = 1;
+	}
+	return NULL;
+}
+
+static void snbep_pcu_put_constraint(struct intel_uncore_box *box, struct perf_event *event)
+{
+	struct hw_perf_event_extra *reg1 = &event->hw.extra_reg;
+	struct intel_uncore_extra_reg *er = &box->shared_regs[0];
+
+	if (uncore_box_is_fake(box) || !reg1->alloc)
+		return;
+
+	atomic_sub(1 << (reg1->idx * 8), &er->ref);
+	reg1->alloc = 0;
+}
+
+static int snbep_pcu_hw_config(struct intel_uncore_box *box, struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
+	int ev_sel = hwc->config & SNBEP_PMON_CTL_EV_SEL_MASK;
+
+	if (ev_sel >= 0xb && ev_sel <= 0xe) {
+		reg1->reg = SNBEP_PCU_MSR_PMON_BOX_FILTER;
+		reg1->idx = ev_sel - 0xb;
+		reg1->config = event->attr.config1 & (0xff << reg1->idx);
+	}
+	return 0;
+}
+
+static struct intel_uncore_ops snbep_uncore_pcu_ops = {
+	SNBEP_UNCORE_MSR_OPS_COMMON_INIT(),
+	.hw_config		= snbep_pcu_hw_config,
+	.get_constraint		= snbep_pcu_get_constraint,
+	.put_constraint		= snbep_pcu_put_constraint,
 };
 
 static struct intel_uncore_type snbep_uncore_pcu = {
@@ -472,7 +700,7 @@ static struct intel_uncore_type snbep_uncore_pcu = {
 	.event_mask		= SNBEP_PCU_MSR_PMON_RAW_EVENT_MASK,
 	.box_ctl		= SNBEP_PCU_MSR_PMON_BOX_CTL,
 	.num_shared_regs	= 1,
-	.ops			= &snbep_uncore_msr_ops,
+	.ops			= &snbep_uncore_pcu_ops,
 	.format_group		= &snbep_uncore_pcu_format_group,
 };
 
@@ -808,9 +1036,6 @@ static struct intel_uncore_type *nhm_msr_uncores[] = {
 /* end of Nehalem uncore support */
 
 /* Nehalem-EX uncore support */
-#define __BITS_VALUE(x, i, n)  ((typeof(x))(((x) >> ((i) * (n))) & \
-				((1ULL << (n)) - 1)))
-
 DEFINE_UNCORE_FORMAT_ATTR(event5, event, "config:1-5");
 DEFINE_UNCORE_FORMAT_ATTR(counter, counter, "config:6-7");
 DEFINE_UNCORE_FORMAT_ATTR(match, match, "config1:0-63");
@@ -1161,7 +1386,7 @@ static struct extra_reg nhmex_uncore_mbox_extra_regs[] = {
 };
 
 /* Nehalem-EX or Westmere-EX ? */
-bool uncore_nhmex;
+static bool uncore_nhmex;
 
 static bool nhmex_mbox_get_shared_reg(struct intel_uncore_box *box, int idx, u64 config)
 {
@@ -1239,7 +1464,7 @@ static void nhmex_mbox_put_shared_reg(struct intel_uncore_box *box, int idx)
 	atomic_sub(1 << (idx * 8), &er->ref);
 }
 
-u64 nhmex_mbox_alter_er(struct perf_event *event, int new_idx, bool modify)
+static u64 nhmex_mbox_alter_er(struct perf_event *event, int new_idx, bool modify)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
@@ -1554,7 +1779,7 @@ static struct intel_uncore_type nhmex_uncore_mbox = {
 	.format_group		= &nhmex_uncore_mbox_format_group,
 };
 
-void nhmex_rbox_alter_er(struct intel_uncore_box *box, struct perf_event *event)
+static void nhmex_rbox_alter_er(struct intel_uncore_box *box, struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
@@ -1724,21 +1949,6 @@ static int nhmex_rbox_hw_config(struct intel_uncore_box *box, struct perf_event 
 	return 0;
 }
 
-static u64 nhmex_rbox_shared_reg_config(struct intel_uncore_box *box, int idx)
-{
-	struct intel_uncore_extra_reg *er;
-	unsigned long flags;
-	u64 config;
-
-	er = &box->shared_regs[idx];
-
-	raw_spin_lock_irqsave(&er->lock, flags);
-	config = er->config;
-	raw_spin_unlock_irqrestore(&er->lock, flags);
-
-	return config;
-}
-
 static void nhmex_rbox_msr_enable_event(struct intel_uncore_box *box, struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
@@ -1759,7 +1969,7 @@ static void nhmex_rbox_msr_enable_event(struct intel_uncore_box *box, struct per
 	case 2:
 	case 3:
 		wrmsrl(NHMEX_R_MSR_PORTN_QLX_CFG(port),
-			nhmex_rbox_shared_reg_config(box, 2 + (idx / 6) * 5));
+			uncore_shared_reg_config(box, 2 + (idx / 6) * 5));
 		break;
 	case 4:
 		wrmsrl(NHMEX_R_MSR_PORTN_XBR_SET1_MM_CFG(port),
@@ -2285,7 +2495,7 @@ out:
 	return ret;
 }
 
-int uncore_pmu_event_init(struct perf_event *event)
+static int uncore_pmu_event_init(struct perf_event *event)
 {
 	struct intel_uncore_pmu *pmu;
 	struct intel_uncore_box *box;
