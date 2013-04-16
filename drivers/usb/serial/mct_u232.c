@@ -43,7 +43,6 @@
 /*
  * Function prototypes
  */
-static int  mct_u232_startup(struct usb_serial *serial);
 static int  mct_u232_port_probe(struct usb_serial_port *port);
 static int  mct_u232_port_remove(struct usb_serial_port *remove);
 static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port);
@@ -91,7 +90,6 @@ static struct usb_serial_driver mct_u232_device = {
 	.tiocmget =	     mct_u232_tiocmget,
 	.tiocmset =	     mct_u232_tiocmset,
 	.tiocmiwait =        usb_serial_generic_tiocmiwait,
-	.attach =	     mct_u232_startup,
 	.port_probe =        mct_u232_port_probe,
 	.port_remove =       mct_u232_port_remove,
 	.get_icount =        usb_serial_generic_get_icount,
@@ -102,6 +100,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 };
 
 struct mct_u232_private {
+	struct urb *read_urb;
 	spinlock_t lock;
 	unsigned int	     control_state; /* Modem Line Setting (TIOCM) */
 	unsigned char        last_lcr;      /* Line Control Register */
@@ -376,22 +375,6 @@ static void mct_u232_msr_to_state(struct usb_serial_port *port,
  * Driver's tty interface functions
  */
 
-static int mct_u232_startup(struct usb_serial *serial)
-{
-	struct usb_serial_port *port, *rport;
-
-	/* Puh, that's dirty */
-	port = serial->port[0];
-	rport = serial->port[1];
-	/* No unlinking, it wasn't submitted yet. */
-	usb_free_urb(port->read_urb);
-	port->read_urb = rport->interrupt_in_urb;
-	rport->interrupt_in_urb = NULL;
-	port->read_urb->context = port;
-
-	return 0;
-} /* mct_u232_startup */
-
 static int mct_u232_port_probe(struct usb_serial_port *port)
 {
 	struct mct_u232_private *priv;
@@ -399,6 +382,10 @@ static int mct_u232_port_probe(struct usb_serial_port *port)
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	/* Use second interrupt-in endpoint for reading. */
+	priv->read_urb = port->serial->port[1]->interrupt_in_urb;
+	priv->read_urb->context = port;
 
 	spin_lock_init(&priv->lock);
 
@@ -463,17 +450,17 @@ static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
 	mct_u232_msr_to_state(port, &priv->control_state, priv->last_msr);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	retval = usb_submit_urb(port->read_urb, GFP_KERNEL);
+	retval = usb_submit_urb(priv->read_urb, GFP_KERNEL);
 	if (retval) {
 		dev_err(&port->dev,
-			"usb_submit_urb(read bulk) failed pipe 0x%x err %d\n",
+			"usb_submit_urb(read) failed pipe 0x%x err %d\n",
 			port->read_urb->pipe, retval);
 		goto error;
 	}
 
 	retval = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (retval) {
-		usb_kill_urb(port->read_urb);
+		usb_kill_urb(priv->read_urb);
 		dev_err(&port->dev,
 			"usb_submit_urb(read int) failed pipe 0x%x err %d",
 			port->interrupt_in_urb->pipe, retval);
@@ -503,11 +490,9 @@ static void mct_u232_dtr_rts(struct usb_serial_port *port, int on)
 
 static void mct_u232_close(struct usb_serial_port *port)
 {
-	/*
-	 * Must kill the read urb as it is actually an interrupt urb, which
-	 * generic close thus fails to kill.
-	 */
-	usb_kill_urb(port->read_urb);
+	struct mct_u232_private *priv = usb_get_serial_port_data(port);
+
+	usb_kill_urb(priv->read_urb);
 	usb_kill_urb(port->interrupt_in_urb);
 
 	usb_serial_generic_close(port);
