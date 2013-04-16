@@ -2059,8 +2059,9 @@ static void unmap_region(sector_t lba, unsigned int len)
 			clear_bit(block, map_storep);
 			if (scsi_debug_lbprz)
 				memset(fake_storep +
-				       block * scsi_debug_sector_size, 0,
-				       scsi_debug_sector_size);
+				       lba * scsi_debug_sector_size, 0,
+				       scsi_debug_sector_size *
+				       scsi_debug_unmap_granularity);
 		}
 		lba += granularity - rem;
 	}
