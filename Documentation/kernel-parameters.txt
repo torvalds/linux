@@ -603,9 +603,16 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			a memory unit (amount[KMG]). See also
 			Documentation/kdump/kdump.txt for an example.
 
+	crashkernel_high=size[KMG]
+			[KNL, x86_64] range could be above 4G. Allow kernel
+			to allocate physical memory region from top, so could
+			be above 4G if system have more than 4G ram installed.
+			Otherwise memory region will be allocated below 4G, if
+			available.
+			It will be ignored if crashkernel=X is specified.
 	crashkernel_low=size[KMG]
-			[KNL, x86_64] range under 4G. When crashkernel= is
-			passed, kernel allocate physical memory region
+			[KNL, x86_64] range under 4G. When crashkernel_high= is
+			passed, kernel could allocate physical memory region
 			above 4G, that cause second kernel crash on system
 			that require some amount of low memory, e.g. swiotlb
 			requires at least 64M+32K low memory.  Kernel would
@@ -613,6 +620,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			This one let user to specify own low range under 4G
 			for second kernel instead.
 			0: to disable low allocation.
+			It will be ignored when crashkernel_high=X is not used
+			or memory reserved is below 4G.
 
 	cs89x0_dma=	[HW,NET]
 			Format: <dma>
