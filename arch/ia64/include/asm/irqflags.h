@@ -89,6 +89,7 @@ static inline bool arch_irqs_disabled(void)
 
 static inline void arch_safe_halt(void)
 {
+	arch_local_irq_enable();
 	ia64_pal_halt_light();	/* PAL_HALT_LIGHT */
 }
 
