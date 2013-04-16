@@ -2263,7 +2263,7 @@ static int pch_gbe_change_mtu(struct net_device *netdev, int new_mtu)
 		if (err) {
 			adapter->rx_buffer_len = old_rx_buffer_len;
 			pch_gbe_up(adapter);
-			return -ENOMEM;
+			return err;
 		} else {
 			netdev->mtu = new_mtu;
 			adapter->hw.mac.max_frame_size = max_frame;
