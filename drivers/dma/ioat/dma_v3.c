@@ -266,7 +266,7 @@ static void pq16_set_src(struct ioat_raw_descriptor *desc[3],
 		pq16->coef[idx - 8] = coef;
 }
 
-struct ioat_sed_ent *
+static struct ioat_sed_ent *
 ioat3_alloc_sed(struct ioatdma_device *device, unsigned int hw_pool)
 {
 	struct ioat_sed_ent *sed;
@@ -287,7 +287,7 @@ ioat3_alloc_sed(struct ioatdma_device *device, unsigned int hw_pool)
 	return sed;
 }
 
-void ioat3_free_sed(struct ioatdma_device *device, struct ioat_sed_ent *sed)
+static void ioat3_free_sed(struct ioatdma_device *device, struct ioat_sed_ent *sed)
 {
 	if (!sed)
 		return;
