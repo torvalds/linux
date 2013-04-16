@@ -1,7 +1,7 @@
 config VIDEO_GO7007
 	tristate "WIS GO7007 MPEG encoder support"
 	depends on VIDEO_DEV && I2C
-	depends on SND
+	depends on SND && USB
 	select VIDEOBUF2_VMALLOC
 	select VIDEO_TUNER
 	select CYPRESS_FIRMWARE
