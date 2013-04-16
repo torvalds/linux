@@ -667,7 +667,6 @@ static inline wait_queue_head_t *kvm_arch_vcpu_wq(struct kvm_vcpu *vcpu)
 
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type);
 void kvm_arch_destroy_vm(struct kvm *kvm);
-void kvm_free_all_assigned_devices(struct kvm *kvm);
 void kvm_arch_sync_events(struct kvm *kvm);
 
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu);
@@ -736,7 +735,7 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id);
 /* For vcpu->arch.iommu_flags */
 #define KVM_IOMMU_CACHE_COHERENCY	0x1
 
-#ifdef CONFIG_IOMMU_API
+#ifdef CONFIG_KVM_DEVICE_ASSIGNMENT
 int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot);
 void kvm_iommu_unmap_pages(struct kvm *kvm, struct kvm_memory_slot *slot);
 int kvm_iommu_map_guest(struct kvm *kvm);
@@ -745,7 +744,7 @@ int kvm_assign_device(struct kvm *kvm,
 		      struct kvm_assigned_dev_kernel *assigned_dev);
 int kvm_deassign_device(struct kvm *kvm,
 			struct kvm_assigned_dev_kernel *assigned_dev);
-#else /* CONFIG_IOMMU_API */
+#else
 static inline int kvm_iommu_map_pages(struct kvm *kvm,
 				      struct kvm_memory_slot *slot)
 {
@@ -757,28 +756,11 @@ static inline void kvm_iommu_unmap_pages(struct kvm *kvm,
 {
 }
 
-static inline int kvm_iommu_map_guest(struct kvm *kvm)
-{
-	return -ENODEV;
-}
-
 static inline int kvm_iommu_unmap_guest(struct kvm *kvm)
 {
 	return 0;
 }
-
-static inline int kvm_assign_device(struct kvm *kvm,
-		struct kvm_assigned_dev_kernel *assigned_dev)
-{
-	return 0;
-}
-
-static inline int kvm_deassign_device(struct kvm *kvm,
-		struct kvm_assigned_dev_kernel *assigned_dev)
-{
-	return 0;
-}
-#endif /* CONFIG_IOMMU_API */
+#endif
 
 static inline void __guest_enter(void)
 {
@@ -1032,10 +1014,12 @@ static inline bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu) { return true; }
 
 #endif
 
-#ifdef __KVM_HAVE_DEVICE_ASSIGNMENT
+#ifdef CONFIG_KVM_DEVICE_ASSIGNMENT
 
 long kvm_vm_ioctl_assigned_device(struct kvm *kvm, unsigned ioctl,
 				  unsigned long arg);
+
+void kvm_free_all_assigned_devices(struct kvm *kvm);
 
 #else
 
@@ -1044,6 +1028,8 @@ static inline long kvm_vm_ioctl_assigned_device(struct kvm *kvm, unsigned ioctl,
 {
 	return -ENOTTY;
 }
+
+static inline void kvm_free_all_assigned_devices(struct kvm *kvm) {}
 
 #endif
 

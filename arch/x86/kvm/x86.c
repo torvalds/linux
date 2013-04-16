@@ -2501,7 +2501,6 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_USER_NMI:
 	case KVM_CAP_REINJECT_CONTROL:
 	case KVM_CAP_IRQ_INJECT_STATUS:
-	case KVM_CAP_ASSIGN_DEV_IRQ:
 	case KVM_CAP_IRQFD:
 	case KVM_CAP_IOEVENTFD:
 	case KVM_CAP_PIT2:
@@ -2519,9 +2518,12 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_XSAVE:
 	case KVM_CAP_ASYNC_PF:
 	case KVM_CAP_GET_TSC_KHZ:
-	case KVM_CAP_PCI_2_3:
 	case KVM_CAP_KVMCLOCK_CTRL:
 	case KVM_CAP_READONLY_MEM:
+#ifdef CONFIG_KVM_DEVICE_ASSIGNMENT
+	case KVM_CAP_ASSIGN_DEV_IRQ:
+	case KVM_CAP_PCI_2_3:
+#endif
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
