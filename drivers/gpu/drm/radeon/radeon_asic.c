@@ -965,6 +965,19 @@ static struct radeon_asic r600_asic = {
 	},
 };
 
+static struct radeon_asic_ring rv6xx_uvd_ring = {
+	.ib_execute = &uvd_v1_0_ib_execute,
+	.emit_fence = &uvd_v1_0_fence_emit,
+	.emit_semaphore = &uvd_v1_0_semaphore_emit,
+	.cs_parse = &radeon_uvd_cs_parse,
+	.ring_test = &uvd_v1_0_ring_test,
+	.ib_test = &uvd_v1_0_ib_test,
+	.is_lockup = &radeon_ring_test_lockup,
+	.get_rptr = &uvd_v1_0_get_rptr,
+	.get_wptr = &uvd_v1_0_get_wptr,
+	.set_wptr = &uvd_v1_0_set_wptr,
+};
+
 static struct radeon_asic rv6xx_asic = {
 	.init = &r600_init,
 	.fini = &r600_fini,
@@ -984,6 +997,7 @@ static struct radeon_asic rv6xx_asic = {
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = &r600_gfx_ring,
 		[R600_RING_TYPE_DMA_INDEX] = &r600_dma_ring,
+		[R600_RING_TYPE_UVD_INDEX] = &rv6xx_uvd_ring,
 	},
 	.irq = {
 		.set = &r600_irq_set,
@@ -1074,6 +1088,7 @@ static struct radeon_asic rs780_asic = {
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = &r600_gfx_ring,
 		[R600_RING_TYPE_DMA_INDEX] = &r600_dma_ring,
+		[R600_RING_TYPE_UVD_INDEX] = &rv6xx_uvd_ring,
 	},
 	.irq = {
 		.set = &r600_irq_set,

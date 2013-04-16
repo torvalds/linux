@@ -1485,6 +1485,7 @@
 #define UVD_CGC_GATE					0xf4a8
 #define UVD_LMI_CTRL2					0xf4f4
 #define UVD_MASTINT_EN					0xf500
+#define UVD_FW_START					0xf51C
 #define UVD_LMI_ADDR_EXT				0xf594
 #define UVD_LMI_CTRL					0xf598
 #define UVD_LMI_SWAP_CNTL				0xf5b4
@@ -1496,6 +1497,13 @@
 #define UVD_MPC_SET_MUXB1				0xf5f0
 #define UVD_MPC_SET_MUX					0xf5f4
 #define UVD_MPC_SET_ALU					0xf5f8
+
+#define UVD_VCPU_CACHE_OFFSET0				0xf608
+#define UVD_VCPU_CACHE_SIZE0				0xf60c
+#define UVD_VCPU_CACHE_OFFSET1				0xf610
+#define UVD_VCPU_CACHE_SIZE1				0xf614
+#define UVD_VCPU_CACHE_OFFSET2				0xf618
+#define UVD_VCPU_CACHE_SIZE2				0xf61c
 
 #define UVD_VCPU_CNTL					0xf660
 #define UVD_SOFT_RESET					0xf680

@@ -22,6 +22,7 @@
  * Authors: Christian König <christian.koenig@amd.com>
  */
 
+#include <linux/firmware.h>
 #include <drm/drmP.h>
 #include "radeon.h"
 #include "radeon_asic.h"
@@ -67,6 +68,82 @@ void uvd_v1_0_set_wptr(struct radeon_device *rdev,
 		       struct radeon_ring *ring)
 {
 	WREG32(UVD_RBC_RB_WPTR, ring->wptr);
+}
+
+/**
+ * uvd_v1_0_fence_emit - emit an fence & trap command
+ *
+ * @rdev: radeon_device pointer
+ * @fence: fence to emit
+ *
+ * Write a fence and a trap command to the ring.
+ */
+void uvd_v1_0_fence_emit(struct radeon_device *rdev,
+			 struct radeon_fence *fence)
+{
+	struct radeon_ring *ring = &rdev->ring[fence->ring];
+	uint64_t addr = rdev->fence_drv[fence->ring].gpu_addr;
+
+	radeon_ring_write(ring, PACKET0(UVD_GPCOM_VCPU_DATA0, 0));
+	radeon_ring_write(ring, addr & 0xffffffff);
+	radeon_ring_write(ring, PACKET0(UVD_GPCOM_VCPU_DATA1, 0));
+	radeon_ring_write(ring, fence->seq);
+	radeon_ring_write(ring, PACKET0(UVD_GPCOM_VCPU_CMD, 0));
+	radeon_ring_write(ring, 0);
+
+	radeon_ring_write(ring, PACKET0(UVD_GPCOM_VCPU_DATA0, 0));
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, PACKET0(UVD_GPCOM_VCPU_DATA1, 0));
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, PACKET0(UVD_GPCOM_VCPU_CMD, 0));
+	radeon_ring_write(ring, 2);
+	return;
+}
+
+/**
+ * uvd_v1_0_resume - memory controller programming
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Let the UVD memory controller know it's offsets
+ */
+int uvd_v1_0_resume(struct radeon_device *rdev)
+{
+	uint64_t addr;
+	uint32_t size;
+	int r;
+
+	r = radeon_uvd_resume(rdev);
+	if (r)
+		return r;
+
+	/* programm the VCPU memory controller bits 0-27 */
+	addr = (rdev->uvd.gpu_addr >> 3) + 16;
+	size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size) >> 3;
+	WREG32(UVD_VCPU_CACHE_OFFSET0, addr);
+	WREG32(UVD_VCPU_CACHE_SIZE0, size);
+
+	addr += size;
+	size = RADEON_UVD_STACK_SIZE >> 3;
+	WREG32(UVD_VCPU_CACHE_OFFSET1, addr);
+	WREG32(UVD_VCPU_CACHE_SIZE1, size);
+
+	addr += size;
+	size = RADEON_UVD_HEAP_SIZE >> 3;
+	WREG32(UVD_VCPU_CACHE_OFFSET2, addr);
+	WREG32(UVD_VCPU_CACHE_SIZE2, size);
+
+	/* bits 28-31 */
+	addr = (rdev->uvd.gpu_addr >> 28) & 0xF;
+	WREG32(UVD_LMI_ADDR_EXT, (addr << 12) | (addr << 0));
+
+	/* bits 32-39 */
+	addr = (rdev->uvd.gpu_addr >> 32) & 0xFF;
+	WREG32(UVD_LMI_EXT40_ADDR, addr | (0x9 << 16) | (0x1 << 31));
+
+	WREG32(UVD_FW_START, *((uint32_t*)rdev->uvd.cpu_addr));
+
+	return 0;
 }
 
 /**
