@@ -1464,8 +1464,6 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 				iterate_extent_inodes_t *iterate, void *ctx)
 {
 	int ret;
-	struct list_head data_refs = LIST_HEAD_INIT(data_refs);
-	struct list_head shared_refs = LIST_HEAD_INIT(shared_refs);
 	struct btrfs_trans_handle *trans;
 	struct ulist *refs = NULL;
 	struct ulist *roots = NULL;
