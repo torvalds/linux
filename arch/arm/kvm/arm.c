@@ -805,7 +805,8 @@ static int vcpu_interrupt_line(struct kvm_vcpu *vcpu, int number, bool level)
 	return 0;
 }
 
-int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level)
+int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level,
+			  bool line_status)
 {
 	u32 irq = irq_level->irq;
 	unsigned int irq_type, vcpu_idx, irq_num;
