@@ -236,7 +236,6 @@ static void devcgroup_offline(struct cgroup *cgroup)
 static struct cgroup_subsys_state *devcgroup_css_alloc(struct cgroup *cgroup)
 {
 	struct dev_cgroup *dev_cgroup;
-	struct cgroup *parent_cgroup;
 
 	dev_cgroup = kzalloc(sizeof(*dev_cgroup), GFP_KERNEL);
 	if (!dev_cgroup)
@@ -244,7 +243,6 @@ static struct cgroup_subsys_state *devcgroup_css_alloc(struct cgroup *cgroup)
 	INIT_LIST_HEAD(&dev_cgroup->exceptions);
 	INIT_LIST_HEAD(&dev_cgroup->propagate_pending);
 	dev_cgroup->behavior = DEVCG_DEFAULT_NONE;
-	parent_cgroup = cgroup->parent;
 
 	return &dev_cgroup->css;
 }
