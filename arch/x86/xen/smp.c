@@ -144,6 +144,13 @@ static int xen_smp_intr_init(unsigned int cpu)
 		goto fail;
 	per_cpu(xen_callfuncsingle_irq, cpu) = rc;
 
+	/*
+	 * The IRQ worker on PVHVM goes through the native path and uses the
+	 * IPI mechanism.
+	 */
+	if (xen_hvm_domain())
+		return 0;
+
 	callfunc_name = kasprintf(GFP_KERNEL, "irqwork%d", cpu);
 	rc = bind_ipi_to_irqhandler(XEN_IRQ_WORK_VECTOR,
 				    cpu,
@@ -167,6 +174,9 @@ static int xen_smp_intr_init(unsigned int cpu)
 	if (per_cpu(xen_callfuncsingle_irq, cpu) >= 0)
 		unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu),
 				       NULL);
+	if (xen_hvm_domain())
+		return rc;
+
 	if (per_cpu(xen_irq_work, cpu) >= 0)
 		unbind_from_irqhandler(per_cpu(xen_irq_work, cpu), NULL);
 
@@ -661,7 +671,8 @@ static void xen_hvm_cpu_die(unsigned int cpu)
 	unbind_from_irqhandler(per_cpu(xen_callfunc_irq, cpu), NULL);
 	unbind_from_irqhandler(per_cpu(xen_debug_irq, cpu), NULL);
 	unbind_from_irqhandler(per_cpu(xen_callfuncsingle_irq, cpu), NULL);
-	unbind_from_irqhandler(per_cpu(xen_irq_work, cpu), NULL);
+	if (!xen_hvm_domain())
+		unbind_from_irqhandler(per_cpu(xen_irq_work, cpu), NULL);
 	xen_uninit_lock_cpu(cpu);
 	xen_teardown_timer(cpu);
 	native_cpu_die(cpu);
