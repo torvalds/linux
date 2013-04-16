@@ -110,6 +110,7 @@
 				compatible = "atmel,at91sam9g45-dma";
 				reg = <0xffffec00 0x200>;
 				interrupts = <20 4 0>;
+				#dma-cells = <2>;
 			};
 
 			pinctrl@fffff400 {

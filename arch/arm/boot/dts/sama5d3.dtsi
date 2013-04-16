@@ -348,14 +348,14 @@
 				compatible = "atmel,at91sam9g45-dma";
 				reg = <0xffffe600 0x200>;
 				interrupts = <30 4 0>;
-				#dma-cells = <1>;
+				#dma-cells = <2>;
 			};
 
 			dma1: dma-controller@ffffe800 {
 				compatible = "atmel,at91sam9g45-dma";
 				reg = <0xffffe800 0x200>;
 				interrupts = <31 4 0>;
-				#dma-cells = <1>;
+				#dma-cells = <2>;
 			};
 
 			ramc0: ramc@ffffea00 {
