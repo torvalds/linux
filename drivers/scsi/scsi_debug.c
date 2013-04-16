@@ -3413,9 +3413,10 @@ static int __init scsi_debug_init(void)
 			clamp(scsi_debug_unmap_granularity, 1U, 0xffffffffU);
 
 		if (scsi_debug_unmap_alignment &&
-		    scsi_debug_unmap_granularity < scsi_debug_unmap_alignment) {
+		    scsi_debug_unmap_granularity <=
+		    scsi_debug_unmap_alignment) {
 			printk(KERN_ERR
-			       "%s: ERR: unmap_granularity < unmap_alignment\n",
+			       "%s: ERR: unmap_granularity <= unmap_alignment\n",
 			       __func__);
 			return -EINVAL;
 		}
