@@ -107,7 +107,6 @@ static struct usb_serial_driver * const serial_drivers[] = {
 
 struct kobil_private {
 	int write_int_endpoint_address;
-	int read_int_endpoint_address;
 	unsigned char buf[KOBIL_BUF_LENGTH]; /* buffer for the APDU to send */
 	int filled;  /* index of the last char in buf */
 	int cur_pos; /* index of the next char to send in buf */
@@ -164,13 +163,6 @@ static int kobil_port_probe(struct usb_serial_port *port)
 				"%s Found interrupt out endpoint. Address: %d\n",
 				__func__, endpoint->desc.bEndpointAddress);
 			priv->write_int_endpoint_address =
-				endpoint->desc.bEndpointAddress;
-		}
-		if (usb_endpoint_is_int_in(&endpoint->desc)) {
-			dev_dbg(&serial->dev->dev,
-				"%s Found interrupt in  endpoint. Address: %d\n",
-				__func__, endpoint->desc.bEndpointAddress);
-			priv->read_int_endpoint_address =
 				endpoint->desc.bEndpointAddress;
 		}
 	}
