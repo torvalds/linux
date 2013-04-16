@@ -1001,6 +1001,8 @@ static inline void audit_free_names(struct audit_context *context)
 
 #if AUDIT_DEBUG == 2
 	if (context->put_count + context->ino_count != context->name_count) {
+		int i = 0;
+
 		printk(KERN_ERR "%s:%d(:%d): major=%d in_syscall=%d"
 		       " name_count=%d put_count=%d"
 		       " ino_count=%d [NOT freeing]\n",
@@ -1009,7 +1011,7 @@ static inline void audit_free_names(struct audit_context *context)
 		       context->name_count, context->put_count,
 		       context->ino_count);
 		list_for_each_entry(n, &context->names_list, list) {
-			printk(KERN_ERR "names[%d] = %p = %s\n", i,
+			printk(KERN_ERR "names[%d] = %p = %s\n", i++,
 			       n->name, n->name->name ?: "(null)");
 		}
 		dump_stack();
@@ -2050,10 +2052,10 @@ void audit_putname(struct filename *name)
 		       __FILE__, __LINE__, context->serial, name);
 		if (context->name_count) {
 			struct audit_names *n;
-			int i;
+			int i = 0;
 
 			list_for_each_entry(n, &context->names_list, list)
-				printk(KERN_ERR "name[%d] = %p = %s\n", i,
+				printk(KERN_ERR "name[%d] = %p = %s\n", i++,
 				       n->name, n->name->name ?: "(null)");
 			}
 #endif
