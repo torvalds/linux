@@ -1120,6 +1120,12 @@ static int snd_usb_pcm_open(struct snd_pcm_substream *substream, int direction)
 	runtime->private_data = subs;
 	subs->pcm_substream = substream;
 	/* runtime PM is also done there */
+
+	/* initialize DSD/DOP context */
+	subs->dsd_dop.byte_idx = 0;
+	subs->dsd_dop.channel = 0;
+	subs->dsd_dop.marker = 1;
+
 	return setup_hw_info(runtime, subs);
 }
 
@@ -1214,6 +1220,56 @@ static void retire_capture_urb(struct snd_usb_substream *subs,
 		snd_pcm_period_elapsed(subs->pcm_substream);
 }
 
+static inline void fill_playback_urb_dsd_dop(struct snd_usb_substream *subs,
+					     struct urb *urb, unsigned int bytes)
+{
+	struct snd_pcm_runtime *runtime = subs->pcm_substream->runtime;
+	unsigned int stride = runtime->frame_bits >> 3;
+	unsigned int dst_idx = 0;
+	unsigned int src_idx = subs->hwptr_done;
+	unsigned int wrap = runtime->buffer_size * stride;
+	u8 *dst = urb->transfer_buffer;
+	u8 *src = runtime->dma_area;
+	u8 marker[] = { 0x05, 0xfa };
+
+	/*
+	 * The DSP DOP format defines a way to transport DSD samples over
+	 * normal PCM data endpoints. It requires stuffing of marker bytes
+	 * (0x05 and 0xfa, alternating per sample frame), and then expects
+	 * 2 additional bytes of actual payload. The whole frame is stored
+	 * LSB.
+	 *
+	 * Hence, for a stereo transport, the buffer layout looks like this,
+	 * where L refers to left channel samples and R to right.
+	 *
+	 *   L1 L2 0x05   R1 R2 0x05   L3 L4 0xfa  R3 R4 0xfa
+	 *   L5 L6 0x05   R5 R6 0x05   L7 L8 0xfa  R7 R8 0xfa
+	 *   .....
+	 *
+	 */
+
+	while (bytes--) {
+		if (++subs->dsd_dop.byte_idx == 3) {
+			/* frame boundary? */
+			dst[dst_idx++] = marker[subs->dsd_dop.marker];
+			src_idx += 2;
+			subs->dsd_dop.byte_idx = 0;
+
+			if (++subs->dsd_dop.channel % runtime->channels == 0) {
+				/* alternate the marker */
+				subs->dsd_dop.marker++;
+				subs->dsd_dop.marker %= ARRAY_SIZE(marker);
+				subs->dsd_dop.channel = 0;
+			}
+		} else {
+			/* stuff the DSD payload */
+			int idx = (src_idx + subs->dsd_dop.byte_idx - 1) % wrap;
+			dst[dst_idx++] = src[idx];
+			subs->hwptr_done++;
+		}
+	}
+}
+
 static void prepare_playback_urb(struct snd_usb_substream *subs,
 				 struct urb *urb)
 {
@@ -1270,19 +1326,28 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 			break;
 	}
 	bytes = frames * ep->stride;
-	if (subs->hwptr_done + bytes > runtime->buffer_size * stride) {
-		/* err, the transferred area goes over buffer boundary. */
-		unsigned int bytes1 =
-			runtime->buffer_size * stride - subs->hwptr_done;
-		memcpy(urb->transfer_buffer,
-		       runtime->dma_area + subs->hwptr_done, bytes1);
-		memcpy(urb->transfer_buffer + bytes1,
-		       runtime->dma_area, bytes - bytes1);
+
+	if (unlikely(subs->pcm_format == SNDRV_PCM_FORMAT_DSD_U16_LE &&
+		     subs->cur_audiofmt->dsd_dop)) {
+		fill_playback_urb_dsd_dop(subs, urb, bytes);
 	} else {
-		memcpy(urb->transfer_buffer,
-		       runtime->dma_area + subs->hwptr_done, bytes);
+		/* usual PCM */
+		if (subs->hwptr_done + bytes > runtime->buffer_size * stride) {
+			/* err, the transferred area goes over buffer boundary. */
+			unsigned int bytes1 =
+				runtime->buffer_size * stride - subs->hwptr_done;
+			memcpy(urb->transfer_buffer,
+			       runtime->dma_area + subs->hwptr_done, bytes1);
+			memcpy(urb->transfer_buffer + bytes1,
+			       runtime->dma_area, bytes - bytes1);
+		} else {
+			memcpy(urb->transfer_buffer,
+			       runtime->dma_area + subs->hwptr_done, bytes);
+		}
+
+		subs->hwptr_done += bytes;
 	}
-	subs->hwptr_done += bytes;
+
 	if (subs->hwptr_done >= runtime->buffer_size * stride)
 		subs->hwptr_done -= runtime->buffer_size * stride;
 
