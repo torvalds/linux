@@ -44,6 +44,10 @@
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #endif
 
+/* These values are internal and can be increased later */
+#define KVM_NR_IRQCHIPS          1
+#define KVM_IRQCHIP_NUM_PINS     256
+
 #if !defined(CONFIG_KVM_440)
 #include <linux/mmu_notifier.h>
 
@@ -255,6 +259,9 @@ struct kvm_arch {
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
 #ifdef CONFIG_PPC_BOOK3S_64
 	struct list_head spapr_tce_tables;
+#endif
+#ifdef CONFIG_KVM_MPIC
+	struct openpic *mpic;
 #endif
 };
 

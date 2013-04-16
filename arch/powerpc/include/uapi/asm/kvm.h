@@ -25,6 +25,7 @@
 /* Select powerpc specific features in <linux/kvm.h> */
 #define __KVM_HAVE_SPAPR_TCE
 #define __KVM_HAVE_PPC_SMT
+#define __KVM_HAVE_IRQCHIP
 
 struct kvm_regs {
 	__u64 pc;

@@ -154,6 +154,9 @@ config KVM_E500MC
 config KVM_MPIC
 	bool "KVM in-kernel MPIC emulation"
 	depends on KVM
+	select HAVE_KVM_IRQCHIP
+	select HAVE_KVM_IRQ_ROUTING
+	select HAVE_KVM_MSI
 	help
 	  Enable support for emulating MPIC devices inside the
           host kernel, rather than relying on userspace to emulate.
