@@ -1502,6 +1502,12 @@ static void nvme_free_queues(struct nvme_dev *dev)
 		nvme_free_queue(dev, i);
 }
 
+/*
+ * Return: error value if an error occurred setting up the queues or calling
+ * Identify Device.  0 if these succeeded, even if adding some of the
+ * namespaces failed.  At the moment, these failures are silent.  TBD which
+ * failures should be reported.
+ */
 static int nvme_dev_add(struct nvme_dev *dev)
 {
 	int res, nn, i;
@@ -1555,7 +1561,7 @@ static int nvme_dev_add(struct nvme_dev *dev)
 	}
 	list_for_each_entry(ns, &dev->namespaces, list)
 		add_disk(ns->disk);
-
+	res = 0;
 	goto out;
 
  out_free:
