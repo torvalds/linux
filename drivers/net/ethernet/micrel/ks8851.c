@@ -1391,13 +1391,9 @@ static int ks8851_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(ks8851_pm_ops, ks8851_suspend, ks8851_resume);
-#define KS8851_PM_OPS (&ks8851_pm_ops)
-
-#else
-#define KS8851_PM_OPS NULL
-#endif
 
 static int ks8851_probe(struct spi_device *spi)
 {
@@ -1536,7 +1532,7 @@ static struct spi_driver ks8851_driver = {
 	.driver = {
 		.name = "ks8851",
 		.owner = THIS_MODULE,
-		.pm = KS8851_PM_OPS,
+		.pm = &ks8851_pm_ops,
 	},
 	.probe = ks8851_probe,
 	.remove = ks8851_remove,
