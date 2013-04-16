@@ -84,6 +84,217 @@ void evergreen_tiling_fields(unsigned tiling_flags, unsigned *bankw,
 	}
 }
 
+static int sumo_set_uvd_clock(struct radeon_device *rdev, u32 clock,
+			      u32 cntl_reg, u32 status_reg)
+{
+	int r, i;
+	struct atom_clock_dividers dividers;
+
+        r = radeon_atom_get_clock_dividers(rdev, COMPUTE_ENGINE_PLL_PARAM,
+					   clock, false, &dividers);
+	if (r)
+		return r;
+
+	WREG32_P(cntl_reg, dividers.post_div, ~(DCLK_DIR_CNTL_EN|DCLK_DIVIDER_MASK));
+
+	for (i = 0; i < 100; i++) {
+		if (RREG32(status_reg) & DCLK_STATUS)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+int sumo_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
+{
+	int r = 0;
+	u32 cg_scratch = RREG32(CG_SCRATCH1);
+
+	r = sumo_set_uvd_clock(rdev, vclk, CG_VCLK_CNTL, CG_VCLK_STATUS);
+	if (r)
+		goto done;
+	cg_scratch &= 0xffff0000;
+	cg_scratch |= vclk / 100; /* Mhz */
+
+	r = sumo_set_uvd_clock(rdev, dclk, CG_DCLK_CNTL, CG_DCLK_STATUS);
+	if (r)
+		goto done;
+	cg_scratch &= 0x0000ffff;
+	cg_scratch |= (dclk / 100) << 16; /* Mhz */
+
+done:
+	WREG32(CG_SCRATCH1, cg_scratch);
+
+	return r;
+}
+
+static int evergreen_uvd_calc_post_div(unsigned target_freq,
+				       unsigned vco_freq,
+				       unsigned *div)
+{
+	/* target larger than vco frequency ? */
+	if (vco_freq < target_freq)
+		return -1; /* forget it */
+
+	/* Fclk = Fvco / PDIV */
+	*div = vco_freq / target_freq;
+
+	/* we alway need a frequency less than or equal the target */
+	if ((vco_freq / *div) > target_freq)
+		*div += 1;
+
+	/* dividers above 5 must be even */
+	if (*div > 5 && *div % 2)
+		*div += 1;
+
+	/* out of range ? */
+	if (*div >= 128)
+		return -1; /* forget it */
+
+	return vco_freq / *div;
+}
+
+static int evergreen_uvd_send_upll_ctlreq(struct radeon_device *rdev)
+{
+	unsigned i;
+
+	/* assert UPLL_CTLREQ */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_CTLREQ_MASK, ~UPLL_CTLREQ_MASK);
+
+	/* wait for CTLACK and CTLACK2 to get asserted */
+	for (i = 0; i < 100; ++i) {
+		uint32_t mask = UPLL_CTLACK_MASK | UPLL_CTLACK2_MASK;
+		if ((RREG32(CG_UPLL_FUNC_CNTL) & mask) == mask)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
+
+	/* deassert UPLL_CTLREQ */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_CTLREQ_MASK);
+
+	return 0;
+}
+
+int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
+{
+	/* start off with something large */
+	int optimal_diff_score = 0x7FFFFFF;
+	unsigned optimal_fb_div = 0, optimal_vclk_div = 0;
+	unsigned optimal_dclk_div = 0, optimal_vco_freq = 0;
+	unsigned vco_freq;
+	int r;
+
+	/* loop through vco from low to high */
+	for (vco_freq = 125000; vco_freq <= 250000; vco_freq += 100) {
+		unsigned fb_div = vco_freq / rdev->clock.spll.reference_freq * 16384;
+		int calc_clk, diff_score, diff_vclk, diff_dclk;
+		unsigned vclk_div, dclk_div;
+
+		/* fb div out of range ? */
+		if (fb_div > 0x03FFFFFF)
+			break; /* it can oly get worse */
+
+		/* calc vclk with current vco freq. */
+		calc_clk = evergreen_uvd_calc_post_div(vclk, vco_freq, &vclk_div);
+		if (calc_clk == -1)
+			break; /* vco is too big, it has to stop. */
+		diff_vclk = vclk - calc_clk;
+
+		/* calc dclk with current vco freq. */
+		calc_clk = evergreen_uvd_calc_post_div(dclk, vco_freq, &dclk_div);
+		if (calc_clk == -1)
+			break; /* vco is too big, it has to stop. */
+		diff_dclk = dclk - calc_clk;
+
+		/* determine if this vco setting is better than current optimal settings */
+		diff_score = abs(diff_vclk) + abs(diff_dclk);
+		if (diff_score < optimal_diff_score) {
+			optimal_fb_div = fb_div;
+			optimal_vclk_div = vclk_div;
+			optimal_dclk_div = dclk_div;
+			optimal_vco_freq = vco_freq;
+			optimal_diff_score = diff_score;
+			if (optimal_diff_score == 0)
+				break; /* it can't get better than this */
+		}
+	}
+
+	/* set VCO_MODE to 1 */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_VCO_MODE_MASK, ~UPLL_VCO_MODE_MASK);
+
+	/* toggle UPLL_SLEEP to 1 then back to 0 */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_SLEEP_MASK, ~UPLL_SLEEP_MASK);
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_SLEEP_MASK);
+
+	/* deassert UPLL_RESET */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_RESET_MASK);
+
+	mdelay(1);
+
+	/* bypass vclk and dclk with bclk */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		VCLK_SRC_SEL(1) | DCLK_SRC_SEL(1),
+		~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
+
+	/* put PLL in bypass mode */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_BYPASS_EN_MASK, ~UPLL_BYPASS_EN_MASK);
+
+	r = evergreen_uvd_send_upll_ctlreq(rdev);
+	if (r)
+		return r;
+
+	/* assert UPLL_RESET again */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_RESET_MASK, ~UPLL_RESET_MASK);
+
+	/* disable spread spectrum. */
+	WREG32_P(CG_UPLL_SPREAD_SPECTRUM, 0, ~SSEN_MASK);
+
+	/* set feedback divider */
+	WREG32_P(CG_UPLL_FUNC_CNTL_3, UPLL_FB_DIV(optimal_fb_div), ~UPLL_FB_DIV_MASK);
+
+	/* set ref divider to 0 */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_REF_DIV_MASK);
+
+	if (optimal_vco_freq < 187500)
+		WREG32_P(CG_UPLL_FUNC_CNTL_4, 0, ~UPLL_SPARE_ISPARE9);
+	else
+		WREG32_P(CG_UPLL_FUNC_CNTL_4, UPLL_SPARE_ISPARE9, ~UPLL_SPARE_ISPARE9);
+
+	/* set PDIV_A and PDIV_B */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		UPLL_PDIV_A(optimal_vclk_div) | UPLL_PDIV_B(optimal_dclk_div),
+		~(UPLL_PDIV_A_MASK | UPLL_PDIV_B_MASK));
+
+	/* give the PLL some time to settle */
+	mdelay(15);
+
+	/* deassert PLL_RESET */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_RESET_MASK);
+
+	mdelay(15);
+
+	/* switch from bypass mode to normal mode */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_BYPASS_EN_MASK);
+
+	r = evergreen_uvd_send_upll_ctlreq(rdev);
+	if (r)
+		return r;
+
+	/* switch VCLK and DCLK selection */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		VCLK_SRC_SEL(2) | DCLK_SRC_SEL(2),
+		~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
+
+	mdelay(100);
+
+	return 0;
+}
+
 void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev)
 {
 	u16 ctl, v;
@@ -608,6 +819,16 @@ void evergreen_hpd_init(struct radeon_device *rdev)
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+
+		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
+		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
+			/* don't try to enable hpd on eDP or LVDS avoid breaking the
+			 * aux dp channel on imac and help (but not completely fix)
+			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
+			 * also avoid interrupt storms during dpms.
+			 */
+			continue;
+		}
 		switch (radeon_connector->hpd.hpd) {
 		case RADEON_HPD_1:
 			WREG32(DC_HPD1_CONTROL, tmp);
@@ -2050,6 +2271,14 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	}
 	/* enabled rb are just the one not disabled :) */
 	disabled_rb_mask = tmp;
+	tmp = 0;
+	for (i = 0; i < rdev->config.evergreen.max_backends; i++)
+		tmp |= (1 << i);
+	/* if all the backends are disabled, fix it up here */
+	if ((disabled_rb_mask & tmp) == tmp) {
+		for (i = 0; i < rdev->config.evergreen.max_backends; i++)
+			disabled_rb_mask &= ~(1 << i);
+	}
 
 	WREG32(GRBM_GFX_INDEX, INSTANCE_BROADCAST_WRITES | SE_BROADCAST_WRITES);
 	WREG32(RLC_GFX_INDEX, INSTANCE_BROADCAST_WRITES | SE_BROADCAST_WRITES);
@@ -2058,6 +2287,9 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	WREG32(DMIF_ADDR_CONFIG, gb_addr_config);
 	WREG32(HDP_ADDR_CONFIG, gb_addr_config);
 	WREG32(DMA_TILING_CONFIG, gb_addr_config);
+	WREG32(UVD_UDEC_ADDR_CONFIG, gb_addr_config);
+	WREG32(UVD_UDEC_DB_ADDR_CONFIG, gb_addr_config);
+	WREG32(UVD_UDEC_DBW_ADDR_CONFIG, gb_addr_config);
 
 	if ((rdev->config.evergreen.max_backends == 1) &&
 	    (rdev->flags & RADEON_IS_IGP)) {
@@ -3360,6 +3592,9 @@ restart_ih:
 				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
+		case 124: /* UVD */
+			DRM_DEBUG("IH: UVD int: 0x%08x\n", src_data);
+			radeon_fence_process(rdev, R600_RING_TYPE_UVD_INDEX);
 			break;
 		case 146:
 		case 147:
@@ -3571,7 +3806,7 @@ int evergreen_copy_dma(struct radeon_device *rdev,
 
 static int evergreen_startup(struct radeon_device *rdev)
 {
-	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+	struct radeon_ring *ring;
 	int r;
 
 	/* enable pcie gen2 link */
@@ -3638,6 +3873,17 @@ static int evergreen_startup(struct radeon_device *rdev)
 		return r;
 	}
 
+	r = rv770_uvd_resume(rdev);
+	if (!r) {
+		r = radeon_fence_driver_start_ring(rdev,
+						   R600_RING_TYPE_UVD_INDEX);
+		if (r)
+			dev_err(rdev->dev, "UVD fences init error (%d).\n", r);
+	}
+
+	if (r)
+		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
+
 	/* Enable IRQ */
 	r = r600_irq_init(rdev);
 	if (r) {
@@ -3647,6 +3893,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 	}
 	evergreen_irq_set(rdev);
 
+	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
 			     R600_CP_RB_RPTR, R600_CP_RB_WPTR,
 			     0, 0xfffff, RADEON_CP_PACKET2);
@@ -3669,6 +3916,19 @@ static int evergreen_startup(struct radeon_device *rdev)
 	r = r600_dma_resume(rdev);
 	if (r)
 		return r;
+
+	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+	if (ring->ring_size) {
+		r = radeon_ring_init(rdev, ring, ring->ring_size,
+				     R600_WB_UVD_RPTR_OFFSET,
+				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
+				     0, 0xfffff, RADEON_CP_PACKET2);
+		if (!r)
+			r = r600_uvd_init(rdev);
+
+		if (r)
+			DRM_ERROR("radeon: error initializing UVD (%d).\n", r);
+	}
 
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
@@ -3716,8 +3976,10 @@ int evergreen_resume(struct radeon_device *rdev)
 int evergreen_suspend(struct radeon_device *rdev)
 {
 	r600_audio_fini(rdev);
+	radeon_uvd_suspend(rdev);
 	r700_cp_stop(rdev);
 	r600_dma_stop(rdev);
+	r600_uvd_rbc_stop(rdev);
 	evergreen_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	evergreen_pcie_gart_disable(rdev);
@@ -3797,6 +4059,13 @@ int evergreen_init(struct radeon_device *rdev)
 	rdev->ring[R600_RING_TYPE_DMA_INDEX].ring_obj = NULL;
 	r600_ring_init(rdev, &rdev->ring[R600_RING_TYPE_DMA_INDEX], 64 * 1024);
 
+	r = radeon_uvd_init(rdev);
+	if (!r) {
+		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_obj = NULL;
+		r600_ring_init(rdev, &rdev->ring[R600_RING_TYPE_UVD_INDEX],
+			       4096);
+	}
+
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
 
@@ -3843,6 +4112,7 @@ void evergreen_fini(struct radeon_device *rdev)
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	evergreen_pcie_gart_fini(rdev);
+	radeon_uvd_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
@@ -3878,7 +4148,7 @@ void evergreen_pcie_gen2_enable(struct radeon_device *rdev)
 	if (!(mask & DRM_PCIE_SPEED_50))
 		return;
 
-	speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+	speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 	if (speed_cntl & LC_CURRENT_DATA_RATE) {
 		DRM_INFO("PCIE gen 2 link speeds already enabled\n");
 		return;
@@ -3889,33 +4159,33 @@ void evergreen_pcie_gen2_enable(struct radeon_device *rdev)
 	if ((speed_cntl & LC_OTHER_SIDE_EVER_SENT_GEN2) ||
 	    (speed_cntl & LC_OTHER_SIDE_SUPPORTS_GEN2)) {
 
-		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 		link_width_cntl &= ~LC_UPCONFIGURE_DIS;
-		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 
-		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		speed_cntl &= ~LC_TARGET_LINK_SPEED_OVERRIDE_EN;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
-		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		speed_cntl |= LC_CLR_FAILED_SPD_CHANGE_CNT;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
-		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		speed_cntl &= ~LC_CLR_FAILED_SPD_CHANGE_CNT;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
-		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		speed_cntl |= LC_GEN2_EN_STRAP;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
 	} else {
-		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 		/* XXX: only disable it if gen1 bridge vendor == 0x111d or 0x1106 */
 		if (1)
 			link_width_cntl |= LC_UPCONFIGURE_DIS;
 		else
 			link_width_cntl &= ~LC_UPCONFIGURE_DIS;
-		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 	}
 }

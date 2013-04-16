@@ -1211,6 +1211,7 @@ static void si_tiling_mode_table_init(struct radeon_device *rdev)
 				gb_tile_moden = 0;
 				break;
 			}
+			rdev->config.si.tile_mode_array[reg_offset] = gb_tile_moden;
 			WREG32(GB_TILE_MODE0 + (reg_offset * 4), gb_tile_moden);
 		}
 	} else if ((rdev->family == CHIP_VERDE) ||
@@ -1451,6 +1452,7 @@ static void si_tiling_mode_table_init(struct radeon_device *rdev)
 				gb_tile_moden = 0;
 				break;
 			}
+			rdev->config.si.tile_mode_array[reg_offset] = gb_tile_moden;
 			WREG32(GB_TILE_MODE0 + (reg_offset * 4), gb_tile_moden);
 		}
 	} else
@@ -1765,9 +1767,13 @@ static void si_gpu_init(struct radeon_device *rdev)
 
 	WREG32(GB_ADDR_CONFIG, gb_addr_config);
 	WREG32(DMIF_ADDR_CONFIG, gb_addr_config);
+	WREG32(DMIF_ADDR_CALC, gb_addr_config);
 	WREG32(HDP_ADDR_CONFIG, gb_addr_config);
 	WREG32(DMA_TILING_CONFIG + DMA0_REGISTER_OFFSET, gb_addr_config);
 	WREG32(DMA_TILING_CONFIG + DMA1_REGISTER_OFFSET, gb_addr_config);
+	WREG32(UVD_UDEC_ADDR_CONFIG, gb_addr_config);
+	WREG32(UVD_UDEC_DB_ADDR_CONFIG, gb_addr_config);
+	WREG32(UVD_UDEC_DBW_ADDR_CONFIG, gb_addr_config);
 
 	si_tiling_mode_table_init(rdev);
 
@@ -2538,46 +2544,6 @@ static void si_mc_program(struct radeon_device *rdev)
 	rv515_vga_render_disable(rdev);
 }
 
-/* SI MC address space is 40 bits */
-static void si_vram_location(struct radeon_device *rdev,
-			     struct radeon_mc *mc, u64 base)
-{
-	mc->vram_start = base;
-	if (mc->mc_vram_size > (0xFFFFFFFFFFULL - base + 1)) {
-		dev_warn(rdev->dev, "limiting VRAM to PCI aperture size\n");
-		mc->real_vram_size = mc->aper_size;
-		mc->mc_vram_size = mc->aper_size;
-	}
-	mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
-	dev_info(rdev->dev, "VRAM: %lluM 0x%016llX - 0x%016llX (%lluM used)\n",
-			mc->mc_vram_size >> 20, mc->vram_start,
-			mc->vram_end, mc->real_vram_size >> 20);
-}
-
-static void si_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
-{
-	u64 size_af, size_bf;
-
-	size_af = ((0xFFFFFFFFFFULL - mc->vram_end) + mc->gtt_base_align) & ~mc->gtt_base_align;
-	size_bf = mc->vram_start & ~mc->gtt_base_align;
-	if (size_bf > size_af) {
-		if (mc->gtt_size > size_bf) {
-			dev_warn(rdev->dev, "limiting GTT\n");
-			mc->gtt_size = size_bf;
-		}
-		mc->gtt_start = (mc->vram_start & ~mc->gtt_base_align) - mc->gtt_size;
-	} else {
-		if (mc->gtt_size > size_af) {
-			dev_warn(rdev->dev, "limiting GTT\n");
-			mc->gtt_size = size_af;
-		}
-		mc->gtt_start = (mc->vram_end + 1 + mc->gtt_base_align) & ~mc->gtt_base_align;
-	}
-	mc->gtt_end = mc->gtt_start + mc->gtt_size - 1;
-	dev_info(rdev->dev, "GTT: %lluM 0x%016llX - 0x%016llX\n",
-			mc->gtt_size >> 20, mc->gtt_start, mc->gtt_end);
-}
-
 static void si_vram_gtt_location(struct radeon_device *rdev,
 				 struct radeon_mc *mc)
 {
@@ -2587,9 +2553,9 @@ static void si_vram_gtt_location(struct radeon_device *rdev,
 		mc->real_vram_size = 0xFFC0000000ULL;
 		mc->mc_vram_size = 0xFFC0000000ULL;
 	}
-	si_vram_location(rdev, &rdev->mc, 0);
+	radeon_vram_location(rdev, &rdev->mc, 0);
 	rdev->mc.gtt_base_align = 0;
-	si_gtt_location(rdev, mc);
+	radeon_gtt_location(rdev, mc);
 }
 
 static int si_mc_init(struct radeon_device *rdev)
@@ -4322,14 +4288,6 @@ static int si_startup(struct radeon_device *rdev)
 		return r;
 	si_gpu_init(rdev);
 
-#if 0
-	r = evergreen_blit_init(rdev);
-	if (r) {
-		r600_blit_fini(rdev);
-		rdev->asic->copy = NULL;
-		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
-	}
-#endif
 	/* allocate rlc buffers */
 	r = si_rlc_init(rdev);
 	if (r) {
@@ -4371,6 +4329,16 @@ static int si_startup(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed initializing DMA fences (%d).\n", r);
 		return r;
 	}
+
+	r = rv770_uvd_resume(rdev);
+	if (!r) {
+		r = radeon_fence_driver_start_ring(rdev,
+						   R600_RING_TYPE_UVD_INDEX);
+		if (r)
+			dev_err(rdev->dev, "UVD fences init error (%d).\n", r);
+	}
+	if (r)
+		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
 
 	/* Enable IRQ */
 	r = si_irq_init(rdev);
@@ -4429,6 +4397,18 @@ static int si_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+	if (ring->ring_size) {
+		r = radeon_ring_init(rdev, ring, ring->ring_size,
+				     R600_WB_UVD_RPTR_OFFSET,
+				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
+				     0, 0xfffff, RADEON_CP_PACKET2);
+		if (!r)
+			r = r600_uvd_init(rdev);
+		if (r)
+			DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
+	}
+
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
@@ -4472,6 +4452,8 @@ int si_suspend(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	si_cp_enable(rdev, false);
 	cayman_dma_stop(rdev);
+	r600_uvd_rbc_stop(rdev);
+	radeon_uvd_suspend(rdev);
 	si_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	si_pcie_gart_disable(rdev);
@@ -4557,6 +4539,13 @@ int si_init(struct radeon_device *rdev)
 	ring->ring_obj = NULL;
 	r600_ring_init(rdev, ring, 64 * 1024);
 
+	r = radeon_uvd_init(rdev);
+	if (!r) {
+		ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+		ring->ring_obj = NULL;
+		r600_ring_init(rdev, ring, 4096);
+	}
+
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
 
@@ -4594,9 +4583,6 @@ int si_init(struct radeon_device *rdev)
 
 void si_fini(struct radeon_device *rdev)
 {
-#if 0
-	r600_blit_fini(rdev);
-#endif
 	si_cp_fini(rdev);
 	cayman_dma_fini(rdev);
 	si_irq_fini(rdev);
@@ -4605,6 +4591,7 @@ void si_fini(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
+	radeon_uvd_fini(rdev);
 	si_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
@@ -4633,4 +4620,171 @@ uint64_t si_get_gpu_clock_counter(struct radeon_device *rdev)
 	        ((uint64_t)RREG32(RLC_GPU_CLOCK_COUNT_MSB) << 32ULL);
 	mutex_unlock(&rdev->gpu_clock_mutex);
 	return clock;
+}
+
+static int si_uvd_calc_post_div(unsigned target_freq,
+				unsigned vco_freq,
+				unsigned *div)
+{
+	/* target larger than vco frequency ? */
+	if (vco_freq < target_freq)
+		return -1; /* forget it */
+
+	/* Fclk = Fvco / PDIV */
+	*div = vco_freq / target_freq;
+
+	/* we alway need a frequency less than or equal the target */
+	if ((vco_freq / *div) > target_freq)
+		*div += 1;
+
+	/* dividers above 5 must be even */
+	if (*div > 5 && *div % 2)
+		*div += 1;
+
+	/* out of range ? */
+	if (*div >= 128)
+		return -1; /* forget it */
+
+	return vco_freq / *div;
+}
+
+static int si_uvd_send_upll_ctlreq(struct radeon_device *rdev)
+{
+	unsigned i;
+
+	/* assert UPLL_CTLREQ */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_CTLREQ_MASK, ~UPLL_CTLREQ_MASK);
+
+	/* wait for CTLACK and CTLACK2 to get asserted */
+	for (i = 0; i < 100; ++i) {
+		uint32_t mask = UPLL_CTLACK_MASK | UPLL_CTLACK2_MASK;
+		if ((RREG32(CG_UPLL_FUNC_CNTL) & mask) == mask)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
+
+	/* deassert UPLL_CTLREQ */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_CTLREQ_MASK);
+
+	return 0;
+}
+
+int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
+{
+	/* start off with something large */
+	int optimal_diff_score = 0x7FFFFFF;
+	unsigned optimal_fb_div = 0, optimal_vclk_div = 0;
+	unsigned optimal_dclk_div = 0, optimal_vco_freq = 0;
+	unsigned vco_freq;
+	int r;
+
+	/* loop through vco from low to high */
+	for (vco_freq = 125000; vco_freq <= 250000; vco_freq += 100) {
+		unsigned fb_div = vco_freq / rdev->clock.spll.reference_freq * 16384;
+		int calc_clk, diff_score, diff_vclk, diff_dclk;
+		unsigned vclk_div, dclk_div;
+
+		/* fb div out of range ? */
+		if (fb_div > 0x03FFFFFF)
+			break; /* it can oly get worse */
+
+		/* calc vclk with current vco freq. */
+		calc_clk = si_uvd_calc_post_div(vclk, vco_freq, &vclk_div);
+		if (calc_clk == -1)
+			break; /* vco is too big, it has to stop. */
+		diff_vclk = vclk - calc_clk;
+
+		/* calc dclk with current vco freq. */
+		calc_clk = si_uvd_calc_post_div(dclk, vco_freq, &dclk_div);
+		if (calc_clk == -1)
+			break; /* vco is too big, it has to stop. */
+		diff_dclk = dclk - calc_clk;
+
+		/* determine if this vco setting is better than current optimal settings */
+		diff_score = abs(diff_vclk) + abs(diff_dclk);
+		if (diff_score < optimal_diff_score) {
+			optimal_fb_div = fb_div;
+			optimal_vclk_div = vclk_div;
+			optimal_dclk_div = dclk_div;
+			optimal_vco_freq = vco_freq;
+			optimal_diff_score = diff_score;
+			if (optimal_diff_score == 0)
+				break; /* it can't get better than this */
+		}
+	}
+
+	/* set RESET_ANTI_MUX to 0 */
+	WREG32_P(CG_UPLL_FUNC_CNTL_5, 0, ~RESET_ANTI_MUX_MASK);
+
+	/* set VCO_MODE to 1 */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_VCO_MODE_MASK, ~UPLL_VCO_MODE_MASK);
+
+	/* toggle UPLL_SLEEP to 1 then back to 0 */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_SLEEP_MASK, ~UPLL_SLEEP_MASK);
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_SLEEP_MASK);
+
+	/* deassert UPLL_RESET */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_RESET_MASK);
+
+	mdelay(1);
+
+	/* bypass vclk and dclk with bclk */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		VCLK_SRC_SEL(1) | DCLK_SRC_SEL(1),
+		~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
+
+	/* put PLL in bypass mode */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_BYPASS_EN_MASK, ~UPLL_BYPASS_EN_MASK);
+
+	r = si_uvd_send_upll_ctlreq(rdev);
+	if (r)
+		return r;
+
+	/* assert UPLL_RESET again */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_RESET_MASK, ~UPLL_RESET_MASK);
+
+	/* disable spread spectrum. */
+	WREG32_P(CG_UPLL_SPREAD_SPECTRUM, 0, ~SSEN_MASK);
+
+	/* set feedback divider */
+	WREG32_P(CG_UPLL_FUNC_CNTL_3, UPLL_FB_DIV(optimal_fb_div), ~UPLL_FB_DIV_MASK);
+
+	/* set ref divider to 0 */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_REF_DIV_MASK);
+
+	if (optimal_vco_freq < 187500)
+		WREG32_P(CG_UPLL_FUNC_CNTL_4, 0, ~UPLL_SPARE_ISPARE9);
+	else
+		WREG32_P(CG_UPLL_FUNC_CNTL_4, UPLL_SPARE_ISPARE9, ~UPLL_SPARE_ISPARE9);
+
+	/* set PDIV_A and PDIV_B */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		UPLL_PDIV_A(optimal_vclk_div) | UPLL_PDIV_B(optimal_dclk_div),
+		~(UPLL_PDIV_A_MASK | UPLL_PDIV_B_MASK));
+
+	/* give the PLL some time to settle */
+	mdelay(15);
+
+	/* deassert PLL_RESET */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_RESET_MASK);
+
+	mdelay(15);
+
+	/* switch from bypass mode to normal mode */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_BYPASS_EN_MASK);
+
+	r = si_uvd_send_upll_ctlreq(rdev);
+	if (r)
+		return r;
+
+	/* switch VCLK and DCLK selection */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		VCLK_SRC_SEL(2) | DCLK_SRC_SEL(2),
+		~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
+
+	mdelay(100);
+
+	return 0;
 }

@@ -321,8 +321,10 @@ void radeon_bo_force_delete(struct radeon_device *rdev)
 int radeon_bo_init(struct radeon_device *rdev)
 {
 	/* Add an MTRR for the VRAM */
-	rdev->mc.vram_mtrr = mtrr_add(rdev->mc.aper_base, rdev->mc.aper_size,
+	if (!rdev->fastfb_working) {
+		rdev->mc.vram_mtrr = mtrr_add(rdev->mc.aper_base, rdev->mc.aper_size,
 			MTRR_TYPE_WRCOMB, 1);
+	}
 	DRM_INFO("Detected VRAM RAM=%lluM, BAR=%lluM\n",
 		rdev->mc.mc_vram_size >> 20,
 		(unsigned long long)rdev->mc.aper_size >> 20);
@@ -339,14 +341,14 @@ void radeon_bo_fini(struct radeon_device *rdev)
 void radeon_bo_list_add_object(struct radeon_bo_list *lobj,
 				struct list_head *head)
 {
-	if (lobj->wdomain) {
+	if (lobj->written) {
 		list_add(&lobj->tv.head, head);
 	} else {
 		list_add_tail(&lobj->tv.head, head);
 	}
 }
 
-int radeon_bo_list_validate(struct list_head *head)
+int radeon_bo_list_validate(struct list_head *head, int ring)
 {
 	struct radeon_bo_list *lobj;
 	struct radeon_bo *bo;
@@ -360,15 +362,17 @@ int radeon_bo_list_validate(struct list_head *head)
 	list_for_each_entry(lobj, head, tv.head) {
 		bo = lobj->bo;
 		if (!bo->pin_count) {
-			domain = lobj->wdomain ? lobj->wdomain : lobj->rdomain;
+			domain = lobj->domain;
 			
 		retry:
 			radeon_ttm_placement_from_domain(bo, domain);
+			if (ring == R600_RING_TYPE_UVD_INDEX)
+				radeon_uvd_force_into_uvd_segment(bo);
 			r = ttm_bo_validate(&bo->tbo, &bo->placement,
 						true, false);
 			if (unlikely(r)) {
-				if (r != -ERESTARTSYS && domain == RADEON_GEM_DOMAIN_VRAM) {
-					domain |= RADEON_GEM_DOMAIN_GTT;
+				if (r != -ERESTARTSYS && domain != lobj->alt_domain) {
+					domain = lobj->alt_domain;
 					goto retry;
 				}
 				return r;

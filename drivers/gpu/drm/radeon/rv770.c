@@ -42,6 +42,162 @@
 static void rv770_gpu_init(struct radeon_device *rdev);
 void rv770_fini(struct radeon_device *rdev);
 static void rv770_pcie_gen2_enable(struct radeon_device *rdev);
+int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk);
+
+static int rv770_uvd_calc_post_div(unsigned target_freq,
+				   unsigned vco_freq,
+				   unsigned *div)
+{
+	/* Fclk = Fvco / PDIV */
+	*div = vco_freq / target_freq;
+
+	/* we alway need a frequency less than or equal the target */
+	if ((vco_freq / *div) > target_freq)
+		*div += 1;
+
+	/* out of range ? */
+	if (*div > 30)
+		return -1; /* forget it */
+
+	*div -= 1;
+	return vco_freq / (*div + 1);
+}
+
+static int rv770_uvd_send_upll_ctlreq(struct radeon_device *rdev)
+{
+	unsigned i;
+
+	/* assert UPLL_CTLREQ */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_CTLREQ_MASK, ~UPLL_CTLREQ_MASK);
+
+	/* wait for CTLACK and CTLACK2 to get asserted */
+	for (i = 0; i < 100; ++i) {
+		uint32_t mask = UPLL_CTLACK_MASK | UPLL_CTLACK2_MASK;
+		if ((RREG32(CG_UPLL_FUNC_CNTL) & mask) == mask)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
+
+	/* deassert UPLL_CTLREQ */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_CTLREQ_MASK);
+
+	return 0;
+}
+
+int rv770_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
+{
+	/* start off with something large */
+	int optimal_diff_score = 0x7FFFFFF;
+	unsigned optimal_fb_div = 0, optimal_vclk_div = 0;
+	unsigned optimal_dclk_div = 0, optimal_vco_freq = 0;
+	unsigned vco_freq, vco_min = 50000, vco_max = 160000;
+	unsigned ref_freq = rdev->clock.spll.reference_freq;
+	int r;
+
+	/* RV740 uses evergreen uvd clk programming */
+	if (rdev->family == CHIP_RV740)
+		return evergreen_set_uvd_clocks(rdev, vclk, dclk);
+
+	/* loop through vco from low to high */
+	vco_min = max(max(vco_min, vclk), dclk);
+	for (vco_freq = vco_min; vco_freq <= vco_max; vco_freq += 500) {
+		uint64_t fb_div = (uint64_t)vco_freq * 43663;
+		int calc_clk, diff_score, diff_vclk, diff_dclk;
+		unsigned vclk_div, dclk_div;
+
+		do_div(fb_div, ref_freq);
+		fb_div |= 1;
+
+		/* fb div out of range ? */
+		if (fb_div > 0x03FFFFFF)
+			break; /* it can oly get worse */
+
+		/* calc vclk with current vco freq. */
+		calc_clk = rv770_uvd_calc_post_div(vclk, vco_freq, &vclk_div);
+		if (calc_clk == -1)
+			break; /* vco is too big, it has to stop. */
+		diff_vclk = vclk - calc_clk;
+
+		/* calc dclk with current vco freq. */
+		calc_clk = rv770_uvd_calc_post_div(dclk, vco_freq, &dclk_div);
+		if (calc_clk == -1)
+			break; /* vco is too big, it has to stop. */
+		diff_dclk = dclk - calc_clk;
+
+		/* determine if this vco setting is better than current optimal settings */
+		diff_score = abs(diff_vclk) + abs(diff_dclk);
+		if (diff_score < optimal_diff_score) {
+			optimal_fb_div = fb_div;
+			optimal_vclk_div = vclk_div;
+			optimal_dclk_div = dclk_div;
+			optimal_vco_freq = vco_freq;
+			optimal_diff_score = diff_score;
+			if (optimal_diff_score == 0)
+				break; /* it can't get better than this */
+		}
+	}
+
+	/* bypass vclk and dclk with bclk */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		 VCLK_SRC_SEL(1) | DCLK_SRC_SEL(1),
+		 ~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
+
+	/* set UPLL_FB_DIV to 0x50000 */
+	WREG32_P(CG_UPLL_FUNC_CNTL_3, UPLL_FB_DIV(0x50000), ~UPLL_FB_DIV_MASK);
+
+	/* deassert UPLL_RESET */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_RESET_MASK);
+
+	/* assert BYPASS EN and FB_DIV[0] <- ??? why? */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_BYPASS_EN_MASK, ~UPLL_BYPASS_EN_MASK);
+	WREG32_P(CG_UPLL_FUNC_CNTL_3, UPLL_FB_DIV(1), ~UPLL_FB_DIV(1));
+
+	r = rv770_uvd_send_upll_ctlreq(rdev);
+	if (r)
+		return r;
+
+	/* assert PLL_RESET */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_RESET_MASK, ~UPLL_RESET_MASK);
+
+	/* set the required FB_DIV, REF_DIV, Post divder values */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_REF_DIV(1), ~UPLL_REF_DIV_MASK);
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		 UPLL_SW_HILEN(optimal_vclk_div >> 1) |
+		 UPLL_SW_LOLEN((optimal_vclk_div >> 1) + (optimal_vclk_div & 1)) |
+		 UPLL_SW_HILEN2(optimal_dclk_div >> 1) |
+		 UPLL_SW_LOLEN2((optimal_dclk_div >> 1) + (optimal_dclk_div & 1)),
+		 ~UPLL_SW_MASK);
+
+	WREG32_P(CG_UPLL_FUNC_CNTL_3, UPLL_FB_DIV(optimal_fb_div),
+		 ~UPLL_FB_DIV_MASK);
+
+	/* give the PLL some time to settle */
+	mdelay(15);
+
+	/* deassert PLL_RESET */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_RESET_MASK);
+
+	mdelay(15);
+
+	/* deassert BYPASS EN and FB_DIV[0] <- ??? why? */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_BYPASS_EN_MASK);
+	WREG32_P(CG_UPLL_FUNC_CNTL_3, 0, ~UPLL_FB_DIV(1));
+
+	r = rv770_uvd_send_upll_ctlreq(rdev);
+	if (r)
+		return r;
+
+	/* switch VCLK and DCLK selection */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		 VCLK_SRC_SEL(2) | DCLK_SRC_SEL(2),
+		 ~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
+
+	mdelay(100);
+
+	return 0;
+}
 
 #define PCIE_BUS_CLK                10000
 #define TCLK                        (PCIE_BUS_CLK / 10)
@@ -66,6 +222,105 @@ u32 rv770_get_xclk(struct radeon_device *rdev)
 		return reference_clock / 4;
 
 	return reference_clock;
+}
+
+int rv770_uvd_resume(struct radeon_device *rdev)
+{
+	uint64_t addr;
+	uint32_t chip_id, size;
+	int r;
+
+	r = radeon_uvd_resume(rdev);
+	if (r)
+		return r;
+
+	/* programm the VCPU memory controller bits 0-27 */
+	addr = rdev->uvd.gpu_addr >> 3;
+	size = RADEON_GPU_PAGE_ALIGN(rdev->uvd_fw->size + 4) >> 3;
+	WREG32(UVD_VCPU_CACHE_OFFSET0, addr);
+	WREG32(UVD_VCPU_CACHE_SIZE0, size);
+
+	addr += size;
+	size = RADEON_UVD_STACK_SIZE >> 3;
+	WREG32(UVD_VCPU_CACHE_OFFSET1, addr);
+	WREG32(UVD_VCPU_CACHE_SIZE1, size);
+
+	addr += size;
+	size = RADEON_UVD_HEAP_SIZE >> 3;
+	WREG32(UVD_VCPU_CACHE_OFFSET2, addr);
+	WREG32(UVD_VCPU_CACHE_SIZE2, size);
+
+	/* bits 28-31 */
+	addr = (rdev->uvd.gpu_addr >> 28) & 0xF;
+	WREG32(UVD_LMI_ADDR_EXT, (addr << 12) | (addr << 0));
+
+	/* bits 32-39 */
+	addr = (rdev->uvd.gpu_addr >> 32) & 0xFF;
+	WREG32(UVD_LMI_EXT40_ADDR, addr | (0x9 << 16) | (0x1 << 31));
+
+	/* tell firmware which hardware it is running on */
+	switch (rdev->family) {
+	default:
+		return -EINVAL;
+	case CHIP_RV710:
+		chip_id = 0x01000005;
+		break;
+	case CHIP_RV730:
+		chip_id = 0x01000006;
+		break;
+	case CHIP_RV740:
+		chip_id = 0x01000007;
+		break;
+	case CHIP_CYPRESS:
+	case CHIP_HEMLOCK:
+		chip_id = 0x01000008;
+		break;
+	case CHIP_JUNIPER:
+		chip_id = 0x01000009;
+		break;
+	case CHIP_REDWOOD:
+		chip_id = 0x0100000a;
+		break;
+	case CHIP_CEDAR:
+		chip_id = 0x0100000b;
+		break;
+	case CHIP_SUMO:
+		chip_id = 0x0100000c;
+		break;
+	case CHIP_SUMO2:
+		chip_id = 0x0100000d;
+		break;
+	case CHIP_PALM:
+		chip_id = 0x0100000e;
+		break;
+	case CHIP_CAYMAN:
+		chip_id = 0x0100000f;
+		break;
+	case CHIP_BARTS:
+		chip_id = 0x01000010;
+		break;
+	case CHIP_TURKS:
+		chip_id = 0x01000011;
+		break;
+	case CHIP_CAICOS:
+		chip_id = 0x01000012;
+		break;
+	case CHIP_TAHITI:
+		chip_id = 0x01000014;
+		break;
+	case CHIP_VERDE:
+		chip_id = 0x01000015;
+		break;
+	case CHIP_PITCAIRN:
+		chip_id = 0x01000016;
+		break;
+	case CHIP_ARUBA:
+		chip_id = 0x01000017;
+		break;
+	}
+	WREG32(UVD_VCPU_CHIP_ID, chip_id);
+
+	return 0;
 }
 
 u32 rv770_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
@@ -611,6 +866,11 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 	WREG32(HDP_TILING_CONFIG, (gb_tiling_config & 0xffff));
 	WREG32(DMA_TILING_CONFIG, (gb_tiling_config & 0xffff));
 	WREG32(DMA_TILING_CONFIG2, (gb_tiling_config & 0xffff));
+	if (rdev->family == CHIP_RV730) {
+		WREG32(UVD_UDEC_DB_TILING_CONFIG, (gb_tiling_config & 0xffff));
+		WREG32(UVD_UDEC_DBW_TILING_CONFIG, (gb_tiling_config & 0xffff));
+		WREG32(UVD_UDEC_TILING_CONFIG, (gb_tiling_config & 0xffff));
+	}
 
 	WREG32(CGTS_SYS_TCC_DISABLE, 0);
 	WREG32(CGTS_TCC_DISABLE, 0);
@@ -840,7 +1100,7 @@ void r700_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 	}
 	if (rdev->flags & RADEON_IS_AGP) {
 		size_bf = mc->gtt_start;
-		size_af = 0xFFFFFFFF - mc->gtt_end;
+		size_af = mc->mc_mask - mc->gtt_end;
 		if (size_bf > size_af) {
 			if (mc->mc_vram_size > size_bf) {
 				dev_warn(rdev->dev, "limiting VRAM\n");
@@ -1040,6 +1300,17 @@ static int rv770_startup(struct radeon_device *rdev)
 		return r;
 	}
 
+	r = rv770_uvd_resume(rdev);
+	if (!r) {
+		r = radeon_fence_driver_start_ring(rdev,
+						   R600_RING_TYPE_UVD_INDEX);
+		if (r)
+			dev_err(rdev->dev, "UVD fences init error (%d).\n", r);
+	}
+
+	if (r)
+		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
+
 	/* Enable IRQ */
 	r = r600_irq_init(rdev);
 	if (r) {
@@ -1073,6 +1344,19 @@ static int rv770_startup(struct radeon_device *rdev)
 	r = r600_dma_resume(rdev);
 	if (r)
 		return r;
+
+	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+	if (ring->ring_size) {
+		r = radeon_ring_init(rdev, ring, ring->ring_size,
+				     R600_WB_UVD_RPTR_OFFSET,
+				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
+				     0, 0xfffff, RADEON_CP_PACKET2);
+		if (!r)
+			r = r600_uvd_init(rdev);
+
+		if (r)
+			DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
+	}
 
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
@@ -1115,6 +1399,7 @@ int rv770_resume(struct radeon_device *rdev)
 int rv770_suspend(struct radeon_device *rdev)
 {
 	r600_audio_fini(rdev);
+	radeon_uvd_suspend(rdev);
 	r700_cp_stop(rdev);
 	r600_dma_stop(rdev);
 	r600_irq_suspend(rdev);
@@ -1190,6 +1475,13 @@ int rv770_init(struct radeon_device *rdev)
 	rdev->ring[R600_RING_TYPE_DMA_INDEX].ring_obj = NULL;
 	r600_ring_init(rdev, &rdev->ring[R600_RING_TYPE_DMA_INDEX], 64 * 1024);
 
+	r = radeon_uvd_init(rdev);
+	if (!r) {
+		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_obj = NULL;
+		r600_ring_init(rdev, &rdev->ring[R600_RING_TYPE_UVD_INDEX],
+			       4096);
+	}
+
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
 
@@ -1224,6 +1516,7 @@ void rv770_fini(struct radeon_device *rdev)
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	rv770_pcie_gart_fini(rdev);
+	radeon_uvd_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
@@ -1264,23 +1557,23 @@ static void rv770_pcie_gen2_enable(struct radeon_device *rdev)
 	DRM_INFO("enabling PCIE gen 2 link speeds, disable with radeon.pcie_gen2=0\n");
 
 	/* advertise upconfig capability */
-	link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+	link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 	link_width_cntl &= ~LC_UPCONFIGURE_DIS;
-	WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
-	link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+	WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+	link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 	if (link_width_cntl & LC_RENEGOTIATION_SUPPORT) {
 		lanes = (link_width_cntl & LC_LINK_WIDTH_RD_MASK) >> LC_LINK_WIDTH_RD_SHIFT;
 		link_width_cntl &= ~(LC_LINK_WIDTH_MASK |
 				     LC_RECONFIG_ARC_MISSING_ESCAPE);
 		link_width_cntl |= lanes | LC_RECONFIG_NOW |
 			LC_RENEGOTIATE_EN | LC_UPCONFIGURE_SUPPORT;
-		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 	} else {
 		link_width_cntl |= LC_UPCONFIGURE_DIS;
-		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 	}
 
-	speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+	speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 	if ((speed_cntl & LC_OTHER_SIDE_EVER_SENT_GEN2) &&
 	    (speed_cntl & LC_OTHER_SIDE_SUPPORTS_GEN2)) {
 
@@ -1293,29 +1586,29 @@ static void rv770_pcie_gen2_enable(struct radeon_device *rdev)
 		WREG16(0x4088, link_cntl2);
 		WREG32(MM_CFGREGS_CNTL, 0);
 
-		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		speed_cntl &= ~LC_TARGET_LINK_SPEED_OVERRIDE_EN;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
-		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		speed_cntl |= LC_CLR_FAILED_SPD_CHANGE_CNT;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
-		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		speed_cntl &= ~LC_CLR_FAILED_SPD_CHANGE_CNT;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
-		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		speed_cntl |= LC_GEN2_EN_STRAP;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
 	} else {
-		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 		/* XXX: only disable it if gen1 bridge vendor == 0x111d or 0x1106 */
 		if (1)
 			link_width_cntl |= LC_UPCONFIGURE_DIS;
 		else
 			link_width_cntl &= ~LC_UPCONFIGURE_DIS;
-		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 	}
 }

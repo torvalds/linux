@@ -615,15 +615,28 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 	}
 	/* enabled rb are just the one not disabled :) */
 	disabled_rb_mask = tmp;
+	tmp = 0;
+	for (i = 0; i < (rdev->config.cayman.max_backends_per_se * rdev->config.cayman.max_shader_engines); i++)
+		tmp |= (1 << i);
+	/* if all the backends are disabled, fix it up here */
+	if ((disabled_rb_mask & tmp) == tmp) {
+		for (i = 0; i < (rdev->config.cayman.max_backends_per_se * rdev->config.cayman.max_shader_engines); i++)
+			disabled_rb_mask &= ~(1 << i);
+	}
 
 	WREG32(GRBM_GFX_INDEX, INSTANCE_BROADCAST_WRITES | SE_BROADCAST_WRITES);
 	WREG32(RLC_GFX_INDEX, INSTANCE_BROADCAST_WRITES | SE_BROADCAST_WRITES);
 
 	WREG32(GB_ADDR_CONFIG, gb_addr_config);
 	WREG32(DMIF_ADDR_CONFIG, gb_addr_config);
+	if (ASIC_IS_DCE6(rdev))
+		WREG32(DMIF_ADDR_CALC, gb_addr_config);
 	WREG32(HDP_ADDR_CONFIG, gb_addr_config);
 	WREG32(DMA_TILING_CONFIG + DMA0_REGISTER_OFFSET, gb_addr_config);
 	WREG32(DMA_TILING_CONFIG + DMA1_REGISTER_OFFSET, gb_addr_config);
+	WREG32(UVD_UDEC_ADDR_CONFIG, gb_addr_config);
+	WREG32(UVD_UDEC_DB_ADDR_CONFIG, gb_addr_config);
+	WREG32(UVD_UDEC_DBW_ADDR_CONFIG, gb_addr_config);
 
 	if ((rdev->config.cayman.max_backends_per_se == 1) &&
 	    (rdev->flags & RADEON_IS_IGP)) {
@@ -929,6 +942,23 @@ void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 	radeon_ring_write(ring, 0xFFFFFFFF);
 	radeon_ring_write(ring, 0);
 	radeon_ring_write(ring, 10); /* poll interval */
+}
+
+void cayman_uvd_semaphore_emit(struct radeon_device *rdev,
+			       struct radeon_ring *ring,
+			       struct radeon_semaphore *semaphore,
+			       bool emit_wait)
+{
+	uint64_t addr = semaphore->gpu_addr;
+
+	radeon_ring_write(ring, PACKET0(UVD_SEMA_ADDR_LOW, 0));
+	radeon_ring_write(ring, (addr >> 3) & 0x000FFFFF);
+
+	radeon_ring_write(ring, PACKET0(UVD_SEMA_ADDR_HIGH, 0));
+	radeon_ring_write(ring, (addr >> 23) & 0x000FFFFF);
+
+	radeon_ring_write(ring, PACKET0(UVD_SEMA_CMD, 0));
+	radeon_ring_write(ring, 0x80 | (emit_wait ? 1 : 0));
 }
 
 static void cayman_cp_enable(struct radeon_device *rdev, bool enable)
@@ -1682,6 +1712,16 @@ static int cayman_startup(struct radeon_device *rdev)
 		return r;
 	}
 
+	r = rv770_uvd_resume(rdev);
+	if (!r) {
+		r = radeon_fence_driver_start_ring(rdev,
+						   R600_RING_TYPE_UVD_INDEX);
+		if (r)
+			dev_err(rdev->dev, "UVD fences init error (%d).\n", r);
+	}
+	if (r)
+		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
+
 	r = radeon_fence_driver_start_ring(rdev, CAYMAN_RING_TYPE_CP1_INDEX);
 	if (r) {
 		dev_err(rdev->dev, "failed initializing CP fences (%d).\n", r);
@@ -1748,6 +1788,18 @@ static int cayman_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
+	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+	if (ring->ring_size) {
+		r = radeon_ring_init(rdev, ring, ring->ring_size,
+				     R600_WB_UVD_RPTR_OFFSET,
+				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
+				     0, 0xfffff, RADEON_CP_PACKET2);
+		if (!r)
+			r = r600_uvd_init(rdev);
+		if (r)
+			DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
+	}
+
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
@@ -1794,6 +1846,8 @@ int cayman_suspend(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	cayman_cp_enable(rdev, false);
 	cayman_dma_stop(rdev);
+	r600_uvd_rbc_stop(rdev);
+	radeon_uvd_suspend(rdev);
 	evergreen_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	cayman_pcie_gart_disable(rdev);
@@ -1868,6 +1922,13 @@ int cayman_init(struct radeon_device *rdev)
 	ring->ring_obj = NULL;
 	r600_ring_init(rdev, ring, 64 * 1024);
 
+	r = radeon_uvd_init(rdev);
+	if (!r) {
+		ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+		ring->ring_obj = NULL;
+		r600_ring_init(rdev, ring, 4096);
+	}
+
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
 
@@ -1919,6 +1980,7 @@ void cayman_fini(struct radeon_device *rdev)
 	radeon_vm_manager_fini(rdev);
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
+	radeon_uvd_fini(rdev);
 	cayman_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
@@ -2017,28 +2079,57 @@ void cayman_vm_set_page(struct radeon_device *rdev,
 			}
 		}
 	} else {
-		while (count) {
-			ndw = count * 2;
-			if (ndw > 0xFFFFE)
-				ndw = 0xFFFFE;
+		if ((flags & RADEON_VM_PAGE_SYSTEM) ||
+		    (count == 1)) {
+			while (count) {
+				ndw = count * 2;
+				if (ndw > 0xFFFFE)
+					ndw = 0xFFFFE;
 
-			/* for non-physically contiguous pages (system) */
-			ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_WRITE, 0, 0, ndw);
-			ib->ptr[ib->length_dw++] = pe;
-			ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
-			for (; ndw > 0; ndw -= 2, --count, pe += 8) {
-				if (flags & RADEON_VM_PAGE_SYSTEM) {
-					value = radeon_vm_map_gart(rdev, addr);
-					value &= 0xFFFFFFFFFFFFF000ULL;
-				} else if (flags & RADEON_VM_PAGE_VALID) {
-					value = addr;
-				} else {
-					value = 0;
+				/* for non-physically contiguous pages (system) */
+				ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_WRITE, 0, 0, ndw);
+				ib->ptr[ib->length_dw++] = pe;
+				ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+				for (; ndw > 0; ndw -= 2, --count, pe += 8) {
+					if (flags & RADEON_VM_PAGE_SYSTEM) {
+						value = radeon_vm_map_gart(rdev, addr);
+						value &= 0xFFFFFFFFFFFFF000ULL;
+					} else if (flags & RADEON_VM_PAGE_VALID) {
+						value = addr;
+					} else {
+						value = 0;
+					}
+					addr += incr;
+					value |= r600_flags;
+					ib->ptr[ib->length_dw++] = value;
+					ib->ptr[ib->length_dw++] = upper_32_bits(value);
 				}
-				addr += incr;
-				value |= r600_flags;
-				ib->ptr[ib->length_dw++] = value;
+			}
+			while (ib->length_dw & 0x7)
+				ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_NOP, 0, 0, 0);
+		} else {
+			while (count) {
+				ndw = count * 2;
+				if (ndw > 0xFFFFE)
+					ndw = 0xFFFFE;
+
+				if (flags & RADEON_VM_PAGE_VALID)
+					value = addr;
+				else
+					value = 0;
+				/* for physically contiguous pages (vram) */
+				ib->ptr[ib->length_dw++] = DMA_PTE_PDE_PACKET(ndw);
+				ib->ptr[ib->length_dw++] = pe; /* dst addr */
+				ib->ptr[ib->length_dw++] = upper_32_bits(pe) & 0xff;
+				ib->ptr[ib->length_dw++] = r600_flags; /* mask */
+				ib->ptr[ib->length_dw++] = 0;
+				ib->ptr[ib->length_dw++] = value; /* value */
 				ib->ptr[ib->length_dw++] = upper_32_bits(value);
+				ib->ptr[ib->length_dw++] = incr; /* increment size */
+				ib->ptr[ib->length_dw++] = 0;
+				pe += ndw * 4;
+				addr += (ndw / 2) * incr;
+				count -= ndw / 2;
 			}
 		}
 		while (ib->length_dw & 0x7)
