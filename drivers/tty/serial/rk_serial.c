@@ -64,8 +64,10 @@
 *v1.3 : 2012-12-14
 *		1. When enable Programmable THRE Interrupt Mode, in lsr register, only UART_LSR_TEMT means transmit empty, but
 		 UART_LSR_THRE doesn't. So, the macro BOTH_EMPTY should be replaced with UART_LSR_TEMT.
+*v1.4 : 2013-04-16
+*		1.fix bug dma buffer free error
 */
-#define VERSION_AND_TIME  "rk_serial.c v1.3 2012-12-14"
+#define VERSION_AND_TIME  "rk_serial.c v1.4 2013-04-16"
 
 #define PORT_RK		90
 #define UART_USR	0x1F	/* UART Status Register */
@@ -1349,8 +1351,8 @@ static void serial_rk_shutdown(struct uart_port *port)
 	 */
 	(void) serial_in(up, UART_RX);
 #if USE_DMA
-	//if (up->dma->use_dma & TX_DMA)
-	//	up->port.state->xmit.buf = NULL;
+	if (up->dma->use_dma & TX_DMA)
+		up->port.state->xmit.buf = NULL;
 #endif
 	free_irq(up->port.irq, up);
 	clk_disable(up->clk);
