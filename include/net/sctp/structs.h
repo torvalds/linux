@@ -991,8 +991,6 @@ struct sctp_inq {
 	 * messages.
 	 */
 	struct work_struct immediate;
-
-	int malloced;	     /* Is this structure kfree()able?	*/
 };
 
 void sctp_inq_init(struct sctp_inq *);
