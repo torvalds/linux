@@ -68,6 +68,7 @@ int matrix_keypad_parse_of_params(struct device *dev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(matrix_keypad_parse_of_params);
 
 static int matrix_keypad_parse_of_keymap(const char *propname,
 					 unsigned int rows, unsigned int cols,
