@@ -990,3 +990,4 @@ efi_status_t efi_query_variable_store(u32 attributes, unsigned long size)
 
 	return EFI_SUCCESS;
 }
+EXPORT_SYMBOL_GPL(efi_query_variable_store);
