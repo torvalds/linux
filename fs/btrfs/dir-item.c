@@ -442,8 +442,7 @@ int btrfs_delete_one_dir_name(struct btrfs_trans_handle *trans,
 		start = btrfs_item_ptr_offset(leaf, path->slots[0]);
 		memmove_extent_buffer(leaf, ptr, ptr + sub_item_len,
 			item_len - (ptr + sub_item_len - start));
-		btrfs_truncate_item(trans, root, path,
-				    item_len - sub_item_len, 1);
+		btrfs_truncate_item(root, path, item_len - sub_item_len, 1);
 	}
 	return ret;
 }

@@ -766,10 +766,9 @@ static void btrfs_delayed_inode_release_metadata(struct btrfs_root *root,
  * This helper will insert some continuous items into the same leaf according
  * to the free space of the leaf.
  */
-static int btrfs_batch_insert_items(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root,
-				struct btrfs_path *path,
-				struct btrfs_delayed_item *item)
+static int btrfs_batch_insert_items(struct btrfs_root *root,
+				    struct btrfs_path *path,
+				    struct btrfs_delayed_item *item)
 {
 	struct btrfs_delayed_item *curr, *next;
 	int free_space;
@@ -848,7 +847,7 @@ static int btrfs_batch_insert_items(struct btrfs_trans_handle *trans,
 	btrfs_clear_path_blocking(path, NULL, 0);
 
 	/* insert the keys of the items */
-	setup_items_for_insert(trans, root, path, keys, data_size,
+	setup_items_for_insert(root, path, keys, data_size,
 			       total_data_size, total_size, nitems);
 
 	/* insert the dir index items */
@@ -932,7 +931,7 @@ do_again:
 	if (curr && btrfs_is_continuous_delayed_item(prev, curr)) {
 		/* insert the continuous items into the same leaf */
 		path->slots[0]++;
-		btrfs_batch_insert_items(trans, root, path, curr);
+		btrfs_batch_insert_items(root, path, curr);
 	}
 	btrfs_release_delayed_item(prev);
 	btrfs_mark_buffer_dirty(path->nodes[0]);

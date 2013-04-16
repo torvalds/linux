@@ -246,7 +246,7 @@ int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
 	memmove_extent_buffer(leaf, ptr, ptr + del_len,
 			      item_size - (ptr + del_len - item_start));
 
-	btrfs_truncate_item(trans, root, path, item_size - del_len, 1);
+	btrfs_truncate_item(root, path, item_size - del_len, 1);
 
 out:
 	btrfs_free_path(path);
@@ -309,7 +309,7 @@ int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
 	item_start = btrfs_item_ptr_offset(leaf, path->slots[0]);
 	memmove_extent_buffer(leaf, ptr, ptr + sub_item_len,
 			      item_size - (ptr + sub_item_len - item_start));
-	btrfs_truncate_item(trans, root, path, item_size - sub_item_len, 1);
+	btrfs_truncate_item(root, path, item_size - sub_item_len, 1);
 out:
 	btrfs_free_path(path);
 
