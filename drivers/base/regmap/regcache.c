@@ -45,8 +45,8 @@ static int regcache_hw_init(struct regmap *map)
 		tmp_buf = kmalloc(map->cache_size_raw, GFP_KERNEL);
 		if (!tmp_buf)
 			return -EINVAL;
-		ret = regmap_bulk_read(map, 0, tmp_buf,
-				       map->num_reg_defaults_raw);
+		ret = regmap_raw_read(map, 0, tmp_buf,
+				      map->num_reg_defaults_raw);
 		map->cache_bypass = cache_bypass;
 		if (ret < 0) {
 			kfree(tmp_buf);
@@ -58,8 +58,7 @@ static int regcache_hw_init(struct regmap *map)
 
 	/* calculate the size of reg_defaults */
 	for (count = 0, i = 0; i < map->num_reg_defaults_raw; i++) {
-		val = regcache_get_val(map->reg_defaults_raw,
-				       i, map->cache_word_size);
+		val = regcache_get_val(map, map->reg_defaults_raw, i);
 		if (regmap_volatile(map, i * map->reg_stride))
 			continue;
 		count++;
@@ -75,8 +74,7 @@ static int regcache_hw_init(struct regmap *map)
 	/* fill the reg_defaults */
 	map->num_reg_defaults = count;
 	for (i = 0, j = 0; i < map->num_reg_defaults_raw; i++) {
-		val = regcache_get_val(map->reg_defaults_raw,
-				       i, map->cache_word_size);
+		val = regcache_get_val(map, map->reg_defaults_raw, i);
 		if (regmap_volatile(map, i * map->reg_stride))
 			continue;
 		map->reg_defaults[j].reg = i * map->reg_stride;
@@ -123,6 +121,8 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 	map->reg_defaults_raw = config->reg_defaults_raw;
 	map->cache_word_size = DIV_ROUND_UP(config->val_bits, 8);
 	map->cache_size_raw = map->cache_word_size * config->num_reg_defaults_raw;
+	map->cache_present = NULL;
+	map->cache_present_nbits = 0;
 
 	map->cache = NULL;
 	map->cache_ops = cache_types[i];
@@ -181,6 +181,7 @@ void regcache_exit(struct regmap *map)
 
 	BUG_ON(!map->cache_ops);
 
+	kfree(map->cache_present);
 	kfree(map->reg_defaults);
 	if (map->cache_free)
 		kfree(map->reg_defaults_raw);
@@ -417,28 +418,68 @@ void regcache_cache_bypass(struct regmap *map, bool enable)
 }
 EXPORT_SYMBOL_GPL(regcache_cache_bypass);
 
-bool regcache_set_val(void *base, unsigned int idx,
-		      unsigned int val, unsigned int word_size)
+int regcache_set_reg_present(struct regmap *map, unsigned int reg)
 {
-	switch (word_size) {
+	unsigned long *cache_present;
+	unsigned int cache_present_size;
+	unsigned int nregs;
+	int i;
+
+	nregs = reg + 1;
+	cache_present_size = BITS_TO_LONGS(nregs);
+	cache_present_size *= sizeof(long);
+
+	if (!map->cache_present) {
+		cache_present = kmalloc(cache_present_size, GFP_KERNEL);
+		if (!cache_present)
+			return -ENOMEM;
+		bitmap_zero(cache_present, nregs);
+		map->cache_present = cache_present;
+		map->cache_present_nbits = nregs;
+	}
+
+	if (nregs > map->cache_present_nbits) {
+		cache_present = krealloc(map->cache_present,
+					 cache_present_size, GFP_KERNEL);
+		if (!cache_present)
+			return -ENOMEM;
+		for (i = 0; i < nregs; i++)
+			if (i >= map->cache_present_nbits)
+				clear_bit(i, cache_present);
+		map->cache_present = cache_present;
+		map->cache_present_nbits = nregs;
+	}
+
+	set_bit(reg, map->cache_present);
+	return 0;
+}
+
+bool regcache_set_val(struct regmap *map, void *base, unsigned int idx,
+		      unsigned int val)
+{
+	if (regcache_get_val(map, base, idx) == val)
+		return true;
+
+	/* Use device native format if possible */
+	if (map->format.format_val) {
+		map->format.format_val(base + (map->cache_word_size * idx),
+				       val, 0);
+		return false;
+	}
+
+	switch (map->cache_word_size) {
 	case 1: {
 		u8 *cache = base;
-		if (cache[idx] == val)
-			return true;
 		cache[idx] = val;
 		break;
 	}
 	case 2: {
 		u16 *cache = base;
-		if (cache[idx] == val)
-			return true;
 		cache[idx] = val;
 		break;
 	}
 	case 4: {
 		u32 *cache = base;
-		if (cache[idx] == val)
-			return true;
 		cache[idx] = val;
 		break;
 	}
@@ -448,13 +489,18 @@ bool regcache_set_val(void *base, unsigned int idx,
 	return false;
 }
 
-unsigned int regcache_get_val(const void *base, unsigned int idx,
-			      unsigned int word_size)
+unsigned int regcache_get_val(struct regmap *map, const void *base,
+			      unsigned int idx)
 {
 	if (!base)
 		return -EINVAL;
 
-	switch (word_size) {
+	/* Use device native format if possible */
+	if (map->format.parse_val)
+		return map->format.parse_val(regcache_get_val_addr(map, base,
+								   idx));
+
+	switch (map->cache_word_size) {
 	case 1: {
 		const u8 *cache = base;
 		return cache[idx];
@@ -497,4 +543,118 @@ int regcache_lookup_reg(struct regmap *map, unsigned int reg)
 		return r - map->reg_defaults;
 	else
 		return -ENOENT;
+}
+
+static int regcache_sync_block_single(struct regmap *map, void *block,
+				      unsigned int block_base,
+				      unsigned int start, unsigned int end)
+{
+	unsigned int i, regtmp, val;
+	int ret;
+
+	for (i = start; i < end; i++) {
+		regtmp = block_base + (i * map->reg_stride);
+
+		if (!regcache_reg_present(map, regtmp))
+			continue;
+
+		val = regcache_get_val(map, block, i);
+
+		/* Is this the hardware default?  If so skip. */
+		ret = regcache_lookup_reg(map, regtmp);
+		if (ret >= 0 && val == map->reg_defaults[ret].def)
+			continue;
+
+		map->cache_bypass = 1;
+
+		ret = _regmap_write(map, regtmp, val);
+
+		map->cache_bypass = 0;
+		if (ret != 0)
+			return ret;
+		dev_dbg(map->dev, "Synced register %#x, value %#x\n",
+			regtmp, val);
+	}
+
+	return 0;
+}
+
+static int regcache_sync_block_raw_flush(struct regmap *map, const void **data,
+					 unsigned int base, unsigned int cur)
+{
+	size_t val_bytes = map->format.val_bytes;
+	int ret, count;
+
+	if (*data == NULL)
+		return 0;
+
+	count = cur - base;
+
+	dev_dbg(map->dev, "Writing %zu bytes for %d registers from 0x%x-0x%x\n",
+		count * val_bytes, count, base, cur - 1);
+
+	map->cache_bypass = 1;
+
+	ret = _regmap_raw_write(map, base, *data, count * val_bytes,
+				false);
+
+	map->cache_bypass = 0;
+
+	*data = NULL;
+
+	return ret;
+}
+
+static int regcache_sync_block_raw(struct regmap *map, void *block,
+			    unsigned int block_base, unsigned int start,
+			    unsigned int end)
+{
+	unsigned int i, val;
+	unsigned int regtmp = 0;
+	unsigned int base = 0;
+	const void *data = NULL;
+	int ret;
+
+	for (i = start; i < end; i++) {
+		regtmp = block_base + (i * map->reg_stride);
+
+		if (!regcache_reg_present(map, regtmp)) {
+			ret = regcache_sync_block_raw_flush(map, &data,
+							    base, regtmp);
+			if (ret != 0)
+				return ret;
+			continue;
+		}
+
+		val = regcache_get_val(map, block, i);
+
+		/* Is this the hardware default?  If so skip. */
+		ret = regcache_lookup_reg(map, regtmp);
+		if (ret >= 0 && val == map->reg_defaults[ret].def) {
+			ret = regcache_sync_block_raw_flush(map, &data,
+							    base, regtmp);
+			if (ret != 0)
+				return ret;
+			continue;
+		}
+
+		if (!data) {
+			data = regcache_get_val_addr(map, block, i);
+			base = regtmp;
+		}
+	}
+
+	return regcache_sync_block_raw_flush(map, &data, base, regtmp);
+}
+
+int regcache_sync_block(struct regmap *map, void *block,
+			unsigned int block_base, unsigned int start,
+			unsigned int end)
+{
+	if (regmap_can_raw_write(map))
+		return regcache_sync_block_raw(map, block, block_base,
+					       start, end);
+	else
+		return regcache_sync_block_single(map, block, block_base,
+						  start, end);
 }

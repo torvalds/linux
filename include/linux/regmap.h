@@ -389,6 +389,7 @@ int regmap_update_bits_check(struct regmap *map, unsigned int reg,
 			     bool *change);
 int regmap_get_val_bytes(struct regmap *map);
 int regmap_async_complete(struct regmap *map);
+bool regmap_can_raw_write(struct regmap *map);
 
 int regcache_sync(struct regmap *map);
 int regcache_sync_region(struct regmap *map, unsigned int min,
