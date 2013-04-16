@@ -1371,22 +1371,25 @@ static int check_aamix_out_path(struct hda_codec *codec, int path_idx)
 {
 	struct hda_gen_spec *spec = codec->spec;
 	struct nid_path *path;
-	hda_nid_t dac, pin;
+	hda_nid_t path_dac, dac, pin;
 
 	path = snd_hda_get_path_from_idx(codec, path_idx);
 	if (!path || !path->depth ||
 	    is_nid_contained(path, spec->mixer_nid))
 		return 0;
-	dac = path->path[0];
+	path_dac = path->path[0];
+	dac = spec->private_dac_nids[0];
 	pin = path->path[path->depth - 1];
 	path = snd_hda_add_new_path(codec, dac, pin, spec->mixer_nid);
 	if (!path) {
-		if (dac != spec->multiout.dac_nids[0])
-			dac = spec->multiout.dac_nids[0];
+		if (dac != path_dac)
+			dac = path_dac;
 		else if (spec->multiout.hp_out_nid[0])
 			dac = spec->multiout.hp_out_nid[0];
 		else if (spec->multiout.extra_out_nid[0])
 			dac = spec->multiout.extra_out_nid[0];
+		else
+			dac = 0;
 		if (dac)
 			path = snd_hda_add_new_path(codec, dac, pin,
 						    spec->mixer_nid);
