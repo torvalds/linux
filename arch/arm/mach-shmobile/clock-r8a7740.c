@@ -266,7 +266,7 @@ static struct clk fsiack_clk = {
 static struct clk fsibck_clk = {
 };
 
-struct clk *main_clks[] = {
+static struct clk *main_clks[] = {
 	&extalr_clk,
 	&extal1_clk,
 	&extal2_clk,
@@ -317,7 +317,7 @@ enum {
 	DIV4_NR
 };
 
-struct clk div4_clks[DIV4_NR] = {
+static struct clk div4_clks[DIV4_NR] = {
 	[DIV4_I]	= SH_CLK_DIV4(&pllc1_clk, FRQCRA, 20, 0x6fff, CLK_ENABLE_ON_INIT),
 	[DIV4_ZG]	= SH_CLK_DIV4(&pllc1_clk, FRQCRA, 16, 0x6fff, CLK_ENABLE_ON_INIT),
 	[DIV4_B]	= SH_CLK_DIV4(&pllc1_clk, FRQCRA,  8, 0x6fff, CLK_ENABLE_ON_INIT),
