@@ -158,9 +158,15 @@ struct packet_mreq_max {
 	unsigned char	mr_address[MAX_ADDR_LEN];
 };
 
+union tpacket_uhdr {
+	struct tpacket_hdr  *h1;
+	struct tpacket2_hdr *h2;
+	struct tpacket3_hdr *h3;
+	void *raw;
+};
+
 static int packet_set_ring(struct sock *sk, union tpacket_req_u *req_u,
 		int closing, int tx_ring);
-
 
 #define V3_ALIGNMENT	(8)
 
@@ -290,11 +296,7 @@ static inline __pure struct page *pgv_to_page(void *addr)
 
 static void __packet_set_status(struct packet_sock *po, void *frame, int status)
 {
-	union {
-		struct tpacket_hdr *h1;
-		struct tpacket2_hdr *h2;
-		void *raw;
-	} h;
+	union tpacket_uhdr h;
 
 	h.raw = frame;
 	switch (po->tp_version) {
@@ -317,11 +319,7 @@ static void __packet_set_status(struct packet_sock *po, void *frame, int status)
 
 static int __packet_get_status(struct packet_sock *po, void *frame)
 {
-	union {
-		struct tpacket_hdr *h1;
-		struct tpacket2_hdr *h2;
-		void *raw;
-	} h;
+	union tpacket_uhdr h;
 
 	smp_rmb();
 
@@ -347,11 +345,7 @@ static void *packet_lookup_frame(struct packet_sock *po,
 		int status)
 {
 	unsigned int pg_vec_pos, frame_offset;
-	union {
-		struct tpacket_hdr *h1;
-		struct tpacket2_hdr *h2;
-		void *raw;
-	} h;
+	union tpacket_uhdr h;
 
 	pg_vec_pos = position / rb->frames_per_block;
 	frame_offset = position % rb->frames_per_block;
@@ -1669,12 +1663,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct sock *sk;
 	struct packet_sock *po;
 	struct sockaddr_ll *sll;
-	union {
-		struct tpacket_hdr *h1;
-		struct tpacket2_hdr *h2;
-		struct tpacket3_hdr *h3;
-		void *raw;
-	} h;
+	union tpacket_uhdr h;
 	u8 *skb_head = skb->data;
 	int skb_len = skb->len;
 	unsigned int snaplen, res;
@@ -1909,11 +1898,7 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 		void *frame, struct net_device *dev, int size_max,
 		__be16 proto, unsigned char *addr, int hlen)
 {
-	union {
-		struct tpacket_hdr *h1;
-		struct tpacket2_hdr *h2;
-		void *raw;
-	} ph;
+	union tpacket_uhdr ph;
 	int to_write, offset, len, tp_len, nr_frags, len_max;
 	struct socket *sock = po->sk.sk_socket;
 	struct page *page;
