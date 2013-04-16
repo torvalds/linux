@@ -955,8 +955,8 @@ static int fimc_probe(struct platform_device *pdev)
 	}
 	if (!fimc->drv_data || fimc->id >= fimc->drv_data->num_entities ||
 	    fimc->id < 0) {
-		dev_err(dev, "Invalid driver data or device id (%d/%d)\n",
-			fimc->id, fimc->drv_data->num_entities);
+		dev_err(dev, "Invalid driver data or device id (%d)\n",
+			fimc->id);
 		return -EINVAL;
 	}
 	if (!dev->of_node)
