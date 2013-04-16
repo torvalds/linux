@@ -153,7 +153,7 @@ config KVM_E500MC
 
 config KVM_MPIC
 	bool "KVM in-kernel MPIC emulation"
-	depends on KVM
+	depends on KVM && E500
 	select HAVE_KVM_IRQCHIP
 	select HAVE_KVM_IRQ_ROUTING
 	select HAVE_KVM_MSI
