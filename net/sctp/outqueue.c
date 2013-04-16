@@ -701,11 +701,10 @@ redo:
 /* Cork the outqueue so queued chunks are really queued. */
 int sctp_outq_uncork(struct sctp_outq *q)
 {
-	int error = 0;
 	if (q->cork)
 		q->cork = 0;
-	error = sctp_outq_flush(q, 0);
-	return error;
+
+	return sctp_outq_flush(q, 0);
 }
 
 
