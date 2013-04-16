@@ -600,19 +600,6 @@ static void zpci_map_resources(struct zpci_dev *zdev)
 	}
 };
 
-static void zpci_unmap_resources(struct pci_dev *pdev)
-{
-	resource_size_t len;
-	int i;
-
-	for (i = 0; i < PCI_BAR_COUNT; i++) {
-		len = pci_resource_len(pdev, i);
-		if (!len)
-			continue;
-		pci_iounmap(pdev, (void *) pdev->resource[i].start);
-	}
-};
-
 struct zpci_dev *zpci_alloc_device(void)
 {
 	struct zpci_dev *zdev;
@@ -638,21 +625,6 @@ void zpci_free_device(struct zpci_dev *zdev)
 {
 	kmem_cache_free(zdev_irq_cache, zdev->irq_map);
 	kfree(zdev);
-}
-
-/* Called on removal of pci_dev, leaves zpci and bus device */
-static void zpci_remove_device(struct pci_dev *pdev)
-{
-	struct zpci_dev *zdev = get_zdev(pdev);
-
-	dev_info(&pdev->dev, "Removing device %u\n", zdev->domain);
-	zdev->state = ZPCI_FN_STATE_CONFIGURED;
-	zpci_dma_exit_device(zdev);
-	zpci_fmb_disable_device(zdev);
-	zpci_sysfs_remove_device(&pdev->dev);
-	zpci_unmap_resources(pdev);
-	list_del(&zdev->entry);		/* can be called from init */
-	zdev->pdev = NULL;
 }
 
 static void zpci_scan_devices(void)
@@ -690,12 +662,6 @@ int pcibios_enable_device(struct pci_dev *pdev, int mask)
 	}
 	pci_write_config_word(pdev, PCI_COMMAND, cmd);
 	return 0;
-}
-
-void pcibios_disable_device(struct pci_dev *pdev)
-{
-	zpci_remove_device(pdev);
-	pdev->sysdata = NULL;
 }
 
 int pcibios_add_platform_entries(struct pci_dev *pdev)
