@@ -399,7 +399,6 @@ struct sctp_stream {
 struct sctp_ssnmap {
 	struct sctp_stream in;
 	struct sctp_stream out;
-	int malloced;
 };
 
 struct sctp_ssnmap *sctp_ssnmap_new(__u16 in, __u16 out,
