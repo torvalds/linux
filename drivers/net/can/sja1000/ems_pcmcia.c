@@ -126,11 +126,11 @@ static irqreturn_t ems_pcmcia_interrupt(int irq, void *dev_id)
 static inline int ems_pcmcia_check_chan(struct sja1000_priv *priv)
 {
 	/* Make sure SJA1000 is in reset mode */
-	ems_pcmcia_write_reg(priv, REG_MOD, 1);
-	ems_pcmcia_write_reg(priv, REG_CDR, CDR_PELICAN);
+	ems_pcmcia_write_reg(priv, SJA1000_MOD, 1);
+	ems_pcmcia_write_reg(priv, SJA1000_CDR, CDR_PELICAN);
 
 	/* read reset-values */
-	if (ems_pcmcia_read_reg(priv, REG_CDR) == CDR_PELICAN)
+	if (ems_pcmcia_read_reg(priv, SJA1000_CDR) == CDR_PELICAN)
 		return 1;
 
 	return 0;
