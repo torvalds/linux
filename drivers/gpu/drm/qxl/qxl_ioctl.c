@@ -347,7 +347,7 @@ static int qxl_clientcap_ioctl(struct drm_device *dev, void *data,
 	if (qdev->pdev->revision < 4)
 		return -ENOSYS;
 
-	if (byte > 58)
+	if (byte >= 58)
 		return -ENOSYS;
 
 	if (qdev->rom->client_capabilities[byte] & (1 << idx))

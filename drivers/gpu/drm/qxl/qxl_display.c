@@ -84,6 +84,7 @@ void qxl_alloc_client_monitors_config(struct qxl_device *qdev, unsigned count)
 	if (qdev->client_monitors_config &&
 	    count > qdev->client_monitors_config->count) {
 		kfree(qdev->client_monitors_config);
+		qdev->client_monitors_config = NULL;
 	}
 	if (!qdev->client_monitors_config) {
 		qdev->client_monitors_config = kzalloc(
