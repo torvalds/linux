@@ -333,24 +333,8 @@ static void kobil_read_int_callback(struct urb *urb)
 	}
 
 	if (urb->actual_length) {
-
-		/* BEGIN DEBUG */
-		/*
-		  char *dbg_data;
-
-		  dbg_data = kzalloc((3 *  purb->actual_length + 10)
-						* sizeof(char), GFP_KERNEL);
-		  if (! dbg_data) {
-			  return;
-		  }
-		  for (i = 0; i < purb->actual_length; i++) {
-			  sprintf(dbg_data +3*i, "%02X ", data[i]);
-		  }
-		  dev_dbg(&port->dev, " <-- %s\n", dbg_data);
-		  kfree(dbg_data);
-		*/
-		/* END DEBUG */
-
+		usb_serial_debug_data(&port->dev, __func__, urb->actual_length,
+									data);
 		tty_insert_flip_string(&port->port, data, urb->actual_length);
 		tty_flip_buffer_push(&port->port);
 	}
