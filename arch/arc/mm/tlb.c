@@ -418,9 +418,10 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 	local_irq_restore(flags);
 }
 
-/* arch hook called by core VM at the end of handle_mm_fault( ),
- * when a new PTE is entered in Page Tables or an existing one
- * is modified. We aggresively pre-install a TLB entry
+/*
+ * Called at the end of pagefault, for a userspace mapped page
+ *  -pre-install the corresponding TLB entry into MMU
+ *  -Finalize the delayed D-cache flush (wback+inv kernel mapping)
  */
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 		      pte_t *ptep)
@@ -431,8 +432,15 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 
 	/* icache doesn't snoop dcache, thus needs to be made coherent here */
 	if (vma->vm_flags & VM_EXEC) {
-		unsigned long paddr =  pte_val(*ptep) & PAGE_MASK;
-		__inv_icache_page(paddr, vaddr);
+		struct page *page = pfn_to_page(pte_pfn(*ptep));
+
+		/* if page was dcache dirty, flush now */
+		int dirty = test_and_clear_bit(PG_arch_1, &page->flags);
+		if (dirty) {
+			unsigned long paddr =  pte_val(*ptep) & PAGE_MASK;
+			__flush_dcache_page(paddr);
+			__inv_icache_page(paddr, vaddr);
+		}
 	}
 }
 

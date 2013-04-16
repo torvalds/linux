@@ -457,10 +457,10 @@ static void __ic_line_inv_vaddr(unsigned long phy_start, unsigned long vaddr,
  * Exported APIs
  */
 
-/* TBD: use pg_arch_1 to optimize this */
 void flush_dcache_page(struct page *page)
 {
-	__dc_line_op((unsigned long)page_address(page), PAGE_SIZE, OP_FLUSH);
+	/* Make a note that dcache is not yet flushed for this page */
+	set_bit(PG_arch_1, &page->flags);
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
@@ -568,6 +568,11 @@ void __sync_icache_dcache(unsigned long paddr, unsigned long vaddr, int len)
 void __inv_icache_page(unsigned long paddr, unsigned long vaddr)
 {
 	__ic_line_inv_vaddr(paddr, vaddr, PAGE_SIZE);
+}
+
+void __flush_dcache_page(unsigned long paddr)
+{
+	__dc_line_op(paddr, PAGE_SIZE, OP_FLUSH_N_INV);
 }
 
 void flush_icache_all(void)
