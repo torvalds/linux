@@ -425,7 +425,7 @@ struct fimc_dev {
 	struct regmap			*sysreg;
 	const struct fimc_variant	*variant;
 	const struct fimc_drvdata	*drv_data;
-	u16				id;
+	int				id;
 	struct clk			*clock[MAX_FIMC_CLOCKS];
 	void __iomem			*regs;
 	wait_queue_head_t		irq_queue;

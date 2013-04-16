@@ -140,7 +140,7 @@ struct fimc_lite {
 	struct v4l2_subdev	*sensor;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl	*test_pattern;
-	u32			index;
+	int			index;
 	struct fimc_pipeline	pipeline;
 	const struct fimc_pipeline_ops *pipeline_ops;
 
