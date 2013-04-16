@@ -26,13 +26,10 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-/* This structure holds all of the individual device information */
 struct symbol_private {
-	struct usb_device *udev;
 	spinlock_t lock;	/* protects the following flags */
 	bool throttled;
 	bool actually_throttled;
-	bool rts;
 };
 
 static void symbol_int_callback(struct urb *urb)
@@ -77,7 +74,7 @@ static void symbol_int_callback(struct urb *urb)
 		tty_insert_flip_string(&port->port, &data[1], data_length);
 		tty_flip_buffer_push(&port->port);
 	} else {
-		dev_dbg(&priv->udev->dev,
+		dev_dbg(&port->dev,
 			"Improper amount of data received from the device, "
 			"%d bytes", urb->actual_length);
 	}
@@ -170,7 +167,6 @@ static int symbol_startup(struct usb_serial *serial)
 		return -ENOMEM;
 	}
 	spin_lock_init(&priv->lock);
-	priv->udev = serial->dev;
 
 	usb_set_serial_data(serial, priv);
 	return 0;
