@@ -407,15 +407,15 @@ out:
 }
 
 /**
- * ecryptfs_lower_offset_for_extent
+ * lower_offset_for_page
  *
  * Convert an eCryptfs page index into a lower byte offset
  */
-static void ecryptfs_lower_offset_for_extent(loff_t *offset, loff_t extent_num,
-					     struct ecryptfs_crypt_stat *crypt_stat)
+static loff_t lower_offset_for_page(struct ecryptfs_crypt_stat *crypt_stat,
+				    struct page *page)
 {
-	(*offset) = ecryptfs_lower_header_size(crypt_stat)
-		    + (crypt_stat->extent_size * extent_num);
+	return ecryptfs_lower_header_size(crypt_stat) +
+	       (page->index << PAGE_CACHE_SHIFT);
 }
 
 /**
@@ -517,9 +517,7 @@ int ecryptfs_encrypt_page(struct page *page)
 		}
 	}
 
-	ecryptfs_lower_offset_for_extent(&lower_offset,
-		page->index * (PAGE_CACHE_SIZE / crypt_stat->extent_size),
-		crypt_stat);
+	lower_offset = lower_offset_for_page(crypt_stat, page);
 	enc_extent_virt = kmap(enc_extent_page);
 	rc = ecryptfs_write_lower(ecryptfs_inode, enc_extent_virt, lower_offset,
 				  PAGE_CACHE_SIZE);
@@ -612,9 +610,7 @@ int ecryptfs_decrypt_page(struct page *page)
 		goto out;
 	}
 
-	ecryptfs_lower_offset_for_extent(&lower_offset,
-		page->index * (PAGE_CACHE_SIZE / crypt_stat->extent_size),
-		crypt_stat);
+	lower_offset = lower_offset_for_page(crypt_stat, page);
 	enc_extent_virt = kmap(enc_extent_page);
 	rc = ecryptfs_read_lower(enc_extent_virt, lower_offset, PAGE_CACHE_SIZE,
 				 ecryptfs_inode);
