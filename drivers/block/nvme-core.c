@@ -1166,10 +1166,10 @@ static int nvme_submit_io(struct nvme_ns *ns, struct nvme_user_io __user *uio)
 	c.rw.slba = cpu_to_le64(io.slba);
 	c.rw.length = cpu_to_le16(io.nblocks);
 	c.rw.control = cpu_to_le16(io.control);
-	c.rw.dsmgmt = cpu_to_le16(io.dsmgmt);
-	c.rw.reftag = io.reftag;
-	c.rw.apptag = io.apptag;
-	c.rw.appmask = io.appmask;
+	c.rw.dsmgmt = cpu_to_le32(io.dsmgmt);
+	c.rw.reftag = cpu_to_le32(io.reftag);
+	c.rw.apptag = cpu_to_le16(io.apptag);
+	c.rw.appmask = cpu_to_le16(io.appmask);
 	/* XXX: metadata */
 	length = nvme_setup_prps(dev, &c.common, iod, length, GFP_KERNEL);
 

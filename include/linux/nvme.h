@@ -207,11 +207,11 @@ struct nvme_common_command {
 	__u8			flags;
 	__u16			command_id;
 	__le32			nsid;
-	__u32			cdw2[2];
+	__le32			cdw2[2];
 	__le64			metadata;
 	__le64			prp1;
 	__le64			prp2;
-	__u32			cdw10[6];
+	__le32			cdw10[6];
 };
 
 struct nvme_rw_command {
