@@ -528,7 +528,7 @@ static void __init reserve_crashkernel_low(void)
 	int ret;
 
 	total_low_mem = memblock_mem_size(1UL<<(32-PAGE_SHIFT));
-	/* crashkernel_low=YM */
+	/* crashkernel=Y,low */
 	ret = parse_crashkernel_low(boot_command_line, total_low_mem,
 						&low_size, &base);
 	if (ret != 0) {
@@ -542,7 +542,7 @@ static void __init reserve_crashkernel_low(void)
 		low_size = swiotlb_size_or_default() + (8UL<<20);
 		auto_set = true;
 	} else {
-		/* passed with crashkernel_low=0 ? */
+		/* passed with crashkernel=0,low ? */
 		if (!low_size)
 			return;
 	}
@@ -582,7 +582,7 @@ static void __init reserve_crashkernel(void)
 	ret = parse_crashkernel(boot_command_line, total_mem,
 			&crash_size, &crash_base);
 	if (ret != 0 || crash_size <= 0) {
-		/* crashkernel_high=XM */
+		/* crashkernel=X,high */
 		ret = parse_crashkernel_high(boot_command_line, total_mem,
 				&crash_size, &crash_base);
 		if (ret != 0 || crash_size <= 0)
