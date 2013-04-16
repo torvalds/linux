@@ -656,6 +656,9 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 		txrc.rts = rts = true;
 	}
 
+	info->control.use_rts = rts;
+	info->control.use_cts_prot = tx->sdata->vif.bss_conf.use_cts_prot;
+
 	/*
 	 * Use short preamble if the BSS can handle it, but not for
 	 * management frames unless we know the receiver can handle
@@ -766,6 +769,11 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 		 */
 		if (rc_rate->flags & IEEE80211_TX_RC_MCS) {
 			WARN_ON(rc_rate->idx > 76);
+
+			if (!(rc_rate->flags & IEEE80211_TX_RC_USE_RTS_CTS) &&
+			    tx->sdata->vif.bss_conf.use_cts_prot)
+				rc_rate->flags |=
+					IEEE80211_TX_RC_USE_CTS_PROTECT;
 			continue;
 		}
 

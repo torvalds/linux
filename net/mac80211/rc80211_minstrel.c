@@ -209,9 +209,9 @@ minstrel_get_retry_count(struct minstrel_rate *mr,
 {
 	unsigned int retry = mr->adjusted_retry_count;
 
-	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
+	if (info->control.use_rts)
 		retry = max(2U, min(mr->retry_count_rtscts, retry));
-	else if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
+	else if (info->control.use_cts_prot)
 		retry = max(2U, min(mr->retry_count_cts, retry));
 	return retry;
 }
@@ -460,6 +460,8 @@ minstrel_rate_init(void *priv, struct ieee80211_supported_band *sband,
 		} while ((tx_time < mp->segment_size) &&
 				(++mr->retry_count < mp->max_retry));
 		mr->adjusted_retry_count = mr->retry_count;
+		if (!(sband->bitrates[i].flags & IEEE80211_RATE_ERP_G))
+			mr->retry_count_cts = mr->retry_count;
 	}
 
 	for (i = n; i < sband->n_bitrates; i++) {

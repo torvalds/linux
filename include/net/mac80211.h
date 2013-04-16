@@ -655,7 +655,9 @@ struct ieee80211_tx_info {
 					struct ieee80211_tx_rate rates[
 						IEEE80211_TX_MAX_RATES];
 					s8 rts_cts_rate_idx;
-					/* 3 bytes free */
+					u8 use_rts:1;
+					u8 use_cts_prot:1;
+					/* 2 bytes free */
 				};
 				/* only needed before rate control */
 				unsigned long jiffies;
