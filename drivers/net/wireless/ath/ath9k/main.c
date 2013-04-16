@@ -839,10 +839,14 @@ static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	struct ath9k_vif_iter_data *iter_data = data;
 	int i;
 
-	if (iter_data->hw_macaddr)
+	if (iter_data->has_hw_macaddr) {
 		for (i = 0; i < ETH_ALEN; i++)
 			iter_data->mask[i] &=
 				~(iter_data->hw_macaddr[i] ^ mac[i]);
+	} else {
+		memcpy(iter_data->hw_macaddr, mac, ETH_ALEN);
+		iter_data->has_hw_macaddr = true;
+	}
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
@@ -891,7 +895,6 @@ void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
 	 * together with the BSSID mask when matching addresses.
 	 */
 	memset(iter_data, 0, sizeof(*iter_data));
-	iter_data->hw_macaddr = common->macaddr;
 	memset(&iter_data->mask, 0xff, ETH_ALEN);
 
 	if (vif)
@@ -901,6 +904,8 @@ void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
 	ieee80211_iterate_active_interfaces_atomic(
 		sc->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
 		ath9k_vif_iter, iter_data);
+
+	memcpy(common->macaddr, iter_data->hw_macaddr, ETH_ALEN);
 }
 
 /* Called with sc->mutex held. */
