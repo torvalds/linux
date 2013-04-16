@@ -737,7 +737,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (!audit_enabled && msg_type != AUDIT_USER_AVC)
 			return 0;
 
-		err = audit_filter_user();
+		err = audit_filter_user(msg_type);
 		if (err == 1) {
 			err = 0;
 			if (msg_type == AUDIT_USER_TTY) {
