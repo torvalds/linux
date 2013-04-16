@@ -1060,7 +1060,8 @@ void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list)
-		if (ieee80211_vif_is_mesh(&sdata->vif))
+		if (ieee80211_vif_is_mesh(&sdata->vif) &&
+		    ieee80211_sdata_running(sdata))
 			ieee80211_queue_work(&local->hw, &sdata->work);
 	rcu_read_unlock();
 }

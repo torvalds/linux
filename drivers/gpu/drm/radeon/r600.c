@@ -1394,6 +1394,12 @@ static u32 r600_gpu_check_soft_reset(struct radeon_device *rdev)
 	if (r600_is_display_hung(rdev))
 		reset_mask |= RADEON_RESET_DISPLAY;
 
+	/* Skip MC reset as it's mostly likely not hung, just busy */
+	if (reset_mask & RADEON_RESET_MC) {
+		DRM_DEBUG("MC busy: 0x%08X, clearing.\n", reset_mask);
+		reset_mask &= ~RADEON_RESET_MC;
+	}
+
 	return reset_mask;
 }
 

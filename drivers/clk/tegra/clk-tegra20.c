@@ -703,7 +703,7 @@ static void tegra20_pll_init(void)
 	clks[pll_a_out0] = clk;
 
 	/* PLLE */
-	clk = tegra_clk_register_plle("pll_e", "pll_ref", clk_base, NULL,
+	clk = tegra_clk_register_plle("pll_e", "pll_ref", clk_base, pmc_base,
 			     0, 100000000, &pll_e_params,
 			     0, pll_e_freq_table, NULL);
 	clk_register_clkdev(clk, "pll_e", NULL);
@@ -1292,7 +1292,6 @@ static struct tegra_clk_duplicate tegra_clk_duplicates[] = {
 	TEGRA_CLK_DUPLICATE(usbd,   "tegra-ehci.0", NULL),
 	TEGRA_CLK_DUPLICATE(usbd,   "tegra-otg",    NULL),
 	TEGRA_CLK_DUPLICATE(cclk,   NULL,           "cpu"),
-	TEGRA_CLK_DUPLICATE(twd,    "smp_twd",      NULL),
 	TEGRA_CLK_DUPLICATE(clk_max, NULL, NULL), /* Must be the last entry */
 };
 

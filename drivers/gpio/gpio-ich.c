@@ -128,9 +128,9 @@ static int ichx_read_bit(int reg, unsigned nr)
 	return data & (1 << bit) ? 1 : 0;
 }
 
-static int ichx_gpio_check_available(struct gpio_chip *gpio, unsigned nr)
+static bool ichx_gpio_check_available(struct gpio_chip *gpio, unsigned nr)
 {
-	return (ichx_priv.use_gpio & (1 << (nr / 32))) ? 0 : -ENXIO;
+	return ichx_priv.use_gpio & (1 << (nr / 32));
 }
 
 static int ichx_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
@@ -214,7 +214,7 @@ static int ichx_gpio_request(struct gpio_chip *chip, unsigned nr)
 	 * If it can't be trusted, assume that the pin can be used as a GPIO.
 	 */
 	if (ichx_priv.desc->use_sel_ignore[nr / 32] & (1 << (nr & 0x1f)))
-		return 1;
+		return 0;
 
 	return ichx_read_bit(GPIO_USE_SEL, nr) ? 0 : -ENODEV;
 }

@@ -740,7 +740,7 @@ EXPORT_SYMBOL_HDA(snd_hda_activate_path);
 static void path_power_down_sync(struct hda_codec *codec, struct nid_path *path)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	bool changed;
+	bool changed = false;
 	int i;
 
 	if (!spec->power_down_unused || path->active)
@@ -995,6 +995,8 @@ enum {
 	BAD_NO_EXTRA_SURR_DAC = 0x101,
 	/* Primary DAC shared with main surrounds */
 	BAD_SHARED_SURROUND = 0x100,
+	/* No independent HP possible */
+	BAD_NO_INDEP_HP = 0x40,
 	/* Primary DAC shared with main CLFE */
 	BAD_SHARED_CLFE = 0x10,
 	/* Primary DAC shared with extra surrounds */
@@ -1392,6 +1394,43 @@ static int check_aamix_out_path(struct hda_codec *codec, int path_idx)
 	return snd_hda_get_path_idx(codec, path);
 }
 
+/* check whether the independent HP is available with the current config */
+static bool indep_hp_possible(struct hda_codec *codec)
+{
+	struct hda_gen_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	struct nid_path *path;
+	int i, idx;
+
+	if (cfg->line_out_type == AUTO_PIN_HP_OUT)
+		idx = spec->out_paths[0];
+	else
+		idx = spec->hp_paths[0];
+	path = snd_hda_get_path_from_idx(codec, idx);
+	if (!path)
+		return false;
+
+	/* assume no path conflicts unless aamix is involved */
+	if (!spec->mixer_nid || !is_nid_contained(path, spec->mixer_nid))
+		return true;
+
+	/* check whether output paths contain aamix */
+	for (i = 0; i < cfg->line_outs; i++) {
+		if (spec->out_paths[i] == idx)
+			break;
+		path = snd_hda_get_path_from_idx(codec, spec->out_paths[i]);
+		if (path && is_nid_contained(path, spec->mixer_nid))
+			return false;
+	}
+	for (i = 0; i < cfg->speaker_outs; i++) {
+		path = snd_hda_get_path_from_idx(codec, spec->speaker_paths[i]);
+		if (path && is_nid_contained(path, spec->mixer_nid))
+			return false;
+	}
+
+	return true;
+}
+
 /* fill the empty entries in the dac array for speaker/hp with the
  * shared dac pointed by the paths
  */
@@ -1544,6 +1583,9 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 		spec->multi_ios = 0;
 		badness += BAD_MULTI_IO;
 	}
+
+	if (spec->indep_hp && !indep_hp_possible(codec))
+		badness += BAD_NO_INDEP_HP;
 
 	/* re-fill the shared DAC for speaker / headphone */
 	if (cfg->line_out_type != AUTO_PIN_HP_OUT)
@@ -1757,6 +1799,10 @@ static int parse_output_paths(struct hda_codec *codec)
 		set_pin_targets(codec, cfg->speaker_outs,
 				cfg->speaker_pins, val);
 	}
+
+	/* clear indep_hp flag if not available */
+	if (spec->indep_hp && !indep_hp_possible(codec))
+		spec->indep_hp = 0;
 
 	kfree(best_cfg);
 	return 0;

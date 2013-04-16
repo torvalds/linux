@@ -415,7 +415,7 @@
  *-------------------------------------------------------------*/
 .macro SAVE_ALL_EXCEPTION   marker
 
-	st      \marker, [sp, 8]
+	st      \marker, [sp, 8]	/* orig_r8 */
 	st      r0, [sp, 4]    /* orig_r0, needed only for sys calls */
 
 	/* Restore r9 used to code the early prologue */

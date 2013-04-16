@@ -53,14 +53,15 @@ static void pci_acpi_wake_dev(acpi_handle handle, u32 event, void *context)
 		return;
 	}
 
-	if (!pci_dev->pm_cap || !pci_dev->pme_support
-	     || pci_check_pme_status(pci_dev)) {
-		if (pci_dev->pme_poll)
-			pci_dev->pme_poll = false;
+	/* Clear PME Status if set. */
+	if (pci_dev->pme_support)
+		pci_check_pme_status(pci_dev);
 
-		pci_wakeup_event(pci_dev);
-		pm_runtime_resume(&pci_dev->dev);
-	}
+	if (pci_dev->pme_poll)
+		pci_dev->pme_poll = false;
+
+	pci_wakeup_event(pci_dev);
+	pm_runtime_resume(&pci_dev->dev);
 
 	if (pci_dev->subordinate)
 		pci_pme_wakeup_bus(pci_dev->subordinate);
@@ -331,8 +332,14 @@ static void pci_acpi_cleanup(struct device *dev)
 	}
 }
 
+static bool pci_acpi_bus_match(struct device *dev)
+{
+	return dev->bus == &pci_bus_type;
+}
+
 static struct acpi_bus_type acpi_pci_bus = {
-	.bus = &pci_bus_type,
+	.name = "PCI",
+	.match = pci_acpi_bus_match,
 	.find_device = acpi_pci_find_device,
 	.setup = pci_acpi_setup,
 	.cleanup = pci_acpi_cleanup,

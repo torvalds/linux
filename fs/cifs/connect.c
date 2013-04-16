@@ -97,7 +97,7 @@ enum {
 	Opt_user, Opt_pass, Opt_ip,
 	Opt_unc, Opt_domain,
 	Opt_srcaddr, Opt_prefixpath,
-	Opt_iocharset, Opt_sockopt,
+	Opt_iocharset,
 	Opt_netbiosname, Opt_servern,
 	Opt_ver, Opt_vers, Opt_sec, Opt_cache,
 
@@ -202,7 +202,6 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_srcaddr, "srcaddr=%s" },
 	{ Opt_prefixpath, "prefixpath=%s" },
 	{ Opt_iocharset, "iocharset=%s" },
-	{ Opt_sockopt, "sockopt=%s" },
 	{ Opt_netbiosname, "netbiosname=%s" },
 	{ Opt_servern, "servern=%s" },
 	{ Opt_ver, "ver=%s" },
@@ -1576,14 +1575,24 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			}
 			break;
 		case Opt_blank_pass:
-			vol->password = NULL;
-			break;
-		case Opt_pass:
 			/* passwords have to be handled differently
 			 * to allow the character used for deliminator
 			 * to be passed within them
 			 */
 
+			/*
+			 * Check if this is a case where the  password
+			 * starts with a delimiter
+			 */
+			tmp_end = strchr(data, '=');
+			tmp_end++;
+			if (!(tmp_end < end && tmp_end[1] == delim)) {
+				/* No it is not. Set the password to NULL */
+				vol->password = NULL;
+				break;
+			}
+			/* Yes it is. Drop down to Opt_pass below.*/
+		case Opt_pass:
 			/* Obtain the value string */
 			value = strchr(data, '=');
 			value++;
@@ -1751,19 +1760,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			 * is used by caller
 			 */
 			cFYI(1, "iocharset set to %s", string);
-			break;
-		case Opt_sockopt:
-			string = match_strdup(args);
-			if (string == NULL)
-				goto out_nomem;
-
-			if (strnicmp(string, "TCP_NODELAY", 11) == 0) {
-				printk(KERN_WARNING "CIFS: the "
-					"sockopt=TCP_NODELAY option has been "
-					"deprecated and will be removed "
-					"in 3.9\n");
-				vol->sockopt_tcp_nodelay = 1;
-			}
 			break;
 		case Opt_netbiosname:
 			string = match_strdup(args);

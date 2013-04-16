@@ -730,11 +730,11 @@ skip_format_initialization:
 		}
 	}
 
+	regmap_debugfs_init(map, config->name);
+
 	ret = regcache_init(map, config);
 	if (ret != 0)
 		goto err_range;
-
-	regmap_debugfs_init(map, config->name);
 
 	/* Add a devres resource for dev_get_regmap() */
 	m = devres_alloc(dev_get_regmap_release, sizeof(*m), GFP_KERNEL);
@@ -1056,6 +1056,8 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
 			kfree(async->work_buf);
 			kfree(async);
 		}
+
+		return ret;
 	}
 
 	trace_regmap_hw_write_start(map->dev, reg,
