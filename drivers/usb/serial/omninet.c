@@ -33,8 +33,7 @@
 
 /* function prototypes */
 static int  omninet_open(struct tty_struct *tty, struct usb_serial_port *port);
-static void omninet_close(struct usb_serial_port *port);
-static void omninet_read_bulk_callback(struct urb *urb);
+static void omninet_process_read_urb(struct urb *urb);
 static void omninet_write_bulk_callback(struct urb *urb);
 static int  omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 				const unsigned char *buf, int count);
@@ -61,11 +60,10 @@ static struct usb_serial_driver zyxel_omninet_device = {
 	.port_probe =		omninet_port_probe,
 	.port_remove =		omninet_port_remove,
 	.open =			omninet_open,
-	.close =		omninet_close,
 	.write =		omninet_write,
 	.write_room =		omninet_write_room,
-	.read_bulk_callback =	omninet_read_bulk_callback,
 	.write_bulk_callback =	omninet_write_bulk_callback,
+	.process_read_urb =	omninet_process_read_urb,
 	.disconnect =		omninet_disconnect,
 };
 
@@ -134,25 +132,12 @@ static int omninet_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial	*serial = port->serial;
 	struct usb_serial_port	*wport;
-	int			result = 0;
 
 	wport = serial->port[1];
 	tty_port_tty_set(&wport->port, tty);
 
-	/* Start reading from the device */
-	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
-	if (result)
-		dev_err(&port->dev,
-			"%s - failed submitting read urb, error %d\n",
-			__func__, result);
-	return result;
+	return usb_serial_generic_open(tty, port);
 }
-
-static void omninet_close(struct usb_serial_port *port)
-{
-	usb_kill_urb(port->read_urb);
-}
-
 
 #define OMNINET_HEADERLEN	4
 #define OMNINET_BULKOUTSIZE	64
@@ -173,28 +158,6 @@ static void omninet_process_read_urb(struct urb *urb)
 								hdr->oh_len);
 	tty_insert_flip_string(&port->port, data, data_len);
 	tty_flip_buffer_push(&port->port);
-}
-
-static void omninet_read_bulk_callback(struct urb *urb)
-{
-	struct usb_serial_port 	*port 	= urb->context;
-	int status = urb->status;
-	int result;
-
-	if (status) {
-		dev_dbg(&port->dev, "%s - nonzero read bulk status received: %d\n",
-			__func__, status);
-		return;
-	}
-
-	omninet_process_read_urb(urb);
-
-	/* Continue trying to always read  */
-	result = usb_submit_urb(urb, GFP_ATOMIC);
-	if (result)
-		dev_err(&port->dev,
-			"%s - failed resubmitting read urb, error %d\n",
-			__func__, result);
 }
 
 static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
