@@ -460,9 +460,12 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 	 * the common case.
 	 */
 	mask = sdata->rc_rateidx_mask[info->band];
-	memcpy(mcs_mask, sdata->rc_rateidx_mcs_mask[info->band],
-	       sizeof(mcs_mask));
-	if (mask != (1 << txrc->sband->n_bitrates) - 1) {
+	if (mask != (1 << txrc->sband->n_bitrates) - 1 || txrc->rate_idx_mcs_mask) {
+		if (txrc->rate_idx_mcs_mask)
+			memcpy(mcs_mask, txrc->rate_idx_mcs_mask, sizeof(mcs_mask));
+		else
+			memset(mcs_mask, 0xff, sizeof(mcs_mask));
+
 		if (sta) {
 			/* Filter out rates that the STA does not support */
 			mask &= sta->sta.supp_rates[info->band];
