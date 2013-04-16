@@ -652,6 +652,42 @@ static int sco_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	return err;
 }
 
+static void sco_conn_defer_accept(struct hci_conn *conn, int mask)
+{
+	struct hci_dev *hdev = conn->hdev;
+
+	BT_DBG("conn %p", conn);
+
+	conn->state = BT_CONFIG;
+
+	if (!lmp_esco_capable(hdev)) {
+		struct hci_cp_accept_conn_req cp;
+
+		bacpy(&cp.bdaddr, &conn->dst);
+
+		if (lmp_rswitch_capable(hdev) && (mask & HCI_LM_MASTER))
+			cp.role = 0x00; /* Become master */
+		else
+			cp.role = 0x01; /* Remain slave */
+
+		hci_send_cmd(hdev, HCI_OP_ACCEPT_CONN_REQ, sizeof(cp), &cp);
+	} else {
+		struct hci_cp_accept_sync_conn_req cp;
+
+		bacpy(&cp.bdaddr, &conn->dst);
+		cp.pkt_type = cpu_to_le16(conn->pkt_type);
+
+		cp.tx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
+		cp.rx_bandwidth   = __constant_cpu_to_le32(0x00001f40);
+		cp.max_latency    = __constant_cpu_to_le16(0xffff);
+		cp.content_format = cpu_to_le16(hdev->voice_setting);
+		cp.retrans_effort = 0xff;
+
+		hci_send_cmd(hdev, HCI_OP_ACCEPT_SYNC_CONN_REQ,
+			     sizeof(cp), &cp);
+	}
+}
+
 static int sco_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 			    struct msghdr *msg, size_t len, int flags)
 {
@@ -662,7 +698,7 @@ static int sco_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	if (sk->sk_state == BT_CONNECT2 &&
 	    test_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags)) {
-		hci_conn_accept(pi->conn->hcon, 0);
+		sco_conn_defer_accept(pi->conn->hcon, 0);
 		sk->sk_state = BT_CONFIG;
 
 		release_sock(sk);
