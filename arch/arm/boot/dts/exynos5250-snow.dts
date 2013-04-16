@@ -16,6 +16,10 @@
 	model = "Google Snow";
 	compatible = "google,snow", "samsung,exynos5250";
 
+	aliases {
+		i2c104 = &i2c_104;
+	};
+
 	pinctrl@11400000 {
 		sd3_clk: sd3-clk {
 			samsung,pin-drv = <0>;
@@ -41,6 +45,27 @@
 			linux,code = <0>; /* SW_LID */
 			debounce-interval = <1>;
 			gpio-key,wakeup;
+		};
+	};
+
+	i2c-arbitrator {
+		compatible = "i2c-arb-gpio-challenge";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c-parent = <&{/i2c@12CA0000}>;
+
+		our-claim-gpio = <&gpf0 3 1>;
+		their-claim-gpios = <&gpe0 4 1>;
+		slew-delay-us = <10>;
+		wait-retry-us = <3000>;
+		wait-free-us = <50000>;
+
+		/* Use ID 104 as a hint that we're on physical bus 4 */
+		i2c_104: i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 	};
 
