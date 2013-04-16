@@ -349,6 +349,7 @@ struct nfs_openargs {
 	const u32 *		bitmask;
 	const u32 *		open_bitmap;
 	__u32			claim;
+	enum createmode4	createmode;
 };
 
 struct nfs_openres {
