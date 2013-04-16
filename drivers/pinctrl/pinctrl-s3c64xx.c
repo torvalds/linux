@@ -22,10 +22,9 @@
 #include <linux/irq.h>
 #include <linux/of_irq.h>
 #include <linux/io.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-
-#include <asm/mach/irq.h>
 
 #include "pinctrl-samsung.h"
 
