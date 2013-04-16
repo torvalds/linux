@@ -96,7 +96,7 @@ static int fimc_is_i2c_resume(struct device *dev)
 	return clk_prepare_enable(isp_i2c->clock);
 }
 
-UNIVERSAL_DEV_PM_OPS(fimc_is_i2c_pm_ops, fimc_is_i2c_suspend,
+static UNIVERSAL_DEV_PM_OPS(fimc_is_i2c_pm_ops, fimc_is_i2c_suspend,
 		     fimc_is_i2c_resume, NULL);
 
 static const struct of_device_id fimc_is_i2c_of_match[] = {

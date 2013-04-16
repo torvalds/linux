@@ -38,7 +38,7 @@ static void __hw_param_copy(void *dst, void *src)
 	memcpy(dst, src, FIMC_IS_PARAM_MAX_SIZE);
 }
 
-void __fimc_is_hw_update_param_global_shotmode(struct fimc_is *is)
+static void __fimc_is_hw_update_param_global_shotmode(struct fimc_is *is)
 {
 	struct param_global_shotmode *dst, *src;
 
@@ -47,7 +47,7 @@ void __fimc_is_hw_update_param_global_shotmode(struct fimc_is *is)
 	__hw_param_copy(dst, src);
 }
 
-void __fimc_is_hw_update_param_sensor_framerate(struct fimc_is *is)
+static void __fimc_is_hw_update_param_sensor_framerate(struct fimc_is *is)
 {
 	struct param_sensor_framerate *dst, *src;
 

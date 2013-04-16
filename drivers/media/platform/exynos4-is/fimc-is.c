@@ -137,7 +137,7 @@ static int fimc_is_setup_clocks(struct fimc_is *is)
 					ATCLK_MCUISP_FREQUENCY);
 }
 
-int fimc_is_enable_clocks(struct fimc_is *is)
+static int fimc_is_enable_clocks(struct fimc_is *is)
 {
 	int i, ret;
 
@@ -157,7 +157,7 @@ int fimc_is_enable_clocks(struct fimc_is *is)
 	return 0;
 }
 
-void fimc_is_disable_clocks(struct fimc_is *is)
+static void fimc_is_disable_clocks(struct fimc_is *is)
 {
 	int i;
 
