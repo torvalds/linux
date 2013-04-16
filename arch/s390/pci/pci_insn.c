@@ -26,7 +26,7 @@ static inline u8 __mpcifc(u64 req, struct zpci_fib *fib, u8 *status)
 	return cc;
 }
 
-int mpcifc_instr(u64 req, struct zpci_fib *fib)
+int s390pci_mod_fc(u64 req, struct zpci_fib *fib)
 {
 	u8 cc, status;
 
@@ -60,7 +60,7 @@ static inline u8 __rpcit(u64 fn, u64 addr, u64 range, u8 *status)
 	return cc;
 }
 
-int rpcit_instr(u64 fn, u64 addr, u64 range)
+int s390pci_refresh_trans(u64 fn, u64 addr, u64 range)
 {
 	u8 cc, status;
 
@@ -77,7 +77,7 @@ int rpcit_instr(u64 fn, u64 addr, u64 range)
 }
 
 /* Set Interruption Controls */
-void sic_instr(u16 ctl, char *unused, u8 isc)
+void set_irq_ctrl(u16 ctl, char *unused, u8 isc)
 {
 	asm volatile (
 		"	.insn	rsy,0xeb00000000d1,%[ctl],%[isc],%[u]\n"
@@ -104,7 +104,7 @@ static inline u8 __pcilg(u64 *data, u64 req, u64 offset, u8 *status)
 	return cc;
 }
 
-int pcilg_instr(u64 *data, u64 req, u64 offset)
+int s390pci_load(u64 *data, u64 req, u64 offset)
 {
 	u8 cc, status;
 
@@ -123,7 +123,7 @@ int pcilg_instr(u64 *data, u64 req, u64 offset)
 	}
 	return (cc) ? -EIO : 0;
 }
-EXPORT_SYMBOL_GPL(pcilg_instr);
+EXPORT_SYMBOL_GPL(s390pci_load);
 
 /* PCI Store */
 static inline u8 __pcistg(u64 data, u64 req, u64 offset, u8 *status)
@@ -143,7 +143,7 @@ static inline u8 __pcistg(u64 data, u64 req, u64 offset, u8 *status)
 	return cc;
 }
 
-int pcistg_instr(u64 data, u64 req, u64 offset)
+int s390pci_store(u64 data, u64 req, u64 offset)
 {
 	u8 cc, status;
 
@@ -158,7 +158,7 @@ int pcistg_instr(u64 data, u64 req, u64 offset)
 			__func__, cc, status, req, offset);
 	return (cc) ? -EIO : 0;
 }
-EXPORT_SYMBOL_GPL(pcistg_instr);
+EXPORT_SYMBOL_GPL(s390pci_store);
 
 /* PCI Store Block */
 static inline u8 __pcistb(const u64 *data, u64 req, u64 offset, u8 *status)
@@ -176,7 +176,7 @@ static inline u8 __pcistb(const u64 *data, u64 req, u64 offset, u8 *status)
 	return cc;
 }
 
-int pcistb_instr(const u64 *data, u64 req, u64 offset)
+int s390pci_store_block(const u64 *data, u64 req, u64 offset)
 {
 	u8 cc, status;
 
@@ -191,4 +191,4 @@ int pcistb_instr(const u64 *data, u64 req, u64 offset)
 			    __func__, cc, status, req, offset);
 	return (cc) ? -EIO : 0;
 }
-EXPORT_SYMBOL_GPL(pcistb_instr);
+EXPORT_SYMBOL_GPL(s390pci_store_block);

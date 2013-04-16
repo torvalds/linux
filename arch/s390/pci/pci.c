@@ -176,7 +176,7 @@ static int zpci_register_airq(struct zpci_dev *zdev, unsigned int aisb,
 	fib->aisb = (u64) bucket->aisb + aisb / 8;
 	fib->aisbo = aisb & ZPCI_MSI_MASK;
 
-	rc = mpcifc_instr(req, fib);
+	rc = s390pci_mod_fc(req, fib);
 	pr_debug("%s mpcifc returned noi: %d\n", __func__, fib->noi);
 
 	free_page((unsigned long) fib);
@@ -206,7 +206,7 @@ static int mod_pci(struct zpci_dev *zdev, int fn, u8 dmaas, struct mod_pci_args 
 	fib->iota = args->iota;
 	fib->fmb_addr = args->fmb_addr;
 
-	rc = mpcifc_instr(req, fib);
+	rc = s390pci_mod_fc(req, fib);
 	free_page((unsigned long) fib);
 	return rc;
 }
@@ -280,7 +280,7 @@ static int zpci_cfg_load(struct zpci_dev *zdev, int offset, u32 *val, u8 len)
 	u64 data;
 	int rc;
 
-	rc = pcilg_instr(&data, req, offset);
+	rc = s390pci_load(&data, req, offset);
 	data = data << ((8 - len) * 8);
 	data = le64_to_cpu(data);
 	if (!rc)
@@ -298,7 +298,7 @@ static int zpci_cfg_store(struct zpci_dev *zdev, int offset, u32 val, u8 len)
 
 	data = cpu_to_le64(data);
 	data = data >> ((8 - len) * 8);
-	rc = pcistg_instr(data, req, offset);
+	rc = s390pci_store(data, req, offset);
 	return rc;
 }
 
@@ -470,7 +470,7 @@ scan:
 	}
 
 	/* enable interrupts again */
-	sic_instr(SIC_IRQ_MODE_SINGLE, NULL, PCI_ISC);
+	set_irq_ctrl(SIC_IRQ_MODE_SINGLE, NULL, PCI_ISC);
 
 	/* check again to not lose initiative */
 	rmb();
@@ -785,7 +785,7 @@ static int __init zpci_irq_init(void)
 	spin_lock_init(&bucket->lock);
 	/* set summary to 1 to be called every time for the ISC */
 	*zpci_irq_si = 1;
-	sic_instr(SIC_IRQ_MODE_SINGLE, NULL, PCI_ISC);
+	set_irq_ctrl(SIC_IRQ_MODE_SINGLE, NULL, PCI_ISC);
 	return 0;
 
 out_ai:

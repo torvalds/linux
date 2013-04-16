@@ -36,7 +36,7 @@ static inline RETTYPE zpci_read_##RETTYPE(const volatile void __iomem *addr)	\
 	u64 data;								\
 	int rc;									\
 										\
-	rc = pcilg_instr(&data, req, ZPCI_OFFSET(addr));			\
+	rc = s390pci_load(&data, req, ZPCI_OFFSET(addr));			\
 	if (rc)									\
 		data = -1ULL;							\
 	return (RETTYPE) data;							\
@@ -50,7 +50,7 @@ static inline void zpci_write_##VALTYPE(VALTYPE val,				\
 	u64 req = ZPCI_CREATE_REQ(entry->fh, entry->bar, LENGTH);		\
 	u64 data = (VALTYPE) val;						\
 										\
-	pcistg_instr(data, req, ZPCI_OFFSET(addr));				\
+	s390pci_store(data, req, ZPCI_OFFSET(addr));				\
 }
 
 zpci_read(8, u64)
@@ -83,7 +83,7 @@ static inline int zpci_write_single(u64 req, const u64 *data, u64 offset, u8 len
 		val = 0;		/* let FW report error */
 		break;
 	}
-	return pcistg_instr(val, req, offset);
+	return s390pci_store(val, req, offset);
 }
 
 static inline int zpci_read_single(u64 req, u64 *dst, u64 offset, u8 len)
@@ -91,7 +91,7 @@ static inline int zpci_read_single(u64 req, u64 *dst, u64 offset, u8 len)
 	u64 data;
 	u8 cc;
 
-	cc = pcilg_instr(&data,	 req, offset);
+	cc = s390pci_load(&data, req, offset);
 	switch (len) {
 	case 1:
 		*((u8 *) dst) = (u8) data;
@@ -111,7 +111,7 @@ static inline int zpci_read_single(u64 req, u64 *dst, u64 offset, u8 len)
 
 static inline int zpci_write_block(u64 req, const u64 *data, u64 offset)
 {
-	return pcistb_instr(data, req, offset);
+	return s390pci_store_block(data, req, offset);
 }
 
 static inline u8 zpci_get_max_write_size(u64 src, u64 dst, int len, int max)
