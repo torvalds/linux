@@ -779,10 +779,7 @@ struct sctp_transport {
 		hb_sent:1,
 
 		/* Is the Path MTU update pending on this tranport */
-		pmtu_pending:1,
-
-		/* Is this structure kfree()able? */
-		malloced:1;
+		pmtu_pending:1;
 
 	/* Has this transport moved the ctsn since we last sacked */
 	__u32 sack_generation;
