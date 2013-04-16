@@ -89,7 +89,7 @@ static inline int zpci_write_single(u64 req, const u64 *data, u64 offset, u8 len
 static inline int zpci_read_single(u64 req, u64 *dst, u64 offset, u8 len)
 {
 	u64 data;
-	u8 cc;
+	int cc;
 
 	cc = s390pci_load(&data, req, offset);
 	switch (len) {

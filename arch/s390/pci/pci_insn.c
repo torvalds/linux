@@ -8,6 +8,7 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <asm/pci_insn.h>
+#include <asm/processor.h>
 
 #define ZPCI_INSN_BUSY_DELAY	1	/* 1 microsecond */
 
@@ -85,18 +86,20 @@ void set_irq_ctrl(u16 ctl, char *unused, u8 isc)
 }
 
 /* PCI Load */
-static inline u8 __pcilg(u64 *data, u64 req, u64 offset, u8 *status)
+static inline int __pcilg(u64 *data, u64 req, u64 offset, u8 *status)
 {
 	register u64 __req asm("2") = req;
 	register u64 __offset asm("3") = offset;
+	int cc = -ENXIO;
 	u64 __data;
-	u8 cc;
 
 	asm volatile (
 		"	.insn	rre,0xb9d20000,%[data],%[req]\n"
-		"	ipm	%[cc]\n"
+		"0:	ipm	%[cc]\n"
 		"	srl	%[cc],28\n"
-		: [cc] "=d" (cc), [data] "=d" (__data), [req] "+d" (__req)
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: [cc] "+d" (cc), [data] "=d" (__data), [req] "+d" (__req)
 		:  "d" (__offset)
 		: "cc");
 	*status = __req >> 24 & 0xff;
@@ -106,7 +109,8 @@ static inline u8 __pcilg(u64 *data, u64 req, u64 offset, u8 *status)
 
 int s390pci_load(u64 *data, u64 req, u64 offset)
 {
-	u8 cc, status;
+	u8 status;
+	int cc;
 
 	do {
 		cc = __pcilg(data, req, offset, &status);
@@ -114,29 +118,27 @@ int s390pci_load(u64 *data, u64 req, u64 offset)
 			udelay(ZPCI_INSN_BUSY_DELAY);
 	} while (cc == 2);
 
-	if (cc) {
+	if (cc)
 		printk_once(KERN_ERR "%s: error cc: %d  status: %d  req: %Lx  offset: %Lx\n",
 			    __func__, cc, status, req, offset);
-		/* TODO: on IO errors set data to 0xff...
-		 * here or in users of pcilg (le conversion)?
-		 */
-	}
-	return (cc) ? -EIO : 0;
+	return (cc > 0) ? -EIO : cc;
 }
 EXPORT_SYMBOL_GPL(s390pci_load);
 
 /* PCI Store */
-static inline u8 __pcistg(u64 data, u64 req, u64 offset, u8 *status)
+static inline int __pcistg(u64 data, u64 req, u64 offset, u8 *status)
 {
 	register u64 __req asm("2") = req;
 	register u64 __offset asm("3") = offset;
-	u8 cc;
+	int cc = -ENXIO;
 
 	asm volatile (
 		"	.insn	rre,0xb9d00000,%[data],%[req]\n"
-		"	ipm	%[cc]\n"
+		"0:	ipm	%[cc]\n"
 		"	srl	%[cc],28\n"
-		: [cc] "=d" (cc), [req] "+d" (__req)
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: [cc] "+d" (cc), [req] "+d" (__req)
 		: "d" (__offset), [data] "d" (data)
 		: "cc");
 	*status = __req >> 24 & 0xff;
@@ -145,7 +147,8 @@ static inline u8 __pcistg(u64 data, u64 req, u64 offset, u8 *status)
 
 int s390pci_store(u64 data, u64 req, u64 offset)
 {
-	u8 cc, status;
+	u8 status;
+	int cc;
 
 	do {
 		cc = __pcistg(data, req, offset, &status);
@@ -156,20 +159,22 @@ int s390pci_store(u64 data, u64 req, u64 offset)
 	if (cc)
 		printk_once(KERN_ERR "%s: error cc: %d  status: %d  req: %Lx  offset: %Lx\n",
 			__func__, cc, status, req, offset);
-	return (cc) ? -EIO : 0;
+	return (cc > 0) ? -EIO : cc;
 }
 EXPORT_SYMBOL_GPL(s390pci_store);
 
 /* PCI Store Block */
-static inline u8 __pcistb(const u64 *data, u64 req, u64 offset, u8 *status)
+static inline int __pcistb(const u64 *data, u64 req, u64 offset, u8 *status)
 {
-	u8 cc;
+	int cc = -ENXIO;
 
 	asm volatile (
 		"	.insn	rsy,0xeb00000000d0,%[req],%[offset],%[data]\n"
-		"	ipm	%[cc]\n"
+		"0:	ipm	%[cc]\n"
 		"	srl	%[cc],28\n"
-		: [cc] "=d" (cc), [req] "+d" (req)
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: [cc] "+d" (cc), [req] "+d" (req)
 		: [offset] "d" (offset), [data] "Q" (*data)
 		: "cc");
 	*status = req >> 24 & 0xff;
@@ -178,7 +183,8 @@ static inline u8 __pcistb(const u64 *data, u64 req, u64 offset, u8 *status)
 
 int s390pci_store_block(const u64 *data, u64 req, u64 offset)
 {
-	u8 cc, status;
+	u8 status;
+	int cc;
 
 	do {
 		cc = __pcistb(data, req, offset, &status);
@@ -189,6 +195,6 @@ int s390pci_store_block(const u64 *data, u64 req, u64 offset)
 	if (cc)
 		printk_once(KERN_ERR "%s: error cc: %d  status: %d  req: %Lx  offset: %Lx\n",
 			    __func__, cc, status, req, offset);
-	return (cc) ? -EIO : 0;
+	return (cc > 0) ? -EIO : cc;
 }
 EXPORT_SYMBOL_GPL(s390pci_store_block);
