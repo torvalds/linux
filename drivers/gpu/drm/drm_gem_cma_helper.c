@@ -228,13 +228,26 @@ const struct vm_operations_struct drm_gem_cma_vm_ops = {
 };
 EXPORT_SYMBOL_GPL(drm_gem_cma_vm_ops);
 
+static int drm_gem_cma_mmap_obj(struct drm_gem_cma_object *cma_obj,
+				struct vm_area_struct *vma)
+{
+	int ret;
+
+	ret = remap_pfn_range(vma, vma->vm_start, cma_obj->paddr >> PAGE_SHIFT,
+			vma->vm_end - vma->vm_start, vma->vm_page_prot);
+	if (ret)
+		drm_gem_vm_close(vma);
+
+	return ret;
+}
+
 /*
  * drm_gem_cma_mmap - (struct file_operation)->mmap callback function
  */
 int drm_gem_cma_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	struct drm_gem_object *gem_obj;
 	struct drm_gem_cma_object *cma_obj;
+	struct drm_gem_object *gem_obj;
 	int ret;
 
 	ret = drm_gem_mmap(filp, vma);
@@ -244,12 +257,7 @@ int drm_gem_cma_mmap(struct file *filp, struct vm_area_struct *vma)
 	gem_obj = vma->vm_private_data;
 	cma_obj = to_drm_gem_cma_obj(gem_obj);
 
-	ret = remap_pfn_range(vma, vma->vm_start, cma_obj->paddr >> PAGE_SHIFT,
-			vma->vm_end - vma->vm_start, vma->vm_page_prot);
-	if (ret)
-		drm_gem_vm_close(vma);
-
-	return ret;
+	return drm_gem_cma_mmap_obj(cma_obj, vma);
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_mmap);
 
