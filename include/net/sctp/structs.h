@@ -1059,9 +1059,6 @@ struct sctp_outq {
 
 	/* Is this structure empty?  */
 	char empty;
-
-	/* Are we kfree()able? */
-	char malloced;
 };
 
 void sctp_outq_init(struct sctp_association *, struct sctp_outq *);

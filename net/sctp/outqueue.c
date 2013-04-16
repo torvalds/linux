@@ -217,8 +217,6 @@ void sctp_outq_init(struct sctp_association *asoc, struct sctp_outq *q)
 	q->outstanding_bytes = 0;
 	q->empty = 1;
 	q->cork  = 0;
-
-	q->malloced = 0;
 	q->out_qlen = 0;
 }
 
@@ -295,10 +293,6 @@ void sctp_outq_free(struct sctp_outq *q)
 {
 	/* Throw away leftover chunks. */
 	__sctp_outq_teardown(q);
-
-	/* If we were kmalloc()'d, free the memory.  */
-	if (q->malloced)
-		kfree(q);
 }
 
 /* Put a new chunk in an sctp_outq.  */
