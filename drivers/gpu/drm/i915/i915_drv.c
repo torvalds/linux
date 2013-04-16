@@ -294,6 +294,7 @@ static const struct intel_device_info intel_valleyview_m_info = {
 	.num_pipes = 2,
 	.is_valleyview = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
+	.has_llc = 0, /* legal, last one wins */
 };
 
 static const struct intel_device_info intel_valleyview_d_info = {
@@ -301,6 +302,7 @@ static const struct intel_device_info intel_valleyview_d_info = {
 	.num_pipes = 2,
 	.is_valleyview = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
+	.has_llc = 0, /* legal, last one wins */
 };
 
 static const struct intel_device_info intel_haswell_d_info = {
