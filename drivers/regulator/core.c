@@ -1229,7 +1229,7 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 	struct regulator_dev *rdev;
 	struct regulator *regulator = ERR_PTR(-EPROBE_DEFER);
 	const char *devname = NULL;
-	int ret;
+	int ret = 0;
 
 	if (id == NULL) {
 		pr_err("get() with no identifier\n");
@@ -1244,6 +1244,15 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 	rdev = regulator_dev_lookup(dev, id, &ret);
 	if (rdev)
 		goto found;
+
+	/*
+	 * If we have return value from dev_lookup fail, we do not expect to
+	 * succeed, so, quit with appropriate error value
+	 */
+	if (ret) {
+		regulator = ERR_PTR(ret);
+		goto out;
+	}
 
 	if (board_wants_dummy_regulator) {
 		rdev = dummy_regulator_rdev;
