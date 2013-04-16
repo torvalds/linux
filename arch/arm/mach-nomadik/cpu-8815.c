@@ -29,7 +29,7 @@
 #include <linux/platform_data/clk-nomadik.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
 #include <linux/pinctrl/machine.h>
-#include <linux/platform_data/clocksource-nomadik-mtu.h>
+#include <linux/clocksource.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 #include <linux/of_address.h>
@@ -172,7 +172,7 @@ static void __init cpu8815_timer_init_of(void)
 	/* We need this to be up now */
 	nomadik_clk_init();
 
-	mtu = of_find_node_by_path("/mtu0");
+	mtu = of_find_node_by_path("/mtu@101e2000");
 	if (!mtu)
 		return;
 	base = of_iomap(mtu, 0);
@@ -188,7 +188,7 @@ static void __init cpu8815_timer_init_of(void)
 	src_cr |= SRC_CR_INIT_VAL;
 	writel(src_cr, base);
 
-	nmdk_timer_init(base, irq);
+	clocksource_of_init();
 }
 
 static struct fsmc_nand_timings cpu8815_nand_timings = {

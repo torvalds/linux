@@ -21,18 +21,23 @@
 		cache-level = <2>;
 	};
 
-	mtu0 {
+	mtu0: mtu@101e2000 {
 		/* Nomadik system timer */
+		compatible = "st,nomadik-mtu";
 		reg = <0x101e2000 0x1000>;
 		interrupt-parent = <&vica>;
 		interrupts = <4>;
+		clocks = <&timclk>, <&pclk>;
+		clock-names = "timclk", "apb_pclk";
 	};
 
-	mtu1 {
+	mtu1: mtu@101e3000 {
 		/* Secondary timer */
 		reg = <0x101e3000 0x1000>;
 		interrupt-parent = <&vica>;
 		interrupts = <5>;
+		clocks = <&timclk>, <&pclk>;
+		clock-names = "timclk", "apb_pclk";
 	};
 
 	gpio0: gpio@101e4000 {
@@ -101,7 +106,7 @@
 			pclk: pclk@0 {
 				#clock-cells = <0>;
 				compatible = "fixed-clock";
-				clock-frequency = <2400000>;
+				clock-frequency = <0>;
 			};
 			/*
 			 * The 2.4 MHz TIMCLK reference clock is active at
