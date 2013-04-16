@@ -377,6 +377,8 @@
 				compatible = "atmel,hsmci";
 				reg = <0xf0008000 0x600>;
 				interrupts = <12 4 0>;
+				dmas = <&dma0 1 0>;
+				dma-names = "rxtx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -386,6 +388,8 @@
 				compatible = "atmel,hsmci";
 				reg = <0xf000c000 0x600>;
 				interrupts = <26 4 0>;
+				dmas = <&dma1 1 0>;
+				dma-names = "rxtx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
