@@ -80,6 +80,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT5631 if I2C
 	select SND_SOC_RT5631_PHONE if I2C
 	select SND_SOC_RT5625 if I2C
+	select SND_SOC_RT5640 if I2C
 	select SND_SOC_RT3261 if I2C
 	select SND_SOC_RT3224 if I2C
 	select SND_SOC_RT5623 if I2C
@@ -348,6 +349,10 @@ config SND_SOC_RT5631_PHONE
 	tristate
 	
 config SND_SOC_RT5625
+	tristate
+
+config SND_SOC_RT5640
+	select SND_HWDEP
 	tristate
 
 config SND_SOC_RT3224

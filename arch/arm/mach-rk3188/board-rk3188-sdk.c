@@ -1510,7 +1510,13 @@ static struct i2c_board_info __initdata i2c0_info[] = {
                 .flags                  = 0,
         },
 #endif
-
+#if defined (CONFIG_SND_SOC_RT5640) 
+	    {
+			.type                   = "rt5640",
+			.addr                   = 0x1c,
+			.flags                  = 0,
+		},
+#endif
 #ifdef CONFIG_MFD_RK610
 		{
 			.type			= "rk610_ctl",

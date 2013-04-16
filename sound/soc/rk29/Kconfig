@@ -147,6 +147,14 @@ choice
 	  if your codec output hardware connect is spk from spkout, choose it
 endchoice
 
+config SND_RK29_SOC_RT5640
+	tristate "SoC I2S Audio support for rockchip - RT5640(RT5642)"
+	depends on SND_RK29_SOC
+	select SND_RK29_SOC_I2S
+	select SND_SOC_RT5640
+	help
+	   RT5640 is pin to pin as RT5642, but not have dsp function.
+	  
 config SND_RK29_SOC_RT3224
 	tristate "SoC I2S Audio support for rockchip - RT3224"
 	depends on SND_RK29_SOC
