@@ -2319,6 +2319,7 @@ struct hid_device *hid_allocate_device(void)
 
 	init_waitqueue_head(&hdev->debug_wait);
 	INIT_LIST_HEAD(&hdev->debug_list);
+	mutex_init(&hdev->debug_list_lock);
 	sema_init(&hdev->driver_lock, 1);
 
 	return hdev;

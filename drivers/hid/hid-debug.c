@@ -580,12 +580,14 @@ void hid_debug_event(struct hid_device *hdev, char *buf)
 	int i;
 	struct hid_debug_list *list;
 
+	mutex_lock(&hdev->debug_list_lock);
 	list_for_each_entry(list, &hdev->debug_list, node) {
 		for (i = 0; i < strlen(buf); i++)
 			list->hid_debug_buf[(list->tail + i) % HID_DEBUG_BUFSIZE] =
 				buf[i];
 		list->tail = (list->tail + i) % HID_DEBUG_BUFSIZE;
         }
+	mutex_unlock(&hdev->debug_list_lock);
 
 	wake_up_interruptible(&hdev->debug_wait);
 }
@@ -990,7 +992,9 @@ static int hid_debug_events_open(struct inode *inode, struct file *file)
 	file->private_data = list;
 	mutex_init(&list->read_mutex);
 
+	mutex_lock(&list->hdev->debug_list_lock);
 	list_add_tail(&list->node, &list->hdev->debug_list);
+	mutex_unlock(&list->hdev->debug_list_lock);
 
 out:
 	return err;
@@ -1085,7 +1089,9 @@ static int hid_debug_events_release(struct inode *inode, struct file *file)
 {
 	struct hid_debug_list *list = file->private_data;
 
+	mutex_lock(&list->hdev->debug_list_lock);
 	list_del(&list->node);
+	mutex_unlock(&list->hdev->debug_list_lock);
 	kfree(list->hid_debug_buf);
 	kfree(list);
 
