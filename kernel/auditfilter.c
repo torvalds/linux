@@ -310,13 +310,76 @@ static u32 audit_to_op(u32 op)
 	return n;
 }
 
-/* check if a field is valid for a given list */
+/* check if an audit field is valid */
 static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 {
 	switch(f->type) {
 	case AUDIT_MSGTYPE:
 		if (entry->rule.listnr != AUDIT_FILTER_TYPE &&
 		    entry->rule.listnr != AUDIT_FILTER_USER)
+			return -EINVAL;
+		break;
+	};
+
+	switch(f->type) {
+	default:
+		return -EINVAL;
+	case AUDIT_UID:
+	case AUDIT_EUID:
+	case AUDIT_SUID:
+	case AUDIT_FSUID:
+	case AUDIT_LOGINUID:
+	case AUDIT_OBJ_UID:
+	case AUDIT_GID:
+	case AUDIT_EGID:
+	case AUDIT_SGID:
+	case AUDIT_FSGID:
+	case AUDIT_OBJ_GID:
+	case AUDIT_PID:
+	case AUDIT_PERS:
+	case AUDIT_MSGTYPE:
+	case AUDIT_PPID:
+	case AUDIT_DEVMAJOR:
+	case AUDIT_DEVMINOR:
+	case AUDIT_EXIT:
+	case AUDIT_SUCCESS:
+		/* bit ops are only useful on syscall args */
+		if (f->op == Audit_bitmask || f->op == Audit_bittest)
+			return -EINVAL;
+		break;
+	case AUDIT_ARG0:
+	case AUDIT_ARG1:
+	case AUDIT_ARG2:
+	case AUDIT_ARG3:
+	case AUDIT_SUBJ_USER:
+	case AUDIT_SUBJ_ROLE:
+	case AUDIT_SUBJ_TYPE:
+	case AUDIT_SUBJ_SEN:
+	case AUDIT_SUBJ_CLR:
+	case AUDIT_OBJ_USER:
+	case AUDIT_OBJ_ROLE:
+	case AUDIT_OBJ_TYPE:
+	case AUDIT_OBJ_LEV_LOW:
+	case AUDIT_OBJ_LEV_HIGH:
+	case AUDIT_WATCH:
+	case AUDIT_DIR:
+	case AUDIT_FILTERKEY:
+		break;
+	/* arch is only allowed to be = or != */
+	case AUDIT_ARCH:
+		if (f->op != Audit_not_equal && f->op != Audit_equal)
+			return -EINVAL;
+		break;
+	case AUDIT_PERM:
+		if (f->val & ~15)
+			return -EINVAL;
+		break;
+	case AUDIT_FILETYPE:
+		if (f->val & ~S_IFMT)
+			return -EINVAL;
+		break;
+	case AUDIT_FIELD_COMPARE:
+		if (f->val > AUDIT_MAX_FIELD_COMPARE)
 			return -EINVAL;
 		break;
 	};
@@ -361,18 +424,17 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 		if (f->op == Audit_bad)
 			goto exit_free;
 
-		switch(f->type) {
-		default:
+		err = audit_field_valid(entry, f);
+		if (err)
 			goto exit_free;
+
+		err = -EINVAL;
+		switch (f->type) {
 		case AUDIT_UID:
 		case AUDIT_EUID:
 		case AUDIT_SUID:
 		case AUDIT_FSUID:
 		case AUDIT_LOGINUID:
-			/* bit ops not implemented for uid comparisons */
-			if (f->op == Audit_bitmask || f->op == Audit_bittest)
-				goto exit_free;
-
 			f->uid = make_kuid(current_user_ns(), f->val);
 			if (!uid_valid(f->uid))
 				goto exit_free;
@@ -381,44 +443,12 @@ static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
 		case AUDIT_EGID:
 		case AUDIT_SGID:
 		case AUDIT_FSGID:
-			/* bit ops not implemented for gid comparisons */
-			if (f->op == Audit_bitmask || f->op == Audit_bittest)
-				goto exit_free;
-
 			f->gid = make_kgid(current_user_ns(), f->val);
 			if (!gid_valid(f->gid))
 				goto exit_free;
 			break;
-		case AUDIT_PID:
-		case AUDIT_PERS:
-		case AUDIT_MSGTYPE:
-		case AUDIT_PPID:
-		case AUDIT_DEVMAJOR:
-		case AUDIT_DEVMINOR:
-		case AUDIT_EXIT:
-		case AUDIT_SUCCESS:
-			/* bit ops are only useful on syscall args */
-			if (f->op == Audit_bitmask || f->op == Audit_bittest)
-				goto exit_free;
-			break;
-		case AUDIT_ARG0:
-		case AUDIT_ARG1:
-		case AUDIT_ARG2:
-		case AUDIT_ARG3:
-			break;
-		/* arch is only allowed to be = or != */
 		case AUDIT_ARCH:
-			if (f->op != Audit_not_equal && f->op != Audit_equal)
-				goto exit_free;
 			entry->rule.arch_f = f;
-			break;
-		case AUDIT_PERM:
-			if (f->val & ~15)
-				goto exit_free;
-			break;
-		case AUDIT_FILETYPE:
-			if (f->val & ~S_IFMT)
-				goto exit_free;
 			break;
 		case AUDIT_INODE:
 			err = audit_to_inode(&entry->rule, f);
@@ -477,18 +507,13 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 			goto exit_free;
 
 		err = -EINVAL;
-
-		switch(f->type) {
+		switch (f->type) {
 		case AUDIT_UID:
 		case AUDIT_EUID:
 		case AUDIT_SUID:
 		case AUDIT_FSUID:
 		case AUDIT_LOGINUID:
 		case AUDIT_OBJ_UID:
-			/* bit ops not implemented for uid comparisons */
-			if (f->op == Audit_bitmask || f->op == Audit_bittest)
-				goto exit_free;
-
 			f->uid = make_kuid(current_user_ns(), f->val);
 			if (!uid_valid(f->uid))
 				goto exit_free;
@@ -498,26 +523,9 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 		case AUDIT_SGID:
 		case AUDIT_FSGID:
 		case AUDIT_OBJ_GID:
-			/* bit ops not implemented for gid comparisons */
-			if (f->op == Audit_bitmask || f->op == Audit_bittest)
-				goto exit_free;
-
 			f->gid = make_kgid(current_user_ns(), f->val);
 			if (!gid_valid(f->gid))
 				goto exit_free;
-			break;
-		case AUDIT_PID:
-		case AUDIT_PERS:
-		case AUDIT_MSGTYPE:
-		case AUDIT_PPID:
-		case AUDIT_DEVMAJOR:
-		case AUDIT_DEVMINOR:
-		case AUDIT_EXIT:
-		case AUDIT_SUCCESS:
-		case AUDIT_ARG0:
-		case AUDIT_ARG1:
-		case AUDIT_ARG2:
-		case AUDIT_ARG3:
 			break;
 		case AUDIT_ARCH:
 			entry->rule.arch_f = f;
@@ -589,20 +597,6 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 			entry->rule.buflen += f->val;
 			entry->rule.filterkey = str;
 			break;
-		case AUDIT_PERM:
-			if (f->val & ~15)
-				goto exit_free;
-			break;
-		case AUDIT_FILETYPE:
-			if (f->val & ~S_IFMT)
-				goto exit_free;
-			break;
-		case AUDIT_FIELD_COMPARE:
-			if (f->val > AUDIT_MAX_FIELD_COMPARE)
-				goto exit_free;
-			break;
-		default:
-			goto exit_free;
 		}
 	}
 
