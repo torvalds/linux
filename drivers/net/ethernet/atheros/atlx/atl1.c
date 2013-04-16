@@ -2876,16 +2876,9 @@ static int atl1_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(atl1_pm_ops, atl1_suspend, atl1_resume);
-#define ATL1_PM_OPS	(&atl1_pm_ops)
-
-#else
-
-static int atl1_suspend(struct device *dev) { return 0; }
-
-#define ATL1_PM_OPS	NULL
-#endif
 
 static void atl1_shutdown(struct pci_dev *pdev)
 {
@@ -3147,7 +3140,7 @@ static struct pci_driver atl1_driver = {
 	.probe = atl1_probe,
 	.remove = atl1_remove,
 	.shutdown = atl1_shutdown,
-	.driver.pm = ATL1_PM_OPS,
+	.driver.pm = &atl1_pm_ops,
 };
 
 /**
