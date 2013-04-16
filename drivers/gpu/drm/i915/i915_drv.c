@@ -463,6 +463,7 @@ bool i915_semaphore_is_enabled(struct drm_device *dev)
 static int i915_drm_freeze(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc;
 
 	/* ignore lid events during suspend */
 	mutex_lock(&dev_priv->modeset_restore_lock);
@@ -486,10 +487,14 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 		cancel_delayed_work_sync(&dev_priv->rps.delayed_resume_work);
 
-		intel_modeset_disable(dev);
-
 		drm_irq_uninstall(dev);
 		dev_priv->enable_hotplug_processing = false;
+		/*
+		 * Disable CRTCs directly since we want to preserve sw state
+		 * for _thaw.
+		 */
+		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+			dev_priv->display.crtc_disable(crtc);
 	}
 
 	i915_save_state(dev);
@@ -545,6 +550,24 @@ void intel_console_resume(struct work_struct *work)
 	console_unlock();
 }
 
+static void intel_resume_hotplug(struct drm_device *dev)
+{
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct intel_encoder *encoder;
+
+	mutex_lock(&mode_config->mutex);
+	DRM_DEBUG_KMS("running encoder hotplug functions\n");
+
+	list_for_each_entry(encoder, &mode_config->encoder_list, base.head)
+		if (encoder->hot_plug)
+			encoder->hot_plug(encoder);
+
+	mutex_unlock(&mode_config->mutex);
+
+	/* Just fire off a uevent and let userspace tell us what to do */
+	drm_helper_hpd_irq_event(dev);
+}
+
 static int __i915_drm_thaw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -567,7 +590,10 @@ static int __i915_drm_thaw(struct drm_device *dev)
 		drm_irq_install(dev);
 
 		intel_modeset_init_hw(dev);
-		intel_modeset_setup_hw_state(dev, false);
+
+		drm_modeset_lock_all(dev);
+		intel_modeset_setup_hw_state(dev, true);
+		drm_modeset_unlock_all(dev);
 
 		/*
 		 * ... but also need to make sure that hotplug processing
@@ -577,6 +603,8 @@ static int __i915_drm_thaw(struct drm_device *dev)
 		 * */
 		intel_hpd_init(dev);
 		dev_priv->enable_hotplug_processing = true;
+		/* Config may have changed between suspend and resume */
+		intel_resume_hotplug(dev);
 	}
 
 	intel_opregion_init(dev);
@@ -721,6 +749,7 @@ static int ironlake_do_reset(struct drm_device *dev)
 	int ret;
 
 	gdrst = I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR);
+	gdrst &= ~GRDOM_MASK;
 	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR,
 		   gdrst | GRDOM_RENDER | GRDOM_RESET_ENABLE);
 	ret = wait_for(I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) & 0x1, 500);
@@ -729,6 +758,7 @@ static int ironlake_do_reset(struct drm_device *dev)
 
 	/* We can't reset render&media without also resetting display ... */
 	gdrst = I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR);
+	gdrst &= ~GRDOM_MASK;
 	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR,
 		   gdrst | GRDOM_MEDIA | GRDOM_RESET_ENABLE);
 	return wait_for(I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) & 0x1, 500);
@@ -792,7 +822,7 @@ int intel_gpu_reset(struct drm_device *dev)
 
 	/* Also reset the gpu hangman. */
 	if (dev_priv->gpu_error.stop_rings) {
-		DRM_DEBUG("Simulated gpu hang, resetting stop_rings\n");
+		DRM_INFO("Simulated gpu hang, resetting stop_rings\n");
 		dev_priv->gpu_error.stop_rings = 0;
 		if (ret == -ENODEV) {
 			DRM_ERROR("Reset not implemented, but ignoring "

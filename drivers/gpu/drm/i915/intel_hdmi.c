@@ -333,6 +333,7 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 					 struct drm_display_mode *adjusted_mode)
 {
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct dip_infoframe avi_if = {
 		.type = DIP_TYPE_AVI,
 		.ver = DIP_VERSION_AVI,
@@ -343,7 +344,7 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 		avi_if.body.avi.YQ_CN_PR |= DIP_AVI_PR_2;
 
 	if (intel_hdmi->rgb_quant_range_selectable) {
-		if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+		if (intel_crtc->config.limited_color_range)
 			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_LIMITED;
 		else
 			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_FULL;
@@ -601,14 +602,14 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	u32 hdmi_val;
 
 	hdmi_val = SDVO_ENCODING_HDMI;
-	if (!HAS_PCH_SPLIT(dev))
+	if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev))
 		hdmi_val |= intel_hdmi->color_range;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		hdmi_val |= SDVO_VSYNC_ACTIVE_HIGH;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 		hdmi_val |= SDVO_HSYNC_ACTIVE_HIGH;
 
-	if (intel_crtc->bpp > 24)
+	if (intel_crtc->config.pipe_bpp > 24)
 		hdmi_val |= HDMI_COLOR_FORMAT_12bpc;
 	else
 		hdmi_val |= SDVO_COLOR_FORMAT_8bpc;
@@ -768,11 +769,12 @@ static int intel_hdmi_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
-			   const struct drm_display_mode *mode,
-			   struct drm_display_mode *adjusted_mode)
+bool intel_hdmi_compute_config(struct intel_encoder *encoder,
+			       struct intel_crtc_config *pipe_config)
 {
-	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 
 	if (intel_hdmi->color_range_auto) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
@@ -784,7 +786,23 @@ bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 	}
 
 	if (intel_hdmi->color_range)
-		adjusted_mode->private_flags |= INTEL_MODE_LIMITED_COLOR_RANGE;
+		pipe_config->limited_color_range = true;
+
+	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev))
+		pipe_config->has_pch_encoder = true;
+
+	/*
+	 * HDMI is either 12 or 8, so if the display lets 10bpc sneak
+	 * through, clamp it down. Note that g4x/vlv don't support 12bpc hdmi
+	 * outputs.
+	 */
+	if (pipe_config->pipe_bpp > 8*3 && HAS_PCH_SPLIT(dev)) {
+		DRM_DEBUG_KMS("forcing bpc to 12 for HDMI\n");
+		pipe_config->pipe_bpp = 12*3;
+	} else {
+		DRM_DEBUG_KMS("forcing bpc to 8 for HDMI\n");
+		pipe_config->pipe_bpp = 8*3;
+	}
 
 	return true;
 }
@@ -937,7 +955,6 @@ static void intel_hdmi_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs = {
-	.mode_fixup = intel_hdmi_mode_fixup,
 	.mode_set = intel_hdmi_mode_set,
 };
 
@@ -988,17 +1005,18 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	switch (port) {
 	case PORT_B:
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPB;
-		dev_priv->hotplug_supported_mask |= PORTB_HOTPLUG_INT_STATUS;
+		intel_encoder->hpd_pin = HPD_PORT_B;
 		break;
 	case PORT_C:
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPC;
-		dev_priv->hotplug_supported_mask |= PORTC_HOTPLUG_INT_STATUS;
+		intel_encoder->hpd_pin = HPD_PORT_C;
 		break;
 	case PORT_D:
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPD;
-		dev_priv->hotplug_supported_mask |= PORTD_HOTPLUG_INT_STATUS;
+		intel_encoder->hpd_pin = HPD_PORT_D;
 		break;
 	case PORT_A:
+		intel_encoder->hpd_pin = HPD_PORT_A;
 		/* Internal port only for eDP. */
 	default:
 		BUG();
@@ -1065,6 +1083,7 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 			 DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(&intel_encoder->base, &intel_hdmi_helper_funcs);
 
+	intel_encoder->compute_config = intel_hdmi_compute_config;
 	intel_encoder->enable = intel_enable_hdmi;
 	intel_encoder->disable = intel_disable_hdmi;
 	intel_encoder->get_hw_state = intel_hdmi_get_hw_state;

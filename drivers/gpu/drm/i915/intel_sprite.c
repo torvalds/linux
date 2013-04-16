@@ -37,6 +37,174 @@
 #include "i915_drv.h"
 
 static void
+vlv_update_plane(struct drm_plane *dplane, struct drm_framebuffer *fb,
+		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
+		 unsigned int crtc_w, unsigned int crtc_h,
+		 uint32_t x, uint32_t y,
+		 uint32_t src_w, uint32_t src_h)
+{
+	struct drm_device *dev = dplane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_plane *intel_plane = to_intel_plane(dplane);
+	int pipe = intel_plane->pipe;
+	int plane = intel_plane->plane;
+	u32 sprctl;
+	unsigned long sprsurf_offset, linear_offset;
+	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
+
+	sprctl = I915_READ(SPCNTR(pipe, plane));
+
+	/* Mask out pixel format bits in case we change it */
+	sprctl &= ~SP_PIXFORMAT_MASK;
+	sprctl &= ~SP_YUV_BYTE_ORDER_MASK;
+	sprctl &= ~SP_TILED;
+
+	switch (fb->pixel_format) {
+	case DRM_FORMAT_YUYV:
+		sprctl |= SP_FORMAT_YUV422 | SP_YUV_ORDER_YUYV;
+		break;
+	case DRM_FORMAT_YVYU:
+		sprctl |= SP_FORMAT_YUV422 | SP_YUV_ORDER_YVYU;
+		break;
+	case DRM_FORMAT_UYVY:
+		sprctl |= SP_FORMAT_YUV422 | SP_YUV_ORDER_UYVY;
+		break;
+	case DRM_FORMAT_VYUY:
+		sprctl |= SP_FORMAT_YUV422 | SP_YUV_ORDER_VYUY;
+		break;
+	case DRM_FORMAT_RGB565:
+		sprctl |= SP_FORMAT_BGR565;
+		break;
+	case DRM_FORMAT_XRGB8888:
+		sprctl |= SP_FORMAT_BGRX8888;
+		break;
+	case DRM_FORMAT_ARGB8888:
+		sprctl |= SP_FORMAT_BGRA8888;
+		break;
+	case DRM_FORMAT_XBGR2101010:
+		sprctl |= SP_FORMAT_RGBX1010102;
+		break;
+	case DRM_FORMAT_ABGR2101010:
+		sprctl |= SP_FORMAT_RGBA1010102;
+		break;
+	case DRM_FORMAT_XBGR8888:
+		sprctl |= SP_FORMAT_RGBX8888;
+		break;
+	case DRM_FORMAT_ABGR8888:
+		sprctl |= SP_FORMAT_RGBA8888;
+		break;
+	default:
+		/*
+		 * If we get here one of the upper layers failed to filter
+		 * out the unsupported plane formats
+		 */
+		BUG();
+		break;
+	}
+
+	if (obj->tiling_mode != I915_TILING_NONE)
+		sprctl |= SP_TILED;
+
+	sprctl |= SP_ENABLE;
+
+	/* Sizes are 0 based */
+	src_w--;
+	src_h--;
+	crtc_w--;
+	crtc_h--;
+
+	intel_update_sprite_watermarks(dev, pipe, crtc_w, pixel_size);
+
+	I915_WRITE(SPSTRIDE(pipe, plane), fb->pitches[0]);
+	I915_WRITE(SPPOS(pipe, plane), (crtc_y << 16) | crtc_x);
+
+	linear_offset = y * fb->pitches[0] + x * pixel_size;
+	sprsurf_offset = intel_gen4_compute_page_offset(&x, &y,
+							obj->tiling_mode,
+							pixel_size,
+							fb->pitches[0]);
+	linear_offset -= sprsurf_offset;
+
+	if (obj->tiling_mode != I915_TILING_NONE)
+		I915_WRITE(SPTILEOFF(pipe, plane), (y << 16) | x);
+	else
+		I915_WRITE(SPLINOFF(pipe, plane), linear_offset);
+
+	I915_WRITE(SPSIZE(pipe, plane), (crtc_h << 16) | crtc_w);
+	I915_WRITE(SPCNTR(pipe, plane), sprctl);
+	I915_MODIFY_DISPBASE(SPSURF(pipe, plane), obj->gtt_offset +
+			     sprsurf_offset);
+	POSTING_READ(SPSURF(pipe, plane));
+}
+
+static void
+vlv_disable_plane(struct drm_plane *dplane)
+{
+	struct drm_device *dev = dplane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_plane *intel_plane = to_intel_plane(dplane);
+	int pipe = intel_plane->pipe;
+	int plane = intel_plane->plane;
+
+	I915_WRITE(SPCNTR(pipe, plane), I915_READ(SPCNTR(pipe, plane)) &
+		   ~SP_ENABLE);
+	/* Activate double buffered register update */
+	I915_MODIFY_DISPBASE(SPSURF(pipe, plane), 0);
+	POSTING_READ(SPSURF(pipe, plane));
+}
+
+static int
+vlv_update_colorkey(struct drm_plane *dplane,
+		    struct drm_intel_sprite_colorkey *key)
+{
+	struct drm_device *dev = dplane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_plane *intel_plane = to_intel_plane(dplane);
+	int pipe = intel_plane->pipe;
+	int plane = intel_plane->plane;
+	u32 sprctl;
+
+	if (key->flags & I915_SET_COLORKEY_DESTINATION)
+		return -EINVAL;
+
+	I915_WRITE(SPKEYMINVAL(pipe, plane), key->min_value);
+	I915_WRITE(SPKEYMAXVAL(pipe, plane), key->max_value);
+	I915_WRITE(SPKEYMSK(pipe, plane), key->channel_mask);
+
+	sprctl = I915_READ(SPCNTR(pipe, plane));
+	sprctl &= ~SP_SOURCE_KEY;
+	if (key->flags & I915_SET_COLORKEY_SOURCE)
+		sprctl |= SP_SOURCE_KEY;
+	I915_WRITE(SPCNTR(pipe, plane), sprctl);
+
+	POSTING_READ(SPKEYMSK(pipe, plane));
+
+	return 0;
+}
+
+static void
+vlv_get_colorkey(struct drm_plane *dplane,
+		 struct drm_intel_sprite_colorkey *key)
+{
+	struct drm_device *dev = dplane->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_plane *intel_plane = to_intel_plane(dplane);
+	int pipe = intel_plane->pipe;
+	int plane = intel_plane->plane;
+	u32 sprctl;
+
+	key->min_value = I915_READ(SPKEYMINVAL(pipe, plane));
+	key->max_value = I915_READ(SPKEYMAXVAL(pipe, plane));
+	key->channel_mask = I915_READ(SPKEYMSK(pipe, plane));
+
+	sprctl = I915_READ(SPCNTR(pipe, plane));
+	if (sprctl & SP_SOURCE_KEY)
+		key->flags = I915_SET_COLORKEY_SOURCE;
+	else
+		key->flags = I915_SET_COLORKEY_NONE;
+}
+
+static void
 ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
 		 unsigned int crtc_w, unsigned int crtc_h,
@@ -441,6 +609,15 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	old_obj = intel_plane->obj;
 
+	intel_plane->crtc_x = crtc_x;
+	intel_plane->crtc_y = crtc_y;
+	intel_plane->crtc_w = crtc_w;
+	intel_plane->crtc_h = crtc_h;
+	intel_plane->src_x = src_x;
+	intel_plane->src_y = src_y;
+	intel_plane->src_w = src_w;
+	intel_plane->src_h = src_h;
+
 	src_w = src_w >> 16;
 	src_h = src_h >> 16;
 
@@ -513,6 +690,11 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	mutex_lock(&dev->struct_mutex);
 
+	/* Note that this will apply the VT-d workaround for scanouts,
+	 * which is more restrictive than required for sprites. (The
+	 * primary plane requires 256KiB alignment with 64 PTE padding,
+	 * the sprite planes only require 128KiB alignment and 32 PTE padding.
+	 */
 	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
 	if (ret)
 		goto out_unlock;
@@ -567,6 +749,8 @@ intel_disable_plane(struct drm_plane *plane)
 
 	if (!intel_plane->obj)
 		goto out;
+
+	intel_wait_for_vblank(dev, intel_plane->pipe);
 
 	mutex_lock(&dev->struct_mutex);
 	intel_unpin_fb_obj(intel_plane->obj);
@@ -647,6 +831,20 @@ out_unlock:
 	return ret;
 }
 
+void intel_plane_restore(struct drm_plane *plane)
+{
+	struct intel_plane *intel_plane = to_intel_plane(plane);
+
+	if (!plane->crtc || !plane->fb)
+		return;
+
+	intel_update_plane(plane, plane->crtc, plane->fb,
+			   intel_plane->crtc_x, intel_plane->crtc_y,
+			   intel_plane->crtc_w, intel_plane->crtc_h,
+			   intel_plane->src_x, intel_plane->src_y,
+			   intel_plane->src_w, intel_plane->src_h);
+}
+
 static const struct drm_plane_funcs intel_plane_funcs = {
 	.update_plane = intel_update_plane,
 	.disable_plane = intel_disable_plane,
@@ -670,8 +868,22 @@ static uint32_t snb_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
+static uint32_t vlv_plane_formats[] = {
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_ABGR2101010,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVYU,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY,
+};
+
 int
-intel_plane_init(struct drm_device *dev, enum pipe pipe)
+intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 {
 	struct intel_plane *intel_plane;
 	unsigned long possible_crtcs;
@@ -710,14 +922,26 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 			intel_plane->can_scale = false;
 		else
 			intel_plane->can_scale = true;
-		intel_plane->max_downscale = 2;
-		intel_plane->update_plane = ivb_update_plane;
-		intel_plane->disable_plane = ivb_disable_plane;
-		intel_plane->update_colorkey = ivb_update_colorkey;
-		intel_plane->get_colorkey = ivb_get_colorkey;
 
-		plane_formats = snb_plane_formats;
-		num_plane_formats = ARRAY_SIZE(snb_plane_formats);
+		if (IS_VALLEYVIEW(dev)) {
+			intel_plane->max_downscale = 1;
+			intel_plane->update_plane = vlv_update_plane;
+			intel_plane->disable_plane = vlv_disable_plane;
+			intel_plane->update_colorkey = vlv_update_colorkey;
+			intel_plane->get_colorkey = vlv_get_colorkey;
+
+			plane_formats = vlv_plane_formats;
+			num_plane_formats = ARRAY_SIZE(vlv_plane_formats);
+		} else {
+			intel_plane->max_downscale = 2;
+			intel_plane->update_plane = ivb_update_plane;
+			intel_plane->disable_plane = ivb_disable_plane;
+			intel_plane->update_colorkey = ivb_update_colorkey;
+			intel_plane->get_colorkey = ivb_get_colorkey;
+
+			plane_formats = snb_plane_formats;
+			num_plane_formats = ARRAY_SIZE(snb_plane_formats);
+		}
 		break;
 
 	default:
@@ -726,6 +950,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 	}
 
 	intel_plane->pipe = pipe;
+	intel_plane->plane = plane;
 	possible_crtcs = (1 << pipe);
 	ret = drm_plane_init(dev, &intel_plane->base, possible_crtcs,
 			     &intel_plane_funcs,

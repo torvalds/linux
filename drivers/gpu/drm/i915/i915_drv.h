@@ -86,6 +86,19 @@ enum port {
 };
 #define port_name(p) ((p) + 'A')
 
+enum hpd_pin {
+	HPD_NONE = 0,
+	HPD_PORT_A = HPD_NONE, /* PORT_A is internal */
+	HPD_TV = HPD_NONE,     /* TV is known to be unreliable */
+	HPD_CRT,
+	HPD_SDVO_B,
+	HPD_SDVO_C,
+	HPD_PORT_B,
+	HPD_PORT_C,
+	HPD_PORT_D,
+	HPD_NUM_PINS
+};
+
 #define I915_GEM_GPU_DOMAINS \
 	(I915_GEM_DOMAIN_RENDER | \
 	 I915_GEM_DOMAIN_SAMPLER | \
@@ -271,6 +284,9 @@ struct drm_i915_error_state {
 	struct intel_display_error_state *display;
 };
 
+struct intel_crtc_config;
+struct intel_crtc;
+
 struct drm_i915_display_funcs {
 	bool (*fbc_enabled)(struct drm_device *dev);
 	void (*enable_fbc)(struct drm_crtc *crtc, unsigned long interval);
@@ -283,9 +299,11 @@ struct drm_i915_display_funcs {
 	void (*update_linetime_wm)(struct drm_device *dev, int pipe,
 				 struct drm_display_mode *mode);
 	void (*modeset_global_resources)(struct drm_device *dev);
+	/* Returns the active state of the crtc, and if the crtc is active,
+	 * fills out the pipe-config with the hw state. */
+	bool (*get_pipe_config)(struct intel_crtc *,
+				struct intel_crtc_config *);
 	int (*crtc_mode_set)(struct drm_crtc *crtc,
-			     struct drm_display_mode *mode,
-			     struct drm_display_mode *adjusted_mode,
 			     int x, int y,
 			     struct drm_framebuffer *old_fb);
 	void (*crtc_enable)(struct drm_crtc *crtc);
@@ -909,11 +927,11 @@ typedef struct drm_i915_private {
 	u32 irq_mask;
 	u32 gt_irq_mask;
 
-	u32 hotplug_supported_mask;
 	struct work_struct hotplug_work;
 	bool enable_hotplug_processing;
 
 	int num_pch_pll;
+	int num_plane;
 
 	unsigned long cfb_size;
 	unsigned int cfb_fb;
@@ -927,9 +945,14 @@ typedef struct drm_i915_private {
 	struct intel_overlay *overlay;
 	unsigned int sprite_scaling_enabled;
 
+	/* backlight */
+	struct {
+		int level;
+		bool enabled;
+		struct backlight_device *device;
+	} backlight;
+
 	/* LVDS info */
-	int backlight_level;  /* restore backlight to this value */
-	bool backlight_enabled;
 	struct drm_display_mode *lfp_lvds_vbt_mode; /* if any */
 	struct drm_display_mode *sdvo_lvds_vbt_mode; /* if any */
 
@@ -1030,8 +1053,6 @@ typedef struct drm_i915_private {
 	 * want it to block on it.
 	 */
 	struct work_struct console_resume_work;
-
-	struct backlight_device *backlight;
 
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
@@ -1532,7 +1553,7 @@ static inline struct page *i915_gem_object_get_page(struct drm_i915_gem_object *
 	struct sg_page_iter sg_iter;
 
 	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, n)
-		return sg_iter.page;
+		return sg_page_iter_page(&sg_iter);
 
 	return NULL;
 }
@@ -1713,6 +1734,11 @@ void i915_gem_stolen_cleanup_compression(struct drm_device *dev);
 void i915_gem_cleanup_stolen(struct drm_device *dev);
 struct drm_i915_gem_object *
 i915_gem_object_create_stolen(struct drm_device *dev, u32 size);
+struct drm_i915_gem_object *
+i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
+					       u32 stolen_offset,
+					       u32 gtt_offset,
+					       u32 size);
 void i915_gem_object_release_stolen(struct drm_i915_gem_object *obj);
 
 /* i915_gem_tiling.c */
@@ -1843,6 +1869,8 @@ int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
 
 int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val);
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val);
+int valleyview_punit_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val);
+int valleyview_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val);
 
 #define __i915_read(x, y) \
 	u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg);

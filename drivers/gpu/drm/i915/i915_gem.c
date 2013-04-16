@@ -442,7 +442,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 
 	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents,
 			 offset >> PAGE_SHIFT) {
-		struct page *page = sg_iter.page;
+		struct page *page = sg_page_iter_page(&sg_iter);
 
 		if (remain <= 0)
 			break;
@@ -765,7 +765,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 
 	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents,
 			 offset >> PAGE_SHIFT) {
-		struct page *page = sg_iter.page;
+		struct page *page = sg_page_iter_page(&sg_iter);
 		int partial_cacheline_write;
 
 		if (remain <= 0)
@@ -1647,7 +1647,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 		obj->dirty = 0;
 
 	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0) {
-		struct page *page = sg_iter.page;
+		struct page *page = sg_page_iter_page(&sg_iter);
 
 		if (obj->dirty)
 			set_page_dirty(page);
@@ -1827,7 +1827,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 err_pages:
 	sg_mark_end(sg);
 	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0)
-		page_cache_release(sg_iter.page);
+		page_cache_release(sg_page_iter_page(&sg_iter));
 	sg_free_table(st);
 	kfree(st);
 	return PTR_ERR(page);
@@ -2128,10 +2128,10 @@ static void i915_gem_reset_fences(struct drm_device *dev)
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
 
-		i915_gem_write_fence(dev, i, NULL);
-
 		if (reg->obj)
 			i915_gem_object_fence_lost(reg->obj);
+
+		i915_gem_write_fence(dev, i, NULL);
 
 		reg->pin_count = 0;
 		reg->obj = NULL;
@@ -2722,6 +2722,7 @@ int
 i915_gem_object_put_fence(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct drm_i915_fence_reg *fence;
 	int ret;
 
 	ret = i915_gem_object_wait_fence(obj);
@@ -2731,10 +2732,10 @@ i915_gem_object_put_fence(struct drm_i915_gem_object *obj)
 	if (obj->fence_reg == I915_FENCE_REG_NONE)
 		return 0;
 
-	i915_gem_object_update_fence(obj,
-				     &dev_priv->fence_regs[obj->fence_reg],
-				     false);
+	fence = &dev_priv->fence_regs[obj->fence_reg];
+
 	i915_gem_object_fence_lost(obj);
+	i915_gem_object_update_fence(obj, fence, false);
 
 	return 0;
 }

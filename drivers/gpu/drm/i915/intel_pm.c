@@ -2460,10 +2460,14 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	if (val == dev_priv->rps.cur_delay)
 		return;
 
-	I915_WRITE(GEN6_RPNSWREQ,
-		   GEN6_FREQUENCY(val) |
-		   GEN6_OFFSET(0) |
-		   GEN6_AGGRESSIVE_TURBO);
+	if (IS_HASWELL(dev))
+		I915_WRITE(GEN6_RPNSWREQ,
+			   HSW_FREQUENCY(val));
+	else
+		I915_WRITE(GEN6_RPNSWREQ,
+			   GEN6_FREQUENCY(val) |
+			   GEN6_OFFSET(0) |
+			   GEN6_AGGRESSIVE_TURBO);
 
 	/* Make sure we continue to get interrupts
 	 * until we hit the minimum or maximum frequencies.
@@ -2601,12 +2605,19 @@ static void gen6_enable_rps(struct drm_device *dev)
 		   GEN6_RC_CTL_EI_MODE(1) |
 		   GEN6_RC_CTL_HW_ENABLE);
 
-	I915_WRITE(GEN6_RPNSWREQ,
-		   GEN6_FREQUENCY(10) |
-		   GEN6_OFFSET(0) |
-		   GEN6_AGGRESSIVE_TURBO);
-	I915_WRITE(GEN6_RC_VIDEO_FREQ,
-		   GEN6_FREQUENCY(12));
+	if (IS_HASWELL(dev)) {
+		I915_WRITE(GEN6_RPNSWREQ,
+			   HSW_FREQUENCY(10));
+		I915_WRITE(GEN6_RC_VIDEO_FREQ,
+			   HSW_FREQUENCY(12));
+	} else {
+		I915_WRITE(GEN6_RPNSWREQ,
+			   GEN6_FREQUENCY(10) |
+			   GEN6_OFFSET(0) |
+			   GEN6_AGGRESSIVE_TURBO);
+		I915_WRITE(GEN6_RC_VIDEO_FREQ,
+			   GEN6_FREQUENCY(12));
+	}
 
 	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 1000000);
 	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
@@ -2628,7 +2639,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 		   (IS_HASWELL(dev) ? GEN7_RP_DOWN_IDLE_AVG : GEN6_RP_DOWN_IDLE_CONT));
 
 	ret = sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_MIN_FREQ_TABLE, 0);
-	if (!ret) {
+	if (!ret && (IS_GEN6(dev) || IS_IVYBRIDGE(dev))) {
 		pcu_mbox = 0;
 		ret = sandybridge_pcode_read(dev_priv, GEN6_READ_OC_PARAMS, &pcu_mbox);
 		if (!ret && (pcu_mbox & (1<<31))) { /* OC supported */
@@ -3975,19 +3986,6 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
 
 	/*
-	 * On ValleyView, the GUnit needs to signal the GT
-	 * when flip and other events complete.  So enable
-	 * all the GUnit->GT interrupts here
-	 */
-	I915_WRITE(VLV_DPFLIPSTAT, PIPEB_LINE_COMPARE_INT_EN |
-		   PIPEB_HLINE_INT_EN | PIPEB_VBLANK_INT_EN |
-		   SPRITED_FLIPDONE_INT_EN | SPRITEC_FLIPDONE_INT_EN |
-		   PLANEB_FLIPDONE_INT_EN | PIPEA_LINE_COMPARE_INT_EN |
-		   PIPEA_HLINE_INT_EN | PIPEA_VBLANK_INT_EN |
-		   SPRITEB_FLIPDONE_INT_EN | SPRITEA_FLIPDONE_INT_EN |
-		   PLANEA_FLIPDONE_INT_EN);
-
-	/*
 	 * WaDisableVLVClockGating_VBIIssue
 	 * Disable clock gating on th GCFG unit to prevent a delay
 	 * in the reporting of vblank events.
@@ -4527,4 +4525,57 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val)
 	I915_WRITE(GEN6_PCODE_DATA, 0);
 
 	return 0;
+}
+
+static int vlv_punit_rw(struct drm_i915_private *dev_priv, u8 opcode,
+			u8 addr, u32 *val)
+{
+	u32 cmd, devfn, port, be, bar;
+
+	bar = 0;
+	be = 0xf;
+	port = IOSF_PORT_PUNIT;
+	devfn = PCI_DEVFN(2, 0);
+
+	cmd = (devfn << IOSF_DEVFN_SHIFT) | (opcode << IOSF_OPCODE_SHIFT) |
+		(port << IOSF_PORT_SHIFT) | (be << IOSF_BYTE_ENABLES_SHIFT) |
+		(bar << IOSF_BAR_SHIFT);
+
+	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
+
+	if (I915_READ(VLV_IOSF_DOORBELL_REQ) & IOSF_SB_BUSY) {
+		DRM_DEBUG_DRIVER("warning: pcode (%s) mailbox access failed\n",
+				 opcode == PUNIT_OPCODE_REG_READ ?
+				 "read" : "write");
+		return -EAGAIN;
+	}
+
+	I915_WRITE(VLV_IOSF_ADDR, addr);
+	if (opcode == PUNIT_OPCODE_REG_WRITE)
+		I915_WRITE(VLV_IOSF_DATA, *val);
+	I915_WRITE(VLV_IOSF_DOORBELL_REQ, cmd);
+
+	if (wait_for((I915_READ(VLV_IOSF_DOORBELL_REQ) & IOSF_SB_BUSY) == 0,
+		     500)) {
+		DRM_ERROR("timeout waiting for pcode %s (%d) to finish\n",
+			  opcode == PUNIT_OPCODE_REG_READ ? "read" : "write",
+			  addr);
+		return -ETIMEDOUT;
+	}
+
+	if (opcode == PUNIT_OPCODE_REG_READ)
+		*val = I915_READ(VLV_IOSF_DATA);
+	I915_WRITE(VLV_IOSF_DATA, 0);
+
+	return 0;
+}
+
+int valleyview_punit_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val)
+{
+	return vlv_punit_rw(dev_priv, PUNIT_OPCODE_REG_READ, addr, val);
+}
+
+int valleyview_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val)
+{
+	return vlv_punit_rw(dev_priv, PUNIT_OPCODE_REG_WRITE, addr, &val);
 }

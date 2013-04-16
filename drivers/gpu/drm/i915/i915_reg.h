@@ -91,6 +91,7 @@
 #define  GRDOM_FULL	(0<<2)
 #define  GRDOM_RENDER	(1<<2)
 #define  GRDOM_MEDIA	(3<<2)
+#define  GRDOM_MASK	(3<<2)
 #define  GRDOM_RESET_ENABLE (1<<0)
 
 #define GEN6_MBCUNIT_SNPCR	0x900c /* for LLC config */
@@ -1642,6 +1643,12 @@
 #define   SDVOC_HOTPLUG_INT_EN			(1 << 25)
 #define   TV_HOTPLUG_INT_EN			(1 << 18)
 #define   CRT_HOTPLUG_INT_EN			(1 << 9)
+#define HOTPLUG_INT_EN_MASK			(PORTB_HOTPLUG_INT_EN | \
+						 PORTC_HOTPLUG_INT_EN | \
+						 PORTD_HOTPLUG_INT_EN | \
+						 SDVOC_HOTPLUG_INT_EN | \
+						 SDVOB_HOTPLUG_INT_EN | \
+						 CRT_HOTPLUG_INT_EN)
 #define   CRT_HOTPLUG_FORCE_DETECT		(1 << 3)
 #define CRT_HOTPLUG_ACTIVATION_PERIOD_32	(0 << 8)
 /* must use period 64 on GM45 according to docs */
@@ -1680,6 +1687,26 @@
 #define   SDVOB_HOTPLUG_INT_STATUS_I965		(3 << 2)
 #define   SDVOC_HOTPLUG_INT_STATUS_I915		(1 << 7)
 #define   SDVOB_HOTPLUG_INT_STATUS_I915		(1 << 6)
+#define   HOTPLUG_INT_STATUS_G4X		(CRT_HOTPLUG_INT_STATUS | \
+						 SDVOB_HOTPLUG_INT_STATUS_G4X | \
+						 SDVOC_HOTPLUG_INT_STATUS_G4X | \
+						 PORTB_HOTPLUG_INT_STATUS | \
+						 PORTC_HOTPLUG_INT_STATUS | \
+						 PORTD_HOTPLUG_INT_STATUS)
+
+#define HOTPLUG_INT_STATUS_I965			(CRT_HOTPLUG_INT_STATUS | \
+						 SDVOB_HOTPLUG_INT_STATUS_I965 | \
+						 SDVOC_HOTPLUG_INT_STATUS_I965 | \
+						 PORTB_HOTPLUG_INT_STATUS | \
+						 PORTC_HOTPLUG_INT_STATUS | \
+						 PORTD_HOTPLUG_INT_STATUS)
+
+#define HOTPLUG_INT_STATUS_I915			(CRT_HOTPLUG_INT_STATUS | \
+						 SDVOB_HOTPLUG_INT_STATUS_I915 | \
+						 SDVOC_HOTPLUG_INT_STATUS_I915 | \
+						 PORTB_HOTPLUG_INT_STATUS | \
+						 PORTC_HOTPLUG_INT_STATUS | \
+						 PORTD_HOTPLUG_INT_STATUS)
 
 /* SDVO and HDMI port control.
  * The same register may be used for SDVO or HDMI */
@@ -3261,6 +3288,63 @@
 #define SPRGAMC(pipe) _PIPE(pipe, _SPRA_GAMC, _SPRB_GAMC)
 #define SPRSURFLIVE(pipe) _PIPE(pipe, _SPRA_SURFLIVE, _SPRB_SURFLIVE)
 
+#define _SPACNTR		0x72180
+#define   SP_ENABLE			(1<<31)
+#define   SP_GEAMMA_ENABLE		(1<<30)
+#define   SP_PIXFORMAT_MASK		(0xf<<26)
+#define   SP_FORMAT_YUV422		(0<<26)
+#define   SP_FORMAT_BGR565		(5<<26)
+#define   SP_FORMAT_BGRX8888		(6<<26)
+#define   SP_FORMAT_BGRA8888		(7<<26)
+#define   SP_FORMAT_RGBX1010102		(8<<26)
+#define   SP_FORMAT_RGBA1010102		(9<<26)
+#define   SP_FORMAT_RGBX8888		(0xe<<26)
+#define   SP_FORMAT_RGBA8888		(0xf<<26)
+#define   SP_SOURCE_KEY			(1<<22)
+#define   SP_YUV_BYTE_ORDER_MASK	(3<<16)
+#define   SP_YUV_ORDER_YUYV		(0<<16)
+#define   SP_YUV_ORDER_UYVY		(1<<16)
+#define   SP_YUV_ORDER_YVYU		(2<<16)
+#define   SP_YUV_ORDER_VYUY		(3<<16)
+#define   SP_TILED			(1<<10)
+#define _SPALINOFF		0x72184
+#define _SPASTRIDE		0x72188
+#define _SPAPOS			0x7218c
+#define _SPASIZE		0x72190
+#define _SPAKEYMINVAL		0x72194
+#define _SPAKEYMSK		0x72198
+#define _SPASURF		0x7219c
+#define _SPAKEYMAXVAL		0x721a0
+#define _SPATILEOFF		0x721a4
+#define _SPACONSTALPHA		0x721a8
+#define _SPAGAMC		0x721f4
+
+#define _SPBCNTR		0x72280
+#define _SPBLINOFF		0x72284
+#define _SPBSTRIDE		0x72288
+#define _SPBPOS			0x7228c
+#define _SPBSIZE		0x72290
+#define _SPBKEYMINVAL		0x72294
+#define _SPBKEYMSK		0x72298
+#define _SPBSURF		0x7229c
+#define _SPBKEYMAXVAL		0x722a0
+#define _SPBTILEOFF		0x722a4
+#define _SPBCONSTALPHA		0x722a8
+#define _SPBGAMC		0x722f4
+
+#define SPCNTR(pipe, plane) _PIPE(pipe * 2 + plane, _SPACNTR, _SPBCNTR)
+#define SPLINOFF(pipe, plane) _PIPE(pipe * 2 + plane, _SPALINOFF, _SPBLINOFF)
+#define SPSTRIDE(pipe, plane) _PIPE(pipe * 2 + plane, _SPASTRIDE, _SPBSTRIDE)
+#define SPPOS(pipe, plane) _PIPE(pipe * 2 + plane, _SPAPOS, _SPBPOS)
+#define SPSIZE(pipe, plane) _PIPE(pipe * 2 + plane, _SPASIZE, _SPBSIZE)
+#define SPKEYMINVAL(pipe, plane) _PIPE(pipe * 2 + plane, _SPAKEYMINVAL, _SPBKEYMINVAL)
+#define SPKEYMSK(pipe, plane) _PIPE(pipe * 2 + plane, _SPAKEYMSK, _SPBKEYMSK)
+#define SPSURF(pipe, plane) _PIPE(pipe * 2 + plane, _SPASURF, _SPBSURF)
+#define SPKEYMAXVAL(pipe, plane) _PIPE(pipe * 2 + plane, _SPAKEYMAXVAL, _SPBKEYMAXVAL)
+#define SPTILEOFF(pipe, plane) _PIPE(pipe * 2 + plane, _SPATILEOFF, _SPBTILEOFF)
+#define SPCONSTALPHA(pipe, plane) _PIPE(pipe * 2 + plane, _SPACONSTALPHA, _SPBCONSTALPHA)
+#define SPGAMC(pipe, plane) _PIPE(pipe * 2 + plane, _SPAGAMC, _SPBGAMC)
+
 /* VBIOS regs */
 #define VGACNTRL		0x71400
 # define VGA_DISP_DISABLE			(1 << 31)
@@ -3536,7 +3620,11 @@
 #define SDE_PORTC_HOTPLUG       (1 << 9)
 #define SDE_PORTB_HOTPLUG       (1 << 8)
 #define SDE_SDVOB_HOTPLUG       (1 << 6)
-#define SDE_HOTPLUG_MASK	(0xf << 8)
+#define SDE_HOTPLUG_MASK        (SDE_CRT_HOTPLUG | \
+				 SDE_SDVOB_HOTPLUG |	\
+				 SDE_PORTB_HOTPLUG |	\
+				 SDE_PORTC_HOTPLUG |	\
+				 SDE_PORTD_HOTPLUG)
 #define SDE_TRANSB_CRC_DONE	(1 << 5)
 #define SDE_TRANSB_CRC_ERR	(1 << 4)
 #define SDE_TRANSB_FIFO_UNDER	(1 << 3)
@@ -3559,7 +3647,9 @@
 #define SDE_PORTC_HOTPLUG_CPT	(1 << 22)
 #define SDE_PORTB_HOTPLUG_CPT	(1 << 21)
 #define SDE_CRT_HOTPLUG_CPT	(1 << 19)
+#define SDE_SDVOB_HOTPLUG_CPT	(1 << 18)
 #define SDE_HOTPLUG_MASK_CPT	(SDE_CRT_HOTPLUG_CPT |		\
+				 SDE_SDVOB_HOTPLUG_CPT |	\
 				 SDE_PORTD_HOTPLUG_CPT |	\
 				 SDE_PORTC_HOTPLUG_CPT |	\
 				 SDE_PORTB_HOTPLUG_CPT)
@@ -4022,6 +4112,15 @@
 #define PIPEB_PP_OFF_DELAYS     (VLV_DISPLAY_BASE + 0x6130c)
 #define PIPEB_PP_DIVISOR        (VLV_DISPLAY_BASE + 0x61310)
 
+#define VLV_PIPE_PP_STATUS(pipe) _PIPE(pipe, PIPEA_PP_STATUS, PIPEB_PP_STATUS)
+#define VLV_PIPE_PP_CONTROL(pipe) _PIPE(pipe, PIPEA_PP_CONTROL, PIPEB_PP_CONTROL)
+#define VLV_PIPE_PP_ON_DELAYS(pipe) \
+		_PIPE(pipe, PIPEA_PP_ON_DELAYS, PIPEB_PP_ON_DELAYS)
+#define VLV_PIPE_PP_OFF_DELAYS(pipe) \
+		_PIPE(pipe, PIPEA_PP_OFF_DELAYS, PIPEB_PP_OFF_DELAYS)
+#define VLV_PIPE_PP_DIVISOR(pipe) \
+		_PIPE(pipe, PIPEA_PP_DIVISOR, PIPEB_PP_DIVISOR)
+
 #define PCH_PP_STATUS		0xc7200
 #define PCH_PP_CONTROL		0xc7204
 #define  PANEL_UNLOCK_REGS	(0xabcd << 16)
@@ -4190,6 +4289,7 @@
 #define GEN6_RPNSWREQ				0xA008
 #define   GEN6_TURBO_DISABLE			(1<<31)
 #define   GEN6_FREQUENCY(x)			((x)<<25)
+#define   HSW_FREQUENCY(x)			((x)<<24)
 #define   GEN6_OFFSET(x)			((x)<<19)
 #define   GEN6_AGGRESSIVE_TURBO			(0<<15)
 #define GEN6_RC_VIDEO_FREQ			0xA00C
@@ -4280,6 +4380,20 @@
 #define   GEN6_DECODE_RC6_VID(vids)		(((vids) * 5) + 245)
 #define GEN6_PCODE_DATA				0x138128
 #define   GEN6_PCODE_FREQ_IA_RATIO_SHIFT	8
+
+#define VLV_IOSF_DOORBELL_REQ			0x182100
+#define   IOSF_DEVFN_SHIFT			24
+#define   IOSF_OPCODE_SHIFT			16
+#define   IOSF_PORT_SHIFT			8
+#define   IOSF_BYTE_ENABLES_SHIFT		4
+#define   IOSF_BAR_SHIFT			1
+#define   IOSF_SB_BUSY				(1<<0)
+#define   IOSF_PORT_PUNIT			0x4
+#define VLV_IOSF_DATA				0x182104
+#define VLV_IOSF_ADDR				0x182108
+
+#define PUNIT_OPCODE_REG_READ			6
+#define PUNIT_OPCODE_REG_WRITE			7
 
 #define GEN6_GT_CORE_STATUS		0x138060
 #define   GEN6_CORE_CPD_STATE_MASK	(7<<4)

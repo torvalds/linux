@@ -898,6 +898,9 @@ bool intel_ddi_pll_mode_set(struct drm_crtc *crtc, int clock)
 			plls->spll_refcount++;
 			reg = SPLL_CTL;
 			intel_crtc->ddi_pll_sel = PORT_CLK_SEL_SPLL;
+		} else {
+			DRM_ERROR("SPLL already in use\n");
+			return false;
 		}
 
 		WARN(I915_READ(reg) & SPLL_PLL_ENABLE,
@@ -928,7 +931,7 @@ void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
 	if (type == INTEL_OUTPUT_DISPLAYPORT || type == INTEL_OUTPUT_EDP) {
 
 		temp = TRANS_MSA_SYNC_CLK;
-		switch (intel_crtc->bpp) {
+		switch (intel_crtc->config.pipe_bpp) {
 		case 18:
 			temp |= TRANS_MSA_6_BPC;
 			break;
@@ -942,15 +945,13 @@ void intel_ddi_set_pipe_settings(struct drm_crtc *crtc)
 			temp |= TRANS_MSA_12_BPC;
 			break;
 		default:
-			temp |= TRANS_MSA_8_BPC;
-			WARN(1, "%d bpp unsupported by DDI function\n",
-			     intel_crtc->bpp);
+			BUG();
 		}
 		I915_WRITE(TRANS_MSA_MISC(cpu_transcoder), temp);
 	}
 }
 
-void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
+void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
@@ -966,7 +967,7 @@ void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
 	temp = TRANS_DDI_FUNC_ENABLE;
 	temp |= TRANS_DDI_SELECT_PORT(port);
 
-	switch (intel_crtc->bpp) {
+	switch (intel_crtc->config.pipe_bpp) {
 	case 18:
 		temp |= TRANS_DDI_BPC_6;
 		break;
@@ -980,8 +981,7 @@ void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
 		temp |= TRANS_DDI_BPC_12;
 		break;
 	default:
-		WARN(1, "%d bpp unsupported by transcoder DDI function\n",
-		     intel_crtc->bpp);
+		BUG();
 	}
 
 	if (crtc->mode.flags & DRM_MODE_FLAG_PVSYNC)
@@ -1150,14 +1150,14 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("No pipe for ddi port %i found\n", port);
 
-	return true;
+	return false;
 }
 
 static uint32_t intel_ddi_get_crtc_pll(struct drm_i915_private *dev_priv,
 				       enum pipe pipe)
 {
 	uint32_t temp, ret;
-	enum port port;
+	enum port port = I915_MAX_PORTS;
 	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
 								      pipe);
 	int i;
@@ -1173,10 +1173,16 @@ static uint32_t intel_ddi_get_crtc_pll(struct drm_i915_private *dev_priv,
 				port = i;
 	}
 
-	ret = I915_READ(PORT_CLK_SEL(port));
-
-	DRM_DEBUG_KMS("Pipe %c connected to port %c using clock 0x%08x\n",
-		      pipe_name(pipe), port_name(port), ret);
+	if (port == I915_MAX_PORTS) {
+		WARN(1, "Pipe %c enabled on an unknown port\n",
+		     pipe_name(pipe));
+		ret = PORT_CLK_SEL_NONE;
+	} else {
+		ret = I915_READ(PORT_CLK_SEL(port));
+		DRM_DEBUG_KMS("Pipe %c connected to port %c using clock "
+			      "0x%08x\n", pipe_name(pipe), port_name(port),
+			      ret);
+	}
 
 	return ret;
 }
@@ -1467,19 +1473,17 @@ static void intel_ddi_destroy(struct drm_encoder *encoder)
 	intel_dp_encoder_destroy(encoder);
 }
 
-static bool intel_ddi_mode_fixup(struct drm_encoder *encoder,
-				 const struct drm_display_mode *mode,
-				 struct drm_display_mode *adjusted_mode)
+static bool intel_ddi_compute_config(struct intel_encoder *encoder,
+				     struct intel_crtc_config *pipe_config)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
-	int type = intel_encoder->type;
+	int type = encoder->type;
 
-	WARN(type == INTEL_OUTPUT_UNKNOWN, "mode_fixup() on unknown output!\n");
+	WARN(type == INTEL_OUTPUT_UNKNOWN, "compute_config() on unknown output!\n");
 
 	if (type == INTEL_OUTPUT_HDMI)
-		return intel_hdmi_mode_fixup(encoder, mode, adjusted_mode);
+		return intel_hdmi_compute_config(encoder, pipe_config);
 	else
-		return intel_dp_mode_fixup(encoder, mode, adjusted_mode);
+		return intel_dp_compute_config(encoder, pipe_config);
 }
 
 static const struct drm_encoder_funcs intel_ddi_funcs = {
@@ -1487,7 +1491,6 @@ static const struct drm_encoder_funcs intel_ddi_funcs = {
 };
 
 static const struct drm_encoder_helper_funcs intel_ddi_helper_funcs = {
-	.mode_fixup = intel_ddi_mode_fixup,
 	.mode_set = intel_ddi_mode_set,
 };
 
@@ -1527,6 +1530,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 			 DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(encoder, &intel_ddi_helper_funcs);
 
+	intel_encoder->compute_config = intel_ddi_compute_config;
 	intel_encoder->enable = intel_enable_ddi;
 	intel_encoder->pre_enable = intel_ddi_pre_enable;
 	intel_encoder->disable = intel_disable_ddi;
