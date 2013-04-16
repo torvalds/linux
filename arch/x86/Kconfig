@@ -1549,6 +1549,7 @@ config X86_SMAP
 config EFI
 	bool "EFI runtime service support"
 	depends on ACPI
+	select UCS2_STRING
 	---help---
 	  This enables the kernel to use EFI runtime services that are
 	  available (such as the EFI variable services).
