@@ -2052,10 +2052,6 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 		hw_dbg("Auto Read Done did not complete\n");
 	}
 
-	/* If EEPROM is not present, run manual init scripts */
-	if ((rd32(E1000_EECD) & E1000_EECD_PRES) == 0)
-		igb_reset_init_script_82575(hw);
-
 	/* clear global device reset status bit */
 	wr32(E1000_STATUS, E1000_STAT_DEV_RST_SET);
 
