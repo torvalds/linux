@@ -1106,13 +1106,13 @@ void zpci_deregister_hp_ops(void)
 }
 EXPORT_SYMBOL_GPL(zpci_deregister_hp_ops);
 
-unsigned int s390_pci_probe = 1;
+unsigned int s390_pci_probe;
 EXPORT_SYMBOL_GPL(s390_pci_probe);
 
 char * __init pcibios_setup(char *str)
 {
-	if (!strcmp(str, "off")) {
-		s390_pci_probe = 0;
+	if (!strcmp(str, "on")) {
+		s390_pci_probe = 1;
 		return NULL;
 	}
 	return str;
