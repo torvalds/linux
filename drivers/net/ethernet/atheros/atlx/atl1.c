@@ -2885,7 +2885,9 @@ static void atl1_shutdown(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 
+#ifdef CONFIG_PM_SLEEP
 	atl1_suspend(&pdev->dev);
+#endif
 	pci_wake_from_d3(pdev, adapter->wol);
 	pci_set_power_state(pdev, PCI_D3hot);
 }
