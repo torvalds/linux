@@ -413,11 +413,11 @@ static void qxl_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	kfree(qxl_fb);
 }
 
-int qxl_framebuffer_surface_dirty(struct drm_framebuffer *fb,
-				  struct drm_file *file_priv,
-				  unsigned flags, unsigned color,
-				  struct drm_clip_rect *clips,
-				  unsigned num_clips)
+static int qxl_framebuffer_surface_dirty(struct drm_framebuffer *fb,
+					 struct drm_file *file_priv,
+					 unsigned flags, unsigned color,
+					 struct drm_clip_rect *clips,
+					 unsigned num_clips)
 {
 	/* TODO: vmwgfx where this was cribbed from had locking. Why? */
 	struct qxl_framebuffer *qxl_fb = to_qxl_framebuffer(fb);
@@ -619,7 +619,7 @@ static void qxl_crtc_commit(struct drm_crtc *crtc)
 	DRM_DEBUG("\n");
 }
 
-void qxl_crtc_load_lut(struct drm_crtc *crtc)
+static void qxl_crtc_load_lut(struct drm_crtc *crtc)
 {
 	DRM_DEBUG("\n");
 }
@@ -633,7 +633,7 @@ static const struct drm_crtc_helper_funcs qxl_crtc_helper_funcs = {
 	.load_lut = qxl_crtc_load_lut,
 };
 
-int qdev_crtc_init(struct drm_device *dev, int num_crtc)
+static int qdev_crtc_init(struct drm_device *dev, int num_crtc)
 {
 	struct qxl_crtc *qxl_crtc;
 
@@ -764,7 +764,7 @@ static int qxl_conn_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-struct drm_encoder *qxl_best_encoder(struct drm_connector *connector)
+static struct drm_encoder *qxl_best_encoder(struct drm_connector *connector)
 {
 	struct qxl_output *qxl_output =
 		drm_connector_to_qxl_output(connector);
@@ -855,7 +855,7 @@ static const struct drm_encoder_funcs qxl_enc_funcs = {
 	.destroy = qxl_enc_destroy,
 };
 
-int qdev_output_init(struct drm_device *dev, int num_output)
+static int qdev_output_init(struct drm_device *dev, int num_output)
 {
 	struct qxl_output *qxl_output;
 	struct drm_connector *connector;

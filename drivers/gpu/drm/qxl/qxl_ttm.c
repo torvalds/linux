@@ -315,9 +315,9 @@ static void qxl_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	ttm_pool_unpopulate(ttm);
 }
 
-struct ttm_tt *qxl_ttm_tt_create(struct ttm_bo_device *bdev,
-				 unsigned long size, uint32_t page_flags,
-				 struct page *dummy_read_page)
+static struct ttm_tt *qxl_ttm_tt_create(struct ttm_bo_device *bdev,
+					unsigned long size, uint32_t page_flags,
+					struct page *dummy_read_page)
 {
 	struct qxl_device *qdev;
 	struct qxl_ttm_tt *gtt;

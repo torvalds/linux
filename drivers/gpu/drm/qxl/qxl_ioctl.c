@@ -30,8 +30,8 @@
  * TODO: allocating a new gem(in qxl_bo) for each request.
  * This is wasteful since bo's are page aligned.
  */
-int qxl_alloc_ioctl(struct drm_device *dev, void *data,
-		    struct drm_file *file_priv)
+static int qxl_alloc_ioctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv)
 {
 	struct qxl_device *qdev = dev->dev_private;
 	struct drm_qxl_alloc *qxl_alloc = data;
@@ -58,8 +58,8 @@ int qxl_alloc_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-int qxl_map_ioctl(struct drm_device *dev, void *data,
-		  struct drm_file *file_priv)
+static int qxl_map_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv)
 {
 	struct qxl_device *qdev = dev->dev_private;
 	struct drm_qxl_map *qxl_map = data;
@@ -101,9 +101,9 @@ apply_surf_reloc(struct qxl_device *qdev, struct qxl_bo *dst, uint64_t dst_off,
 }
 
 /* return holding the reference to this object */
-struct qxl_bo *qxlhw_handle_to_bo(struct qxl_device *qdev,
-				  struct drm_file *file_priv, uint64_t handle,
-				  struct qxl_reloc_list *reloc_list)
+static struct qxl_bo *qxlhw_handle_to_bo(struct qxl_device *qdev,
+					 struct drm_file *file_priv, uint64_t handle,
+					 struct qxl_reloc_list *reloc_list)
 {
 	struct drm_gem_object *gobj;
 	struct qxl_bo *qobj;
@@ -129,8 +129,8 @@ struct qxl_bo *qxlhw_handle_to_bo(struct qxl_device *qdev,
  * However, the command as passed from user space must *not* contain the initial
  * QXLReleaseInfo struct (first XXX bytes)
  */
-int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv)
+static int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv)
 {
 	struct qxl_device *qdev = dev->dev_private;
 	struct drm_qxl_execbuffer *execbuffer = data;
@@ -266,8 +266,8 @@ int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-int qxl_update_area_ioctl(struct drm_device *dev, void *data,
-			  struct drm_file *file)
+static int qxl_update_area_ioctl(struct drm_device *dev, void *data,
+				 struct drm_file *file)
 {
 	struct qxl_device *qdev = dev->dev_private;
 	struct drm_qxl_update_area *update_area = data;

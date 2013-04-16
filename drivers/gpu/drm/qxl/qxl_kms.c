@@ -230,7 +230,7 @@ int qxl_device_init(struct qxl_device *qdev,
 	return 0;
 }
 
-void qxl_device_fini(struct qxl_device *qdev)
+static void qxl_device_fini(struct qxl_device *qdev)
 {
 	if (qdev->current_release_bo[0])
 		qxl_bo_unref(&qdev->current_release_bo[0]);

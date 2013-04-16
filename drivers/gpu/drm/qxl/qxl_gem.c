@@ -127,35 +127,6 @@ void qxl_gem_object_unpin(struct drm_gem_object *obj)
 	}
 }
 
-int qxl_gem_set_domain(struct drm_gem_object *gobj,
-			  uint32_t rdomain, uint32_t wdomain)
-{
-	struct qxl_bo *qobj;
-	uint32_t domain;
-	int r;
-
-	/* FIXME: reeimplement */
-	qobj = gobj->driver_private;
-	/* work out where to validate the buffer to */
-	domain = wdomain;
-	if (!domain)
-		domain = rdomain;
-	if (!domain) {
-		/* Do nothings */
-		pr_warn("Set domain withou domain !\n");
-		return 0;
-	}
-	if (domain == QXL_GEM_DOMAIN_CPU) {
-		/* Asking for cpu access wait for object idle */
-		r = qxl_bo_wait(qobj, NULL, false);
-		if (r) {
-			pr_err("Failed to wait for object !\n");
-			return r;
-		}
-	}
-	return 0;
-}
-
 int qxl_gem_object_open(struct drm_gem_object *obj, struct drm_file *file_priv)
 {
 	return 0;

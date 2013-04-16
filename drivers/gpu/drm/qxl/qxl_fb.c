@@ -159,7 +159,7 @@ static void qxl_deferred_io(struct fb_info *info,
 };
 
 
-struct fb_deferred_io qxl_defio = {
+static struct fb_deferred_io qxl_defio = {
 	.delay		= QXL_DIRTY_DELAY,
 	.deferred_io	= qxl_deferred_io,
 };

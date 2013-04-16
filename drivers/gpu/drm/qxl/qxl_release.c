@@ -117,8 +117,8 @@ qxl_release_add_res(struct qxl_device *qdev, struct qxl_release *release,
 	release->bos[release->bo_count++] = qxl_bo_ref(bo);
 }
 
-int qxl_release_bo_alloc(struct qxl_device *qdev,
-			 struct qxl_bo **bo)
+static int qxl_release_bo_alloc(struct qxl_device *qdev,
+				struct qxl_bo **bo)
 {
 	int ret;
 	ret = qxl_bo_create(qdev, PAGE_SIZE, false, QXL_GEM_DOMAIN_VRAM, NULL,

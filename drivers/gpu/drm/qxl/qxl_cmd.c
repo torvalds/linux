@@ -144,8 +144,8 @@ int qxl_ring_push(struct qxl_ring *ring,
 	return 0;
 }
 
-bool qxl_ring_pop(struct qxl_ring *ring,
-		  void *element)
+static bool qxl_ring_pop(struct qxl_ring *ring,
+			 void *element)
 {
 	volatile struct qxl_ring_header *header = &(ring->ring->header);
 	volatile uint8_t *ring_elt;
@@ -167,23 +167,6 @@ bool qxl_ring_pop(struct qxl_ring *ring,
 
 	spin_unlock_irqrestore(&ring->lock, flags);
 	return true;
-}
-
-void qxl_ring_wait_idle(struct qxl_ring *ring)
-{
-	struct qxl_ring_header *header = &(ring->ring->header);
-	unsigned long flags;
-
-	spin_lock_irqsave(&ring->lock, flags);
-	if (ring->ring->header.cons < ring->ring->header.prod) {
-		header->notify_on_cons = header->prod;
-		mb();
-		spin_unlock_irqrestore(&ring->lock, flags);
-		wait_event_interruptible(*ring->push_event,
-					 qxl_check_idle(ring));
-		spin_lock_irqsave(&ring->lock, flags);
-	}
-	spin_unlock_irqrestore(&ring->lock, flags);
 }
 
 int
@@ -609,7 +592,7 @@ retry:
 	return ret;
 }
 
-void qxl_surface_evict_locked(struct qxl_device *qdev, struct qxl_bo *surf, bool do_update_area)
+static void qxl_surface_evict_locked(struct qxl_device *qdev, struct qxl_bo *surf, bool do_update_area)
 {
 	/* no need to update area if we are just freeing the surface normally */
 	if (do_update_area)
