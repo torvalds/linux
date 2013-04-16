@@ -23,7 +23,7 @@
 #ifndef IT913X_PRIV_H
 #define IT913X_PRIV_H
 
-#include "it913x.h"
+#include "tuner_it913x.h"
 #include "af9033.h"
 
 #define PRO_LINK		0x0

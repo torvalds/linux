@@ -20,7 +20,7 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
-#include "it913x_priv.h"
+#include "tuner_it913x_priv.h"
 
 struct it913x_state {
 	struct i2c_adapter *i2c_adap;

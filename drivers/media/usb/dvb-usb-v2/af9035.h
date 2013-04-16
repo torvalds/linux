@@ -30,7 +30,7 @@
 #include "mxl5007t.h"
 #include "tda18218.h"
 #include "fc2580.h"
-#include "it913x.h"
+#include "tuner_it913x.h"
 
 struct reg_val {
 	u32 reg;
