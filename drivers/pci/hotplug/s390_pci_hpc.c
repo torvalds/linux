@@ -68,17 +68,16 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	if (!zpci_fn_configured(slot->zdev->state))
 		return -EIO;
 
+	rc = zpci_disable_device(slot->zdev);
+	if (rc)
+		return rc;
 	/* TODO: we rely on the user to unbind/remove the device, is that plausible
 	 *	 or do we need to trigger that here?
 	 */
 	rc = sclp_pci_deconfigure(slot->zdev->fid);
 	zpci_dbg(3, "deconf fid:%x, rc:%d\n", slot->zdev->fid, rc);
-	if (!rc) {
-		/* Fixme: better call List-PCI to find the disabled FH
-		   for the FID since the FH should be opaque... */
-		slot->zdev->fh &= 0x7fffffff;
+	if (!rc)
 		slot->zdev->state = ZPCI_FN_STATE_STANDBY;
-	}
 	return rc;
 }
 

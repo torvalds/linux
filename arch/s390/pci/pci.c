@@ -955,6 +955,13 @@ out:
 }
 EXPORT_SYMBOL_GPL(zpci_enable_device);
 
+int zpci_disable_device(struct zpci_dev *zdev)
+{
+	zpci_dma_exit_device(zdev);
+	return clp_disable_fh(zdev);
+}
+EXPORT_SYMBOL_GPL(zpci_disable_device);
+
 int zpci_create_device(struct zpci_dev *zdev)
 {
 	int rc;
