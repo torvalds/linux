@@ -16,6 +16,7 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/bitrev.h>
 #include <linux/ratelimit.h>
 #include <linux/usb.h>
 #include <linux/usb/audio.h>
@@ -1264,7 +1265,12 @@ static inline void fill_playback_urb_dsd_dop(struct snd_usb_substream *subs,
 		} else {
 			/* stuff the DSD payload */
 			int idx = (src_idx + subs->dsd_dop.byte_idx - 1) % wrap;
-			dst[dst_idx++] = src[idx];
+
+			if (subs->cur_audiofmt->dsd_bitrev)
+				dst[dst_idx++] = bitrev8(src[idx]);
+			else
+				dst[dst_idx++] = src[idx];
+
 			subs->hwptr_done++;
 		}
 	}
@@ -1330,6 +1336,17 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 	if (unlikely(subs->pcm_format == SNDRV_PCM_FORMAT_DSD_U16_LE &&
 		     subs->cur_audiofmt->dsd_dop)) {
 		fill_playback_urb_dsd_dop(subs, urb, bytes);
+	} else if (unlikely(subs->pcm_format == SNDRV_PCM_FORMAT_DSD_U8 &&
+			   subs->cur_audiofmt->dsd_bitrev)) {
+		/* bit-reverse the bytes */
+		u8 *buf = urb->transfer_buffer;
+		for (i = 0; i < bytes; i++) {
+			int idx = (subs->hwptr_done + i)
+				% (runtime->buffer_size * stride);
+			buf[i] = bitrev8(runtime->dma_area[idx]);
+		}
+
+		subs->hwptr_done += bytes;
 	} else {
 		/* usual PCM */
 		if (subs->hwptr_done + bytes > runtime->buffer_size * stride) {

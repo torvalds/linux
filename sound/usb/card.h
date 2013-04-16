@@ -29,6 +29,7 @@ struct audioformat {
 	unsigned char clock;		/* associated clock */
 	struct snd_pcm_chmap_elem *chmap; /* (optional) channel map */
 	bool dsd_dop;			/* add DOP headers in case of DSD samples */
+	bool dsd_bitrev;		/* reverse the bits of each DSD sample */
 };
 
 struct snd_usb_substream;
