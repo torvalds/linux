@@ -2089,7 +2089,7 @@ static int resp_write(struct scsi_cmnd *SCpnt, unsigned long long lba,
 
 	write_lock_irqsave(&atomic_rw, iflags);
 	ret = do_device_access(SCpnt, devip, lba, num, 1);
-	if (scsi_debug_unmap_granularity)
+	if (scsi_debug_lbp())
 		map_region(lba, num);
 	write_unlock_irqrestore(&atomic_rw, iflags);
 	if (-1 == ret)
@@ -2122,7 +2122,7 @@ static int resp_write_same(struct scsi_cmnd *scmd, unsigned long long lba,
 
 	write_lock_irqsave(&atomic_rw, iflags);
 
-	if (unmap && scsi_debug_unmap_granularity) {
+	if (unmap && scsi_debug_lbp()) {
 		unmap_region(lba, num);
 		goto out;
 	}
@@ -2146,7 +2146,7 @@ static int resp_write_same(struct scsi_cmnd *scmd, unsigned long long lba,
 		       fake_storep + (lba * scsi_debug_sector_size),
 		       scsi_debug_sector_size);
 
-	if (scsi_debug_unmap_granularity)
+	if (scsi_debug_lbp())
 		map_region(lba, num);
 out:
 	write_unlock_irqrestore(&atomic_rw, iflags);
