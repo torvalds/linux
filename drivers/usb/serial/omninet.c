@@ -158,11 +158,26 @@ static void omninet_close(struct usb_serial_port *port)
 #define OMNINET_BULKOUTSIZE	64
 #define OMNINET_PAYLOADSIZE	(OMNINET_BULKOUTSIZE - OMNINET_HEADERLEN)
 
+static void omninet_process_read_urb(struct urb *urb)
+{
+	struct usb_serial_port *port = urb->context;
+	const struct omninet_header *hdr = urb->transfer_buffer;
+	const unsigned char *data;
+	size_t data_len;
+
+	if (urb->actual_length <= OMNINET_HEADERLEN || !hdr->oh_len)
+		return;
+
+	data = (char *)urb->transfer_buffer + OMNINET_HEADERLEN;
+	data_len = min_t(size_t, urb->actual_length - OMNINET_HEADERLEN,
+								hdr->oh_len);
+	tty_insert_flip_string(&port->port, data, data_len);
+	tty_flip_buffer_push(&port->port);
+}
+
 static void omninet_read_bulk_callback(struct urb *urb)
 {
 	struct usb_serial_port 	*port 	= urb->context;
-	unsigned char 		*data 	= urb->transfer_buffer;
-	struct omninet_header 	*header = (struct omninet_header *) &data[0];
 	int status = urb->status;
 	int result;
 
@@ -172,11 +187,7 @@ static void omninet_read_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	if (urb->actual_length && header->oh_len) {
-		tty_insert_flip_string(&port->port, data + OMNINET_HEADERLEN,
-				header->oh_len);
-		tty_flip_buffer_push(&port->port);
-	}
+	omninet_process_read_urb(urb);
 
 	/* Continue trying to always read  */
 	result = usb_submit_urb(urb, GFP_ATOMIC);
