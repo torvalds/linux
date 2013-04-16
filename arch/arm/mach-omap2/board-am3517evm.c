@@ -35,8 +35,7 @@
 
 #include "common.h"
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
-#include <video/omap-panel-tfp410.h>
+#include <video/omap-panel-data.h>
 
 #include "am35xx-emac.h"
 #include "mux.h"

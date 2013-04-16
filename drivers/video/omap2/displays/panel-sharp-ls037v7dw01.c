@@ -20,16 +20,13 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/backlight.h>
 #include <linux/fb.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/gpio.h>
 
 #include <video/omapdss.h>
-
-struct sharp_data {
-	struct backlight_device *bl;
-};
+#include <video/omap-panel-data.h>
 
 static struct omap_video_timings sharp_ls_timings = {
 	.x_res = 480,
@@ -52,91 +49,67 @@ static struct omap_video_timings sharp_ls_timings = {
 	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 };
 
-static int sharp_ls_bl_update_status(struct backlight_device *bl)
+static inline struct panel_sharp_ls037v7dw01_data
+*get_panel_data(const struct omap_dss_device *dssdev)
 {
-	struct omap_dss_device *dssdev = dev_get_drvdata(&bl->dev);
-	int level;
-
-	if (!dssdev->set_backlight)
-		return -EINVAL;
-
-	if (bl->props.fb_blank == FB_BLANK_UNBLANK &&
-			bl->props.power == FB_BLANK_UNBLANK)
-		level = bl->props.brightness;
-	else
-		level = 0;
-
-	return dssdev->set_backlight(dssdev, level);
+	return (struct panel_sharp_ls037v7dw01_data *) dssdev->data;
 }
-
-static int sharp_ls_bl_get_brightness(struct backlight_device *bl)
-{
-	if (bl->props.fb_blank == FB_BLANK_UNBLANK &&
-			bl->props.power == FB_BLANK_UNBLANK)
-		return bl->props.brightness;
-
-	return 0;
-}
-
-static const struct backlight_ops sharp_ls_bl_ops = {
-	.get_brightness = sharp_ls_bl_get_brightness,
-	.update_status  = sharp_ls_bl_update_status,
-};
-
-
 
 static int sharp_ls_panel_probe(struct omap_dss_device *dssdev)
 {
-	struct backlight_properties props;
-	struct backlight_device *bl;
-	struct sharp_data *sd;
+	struct panel_sharp_ls037v7dw01_data *pd = get_panel_data(dssdev);
 	int r;
+
+	if (!pd)
+		return -EINVAL;
 
 	dssdev->panel.timings = sharp_ls_timings;
 
-	sd = kzalloc(sizeof(*sd), GFP_KERNEL);
-	if (!sd)
-		return -ENOMEM;
-
-	dev_set_drvdata(&dssdev->dev, sd);
-
-	memset(&props, 0, sizeof(struct backlight_properties));
-	props.max_brightness = dssdev->max_backlight_level;
-	props.type = BACKLIGHT_RAW;
-
-	bl = backlight_device_register("sharp-ls", &dssdev->dev, dssdev,
-			&sharp_ls_bl_ops, &props);
-	if (IS_ERR(bl)) {
-		r = PTR_ERR(bl);
-		kfree(sd);
-		return r;
+	if (gpio_is_valid(pd->mo_gpio)) {
+		r = devm_gpio_request_one(&dssdev->dev, pd->mo_gpio,
+				GPIOF_OUT_INIT_LOW, "lcd MO");
+		if (r)
+			return r;
 	}
-	sd->bl = bl;
 
-	bl->props.fb_blank = FB_BLANK_UNBLANK;
-	bl->props.power = FB_BLANK_UNBLANK;
-	bl->props.brightness = dssdev->max_backlight_level;
-	r = sharp_ls_bl_update_status(bl);
-	if (r < 0)
-		dev_err(&dssdev->dev, "failed to set lcd brightness\n");
+	if (gpio_is_valid(pd->lr_gpio)) {
+		r = devm_gpio_request_one(&dssdev->dev, pd->lr_gpio,
+				GPIOF_OUT_INIT_HIGH, "lcd LR");
+		if (r)
+			return r;
+	}
+
+	if (gpio_is_valid(pd->ud_gpio)) {
+		r = devm_gpio_request_one(&dssdev->dev, pd->ud_gpio,
+				GPIOF_OUT_INIT_HIGH, "lcd UD");
+		if (r)
+			return r;
+	}
+
+	if (gpio_is_valid(pd->resb_gpio)) {
+		r = devm_gpio_request_one(&dssdev->dev, pd->resb_gpio,
+				GPIOF_OUT_INIT_LOW, "lcd RESB");
+		if (r)
+			return r;
+	}
+
+	if (gpio_is_valid(pd->ini_gpio)) {
+		r = devm_gpio_request_one(&dssdev->dev, pd->ini_gpio,
+				GPIOF_OUT_INIT_LOW, "lcd INI");
+		if (r)
+			return r;
+	}
 
 	return 0;
 }
 
 static void __exit sharp_ls_panel_remove(struct omap_dss_device *dssdev)
 {
-	struct sharp_data *sd = dev_get_drvdata(&dssdev->dev);
-	struct backlight_device *bl = sd->bl;
-
-	bl->props.power = FB_BLANK_POWERDOWN;
-	sharp_ls_bl_update_status(bl);
-	backlight_device_unregister(bl);
-
-	kfree(sd);
 }
 
 static int sharp_ls_power_on(struct omap_dss_device *dssdev)
 {
+	struct panel_sharp_ls037v7dw01_data *pd = get_panel_data(dssdev);
 	int r = 0;
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
@@ -152,26 +125,29 @@ static int sharp_ls_power_on(struct omap_dss_device *dssdev)
 	/* wait couple of vsyncs until enabling the LCD */
 	msleep(50);
 
-	if (dssdev->platform_enable) {
-		r = dssdev->platform_enable(dssdev);
-		if (r)
-			goto err1;
-	}
+	if (gpio_is_valid(pd->resb_gpio))
+		gpio_set_value_cansleep(pd->resb_gpio, 1);
+
+	if (gpio_is_valid(pd->ini_gpio))
+		gpio_set_value_cansleep(pd->ini_gpio, 1);
 
 	return 0;
-err1:
-	omapdss_dpi_display_disable(dssdev);
 err0:
 	return r;
 }
 
 static void sharp_ls_power_off(struct omap_dss_device *dssdev)
 {
+	struct panel_sharp_ls037v7dw01_data *pd = get_panel_data(dssdev);
+
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return;
 
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
+	if (gpio_is_valid(pd->ini_gpio))
+		gpio_set_value_cansleep(pd->ini_gpio, 0);
+
+	if (gpio_is_valid(pd->resb_gpio))
+		gpio_set_value_cansleep(pd->resb_gpio, 0);
 
 	/* wait at least 5 vsyncs after disabling the LCD */
 
