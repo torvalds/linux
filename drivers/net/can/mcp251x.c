@@ -1194,14 +1194,10 @@ static int mcp251x_can_resume(struct device *dev)
 	enable_irq(spi->irq);
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(mcp251x_can_pm_ops, mcp251x_can_suspend,
 	mcp251x_can_resume);
-#define MCP251X_PM_OPS (&mcp251x_can_pm_ops)
-
-#else
-#define MCP251X_PM_OPS NULL
-#endif
 
 static const struct spi_device_id mcp251x_id_table[] = {
 	{ "mcp2510",	CAN_MCP251X_MCP2510 },
@@ -1215,7 +1211,7 @@ static struct spi_driver mcp251x_can_driver = {
 	.driver = {
 		.name = DEVICE_NAME,
 		.owner = THIS_MODULE,
-		.pm = MCP251X_PM_OPS,
+		.pm = &mcp251x_can_pm_ops,
 	},
 
 	.id_table = mcp251x_id_table,
