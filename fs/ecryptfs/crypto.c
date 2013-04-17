@@ -450,10 +450,11 @@ static int ecryptfs_encrypt_extent(struct page *enc_extent_page,
 			(unsigned long long)(extent_base + extent_offset), rc);
 		goto out;
 	}
-	rc = ecryptfs_encrypt_page_offset(crypt_stat, enc_extent_page, 0,
-					  page, (extent_offset
-						 * crypt_stat->extent_size),
-					  crypt_stat->extent_size, extent_iv);
+	rc = ecryptfs_encrypt_page_offset(crypt_stat, enc_extent_page,
+					extent_offset * crypt_stat->extent_size,
+					page,
+					extent_offset * crypt_stat->extent_size,
+					crypt_stat->extent_size, extent_iv);
 	if (rc < 0) {
 		printk(KERN_ERR "%s: Error attempting to encrypt page with "
 		       "page->index = [%ld], extent_offset = [%ld]; "
@@ -520,8 +521,9 @@ int ecryptfs_encrypt_page(struct page *page)
 				   * (PAGE_CACHE_SIZE
 				      / crypt_stat->extent_size))
 				  + extent_offset), crypt_stat);
-		rc = ecryptfs_write_lower(ecryptfs_inode, enc_extent_virt,
-					  offset, crypt_stat->extent_size);
+		rc = ecryptfs_write_lower(ecryptfs_inode, (enc_extent_virt +
+				extent_offset * crypt_stat->extent_size),
+				offset, crypt_stat->extent_size);
 		if (rc < 0) {
 			ecryptfs_printk(KERN_ERR, "Error attempting "
 					"to write lower page; rc = [%d]"
@@ -558,10 +560,10 @@ static int ecryptfs_decrypt_extent(struct page *page,
 		goto out;
 	}
 	rc = ecryptfs_decrypt_page_offset(crypt_stat, page,
-					  (extent_offset
-					   * crypt_stat->extent_size),
-					  enc_extent_page, 0,
-					  crypt_stat->extent_size, extent_iv);
+					extent_offset * crypt_stat->extent_size,
+					enc_extent_page,
+					extent_offset * crypt_stat->extent_size,
+					crypt_stat->extent_size, extent_iv);
 	if (rc < 0) {
 		printk(KERN_ERR "%s: Error attempting to decrypt to page with "
 		       "page->index = [%ld], extent_offset = [%ld]; "
@@ -620,9 +622,10 @@ int ecryptfs_decrypt_page(struct page *page)
 			&offset, ((page->index * (PAGE_CACHE_SIZE
 						  / crypt_stat->extent_size))
 				  + extent_offset), crypt_stat);
-		rc = ecryptfs_read_lower(enc_extent_virt, offset,
-					 crypt_stat->extent_size,
-					 ecryptfs_inode);
+		rc = ecryptfs_read_lower((enc_extent_virt +
+				extent_offset * crypt_stat->extent_size),
+				offset, crypt_stat->extent_size,
+				ecryptfs_inode);
 		if (rc < 0) {
 			ecryptfs_printk(KERN_ERR, "Error attempting "
 					"to read lower page; rc = [%d]"
