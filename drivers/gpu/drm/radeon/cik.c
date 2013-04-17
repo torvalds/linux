@@ -57,9 +57,9 @@ extern void r600_ih_ring_fini(struct radeon_device *rdev);
 extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
 extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save);
 extern bool evergreen_is_display_hung(struct radeon_device *rdev);
+extern void sumo_rlc_fini(struct radeon_device *rdev);
+extern int sumo_rlc_init(struct radeon_device *rdev);
 extern void si_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
-extern void si_rlc_fini(struct radeon_device *rdev);
-extern int si_rlc_init(struct radeon_device *rdev);
 extern void si_rlc_reset(struct radeon_device *rdev);
 static void cik_rlc_stop(struct radeon_device *rdev);
 static void cik_pcie_gen3_enable(struct radeon_device *rdev);
@@ -6019,7 +6019,7 @@ static int cik_startup(struct radeon_device *rdev)
 	cik_gpu_init(rdev);
 
 	/* allocate rlc buffers */
-	r = si_rlc_init(rdev);
+	r = sumo_rlc_init(rdev);
 	if (r) {
 		DRM_ERROR("Failed to init rlc BOs!\n");
 		return r;
@@ -6343,7 +6343,7 @@ int cik_init(struct radeon_device *rdev)
 		cik_cp_fini(rdev);
 		cik_sdma_fini(rdev);
 		cik_irq_fini(rdev);
-		si_rlc_fini(rdev);
+		sumo_rlc_fini(rdev);
 		cik_mec_fini(rdev);
 		radeon_wb_fini(rdev);
 		radeon_ib_pool_fini(rdev);
@@ -6379,7 +6379,7 @@ void cik_fini(struct radeon_device *rdev)
 	cik_cp_fini(rdev);
 	cik_sdma_fini(rdev);
 	cik_irq_fini(rdev);
-	si_rlc_fini(rdev);
+	sumo_rlc_fini(rdev);
 	cik_mec_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_vm_manager_fini(rdev);

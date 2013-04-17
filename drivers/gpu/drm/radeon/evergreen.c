@@ -47,7 +47,7 @@ static const u32 crtc_offsets[6] =
 
 #include "clearstate_evergreen.h"
 
-static u32 sumo_rlc_save_restore_register_list[] =
+static const u32 sumo_rlc_save_restore_register_list[] =
 {
 	0x98fc,
 	0x9830,
@@ -131,7 +131,6 @@ static u32 sumo_rlc_save_restore_register_list[] =
 	0x9150,
 	0x802c,
 };
-static u32 sumo_rlc_save_restore_register_list_size = ARRAY_SIZE(sumo_rlc_save_restore_register_list);
 
 static void evergreen_gpu_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
@@ -3898,12 +3897,12 @@ void sumo_rlc_fini(struct radeon_device *rdev)
 
 int sumo_rlc_init(struct radeon_device *rdev)
 {
-	u32 *src_ptr;
+	const u32 *src_ptr;
 	volatile u32 *dst_ptr;
 	u32 dws, data, i, j, k, reg_num;
 	u32 reg_list_num, reg_list_hdr_blk_index, reg_list_blk_index;
 	u64 reg_list_mc_addr;
-	struct cs_section_def *cs_data;
+	const struct cs_section_def *cs_data;
 	int r;
 
 	src_ptr = rdev->rlc.reg_list;
@@ -3943,22 +3942,28 @@ int sumo_rlc_init(struct radeon_device *rdev)
 		}
 		/* write the sr buffer */
 		dst_ptr = rdev->rlc.sr_ptr;
-		/* format:
-		 * dw0: (reg2 << 16) | reg1
-		 * dw1: reg1 save space
-		 * dw2: reg2 save space
-		 */
-		for (i = 0; i < dws; i++) {
-			data = src_ptr[i] >> 2;
-			i++;
-			if (i < dws)
-				data |= (src_ptr[i] >> 2) << 16;
-			j = (((i - 1) * 3) / 2);
-			dst_ptr[j] = data;
+		if (rdev->family >= CHIP_TAHITI) {
+			/* SI */
+			for (i = 0; i < dws; i++)
+				dst_ptr[i] = src_ptr[i];
+		} else {
+			/* ON/LN/TN */
+			/* format:
+			 * dw0: (reg2 << 16) | reg1
+			 * dw1: reg1 save space
+			 * dw2: reg2 save space
+			 */
+			for (i = 0; i < dws; i++) {
+				data = src_ptr[i] >> 2;
+				i++;
+				if (i < dws)
+					data |= (src_ptr[i] >> 2) << 16;
+				j = (((i - 1) * 3) / 2);
+				dst_ptr[j] = data;
+			}
+			j = ((i * 3) / 2);
+			dst_ptr[j] = RLC_SAVE_RESTORE_LIST_END_MARKER;
 		}
-		j = ((i * 3) / 2);
-		dst_ptr[j] = RLC_SAVE_RESTORE_LIST_END_MARKER;
-
 		radeon_bo_kunmap(rdev->rlc.save_restore_obj);
 		radeon_bo_unreserve(rdev->rlc.save_restore_obj);
 	}
@@ -5152,7 +5157,8 @@ static int evergreen_startup(struct radeon_device *rdev)
 	/* allocate rlc buffers */
 	if (rdev->flags & RADEON_IS_IGP) {
 		rdev->rlc.reg_list = sumo_rlc_save_restore_register_list;
-		rdev->rlc.reg_list_size = sumo_rlc_save_restore_register_list_size;
+		rdev->rlc.reg_list_size =
+			(u32)ARRAY_SIZE(sumo_rlc_save_restore_register_list);
 		rdev->rlc.cs_data = evergreen_cs_data;
 		r = sumo_rlc_init(rdev);
 		if (r) {

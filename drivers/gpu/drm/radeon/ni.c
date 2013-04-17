@@ -35,7 +35,7 @@
 #include "radeon_ucode.h"
 #include "clearstate_cayman.h"
 
-static u32 tn_rlc_save_restore_register_list[] =
+static const u32 tn_rlc_save_restore_register_list[] =
 {
 	0x98fc,
 	0x98f0,
@@ -160,7 +160,6 @@ static u32 tn_rlc_save_restore_register_list[] =
 	0x9830,
 	0x802c,
 };
-static u32 tn_rlc_save_restore_register_list_size = ARRAY_SIZE(tn_rlc_save_restore_register_list);
 
 extern bool evergreen_is_display_hung(struct radeon_device *rdev);
 extern void evergreen_print_gpu_status_regs(struct radeon_device *rdev);
@@ -2121,7 +2120,8 @@ static int cayman_startup(struct radeon_device *rdev)
 	/* allocate rlc buffers */
 	if (rdev->flags & RADEON_IS_IGP) {
 		rdev->rlc.reg_list = tn_rlc_save_restore_register_list;
-		rdev->rlc.reg_list_size = tn_rlc_save_restore_register_list_size;
+		rdev->rlc.reg_list_size =
+			(u32)ARRAY_SIZE(tn_rlc_save_restore_register_list);
 		rdev->rlc.cs_data = cayman_cs_data;
 		r = sumo_rlc_init(rdev);
 		if (r) {
