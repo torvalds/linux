@@ -303,8 +303,10 @@ void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save)
 			tmp = RREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i]);
 			if (!(tmp & AVIVO_CRTC_DISP_READ_REQUEST_DISABLE)) {
 				radeon_wait_for_vblank(rdev, i);
+				WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
 				tmp |= AVIVO_CRTC_DISP_READ_REQUEST_DISABLE;
 				WREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i], tmp);
+				WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
 			}
 			/* wait for the next frame */
 			frame_count = radeon_get_vblank_counter(rdev, i);
@@ -313,6 +315,15 @@ void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save)
 					break;
 				udelay(1);
 			}
+
+			/* XXX this is a hack to avoid strange behavior with EFI on certain systems */
+			WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
+			tmp = RREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i]);
+			tmp &= ~AVIVO_CRTC_EN;
+			WREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i], tmp);
+			WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
+			save->crtc_enabled[i] = false;
+			/* ***** */
 		} else {
 			save->crtc_enabled[i] = false;
 		}
