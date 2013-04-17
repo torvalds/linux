@@ -754,6 +754,8 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 		/* this is P2P_DEVICE interface */
 		brcmf_dbg(INFO, "allocate non-netdev interface\n");
 		ifp = kzalloc(sizeof(*ifp), GFP_KERNEL);
+		if (!ifp)
+			return ERR_PTR(-ENOMEM);
 	} else {
 		brcmf_dbg(INFO, "allocate netdev interface\n");
 		/* Allocate netdev, including space for private structure */
