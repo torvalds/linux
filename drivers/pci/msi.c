@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 
 #include "pci.h"
-#include "msi.h"
 
 static int pci_msi_enable = 1;
 
@@ -564,7 +563,8 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	entry->msi_attrib.default_irq	= dev->irq;	/* Save IOAPIC IRQ */
 	entry->msi_attrib.pos		= dev->msi_cap;
 
-	entry->mask_pos = msi_mask_reg(dev->msi_cap, entry->msi_attrib.is_64);
+	entry->mask_pos = dev->msi_cap + (control & PCI_MSI_FLAGS_64BIT) ?
+		PCI_MSI_MASK_64 : PCI_MSI_MASK_32;
 	/* All MSIs are unmasked by default, Mask them all */
 	if (entry->msi_attrib.maskbit)
 		pci_read_config_dword(dev, entry->mask_pos, &entry->masked);
