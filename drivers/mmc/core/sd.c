@@ -646,8 +646,13 @@ static int mmc_sd_init_uhs_card(struct mmc_card *card)
 	if (err)
 		goto out;
 
-	/* SPI mode doesn't define CMD19 */
-	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning) {
+	/*
+	 * SPI mode doesn't define CMD19 and tuning is only valid for SDR50 and
+	 * SDR104 mode SD-cards. Note that tuning is mandatory for SDR104.
+	 */
+	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning &&
+			(card->sd_bus_speed == UHS_SDR50_BUS_SPEED ||
+			 card->sd_bus_speed == UHS_SDR104_BUS_SPEED)) {
 		mmc_host_clk_hold(card->host);
 		err = card->host->ops->execute_tuning(card->host,
 						      MMC_SEND_TUNING_BLOCK);
