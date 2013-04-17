@@ -947,21 +947,30 @@ out_err:
 	return err;
 }
 
+static void check_kvm_target_cpu(void *ret)
+{
+	*(int *)ret = kvm_target_cpu();
+}
+
 /**
  * Initialize Hyp-mode and memory mappings on all CPUs.
  */
 int kvm_arch_init(void *opaque)
 {
 	int err;
+	int ret, cpu;
 
 	if (!is_hyp_mode_available()) {
 		kvm_err("HYP mode not available\n");
 		return -ENODEV;
 	}
 
-	if (kvm_target_cpu() < 0) {
-		kvm_err("Target CPU not supported!\n");
-		return -ENODEV;
+	for_each_online_cpu(cpu) {
+		smp_call_function_single(cpu, check_kvm_target_cpu, &ret, 1);
+		if (ret < 0) {
+			kvm_err("Error, CPU %d not supported!\n", cpu);
+			return -ENODEV;
+		}
 	}
 
 	err = init_hyp_mode();
