@@ -39,7 +39,7 @@
 #include "bearer.h"
 #include "discover.h"
 
-#define MAX_ADDR_STR 32
+#define MAX_ADDR_STR 60
 
 static struct tipc_media *media_list[MAX_MEDIA];
 static u32 media_count;
