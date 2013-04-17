@@ -1261,7 +1261,10 @@ int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
 
 		ulist_reinit(tmp);
 						/* XXX id not needed */
-		ulist_add(tmp, qg->qgroupid, (u64)(uintptr_t)qg, GFP_ATOMIC);
+		ret = ulist_add(tmp, qg->qgroupid,
+				(u64)(uintptr_t)qg, GFP_ATOMIC);
+		if (ret < 0)
+			goto unlock;
 		ULIST_ITER_INIT(&tmp_uiter);
 		while ((tmp_unode = ulist_next(tmp, &tmp_uiter))) {
 			struct btrfs_qgroup_list *glist;
@@ -1273,9 +1276,11 @@ int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
 				++qg->refcnt;
 
 			list_for_each_entry(glist, &qg->groups, next_group) {
-				ulist_add(tmp, glist->group->qgroupid,
-					  (u64)(uintptr_t)glist->group,
-					  GFP_ATOMIC);
+				ret = ulist_add(tmp, glist->group->qgroupid,
+						(u64)(uintptr_t)glist->group,
+						GFP_ATOMIC);
+				if (ret < 0)
+					goto unlock;
 			}
 		}
 	}
@@ -1284,7 +1289,10 @@ int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
 	 * step 2: walk from the new root
 	 */
 	ulist_reinit(tmp);
-	ulist_add(tmp, qgroup->qgroupid, (uintptr_t)qgroup, GFP_ATOMIC);
+	ret = ulist_add(tmp, qgroup->qgroupid,
+			(uintptr_t)qgroup, GFP_ATOMIC);
+	if (ret < 0)
+		goto unlock;
 	ULIST_ITER_INIT(&uiter);
 	while ((unode = ulist_next(tmp, &uiter))) {
 		struct btrfs_qgroup *qg;
@@ -1305,8 +1313,10 @@ int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
 		qg->tag = seq;
 
 		list_for_each_entry(glist, &qg->groups, next_group) {
-			ulist_add(tmp, glist->group->qgroupid,
-				  (uintptr_t)glist->group, GFP_ATOMIC);
+			ret = ulist_add(tmp, glist->group->qgroupid,
+					(uintptr_t)glist->group, GFP_ATOMIC);
+			if (ret < 0)
+				goto unlock;
 		}
 	}
 
@@ -1324,7 +1334,10 @@ int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
 			continue;
 
 		ulist_reinit(tmp);
-		ulist_add(tmp, qg->qgroupid, (uintptr_t)qg, GFP_ATOMIC);
+		ret = ulist_add(tmp, qg->qgroupid,
+				(uintptr_t)qg, GFP_ATOMIC);
+		if (ret < 0)
+			goto unlock;
 		ULIST_ITER_INIT(&tmp_uiter);
 		while ((tmp_unode = ulist_next(tmp, &tmp_uiter))) {
 			struct btrfs_qgroup_list *glist;
@@ -1340,9 +1353,11 @@ int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
 			}
 
 			list_for_each_entry(glist, &qg->groups, next_group) {
-				ulist_add(tmp, glist->group->qgroupid,
-					  (uintptr_t)glist->group,
-					  GFP_ATOMIC);
+				ret = ulist_add(tmp, glist->group->qgroupid,
+						(uintptr_t)glist->group,
+						GFP_ATOMIC);
+				if (ret < 0)
+					goto unlock;
 			}
 		}
 	}
@@ -1607,7 +1622,10 @@ int btrfs_qgroup_reserve(struct btrfs_root *root, u64 num_bytes)
 		ret = -ENOMEM;
 		goto out;
 	}
-	ulist_add(ulist, qgroup->qgroupid, (uintptr_t)qgroup, GFP_ATOMIC);
+	ret = ulist_add(ulist, qgroup->qgroupid,
+			(uintptr_t)qgroup, GFP_ATOMIC);
+	if (ret < 0)
+		goto out;
 	ULIST_ITER_INIT(&uiter);
 	while ((unode = ulist_next(ulist, &uiter))) {
 		struct btrfs_qgroup *qg;
@@ -1630,11 +1648,13 @@ int btrfs_qgroup_reserve(struct btrfs_root *root, u64 num_bytes)
 		}
 
 		list_for_each_entry(glist, &qg->groups, next_group) {
-			ulist_add(ulist, glist->group->qgroupid,
-				  (uintptr_t)glist->group, GFP_ATOMIC);
+			ret = ulist_add(ulist, glist->group->qgroupid,
+					(uintptr_t)glist->group, GFP_ATOMIC);
+			if (ret < 0)
+				goto out;
 		}
 	}
-
+	ret = 0;
 	/*
 	 * no limits exceeded, now record the reservation into all qgroups
 	 */
@@ -1663,6 +1683,7 @@ void btrfs_qgroup_free(struct btrfs_root *root, u64 num_bytes)
 	struct ulist_node *unode;
 	struct ulist_iterator uiter;
 	u64 ref_root = root->root_key.objectid;
+	int ret = 0;
 
 	if (!is_fstree(ref_root))
 		return;
@@ -1685,7 +1706,10 @@ void btrfs_qgroup_free(struct btrfs_root *root, u64 num_bytes)
 		btrfs_std_error(fs_info, -ENOMEM);
 		goto out;
 	}
-	ulist_add(ulist, qgroup->qgroupid, (uintptr_t)qgroup, GFP_ATOMIC);
+	ret = ulist_add(ulist, qgroup->qgroupid,
+			(uintptr_t)qgroup, GFP_ATOMIC);
+	if (ret < 0)
+		goto out;
 	ULIST_ITER_INIT(&uiter);
 	while ((unode = ulist_next(ulist, &uiter))) {
 		struct btrfs_qgroup *qg;
@@ -1696,8 +1720,10 @@ void btrfs_qgroup_free(struct btrfs_root *root, u64 num_bytes)
 		qg->reserved -= num_bytes;
 
 		list_for_each_entry(glist, &qg->groups, next_group) {
-			ulist_add(ulist, glist->group->qgroupid,
-				  (uintptr_t)glist->group, GFP_ATOMIC);
+			ret = ulist_add(ulist, glist->group->qgroupid,
+					(uintptr_t)glist->group, GFP_ATOMIC);
+			if (ret < 0)
+				goto out;
 		}
 	}
 
