@@ -331,12 +331,6 @@ static struct platform_device smsc_device = {
 };
 
 /*
- * core board devices
- */
-static struct platform_device *bonito_core_devices[] __initdata = {
-};
-
-/*
  * base board devices
  */
 static struct platform_device *bonito_base_devices[] __initdata = {
@@ -396,9 +390,6 @@ static void __init bonito_init(void)
 #endif
 
 	r8a7740_add_standard_devices();
-
-	platform_add_devices(bonito_core_devices,
-			     ARRAY_SIZE(bonito_core_devices));
 
 	/*
 	 * base board settings
