@@ -19,7 +19,7 @@ struct netlink_skb_parms {
 	struct scm_creds	creds;		/* Skb credentials	*/
 	__u32			portid;
 	__u32			dst_group;
-	struct sock		*ssk;
+	struct sock		*sk;
 };
 
 #define NETLINK_CB(skb)		(*(struct netlink_skb_parms*)&((skb)->cb))

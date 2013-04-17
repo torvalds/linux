@@ -891,7 +891,7 @@ static int netlink_unicast_kernel(struct sock *sk, struct sk_buff *skb,
 	if (nlk->netlink_rcv != NULL) {
 		ret = skb->len;
 		skb_set_owner_r(skb, sk);
-		NETLINK_CB(skb).ssk = ssk;
+		NETLINK_CB(skb).sk = ssk;
 		nlk->netlink_rcv(skb);
 		consume_skb(skb);
 	} else {

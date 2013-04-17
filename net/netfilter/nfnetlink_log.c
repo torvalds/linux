@@ -824,7 +824,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 
 			inst = instance_create(net, group_num,
 					       NETLINK_CB(skb).portid,
-					       sk_user_ns(NETLINK_CB(skb).ssk));
+					       sk_user_ns(NETLINK_CB(skb).sk));
 			if (IS_ERR(inst)) {
 				ret = PTR_ERR(inst);
 				goto out;
