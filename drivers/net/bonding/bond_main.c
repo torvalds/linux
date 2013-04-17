@@ -1906,6 +1906,7 @@ err_detach:
 	write_unlock_bh(&bond->lock);
 
 err_close:
+	slave_dev->priv_flags &= ~IFF_BONDING;
 	dev_close(slave_dev);
 
 err_unset_master:
@@ -3168,10 +3169,19 @@ static int bond_slave_netdev_event(unsigned long event,
 				   struct net_device *slave_dev)
 {
 	struct slave *slave = bond_slave_get_rtnl(slave_dev);
-	struct bonding *bond = slave->bond;
-	struct net_device *bond_dev = slave->bond->dev;
+	struct bonding *bond;
+	struct net_device *bond_dev;
 	u32 old_speed;
 	u8 old_duplex;
+
+	/* A netdev event can be generated while enslaving a device
+	 * before netdev_rx_handler_register is called in which case
+	 * slave will be NULL
+	 */
+	if (!slave)
+		return NOTIFY_DONE;
+	bond_dev = slave->bond->dev;
+	bond = slave->bond;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
