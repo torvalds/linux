@@ -369,6 +369,12 @@ static void __init bonito_map_io(void)
 #define VCCQ1CR		IOMEM(0xE6058140)
 #define VCCQ1LCDCR	IOMEM(0xE6058186)
 
+static const struct pinctrl_map scifa5_pinctrl_map[] = {
+	/* SCIFA5 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.5", "pfc-r8a7740",
+				  "scifa5_data_2", "scifa5"),
+};
+
 static void __init bonito_init(void)
 {
 	u16 val;
@@ -423,8 +429,8 @@ static void __init bonito_init(void)
 		if (BIT_OFF(bsw2, 1) &&	/* S38.3 = ON */
 		    BIT_OFF(bsw3, 9) &&	/* S39.6 = ON */
 		    BIT_OFF(bsw4, 4)) {	/* S43.1 = ON */
-			gpio_request(GPIO_FN_SCIFA5_TXD_PORT91,	NULL);
-			gpio_request(GPIO_FN_SCIFA5_RXD_PORT92,	NULL);
+			pinctrl_register_mappings(scifa5_pinctrl_map,
+						  ARRAY_SIZE(scifa5_pinctrl_map));
 		}
 
 		/*
