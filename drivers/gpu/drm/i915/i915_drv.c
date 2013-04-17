@@ -529,6 +529,8 @@ static int i915_drm_freeze(struct drm_device *dev)
 		 */
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 			dev_priv->display.crtc_disable(crtc);
+
+		intel_modeset_suspend_hw(dev);
 	}
 
 	i915_save_state(dev);

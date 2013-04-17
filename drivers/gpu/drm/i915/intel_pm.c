@@ -3988,6 +3988,18 @@ static void lpt_init_clock_gating(struct drm_device *dev)
 			   PCH_LP_PARTITION_LEVEL_DISABLE);
 }
 
+static void lpt_suspend_hw(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
+		uint32_t val = I915_READ(SOUTH_DSPCLK_GATE_D);
+
+		val &= ~PCH_LP_PARTITION_LEVEL_DISABLE;
+		I915_WRITE(SOUTH_DSPCLK_GATE_D, val);
+	}
+}
+
 static void haswell_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4338,6 +4350,12 @@ void intel_init_clock_gating(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	dev_priv->display.init_clock_gating(dev);
+}
+
+void intel_suspend_hw(struct drm_device *dev)
+{
+	if (HAS_PCH_LPT(dev))
+		lpt_suspend_hw(dev);
 }
 
 /**
