@@ -182,12 +182,23 @@ struct xen_vbd {
 
 struct backend_info;
 
+/* Number of available flags */
+#define PERSISTENT_GNT_FLAGS_SIZE	2
+/* This persistent grant is currently in use */
+#define PERSISTENT_GNT_ACTIVE		0
+/*
+ * This persistent grant has been used, this flag is set when we remove the
+ * PERSISTENT_GNT_ACTIVE, to know that this grant has been used recently.
+ */
+#define PERSISTENT_GNT_WAS_ACTIVE	1
 
 struct persistent_gnt {
 	struct page *page;
 	grant_ref_t gnt;
 	grant_handle_t handle;
+	DECLARE_BITMAP(flags, PERSISTENT_GNT_FLAGS_SIZE);
 	struct rb_node node;
+	struct list_head remove_node;
 };
 
 struct xen_blkif {
@@ -219,6 +230,12 @@ struct xen_blkif {
 	/* tree to store persistent grants */
 	struct rb_root		persistent_gnts;
 	unsigned int		persistent_gnt_c;
+	atomic_t		persistent_gnt_in_use;
+	unsigned long           next_lru;
+
+	/* used by the kworker that offload work from the persistent purge */
+	struct list_head	persistent_purge_list;
+	struct work_struct	persistent_purge_work;
 
 	/* buffer of free pages to map grant refs */
 	spinlock_t		free_pages_lock;
@@ -262,6 +279,7 @@ int xen_blkif_xenbus_init(void);
 
 irqreturn_t xen_blkif_be_int(int irq, void *dev_id);
 int xen_blkif_schedule(void *arg);
+int xen_blkif_purge_persistent(void *arg);
 
 int xen_blkbk_flush_diskcache(struct xenbus_transaction xbt,
 			      struct backend_info *be, int state);

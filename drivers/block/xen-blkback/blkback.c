@@ -78,6 +78,36 @@ module_param_named(max_buffer_pages, xen_blkif_max_buffer_pages, int, 0644);
 MODULE_PARM_DESC(max_buffer_pages,
 "Maximum number of free pages to keep in each block backend buffer");
 
+/*
+ * Maximum number of grants to map persistently in blkback. For maximum
+ * performance this should be the total numbers of grants that can be used
+ * to fill the ring, but since this might become too high, specially with
+ * the use of indirect descriptors, we set it to a value that provides good
+ * performance without using too much memory.
+ *
+ * When the list of persistent grants is full we clean it up using a LRU
+ * algorithm.
+ */
+
+static int xen_blkif_max_pgrants = 352;
+module_param_named(max_persistent_grants, xen_blkif_max_pgrants, int, 0644);
+MODULE_PARM_DESC(max_persistent_grants,
+                 "Maximum number of grants to map persistently");
+
+/*
+ * The LRU mechanism to clean the lists of persistent grants needs to
+ * be executed periodically. The time interval between consecutive executions
+ * of the purge mechanism is set in ms.
+ */
+#define LRU_INTERVAL 100
+
+/*
+ * When the persistent grants list is full we will remove unused grants
+ * from the list. The percent number of grants to be removed at each LRU
+ * execution.
+ */
+#define LRU_PERCENT_CLEAN 5
+
 /* Run-time switchable: /sys/module/blkback/parameters/ */
 static unsigned int log_stats;
 module_param(log_stats, int, 0644);
@@ -96,8 +126,8 @@ struct pending_req {
 	unsigned short		operation;
 	int			status;
 	struct list_head	free_list;
-	DECLARE_BITMAP(unmap_seg, BLKIF_MAX_SEGMENTS_PER_REQUEST);
 	struct page		*pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct persistent_gnt	*persistent_gnts[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 };
 
 #define BLKBACK_INVALID_HANDLE (~0)
@@ -117,36 +147,6 @@ struct xen_blkbk {
 };
 
 static struct xen_blkbk *blkbk;
-
-/*
- * Maximum number of grant pages that can be mapped in blkback.
- * BLKIF_MAX_SEGMENTS_PER_REQUEST * RING_SIZE is the maximum number of
- * pages that blkback will persistently map.
- * Currently, this is:
- * RING_SIZE = 32 (for all known ring types)
- * BLKIF_MAX_SEGMENTS_PER_REQUEST = 11
- * sizeof(struct persistent_gnt) = 48
- * So the maximum memory used to store the grants is:
- * 32 * 11 * 48 = 16896 bytes
- */
-static inline unsigned int max_mapped_grant_pages(enum blkif_protocol protocol)
-{
-	switch (protocol) {
-	case BLKIF_PROTOCOL_NATIVE:
-		return __CONST_RING_SIZE(blkif, PAGE_SIZE) *
-			   BLKIF_MAX_SEGMENTS_PER_REQUEST;
-	case BLKIF_PROTOCOL_X86_32:
-		return __CONST_RING_SIZE(blkif_x86_32, PAGE_SIZE) *
-			   BLKIF_MAX_SEGMENTS_PER_REQUEST;
-	case BLKIF_PROTOCOL_X86_64:
-		return __CONST_RING_SIZE(blkif_x86_64, PAGE_SIZE) *
-			   BLKIF_MAX_SEGMENTS_PER_REQUEST;
-	default:
-		BUG();
-	}
-	return 0;
-}
-
 
 /*
  * Little helpful macro to figure out the index and virtual address of the
@@ -239,13 +239,29 @@ static void make_response(struct xen_blkif *blkif, u64 id,
 	     (n) = (&(pos)->node != NULL) ? rb_next(&(pos)->node) : NULL)
 
 
-static int add_persistent_gnt(struct rb_root *root,
+/*
+ * We don't need locking around the persistent grant helpers
+ * because blkback uses a single-thread for each backed, so we
+ * can be sure that this functions will never be called recursively.
+ *
+ * The only exception to that is put_persistent_grant, that can be called
+ * from interrupt context (by xen_blkbk_unmap), so we have to use atomic
+ * bit operations to modify the flags of a persistent grant and to count
+ * the number of used grants.
+ */
+static int add_persistent_gnt(struct xen_blkif *blkif,
 			       struct persistent_gnt *persistent_gnt)
 {
-	struct rb_node **new = &(root->rb_node), *parent = NULL;
+	struct rb_node **new = NULL, *parent = NULL;
 	struct persistent_gnt *this;
 
+	if (blkif->persistent_gnt_c >= xen_blkif_max_pgrants) {
+		if (!blkif->vbd.overflow_max_grants)
+			blkif->vbd.overflow_max_grants = 1;
+		return -EBUSY;
+	}
 	/* Figure out where to put new node */
+	new = &blkif->persistent_gnts.rb_node;
 	while (*new) {
 		this = container_of(*new, struct persistent_gnt, node);
 
@@ -260,18 +276,23 @@ static int add_persistent_gnt(struct rb_root *root,
 		}
 	}
 
+	bitmap_zero(persistent_gnt->flags, PERSISTENT_GNT_FLAGS_SIZE);
+	set_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags);
 	/* Add new node and rebalance tree. */
 	rb_link_node(&(persistent_gnt->node), parent, new);
-	rb_insert_color(&(persistent_gnt->node), root);
+	rb_insert_color(&(persistent_gnt->node), &blkif->persistent_gnts);
+	blkif->persistent_gnt_c++;
+	atomic_inc(&blkif->persistent_gnt_in_use);
 	return 0;
 }
 
-static struct persistent_gnt *get_persistent_gnt(struct rb_root *root,
+static struct persistent_gnt *get_persistent_gnt(struct xen_blkif *blkif,
 						 grant_ref_t gref)
 {
 	struct persistent_gnt *data;
-	struct rb_node *node = root->rb_node;
+	struct rb_node *node = NULL;
 
+	node = blkif->persistent_gnts.rb_node;
 	while (node) {
 		data = container_of(node, struct persistent_gnt, node);
 
@@ -279,10 +300,27 @@ static struct persistent_gnt *get_persistent_gnt(struct rb_root *root,
 			node = node->rb_left;
 		else if (gref > data->gnt)
 			node = node->rb_right;
-		else
+		else {
+			if(test_bit(PERSISTENT_GNT_ACTIVE, data->flags)) {
+				pr_alert_ratelimited(DRV_PFX " requesting a grant already in use\n");
+				return NULL;
+			}
+			set_bit(PERSISTENT_GNT_ACTIVE, data->flags);
+			atomic_inc(&blkif->persistent_gnt_in_use);
 			return data;
+		}
 	}
 	return NULL;
+}
+
+static void put_persistent_gnt(struct xen_blkif *blkif,
+                               struct persistent_gnt *persistent_gnt)
+{
+	if(!test_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags))
+	          pr_alert_ratelimited(DRV_PFX " freeing a grant already unused");
+	set_bit(PERSISTENT_GNT_WAS_ACTIVE, persistent_gnt->flags);
+	clear_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags);
+	atomic_dec(&blkif->persistent_gnt_in_use);
 }
 
 static void free_persistent_gnts(struct xen_blkif *blkif, struct rb_root *root,
@@ -320,6 +358,129 @@ static void free_persistent_gnts(struct xen_blkif *blkif, struct rb_root *root,
 		num--;
 	}
 	BUG_ON(num != 0);
+}
+
+static void unmap_purged_grants(struct work_struct *work)
+{
+	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct persistent_gnt *persistent_gnt;
+	int ret, segs_to_unmap = 0;
+	struct xen_blkif *blkif = container_of(work, typeof(*blkif), persistent_purge_work);
+
+	while(!list_empty(&blkif->persistent_purge_list)) {
+		persistent_gnt = list_first_entry(&blkif->persistent_purge_list,
+		                                  struct persistent_gnt,
+		                                  remove_node);
+		list_del(&persistent_gnt->remove_node);
+
+		gnttab_set_unmap_op(&unmap[segs_to_unmap],
+			vaddr(persistent_gnt->page),
+			GNTMAP_host_map,
+			persistent_gnt->handle);
+
+		pages[segs_to_unmap] = persistent_gnt->page;
+
+		if (++segs_to_unmap == BLKIF_MAX_SEGMENTS_PER_REQUEST) {
+			ret = gnttab_unmap_refs(unmap, NULL, pages,
+				segs_to_unmap);
+			BUG_ON(ret);
+			put_free_pages(blkif, pages, segs_to_unmap);
+			segs_to_unmap = 0;
+		}
+		kfree(persistent_gnt);
+	}
+	if (segs_to_unmap > 0) {
+		ret = gnttab_unmap_refs(unmap, NULL, pages, segs_to_unmap);
+		BUG_ON(ret);
+		put_free_pages(blkif, pages, segs_to_unmap);
+	}
+}
+
+static void purge_persistent_gnt(struct xen_blkif *blkif)
+{
+	struct persistent_gnt *persistent_gnt;
+	struct rb_node *n;
+	unsigned int num_clean, total;
+	bool scan_used = false;
+	struct rb_root *root;
+
+	if (blkif->persistent_gnt_c < xen_blkif_max_pgrants ||
+	    (blkif->persistent_gnt_c == xen_blkif_max_pgrants &&
+	    !blkif->vbd.overflow_max_grants)) {
+		return;
+	}
+
+	if (work_pending(&blkif->persistent_purge_work)) {
+		pr_alert_ratelimited(DRV_PFX "Scheduled work from previous purge is still pending, cannot purge list\n");
+		return;
+	}
+
+	num_clean = (xen_blkif_max_pgrants / 100) * LRU_PERCENT_CLEAN;
+	num_clean = blkif->persistent_gnt_c - xen_blkif_max_pgrants + num_clean;
+	num_clean = min(blkif->persistent_gnt_c, num_clean);
+	if (num_clean >
+	    (blkif->persistent_gnt_c -
+	    atomic_read(&blkif->persistent_gnt_in_use)))
+		return;
+
+	/*
+	 * At this point, we can assure that there will be no calls
+         * to get_persistent_grant (because we are executing this code from
+         * xen_blkif_schedule), there can only be calls to put_persistent_gnt,
+         * which means that the number of currently used grants will go down,
+         * but never up, so we will always be able to remove the requested
+         * number of grants.
+	 */
+
+	total = num_clean;
+
+	pr_debug(DRV_PFX "Going to purge %u persistent grants\n", num_clean);
+
+	INIT_LIST_HEAD(&blkif->persistent_purge_list);
+	root = &blkif->persistent_gnts;
+purge_list:
+	foreach_grant_safe(persistent_gnt, n, root, node) {
+		BUG_ON(persistent_gnt->handle ==
+			BLKBACK_INVALID_HANDLE);
+
+		if (test_bit(PERSISTENT_GNT_ACTIVE, persistent_gnt->flags))
+			continue;
+		if (!scan_used &&
+		    (test_bit(PERSISTENT_GNT_WAS_ACTIVE, persistent_gnt->flags)))
+			continue;
+
+		rb_erase(&persistent_gnt->node, root);
+		list_add(&persistent_gnt->remove_node,
+		         &blkif->persistent_purge_list);
+		if (--num_clean == 0)
+			goto finished;
+	}
+	/*
+	 * If we get here it means we also need to start cleaning
+	 * grants that were used since last purge in order to cope
+	 * with the requested num
+	 */
+	if (!scan_used) {
+		pr_debug(DRV_PFX "Still missing %u purged frames\n", num_clean);
+		scan_used = true;
+		goto purge_list;
+	}
+finished:
+	/* Remove the "used" flag from all the persistent grants */
+	foreach_grant_safe(persistent_gnt, n, root, node) {
+		BUG_ON(persistent_gnt->handle ==
+			BLKBACK_INVALID_HANDLE);
+		clear_bit(PERSISTENT_GNT_WAS_ACTIVE, persistent_gnt->flags);
+	}
+	blkif->persistent_gnt_c -= (total - num_clean);
+	blkif->vbd.overflow_max_grants = 0;
+
+	/* We can defer this work */
+	INIT_WORK(&blkif->persistent_purge_work, unmap_purged_grants);
+	schedule_work(&blkif->persistent_purge_work);
+	pr_debug(DRV_PFX "Purged %u/%u\n", (total - num_clean), total);
+	return;
 }
 
 /*
@@ -453,12 +614,12 @@ irqreturn_t xen_blkif_be_int(int irq, void *dev_id)
 static void print_stats(struct xen_blkif *blkif)
 {
 	pr_info("xen-blkback (%s): oo %3llu  |  rd %4llu  |  wr %4llu  |  f %4llu"
-		 "  |  ds %4llu | pg: %4u/%4u\n",
+		 "  |  ds %4llu | pg: %4u/%4d\n",
 		 current->comm, blkif->st_oo_req,
 		 blkif->st_rd_req, blkif->st_wr_req,
 		 blkif->st_f_req, blkif->st_ds_req,
 		 blkif->persistent_gnt_c,
-		 max_mapped_grant_pages(blkif->blk_protocol));
+		 xen_blkif_max_pgrants);
 	blkif->st_print = jiffies + msecs_to_jiffies(10 * 1000);
 	blkif->st_rd_req = 0;
 	blkif->st_wr_req = 0;
@@ -470,6 +631,7 @@ int xen_blkif_schedule(void *arg)
 {
 	struct xen_blkif *blkif = arg;
 	struct xen_vbd *vbd = &blkif->vbd;
+	unsigned long timeout;
 
 	xen_blkif_get(blkif);
 
@@ -479,19 +641,34 @@ int xen_blkif_schedule(void *arg)
 		if (unlikely(vbd->size != vbd_sz(vbd)))
 			xen_vbd_resize(blkif);
 
-		wait_event_interruptible(
+		timeout = msecs_to_jiffies(LRU_INTERVAL);
+
+		timeout = wait_event_interruptible_timeout(
 			blkif->wq,
-			blkif->waiting_reqs || kthread_should_stop());
-		wait_event_interruptible(
+			blkif->waiting_reqs || kthread_should_stop(),
+			timeout);
+		if (timeout == 0)
+			goto purge_gnt_list;
+		timeout = wait_event_interruptible_timeout(
 			blkbk->pending_free_wq,
 			!list_empty(&blkbk->pending_free) ||
-			kthread_should_stop());
+			kthread_should_stop(),
+			timeout);
+		if (timeout == 0)
+			goto purge_gnt_list;
 
 		blkif->waiting_reqs = 0;
 		smp_mb(); /* clear flag *before* checking for work */
 
 		if (do_block_io_op(blkif))
 			blkif->waiting_reqs = 1;
+
+purge_gnt_list:
+		if (blkif->vbd.feature_gnt_persistent &&
+		    time_after(jiffies, blkif->next_lru)) {
+			purge_persistent_gnt(blkif);
+			blkif->next_lru = jiffies + msecs_to_jiffies(LRU_INTERVAL);
+		}
 
 		/* Shrink if we have more than xen_blkif_max_buffer_pages */
 		shrink_free_pagepool(blkif, xen_blkif_max_buffer_pages);
@@ -538,8 +715,10 @@ static void xen_blkbk_unmap(struct pending_req *req)
 	int ret;
 
 	for (i = 0; i < req->nr_pages; i++) {
-		if (!test_bit(i, req->unmap_seg))
+		if (req->persistent_gnts[i] != NULL) {
+			put_persistent_gnt(blkif, req->persistent_gnts[i]);
 			continue;
+		}
 		handle = pending_handle(req, i);
 		pages[invcount] = req->pages[i];
 		if (handle == BLKBACK_INVALID_HANDLE)
@@ -561,8 +740,8 @@ static int xen_blkbk_map(struct blkif_request *req,
 			 struct page *pages[])
 {
 	struct gnttab_map_grant_ref map[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-	struct persistent_gnt *persistent_gnts[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct page *pages_to_gnt[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct persistent_gnt **persistent_gnts = pending_req->persistent_gnts;
 	struct persistent_gnt *persistent_gnt = NULL;
 	struct xen_blkif *blkif = pending_req->blkif;
 	phys_addr_t addr = 0;
@@ -574,9 +753,6 @@ static int xen_blkbk_map(struct blkif_request *req,
 
 	use_persistent_gnts = (blkif->vbd.feature_gnt_persistent);
 
-	BUG_ON(blkif->persistent_gnt_c >
-		   max_mapped_grant_pages(pending_req->blkif->blk_protocol));
-
 	/*
 	 * Fill out preq.nr_sects with proper amount of sectors, and setup
 	 * assign map[..] with the PFN of the page in our domain with the
@@ -587,7 +763,7 @@ static int xen_blkbk_map(struct blkif_request *req,
 
 		if (use_persistent_gnts)
 			persistent_gnt = get_persistent_gnt(
-				&blkif->persistent_gnts,
+				blkif,
 				req->u.rw.seg[i].gref);
 
 		if (persistent_gnt) {
@@ -623,7 +799,6 @@ static int xen_blkbk_map(struct blkif_request *req,
 	 * so that when we access vaddr(pending_req,i) it has the contents of
 	 * the page from the other domain.
 	 */
-	bitmap_zero(pending_req->unmap_seg, BLKIF_MAX_SEGMENTS_PER_REQUEST);
 	for (seg_idx = 0, new_map_idx = 0; seg_idx < nseg; seg_idx++) {
 		if (!persistent_gnts[seg_idx]) {
 			/* This is a newly mapped grant */
@@ -646,11 +821,10 @@ static int xen_blkbk_map(struct blkif_request *req,
 			goto next;
 		}
 		if (use_persistent_gnts &&
-		    blkif->persistent_gnt_c <
-		    max_mapped_grant_pages(blkif->blk_protocol)) {
+		    blkif->persistent_gnt_c < xen_blkif_max_pgrants) {
 			/*
 			 * We are using persistent grants, the grant is
-			 * not mapped but we have room for it
+			 * not mapped but we might have room for it.
 			 */
 			persistent_gnt = kmalloc(sizeof(struct persistent_gnt),
 				                 GFP_KERNEL);
@@ -665,16 +839,16 @@ static int xen_blkbk_map(struct blkif_request *req,
 			persistent_gnt->gnt = map[new_map_idx].ref;
 			persistent_gnt->handle = map[new_map_idx].handle;
 			persistent_gnt->page = pages[seg_idx];
-			if (add_persistent_gnt(&blkif->persistent_gnts,
+			if (add_persistent_gnt(blkif,
 			                       persistent_gnt)) {
 				kfree(persistent_gnt);
 				persistent_gnt = NULL;
 				goto next_unmap;
 			}
-			blkif->persistent_gnt_c++;
+			persistent_gnts[seg_idx] = persistent_gnt;
 			pr_debug(DRV_PFX " grant %u added to the tree of persistent grants, using %u/%u\n",
 				 persistent_gnt->gnt, blkif->persistent_gnt_c,
-				 max_mapped_grant_pages(blkif->blk_protocol));
+				 xen_blkif_max_pgrants);
 			new_map_idx++;
 			goto next;
 		}
@@ -688,7 +862,6 @@ next_unmap:
 		 * We could not map this grant persistently, so use it as
 		 * a non-persistent grant.
 		 */
-		bitmap_set(pending_req->unmap_seg, seg_idx, 1);
 		new_map_idx++;
 next:
 		seg[seg_idx].offset = (req->u.rw.seg[seg_idx].first_sect << 9);

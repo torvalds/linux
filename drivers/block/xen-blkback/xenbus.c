@@ -98,6 +98,7 @@ static void xen_update_blkif_status(struct xen_blkif *blkif)
 		err = PTR_ERR(blkif->xenblkd);
 		blkif->xenblkd = NULL;
 		xenbus_dev_error(blkif->be->dev, err, "start xenblkd");
+		return;
 	}
 }
 
@@ -121,6 +122,7 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	spin_lock_init(&blkif->free_pages_lock);
 	INIT_LIST_HEAD(&blkif->free_pages);
 	blkif->free_pages_num = 0;
+	atomic_set(&blkif->persistent_gnt_in_use, 0);
 
 	return blkif;
 }
