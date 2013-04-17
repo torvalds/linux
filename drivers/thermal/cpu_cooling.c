@@ -303,12 +303,12 @@ static int cpufreq_get_max_state(struct thermal_cooling_device *cdev,
 	struct cpufreq_cooling_device *cpufreq_device = cdev->devdata;
 	struct cpumask *mask = &cpufreq_device->allowed_cpus;
 	unsigned int cpu;
-	unsigned long count = 0;
+	unsigned int count = 0;
 	int ret;
 
 	cpu = cpumask_any(mask);
 
-	ret = get_property(cpu, 0, (unsigned int *)&count, GET_MAXL);
+	ret = get_property(cpu, 0, &count, GET_MAXL);
 
 	if (count > 0)
 		*state = count;
