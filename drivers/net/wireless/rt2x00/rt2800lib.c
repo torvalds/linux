@@ -4665,6 +4665,8 @@ static void rt2800_init_rfcsr_3352(struct rt2x00_dev *rt2x00dev)
 
 static void rt2800_init_rfcsr_3390(struct rt2x00_dev *rt2x00dev)
 {
+	u32 reg;
+
 	rt2800_rf_init_calibration(rt2x00dev, 30);
 
 	rt2800_rfcsr_write(rt2x00dev, 0, 0xa0);
@@ -4699,6 +4701,10 @@ static void rt2800_init_rfcsr_3390(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 29, 0x8f);
 	rt2800_rfcsr_write(rt2x00dev, 30, 0x20);
 	rt2800_rfcsr_write(rt2x00dev, 31, 0x0f);
+
+	rt2800_register_read(rt2x00dev, GPIO_SWITCH, &reg);
+	rt2x00_set_field32(&reg, GPIO_SWITCH_5, 0);
+	rt2800_register_write(rt2x00dev, GPIO_SWITCH, reg);
 }
 
 static void rt2800_init_rfcsr_3572(struct rt2x00_dev *rt2x00dev)
@@ -4989,11 +4995,7 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	}
 
 
-	if (rt2x00_rt(rt2x00dev, RT3390)) {
-		rt2800_register_read(rt2x00dev, GPIO_SWITCH, &reg);
-		rt2x00_set_field32(&reg, GPIO_SWITCH_5, 0);
-		rt2800_register_write(rt2x00dev, GPIO_SWITCH, reg);
-	} else if (rt2x00_rt(rt2x00dev, RT3572)) {
+	if (rt2x00_rt(rt2x00dev, RT3572)) {
 		rt2800_rfcsr_read(rt2x00dev, 6, &rfcsr);
 		rt2x00_set_field8(&rfcsr, RFCSR6_R2, 1);
 		rt2800_rfcsr_write(rt2x00dev, 6, rfcsr);
