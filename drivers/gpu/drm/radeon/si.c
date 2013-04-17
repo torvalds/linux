@@ -4749,7 +4749,7 @@ static void si_init_gfx_cgpg(struct radeon_device *rdev)
 	WREG32(RLC_AUTO_PG_CTRL, tmp);
 }
 
-static u32 get_cu_active_bitmap(struct radeon_device *rdev, u32 se, u32 sh)
+static u32 si_get_cu_active_bitmap(struct radeon_device *rdev, u32 se, u32 sh)
 {
 	u32 mask = 0, tmp, tmp1;
 	int i;
@@ -4784,7 +4784,7 @@ static void si_init_ao_cu_mask(struct radeon_device *rdev)
 			cu_bitmap = 0;
 			counter  = 0;
 			for (k = 0; k < rdev->config.si.max_cu_per_sh; k++) {
-				if (get_cu_active_bitmap(rdev, i, j) & mask) {
+				if (si_get_cu_active_bitmap(rdev, i, j) & mask) {
 					if (counter < 2)
 						cu_bitmap |= mask;
 					counter++;
