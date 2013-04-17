@@ -589,6 +589,7 @@ static void hci_set_le_support(struct hci_request *req)
 static void hci_init3_req(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
+	u8 p;
 
 	if (hdev->commands[5] & 0x10)
 		hci_setup_link_policy(req);
@@ -596,6 +597,15 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 	if (lmp_le_capable(hdev)) {
 		hci_set_le_support(req);
 		hci_update_ad(req);
+	}
+
+	/* Read features beyond page 1 if available */
+	for (p = 2; p < HCI_MAX_PAGES && p <= hdev->max_page; p++) {
+		struct hci_cp_read_local_ext_features cp;
+
+		cp.page = p;
+		hci_req_add(req, HCI_OP_READ_LOCAL_EXT_FEATURES,
+			    sizeof(cp), &cp);
 	}
 }
 

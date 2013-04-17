@@ -134,7 +134,7 @@ struct amp_assoc {
 	__u8	data[HCI_MAX_AMP_ASSOC_SIZE];
 };
 
-#define HCI_MAX_PAGES	2
+#define HCI_MAX_PAGES	3
 
 #define NUM_REASSEMBLY 4
 struct hci_dev {
@@ -153,6 +153,7 @@ struct hci_dev {
 	__u8		dev_class[3];
 	__u8		major_class;
 	__u8		minor_class;
+	__u8		max_page;
 	__u8		features[HCI_MAX_PAGES][8];
 	__u8		le_features[8];
 	__u8		le_white_list_size;
