@@ -151,13 +151,29 @@ int au_reopen_nondir(struct file *file)
 		au_set_h_fptr(file, bstart, NULL);
 	}
 	AuDebugOn(au_fi(file)->fi_hdir);
-	AuDebugOn(au_fbstart(file) < bstart);
+	/*
+	 * it can happen
+	 * file exists on both of rw and ro
+	 * open --> dbstart and fbstart are both 0
+	 * prepend a branch as rw, "rw" become ro
+	 * remove rw/file
+	 * delete the top branch, "rw" becomes rw again
+	 *	--> dbstart is 1, fbstart is still 0
+	 * write --> fbstart is 0 but dbstart is 1
+	 */
+	/* AuDebugOn(au_fbstart(file) < bstart); */
 
 	h_file = au_h_open(dentry, bstart, vfsub_file_flags(file) & ~O_TRUNC,
 			   file);
 	err = PTR_ERR(h_file);
-	if (IS_ERR(h_file))
+	if (IS_ERR(h_file)) {
+		if (h_file_tmp) {
+			atomic_inc(&au_sbr(dentry->d_sb, bstart)->br_count);
+			au_set_h_fptr(file, bstart, h_file_tmp);
+			h_file_tmp = NULL;
+		}
 		goto out; /* todo: close all? */
+	}
 
 	err = 0;
 	au_set_fbstart(file, bstart);
