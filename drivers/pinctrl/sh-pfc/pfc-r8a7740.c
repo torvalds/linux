@@ -3386,10 +3386,6 @@ static const struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(SDENC_CPG),
 	GPIO_FN(SDENC_DV_CLKI),
 
-	/* HDMI */
-	GPIO_FN(HDMI_HPD),
-	GPIO_FN(HDMI_CEC),
-
 	/* SYSC */
 	GPIO_FN(RESETP_PULLUP),
 	GPIO_FN(RESETP_PLAIN),
