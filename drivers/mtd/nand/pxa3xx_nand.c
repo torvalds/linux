@@ -1035,12 +1035,10 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	int ret, irq, cs;
 
 	pdata = pdev->dev.platform_data;
-	info = kzalloc(sizeof(*info) + (sizeof(*mtd) +
-		       sizeof(*host)) * pdata->num_cs, GFP_KERNEL);
-	if (!info) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	info = devm_kzalloc(&pdev->dev, sizeof(*info) + (sizeof(*mtd) +
+			    sizeof(*host)) * pdata->num_cs, GFP_KERNEL);
+	if (!info)
 		return -ENOMEM;
-	}
 
 	info->pdev = pdev;
 	for (cs = 0; cs < pdata->num_cs; cs++) {
@@ -1072,8 +1070,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	info->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(info->clk)) {
 		dev_err(&pdev->dev, "failed to get nand clock\n");
-		ret = PTR_ERR(info->clk);
-		goto fail_free_mtd;
+		return PTR_ERR(info->clk);
 	}
 	clk_enable(info->clk);
 
@@ -1165,8 +1162,6 @@ fail_free_res:
 fail_put_clk:
 	clk_disable(info->clk);
 	clk_put(info->clk);
-fail_free_mtd:
-	kfree(info);
 	return ret;
 }
 
@@ -1202,7 +1197,6 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 
 	for (cs = 0; cs < pdata->num_cs; cs++)
 		nand_release(info->host[cs]->mtd);
-	kfree(info);
 	return 0;
 }
 
