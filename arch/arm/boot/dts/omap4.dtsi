@@ -6,14 +6,6 @@
  * published by the Free Software Foundation.
  */
 
-/*
- * Carveout for multimedia usecases
- * It should be the last 48MB of the first 512MB memory part
- * In theory, it should not even exist. That zone should be reserved
- * dynamically during the .reserve callback.
- */
-/memreserve/ 0x9d000000 0x03000000;
-
 /include/ "skeleton.dtsi"
 
 / {
