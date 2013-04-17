@@ -1821,14 +1821,17 @@ void brcmf_fws_add_interface(struct brcmf_if *ifp)
 void brcmf_fws_del_interface(struct brcmf_if *ifp)
 {
 	struct brcmf_fws_mac_descriptor *entry = ifp->fws_desc;
+	ulong flags;
 
 	brcmf_dbg(TRACE, "enter: idx=%d\n", ifp->bssidx);
 	if (!entry)
 		return;
 
+	brcmf_fws_lock(ifp->drvr, flags);
 	ifp->fws_desc = NULL;
 	brcmf_fws_clear_mac_descriptor(entry);
 	brcmf_fws_cleanup(ifp->drvr->fws, ifp->ifidx);
+	brcmf_fws_unlock(ifp->drvr, flags);
 }
 
 static void brcmf_fws_dequeue_worker(struct work_struct *worker)
