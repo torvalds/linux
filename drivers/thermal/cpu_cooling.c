@@ -299,6 +299,12 @@ static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
  * @nb:	struct notifier_block * with callback info.
  * @event: value showing cpufreq event for which this function invoked.
  * @data: callback-specific data
+ *
+ * Callback to highjack the notification on cpufreq policy transition.
+ * Every time there is a change in policy, we will intercept and
+ * update the cpufreq policy with thermal constraints.
+ *
+ * Return: 0 (success)
  */
 static int cpufreq_thermal_notifier(struct notifier_block *nb,
 					unsigned long event, void *data)
