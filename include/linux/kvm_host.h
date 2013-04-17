@@ -304,7 +304,7 @@ struct kvm_kernel_irq_routing_entry {
 	struct hlist_node link;
 };
 
-#ifdef __KVM_HAVE_IOAPIC
+#ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
 
 struct kvm_irq_routing_table {
 	int chip[KVM_NR_IRQCHIPS][KVM_IRQCHIP_NUM_PINS];
@@ -432,7 +432,7 @@ void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
 int __must_check vcpu_load(struct kvm_vcpu *vcpu);
 void vcpu_put(struct kvm_vcpu *vcpu);
 
-#ifdef __KVM_HAVE_IOAPIC
+#ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
 int kvm_irqfd_init(void);
 void kvm_irqfd_exit(void);
 #else
@@ -957,7 +957,7 @@ static inline int mmu_notifier_retry(struct kvm *kvm, unsigned long mmu_seq)
 }
 #endif
 
-#ifdef KVM_CAP_IRQ_ROUTING
+#ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
 
 #define KVM_MAX_IRQ_ROUTES 1024
 
