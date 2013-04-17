@@ -173,6 +173,7 @@ struct pm8001_dispatch {
 };
 
 struct pm8001_chip_info {
+	u32     encrypt;
 	u32	n_phy;
 	const struct pm8001_dispatch	*dispatch;
 };
@@ -256,7 +257,20 @@ struct mpi_mem_req {
 	struct mpi_mem		region[USI_MAX_MEMCNT];
 };
 
-struct main_cfg_table {
+struct encrypt {
+	u32	cipher_mode;
+	u32	sec_mode;
+	u32	status;
+	u32	flag;
+};
+
+struct sas_phy_attribute_table {
+	u32	phystart1_16[16];
+	u32	outbound_hw_event_pid1_16[16];
+};
+
+union main_cfg_table {
+	struct {
 	u32			signature;
 	u32			interface_rev;
 	u32			firmware_rev;
@@ -292,19 +306,67 @@ struct main_cfg_table {
 	u32			fatal_err_dump_length1;
 	u32			hda_mode_flag;
 	u32			anolog_setup_table_offset;
+	u32			rsvd[4];
+	} pm8001_tbl;
+
+	struct {
+	u32			signature;
+	u32			interface_rev;
+	u32			firmware_rev;
+	u32			max_out_io;
+	u32			max_sgl;
+	u32			ctrl_cap_flag;
+	u32			gst_offset;
+	u32			inbound_queue_offset;
+	u32			outbound_queue_offset;
+	u32			inbound_q_nppd_hppd;
+	u32			rsvd[10];
+	u32			upper_event_log_addr;
+	u32			lower_event_log_addr;
+	u32			event_log_size;
+	u32			event_log_severity;
+	u32			upper_pcs_event_log_addr;
+	u32			lower_pcs_event_log_addr;
+	u32			pcs_event_log_size;
+	u32			pcs_event_log_severity;
+	u32			fatal_err_interrupt;
+	u32			fatal_err_dump_offset0;
+	u32			fatal_err_dump_length0;
+	u32			fatal_err_dump_offset1;
+	u32			fatal_err_dump_length1;
+	u32			gpio_led_mapping;
+	u32			analog_setup_table_offset;
+	u32			int_vec_table_offset;
+	u32			phy_attr_table_offset;
+	u32			port_recovery_timer;
+	u32			interrupt_reassertion_delay;
+	} pm80xx_tbl;
 };
-struct general_status_table {
+
+union general_status_table {
+	struct {
 	u32			gst_len_mpistate;
 	u32			iq_freeze_state0;
 	u32			iq_freeze_state1;
 	u32			msgu_tcnt;
 	u32			iop_tcnt;
-	u32			reserved;
+	u32			rsvd;
 	u32			phy_state[8];
-	u32			reserved1;
-	u32			reserved2;
-	u32			reserved3;
+	u32			gpio_input_val;
+	u32			rsvd1[2];
 	u32			recover_err_info[8];
+	} pm8001_tbl;
+	struct {
+	u32			gst_len_mpistate;
+	u32			iq_freeze_state0;
+	u32			iq_freeze_state1;
+	u32			msgu_tcnt;
+	u32			iop_tcnt;
+	u32			rsvd[9];
+	u32			gpio_input_val;
+	u32			rsvd1[2];
+	u32			recover_err_info[8];
+	} pm80xx_tbl;
 };
 struct inbound_queue_table {
 	u32			element_pri_size_cnt;
@@ -351,15 +413,21 @@ struct pm8001_hba_info {
 	struct device		*dev;
 	struct pm8001_hba_memspace io_mem[6];
 	struct mpi_mem_req	memoryMap;
+	struct encrypt		encrypt_info; /* support encryption */
 	void __iomem	*msg_unit_tbl_addr;/*Message Unit Table Addr*/
 	void __iomem	*main_cfg_tbl_addr;/*Main Config Table Addr*/
 	void __iomem	*general_stat_tbl_addr;/*General Status Table Addr*/
 	void __iomem	*inbnd_q_tbl_addr;/*Inbound Queue Config Table Addr*/
 	void __iomem	*outbnd_q_tbl_addr;/*Outbound Queue Config Table Addr*/
-	struct main_cfg_table	main_cfg_tbl;
-	struct general_status_table	gs_tbl;
-	struct inbound_queue_table	inbnd_q_tbl[PM8001_MAX_INB_NUM];
-	struct outbound_queue_table	outbnd_q_tbl[PM8001_MAX_OUTB_NUM];
+	void __iomem	*pspa_q_tbl_addr;
+			/*MPI SAS PHY attributes Queue Config Table Addr*/
+	void __iomem	*ivt_tbl_addr; /*MPI IVT Table Addr */
+	union main_cfg_table	main_cfg_tbl;
+	union general_status_table	gs_tbl;
+	struct inbound_queue_table	inbnd_q_tbl[PM8001_MAX_SPCV_INB_NUM];
+	struct outbound_queue_table	outbnd_q_tbl[PM8001_MAX_SPCV_OUTB_NUM];
+	struct sas_phy_attribute_table	phy_attr_table;
+					/* MPI SAS PHY attributes */
 	u8			sas_addr[SAS_ADDR_SIZE];
 	struct sas_ha_struct	*sas;/* SCSI/SAS glue */
 	struct Scsi_Host	*shost;
@@ -372,10 +440,12 @@ struct pm8001_hba_info {
 	struct pm8001_port	port[PM8001_MAX_PHYS];
 	u32			id;
 	u32			irq;
+	u32			iomb_size; /* SPC and SPCV IOMB size */
 	struct pm8001_device	*devices;
 	struct pm8001_ccb_info	*ccb_info;
 #ifdef PM8001_USE_MSIX
-	struct msix_entry	msix_entries[16];/*for msi-x interrupt*/
+	struct msix_entry	msix_entries[PM8001_MAX_MSIX_VEC];
+					/*for msi-x interrupt*/
 	int			number_of_intr;/*will be used in remove()*/
 #endif
 #ifdef PM8001_USE_TASKLET

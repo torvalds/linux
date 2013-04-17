@@ -1,5 +1,5 @@
 /*
- * PMC-Sierra SPC 8001 SAS/SATA based host adapters driver
+ * PMC-Sierra PM8001/8081/8088/8089 SAS/SATA based host adapters driver
  *
  * Copyright (c) 2008-2009 USI Co., Ltd.
  * All rights reserved.
@@ -44,8 +44,12 @@
 
 static struct scsi_transport_template *pm8001_stt;
 
+/**
+ * chip info structure to identify chip key functionality as
+ * encryption available/not, no of ports, hw specific function ref
+ */
 static const struct pm8001_chip_info pm8001_chips[] = {
-	[chip_8001] = {  8, &pm8001_8001_dispatch,},
+	[chip_8001] = {0,  8, &pm8001_8001_dispatch,},
 };
 static int pm8001_id;
 
@@ -843,14 +847,45 @@ err_out_enable:
 	return rc;
 }
 
+/* update of pci device, vendor id and driver data with
+ * unique value for each of the controller
+ */
 static struct pci_device_id pm8001_pci_table[] = {
-	{
-		PCI_VDEVICE(PMC_Sierra, 0x8001), chip_8001
-	},
+	{ PCI_VDEVICE(PMC_Sierra, 0x8001), chip_8001 },
 	{
 		PCI_DEVICE(0x117c, 0x0042),
 		.driver_data = chip_8001
 	},
+	/* Support for SPC/SPCv/SPCve controllers */
+	{ PCI_VDEVICE(ADAPTEC2, 0x8001), chip_8001 },
+	{ PCI_VDEVICE(PMC_Sierra, 0x8008), chip_8008 },
+	{ PCI_VDEVICE(ADAPTEC2, 0x8008), chip_8008 },
+	{ PCI_VDEVICE(PMC_Sierra, 0x8018), chip_8018 },
+	{ PCI_VDEVICE(ADAPTEC2, 0x8018), chip_8018 },
+	{ PCI_VDEVICE(PMC_Sierra, 0x8009), chip_8009 },
+	{ PCI_VDEVICE(ADAPTEC2, 0x8009), chip_8009 },
+	{ PCI_VDEVICE(PMC_Sierra, 0x8019), chip_8019 },
+	{ PCI_VDEVICE(ADAPTEC2, 0x8019), chip_8019 },
+	{ PCI_VENDOR_ID_ADAPTEC2, 0x8081,
+		PCI_VENDOR_ID_ADAPTEC2, 0x0400, 0, 0, chip_8001 },
+	{ PCI_VENDOR_ID_ADAPTEC2, 0x8081,
+		PCI_VENDOR_ID_ADAPTEC2, 0x0800, 0, 0, chip_8001 },
+	{ PCI_VENDOR_ID_ADAPTEC2, 0x8088,
+		PCI_VENDOR_ID_ADAPTEC2, 0x0008, 0, 0, chip_8008 },
+	{ PCI_VENDOR_ID_ADAPTEC2, 0x8088,
+		PCI_VENDOR_ID_ADAPTEC2, 0x0800, 0, 0, chip_8008 },
+	{ PCI_VENDOR_ID_ADAPTEC2, 0x8089,
+		PCI_VENDOR_ID_ADAPTEC2, 0x0008, 0, 0, chip_8009 },
+	{ PCI_VENDOR_ID_ADAPTEC2, 0x8089,
+		PCI_VENDOR_ID_ADAPTEC2, 0x0800, 0, 0, chip_8009 },
+	{ PCI_VENDOR_ID_ADAPTEC2, 0x8088,
+		PCI_VENDOR_ID_ADAPTEC2, 0x0016, 0, 0, chip_8018 },
+	{ PCI_VENDOR_ID_ADAPTEC2, 0x8088,
+		PCI_VENDOR_ID_ADAPTEC2, 0x1600, 0, 0, chip_8018 },
+	{ PCI_VENDOR_ID_ADAPTEC2, 0x8089,
+		PCI_VENDOR_ID_ADAPTEC2, 0x0016, 0, 0, chip_8019 },
+	{ PCI_VENDOR_ID_ADAPTEC2, 0x8089,
+		PCI_VENDOR_ID_ADAPTEC2, 0x1600, 0, 0, chip_8019 },
 	{} /* terminate list */
 };
 
@@ -902,7 +937,8 @@ module_init(pm8001_init);
 module_exit(pm8001_exit);
 
 MODULE_AUTHOR("Jack Wang <jack_wang@usish.com>");
-MODULE_DESCRIPTION("PMC-Sierra PM8001 SAS/SATA controller driver");
+MODULE_DESCRIPTION(
+		"PMC-Sierra PM8001/8081/8088/8089 SAS/SATA controller driver");
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, pm8001_pci_table);
