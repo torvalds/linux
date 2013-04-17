@@ -538,6 +538,28 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	return ret;
 }
 
+static void s3c64xx_serial_shutdown(struct uart_port *port)
+{
+	struct s3c24xx_uart_port *ourport = to_ourport(port);
+
+	if (ourport->tx_claimed) {
+		free_irq(port->irq, ourport);
+		tx_enabled(port) = 0;
+		ourport->tx_claimed = 0;
+	}
+
+	if (ourport->rx_claimed) {
+		ourport->rx_claimed = 0;
+		rx_enabled(port) = 0;
+	}
+
+	/* Clear pending interrupts and mask all interrupts */
+	if (s3c24xx_serial_has_interrupt_mask(port)) {
+		wr_regl(port, S3C64XX_UINTP, 0xf);
+		wr_regl(port, S3C64XX_UINTM, 0xf);
+	}
+}
+
 /* power power management control */
 
 static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
@@ -1145,8 +1167,10 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	port->dev	= &platdev->dev;
 
 	/* Startup sequence is different for s3c64xx and higher SoC's */
-	if (s3c24xx_serial_has_interrupt_mask(port))
+	if (s3c24xx_serial_has_interrupt_mask(port)) {
 		s3c24xx_serial_ops.startup = s3c64xx_serial_startup;
+		s3c24xx_serial_ops.shutdown = s3c64xx_serial_shutdown;
+	}
 
 	port->uartclk = 1;
 
