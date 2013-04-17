@@ -3763,10 +3763,9 @@ static int btrfs_destroy_marked_extents(struct btrfs_root *root,
 			if (eb)
 				ret = test_and_clear_bit(EXTENT_BUFFER_DIRTY,
 							 &eb->bflags);
-			if (PageWriteback(page))
-				end_page_writeback(page);
-
 			lock_page(page);
+
+			wait_on_page_writeback(page);
 			if (PageDirty(page)) {
 				clear_page_dirty_for_io(page);
 				spin_lock_irq(&page->mapping->tree_lock);
