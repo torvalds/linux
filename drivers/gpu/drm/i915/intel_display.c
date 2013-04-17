@@ -2101,7 +2101,7 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	case 1:
 		break;
 	default:
-		DRM_ERROR("Can't update plane %d in SAREA\n", plane);
+		DRM_ERROR("Can't update plane %c in SAREA\n", plane_name(plane));
 		return -EINVAL;
 	}
 
@@ -2198,7 +2198,7 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	case 2:
 		break;
 	default:
-		DRM_ERROR("Can't update plane %d in SAREA\n", plane);
+		DRM_ERROR("Can't update plane %c in SAREA\n", plane_name(plane));
 		return -EINVAL;
 	}
 
@@ -2389,9 +2389,9 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	}
 
 	if (intel_crtc->plane > INTEL_INFO(dev)->num_pipes) {
-		DRM_ERROR("no plane for crtc: plane %d, num_pipes %d\n",
-				intel_crtc->plane,
-				INTEL_INFO(dev)->num_pipes);
+		DRM_ERROR("no plane for crtc: plane %c, num_pipes %d\n",
+			  plane_name(intel_crtc->plane),
+			  INTEL_INFO(dev)->num_pipes);
 		return -EINVAL;
 	}
 
@@ -3299,7 +3299,7 @@ static struct intel_pch_pll *intel_get_pch_pll(struct intel_crtc *intel_crtc, u3
 found:
 	intel_crtc->pch_pll = pll;
 	pll->refcount++;
-	DRM_DEBUG_DRIVER("using pll %d for pipe %d\n", i, intel_crtc->pipe);
+	DRM_DEBUG_DRIVER("using pll %d for pipe %c\n", i, pipe_name(intel_crtc->pipe));
 prepare: /* separate function? */
 	DRM_DEBUG_DRIVER("switching PLL %x off\n", pll->pll_reg);
 
@@ -3324,7 +3324,7 @@ void intel_cpt_verify_modeset(struct drm_device *dev, int pipe)
 	udelay(500);
 	if (wait_for(I915_READ(dslreg) != temp, 5)) {
 		if (wait_for(I915_READ(dslreg) != temp, 5))
-			DRM_ERROR("mode set failed: pipe %d stuck\n", pipe);
+			DRM_ERROR("mode set failed: pipe %c stuck\n", pipe_name(pipe));
 	}
 }
 
@@ -5356,11 +5356,11 @@ static bool ironlake_check_fdi_lanes(struct intel_crtc *intel_crtc)
 	struct intel_crtc *pipe_B_crtc =
 		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_B]);
 
-	DRM_DEBUG_KMS("checking fdi config on pipe %i, lanes %i\n",
-		      intel_crtc->pipe, intel_crtc->fdi_lanes);
+	DRM_DEBUG_KMS("checking fdi config on pipe %c, lanes %i\n",
+		      pipe_name(intel_crtc->pipe), intel_crtc->fdi_lanes);
 	if (intel_crtc->fdi_lanes > 4) {
-		DRM_DEBUG_KMS("invalid fdi lane config on pipe %i: %i lanes\n",
-			      intel_crtc->pipe, intel_crtc->fdi_lanes);
+		DRM_DEBUG_KMS("invalid fdi lane config on pipe %c: %i lanes\n",
+			      pipe_name(intel_crtc->pipe), intel_crtc->fdi_lanes);
 		/* Clamp lanes to avoid programming the hw with bogus values. */
 		intel_crtc->fdi_lanes = 4;
 
@@ -5376,8 +5376,8 @@ static bool ironlake_check_fdi_lanes(struct intel_crtc *intel_crtc)
 	case PIPE_B:
 		if (dev_priv->pipe_to_crtc_mapping[PIPE_C]->enabled &&
 		    intel_crtc->fdi_lanes > 2) {
-			DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %i: %i lanes\n",
-				      intel_crtc->pipe, intel_crtc->fdi_lanes);
+			DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %c: %i lanes\n",
+				      pipe_name(intel_crtc->pipe), intel_crtc->fdi_lanes);
 			/* Clamp lanes to avoid programming the hw with bogus values. */
 			intel_crtc->fdi_lanes = 2;
 
@@ -5393,8 +5393,8 @@ static bool ironlake_check_fdi_lanes(struct intel_crtc *intel_crtc)
 	case PIPE_C:
 		if (!pipe_B_crtc->base.enabled || pipe_B_crtc->fdi_lanes <= 2) {
 			if (intel_crtc->fdi_lanes > 2) {
-				DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %i: %i lanes\n",
-					      intel_crtc->pipe, intel_crtc->fdi_lanes);
+				DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %c: %i lanes\n",
+					      pipe_name(intel_crtc->pipe), intel_crtc->fdi_lanes);
 				/* Clamp lanes to avoid programming the hw with bogus values. */
 				intel_crtc->fdi_lanes = 2;
 
@@ -5659,7 +5659,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	dpll = ironlake_compute_dpll(intel_crtc, &clock, &fp, &reduced_clock,
 				     has_reduced_clock ? &fp2 : NULL);
 
-	DRM_DEBUG_KMS("Mode for pipe %d:\n", pipe);
+	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe_name(pipe));
 	drm_mode_debug_printmodeline(mode);
 
 	/* CPU eDP is the only output that doesn't need a PCH PLL of its own. */
@@ -5668,8 +5668,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 		pll = intel_get_pch_pll(intel_crtc, dpll, fp);
 		if (pll == NULL) {
-			DRM_DEBUG_DRIVER("failed to find PLL for pipe %d\n",
-					 pipe);
+			DRM_DEBUG_DRIVER("failed to find PLL for pipe %c\n",
+					 pipe_name(pipe));
 			return -EINVAL;
 		}
 	} else
@@ -5833,7 +5833,7 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	/* determine panel color depth */
 	dither = intel_crtc->config.dither;
 
-	DRM_DEBUG_KMS("Mode for pipe %d:\n", pipe);
+	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe_name(pipe));
 	drm_mode_debug_printmodeline(mode);
 
 	if (intel_crtc->config.has_dp_encoder)
@@ -9106,8 +9106,8 @@ void intel_modeset_init(struct drm_device *dev)
 		for (j = 0; j < dev_priv->num_plane; j++) {
 			ret = intel_plane_init(dev, i, j);
 			if (ret)
-				DRM_DEBUG_KMS("pipe %d plane %d init failed: %d\n",
-					      i, j, ret);
+				DRM_DEBUG_KMS("pipe %c plane %d init failed: %d\n",
+					      pipe_name(i), j, ret);
 		}
 	}
 

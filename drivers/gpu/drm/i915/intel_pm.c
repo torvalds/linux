@@ -113,8 +113,8 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	fbc_ctl |= obj->fence_reg;
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
-	DRM_DEBUG_KMS("enabled FBC, pitch %d, yoff %d, plane %d, ",
-		      cfb_pitch, crtc->y, intel_crtc->plane);
+	DRM_DEBUG_KMS("enabled FBC, pitch %d, yoff %d, plane %c, ",
+		      cfb_pitch, crtc->y, plane_name(intel_crtc->plane));
 }
 
 static bool i8xx_fbc_enabled(struct drm_device *dev)
@@ -148,7 +148,7 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	/* enable it... */
 	I915_WRITE(DPFC_CONTROL, I915_READ(DPFC_CONTROL) | DPFC_CTL_EN);
 
-	DRM_DEBUG_KMS("enabled fbc on plane %d\n", intel_crtc->plane);
+	DRM_DEBUG_KMS("enabled fbc on plane %c\n", plane_name(intel_crtc->plane));
 }
 
 static void g4x_disable_fbc(struct drm_device *dev)
@@ -228,7 +228,7 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		sandybridge_blit_fbc_update(dev);
 	}
 
-	DRM_DEBUG_KMS("enabled fbc on plane %d\n", intel_crtc->plane);
+	DRM_DEBUG_KMS("enabled fbc on plane %c\n", plane_name(intel_crtc->plane));
 }
 
 static void ironlake_disable_fbc(struct drm_device *dev)
@@ -2146,15 +2146,15 @@ static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 					    &sandybridge_display_wm_info,
 					    latency, &sprite_wm);
 	if (!ret) {
-		DRM_DEBUG_KMS("failed to compute sprite wm for pipe %d\n",
-			      pipe);
+		DRM_DEBUG_KMS("failed to compute sprite wm for pipe %c\n",
+			      pipe_name(pipe));
 		return;
 	}
 
 	val = I915_READ(reg);
 	val &= ~WM0_PIPE_SPRITE_MASK;
 	I915_WRITE(reg, val | (sprite_wm << WM0_PIPE_SPRITE_SHIFT));
-	DRM_DEBUG_KMS("sprite watermarks For pipe %d - %d\n", pipe, sprite_wm);
+	DRM_DEBUG_KMS("sprite watermarks For pipe %c - %d\n", pipe_name(pipe), sprite_wm);
 
 
 	ret = sandybridge_compute_sprite_srwm(dev, pipe, sprite_width,
@@ -2163,8 +2163,8 @@ static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 					      SNB_READ_WM1_LATENCY() * 500,
 					      &sprite_wm);
 	if (!ret) {
-		DRM_DEBUG_KMS("failed to compute sprite lp1 wm on pipe %d\n",
-			      pipe);
+		DRM_DEBUG_KMS("failed to compute sprite lp1 wm on pipe %c\n",
+			      pipe_name(pipe));
 		return;
 	}
 	I915_WRITE(WM1S_LP_ILK, sprite_wm);
@@ -2179,8 +2179,8 @@ static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 					      SNB_READ_WM2_LATENCY() * 500,
 					      &sprite_wm);
 	if (!ret) {
-		DRM_DEBUG_KMS("failed to compute sprite lp2 wm on pipe %d\n",
-			      pipe);
+		DRM_DEBUG_KMS("failed to compute sprite lp2 wm on pipe %c\n",
+			      pipe_name(pipe));
 		return;
 	}
 	I915_WRITE(WM2S_LP_IVB, sprite_wm);
@@ -2191,8 +2191,8 @@ static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 					      SNB_READ_WM3_LATENCY() * 500,
 					      &sprite_wm);
 	if (!ret) {
-		DRM_DEBUG_KMS("failed to compute sprite lp3 wm on pipe %d\n",
-			      pipe);
+		DRM_DEBUG_KMS("failed to compute sprite lp3 wm on pipe %c\n",
+			      pipe_name(pipe));
 		return;
 	}
 	I915_WRITE(WM3S_LP_IVB, sprite_wm);
