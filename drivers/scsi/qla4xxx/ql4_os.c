@@ -6366,19 +6366,10 @@ qla4xxx_sysfs_ddb_set_param(struct iscsi_bus_flash_session *fnode_sess,
 {
 	struct Scsi_Host *shost = iscsi_flash_session_to_shost(fnode_sess);
 	struct scsi_qla_host *ha = to_qla_host(shost);
-	struct dev_db_entry *fw_ddb_entry = NULL;
 	struct iscsi_flashnode_param_info *fnode_param;
 	struct nlattr *attr;
 	int rc = QLA_ERROR;
 	uint32_t rem = len;
-
-	fw_ddb_entry = kzalloc(sizeof(*fw_ddb_entry), GFP_KERNEL);
-	if (!fw_ddb_entry) {
-		DEBUG2(ql4_printk(KERN_ERR, ha,
-				  "%s: Unable to allocate ddb buffer\n",
-				  __func__));
-		return -ENOMEM;
-	}
 
 	nla_for_each_attr(attr, data, len, rem) {
 		fnode_param = nla_data(attr);
@@ -6593,11 +6584,6 @@ static int qla4xxx_sysfs_ddb_delete(struct iscsi_bus_flash_session *fnode_sess)
 	int target_id;
 	int rc = 0;
 
-	if (!fnode_sess) {
-		rc = -EINVAL;
-		goto exit_ddb_del;
-	}
-
 	if (fnode_sess->is_boot_target) {
 		rc = -EPERM;
 		DEBUG2(ql4_printk(KERN_ERR, ha,
@@ -6629,8 +6615,7 @@ static int qla4xxx_sysfs_ddb_delete(struct iscsi_bus_flash_session *fnode_sess)
 
 		dev_db_start_offset += (fnode_sess->target_id *
 				       sizeof(*fw_ddb_entry));
-		dev_db_start_offset += (void *)&(fw_ddb_entry->cookie) -
-				       (void *)fw_ddb_entry;
+		dev_db_start_offset += offsetof(struct dev_db_entry, cookie);
 
 		ddb_size = sizeof(*ddb_cookie);
 	}
