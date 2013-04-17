@@ -1067,7 +1067,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 
 	spin_lock_init(&chip->controller->lock);
 	init_waitqueue_head(&chip->controller->wq);
-	info->clk = clk_get(&pdev->dev, NULL);
+	info->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(info->clk)) {
 		dev_err(&pdev->dev, "failed to get nand clock\n");
 		return PTR_ERR(info->clk);
@@ -1087,7 +1087,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 		if (r == NULL) {
 			dev_err(&pdev->dev, "no resource defined for data DMA\n");
 			ret = -ENXIO;
-			goto fail_put_clk;
+			goto fail_disable_clk;
 		}
 		info->drcmr_dat = r->start;
 
@@ -1095,7 +1095,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 		if (r == NULL) {
 			dev_err(&pdev->dev, "no resource defined for command DMA\n");
 			ret = -ENXIO;
-			goto fail_put_clk;
+			goto fail_disable_clk;
 		}
 		info->drcmr_cmd = r->start;
 	}
@@ -1104,20 +1104,20 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	if (irq < 0) {
 		dev_err(&pdev->dev, "no IRQ resource defined\n");
 		ret = -ENXIO;
-		goto fail_put_clk;
+		goto fail_disable_clk;
 	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	info->mmio_base = devm_ioremap_resource(&pdev->dev, r);
 	if (IS_ERR(info->mmio_base)) {
 		ret = PTR_ERR(info->mmio_base);
-		goto fail_put_clk;
+		goto fail_disable_clk;
 	}
 	info->mmio_phys = r->start;
 
 	ret = pxa3xx_nand_init_buff(info);
 	if (ret)
-		goto fail_put_clk;
+		goto fail_disable_clk;
 
 	/* initialize all interrupts to be disabled */
 	disable_int(info, NDSR_MASK);
@@ -1141,9 +1141,8 @@ fail_free_buf:
 			info->data_buff, info->data_buff_phys);
 	} else
 		kfree(info->data_buff);
-fail_put_clk:
+fail_disable_clk:
 	clk_disable(info->clk);
-	clk_put(info->clk);
 	return ret;
 }
 
@@ -1170,7 +1169,6 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 		kfree(info->data_buff);
 
 	clk_disable(info->clk);
-	clk_put(info->clk);
 
 	for (cs = 0; cs < pdata->num_cs; cs++)
 		nand_release(info->host[cs]->mtd);
