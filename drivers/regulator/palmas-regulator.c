@@ -443,24 +443,26 @@ static int palmas_smps_init(struct palmas *palmas, int id,
 
 	switch (id) {
 	case PALMAS_REG_SMPS10:
-		if (reg_init->mode_sleep) {
-			reg &= ~PALMAS_SMPS10_CTRL_MODE_SLEEP_MASK;
+		reg &= ~PALMAS_SMPS10_CTRL_MODE_SLEEP_MASK;
+		if (reg_init->mode_sleep)
 			reg |= reg_init->mode_sleep <<
 					PALMAS_SMPS10_CTRL_MODE_SLEEP_SHIFT;
-		}
 		break;
 	default:
 		if (reg_init->warm_reset)
 			reg |= PALMAS_SMPS12_CTRL_WR_S;
+		else
+			reg &= ~PALMAS_SMPS12_CTRL_WR_S;
 
 		if (reg_init->roof_floor)
 			reg |= PALMAS_SMPS12_CTRL_ROOF_FLOOR_EN;
+		else
+			reg &= ~PALMAS_SMPS12_CTRL_ROOF_FLOOR_EN;
 
-		if (reg_init->mode_sleep) {
-			reg &= ~PALMAS_SMPS12_CTRL_MODE_SLEEP_MASK;
+		reg &= ~PALMAS_SMPS12_CTRL_MODE_SLEEP_MASK;
+		if (reg_init->mode_sleep)
 			reg |= reg_init->mode_sleep <<
 					PALMAS_SMPS12_CTRL_MODE_SLEEP_SHIFT;
-		}
 	}
 
 	ret = palmas_smps_write(palmas, addr, reg);
@@ -506,9 +508,13 @@ static int palmas_ldo_init(struct palmas *palmas, int id,
 
 	if (reg_init->warm_reset)
 		reg |= PALMAS_LDO1_CTRL_WR_S;
+	else
+		reg &= ~PALMAS_LDO1_CTRL_WR_S;
 
 	if (reg_init->mode_sleep)
 		reg |= PALMAS_LDO1_CTRL_MODE_SLEEP;
+	else
+		reg &= ~PALMAS_LDO1_CTRL_MODE_SLEEP;
 
 	ret = palmas_ldo_write(palmas, addr, reg);
 	if (ret)
