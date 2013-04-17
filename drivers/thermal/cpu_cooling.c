@@ -39,11 +39,9 @@
  * @cpufreq_val: integer value representing the absolute value of the clipped
  *	frequency.
  * @allowed_cpus: all the cpus involved for this cpufreq_cooling_device.
- * @node: list_head to link all cpufreq_cooling_device together.
  *
  * This structure is required for keeping information of each
- * cpufreq_cooling_device registered as a list whose head is represented by
- * cooling_cpufreq_list. In order to prevent corruption of this list a
+ * cpufreq_cooling_device registered. In order to prevent corruption of this a
  * mutex lock cooling_cpufreq_lock is used.
  */
 struct cpufreq_cooling_device {
@@ -52,9 +50,7 @@ struct cpufreq_cooling_device {
 	unsigned int cpufreq_state;
 	unsigned int cpufreq_val;
 	struct cpumask allowed_cpus;
-	struct list_head node;
 };
-static LIST_HEAD(cooling_cpufreq_list);
 static DEFINE_IDR(cpufreq_idr);
 static DEFINE_MUTEX(cooling_cpufreq_lock);
 
