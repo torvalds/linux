@@ -385,12 +385,14 @@ out:
 	return err;
 }
 
-static int au_cpup_or_link(struct dentry *src_dentry, struct au_link_args *a)
+static int au_cpup_or_link(struct dentry *src_dentry, struct dentry *dentry,
+			   struct au_link_args *a)
 {
 	int err;
 	unsigned char plink;
-	struct inode *h_inode, *inode;
+	aufs_bindex_t bend;
 	struct dentry *h_src_dentry;
+	struct inode *h_inode, *inode;
 	struct super_block *sb;
 	struct file *h_file;
 
@@ -402,20 +404,31 @@ static int au_cpup_or_link(struct dentry *src_dentry, struct au_link_args *a)
 		h_inode = au_h_iptr(inode, a->bdst);
 	if (!h_inode || !h_inode->i_nlink) {
 		/* copyup src_dentry as the name of dentry. */
-		au_set_dbstart(src_dentry, a->bdst);
-		au_set_h_dptr(src_dentry, a->bdst, dget(a->h_path.dentry));
-		h_inode = au_h_dptr(src_dentry, a->bsrc)->d_inode;
-		h_file = au_h_open_pre(src_dentry, a->bsrc);
+		bend = au_dbend(dentry);
+		if (bend < a->bsrc)
+			au_set_dbend(dentry, a->bsrc);
+		au_set_h_dptr(dentry, a->bsrc,
+			      dget(au_h_dptr(src_dentry, a->bsrc)));
+		dget(a->h_path.dentry);
+		au_set_h_dptr(dentry, a->bdst, NULL);
+		dentry->d_inode = src_dentry->d_inode; /* tmp */
+		h_file = au_h_open_pre(dentry, a->bsrc);
 		if (IS_ERR(h_file))
 			err = PTR_ERR(h_file);
 		else {
-			err = au_sio_cpup_single(src_dentry, a->bdst, a->bsrc,
-						 -1, AuCpup_KEEPLINO,
-						 a->parent);
-			au_h_open_post(src_dentry, a->bsrc, h_file);
+			err = au_sio_cpup_simple(dentry, a->bdst, -1,
+						 AuCpup_KEEPLINO);
+			au_h_open_post(dentry, a->bsrc, h_file);
+			if (!err) {
+				dput(a->h_path.dentry);
+				a->h_path.dentry = au_h_dptr(dentry, a->bdst);
+			} else
+				au_set_h_dptr(dentry, a->bdst,
+					      a->h_path.dentry);
 		}
-		au_set_h_dptr(src_dentry, a->bdst, NULL);
-		au_set_dbstart(src_dentry, a->bsrc);
+		dentry->d_inode = NULL; /* restore */
+		au_set_h_dptr(dentry, a->bsrc, NULL);
+		au_set_dbend(dentry, bend);
 	} else {
 		/* the inode of src_dentry already exists on a.bdst branch */
 		h_src_dentry = d_find_alias(h_inode);
@@ -514,7 +527,7 @@ int aufs_link(struct dentry *src_dentry, struct inode *dir,
 	if (au_opt_test(au_mntflags(sb), PLINK)) {
 		if (a->bdst < a->bsrc
 		    /* && h_src_dentry->d_sb != a->h_path.dentry->d_sb */)
-			err = au_cpup_or_link(src_dentry, a);
+			err = au_cpup_or_link(src_dentry, dentry, a);
 		else
 			err = vfsub_link(h_src_dentry, au_pinned_h_dir(&a->pin),
 					 &a->h_path);
@@ -593,6 +606,7 @@ out_unlock:
 out_kfree:
 	kfree(a);
 out:
+	AuTraceErr(err);
 	return err;
 }
 
