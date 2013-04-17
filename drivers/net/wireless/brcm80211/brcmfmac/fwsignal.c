@@ -1574,7 +1574,7 @@ static int brcmf_fws_precommit_skb(struct brcmf_fws_info *fws, int fifo,
 	return rc;
 }
 
-static int
+static void
 brcmf_fws_rollback_toq(struct brcmf_fws_info *fws, struct sk_buff *skb)
 {
 	/*
@@ -1654,7 +1654,6 @@ fail:
 		fws->stats.rollback_failed++;
 	} else
 		fws->stats.rollback_success++;
-	return rc;
 }
 
 static int brcmf_fws_consume_credit(struct brcmf_fws_info *fws, int fifo,
@@ -1733,7 +1732,7 @@ static int brcmf_fws_commit_skb(struct brcmf_fws_info *fws, int fifo,
 	return rc;
 
 rollback:
-	rc = brcmf_fws_rollback_toq(fws, skb);
+	brcmf_fws_rollback_toq(fws, skb);
 	return rc;
 }
 
