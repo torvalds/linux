@@ -36,8 +36,8 @@
 #define CLK_LOOPS_JIFFY_REF 11996091ULL
 #define CLK_LOOPS_RATE_REF (1200) //Mhz
 #define CLK_LOOPS_RECALC(new_rate)  div_u64(CLK_LOOPS_JIFFY_REF*(new_rate),CLK_LOOPS_RATE_REF*MHZ)
-struct clk *clk_cpu = NULL, *clk_cpu_div = NULL, *arm_pll_clk = NULL, *general_pll_clk = NULL;
-unsigned long lpj_24m;
+static struct clk *clk_cpu = NULL, *clk_cpu_div = NULL, *arm_pll_clk = NULL, *general_pll_clk = NULL;
+static unsigned long lpj_24m;
 
 struct gate_delay_table {
 	unsigned long arm_perf;
@@ -221,7 +221,7 @@ int uoc_val = 0;
 #define SIZE_VP_TABLE		ARRAY_SIZE(dvfs_vp_table)
 #define SIZE_ARM_FREQ_TABLE	10
 static struct cycle_by_rate rate_cycle[SIZE_ARM_FREQ_TABLE];
-int size_dvfs_arm_table = 0;
+static int size_dvfs_arm_table = 0;
 
 static struct clk_node *dvfs_clk_cpu;
 static struct vd_node vd_core;
@@ -333,7 +333,7 @@ struct dvfs_uoc_val_table {
 	unsigned long	volt_arm;
 	struct dvfs_volt_uoc	vu_list[SIZE_SUPPORT_LOG_VOLT];
 };
-struct dvfs_uoc_val_table dvfs_uoc_val_list[SIZE_ARM_FREQ_TABLE];
+static struct dvfs_uoc_val_table dvfs_uoc_val_list[SIZE_ARM_FREQ_TABLE];
 
 static int dvfs_get_uoc_val_init(unsigned long *p_volt_arm_new, unsigned long *p_volt_log_new, 
 		unsigned long rate_khz);
