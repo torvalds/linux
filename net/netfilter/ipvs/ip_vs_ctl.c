@@ -1164,9 +1164,13 @@ ip_vs_add_service(struct net *net, struct ip_vs_service_user_kern *u,
 	}
 
 #ifdef CONFIG_IP_VS_IPV6
-	if (u->af == AF_INET6 && (u->netmask < 1 || u->netmask > 128)) {
-		ret = -EINVAL;
-		goto out_err;
+	if (u->af == AF_INET6) {
+		__u32 plen = (__force __u32) u->netmask;
+
+		if (plen < 1 || plen > 128) {
+			ret = -EINVAL;
+			goto out_err;
+		}
 	}
 #endif
 
@@ -1277,9 +1281,13 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 	}
 
 #ifdef CONFIG_IP_VS_IPV6
-	if (u->af == AF_INET6 && (u->netmask < 1 || u->netmask > 128)) {
-		ret = -EINVAL;
-		goto out;
+	if (u->af == AF_INET6) {
+		__u32 plen = (__force __u32) u->netmask;
+
+		if (plen < 1 || plen > 128) {
+			ret = -EINVAL;
+			goto out;
+		}
 	}
 #endif
 
@@ -2892,7 +2900,7 @@ static int ip_vs_genl_fill_service(struct sk_buff *skb,
 	} else {
 		if (nla_put_u16(skb, IPVS_SVC_ATTR_PROTOCOL, svc->protocol) ||
 		    nla_put(skb, IPVS_SVC_ATTR_ADDR, sizeof(svc->addr), &svc->addr) ||
-		    nla_put_u16(skb, IPVS_SVC_ATTR_PORT, svc->port))
+		    nla_put_be16(skb, IPVS_SVC_ATTR_PORT, svc->port))
 			goto nla_put_failure;
 	}
 
@@ -2902,7 +2910,7 @@ static int ip_vs_genl_fill_service(struct sk_buff *skb,
 	    (pe && nla_put_string(skb, IPVS_SVC_ATTR_PE_NAME, pe->name)) ||
 	    nla_put(skb, IPVS_SVC_ATTR_FLAGS, sizeof(flags), &flags) ||
 	    nla_put_u32(skb, IPVS_SVC_ATTR_TIMEOUT, svc->timeout / HZ) ||
-	    nla_put_u32(skb, IPVS_SVC_ATTR_NETMASK, svc->netmask))
+	    nla_put_be32(skb, IPVS_SVC_ATTR_NETMASK, svc->netmask))
 		goto nla_put_failure;
 	if (ip_vs_genl_fill_stats(skb, IPVS_SVC_ATTR_STATS, &svc->stats))
 		goto nla_put_failure;
@@ -3015,7 +3023,7 @@ static int ip_vs_genl_parse_service(struct net *net,
 	} else {
 		usvc->protocol = nla_get_u16(nla_protocol);
 		nla_memcpy(&usvc->addr, nla_addr, sizeof(usvc->addr));
-		usvc->port = nla_get_u16(nla_port);
+		usvc->port = nla_get_be16(nla_port);
 		usvc->fwmark = 0;
 	}
 
@@ -3055,7 +3063,7 @@ static int ip_vs_genl_parse_service(struct net *net,
 		usvc->sched_name = nla_data(nla_sched);
 		usvc->pe_name = nla_pe ? nla_data(nla_pe) : NULL;
 		usvc->timeout = nla_get_u32(nla_timeout);
-		usvc->netmask = nla_get_u32(nla_netmask);
+		usvc->netmask = nla_get_be32(nla_netmask);
 	}
 
 	return 0;
@@ -3081,7 +3089,7 @@ static int ip_vs_genl_fill_dest(struct sk_buff *skb, struct ip_vs_dest *dest)
 		return -EMSGSIZE;
 
 	if (nla_put(skb, IPVS_DEST_ATTR_ADDR, sizeof(dest->addr), &dest->addr) ||
-	    nla_put_u16(skb, IPVS_DEST_ATTR_PORT, dest->port) ||
+	    nla_put_be16(skb, IPVS_DEST_ATTR_PORT, dest->port) ||
 	    nla_put_u32(skb, IPVS_DEST_ATTR_FWD_METHOD,
 			(atomic_read(&dest->conn_flags) &
 			 IP_VS_CONN_F_FWD_MASK)) ||
@@ -3190,7 +3198,7 @@ static int ip_vs_genl_parse_dest(struct ip_vs_dest_user_kern *udest,
 	memset(udest, 0, sizeof(*udest));
 
 	nla_memcpy(&udest->addr, nla_addr, sizeof(udest->addr));
-	udest->port = nla_get_u16(nla_port);
+	udest->port = nla_get_be16(nla_port);
 
 	/* If a full entry was requested, check for the additional fields */
 	if (full_entry) {
@@ -3215,8 +3223,8 @@ static int ip_vs_genl_parse_dest(struct ip_vs_dest_user_kern *udest,
 	return 0;
 }
 
-static int ip_vs_genl_fill_daemon(struct sk_buff *skb, __be32 state,
-				  const char *mcast_ifn, __be32 syncid)
+static int ip_vs_genl_fill_daemon(struct sk_buff *skb, __u32 state,
+				  const char *mcast_ifn, __u32 syncid)
 {
 	struct nlattr *nl_daemon;
 
@@ -3237,8 +3245,8 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int ip_vs_genl_dump_daemon(struct sk_buff *skb, __be32 state,
-				  const char *mcast_ifn, __be32 syncid,
+static int ip_vs_genl_dump_daemon(struct sk_buff *skb, __u32 state,
+				  const char *mcast_ifn, __u32 syncid,
 				  struct netlink_callback *cb)
 {
 	void *hdr;
