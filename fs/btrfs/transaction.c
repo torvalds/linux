@@ -1169,13 +1169,17 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	memcpy(new_root_item->uuid, new_uuid.b, BTRFS_UUID_SIZE);
 	memcpy(new_root_item->parent_uuid, root->root_item.uuid,
 			BTRFS_UUID_SIZE);
+	if (!(root_flags & BTRFS_ROOT_SUBVOL_RDONLY)) {
+		memset(new_root_item->received_uuid, 0,
+		       sizeof(new_root_item->received_uuid));
+		memset(&new_root_item->stime, 0, sizeof(new_root_item->stime));
+		memset(&new_root_item->rtime, 0, sizeof(new_root_item->rtime));
+		btrfs_set_root_stransid(new_root_item, 0);
+		btrfs_set_root_rtransid(new_root_item, 0);
+	}
 	new_root_item->otime.sec = cpu_to_le64(cur_time.tv_sec);
 	new_root_item->otime.nsec = cpu_to_le32(cur_time.tv_nsec);
 	btrfs_set_root_otransid(new_root_item, trans->transid);
-	memset(&new_root_item->stime, 0, sizeof(new_root_item->stime));
-	memset(&new_root_item->rtime, 0, sizeof(new_root_item->rtime));
-	btrfs_set_root_stransid(new_root_item, 0);
-	btrfs_set_root_rtransid(new_root_item, 0);
 
 	old = btrfs_lock_root_node(root);
 	ret = btrfs_cow_block(trans, root, old, NULL, 0, &old);
