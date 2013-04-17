@@ -575,10 +575,10 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
     },
 
     .rts_gpio       = { // UART_RTS, enable or disable BT's data coming
-        .io         = RK2928_PIN0_PC3, // set io to INVALID_GPIO for disable it
+        .io         = RK2928_PIN0_PC2, // set io to INVALID_GPIO for disable it
         .enable      = GPIO_LOW,
         .iomux      = {
-           .name        = GPIO0C3_UART0_CTSN_NAME,
+           .name        = GPIO0C2_UART0_RTSN_NAME,
            .fgpio       = GPIO0C_GPIO0C3,
            .fmux        = GPIO0C_UART0_RTSN,//GPIO0C_UART0_CTSN,
             },
