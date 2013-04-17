@@ -45,17 +45,9 @@ void brcmu_pkt_buf_free_skb(struct sk_buff *skb)
 {
 	if (!skb)
 		return;
+
 	WARN_ON(skb->next);
-	if (skb->destructor)
-		/* cannot kfree_skb() on hard IRQ (net/core/skbuff.c) if
-		 * destructor exists
-		 */
-		dev_kfree_skb_any(skb);
-	else
-		/* can free immediately (even in_irq()) if destructor
-		 * does not exist
-		 */
-		dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 }
 EXPORT_SYMBOL(brcmu_pkt_buf_free_skb);
 
