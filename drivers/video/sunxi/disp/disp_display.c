@@ -38,7 +38,7 @@ __s32 BSP_disp_init(__disp_bsp_init_para *para)
 	memset(&gdisp, 0x00, sizeof(__disp_dev_t));
 
 	for (screen_id = 0; screen_id < 2; screen_id++) {
-		gdisp.screen[screen_id].max_layers = 4;
+		gdisp.screen[screen_id].max_layers = SUNXI_DISP_MAX_LAYERS;
 		for (i = 0; i < gdisp.screen[screen_id].max_layers; i++)
 			gdisp.screen[screen_id].layer_manage[i].para.prio =
 			    IDLE_PRIO;
