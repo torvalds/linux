@@ -473,7 +473,10 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	 */
 	if (!(new_delay > dev_priv->rps.max_delay ||
 	      new_delay < dev_priv->rps.min_delay)) {
-		gen6_set_rps(dev_priv->dev, new_delay);
+		if (IS_VALLEYVIEW(dev_priv->dev))
+			valleyview_set_rps(dev_priv->dev, new_delay);
+		else
+			gen6_set_rps(dev_priv->dev, new_delay);
 	}
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
