@@ -193,7 +193,7 @@ renew_client(struct nfs4_client *clp)
 	spin_unlock(&nn->client_lock);
 }
 
-void put_client_renew_locked(struct nfs4_client *clp)
+static void put_client_renew_locked(struct nfs4_client *clp)
 {
 	if (!atomic_dec_and_test(&clp->cl_refcount))
 		return;
