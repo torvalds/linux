@@ -31,7 +31,7 @@ config CFG80211
 
 config NL80211_TESTMODE
 	bool "nl80211 testmode command"
-	depends on CFG80211
+	depends on CFG80211 && (MT5931 || MT5931_MT6622)
 	help
 	  The nl80211 testmode command helps implementing things like
 	  factory calibration or validation tools for wireless chips.
