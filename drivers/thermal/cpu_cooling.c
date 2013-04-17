@@ -365,6 +365,11 @@ static int cpufreq_get_max_state(struct thermal_cooling_device *cdev,
  * cpufreq_get_cur_state - callback function to get the current cooling state.
  * @cdev: thermal cooling device pointer.
  * @state: fill this variable with the current cooling state.
+ *
+ * Callback for the thermal cooling device to return the cpufreq
+ * current cooling state.
+ *
+ * Return: 0 on success, an error code otherwise.
  */
 static int cpufreq_get_cur_state(struct thermal_cooling_device *cdev,
 				 unsigned long *state)
