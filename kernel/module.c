@@ -1862,11 +1862,11 @@ static void free_module(struct module *mod)
 {
 	trace_module_free(mod);
 
-	/* Delete from various lists */
-	mutex_lock(&module_mutex);
-	stop_machine(__unlink_module, mod, NULL);
-	mutex_unlock(&module_mutex);
 	mod_sysfs_teardown(mod);
+
+	/* We leave it in list to prevent duplicate loads, but make sure
+	 * that noone uses it while it's being deconstructed. */
+	mod->state = MODULE_STATE_UNFORMED;
 
 	/* Remove dynamic debug info */
 	ddebug_remove_module(mod->name);
@@ -1879,6 +1879,11 @@ static void free_module(struct module *mod)
 
 	/* Free any allocated parameters. */
 	destroy_params(mod->kp, mod->num_kp);
+
+	/* Now we can delete it from the lists */
+	mutex_lock(&module_mutex);
+	stop_machine(__unlink_module, mod, NULL);
+	mutex_unlock(&module_mutex);
 
 	/* This may be NULL, but that's OK */
 	unset_module_init_ro_nx(mod);
