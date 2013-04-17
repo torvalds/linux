@@ -2241,10 +2241,8 @@ static ssize_t iwl_dbgfs_log_event_read(struct file *file,
 	ssize_t ret;
 
 	ret = iwl_dump_nic_event_log(priv, true, &buf);
-	if (ret < 0)
-		goto err;
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
-err:
+	if (ret > 0)
+		ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
 	kfree(buf);
 	return ret;
 }
