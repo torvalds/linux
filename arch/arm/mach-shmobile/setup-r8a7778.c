@@ -102,6 +102,30 @@ void __init r8a7778_add_ether_device(struct sh_eth_plat_data *pdata)
 					  pdata, sizeof(*pdata));
 }
 
+/* SDHI */
+static struct resource sdhi_resources[] = {
+	/* SDHI0 */
+	DEFINE_RES_MEM(0xFFE4C000, 0x100),
+	DEFINE_RES_IRQ(gic_iid(0x77)),
+	/* SDHI1 */
+	DEFINE_RES_MEM(0xFFE4D000, 0x100),
+	DEFINE_RES_IRQ(gic_iid(0x78)),
+	/* SDHI2 */
+	DEFINE_RES_MEM(0xFFE4F000, 0x100),
+	DEFINE_RES_IRQ(gic_iid(0x76)),
+};
+
+void __init r8a7778_sdhi_init(int id,
+			      struct sh_mobile_sdhi_info *info)
+{
+	BUG_ON(id < 0 || id > 2);
+
+	platform_device_register_resndata(
+		&platform_bus, "sh_mobile_sdhi", id,
+		sdhi_resources + (2 * id), 2,
+		info, sizeof(*info));
+}
+
 void __init r8a7778_add_standard_devices(void)
 {
 	int i;
