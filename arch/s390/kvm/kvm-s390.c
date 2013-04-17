@@ -68,6 +68,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "instruction_storage_key", VCPU_STAT(instruction_storage_key) },
 	{ "instruction_stsch", VCPU_STAT(instruction_stsch) },
 	{ "instruction_chsc", VCPU_STAT(instruction_chsc) },
+	{ "instruction_essa", VCPU_STAT(instruction_essa) },
 	{ "instruction_stsi", VCPU_STAT(instruction_stsi) },
 	{ "instruction_stfl", VCPU_STAT(instruction_stfl) },
 	{ "instruction_tprot", VCPU_STAT(instruction_tprot) },
@@ -283,7 +284,11 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	if (kvm_is_ucontrol(vcpu->kvm))
 		gmap_free(vcpu->arch.gmap);
 
+	if (vcpu->arch.sie_block->cbrlo)
+		__free_page(__pfn_to_page(
+				vcpu->arch.sie_block->cbrlo >> PAGE_SHIFT));
 	free_page((unsigned long)(vcpu->arch.sie_block));
+
 	kvm_vcpu_uninit(vcpu);
 	kmem_cache_free(kvm_vcpu_cache, vcpu);
 }
@@ -390,6 +395,8 @@ int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
+	struct page *cbrl;
+
 	atomic_set(&vcpu->arch.sie_block->cpuflags, CPUSTAT_ZARCH |
 						    CPUSTAT_SM |
 						    CPUSTAT_STOPPED |
@@ -401,6 +408,14 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->ecb2  = 8;
 	vcpu->arch.sie_block->eca   = 0xC1002001U;
 	vcpu->arch.sie_block->fac   = (int) (long) vfacilities;
+	if (kvm_enabled_cmma()) {
+		cbrl = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		if (cbrl) {
+			vcpu->arch.sie_block->ecb2 |= 0x80;
+			vcpu->arch.sie_block->ecb2 &= ~0x08;
+			vcpu->arch.sie_block->cbrlo = page_to_phys(cbrl);
+		}
+	}
 	hrtimer_init(&vcpu->arch.ckc_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
 	tasklet_init(&vcpu->arch.tasklet, kvm_s390_tasklet,
 		     (unsigned long) vcpu);
@@ -759,6 +774,16 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 	}
 
 	return rc;
+}
+
+bool kvm_enabled_cmma(void)
+{
+	if (!MACHINE_IS_LPAR)
+		return false;
+	/* only enable for z10 and later */
+	if (!MACHINE_HAS_EDAT1)
+		return false;
+	return true;
 }
 
 static int __vcpu_run(struct kvm_vcpu *vcpu)

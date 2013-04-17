@@ -229,6 +229,7 @@ extern unsigned long MODULES_END;
 #define _PAGE_READ	0x010		/* SW pte read bit */
 #define _PAGE_WRITE	0x020		/* SW pte write bit */
 #define _PAGE_SPECIAL	0x040		/* SW associated with special page */
+#define _PAGE_UNUSED	0x080		/* SW bit for pgste usage state */
 #define __HAVE_ARCH_PTE_SPECIAL
 
 /* Set of bits not changed in pte_modify */
@@ -393,6 +394,12 @@ extern unsigned long MODULES_END;
 #define PGSTE_IN_BIT	0x0000800000000000UL	/* IPTE notify bit */
 
 #endif /* CONFIG_64BIT */
+
+/* Guest Page State used for virtualization */
+#define _PGSTE_GPS_ZERO		0x0000000080000000UL
+#define _PGSTE_GPS_USAGE_MASK	0x0000000003000000UL
+#define _PGSTE_GPS_USAGE_STABLE 0x0000000000000000UL
+#define _PGSTE_GPS_USAGE_UNUSED 0x0000000001000000UL
 
 /*
  * A user page table pointer has the space-switch-event bit, the
@@ -617,6 +624,14 @@ static inline int pte_none(pte_t pte)
 	return pte_val(pte) == _PAGE_INVALID;
 }
 
+static inline int pte_swap(pte_t pte)
+{
+	/* Bit pattern: (pte & 0x603) == 0x402 */
+	return (pte_val(pte) & (_PAGE_INVALID | _PAGE_PROTECT |
+				_PAGE_TYPE | _PAGE_PRESENT))
+		== (_PAGE_INVALID | _PAGE_TYPE);
+}
+
 static inline int pte_file(pte_t pte)
 {
 	/* Bit pattern: (pte & 0x601) == 0x600 */
@@ -821,6 +836,7 @@ unsigned long gmap_translate(unsigned long address, struct gmap *);
 unsigned long __gmap_fault(unsigned long address, struct gmap *);
 unsigned long gmap_fault(unsigned long address, struct gmap *);
 void gmap_discard(unsigned long from, unsigned long to, struct gmap *);
+void __gmap_zap(unsigned long address, struct gmap *);
 
 void gmap_register_ipte_notifier(struct gmap_notifier *);
 void gmap_unregister_ipte_notifier(struct gmap_notifier *);
@@ -852,6 +868,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get_lock(ptep);
+		pgste_val(pgste) &= ~_PGSTE_GPS_ZERO;
 		pgste_set_key(ptep, pgste, entry);
 		pgste_set_pte(ptep, entry);
 		pgste_set_unlock(ptep, pgste);
@@ -879,6 +896,12 @@ static inline int pte_dirty(pte_t pte)
 static inline int pte_young(pte_t pte)
 {
 	return (pte_val(pte) & _PAGE_YOUNG) != 0;
+}
+
+#define __HAVE_ARCH_PTE_UNUSED
+static inline int pte_unused(pte_t pte)
+{
+	return pte_val(pte) & _PAGE_UNUSED;
 }
 
 /*
@@ -1196,6 +1219,9 @@ static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
 	pte_val(*ptep) = _PAGE_INVALID;
 
 	if (mm_has_pgste(vma->vm_mm)) {
+		if ((pgste_val(pgste) & _PGSTE_GPS_USAGE_MASK) ==
+		    _PGSTE_GPS_USAGE_UNUSED)
+			pte_val(pte) |= _PAGE_UNUSED;
 		pgste = pgste_update_all(&pte, pgste);
 		pgste_set_unlock(ptep, pgste);
 	}

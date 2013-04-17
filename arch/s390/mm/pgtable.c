@@ -17,6 +17,7 @@
 #include <linux/quicklist.h>
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
+#include <linux/swapops.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -593,6 +594,82 @@ unsigned long gmap_fault(unsigned long address, struct gmap *gmap)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(gmap_fault);
+
+static void gmap_zap_swap_entry(swp_entry_t entry, struct mm_struct *mm)
+{
+	if (!non_swap_entry(entry))
+		dec_mm_counter(mm, MM_SWAPENTS);
+	else if (is_migration_entry(entry)) {
+		struct page *page = migration_entry_to_page(entry);
+
+		if (PageAnon(page))
+			dec_mm_counter(mm, MM_ANONPAGES);
+		else
+			dec_mm_counter(mm, MM_FILEPAGES);
+	}
+	free_swap_and_cache(entry);
+}
+
+/**
+ * The mm->mmap_sem lock must be held
+ */
+static void gmap_zap_unused(struct mm_struct *mm, unsigned long address)
+{
+	unsigned long ptev, pgstev;
+	spinlock_t *ptl;
+	pgste_t pgste;
+	pte_t *ptep, pte;
+
+	ptep = get_locked_pte(mm, address, &ptl);
+	if (unlikely(!ptep))
+		return;
+	pte = *ptep;
+	if (!pte_swap(pte))
+		goto out_pte;
+	/* Zap unused and logically-zero pages */
+	pgste = pgste_get_lock(ptep);
+	pgstev = pgste_val(pgste);
+	ptev = pte_val(pte);
+	if (((pgstev & _PGSTE_GPS_USAGE_MASK) == _PGSTE_GPS_USAGE_UNUSED) ||
+	    ((pgstev & _PGSTE_GPS_ZERO) && (ptev & _PAGE_INVALID))) {
+		gmap_zap_swap_entry(pte_to_swp_entry(pte), mm);
+		pte_clear(mm, address, ptep);
+	}
+	pgste_set_unlock(ptep, pgste);
+out_pte:
+	pte_unmap_unlock(*ptep, ptl);
+}
+
+/*
+ * this function is assumed to be called with mmap_sem held
+ */
+void __gmap_zap(unsigned long address, struct gmap *gmap)
+{
+	unsigned long *table, *segment_ptr;
+	unsigned long segment, pgstev, ptev;
+	struct gmap_pgtable *mp;
+	struct page *page;
+
+	segment_ptr = gmap_table_walk(address, gmap);
+	if (IS_ERR(segment_ptr))
+		return;
+	segment = *segment_ptr;
+	if (segment & _SEGMENT_ENTRY_INVALID)
+		return;
+	page = pfn_to_page(segment >> PAGE_SHIFT);
+	mp = (struct gmap_pgtable *) page->index;
+	address = mp->vmaddr | (address & ~PMD_MASK);
+	/* Page table is present */
+	table = (unsigned long *)(segment & _SEGMENT_ENTRY_ORIGIN);
+	table = table + ((address >> 12) & 0xff);
+	pgstev = table[PTRS_PER_PTE];
+	ptev = table[0];
+	/* quick check, checked again with locks held */
+	if (((pgstev & _PGSTE_GPS_USAGE_MASK) == _PGSTE_GPS_USAGE_UNUSED) ||
+	    ((pgstev & _PGSTE_GPS_ZERO) && (ptev & _PAGE_INVALID)))
+		gmap_zap_unused(gmap->mm, address);
+}
+EXPORT_SYMBOL_GPL(__gmap_zap);
 
 void gmap_discard(unsigned long from, unsigned long to, struct gmap *gmap)
 {
