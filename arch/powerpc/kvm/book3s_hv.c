@@ -532,6 +532,15 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 
 		/* Send the error out to userspace via KVM_RUN */
 		return rc;
+
+	case H_XIRR:
+	case H_CPPR:
+	case H_EOI:
+	case H_IPI:
+		if (kvmppc_xics_enabled(vcpu)) {
+			ret = kvmppc_xics_hcall(vcpu, req);
+			break;
+		} /* fallthrough */
 	default:
 		return RESUME_HOST;
 	}

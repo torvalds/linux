@@ -79,6 +79,9 @@ kvm-book3s_64-builtin-objs-$(CONFIG_KVM_BOOK3S_64_HV) := \
 	book3s_hv_ras.o \
 	book3s_hv_builtin.o
 
+kvm-book3s_64-objs-$(CONFIG_KVM_XICS) += \
+	book3s_xics.o
+
 kvm-book3s_64-module-objs := \
 	../../../virt/kvm/kvm_main.o \
 	../../../virt/kvm/eventfd.o \

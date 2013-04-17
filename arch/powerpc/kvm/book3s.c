@@ -104,7 +104,7 @@ static int kvmppc_book3s_vec2irqprio(unsigned int vec)
 	return prio;
 }
 
-static void kvmppc_book3s_dequeue_irqprio(struct kvm_vcpu *vcpu,
+void kvmppc_book3s_dequeue_irqprio(struct kvm_vcpu *vcpu,
 					  unsigned int vec)
 {
 	unsigned long old_pending = vcpu->arch.pending_exceptions;

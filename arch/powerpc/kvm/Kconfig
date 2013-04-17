@@ -163,6 +163,14 @@ config KVM_MPIC
           Currently, support is limited to certain versions of
           Freescale's MPIC implementation.
 
+config KVM_XICS
+	bool "KVM in-kernel XICS emulation"
+	depends on KVM_BOOK3S_64 && !KVM_MPIC
+	---help---
+	  Include support for the XICS (eXternal Interrupt Controller
+	  Specification) interrupt controller architecture used on
+	  IBM POWER (pSeries) servers.
+
 source drivers/vhost/Kconfig
 
 endif # VIRTUALIZATION

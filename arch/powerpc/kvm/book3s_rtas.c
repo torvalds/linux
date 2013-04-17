@@ -17,13 +17,65 @@
 #include <asm/hvcall.h>
 #include <asm/rtas.h>
 
+#ifdef CONFIG_KVM_XICS
+static void kvm_rtas_set_xive(struct kvm_vcpu *vcpu, struct rtas_args *args)
+{
+	u32 irq, server, priority;
+	int rc;
+
+	if (args->nargs != 3 || args->nret != 1) {
+		rc = -3;
+		goto out;
+	}
+
+	irq = args->args[0];
+	server = args->args[1];
+	priority = args->args[2];
+
+	rc = kvmppc_xics_set_xive(vcpu->kvm, irq, server, priority);
+	if (rc)
+		rc = -3;
+out:
+	args->rets[0] = rc;
+}
+
+static void kvm_rtas_get_xive(struct kvm_vcpu *vcpu, struct rtas_args *args)
+{
+	u32 irq, server, priority;
+	int rc;
+
+	if (args->nargs != 1 || args->nret != 3) {
+		rc = -3;
+		goto out;
+	}
+
+	irq = args->args[0];
+
+	server = priority = 0;
+	rc = kvmppc_xics_get_xive(vcpu->kvm, irq, &server, &priority);
+	if (rc) {
+		rc = -3;
+		goto out;
+	}
+
+	args->rets[1] = server;
+	args->rets[2] = priority;
+out:
+	args->rets[0] = rc;
+}
+#endif /* CONFIG_KVM_XICS */
 
 struct rtas_handler {
 	void (*handler)(struct kvm_vcpu *vcpu, struct rtas_args *args);
 	char *name;
 };
 
-static struct rtas_handler rtas_handlers[] = { };
+static struct rtas_handler rtas_handlers[] = {
+#ifdef CONFIG_KVM_XICS
+	{ .name = "ibm,set-xive", .handler = kvm_rtas_set_xive },
+	{ .name = "ibm,get-xive", .handler = kvm_rtas_get_xive },
+#endif
+};
 
 struct rtas_token_definition {
 	struct list_head list;

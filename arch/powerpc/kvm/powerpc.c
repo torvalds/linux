@@ -471,6 +471,9 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 	case KVMPPC_IRQ_MPIC:
 		kvmppc_mpic_disconnect_vcpu(vcpu->arch.mpic, vcpu);
 		break;
+	case KVMPPC_IRQ_XICS:
+		kvmppc_xics_free_icp(vcpu);
+		break;
 	}
 
 	kvmppc_core_vcpu_free(vcpu);

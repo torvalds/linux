@@ -130,6 +130,7 @@ extern long kvmppc_prepare_vrma(struct kvm *kvm,
 extern void kvmppc_map_vrma(struct kvm_vcpu *vcpu,
 			struct kvm_memory_slot *memslot, unsigned long porder);
 extern int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu);
+
 extern long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 				struct kvm_create_spapr_tce *args);
 extern long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
@@ -169,6 +170,10 @@ int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq);
 extern int kvm_vm_ioctl_rtas_define_token(struct kvm *kvm, void __user *argp);
 extern int kvmppc_rtas_hcall(struct kvm_vcpu *vcpu);
 extern void kvmppc_rtas_tokens_free(struct kvm *kvm);
+extern int kvmppc_xics_set_xive(struct kvm *kvm, u32 irq, u32 server,
+				u32 priority);
+extern int kvmppc_xics_get_xive(struct kvm *kvm, u32 irq, u32 *server,
+				u32 *priority);
 
 /*
  * Cuts out inst bits with ordering according to spec.
@@ -267,6 +272,30 @@ static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 
 static inline void kvm_linear_init(void)
 {}
+
+#endif
+
+#ifdef CONFIG_KVM_XICS
+static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.irq_type == KVMPPC_IRQ_XICS;
+}
+extern void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu);
+extern int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu, unsigned long server);
+extern int kvm_vm_ioctl_xics_irq(struct kvm *kvm, struct kvm_irq_level *args);
+extern int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd);
+#else
+static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
+	{ return 0; }
+static inline void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu) { }
+static inline int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu,
+					 unsigned long server)
+	{ return -EINVAL; }
+static inline int kvm_vm_ioctl_xics_irq(struct kvm *kvm,
+					struct kvm_irq_level *args)
+	{ return -ENOTTY; }
+static inline int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd)
+	{ return 0; }
 #endif
 
 static inline void kvmppc_set_epr(struct kvm_vcpu *vcpu, u32 epr)

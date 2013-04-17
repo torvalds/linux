@@ -192,6 +192,10 @@ struct kvmppc_linear_info {
 	int		 type;
 };
 
+/* XICS components, defined in book3s_xics.c */
+struct kvmppc_xics;
+struct kvmppc_icp;
+
 /*
  * The reverse mapping array has one entry for each HPTE,
  * which stores the guest's view of the second word of the HPTE
@@ -263,6 +267,9 @@ struct kvm_arch {
 #endif
 #ifdef CONFIG_KVM_MPIC
 	struct openpic *mpic;
+#endif
+#ifdef CONFIG_KVM_XICS
+	struct kvmppc_xics *xics;
 #endif
 };
 
@@ -387,6 +394,7 @@ struct kvmppc_booke_debug_reg {
 
 #define KVMPPC_IRQ_DEFAULT	0
 #define KVMPPC_IRQ_MPIC		1
+#define KVMPPC_IRQ_XICS		2
 
 struct openpic;
 
@@ -574,6 +582,9 @@ struct kvm_vcpu_arch {
 	int irq_type;		/* one of KVM_IRQ_* */
 	int irq_cpu_id;
 	struct openpic *mpic;	/* KVM_IRQ_MPIC */
+#ifdef CONFIG_KVM_XICS
+	struct kvmppc_icp *icp; /* XICS presentation controller */
+#endif
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	struct kvm_vcpu_arch_shared shregs;
