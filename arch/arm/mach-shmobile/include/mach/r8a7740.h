@@ -533,11 +533,13 @@ enum {
 };
 
 extern void r8a7740_meram_workaround(void);
+extern void r8a7740_init_delay(void);
 extern void r8a7740_init_irq(void);
 extern void r8a7740_init_irq_of(void);
 extern void r8a7740_map_io(void);
 extern void r8a7740_add_early_devices(void);
 extern void r8a7740_add_standard_devices(void);
+extern void r8a7740_add_standard_devices_dt(void);
 extern void r8a7740_clock_init(u8 md_ck);
 extern void r8a7740_pinmux_init(void);
 extern void r8a7740_pm_init(void);
