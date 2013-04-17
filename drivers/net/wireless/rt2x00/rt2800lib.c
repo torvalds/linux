@@ -4504,6 +4504,8 @@ static void rt2800_init_rfcsr_30xx(struct rt2x00_dev *rt2x00dev)
 
 static void rt2800_init_rfcsr_3290(struct rt2x00_dev *rt2x00dev)
 {
+	u8 rfcsr;
+
 	rt2800_rf_init_calibration(rt2x00dev, 2);
 
 	rt2800_rfcsr_write(rt2x00dev, 1, 0x0f);
@@ -4552,6 +4554,10 @@ static void rt2800_init_rfcsr_3290(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 59, 0x09);
 	rt2800_rfcsr_write(rt2x00dev, 60, 0x45);
 	rt2800_rfcsr_write(rt2x00dev, 61, 0xc1);
+
+	rt2800_rfcsr_read(rt2x00dev, 29, &rfcsr);
+	rt2x00_set_field8(&rfcsr, RFCSR29_RSSI_GAIN, 3);
+	rt2800_rfcsr_write(rt2x00dev, 29, rfcsr);
 }
 
 static void rt2800_init_rfcsr_3352(struct rt2x00_dev *rt2x00dev)
@@ -5117,12 +5123,6 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field8(&rfcsr, RFCSR27_R3, 0);
 		rt2x00_set_field8(&rfcsr, RFCSR27_R4, 0);
 		rt2800_rfcsr_write(rt2x00dev, 27, rfcsr);
-	}
-
-	if (rt2x00_rt(rt2x00dev, RT3290)) {
-		rt2800_rfcsr_read(rt2x00dev, 29, &rfcsr);
-		rt2x00_set_field8(&rfcsr, RFCSR29_RSSI_GAIN, 3);
-		rt2800_rfcsr_write(rt2x00dev, 29, rfcsr);
 	}
 
 	return 0;
