@@ -1668,13 +1668,17 @@ out_err1:
 
 static int s5c73m3_remove(struct i2c_client *client)
 {
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct s5c73m3 *state = sensor_sd_to_s5c73m3(sd);
+	struct v4l2_subdev *oif_sd = i2c_get_clientdata(client);
+	struct s5c73m3 *state = oif_sd_to_s5c73m3(oif_sd);
+	struct v4l2_subdev *sensor_sd = &state->sensor_sd;
 
-	v4l2_device_unregister_subdev(sd);
+	v4l2_device_unregister_subdev(oif_sd);
 
-	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	media_entity_cleanup(&sd->entity);
+	v4l2_ctrl_handler_free(oif_sd->ctrl_handler);
+	media_entity_cleanup(&oif_sd->entity);
+
+	v4l2_device_unregister_subdev(sensor_sd);
+	media_entity_cleanup(&sensor_sd->entity);
 
 	s5c73m3_unregister_spi_driver(state);
 	s5c73m3_free_gpios(state);
