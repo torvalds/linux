@@ -97,8 +97,14 @@ static void release_idr(struct idr *idr, int id)
 /* Below code defines functions to be used for cpufreq as cooling device */
 
 /**
- * is_cpufreq_valid - function to check if a cpu has frequency transition policy.
+ * is_cpufreq_valid - function to check frequency transitioning capability.
  * @cpu: cpu for which check is needed.
+ *
+ * This function will check the current state of the system if
+ * it is capable of changing the frequency for a given @cpu.
+ *
+ * Return: 0 if the system is not currently capable of changing
+ * the frequency of given cpu. !0 in case the frequency is changeable.
  */
 static int is_cpufreq_valid(int cpu)
 {
