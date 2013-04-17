@@ -141,7 +141,8 @@ enum cpufreq_cooling_property {
  * Return: 0 on success, -EINVAL when invalid parameters are passed.
  */
 static int get_property(unsigned int cpu, unsigned long input,
-	unsigned int* output, enum cpufreq_cooling_property property)
+			unsigned int *output,
+			enum cpufreq_cooling_property property)
 {
 	int i, j;
 	unsigned long max_level = 0, level = 0;
