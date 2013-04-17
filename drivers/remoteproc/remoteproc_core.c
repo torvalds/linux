@@ -59,7 +59,7 @@ static const char *rproc_crash_to_string(enum rproc_crash_type type)
 {
 	if (type < ARRAY_SIZE(rproc_crash_names))
 		return rproc_crash_names[type];
-	return "unkown";
+	return "unknown";
 }
 
 /*
