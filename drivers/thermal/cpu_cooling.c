@@ -118,8 +118,14 @@ enum cpufreq_cooling_property {
 	GET_MAXL,
 };
 
-/*
- * this is the common function to
+/**
+ * get_property - fetch a property of interest for a give cpu.
+ * @cpu: cpu for which the property is required
+ * @input: query parameter
+ * @output: query return
+ * @property: type of query (frequency, level, max level)
+ *
+ * This is the common function to
  * 1. get maximum cpu cooling states
  * 2. translate frequency to cooling state
  * 3. translate cooling state to frequency
@@ -128,7 +134,9 @@ enum cpufreq_cooling_property {
  * a) reduce duplicate code as most of the code can be shared.
  * b) make sure the logic is consistent when translating between
  *    cooling states and frequencies.
-*/
+ *
+ * Return: 0 on success, -EINVAL when invalid parameters are passed.
+ */
 static int get_property(unsigned int cpu, unsigned long input,
 	unsigned int* output, enum cpufreq_cooling_property property)
 {
