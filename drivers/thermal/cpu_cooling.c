@@ -127,7 +127,7 @@ static int get_property(unsigned int cpu, unsigned long input,
 	unsigned int* output, enum cpufreq_cooling_property property)
 {
 	int i, j;
-	unsigned long max_level = 0, level;
+	unsigned long max_level = 0, level = 0;
 	unsigned int freq = CPUFREQ_ENTRY_INVALID;
 	int descend = -1;
 	struct cpufreq_frequency_table *table =
