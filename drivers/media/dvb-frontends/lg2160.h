@@ -57,10 +57,10 @@ struct lg2160_config {
 	u16 if_khz;
 
 	/* disable i2c repeater - 0:repeater enabled 1:repeater disabled */
-	int deny_i2c_rptr:1;
+	unsigned int deny_i2c_rptr:1;
 
 	/* spectral inversion - 0:disabled 1:enabled */
-	int spectral_inversion:1;
+	unsigned int spectral_inversion:1;
 
 	unsigned int output_if;
 	enum lg2160_spi_clock spi_clock;
