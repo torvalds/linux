@@ -1891,6 +1891,8 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val)
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val);
 int valleyview_punit_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val);
 int valleyview_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val);
+int vlv_gpu_freq(int ddr_freq, int val);
+int vlv_freq_opcode(int ddr_freq, int val);
 
 #define __i915_read(x, y) \
 	u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg);

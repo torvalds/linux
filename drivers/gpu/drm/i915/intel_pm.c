@@ -4655,3 +4655,59 @@ int valleyview_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val)
 {
 	return vlv_punit_rw(dev_priv, PUNIT_OPCODE_REG_WRITE, addr, &val);
 }
+
+int vlv_gpu_freq(int ddr_freq, int val)
+{
+	int mult, base;
+
+	switch (ddr_freq) {
+	case 800:
+		mult = 20;
+		base = 120;
+		break;
+	case 1066:
+		mult = 22;
+		base = 133;
+		break;
+	case 1333:
+		mult = 21;
+		base = 125;
+		break;
+	default:
+		return -1;
+	}
+
+	return ((val - 0xbd) * mult) + base;
+}
+
+int vlv_freq_opcode(int ddr_freq, int val)
+{
+	int mult, base;
+
+	switch (ddr_freq) {
+	case 800:
+		mult = 20;
+		base = 120;
+		break;
+	case 1066:
+		mult = 22;
+		base = 133;
+		break;
+	case 1333:
+		mult = 21;
+		base = 125;
+		break;
+	default:
+		return -1;
+	}
+
+	val /= mult;
+	val -= base / mult;
+	val += 0xbd;
+
+	if (val > 0xea)
+		val = 0xea;
+
+	return val;
+}
+
