@@ -29,11 +29,11 @@
 #include <linux/cpu_cooling.h>
 
 /**
- * struct cpufreq_cooling_device
+ * struct cpufreq_cooling_device - data for cooling device with cpufreq
  * @id: unique integer value corresponding to each cpufreq_cooling_device
  *	registered.
- * @cool_dev: thermal_cooling_device pointer to keep track of the the
- *	egistered cooling device.
+ * @cool_dev: thermal_cooling_device pointer to keep track of the
+ *	registered cooling device.
  * @cpufreq_state: integer value representing the current state of cpufreq
  *	cooling	devices.
  * @cpufreq_val: integer value representing the absolute value of the clipped
