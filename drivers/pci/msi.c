@@ -26,6 +26,9 @@
 
 static int pci_msi_enable = 1;
 
+#define msix_table_size(flags)	((flags & PCI_MSIX_FLAGS_QSIZE) + 1)
+
+
 /* Arch hooks */
 
 #ifndef arch_msi_check_device
@@ -681,7 +684,7 @@ static int msix_capability_init(struct pci_dev *dev,
 	pci_write_config_word(dev, dev->msix_cap + PCI_MSIX_FLAGS, control);
 
 	/* Request & Map MSI-X table region */
-	base = msix_map_region(dev, multi_msix_capable(control));
+	base = msix_map_region(dev, msix_table_size(control));
 	if (!base)
 		return -ENOMEM;
 
@@ -904,7 +907,7 @@ int pci_msix_table_size(struct pci_dev *dev)
 		return 0;
 
 	pci_read_config_word(dev, dev->msix_cap + PCI_MSIX_FLAGS, &control);
-	return multi_msix_capable(control);
+	return msix_table_size(control);
 }
 
 /**
