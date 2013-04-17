@@ -760,10 +760,8 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 		brcmf_dbg(INFO, "allocate netdev interface\n");
 		/* Allocate netdev, including space for private structure */
 		ndev = alloc_netdev(sizeof(*ifp), name, ether_setup);
-		if (!ndev) {
-			brcmf_err("OOM - alloc_netdev\n");
+		if (!ndev)
 			return ERR_PTR(-ENOMEM);
-		}
 
 		ifp = netdev_priv(ndev);
 		ifp->ndev = ndev;
