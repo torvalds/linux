@@ -202,8 +202,7 @@ unsigned long cpufreq_cooling_get_level(unsigned int cpu, unsigned int freq)
 		return THERMAL_CSTATE_INVALID;
 	return (unsigned long)val;
 }
-
-EXPORT_SYMBOL(cpufreq_cooling_get_level);
+EXPORT_SYMBOL_GPL(cpufreq_cooling_get_level);
 
 /**
  * get_cpu_frequency - get the absolute value of frequency from level.
@@ -416,7 +415,7 @@ struct thermal_cooling_device *cpufreq_cooling_register(
 	mutex_unlock(&cooling_cpufreq_lock);
 	return cool_dev;
 }
-EXPORT_SYMBOL(cpufreq_cooling_register);
+EXPORT_SYMBOL_GPL(cpufreq_cooling_register);
 
 /**
  * cpufreq_cooling_unregister - function to remove cpufreq cooling device.
@@ -440,4 +439,4 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 	release_idr(&cpufreq_idr, cpufreq_dev->id);
 	kfree(cpufreq_dev);
 }
-EXPORT_SYMBOL(cpufreq_cooling_unregister);
+EXPORT_SYMBOL_GPL(cpufreq_cooling_unregister);
