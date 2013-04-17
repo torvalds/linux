@@ -1302,8 +1302,8 @@ static void assert_sprites_disabled(struct drm_i915_private *dev_priv,
 		reg = SPCNTR(pipe, i);
 		val = I915_READ(reg);
 		WARN((val & SP_ENABLE),
-		     "sprite %d assertion failure, should be off on pipe %c but is still active\n",
-		     pipe * 2 + i, pipe_name(pipe));
+		     "sprite %c assertion failure, should be off on pipe %c but is still active\n",
+		     sprite_name(pipe, i), pipe_name(pipe));
 	}
 }
 
@@ -9106,8 +9106,8 @@ void intel_modeset_init(struct drm_device *dev)
 		for (j = 0; j < dev_priv->num_plane; j++) {
 			ret = intel_plane_init(dev, i, j);
 			if (ret)
-				DRM_DEBUG_KMS("pipe %c plane %d init failed: %d\n",
-					      pipe_name(i), j, ret);
+				DRM_DEBUG_KMS("pipe %c sprite %c init failed: %d\n",
+					      pipe_name(i), sprite_name(i, j), ret);
 		}
 	}
 
