@@ -91,8 +91,8 @@ struct go7007_board_info {
 	int num_i2c_devs;
 	struct go_i2c {
 		const char *type;
-		int is_video:1;
-		int is_audio:1;
+		unsigned int is_video:1;
+		unsigned int is_audio:1;
 		int addr;
 		u32 flags;
 	} i2c_devs[5];
