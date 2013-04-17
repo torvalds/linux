@@ -100,11 +100,13 @@ irqfd_inject(struct work_struct *work)
 	struct kvm *kvm = irqfd->kvm;
 
 	if (!irqfd->resampler) {
-		kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID, irqfd->gsi, 1);
-		kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID, irqfd->gsi, 0);
+		kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID, irqfd->gsi, 1,
+				false);
+		kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID, irqfd->gsi, 0,
+				false);
 	} else
 		kvm_set_irq(kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
-			    irqfd->gsi, 1);
+			    irqfd->gsi, 1, false);
 }
 
 /*
@@ -121,7 +123,7 @@ irqfd_resampler_ack(struct kvm_irq_ack_notifier *kian)
 	resampler = container_of(kian, struct _irqfd_resampler, notifier);
 
 	kvm_set_irq(resampler->kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
-		    resampler->notifier.gsi, 0);
+		    resampler->notifier.gsi, 0, false);
 
 	rcu_read_lock();
 
@@ -146,7 +148,7 @@ irqfd_resampler_shutdown(struct _irqfd *irqfd)
 		list_del(&resampler->link);
 		kvm_unregister_irq_ack_notifier(kvm, &resampler->notifier);
 		kvm_set_irq(kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
-			    resampler->notifier.gsi, 0);
+			    resampler->notifier.gsi, 0, false);
 		kfree(resampler);
 	}
 
@@ -225,7 +227,8 @@ irqfd_wakeup(wait_queue_t *wait, unsigned mode, int sync, void *key)
 		irq = rcu_dereference(irqfd->irq_entry);
 		/* An event has been signaled, inject an interrupt */
 		if (irq)
-			kvm_set_msi(irq, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1);
+			kvm_set_msi(irq, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1,
+					false);
 		else
 			schedule_work(&irqfd->inject);
 		rcu_read_unlock();
@@ -574,6 +577,7 @@ struct _ioeventfd {
 	struct eventfd_ctx  *eventfd;
 	u64                  datamatch;
 	struct kvm_io_device dev;
+	u8                   bus_idx;
 	bool                 wildcard;
 };
 
@@ -666,7 +670,8 @@ ioeventfd_check_collision(struct kvm *kvm, struct _ioeventfd *p)
 	struct _ioeventfd *_p;
 
 	list_for_each_entry(_p, &kvm->ioeventfds, list)
-		if (_p->addr == p->addr && _p->length == p->length &&
+		if (_p->bus_idx == p->bus_idx &&
+		    _p->addr == p->addr && _p->length == p->length &&
 		    (_p->wildcard || p->wildcard ||
 		     _p->datamatch == p->datamatch))
 			return true;
@@ -723,6 +728,7 @@ kvm_assign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 
 	INIT_LIST_HEAD(&p->list);
 	p->addr    = args->addr;
+	p->bus_idx = bus_idx;
 	p->length  = args->len;
 	p->eventfd = eventfd;
 
@@ -781,7 +787,8 @@ kvm_deassign_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 	list_for_each_entry_safe(p, tmp, &kvm->ioeventfds, list) {
 		bool wildcard = !(args->flags & KVM_IOEVENTFD_FLAG_DATAMATCH);
 
-		if (p->eventfd != eventfd  ||
+		if (p->bus_idx != bus_idx ||
+		    p->eventfd != eventfd  ||
 		    p->addr != args->addr  ||
 		    p->length != args->len ||
 		    p->wildcard != wildcard)

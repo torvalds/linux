@@ -94,9 +94,6 @@
 
 #define ASYNC_PF_PER_VCPU 64
 
-extern raw_spinlock_t kvm_lock;
-extern struct list_head vm_list;
-
 struct kvm_vcpu;
 struct kvm;
 struct kvm_async_pf;
@@ -704,6 +701,8 @@ struct kvm_x86_ops {
 	void (*hwapic_isr_update)(struct kvm *kvm, int isr);
 	void (*load_eoi_exitmap)(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap);
 	void (*set_virtual_x2apic_mode)(struct kvm_vcpu *vcpu, bool set);
+	void (*deliver_posted_interrupt)(struct kvm_vcpu *vcpu, int vector);
+	void (*sync_pir_to_irr)(struct kvm_vcpu *vcpu);
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
 	int (*get_tdp_level)(void);
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
@@ -730,6 +729,7 @@ struct kvm_x86_ops {
 	int (*check_intercept)(struct kvm_vcpu *vcpu,
 			       struct x86_instruction_info *info,
 			       enum x86_intercept_stage stage);
+	void (*handle_external_intr)(struct kvm_vcpu *vcpu);
 };
 
 struct kvm_arch_async_pf {
@@ -798,6 +798,7 @@ enum emulation_result {
 #define EMULTYPE_TRAP_UD	    (1 << 1)
 #define EMULTYPE_SKIP		    (1 << 2)
 #define EMULTYPE_RETRY		    (1 << 3)
+#define EMULTYPE_NO_REEXECUTE	    (1 << 4)
 int x86_emulate_instruction(struct kvm_vcpu *vcpu, unsigned long cr2,
 			    int emulation_type, void *insn, int insn_len);
 
@@ -975,7 +976,6 @@ enum {
  * Trap the fault and ignore the instruction if that happens.
  */
 asmlinkage void kvm_spurious_fault(void);
-extern bool kvm_rebooting;
 
 #define ____kvm_handle_fault_on_reboot(insn, cleanup_insn)	\
 	"666: " insn "\n\t" \
@@ -1030,7 +1030,7 @@ void kvm_pmu_reset(struct kvm_vcpu *vcpu);
 void kvm_pmu_cpuid_update(struct kvm_vcpu *vcpu);
 bool kvm_pmu_msr(struct kvm_vcpu *vcpu, u32 msr);
 int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data);
-int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data);
+int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info);
 int kvm_pmu_read_pmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data);
 void kvm_handle_pmu_event(struct kvm_vcpu *vcpu);
 void kvm_deliver_pmi(struct kvm_vcpu *vcpu);

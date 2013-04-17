@@ -217,9 +217,9 @@ void kvm_make_mclock_inprogress_request(struct kvm *kvm)
 	make_all_cpus_request(kvm, KVM_REQ_MCLOCK_INPROGRESS);
 }
 
-void kvm_make_update_eoibitmap_request(struct kvm *kvm)
+void kvm_make_scan_ioapic_request(struct kvm *kvm)
 {
-	make_all_cpus_request(kvm, KVM_REQ_EOIBITMAP);
+	make_all_cpus_request(kvm, KVM_REQ_SCAN_IOAPIC);
 }
 
 int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
@@ -1078,7 +1078,7 @@ static int kvm_read_hva_atomic(void *data, void __user *hva, int len)
 	return __copy_from_user_inatomic(data, hva, len);
 }
 
-int get_user_page_nowait(struct task_struct *tsk, struct mm_struct *mm,
+static int get_user_page_nowait(struct task_struct *tsk, struct mm_struct *mm,
 	unsigned long start, int write, struct page **page)
 {
 	int flags = FOLL_TOUCH | FOLL_NOWAIT | FOLL_HWPOISON | FOLL_GET;
@@ -1671,6 +1671,7 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 			smp_send_reschedule(cpu);
 	put_cpu();
 }
+EXPORT_SYMBOL_GPL(kvm_vcpu_kick);
 #endif /* !CONFIG_S390 */
 
 void kvm_resched(struct kvm_vcpu *vcpu)
@@ -2258,7 +2259,8 @@ static long kvm_vm_ioctl(struct file *filp,
 		if (copy_from_user(&irq_event, argp, sizeof irq_event))
 			goto out;
 
-		r = kvm_vm_ioctl_irq_line(kvm, &irq_event);
+		r = kvm_vm_ioctl_irq_line(kvm, &irq_event,
+					ioctl == KVM_IRQ_LINE_STATUS);
 		if (r)
 			goto out;
 
@@ -2572,14 +2574,6 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 	return NOTIFY_OK;
 }
 
-
-asmlinkage void kvm_spurious_fault(void)
-{
-	/* Fault while not rebooting.  We want the trace. */
-	BUG();
-}
-EXPORT_SYMBOL_GPL(kvm_spurious_fault);
-
 static int kvm_reboot(struct notifier_block *notifier, unsigned long val,
 		      void *v)
 {
@@ -2612,7 +2606,7 @@ static void kvm_io_bus_destroy(struct kvm_io_bus *bus)
 	kfree(bus);
 }
 
-int kvm_io_bus_sort_cmp(const void *p1, const void *p2)
+static int kvm_io_bus_sort_cmp(const void *p1, const void *p2)
 {
 	const struct kvm_io_range *r1 = p1;
 	const struct kvm_io_range *r2 = p2;
@@ -2624,7 +2618,7 @@ int kvm_io_bus_sort_cmp(const void *p1, const void *p2)
 	return 0;
 }
 
-int kvm_io_bus_insert_dev(struct kvm_io_bus *bus, struct kvm_io_device *dev,
+static int kvm_io_bus_insert_dev(struct kvm_io_bus *bus, struct kvm_io_device *dev,
 			  gpa_t addr, int len)
 {
 	bus->range[bus->dev_count++] = (struct kvm_io_range) {
@@ -2639,7 +2633,7 @@ int kvm_io_bus_insert_dev(struct kvm_io_bus *bus, struct kvm_io_device *dev,
 	return 0;
 }
 
-int kvm_io_bus_get_first_dev(struct kvm_io_bus *bus,
+static int kvm_io_bus_get_first_dev(struct kvm_io_bus *bus,
 			     gpa_t addr, int len)
 {
 	struct kvm_io_range *range, key;

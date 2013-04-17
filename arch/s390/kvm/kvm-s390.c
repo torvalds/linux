@@ -149,6 +149,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_MAX_VCPUS:
 		r = KVM_MAX_VCPUS;
 		break;
+	case KVM_CAP_NR_MEMSLOTS:
+		r = KVM_USER_MEM_SLOTS;
+		break;
 	case KVM_CAP_S390_COW:
 		r = MACHINE_HAS_ESOP;
 		break;
@@ -633,8 +636,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 		} else {
 			VCPU_EVENT(vcpu, 3, "%s", "fault in sie instruction");
 			trace_kvm_s390_sie_fault(vcpu);
-			kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-			rc = 0;
+			rc = kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		}
 	}
 	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
@@ -978,18 +980,10 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				   struct kvm_userspace_memory_region *mem,
 				   enum kvm_mr_change change)
 {
-	/* A few sanity checks. We can have exactly one memory slot which has
-	   to start at guest virtual zero and which has to be located at a
-	   page boundary in userland and which has to end at a page boundary.
-	   The memory in userland is ok to be fragmented into various different
-	   vmas. It is okay to mmap() and munmap() stuff in this slot after
-	   doing this call at any time */
-
-	if (mem->slot)
-		return -EINVAL;
-
-	if (mem->guest_phys_addr)
-		return -EINVAL;
+	/* A few sanity checks. We can have memory slots which have to be
+	   located/ended at a segment boundary (1MB). The memory in userland is
+	   ok to be fragmented into various different vmas. It is okay to mmap()
+	   and munmap() stuff in this slot after doing this call at any time */
 
 	if (mem->userspace_addr & 0xffffful)
 		return -EINVAL;
@@ -1007,6 +1001,16 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 {
 	int rc;
 
+	/* If the basics of the memslot do not change, we do not want
+	 * to update the gmap. Every update causes several unnecessary
+	 * segment translation exceptions. This is usually handled just
+	 * fine by the normal fault handler + gmap, but it will also
+	 * cause faults on the prefix page of running guest CPUs.
+	 */
+	if (old->userspace_addr == mem->userspace_addr &&
+	    old->base_gfn * PAGE_SIZE == mem->guest_phys_addr &&
+	    old->npages * PAGE_SIZE == mem->memory_size)
+		return;
 
 	rc = gmap_map_segment(kvm->arch.gmap, mem->userspace_addr,
 		mem->guest_phys_addr, mem->memory_size);

@@ -3577,6 +3577,11 @@ static void svm_hwapic_isr_update(struct kvm *kvm, int isr)
 	return;
 }
 
+static void svm_sync_pir_to_irr(struct kvm_vcpu *vcpu)
+{
+	return;
+}
+
 static int svm_nmi_allowed(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -4233,6 +4238,11 @@ out:
 	return ret;
 }
 
+static void svm_handle_external_intr(struct kvm_vcpu *vcpu)
+{
+	local_irq_enable();
+}
+
 static struct kvm_x86_ops svm_x86_ops = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -4300,6 +4310,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.vm_has_apicv = svm_vm_has_apicv,
 	.load_eoi_exitmap = svm_load_eoi_exitmap,
 	.hwapic_isr_update = svm_hwapic_isr_update,
+	.sync_pir_to_irr = svm_sync_pir_to_irr,
 
 	.set_tss_addr = svm_set_tss_addr,
 	.get_tdp_level = get_npt_level,
@@ -4328,6 +4339,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.set_tdp_cr3 = set_tdp_cr3,
 
 	.check_intercept = svm_check_intercept,
+	.handle_external_intr = svm_handle_external_intr,
 };
 
 static int __init svm_init(void)

@@ -35,7 +35,8 @@
 #include "ioapic.h"
 
 static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
-			   struct kvm *kvm, int irq_source_id, int level)
+			   struct kvm *kvm, int irq_source_id, int level,
+			   bool line_status)
 {
 #ifdef CONFIG_X86
 	struct kvm_pic *pic = pic_irqchip(kvm);
@@ -46,10 +47,12 @@ static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
 }
 
 static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
-			      struct kvm *kvm, int irq_source_id, int level)
+			      struct kvm *kvm, int irq_source_id, int level,
+			      bool line_status)
 {
 	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
-	return kvm_ioapic_set_irq(ioapic, e->irqchip.pin, irq_source_id, level);
+	return kvm_ioapic_set_irq(ioapic, e->irqchip.pin, irq_source_id, level,
+				line_status);
 }
 
 inline static bool kvm_is_dm_lowest_prio(struct kvm_lapic_irq *irq)
@@ -63,7 +66,7 @@ inline static bool kvm_is_dm_lowest_prio(struct kvm_lapic_irq *irq)
 }
 
 int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
-		struct kvm_lapic_irq *irq)
+		struct kvm_lapic_irq *irq, unsigned long *dest_map)
 {
 	int i, r = -1;
 	struct kvm_vcpu *vcpu, *lowest = NULL;
@@ -74,7 +77,7 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 		irq->delivery_mode = APIC_DM_FIXED;
 	}
 
-	if (kvm_irq_delivery_to_apic_fast(kvm, src, irq, &r))
+	if (kvm_irq_delivery_to_apic_fast(kvm, src, irq, &r, dest_map))
 		return r;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
@@ -88,7 +91,7 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 		if (!kvm_is_dm_lowest_prio(irq)) {
 			if (r < 0)
 				r = 0;
-			r += kvm_apic_set_irq(vcpu, irq);
+			r += kvm_apic_set_irq(vcpu, irq, dest_map);
 		} else if (kvm_lapic_enabled(vcpu)) {
 			if (!lowest)
 				lowest = vcpu;
@@ -98,7 +101,7 @@ int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
 	}
 
 	if (lowest)
-		r = kvm_apic_set_irq(lowest, irq);
+		r = kvm_apic_set_irq(lowest, irq, dest_map);
 
 	return r;
 }
@@ -121,7 +124,7 @@ static inline void kvm_set_msi_irq(struct kvm_kernel_irq_routing_entry *e,
 }
 
 int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
-		struct kvm *kvm, int irq_source_id, int level)
+		struct kvm *kvm, int irq_source_id, int level, bool line_status)
 {
 	struct kvm_lapic_irq irq;
 
@@ -130,7 +133,7 @@ int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 
 	kvm_set_msi_irq(e, &irq);
 
-	return kvm_irq_delivery_to_apic(kvm, NULL, &irq);
+	return kvm_irq_delivery_to_apic(kvm, NULL, &irq, NULL);
 }
 
 
@@ -142,7 +145,7 @@ static int kvm_set_msi_inatomic(struct kvm_kernel_irq_routing_entry *e,
 
 	kvm_set_msi_irq(e, &irq);
 
-	if (kvm_irq_delivery_to_apic_fast(kvm, NULL, &irq, &r))
+	if (kvm_irq_delivery_to_apic_fast(kvm, NULL, &irq, &r, NULL))
 		return r;
 	else
 		return -EWOULDBLOCK;
@@ -159,7 +162,7 @@ int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi)
 	route.msi.address_hi = msi->address_hi;
 	route.msi.data = msi->data;
 
-	return kvm_set_msi(&route, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1);
+	return kvm_set_msi(&route, kvm, KVM_USERSPACE_IRQ_SOURCE_ID, 1, false);
 }
 
 /*
@@ -168,7 +171,8 @@ int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi)
  *  = 0   Interrupt was coalesced (previous irq is still pending)
  *  > 0   Number of CPUs interrupt was delivered to
  */
-int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level)
+int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
+		bool line_status)
 {
 	struct kvm_kernel_irq_routing_entry *e, irq_set[KVM_NR_IRQCHIPS];
 	int ret = -1, i = 0;
@@ -189,7 +193,8 @@ int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level)
 
 	while(i--) {
 		int r;
-		r = irq_set[i].set(&irq_set[i], kvm, irq_source_id, level);
+		r = irq_set[i].set(&irq_set[i], kvm, irq_source_id, level,
+				line_status);
 		if (r < 0)
 			continue;
 
@@ -280,7 +285,7 @@ void kvm_register_irq_ack_notifier(struct kvm *kvm,
 	mutex_lock(&kvm->irq_lock);
 	hlist_add_head_rcu(&kian->link, &kvm->irq_ack_notifier_list);
 	mutex_unlock(&kvm->irq_lock);
-	kvm_ioapic_make_eoibitmap_request(kvm);
+	kvm_vcpu_request_scan_ioapic(kvm);
 }
 
 void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
@@ -290,7 +295,7 @@ void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
 	hlist_del_init_rcu(&kian->link);
 	mutex_unlock(&kvm->irq_lock);
 	synchronize_rcu();
-	kvm_ioapic_make_eoibitmap_request(kvm);
+	kvm_vcpu_request_scan_ioapic(kvm);
 }
 
 int kvm_request_irq_source_id(struct kvm *kvm)

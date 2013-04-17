@@ -126,7 +126,7 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQ_MASTERCLOCK_UPDATE 19
 #define KVM_REQ_MCLOCK_INPROGRESS 20
 #define KVM_REQ_EPR_EXIT          21
-#define KVM_REQ_EOIBITMAP         22
+#define KVM_REQ_SCAN_IOAPIC       22
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
@@ -134,6 +134,9 @@ static inline bool is_error_page(struct page *page)
 struct kvm;
 struct kvm_vcpu;
 extern struct kmem_cache *kvm_vcpu_cache;
+
+extern raw_spinlock_t kvm_lock;
+extern struct list_head vm_list;
 
 struct kvm_io_range {
 	gpa_t addr;
@@ -289,7 +292,8 @@ struct kvm_kernel_irq_routing_entry {
 	u32 gsi;
 	u32 type;
 	int (*set)(struct kvm_kernel_irq_routing_entry *e,
-		   struct kvm *kvm, int irq_source_id, int level);
+		   struct kvm *kvm, int irq_source_id, int level,
+		   bool line_status);
 	union {
 		struct {
 			unsigned irqchip;
@@ -571,7 +575,7 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu);
 void kvm_flush_remote_tlbs(struct kvm *kvm);
 void kvm_reload_remote_mmus(struct kvm *kvm);
 void kvm_make_mclock_inprogress_request(struct kvm *kvm);
-void kvm_make_update_eoibitmap_request(struct kvm *kvm);
+void kvm_make_scan_ioapic_request(struct kvm *kvm);
 
 long kvm_arch_dev_ioctl(struct file *filp,
 			unsigned int ioctl, unsigned long arg);
@@ -588,7 +592,8 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 
 int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 				   struct kvm_userspace_memory_region *mem);
-int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level);
+int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level,
+			bool line_status);
 long kvm_arch_vm_ioctl(struct file *filp,
 		       unsigned int ioctl, unsigned long arg);
 
@@ -719,10 +724,11 @@ void kvm_get_intr_delivery_bitmask(struct kvm_ioapic *ioapic,
 				   union kvm_ioapic_redirect_entry *entry,
 				   unsigned long *deliver_bitmask);
 #endif
-int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level);
+int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
+		bool line_status);
 int kvm_set_irq_inatomic(struct kvm *kvm, int irq_source_id, u32 irq, int level);
 int kvm_set_msi(struct kvm_kernel_irq_routing_entry *irq_entry, struct kvm *kvm,
-		int irq_source_id, int level);
+		int irq_source_id, int level, bool line_status);
 bool kvm_irq_has_notifier(struct kvm *kvm, unsigned irqchip, unsigned pin);
 void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin);
 void kvm_register_irq_ack_notifier(struct kvm *kvm,
@@ -1057,6 +1063,8 @@ static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
 		return false;
 	}
 }
+
+extern bool kvm_rebooting;
 
 #ifdef CONFIG_HAVE_KVM_CPU_RELAX_INTERCEPT
 

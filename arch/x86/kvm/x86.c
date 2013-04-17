@@ -261,6 +261,13 @@ void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data)
 }
 EXPORT_SYMBOL_GPL(kvm_set_apic_base);
 
+asmlinkage void kvm_spurious_fault(void)
+{
+	/* Fault while not rebooting.  We want the trace. */
+	BUG();
+}
+EXPORT_SYMBOL_GPL(kvm_spurious_fault);
+
 #define EXCPT_BENIGN		0
 #define EXCPT_CONTRIBUTORY	1
 #define EXCPT_PF		2
@@ -2040,7 +2047,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_P6_EVNTSEL0:
 	case MSR_P6_EVNTSEL1:
 		if (kvm_pmu_msr(vcpu, msr))
-			return kvm_pmu_set_msr(vcpu, msr, data);
+			return kvm_pmu_set_msr(vcpu, msr_info);
 
 		if (pr || data != 0)
 			vcpu_unimpl(vcpu, "disabled perfctr wrmsr: "
@@ -2086,7 +2093,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (msr && (msr == vcpu->kvm->arch.xen_hvm_config.msr))
 			return xen_hvm_config(vcpu, data);
 		if (kvm_pmu_msr(vcpu, msr))
-			return kvm_pmu_set_msr(vcpu, msr, data);
+			return kvm_pmu_set_msr(vcpu, msr_info);
 		if (!ignore_msrs) {
 			vcpu_unimpl(vcpu, "unhandled wrmsr: 0x%x data %llx\n",
 				    msr, data);
@@ -2685,6 +2692,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 static int kvm_vcpu_ioctl_get_lapic(struct kvm_vcpu *vcpu,
 				    struct kvm_lapic_state *s)
 {
+	kvm_x86_ops->sync_pir_to_irr(vcpu);
 	memcpy(s->regs, vcpu->arch.apic->regs, sizeof *s);
 
 	return 0;
@@ -3484,13 +3492,15 @@ out:
 	return r;
 }
 
-int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_event)
+int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_event,
+			bool line_status)
 {
 	if (!irqchip_in_kernel(kvm))
 		return -ENXIO;
 
 	irq_event->status = kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID,
-					irq_event->irq, irq_event->level);
+					irq_event->irq, irq_event->level,
+					line_status);
 	return 0;
 }
 
@@ -4758,10 +4768,14 @@ static int handle_emulation_failure(struct kvm_vcpu *vcpu)
 }
 
 static bool reexecute_instruction(struct kvm_vcpu *vcpu, gva_t cr2,
-				  bool write_fault_to_shadow_pgtable)
+				  bool write_fault_to_shadow_pgtable,
+				  int emulation_type)
 {
 	gpa_t gpa = cr2;
 	pfn_t pfn;
+
+	if (emulation_type & EMULTYPE_NO_REEXECUTE)
+		return false;
 
 	if (!vcpu->arch.mmu.direct_map) {
 		/*
@@ -4905,8 +4919,8 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 		if (r != EMULATION_OK)  {
 			if (emulation_type & EMULTYPE_TRAP_UD)
 				return EMULATE_FAIL;
-			if (reexecute_instruction(vcpu, cr2,
-						  write_fault_to_spt))
+			if (reexecute_instruction(vcpu, cr2, write_fault_to_spt,
+						emulation_type))
 				return EMULATE_DONE;
 			if (emulation_type & EMULTYPE_SKIP)
 				return EMULATE_FAIL;
@@ -4936,7 +4950,8 @@ restart:
 		return EMULATE_DONE;
 
 	if (r == EMULATION_FAILED) {
-		if (reexecute_instruction(vcpu, cr2, write_fault_to_spt))
+		if (reexecute_instruction(vcpu, cr2, write_fault_to_spt,
+					emulation_type))
 			return EMULATE_DONE;
 
 		return handle_emulation_failure(vcpu);
@@ -5647,14 +5662,20 @@ static void kvm_gen_update_masterclock(struct kvm *kvm)
 #endif
 }
 
-static void update_eoi_exitmap(struct kvm_vcpu *vcpu)
+static void vcpu_scan_ioapic(struct kvm_vcpu *vcpu)
 {
 	u64 eoi_exit_bitmap[4];
+	u32 tmr[8];
+
+	if (!kvm_apic_hw_enabled(vcpu->arch.apic))
+		return;
 
 	memset(eoi_exit_bitmap, 0, 32);
+	memset(tmr, 0, 32);
 
-	kvm_ioapic_calculate_eoi_exitmap(vcpu, eoi_exit_bitmap);
+	kvm_ioapic_scan_entry(vcpu, eoi_exit_bitmap, tmr);
 	kvm_x86_ops->load_eoi_exitmap(vcpu, eoi_exit_bitmap);
+	kvm_apic_update_tmr(vcpu, tmr);
 }
 
 static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
@@ -5710,8 +5731,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_handle_pmu_event(vcpu);
 		if (kvm_check_request(KVM_REQ_PMI, vcpu))
 			kvm_deliver_pmi(vcpu);
-		if (kvm_check_request(KVM_REQ_EOIBITMAP, vcpu))
-			update_eoi_exitmap(vcpu);
+		if (kvm_check_request(KVM_REQ_SCAN_IOAPIC, vcpu))
+			vcpu_scan_ioapic(vcpu);
 	}
 
 	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
@@ -5806,7 +5827,9 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 
 	vcpu->mode = OUTSIDE_GUEST_MODE;
 	smp_wmb();
-	local_irq_enable();
+
+	/* Interrupt is enabled by handle_external_intr() */
+	kvm_x86_ops->handle_external_intr(vcpu);
 
 	++vcpu->stat.exits;
 
