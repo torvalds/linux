@@ -227,7 +227,7 @@ static inline bool icp_try_update(struct kvmppc_icp *icp,
 		kvmppc_book3s_queue_irqprio(icp->vcpu,
 					    BOOK3S_INTERRUPT_EXTERNAL_LEVEL);
 		if (!change_self)
-			kvm_vcpu_kick(icp->vcpu);
+			kvmppc_fast_vcpu_kick(icp->vcpu);
 	}
  bail:
 	return success;

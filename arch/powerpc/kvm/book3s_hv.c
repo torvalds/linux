@@ -66,6 +66,31 @@
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
 
+void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu)
+{
+	int me;
+	int cpu = vcpu->cpu;
+	wait_queue_head_t *wqp;
+
+	wqp = kvm_arch_vcpu_wq(vcpu);
+	if (waitqueue_active(wqp)) {
+		wake_up_interruptible(wqp);
+		++vcpu->stat.halt_wakeup;
+	}
+
+	me = get_cpu();
+
+	/* CPU points to the first thread of the core */
+	if (cpu != me && cpu >= 0 && cpu < nr_cpu_ids) {
+		int real_cpu = cpu + vcpu->arch.ptid;
+		if (paca[real_cpu].kvm_hstate.xics_phys)
+			xics_wake_cpu(real_cpu);
+		else if (cpu_online(cpu))
+			smp_send_reschedule(cpu);
+	}
+	put_cpu();
+}
+
 /*
  * We use the vcpu_load/put functions to measure stolen time.
  * Stolen time is counted as time when either the vcpu is able to
@@ -985,7 +1010,6 @@ static void kvmppc_end_cede(struct kvm_vcpu *vcpu)
 }
 
 extern int __kvmppc_vcore_entry(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
-extern void xics_wake_cpu(int cpu);
 
 static void kvmppc_remove_runnable(struct kvmppc_vcore *vc,
 				   struct kvm_vcpu *vcpu)

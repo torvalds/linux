@@ -79,10 +79,6 @@ _GLOBAL(kvmppc_hv_entry_trampoline)
  *                                                                            *
  *****************************************************************************/
 
-#define XICS_XIRR		4
-#define XICS_QIRR		0xc
-#define XICS_IPI		2	/* interrupt source # for IPIs */
-
 /*
  * We come in here when wakened from nap mode on a secondary hw thread.
  * Relocation is off and most register values are lost.
@@ -122,7 +118,7 @@ kvm_start_guest:
 	beq	27f
 25:	ld	r5,HSTATE_XICS_PHYS(r13)
 	li	r0,0xff
-	li	r6,XICS_QIRR
+	li	r6,XICS_MFRR
 	li	r7,XICS_XIRR
 	lwzcix	r8,r5,r7		/* get and ack the interrupt */
 	sync
@@ -678,17 +674,91 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	cmpwi	r12,BOOK3S_INTERRUPT_SYSCALL
 	beq	hcall_try_real_mode
 
-	/* Check for mediated interrupts (could be done earlier really ...) */
+	/* Only handle external interrupts here on arch 206 and later */
 BEGIN_FTR_SECTION
-	cmpwi	r12,BOOK3S_INTERRUPT_EXTERNAL
-	bne+	1f
-	andi.	r0,r11,MSR_EE
-	beq	1f
-	mfspr	r5,SPRN_LPCR
-	andi.	r0,r5,LPCR_MER
+	b	ext_interrupt_to_host
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_206)
+
+	/* External interrupt ? */
+	cmpwi	r12, BOOK3S_INTERRUPT_EXTERNAL
+	bne+	ext_interrupt_to_host
+
+	/* External interrupt, first check for host_ipi. If this is
+	 * set, we know the host wants us out so let's do it now
+	 */
+	lbz	r0, HSTATE_HOST_IPI(r13)
+	cmpwi	r0, 0
+	bne	ext_interrupt_to_host
+
+	/* Now read the interrupt from the ICP */
+	ld	r5, HSTATE_XICS_PHYS(r13)
+	li	r7, XICS_XIRR
+	cmpdi	r5, 0
+	beq-	ext_interrupt_to_host
+	lwzcix	r3, r5, r7
+	rlwinm.	r0, r3, 0, 0xffffff
+	sync
+	bne	1f
+
+	/* Nothing pending in the ICP, check for mediated interrupts
+	 * and bounce it to the guest
+	 */
+	andi.	r0, r11, MSR_EE
+	beq	ext_interrupt_to_host /* shouldn't happen ?? */
+	mfspr	r5, SPRN_LPCR
+	andi.	r0, r5, LPCR_MER
 	bne	bounce_ext_interrupt
-1:
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
+	b	ext_interrupt_to_host /* shouldn't happen ?? */
+
+1:	/* We found something in the ICP...
+	 *
+	 * If it's not an IPI, stash it in the PACA and return to
+	 * the host, we don't (yet) handle directing real external
+	 * interrupts directly to the guest
+	 */
+	cmpwi	r0, XICS_IPI
+	bne	ext_stash_for_host
+
+	/* It's an IPI, clear the MFRR and EOI it */
+	li	r0, 0xff
+	li	r6, XICS_MFRR
+	stbcix	r0, r5, r6		/* clear the IPI */
+	stwcix	r3, r5, r7		/* EOI it */
+	sync
+
+	/* We need to re-check host IPI now in case it got set in the
+	 * meantime. If it's clear, we bounce the interrupt to the
+	 * guest
+	 */
+	lbz	r0, HSTATE_HOST_IPI(r13)
+	cmpwi	r0, 0
+	bne-	1f
+
+	/* Allright, looks like an IPI for the guest, we need to set MER */
+	mfspr	r8,SPRN_LPCR
+	ori	r8,r8,LPCR_MER
+	mtspr	SPRN_LPCR,r8
+
+	/* And if the guest EE is set, we can deliver immediately, else
+	 * we return to the guest with MER set
+	 */
+	andi.	r0, r11, MSR_EE
+	bne	bounce_ext_interrupt
+	mr	r4, r9
+	b	fast_guest_return
+
+	/* We raced with the host, we need to resend that IPI, bummer */
+1:	li	r0, IPI_PRIORITY
+	stbcix	r0, r5, r6		/* set the IPI */
+	sync
+	b	ext_interrupt_to_host
+
+ext_stash_for_host:
+	/* It's not an IPI and it's for the host, stash it in the PACA
+	 * before exit, it will be picked up by the host ICP driver
+	 */
+	stw	r3, HSTATE_SAVED_XIRR(r13)
+ext_interrupt_to_host:
 
 guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	/* Save DEC */
@@ -831,7 +901,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	beq	44f
 	ld	r8,HSTATE_XICS_PHYS(r6)	/* get thread's XICS reg addr */
 	li	r0,IPI_PRIORITY
-	li	r7,XICS_QIRR
+	li	r7,XICS_MFRR
 	stbcix	r0,r7,r8		/* trigger the IPI */
 44:	srdi.	r3,r3,1
 	addi	r6,r6,PACA_SIZE
@@ -1630,7 +1700,7 @@ secondary_nap:
 	beq	37f
 	sync
 	li	r0, 0xff
-	li	r6, XICS_QIRR
+	li	r6, XICS_MFRR
 	stbcix	r0, r5, r6		/* clear the IPI */
 	stwcix	r3, r5, r7		/* EOI it */
 37:	sync

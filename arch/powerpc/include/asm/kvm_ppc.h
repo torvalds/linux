@@ -264,6 +264,21 @@ static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 	paca[cpu].kvm_hstate.xics_phys = addr;
 }
 
+static inline u32 kvmppc_get_xics_latch(void)
+{
+	u32 xirr = get_paca()->kvm_hstate.saved_xirr;
+
+	get_paca()->kvm_hstate.saved_xirr = 0;
+
+	return xirr;
+}
+
+static inline void kvmppc_set_host_ipi(int cpu, u8 host_ipi)
+{
+	paca[cpu].kvm_hstate.host_ipi = host_ipi;
+}
+
+extern void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu);
 extern void kvm_linear_init(void);
 
 #else
@@ -273,6 +288,18 @@ static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 static inline void kvm_linear_init(void)
 {}
 
+static inline u32 kvmppc_get_xics_latch(void)
+{
+	return 0;
+}
+
+static inline void kvmppc_set_host_ipi(int cpu, u8 host_ipi)
+{}
+
+static inline void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu)
+{
+	kvm_vcpu_kick(vcpu);
+}
 #endif
 
 #ifdef CONFIG_KVM_XICS
@@ -392,5 +419,7 @@ static inline ulong kvmppc_get_ea_indexed(struct kvm_vcpu *vcpu, int ra, int rb)
 
 	return ea;
 }
+
+extern void xics_wake_cpu(int cpu);
 
 #endif /* __POWERPC_KVM_PPC_H__ */
