@@ -717,6 +717,7 @@ extern void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 #define assert_pipe_disabled(d, p) assert_pipe(d, p, false)
 
 extern void intel_init_clock_gating(struct drm_device *dev);
+extern void intel_suspend_hw(struct drm_device *dev);
 extern void intel_write_eld(struct drm_encoder *encoder,
 			    struct drm_display_mode *mode);
 extern void intel_prepare_ddi(struct drm_device *dev);
