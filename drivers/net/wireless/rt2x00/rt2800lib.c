@@ -542,6 +542,7 @@ void rt2800_write_tx_data(struct queue_entry *entry,
 {
 	__le32 *txwi = rt2800_drv_get_txwi(entry);
 	u32 word;
+	int i;
 
 	/*
 	 * Initialize TX Info descriptor
@@ -584,14 +585,16 @@ void rt2800_write_tx_data(struct queue_entry *entry,
 	rt2x00_desc_write(txwi, 1, word);
 
 	/*
-	 * Always write 0 to IV/EIV fields, hardware will insert the IV
-	 * from the IVEIV register when TXD_W3_WIV is set to 0.
+	 * Always write 0 to IV/EIV fields (word 2 and 3), hardware will insert
+	 * the IV from the IVEIV register when TXD_W3_WIV is set to 0.
 	 * When TXD_W3_WIV is set to 1 it will use the IV data
 	 * from the descriptor. The TXWI_W1_WIRELESS_CLI_ID indicates which
 	 * crypto entry in the registers should be used to encrypt the frame.
+	 *
+	 * Nulify all remaining words as well, we don't know how to program them.
 	 */
-	_rt2x00_desc_write(txwi, 2, 0 /* skbdesc->iv[0] */);
-	_rt2x00_desc_write(txwi, 3, 0 /* skbdesc->iv[1] */);
+	for (i = 2; i < entry->queue->winfo_size / sizeof(__le32); i++)
+		_rt2x00_desc_write(txwi, i, 0);
 }
 EXPORT_SYMBOL_GPL(rt2800_write_tx_data);
 
