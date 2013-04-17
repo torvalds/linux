@@ -1072,6 +1072,9 @@ static const struct pinctrl_map eva_pinctrl_map[] = {
 				  "gether_mii", "gether"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh-eth", "pfc-r8a7740",
 				  "gether_int", "gether"),
+	/* HDMI */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-mobile-hdmi", "pfc-r8a7740",
+				  "hdmi", "hdmi"),
 	/* LCD0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_lcdc_fb.0", "pfc-r8a7740",
 				  "lcd0_data24_0", "lcd0"),
@@ -1197,10 +1200,6 @@ static void __init eva_init(void)
 	gpio_request(8, NULL);
 	gpio_direction_none(GPIO_PORT7CR); /* FSIAOBT needs no direction */
 	gpio_direction_none(GPIO_PORT8CR); /* FSIAOLR needs no direction */
-
-	/* HDMI */
-	gpio_request(GPIO_FN_HDMI_HPD,		NULL);
-	gpio_request(GPIO_FN_HDMI_CEC,		NULL);
 
 	/*
 	 * CAUTION
