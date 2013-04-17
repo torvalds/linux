@@ -63,6 +63,21 @@ static int xen_blkif_reqs = 64;
 module_param_named(reqs, xen_blkif_reqs, int, 0);
 MODULE_PARM_DESC(reqs, "Number of blkback requests to allocate");
 
+/*
+ * Maximum number of unused free pages to keep in the internal buffer.
+ * Setting this to a value too low will reduce memory used in each backend,
+ * but can have a performance penalty.
+ *
+ * A sane value is xen_blkif_reqs * BLKIF_MAX_SEGMENTS_PER_REQUEST, but can
+ * be set to a lower value that might degrade performance on some intensive
+ * IO workloads.
+ */
+
+static int xen_blkif_max_buffer_pages = 704;
+module_param_named(max_buffer_pages, xen_blkif_max_buffer_pages, int, 0644);
+MODULE_PARM_DESC(max_buffer_pages,
+"Maximum number of free pages to keep in each block backend buffer");
+
 /* Run-time switchable: /sys/module/blkback/parameters/ */
 static unsigned int log_stats;
 module_param(log_stats, int, 0644);
@@ -82,9 +97,13 @@ struct pending_req {
 	int			status;
 	struct list_head	free_list;
 	DECLARE_BITMAP(unmap_seg, BLKIF_MAX_SEGMENTS_PER_REQUEST);
+	struct page		*pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 };
 
 #define BLKBACK_INVALID_HANDLE (~0)
+
+/* Number of free pages to remove on each call to free_xenballooned_pages */
+#define NUM_BATCH_FREE_PAGES 10
 
 struct xen_blkbk {
 	struct pending_req	*pending_reqs;
@@ -93,8 +112,6 @@ struct xen_blkbk {
 	/* And its spinlock. */
 	spinlock_t		pending_free_lock;
 	wait_queue_head_t	pending_free_wq;
-	/* The list of all pages that are available. */
-	struct page		**pending_pages;
 	/* And the grant handles that are available. */
 	grant_handle_t		*pending_grant_handles;
 };
@@ -143,13 +160,65 @@ static inline int vaddr_pagenr(struct pending_req *req, int seg)
 		BLKIF_MAX_SEGMENTS_PER_REQUEST + seg;
 }
 
-#define pending_page(req, seg) pending_pages[vaddr_pagenr(req, seg)]
-
-static inline unsigned long vaddr(struct pending_req *req, int seg)
+static inline int get_free_page(struct xen_blkif *blkif, struct page **page)
 {
-	unsigned long pfn = page_to_pfn(blkbk->pending_page(req, seg));
-	return (unsigned long)pfn_to_kaddr(pfn);
+	unsigned long flags;
+
+	spin_lock_irqsave(&blkif->free_pages_lock, flags);
+	if (list_empty(&blkif->free_pages)) {
+		BUG_ON(blkif->free_pages_num != 0);
+		spin_unlock_irqrestore(&blkif->free_pages_lock, flags);
+		return alloc_xenballooned_pages(1, page, false);
+	}
+	BUG_ON(blkif->free_pages_num == 0);
+	page[0] = list_first_entry(&blkif->free_pages, struct page, lru);
+	list_del(&page[0]->lru);
+	blkif->free_pages_num--;
+	spin_unlock_irqrestore(&blkif->free_pages_lock, flags);
+
+	return 0;
 }
+
+static inline void put_free_pages(struct xen_blkif *blkif, struct page **page,
+                                  int num)
+{
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&blkif->free_pages_lock, flags);
+	for (i = 0; i < num; i++)
+		list_add(&page[i]->lru, &blkif->free_pages);
+	blkif->free_pages_num += num;
+	spin_unlock_irqrestore(&blkif->free_pages_lock, flags);
+}
+
+static inline void shrink_free_pagepool(struct xen_blkif *blkif, int num)
+{
+	/* Remove requested pages in batches of NUM_BATCH_FREE_PAGES */
+	struct page *page[NUM_BATCH_FREE_PAGES];
+	unsigned int num_pages = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&blkif->free_pages_lock, flags);
+	while (blkif->free_pages_num > num) {
+		BUG_ON(list_empty(&blkif->free_pages));
+		page[num_pages] = list_first_entry(&blkif->free_pages,
+		                                   struct page, lru);
+		list_del(&page[num_pages]->lru);
+		blkif->free_pages_num--;
+		if (++num_pages == NUM_BATCH_FREE_PAGES) {
+			spin_unlock_irqrestore(&blkif->free_pages_lock, flags);
+			free_xenballooned_pages(num_pages, page);
+			spin_lock_irqsave(&blkif->free_pages_lock, flags);
+			num_pages = 0;
+		}
+	}
+	spin_unlock_irqrestore(&blkif->free_pages_lock, flags);
+	if (num_pages != 0)
+		free_xenballooned_pages(num_pages, page);
+}
+
+#define vaddr(page) ((unsigned long)pfn_to_kaddr(page_to_pfn(page)))
 
 #define pending_handle(_req, _seg) \
 	(blkbk->pending_grant_handles[vaddr_pagenr(_req, _seg)])
@@ -170,7 +239,7 @@ static void make_response(struct xen_blkif *blkif, u64 id,
 	     (n) = (&(pos)->node != NULL) ? rb_next(&(pos)->node) : NULL)
 
 
-static void add_persistent_gnt(struct rb_root *root,
+static int add_persistent_gnt(struct rb_root *root,
 			       struct persistent_gnt *persistent_gnt)
 {
 	struct rb_node **new = &(root->rb_node), *parent = NULL;
@@ -186,14 +255,15 @@ static void add_persistent_gnt(struct rb_root *root,
 		else if (persistent_gnt->gnt > this->gnt)
 			new = &((*new)->rb_right);
 		else {
-			pr_alert(DRV_PFX " trying to add a gref that's already in the tree\n");
-			BUG();
+			pr_alert_ratelimited(DRV_PFX " trying to add a gref that's already in the tree\n");
+			return -EINVAL;
 		}
 	}
 
 	/* Add new node and rebalance tree. */
 	rb_link_node(&(persistent_gnt->node), parent, new);
 	rb_insert_color(&(persistent_gnt->node), root);
+	return 0;
 }
 
 static struct persistent_gnt *get_persistent_gnt(struct rb_root *root,
@@ -215,7 +285,8 @@ static struct persistent_gnt *get_persistent_gnt(struct rb_root *root,
 	return NULL;
 }
 
-static void free_persistent_gnts(struct rb_root *root, unsigned int num)
+static void free_persistent_gnts(struct xen_blkif *blkif, struct rb_root *root,
+                                 unsigned int num)
 {
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
@@ -240,7 +311,7 @@ static void free_persistent_gnts(struct rb_root *root, unsigned int num)
 			ret = gnttab_unmap_refs(unmap, NULL, pages,
 				segs_to_unmap);
 			BUG_ON(ret);
-			free_xenballooned_pages(segs_to_unmap, pages);
+			put_free_pages(blkif, pages, segs_to_unmap);
 			segs_to_unmap = 0;
 		}
 
@@ -422,13 +493,19 @@ int xen_blkif_schedule(void *arg)
 		if (do_block_io_op(blkif))
 			blkif->waiting_reqs = 1;
 
+		/* Shrink if we have more than xen_blkif_max_buffer_pages */
+		shrink_free_pagepool(blkif, xen_blkif_max_buffer_pages);
+
 		if (log_stats && time_after(jiffies, blkif->st_print))
 			print_stats(blkif);
 	}
 
+	/* Since we are shutting down remove all pages from the buffer */
+	shrink_free_pagepool(blkif, 0 /* All */);
+
 	/* Free all persistent grant pages */
 	if (!RB_EMPTY_ROOT(&blkif->persistent_gnts))
-		free_persistent_gnts(&blkif->persistent_gnts,
+		free_persistent_gnts(blkif, &blkif->persistent_gnts,
 			blkif->persistent_gnt_c);
 
 	BUG_ON(!RB_EMPTY_ROOT(&blkif->persistent_gnts));
@@ -457,23 +534,25 @@ static void xen_blkbk_unmap(struct pending_req *req)
 	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	unsigned int i, invcount = 0;
 	grant_handle_t handle;
+	struct xen_blkif *blkif = req->blkif;
 	int ret;
 
 	for (i = 0; i < req->nr_pages; i++) {
 		if (!test_bit(i, req->unmap_seg))
 			continue;
 		handle = pending_handle(req, i);
+		pages[invcount] = req->pages[i];
 		if (handle == BLKBACK_INVALID_HANDLE)
 			continue;
-		gnttab_set_unmap_op(&unmap[invcount], vaddr(req, i),
+		gnttab_set_unmap_op(&unmap[invcount], vaddr(pages[invcount]),
 				    GNTMAP_host_map, handle);
 		pending_handle(req, i) = BLKBACK_INVALID_HANDLE;
-		pages[invcount] = virt_to_page(vaddr(req, i));
 		invcount++;
 	}
 
 	ret = gnttab_unmap_refs(unmap, NULL, pages, invcount);
 	BUG_ON(ret);
+	put_free_pages(blkif, pages, invcount);
 }
 
 static int xen_blkbk_map(struct blkif_request *req,
@@ -487,8 +566,7 @@ static int xen_blkbk_map(struct blkif_request *req,
 	struct persistent_gnt *persistent_gnt = NULL;
 	struct xen_blkif *blkif = pending_req->blkif;
 	phys_addr_t addr = 0;
-	int i, j;
-	bool new_map;
+	int i, seg_idx, new_map_idx;
 	int nseg = req->u.rw.nr_segments;
 	int segs_to_map = 0;
 	int ret = 0;
@@ -517,68 +595,16 @@ static int xen_blkbk_map(struct blkif_request *req,
 			 * We are using persistent grants and
 			 * the grant is already mapped
 			 */
-			new_map = false;
-		} else if (use_persistent_gnts &&
-			   blkif->persistent_gnt_c <
-			   max_mapped_grant_pages(blkif->blk_protocol)) {
-			/*
-			 * We are using persistent grants, the grant is
-			 * not mapped but we have room for it
-			 */
-			new_map = true;
-			persistent_gnt = kmalloc(
-				sizeof(struct persistent_gnt),
-				GFP_KERNEL);
-			if (!persistent_gnt)
-				return -ENOMEM;
-			if (alloc_xenballooned_pages(1, &persistent_gnt->page,
-			    false)) {
-				kfree(persistent_gnt);
-				return -ENOMEM;
-			}
-			persistent_gnt->gnt = req->u.rw.seg[i].gref;
-			persistent_gnt->handle = BLKBACK_INVALID_HANDLE;
-
-			pages_to_gnt[segs_to_map] =
-				persistent_gnt->page;
-			addr = (unsigned long) pfn_to_kaddr(
-				page_to_pfn(persistent_gnt->page));
-
-			add_persistent_gnt(&blkif->persistent_gnts,
-				persistent_gnt);
-			blkif->persistent_gnt_c++;
-			pr_debug(DRV_PFX " grant %u added to the tree of persistent grants, using %u/%u\n",
-				 persistent_gnt->gnt, blkif->persistent_gnt_c,
-				 max_mapped_grant_pages(blkif->blk_protocol));
-		} else {
-			/*
-			 * We are either using persistent grants and
-			 * hit the maximum limit of grants mapped,
-			 * or we are not using persistent grants.
-			 */
-			if (use_persistent_gnts &&
-				!blkif->vbd.overflow_max_grants) {
-				blkif->vbd.overflow_max_grants = 1;
-				pr_alert(DRV_PFX " domain %u, device %#x is using maximum number of persistent grants\n",
-					 blkif->domid, blkif->vbd.handle);
-			}
-			new_map = true;
-			pages[i] = blkbk->pending_page(pending_req, i);
-			addr = vaddr(pending_req, i);
-			pages_to_gnt[segs_to_map] =
-				blkbk->pending_page(pending_req, i);
-		}
-
-		if (persistent_gnt) {
 			pages[i] = persistent_gnt->page;
 			persistent_gnts[i] = persistent_gnt;
 		} else {
+			if (get_free_page(blkif, &pages[i]))
+				goto out_of_memory;
+			addr = vaddr(pages[i]);
+			pages_to_gnt[segs_to_map] = pages[i];
 			persistent_gnts[i] = NULL;
-		}
-
-		if (new_map) {
 			flags = GNTMAP_host_map;
-			if (!persistent_gnt &&
+			if (!use_persistent_gnts &&
 			    (pending_req->operation != BLKIF_OP_READ))
 				flags |= GNTMAP_readonly;
 			gnttab_set_map_op(&map[segs_to_map++], addr,
@@ -598,48 +624,81 @@ static int xen_blkbk_map(struct blkif_request *req,
 	 * the page from the other domain.
 	 */
 	bitmap_zero(pending_req->unmap_seg, BLKIF_MAX_SEGMENTS_PER_REQUEST);
-	for (i = 0, j = 0; i < nseg; i++) {
-		if (!persistent_gnts[i] ||
-		    persistent_gnts[i]->handle == BLKBACK_INVALID_HANDLE) {
+	for (seg_idx = 0, new_map_idx = 0; seg_idx < nseg; seg_idx++) {
+		if (!persistent_gnts[seg_idx]) {
 			/* This is a newly mapped grant */
-			BUG_ON(j >= segs_to_map);
-			if (unlikely(map[j].status != 0)) {
+			BUG_ON(new_map_idx >= segs_to_map);
+			if (unlikely(map[new_map_idx].status != 0)) {
 				pr_debug(DRV_PFX "invalid buffer -- could not remap it\n");
-				map[j].handle = BLKBACK_INVALID_HANDLE;
+				pending_handle(pending_req, seg_idx) = BLKBACK_INVALID_HANDLE;
 				ret |= 1;
-				if (persistent_gnts[i]) {
-					rb_erase(&persistent_gnts[i]->node,
-						 &blkif->persistent_gnts);
-					blkif->persistent_gnt_c--;
-					kfree(persistent_gnts[i]);
-					persistent_gnts[i] = NULL;
-				}
-			}
-		}
-		if (persistent_gnts[i]) {
-			if (persistent_gnts[i]->handle ==
-			    BLKBACK_INVALID_HANDLE) {
+				new_map_idx++;
 				/*
-				 * If this is a new persistent grant
-				 * save the handler
+				 * No need to set unmap_seg bit, since
+				 * we can not unmap this grant because
+				 * the handle is invalid.
 				 */
-				persistent_gnts[i]->handle = map[j++].handle;
+				continue;
 			}
-			pending_handle(pending_req, i) =
-				persistent_gnts[i]->handle;
-
-			if (ret)
-				continue;
+			pending_handle(pending_req, seg_idx) = map[new_map_idx].handle;
 		} else {
-			pending_handle(pending_req, i) = map[j++].handle;
-			bitmap_set(pending_req->unmap_seg, i, 1);
-
-			if (ret)
-				continue;
+			/* This grant is persistent and already mapped */
+			goto next;
 		}
-		seg[i].offset = (req->u.rw.seg[i].first_sect << 9);
+		if (use_persistent_gnts &&
+		    blkif->persistent_gnt_c <
+		    max_mapped_grant_pages(blkif->blk_protocol)) {
+			/*
+			 * We are using persistent grants, the grant is
+			 * not mapped but we have room for it
+			 */
+			persistent_gnt = kmalloc(sizeof(struct persistent_gnt),
+				                 GFP_KERNEL);
+			if (!persistent_gnt) {
+				/*
+				 * If we don't have enough memory to
+				 * allocate the persistent_gnt struct
+				 * map this grant non-persistenly
+				 */
+				goto next_unmap;
+			}
+			persistent_gnt->gnt = map[new_map_idx].ref;
+			persistent_gnt->handle = map[new_map_idx].handle;
+			persistent_gnt->page = pages[seg_idx];
+			if (add_persistent_gnt(&blkif->persistent_gnts,
+			                       persistent_gnt)) {
+				kfree(persistent_gnt);
+				persistent_gnt = NULL;
+				goto next_unmap;
+			}
+			blkif->persistent_gnt_c++;
+			pr_debug(DRV_PFX " grant %u added to the tree of persistent grants, using %u/%u\n",
+				 persistent_gnt->gnt, blkif->persistent_gnt_c,
+				 max_mapped_grant_pages(blkif->blk_protocol));
+			new_map_idx++;
+			goto next;
+		}
+		if (use_persistent_gnts && !blkif->vbd.overflow_max_grants) {
+			blkif->vbd.overflow_max_grants = 1;
+			pr_debug(DRV_PFX " domain %u, device %#x is using maximum number of persistent grants\n",
+			         blkif->domid, blkif->vbd.handle);
+		}
+next_unmap:
+		/*
+		 * We could not map this grant persistently, so use it as
+		 * a non-persistent grant.
+		 */
+		bitmap_set(pending_req->unmap_seg, seg_idx, 1);
+		new_map_idx++;
+next:
+		seg[seg_idx].offset = (req->u.rw.seg[seg_idx].first_sect << 9);
 	}
 	return ret;
+
+out_of_memory:
+	pr_alert(DRV_PFX "%s: out of memory\n", __func__);
+	put_free_pages(blkif, pages_to_gnt, segs_to_map);
+	return -ENOMEM;
 }
 
 static int dispatch_discard_io(struct xen_blkif *blkif,
@@ -863,7 +922,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	int operation;
 	struct blk_plug plug;
 	bool drain = false;
-	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct page **pages = pending_req->pages;
 
 	switch (req->operation) {
 	case BLKIF_OP_READ:
@@ -1090,22 +1149,14 @@ static int __init xen_blkif_init(void)
 					xen_blkif_reqs, GFP_KERNEL);
 	blkbk->pending_grant_handles = kmalloc(sizeof(blkbk->pending_grant_handles[0]) *
 					mmap_pages, GFP_KERNEL);
-	blkbk->pending_pages         = kzalloc(sizeof(blkbk->pending_pages[0]) *
-					mmap_pages, GFP_KERNEL);
 
-	if (!blkbk->pending_reqs || !blkbk->pending_grant_handles ||
-	    !blkbk->pending_pages) {
+	if (!blkbk->pending_reqs || !blkbk->pending_grant_handles) {
 		rc = -ENOMEM;
 		goto out_of_memory;
 	}
 
 	for (i = 0; i < mmap_pages; i++) {
 		blkbk->pending_grant_handles[i] = BLKBACK_INVALID_HANDLE;
-		blkbk->pending_pages[i] = alloc_page(GFP_KERNEL);
-		if (blkbk->pending_pages[i] == NULL) {
-			rc = -ENOMEM;
-			goto out_of_memory;
-		}
 	}
 	rc = xen_blkif_interface_init();
 	if (rc)
@@ -1130,13 +1181,6 @@ static int __init xen_blkif_init(void)
  failed_init:
 	kfree(blkbk->pending_reqs);
 	kfree(blkbk->pending_grant_handles);
-	if (blkbk->pending_pages) {
-		for (i = 0; i < mmap_pages; i++) {
-			if (blkbk->pending_pages[i])
-				__free_page(blkbk->pending_pages[i]);
-		}
-		kfree(blkbk->pending_pages);
-	}
 	kfree(blkbk);
 	blkbk = NULL;
 	return rc;

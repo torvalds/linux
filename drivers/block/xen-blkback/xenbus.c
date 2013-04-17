@@ -118,6 +118,9 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	blkif->st_print = jiffies;
 	init_waitqueue_head(&blkif->waiting_to_free);
 	blkif->persistent_gnts.rb_node = NULL;
+	spin_lock_init(&blkif->free_pages_lock);
+	INIT_LIST_HEAD(&blkif->free_pages);
+	blkif->free_pages_num = 0;
 
 	return blkif;
 }

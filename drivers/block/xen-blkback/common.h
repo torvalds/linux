@@ -220,6 +220,11 @@ struct xen_blkif {
 	struct rb_root		persistent_gnts;
 	unsigned int		persistent_gnt_c;
 
+	/* buffer of free pages to map grant refs */
+	spinlock_t		free_pages_lock;
+	int			free_pages_num;
+	struct list_head	free_pages;
+
 	/* statistics */
 	unsigned long		st_print;
 	unsigned long long			st_rd_req;
