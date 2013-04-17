@@ -485,6 +485,8 @@ EXPORT_SYMBOL_GPL(cpufreq_cooling_register);
 /**
  * cpufreq_cooling_unregister - function to remove cpufreq cooling device.
  * @cdev: thermal cooling device pointer.
+ *
+ * This interface function unregisters the "thermal-cpufreq-%x" cooling device.
  */
 void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 {
