@@ -1742,9 +1742,10 @@ static int rbd_img_request_submit(struct rbd_img_request *img_request)
 	struct rbd_device *rbd_dev = img_request->rbd_dev;
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct rbd_obj_request *obj_request;
+	struct rbd_obj_request *next_obj_request;
 
 	dout("%s: img %p\n", __func__, img_request);
-	for_each_obj_request(img_request, obj_request) {
+	for_each_obj_request_safe(img_request, obj_request, next_obj_request) {
 		int ret;
 
 		obj_request->callback = rbd_img_obj_callback;
