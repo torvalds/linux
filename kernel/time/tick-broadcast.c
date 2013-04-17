@@ -75,6 +75,16 @@ int tick_check_broadcast_device(struct clock_event_device *dev)
 	tick_broadcast_device.evtdev = dev;
 	if (!cpumask_empty(tick_broadcast_mask))
 		tick_broadcast_start_periodic(dev);
+	/*
+	 * Inform all cpus about this. We might be in a situation
+	 * where we did not switch to oneshot mode because the per cpu
+	 * devices are affected by CLOCK_EVT_FEAT_C3STOP and the lack
+	 * of a oneshot capable broadcast device. Without that
+	 * notification the systems stays stuck in periodic mode
+	 * forever.
+	 */
+	if (dev->features & CLOCK_EVT_FEAT_ONESHOT)
+		tick_clock_notify();
 	return 1;
 }
 
