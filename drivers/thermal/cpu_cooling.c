@@ -323,7 +323,7 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 	if (cpumask_test_cpu(policy->cpu, &notify_device->allowed_cpus))
 		max_freq = notify_device->cpufreq_val;
 
-	/* Never exceed user_policy.max*/
+	/* Never exceed user_policy.max */
 	if (max_freq > policy->user_policy.max)
 		max_freq = policy->user_policy.max;
 
@@ -333,9 +333,7 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-/*
- * cpufreq cooling device callback functions are defined below
- */
+/* cpufreq cooling device callback functions are defined below */
 
 /**
  * cpufreq_get_max_state - callback function to get the max cooling state.
@@ -437,9 +435,9 @@ struct thermal_cooling_device *cpufreq_cooling_register(
 	int ret = 0, i;
 	struct cpufreq_policy policy;
 
-	/*Verify that all the clip cpus have same freq_min, freq_max limit*/
+	/* Verify that all the clip cpus have same freq_min, freq_max limit */
 	for_each_cpu(i, clip_cpus) {
-		/*continue if cpufreq policy not found and not return error*/
+		/* continue if cpufreq policy not found and not return error */
 		if (!cpufreq_get_policy(&policy, i))
 			continue;
 		if (min == 0 && max == 0) {
