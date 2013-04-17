@@ -851,7 +851,7 @@ static struct sk_buff *netlink_trim(struct sk_buff *skb, gfp_t allocation)
 {
 	int delta;
 
-	skb_orphan(skb);
+	WARN_ON(skb->sk != NULL);
 
 	delta = skb->end - skb->tail;
 	if (delta * 2 < skb->truesize)
