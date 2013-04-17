@@ -1384,9 +1384,12 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 			break;
 		vc->runner = vcpu;
 		n_ceded = 0;
-		list_for_each_entry(v, &vc->runnable_threads, arch.run_list)
+		list_for_each_entry(v, &vc->runnable_threads, arch.run_list) {
 			if (!v->arch.pending_exceptions)
 				n_ceded += v->arch.ceded;
+			else
+				v->arch.ceded = 0;
+		}
 		if (n_ceded == vc->n_runnable)
 			kvmppc_vcore_blocked(vc);
 		else
