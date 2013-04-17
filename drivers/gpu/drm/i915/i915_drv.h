@@ -76,6 +76,8 @@ enum plane {
 };
 #define plane_name(p) ((p) + 'A')
 
+#define sprite_name(p, s) ((p) * dev_priv->num_plane + (s) + 'A')
+
 enum port {
 	PORT_A = 0,
 	PORT_B,
