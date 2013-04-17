@@ -4478,6 +4478,10 @@ static void rt2800_init_rfcsr_305x_soc(struct rt2x00_dev *rt2x00dev)
 
 static void rt2800_init_rfcsr_30xx(struct rt2x00_dev *rt2x00dev)
 {
+	u8 rfcsr;
+	u16 eeprom;
+	u32 reg;
+
 	/* XXX vendor driver do this only for 3070 */
 	rt2800_rf_init_calibration(rt2x00dev, 30);
 
@@ -4500,6 +4504,36 @@ static void rt2800_init_rfcsr_30xx(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 24, 0x16);
 	rt2800_rfcsr_write(rt2x00dev, 25, 0x01);
 	rt2800_rfcsr_write(rt2x00dev, 29, 0x1f);
+
+	if (rt2x00_rt_rev_lt(rt2x00dev, RT3070, REV_RT3070F)) {
+		rt2800_register_read(rt2x00dev, LDO_CFG0, &reg);
+		rt2x00_set_field32(&reg, LDO_CFG0_BGSEL, 1);
+		rt2x00_set_field32(&reg, LDO_CFG0_LDO_CORE_VLEVEL, 3);
+		rt2800_register_write(rt2x00dev, LDO_CFG0, reg);
+	} else if (rt2x00_rt(rt2x00dev, RT3071) ||
+		   rt2x00_rt(rt2x00dev, RT3090)) {
+		rt2800_rfcsr_write(rt2x00dev, 31, 0x14);
+
+		rt2800_rfcsr_read(rt2x00dev, 6, &rfcsr);
+		rt2x00_set_field8(&rfcsr, RFCSR6_R2, 1);
+		rt2800_rfcsr_write(rt2x00dev, 6, rfcsr);
+
+		rt2800_register_read(rt2x00dev, LDO_CFG0, &reg);
+		rt2x00_set_field32(&reg, LDO_CFG0_BGSEL, 1);
+		if (rt2x00_rt_rev_lt(rt2x00dev, RT3071, REV_RT3071E) ||
+		    rt2x00_rt_rev_lt(rt2x00dev, RT3090, REV_RT3090E)) {
+			rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
+			if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_DAC_TEST))
+				rt2x00_set_field32(&reg, LDO_CFG0_LDO_CORE_VLEVEL, 3);
+			else
+				rt2x00_set_field32(&reg, LDO_CFG0_LDO_CORE_VLEVEL, 0);
+		}
+		rt2800_register_write(rt2x00dev, LDO_CFG0, reg);
+
+		rt2800_register_read(rt2x00dev, GPIO_SWITCH, &reg);
+		rt2x00_set_field32(&reg, GPIO_SWITCH_5, 0);
+		rt2800_register_write(rt2x00dev, GPIO_SWITCH, reg);
+	}
 }
 
 static void rt2800_init_rfcsr_3290(struct rt2x00_dev *rt2x00dev)
@@ -4954,35 +4988,8 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 		return 0;
 	}
 
-	if (rt2x00_rt_rev_lt(rt2x00dev, RT3070, REV_RT3070F)) {
-		rt2800_register_read(rt2x00dev, LDO_CFG0, &reg);
-		rt2x00_set_field32(&reg, LDO_CFG0_BGSEL, 1);
-		rt2x00_set_field32(&reg, LDO_CFG0_LDO_CORE_VLEVEL, 3);
-		rt2800_register_write(rt2x00dev, LDO_CFG0, reg);
-	} else if (rt2x00_rt(rt2x00dev, RT3071) ||
-		   rt2x00_rt(rt2x00dev, RT3090)) {
-		rt2800_rfcsr_write(rt2x00dev, 31, 0x14);
 
-		rt2800_rfcsr_read(rt2x00dev, 6, &rfcsr);
-		rt2x00_set_field8(&rfcsr, RFCSR6_R2, 1);
-		rt2800_rfcsr_write(rt2x00dev, 6, rfcsr);
-
-		rt2800_register_read(rt2x00dev, LDO_CFG0, &reg);
-		rt2x00_set_field32(&reg, LDO_CFG0_BGSEL, 1);
-		if (rt2x00_rt_rev_lt(rt2x00dev, RT3071, REV_RT3071E) ||
-		    rt2x00_rt_rev_lt(rt2x00dev, RT3090, REV_RT3090E)) {
-			rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
-			if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_DAC_TEST))
-				rt2x00_set_field32(&reg, LDO_CFG0_LDO_CORE_VLEVEL, 3);
-			else
-				rt2x00_set_field32(&reg, LDO_CFG0_LDO_CORE_VLEVEL, 0);
-		}
-		rt2800_register_write(rt2x00dev, LDO_CFG0, reg);
-
-		rt2800_register_read(rt2x00dev, GPIO_SWITCH, &reg);
-		rt2x00_set_field32(&reg, GPIO_SWITCH_5, 0);
-		rt2800_register_write(rt2x00dev, GPIO_SWITCH, reg);
-	} else if (rt2x00_rt(rt2x00dev, RT3390)) {
+	if (rt2x00_rt(rt2x00dev, RT3390)) {
 		rt2800_register_read(rt2x00dev, GPIO_SWITCH, &reg);
 		rt2x00_set_field32(&reg, GPIO_SWITCH_5, 0);
 		rt2800_register_write(rt2x00dev, GPIO_SWITCH, reg);
