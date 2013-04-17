@@ -299,10 +299,10 @@ void __write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
 		int pos = dev->msi_cap;
 		u16 msgctl;
 
-		pci_read_config_word(dev, msi_control_reg(pos), &msgctl);
+		pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &msgctl);
 		msgctl &= ~PCI_MSI_FLAGS_QSIZE;
 		msgctl |= entry->msi_attrib.multiple << 4;
-		pci_write_config_word(dev, msi_control_reg(pos), msgctl);
+		pci_write_config_word(dev, pos + PCI_MSI_FLAGS, msgctl);
 
 		pci_write_config_dword(dev, msi_lower_address_reg(pos),
 					msg->address_lo);
@@ -548,7 +548,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 
 	msi_set_enable(dev, 0);	/* Disable MSI during set up */
 
-	pci_read_config_word(dev, msi_control_reg(dev->msi_cap), &control);
+	pci_read_config_word(dev, dev->msi_cap + PCI_MSI_FLAGS, &control);
 	/* MSI Entry Initialization */
 	entry = alloc_msi_entry(dev);
 	if (!entry)
@@ -903,7 +903,7 @@ int pci_msix_table_size(struct pci_dev *dev)
 	if (!dev->msix_cap)
 		return 0;
 
-	pci_read_config_word(dev, msi_control_reg(dev->msix_cap), &control);
+	pci_read_config_word(dev, dev->msix_cap + PCI_MSIX_FLAGS, &control);
 	return multi_msix_capable(control);
 }
 
