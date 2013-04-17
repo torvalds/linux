@@ -89,7 +89,6 @@ struct ab8500_regulator_info {
 		u8 voltage_bank;
 		u8 voltage_reg;
 		u8 voltage_mask;
-		u8 voltage_shift;
 	} expand_register;
 };
 
@@ -1532,7 +1531,6 @@ static struct ab8500_regulator_info
 			.voltage_bank		= 0x04,
 			.voltage_reg		= 0x01,
 			.voltage_mask		= 0x10,
-			.voltage_shift		= 1,
 		}
 	},
 	[AB8540_LDO_AUX4] = {
