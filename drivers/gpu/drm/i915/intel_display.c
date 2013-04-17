@@ -4003,9 +4003,9 @@ static bool intel_crtc_compute_config(struct drm_crtc *crtc,
 		adjusted_mode->hsync_start == adjusted_mode->hdisplay)
 		return false;
 
-	if ((IS_G4X(dev) || IS_VALLEYVIEW(dev)) && pipe_config->pipe_bpp > 10) {
+	if ((IS_G4X(dev) || IS_VALLEYVIEW(dev)) && pipe_config->pipe_bpp > 10*3) {
 		pipe_config->pipe_bpp = 10*3; /* 12bpc is gen5+ */
-	} else if (INTEL_INFO(dev)->gen <= 4 && pipe_config->pipe_bpp > 8) {
+	} else if (INTEL_INFO(dev)->gen <= 4 && pipe_config->pipe_bpp > 8*3) {
 		/* only a 8bpc pipe, with 6bpc dither through the panel fitter
 		 * for lvds. */
 		pipe_config->pipe_bpp = 8*3;
