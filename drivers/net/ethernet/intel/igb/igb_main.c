@@ -60,9 +60,9 @@
 #include <linux/i2c.h>
 #include "igb.h"
 
-#define MAJ 4
-#define MIN 1
-#define BUILD 2
+#define MAJ 5
+#define MIN 0
+#define BUILD 3
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
 __stringify(BUILD) "-k"
 char igb_driver_name[] = "igb";
