@@ -748,8 +748,8 @@ intel_ddi_get_crtc_encoder(struct drm_crtc *crtc)
 	}
 
 	if (num_encoders != 1)
-		WARN(1, "%d encoders on crtc for pipe %d\n", num_encoders,
-		     intel_crtc->pipe);
+		WARN(1, "%d encoders on crtc for pipe %c\n", num_encoders,
+		     pipe_name(intel_crtc->pipe));
 
 	BUG_ON(ret == NULL);
 	return ret;
@@ -1047,8 +1047,8 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 		}
 
 	} else {
-		WARN(1, "Invalid encoder type %d for pipe %d\n",
-		     intel_encoder->type, pipe);
+		WARN(1, "Invalid encoder type %d for pipe %c\n",
+		     intel_encoder->type, pipe_name(pipe));
 	}
 
 	I915_WRITE(TRANS_DDI_FUNC_CTL(cpu_transcoder), temp);
@@ -1148,7 +1148,7 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 		}
 	}
 
-	DRM_DEBUG_KMS("No pipe for ddi port %i found\n", port);
+	DRM_DEBUG_KMS("No pipe for ddi port %c found\n", port_name(port));
 
 	return false;
 }
