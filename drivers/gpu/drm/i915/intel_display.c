@@ -4735,7 +4735,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			dspcntr |= DISPPLANE_SEL_PIPE_B;
 	}
 
-	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
+	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe_name(pipe));
 	drm_mode_debug_printmodeline(mode);
 
 	intel_set_pipe_timings(intel_crtc, mode, adjusted_mode);
@@ -6121,7 +6121,7 @@ static void ironlake_write_eld(struct drm_connector *connector,
 		eldv |= IBX_ELD_VALIDB << 4;
 		eldv |= IBX_ELD_VALIDB << 8;
 	} else {
-		DRM_DEBUG_DRIVER("ELD on port %c\n", 'A' + i);
+		DRM_DEBUG_DRIVER("ELD on port %c\n", port_name(i));
 		eldv = IBX_ELD_VALIDB << ((i - 1) * 4);
 	}
 
