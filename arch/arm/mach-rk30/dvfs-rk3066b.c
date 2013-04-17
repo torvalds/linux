@@ -36,9 +36,31 @@
 #define CLK_LOOPS_JIFFY_REF 11996091ULL
 #define CLK_LOOPS_RATE_REF (1200) //Mhz
 #define CLK_LOOPS_RECALC(new_rate)  div_u64(CLK_LOOPS_JIFFY_REF*(new_rate),CLK_LOOPS_RATE_REF*MHZ)
-struct clk *clk_cpu_div = NULL, *arm_pll_clk = NULL, *general_pll_clk = NULL;
+struct clk *clk_cpu = NULL, *clk_cpu_div = NULL, *arm_pll_clk = NULL, *general_pll_clk = NULL;
 unsigned long lpj_24m;
 
+struct gate_delay_table {
+	unsigned long arm_perf;
+	unsigned long log_perf;
+	unsigned long delay;
+};
+
+struct cycle_by_rate {
+	unsigned long rate_khz;
+	unsigned long cycle_ns;
+};
+
+struct uoc_val_xx2delay {
+	unsigned long volt;
+	unsigned long perf;
+	unsigned long uoc_val_01;
+	unsigned long uoc_val_11;
+};
+
+struct dvfs_volt_performance {
+	unsigned long	volt;
+	unsigned long	perf;	// Gate performance
+};
 static int rk_dvfs_clk_notifier_event(struct notifier_block *this,
 		unsigned long event, void *ptr)
 {
@@ -132,24 +154,6 @@ static unsigned long dvfs_volt_log_support_table[] = {
 	1300 * 1000,
 };
 
-static struct clk_node *dvfs_clk_cpu;
-static struct vd_node vd_core;
-static struct vd_node vd_cpu;
-struct dvfs_volt_performance {
-	unsigned long	volt;
-	unsigned long	perf;	// Gate performance
-};
-
-struct gate_delay_table {
-	unsigned long arm_perf;
-	unsigned long log_perf;
-	unsigned long delay;
-};
-
-struct cycle_by_rate {
-	unsigned long rate_khz;
-	unsigned long cycle_ns;
-};
 /*
  * 电压 dly_line 每增加0.1V的增量 每增加0.1V增加的比例 与1v对比增加的比例
  * 1.00  128
@@ -215,7 +219,15 @@ int uoc_val = 0;
 #define SIZE_SUPPORT_ARM_VOLT	ARRAY_SIZE(dvfs_volt_arm_support_table)
 #define SIZE_SUPPORT_LOG_VOLT	ARRAY_SIZE(dvfs_volt_log_support_table)
 #define SIZE_VP_TABLE		ARRAY_SIZE(dvfs_vp_table)
+#define SIZE_ARM_FREQ_TABLE	10
+static struct cycle_by_rate rate_cycle[SIZE_ARM_FREQ_TABLE];
+int size_dvfs_arm_table = 0;
 
+static struct clk_node *dvfs_clk_cpu;
+static struct vd_node vd_core;
+static struct vd_node vd_cpu;
+
+static struct uoc_val_xx2delay uoc_val_xx[SIZE_VP_TABLE];
 static struct gate_delay_table gate_delay[SIZE_VP_TABLE][SIZE_VP_TABLE];
 
 static unsigned long dvfs_get_perf_byvolt(unsigned long volt)
@@ -252,9 +264,9 @@ static int dvfs_gate_delay_init(void)
 			gate_delay[i][j].delay = dvfs_get_gate_delay_per_volt(gate_delay[i][j].arm_perf,
 					gate_delay[i][j].log_perf);
 
-			DVFS_DBG("%s: arm_perf=%lu, log_perf=%lu, delay=%lu\n", __func__,
-					gate_delay[i][j].arm_perf, gate_delay[i][j].log_perf,
-					gate_delay[i][j].delay);
+			//DVFS_DBG("%s: arm_perf=%lu, log_perf=%lu, delay=%lu\n", __func__,
+			//		gate_delay[i][j].arm_perf, gate_delay[i][j].log_perf,
+			//		gate_delay[i][j].delay);
 		}
 	return 0;
 }
@@ -276,13 +288,6 @@ static unsigned long dvfs_get_gate_delay(unsigned long arm_perf, unsigned long l
 	//		__func__, gate_delay[i][j].arm_perf , gate_delay[i][j].log_perf , gate_delay[i][j].delay);
 	return gate_delay[i][j].delay;
 }
-struct uoc_val_xx2delay {
-	unsigned long volt;
-	unsigned long perf;
-	unsigned long uoc_val_01;
-	unsigned long uoc_val_11;
-};
-static struct uoc_val_xx2delay uoc_val_xx[SIZE_VP_TABLE];
 static int dvfs_uoc_val_delay_init(void)
 {
 	int i = 0;
@@ -291,8 +296,8 @@ static int dvfs_uoc_val_delay_init(void)
 		uoc_val_xx[i].perf = dvfs_vp_table[i].perf;
 		uoc_val_xx[i].uoc_val_01 = UOC_VAL_01 * 1000 / uoc_val_xx[i].perf;
 		uoc_val_xx[i].uoc_val_11 = UOC_VAL_11 * 1000 / uoc_val_xx[i].perf;
-		DVFS_DBG("%lu, %lu, %lu, %lu\n", uoc_val_xx[i].volt, uoc_val_xx[i].perf,
-				uoc_val_xx[i].uoc_val_01, uoc_val_xx[i].uoc_val_11);
+		//DVFS_DBG("volt=%lu, perf=%lu, uoc_01=%lu, uoc_11=%lu\n", uoc_val_xx[i].volt, uoc_val_xx[i].perf,
+		//		uoc_val_xx[i].uoc_val_01, uoc_val_xx[i].uoc_val_11);
 	}
 	return 0;
 }
@@ -317,38 +322,76 @@ static unsigned long dvfs_get_uoc_val_xx_by_volt(unsigned long uoc_val_xx_delay,
 	DVFS_ERR("%s can not find uoc_val_xx=%lu, with volt=%lu\n", __func__, uoc_val_xx_delay, volt);
 	return uoc_val_xx_delay;
 }
-#define SIZE_ARM_FREQ_TABLE	10
-static struct cycle_by_rate rate_cycle[SIZE_ARM_FREQ_TABLE];
-int size_dvfs_arm_table = 0;
+struct dvfs_volt_uoc {
+	unsigned long	volt_log;
+	unsigned long	volt_arm_new;
+	unsigned long	volt_log_new;
+	int	uoc_val;
+};
+struct dvfs_uoc_val_table {
+	unsigned long	rate_arm;
+	unsigned long	volt_arm;
+	struct dvfs_volt_uoc	vu_list[SIZE_SUPPORT_LOG_VOLT];
+};
+struct dvfs_uoc_val_table dvfs_uoc_val_list[SIZE_ARM_FREQ_TABLE];
+
+static int dvfs_get_uoc_val_init(unsigned long *p_volt_arm_new, unsigned long *p_volt_log_new, 
+		unsigned long rate_khz);
 static int dvfs_with_uoc_init(void)
 {
-	struct cpufreq_frequency_table *arm_freq_table;
+	struct cpufreq_frequency_table *dvfs_arm_table;
 	struct clk *cpu_clk;
-	int i = 0;
+	int i = 0, j = 0;
+	unsigned long arm_volt_save = 0;
 	cpu_clk = clk_get(NULL, "cpu");
 	if (IS_ERR(cpu_clk))
 		return PTR_ERR(cpu_clk);
 
-	arm_freq_table = dvfs_get_freq_volt_table(cpu_clk);
-
+	dvfs_arm_table = dvfs_get_freq_volt_table(cpu_clk);
 	lpj_24m = CLK_LOOPS_RECALC(24 * MHZ);
 	DVFS_DBG("24M=%lu cur_rate=%lu lpj=%lu\n", lpj_24m, arm_pll_clk->rate, loops_per_jiffy);
 	dvfs_gate_delay_init();
 	dvfs_uoc_val_delay_init();
 
-	for (i = 0; arm_freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
+	for (i = 0; dvfs_arm_table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		if (i > SIZE_ARM_FREQ_TABLE - 1) {
 			DVFS_WARNING("mach-rk30/dvfs.c:%s:%d: dvfs arm table to large, use only [%d] frequency\n",
 					__func__, __LINE__, SIZE_ARM_FREQ_TABLE);
 			break;
 		}
-		rate_cycle[i].rate_khz = arm_freq_table[i].frequency;
+		rate_cycle[i].rate_khz = dvfs_arm_table[i].frequency;
 		rate_cycle[i].cycle_ns = (1000UL * VD_DELAY_ZOOM) / (rate_cycle[i].rate_khz / 1000);
 		DVFS_DBG("%s: rate=%lu, cycle_ns=%lu\n",
 				__func__, rate_cycle[i].rate_khz, rate_cycle[i].cycle_ns);
 	}
-
 	size_dvfs_arm_table = i + 1;
+
+	//dvfs_uoc_val_list[];
+	for (i = 0; dvfs_arm_table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		dvfs_uoc_val_list[i].rate_arm = dvfs_arm_table[i].frequency;
+		dvfs_uoc_val_list[i].volt_arm = dvfs_arm_table[i].index;
+		arm_volt_save = dvfs_uoc_val_list[i].volt_arm;
+		for (j = 0; j < SIZE_SUPPORT_LOG_VOLT - 1; j++) {
+			dvfs_uoc_val_list[i].vu_list[j].volt_log = dvfs_volt_log_support_table[j];
+			dvfs_uoc_val_list[i].vu_list[j].volt_arm_new = arm_volt_save;
+			dvfs_uoc_val_list[i].vu_list[j].volt_log_new = dvfs_uoc_val_list[i].vu_list[j].volt_log;
+			//DVFS_DBG("%s: Rarm=%lu,Varm=%lu,Vlog=%lu\n", __func__,
+			//		dvfs_uoc_val_list[i].rate_arm, dvfs_uoc_val_list[i].volt_arm,
+			//		dvfs_uoc_val_list[i].vu_list[j].volt_log);
+
+			dvfs_uoc_val_list[i].vu_list[j].uoc_val = dvfs_get_uoc_val_init(
+					&dvfs_uoc_val_list[i].vu_list[j].volt_arm_new, 
+					&dvfs_uoc_val_list[i].vu_list[j].volt_log_new, 
+					dvfs_uoc_val_list[i].rate_arm);
+			DVFS_DBG("%s: Rarm=%lu,(Varm=%lu,Vlog=%lu)--->(Vn_arm=%lu,Vn_log=%lu), uoc=%d\n", __func__,
+					dvfs_uoc_val_list[i].rate_arm, dvfs_uoc_val_list[i].volt_arm,
+					dvfs_uoc_val_list[i].vu_list[j].volt_log,
+					dvfs_uoc_val_list[i].vu_list[j].volt_arm_new, 
+					dvfs_uoc_val_list[i].vu_list[j].volt_log_new, 
+					dvfs_uoc_val_list[i].vu_list[j].uoc_val);
+			mdelay(10);
+		}
+	}
 
 	return 0;
 }
@@ -420,7 +463,7 @@ static unsigned long dvfs_recalc_volt(unsigned long *p_volt_arm_new, unsigned lo
 	return curr_delay;
 }
 
-static int dvfs_get_uoc_val(unsigned long *p_volt_arm_new, unsigned long *p_volt_log_new, unsigned long rate_khz)
+static int dvfs_get_uoc_val_init(unsigned long *p_volt_arm_new, unsigned long *p_volt_log_new, unsigned long rate_khz)
 {
 	int uoc_val = 0;
 	unsigned long arm_perf = 0, log_perf = 0;
@@ -456,23 +499,24 @@ static int dvfs_get_uoc_val(unsigned long *p_volt_arm_new, unsigned long *p_volt
 		curr_delay = dvfs_recalc_volt(p_volt_arm_new, p_volt_log_new, arm_perf, log_perf,
 				hold, setup, UOC_NEED_INCREASE_LOG);
 
-		log_perf = dvfs_get_perf_byvolt(*p_volt_log_new);
+		//log_perf = dvfs_get_perf_byvolt(*p_volt_log_new);
+		uoc_val_01 = dvfs_get_uoc_val_xx_by_volt(UOC_VAL_01, *p_volt_log_new);
 		uoc_val_11 = dvfs_get_uoc_val_xx_by_volt(UOC_VAL_11, *p_volt_log_new);
 
 	} else if (curr_delay >= setup) {
 		DVFS_DBG("%s Need to increase arm voltage\n", __func__);
 		curr_delay = dvfs_recalc_volt(p_volt_arm_new, p_volt_log_new, arm_perf, log_perf,
 				hold, setup, UOC_NEED_INCREASE_ARM);
-		arm_perf = dvfs_get_perf_byvolt(*p_volt_arm_new);
-		uoc_val_01 = dvfs_get_uoc_val_xx_by_volt(UOC_VAL_01, *p_volt_log_new);
+		//arm_perf = dvfs_get_perf_byvolt(*p_volt_arm_new);
 	}
 
-	DVFS_DBG("%s TARGET VOLT:arm(%lu), log(%lu);\tget perf arm(%lu), log(%lu)\n", __func__,
-			*p_volt_arm_new, *p_volt_log_new, arm_perf, log_perf);
+	DVFS_DBG("TARGET VOLT:arm(%lu), log(%lu);\tget perf arm(%lu), log(%lu)\n",
+			*p_volt_arm_new, *p_volt_log_new, 
+			dvfs_get_perf_byvolt(*p_volt_arm_new), dvfs_get_perf_byvolt(*p_volt_log_new));
 	// update uoc_val_01/11 with new volt
-	//DVFS_DBG("%s cycle=%lu, hold-val11=%lu, hold-val01=%lu, (hold=%lu, setup=%lu), curr_delay=%lu\n",
-	//		__func__, cycle, get_uoc_delay(hold, uoc_val_11), get_uoc_delay(hold, uoc_val_01),
-	//		hold, setup, curr_delay);
+	DVFS_DBG("cycle=%lu, hold-val11=%lu, hold-val01=%lu, (hold=%lu, setup=%lu), curr_delay=%lu\n",
+			cycle, get_uoc_delay(hold, uoc_val_11), get_uoc_delay(hold, uoc_val_01),
+			hold, setup, curr_delay);
 	if (curr_delay > hold && curr_delay < setup)
 		uoc_val = 0;
 	else if (curr_delay <= hold && curr_delay > get_uoc_delay(hold, uoc_val_01))
@@ -483,6 +527,28 @@ static int dvfs_get_uoc_val(unsigned long *p_volt_arm_new, unsigned long *p_volt
 	DVFS_DBG("%s curr_delay=%lu, uoc_val=%d\n", __func__, curr_delay, uoc_val);
 
 	return uoc_val;
+}
+static int dvfs_get_uoc_val(unsigned long *p_volt_arm_new, unsigned long *p_volt_log_new, 
+		unsigned long rate_khz)
+{	
+	int i = 0, j = 0;
+	for (i = 0; i < size_dvfs_arm_table; i++) {
+		if (dvfs_uoc_val_list[i].rate_arm != rate_khz)
+			continue;
+		for (j = 0; j < SIZE_SUPPORT_LOG_VOLT - 1; j++) {
+			if (dvfs_uoc_val_list[i].vu_list[j].volt_log < *p_volt_log_new)
+				continue;
+			*p_volt_arm_new = dvfs_uoc_val_list[i].vu_list[j].volt_arm_new;
+			*p_volt_log_new = dvfs_uoc_val_list[i].vu_list[j].volt_log_new;
+			DVFS_DBG("%s: Varm_set=%lu, Vlog_set=%lu, uoc=%d\n", __func__,
+					*p_volt_arm_new, *p_volt_log_new,
+					dvfs_uoc_val_list[i].vu_list[j].uoc_val);
+			return dvfs_uoc_val_list[i].vu_list[j].uoc_val;
+		}
+	}
+	DVFS_ERR("%s: can not get uoc_val(Va=%lu, Vl=%lu, Ra=%lu)\n", __func__, 
+			*p_volt_arm_new, *p_volt_log_new, rate_khz);
+	return -1;
 }
 static int dvfs_set_uoc_val(int uoc_val)
 {
@@ -520,7 +586,9 @@ static int dvfs_balance_volt(unsigned long volt_arm_old, unsigned long volt_log_
 		DVFS_ERR("%s error, volt_arm_old=%lu, volt_log_old=%lu\n", __func__, volt_arm_old, volt_log_old);
 	return ret;
 }
-
+#if 0
+// use 24M to switch uoc bits
+static int uoc_pre = 0;
 static int dvfs_scale_volt_rate_with_uoc(
 		unsigned long volt_arm_new, unsigned long volt_log_new,
 		unsigned long volt_arm_old, unsigned long volt_log_old,
@@ -534,56 +602,126 @@ static int dvfs_scale_volt_rate_with_uoc(
 			rate_arm_new);
 	axi_div = readl_relaxed(RK30_CRU_BASE + CRU_CLKSELS_CON(1));
 	uoc_val = dvfs_get_uoc_val(&volt_arm_new, &volt_log_new, rate_arm_new);
-	local_irq_save(flags);
-	lpj_save = loops_per_jiffy;
+	if (uoc_val == uoc_pre) {
+		dvfs_scale_volt_bystep(&vd_cpu, &vd_core, volt_arm_new, volt_log_new,
+				100 * 1000, 100 * 1000,
+				volt_arm_new > volt_log_new ? (volt_arm_new - volt_log_new) : 0,
+				volt_log_new > volt_arm_new ? (volt_log_new - volt_arm_new) : 0);
+	} else {
 
-	//arm slow mode
-	writel_relaxed(PLL_MODE_SLOW(APLL_ID), RK30_CRU_BASE + CRU_MODE_CON);
-	loops_per_jiffy = lpj_24m;
-	smp_wmb();
+		//local_irq_save(flags);
+		preempt_disable();
+		u32 t[10];
+		t[0] = readl_relaxed(RK30_TIMER1_BASE + 4);
+		lpj_save = loops_per_jiffy;
 
-	arm_pll_clk->rate = arm_pll_clk->recalc(arm_pll_clk);
+		//arm slow mode
+		writel_relaxed(PLL_MODE_SLOW(APLL_ID), RK30_CRU_BASE + CRU_MODE_CON);
+		loops_per_jiffy = lpj_24m;
+		smp_wmb();
 
-	//cpu_axi parent to apll
-	//writel_relaxed(0x00200000, RK30_CRU_BASE + CRU_CLKSELS_CON(0));
-	clk_set_parent_nolock(clk_cpu_div, arm_pll_clk);
+		arm_pll_clk->rate = arm_pll_clk->recalc(arm_pll_clk);
 
-	//set axi/ahb/apb to 1:1:1
-	writel_relaxed(axi_div & (~(0x3 << 0)) & (~(0x3 << 8)) & (~(0x3 << 12)), RK30_CRU_BASE + CRU_CLKSELS_CON(1));
+		//cpu_axi parent to apll
+		//writel_relaxed(0x00200000, RK30_CRU_BASE + CRU_CLKSELS_CON(0));
+		clk_set_parent_nolock(clk_cpu_div, arm_pll_clk);
 
-	/*********************/
-	//balance voltage before set UOC bits
-	dvfs_balance_volt(volt_arm_old, volt_log_old);
+		//set axi/ahb/apb to 1:1:1
+		writel_relaxed(axi_div & (~(0x3 << 0)) & (~(0x3 << 8)) & (~(0x3 << 12)), RK30_CRU_BASE + CRU_CLKSELS_CON(1));
 
-	//set UOC bits
-	dvfs_set_uoc_val(uoc_val);
+		t[1] = readl_relaxed(RK30_TIMER1_BASE + 4);
+		/*********************/
+		//balance voltage before set UOC bits
+		dvfs_balance_volt(volt_arm_old, volt_log_old);
+		t[2] = readl_relaxed(RK30_TIMER1_BASE + 4);
 
-	//voltage up
-	dvfs_scale_volt_bystep(&vd_cpu, &vd_core, volt_arm_new, volt_log_new,
-			100 * 1000, 100 * 1000,
-			volt_arm_new > volt_log_new ? (volt_arm_new - volt_log_new) : 0,
-			volt_log_new > volt_arm_new ? (volt_log_new - volt_arm_new) : 0);
+		//set UOC bits
+		dvfs_set_uoc_val(uoc_val);
+		t[3] = readl_relaxed(RK30_TIMER1_BASE + 4);
 
-	/*********************/
-	//set axi/ahb/apb to default
-	writel_relaxed(axi_div, RK30_CRU_BASE + CRU_CLKSELS_CON(1));
+		//voltage up
+		dvfs_scale_volt_bystep(&vd_cpu, &vd_core, volt_arm_new, volt_log_new,
+				100 * 1000, 100 * 1000,
+				volt_arm_new > volt_log_new ? (volt_arm_new - volt_log_new) : 0,
+				volt_log_new > volt_arm_new ? (volt_log_new - volt_arm_new) : 0);
+		t[4] = readl_relaxed(RK30_TIMER1_BASE + 4);
 
-	//cpu_axi parent to gpll
-	//writel_relaxed(0x00200020, RK30_CRU_BASE + CRU_CLKSELS_CON(0));
-	clk_set_parent_nolock(clk_cpu_div, general_pll_clk);
+		/*********************/
+		//set axi/ahb/apb to default
+		writel_relaxed(axi_div, RK30_CRU_BASE + CRU_CLKSELS_CON(1));
 
-	//arm normal mode
-	writel_relaxed(PLL_MODE_NORM(APLL_ID), RK30_CRU_BASE + CRU_MODE_CON);
-	loops_per_jiffy = lpj_save;
-	smp_wmb();
+		//cpu_axi parent to gpll
+		//writel_relaxed(0x00200020, RK30_CRU_BASE + CRU_CLKSELS_CON(0));
+		clk_set_parent_nolock(clk_cpu_div, general_pll_clk);
 
-	arm_pll_clk->rate = arm_pll_clk->recalc(arm_pll_clk);
+		//arm normal mode
+		writel_relaxed(PLL_MODE_NORM(APLL_ID), RK30_CRU_BASE + CRU_MODE_CON);
+		loops_per_jiffy = lpj_save;
+		smp_wmb();
 
-	local_irq_restore(flags);
+		arm_pll_clk->rate = arm_pll_clk->recalc(arm_pll_clk);
 
+		t[5] = readl_relaxed(RK30_TIMER1_BASE + 4);
+		preempt_enable();
+		//local_irq_restore(flags);
+		DVFS_DBG(KERN_DEBUG "T %d %d %d %d %d\n", t[0] - t[1], t[1] - t[2], t[2] - t[3], t[3] - t[4], t[4] - t[5]);
+		uoc_pre = uoc_val;
+	}
 	return 0;
 }
+#else
+// use 312M to switch uoc bits
+static int uoc_pre = 0;
+static int dvfs_scale_volt_rate_with_uoc(
+		unsigned long volt_arm_new, unsigned long volt_log_new,
+		unsigned long volt_arm_old, unsigned long volt_log_old,
+		unsigned long rate_arm_new)
+{
+	int uoc_val = 0;
+	unsigned long arm_freq = 0;
+	uoc_val = dvfs_get_uoc_val(&volt_arm_new, &volt_log_new, rate_arm_new);
+	DVFS_DBG("Va_new=%lu uV, Vl_new=%lu uV;(was Va_old=%lu uV, Vl_old=%lu uV); Ra_new=%luHz, uoc=%d\n",
+			volt_arm_new, volt_log_new, volt_arm_old, volt_log_old, rate_arm_new, uoc_val);
+	if (uoc_val == uoc_pre) {
+		dvfs_scale_volt_bystep(&vd_cpu, &vd_core, volt_arm_new, volt_log_new,
+				100 * 1000, 100 * 1000,
+				volt_arm_new > volt_log_new ? (volt_arm_new - volt_log_new) : 0,
+				volt_log_new > volt_arm_new ? (volt_log_new - volt_arm_new) : 0);
+	} else {
+		//save arm freq
+		arm_freq = clk_get_rate(clk_cpu);
+		target_set_rate(dvfs_clk_cpu, 312 * MHZ);
 
+		//cpu_axi parent to apll
+		//writel_relaxed(0x00200000, RK30_CRU_BASE + CRU_CLKSELS_CON(0));
+		clk_set_parent_nolock(clk_cpu_div, arm_pll_clk);
+
+		/*********************/
+		//balance voltage before set UOC bits
+		dvfs_balance_volt(volt_arm_old, volt_log_old);
+
+		//set UOC bits
+		dvfs_set_uoc_val(uoc_val);
+
+		//voltage up
+		dvfs_scale_volt_bystep(&vd_cpu, &vd_core, volt_arm_new, volt_log_new,
+				100 * 1000, 100 * 1000,
+				volt_arm_new > volt_log_new ? (volt_arm_new - volt_log_new) : 0,
+				volt_log_new > volt_arm_new ? (volt_log_new - volt_arm_new) : 0);
+
+		/*********************/
+		//cpu_axi parent to gpll
+		//writel_relaxed(0x00200020, RK30_CRU_BASE + CRU_CLKSELS_CON(0));
+		clk_set_parent_nolock(clk_cpu_div, general_pll_clk);
+
+		//reset arm freq as normal freq
+		target_set_rate(dvfs_clk_cpu, arm_freq);
+
+		uoc_pre = uoc_val;
+	}
+	return 0;
+}
+#endif
 int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 {
 	struct clk_node *dvfs_clk;
@@ -953,6 +1091,11 @@ int rk_dvfs_init(void)
 		rk_regist_depends(&rk30_depends[i]);
 	}
 	dvfs_clk_cpu = dvfs_get_dvfs_clk_byname("cpu");
+	clk_cpu = clk_get(NULL, "cpu");
+	if (IS_ERR_OR_NULL(clk_cpu)) {
+		DVFS_ERR("%s get clk_cpu error\n", __func__);
+		return -1;
+	}
 
 	clk_cpu_div = clk_get(NULL, "logic");
 	if (IS_ERR_OR_NULL(clk_cpu_div)) {
