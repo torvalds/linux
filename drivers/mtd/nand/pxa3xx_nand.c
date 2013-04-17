@@ -1072,7 +1072,9 @@ static int alloc_nand_resource(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get nand clock\n");
 		return PTR_ERR(info->clk);
 	}
-	clk_prepare_enable(info->clk);
+	ret = clk_prepare_enable(info->clk);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * This is a dirty hack to make this driver work from devicetree
