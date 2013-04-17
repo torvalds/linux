@@ -1055,6 +1055,18 @@ static const struct pinctrl_map eva_pinctrl_map[] = {
 				  "ceu0_sync", "ceu0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-r8a7740",
 				  "ceu0_field", "ceu0"),
+	/* FSIA */
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-r8a7740",
+				  "fsia_sclk_in", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-r8a7740",
+				  "fsia_mclk_out", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-r8a7740",
+				  "fsia_data_in_1", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-r8a7740",
+				  "fsia_data_out_0", "fsia"),
+	/* FSIB */
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.1", "pfc-r8a7740",
+				  "fsib_mclk_in", "fsib"),
 	/* GETHER */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh-eth", "pfc-r8a7740",
 				  "gether_mii", "gether"),
@@ -1181,19 +1193,10 @@ static void __init eva_init(void)
 	gpio_request_one(158, GPIOF_OUT_INIT_LOW, NULL);  /* CAM_PON */
 
 	/* FSI-WM8978 */
-	gpio_request(GPIO_FN_FSIAIBT,		NULL);
-	gpio_request(GPIO_FN_FSIAILR,		NULL);
-	gpio_request(GPIO_FN_FSIAOMC,		NULL);
-	gpio_request(GPIO_FN_FSIAOSLD,		NULL);
-	gpio_request(GPIO_FN_FSIAISLD_PORT5,	NULL);
-
 	gpio_request(7, NULL);
 	gpio_request(8, NULL);
 	gpio_direction_none(GPIO_PORT7CR); /* FSIAOBT needs no direction */
 	gpio_direction_none(GPIO_PORT8CR); /* FSIAOLR needs no direction */
-
-	/* FSI-HDMI */
-	gpio_request(GPIO_FN_FSIBCK,		NULL);
 
 	/* HDMI */
 	gpio_request(GPIO_FN_HDMI_HPD,		NULL);
