@@ -154,6 +154,12 @@ enum palmas_regulators {
 	PALMAS_REG_LDO9,
 	PALMAS_REG_LDOLN,
 	PALMAS_REG_LDOUSB,
+	/* External regulators */
+	PALMAS_REG_REGEN1,
+	PALMAS_REG_REGEN2,
+	PALMAS_REG_REGEN3,
+	PALMAS_REG_SYSEN1,
+	PALMAS_REG_SYSEN2,
 	/* Total number of regulators */
 	PALMAS_NUM_REGS,
 };

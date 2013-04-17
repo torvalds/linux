@@ -165,6 +165,26 @@ static const struct regs_info palmas_regs_info[] = {
 		.vsel_addr	= PALMAS_LDOUSB_VOLTAGE,
 		.ctrl_addr	= PALMAS_LDOUSB_CTRL,
 	},
+	{
+		.name		= "REGEN1",
+		.ctrl_addr	= PALMAS_REGEN1_CTRL,
+	},
+	{
+		.name		= "REGEN2",
+		.ctrl_addr	= PALMAS_REGEN2_CTRL,
+	},
+	{
+		.name		= "REGEN3",
+		.ctrl_addr	= PALMAS_REGEN3_CTRL,
+	},
+	{
+		.name		= "SYSEN1",
+		.ctrl_addr	= PALMAS_SYSEN1_CTRL,
+	},
+	{
+		.name		= "SYSEN2",
+		.ctrl_addr	= PALMAS_SYSEN2_CTRL,
+	},
 };
 
 #define SMPS_CTRL_MODE_OFF		0x00
@@ -422,6 +442,12 @@ static struct regulator_ops palmas_ops_ldo = {
 	.map_voltage		= regulator_map_voltage_linear,
 };
 
+static struct regulator_ops palmas_ops_extreg = {
+	.is_enabled		= regulator_is_enabled_regmap,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
+};
+
 /*
  * setup the hardware based sleep configuration of the SMPS/LDO regulators
  * from the platform data. This is different to the software based control
@@ -523,6 +549,28 @@ static int palmas_ldo_init(struct palmas *palmas, int id,
 	return 0;
 }
 
+static int palmas_extreg_init(struct palmas *palmas, int id,
+		struct palmas_reg_init *reg_init)
+{
+	unsigned int addr;
+	int ret;
+	unsigned int val = 0;
+
+	addr = palmas_regs_info[id].ctrl_addr;
+
+	if (reg_init->mode_sleep)
+		val = PALMAS_REGEN1_CTRL_MODE_SLEEP;
+
+	ret = palmas_update_bits(palmas, PALMAS_RESOURCE_BASE,
+			addr, PALMAS_REGEN1_CTRL_MODE_SLEEP, val);
+	if (ret < 0) {
+		dev_err(palmas->dev, "Resource reg 0x%02x update failed %d\n",
+			addr, ret);
+		return ret;
+	}
+	return 0;
+}
+
 static struct of_regulator_match palmas_matches[] = {
 	{ .name = "smps12", },
 	{ .name = "smps123", },
@@ -545,6 +593,11 @@ static struct of_regulator_match palmas_matches[] = {
 	{ .name = "ldo9", },
 	{ .name = "ldoln", },
 	{ .name = "ldousb", },
+	{ .name = "regen1", },
+	{ .name = "regen2", },
+	{ .name = "regen3", },
+	{ .name = "sysen1", },
+	{ .name = "sysen2", },
 };
 
 static void palmas_dt_to_pdata(struct device *dev,
@@ -763,21 +816,34 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 		/* Register the regulators */
 		pmic->desc[id].name = palmas_regs_info[id].name;
 		pmic->desc[id].id = id;
-		pmic->desc[id].n_voltages = PALMAS_LDO_NUM_VOLTAGES;
-
-		pmic->desc[id].ops = &palmas_ops_ldo;
-
 		pmic->desc[id].type = REGULATOR_VOLTAGE;
 		pmic->desc[id].owner = THIS_MODULE;
-		pmic->desc[id].min_uV = 900000;
-		pmic->desc[id].uV_step = 50000;
-		pmic->desc[id].linear_min_sel = 1;
-		pmic->desc[id].vsel_reg = PALMAS_BASE_TO_REG(PALMAS_LDO_BASE,
+
+		if (id < PALMAS_REG_REGEN1) {
+			pmic->desc[id].n_voltages = PALMAS_LDO_NUM_VOLTAGES;
+			pmic->desc[id].ops = &palmas_ops_ldo;
+			pmic->desc[id].min_uV = 900000;
+			pmic->desc[id].uV_step = 50000;
+			pmic->desc[id].linear_min_sel = 1;
+			pmic->desc[id].vsel_reg =
+					PALMAS_BASE_TO_REG(PALMAS_LDO_BASE,
 						palmas_regs_info[id].vsel_addr);
-		pmic->desc[id].vsel_mask = PALMAS_LDO1_VOLTAGE_VSEL_MASK;
-		pmic->desc[id].enable_reg = PALMAS_BASE_TO_REG(PALMAS_LDO_BASE,
+			pmic->desc[id].vsel_mask =
+					PALMAS_LDO1_VOLTAGE_VSEL_MASK;
+			pmic->desc[id].enable_reg =
+					PALMAS_BASE_TO_REG(PALMAS_LDO_BASE,
 						palmas_regs_info[id].ctrl_addr);
-		pmic->desc[id].enable_mask = PALMAS_LDO1_CTRL_MODE_ACTIVE;
+			pmic->desc[id].enable_mask =
+					PALMAS_LDO1_CTRL_MODE_ACTIVE;
+		} else {
+			pmic->desc[id].n_voltages = 1;
+			pmic->desc[id].ops = &palmas_ops_extreg;
+			pmic->desc[id].enable_reg =
+					PALMAS_BASE_TO_REG(PALMAS_RESOURCE_BASE,
+						palmas_regs_info[id].ctrl_addr);
+			pmic->desc[id].enable_mask =
+					PALMAS_REGEN1_CTRL_MODE_ACTIVE;
+		}
 
 		if (pdata)
 			config.init_data = pdata->reg_data[id];
@@ -803,7 +869,12 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 		if (pdata) {
 			reg_init = pdata->reg_init[id];
 			if (reg_init) {
-				ret = palmas_ldo_init(palmas, id, reg_init);
+				if (id < PALMAS_REG_REGEN1)
+					ret = palmas_ldo_init(palmas,
+							id, reg_init);
+				else
+					ret = palmas_extreg_init(palmas,
+							id, reg_init);
 				if (ret) {
 					regulator_unregister(pmic->rdev[id]);
 					goto err_unregister_regulator;
