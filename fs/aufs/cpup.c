@@ -444,7 +444,6 @@ out:
 	return err;
 }
 
-/* return with the lower dst inode is locked */
 static noinline_for_stack
 int cpup_entry(struct au_cpup_basic *basic, unsigned int flags,
 	       struct dentry *dst_parent)
