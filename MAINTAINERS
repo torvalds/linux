@@ -7905,6 +7905,7 @@ Q:      https://patchwork.kernel.org/project/linux-pm/list/
 S:      Supported
 F:      drivers/thermal/
 F:      include/linux/thermal.h
+F:      include/linux/cpu_cooling.h
 
 THINGM BLINK(1) USB RGB LED DRIVER
 M:	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
