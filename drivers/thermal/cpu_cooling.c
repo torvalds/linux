@@ -270,7 +270,7 @@ static unsigned int get_cpu_frequency(unsigned int cpu, unsigned long level)
  * cooling state).
  */
 static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
-				unsigned long cooling_state)
+				 unsigned long cooling_state)
 {
 	unsigned int cpuid, clip_freq;
 	struct cpumask *mask = &cpufreq_device->allowed_cpus;
@@ -312,7 +312,7 @@ static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
  * Return: 0 (success)
  */
 static int cpufreq_thermal_notifier(struct notifier_block *nb,
-					unsigned long event, void *data)
+				    unsigned long event, void *data)
 {
 	struct cpufreq_policy *policy = data;
 	unsigned long max_freq = 0;
@@ -425,8 +425,8 @@ static struct notifier_block thermal_cpufreq_notifier_block = {
  * Return: a valid struct thermal_cooling_device pointer on success,
  * on failure, it returns a corresponding ERR_PTR().
  */
-struct thermal_cooling_device *cpufreq_cooling_register(
-	const struct cpumask *clip_cpus)
+struct thermal_cooling_device *
+cpufreq_cooling_register(const struct cpumask *clip_cpus)
 {
 	struct thermal_cooling_device *cool_dev;
 	struct cpufreq_cooling_device *cpufreq_dev = NULL;
@@ -445,12 +445,12 @@ struct thermal_cooling_device *cpufreq_cooling_register(
 			max = policy.cpuinfo.max_freq;
 		} else {
 			if (min != policy.cpuinfo.min_freq ||
-				max != policy.cpuinfo.max_freq)
+			    max != policy.cpuinfo.max_freq)
 				return ERR_PTR(-EINVAL);
 		}
 	}
 	cpufreq_dev = kzalloc(sizeof(struct cpufreq_cooling_device),
-			GFP_KERNEL);
+			      GFP_KERNEL);
 	if (!cpufreq_dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -466,7 +466,7 @@ struct thermal_cooling_device *cpufreq_cooling_register(
 		 cpufreq_dev->id);
 
 	cool_dev = thermal_cooling_device_register(dev_name, cpufreq_dev,
-						&cpufreq_cooling_ops);
+						   &cpufreq_cooling_ops);
 	if (!cool_dev) {
 		release_idr(&cpufreq_idr, cpufreq_dev->id);
 		kfree(cpufreq_dev);
@@ -479,7 +479,7 @@ struct thermal_cooling_device *cpufreq_cooling_register(
 	/* Register the notifier for first cpufreq cooling device */
 	if (cpufreq_dev_count == 0)
 		cpufreq_register_notifier(&thermal_cpufreq_notifier_block,
-						CPUFREQ_POLICY_NOTIFIER);
+					  CPUFREQ_POLICY_NOTIFIER);
 	cpufreq_dev_count++;
 
 	mutex_unlock(&cooling_cpufreq_lock);
@@ -504,8 +504,7 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 	/* Unregister the notifier for the last cpufreq cooling device */
 	if (cpufreq_dev_count == 0)
 		cpufreq_unregister_notifier(&thermal_cpufreq_notifier_block,
-					CPUFREQ_POLICY_NOTIFIER);
-
+					    CPUFREQ_POLICY_NOTIFIER);
 	mutex_unlock(&cooling_cpufreq_lock);
 
 	thermal_cooling_device_unregister(cpufreq_dev->cool_dev);
