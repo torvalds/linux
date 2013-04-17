@@ -19,6 +19,7 @@
 #ifndef VPORT_H
 #define VPORT_H 1
 
+#include <linux/if_tunnel.h>
 #include <linux/list.h>
 #include <linux/netlink.h>
 #include <linux/openvswitch.h>
@@ -49,14 +50,6 @@ int ovs_vport_get_options(const struct vport *, struct sk_buff *);
 int ovs_vport_send(struct vport *, struct sk_buff *);
 
 /* The following definitions are for implementers of vport devices: */
-
-struct vport_percpu_stats {
-	u64 rx_bytes;
-	u64 rx_packets;
-	u64 tx_bytes;
-	u64 tx_packets;
-	struct u64_stats_sync sync;
-};
 
 struct vport_err_stats {
 	u64 rx_dropped;
@@ -89,7 +82,7 @@ struct vport {
 	struct hlist_node dp_hash_node;
 	const struct vport_ops *ops;
 
-	struct vport_percpu_stats __percpu *percpu_stats;
+	struct pcpu_tstats __percpu *percpu_stats;
 
 	spinlock_t stats_lock;
 	struct vport_err_stats err_stats;
@@ -138,14 +131,14 @@ struct vport_parms {
 struct vport_ops {
 	enum ovs_vport_type type;
 
-	/* Called with RTNL lock. */
+	/* Called with ovs_mutex. */
 	struct vport *(*create)(const struct vport_parms *);
 	void (*destroy)(struct vport *);
 
 	int (*set_options)(struct vport *, struct nlattr *);
 	int (*get_options)(const struct vport *, struct sk_buff *);
 
-	/* Called with rcu_read_lock or RTNL lock. */
+	/* Called with rcu_read_lock or ovs_mutex. */
 	const char *(*get_name)(const struct vport *);
 	void (*get_config)(const struct vport *, void *);
 	int (*get_ifindex)(const struct vport *);
