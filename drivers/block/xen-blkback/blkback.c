@@ -50,20 +50,6 @@
 #include "common.h"
 
 /*
- * These are rather arbitrary. They are fairly large because adjacent requests
- * pulled from a communication ring are quite likely to end up being part of
- * the same scatter/gather request at the disc.
- *
- * ** TRY INCREASING 'xen_blkif_reqs' IF WRITE SPEEDS SEEM TOO LOW **
- *
- * This will increase the chances of being able to write whole tracks.
- * 64 should be enough to keep us competitive with Linux.
- */
-static int xen_blkif_reqs = 64;
-module_param_named(reqs, xen_blkif_reqs, int, 0);
-MODULE_PARM_DESC(reqs, "Number of blkback requests to allocate");
-
-/*
  * Maximum number of unused free pages to keep in the internal buffer.
  * Setting this to a value too low will reduce memory used in each backend,
  * but can have a performance penalty.
@@ -112,52 +98,10 @@ MODULE_PARM_DESC(max_persistent_grants,
 static unsigned int log_stats;
 module_param(log_stats, int, 0644);
 
-/*
- * Each outstanding request that we've passed to the lower device layers has a
- * 'pending_req' allocated to it. Each buffer_head that completes decrements
- * the pendcnt towards zero. When it hits zero, the specified domain has a
- * response queued for it, with the saved 'id' passed back.
- */
-struct pending_req {
-	struct xen_blkif	*blkif;
-	u64			id;
-	int			nr_pages;
-	atomic_t		pendcnt;
-	unsigned short		operation;
-	int			status;
-	struct list_head	free_list;
-	struct page		*pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-	struct persistent_gnt	*persistent_gnts[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-	grant_handle_t		grant_handles[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-};
-
 #define BLKBACK_INVALID_HANDLE (~0)
 
 /* Number of free pages to remove on each call to free_xenballooned_pages */
 #define NUM_BATCH_FREE_PAGES 10
-
-struct xen_blkbk {
-	struct pending_req	*pending_reqs;
-	/* List of all 'pending_req' available */
-	struct list_head	pending_free;
-	/* And its spinlock. */
-	spinlock_t		pending_free_lock;
-	wait_queue_head_t	pending_free_wq;
-};
-
-static struct xen_blkbk *blkbk;
-
-/*
- * Little helpful macro to figure out the index and virtual address of the
- * pending_pages[..]. For each 'pending_req' we have have up to
- * BLKIF_MAX_SEGMENTS_PER_REQUEST (11) pages. The seg would be from 0 through
- * 10 and would index in the pending_pages[..].
- */
-static inline int vaddr_pagenr(struct pending_req *req, int seg)
-{
-	return (req - blkbk->pending_reqs) *
-		BLKIF_MAX_SEGMENTS_PER_REQUEST + seg;
-}
 
 static inline int get_free_page(struct xen_blkif *blkif, struct page **page)
 {
@@ -485,18 +429,18 @@ finished:
 /*
  * Retrieve from the 'pending_reqs' a free pending_req structure to be used.
  */
-static struct pending_req *alloc_req(void)
+static struct pending_req *alloc_req(struct xen_blkif *blkif)
 {
 	struct pending_req *req = NULL;
 	unsigned long flags;
 
-	spin_lock_irqsave(&blkbk->pending_free_lock, flags);
-	if (!list_empty(&blkbk->pending_free)) {
-		req = list_entry(blkbk->pending_free.next, struct pending_req,
+	spin_lock_irqsave(&blkif->pending_free_lock, flags);
+	if (!list_empty(&blkif->pending_free)) {
+		req = list_entry(blkif->pending_free.next, struct pending_req,
 				 free_list);
 		list_del(&req->free_list);
 	}
-	spin_unlock_irqrestore(&blkbk->pending_free_lock, flags);
+	spin_unlock_irqrestore(&blkif->pending_free_lock, flags);
 	return req;
 }
 
@@ -504,17 +448,17 @@ static struct pending_req *alloc_req(void)
  * Return the 'pending_req' structure back to the freepool. We also
  * wake up the thread if it was waiting for a free page.
  */
-static void free_req(struct pending_req *req)
+static void free_req(struct xen_blkif *blkif, struct pending_req *req)
 {
 	unsigned long flags;
 	int was_empty;
 
-	spin_lock_irqsave(&blkbk->pending_free_lock, flags);
-	was_empty = list_empty(&blkbk->pending_free);
-	list_add(&req->free_list, &blkbk->pending_free);
-	spin_unlock_irqrestore(&blkbk->pending_free_lock, flags);
+	spin_lock_irqsave(&blkif->pending_free_lock, flags);
+	was_empty = list_empty(&blkif->pending_free);
+	list_add(&req->free_list, &blkif->pending_free);
+	spin_unlock_irqrestore(&blkif->pending_free_lock, flags);
 	if (was_empty)
-		wake_up(&blkbk->pending_free_wq);
+		wake_up(&blkif->pending_free_wq);
 }
 
 /*
@@ -649,8 +593,8 @@ int xen_blkif_schedule(void *arg)
 		if (timeout == 0)
 			goto purge_gnt_list;
 		timeout = wait_event_interruptible_timeout(
-			blkbk->pending_free_wq,
-			!list_empty(&blkbk->pending_free) ||
+			blkif->pending_free_wq,
+			!list_empty(&blkif->pending_free) ||
 			kthread_should_stop(),
 			timeout);
 		if (timeout == 0)
@@ -907,7 +851,7 @@ static int dispatch_other_io(struct xen_blkif *blkif,
 			     struct blkif_request *req,
 			     struct pending_req *pending_req)
 {
-	free_req(pending_req);
+	free_req(blkif, pending_req);
 	make_response(blkif, req->u.other.id, req->operation,
 		      BLKIF_RSP_EOPNOTSUPP);
 	return -EIO;
@@ -967,7 +911,7 @@ static void __end_block_io_op(struct pending_req *pending_req, int error)
 			if (atomic_read(&pending_req->blkif->drain))
 				complete(&pending_req->blkif->drain_complete);
 		}
-		free_req(pending_req);
+		free_req(pending_req->blkif, pending_req);
 	}
 }
 
@@ -1010,7 +954,7 @@ __do_block_io_op(struct xen_blkif *blkif)
 			break;
 		}
 
-		pending_req = alloc_req();
+		pending_req = alloc_req(blkif);
 		if (NULL == pending_req) {
 			blkif->st_oo_req++;
 			more_to_do = 1;
@@ -1044,7 +988,7 @@ __do_block_io_op(struct xen_blkif *blkif)
 				goto done;
 			break;
 		case BLKIF_OP_DISCARD:
-			free_req(pending_req);
+			free_req(blkif, pending_req);
 			if (dispatch_discard_io(blkif, &req))
 				goto done;
 			break;
@@ -1246,7 +1190,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
  fail_response:
 	/* Haven't submitted any bio's yet. */
 	make_response(blkif, req->u.rw.id, req->operation, BLKIF_RSP_ERROR);
-	free_req(pending_req);
+	free_req(blkif, pending_req);
 	msleep(1); /* back off a bit */
 	return -EIO;
 
@@ -1303,51 +1247,20 @@ static void make_response(struct xen_blkif *blkif, u64 id,
 
 static int __init xen_blkif_init(void)
 {
-	int i;
 	int rc = 0;
 
 	if (!xen_domain())
 		return -ENODEV;
 
-	blkbk = kzalloc(sizeof(struct xen_blkbk), GFP_KERNEL);
-	if (!blkbk) {
-		pr_alert(DRV_PFX "%s: out of memory!\n", __func__);
-		return -ENOMEM;
-	}
-
-
-	blkbk->pending_reqs          = kzalloc(sizeof(blkbk->pending_reqs[0]) *
-					xen_blkif_reqs, GFP_KERNEL);
-
-	if (!blkbk->pending_reqs) {
-		rc = -ENOMEM;
-		goto out_of_memory;
-	}
-
 	rc = xen_blkif_interface_init();
 	if (rc)
 		goto failed_init;
-
-	INIT_LIST_HEAD(&blkbk->pending_free);
-	spin_lock_init(&blkbk->pending_free_lock);
-	init_waitqueue_head(&blkbk->pending_free_wq);
-
-	for (i = 0; i < xen_blkif_reqs; i++)
-		list_add_tail(&blkbk->pending_reqs[i].free_list,
-			      &blkbk->pending_free);
 
 	rc = xen_blkif_xenbus_init();
 	if (rc)
 		goto failed_init;
 
-	return 0;
-
- out_of_memory:
-	pr_alert(DRV_PFX "%s: out of memory\n", __func__);
  failed_init:
-	kfree(blkbk->pending_reqs);
-	kfree(blkbk);
-	blkbk = NULL;
 	return rc;
 }
 

@@ -192,6 +192,9 @@ struct backend_info;
  */
 #define PERSISTENT_GNT_WAS_ACTIVE	1
 
+/* Number of requests that we can fit in a ring */
+#define XEN_BLKIF_REQS			32
+
 struct persistent_gnt {
 	struct page *page;
 	grant_ref_t gnt;
@@ -242,6 +245,14 @@ struct xen_blkif {
 	int			free_pages_num;
 	struct list_head	free_pages;
 
+	/* Allocation of pending_reqs */
+	struct pending_req	*pending_reqs;
+	/* List of all 'pending_req' available */
+	struct list_head	pending_free;
+	/* And its spinlock. */
+	spinlock_t		pending_free_lock;
+	wait_queue_head_t	pending_free_wq;
+
 	/* statistics */
 	unsigned long		st_print;
 	unsigned long long			st_rd_req;
@@ -253,6 +264,25 @@ struct xen_blkif {
 	unsigned long long			st_wr_sect;
 
 	wait_queue_head_t	waiting_to_free;
+};
+
+/*
+ * Each outstanding request that we've passed to the lower device layers has a
+ * 'pending_req' allocated to it. Each buffer_head that completes decrements
+ * the pendcnt towards zero. When it hits zero, the specified domain has a
+ * response queued for it, with the saved 'id' passed back.
+ */
+struct pending_req {
+	struct xen_blkif	*blkif;
+	u64			id;
+	int			nr_pages;
+	atomic_t		pendcnt;
+	unsigned short		operation;
+	int			status;
+	struct list_head	free_list;
+	struct page		*pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct persistent_gnt	*persistent_gnts[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	grant_handle_t		grant_handles[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 };
 
 

@@ -105,6 +105,7 @@ static void xen_update_blkif_status(struct xen_blkif *blkif)
 static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 {
 	struct xen_blkif *blkif;
+	int i;
 
 	blkif = kmem_cache_zalloc(xen_blkif_cachep, GFP_KERNEL);
 	if (!blkif)
@@ -123,6 +124,21 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	INIT_LIST_HEAD(&blkif->free_pages);
 	blkif->free_pages_num = 0;
 	atomic_set(&blkif->persistent_gnt_in_use, 0);
+
+	blkif->pending_reqs = kcalloc(XEN_BLKIF_REQS,
+	                              sizeof(blkif->pending_reqs[0]),
+	                              GFP_KERNEL);
+	if (!blkif->pending_reqs) {
+		kmem_cache_free(xen_blkif_cachep, blkif);
+		return ERR_PTR(-ENOMEM);
+	}
+	INIT_LIST_HEAD(&blkif->pending_free);
+	spin_lock_init(&blkif->pending_free_lock);
+	init_waitqueue_head(&blkif->pending_free_wq);
+
+	for (i = 0; i < XEN_BLKIF_REQS; i++)
+		list_add_tail(&blkif->pending_reqs[i].free_list,
+			      &blkif->pending_free);
 
 	return blkif;
 }
@@ -203,8 +219,18 @@ static void xen_blkif_disconnect(struct xen_blkif *blkif)
 
 static void xen_blkif_free(struct xen_blkif *blkif)
 {
+	struct pending_req *req;
+	int i = 0;
+
 	if (!atomic_dec_and_test(&blkif->refcnt))
 		BUG();
+
+	/* Check that there is no request in use */
+	list_for_each_entry(req, &blkif->pending_free, free_list)
+		i++;
+	BUG_ON(i != XEN_BLKIF_REQS);
+
+	kfree(blkif->pending_reqs);
 	kmem_cache_free(xen_blkif_cachep, blkif);
 }
 
