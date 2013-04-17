@@ -134,6 +134,8 @@ struct amp_assoc {
 	__u8	data[HCI_MAX_AMP_ASSOC_SIZE];
 };
 
+#define HCI_MAX_PAGES	2
+
 #define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
@@ -151,8 +153,7 @@ struct hci_dev {
 	__u8		dev_class[3];
 	__u8		major_class;
 	__u8		minor_class;
-	__u8		features[8];
-	__u8		host_features[8];
+	__u8		features[HCI_MAX_PAGES][8];
 	__u8		le_features[8];
 	__u8		le_white_list_size;
 	__u8		le_states[8];
@@ -313,7 +314,7 @@ struct hci_conn {
 	bool		out;
 	__u8		attempt;
 	__u8		dev_class[3];
-	__u8		features[8];
+	__u8		features[HCI_MAX_PAGES][8];
 	__u16		interval;
 	__u16		pkt_type;
 	__u16		link_policy;
@@ -786,29 +787,29 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define SET_HCIDEV_DEV(hdev, pdev) ((hdev)->dev.parent = (pdev))
 
 /* ----- LMP capabilities ----- */
-#define lmp_encrypt_capable(dev)   ((dev)->features[0] & LMP_ENCRYPT)
-#define lmp_rswitch_capable(dev)   ((dev)->features[0] & LMP_RSWITCH)
-#define lmp_hold_capable(dev)      ((dev)->features[0] & LMP_HOLD)
-#define lmp_sniff_capable(dev)     ((dev)->features[0] & LMP_SNIFF)
-#define lmp_park_capable(dev)      ((dev)->features[1] & LMP_PARK)
-#define lmp_inq_rssi_capable(dev)  ((dev)->features[3] & LMP_RSSI_INQ)
-#define lmp_esco_capable(dev)      ((dev)->features[3] & LMP_ESCO)
-#define lmp_bredr_capable(dev)     (!((dev)->features[4] & LMP_NO_BREDR))
-#define lmp_le_capable(dev)        ((dev)->features[4] & LMP_LE)
-#define lmp_sniffsubr_capable(dev) ((dev)->features[5] & LMP_SNIFF_SUBR)
-#define lmp_pause_enc_capable(dev) ((dev)->features[5] & LMP_PAUSE_ENC)
-#define lmp_ext_inq_capable(dev)   ((dev)->features[6] & LMP_EXT_INQ)
-#define lmp_le_br_capable(dev)     !!((dev)->features[6] & LMP_SIMUL_LE_BR)
-#define lmp_ssp_capable(dev)       ((dev)->features[6] & LMP_SIMPLE_PAIR)
-#define lmp_no_flush_capable(dev)  ((dev)->features[6] & LMP_NO_FLUSH)
-#define lmp_lsto_capable(dev)      ((dev)->features[7] & LMP_LSTO)
-#define lmp_inq_tx_pwr_capable(dev) ((dev)->features[7] & LMP_INQ_TX_PWR)
-#define lmp_ext_feat_capable(dev)  ((dev)->features[7] & LMP_EXTFEATURES)
+#define lmp_encrypt_capable(dev)   ((dev)->features[0][0] & LMP_ENCRYPT)
+#define lmp_rswitch_capable(dev)   ((dev)->features[0][0] & LMP_RSWITCH)
+#define lmp_hold_capable(dev)      ((dev)->features[0][0] & LMP_HOLD)
+#define lmp_sniff_capable(dev)     ((dev)->features[0][0] & LMP_SNIFF)
+#define lmp_park_capable(dev)      ((dev)->features[0][1] & LMP_PARK)
+#define lmp_inq_rssi_capable(dev)  ((dev)->features[0][3] & LMP_RSSI_INQ)
+#define lmp_esco_capable(dev)      ((dev)->features[0][3] & LMP_ESCO)
+#define lmp_bredr_capable(dev)     (!((dev)->features[0][4] & LMP_NO_BREDR))
+#define lmp_le_capable(dev)        ((dev)->features[0][4] & LMP_LE)
+#define lmp_sniffsubr_capable(dev) ((dev)->features[0][5] & LMP_SNIFF_SUBR)
+#define lmp_pause_enc_capable(dev) ((dev)->features[0][5] & LMP_PAUSE_ENC)
+#define lmp_ext_inq_capable(dev)   ((dev)->features[0][6] & LMP_EXT_INQ)
+#define lmp_le_br_capable(dev)     (!!((dev)->features[0][6] & LMP_SIMUL_LE_BR))
+#define lmp_ssp_capable(dev)       ((dev)->features[0][6] & LMP_SIMPLE_PAIR)
+#define lmp_no_flush_capable(dev)  ((dev)->features[0][6] & LMP_NO_FLUSH)
+#define lmp_lsto_capable(dev)      ((dev)->features[0][7] & LMP_LSTO)
+#define lmp_inq_tx_pwr_capable(dev) ((dev)->features[0][7] & LMP_INQ_TX_PWR)
+#define lmp_ext_feat_capable(dev)  ((dev)->features[0][7] & LMP_EXTFEATURES)
 
 /* ----- Extended LMP capabilities ----- */
-#define lmp_host_ssp_capable(dev)  ((dev)->host_features[0] & LMP_HOST_SSP)
-#define lmp_host_le_capable(dev)   !!((dev)->host_features[0] & LMP_HOST_LE)
-#define lmp_host_le_br_capable(dev) !!((dev)->host_features[0] & LMP_HOST_LE_BREDR)
+#define lmp_host_ssp_capable(dev)  ((dev)->features[1][0] & LMP_HOST_SSP)
+#define lmp_host_le_capable(dev)   (!!((dev)->features[1][0] & LMP_HOST_LE))
+#define lmp_host_le_br_capable(dev) (!!((dev)->features[1][0] & LMP_HOST_LE_BREDR))
 
 /* returns true if at least one AMP active */
 static inline bool hci_amp_capable(void)

@@ -433,9 +433,9 @@ static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 
 	if (!status) {
 		if (sent->mode)
-			hdev->host_features[0] |= LMP_HOST_SSP;
+			hdev->features[1][0] |= LMP_HOST_SSP;
 		else
-			hdev->host_features[0] &= ~LMP_HOST_SSP;
+			hdev->features[1][0] &= ~LMP_HOST_SSP;
 	}
 
 	if (test_bit(HCI_MGMT, &hdev->dev_flags))
@@ -493,18 +493,18 @@ static void hci_cc_read_local_features(struct hci_dev *hdev,
 	/* Adjust default settings according to features
 	 * supported by device. */
 
-	if (hdev->features[0] & LMP_3SLOT)
+	if (hdev->features[0][0] & LMP_3SLOT)
 		hdev->pkt_type |= (HCI_DM3 | HCI_DH3);
 
-	if (hdev->features[0] & LMP_5SLOT)
+	if (hdev->features[0][0] & LMP_5SLOT)
 		hdev->pkt_type |= (HCI_DM5 | HCI_DH5);
 
-	if (hdev->features[1] & LMP_HV2) {
+	if (hdev->features[0][1] & LMP_HV2) {
 		hdev->pkt_type  |= (HCI_HV2);
 		hdev->esco_type |= (ESCO_HV2);
 	}
 
-	if (hdev->features[1] & LMP_HV3) {
+	if (hdev->features[0][1] & LMP_HV3) {
 		hdev->pkt_type  |= (HCI_HV3);
 		hdev->esco_type |= (ESCO_HV3);
 	}
@@ -512,26 +512,26 @@ static void hci_cc_read_local_features(struct hci_dev *hdev,
 	if (lmp_esco_capable(hdev))
 		hdev->esco_type |= (ESCO_EV3);
 
-	if (hdev->features[4] & LMP_EV4)
+	if (hdev->features[0][4] & LMP_EV4)
 		hdev->esco_type |= (ESCO_EV4);
 
-	if (hdev->features[4] & LMP_EV5)
+	if (hdev->features[0][4] & LMP_EV5)
 		hdev->esco_type |= (ESCO_EV5);
 
-	if (hdev->features[5] & LMP_EDR_ESCO_2M)
+	if (hdev->features[0][5] & LMP_EDR_ESCO_2M)
 		hdev->esco_type |= (ESCO_2EV3);
 
-	if (hdev->features[5] & LMP_EDR_ESCO_3M)
+	if (hdev->features[0][5] & LMP_EDR_ESCO_3M)
 		hdev->esco_type |= (ESCO_3EV3);
 
-	if (hdev->features[5] & LMP_EDR_3S_ESCO)
+	if (hdev->features[0][5] & LMP_EDR_3S_ESCO)
 		hdev->esco_type |= (ESCO_2EV5 | ESCO_3EV5);
 
 	BT_DBG("%s features 0x%.2x%.2x%.2x%.2x%.2x%.2x%.2x%.2x", hdev->name,
-	       hdev->features[0], hdev->features[1],
-	       hdev->features[2], hdev->features[3],
-	       hdev->features[4], hdev->features[5],
-	       hdev->features[6], hdev->features[7]);
+	       hdev->features[0][0], hdev->features[0][1],
+	       hdev->features[0][2], hdev->features[0][3],
+	       hdev->features[0][4], hdev->features[0][5],
+	       hdev->features[0][6], hdev->features[0][7]);
 }
 
 static void hci_cc_read_local_ext_features(struct hci_dev *hdev,
@@ -544,14 +544,8 @@ static void hci_cc_read_local_ext_features(struct hci_dev *hdev,
 	if (rp->status)
 		return;
 
-	switch (rp->page) {
-	case 0:
-		memcpy(hdev->features, rp->features, 8);
-		break;
-	case 1:
-		memcpy(hdev->host_features, rp->features, 8);
-		break;
-	}
+	if (rp->page < HCI_MAX_PAGES)
+		memcpy(hdev->features[rp->page], rp->features, 8);
 }
 
 static void hci_cc_read_flow_control_mode(struct hci_dev *hdev,
@@ -1046,14 +1040,14 @@ static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 
 	if (!status) {
 		if (sent->le)
-			hdev->host_features[0] |= LMP_HOST_LE;
+			hdev->features[1][0] |= LMP_HOST_LE;
 		else
-			hdev->host_features[0] &= ~LMP_HOST_LE;
+			hdev->features[1][0] &= ~LMP_HOST_LE;
 
 		if (sent->simul)
-			hdev->host_features[0] |= LMP_HOST_LE_BREDR;
+			hdev->features[1][0] |= LMP_HOST_LE_BREDR;
 		else
-			hdev->host_features[0] &= ~LMP_HOST_LE_BREDR;
+			hdev->features[1][0] &= ~LMP_HOST_LE_BREDR;
 	}
 
 	if (test_bit(HCI_MGMT, &hdev->dev_flags) &&
@@ -2076,7 +2070,7 @@ static void hci_remote_features_evt(struct hci_dev *hdev,
 		goto unlock;
 
 	if (!ev->status)
-		memcpy(conn->features, ev->features, 8);
+		memcpy(conn->features[0], ev->features, 8);
 
 	if (conn->state != BT_CONFIG)
 		goto unlock;
@@ -2888,6 +2882,9 @@ static void hci_remote_ext_features_evt(struct hci_dev *hdev,
 	if (!conn)
 		goto unlock;
 
+	if (ev->page < HCI_MAX_PAGES)
+		memcpy(conn->features[ev->page], ev->features, 8);
+
 	if (!ev->status && ev->page == 0x01) {
 		struct inquiry_entry *ie;
 
@@ -3346,10 +3343,15 @@ static void hci_remote_host_features_evt(struct hci_dev *hdev,
 {
 	struct hci_ev_remote_host_features *ev = (void *) skb->data;
 	struct inquiry_entry *ie;
+	struct hci_conn *conn;
 
 	BT_DBG("%s", hdev->name);
 
 	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &ev->bdaddr);
+	if (conn)
+		memcpy(conn->features[1], ev->features, 8);
 
 	ie = hci_inquiry_cache_lookup(hdev, &ev->bdaddr);
 	if (ie)
