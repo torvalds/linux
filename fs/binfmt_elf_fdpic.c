@@ -483,7 +483,6 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	size_t platform_len = 0, len;
 	char *k_platform, *k_base_platform;
 	char __user *u_platform, *u_base_platform, *p;
-	long hwcap;
 	int loop;
 	int nr;	/* reset for each csp adjustment */
 
@@ -501,8 +500,6 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	if (elf_fdpic_transfer_args_to_stack(bprm, &sp) < 0)
 		return -EFAULT;
 #endif
-
-	hwcap = ELF_HWCAP;
 
 	/*
 	 * If this architecture has a platform capability string, copy it
@@ -617,7 +614,10 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 
 	nr = 0;
 	csp -= DLINFO_ITEMS * 2 * sizeof(unsigned long);
-	NEW_AUX_ENT(AT_HWCAP,	hwcap);
+	NEW_AUX_ENT(AT_HWCAP,	ELF_HWCAP);
+#ifdef ELF_HWCAP2
+	NEW_AUX_ENT(AT_HWCAP2,	ELF_HWCAP2);
+#endif
 	NEW_AUX_ENT(AT_PAGESZ,	PAGE_SIZE);
 	NEW_AUX_ENT(AT_CLKTCK,	CLOCKS_PER_SEC);
 	NEW_AUX_ENT(AT_PHDR,	exec_params->ph_addr);
