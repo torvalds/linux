@@ -248,14 +248,16 @@ static void __cpuinit arch_timer_stop(struct clock_event_device *clk)
 static int __cpuinit arch_timer_cpu_notify(struct notifier_block *self,
 					   unsigned long action, void *hcpu)
 {
-	struct clock_event_device *evt = this_cpu_ptr(arch_timer_evt);
-
+	/*
+	 * Grab cpu pointer in each case to avoid spurious
+	 * preemptible warnings
+	 */
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_STARTING:
-		arch_timer_setup(evt);
+		arch_timer_setup(this_cpu_ptr(arch_timer_evt));
 		break;
 	case CPU_DYING:
-		arch_timer_stop(evt);
+		arch_timer_stop(this_cpu_ptr(arch_timer_evt));
 		break;
 	}
 
