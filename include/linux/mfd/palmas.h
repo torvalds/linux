@@ -177,6 +177,9 @@ struct palmas_pmic_platform_data {
 
 	/* use LDO6 for vibrator control */
 	int ldo6_vibrator;
+
+	/* Enable tracking mode of LDO8 */
+	bool enable_ldo8_tracking;
 };
 
 struct palmas_usb_platform_data {
