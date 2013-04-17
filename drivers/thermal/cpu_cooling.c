@@ -208,6 +208,17 @@ static int get_property(unsigned int cpu, unsigned long input,
 	return -EINVAL;
 }
 
+/**
+ * cpufreq_cooling_get_level - for a give cpu, return the cooling level.
+ * @cpu: cpu for which the level is required
+ * @freq: the frequency of interest
+ *
+ * This function will match the cooling level corresponding to the
+ * requested @freq and return it.
+ *
+ * Return: The matched cooling level on success or THERMAL_CSTATE_INVALID
+ * otherwise.
+ */
 unsigned long cpufreq_cooling_get_level(unsigned int cpu, unsigned int freq)
 {
 	unsigned int val;
