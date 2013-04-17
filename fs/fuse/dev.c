@@ -379,7 +379,7 @@ __releases(fc->lock)
 			fc->blocked = 0;
 
 		/* Wake up next waiter, if any */
-		if (!fc->blocked)
+		if (!fc->blocked && waitqueue_active(&fc->blocked_waitq))
 			wake_up(&fc->blocked_waitq);
 
 		if (fc->num_background == fc->congestion_threshold &&
