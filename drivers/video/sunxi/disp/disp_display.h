@@ -53,6 +53,8 @@
 #define DE_FLICKER_USED 0x01000000
 #define DE_FLICKER_REQUIRED 0x02000000
 
+#define SUNXI_DISP_MAX_LAYERS 4
+
 static inline __u32 PICOS2HZ(__u32 picos)
 {
 	__u64 numerator = 1000000000000ULL + (picos / 2);

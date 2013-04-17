@@ -34,6 +34,7 @@
 #include "dev_disp.h"
 #include "disp_lcd.h"
 #include "dev_fb.h"
+#include "disp_display.h"
 
 
 struct info_mm {
@@ -427,12 +428,15 @@ struct dev_disp_data {
 #define SUNXI_DISP_VERSION_PENDING -1
 #define SUNXI_DISP_VERSION_SKIPPED -2
 	int version;
+	struct  {
+		__u32 layer[SUNXI_DISP_MAX_LAYERS];
+	} layers[2];
 };
 
 static int disp_open(struct inode *inode, struct file *filp)
 {
 	struct dev_disp_data *data =
-		kmalloc(sizeof(struct dev_disp_data), GFP_KERNEL);
+		kzalloc(sizeof(struct dev_disp_data), GFP_KERNEL);
 	static bool warned;
 
 	if (!data)
@@ -457,6 +461,14 @@ static int disp_open(struct inode *inode, struct file *filp)
 static int disp_release(struct inode *inode, struct file *filp)
 {
 	struct dev_disp_data *data = filp->private_data;
+	int i,j;
+
+	for (j = 0; j < 2; j++)
+		for (i = 0; i < SUNXI_DISP_MAX_LAYERS ; i++)
+			if (data->layers[j].layer[i]) {
+				__wrn("layer allocated at close: %i,%u\n", j, data->layers[j].layer[i]);
+				BSP_disp_layer_release(j,data->layers[j].layer[i]);
+			}
 
 	kfree(data);
 	filp->private_data = NULL;
@@ -948,10 +960,31 @@ static long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = BSP_disp_layer_request(ubuffer[0],
 					     (__disp_layer_work_mode_t)
 					     ubuffer[1]);
+		if (ret != DIS_NULL) {
+			int i;
+			__wrn("layer allocated: %lu,%i\n", ubuffer[0], ret);
+			for (i = 0; i < SUNXI_DISP_MAX_LAYERS ; i++)
+				if (! filp_data->layers[ubuffer[0]].layer[i]) {
+					filp_data->layers[ubuffer[0]].layer[i] = ret;
+					break;
+				}
+			BUG_ON (i == SUNXI_DISP_MAX_LAYERS);
+		}
 		break;
 
 	case DISP_CMD_LAYER_RELEASE:
 		ret = BSP_disp_layer_release(ubuffer[0], ubuffer[1]);
+		if (ret == DIS_SUCCESS) {
+			int i;
+			__wrn("layer released: %lu,%lu\n", ubuffer[0], ubuffer[1]);
+			for (i = 0; i < SUNXI_DISP_MAX_LAYERS ; i++)
+				if (filp_data->layers[ubuffer[0]].layer[i] == ubuffer[1]) {
+					filp_data->layers[ubuffer[0]].layer[i] = 0;
+					break;
+				}
+			if (i == SUNXI_DISP_MAX_LAYERS)
+				__wrn("released layer not allocated in this session: %lu,%lu\n", ubuffer[0], ubuffer[1]);
+		}
 		break;
 
 	case DISP_CMD_LAYER_OPEN:
