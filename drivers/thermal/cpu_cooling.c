@@ -336,6 +336,11 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
  * cpufreq_get_max_state - callback function to get the max cooling state.
  * @cdev: thermal cooling device pointer.
  * @state: fill this variable with the max cooling state.
+ *
+ * Callback for the thermal cooling device to return the cpufreq
+ * max cooling state.
+ *
+ * Return: 0 on success, an error code otherwise.
  */
 static int cpufreq_get_max_state(struct thermal_cooling_device *cdev,
 				 unsigned long *state)
