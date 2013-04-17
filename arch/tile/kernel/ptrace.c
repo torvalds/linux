@@ -269,7 +269,7 @@ void do_syscall_trace_exit(struct pt_regs *regs)
 		tracehook_report_syscall_exit(regs, 0);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
-		trace_sys_exit(regs, regs->regs[TREG_SYSCALL_NR]);
+		trace_sys_exit(regs, regs->regs[0]);
 }
 
 void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
