@@ -128,6 +128,7 @@ struct pending_req {
 	struct list_head	free_list;
 	struct page		*pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct persistent_gnt	*persistent_gnts[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	grant_handle_t		grant_handles[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 };
 
 #define BLKBACK_INVALID_HANDLE (~0)
@@ -142,8 +143,6 @@ struct xen_blkbk {
 	/* And its spinlock. */
 	spinlock_t		pending_free_lock;
 	wait_queue_head_t	pending_free_wq;
-	/* And the grant handles that are available. */
-	grant_handle_t		*pending_grant_handles;
 };
 
 static struct xen_blkbk *blkbk;
@@ -221,7 +220,7 @@ static inline void shrink_free_pagepool(struct xen_blkif *blkif, int num)
 #define vaddr(page) ((unsigned long)pfn_to_kaddr(page_to_pfn(page)))
 
 #define pending_handle(_req, _seg) \
-	(blkbk->pending_grant_handles[vaddr_pagenr(_req, _seg)])
+	(_req->grant_handles[_seg])
 
 
 static int do_block_io_op(struct xen_blkif *blkif);
@@ -1304,7 +1303,7 @@ static void make_response(struct xen_blkif *blkif, u64 id,
 
 static int __init xen_blkif_init(void)
 {
-	int i, mmap_pages;
+	int i;
 	int rc = 0;
 
 	if (!xen_domain())
@@ -1316,21 +1315,15 @@ static int __init xen_blkif_init(void)
 		return -ENOMEM;
 	}
 
-	mmap_pages = xen_blkif_reqs * BLKIF_MAX_SEGMENTS_PER_REQUEST;
 
 	blkbk->pending_reqs          = kzalloc(sizeof(blkbk->pending_reqs[0]) *
 					xen_blkif_reqs, GFP_KERNEL);
-	blkbk->pending_grant_handles = kmalloc(sizeof(blkbk->pending_grant_handles[0]) *
-					mmap_pages, GFP_KERNEL);
 
-	if (!blkbk->pending_reqs || !blkbk->pending_grant_handles) {
+	if (!blkbk->pending_reqs) {
 		rc = -ENOMEM;
 		goto out_of_memory;
 	}
 
-	for (i = 0; i < mmap_pages; i++) {
-		blkbk->pending_grant_handles[i] = BLKBACK_INVALID_HANDLE;
-	}
 	rc = xen_blkif_interface_init();
 	if (rc)
 		goto failed_init;
@@ -1353,7 +1346,6 @@ static int __init xen_blkif_init(void)
 	pr_alert(DRV_PFX "%s: out of memory\n", __func__);
  failed_init:
 	kfree(blkbk->pending_reqs);
-	kfree(blkbk->pending_grant_handles);
 	kfree(blkbk);
 	blkbk = NULL;
 	return rc;
