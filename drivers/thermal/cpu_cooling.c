@@ -458,7 +458,8 @@ struct thermal_cooling_device *cpufreq_cooling_register(
 		return ERR_PTR(-EINVAL);
 	}
 
-	sprintf(dev_name, "thermal-cpufreq-%d", cpufreq_dev->id);
+	snprintf(dev_name, sizeof(dev_name), "thermal-cpufreq-%d",
+		 cpufreq_dev->id);
 
 	cool_dev = thermal_cooling_device_register(dev_name, cpufreq_dev,
 						&cpufreq_cooling_ops);
