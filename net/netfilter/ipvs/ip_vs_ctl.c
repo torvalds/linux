@@ -1460,8 +1460,11 @@ void ip_vs_service_net_cleanup(struct net *net)
 static inline void
 ip_vs_forget_dev(struct ip_vs_dest *dest, struct net_device *dev)
 {
+	struct ip_vs_dest_dst *dest_dst;
+
 	spin_lock_bh(&dest->dst_lock);
-	if (dest->dest_dst && dest->dest_dst->dst_cache->dev == dev) {
+	dest_dst = rcu_dereference_protected(dest->dest_dst, 1);
+	if (dest_dst && dest_dst->dst_cache->dev == dev) {
 		IP_VS_DBG_BUF(3, "Reset dev:%s dest %s:%u ,dest->refcnt=%d\n",
 			      dev->name,
 			      IP_VS_DBG_ADDR(dest->af, &dest->addr),
