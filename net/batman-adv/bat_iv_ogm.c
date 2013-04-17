@@ -630,6 +630,41 @@ static void batadv_iv_ogm_forward(struct batadv_orig_node *orig_node,
 				if_incoming, 0, batadv_iv_ogm_fwd_send_time());
 }
 
+/**
+ * batadv_iv_ogm_slide_own_bcast_window - bitshift own OGM broadcast windows for
+ * the given interface
+ * @hard_iface: the interface for which the windows have to be shifted
+ */
+static void
+batadv_iv_ogm_slide_own_bcast_window(struct batadv_hard_iface *hard_iface)
+{
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	struct batadv_hashtable *hash = bat_priv->orig_hash;
+	struct hlist_head *head;
+	struct batadv_orig_node *orig_node;
+	unsigned long *word;
+	uint32_t i;
+	size_t word_index;
+	uint8_t *w;
+
+	for (i = 0; i < hash->size; i++) {
+		head = &hash->table[i];
+
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
+			spin_lock_bh(&orig_node->ogm_cnt_lock);
+			word_index = hard_iface->if_num * BATADV_NUM_WORDS;
+			word = &(orig_node->bcast_own[word_index]);
+
+			batadv_bit_get_packet(bat_priv, word, 1, 0);
+			w = &orig_node->bcast_own_sum[hard_iface->if_num];
+			*w = bitmap_weight(word, BATADV_TQ_LOCAL_WINDOW_SIZE);
+			spin_unlock_bh(&orig_node->ogm_cnt_lock);
+		}
+		rcu_read_unlock();
+	}
+}
+
 static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 {
 	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
@@ -674,7 +709,7 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 		batadv_ogm_packet->gw_flags = BATADV_NO_FLAGS;
 	}
 
-	batadv_slide_own_bcast_window(hard_iface);
+	batadv_iv_ogm_slide_own_bcast_window(hard_iface);
 	batadv_iv_ogm_queue_add(bat_priv, hard_iface->bat_iv.ogm_buff,
 				hard_iface->bat_iv.ogm_buff_len, hard_iface, 1,
 				batadv_iv_ogm_emit_send_time(bat_priv));
