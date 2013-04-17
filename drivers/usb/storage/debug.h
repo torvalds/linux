@@ -50,12 +50,16 @@
 void usb_stor_show_command(struct scsi_cmnd *srb);
 void usb_stor_show_sense( unsigned char key,
 		unsigned char asc, unsigned char ascq );
-#define US_DEBUGP(x...) printk( KERN_DEBUG USB_STORAGE x )
-#define US_DEBUGPX(x...) printk( x )
-#define US_DEBUG(x) x 
+__printf(1, 2) int usb_stor_dbg(const char *fmt, ...);
+
+#define US_DEBUGP(fmt, ...)	usb_stor_dbg(fmt, ##__VA_ARGS__)
+#define US_DEBUGPX(fmt, ...)	printk(fmt, ##__VA_ARGS__)
+#define US_DEBUG(x)		x
 #else
-#define US_DEBUGP(x...)
-#define US_DEBUGPX(x...)
+#define US_DEBUGP(fmt, ...)					\
+	do { if (0) printk(fmt, ##__VA_ARGS__); } while (0)
+#define US_DEBUGPX(fmt, ...)					\
+	do { if (0) printk(fmt, ##__VA_ARGS__); } while (0)
 #define US_DEBUG(x)
 #endif
 

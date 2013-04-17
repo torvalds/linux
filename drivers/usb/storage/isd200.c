@@ -926,10 +926,6 @@ static int isd200_try_enum(struct us_data *us, unsigned char master_slave,
 
 	/* loop until we detect !BSY or timeout */
 	while(1) {
-#ifdef CONFIG_USB_STORAGE_DEBUG
-		char* mstr = master_slave == ATA_ADDRESS_DEVHEAD_STD ?
-			"Master" : "Slave";
-#endif
 
 		status = isd200_action( us, ACTION_ENUM, NULL, master_slave );
 		if ( status != ISD200_GOOD )
@@ -942,9 +938,13 @@ static int isd200_try_enum(struct us_data *us, unsigned char master_slave,
 
 		if (!detect) {
 			if (regs[ATA_REG_STATUS_OFFSET] & ATA_BUSY) {
-				US_DEBUGP("   %s status is still BSY, try again...\n",mstr);
+				US_DEBUGP("   %s status is still BSY, try again...\n",
+					  master_slave == ATA_ADDRESS_DEVHEAD_STD ?
+					  "Master" : "Slave");
 			} else {
-				US_DEBUGP("   %s status !BSY, continue with next operation\n",mstr);
+				US_DEBUGP("   %s status !BSY, continue with next operation\n",
+					  master_slave == ATA_ADDRESS_DEVHEAD_STD ?
+					  "Master" : "Slave");
 				break;
 			}
 		}
