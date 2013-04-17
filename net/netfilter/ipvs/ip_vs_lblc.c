@@ -104,7 +104,7 @@ struct ip_vs_lblc_entry {
  */
 struct ip_vs_lblc_table {
 	struct rcu_head		rcu_head;
-	struct hlist_head __rcu bucket[IP_VS_LBLC_TAB_SIZE];  /* hash bucket */
+	struct hlist_head	bucket[IP_VS_LBLC_TAB_SIZE];  /* hash bucket */
 	struct timer_list       periodic_timer; /* collect stale entries */
 	atomic_t                entries;        /* number of entries */
 	int                     max_size;       /* maximum size of entries */
