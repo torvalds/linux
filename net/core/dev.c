@@ -200,7 +200,7 @@ static inline void rps_unlock(struct softnet_data *sd)
 }
 
 /* Device list insertion */
-static int list_netdevice(struct net_device *dev)
+static void list_netdevice(struct net_device *dev)
 {
 	struct net *net = dev_net(dev);
 
@@ -214,8 +214,6 @@ static int list_netdevice(struct net_device *dev)
 	write_unlock_bh(&dev_base_lock);
 
 	dev_base_seq_inc(net);
-
-	return 0;
 }
 
 /* Device list removal
