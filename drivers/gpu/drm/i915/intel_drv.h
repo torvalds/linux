@@ -188,6 +188,10 @@ struct intel_crtc_config {
 	 * between pch encoders and cpu encoders. */
 	bool has_pch_encoder;
 
+	/* CPU Transcoder for the pipe. Currently this can only differ from the
+	 * pipe on Haswell (where we have a special eDP transcoder). */
+	enum transcoder cpu_transcoder;
+
 	/*
 	 * Use reduced/limited/broadcast rbg range, compressing from the full
 	 * range fed into the crtcs.
@@ -226,7 +230,6 @@ struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
 	enum plane plane;
-	enum transcoder cpu_transcoder;
 	u8 lut_r[256], lut_g[256], lut_b[256];
 	/*
 	 * Whether the crtc and the connected output pipeline is active. Implies

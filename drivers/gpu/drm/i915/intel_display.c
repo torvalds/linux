@@ -892,7 +892,7 @@ enum transcoder intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	return intel_crtc->cpu_transcoder;
+	return intel_crtc->config.cpu_transcoder;
 }
 
 static void ironlake_wait_for_vblank(struct drm_device *dev, int pipe)
@@ -3203,7 +3203,7 @@ static void lpt_pch_enable(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
+	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 
 	assert_transcoder_disabled(dev_priv, TRANSCODER_A);
 
@@ -3578,7 +3578,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 	int plane = intel_crtc->plane;
-	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
+	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 
 	if (!intel_crtc->active)
 		return;
@@ -3638,7 +3638,7 @@ static void haswell_crtc_off(struct drm_crtc *crtc)
 
 	/* Stop saying we're using TRANSCODER_EDP because some other CRTC might
 	 * start using it. */
-	intel_crtc->cpu_transcoder = (enum transcoder) intel_crtc->pipe;
+	intel_crtc->config.cpu_transcoder = (enum transcoder) intel_crtc->pipe;
 
 	intel_ddi_put_crtc_pll(crtc);
 }
@@ -4494,7 +4494,7 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc,
 	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe = intel_crtc->pipe;
-	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
+	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	uint32_t vsyncshift;
 
 	if (!IS_GEN2(dev) && adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
@@ -5236,7 +5236,7 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc,
 {
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
+	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	uint32_t val;
 
 	val = I915_READ(PIPECONF(cpu_transcoder));
@@ -5430,7 +5430,7 @@ void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = crtc->pipe;
-	enum transcoder transcoder = crtc->cpu_transcoder;
+	enum transcoder transcoder = crtc->config.cpu_transcoder;
 
 	if (INTEL_INFO(dev)->gen >= 5) {
 		I915_WRITE(PIPE_DATA_M1(transcoder), TU_SIZE(m_n->tu) | m_n->gmch_m);
@@ -5613,7 +5613,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	WARN(!(HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)),
 	     "Unexpected PCH type %d\n", INTEL_PCH_TYPE(dev));
 
-	intel_crtc->cpu_transcoder = pipe;
+	intel_crtc->config.cpu_transcoder = pipe;
 
 	ok = ironlake_compute_clocks(crtc, adjusted_mode, &clock,
 				     &has_reduced_clock, &reduced_clock);
@@ -5797,9 +5797,9 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	if (is_cpu_edp)
-		intel_crtc->cpu_transcoder = TRANSCODER_EDP;
+		intel_crtc->config.cpu_transcoder = TRANSCODER_EDP;
 	else
-		intel_crtc->cpu_transcoder = pipe;
+		intel_crtc->config.cpu_transcoder = pipe;
 
 	/* We are not sure yet this won't happen. */
 	WARN(!HAS_PCH_LPT(dev), "Unexpected PCH type %d\n",
@@ -5808,7 +5808,7 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	WARN(num_connectors != 1, "%d connectors attached to pipe %c\n",
 	     num_connectors, pipe_name(pipe));
 
-	WARN_ON(I915_READ(PIPECONF(intel_crtc->cpu_transcoder)) &
+	WARN_ON(I915_READ(PIPECONF(intel_crtc->config.cpu_transcoder)) &
 		(PIPECONF_ENABLE | I965_PIPECONF_ACTIVE));
 
 	WARN_ON(I915_READ(DSPCNTR(plane)) & DISPLAY_PLANE_ENABLE);
@@ -5859,7 +5859,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
 
-	tmp = I915_READ(PIPECONF(crtc->cpu_transcoder));
+	tmp = I915_READ(PIPECONF(crtc->config.cpu_transcoder));
 	if (!(tmp & PIPECONF_ENABLE))
 		return false;
 
@@ -6827,7 +6827,7 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
+	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 	struct drm_display_mode *mode;
 	int htot = I915_READ(HTOTAL(cpu_transcoder));
 	int hsync = I915_READ(HSYNC(cpu_transcoder));
@@ -7990,10 +7990,12 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	 * to set it here already despite that we pass it down the callchain.
 	 */
 	if (modeset_pipes) {
+		enum transcoder tmp = to_intel_crtc(crtc)->config.cpu_transcoder;
 		crtc->mode = *mode;
 		/* mode_set/enable/disable functions rely on a correct pipe
 		 * config. */
 		to_intel_crtc(crtc)->config = *pipe_config;
+		to_intel_crtc(crtc)->config.cpu_transcoder = tmp;
 	}
 
 	/* Only after disabling all output pipelines that will be changed can we
@@ -8404,7 +8406,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	/* Swap pipes & planes for FBC on pre-965 */
 	intel_crtc->pipe = pipe;
 	intel_crtc->plane = pipe;
-	intel_crtc->cpu_transcoder = pipe;
+	intel_crtc->config.cpu_transcoder = pipe;
 	if (IS_MOBILE(dev) && IS_GEN3(dev)) {
 		DRM_DEBUG_KMS("swapping pipes & planes for FBC\n");
 		intel_crtc->plane = !pipe;
@@ -9129,7 +9131,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	u32 reg;
 
 	/* Clear any frame start delays used for debugging left by the BIOS */
-	reg = PIPECONF(crtc->cpu_transcoder);
+	reg = PIPECONF(crtc->config.cpu_transcoder);
 	I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
 
 	/* We need to sanitize the plane -> pipe mapping first because this will
@@ -9295,7 +9297,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 			}
 
 			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
-			crtc->cpu_transcoder = TRANSCODER_EDP;
+			crtc->config.cpu_transcoder = TRANSCODER_EDP;
 
 			DRM_DEBUG_KMS("Pipe %c using transcoder EDP\n",
 				      pipe_name(pipe));
@@ -9305,7 +9307,10 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 setup_pipes:
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
 			    base.head) {
+		enum transcoder tmp = crtc->config.cpu_transcoder;
 		memset(&crtc->config, 0, sizeof(crtc->config));
+		crtc->config.cpu_transcoder = tmp;
+
 		crtc->active = dev_priv->display.get_pipe_config(crtc,
 								 &crtc->config);
 
