@@ -1097,14 +1097,14 @@ static void assert_pch_pll(struct drm_i915_private *dev_priv,
 		pch_dpll = I915_READ(PCH_DPLL_SEL);
 		cur_state = pll->pll_reg == _PCH_DPLL_B;
 		if (!WARN(((pch_dpll >> (4 * crtc->pipe)) & 1) != cur_state,
-			  "PLL[%d] not attached to this transcoder %d: %08x\n",
-			  cur_state, crtc->pipe, pch_dpll)) {
+			  "PLL[%d] not attached to this transcoder %c: %08x\n",
+			  cur_state, pipe_name(crtc->pipe), pch_dpll)) {
 			cur_state = !!(val >> (4*crtc->pipe + 3));
 			WARN(cur_state != state,
-			     "PLL[%d] not %s on this transcoder %d: %08x\n",
+			     "PLL[%d] not %s on this transcoder %c: %08x\n",
 			     pll->pll_reg == _PCH_DPLL_B,
 			     state_string(state),
-			     crtc->pipe,
+			     pipe_name(crtc->pipe),
 			     val);
 		}
 	}
@@ -1733,7 +1733,7 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 
 	I915_WRITE(reg, val | TRANS_ENABLE);
 	if (wait_for(I915_READ(reg) & TRANS_STATE_ENABLE, 100))
-		DRM_ERROR("failed to enable transcoder %d\n", pipe);
+		DRM_ERROR("failed to enable transcoder %c\n", pipe_name(pipe));
 }
 
 static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
@@ -1786,7 +1786,7 @@ static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 	I915_WRITE(reg, val);
 	/* wait for PCH transcoder off, transcoder state */
 	if (wait_for((I915_READ(reg) & TRANS_STATE_ENABLE) == 0, 50))
-		DRM_ERROR("failed to disable transcoder %d\n", pipe);
+		DRM_ERROR("failed to disable transcoder %c\n", pipe_name(pipe));
 
 	if (!HAS_PCH_IBX(dev)) {
 		/* Workaround: Clear the timing override chicken bit again. */
