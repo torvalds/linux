@@ -2999,20 +2999,23 @@ static int ext4_split_extent_at(handle_t *handle,
 			if (split_flag & EXT4_EXT_DATA_VALID1) {
 				err = ext4_ext_zeroout(inode, ex2);
 				zero_ex.ee_block = ex2->ee_block;
-				zero_ex.ee_len = ext4_ext_get_actual_len(ex2);
+				zero_ex.ee_len = cpu_to_le16(
+						ext4_ext_get_actual_len(ex2));
 				ext4_ext_store_pblock(&zero_ex,
 						      ext4_ext_pblock(ex2));
 			} else {
 				err = ext4_ext_zeroout(inode, ex);
 				zero_ex.ee_block = ex->ee_block;
-				zero_ex.ee_len = ext4_ext_get_actual_len(ex);
+				zero_ex.ee_len = cpu_to_le16(
+						ext4_ext_get_actual_len(ex));
 				ext4_ext_store_pblock(&zero_ex,
 						      ext4_ext_pblock(ex));
 			}
 		} else {
 			err = ext4_ext_zeroout(inode, &orig_ex);
 			zero_ex.ee_block = orig_ex.ee_block;
-			zero_ex.ee_len = ext4_ext_get_actual_len(&orig_ex);
+			zero_ex.ee_len = cpu_to_le16(
+						ext4_ext_get_actual_len(&orig_ex));
 			ext4_ext_store_pblock(&zero_ex,
 					      ext4_ext_pblock(&orig_ex));
 		}
@@ -3272,7 +3275,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		if (err)
 			goto out;
 		zero_ex.ee_block = ex->ee_block;
-		zero_ex.ee_len = ext4_ext_get_actual_len(ex);
+		zero_ex.ee_len = cpu_to_le16(ext4_ext_get_actual_len(ex));
 		ext4_ext_store_pblock(&zero_ex, ext4_ext_pblock(ex));
 
 		err = ext4_ext_get_access(handle, inode, path + depth);

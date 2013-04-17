@@ -622,7 +622,7 @@ static const struct file_operations pinconf_dbg_pinname_fops = {
 static int pinconf_dbg_state_print(struct seq_file *s, void *d)
 {
 	if (strlen(dbg_state_name))
-		seq_printf(s, "%s\n", dbg_pinname);
+		seq_printf(s, "%s\n", dbg_state_name);
 	else
 		seq_printf(s, "No pin state set\n");
 	return 0;

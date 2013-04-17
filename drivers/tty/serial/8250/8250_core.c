@@ -3418,6 +3418,7 @@ MODULE_PARM_DESC(probe_rsa, "Probe I/O ports for RSA");
 #endif
 MODULE_ALIAS_CHARDEV_MAJOR(TTY_MAJOR);
 
+#ifdef CONFIG_SERIAL_8250_DEPRECATED_OPTIONS
 #ifndef MODULE
 /* This module was renamed to 8250_core in 3.7.  Keep the old "8250" name
  * working as well for the module options so we don't break people.  We
@@ -3432,7 +3433,7 @@ MODULE_ALIAS_CHARDEV_MAJOR(TTY_MAJOR);
 static void __used s8250_options(void)
 {
 #undef MODULE_PARAM_PREFIX
-#define MODULE_PARAM_PREFIX "8250."
+#define MODULE_PARAM_PREFIX "8250_core."
 
 	module_param_cb(share_irqs, &param_ops_uint, &share_irqs, 0644);
 	module_param_cb(nr_uarts, &param_ops_uint, &nr_uarts, 0644);
@@ -3444,5 +3445,6 @@ static void __used s8250_options(void)
 #endif
 }
 #else
-MODULE_ALIAS("8250");
+MODULE_ALIAS("8250_core");
+#endif
 #endif

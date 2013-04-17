@@ -411,8 +411,8 @@ static int mlx4_en_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 
 static void mlx4_en_u64_to_mac(unsigned char dst_mac[ETH_ALEN + 2], u64 src_mac)
 {
-	unsigned int i;
-	for (i = ETH_ALEN - 1; i; --i) {
+	int i;
+	for (i = ETH_ALEN - 1; i >= 0; --i) {
 		dst_mac[i] = src_mac & 0xff;
 		src_mac >>= 8;
 	}
@@ -1637,6 +1637,17 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 	/* Flush multicast filter */
 	mlx4_SET_MCAST_FLTR(mdev->dev, priv->port, 0, 1, MLX4_MCAST_CONFIG);
 
+	/* Remove flow steering rules for the port*/
+	if (mdev->dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		ASSERT_RTNL();
+		list_for_each_entry_safe(flow, tmp_flow,
+					 &priv->ethtool_list, list) {
+			mlx4_flow_detach(mdev->dev, flow->id);
+			list_del(&flow->list);
+		}
+	}
+
 	mlx4_en_destroy_drop_qp(priv);
 
 	/* Free TX Rings */
@@ -1656,17 +1667,6 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 	mlx4_en_put_qp(priv);
 	if (!(mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAGS2_REASSIGN_MAC_EN))
 		mdev->mac_removed[priv->port] = 1;
-
-	/* Remove flow steering rules for the port*/
-	if (mdev->dev->caps.steering_mode ==
-	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
-		ASSERT_RTNL();
-		list_for_each_entry_safe(flow, tmp_flow,
-					 &priv->ethtool_list, list) {
-			mlx4_flow_detach(mdev->dev, flow->id);
-			list_del(&flow->list);
-		}
-	}
 
 	/* Free RX Rings */
 	for (i = 0; i < priv->rx_ring_num; i++) {

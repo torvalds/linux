@@ -584,7 +584,7 @@ static int wm5102_sysclk_ev(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	struct arizona *arizona = dev_get_drvdata(codec->dev);
+	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 	struct regmap *regmap = codec->control_data;
 	const struct reg_default *patch = NULL;
 	int i, patch_size;
