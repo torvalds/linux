@@ -278,7 +278,7 @@ libs-y				:= arch/arm/lib/ $(libs-y)
 ifeq ($(CONFIG_XIP_KERNEL),y)
 KBUILD_IMAGE := xipImage
 else ifeq ($(CONFIG_BUILD_ARM_APPENDED_DTB_IMAGE),y)
-KBUILD_IMAGE := zImage-dtb.$(CONFIG_BUILD_ARM_APPENDED_DTB_IMAGE_NAME)
+KBUILD_IMAGE := zImage-dtb
 else
 KBUILD_IMAGE := zImage
 endif
@@ -315,6 +315,9 @@ $(INSTALL_TARGETS):
 PHONY += dtbs
 dtbs: scripts
 	$(Q)$(MAKE) $(build)=$(boot)/dts MACHINE=$(MACHINE) dtbs
+
+zImage-dtb: vmlinux scripts dtbs
+	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/$@
 
 # We use MRPROPER_FILES and CLEAN_FILES now
 archclean:
