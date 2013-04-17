@@ -956,6 +956,7 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 	struct btrfs_root *quota_root;
 	struct btrfs_qgroup *parent;
 	struct btrfs_qgroup *member;
+	struct btrfs_qgroup_list *list;
 	int ret = 0;
 
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
@@ -969,6 +970,14 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 	if (!member || !parent) {
 		ret = -EINVAL;
 		goto out;
+	}
+
+	/* check if such qgroup relation exist firstly */
+	list_for_each_entry(list, &member->groups, next_group) {
+		if (list->group == parent) {
+			ret = -EEXIST;
+			goto out;
+		}
 	}
 
 	ret = add_qgroup_relation_item(trans, quota_root, src, dst);
@@ -993,6 +1002,9 @@ int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans,
 			      struct btrfs_fs_info *fs_info, u64 src, u64 dst)
 {
 	struct btrfs_root *quota_root;
+	struct btrfs_qgroup *parent;
+	struct btrfs_qgroup *member;
+	struct btrfs_qgroup_list *list;
 	int ret = 0;
 	int err;
 
@@ -1003,6 +1015,21 @@ int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
+	member = find_qgroup_rb(fs_info, src);
+	parent = find_qgroup_rb(fs_info, dst);
+	if (!member || !parent) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* check if such qgroup relation exist firstly */
+	list_for_each_entry(list, &member->groups, next_group) {
+		if (list->group == parent)
+			goto exist;
+	}
+	ret = -ENOENT;
+	goto out;
+exist:
 	ret = del_qgroup_relation_item(trans, quota_root, src, dst);
 	err = del_qgroup_relation_item(trans, quota_root, dst, src);
 	if (err && !ret)
@@ -1010,7 +1037,6 @@ int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans,
 
 	spin_lock(&fs_info->qgroup_lock);
 	del_relation_rb(fs_info, src, dst);
-
 	spin_unlock(&fs_info->qgroup_lock);
 out:
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
@@ -1030,8 +1056,15 @@ int btrfs_create_qgroup(struct btrfs_trans_handle *trans,
 		ret = -EINVAL;
 		goto out;
 	}
+	qgroup = find_qgroup_rb(fs_info, qgroupid);
+	if (qgroup) {
+		ret = -EEXIST;
+		goto out;
+	}
 
 	ret = add_qgroup_item(trans, quota_root, qgroupid);
+	if (ret)
+		goto out;
 
 	spin_lock(&fs_info->qgroup_lock);
 	qgroup = add_qgroup_rb(fs_info, qgroupid);
@@ -1058,15 +1091,18 @@ int btrfs_remove_qgroup(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	/* check if there are no relations to this qgroup */
 	qgroup = find_qgroup_rb(fs_info, qgroupid);
-	if (qgroup) {
-		if (!list_empty(&qgroup->groups) || !list_empty(&qgroup->members)) {
+	if (!qgroup) {
+		ret = -ENOENT;
+		goto out;
+	} else {
+		/* check if there are no relations to this qgroup */
+		if (!list_empty(&qgroup->groups) ||
+		    !list_empty(&qgroup->members)) {
 			ret = -EBUSY;
 			goto out;
 		}
 	}
-
 	ret = del_qgroup_item(trans, quota_root, qgroupid);
 
 	spin_lock(&fs_info->qgroup_lock);
