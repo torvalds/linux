@@ -35,7 +35,8 @@
 
 struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 {
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct data_queue *queue = entry->queue;
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	struct sk_buff *skb;
 	struct skb_frame_desc *skbdesc;
 	unsigned int frame_size;
@@ -46,7 +47,7 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 	 * The frame size includes descriptor size, because the
 	 * hardware directly receive the frame into the skbuffer.
 	 */
-	frame_size = entry->queue->data_size + entry->queue->desc_size;
+	frame_size = queue->data_size + queue->desc_size + queue->winfo_size;
 
 	/*
 	 * The payload should be aligned to a 4-byte boundary,
@@ -1172,6 +1173,7 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 	queue->threshold = DIV_ROUND_UP(qdesc->entry_num, 10);
 	queue->data_size = qdesc->data_size;
 	queue->desc_size = qdesc->desc_size;
+	queue->winfo_size = qdesc->winfo_size;
 
 	/*
 	 * Allocate all queue entries.

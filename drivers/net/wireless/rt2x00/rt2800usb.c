@@ -485,7 +485,7 @@ static void rt2800usb_write_tx_desc(struct queue_entry *entry,
 	 */
 	skbdesc->flags |= SKBDESC_DESC_IN_SKB;
 	skbdesc->desc = txi;
-	skbdesc->desc_len = entry->queue->desc_size;
+	skbdesc->desc_len = TXINFO_DESC_SIZE + entry->queue->winfo_size;
 }
 
 /*
@@ -730,11 +730,6 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	 * Process the RXWI structure.
 	 */
 	rt2800_process_rxwi(entry, rxdesc);
-
-	/*
-	 * Remove RXWI descriptor from start of buffer.
-	 */
-	skb_pull(entry->skb, entry->queue->desc_size - RXINFO_DESC_SIZE);
 }
 
 /*
@@ -858,21 +853,24 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 static const struct data_queue_desc rt2800usb_queue_rx = {
 	.entry_num		= 128,
 	.data_size		= AGGREGATION_SIZE,
-	.desc_size		= RXINFO_DESC_SIZE + RXWI_DESC_SIZE,
+	.desc_size		= RXINFO_DESC_SIZE,
+	.winfo_size		= RXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt2800usb_queue_tx = {
 	.entry_num		= 16,
 	.data_size		= AGGREGATION_SIZE,
-	.desc_size		= TXINFO_DESC_SIZE + TXWI_DESC_SIZE,
+	.desc_size		= TXINFO_DESC_SIZE,
+	.winfo_size		= TXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt2800usb_queue_bcn = {
 	.entry_num		= 8,
 	.data_size		= MGMT_FRAME_SIZE,
-	.desc_size		= TXINFO_DESC_SIZE + TXWI_DESC_SIZE,
+	.desc_size		= TXINFO_DESC_SIZE,
+	.winfo_size		= TXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
@@ -898,21 +896,24 @@ static const struct rt2x00_ops rt2800usb_ops = {
 static const struct data_queue_desc rt2800usb_queue_rx_5592 = {
 	.entry_num		= 128,
 	.data_size		= AGGREGATION_SIZE,
-	.desc_size		= RXINFO_DESC_SIZE + RXWI_DESC_SIZE_5592,
+	.desc_size		= RXINFO_DESC_SIZE,
+	.winfo_size		= RXWI_DESC_SIZE_5592,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt2800usb_queue_tx_5592 = {
 	.entry_num		= 16,
 	.data_size		= AGGREGATION_SIZE,
-	.desc_size		= TXINFO_DESC_SIZE + TXWI_DESC_SIZE_5592,
+	.desc_size		= TXINFO_DESC_SIZE,
+	.winfo_size		= TXWI_DESC_SIZE_5592,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 
 static const struct data_queue_desc rt2800usb_queue_bcn_5592 = {
 	.entry_num		= 8,
 	.data_size		= MGMT_FRAME_SIZE,
-	.desc_size		= TXINFO_DESC_SIZE + TXWI_DESC_SIZE_5592,
+	.desc_size		= TXINFO_DESC_SIZE,
+	.winfo_size		= TXWI_DESC_SIZE_5592,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
 };
 

@@ -479,7 +479,8 @@ struct data_queue {
 	unsigned short cw_max;
 
 	unsigned short data_size;
-	unsigned short desc_size;
+	unsigned char  desc_size;
+	unsigned char  winfo_size;
 
 	unsigned short usb_endpoint;
 	unsigned short usb_maxpacket;
@@ -499,7 +500,8 @@ struct data_queue {
 struct data_queue_desc {
 	unsigned short entry_num;
 	unsigned short data_size;
-	unsigned short desc_size;
+	unsigned char  desc_size;
+	unsigned char  winfo_size;
 	unsigned short priv_size;
 };
 

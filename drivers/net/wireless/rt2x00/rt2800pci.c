@@ -735,11 +735,6 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 	 * Process the RXWI structure that is at the start of the buffer.
 	 */
 	rt2800_process_rxwi(entry, rxdesc);
-
-	/*
-	 * Remove RXWI descriptor from start of buffer.
-	 */
-	skb_pull(entry->skb, RXWI_DESC_SIZE);
 }
 
 /*
@@ -1197,6 +1192,7 @@ static const struct data_queue_desc rt2800pci_queue_rx = {
 	.entry_num		= 128,
 	.data_size		= AGGREGATION_SIZE,
 	.desc_size		= RXD_DESC_SIZE,
+	.winfo_size		= RXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_mmio),
 };
 
@@ -1204,13 +1200,15 @@ static const struct data_queue_desc rt2800pci_queue_tx = {
 	.entry_num		= 64,
 	.data_size		= AGGREGATION_SIZE,
 	.desc_size		= TXD_DESC_SIZE,
+	.winfo_size		= TXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_mmio),
 };
 
 static const struct data_queue_desc rt2800pci_queue_bcn = {
 	.entry_num		= 8,
 	.data_size		= 0, /* No DMA required for beacons */
-	.desc_size		= TXWI_DESC_SIZE,
+	.desc_size		= TXD_DESC_SIZE,
+	.winfo_size		= TXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_mmio),
 };
 

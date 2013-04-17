@@ -676,6 +676,10 @@ void rt2800_process_rxwi(struct queue_entry *entry,
 	 * Convert descriptor AGC value to RSSI value.
 	 */
 	rxdesc->rssi = rt2800_agc_to_rssi(entry->queue->rt2x00dev, word);
+	/*
+	 * Remove RXWI descriptor from start of the buffer.
+	 */
+	skb_pull(entry->skb, entry->queue->winfo_size);
 }
 EXPORT_SYMBOL_GPL(rt2800_process_rxwi);
 
@@ -766,6 +770,7 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 	unsigned int beacon_base;
 	unsigned int padding_len;
 	u32 orig_reg, reg;
+	const int txwi_desc_size = entry->queue->winfo_size;
 
 	/*
 	 * Disable beaconing while we are reloading the beacon data,
@@ -779,14 +784,14 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 	/*
 	 * Add space for the TXWI in front of the skb.
 	 */
-	memset(skb_push(entry->skb, TXWI_DESC_SIZE), 0, TXWI_DESC_SIZE);
+	memset(skb_push(entry->skb, txwi_desc_size), 0, txwi_desc_size);
 
 	/*
 	 * Register descriptor details in skb frame descriptor.
 	 */
 	skbdesc->flags |= SKBDESC_DESC_IN_SKB;
 	skbdesc->desc = entry->skb->data;
-	skbdesc->desc_len = TXWI_DESC_SIZE;
+	skbdesc->desc_len = txwi_desc_size;
 
 	/*
 	 * Add the TXWI for the beacon to the skb.
@@ -832,13 +837,14 @@ static inline void rt2800_clear_beacon_register(struct rt2x00_dev *rt2x00dev,
 						unsigned int beacon_base)
 {
 	int i;
+	const int txwi_desc_size = rt2x00dev->ops->bcn->winfo_size;
 
 	/*
 	 * For the Beacon base registers we only need to clear
 	 * the whole TXWI which (when set to 0) will invalidate
 	 * the entire beacon.
 	 */
-	for (i = 0; i < TXWI_DESC_SIZE; i += sizeof(__le32))
+	for (i = 0; i < txwi_desc_size; i += sizeof(__le32))
 		rt2800_register_write(rt2x00dev, beacon_base + i, 0);
 }
 
