@@ -535,6 +535,15 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 					 &opcode, sizeof(u32));
 			break;
 		}
+#ifdef CONFIG_KVM_XICS
+		case KVM_REG_PPC_ICP_STATE:
+			if (!vcpu->arch.icp) {
+				r = -ENXIO;
+				break;
+			}
+			val = get_reg_val(reg->id, kvmppc_xics_get_icp(vcpu));
+			break;
+#endif /* CONFIG_KVM_XICS */
 		default:
 			r = -EINVAL;
 			break;
@@ -597,6 +606,16 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 			vcpu->arch.vscr.u[3] = set_reg_val(reg->id, val);
 			break;
 #endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_KVM_XICS
+		case KVM_REG_PPC_ICP_STATE:
+			if (!vcpu->arch.icp) {
+				r = -ENXIO;
+				break;
+			}
+			r = kvmppc_xics_set_icp(vcpu,
+						set_reg_val(reg->id, val));
+			break;
+#endif /* CONFIG_KVM_XICS */
 		default:
 			r = -EINVAL;
 			break;

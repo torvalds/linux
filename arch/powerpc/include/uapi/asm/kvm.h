@@ -390,6 +390,18 @@ struct kvm_get_htab_header {
 	__u16	n_invalid;
 };
 
+/* Per-vcpu XICS interrupt controller state */
+#define KVM_REG_PPC_ICP_STATE	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x8c)
+
+#define  KVM_REG_PPC_ICP_CPPR_SHIFT	56	/* current proc priority */
+#define  KVM_REG_PPC_ICP_CPPR_MASK	0xff
+#define  KVM_REG_PPC_ICP_XISR_SHIFT	32	/* interrupt status field */
+#define  KVM_REG_PPC_ICP_XISR_MASK	0xffffff
+#define  KVM_REG_PPC_ICP_MFRR_SHIFT	24	/* pending IPI priority */
+#define  KVM_REG_PPC_ICP_MFRR_MASK	0xff
+#define  KVM_REG_PPC_ICP_PPRI_SHIFT	16	/* pending irq priority */
+#define  KVM_REG_PPC_ICP_PPRI_MASK	0xff
+
 /* Device control API: PPC-specific devices */
 #define KVM_DEV_MPIC_GRP_MISC		1
 #define   KVM_DEV_MPIC_BASE_ADDR	0	/* 64-bit */

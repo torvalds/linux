@@ -954,6 +954,96 @@ int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu, unsigned long server_num)
 	return 0;
 }
 
+u64 kvmppc_xics_get_icp(struct kvm_vcpu *vcpu)
+{
+	struct kvmppc_icp *icp = vcpu->arch.icp;
+	union kvmppc_icp_state state;
+
+	if (!icp)
+		return 0;
+	state = icp->state;
+	return ((u64)state.cppr << KVM_REG_PPC_ICP_CPPR_SHIFT) |
+		((u64)state.xisr << KVM_REG_PPC_ICP_XISR_SHIFT) |
+		((u64)state.mfrr << KVM_REG_PPC_ICP_MFRR_SHIFT) |
+		((u64)state.pending_pri << KVM_REG_PPC_ICP_PPRI_SHIFT);
+}
+
+int kvmppc_xics_set_icp(struct kvm_vcpu *vcpu, u64 icpval)
+{
+	struct kvmppc_icp *icp = vcpu->arch.icp;
+	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
+	union kvmppc_icp_state old_state, new_state;
+	struct kvmppc_ics *ics;
+	u8 cppr, mfrr, pending_pri;
+	u32 xisr;
+	u16 src;
+	bool resend;
+
+	if (!icp || !xics)
+		return -ENOENT;
+
+	cppr = icpval >> KVM_REG_PPC_ICP_CPPR_SHIFT;
+	xisr = (icpval >> KVM_REG_PPC_ICP_XISR_SHIFT) &
+		KVM_REG_PPC_ICP_XISR_MASK;
+	mfrr = icpval >> KVM_REG_PPC_ICP_MFRR_SHIFT;
+	pending_pri = icpval >> KVM_REG_PPC_ICP_PPRI_SHIFT;
+
+	/* Require the new state to be internally consistent */
+	if (xisr == 0) {
+		if (pending_pri != 0xff)
+			return -EINVAL;
+	} else if (xisr == XICS_IPI) {
+		if (pending_pri != mfrr || pending_pri >= cppr)
+			return -EINVAL;
+	} else {
+		if (pending_pri >= mfrr || pending_pri >= cppr)
+			return -EINVAL;
+		ics = kvmppc_xics_find_ics(xics, xisr, &src);
+		if (!ics)
+			return -EINVAL;
+	}
+
+	new_state.raw = 0;
+	new_state.cppr = cppr;
+	new_state.xisr = xisr;
+	new_state.mfrr = mfrr;
+	new_state.pending_pri = pending_pri;
+
+	/*
+	 * Deassert the CPU interrupt request.
+	 * icp_try_update will reassert it if necessary.
+	 */
+	kvmppc_book3s_dequeue_irqprio(icp->vcpu,
+				      BOOK3S_INTERRUPT_EXTERNAL_LEVEL);
+
+	/*
+	 * Note that if we displace an interrupt from old_state.xisr,
+	 * we don't mark it as rejected.  We expect userspace to set
+	 * the state of the interrupt sources to be consistent with
+	 * the ICP states (either before or afterwards, which doesn't
+	 * matter).  We do handle resends due to CPPR becoming less
+	 * favoured because that is necessary to end up with a
+	 * consistent state in the situation where userspace restores
+	 * the ICS states before the ICP states.
+	 */
+	do {
+		old_state = ACCESS_ONCE(icp->state);
+
+		if (new_state.mfrr <= old_state.mfrr) {
+			resend = false;
+			new_state.need_resend = old_state.need_resend;
+		} else {
+			resend = old_state.need_resend;
+			new_state.need_resend = 0;
+		}
+	} while (!icp_try_update(icp, old_state, new_state, false));
+
+	if (resend)
+		icp_check_resend(xics, icp);
+
+	return 0;
+}
+
 /* -- ioctls -- */
 
 int kvm_vm_ioctl_xics_irq(struct kvm *kvm, struct kvm_irq_level *args)

@@ -313,6 +313,8 @@ extern void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu);
 extern int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu, unsigned long server);
 extern int kvm_vm_ioctl_xics_irq(struct kvm *kvm, struct kvm_irq_level *args);
 extern int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd);
+extern u64 kvmppc_xics_get_icp(struct kvm_vcpu *vcpu);
+extern int kvmppc_xics_set_icp(struct kvm_vcpu *vcpu, u64 icpval);
 #else
 static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
 	{ return 0; }
