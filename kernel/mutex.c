@@ -37,6 +37,17 @@
 # include <asm/mutex.h>
 #endif
 
+/*
+ * A mutex count of -1 indicates that waiters are sleeping waiting for the
+ * mutex. Some architectures can allow any negative number, not just -1, for
+ * this purpose.
+ */
+#ifdef __ARCH_ALLOW_ANY_NEGATIVE_MUTEX_COUNT
+#define	MUTEX_SHOW_NO_WAITER(mutex)	(atomic_read(&(mutex)->count) >= 0)
+#else
+#define	MUTEX_SHOW_NO_WAITER(mutex)	(atomic_read(&(mutex)->count) != -1)
+#endif
+
 void
 __mutex_init(struct mutex *lock, const char *name, struct lock_class_key *key)
 {
@@ -217,7 +228,8 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		if (owner && !mutex_spin_on_owner(lock, owner))
 			break;
 
-		if (atomic_cmpxchg(&lock->count, 1, 0) == 1) {
+		if ((atomic_read(&lock->count) == 1) &&
+		    (atomic_cmpxchg(&lock->count, 1, 0) == 1)) {
 			lock_acquired(&lock->dep_map, ip);
 			mutex_set_owner(lock);
 			preempt_enable();
@@ -251,7 +263,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	list_add_tail(&waiter.list, &lock->wait_list);
 	waiter.task = task;
 
-	if (atomic_xchg(&lock->count, -1) == 1)
+	if (MUTEX_SHOW_NO_WAITER(lock) && (atomic_xchg(&lock->count, -1) == 1))
 		goto done;
 
 	lock_contended(&lock->dep_map, ip);
@@ -266,7 +278,8 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		 * that when we release the lock, we properly wake up the
 		 * other waiters:
 		 */
-		if (atomic_xchg(&lock->count, -1) == 1)
+		if (MUTEX_SHOW_NO_WAITER(lock) &&
+		   (atomic_xchg(&lock->count, -1) == 1))
 			break;
 
 		/*
