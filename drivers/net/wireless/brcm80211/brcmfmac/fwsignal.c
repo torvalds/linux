@@ -1616,7 +1616,6 @@ brcmf_fws_rollback_toq(struct brcmf_fws_info *fws, struct sk_buff *skb)
 				/* free the hanger slot */
 				brcmf_fws_hanger_poppkt(&fws->hanger, hslot,
 							&pktout, true);
-				brcmf_txfinalize(fws->drvr, skb, false);
 				rc = -EINVAL;
 				goto fail;
 			}
@@ -1650,9 +1649,10 @@ brcmf_fws_rollback_toq(struct brcmf_fws_info *fws, struct sk_buff *skb)
 
 
 fail:
-	if (rc)
+	if (rc) {
+		brcmf_txfinalize(fws->drvr, skb, false);
 		fws->stats.rollback_failed++;
-	else
+	} else
 		fws->stats.rollback_success++;
 	return rc;
 }
