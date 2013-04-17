@@ -386,7 +386,8 @@ static int au_file_refresh_by_inode(struct file *file, int *need_reopen)
 	if (!S_ISDIR(inode->i_mode)
 	    && au_opt_test(au_mntflags(sb), PLINK)
 	    && au_plink_test(inode)
-	    && !d_unhashed(dentry)) {
+	    && !d_unhashed(dentry)
+	    && bstart < au_dbstart(dentry)) {
 		err = au_test_and_cpup_dirs(dentry, bstart);
 		if (unlikely(err))
 			goto out_unlock;
