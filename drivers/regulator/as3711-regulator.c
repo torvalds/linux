@@ -278,19 +278,20 @@ static struct as3711_regulator_info as3711_reg_info[] = {
 
 #define AS3711_REGULATOR_NUM ARRAY_SIZE(as3711_reg_info)
 
-static const char *as3711_regulator_of_names[AS3711_REGULATOR_NUM] = {
-	[AS3711_REGULATOR_SD_1] = "sd1",
-	[AS3711_REGULATOR_SD_2] = "sd2",
-	[AS3711_REGULATOR_SD_3] = "sd3",
-	[AS3711_REGULATOR_SD_4] = "sd4",
-	[AS3711_REGULATOR_LDO_1] = "ldo1",
-	[AS3711_REGULATOR_LDO_2] = "ldo2",
-	[AS3711_REGULATOR_LDO_3] = "ldo3",
-	[AS3711_REGULATOR_LDO_4] = "ldo4",
-	[AS3711_REGULATOR_LDO_5] = "ldo5",
-	[AS3711_REGULATOR_LDO_6] = "ldo6",
-	[AS3711_REGULATOR_LDO_7] = "ldo7",
-	[AS3711_REGULATOR_LDO_8] = "ldo8",
+static struct of_regulator_match
+as3711_regulator_matches[AS3711_REGULATOR_NUM] = {
+	[AS3711_REGULATOR_SD_1] = { .name = "sd1" },
+	[AS3711_REGULATOR_SD_2] = { .name = "sd2" },
+	[AS3711_REGULATOR_SD_3] = { .name = "sd3" },
+	[AS3711_REGULATOR_SD_4] = { .name = "sd4" },
+	[AS3711_REGULATOR_LDO_1] = { .name = "ldo1" },
+	[AS3711_REGULATOR_LDO_2] = { .name = "ldo2" },
+	[AS3711_REGULATOR_LDO_3] = { .name = "ldo3" },
+	[AS3711_REGULATOR_LDO_4] = { .name = "ldo4" },
+	[AS3711_REGULATOR_LDO_5] = { .name = "ldo5" },
+	[AS3711_REGULATOR_LDO_6] = { .name = "ldo6" },
+	[AS3711_REGULATOR_LDO_7] = { .name = "ldo7" },
+	[AS3711_REGULATOR_LDO_8] = { .name = "ldo8" },
 };
 
 static int as3711_regulator_parse_dt(struct device *dev,
@@ -299,7 +300,7 @@ static int as3711_regulator_parse_dt(struct device *dev,
 	struct as3711_regulator_pdata *pdata = dev_get_platdata(dev);
 	struct device_node *regulators =
 		of_find_node_by_name(dev->parent->of_node, "regulators");
-	struct of_regulator_match *matches, *match;
+	struct of_regulator_match *match;
 	int ret, i;
 
 	if (!regulators) {
@@ -307,23 +308,15 @@ static int as3711_regulator_parse_dt(struct device *dev,
 		return -ENODEV;
 	}
 
-	matches = devm_kzalloc(dev, sizeof(*matches) * count, GFP_KERNEL);
-	if (!matches)
-		return -ENOMEM;
-
-	for (i = 0, match = matches; i < count; i++, match++) {
-		match->name = as3711_regulator_of_names[i];
-		match->driver_data = as3711_reg_info + i;
-	}
-
-	ret = of_regulator_match(dev->parent, regulators, matches, count);
+	ret = of_regulator_match(dev->parent, regulators,
+				 as3711_regulator_matches, count);
 	of_node_put(regulators);
 	if (ret < 0) {
 		dev_err(dev, "Error parsing regulator init data: %d\n", ret);
 		return ret;
 	}
 
-	for (i = 0, match = matches; i < count; i++, match++)
+	for (i = 0, match = as3711_regulator_matches; i < count; i++, match++)
 		if (match->of_node) {
 			pdata->init_data[i] = match->init_data;
 			of_node[i] = match->of_node;
