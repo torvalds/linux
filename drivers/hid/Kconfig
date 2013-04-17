@@ -122,6 +122,17 @@ config HID_APPLE
 	Say Y here if you want support for keyboards of	Apple iBooks, PowerBooks,
 	MacBooks, MacBook Pros and Apple Aluminum.
 
+config HID_APPLEIR
+	tristate "Apple infrared receiver"
+	depends on (USB_HID)
+	---help---
+	Support for Apple infrared remote control. All the Apple computers from
+	  2005 onwards include such a port, except the unibody Macbook (2009),
+	  and Mac Pros. This receiver is also used in the Apple TV set-top box
+	  prior to the 2010 model.
+
+	Say Y here if you want support for Apple infrared remote control.
+
 config HID_AUREAL
 	tristate "Aureal"
 	depends on USB_HID
