@@ -63,6 +63,44 @@ static void kvm_rtas_get_xive(struct kvm_vcpu *vcpu, struct rtas_args *args)
 out:
 	args->rets[0] = rc;
 }
+
+static void kvm_rtas_int_off(struct kvm_vcpu *vcpu, struct rtas_args *args)
+{
+	u32 irq;
+	int rc;
+
+	if (args->nargs != 1 || args->nret != 1) {
+		rc = -3;
+		goto out;
+	}
+
+	irq = args->args[0];
+
+	rc = kvmppc_xics_int_off(vcpu->kvm, irq);
+	if (rc)
+		rc = -3;
+out:
+	args->rets[0] = rc;
+}
+
+static void kvm_rtas_int_on(struct kvm_vcpu *vcpu, struct rtas_args *args)
+{
+	u32 irq;
+	int rc;
+
+	if (args->nargs != 1 || args->nret != 1) {
+		rc = -3;
+		goto out;
+	}
+
+	irq = args->args[0];
+
+	rc = kvmppc_xics_int_on(vcpu->kvm, irq);
+	if (rc)
+		rc = -3;
+out:
+	args->rets[0] = rc;
+}
 #endif /* CONFIG_KVM_XICS */
 
 struct rtas_handler {
@@ -74,6 +112,8 @@ static struct rtas_handler rtas_handlers[] = {
 #ifdef CONFIG_KVM_XICS
 	{ .name = "ibm,set-xive", .handler = kvm_rtas_set_xive },
 	{ .name = "ibm,get-xive", .handler = kvm_rtas_get_xive },
+	{ .name = "ibm,int-off",  .handler = kvm_rtas_int_off },
+	{ .name = "ibm,int-on",   .handler = kvm_rtas_int_on },
 #endif
 };
 

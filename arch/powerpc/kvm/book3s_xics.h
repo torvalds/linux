@@ -36,7 +36,7 @@ struct ics_irq_state {
 	u32 number;
 	u32 server;
 	u8  priority;
-	u8  saved_priority; /* currently unused */
+	u8  saved_priority;
 	u8  resend;
 	u8  masked_pending;
 	u8  asserted; /* Only for LSI */

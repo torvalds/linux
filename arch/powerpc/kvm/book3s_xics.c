@@ -123,6 +123,28 @@ static void ics_check_resend(struct kvmppc_xics *xics, struct kvmppc_ics *ics,
 	mutex_unlock(&ics->lock);
 }
 
+static bool write_xive(struct kvmppc_xics *xics, struct kvmppc_ics *ics,
+		       struct ics_irq_state *state,
+		       u32 server, u32 priority, u32 saved_priority)
+{
+	bool deliver;
+
+	mutex_lock(&ics->lock);
+
+	state->server = server;
+	state->priority = priority;
+	state->saved_priority = saved_priority;
+	deliver = false;
+	if ((state->masked_pending || state->resend) && priority != MASKED) {
+		state->masked_pending = 0;
+		deliver = true;
+	}
+
+	mutex_unlock(&ics->lock);
+
+	return deliver;
+}
+
 int kvmppc_xics_set_xive(struct kvm *kvm, u32 irq, u32 server, u32 priority)
 {
 	struct kvmppc_xics *xics = kvm->arch.xics;
@@ -130,7 +152,6 @@ int kvmppc_xics_set_xive(struct kvm *kvm, u32 irq, u32 server, u32 priority)
 	struct kvmppc_ics *ics;
 	struct ics_irq_state *state;
 	u16 src;
-	bool deliver;
 
 	if (!xics)
 		return -ENODEV;
@@ -144,23 +165,11 @@ int kvmppc_xics_set_xive(struct kvm *kvm, u32 irq, u32 server, u32 priority)
 	if (!icp)
 		return -EINVAL;
 
-	mutex_lock(&ics->lock);
-
 	XICS_DBG("set_xive %#x server %#x prio %#x MP:%d RS:%d\n",
 		 irq, server, priority,
 		 state->masked_pending, state->resend);
 
-	state->server = server;
-	state->priority = priority;
-	deliver = false;
-	if ((state->masked_pending || state->resend) && priority != MASKED) {
-		state->masked_pending = 0;
-		deliver = true;
-	}
-
-	mutex_unlock(&ics->lock);
-
-	if (deliver)
+	if (write_xive(xics, ics, state, server, priority, priority))
 		icp_deliver_irq(xics, icp, irq);
 
 	return 0;
@@ -185,6 +194,53 @@ int kvmppc_xics_get_xive(struct kvm *kvm, u32 irq, u32 *server, u32 *priority)
 	*server = state->server;
 	*priority = state->priority;
 	mutex_unlock(&ics->lock);
+
+	return 0;
+}
+
+int kvmppc_xics_int_on(struct kvm *kvm, u32 irq)
+{
+	struct kvmppc_xics *xics = kvm->arch.xics;
+	struct kvmppc_icp *icp;
+	struct kvmppc_ics *ics;
+	struct ics_irq_state *state;
+	u16 src;
+
+	if (!xics)
+		return -ENODEV;
+
+	ics = kvmppc_xics_find_ics(xics, irq, &src);
+	if (!ics)
+		return -EINVAL;
+	state = &ics->irq_state[src];
+
+	icp = kvmppc_xics_find_server(kvm, state->server);
+	if (!icp)
+		return -EINVAL;
+
+	if (write_xive(xics, ics, state, state->server, state->saved_priority,
+		       state->saved_priority))
+		icp_deliver_irq(xics, icp, irq);
+
+	return 0;
+}
+
+int kvmppc_xics_int_off(struct kvm *kvm, u32 irq)
+{
+	struct kvmppc_xics *xics = kvm->arch.xics;
+	struct kvmppc_ics *ics;
+	struct ics_irq_state *state;
+	u16 src;
+
+	if (!xics)
+		return -ENODEV;
+
+	ics = kvmppc_xics_find_ics(xics, irq, &src);
+	if (!ics)
+		return -EINVAL;
+	state = &ics->irq_state[src];
+
+	write_xive(xics, ics, state, state->server, MASKED, state->priority);
 
 	return 0;
 }
