@@ -413,6 +413,13 @@ static struct notifier_block thermal_cpufreq_notifier_block = {
 /**
  * cpufreq_cooling_register - function to create cpufreq cooling device.
  * @clip_cpus: cpumask of cpus where the frequency constraints will happen.
+ *
+ * This interface function registers the cpufreq cooling device with the name
+ * "thermal-cpufreq-%x". This api can support multiple instances of cpufreq
+ * cooling devices.
+ *
+ * Return: a valid struct thermal_cooling_device pointer on success,
+ * on failure, it returns a corresponding ERR_PTR().
  */
 struct thermal_cooling_device *cpufreq_cooling_register(
 	const struct cpumask *clip_cpus)
