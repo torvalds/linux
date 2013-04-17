@@ -28,13 +28,11 @@ extern void secondary_startup(void);
  */
 void __ref highbank_cpu_die(unsigned int cpu)
 {
-	flush_cache_all();
-
 	highbank_set_cpu_jump(cpu, phys_to_virt(0));
+
+	flush_cache_louis();
 	highbank_set_core_pwr();
 
-	cpu_do_idle();
-
-	/* We should never return from idle */
-	panic("highbank: cpu %d unexpectedly exit from shutdown\n", cpu);
+	while (1)
+		cpu_do_idle();
 }
