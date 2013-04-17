@@ -750,11 +750,18 @@ static int au_cpup_simple(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 {
 	int err;
 	aufs_bindex_t bsrc, bend;
+	struct dentry *h_dentry;
 
+	DiMustWriteLock(dentry);
 	bend = au_dbend(dentry);
-	for (bsrc = bdst + 1; bsrc <= bend; bsrc++)
-		if (au_h_dptr(dentry, bsrc))
+	for (bsrc = bdst + 1; bsrc <= bend; bsrc++) {
+		h_dentry = au_h_dptr(dentry, bsrc);
+		if (h_dentry) {
+			AuDebugOn(!h_dentry->d_inode);
 			break;
+		}
+	}
+	AuDebugOn(bsrc > bend);
 
 	err = au_lkup_neg(dentry, bdst);
 	if (!err) {
