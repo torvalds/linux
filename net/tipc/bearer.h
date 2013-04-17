@@ -77,7 +77,6 @@ struct tipc_bearer;
  * @enable_bearer: routine which enables a bearer
  * @disable_bearer: routine which disables a bearer
  * @addr2str: routine which converts media address to string
- * @str2addr: routine which converts media address from string
  * @addr2msg: routine which converts media address to protocol message area
  * @msg2addr: routine which converts media address from protocol message area
  * @bcast_addr: media address used in broadcasting
@@ -94,7 +93,6 @@ struct tipc_media {
 	int (*enable_bearer)(struct tipc_bearer *b_ptr);
 	void (*disable_bearer)(struct tipc_bearer *b_ptr);
 	int (*addr2str)(struct tipc_media_addr *a, char *str_buf, int str_size);
-	int (*str2addr)(struct tipc_media_addr *a, char *str_buf);
 	int (*addr2msg)(struct tipc_media_addr *a, char *msg_area);
 	int (*msg2addr)(struct tipc_media_addr *a, char *msg_area);
 	struct tipc_media_addr bcast_addr;

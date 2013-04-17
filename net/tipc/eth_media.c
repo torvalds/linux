@@ -302,25 +302,6 @@ static int eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size)
 }
 
 /**
- * eth_str2addr - convert string to Ethernet address
- */
-static int eth_str2addr(struct tipc_media_addr *a, char *str_buf)
-{
-	char mac[ETH_ALEN];
-	int r;
-
-	r = sscanf(str_buf, "%02x:%02x:%02x:%02x:%02x:%02x",
-		       (u32 *)&mac[0], (u32 *)&mac[1], (u32 *)&mac[2],
-		       (u32 *)&mac[3], (u32 *)&mac[4], (u32 *)&mac[5]);
-
-	if (r != ETH_ALEN)
-		return 1;
-
-	eth_media_addr_set(a, mac);
-	return 0;
-}
-
-/**
  * eth_str2addr - convert Ethernet address format to message header format
  */
 static int eth_addr2msg(struct tipc_media_addr *a, char *msg_area)
@@ -351,7 +332,6 @@ static struct tipc_media eth_media_info = {
 	.enable_bearer	= enable_bearer,
 	.disable_bearer	= disable_bearer,
 	.addr2str	= eth_addr2str,
-	.str2addr	= eth_str2addr,
 	.addr2msg	= eth_addr2msg,
 	.msg2addr	= eth_msg2addr,
 	.bcast_addr	= { { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
