@@ -714,11 +714,21 @@ done:
 	return entry;
 }
 
-static bool brcmf_fws_mac_desc_closed(struct brcmf_fws_mac_descriptor *entry,
+static bool brcmf_fws_mac_desc_closed(struct brcmf_fws_info *fws,
+				      struct brcmf_fws_mac_descriptor *entry,
 				      int fifo)
 {
+	struct brcmf_fws_mac_descriptor *if_entry;
 	bool closed;
 
+	/* for unique destination entries the related interface
+	 * may be closed.
+	 */
+	if (entry->mac_handle) {
+		if_entry = &fws->desc.iface[entry->interface_id];
+		if (if_entry->state == BRCMF_FWS_STATE_CLOSE)
+			return true;
+	}
 	/* an entry is closed when the state is closed and
 	 * the firmware did not request anything.
 	 */
@@ -1079,7 +1089,8 @@ static struct sk_buff *brcmf_fws_deq(struct brcmf_fws_info *fws, int fifo)
 
 	for (i = 0; i < num_nodes; i++) {
 		entry = &table[(node_pos + i) % num_nodes];
-		if (!entry->occupied || brcmf_fws_mac_desc_closed(entry, fifo))
+		if (!entry->occupied ||
+		    brcmf_fws_mac_desc_closed(fws, entry, fifo))
 			continue;
 
 		if (entry->suppressed)
@@ -1753,7 +1764,7 @@ int brcmf_fws_process_skb(struct brcmf_if *ifp, struct sk_buff *skb)
 
 	brcmf_fws_lock(drvr, flags);
 	if (skcb->mac->suppressed ||
-	    brcmf_fws_mac_desc_closed(skcb->mac, fifo) ||
+	    brcmf_fws_mac_desc_closed(drvr->fws, skcb->mac, fifo) ||
 	    brcmu_pktq_mlen(&skcb->mac->psq, 3 << (fifo * 2)) ||
 	    (!multicast &&
 	     brcmf_fws_consume_credit(drvr->fws, fifo, skb) < 0)) {
