@@ -94,8 +94,8 @@ struct tipc_media {
 	void (*disable_bearer)(struct tipc_bearer *b_ptr);
 	int (*addr2str)(struct tipc_media_addr *a, char *str_buf, int str_size);
 	int (*addr2msg)(struct tipc_media_addr *a, char *msg_area);
-	int (*msg2addr)(struct tipc_media_addr *a, char *msg_area);
-	struct tipc_media_addr bcast_addr;
+	int (*msg2addr)(const struct tipc_bearer *b_ptr,
+			struct tipc_media_addr *a, char *msg_area);
 	u32 priority;
 	u32 tolerance;
 	u32 window;
@@ -134,6 +134,7 @@ struct tipc_bearer {
 	char name[TIPC_MAX_BEARER_NAME];
 	spinlock_t lock;
 	struct tipc_media *media;
+	struct tipc_media_addr bcast_addr;
 	u32 priority;
 	u32 window;
 	u32 tolerance;

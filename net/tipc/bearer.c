@@ -89,9 +89,6 @@ int tipc_register_media(struct tipc_media *m_ptr)
 
 	if ((strlen(m_ptr->name) + 1) > TIPC_MAX_MEDIA_NAME)
 		goto exit;
-	if ((m_ptr->bcast_addr.media_id != m_ptr->type_id) ||
-	    !m_ptr->bcast_addr.broadcast)
-		goto exit;
 	if (m_ptr->priority > TIPC_MAX_LINK_PRI)
 		goto exit;
 	if ((m_ptr->tolerance < TIPC_MIN_LINK_TOL) ||
@@ -407,7 +404,7 @@ restart:
 	INIT_LIST_HEAD(&b_ptr->links);
 	spin_lock_init(&b_ptr->lock);
 
-	res = tipc_disc_create(b_ptr, &m_ptr->bcast_addr, disc_domain);
+	res = tipc_disc_create(b_ptr, &b_ptr->bcast_addr, disc_domain);
 	if (res) {
 		bearer_disable(b_ptr);
 		pr_warn("Bearer <%s> rejected, discovery object creation failed\n",

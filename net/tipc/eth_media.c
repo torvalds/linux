@@ -77,12 +77,13 @@ static struct notifier_block notifier = {
  * Media-dependent "value" field stores MAC address in first 6 bytes
  * and zeroes out the remaining bytes.
  */
-static void eth_media_addr_set(struct tipc_media_addr *a, char *mac)
+static void eth_media_addr_set(const struct tipc_bearer *tb_ptr,
+			       struct tipc_media_addr *a, char *mac)
 {
 	memcpy(a->value, mac, ETH_ALEN);
 	memset(a->value + ETH_ALEN, 0, sizeof(a->value) - ETH_ALEN);
 	a->media_id = TIPC_MEDIA_TYPE_ETH;
-	a->broadcast = !memcmp(mac, eth_media_info.bcast_addr.value, ETH_ALEN);
+	a->broadcast = !memcmp(mac, tb_ptr->bcast_addr.value, ETH_ALEN);
 }
 
 /**
@@ -201,9 +202,13 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 	/* Associate TIPC bearer with Ethernet bearer */
 	eb_ptr->bearer = tb_ptr;
 	tb_ptr->usr_handle = (void *)eb_ptr;
+	memset(tb_ptr->bcast_addr.value, 0, sizeof(tb_ptr->bcast_addr.value));
+	memcpy(tb_ptr->bcast_addr.value, dev->broadcast, ETH_ALEN);
+	tb_ptr->bcast_addr.media_id = TIPC_MEDIA_TYPE_ETH;
+	tb_ptr->bcast_addr.broadcast = 1;
 	tb_ptr->mtu = dev->mtu;
 	tb_ptr->blocked = 0;
-	eth_media_addr_set(&tb_ptr->addr, (char *)dev->dev_addr);
+	eth_media_addr_set(tb_ptr, &tb_ptr->addr, (char *)dev->dev_addr);
 	return 0;
 }
 
@@ -315,12 +320,13 @@ static int eth_addr2msg(struct tipc_media_addr *a, char *msg_area)
 /**
  * eth_str2addr - convert message header address format to Ethernet format
  */
-static int eth_msg2addr(struct tipc_media_addr *a, char *msg_area)
+static int eth_msg2addr(const struct tipc_bearer *tb_ptr,
+			struct tipc_media_addr *a, char *msg_area)
 {
 	if (msg_area[TIPC_MEDIA_TYPE_OFFSET] != TIPC_MEDIA_TYPE_ETH)
 		return 1;
 
-	eth_media_addr_set(a, msg_area + ETH_ADDR_OFFSET);
+	eth_media_addr_set(tb_ptr, a, msg_area + ETH_ADDR_OFFSET);
 	return 0;
 }
 
@@ -334,8 +340,6 @@ static struct tipc_media eth_media_info = {
 	.addr2str	= eth_addr2str,
 	.addr2msg	= eth_addr2msg,
 	.msg2addr	= eth_msg2addr,
-	.bcast_addr	= { { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
-			    TIPC_MEDIA_TYPE_ETH, 1 },
 	.priority	= TIPC_DEF_LINK_PRI,
 	.tolerance	= TIPC_DEF_LINK_TOL,
 	.window		= TIPC_DEF_LINK_WIN,
