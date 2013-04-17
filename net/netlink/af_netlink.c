@@ -55,6 +55,7 @@
 #include <linux/types.h>
 #include <linux/audit.h>
 #include <linux/mutex.h>
+#include <linux/vmalloc.h>
 
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -107,6 +108,234 @@ static inline struct hlist_head *nl_portid_hashfn(struct nl_portid_hash *hash, u
 	return &hash->table[jhash_1word(portid, hash->rnd) & hash->mask];
 }
 
+#ifdef CONFIG_NETLINK_MMAP
+static __pure struct page *pgvec_to_page(const void *addr)
+{
+	if (is_vmalloc_addr(addr))
+		return vmalloc_to_page(addr);
+	else
+		return virt_to_page(addr);
+}
+
+static void free_pg_vec(void **pg_vec, unsigned int order, unsigned int len)
+{
+	unsigned int i;
+
+	for (i = 0; i < len; i++) {
+		if (pg_vec[i] != NULL) {
+			if (is_vmalloc_addr(pg_vec[i]))
+				vfree(pg_vec[i]);
+			else
+				free_pages((unsigned long)pg_vec[i], order);
+		}
+	}
+	kfree(pg_vec);
+}
+
+static void *alloc_one_pg_vec_page(unsigned long order)
+{
+	void *buffer;
+	gfp_t gfp_flags = GFP_KERNEL | __GFP_COMP | __GFP_ZERO |
+			  __GFP_NOWARN | __GFP_NORETRY;
+
+	buffer = (void *)__get_free_pages(gfp_flags, order);
+	if (buffer != NULL)
+		return buffer;
+
+	buffer = vzalloc((1 << order) * PAGE_SIZE);
+	if (buffer != NULL)
+		return buffer;
+
+	gfp_flags &= ~__GFP_NORETRY;
+	return (void *)__get_free_pages(gfp_flags, order);
+}
+
+static void **alloc_pg_vec(struct netlink_sock *nlk,
+			   struct nl_mmap_req *req, unsigned int order)
+{
+	unsigned int block_nr = req->nm_block_nr;
+	unsigned int i;
+	void **pg_vec, *ptr;
+
+	pg_vec = kcalloc(block_nr, sizeof(void *), GFP_KERNEL);
+	if (pg_vec == NULL)
+		return NULL;
+
+	for (i = 0; i < block_nr; i++) {
+		pg_vec[i] = ptr = alloc_one_pg_vec_page(order);
+		if (pg_vec[i] == NULL)
+			goto err1;
+	}
+
+	return pg_vec;
+err1:
+	free_pg_vec(pg_vec, order, block_nr);
+	return NULL;
+}
+
+static int netlink_set_ring(struct sock *sk, struct nl_mmap_req *req,
+			    bool closing, bool tx_ring)
+{
+	struct netlink_sock *nlk = nlk_sk(sk);
+	struct netlink_ring *ring;
+	struct sk_buff_head *queue;
+	void **pg_vec = NULL;
+	unsigned int order = 0;
+	int err;
+
+	ring  = tx_ring ? &nlk->tx_ring : &nlk->rx_ring;
+	queue = tx_ring ? &sk->sk_write_queue : &sk->sk_receive_queue;
+
+	if (!closing) {
+		if (atomic_read(&nlk->mapped))
+			return -EBUSY;
+		if (atomic_read(&ring->pending))
+			return -EBUSY;
+	}
+
+	if (req->nm_block_nr) {
+		if (ring->pg_vec != NULL)
+			return -EBUSY;
+
+		if ((int)req->nm_block_size <= 0)
+			return -EINVAL;
+		if (!IS_ALIGNED(req->nm_block_size, PAGE_SIZE))
+			return -EINVAL;
+		if (req->nm_frame_size < NL_MMAP_HDRLEN)
+			return -EINVAL;
+		if (!IS_ALIGNED(req->nm_frame_size, NL_MMAP_MSG_ALIGNMENT))
+			return -EINVAL;
+
+		ring->frames_per_block = req->nm_block_size /
+					 req->nm_frame_size;
+		if (ring->frames_per_block == 0)
+			return -EINVAL;
+		if (ring->frames_per_block * req->nm_block_nr !=
+		    req->nm_frame_nr)
+			return -EINVAL;
+
+		order = get_order(req->nm_block_size);
+		pg_vec = alloc_pg_vec(nlk, req, order);
+		if (pg_vec == NULL)
+			return -ENOMEM;
+	} else {
+		if (req->nm_frame_nr)
+			return -EINVAL;
+	}
+
+	err = -EBUSY;
+	mutex_lock(&nlk->pg_vec_lock);
+	if (closing || atomic_read(&nlk->mapped) == 0) {
+		err = 0;
+		spin_lock_bh(&queue->lock);
+
+		ring->frame_max		= req->nm_frame_nr - 1;
+		ring->head		= 0;
+		ring->frame_size	= req->nm_frame_size;
+		ring->pg_vec_pages	= req->nm_block_size / PAGE_SIZE;
+
+		swap(ring->pg_vec_len, req->nm_block_nr);
+		swap(ring->pg_vec_order, order);
+		swap(ring->pg_vec, pg_vec);
+
+		__skb_queue_purge(queue);
+		spin_unlock_bh(&queue->lock);
+
+		WARN_ON(atomic_read(&nlk->mapped));
+	}
+	mutex_unlock(&nlk->pg_vec_lock);
+
+	if (pg_vec)
+		free_pg_vec(pg_vec, order, req->nm_block_nr);
+	return err;
+}
+
+static void netlink_mm_open(struct vm_area_struct *vma)
+{
+	struct file *file = vma->vm_file;
+	struct socket *sock = file->private_data;
+	struct sock *sk = sock->sk;
+
+	if (sk)
+		atomic_inc(&nlk_sk(sk)->mapped);
+}
+
+static void netlink_mm_close(struct vm_area_struct *vma)
+{
+	struct file *file = vma->vm_file;
+	struct socket *sock = file->private_data;
+	struct sock *sk = sock->sk;
+
+	if (sk)
+		atomic_dec(&nlk_sk(sk)->mapped);
+}
+
+static const struct vm_operations_struct netlink_mmap_ops = {
+	.open	= netlink_mm_open,
+	.close	= netlink_mm_close,
+};
+
+static int netlink_mmap(struct file *file, struct socket *sock,
+			struct vm_area_struct *vma)
+{
+	struct sock *sk = sock->sk;
+	struct netlink_sock *nlk = nlk_sk(sk);
+	struct netlink_ring *ring;
+	unsigned long start, size, expected;
+	unsigned int i;
+	int err = -EINVAL;
+
+	if (vma->vm_pgoff)
+		return -EINVAL;
+
+	mutex_lock(&nlk->pg_vec_lock);
+
+	expected = 0;
+	for (ring = &nlk->rx_ring; ring <= &nlk->tx_ring; ring++) {
+		if (ring->pg_vec == NULL)
+			continue;
+		expected += ring->pg_vec_len * ring->pg_vec_pages * PAGE_SIZE;
+	}
+
+	if (expected == 0)
+		goto out;
+
+	size = vma->vm_end - vma->vm_start;
+	if (size != expected)
+		goto out;
+
+	start = vma->vm_start;
+	for (ring = &nlk->rx_ring; ring <= &nlk->tx_ring; ring++) {
+		if (ring->pg_vec == NULL)
+			continue;
+
+		for (i = 0; i < ring->pg_vec_len; i++) {
+			struct page *page;
+			void *kaddr = ring->pg_vec[i];
+			unsigned int pg_num;
+
+			for (pg_num = 0; pg_num < ring->pg_vec_pages; pg_num++) {
+				page = pgvec_to_page(kaddr);
+				err = vm_insert_page(vma, start, page);
+				if (err < 0)
+					goto out;
+				start += PAGE_SIZE;
+				kaddr += PAGE_SIZE;
+			}
+		}
+	}
+
+	atomic_inc(&nlk->mapped);
+	vma->vm_ops = &netlink_mmap_ops;
+	err = 0;
+out:
+	mutex_unlock(&nlk->pg_vec_lock);
+	return 0;
+}
+#else /* CONFIG_NETLINK_MMAP */
+#define netlink_mmap			sock_no_mmap
+#endif /* CONFIG_NETLINK_MMAP */
+
 static void netlink_destroy_callback(struct netlink_callback *cb)
 {
 	kfree_skb(cb->skb);
@@ -146,6 +375,18 @@ static void netlink_sock_destruct(struct sock *sk)
 	}
 
 	skb_queue_purge(&sk->sk_receive_queue);
+#ifdef CONFIG_NETLINK_MMAP
+	if (1) {
+		struct nl_mmap_req req;
+
+		memset(&req, 0, sizeof(req));
+		if (nlk->rx_ring.pg_vec)
+			netlink_set_ring(sk, &req, true, false);
+		memset(&req, 0, sizeof(req));
+		if (nlk->tx_ring.pg_vec)
+			netlink_set_ring(sk, &req, true, true);
+	}
+#endif /* CONFIG_NETLINK_MMAP */
 
 	if (!sock_flag(sk, SOCK_DEAD)) {
 		printk(KERN_ERR "Freeing alive netlink socket %p\n", sk);
@@ -409,6 +650,9 @@ static int __netlink_create(struct net *net, struct socket *sock,
 		mutex_init(nlk->cb_mutex);
 	}
 	init_waitqueue_head(&nlk->wait);
+#ifdef CONFIG_NETLINK_MMAP
+	mutex_init(&nlk->pg_vec_lock);
+#endif
 
 	sk->sk_destruct = netlink_sock_destruct;
 	sk->sk_protocol = protocol;
@@ -1211,7 +1455,8 @@ static int netlink_setsockopt(struct socket *sock, int level, int optname,
 	if (level != SOL_NETLINK)
 		return -ENOPROTOOPT;
 
-	if (optlen >= sizeof(int) &&
+	if (optname != NETLINK_RX_RING && optname != NETLINK_TX_RING &&
+	    optlen >= sizeof(int) &&
 	    get_user(val, (unsigned int __user *)optval))
 		return -EFAULT;
 
@@ -1260,6 +1505,25 @@ static int netlink_setsockopt(struct socket *sock, int level, int optname,
 		}
 		err = 0;
 		break;
+#ifdef CONFIG_NETLINK_MMAP
+	case NETLINK_RX_RING:
+	case NETLINK_TX_RING: {
+		struct nl_mmap_req req;
+
+		/* Rings might consume more memory than queue limits, require
+		 * CAP_NET_ADMIN.
+		 */
+		if (!capable(CAP_NET_ADMIN))
+			return -EPERM;
+		if (optlen < sizeof(req))
+			return -EINVAL;
+		if (copy_from_user(&req, optval, sizeof(req)))
+			return -EFAULT;
+		err = netlink_set_ring(sk, &req, false,
+				       optname == NETLINK_TX_RING);
+		break;
+	}
+#endif /* CONFIG_NETLINK_MMAP */
 	default:
 		err = -ENOPROTOOPT;
 	}
@@ -2093,7 +2357,7 @@ static const struct proto_ops netlink_ops = {
 	.getsockopt =	netlink_getsockopt,
 	.sendmsg =	netlink_sendmsg,
 	.recvmsg =	netlink_recvmsg,
-	.mmap =		sock_no_mmap,
+	.mmap =		netlink_mmap,
 	.sendpage =	sock_no_sendpage,
 };
 
