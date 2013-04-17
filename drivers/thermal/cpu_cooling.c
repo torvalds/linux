@@ -142,14 +142,13 @@ static int get_property(unsigned int cpu, unsigned long input,
 	int descend = -1;
 	struct cpufreq_frequency_table *table =
 					cpufreq_frequency_get_table(cpu);
-	
+
 	if (!output)
 		return -EINVAL;
 
 	if (!table)
 		return -EINVAL;
 
-	
 	for (i = 0; table[i].frequency != CPUFREQ_TABLE_END; i++) {
 		/* ignore invalid entries */
 		if (table[i].frequency == CPUFREQ_ENTRY_INVALID)
