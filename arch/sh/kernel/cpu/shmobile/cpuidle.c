@@ -91,14 +91,19 @@ static struct cpuidle_driver cpuidle_driver = {
 	.state_count = 3,
 };
 
-void sh_mobile_setup_cpuidle(void)
+int __init sh_mobile_setup_cpuidle(void)
 {
+	int ret;
+
 	if (sh_mobile_sleep_supported & SUSP_SH_SF)
 		cpuidle_driver.states[1].disabled = false;
 
 	if (sh_mobile_sleep_supported & SUSP_SH_STANDBY)
 		cpuidle_driver.states[2].disabled = false;
 
-	if (!cpuidle_register_driver(&cpuidle_driver))
-		cpuidle_register_device(&cpuidle_dev);
+	ret = cpuidle_register_driver(&cpuidle_driver);
+	if (ret)
+		return ret;
+
+	return cpuidle_register_device(&cpuidle_dev);
 }
