@@ -232,8 +232,14 @@ EXPORT_SYMBOL_GPL(cpufreq_cooling_get_level);
 /**
  * get_cpu_frequency - get the absolute value of frequency from level.
  * @cpu: cpu for which frequency is fetched.
- * @level: level of frequency, equals cooling state of cpu cooling device
+ * @level: cooling level
+ *
+ * This function matches cooling level with frequency. Based on a cooling level
+ * of frequency, equals cooling state of cpu cooling device, it will return
+ * the corresponding frequency.
  *	e.g level=0 --> 1st MAX FREQ, level=1 ---> 2nd MAX FREQ, .... etc
+ *
+ * Return: 0 on error, the corresponding frequency otherwise.
  */
 static unsigned int get_cpu_frequency(unsigned int cpu, unsigned long level)
 {
