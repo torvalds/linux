@@ -10,13 +10,6 @@
 
 #include <trace/events/power.h>
 
-#ifndef CONFIG_GENERIC_IDLE_LOOP
-void cpu_startup_entry(enum cpuhp_state state)
-{
-	cpu_idle();
-}
-#else
-
 static int __read_mostly cpu_idle_force_poll;
 
 void cpu_idle_poll_ctrl(bool enable)
@@ -112,4 +105,3 @@ void cpu_startup_entry(enum cpuhp_state state)
 	arch_cpu_idle_prepare();
 	cpu_idle_loop();
 }
-#endif
