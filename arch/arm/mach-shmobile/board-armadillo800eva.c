@@ -1087,6 +1087,9 @@ static const struct pinctrl_map eva_pinctrl_map[] = {
 				  "mmc0_data8_1", "mmc0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-r8a7740",
 				  "mmc0_ctrl_1", "mmc0"),
+	/* SCIFA1 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.1", "pfc-r8a7740",
+				  "scifa1_data", "scifa1"),
 	/* SDHI0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7740",
 				  "sdhi0_data4", "sdhi0"),
@@ -1153,10 +1156,6 @@ static void __init eva_init(void)
 
 	r8a7740_pinmux_init();
 	r8a7740_meram_workaround();
-
-	/* SCIFA1 */
-	gpio_request(GPIO_FN_SCIFA1_RXD, NULL);
-	gpio_request(GPIO_FN_SCIFA1_TXD, NULL);
 
 	/* LCDC0 */
 	gpio_request_one(61, GPIOF_OUT_INIT_HIGH, NULL); /* LCDDON */
