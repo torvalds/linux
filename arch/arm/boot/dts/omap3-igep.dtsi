@@ -62,6 +62,12 @@
 			0x126 0x0100	/* sdmmc1_dat7.sdmmc1_dat7 INPUT | MODE 0 */
 		>;
 	};
+
+	smsc911x_pins: pinmux_smsc911x_pins {
+		pinctrl-single,pins = <
+                        0x1a2 0x0104    /* mcspi1_cs2.gpio_176 INPUT | MODE4 */
+		>;
+	};
 };
 
 &i2c1 {
