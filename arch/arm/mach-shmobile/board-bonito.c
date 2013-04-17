@@ -377,6 +377,12 @@ static void __init bonito_map_io(void)
 static const struct pinctrl_map fpga_pinctrl_map[] = {
 	/* FPGA */
 	PIN_MAP_MUX_GROUP_DEFAULT("pfc-r8a7740", "pfc-r8a7740",
+				  "bsc_cs5a_0", "bsc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("pfc-r8a7740", "pfc-r8a7740",
+				  "bsc_cs5b", "bsc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("pfc-r8a7740", "pfc-r8a7740",
+				  "bsc_cs6a", "bsc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("pfc-r8a7740", "pfc-r8a7740",
 				  "intc_irq10", "intc"),
 };
 
@@ -418,13 +424,6 @@ static void __init bonito_init(void)
 		u16 bsw2;
 		u16 bsw3;
 		u16 bsw4;
-
-		/*
-		 * FPGA
-		 */
-		gpio_request(GPIO_FN_CS5B,		NULL);
-		gpio_request(GPIO_FN_CS6A,		NULL);
-		gpio_request(GPIO_FN_CS5A_PORT105,	NULL);
 
 		val = bonito_fpga_read(BVERR);
 		pr_info("bonito version: cpu %02x, base %02x\n",
