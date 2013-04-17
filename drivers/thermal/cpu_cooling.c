@@ -497,10 +497,10 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 	cpufreq_dev_count--;
 
 	/* Unregister the notifier for the last cpufreq cooling device */
-	if (cpufreq_dev_count == 0) {
+	if (cpufreq_dev_count == 0)
 		cpufreq_unregister_notifier(&thermal_cpufreq_notifier_block,
 					CPUFREQ_POLICY_NOTIFIER);
-	}
+
 	mutex_unlock(&cooling_cpufreq_lock);
 
 	thermal_cooling_device_unregister(cpufreq_dev->cool_dev);
