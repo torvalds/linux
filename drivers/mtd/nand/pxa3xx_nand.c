@@ -1072,7 +1072,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get nand clock\n");
 		return PTR_ERR(info->clk);
 	}
-	clk_enable(info->clk);
+	clk_prepare_enable(info->clk);
 
 	/*
 	 * This is a dirty hack to make this driver work from devicetree
@@ -1142,7 +1142,7 @@ fail_free_buf:
 	} else
 		kfree(info->data_buff);
 fail_disable_clk:
-	clk_disable(info->clk);
+	clk_disable_unprepare(info->clk);
 	return ret;
 }
 
@@ -1168,7 +1168,7 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 	} else
 		kfree(info->data_buff);
 
-	clk_disable(info->clk);
+	clk_disable_unprepare(info->clk);
 
 	for (cs = 0; cs < pdata->num_cs; cs++)
 		nand_release(info->host[cs]->mtd);
