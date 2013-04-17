@@ -620,10 +620,10 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 			continue;	/* bearer pair doesn't add anything */
 
 		if (!tipc_bearer_blocked(p))
-			tipc_bearer_send(p, buf, &p->media->bcast_addr);
+			tipc_bearer_send(p, buf, &p->bcast_addr);
 		else if (s && !tipc_bearer_blocked(s))
 			/* unable to send on primary bearer */
-			tipc_bearer_send(s, buf, &s->media->bcast_addr);
+			tipc_bearer_send(s, buf, &s->bcast_addr);
 		else
 			/* unable to send on either bearer */
 			continue;
