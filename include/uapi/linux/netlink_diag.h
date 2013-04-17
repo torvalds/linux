@@ -25,9 +25,18 @@ struct netlink_diag_msg {
 	__u32	ndiag_cookie[2];
 };
 
+struct netlink_diag_ring {
+	__u32	ndr_block_size;
+	__u32	ndr_block_nr;
+	__u32	ndr_frame_size;
+	__u32	ndr_frame_nr;
+};
+
 enum {
 	NETLINK_DIAG_MEMINFO,
 	NETLINK_DIAG_GROUPS,
+	NETLINK_DIAG_RX_RING,
+	NETLINK_DIAG_TX_RING,
 
 	__NETLINK_DIAG_MAX,
 };
@@ -38,5 +47,6 @@ enum {
 
 #define NDIAG_SHOW_MEMINFO	0x00000001 /* show memory info of a socket */
 #define NDIAG_SHOW_GROUPS	0x00000002 /* show groups of a netlink socket */
+#define NDIAG_SHOW_RING_CFG	0x00000004 /* show ring configuration */
 
 #endif
