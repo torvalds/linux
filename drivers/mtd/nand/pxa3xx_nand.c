@@ -912,6 +912,18 @@ static int pxa3xx_nand_init_buff(struct pxa3xx_nand_info *info)
 	return 0;
 }
 
+static void pxa3xx_nand_free_buff(struct pxa3xx_nand_info *info)
+{
+	struct platform_device *pdev = info->pdev;
+	if (use_dma) {
+		pxa_free_dma(info->data_dma_ch);
+		dma_free_coherent(&pdev->dev, MAX_BUFF_SIZE,
+				  info->data_buff, info->data_buff_phys);
+	} else {
+		kfree(info->data_buff);
+	}
+}
+
 static int pxa3xx_nand_sensing(struct pxa3xx_nand_info *info)
 {
 	struct mtd_info *mtd;
@@ -1137,12 +1149,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 
 fail_free_buf:
 	free_irq(irq, info);
-	if (use_dma) {
-		pxa_free_dma(info->data_dma_ch);
-		dma_free_coherent(&pdev->dev, MAX_BUFF_SIZE,
-			info->data_buff, info->data_buff_phys);
-	} else
-		kfree(info->data_buff);
+	pxa3xx_nand_free_buff(info);
 fail_disable_clk:
 	clk_disable_unprepare(info->clk);
 	return ret;
@@ -1163,12 +1170,7 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq >= 0)
 		free_irq(irq, info);
-	if (use_dma) {
-		pxa_free_dma(info->data_dma_ch);
-		dma_free_writecombine(&pdev->dev, MAX_BUFF_SIZE,
-				info->data_buff, info->data_buff_phys);
-	} else
-		kfree(info->data_buff);
+	pxa3xx_nand_free_buff(info);
 
 	clk_disable_unprepare(info->clk);
 
