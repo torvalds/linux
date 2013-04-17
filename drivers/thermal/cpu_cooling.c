@@ -257,6 +257,12 @@ static unsigned int get_cpu_frequency(unsigned int cpu, unsigned long level)
  * @cpufreq_device: cpufreq_cooling_device pointer containing frequency
  *	clipping data.
  * @cooling_state: value of the cooling state.
+ *
+ * Function used to make sure the cpufreq layer is aware of current thermal
+ * limits. The limits are applied by updating the cpufreq policy.
+ *
+ * Return: 0 on success, an error code otherwise (-EINVAL in case wrong
+ * cooling state).
  */
 static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
 				unsigned long cooling_state)
