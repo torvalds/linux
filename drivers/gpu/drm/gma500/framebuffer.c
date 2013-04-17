@@ -431,7 +431,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	fbdev->psb_fb_helper.fbdev = info;
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
-	strcpy(info->fix.id, "psbfb");
+	strcpy(info->fix.id, "psbdrmfb");
 
 	info->flags = FBINFO_DEFAULT;
 	if (dev_priv->ops->accel_2d && pitch_lines > 8)	/* 2D engine */

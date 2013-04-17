@@ -32,9 +32,6 @@
 /* maximum connectors per crtcs in the mode set */
 #define INTELFB_CONN_LIMIT 4
 
-#define INTEL_I2C_BUS_DVO 1
-#define INTEL_I2C_BUS_SDVO 2
-
 /* Intel Pipe Clone Bit */
 #define INTEL_HDMIB_CLONE_BIT 1
 #define INTEL_HDMIC_CLONE_BIT 2
@@ -67,11 +64,6 @@
 #define INTEL_OUTPUT_MIPI2 8
 #define INTEL_OUTPUT_DISPLAYPORT 9
 #define INTEL_OUTPUT_EDP 10
-
-#define INTEL_DVO_CHIP_NONE 0
-#define INTEL_DVO_CHIP_LVDS 1
-#define INTEL_DVO_CHIP_TMDS 2
-#define INTEL_DVO_CHIP_TVOUT 4
 
 #define INTEL_MODE_PIXEL_MULTIPLIER_SHIFT (0x0)
 #define INTEL_MODE_PIXEL_MULTIPLIER_MASK (0xf << INTEL_MODE_PIXEL_MULTIPLIER_SHIFT)

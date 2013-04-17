@@ -92,14 +92,17 @@ void mdfld_dsi_brightness_init(struct mdfld_dsi_config *dsi_config, int pipe)
 {
 	struct mdfld_dsi_pkg_sender *sender =
 				mdfld_dsi_get_pkg_sender(dsi_config);
-	struct drm_device *dev = sender->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_device *dev;
+	struct drm_psb_private *dev_priv;
 	u32 gen_ctrl_val;
 
 	if (!sender) {
 		DRM_ERROR("No sender found\n");
 		return;
 	}
+
+	dev = sender->dev;
+	dev_priv = dev->dev_private;
 
 	/* Set default display backlight value to 85% (0xd8)*/
 	mdfld_dsi_send_mcs_short(sender, write_display_brightness, 0xd8, 1,

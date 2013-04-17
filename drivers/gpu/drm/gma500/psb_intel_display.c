@@ -50,119 +50,41 @@ struct psb_intel_p2_t {
 	int p2_slow, p2_fast;
 };
 
-#define INTEL_P2_NUM		      2
-
 struct psb_intel_limit_t {
 	struct psb_intel_range_t dot, vco, n, m, m1, m2, p, p1;
 	struct psb_intel_p2_t p2;
 };
 
-#define I8XX_DOT_MIN		  25000
-#define I8XX_DOT_MAX		 350000
-#define I8XX_VCO_MIN		 930000
-#define I8XX_VCO_MAX		1400000
-#define I8XX_N_MIN		      3
-#define I8XX_N_MAX		     16
-#define I8XX_M_MIN		     96
-#define I8XX_M_MAX		    140
-#define I8XX_M1_MIN		     18
-#define I8XX_M1_MAX		     26
-#define I8XX_M2_MIN		      6
-#define I8XX_M2_MAX		     16
-#define I8XX_P_MIN		      4
-#define I8XX_P_MAX		    128
-#define I8XX_P1_MIN		      2
-#define I8XX_P1_MAX		     33
-#define I8XX_P1_LVDS_MIN	      1
-#define I8XX_P1_LVDS_MAX	      6
-#define I8XX_P2_SLOW		      4
-#define I8XX_P2_FAST		      2
-#define I8XX_P2_LVDS_SLOW	      14
-#define I8XX_P2_LVDS_FAST	      14	/* No fast option */
-#define I8XX_P2_SLOW_LIMIT	 165000
-
-#define I9XX_DOT_MIN		  20000
-#define I9XX_DOT_MAX		 400000
-#define I9XX_VCO_MIN		1400000
-#define I9XX_VCO_MAX		2800000
-#define I9XX_N_MIN		      1
-#define I9XX_N_MAX		      6
-#define I9XX_M_MIN		     70
-#define I9XX_M_MAX		    120
-#define I9XX_M1_MIN		      8
-#define I9XX_M1_MAX		     18
-#define I9XX_M2_MIN		      3
-#define I9XX_M2_MAX		      7
-#define I9XX_P_SDVO_DAC_MIN	      5
-#define I9XX_P_SDVO_DAC_MAX	     80
-#define I9XX_P_LVDS_MIN		      7
-#define I9XX_P_LVDS_MAX		     98
-#define I9XX_P1_MIN		      1
-#define I9XX_P1_MAX		      8
-#define I9XX_P2_SDVO_DAC_SLOW		     10
-#define I9XX_P2_SDVO_DAC_FAST		      5
-#define I9XX_P2_SDVO_DAC_SLOW_LIMIT	 200000
-#define I9XX_P2_LVDS_SLOW		     14
-#define I9XX_P2_LVDS_FAST		      7
-#define I9XX_P2_LVDS_SLOW_LIMIT		 112000
-
-#define INTEL_LIMIT_I8XX_DVO_DAC    0
-#define INTEL_LIMIT_I8XX_LVDS	    1
-#define INTEL_LIMIT_I9XX_SDVO_DAC   2
-#define INTEL_LIMIT_I9XX_LVDS	    3
+#define INTEL_LIMIT_I9XX_SDVO_DAC   0
+#define INTEL_LIMIT_I9XX_LVDS	    1
 
 static const struct psb_intel_limit_t psb_intel_limits[] = {
-	{			/* INTEL_LIMIT_I8XX_DVO_DAC */
-	 .dot = {.min = I8XX_DOT_MIN, .max = I8XX_DOT_MAX},
-	 .vco = {.min = I8XX_VCO_MIN, .max = I8XX_VCO_MAX},
-	 .n = {.min = I8XX_N_MIN, .max = I8XX_N_MAX},
-	 .m = {.min = I8XX_M_MIN, .max = I8XX_M_MAX},
-	 .m1 = {.min = I8XX_M1_MIN, .max = I8XX_M1_MAX},
-	 .m2 = {.min = I8XX_M2_MIN, .max = I8XX_M2_MAX},
-	 .p = {.min = I8XX_P_MIN, .max = I8XX_P_MAX},
-	 .p1 = {.min = I8XX_P1_MIN, .max = I8XX_P1_MAX},
-	 .p2 = {.dot_limit = I8XX_P2_SLOW_LIMIT,
-		.p2_slow = I8XX_P2_SLOW, .p2_fast = I8XX_P2_FAST},
-	 },
-	{			/* INTEL_LIMIT_I8XX_LVDS */
-	 .dot = {.min = I8XX_DOT_MIN, .max = I8XX_DOT_MAX},
-	 .vco = {.min = I8XX_VCO_MIN, .max = I8XX_VCO_MAX},
-	 .n = {.min = I8XX_N_MIN, .max = I8XX_N_MAX},
-	 .m = {.min = I8XX_M_MIN, .max = I8XX_M_MAX},
-	 .m1 = {.min = I8XX_M1_MIN, .max = I8XX_M1_MAX},
-	 .m2 = {.min = I8XX_M2_MIN, .max = I8XX_M2_MAX},
-	 .p = {.min = I8XX_P_MIN, .max = I8XX_P_MAX},
-	 .p1 = {.min = I8XX_P1_LVDS_MIN, .max = I8XX_P1_LVDS_MAX},
-	 .p2 = {.dot_limit = I8XX_P2_SLOW_LIMIT,
-		.p2_slow = I8XX_P2_LVDS_SLOW, .p2_fast = I8XX_P2_LVDS_FAST},
-	 },
 	{			/* INTEL_LIMIT_I9XX_SDVO_DAC */
-	 .dot = {.min = I9XX_DOT_MIN, .max = I9XX_DOT_MAX},
-	 .vco = {.min = I9XX_VCO_MIN, .max = I9XX_VCO_MAX},
-	 .n = {.min = I9XX_N_MIN, .max = I9XX_N_MAX},
-	 .m = {.min = I9XX_M_MIN, .max = I9XX_M_MAX},
-	 .m1 = {.min = I9XX_M1_MIN, .max = I9XX_M1_MAX},
-	 .m2 = {.min = I9XX_M2_MIN, .max = I9XX_M2_MAX},
-	 .p = {.min = I9XX_P_SDVO_DAC_MIN, .max = I9XX_P_SDVO_DAC_MAX},
-	 .p1 = {.min = I9XX_P1_MIN, .max = I9XX_P1_MAX},
-	 .p2 = {.dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
-		.p2_slow = I9XX_P2_SDVO_DAC_SLOW, .p2_fast =
-		I9XX_P2_SDVO_DAC_FAST},
+	 .dot = {.min = 20000, .max = 400000},
+	 .vco = {.min = 1400000, .max = 2800000},
+	 .n = {.min = 1, .max = 6},
+	 .m = {.min = 70, .max = 120},
+	 .m1 = {.min = 8, .max = 18},
+	 .m2 = {.min = 3, .max = 7},
+	 .p = {.min = 5, .max = 80},
+	 .p1 = {.min = 1, .max = 8},
+	 .p2 = {.dot_limit = 200000,
+		.p2_slow = 10, .p2_fast = 5},
 	 },
 	{			/* INTEL_LIMIT_I9XX_LVDS */
-	 .dot = {.min = I9XX_DOT_MIN, .max = I9XX_DOT_MAX},
-	 .vco = {.min = I9XX_VCO_MIN, .max = I9XX_VCO_MAX},
-	 .n = {.min = I9XX_N_MIN, .max = I9XX_N_MAX},
-	 .m = {.min = I9XX_M_MIN, .max = I9XX_M_MAX},
-	 .m1 = {.min = I9XX_M1_MIN, .max = I9XX_M1_MAX},
-	 .m2 = {.min = I9XX_M2_MIN, .max = I9XX_M2_MAX},
-	 .p = {.min = I9XX_P_LVDS_MIN, .max = I9XX_P_LVDS_MAX},
-	 .p1 = {.min = I9XX_P1_MIN, .max = I9XX_P1_MAX},
+	 .dot = {.min = 20000, .max = 400000},
+	 .vco = {.min = 1400000, .max = 2800000},
+	 .n = {.min = 1, .max = 6},
+	 .m = {.min = 70, .max = 120},
+	 .m1 = {.min = 8, .max = 18},
+	 .m2 = {.min = 3, .max = 7},
+	 .p = {.min = 7, .max = 98},
+	 .p1 = {.min = 1, .max = 8},
 	 /* The single-channel range is 25-112Mhz, and dual-channel
 	  * is 80-224Mhz.  Prefer single channel as much as possible.
 	  */
-	 .p2 = {.dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
-		.p2_slow = I9XX_P2_LVDS_SLOW, .p2_fast = I9XX_P2_LVDS_FAST},
+	 .p2 = {.dot_limit = 112000,
+		.p2_slow = 14, .p2_fast = 7},
 	 },
 };
 
@@ -177,30 +99,12 @@ static const struct psb_intel_limit_t *psb_intel_limit(struct drm_crtc *crtc)
 	return limit;
 }
 
-/** Derive the pixel clock for the given refclk and divisors for 8xx chips. */
-
-static void i8xx_clock(int refclk, struct psb_intel_clock_t *clock)
+static void psb_intel_clock(int refclk, struct psb_intel_clock_t *clock)
 {
 	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
 	clock->p = clock->p1 * clock->p2;
 	clock->vco = refclk * clock->m / (clock->n + 2);
 	clock->dot = clock->vco / clock->p;
-}
-
-/** Derive the pixel clock for the given refclk and divisors for 9xx chips. */
-
-static void i9xx_clock(int refclk, struct psb_intel_clock_t *clock)
-{
-	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
-	clock->p = clock->p1 * clock->p2;
-	clock->vco = refclk * clock->m / (clock->n + 2);
-	clock->dot = clock->vco / clock->p;
-}
-
-static void psb_intel_clock(struct drm_device *dev, int refclk,
-			struct psb_intel_clock_t *clock)
-{
-	return i9xx_clock(refclk, clock);
 }
 
 /**
@@ -308,7 +212,7 @@ static bool psb_intel_find_best_PLL(struct drm_crtc *crtc, int target,
 				     clock.p1++) {
 					int this_err;
 
-					psb_intel_clock(dev, refclk, &clock);
+					psb_intel_clock(refclk, &clock);
 
 					if (!psb_intel_PLL_is_valid
 					    (crtc, &clock))
@@ -1068,7 +972,7 @@ static int psb_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	return 0;
 }
 
-void psb_intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
+static void psb_intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
 			 u16 *green, u16 *blue, uint32_t type, uint32_t size)
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
@@ -1149,9 +1053,9 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 		if ((dpll & PLL_REF_INPUT_MASK) ==
 		    PLLB_REF_INPUT_SPREADSPECTRUMIN) {
 			/* XXX: might not be 66MHz */
-			i8xx_clock(66000, &clock);
+			psb_intel_clock(66000, &clock);
 		} else
-			i8xx_clock(48000, &clock);
+			psb_intel_clock(48000, &clock);
 	} else {
 		if (dpll & PLL_P1_DIVIDE_BY_TWO)
 			clock.p1 = 2;
@@ -1166,7 +1070,7 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 		else
 			clock.p2 = 2;
 
-		i8xx_clock(48000, &clock);
+		psb_intel_clock(48000, &clock);
 	}
 
 	/* XXX: It would be nice to validate the clocks, but we can't reuse
@@ -1225,7 +1129,7 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 	return mode;
 }
 
-void psb_intel_crtc_destroy(struct drm_crtc *crtc)
+static void psb_intel_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	struct gtt_range *gt;
