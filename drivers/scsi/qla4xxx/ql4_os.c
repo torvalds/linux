@@ -5504,9 +5504,9 @@ static int qla4xxx_sysfs_ddb_is_non_persistent(struct device *dev, void *data)
  * If this is invoked as a result of a userspace call then the entry is marked
  * as nonpersistent using flash_state field.
  **/
-int qla4xxx_sysfs_ddb_tgt_create(struct scsi_qla_host *ha,
-				 struct dev_db_entry *fw_ddb_entry,
-				 uint16_t *idx, int user)
+static int qla4xxx_sysfs_ddb_tgt_create(struct scsi_qla_host *ha,
+					struct dev_db_entry *fw_ddb_entry,
+					uint16_t *idx, int user)
 {
 	struct iscsi_bus_flash_session *fnode_sess = NULL;
 	struct iscsi_bus_flash_conn *fnode_conn = NULL;
