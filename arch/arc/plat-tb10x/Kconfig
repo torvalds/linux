@@ -27,10 +27,3 @@ menuconfig ARC_PLAT_TB10X
 	  Abilis Systems. TB10x is based on the ARC700 CPU architecture.
 	  Say Y if you are building a kernel for one of the SOCs in this
 	  series (e.g. TB100 or TB101). If in doubt say N.
-
-if ARC_PLAT_TB10X
-
-config GENERIC_GPIO
-	def_bool y
-
-endif
