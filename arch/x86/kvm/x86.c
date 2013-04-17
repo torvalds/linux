@@ -6752,8 +6752,10 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	}
 	vcpu->arch.mcg_cap = KVM_MAX_MCE_BANKS;
 
-	if (!zalloc_cpumask_var(&vcpu->arch.wbinvd_dirty_mask, GFP_KERNEL))
+	if (!zalloc_cpumask_var(&vcpu->arch.wbinvd_dirty_mask, GFP_KERNEL)) {
+		r = -ENOMEM;
 		goto fail_free_mce_banks;
+	}
 
 	r = fx_init(vcpu);
 	if (r)
