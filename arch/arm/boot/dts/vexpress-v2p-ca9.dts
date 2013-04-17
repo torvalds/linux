@@ -98,6 +98,7 @@
 			     <0 49 4>;
 		clocks = <&oscclk2>, <&oscclk2>;
 		clock-names = "timclk", "apb_pclk";
+		status = "disabled";
 	};
 
 	watchdog@100e5000 {

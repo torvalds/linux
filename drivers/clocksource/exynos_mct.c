@@ -24,7 +24,6 @@
 #include <linux/of_address.h>
 #include <linux/clocksource.h>
 
-#include <asm/arch_timer.h>
 #include <asm/localtimer.h>
 
 #include <plat/cpu.h>
