@@ -72,10 +72,11 @@ config CPU_THERMAL
 	select CPU_FREQ_TABLE
 	help
 	  This implements the generic cpu cooling mechanism through frequency
-	  reduction, cpu hotplug and any other ways of reducing temperature. An
-	  ACPI version of this already exists(drivers/acpi/processor_thermal.c).
+	  reduction. An ACPI version of this already exists
+	  (drivers/acpi/processor_thermal.c).
 	  This will be useful for platforms using the generic thermal interface
 	  and not the ACPI interface.
+
 	  If you want this support, you should say Y here.
 
 config THERMAL_EMULATION
