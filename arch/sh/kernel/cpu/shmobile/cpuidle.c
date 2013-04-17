@@ -63,9 +63,7 @@ void sh_mobile_setup_cpuidle(void)
 	struct cpuidle_device *dev = &cpuidle_dev;
 	struct cpuidle_driver *drv = &cpuidle_driver;
 	struct cpuidle_state *state;
-	int i;
-
-	i = CPUIDLE_DRIVER_STATE_START;
+	int i = 0;
 
 	state = &drv->states[i++];
 	snprintf(state->name, CPUIDLE_NAME_LEN, "C1");
@@ -77,7 +75,7 @@ void sh_mobile_setup_cpuidle(void)
 	state->flags |= CPUIDLE_FLAG_TIME_VALID;
 	state->enter = cpuidle_sleep_enter;
 
-	drv->safe_state_index = i-1;
+	drv->safe_state_index = 0;
 
 	if (sh_mobile_sleep_supported & SUSP_SH_SF) {
 		state = &drv->states[i++];
