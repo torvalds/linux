@@ -754,10 +754,12 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 			ibx_hpd_irq_setup(dev);
 		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
 	}
-	if (pch_iir & SDE_AUDIO_POWER_MASK)
+	if (pch_iir & SDE_AUDIO_POWER_MASK) {
+		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK) >>
+			       SDE_AUDIO_POWER_SHIFT);
 		DRM_DEBUG_DRIVER("PCH audio power change on port %d\n",
-				 (pch_iir & SDE_AUDIO_POWER_MASK) >>
-				 SDE_AUDIO_POWER_SHIFT);
+				 port_name(port));
+	}
 
 	if (pch_iir & SDE_AUX_MASK)
 		dp_aux_irq_handler(dev);
@@ -803,10 +805,12 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 			ibx_hpd_irq_setup(dev);
 		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
 	}
-	if (pch_iir & SDE_AUDIO_POWER_MASK_CPT)
-		DRM_DEBUG_DRIVER("PCH audio power change on port %d\n",
-				 (pch_iir & SDE_AUDIO_POWER_MASK_CPT) >>
-				 SDE_AUDIO_POWER_SHIFT_CPT);
+	if (pch_iir & SDE_AUDIO_POWER_MASK_CPT) {
+		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK_CPT) >>
+			       SDE_AUDIO_POWER_SHIFT_CPT);
+		DRM_DEBUG_DRIVER("PCH audio power change on port %c\n",
+				 port_name(port));
+	}
 
 	if (pch_iir & SDE_AUX_MASK_CPT)
 		dp_aux_irq_handler(dev);
