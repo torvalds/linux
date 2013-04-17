@@ -1887,6 +1887,92 @@ static const unsigned int ceu1_field_pins[] = {
 static const unsigned int ceu1_field_mux[] = {
 	VIO1_FIELD_MARK,
 };
+/* - FSIA ------------------------------------------------------------------- */
+static const unsigned int fsia_mclk_in_pins[] = {
+	/* CK */
+	11,
+};
+static const unsigned int fsia_mclk_in_mux[] = {
+	FSIACK_MARK,
+};
+static const unsigned int fsia_mclk_out_pins[] = {
+	/* OMC */
+	10,
+};
+static const unsigned int fsia_mclk_out_mux[] = {
+	FSIAOMC_MARK,
+};
+static const unsigned int fsia_sclk_in_pins[] = {
+	/* ILR, IBT */
+	12, 13,
+};
+static const unsigned int fsia_sclk_in_mux[] = {
+	FSIAILR_MARK, FSIAIBT_MARK,
+};
+static const unsigned int fsia_sclk_out_pins[] = {
+	/* OLR, OBT */
+	7, 8,
+};
+static const unsigned int fsia_sclk_out_mux[] = {
+	FSIAOLR_MARK, FSIAOBT_MARK,
+};
+static const unsigned int fsia_data_in_0_pins[] = {
+	/* ISLD */
+	0,
+};
+static const unsigned int fsia_data_in_0_mux[] = {
+	FSIAISLD_PORT0_MARK,
+};
+static const unsigned int fsia_data_in_1_pins[] = {
+	/* ISLD */
+	5,
+};
+static const unsigned int fsia_data_in_1_mux[] = {
+	FSIAISLD_PORT5_MARK,
+};
+static const unsigned int fsia_data_out_0_pins[] = {
+	/* OSLD */
+	9,
+};
+static const unsigned int fsia_data_out_0_mux[] = {
+	FSIAOSLD_MARK,
+};
+static const unsigned int fsia_data_out_1_pins[] = {
+	/* OSLD */
+	0,
+};
+static const unsigned int fsia_data_out_1_mux[] = {
+	FSIAOSLD1_MARK,
+};
+static const unsigned int fsia_data_out_2_pins[] = {
+	/* OSLD */
+	1,
+};
+static const unsigned int fsia_data_out_2_mux[] = {
+	FSIAOSLD2_MARK,
+};
+static const unsigned int fsia_spdif_0_pins[] = {
+	/* SPDIF */
+	9,
+};
+static const unsigned int fsia_spdif_0_mux[] = {
+	FSIASPDIF_PORT9_MARK,
+};
+static const unsigned int fsia_spdif_1_pins[] = {
+	/* SPDIF */
+	18,
+};
+static const unsigned int fsia_spdif_1_mux[] = {
+	FSIASPDIF_PORT18_MARK,
+};
+/* - FSIB ------------------------------------------------------------------- */
+static const unsigned int fsib_mclk_in_pins[] = {
+	/* CK */
+	11,
+};
+static const unsigned int fsib_mclk_in_mux[] = {
+	FSIBCK_MARK,
+};
 /* - GETHER ----------------------------------------------------------------- */
 static const unsigned int gether_rmii_pins[] = {
 	/* RXD[0:1], RX_ER, CRS_DV, TXD[0:1], TX_EN, REF_CLK, MDC, MDIO */
@@ -2683,6 +2769,18 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(ceu1_clk),
 	SH_PFC_PIN_GROUP(ceu1_sync),
 	SH_PFC_PIN_GROUP(ceu1_field),
+	SH_PFC_PIN_GROUP(fsia_mclk_in),
+	SH_PFC_PIN_GROUP(fsia_mclk_out),
+	SH_PFC_PIN_GROUP(fsia_sclk_in),
+	SH_PFC_PIN_GROUP(fsia_sclk_out),
+	SH_PFC_PIN_GROUP(fsia_data_in_0),
+	SH_PFC_PIN_GROUP(fsia_data_in_1),
+	SH_PFC_PIN_GROUP(fsia_data_out_0),
+	SH_PFC_PIN_GROUP(fsia_data_out_1),
+	SH_PFC_PIN_GROUP(fsia_data_out_2),
+	SH_PFC_PIN_GROUP(fsia_spdif_0),
+	SH_PFC_PIN_GROUP(fsia_spdif_1),
+	SH_PFC_PIN_GROUP(fsib_mclk_in),
 	SH_PFC_PIN_GROUP(gether_rmii),
 	SH_PFC_PIN_GROUP(gether_mii),
 	SH_PFC_PIN_GROUP(gether_gmii),
@@ -2858,6 +2956,24 @@ static const char * const ceu1_groups[] = {
 	"ceu1_clk",
 	"ceu1_sync",
 	"ceu1_field",
+};
+
+static const char * const fsia_groups[] = {
+	"fsia_mclk_in",
+	"fsia_mclk_out",
+	"fsia_sclk_in",
+	"fsia_sclk_out",
+	"fsia_data_in_0",
+	"fsia_data_in_1",
+	"fsia_data_out_0",
+	"fsia_data_out_1",
+	"fsia_data_out_2",
+	"fsia_spdif_0",
+	"fsia_spdif_1",
+};
+
+static const char * const fsib_groups[] = {
+	"fsib_mclk_in",
 };
 
 static const char * const gether_groups[] = {
@@ -3054,6 +3170,8 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(bsc),
 	SH_PFC_FUNCTION(ceu0),
 	SH_PFC_FUNCTION(ceu1),
+	SH_PFC_FUNCTION(fsia),
+	SH_PFC_FUNCTION(fsib),
 	SH_PFC_FUNCTION(gether),
 	SH_PFC_FUNCTION(intc),
 	SH_PFC_FUNCTION(lcd0),
