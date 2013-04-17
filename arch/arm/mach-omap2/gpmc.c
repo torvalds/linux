@@ -1533,10 +1533,9 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 			 of_node_cmp(child->name, "nor") == 0)
 			ret = gpmc_probe_generic_child(pdev, child);
 
-		if (ret < 0) {
+		if (WARN(ret < 0, "%s: probing gpmc child %s failed\n",
+			 __func__, child->full_name))
 			of_node_put(child);
-			return ret;
-		}
 	}
 
 	return 0;
