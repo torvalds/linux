@@ -238,12 +238,11 @@ static int tps80031_dcdc_get_voltage_sel(struct regulator_dev *rdev)
 	return vsel & SMPS_VSEL_MASK;
 }
 
-static int tps80031_ldo_set_voltage_sel(struct regulator_dev *rdev,
-		unsigned sel)
+static int tps80031_ldo_list_voltage(struct regulator_dev *rdev,
+				     unsigned int sel)
 {
 	struct tps80031_regulator *ri = rdev_get_drvdata(rdev);
 	struct device *parent = to_tps80031_dev(rdev);
-	int ret;
 
 	/* Check for valid setting for TPS80031 or TPS80032-ES1.0 */
 	if ((ri->rinfo->desc.id == TPS80031_REGULATOR_LDO2) &&
@@ -259,6 +258,36 @@ static int tps80031_ldo_set_voltage_sel(struct regulator_dev *rdev,
 				return -EINVAL;
 		}
 	}
+
+	return regulator_list_voltage_linear(rdev, sel);
+}
+
+static int tps80031_ldo_map_voltage(struct regulator_dev *rdev,
+				    int min_uV, int max_uV)
+{
+	struct tps80031_regulator *ri = rdev_get_drvdata(rdev);
+	struct device *parent = to_tps80031_dev(rdev);
+
+	/* Check for valid setting for TPS80031 or TPS80032-ES1.0 */
+	if ((ri->rinfo->desc.id == TPS80031_REGULATOR_LDO2) &&
+			(ri->device_flags & TRACK_MODE_ENABLE)) {
+		if (((tps80031_get_chip_info(parent) == TPS80031) ||
+			((tps80031_get_chip_info(parent) == TPS80032) &&
+			(tps80031_get_pmu_version(parent) == 0x0)))) {
+			return regulator_map_voltage_iterate(rdev, min_uV,
+							     max_uV);
+		}
+	}
+
+	return regulator_map_voltage_linear(rdev, min_uV, max_uV);
+}
+
+static int tps80031_ldo_set_voltage_sel(struct regulator_dev *rdev,
+		unsigned sel)
+{
+	struct tps80031_regulator *ri = rdev_get_drvdata(rdev);
+	struct device *parent = to_tps80031_dev(rdev);
+	int ret;
 
 	ret = tps80031_write(parent, ri->rinfo->volt_id,
 			ri->rinfo->volt_reg, sel);
@@ -390,7 +419,8 @@ static struct regulator_ops tps80031_dcdc_ops = {
 };
 
 static struct regulator_ops tps80031_ldo_ops = {
-	.list_voltage		= regulator_list_voltage_linear,
+	.list_voltage		= tps80031_ldo_list_voltage,
+	.map_voltage		= tps80031_ldo_map_voltage,
 	.set_voltage_sel	= tps80031_ldo_set_voltage_sel,
 	.get_voltage_sel	= tps80031_ldo_get_voltage_sel,
 	.enable			= tps80031_reg_enable,
