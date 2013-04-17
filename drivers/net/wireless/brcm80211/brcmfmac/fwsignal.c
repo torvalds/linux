@@ -1850,10 +1850,9 @@ static void brcmf_fws_dequeue_worker(struct work_struct *worker)
 			  fws->fifo_credit[fifo]);
 		for (credit = 0; credit < fws->fifo_credit[fifo]; /* nop */) {
 			skb = brcmf_fws_deq(fws, fifo);
-			if (!skb)
+			if (!skb || brcmf_fws_commit_skb(fws, fifo, skb))
 				break;
-			if (!brcmf_fws_commit_skb(fws, fifo, skb) &&
-			    brcmf_skbcb(skb)->if_flags &
+			if (brcmf_skbcb(skb)->if_flags &
 			    BRCMF_SKB_IF_FLAGS_CREDITCHECK_MASK)
 				credit++;
 		}
