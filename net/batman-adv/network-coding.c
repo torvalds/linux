@@ -1763,6 +1763,13 @@ int batadv_nc_nodes_seq_print_text(struct seq_file *seq, void *offset)
 		/* For each orig_node in this bin */
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
+			/* no need to print the orig node if it does not have
+			 * network coding neighbors
+			 */
+			if (list_empty(&orig_node->in_coding_list) &&
+			    list_empty(&orig_node->out_coding_list))
+				continue;
+
 			seq_printf(seq, "Node:      %pM\n", orig_node->orig);
 
 			seq_puts(seq, " Ingoing:  ");
