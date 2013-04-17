@@ -785,14 +785,14 @@ static u32 soft_reset_ready_check(struct pm8001_hba_info *pm8001_ha)
  * pm8001_chip_soft_rst - soft reset the PM8001 chip, so that the clear all
  * the FW register status to the originated status.
  * @pm8001_ha: our hba card information
- * @signature: signature in host scratch pad0 register.
  */
 static int
-pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha, u32 signature)
+pm8001_chip_soft_rst(struct pm8001_hba_info *pm8001_ha)
 {
 	u32	regVal, toggleVal;
 	u32	max_wait_count;
 	u32	regVal1, regVal2, regVal3;
+	u32	signature = 0x252acbcd; /* for host scratch pad0 */
 	unsigned long flags;
 
 	/* step1: Check FW is ready for soft reset */

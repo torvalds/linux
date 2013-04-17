@@ -1,5 +1,5 @@
 /*
- * PMC-Sierra SPC 8001 SAS/SATA based host adapters driver
+ * PMC-Sierra PM8001/8081/8088/8089 SAS/SATA based host adapters driver
  *
  * Copyright (c) 2008-2009 USI Co., Ltd.
  * All rights reserved.
@@ -212,10 +212,12 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 		break;
 	case PHY_FUNC_GET_EVENTS:
 		spin_lock_irqsave(&pm8001_ha->lock, flags);
-		if (-1 == pm8001_bar4_shift(pm8001_ha,
+		if (pm8001_ha->chip_id == chip_8001) {
+			if (-1 == pm8001_bar4_shift(pm8001_ha,
 					(phy_id < 4) ? 0x30000 : 0x40000)) {
-			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
-			return -EINVAL;
+				spin_unlock_irqrestore(&pm8001_ha->lock, flags);
+				return -EINVAL;
+			}
 		}
 		{
 			struct sas_phy *phy = sas_phy->phy;
@@ -228,7 +230,8 @@ int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 			phy->loss_of_dword_sync_count = qp[3];
 			phy->phy_reset_problem_count = qp[4];
 		}
-		pm8001_bar4_shift(pm8001_ha, 0);
+		if (pm8001_ha->chip_id == chip_8001)
+			pm8001_bar4_shift(pm8001_ha, 0);
 		spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 		return 0;
 	default:
@@ -249,7 +252,9 @@ void pm8001_scan_start(struct Scsi_Host *shost)
 	struct pm8001_hba_info *pm8001_ha;
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	pm8001_ha = sha->lldd_ha;
-	PM8001_CHIP_DISP->sas_re_init_req(pm8001_ha);
+	/* SAS_RE_INITIALIZATION not available in SPCv/ve */
+	if (pm8001_ha->chip_id == chip_8001)
+		PM8001_CHIP_DISP->sas_re_init_req(pm8001_ha);
 	for (i = 0; i < pm8001_ha->chip->n_phy; ++i)
 		PM8001_CHIP_DISP->phy_start_req(pm8001_ha, i);
 }

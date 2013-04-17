@@ -1,5 +1,5 @@
 /*
- * PMC-Sierra 8001/8081/8088/8089 SAS/SATA based host adapters driver
+ * PMC-Sierra PM8001/8081/8088/8089 SAS/SATA based host adapters driver
  *
  * Copyright (c) 2008-2009 USI Co., Ltd.
  * All rights reserved.
@@ -108,6 +108,7 @@ do {						\
 #define PM8001_NAME_LENGTH		32/* generic length of strings */
 extern struct list_head hba_list;
 extern const struct pm8001_dispatch pm8001_8001_dispatch;
+extern const struct pm8001_dispatch pm8001_80xx_dispatch;
 
 struct pm8001_hba_info;
 struct pm8001_ccb_info;
@@ -131,7 +132,7 @@ struct pm8001_ioctl_payload {
 struct pm8001_dispatch {
 	char *name;
 	int (*chip_init)(struct pm8001_hba_info *pm8001_ha);
-	int (*chip_soft_rst)(struct pm8001_hba_info *pm8001_ha, u32 signature);
+	int (*chip_soft_rst)(struct pm8001_hba_info *pm8001_ha);
 	void (*chip_rst)(struct pm8001_hba_info *pm8001_ha);
 	int (*chip_ioremap)(struct pm8001_hba_info *pm8001_ha);
 	void (*chip_iounmap)(struct pm8001_hba_info *pm8001_ha);
@@ -453,6 +454,7 @@ struct pm8001_hba_info {
 #endif
 	u32			logging_level;
 	u32			fw_status;
+	u32			smp_exp_mode;
 	u32			int_vector;
 	const struct firmware 	*fw_image;
 	u8			outq[PM8001_MAX_MSIX_VEC];

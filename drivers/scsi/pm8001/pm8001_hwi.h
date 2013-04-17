@@ -298,7 +298,7 @@ struct local_phy_ctl_resp {
 
 
 #define OP_BITS 0x0000FF00
-#define ID_BITS 0x0000000F
+#define ID_BITS 0x000000FF
 
 /*
  * brief the data structure of PORT Control Command

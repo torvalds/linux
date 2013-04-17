@@ -50,6 +50,10 @@ static struct scsi_transport_template *pm8001_stt;
  */
 static const struct pm8001_chip_info pm8001_chips[] = {
 	[chip_8001] = {0,  8, &pm8001_8001_dispatch,},
+	[chip_8008] = {0,  8, &pm8001_80xx_dispatch,},
+	[chip_8009] = {1,  8, &pm8001_80xx_dispatch,},
+	[chip_8018] = {0,  16, &pm8001_80xx_dispatch,},
+	[chip_8019] = {1,  16, &pm8001_80xx_dispatch,},
 };
 static int pm8001_id;
 
@@ -780,7 +784,7 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 		goto err_out_free;
 	}
 	list_add_tail(&pm8001_ha->list, &hba_list);
-	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha, 0x252acbcd);
+	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
 	rc = PM8001_CHIP_DISP->chip_init(pm8001_ha);
 	if (rc)
 		goto err_out_ha_free;
@@ -834,7 +838,7 @@ static void pm8001_pci_remove(struct pci_dev *pdev)
 	list_del(&pm8001_ha->list);
 	scsi_remove_host(pm8001_ha->shost);
 	PM8001_CHIP_DISP->interrupt_disable(pm8001_ha, 0xFF);
-	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha, 0x252acbcd);
+	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
 
 #ifdef PM8001_USE_MSIX
 	for (i = 0; i < pm8001_ha->number_of_intr; i++)
@@ -879,7 +883,7 @@ static int pm8001_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 		return -ENODEV;
 	}
 	PM8001_CHIP_DISP->interrupt_disable(pm8001_ha, 0xFF);
-	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha, 0x252acbcd);
+	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
 #ifdef PM8001_USE_MSIX
 	for (i = 0; i < pm8001_ha->number_of_intr; i++)
 		synchronize_irq(pm8001_ha->msix_entries[i].vector);
@@ -937,7 +941,12 @@ static int pm8001_pci_resume(struct pci_dev *pdev)
 	if (rc)
 		goto err_out_disable;
 
-	PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha, 0x252acbcd);
+	/* chip soft rst only for spc */
+	if (pm8001_ha->chip_id == chip_8001) {
+		PM8001_CHIP_DISP->chip_soft_rst(pm8001_ha);
+		PM8001_INIT_DBG(pm8001_ha,
+			pm8001_printk("chip soft reset successful\n"));
+	}
 	rc = PM8001_CHIP_DISP->chip_init(pm8001_ha);
 	if (rc)
 		goto err_out_disable;
