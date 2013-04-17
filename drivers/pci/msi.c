@@ -555,9 +555,9 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 		return -ENOMEM;
 
 	entry->msi_attrib.is_msix	= 0;
-	entry->msi_attrib.is_64		= is_64bit_address(control);
+	entry->msi_attrib.is_64		= !!(control & PCI_MSI_FLAGS_64BIT);
 	entry->msi_attrib.entry_nr	= 0;
-	entry->msi_attrib.maskbit	= is_mask_bit_support(control);
+	entry->msi_attrib.maskbit	= !!(control & PCI_MSI_FLAGS_MASKBIT);
 	entry->msi_attrib.default_irq	= dev->irq;	/* Save IOAPIC IRQ */
 	entry->msi_attrib.pos		= dev->msi_cap;
 
