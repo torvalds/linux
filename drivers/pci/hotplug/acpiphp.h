@@ -170,21 +170,21 @@ struct acpiphp_attention_info
 /* function prototypes */
 
 /* acpiphp_core.c */
-extern int acpiphp_register_attention(struct acpiphp_attention_info*info);
-extern int acpiphp_unregister_attention(struct acpiphp_attention_info *info);
-extern int acpiphp_register_hotplug_slot(struct acpiphp_slot *slot);
-extern void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *slot);
+int acpiphp_register_attention(struct acpiphp_attention_info*info);
+int acpiphp_unregister_attention(struct acpiphp_attention_info *info);
+int acpiphp_register_hotplug_slot(struct acpiphp_slot *slot);
+void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *slot);
 
 /* acpiphp_glue.c */
 typedef int (*acpiphp_callback)(struct acpiphp_slot *slot, void *data);
 
-extern int acpiphp_enable_slot (struct acpiphp_slot *slot);
-extern int acpiphp_disable_slot (struct acpiphp_slot *slot);
-extern int acpiphp_eject_slot (struct acpiphp_slot *slot);
-extern u8 acpiphp_get_power_status (struct acpiphp_slot *slot);
-extern u8 acpiphp_get_attention_status (struct acpiphp_slot *slot);
-extern u8 acpiphp_get_latch_status (struct acpiphp_slot *slot);
-extern u8 acpiphp_get_adapter_status (struct acpiphp_slot *slot);
+int acpiphp_enable_slot(struct acpiphp_slot *slot);
+int acpiphp_disable_slot(struct acpiphp_slot *slot);
+int acpiphp_eject_slot(struct acpiphp_slot *slot);
+u8 acpiphp_get_power_status(struct acpiphp_slot *slot);
+u8 acpiphp_get_attention_status(struct acpiphp_slot *slot);
+u8 acpiphp_get_latch_status(struct acpiphp_slot *slot);
+u8 acpiphp_get_adapter_status(struct acpiphp_slot *slot);
 
 /* variables */
 extern bool acpiphp_debug;
