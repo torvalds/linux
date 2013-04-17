@@ -1046,6 +1046,15 @@ static struct platform_device *eva_devices[] __initdata = {
 };
 
 static const struct pinctrl_map eva_pinctrl_map[] = {
+	/* CEU0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-r8a7740",
+				  "ceu0_data_0_7", "ceu0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-r8a7740",
+				  "ceu0_clk_0", "ceu0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-r8a7740",
+				  "ceu0_sync", "ceu0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-r8a7740",
+				  "ceu0_field", "ceu0"),
 	/* GETHER */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh-eth", "pfc-r8a7740",
 				  "gether_mii", "gether"),
@@ -1164,21 +1173,6 @@ static void __init eva_init(void)
 		platform_device_register(&usbhsf_device);
 		usb = &usbhsf_device;
 	}
-
-	/* CEU0 */
-	gpio_request(GPIO_FN_VIO0_D7,		NULL);
-	gpio_request(GPIO_FN_VIO0_D6,		NULL);
-	gpio_request(GPIO_FN_VIO0_D5,		NULL);
-	gpio_request(GPIO_FN_VIO0_D4,		NULL);
-	gpio_request(GPIO_FN_VIO0_D3,		NULL);
-	gpio_request(GPIO_FN_VIO0_D2,		NULL);
-	gpio_request(GPIO_FN_VIO0_D1,		NULL);
-	gpio_request(GPIO_FN_VIO0_D0,		NULL);
-	gpio_request(GPIO_FN_VIO0_CLK,		NULL);
-	gpio_request(GPIO_FN_VIO0_HD,		NULL);
-	gpio_request(GPIO_FN_VIO0_VD,		NULL);
-	gpio_request(GPIO_FN_VIO0_FIELD,	NULL);
-	gpio_request(GPIO_FN_VIO_CKO,		NULL);
 
 	/* CON1/CON15 Camera */
 	gpio_request_one(173, GPIOF_OUT_INIT_LOW, NULL);  /* STANDBY */
