@@ -646,15 +646,11 @@ static int pci_platform_power_transition(struct pci_dev *dev, pci_power_t state)
 		error = platform_pci_set_power_state(dev, state);
 		if (!error)
 			pci_update_current_state(dev, state);
-		/* Fall back to PCI_D0 if native PM is not supported */
-		if (!dev->pm_cap)
-			dev->current_state = PCI_D0;
-	} else {
+	} else
 		error = -ENODEV;
-		/* Fall back to PCI_D0 if native PM is not supported */
-		if (!dev->pm_cap)
-			dev->current_state = PCI_D0;
-	}
+
+	if (error && !dev->pm_cap) /* Fall back to PCI_D0 */
+		dev->current_state = PCI_D0;
 
 	return error;
 }
@@ -1575,7 +1571,7 @@ void pci_pme_active(struct pci_dev *dev, bool enable)
 {
 	u16 pmcsr;
 
-	if (!dev->pm_cap)
+	if (!dev->pme_support)
 		return;
 
 	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
@@ -1924,6 +1920,7 @@ void pci_pm_init(struct pci_dev *dev)
 	dev->wakeup_prepared = false;
 
 	dev->pm_cap = 0;
+	dev->pme_support = 0;
 
 	/* find PCI PM capability in list */
 	pm = pci_find_capability(dev, PCI_CAP_ID_PM);
@@ -1975,8 +1972,6 @@ void pci_pm_init(struct pci_dev *dev)
 		device_set_wakeup_capable(&dev->dev, true);
 		/* Disable the PME# generation functionality */
 		pci_pme_active(dev, false);
-	} else {
-		dev->pme_support = 0;
 	}
 }
 
