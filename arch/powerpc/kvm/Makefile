@@ -72,12 +72,15 @@ kvm-book3s_64-objs-$(CONFIG_KVM_BOOK3S_64_HV) := \
 	book3s_hv.o \
 	book3s_hv_interrupts.o \
 	book3s_64_mmu_hv.o
+kvm-book3s_64-builtin-xics-objs-$(CONFIG_KVM_XICS) := \
+	book3s_hv_rm_xics.o
 kvm-book3s_64-builtin-objs-$(CONFIG_KVM_BOOK3S_64_HV) := \
 	book3s_hv_rmhandlers.o \
 	book3s_hv_rm_mmu.o \
 	book3s_64_vio_hv.o \
 	book3s_hv_ras.o \
-	book3s_hv_builtin.o
+	book3s_hv_builtin.o \
+	$(kvm-book3s_64-builtin-xics-objs-y)
 
 kvm-book3s_64-objs-$(CONFIG_KVM_XICS) += \
 	book3s_xics.o

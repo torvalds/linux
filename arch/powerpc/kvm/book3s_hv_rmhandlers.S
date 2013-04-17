@@ -1424,11 +1424,19 @@ hcall_real_table:
 	.long	0		/* 0x58 */
 	.long	0		/* 0x5c */
 	.long	0		/* 0x60 */
-	.long	0		/* 0x64 */
-	.long	0		/* 0x68 */
-	.long	0		/* 0x6c */
-	.long	0		/* 0x70 */
-	.long	0		/* 0x74 */
+#ifdef CONFIG_KVM_XICS
+	.long	.kvmppc_rm_h_eoi - hcall_real_table
+	.long	.kvmppc_rm_h_cppr - hcall_real_table
+	.long	.kvmppc_rm_h_ipi - hcall_real_table
+	.long	0		/* 0x70 - H_IPOLL */
+	.long	.kvmppc_rm_h_xirr - hcall_real_table
+#else
+	.long	0		/* 0x64 - H_EOI */
+	.long	0		/* 0x68 - H_CPPR */
+	.long	0		/* 0x6c - H_IPI */
+	.long	0		/* 0x70 - H_IPOLL */
+	.long	0		/* 0x74 - H_XIRR */
+#endif
 	.long	0		/* 0x78 */
 	.long	0		/* 0x7c */
 	.long	0		/* 0x80 */

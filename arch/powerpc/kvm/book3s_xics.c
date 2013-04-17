@@ -30,6 +30,9 @@
 #define XICS_DBG(fmt...) trace_printk(fmt)
 #endif
 
+#define ENABLE_REALMODE	true
+#define DEBUG_REALMODE	false
+
 /*
  * LOCKING
  * =======
@@ -220,8 +223,10 @@ static inline bool icp_try_update(struct kvmppc_icp *icp,
 	 * in Accept (H_XIRR) and Up_Cppr (H_XPPR).
 	 *
 	 * We also do not try to figure out whether the EE state has changed,
-	 * we unconditionally set it if the new state calls for it for the
-	 * same reason.
+	 * we unconditionally set it if the new state calls for it. The reason
+	 * for that is that we opportunistically remove the pending interrupt
+	 * flag when raising CPPR, so we need to set it back here if an
+	 * interrupt is still pending.
 	 */
 	if (new.out_ee) {
 		kvmppc_book3s_queue_irqprio(icp->vcpu,
@@ -483,7 +488,7 @@ static void icp_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		icp_check_resend(xics, icp);
 }
 
-static noinline unsigned long h_xirr(struct kvm_vcpu *vcpu)
+static noinline unsigned long kvmppc_h_xirr(struct kvm_vcpu *vcpu)
 {
 	union kvmppc_icp_state old_state, new_state;
 	struct kvmppc_icp *icp = vcpu->arch.icp;
@@ -517,8 +522,8 @@ static noinline unsigned long h_xirr(struct kvm_vcpu *vcpu)
 	return xirr;
 }
 
-static noinline int h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
-			  unsigned long mfrr)
+static noinline int kvmppc_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
+				 unsigned long mfrr)
 {
 	union kvmppc_icp_state old_state, new_state;
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
@@ -586,7 +591,7 @@ static noinline int h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	return H_SUCCESS;
 }
 
-static noinline void h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
+static noinline void kvmppc_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 {
 	union kvmppc_icp_state old_state, new_state;
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
@@ -643,7 +648,7 @@ static noinline void h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 		icp_deliver_irq(xics, icp, reject);
 }
 
-static noinline int h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
+static noinline int kvmppc_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 {
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
 	struct kvmppc_icp *icp = vcpu->arch.icp;
@@ -693,29 +698,54 @@ static noinline int h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 	return H_SUCCESS;
 }
 
+static noinline int kvmppc_xics_rm_complete(struct kvm_vcpu *vcpu, u32 hcall)
+{
+	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
+	struct kvmppc_icp *icp = vcpu->arch.icp;
+
+	XICS_DBG("XICS_RM: H_%x completing, act: %x state: %lx tgt: %p\n",
+		 hcall, icp->rm_action, icp->rm_dbgstate.raw, icp->rm_dbgtgt);
+
+	if (icp->rm_action & XICS_RM_KICK_VCPU)
+		kvmppc_fast_vcpu_kick(icp->rm_kick_target);
+	if (icp->rm_action & XICS_RM_CHECK_RESEND)
+		icp_check_resend(xics, icp);
+	if (icp->rm_action & XICS_RM_REJECT)
+		icp_deliver_irq(xics, icp, icp->rm_reject);
+
+	icp->rm_action = 0;
+
+	return H_SUCCESS;
+}
+
 int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 req)
 {
+	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
 	unsigned long res;
 	int rc = H_SUCCESS;
 
 	/* Check if we have an ICP */
-	if (!vcpu->arch.icp || !vcpu->kvm->arch.xics)
+	if (!xics || !vcpu->arch.icp)
 		return H_HARDWARE;
+
+	/* Check for real mode returning too hard */
+	if (xics->real_mode)
+		return kvmppc_xics_rm_complete(vcpu, req);
 
 	switch (req) {
 	case H_XIRR:
-		res = h_xirr(vcpu);
+		res = kvmppc_h_xirr(vcpu);
 		kvmppc_set_gpr(vcpu, 4, res);
 		break;
 	case H_CPPR:
-		h_cppr(vcpu, kvmppc_get_gpr(vcpu, 4));
+		kvmppc_h_cppr(vcpu, kvmppc_get_gpr(vcpu, 4));
 		break;
 	case H_EOI:
-		rc = h_eoi(vcpu, kvmppc_get_gpr(vcpu, 4));
+		rc = kvmppc_h_eoi(vcpu, kvmppc_get_gpr(vcpu, 4));
 		break;
 	case H_IPI:
-		rc = h_ipi(vcpu, kvmppc_get_gpr(vcpu, 4),
-			   kvmppc_get_gpr(vcpu, 5));
+		rc = kvmppc_h_ipi(vcpu, kvmppc_get_gpr(vcpu, 4),
+				  kvmppc_get_gpr(vcpu, 5));
 		break;
 	}
 
@@ -932,6 +962,14 @@ int kvm_xics_create(struct kvm *kvm, u32 type)
 		return ret;
 
 	xics_debugfs_init(xics);
+
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	if (cpu_has_feature(CPU_FTR_ARCH_206)) {
+		/* Enable real mode support */
+		xics->real_mode = ENABLE_REALMODE;
+		xics->real_mode_dbg = DEBUG_REALMODE;
+	}
+#endif /* CONFIG_KVM_BOOK3S_64_HV */
 
 	return 0;
 }

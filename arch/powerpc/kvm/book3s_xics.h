@@ -64,6 +64,20 @@ struct kvmppc_icp {
 	unsigned long server_num;
 	union kvmppc_icp_state state;
 	unsigned long resend_map[ICP_RESEND_MAP_SIZE];
+
+	/* Real mode might find something too hard, here's the action
+	 * it might request from virtual mode
+	 */
+#define XICS_RM_KICK_VCPU	0x1
+#define XICS_RM_CHECK_RESEND	0x2
+#define XICS_RM_REJECT		0x4
+	u32 rm_action;
+	struct kvm_vcpu *rm_kick_target;
+	u32  rm_reject;
+
+	/* Debug stuff for real mode */
+	union kvmppc_icp_state rm_dbgstate;
+	struct kvm_vcpu *rm_dbgtgt;
 };
 
 struct kvmppc_ics {
@@ -76,6 +90,8 @@ struct kvmppc_xics {
 	struct kvm *kvm;
 	struct dentry *dentry;
 	u32 max_icsid;
+	bool real_mode;
+	bool real_mode_dbg;
 	struct kvmppc_ics *ics[KVMPPC_XICS_MAX_ICS_ID + 1];
 };
 
