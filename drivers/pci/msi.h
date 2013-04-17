@@ -6,8 +6,6 @@
 #ifndef MSI_H
 #define MSI_H
 
-#define msi_data_reg(base, is64bit)	\
-	(base + ((is64bit == 1) ? PCI_MSI_DATA_64 : PCI_MSI_DATA_32))
 #define msi_mask_reg(base, is64bit)	\
 	(base + ((is64bit == 1) ? PCI_MSI_MASK_64 : PCI_MSI_MASK_32))
 #define is_64bit_address(control)	(!!(control & PCI_MSI_FLAGS_64BIT))
