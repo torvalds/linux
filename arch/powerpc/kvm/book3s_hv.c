@@ -483,7 +483,7 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 	unsigned long req = kvmppc_get_gpr(vcpu, 3);
 	unsigned long target, ret = H_SUCCESS;
 	struct kvm_vcpu *tvcpu;
-	int idx;
+	int idx, rc;
 
 	switch (req) {
 	case H_ENTER:
@@ -519,6 +519,19 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 					kvmppc_get_gpr(vcpu, 5),
 					kvmppc_get_gpr(vcpu, 6));
 		break;
+	case H_RTAS:
+		if (list_empty(&vcpu->kvm->arch.rtas_tokens))
+			return RESUME_HOST;
+
+		rc = kvmppc_rtas_hcall(vcpu);
+
+		if (rc == -ENOENT)
+			return RESUME_HOST;
+		else if (rc == 0)
+			break;
+
+		/* Send the error out to userspace via KVM_RUN */
+		return rc;
 	default:
 		return RESUME_HOST;
 	}
@@ -1829,6 +1842,7 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 	cpumask_setall(&kvm->arch.need_tlb_flush);
 
 	INIT_LIST_HEAD(&kvm->arch.spapr_tce_tables);
+	INIT_LIST_HEAD(&kvm->arch.rtas_tokens);
 
 	kvm->arch.rma = NULL;
 
@@ -1873,6 +1887,8 @@ void kvmppc_core_destroy_vm(struct kvm *kvm)
 		kvm_release_rma(kvm->arch.rma);
 		kvm->arch.rma = NULL;
 	}
+
+	kvmppc_rtas_tokens_free(kvm);
 
 	kvmppc_free_hpt(kvm);
 	WARN_ON(!list_empty(&kvm->arch.spapr_tce_tables));

@@ -324,6 +324,12 @@ struct kvm_allocate_rma {
 	__u64 rma_size;
 };
 
+/* for KVM_CAP_PPC_RTAS */
+struct kvm_rtas_token_args {
+	char name[120];
+	__u64 token;	/* Use a token of 0 to undefine a mapping */
+};
+
 struct kvm_book3e_206_tlb_entry {
 	__u32 mas8;
 	__u32 mas1;

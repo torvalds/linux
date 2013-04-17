@@ -166,6 +166,10 @@ extern int kvm_vm_ioctl_get_htab_fd(struct kvm *kvm, struct kvm_get_htab_fd *);
 
 int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq);
 
+extern int kvm_vm_ioctl_rtas_define_token(struct kvm *kvm, void __user *argp);
+extern int kvmppc_rtas_hcall(struct kvm_vcpu *vcpu);
+extern void kvmppc_rtas_tokens_free(struct kvm *kvm);
+
 /*
  * Cuts out inst bits with ordering according to spec.
  * That means the leftmost bit is zero. All given bits are included.

@@ -341,6 +341,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 #ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_CAP_SPAPR_TCE:
 	case KVM_CAP_PPC_ALLOC_HTAB:
+	case KVM_CAP_PPC_RTAS:
 		r = 1;
 		break;
 #endif /* CONFIG_PPC_BOOK3S_64 */
@@ -986,6 +987,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	case KVM_ALLOCATE_RMA: {
 		struct kvm_allocate_rma rma;
+		struct kvm *kvm = filp->private_data;
 
 		r = kvm_vm_ioctl_allocate_rma(kvm, &rma);
 		if (r >= 0 && copy_to_user(argp, &rma, sizeof(rma)))
@@ -1028,6 +1030,12 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = kvm_vm_ioctl_get_smmu_info(kvm, &info);
 		if (r >= 0 && copy_to_user(argp, &info, sizeof(info)))
 			r = -EFAULT;
+		break;
+	}
+	case KVM_PPC_RTAS_DEFINE_TOKEN: {
+		struct kvm *kvm = filp->private_data;
+
+		r = kvm_vm_ioctl_rtas_define_token(kvm, argp);
 		break;
 	}
 #endif /* CONFIG_PPC_BOOK3S_64 */

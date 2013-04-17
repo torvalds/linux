@@ -246,6 +246,13 @@ int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd)
 		clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
 		vcpu->stat.halt_wakeup++;
 		return EMULATE_DONE;
+	case H_RTAS:
+		if (list_empty(&vcpu->kvm->arch.rtas_tokens))
+			return RESUME_HOST;
+		if (kvmppc_rtas_hcall(vcpu))
+			break;
+		kvmppc_set_gpr(vcpu, 3, 0);
+		return EMULATE_DONE;
 	}
 
 	return EMULATE_FAIL;

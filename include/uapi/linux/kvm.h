@@ -668,6 +668,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_ARM_SET_DEVICE_ADDR 88
 #define KVM_CAP_DEVICE_CTRL 89
 #define KVM_CAP_IRQ_MPIC 90
+#define KVM_CAP_PPC_RTAS 91
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -928,6 +929,8 @@ struct kvm_s390_ucas_mapping {
 #define KVM_PPC_GET_HTAB_FD	  _IOW(KVMIO,  0xaa, struct kvm_get_htab_fd)
 /* Available with KVM_CAP_ARM_SET_DEVICE_ADDR */
 #define KVM_ARM_SET_DEVICE_ADDR	  _IOW(KVMIO,  0xab, struct kvm_arm_device_addr)
+/* Available with KVM_CAP_PPC_RTAS */
+#define KVM_PPC_RTAS_DEFINE_TOKEN _IOW(KVMIO,  0xac, struct kvm_rtas_token_args)
 
 /* ioctl for vm fd */
 #define KVM_CREATE_DEVICE	  _IOWR(KVMIO,  0xe0, struct kvm_create_device)

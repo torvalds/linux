@@ -259,6 +259,7 @@ struct kvm_arch {
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
 #ifdef CONFIG_PPC_BOOK3S_64
 	struct list_head spapr_tce_tables;
+	struct list_head rtas_tokens;
 #endif
 #ifdef CONFIG_KVM_MPIC
 	struct openpic *mpic;

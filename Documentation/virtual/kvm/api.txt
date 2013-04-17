@@ -2341,6 +2341,25 @@ and distributor interface, the ioctl must be called after calling
 KVM_CREATE_IRQCHIP, but before calling KVM_RUN on any of the VCPUs.  Calling
 this ioctl twice for any of the base addresses will return -EEXIST.
 
+4.82 KVM_PPC_RTAS_DEFINE_TOKEN
+
+Capability: KVM_CAP_PPC_RTAS
+Architectures: ppc
+Type: vm ioctl
+Parameters: struct kvm_rtas_token_args
+Returns: 0 on success, -1 on error
+
+Defines a token value for a RTAS (Run Time Abstraction Services)
+service in order to allow it to be handled in the kernel.  The
+argument struct gives the name of the service, which must be the name
+of a service that has a kernel-side implementation.  If the token
+value is non-zero, it will be associated with that service, and
+subsequent RTAS calls by the guest specifying that token will be
+handled by the kernel.  If the token value is 0, then any token
+associated with the service will be forgotten, and subsequent RTAS
+calls by the guest for that service will be passed to userspace to be
+handled.
+
 
 5. The kvm_run structure
 ------------------------

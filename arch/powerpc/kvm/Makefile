@@ -86,6 +86,7 @@ kvm-book3s_64-module-objs := \
 	emulate.o \
 	book3s.o \
 	book3s_64_vio.o \
+	book3s_rtas.o \
 	$(kvm-book3s_64-objs-y)
 
 kvm-objs-$(CONFIG_KVM_BOOK3S_64) := $(kvm-book3s_64-module-objs)
