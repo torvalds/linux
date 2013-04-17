@@ -1070,7 +1070,7 @@ static struct sk_buff *brcmf_fws_deq(struct brcmf_fws_info *fws, int fifo)
 	int num_nodes;
 	int node_pos;
 	int prec_out;
-	int pmsk = 3;
+	int pmsk;
 	int i;
 
 	table = (struct brcmf_fws_mac_descriptor *)&fws->desc;
@@ -1084,6 +1084,8 @@ static struct sk_buff *brcmf_fws_deq(struct brcmf_fws_info *fws, int fifo)
 
 		if (entry->suppressed)
 			pmsk = 2;
+		else
+			pmsk = 3;
 		p = brcmu_pktq_mdeq(&entry->psq, pmsk << (fifo * 2), &prec_out);
 		if (p == NULL) {
 			if (entry->suppressed) {
