@@ -4093,6 +4093,11 @@ static void lpt_init_clock_gating(struct drm_device *dev)
 		I915_WRITE(SOUTH_DSPCLK_GATE_D,
 			   I915_READ(SOUTH_DSPCLK_GATE_D) |
 			   PCH_LP_PARTITION_LEVEL_DISABLE);
+
+	/* WADPOClockGatingDisable:hsw */
+	I915_WRITE(_TRANSA_CHICKEN1,
+		   I915_READ(_TRANSA_CHICKEN1) |
+		   TRANS_CHICKEN1_DP0UNIT_GC_DISABLE);
 }
 
 static void lpt_suspend_hw(struct drm_device *dev)
