@@ -2784,6 +2784,11 @@ void snd_hda_sync_vmaster_hook(struct hda_vmaster_mute_hook *hook)
 {
 	if (!hook->hook || !hook->codec)
 		return;
+	/* don't call vmaster hook in the destructor since it might have
+	 * been already destroyed
+	 */
+	if (hook->codec->bus->shutdown)
+		return;
 	switch (hook->mute_mode) {
 	case HDA_VMUTE_FOLLOW_MASTER:
 		snd_ctl_sync_vmaster_hook(hook->sw_kctl);
