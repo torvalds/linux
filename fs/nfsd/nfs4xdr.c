@@ -1693,14 +1693,6 @@ static void write_cinfo(__be32 **p, struct nfsd4_change_info *c)
 } while (0)
 #define ADJUST_ARGS()		resp->p = p
 
-/*
- * Header routine to setup seqid operation replay cache
- */
-#define ENCODE_SEQID_OP_HEAD					\
-	__be32 *save;						\
-								\
-	save = resp->p;
-
 /* Encode as an array of strings the string given with components
  * separated @sep, escaped with esc_enter and esc_exit.
  */
@@ -2640,8 +2632,6 @@ static __be32 nfsd4_encode_bind_conn_to_session(struct nfsd4_compoundres *resp, 
 static __be32
 nfsd4_encode_close(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_close *close)
 {
-	ENCODE_SEQID_OP_HEAD;
-
 	if (!nfserr)
 		nfsd4_encode_stateid(resp, &close->cl_stateid);
 
@@ -2740,8 +2730,6 @@ nfsd4_encode_lock_denied(struct nfsd4_compoundres *resp, struct nfsd4_lock_denie
 static __be32
 nfsd4_encode_lock(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_lock *lock)
 {
-	ENCODE_SEQID_OP_HEAD;
-
 	if (!nfserr)
 		nfsd4_encode_stateid(resp, &lock->lk_resp_stateid);
 	else if (nfserr == nfserr_denied)
@@ -2761,8 +2749,6 @@ nfsd4_encode_lockt(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_l
 static __be32
 nfsd4_encode_locku(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_locku *locku)
 {
-	ENCODE_SEQID_OP_HEAD;
-
 	if (!nfserr)
 		nfsd4_encode_stateid(resp, &locku->lu_stateid);
 
@@ -2788,7 +2774,6 @@ static __be32
 nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_open *open)
 {
 	__be32 *p;
-	ENCODE_SEQID_OP_HEAD;
 
 	if (nfserr)
 		goto out;
@@ -2866,8 +2851,6 @@ out:
 static __be32
 nfsd4_encode_open_confirm(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_open_confirm *oc)
 {
-	ENCODE_SEQID_OP_HEAD;
-
 	if (!nfserr)
 		nfsd4_encode_stateid(resp, &oc->oc_resp_stateid);
 
@@ -2877,8 +2860,6 @@ nfsd4_encode_open_confirm(struct nfsd4_compoundres *resp, __be32 nfserr, struct 
 static __be32
 nfsd4_encode_open_downgrade(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_open_downgrade *od)
 {
-	ENCODE_SEQID_OP_HEAD;
-
 	if (!nfserr)
 		nfsd4_encode_stateid(resp, &od->od_stateid);
 
