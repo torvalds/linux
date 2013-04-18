@@ -622,8 +622,8 @@ struct v4l2_subdev_fh {
 	v4l2_subdev_get_try_##fun_name(struct v4l2_subdev_fh *fh,	\
 				       unsigned int pad)		\
 	{								\
-		BUG_ON(unlikely(pad >= vdev_to_v4l2_subdev(		\
-					fh->vfh.vdev)->entity.num_pads)); \
+		BUG_ON(pad >= vdev_to_v4l2_subdev(			\
+					fh->vfh.vdev)->entity.num_pads); \
 		return &fh->pad[pad].field_name;			\
 	}
 
