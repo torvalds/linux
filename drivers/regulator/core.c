@@ -2138,6 +2138,37 @@ int regulator_map_voltage_iterate(struct regulator_dev *rdev,
 EXPORT_SYMBOL_GPL(regulator_map_voltage_iterate);
 
 /**
+ * regulator_map_voltage_ascend - map_voltage() for ascendant voltage list
+ *
+ * @rdev: Regulator to operate on
+ * @min_uV: Lower bound for voltage
+ * @max_uV: Upper bound for voltage
+ *
+ * Drivers that have ascendant voltage list can use this as their
+ * map_voltage() operation.
+ */
+int regulator_map_voltage_ascend(struct regulator_dev *rdev,
+				 int min_uV, int max_uV)
+{
+	int i, ret;
+
+	for (i = 0; i < rdev->desc->n_voltages; i++) {
+		ret = rdev->desc->ops->list_voltage(rdev, i);
+		if (ret < 0)
+			continue;
+
+		if (ret > max_uV)
+			break;
+
+		if (ret >= min_uV && ret <= max_uV)
+			return i;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(regulator_map_voltage_ascend);
+
+/**
  * regulator_map_voltage_linear - map_voltage() for simple linear mappings
  *
  * @rdev: Regulator to operate on
