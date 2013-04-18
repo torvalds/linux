@@ -251,6 +251,15 @@ config SND_RK29_SOC_RK610
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RK610(JETTA).
 
+config SND_RK29_SOC_RK616
+	tristate "SoC I2S Audio support for rockchip - RK616"
+	depends on SND_RK29_SOC
+	select SND_RK29_SOC_I2S
+	select SND_SOC_RK616
+	help
+	  Say Y if you want to add support for SoC audio on rockchip
+	  with the RK616(JETTA).
+
 config SND_RK_SOC_RK2928
 	tristate "SoC I2S Audio support for rockchip - RK2928"
 	depends on SND_RK29_SOC && ARCH_RK2928

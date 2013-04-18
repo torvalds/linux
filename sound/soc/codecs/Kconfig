@@ -87,6 +87,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT5639 if I2C
 	select SND_SOC_RT5616 if I2C
 	select SND_SOC_RK610 if I2C
+	select SND_SOC_RK616 if I2C
 	select SND_SOC_WM8903 if I2C
 	select SND_SOC_WM8904 if I2C
 	select SND_SOC_WM8915 if I2C
@@ -436,6 +437,10 @@ config SND_SOC_RK1000
 config SND_SOC_RK610
 	tristate
 	depends on MFD_RK610
+
+config SND_SOC_RK616
+	tristate
+	depends on MFD_RK616
 
 # Amp
 config SND_SOC_LM4857
