@@ -29,6 +29,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
 
+
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
@@ -308,16 +309,20 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, uint8_t expectRsp,
 		/* Xmit ELS command <elsCmd> to remote NPORT <did> */
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 				 "0116 Xmit ELS command x%x to remote "
-				 "NPORT x%x I/O tag: x%x, port state: x%x\n",
+				 "NPORT x%x I/O tag: x%x, port state:x%x"
+				 " fc_flag:x%x\n",
 				 elscmd, did, elsiocb->iotag,
-				 vport->port_state);
+				 vport->port_state,
+				 vport->fc_flag);
 	} else {
 		/* Xmit ELS response <elsCmd> to remote NPORT <did> */
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 				 "0117 Xmit ELS response x%x to remote "
-				 "NPORT x%x I/O tag: x%x, size: x%x\n",
+				 "NPORT x%x I/O tag: x%x, size: x%x "
+				 "port_state x%x fc_flag x%x\n",
 				 elscmd, ndlp->nlp_DID, elsiocb->iotag,
-				 cmdSize);
+				 cmdSize, vport->port_state,
+				 vport->fc_flag);
 	}
 	return elsiocb;
 
@@ -909,6 +914,23 @@ lpfc_cmpl_els_flogi_nport(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag |= FC_PT2PT;
 	spin_unlock_irq(shost->host_lock);
+	/* If physical FC port changed, unreg VFI and ALL VPIs / RPIs */
+	if ((phba->sli_rev == LPFC_SLI_REV4) && phba->fc_topology_changed) {
+		lpfc_unregister_fcf_prep(phba);
+
+		/* The FC_VFI_REGISTERED flag will get clear in the cmpl
+		 * handler for unreg_vfi, but if we don't force the
+		 * FC_VFI_REGISTERED flag then the reg_vfi mailbox could be
+		 * built with the update bit set instead of just the vp bit to
+		 * change the Nport ID.  We need to have the vp set and the
+		 * Upd cleared on topology changes.
+		 */
+		spin_lock_irq(shost->host_lock);
+		vport->fc_flag &= ~FC_VFI_REGISTERED;
+		spin_unlock_irq(shost->host_lock);
+		phba->fc_topology_changed = 0;
+		lpfc_issue_reg_vfi(vport);
+	}
 
 	/* Start discovery - this should just do CLEAR_LA */
 	lpfc_disc_start(vport);
@@ -1030,9 +1052,19 @@ stop_rr_fcf_flogi:
 			vport->cfg_discovery_threads = LPFC_MAX_DISC_THREADS;
 		if ((phba->sli_rev == LPFC_SLI_REV4) &&
 		    (!(vport->fc_flag & FC_VFI_REGISTERED) ||
-		     (vport->fc_prevDID != vport->fc_myDID))) {
-			if (vport->fc_flag & FC_VFI_REGISTERED)
-				lpfc_sli4_unreg_all_rpis(vport);
+		     (vport->fc_prevDID != vport->fc_myDID) ||
+			phba->fc_topology_changed)) {
+			if (vport->fc_flag & FC_VFI_REGISTERED) {
+				if (phba->fc_topology_changed) {
+					lpfc_unregister_fcf_prep(phba);
+					spin_lock_irq(shost->host_lock);
+					vport->fc_flag &= ~FC_VFI_REGISTERED;
+					spin_unlock_irq(shost->host_lock);
+					phba->fc_topology_changed = 0;
+				} else {
+					lpfc_sli4_unreg_all_rpis(vport);
+				}
+			}
 			lpfc_issue_reg_vfi(vport);
 			lpfc_nlp_put(ndlp);
 			goto out;
@@ -1055,9 +1087,10 @@ stop_rr_fcf_flogi:
 	/* FLOGI completes successfully */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0101 FLOGI completes successfully "
-			 "Data: x%x x%x x%x x%x\n",
+			 "Data: x%x x%x x%x x%x x%x x%x\n",
 			 irsp->un.ulpWord[4], sp->cmn.e_d_tov,
-			 sp->cmn.w2.r_a_tov, sp->cmn.edtovResolution);
+			 sp->cmn.w2.r_a_tov, sp->cmn.edtovResolution,
+			 vport->port_state, vport->fc_flag);
 
 	if (vport->port_state == LPFC_FLOGI) {
 		/*
@@ -5047,6 +5080,8 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	struct ls_rjt stat;
 	uint32_t cmd, did;
 	int rc;
+	uint32_t fc_flag = 0;
+	uint32_t port_state = 0;
 
 	cmd = *lp++;
 	sp = (struct serv_parm *) lp;
@@ -5113,16 +5148,25 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			 * will be.
 			 */
 			vport->fc_myDID = PT2PT_LocalID;
-		}
+		} else
+			vport->fc_myDID = PT2PT_RemoteID;
 
 		/*
 		 * The vport state should go to LPFC_FLOGI only
 		 * AFTER we issue a FLOGI, not receive one.
 		 */
 		spin_lock_irq(shost->host_lock);
+		fc_flag = vport->fc_flag;
+		port_state = vport->port_state;
 		vport->fc_flag |= FC_PT2PT;
 		vport->fc_flag &= ~(FC_FABRIC | FC_PUBLIC_LOOP);
+		vport->port_state = LPFC_FLOGI;
 		spin_unlock_irq(shost->host_lock);
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "3311 Rcv Flogi PS x%x new PS x%x "
+				 "fc_flag x%x new fc_flag x%x\n",
+				 port_state, vport->port_state,
+				 fc_flag, vport->fc_flag);
 
 		/*
 		 * We temporarily set fc_myDID to make it look like we are
@@ -6613,7 +6657,9 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	/* ELS command <elsCmd> received from NPORT <did> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0112 ELS command x%x received from NPORT x%x "
-			 "Data: x%x\n", cmd, did, vport->port_state);
+			 "Data: x%x x%x x%x x%x\n",
+			cmd, did, vport->port_state, vport->fc_flag,
+			vport->fc_myDID, vport->fc_prevDID);
 	switch (cmd) {
 	case ELS_CMD_PLOGI:
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
@@ -6622,6 +6668,19 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 		phba->fc_stat.elsRcvPLOGI++;
 		ndlp = lpfc_plogi_confirm_nport(phba, payload, ndlp);
+		if (phba->sli_rev == LPFC_SLI_REV4 &&
+		    (phba->pport->fc_flag & FC_PT2PT)) {
+			vport->fc_prevDID = vport->fc_myDID;
+			/* Our DID needs to be updated before registering
+			 * the vfi. This is done in lpfc_rcv_plogi but
+			 * that is called after the reg_vfi.
+			 */
+			vport->fc_myDID = elsiocb->iocb.un.rcvels.parmRo;
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+					 "3312 Remote port assigned DID x%x "
+					 "%x\n", vport->fc_myDID,
+					 vport->fc_prevDID);
+		}
 
 		lpfc_send_els_event(vport, ndlp, payload);
 
@@ -6631,6 +6690,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			rjt_exp = LSEXP_NOTHING_MORE;
 			break;
 		}
+		shost = lpfc_shost_from_vport(vport);
 		if (vport->port_state < LPFC_DISC_AUTH) {
 			if (!(phba->pport->fc_flag & FC_PT2PT) ||
 				(phba->pport->fc_flag & FC_PT2PT_PLOGI)) {
@@ -6642,9 +6702,18 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			 * another NPort and the other side has initiated
 			 * the PLOGI before responding to our FLOGI.
 			 */
+			if (phba->sli_rev == LPFC_SLI_REV4 &&
+			    (phba->fc_topology_changed ||
+			     vport->fc_myDID != vport->fc_prevDID)) {
+				lpfc_unregister_fcf_prep(phba);
+				spin_lock_irq(shost->host_lock);
+				vport->fc_flag &= ~FC_VFI_REGISTERED;
+				spin_unlock_irq(shost->host_lock);
+				phba->fc_topology_changed = 0;
+				lpfc_issue_reg_vfi(vport);
+			}
 		}
 
-		shost = lpfc_shost_from_vport(vport);
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag &= ~NLP_TARGET_REMOVE;
 		spin_unlock_irq(shost->host_lock);

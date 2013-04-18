@@ -2801,6 +2801,8 @@ lpfc_topology_store(struct device *dev, struct device_attribute *attr,
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
 			"3054 lpfc_topology changed from %d to %d\n",
 			prev_val, val);
+		if (prev_val != val && phba->sli_rev == LPFC_SLI_REV4)
+			phba->fc_topology_changed = 1;
 		err = lpfc_issue_lip(lpfc_shost_from_vport(phba->pport));
 		if (err) {
 			phba->cfg_topology = prev_val;

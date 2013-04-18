@@ -673,6 +673,7 @@ struct lpfc_hba {
 	uint32_t lmt;
 
 	uint32_t fc_topology;	/* link topology, from LINK INIT */
+	uint32_t fc_topology_changed;	/* link topology, from LINK INIT */
 
 	struct lpfc_stats fc_stat;
 
