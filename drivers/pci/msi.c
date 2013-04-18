@@ -605,8 +605,8 @@ static void __iomem *msix_map_region(struct pci_dev *dev, unsigned nr_entries)
 
 	pci_read_config_dword(dev, dev->msix_cap + PCI_MSIX_TABLE,
 			      &table_offset);
-	bir = (u8)(table_offset & PCI_MSIX_FLAGS_BIRMASK);
-	table_offset &= ~PCI_MSIX_FLAGS_BIRMASK;
+	bir = (u8)(table_offset & PCI_MSIX_TABLE_BIR);
+	table_offset &= PCI_MSIX_TABLE_OFFSET;
 	phys_addr = pci_resource_start(dev, bir) + table_offset;
 
 	return ioremap_nocache(phys_addr, nr_entries * PCI_MSIX_ENTRY_SIZE);
