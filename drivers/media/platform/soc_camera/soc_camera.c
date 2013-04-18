@@ -76,8 +76,8 @@ int soc_camera_power_on(struct device *dev, struct soc_camera_subdev_desc *ssdd,
 		dev_err(dev, "Cannot enable clock: %d\n", ret);
 		return ret;
 	}
-	ret = regulator_bulk_enable(ssdd->num_regulators,
-					ssdd->regulators);
+	ret = regulator_bulk_enable(ssdd->sd_pdata.num_regulators,
+				    ssdd->sd_pdata.regulators);
 	if (ret < 0) {
 		dev_err(dev, "Cannot enable regulators\n");
 		goto eregenable;
@@ -95,8 +95,8 @@ int soc_camera_power_on(struct device *dev, struct soc_camera_subdev_desc *ssdd,
 	return 0;
 
 epwron:
-	regulator_bulk_disable(ssdd->num_regulators,
-			       ssdd->regulators);
+	regulator_bulk_disable(ssdd->sd_pdata.num_regulators,
+			       ssdd->sd_pdata.regulators);
 eregenable:
 	if (clk)
 		v4l2_clk_disable(clk);
@@ -120,8 +120,8 @@ int soc_camera_power_off(struct device *dev, struct soc_camera_subdev_desc *ssdd
 		}
 	}
 
-	err = regulator_bulk_disable(ssdd->num_regulators,
-				     ssdd->regulators);
+	err = regulator_bulk_disable(ssdd->sd_pdata.num_regulators,
+				     ssdd->sd_pdata.regulators);
 	if (err < 0) {
 		dev_err(dev, "Cannot disable regulators\n");
 		ret = ret ? : err;
@@ -137,8 +137,8 @@ EXPORT_SYMBOL(soc_camera_power_off);
 int soc_camera_power_init(struct device *dev, struct soc_camera_subdev_desc *ssdd)
 {
 	/* Should not have any effect in synchronous case */
-	return devm_regulator_bulk_get(dev, ssdd->num_regulators,
-				       ssdd->regulators);
+	return devm_regulator_bulk_get(dev, ssdd->sd_pdata.num_regulators,
+				       ssdd->sd_pdata.regulators);
 }
 EXPORT_SYMBOL(soc_camera_power_init);
 
@@ -1346,8 +1346,8 @@ static int soc_camera_i2c_init(struct soc_camera_device *icd,
 	 * soc_camera_pdrv_probe(), make sure the subdevice driver doesn't try
 	 * to allocate them again.
 	 */
-	ssdd->num_regulators = 0;
-	ssdd->regulators = NULL;
+	ssdd->sd_pdata.num_regulators = 0;
+	ssdd->sd_pdata.regulators = NULL;
 	shd->board_info->platform_data = ssdd;
 
 	snprintf(clk_name, sizeof(clk_name), "%d-%04x",
@@ -2020,8 +2020,8 @@ static int soc_camera_pdrv_probe(struct platform_device *pdev)
 	 * that case regulators are attached to the I2C device and not to the
 	 * camera platform device.
 	 */
-	ret = devm_regulator_bulk_get(&pdev->dev, ssdd->num_regulators,
-				      ssdd->regulators);
+	ret = devm_regulator_bulk_get(&pdev->dev, ssdd->sd_pdata.num_regulators,
+				      ssdd->sd_pdata.regulators);
 	if (ret < 0)
 		return ret;
 

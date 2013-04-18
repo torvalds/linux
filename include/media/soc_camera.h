@@ -146,10 +146,6 @@ struct soc_camera_subdev_desc {
 	/* sensor driver private platform data */
 	void *drv_priv;
 
-	/* Optional regulators that have to be managed on power on/off events */
-	struct regulator_bulk_data *regulators;
-	int num_regulators;
-
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
@@ -162,6 +158,9 @@ struct soc_camera_subdev_desc {
 	int (*set_bus_param)(struct soc_camera_subdev_desc *, unsigned long flags);
 	unsigned long (*query_bus_param)(struct soc_camera_subdev_desc *);
 	void (*free_bus)(struct soc_camera_subdev_desc *);
+
+	/* Optional regulators that have to be managed on power on/off events */
+	struct v4l2_subdev_platform_data sd_pdata;
 };
 
 struct soc_camera_host_desc {
@@ -202,10 +201,6 @@ struct soc_camera_link {
 
 	void *priv;
 
-	/* Optional regulators that have to be managed on power on/off events */
-	struct regulator_bulk_data *regulators;
-	int num_regulators;
-
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
@@ -217,6 +212,12 @@ struct soc_camera_link {
 	int (*set_bus_param)(struct soc_camera_link *, unsigned long flags);
 	unsigned long (*query_bus_param)(struct soc_camera_link *);
 	void (*free_bus)(struct soc_camera_link *);
+
+	/* Optional regulators that have to be managed on power on/off events */
+	struct regulator_bulk_data *regulators;
+	int num_regulators;
+
+	void *host_priv;
 
 	/*
 	 * Host part - keep at bottom and compatible to
