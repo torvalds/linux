@@ -88,12 +88,14 @@ static int __devinit rk616_hdmi_probe (struct platform_device *pdev)
 {
 	int ret;
 
-	struct mfd_rk616 *g_rk616_hdmi = dev_get_drvdata(pdev->dev.parent);
-	if(!g_rk616_hdmi)
+	struct mfd_rk616 *rk616 = dev_get_drvdata(pdev->dev.parent);
+	if(!rk616)
 	{
 		dev_err(&pdev->dev,"null mfd device rk616!\n");
 		return -ENODEV;
 	}
+
+	g_rk616_hdmi = rk616;
 
 	hdmi = kmalloc(sizeof(struct hdmi), GFP_KERNEL);
 	if(!hdmi)
