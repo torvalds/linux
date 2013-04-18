@@ -77,6 +77,12 @@ struct fimc_is_sensor {
 	struct v4l2_mbus_framefmt format;
 };
 
+static inline
+struct fimc_is_sensor *sd_to_fimc_is_sensor(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct fimc_is_sensor, subdev);
+}
+
 int fimc_is_register_sensor_driver(void);
 void fimc_is_unregister_sensor_driver(void);
 

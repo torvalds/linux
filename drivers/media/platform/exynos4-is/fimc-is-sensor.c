@@ -40,11 +40,6 @@ static const struct v4l2_mbus_framefmt fimc_is_sensor_formats[] = {
 	}
 };
 
-static struct fimc_is_sensor *sd_to_fimc_is_sensor(struct v4l2_subdev *sd)
-{
-	return container_of(sd, struct fimc_is_sensor, subdev);
-}
-
 static const struct v4l2_mbus_framefmt *find_sensor_format(
 	struct v4l2_mbus_framefmt *mf)
 {
@@ -147,7 +142,7 @@ static const struct v4l2_subdev_internal_ops fimc_is_sensor_sd_internal_ops = {
 
 static int fimc_is_sensor_s_power(struct v4l2_subdev *sd, int on)
 {
-	struct fimc_is_sensor *sensor = v4l2_get_subdevdata(sd);
+	struct fimc_is_sensor *sensor = sd_to_fimc_is_sensor(sd);
 	int gpio = sensor->gpio_reset;
 	int ret;
 
@@ -252,7 +247,6 @@ static int fimc_is_sensor_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	v4l2_set_subdevdata(sd, sensor);
 	pm_runtime_no_callbacks(dev);
 	pm_runtime_enable(dev);
 

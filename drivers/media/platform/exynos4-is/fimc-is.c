@@ -220,7 +220,7 @@ static int fimc_is_register_subdevs(struct fimc_is *is)
 			if (WARN_ON(is->sensor))
 				continue;
 
-			is->sensor = v4l2_get_subdevdata(sd);
+			is->sensor = sd_to_fimc_is_sensor(sd);
 
 			if (fimc_is_parse_sensor_config(is->sensor, child)) {
 				dev_warn(&is->pdev->dev, "DT parse error: %s\n",
