@@ -120,19 +120,11 @@ static int acl7225b_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void acl7225b_detach(struct comedi_device *dev)
-{
-	const struct acl7225b_boardinfo *board = comedi_board(dev);
-
-	if (dev->iobase)
-		release_region(dev->iobase, board->io_range);
-}
-
 static struct comedi_driver acl7225b_driver = {
 	.driver_name	= "acl7225b",
 	.module		= THIS_MODULE,
 	.attach		= acl7225b_attach,
-	.detach		= acl7225b_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &acl7225b_boards[0].name,
 	.num_names	= ARRAY_SIZE(acl7225b_boards),
 	.offset		= sizeof(struct acl7225b_boardinfo),

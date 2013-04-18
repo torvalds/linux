@@ -687,17 +687,11 @@ out:
 	return ret;
 }
 
-static void dt2801_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, DT2801_IOSIZE);
-}
-
 static struct comedi_driver dt2801_driver = {
 	.driver_name	= "dt2801",
 	.module		= THIS_MODULE,
 	.attach		= dt2801_attach,
-	.detach		= dt2801_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(dt2801_driver);
 

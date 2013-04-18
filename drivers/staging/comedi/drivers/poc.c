@@ -169,14 +169,6 @@ static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void poc_detach(struct comedi_device *dev)
-{
-	const struct boarddef_struct *board = comedi_board(dev);
-
-	if (dev->iobase)
-		release_region(dev->iobase, board->iosize);
-}
-
 static const struct boarddef_struct boards[] = {
 	{
 		.name		= "dac02",
@@ -211,7 +203,7 @@ static struct comedi_driver poc_driver = {
 	.driver_name	= "poc",
 	.module		= THIS_MODULE,
 	.attach		= poc_attach,
-	.detach		= poc_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &boards[0].name,
 	.num_names	= ARRAY_SIZE(boards),
 	.offset		= sizeof(boards[0]),

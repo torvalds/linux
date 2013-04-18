@@ -119,14 +119,6 @@ static int pcl730_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void pcl730_detach(struct comedi_device *dev)
-{
-	const struct pcl730_board *board = comedi_board(dev);
-
-	if (dev->iobase)
-		release_region(dev->iobase, board->io_range);
-}
-
 static const struct pcl730_board boardtypes[] = {
 	{ "pcl730", PCL730_SIZE, },
 	{ "iso730", PCL730_SIZE, },
@@ -137,7 +129,7 @@ static struct comedi_driver pcl730_driver = {
 	.driver_name	= "pcl730",
 	.module		= THIS_MODULE,
 	.attach		= pcl730_attach,
-	.detach		= pcl730_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &boardtypes[0].name,
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.offset		= sizeof(struct pcl730_board),

@@ -294,17 +294,11 @@ static int multiq3_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void multiq3_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, MULTIQ3_SIZE);
-}
-
 static struct comedi_driver multiq3_driver = {
 	.driver_name	= "multiq3",
 	.module		= THIS_MODULE,
 	.attach		= multiq3_attach,
-	.detach		= multiq3_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(multiq3_driver);
 

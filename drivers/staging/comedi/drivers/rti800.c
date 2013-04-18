@@ -376,17 +376,11 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void rti800_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, RTI800_IOSIZE);
-}
-
 static struct comedi_driver rti800_driver = {
 	.driver_name	= "rti800",
 	.module		= THIS_MODULE,
 	.attach		= rti800_attach,
-	.detach		= rti800_detach,
+	.detach		= comedi_legacy_detach,
 	.num_names	= ARRAY_SIZE(rti800_boardtypes),
 	.board_name	= &rti800_boardtypes[0].name,
 	.offset		= sizeof(struct rti800_board),

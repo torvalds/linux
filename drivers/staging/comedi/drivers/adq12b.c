@@ -281,17 +281,11 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void adq12b_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, ADQ12B_SIZE);
-}
-
 static struct comedi_driver adq12b_driver = {
 	.driver_name	= "adq12b",
 	.module		= THIS_MODULE,
 	.attach		= adq12b_attach,
-	.detach		= adq12b_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(adq12b_driver);
 

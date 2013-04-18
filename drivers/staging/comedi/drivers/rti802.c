@@ -128,17 +128,11 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void rti802_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, RTI802_SIZE);
-}
-
 static struct comedi_driver rti802_driver = {
 	.driver_name	= "rti802",
 	.module		= THIS_MODULE,
 	.attach		= rti802_attach,
-	.detach		= rti802_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(rti802_driver);
 

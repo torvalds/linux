@@ -220,17 +220,11 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void dt2815_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, DT2815_SIZE);
-}
-
 static struct comedi_driver dt2815_driver = {
 	.driver_name	= "dt2815",
 	.module		= THIS_MODULE,
 	.attach		= dt2815_attach,
-	.detach		= dt2815_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(dt2815_driver);
 

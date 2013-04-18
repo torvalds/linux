@@ -78,17 +78,11 @@ static int pcl725_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void pcl725_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, PCL725_SIZE);
-}
-
 static struct comedi_driver pcl725_driver = {
 	.driver_name	= "pcl725",
 	.module		= THIS_MODULE,
 	.attach		= pcl725_attach,
-	.detach		= pcl725_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(pcl725_driver);
 

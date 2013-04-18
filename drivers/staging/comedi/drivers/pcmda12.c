@@ -186,17 +186,11 @@ static int pcmda12_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static void pcmda12_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, IOSIZE);
-}
-
 static struct comedi_driver pcmda12_driver = {
 	.driver_name	= "pcmda12",
 	.module		= THIS_MODULE,
 	.attach		= pcmda12_attach,
-	.detach		= pcmda12_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(pcmda12_driver);
 

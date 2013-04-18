@@ -357,17 +357,11 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-static void mpc624_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, MPC624_SIZE);
-}
-
 static struct comedi_driver mpc624_driver = {
 	.driver_name	= "mpc624",
 	.module		= THIS_MODULE,
 	.attach		= mpc624_attach,
-	.detach		= mpc624_detach
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(mpc624_driver);
 

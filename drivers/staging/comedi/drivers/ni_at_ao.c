@@ -399,12 +399,6 @@ static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void atao_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, ATAO_SIZE);
-}
-
 static const struct atao_board atao_boards[] = {
 	{
 		.name		= "ai-ao-6",
@@ -419,7 +413,7 @@ static struct comedi_driver ni_at_ao_driver = {
 	.driver_name	= "ni_at_ao",
 	.module		= THIS_MODULE,
 	.attach		= atao_attach,
-	.detach		= atao_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &atao_boards[0].name,
 	.offset		= sizeof(struct atao_board),
 	.num_names	= ARRAY_SIZE(atao_boards),

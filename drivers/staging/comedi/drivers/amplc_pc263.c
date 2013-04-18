@@ -104,17 +104,11 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void pc263_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, PC263_IO_SIZE);
-}
-
 static struct comedi_driver amplc_pc263_driver = {
 	.driver_name = PC263_DRIVER_NAME,
 	.module = THIS_MODULE,
 	.attach = pc263_attach,
-	.detach = pc263_detach,
+	.detach = comedi_legacy_detach,
 	.board_name = &pc263_boards[0].name,
 	.offset = sizeof(struct pc263_board),
 	.num_names = ARRAY_SIZE(pc263_boards),

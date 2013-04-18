@@ -123,17 +123,11 @@ static int pcm3730_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void pcm3730_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, PCM3730_SIZE);
-}
-
 static struct comedi_driver pcm3730_driver = {
 	.driver_name	= "pcm3730",
 	.module		= THIS_MODULE,
 	.attach		= pcm3730_attach,
-	.detach		= pcm3730_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(pcm3730_driver);
 

@@ -613,17 +613,11 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-static void s526_detach(struct comedi_device *dev)
-{
-	if (dev->iobase > 0)
-		release_region(dev->iobase, S526_IOSIZE);
-}
-
 static struct comedi_driver s526_driver = {
 	.driver_name	= "s526",
 	.module		= THIS_MODULE,
 	.attach		= s526_attach,
-	.detach		= s526_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(s526_driver);
 

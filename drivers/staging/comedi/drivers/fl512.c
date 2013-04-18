@@ -165,17 +165,11 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 1;
 }
 
-static void fl512_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, FL512_SIZE);
-}
-
 static struct comedi_driver fl512_driver = {
 	.driver_name	= "fl512",
 	.module		= THIS_MODULE,
 	.attach		= fl512_attach,
-	.detach		= fl512_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(fl512_driver);
 

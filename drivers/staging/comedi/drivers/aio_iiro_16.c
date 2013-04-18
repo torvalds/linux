@@ -107,17 +107,11 @@ static int aio_iiro_16_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static void aio_iiro_16_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, AIO_IIRO_16_SIZE);
-}
-
 static struct comedi_driver aio_iiro_16_driver = {
 	.driver_name	= "aio_iiro_16",
 	.module		= THIS_MODULE,
 	.attach		= aio_iiro_16_attach,
-	.detach		= aio_iiro_16_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(aio_iiro_16_driver);
 
