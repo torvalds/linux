@@ -34,7 +34,7 @@
 
 #include <linux/platform_data/spi-s3c64xx.h>
 
-#ifdef CONFIG_SAMSUNG_DMADEV
+#ifdef CONFIG_S3C_DMA
 #include <mach/dma.h>
 #endif
 
@@ -199,7 +199,7 @@ struct s3c64xx_spi_driver_data {
 	unsigned                        cur_speed;
 	struct s3c64xx_spi_dma_data	rx_dma;
 	struct s3c64xx_spi_dma_data	tx_dma;
-#ifdef CONFIG_SAMSUNG_DMADEV
+#ifdef CONFIG_S3C_DMA
 	struct samsung_dma_ops		*ops;
 #endif
 	struct s3c64xx_spi_port_config	*port_conf;
@@ -283,7 +283,7 @@ static void s3c64xx_spi_dmacb(void *data)
 	spin_unlock_irqrestore(&sdd->lock, flags);
 }
 
-#ifdef CONFIG_SAMSUNG_DMADEV
+#ifdef CONFIG_S3C_DMA
 /* FIXME: remove this section once arch/arm/mach-s3c64xx uses dmaengine */
 
 static struct s3c2410_dma_client s3c64xx_spi_dma_client = {
