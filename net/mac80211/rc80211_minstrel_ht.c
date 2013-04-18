@@ -907,6 +907,9 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	if (!n_supported)
 		goto use_legacy;
 
+	/* init {mi,mi->groups[*]}->{max_tp_rate,max_tp_rate2,max_prob_rate} */
+	minstrel_ht_update_stats(mp, mi);
+
 	return;
 
 use_legacy:
