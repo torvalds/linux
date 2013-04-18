@@ -69,7 +69,7 @@ static struct resource smsc911x_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start		= gic_iid(0x3c), /* IRQ 1 */
+		.start		= irq_pin(1), /* IRQ 1 */
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -405,6 +405,7 @@ static void __init marzen_init(void)
 	pinctrl_register_mappings(marzen_pinctrl_map,
 				  ARRAY_SIZE(marzen_pinctrl_map));
 	r8a7779_pinmux_init();
+	r8a7779_init_irq_extpin(1); /* IRQ1 as individual interrupt */
 
 	r8a7779_add_standard_devices();
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
