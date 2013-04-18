@@ -13,6 +13,8 @@ config ARCH_MVEBU
 	select MVEBU_CLK_CORE
 	select MVEBU_CLK_CPU
 	select MVEBU_CLK_GATING
+	select MVEBU_MBUS
+	select ZONE_DMA if ARM_LPAE
 
 if ARCH_MVEBU
 
