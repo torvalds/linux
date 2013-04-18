@@ -823,6 +823,10 @@ static void fimc_md_unregister_entities(struct fimc_md *fmd)
 		fimc_md_unregister_sensor(fmd->sensor[i].subdev);
 		fmd->sensor[i].subdev = NULL;
 	}
+
+	if (fmd->fimc_is)
+		v4l2_device_unregister_subdev(&fmd->fimc_is->isp.subdev);
+
 	v4l2_info(&fmd->v4l2_dev, "Unregistered all entities\n");
 }
 
