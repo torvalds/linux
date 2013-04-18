@@ -1901,6 +1901,11 @@ err_dest_symlinks:
 	bond_destroy_slave_symlinks(bond_dev, slave_dev);
 
 err_detach:
+	if (!USES_PRIMARY(bond->params.mode)) {
+		netif_addr_lock_bh(bond_dev);
+		bond_mc_list_flush(bond_dev, slave_dev);
+		netif_addr_unlock_bh(bond_dev);
+	}
 	write_lock_bh(&bond->lock);
 	bond_detach_slave(bond, new_slave);
 	write_unlock_bh(&bond->lock);
