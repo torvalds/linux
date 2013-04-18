@@ -292,14 +292,8 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void dio200_detach(struct comedi_device *dev)
 {
-	const struct dio200_board *thisboard = comedi_board(dev);
-	struct dio200_private *devpriv = dev->private;
-
-	if (!thisboard || !devpriv)
-		return;
 	amplc_dio200_common_detach(dev);
-	if (devpriv->io.regtype == io_regtype)
-		release_region(devpriv->io.u.iobase, thisboard->mainsize);
+	comedi_legacy_detach(dev);
 }
 
 static struct comedi_driver amplc_dio200_driver = {
