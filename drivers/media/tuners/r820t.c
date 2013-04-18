@@ -1378,7 +1378,7 @@ static int r820t_xtal_check(struct r820t_priv *priv)
 		rc = r820t_read(priv, 0x00, data, sizeof(data));
 		if (rc < 0)
 			return rc;
-		if ((!data[2]) & 0x40)
+		if (!(data[2] & 0x40))
 			continue;
 
 		val = data[2] & 0x3f;
