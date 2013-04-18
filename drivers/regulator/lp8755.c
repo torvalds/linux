@@ -19,7 +19,6 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/regmap.h>
-#include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
