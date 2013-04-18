@@ -335,7 +335,7 @@ static int twl_pwm_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id twl_pwm_of_match[] = {
+static const struct of_device_id twl_pwm_of_match[] = {
 	{ .compatible = "ti,twl4030-pwm" },
 	{ .compatible = "ti,twl6030-pwm" },
 	{ },

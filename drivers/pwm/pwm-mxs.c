@@ -179,7 +179,7 @@ static int mxs_pwm_remove(struct platform_device *pdev)
 	return pwmchip_remove(&mxs->chip);
 }
 
-static struct of_device_id mxs_pwm_dt_ids[] = {
+static const struct of_device_id mxs_pwm_dt_ids[] = {
 	{ .compatible = "fsl,imx23-pwm", },
 	{ /* sentinel */ }
 };

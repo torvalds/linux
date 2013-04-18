@@ -145,7 +145,7 @@ static int lpc32xx_pwm_remove(struct platform_device *pdev)
 	return pwmchip_remove(&lpc32xx->chip);
 }
 
-static struct of_device_id lpc32xx_pwm_dt_ids[] = {
+static const struct of_device_id lpc32xx_pwm_dt_ids[] = {
 	{ .compatible = "nxp,lpc3220-pwm", },
 	{ /* sentinel */ }
 };

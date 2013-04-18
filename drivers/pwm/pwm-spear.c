@@ -248,7 +248,7 @@ static int spear_pwm_remove(struct platform_device *pdev)
 	return pwmchip_remove(&pc->chip);
 }
 
-static struct of_device_id spear_pwm_of_match[] = {
+static const struct of_device_id spear_pwm_of_match[] = {
 	{ .compatible = "st,spear320-pwm" },
 	{ .compatible = "st,spear1340-pwm" },
 	{ }
