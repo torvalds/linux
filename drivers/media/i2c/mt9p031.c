@@ -849,18 +849,18 @@ static int mt9p031_registered(struct v4l2_subdev *subdev)
 
 	/* Read out the chip version register */
 	data = mt9p031_read(client, MT9P031_CHIP_VERSION);
+	mt9p031_power_off(mt9p031);
+
 	if (data != MT9P031_CHIP_VERSION_VALUE) {
 		dev_err(&client->dev, "MT9P031 not detected, wrong version "
 			"0x%04x\n", data);
 		return -ENODEV;
 	}
 
-	mt9p031_power_off(mt9p031);
-
 	dev_info(&client->dev, "MT9P031 detected at address 0x%02x\n",
 		 client->addr);
 
-	return ret;
+	return 0;
 }
 
 static int mt9p031_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
