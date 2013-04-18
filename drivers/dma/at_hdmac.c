@@ -310,8 +310,6 @@ static void atc_complete_all(struct at_dma_chan *atchan)
 
 	dev_vdbg(chan2dev(&atchan->chan_common), "complete all\n");
 
-	BUG_ON(atc_chan_is_enabled(atchan));
-
 	/*
 	 * Submit queued descriptors ASAP, i.e. before we go through
 	 * the completed ones.
@@ -367,6 +365,9 @@ static void atc_cleanup_descriptors(struct at_dma_chan *atchan)
 static void atc_advance_work(struct at_dma_chan *atchan)
 {
 	dev_vdbg(chan2dev(&atchan->chan_common), "advance_work\n");
+
+	if (atc_chan_is_enabled(atchan))
+		return;
 
 	if (list_empty(&atchan->active_list) ||
 	    list_is_singular(&atchan->active_list)) {
@@ -1078,9 +1079,7 @@ static void atc_issue_pending(struct dma_chan *chan)
 		return;
 
 	spin_lock_irqsave(&atchan->lock, flags);
-	if (!atc_chan_is_enabled(atchan)) {
-		atc_advance_work(atchan);
-	}
+	atc_advance_work(atchan);
 	spin_unlock_irqrestore(&atchan->lock, flags);
 }
 
