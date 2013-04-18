@@ -506,8 +506,10 @@ static int rsc_parse(struct cache_detail *cd,
 		len = qword_get(&mesg, buf, mlen);
 		if (len > 0) {
 			rsci.cred.cr_principal = kstrdup(buf, GFP_KERNEL);
-			if (!rsci.cred.cr_principal)
+			if (!rsci.cred.cr_principal) {
+				status = -ENOMEM;
 				goto out;
+			}
 		}
 
 	}
