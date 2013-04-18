@@ -4016,11 +4016,10 @@ LPFC_ATTR_R(enable_bg, 0, 0, 1, "Enable BlockGuard Support");
 #       0  = disabled (default)
 #       1  = enabled
 # Value range is [0,1]. Default value is 0.
+#
+# This feature in under investigation and may be supported in the future.
 */
 unsigned int lpfc_fcp_look_ahead = LPFC_LOOK_AHEAD_OFF;
-
-module_param(lpfc_fcp_look_ahead, uint, S_IRUGO);
-MODULE_PARM_DESC(lpfc_fcp_look_ahead, "Look ahead for completions");
 
 /*
 # lpfc_prot_mask: i
