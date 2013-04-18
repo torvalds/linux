@@ -385,7 +385,7 @@ out:
 static int au_do_cpup_regular(struct au_cpup_basic *basic, struct inode *h_dir,
 			      struct path *h_path)
 {
-	int err, rerr;
+	int err;
 	loff_t l;
 
 	err = 0;
@@ -394,17 +394,7 @@ static int au_do_cpup_regular(struct au_cpup_basic *basic, struct inode *h_dir,
 		basic->len = l;
 	if (basic->len)
 		err = au_cp_regular(basic);
-	if (!err)
-		goto out; /* success */
 
-	rerr = vfsub_unlink(h_dir, h_path, /*force*/0);
-	if (rerr) {
-		AuIOErr("failed unlinking cpup-ed %.*s(%d, %d)\n",
-			AuDLNPair(h_path->dentry), err, rerr);
-		err = -EIO;
-	}
-
-out:
 	return err;
 }
 
@@ -617,15 +607,15 @@ static int au_cpup_single(struct au_cpup_basic *basic, unsigned int flags,
 			au_update_ibrange(inode, /*do_put_zero*/1);
 	}
 
+	isdir = S_ISDIR(inode->i_mode);
 	old_ibstart = au_ibstart(inode);
 	err = cpup_entry(basic, flags, dst_parent);
 	if (unlikely(err))
-		goto out;
+		goto out_rev;
 	dst_inode = h_dst->d_inode;
 	mutex_lock_nested(&dst_inode->i_mutex, AuLsc_I_CHILD2);
 
 	err = cpup_iattr(basic->dentry, basic->bdst, h_src);
-	isdir = S_ISDIR(dst_inode->i_mode);
 	if (!err) {
 		if (basic->bdst < old_ibstart) {
 			if (S_ISREG(inode->i_mode)) {
