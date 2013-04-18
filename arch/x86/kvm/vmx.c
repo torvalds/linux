@@ -355,6 +355,7 @@ struct nested_vmx {
 	/* The host-usable pointer to the above */
 	struct page *current_vmcs12_page;
 	struct vmcs12 *current_vmcs12;
+	struct vmcs *current_shadow_vmcs;
 
 	/* vmcs02_list cache of VMCSs recently used to run L2 guests */
 	struct list_head vmcs02_pool;
@@ -5527,6 +5528,7 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 {
 	struct kvm_segment cs;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct vmcs *shadow_vmcs;
 
 	/* The Intel VMX Instruction Reference lists a bunch of bits that
 	 * are prerequisite to running VMXON, most notably cr4.VMXE must be
@@ -5554,6 +5556,16 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 		nested_vmx_failValid(vcpu, VMXERR_VMXON_IN_VMX_ROOT_OPERATION);
 		skip_emulated_instruction(vcpu);
 		return 1;
+	}
+	if (enable_shadow_vmcs) {
+		shadow_vmcs = alloc_vmcs();
+		if (!shadow_vmcs)
+			return -ENOMEM;
+		/* mark vmcs as shadow */
+		shadow_vmcs->revision_id |= (1u << 31);
+		/* init shadow vmcs */
+		vmcs_clear(shadow_vmcs);
+		vmx->nested.current_shadow_vmcs = shadow_vmcs;
 	}
 
 	INIT_LIST_HEAD(&(vmx->nested.vmcs02_pool));
