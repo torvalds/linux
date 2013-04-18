@@ -1909,7 +1909,17 @@ err_detach:
 	bond_del_vlans_from_slave(bond, slave_dev);
 	write_lock_bh(&bond->lock);
 	bond_detach_slave(bond, new_slave);
+	if (bond->primary_slave == new_slave)
+		bond->primary_slave = NULL;
 	write_unlock_bh(&bond->lock);
+	if (bond->curr_active_slave == new_slave) {
+		read_lock(&bond->lock);
+		write_lock_bh(&bond->curr_slave_lock);
+		bond_change_active_slave(bond, NULL);
+		bond_select_active_slave(bond);
+		write_unlock_bh(&bond->curr_slave_lock);
+		read_unlock(&bond->lock);
+	}
 
 err_close:
 	slave_dev->priv_flags &= ~IFF_BONDING;
