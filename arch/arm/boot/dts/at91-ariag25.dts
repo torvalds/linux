@@ -21,6 +21,7 @@
 		serial3 = &usart2;
 		serial4 = &usart3;
 		serial5 = &uart0;
+		serial6 = &uart1;
 	};
 
 	chosen {
@@ -112,13 +113,17 @@
 				status = "okay";
 			};
 
+			/*
+			 * UART0/1 pins are marked as GPIO on
+			 * Aria documentation.
+			 * Change to "okay" if you need additional serial ports
+			 */
 			uart0: serial@f8040000 {
-				compatible = "atmel,at91sam9260-usart";
-				reg = <0xf8040000 0x200>;
-				interrupts = <15 4 5>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_uart0>;
-				status = "okay";
+				status = "disabled";
+			};
+
+			uart1: serial@f8044000 {
+				status = "disabled";
 			};
 
 			adc0: adc@f804c000 {
