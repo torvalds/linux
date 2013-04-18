@@ -85,6 +85,30 @@ static void evergreen_hdmi_update_avi_infoframe(struct drm_encoder *encoder,
 		frame[0xC] | (frame[0xD] << 8));
 }
 
+static void evergreen_audio_set_dto(struct drm_encoder *encoder, u32 clock)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
+	u32 base_rate = 48000;
+
+	if (!dig || !dig->afmt)
+		return;
+
+	/* XXX: properly calculate this */
+	/* XXX two dtos; generally use dto0 for hdmi */
+	/* Express [24MHz / target pixel clock] as an exact rational
+	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
+	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
+	 */
+	WREG32(DCCG_AUDIO_DTO0_PHASE, (base_rate*50) & 0xffffff);
+	WREG32(DCCG_AUDIO_DTO0_MODULE, (clock*100) & 0xffffff);
+	WREG32(DCCG_AUDIO_DTO_SOURCE, DCCG_AUDIO_DTO0_SOURCE_SEL(radeon_crtc->crtc_id));
+}
+
+
 /*
  * update the info frames with the data from the current display mode
  */
@@ -104,7 +128,7 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 		return;
 	offset = dig->afmt->offset;
 
-	r600_audio_set_clock(encoder, mode->clock);
+	evergreen_audio_set_dto(encoder, mode->clock);
 
 	WREG32(HDMI_VBI_PACKET_CONTROL + offset,
 	       HDMI_NULL_SEND); /* send null packets when required */

@@ -226,6 +226,30 @@ static void r600_hdmi_audio_workaround(struct drm_encoder *encoder)
 		 value, ~HDMI0_AUDIO_TEST_EN);
 }
 
+void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	u32 base_rate = 48000;
+
+	if (!dig || !dig->afmt)
+		return;
+
+	/* there are two DTOs selected by DCCG_AUDIO_DTO_SELECT.
+	 * doesn't matter which one you use.  Just use the first one.
+	 */
+	/* XXX: properly calculate this */
+	/* XXX two dtos; generally use dto0 for hdmi */
+	/* Express [24MHz / target pixel clock] as an exact rational
+	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
+	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
+	 */
+	WREG32(DCCG_AUDIO_DTO0_PHASE, (base_rate*50) & 0xffffff);
+	WREG32(DCCG_AUDIO_DTO0_MODULE, (clock*100) & 0xffffff);
+	WREG32(DCCG_AUDIO_DTO_SELECT, 0); /* select DTO0 */
+}
 
 /*
  * update the info frames with the data from the current display mode
@@ -246,7 +270,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 		return;
 	offset = dig->afmt->offset;
 
-	r600_audio_set_clock(encoder, mode->clock);
+	r600_audio_set_dto(encoder, mode->clock);
 
 	WREG32(HDMI0_VBI_PACKET_CONTROL + offset,
 	       HDMI0_NULL_SEND); /* send null packets when required */
