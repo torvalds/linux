@@ -219,3 +219,20 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	WREG32(AFMT_RAMP_CONTROL2 + offset, 0x00000001);
 	WREG32(AFMT_RAMP_CONTROL3 + offset, 0x00000001);
 }
+
+void evergreen_hdmi_enable(struct drm_encoder *encoder, bool enable)
+{
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+
+	/* Silent, r600_hdmi_enable will raise WARN for us */
+	if (enable && dig->afmt->enabled)
+		return;
+	if (!enable && !dig->afmt->enabled)
+		return;
+
+	dig->afmt->enabled = enable;
+
+	DRM_DEBUG("%sabling HDMI interface @ 0x%04X for encoder 0x%x\n",
+		  enable ? "En" : "Dis", dig->afmt->offset, radeon_encoder->encoder_id);
+}

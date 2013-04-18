@@ -1270,6 +1270,9 @@ struct radeon_asic {
 		void (*set_backlight_level)(struct radeon_encoder *radeon_encoder, u8 level);
 		/* get backlight level */
 		u8 (*get_backlight_level)(struct radeon_encoder *radeon_encoder);
+		/* audio callbacks */
+		void (*hdmi_enable)(struct drm_encoder *encoder, bool enable);
+		void (*hdmi_setmode)(struct drm_encoder *encoder, struct drm_display_mode *mode);
 	} display;
 	/* copy functions for bo handling */
 	struct {
@@ -1878,6 +1881,8 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->display.get_vblank_counter((rdev), (crtc))
 #define radeon_set_backlight_level(rdev, e, l) (rdev)->asic->display.set_backlight_level((e), (l))
 #define radeon_get_backlight_level(rdev, e) (rdev)->asic->display.get_backlight_level((e))
+#define radeon_hdmi_enable(rdev, e, b) (rdev)->asic->display.hdmi_enable((e), (b))
+#define radeon_hdmi_setmode(rdev, e, m) (rdev)->asic->display.hdmi_setmode((e), (m))
 #define radeon_fence_ring_emit(rdev, r, fence) (rdev)->asic->ring[(r)].emit_fence((rdev), (fence))
 #define radeon_semaphore_ring_emit(rdev, r, cp, semaphore, emit_wait) (rdev)->asic->ring[(r)].emit_semaphore((rdev), (cp), (semaphore), (emit_wait))
 #define radeon_copy_blit(rdev, s, d, np, f) (rdev)->asic->copy.blit((rdev), (s), (d), (np), (f))
@@ -2013,9 +2018,6 @@ struct radeon_hdmi_acr {
 
 extern struct radeon_hdmi_acr r600_hdmi_acr(uint32_t clock);
 
-extern void r600_hdmi_enable(struct drm_encoder *encoder);
-extern void r600_hdmi_disable(struct drm_encoder *encoder);
-extern void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
 extern u32 r6xx_remap_render_backend(struct radeon_device *rdev,
 				     u32 tiling_pipe_num,
 				     u32 max_rb_num,
@@ -2025,8 +2027,6 @@ extern u32 r6xx_remap_render_backend(struct radeon_device *rdev,
 /*
  * evergreen functions used by radeon_encoder.c
  */
-
-extern void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
 
 extern int ni_init_microcode(struct radeon_device *rdev);
 extern int ni_mc_load_microcode(struct radeon_device *rdev);
