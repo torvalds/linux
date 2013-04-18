@@ -296,7 +296,41 @@ static ssize_t snd_compr_write(struct file *f, const char __user *buf,
 static ssize_t snd_compr_read(struct file *f, char __user *buf,
 		size_t count, loff_t *offset)
 {
-	return -ENXIO;
+	struct snd_compr_file *data = f->private_data;
+	struct snd_compr_stream *stream;
+	size_t avail;
+	int retval;
+
+	if (snd_BUG_ON(!data))
+		return -EFAULT;
+
+	stream = &data->stream;
+	mutex_lock(&stream->device->lock);
+
+	/* read is allowed when stream is running */
+	if (stream->runtime->state != SNDRV_PCM_STATE_RUNNING) {
+		retval = -EBADFD;
+		goto out;
+	}
+
+	avail = snd_compr_get_avail(stream);
+	pr_debug("avail returned %ld\n", (unsigned long)avail);
+	/* calculate how much we can read from buffer */
+	if (avail > count)
+		avail = count;
+
+	if (stream->ops->copy) {
+		retval = stream->ops->copy(stream, buf, avail);
+	} else {
+		retval = -ENXIO;
+		goto out;
+	}
+	if (retval > 0)
+		stream->runtime->total_bytes_transferred += retval;
+
+out:
+	mutex_unlock(&stream->device->lock);
+	return retval;
 }
 
 static int snd_compr_mmap(struct file *f, struct vm_area_struct *vma)
@@ -481,9 +515,14 @@ snd_compr_set_params(struct snd_compr_stream *stream, unsigned long arg)
 		retval = stream->ops->set_params(stream, params);
 		if (retval)
 			goto out;
-		stream->runtime->state = SNDRV_PCM_STATE_SETUP;
+
 		stream->metadata_set = false;
 		stream->next_track = false;
+
+		if (stream->direction == SND_COMPRESS_PLAYBACK)
+			stream->runtime->state = SNDRV_PCM_STATE_SETUP;
+		else
+			stream->runtime->state = SNDRV_PCM_STATE_PREPARED;
 	} else {
 		return -EPERM;
 	}
