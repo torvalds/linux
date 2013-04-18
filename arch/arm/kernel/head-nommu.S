@@ -22,6 +22,7 @@
 #include <asm/thread_info.h>
 #include <asm/v7m.h>
 #include <asm/mpu.h>
+#include <asm/page.h>
 
 /*
  * Kernel startup entry point.
@@ -188,6 +189,7 @@ ENDPROC(__after_proc_init)
  * Region 0: Use this for probing the MPU details, so leave disabled.
  * Region 1: Background region - covers the whole of RAM as strongly ordered
  * Region 2: Normal, Shared, cacheable for RAM. From PHYS_OFFSET, size from r6
+ * Region 3: Normal, shared, inaccessible from PL0 to protect the vectors page
  *
  * r6: Value to be written to DRSR (and IRSR if required) for MPU_RAM_REGION
 */
@@ -231,6 +233,20 @@ ENTRY(__setup_mpu)
 	beq	2f				@ Memory-map not unified
 	setup_region r0, r5, r6, MPU_INSTR_SIDE @ 0x0, BG region, enabled
 2:	isb
+
+	/* Vectors region */
+	set_region_nr r0, #MPU_VECTORS_REGION
+	isb
+	/* Shared, inaccessible to PL0, rw PL1 */
+	mov	r0, #CONFIG_VECTORS_BASE	@ Cover from VECTORS_BASE
+	ldr	r5,=(MPU_AP_PL1RW_PL0NA | MPU_RGN_NORMAL)
+	/* Writing N to bits 5:1 (RSR_SZ) --> region size 2^N+1 */
+	mov	r6, #(((PAGE_SHIFT - 1) << MPU_RSR_SZ) | 1 << MPU_RSR_EN)
+
+	setup_region r0, r5, r6, MPU_DATA_SIDE	@ VECTORS_BASE, PL0 NA, enabled
+	beq	3f				@ Memory-map not unified
+	setup_region r0, r5, r6, MPU_INSTR_SIDE	@ VECTORS_BASE, PL0 NA, enabled
+3:	isb
 
 	/* Enable the MPU */
 	mrc	p15, 0, r0, c1, c0, 0		@ Read SCTLR

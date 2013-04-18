@@ -46,6 +46,7 @@
 #define MPU_PROBE_REGION	0
 #define MPU_BG_REGION		1
 #define MPU_RAM_REGION		2
+#define MPU_VECTORS_REGION	3
 
 /* Maximum number of regions Linux is interested in */
 #define MPU_MAX_REGIONS		16
