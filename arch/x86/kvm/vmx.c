@@ -718,6 +718,7 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 static bool guest_state_valid(struct kvm_vcpu *vcpu);
 static u32 vmx_segment_access_rights(struct kvm_segment *var);
 static void vmx_sync_pir_to_irr_dummy(struct kvm_vcpu *vcpu);
+static void copy_vmcs12_to_shadow(struct vcpu_vmx *vmx);
 static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx);
 
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
@@ -5924,6 +5925,50 @@ static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx)
 			break;
 		}
 		vmcs12_write_any(&vmx->vcpu, field, field_value);
+	}
+
+	vmcs_clear(shadow_vmcs);
+	vmcs_load(vmx->loaded_vmcs->vmcs);
+}
+
+static void copy_vmcs12_to_shadow(struct vcpu_vmx *vmx)
+{
+	unsigned long *fields[] = {
+		(unsigned long *)shadow_read_write_fields,
+		(unsigned long *)shadow_read_only_fields
+	};
+	int num_lists =  ARRAY_SIZE(fields);
+	int max_fields[] = {
+		max_shadow_read_write_fields,
+		max_shadow_read_only_fields
+	};
+	int i, q;
+	unsigned long field;
+	u64 field_value = 0;
+	struct vmcs *shadow_vmcs = vmx->nested.current_shadow_vmcs;
+
+	vmcs_load(shadow_vmcs);
+
+	for (q = 0; q < num_lists; q++) {
+		for (i = 0; i < max_fields[q]; i++) {
+			field = fields[q][i];
+			vmcs12_read_any(&vmx->vcpu, field, &field_value);
+
+			switch (vmcs_field_type(field)) {
+			case VMCS_FIELD_TYPE_U16:
+				vmcs_write16(field, (u16)field_value);
+				break;
+			case VMCS_FIELD_TYPE_U32:
+				vmcs_write32(field, (u32)field_value);
+				break;
+			case VMCS_FIELD_TYPE_U64:
+				vmcs_write64(field, (u64)field_value);
+				break;
+			case VMCS_FIELD_TYPE_NATURAL_WIDTH:
+				vmcs_writel(field, (long)field_value);
+				break;
+			}
+		}
 	}
 
 	vmcs_clear(shadow_vmcs);
