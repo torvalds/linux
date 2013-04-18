@@ -119,14 +119,6 @@ static int sh73a0_cpu_kill(unsigned int cpu)
 
 static void sh73a0_cpu_die(unsigned int cpu)
 {
-	/*
-	 * The ARM MPcore does not issue a cache coherency request for the L1
-	 * cache when powering off single CPUs. We must take care of this and
-	 * further caches.
-	 */
-	dsb();
-	flush_cache_all();
-
 	/* Set power off mode. This takes the CPU out of the MP cluster */
 	scu_power_mode(scu_base_addr(), SCU_PM_POWEROFF);
 
