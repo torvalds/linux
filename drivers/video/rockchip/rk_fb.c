@@ -607,12 +607,18 @@ static int rk_fb_set_par(struct fb_info *info)
 						par2->xact = par->yact;
 						par2->yact = par->xact;
 						par2->xvir = par->yact;
+						info2->var.xres = var->yres;
+						info2->var.yres = var->xres;
+						info2->var.xres_virtual = var->yres;
 					}
 					else
 					{
 						par2->xact = par->xact;
 						par2->yact = par->yact;
 						par2->xvir = par->xvir;
+						info2->var.xres = var->xres;
+						info2->var.yres = var->yres;
+						info2->var.xres_virtual = var->xres_virtual;
 					}
 					par2->format = par->format;
 					info2->var.nonstd &= 0xffffff00;
