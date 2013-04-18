@@ -995,9 +995,9 @@ err_sens:
 
 static void fimc_is_module_exit(void)
 {
-	platform_driver_unregister(&fimc_is_driver);
-	fimc_is_unregister_i2c_driver();
 	fimc_is_unregister_sensor_driver();
+	fimc_is_unregister_i2c_driver();
+	platform_driver_unregister(&fimc_is_driver);
 }
 
 module_init(fimc_is_module_init);
