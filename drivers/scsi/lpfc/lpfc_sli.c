@@ -12910,8 +12910,9 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 		}
 		wq->db_regaddr = bar_memmap_p + db_offset;
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-				"3264 WQ[%d]: barset:x%x, offset:x%x\n",
-				wq->queue_id, pci_barset, db_offset);
+				"3264 WQ[%d]: barset:x%x, offset:x%x, "
+				"format:x%x\n", wq->queue_id, pci_barset,
+				db_offset, wq->db_format);
 	} else {
 		wq->db_format = LPFC_DB_LIST_FORMAT;
 		wq->db_regaddr = phba->sli4_hba.WQDBregaddr;
@@ -13131,8 +13132,9 @@ lpfc_rq_create(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 		}
 		hrq->db_regaddr = bar_memmap_p + db_offset;
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-				"3266 RQ[qid:%d]: barset:x%x, offset:x%x\n",
-				hrq->queue_id, pci_barset, db_offset);
+				"3266 RQ[qid:%d]: barset:x%x, offset:x%x, "
+				"format:x%x\n", hrq->queue_id, pci_barset,
+				db_offset, hrq->db_format);
 	} else {
 		hrq->db_format = LPFC_DB_RING_FORMAT;
 		hrq->db_regaddr = phba->sli4_hba.RQDBregaddr;
