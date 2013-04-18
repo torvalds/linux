@@ -927,8 +927,7 @@ __lpfc_sli_get_sglq(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq)
 	} else  if ((piocbq->iocb.ulpCommand == CMD_GEN_REQUEST64_CR) &&
 			!(piocbq->iocb_flag & LPFC_IO_LIBDFC))
 		ndlp = piocbq->context_un.ndlp;
-	else  if ((piocbq->iocb.ulpCommand == CMD_ELS_REQUEST64_CR) &&
-			(piocbq->iocb_flag & LPFC_IO_LIBDFC))
+	else  if (piocbq->iocb_flag & LPFC_IO_LIBDFC)
 		ndlp = piocbq->context_un.ndlp;
 	else
 		ndlp = piocbq->context1;
