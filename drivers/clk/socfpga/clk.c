@@ -50,7 +50,7 @@ static DEFINE_SPINLOCK(_lock);
 #define CLKMGR_EMAC0_CLK_EN			0
 
 /* Clock Manager offsets */
-#define CLKMGR_CTRL	0x0
+#define CLKMGR_CTRL    0x0
 #define CLKMGR_BYPASS 0x4
 
 /* Clock bypass bits */
@@ -60,45 +60,23 @@ static DEFINE_SPINLOCK(_lock);
 #define PERPLL_BYPASS (1<<3)
 #define PERPLL_SRC_BYPASS (1<<4)
 
-#define SOCFPGA_PLL_BG_PWRDWN	0x00000001
-#define SOCFPGA_PLL_EXT_ENA	0x00000002
-#define SOCFPGA_PLL_PWR_DOWN	0x00000004
-#define SOCFPGA_PLL_DIVF_MASK 0x0000FFF8
-#define SOCFPGA_PLL_DIVF_SHIFT 3
-#define SOCFPGA_PLL_DIVQ_MASK 0x003F0000
-#define SOCFPGA_PLL_DIVQ_SHIFT 16
+#define SOCFPGA_PLL_BG_PWRDWN		0
+#define SOCFPGA_PLL_EXT_ENA		1
+#define SOCFPGA_PLL_PWR_DOWN		2
+#define SOCFPGA_PLL_DIVF_MASK		0x0000FFF8
+#define SOCFPGA_PLL_DIVF_SHIFT	3
+#define SOCFPGA_PLL_DIVQ_MASK		0x003F0000
+#define SOCFPGA_PLL_DIVQ_SHIFT	16
 
 extern void __iomem *clk_mgr_base_addr;
 
 struct socfpga_clk {
-	struct clk_hw hw;
-	void __iomem	*reg;
+	struct clk_gate hw;
 	char *parent_name;
+	char *clk_name;
 	u32 fixed_div;
 };
-#define to_socfpga_clk(p) container_of(p, struct socfpga_clk, hw)
-
-static int clk_pll_enable(struct clk_hw *hwclk)
-{
-	struct socfpga_clk *socfpgaclk = to_socfpga_clk(hwclk);
-	u32 reg;
-
-	reg = readl(socfpgaclk->reg);
-	reg |= SOCFPGA_PLL_EXT_ENA;
-	writel(reg, socfpgaclk->reg);
-
-	return 0;
-}
-
-static void clk_pll_disable(struct clk_hw *hwclk)
-{
-	struct socfpga_clk *socfpgaclk = to_socfpga_clk(hwclk);
-	u32 reg;
-
-	reg = readl(socfpgaclk->reg);
-	reg &= ~SOCFPGA_PLL_EXT_ENA;
-	writel(reg, socfpgaclk->reg);
-}
+#define to_socfpga_clk(p) container_of(p, struct socfpga_clk, hw.hw)
 
 static unsigned long clk_pll_recalc_rate(struct clk_hw *hwclk,
 					 unsigned long parent_rate)
@@ -107,7 +85,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hwclk,
 	unsigned long divf, divq, vco_freq, reg;
 	unsigned long bypass;
 
-	reg = readl(socfpgaclk->reg);
+	reg = readl(socfpgaclk->hw.reg);
 	bypass = readl(clk_mgr_base_addr + CLKMGR_BYPASS);
 	if (bypass & MAINPLL_BYPASS)
 		return parent_rate;
@@ -119,9 +97,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hwclk,
 }
 
 
-static const struct clk_ops clk_pll_ops = {
-	.enable = clk_pll_enable,
-	.disable = clk_pll_disable,
+static struct clk_ops clk_pll_ops = {
 	.recalc_rate = clk_pll_recalc_rate,
 };
 
@@ -134,7 +110,7 @@ static unsigned long clk_periclk_recalc_rate(struct clk_hw *hwclk,
 	if (socfpgaclk->fixed_div)
 		div = socfpgaclk->fixed_div;
 	else
-		div = ((readl(socfpgaclk->reg) & 0x1ff) + 1);
+		div = ((readl(socfpgaclk->hw.reg) & 0x1ff) + 1);
 
 	return parent_rate / div;
 }
@@ -143,7 +119,8 @@ static const struct clk_ops periclk_ops = {
 	.recalc_rate = clk_periclk_recalc_rate,
 };
 
-static __init struct clk *socfpga_clk_init(struct device_node *node, const struct clk_ops *ops)
+static __init struct clk *socfpga_clk_init(struct device_node *node,
+	const struct clk_ops *ops)
 {
 	u32 reg;
 	struct clk *clk;
@@ -162,7 +139,7 @@ static __init struct clk *socfpga_clk_init(struct device_node *node, const struc
 	if (WARN_ON(!socfpga_clk))
 		return NULL;
 
-	socfpga_clk->reg = clk_mgr_base_addr + reg;
+	socfpga_clk->hw.reg = clk_mgr_base_addr + reg;
 
 	rc = of_property_read_u32(node, "fixed-divider", &fixed_div);
 	if (rc)
@@ -179,9 +156,16 @@ static __init struct clk *socfpga_clk_init(struct device_node *node, const struc
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
-	socfpga_clk->hw.init = &init;
+	socfpga_clk->hw.hw.init = &init;
 
-	clk = clk_register(NULL, &socfpga_clk->hw);
+	if ((strcmp(clk_name, "main_pll") == 0) || (strcmp(clk_name, "periph_pll") == 0)||
+			(strcmp(clk_name, "sdram_pll") == 0))  {
+		socfpga_clk->hw.bit_idx = SOCFPGA_PLL_EXT_ENA;
+		clk_pll_ops.enable = clk_gate_ops.enable;
+		clk_pll_ops.disable = clk_gate_ops.disable;
+	}
+
+	clk = clk_register(NULL, &socfpga_clk->hw.hw);
 	if (WARN_ON(IS_ERR(clk))) {
 		kfree(socfpga_clk);
 		return NULL;
