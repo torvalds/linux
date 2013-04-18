@@ -7072,6 +7072,9 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	spin_lock_irq(shost->host_lock);
 	if (vport->fc_flag & FC_DISC_DELAYED) {
 		spin_unlock_irq(shost->host_lock);
+		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+				"3334 Delay fc port discovery for %d seconds\n",
+				phba->fc_ratov);
 		mod_timer(&vport->delayed_disc_tmo,
 			jiffies + msecs_to_jiffies(1000 * phba->fc_ratov));
 		return;
