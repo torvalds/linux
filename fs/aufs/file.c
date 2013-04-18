@@ -284,18 +284,17 @@ int au_ready_to_write(struct file *file, loff_t len, struct au_pin *pin)
 	    || !d_unhashed(dentry)	/* copyup and reopen */
 		) {
 		h_file = au_h_open_pre(dentry, bstart);
-		if (IS_ERR(h_file)) {
+		if (IS_ERR(h_file))
 			err = PTR_ERR(h_file);
-			h_file = NULL;
-		} else {
+		else {
 			di_downgrade_lock(parent, AuLock_IR);
 			if (dbstart > bcpup)
 				err = au_sio_cpup_simple(dentry, bcpup, len,
 							 AuCpup_DTIME);
 			if (!err)
 				err = au_reopen_nondir(file);
+			au_h_open_post(dentry, bstart, h_file);
 		}
-		au_h_open_post(dentry, bstart, h_file);
 	} else {			/* copyup as wh and reopen */
 		/*
 		 * since writable hfsplus branch is not supported,

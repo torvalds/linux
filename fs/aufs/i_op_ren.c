@@ -215,13 +215,13 @@ static int au_ren_or_cpup(struct au_ren_args *a)
 		au_set_dbstart(d, a->btgt);
 		au_set_h_dptr(d, a->btgt, dget(a->dst_h_dentry));
 		h_file = au_h_open_pre(d, a->src_bstart);
-		if (IS_ERR(h_file)) {
+		if (IS_ERR(h_file))
 			err = PTR_ERR(h_file);
-			h_file = NULL;
-		} else
+		else {
 			err = au_sio_cpup_single(d, a->btgt, a->src_bstart, -1,
 						 !AuCpup_DTIME, a->dst_parent);
-		au_h_open_post(d, a->src_bstart, h_file);
+			au_h_open_post(d, a->src_bstart, h_file);
+		}
 		if (!err) {
 			d = a->dst_dentry;
 			au_set_h_dptr(d, a->btgt, NULL);
@@ -342,13 +342,13 @@ static int do_rename(struct au_ren_args *a)
 		struct file *h_file;
 
 		h_file = au_h_open_pre(a->src_dentry, a->src_bstart);
-		if (IS_ERR(h_file)) {
+		if (IS_ERR(h_file))
 			err = PTR_ERR(h_file);
-			h_file = NULL;
-		} else
+		else {
 			err = au_sio_cpup_simple(a->src_dentry, a->btgt, -1,
 						 !AuCpup_DTIME);
-		au_h_open_post(a->src_dentry, a->src_bstart, h_file);
+			au_h_open_post(a->src_dentry, a->src_bstart, h_file);
+		}
 		if (unlikely(err))
 			goto out_whtmp;
 	}

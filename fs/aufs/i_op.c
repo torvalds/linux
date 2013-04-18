@@ -618,12 +618,13 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 
 	if (!d_unhashed(dentry)) {
 		h_file = au_h_open_pre(dentry, bstart);
-		if (IS_ERR(h_file)) {
+		if (IS_ERR(h_file))
 			err = PTR_ERR(h_file);
-			h_file = NULL;
-		} else
+		else {
 			err = au_sio_cpup_simple(dentry, a->btgt, sz,
 						 AuCpup_DTIME);
+			au_h_open_post(dentry, bstart, h_file);
+		}
 		if (!err)
 			a->h_path.dentry = au_h_dptr(dentry, a->btgt);
 	} else if (!hi_wh)
@@ -632,7 +633,6 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 		a->h_path.dentry = hi_wh; /* do not dget here */
 
 out_unlock:
-	au_h_open_post(dentry, bstart, h_file);
 	a->h_inode = a->h_path.dentry->d_inode;
 	if (!err)
 		goto out; /* success */
