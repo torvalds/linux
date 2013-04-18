@@ -136,7 +136,7 @@ struct sctp_packet *sctp_packet_init(struct sctp_packet *packet,
 	packet->overhead = overhead;
 	sctp_packet_reset(packet);
 	packet->vtag = 0;
-	packet->malloced = 0;
+
 	return packet;
 }
 
@@ -151,9 +151,6 @@ void sctp_packet_free(struct sctp_packet *packet)
 		list_del_init(&chunk->list);
 		sctp_chunk_free(chunk);
 	}
-
-	if (packet->malloced)
-		kfree(packet);
 }
 
 /* This routine tries to append the chunk to the offered packet. If adding

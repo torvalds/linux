@@ -714,8 +714,7 @@ struct sctp_packet {
 	    has_sack:1,		/* This packet contains a SACK chunk. */
 	    has_auth:1,		/* This packet contains an AUTH chunk */
 	    has_data:1,		/* This packet contains at least 1 DATA chunk */
-	    ipfragok:1,		/* So let ip fragment this packet */
-	    malloced:1;		/* Is it malloced? */
+	    ipfragok:1;		/* So let ip fragment this packet */
 };
 
 struct sctp_packet *sctp_packet_init(struct sctp_packet *,
