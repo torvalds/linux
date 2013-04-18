@@ -776,10 +776,10 @@ rx_dma_failed:
 #if defined(CONFIG_OF)
 static const struct of_device_id davinci_spi_of_match[] = {
 	{
-		.compatible = "ti,dm644x-spi",
+		.compatible = "ti,dm6441-spi",
 	},
 	{
-		.compatible = "ti,da8xx-spi",
+		.compatible = "ti,da830-spi",
 		.data = (void *)SPI_VERSION_2,
 	},
 	{ },
