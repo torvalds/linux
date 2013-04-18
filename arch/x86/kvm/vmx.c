@@ -5512,6 +5512,9 @@ static void nested_free_all_saved_vmcss(struct vcpu_vmx *vmx)
 		free_loaded_vmcs(&vmx->vmcs01);
 }
 
+static void nested_vmx_failValid(struct kvm_vcpu *vcpu,
+				 u32 vm_instruction_error);
+
 /*
  * Emulate the VMXON instruction.
  * Currently, we just remember that VMX is active, and do not save or even
@@ -5545,6 +5548,11 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 
 	if (vmx_get_cpl(vcpu)) {
 		kvm_inject_gp(vcpu, 0);
+		return 1;
+	}
+	if (vmx->nested.vmxon) {
+		nested_vmx_failValid(vcpu, VMXERR_VMXON_IN_VMX_ROOT_OPERATION);
+		skip_emulated_instruction(vcpu);
 		return 1;
 	}
 
