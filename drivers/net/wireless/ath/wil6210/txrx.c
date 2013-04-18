@@ -789,9 +789,14 @@ void wil_tx_complete(struct wil6210_priv *wil, int ringid)
 	wil_dbg_txrx(wil, "%s(%d)\n", __func__, ringid);
 
 	while (!wil_vring_is_empty(vring)) {
-		volatile struct vring_tx_desc *d = &vring->va[vring->swtail].tx;
+		volatile struct vring_tx_desc *d1 =
+					      &vring->va[vring->swtail].tx;
+		struct vring_tx_desc dd, *d = &dd;
 		dma_addr_t pa;
 		struct sk_buff *skb;
+
+		dd = *d1;
+
 		if (!(d->dma.status & TX_DMA_STATUS_DU))
 			break;
 
