@@ -421,6 +421,7 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 	dma_filter_fn filter = sdd->cntrlr_info->filter;
 	struct device *dev = &sdd->pdev->dev;
 	dma_cap_mask_t mask;
+	int ret;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
@@ -428,11 +429,34 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 	/* Acquire DMA channels */
 	sdd->rx_dma.ch = dma_request_slave_channel_compat(mask, filter,
 				(void*)sdd->rx_dma.dmach, dev, "rx");
+	if (!sdd->rx_dma.ch) {
+		dev_err(dev, "Failed to get RX DMA channel\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
 	sdd->tx_dma.ch = dma_request_slave_channel_compat(mask, filter,
 				(void*)sdd->tx_dma.dmach, dev, "tx");
-	pm_runtime_get_sync(&sdd->pdev->dev);
+	if (!sdd->tx_dma.ch) {
+		dev_err(dev, "Failed to get TX DMA channel\n");
+		ret = -EBUSY;
+		goto out_rx;
+	}
+
+	ret = pm_runtime_get_sync(&sdd->pdev->dev);
+	if (ret != 0) {
+		dev_err(dev, "Failed to enable device: %d\n", ret);
+		goto out_tx;
+	}
 
 	return 0;
+
+out_tx:
+	dma_release_channel(sdd->tx_dma.ch);
+out_rx:
+	dma_release_channel(sdd->rx_dma.ch);
+out:
+	return ret;
 }
 
 static int s3c64xx_spi_unprepare_transfer(struct spi_master *spi)
