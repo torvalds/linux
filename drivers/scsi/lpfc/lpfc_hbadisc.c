@@ -160,11 +160,12 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	if (!list_empty(&evtp->evt_listp))
 		return;
 
+	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
+
 	spin_lock_irq(&phba->hbalock);
 	/* We need to hold the node by incrementing the reference
 	 * count until this queued work is done
 	 */
-	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
 	if (evtp->evt_arg1) {
 		evtp->evt = LPFC_EVT_DEV_LOSS;
 		list_add_tail(&evtp->evt_listp, &phba->work_list);
