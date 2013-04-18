@@ -160,8 +160,6 @@ static int snd_compr_update_tstamp(struct snd_compr_stream *stream,
 static size_t snd_compr_calc_avail(struct snd_compr_stream *stream,
 		struct snd_compr_avail *avail)
 {
-	long avail_calc; /*this needs to be signed variable */
-
 	memset(avail, 0, sizeof(*avail));
 	snd_compr_update_tstamp(stream, &avail->tstamp);
 	/* Still need to return avail even if tstamp can't be filled in */
@@ -184,22 +182,11 @@ static size_t snd_compr_calc_avail(struct snd_compr_stream *stream,
 		return stream->runtime->buffer_size;
 	}
 
-	/* FIXME: this routine isn't consistent, in one test we use
-	 * cumulative values and in the other byte offsets. Do we
-	 * really need the byte offsets if the cumulative values have
-	 * been updated? In the PCM interface app_ptr and hw_ptr are
-	 * already cumulative */
-
-	avail_calc = stream->runtime->buffer_size -
-		(stream->runtime->app_pointer - stream->runtime->hw_pointer);
-	pr_debug("calc avail as %ld, app_ptr %lld, hw+ptr %lld\n", avail_calc,
-			stream->runtime->app_pointer,
-			stream->runtime->hw_pointer);
-	if (avail_calc >= stream->runtime->buffer_size)
-		avail_calc -= stream->runtime->buffer_size;
-	pr_debug("ret avail as %ld\n", avail_calc);
-	avail->avail = avail_calc;
-	return avail_calc;
+	avail->avail = stream->runtime->buffer_size -
+		(stream->runtime->total_bytes_available -
+		 stream->runtime->total_bytes_transferred);
+	pr_debug("ret avail as %lld\n", avail->avail);
+	return avail->avail;
 }
 
 static inline size_t snd_compr_get_avail(struct snd_compr_stream *stream)
