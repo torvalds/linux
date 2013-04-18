@@ -1143,6 +1143,7 @@ struct radeon_uvd {
 	uint64_t		gpu_addr;
 	atomic_t		handles[RADEON_MAX_UVD_HANDLES];
 	struct drm_file		*filp[RADEON_MAX_UVD_HANDLES];
+	struct delayed_work	idle_work;
 };
 
 int radeon_uvd_init(struct radeon_device *rdev);
@@ -1157,6 +1158,7 @@ void radeon_uvd_force_into_uvd_segment(struct radeon_bo *rbo);
 void radeon_uvd_free_handles(struct radeon_device *rdev,
 			     struct drm_file *filp);
 int radeon_uvd_cs_parse(struct radeon_cs_parser *parser);
+void radeon_uvd_note_usage(struct radeon_device *rdev);
 
 struct r600_audio {
 	int			channels;

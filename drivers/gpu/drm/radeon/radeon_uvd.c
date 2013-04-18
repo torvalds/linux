@@ -36,6 +36,9 @@
 #include "radeon.h"
 #include "r600d.h"
 
+/* 1 second timeout */
+#define UVD_IDLE_TIMEOUT_MS	1000
+
 /* Firmware Names */
 #define FIRMWARE_RV710		"radeon/RV710_uvd.bin"
 #define FIRMWARE_CYPRESS	"radeon/CYPRESS_uvd.bin"
@@ -47,12 +50,16 @@ MODULE_FIRMWARE(FIRMWARE_CYPRESS);
 MODULE_FIRMWARE(FIRMWARE_SUMO);
 MODULE_FIRMWARE(FIRMWARE_TAHITI);
 
+static void radeon_uvd_idle_work_handler(struct work_struct *work);
+
 int radeon_uvd_init(struct radeon_device *rdev)
 {
 	struct platform_device *pdev;
 	unsigned long bo_size;
 	const char *fw_name;
 	int i, r;
+
+	INIT_DELAYED_WORK(&rdev->uvd.idle_work, radeon_uvd_idle_work_handler);
 
 	pdev = platform_device_register_simple("radeon_uvd", 0, NULL, 0);
 	r = IS_ERR(pdev);
@@ -187,8 +194,6 @@ int radeon_uvd_resume(struct radeon_device *rdev)
 	}
 
 	radeon_bo_unreserve(rdev->uvd.vcpu_bo);
-
-	radeon_set_uvd_clocks(rdev, 53300, 40000);
 
 	return 0;
 }
@@ -665,4 +670,25 @@ int radeon_uvd_get_destroy_msg(struct radeon_device *rdev, int ring,
 	radeon_bo_unreserve(bo);
 
 	return radeon_uvd_send_msg(rdev, ring, bo, fence);
+}
+
+static void radeon_uvd_idle_work_handler(struct work_struct *work)
+{
+	struct radeon_device *rdev =
+		container_of(work, struct radeon_device, uvd.idle_work.work);
+
+	if (radeon_fence_count_emitted(rdev, R600_RING_TYPE_UVD_INDEX) == 0)
+		radeon_set_uvd_clocks(rdev, 0, 0);
+	else
+		schedule_delayed_work(&rdev->uvd.idle_work,
+				      msecs_to_jiffies(UVD_IDLE_TIMEOUT_MS));
+}
+
+void radeon_uvd_note_usage(struct radeon_device *rdev)
+{
+	bool set_clocks = !cancel_delayed_work_sync(&rdev->uvd.idle_work);
+	set_clocks &= schedule_delayed_work(&rdev->uvd.idle_work,
+					    msecs_to_jiffies(UVD_IDLE_TIMEOUT_MS));
+	if (set_clocks)
+		radeon_set_uvd_clocks(rdev, 53300, 40000);
 }
