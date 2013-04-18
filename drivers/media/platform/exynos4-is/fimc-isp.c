@@ -621,7 +621,7 @@ int fimc_isp_subdev_create(struct fimc_isp *isp)
 
 	v4l2_subdev_init(sd, &fimc_is_subdev_ops);
 	sd->grp_id = GRP_ID_FIMC_IS;
-	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	snprintf(sd->name, sizeof(sd->name), "FIMC-IS-ISP");
 
 	isp->subdev_pads[FIMC_ISP_SD_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
