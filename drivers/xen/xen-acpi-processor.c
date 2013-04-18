@@ -330,7 +330,7 @@ static unsigned int __init get_max_acpi_id(void)
  * for_each_[present|online]_cpu macros which are banded to the virtual
  * CPU amount.
  */
-static acpi_status __init
+static acpi_status
 read_acpi_id(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	u32 acpi_id;
@@ -385,7 +385,7 @@ read_acpi_id(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 	return AE_OK;
 }
-static int __init check_acpi_ids(struct acpi_processor *pr_backup)
+static int check_acpi_ids(struct acpi_processor *pr_backup)
 {
 
 	if (!pr_backup)
