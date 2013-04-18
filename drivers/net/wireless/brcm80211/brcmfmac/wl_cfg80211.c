@@ -1891,8 +1891,10 @@ static s32
 brcmf_add_keyext(struct wiphy *wiphy, struct net_device *ndev,
 	      u8 key_idx, const u8 *mac_addr, struct key_params *params)
 {
+	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_wsec_key key;
 	s32 err = 0;
+	u8 keybuf[8];
 
 	memset(&key, 0, sizeof(key));
 	key.index = (u32) key_idx;
@@ -1916,8 +1918,9 @@ brcmf_add_keyext(struct wiphy *wiphy, struct net_device *ndev,
 		brcmf_dbg(CONN, "Setting the key index %d\n", key.index);
 		memcpy(key.data, params->key, key.len);
 
-		if (params->cipher == WLAN_CIPHER_SUITE_TKIP) {
-			u8 keybuf[8];
+		if ((ifp->vif->mode != WL_MODE_AP) &&
+		    (params->cipher == WLAN_CIPHER_SUITE_TKIP)) {
+			brcmf_dbg(CONN, "Swapping RX/TX MIC key\n");
 			memcpy(keybuf, &key.data[24], sizeof(keybuf));
 			memcpy(&key.data[24], &key.data[16], sizeof(keybuf));
 			memcpy(&key.data[16], keybuf, sizeof(keybuf));
@@ -2013,7 +2016,7 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 		if (ifp->vif->mode != WL_MODE_AP) {
-			brcmf_dbg(CONN, "Swapping key\n");
+			brcmf_dbg(CONN, "Swapping RX/TX MIC key\n");
 			memcpy(keybuf, &key.data[24], sizeof(keybuf));
 			memcpy(&key.data[24], &key.data[16], sizeof(keybuf));
 			memcpy(&key.data[16], keybuf, sizeof(keybuf));
@@ -2118,8 +2121,7 @@ brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 		err = -EAGAIN;
 		goto done;
 	}
-	switch (wsec & ~SES_OW_ENABLED) {
-	case WEP_ENABLED:
+	if (wsec & WEP_ENABLED) {
 		sec = &profile->sec;
 		if (sec->cipher_pairwise & WLAN_CIPHER_SUITE_WEP40) {
 			params.cipher = WLAN_CIPHER_SUITE_WEP40;
@@ -2128,16 +2130,13 @@ brcmf_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
 			params.cipher = WLAN_CIPHER_SUITE_WEP104;
 			brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_WEP104\n");
 		}
-		break;
-	case TKIP_ENABLED:
+	} else if (wsec & TKIP_ENABLED) {
 		params.cipher = WLAN_CIPHER_SUITE_TKIP;
 		brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_TKIP\n");
-		break;
-	case AES_ENABLED:
+	} else if (wsec & AES_ENABLED) {
 		params.cipher = WLAN_CIPHER_SUITE_AES_CMAC;
 		brcmf_dbg(CONN, "WLAN_CIPHER_SUITE_AES_CMAC\n");
-		break;
-	default:
+	} else  {
 		brcmf_err("Invalid algo (0x%x)\n", wsec);
 		err = -EINVAL;
 		goto done;
@@ -3824,8 +3823,9 @@ exit:
 static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
-	s32 err = -EPERM;
+	s32 err;
 	struct brcmf_fil_bss_enable_le bss_enable;
+	struct brcmf_join_params join_params;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -3833,16 +3833,21 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 		/* Due to most likely deauths outstanding we sleep */
 		/* first to make sure they get processed by fw. */
 		msleep(400);
-		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_AP, 0);
-		if (err < 0) {
-			brcmf_err("setting AP mode failed %d\n", err);
-			goto exit;
-		}
+
+		memset(&join_params, 0, sizeof(join_params));
+		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_SET_SSID,
+					     &join_params, sizeof(join_params));
+		if (err < 0)
+			brcmf_err("SET SSID error (%d)\n", err);
 		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 0);
-		if (err < 0) {
+		if (err < 0)
 			brcmf_err("BRCMF_C_UP error %d\n", err);
-			goto exit;
-		}
+		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_AP, 0);
+		if (err < 0)
+			brcmf_err("setting AP mode failed %d\n", err);
+		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_INFRA, 0);
+		if (err < 0)
+			brcmf_err("setting INFRA mode failed %d\n", err);
 	} else {
 		bss_enable.bsscfg_idx = cpu_to_le32(ifp->bssidx);
 		bss_enable.enable = cpu_to_le32(0);
@@ -3855,7 +3860,6 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
 	set_bit(BRCMF_VIF_STATUS_AP_CREATING, &ifp->vif->sme_state);
 	clear_bit(BRCMF_VIF_STATUS_AP_CREATED, &ifp->vif->sme_state);
 
-exit:
 	return err;
 }
 

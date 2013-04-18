@@ -280,6 +280,10 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
 	if (r) {
 		ath_err(common,
 			"Unable to reset channel, reset status %d\n", r);
+
+		ath9k_hw_enable_interrupts(ah);
+		ath9k_queue_reset(sc, RESET_TYPE_BB_HANG);
+
 		goto out;
 	}
 

@@ -254,43 +254,47 @@ snd_pcm_uframes_t snd_dmaengine_pcm_pointer(struct snd_pcm_substream *substream)
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_pointer);
 
-static int dmaengine_pcm_request_channel(struct dmaengine_pcm_runtime_data *prtd,
-	dma_filter_fn filter_fn, void *filter_data)
+/**
+ * snd_dmaengine_pcm_request_channel - Request channel for the dmaengine PCM
+ * @filter_fn: Filter function used to request the DMA channel
+ * @filter_data: Data passed to the DMA filter function
+ *
+ * Returns NULL or the requested DMA channel.
+ *
+ * This function request a DMA channel for usage with dmaengine PCM.
+ */
+struct dma_chan *snd_dmaengine_pcm_request_channel(dma_filter_fn filter_fn,
+	void *filter_data)
 {
 	dma_cap_mask_t mask;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 	dma_cap_set(DMA_CYCLIC, mask);
-	prtd->dma_chan = dma_request_channel(mask, filter_fn, filter_data);
 
-	if (!prtd->dma_chan)
-		return -ENXIO;
-
-	return 0;
+	return dma_request_channel(mask, filter_fn, filter_data);
 }
+EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_request_channel);
 
 /**
  * snd_dmaengine_pcm_open - Open a dmaengine based PCM substream
  * @substream: PCM substream
- * @filter_fn: Filter function used to request the DMA channel
- * @filter_data: Data passed to the DMA filter function
+ * @chan: DMA channel to use for data transfers
  *
  * Returns 0 on success, a negative error code otherwise.
  *
- * This function will request a DMA channel using the passed filter function and
- * data. The function should usually be called from the pcm open callback.
- *
- * Note that this function will use private_data field of the substream's
- * runtime. So it is not availabe to your pcm driver implementation. If you need
- * to keep additional data attached to a substream use
- * snd_dmaengine_pcm_{set,get}_data.
+ * The function should usually be called from the pcm open callback. Note that
+ * this function will use private_data field of the substream's runtime. So it
+ * is not availabe to your pcm driver implementation.
  */
 int snd_dmaengine_pcm_open(struct snd_pcm_substream *substream,
-	dma_filter_fn filter_fn, void *filter_data)
+	struct dma_chan *chan)
 {
 	struct dmaengine_pcm_runtime_data *prtd;
 	int ret;
+
+	if (!chan)
+		return -ENXIO;
 
 	ret = snd_pcm_hw_constraint_integer(substream->runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
@@ -301,17 +305,34 @@ int snd_dmaengine_pcm_open(struct snd_pcm_substream *substream,
 	if (!prtd)
 		return -ENOMEM;
 
-	ret = dmaengine_pcm_request_channel(prtd, filter_fn, filter_data);
-	if (ret < 0) {
-		kfree(prtd);
-		return ret;
-	}
+	prtd->dma_chan = chan;
 
 	substream->runtime->private_data = prtd;
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_open);
+
+/**
+ * snd_dmaengine_pcm_open_request_chan - Open a dmaengine based PCM substream and request channel
+ * @substream: PCM substream
+ * @filter_fn: Filter function used to request the DMA channel
+ * @filter_data: Data passed to the DMA filter function
+ *
+ * Returns 0 on success, a negative error code otherwise.
+ *
+ * This function will request a DMA channel using the passed filter function and
+ * data. The function should usually be called from the pcm open callback. Note
+ * that this function will use private_data field of the substream's runtime. So
+ * it is not availabe to your pcm driver implementation.
+ */
+int snd_dmaengine_pcm_open_request_chan(struct snd_pcm_substream *substream,
+	dma_filter_fn filter_fn, void *filter_data)
+{
+	return snd_dmaengine_pcm_open(substream,
+		    snd_dmaengine_pcm_request_channel(filter_fn, filter_data));
+}
+EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_open_request_chan);
 
 /**
  * snd_dmaengine_pcm_close - Close a dmaengine based PCM substream
@@ -321,11 +342,26 @@ int snd_dmaengine_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
 
-	dma_release_channel(prtd->dma_chan);
 	kfree(prtd);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_close);
+
+/**
+ * snd_dmaengine_pcm_release_chan_close - Close a dmaengine based PCM substream and release channel
+ * @substream: PCM substream
+ *
+ * Releases the DMA channel associated with the PCM substream.
+ */
+int snd_dmaengine_pcm_close_release_chan(struct snd_pcm_substream *substream)
+{
+	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
+
+	dma_release_channel(prtd->dma_chan);
+
+	return snd_dmaengine_pcm_close(substream);
+}
+EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_close_release_chan);
 
 MODULE_LICENSE("GPL");

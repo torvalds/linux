@@ -575,7 +575,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 						chip->gpio_chip.ngpio,
 						irq_base,
 						&pca953x_irq_simple_ops,
-						NULL);
+						chip);
 		if (!chip->domain)
 			return -ENODEV;
 

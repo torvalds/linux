@@ -131,7 +131,8 @@ static int mmp_pcm_open(struct snd_pcm_substream *substream)
 	dma_data.dma_res = r;
 	dma_data.ssp_id = cpu_dai->id;
 
-	return snd_dmaengine_pcm_open(substream, filter, &dma_data);
+	return snd_dmaengine_pcm_open_request_chan(substream, filter,
+		    &dma_data);
 }
 
 static int mmp_pcm_mmap(struct snd_pcm_substream *substream,
@@ -148,7 +149,7 @@ static int mmp_pcm_mmap(struct snd_pcm_substream *substream,
 
 struct snd_pcm_ops mmp_pcm_ops = {
 	.open		= mmp_pcm_open,
-	.close		= snd_dmaengine_pcm_close,
+	.close		= snd_dmaengine_pcm_close_release_chan,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= mmp_pcm_hw_params,
 	.trigger	= snd_dmaengine_pcm_trigger,
