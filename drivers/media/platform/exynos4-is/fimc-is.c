@@ -847,16 +847,17 @@ static int fimc_is_probe(struct platform_device *pdev)
 		goto err_irq;
 
 	ret = fimc_is_setup_clocks(is);
+	pm_runtime_put_sync(dev);
+
 	if (ret < 0)
 		goto err_irq;
 
-	pm_runtime_put_sync(dev);
 	is->clk_init = true;
 
 	is->alloc_ctx = vb2_dma_contig_init_ctx(dev);
 	if (IS_ERR(is->alloc_ctx)) {
 		ret = PTR_ERR(is->alloc_ctx);
-		goto err_pm;
+		goto err_irq;
 	}
 	/*
 	 * Register FIMC-IS V4L2 subdevs to this driver. The video nodes
@@ -885,8 +886,6 @@ err_sd:
 	fimc_is_unregister_subdevs(is);
 err_irq:
 	free_irq(is->irq, is);
-err_pm:
-	pm_runtime_put(dev);
 err_clk:
 	fimc_is_put_clocks(is);
 	return ret;
