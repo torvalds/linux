@@ -152,7 +152,6 @@ static int snd_compr_update_tstamp(struct snd_compr_stream *stream,
 	stream->ops->pointer(stream, tstamp);
 	pr_debug("dsp consumed till %d total %d bytes\n",
 		tstamp->byte_offset, tstamp->copied_total);
-	stream->runtime->hw_pointer = tstamp->byte_offset;
 	if (stream->direction == SND_COMPRESS_PLAYBACK)
 		stream->runtime->total_bytes_transferred = tstamp->copied_total;
 	else
@@ -657,7 +656,6 @@ static int snd_compr_stop(struct snd_compr_stream *stream)
 	if (!retval) {
 		stream->runtime->state = SNDRV_PCM_STATE_SETUP;
 		wake_up(&stream->runtime->sleep);
-		stream->runtime->hw_pointer = 0;
 		stream->runtime->app_pointer = 0;
 		stream->runtime->total_bytes_available = 0;
 		stream->runtime->total_bytes_transferred = 0;

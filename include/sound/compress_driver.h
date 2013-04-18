@@ -56,7 +56,6 @@ struct snd_compr_runtime {
 	u64 buffer_size;
 	u32 fragment_size;
 	u32 fragments;
-	u64 hw_pointer;
 	u64 app_pointer;
 	u64 total_bytes_available;
 	u64 total_bytes_transferred;
