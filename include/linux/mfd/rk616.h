@@ -34,7 +34,13 @@
 #define SCL_REG7  		0x004C
 #define SCL_REG8  		0x0050
 #define FRC_REG   		0x0054
-
+#define FRC_DEN_INV		(1<<6)
+#define FRC_SYNC_INV		(1<<5)
+#define FRC_DCLK_INV		(1<<4)
+#define FRC_OUT_ZERO		(1<<3)
+#define FRC_RGB18_MODE		(1<<2)
+#define FRC_HIFRC_MODE		(1<<1)
+#define FRC_DITHER_EN		(1<<0)
 #define CRU_CLKSEL0_CON 	0x0058
 #define PLL1_CLK_SEL_MASK	(0x3<<24)
 #define PLL0_CLK_SEL_MASK	(0x3<<22)
@@ -61,6 +67,9 @@
 #define CRU_CODEC_DIV		0x0060
 
 #define CRU_CLKSE2_CON  	0x0064
+#define HDMI_CLK_SEL_MASK	(3<<28)
+#define VIF1_CLK_DIV_MASK	(7<<25)
+#define VIF0_CLK_DIV_MASK	(7<<19)
 #define SCLIN_CLK_SEL		(1<<15)
 #define DITHER_CLK_SEL		(1<<14)
 #define HDMI_CLK_SEL(x)		(((x)&3)<<12)
@@ -112,12 +121,13 @@
 #define CRU_I2C_CON0    	0x0080
 
 #define CRU_LVDS_CON0   	0x0084
+#define LVDS_OUT_FORMAT_MASK	(3<<16)
 #define LVDS_CON_ST_PHASE 	(1<<14)
 #define LVDS_DCLK_INV	  	(1<<13)
 #define LVDS_CH1_LOAD	  	(1<<12)
 #define LVDS_CH0_LOAD	  	(1<<11)
-#define LVDS_CH1TTL_DISABLE 	(1<<10)
-#define LVDS_CH0TTL_DISABLE 	(1<<9)
+#define LVDS_CH1TTL_EN 		(1<<10)
+#define LVDS_CH0TTL_EN 		(1<<9)
 #define LVDS_CH1_PWR_EN	    	(1<<8)
 #define LVDS_CH0_PWR_EN	    	(1<<7)
 #define LVDS_CBG_PWR_EN	    	(1<<6)
@@ -125,7 +135,7 @@
 #define LVDS_START_CH_SEL   	(1<<4)
 #define LVDS_CH_SEL	    	(1<<3)
 #define LVDS_MSB_SEL	    	(1<<2)
-#define LVDS_OUT_FORMAT	    	(1<<0)
+#define LVDS_OUT_FORMAT(x)	(((x)&3)<<0)
 
 
 #define CRU_IO_CON0    		0x0088
@@ -162,11 +172,18 @@
 #define CRU_CFGMISC_CON		0x009C
 
 
-
+enum lcd_port_func{       // the function of lcd ports(lcd0,lcd1),the lcd0 only can be used as input or unused
+	UNUSED,             // the lcd1 can be used as input,output or unused
+	INPUT,
+	OUTPUT,
+};
 
 struct rk616_platform_data {
 	int (*power_init)(void);
 	int scl_rate;
+	enum lcd_port_func lcd0_func;
+	enum lcd_port_func lcd1_func;
+	int lvds_ch_nr;			//the number of used  lvds channel 
 };
 
 struct rk616_route {
@@ -179,7 +196,9 @@ struct rk616_route {
 	u8 dither_sel;
 	u8 hdmi_sel;
 	u8 lcd1_input;
+	u8 lvds_en;
 	u8 lvds_mode;                //RGB or LVDS
+	int lvds_ch_nr;		//the number of used  lvds channel 
 };
 
 struct mfd_rk616 {
@@ -188,7 +207,7 @@ struct mfd_rk616 {
 	struct device *dev;
 	unsigned int irq_base;
 	struct rk616_platform_data *pdata;
-	struct rk616_route *route;  //display path router
+	struct rk616_route route;  //display path router
 	struct i2c_client *client;
 	struct dentry *debugfs_dir;
 	int (*read_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);

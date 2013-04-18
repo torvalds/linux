@@ -15,6 +15,9 @@
 #include <linux/seq_file.h>
 #endif
 
+#ifndef MHZ
+#define MHZ (1000*1000)
+#endif
 
 static struct mfd_cell rk616_devs[] = {
 	{
@@ -144,6 +147,80 @@ static const struct file_operations rk616_reg_fops = {
 	.release	= single_release,
 };
 #endif
+
+
+static u32 rk616_clk_gcd(u32 numerator, u32 denominator)
+{
+	u32 a, b;
+
+	if (!numerator || !denominator)
+		return 0;
+
+	if (numerator > denominator) {
+		a = numerator;
+		b = denominator;
+	} else {
+		a = denominator;
+		b = numerator;
+	}
+
+	while (b != 0) {
+		int r = b;
+		b = a % b;
+		a = r;
+	}
+
+	return a;
+}
+
+
+static int rk616_pll_clk_get_set(struct mfd_rk616 *rk616,unsigned long fin_hz,unsigned long fout_hz,
+					u32 *refdiv, u32 *fbdiv, u32 *postdiv1, u32 *postdiv2, u32 *frac)
+{
+	// FIXME set postdiv1/2 always 1 	
+	u32 gcd;
+	u64 fin_64, frac_64;
+	u32 f_frac;
+	if(!fin_hz || !fout_hz || fout_hz == fin_hz)
+		return -1;
+
+	if(fin_hz / MHZ * MHZ == fin_hz && fout_hz /MHZ * MHZ == fout_hz)
+	{
+		fin_hz /= MHZ;
+		fout_hz /= MHZ;
+		gcd = rk616_clk_gcd(fin_hz, fout_hz);
+		*refdiv = fin_hz / gcd;
+		*fbdiv = fout_hz / gcd;
+		*postdiv1 = 1;
+		*postdiv2 = 1;
+
+		*frac = 0;
+
+		dev_info(rk616->dev,"fin=%lu,fout=%lu,gcd=%u,refdiv=%u,fbdiv=%u,postdiv1=%u,postdiv2=%u,frac=%u\n",
+				fin_hz, fout_hz, gcd, *refdiv, *fbdiv, *postdiv1, *postdiv2, *frac);
+	} 
+	else 
+	{
+		dev_info(rk616->dev,"******frac div running, fin_hz=%lu, fout_hz=%lu, fin_mhz=%lu, fout_mhz=%lu\n",
+				fin_hz, fout_hz, fin_hz / MHZ * MHZ, fout_hz / MHZ * MHZ);
+		gcd = rk616_clk_gcd(fin_hz / MHZ, fout_hz / MHZ);
+		*refdiv = fin_hz / MHZ / gcd;
+		*fbdiv = fout_hz / MHZ / gcd;
+		*postdiv1 = 1;
+		*postdiv2 = 1;
+
+		*frac = 0;
+
+		f_frac = (fout_hz % MHZ);
+		fin_64 = fin_hz;
+		do_div(fin_64, (u64)*refdiv);
+		frac_64 = (u64)f_frac << 24;
+		do_div(frac_64, fin_64);
+		*frac = (u32) frac_64;
+		dev_dbg(rk616->dev,"frac_64=%llx, frac=%u\n", frac_64, *frac);
+	}
+	return 0;
+}
 
 /***********************************
 default clk patch settiing:
