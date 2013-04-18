@@ -1215,6 +1215,7 @@ lpfc_release_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 
 	spin_lock_irqsave(&phba->scsi_buf_list_put_lock, iflag);
 	psb->pCmd = NULL;
+	psb->cur_iocbq.iocb_flag = LPFC_IO_FCP;
 	list_add_tail(&psb->list, &phba->lpfc_scsi_buf_list_put);
 	spin_unlock_irqrestore(&phba->scsi_buf_list_put_lock, iflag);
 }
@@ -1248,6 +1249,7 @@ lpfc_release_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 					iflag);
 	} else {
 		psb->pCmd = NULL;
+		psb->cur_iocbq.iocb_flag = LPFC_IO_FCP;
 		spin_lock_irqsave(&phba->scsi_buf_list_put_lock, iflag);
 		list_add_tail(&psb->list, &phba->lpfc_scsi_buf_list_put);
 		spin_unlock_irqrestore(&phba->scsi_buf_list_put_lock, iflag);
