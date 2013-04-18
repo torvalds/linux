@@ -356,6 +356,11 @@ struct nested_vmx {
 	struct page *current_vmcs12_page;
 	struct vmcs12 *current_vmcs12;
 	struct vmcs *current_shadow_vmcs;
+	/*
+	 * Indicates if the shadow vmcs must be updated with the
+	 * data hold by vmcs12
+	 */
+	bool sync_shadow_vmcs;
 
 	/* vmcs02_list cache of VMCSs recently used to run L2 guests */
 	struct list_head vmcs02_pool;
@@ -5611,6 +5616,14 @@ static int nested_vmx_check_permission(struct kvm_vcpu *vcpu)
 
 static inline void nested_release_vmcs12(struct vcpu_vmx *vmx)
 {
+	if (enable_shadow_vmcs) {
+		if (vmx->nested.current_vmcs12 != NULL) {
+			/* copy to memory all shadowed fields in case
+			   they were modified */
+			copy_shadow_to_vmcs12(vmx);
+			vmx->nested.sync_shadow_vmcs = false;
+		}
+	}
 	kunmap(vmx->nested.current_vmcs12_page);
 	nested_release_page(vmx->nested.current_vmcs12_page);
 }
@@ -5739,6 +5752,10 @@ static void nested_vmx_failValid(struct kvm_vcpu *vcpu,
 			    X86_EFLAGS_SF | X86_EFLAGS_OF))
 			| X86_EFLAGS_ZF);
 	get_vmcs12(vcpu)->vm_instruction_error = vm_instruction_error;
+	/*
+	 * We don't need to force a shadow sync because
+	 * VM_INSTRUCTION_ERROR is not shadowed
+	 */
 }
 
 /* Emulate the VMCLEAR instruction */
@@ -6137,6 +6154,9 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		vmx->nested.current_vmptr = vmptr;
 		vmx->nested.current_vmcs12 = new_vmcs12;
 		vmx->nested.current_vmcs12_page = page;
+		if (enable_shadow_vmcs) {
+			vmx->nested.sync_shadow_vmcs = true;
+		}
 	}
 
 	nested_vmx_succeed(vcpu);
@@ -6895,6 +6915,11 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	if (vmx->emulation_required)
 		return;
 
+	if (vmx->nested.sync_shadow_vmcs) {
+		copy_vmcs12_to_shadow(vmx);
+		vmx->nested.sync_shadow_vmcs = false;
+	}
+
 	if (test_bit(VCPU_REGS_RSP, (unsigned long *)&vcpu->arch.regs_dirty))
 		vmcs_writel(GUEST_RSP, vcpu->arch.regs[VCPU_REGS_RSP]);
 	if (test_bit(VCPU_REGS_RIP, (unsigned long *)&vcpu->arch.regs_dirty))
@@ -7504,6 +7529,9 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	skip_emulated_instruction(vcpu);
 	vmcs12 = get_vmcs12(vcpu);
 
+	if (enable_shadow_vmcs)
+		copy_shadow_to_vmcs12(vmx);
+
 	/*
 	 * The nested entry process starts with enforcing various prerequisites
 	 * on vmcs12 as required by the Intel SDM, and act appropriately when
@@ -7950,6 +7978,8 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu)
 		nested_vmx_failValid(vcpu, vmcs_read32(VM_INSTRUCTION_ERROR));
 	} else
 		nested_vmx_succeed(vcpu);
+	if (enable_shadow_vmcs)
+		vmx->nested.sync_shadow_vmcs = true;
 }
 
 /*
@@ -7967,6 +7997,8 @@ static void nested_vmx_entry_failure(struct kvm_vcpu *vcpu,
 	vmcs12->vm_exit_reason = reason | VMX_EXIT_REASONS_FAILED_VMENTRY;
 	vmcs12->exit_qualification = qualification;
 	nested_vmx_succeed(vcpu);
+	if (enable_shadow_vmcs)
+		to_vmx(vcpu)->nested.sync_shadow_vmcs = true;
 }
 
 static int vmx_check_intercept(struct kvm_vcpu *vcpu,
