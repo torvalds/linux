@@ -33,7 +33,7 @@
 #include <linux/mutex.h>
 
 #include <video/omapdss.h>
-#include <video/omap-panel-nokia-dsi.h>
+#include <video/omap-panel-data.h>
 #include <video/mipi_display.h>
 
 /* DSI Virtual channel. Hardcoded for now. */

@@ -9,7 +9,7 @@
 #include <linux/fb.h>
 
 #include <video/omapdss.h>
-#include <video/omap-panel-n8x0.h>
+#include <video/omap-panel-data.h>
 
 #define BLIZZARD_REV_CODE                      0x00
 #define BLIZZARD_CONFIG                        0x02

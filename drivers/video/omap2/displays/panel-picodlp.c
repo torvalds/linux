@@ -31,7 +31,7 @@
 #include <linux/gpio.h>
 
 #include <video/omapdss.h>
-#include <video/omap-panel-picodlp.h>
+#include <video/omap-panel-data.h>
 
 #include "panel-picodlp.h"
 

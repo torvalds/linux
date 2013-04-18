@@ -44,6 +44,7 @@
 
 #include "common.h"
 #include <video/omapdss.h>
+#include <video/omap-panel-data.h>
 #include <linux/platform_data/mtd-nand-omap2.h>
 
 #include "mux.h"
@@ -230,12 +231,16 @@ static struct twl4030_keypad_data pandora_kp_data = {
 	.rep		= 1,
 };
 
+static struct panel_tpo_td043_data lcd_data = {
+	.nreset_gpio		= 157,
+};
+
 static struct omap_dss_device pandora_lcd_device = {
 	.name			= "lcd",
 	.driver_name		= "tpo_td043mtea1_panel",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.phy.dpi.data_lines	= 24,
-	.reset_gpio		= 157,
+	.data			= &lcd_data,
 };
 
 static struct omap_dss_device pandora_tv_device = {
