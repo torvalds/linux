@@ -1541,11 +1541,8 @@ static int das1800_attach(struct comedi_device *dev,
 		unsigned long iobase2 = dev->iobase + IOBASE2;
 
 		ret = __comedi_request_region(dev, iobase2, DAS1800_SIZE);
-		if (ret) {
-			release_region(dev->iobase, DAS1800_SIZE);
-			dev->iobase = 0;
-			return -EIO;
-		}
+		if (ret)
+			return ret;
 		devpriv->iobase2 = iobase2;
 	}
 
@@ -1671,21 +1668,20 @@ static void das1800_detach(struct comedi_device *dev)
 {
 	struct das1800_private *devpriv = dev->private;
 
-	if (dev->iobase)
-		release_region(dev->iobase, DAS1800_SIZE);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
-		if (devpriv->iobase2)
-			release_region(devpriv->iobase2, DAS1800_SIZE);
 		if (devpriv->dma0)
 			free_dma(devpriv->dma0);
 		if (devpriv->dma1)
 			free_dma(devpriv->dma1);
 		kfree(devpriv->ai_buf0);
 		kfree(devpriv->ai_buf1);
+		if (devpriv->iobase2)
+			release_region(devpriv->iobase2, DAS1800_SIZE);
 	}
-};
+	comedi_legacy_detach(dev);
+}
 
 static struct comedi_driver das1800_driver = {
 	.driver_name	= "das1800",
