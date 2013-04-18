@@ -111,17 +111,6 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 
 	WREG32(AFMT_AUDIO_CRC_CONTROL + offset, 0x1000);
 
-	WREG32(HDMI_AUDIO_PACKET_CONTROL + offset,
-	       HDMI_AUDIO_DELAY_EN(1) | /* set the default audio delay */
-	       HDMI_AUDIO_PACKETS_PER_LINE(3)); /* should be suffient for all audio modes and small enough for all hblanks */
-
-	WREG32(AFMT_AUDIO_PACKET_CONTROL + offset,
-	       AFMT_60958_CS_UPDATE); /* allow 60958 channel status fields to be updated */
-
-	WREG32(HDMI_ACR_PACKET_CONTROL + offset,
-	       HDMI_ACR_AUTO_SEND | /* allow hw to sent ACR packets when required */
-	       HDMI_ACR_SOURCE); /* select SW CTS value */
-
 	WREG32(HDMI_VBI_PACKET_CONTROL + offset,
 	       HDMI_NULL_SEND | /* send null packets when required */
 	       HDMI_GC_SEND | /* send general control packets */
@@ -139,6 +128,21 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 
 	WREG32(HDMI_GC + offset, 0); /* unset HDMI_GC_AVMUTE */
 
+	WREG32(HDMI_AUDIO_PACKET_CONTROL + offset,
+	       HDMI_AUDIO_DELAY_EN(1) | /* set the default audio delay */
+	       HDMI_AUDIO_PACKETS_PER_LINE(3)); /* should be suffient for all audio modes and small enough for all hblanks */
+
+	WREG32(AFMT_AUDIO_PACKET_CONTROL + offset,
+	       AFMT_60958_CS_UPDATE); /* allow 60958 channel status fields to be updated */
+
+	/* fglrx clears sth in AFMT_AUDIO_PACKET_CONTROL2 here */
+
+	WREG32(HDMI_ACR_PACKET_CONTROL + offset,
+	       HDMI_ACR_AUTO_SEND | /* allow hw to sent ACR packets when required */
+	       HDMI_ACR_SOURCE); /* select SW CTS value */
+
+	evergreen_hdmi_update_ACR(encoder, mode->clock);
+
 	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
 	if (err < 0) {
 		DRM_ERROR("failed to setup AVI infoframe: %zd\n", err);
@@ -152,7 +156,6 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	}
 
 	evergreen_hdmi_update_avi_infoframe(encoder, buffer, sizeof(buffer));
-	evergreen_hdmi_update_ACR(encoder, mode->clock);
 
 	WREG32_OR(HDMI_INFOFRAME_CONTROL0 + offset,
 		  HDMI_AVI_INFO_SEND | /* enable AVI info frames */
