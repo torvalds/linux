@@ -560,8 +560,7 @@ static void dt2811_detach(struct comedi_device *dev)
 {
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, DT2811_SIZE);
+	comedi_legacy_detach(dev);
 }
 
 static const struct dt2811_board boardtypes[] = {

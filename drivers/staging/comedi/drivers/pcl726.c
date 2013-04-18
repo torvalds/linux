@@ -337,14 +337,11 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void pcl726_detach(struct comedi_device *dev)
 {
-	const struct pcl726_board *board = comedi_board(dev);
-
 #ifdef ACL6126_IRQ
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 #endif
-	if (dev->iobase)
-		release_region(dev->iobase, board->io_range);
+	comedi_legacy_detach(dev);
 }
 
 static struct comedi_driver pcl726_driver = {

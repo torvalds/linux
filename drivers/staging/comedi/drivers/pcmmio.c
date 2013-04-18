@@ -1206,14 +1206,13 @@ static void pcmmio_detach(struct comedi_device *dev)
 	struct pcmmio_private *devpriv = dev->private;
 	int i;
 
-	if (dev->iobase)
-		release_region(dev->iobase, 32);
 	for (i = 0; i < MAX_ASICS; ++i) {
 		if (devpriv && devpriv->asics[i].irq)
 			free_irq(devpriv->asics[i].irq, dev);
 	}
 	if (devpriv && devpriv->sprivs)
 		kfree(devpriv->sprivs);
+	comedi_legacy_detach(dev);
 }
 
 static struct comedi_driver pcmmio_driver = {

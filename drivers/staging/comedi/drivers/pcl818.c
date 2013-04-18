@@ -1900,8 +1900,7 @@ static void pcl818_detach(struct comedi_device *dev)
 	}
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, devpriv->io_range);
+	comedi_legacy_detach(dev);
 }
 
 static const struct pcl818_board boardtypes[] = {

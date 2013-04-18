@@ -824,8 +824,7 @@ static void dmm32at_detach(struct comedi_device *dev)
 {
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, DMM32AT_MEMSIZE);
+	comedi_legacy_detach(dev);
 }
 
 static struct comedi_driver dmm32at_driver = {

@@ -554,8 +554,7 @@ static void pcl711_detach(struct comedi_device *dev)
 {
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, PCL711_SIZE);
+	comedi_legacy_detach(dev);
 }
 
 static const struct pcl711_board boardtypes[] = {

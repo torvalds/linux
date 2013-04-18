@@ -1273,8 +1273,6 @@ static void dt282x_detach(struct comedi_device *dev)
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, DT2821_SIZE);
 	if (dev->private) {
 		if (devpriv->dma[0].chan)
 			free_dma(devpriv->dma[0].chan);
@@ -1285,6 +1283,7 @@ static void dt282x_detach(struct comedi_device *dev)
 		if (devpriv->dma[1].buf)
 			free_page((unsigned long)devpriv->dma[1].buf);
 	}
+	comedi_legacy_detach(dev);
 }
 
 static const struct dt282x_board boardtypes[] = {

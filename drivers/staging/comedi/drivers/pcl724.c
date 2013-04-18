@@ -169,7 +169,6 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void pcl724_detach(struct comedi_device *dev)
 {
-	const struct pcl724_board *board = comedi_board(dev);
 	int i;
 
 	for (i = 0; i < dev->n_subdevices; i++)
@@ -178,7 +177,7 @@ static void pcl724_detach(struct comedi_device *dev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 #endif
-	release_region(dev->iobase, board->io_range);
+	comedi_legacy_detach(dev);
 }
 
 static const struct pcl724_board boardtypes[] = {

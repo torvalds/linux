@@ -524,11 +524,10 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void das800_detach(struct comedi_device *dev)
 {
-	if (dev->iobase)
-		release_region(dev->iobase, DAS800_SIZE);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-};
+	comedi_legacy_detach(dev);
+}
 
 static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {

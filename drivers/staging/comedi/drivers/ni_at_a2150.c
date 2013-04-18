@@ -827,10 +827,8 @@ static void a2150_detach(struct comedi_device *dev)
 {
 	struct a2150_private *devpriv = dev->private;
 
-	if (dev->iobase) {
+	if (dev->iobase)
 		outw(APD_BIT | DPD_BIT, dev->iobase + CONFIG_REG);
-		release_region(dev->iobase, A2150_SIZE);
-	}
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
@@ -838,6 +836,7 @@ static void a2150_detach(struct comedi_device *dev)
 			free_dma(devpriv->dma);
 		kfree(devpriv->dma_buffer);
 	}
+	comedi_legacy_detach(dev);
 };
 
 static struct comedi_driver ni_at_a2150_driver = {

@@ -327,8 +327,7 @@ static void dt2814_detach(struct comedi_device *dev)
 {
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, DT2814_SIZE);
+	comedi_legacy_detach(dev);
 }
 
 static struct comedi_driver dt2814_driver = {

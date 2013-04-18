@@ -256,8 +256,7 @@ static void pcm3724_detach(struct comedi_device *dev)
 
 	for (i = 0; i < dev->n_subdevices; i++)
 		comedi_spriv_free(dev, i);
-	if (dev->iobase)
-		release_region(dev->iobase, PCM3724_SIZE);
+	comedi_legacy_detach(dev);
 }
 
 static struct comedi_driver pcm3724_driver = {

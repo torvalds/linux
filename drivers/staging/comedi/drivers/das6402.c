@@ -328,8 +328,7 @@ static void das6402_detach(struct comedi_device *dev)
 {
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, DAS6402_SIZE);
+	comedi_legacy_detach(dev);
 }
 
 static struct comedi_driver das6402_driver = {

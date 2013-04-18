@@ -1872,8 +1872,8 @@ void labpc_common_detach(struct comedi_device *dev)
 #endif
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (board->bustype == isa_bustype && dev->iobase)
-		release_region(dev->iobase, LABPC_SIZE);
+	if (board->bustype == isa_bustype)
+		comedi_legacy_detach(dev);
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
 	if (devpriv->mite) {
 		mite_unsetup(devpriv->mite);

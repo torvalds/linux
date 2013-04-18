@@ -771,8 +771,7 @@ static void atmio16d_detach(struct comedi_device *dev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	reset_atmio16d(dev);
-	if (dev->iobase)
-		release_region(dev->iobase, ATMIO16D_SIZE);
+	comedi_legacy_detach(dev);
 }
 
 static const struct atmio16_board_t atmio16_boards[] = {

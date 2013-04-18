@@ -340,10 +340,9 @@ static int parport_attach(struct comedi_device *dev,
 
 static void parport_detach(struct comedi_device *dev)
 {
-	if (dev->iobase)
-		release_region(dev->iobase, PARPORT_SIZE);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
+	comedi_legacy_detach(dev);
 }
 
 static struct comedi_driver parport_driver = {

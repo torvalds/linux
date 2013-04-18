@@ -195,11 +195,8 @@ static int das08_isa_attach(struct comedi_device *dev,
 
 static void das08_isa_detach(struct comedi_device *dev)
 {
-	const struct das08_board_struct *thisboard = comedi_board(dev);
-
 	das08_common_detach(dev);
-	if (dev->iobase)
-		release_region(dev->iobase, thisboard->iosize);
+	comedi_legacy_detach(dev);
 }
 
 static struct comedi_driver das08_isa_driver = {

@@ -935,18 +935,16 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void pcmuio_detach(struct comedi_device *dev)
 {
-	const struct pcmuio_board *board = comedi_board(dev);
 	struct pcmuio_private *devpriv = dev->private;
 	int i;
 
-	if (dev->iobase)
-		release_region(dev->iobase, ASIC_IOSIZE * board->num_asics);
 	for (i = 0; i < MAX_ASICS; ++i) {
 		if (devpriv->asics[i].irq)
 			free_irq(devpriv->asics[i].irq, dev);
 	}
 	if (devpriv && devpriv->sprivs)
 		kfree(devpriv->sprivs);
+	comedi_legacy_detach(dev);
 }
 
 static const struct pcmuio_board pcmuio_boards[] = {

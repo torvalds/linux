@@ -1195,7 +1195,6 @@ case COMEDI_SUBD_DO:
 
 static void pcl816_detach(struct comedi_device *dev)
 {
-	const struct pcl816_board *board = comedi_board(dev);
 	struct pcl816_private *devpriv = dev->private;
 
 	if (dev->private) {
@@ -1219,12 +1218,11 @@ static void pcl816_detach(struct comedi_device *dev)
 	}
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, board->io_range);
 #ifdef unused
 	if (devpriv->dma_rtc)
 		RTC_lock--;
 #endif
+	comedi_legacy_detach(dev);
 }
 
 static const struct pcl816_board boardtypes[] = {
