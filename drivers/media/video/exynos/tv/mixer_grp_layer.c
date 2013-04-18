@@ -70,10 +70,10 @@ static const struct mxr_format mxr_fb_fmt_argb8888 = {
 };
 
 static const struct mxr_format *mxr_graph_format[] = {
+        &mxr_fb_fmt_argb8888,
 	&mxr_fb_fmt_rgb565,
 	&mxr_fb_fmt_argb1555,
 	&mxr_fb_fmt_argb4444,
-	&mxr_fb_fmt_argb8888,
 };
 
 /* AUXILIARY CALLBACKS */
