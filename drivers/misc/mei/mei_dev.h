@@ -25,6 +25,7 @@
 
 #include "hw.h"
 #include "hw-me-regs.h"
+#include "hbm.h"
 
 /*
  * watch dog definition
@@ -103,13 +104,6 @@ enum mei_dev_state {
 };
 
 const char *mei_dev_state_str(int state);
-
-/* init clients states*/
-enum mei_init_clients_states {
-	MEI_START_MESSAGE = 0,
-	MEI_ENUM_CLIENTS_MESSAGE,
-	MEI_CLIENT_PROPERTIES_MESSAGE
-};
 
 enum iamthif_states {
 	MEI_IAMTHIF_IDLE,
@@ -338,6 +332,7 @@ struct mei_cl_device {
 /**
  * struct mei_device -  MEI private device struct
 
+ * @hbm_state - state of host bus message protocol
  * @mem_addr - mem mapped base register address
 
  * @hbuf_depth - depth of hardware host/write buffer is slots
@@ -370,8 +365,6 @@ struct mei_device {
 	struct delayed_work timer_work;	/* MEI timer delayed work (timeouts) */
 
 	bool recvd_hw_ready;
-	bool recvd_msg;
-
 	/*
 	 * waiting queue for receive message from FW
 	 */
@@ -383,7 +376,7 @@ struct mei_device {
 	 * mei device  states
 	 */
 	enum mei_dev_state dev_state;
-	enum mei_init_clients_states init_clients_state;
+	enum mei_hbm_state hbm_state;
 	u16 init_clients_timer;
 
 	unsigned char rd_msg_buf[MEI_RD_MSG_BUF_SIZE];	/* control messages */

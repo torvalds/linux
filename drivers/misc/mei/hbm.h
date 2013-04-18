@@ -17,6 +17,27 @@
 #ifndef _MEI_HBM_H_
 #define _MEI_HBM_H_
 
+struct mei_device;
+struct mei_msg_hdr;
+struct mei_cl;
+
+/**
+ * enum mei_hbm_state - host bus message protocol state
+ *
+ * @MEI_HBM_IDLE : protocol not started
+ * @MEI_HBM_START : start request message was sent
+ * @MEI_HBM_ENUM_CLIENTS : enumeration request was sent
+ * @MEI_HBM_CLIENT_PROPERTIES : acquiring clients properties
+ */
+enum mei_hbm_state {
+	MEI_HBM_IDLE = 0,
+	MEI_HBM_START,
+	MEI_HBM_ENUM_CLIENTS,
+	MEI_HBM_CLIENT_PROPERTIES,
+	MEI_HBM_STARTED,
+	MEI_HBM_STOP,
+};
+
 void mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr);
 
 static inline void mei_hbm_hdr(struct mei_msg_hdr *hdr, size_t length)
@@ -28,8 +49,8 @@ static inline void mei_hbm_hdr(struct mei_msg_hdr *hdr, size_t length)
 	hdr->reserved = 0;
 }
 
-void mei_hbm_start_req(struct mei_device *dev);
-
+int mei_hbm_start_req(struct mei_device *dev);
+int mei_hbm_start_wait(struct mei_device *dev);
 int mei_hbm_cl_flow_control_req(struct mei_device *dev, struct mei_cl *cl);
 int mei_hbm_cl_disconnect_req(struct mei_device *dev, struct mei_cl *cl);
 int mei_hbm_cl_connect_req(struct mei_device *dev, struct mei_cl *cl);

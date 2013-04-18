@@ -80,8 +80,6 @@ EXPORT_SYMBOL_GPL(mei_device_init);
  */
 int mei_start(struct mei_device *dev)
 {
-	int ret = 0;
-
 	mutex_lock(&dev->device_lock);
 
 	/* acknowledge interrupt and stop interupts */
@@ -89,28 +87,14 @@ int mei_start(struct mei_device *dev)
 
 	mei_hw_config(dev);
 
-	dev->recvd_msg = false;
 	dev_dbg(&dev->pdev->dev, "reset in start the mei device.\n");
 
 	mei_reset(dev, 1);
 
-	/* wait for ME to turn on ME_RDY */
-	if (!dev->recvd_msg) {
-		mutex_unlock(&dev->device_lock);
-		ret = wait_event_interruptible_timeout(dev->wait_recvd_msg,
-			dev->recvd_msg,
-			mei_secs_to_jiffies(MEI_INTEROP_TIMEOUT));
-		mutex_lock(&dev->device_lock);
-	}
-
-	if (ret <= 0 && !dev->recvd_msg) {
-		dev->dev_state = MEI_DEV_DISABLED;
-		dev_dbg(&dev->pdev->dev,
-			"wait_event_interruptible_timeout failed"
-			"on wait for ME to turn on ME_RDY.\n");
+	if (mei_hbm_start_wait(dev)) {
+		dev_err(&dev->pdev->dev, "HBM haven't started");
 		goto err;
 	}
-
 
 	if (!mei_host_is_ready(dev)) {
 		dev_err(&dev->pdev->dev, "host is not ready.\n");
@@ -128,7 +112,6 @@ int mei_start(struct mei_device *dev)
 		goto err;
 	}
 
-	dev->recvd_msg = false;
 	dev_dbg(&dev->pdev->dev, "link layer has been established.\n");
 
 	mutex_unlock(&dev->device_lock);
@@ -158,6 +141,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 
 	mei_hw_reset(dev, interrupts_enabled);
 
+	dev->hbm_state = MEI_HBM_IDLE;
 
 	if (dev->dev_state != MEI_DEV_INITIALIZING) {
 		if (dev->dev_state != MEI_DEV_DISABLED &&

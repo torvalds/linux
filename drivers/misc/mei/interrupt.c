@@ -623,8 +623,8 @@ void mei_timer(struct work_struct *work)
 		if (dev->dev_state == MEI_DEV_INIT_CLIENTS) {
 			if (dev->init_clients_timer) {
 				if (--dev->init_clients_timer == 0) {
-					dev_err(&dev->pdev->dev, "reset: init clients timeout ,init clients state = %d.\n",
-						dev->init_clients_state);
+					dev_err(&dev->pdev->dev, "reset: init clients timeout hbm_state = %d.\n",
+						dev->hbm_state);
 					mei_reset(dev, 1);
 				}
 			}

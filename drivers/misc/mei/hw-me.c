@@ -468,8 +468,6 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 	struct mei_cl_cb complete_list;
 	s32 slots;
 	int rets;
-	bool  bus_message_received;
-
 
 	dev_dbg(&dev->pdev->dev, "function called after ISR to handle the interrupt processing.\n");
 	/* initialize our complete list */
@@ -525,17 +523,7 @@ end:
 	dev_dbg(&dev->pdev->dev, "end of bottom half function.\n");
 	dev->hbuf_is_ready = mei_hbuf_is_ready(dev);
 
-	bus_message_received = false;
-	if (dev->recvd_msg && waitqueue_active(&dev->wait_recvd_msg)) {
-		dev_dbg(&dev->pdev->dev, "received waiting bus message\n");
-		bus_message_received = true;
-	}
 	mutex_unlock(&dev->device_lock);
-	if (bus_message_received) {
-		dev_dbg(&dev->pdev->dev, "wake up dev->wait_recvd_msg\n");
-		wake_up_interruptible(&dev->wait_recvd_msg);
-		bus_message_received = false;
-	}
 
 	mei_irq_compl_handler(dev, &complete_list);
 
