@@ -128,7 +128,7 @@ static int ti_set_serial_info(struct tty_struct *tty, struct ti_port *tport,
 	struct serial_struct __user *new_arg);
 static void ti_handle_new_msr(struct ti_port *tport, __u8 msr);
 
-static void ti_drain(struct ti_port *tport, unsigned long timeout, int flush);
+static void ti_drain(struct ti_port *tport, unsigned long timeout);
 
 static void ti_stop_read(struct ti_port *tport, struct tty_struct *tty);
 static int ti_restart_read(struct ti_port *tport, struct tty_struct *tty);
@@ -601,6 +601,7 @@ static void ti_close(struct usb_serial_port *port)
 	int port_number;
 	int status;
 	int do_unlock;
+	unsigned long flags;
 
 	tdev = usb_get_serial_data(port->serial);
 	tport = usb_get_serial_port_data(port);
@@ -609,11 +610,14 @@ static void ti_close(struct usb_serial_port *port)
 
 	tport->tp_is_open = 0;
 
-	ti_drain(tport, (tport->tp_closing_wait*HZ)/100, 1);
+	ti_drain(tport, (tport->tp_closing_wait*HZ)/100);
 
 	usb_kill_urb(port->read_urb);
 	usb_kill_urb(port->write_urb);
 	tport->tp_write_urb_in_use = 0;
+	spin_lock_irqsave(&tport->tp_lock, flags);
+	kfifo_reset_out(&tport->write_fifo);
+	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
 	port_number = port->number - port->serial->minor;
 
@@ -965,7 +969,7 @@ static void ti_break(struct tty_struct *tty, int break_state)
 	if (tport == NULL)
 		return;
 
-	ti_drain(tport, (tport->tp_closing_wait*HZ)/100, 0);
+	ti_drain(tport, (tport->tp_closing_wait*HZ)/100);
 
 	status = ti_write_byte(port, tport->tp_tdev,
 		tport->tp_uart_base_addr + TI_UART_OFFSET_LCR,
@@ -1361,7 +1365,7 @@ static void ti_handle_new_msr(struct ti_port *tport, __u8 msr)
 }
 
 
-static void ti_drain(struct ti_port *tport, unsigned long timeout, int flush)
+static void ti_drain(struct ti_port *tport, unsigned long timeout)
 {
 	struct ti_device *tdev = tport->tp_tdev;
 	struct usb_serial_port *port = tport->tp_port;
@@ -1386,11 +1390,6 @@ static void ti_drain(struct ti_port *tport, unsigned long timeout, int flush)
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&tport->tp_write_wait, &wait);
-
-	/* flush any remaining data in the buffer */
-	if (flush)
-		kfifo_reset_out(&tport->write_fifo);
-
 	spin_unlock_irq(&tport->tp_lock);
 
 	mutex_lock(&port->serial->disc_mutex);
