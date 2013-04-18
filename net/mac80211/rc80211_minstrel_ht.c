@@ -244,6 +244,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	struct minstrel_rate_stats *mr;
 	int cur_prob, cur_prob_tp, cur_tp, cur_tp2;
 	int group, i, index;
+	bool mi_rates_valid = false;
 
 	if (mi->ampdu_packets > 0) {
 		mi->avg_ampdu_len = minstrel_ewma(mi->avg_ampdu_len,
@@ -254,11 +255,10 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 
 	mi->sample_slow = 0;
 	mi->sample_count = 0;
-	mi->max_tp_rate = 0;
-	mi->max_tp_rate2 = 0;
-	mi->max_prob_rate = 0;
 
 	for (group = 0; group < ARRAY_SIZE(minstrel_mcs_groups); group++) {
+		bool mg_rates_valid = false;
+
 		cur_prob = 0;
 		cur_prob_tp = 0;
 		cur_tp = 0;
@@ -268,14 +268,23 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 		if (!mg->supported)
 			continue;
 
-		mg->max_tp_rate = 0;
-		mg->max_tp_rate2 = 0;
-		mg->max_prob_rate = 0;
 		mi->sample_count++;
 
 		for (i = 0; i < MCS_GROUP_RATES; i++) {
 			if (!(mg->supported & BIT(i)))
 				continue;
+
+			/* initialize rates selections starting indexes */
+			if (!mg_rates_valid) {
+				mg->max_tp_rate = mg->max_tp_rate2 =
+					mg->max_prob_rate = i;
+				if (!mi_rates_valid) {
+					mi->max_tp_rate = mi->max_tp_rate2 =
+						mi->max_prob_rate = i;
+					mi_rates_valid = true;
+				}
+				mg_rates_valid = true;
+			}
 
 			mr = &mg->rates[i];
 			mr->retry_updated = false;
