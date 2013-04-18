@@ -2633,6 +2633,7 @@ lpfc_online(struct lpfc_hba *phba)
 	struct lpfc_vport *vport;
 	struct lpfc_vport **vports;
 	int i;
+	bool vpis_cleared = false;
 
 	if (!phba)
 		return 0;
@@ -2656,6 +2657,10 @@ lpfc_online(struct lpfc_hba *phba)
 			lpfc_unblock_mgmt_io(phba);
 			return 1;
 		}
+		spin_lock_irq(&phba->hbalock);
+		if (!phba->sli4_hba.max_cfg_param.vpi_used)
+			vpis_cleared = true;
+		spin_unlock_irq(&phba->hbalock);
 	} else {
 		if (lpfc_sli_hba_setup(phba)) {	/* Initialize SLI2/SLI3 HBA */
 			lpfc_unblock_mgmt_io(phba);
@@ -2672,8 +2677,13 @@ lpfc_online(struct lpfc_hba *phba)
 			vports[i]->fc_flag &= ~FC_OFFLINE_MODE;
 			if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)
 				vports[i]->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
-			if (phba->sli_rev == LPFC_SLI_REV4)
+			if (phba->sli_rev == LPFC_SLI_REV4) {
 				vports[i]->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
+				if ((vpis_cleared) &&
+				    (vports[i]->port_type !=
+					LPFC_PHYSICAL_PORT))
+					vports[i]->vpi = 0;
+			}
 			spin_unlock_irq(shost->host_lock);
 		}
 		lpfc_destroy_vport_work_array(phba, vports);
