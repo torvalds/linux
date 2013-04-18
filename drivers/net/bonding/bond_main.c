@@ -1920,6 +1920,7 @@ err_detach:
 		write_unlock_bh(&bond->curr_slave_lock);
 		read_unlock(&bond->lock);
 	}
+	slave_disable_netpoll(new_slave);
 
 err_close:
 	slave_dev->priv_flags &= ~IFF_BONDING;
