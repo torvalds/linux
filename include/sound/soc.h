@@ -371,7 +371,7 @@ int snd_soc_suspend(struct device *dev);
 int snd_soc_resume(struct device *dev);
 int snd_soc_poweroff(struct device *dev);
 int snd_soc_register_platform(struct device *dev,
-		struct snd_soc_platform_driver *platform_drv);
+		const struct snd_soc_platform_driver *platform_drv);
 void snd_soc_unregister_platform(struct device *dev);
 int snd_soc_register_codec(struct device *dev,
 		const struct snd_soc_codec_driver *codec_drv,
@@ -801,10 +801,10 @@ struct snd_soc_platform_driver {
 		struct snd_soc_dai *);
 
 	/* platform stream pcm ops */
-	struct snd_pcm_ops *ops;
+	const struct snd_pcm_ops *ops;
 
 	/* platform stream compress ops */
-	struct snd_compr_ops *compr_ops;
+	const struct snd_compr_ops *compr_ops;
 
 	/* platform stream completion event */
 	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
@@ -823,7 +823,7 @@ struct snd_soc_platform {
 	const char *name;
 	int id;
 	struct device *dev;
-	struct snd_soc_platform_driver *driver;
+	const struct snd_soc_platform_driver *driver;
 	struct mutex mutex;
 
 	unsigned int suspended:1; /* platform is suspended */
@@ -1086,7 +1086,6 @@ struct soc_enum {
 	unsigned int mask;
 	const char * const *texts;
 	const unsigned int *values;
-	void *dapm;
 };
 
 /* codec IO */

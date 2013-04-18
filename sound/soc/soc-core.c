@@ -3908,7 +3908,7 @@ EXPORT_SYMBOL_GPL(snd_soc_unregister_dais);
  * @platform: platform to register
  */
 int snd_soc_register_platform(struct device *dev,
-		struct snd_soc_platform_driver *platform_drv)
+		const struct snd_soc_platform_driver *platform_drv)
 {
 	struct snd_soc_platform *platform;
 
@@ -4024,8 +4024,8 @@ int snd_soc_register_codec(struct device *dev,
 	/* create CODEC component name */
 	codec->name = fmt_single_name(dev, &codec->id);
 	if (codec->name == NULL) {
-		kfree(codec);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail_codec;
 	}
 
 	if (codec_drv->compress_type)
@@ -4064,7 +4064,7 @@ int snd_soc_register_codec(struct device *dev,
 						      reg_size, GFP_KERNEL);
 			if (!codec->reg_def_copy) {
 				ret = -ENOMEM;
-				goto fail;
+				goto fail_codec_name;
 			}
 		}
 	}
@@ -4088,18 +4088,22 @@ int snd_soc_register_codec(struct device *dev,
 	mutex_unlock(&client_mutex);
 
 	/* register any DAIs */
-	if (num_dai) {
-		ret = snd_soc_register_dais(dev, dai_drv, num_dai);
-		if (ret < 0)
-			dev_err(codec->dev, "ASoC: Failed to regster"
-				" DAIs: %d\n", ret);
+	ret = snd_soc_register_dais(dev, dai_drv, num_dai);
+	if (ret < 0) {
+		dev_err(codec->dev, "ASoC: Failed to regster DAIs: %d\n", ret);
+		goto fail_codec_name;
 	}
 
 	dev_dbg(codec->dev, "ASoC: Registered codec '%s'\n", codec->name);
 	return 0;
 
-fail:
+fail_codec_name:
+	mutex_lock(&client_mutex);
+	list_del(&codec->list);
+	mutex_unlock(&client_mutex);
+
 	kfree(codec->name);
+fail_codec:
 	kfree(codec);
 	return ret;
 }
@@ -4113,7 +4117,6 @@ EXPORT_SYMBOL_GPL(snd_soc_register_codec);
 void snd_soc_unregister_codec(struct device *dev)
 {
 	struct snd_soc_codec *codec;
-	int i;
 
 	list_for_each_entry(codec, &codec_list, list) {
 		if (dev == codec->dev)
@@ -4122,9 +4125,7 @@ void snd_soc_unregister_codec(struct device *dev)
 	return;
 
 found:
-	if (codec->num_dai)
-		for (i = 0; i < codec->num_dai; i++)
-			snd_soc_unregister_dai(dev);
+	snd_soc_unregister_dais(dev, codec->num_dai);
 
 	mutex_lock(&client_mutex);
 	list_del(&codec->list);
