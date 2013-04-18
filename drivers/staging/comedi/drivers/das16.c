@@ -393,6 +393,8 @@ struct das16_private_struct {
 	struct timer_list timer;	/*  for timed interrupt */
 	volatile short timer_running;
 	volatile short timer_mode;	/*  true if using timer mode */
+
+	unsigned long extra_iobase;
 };
 
 static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -1122,11 +1124,9 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		/* Request an additional region for the 8255 */
 		ret = __comedi_request_region(dev, dev->iobase + 0x400,
 					      board->size & 0x3ff);
-		if (ret) {
-			release_region(dev->iobase, 0x10);
-			dev->iobase = 0;
-			return -EIO;
-		}
+		if (ret)
+			return ret;
+		devpriv->extra_iobase = dev->iobase + 0x400;
 	}
 
 	/*  probe id bits to make sure they are consistent */
@@ -1356,15 +1356,9 @@ static void das16_detach(struct comedi_device *dev)
 	}
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->iobase) {
-		if (board->size < 0x400) {
-			release_region(dev->iobase, board->size);
-		} else {
-			release_region(dev->iobase, 0x10);
-			release_region(dev->iobase + 0x400,
-				       board->size & 0x3ff);
-		}
-	}
+	if (devpriv->extra_iobase)
+		release_region(devpriv->extra_iobase, board->size & 0x3ff);
+	comedi_legacy_detach(dev);
 }
 
 static const struct das16_board das16_boards[] = {
