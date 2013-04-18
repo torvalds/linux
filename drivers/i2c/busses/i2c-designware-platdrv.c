@@ -170,9 +170,6 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	of_i2c_register_devices(adap);
 	acpi_i2c_register_devices(adap);
 
-	/* Increase reference counter */
-	get_device(&pdev->dev);
-
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
@@ -188,7 +185,6 @@ static int dw_i2c_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	i2c_del_adapter(&dev->adapter);
-	put_device(&pdev->dev);
 
 	i2c_dw_disable(dev);
 
