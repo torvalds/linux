@@ -58,7 +58,7 @@ static void au_br_do_free(struct au_branch *br)
 
 	/* recursive lock, s_umount of branch's */
 	lockdep_off();
-	mntput(au_br_mnt(br));
+	path_put(&br->br_path);
 	lockdep_on();
 	kfree(wbr);
 	kfree(br);
@@ -358,7 +358,7 @@ static int au_br_init(struct au_branch *br, struct super_block *sb,
 	memset(&br->br_xino, 0, sizeof(br->br_xino));
 	mutex_init(&br->br_xino.xi_nondir_mtx);
 	br->br_perm = add->perm;
-	br->br_mnt = add->path.mnt; /* set first, mntget() later */
+	br->br_path = add->path; /* set first, path_get() later */
 	spin_lock_init(&br->br_dykey_lock);
 	memset(br->br_dykey, 0, sizeof(br->br_dykey));
 	atomic_set(&br->br_count, 0);
@@ -383,11 +383,11 @@ static int au_br_init(struct au_branch *br, struct super_block *sb,
 	}
 
 	sysaufs_br_init(br);
-	mntget(add->path.mnt);
+	path_get(&br->br_path);
 	goto out; /* success */
 
 out_err:
-	br->br_mnt = NULL;
+	memset(&br->br_path, 0, sizeof(br->br_path));
 out:
 	return err;
 }

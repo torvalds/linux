@@ -68,7 +68,7 @@ struct au_branch {
 	aufs_bindex_t		br_id;
 
 	int			br_perm;
-	struct vfsmount		*br_mnt;
+	struct path		br_path;
 	spinlock_t		br_dykey_lock;
 	struct au_dykey		*br_dykey[AuBrDynOp];
 	atomic_t		br_count;
@@ -95,7 +95,7 @@ struct au_branch {
 
 static inline struct vfsmount *au_br_mnt(struct au_branch *br)
 {
-	return br->br_mnt;
+	return br->br_path.mnt;
 }
 
 static inline struct super_block *au_br_sb(struct au_branch *br)

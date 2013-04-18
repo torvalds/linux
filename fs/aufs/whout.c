@@ -571,12 +571,12 @@ static void reinit_br_wh(void *arg)
 	err = au_h_verify(wbr->wbr_whbase, au_opt_udba(a->sb), hdir->hi_inode,
 			  h_root, a->br);
 	if (!err) {
-		err = mnt_want_write(au_br_mnt(a->br));
+		h_path.mnt = au_br_mnt(a->br);
+		err = mnt_want_write(h_path.mnt);
 		if (!err) {
 			h_path.dentry = wbr->wbr_whbase;
-			h_path.mnt = au_br_mnt(a->br);
 			err = vfsub_unlink(hdir->hi_inode, &h_path, /*force*/0);
-			mnt_drop_write(au_br_mnt(a->br));
+			mnt_drop_write(h_path.mnt);
 		}
 	} else {
 		pr_warn("%.*s is moved, ignored\n",
