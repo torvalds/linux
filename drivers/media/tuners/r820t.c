@@ -2252,9 +2252,8 @@ static int r820t_release(struct dvb_frontend *fe)
 
 	mutex_unlock(&r820t_list_mutex);
 
-	fe->tuner_priv = NULL;
-
 	kfree(fe->tuner_priv);
+	fe->tuner_priv = NULL;
 
 	return 0;
 }
