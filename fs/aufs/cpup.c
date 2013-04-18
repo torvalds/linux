@@ -24,12 +24,14 @@
 #include <linux/mm.h>
 #include "aufs.h"
 
-void au_cpup_attr_flags(struct inode *dst, struct inode *src)
+void au_cpup_attr_flags(struct inode *dst, unsigned int iflags)
 {
 	const unsigned int mask = S_DEAD | S_SWAPFILE | S_PRIVATE
 		| S_NOATIME | S_NOCMTIME;
 
-	dst->i_flags |= src->i_flags & ~mask;
+	BUILD_BUG_ON(sizeof(iflags) != sizeof(dst->i_flags));
+
+	dst->i_flags |= iflags & ~mask;
 	if (au_test_fs_notime(dst->i_sb))
 		dst->i_flags |= S_NOATIME | S_NOCMTIME;
 }
@@ -83,7 +85,7 @@ void au_cpup_attr_changeable(struct inode *inode)
 	inode->i_uid = h_inode->i_uid;
 	inode->i_gid = h_inode->i_gid;
 	au_cpup_attr_timesizes(inode);
-	au_cpup_attr_flags(inode, h_inode);
+	au_cpup_attr_flags(inode, h_inode->i_flags);
 }
 
 void au_cpup_igen(struct inode *inode, struct inode *h_inode)
@@ -144,13 +146,22 @@ void au_dtime_revert(struct au_dtime *dt)
 
 /* ---------------------------------------------------------------------- */
 
+/* internal use only */
+struct au_cpup_reg_attr {
+	int		valid;
+	struct kstat	st;
+	unsigned int	iflags; /* inode->i_flags */
+};
+
 static noinline_for_stack
-int cpup_iattr(struct dentry *dst, aufs_bindex_t bindex, struct dentry *h_src)
+int cpup_iattr(struct dentry *dst, aufs_bindex_t bindex, struct dentry *h_src,
+	       struct au_cpup_reg_attr *h_src_attr)
 {
 	int err, sbits;
 	struct iattr ia;
 	struct path h_path;
 	struct inode *h_isrc, *h_idst;
+	struct kstat *h_st;
 
 	h_path.dentry = au_h_dptr(dst, bindex);
 	h_idst = h_path.dentry->d_inode;
@@ -159,17 +170,32 @@ int cpup_iattr(struct dentry *dst, aufs_bindex_t bindex, struct dentry *h_src)
 	ia.ia_valid = ATTR_FORCE | ATTR_UID | ATTR_GID
 		| ATTR_ATIME | ATTR_MTIME
 		| ATTR_ATIME_SET | ATTR_MTIME_SET;
-	ia.ia_uid = h_isrc->i_uid;
-	ia.ia_gid = h_isrc->i_gid;
-	ia.ia_atime = h_isrc->i_atime;
-	ia.ia_mtime = h_isrc->i_mtime;
-	if (h_idst->i_mode != h_isrc->i_mode
-	    && !S_ISLNK(h_idst->i_mode)) {
-		ia.ia_valid |= ATTR_MODE;
-		ia.ia_mode = h_isrc->i_mode;
+	if (h_src_attr && h_src_attr->valid) {
+		h_st = &h_src_attr->st;
+		ia.ia_uid = h_st->uid;
+		ia.ia_gid = h_st->gid;
+		ia.ia_atime = h_st->atime;
+		ia.ia_mtime = h_st->mtime;
+		if (h_idst->i_mode != h_st->mode
+		    && !S_ISLNK(h_idst->i_mode)) {
+			ia.ia_valid |= ATTR_MODE;
+			ia.ia_mode = h_st->mode;
+		}
+		sbits = !!(h_st->mode & (S_ISUID | S_ISGID));
+		au_cpup_attr_flags(h_idst, h_src_attr->iflags);
+	} else {
+		ia.ia_uid = h_isrc->i_uid;
+		ia.ia_gid = h_isrc->i_gid;
+		ia.ia_atime = h_isrc->i_atime;
+		ia.ia_mtime = h_isrc->i_mtime;
+		if (h_idst->i_mode != h_isrc->i_mode
+		    && !S_ISLNK(h_idst->i_mode)) {
+			ia.ia_valid |= ATTR_MODE;
+			ia.ia_mode = h_isrc->i_mode;
+		}
+		sbits = !!(h_isrc->i_mode & (S_ISUID | S_ISGID));
+		au_cpup_attr_flags(h_idst, h_isrc->i_flags);
 	}
-	sbits = !!(h_isrc->i_mode & (S_ISUID | S_ISGID));
-	au_cpup_attr_flags(h_idst, h_isrc);
 	err = vfsub_notify_change(&h_path, &ia);
 
 	/* is this nfs only? */
@@ -382,12 +408,14 @@ out:
 	return err;
 }
 
-static int au_do_cpup_regular(struct au_cpup_basic *basic, struct inode *h_dir,
-			      struct path *h_path, struct au_pin *pin)
+static int au_do_cpup_regular(struct au_cpup_basic *basic, struct au_pin *pin,
+			      struct au_cpup_reg_attr *h_src_attr)
 {
 	int err, rerr;
 	loff_t l;
+	struct dentry *h_src_dentry;
 	struct inode *h_src_inode;
+	struct vfsmount *h_src_mnt;
 
 	err = 0;
 	h_src_inode = au_h_iptr(basic->dentry->d_inode, basic->bsrc);
@@ -398,6 +426,16 @@ static int au_do_cpup_regular(struct au_cpup_basic *basic, struct inode *h_dir,
 		/* try stopping to update while we are referencing */
 		mutex_lock_nested(&h_src_inode->i_mutex, AuLsc_I_CHILD);
 		pin->hdir_unlock(pin);
+
+		h_src_dentry = au_h_dptr(basic->dentry, basic->bsrc);
+		h_src_mnt = au_sbr_mnt(basic->dentry->d_sb, basic->bsrc);
+		h_src_attr->iflags = h_src_inode->i_flags;
+		err = vfs_getattr(h_src_mnt, h_src_dentry, &h_src_attr->st);
+		if (unlikely(err)) {
+			mutex_unlock(&h_src_inode->i_mutex);
+			goto out;
+		}
+		h_src_attr->valid = 1;
 		err = au_cp_regular(basic);
 		mutex_unlock(&h_src_inode->i_mutex);
 		rerr = pin->hdir_relock(pin);
@@ -405,6 +443,7 @@ static int au_do_cpup_regular(struct au_cpup_basic *basic, struct inode *h_dir,
 			err = rerr;
 	}
 
+out:
 	return err;
 }
 
@@ -446,7 +485,8 @@ out:
 
 static noinline_for_stack
 int cpup_entry(struct au_cpup_basic *basic, unsigned int flags,
-	       struct dentry *dst_parent, struct au_pin *pin)
+	       struct dentry *dst_parent, struct au_pin *pin,
+	       struct au_cpup_reg_attr *h_src_attr)
 {
 	int err;
 	umode_t mode;
@@ -488,10 +528,7 @@ int cpup_entry(struct au_cpup_basic *basic, unsigned int flags,
 	case S_IFREG:
 		err = vfsub_create(h_dir, &h_path, mode | S_IWUSR);
 		if (!err)
-			err = au_do_cpup_regular
-				(basic,
-				 au_h_iptr(dst_parent->d_inode, basic->bdst),
-				 &h_path, pin);
+			err = au_do_cpup_regular(basic, pin, h_src_attr);
 		break;
 	case S_IFDIR:
 		isdir = 1;
@@ -586,6 +623,9 @@ static int au_cpup_single(struct au_cpup_basic *basic, unsigned int flags,
 	struct inode *dst_inode, *h_dir, *inode;
 	struct super_block *sb;
 	struct au_branch *br;
+	struct au_cpup_reg_attr h_src_attr = {
+		.valid = 0
+	};
 
 	AuDebugOn(basic->bsrc <= basic->bdst);
 
@@ -654,7 +694,7 @@ static int au_cpup_single(struct au_cpup_basic *basic, unsigned int flags,
 
 	isdir = S_ISDIR(inode->i_mode);
 	old_ibstart = au_ibstart(inode);
-	err = cpup_entry(basic, flags, dst_parent, pin);
+	err = cpup_entry(basic, flags, dst_parent, pin, &h_src_attr);
 	if (unlikely(err))
 		goto out_rev;
 	dst_inode = h_dst->d_inode;
@@ -662,7 +702,7 @@ static int au_cpup_single(struct au_cpup_basic *basic, unsigned int flags,
 	/* todo: necessary? */
 	/* pin->hdir_unlock(pin); */
 
-	err = cpup_iattr(basic->dentry, basic->bdst, h_src);
+	err = cpup_iattr(basic->dentry, basic->bdst, h_src, &h_src_attr);
 	if (unlikely(err)) {
 		/* todo: necessary? */
 		/* pin->hdir_relock(pin); */ /* ignore an error */

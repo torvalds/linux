@@ -37,7 +37,7 @@ int au_cpdown_attr(struct path *h_path, struct dentry *h_src)
 	ia.ia_uid = h_isrc->i_uid;
 	ia.ia_gid = h_isrc->i_gid;
 	sbits = !!(ia.ia_mode & (S_ISUID | S_ISGID));
-	au_cpup_attr_flags(h_path->dentry->d_inode, h_isrc);
+	au_cpup_attr_flags(h_path->dentry->d_inode, h_isrc->i_flags);
 	err = vfsub_sio_notify_change(h_path, &ia);
 
 	/* is this nfs only? */
