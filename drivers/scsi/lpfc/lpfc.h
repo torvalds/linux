@@ -709,6 +709,7 @@ struct lpfc_hba {
 	uint32_t cfg_poll_tmo;
 	uint32_t cfg_use_msi;
 	uint32_t cfg_fcp_imax;
+	uint32_t cfg_fcp_cpu_map;
 	uint32_t cfg_fcp_wq_count;
 	uint32_t cfg_fcp_eq_count;
 	uint32_t cfg_fcp_io_channel;

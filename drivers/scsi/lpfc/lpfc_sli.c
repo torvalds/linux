@@ -7923,15 +7923,21 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 static inline uint32_t
 lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba)
 {
-	int i;
+	struct lpfc_vector_map_info *cpup;
+	int chann, cpu;
 
-	if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_CPU)
-		i = smp_processor_id();
-	else
-		i = atomic_add_return(1, &phba->fcp_qidx);
-
-	i = (i % phba->cfg_fcp_io_channel);
-	return i;
+	if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_CPU) {
+		cpu = smp_processor_id();
+		if (cpu < phba->sli4_hba.num_present_cpu) {
+			cpup = phba->sli4_hba.cpu_map;
+			cpup += cpu;
+			return cpup->channel_id;
+		}
+		chann = cpu;
+	}
+	chann = atomic_add_return(1, &phba->fcp_qidx);
+	chann = (chann % phba->cfg_fcp_io_channel);
+	return chann;
 }
 
 /**

@@ -435,6 +435,17 @@ struct lpfc_sli4_lnk_info {
 
 #define LPFC_SLI4_HANDLER_NAME_SZ	16
 
+/* Used for IRQ vector to CPU mapping */
+struct lpfc_vector_map_info {
+	uint16_t	phys_id;
+	uint16_t	core_id;
+	uint16_t	irq;
+	uint16_t	channel_id;
+	struct cpumask	maskbits;
+};
+#define LPFC_VECTOR_MAP_EMPTY	0xffff
+#define LPFC_MAX_CPU		256
+
 /* SLI4 HBA data structure entries */
 struct lpfc_sli4_hba {
 	void __iomem *conf_regs_memmap_p; /* Kernel memory mapped address for
@@ -568,6 +579,11 @@ struct lpfc_sli4_hba {
 	struct lpfc_iov iov;
 	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
 	spinlock_t abts_sgl_list_lock; /* list of aborted els IOs */
+
+	/* CPU to vector mapping information */
+	struct lpfc_vector_map_info *cpu_map;
+	uint16_t num_online_cpu;
+	uint16_t num_present_cpu;
 };
 
 enum lpfc_sge_type {
