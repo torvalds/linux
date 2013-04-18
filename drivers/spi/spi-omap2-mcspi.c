@@ -1293,7 +1293,8 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(&pdev->dev, SPI_AUTOSUSPEND_TIMEOUT);
 	pm_runtime_enable(&pdev->dev);
 
-	if (status || omap2_mcspi_master_setup(mcspi) < 0)
+	status = omap2_mcspi_master_setup(mcspi);
+	if (status < 0)
 		goto disable_pm;
 
 	status = spi_register_master(master);
