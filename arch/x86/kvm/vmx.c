@@ -484,6 +484,64 @@ static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
 #define FIELD64(number, name)	[number] = VMCS12_OFFSET(name), \
 				[number##_HIGH] = VMCS12_OFFSET(name)+4
 
+
+static const unsigned long shadow_read_only_fields[] = {
+	/*
+	 * We do NOT shadow fields that are modified when L0
+	 * traps and emulates any vmx instruction (e.g. VMPTRLD,
+	 * VMXON...) executed by L1.
+	 * For example, VM_INSTRUCTION_ERROR is read
+	 * by L1 if a vmx instruction fails (part of the error path).
+	 * Note the code assumes this logic. If for some reason
+	 * we start shadowing these fields then we need to
+	 * force a shadow sync when L0 emulates vmx instructions
+	 * (e.g. force a sync if VM_INSTRUCTION_ERROR is modified
+	 * by nested_vmx_failValid)
+	 */
+	VM_EXIT_REASON,
+	VM_EXIT_INTR_INFO,
+	VM_EXIT_INSTRUCTION_LEN,
+	IDT_VECTORING_INFO_FIELD,
+	IDT_VECTORING_ERROR_CODE,
+	VM_EXIT_INTR_ERROR_CODE,
+	EXIT_QUALIFICATION,
+	GUEST_LINEAR_ADDRESS,
+	GUEST_PHYSICAL_ADDRESS
+};
+static const int max_shadow_read_only_fields =
+	ARRAY_SIZE(shadow_read_only_fields);
+
+static const unsigned long shadow_read_write_fields[] = {
+	GUEST_RIP,
+	GUEST_RSP,
+	GUEST_CR0,
+	GUEST_CR3,
+	GUEST_CR4,
+	GUEST_INTERRUPTIBILITY_INFO,
+	GUEST_RFLAGS,
+	GUEST_CS_SELECTOR,
+	GUEST_CS_AR_BYTES,
+	GUEST_CS_LIMIT,
+	GUEST_CS_BASE,
+	GUEST_ES_BASE,
+	CR0_GUEST_HOST_MASK,
+	CR0_READ_SHADOW,
+	CR4_READ_SHADOW,
+	TSC_OFFSET,
+	EXCEPTION_BITMAP,
+	CPU_BASED_VM_EXEC_CONTROL,
+	VM_ENTRY_EXCEPTION_ERROR_CODE,
+	VM_ENTRY_INTR_INFO_FIELD,
+	VM_ENTRY_INSTRUCTION_LEN,
+	VM_ENTRY_EXCEPTION_ERROR_CODE,
+	HOST_FS_BASE,
+	HOST_GS_BASE,
+	HOST_FS_SELECTOR,
+	HOST_GS_SELECTOR
+};
+static const int max_shadow_read_write_fields =
+	ARRAY_SIZE(shadow_read_write_fields);
+
 static const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD(VIRTUAL_PROCESSOR_ID, virtual_processor_id),
 	FIELD(GUEST_ES_SELECTOR, guest_es_selector),
@@ -675,6 +733,8 @@ static unsigned long *vmx_msr_bitmap_legacy;
 static unsigned long *vmx_msr_bitmap_longmode;
 static unsigned long *vmx_msr_bitmap_legacy_x2apic;
 static unsigned long *vmx_msr_bitmap_longmode_x2apic;
+static unsigned long *vmx_vmread_bitmap;
+static unsigned long *vmx_vmwrite_bitmap;
 
 static bool cpu_has_load_ia32_efer;
 static bool cpu_has_load_perf_global_ctrl;
@@ -4128,6 +4188,10 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_write64(IO_BITMAP_A, __pa(vmx_io_bitmap_a));
 	vmcs_write64(IO_BITMAP_B, __pa(vmx_io_bitmap_b));
 
+	if (enable_shadow_vmcs) {
+		vmcs_write64(VMREAD_BITMAP, __pa(vmx_vmread_bitmap));
+		vmcs_write64(VMWRITE_BITMAP, __pa(vmx_vmwrite_bitmap));
+	}
 	if (cpu_has_vmx_msr_bitmap())
 		vmcs_write64(MSR_BITMAP, __pa(vmx_msr_bitmap_legacy));
 
@@ -7941,6 +8005,24 @@ static int __init vmx_init(void)
 				(unsigned long *)__get_free_page(GFP_KERNEL);
 	if (!vmx_msr_bitmap_longmode_x2apic)
 		goto out4;
+	vmx_vmread_bitmap = (unsigned long *)__get_free_page(GFP_KERNEL);
+	if (!vmx_vmread_bitmap)
+		goto out5;
+
+	vmx_vmwrite_bitmap = (unsigned long *)__get_free_page(GFP_KERNEL);
+	if (!vmx_vmwrite_bitmap)
+		goto out6;
+
+	memset(vmx_vmread_bitmap, 0xff, PAGE_SIZE);
+	memset(vmx_vmwrite_bitmap, 0xff, PAGE_SIZE);
+	/* shadowed read/write fields */
+	for (i = 0; i < max_shadow_read_write_fields; i++) {
+		clear_bit(shadow_read_write_fields[i], vmx_vmwrite_bitmap);
+		clear_bit(shadow_read_write_fields[i], vmx_vmread_bitmap);
+	}
+	/* shadowed read only fields */
+	for (i = 0; i < max_shadow_read_only_fields; i++)
+		clear_bit(shadow_read_only_fields[i], vmx_vmread_bitmap);
 
 	/*
 	 * Allow direct access to the PC debug port (it is often used for I/O
@@ -7959,7 +8041,7 @@ static int __init vmx_init(void)
 	r = kvm_init(&vmx_x86_ops, sizeof(struct vcpu_vmx),
 		     __alignof__(struct vcpu_vmx), THIS_MODULE);
 	if (r)
-		goto out5;
+		goto out7;
 
 #ifdef CONFIG_KEXEC
 	rcu_assign_pointer(crash_vmclear_loaded_vmcss,
@@ -8007,6 +8089,10 @@ static int __init vmx_init(void)
 
 	return 0;
 
+out7:
+	free_page((unsigned long)vmx_vmwrite_bitmap);
+out6:
+	free_page((unsigned long)vmx_vmread_bitmap);
 out5:
 	free_page((unsigned long)vmx_msr_bitmap_longmode_x2apic);
 out4:
@@ -8030,6 +8116,8 @@ static void __exit vmx_exit(void)
 	free_page((unsigned long)vmx_msr_bitmap_longmode);
 	free_page((unsigned long)vmx_io_bitmap_b);
 	free_page((unsigned long)vmx_io_bitmap_a);
+	free_page((unsigned long)vmx_vmwrite_bitmap);
+	free_page((unsigned long)vmx_vmread_bitmap);
 
 #ifdef CONFIG_KEXEC
 	rcu_assign_pointer(crash_vmclear_loaded_vmcss, NULL);
