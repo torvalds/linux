@@ -3479,7 +3479,6 @@ static int __process_changed_new_xattr(int num, struct btrfs_key *di_key,
 	struct send_ctx *sctx = ctx;
 	char *found_data = NULL;
 	int found_data_len  = 0;
-	struct fs_path *p = NULL;
 
 	ret = find_xattr(sctx, sctx->parent_root, sctx->right_path,
 			sctx->cmp_key, name, name_len, &found_data,
@@ -3498,7 +3497,6 @@ static int __process_changed_new_xattr(int num, struct btrfs_key *di_key,
 	}
 
 	kfree(found_data);
-	fs_path_free(sctx, p);
 	return ret;
 }
 
