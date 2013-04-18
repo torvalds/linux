@@ -71,7 +71,6 @@ struct ti_port {
 	__u8			tp_uart_mode;	/* 232 or 485 modes */
 	unsigned int		tp_uart_base_addr;
 	int			tp_flags;
-	int			tp_closing_wait;/* in .01 secs */
 	wait_queue_head_t	tp_write_wait;
 	struct ti_device	*tp_tdev;
 	struct usb_serial_port	*tp_port;
@@ -126,8 +125,6 @@ static int ti_get_serial_info(struct ti_port *tport,
 static int ti_set_serial_info(struct tty_struct *tty, struct ti_port *tport,
 	struct serial_struct __user *new_arg);
 static void ti_handle_new_msr(struct ti_port *tport, __u8 msr);
-
-static void ti_drain(struct ti_port *tport, unsigned long timeout);
 
 static void ti_stop_read(struct ti_port *tport, struct tty_struct *tty);
 static int ti_restart_read(struct ti_port *tport, struct tty_struct *tty);
@@ -428,7 +425,7 @@ static int ti_port_probe(struct usb_serial_port *port)
 		tport->tp_uart_base_addr = TI_UART1_BASE_ADDR;
 	else
 		tport->tp_uart_base_addr = TI_UART2_BASE_ADDR;
-	tport->tp_closing_wait = closing_wait;
+	port->port.closing_wait = msecs_to_jiffies(10 * closing_wait);
 	init_waitqueue_head(&tport->tp_write_wait);
 	if (kfifo_alloc(&tport->write_fifo, TI_WRITE_BUF_SIZE, GFP_KERNEL)) {
 		kfree(tport);
@@ -581,6 +578,8 @@ static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 	tport->tp_is_open = 1;
 	++tdev->td_open_port_count;
 
+	port->port.drain_delay = 3;
+
 	goto release_lock;
 
 unlink_int_urb:
@@ -608,8 +607,6 @@ static void ti_close(struct usb_serial_port *port)
 		return;
 
 	tport->tp_is_open = 0;
-
-	ti_drain(tport, (tport->tp_closing_wait*HZ)/100);
 
 	usb_kill_urb(port->read_urb);
 	usb_kill_urb(port->write_urb);
@@ -1295,9 +1292,14 @@ static int ti_get_serial_info(struct ti_port *tport,
 {
 	struct usb_serial_port *port = tport->tp_port;
 	struct serial_struct ret_serial;
+	unsigned cwait;
 
 	if (!ret_arg)
 		return -EFAULT;
+
+	cwait = port->port.closing_wait;
+	if (cwait != ASYNC_CLOSING_WAIT_NONE)
+		cwait = jiffies_to_msecs(cwait) / 10;
 
 	memset(&ret_serial, 0, sizeof(ret_serial));
 
@@ -1307,7 +1309,7 @@ static int ti_get_serial_info(struct ti_port *tport,
 	ret_serial.flags = tport->tp_flags;
 	ret_serial.xmit_fifo_size = TI_WRITE_BUF_SIZE;
 	ret_serial.baud_base = tport->tp_tdev->td_is_3410 ? 921600 : 460800;
-	ret_serial.closing_wait = tport->tp_closing_wait;
+	ret_serial.closing_wait = cwait;
 
 	if (copy_to_user(ret_arg, &ret_serial, sizeof(*ret_arg)))
 		return -EFAULT;
@@ -1320,12 +1322,17 @@ static int ti_set_serial_info(struct tty_struct *tty, struct ti_port *tport,
 	struct serial_struct __user *new_arg)
 {
 	struct serial_struct new_serial;
+	unsigned cwait;
 
 	if (copy_from_user(&new_serial, new_arg, sizeof(new_serial)))
 		return -EFAULT;
 
+	cwait = new_serial.closing_wait;
+	if (cwait != ASYNC_CLOSING_WAIT_NONE)
+		cwait = msecs_to_jiffies(10 * new_serial.closing_wait);
+
 	tport->tp_flags = new_serial.flags & TI_SET_SERIAL_FLAGS;
-	tport->tp_closing_wait = new_serial.closing_wait;
+	tport->tp_port->port.closing_wait = cwait;
 
 	return 0;
 }
@@ -1367,52 +1374,6 @@ static void ti_handle_new_msr(struct ti_port *tport, __u8 msr)
 		}
 	}
 	tty_kref_put(tty);
-}
-
-
-static void ti_drain(struct ti_port *tport, unsigned long timeout)
-{
-	struct ti_device *tdev = tport->tp_tdev;
-	struct usb_serial_port *port = tport->tp_port;
-	wait_queue_t wait;
-	u8 lsr;
-
-	spin_lock_irq(&tport->tp_lock);
-
-	/* wait for data to drain from the buffer */
-	tdev->td_urb_error = 0;
-	init_waitqueue_entry(&wait, current);
-	add_wait_queue(&tport->tp_write_wait, &wait);
-	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (kfifo_len(&tport->write_fifo) == 0
-		|| timeout == 0 || signal_pending(current)
-		|| tdev->td_urb_error
-		|| port->serial->disconnected)  /* disconnect */
-			break;
-		spin_unlock_irq(&tport->tp_lock);
-		timeout = schedule_timeout(timeout);
-		spin_lock_irq(&tport->tp_lock);
-	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&tport->tp_write_wait, &wait);
-	spin_unlock_irq(&tport->tp_lock);
-
-	mutex_lock(&port->serial->disc_mutex);
-	/* wait for data to drain from the device */
-	/* wait for empty tx register, plus 20 ms */
-	timeout += jiffies;
-	lsr = 0;
-	while ((long)(jiffies - timeout) < 0 && !signal_pending(current)
-	&& !(lsr & TI_LSR_TX_EMPTY) && !tdev->td_urb_error
-	&& !port->serial->disconnected) {
-		if (ti_get_lsr(tport, &lsr))
-			break;
-		mutex_unlock(&port->serial->disc_mutex);
-		msleep_interruptible(20);
-		mutex_lock(&port->serial->disc_mutex);
-	}
-	mutex_unlock(&port->serial->disc_mutex);
 }
 
 
