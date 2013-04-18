@@ -175,6 +175,9 @@ err:
 	return status;
 }
 
+/* default ethernet address used by the modem */
+static const u8 default_modem_addr[ETH_ALEN] = {0x02, 0x50, 0xf3};
+
 /* Make up an ethernet header if the packet doesn't have one.
  *
  * A firmware bug common among several devices cause them to send raw
@@ -341,6 +344,12 @@ static int qmi_wwan_bind_shared(struct usbnet *dev, struct usb_interface *intf)
 
 	/* save subdriver struct for suspend/resume wrappers */
 	dev->data[0] = (unsigned long)subdriver;
+
+	/* Never use the same address on both ends of the link, even
+	 * if the buggy firmware told us to.
+	 */
+	if (!compare_ether_addr(dev->net->dev_addr, default_modem_addr))
+		eth_hw_addr_random(dev->net);
 
 	/* make MAC addr easily distinguishable from an IP header */
 	if (possibly_iphdr(dev->net->dev_addr)) {
