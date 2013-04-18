@@ -87,6 +87,8 @@ module_param(fasteoi, bool, S_IRUGO);
 static bool __read_mostly enable_apicv = 1;
 module_param(enable_apicv, bool, S_IRUGO);
 
+static bool __read_mostly enable_shadow_vmcs = 1;
+module_param_named(enable_shadow_vmcs, enable_shadow_vmcs, bool, S_IRUGO);
 /*
  * If nested=1, nested virtualization is supported, i.e., guests may use
  * VMX and be a hypervisor for its own guests. If nested=0, guests may not
@@ -938,6 +940,18 @@ static inline bool cpu_has_vmx_wbinvd_exit(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_WBINVD_EXITING;
+}
+
+static inline bool cpu_has_vmx_shadow_vmcs(void)
+{
+	u64 vmx_msr;
+	rdmsrl(MSR_IA32_VMX_MISC, vmx_msr);
+	/* check if the cpu supports writing r/o exit information fields */
+	if (!(vmx_msr & MSR_IA32_VMX_MISC_VMWRITE_SHADOW_RO_FIELDS))
+		return false;
+
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_SHADOW_VMCS;
 }
 
 static inline bool report_flexpriority(void)
@@ -2632,7 +2646,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 			SECONDARY_EXEC_RDTSCP |
 			SECONDARY_EXEC_ENABLE_INVPCID |
 			SECONDARY_EXEC_APIC_REGISTER_VIRT |
-			SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY;
+			SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
+			SECONDARY_EXEC_SHADOW_VMCS;
 		if (adjust_vmx_controls(min2, opt2,
 					MSR_IA32_VMX_PROCBASED_CTLS2,
 					&_cpu_based_2nd_exec_control) < 0)
@@ -2833,6 +2848,8 @@ static __init int hardware_setup(void)
 
 	if (!cpu_has_vmx_vpid())
 		enable_vpid = 0;
+	if (!cpu_has_vmx_shadow_vmcs())
+		enable_shadow_vmcs = 0;
 
 	if (!cpu_has_vmx_ept() ||
 	    !cpu_has_vmx_ept_4levels()) {
@@ -4077,6 +4094,12 @@ static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
 		exec_control &= ~(SECONDARY_EXEC_APIC_REGISTER_VIRT |
 				  SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY);
 	exec_control &= ~SECONDARY_EXEC_VIRTUALIZE_X2APIC_MODE;
+	/* SECONDARY_EXEC_SHADOW_VMCS is enabled when L1 executes VMPTRLD
+	   (handle_vmptrld).
+	   We can NOT enable shadow_vmcs here because we don't have yet
+	   a current VMCS12
+	*/
+	exec_control &= ~SECONDARY_EXEC_SHADOW_VMCS;
 	return exec_control;
 }
 
