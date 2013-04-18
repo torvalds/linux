@@ -274,7 +274,10 @@ static int palmas_enable_smps(struct regulator_dev *dev)
 	palmas_smps_read(pmic->palmas, palmas_regs_info[id].ctrl_addr, &reg);
 
 	reg &= ~PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
-	reg |= SMPS_CTRL_MODE_ON;
+	if (pmic->current_reg_mode[id])
+		reg |= pmic->current_reg_mode[id];
+	else
+		reg |= SMPS_CTRL_MODE_ON;
 
 	palmas_smps_write(pmic->palmas, palmas_regs_info[id].ctrl_addr, reg);
 
@@ -296,15 +299,18 @@ static int palmas_disable_smps(struct regulator_dev *dev)
 	return 0;
 }
 
-
 static int palmas_set_mode_smps(struct regulator_dev *dev, unsigned int mode)
 {
 	struct palmas_pmic *pmic = rdev_get_drvdata(dev);
 	int id = rdev_get_id(dev);
 	unsigned int reg;
+	bool rail_enable = true;
 
 	palmas_smps_read(pmic->palmas, palmas_regs_info[id].ctrl_addr, &reg);
 	reg &= ~PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
+
+	if (reg == SMPS_CTRL_MODE_OFF)
+		rail_enable = false;
 
 	switch (mode) {
 	case REGULATOR_MODE_NORMAL:
@@ -319,8 +325,11 @@ static int palmas_set_mode_smps(struct regulator_dev *dev, unsigned int mode)
 	default:
 		return -EINVAL;
 	}
-	palmas_smps_write(pmic->palmas, palmas_regs_info[id].ctrl_addr, reg);
 
+	pmic->current_reg_mode[id] = reg & PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
+	if (rail_enable)
+		palmas_smps_write(pmic->palmas,
+			palmas_regs_info[id].ctrl_addr, reg);
 	return 0;
 }
 
@@ -330,9 +339,7 @@ static unsigned int palmas_get_mode_smps(struct regulator_dev *dev)
 	int id = rdev_get_id(dev);
 	unsigned int reg;
 
-	palmas_smps_read(pmic->palmas, palmas_regs_info[id].ctrl_addr, &reg);
-	reg &= PALMAS_SMPS12_CTRL_STATUS_MASK;
-	reg >>= PALMAS_SMPS12_CTRL_STATUS_SHIFT;
+	reg = pmic->current_reg_mode[id] & PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
 
 	switch (reg) {
 	case SMPS_CTRL_MODE_ON:
@@ -871,7 +878,8 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 			/*
 			 * Read and store the RANGE bit for later use
 			 * This must be done before regulator is probed,
-			 * otherwise we error in probe with unsupportable ranges.
+			 * otherwise we error in probe with unsupportable
+			 * ranges. Read the current smps mode for later use.
 			 */
 			addr = palmas_regs_info[id].vsel_addr;
 
@@ -888,6 +896,14 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 						palmas_regs_info[id].vsel_addr);
 			pmic->desc[id].vsel_mask =
 					PALMAS_SMPS12_VOLTAGE_VSEL_MASK;
+
+			/* Read the smps mode for later use. */
+			addr = palmas_regs_info[id].ctrl_addr;
+			ret = palmas_smps_read(pmic->palmas, addr, &reg);
+			if (ret)
+				goto err_unregister_regulator;
+			pmic->current_reg_mode[id] = reg &
+					PALMAS_SMPS12_CTRL_MODE_ACTIVE_MASK;
 		}
 
 		pmic->desc[id].type = REGULATOR_VOLTAGE;
