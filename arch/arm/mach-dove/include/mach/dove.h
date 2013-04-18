@@ -77,6 +77,8 @@
 /* North-South Bridge */
 #define BRIDGE_VIRT_BASE	(DOVE_SB_REGS_VIRT_BASE + 0x20000)
 #define BRIDGE_PHYS_BASE	(DOVE_SB_REGS_PHYS_BASE + 0x20000)
+#define  BRIDGE_WINS_BASE       (BRIDGE_PHYS_BASE)
+#define  BRIDGE_WINS_SZ         (0x80)
 
 /* Cryptographic Engine */
 #define DOVE_CRYPT_PHYS_BASE	(DOVE_SB_REGS_PHYS_BASE + 0x30000)
@@ -168,6 +170,9 @@
 #define  DOVE_SSP_CLOCK_ENABLE		(1 << 1)
 #define  DOVE_SSP_BPB_CLOCK_SRC_SSP	(1 << 11)
 /* Memory Controller */
+#define DOVE_MC_PHYS_BASE       (DOVE_NB_REGS_PHYS_BASE + 0x00000)
+#define  DOVE_MC_WINS_BASE      (DOVE_MC_PHYS_BASE + 0x100)
+#define  DOVE_MC_WINS_SZ        (0x8)
 #define DOVE_MC_VIRT_BASE	(DOVE_NB_REGS_VIRT_BASE + 0x00000)
 
 /* LCD Controller */
