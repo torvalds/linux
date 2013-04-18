@@ -48,6 +48,9 @@ struct lpfc_sli2_slim;
 		downloads using bsg */
 #define LPFC_DEFAULT_PROT_SG_SEG_CNT 4096 /* sg protection elements count */
 #define LPFC_MAX_SG_SEG_CNT	4096	/* sg element count per scsi cmnd */
+#define LPFC_MAX_SGL_SEG_CNT	512	/* SGL element count per scsi cmnd */
+#define LPFC_MAX_BPL_SEG_CNT	4096	/* BPL element count per scsi cmnd */
+
 #define LPFC_MAX_SGE_SIZE       0x80000000 /* Maximum data allowed in a SGE */
 #define LPFC_MAX_PROT_SG_SEG_CNT 4096	/* prot sg element count per scsi cmd*/
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */

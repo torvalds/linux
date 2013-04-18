@@ -4739,7 +4739,7 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 			((phba->cfg_sg_seg_cnt + 2) * sizeof(struct ulp_bde64));
 
 	if (phba->cfg_enable_bg) {
-		phba->cfg_sg_seg_cnt = LPFC_MAX_SG_SEG_CNT;
+		phba->cfg_sg_seg_cnt = LPFC_MAX_BPL_SEG_CNT;
 		phba->cfg_sg_dma_buf_size +=
 			phba->cfg_prot_sg_seg_cnt * sizeof(struct ulp_bde64);
 	}
@@ -4817,7 +4817,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	int rc, i, hbq_count, buf_size, dma_buf_size, max_buf_size;
 	uint8_t pn_page[LPFC_MAX_SUPPORTED_PAGES] = {0};
 	struct lpfc_mqe *mqe;
-	int longs, sli_family;
+	int longs;
 	int sges_per_segment;
 
 	/* Before proceed, wait for POST done and device ready */
@@ -4901,6 +4901,17 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 			sizeof(struct lpfc_sli_ring), GFP_KERNEL);
 	if (!phba->sli.ring)
 		return -ENOMEM;
+
+	/*
+	 * It doesn't matter what family our adapter is in, we are
+	 * limited to 2 Pages, 512 SGEs, for our SGL.
+	 * There are going to be 2 reserved SGEs: 1 FCP cmnd + 1 FCP rsp
+	 */
+	max_buf_size = (2 * SLI4_PAGE_SIZE);
+	if (phba->cfg_sg_seg_cnt > LPFC_MAX_SGL_SEG_CNT - 2)
+		phba->cfg_sg_seg_cnt = LPFC_MAX_SGL_SEG_CNT - 2;
+	max_buf_size += (sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp));
+
 	/*
 	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
 	 * used to create the sg_dma_buf_pool must be dynamically calculated.
@@ -4911,22 +4922,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	buf_size = (sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp) +
 		    (((phba->cfg_sg_seg_cnt * sges_per_segment) + 2) *
 		    sizeof(struct sli4_sge)));
-
-	sli_family = bf_get(lpfc_sli_intf_sli_family, &phba->sli4_hba.sli_intf);
-	max_buf_size = LPFC_SLI4_MAX_BUF_SIZE;
-	switch (sli_family) {
-	case LPFC_SLI_INTF_FAMILY_BE2:
-	case LPFC_SLI_INTF_FAMILY_BE3:
-		/* There is a single hint for BE - 2 pages per BPL. */
-		if (bf_get(lpfc_sli_intf_sli_hint1, &phba->sli4_hba.sli_intf) ==
-		    LPFC_SLI_INTF_SLI_HINT1_1)
-			max_buf_size = LPFC_SLI4_FL1_MAX_BUF_SIZE;
-		break;
-	case LPFC_SLI_INTF_FAMILY_LNCR_A0:
-	case LPFC_SLI_INTF_FAMILY_LNCR_B0:
-	default:
-		break;
-	}
 
 	for (dma_buf_size = LPFC_SLI4_MIN_BUF_SIZE;
 	     dma_buf_size < max_buf_size && buf_size > dma_buf_size;
