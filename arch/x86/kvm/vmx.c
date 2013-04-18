@@ -5842,6 +5842,33 @@ static inline bool vmcs12_read_any(struct kvm_vcpu *vcpu,
 	}
 }
 
+
+static inline bool vmcs12_write_any(struct kvm_vcpu *vcpu,
+				    unsigned long field, u64 field_value){
+	short offset = vmcs_field_to_offset(field);
+	char *p = ((char *) get_vmcs12(vcpu)) + offset;
+	if (offset < 0)
+		return false;
+
+	switch (vmcs_field_type(field)) {
+	case VMCS_FIELD_TYPE_U16:
+		*(u16 *)p = field_value;
+		return true;
+	case VMCS_FIELD_TYPE_U32:
+		*(u32 *)p = field_value;
+		return true;
+	case VMCS_FIELD_TYPE_U64:
+		*(u64 *)p = field_value;
+		return true;
+	case VMCS_FIELD_TYPE_NATURAL_WIDTH:
+		*(natural_width *)p = field_value;
+		return true;
+	default:
+		return false; /* can never happen. */
+	}
+
+}
+
 /*
  * VMX instructions which assume a current vmcs12 (i.e., that VMPTRLD was
  * used before) all generate the same failure when it is missing.
@@ -5906,8 +5933,6 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 	gva_t gva;
 	unsigned long exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	u32 vmx_instruction_info = vmcs_read32(VMX_INSTRUCTION_INFO);
-	char *p;
-	short offset;
 	/* The value to write might be 32 or 64 bits, depending on L1's long
 	 * mode, and eventually we need to write that into a field of several
 	 * possible lengths. The code below first zero-extends the value to 64
@@ -5944,28 +5969,7 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 		return 1;
 	}
 
-	offset = vmcs_field_to_offset(field);
-	if (offset < 0) {
-		nested_vmx_failValid(vcpu, VMXERR_UNSUPPORTED_VMCS_COMPONENT);
-		skip_emulated_instruction(vcpu);
-		return 1;
-	}
-	p = ((char *) get_vmcs12(vcpu)) + offset;
-
-	switch (vmcs_field_type(field)) {
-	case VMCS_FIELD_TYPE_U16:
-		*(u16 *)p = field_value;
-		break;
-	case VMCS_FIELD_TYPE_U32:
-		*(u32 *)p = field_value;
-		break;
-	case VMCS_FIELD_TYPE_U64:
-		*(u64 *)p = field_value;
-		break;
-	case VMCS_FIELD_TYPE_NATURAL_WIDTH:
-		*(natural_width *)p = field_value;
-		break;
-	default:
+	if (!vmcs12_write_any(vcpu, field, field_value)) {
 		nested_vmx_failValid(vcpu, VMXERR_UNSUPPORTED_VMCS_COMPONENT);
 		skip_emulated_instruction(vcpu);
 		return 1;
