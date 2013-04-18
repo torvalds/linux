@@ -1009,9 +1009,6 @@ lpfc_linkup(struct lpfc_hba *phba)
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++)
 			lpfc_linkup_port(vports[i]);
 	lpfc_destroy_vport_work_array(phba, vports);
-	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
-	    (phba->sli_rev < LPFC_SLI_REV4))
-		lpfc_issue_clear_la(phba, phba->pport);
 
 	return 0;
 }
@@ -5028,11 +5025,13 @@ lpfc_disc_start(struct lpfc_vport *vport)
 	if (num_sent)
 		return;
 
-	/* Register the VPI for SLI3, NON-NPIV only. */
+	/* Register the VPI for SLI3, NPIV only. */
 	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
 	    !(vport->fc_flag & FC_PT2PT) &&
 	    !(vport->fc_flag & FC_RSCN_MODE) &&
 	    (phba->sli_rev < LPFC_SLI_REV4)) {
+		if (vport->port_type == LPFC_PHYSICAL_PORT)
+			lpfc_issue_clear_la(phba, vport);
 		lpfc_issue_reg_vpi(phba, vport);
 		return;
 	}
