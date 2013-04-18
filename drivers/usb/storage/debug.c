@@ -43,6 +43,7 @@
  */
 
 #include <linux/cdrom.h>
+#include <linux/export.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_dbg.h>
@@ -193,3 +194,4 @@ int usb_stor_dbg(const char *fmt, ...)
 
 	return r;
 }
+EXPORT_SYMBOL_GPL(usb_stor_dbg);
