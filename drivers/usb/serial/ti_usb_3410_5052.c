@@ -976,8 +976,6 @@ static void ti_break(struct tty_struct *tty, int break_state)
 	if (tport == NULL)
 		return;
 
-	ti_drain(tport, (tport->tp_closing_wait*HZ)/100);
-
 	status = ti_write_byte(port, tport->tp_tdev,
 		tport->tp_uart_base_addr + TI_UART_OFFSET_LCR,
 		TI_LCR_BREAK, break_state == -1 ? TI_LCR_BREAK : 0);
