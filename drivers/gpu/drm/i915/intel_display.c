@@ -5990,9 +5990,14 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum transcoder cpu_transcoder = crtc->config.cpu_transcoder;
 	uint32_t tmp;
 
-	tmp = I915_READ(PIPECONF(crtc->config.cpu_transcoder));
+	if (!intel_using_power_well(dev_priv->dev) &&
+	    cpu_transcoder != TRANSCODER_EDP)
+		return false;
+
+	tmp = I915_READ(PIPECONF(cpu_transcoder));
 	if (!(tmp & PIPECONF_ENABLE))
 		return false;
 
