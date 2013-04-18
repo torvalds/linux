@@ -431,6 +431,8 @@ int __mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 
 
 	cmd.cmd_timeout_ms = timeout_ms;
+	if (index == EXT_CSD_SANITIZE_START)
+		cmd.sanitize_busy = true;
 
 	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
 	if (err)
