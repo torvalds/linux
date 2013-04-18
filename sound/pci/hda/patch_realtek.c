@@ -4288,7 +4288,8 @@ static int patch_alc662(struct hda_codec *codec)
 	if ((alc_get_coef0(codec) & (1 << 14)) &&
 	    codec->bus->pci->subsystem_vendor == 0x1025 &&
 	    spec->cdefine.platform_type == 1) {
-		if (alc_codec_rename(codec, "ALC272X") < 0)
+		err = alc_codec_rename(codec, "ALC272X");
+		if (err < 0)
 			goto error;
 	}
 
