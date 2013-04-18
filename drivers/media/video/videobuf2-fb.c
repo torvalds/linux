@@ -86,7 +86,7 @@ static struct fmt_desc fmt_conv_table[] = {
 	}, {
 		.fourcc = V4L2_PIX_FMT_BGR32,
 		.bits_per_pixel = 32,
-		.red = {	.offset = 16,	.length = 4,	},
+		.red = {	.offset = 16,	.length = 8,	},
 		.green = {	.offset = 8,	.length = 8,	},
 		.blue = {	.offset = 0,	.length = 8,	},
 		.transp = {	.offset = 24,	.length = 8,	},
