@@ -766,7 +766,7 @@ static const struct file_operations fimc_is_debugfs_fops = {
 
 static void fimc_is_debugfs_remove(struct fimc_is *is)
 {
-	debugfs_remove(is->debugfs_entry);
+	debugfs_remove_recursive(is->debugfs_entry);
 	is->debugfs_entry = NULL;
 }
 
