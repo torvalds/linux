@@ -1457,6 +1457,12 @@ static int s5c73m3_oif_registered(struct v4l2_subdev *sd)
 	return ret;
 }
 
+static void s5c73m3_oif_unregistered(struct v4l2_subdev *sd)
+{
+	struct s5c73m3 *state = oif_sd_to_s5c73m3(sd);
+	v4l2_device_unregister_subdev(&state->sensor_sd);
+}
+
 static const struct v4l2_subdev_internal_ops s5c73m3_internal_ops = {
 	.open		= s5c73m3_open,
 };
@@ -1474,6 +1480,7 @@ static const struct v4l2_subdev_ops s5c73m3_subdev_ops = {
 
 static const struct v4l2_subdev_internal_ops oif_internal_ops = {
 	.registered	= s5c73m3_oif_registered,
+	.unregistered	= s5c73m3_oif_unregistered,
 	.open		= s5c73m3_oif_open,
 };
 
