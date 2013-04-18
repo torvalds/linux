@@ -674,6 +674,9 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
 	int i;
 	int rc;
 
+	if (phba->pport->fc_flag & FC_OFFLINE_MODE)
+		return 0;
+
 	init_completion(&online_compl);
 	rc = lpfc_workq_post_event(phba, &status, &online_compl,
 			      LPFC_EVT_OFFLINE_PREP);
@@ -741,7 +744,8 @@ lpfc_selective_reset(struct lpfc_hba *phba)
 	int status = 0;
 	int rc;
 
-	if (!phba->cfg_enable_hba_reset)
+	if ((!phba->cfg_enable_hba_reset) ||
+	    (phba->pport->fc_flag & FC_OFFLINE_MODE))
 		return -EACCES;
 
 	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
@@ -895,6 +899,7 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 		pci_disable_sriov(pdev);
 		phba->cfg_sriov_nr_virtfn = 0;
 	}
+
 	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 
 	if (status != 0)

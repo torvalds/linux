@@ -7817,8 +7817,13 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 
 out:
 	/* Catch the not-ready port failure after a port reset. */
-	if (num_resets >= MAX_IF_TYPE_2_RESETS)
+	if (num_resets >= MAX_IF_TYPE_2_RESETS) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3317 HBA not functional: IP Reset Failed "
+				"after (%d) retries, try: "
+				"echo fw_reset > board_mode\n", num_resets);
 		rc = -ENODEV;
+	}
 
 	return rc;
 }
