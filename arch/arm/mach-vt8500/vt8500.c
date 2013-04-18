@@ -20,7 +20,6 @@
 
 #include <linux/clocksource.h>
 #include <linux/io.h>
-#include <linux/irqchip.h>
 #include <linux/pm.h>
 
 #include <asm/mach-types.h>
@@ -178,7 +177,6 @@ static const char * const vt8500_dt_compat[] = {
 DT_MACHINE_START(WMT_DT, "VIA/Wondermedia SoC (Device Tree Support)")
 	.dt_compat	= vt8500_dt_compat,
 	.map_io		= vt8500_map_io,
-	.init_irq	= irqchip_init,
 	.init_machine	= vt8500_init,
 	.init_time	= clocksource_of_init,
 	.restart	= vt8500_restart,
