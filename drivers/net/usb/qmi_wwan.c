@@ -68,6 +68,10 @@ struct qmi_wwan_state {
  * This means that this function will reliably add the appropriate
  * header iff necessary, provided our hardware address does not start
  * with 4 or 6.
+ *
+ * Another common firmware bug results in all packets being addressed
+ * to 00:a0:c6:00:00:00 despite the host address being different.
+ * This function will also fixup such packets.
  */
 static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
@@ -84,6 +88,12 @@ static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	case 0x60:
 		proto = htons(ETH_P_IPV6);
 		break;
+	case 0x00:
+		if (is_multicast_ether_addr(skb->data))
+			return 1;
+		/* possibly bogus destination - rewrite just in case */
+		skb_reset_mac_header(skb);
+		goto fix_dest;
 	default:
 		/* pass along other packets without modifications */
 		return 1;
@@ -94,6 +104,7 @@ static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	skb_reset_mac_header(skb);
 	eth_hdr(skb)->h_proto = proto;
 	memset(eth_hdr(skb)->h_source, 0, ETH_ALEN);
+fix_dest:
 	memcpy(eth_hdr(skb)->h_dest, dev->net->dev_addr, ETH_ALEN);
 	return 1;
 }
