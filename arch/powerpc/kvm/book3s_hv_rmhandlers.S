@@ -260,6 +260,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	lwz	r5, LPPACA_YIELDCOUNT(r3)
 	addi	r5, r5, 1
 	stw	r5, LPPACA_YIELDCOUNT(r3)
+	li	r6, 1
+	stb	r6, VCPU_VPA_DIRTY(r4)
 25:
 	/* Load up DAR and DSISR */
 	ld	r5, VCPU_DAR(r4)
@@ -1018,6 +1020,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	lwz	r3, LPPACA_YIELDCOUNT(r8)
 	addi	r3, r3, 1
 	stw	r3, LPPACA_YIELDCOUNT(r8)
+	li	r3, 1
+	stb	r3, VCPU_VPA_DIRTY(r9)
 25:
 	/* Save PMU registers if requested */
 	/* r8 and cr0.eq are live here */

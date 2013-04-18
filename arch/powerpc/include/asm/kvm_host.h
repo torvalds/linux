@@ -301,11 +301,13 @@ struct kvmppc_vcore {
  * that a guest can register.
  */
 struct kvmppc_vpa {
+	unsigned long gpa;	/* Current guest phys addr */
 	void *pinned_addr;	/* Address in kernel linear mapping */
 	void *pinned_end;	/* End of region */
 	unsigned long next_gpa;	/* Guest phys addr for update */
 	unsigned long len;	/* Number of bytes required */
 	u8 update_pending;	/* 1 => update pinned_addr from next_gpa */
+	bool dirty;		/* true => area has been modified by kernel */
 };
 
 struct kvmppc_pte {

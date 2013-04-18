@@ -1099,11 +1099,30 @@ static int kvm_test_clear_dirty(struct kvm *kvm, unsigned long *rmapp)
 	return ret;
 }
 
+static void harvest_vpa_dirty(struct kvmppc_vpa *vpa,
+			      struct kvm_memory_slot *memslot,
+			      unsigned long *map)
+{
+	unsigned long gfn;
+
+	if (!vpa->dirty || !vpa->pinned_addr)
+		return;
+	gfn = vpa->gpa >> PAGE_SHIFT;
+	if (gfn < memslot->base_gfn ||
+	    gfn >= memslot->base_gfn + memslot->npages)
+		return;
+
+	vpa->dirty = false;
+	if (map)
+		__set_bit_le(gfn - memslot->base_gfn, map);
+}
+
 long kvmppc_hv_get_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			     unsigned long *map)
 {
 	unsigned long i;
 	unsigned long *rmapp;
+	struct kvm_vcpu *vcpu;
 
 	preempt_disable();
 	rmapp = memslot->arch.rmap;
@@ -1111,6 +1130,15 @@ long kvmppc_hv_get_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		if (kvm_test_clear_dirty(kvm, rmapp) && map)
 			__set_bit_le(i, map);
 		++rmapp;
+	}
+
+	/* Harvest dirty bits from VPA and DTL updates */
+	/* Note: we never modify the SLB shadow buffer areas */
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		spin_lock(&vcpu->arch.vpa_update_lock);
+		harvest_vpa_dirty(&vcpu->arch.vpa, memslot, map);
+		harvest_vpa_dirty(&vcpu->arch.dtl, memslot, map);
+		spin_unlock(&vcpu->arch.vpa_update_lock);
 	}
 	preempt_enable();
 	return 0;
@@ -1123,7 +1151,7 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 	unsigned long gfn = gpa >> PAGE_SHIFT;
 	struct page *page, *pages[1];
 	int npages;
-	unsigned long hva, psize, offset;
+	unsigned long hva, offset;
 	unsigned long pa;
 	unsigned long *physp;
 	int srcu_idx;
@@ -1155,14 +1183,9 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 	}
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 
-	psize = PAGE_SIZE;
-	if (PageHuge(page)) {
-		page = compound_head(page);
-		psize <<= compound_order(page);
-	}
-	offset = gpa & (psize - 1);
+	offset = gpa & (PAGE_SIZE - 1);
 	if (nb_ret)
-		*nb_ret = psize - offset;
+		*nb_ret = PAGE_SIZE - offset;
 	return page_address(page) + offset;
 
  err:
@@ -1170,11 +1193,31 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 	return NULL;
 }
 
-void kvmppc_unpin_guest_page(struct kvm *kvm, void *va)
+void kvmppc_unpin_guest_page(struct kvm *kvm, void *va, unsigned long gpa,
+			     bool dirty)
 {
 	struct page *page = virt_to_page(va);
+	struct kvm_memory_slot *memslot;
+	unsigned long gfn;
+	unsigned long *rmap;
+	int srcu_idx;
 
 	put_page(page);
+
+	if (!dirty || !kvm->arch.using_mmu_notifiers)
+		return;
+
+	/* We need to mark this page dirty in the rmap chain */
+	gfn = gpa >> PAGE_SHIFT;
+	srcu_idx = srcu_read_lock(&kvm->srcu);
+	memslot = gfn_to_memslot(kvm, gfn);
+	if (memslot) {
+		rmap = &memslot->arch.rmap[gfn - memslot->base_gfn];
+		lock_rmap(rmap);
+		*rmap |= KVMPPC_RMAP_CHANGED;
+		unlock_rmap(rmap);
+	}
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
 }
 
 /*

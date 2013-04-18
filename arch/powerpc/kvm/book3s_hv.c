@@ -259,7 +259,7 @@ static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 			len = ((struct reg_vpa *)va)->length.hword;
 		else
 			len = ((struct reg_vpa *)va)->length.word;
-		kvmppc_unpin_guest_page(kvm, va);
+		kvmppc_unpin_guest_page(kvm, va, vpa, false);
 
 		/* Check length */
 		if (len > nb || len < sizeof(struct reg_vpa))
@@ -359,13 +359,13 @@ static void kvmppc_update_vpa(struct kvm_vcpu *vcpu, struct kvmppc_vpa *vpap)
 		va = NULL;
 		nb = 0;
 		if (gpa)
-			va = kvmppc_pin_guest_page(kvm, vpap->next_gpa, &nb);
+			va = kvmppc_pin_guest_page(kvm, gpa, &nb);
 		spin_lock(&vcpu->arch.vpa_update_lock);
 		if (gpa == vpap->next_gpa)
 			break;
 		/* sigh... unpin that one and try again */
 		if (va)
-			kvmppc_unpin_guest_page(kvm, va);
+			kvmppc_unpin_guest_page(kvm, va, gpa, false);
 	}
 
 	vpap->update_pending = 0;
@@ -375,12 +375,15 @@ static void kvmppc_update_vpa(struct kvm_vcpu *vcpu, struct kvmppc_vpa *vpap)
 		 * has changed the mappings underlying guest memory,
 		 * so unregister the region.
 		 */
-		kvmppc_unpin_guest_page(kvm, va);
+		kvmppc_unpin_guest_page(kvm, va, gpa, false);
 		va = NULL;
 	}
 	if (vpap->pinned_addr)
-		kvmppc_unpin_guest_page(kvm, vpap->pinned_addr);
+		kvmppc_unpin_guest_page(kvm, vpap->pinned_addr, vpap->gpa,
+					vpap->dirty);
+	vpap->gpa = gpa;
 	vpap->pinned_addr = va;
+	vpap->dirty = false;
 	if (va)
 		vpap->pinned_end = va + vpap->len;
 }
@@ -472,6 +475,7 @@ static void kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
 	/* order writing *dt vs. writing vpa->dtl_idx */
 	smp_wmb();
 	vpa->dtl_idx = ++vcpu->arch.dtl_index;
+	vcpu->arch.dtl.dirty = true;
 }
 
 int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
@@ -913,15 +917,19 @@ out:
 	return ERR_PTR(err);
 }
 
+static void unpin_vpa(struct kvm *kvm, struct kvmppc_vpa *vpa)
+{
+	if (vpa->pinned_addr)
+		kvmppc_unpin_guest_page(kvm, vpa->pinned_addr, vpa->gpa,
+					vpa->dirty);
+}
+
 void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 {
 	spin_lock(&vcpu->arch.vpa_update_lock);
-	if (vcpu->arch.dtl.pinned_addr)
-		kvmppc_unpin_guest_page(vcpu->kvm, vcpu->arch.dtl.pinned_addr);
-	if (vcpu->arch.slb_shadow.pinned_addr)
-		kvmppc_unpin_guest_page(vcpu->kvm, vcpu->arch.slb_shadow.pinned_addr);
-	if (vcpu->arch.vpa.pinned_addr)
-		kvmppc_unpin_guest_page(vcpu->kvm, vcpu->arch.vpa.pinned_addr);
+	unpin_vpa(vcpu->kvm, &vcpu->arch.dtl);
+	unpin_vpa(vcpu->kvm, &vcpu->arch.slb_shadow);
+	unpin_vpa(vcpu->kvm, &vcpu->arch.vpa);
 	spin_unlock(&vcpu->arch.vpa_update_lock);
 	kvm_vcpu_uninit(vcpu);
 	kmem_cache_free(kvm_vcpu_cache, vcpu);
