@@ -26,8 +26,12 @@
 	};
 
 	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		cpu@0 {
 			compatible = "arm,cortex-a8";
+			device_type = "cpu";
+			reg = <0>;
 
 			/*
 			 * To consider voltage drop between PMIC and SoC,
