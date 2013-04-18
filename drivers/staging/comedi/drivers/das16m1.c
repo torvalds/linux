@@ -648,7 +648,9 @@ static int das16m1_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[3];
 	/* 8255 */
-	subdev_8255_init(dev, s, NULL, devpriv->extra_iobase);
+	ret = subdev_8255_init(dev, s, NULL, devpriv->extra_iobase);
+	if (ret)
+		return ret;
 
 	/*  disable upper half of hardware conversion counter so it doesn't mess with us */
 	outb(TOTAL_CLEAR, dev->iobase + DAS16M1_8254_FIRST_CNTRL);
