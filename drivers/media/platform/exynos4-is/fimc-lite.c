@@ -1399,6 +1399,7 @@ static int fimc_lite_create_capture_subdev(struct fimc_lite *fimc)
 	sd->ctrl_handler = handler;
 	sd->internal_ops = &fimc_lite_subdev_internal_ops;
 	sd->entity.ops = &fimc_lite_subdev_media_ops;
+	sd->owner = THIS_MODULE;
 	v4l2_set_subdevdata(sd, fimc);
 
 	return 0;
