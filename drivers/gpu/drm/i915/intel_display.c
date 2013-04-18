@@ -6002,15 +6002,14 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 		return false;
 
 	/*
-	 * aswell has only FDI/PCH transcoder A. It is which is connected to
+	 * Haswell has only FDI/PCH transcoder A. It is which is connected to
 	 * DDI E. So just check whether this pipe is wired to DDI E and whether
 	 * the PCH transcoder is on.
 	 */
-	tmp = I915_READ(TRANS_DDI_FUNC_CTL(crtc->pipe));
+	tmp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 	if ((tmp & TRANS_DDI_PORT_MASK) == TRANS_DDI_SELECT_PORT(PORT_E) &&
 	    I915_READ(TRANSCONF(PIPE_A)) & TRANS_ENABLE)
 		pipe_config->has_pch_encoder = true;
-
 
 	return true;
 }
