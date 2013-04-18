@@ -4730,23 +4730,52 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 		return -ENOMEM;
 
 	/*
-	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
+	 * Since lpfc_sg_seg_cnt is module parameter, the sg_dma_buf_size
 	 * used to create the sg_dma_buf_pool must be dynamically calculated.
-	 * 2 segments are added since the IOCB needs a command and response bde.
 	 */
-	phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
-		sizeof(struct fcp_rsp) +
-			((phba->cfg_sg_seg_cnt + 2) * sizeof(struct ulp_bde64));
 
-	if (phba->cfg_enable_bg) {
-		phba->cfg_sg_seg_cnt = LPFC_MAX_BPL_SEG_CNT;
-		phba->cfg_sg_dma_buf_size +=
-			phba->cfg_prot_sg_seg_cnt * sizeof(struct ulp_bde64);
-	}
-
-	/* Also reinitialize the host templates with new values. */
+	/* Initialize the host templates the configured values. */
 	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
 	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+
+	/* There are going to be 2 reserved BDEs: 1 FCP cmnd + 1 FCP rsp */
+	if (phba->cfg_enable_bg) {
+		/*
+		 * The scsi_buf for a T10-DIF I/O will hold the FCP cmnd,
+		 * the FCP rsp, and a BDE for each. Sice we have no control
+		 * over how many protection data segments the SCSI Layer
+		 * will hand us (ie: there could be one for every block
+		 * in the IO), we just allocate enough BDEs to accomidate
+		 * our max amount and we need to limit lpfc_sg_seg_cnt to
+		 * minimize the risk of running out.
+		 */
+		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
+			sizeof(struct fcp_rsp) +
+			(LPFC_MAX_SG_SEG_CNT * sizeof(struct ulp_bde64));
+
+		if (phba->cfg_sg_seg_cnt > LPFC_MAX_SG_SEG_CNT_DIF)
+			phba->cfg_sg_seg_cnt = LPFC_MAX_SG_SEG_CNT_DIF;
+
+		/* Total BDEs in BPL for scsi_sg_list and scsi_sg_prot_list */
+		phba->cfg_total_seg_cnt = LPFC_MAX_SG_SEG_CNT;
+	} else {
+		/*
+		 * The scsi_buf for a regular I/O will hold the FCP cmnd,
+		 * the FCP rsp, a BDE for each, and a BDE for up to
+		 * cfg_sg_seg_cnt data segments.
+		 */
+		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
+			sizeof(struct fcp_rsp) +
+			((phba->cfg_sg_seg_cnt + 2) * sizeof(struct ulp_bde64));
+
+		/* Total BDEs in BPL for scsi_sg_list */
+		phba->cfg_total_seg_cnt = phba->cfg_sg_seg_cnt + 2;
+	}
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
+			"9088 sg_tablesize:%d dmabuf_size:%d total_bde:%d\n",
+			phba->cfg_sg_seg_cnt, phba->cfg_sg_dma_buf_size,
+			phba->cfg_total_seg_cnt);
 
 	phba->max_vpi = LPFC_MAX_VPI;
 	/* This will be set to correct value after config_port mbox */
@@ -4814,11 +4843,10 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli;
 	LPFC_MBOXQ_t *mboxq;
-	int rc, i, hbq_count, buf_size, dma_buf_size, max_buf_size;
+	int rc, i, hbq_count, max_buf_size;
 	uint8_t pn_page[LPFC_MAX_SUPPORTED_PAGES] = {0};
 	struct lpfc_mqe *mqe;
 	int longs;
-	int sges_per_segment;
 
 	/* Before proceed, wait for POST done and device ready */
 	rc = lpfc_sli4_post_status_check(phba);
@@ -4886,11 +4914,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	phba->fc_map[1] = LPFC_FCOE_FCF_MAP1;
 	phba->fc_map[2] = LPFC_FCOE_FCF_MAP2;
 
-	/* With BlockGuard we can have multiple SGEs per Data Segemnt */
-	sges_per_segment = 1;
-	if (phba->cfg_enable_bg)
-		sges_per_segment = 2;
-
 	/*
 	 * For SLI4, instead of using ring 0 (LPFC_FCP_RING) for FCP commands
 	 * we will associate a new ring, for each FCP fastpath EQ/CQ/WQ tuple.
@@ -4910,29 +4933,62 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	max_buf_size = (2 * SLI4_PAGE_SIZE);
 	if (phba->cfg_sg_seg_cnt > LPFC_MAX_SGL_SEG_CNT - 2)
 		phba->cfg_sg_seg_cnt = LPFC_MAX_SGL_SEG_CNT - 2;
-	max_buf_size += (sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp));
 
 	/*
-	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
+	 * Since lpfc_sg_seg_cnt is module parameter, the sg_dma_buf_size
 	 * used to create the sg_dma_buf_pool must be dynamically calculated.
-	 * 2 segments are added since the IOCB needs a command and response bde.
-	 * To insure that the scsi sgl does not cross a 4k page boundary only
-	 * sgl sizes of must be a power of 2.
 	 */
-	buf_size = (sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp) +
-		    (((phba->cfg_sg_seg_cnt * sges_per_segment) + 2) *
-		    sizeof(struct sli4_sge)));
 
-	for (dma_buf_size = LPFC_SLI4_MIN_BUF_SIZE;
-	     dma_buf_size < max_buf_size && buf_size > dma_buf_size;
-	     dma_buf_size = dma_buf_size << 1)
-		;
-	if (dma_buf_size == max_buf_size)
-		phba->cfg_sg_seg_cnt = (dma_buf_size -
-			sizeof(struct fcp_cmnd) - sizeof(struct fcp_rsp) -
-			(2 * sizeof(struct sli4_sge))) /
-				sizeof(struct sli4_sge);
-	phba->cfg_sg_dma_buf_size = dma_buf_size;
+	if (phba->cfg_enable_bg) {
+		/*
+		 * The scsi_buf for a T10-DIF I/O will hold the FCP cmnd,
+		 * the FCP rsp, and a SGE for each. Sice we have no control
+		 * over how many protection data segments the SCSI Layer
+		 * will hand us (ie: there could be one for every block
+		 * in the IO), we just allocate enough SGEs to accomidate
+		 * our max amount and we need to limit lpfc_sg_seg_cnt to
+		 * minimize the risk of running out.
+		 */
+		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
+			sizeof(struct fcp_rsp) + max_buf_size;
+
+		/* Total SGEs for scsi_sg_list and scsi_sg_prot_list */
+		phba->cfg_total_seg_cnt = LPFC_MAX_SGL_SEG_CNT;
+
+		if (phba->cfg_sg_seg_cnt > LPFC_MAX_SG_SLI4_SEG_CNT_DIF)
+			phba->cfg_sg_seg_cnt = LPFC_MAX_SG_SLI4_SEG_CNT_DIF;
+	} else {
+		/*
+		 * The scsi_buf for a regular I/O will hold the FCP cmnd,
+		 * the FCP rsp, a SGE for each, and a SGE for up to
+		 * cfg_sg_seg_cnt data segments.
+		 */
+		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
+			sizeof(struct fcp_rsp) +
+			((phba->cfg_sg_seg_cnt + 2) * sizeof(struct sli4_sge));
+
+		/* Total SGEs for scsi_sg_list */
+		phba->cfg_total_seg_cnt = phba->cfg_sg_seg_cnt + 2;
+		/*
+		 * NOTE: if (phba->cfg_sg_seg_cnt + 2) <= 256 we only need
+		 * to post 1 page for the SGL.
+		 */
+	}
+
+	/* Initialize the host templates with the updated values. */
+	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+
+	if (phba->cfg_sg_dma_buf_size  <= LPFC_MIN_SG_SLI4_BUF_SZ)
+		phba->cfg_sg_dma_buf_size = LPFC_MIN_SG_SLI4_BUF_SZ;
+	else
+		phba->cfg_sg_dma_buf_size =
+			SLI4_PAGE_ALIGN(phba->cfg_sg_dma_buf_size);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
+			"9087 sg_tablesize:%d dmabuf_size:%d total_sge:%d\n",
+			phba->cfg_sg_seg_cnt, phba->cfg_sg_dma_buf_size,
+			phba->cfg_total_seg_cnt);
 
 	/* Initialize buffer queue management fields */
 	hbq_count = lpfc_sli_hbq_count();

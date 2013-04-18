@@ -536,7 +536,16 @@ lpfc_new_scsi_buf_s3(struct lpfc_vport *vport, int num_to_alloc)
 	dma_addr_t pdma_phys_fcp_rsp;
 	dma_addr_t pdma_phys_bpl;
 	uint16_t iotag;
-	int bcnt;
+	int bcnt, bpl_size;
+
+	bpl_size = phba->cfg_sg_dma_buf_size -
+		(sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp));
+
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+			 "9067 ALLOC %d scsi_bufs: %d (%d + %d + %d)\n",
+			 num_to_alloc, phba->cfg_sg_dma_buf_size,
+			 (int)sizeof(struct fcp_cmnd),
+			 (int)sizeof(struct fcp_rsp), bpl_size);
 
 	for (bcnt = 0; bcnt < num_to_alloc; bcnt++) {
 		psb = kzalloc(sizeof(struct lpfc_scsi_buf), GFP_KERNEL);
@@ -761,7 +770,7 @@ lpfc_sli4_post_scsi_sgl_list(struct lpfc_hba *phba,
 			     struct list_head *post_sblist, int sb_count)
 {
 	struct lpfc_scsi_buf *psb, *psb_next;
-	int status;
+	int status, sgl_size;
 	int post_cnt = 0, block_cnt = 0, num_posting = 0, num_posted = 0;
 	dma_addr_t pdma_phys_bpl1;
 	int last_xritag = NO_XRI;
@@ -772,6 +781,9 @@ lpfc_sli4_post_scsi_sgl_list(struct lpfc_hba *phba,
 	/* sanity check */
 	if (sb_count <= 0)
 		return -EINVAL;
+
+	sgl_size = phba->cfg_sg_dma_buf_size -
+		(sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp));
 
 	list_for_each_entry_safe(psb, psb_next, post_sblist, list) {
 		list_del_init(&psb->list);
@@ -805,7 +817,7 @@ lpfc_sli4_post_scsi_sgl_list(struct lpfc_hba *phba,
 				post_cnt = block_cnt;
 			} else if (block_cnt == 1) {
 				/* last single sgl with non-contiguous xri */
-				if (phba->cfg_sg_dma_buf_size > SGL_PAGE_SIZE)
+				if (sgl_size > SGL_PAGE_SIZE)
 					pdma_phys_bpl1 = psb->dma_phys_bpl +
 								SGL_PAGE_SIZE;
 				else
@@ -925,12 +937,21 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 	IOCB_t *iocb;
 	dma_addr_t pdma_phys_fcp_cmd;
 	dma_addr_t pdma_phys_fcp_rsp;
-	dma_addr_t pdma_phys_bpl, pdma_phys_bpl1;
+	dma_addr_t pdma_phys_bpl;
 	uint16_t iotag, lxri = 0;
-	int bcnt, num_posted;
+	int bcnt, num_posted, sgl_size;
 	LIST_HEAD(prep_sblist);
 	LIST_HEAD(post_sblist);
 	LIST_HEAD(scsi_sblist);
+
+	sgl_size = phba->cfg_sg_dma_buf_size -
+		(sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp));
+
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+			 "9068 ALLOC %d scsi_bufs: %d (%d + %d + %d)\n",
+			 num_to_alloc, phba->cfg_sg_dma_buf_size, sgl_size,
+			 (int)sizeof(struct fcp_cmnd),
+			 (int)sizeof(struct fcp_rsp));
 
 	for (bcnt = 0; bcnt < num_to_alloc; bcnt++) {
 		psb = kzalloc(sizeof(struct lpfc_scsi_buf), GFP_KERNEL);
@@ -949,6 +970,15 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 			break;
 		}
 		memset(psb->data, 0, phba->cfg_sg_dma_buf_size);
+
+		/* Page alignment is CRITICAL, double check to be sure */
+		if (((unsigned long)(psb->data) &
+		    (unsigned long)(SLI4_PAGE_SIZE - 1)) != 0) {
+			pci_pool_free(phba->lpfc_scsi_dma_buf_pool,
+				      psb->data, psb->dma_handle);
+			kfree(psb);
+			break;
+		}
 
 		/* Allocate iotag for psb->cur_iocbq. */
 		iotag = lpfc_sli_next_iotag(phba, &psb->cur_iocbq);
@@ -970,17 +1000,14 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 		psb->cur_iocbq.sli4_xritag = phba->sli4_hba.xri_ids[lxri];
 		psb->cur_iocbq.iocb_flag |= LPFC_IO_FCP;
 		psb->fcp_bpl = psb->data;
-		psb->fcp_cmnd = (psb->data + phba->cfg_sg_dma_buf_size)
-			- (sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp));
+		psb->fcp_cmnd = (psb->data + sgl_size);
 		psb->fcp_rsp = (struct fcp_rsp *)((uint8_t *)psb->fcp_cmnd +
 					sizeof(struct fcp_cmnd));
 
 		/* Initialize local short-hand pointers. */
 		sgl = (struct sli4_sge *)psb->fcp_bpl;
 		pdma_phys_bpl = psb->dma_handle;
-		pdma_phys_fcp_cmd =
-			(psb->dma_handle + phba->cfg_sg_dma_buf_size)
-			 - (sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp));
+		pdma_phys_fcp_cmd = (psb->dma_handle + sgl_size);
 		pdma_phys_fcp_rsp = pdma_phys_fcp_cmd + sizeof(struct fcp_cmnd);
 
 		/*
@@ -1022,10 +1049,6 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 		iocb->ulpLe = 1;
 		iocb->ulpClass = CLASS3;
 		psb->cur_iocbq.context1 = psb;
-		if (phba->cfg_sg_dma_buf_size > SGL_PAGE_SIZE)
-			pdma_phys_bpl1 = pdma_phys_bpl + SGL_PAGE_SIZE;
-		else
-			pdma_phys_bpl1 = 0;
 		psb->dma_phys_bpl = pdma_phys_bpl;
 
 		/* add the scsi buffer to a post list */
@@ -1270,6 +1293,7 @@ lpfc_scsi_prep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 			       "dma_map_sg.  Config %d, seg_cnt %d\n",
 			       __func__, phba->cfg_sg_seg_cnt,
 			       lpfc_cmd->seg_cnt);
+			lpfc_cmd->seg_cnt = 0;
 			scsi_dma_unmap(scsi_cmnd);
 			return 1;
 		}
@@ -2147,6 +2171,10 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 	split_offset = 0;
 	do {
+		/* Check to see if we ran out of space */
+		if (num_bde >= (phba->cfg_total_seg_cnt - 2))
+			return num_bde + 3;
+
 		/* setup PDE5 with what we have */
 		pde5 = (struct lpfc_pde5 *) bpl;
 		memset(pde5, 0, sizeof(struct lpfc_pde5));
@@ -2215,6 +2243,10 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		pgdone = 0;
 		subtotal = 0; /* total bytes processed for current prot grp */
 		while (!pgdone) {
+			/* Check to see if we ran out of space */
+			if (num_bde >= phba->cfg_total_seg_cnt)
+				return num_bde + 1;
+
 			if (!sgde) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
 					"9065 BLKGRD:%s Invalid data segment\n",
@@ -2499,6 +2531,10 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 	split_offset = 0;
 	do {
+		/* Check to see if we ran out of space */
+		if (num_sge >= (phba->cfg_total_seg_cnt - 2))
+			return num_sge + 3;
+
 		/* setup DISEED with what we have */
 		diseed = (struct sli4_sge_diseed *) sgl;
 		memset(diseed, 0, sizeof(struct sli4_sge_diseed));
@@ -2558,6 +2594,10 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		pgdone = 0;
 		subtotal = 0; /* total bytes processed for current prot grp */
 		while (!pgdone) {
+			/* Check to see if we ran out of space */
+			if (num_sge >= phba->cfg_total_seg_cnt)
+				return num_sge + 1;
+
 			if (!sgde) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
 					"9086 BLKGRD:%s Invalid data segment\n",
@@ -2713,28 +2753,28 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 			return 1;
 
 		lpfc_cmd->seg_cnt = datasegcnt;
-		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-					"9067 BLKGRD: %s: Too many sg segments"
-					" from dma_map_sg.  Config %d, seg_cnt"
-					" %d\n",
-					__func__, phba->cfg_sg_seg_cnt,
-					lpfc_cmd->seg_cnt);
-			scsi_dma_unmap(scsi_cmnd);
-			return 1;
-		}
+
+		/* First check if data segment count from SCSI Layer is good */
+		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt)
+			goto err;
 
 		prot_group_type = lpfc_prot_group_type(phba, scsi_cmnd);
 
 		switch (prot_group_type) {
 		case LPFC_PG_TYPE_NO_DIF:
+
+			/* Here we need to add a PDE5 and PDE6 to the count */
+			if ((lpfc_cmd->seg_cnt + 2) > phba->cfg_total_seg_cnt)
+				goto err;
+
 			num_bde = lpfc_bg_setup_bpl(phba, scsi_cmnd, bpl,
 					datasegcnt);
 			/* we should have 2 or more entries in buffer list */
 			if (num_bde < 2)
 				goto err;
 			break;
-		case LPFC_PG_TYPE_DIF_BUF:{
+
+		case LPFC_PG_TYPE_DIF_BUF:
 			/*
 			 * This type indicates that protection buffers are
 			 * passed to the driver, so that needs to be prepared
@@ -2749,31 +2789,28 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 			}
 
 			lpfc_cmd->prot_seg_cnt = protsegcnt;
-			if (lpfc_cmd->prot_seg_cnt
-			    > phba->cfg_prot_sg_seg_cnt) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-					"9068 BLKGRD: %s: Too many prot sg "
-					"segments from dma_map_sg.  Config %d,"
-						"prot_seg_cnt %d\n", __func__,
-						phba->cfg_prot_sg_seg_cnt,
-						lpfc_cmd->prot_seg_cnt);
-				dma_unmap_sg(&phba->pcidev->dev,
-					     scsi_prot_sglist(scsi_cmnd),
-					     scsi_prot_sg_count(scsi_cmnd),
-					     datadir);
-				scsi_dma_unmap(scsi_cmnd);
-				return 1;
-			}
+
+			/*
+			 * There is a minimun of 4 BPLs used for every
+			 * protection data segment.
+			 */
+			if ((lpfc_cmd->prot_seg_cnt * 4) >
+			    (phba->cfg_total_seg_cnt - 2))
+				goto err;
 
 			num_bde = lpfc_bg_setup_bpl_prot(phba, scsi_cmnd, bpl,
 					datasegcnt, protsegcnt);
 			/* we should have 3 or more entries in buffer list */
-			if (num_bde < 3)
+			if ((num_bde < 3) ||
+			    (num_bde > phba->cfg_total_seg_cnt))
 				goto err;
 			break;
-		}
+
 		case LPFC_PG_TYPE_INVALID:
 		default:
+			scsi_dma_unmap(scsi_cmnd);
+			lpfc_cmd->seg_cnt = 0;
+
 			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
 					"9022 Unexpected protection group %i\n",
 					prot_group_type);
@@ -2814,10 +2851,22 @@ lpfc_bg_scsi_prep_dma_buf_s3(struct lpfc_hba *phba,
 
 	return 0;
 err:
+	if (lpfc_cmd->seg_cnt)
+		scsi_dma_unmap(scsi_cmnd);
+	if (lpfc_cmd->prot_seg_cnt)
+		dma_unmap_sg(&phba->pcidev->dev, scsi_prot_sglist(scsi_cmnd),
+			     scsi_prot_sg_count(scsi_cmnd),
+			     scsi_cmnd->sc_data_direction);
+
 	lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
-			"9023 Could not setup all needed BDE's"
-			"prot_group_type=%d, num_bde=%d\n",
+			"9023 Cannot setup S/G List for HBA"
+			"IO segs %d/%d BPL %d SCSI %d: %d %d\n",
+			lpfc_cmd->seg_cnt, lpfc_cmd->prot_seg_cnt,
+			phba->cfg_total_seg_cnt, phba->cfg_sg_seg_cnt,
 			prot_group_type, num_bde);
+
+	lpfc_cmd->seg_cnt = 0;
+	lpfc_cmd->prot_seg_cnt = 0;
 	return 1;
 }
 
@@ -3255,6 +3304,7 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 				"dma_map_sg.  Config %d, seg_cnt %d\n",
 				__func__, phba->cfg_sg_seg_cnt,
 			       lpfc_cmd->seg_cnt);
+			lpfc_cmd->seg_cnt = 0;
 			scsi_dma_unmap(scsi_cmnd);
 			return 1;
 		}
@@ -3376,14 +3426,14 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 	struct fcp_cmnd *fcp_cmnd = lpfc_cmd->fcp_cmnd;
 	struct sli4_sge *sgl = (struct sli4_sge *)(lpfc_cmd->fcp_bpl);
 	IOCB_t *iocb_cmd = &lpfc_cmd->cur_iocbq.iocb;
-	uint32_t num_bde = 0;
+	uint32_t num_sge = 0;
 	int datasegcnt, protsegcnt, datadir = scsi_cmnd->sc_data_direction;
 	int prot_group_type = 0;
 	int fcpdl;
 
 	/*
 	 * Start the lpfc command prep by bumping the sgl beyond fcp_cmnd
-	 *  fcp_rsp regions to the first data bde entry
+	 *  fcp_rsp regions to the first data sge entry
 	 */
 	if (scsi_sg_count(scsi_cmnd)) {
 		/*
@@ -3406,28 +3456,28 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 
 		sgl += 1;
 		lpfc_cmd->seg_cnt = datasegcnt;
-		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-					"9087 BLKGRD: %s: Too many sg segments"
-					" from dma_map_sg.  Config %d, seg_cnt"
-					" %d\n",
-					__func__, phba->cfg_sg_seg_cnt,
-					lpfc_cmd->seg_cnt);
-			scsi_dma_unmap(scsi_cmnd);
-			return 1;
-		}
+
+		/* First check if data segment count from SCSI Layer is good */
+		if (lpfc_cmd->seg_cnt > phba->cfg_sg_seg_cnt)
+			goto err;
 
 		prot_group_type = lpfc_prot_group_type(phba, scsi_cmnd);
 
 		switch (prot_group_type) {
 		case LPFC_PG_TYPE_NO_DIF:
-			num_bde = lpfc_bg_setup_sgl(phba, scsi_cmnd, sgl,
+			/* Here we need to add a DISEED to the count */
+			if ((lpfc_cmd->seg_cnt + 1) > phba->cfg_total_seg_cnt)
+				goto err;
+
+			num_sge = lpfc_bg_setup_sgl(phba, scsi_cmnd, sgl,
 					datasegcnt);
+
 			/* we should have 2 or more entries in buffer list */
-			if (num_bde < 2)
+			if (num_sge < 2)
 				goto err;
 			break;
-		case LPFC_PG_TYPE_DIF_BUF:{
+
+		case LPFC_PG_TYPE_DIF_BUF:
 			/*
 			 * This type indicates that protection buffers are
 			 * passed to the driver, so that needs to be prepared
@@ -3442,31 +3492,28 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 			}
 
 			lpfc_cmd->prot_seg_cnt = protsegcnt;
-			if (lpfc_cmd->prot_seg_cnt
-			    > phba->cfg_prot_sg_seg_cnt) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-					"9088 BLKGRD: %s: Too many prot sg "
-					"segments from dma_map_sg.  Config %d,"
-						"prot_seg_cnt %d\n", __func__,
-						phba->cfg_prot_sg_seg_cnt,
-						lpfc_cmd->prot_seg_cnt);
-				dma_unmap_sg(&phba->pcidev->dev,
-					     scsi_prot_sglist(scsi_cmnd),
-					     scsi_prot_sg_count(scsi_cmnd),
-					     datadir);
-				scsi_dma_unmap(scsi_cmnd);
-				return 1;
-			}
+			/*
+			 * There is a minimun of 3 SGEs used for every
+			 * protection data segment.
+			 */
+			if ((lpfc_cmd->prot_seg_cnt * 3) >
+			    (phba->cfg_total_seg_cnt - 2))
+				goto err;
 
-			num_bde = lpfc_bg_setup_sgl_prot(phba, scsi_cmnd, sgl,
+			num_sge = lpfc_bg_setup_sgl_prot(phba, scsi_cmnd, sgl,
 					datasegcnt, protsegcnt);
+
 			/* we should have 3 or more entries in buffer list */
-			if (num_bde < 3)
+			if ((num_sge < 3) ||
+			    (num_sge > phba->cfg_total_seg_cnt))
 				goto err;
 			break;
-		}
+
 		case LPFC_PG_TYPE_INVALID:
 		default:
+			scsi_dma_unmap(scsi_cmnd);
+			lpfc_cmd->seg_cnt = 0;
+
 			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
 					"9083 Unexpected protection group %i\n",
 					prot_group_type);
@@ -3501,10 +3548,22 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 
 	return 0;
 err:
+	if (lpfc_cmd->seg_cnt)
+		scsi_dma_unmap(scsi_cmnd);
+	if (lpfc_cmd->prot_seg_cnt)
+		dma_unmap_sg(&phba->pcidev->dev, scsi_prot_sglist(scsi_cmnd),
+			     scsi_prot_sg_count(scsi_cmnd),
+			     scsi_cmnd->sc_data_direction);
+
 	lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
-			"9084 Could not setup all needed BDE's"
-			"prot_group_type=%d, num_bde=%d\n",
-			prot_group_type, num_bde);
+			"9084 Cannot setup S/G List for HBA"
+			"IO segs %d/%d SGL %d SCSI %d: %d %d\n",
+			lpfc_cmd->seg_cnt, lpfc_cmd->prot_seg_cnt,
+			phba->cfg_total_seg_cnt, phba->cfg_sg_seg_cnt,
+			prot_group_type, num_sge);
+
+	lpfc_cmd->seg_cnt = 0;
+	lpfc_cmd->prot_seg_cnt = 0;
 	return 1;
 }
 
@@ -5317,11 +5376,11 @@ lpfc_slave_alloc(struct scsi_device *sdev)
 	}
 	num_allocated = lpfc_new_scsi_buf(vport, num_to_alloc);
 	if (num_to_alloc != num_allocated) {
-			lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
-				 "0708 Allocation request of %d "
-				 "command buffers did not succeed.  "
-				 "Allocated %d buffers.\n",
-				 num_to_alloc, num_allocated);
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+					 "0708 Allocation request of %d "
+					 "command buffers did not succeed.  "
+					 "Allocated %d buffers.\n",
+					 num_to_alloc, num_allocated);
 	}
 	if (num_allocated > 0)
 		phba->total_scsi_bufs += num_allocated;

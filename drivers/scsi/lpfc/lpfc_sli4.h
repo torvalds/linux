@@ -346,11 +346,6 @@ struct lpfc_bmbx {
 #define SLI4_CT_VFI 2
 #define SLI4_CT_FCFI 3
 
-#define LPFC_SLI4_FL1_MAX_SEGMENT_SIZE	0x10000
-#define LPFC_SLI4_FL1_MAX_BUF_SIZE	0X2000
-#define LPFC_SLI4_MIN_BUF_SIZE		0x400
-#define LPFC_SLI4_MAX_BUF_SIZE		0x20000
-
 /*
  * SLI4 specific data structures
  */

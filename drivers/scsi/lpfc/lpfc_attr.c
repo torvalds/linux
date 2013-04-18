@@ -4073,16 +4073,23 @@ MODULE_PARM_DESC(lpfc_delay_discovery,
 
 /*
  * lpfc_sg_seg_cnt - Initial Maximum DMA Segment Count
- * This value can be set to values between 64 and 256. The default value is
+ * This value can be set to values between 64 and 4096. The default value is
  * 64, but may be increased to allow for larger Max I/O sizes. The scsi layer
  * will be allowed to request I/Os of sizes up to (MAX_SEG_COUNT * SEG_SIZE).
+ * Because of the additional overhead involved in setting up T10-DIF,
+ * this parameter will be limited to 128 if BlockGuard is enabled under SLI4
+ * and will be limited to 512 if BlockGuard is enabled under SLI3.
  */
 LPFC_ATTR_R(sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT, LPFC_DEFAULT_SG_SEG_CNT,
 	    LPFC_MAX_SG_SEG_CNT, "Max Scatter Gather Segment Count");
 
-LPFC_ATTR_R(prot_sg_seg_cnt, LPFC_DEFAULT_PROT_SG_SEG_CNT,
-		LPFC_DEFAULT_PROT_SG_SEG_CNT, LPFC_MAX_PROT_SG_SEG_CNT,
-		"Max Protection Scatter Gather Segment Count");
+/*
+ * This parameter will be depricated, the driver cannot limit the
+ * protection data s/g list.
+ */
+LPFC_ATTR_R(prot_sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT,
+	    LPFC_DEFAULT_SG_SEG_CNT, LPFC_MAX_SG_SEG_CNT,
+	    "Max Protection Scatter Gather Segment Count");
 
 struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_bg_info,
