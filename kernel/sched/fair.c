@@ -1563,6 +1563,27 @@ static inline void dequeue_entity_load_avg(struct cfs_rq *cfs_rq,
 		se->avg.decay_count = atomic64_read(&cfs_rq->decay_counter);
 	} /* migrations, e.g. sleep=0 leave decay_count == 0 */
 }
+
+/*
+ * Update the rq's load with the elapsed running time before entering
+ * idle. if the last scheduled task is not a CFS task, idle_enter will
+ * be the only way to update the runnable statistic.
+ */
+void idle_enter_fair(struct rq *this_rq)
+{
+	update_rq_runnable_avg(this_rq, 1);
+}
+
+/*
+ * Update the rq's load with the elapsed idle time before a task is
+ * scheduled. if the newly scheduled task is not a CFS task, idle_exit will
+ * be the only way to update the runnable statistic.
+ */
+void idle_exit_fair(struct rq *this_rq)
+{
+	update_rq_runnable_avg(this_rq, 0);
+}
+
 #else
 static inline void update_entity_load_avg(struct sched_entity *se,
 					  int update_cfs_rq) {}
@@ -5216,8 +5237,6 @@ void idle_balance(int this_cpu, struct rq *this_rq)
 
 	if (this_rq->avg_idle < sysctl_sched_migration_cost)
 		return;
-
-	update_rq_runnable_avg(this_rq, 1);
 
 	/*
 	 * Drop the rq->lock, but keep IRQ/preempt disabled.

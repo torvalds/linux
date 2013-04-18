@@ -1024,6 +1024,18 @@ extern void update_group_power(struct sched_domain *sd, int cpu);
 extern void trigger_load_balance(struct rq *rq, int cpu);
 extern void idle_balance(int this_cpu, struct rq *this_rq);
 
+/*
+ * Only depends on SMP, FAIR_GROUP_SCHED may be removed when runnable_avg
+ * becomes useful in lb
+ */
+#if defined(CONFIG_FAIR_GROUP_SCHED)
+extern void idle_enter_fair(struct rq *this_rq);
+extern void idle_exit_fair(struct rq *this_rq);
+#else
+static inline void idle_enter_fair(struct rq *this_rq) {}
+static inline void idle_exit_fair(struct rq *this_rq) {}
+#endif
+
 #else	/* CONFIG_SMP */
 
 static inline void idle_balance(int cpu, struct rq *rq)
