@@ -2400,8 +2400,6 @@ static void edge_break(struct tty_struct *tty, int break_state)
 	int status;
 	int bv = 0;	/* Off */
 
-	tty_wait_until_sent(tty, 0);
-
 	if (break_state == -1)
 		bv = 1;	/* On */
 	status = ti_do_config(edge_port, UMPC_SET_CLR_BREAK, bv);
