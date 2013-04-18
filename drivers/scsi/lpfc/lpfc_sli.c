@@ -8453,10 +8453,14 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 
 	if ((piocb->iocb_flag & LPFC_IO_FCP) ||
 		(piocb->iocb_flag & LPFC_USE_FCPWQIDX)) {
+		if (unlikely(!phba->sli4_hba.fcp_wq))
+			return IOCB_ERROR;
 		if (lpfc_sli4_wq_put(phba->sli4_hba.fcp_wq[piocb->fcp_wqidx],
 				     &wqe))
 			return IOCB_ERROR;
 	} else {
+		if (unlikely(!phba->sli4_hba.els_wq))
+			return IOCB_ERROR;
 		if (lpfc_sli4_wq_put(phba->sli4_hba.els_wq, &wqe))
 			return IOCB_ERROR;
 	}
