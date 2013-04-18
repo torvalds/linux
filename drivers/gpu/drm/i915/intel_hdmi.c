@@ -697,6 +697,14 @@ static void intel_enable_hdmi(struct intel_encoder *encoder)
 		I915_WRITE(intel_hdmi->hdmi_reg, temp);
 		POSTING_READ(intel_hdmi->hdmi_reg);
 	}
+
+	if (IS_VALLEYVIEW(dev)) {
+		struct intel_digital_port *dport =
+			enc_to_dig_port(&encoder->base);
+		int channel = vlv_dport_to_channel(dport);
+
+		vlv_wait_port_ready(dev_priv, channel);
+	}
 }
 
 static void intel_disable_hdmi(struct intel_encoder *encoder)
@@ -955,6 +963,101 @@ done:
 	return 0;
 }
 
+static void intel_hdmi_pre_enable(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc =
+		to_intel_crtc(encoder->base.crtc);
+	int port = vlv_dport_to_channel(dport);
+	int pipe = intel_crtc->pipe;
+	u32 val;
+
+	if (!IS_VALLEYVIEW(dev))
+		return;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->dpio_lock));
+
+	/* Enable clock channels for this port */
+	val = intel_dpio_read(dev_priv, DPIO_DATA_LANE_A(port));
+	val = 0;
+	if (pipe)
+		val |= (1<<21);
+	else
+		val &= ~(1<<21);
+	val |= 0x001000c4;
+	intel_dpio_write(dev_priv, DPIO_DATA_CHANNEL(port), val);
+
+	/* HDMI 1.0V-2dB */
+	intel_dpio_write(dev_priv, DPIO_TX_OCALINIT(port), 0);
+	intel_dpio_write(dev_priv, DPIO_TX_SWING_CTL4(port),
+			 0x2b245f5f);
+	intel_dpio_write(dev_priv, DPIO_TX_SWING_CTL2(port),
+			 0x5578b83a);
+	intel_dpio_write(dev_priv, DPIO_TX_SWING_CTL3(port),
+			 0x0c782040);
+	intel_dpio_write(dev_priv, DPIO_TX3_SWING_CTL4(port),
+			 0x2b247878);
+	intel_dpio_write(dev_priv, DPIO_PCS_STAGGER0(port), 0x00030000);
+	intel_dpio_write(dev_priv, DPIO_PCS_CTL_OVER1(port),
+			 0x00002000);
+	intel_dpio_write(dev_priv, DPIO_TX_OCALINIT(port),
+			 DPIO_TX_OCALINIT_EN);
+
+	/* Program lane clock */
+	intel_dpio_write(dev_priv, DPIO_PCS_CLOCKBUF0(port),
+			 0x00760018);
+	intel_dpio_write(dev_priv, DPIO_PCS_CLOCKBUF8(port),
+			 0x00400888);
+}
+
+static void intel_hdmi_pre_pll_enable(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int port = vlv_dport_to_channel(dport);
+
+	if (!IS_VALLEYVIEW(dev))
+		return;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->dpio_lock));
+
+	/* Program Tx lane resets to default */
+	intel_dpio_write(dev_priv, DPIO_PCS_TX(port),
+			 DPIO_PCS_TX_LANE2_RESET |
+			 DPIO_PCS_TX_LANE1_RESET);
+	intel_dpio_write(dev_priv, DPIO_PCS_CLK(port),
+			 DPIO_PCS_CLK_CRI_RXEB_EIOS_EN |
+			 DPIO_PCS_CLK_CRI_RXDIGFILTSG_EN |
+			 (1<<DPIO_PCS_CLK_DATAWIDTH_SHIFT) |
+			 DPIO_PCS_CLK_SOFT_RESET);
+
+	/* Fix up inter-pair skew failure */
+	intel_dpio_write(dev_priv, DPIO_PCS_STAGGER1(port), 0x00750f00);
+	intel_dpio_write(dev_priv, DPIO_TX_CTL(port), 0x00001500);
+	intel_dpio_write(dev_priv, DPIO_TX_LANE(port), 0x40400000);
+
+	intel_dpio_write(dev_priv, DPIO_PCS_CTL_OVER1(port),
+			 0x00002000);
+	intel_dpio_write(dev_priv, DPIO_TX_OCALINIT(port),
+			 DPIO_TX_OCALINIT_EN);
+}
+
+static void intel_hdmi_post_disable(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	int port = vlv_dport_to_channel(dport);
+
+	/* Reset lanes to avoid HDMI flicker (VLV w/a) */
+	mutex_lock(&dev_priv->dpio_lock);
+	intel_dpio_write(dev_priv, DPIO_PCS_TX(port), 0x00000000);
+	intel_dpio_write(dev_priv, DPIO_PCS_CLK(port), 0x00e00060);
+	mutex_unlock(&dev_priv->dpio_lock);
+}
+
 static void intel_hdmi_destroy(struct drm_connector *connector)
 {
 	drm_sysfs_connector_remove(connector);
@@ -1094,6 +1197,11 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 	intel_encoder->enable = intel_enable_hdmi;
 	intel_encoder->disable = intel_disable_hdmi;
 	intel_encoder->get_hw_state = intel_hdmi_get_hw_state;
+	if (IS_VALLEYVIEW(dev)) {
+		intel_encoder->pre_enable = intel_hdmi_pre_enable;
+		intel_encoder->pre_pll_enable = intel_hdmi_pre_pll_enable;
+		intel_encoder->post_disable = intel_hdmi_post_disable;
+	}
 
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);

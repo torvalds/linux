@@ -431,6 +431,19 @@ struct intel_digital_port {
 	struct intel_hdmi hdmi;
 };
 
+static inline int
+vlv_dport_to_channel(struct intel_digital_port *dport)
+{
+	switch (dport->port) {
+	case PORT_B:
+		return 0;
+	case PORT_C:
+		return 1;
+	default:
+		BUG();
+	}
+}
+
 static inline struct drm_crtc *
 intel_get_crtc_for_pipe(struct drm_device *dev, int pipe)
 {
@@ -607,6 +620,7 @@ intel_pipe_to_cpu_transcoder(struct drm_i915_private *dev_priv,
 extern void intel_wait_for_vblank(struct drm_device *dev, int pipe);
 extern void intel_wait_for_pipe_off(struct drm_device *dev, int pipe);
 extern int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp);
+extern void vlv_wait_port_ready(struct drm_i915_private *dev_priv, int port);
 
 struct intel_load_detect_pipe {
 	struct drm_framebuffer *release_fb;

@@ -1392,15 +1392,77 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	intel_dp_complete_link_train(intel_dp);
 	intel_dp_stop_link_train(intel_dp);
 	ironlake_edp_backlight_on(intel_dp);
+
+	if (IS_VALLEYVIEW(dev)) {
+		struct intel_digital_port *dport =
+			enc_to_dig_port(&encoder->base);
+		int channel = vlv_dport_to_channel(dport);
+
+		vlv_wait_port_ready(dev_priv, channel);
+	}
 }
 
 static void intel_pre_enable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev))
 		ironlake_edp_pll_on(intel_dp);
+
+	if (IS_VALLEYVIEW(dev)) {
+		struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+		struct intel_crtc *intel_crtc =
+			to_intel_crtc(encoder->base.crtc);
+		int port = vlv_dport_to_channel(dport);
+		int pipe = intel_crtc->pipe;
+		u32 val;
+
+		WARN_ON(!mutex_is_locked(&dev_priv->dpio_lock));
+
+		val = intel_dpio_read(dev_priv, DPIO_DATA_LANE_A(port));
+		val = 0;
+		if (pipe)
+			val |= (1<<21);
+		else
+			val &= ~(1<<21);
+		val |= 0x001000c4;
+		intel_dpio_write(dev_priv, DPIO_DATA_CHANNEL(port), val);
+
+		intel_dpio_write(dev_priv, DPIO_PCS_CLOCKBUF0(port),
+				 0x00760018);
+		intel_dpio_write(dev_priv, DPIO_PCS_CLOCKBUF8(port),
+				 0x00400888);
+	}
+}
+
+static void intel_dp_pre_pll_enable(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int port = vlv_dport_to_channel(dport);
+
+	if (!IS_VALLEYVIEW(dev))
+		return;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->dpio_lock));
+
+	/* Program Tx lane resets to default */
+	intel_dpio_write(dev_priv, DPIO_PCS_TX(port),
+			 DPIO_PCS_TX_LANE2_RESET |
+			 DPIO_PCS_TX_LANE1_RESET);
+	intel_dpio_write(dev_priv, DPIO_PCS_CLK(port),
+			 DPIO_PCS_CLK_CRI_RXEB_EIOS_EN |
+			 DPIO_PCS_CLK_CRI_RXDIGFILTSG_EN |
+			 (1<<DPIO_PCS_CLK_DATAWIDTH_SHIFT) |
+				 DPIO_PCS_CLK_SOFT_RESET);
+
+	/* Fix up inter-pair skew failure */
+	intel_dpio_write(dev_priv, DPIO_PCS_STAGGER1(port), 0x00750f00);
+	intel_dpio_write(dev_priv, DPIO_TX_CTL(port), 0x00001500);
+	intel_dpio_write(dev_priv, DPIO_TX_LANE(port), 0x40400000);
 }
 
 /*
@@ -1544,6 +1606,8 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 	else
 		BUG();
 
+	WARN_ON(!mutex_is_locked(&dev_priv->dpio_lock));
+
 	switch (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) {
 	case DP_TRAIN_PRE_EMPHASIS_0:
 		preemph_reg_value = 0x0004000;
@@ -1617,8 +1681,6 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 		return 0;
 	}
 
-	/* eDP is only on port C */
-	mutex_lock(&dev_priv->dpio_lock);
 	intel_dpio_write(dev_priv, DPIO_TX_OCALINIT(port), 0x00000000);
 	intel_dpio_write(dev_priv, DPIO_TX_SWING_CTL4(port), demph_reg_value);
 	intel_dpio_write(dev_priv, DPIO_TX_SWING_CTL2(port),
@@ -1627,7 +1689,6 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 	intel_dpio_write(dev_priv, DPIO_PCS_STAGGER0(port), 0x00030000);
 	intel_dpio_write(dev_priv, DPIO_PCS_CTL_OVER1(port), preemph_reg_value);
 	intel_dpio_write(dev_priv, DPIO_TX_OCALINIT(port), 0x80000000);
-	mutex_unlock(&dev_priv->dpio_lock);
 
 	return 0;
 }
@@ -3135,6 +3196,8 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	intel_encoder->disable = intel_disable_dp;
 	intel_encoder->post_disable = intel_post_disable_dp;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
+	if (IS_VALLEYVIEW(dev))
+		intel_encoder->pre_pll_enable = intel_dp_pre_pll_enable;
 
 	intel_dig_port->port = port;
 	intel_dig_port->dp.output_reg = output_reg;
