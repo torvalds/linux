@@ -527,6 +527,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		.vring_cfg = {
 			.tx_sw_ring = {
 				.max_mpdu_size = cpu_to_le16(TX_BUF_LEN),
+				.ring_size = cpu_to_le16(size),
 			},
 			.ringid = id,
 			.cidxtid = (cid & 0xf) | ((tid & 0xf) << 4),
@@ -558,7 +559,6 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		goto out;
 
 	cmd.vring_cfg.tx_sw_ring.ring_mem_base = cpu_to_le64(vring->pa);
-	cmd.vring_cfg.tx_sw_ring.ring_size = cpu_to_le16(vring->size);
 
 	rc = wmi_call(wil, WMI_VRING_CFG_CMDID, &cmd, sizeof(cmd),
 		      WMI_VRING_CFG_DONE_EVENTID, &reply, sizeof(reply), 100);
