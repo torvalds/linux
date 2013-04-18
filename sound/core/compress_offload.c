@@ -272,10 +272,12 @@ static ssize_t snd_compr_write(struct file *f, const char __user *buf,
 	if (avail > count)
 		avail = count;
 
-	if (stream->ops->copy)
-		retval = stream->ops->copy(stream, buf, avail);
-	else
+	if (stream->ops->copy) {
+		char __user* cbuf = (char __user*)buf;
+		retval = stream->ops->copy(stream, cbuf, avail);
+	} else {
 		retval = snd_compr_write_data(stream, buf, avail);
+	}
 	if (retval > 0)
 		stream->runtime->total_bytes_available += retval;
 

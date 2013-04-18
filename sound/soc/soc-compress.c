@@ -315,7 +315,7 @@ static int soc_compr_pointer(struct snd_compr_stream *cstream,
 }
 
 static int soc_compr_copy(struct snd_compr_stream *cstream,
-			  const char __user *buf, size_t count)
+			  char __user *buf, size_t count)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_platform *platform = rtd->platform;
