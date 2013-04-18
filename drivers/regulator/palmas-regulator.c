@@ -964,6 +964,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 			if (pdata && (id == PALMAS_REG_LDO8) &&
 					pdata->enable_ldo8_tracking) {
 				palmas_enable_ldo8_track(palmas);
+				pmic->desc[id].min_uV = 450000;
 				pmic->desc[id].uV_step = 25000;
 			}
 		} else {
