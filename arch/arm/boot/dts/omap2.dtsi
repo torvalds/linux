@@ -21,8 +21,12 @@
 	};
 
 	cpus {
-		cpu@0 {
+		#address-cells = <0>;
+		#size-cells = <0>;
+
+		cpu {
 			compatible = "arm,arm1136jf-s";
+			device_type = "cpu";
 		};
 	};
 
