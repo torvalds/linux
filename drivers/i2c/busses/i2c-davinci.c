@@ -670,7 +670,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 #ifdef CONFIG_CPU_FREQ
 	init_completion(&dev->xfr_complete);
 #endif
-	dev->dev = get_device(&pdev->dev);
+	dev->dev = &pdev->dev;
 	dev->irq = irq->start;
 	dev->pdata = dev->dev->platform_data;
 	platform_set_drvdata(pdev, dev);
@@ -680,10 +680,9 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 
 		dev->pdata = devm_kzalloc(&pdev->dev,
 			sizeof(struct davinci_i2c_platform_data), GFP_KERNEL);
-		if (!dev->pdata) {
-			r = -ENOMEM;
-			goto err_free_mem;
-		}
+		if (!dev->pdata)
+			return -ENOMEM;
+
 		memcpy(dev->pdata, &davinci_i2c_platform_data_default,
 			sizeof(struct davinci_i2c_platform_data));
 		if (!of_property_read_u32(pdev->dev.of_node, "clock-frequency",
@@ -694,10 +693,8 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	}
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(dev->clk)) {
-		r = -ENODEV;
-		goto err_free_mem;
-	}
+	if (IS_ERR(dev->clk))
+		return -ENODEV;
 	clk_prepare_enable(dev->clk);
 
 	dev->base = devm_ioremap_resource(&pdev->dev, mem);
@@ -744,9 +741,6 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 err_unuse_clocks:
 	clk_disable_unprepare(dev->clk);
 	dev->clk = NULL;
-err_free_mem:
-	put_device(&pdev->dev);
-
 	return r;
 }
 
@@ -757,7 +751,6 @@ static int davinci_i2c_remove(struct platform_device *pdev)
 	i2c_davinci_cpufreq_deregister(dev);
 
 	i2c_del_adapter(&dev->adapter);
-	put_device(&pdev->dev);
 
 	clk_disable_unprepare(dev->clk);
 	dev->clk = NULL;
