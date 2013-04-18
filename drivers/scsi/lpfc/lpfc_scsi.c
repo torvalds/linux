@@ -899,9 +899,12 @@ lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *phba)
 	int num_posted, rc = 0;
 
 	/* get all SCSI buffers need to repost to a local list */
-	spin_lock_irq(&phba->scsi_buf_list_lock);
-	list_splice_init(&phba->lpfc_scsi_buf_list, &post_sblist);
-	spin_unlock_irq(&phba->scsi_buf_list_lock);
+	spin_lock_irq(&phba->scsi_buf_list_get_lock);
+	spin_lock_irq(&phba->scsi_buf_list_put_lock);
+	list_splice_init(&phba->lpfc_scsi_buf_list_get, &post_sblist);
+	list_splice(&phba->lpfc_scsi_buf_list_put, &post_sblist);
+	spin_unlock_irq(&phba->scsi_buf_list_put_lock);
+	spin_unlock_irq(&phba->scsi_buf_list_get_lock);
 
 	/* post the list of scsi buffer sgls to port if available */
 	if (!list_empty(&post_sblist)) {
@@ -1053,9 +1056,9 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 
 		/* add the scsi buffer to a post list */
 		list_add_tail(&psb->list, &post_sblist);
-		spin_lock_irq(&phba->scsi_buf_list_lock);
+		spin_lock_irq(&phba->scsi_buf_list_get_lock);
 		phba->sli4_hba.scsi_xri_cnt++;
-		spin_unlock_irq(&phba->scsi_buf_list_lock);
+		spin_unlock_irq(&phba->scsi_buf_list_get_lock);
 	}
 	lpfc_printf_log(phba, KERN_INFO, LOG_BG,
 			"3021 Allocate %d out of %d requested new SCSI "
@@ -1104,17 +1107,23 @@ static struct lpfc_scsi_buf*
 lpfc_get_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 {
 	struct  lpfc_scsi_buf * lpfc_cmd = NULL;
-	struct list_head *scsi_buf_list = &phba->lpfc_scsi_buf_list;
-	unsigned long iflag = 0;
+	struct list_head *scsi_buf_list_get = &phba->lpfc_scsi_buf_list_get;
+	unsigned long gflag = 0;
+	unsigned long pflag = 0;
 
-	spin_lock_irqsave(&phba->scsi_buf_list_lock, iflag);
-	list_remove_head(scsi_buf_list, lpfc_cmd, struct lpfc_scsi_buf, list);
-	if (lpfc_cmd) {
-		lpfc_cmd->seg_cnt = 0;
-		lpfc_cmd->nonsg_phys = 0;
-		lpfc_cmd->prot_seg_cnt = 0;
+	spin_lock_irqsave(&phba->scsi_buf_list_get_lock, gflag);
+	list_remove_head(scsi_buf_list_get, lpfc_cmd, struct lpfc_scsi_buf,
+			 list);
+	if (!lpfc_cmd) {
+		spin_lock_irqsave(&phba->scsi_buf_list_put_lock, pflag);
+		list_splice(&phba->lpfc_scsi_buf_list_put,
+			    &phba->lpfc_scsi_buf_list_get);
+		INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list_put);
+		list_remove_head(scsi_buf_list_get, lpfc_cmd,
+				 struct lpfc_scsi_buf, list);
+		spin_unlock_irqrestore(&phba->scsi_buf_list_put_lock, pflag);
 	}
-	spin_unlock_irqrestore(&phba->scsi_buf_list_lock, iflag);
+	spin_unlock_irqrestore(&phba->scsi_buf_list_get_lock, gflag);
 	return  lpfc_cmd;
 }
 /**
@@ -1132,28 +1141,39 @@ static struct lpfc_scsi_buf*
 lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 {
 	struct lpfc_scsi_buf *lpfc_cmd ;
-	unsigned long iflag = 0;
+	unsigned long gflag = 0;
+	unsigned long pflag = 0;
 	int found = 0;
 
-	spin_lock_irqsave(&phba->scsi_buf_list_lock, iflag);
-	list_for_each_entry(lpfc_cmd, &phba->lpfc_scsi_buf_list,
-							list) {
+	spin_lock_irqsave(&phba->scsi_buf_list_get_lock, gflag);
+	list_for_each_entry(lpfc_cmd, &phba->lpfc_scsi_buf_list_get, list) {
 		if (lpfc_test_rrq_active(phba, ndlp,
 					 lpfc_cmd->cur_iocbq.sli4_lxritag))
 			continue;
 		list_del(&lpfc_cmd->list);
 		found = 1;
-		lpfc_cmd->seg_cnt = 0;
-		lpfc_cmd->nonsg_phys = 0;
-		lpfc_cmd->prot_seg_cnt = 0;
 		break;
 	}
-	spin_unlock_irqrestore(&phba->scsi_buf_list_lock,
-						 iflag);
+	if (!found) {
+		spin_lock_irqsave(&phba->scsi_buf_list_put_lock, pflag);
+		list_splice(&phba->lpfc_scsi_buf_list_put,
+			    &phba->lpfc_scsi_buf_list_get);
+		INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list_put);
+		spin_unlock_irqrestore(&phba->scsi_buf_list_put_lock, pflag);
+		list_for_each_entry(lpfc_cmd, &phba->lpfc_scsi_buf_list_get,
+				    list) {
+			if (lpfc_test_rrq_active(
+				phba, ndlp, lpfc_cmd->cur_iocbq.sli4_lxritag))
+				continue;
+			list_del(&lpfc_cmd->list);
+			found = 1;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&phba->scsi_buf_list_get_lock, gflag);
 	if (!found)
 		return NULL;
-	else
-		return  lpfc_cmd;
+	return  lpfc_cmd;
 }
 /**
  * lpfc_get_scsi_buf - Get a scsi buffer from lpfc_scsi_buf_list of the HBA
@@ -1185,10 +1205,14 @@ lpfc_release_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 {
 	unsigned long iflag = 0;
 
-	spin_lock_irqsave(&phba->scsi_buf_list_lock, iflag);
+	psb->seg_cnt = 0;
+	psb->nonsg_phys = 0;
+	psb->prot_seg_cnt = 0;
+
+	spin_lock_irqsave(&phba->scsi_buf_list_put_lock, iflag);
 	psb->pCmd = NULL;
-	list_add_tail(&psb->list, &phba->lpfc_scsi_buf_list);
-	spin_unlock_irqrestore(&phba->scsi_buf_list_lock, iflag);
+	list_add_tail(&psb->list, &phba->lpfc_scsi_buf_list_put);
+	spin_unlock_irqrestore(&phba->scsi_buf_list_put_lock, iflag);
 }
 
 /**
@@ -1206,6 +1230,10 @@ lpfc_release_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 {
 	unsigned long iflag = 0;
 
+	psb->seg_cnt = 0;
+	psb->nonsg_phys = 0;
+	psb->prot_seg_cnt = 0;
+
 	if (psb->exch_busy) {
 		spin_lock_irqsave(&phba->sli4_hba.abts_scsi_buf_list_lock,
 					iflag);
@@ -1215,11 +1243,10 @@ lpfc_release_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 		spin_unlock_irqrestore(&phba->sli4_hba.abts_scsi_buf_list_lock,
 					iflag);
 	} else {
-
-		spin_lock_irqsave(&phba->scsi_buf_list_lock, iflag);
 		psb->pCmd = NULL;
-		list_add_tail(&psb->list, &phba->lpfc_scsi_buf_list);
-		spin_unlock_irqrestore(&phba->scsi_buf_list_lock, iflag);
+		spin_lock_irqsave(&phba->scsi_buf_list_put_lock, iflag);
+		list_add_tail(&psb->list, &phba->lpfc_scsi_buf_list_put);
+		spin_unlock_irqrestore(&phba->scsi_buf_list_put_lock, iflag);
 	}
 }
 
