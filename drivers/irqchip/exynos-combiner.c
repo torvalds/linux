@@ -33,7 +33,7 @@
 static DEFINE_SPINLOCK(irq_controller_lock);
 
 struct combiner_chip_data {
-	unsigned int irq_offset;
+	unsigned int hwirq_offset;
 	unsigned int irq_mask;
 	void __iomem *base;
 	unsigned int parent_irq;
@@ -80,11 +80,11 @@ static void combiner_handle_cascade_irq(unsigned int irq, struct irq_desc *desc)
 	if (status == 0)
 		goto out;
 
-	combiner_irq = __ffs(status);
+	combiner_irq = chip_data->hwirq_offset + __ffs(status);
+	cascade_irq = irq_find_mapping(combiner_irq_domain, combiner_irq);
 
-	cascade_irq = combiner_irq + (chip_data->irq_offset & ~31);
-	if (unlikely(cascade_irq >= NR_IRQS))
-		do_bad_IRQ(cascade_irq, desc);
+	if (unlikely(!cascade_irq))
+		do_bad_IRQ(irq, desc);
 	else
 		generic_handle_irq(cascade_irq);
 
@@ -129,8 +129,7 @@ static void __init combiner_init_one(struct combiner_chip_data *combiner_data,
 				     void __iomem *base, unsigned int irq)
 {
 	combiner_data->base = base;
-	combiner_data->irq_offset = irq_find_mapping(
-		combiner_irq_domain, combiner_nr * IRQ_IN_COMBINER);
+	combiner_data->hwirq_offset = (combiner_nr & ~3) * IRQ_IN_COMBINER;
 	combiner_data->irq_mask = 0xff << ((combiner_nr % 4) << 3);
 	combiner_data->parent_irq = irq;
 
