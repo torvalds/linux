@@ -386,89 +386,6 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 	return 0;
 }
 
-/* Translate struct audit_rule to kernel's rule respresentation.
- * Exists for backward compatibility with userspace. */
-static struct audit_entry *audit_rule_to_entry(struct audit_rule *rule)
-{
-	struct audit_entry *entry;
-	int err = 0;
-	int i;
-
-	entry = audit_to_entry_common(rule);
-	if (IS_ERR(entry))
-		goto exit_nofree;
-
-	for (i = 0; i < rule->field_count; i++) {
-		struct audit_field *f = &entry->rule.fields[i];
-		u32 n;
-
-		n = rule->fields[i] & (AUDIT_NEGATE|AUDIT_OPERATORS);
-
-		/* Support for legacy operators where
-		 * AUDIT_NEGATE bit signifies != and otherwise assumes == */
-		if (n & AUDIT_NEGATE)
-			f->op = Audit_not_equal;
-		else if (!n)
-			f->op = Audit_equal;
-		else
-			f->op = audit_to_op(n);
-
-		entry->rule.vers_ops = (n & AUDIT_OPERATORS) ? 2 : 1;
-
-		f->type = rule->fields[i] & ~(AUDIT_NEGATE|AUDIT_OPERATORS);
-		f->val = rule->values[i];
-		f->uid = INVALID_UID;
-		f->gid = INVALID_GID;
-
-		err = -EINVAL;
-		if (f->op == Audit_bad)
-			goto exit_free;
-
-		err = audit_field_valid(entry, f);
-		if (err)
-			goto exit_free;
-
-		err = -EINVAL;
-		switch (f->type) {
-		case AUDIT_UID:
-		case AUDIT_EUID:
-		case AUDIT_SUID:
-		case AUDIT_FSUID:
-		case AUDIT_LOGINUID:
-			f->uid = make_kuid(current_user_ns(), f->val);
-			if (!uid_valid(f->uid))
-				goto exit_free;
-			break;
-		case AUDIT_GID:
-		case AUDIT_EGID:
-		case AUDIT_SGID:
-		case AUDIT_FSGID:
-			f->gid = make_kgid(current_user_ns(), f->val);
-			if (!gid_valid(f->gid))
-				goto exit_free;
-			break;
-		case AUDIT_ARCH:
-			entry->rule.arch_f = f;
-			break;
-		case AUDIT_INODE:
-			err = audit_to_inode(&entry->rule, f);
-			if (err)
-				goto exit_free;
-			break;
-		}
-	}
-
-	if (entry->rule.inode_f && entry->rule.inode_f->op == Audit_not_equal)
-		entry->rule.inode_f = NULL;
-
-exit_nofree:
-	return entry;
-
-exit_free:
-	audit_free_rule(entry);
-	return ERR_PTR(err);
-}
-
 /* Translate struct audit_rule_data to kernel's rule respresentation. */
 static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 					       size_t datasz)
@@ -620,36 +537,6 @@ static inline size_t audit_pack_string(void **bufp, const char *str)
 	*bufp += len;
 
 	return len;
-}
-
-/* Translate kernel rule respresentation to struct audit_rule.
- * Exists for backward compatibility with userspace. */
-static struct audit_rule *audit_krule_to_rule(struct audit_krule *krule)
-{
-	struct audit_rule *rule;
-	int i;
-
-	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
-	if (unlikely(!rule))
-		return NULL;
-
-	rule->flags = krule->flags | krule->listnr;
-	rule->action = krule->action;
-	rule->field_count = krule->field_count;
-	for (i = 0; i < rule->field_count; i++) {
-		rule->values[i] = krule->fields[i].val;
-		rule->fields[i] = krule->fields[i].type;
-
-		if (krule->vers_ops == 1) {
-			if (krule->fields[i].op == Audit_not_equal)
-				rule->fields[i] |= AUDIT_NEGATE;
-		} else {
-			rule->fields[i] |= audit_ops[krule->fields[i].op];
-		}
-	}
-	for (i = 0; i < AUDIT_BITMASK_SIZE; i++) rule->mask[i] = krule->mask[i];
-
-	return rule;
 }
 
 /* Translate kernel rule respresentation to struct audit_rule_data. */
@@ -1064,35 +951,6 @@ out:
 	return ret;
 }
 
-/* List rules using struct audit_rule.  Exists for backward
- * compatibility with userspace. */
-static void audit_list(int pid, int seq, struct sk_buff_head *q)
-{
-	struct sk_buff *skb;
-	struct audit_krule *r;
-	int i;
-
-	/* This is a blocking read, so use audit_filter_mutex instead of rcu
-	 * iterator to sync with list writers. */
-	for (i=0; i<AUDIT_NR_FILTERS; i++) {
-		list_for_each_entry(r, &audit_rules_list[i], list) {
-			struct audit_rule *rule;
-
-			rule = audit_krule_to_rule(r);
-			if (unlikely(!rule))
-				break;
-			skb = audit_make_reply(pid, seq, AUDIT_LIST, 0, 1,
-					 rule, sizeof(*rule));
-			if (skb)
-				skb_queue_tail(q, skb);
-			kfree(rule);
-		}
-	}
-	skb = audit_make_reply(pid, seq, AUDIT_LIST, 1, 1, NULL, 0);
-	if (skb)
-		skb_queue_tail(q, skb);
-}
-
 /* List rules using struct audit_rule_data. */
 static void audit_list_rules(int pid, int seq, struct sk_buff_head *q)
 {
@@ -1173,7 +1031,6 @@ int audit_receive_filter(int type, int pid, int seq, void *data,
 	struct audit_entry *entry;
 
 	switch (type) {
-	case AUDIT_LIST:
 	case AUDIT_LIST_RULES:
 		/* We can't just spew out the rules here because we might fill
 		 * the available socket buffer space and deadlock waiting for
@@ -1188,10 +1045,7 @@ int audit_receive_filter(int type, int pid, int seq, void *data,
 		skb_queue_head_init(&dest->q);
 
 		mutex_lock(&audit_filter_mutex);
-		if (type == AUDIT_LIST)
-			audit_list(pid, seq, &dest->q);
-		else
-			audit_list_rules(pid, seq, &dest->q);
+		audit_list_rules(pid, seq, &dest->q);
 		mutex_unlock(&audit_filter_mutex);
 
 		tsk = kthread_run(audit_send_list, dest, "audit_send_list");
@@ -1201,12 +1055,8 @@ int audit_receive_filter(int type, int pid, int seq, void *data,
 			err = PTR_ERR(tsk);
 		}
 		break;
-	case AUDIT_ADD:
 	case AUDIT_ADD_RULE:
-		if (type == AUDIT_ADD)
-			entry = audit_rule_to_entry(data);
-		else
-			entry = audit_data_to_entry(data, datasz);
+		entry = audit_data_to_entry(data, datasz);
 		if (IS_ERR(entry))
 			return PTR_ERR(entry);
 
@@ -1217,12 +1067,8 @@ int audit_receive_filter(int type, int pid, int seq, void *data,
 		if (err)
 			audit_free_rule(entry);
 		break;
-	case AUDIT_DEL:
 	case AUDIT_DEL_RULE:
-		if (type == AUDIT_DEL)
-			entry = audit_rule_to_entry(data);
-		else
-			entry = audit_data_to_entry(data, datasz);
+		entry = audit_data_to_entry(data, datasz);
 		if (IS_ERR(entry))
 			return PTR_ERR(entry);
 

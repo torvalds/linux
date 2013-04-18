@@ -597,13 +597,14 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 		return -EPERM;
 
 	switch (msg_type) {
-	case AUDIT_GET:
 	case AUDIT_LIST:
-	case AUDIT_LIST_RULES:
-	case AUDIT_SET:
 	case AUDIT_ADD:
-	case AUDIT_ADD_RULE:
 	case AUDIT_DEL:
+		return -EOPNOTSUPP;
+	case AUDIT_GET:
+	case AUDIT_SET:
+	case AUDIT_LIST_RULES:
+	case AUDIT_ADD_RULE:
 	case AUDIT_DEL_RULE:
 	case AUDIT_SIGNAL_INFO:
 	case AUDIT_TTY_GET:
@@ -765,25 +766,6 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			audit_set_pid(ab, NETLINK_CB(skb).portid);
 			audit_log_end(ab);
 		}
-		break;
-	case AUDIT_ADD:
-	case AUDIT_DEL:
-		if (nlmsg_len(nlh) < sizeof(struct audit_rule))
-			return -EINVAL;
-		if (audit_enabled == AUDIT_LOCKED) {
-			audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE,
-						  loginuid, sessionid, sid);
-
-			audit_log_format(ab, " audit_enabled=%d res=0",
-					 audit_enabled);
-			audit_log_end(ab);
-			return -EPERM;
-		}
-		/* fallthrough */
-	case AUDIT_LIST:
-		err = audit_receive_filter(msg_type, NETLINK_CB(skb).portid,
-					   seq, data, nlmsg_len(nlh),
-					   loginuid, sessionid, sid);
 		break;
 	case AUDIT_ADD_RULE:
 	case AUDIT_DEL_RULE:
