@@ -22,8 +22,8 @@
 		bootargs = "earlyprintk console=ttyS0,115200";
 	};
 
-	soc {
-		uart0: uart@01c28000 {
+	soc@01c20000 {
+		uart0: serial@01c28000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart0_pins_a>;
 			status = "okay";
