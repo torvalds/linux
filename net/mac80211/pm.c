@@ -38,6 +38,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 					IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 
 	/* flush out all packets and station cleanup call_rcu()s */
+	synchronize_net();
 	rcu_barrier();
 
 	ieee80211_flush_queues(local, NULL);
