@@ -6000,7 +6000,7 @@ lpfc_sli4_repost_els_sgl_list(struct lpfc_hba *phba)
 	struct lpfc_sglq *sglq_entry = NULL;
 	struct lpfc_sglq *sglq_entry_next = NULL;
 	struct lpfc_sglq *sglq_entry_first = NULL;
-	int status, post_cnt = 0, num_posted = 0, block_cnt = 0;
+	int status, total_cnt, post_cnt = 0, num_posted = 0, block_cnt = 0;
 	int last_xritag = NO_XRI;
 	LIST_HEAD(prep_sgl_list);
 	LIST_HEAD(blck_sgl_list);
@@ -6012,6 +6012,7 @@ lpfc_sli4_repost_els_sgl_list(struct lpfc_hba *phba)
 	list_splice_init(&phba->sli4_hba.lpfc_sgl_list, &allc_sgl_list);
 	spin_unlock_irq(&phba->hbalock);
 
+	total_cnt = phba->sli4_hba.els_xri_cnt;
 	list_for_each_entry_safe(sglq_entry, sglq_entry_next,
 				 &allc_sgl_list, list) {
 		list_del_init(&sglq_entry->list);
@@ -6063,9 +6064,7 @@ lpfc_sli4_repost_els_sgl_list(struct lpfc_hba *phba)
 						sglq_entry->sli4_xritag);
 					list_add_tail(&sglq_entry->list,
 						      &free_sgl_list);
-					spin_lock_irq(&phba->hbalock);
-					phba->sli4_hba.els_xri_cnt--;
-					spin_unlock_irq(&phba->hbalock);
+					total_cnt--;
 				}
 			}
 		}
@@ -6093,9 +6092,7 @@ lpfc_sli4_repost_els_sgl_list(struct lpfc_hba *phba)
 					(sglq_entry_first->sli4_xritag +
 					 post_cnt - 1));
 			list_splice_init(&blck_sgl_list, &free_sgl_list);
-			spin_lock_irq(&phba->hbalock);
-			phba->sli4_hba.els_xri_cnt -= post_cnt;
-			spin_unlock_irq(&phba->hbalock);
+			total_cnt -= post_cnt;
 		}
 
 		/* don't reset xirtag due to hole in xri block */
@@ -6105,6 +6102,8 @@ lpfc_sli4_repost_els_sgl_list(struct lpfc_hba *phba)
 		/* reset els sgl post count for next round of posting */
 		post_cnt = 0;
 	}
+	/* update the number of XRIs posted for ELS */
+	phba->sli4_hba.els_xri_cnt = total_cnt;
 
 	/* free the els sgls failed to post */
 	lpfc_free_sgl_list(phba, &free_sgl_list);
