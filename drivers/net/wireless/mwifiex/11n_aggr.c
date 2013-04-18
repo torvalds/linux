@@ -296,19 +296,13 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 		break;
 	}
 	if (ret != -EBUSY) {
-		spin_lock_irqsave(&priv->wmm.ra_list_spinlock, ra_list_flags);
-		if (mwifiex_is_ralist_valid(priv, pra_list, ptrindex)) {
-			priv->wmm.packets_out[ptrindex]++;
-			priv->wmm.tid_tbl_ptr[ptrindex].ra_list_curr = pra_list;
-		}
+		mwifiex_rotate_priolists(priv, pra_list, ptrindex);
 		/* Now bss_prio_cur pointer points to next node */
 		adapter->bss_prio_tbl[priv->bss_priority].bss_prio_cur =
 			list_first_entry(
 				&adapter->bss_prio_tbl[priv->bss_priority]
 				.bss_prio_cur->list,
 				struct mwifiex_bss_prio_node, list);
-		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-				       ra_list_flags);
 	}
 
 	return 0;
