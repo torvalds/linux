@@ -52,11 +52,6 @@
 
 #include <asm/cacheflush.h>
 
-#ifndef CONFIG_ARM
-#include <asm/coldfire.h>
-#include <asm/mcfsim.h>
-#endif
-
 #include "fec.h"
 
 #if defined(CONFIG_ARM)
