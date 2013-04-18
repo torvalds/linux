@@ -1110,7 +1110,8 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	}
 
 	if (pdev->dev.of_node) {
-		if (s5p_mfc_alloc_memdevs(dev) < 0)
+		ret = s5p_mfc_alloc_memdevs(dev);
+		if (ret < 0)
 			goto err_res;
 	} else {
 		dev->mem_dev_l = device_find_child(&dev->plat_dev->dev,
