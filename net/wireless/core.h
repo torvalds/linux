@@ -88,6 +88,9 @@ struct cfg80211_registered_device {
 
 	struct delayed_work dfs_update_channels_wk;
 
+	/* netlink port which started critical protocol (0 means not started) */
+	u32 crit_proto_nlportid;
+
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
 	struct wiphy wiphy __aligned(NETDEV_ALIGN);
