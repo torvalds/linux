@@ -2803,8 +2803,10 @@ static int perf_evsel__prepare_tracepoint_event(struct perf_evsel *evsel,
 	}
 
 	event = pevent_find_event(pevent, evsel->attr.config);
-	if (event == NULL)
+	if (event == NULL) {
+		pr_debug("cannot find event format for %d\n", (int)evsel->attr.config);
 		return -1;
+	}
 
 	if (!evsel->name) {
 		snprintf(bf, sizeof(bf), "%s:%s", event->system, event->name);
