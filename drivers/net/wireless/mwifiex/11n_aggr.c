@@ -297,12 +297,6 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	}
 	if (ret != -EBUSY) {
 		mwifiex_rotate_priolists(priv, pra_list, ptrindex);
-		/* Now bss_prio_cur pointer points to next node */
-		adapter->bss_prio_tbl[priv->bss_priority].bss_prio_cur =
-			list_first_entry(
-				&adapter->bss_prio_tbl[priv->bss_priority]
-				.bss_prio_cur->list,
-				struct mwifiex_bss_prio_node, list);
 	}
 
 	return 0;
