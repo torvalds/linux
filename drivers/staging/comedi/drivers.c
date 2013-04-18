@@ -122,6 +122,7 @@ static void cleanup_device(struct comedi_device *dev)
 	dev->board_name = NULL;
 	dev->board_ptr = NULL;
 	dev->iobase = 0;
+	dev->iolen = 0;
 	dev->ioenabled = false;
 	dev->irq = 0;
 	dev->read_subdev = NULL;
@@ -387,12 +388,28 @@ int comedi_request_region(struct comedi_device *dev,
 	int ret;
 
 	ret = __comedi_request_region(dev, start, len);
-	if (ret == 0)
+	if (ret == 0) {
 		dev->iobase = start;
+		dev->iolen = len;
+	}
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(comedi_request_region);
+
+/**
+ * comedi_legacy_detach() - A generic (*detach) function for legacy drivers.
+ * @dev: comedi_device struct
+ */
+void comedi_legacy_detach(struct comedi_device *dev)
+{
+	if (dev->iobase && dev->iolen) {
+		release_region(dev->iobase, dev->iolen);
+		dev->iobase = 0;
+		dev->iolen = 0;
+	}
+}
+EXPORT_SYMBOL_GPL(comedi_legacy_detach);
 
 int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {

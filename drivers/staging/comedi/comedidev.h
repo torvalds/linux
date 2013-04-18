@@ -216,6 +216,7 @@ struct comedi_device {
 
 	/* dumb */
 	unsigned long iobase;
+	unsigned long iolen;
 	unsigned int irq;
 
 	struct comedi_subdevice *read_subdev;
@@ -354,6 +355,7 @@ int __comedi_request_region(struct comedi_device *,
 			    unsigned long start, unsigned long len);
 int comedi_request_region(struct comedi_device *,
 			  unsigned long start, unsigned long len);
+void comedi_legacy_detach(struct comedi_device *);
 
 int comedi_auto_config(struct device *, struct comedi_driver *,
 		       unsigned long context);
