@@ -78,8 +78,8 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 		pci_read_config_word(pdev, msix_pos + PCI_MSIX_FLAGS, &flags);
 		pci_read_config_dword(pdev, msix_pos + PCI_MSIX_TABLE, &table);
 
-		vdev->msix_bar = table & PCI_MSIX_FLAGS_BIRMASK;
-		vdev->msix_offset = table & ~PCI_MSIX_FLAGS_BIRMASK;
+		vdev->msix_bar = table & PCI_MSIX_TABLE_BIR;
+		vdev->msix_offset = table & PCI_MSIX_TABLE_OFFSET;
 		vdev->msix_size = ((flags & PCI_MSIX_FLAGS_QSIZE) + 1) * 16;
 	} else
 		vdev->msix_bar = 0xFF;
