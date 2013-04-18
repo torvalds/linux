@@ -35,19 +35,26 @@ static void __clk_enable(struct clk *clk)
 {
 	if (clk->parent)
 		__clk_enable(clk->parent);
-	if (clk->usecount++ == 0 && (clk->flags & CLK_PSC))
-		davinci_psc_config(clk->domain, clk->gpsc, clk->lpsc,
-				true, clk->flags);
+	if (clk->usecount++ == 0) {
+		if (clk->flags & CLK_PSC)
+			davinci_psc_config(clk->domain, clk->gpsc, clk->lpsc,
+					   true, clk->flags);
+		else if (clk->clk_enable)
+			clk->clk_enable(clk);
+	}
 }
 
 static void __clk_disable(struct clk *clk)
 {
 	if (WARN_ON(clk->usecount == 0))
 		return;
-	if (--clk->usecount == 0 && !(clk->flags & CLK_PLL) &&
-	    (clk->flags & CLK_PSC))
-		davinci_psc_config(clk->domain, clk->gpsc, clk->lpsc,
-				false, clk->flags);
+	if (--clk->usecount == 0) {
+		if (!(clk->flags & CLK_PLL) && (clk->flags & CLK_PSC))
+			davinci_psc_config(clk->domain, clk->gpsc, clk->lpsc,
+					   false, clk->flags);
+		else if (clk->clk_disable)
+			clk->clk_disable(clk);
+	}
 	if (clk->parent)
 		__clk_disable(clk->parent);
 }
