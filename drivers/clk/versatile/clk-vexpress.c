@@ -15,8 +15,6 @@
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
 #include <linux/vexpress.h>
 
 static struct clk *vexpress_sp810_timerclken[4];
@@ -86,50 +84,3 @@ void __init vexpress_clk_init(void __iomem *sp810_base)
 	WARN_ON(clk_register_clkdev(vexpress_sp810_timerclken[1],
 				"v2m-timer1", "sp804"));
 }
-
-#if defined(CONFIG_OF)
-
-struct clk *vexpress_sp810_of_get(struct of_phandle_args *clkspec, void *data)
-{
-	if (WARN_ON(clkspec->args_count != 1 || clkspec->args[0] >
-			ARRAY_SIZE(vexpress_sp810_timerclken)))
-		return NULL;
-
-	return vexpress_sp810_timerclken[clkspec->args[0]];
-}
-
-void __init vexpress_clk_of_init(void)
-{
-	struct device_node *node;
-	struct clk *clk;
-	struct clk *refclk, *timclk;
-
-	of_clk_init(NULL);
-
-	node = of_find_compatible_node(NULL, NULL, "arm,sp810");
-	vexpress_sp810_init(of_iomap(node, 0));
-	of_clk_add_provider(node, vexpress_sp810_of_get, NULL);
-
-	/* Select "better" (faster) parent for SP804 timers */
-	refclk = of_clk_get_by_name(node, "refclk");
-	timclk = of_clk_get_by_name(node, "timclk");
-	if (!WARN_ON(IS_ERR(refclk) || IS_ERR(timclk))) {
-		int i = 0;
-
-		if (clk_get_rate(refclk) > clk_get_rate(timclk))
-			clk = refclk;
-		else
-			clk = timclk;
-
-		for (i = 0; i < ARRAY_SIZE(vexpress_sp810_timerclken); i++)
-			WARN_ON(clk_set_parent(vexpress_sp810_timerclken[i],
-					clk));
-	}
-
-	WARN_ON(clk_register_clkdev(vexpress_sp810_timerclken[0],
-				"v2m-timer0", "sp804"));
-	WARN_ON(clk_register_clkdev(vexpress_sp810_timerclken[1],
-				"v2m-timer1", "sp804"));
-}
-
-#endif
