@@ -1906,6 +1906,7 @@ err_detach:
 		bond_mc_list_flush(bond_dev, slave_dev);
 		netif_addr_unlock_bh(bond_dev);
 	}
+	bond_del_vlans_from_slave(bond, slave_dev);
 	write_lock_bh(&bond->lock);
 	bond_detach_slave(bond, new_slave);
 	write_unlock_bh(&bond->lock);
