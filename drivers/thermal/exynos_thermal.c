@@ -816,6 +816,10 @@ static const struct of_device_id exynos_tmu_match[] = {
 		.data = (void *)EXYNOS4210_TMU_DRV_DATA,
 	},
 	{
+		.compatible = "samsung,exynos4412-tmu",
+		.data = (void *)EXYNOS_TMU_DRV_DATA,
+	},
+	{
 		.compatible = "samsung,exynos5250-tmu",
 		.data = (void *)EXYNOS_TMU_DRV_DATA,
 	},
