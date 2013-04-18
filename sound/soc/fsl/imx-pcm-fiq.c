@@ -299,8 +299,8 @@ int imx_pcm_fiq_init(struct platform_device *pdev)
 
 	imx_ssi_fiq_base = (unsigned long)ssi->base;
 
-	ssi->dma_params_tx.burstsize = 4;
-	ssi->dma_params_rx.burstsize = 6;
+	ssi->dma_params_tx.maxburst = 4;
+	ssi->dma_params_rx.maxburst = 6;
 
 	ret = snd_soc_register_platform(&pdev->dev, &imx_soc_platform_fiq);
 	if (ret)

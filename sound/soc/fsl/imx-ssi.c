@@ -232,23 +232,6 @@ static int imx_ssi_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
-static int imx_ssi_startup(struct snd_pcm_substream *substream,
-			   struct snd_soc_dai *cpu_dai)
-{
-	struct imx_ssi *ssi = snd_soc_dai_get_drvdata(cpu_dai);
-	struct imx_pcm_dma_params *dma_data;
-
-	/* Tx/Rx config */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		dma_data = &ssi->dma_params_tx;
-	else
-		dma_data = &ssi->dma_params_rx;
-
-	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
-
-	return 0;
-}
-
 /*
  * Should only be called when port is inactive (i.e. SSIEN = 0),
  * although can be called multiple times by upper layers.
@@ -353,7 +336,6 @@ static int imx_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 }
 
 static const struct snd_soc_dai_ops imx_ssi_pcm_dai_ops = {
-	.startup	= imx_ssi_startup,
 	.hw_params	= imx_ssi_hw_params,
 	.set_fmt	= imx_ssi_set_dai_fmt,
 	.set_clkdiv	= imx_ssi_set_dai_clkdiv,
@@ -369,9 +351,13 @@ static int imx_ssi_dai_probe(struct snd_soc_dai *dai)
 
 	snd_soc_dai_set_drvdata(dai, ssi);
 
-	val = SSI_SFCSR_TFWM0(ssi->dma_params_tx.burstsize) |
-		SSI_SFCSR_RFWM0(ssi->dma_params_rx.burstsize);
+	val = SSI_SFCSR_TFWM0(ssi->dma_params_tx.maxburst) |
+		SSI_SFCSR_RFWM0(ssi->dma_params_rx.maxburst);
 	writel(val, ssi->base + SSI_SFCSR);
+
+	/* Tx/Rx config */
+	dai->playback_dma_data = &ssi->dma_params_tx;
+	dai->capture_dma_data = &ssi->dma_params_rx;
 
 	return 0;
 }
@@ -575,19 +561,26 @@ static int imx_ssi_probe(struct platform_device *pdev)
 
 	writel(0x0, ssi->base + SSI_SIER);
 
-	ssi->dma_params_rx.dma_addr = res->start + SSI_SRX0;
-	ssi->dma_params_tx.dma_addr = res->start + SSI_STX0;
+	ssi->dma_params_rx.addr = res->start + SSI_SRX0;
+	ssi->dma_params_tx.addr = res->start + SSI_STX0;
 
-	ssi->dma_params_tx.burstsize = 6;
-	ssi->dma_params_rx.burstsize = 4;
+	ssi->dma_params_tx.maxburst = 6;
+	ssi->dma_params_rx.maxburst = 4;
+
+	ssi->dma_params_tx.filter_data = &ssi->filter_data_tx;
+	ssi->dma_params_rx.filter_data = &ssi->filter_data_rx;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx0");
-	if (res)
-		ssi->dma_params_tx.dma = res->start;
+	if (res) {
+		imx_pcm_dma_params_init_data(&ssi->filter_data_tx, res->start,
+			false);
+	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx0");
-	if (res)
-		ssi->dma_params_rx.dma = res->start;
+	if (res) {
+		imx_pcm_dma_params_init_data(&ssi->filter_data_rx, res->start,
+			false);
+	}
 
 	platform_set_drvdata(pdev, ssi);
 
