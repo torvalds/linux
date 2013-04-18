@@ -66,8 +66,10 @@ struct lpfc_sli2_slim;
  * queue depths when there are driver resource error or Firmware
  * resource error.
  */
-#define QUEUE_RAMP_DOWN_INTERVAL	(1 * HZ)   /* 1 Second */
-#define QUEUE_RAMP_UP_INTERVAL		(300 * HZ) /* 5 minutes */
+/* 1 Second */
+#define QUEUE_RAMP_DOWN_INTERVAL	(msecs_to_jiffies(1000 * 1))
+/* 5 minutes */
+#define QUEUE_RAMP_UP_INTERVAL		(msecs_to_jiffies(1000 * 300))
 
 /* Number of exchanges reserved for discovery to complete */
 #define LPFC_DISC_IOCB_BUFF_COUNT 20

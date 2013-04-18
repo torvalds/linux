@@ -541,13 +541,16 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 
 	/* Set up ring-0 (ELS) timer */
 	timeout = phba->fc_ratov * 2;
-	mod_timer(&vport->els_tmofunc, jiffies + HZ * timeout);
+	mod_timer(&vport->els_tmofunc,
+		  jiffies + msecs_to_jiffies(1000 * timeout));
 	/* Set up heart beat (HB) timer */
-	mod_timer(&phba->hb_tmofunc, jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
+	mod_timer(&phba->hb_tmofunc,
+		  jiffies + msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL));
 	phba->hb_outstanding = 0;
 	phba->last_completion_time = jiffies;
 	/* Set up error attention (ERATT) polling timer */
-	mod_timer(&phba->eratt_poll, jiffies + HZ * LPFC_ERATT_POLL_INTERVAL);
+	mod_timer(&phba->eratt_poll,
+		  jiffies + msecs_to_jiffies(1000 * LPFC_ERATT_POLL_INTERVAL));
 
 	if (phba->hba_flag & LINK_DISABLED) {
 		lpfc_printf_log(phba,
@@ -1021,7 +1024,8 @@ lpfc_hb_mbox_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 		!(phba->link_state == LPFC_HBA_ERROR) &&
 		!(phba->pport->load_flag & FC_UNLOADING))
 		mod_timer(&phba->hb_tmofunc,
-			jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
+			  jiffies +
+			  msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL));
 	return;
 }
 
@@ -1064,15 +1068,18 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 
 	spin_lock_irq(&phba->pport->work_port_lock);
 
-	if (time_after(phba->last_completion_time + LPFC_HB_MBOX_INTERVAL * HZ,
-		jiffies)) {
+	if (time_after(phba->last_completion_time +
+			msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL),
+			jiffies)) {
 		spin_unlock_irq(&phba->pport->work_port_lock);
 		if (!phba->hb_outstanding)
 			mod_timer(&phba->hb_tmofunc,
-				jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
+				jiffies +
+				msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL));
 		else
 			mod_timer(&phba->hb_tmofunc,
-				jiffies + HZ * LPFC_HB_MBOX_TIMEOUT);
+				jiffies +
+				msecs_to_jiffies(1000 * LPFC_HB_MBOX_TIMEOUT));
 		return;
 	}
 	spin_unlock_irq(&phba->pport->work_port_lock);
@@ -1104,7 +1111,8 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 				if (!pmboxq) {
 					mod_timer(&phba->hb_tmofunc,
 						 jiffies +
-						 HZ * LPFC_HB_MBOX_INTERVAL);
+						 msecs_to_jiffies(1000 *
+						 LPFC_HB_MBOX_INTERVAL));
 					return;
 				}
 
@@ -1120,7 +1128,8 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 							phba->mbox_mem_pool);
 					mod_timer(&phba->hb_tmofunc,
 						jiffies +
-						HZ * LPFC_HB_MBOX_INTERVAL);
+						msecs_to_jiffies(1000 *
+						LPFC_HB_MBOX_INTERVAL));
 					return;
 				}
 				phba->skipped_hb = 0;
@@ -1136,7 +1145,8 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 				phba->skipped_hb = jiffies;
 
 			mod_timer(&phba->hb_tmofunc,
-				  jiffies + HZ * LPFC_HB_MBOX_TIMEOUT);
+				 jiffies +
+				 msecs_to_jiffies(1000 * LPFC_HB_MBOX_TIMEOUT));
 			return;
 		} else {
 			/*
@@ -1150,7 +1160,8 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 					jiffies_to_msecs(jiffies
 						 - phba->last_completion_time));
 			mod_timer(&phba->hb_tmofunc,
-				  jiffies + HZ * LPFC_HB_MBOX_TIMEOUT);
+				jiffies +
+				msecs_to_jiffies(1000 * LPFC_HB_MBOX_TIMEOUT));
 		}
 	}
 }
@@ -3207,14 +3218,15 @@ int lpfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
 		stat = 1;
 		goto finished;
 	}
-	if (time >= 30 * HZ) {
+	if (time >= msecs_to_jiffies(30 * 1000)) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"0461 Scanning longer than 30 "
 				"seconds.  Continuing initialization\n");
 		stat = 1;
 		goto finished;
 	}
-	if (time >= 15 * HZ && phba->link_state <= LPFC_LINK_DOWN) {
+	if (time >= msecs_to_jiffies(15 * 1000) &&
+	    phba->link_state <= LPFC_LINK_DOWN) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"0465 Link down longer than 15 "
 				"seconds.  Continuing initialization\n");
@@ -3226,7 +3238,7 @@ int lpfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
 		goto finished;
 	if (vport->num_disc_nodes || vport->fc_prli_sent)
 		goto finished;
-	if (vport->fc_map_cnt == 0 && time < 2 * HZ)
+	if (vport->fc_map_cnt == 0 && time < msecs_to_jiffies(2 * 1000))
 		goto finished;
 	if ((phba->sli.sli_flag & LPFC_SLI_MBOX_ACTIVE) != 0)
 		goto finished;
@@ -4225,7 +4237,8 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			 * If there are other active VLinks present,
 			 * re-instantiate the Vlink using FDISC.
 			 */
-			mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ);
+			mod_timer(&ndlp->nlp_delayfunc,
+				  jiffies + msecs_to_jiffies(1000));
 			shost = lpfc_shost_from_vport(vport);
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag |= NLP_DELAY_TMO;

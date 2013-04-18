@@ -2576,7 +2576,8 @@ static int lpfcdiag_loop_get_xri(struct lpfc_hba *phba, uint16_t rpi,
 	evt->wait_time_stamp = jiffies;
 	time_left = wait_event_interruptible_timeout(
 		evt->wq, !list_empty(&evt->events_to_see),
-		((phba->fc_ratov * 2) + LPFC_DRVR_TIMEOUT) * HZ);
+		msecs_to_jiffies(1000 *
+			((phba->fc_ratov * 2) + LPFC_DRVR_TIMEOUT)));
 	if (list_empty(&evt->events_to_see))
 		ret_val = (time_left) ? -EINTR : -ETIMEDOUT;
 	else {
@@ -3151,7 +3152,8 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 	evt->waiting = 1;
 	time_left = wait_event_interruptible_timeout(
 		evt->wq, !list_empty(&evt->events_to_see),
-		((phba->fc_ratov * 2) + LPFC_DRVR_TIMEOUT) * HZ);
+		msecs_to_jiffies(1000 *
+			((phba->fc_ratov * 2) + LPFC_DRVR_TIMEOUT)));
 	evt->waiting = 0;
 	if (list_empty(&evt->events_to_see)) {
 		rc = (time_left) ? -EINTR : -ETIMEDOUT;

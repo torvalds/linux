@@ -4247,7 +4247,7 @@ lpfc_set_disctmo(struct lpfc_vport *vport)
 			tmo, vport->port_state, vport->fc_flag);
 	}
 
-	mod_timer(&vport->fc_disctmo, jiffies + HZ * tmo);
+	mod_timer(&vport->fc_disctmo, jiffies + msecs_to_jiffies(1000 * tmo));
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag |= FC_DISC_TMO;
 	spin_unlock_irq(shost->host_lock);
@@ -5422,7 +5422,8 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (vport->cfg_fdmi_on == 1)
 		lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_DHBA);
 	else
-		mod_timer(&vport->fc_fdmitmo, jiffies + HZ * 60);
+		mod_timer(&vport->fc_fdmitmo,
+			  jiffies + msecs_to_jiffies(1000 * 60));
 
 	/* decrement the node reference count held for this callback
 	 * function.

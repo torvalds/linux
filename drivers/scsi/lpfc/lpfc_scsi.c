@@ -4771,7 +4771,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	/* Wait for abort to complete */
 	wait_event_timeout(waitq,
 			  (lpfc_cmd->pCmd != cmnd),
-			   (2*vport->cfg_devloss_tmo*HZ));
+			   msecs_to_jiffies(2*vport->cfg_devloss_tmo*1000));
 	lpfc_cmd->waitq = NULL;
 
 	if (lpfc_cmd->pCmd == cmnd) {

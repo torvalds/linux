@@ -6241,7 +6241,8 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 	}
 
 	if (!list_empty(&phba->sli.ring[LPFC_ELS_RING].txcmplq))
-		mod_timer(&vport->els_tmofunc, jiffies + HZ * timeout);
+		mod_timer(&vport->els_tmofunc,
+			  jiffies + msecs_to_jiffies(1000 * timeout));
 }
 
 /**
@@ -7003,7 +7004,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	if (vport->fc_flag & FC_DISC_DELAYED) {
 		spin_unlock_irq(shost->host_lock);
 		mod_timer(&vport->delayed_disc_tmo,
-			jiffies + HZ * phba->fc_ratov);
+			jiffies + msecs_to_jiffies(1000 * phba->fc_ratov));
 		return;
 	}
 	spin_unlock_irq(shost->host_lock);
@@ -7287,7 +7288,7 @@ lpfc_retry_pport_discovery(struct lpfc_hba *phba)
 		return;
 
 	shost = lpfc_shost_from_vport(phba->pport);
-	mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ);
+	mod_timer(&ndlp->nlp_delayfunc, jiffies + msecs_to_jiffies(1000));
 	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag |= NLP_DELAY_TMO;
 	spin_unlock_irq(shost->host_lock);
@@ -7791,7 +7792,8 @@ lpfc_block_fabric_iocbs(struct lpfc_hba *phba)
 	blocked = test_and_set_bit(FABRIC_COMANDS_BLOCKED, &phba->bit_flags);
 	/* Start a timer to unblock fabric iocbs after 100ms */
 	if (!blocked)
-		mod_timer(&phba->fabric_block_timer, jiffies + HZ/10 );
+		mod_timer(&phba->fabric_block_timer,
+			  jiffies + msecs_to_jiffies(100));
 
 	return;
 }
