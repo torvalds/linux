@@ -98,6 +98,11 @@ static inline struct vfsmount *au_br_mnt(struct au_branch *br)
 	return br->br_mnt;
 }
 
+static inline struct super_block *au_br_sb(struct au_branch *br)
+{
+	return au_br_mnt(br)->mnt_sb;
+}
+
 /* branch permissions and attributes */
 #define AuBrPerm_RW		1		/* writable, hardlinkable wh */
 #define AuBrPerm_RO		(1 << 1)	/* readonly */
@@ -125,7 +130,7 @@ static inline int au_br_wh_linkable(int brperm)
 
 static inline int au_br_rdonly(struct au_branch *br)
 {
-	return ((au_br_mnt(br)->mnt_sb->s_flags & MS_RDONLY)
+	return ((au_br_sb(br)->s_flags & MS_RDONLY)
 		|| !au_br_writable(br->br_perm))
 		? -EROFS : 0;
 }
@@ -201,7 +206,7 @@ struct vfsmount *au_sbr_mnt(struct super_block *sb, aufs_bindex_t bindex)
 static inline
 struct super_block *au_sbr_sb(struct super_block *sb, aufs_bindex_t bindex)
 {
-	return au_sbr_mnt(sb, bindex)->mnt_sb;
+	return au_br_sb(au_sbr(sb, bindex));
 }
 
 static inline void au_sbr_put(struct super_block *sb, aufs_bindex_t bindex)
