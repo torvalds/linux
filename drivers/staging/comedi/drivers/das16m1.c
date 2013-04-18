@@ -143,6 +143,7 @@ struct das16m1_private_struct {
 	unsigned int do_bits;	/*  saves status of digital output bits */
 	unsigned int divisor1;	/*  divides master clock to obtain conversion speed */
 	unsigned int divisor2;	/*  divides master clock to obtain conversion speed */
+	unsigned long extra_iobase;
 };
 
 static inline short munge_sample(short data)
@@ -583,11 +584,9 @@ static int das16m1_attach(struct comedi_device *dev,
 	/* Request an additional region for the 8255 */
 	ret = __comedi_request_region(dev, dev->iobase + DAS16M1_82C55,
 				      DAS16M1_SIZE2);
-	if (ret) {
-		release_region(dev->iobase, DAS16M1_SIZE);
-		dev->iobase = 0;
-		return -EIO;
-	}
+	if (ret)
+		return ret;
+	devpriv->extra_iobase = dev->iobase + DAS16M1_82C55;
 
 	/* now for the irq */
 	irq = it->options[1];
@@ -649,7 +648,7 @@ static int das16m1_attach(struct comedi_device *dev,
 
 	s = &dev->subdevices[3];
 	/* 8255 */
-	subdev_8255_init(dev, s, NULL, dev->iobase + DAS16M1_82C55);
+	subdev_8255_init(dev, s, NULL, devpriv->extra_iobase);
 
 	/*  disable upper half of hardware conversion counter so it doesn't mess with us */
 	outb(TOTAL_CLEAR, dev->iobase + DAS16M1_8254_FIRST_CNTRL);
@@ -669,13 +668,14 @@ static int das16m1_attach(struct comedi_device *dev,
 
 static void das16m1_detach(struct comedi_device *dev)
 {
+	struct das16m1_private_struct *devpriv = dev->private;
+
 	comedi_spriv_free(dev, 3);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->iobase) {
-		release_region(dev->iobase, DAS16M1_SIZE);
-		release_region(dev->iobase + DAS16M1_82C55, DAS16M1_SIZE2);
-	}
+	if (devpriv && devpriv->extra_iobase)
+		release_region(devpriv->extra_iobase, DAS16M1_SIZE2);
+	comedi_legacy_detach(dev);
 }
 
 static struct comedi_driver das16m1_driver = {
