@@ -171,6 +171,7 @@ static void igb_ptp_systim_to_hwtstamp(struct igb_adapter *adapter,
 	switch (adapter->hw.mac.type) {
 	case e1000_82576:
 	case e1000_82580:
+	case e1000_i354:
 	case e1000_i350:
 		spin_lock_irqsave(&adapter->tmreg_lock, flags);
 
@@ -735,6 +736,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		wr32(E1000_TIMINCA, INCPERIOD_82576 | INCVALUE_82576);
 		break;
 	case e1000_82580:
+	case e1000_i354:
 	case e1000_i350:
 		snprintf(adapter->ptp_caps.name, 16, "%pm", netdev->dev_addr);
 		adapter->ptp_caps.owner = THIS_MODULE;
@@ -823,6 +825,7 @@ void igb_ptp_stop(struct igb_adapter *adapter)
 	switch (adapter->hw.mac.type) {
 	case e1000_82576:
 	case e1000_82580:
+	case e1000_i354:
 	case e1000_i350:
 		cancel_delayed_work_sync(&adapter->ptp_overflow_work);
 		break;
@@ -867,6 +870,7 @@ void igb_ptp_reset(struct igb_adapter *adapter)
 		wr32(E1000_TIMINCA, INCPERIOD_82576 | INCVALUE_82576);
 		break;
 	case e1000_82580:
+	case e1000_i354:
 	case e1000_i350:
 	case e1000_i210:
 	case e1000_i211:

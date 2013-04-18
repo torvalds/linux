@@ -236,11 +236,14 @@
 #define E1000_STATUS_GIO_MASTER_ENABLE 0x00080000
 /* BMC external code execution disabled */
 
+#define E1000_STATUS_2P5_SKU		0x00001000 /* Val of 2.5GBE SKU strap */
+#define E1000_STATUS_2P5_SKU_OVER	0x00002000 /* Val of 2.5GBE SKU Over */
 /* Constants used to intrepret the masked PCI-X bus speed. */
 
 #define SPEED_10    10
 #define SPEED_100   100
 #define SPEED_1000  1000
+#define SPEED_2500  2500
 #define HALF_DUPLEX 1
 #define FULL_DUPLEX 2
 
@@ -768,6 +771,7 @@
 #define I350_I_PHY_ID        0x015403B0
 #define M88_VENDOR           0x0141
 #define I210_I_PHY_ID        0x01410C00
+#define M88E1545_E_PHY_ID    0x01410EA0
 
 /* M88E1000 Specific Registers */
 #define M88E1000_PHY_SPEC_CTRL     0x10  /* PHY Specific Control Register */
@@ -889,6 +893,18 @@
 #define E1000_EEE_LP_ADV_DEV_I210    7           /* EEE LP Adv Device */
 #define E1000_EEE_LP_ADV_ADDR_I210   61          /* EEE LP Adv Register */
 #define E1000_MMDAC_FUNC_DATA        0x4000      /* Data, no post increment */
+#define E1000_M88E1545_PAGE_ADDR	0x16       /* Page Offset Register */
+#define E1000_M88E1545_EEE_CTRL_1	0x0
+#define E1000_M88E1545_EEE_CTRL_1_MS	0x0001     /* EEE Master/Slave */
+#define E1000_EEE_ADV_DEV_I354		7
+#define E1000_EEE_ADV_ADDR_I354		60
+#define E1000_EEE_ADV_100_SUPPORTED	(1 << 1)   /* 100BaseTx EEE Supported */
+#define E1000_EEE_ADV_1000_SUPPORTED	(1 << 2)   /* 1000BaseT EEE Supported */
+#define E1000_PCS_STATUS_DEV_I354	3
+#define E1000_PCS_STATUS_ADDR_I354	1
+#define E1000_PCS_STATUS_TX_LPI_IND	0x0200     /* Tx in LPI state */
+#define E1000_PCS_STATUS_RX_LPI_RCVD	0x0400
+#define E1000_PCS_STATUS_TX_LPI_RCVD	0x0800
 
 /* SerDes Control */
 #define E1000_GEN_CTL_READY             0x80000000

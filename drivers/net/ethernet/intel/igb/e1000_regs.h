@@ -65,6 +65,7 @@
 #define E1000_TIPG     0x00410  /* TX Inter-packet gap -RW */
 #define E1000_AIT      0x00458  /* Adaptive Interframe Spacing Throttle - RW */
 #define E1000_LEDCTL   0x00E00  /* LED Control - RW */
+#define E1000_LEDMUX   0x08130  /* LED MUX Control */
 #define E1000_PBA      0x01000  /* Packet Buffer Allocation - RW */
 #define E1000_PBS      0x01008  /* Packet Buffer Size */
 #define E1000_EEMNGCTL 0x01010  /* MNG EEprom Control */
@@ -83,6 +84,9 @@
 #define E1000_I2C_DATA_IN   0x00001000  /* I2C- Data In */
 #define E1000_I2C_CLK_OE_N  0x00002000  /* I2C- Clock Output Enable */
 #define E1000_I2C_CLK_IN    0x00004000  /* I2C- Clock In */
+#define E1000_MPHY_ADDR_CTRL	0x0024 /* GbE MPHY Address Control */
+#define E1000_MPHY_DATA		0x0E10 /* GBE MPHY Data */
+#define E1000_MPHY_STAT		0x0E0C /* GBE MPHY Statistics */
 
 /* IEEE 1588 TIMESYNCH */
 #define E1000_TSYNCRXCTL 0x0B620 /* Rx Time Sync Control register - RW */

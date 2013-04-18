@@ -721,6 +721,7 @@ void igb_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 	case e1000_82575:
 	case e1000_82576:
 	case e1000_82580:
+	case e1000_i354:
 	case e1000_i350:
 	case e1000_i210:
 		break;
@@ -739,6 +740,7 @@ void igb_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 
 	switch (hw->mac.type) {
 	case e1000_i210:
+	case e1000_i354:
 	case e1000_i350:
 		/* find combo image version */
 		hw->nvm.ops.read(hw, NVM_COMB_VER_PTR, 1, &comb_offset);

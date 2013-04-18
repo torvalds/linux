@@ -100,6 +100,7 @@ static bool igb_sgmii_uses_mdio_82575(struct e1000_hw *hw)
 		break;
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i354:
 	case e1000_i210:
 	case e1000_i211:
 		reg = rd32(E1000_MDICNFG);
@@ -149,6 +150,7 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 		switch (hw->mac.type) {
 		case e1000_82580:
 		case e1000_i350:
+		case e1000_i354:
 			phy->ops.read_reg = igb_read_phy_reg_82580;
 			phy->ops.write_reg = igb_write_phy_reg_82580;
 			break;
@@ -174,13 +176,14 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 
 	/* Verify phy id and set remaining function pointers */
 	switch (phy->id) {
+	case M88E1545_E_PHY_ID:
 	case I347AT4_E_PHY_ID:
 	case M88E1112_E_PHY_ID:
 	case M88E1111_I_PHY_ID:
 		phy->type		= e1000_phy_m88;
+		phy->ops.check_polarity	= igb_check_polarity_m88;
 		phy->ops.get_phy_info	= igb_get_phy_info_m88;
-		if (phy->id == I347AT4_E_PHY_ID ||
-		    phy->id == M88E1112_E_PHY_ID)
+		if (phy->id != M88E1111_I_PHY_ID)
 			phy->ops.get_cable_length =
 					 igb_get_cable_length_m88_gen2;
 		else
@@ -287,6 +290,7 @@ static s32 igb_init_nvm_params_82575(struct e1000_hw *hw)
 			nvm->ops.read = igb_read_nvm_spi;
 		nvm->ops.write = igb_write_nvm_spi;
 		break;
+	case e1000_i354:
 	case e1000_i350:
 		nvm->ops.validate = igb_validate_nvm_checksum_i350;
 		nvm->ops.update = igb_update_nvm_checksum_i350;
@@ -352,6 +356,7 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 		mac->rar_entry_count = E1000_RAR_ENTRIES_82580;
 		break;
 	case e1000_i350:
+	case e1000_i354:
 		mac->rar_entry_count = E1000_RAR_ENTRIES_I350;
 		break;
 	default:
@@ -444,6 +449,11 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		break;
 	case E1000_DEV_ID_I211_COPPER:
 		mac->type = e1000_i211;
+		break;
+	case E1000_DEV_ID_I354_BACKPLANE_1GBPS:
+	case E1000_DEV_ID_I354_SGMII:
+	case E1000_DEV_ID_I354_BACKPLANE_2_5GBPS:
+		mac->type = e1000_i354;
 		break;
 	default:
 		return -E1000_ERR_MAC_INIT;
@@ -642,6 +652,7 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 			break;
 		case e1000_82580:
 		case e1000_i350:
+		case e1000_i354:
 		case e1000_i210:
 		case e1000_i211:
 			mdic = rd32(E1000_MDICNFG);
@@ -1272,7 +1283,7 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 
 	/* Disabling VLAN filtering */
 	hw_dbg("Initializing the IEEE VLAN\n");
-	if (hw->mac.type == e1000_i350)
+	if ((hw->mac.type == e1000_i350) || (hw->mac.type == e1000_i354))
 		igb_clear_vfta_i350(hw);
 	else
 		igb_clear_vfta(hw);
@@ -1348,6 +1359,7 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 		switch (hw->phy.id) {
 		case I347AT4_E_PHY_ID:
 		case M88E1112_E_PHY_ID:
+		case M88E1545_E_PHY_ID:
 		case I210_I_PHY_ID:
 			ret_val = igb_copper_link_setup_m88_gen2(hw);
 			break;
@@ -1804,6 +1816,7 @@ void igb_vmdq_set_anti_spoofing_pf(struct e1000_hw *hw, bool enable, int pf)
 		reg_offset = E1000_DTXSWC;
 		break;
 	case e1000_i350:
+	case e1000_i354:
 		reg_offset = E1000_TXSWC;
 		break;
 	default:
@@ -1845,6 +1858,7 @@ void igb_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable)
 			dtxswc &= ~E1000_DTXSWC_VMDQ_LOOPBACK_EN;
 		wr32(E1000_DTXSWC, dtxswc);
 		break;
+	case e1000_i354:
 	case e1000_i350:
 		dtxswc = rd32(E1000_TXSWC);
 		if (enable)
@@ -2362,6 +2376,108 @@ s32 igb_set_eee_i350(struct e1000_hw *hw)
 	rd32(E1000_EEER);
 out:
 
+	return ret_val;
+}
+
+/**
+ *  igb_set_eee_i354 - Enable/disable EEE support
+ *  @hw: pointer to the HW structure
+ *
+ *  Enable/disable EEE legacy mode based on setting in dev_spec structure.
+ *
+ **/
+s32 igb_set_eee_i354(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val = 0;
+	u16 phy_data;
+
+	if ((hw->phy.media_type != e1000_media_type_copper) ||
+	    (phy->id != M88E1545_E_PHY_ID))
+		goto out;
+
+	if (!hw->dev_spec._82575.eee_disable) {
+		/* Switch to PHY page 18. */
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1545_PAGE_ADDR, 18);
+		if (ret_val)
+			goto out;
+
+		ret_val = phy->ops.read_reg(hw, E1000_M88E1545_EEE_CTRL_1,
+					    &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy_data |= E1000_M88E1545_EEE_CTRL_1_MS;
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1545_EEE_CTRL_1,
+					     phy_data);
+		if (ret_val)
+			goto out;
+
+		/* Return the PHY to page 0. */
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1545_PAGE_ADDR, 0);
+		if (ret_val)
+			goto out;
+
+		/* Turn on EEE advertisement. */
+		ret_val = igb_read_xmdio_reg(hw, E1000_EEE_ADV_ADDR_I354,
+					     E1000_EEE_ADV_DEV_I354,
+					     &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy_data |= E1000_EEE_ADV_100_SUPPORTED |
+			    E1000_EEE_ADV_1000_SUPPORTED;
+		ret_val = igb_write_xmdio_reg(hw, E1000_EEE_ADV_ADDR_I354,
+						E1000_EEE_ADV_DEV_I354,
+						phy_data);
+	} else {
+		/* Turn off EEE advertisement. */
+		ret_val = igb_read_xmdio_reg(hw, E1000_EEE_ADV_ADDR_I354,
+					     E1000_EEE_ADV_DEV_I354,
+					     &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy_data &= ~(E1000_EEE_ADV_100_SUPPORTED |
+			      E1000_EEE_ADV_1000_SUPPORTED);
+		ret_val = igb_write_xmdio_reg(hw, E1000_EEE_ADV_ADDR_I354,
+					      E1000_EEE_ADV_DEV_I354,
+					      phy_data);
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  igb_get_eee_status_i354 - Get EEE status
+ *  @hw: pointer to the HW structure
+ *  @status: EEE status
+ *
+ *  Get EEE status by guessing based on whether Tx or Rx LPI indications have
+ *  been received.
+ **/
+s32 igb_get_eee_status_i354(struct e1000_hw *hw, bool *status)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val = 0;
+	u16 phy_data;
+
+	/* Check if EEE is supported on this device. */
+	if ((hw->phy.media_type != e1000_media_type_copper) ||
+	    (phy->id != M88E1545_E_PHY_ID))
+		goto out;
+
+	ret_val = igb_read_xmdio_reg(hw, E1000_PCS_STATUS_ADDR_I354,
+				     E1000_PCS_STATUS_DEV_I354,
+				     &phy_data);
+	if (ret_val)
+		goto out;
+
+	*status = phy_data & (E1000_PCS_STATUS_TX_LPI_RCVD |
+			      E1000_PCS_STATUS_RX_LPI_RCVD) ? true : false;
+
+out:
 	return ret_val;
 }
 
