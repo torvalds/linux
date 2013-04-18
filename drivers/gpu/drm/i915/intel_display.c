@@ -467,17 +467,6 @@ void intel_dpio_write(struct drm_i915_private *dev_priv, int reg, u32 val)
 		DRM_ERROR("DPIO write wait timed out\n");
 }
 
-static void vlv_init_dpio(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	/* Reset the DPIO config */
-	I915_WRITE(DPIO_CTL, 0);
-	POSTING_READ(DPIO_CTL);
-	I915_WRITE(DPIO_CTL, 1);
-	POSTING_READ(DPIO_CTL);
-}
-
 static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc,
 						int refclk)
 {
@@ -9485,9 +9474,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	intel_disable_gt_powersave(dev);
 
 	ironlake_teardown_rc6(dev);
-
-	if (IS_VALLEYVIEW(dev))
-		vlv_init_dpio(dev);
 
 	mutex_unlock(&dev->struct_mutex);
 
