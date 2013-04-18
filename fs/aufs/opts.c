@@ -1518,7 +1518,7 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 		au_hn_imtx_lock_nested(hdir, AuLsc_I_PARENT);
 		if (wbr)
 			wbr_wh_write_lock(wbr);
-		err = au_wh_init(au_h_dptr(root, bindex), br, sb);
+		err = au_wh_init(br, sb);
 		if (wbr)
 			wbr_wh_write_unlock(wbr);
 		au_hn_imtx_unlock(hdir);

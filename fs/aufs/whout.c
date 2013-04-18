@@ -436,16 +436,14 @@ out:
 /*
  * initialize the whiteout base file/dir for @br.
  */
-int au_wh_init(struct dentry *h_root, struct au_branch *br,
-	       struct super_block *sb)
+int au_wh_init(struct au_branch *br, struct super_block *sb)
 {
 	int err, i;
 	const unsigned char do_plink
 		= !!au_opt_test(au_mntflags(sb), PLINK);
-	struct path path = {
-		.mnt = au_br_mnt(br)
-	};
 	struct inode *h_dir;
+	struct path path = br->br_path;
+	struct dentry *h_root = path.dentry;
 	struct au_wbr *wbr = br->br_wbr;
 	static const struct qstr base_name[] = {
 		[AuBrWh_BASE] = {
@@ -565,6 +563,7 @@ static void reinit_br_wh(void *arg)
 	dir = a->sb->s_root->d_inode;
 	hdir = au_hi(dir, bindex);
 	h_root = au_h_dptr(a->sb->s_root, bindex);
+	AuDebugOn(h_root != au_br_dentry(a->br));
 
 	au_hn_imtx_lock_nested(hdir, AuLsc_I_PARENT);
 	wbr_wh_write_lock(wbr);
@@ -586,7 +585,7 @@ static void reinit_br_wh(void *arg)
 	dput(wbr->wbr_whbase);
 	wbr->wbr_whbase = NULL;
 	if (!err)
-		err = au_wh_init(h_root, a->br, a->sb);
+		err = au_wh_init(a->br, a->sb);
 	wbr_wh_write_unlock(wbr);
 	au_hn_imtx_unlock(hdir);
 	di_read_unlock(a->sb->s_root, AuLock_IR);
@@ -985,6 +984,7 @@ static void call_rmdir_whtmp(void *args)
 	struct dentry *h_parent;
 	struct inode *h_dir;
 	struct au_hinode *hdir;
+	struct vfsmount *h_mnt;
 
 	/* rmdir by nfsd may cause deadlock with this i_mutex */
 	/* mutex_lock(&a->dir->i_mutex); */
@@ -1006,11 +1006,12 @@ static void call_rmdir_whtmp(void *args)
 	err = au_h_verify(a->wh_dentry, au_opt_udba(sb), h_dir, h_parent,
 			  a->br);
 	if (!err) {
-		err = mnt_want_write(au_br_mnt(a->br));
+		h_mnt = au_br_mnt(a->br);
+		err = mnt_want_write(h_mnt);
 		if (!err) {
 			err = au_whtmp_rmdir(a->dir, bindex, a->wh_dentry,
 					     &a->whlist);
-			mnt_drop_write(au_br_mnt(a->br));
+			mnt_drop_write(h_mnt);
 		}
 	}
 	au_hn_imtx_unlock(hdir);

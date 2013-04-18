@@ -98,6 +98,11 @@ static inline struct vfsmount *au_br_mnt(struct au_branch *br)
 	return br->br_path.mnt;
 }
 
+static inline struct dentry *au_br_dentry(struct au_branch *br)
+{
+	return br->br_path.dentry;
+}
+
 static inline struct super_block *au_br_sb(struct au_branch *br)
 {
 	return au_br_mnt(br)->mnt_sb;
