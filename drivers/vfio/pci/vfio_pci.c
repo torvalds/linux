@@ -70,7 +70,7 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 		pci_write_config_word(pdev, PCI_COMMAND, cmd);
 	}
 
-	msix_pos = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
+	msix_pos = pdev->msix_cap;
 	if (msix_pos) {
 		u16 flags;
 		u32 table;
@@ -183,7 +183,7 @@ static int vfio_pci_get_irq_count(struct vfio_pci_device *vdev, int irq_type)
 		u8 pos;
 		u16 flags;
 
-		pos = pci_find_capability(vdev->pdev, PCI_CAP_ID_MSI);
+		pos = vdev->pdev->msi_cap;
 		if (pos) {
 			pci_read_config_word(vdev->pdev,
 					     pos + PCI_MSI_FLAGS, &flags);
@@ -194,7 +194,7 @@ static int vfio_pci_get_irq_count(struct vfio_pci_device *vdev, int irq_type)
 		u8 pos;
 		u16 flags;
 
-		pos = pci_find_capability(vdev->pdev, PCI_CAP_ID_MSIX);
+		pos = vdev->pdev->msix_cap;
 		if (pos) {
 			pci_read_config_word(vdev->pdev,
 					     pos + PCI_MSIX_FLAGS, &flags);
