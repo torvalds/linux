@@ -519,10 +519,15 @@ static int solo_enc_fillbuf(struct solo_enc_dev *solo_enc,
 			vb->v4l2_buf.flags |= V4L2_BUF_FLAG_MOTION_DETECTED;
 	}
 
-	if (solo_enc->fmt == V4L2_PIX_FMT_MPEG4)
+	switch (solo_enc->fmt) {
+	case V4L2_PIX_FMT_MPEG4:
+	case V4L2_PIX_FMT_H264:
 		ret = solo_fill_mpeg(solo_enc, vb, vh);
-	else
+		break;
+	default: /* V4L2_PIX_FMT_MJPEG */
 		ret = solo_fill_jpeg(solo_enc, vb, vh);
+		break;
+	}
 
 	if (!ret) {
 		vb->v4l2_buf.sequence = solo_enc->sequence++;
@@ -780,10 +785,21 @@ static int solo_enc_get_input(struct file *file, void *priv,
 static int solo_enc_enum_fmt_cap(struct file *file, void *priv,
 				 struct v4l2_fmtdesc *f)
 {
+	struct solo_enc_dev *solo_enc = video_drvdata(file);
+	int dev_type = solo_enc->solo_dev->type;
+
 	switch (f->index) {
 	case 0:
-		f->pixelformat = V4L2_PIX_FMT_MPEG4;
-		strcpy(f->description, "MPEG-4 AVC");
+		switch (dev_type) {
+		case SOLO_DEV_6010:
+			f->pixelformat = V4L2_PIX_FMT_MPEG4;
+			strcpy(f->description, "MPEG-4 part 2");
+			break;
+		case SOLO_DEV_6110:
+			f->pixelformat = V4L2_PIX_FMT_H264;
+			strcpy(f->description, "H.264");
+			break;
+		}
 		break;
 	case 1:
 		f->pixelformat = V4L2_PIX_FMT_MJPEG;
@@ -798,6 +814,13 @@ static int solo_enc_enum_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
+static inline int solo_valid_pixfmt(u32 pixfmt, int dev_type)
+{
+	return (pixfmt == V4L2_PIX_FMT_H264 && dev_type == SOLO_DEV_6110)
+		|| (pixfmt == V4L2_PIX_FMT_MPEG4 && dev_type == SOLO_DEV_6010)
+		|| pixfmt == V4L2_PIX_FMT_MJPEG ? 0 : -EINVAL;
+}
+
 static int solo_enc_try_fmt_cap(struct file *file, void *priv,
 			    struct v4l2_format *f)
 {
@@ -805,8 +828,7 @@ static int solo_enc_try_fmt_cap(struct file *file, void *priv,
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 
-	if (pix->pixelformat != V4L2_PIX_FMT_MPEG4 &&
-	    pix->pixelformat != V4L2_PIX_FMT_MJPEG)
+	if (solo_valid_pixfmt(pix->pixelformat, solo_dev->type))
 		return -EINVAL;
 
 	if (pix->width < solo_dev->video_hsize ||
@@ -919,8 +941,7 @@ static int solo_enum_framesizes(struct file *file, void *priv,
 	struct solo_enc_dev *solo_enc = video_drvdata(file);
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
 
-	if (fsize->pixel_format != V4L2_PIX_FMT_MPEG4 &&
-	    fsize->pixel_format != V4L2_PIX_FMT_MJPEG)
+	if (solo_valid_pixfmt(fsize->pixel_format, solo_dev->type))
 		return -EINVAL;
 
 	switch (fsize->index) {
@@ -947,8 +968,7 @@ static int solo_enum_frameintervals(struct file *file, void *priv,
 	struct solo_enc_dev *solo_enc = video_drvdata(file);
 	struct solo_dev *solo_dev = solo_enc->solo_dev;
 
-	if (fintv->pixel_format != V4L2_PIX_FMT_MPEG4 &&
-	    fintv->pixel_format != V4L2_PIX_FMT_MJPEG)
+	if (solo_valid_pixfmt(fintv->pixel_format, solo_dev->type))
 		return -EINVAL;
 	if (fintv->index)
 		return -EINVAL;
@@ -1225,7 +1245,8 @@ static struct solo_enc_dev *solo_enc_alloc(struct solo_dev *solo_dev,
 	mutex_init(&solo_enc->lock);
 	spin_lock_init(&solo_enc->av_lock);
 	INIT_LIST_HEAD(&solo_enc->vidq_active);
-	solo_enc->fmt = V4L2_PIX_FMT_MPEG4;
+	solo_enc->fmt = (solo_dev->type == SOLO_DEV_6010) ?
+		V4L2_PIX_FMT_MPEG4 : V4L2_PIX_FMT_H264;
 	solo_enc->type = SOLO_ENC_TYPE_STD;
 
 	solo_enc->qp = SOLO_DEFAULT_QP;
