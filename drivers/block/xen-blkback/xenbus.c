@@ -107,6 +107,8 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	struct xen_blkif *blkif;
 	int i;
 
+	BUILD_BUG_ON(MAX_INDIRECT_PAGES > BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST);
+
 	blkif = kmem_cache_zalloc(xen_blkif_cachep, GFP_KERNEL);
 	if (!blkif)
 		return ERR_PTR(-ENOMEM);
@@ -709,6 +711,11 @@ again:
 				 dev->nodename);
 		goto abort;
 	}
+	err = xenbus_printf(xbt, dev->nodename, "feature-max-indirect-segments", "%u",
+			    MAX_INDIRECT_SEGMENTS);
+	if (err)
+		dev_warn(&dev->dev, "writing %s/feature-max-indirect-segments (%d)",
+			 dev->nodename, err);
 
 	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
 			    (unsigned long long)vbd_sz(&be->blkif->vbd));

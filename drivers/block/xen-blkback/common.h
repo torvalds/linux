@@ -50,6 +50,19 @@
 		 __func__, __LINE__, ##args)
 
 
+/*
+ * This is the maximum number of segments that would be allowed in indirect
+ * requests. This value will also be passed to the frontend.
+ */
+#define MAX_INDIRECT_SEGMENTS 256
+
+#define SEGS_PER_INDIRECT_FRAME \
+	(PAGE_SIZE/sizeof(struct blkif_request_segment_aligned))
+#define MAX_INDIRECT_PAGES \
+	((MAX_INDIRECT_SEGMENTS + SEGS_PER_INDIRECT_FRAME - 1)/SEGS_PER_INDIRECT_FRAME)
+#define INDIRECT_PAGES(_segs) \
+	((_segs + SEGS_PER_INDIRECT_FRAME - 1)/SEGS_PER_INDIRECT_FRAME)
+
 /* Not a real protocol.  Used to generate ring structs which contain
  * the elements common to all protocols only.  This way we get a
  * compiler-checkable way to use common struct elements, so we can
@@ -83,12 +96,31 @@ struct blkif_x86_32_request_other {
 	uint64_t       id;           /* private guest value, echoed in resp  */
 } __attribute__((__packed__));
 
+struct blkif_x86_32_request_indirect {
+	uint8_t        indirect_op;
+	uint16_t       nr_segments;
+	uint64_t       id;
+	blkif_sector_t sector_number;
+	blkif_vdev_t   handle;
+	uint16_t       _pad1;
+	grant_ref_t    indirect_grefs[BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST];
+	/*
+	 * The maximum number of indirect segments (and pages) that will
+	 * be used is determined by MAX_INDIRECT_SEGMENTS, this value
+	 * is also exported to the guest (via xenstore
+	 * feature-max-indirect-segments entry), so the frontend knows how
+	 * many indirect segments the backend supports.
+	 */
+	uint64_t       _pad2;        /* make it 64 byte aligned */
+} __attribute__((__packed__));
+
 struct blkif_x86_32_request {
 	uint8_t        operation;    /* BLKIF_OP_???                         */
 	union {
 		struct blkif_x86_32_request_rw rw;
 		struct blkif_x86_32_request_discard discard;
 		struct blkif_x86_32_request_other other;
+		struct blkif_x86_32_request_indirect indirect;
 	} u;
 } __attribute__((__packed__));
 
@@ -127,12 +159,32 @@ struct blkif_x86_64_request_other {
 	uint64_t       id;           /* private guest value, echoed in resp  */
 } __attribute__((__packed__));
 
+struct blkif_x86_64_request_indirect {
+	uint8_t        indirect_op;
+	uint16_t       nr_segments;
+	uint32_t       _pad1;        /* offsetof(blkif_..,u.indirect.id)==8   */
+	uint64_t       id;
+	blkif_sector_t sector_number;
+	blkif_vdev_t   handle;
+	uint16_t       _pad2;
+	grant_ref_t    indirect_grefs[BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST];
+	/*
+	 * The maximum number of indirect segments (and pages) that will
+	 * be used is determined by MAX_INDIRECT_SEGMENTS, this value
+	 * is also exported to the guest (via xenstore
+	 * feature-max-indirect-segments entry), so the frontend knows how
+	 * many indirect segments the backend supports.
+	 */
+	uint32_t       _pad3;        /* make it 64 byte aligned */
+} __attribute__((__packed__));
+
 struct blkif_x86_64_request {
 	uint8_t        operation;    /* BLKIF_OP_???                         */
 	union {
 		struct blkif_x86_64_request_rw rw;
 		struct blkif_x86_64_request_discard discard;
 		struct blkif_x86_64_request_other other;
+		struct blkif_x86_64_request_indirect indirect;
 	} u;
 } __attribute__((__packed__));
 
@@ -266,6 +318,11 @@ struct xen_blkif {
 	wait_queue_head_t	waiting_to_free;
 };
 
+struct seg_buf {
+	unsigned long offset;
+	unsigned int nsec;
+};
+
 /*
  * Each outstanding request that we've passed to the lower device layers has a
  * 'pending_req' allocated to it. Each buffer_head that completes decrements
@@ -280,9 +337,16 @@ struct pending_req {
 	unsigned short		operation;
 	int			status;
 	struct list_head	free_list;
-	struct page		*pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-	struct persistent_gnt	*persistent_gnts[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-	grant_handle_t		grant_handles[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct page		*pages[MAX_INDIRECT_SEGMENTS];
+	struct persistent_gnt	*persistent_gnts[MAX_INDIRECT_SEGMENTS];
+	grant_handle_t		grant_handles[MAX_INDIRECT_SEGMENTS];
+	grant_ref_t		grefs[MAX_INDIRECT_SEGMENTS];
+	/* Indirect descriptors */
+	struct persistent_gnt	*indirect_persistent_gnts[MAX_INDIRECT_PAGES];
+	struct page		*indirect_pages[MAX_INDIRECT_PAGES];
+	grant_handle_t		indirect_handles[MAX_INDIRECT_PAGES];
+	struct seg_buf		seg[MAX_INDIRECT_SEGMENTS];
+	struct bio		*biolist[MAX_INDIRECT_SEGMENTS];
 };
 
 
@@ -321,7 +385,7 @@ struct xenbus_device *xen_blkbk_xenbus(struct backend_info *be);
 static inline void blkif_get_x86_32_req(struct blkif_request *dst,
 					struct blkif_x86_32_request *src)
 {
-	int i, n = BLKIF_MAX_SEGMENTS_PER_REQUEST;
+	int i, n = BLKIF_MAX_SEGMENTS_PER_REQUEST, j;
 	dst->operation = src->operation;
 	switch (src->operation) {
 	case BLKIF_OP_READ:
@@ -343,6 +407,18 @@ static inline void blkif_get_x86_32_req(struct blkif_request *dst,
 		dst->u.discard.id = src->u.discard.id;
 		dst->u.discard.sector_number = src->u.discard.sector_number;
 		dst->u.discard.nr_sectors = src->u.discard.nr_sectors;
+		break;
+	case BLKIF_OP_INDIRECT:
+		dst->u.indirect.indirect_op = src->u.indirect.indirect_op;
+		dst->u.indirect.nr_segments = src->u.indirect.nr_segments;
+		dst->u.indirect.handle = src->u.indirect.handle;
+		dst->u.indirect.id = src->u.indirect.id;
+		dst->u.indirect.sector_number = src->u.indirect.sector_number;
+		barrier();
+		j = min(MAX_INDIRECT_PAGES, INDIRECT_PAGES(dst->u.indirect.nr_segments));
+		for (i = 0; i < j; i++)
+			dst->u.indirect.indirect_grefs[i] =
+				src->u.indirect.indirect_grefs[i];
 		break;
 	default:
 		/*
@@ -357,7 +433,7 @@ static inline void blkif_get_x86_32_req(struct blkif_request *dst,
 static inline void blkif_get_x86_64_req(struct blkif_request *dst,
 					struct blkif_x86_64_request *src)
 {
-	int i, n = BLKIF_MAX_SEGMENTS_PER_REQUEST;
+	int i, n = BLKIF_MAX_SEGMENTS_PER_REQUEST, j;
 	dst->operation = src->operation;
 	switch (src->operation) {
 	case BLKIF_OP_READ:
@@ -379,6 +455,18 @@ static inline void blkif_get_x86_64_req(struct blkif_request *dst,
 		dst->u.discard.id = src->u.discard.id;
 		dst->u.discard.sector_number = src->u.discard.sector_number;
 		dst->u.discard.nr_sectors = src->u.discard.nr_sectors;
+		break;
+	case BLKIF_OP_INDIRECT:
+		dst->u.indirect.indirect_op = src->u.indirect.indirect_op;
+		dst->u.indirect.nr_segments = src->u.indirect.nr_segments;
+		dst->u.indirect.handle = src->u.indirect.handle;
+		dst->u.indirect.id = src->u.indirect.id;
+		dst->u.indirect.sector_number = src->u.indirect.sector_number;
+		barrier();
+		j = min(MAX_INDIRECT_PAGES, INDIRECT_PAGES(dst->u.indirect.nr_segments));
+		for (i = 0; i < j; i++)
+			dst->u.indirect.indirect_grefs[i] =
+				src->u.indirect.indirect_grefs[i];
 		break;
 	default:
 		/*

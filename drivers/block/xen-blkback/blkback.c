@@ -59,7 +59,7 @@
  * IO workloads.
  */
 
-static int xen_blkif_max_buffer_pages = 704;
+static int xen_blkif_max_buffer_pages = 1024;
 module_param_named(max_buffer_pages, xen_blkif_max_buffer_pages, int, 0644);
 MODULE_PARM_DESC(max_buffer_pages,
 "Maximum number of free pages to keep in each block backend buffer");
@@ -75,7 +75,7 @@ MODULE_PARM_DESC(max_buffer_pages,
  * algorithm.
  */
 
-static int xen_blkif_max_pgrants = 352;
+static int xen_blkif_max_pgrants = 1056;
 module_param_named(max_persistent_grants, xen_blkif_max_pgrants, int, 0644);
 MODULE_PARM_DESC(max_persistent_grants,
                  "Maximum number of grants to map persistently");
@@ -636,10 +636,6 @@ purge_gnt_list:
 	return 0;
 }
 
-struct seg_buf {
-	unsigned int offset;
-	unsigned int nsec;
-};
 /*
  * Unmap the grant references, and also remove the M2P over-rides
  * used in the 'pending_req'.
@@ -818,29 +814,69 @@ out_of_memory:
 	return -ENOMEM;
 }
 
-static int xen_blkbk_map_seg(struct blkif_request *req,
-			     struct pending_req *pending_req,
+static int xen_blkbk_map_seg(struct pending_req *pending_req,
 			     struct seg_buf seg[],
 			     struct page *pages[])
 {
-	int i, rc;
-	grant_ref_t grefs[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	int rc;
 
-	for (i = 0; i < req->u.rw.nr_segments; i++)
-		grefs[i] = req->u.rw.seg[i].gref;
-
-	rc = xen_blkbk_map(pending_req->blkif, grefs,
+	rc = xen_blkbk_map(pending_req->blkif, pending_req->grefs,
 	                   pending_req->persistent_gnts,
 	                   pending_req->grant_handles, pending_req->pages,
-	                   req->u.rw.nr_segments,
+			   pending_req->nr_pages,
 	                   (pending_req->operation != BLKIF_OP_READ));
+
+	return rc;
+}
+
+static int xen_blkbk_parse_indirect(struct blkif_request *req,
+				    struct pending_req *pending_req,
+				    struct seg_buf seg[],
+				    struct phys_req *preq)
+{
+	struct persistent_gnt **persistent =
+		pending_req->indirect_persistent_gnts;
+	struct page **pages = pending_req->indirect_pages;
+	struct xen_blkif *blkif = pending_req->blkif;
+	int indirect_grefs, rc, n, nseg, i;
+	struct blkif_request_segment_aligned *segments = NULL;
+
+	nseg = pending_req->nr_pages;
+	indirect_grefs = INDIRECT_PAGES(nseg);
+	BUG_ON(indirect_grefs > BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST);
+
+	rc = xen_blkbk_map(blkif, req->u.indirect.indirect_grefs,
+			   persistent, pending_req->indirect_handles,
+			   pages, indirect_grefs, true);
 	if (rc)
-		return rc;
+		goto unmap;
 
-	for (i = 0; i < req->u.rw.nr_segments; i++)
-		seg[i].offset = (req->u.rw.seg[i].first_sect << 9);
+	for (n = 0, i = 0; n < nseg; n++) {
+		if ((n % SEGS_PER_INDIRECT_FRAME) == 0) {
+			/* Map indirect segments */
+			if (segments)
+				kunmap_atomic(segments);
+			segments = kmap_atomic(pages[n/SEGS_PER_INDIRECT_FRAME]);
+		}
+		i = n % SEGS_PER_INDIRECT_FRAME;
+		pending_req->grefs[n] = segments[i].gref;
+		seg[n].nsec = segments[i].last_sect -
+			segments[i].first_sect + 1;
+		seg[n].offset = (segments[i].first_sect << 9);
+		if ((segments[i].last_sect >= (PAGE_SIZE >> 9)) ||
+		    (segments[i].last_sect < segments[i].first_sect)) {
+			rc = -EINVAL;
+			goto unmap;
+		}
+		preq->nr_sects += seg[n].nsec;
+	}
 
-	return 0;
+unmap:
+	if (segments)
+		kunmap_atomic(segments);
+	xen_blkbk_unmap(blkif, pending_req->indirect_handles,
+			pages, persistent, indirect_grefs);
+	return rc;
 }
 
 static int dispatch_discard_io(struct xen_blkif *blkif,
@@ -1013,6 +1049,7 @@ __do_block_io_op(struct xen_blkif *blkif)
 		case BLKIF_OP_WRITE:
 		case BLKIF_OP_WRITE_BARRIER:
 		case BLKIF_OP_FLUSH_DISKCACHE:
+		case BLKIF_OP_INDIRECT:
 			if (dispatch_rw_block_io(blkif, &req, pending_req))
 				goto done;
 			break;
@@ -1059,17 +1096,28 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 				struct pending_req *pending_req)
 {
 	struct phys_req preq;
-	struct seg_buf seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct seg_buf *seg = pending_req->seg;
 	unsigned int nseg;
 	struct bio *bio = NULL;
-	struct bio *biolist[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct bio **biolist = pending_req->biolist;
 	int i, nbio = 0;
 	int operation;
 	struct blk_plug plug;
 	bool drain = false;
 	struct page **pages = pending_req->pages;
+	unsigned short req_operation;
 
-	switch (req->operation) {
+	req_operation = req->operation == BLKIF_OP_INDIRECT ?
+			req->u.indirect.indirect_op : req->operation;
+	if ((req->operation == BLKIF_OP_INDIRECT) &&
+	    (req_operation != BLKIF_OP_READ) &&
+	    (req_operation != BLKIF_OP_WRITE)) {
+		pr_debug(DRV_PFX "Invalid indirect operation (%u)\n",
+			 req_operation);
+		goto fail_response;
+	}
+
+	switch (req_operation) {
 	case BLKIF_OP_READ:
 		blkif->st_rd_req++;
 		operation = READ;
@@ -1091,33 +1139,47 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	}
 
 	/* Check that the number of segments is sane. */
-	nseg = req->u.rw.nr_segments;
+	nseg = req->operation == BLKIF_OP_INDIRECT ?
+	       req->u.indirect.nr_segments : req->u.rw.nr_segments;
 
 	if (unlikely(nseg == 0 && operation != WRITE_FLUSH) ||
-	    unlikely(nseg > BLKIF_MAX_SEGMENTS_PER_REQUEST)) {
+	    unlikely((req->operation != BLKIF_OP_INDIRECT) &&
+		     (nseg > BLKIF_MAX_SEGMENTS_PER_REQUEST)) ||
+	    unlikely((req->operation == BLKIF_OP_INDIRECT) &&
+		     (nseg > MAX_INDIRECT_SEGMENTS))) {
 		pr_debug(DRV_PFX "Bad number of segments in request (%d)\n",
 			 nseg);
 		/* Haven't submitted any bio's yet. */
 		goto fail_response;
 	}
 
-	preq.sector_number = req->u.rw.sector_number;
 	preq.nr_sects      = 0;
 
 	pending_req->blkif     = blkif;
 	pending_req->id        = req->u.rw.id;
-	pending_req->operation = req->operation;
+	pending_req->operation = req_operation;
 	pending_req->status    = BLKIF_RSP_OKAY;
 	pending_req->nr_pages  = nseg;
 
-	for (i = 0; i < nseg; i++) {
-		seg[i].nsec = req->u.rw.seg[i].last_sect -
-			req->u.rw.seg[i].first_sect + 1;
-		if ((req->u.rw.seg[i].last_sect >= (PAGE_SIZE >> 9)) ||
-		    (req->u.rw.seg[i].last_sect < req->u.rw.seg[i].first_sect))
+	if (req->operation != BLKIF_OP_INDIRECT) {
+		preq.dev               = req->u.rw.handle;
+		preq.sector_number     = req->u.rw.sector_number;
+		for (i = 0; i < nseg; i++) {
+			pending_req->grefs[i] = req->u.rw.seg[i].gref;
+			seg[i].nsec = req->u.rw.seg[i].last_sect -
+				req->u.rw.seg[i].first_sect + 1;
+			seg[i].offset = (req->u.rw.seg[i].first_sect << 9);
+			if ((req->u.rw.seg[i].last_sect >= (PAGE_SIZE >> 9)) ||
+			    (req->u.rw.seg[i].last_sect <
+			     req->u.rw.seg[i].first_sect))
+				goto fail_response;
+			preq.nr_sects += seg[i].nsec;
+		}
+	} else {
+		preq.dev               = req->u.indirect.handle;
+		preq.sector_number     = req->u.indirect.sector_number;
+		if (xen_blkbk_parse_indirect(req, pending_req, seg, &preq))
 			goto fail_response;
-		preq.nr_sects += seg[i].nsec;
-
 	}
 
 	if (xen_vbd_translate(&preq, blkif, operation) != 0) {
@@ -1154,7 +1216,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	 * the hypercall to unmap the grants - that is all done in
 	 * xen_blkbk_unmap.
 	 */
-	if (xen_blkbk_map_seg(req, pending_req, seg, pages))
+	if (xen_blkbk_map_seg(pending_req, seg, pages))
 		goto fail_flush;
 
 	/*
@@ -1220,7 +1282,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	                pending_req->nr_pages);
  fail_response:
 	/* Haven't submitted any bio's yet. */
-	make_response(blkif, req->u.rw.id, req->operation, BLKIF_RSP_ERROR);
+	make_response(blkif, req->u.rw.id, req_operation, BLKIF_RSP_ERROR);
 	free_req(blkif, pending_req);
 	msleep(1); /* back off a bit */
 	return -EIO;
