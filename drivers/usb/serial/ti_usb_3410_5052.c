@@ -67,7 +67,6 @@
 struct ti_port {
 	int			tp_is_open;
 	__u8			tp_msr;
-	__u8			tp_lsr;
 	__u8			tp_shadow_mcr;
 	__u8			tp_uart_mode;	/* 232 or 485 modes */
 	unsigned int		tp_uart_base_addr;
@@ -121,7 +120,7 @@ static void ti_recv(struct usb_serial_port *port, unsigned char *data,
 		int length);
 static void ti_send(struct ti_port *tport);
 static int ti_set_mcr(struct ti_port *tport, unsigned int mcr);
-static int ti_get_lsr(struct ti_port *tport);
+static int ti_get_lsr(struct ti_port *tport, u8 *lsr);
 static int ti_get_serial_info(struct ti_port *tport,
 	struct serial_struct __user *ret_arg);
 static int ti_set_serial_info(struct tty_struct *tty, struct ti_port *tport,
@@ -1251,7 +1250,7 @@ static int ti_set_mcr(struct ti_port *tport, unsigned int mcr)
 }
 
 
-static int ti_get_lsr(struct ti_port *tport)
+static int ti_get_lsr(struct ti_port *tport, u8 *lsr)
 {
 	int size, status;
 	struct ti_device *tdev = tport->tp_tdev;
@@ -1277,7 +1276,7 @@ static int ti_get_lsr(struct ti_port *tport)
 
 	dev_dbg(&port->dev, "%s - lsr 0x%02X\n", __func__, data->bLSR);
 
-	tport->tp_lsr = data->bLSR;
+	*lsr = data->bLSR;
 
 free_data:
 	kfree(data);
@@ -1370,6 +1369,7 @@ static void ti_drain(struct ti_port *tport, unsigned long timeout)
 	struct ti_device *tdev = tport->tp_tdev;
 	struct usb_serial_port *port = tport->tp_port;
 	wait_queue_t wait;
+	u8 lsr;
 
 	spin_lock_irq(&tport->tp_lock);
 
@@ -1396,11 +1396,11 @@ static void ti_drain(struct ti_port *tport, unsigned long timeout)
 	/* wait for data to drain from the device */
 	/* wait for empty tx register, plus 20 ms */
 	timeout += jiffies;
-	tport->tp_lsr &= ~TI_LSR_TX_EMPTY;
+	lsr = 0;
 	while ((long)(jiffies - timeout) < 0 && !signal_pending(current)
-	&& !(tport->tp_lsr&TI_LSR_TX_EMPTY) && !tdev->td_urb_error
+	&& !(lsr & TI_LSR_TX_EMPTY) && !tdev->td_urb_error
 	&& !port->serial->disconnected) {
-		if (ti_get_lsr(tport))
+		if (ti_get_lsr(tport, &lsr))
 			break;
 		mutex_unlock(&port->serial->disc_mutex);
 		msleep_interruptible(20);
