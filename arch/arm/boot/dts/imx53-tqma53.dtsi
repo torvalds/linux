@@ -10,7 +10,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "imx53.dtsi"
+#include "imx53.dtsi"
 
 / {
 	model = "TQ TQMa53";
@@ -72,11 +72,11 @@
 	i2s {
 		pinctrl_i2s_1: i2s-grp1 {
 			fsl,pins = <
-				 1   0x10000	/* I2S_MCLK */
-				 10  0x10000	/* I2S_SCLK */
-				 17  0x10000	/* I2S_DOUT */
-				 23  0x10000	/* I2S_LRCLK*/
-				 30  0x10000	/* I2S_DIN  */
+				 MX53_PAD_GPIO_19__GPIO4_5           0x10000 /* I2S_MCLK */
+				 MX53_PAD_KEY_COL0__AUDMUX_AUD5_TXC  0x10000 /* I2S_SCLK */
+				 MX53_PAD_KEY_ROW0__AUDMUX_AUD5_TXD  0x10000 /* I2S_DOUT */
+				 MX53_PAD_KEY_COL1__AUDMUX_AUD5_TXFS 0x10000 /* I2S_LRCLK */
+				 MX53_PAD_KEY_ROW1__AUDMUX_AUD5_RXD  0x10000 /* I2S_DIN */
 			>;
 		};
 	};
@@ -84,16 +84,16 @@
 	hog {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				 610  0x10000	/* MX53_PAD_EIM_CS1__IPU_DI1_PIN6 (VSYNC)*/
-				 711  0x10000	/* MX53_PAD_EIM_DA15__IPU_DI1_PIN4 (HSYNC)*/
-				 873  0x10000	/* MX53_PAD_PATA_DA_1__GPIO7_7 (LCD_BLT_EN)*/
-				 878  0x10000	/* MX53_PAD_PATA_DA_2__GPIO7_8 (LCD_RESET)*/
-				 922  0x10000	/* MX53_PAD_PATA_DATA5__GPIO2_5 (LCD_POWER)*/
-				 928  0x10000	/* MX53_PAD_PATA_DATA6__GPIO2_6 (PMIC_INT)*/
-				 982  0x10000	/* MX53_PAD_PATA_DATA14__GPIO2_14 (CSI_RST)*/
-				 989  0x10000	/* MX53_PAD_PATA_DATA15__GPIO2_15 (CSI_PWDN)*/
-				 1069 0x10000	/* MX53_PAD_GPIO_0__GPIO1_0 (SYSTEM_DOWN)*/
-				 1093 0x10000	/* MX53_PAD_GPIO_3__GPIO1_3 */
+				 MX53_PAD_EIM_CS1__IPU_DI1_PIN6  0x10000 /* VSYNC */
+				 MX53_PAD_EIM_DA15__IPU_DI1_PIN4 0x10000 /* HSYNC */
+				 MX53_PAD_PATA_DA_1__GPIO7_7     0x10000 /* LCD_BLT_EN */
+				 MX53_PAD_PATA_DA_2__GPIO7_8     0x10000 /* LCD_RESET */
+				 MX53_PAD_PATA_DATA5__GPIO2_5    0x10000 /* LCD_POWER */
+				 MX53_PAD_PATA_DATA6__GPIO2_6    0x10000 /* PMIC_INT */
+				 MX53_PAD_PATA_DATA14__GPIO2_14  0x10000 /* CSI_RST */
+				 MX53_PAD_PATA_DATA15__GPIO2_15  0x10000 /* CSI_PWDN */
+				 MX53_PAD_GPIO_0__GPIO1_0        0x10000 /* SYSTEM_DOWN */
+				 MX53_PAD_GPIO_3__GPIO1_3        0x10000
 			>;
 		};
 	};

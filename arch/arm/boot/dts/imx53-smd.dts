@@ -11,7 +11,7 @@
  */
 
 /dts-v1/;
-/include/ "imx53.dtsi"
+#include "imx53.dtsi"
 
 / {
 	model = "Freescale i.MX53 Smart Mobile Reference Design Board";
@@ -107,13 +107,13 @@
 	hog {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				982  0x80000000	/* MX53_PAD_PATA_DATA14__GPIO2_14 */
-				989  0x80000000	/* MX53_PAD_PATA_DATA15__GPIO2_15 */
-				424  0x80000000	/* MX53_PAD_EIM_EB2__GPIO2_30 */
-				701  0x80000000	/* MX53_PAD_EIM_DA13__GPIO3_13 */
-				449  0x80000000	/* MX53_PAD_EIM_D19__GPIO3_19 */
-				43   0x80000000	/* MX53_PAD_KEY_ROW2__GPIO4_11 */
-				868  0x80000000	/* MX53_PAD_PATA_DA_0__GPIO7_6 */
+				MX53_PAD_PATA_DATA14__GPIO2_14 0x80000000
+				MX53_PAD_PATA_DATA15__GPIO2_15 0x80000000
+				MX53_PAD_EIM_EB2__GPIO2_30     0x80000000
+				MX53_PAD_EIM_DA13__GPIO3_13    0x80000000
+				MX53_PAD_EIM_D19__GPIO3_19     0x80000000
+				MX53_PAD_KEY_ROW2__GPIO4_11    0x80000000
+				MX53_PAD_PATA_DA_0__GPIO7_6    0x80000000
 			>;
 		};
 	};

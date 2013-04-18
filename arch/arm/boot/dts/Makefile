@@ -89,19 +89,26 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx25-karo-tx25.dtb \
 	imx25-pdk.dtb \
 	imx27-apf27.dtb \
+	imx27-apf27dev.dtb \
 	imx27-pdk.dtb \
+	imx27-phytec-phycore.dtb \
 	imx31-bug.dtb \
 	imx51-apf51.dtb \
+	imx51-apf51dev.dtb \
 	imx51-babbage.dtb \
 	imx53-ard.dtb \
 	imx53-evk.dtb \
 	imx53-mba53.dtb \
 	imx53-qsb.dtb \
 	imx53-smd.dtb \
+	imx6dl-sabreauto.dtb \
+	imx6dl-sabresd.dtb \
+	imx6dl-wandboard.dtb \
 	imx6q-arm2.dtb \
 	imx6q-sabreauto.dtb \
 	imx6q-sabrelite.dtb \
-	imx6q-sabresd.dtb
+	imx6q-sabresd.dtb \
+	imx6q-sbc6x.dtb
 dtb-$(CONFIG_ARCH_MXS) += imx23-evk.dtb \
 	imx23-olinuxino.dtb \
 	imx23-stmp378x_devb.dtb \

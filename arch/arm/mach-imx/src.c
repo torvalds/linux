@@ -61,7 +61,9 @@ void __init imx_src_init(void)
 	struct device_node *np;
 	u32 val;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-src");
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx51-src");
+	if (!np)
+		return;
 	src_base = of_iomap(np, 0);
 	WARN_ON(!src_base);
 

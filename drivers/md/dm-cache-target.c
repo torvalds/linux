@@ -142,6 +142,7 @@ struct cache {
 	spinlock_t lock;
 	struct bio_list deferred_bios;
 	struct bio_list deferred_flush_bios;
+	struct bio_list deferred_writethrough_bios;
 	struct list_head quiesced_migrations;
 	struct list_head completed_migrations;
 	struct list_head need_commit_migrations;
@@ -158,7 +159,7 @@ struct cache {
 	/*
 	 * origin_blocks entries, discarded if set.
 	 */
-	sector_t discard_block_size; /* a power of 2 times sectors per block */
+	uint32_t discard_block_size; /* a power of 2 times sectors per block */
 	dm_dblock_t discard_nr_blocks;
 	unsigned long *discard_bitset;
 
@@ -199,6 +200,11 @@ struct per_bio_data {
 	bool tick:1;
 	unsigned req_nr:2;
 	struct dm_deferred_entry *all_io_entry;
+
+	/* writethrough fields */
+	struct cache *cache;
+	dm_cblock_t cblock;
+	bio_end_io_t *saved_bi_end_io;
 };
 
 struct dm_cache_migration {
@@ -412,17 +418,24 @@ static bool block_size_is_power_of_two(struct cache *cache)
 	return cache->sectors_per_block_shift >= 0;
 }
 
+static dm_block_t block_div(dm_block_t b, uint32_t n)
+{
+	do_div(b, n);
+
+	return b;
+}
+
 static dm_dblock_t oblock_to_dblock(struct cache *cache, dm_oblock_t oblock)
 {
-	sector_t discard_blocks = cache->discard_block_size;
+	uint32_t discard_blocks = cache->discard_block_size;
 	dm_block_t b = from_oblock(oblock);
 
 	if (!block_size_is_power_of_two(cache))
-		(void) sector_div(discard_blocks, cache->sectors_per_block);
+		discard_blocks = discard_blocks / cache->sectors_per_block;
 	else
 		discard_blocks >>= cache->sectors_per_block_shift;
 
-	(void) sector_div(b, discard_blocks);
+	b = block_div(b, discard_blocks);
 
 	return to_dblock(b);
 }
@@ -607,6 +620,56 @@ static void issue(struct cache *cache, struct bio *bio)
 	cache->commit_requested = true;
 	bio_list_add(&cache->deferred_flush_bios, bio);
 	spin_unlock_irqrestore(&cache->lock, flags);
+}
+
+static void defer_writethrough_bio(struct cache *cache, struct bio *bio)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&cache->lock, flags);
+	bio_list_add(&cache->deferred_writethrough_bios, bio);
+	spin_unlock_irqrestore(&cache->lock, flags);
+
+	wake_worker(cache);
+}
+
+static void writethrough_endio(struct bio *bio, int err)
+{
+	struct per_bio_data *pb = get_per_bio_data(bio);
+	bio->bi_end_io = pb->saved_bi_end_io;
+
+	if (err) {
+		bio_endio(bio, err);
+		return;
+	}
+
+	remap_to_cache(pb->cache, bio, pb->cblock);
+
+	/*
+	 * We can't issue this bio directly, since we're in interrupt
+	 * context.  So it get's put on a bio list for processing by the
+	 * worker thread.
+	 */
+	defer_writethrough_bio(pb->cache, bio);
+}
+
+/*
+ * When running in writethrough mode we need to send writes to clean blocks
+ * to both the cache and origin devices.  In future we'd like to clone the
+ * bio and send them in parallel, but for now we're doing them in
+ * series as this is easier.
+ */
+static void remap_to_origin_then_cache(struct cache *cache, struct bio *bio,
+				       dm_oblock_t oblock, dm_cblock_t cblock)
+{
+	struct per_bio_data *pb = get_per_bio_data(bio);
+
+	pb->cache = cache;
+	pb->cblock = cblock;
+	pb->saved_bi_end_io = bio->bi_end_io;
+	bio->bi_end_io = writethrough_endio;
+
+	remap_to_origin_clear_discard(pb->cache, bio, oblock);
 }
 
 /*----------------------------------------------------------------
@@ -1002,7 +1065,7 @@ static void process_discard_bio(struct cache *cache, struct bio *bio)
 	dm_block_t end_block = bio->bi_sector + bio_sectors(bio);
 	dm_block_t b;
 
-	(void) sector_div(end_block, cache->discard_block_size);
+	end_block = block_div(end_block, cache->discard_block_size);
 
 	for (b = start_block; b < end_block; b++)
 		set_discard(cache, to_dblock(b));
@@ -1070,14 +1133,9 @@ static void process_bio(struct cache *cache, struct prealloc *structs,
 		inc_hit_counter(cache, bio);
 		pb->all_io_entry = dm_deferred_entry_inc(cache->all_io_ds);
 
-		if (is_writethrough_io(cache, bio, lookup_result.cblock)) {
-			/*
-			 * No need to mark anything dirty in write through mode.
-			 */
-			pb->req_nr == 0 ?
-				remap_to_cache(cache, bio, lookup_result.cblock) :
-				remap_to_origin_clear_discard(cache, bio, block);
-		} else
+		if (is_writethrough_io(cache, bio, lookup_result.cblock))
+			remap_to_origin_then_cache(cache, bio, block, lookup_result.cblock);
+		else
 			remap_to_cache_dirty(cache, bio, block, lookup_result.cblock);
 
 		issue(cache, bio);
@@ -1086,17 +1144,8 @@ static void process_bio(struct cache *cache, struct prealloc *structs,
 	case POLICY_MISS:
 		inc_miss_counter(cache, bio);
 		pb->all_io_entry = dm_deferred_entry_inc(cache->all_io_ds);
-
-		if (pb->req_nr != 0) {
-			/*
-			 * This is a duplicate writethrough io that is no
-			 * longer needed because the block has been demoted.
-			 */
-			bio_endio(bio, 0);
-		} else {
-			remap_to_origin_clear_discard(cache, bio, block);
-			issue(cache, bio);
-		}
+		remap_to_origin_clear_discard(cache, bio, block);
+		issue(cache, bio);
 		break;
 
 	case POLICY_NEW:
@@ -1217,6 +1266,23 @@ static void process_deferred_flush_bios(struct cache *cache, bool submit_bios)
 		submit_bios ? generic_make_request(bio) : bio_io_error(bio);
 }
 
+static void process_deferred_writethrough_bios(struct cache *cache)
+{
+	unsigned long flags;
+	struct bio_list bios;
+	struct bio *bio;
+
+	bio_list_init(&bios);
+
+	spin_lock_irqsave(&cache->lock, flags);
+	bio_list_merge(&bios, &cache->deferred_writethrough_bios);
+	bio_list_init(&cache->deferred_writethrough_bios);
+	spin_unlock_irqrestore(&cache->lock, flags);
+
+	while ((bio = bio_list_pop(&bios)))
+		generic_make_request(bio);
+}
+
 static void writeback_some_dirty_blocks(struct cache *cache)
 {
 	int r = 0;
@@ -1313,6 +1379,7 @@ static int more_work(struct cache *cache)
 	else
 		return !bio_list_empty(&cache->deferred_bios) ||
 			!bio_list_empty(&cache->deferred_flush_bios) ||
+			!bio_list_empty(&cache->deferred_writethrough_bios) ||
 			!list_empty(&cache->quiesced_migrations) ||
 			!list_empty(&cache->completed_migrations) ||
 			!list_empty(&cache->need_commit_migrations);
@@ -1330,6 +1397,8 @@ static void do_worker(struct work_struct *ws)
 		process_migrations(cache, &cache->completed_migrations, complete_migration);
 
 		writeback_some_dirty_blocks(cache);
+
+		process_deferred_writethrough_bios(cache);
 
 		if (commit_if_needed(cache)) {
 			process_deferred_flush_bios(cache, false);
@@ -1756,8 +1825,11 @@ static int create_cache_policy(struct cache *cache, struct cache_args *ca,
 	}
 
 	r = set_config_values(cache->policy, ca->policy_argc, ca->policy_argv);
-	if (r)
+	if (r) {
+		*error = "Error setting cache policy's config values";
 		dm_cache_policy_destroy(cache->policy);
+		cache->policy = NULL;
+	}
 
 	return r;
 }
@@ -1793,8 +1865,6 @@ static sector_t calculate_discard_block_size(sector_t cache_block_size,
 
 #define DEFAULT_MIGRATION_THRESHOLD (2048 * 100)
 
-static unsigned cache_num_write_bios(struct dm_target *ti, struct bio *bio);
-
 static int cache_create(struct cache_args *ca, struct cache **result)
 {
 	int r = 0;
@@ -1821,9 +1891,6 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 
 	memcpy(&cache->features, &ca->features, sizeof(cache->features));
 
-	if (cache->features.write_through)
-		ti->num_write_bios = cache_num_write_bios;
-
 	cache->callbacks.congested_fn = cache_is_congested;
 	dm_table_add_target_callbacks(ti->table, &cache->callbacks);
 
@@ -1835,7 +1902,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 
 	/* FIXME: factor out this whole section */
 	origin_blocks = cache->origin_sectors = ca->origin_sectors;
-	(void) sector_div(origin_blocks, ca->block_size);
+	origin_blocks = block_div(origin_blocks, ca->block_size);
 	cache->origin_blocks = to_oblock(origin_blocks);
 
 	cache->sectors_per_block = ca->block_size;
@@ -1848,7 +1915,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 		dm_block_t cache_size = ca->cache_sectors;
 
 		cache->sectors_per_block_shift = -1;
-		(void) sector_div(cache_size, ca->block_size);
+		cache_size = block_div(cache_size, ca->block_size);
 		cache->cache_size = to_cblock(cache_size);
 	} else {
 		cache->sectors_per_block_shift = __ffs(ca->block_size);
@@ -1873,6 +1940,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	spin_lock_init(&cache->lock);
 	bio_list_init(&cache->deferred_bios);
 	bio_list_init(&cache->deferred_flush_bios);
+	bio_list_init(&cache->deferred_writethrough_bios);
 	INIT_LIST_HEAD(&cache->quiesced_migrations);
 	INIT_LIST_HEAD(&cache->completed_migrations);
 	INIT_LIST_HEAD(&cache->need_commit_migrations);
@@ -2002,6 +2070,8 @@ static int cache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto out;
 
 	r = cache_create(ca, &cache);
+	if (r)
+		goto out;
 
 	r = copy_ctr_args(cache, argc - 3, (const char **)argv + 3);
 	if (r) {
@@ -2014,20 +2084,6 @@ static int cache_ctr(struct dm_target *ti, unsigned argc, char **argv)
 out:
 	destroy_cache_args(ca);
 	return r;
-}
-
-static unsigned cache_num_write_bios(struct dm_target *ti, struct bio *bio)
-{
-	int r;
-	struct cache *cache = ti->private;
-	dm_oblock_t block = get_bio_block(cache, bio);
-	dm_cblock_t cblock;
-
-	r = policy_lookup(cache->policy, block, &cblock);
-	if (r < 0)
-		return 2;	/* assume the worst */
-
-	return (!r && !is_dirty(cache, cblock)) ? 2 : 1;
 }
 
 static int cache_map(struct dm_target *ti, struct bio *bio)
@@ -2097,18 +2153,12 @@ static int cache_map(struct dm_target *ti, struct bio *bio)
 		inc_hit_counter(cache, bio);
 		pb->all_io_entry = dm_deferred_entry_inc(cache->all_io_ds);
 
-		if (is_writethrough_io(cache, bio, lookup_result.cblock)) {
-			/*
-			 * No need to mark anything dirty in write through mode.
-			 */
-			pb->req_nr == 0 ?
-				remap_to_cache(cache, bio, lookup_result.cblock) :
-				remap_to_origin_clear_discard(cache, bio, block);
-			cell_defer(cache, cell, false);
-		} else {
+		if (is_writethrough_io(cache, bio, lookup_result.cblock))
+			remap_to_origin_then_cache(cache, bio, block, lookup_result.cblock);
+		else
 			remap_to_cache_dirty(cache, bio, block, lookup_result.cblock);
-			cell_defer(cache, cell, false);
-		}
+
+		cell_defer(cache, cell, false);
 		break;
 
 	case POLICY_MISS:
@@ -2319,8 +2369,7 @@ static int cache_preresume(struct dm_target *ti)
 	}
 
 	if (!cache->loaded_mappings) {
-		r = dm_cache_load_mappings(cache->cmd,
-					   dm_cache_policy_get_name(cache->policy),
+		r = dm_cache_load_mappings(cache->cmd, cache->policy,
 					   load_mapping, cache);
 		if (r) {
 			DMERR("could not load cache mappings");
@@ -2535,7 +2584,7 @@ static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type cache_target = {
 	.name = "cache",
-	.version = {1, 0, 0},
+	.version = {1, 1, 0},
 	.module = THIS_MODULE,
 	.ctr = cache_ctr,
 	.dtr = cache_dtr,

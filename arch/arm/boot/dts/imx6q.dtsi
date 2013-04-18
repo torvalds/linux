@@ -8,7 +8,8 @@
  *
  */
 
-/include/ "imx6qdl.dtsi"
+#include "imx6qdl.dtsi"
+#include "imx6q-pinfunc.h"
 
 / {
 	cpus {
@@ -78,10 +79,19 @@
 				audmux {
 					pinctrl_audmux_1: audmux-1 {
 						fsl,pins = <
-							18   0x80000000	/* MX6Q_PAD_SD2_DAT0__AUDMUX_AUD4_RXD */
-							1586 0x80000000	/* MX6Q_PAD_SD2_DAT3__AUDMUX_AUD4_TXC */
-							11   0x80000000	/* MX6Q_PAD_SD2_DAT2__AUDMUX_AUD4_TXD */
-							3    0x80000000	/* MX6Q_PAD_SD2_DAT1__AUDMUX_AUD4_TXFS */
+							MX6Q_PAD_SD2_DAT0__AUD4_RXD  0x80000000
+							MX6Q_PAD_SD2_DAT3__AUD4_TXC  0x80000000
+							MX6Q_PAD_SD2_DAT2__AUD4_TXD  0x80000000
+							MX6Q_PAD_SD2_DAT1__AUD4_TXFS 0x80000000
+						>;
+					};
+
+					pinctrl_audmux_2: audmux-2 {
+						fsl,pins = <
+							MX6Q_PAD_CSI0_DAT7__AUD3_RXD  0x80000000
+							MX6Q_PAD_CSI0_DAT4__AUD3_TXC  0x80000000
+							MX6Q_PAD_CSI0_DAT5__AUD3_TXD  0x80000000
+							MX6Q_PAD_CSI0_DAT6__AUD3_TXFS 0x80000000
 						>;
 					};
 				};
@@ -89,9 +99,19 @@
 				ecspi1 {
 					pinctrl_ecspi1_1: ecspi1grp-1 {
 						fsl,pins = <
-							101 0x100b1	/* MX6Q_PAD_EIM_D17__ECSPI1_MISO */
-							109 0x100b1	/* MX6Q_PAD_EIM_D18__ECSPI1_MOSI */
-							94  0x100b1	/* MX6Q_PAD_EIM_D16__ECSPI1_SCLK */
+							MX6Q_PAD_EIM_D17__ECSPI1_MISO 0x100b1
+							MX6Q_PAD_EIM_D18__ECSPI1_MOSI 0x100b1
+							MX6Q_PAD_EIM_D16__ECSPI1_SCLK 0x100b1
+						>;
+					};
+				};
+
+				ecspi3 {
+					pinctrl_ecspi3_1: ecspi3grp-1 {
+						fsl,pins = <
+							MX6Q_PAD_DISP0_DAT2__ECSPI3_MISO 0x100b1
+							MX6Q_PAD_DISP0_DAT1__ECSPI3_MOSI 0x100b1
+							MX6Q_PAD_DISP0_DAT0__ECSPI3_SCLK 0x100b1
 						>;
 					};
 				};
@@ -99,42 +119,42 @@
 				enet {
 					pinctrl_enet_1: enetgrp-1 {
 						fsl,pins = <
-							695 0x1b0b0	/* MX6Q_PAD_ENET_MDIO__ENET_MDIO */
-							756 0x1b0b0	/* MX6Q_PAD_ENET_MDC__ENET_MDC */
-							24  0x1b0b0	/* MX6Q_PAD_RGMII_TXC__ENET_RGMII_TXC */
-							30  0x1b0b0	/* MX6Q_PAD_RGMII_TD0__ENET_RGMII_TD0 */
-							34  0x1b0b0	/* MX6Q_PAD_RGMII_TD1__ENET_RGMII_TD1 */
-							39  0x1b0b0	/* MX6Q_PAD_RGMII_TD2__ENET_RGMII_TD2 */
-							44  0x1b0b0	/* MX6Q_PAD_RGMII_TD3__ENET_RGMII_TD3 */
-							56  0x1b0b0	/* MX6Q_PAD_RGMII_TX_CTL__RGMII_TX_CTL */
-							702 0x1b0b0	/* MX6Q_PAD_ENET_REF_CLK__ENET_TX_CLK */
-							74  0x1b0b0	/* MX6Q_PAD_RGMII_RXC__ENET_RGMII_RXC */
-							52  0x1b0b0	/* MX6Q_PAD_RGMII_RD0__ENET_RGMII_RD0 */
-							61  0x1b0b0	/* MX6Q_PAD_RGMII_RD1__ENET_RGMII_RD1 */
-							66  0x1b0b0	/* MX6Q_PAD_RGMII_RD2__ENET_RGMII_RD2 */
-							70  0x1b0b0	/* MX6Q_PAD_RGMII_RD3__ENET_RGMII_RD3 */
-							48  0x1b0b0	/* MX6Q_PAD_RGMII_RX_CTL__RGMII_RX_CTL */
-							1033 0x4001b0a8	/* MX6Q_PAD_GPIO_16__ENET_ANATOP_ETHERNET_REF_OUT*/
+							MX6Q_PAD_ENET_MDIO__ENET_MDIO       0x1b0b0
+							MX6Q_PAD_ENET_MDC__ENET_MDC         0x1b0b0
+							MX6Q_PAD_RGMII_TXC__RGMII_TXC       0x1b0b0
+							MX6Q_PAD_RGMII_TD0__RGMII_TD0       0x1b0b0
+							MX6Q_PAD_RGMII_TD1__RGMII_TD1       0x1b0b0
+							MX6Q_PAD_RGMII_TD2__RGMII_TD2       0x1b0b0
+							MX6Q_PAD_RGMII_TD3__RGMII_TD3       0x1b0b0
+							MX6Q_PAD_RGMII_TX_CTL__RGMII_TX_CTL 0x1b0b0
+							MX6Q_PAD_ENET_REF_CLK__ENET_TX_CLK  0x1b0b0
+							MX6Q_PAD_RGMII_RXC__RGMII_RXC       0x1b0b0
+							MX6Q_PAD_RGMII_RD0__RGMII_RD0       0x1b0b0
+							MX6Q_PAD_RGMII_RD1__RGMII_RD1       0x1b0b0
+							MX6Q_PAD_RGMII_RD2__RGMII_RD2       0x1b0b0
+							MX6Q_PAD_RGMII_RD3__RGMII_RD3       0x1b0b0
+							MX6Q_PAD_RGMII_RX_CTL__RGMII_RX_CTL 0x1b0b0
+							MX6Q_PAD_GPIO_16__ENET_REF_CLK      0x4001b0a8
 						>;
 					};
 
 					pinctrl_enet_2: enetgrp-2 {
 						fsl,pins = <
-							890 0x1b0b0	/* MX6Q_PAD_KEY_COL1__ENET_MDIO */
-							909 0x1b0b0	/* MX6Q_PAD_KEY_COL2__ENET_MDC */
-							24  0x1b0b0	/* MX6Q_PAD_RGMII_TXC__ENET_RGMII_TXC */
-							30  0x1b0b0	/* MX6Q_PAD_RGMII_TD0__ENET_RGMII_TD0 */
-							34  0x1b0b0	/* MX6Q_PAD_RGMII_TD1__ENET_RGMII_TD1 */
-							39  0x1b0b0	/* MX6Q_PAD_RGMII_TD2__ENET_RGMII_TD2 */
-							44  0x1b0b0	/* MX6Q_PAD_RGMII_TD3__ENET_RGMII_TD3 */
-							56  0x1b0b0	/* MX6Q_PAD_RGMII_TX_CTL__RGMII_TX_CTL */
-							702 0x1b0b0	/* MX6Q_PAD_ENET_REF_CLK__ENET_TX_CLK */
-							74  0x1b0b0	/* MX6Q_PAD_RGMII_RXC__ENET_RGMII_RXC */
-							52  0x1b0b0	/* MX6Q_PAD_RGMII_RD0__ENET_RGMII_RD0 */
-							61  0x1b0b0	/* MX6Q_PAD_RGMII_RD1__ENET_RGMII_RD1 */
-							66  0x1b0b0	/* MX6Q_PAD_RGMII_RD2__ENET_RGMII_RD2 */
-							70  0x1b0b0	/* MX6Q_PAD_RGMII_RD3__ENET_RGMII_RD3 */
-							48  0x1b0b0	/* MX6Q_PAD_RGMII_RX_CTL__RGMII_RX_CTL */
+							MX6Q_PAD_KEY_COL1__ENET_MDIO        0x1b0b0
+							MX6Q_PAD_KEY_COL2__ENET_MDC         0x1b0b0
+							MX6Q_PAD_RGMII_TXC__RGMII_TXC       0x1b0b0
+							MX6Q_PAD_RGMII_TD0__RGMII_TD0       0x1b0b0
+							MX6Q_PAD_RGMII_TD1__RGMII_TD1       0x1b0b0
+							MX6Q_PAD_RGMII_TD2__RGMII_TD2       0x1b0b0
+							MX6Q_PAD_RGMII_TD3__RGMII_TD3       0x1b0b0
+							MX6Q_PAD_RGMII_TX_CTL__RGMII_TX_CTL 0x1b0b0
+							MX6Q_PAD_ENET_REF_CLK__ENET_TX_CLK  0x1b0b0
+							MX6Q_PAD_RGMII_RXC__RGMII_RXC       0x1b0b0
+							MX6Q_PAD_RGMII_RD0__RGMII_RD0       0x1b0b0
+							MX6Q_PAD_RGMII_RD1__RGMII_RD1       0x1b0b0
+							MX6Q_PAD_RGMII_RD2__RGMII_RD2       0x1b0b0
+							MX6Q_PAD_RGMII_RD3__RGMII_RD3       0x1b0b0
+							MX6Q_PAD_RGMII_RX_CTL__RGMII_RX_CTL 0x1b0b0
 						>;
 					};
 				};
@@ -142,25 +162,25 @@
 				gpmi-nand {
 					pinctrl_gpmi_nand_1: gpmi-nand-1 {
 						fsl,pins = <
-							1328 0xb0b1	/* MX6Q_PAD_NANDF_CLE__RAWNAND_CLE */
-							1336 0xb0b1	/* MX6Q_PAD_NANDF_ALE__RAWNAND_ALE */
-							1344 0xb0b1	/* MX6Q_PAD_NANDF_WP_B__RAWNAND_RESETN */
-							1352 0xb000	/* MX6Q_PAD_NANDF_RB0__RAWNAND_READY0 */
-							1360 0xb0b1	/* MX6Q_PAD_NANDF_CS0__RAWNAND_CE0N */
-							1365 0xb0b1	/* MX6Q_PAD_NANDF_CS1__RAWNAND_CE1N */
-							1371 0xb0b1	/* MX6Q_PAD_NANDF_CS2__RAWNAND_CE2N */
-							1378 0xb0b1	/* MX6Q_PAD_NANDF_CS3__RAWNAND_CE3N */
-							1387 0xb0b1	/* MX6Q_PAD_SD4_CMD__RAWNAND_RDN */
-							1393 0xb0b1	/* MX6Q_PAD_SD4_CLK__RAWNAND_WRN */
-							1397 0xb0b1	/* MX6Q_PAD_NANDF_D0__RAWNAND_D0 */
-							1405 0xb0b1	/* MX6Q_PAD_NANDF_D1__RAWNAND_D1 */
-							1413 0xb0b1	/* MX6Q_PAD_NANDF_D2__RAWNAND_D2 */
-							1421 0xb0b1	/* MX6Q_PAD_NANDF_D3__RAWNAND_D3 */
-							1429 0xb0b1	/* MX6Q_PAD_NANDF_D4__RAWNAND_D4 */
-							1437 0xb0b1	/* MX6Q_PAD_NANDF_D5__RAWNAND_D5 */
-							1445 0xb0b1	/* MX6Q_PAD_NANDF_D6__RAWNAND_D6 */
-							1453 0xb0b1	/* MX6Q_PAD_NANDF_D7__RAWNAND_D7 */
-							1463 0x00b1	/* MX6Q_PAD_SD4_DAT0__RAWNAND_DQS */
+							MX6Q_PAD_NANDF_CLE__NAND_CLE     0xb0b1
+							MX6Q_PAD_NANDF_ALE__NAND_ALE     0xb0b1
+							MX6Q_PAD_NANDF_WP_B__NAND_WP_B   0xb0b1
+							MX6Q_PAD_NANDF_RB0__NAND_READY_B 0xb000
+							MX6Q_PAD_NANDF_CS0__NAND_CE0_B   0xb0b1
+							MX6Q_PAD_NANDF_CS1__NAND_CE1_B   0xb0b1
+							MX6Q_PAD_NANDF_CS2__NAND_CE2_B   0xb0b1
+							MX6Q_PAD_NANDF_CS3__NAND_CE3_B   0xb0b1
+							MX6Q_PAD_SD4_CMD__NAND_RE_B      0xb0b1
+							MX6Q_PAD_SD4_CLK__NAND_WE_B      0xb0b1
+							MX6Q_PAD_NANDF_D0__NAND_DATA00   0xb0b1
+							MX6Q_PAD_NANDF_D1__NAND_DATA01   0xb0b1
+							MX6Q_PAD_NANDF_D2__NAND_DATA02   0xb0b1
+							MX6Q_PAD_NANDF_D3__NAND_DATA03   0xb0b1
+							MX6Q_PAD_NANDF_D4__NAND_DATA04   0xb0b1
+							MX6Q_PAD_NANDF_D5__NAND_DATA05   0xb0b1
+							MX6Q_PAD_NANDF_D6__NAND_DATA06   0xb0b1
+							MX6Q_PAD_NANDF_D7__NAND_DATA07   0xb0b1
+							MX6Q_PAD_SD4_DAT0__NAND_DQS      0x00b1
 						>;
 					};
 				};
@@ -168,8 +188,26 @@
 				i2c1 {
 					pinctrl_i2c1_1: i2c1grp-1 {
 						fsl,pins = <
-							137 0x4001b8b1	/* MX6Q_PAD_EIM_D21__I2C1_SCL */
-							196 0x4001b8b1	/* MX6Q_PAD_EIM_D28__I2C1_SDA */
+							MX6Q_PAD_EIM_D21__I2C1_SCL 0x4001b8b1
+							MX6Q_PAD_EIM_D28__I2C1_SDA 0x4001b8b1
+						>;
+					};
+				};
+
+				i2c2 {
+					pinctrl_i2c2_1: i2c2grp-1 {
+						fsl,pins = <
+							MX6Q_PAD_EIM_EB2__I2C2_SCL 0x4001b8b1
+							MX6Q_PAD_EIM_D16__I2C2_SDA 0x4001b8b1
+						>;
+					};
+				};
+
+				i2c3 {
+					pinctrl_i2c3_1: i2c3grp-1 {
+						fsl,pins = <
+							MX6Q_PAD_EIM_D17__I2C3_SCL 0x4001b8b1
+							MX6Q_PAD_EIM_D18__I2C3_SDA 0x4001b8b1
 						>;
 					};
 				};
@@ -177,8 +215,8 @@
 				uart1 {
 					pinctrl_uart1_1: uart1grp-1 {
 						fsl,pins = <
-							1140 0x1b0b1	/* MX6Q_PAD_CSI0_DAT10__UART1_TXD */
-							1148 0x1b0b1	/* MX6Q_PAD_CSI0_DAT11__UART1_RXD */
+							MX6Q_PAD_CSI0_DAT10__UART1_TX_DATA 0x1b0b1
+							MX6Q_PAD_CSI0_DAT11__UART1_RX_DATA 0x1b0b1
 						>;
 					};
 				};
@@ -186,8 +224,8 @@
 				uart2 {
 					pinctrl_uart2_1: uart2grp-1 {
 						fsl,pins = <
-							183 0x1b0b1	/* MX6Q_PAD_EIM_D26__UART2_TXD */
-							191 0x1b0b1	/* MX6Q_PAD_EIM_D27__UART2_RXD */
+							MX6Q_PAD_EIM_D26__UART2_TX_DATA 0x1b0b1
+							MX6Q_PAD_EIM_D27__UART2_RX_DATA 0x1b0b1
 						>;
 					};
 				};
@@ -195,8 +233,8 @@
 				uart4 {
 					pinctrl_uart4_1: uart4grp-1 {
 						fsl,pins = <
-							877 0x1b0b1	/* MX6Q_PAD_KEY_COL0__UART4_TXD */
-							885 0x1b0b1	/* MX6Q_PAD_KEY_ROW0__UART4_RXD */
+							MX6Q_PAD_KEY_COL0__UART4_TX_DATA 0x1b0b1
+							MX6Q_PAD_KEY_ROW0__UART4_RX_DATA 0x1b0b1
 						>;
 					};
 				};
@@ -204,7 +242,13 @@
 				usbotg {
 					pinctrl_usbotg_1: usbotggrp-1 {
 						fsl,pins = <
-							1592 0x17059	/* MX6Q_PAD_GPIO_1__ANATOP_USBOTG_ID */
+							MX6Q_PAD_GPIO_1__USB_OTG_ID 0x17059
+						>;
+					};
+
+					pinctrl_usbotg_2: usbotggrp-2 {
+						fsl,pins = <
+							MX6Q_PAD_ENET_RX_ER__USB_OTG_ID 0x17059
 						>;
 					};
 				};
@@ -212,16 +256,16 @@
 				usdhc2 {
 					pinctrl_usdhc2_1: usdhc2grp-1 {
 						fsl,pins = <
-							1577 0x17059	/* MX6Q_PAD_SD2_CMD__USDHC2_CMD */
-							1569 0x10059	/* MX6Q_PAD_SD2_CLK__USDHC2_CLK */
-							16   0x17059	/* MX6Q_PAD_SD2_DAT0__USDHC2_DAT0 */
-							0    0x17059	/* MX6Q_PAD_SD2_DAT1__USDHC2_DAT1 */
-							8    0x17059	/* MX6Q_PAD_SD2_DAT2__USDHC2_DAT2 */
-							1583 0x17059	/* MX6Q_PAD_SD2_DAT3__USDHC2_DAT3 */
-							1430 0x17059	/* MX6Q_PAD_NANDF_D4__USDHC2_DAT4 */
-							1438 0x17059	/* MX6Q_PAD_NANDF_D5__USDHC2_DAT5 */
-							1446 0x17059	/* MX6Q_PAD_NANDF_D6__USDHC2_DAT6 */
-							1454 0x17059	/* MX6Q_PAD_NANDF_D7__USDHC2_DAT7 */
+							MX6Q_PAD_SD2_CMD__SD2_CMD    0x17059
+							MX6Q_PAD_SD2_CLK__SD2_CLK    0x10059
+							MX6Q_PAD_SD2_DAT0__SD2_DATA0 0x17059
+							MX6Q_PAD_SD2_DAT1__SD2_DATA1 0x17059
+							MX6Q_PAD_SD2_DAT2__SD2_DATA2 0x17059
+							MX6Q_PAD_SD2_DAT3__SD2_DATA3 0x17059
+							MX6Q_PAD_NANDF_D4__SD2_DATA4 0x17059
+							MX6Q_PAD_NANDF_D5__SD2_DATA5 0x17059
+							MX6Q_PAD_NANDF_D6__SD2_DATA6 0x17059
+							MX6Q_PAD_NANDF_D7__SD2_DATA7 0x17059
 						>;
 					};
 				};
@@ -229,27 +273,27 @@
 				usdhc3 {
 					pinctrl_usdhc3_1: usdhc3grp-1 {
 						fsl,pins = <
-							1273 0x17059	/* MX6Q_PAD_SD3_CMD__USDHC3_CMD */
-							1281 0x10059	/* MX6Q_PAD_SD3_CLK__USDHC3_CLK	*/
-							1289 0x17059	/* MX6Q_PAD_SD3_DAT0__USDHC3_DAT0 */
-							1297 0x17059	/* MX6Q_PAD_SD3_DAT1__USDHC3_DAT1 */
-							1305 0x17059	/* MX6Q_PAD_SD3_DAT2__USDHC3_DAT2 */
-							1312 0x17059	/* MX6Q_PAD_SD3_DAT3__USDHC3_DAT3 */
-							1265 0x17059	/* MX6Q_PAD_SD3_DAT4__USDHC3_DAT4 */
-							1257 0x17059	/* MX6Q_PAD_SD3_DAT5__USDHC3_DAT5 */
-							1249 0x17059	/* MX6Q_PAD_SD3_DAT6__USDHC3_DAT6 */
-							1241 0x17059	/* MX6Q_PAD_SD3_DAT7__USDHC3_DAT7 */
+							MX6Q_PAD_SD3_CMD__SD3_CMD    0x17059
+							MX6Q_PAD_SD3_CLK__SD3_CLK    0x10059
+							MX6Q_PAD_SD3_DAT0__SD3_DATA0 0x17059
+							MX6Q_PAD_SD3_DAT1__SD3_DATA1 0x17059
+							MX6Q_PAD_SD3_DAT2__SD3_DATA2 0x17059
+							MX6Q_PAD_SD3_DAT3__SD3_DATA3 0x17059
+							MX6Q_PAD_SD3_DAT4__SD3_DATA4 0x17059
+							MX6Q_PAD_SD3_DAT5__SD3_DATA5 0x17059
+							MX6Q_PAD_SD3_DAT6__SD3_DATA6 0x17059
+							MX6Q_PAD_SD3_DAT7__SD3_DATA7 0x17059
 						>;
 					};
 
 					pinctrl_usdhc3_2: usdhc3grp-2 {
 						fsl,pins = <
-							1273 0x17059	/* MX6Q_PAD_SD3_CMD__USDHC3_CMD */
-							1281 0x10059	/* MX6Q_PAD_SD3_CLK__USDHC3_CLK	*/
-							1289 0x17059	/* MX6Q_PAD_SD3_DAT0__USDHC3_DAT0 */
-							1297 0x17059	/* MX6Q_PAD_SD3_DAT1__USDHC3_DAT1 */
-							1305 0x17059	/* MX6Q_PAD_SD3_DAT2__USDHC3_DAT2 */
-							1312 0x17059	/* MX6Q_PAD_SD3_DAT3__USDHC3_DAT3 */
+							MX6Q_PAD_SD3_CMD__SD3_CMD    0x17059
+							MX6Q_PAD_SD3_CLK__SD3_CLK    0x10059
+							MX6Q_PAD_SD3_DAT0__SD3_DATA0 0x17059
+							MX6Q_PAD_SD3_DAT1__SD3_DATA1 0x17059
+							MX6Q_PAD_SD3_DAT2__SD3_DATA2 0x17059
+							MX6Q_PAD_SD3_DAT3__SD3_DATA3 0x17059
 						>;
 					};
 				};
@@ -257,27 +301,27 @@
 				usdhc4 {
 					pinctrl_usdhc4_1: usdhc4grp-1 {
 						fsl,pins = <
-							1386 0x17059	/* MX6Q_PAD_SD4_CMD__USDHC4_CMD */
-							1392 0x10059	/* MX6Q_PAD_SD4_CLK__USDHC4_CLK	*/
-							1462 0x17059	/* MX6Q_PAD_SD4_DAT0__USDHC4_DAT0 */
-							1470 0x17059	/* MX6Q_PAD_SD4_DAT1__USDHC4_DAT1 */
-							1478 0x17059	/* MX6Q_PAD_SD4_DAT2__USDHC4_DAT2 */
-							1486 0x17059	/* MX6Q_PAD_SD4_DAT3__USDHC4_DAT3 */
-							1493 0x17059	/* MX6Q_PAD_SD4_DAT4__USDHC4_DAT4 */
-							1501 0x17059	/* MX6Q_PAD_SD4_DAT5__USDHC4_DAT5 */
-							1509 0x17059	/* MX6Q_PAD_SD4_DAT6__USDHC4_DAT6 */
-							1517 0x17059	/* MX6Q_PAD_SD4_DAT7__USDHC4_DAT7 */
+							MX6Q_PAD_SD4_CMD__SD4_CMD    0x17059
+							MX6Q_PAD_SD4_CLK__SD4_CLK    0x10059
+							MX6Q_PAD_SD4_DAT0__SD4_DATA0 0x17059
+							MX6Q_PAD_SD4_DAT1__SD4_DATA1 0x17059
+							MX6Q_PAD_SD4_DAT2__SD4_DATA2 0x17059
+							MX6Q_PAD_SD4_DAT3__SD4_DATA3 0x17059
+							MX6Q_PAD_SD4_DAT4__SD4_DATA4 0x17059
+							MX6Q_PAD_SD4_DAT5__SD4_DATA5 0x17059
+							MX6Q_PAD_SD4_DAT6__SD4_DATA6 0x17059
+							MX6Q_PAD_SD4_DAT7__SD4_DATA7 0x17059
 						>;
 					};
 
 					pinctrl_usdhc4_2: usdhc4grp-2 {
 						fsl,pins = <
-							1386 0x17059	/* MX6Q_PAD_SD4_CMD__USDHC4_CMD */
-							1392 0x10059	/* MX6Q_PAD_SD4_CLK__USDHC4_CLK	*/
-							1462 0x17059	/* MX6Q_PAD_SD4_DAT0__USDHC4_DAT0 */
-							1470 0x17059	/* MX6Q_PAD_SD4_DAT1__USDHC4_DAT1 */
-							1478 0x17059	/* MX6Q_PAD_SD4_DAT2__USDHC4_DAT2 */
-							1486 0x17059	/* MX6Q_PAD_SD4_DAT3__USDHC4_DAT3 */
+							MX6Q_PAD_SD4_CMD__SD4_CMD    0x17059
+							MX6Q_PAD_SD4_CLK__SD4_CLK    0x10059
+							MX6Q_PAD_SD4_DAT0__SD4_DATA0 0x17059
+							MX6Q_PAD_SD4_DAT1__SD4_DATA1 0x17059
+							MX6Q_PAD_SD4_DAT2__SD4_DATA2 0x17059
+							MX6Q_PAD_SD4_DAT3__SD4_DATA3 0x17059
 						>;
 					};
 				};
@@ -291,6 +335,24 @@
 			interrupts = <0 8 0x4 0 7 0x4>;
 			clocks = <&clks 133>, <&clks 134>, <&clks 137>;
 			clock-names = "bus", "di0", "di1";
+			resets = <&src 4>;
 		};
+	};
+};
+
+&ldb {
+	clocks = <&clks 33>, <&clks 34>,
+		 <&clks 39>, <&clks 40>, <&clks 41>, <&clks 42>,
+		 <&clks 135>, <&clks 136>;
+	clock-names = "di0_pll", "di1_pll",
+		      "di0_sel", "di1_sel", "di2_sel", "di3_sel",
+		      "di0", "di1";
+
+	lvds-channel@0 {
+		crtcs = <&ipu1 0>, <&ipu1 1>, <&ipu2 0>, <&ipu2 1>;
+	};
+
+	lvds-channel@1 {
+		crtcs = <&ipu1 0>, <&ipu1 1>, <&ipu2 0>, <&ipu2 1>;
 	};
 };

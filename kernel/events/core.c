@@ -4434,12 +4434,15 @@ static void perf_event_task_event(struct perf_task_event *task_event)
 			if (ctxn < 0)
 				goto next;
 			ctx = rcu_dereference(current->perf_event_ctxp[ctxn]);
+			if (ctx)
+				perf_event_task_ctx(ctx, task_event);
 		}
-		if (ctx)
-			perf_event_task_ctx(ctx, task_event);
 next:
 		put_cpu_ptr(pmu->pmu_cpu_context);
 	}
+	if (task_event->task_ctx)
+		perf_event_task_ctx(task_event->task_ctx, task_event);
+
 	rcu_read_unlock();
 }
 
@@ -5647,6 +5650,7 @@ static void perf_swevent_init_hrtimer(struct perf_event *event)
 		event->attr.sample_period = NSEC_PER_SEC / freq;
 		hwc->sample_period = event->attr.sample_period;
 		local64_set(&hwc->period_left, hwc->sample_period);
+		hwc->last_period = hwc->sample_period;
 		event->attr.freq = 0;
 	}
 }
