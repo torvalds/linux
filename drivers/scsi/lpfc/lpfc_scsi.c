@@ -24,6 +24,8 @@
 #include <linux/export.h>
 #include <linux/delay.h>
 #include <asm/unaligned.h>
+#include <linux/crc-t10dif.h>
+#include <net/checksum.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -48,7 +50,7 @@
 #define LPFC_RESET_WAIT  2
 #define LPFC_ABORT_WAIT  2
 
-int _dump_buf_done;
+int _dump_buf_done = 1;
 
 static char *dif_op_str[] = {
 	"PROT_NORMAL",
@@ -2820,6 +2822,214 @@ err:
 }
 
 /*
+ * This function calcuates the T10 DIF guard tag
+ * on the specified data using a CRC algorithmn
+ * using crc_t10dif.
+ */
+uint16_t
+lpfc_bg_crc(uint8_t *data, int count)
+{
+	uint16_t crc = 0;
+	uint16_t x;
+
+	crc = crc_t10dif(data, count);
+	x = cpu_to_be16(crc);
+	return x;
+}
+
+/*
+ * This function calcuates the T10 DIF guard tag
+ * on the specified data using a CSUM algorithmn
+ * using ip_compute_csum.
+ */
+uint16_t
+lpfc_bg_csum(uint8_t *data, int count)
+{
+	uint16_t ret;
+
+	ret = ip_compute_csum(data, count);
+	return ret;
+}
+
+/*
+ * This function examines the protection data to try to determine
+ * what type of T10-DIF error occurred.
+ */
+void
+lpfc_calc_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
+{
+	struct scatterlist *sgpe; /* s/g prot entry */
+	struct scatterlist *sgde; /* s/g data entry */
+	struct scsi_cmnd *cmd = lpfc_cmd->pCmd;
+	struct scsi_dif_tuple *src = NULL;
+	uint8_t *data_src = NULL;
+	uint16_t guard_tag, guard_type;
+	uint16_t start_app_tag, app_tag;
+	uint32_t start_ref_tag, ref_tag;
+	int prot, protsegcnt;
+	int err_type, len, data_len;
+	int chk_ref, chk_app, chk_guard;
+	uint16_t sum;
+	unsigned blksize;
+
+	err_type = BGS_GUARD_ERR_MASK;
+	sum = 0;
+	guard_tag = 0;
+
+	/* First check to see if there is protection data to examine */
+	prot = scsi_get_prot_op(cmd);
+	if ((prot == SCSI_PROT_READ_STRIP) ||
+	    (prot == SCSI_PROT_WRITE_INSERT) ||
+	    (prot == SCSI_PROT_NORMAL))
+		goto out;
+
+	/* Currently the driver just supports ref_tag and guard_tag checking */
+	chk_ref = 1;
+	chk_app = 0;
+	chk_guard = 0;
+
+	/* Setup a ptr to the protection data provided by the SCSI host */
+	sgpe = scsi_prot_sglist(cmd);
+	protsegcnt = lpfc_cmd->prot_seg_cnt;
+
+	if (sgpe && protsegcnt) {
+
+		/*
+		 * We will only try to verify guard tag if the segment
+		 * data length is a multiple of the blksize.
+		 */
+		sgde = scsi_sglist(cmd);
+		blksize = lpfc_cmd_blksize(cmd);
+		data_src = (uint8_t *)sg_virt(sgde);
+		data_len = sgde->length;
+		if ((data_len & (blksize - 1)) == 0)
+			chk_guard = 1;
+		guard_type = scsi_host_get_guard(cmd->device->host);
+
+		start_ref_tag = scsi_get_lba(cmd);
+		start_app_tag = src->app_tag;
+		src = (struct scsi_dif_tuple *)sg_virt(sgpe);
+		len = sgpe->length;
+		while (src && protsegcnt) {
+			while (len) {
+
+				/*
+				 * First check to see if a protection data
+				 * check is valid
+				 */
+				if ((src->ref_tag == 0xffffffff) ||
+				    (src->app_tag == 0xffff)) {
+					start_ref_tag++;
+					goto skipit;
+				}
+
+				/* App Tag checking */
+				app_tag = src->app_tag;
+				if (chk_app && (app_tag != start_app_tag)) {
+					err_type = BGS_APPTAG_ERR_MASK;
+					goto out;
+				}
+
+				/* Reference Tag checking */
+				ref_tag = be32_to_cpu(src->ref_tag);
+				if (chk_ref && (ref_tag != start_ref_tag)) {
+					err_type = BGS_REFTAG_ERR_MASK;
+					goto out;
+				}
+				start_ref_tag++;
+
+				/* Guard Tag checking */
+				if (chk_guard) {
+					guard_tag = src->guard_tag;
+					if (guard_type == SHOST_DIX_GUARD_IP)
+						sum = lpfc_bg_csum(data_src,
+								   blksize);
+					else
+						sum = lpfc_bg_crc(data_src,
+								  blksize);
+					if ((guard_tag != sum)) {
+						err_type = BGS_GUARD_ERR_MASK;
+						goto out;
+					}
+				}
+skipit:
+				len -= sizeof(struct scsi_dif_tuple);
+				if (len < 0)
+					len = 0;
+				src++;
+
+				data_src += blksize;
+				data_len -= blksize;
+
+				/*
+				 * Are we at the end of the Data segment?
+				 * The data segment is only used for Guard
+				 * tag checking.
+				 */
+				if (chk_guard && (data_len == 0)) {
+					chk_guard = 0;
+					sgde = sg_next(sgde);
+					if (!sgde)
+						goto out;
+
+					data_src = (uint8_t *)sg_virt(sgde);
+					data_len = sgde->length;
+					if ((data_len & (blksize - 1)) == 0)
+						chk_guard = 1;
+				}
+			}
+
+			/* Goto the next Protection data segment */
+			sgpe = sg_next(sgpe);
+			if (sgpe) {
+				src = (struct scsi_dif_tuple *)sg_virt(sgpe);
+				len = sgpe->length;
+			} else {
+				src = NULL;
+			}
+			protsegcnt--;
+		}
+	}
+out:
+	if (err_type == BGS_GUARD_ERR_MASK) {
+		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
+					0x10, 0x1);
+		cmd->result = DRIVER_SENSE << 24
+			| ScsiResult(DID_ABORT, SAM_STAT_CHECK_CONDITION);
+		phba->bg_guard_err_cnt++;
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
+				"9069 BLKGRD: LBA %lx grd_tag error %x != %x\n",
+				(unsigned long)scsi_get_lba(cmd),
+				sum, guard_tag);
+
+	} else if (err_type == BGS_REFTAG_ERR_MASK) {
+		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
+					0x10, 0x3);
+		cmd->result = DRIVER_SENSE << 24
+			| ScsiResult(DID_ABORT, SAM_STAT_CHECK_CONDITION);
+
+		phba->bg_reftag_err_cnt++;
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
+				"9066 BLKGRD: LBA %lx ref_tag error %x != %x\n",
+				(unsigned long)scsi_get_lba(cmd),
+				ref_tag, start_ref_tag);
+
+	} else if (err_type == BGS_APPTAG_ERR_MASK) {
+		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
+					0x10, 0x2);
+		cmd->result = DRIVER_SENSE << 24
+			| ScsiResult(DID_ABORT, SAM_STAT_CHECK_CONDITION);
+
+		phba->bg_apptag_err_cnt++;
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
+				"9041 BLKGRD: LBA %lx app_tag error %x != %x\n",
+				(unsigned long)scsi_get_lba(cmd),
+				app_tag, start_app_tag);
+	}
+}
+
+
+/*
  * This function checks for BlockGuard errors detected by
  * the HBA.  In case of errors, the ASC/ASCQ fields in the
  * sense buffer will be set accordingly, paired with
@@ -2841,12 +3051,6 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 	uint32_t bghm = bgf->bghm;
 	uint32_t bgstat = bgf->bgstat;
 	uint64_t failing_sector = 0;
-
-	lpfc_printf_log(phba, KERN_ERR, LOG_BG, "9069 BLKGRD: BG ERROR in cmd"
-			" 0x%x lba 0x%llx blk cnt 0x%x "
-			"bgstat=0x%x bghm=0x%x\n",
-			cmd->cmnd[0], (unsigned long long)scsi_get_lba(cmd),
-			blk_rq_sectors(cmd->request), bgstat, bghm);
 
 	spin_lock(&_dump_buf_lock);
 	if (!_dump_buf_done) {
@@ -2870,18 +3074,24 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 
 	if (lpfc_bgs_get_invalid_prof(bgstat)) {
 		cmd->result = ScsiResult(DID_ERROR, 0);
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG, "9072 BLKGRD: Invalid"
-			" BlockGuard profile. bgstat:0x%x\n",
-			bgstat);
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
+				"9072 BLKGRD: Invalid BG Profile in cmd"
+				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
+				(unsigned long long)scsi_get_lba(cmd),
+				blk_rq_sectors(cmd->request), bgstat, bghm);
 		ret = (-1);
 		goto out;
 	}
 
 	if (lpfc_bgs_get_uninit_dif_block(bgstat)) {
 		cmd->result = ScsiResult(DID_ERROR, 0);
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG, "9073 BLKGRD: "
-				"Invalid BlockGuard DIF Block. bgstat:0x%x\n",
-				bgstat);
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
+				"9073 BLKGRD: Invalid BG PDIF Block in cmd"
+				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
+				(unsigned long long)scsi_get_lba(cmd),
+				blk_rq_sectors(cmd->request), bgstat, bghm);
 		ret = (-1);
 		goto out;
 	}
@@ -2894,8 +3104,12 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 		cmd->result = DRIVER_SENSE << 24
 			| ScsiResult(DID_ABORT, SAM_STAT_CHECK_CONDITION);
 		phba->bg_guard_err_cnt++;
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9055 BLKGRD: guard_tag error\n");
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
+				"9055 BLKGRD: Guard Tag error in cmd"
+				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
+				(unsigned long long)scsi_get_lba(cmd),
+				blk_rq_sectors(cmd->request), bgstat, bghm);
 	}
 
 	if (lpfc_bgs_get_reftag_err(bgstat)) {
@@ -2907,8 +3121,12 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 			| ScsiResult(DID_ABORT, SAM_STAT_CHECK_CONDITION);
 
 		phba->bg_reftag_err_cnt++;
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9056 BLKGRD: ref_tag error\n");
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
+				"9056 BLKGRD: Ref Tag error in cmd"
+				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
+				(unsigned long long)scsi_get_lba(cmd),
+				blk_rq_sectors(cmd->request), bgstat, bghm);
 	}
 
 	if (lpfc_bgs_get_apptag_err(bgstat)) {
@@ -2920,8 +3138,12 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 			| ScsiResult(DID_ABORT, SAM_STAT_CHECK_CONDITION);
 
 		phba->bg_apptag_err_cnt++;
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9061 BLKGRD: app_tag error\n");
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
+				"9061 BLKGRD: App Tag error in cmd"
+				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
+				(unsigned long long)scsi_get_lba(cmd),
+				blk_rq_sectors(cmd->request), bgstat, bghm);
 	}
 
 	if (lpfc_bgs_get_hi_water_mark_present(bgstat)) {
@@ -2960,11 +3182,16 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 
 	if (!ret) {
 		/* No error was reported - problem in FW? */
-		cmd->result = ScsiResult(DID_ERROR, 0);
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9057 BLKGRD: Unknown error reported!\n");
-	}
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
+				"9057 BLKGRD: Unknown error in cmd"
+				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
+				(unsigned long long)scsi_get_lba(cmd),
+				blk_rq_sectors(cmd->request), bgstat, bghm);
 
+		/* Calcuate what type of error it was */
+		lpfc_calc_bg_err(phba, lpfc_cmd);
+	}
 out:
 	return ret;
 }
@@ -4357,7 +4584,8 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 
 	if (scsi_get_prot_op(cmnd) != SCSI_PROT_NORMAL) {
 		if (vport->phba->cfg_enable_bg) {
-			lpfc_printf_vlog(vport, KERN_INFO, LOG_BG,
+			lpfc_printf_vlog(vport,
+					 KERN_INFO, LOG_SCSI_CMD,
 					 "9033 BLKGRD: rcvd %s cmd:x%x "
 					 "sector x%llx cnt %u pt %x\n",
 					 dif_op_str[scsi_get_prot_op(cmnd)],
@@ -4369,7 +4597,8 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 		err = lpfc_bg_scsi_prep_dma_buf(phba, lpfc_cmd);
 	} else {
 		if (vport->phba->cfg_enable_bg) {
-			lpfc_printf_vlog(vport, KERN_INFO, LOG_BG,
+			lpfc_printf_vlog(vport,
+					 KERN_INFO, LOG_SCSI_CMD,
 					 "9038 BLKGRD: rcvd PROT_NORMAL cmd: "
 					 "x%x sector x%llx cnt %u pt %x\n",
 					 cmnd->cmnd[0],
