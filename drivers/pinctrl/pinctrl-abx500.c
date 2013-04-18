@@ -880,7 +880,6 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	pct->parent = dev_get_drvdata(pdev->dev.parent);
 	pct->chip = abx500gpio_chip;
 	pct->chip.dev = &pdev->dev;
-	pct->chip.base = pdata->gpio_base;
 	pct->chip.base = (np) ? -1 : pdata->gpio_base;
 
 	/* initialize the lock */
