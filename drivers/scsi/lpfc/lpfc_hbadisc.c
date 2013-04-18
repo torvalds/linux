@@ -2272,8 +2272,11 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 				spin_unlock_irq(&phba->hbalock);
 				lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
 						"2836 New FCF matches in-use "
-						"FCF (x%x)\n",
-						phba->fcf.current_rec.fcf_indx);
+						"FCF (x%x), port_state:x%x, "
+						"fc_flag:x%x\n",
+						phba->fcf.current_rec.fcf_indx,
+						phba->pport->port_state,
+						phba->pport->fc_flag);
 				goto out;
 			} else
 				lpfc_printf_log(phba, KERN_ERR, LOG_FIP,

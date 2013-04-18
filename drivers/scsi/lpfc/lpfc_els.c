@@ -239,7 +239,10 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, uint8_t expectRsp,
 
 		icmd->un.elsreq64.remoteID = did;		/* DID */
 		icmd->ulpCommand = CMD_ELS_REQUEST64_CR;
-		icmd->ulpTimeout = phba->fc_ratov * 2;
+		if (elscmd == ELS_CMD_FLOGI)
+			icmd->ulpTimeout = FF_DEF_RATOV * 2;
+		else
+			icmd->ulpTimeout = phba->fc_ratov * 2;
 	} else {
 		icmd->un.xseq64.bdl.addrHigh = putPaddrHigh(pbuflist->phys);
 		icmd->un.xseq64.bdl.addrLow = putPaddrLow(pbuflist->phys);
@@ -1086,8 +1089,8 @@ stop_rr_fcf_flogi:
 
 	/* FLOGI completes successfully */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-			 "0101 FLOGI completes successfully "
-			 "Data: x%x x%x x%x x%x x%x x%x\n",
+			 "0101 FLOGI completes successfully, I/O tag:x%x, "
+			 "Data: x%x x%x x%x x%x x%x x%x\n", cmdiocb->iotag,
 			 irsp->un.ulpWord[4], sp->cmn.e_d_tov,
 			 sp->cmn.w2.r_a_tov, sp->cmn.edtovResolution,
 			 vport->port_state, vport->fc_flag);
