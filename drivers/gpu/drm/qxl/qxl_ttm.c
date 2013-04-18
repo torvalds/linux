@@ -555,6 +555,7 @@ static int qxl_mm_dump_table(struct seq_file *m, void *data)
 
 static int qxl_ttm_debugfs_init(struct qxl_device *qdev)
 {
+#if defined(CONFIG_DEBUG_FS)
 	static struct drm_info_list qxl_mem_types_list[QXL_DEBUGFS_MEM_TYPES];
 	static char qxl_mem_types_names[QXL_DEBUGFS_MEM_TYPES][32];
 	unsigned i;
@@ -574,4 +575,7 @@ static int qxl_ttm_debugfs_init(struct qxl_device *qdev)
 
 	}
 	return qxl_debugfs_add_files(qdev, qxl_mem_types_list, i);
+#else
+	return 0;
+#endif
 }
