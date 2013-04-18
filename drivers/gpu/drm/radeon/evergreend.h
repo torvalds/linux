@@ -234,6 +234,7 @@
 #       define HDMI_MPEG_INFO_CONT           (1 << 9)
 #define HDMI_INFOFRAME_CONTROL1              0x7048
 #       define HDMI_AVI_INFO_LINE(x)         (((x) & 0x3f) << 0)
+#       define HDMI_AVI_INFO_LINE_MASK       (0x3f << 0)
 #       define HDMI_AUDIO_INFO_LINE(x)       (((x) & 0x3f) << 8)
 #       define HDMI_MPEG_INFO_LINE(x)        (((x) & 0x3f) << 16)
 #define HDMI_GENERIC_PACKET_CONTROL          0x704c

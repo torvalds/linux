@@ -116,7 +116,6 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	       HDMI_AUDIO_PACKETS_PER_LINE(3)); /* should be suffient for all audio modes and small enough for all hblanks */
 
 	WREG32(AFMT_AUDIO_PACKET_CONTROL + offset,
-	       AFMT_AUDIO_SAMPLE_SEND | /* send audio packets */
 	       AFMT_60958_CS_UPDATE); /* allow 60958 channel status fields to be updated */
 
 	WREG32(HDMI_ACR_PACKET_CONTROL + offset,
@@ -129,8 +128,6 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	       HDMI_GC_CONT); /* send general control packets every frame */
 
 	WREG32(HDMI_INFOFRAME_CONTROL0 + offset,
-	       HDMI_AVI_INFO_SEND | /* enable AVI info frames */
-	       HDMI_AVI_INFO_CONT | /* send AVI info frames every frame/field */
 	       HDMI_AUDIO_INFO_SEND | /* enable audio info frames (frames won't be set until audio is enabled) */
 	       HDMI_AUDIO_INFO_CONT); /* required for audio info values to be updated */
 
@@ -138,7 +135,6 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	       AFMT_AUDIO_INFO_UPDATE); /* required for audio info values to be updated */
 
 	WREG32(HDMI_INFOFRAME_CONTROL1 + offset,
-	       HDMI_AVI_INFO_LINE(2) | /* anything other than 0 */
 	       HDMI_AUDIO_INFO_LINE(2)); /* anything other than 0 */
 
 	WREG32(HDMI_GC + offset, 0); /* unset HDMI_GC_AVMUTE */
@@ -157,6 +153,17 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 
 	evergreen_hdmi_update_avi_infoframe(encoder, buffer, sizeof(buffer));
 	evergreen_hdmi_update_ACR(encoder, mode->clock);
+
+	WREG32_OR(HDMI_INFOFRAME_CONTROL0 + offset,
+		  HDMI_AVI_INFO_SEND | /* enable AVI info frames */
+		  HDMI_AVI_INFO_CONT); /* required for audio info values to be updated */
+
+	WREG32_P(HDMI_INFOFRAME_CONTROL1 + offset,
+		 HDMI_AVI_INFO_LINE(2), /* anything other than 0 */
+		 ~HDMI_AVI_INFO_LINE_MASK);
+
+	WREG32_OR(AFMT_AUDIO_PACKET_CONTROL + offset,
+		  AFMT_AUDIO_SAMPLE_SEND); /* send audio packets */
 
 	/* it's unknown what these bits do excatly, but it's indeed quite useful for debugging */
 	WREG32(AFMT_RAMP_CONTROL0 + offset, 0x00FFFFFF);
