@@ -288,9 +288,6 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 		return r;
 	}
 
-	/* Increase reference counter */
-	get_device(&pdev->dev);
-
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 1000);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
@@ -307,7 +304,6 @@ static void i2c_dw_pci_remove(struct pci_dev *pdev)
 	pm_runtime_get_noresume(&pdev->dev);
 
 	i2c_del_adapter(&dev->adapter);
-	put_device(&pdev->dev);
 }
 
 /* work with hotplug and coldplug */
