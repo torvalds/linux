@@ -189,6 +189,20 @@ int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 	unsigned vco_freq;
 	int r;
 
+	/* bypass vclk and dclk with bclk */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		VCLK_SRC_SEL(1) | DCLK_SRC_SEL(1),
+		~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
+
+	/* put PLL in bypass mode */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_BYPASS_EN_MASK, ~UPLL_BYPASS_EN_MASK);
+
+	if (!vclk || !dclk) {
+		/* keep the Bypass mode, put PLL to sleep */
+		WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_SLEEP_MASK, ~UPLL_SLEEP_MASK);
+		return 0;
+	}
+
 	/* loop through vco from low to high */
 	for (vco_freq = 125000; vco_freq <= 250000; vco_freq += 100) {
 		unsigned fb_div = vco_freq / rdev->clock.spll.reference_freq * 16384;
@@ -235,14 +249,6 @@ int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_RESET_MASK);
 
 	mdelay(1);
-
-	/* bypass vclk and dclk with bclk */
-	WREG32_P(CG_UPLL_FUNC_CNTL_2,
-		VCLK_SRC_SEL(1) | DCLK_SRC_SEL(1),
-		~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
-
-	/* put PLL in bypass mode */
-	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_BYPASS_EN_MASK, ~UPLL_BYPASS_EN_MASK);
 
 	r = evergreen_uvd_send_upll_ctlreq(rdev);
 	if (r)

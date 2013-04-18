@@ -100,6 +100,17 @@ int rv770_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 	if (rdev->family == CHIP_RV740)
 		return evergreen_set_uvd_clocks(rdev, vclk, dclk);
 
+	/* bypass vclk and dclk with bclk */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		 VCLK_SRC_SEL(1) | DCLK_SRC_SEL(1),
+		 ~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
+
+	if (!vclk || !dclk) {
+		/* keep the Bypass mode, put PLL to sleep */
+		WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_SLEEP_MASK, ~UPLL_SLEEP_MASK);
+		return 0;
+	}
+
 	/* loop through vco from low to high */
 	vco_min = max(max(vco_min, vclk), dclk);
 	for (vco_freq = vco_min; vco_freq <= vco_max; vco_freq += 500) {
@@ -139,16 +150,11 @@ int rv770_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 		}
 	}
 
-	/* bypass vclk and dclk with bclk */
-	WREG32_P(CG_UPLL_FUNC_CNTL_2,
-		 VCLK_SRC_SEL(1) | DCLK_SRC_SEL(1),
-		 ~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
-
 	/* set UPLL_FB_DIV to 0x50000 */
 	WREG32_P(CG_UPLL_FUNC_CNTL_3, UPLL_FB_DIV(0x50000), ~UPLL_FB_DIV_MASK);
 
-	/* deassert UPLL_RESET */
-	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_RESET_MASK);
+	/* deassert UPLL_RESET and UPLL_SLEEP */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~(UPLL_RESET_MASK | UPLL_SLEEP_MASK));
 
 	/* assert BYPASS EN and FB_DIV[0] <- ??? why? */
 	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_BYPASS_EN_MASK, ~UPLL_BYPASS_EN_MASK);
