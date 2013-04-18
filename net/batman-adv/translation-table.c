@@ -798,10 +798,25 @@ out:
 		batadv_tt_orig_list_entry_free_ref(orig_entry);
 }
 
-/* caller must hold orig_node refcount */
+/**
+ * batadv_tt_global_add - add a new TT global entry or update an existing one
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig_node: the originator announcing the client
+ * @tt_addr: the mac address of the non-mesh client
+ * @flags: TT flags that have to be set for this non-mesh client
+ * @ttvn: the tt version number ever announcing this non-mesh client
+ *
+ * Add a new TT global entry for the given originator. If the entry already
+ * exists add a new reference to the given originator (a global entry can have
+ * references to multiple originators) and adjust the flags attribute to reflect
+ * the function argument.
+ * If a TT local entry exists for this non-mesh client remove it.
+ *
+ * The caller must hold orig_node refcount.
+ */
 int batadv_tt_global_add(struct batadv_priv *bat_priv,
 			 struct batadv_orig_node *orig_node,
-			 const unsigned char *tt_addr, uint8_t flags,
+			 const unsigned char *tt_addr, uint16_t flags,
 			 uint8_t ttvn)
 {
 	struct batadv_tt_global_entry *tt_global_entry;
