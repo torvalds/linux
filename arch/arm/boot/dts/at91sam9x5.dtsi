@@ -582,6 +582,24 @@
 				status = "disabled";
 			};
 
+			uart0: serial@f8040000 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xf8040000 0x200>;
+				interrupts = <15 IRQ_TYPE_LEVEL_HIGH 5>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart0>;
+				status = "disabled";
+			};
+
+			uart1: serial@f8044000 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xf8044000 0x200>;
+				interrupts = <16 IRQ_TYPE_LEVEL_HIGH 5>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart1>;
+				status = "disabled";
+			};
+
 			adc0: adc@f804c000 {
 				compatible = "atmel,at91sam9260-adc";
 				reg = <0xf804c000 0x100>;
