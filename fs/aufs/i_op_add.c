@@ -190,7 +190,7 @@ lock_hdir_lkup_wh(struct dentry *dentry, struct au_dtime *dt,
 	if (dt) {
 		struct path tmp = {
 			.dentry	= h_parent,
-			.mnt	= br->br_mnt
+			.mnt	= au_br_mnt(br)
 		};
 		au_dtime_store(dt, au_pinned_parent(pin), &tmp);
 	}

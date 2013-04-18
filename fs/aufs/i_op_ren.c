@@ -615,7 +615,7 @@ static void au_ren_unlock(struct au_ren_args *a)
 
 	sb = a->dst_dentry->d_sb;
 	if (au_ftest_ren(a->flags, MNT_WRITE))
-		mnt_drop_write(a->br->br_mnt);
+		mnt_drop_write(au_br_mnt(a->br));
 	vfsub_unlock_rename(a->src_h_parent, a->src_hdir,
 			    a->dst_h_parent, a->dst_hdir);
 }
@@ -645,7 +645,7 @@ static int au_ren_lock(struct au_ren_args *a)
 				  a->dst_h_parent->d_inode, a->dst_h_parent,
 				  a->br);
 	if (!err) {
-		err = mnt_want_write(a->br->br_mnt);
+		err = mnt_want_write(au_br_mnt(a->br));
 		if (unlikely(err))
 			goto out_unlock;
 		au_fset_ren(a->flags, MNT_WRITE);
@@ -925,7 +925,7 @@ int aufs_rename(struct inode *_src_dir, struct dentry *_src_dentry,
 	if (unlikely(err < 0))
 		goto out_parent;
 	a->br = au_sbr(a->dst_dentry->d_sb, a->btgt);
-	a->h_path.mnt = a->br->br_mnt;
+	a->h_path.mnt = au_br_mnt(a->br);
 
 	/* are they available to be renamed */
 	err = au_ren_may_dir(a);

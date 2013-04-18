@@ -256,7 +256,7 @@ static int do_pri_br(aufs_bindex_t bindex, struct au_branch *br)
 
 	if (!br || IS_ERR(br))
 		goto out;
-	mnt = br->br_mnt;
+	mnt = au_br_mnt(br);
 	if (!mnt || IS_ERR(mnt))
 		goto out;
 	sb = mnt->mnt_sb;

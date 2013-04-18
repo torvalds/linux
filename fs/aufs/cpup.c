@@ -631,7 +631,7 @@ static int au_cpup_single(struct au_cpup_basic *basic, unsigned int flags,
 
 	sb = basic->dentry->d_sb;
 	br = au_sbr(sb, basic->bdst);
-	h_path.mnt = br->br_mnt;
+	h_path.mnt = au_br_mnt(br);
 	h_dst = au_h_dptr(basic->dentry, basic->bdst);
 	h_parent = h_dst->d_parent; /* dir inode is locked */
 	h_dir = h_parent->d_inode;
@@ -997,7 +997,7 @@ static int au_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 		goto out;
 
 	h_path.dentry = h_parent;
-	h_path.mnt = br->br_mnt;
+	h_path.mnt = au_br_mnt(br);
 	au_dtime_store(&dt, parent, &h_path);
 	err = au_do_cpup_wh(dentry, bdst, wh_dentry, file, len, pin);
 	if (unlikely(err))

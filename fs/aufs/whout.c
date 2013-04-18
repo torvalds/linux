@@ -176,7 +176,7 @@ int au_whtmp_ren(struct dentry *h_dentry, struct au_branch *br)
 {
 	int err;
 	struct path h_path = {
-		.mnt = br->br_mnt
+		.mnt = au_br_mnt(br)
 	};
 	struct inode *h_dir;
 	struct dentry *h_parent;
@@ -235,7 +235,7 @@ static int unlink_wh_name(struct dentry *h_parent, struct qstr *wh,
 {
 	int err;
 	struct path h_path = {
-		.mnt = br->br_mnt
+		.mnt = au_br_mnt(br)
 	};
 
 	err = 0;
@@ -443,7 +443,7 @@ int au_wh_init(struct dentry *h_root, struct au_branch *br,
 	const unsigned char do_plink
 		= !!au_opt_test(au_mntflags(sb), PLINK);
 	struct path path = {
-		.mnt = br->br_mnt
+		.mnt = au_br_mnt(br)
 	};
 	struct inode *h_dir;
 	struct au_wbr *wbr = br->br_wbr;
@@ -571,12 +571,12 @@ static void reinit_br_wh(void *arg)
 	err = au_h_verify(wbr->wbr_whbase, au_opt_udba(a->sb), hdir->hi_inode,
 			  h_root, a->br);
 	if (!err) {
-		err = mnt_want_write(a->br->br_mnt);
+		err = mnt_want_write(au_br_mnt(a->br));
 		if (!err) {
 			h_path.dentry = wbr->wbr_whbase;
-			h_path.mnt = a->br->br_mnt;
+			h_path.mnt = au_br_mnt(a->br);
 			err = vfsub_unlink(hdir->hi_inode, &h_path, /*force*/0);
-			mnt_drop_write(a->br->br_mnt);
+			mnt_drop_write(au_br_mnt(a->br));
 		}
 	} else {
 		pr_warn("%.*s is moved, ignored\n",
@@ -657,7 +657,7 @@ static int link_or_create_wh(struct super_block *sb, aufs_bindex_t bindex,
 	IMustLock(h_dir);
 
 	br = au_sbr(sb, bindex);
-	h_path.mnt = br->br_mnt;
+	h_path.mnt = au_br_mnt(br);
 	wbr = br->br_wbr;
 	wbr_wh_read_lock(wbr);
 	if (wbr->wbr_whbase) {
@@ -706,7 +706,7 @@ static struct dentry *do_diropq(struct dentry *dentry, aufs_bindex_t bindex,
 	} else {
 		struct path tmp = {
 			.dentry = opq_dentry,
-			.mnt	= br->br_mnt
+			.mnt	= au_br_mnt(br)
 		};
 		err = do_unlink_wh(au_h_iptr(dentry->d_inode, bindex), &tmp);
 		if (!err)
@@ -958,7 +958,7 @@ int au_whtmp_rmdir(struct inode *dir, aufs_bindex_t bindex,
 
 	if (!err) {
 		h_tmp.dentry = wh_dentry;
-		h_tmp.mnt = br->br_mnt;
+		h_tmp.mnt = au_br_mnt(br);
 		err = vfsub_rmdir(h_dir, &h_tmp);
 	}
 
@@ -1006,11 +1006,11 @@ static void call_rmdir_whtmp(void *args)
 	err = au_h_verify(a->wh_dentry, au_opt_udba(sb), h_dir, h_parent,
 			  a->br);
 	if (!err) {
-		err = mnt_want_write(a->br->br_mnt);
+		err = mnt_want_write(au_br_mnt(a->br));
 		if (!err) {
 			err = au_whtmp_rmdir(a->dir, bindex, a->wh_dentry,
 					     &a->whlist);
-			mnt_drop_write(a->br->br_mnt);
+			mnt_drop_write(au_br_mnt(a->br));
 		}
 	}
 	au_hn_imtx_unlock(hdir);

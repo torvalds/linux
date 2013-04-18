@@ -113,7 +113,7 @@ static int aufs_permission(struct inode *inode, int mask)
 		err = 0;
 		bindex = au_ibstart(inode);
 		br = au_sbr(sb, bindex);
-		err = h_permission(h_inode, mask, br->br_mnt, br->br_perm);
+		err = h_permission(h_inode, mask, au_br_mnt(br), br->br_perm);
 		if (write_mask
 		    && !err
 		    && !special_file(h_inode->i_mode)) {
@@ -139,7 +139,7 @@ static int aufs_permission(struct inode *inode, int mask)
 				break;
 
 			br = au_sbr(sb, bindex);
-			err = h_permission(h_inode, mask, br->br_mnt,
+			err = h_permission(h_inode, mask, au_br_mnt(br),
 					   br->br_perm);
 		}
 	}
@@ -456,7 +456,7 @@ int au_do_pin(struct au_pin *p)
 	p->br = au_sbr(sb, p->bindex);
 	if (IS_ROOT(p->dentry)) {
 		if (au_ftest_pin(p->flags, MNT_WRITE)) {
-			p->h_mnt = p->br->br_mnt;
+			p->h_mnt = au_br_mnt(p->br);
 			err = mnt_want_write(p->h_mnt);
 			if (unlikely(err)) {
 				au_fclr_pin(p->flags, MNT_WRITE);
@@ -500,7 +500,7 @@ int au_do_pin(struct au_pin *p)
 		goto out_unpin;
 
 	if (au_ftest_pin(p->flags, MNT_WRITE)) {
-		p->h_mnt = p->br->br_mnt;
+		p->h_mnt = au_br_mnt(p->br);
 		err = mnt_want_write(p->h_mnt);
 		if (unlikely(err)) {
 			au_fclr_pin(p->flags, MNT_WRITE);

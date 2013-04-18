@@ -58,7 +58,7 @@ static void au_br_do_free(struct au_branch *br)
 
 	/* recursive lock, s_umount of branch's */
 	lockdep_off();
-	mntput(br->br_mnt);
+	mntput(au_br_mnt(br));
 	lockdep_on();
 	kfree(wbr);
 	kfree(br);
@@ -1134,7 +1134,7 @@ int au_br_mod(struct super_block *sb, struct au_opt_mod *mod, int remount,
 				br->br_wbr = kmalloc(sizeof(*br->br_wbr),
 						     GFP_NOFS);
 				if (br->br_wbr) {
-					path.mnt = br->br_mnt;
+					path.mnt = au_br_mnt(br);
 					path.dentry = mod->h_root;
 					rerr = au_wbr_init(br, sb, br->br_perm,
 							   &path);
@@ -1151,7 +1151,7 @@ int au_br_mod(struct super_block *sb, struct au_opt_mod *mod, int remount,
 		err = -ENOMEM;
 		br->br_wbr = kmalloc(sizeof(*br->br_wbr), GFP_NOFS);
 		if (br->br_wbr) {
-			path.mnt = br->br_mnt;
+			path.mnt = au_br_mnt(br);
 			path.dentry = mod->h_root;
 			err = au_wbr_init(br, sb, mod->perm, &path);
 			if (unlikely(err)) {

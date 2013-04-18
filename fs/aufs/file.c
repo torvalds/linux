@@ -64,7 +64,7 @@ struct file *au_h_open(struct dentry *dentry, aufs_bindex_t bindex, int flags,
 	br = au_sbr(sb, bindex);
 	h_file = ERR_PTR(-EACCES);
 	exec_flag = flags & __FMODE_EXEC;
-	if (exec_flag && (br->br_mnt->mnt_flags & MNT_NOEXEC))
+	if (exec_flag && (au_br_mnt(br)->mnt_flags & MNT_NOEXEC))
 		goto out;
 
 	/* drop flags for writing */
@@ -73,7 +73,7 @@ struct file *au_h_open(struct dentry *dentry, aufs_bindex_t bindex, int flags,
 	flags &= ~O_CREAT;
 	atomic_inc(&br->br_count);
 	h_path.dentry = h_dentry;
-	h_path.mnt = br->br_mnt;
+	h_path.mnt = au_br_mnt(br);
 	if (!au_special_file(h_inode->i_mode))
 		h_file = vfsub_dentry_open(&h_path, flags);
 	else {

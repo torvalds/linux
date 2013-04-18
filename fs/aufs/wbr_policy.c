@@ -97,7 +97,7 @@ static int au_cpdown_dir_wh(struct dentry *dentry, struct dentry *h_parent,
 
 	err = 0;
 	if (h_path.dentry->d_inode) {
-		h_path.mnt = br->br_mnt;
+		h_path.mnt = au_br_mnt(br);
 		err = au_wh_unlink_dentry(au_h_iptr(dir, bdst), &h_path,
 					  dentry);
 	}
@@ -432,7 +432,7 @@ static void au_mfs(struct dentry *dentry)
 			continue;
 
 		/* sb->s_root for NFS is unreliable */
-		h_path.mnt = br->br_mnt;
+		h_path.mnt = au_br_mnt(br);
 		h_path.dentry = h_path.mnt->mnt_root;
 		err = vfs_statfs(&h_path, st);
 		if (unlikely(err)) {
