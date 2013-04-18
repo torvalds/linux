@@ -1463,7 +1463,9 @@ intel_dp_voltage_max(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
-	if (IS_GEN7(dev) && is_cpu_edp(intel_dp))
+	if (IS_VALLEYVIEW(dev))
+		return DP_TRAIN_VOLTAGE_SWING_1200;
+	else if (IS_GEN7(dev) && is_cpu_edp(intel_dp))
 		return DP_TRAIN_VOLTAGE_SWING_800;
 	else if (HAS_PCH_CPT(dev) && !is_cpu_edp(intel_dp))
 		return DP_TRAIN_VOLTAGE_SWING_1200;
@@ -1488,7 +1490,19 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 		default:
 			return DP_TRAIN_PRE_EMPHASIS_0;
 		}
-	} else if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev)) {
+		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
+		case DP_TRAIN_VOLTAGE_SWING_400:
+			return DP_TRAIN_PRE_EMPHASIS_9_5;
+		case DP_TRAIN_VOLTAGE_SWING_600:
+			return DP_TRAIN_PRE_EMPHASIS_6;
+		case DP_TRAIN_VOLTAGE_SWING_800:
+			return DP_TRAIN_PRE_EMPHASIS_3_5;
+		case DP_TRAIN_VOLTAGE_SWING_1200:
+		default:
+			return DP_TRAIN_PRE_EMPHASIS_0;
+		}
+	} else if (IS_GEN7(dev) && is_cpu_edp(intel_dp)) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
 		case DP_TRAIN_VOLTAGE_SWING_400:
 			return DP_TRAIN_PRE_EMPHASIS_6;
@@ -1511,6 +1525,111 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 			return DP_TRAIN_PRE_EMPHASIS_0;
 		}
 	}
+}
+
+static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
+{
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
+	unsigned long demph_reg_value, preemph_reg_value,
+		uniqtranscale_reg_value;
+	uint8_t train_set = intel_dp->train_set[0];
+	int port;
+
+	if (dport->port == PORT_B)
+		port = 0;
+	else if (dport->port == PORT_C)
+		port = 1;
+	else
+		BUG();
+
+	switch (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) {
+	case DP_TRAIN_PRE_EMPHASIS_0:
+		preemph_reg_value = 0x0004000;
+		switch (train_set & DP_TRAIN_VOLTAGE_SWING_MASK) {
+		case DP_TRAIN_VOLTAGE_SWING_400:
+			demph_reg_value = 0x2B405555;
+			uniqtranscale_reg_value = 0x552AB83A;
+			break;
+		case DP_TRAIN_VOLTAGE_SWING_600:
+			demph_reg_value = 0x2B404040;
+			uniqtranscale_reg_value = 0x5548B83A;
+			break;
+		case DP_TRAIN_VOLTAGE_SWING_800:
+			demph_reg_value = 0x2B245555;
+			uniqtranscale_reg_value = 0x5560B83A;
+			break;
+		case DP_TRAIN_VOLTAGE_SWING_1200:
+			demph_reg_value = 0x2B405555;
+			uniqtranscale_reg_value = 0x5598DA3A;
+			break;
+		default:
+			return 0;
+		}
+		break;
+	case DP_TRAIN_PRE_EMPHASIS_3_5:
+		preemph_reg_value = 0x0002000;
+		switch (train_set & DP_TRAIN_VOLTAGE_SWING_MASK) {
+		case DP_TRAIN_VOLTAGE_SWING_400:
+			demph_reg_value = 0x2B404040;
+			uniqtranscale_reg_value = 0x5552B83A;
+			break;
+		case DP_TRAIN_VOLTAGE_SWING_600:
+			demph_reg_value = 0x2B404848;
+			uniqtranscale_reg_value = 0x5580B83A;
+			break;
+		case DP_TRAIN_VOLTAGE_SWING_800:
+			demph_reg_value = 0x2B404040;
+			uniqtranscale_reg_value = 0x55ADDA3A;
+			break;
+		default:
+			return 0;
+		}
+		break;
+	case DP_TRAIN_PRE_EMPHASIS_6:
+		preemph_reg_value = 0x0000000;
+		switch (train_set & DP_TRAIN_VOLTAGE_SWING_MASK) {
+		case DP_TRAIN_VOLTAGE_SWING_400:
+			demph_reg_value = 0x2B305555;
+			uniqtranscale_reg_value = 0x5570B83A;
+			break;
+		case DP_TRAIN_VOLTAGE_SWING_600:
+			demph_reg_value = 0x2B2B4040;
+			uniqtranscale_reg_value = 0x55ADDA3A;
+			break;
+		default:
+			return 0;
+		}
+		break;
+	case DP_TRAIN_PRE_EMPHASIS_9_5:
+		preemph_reg_value = 0x0006000;
+		switch (train_set & DP_TRAIN_VOLTAGE_SWING_MASK) {
+		case DP_TRAIN_VOLTAGE_SWING_400:
+			demph_reg_value = 0x1B405555;
+			uniqtranscale_reg_value = 0x55ADDA3A;
+			break;
+		default:
+			return 0;
+		}
+		break;
+	default:
+		return 0;
+	}
+
+	/* eDP is only on port C */
+	mutex_lock(&dev_priv->dpio_lock);
+	intel_dpio_write(dev_priv, DPIO_TX_OCALINIT(port), 0x00000000);
+	intel_dpio_write(dev_priv, DPIO_TX_SWING_CTL4(port), demph_reg_value);
+	intel_dpio_write(dev_priv, DPIO_TX_SWING_CTL2(port),
+			 uniqtranscale_reg_value);
+	intel_dpio_write(dev_priv, DPIO_TX_SWING_CTL3(port), 0x0C782040);
+	intel_dpio_write(dev_priv, DPIO_PCS_STAGGER0(port), 0x00030000);
+	intel_dpio_write(dev_priv, DPIO_PCS_CTL_OVER1(port), preemph_reg_value);
+	intel_dpio_write(dev_priv, DPIO_TX_OCALINIT(port), 0x80000000);
+	mutex_unlock(&dev_priv->dpio_lock);
+
+	return 0;
 }
 
 static void
@@ -1687,7 +1806,10 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp, uint32_t *DP)
 	if (HAS_DDI(dev)) {
 		signal_levels = intel_hsw_signal_levels(train_set);
 		mask = DDI_BUF_EMP_MASK;
-	} else if (IS_GEN7(dev) && is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
+	} else if (IS_VALLEYVIEW(dev)) {
+		signal_levels = intel_vlv_signal_levels(intel_dp);
+		mask = 0;
+	} else if (IS_GEN7(dev) && is_cpu_edp(intel_dp)) {
 		signal_levels = intel_gen7_edp_signal_levels(train_set);
 		mask = EDP_LINK_TRAIN_VOL_EMP_MASK_IVB;
 	} else if (IS_GEN6(dev) && is_cpu_edp(intel_dp)) {

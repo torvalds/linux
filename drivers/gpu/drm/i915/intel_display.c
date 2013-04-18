@@ -450,8 +450,7 @@ u32 intel_dpio_read(struct drm_i915_private *dev_priv, int reg)
 	return I915_READ(DPIO_DATA);
 }
 
-static void intel_dpio_write(struct drm_i915_private *dev_priv, int reg,
-			     u32 val)
+void intel_dpio_write(struct drm_i915_private *dev_priv, int reg, u32 val)
 {
 	WARN_ON(!mutex_is_locked(&dev_priv->dpio_lock));
 
