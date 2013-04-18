@@ -5376,16 +5376,24 @@ lpfc_host_reset_handler(struct scsi_cmnd *cmnd)
 	struct lpfc_hba *phba = vport->phba;
 	int rc, ret = SUCCESS;
 
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+			 "3172 SCSI layer issued Host Reset Data:\n");
+
 	lpfc_offline_prep(phba, LPFC_MBX_WAIT);
 	lpfc_offline(phba);
 	rc = lpfc_sli_brdrestart(phba);
 	if (rc)
 		ret = FAILED;
-	lpfc_online(phba);
+	rc = lpfc_online(phba);
+	if (rc)
+		ret = FAILED;
 	lpfc_unblock_mgmt_io(phba);
 
-	lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
-			"3172 SCSI layer issued Host Reset Data: x%x\n", ret);
+	if (ret == FAILED) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+				 "3323 Failed host reset, bring it offline\n");
+		lpfc_sli4_offline_eratt(phba);
+	}
 	return ret;
 }
 

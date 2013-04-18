@@ -1202,7 +1202,7 @@ lpfc_offline_eratt(struct lpfc_hba *phba)
  * This routine is called to bring a SLI4 HBA offline when HBA hardware error
  * other than Port Error 6 has been detected.
  **/
-static void
+void
 lpfc_sli4_offline_eratt(struct lpfc_hba *phba)
 {
 	lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
