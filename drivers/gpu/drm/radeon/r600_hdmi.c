@@ -461,7 +461,9 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 
 	if (rdev->irq.installed) {
 		/* if irq is available use it */
-		radeon_irq_kms_enable_afmt(rdev, dig->afmt->id);
+		/* XXX: shouldn't need this on any asics.  Double check DCE2/3 */
+		if (!ASIC_IS_DCE4(rdev))
+			radeon_irq_kms_enable_afmt(rdev, dig->afmt->id);
 	}
 
 	dig->afmt->enabled = true;
