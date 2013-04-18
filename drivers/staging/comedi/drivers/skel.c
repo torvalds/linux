@@ -632,11 +632,12 @@ static void skel_detach(struct comedi_device *dev)
 		/*
 		 * ISA board
 		 *
-		 * If I/O regions successfully requested by _attach(),
-		 * release them here.
+		 * Release the first I/O region requested during the
+		 * _attach(). This is safe to call even if the request
+		 * failed. If any additional I/O regions are requested
+		 * they need to be released by the driver.
 		 */
-		if (dev->iobase)
-			release_region(dev->iobase, SKEL_SIZE);
+		comedi_legacy_detach(dev);
 	}
 }
 
