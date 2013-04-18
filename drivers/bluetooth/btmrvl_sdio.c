@@ -874,7 +874,7 @@ exit:
 
 static int btmrvl_sdio_download_fw(struct btmrvl_sdio_card *card)
 {
-	int ret = 0;
+	int ret;
 	u8 fws0;
 	int pollnum = MAX_POLL_TRIES;
 
