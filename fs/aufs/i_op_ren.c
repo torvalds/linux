@@ -209,11 +209,9 @@ static int au_ren_or_cpup(struct au_ren_args *a)
 		err = vfsub_rename(a->src_h_dir, au_h_dptr(d, a->btgt),
 				   a->dst_h_dir, &a->h_path);
 	} else {
-		struct mutex *h_mtx = &a->src_h_dentry->d_inode->i_mutex;
 		struct file *h_file;
 
 		au_fset_ren(a->flags, CPUP);
-		mutex_lock_nested(h_mtx, AuLsc_I_CHILD);
 		au_set_dbstart(d, a->btgt);
 		au_set_h_dptr(d, a->btgt, dget(a->dst_h_dentry));
 		h_file = au_h_open_pre(d, a->src_bstart);
@@ -223,7 +221,6 @@ static int au_ren_or_cpup(struct au_ren_args *a)
 		} else
 			err = au_sio_cpup_single(d, a->btgt, a->src_bstart, -1,
 						 !AuCpup_DTIME, a->dst_parent);
-		mutex_unlock(h_mtx);
 		au_h_open_post(d, a->src_bstart, h_file);
 		if (!err) {
 			d = a->dst_dentry;
@@ -342,11 +339,8 @@ static int do_rename(struct au_ren_args *a)
 
 	/* cpup src */
 	if (a->dst_h_dentry->d_inode && a->src_bstart != a->btgt) {
-		struct mutex *h_mtx = &a->src_h_dentry->d_inode->i_mutex;
 		struct file *h_file;
 
-		mutex_lock_nested(h_mtx, AuLsc_I_CHILD);
-		AuDebugOn(au_dbstart(a->src_dentry) != a->src_bstart);
 		h_file = au_h_open_pre(a->src_dentry, a->src_bstart);
 		if (IS_ERR(h_file)) {
 			err = PTR_ERR(h_file);
@@ -354,7 +348,6 @@ static int do_rename(struct au_ren_args *a)
 		} else
 			err = au_sio_cpup_simple(a->src_dentry, a->btgt, -1,
 						 !AuCpup_DTIME);
-		mutex_unlock(h_mtx);
 		au_h_open_post(a->src_dentry, a->src_bstart, h_file);
 		if (unlikely(err))
 			goto out_whtmp;

@@ -592,6 +592,7 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 	sz = -1;
 	if ((ia->ia_valid & ATTR_SIZE) && ia->ia_size < i_size_read(a->h_inode))
 		sz = ia->ia_size;
+	mutex_unlock(&a->h_inode->i_mutex);
 
 	h_file = NULL;
 	hi_wh = NULL;
@@ -631,14 +632,10 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 		a->h_path.dentry = hi_wh; /* do not dget here */
 
 out_unlock:
-	mutex_unlock(&a->h_inode->i_mutex);
 	au_h_open_post(dentry, bstart, h_file);
 	a->h_inode = a->h_path.dentry->d_inode;
-	if (!err) {
-		mutex_lock_nested(&a->h_inode->i_mutex, AuLsc_I_CHILD);
+	if (!err)
 		goto out; /* success */
-	}
-
 	au_unpin(&a->pin);
 out_parent:
 	if (parent) {
@@ -646,6 +643,8 @@ out_parent:
 		dput(parent);
 	}
 out:
+	if (!err)
+		mutex_lock_nested(&a->h_inode->i_mutex, AuLsc_I_CHILD);
 	return err;
 }
 

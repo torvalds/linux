@@ -357,7 +357,6 @@ static int au_cpup_before_link(struct dentry *src_dentry,
 {
 	int err;
 	struct dentry *h_src_dentry;
-	struct mutex *h_mtx;
 	struct file *h_file;
 
 	di_read_lock_parent(a->src_parent, AuLock_IR);
@@ -366,13 +365,11 @@ static int au_cpup_before_link(struct dentry *src_dentry,
 		goto out;
 
 	h_src_dentry = au_h_dptr(src_dentry, a->bsrc);
-	h_mtx = &h_src_dentry->d_inode->i_mutex;
 	err = au_pin(&a->pin, src_dentry, a->bdst,
 		     au_opt_udba(src_dentry->d_sb),
 		     AuPin_DI_LOCKED | AuPin_MNT_WRITE);
 	if (unlikely(err))
 		goto out;
-	mutex_lock_nested(h_mtx, AuLsc_I_CHILD);
 	h_file = au_h_open_pre(src_dentry, a->bsrc);
 	if (IS_ERR(h_file)) {
 		err = PTR_ERR(h_file);
@@ -380,7 +377,6 @@ static int au_cpup_before_link(struct dentry *src_dentry,
 	} else
 		err = au_sio_cpup_simple(src_dentry, a->bdst, -1,
 					 AuCpup_DTIME /* | AuCpup_KEEPLINO */);
-	mutex_unlock(h_mtx);
 	au_h_open_post(src_dentry, a->bsrc, h_file);
 	au_unpin(&a->pin);
 
@@ -409,7 +405,6 @@ static int au_cpup_or_link(struct dentry *src_dentry, struct au_link_args *a)
 		au_set_dbstart(src_dentry, a->bdst);
 		au_set_h_dptr(src_dentry, a->bdst, dget(a->h_path.dentry));
 		h_inode = au_h_dptr(src_dentry, a->bsrc)->d_inode;
-		mutex_lock_nested(&h_inode->i_mutex, AuLsc_I_CHILD);
 		h_file = au_h_open_pre(src_dentry, a->bsrc);
 		if (IS_ERR(h_file)) {
 			err = PTR_ERR(h_file);
@@ -418,7 +413,6 @@ static int au_cpup_or_link(struct dentry *src_dentry, struct au_link_args *a)
 			err = au_sio_cpup_single(src_dentry, a->bdst, a->bsrc,
 						 -1, AuCpup_KEEPLINO,
 						 a->parent);
-		mutex_unlock(&h_inode->i_mutex);
 		au_h_open_post(src_dentry, a->bsrc, h_file);
 		au_set_h_dptr(src_dentry, a->bdst, NULL);
 		au_set_dbstart(src_dentry, a->bsrc);

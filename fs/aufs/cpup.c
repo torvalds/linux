@@ -387,13 +387,19 @@ static int au_do_cpup_regular(struct au_cpup_basic *basic, struct inode *h_dir,
 {
 	int err;
 	loff_t l;
+	struct inode *h_src_inode;
 
 	err = 0;
-	l = i_size_read(au_h_iptr(basic->dentry->d_inode, basic->bsrc));
+	h_src_inode = au_h_iptr(basic->dentry->d_inode, basic->bsrc);
+	l = i_size_read(h_src_inode);
 	if (basic->len == -1 || l < basic->len)
 		basic->len = l;
-	if (basic->len)
+	if (basic->len) {
+		/* try stopping to update while we are referencing */
+		mutex_lock_nested(&h_src_inode->i_mutex, AuLsc_I_CHILD);
 		err = au_cp_regular(basic);
+		mutex_unlock(&h_src_inode->i_mutex);
+	}
 
 	return err;
 }
@@ -473,8 +479,6 @@ int cpup_entry(struct au_cpup_basic *basic, unsigned int flags,
 	mode = h_inode->i_mode;
 	switch (mode & S_IFMT) {
 	case S_IFREG:
-		/* try stopping to update while we are referencing */
-		IMustLock(h_inode);
 		err = vfsub_create(h_dir, &h_path, mode | S_IWUSR);
 		if (!err)
 			err = au_do_cpup_regular
@@ -924,7 +928,7 @@ int au_sio_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 {
 	int err, wkq_err;
 	struct dentry *parent, *h_orph, *h_parent, *h_dentry;
-	struct inode *dir, *h_dir, *h_tmpdir, *h_inode;
+	struct inode *dir, *h_dir, *h_tmpdir;
 	struct au_wbr *wbr;
 
 	parent = dget_parent(dentry);
@@ -942,16 +946,11 @@ int au_sio_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 		h_tmpdir = h_orph->d_inode;
 		au_set_h_iptr(dir, bdst, au_igrab(h_tmpdir), /*flags*/0);
 
-		/* this temporary unlock is safe */
 		if (file)
 			h_dentry = au_hf_top(file)->f_dentry;
 		else
 			h_dentry = au_h_dptr(dentry, au_dbstart(dentry));
-		h_inode = h_dentry->d_inode;
-		IMustLock(h_inode);
-		mutex_unlock(&h_inode->i_mutex);
 		mutex_lock_nested(&h_tmpdir->i_mutex, AuLsc_I_PARENT3);
-		mutex_lock_nested(&h_inode->i_mutex, AuLsc_I_CHILD);
 		/* todo: au_h_open_pre()? */
 	}
 

@@ -237,7 +237,7 @@ int au_ready_to_write(struct file *file, loff_t len, struct au_pin *pin)
 	int err;
 	aufs_bindex_t bstart, bcpup, dbstart;
 	struct dentry *dentry, *parent, *h_dentry;
-	struct inode *h_inode, *inode;
+	struct inode *inode;
 	struct super_block *sb;
 	struct file *h_file;
 
@@ -273,20 +273,16 @@ int au_ready_to_write(struct file *file, loff_t len, struct au_pin *pin)
 		goto out_dgrade;
 
 	h_dentry = au_hf_top(file)->f_dentry;
-	h_inode = h_dentry->d_inode;
 	dbstart = au_dbstart(dentry);
 	if (dbstart <= bcpup) {
 		h_dentry = au_h_dptr(dentry, bcpup);
 		AuDebugOn(!h_dentry);
-		h_inode = h_dentry->d_inode;
-		AuDebugOn(!h_inode);
 		bstart = bcpup;
 	}
 
 	if (dbstart <= bcpup		/* just reopen */
 	    || !d_unhashed(dentry)	/* copyup and reopen */
 		) {
-		mutex_lock_nested(&h_inode->i_mutex, AuLsc_I_CHILD);
 		h_file = au_h_open_pre(dentry, bstart);
 		if (IS_ERR(h_file)) {
 			err = PTR_ERR(h_file);
@@ -299,17 +295,14 @@ int au_ready_to_write(struct file *file, loff_t len, struct au_pin *pin)
 			if (!err)
 				err = au_reopen_nondir(file);
 		}
-		mutex_unlock(&h_inode->i_mutex);
 		au_h_open_post(dentry, bstart, h_file);
 	} else {			/* copyup as wh and reopen */
 		/*
 		 * since writable hfsplus branch is not supported,
 		 * h_open_pre/post() are unnecessary.
 		 */
-		mutex_lock_nested(&h_inode->i_mutex, AuLsc_I_CHILD);
 		err = au_ready_to_write_wh(file, len, bcpup);
 		di_downgrade_lock(parent, AuLock_IR);
-		mutex_unlock(&h_inode->i_mutex);
 	}
 
 	if (!err) {
