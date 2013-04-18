@@ -138,6 +138,10 @@
 					};
 				};
 			};
+
+			rtc@fffffeb0 {
+				status = "okay";
+			};
 		};
 
 		usb0: ohci@00600000 {
