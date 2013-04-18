@@ -335,20 +335,11 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void pcl726_detach(struct comedi_device *dev)
-{
-#ifdef ACL6126_IRQ
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-#endif
-	comedi_legacy_detach(dev);
-}
-
 static struct comedi_driver pcl726_driver = {
 	.driver_name	= "pcl726",
 	.module		= THIS_MODULE,
 	.attach		= pcl726_attach,
-	.detach		= pcl726_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &boardtypes[0].name,
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.offset		= sizeof(struct pcl726_board),

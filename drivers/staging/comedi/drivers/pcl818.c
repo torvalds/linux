@@ -1898,8 +1898,6 @@ static void pcl818_detach(struct comedi_device *dev)
 			RTC_lock--;
 #endif
 	}
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 	comedi_legacy_detach(dev);
 }
 

@@ -820,18 +820,11 @@ static int dmm32at_attach(struct comedi_device *dev,
 
 }
 
-static void dmm32at_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_legacy_detach(dev);
-}
-
 static struct comedi_driver dmm32at_driver = {
 	.driver_name	= "dmm32at",
 	.module		= THIS_MODULE,
 	.attach		= dmm32at_attach,
-	.detach		= dmm32at_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(dmm32at_driver);
 

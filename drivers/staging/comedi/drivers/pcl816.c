@@ -1214,14 +1214,10 @@ static void pcl816_detach(struct comedi_device *dev)
 				release_region(devpriv->rtc_iobase,
 					       devpriv->rtc_iosize);
 		}
+		if (devpriv->dma_rtc)
+			RTC_lock--;
 #endif
 	}
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-#ifdef unused
-	if (devpriv->dma_rtc)
-		RTC_lock--;
-#endif
 	comedi_legacy_detach(dev);
 }
 

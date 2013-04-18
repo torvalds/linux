@@ -1438,8 +1438,6 @@ static void pcl812_detach(struct comedi_device *dev)
 		if (devpriv->dma)
 			free_dma(devpriv->dma);
 	}
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 	comedi_legacy_detach(dev);
 }
 

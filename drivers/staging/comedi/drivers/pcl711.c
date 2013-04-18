@@ -550,13 +550,6 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void pcl711_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_legacy_detach(dev);
-}
-
 static const struct pcl711_board boardtypes[] = {
 	{ "pcl711", 0, 0, 0, 5, 8, 1, 0, &range_bipolar5 },
 	{ "pcl711b", 1, 0, 0, 5, 8, 1, 7, &range_pcl711b_ai },
@@ -568,7 +561,7 @@ static struct comedi_driver pcl711_driver = {
 	.driver_name	= "pcl711",
 	.module		= THIS_MODULE,
 	.attach		= pcl711_attach,
-	.detach		= pcl711_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &boardtypes[0].name,
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.offset		= sizeof(struct pcl711_board),

@@ -829,8 +829,6 @@ static void a2150_detach(struct comedi_device *dev)
 
 	if (dev->iobase)
 		outw(APD_BIT | DPD_BIT, dev->iobase + CONFIG_REG);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 	if (devpriv) {
 		if (devpriv->dma)
 			free_dma(devpriv->dma);

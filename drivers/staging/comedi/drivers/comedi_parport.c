@@ -338,18 +338,11 @@ static int parport_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void parport_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_legacy_detach(dev);
-}
-
 static struct comedi_driver parport_driver = {
 	.driver_name	= "comedi_parport",
 	.module		= THIS_MODULE,
 	.attach		= parport_attach,
-	.detach		= parport_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(parport_driver);
 

@@ -1668,8 +1668,6 @@ static void das1800_detach(struct comedi_device *dev)
 {
 	struct das1800_private *devpriv = dev->private;
 
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 	if (devpriv) {
 		if (devpriv->dma0)
 			free_dma(devpriv->dma0);

@@ -37,6 +37,7 @@
 #include <linux/cdev.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/interrupt.h>
 
 #include "comedidev.h"
 #include "comedi_internal.h"
@@ -403,6 +404,10 @@ EXPORT_SYMBOL_GPL(comedi_request_region);
  */
 void comedi_legacy_detach(struct comedi_device *dev)
 {
+	if (dev->irq) {
+		free_irq(dev->irq, dev);
+		dev->irq = 0;
+	}
 	if (dev->iobase && dev->iolen) {
 		release_region(dev->iobase, dev->iolen);
 		dev->iobase = 0;

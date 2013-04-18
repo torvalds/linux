@@ -1354,8 +1354,6 @@ static void das16_detach(struct comedi_device *dev)
 		kfree(devpriv->user_ai_range_table);
 		kfree(devpriv->user_ao_range_table);
 	}
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 	if (devpriv->extra_iobase)
 		release_region(devpriv->extra_iobase, board->size & 0x3ff);
 	comedi_legacy_detach(dev);

@@ -323,18 +323,11 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void dt2814_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_legacy_detach(dev);
-}
-
 static struct comedi_driver dt2814_driver = {
 	.driver_name	= "dt2814",
 	.module		= THIS_MODULE,
 	.attach		= dt2814_attach,
-	.detach		= dt2814_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(dt2814_driver);
 

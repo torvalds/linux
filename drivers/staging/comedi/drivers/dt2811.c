@@ -556,13 +556,6 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void dt2811_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_legacy_detach(dev);
-}
-
 static const struct dt2811_board boardtypes[] = {
 	{
 		.name		= "dt2811-pgh",
@@ -581,7 +574,7 @@ static struct comedi_driver dt2811_driver = {
 	.driver_name	= "dt2811",
 	.module		= THIS_MODULE,
 	.attach		= dt2811_attach,
-	.detach		= dt2811_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &boardtypes[0].name,
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.offset		= sizeof(struct dt2811_board),

@@ -1271,8 +1271,6 @@ static void dt282x_detach(struct comedi_device *dev)
 {
 	struct dt282x_private *devpriv = dev->private;
 
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 	if (dev->private) {
 		if (devpriv->dma[0].chan)
 			free_dma(devpriv->dma[0].chan);

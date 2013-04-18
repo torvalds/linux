@@ -499,8 +499,6 @@ static void ni_atmio_detach(struct comedi_device *dev)
 	struct ni_private *devpriv = dev->private;
 
 	mio_common_detach(dev);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 	comedi_legacy_detach(dev);
 	if (devpriv->isapnp_dev)
 		pnp_device_detach(devpriv->isapnp_dev);

@@ -917,9 +917,6 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->asics[asic].irq = irq[asic];
 	}
 
-	dev->irq = irq[0];	/* grr.. wish comedi dev struct supported multiple
-				   irqs.. */
-
 	if (irq[0]) {
 		dev_dbg(dev->class_dev, "irq: %u\n", irq[0]);
 		if (irq[1] && board->num_asics == 2)

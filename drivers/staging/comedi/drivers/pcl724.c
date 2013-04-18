@@ -173,10 +173,6 @@ static void pcl724_detach(struct comedi_device *dev)
 
 	for (i = 0; i < dev->n_subdevices; i++)
 		comedi_spriv_free(dev, i);
-#ifdef PCL724_IRQ
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-#endif
 	comedi_legacy_detach(dev);
 }
 

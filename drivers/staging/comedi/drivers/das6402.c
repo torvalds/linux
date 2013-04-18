@@ -324,18 +324,11 @@ static int das6402_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void das6402_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_legacy_detach(dev);
-}
-
 static struct comedi_driver das6402_driver = {
 	.driver_name	= "das6402",
 	.module		= THIS_MODULE,
 	.attach		= das6402_attach,
-	.detach		= das6402_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(das6402_driver)
 

@@ -230,14 +230,13 @@ struct das800_private {
 
 static int das800_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it);
-static void das800_detach(struct comedi_device *dev);
 static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 
 static struct comedi_driver driver_das800 = {
 	.driver_name = "das800",
 	.module = THIS_MODULE,
 	.attach = das800_attach,
-	.detach = das800_detach,
+	.detach = comedi_legacy_detach,
 	.num_names = ARRAY_SIZE(das800_boards),
 	.board_name = &das800_boards[0].name,
 	.offset = sizeof(struct das800_board),
@@ -521,13 +520,6 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	return 0;
 };
-
-static void das800_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_legacy_detach(dev);
-}
 
 static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {

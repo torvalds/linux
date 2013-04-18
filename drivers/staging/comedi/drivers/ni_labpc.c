@@ -1870,8 +1870,6 @@ void labpc_common_detach(struct comedi_device *dev)
 	if (devpriv->dma_chan)
 		free_dma(devpriv->dma_chan);
 #endif
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 	if (board->bustype == isa_bustype)
 		comedi_legacy_detach(dev);
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
@@ -1879,8 +1877,11 @@ void labpc_common_detach(struct comedi_device *dev)
 		mite_unsetup(devpriv->mite);
 		mite_free(devpriv->mite);
 	}
-	if (board->bustype == pci_bustype)
+	if (board->bustype == pci_bustype) {
+		if (dev->irq)
+			free_irq(dev->irq, dev);
 		comedi_pci_disable(dev);
+	}
 #endif
 }
 EXPORT_SYMBOL_GPL(labpc_common_detach);

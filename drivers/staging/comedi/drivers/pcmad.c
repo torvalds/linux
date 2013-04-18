@@ -133,13 +133,6 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void pcmad_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	comedi_legacy_detach(dev);
-}
-
 static const struct pcmad_board_struct pcmad_boards[] = {
 	{
 		.name		= "pcmad12",
@@ -153,7 +146,7 @@ static struct comedi_driver pcmad_driver = {
 	.driver_name	= "pcmad",
 	.module		= THIS_MODULE,
 	.attach		= pcmad_attach,
-	.detach		= pcmad_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &pcmad_boards[0].name,
 	.num_names	= ARRAY_SIZE(pcmad_boards),
 	.offset		= sizeof(pcmad_boards[0]),

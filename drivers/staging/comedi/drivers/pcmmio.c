@@ -1193,11 +1193,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->asics[asic].irq = irq[asic];
 	}
 
-	dev->irq = irq[0];	/*
-				 * grr.. wish comedi dev struct supported
-				 * multiple irqs..
-				 */
-
 	return 1;
 }
 
