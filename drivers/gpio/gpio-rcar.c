@@ -333,7 +333,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	}
 
 	if (devm_request_irq(&pdev->dev, irq->start,
-			     gpio_rcar_irq_handler, 0, name, p)) {
+			     gpio_rcar_irq_handler, IRQF_SHARED, name, p)) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
 		ret = -ENOENT;
 		goto err1;
