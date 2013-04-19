@@ -117,4 +117,8 @@ config VIDEO_EXYNOS_MIXER_DEBUG
 	help
 	  Enables debugging for Mixer driver.
 
+config VIDEO_EXYNOS_24_FORCE
+	bool "Force the use o 24bpp color on HDMI"
+	default n
+
 endif # VIDEO_EXYNOS_TV

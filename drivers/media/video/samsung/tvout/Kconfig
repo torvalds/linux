@@ -133,3 +133,4 @@ config HPD_DEBUG
 	bool "HPD debug message"
 	depends on TV_DEBUG
 	default n
+
