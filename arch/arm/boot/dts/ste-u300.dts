@@ -49,6 +49,13 @@
 		reg = <0xc0011000 0x1000>;
 	};
 
+	watchdog: watchdog@c0012000 {
+		compatible = "stericsson,coh901327";
+		reg = <0xc0012000 0x1000>;
+		interrupt-parent = <&vicb>;
+		interrupts = <3>;
+	};
+
 	i2c0: i2c@c0004000 {
 		compatible = "st,ddci2c";
 		reg = <0xc0004000 0x1000>;
