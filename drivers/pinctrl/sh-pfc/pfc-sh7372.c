@@ -1178,6 +1178,14 @@ static const unsigned int fsib_mclk_in_pins[] = {
 static const unsigned int fsib_mclk_in_mux[] = {
 	FSIBCK_MARK,
 };
+/* - HDMI ------------------------------------------------------------------- */
+static const unsigned int hdmi_pins[] = {
+	/* HPD, CEC */
+	169, 170,
+};
+static const unsigned int hdmi_mux[] = {
+	HDMI_HPD_MARK, HDMI_CEC_MARK,
+};
 /* - MMCIF ------------------------------------------------------------------ */
 static const unsigned int mmc0_data1_0_pins[] = {
 	/* D[0] */
@@ -1352,6 +1360,7 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(fsia_spdif_0),
 	SH_PFC_PIN_GROUP(fsia_spdif_1),
 	SH_PFC_PIN_GROUP(fsib_mclk_in),
+	SH_PFC_PIN_GROUP(hdmi),
 	SH_PFC_PIN_GROUP(mmc0_data1_0),
 	SH_PFC_PIN_GROUP(mmc0_data4_0),
 	SH_PFC_PIN_GROUP(mmc0_data8_0),
@@ -1420,6 +1429,10 @@ static const char * const fsib_groups[] = {
 	"fsib_mclk_in",
 };
 
+static const char * const hdmi_groups[] = {
+	"hdmi",
+};
+
 static const char * const mmc0_groups[] = {
 	"mmc0_data1_0",
 	"mmc0_data4_0",
@@ -1457,6 +1470,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(flctl),
 	SH_PFC_FUNCTION(fsia),
 	SH_PFC_FUNCTION(fsib),
+	SH_PFC_FUNCTION(hdmi),
 	SH_PFC_FUNCTION(mmc0),
 	SH_PFC_FUNCTION(sdhi0),
 	SH_PFC_FUNCTION(sdhi1),
