@@ -636,11 +636,12 @@ static int davinci_config_channel_size(struct davinci_audio_dev *dev,
 	 * callback, take it into account here. That allows us to for example
 	 * send 32 bits per channel to the codec, while only 16 of them carry
 	 * audio payload.
-	 * The clock ratio is given for a full period of data (both left and
-	 * right channels), so it has to be divided by 2.
+	 * The clock ratio is given for a full period of data (for I2S format
+	 * both left and right channels), so it has to be divided by number of
+	 * tdm-slots (for I2S - divided by 2).
 	 */
 	if (dev->bclk_lrclk_ratio)
-		word_length = dev->bclk_lrclk_ratio / 2;
+		word_length = dev->bclk_lrclk_ratio / dev->tdm_slots;
 
 	/* mapping of the XSSZ bit-field as described in the datasheet */
 	fmt = (word_length >> 1) - 1;
