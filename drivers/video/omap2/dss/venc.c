@@ -304,7 +304,7 @@ static struct {
 	enum omap_dss_venc_type type;
 	bool invert_polarity;
 
-	struct omap_dss_output output;
+	struct omap_dss_device output;
 } venc;
 
 static inline void venc_write_reg(int idx, u32 val)
@@ -500,7 +500,7 @@ unsigned long venc_get_pixel_clock(void)
 
 int omapdss_venc_display_enable(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_output *out = &venc.output;
+	struct omap_dss_device *out = &venc.output;
 	int r;
 
 	DSSDBG("venc_display_enable\n");
@@ -785,11 +785,11 @@ static int venc_probe_pdata(struct platform_device *vencdev)
 
 static void venc_init_output(struct platform_device *pdev)
 {
-	struct omap_dss_output *out = &venc.output;
+	struct omap_dss_device *out = &venc.output;
 
-	out->pdev = pdev;
+	out->dev = &pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_VENC;
-	out->type = OMAP_DISPLAY_TYPE_VENC;
+	out->output_type = OMAP_DISPLAY_TYPE_VENC;
 	out->name = "venc.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
 
@@ -798,7 +798,7 @@ static void venc_init_output(struct platform_device *pdev)
 
 static void __exit venc_uninit_output(struct platform_device *pdev)
 {
-	struct omap_dss_output *out = &venc.output;
+	struct omap_dss_device *out = &venc.output;
 
 	dss_unregister_output(out);
 }

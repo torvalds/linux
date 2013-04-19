@@ -791,13 +791,13 @@ static void mgr_clear_shadow_dirty(struct omap_overlay_manager *mgr)
 }
 
 static int dss_mgr_connect_compat(struct omap_overlay_manager *mgr,
-		struct omap_dss_output *dst)
+		struct omap_dss_device *dst)
 {
 	return mgr->set_output(mgr, dst);
 }
 
 static void dss_mgr_disconnect_compat(struct omap_overlay_manager *mgr,
-		struct omap_dss_output *dst)
+		struct omap_dss_device *dst)
 {
 	mgr->unset_output(mgr);
 }
@@ -1166,7 +1166,7 @@ static void dss_mgr_get_info(struct omap_overlay_manager *mgr,
 }
 
 static int dss_mgr_set_output(struct omap_overlay_manager *mgr,
-		struct omap_dss_output *output)
+		struct omap_dss_device *output)
 {
 	int r;
 

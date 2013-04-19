@@ -180,8 +180,8 @@ void dss_copy_device_pdata(struct omap_dss_device *dst,
 		const struct omap_dss_device *src);
 
 /* output */
-void dss_register_output(struct omap_dss_output *out);
-void dss_unregister_output(struct omap_dss_output *out);
+void dss_register_output(struct omap_dss_device *out);
+void dss_unregister_output(struct omap_dss_device *out);
 
 /* display */
 int dss_suspend_all_devices(void);

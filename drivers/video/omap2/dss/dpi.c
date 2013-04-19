@@ -48,7 +48,7 @@ static struct {
 	struct dss_lcd_mgr_config mgr_config;
 	int data_lines;
 
-	struct omap_dss_output output;
+	struct omap_dss_device output;
 } dpi;
 
 static struct platform_device *dpi_get_dsidev(enum omap_channel channel)
@@ -347,7 +347,7 @@ static void dpi_config_lcd_manager(struct omap_overlay_manager *mgr)
 
 int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_output *out = &dpi.output;
+	struct omap_dss_device *out = &dpi.output;
 	int r;
 
 	mutex_lock(&dpi.lock);
@@ -680,11 +680,11 @@ static int dpi_probe_pdata(struct platform_device *dpidev)
 
 static void dpi_init_output(struct platform_device *pdev)
 {
-	struct omap_dss_output *out = &dpi.output;
+	struct omap_dss_device *out = &dpi.output;
 
-	out->pdev = pdev;
+	out->dev = &pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_DPI;
-	out->type = OMAP_DISPLAY_TYPE_DPI;
+	out->output_type = OMAP_DISPLAY_TYPE_DPI;
 	out->name = "dpi.0";
 	out->dispc_channel = dpi_get_channel();
 
@@ -693,7 +693,7 @@ static void dpi_init_output(struct platform_device *pdev)
 
 static void __exit dpi_uninit_output(struct platform_device *pdev)
 {
-	struct omap_dss_output *out = &dpi.output;
+	struct omap_dss_device *out = &dpi.output;
 
 	dss_unregister_output(out);
 }

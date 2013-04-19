@@ -27,7 +27,7 @@
 static LIST_HEAD(output_list);
 static DEFINE_MUTEX(output_lock);
 
-int omapdss_output_set_device(struct omap_dss_output *out,
+int omapdss_output_set_device(struct omap_dss_device *out,
 		struct omap_dss_device *dssdev)
 {
 	int r;
@@ -41,7 +41,7 @@ int omapdss_output_set_device(struct omap_dss_output *out,
 		goto err;
 	}
 
-	if (out->type != dssdev->type) {
+	if (out->output_type != dssdev->type) {
 		DSSERR("output type and display type don't match\n");
 		r = -EINVAL;
 		goto err;
@@ -60,7 +60,7 @@ err:
 }
 EXPORT_SYMBOL(omapdss_output_set_device);
 
-int omapdss_output_unset_device(struct omap_dss_output *out)
+int omapdss_output_unset_device(struct omap_dss_device *out)
 {
 	int r;
 
@@ -92,19 +92,19 @@ err:
 }
 EXPORT_SYMBOL(omapdss_output_unset_device);
 
-void dss_register_output(struct omap_dss_output *out)
+void dss_register_output(struct omap_dss_device *out)
 {
 	list_add_tail(&out->list, &output_list);
 }
 
-void dss_unregister_output(struct omap_dss_output *out)
+void dss_unregister_output(struct omap_dss_device *out)
 {
 	list_del(&out->list);
 }
 
-struct omap_dss_output *omap_dss_get_output(enum omap_dss_output_id id)
+struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id)
 {
-	struct omap_dss_output *out;
+	struct omap_dss_device *out;
 
 	list_for_each_entry(out, &output_list, list) {
 		if (out->id == id)
@@ -115,9 +115,9 @@ struct omap_dss_output *omap_dss_get_output(enum omap_dss_output_id id)
 }
 EXPORT_SYMBOL(omap_dss_get_output);
 
-struct omap_dss_output *omap_dss_find_output(const char *name)
+struct omap_dss_device *omap_dss_find_output(const char *name)
 {
-	struct omap_dss_output *out;
+	struct omap_dss_device *out;
 
 	list_for_each_entry(out, &output_list, list) {
 		if (strcmp(out->name, name) == 0)
@@ -128,12 +128,12 @@ struct omap_dss_output *omap_dss_find_output(const char *name)
 }
 EXPORT_SYMBOL(omap_dss_find_output);
 
-struct omap_dss_output *omap_dss_find_output_by_node(struct device_node *node)
+struct omap_dss_device *omap_dss_find_output_by_node(struct device_node *node)
 {
-	struct omap_dss_output *out;
+	struct omap_dss_device *out;
 
 	list_for_each_entry(out, &output_list, list) {
-		if (out->pdev->dev.of_node == node)
+		if (out->dev->of_node == node)
 			return out;
 	}
 
@@ -141,7 +141,7 @@ struct omap_dss_output *omap_dss_find_output_by_node(struct device_node *node)
 }
 EXPORT_SYMBOL(omap_dss_find_output_by_node);
 
-struct omap_dss_output *omapdss_find_output_from_display(struct omap_dss_device *dssdev)
+struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev)
 {
 	return dssdev->output;
 }
@@ -149,7 +149,7 @@ EXPORT_SYMBOL(omapdss_find_output_from_display);
 
 struct omap_overlay_manager *omapdss_find_mgr_from_display(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_output *out;
+	struct omap_dss_device *out;
 
 	out = omapdss_find_output_from_display(dssdev);
 
@@ -180,14 +180,14 @@ void dss_uninstall_mgr_ops(void)
 EXPORT_SYMBOL(dss_uninstall_mgr_ops);
 
 int dss_mgr_connect(struct omap_overlay_manager *mgr,
-		struct omap_dss_output *dst)
+		struct omap_dss_device *dst)
 {
 	return dss_mgr_ops->connect(mgr, dst);
 }
 EXPORT_SYMBOL(dss_mgr_connect);
 
 void dss_mgr_disconnect(struct omap_overlay_manager *mgr,
-		struct omap_dss_output *dst)
+		struct omap_dss_device *dst)
 {
 	dss_mgr_ops->disconnect(mgr, dst);
 }

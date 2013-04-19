@@ -259,7 +259,7 @@ static int omap_modeset_init(struct drm_device *dev)
 		struct drm_encoder *encoder = priv->encoders[i];
 		struct omap_dss_device *dssdev =
 					omap_encoder_get_dssdev(encoder);
-		struct omap_dss_output *output;
+		struct omap_dss_device *output;
 
 		output = omapdss_find_output_from_display(dssdev);
 

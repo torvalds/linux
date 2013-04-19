@@ -117,7 +117,7 @@ static struct {
 	int data_lines;
 	struct rfbi_timings intf_timings;
 
-	struct omap_dss_output output;
+	struct omap_dss_device output;
 } rfbi;
 
 static inline void rfbi_write_reg(const struct rfbi_reg idx, u32 val)
@@ -890,7 +890,7 @@ static void rfbi_config_lcd_manager(struct omap_dss_device *dssdev)
 
 int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_output *out = &rfbi.output;
+	struct omap_dss_device *out = &rfbi.output;
 	int r;
 
 	if (out == NULL || out->manager == NULL) {
@@ -925,7 +925,7 @@ EXPORT_SYMBOL(omapdss_rfbi_display_enable);
 
 void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_output *out = &rfbi.output;
+	struct omap_dss_device *out = &rfbi.output;
 
 	dss_mgr_unregister_framedone_handler(out->manager,
 			framedone_callback, NULL);
@@ -1013,11 +1013,11 @@ static int rfbi_probe_pdata(struct platform_device *rfbidev)
 
 static void rfbi_init_output(struct platform_device *pdev)
 {
-	struct omap_dss_output *out = &rfbi.output;
+	struct omap_dss_device *out = &rfbi.output;
 
-	out->pdev = pdev;
+	out->dev = &pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_DBI;
-	out->type = OMAP_DISPLAY_TYPE_DBI;
+	out->output_type = OMAP_DISPLAY_TYPE_DBI;
 	out->name = "rfbi.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_LCD;
 
@@ -1026,7 +1026,7 @@ static void rfbi_init_output(struct platform_device *pdev)
 
 static void __exit rfbi_uninit_output(struct platform_device *pdev)
 {
-	struct omap_dss_output *out = &rfbi.output;
+	struct omap_dss_device *out = &rfbi.output;
 
 	dss_unregister_output(out);
 }

@@ -70,7 +70,7 @@ static struct {
 	int ls_oe_gpio;
 	int hpd_gpio;
 
-	struct omap_dss_output output;
+	struct omap_dss_device output;
 } hdmi;
 
 /*
@@ -720,7 +720,7 @@ bool omapdss_hdmi_detect(void)
 
 int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_output *out = &hdmi.output;
+	struct omap_dss_device *out = &hdmi.output;
 	int r = 0;
 
 	DSSDBG("ENTER hdmi_display_enable\n");
@@ -1035,11 +1035,11 @@ static int hdmi_probe_pdata(struct platform_device *pdev)
 
 static void hdmi_init_output(struct platform_device *pdev)
 {
-	struct omap_dss_output *out = &hdmi.output;
+	struct omap_dss_device *out = &hdmi.output;
 
-	out->pdev = pdev;
+	out->dev = &pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_HDMI;
-	out->type = OMAP_DISPLAY_TYPE_HDMI;
+	out->output_type = OMAP_DISPLAY_TYPE_HDMI;
 	out->name = "hdmi.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
 
@@ -1048,7 +1048,7 @@ static void hdmi_init_output(struct platform_device *pdev)
 
 static void __exit hdmi_uninit_output(struct platform_device *pdev)
 {
-	struct omap_dss_output *out = &hdmi.output;
+	struct omap_dss_device *out = &hdmi.output;
 
 	dss_unregister_output(out);
 }

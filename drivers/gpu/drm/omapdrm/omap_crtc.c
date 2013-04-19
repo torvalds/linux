@@ -95,7 +95,7 @@ static struct omap_crtc *omap_crtcs[8];
 
 /* we can probably ignore these until we support command-mode panels: */
 static int omap_crtc_connect(struct omap_overlay_manager *mgr,
-		struct omap_dss_output *dst)
+		struct omap_dss_device *dst)
 {
 	if (mgr->output)
 		return -EINVAL;
@@ -110,7 +110,7 @@ static int omap_crtc_connect(struct omap_overlay_manager *mgr,
 }
 
 static void omap_crtc_disconnect(struct omap_overlay_manager *mgr,
-		struct omap_dss_output *dst)
+		struct omap_dss_device *dst)
 {
 	mgr->output->manager = NULL;
 	mgr->output = NULL;

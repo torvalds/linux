@@ -353,7 +353,7 @@ static int dss_driver_remove(struct device *dev)
 
 static int omapdss_default_connect(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_output *out;
+	struct omap_dss_device *out;
 	struct omap_overlay_manager *mgr;
 	int r;
 
@@ -375,7 +375,7 @@ static int omapdss_default_connect(struct omap_dss_device *dssdev)
 
 static void omapdss_default_disconnect(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_output *out;
+	struct omap_dss_device *out;
 	struct omap_overlay_manager *mgr;
 
 	out = dssdev->output;

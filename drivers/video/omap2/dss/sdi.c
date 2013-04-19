@@ -40,7 +40,7 @@ static struct {
 	struct omap_video_timings timings;
 	int datapairs;
 
-	struct omap_dss_output output;
+	struct omap_dss_device output;
 } sdi;
 
 struct sdi_clk_calc_ctx {
@@ -126,7 +126,7 @@ static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
 
 int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_output *out = &sdi.output;
+	struct omap_dss_device *out = &sdi.output;
 	struct omap_video_timings *t = &sdi.timings;
 	struct dss_clock_info dss_cinfo;
 	struct dispc_clock_info dispc_cinfo;
@@ -335,11 +335,11 @@ static int sdi_probe_pdata(struct platform_device *sdidev)
 
 static void sdi_init_output(struct platform_device *pdev)
 {
-	struct omap_dss_output *out = &sdi.output;
+	struct omap_dss_device *out = &sdi.output;
 
-	out->pdev = pdev;
+	out->dev = &pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_SDI;
-	out->type = OMAP_DISPLAY_TYPE_SDI;
+	out->output_type = OMAP_DISPLAY_TYPE_SDI;
 	out->name = "sdi.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_LCD;
 
@@ -348,7 +348,7 @@ static void sdi_init_output(struct platform_device *pdev)
 
 static void __exit sdi_uninit_output(struct platform_device *pdev)
 {
-	struct omap_dss_output *out = &sdi.output;
+	struct omap_dss_device *out = &sdi.output;
 
 	dss_unregister_output(out);
 }

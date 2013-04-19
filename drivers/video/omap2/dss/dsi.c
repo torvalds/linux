@@ -363,7 +363,7 @@ struct dsi_data {
 	enum omap_dss_dsi_mode mode;
 	struct omap_dss_dsi_videomode_timings vm_timings;
 
-	struct omap_dss_output output;
+	struct omap_dss_device output;
 };
 
 struct dsi_packet_sent_handler_data {
@@ -383,12 +383,12 @@ static inline struct dsi_data *dsi_get_dsidrv_data(struct platform_device *dside
 
 static inline struct platform_device *dsi_get_dsidev_from_dssdev(struct omap_dss_device *dssdev)
 {
-	return dssdev->output->pdev;
+	return to_platform_device(dssdev->output->dev);
 }
 
 struct platform_device *dsi_get_dsidev_from_id(int module)
 {
-	struct omap_dss_output *out;
+	struct omap_dss_device *out;
 	enum omap_dss_output_id	id;
 
 	switch (module) {
@@ -404,7 +404,7 @@ struct platform_device *dsi_get_dsidev_from_id(int module)
 
 	out = omap_dss_get_output(id);
 
-	return out ? out->pdev : NULL;
+	return out ? to_platform_device(out->dev) : NULL;
 }
 
 static inline void dsi_write_reg(struct platform_device *dsidev,
@@ -4133,7 +4133,7 @@ int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct omap_overlay_manager *mgr = dsi->output.manager;
 	int bpp = dsi_get_pixel_size(dsi->pix_fmt);
-	struct omap_dss_output *out = &dsi->output;
+	struct omap_dss_device *out = &dsi->output;
 	u8 data_type;
 	u16 word_count;
 	int r;
@@ -5415,13 +5415,13 @@ static int dsi_probe_pdata(struct platform_device *dsidev)
 static void dsi_init_output(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_dss_output *out = &dsi->output;
+	struct omap_dss_device *out = &dsi->output;
 
-	out->pdev = dsidev;
+	out->dev = &dsidev->dev;
 	out->id = dsi->module_id == 0 ?
 			OMAP_DSS_OUTPUT_DSI1 : OMAP_DSS_OUTPUT_DSI2;
 
-	out->type = OMAP_DISPLAY_TYPE_DSI;
+	out->output_type = OMAP_DISPLAY_TYPE_DSI;
 	out->name = dsi->module_id == 0 ? "dsi.0" : "dsi.1";
 	out->dispc_channel = dsi_get_channel(dsi->module_id);
 
@@ -5431,7 +5431,7 @@ static void dsi_init_output(struct platform_device *dsidev)
 static void dsi_uninit_output(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_dss_output *out = &dsi->output;
+	struct omap_dss_device *out = &dsi->output;
 
 	dss_unregister_output(out);
 }
