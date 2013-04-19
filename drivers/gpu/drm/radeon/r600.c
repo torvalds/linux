@@ -2645,6 +2645,9 @@ int r600_uvd_init(struct radeon_device *rdev)
 {
 	int i, j, r;
 
+	/* raise clocks while booting up the VCPU */
+	radeon_set_uvd_clocks(rdev, 53300, 40000);
+
 	/* disable clock gating */
 	WREG32(UVD_CGC_GATE, 0);
 
@@ -2715,19 +2718,24 @@ int r600_uvd_init(struct radeon_device *rdev)
 		mdelay(10);
 		r = -1;
 	}
+
 	if (r) {
 		DRM_ERROR("UVD not responding, giving up!!!\n");
+		radeon_set_uvd_clocks(rdev, 0, 0);
 		return r;
 	}
+
 	/* enable interupt */
 	WREG32_P(UVD_MASTINT_EN, 3<<1, ~(3 << 1));
 
 	r = r600_uvd_rbc_start(rdev);
-	if (r)
-		return r;
+	if (!r)
+		DRM_INFO("UVD initialized successfully.\n");
 
-	DRM_INFO("UVD initialized successfully.\n");
-	return 0;
+	/* lower clocks again */
+	radeon_set_uvd_clocks(rdev, 0, 0);
+
+	return r;
 }
 
 /*
@@ -3566,28 +3574,36 @@ int r600_dma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 
 int r600_uvd_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	struct radeon_fence *fence;
+	struct radeon_fence *fence = NULL;
 	int r;
+
+	r = radeon_set_uvd_clocks(rdev, 53300, 40000);
+	if (r) {
+		DRM_ERROR("radeon: failed to raise UVD clocks (%d).\n", r);
+		return r;
+	}
 
 	r = radeon_uvd_get_create_msg(rdev, ring->idx, 1, NULL);
 	if (r) {
 		DRM_ERROR("radeon: failed to get create msg (%d).\n", r);
-		return r;
+		goto error;
 	}
 
 	r = radeon_uvd_get_destroy_msg(rdev, ring->idx, 1, &fence);
 	if (r) {
 		DRM_ERROR("radeon: failed to get destroy ib (%d).\n", r);
-		return r;
+		goto error;
 	}
 
 	r = radeon_fence_wait(fence, false);
 	if (r) {
 		DRM_ERROR("radeon: fence wait failed (%d).\n", r);
-		return r;
+		goto error;
 	}
 	DRM_INFO("ib test on ring %d succeeded\n",  ring->idx);
+error:
 	radeon_fence_unref(&fence);
+	radeon_set_uvd_clocks(rdev, 0, 0);
 	return r;
 }
 
