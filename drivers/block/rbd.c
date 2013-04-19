@@ -423,6 +423,7 @@ void rbd_warn(struct rbd_device *rbd_dev, const char *fmt, ...)
 #endif /* !RBD_DEBUG */
 
 static void rbd_img_parent_read(struct rbd_obj_request *obj_request);
+static int rbd_img_obj_request_submit(struct rbd_obj_request *obj_request);
 
 static int rbd_dev_refresh(struct rbd_device *rbd_dev, u64 *hver);
 static int rbd_dev_v2_refresh(struct rbd_device *rbd_dev, u64 *hver);
@@ -1874,8 +1875,6 @@ out_unwind:
 
 static void rbd_img_obj_exists_callback(struct rbd_obj_request *obj_request)
 {
-	struct rbd_device *rbd_dev;
-	struct ceph_osd_client *osdc;
 	struct rbd_obj_request *orig_request;
 	int result;
 
@@ -1901,8 +1900,6 @@ static void rbd_img_obj_exists_callback(struct rbd_obj_request *obj_request)
 
 	rbd_assert(orig_request);
 	rbd_assert(orig_request->img_request);
-	rbd_dev = orig_request->img_request->rbd_dev;
-	osdc = &rbd_dev->rbd_client->client->osdc;
 
 	/*
 	 * Our only purpose here is to determine whether the object
@@ -1923,7 +1920,7 @@ static void rbd_img_obj_exists_callback(struct rbd_obj_request *obj_request)
 	 * Resubmit the original request now that we have recorded
 	 * whether the target object exists.
 	 */
-	orig_request->result = rbd_obj_request_submit(osdc, orig_request);
+	orig_request->result = rbd_img_obj_request_submit(orig_request);
 out_err:
 	if (orig_request->result)
 		rbd_obj_request_complete(orig_request);
@@ -1987,32 +1984,56 @@ out:
 	return ret;
 }
 
+static int rbd_img_obj_request_submit(struct rbd_obj_request *obj_request)
+{
+	struct rbd_img_request *img_request;
+
+	rbd_assert(obj_request_img_data_test(obj_request));
+
+	img_request = obj_request->img_request;
+	rbd_assert(img_request);
+
+	/* (At the moment we don't care whether it exists or not...) */
+	(void) obj_request_exists_test;
+
+	/*
+	 * Only layered writes need special handling.  If it's not a
+	 * layered write, or it is a layered write but we know the
+	 * target object exists, it's no different from any other
+	 * object request.
+	 */
+	if (!img_request_write_test(img_request) ||
+		!img_request_layered_test(img_request) ||
+		obj_request_known_test(obj_request)) {
+
+		struct rbd_device *rbd_dev;
+		struct ceph_osd_client *osdc;
+
+		rbd_dev = obj_request->img_request->rbd_dev;
+		osdc = &rbd_dev->rbd_client->client->osdc;
+
+		return rbd_obj_request_submit(osdc, obj_request);
+	}
+
+	/*
+	 * It's a layered write and we don't know whether the target
+	 * exists.  Issue existence check; once that completes the
+	 * original request will be submitted again.
+	 */
+
+	return rbd_img_obj_exists_submit(obj_request);
+}
+
 static int rbd_img_request_submit(struct rbd_img_request *img_request)
 {
-	struct rbd_device *rbd_dev = img_request->rbd_dev;
-	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct rbd_obj_request *obj_request;
 	struct rbd_obj_request *next_obj_request;
-	bool write_request = img_request_write_test(img_request);
-	bool layered = img_request_layered_test(img_request);
 
 	dout("%s: img %p\n", __func__, img_request);
 	for_each_obj_request_safe(img_request, obj_request, next_obj_request) {
-		bool known;
-		bool object_exists;
 		int ret;
 
-		/*
-		 * We need to know whether the target object exists
-		 * for a layered write.  Issue an existence check
-		 * first if we need to.
-		 */
-		known = obj_request_known_test(obj_request);
-		object_exists = known && obj_request_exists_test(obj_request);
-		if (!write_request || !layered || object_exists)
-			ret = rbd_obj_request_submit(osdc, obj_request);
-		else
-			ret = rbd_img_obj_exists_submit(obj_request);
+		ret = rbd_img_obj_request_submit(obj_request);
 		if (ret)
 			return ret;
 	}
