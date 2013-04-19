@@ -194,6 +194,18 @@ struct vlan_vid_info {
 	int refcount;
 };
 
+static bool vlan_hw_filter_capable(const struct net_device *dev,
+				     const struct vlan_vid_info *vid_info)
+{
+	if (vid_info->proto == htons(ETH_P_8021Q) &&
+	    dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
+		return true;
+	if (vid_info->proto == htons(ETH_P_8021AD) &&
+	    dev->features & NETIF_F_HW_VLAN_STAG_FILTER)
+		return true;
+	return false;
+}
+
 static struct vlan_vid_info *vlan_vid_info_get(struct vlan_info *vlan_info,
 					       __be16 proto, u16 vid)
 {
@@ -231,8 +243,7 @@ static int __vlan_vid_add(struct vlan_info *vlan_info, __be16 proto, u16 vid,
 	if (!vid_info)
 		return -ENOMEM;
 
-	if (proto == htons(ETH_P_8021Q) &&
-	    dev->features & NETIF_F_HW_VLAN_CTAG_FILTER) {
+	if (vlan_hw_filter_capable(dev, vid_info)) {
 		err =  ops->ndo_vlan_rx_add_vid(dev, proto, vid);
 		if (err) {
 			kfree(vid_info);
@@ -290,8 +301,7 @@ static void __vlan_vid_del(struct vlan_info *vlan_info,
 	u16 vid = vid_info->vid;
 	int err;
 
-	if (proto == htons(ETH_P_8021Q) &&
-	    dev->features & NETIF_F_HW_VLAN_CTAG_FILTER) {
+	if (vlan_hw_filter_capable(dev, vid_info)) {
 		err = ops->ndo_vlan_rx_kill_vid(dev, proto, vid);
 		if (err) {
 			pr_warn("failed to kill vid %04x/%d for device %s\n",

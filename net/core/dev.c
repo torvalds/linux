@@ -2212,7 +2212,7 @@ __be16 skb_network_protocol(struct sk_buff *skb)
 	__be16 type = skb->protocol;
 	int vlan_depth = ETH_HLEN;
 
-	while (type == htons(ETH_P_8021Q)) {
+	while (type == htons(ETH_P_8021Q) || type == htons(ETH_P_8021AD)) {
 		struct vlan_hdr *vh;
 
 		if (unlikely(!pskb_may_pull(skb, vlan_depth + VLAN_HLEN)))
@@ -2428,20 +2428,22 @@ netdev_features_t netif_skb_features(struct sk_buff *skb)
 	if (skb_shinfo(skb)->gso_segs > skb->dev->gso_max_segs)
 		features &= ~NETIF_F_GSO_MASK;
 
-	if (protocol == htons(ETH_P_8021Q)) {
+	if (protocol == htons(ETH_P_8021Q) || protocol == htons(ETH_P_8021AD)) {
 		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
 		protocol = veh->h_vlan_encapsulated_proto;
 	} else if (!vlan_tx_tag_present(skb)) {
 		return harmonize_features(skb, protocol, features);
 	}
 
-	features &= (skb->dev->vlan_features | NETIF_F_HW_VLAN_CTAG_TX);
+	features &= (skb->dev->vlan_features | NETIF_F_HW_VLAN_CTAG_TX |
+					       NETIF_F_HW_VLAN_STAG_TX);
 
-	if (protocol != htons(ETH_P_8021Q)) {
+	if (protocol != htons(ETH_P_8021Q) && protocol != htons(ETH_P_8021AD)) {
 		return harmonize_features(skb, protocol, features);
 	} else {
 		features &= NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST |
-				NETIF_F_GEN_CSUM | NETIF_F_HW_VLAN_CTAG_TX;
+				NETIF_F_GEN_CSUM | NETIF_F_HW_VLAN_CTAG_TX |
+				NETIF_F_HW_VLAN_STAG_TX;
 		return harmonize_features(skb, protocol, features);
 	}
 }
@@ -3360,6 +3362,7 @@ static bool skb_pfmemalloc_protocol(struct sk_buff *skb)
 	case __constant_htons(ETH_P_IP):
 	case __constant_htons(ETH_P_IPV6):
 	case __constant_htons(ETH_P_8021Q):
+	case __constant_htons(ETH_P_8021AD):
 		return true;
 	default:
 		return false;
@@ -3400,7 +3403,8 @@ another_round:
 
 	__this_cpu_inc(softnet_data.processed);
 
-	if (skb->protocol == cpu_to_be16(ETH_P_8021Q)) {
+	if (skb->protocol == cpu_to_be16(ETH_P_8021Q) ||
+	    skb->protocol == cpu_to_be16(ETH_P_8021AD)) {
 		skb = vlan_untag(skb);
 		if (unlikely(!skb))
 			goto unlock;

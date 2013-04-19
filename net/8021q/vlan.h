@@ -91,6 +91,7 @@ static inline struct vlan_dev_priv *vlan_dev_priv(const struct net_device *dev)
 
 enum vlan_protos {
 	VLAN_PROTO_8021Q	= 0,
+	VLAN_PROTO_8021AD,
 	VLAN_PROTO_NUM,
 };
 
@@ -116,6 +117,8 @@ static inline unsigned int vlan_proto_idx(__be16 proto)
 	switch (proto) {
 	case __constant_htons(ETH_P_8021Q):
 		return VLAN_PROTO_8021Q;
+	case __constant_htons(ETH_P_8021AD):
+		return VLAN_PROTO_8021AD;
 	default:
 		BUG();
 	}

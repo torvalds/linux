@@ -162,6 +162,8 @@ static inline bool vlan_hw_offload_capable(netdev_features_t features,
 {
 	if (proto == htons(ETH_P_8021Q) && features & NETIF_F_HW_VLAN_CTAG_TX)
 		return true;
+	if (proto == htons(ETH_P_8021AD) && features & NETIF_F_HW_VLAN_STAG_TX)
+		return true;
 	return false;
 }
 
@@ -271,9 +273,9 @@ static inline int __vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
 {
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)skb->data;
 
-	if (veth->h_vlan_proto != htons(ETH_P_8021Q)) {
+	if (veth->h_vlan_proto != htons(ETH_P_8021Q) &&
+	    veth->h_vlan_proto != htons(ETH_P_8021AD))
 		return -EINVAL;
-	}
 
 	*vlan_tci = ntohs(veth->h_vlan_TCI);
 	return 0;
