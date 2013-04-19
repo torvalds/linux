@@ -1029,6 +1029,58 @@ static const unsigned int bsc_wait_pins[] = {
 static const unsigned int bsc_wait_mux[] = {
 	WAIT_MARK,
 };
+/* - CEU -------------------------------------------------------------------- */
+static const unsigned int ceu_data_0_7_pins[] = {
+	/* D[0:7] */
+	102, 103, 104, 105, 106, 107, 108, 109,
+};
+static const unsigned int ceu_data_0_7_mux[] = {
+	VIO_D0_MARK, VIO_D1_MARK, VIO_D2_MARK, VIO_D3_MARK,
+	VIO_D4_MARK, VIO_D5_MARK, VIO_D6_MARK, VIO_D7_MARK,
+};
+static const unsigned int ceu_data_8_15_pins[] = {
+	/* D[8:15] */
+	110, 111, 112, 113, 114, 115, 116, 117,
+};
+static const unsigned int ceu_data_8_15_mux[] = {
+	VIO_D8_MARK, VIO_D9_MARK, VIO_D10_MARK, VIO_D11_MARK,
+	VIO_D12_MARK, VIO_D13_MARK, VIO_D14_MARK, VIO_D15_MARK,
+};
+static const unsigned int ceu_clk_0_pins[] = {
+	/* CKO */
+	120,
+};
+static const unsigned int ceu_clk_0_mux[] = {
+	VIO_CKO_MARK,
+};
+static const unsigned int ceu_clk_1_pins[] = {
+	/* CKO */
+	16,
+};
+static const unsigned int ceu_clk_1_mux[] = {
+	VIO_CKO1_MARK,
+};
+static const unsigned int ceu_clk_2_pins[] = {
+	/* CKO */
+	17,
+};
+static const unsigned int ceu_clk_2_mux[] = {
+	VIO_CKO2_MARK,
+};
+static const unsigned int ceu_sync_pins[] = {
+	/* CLK, VD, HD */
+	118, 100, 101,
+};
+static const unsigned int ceu_sync_mux[] = {
+	VIO_CLK_MARK, VIO_VD_MARK, VIO_HD_MARK,
+};
+static const unsigned int ceu_field_pins[] = {
+	/* FIELD */
+	119,
+};
+static const unsigned int ceu_field_mux[] = {
+	VIO_FIELD_MARK,
+};
 /* - MMCIF ------------------------------------------------------------------ */
 static const unsigned int mmc0_data1_0_pins[] = {
 	/* D[0] */
@@ -1183,6 +1235,13 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(bsc_rd_we16),
 	SH_PFC_PIN_GROUP(bsc_bs),
 	SH_PFC_PIN_GROUP(bsc_rdwr),
+	SH_PFC_PIN_GROUP(ceu_data_0_7),
+	SH_PFC_PIN_GROUP(ceu_data_8_15),
+	SH_PFC_PIN_GROUP(ceu_clk_0),
+	SH_PFC_PIN_GROUP(ceu_clk_1),
+	SH_PFC_PIN_GROUP(ceu_clk_2),
+	SH_PFC_PIN_GROUP(ceu_sync),
+	SH_PFC_PIN_GROUP(ceu_field),
 	SH_PFC_PIN_GROUP(mmc0_data1_0),
 	SH_PFC_PIN_GROUP(mmc0_data4_0),
 	SH_PFC_PIN_GROUP(mmc0_data8_0),
@@ -1219,6 +1278,16 @@ static const char * const bsc_groups[] = {
 	"bsc_rdwr",
 };
 
+static const char * const ceu_groups[] = {
+	"ceu_data_0_7",
+	"ceu_data_8_15",
+	"ceu_clk_0",
+	"ceu_clk_1",
+	"ceu_clk_2",
+	"ceu_sync",
+	"ceu_field",
+};
+
 static const char * const mmc0_groups[] = {
 	"mmc0_data1_0",
 	"mmc0_data4_0",
@@ -1252,6 +1321,7 @@ static const char * const sdhi2_groups[] = {
 
 static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(bsc),
+	SH_PFC_FUNCTION(ceu),
 	SH_PFC_FUNCTION(mmc0),
 	SH_PFC_FUNCTION(sdhi0),
 	SH_PFC_FUNCTION(sdhi1),
