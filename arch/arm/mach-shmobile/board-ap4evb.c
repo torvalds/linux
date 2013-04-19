@@ -1026,10 +1026,8 @@ out:
 
 /* TouchScreen */
 #ifdef CONFIG_AP4EVB_QHD
-# define GPIO_TSC_IRQ	GPIO_FN_IRQ28_123
 # define GPIO_TSC_PORT	123
 #else /* WVGA */
-# define GPIO_TSC_IRQ	GPIO_FN_IRQ7_40
 # define GPIO_TSC_PORT	40
 #endif
 
@@ -1042,7 +1040,6 @@ static int ts_get_pendown_state(void)
 
 static int ts_init(void)
 {
-	gpio_request(GPIO_TSC_IRQ, NULL);
 	gpio_request_one(GPIO_TSC_PORT, GPIOF_IN, NULL);
 
 	return 0;
@@ -1132,6 +1129,14 @@ static const struct pinctrl_map ap4evb_pinctrl_map[] = {
 				  "bsc_cs5a", "bsc"),
 	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-sh7372",
 				  "intc_irq6_0", "intc"),
+	/* TSC2007 */
+#ifdef CONFIG_AP4EVB_QHD
+	PIN_MAP_MUX_GROUP_DEFAULT("1-0048", "pfc-sh7372",
+				  "intc_irq28_0", "intc"),
+#else /* WVGA */
+	PIN_MAP_MUX_GROUP_DEFAULT("1-0048", "pfc-sh7372",
+				  "intc_irq7_0", "intc"),
+#endif
 };
 
 #define GPIO_PORT9CR	IOMEM(0xE6051009)
