@@ -7965,21 +7965,19 @@ static bool
 intel_pipe_config_compare(struct intel_crtc_config *current_config,
 			  struct intel_crtc_config *pipe_config)
 {
-	if (current_config->has_pch_encoder != pipe_config->has_pch_encoder) {
-		DRM_ERROR("mismatch in has_pch_encoder "
-			  "(expected %i, found %i)\n",
-			  current_config->has_pch_encoder,
-			  pipe_config->has_pch_encoder);
-		return false;
+#define PIPE_CONF_CHECK_I(name)	\
+	if (current_config->name != pipe_config->name) { \
+		DRM_ERROR("mismatch in " #name " " \
+			  "(expected %i, found %i)\n", \
+			  current_config->name, \
+			  pipe_config->name); \
+		return false; \
 	}
 
-	if (current_config->fdi_lanes != pipe_config->fdi_lanes) {
-		DRM_ERROR("mismatch in fdi_lanes "
-			  "(expected %i, found %i)\n",
-			  current_config->fdi_lanes,
-			  pipe_config->fdi_lanes);
-		return false;
-	}
+	PIPE_CONF_CHECK_I(has_pch_encoder);
+	PIPE_CONF_CHECK_I(fdi_lanes);
+
+#undef PIPE_CONF_CHECK_I
 
 	return true;
 }
