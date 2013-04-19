@@ -501,7 +501,7 @@ int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *, u8);
 int qlcnic_83xx_config_hw_lro(struct qlcnic_adapter *, int);
 int qlcnic_83xx_config_rss(struct qlcnic_adapter *, int);
 int qlcnic_83xx_config_intr_coalesce(struct qlcnic_adapter *);
-void qlcnic_83xx_change_l2_filter(struct qlcnic_adapter *, u64 *, __le16);
+void qlcnic_83xx_change_l2_filter(struct qlcnic_adapter *, u64 *, u16);
 int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *, struct qlcnic_pci_info *);
 int qlcnic_83xx_set_nic_info(struct qlcnic_adapter *, struct qlcnic_info *);
 void qlcnic_83xx_register_nic_idc_func(struct qlcnic_adapter *, int);
@@ -523,7 +523,7 @@ int qlcnic_83xx_get_nic_info(struct qlcnic_adapter *, struct qlcnic_info *, u8);
 int qlcnic_83xx_setup_link_event(struct qlcnic_adapter *, int);
 void qlcnic_83xx_process_rcv_ring_diag(struct qlcnic_host_sds_ring *);
 int qlcnic_83xx_config_intrpt(struct qlcnic_adapter *, bool);
-int qlcnic_83xx_sre_macaddr_change(struct qlcnic_adapter *, u8 *, __le16, u8);
+int qlcnic_83xx_sre_macaddr_change(struct qlcnic_adapter *, u8 *, u16, u8);
 int qlcnic_83xx_get_mac_address(struct qlcnic_adapter *, u8 *);
 void qlcnic_83xx_configure_mac(struct qlcnic_adapter *, u8 *, u8,
 			       struct qlcnic_cmd_args *);

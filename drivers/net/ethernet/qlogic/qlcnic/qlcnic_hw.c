@@ -423,7 +423,7 @@ qlcnic_send_cmd_descs(struct qlcnic_adapter *adapter,
 }
 
 int qlcnic_82xx_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
-				   __le16 vlan_id, u8 op)
+				   u16 vlan_id, u8 op)
 {
 	struct qlcnic_nic_req req;
 	struct qlcnic_mac_req *mac_req;
@@ -441,7 +441,7 @@ int qlcnic_82xx_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
 	memcpy(mac_req->mac_addr, addr, 6);
 
 	vlan_req = (struct qlcnic_vlan_req *)&req.words[1];
-	vlan_req->vlan_id = vlan_id;
+	vlan_req->vlan_id = cpu_to_le16(vlan_id);
 
 	return qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 }

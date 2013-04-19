@@ -548,7 +548,7 @@ err_out:
 
 static int qlcnic_sriov_cfg_vf_def_mac(struct qlcnic_adapter *adapter,
 				       struct qlcnic_vport *vp,
-				       u16 func, __le16 vlan, u8 op)
+				       u16 func, u16 vlan, u8 op)
 {
 	struct qlcnic_cmd_args cmd;
 	struct qlcnic_macvlan_mbx mv;
@@ -574,7 +574,7 @@ static int qlcnic_sriov_cfg_vf_def_mac(struct qlcnic_adapter *adapter,
 	cmd.req.arg[1] |= ((vpid & 0xffff) << 16) | BIT_31;
 
 	addr = vp->mac;
-	mv.vlan = le16_to_cpu(vlan);
+	mv.vlan = vlan;
 	mv.mac_addr0 = addr[0];
 	mv.mac_addr1 = addr[1];
 	mv.mac_addr2 = addr[2];

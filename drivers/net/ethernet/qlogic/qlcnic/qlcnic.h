@@ -939,7 +939,7 @@ struct qlcnic_ipaddr {
 struct qlcnic_filter {
 	struct hlist_node fnode;
 	u8 faddr[ETH_ALEN];
-	__le16 vlan_id;
+	u16 vlan_id;
 	unsigned long ftime;
 };
 
@@ -1524,8 +1524,7 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *);
 int qlcnic_set_default_offload_settings(struct qlcnic_adapter *);
 int qlcnic_reset_npar_config(struct qlcnic_adapter *);
 int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *);
-void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, int,
-			  __le16);
+void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, int, u16);
 int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter);
 int qlcnic_read_mac_addr(struct qlcnic_adapter *);
 int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);
@@ -1595,7 +1594,7 @@ struct qlcnic_hardware_ops {
 	int (*get_nic_info) (struct qlcnic_adapter *, struct qlcnic_info *, u8);
 	int (*get_pci_info) (struct qlcnic_adapter *, struct qlcnic_pci_info *);
 	int (*set_nic_info) (struct qlcnic_adapter *, struct qlcnic_info *);
-	int (*change_macvlan) (struct qlcnic_adapter *, u8*, __le16, u8);
+	int (*change_macvlan) (struct qlcnic_adapter *, u8*, u16, u8);
 	void (*napi_enable) (struct qlcnic_adapter *);
 	void (*napi_disable) (struct qlcnic_adapter *);
 	void (*config_intr_coal) (struct qlcnic_adapter *);
@@ -1604,7 +1603,7 @@ struct qlcnic_hardware_ops {
 	int (*config_loopback) (struct qlcnic_adapter *, u8);
 	int (*clear_loopback) (struct qlcnic_adapter *, u8);
 	int (*config_promisc_mode) (struct qlcnic_adapter *, u32);
-	void (*change_l2_filter) (struct qlcnic_adapter *, u64 *, __le16);
+	void (*change_l2_filter) (struct qlcnic_adapter *, u64 *, u16);
 	int (*get_board_info) (struct qlcnic_adapter *);
 };
 
@@ -1746,7 +1745,7 @@ static inline int qlcnic_set_nic_info(struct qlcnic_adapter *adapter,
 }
 
 static inline int qlcnic_sre_macaddr_change(struct qlcnic_adapter *adapter,
-					    u8 *addr, __le16 id, u8 cmd)
+					    u8 *addr, u16 id, u8 cmd)
 {
 	return adapter->ahw->hw_ops->change_macvlan(adapter, addr, id, cmd);
 }
@@ -1805,7 +1804,7 @@ static inline int qlcnic_nic_set_promisc(struct qlcnic_adapter *adapter,
 }
 
 static inline void qlcnic_change_filter(struct qlcnic_adapter *adapter,
-					u64 *addr, __le16 id)
+					u64 *addr, u16 id)
 {
 	adapter->ahw->hw_ops->change_l2_filter(adapter, addr, id);
 }
