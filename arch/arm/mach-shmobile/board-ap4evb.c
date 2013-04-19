@@ -1119,6 +1119,9 @@ static const struct pinctrl_map ap4evb_pinctrl_map[] = {
 				  "mmc0_data8_0", "mmc0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh7372",
 				  "mmc0_ctrl_0", "mmc0"),
+	/* SCIFA0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.0", "pfc-sh7372",
+				  "scifa0_data", "scifa0"),
 	/* SDHI0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
 				  "sdhi0_data4", "sdhi0"),
@@ -1164,10 +1167,6 @@ static void __init ap4evb_init(void)
 	pinctrl_register_mappings(ap4evb_pinctrl_map,
 				  ARRAY_SIZE(ap4evb_pinctrl_map));
 	sh7372_pinmux_init();
-
-	/* enable SCIFA0 */
-	gpio_request(GPIO_FN_SCIFA0_TXD, NULL);
-	gpio_request(GPIO_FN_SCIFA0_RXD, NULL);
 
 	/* enable SMSC911X */
 	gpio_request(GPIO_FN_CS5A,	NULL);
