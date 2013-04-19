@@ -972,6 +972,17 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 			hinfo.hash_version +=
 				EXT4_SB(dir->i_sb)->s_hash_unsigned;
 		hinfo.seed = EXT4_SB(dir->i_sb)->s_hash_seed;
+		if (ext4_has_inline_data(dir)) {
+			int has_inline_data = 1;
+			count = htree_inlinedir_to_tree(dir_file, dir, 0,
+							&hinfo, start_hash,
+							start_minor_hash,
+							&has_inline_data);
+			if (has_inline_data) {
+				*next_hash = ~0;
+				return count;
+			}
+		}
 		count = htree_dirblock_to_tree(dir_file, dir, 0, &hinfo,
 					       start_hash, start_minor_hash);
 		*next_hash = ~0;
@@ -1454,24 +1465,6 @@ struct dentry *ext4_get_parent(struct dentry *child)
 	}
 
 	return d_obtain_alias(ext4_iget(child->d_inode->i_sb, ino));
-}
-
-#define S_SHIFT 12
-static unsigned char ext4_type_by_mode[S_IFMT >> S_SHIFT] = {
-	[S_IFREG >> S_SHIFT]	= EXT4_FT_REG_FILE,
-	[S_IFDIR >> S_SHIFT]	= EXT4_FT_DIR,
-	[S_IFCHR >> S_SHIFT]	= EXT4_FT_CHRDEV,
-	[S_IFBLK >> S_SHIFT]	= EXT4_FT_BLKDEV,
-	[S_IFIFO >> S_SHIFT]	= EXT4_FT_FIFO,
-	[S_IFSOCK >> S_SHIFT]	= EXT4_FT_SOCK,
-	[S_IFLNK >> S_SHIFT]	= EXT4_FT_SYMLINK,
-};
-
-static inline void ext4_set_de_type(struct super_block *sb,
-				struct ext4_dir_entry_2 *de,
-				umode_t mode) {
-	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FILETYPE))
-		de->file_type = ext4_type_by_mode[(mode & S_IFMT)>>S_SHIFT];
 }
 
 /*
