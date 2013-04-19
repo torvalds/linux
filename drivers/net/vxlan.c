@@ -98,6 +98,7 @@ struct vxlan_fdb {
 	unsigned long	  used;
 	struct vxlan_rdst remote;
 	u16		  state;	/* see ndm_state */
+	u8		  flags;	/* see ndm_flags */
 	u8		  eth_addr[ETH_ALEN];
 };
 
@@ -180,7 +181,7 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 		ndm->ndm_family	= AF_BRIDGE;
 	ndm->ndm_state = fdb->state;
 	ndm->ndm_ifindex = vxlan->dev->ifindex;
-	ndm->ndm_flags = NTF_SELF;
+	ndm->ndm_flags = fdb->flags;
 	ndm->ndm_type = NDA_DST;
 
 	if (send_eth && nla_put(skb, NDA_LLADDR, ETH_ALEN, &fdb->eth_addr))
@@ -343,7 +344,8 @@ static int vxlan_fdb_append(struct vxlan_fdb *f,
 static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 			    const u8 *mac, __be32 ip,
 			    __u16 state, __u16 flags,
-			    __u32 port, __u32 vni, __u32 ifindex)
+			    __u32 port, __u32 vni, __u32 ifindex,
+			    __u8 ndm_flags)
 {
 	struct vxlan_fdb *f;
 	int notify = 0;
@@ -357,6 +359,11 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 		}
 		if (f->state != state) {
 			f->state = state;
+			f->updated = jiffies;
+			notify = 1;
+		}
+		if (f->flags != ndm_flags) {
+			f->flags = ndm_flags;
 			f->updated = jiffies;
 			notify = 1;
 		}
@@ -387,6 +394,7 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 		f->remote.remote_ifindex = ifindex;
 		f->remote.remote_next = NULL;
 		f->state = state;
+		f->flags = ndm_flags;
 		f->updated = f->used = jiffies;
 		memcpy(f->eth_addr, mac, ETH_ALEN);
 
@@ -480,7 +488,7 @@ static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 
 	spin_lock_bh(&vxlan->hash_lock);
 	err = vxlan_fdb_create(vxlan, addr, ip, ndm->ndm_state, flags, port,
-		vni, ifindex);
+		vni, ifindex, ndm->ndm_flags);
 	spin_unlock_bh(&vxlan->hash_lock);
 
 	return err;
@@ -568,7 +576,9 @@ static void vxlan_snoop(struct net_device *dev,
 		err = vxlan_fdb_create(vxlan, src_mac, src_ip,
 				       NUD_REACHABLE,
 				       NLM_F_EXCL|NLM_F_CREATE,
-				       vxlan_port, vxlan->default_dst.remote_vni, 0);
+				       vxlan_port,
+				       vxlan->default_dst.remote_vni,
+				       0, NTF_SELF);
 		spin_unlock(&vxlan->hash_lock);
 	}
 }
@@ -1098,12 +1108,18 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if ((vxlan->flags & VXLAN_F_PROXY) && ntohs(eth->h_proto) == ETH_P_ARP)
 		return arp_reduce(dev, skb);
-	else if ((vxlan->flags&VXLAN_F_RSC) && ntohs(eth->h_proto) == ETH_P_IP)
-		did_rsc = route_shortcircuit(dev, skb);
 
 	f = vxlan_find_mac(vxlan, eth->h_dest);
+	did_rsc = false;
+
+	if (f && (f->flags & NTF_ROUTER) && (vxlan->flags & VXLAN_F_RSC) &&
+	    ntohs(eth->h_proto) == ETH_P_IP) {
+		did_rsc = route_shortcircuit(dev, skb);
+		if (did_rsc)
+			f = vxlan_find_mac(vxlan, eth->h_dest);
+	}
+
 	if (f == NULL) {
-		did_rsc = false;
 		rdst0 = &vxlan->default_dst;
 
 		if (rdst0->remote_ip == htonl(INADDR_ANY) &&
