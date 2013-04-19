@@ -1384,6 +1384,9 @@ static const struct pinctrl_map mackerel_pinctrl_map[] = {
 				  "bsc_cs5a", "bsc"),
 	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-sh7372",
 				  "intc_irq6_0", "intc"),
+	/* ST1232 */
+	PIN_MAP_MUX_GROUP_DEFAULT("0-0055", "pfc-sh7372",
+				  "intc_irq7_0", "intc"),
 };
 
 #define GPIO_PORT9CR	IOMEM(0xE6051009)
@@ -1465,8 +1468,7 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_IRQ9_42,	NULL);
 	irq_set_irq_type(IRQ9, IRQ_TYPE_LEVEL_HIGH);
 
-	/* enable Touchscreen */
-	gpio_request(GPIO_FN_IRQ7_40,	NULL);
+	/* Touchscreen */
 	irq_set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
 
 	/* Accelerometer */
