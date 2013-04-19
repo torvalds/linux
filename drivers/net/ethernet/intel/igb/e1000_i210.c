@@ -103,7 +103,7 @@ void igb_release_nvm_i210(struct e1000_hw *hw)
  *  @hw: pointer to the HW structure
  *
  *  Release hardware semaphore used to access the PHY or NVM
- */
+ **/
 static void igb_put_hw_semaphore_i210(struct e1000_hw *hw)
 {
 	u32 swsm;
@@ -141,9 +141,7 @@ s32 igb_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 		if (!(swfw_sync & fwmask))
 			break;
 
-		/*
-		 * Firmware currently using resource (fwmask)
-		 */
+		/* Firmware currently using resource (fwmask) */
 		igb_put_hw_semaphore_i210(hw);
 		mdelay(5);
 		i++;
@@ -203,7 +201,8 @@ s32 igb_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset, u16 words,
 
 	/* We cannot hold synchronization semaphores for too long,
 	 * because of forceful takeover procedure. However it is more efficient
-	 * to read in bursts than synchronizing access for each word. */
+	 * to read in bursts than synchronizing access for each word.
+	 */
 	for (i = 0; i < words; i += E1000_EERD_EEWR_MAX_COUNT) {
 		count = (words - i) / E1000_EERD_EEWR_MAX_COUNT > 0 ?
 			E1000_EERD_EEWR_MAX_COUNT : (words - i);
@@ -242,8 +241,7 @@ static s32 igb_write_nvm_srwr(struct e1000_hw *hw, u16 offset, u16 words,
 	u32 attempts = 100000;
 	s32 ret_val = E1000_SUCCESS;
 
-	/*
-	 * A check for invalid values:  offset too large, too many words,
+	/* A check for invalid values:  offset too large, too many words,
 	 * too many words for the offset, and not enough words.
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
@@ -294,7 +292,7 @@ out:
  *
  *  If error code is returned, data and Shadow RAM may be inconsistent - buffer
  *  partially written.
- */
+ **/
 s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset, u16 words,
 			      u16 *data)
 {
@@ -326,7 +324,7 @@ s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset, u16 words,
 /**
  *  igb_read_nvm_i211 - Read NVM wrapper function for I211
  *  @hw: pointer to the HW structure
- *  @address: the word address (aka eeprom offset) to read
+ *  @words: number of words to read
  *  @data: pointer to the data read
  *
  *  Wrapper function to return data formerly found in the NVM.
@@ -549,8 +547,7 @@ s32 igb_validate_nvm_checksum_i210(struct e1000_hw *hw)
 
 	if (hw->nvm.ops.acquire(hw) == E1000_SUCCESS) {
 
-		/*
-		 * Replace the read function with semaphore grabbing with
+		/* Replace the read function with semaphore grabbing with
 		 * the one that skips this for a while.
 		 * We have semaphore taken already here.
 		 */
@@ -570,7 +567,6 @@ s32 igb_validate_nvm_checksum_i210(struct e1000_hw *hw)
 	return status;
 }
 
-
 /**
  *  igb_update_nvm_checksum_i210 - Update EEPROM checksum
  *  @hw: pointer to the HW structure
@@ -585,8 +581,7 @@ s32 igb_update_nvm_checksum_i210(struct e1000_hw *hw)
 	u16 checksum = 0;
 	u16 i, nvm_data;
 
-	/*
-	 * Read the first word from the EEPROM. If this times out or fails, do
+	/* Read the first word from the EEPROM. If this times out or fails, do
 	 * not continue or we could be in for a very long wait while every
 	 * EEPROM read fails
 	 */
@@ -597,8 +592,7 @@ s32 igb_update_nvm_checksum_i210(struct e1000_hw *hw)
 	}
 
 	if (hw->nvm.ops.acquire(hw) == E1000_SUCCESS) {
-		/*
-		 * Do not use hw->nvm.ops.write, hw->nvm.ops.read
+		/* Do not use hw->nvm.ops.write, hw->nvm.ops.read
 		 * because we do not want to take the synchronization
 		 * semaphores twice here.
 		 */
@@ -635,7 +629,7 @@ out:
  *  igb_pool_flash_update_done_i210 - Pool FLUDONE status.
  *  @hw: pointer to the HW structure
  *
- */
+ **/
 static s32 igb_pool_flash_update_done_i210(struct e1000_hw *hw)
 {
 	s32 ret_val = -E1000_ERR_NVM;
@@ -713,4 +707,69 @@ s32 igb_valid_led_default_i210(struct e1000_hw *hw, u16 *data)
 	}
 out:
 	return ret_val;
+}
+
+/**
+ *  __igb_access_xmdio_reg - Read/write XMDIO register
+ *  @hw: pointer to the HW structure
+ *  @address: XMDIO address to program
+ *  @dev_addr: device address to program
+ *  @data: pointer to value to read/write from/to the XMDIO address
+ *  @read: boolean flag to indicate read or write
+ **/
+static s32 __igb_access_xmdio_reg(struct e1000_hw *hw, u16 address,
+				  u8 dev_addr, u16 *data, bool read)
+{
+	s32 ret_val = E1000_SUCCESS;
+
+	ret_val = hw->phy.ops.write_reg(hw, E1000_MMDAC, dev_addr);
+	if (ret_val)
+		return ret_val;
+
+	ret_val = hw->phy.ops.write_reg(hw, E1000_MMDAAD, address);
+	if (ret_val)
+		return ret_val;
+
+	ret_val = hw->phy.ops.write_reg(hw, E1000_MMDAC, E1000_MMDAC_FUNC_DATA |
+							 dev_addr);
+	if (ret_val)
+		return ret_val;
+
+	if (read)
+		ret_val = hw->phy.ops.read_reg(hw, E1000_MMDAAD, data);
+	else
+		ret_val = hw->phy.ops.write_reg(hw, E1000_MMDAAD, *data);
+	if (ret_val)
+		return ret_val;
+
+	/* Recalibrate the device back to 0 */
+	ret_val = hw->phy.ops.write_reg(hw, E1000_MMDAC, 0);
+	if (ret_val)
+		return ret_val;
+
+	return ret_val;
+}
+
+/**
+ *  igb_read_xmdio_reg - Read XMDIO register
+ *  @hw: pointer to the HW structure
+ *  @addr: XMDIO address to program
+ *  @dev_addr: device address to program
+ *  @data: value to be read from the EMI address
+ **/
+s32 igb_read_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr, u16 *data)
+{
+	return __igb_access_xmdio_reg(hw, addr, dev_addr, data, true);
+}
+
+/**
+ *  igb_write_xmdio_reg - Write XMDIO register
+ *  @hw: pointer to the HW structure
+ *  @addr: XMDIO address to program
+ *  @dev_addr: device address to program
+ *  @data: value to be written to the XMDIO address
+ **/
+s32 igb_write_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr, u16 data)
+{
+	return __igb_access_xmdio_reg(hw, addr, dev_addr, &data, false);
 }
