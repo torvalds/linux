@@ -919,6 +919,7 @@ struct qlcnic_ipaddr {
 #define __QLCNIC_ELB_INPROGRESS		8
 #define __QLCNIC_SRIOV_ENABLE		10
 #define __QLCNIC_SRIOV_CAPABLE		11
+#define __QLCNIC_MBX_POLL_ENABLE	12
 
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
@@ -1012,6 +1013,7 @@ struct qlcnic_adapter {
 	struct workqueue_struct *qlcnic_wq;
 	struct delayed_work fw_work;
 	struct delayed_work idc_aen_work;
+	struct delayed_work mbx_poll_work;
 
 	struct qlcnic_filter_hash fhash;
 	struct qlcnic_filter_hash rx_fhash;

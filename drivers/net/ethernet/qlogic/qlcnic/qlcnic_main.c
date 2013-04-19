@@ -3306,8 +3306,10 @@ int qlcnic_set_max_rss(struct qlcnic_adapter *adapter, u8 data, size_t len)
 
 	qlcnic_detach(adapter);
 
-	if (qlcnic_83xx_check(adapter))
+	if (qlcnic_83xx_check(adapter)) {
 		qlcnic_83xx_free_mbx_intr(adapter);
+		qlcnic_83xx_enable_mbx_poll(adapter);
+	}
 
 	qlcnic_teardown_intr(adapter);
 	err = qlcnic_setup_intr(adapter, data);
@@ -3321,6 +3323,7 @@ int qlcnic_set_max_rss(struct qlcnic_adapter *adapter, u8 data, size_t len)
 		/* register for NIC IDC AEN Events */
 		qlcnic_83xx_register_nic_idc_func(adapter, 1);
 		err = qlcnic_83xx_setup_mbx_intr(adapter);
+		qlcnic_83xx_disable_mbx_poll(adapter);
 		if (err) {
 			dev_err(&adapter->pdev->dev,
 				"failed to setup mbx interrupt\n");
