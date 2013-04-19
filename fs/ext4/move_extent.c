@@ -409,18 +409,7 @@ mext_insert_extents(handle_t *handle, struct inode *orig_inode,
 		mext_insert_inside_block(o_start, o_end, start_ext, new_ext,
 						end_ext, eh, range_to_move);
 
-	if (depth) {
-		ret = ext4_handle_dirty_metadata(handle, orig_inode,
-						 orig_path->p_bh);
-		if (ret)
-			return ret;
-	} else {
-		ret = ext4_mark_inode_dirty(handle, orig_inode);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
+	return ext4_ext_dirty(handle, orig_inode, orig_path);
 }
 
 /**
