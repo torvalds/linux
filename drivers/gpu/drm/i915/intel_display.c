@@ -5180,8 +5180,7 @@ static int ironlake_get_refclk(struct drm_crtc *crtc)
 	return 120000;
 }
 
-static void ironlake_set_pipeconf(struct drm_crtc *crtc,
-				  struct drm_display_mode *adjusted_mode)
+static void ironlake_set_pipeconf(struct drm_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -5214,7 +5213,7 @@ static void ironlake_set_pipeconf(struct drm_crtc *crtc,
 		val |= (PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_SP);
 
 	val &= ~PIPECONF_INTERLACE_MASK;
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
 		val |= PIPECONF_INTERLACED_ILK;
 	else
 		val |= PIPECONF_PROGRESSIVE;
@@ -5292,8 +5291,7 @@ static void intel_set_pipe_csc(struct drm_crtc *crtc)
 	}
 }
 
-static void haswell_set_pipeconf(struct drm_crtc *crtc,
-				 struct drm_display_mode *adjusted_mode)
+static void haswell_set_pipeconf(struct drm_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -5307,7 +5305,7 @@ static void haswell_set_pipeconf(struct drm_crtc *crtc,
 		val |= (PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_SP);
 
 	val &= ~PIPECONF_INTERLACE_MASK_HSW;
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+	if (intel_crtc->config.adjusted_mode.flags & DRM_MODE_FLAG_INTERLACE)
 		val |= PIPECONF_INTERLACED_ILK;
 	else
 		val |= PIPECONF_PROGRESSIVE;
@@ -5765,7 +5763,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	fdi_config_ok = ironlake_check_fdi_lanes(intel_crtc);
 
-	ironlake_set_pipeconf(crtc, adjusted_mode);
+	ironlake_set_pipeconf(crtc);
 
 	/* Set up the display plane register */
 	I915_WRITE(DSPCNTR(plane), DISPPLANE_GAMMA_ENABLE);
@@ -5889,7 +5887,7 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	if (intel_crtc->config.has_pch_encoder)
 		ironlake_fdi_set_m_n(crtc);
 
-	haswell_set_pipeconf(crtc, adjusted_mode);
+	haswell_set_pipeconf(crtc);
 
 	intel_set_pipe_csc(crtc);
 
