@@ -34,6 +34,12 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/in.h>
+#include <linux/ip.h>
+#include <net/ip.h>
+#include <linux/tcp.h>
+#include <linux/udp.h>
+#include <linux/icmp.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
@@ -176,6 +182,11 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
 #define PKT_MINBUF_SIZE		64
 #define PKT_MAXBLR_SIZE		1520
 
+/* FEC receive acceleration */
+#define FEC_RACC_IPDIS		(1 << 1)
+#define FEC_RACC_PRODIS		(1 << 2)
+#define FEC_RACC_OPTIONS	(FEC_RACC_IPDIS | FEC_RACC_PRODIS)
+
 /*
  * The 5270/5271/5280/5282/532x RX control register also contains maximum frame
  * size bits. Other FEC hardware does not, so we need to take that into
@@ -236,6 +247,21 @@ static void *swap_buffer(void *bufaddr, int len)
 	return bufaddr;
 }
 
+static int
+fec_enet_clear_csum(struct sk_buff *skb, struct net_device *ndev)
+{
+	/* Only run for packets requiring a checksum. */
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return 0;
+
+	if (unlikely(skb_cow_head(skb, 0)))
+		return -1;
+
+	*(__sum16 *)(skb->head + skb->csum_start + skb->csum_offset) = 0;
+
+	return 0;
+}
+
 static netdev_tx_t
 fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
@@ -248,7 +274,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	unsigned int index;
 
 	if (!fep->link) {
-		/* Link is down or autonegotiation is in progress. */
+		/* Link is down or auto-negotiation is in progress. */
 		return NETDEV_TX_BUSY;
 	}
 
@@ -263,6 +289,12 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		 */
 		netdev_err(ndev, "tx queue full!\n");
 		return NETDEV_TX_BUSY;
+	}
+
+	/* Protocol checksum off-load for TCP and UDP. */
+	if (fec_enet_clear_csum(skb, ndev)) {
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
 	}
 
 	/* Clear all of the status flags */
@@ -321,8 +353,14 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			ebdp->cbd_esc = (BD_ENET_TX_TS | BD_ENET_TX_INT);
 			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		} else {
-
 			ebdp->cbd_esc = BD_ENET_TX_INT;
+
+			/* Enable protocol checksum flags
+			 * We do not bother with the IP Checksum bits as they
+			 * are done by the kernel
+			 */
+			if (skb->ip_summed == CHECKSUM_PARTIAL)
+				ebdp->cbd_esc |= BD_ENET_TX_PINS;
 		}
 	}
 	/* If this was the last BD in the ring, start at the beginning again. */
@@ -402,6 +440,7 @@ fec_restart(struct net_device *ndev, int duplex)
 	const struct platform_device_id *id_entry =
 				platform_get_device_id(fep->pdev);
 	int i;
+	u32 val;
 	u32 temp_mac[2];
 	u32 rcntl = OPT_FRAME_SIZE | 0x04;
 	u32 ecntl = 0x2; /* ETHEREN */
@@ -468,6 +507,14 @@ fec_restart(struct net_device *ndev, int duplex)
 	/* Set MII speed */
 	writel(fep->phy_speed, fep->hwp + FEC_MII_SPEED);
 
+	/* set RX checksum */
+	val = readl(fep->hwp + FEC_RACC);
+	if (fep->csum_flags & FLAG_RX_CSUM_ENABLED)
+		val |= FEC_RACC_OPTIONS;
+	else
+		val &= ~FEC_RACC_OPTIONS;
+	writel(val, fep->hwp + FEC_RACC);
+
 	/*
 	 * The phy interface and speed need to get configured
 	 * differently on enet-mac.
@@ -525,7 +572,7 @@ fec_restart(struct net_device *ndev, int duplex)
 	     fep->phy_dev && fep->phy_dev->pause)) {
 		rcntl |= FEC_ENET_FCE;
 
-		/* set FIFO thresh hold parameter to reduce overrun */
+		/* set FIFO threshold parameter to reduce overrun */
 		writel(FEC_ENET_RSEM_V, fep->hwp + FEC_R_FIFO_RSEM);
 		writel(FEC_ENET_RSFL_V, fep->hwp + FEC_R_FIFO_RSFL);
 		writel(FEC_ENET_RAEM_V, fep->hwp + FEC_R_FIFO_RAEM);
@@ -811,6 +858,18 @@ fec_enet_rx(struct net_device *ndev, int budget)
 				shhwtstamps->hwtstamp = ns_to_ktime(
 				    timecounter_cyc2time(&fep->tc, ebdp->ts));
 				spin_unlock_irqrestore(&fep->tmreg_lock, flags);
+			}
+
+			if (fep->bufdesc_ex &&
+				(fep->csum_flags & FLAG_RX_CSUM_ENABLED)) {
+				struct bufdesc_ex *ebdp =
+					(struct bufdesc_ex *)bdp;
+				if (!(ebdp->cbd_esc & FLAG_RX_CSUM_ERROR)) {
+					/* don't check it */
+					skb->ip_summed = CHECKSUM_UNNECESSARY;
+				} else {
+					skb_checksum_none_assert(skb);
+				}
 			}
 
 			if (!skb_defer_rx_timestamp(skb))
@@ -1614,6 +1673,33 @@ static void fec_poll_controller(struct net_device *dev)
 }
 #endif
 
+static int fec_set_features(struct net_device *netdev,
+	netdev_features_t features)
+{
+	struct fec_enet_private *fep = netdev_priv(netdev);
+	netdev_features_t changed = features ^ netdev->features;
+
+	netdev->features = features;
+
+	/* Receive checksum has been changed */
+	if (changed & NETIF_F_RXCSUM) {
+		if (features & NETIF_F_RXCSUM)
+			fep->csum_flags |= FLAG_RX_CSUM_ENABLED;
+		else
+			fep->csum_flags &= ~FLAG_RX_CSUM_ENABLED;
+
+		if (netif_running(netdev)) {
+			fec_stop(netdev);
+			fec_restart(netdev, fep->phy_dev->duplex);
+			netif_wake_queue(netdev);
+		} else {
+			fec_restart(netdev, fep->phy_dev->duplex);
+		}
+	}
+
+	return 0;
+}
+
 static const struct net_device_ops fec_netdev_ops = {
 	.ndo_open		= fec_enet_open,
 	.ndo_stop		= fec_enet_close,
@@ -1627,6 +1713,7 @@ static const struct net_device_ops fec_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= fec_poll_controller,
 #endif
+	.ndo_set_features	= fec_set_features,
 };
 
  /*
@@ -1667,6 +1754,13 @@ static int fec_enet_init(struct net_device *ndev)
 
 	writel(FEC_RX_DISABLED_IMASK, fep->hwp + FEC_IMASK);
 	netif_napi_add(ndev, &fep->napi, fec_enet_rx_napi, FEC_NAPI_WEIGHT);
+
+	/* enable hw accelerator */
+	ndev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM
+			| NETIF_F_RXCSUM);
+	ndev->hw_features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM
+			| NETIF_F_RXCSUM);
+	fep->csum_flags |= FLAG_RX_CSUM_ENABLED;
 
 	fec_restart(ndev, 0);
 
