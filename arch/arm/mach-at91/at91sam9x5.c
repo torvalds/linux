@@ -320,7 +320,7 @@ static void __init at91sam9x5_map_io(void)
  *  Interrupt initialization
  * -------------------------------------------------------------------- */
 
-AT91_SOC_START(sam9x5)
+AT91_SOC_START(at91sam9x5)
 	.map_io = at91sam9x5_map_io,
 	.register_clocks = at91sam9x5_register_clocks,
 AT91_SOC_END
