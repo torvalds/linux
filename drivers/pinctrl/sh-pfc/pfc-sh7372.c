@@ -1680,6 +1680,64 @@ static const unsigned int sdhi2_ctrl_pins[] = {
 static const unsigned int sdhi2_ctrl_mux[] = {
 	SDHICMD2_MARK, SDHICLK2_MARK,
 };
+/* - USB0 ------------------------------------------------------------------- */
+static const unsigned int usb0_vbus_pins[] = {
+	/* VBUS */
+	167,
+};
+static const unsigned int usb0_vbus_mux[] = {
+	VBUS0_0_MARK,
+};
+static const unsigned int usb0_otg_id_pins[] = {
+	/* IDIN */
+	113,
+};
+static const unsigned int usb0_otg_id_mux[] = {
+	IDIN_0_MARK,
+};
+static const unsigned int usb0_otg_ctrl_pins[] = {
+	/* PWEN, EXTLP, OVCN, OVCN2 */
+	116, 114, 117, 115,
+};
+static const unsigned int usb0_otg_ctrl_mux[] = {
+	PWEN_0_MARK, EXTLP_0_MARK, OVCN_0_MARK, OVCN2_0_MARK,
+};
+/* - USB1 ------------------------------------------------------------------- */
+static const unsigned int usb1_vbus_pins[] = {
+	/* VBUS */
+	168,
+};
+static const unsigned int usb1_vbus_mux[] = {
+	VBUS0_1_MARK,
+};
+static const unsigned int usb1_otg_id_0_pins[] = {
+	/* IDIN */
+	113,
+};
+static const unsigned int usb1_otg_id_0_mux[] = {
+	IDIN_1_113_MARK,
+};
+static const unsigned int usb1_otg_id_1_pins[] = {
+	/* IDIN */
+	18,
+};
+static const unsigned int usb1_otg_id_1_mux[] = {
+	IDIN_1_18_MARK,
+};
+static const unsigned int usb1_otg_ctrl_0_pins[] = {
+	/* PWEN, EXTLP, OVCN, OVCN2 */
+	115, 116, 114, 117, 113,
+};
+static const unsigned int usb1_otg_ctrl_0_mux[] = {
+	PWEN_1_115_MARK, EXTLP_1_MARK, OVCN_1_114_MARK, OVCN2_1_MARK,
+};
+static const unsigned int usb1_otg_ctrl_1_pins[] = {
+	/* PWEN, EXTLP, OVCN, OVCN2 */
+	138, 116, 162, 117, 18,
+};
+static const unsigned int usb1_otg_ctrl_1_mux[] = {
+	PWEN_1_138_MARK, EXTLP_1_MARK, OVCN_1_162_MARK, OVCN2_1_MARK,
+};
 
 static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(bsc_data8),
@@ -1822,6 +1880,14 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(sdhi2_data1),
 	SH_PFC_PIN_GROUP(sdhi2_data4),
 	SH_PFC_PIN_GROUP(sdhi2_ctrl),
+	SH_PFC_PIN_GROUP(usb0_vbus),
+	SH_PFC_PIN_GROUP(usb0_otg_id),
+	SH_PFC_PIN_GROUP(usb0_otg_ctrl),
+	SH_PFC_PIN_GROUP(usb1_vbus),
+	SH_PFC_PIN_GROUP(usb1_otg_id_0),
+	SH_PFC_PIN_GROUP(usb1_otg_id_1),
+	SH_PFC_PIN_GROUP(usb1_otg_ctrl_0),
+	SH_PFC_PIN_GROUP(usb1_otg_ctrl_1),
 };
 
 static const char * const bsc_groups[] = {
@@ -2024,6 +2090,20 @@ static const char * const sdhi2_groups[] = {
 	"sdhi2_ctrl",
 };
 
+static const char * const usb0_groups[] = {
+	"usb0_vbus",
+	"usb0_otg_id",
+	"usb0_otg_ctrl",
+};
+
+static const char * const usb1_groups[] = {
+	"usb1_vbus",
+	"usb1_otg_id_0",
+	"usb1_otg_id_1",
+	"usb1_otg_ctrl_0",
+	"usb1_otg_ctrl_1",
+};
+
 static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(bsc),
 	SH_PFC_FUNCTION(ceu),
@@ -2045,6 +2125,8 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(sdhi0),
 	SH_PFC_FUNCTION(sdhi1),
 	SH_PFC_FUNCTION(sdhi2),
+	SH_PFC_FUNCTION(usb0),
+	SH_PFC_FUNCTION(usb1),
 };
 
 #define PINMUX_FN_BASE	ARRAY_SIZE(pinmux_pins)
