@@ -505,14 +505,15 @@ int mei_amthif_irq_write_complete(struct mei_device *dev, s32 *slots,
  * mei_amthif_irq_read_message - read routine after ISR to
  *			handle the read amthif message
  *
- * @complete_list: An instance of our list structure
  * @dev: the device structure
  * @mei_hdr: header of amthif message
+ * @complete_list: An instance of our list structure
  *
  * returns 0 on success, <0 on failure.
  */
-int mei_amthif_irq_read_message(struct mei_cl_cb *complete_list,
-		struct mei_device *dev, struct mei_msg_hdr *mei_hdr)
+int mei_amthif_irq_read_msg(struct mei_device *dev,
+			    struct mei_msg_hdr *mei_hdr,
+			    struct mei_cl_cb *complete_list)
 {
 	struct mei_cl_cb *cb;
 	unsigned char *buffer;
@@ -530,8 +531,7 @@ int mei_amthif_irq_read_message(struct mei_cl_cb *complete_list,
 	if (!mei_hdr->msg_complete)
 		return 0;
 
-	dev_dbg(&dev->pdev->dev,
-			"amthif_message_buffer_index =%d\n",
+	dev_dbg(&dev->pdev->dev, "amthif_message_buffer_index =%d\n",
 			mei_hdr->length);
 
 	dev_dbg(&dev->pdev->dev, "completed amthif read.\n ");

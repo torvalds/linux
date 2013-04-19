@@ -418,7 +418,7 @@ int mei_irq_read_handler(struct mei_device *dev,
 
 		dev_dbg(&dev->pdev->dev, MEI_HDR_FMT, MEI_HDR_PRM(mei_hdr));
 
-		ret = mei_amthif_irq_read_message(cmpl_list, dev, mei_hdr);
+		ret = mei_amthif_irq_read_msg(dev, mei_hdr, cmpl_list);
 		if (ret)
 			goto end;
 	} else {

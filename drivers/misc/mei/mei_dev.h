@@ -502,6 +502,15 @@ struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 
 void mei_amthif_run_next_cmd(struct mei_device *dev);
 
+int mei_amthif_irq_write_complete(struct mei_device *dev, s32 *slots,
+			struct mei_cl_cb *cb, struct mei_cl_cb *cmpl_list);
+
+void mei_amthif_complete(struct mei_device *dev, struct mei_cl_cb *cb);
+int mei_amthif_irq_read_msg(struct mei_device *dev,
+			    struct mei_msg_hdr *mei_hdr,
+			    struct mei_cl_cb *complete_list);
+int mei_amthif_irq_read(struct mei_device *dev, s32 *slots);
+
 /*
  * NFC functions
  */
