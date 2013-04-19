@@ -286,7 +286,7 @@ int __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 	mutex_lock(&dev->device_lock);
 
 	if (!cl->read_cb) {
-		err = mei_cl_read_start(cl);
+		err = mei_cl_read_start(cl, length);
 		if (err < 0) {
 			mutex_unlock(&dev->device_lock);
 			return err;
@@ -378,7 +378,7 @@ static void mei_bus_event_work(struct work_struct *work)
 	device->events = 0;
 
 	/* Prepare for the next read */
-	mei_cl_read_start(device->cl);
+	mei_cl_read_start(device->cl, 0);
 }
 
 int mei_cl_register_event_cb(struct mei_cl_device *device,
@@ -392,7 +392,7 @@ int mei_cl_register_event_cb(struct mei_cl_device *device,
 	device->event_context = context;
 	INIT_WORK(&device->event_work, mei_bus_event_work);
 
-	mei_cl_read_start(device->cl);
+	mei_cl_read_start(device->cl, 0);
 
 	return 0;
 }
@@ -436,7 +436,7 @@ int mei_cl_enable_device(struct mei_cl_device *device)
 	mutex_unlock(&dev->device_lock);
 
 	if (device->event_cb && !cl->read_cb)
-		mei_cl_read_start(device->cl);
+		mei_cl_read_start(device->cl, 0);
 
 	if (!device->ops || !device->ops->enable)
 		return 0;

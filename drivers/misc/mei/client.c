@@ -624,7 +624,7 @@ int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
  *
  * returns 0 on success, <0 on failure.
  */
-int mei_cl_read_start(struct mei_cl *cl)
+int mei_cl_read_start(struct mei_cl *cl, size_t length)
 {
 	struct mei_device *dev;
 	struct mei_cl_cb *cb;
@@ -657,8 +657,9 @@ int mei_cl_read_start(struct mei_cl *cl)
 	if (!cb)
 		return -ENOMEM;
 
-	rets = mei_io_cb_alloc_resp_buf(cb,
-			dev->me_clients[i].props.max_msg_length);
+	/* always allocate at least client max message */
+	length = max_t(size_t, length, dev->me_clients[i].props.max_msg_length);
+	rets = mei_io_cb_alloc_resp_buf(cb, length);
 	if (rets)
 		goto err;
 

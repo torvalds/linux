@@ -244,7 +244,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-	err = mei_cl_read_start(cl);
+	err = mei_cl_read_start(cl, length);
 	if (err && err != -EBUSY) {
 		dev_dbg(&dev->pdev->dev,
 			"mei start read failure with status = %d\n", err);
@@ -292,9 +292,8 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 	}
 	/* now copy the data to user space */
 copy_buffer:
-	dev_dbg(&dev->pdev->dev, "cb->response_buffer size - %d\n",
-	    cb->response_buffer.size);
-	dev_dbg(&dev->pdev->dev, "cb->buf_idx - %lu\n", cb->buf_idx);
+	dev_dbg(&dev->pdev->dev, "buf.size = %d buf.idx= %ld\n",
+	    cb->response_buffer.size, cb->buf_idx);
 	if (length == 0 || ubuf == NULL || *offset > cb->buf_idx) {
 		rets = -EMSGSIZE;
 		goto free;
