@@ -327,7 +327,8 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		break;
 
 	case NFQNL_COPY_PACKET:
-		if (entskb->ip_summed == CHECKSUM_PARTIAL &&
+		if (!(queue->flags & NFQA_CFG_F_GSO) &&
+		    entskb->ip_summed == CHECKSUM_PARTIAL &&
 		    skb_checksum_help(entskb))
 			return NULL;
 
@@ -636,7 +637,7 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	if (queue->copy_mode == NFQNL_COPY_NONE)
 		return -EINVAL;
 
-	if (!skb_is_gso(entry->skb))
+	if ((queue->flags & NFQA_CFG_F_GSO) || !skb_is_gso(entry->skb))
 		return __nfqnl_enqueue_packet(net, queue, entry);
 
 	skb = entry->skb;

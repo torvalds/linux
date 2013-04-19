@@ -97,7 +97,8 @@ enum nfqnl_attr_config {
 /* Flags for NFQA_CFG_FLAGS */
 #define NFQA_CFG_F_FAIL_OPEN			(1 << 0)
 #define NFQA_CFG_F_CONNTRACK			(1 << 1)
-#define NFQA_CFG_F_MAX				(1 << 2)
+#define NFQA_CFG_F_GSO				(1 << 2)
+#define NFQA_CFG_F_MAX				(1 << 3)
 
 /* flags for NFQA_SKB_INFO */
 /* packet appears to have wrong checksums, but they are ok */
