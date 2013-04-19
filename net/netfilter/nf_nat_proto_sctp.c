@@ -36,7 +36,7 @@ sctp_manip_pkt(struct sk_buff *skb,
 {
 	struct sk_buff *frag;
 	sctp_sctphdr_t *hdr;
-	__be32 crc32;
+	__u32 crc32;
 
 	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
 		return false;
@@ -55,8 +55,7 @@ sctp_manip_pkt(struct sk_buff *skb,
 	skb_walk_frags(skb, frag)
 		crc32 = sctp_update_cksum((u8 *)frag->data, skb_headlen(frag),
 					  crc32);
-	crc32 = sctp_end_cksum(crc32);
-	hdr->checksum = crc32;
+	hdr->checksum = sctp_end_cksum(crc32);
 
 	return true;
 }
