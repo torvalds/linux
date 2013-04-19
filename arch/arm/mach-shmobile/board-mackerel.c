@@ -1309,6 +1309,9 @@ static struct i2c_board_info i2c1_devices[] = {
 };
 
 static const struct pinctrl_map mackerel_pinctrl_map[] = {
+	/* ADXL34X */
+	PIN_MAP_MUX_GROUP_DEFAULT("1-0053", "pfc-sh7372",
+				  "intc_irq21", "intc"),
 	/* SDHI0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
 				  "sdhi0_data4", "sdhi0"),
@@ -1460,8 +1463,7 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_IRQ7_40,	NULL);
 	irq_set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
 
-	/* enable Accelerometer */
-	gpio_request(GPIO_FN_IRQ21,	NULL);
+	/* Accelerometer */
 	irq_set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
 
 	/* SDHI0 PORT172 card-detect IRQ26 */
