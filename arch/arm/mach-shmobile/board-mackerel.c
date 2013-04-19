@@ -1338,6 +1338,9 @@ static const struct pinctrl_map mackerel_pinctrl_map[] = {
 	/* FSIB (HDMI) */
 	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.1", "pfc-sh7372",
 				  "fsib_mclk_in", "fsib"),
+	/* HDMI */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-mobile-hdmi", "pfc-sh7372",
+				  "hdmi", "hdmi"),
 	/* SDHI0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
 				  "sdhi0_data4", "sdhi0"),
@@ -1493,10 +1496,6 @@ static void __init mackerel_init(void)
 	/* enable GPS module (GT-720F) */
 	gpio_request(GPIO_FN_SCIFA2_TXD1, NULL);
 	gpio_request(GPIO_FN_SCIFA2_RXD1, NULL);
-
-	/* HDMI */
-	gpio_request(GPIO_FN_HDMI_HPD, NULL);
-	gpio_request(GPIO_FN_HDMI_CEC, NULL);
 
 	/* Reset HDMI, must be held at least one EXTALR (32768Hz) period */
 	srcr4 = __raw_readl(SRCR4);
