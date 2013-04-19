@@ -1145,7 +1145,7 @@ extern struct kmem_cache *jbd2_handle_cache;
 
 static inline handle_t *jbd2_alloc_handle(gfp_t gfp_flags)
 {
-	return kmem_cache_alloc(jbd2_handle_cache, gfp_flags);
+	return kmem_cache_zalloc(jbd2_handle_cache, gfp_flags);
 }
 
 static inline void jbd2_free_handle(handle_t *handle)
