@@ -1089,6 +1089,16 @@ static const struct pinctrl_map ap4evb_pinctrl_map[] = {
 	/* CEU */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
 				  "ceu_clk_0", "ceu"),
+	/* FSIA (AK4643) */
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-sh7372",
+				  "fsia_sclk_in", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-sh7372",
+				  "fsia_data_in", "fsia"),
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.0", "pfc-sh7372",
+				  "fsia_data_out", "fsia"),
+	/* FSIB (HDMI) */
+	PIN_MAP_MUX_GROUP_DEFAULT("asoc-simple-card.1", "pfc-sh7372",
+				  "fsib_mclk_in", "fsib"),
 	/* MMCIF */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh7372",
 				  "mmc0_data8_0", "mmc0"),
@@ -1165,11 +1175,7 @@ static void __init ap4evb_init(void)
 	/* setup USB phy */
 	__raw_writew(0x8a0a, IOMEM(0xE6058130));	/* USBCR4 */
 
-	/* enable FSI2 port A (ak4643) */
-	gpio_request(GPIO_FN_FSIAIBT,	NULL);
-	gpio_request(GPIO_FN_FSIAILR,	NULL);
-	gpio_request(GPIO_FN_FSIAISLD,	NULL);
-	gpio_request(GPIO_FN_FSIAOSLD,	NULL);
+	/* FSI2 port A (ak4643) */
 	gpio_request_one(161, GPIOF_OUT_INIT_LOW, NULL); /* slave */
 
 	gpio_request(9, NULL);
@@ -1180,8 +1186,7 @@ static void __init ap4evb_init(void)
 	/* card detect pin for MMC slot (CN7) */
 	gpio_request_one(41, GPIOF_IN, NULL);
 
-	/* setup FSI2 port B (HDMI) */
-	gpio_request(GPIO_FN_FSIBCK, NULL);
+	/* FSI2 port B (HDMI) */
 	__raw_writew(__raw_readw(USCCR1) & ~(1 << 6), USCCR1); /* use SPDIF */
 
 	/* set SPU2 clock to 119.6 MHz */
