@@ -1530,6 +1530,20 @@ u32 sumo_convert_vid2_to_vid7(struct radeon_device *rdev,
 	return vid_mapping_table->entries[vid_mapping_table->num_entries - 1].vid_7bit;
 }
 
+u32 sumo_convert_vid7_to_vid2(struct radeon_device *rdev,
+			      struct sumo_vid_mapping_table *vid_mapping_table,
+			      u32 vid_7bit)
+{
+	u32 i;
+
+	for (i = 0; i < vid_mapping_table->num_entries; i++) {
+		if (vid_mapping_table->entries[i].vid_7bit == vid_7bit)
+			return vid_mapping_table->entries[i].vid_2bit;
+	}
+
+	return vid_mapping_table->entries[vid_mapping_table->num_entries - 1].vid_2bit;
+}
+
 static u16 sumo_convert_voltage_index_to_value(struct radeon_device *rdev,
 					       u32 vid_2bit)
 {
