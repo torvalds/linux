@@ -1086,6 +1086,9 @@ static struct i2c_board_info i2c1_devices[] = {
 
 
 static const struct pinctrl_map ap4evb_pinctrl_map[] = {
+	/* CEU */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
+				  "ceu_clk_0", "ceu"),
 	/* MMCIF */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh7372",
 				  "mmc0_data8_0", "mmc0"),
@@ -1288,8 +1291,6 @@ static void __init ap4evb_init(void)
 	 */
 
 	/* MIPI-CSI stuff */
-	gpio_request(GPIO_FN_VIO_CKO, NULL);
-
 	clk = clk_get(NULL, "vck1_clk");
 	if (!IS_ERR(clk)) {
 		clk_set_rate(clk, clk_round_rate(clk, 13000000));
