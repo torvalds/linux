@@ -202,10 +202,12 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
  * reference to the tty audit buffer if available.
  * Flush the buffer or return an appropriate error code.
  */
-int tty_audit_push_task(struct task_struct *tsk, kuid_t loginuid, u32 sessionid)
+int tty_audit_push_task(struct task_struct *tsk)
 {
 	struct tty_audit_buf *buf = ERR_PTR(-EPERM);
 	unsigned long flags;
+	kuid_t loginuid = audit_get_loginuid(tsk);
+	u32 sessionid = audit_get_sessionid(tsk);
 
 	if (!lock_task_sighand(tsk, &flags))
 		return -ESRCH;

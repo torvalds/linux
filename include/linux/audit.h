@@ -441,8 +441,7 @@ extern int		    audit_update_lsm_rules(void);
 extern int audit_filter_user(int type);
 extern int audit_filter_type(int type);
 extern int  audit_receive_filter(int type, int pid, int seq,
-				void *data, size_t datasz, kuid_t loginuid,
-				u32 sessionid, u32 sid);
+				void *data, size_t datasz);
 extern int audit_enabled;
 #else /* CONFIG_AUDIT */
 static inline __printf(4, 5)
