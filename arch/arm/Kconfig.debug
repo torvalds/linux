@@ -348,6 +348,7 @@ choice
 
 	config DEBUG_S3C_UART0
 		depends on PLAT_SAMSUNG
+		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
 		bool "Use S3C UART 0 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -359,6 +360,7 @@ choice
 
 	config DEBUG_S3C_UART1
 		depends on PLAT_SAMSUNG
+		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
 		bool "Use S3C UART 1 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -370,6 +372,7 @@ choice
 
 	config DEBUG_S3C_UART2
 		depends on PLAT_SAMSUNG
+		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
 		bool "Use S3C UART 2 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -381,6 +384,7 @@ choice
 
 	config DEBUG_S3C_UART3
 		depends on PLAT_SAMSUNG && ARCH_EXYNOS
+		select DEBUG_EXYNOS_UART
 		bool "Use S3C UART 3 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -510,6 +514,9 @@ choice
 
 endchoice
 
+config DEBUG_EXYNOS_UART
+	bool
+
 config DEBUG_IMX_UART_PORT
 	int "i.MX Debug UART Port Selection" if DEBUG_IMX1_UART || \
 						DEBUG_IMX25_UART || \
@@ -607,6 +614,7 @@ config DEBUG_LL_INCLUDE
 	string
 	default "debug/bcm2835.S" if DEBUG_BCM2835
 	default "debug/cns3xxx.S" if DEBUG_CNS3XXX
+	default "debug/exynos.S" if DEBUG_EXYNOS_UART
 	default "debug/icedcc.S" if DEBUG_ICEDCC
 	default "debug/imx.S" if DEBUG_IMX1_UART || \
 				 DEBUG_IMX25_UART || \

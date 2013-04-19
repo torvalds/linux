@@ -46,6 +46,7 @@
 #include <plat/hdmi.h>
 
 #include <mach/map.h>
+#include <mach/irqs.h>
 
 #include <drm/exynos_drm.h>
 #include "common.h"

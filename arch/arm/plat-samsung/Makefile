@@ -4,6 +4,9 @@
 #
 # Licensed under GPLv2
 
+ccflags-$(CONFIG_ARCH_MULTI_V7) += -I$(srctree)/$(src)/include
+ccflags-$(CONFIG_ARCH_EXYNOS)	+= -I$(srctree)/arch/arm/mach-exynos/include
+
 obj-y				:=
 obj-m				:=
 obj-n				:= dummy.o
@@ -34,7 +37,7 @@ obj-$(CONFIG_S3C_ADC)	+= adc.o
 
 obj-y				+= platformdata.o
 
-obj-y				+= devs.o
+obj-$(CONFIG_PLAT_SAMSUNG_SINGLE)	+= devs.o
 obj-y				+= dev-uart.o
 obj-$(CONFIG_S5P_DEV_MFC)	+= s5p-dev-mfc.o
 obj-$(CONFIG_S5P_DEV_UART)	+= s5p-dev-uart.o
@@ -51,9 +54,10 @@ obj-$(CONFIG_S3C_DMA)		+= dma.o s3c-dma-ops.o
 obj-$(CONFIG_SAMSUNG_DMADEV)	+= dma-ops.o
 
 # PM support
-
 obj-$(CONFIG_PM)		+= pm.o
+ifdef CONFIG_PLAT_SAMSUNG_SINGLE
 obj-$(CONFIG_PM)		+= pm-gpio.o
+endif
 obj-$(CONFIG_SAMSUNG_PM_CHECK)	+= pm-check.o
 
 obj-$(CONFIG_SAMSUNG_WAKEMASK)	+= wakeup-mask.o

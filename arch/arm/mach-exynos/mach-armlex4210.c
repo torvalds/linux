@@ -25,6 +25,7 @@
 #include <plat/regs-srom.h>
 #include <plat/sdhci.h>
 
+#include <mach/irqs.h>
 #include <mach/map.h>
 
 #include "common.h"

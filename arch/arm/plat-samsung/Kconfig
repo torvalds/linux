@@ -13,6 +13,10 @@ config PLAT_SAMSUNG
 	help
 	  Base platform code for all Samsung SoC based systems
 
+config PLAT_SAMSUNG_SINGLE
+	def_bool PLAT_SAMSUNG && !ARCH_MULTIPLATFORM
+	
+
 config PLAT_S5P
 	bool
 	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
@@ -23,7 +27,7 @@ config PLAT_S5P
 	select GIC_NON_BANKED if ARCH_EXYNOS4
 	select NO_IOPORT
 	select PLAT_SAMSUNG
-	select S3C_GPIO_TRACK
+	select S3C_GPIO_TRACK if PLAT_SAMSUNG_SINGLE
 	select S5P_GPIO_DRVSTR
 	select SAMSUNG_CLKSRC
 	select SAMSUNG_GPIOLIB_4BIT
@@ -178,6 +182,7 @@ config S5P_DEV_UART
 
 config S3C_ADC
 	bool "ADC common driver support"
+	depends on PLAT_SAMSUNG_SINGLE
 	help
 	  Core support for the ADC block found in the Samsung SoC systems
 	  for drivers such as the touchscreen and hwmon to use to share
