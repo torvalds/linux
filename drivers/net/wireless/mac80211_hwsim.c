@@ -53,6 +53,10 @@ static bool paged_rx = false;
 module_param(paged_rx, bool, 0644);
 MODULE_PARM_DESC(paged_rx, "Use paged SKBs for RX instead of linear ones");
 
+static bool rctbl = false;
+module_param(rctbl, bool, 0444);
+MODULE_PARM_DESC(rctbl, "Handle rate control table");
+
 /**
  * enum hwsim_regtest - the type of regulatory tests we offer
  *
@@ -895,8 +899,12 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	if (control->sta)
 		hwsim_check_sta_magic(control->sta);
 
-	txi->rate_driver_data[0] = channel;
+	if (rctbl)
+		ieee80211_get_tx_rates(txi->control.vif, control->sta, skb,
+				       txi->control.rates,
+				       ARRAY_SIZE(txi->control.rates));
 
+	txi->rate_driver_data[0] = channel;
 	mac80211_hwsim_monitor_rx(hw, skb, channel);
 
 	/* wmediumd mode check */
@@ -998,6 +1006,13 @@ static void mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 {
 	u32 _pid = ACCESS_ONCE(wmediumd_portid);
 
+	if (rctbl) {
+		struct ieee80211_tx_info *txi = IEEE80211_SKB_CB(skb);
+		ieee80211_get_tx_rates(txi->control.vif, NULL, skb,
+				       txi->control.rates,
+				       ARRAY_SIZE(txi->control.rates));
+	}
+
 	mac80211_hwsim_monitor_rx(hw, skb, chan);
 
 	if (_pid)
@@ -1028,6 +1043,11 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	if (skb == NULL)
 		return;
 	info = IEEE80211_SKB_CB(skb);
+	if (rctbl)
+		ieee80211_get_tx_rates(vif, NULL, skb,
+				       info->control.rates,
+				       ARRAY_SIZE(info->control.rates));
+
 	txrate = ieee80211_get_tx_rate(hw, info);
 
 	mgmt = (struct ieee80211_mgmt *) skb->data;
@@ -2285,6 +2305,8 @@ static int __init init_mac80211_hwsim(void)
 			    IEEE80211_HW_AMPDU_AGGREGATION |
 			    IEEE80211_HW_WANT_MONITOR_VIF |
 			    IEEE80211_HW_QUEUE_CONTROL;
+		if (rctbl)
+			hw->flags |= IEEE80211_HW_SUPPORTS_RC_TABLE;
 
 		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
 				    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
