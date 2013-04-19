@@ -20,6 +20,7 @@
 #define __LINUX_IOMMU_H
 
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/types.h>
 
 #define IOMMU_READ	(1)
