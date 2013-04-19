@@ -5704,7 +5704,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	int num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
-	u32 dpll, fp = 0, fp2 = 0;
+	u32 dpll = 0, fp = 0, fp2 = 0;
 	bool ok, has_reduced_clock = false;
 	bool is_lvds = false;
 	struct intel_encoder *encoder;
@@ -5749,20 +5749,21 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	if (is_lvds && dev_priv->lvds_dither)
 		dither = true;
 
-	fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
-	if (has_reduced_clock)
-		fp2 = reduced_clock.n << 16 | reduced_clock.m1 << 8 |
-			reduced_clock.m2;
-
-	dpll = ironlake_compute_dpll(intel_crtc, &clock, &fp, &reduced_clock,
-				     has_reduced_clock ? &fp2 : NULL);
-
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe_name(pipe));
 	drm_mode_debug_printmodeline(mode);
 
 	/* CPU eDP is the only output that doesn't need a PCH PLL of its own. */
 	if (intel_crtc->config.has_pch_encoder) {
 		struct intel_pch_pll *pll;
+
+		fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
+		if (has_reduced_clock)
+			fp2 = reduced_clock.n << 16 | reduced_clock.m1 << 8 |
+				reduced_clock.m2;
+
+		dpll = ironlake_compute_dpll(intel_crtc, &clock,
+					     &fp, &reduced_clock,
+					     has_reduced_clock ? &fp2 : NULL);
 
 		pll = intel_get_pch_pll(intel_crtc, dpll, fp);
 		if (pll == NULL) {
