@@ -755,37 +755,8 @@ void pde_put(struct proc_dir_entry *pde)
 		free_proc_entry(pde);
 }
 
-/*
- * Remove a /proc entry and free it if it's not currently in use.
- */
-void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
+static void entry_rundown(struct proc_dir_entry *de)
 {
-	struct proc_dir_entry **p;
-	struct proc_dir_entry *de = NULL;
-	const char *fn = name;
-	unsigned int len;
-
-	spin_lock(&proc_subdir_lock);
-	if (__xlate_proc_name(name, &parent, &fn) != 0) {
-		spin_unlock(&proc_subdir_lock);
-		return;
-	}
-	len = strlen(fn);
-
-	for (p = &parent->subdir; *p; p=&(*p)->next ) {
-		if (proc_match(len, fn, *p)) {
-			de = *p;
-			*p = de->next;
-			de->next = NULL;
-			break;
-		}
-	}
-	spin_unlock(&proc_subdir_lock);
-	if (!de) {
-		WARN(1, "name '%s'\n", name);
-		return;
-	}
-
 	spin_lock(&de->pde_unload_lock);
 	/*
 	 * Stop accepting new callers into module. If you're
@@ -817,6 +788,40 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 		spin_lock(&de->pde_unload_lock);
 	}
 	spin_unlock(&de->pde_unload_lock);
+}
+
+/*
+ * Remove a /proc entry and free it if it's not currently in use.
+ */
+void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
+{
+	struct proc_dir_entry **p;
+	struct proc_dir_entry *de = NULL;
+	const char *fn = name;
+	unsigned int len;
+
+	spin_lock(&proc_subdir_lock);
+	if (__xlate_proc_name(name, &parent, &fn) != 0) {
+		spin_unlock(&proc_subdir_lock);
+		return;
+	}
+	len = strlen(fn);
+
+	for (p = &parent->subdir; *p; p=&(*p)->next ) {
+		if (proc_match(len, fn, *p)) {
+			de = *p;
+			*p = de->next;
+			de->next = NULL;
+			break;
+		}
+	}
+	spin_unlock(&proc_subdir_lock);
+	if (!de) {
+		WARN(1, "name '%s'\n", name);
+		return;
+	}
+
+	entry_rundown(de);
 
 	if (S_ISDIR(de->mode))
 		parent->nlink--;
@@ -827,3 +832,57 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 	pde_put(de);
 }
 EXPORT_SYMBOL(remove_proc_entry);
+
+int remove_proc_subtree(const char *name, struct proc_dir_entry *parent)
+{
+	struct proc_dir_entry **p;
+	struct proc_dir_entry *root = NULL, *de, *next;
+	const char *fn = name;
+	unsigned int len;
+
+	spin_lock(&proc_subdir_lock);
+	if (__xlate_proc_name(name, &parent, &fn) != 0) {
+		spin_unlock(&proc_subdir_lock);
+		return -ENOENT;
+	}
+	len = strlen(fn);
+
+	for (p = &parent->subdir; *p; p=&(*p)->next ) {
+		if (proc_match(len, fn, *p)) {
+			root = *p;
+			*p = root->next;
+			root->next = NULL;
+			break;
+		}
+	}
+	if (!root) {
+		spin_unlock(&proc_subdir_lock);
+		return -ENOENT;
+	}
+	de = root;
+	while (1) {
+		next = de->subdir;
+		if (next) {
+			de->subdir = next->next;
+			next->next = NULL;
+			de = next;
+			continue;
+		}
+		spin_unlock(&proc_subdir_lock);
+
+		entry_rundown(de);
+		next = de->parent;
+		if (S_ISDIR(de->mode))
+			next->nlink--;
+		de->nlink = 0;
+		if (de == root)
+			break;
+		pde_put(de);
+
+		spin_lock(&proc_subdir_lock);
+		de = next;
+	}
+	pde_put(root);
+	return 0;
+}
+EXPORT_SYMBOL(remove_proc_subtree);

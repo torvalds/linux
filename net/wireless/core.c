@@ -212,6 +212,39 @@ static void cfg80211_rfkill_poll(struct rfkill *rfkill, void *data)
 	rdev_rfkill_poll(rdev);
 }
 
+void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
+			      struct wireless_dev *wdev)
+{
+	lockdep_assert_held(&rdev->devlist_mtx);
+	lockdep_assert_held(&rdev->sched_scan_mtx);
+
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_P2P_DEVICE))
+		return;
+
+	if (!wdev->p2p_started)
+		return;
+
+	rdev_stop_p2p_device(rdev, wdev);
+	wdev->p2p_started = false;
+
+	rdev->opencount--;
+
+	if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
+		bool busy = work_busy(&rdev->scan_done_wk);
+
+		/*
+		 * If the work isn't pending or running (in which case it would
+		 * be waiting for the lock we hold) the driver didn't properly
+		 * cancel the scan when the interface was removed. In this case
+		 * warn and leak the scan request object to not crash later.
+		 */
+		WARN_ON(!busy);
+
+		rdev->scan_req->aborted = true;
+		___cfg80211_scan_done(rdev, !busy);
+	}
+}
+
 static int cfg80211_rfkill_set_block(void *data, bool blocked)
 {
 	struct cfg80211_registered_device *rdev = data;
@@ -221,7 +254,8 @@ static int cfg80211_rfkill_set_block(void *data, bool blocked)
 		return 0;
 
 	rtnl_lock();
-	mutex_lock(&rdev->devlist_mtx);
+
+	/* read-only iteration need not hold the devlist_mtx */
 
 	list_for_each_entry(wdev, &rdev->wdev_list, list) {
 		if (wdev->netdev) {
@@ -231,18 +265,18 @@ static int cfg80211_rfkill_set_block(void *data, bool blocked)
 		/* otherwise, check iftype */
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_P2P_DEVICE:
-			if (!wdev->p2p_started)
-				break;
-			rdev_stop_p2p_device(rdev, wdev);
-			wdev->p2p_started = false;
-			rdev->opencount--;
+			/* but this requires it */
+			mutex_lock(&rdev->devlist_mtx);
+			mutex_lock(&rdev->sched_scan_mtx);
+			cfg80211_stop_p2p_device(rdev, wdev);
+			mutex_unlock(&rdev->sched_scan_mtx);
+			mutex_unlock(&rdev->devlist_mtx);
 			break;
 		default:
 			break;
 		}
 	}
 
-	mutex_unlock(&rdev->devlist_mtx);
 	rtnl_unlock();
 
 	return 0;
@@ -745,16 +779,12 @@ static void wdev_cleanup_work(struct work_struct *work)
 	wdev = container_of(work, struct wireless_dev, cleanup_work);
 	rdev = wiphy_to_dev(wdev->wiphy);
 
-	cfg80211_lock_rdev(rdev);
+	mutex_lock(&rdev->sched_scan_mtx);
 
 	if (WARN_ON(rdev->scan_req && rdev->scan_req->wdev == wdev)) {
 		rdev->scan_req->aborted = true;
 		___cfg80211_scan_done(rdev, true);
 	}
-
-	cfg80211_unlock_rdev(rdev);
-
-	mutex_lock(&rdev->sched_scan_mtx);
 
 	if (WARN_ON(rdev->sched_scan_req &&
 		    rdev->sched_scan_req->dev == wdev->netdev)) {
@@ -781,21 +811,19 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 		return;
 
 	mutex_lock(&rdev->devlist_mtx);
+	mutex_lock(&rdev->sched_scan_mtx);
 	list_del_rcu(&wdev->list);
 	rdev->devlist_generation++;
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_P2P_DEVICE:
-		if (!wdev->p2p_started)
-			break;
-		rdev_stop_p2p_device(rdev, wdev);
-		wdev->p2p_started = false;
-		rdev->opencount--;
+		cfg80211_stop_p2p_device(rdev, wdev);
 		break;
 	default:
 		WARN_ON_ONCE(1);
 		break;
 	}
+	mutex_unlock(&rdev->sched_scan_mtx);
 	mutex_unlock(&rdev->devlist_mtx);
 }
 EXPORT_SYMBOL(cfg80211_unregister_wdev);
@@ -936,6 +964,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		cfg80211_update_iface_num(rdev, wdev->iftype, 1);
 		cfg80211_lock_rdev(rdev);
 		mutex_lock(&rdev->devlist_mtx);
+		mutex_lock(&rdev->sched_scan_mtx);
 		wdev_lock(wdev);
 		switch (wdev->iftype) {
 #ifdef CONFIG_CFG80211_WEXT
@@ -967,6 +996,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 			break;
 		}
 		wdev_unlock(wdev);
+		mutex_unlock(&rdev->sched_scan_mtx);
 		rdev->opencount++;
 		mutex_unlock(&rdev->devlist_mtx);
 		cfg80211_unlock_rdev(rdev);

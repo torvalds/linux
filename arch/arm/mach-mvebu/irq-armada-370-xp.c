@@ -44,6 +44,8 @@
 
 #define ARMADA_370_XP_MAX_PER_CPU_IRQS		(28)
 
+#define ARMADA_370_XP_TIMER0_PER_CPU_IRQ	(5)
+
 #define ACTIVE_DOORBELLS			(8)
 
 static DEFINE_RAW_SPINLOCK(irq_controller_lock);
@@ -59,36 +61,26 @@ static struct irq_domain *armada_370_xp_mpic_domain;
  */
 static void armada_370_xp_irq_mask(struct irq_data *d)
 {
-#ifdef CONFIG_SMP
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
-	if (hwirq > ARMADA_370_XP_MAX_PER_CPU_IRQS)
+	if (hwirq != ARMADA_370_XP_TIMER0_PER_CPU_IRQ)
 		writel(hwirq, main_int_base +
 				ARMADA_370_XP_INT_CLEAR_ENABLE_OFFS);
 	else
 		writel(hwirq, per_cpu_int_base +
 				ARMADA_370_XP_INT_SET_MASK_OFFS);
-#else
-	writel(irqd_to_hwirq(d),
-	       per_cpu_int_base + ARMADA_370_XP_INT_SET_MASK_OFFS);
-#endif
 }
 
 static void armada_370_xp_irq_unmask(struct irq_data *d)
 {
-#ifdef CONFIG_SMP
 	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 
-	if (hwirq > ARMADA_370_XP_MAX_PER_CPU_IRQS)
+	if (hwirq != ARMADA_370_XP_TIMER0_PER_CPU_IRQ)
 		writel(hwirq, main_int_base +
 				ARMADA_370_XP_INT_SET_ENABLE_OFFS);
 	else
 		writel(hwirq, per_cpu_int_base +
 				ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
-#else
-	writel(irqd_to_hwirq(d),
-	       per_cpu_int_base + ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
-#endif
 }
 
 #ifdef CONFIG_SMP
@@ -144,10 +136,14 @@ static int armada_370_xp_mpic_irq_map(struct irq_domain *h,
 				      unsigned int virq, irq_hw_number_t hw)
 {
 	armada_370_xp_irq_mask(irq_get_irq_data(virq));
-	writel(hw, main_int_base + ARMADA_370_XP_INT_SET_ENABLE_OFFS);
+	if (hw != ARMADA_370_XP_TIMER0_PER_CPU_IRQ)
+		writel(hw, per_cpu_int_base +
+			ARMADA_370_XP_INT_CLEAR_MASK_OFFS);
+	else
+		writel(hw, main_int_base + ARMADA_370_XP_INT_SET_ENABLE_OFFS);
 	irq_set_status_flags(virq, IRQ_LEVEL);
 
-	if (hw < ARMADA_370_XP_MAX_PER_CPU_IRQS) {
+	if (hw == ARMADA_370_XP_TIMER0_PER_CPU_IRQ) {
 		irq_set_percpu_devid(virq);
 		irq_set_chip_and_handler(virq, &armada_370_xp_irq_chip,
 					handle_percpu_devid_irq);

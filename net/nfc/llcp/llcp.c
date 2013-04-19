@@ -107,8 +107,6 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen,
 				accept_sk->sk_state_change(sk);
 
 				bh_unlock_sock(accept_sk);
-
-				sock_orphan(accept_sk);
 			}
 
 			if (listen == true) {
@@ -133,8 +131,6 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen,
 		sk->sk_state_change(sk);
 
 		bh_unlock_sock(sk);
-
-		sock_orphan(sk);
 
 		sk_del_node_init(sk);
 	}
@@ -163,8 +159,6 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen,
 		sk->sk_state_change(sk);
 
 		bh_unlock_sock(sk);
-
-		sock_orphan(sk);
 
 		sk_del_node_init(sk);
 	}
@@ -827,7 +821,6 @@ static void nfc_llcp_recv_ui(struct nfc_llcp_local *local,
 		skb_get(skb);
 	} else {
 		pr_err("Receive queue is full\n");
-		kfree_skb(skb);
 	}
 
 	nfc_llcp_sock_put(llcp_sock);
@@ -1028,7 +1021,6 @@ static void nfc_llcp_recv_hdlc(struct nfc_llcp_local *local,
 			skb_get(skb);
 		} else {
 			pr_err("Receive queue is full\n");
-			kfree_skb(skb);
 		}
 	}
 
