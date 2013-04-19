@@ -98,6 +98,7 @@ static const struct regs_info palmas_regs_info[] = {
 	{
 		.name		= "SMPS10",
 		.sname		= "smps10-in",
+		.ctrl_addr	= PALMAS_SMPS10_CTRL,
 	},
 	{
 		.name		= "LDO1",
