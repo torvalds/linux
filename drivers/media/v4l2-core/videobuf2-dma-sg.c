@@ -55,7 +55,8 @@ static void *vb2_dma_sg_alloc(void *alloc_ctx, unsigned long size, gfp_t gfp_fla
 	buf->write = 0;
 	buf->offset = 0;
 	buf->sg_desc.size = size;
-	buf->sg_desc.num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	/* size is already page aligned */
+	buf->sg_desc.num_pages = size >> PAGE_SHIFT;
 
 	buf->sg_desc.sglist = vzalloc(buf->sg_desc.num_pages *
 				      sizeof(*buf->sg_desc.sglist));

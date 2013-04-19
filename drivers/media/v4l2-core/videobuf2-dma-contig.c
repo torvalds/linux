@@ -162,9 +162,6 @@ static void *vb2_dc_alloc(void *alloc_ctx, unsigned long size, gfp_t gfp_flags)
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
-	/* align image size to PAGE_SIZE */
-	size = PAGE_ALIGN(size);
-
 	buf->vaddr = dma_alloc_coherent(dev, size, &buf->dma_addr,
 						GFP_KERNEL | gfp_flags);
 	if (!buf->vaddr) {
