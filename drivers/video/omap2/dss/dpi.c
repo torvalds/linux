@@ -542,6 +542,47 @@ static int dpi_verify_dsi_pll(struct platform_device *dsidev)
 	return 0;
 }
 
+static int dpi_init_regulator(void)
+{
+	struct regulator *vdds_dsi;
+
+	if (!dss_has_feature(FEAT_DPI_USES_VDDS_DSI))
+		return 0;
+
+	if (dpi.vdds_dsi_reg)
+		return 0;
+
+	vdds_dsi = dss_get_vdds_dsi();
+
+	if (IS_ERR(vdds_dsi)) {
+		DSSERR("can't get VDDS_DSI regulator\n");
+		return PTR_ERR(vdds_dsi);
+	}
+
+	dpi.vdds_dsi_reg = vdds_dsi;
+
+	return 0;
+}
+
+static void dpi_init_pll(void)
+{
+	struct platform_device *dsidev;
+
+	if (dpi.dsidev)
+		return;
+
+	dsidev = dpi_get_dsidev(dpi.output.dispc_channel);
+	if (!dsidev)
+		return;
+
+	if (dpi_verify_dsi_pll(dsidev)) {
+		DSSWARN("DSI PLL not operational\n");
+		return;
+	}
+
+	dpi.dsidev = dsidev;
+}
+
 /*
  * Return a hardcoded channel for the DPI output. This should work for
  * current use cases, but this can be later expanded to either resolve
@@ -570,41 +611,6 @@ static enum omap_channel dpi_get_channel(void)
 		DSSWARN("unsupported DSS version\n");
 		return OMAP_DSS_CHANNEL_LCD;
 	}
-}
-
-static int dpi_init_display(struct omap_dss_device *dssdev)
-{
-	struct platform_device *dsidev;
-
-	DSSDBG("init_display\n");
-
-	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI) &&
-					dpi.vdds_dsi_reg == NULL) {
-		struct regulator *vdds_dsi;
-
-		vdds_dsi = dss_get_vdds_dsi();
-
-		if (IS_ERR(vdds_dsi)) {
-			DSSERR("can't get VDDS_DSI regulator\n");
-			return PTR_ERR(vdds_dsi);
-		}
-
-		dpi.vdds_dsi_reg = vdds_dsi;
-	}
-
-	dsidev = dpi_get_dsidev(dpi.output.dispc_channel);
-
-	if (dsidev && dpi_verify_dsi_pll(dsidev)) {
-		dsidev = NULL;
-		DSSWARN("DSI PLL not operational\n");
-	}
-
-	if (dsidev)
-		DSSDBG("using DSI PLL for DPI clock\n");
-
-	dpi.dsidev = dsidev;
-
-	return 0;
 }
 
 static struct omap_dss_device *dpi_find_dssdev(struct platform_device *pdev)
@@ -646,18 +652,17 @@ static int dpi_probe_pdata(struct platform_device *dpidev)
 	if (!plat_dssdev)
 		return 0;
 
+	r = dpi_init_regulator();
+	if (r)
+		return r;
+
+	dpi_init_pll();
+
 	dssdev = dss_alloc_and_init_device(&dpidev->dev);
 	if (!dssdev)
 		return -ENOMEM;
 
 	dss_copy_device_pdata(dssdev, plat_dssdev);
-
-	r = dpi_init_display(dssdev);
-	if (r) {
-		DSSERR("device %s init failed: %d\n", dssdev->name, r);
-		dss_put_device(dssdev);
-		return r;
-	}
 
 	r = omapdss_output_set_device(&dpi.output, dssdev);
 	if (r) {
