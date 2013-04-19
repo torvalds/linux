@@ -221,12 +221,13 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 
 		ofdma = of_dma_get_controller(&dma_spec);
 
-		if (!ofdma)
-			continue;
+		if (ofdma) {
+			chan = ofdma->of_dma_xlate(&dma_spec, ofdma);
 
-		chan = ofdma->of_dma_xlate(&dma_spec, ofdma);
-
-		of_dma_put_controller(ofdma);
+			of_dma_put_controller(ofdma);
+		} else {
+			chan = NULL;
+		}
 
 		of_node_put(dma_spec.np);
 
