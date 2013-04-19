@@ -24,6 +24,13 @@
 
 #include <asm/io_apic.h>
 
+struct IO_APIC_route_entry;
+struct io_apic_irq_attr;
+struct irq_chip;
+struct msi_msg;
+struct pci_dev;
+struct irq_cfg;
+
 #ifdef CONFIG_IRQ_REMAP
 
 extern void setup_irq_remapping_ops(void);
