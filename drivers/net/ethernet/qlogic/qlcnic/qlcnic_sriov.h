@@ -48,6 +48,8 @@ struct qlcnic_bc_hdr {
 enum qlcnic_bc_commands {
 	QLCNIC_BC_CMD_CHANNEL_INIT = 0x0,
 	QLCNIC_BC_CMD_CHANNEL_TERM = 0x1,
+	QLCNIC_BC_CMD_GET_ACL = 0x2,
+	QLCNIC_BC_CMD_CFG_GUEST_VLAN = 0x3,
 };
 
 #define QLC_BC_CMD 1
@@ -95,6 +97,12 @@ enum qlcnic_vf_state {
 	QLC_BC_VF_SOFT_FLR,
 };
 
+enum qlcnic_vlan_mode {
+	QLC_NO_VLAN_MODE = 0,
+	QLC_PVID_MODE,
+	QLC_GUEST_VLAN_MODE,
+};
+
 struct qlcnic_resources {
 	u16 num_tx_mac_filters;
 	u16 num_rx_ucast_mac_filters;
@@ -118,6 +126,9 @@ struct qlcnic_vport {
 	u16			handle;
 	u16			max_tx_bw;
 	u16			min_tx_bw;
+	u8			vlan_mode;
+	u16			vlan;
+	u8			qos;
 	u8			mac[6];
 };
 
@@ -156,6 +167,11 @@ struct qlcnic_back_channel {
 struct qlcnic_sriov {
 	u16				vp_handle;
 	u8				num_vfs;
+	u8				any_vlan;
+	u8				vlan_mode;
+	u16				num_allowed_vlans;
+	u16				*allowed_vlans;
+	u16				vlan;
 	struct qlcnic_resources		ff_max;
 	struct qlcnic_back_channel	bc;
 	struct qlcnic_vf_info		*vf_info;
@@ -177,6 +193,7 @@ int __qlcnic_sriov_add_act_list(struct qlcnic_sriov *, struct qlcnic_vf_info *,
 				struct qlcnic_bc_trans *);
 int qlcnic_sriov_get_vf_vport_info(struct qlcnic_adapter *,
 				   struct qlcnic_info *, u16);
+int qlcnic_sriov_cfg_vf_guest_vlan(struct qlcnic_adapter *, u16, u8);
 
 static inline bool qlcnic_sriov_enable_check(struct qlcnic_adapter *adapter)
 {
@@ -207,6 +224,7 @@ int qlcnic_sriov_set_vf_mac(struct net_device *, int, u8 *);
 int qlcnic_sriov_set_vf_tx_rate(struct net_device *, int, int);
 int qlcnic_sriov_get_vf_config(struct net_device *, int ,
 			       struct ifla_vf_info *);
+int qlcnic_sriov_set_vf_vlan(struct net_device *, int, u16, u8);
 #else
 static inline void qlcnic_sriov_pf_disable(struct qlcnic_adapter *adapter) {}
 static inline void qlcnic_sriov_pf_cleanup(struct qlcnic_adapter *adapter) {}

@@ -344,14 +344,14 @@ static int qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
 		flags = FLAGS_VLAN_OOB;
 		vlan_tci = vlan_tx_tag_get(skb);
 	}
-	if (unlikely(adapter->pvid)) {
+	if (unlikely(adapter->tx_pvid)) {
 		if (vlan_tci && !(adapter->flags & QLCNIC_TAGGING_ENABLED))
 			return -EIO;
 		if (vlan_tci && (adapter->flags & QLCNIC_TAGGING_ENABLED))
 			goto set_flags;
 
 		flags = FLAGS_VLAN_OOB;
-		vlan_tci = adapter->pvid;
+		vlan_tci = adapter->tx_pvid;
 	}
 set_flags:
 	qlcnic_set_tx_vlan_tci(first_desc, vlan_tci);
@@ -980,10 +980,10 @@ static inline int qlcnic_check_rx_tagging(struct qlcnic_adapter *adapter,
 		memmove(skb->data + VLAN_HLEN, eth_hdr, ETH_ALEN * 2);
 		skb_pull(skb, VLAN_HLEN);
 	}
-	if (!adapter->pvid)
+	if (!adapter->rx_pvid)
 		return 0;
 
-	if (*vlan_tag == adapter->pvid) {
+	if (*vlan_tag == adapter->rx_pvid) {
 		/* Outer vlan tag. Packet should follow non-vlan path */
 		*vlan_tag = 0xffff;
 		return 0;

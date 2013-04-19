@@ -172,6 +172,7 @@ static struct qlcnic_hardware_ops qlcnic_83xx_hw_ops = {
 	.config_promisc_mode		= qlcnic_83xx_nic_set_promisc,
 	.change_l2_filter		= qlcnic_83xx_change_l2_filter,
 	.get_board_info			= qlcnic_83xx_get_port_info,
+	.free_mac_list			= qlcnic_82xx_free_mac_list,
 };
 
 static struct qlcnic_nic_template qlcnic_83xx_ops = {
@@ -1796,6 +1797,10 @@ int qlcnic_83xx_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
 	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIG_MAC_VLAN);
 	if (err)
 		return err;
+
+	if (vlan_id)
+		op = (op == QLCNIC_MAC_ADD || op == QLCNIC_MAC_VLAN_ADD) ?
+		     QLCNIC_MAC_VLAN_ADD : QLCNIC_MAC_VLAN_DEL;
 
 	cmd.req.arg[1] = op | (1 << 8);
 	qlcnic_83xx_set_interface_id_macaddr(adapter, &temp);

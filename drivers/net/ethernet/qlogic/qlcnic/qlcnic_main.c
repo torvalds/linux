@@ -290,7 +290,7 @@ static int qlcnic_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		return err;
 
 	if (is_unicast_ether_addr(addr))
-		err = qlcnic_nic_add_mac(adapter, addr);
+		err = qlcnic_nic_add_mac(adapter, addr, 0);
 	else if (is_multicast_ether_addr(addr))
 		err = dev_mc_add_excl(netdev, addr);
 	else
@@ -345,6 +345,7 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_set_vf_mac		= qlcnic_sriov_set_vf_mac,
 	.ndo_set_vf_tx_rate	= qlcnic_sriov_set_vf_tx_rate,
 	.ndo_get_vf_config	= qlcnic_sriov_get_vf_config,
+	.ndo_set_vf_vlan	= qlcnic_sriov_set_vf_vlan,
 #endif
 };
 
@@ -404,6 +405,7 @@ static struct qlcnic_hardware_ops qlcnic_hw_ops = {
 	.config_promisc_mode		= qlcnic_82xx_nic_set_promisc,
 	.change_l2_filter		= qlcnic_82xx_change_filter,
 	.get_board_info			= qlcnic_82xx_get_board_info,
+	.free_mac_list			= qlcnic_82xx_free_mac_list,
 };
 
 int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
@@ -900,16 +902,31 @@ void qlcnic_set_vlan_config(struct qlcnic_adapter *adapter,
 	else
 		adapter->flags |= QLCNIC_TAGGING_ENABLED;
 
-	if (esw_cfg->vlan_id)
-		adapter->pvid = esw_cfg->vlan_id;
-	else
-		adapter->pvid = 0;
+	if (esw_cfg->vlan_id) {
+		adapter->rx_pvid = esw_cfg->vlan_id;
+		adapter->tx_pvid = esw_cfg->vlan_id;
+	} else {
+		adapter->rx_pvid = 0;
+		adapter->tx_pvid = 0;
+	}
 }
 
 static int
 qlcnic_vlan_rx_add(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	int err;
+
+	if (qlcnic_sriov_vf_check(adapter)) {
+		err = qlcnic_sriov_cfg_vf_guest_vlan(adapter, vid, 1);
+		if (err) {
+			netdev_err(netdev,
+				   "Cannot add VLAN filter for VLAN id %d, err=%d",
+				   vid, err);
+			return err;
+		}
+	}
+
 	set_bit(vid, adapter->vlans);
 	return 0;
 }
@@ -918,6 +935,17 @@ static int
 qlcnic_vlan_rx_del(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	int err;
+
+	if (qlcnic_sriov_vf_check(adapter)) {
+		err = qlcnic_sriov_cfg_vf_guest_vlan(adapter, vid, 0);
+		if (err) {
+			netdev_err(netdev,
+				   "Cannot delete VLAN filter for VLAN id %d, err=%d",
+				   vid, err);
+			return err;
+		}
+	}
 
 	qlcnic_restore_indev_addr(netdev, NETDEV_DOWN);
 	clear_bit(vid, adapter->vlans);
@@ -1735,6 +1763,9 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 
 	if (qlcnic_vlan_tx_check(adapter))
 		netdev->features |= (NETIF_F_HW_VLAN_CTAG_TX);
+
+	if (qlcnic_sriov_vf_check(adapter))
+		netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	if (adapter->ahw->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO)
 		netdev->features |= NETIF_F_LRO;
