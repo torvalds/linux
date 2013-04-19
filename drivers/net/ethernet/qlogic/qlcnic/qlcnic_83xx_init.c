@@ -115,18 +115,6 @@ static const char *const qlc_83xx_idc_states[] = {
 	"Quiesce"
 };
 
-/* Device States */
-enum qlcnic_83xx_states {
-	QLC_83XX_IDC_DEV_UNKNOWN,
-	QLC_83XX_IDC_DEV_COLD,
-	QLC_83XX_IDC_DEV_INIT,
-	QLC_83XX_IDC_DEV_READY,
-	QLC_83XX_IDC_DEV_NEED_RESET,
-	QLC_83XX_IDC_DEV_NEED_QUISCENT,
-	QLC_83XX_IDC_DEV_FAILED,
-	QLC_83XX_IDC_DEV_QUISCENT
-};
-
 static int
 qlcnic_83xx_idc_check_driver_presence_reg(struct qlcnic_adapter *adapter)
 {
@@ -162,7 +150,8 @@ static int qlcnic_83xx_idc_update_audit_reg(struct qlcnic_adapter *adapter,
 			return -EBUSY;
 	}
 
-	val = adapter->portnum & 0xf;
+	val = QLCRDX(adapter->ahw, QLC_83XX_IDC_DRV_AUDIT);
+	val |= (adapter->portnum & 0xf);
 	val |= mode << 7;
 	if (mode)
 		seconds = jiffies / HZ - adapter->ahw->idc.sec_counter;
@@ -401,14 +390,18 @@ static void qlcnic_83xx_idc_detach_driver(struct qlcnic_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 
 	netif_device_detach(netdev);
+
 	/* Disable mailbox interrupt */
-	QLCWRX(adapter->ahw, QLCNIC_MBX_INTR_ENBL, 0);
+	qlcnic_83xx_disable_mbx_intr(adapter);
 	qlcnic_down(adapter, netdev);
 	for (i = 0; i < adapter->ahw->num_msix; i++) {
 		adapter->ahw->intr_tbl[i].id = i;
 		adapter->ahw->intr_tbl[i].enabled = 0;
 		adapter->ahw->intr_tbl[i].src = 0;
 	}
+
+	if (qlcnic_sriov_pf_check(adapter))
+		qlcnic_sriov_pf_reset(adapter);
 }
 
 /**
@@ -610,8 +603,14 @@ static int qlcnic_83xx_idc_check_fan_failure(struct qlcnic_adapter *adapter)
 
 static int qlcnic_83xx_idc_reattach_driver(struct qlcnic_adapter *adapter)
 {
+	int err;
+
 	/* register for NIC IDC AEN Events */
 	qlcnic_83xx_register_nic_idc_func(adapter, 1);
+
+	err = qlcnic_sriov_pf_reinit(adapter);
+	if (err)
+		return err;
 
 	qlcnic_83xx_enable_mbx_intrpt(adapter);
 

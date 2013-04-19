@@ -159,7 +159,7 @@ int qlcnic_82xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32);
 int qlcnic_82xx_napi_add(struct qlcnic_adapter *adapter,
 			 struct net_device *netdev);
 void qlcnic_82xx_change_filter(struct qlcnic_adapter *adapter,
-			       u64 *uaddr, __le16 vlan_id);
+			       u64 *uaddr, u16 vlan_id);
 void qlcnic_82xx_config_intr_coalesce(struct qlcnic_adapter *adapter);
 int qlcnic_82xx_config_rss(struct qlcnic_adapter *adapter, int);
 void qlcnic_82xx_config_ipaddr(struct qlcnic_adapter *adapter,
@@ -181,7 +181,7 @@ int qlcnic_82xx_fw_cmd_create_tx_ctx(struct qlcnic_adapter *,
 void qlcnic_82xx_fw_cmd_del_rx_ctx(struct qlcnic_adapter *);
 void qlcnic_82xx_fw_cmd_del_tx_ctx(struct qlcnic_adapter *,
 				   struct qlcnic_host_tx_ring *);
-int qlcnic_82xx_sre_macaddr_change(struct qlcnic_adapter *, u8 *, __le16, u8);
+int qlcnic_82xx_sre_macaddr_change(struct qlcnic_adapter *, u8 *, u16, u8);
 int qlcnic_82xx_get_mac_address(struct qlcnic_adapter *, u8*);
 int qlcnic_82xx_get_nic_info(struct qlcnic_adapter *, struct qlcnic_info *, u8);
 int qlcnic_82xx_set_nic_info(struct qlcnic_adapter *, struct qlcnic_info *);

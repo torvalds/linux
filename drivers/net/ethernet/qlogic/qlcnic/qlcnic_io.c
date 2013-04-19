@@ -162,7 +162,7 @@ static inline int qlcnic_82xx_is_lb_pkt(u64 sts_data)
 }
 
 void qlcnic_add_lb_filter(struct qlcnic_adapter *adapter, struct sk_buff *skb,
-			  int loopback_pkt, __le16 vlan_id)
+			  int loopback_pkt, u16 vlan_id)
 {
 	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
 	struct qlcnic_filter *fil, *tmp_fil;
@@ -240,7 +240,7 @@ void qlcnic_add_lb_filter(struct qlcnic_adapter *adapter, struct sk_buff *skb,
 }
 
 void qlcnic_82xx_change_filter(struct qlcnic_adapter *adapter, u64 *uaddr,
-			       __le16 vlan_id)
+			       u16 vlan_id)
 {
 	struct cmd_desc_type0 *hwdesc;
 	struct qlcnic_nic_req *req;
@@ -265,7 +265,7 @@ void qlcnic_82xx_change_filter(struct qlcnic_adapter *adapter, u64 *uaddr,
 	memcpy(mac_req->mac_addr, &uaddr, ETH_ALEN);
 
 	vlan_req = (struct qlcnic_vlan_req *)&req->words[1];
-	vlan_req->vlan_id = vlan_id;
+	vlan_req->vlan_id = cpu_to_le16(vlan_id);
 
 	tx_ring->producer = get_next_index(producer, tx_ring->num_desc);
 	smp_mb();
@@ -281,7 +281,7 @@ static void qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	struct net_device *netdev = adapter->netdev;
 	struct ethhdr *phdr = (struct ethhdr *)(skb->data);
 	u64 src_addr = 0;
-	__le16 vlan_id = 0;
+	u16 vlan_id = 0;
 	u8 hindex;
 
 	if (ether_addr_equal(phdr->h_source, adapter->mac_addr))
@@ -344,14 +344,14 @@ static int qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
 		flags = FLAGS_VLAN_OOB;
 		vlan_tci = vlan_tx_tag_get(skb);
 	}
-	if (unlikely(adapter->pvid)) {
+	if (unlikely(adapter->tx_pvid)) {
 		if (vlan_tci && !(adapter->flags & QLCNIC_TAGGING_ENABLED))
 			return -EIO;
 		if (vlan_tci && (adapter->flags & QLCNIC_TAGGING_ENABLED))
 			goto set_flags;
 
 		flags = FLAGS_VLAN_OOB;
-		vlan_tci = adapter->pvid;
+		vlan_tci = adapter->tx_pvid;
 	}
 set_flags:
 	qlcnic_set_tx_vlan_tci(first_desc, vlan_tci);
@@ -980,10 +980,10 @@ static inline int qlcnic_check_rx_tagging(struct qlcnic_adapter *adapter,
 		memmove(skb->data + VLAN_HLEN, eth_hdr, ETH_ALEN * 2);
 		skb_pull(skb, VLAN_HLEN);
 	}
-	if (!adapter->pvid)
+	if (!adapter->rx_pvid)
 		return 0;
 
-	if (*vlan_tag == adapter->pvid) {
+	if (*vlan_tag == adapter->rx_pvid) {
 		/* Outer vlan tag. Packet should follow non-vlan path */
 		*vlan_tag = 0xffff;
 		return 0;
@@ -1029,8 +1029,7 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
 		t_vid = 0;
 		is_lb_pkt = qlcnic_82xx_is_lb_pkt(sts_data0);
-		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt,
-				     cpu_to_le16(t_vid));
+		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt, t_vid);
 	}
 
 	if (length > rds_ring->skb_size)
@@ -1107,8 +1106,7 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
 		t_vid = 0;
 		is_lb_pkt = qlcnic_82xx_is_lb_pkt(sts_data0);
-		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt,
-				     cpu_to_le16(t_vid));
+		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt, t_vid);
 	}
 
 	if (timestamp)
@@ -1500,8 +1498,7 @@ qlcnic_83xx_process_rcv(struct qlcnic_adapter *adapter,
 	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
 		t_vid = 0;
 		is_lb_pkt = qlcnic_83xx_is_lb_pkt(sts_data[1], 0);
-		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt,
-				     cpu_to_le16(t_vid));
+		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt, t_vid);
 	}
 
 	if (length > rds_ring->skb_size)
@@ -1570,8 +1567,7 @@ qlcnic_83xx_process_lro(struct qlcnic_adapter *adapter,
 	    (adapter->flags & QLCNIC_ESWITCH_ENABLED)) {
 		t_vid = 0;
 		is_lb_pkt = qlcnic_83xx_is_lb_pkt(sts_data[1], 1);
-		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt,
-				     cpu_to_le16(t_vid));
+		qlcnic_add_lb_filter(adapter, skb, is_lb_pkt, t_vid);
 	}
 	if (qlcnic_83xx_is_tstamp(sts_data[1]))
 		data_offset = l4_hdr_offset + QLCNIC_TCP_TS_HDR_SIZE;
