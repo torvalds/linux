@@ -214,6 +214,10 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(dev))
 		pipe_config->has_pch_encoder = true;
 
+	/* LPT FDI RX only supports 8bpc. */
+	if (HAS_PCH_LPT(dev))
+		pipe_config->pipe_bpp = 24;
+
 	return true;
 }
 
