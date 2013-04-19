@@ -1102,6 +1102,11 @@ static const struct pinctrl_map ap4evb_pinctrl_map[] = {
 	/* HDMI */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh-mobile-hdmi", "pfc-sh7372",
 				  "hdmi", "hdmi"),
+	/* KEYSC */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc", "pfc-sh7372",
+				  "keysc_in04_0", "keysc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_keysc", "pfc-sh7372",
+				  "keysc_out5", "keysc"),
 	/* MMCIF */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mmcif.0", "pfc-sh7372",
 				  "mmc0_data8_0", "mmc0"),
@@ -1218,18 +1223,6 @@ static void __init ap4evb_init(void)
 	 * For QHD Panel (MIPI-DSI, CONFIG_AP4EVB_QHD=y) and
 	 * IRQ28 for Touch Panel, set dip switches S3, S43 as OFF, ON.
 	 */
-
-	/* enable KEYSC */
-	gpio_request(GPIO_FN_KEYOUT0, NULL);
-	gpio_request(GPIO_FN_KEYOUT1, NULL);
-	gpio_request(GPIO_FN_KEYOUT2, NULL);
-	gpio_request(GPIO_FN_KEYOUT3, NULL);
-	gpio_request(GPIO_FN_KEYOUT4, NULL);
-	gpio_request(GPIO_FN_KEYIN0_136, NULL);
-	gpio_request(GPIO_FN_KEYIN1_135, NULL);
-	gpio_request(GPIO_FN_KEYIN2_134, NULL);
-	gpio_request(GPIO_FN_KEYIN3_133, NULL);
-	gpio_request(GPIO_FN_KEYIN4,     NULL);
 
 	/* enable TouchScreen */
 	irq_set_irq_type(IRQ28, IRQ_TYPE_LEVEL_LOW);
