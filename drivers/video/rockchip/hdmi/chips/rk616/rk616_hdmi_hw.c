@@ -428,8 +428,7 @@ irqreturn_t hdmi_irq(int irq, void *priv)
 	HDMIRdReg(INTERRUPT_STATUS1,&interrupt1);
 	HDMIWrReg(INTERRUPT_STATUS1, interrupt1);
 #if 1
-		hdmi_dbg(hdmi->dev, "[%s] interrupt1 %02x  \n",\
-			 __FUNCTION__, interrupt1);
+	hdmi_dbg(hdmi->dev,"[%s] interrupt1 %02x\n",__func__, interrupt1);
 #endif
 	if(interrupt1 & m_INT_HOTPLUG ){
 		if(hdmi->state == HDMI_SLEEP)
@@ -453,13 +452,16 @@ irqreturn_t hdmi_irq(int irq, void *priv)
 
 static void rk616_hdmi_reset(void)
 {
-	char val = 0;
-	val = v_REG_CLK_INV| v_VCLK_INV |v_REG_CLK_SOURCE_SYS|v_PWR_ON |v_INT_POL_LOW;
-	HDMIWrReg(SYS_CTRL,val);
+	u32 val = 0;
+	u32 msk = 0;
+	
+	HDMIMskReg(SYS_CTRL,m_RST_DIGITAL,v_NOT_RST_DIGITAL);
 	delay100us();
 	HDMIMskReg(SYS_CTRL,m_RST_ANALOG,v_NOT_RST_ANALOG); 		
 	delay100us();
-	HDMIMskReg(SYS_CTRL,m_RST_DIGITAL,v_NOT_RST_DIGITAL);
+	msk = m_REG_CLK_INV | m_VCLK_INV | m_REG_CLK_SOURCE | m_POWER | m_INT_POL;
+	val = v_REG_CLK_INV| v_VCLK_INV | v_REG_CLK_SOURCE_SYS | v_PWR_ON |v_INT_POL_LOW;
+	HDMIMskReg(SYS_CTRL,msk,val);
 	rk616_hdmi_set_pwr_mode(LOWER_PWR);
 }
 
@@ -476,7 +478,8 @@ int rk616_hdmi_initial(void)
 	hdmi->read_edid = rk616_hdmi_read_edid;
 	
 	rk616_hdmi_reset();
-	//rk616_hdmi_init_pol_set(g_rk616_hdmi,0);
+
+	rk616_hdmi_init_pol_set(g_rk616_hdmi,0);
 	if(hdmi->hdcp_power_on_cb)
 		rc = hdmi->hdcp_power_on_cb();
 

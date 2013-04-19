@@ -10,28 +10,32 @@ enum {
 		OUTPUT_DVI = 0,
 		OUTPUT_HDMI
 	};
-#define SYS_CTRL					0x00
-	#define m_RST_ANALOG 			(1<<6)
-		#define v_RST_ANALOG 			(0<<6)
-		#define v_NOT_RST_ANALOG 		(0<<6)
-	#define m_RST_DIGITAL 			(1<<5)
-		#define v_RST_DIGITAL 			(0<<5)
-		#define v_NOT_RST_DIGITAL 		(1<<5)
-	#define m_REG_CLK_INV 			(1<<4)
-		#define v_REG_CLK_NOT_INV 		(0<<4)
-		#define v_REG_CLK_INV 			(1<<4)
-	#define m_VCLK_INV 			(1<<3)
-		#define v_VCLK_NOT_INV 			(0<<3)
-		#define v_VCLK_INV 			(0<<3)
-	#define m_REG_CLK_SOURCE		(1<<2)
-		#define v_REG_CLK_SOURCE_TMDS		(0<<2)
-		#define v_REG_CLK_SOURCE_SYS		(1<<2)
-	#define m_POWER				(1<<1)
-		#define v_PWR_ON			(0<<1)
-		#define v_PWR_OFF			(1<<1)
-	#define m_INT_POL			(1<<0)
-		#define v_INT_POL_HIGH			1
-		#define v_INT_POL_LOW			0
+
+#define SYS_CTRL			0x00
+#define m_RST_ANALOG 			(1<<6)
+#define v_RST_ANALOG 			(0<<6)
+#define v_NOT_RST_ANALOG 		(1<<6)
+
+#define m_RST_DIGITAL 			(1<<5)
+#define v_RST_DIGITAL 			(0<<5)
+#define v_NOT_RST_DIGITAL 		(1<<5)
+
+#define m_REG_CLK_INV 			(1<<4)
+#define v_REG_CLK_NOT_INV 		(0<<4)
+#define v_REG_CLK_INV 			(1<<4)
+#define m_VCLK_INV 			(1<<3)
+#define v_VCLK_NOT_INV 			(0<<3)
+#define v_VCLK_INV 			(1<<3)
+#define m_REG_CLK_SOURCE		(1<<2)
+#define v_REG_CLK_SOURCE_TMDS		(0<<2)
+#define v_REG_CLK_SOURCE_SYS		(1<<2)
+#define m_POWER				(1<<1)
+#define v_PWR_ON			(0<<1)
+#define v_PWR_OFF			(1<<1)
+#define m_INT_POL			(1<<0)
+#define v_INT_POL_HIGH			1
+#define v_INT_POL_LOW			0
+
 	
 #define VIDEO_CONTRL1				0x01
 	#define m_VIDEO_INPUT_FORMAT	(7 << 1)
@@ -234,7 +238,7 @@ enum {
 		#define v_TMDS_FROM_GEN 	(1<<5)
 	#define m_PHASE_CLK 		(1<<4)
 		#define v_DEFAULT_PHASE 	(0<<4)
-		#define v_SYNC_PHASE 		(0<<4)
+		#define v_SYNC_PHASE 		(1<<4)
 	#define m_TMDS_CURRENT_PWR 	(1<<3)
 		#define v_TURN_ON_CURRENT 	(0<<3)
 		#define v_CAT_OFF_CURRENT 	(1<<3)
@@ -277,9 +281,11 @@ enum {
 					}while(0)
 
 #define HDMIMskReg(addr,Msk,val) 	do{ \
+						u32 tkv = 0;\
 						u32 temp=0; \
 						HDMIRdReg(addr,&temp); \
-						HDMIWrReg(addr, ((val)&(Msk))|(temp&(~Msk))); \
+						tkv = ((val)&(Msk))|(temp&(~Msk)); \
+						HDMIWrReg(addr,tkv); \
 					}while(0)
 					
 extern struct mfd_rk616 *g_rk616_hdmi;

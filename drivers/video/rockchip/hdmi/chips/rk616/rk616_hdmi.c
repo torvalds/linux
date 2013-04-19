@@ -37,6 +37,10 @@ extern void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent
 extern void hdmi_unregister_display_sysfs(struct hdmi *hdmi);
 
 
+int set_hdmi_status(void)
+{
+	hdmi->hotplug = HDMI_HPD_ACTIVED;
+}
 
 #if defined(CONFIG_DEBUG_FS)
 static int rk616_hdmi_reg_show(struct seq_file *s, void *v)
@@ -52,8 +56,8 @@ static int rk616_hdmi_reg_show(struct seq_file *s, void *v)
 
 	for(i=0;i<= (PHY_PRE_DIV_RATIO << 2);i+=4)
 	{
-		rk616->read_dev(rk616,i,&val);
-		seq_printf(s,"reg%02x>>0x%08x\n",i>>2,val);
+		rk616->read_dev(rk616,RK616_HDMI_BASE + i,&val);
+		seq_printf(s,"reg%02x>>0x%08x\n",(i>>2),val);
 	}
 
 	return 0;
