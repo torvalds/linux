@@ -675,7 +675,7 @@ static void intel_ddi_mode_set(struct drm_encoder *encoder,
 	int pipe = intel_crtc->pipe;
 	int type = intel_encoder->type;
 
-	DRM_DEBUG_KMS("Preparing DDI mode for Haswell on port %c, pipe %c\n",
+	DRM_DEBUG_KMS("Preparing DDI mode on port %c, pipe %c\n",
 		      port_name(port), pipe_name(pipe));
 
 	intel_crtc->eld_vld = false;
