@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/migrate.h>
 #include <linux/ratelimit.h>
+#include <linux/uuid.h>
 #include <asm/unaligned.h>
 #include "compat.h"
 #include "ctree.h"
@@ -1280,6 +1281,7 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	int ret = 0;
 	u64 bytenr;
+	uuid_le uuid;
 
 	root = btrfs_alloc_root(fs_info);
 	if (!root)
@@ -1329,6 +1331,8 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	btrfs_set_root_used(&root->root_item, leaf->len);
 	btrfs_set_root_last_snapshot(&root->root_item, 0);
 	btrfs_set_root_dirid(&root->root_item, 0);
+	uuid_le_gen(&uuid);
+	memcpy(root->root_item.uuid, uuid.b, BTRFS_UUID_SIZE);
 	root->root_item.drop_level = 0;
 
 	key.objectid = objectid;
