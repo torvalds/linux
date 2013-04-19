@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_dma.h>
 
 #include "at_hdmac_regs.h"
 #include "dmaengine.h"
@@ -676,7 +677,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		ctrlb |=  ATC_DST_ADDR_MODE_FIXED
 			| ATC_SRC_ADDR_MODE_INCR
 			| ATC_FC_MEM2PER
-			| ATC_SIF(AT_DMA_MEM_IF) | ATC_DIF(AT_DMA_PER_IF);
+			| ATC_SIF(atchan->mem_if) | ATC_DIF(atchan->per_if);
 		reg = sconfig->dst_addr;
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct at_desc	*desc;
@@ -715,7 +716,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		ctrlb |=  ATC_DST_ADDR_MODE_INCR
 			| ATC_SRC_ADDR_MODE_FIXED
 			| ATC_FC_PER2MEM
-			| ATC_SIF(AT_DMA_PER_IF) | ATC_DIF(AT_DMA_MEM_IF);
+			| ATC_SIF(atchan->per_if) | ATC_DIF(atchan->mem_if);
 
 		reg = sconfig->src_addr;
 		for_each_sg(sgl, sg, sg_len, i) {
@@ -821,8 +822,8 @@ atc_dma_cyclic_fill_desc(struct dma_chan *chan, struct at_desc *desc,
 		desc->lli.ctrlb = ATC_DST_ADDR_MODE_FIXED
 				| ATC_SRC_ADDR_MODE_INCR
 				| ATC_FC_MEM2PER
-				| ATC_SIF(AT_DMA_MEM_IF)
-				| ATC_DIF(AT_DMA_PER_IF);
+				| ATC_SIF(atchan->mem_if)
+				| ATC_DIF(atchan->per_if);
 		break;
 
 	case DMA_DEV_TO_MEM:
@@ -832,8 +833,8 @@ atc_dma_cyclic_fill_desc(struct dma_chan *chan, struct at_desc *desc,
 		desc->lli.ctrlb = ATC_DST_ADDR_MODE_INCR
 				| ATC_SRC_ADDR_MODE_FIXED
 				| ATC_FC_PER2MEM
-				| ATC_SIF(AT_DMA_PER_IF)
-				| ATC_DIF(AT_DMA_MEM_IF);
+				| ATC_SIF(atchan->per_if)
+				| ATC_DIF(atchan->mem_if);
 		break;
 
 	default:
@@ -1189,6 +1190,67 @@ static void atc_free_chan_resources(struct dma_chan *chan)
 	dev_vdbg(chan2dev(chan), "free_chan_resources: done\n");
 }
 
+#ifdef CONFIG_OF
+static bool at_dma_filter(struct dma_chan *chan, void *slave)
+{
+	struct at_dma_slave *atslave = slave;
+
+	if (atslave->dma_dev == chan->device->dev) {
+		chan->private = atslave;
+		return true;
+	} else {
+		return false;
+	}
+}
+
+static struct dma_chan *at_dma_xlate(struct of_phandle_args *dma_spec,
+				     struct of_dma *of_dma)
+{
+	struct dma_chan *chan;
+	struct at_dma_chan *atchan;
+	struct at_dma_slave *atslave;
+	dma_cap_mask_t mask;
+	unsigned int per_id;
+	struct platform_device *dmac_pdev;
+
+	if (dma_spec->args_count != 2)
+		return NULL;
+
+	dmac_pdev = of_find_device_by_node(dma_spec->np);
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+
+	atslave = devm_kzalloc(&dmac_pdev->dev, sizeof(*atslave), GFP_KERNEL);
+	if (!atslave)
+		return NULL;
+	/*
+	 * We can fill both SRC_PER and DST_PER, one of these fields will be
+	 * ignored depending on DMA transfer direction.
+	 */
+	per_id = dma_spec->args[1];
+	atslave->cfg = ATC_FIFOCFG_HALFFIFO | ATC_DST_H2SEL_HW
+		      | ATC_SRC_H2SEL_HW | ATC_DST_PER(per_id)
+		      | ATC_SRC_PER(per_id);
+	atslave->dma_dev = &dmac_pdev->dev;
+
+	chan = dma_request_channel(mask, at_dma_filter, atslave);
+	if (!chan)
+		return NULL;
+
+	atchan = to_at_dma_chan(chan);
+	atchan->per_if = dma_spec->args[0] & 0xff;
+	atchan->mem_if = (dma_spec->args[0] >> 16) & 0xff;
+
+	return chan;
+}
+#else
+static struct dma_chan *at_dma_xlate(struct of_phandle_args *dma_spec,
+				     struct of_dma *of_dma)
+{
+	return NULL;
+}
+#endif
 
 /*--  Module Management  -----------------------------------------------*/
 
@@ -1343,6 +1405,8 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	for (i = 0; i < plat_dat->nr_channels; i++) {
 		struct at_dma_chan	*atchan = &atdma->chan[i];
 
+		atchan->mem_if = AT_DMA_MEM_IF;
+		atchan->per_if = AT_DMA_PER_IF;
 		atchan->chan_common.device = &atdma->dma_common;
 		dma_cookie_init(&atchan->chan_common);
 		list_add_tail(&atchan->chan_common.device_node,
@@ -1389,8 +1453,25 @@ static int __init at_dma_probe(struct platform_device *pdev)
 
 	dma_async_device_register(&atdma->dma_common);
 
+	/*
+	 * Do not return an error if the dmac node is not present in order to
+	 * not break the existing way of requesting channel with
+	 * dma_request_channel().
+	 */
+	if (pdev->dev.of_node) {
+		err = of_dma_controller_register(pdev->dev.of_node,
+						 at_dma_xlate, atdma);
+		if (err) {
+			dev_err(&pdev->dev, "could not register of_dma_controller\n");
+			goto err_of_dma_controller_register;
+		}
+	}
+
 	return 0;
 
+err_of_dma_controller_register:
+	dma_async_device_unregister(&atdma->dma_common);
+	dma_pool_destroy(atdma->dma_desc_pool);
 err_pool_create:
 	platform_set_drvdata(pdev, NULL);
 	free_irq(platform_get_irq(pdev, 0), atdma);
