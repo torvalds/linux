@@ -437,6 +437,13 @@ static int palmas_smps_set_ramp_delay(struct regulator_dev *rdev,
 	unsigned int addr = palmas_regs_info[id].tstep_addr;
 	int ret;
 
+	/* SMPS3 and SMPS7 do not have tstep_addr setting */
+	switch (id) {
+	case PALMAS_REG_SMPS3:
+	case PALMAS_REG_SMPS7:
+		return 0;
+	}
+
 	if (ramp_delay <= 0)
 		reg = 0;
 	else if (ramp_delay < 2500)
