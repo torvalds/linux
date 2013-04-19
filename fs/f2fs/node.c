@@ -19,6 +19,7 @@
 #include "f2fs.h"
 #include "node.h"
 #include "segment.h"
+#include <trace/events/f2fs.h>
 
 static struct kmem_cache *nat_entry_slab;
 static struct kmem_cache *free_nid_slab;
@@ -508,6 +509,7 @@ invalidate:
 
 	f2fs_put_page(dn->node_page, 1);
 	dn->node_page = NULL;
+	trace_f2fs_truncate_node(dn->inode, dn->nid, ni.blk_addr);
 }
 
 static int truncate_dnode(struct dnode_of_data *dn)
@@ -548,9 +550,13 @@ static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 	if (dn->nid == 0)
 		return NIDS_PER_BLOCK + 1;
 
+	trace_f2fs_truncate_nodes_enter(dn->inode, dn->nid, dn->data_blkaddr);
+
 	page = get_node_page(sbi, dn->nid);
-	if (IS_ERR(page))
+	if (IS_ERR(page)) {
+		trace_f2fs_truncate_nodes_exit(dn->inode, PTR_ERR(page));
 		return PTR_ERR(page);
+	}
 
 	rn = (struct f2fs_node *)page_address(page);
 	if (depth < 3) {
@@ -592,10 +598,12 @@ static int truncate_nodes(struct dnode_of_data *dn, unsigned int nofs,
 	} else {
 		f2fs_put_page(page, 1);
 	}
+	trace_f2fs_truncate_nodes_exit(dn->inode, freed);
 	return freed;
 
 out_err:
 	f2fs_put_page(page, 1);
+	trace_f2fs_truncate_nodes_exit(dn->inode, ret);
 	return ret;
 }
 
@@ -650,6 +658,9 @@ static int truncate_partial_nodes(struct dnode_of_data *dn,
 fail:
 	for (i = depth - 3; i >= 0; i--)
 		f2fs_put_page(pages[i], 1);
+
+	trace_f2fs_truncate_partial_nodes(dn->inode, nid, depth, err);
+
 	return err;
 }
 
@@ -666,11 +677,15 @@ int truncate_inode_blocks(struct inode *inode, pgoff_t from)
 	struct dnode_of_data dn;
 	struct page *page;
 
+	trace_f2fs_truncate_inode_blocks_enter(inode, from);
+
 	level = get_node_path(from, offset, noffset);
 
 	page = get_node_page(sbi, inode->i_ino);
-	if (IS_ERR(page))
+	if (IS_ERR(page)) {
+		trace_f2fs_truncate_inode_blocks_exit(inode, PTR_ERR(page));
 		return PTR_ERR(page);
+	}
 
 	set_new_dnode(&dn, inode, page, NULL, 0);
 	unlock_page(page);
@@ -740,6 +755,7 @@ skip_partial:
 	}
 fail:
 	f2fs_put_page(page, 0);
+	trace_f2fs_truncate_inode_blocks_exit(inode, err);
 	return err > 0 ? 0 : err;
 }
 

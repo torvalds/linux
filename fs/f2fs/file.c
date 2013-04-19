@@ -193,6 +193,9 @@ static int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 		sync_inode_page(dn);
 	}
 	dn->ofs_in_node = ofs;
+
+	trace_f2fs_truncate_data_blocks_range(dn->inode, dn->nid,
+					 dn->ofs_in_node, nr_free);
 	return nr_free;
 }
 
@@ -229,6 +232,8 @@ static int truncate_blocks(struct inode *inode, u64 from)
 	int count = 0, ilock = -1;
 	int err;
 
+	trace_f2fs_truncate_blocks_enter(inode, from);
+
 	free_from = (pgoff_t)
 			((from + blocksize - 1) >> (sbi->log_blocksize));
 
@@ -239,6 +244,7 @@ static int truncate_blocks(struct inode *inode, u64 from)
 		if (err == -ENOENT)
 			goto free_next;
 		mutex_unlock_op(sbi, ilock);
+		trace_f2fs_truncate_blocks_exit(inode, err);
 		return err;
 	}
 
@@ -263,6 +269,7 @@ free_next:
 	/* lastly zero out the first data page */
 	truncate_partial_data_page(inode, from);
 
+	trace_f2fs_truncate_blocks_exit(inode, err);
 	return err;
 }
 
@@ -271,6 +278,8 @@ void f2fs_truncate(struct inode *inode)
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 				S_ISLNK(inode->i_mode)))
 		return;
+
+	trace_f2fs_truncate(inode);
 
 	if (!truncate_blocks(inode, i_size_read(inode))) {
 		inode->i_mtime = inode->i_ctime = CURRENT_TIME;

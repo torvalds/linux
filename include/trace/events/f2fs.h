@@ -189,6 +189,182 @@ DEFINE_EVENT(f2fs__inode_exit, f2fs_unlink_exit,
 
 	TP_ARGS(inode, ret)
 );
+
+DEFINE_EVENT(f2fs__inode, f2fs_truncate,
+
+	TP_PROTO(struct inode *inode),
+
+	TP_ARGS(inode)
+);
+
+TRACE_EVENT(f2fs_truncate_data_blocks_range,
+
+	TP_PROTO(struct inode *inode, nid_t nid, unsigned int ofs, int free),
+
+	TP_ARGS(inode, nid,  ofs, free),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(nid_t,	nid)
+		__field(unsigned int,	ofs)
+		__field(int,	free)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->nid	= nid;
+		__entry->ofs	= ofs;
+		__entry->free	= free;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, nid = %u, offset = %u, freed = %d",
+		show_dev_ino(__entry),
+		(unsigned int)__entry->nid,
+		__entry->ofs,
+		__entry->free)
+);
+
+DECLARE_EVENT_CLASS(f2fs__truncate_op,
+
+	TP_PROTO(struct inode *inode, u64 from),
+
+	TP_ARGS(inode, from),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(loff_t,	size)
+		__field(blkcnt_t, blocks)
+		__field(u64,	from)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->size	= inode->i_size;
+		__entry->blocks	= inode->i_blocks;
+		__entry->from	= from;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, i_size = %lld, i_blocks = %llu, "
+		"start file offset = %llu",
+		show_dev_ino(__entry),
+		__entry->size,
+		(unsigned long long)__entry->blocks,
+		(unsigned long long)__entry->from)
+);
+
+DEFINE_EVENT(f2fs__truncate_op, f2fs_truncate_blocks_enter,
+
+	TP_PROTO(struct inode *inode, u64 from),
+
+	TP_ARGS(inode, from)
+);
+
+DEFINE_EVENT(f2fs__inode_exit, f2fs_truncate_blocks_exit,
+
+	TP_PROTO(struct inode *inode, int ret),
+
+	TP_ARGS(inode, ret)
+);
+
+DEFINE_EVENT(f2fs__truncate_op, f2fs_truncate_inode_blocks_enter,
+
+	TP_PROTO(struct inode *inode, u64 from),
+
+	TP_ARGS(inode, from)
+);
+
+DEFINE_EVENT(f2fs__inode_exit, f2fs_truncate_inode_blocks_exit,
+
+	TP_PROTO(struct inode *inode, int ret),
+
+	TP_ARGS(inode, ret)
+);
+
+DECLARE_EVENT_CLASS(f2fs__truncate_node,
+
+	TP_PROTO(struct inode *inode, nid_t nid, block_t blk_addr),
+
+	TP_ARGS(inode, nid, blk_addr),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(nid_t,	nid)
+		__field(block_t,	blk_addr)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= inode->i_sb->s_dev;
+		__entry->ino		= inode->i_ino;
+		__entry->nid		= nid;
+		__entry->blk_addr	= blk_addr;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, nid = %u, block_address = 0x%llx",
+		show_dev_ino(__entry),
+		(unsigned int)__entry->nid,
+		(unsigned long long)__entry->blk_addr)
+);
+
+DEFINE_EVENT(f2fs__truncate_node, f2fs_truncate_nodes_enter,
+
+	TP_PROTO(struct inode *inode, nid_t nid, block_t blk_addr),
+
+	TP_ARGS(inode, nid, blk_addr)
+);
+
+DEFINE_EVENT(f2fs__inode_exit, f2fs_truncate_nodes_exit,
+
+	TP_PROTO(struct inode *inode, int ret),
+
+	TP_ARGS(inode, ret)
+);
+
+DEFINE_EVENT(f2fs__truncate_node, f2fs_truncate_node,
+
+	TP_PROTO(struct inode *inode, nid_t nid, block_t blk_addr),
+
+	TP_ARGS(inode, nid, blk_addr)
+);
+
+TRACE_EVENT(f2fs_truncate_partial_nodes,
+
+	TP_PROTO(struct inode *inode, nid_t nid[], int depth, int err),
+
+	TP_ARGS(inode, nid, depth, err),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(nid_t,	nid[3])
+		__field(int,	depth)
+		__field(int,	err)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->nid[0]	= nid[0];
+		__entry->nid[1]	= nid[1];
+		__entry->nid[2]	= nid[2];
+		__entry->depth	= depth;
+		__entry->err	= err;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, "
+		"nid[0] = %u, nid[1] = %u, nid[2] = %u, depth = %d, err = %d",
+		show_dev_ino(__entry),
+		(unsigned int)__entry->nid[0],
+		(unsigned int)__entry->nid[1],
+		(unsigned int)__entry->nid[2],
+		__entry->depth,
+		__entry->err)
+);
+
 #endif /* _TRACE_F2FS_H */
 
  /* This part must be outside protection */
