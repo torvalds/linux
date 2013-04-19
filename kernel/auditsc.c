@@ -1109,7 +1109,7 @@ static inline void audit_free_context(struct audit_context *context)
 	kfree(context);
 }
 
-void audit_log_task_context(struct audit_buffer *ab)
+int audit_log_task_context(struct audit_buffer *ab)
 {
 	char *ctx = NULL;
 	unsigned len;
@@ -1118,22 +1118,22 @@ void audit_log_task_context(struct audit_buffer *ab)
 
 	security_task_getsecid(current, &sid);
 	if (!sid)
-		return;
+		return 0;
 
 	error = security_secid_to_secctx(sid, &ctx, &len);
 	if (error) {
 		if (error != -EINVAL)
 			goto error_path;
-		return;
+		return 0;
 	}
 
 	audit_log_format(ab, " subj=%s", ctx);
 	security_release_secctx(ctx, len);
-	return;
+	return 0;
 
 error_path:
 	audit_panic("error in audit_log_task_context");
-	return;
+	return error;
 }
 
 EXPORT_SYMBOL(audit_log_task_context);

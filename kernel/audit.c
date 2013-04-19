@@ -271,29 +271,15 @@ static int audit_log_config_change(char *function_name, int new, int old,
 	int rc = 0;
 	u32 sessionid = audit_get_sessionid(current);
 	uid_t auid = from_kuid(&init_user_ns, audit_get_loginuid(current));
-	u32 sid;
-
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
 	if (unlikely(!ab))
 		return rc;
 	audit_log_format(ab, "%s=%d old=%d auid=%u ses=%u", function_name, new,
 			 old, auid, sessionid);
-
-	security_task_getsecid(current, &sid);
-	if (sid) {
-		char *ctx = NULL;
-		u32 len;
-
-		rc = security_secid_to_secctx(sid, &ctx, &len);
-		if (rc) {
-			audit_log_format(ab, " sid=%u", sid);
-			allow_changes = 0; /* Something weird, deny request */
-		} else {
-			audit_log_format(ab, " subj=%s", ctx);
-			security_release_secctx(ctx, len);
-		}
-	}
+	rc = audit_log_task_context(ab);
+	if (rc)
+		allow_changes = 0; /* Something weird, deny request */
 	audit_log_format(ab, " res=%d", allow_changes);
 	audit_log_end(ab);
 	return rc;
@@ -625,12 +611,9 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 static int audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type)
 {
 	int rc = 0;
-	char *ctx = NULL;
-	u32 len;
 	u32 sessionid = audit_get_sessionid(current);
 	uid_t uid = from_kuid(&init_user_ns, current_uid());
 	uid_t auid = from_kuid(&init_user_ns, audit_get_loginuid(current));
-	u32 sid;
 
 	if (!audit_enabled) {
 		*ab = NULL;
@@ -642,16 +625,7 @@ static int audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type)
 		return rc;
 	audit_log_format(*ab, "pid=%d uid=%u auid=%u ses=%u",
 			 task_tgid_vnr(current), uid, auid, sessionid);
-	security_task_getsecid(current, &sid);
-	if (sid) {
-		rc = security_secid_to_secctx(sid, &ctx, &len);
-		if (rc)
-			audit_log_format(*ab, " ssid=%u", sid);
-		else {
-			audit_log_format(*ab, " subj=%s", ctx);
-			security_release_secctx(ctx, len);
-		}
-	}
+	audit_log_task_context(*ab);
 
 	return rc;
 }

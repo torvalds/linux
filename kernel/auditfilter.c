@@ -985,7 +985,6 @@ static void audit_log_rule_change(char *action, struct audit_krule *rule, int re
 	struct audit_buffer *ab;
 	uid_t loginuid = from_kuid(&init_user_ns, audit_get_loginuid(current));
 	u32 sessionid = audit_get_sessionid(current);
-	u32 sid;
 
 	if (!audit_enabled)
 		return;
@@ -994,17 +993,7 @@ static void audit_log_rule_change(char *action, struct audit_krule *rule, int re
 	if (!ab)
 		return;
 	audit_log_format(ab, "auid=%u ses=%u" ,loginuid, sessionid);
-	security_task_getsecid(current, &sid);
-	if (sid) {
-		char *ctx = NULL;
-		u32 len;
-		if (security_secid_to_secctx(sid, &ctx, &len))
-			audit_log_format(ab, " ssid=%u", sid);
-		else {
-			audit_log_format(ab, " subj=%s", ctx);
-			security_release_secctx(ctx, len);
-		}
-	}
+	audit_log_task_context(ab);
 	audit_log_format(ab, " op=");
 	audit_log_string(ab, action);
 	audit_log_key(ab, rule->filterkey);
