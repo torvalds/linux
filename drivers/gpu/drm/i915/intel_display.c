@@ -46,18 +46,6 @@ static void intel_increase_pllclock(struct drm_crtc *crtc);
 static void intel_crtc_update_cursor(struct drm_crtc *crtc, bool on);
 
 typedef struct {
-	/* given values */
-	int n;
-	int m1, m2;
-	int p1, p2;
-	/* derived values */
-	int	dot;
-	int	vco;
-	int	m;
-	int	p;
-} intel_clock_t;
-
-typedef struct {
 	int	min, max;
 } intel_range_t;
 

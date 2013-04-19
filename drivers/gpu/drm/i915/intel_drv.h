@@ -177,6 +177,18 @@ struct intel_connector {
 	u8 polled;
 };
 
+typedef struct dpll {
+	/* given values */
+	int n;
+	int m1, m2;
+	int p1, p2;
+	/* derived values */
+	int	dot;
+	int	vco;
+	int	m;
+	int	p;
+} intel_clock_t;
+
 struct intel_crtc_config {
 	struct drm_display_mode requested_mode;
 	struct drm_display_mode adjusted_mode;
@@ -208,11 +220,7 @@ struct intel_crtc_config {
 
 	/* Settings for the intel dpll used on pretty much everything but
 	 * haswell. */
-	struct dpll {
-		unsigned n;
-		unsigned m1, m2;
-		unsigned p1, p2;
-	} dpll;
+	struct dpll dpll;
 
 	int pipe_bpp;
 	struct intel_link_m_n dp_m_n;
