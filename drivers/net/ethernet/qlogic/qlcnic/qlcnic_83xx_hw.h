@@ -317,6 +317,18 @@ struct qlc_83xx_idc {
 	char		**name;
 };
 
+/* Device States */
+enum qlcnic_83xx_states {
+	QLC_83XX_IDC_DEV_UNKNOWN,
+	QLC_83XX_IDC_DEV_COLD,
+	QLC_83XX_IDC_DEV_INIT,
+	QLC_83XX_IDC_DEV_READY,
+	QLC_83XX_IDC_DEV_NEED_RESET,
+	QLC_83XX_IDC_DEV_NEED_QUISCENT,
+	QLC_83XX_IDC_DEV_FAILED,
+	QLC_83XX_IDC_DEV_QUISCENT
+};
+
 #define QLCNIC_MBX_RSP(reg)		LSW(reg)
 #define QLCNIC_MBX_NUM_REGS(reg)	(MSW(reg) & 0x1FF)
 #define QLCNIC_MBX_STATUS(reg)		(((reg) >> 25) & 0x7F)
@@ -536,6 +548,7 @@ void qlcnic_83xx_config_intr_coal(struct qlcnic_adapter *);
 irqreturn_t qlcnic_83xx_handle_aen(int, void *);
 int qlcnic_83xx_get_port_info(struct qlcnic_adapter *);
 void qlcnic_83xx_enable_mbx_intrpt(struct qlcnic_adapter *);
+void qlcnic_83xx_disable_mbx_intr(struct qlcnic_adapter *);
 irqreturn_t qlcnic_83xx_clear_legacy_intr(struct qlcnic_adapter *);
 irqreturn_t qlcnic_83xx_intr(int, void *);
 irqreturn_t qlcnic_83xx_tmp_intr(int, void *);

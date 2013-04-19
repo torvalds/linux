@@ -339,12 +339,13 @@ inline void qlcnic_83xx_enable_legacy_msix_mbx_intr(struct qlcnic_adapter
 	writel(0, adapter->ahw->pci_base0 + mask);
 }
 
-inline void qlcnic_83xx_disable_mbx_intr(struct qlcnic_adapter *adapter)
+void qlcnic_83xx_disable_mbx_intr(struct qlcnic_adapter *adapter)
 {
 	u32 mask;
 
 	mask = QLCRDX(adapter->ahw, QLCNIC_DEF_INT_MASK);
 	writel(1, adapter->ahw->pci_base0 + mask);
+	QLCWRX(adapter->ahw, QLCNIC_MBX_INTR_ENBL, 0);
 }
 
 static inline void qlcnic_83xx_get_mbx_data(struct qlcnic_adapter *adapter,
@@ -453,16 +454,14 @@ done:
 
 void qlcnic_83xx_free_mbx_intr(struct qlcnic_adapter *adapter)
 {
-	u32 val = 0, num_msix = adapter->ahw->num_msix - 1;
+	u32 num_msix;
+
+	qlcnic_83xx_disable_mbx_intr(adapter);
 
 	if (adapter->flags & QLCNIC_MSIX_ENABLED)
 		num_msix = adapter->ahw->num_msix - 1;
 	else
 		num_msix = 0;
-
-	QLCWRX(adapter->ahw, QLCNIC_MBX_INTR_ENBL, val);
-
-	qlcnic_83xx_disable_mbx_intr(adapter);
 
 	msleep(20);
 	synchronize_irq(adapter->msix_entries[num_msix].vector);

@@ -976,6 +976,7 @@ struct qlcnic_adapter {
 	u8 fw_fail_cnt;
 	u8 tx_timeo_cnt;
 	u8 need_fw_reset;
+	u8 reset_ctx_cnt;
 
 	u16 is_up;
 	u16 pvid;

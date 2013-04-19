@@ -1376,3 +1376,43 @@ void qlcnic_sriov_pf_handle_flr(struct qlcnic_sriov *sriov,
 	qlcnic_sriov_schedule_flr(sriov, vf, qlcnic_sriov_pf_process_flr);
 	netdev_info(dev, "FLR received for PCI func %d\n", vf->pci_func);
 }
+
+void qlcnic_sriov_pf_reset(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlcnic_sriov *sriov = ahw->sriov;
+	struct qlcnic_vf_info *vf;
+	u16 num_vfs = sriov->num_vfs;
+	int i;
+
+	for (i = 0; i < num_vfs; i++) {
+		vf = &sriov->vf_info[i];
+		vf->rx_ctx_id = 0;
+		vf->tx_ctx_id = 0;
+		cancel_work_sync(&vf->flr_work);
+		__qlcnic_sriov_process_flr(vf);
+		clear_bit(QLC_BC_VF_STATE, &vf->state);
+	}
+
+	qlcnic_sriov_pf_reset_vport_handle(adapter, ahw->pci_func);
+	QLCWRX(ahw, QLCNIC_MBX_INTR_ENBL, (ahw->num_msix - 1) << 8);
+}
+
+int qlcnic_sriov_pf_reinit(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	int err;
+
+	if (!qlcnic_sriov_enable_check(adapter))
+		return 0;
+
+	ahw->op_mode = QLCNIC_SRIOV_PF_FUNC;
+
+	err = qlcnic_sriov_pf_init(adapter);
+	if (err)
+		return err;
+
+	dev_info(&adapter->pdev->dev, "%s: op_mode %d\n",
+		 __func__, ahw->op_mode);
+	return err;
+}

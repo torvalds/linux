@@ -197,6 +197,8 @@ void qlcnic_sriov_pf_handle_flr(struct qlcnic_sriov *, struct qlcnic_vf_info *);
 bool qlcnic_sriov_soft_flr_check(struct qlcnic_adapter *,
 				 struct qlcnic_bc_trans *,
 				 struct qlcnic_vf_info *);
+void qlcnic_sriov_pf_reset(struct qlcnic_adapter *);
+int qlcnic_sriov_pf_reinit(struct qlcnic_adapter *);
 #else
 static inline void qlcnic_sriov_pf_disable(struct qlcnic_adapter *adapter) {}
 static inline void qlcnic_sriov_pf_cleanup(struct qlcnic_adapter *adapter) {}
@@ -227,6 +229,9 @@ static inline bool qlcnic_sriov_soft_flr_check(struct qlcnic_adapter *adapter,
 					       struct qlcnic_bc_trans *trans,
 					       struct qlcnic_vf_info *vf)
 { return false; }
+static inline void qlcnic_sriov_pf_reset(struct qlcnic_adapter *adapter) {}
+static inline int qlcnic_sriov_pf_reinit(struct qlcnic_adapter *adapter)
+{ return 0; }
 #endif
 
 #endif

@@ -25,6 +25,11 @@
 #define QLC_DEFAULT_RCV_DESCRIPTORS_SRIOV_VF		2048
 #define QLC_DEFAULT_JUMBO_RCV_DESCRIPTORS_SRIOV_VF	512
 
+#define QLC_83XX_VF_RESET_FAIL_THRESH	8
+#define QLC_BC_CMD_MAX_RETRY_CNT	5
+
+static void qlcnic_sriov_vf_poll_dev_state(struct work_struct *);
+static void qlcnic_sriov_vf_cancel_fw_work(struct qlcnic_adapter *);
 static void qlcnic_sriov_cleanup_transaction(struct qlcnic_bc_trans *);
 static int qlcnic_sriov_vf_mbx_op(struct qlcnic_adapter *,
 				  struct qlcnic_cmd_args *);
@@ -64,7 +69,7 @@ static struct qlcnic_hardware_ops qlcnic_sriov_vf_hw_ops = {
 static struct qlcnic_nic_template qlcnic_sriov_vf_ops = {
 	.config_bridged_mode	= qlcnic_config_bridged_mode,
 	.config_led		= qlcnic_config_led,
-	.cancel_idc_work        = qlcnic_83xx_idc_exit,
+	.cancel_idc_work        = qlcnic_sriov_vf_cancel_fw_work,
 	.napi_add		= qlcnic_83xx_napi_add,
 	.napi_del		= qlcnic_83xx_napi_del,
 	.config_ipaddr		= qlcnic_83xx_config_ipaddr,
@@ -442,6 +447,8 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 	pci_set_drvdata(adapter->pdev, adapter);
 	dev_info(&adapter->pdev->dev, "%s: XGbE port initialized\n",
 		 adapter->netdev->name);
+	qlcnic_schedule_work(adapter, qlcnic_sriov_vf_poll_dev_state,
+			     adapter->ahw->idc.delay);
 	return 0;
 
 err_out_send_channel_term:
@@ -461,27 +468,47 @@ err_out_disable_msi:
 	return err;
 }
 
+static int qlcnic_sriov_check_dev_ready(struct qlcnic_adapter *adapter)
+{
+	u32 state;
+
+	do {
+		msleep(20);
+		if (++adapter->fw_fail_cnt > QLC_BC_CMD_MAX_RETRY_CNT)
+			return -EIO;
+		state = QLCRDX(adapter->ahw, QLC_83XX_IDC_DEV_STATE);
+	} while (state != QLC_83XX_IDC_DEV_READY);
+
+	return 0;
+}
+
 int qlcnic_sriov_vf_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	int err;
 
 	spin_lock_init(&ahw->mbx_lock);
-	set_bit(QLC_83XX_MBX_READY, &adapter->ahw->idc.status);
+	set_bit(QLC_83XX_MBX_READY, &ahw->idc.status);
+	set_bit(QLC_83XX_MODULE_LOADED, &ahw->idc.status);
+	ahw->idc.delay = QLC_83XX_IDC_FW_POLL_DELAY;
+	ahw->reset_context = 0;
+	adapter->fw_fail_cnt = 0;
 	ahw->msix_supported = 1;
+	adapter->need_fw_reset = 0;
 	adapter->flags |= QLCNIC_TX_INTR_SHARED;
 
-	if (qlcnic_sriov_setup_vf(adapter, pci_using_dac))
-		return -EIO;
+	err = qlcnic_sriov_check_dev_ready(adapter);
+	if (err)
+		return err;
+
+	err = qlcnic_sriov_setup_vf(adapter, pci_using_dac);
+	if (err)
+		return err;
 
 	if (qlcnic_read_mac_addr(adapter))
 		dev_warn(&adapter->pdev->dev, "failed to read mac addr\n");
 
-	set_bit(QLC_83XX_MODULE_LOADED, &adapter->ahw->idc.status);
-	adapter->ahw->idc.delay = QLC_83XX_IDC_FW_POLL_DELAY;
-	adapter->ahw->reset_context = 0;
-	adapter->fw_fail_cnt = 0;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
-	adapter->need_fw_reset = 0;
 	return 0;
 }
 
@@ -689,7 +716,8 @@ static void qlcnic_sriov_schedule_bc_cmd(struct qlcnic_sriov *sriov,
 					 struct qlcnic_vf_info *vf,
 					 work_func_t func)
 {
-	if (test_bit(QLC_BC_VF_FLR, &vf->state))
+	if (test_bit(QLC_BC_VF_FLR, &vf->state) ||
+	    vf->adapter->need_fw_reset)
 		return;
 
 	INIT_WORK(&vf->trans_work, func);
@@ -813,7 +841,8 @@ static int __qlcnic_sriov_send_bc_msg(struct qlcnic_bc_trans *trans,
 	int err = -EIO;
 
 	while (flag) {
-		if (test_bit(QLC_BC_VF_FLR, &vf->state))
+		if (test_bit(QLC_BC_VF_FLR, &vf->state) ||
+		    vf->adapter->need_fw_reset)
 			trans->trans_state = QLC_ABORT;
 
 		switch (trans->trans_state) {
@@ -896,6 +925,9 @@ static void qlcnic_sriov_process_bc_cmd(struct work_struct *work)
 	struct qlcnic_adapter *adapter  = vf->adapter;
 	struct qlcnic_cmd_args cmd;
 	u8 req;
+
+	if (adapter->need_fw_reset)
+		return;
 
 	if (test_bit(QLC_BC_VF_FLR, &vf->state))
 		return;
@@ -1035,6 +1067,9 @@ static void qlcnic_sriov_handle_bc_cmd(struct qlcnic_sriov *sriov,
 	u32 pay_size;
 	int err;
 	u8 cmd_op;
+
+	if (adapter->need_fw_reset)
+		return;
 
 	if (!test_bit(QLC_BC_VF_STATE, &vf->state) &&
 	    hdr->op_type != QLC_BC_CMD &&
@@ -1183,33 +1218,66 @@ int qlcnic_sriov_cfg_bc_intr(struct qlcnic_adapter *adapter, u8 enable)
 	return err;
 }
 
+static int qlcnic_sriov_retry_bc_cmd(struct qlcnic_adapter *adapter,
+				     struct qlcnic_bc_trans *trans)
+{
+	u8 max = QLC_BC_CMD_MAX_RETRY_CNT;
+	u32 state;
+
+	state = QLCRDX(adapter->ahw, QLC_83XX_IDC_DEV_STATE);
+	if (state == QLC_83XX_IDC_DEV_READY) {
+		msleep(20);
+		clear_bit(QLC_BC_VF_CHANNEL, &trans->vf->state);
+		trans->trans_state = QLC_INIT;
+		if (++adapter->fw_fail_cnt > max)
+			return -EIO;
+		else
+			return 0;
+	}
+
+	return -EIO;
+}
+
 static int qlcnic_sriov_vf_mbx_op(struct qlcnic_adapter *adapter,
 				  struct qlcnic_cmd_args *cmd)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct device *dev = &adapter->pdev->dev;
 	struct qlcnic_bc_trans *trans;
 	int err;
 	u32 rsp_data, opcode, mbx_err_code, rsp;
 	u16 seq = ++adapter->ahw->sriov->bc.trans_counter;
+	u8 func = ahw->pci_func;
 
-	if (qlcnic_sriov_alloc_bc_trans(&trans))
-		return -ENOMEM;
+	rsp = qlcnic_sriov_alloc_bc_trans(&trans);
+	if (rsp)
+		return rsp;
 
-	if (qlcnic_sriov_prepare_bc_hdr(trans, cmd, seq, QLC_BC_COMMAND))
-		return -ENOMEM;
+	rsp = qlcnic_sriov_prepare_bc_hdr(trans, cmd, seq, QLC_BC_COMMAND);
+	if (rsp)
+		goto cleanup_transaction;
 
+retry:
 	if (!test_bit(QLC_83XX_MBX_READY, &adapter->ahw->idc.status)) {
 		rsp = -EIO;
 		QLCDB(adapter, DRV, "MBX not Ready!(cmd 0x%x) for VF 0x%x\n",
-		      QLCNIC_MBX_RSP(cmd->req.arg[0]), adapter->ahw->pci_func);
+		      QLCNIC_MBX_RSP(cmd->req.arg[0]), func);
 		goto err_out;
 	}
 
-	err = qlcnic_sriov_send_bc_cmd(adapter, trans, adapter->ahw->pci_func);
+	err = qlcnic_sriov_send_bc_cmd(adapter, trans, func);
 	if (err) {
-		dev_err(&adapter->pdev->dev,
-			"MBX command 0x%x timed out for VF %d\n",
-			(cmd->req.arg[0] & 0xffff), adapter->ahw->pci_func);
+		dev_err(dev, "MBX command 0x%x timed out for VF %d\n",
+			(cmd->req.arg[0] & 0xffff), func);
 		rsp = QLCNIC_RCODE_TIMEOUT;
+
+		/* After adapter reset PF driver may take some time to
+		 * respond to VF's request. Retry request till maximum retries.
+		 */
+		if ((trans->req_hdr->cmd_op == QLCNIC_BC_CMD_CHANNEL_INIT) &&
+		    !qlcnic_sriov_retry_bc_cmd(adapter, trans))
+			goto retry;
+
 		goto err_out;
 	}
 
@@ -1224,12 +1292,19 @@ static int qlcnic_sriov_vf_mbx_op(struct qlcnic_adapter *adapter,
 		rsp = mbx_err_code;
 		if (!rsp)
 			rsp = 1;
-		dev_err(&adapter->pdev->dev,
+		dev_err(dev,
 			"MBX command 0x%x failed with err:0x%x for VF %d\n",
-			opcode, mbx_err_code, adapter->ahw->pci_func);
+			opcode, mbx_err_code, func);
 	}
 
 err_out:
+	if (rsp == QLCNIC_RCODE_TIMEOUT) {
+		ahw->reset_context = 1;
+		adapter->need_fw_reset = 1;
+		clear_bit(QLC_83XX_MBX_READY, &ahw->idc.status);
+	}
+
+cleanup_transaction:
 	qlcnic_sriov_cleanup_transaction(trans);
 	return rsp;
 }
@@ -1372,6 +1447,271 @@ void qlcnic_sriov_vf_schedule_multi(struct net_device *netdev)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_back_channel *bc = &adapter->ahw->sriov->bc;
 
+	if (adapter->need_fw_reset)
+		return;
+
 	qlcnic_sriov_schedule_bc_async_work(bc, qlcnic_sriov_handle_async_multi,
 					    netdev);
+}
+
+static int qlcnic_sriov_vf_reinit_driver(struct qlcnic_adapter *adapter)
+{
+	int err;
+
+	set_bit(QLC_83XX_MBX_READY, &adapter->ahw->idc.status);
+	qlcnic_83xx_enable_mbx_intrpt(adapter);
+
+	err = qlcnic_sriov_cfg_bc_intr(adapter, 1);
+	if (err)
+		return err;
+
+	err = qlcnic_sriov_channel_cfg_cmd(adapter, QLCNIC_BC_CMD_CHANNEL_INIT);
+	if (err)
+		goto err_out_cleanup_bc_intr;
+
+	err = qlcnic_sriov_vf_init_driver(adapter);
+	if (err)
+		goto err_out_term_channel;
+
+	return 0;
+
+err_out_term_channel:
+	qlcnic_sriov_channel_cfg_cmd(adapter, QLCNIC_BC_CMD_CHANNEL_TERM);
+
+err_out_cleanup_bc_intr:
+	qlcnic_sriov_cfg_bc_intr(adapter, 0);
+	return err;
+}
+
+static void qlcnic_sriov_vf_attach(struct qlcnic_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+
+	if (netif_running(netdev)) {
+		if (!qlcnic_up(adapter, netdev))
+			qlcnic_restore_indev_addr(netdev, NETDEV_UP);
+	}
+
+	netif_device_attach(netdev);
+}
+
+static void qlcnic_sriov_vf_detach(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct qlcnic_intrpt_config *intr_tbl = ahw->intr_tbl;
+	struct net_device *netdev = adapter->netdev;
+	u8 i, max_ints = ahw->num_msix - 1;
+
+	qlcnic_83xx_disable_mbx_intr(adapter);
+	netif_device_detach(netdev);
+	if (netif_running(netdev))
+		qlcnic_down(adapter, netdev);
+
+	for (i = 0; i < max_ints; i++) {
+		intr_tbl[i].id = i;
+		intr_tbl[i].enabled = 0;
+		intr_tbl[i].src = 0;
+	}
+	ahw->reset_context = 0;
+}
+
+static int qlcnic_sriov_vf_handle_dev_ready(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct device *dev = &adapter->pdev->dev;
+	struct qlc_83xx_idc *idc = &ahw->idc;
+	u8 func = ahw->pci_func;
+	u32 state;
+
+	if ((idc->prev_state == QLC_83XX_IDC_DEV_NEED_RESET) ||
+	    (idc->prev_state == QLC_83XX_IDC_DEV_INIT)) {
+		if (!qlcnic_sriov_vf_reinit_driver(adapter)) {
+			qlcnic_sriov_vf_attach(adapter);
+			adapter->fw_fail_cnt = 0;
+			dev_info(dev,
+				 "%s: Reinitalization of VF 0x%x done after FW reset\n",
+				 __func__, func);
+		} else {
+			dev_err(dev,
+				"%s: Reinitialization of VF 0x%x failed after FW reset\n",
+				__func__, func);
+			state = QLCRDX(ahw, QLC_83XX_IDC_DEV_STATE);
+			dev_info(dev, "Current state 0x%x after FW reset\n",
+				 state);
+		}
+	}
+
+	return 0;
+}
+
+static int qlcnic_sriov_vf_handle_context_reset(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct device *dev = &adapter->pdev->dev;
+	struct qlc_83xx_idc *idc = &ahw->idc;
+	u8 func = ahw->pci_func;
+	u32 state;
+
+	adapter->reset_ctx_cnt++;
+
+	/* Skip the context reset and check if FW is hung */
+	if (adapter->reset_ctx_cnt < 3) {
+		adapter->need_fw_reset = 1;
+		clear_bit(QLC_83XX_MBX_READY, &idc->status);
+		dev_info(dev,
+			 "Resetting context, wait here to check if FW is in failed state\n");
+		return 0;
+	}
+
+	/* Check if number of resets exceed the threshold.
+	 * If it exceeds the threshold just fail the VF.
+	 */
+	if (adapter->reset_ctx_cnt > QLC_83XX_VF_RESET_FAIL_THRESH) {
+		clear_bit(QLC_83XX_MODULE_LOADED, &idc->status);
+		adapter->tx_timeo_cnt = 0;
+		adapter->fw_fail_cnt = 0;
+		adapter->reset_ctx_cnt = 0;
+		qlcnic_sriov_vf_detach(adapter);
+		dev_err(dev,
+			"Device context resets have exceeded the threshold, device interface will be shutdown\n");
+		return -EIO;
+	}
+
+	dev_info(dev, "Resetting context of VF 0x%x\n", func);
+	dev_info(dev, "%s: Context reset count %d for VF 0x%x\n",
+		 __func__, adapter->reset_ctx_cnt, func);
+	set_bit(__QLCNIC_RESETTING, &adapter->state);
+	adapter->need_fw_reset = 1;
+	clear_bit(QLC_83XX_MBX_READY, &idc->status);
+	qlcnic_sriov_vf_detach(adapter);
+	adapter->need_fw_reset = 0;
+
+	if (!qlcnic_sriov_vf_reinit_driver(adapter)) {
+		qlcnic_sriov_vf_attach(adapter);
+		adapter->netdev->trans_start = jiffies;
+		adapter->tx_timeo_cnt = 0;
+		adapter->reset_ctx_cnt = 0;
+		adapter->fw_fail_cnt = 0;
+		dev_info(dev, "Done resetting context for VF 0x%x\n", func);
+	} else {
+		dev_err(dev, "%s: Reinitialization of VF 0x%x failed\n",
+			__func__, func);
+		state = QLCRDX(ahw, QLC_83XX_IDC_DEV_STATE);
+		dev_info(dev, "%s: Current state 0x%x\n", __func__, state);
+	}
+
+	return 0;
+}
+
+static int qlcnic_sriov_vf_idc_ready_state(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	int ret = 0;
+
+	if (ahw->idc.prev_state != QLC_83XX_IDC_DEV_READY)
+		ret = qlcnic_sriov_vf_handle_dev_ready(adapter);
+	else if (ahw->reset_context)
+		ret = qlcnic_sriov_vf_handle_context_reset(adapter);
+
+	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	return ret;
+}
+
+static int qlcnic_sriov_vf_idc_failed_state(struct qlcnic_adapter *adapter)
+{
+	struct qlc_83xx_idc *idc = &adapter->ahw->idc;
+
+	dev_err(&adapter->pdev->dev, "Device is in failed state\n");
+	if (idc->prev_state == QLC_83XX_IDC_DEV_READY)
+		qlcnic_sriov_vf_detach(adapter);
+
+	clear_bit(QLC_83XX_MODULE_LOADED, &idc->status);
+	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	return -EIO;
+}
+
+static int
+qlcnic_sriov_vf_idc_need_quiescent_state(struct qlcnic_adapter *adapter)
+{
+	struct qlc_83xx_idc *idc = &adapter->ahw->idc;
+
+	dev_info(&adapter->pdev->dev, "Device is in quiescent state\n");
+	if (idc->prev_state == QLC_83XX_IDC_DEV_READY) {
+		set_bit(__QLCNIC_RESETTING, &adapter->state);
+		adapter->tx_timeo_cnt = 0;
+		adapter->reset_ctx_cnt = 0;
+		clear_bit(QLC_83XX_MBX_READY, &idc->status);
+		qlcnic_sriov_vf_detach(adapter);
+	}
+
+	return 0;
+}
+
+static int qlcnic_sriov_vf_idc_init_reset_state(struct qlcnic_adapter *adapter)
+{
+	struct qlc_83xx_idc *idc = &adapter->ahw->idc;
+	u8 func = adapter->ahw->pci_func;
+
+	if (idc->prev_state == QLC_83XX_IDC_DEV_READY) {
+		dev_err(&adapter->pdev->dev,
+			"Firmware hang detected by VF 0x%x\n", func);
+		set_bit(__QLCNIC_RESETTING, &adapter->state);
+		adapter->tx_timeo_cnt = 0;
+		adapter->reset_ctx_cnt = 0;
+		clear_bit(QLC_83XX_MBX_READY, &idc->status);
+		qlcnic_sriov_vf_detach(adapter);
+	}
+	return 0;
+}
+
+static int qlcnic_sriov_vf_idc_unknown_state(struct qlcnic_adapter *adapter)
+{
+	dev_err(&adapter->pdev->dev, "%s: Device in unknown state\n", __func__);
+	return 0;
+}
+
+static void qlcnic_sriov_vf_poll_dev_state(struct work_struct *work)
+{
+	struct qlcnic_adapter *adapter;
+	struct qlc_83xx_idc *idc;
+	int ret = 0;
+
+	adapter = container_of(work, struct qlcnic_adapter, fw_work.work);
+	idc = &adapter->ahw->idc;
+	idc->curr_state = QLCRDX(adapter->ahw, QLC_83XX_IDC_DEV_STATE);
+
+	switch (idc->curr_state) {
+	case QLC_83XX_IDC_DEV_READY:
+		ret = qlcnic_sriov_vf_idc_ready_state(adapter);
+		break;
+	case QLC_83XX_IDC_DEV_NEED_RESET:
+	case QLC_83XX_IDC_DEV_INIT:
+		ret = qlcnic_sriov_vf_idc_init_reset_state(adapter);
+		break;
+	case QLC_83XX_IDC_DEV_NEED_QUISCENT:
+		ret = qlcnic_sriov_vf_idc_need_quiescent_state(adapter);
+		break;
+	case QLC_83XX_IDC_DEV_FAILED:
+		ret = qlcnic_sriov_vf_idc_failed_state(adapter);
+		break;
+	case QLC_83XX_IDC_DEV_QUISCENT:
+		break;
+	default:
+		ret = qlcnic_sriov_vf_idc_unknown_state(adapter);
+	}
+
+	idc->prev_state = idc->curr_state;
+	if (!ret && test_bit(QLC_83XX_MODULE_LOADED, &idc->status))
+		qlcnic_schedule_work(adapter, qlcnic_sriov_vf_poll_dev_state,
+				     idc->delay);
+}
+
+static void qlcnic_sriov_vf_cancel_fw_work(struct qlcnic_adapter *adapter)
+{
+	while (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+		msleep(20);
+
+	clear_bit(QLC_83XX_MODULE_LOADED, &adapter->ahw->idc.status);
+	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	cancel_delayed_work_sync(&adapter->fw_work);
 }
