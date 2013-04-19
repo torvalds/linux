@@ -10,9 +10,14 @@
 #include <linux/device.h>
 #include <linux/signal.h>
 #include <linux/err.h>
+#include <linux/of.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
 /* Those are just for writing in syscon */
 #include <linux/io.h>
+#include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <mach/syscon.h>
 
@@ -47,13 +52,17 @@ void u300_pm_poweroff(void)
 /*
  * Hog the regulators needed to power up the board.
  */
-static int __init u300_init_boardpower(void)
+static int __init __u300_init_boardpower(struct platform_device *pdev)
 {
 	int err;
 	u32 val;
 
 	pr_info("U300: setting up board power\n");
-	main_power_15 = regulator_get(NULL, "vana15");
+	if (pdev)
+		main_power_15 = regulator_get(&pdev->dev, "vana15");
+	else
+		main_power_15 = regulator_get(NULL, "vana15");
+
 	if (IS_ERR(main_power_15)) {
 		pr_err("could not get vana15");
 		return PTR_ERR(main_power_15);
@@ -82,7 +91,34 @@ static int __init u300_init_boardpower(void)
 	return 0;
 }
 
+static int __init s365_board_probe(struct platform_device *pdev)
+{
+	return __u300_init_boardpower(pdev);
+}
+
+static const struct of_device_id s365_board_match[] = {
+	{ .compatible = "stericsson,s365" },
+	{},
+};
+
+static struct platform_driver s365_board_driver = {
+	.driver		= {
+		.name   = "s365-board",
+		.owner  = THIS_MODULE,
+		.of_match_table = s365_board_match,
+	},
+};
+
 /*
  * So at module init time we hog the regulator!
  */
-module_init(u300_init_boardpower);
+static int __init u300_init_boardpower(void)
+{
+	if (of_have_populated_dt())
+		return platform_driver_probe(&s365_board_driver,
+					     s365_board_probe);
+	/* Only call this on non-DT boots */
+	return __u300_init_boardpower(NULL);
+}
+
+device_initcall(u300_init_boardpower);

@@ -7,3 +7,16 @@ or board power regulator supplies.
 Required root node property:
 
 compatible="stericsson,u300";
+
+Boards with the U300 SoC include:
+
+S365 "Small Board U365":
+
+Required node: s365
+
+Example:
+
+s365 {
+	compatible = "stericsson,s365";
+	vana15-supply = <&ab3100_ldo_d_reg>;
+};
