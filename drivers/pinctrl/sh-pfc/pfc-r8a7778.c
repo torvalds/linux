@@ -1303,15 +1303,25 @@ static struct sh_pfc_pin pinmux_pins[] = {
  */
 #define PIN_NUMBER(row, col)		(1000+((row)-1)*25+(col)-1)
 
-/* - SCIF macro ------------------------------------------------------------- */
-#define SCIF_PFC_PIN(name, args...)					\
+/* - macro */
+#define SH_PFC_PINS(name, args...) \
 	static const unsigned int name ##_pins[] = { args }
-#define SCIF_PFC_DAT(name, tx, rx)					\
-	static const unsigned int name ##_mux[]  = { tx##_MARK, rx##_MARK, }
-#define SCIF_PFC_CTR(name, cts, rts)					\
-	static const unsigned int name ##_mux[]  = { cts##_MARK, rts##_MARK, }
-#define SCIF_PFC_CLK(name, sck)					\
-	static const unsigned int name ##_mux[]  = { sck##_MARK, }
+#define SH_PFC_MUX1(name, arg1)					\
+	static const unsigned int name ##_mux[]  = { arg1##_MARK }
+#define SH_PFC_MUX2(name, arg1, arg2)					\
+	static const unsigned int name ##_mux[]  = { arg1##_MARK, arg2##_MARK, }
+#define SH_PFC_MUX3(name, arg1, arg2, arg3)					\
+	static const unsigned int name ##_mux[]  = { arg1##_MARK, arg2##_MARK,	\
+						     arg3##_MARK }
+#define SH_PFC_MUX4(name, arg1, arg2, arg3, arg4)			\
+	static const unsigned int name ##_mux[]  = { arg1##_MARK, arg2##_MARK, \
+						     arg3##_MARK, arg4##_MARK }
+
+/* - SCIF macro ------------------------------------------------------------- */
+#define SCIF_PFC_PIN(name, args...)	SH_PFC_PINS(name, args)
+#define SCIF_PFC_DAT(name, tx, rx)	SH_PFC_MUX2(name, tx, rx)
+#define SCIF_PFC_CTR(name, cts, rts)	SH_PFC_MUX2(name, cts, rts)
+#define SCIF_PFC_CLK(name, sck)		SH_PFC_MUX1(name, sck)
 
 /* - HSCIF0 ----------------------------------------------------------------- */
 SCIF_PFC_PIN(hscif0_data_a,	RCAR_GP_PIN(1, 17),	RCAR_GP_PIN(1, 18));
