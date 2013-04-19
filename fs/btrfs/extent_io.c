@@ -2684,7 +2684,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 				   struct page *page,
 				   get_extent_t *get_extent,
 				   struct bio **bio, int mirror_num,
-				   unsigned long *bio_flags)
+				   unsigned long *bio_flags, int rw)
 {
 	struct inode *inode = page->mapping->host;
 	u64 start = page_offset(page);
@@ -2830,7 +2830,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 		}
 
 		pnr -= page->index;
-		ret = submit_extent_page(READ, tree, page,
+		ret = submit_extent_page(rw, tree, page,
 					 sector, disk_io_size, pg_offset,
 					 bdev, bio, pnr,
 					 end_bio_extent_readpage, mirror_num,
@@ -2863,7 +2863,7 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 	int ret;
 
 	ret = __extent_read_full_page(tree, page, get_extent, &bio, mirror_num,
-				      &bio_flags);
+				      &bio_flags, READ);
 	if (bio)
 		ret = submit_one_bio(READ, bio, mirror_num, bio_flags);
 	return ret;
@@ -3287,7 +3287,7 @@ static int write_one_eb(struct extent_buffer *eb,
 	u64 offset = eb->start;
 	unsigned long i, num_pages;
 	unsigned long bio_flags = 0;
-	int rw = (epd->sync_io ? WRITE_SYNC : WRITE);
+	int rw = (epd->sync_io ? WRITE_SYNC : WRITE) | REQ_META;
 	int ret = 0;
 
 	clear_bit(EXTENT_BUFFER_IOERR, &eb->bflags);
@@ -3724,14 +3724,14 @@ int extent_readpages(struct extent_io_tree *tree,
 			continue;
 		for (i = 0; i < nr; i++) {
 			__extent_read_full_page(tree, pagepool[i], get_extent,
-					&bio, 0, &bio_flags);
+					&bio, 0, &bio_flags, READ);
 			page_cache_release(pagepool[i]);
 		}
 		nr = 0;
 	}
 	for (i = 0; i < nr; i++) {
 		__extent_read_full_page(tree, pagepool[i], get_extent,
-					&bio, 0, &bio_flags);
+					&bio, 0, &bio_flags, READ);
 		page_cache_release(pagepool[i]);
 	}
 
@@ -4703,7 +4703,8 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 			ClearPageError(page);
 			err = __extent_read_full_page(tree, page,
 						      get_extent, &bio,
-						      mirror_num, &bio_flags);
+						      mirror_num, &bio_flags,
+						      READ | REQ_META);
 			if (err)
 				ret = err;
 		} else {
@@ -4712,7 +4713,8 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	}
 
 	if (bio) {
-		err = submit_one_bio(READ, bio, mirror_num, bio_flags);
+		err = submit_one_bio(READ | REQ_META, bio, mirror_num,
+				     bio_flags);
 		if (err)
 			return err;
 	}
