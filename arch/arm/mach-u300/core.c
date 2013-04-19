@@ -712,6 +712,8 @@ static struct of_dev_auxdata u300_auxdata_lookup[] __initdata = {
 		"u300-gpio", &u300_gpio_plat),
 	OF_DEV_AUXDATA("stericsson,coh901327", U300_WDOG_BASE,
 		"coh901327_wdog", NULL),
+	OF_DEV_AUXDATA("stericsson,coh901331", U300_RTC_BASE,
+		"rtc-coh901331", NULL),
 	OF_DEV_AUXDATA("arm,primecell", U300_UART0_BASE,
 		"uart0", &uart0_plat_data),
 	OF_DEV_AUXDATA("arm,primecell", U300_UART1_BASE,
