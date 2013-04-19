@@ -440,7 +440,8 @@ static void ixgbe_get_regs(struct net_device *netdev,
 
 	memset(p, 0, IXGBE_REGS_LEN * sizeof(u32));
 
-	regs->version = (1 << 24) | hw->revision_id << 16 | hw->device_id;
+	regs->version = hw->mac.type << 24 | hw->revision_id << 16 |
+			hw->device_id;
 
 	/* General Registers */
 	regs_buff[0] = IXGBE_READ_REG(hw, IXGBE_CTRL);
