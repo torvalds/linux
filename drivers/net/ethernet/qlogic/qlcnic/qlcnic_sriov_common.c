@@ -181,6 +181,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 				goto qlcnic_destroy_async_wq;
 			}
 			sriov->vf_info[i].vp = vp;
+			vp->max_tx_bw = MAX_BW;
 			random_ether_addr(vp->mac);
 			dev_info(&adapter->pdev->dev,
 				 "MAC Address %pM is configured for VF %d\n",
@@ -378,11 +379,82 @@ static void qlcnic_sriov_vf_cfg_buff_desc(struct qlcnic_adapter *adapter)
 	adapter->max_rds_rings = MAX_RDS_RINGS;
 }
 
+int qlcnic_sriov_get_vf_vport_info(struct qlcnic_adapter *adapter,
+				   struct qlcnic_info *npar_info, u16 vport_id)
+{
+	struct device *dev = &adapter->pdev->dev;
+	struct qlcnic_cmd_args cmd;
+	int err;
+	u32 status;
+
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_NIC_INFO);
+	if (err)
+		return err;
+
+	cmd.req.arg[1] = vport_id << 16 | 0x1;
+	err = qlcnic_issue_cmd(adapter, &cmd);
+	if (err) {
+		dev_err(&adapter->pdev->dev,
+			"Failed to get vport info, err=%d\n", err);
+		qlcnic_free_mbx_args(&cmd);
+		return err;
+	}
+
+	status = cmd.rsp.arg[2] & 0xffff;
+	if (status & BIT_0)
+		npar_info->min_tx_bw = MSW(cmd.rsp.arg[2]);
+	if (status & BIT_1)
+		npar_info->max_tx_bw = LSW(cmd.rsp.arg[3]);
+	if (status & BIT_2)
+		npar_info->max_tx_ques = MSW(cmd.rsp.arg[3]);
+	if (status & BIT_3)
+		npar_info->max_tx_mac_filters = LSW(cmd.rsp.arg[4]);
+	if (status & BIT_4)
+		npar_info->max_rx_mcast_mac_filters = MSW(cmd.rsp.arg[4]);
+	if (status & BIT_5)
+		npar_info->max_rx_ucast_mac_filters = LSW(cmd.rsp.arg[5]);
+	if (status & BIT_6)
+		npar_info->max_rx_ip_addr = MSW(cmd.rsp.arg[5]);
+	if (status & BIT_7)
+		npar_info->max_rx_lro_flow = LSW(cmd.rsp.arg[6]);
+	if (status & BIT_8)
+		npar_info->max_rx_status_rings = MSW(cmd.rsp.arg[6]);
+	if (status & BIT_9)
+		npar_info->max_rx_buf_rings = LSW(cmd.rsp.arg[7]);
+
+	npar_info->max_rx_ques = MSW(cmd.rsp.arg[7]);
+	npar_info->max_tx_vlan_keys = LSW(cmd.rsp.arg[8]);
+	npar_info->max_local_ipv6_addrs = MSW(cmd.rsp.arg[8]);
+	npar_info->max_remote_ipv6_addrs = LSW(cmd.rsp.arg[9]);
+
+	dev_info(dev, "\n\tmin_tx_bw: %d, max_tx_bw: %d max_tx_ques: %d,\n"
+		 "\tmax_tx_mac_filters: %d max_rx_mcast_mac_filters: %d,\n"
+		 "\tmax_rx_ucast_mac_filters: 0x%x, max_rx_ip_addr: %d,\n"
+		 "\tmax_rx_lro_flow: %d max_rx_status_rings: %d,\n"
+		 "\tmax_rx_buf_rings: %d, max_rx_ques: %d, max_tx_vlan_keys %d\n"
+		 "\tlocal_ipv6_addr: %d, remote_ipv6_addr: %d\n",
+		 npar_info->min_tx_bw, npar_info->max_tx_bw,
+		 npar_info->max_tx_ques, npar_info->max_tx_mac_filters,
+		 npar_info->max_rx_mcast_mac_filters,
+		 npar_info->max_rx_ucast_mac_filters, npar_info->max_rx_ip_addr,
+		 npar_info->max_rx_lro_flow, npar_info->max_rx_status_rings,
+		 npar_info->max_rx_buf_rings, npar_info->max_rx_ques,
+		 npar_info->max_tx_vlan_keys, npar_info->max_local_ipv6_addrs,
+		 npar_info->max_remote_ipv6_addrs);
+
+	qlcnic_free_mbx_args(&cmd);
+	return err;
+}
+
 static int qlcnic_sriov_vf_init_driver(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_info nic_info;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int err;
+
+	err = qlcnic_sriov_get_vf_vport_info(adapter, &nic_info, 0);
+	if (err)
+		return err;
 
 	err = qlcnic_get_nic_info(adapter, &nic_info, ahw->pci_func);
 	if (err)

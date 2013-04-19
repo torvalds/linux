@@ -10,6 +10,8 @@
 #include <linux/types.h>
 
 #define QLCNIC_SRIOV_VF_MAX_MAC 1
+#define QLC_VF_MIN_TX_RATE	100
+#define QLC_VF_MAX_TX_RATE	9999
 
 static int qlcnic_sriov_pf_get_vport_handle(struct qlcnic_adapter *, u8);
 
@@ -62,8 +64,9 @@ static int qlcnic_sriov_pf_cal_res_limit(struct qlcnic_adapter *adapter,
 {
 	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
 	struct qlcnic_resources *res = &sriov->ff_max;
-	int ret = -EIO, vpid;
 	u32 temp, num_vf_macs, num_vfs, max;
+	int ret = -EIO, vpid, id;
+	struct qlcnic_vport *vp;
 
 	vpid = qlcnic_sriov_pf_get_vport_handle(adapter, func);
 	if (vpid < 0)
@@ -72,8 +75,6 @@ static int qlcnic_sriov_pf_cal_res_limit(struct qlcnic_adapter *adapter,
 	num_vfs = sriov->num_vfs;
 	max = num_vfs + 1;
 	info->bit_offsets = 0xffff;
-	info->min_tx_bw = 0;
-	info->max_tx_bw = MAX_BW;
 	info->max_tx_ques = res->num_tx_queues / max;
 	info->max_rx_mcast_mac_filters = res->num_rx_mcast_mac_filters;
 	num_vf_macs = QLCNIC_SRIOV_VF_MAX_MAC;
@@ -83,7 +84,15 @@ static int qlcnic_sriov_pf_cal_res_limit(struct qlcnic_adapter *adapter,
 		info->max_rx_ucast_mac_filters = temp;
 		temp = res->num_tx_mac_filters - (num_vfs * num_vf_macs);
 		info->max_tx_mac_filters = temp;
+		info->min_tx_bw = 0;
+		info->max_tx_bw = MAX_BW;
 	} else {
+		id = qlcnic_sriov_func_to_index(adapter, func);
+		if (id < 0)
+			return id;
+		vp = sriov->vf_info[id].vp;
+		info->min_tx_bw = vp->min_tx_bw;
+		info->max_tx_bw = vp->max_tx_bw;
 		info->max_rx_ucast_mac_filters = num_vf_macs;
 		info->max_tx_mac_filters = num_vf_macs;
 	}
@@ -1415,4 +1424,120 @@ int qlcnic_sriov_pf_reinit(struct qlcnic_adapter *adapter)
 	dev_info(&adapter->pdev->dev, "%s: op_mode %d\n",
 		 __func__, ahw->op_mode);
 	return err;
+}
+
+int qlcnic_sriov_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
+	int i, num_vfs = sriov->num_vfs;
+	struct qlcnic_vf_info *vf_info;
+	u8 *curr_mac;
+
+	if (!qlcnic_sriov_pf_check(adapter))
+		return -EOPNOTSUPP;
+
+	if (!is_valid_ether_addr(mac) || vf >= num_vfs)
+		return -EINVAL;
+
+	if (!compare_ether_addr(adapter->mac_addr, mac)) {
+		netdev_err(netdev, "MAC address is already in use by the PF\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < num_vfs; i++) {
+		vf_info = &sriov->vf_info[i];
+		if (!compare_ether_addr(vf_info->vp->mac, mac)) {
+			netdev_err(netdev,
+				   "MAC address is already in use by VF %d\n",
+				   i);
+			return -EINVAL;
+		}
+	}
+
+	vf_info = &sriov->vf_info[vf];
+	curr_mac = vf_info->vp->mac;
+
+	if (test_bit(QLC_BC_VF_STATE, &vf_info->state)) {
+		netdev_err(netdev,
+			   "MAC address change failed for VF %d, as VF driver is loaded. Please unload VF driver and retry the operation\n",
+			   vf);
+		return -EOPNOTSUPP;
+	}
+
+	memcpy(curr_mac, mac, netdev->addr_len);
+	netdev_info(netdev, "MAC Address %pM  is configured for VF %d\n",
+		    mac, vf);
+	return 0;
+}
+
+int qlcnic_sriov_set_vf_tx_rate(struct net_device *netdev, int vf, int tx_rate)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
+	struct qlcnic_vf_info *vf_info;
+	struct qlcnic_info nic_info;
+	struct qlcnic_vport *vp;
+	u16 vpid;
+
+	if (!qlcnic_sriov_pf_check(adapter))
+		return -EOPNOTSUPP;
+
+	if (vf >= sriov->num_vfs)
+		return -EINVAL;
+
+	if (tx_rate >= 10000 || tx_rate < 100) {
+		netdev_err(netdev,
+			   "Invalid Tx rate, allowed range is [%d - %d]",
+			   QLC_VF_MIN_TX_RATE, QLC_VF_MAX_TX_RATE);
+		return -EINVAL;
+	}
+
+	if (tx_rate == 0)
+		tx_rate = 10000;
+
+	vf_info = &sriov->vf_info[vf];
+	vp = vf_info->vp;
+	vpid = vp->handle;
+
+	if (test_bit(QLC_BC_VF_STATE, &vf_info->state)) {
+		if (qlcnic_sriov_get_vf_vport_info(adapter, &nic_info, vpid))
+			return -EIO;
+
+		nic_info.max_tx_bw = tx_rate / 100;
+		nic_info.bit_offsets = BIT_0;
+
+		if (qlcnic_sriov_pf_set_vport_info(adapter, &nic_info, vpid))
+			return -EIO;
+	}
+
+	vp->max_tx_bw = tx_rate / 100;
+	netdev_info(netdev,
+		    "Setting Tx rate %d (Mbps), %d %% of PF bandwidth, for VF %d\n",
+		    tx_rate, vp->max_tx_bw, vf);
+	return 0;
+}
+
+int qlcnic_sriov_get_vf_config(struct net_device *netdev,
+			       int vf, struct ifla_vf_info *ivi)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
+	struct qlcnic_vport *vp;
+
+	if (!qlcnic_sriov_pf_check(adapter))
+		return -EOPNOTSUPP;
+
+	if (vf >= sriov->num_vfs)
+		return -EINVAL;
+
+	vp = sriov->vf_info[vf].vp;
+	memcpy(&ivi->mac, vp->mac, ETH_ALEN);
+	if (vp->max_tx_bw == MAX_BW)
+		ivi->tx_rate = 0;
+	else
+		ivi->tx_rate = vp->max_tx_bw * 100;
+
+	ivi->vf = vf;
+	return 0;
 }

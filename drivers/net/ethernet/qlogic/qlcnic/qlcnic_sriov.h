@@ -116,6 +116,8 @@ struct qlcnic_resources {
 
 struct qlcnic_vport {
 	u16			handle;
+	u16			max_tx_bw;
+	u16			min_tx_bw;
 	u8			mac[6];
 };
 
@@ -173,6 +175,8 @@ void qlcnic_sriov_cleanup_async_list(struct qlcnic_back_channel *);
 void qlcnic_sriov_cleanup_list(struct qlcnic_trans_list *);
 int __qlcnic_sriov_add_act_list(struct qlcnic_sriov *, struct qlcnic_vf_info *,
 				struct qlcnic_bc_trans *);
+int qlcnic_sriov_get_vf_vport_info(struct qlcnic_adapter *,
+				   struct qlcnic_info *, u16);
 
 static inline bool qlcnic_sriov_enable_check(struct qlcnic_adapter *adapter)
 {
@@ -199,6 +203,10 @@ bool qlcnic_sriov_soft_flr_check(struct qlcnic_adapter *,
 				 struct qlcnic_vf_info *);
 void qlcnic_sriov_pf_reset(struct qlcnic_adapter *);
 int qlcnic_sriov_pf_reinit(struct qlcnic_adapter *);
+int qlcnic_sriov_set_vf_mac(struct net_device *, int, u8 *);
+int qlcnic_sriov_set_vf_tx_rate(struct net_device *, int, int);
+int qlcnic_sriov_get_vf_config(struct net_device *, int ,
+			       struct ifla_vf_info *);
 #else
 static inline void qlcnic_sriov_pf_disable(struct qlcnic_adapter *adapter) {}
 static inline void qlcnic_sriov_pf_cleanup(struct qlcnic_adapter *adapter) {}
