@@ -318,7 +318,7 @@ nfulnl_set_flags(struct nfulnl_instance *inst, u_int16_t flags)
 }
 
 static struct sk_buff *
-nfulnl_alloc_skb(unsigned int inst_size, unsigned int pkt_size)
+nfulnl_alloc_skb(u32 peer_portid, unsigned int inst_size, unsigned int pkt_size)
 {
 	struct sk_buff *skb;
 	unsigned int n;
@@ -327,13 +327,14 @@ nfulnl_alloc_skb(unsigned int inst_size, unsigned int pkt_size)
 	 * message.  WARNING: has to be <= 128k due to slab restrictions */
 
 	n = max(inst_size, pkt_size);
-	skb = alloc_skb(n, GFP_ATOMIC);
+	skb = nfnetlink_alloc_skb(&init_net, n, peer_portid, GFP_ATOMIC);
 	if (!skb) {
 		if (n > pkt_size) {
 			/* try to allocate only as much as we need for current
 			 * packet */
 
-			skb = alloc_skb(pkt_size, GFP_ATOMIC);
+			skb = nfnetlink_alloc_skb(&init_net, pkt_size,
+						  peer_portid, GFP_ATOMIC);
 			if (!skb)
 				pr_err("nfnetlink_log: can't even alloc %u bytes\n",
 				       pkt_size);
@@ -696,7 +697,8 @@ nfulnl_log_packet(u_int8_t pf,
 	}
 
 	if (!inst->skb) {
-		inst->skb = nfulnl_alloc_skb(inst->nlbufsiz, size);
+		inst->skb = nfulnl_alloc_skb(inst->peer_portid, inst->nlbufsiz,
+					     size);
 		if (!inst->skb)
 			goto alloc_failure;
 	}
@@ -824,7 +826,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 
 			inst = instance_create(net, group_num,
 					       NETLINK_CB(skb).portid,
-					       sk_user_ns(NETLINK_CB(skb).ssk));
+					       sk_user_ns(NETLINK_CB(skb).sk));
 			if (IS_ERR(inst)) {
 				ret = PTR_ERR(inst);
 				goto out;

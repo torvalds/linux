@@ -324,7 +324,7 @@ int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *in_s
 	}
 
 	err = sk_diag_fill(sk, rep, req,
-			   sk_user_ns(NETLINK_CB(in_skb).ssk),
+			   sk_user_ns(NETLINK_CB(in_skb).sk),
 			   NETLINK_CB(in_skb).portid,
 			   nlh->nlmsg_seq, 0, nlh);
 	if (err < 0) {
@@ -630,7 +630,7 @@ static int inet_csk_diag_dump(struct sock *sk,
 		return 0;
 
 	return inet_csk_diag_fill(sk, skb, r,
-				  sk_user_ns(NETLINK_CB(cb->skb).ssk),
+				  sk_user_ns(NETLINK_CB(cb->skb).sk),
 				  NETLINK_CB(cb->skb).portid,
 				  cb->nlh->nlmsg_seq, NLM_F_MULTI, cb->nlh);
 }
@@ -805,7 +805,7 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 			}
 
 			err = inet_diag_fill_req(skb, sk, req,
-					       sk_user_ns(NETLINK_CB(cb->skb).ssk),
+					       sk_user_ns(NETLINK_CB(cb->skb).sk),
 					       NETLINK_CB(cb->skb).portid,
 					       cb->nlh->nlmsg_seq, cb->nlh);
 			if (err < 0) {

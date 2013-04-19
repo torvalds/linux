@@ -29,10 +29,13 @@ extern int nfnetlink_subsys_register(const struct nfnetlink_subsystem *n);
 extern int nfnetlink_subsys_unregister(const struct nfnetlink_subsystem *n);
 
 extern int nfnetlink_has_listeners(struct net *net, unsigned int group);
-extern int nfnetlink_send(struct sk_buff *skb, struct net *net, u32 pid, unsigned int group,
-			  int echo, gfp_t flags);
-extern int nfnetlink_set_err(struct net *net, u32 pid, u32 group, int error);
-extern int nfnetlink_unicast(struct sk_buff *skb, struct net *net, u_int32_t pid, int flags);
+extern struct sk_buff *nfnetlink_alloc_skb(struct net *net, unsigned int size,
+					   u32 dst_portid, gfp_t gfp_mask);
+extern int nfnetlink_send(struct sk_buff *skb, struct net *net, u32 portid,
+			  unsigned int group, int echo, gfp_t flags);
+extern int nfnetlink_set_err(struct net *net, u32 portid, u32 group, int error);
+extern int nfnetlink_unicast(struct sk_buff *skb, struct net *net,
+			     u32 portid, int flags);
 
 extern void nfnl_lock(__u8 subsys_id);
 extern void nfnl_unlock(__u8 subsys_id);
