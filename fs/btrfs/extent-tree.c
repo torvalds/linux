@@ -419,8 +419,7 @@ again:
 			if (ret)
 				break;
 
-			if (need_resched() ||
-			    btrfs_next_leaf(extent_root, path)) {
+			if (need_resched()) {
 				caching_ctl->progress = last;
 				btrfs_release_path(path);
 				up_read(&fs_info->extent_commit_sem);
@@ -428,6 +427,12 @@ again:
 				cond_resched();
 				goto again;
 			}
+
+			ret = btrfs_next_leaf(extent_root, path);
+			if (ret < 0)
+				goto err;
+			if (ret)
+				break;
 			leaf = path->nodes[0];
 			nritems = btrfs_header_nritems(leaf);
 			continue;
