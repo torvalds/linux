@@ -7959,7 +7959,7 @@ intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 	list_for_each_entry((intel_crtc), \
 			    &(dev)->mode_config.crtc_list, \
 			    base.head) \
-		if (mask & (1 <<(intel_crtc)->pipe)) \
+		if (mask & (1 <<(intel_crtc)->pipe))
 
 static bool
 intel_pipe_config_compare(struct intel_crtc_config *current_config,
