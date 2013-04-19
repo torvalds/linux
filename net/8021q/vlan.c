@@ -112,7 +112,7 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 	 * VLAN is not 0 (leave it there for 802.1p).
 	 */
 	if (vlan_id)
-		vlan_vid_del(real_dev, vlan_id);
+		vlan_vid_del(real_dev, htons(ETH_P_8021Q), vlan_id);
 
 	/* Get rid of the vlan's reference to real_dev */
 	dev_put(real_dev);
@@ -142,7 +142,7 @@ int register_vlan_dev(struct net_device *dev)
 	struct vlan_group *grp;
 	int err;
 
-	err = vlan_vid_add(real_dev, vlan_id);
+	err = vlan_vid_add(real_dev, htons(ETH_P_8021Q), vlan_id);
 	if (err)
 		return err;
 
@@ -195,7 +195,7 @@ out_uninit_gvrp:
 	if (grp->nr_vlan_devs == 0)
 		vlan_gvrp_uninit_applicant(real_dev);
 out_vid_del:
-	vlan_vid_del(real_dev, vlan_id);
+	vlan_vid_del(real_dev, htons(ETH_P_8021Q), vlan_id);
 	return err;
 }
 
@@ -350,7 +350,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	    (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)) {
 		pr_info("adding VLAN 0 to HW filter on device %s\n",
 			dev->name);
-		vlan_vid_add(dev, 0);
+		vlan_vid_add(dev, htons(ETH_P_8021Q), 0);
 	}
 
 	vlan_info = rtnl_dereference(dev->vlan_info);
@@ -416,7 +416,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 
 	case NETDEV_DOWN:
 		if (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
-			vlan_vid_del(dev, 0);
+			vlan_vid_del(dev, htons(ETH_P_8021Q), 0);
 
 		/* Put all VLANs for this dev in the down state too.  */
 		for (i = 0; i < VLAN_N_VID; i++) {

@@ -2326,7 +2326,7 @@ static int __qlge_vlan_rx_add_vid(struct ql_adapter *qdev, u16 vid)
 	return err;
 }
 
-static int qlge_vlan_rx_add_vid(struct net_device *ndev, u16 vid)
+static int qlge_vlan_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	int status;
@@ -2357,7 +2357,7 @@ static int __qlge_vlan_rx_kill_vid(struct ql_adapter *qdev, u16 vid)
 	return err;
 }
 
-static int qlge_vlan_rx_kill_vid(struct net_device *ndev, u16 vid)
+static int qlge_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vid)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	int status;

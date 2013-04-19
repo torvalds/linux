@@ -1230,7 +1230,8 @@ static void igbvf_set_rlpml(struct igbvf_adapter *adapter)
 	e1000_rlpml_set_vf(hw, max_frame_size);
 }
 
-static int igbvf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
+static int igbvf_vlan_rx_add_vid(struct net_device *netdev,
+				 __be16 proto, u16 vid)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -1243,7 +1244,8 @@ static int igbvf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	return 0;
 }
 
-static int igbvf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
+static int igbvf_vlan_rx_kill_vid(struct net_device *netdev,
+				  __be16 proto, u16 vid)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -1262,7 +1264,7 @@ static void igbvf_restore_vlan(struct igbvf_adapter *adapter)
 	u16 vid;
 
 	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
-		igbvf_vlan_rx_add_vid(adapter->netdev, vid);
+		igbvf_vlan_rx_add_vid(adapter->netdev, htons(ETH_P_8021Q), vid);
 }
 
 /**

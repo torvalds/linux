@@ -101,8 +101,10 @@ static void ixgb_tx_timeout_task(struct work_struct *work);
 
 static void ixgb_vlan_strip_enable(struct ixgb_adapter *adapter);
 static void ixgb_vlan_strip_disable(struct ixgb_adapter *adapter);
-static int ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid);
-static int ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid);
+static int ixgb_vlan_rx_add_vid(struct net_device *netdev,
+				__be16 proto, u16 vid);
+static int ixgb_vlan_rx_kill_vid(struct net_device *netdev,
+				 __be16 proto, u16 vid);
 static void ixgb_restore_vlan(struct ixgb_adapter *adapter);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2209,7 +2211,7 @@ ixgb_vlan_strip_disable(struct ixgb_adapter *adapter)
 }
 
 static int
-ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
+ixgb_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	u32 vfta, index;
@@ -2226,7 +2228,7 @@ ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 }
 
 static int
-ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
+ixgb_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	u32 vfta, index;
@@ -2248,7 +2250,7 @@ ixgb_restore_vlan(struct ixgb_adapter *adapter)
 	u16 vid;
 
 	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
-		ixgb_vlan_rx_add_vid(adapter->netdev, vid);
+		ixgb_vlan_rx_add_vid(adapter->netdev, htons(ETH_P_8021Q), vid);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER

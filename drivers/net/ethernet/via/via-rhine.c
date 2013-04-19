@@ -508,8 +508,10 @@ static struct rtnl_link_stats64 *rhine_get_stats64(struct net_device *dev,
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static const struct ethtool_ops netdev_ethtool_ops;
 static int  rhine_close(struct net_device *dev);
-static int rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid);
-static int rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid);
+static int rhine_vlan_rx_add_vid(struct net_device *dev,
+				 __be16 proto, u16 vid);
+static int rhine_vlan_rx_kill_vid(struct net_device *dev,
+				  __be16 proto, u16 vid);
 static void rhine_restart_tx(struct net_device *dev);
 
 static void rhine_wait_bit(struct rhine_private *rp, u8 reg, u8 mask, bool low)
@@ -1415,7 +1417,7 @@ static void rhine_update_vcam(struct net_device *dev)
 	rhine_set_vlan_cam_mask(ioaddr, vCAMmask);
 }
 
-static int rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int rhine_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 
@@ -1426,7 +1428,7 @@ static int rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	return 0;
 }
 
-static int rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int rhine_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 

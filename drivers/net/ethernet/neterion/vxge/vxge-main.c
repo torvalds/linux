@@ -3300,12 +3300,13 @@ static void vxge_tx_watchdog(struct net_device *dev)
 /**
  * vxge_vlan_rx_add_vid
  * @dev: net device pointer.
+ * @proto: vlan protocol
  * @vid: vid
  *
  * Add the vlan id to the devices vlan id table
  */
 static int
-vxge_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+vxge_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
 	struct vxge_vpath *vpath;
@@ -3323,14 +3324,15 @@ vxge_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 }
 
 /**
- * vxge_vlan_rx_add_vid
+ * vxge_vlan_rx_kill_vid
  * @dev: net device pointer.
+ * @proto: vlan protocol
  * @vid: vid
  *
  * Remove the vlan id from the device's vlan id table
  */
 static int
-vxge_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+vxge_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
 	struct vxge_vpath *vpath;

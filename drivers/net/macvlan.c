@@ -567,21 +567,21 @@ static struct rtnl_link_stats64 *macvlan_dev_get_stats64(struct net_device *dev,
 }
 
 static int macvlan_vlan_rx_add_vid(struct net_device *dev,
-				    unsigned short vid)
+				   __be16 proto, u16 vid)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
 
-	return vlan_vid_add(lowerdev, vid);
+	return vlan_vid_add(lowerdev, proto, vid);
 }
 
 static int macvlan_vlan_rx_kill_vid(struct net_device *dev,
-				     unsigned short vid)
+				    __be16 proto, u16 vid)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
 
-	vlan_vid_del(lowerdev, vid);
+	vlan_vid_del(lowerdev, proto, vid);
 	return 0;
 }
 

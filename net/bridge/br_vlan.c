@@ -34,6 +34,7 @@ static void __vlan_add_flags(struct net_port_vlans *v, u16 vid, u16 flags)
 
 static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 {
+	const struct net_device_ops *ops;
 	struct net_bridge_port *p = NULL;
 	struct net_bridge *br;
 	struct net_device *dev;
@@ -53,6 +54,7 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 			br = v->parent.br;
 			dev = br->dev;
 		}
+		ops = dev->netdev_ops;
 
 		if (p && (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)) {
 			/* Add VLAN to the device filter if it is supported.
@@ -61,7 +63,8 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 			 * that ever changes this code will allow tagged
 			 * traffic to enter the bridge.
 			 */
-			err = dev->netdev_ops->ndo_vlan_rx_add_vid(dev, vid);
+			err = ops->ndo_vlan_rx_add_vid(dev, htons(ETH_P_8021Q),
+						       vid);
 			if (err)
 				return err;
 		}
@@ -83,7 +86,7 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 
 out_filt:
 	if (p && (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER))
-		dev->netdev_ops->ndo_vlan_rx_kill_vid(dev, vid);
+		ops->ndo_vlan_rx_kill_vid(dev, htons(ETH_P_8021Q), vid);
 	return err;
 }
 
@@ -97,9 +100,10 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 
 	if (v->port_idx && vid) {
 		struct net_device *dev = v->parent.port->dev;
+		const struct net_device_ops *ops = dev->netdev_ops;
 
 		if (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
-			dev->netdev_ops->ndo_vlan_rx_kill_vid(dev, vid);
+			ops->ndo_vlan_rx_kill_vid(dev, htons(ETH_P_8021Q), vid);
 	}
 
 	clear_bit(vid, v->vlan_bitmap);

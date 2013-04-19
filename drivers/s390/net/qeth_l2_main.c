@@ -302,7 +302,8 @@ static void qeth_l2_process_vlans(struct qeth_card *card)
 	spin_unlock_bh(&card->vlanlock);
 }
 
-static int qeth_l2_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int qeth_l2_vlan_rx_add_vid(struct net_device *dev,
+				   __be16 proto, u16 vid)
 {
 	struct qeth_card *card = dev->ml_priv;
 	struct qeth_vlan_vid *id;
@@ -331,7 +332,8 @@ static int qeth_l2_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	return 0;
 }
 
-static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev,
+				    __be16 proto, u16 vid)
 {
 	struct qeth_vlan_vid *id, *tmpid = NULL;
 	struct qeth_card *card = dev->ml_priv;

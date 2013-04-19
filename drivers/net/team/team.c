@@ -1598,7 +1598,7 @@ team_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	return stats;
 }
 
-static int team_vlan_rx_add_vid(struct net_device *dev, uint16_t vid)
+static int team_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct team *team = netdev_priv(dev);
 	struct team_port *port;
@@ -1610,7 +1610,7 @@ static int team_vlan_rx_add_vid(struct net_device *dev, uint16_t vid)
 	 */
 	mutex_lock(&team->lock);
 	list_for_each_entry(port, &team->port_list, list) {
-		err = vlan_vid_add(port->dev, vid);
+		err = vlan_vid_add(port->dev, proto, vid);
 		if (err)
 			goto unwind;
 	}
@@ -1620,20 +1620,20 @@ static int team_vlan_rx_add_vid(struct net_device *dev, uint16_t vid)
 
 unwind:
 	list_for_each_entry_continue_reverse(port, &team->port_list, list)
-		vlan_vid_del(port->dev, vid);
+		vlan_vid_del(port->dev, proto, vid);
 	mutex_unlock(&team->lock);
 
 	return err;
 }
 
-static int team_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
+static int team_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct team *team = netdev_priv(dev);
 	struct team_port *port;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(port, &team->port_list, list)
-		vlan_vid_del(port->dev, vid);
+		vlan_vid_del(port->dev, proto, vid);
 	rcu_read_unlock();
 
 	return 0;

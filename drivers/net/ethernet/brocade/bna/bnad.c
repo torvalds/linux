@@ -3068,8 +3068,7 @@ bnad_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 static int
-bnad_vlan_rx_add_vid(struct net_device *netdev,
-				 unsigned short vid)
+bnad_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct bnad *bnad = netdev_priv(netdev);
 	unsigned long flags;
@@ -3090,8 +3089,7 @@ bnad_vlan_rx_add_vid(struct net_device *netdev,
 }
 
 static int
-bnad_vlan_rx_kill_vid(struct net_device *netdev,
-				  unsigned short vid)
+bnad_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct bnad *bnad = netdev_priv(netdev);
 	unsigned long flags;

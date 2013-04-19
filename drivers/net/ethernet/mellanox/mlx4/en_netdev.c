@@ -356,7 +356,8 @@ static void mlx4_en_filter_rfs_expire(struct mlx4_en_priv *priv)
 }
 #endif
 
-static int mlx4_en_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int mlx4_en_vlan_rx_add_vid(struct net_device *dev,
+				   __be16 proto, u16 vid)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -381,7 +382,8 @@ static int mlx4_en_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	return 0;
 }
 
-static int mlx4_en_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int mlx4_en_vlan_rx_kill_vid(struct net_device *dev,
+				    __be16 proto, u16 vid)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;

@@ -1931,7 +1931,7 @@ vmxnet3_restore_vlan(struct vmxnet3_adapter *adapter)
 
 
 static int
-vmxnet3_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
+vmxnet3_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 
@@ -1953,7 +1953,7 @@ vmxnet3_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 
 
 static int
-vmxnet3_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
+vmxnet3_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 

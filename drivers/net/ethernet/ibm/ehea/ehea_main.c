@@ -2110,7 +2110,7 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static int ehea_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int ehea_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct ehea_port *port = netdev_priv(dev);
 	struct ehea_adapter *adapter = port->adapter;
@@ -2148,7 +2148,7 @@ out:
 	return err;
 }
 
-static int ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int ehea_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct ehea_port *port = netdev_priv(dev);
 	struct ehea_adapter *adapter = port->adapter;

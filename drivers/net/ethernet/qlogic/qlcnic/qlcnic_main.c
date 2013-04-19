@@ -86,8 +86,8 @@ static void qlcnic_dev_set_npar_ready(struct qlcnic_adapter *);
 static int qlcnicvf_start_firmware(struct qlcnic_adapter *);
 static void qlcnic_set_netdev_features(struct qlcnic_adapter *,
 				struct qlcnic_esw_func_cfg *);
-static int qlcnic_vlan_rx_add(struct net_device *, u16);
-static int qlcnic_vlan_rx_del(struct net_device *, u16);
+static int qlcnic_vlan_rx_add(struct net_device *, __be16, u16);
+static int qlcnic_vlan_rx_del(struct net_device *, __be16, u16);
 
 #define QLCNIC_IS_TSO_CAPABLE(adapter)	\
 	((adapter)->ahw->capabilities & QLCNIC_FW_CAPABILITY_TSO)
@@ -902,7 +902,7 @@ void qlcnic_set_vlan_config(struct qlcnic_adapter *adapter,
 }
 
 static int
-qlcnic_vlan_rx_add(struct net_device *netdev, u16 vid)
+qlcnic_vlan_rx_add(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	set_bit(vid, adapter->vlans);
@@ -910,7 +910,7 @@ qlcnic_vlan_rx_add(struct net_device *netdev, u16 vid)
 }
 
 static int
-qlcnic_vlan_rx_del(struct net_device *netdev, u16 vid)
+qlcnic_vlan_rx_del(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 

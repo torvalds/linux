@@ -1824,7 +1824,8 @@ static void qeth_l3_free_vlan_addresses(struct qeth_card *card,
 	rcu_read_unlock();
 }
 
-static int qeth_l3_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int qeth_l3_vlan_rx_add_vid(struct net_device *dev,
+				   __be16 proto, u16 vid)
 {
 	struct qeth_card *card = dev->ml_priv;
 
@@ -1832,7 +1833,8 @@ static int qeth_l3_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	return 0;
 }
 
-static int qeth_l3_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int qeth_l3_vlan_rx_kill_vid(struct net_device *dev,
+				    __be16 proto, u16 vid)
 {
 	struct qeth_card *card = dev->ml_priv;
 	unsigned long flags;

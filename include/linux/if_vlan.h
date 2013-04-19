@@ -93,8 +93,8 @@ extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 extern bool vlan_do_receive(struct sk_buff **skb);
 extern struct sk_buff *vlan_untag(struct sk_buff *skb);
 
-extern int vlan_vid_add(struct net_device *dev, unsigned short vid);
-extern void vlan_vid_del(struct net_device *dev, unsigned short vid);
+extern int vlan_vid_add(struct net_device *dev, __be16 proto, u16 vid);
+extern void vlan_vid_del(struct net_device *dev, __be16 proto, u16 vid);
 
 extern int vlan_vids_add_by_dev(struct net_device *dev,
 				const struct net_device *by_dev);

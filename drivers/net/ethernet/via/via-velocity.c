@@ -525,7 +525,8 @@ static void velocity_init_cam_filter(struct velocity_info *vptr)
 	mac_set_vlan_cam_mask(regs, vptr->vCAMmask);
 }
 
-static int velocity_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int velocity_vlan_rx_add_vid(struct net_device *dev,
+				    __be16 proto, u16 vid)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 
@@ -536,7 +537,8 @@ static int velocity_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	return 0;
 }
 
-static int velocity_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int velocity_vlan_rx_kill_vid(struct net_device *dev,
+				     __be16 proto, u16 vid)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 
