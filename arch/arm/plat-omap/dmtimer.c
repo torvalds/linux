@@ -140,8 +140,7 @@ static int omap_dm_timer_prepare(struct omap_dm_timer *timer)
 	 */
 	if (!(timer->capability & OMAP_TIMER_NEEDS_RESET)) {
 		timer->fclk = clk_get(&timer->pdev->dev, "fck");
-		if (WARN_ON_ONCE(IS_ERR_OR_NULL(timer->fclk))) {
-			timer->fclk = NULL;
+		if (WARN_ON_ONCE(IS_ERR(timer->fclk))) {
 			dev_err(&timer->pdev->dev, ": No fclk handle.\n");
 			return -EINVAL;
 		}
@@ -373,7 +372,7 @@ EXPORT_SYMBOL_GPL(omap_dm_timer_modify_idlect_mask);
 
 struct clk *omap_dm_timer_get_fclk(struct omap_dm_timer *timer)
 {
-	if (timer)
+	if (timer && !IS_ERR(timer->fclk))
 		return timer->fclk;
 	return NULL;
 }
@@ -482,7 +481,7 @@ int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 	if (pdata && pdata->set_timer_src)
 		return pdata->set_timer_src(timer->pdev, source);
 
-	if (!timer->fclk)
+	if (IS_ERR(timer->fclk))
 		return -EINVAL;
 
 	switch (source) {
@@ -500,13 +499,13 @@ int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 	}
 
 	parent = clk_get(&timer->pdev->dev, parent_name);
-	if (IS_ERR_OR_NULL(parent)) {
+	if (IS_ERR(parent)) {
 		pr_err("%s: %s not found\n", __func__, parent_name);
 		return -EINVAL;
 	}
 
 	ret = clk_set_parent(timer->fclk, parent);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		pr_err("%s: failed to set %s as parent\n", __func__,
 			parent_name);
 
@@ -808,6 +807,7 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 		return  -ENOMEM;
 	}
 
+	timer->fclk = ERR_PTR(-ENODEV);
 	timer->io_base = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(timer->io_base))
 		return PTR_ERR(timer->io_base);

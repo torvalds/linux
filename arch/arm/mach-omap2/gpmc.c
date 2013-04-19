@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_mtd.h>
 #include <linux/of_device.h>
 #include <linux/mtd/nand.h>
@@ -91,9 +92,7 @@
 #define GPMC_CS_SIZE		0x30
 #define	GPMC_BCH_SIZE		0x10
 
-#define GPMC_MEM_START		0x00000000
 #define GPMC_MEM_END		0x3FFFFFFF
-#define BOOT_ROM_SPACE		0x100000	/* 1MB */
 
 #define GPMC_CHUNK_SHIFT	24		/* 16 MB */
 #define GPMC_SECTION_SHIFT	28		/* 128 MB */
@@ -107,6 +106,9 @@
 
 #define	GPMC_HAS_WR_ACCESS		0x1
 #define	GPMC_HAS_WR_DATA_MUX_BUS	0x2
+#define	GPMC_HAS_MUX_AAD		0x4
+
+#define GPMC_NR_WAITPINS		4
 
 /* XXX: Only NAND irq has been considered,currently these are the only ones used
  */
@@ -153,6 +155,7 @@ static struct resource	gpmc_cs_mem[GPMC_CS_NUM];
 static DEFINE_SPINLOCK(gpmc_mem_lock);
 /* Define chip-selects as reserved by default until probe completes */
 static unsigned int gpmc_cs_map = ((1 << GPMC_CS_NUM) - 1);
+static unsigned int gpmc_nr_waitpins;
 static struct device *gpmc_dev;
 static int gpmc_irq;
 static resource_size_t phys_base, mem_size;
@@ -181,7 +184,7 @@ void gpmc_cs_write_reg(int cs, int idx, u32 val)
 	__raw_writel(val, reg_addr);
 }
 
-u32 gpmc_cs_read_reg(int cs, int idx)
+static u32 gpmc_cs_read_reg(int cs, int idx)
 {
 	void __iomem *reg_addr;
 
@@ -190,7 +193,7 @@ u32 gpmc_cs_read_reg(int cs, int idx)
 }
 
 /* TODO: Add support for gpmc_fck to clock framework and use it */
-unsigned long gpmc_get_fclk_period(void)
+static unsigned long gpmc_get_fclk_period(void)
 {
 	unsigned long rate = clk_get_rate(gpmc_l3_clk);
 
@@ -205,7 +208,7 @@ unsigned long gpmc_get_fclk_period(void)
 	return rate;
 }
 
-unsigned int gpmc_ns_to_ticks(unsigned int time_ns)
+static unsigned int gpmc_ns_to_ticks(unsigned int time_ns)
 {
 	unsigned long tick_ps;
 
@@ -215,7 +218,7 @@ unsigned int gpmc_ns_to_ticks(unsigned int time_ns)
 	return (time_ns * 1000 + tick_ps - 1) / tick_ps;
 }
 
-unsigned int gpmc_ps_to_ticks(unsigned int time_ps)
+static unsigned int gpmc_ps_to_ticks(unsigned int time_ps)
 {
 	unsigned long tick_ps;
 
@@ -227,13 +230,6 @@ unsigned int gpmc_ps_to_ticks(unsigned int time_ps)
 
 unsigned int gpmc_ticks_to_ns(unsigned int ticks)
 {
-	return ticks * gpmc_get_fclk_period() / 1000;
-}
-
-unsigned int gpmc_round_ns_to_ticks(unsigned int time_ns)
-{
-	unsigned long ticks = gpmc_ns_to_ticks(time_ns);
-
 	return ticks * gpmc_get_fclk_period() / 1000;
 }
 
@@ -405,10 +401,17 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t)
 	return 0;
 }
 
-static void gpmc_cs_enable_mem(int cs, u32 base, u32 size)
+static int gpmc_cs_enable_mem(int cs, u32 base, u32 size)
 {
 	u32 l;
 	u32 mask;
+
+	/*
+	 * Ensure that base address is aligned on a
+	 * boundary equal to or greater than size.
+	 */
+	if (base & (size - 1))
+		return -EINVAL;
 
 	mask = (1 << GPMC_SECTION_SHIFT) - size;
 	l = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG7);
@@ -418,6 +421,8 @@ static void gpmc_cs_enable_mem(int cs, u32 base, u32 size)
 	l |= ((mask >> GPMC_CHUNK_SHIFT) & 0x0f) << 8;
 	l |= GPMC_CONFIG7_CSVALID;
 	gpmc_cs_write_reg(cs, GPMC_CS_CONFIG7, l);
+
+	return 0;
 }
 
 static void gpmc_cs_disable_mem(int cs)
@@ -448,22 +453,14 @@ static int gpmc_cs_mem_enabled(int cs)
 	return l & GPMC_CONFIG7_CSVALID;
 }
 
-int gpmc_cs_set_reserved(int cs, int reserved)
+static void gpmc_cs_set_reserved(int cs, int reserved)
 {
-	if (cs > GPMC_CS_NUM)
-		return -ENODEV;
-
 	gpmc_cs_map &= ~(1 << cs);
 	gpmc_cs_map |= (reserved ? 1 : 0) << cs;
-
-	return 0;
 }
 
-int gpmc_cs_reserved(int cs)
+static bool gpmc_cs_reserved(int cs)
 {
-	if (cs > GPMC_CS_NUM)
-		return -ENODEV;
-
 	return gpmc_cs_map & (1 << cs);
 }
 
@@ -510,6 +507,39 @@ static int gpmc_cs_delete_mem(int cs)
 	return r;
 }
 
+/**
+ * gpmc_cs_remap - remaps a chip-select physical base address
+ * @cs:		chip-select to remap
+ * @base:	physical base address to re-map chip-select to
+ *
+ * Re-maps a chip-select to a new physical base address specified by
+ * "base". Returns 0 on success and appropriate negative error code
+ * on failure.
+ */
+static int gpmc_cs_remap(int cs, u32 base)
+{
+	int ret;
+	u32 old_base, size;
+
+	if (cs > GPMC_CS_NUM)
+		return -ENODEV;
+	gpmc_cs_get_memconf(cs, &old_base, &size);
+	if (base == old_base)
+		return 0;
+	gpmc_cs_disable_mem(cs);
+	ret = gpmc_cs_delete_mem(cs);
+	if (ret < 0)
+		return ret;
+	ret = gpmc_cs_insert_mem(cs, base, size);
+	if (ret < 0)
+		return ret;
+	ret = gpmc_cs_enable_mem(cs, base, size);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
 {
 	struct resource *res = &gpmc_cs_mem[cs];
@@ -535,7 +565,12 @@ int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
 	if (r < 0)
 		goto out;
 
-	gpmc_cs_enable_mem(cs, res->start, resource_size(res));
+	r = gpmc_cs_enable_mem(cs, res->start, resource_size(res));
+	if (r < 0) {
+		release_resource(res);
+		goto out;
+	}
+
 	*base = res->start;
 	gpmc_cs_set_reserved(cs, 1);
 out:
@@ -561,16 +596,14 @@ void gpmc_cs_free(int cs)
 EXPORT_SYMBOL(gpmc_cs_free);
 
 /**
- * gpmc_cs_configure - write request to configure gpmc
- * @cs: chip select number
+ * gpmc_configure - write request to configure gpmc
  * @cmd: command type
  * @wval: value to write
  * @return status of the operation
  */
-int gpmc_cs_configure(int cs, int cmd, int wval)
+int gpmc_configure(int cmd, int wval)
 {
-	int err = 0;
-	u32 regval = 0;
+	u32 regval;
 
 	switch (cmd) {
 	case GPMC_ENABLE_IRQ:
@@ -590,43 +623,14 @@ int gpmc_cs_configure(int cs, int cmd, int wval)
 		gpmc_write_reg(GPMC_CONFIG, regval);
 		break;
 
-	case GPMC_CONFIG_RDY_BSY:
-		regval  = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
-		if (wval)
-			regval |= WR_RD_PIN_MONITORING;
-		else
-			regval &= ~WR_RD_PIN_MONITORING;
-		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, regval);
-		break;
-
-	case GPMC_CONFIG_DEV_SIZE:
-		regval  = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
-
-		/* clear 2 target bits */
-		regval &= ~GPMC_CONFIG1_DEVICESIZE(3);
-
-		/* set the proper value */
-		regval |= GPMC_CONFIG1_DEVICESIZE(wval);
-
-		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, regval);
-		break;
-
-	case GPMC_CONFIG_DEV_TYPE:
-		regval  = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
-		regval |= GPMC_CONFIG1_DEVICETYPE(wval);
-		if (wval == GPMC_DEVICETYPE_NOR)
-			regval |= GPMC_CONFIG1_MUXADDDATA;
-		gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, regval);
-		break;
-
 	default:
-		printk(KERN_ERR "gpmc_configure_cs: Not supported\n");
-		err = -EINVAL;
+		pr_err("%s: command not supported\n", __func__);
+		return -EINVAL;
 	}
 
-	return err;
+	return 0;
 }
-EXPORT_SYMBOL(gpmc_cs_configure);
+EXPORT_SYMBOL(gpmc_configure);
 
 void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs)
 {
@@ -716,7 +720,7 @@ static int gpmc_setup_irq(void)
 		return -EINVAL;
 
 	gpmc_irq_start = irq_alloc_descs(-1, 0, GPMC_NR_IRQ, 0);
-	if (IS_ERR_VALUE(gpmc_irq_start)) {
+	if (gpmc_irq_start < 0) {
 		pr_err("irq_alloc_descs failed\n");
 		return gpmc_irq_start;
 	}
@@ -781,16 +785,16 @@ static void gpmc_mem_exit(void)
 
 }
 
-static int gpmc_mem_init(void)
+static void gpmc_mem_init(void)
 {
-	int cs, rc;
-	unsigned long boot_rom_space = 0;
+	int cs;
 
-	/* never allocate the first page, to facilitate bug detection;
-	 * even if we didn't boot from ROM.
+	/*
+	 * The first 1MB of GPMC address space is typically mapped to
+	 * the internal ROM. Never allocate the first page, to
+	 * facilitate bug detection; even if we didn't boot from ROM.
 	 */
-	boot_rom_space = BOOT_ROM_SPACE;
-	gpmc_mem_root.start = GPMC_MEM_START + boot_rom_space;
+	gpmc_mem_root.start = SZ_1M;
 	gpmc_mem_root.end = GPMC_MEM_END;
 
 	/* Reserve all regions that has been set up by bootloader */
@@ -800,16 +804,12 @@ static int gpmc_mem_init(void)
 		if (!gpmc_cs_mem_enabled(cs))
 			continue;
 		gpmc_cs_get_memconf(cs, &base, &size);
-		rc = gpmc_cs_insert_mem(cs, base, size);
-		if (IS_ERR_VALUE(rc)) {
-			while (--cs >= 0)
-				if (gpmc_cs_mem_enabled(cs))
-					gpmc_cs_delete_mem(cs);
-			return rc;
+		if (gpmc_cs_insert_mem(cs, base, size)) {
+			pr_warn("%s: disabling cs %d mapped at 0x%x-0x%x\n",
+				__func__, cs, base, base + size);
+			gpmc_cs_disable_mem(cs);
 		}
 	}
-
-	return 0;
 }
 
 static u32 gpmc_round_ps_to_sync_clk(u32 time_ps, u32 sync_clk)
@@ -825,9 +825,9 @@ static u32 gpmc_round_ps_to_sync_clk(u32 time_ps, u32 sync_clk)
 
 /* XXX: can the cycles be avoided ? */
 static int gpmc_calc_sync_read_timings(struct gpmc_timings *gpmc_t,
-				struct gpmc_device_timings *dev_t)
+				       struct gpmc_device_timings *dev_t,
+				       bool mux)
 {
-	bool mux = dev_t->mux;
 	u32 temp;
 
 	/* adv_rd_off */
@@ -880,9 +880,9 @@ static int gpmc_calc_sync_read_timings(struct gpmc_timings *gpmc_t,
 }
 
 static int gpmc_calc_sync_write_timings(struct gpmc_timings *gpmc_t,
-				struct gpmc_device_timings *dev_t)
+					struct gpmc_device_timings *dev_t,
+					bool mux)
 {
-	bool mux = dev_t->mux;
 	u32 temp;
 
 	/* adv_wr_off */
@@ -942,9 +942,9 @@ static int gpmc_calc_sync_write_timings(struct gpmc_timings *gpmc_t,
 }
 
 static int gpmc_calc_async_read_timings(struct gpmc_timings *gpmc_t,
-				struct gpmc_device_timings *dev_t)
+					struct gpmc_device_timings *dev_t,
+					bool mux)
 {
-	bool mux = dev_t->mux;
 	u32 temp;
 
 	/* adv_rd_off */
@@ -982,9 +982,9 @@ static int gpmc_calc_async_read_timings(struct gpmc_timings *gpmc_t,
 }
 
 static int gpmc_calc_async_write_timings(struct gpmc_timings *gpmc_t,
-				struct gpmc_device_timings *dev_t)
+					 struct gpmc_device_timings *dev_t,
+					 bool mux)
 {
-	bool mux = dev_t->mux;
 	u32 temp;
 
 	/* adv_wr_off */
@@ -1054,7 +1054,8 @@ static int gpmc_calc_sync_common_timings(struct gpmc_timings *gpmc_t,
 }
 
 static int gpmc_calc_common_timings(struct gpmc_timings *gpmc_t,
-			struct gpmc_device_timings *dev_t)
+				    struct gpmc_device_timings *dev_t,
+				    bool sync)
 {
 	u32 temp;
 
@@ -1068,7 +1069,7 @@ static int gpmc_calc_common_timings(struct gpmc_timings *gpmc_t,
 				gpmc_t->cs_on + dev_t->t_ce_avd);
 	gpmc_t->adv_on = gpmc_round_ps_to_ticks(temp);
 
-	if (dev_t->sync_write || dev_t->sync_read)
+	if (sync)
 		gpmc_calc_sync_common_timings(gpmc_t, dev_t);
 
 	return 0;
@@ -1103,24 +1104,116 @@ static void gpmc_convert_ps_to_ns(struct gpmc_timings *t)
 }
 
 int gpmc_calc_timings(struct gpmc_timings *gpmc_t,
-			struct gpmc_device_timings *dev_t)
+		      struct gpmc_settings *gpmc_s,
+		      struct gpmc_device_timings *dev_t)
 {
+	bool mux = false, sync = false;
+
+	if (gpmc_s) {
+		mux = gpmc_s->mux_add_data ? true : false;
+		sync = (gpmc_s->sync_read || gpmc_s->sync_write);
+	}
+
 	memset(gpmc_t, 0, sizeof(*gpmc_t));
 
-	gpmc_calc_common_timings(gpmc_t, dev_t);
+	gpmc_calc_common_timings(gpmc_t, dev_t, sync);
 
-	if (dev_t->sync_read)
-		gpmc_calc_sync_read_timings(gpmc_t, dev_t);
+	if (gpmc_s && gpmc_s->sync_read)
+		gpmc_calc_sync_read_timings(gpmc_t, dev_t, mux);
 	else
-		gpmc_calc_async_read_timings(gpmc_t, dev_t);
+		gpmc_calc_async_read_timings(gpmc_t, dev_t, mux);
 
-	if (dev_t->sync_write)
-		gpmc_calc_sync_write_timings(gpmc_t, dev_t);
+	if (gpmc_s && gpmc_s->sync_write)
+		gpmc_calc_sync_write_timings(gpmc_t, dev_t, mux);
 	else
-		gpmc_calc_async_write_timings(gpmc_t, dev_t);
+		gpmc_calc_async_write_timings(gpmc_t, dev_t, mux);
 
 	/* TODO: remove, see function definition */
 	gpmc_convert_ps_to_ns(gpmc_t);
+
+	return 0;
+}
+
+/**
+ * gpmc_cs_program_settings - programs non-timing related settings
+ * @cs:		GPMC chip-select to program
+ * @p:		pointer to GPMC settings structure
+ *
+ * Programs non-timing related settings for a GPMC chip-select, such as
+ * bus-width, burst configuration, etc. Function should be called once
+ * for each chip-select that is being used and must be called before
+ * calling gpmc_cs_set_timings() as timing parameters in the CONFIG1
+ * register will be initialised to zero by this function. Returns 0 on
+ * success and appropriate negative error code on failure.
+ */
+int gpmc_cs_program_settings(int cs, struct gpmc_settings *p)
+{
+	u32 config1;
+
+	if ((!p->device_width) || (p->device_width > GPMC_DEVWIDTH_16BIT)) {
+		pr_err("%s: invalid width %d!", __func__, p->device_width);
+		return -EINVAL;
+	}
+
+	/* Address-data multiplexing not supported for NAND devices */
+	if (p->device_nand && p->mux_add_data) {
+		pr_err("%s: invalid configuration!\n", __func__);
+		return -EINVAL;
+	}
+
+	if ((p->mux_add_data > GPMC_MUX_AD) ||
+	    ((p->mux_add_data == GPMC_MUX_AAD) &&
+	     !(gpmc_capability & GPMC_HAS_MUX_AAD))) {
+		pr_err("%s: invalid multiplex configuration!\n", __func__);
+		return -EINVAL;
+	}
+
+	/* Page/burst mode supports lengths of 4, 8 and 16 bytes */
+	if (p->burst_read || p->burst_write) {
+		switch (p->burst_len) {
+		case GPMC_BURST_4:
+		case GPMC_BURST_8:
+		case GPMC_BURST_16:
+			break;
+		default:
+			pr_err("%s: invalid page/burst-length (%d)\n",
+			       __func__, p->burst_len);
+			return -EINVAL;
+		}
+	}
+
+	if ((p->wait_on_read || p->wait_on_write) &&
+	    (p->wait_pin > gpmc_nr_waitpins)) {
+		pr_err("%s: invalid wait-pin (%d)\n", __func__, p->wait_pin);
+		return -EINVAL;
+	}
+
+	config1 = GPMC_CONFIG1_DEVICESIZE((p->device_width - 1));
+
+	if (p->sync_read)
+		config1 |= GPMC_CONFIG1_READTYPE_SYNC;
+	if (p->sync_write)
+		config1 |= GPMC_CONFIG1_WRITETYPE_SYNC;
+	if (p->wait_on_read)
+		config1 |= GPMC_CONFIG1_WAIT_READ_MON;
+	if (p->wait_on_write)
+		config1 |= GPMC_CONFIG1_WAIT_WRITE_MON;
+	if (p->wait_on_read || p->wait_on_write)
+		config1 |= GPMC_CONFIG1_WAIT_PIN_SEL(p->wait_pin);
+	if (p->device_nand)
+		config1	|= GPMC_CONFIG1_DEVICETYPE(GPMC_DEVICETYPE_NAND);
+	if (p->mux_add_data)
+		config1	|= GPMC_CONFIG1_MUXTYPE(p->mux_add_data);
+	if (p->burst_read)
+		config1 |= GPMC_CONFIG1_READMULTIPLE_SUPP;
+	if (p->burst_write)
+		config1 |= GPMC_CONFIG1_WRITEMULTIPLE_SUPP;
+	if (p->burst_read || p->burst_write) {
+		config1 |= GPMC_CONFIG1_PAGE_LEN(p->burst_len >> 3);
+		config1 |= p->burst_wrap ? GPMC_CONFIG1_WRAPBURST_SUPP : 0;
+	}
+
+	gpmc_cs_write_reg(cs, GPMC_CS_CONFIG1, config1);
 
 	return 0;
 }
@@ -1136,70 +1229,110 @@ static struct of_device_id gpmc_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, gpmc_dt_ids);
 
+/**
+ * gpmc_read_settings_dt - read gpmc settings from device-tree
+ * @np:		pointer to device-tree node for a gpmc child device
+ * @p:		pointer to gpmc settings structure
+ *
+ * Reads the GPMC settings for a GPMC child device from device-tree and
+ * stores them in the GPMC settings structure passed. The GPMC settings
+ * structure is initialised to zero by this function and so any
+ * previously stored settings will be cleared.
+ */
+void gpmc_read_settings_dt(struct device_node *np, struct gpmc_settings *p)
+{
+	memset(p, 0, sizeof(struct gpmc_settings));
+
+	p->sync_read = of_property_read_bool(np, "gpmc,sync-read");
+	p->sync_write = of_property_read_bool(np, "gpmc,sync-write");
+	p->device_nand = of_property_read_bool(np, "gpmc,device-nand");
+	of_property_read_u32(np, "gpmc,device-width", &p->device_width);
+	of_property_read_u32(np, "gpmc,mux-add-data", &p->mux_add_data);
+
+	if (!of_property_read_u32(np, "gpmc,burst-length", &p->burst_len)) {
+		p->burst_wrap = of_property_read_bool(np, "gpmc,burst-wrap");
+		p->burst_read = of_property_read_bool(np, "gpmc,burst-read");
+		p->burst_write = of_property_read_bool(np, "gpmc,burst-write");
+		if (!p->burst_read && !p->burst_write)
+			pr_warn("%s: page/burst-length set but not used!\n",
+				__func__);
+	}
+
+	if (!of_property_read_u32(np, "gpmc,wait-pin", &p->wait_pin)) {
+		p->wait_on_read = of_property_read_bool(np,
+							"gpmc,wait-on-read");
+		p->wait_on_write = of_property_read_bool(np,
+							 "gpmc,wait-on-write");
+		if (!p->wait_on_read && !p->wait_on_write)
+			pr_warn("%s: read/write wait monitoring not enabled!\n",
+				__func__);
+	}
+}
+
 static void __maybe_unused gpmc_read_timings_dt(struct device_node *np,
 						struct gpmc_timings *gpmc_t)
 {
-	u32 val;
+	struct gpmc_bool_timings *p;
+
+	if (!np || !gpmc_t)
+		return;
 
 	memset(gpmc_t, 0, sizeof(*gpmc_t));
 
 	/* minimum clock period for syncronous mode */
-	if (!of_property_read_u32(np, "gpmc,sync-clk", &val))
-		gpmc_t->sync_clk = val;
+	of_property_read_u32(np, "gpmc,sync-clk-ps", &gpmc_t->sync_clk);
 
 	/* chip select timtings */
-	if (!of_property_read_u32(np, "gpmc,cs-on", &val))
-		gpmc_t->cs_on = val;
-
-	if (!of_property_read_u32(np, "gpmc,cs-rd-off", &val))
-		gpmc_t->cs_rd_off = val;
-
-	if (!of_property_read_u32(np, "gpmc,cs-wr-off", &val))
-		gpmc_t->cs_wr_off = val;
+	of_property_read_u32(np, "gpmc,cs-on-ns", &gpmc_t->cs_on);
+	of_property_read_u32(np, "gpmc,cs-rd-off-ns", &gpmc_t->cs_rd_off);
+	of_property_read_u32(np, "gpmc,cs-wr-off-ns", &gpmc_t->cs_wr_off);
 
 	/* ADV signal timings */
-	if (!of_property_read_u32(np, "gpmc,adv-on", &val))
-		gpmc_t->adv_on = val;
-
-	if (!of_property_read_u32(np, "gpmc,adv-rd-off", &val))
-		gpmc_t->adv_rd_off = val;
-
-	if (!of_property_read_u32(np, "gpmc,adv-wr-off", &val))
-		gpmc_t->adv_wr_off = val;
+	of_property_read_u32(np, "gpmc,adv-on-ns", &gpmc_t->adv_on);
+	of_property_read_u32(np, "gpmc,adv-rd-off-ns", &gpmc_t->adv_rd_off);
+	of_property_read_u32(np, "gpmc,adv-wr-off-ns", &gpmc_t->adv_wr_off);
 
 	/* WE signal timings */
-	if (!of_property_read_u32(np, "gpmc,we-on", &val))
-		gpmc_t->we_on = val;
-
-	if (!of_property_read_u32(np, "gpmc,we-off", &val))
-		gpmc_t->we_off = val;
+	of_property_read_u32(np, "gpmc,we-on-ns", &gpmc_t->we_on);
+	of_property_read_u32(np, "gpmc,we-off-ns", &gpmc_t->we_off);
 
 	/* OE signal timings */
-	if (!of_property_read_u32(np, "gpmc,oe-on", &val))
-		gpmc_t->oe_on = val;
-
-	if (!of_property_read_u32(np, "gpmc,oe-off", &val))
-		gpmc_t->oe_off = val;
+	of_property_read_u32(np, "gpmc,oe-on-ns", &gpmc_t->oe_on);
+	of_property_read_u32(np, "gpmc,oe-off-ns", &gpmc_t->oe_off);
 
 	/* access and cycle timings */
-	if (!of_property_read_u32(np, "gpmc,page-burst-access", &val))
-		gpmc_t->page_burst_access = val;
+	of_property_read_u32(np, "gpmc,page-burst-access-ns",
+			     &gpmc_t->page_burst_access);
+	of_property_read_u32(np, "gpmc,access-ns", &gpmc_t->access);
+	of_property_read_u32(np, "gpmc,rd-cycle-ns", &gpmc_t->rd_cycle);
+	of_property_read_u32(np, "gpmc,wr-cycle-ns", &gpmc_t->wr_cycle);
+	of_property_read_u32(np, "gpmc,bus-turnaround-ns",
+			     &gpmc_t->bus_turnaround);
+	of_property_read_u32(np, "gpmc,cycle2cycle-delay-ns",
+			     &gpmc_t->cycle2cycle_delay);
+	of_property_read_u32(np, "gpmc,wait-monitoring-ns",
+			     &gpmc_t->wait_monitoring);
+	of_property_read_u32(np, "gpmc,clk-activation-ns",
+			     &gpmc_t->clk_activation);
 
-	if (!of_property_read_u32(np, "gpmc,access", &val))
-		gpmc_t->access = val;
+	/* only applicable to OMAP3+ */
+	of_property_read_u32(np, "gpmc,wr-access-ns", &gpmc_t->wr_access);
+	of_property_read_u32(np, "gpmc,wr-data-mux-bus-ns",
+			     &gpmc_t->wr_data_mux_bus);
 
-	if (!of_property_read_u32(np, "gpmc,rd-cycle", &val))
-		gpmc_t->rd_cycle = val;
+	/* bool timing parameters */
+	p = &gpmc_t->bool_timings;
 
-	if (!of_property_read_u32(np, "gpmc,wr-cycle", &val))
-		gpmc_t->wr_cycle = val;
-
-	/* only for OMAP3430 */
-	if (!of_property_read_u32(np, "gpmc,wr-access", &val))
-		gpmc_t->wr_access = val;
-
-	if (!of_property_read_u32(np, "gpmc,wr-data-mux-bus", &val))
-		gpmc_t->wr_data_mux_bus = val;
+	p->cycle2cyclediffcsen =
+		of_property_read_bool(np, "gpmc,cycle2cycle-diffcsen");
+	p->cycle2cyclesamecsen =
+		of_property_read_bool(np, "gpmc,cycle2cycle-samecsen");
+	p->we_extra_delay = of_property_read_bool(np, "gpmc,we-extra-delay");
+	p->oe_extra_delay = of_property_read_bool(np, "gpmc,oe-extra-delay");
+	p->adv_extra_delay = of_property_read_bool(np, "gpmc,adv-extra-delay");
+	p->cs_extra_delay = of_property_read_bool(np, "gpmc,cs-extra-delay");
+	p->time_para_granularity =
+		of_property_read_bool(np, "gpmc,time-para-granularity");
 }
 
 #ifdef CONFIG_MTD_NAND
@@ -1295,6 +1428,81 @@ static int gpmc_probe_onenand_child(struct platform_device *pdev,
 }
 #endif
 
+/**
+ * gpmc_probe_generic_child - configures the gpmc for a child device
+ * @pdev:	pointer to gpmc platform device
+ * @child:	pointer to device-tree node for child device
+ *
+ * Allocates and configures a GPMC chip-select for a child device.
+ * Returns 0 on success and appropriate negative error code on failure.
+ */
+static int gpmc_probe_generic_child(struct platform_device *pdev,
+				struct device_node *child)
+{
+	struct gpmc_settings gpmc_s;
+	struct gpmc_timings gpmc_t;
+	struct resource res;
+	unsigned long base;
+	int ret, cs;
+
+	if (of_property_read_u32(child, "reg", &cs) < 0) {
+		dev_err(&pdev->dev, "%s has no 'reg' property\n",
+			child->full_name);
+		return -ENODEV;
+	}
+
+	if (of_address_to_resource(child, 0, &res) < 0) {
+		dev_err(&pdev->dev, "%s has malformed 'reg' property\n",
+			child->full_name);
+		return -ENODEV;
+	}
+
+	ret = gpmc_cs_request(cs, resource_size(&res), &base);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "cannot request GPMC CS %d\n", cs);
+		return ret;
+	}
+
+	/*
+	 * FIXME: gpmc_cs_request() will map the CS to an arbitary
+	 * location in the gpmc address space. When booting with
+	 * device-tree we want the NOR flash to be mapped to the
+	 * location specified in the device-tree blob. So remap the
+	 * CS to this location. Once DT migration is complete should
+	 * just make gpmc_cs_request() map a specific address.
+	 */
+	ret = gpmc_cs_remap(cs, res.start);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "cannot remap GPMC CS %d to 0x%x\n",
+			cs, res.start);
+		goto err;
+	}
+
+	gpmc_read_settings_dt(child, &gpmc_s);
+
+	ret = of_property_read_u32(child, "bank-width", &gpmc_s.device_width);
+	if (ret < 0)
+		goto err;
+
+	ret = gpmc_cs_program_settings(cs, &gpmc_s);
+	if (ret < 0)
+		goto err;
+
+	gpmc_read_timings_dt(child, &gpmc_t);
+	gpmc_cs_set_timings(cs, &gpmc_t);
+
+	if (of_platform_device_create(child, NULL, &pdev->dev))
+		return 0;
+
+	dev_err(&pdev->dev, "failed to create gpmc child %s\n", child->name);
+	ret = -ENODEV;
+
+err:
+	gpmc_cs_free(cs);
+
+	return ret;
+}
+
 static int gpmc_probe_dt(struct platform_device *pdev)
 {
 	int ret;
@@ -1304,6 +1512,13 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 
 	if (!of_id)
 		return 0;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "gpmc,num-waitpins",
+				   &gpmc_nr_waitpins);
+	if (ret < 0) {
+		pr_err("%s: number of wait pins not found!\n", __func__);
+		return ret;
+	}
 
 	for_each_node_by_name(child, "nand") {
 		ret = gpmc_probe_nand_child(pdev, child);
@@ -1320,6 +1535,23 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 			return ret;
 		}
 	}
+
+	for_each_node_by_name(child, "nor") {
+		ret = gpmc_probe_generic_child(pdev, child);
+		if (ret < 0) {
+			of_node_put(child);
+			return ret;
+		}
+	}
+
+	for_each_node_by_name(child, "ethernet") {
+		ret = gpmc_probe_generic_child(pdev, child);
+		if (ret < 0) {
+			of_node_put(child);
+			return ret;
+		}
+	}
+
 	return 0;
 }
 #else
@@ -1364,24 +1596,36 @@ static int gpmc_probe(struct platform_device *pdev)
 	gpmc_dev = &pdev->dev;
 
 	l = gpmc_read_reg(GPMC_REVISION);
+
+	/*
+	 * FIXME: Once device-tree migration is complete the below flags
+	 * should be populated based upon the device-tree compatible
+	 * string. For now just use the IP revision. OMAP3+ devices have
+	 * the wr_access and wr_data_mux_bus register fields. OMAP4+
+	 * devices support the addr-addr-data multiplex protocol.
+	 *
+	 * GPMC IP revisions:
+	 * - OMAP24xx			= 2.0
+	 * - OMAP3xxx			= 5.0
+	 * - OMAP44xx/54xx/AM335x	= 6.0
+	 */
 	if (GPMC_REVISION_MAJOR(l) > 0x4)
 		gpmc_capability = GPMC_HAS_WR_ACCESS | GPMC_HAS_WR_DATA_MUX_BUS;
+	if (GPMC_REVISION_MAJOR(l) > 0x5)
+		gpmc_capability |= GPMC_HAS_MUX_AAD;
 	dev_info(gpmc_dev, "GPMC revision %d.%d\n", GPMC_REVISION_MAJOR(l),
 		 GPMC_REVISION_MINOR(l));
 
-	rc = gpmc_mem_init();
-	if (IS_ERR_VALUE(rc)) {
-		clk_disable_unprepare(gpmc_l3_clk);
-		clk_put(gpmc_l3_clk);
-		dev_err(gpmc_dev, "failed to reserve memory\n");
-		return rc;
-	}
+	gpmc_mem_init();
 
-	if (IS_ERR_VALUE(gpmc_setup_irq()))
+	if (gpmc_setup_irq() < 0)
 		dev_warn(gpmc_dev, "gpmc_setup_irq failed\n");
 
 	/* Now the GPMC is initialised, unreserve the chip-selects */
 	gpmc_cs_map = 0;
+
+	if (!pdev->dev.of_node)
+		gpmc_nr_waitpins = GPMC_NR_WAITPINS;
 
 	rc = gpmc_probe_dt(pdev);
 	if (rc < 0) {

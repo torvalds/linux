@@ -9,5 +9,6 @@ config ARCH_ZYNQ
 	select MIGHT_HAVE_CACHE_L2X0
 	select USE_OF
 	select SPARSE_IRQ
+	select CADENCE_TTC_TIMER
 	help
 	  Support for Xilinx Zynq ARM Cortex A9 Platform

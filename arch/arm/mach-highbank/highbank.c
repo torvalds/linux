@@ -32,7 +32,6 @@
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
 #include <asm/smp_plat.h>
-#include <asm/smp_twd.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/timer-sp.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -119,10 +118,10 @@ static void __init highbank_timer_init(void)
 	sp804_clocksource_and_sched_clock_init(timer_base + 0x20, "timer1");
 	sp804_clockevents_init(timer_base, irq, "timer0");
 
-	twd_local_timer_of_register();
-
 	arch_timer_of_register();
 	arch_timer_sched_clock_init();
+
+	clocksource_of_init();
 }
 
 static void highbank_power_off(void)

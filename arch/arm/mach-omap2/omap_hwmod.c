@@ -610,8 +610,6 @@ static int _enable_wakeup(struct omap_hwmod *oh, u32 *v)
 
 	/* XXX test pwrdm_get_wken for this hwmod's subsystem */
 
-	oh->_int_flags |= _HWMOD_WAKEUP_ENABLED;
-
 	return 0;
 }
 
@@ -644,8 +642,6 @@ static int _disable_wakeup(struct omap_hwmod *oh, u32 *v)
 		_set_master_standbymode(oh, HWMOD_IDLEMODE_SMART, v);
 
 	/* XXX test pwrdm_get_wken for this hwmod's subsystem */
-
-	oh->_int_flags &= ~_HWMOD_WAKEUP_ENABLED;
 
 	return 0;
 }
@@ -1666,7 +1662,7 @@ static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
 		return -ENOSYS;
 
 	ret = _lookup_hardreset(oh, name, &ohri);
-	if (IS_ERR_VALUE(ret))
+	if (ret < 0)
 		return ret;
 
 	if (oh->clkdm) {
@@ -2416,7 +2412,7 @@ static int __init _init(struct omap_hwmod *oh, void *data)
 	_init_mpu_rt_base(oh, NULL);
 
 	r = _init_clocks(oh, NULL);
-	if (IS_ERR_VALUE(r)) {
+	if (r < 0) {
 		WARN(1, "omap_hwmod: %s: couldn't init clocks\n", oh->name);
 		return -EINVAL;
 	}

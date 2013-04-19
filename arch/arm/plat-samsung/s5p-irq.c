@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/irqchip/arm-vic.h>
 
+#include <mach/irqs.h>
 #include <mach/map.h>
 #include <plat/regs-timer.h>
 #include <plat/cpu.h>

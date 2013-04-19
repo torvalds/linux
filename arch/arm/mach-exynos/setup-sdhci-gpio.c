@@ -19,8 +19,8 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 
+#include <mach/gpio.h>
 #include <plat/gpio-cfg.h>
-#include <plat/regs-sdhci.h>
 #include <plat/sdhci.h>
 
 void exynos4_setup_sdhci0_cfg_gpio(struct platform_device *dev, int width)

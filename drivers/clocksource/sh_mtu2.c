@@ -386,7 +386,7 @@ static void __exit sh_mtu2_exit(void)
 }
 
 early_platform_init("earlytimer", &sh_mtu2_device_driver);
-module_init(sh_mtu2_init);
+subsys_initcall(sh_mtu2_init);
 module_exit(sh_mtu2_exit);
 
 MODULE_AUTHOR("Magnus Damm");
