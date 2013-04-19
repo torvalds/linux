@@ -80,7 +80,7 @@ static inline bool rt2800_is_305x_soc(struct rt2x00_dev *rt2x00dev)
 	    rt2x00_rf(rt2x00dev, RF3022))
 		return true;
 
-	WARNING(rt2x00dev, "Unknown RF chipset on rt305x\n");
+	rt2x00_warn(rt2x00dev, "Unknown RF chipset on rt305x\n");
 	return false;
 }
 
@@ -328,7 +328,7 @@ int rt2800_wait_csr_ready(struct rt2x00_dev *rt2x00dev)
 		msleep(1);
 	}
 
-	ERROR(rt2x00dev, "Unstable hardware.\n");
+	rt2x00_err(rt2x00dev, "Unstable hardware\n");
 	return -EBUSY;
 }
 EXPORT_SYMBOL_GPL(rt2800_wait_csr_ready);
@@ -351,7 +351,7 @@ int rt2800_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev)
 		msleep(10);
 	}
 
-	ERROR(rt2x00dev, "WPDMA TX/RX busy [0x%08x].\n", reg);
+	rt2x00_err(rt2x00dev, "WPDMA TX/RX busy [0x%08x]\n", reg);
 	return -EACCES;
 }
 EXPORT_SYMBOL_GPL(rt2800_wait_wpdma_ready);
@@ -512,7 +512,7 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 	}
 
 	if (i == REGISTER_BUSY_COUNT) {
-		ERROR(rt2x00dev, "PBF system register not ready.\n");
+		rt2x00_err(rt2x00dev, "PBF system register not ready\n");
 		return -EBUSY;
 	}
 
@@ -811,7 +811,7 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 	 */
 	padding_len = roundup(entry->skb->len, 4) - entry->skb->len;
 	if (padding_len && skb_pad(entry->skb, padding_len)) {
-		ERROR(rt2x00dev, "Failure padding beacon, aborting\n");
+		rt2x00_err(rt2x00dev, "Failure padding beacon, aborting\n");
 		/* skb freed by skb_pad() on failure */
 		entry->skb = NULL;
 		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, orig_reg);
@@ -3869,7 +3869,7 @@ static int rt2800_wait_bbp_rf_ready(struct rt2x00_dev *rt2x00dev)
 		udelay(REGISTER_BUSY_DELAY);
 	}
 
-	ERROR(rt2x00dev, "BBP/RF register access failed, aborting.\n");
+	rt2x00_err(rt2x00dev, "BBP/RF register access failed, aborting\n");
 	return -EACCES;
 }
 
@@ -3893,7 +3893,7 @@ static int rt2800_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
 		udelay(REGISTER_BUSY_DELAY);
 	}
 
-	ERROR(rt2x00dev, "BBP register access failed, aborting.\n");
+	rt2x00_err(rt2x00dev, "BBP register access failed, aborting\n");
 	return -EACCES;
 }
 
@@ -5353,7 +5353,7 @@ static int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	mac = rt2x00_eeprom_addr(rt2x00dev, EEPROM_MAC_ADDR_0);
 	if (!is_valid_ether_addr(mac)) {
 		eth_random_addr(mac);
-		EEPROM(rt2x00dev, "MAC: %pM\n", mac);
+		rt2x00_eeprom_dbg(rt2x00dev, "MAC: %pM\n", mac);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF0, &word);
@@ -5362,7 +5362,7 @@ static int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_NIC_CONF0_TXPATH, 1);
 		rt2x00_set_field16(&word, EEPROM_NIC_CONF0_RF_TYPE, RF2820);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_NIC_CONF0, word);
-		EEPROM(rt2x00dev, "Antenna: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "Antenna: 0x%04x\n", word);
 	} else if (rt2x00_rt(rt2x00dev, RT2860) ||
 		   rt2x00_rt(rt2x00dev, RT2872)) {
 		/*
@@ -5391,14 +5391,14 @@ static int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_BT_COEXIST, 0);
 		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_DAC_TEST, 0);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_NIC_CONF1, word);
-		EEPROM(rt2x00dev, "NIC: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "NIC: 0x%04x\n", word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ, &word);
 	if ((word & 0x00ff) == 0x00ff) {
 		rt2x00_set_field16(&word, EEPROM_FREQ_OFFSET, 0);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_FREQ, word);
-		EEPROM(rt2x00dev, "Freq: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "Freq: 0x%04x\n", word);
 	}
 	if ((word & 0xff00) == 0xff00) {
 		rt2x00_set_field16(&word, EEPROM_FREQ_LED_MODE,
@@ -5408,7 +5408,7 @@ static int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED_AG_CONF, 0x5555);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED_ACT_CONF, 0x2221);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED_POLARITY, 0xa9f8);
-		EEPROM(rt2x00dev, "Led Mode: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "Led Mode: 0x%04x\n", word);
 	}
 
 	/*
@@ -5514,7 +5514,8 @@ static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	case RF5592:
 		break;
 	default:
-		ERROR(rt2x00dev, "Invalid RF chipset 0x%04x detected.\n", rf);
+		rt2x00_err(rt2x00dev, "Invalid RF chipset 0x%04x detected\n",
+			   rf);
 		return -ENODEV;
 	}
 
@@ -6103,9 +6104,8 @@ static int rt2800_probe_rt(struct rt2x00_dev *rt2x00dev)
 	case RT5592:
 		break;
 	default:
-		ERROR(rt2x00dev,
-		      "Invalid RT chipset 0x%04x, rev %04x detected.\n",
-		      rt, rev);
+		rt2x00_err(rt2x00dev, "Invalid RT chipset 0x%04x, rev %04x detected\n",
+			   rt, rev);
 		return -ENODEV;
 	}
 
@@ -6364,7 +6364,8 @@ int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		break;
 	default:
-		WARNING((struct rt2x00_dev *)hw->priv, "Unknown AMPDU action\n");
+		rt2x00_warn((struct rt2x00_dev *)hw->priv,
+			    "Unknown AMPDU action\n");
 	}
 
 	return ret;

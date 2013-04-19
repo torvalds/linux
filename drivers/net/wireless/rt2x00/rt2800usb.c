@@ -128,9 +128,9 @@ static inline bool rt2800usb_entry_txstatus_timeout(struct queue_entry *entry)
 
 	tout = time_after(jiffies, entry->last_action + msecs_to_jiffies(100));
 	if (unlikely(tout))
-		WARNING(entry->queue->rt2x00dev,
-			"TX status timeout for entry %d in queue %d\n",
-			entry->entry_idx, entry->queue->qid);
+		rt2x00_warn(entry->queue->rt2x00dev,
+			    "TX status timeout for entry %d in queue %d\n",
+			    entry->entry_idx, entry->queue->qid);
 	return tout;
 
 }
@@ -154,7 +154,8 @@ static bool rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
 	bool valid;
 
 	if (urb_status) {
-		WARNING(rt2x00dev, "TX status read failed %d\n", urb_status);
+		rt2x00_warn(rt2x00dev, "TX status read failed %d\n",
+			    urb_status);
 
 		goto stop_reading;
 	}
@@ -162,7 +163,7 @@ static bool rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
 	valid = rt2x00_get_field32(tx_status, TX_STA_FIFO_VALID);
 	if (valid) {
 		if (!kfifo_put(&rt2x00dev->txstatus_fifo, &tx_status))
-			WARNING(rt2x00dev, "TX status FIFO overrun\n");
+			rt2x00_warn(rt2x00dev, "TX status FIFO overrun\n");
 
 		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
 
@@ -269,7 +270,7 @@ static int rt2800usb_write_firmware(struct rt2x00_dev *rt2x00dev,
 					     0, USB_MODE_FIRMWARE,
 					     REGISTER_TIMEOUT_FIRMWARE);
 	if (status < 0) {
-		ERROR(rt2x00dev, "Failed to write Firmware to device.\n");
+		rt2x00_err(rt2x00dev, "Failed to write Firmware to device\n");
 		return status;
 	}
 
@@ -392,8 +393,8 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 	}
 
 	if (unlikely(retval))
-		ERROR(rt2x00dev, "Device failed to enter state %d (%d).\n",
-		      state, retval);
+		rt2x00_err(rt2x00dev, "Device failed to enter state %d (%d)\n",
+			   state, retval);
 
 	return retval;
 }
@@ -408,8 +409,7 @@ static void rt2800usb_watchdog(struct rt2x00_dev *rt2x00dev)
 
 	rt2x00usb_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
 	if (rt2x00_get_field32(reg, TXRXQ_PCNT_TX0Q)) {
-		WARNING(rt2x00dev, "TX HW queue 0 timed out,"
-			" invoke forced kick\n");
+		rt2x00_warn(rt2x00dev, "TX HW queue 0 timed out, invoke forced kick\n");
 
 		rt2x00usb_register_write(rt2x00dev, PBF_CFG, 0xf40012);
 
@@ -424,8 +424,7 @@ static void rt2800usb_watchdog(struct rt2x00_dev *rt2x00dev)
 
 	rt2x00usb_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
 	if (rt2x00_get_field32(reg, TXRXQ_PCNT_TX1Q)) {
-		WARNING(rt2x00dev, "TX HW queue 1 timed out,"
-			" invoke forced kick\n");
+		rt2x00_warn(rt2x00dev, "TX HW queue 1 timed out, invoke forced kick\n");
 
 		rt2x00usb_register_write(rt2x00dev, PBF_CFG, 0xf4000a);
 
@@ -540,9 +539,9 @@ rt2800usb_txdone_entry_check(struct queue_entry *entry, u32 reg)
 	tx_pid  = rt2x00_get_field32(word, TXWI_W1_PACKETID);
 
 	if (wcid != tx_wcid || ack != tx_ack || (!is_agg && pid != tx_pid)) {
-		DEBUG(entry->queue->rt2x00dev,
-		      "TX status report missed for queue %d entry %d\n",
-		      entry->queue->qid, entry->entry_idx);
+		rt2x00_dbg(entry->queue->rt2x00dev,
+			   "TX status report missed for queue %d entry %d\n",
+			   entry->queue->qid, entry->entry_idx);
 		return TXDONE_UNKNOWN;
 	}
 
@@ -566,8 +565,8 @@ static void rt2800usb_txdone(struct rt2x00_dev *rt2x00dev)
 		queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
 
 		if (unlikely(rt2x00queue_empty(queue))) {
-			WARNING(rt2x00dev, "Got TX status for an empty "
-					   "queue %u, dropping\n", qid);
+			rt2x00_warn(rt2x00dev, "Got TX status for an empty queue %u, dropping\n",
+				    qid);
 			break;
 		}
 
@@ -575,8 +574,8 @@ static void rt2800usb_txdone(struct rt2x00_dev *rt2x00dev)
 
 		if (unlikely(test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
 			     !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))) {
-			WARNING(rt2x00dev, "Data pending for entry %u "
-					   "in queue %u\n", entry->entry_idx, qid);
+			rt2x00_warn(rt2x00dev, "Data pending for entry %u in queue %u\n",
+				    entry->entry_idx, qid);
 			break;
 		}
 
@@ -677,8 +676,8 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	 */
 	if (unlikely(rx_pkt_len == 0 ||
 			rx_pkt_len > entry->queue->data_size)) {
-		ERROR(entry->queue->rt2x00dev,
-			"Bad frame size %d, forcing to 0\n", rx_pkt_len);
+		rt2x00_err(entry->queue->rt2x00dev,
+			   "Bad frame size %d, forcing to 0\n", rx_pkt_len);
 		return;
 	}
 

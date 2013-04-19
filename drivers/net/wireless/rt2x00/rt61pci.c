@@ -1309,7 +1309,7 @@ static int rt61pci_load_firmware(struct rt2x00_dev *rt2x00dev,
 	}
 
 	if (!reg) {
-		ERROR(rt2x00dev, "Unstable hardware.\n");
+		rt2x00_err(rt2x00dev, "Unstable hardware\n");
 		return -EBUSY;
 	}
 
@@ -1348,7 +1348,7 @@ static int rt61pci_load_firmware(struct rt2x00_dev *rt2x00dev,
 	}
 
 	if (i == 100) {
-		ERROR(rt2x00dev, "MCU Control register not ready.\n");
+		rt2x00_err(rt2x00dev, "MCU Control register not ready\n");
 		return -EBUSY;
 	}
 
@@ -1658,7 +1658,7 @@ static int rt61pci_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
 		udelay(REGISTER_BUSY_DELAY);
 	}
 
-	ERROR(rt2x00dev, "BBP register access failed, aborting.\n");
+	rt2x00_err(rt2x00dev, "BBP register access failed, aborting\n");
 	return -EACCES;
 }
 
@@ -1859,8 +1859,8 @@ static int rt61pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 	}
 
 	if (unlikely(retval))
-		ERROR(rt2x00dev, "Device failed to enter state %d (%d).\n",
-		      state, retval);
+		rt2x00_err(rt2x00dev, "Device failed to enter state %d (%d)\n",
+			   state, retval);
 
 	return retval;
 }
@@ -1999,7 +1999,7 @@ static void rt61pci_write_beacon(struct queue_entry *entry,
 	 */
 	padding_len = roundup(entry->skb->len, 4) - entry->skb->len;
 	if (padding_len && skb_pad(entry->skb, padding_len)) {
-		ERROR(rt2x00dev, "Failure padding beacon, aborting\n");
+		rt2x00_err(rt2x00dev, "Failure padding beacon, aborting\n");
 		/* skb freed by skb_pad() on failure */
 		entry->skb = NULL;
 		rt2x00mmio_register_write(rt2x00dev, TXRX_CSR9, orig_reg);
@@ -2210,9 +2210,8 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 			/* Catch up.
 			 * Just report any entries we missed as failed.
 			 */
-			WARNING(rt2x00dev,
-				"TX status report missed for entry %d\n",
-				entry_done->entry_idx);
+			rt2x00_warn(rt2x00dev, "TX status report missed for entry %d\n",
+				    entry_done->entry_idx);
 
 			rt2x00lib_txdone_noinfo(entry_done, TXDONE_UNKNOWN);
 			entry_done = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
@@ -2419,7 +2418,7 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	mac = rt2x00_eeprom_addr(rt2x00dev, EEPROM_MAC_ADDR_0);
 	if (!is_valid_ether_addr(mac)) {
 		eth_random_addr(mac);
-		EEPROM(rt2x00dev, "MAC: %pM\n", mac);
+		rt2x00_eeprom_dbg(rt2x00dev, "MAC: %pM\n", mac);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &word);
@@ -2434,7 +2433,7 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_ANTENNA_HARDWARE_RADIO, 0);
 		rt2x00_set_field16(&word, EEPROM_ANTENNA_RF_TYPE, RF5225);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_ANTENNA, word);
-		EEPROM(rt2x00dev, "Antenna: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "Antenna: 0x%04x\n", word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &word);
@@ -2447,7 +2446,7 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_NIC_CARDBUS_ACCEL, 0);
 		rt2x00_set_field16(&word, EEPROM_NIC_EXTERNAL_LNA_A, 0);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_NIC, word);
-		EEPROM(rt2x00dev, "NIC: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "NIC: 0x%04x\n", word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED, &word);
@@ -2455,7 +2454,7 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_LED_LED_MODE,
 				   LED_MODE_DEFAULT);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED, word);
-		EEPROM(rt2x00dev, "Led: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "Led: 0x%04x\n", word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ, &word);
@@ -2463,7 +2462,7 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_FREQ_OFFSET, 0);
 		rt2x00_set_field16(&word, EEPROM_FREQ_SEQ, 0);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_FREQ, word);
-		EEPROM(rt2x00dev, "Freq: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "Freq: 0x%04x\n", word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_BG, &word);
@@ -2471,7 +2470,7 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_RSSI_OFFSET_BG_1, 0);
 		rt2x00_set_field16(&word, EEPROM_RSSI_OFFSET_BG_2, 0);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_RSSI_OFFSET_BG, word);
-		EEPROM(rt2x00dev, "RSSI OFFSET BG: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "RSSI OFFSET BG: 0x%04x\n", word);
 	} else {
 		value = rt2x00_get_field16(word, EEPROM_RSSI_OFFSET_BG_1);
 		if (value < -10 || value > 10)
@@ -2487,7 +2486,7 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_RSSI_OFFSET_A_1, 0);
 		rt2x00_set_field16(&word, EEPROM_RSSI_OFFSET_A_2, 0);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_RSSI_OFFSET_A, word);
-		EEPROM(rt2x00dev, "RSSI OFFSET A: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "RSSI OFFSET A: 0x%04x\n", word);
 	} else {
 		value = rt2x00_get_field16(word, EEPROM_RSSI_OFFSET_A_1);
 		if (value < -10 || value > 10)
@@ -2524,7 +2523,7 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	    !rt2x00_rf(rt2x00dev, RF5325) &&
 	    !rt2x00_rf(rt2x00dev, RF2527) &&
 	    !rt2x00_rf(rt2x00dev, RF2529)) {
-		ERROR(rt2x00dev, "Invalid RF chipset detected.\n");
+		rt2x00_err(rt2x00dev, "Invalid RF chipset detected\n");
 		return -ENODEV;
 	}
 

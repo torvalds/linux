@@ -920,7 +920,7 @@ static int rt2400pci_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
 		udelay(REGISTER_BUSY_DELAY);
 	}
 
-	ERROR(rt2x00dev, "BBP register access failed, aborting.\n");
+	rt2x00_err(rt2x00dev, "BBP register access failed, aborting\n");
 	return -EACCES;
 }
 
@@ -1093,8 +1093,8 @@ static int rt2400pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 	}
 
 	if (unlikely(retval))
-		ERROR(rt2x00dev, "Device failed to enter state %d (%d).\n",
-		      state, retval);
+		rt2x00_err(rt2x00dev, "Device failed to enter state %d (%d)\n",
+			   state, retval);
 
 	return retval;
 }
@@ -1188,7 +1188,7 @@ static void rt2400pci_write_beacon(struct queue_entry *entry,
 	rt2x00mmio_register_write(rt2x00dev, CSR14, reg);
 
 	if (rt2x00queue_map_txskb(entry)) {
-		ERROR(rt2x00dev, "Fail to map beacon, aborting\n");
+		rt2x00_err(rt2x00dev, "Fail to map beacon, aborting\n");
 		goto out;
 	}
 	/*
@@ -1464,12 +1464,12 @@ static int rt2400pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	mac = rt2x00_eeprom_addr(rt2x00dev, EEPROM_MAC_ADDR_0);
 	if (!is_valid_ether_addr(mac)) {
 		eth_random_addr(mac);
-		EEPROM(rt2x00dev, "MAC: %pM\n", mac);
+		rt2x00_eeprom_dbg(rt2x00dev, "MAC: %pM\n", mac);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &word);
 	if (word == 0xffff) {
-		ERROR(rt2x00dev, "Invalid EEPROM data detected.\n");
+		rt2x00_err(rt2x00dev, "Invalid EEPROM data detected\n");
 		return -EINVAL;
 	}
 
@@ -1496,7 +1496,7 @@ static int rt2400pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 			rt2x00_get_field32(reg, CSR0_REVISION));
 
 	if (!rt2x00_rf(rt2x00dev, RF2420) && !rt2x00_rf(rt2x00dev, RF2421)) {
-		ERROR(rt2x00dev, "Invalid RF chipset detected.\n");
+		rt2x00_err(rt2x00dev, "Invalid RF chipset detected\n");
 		return -ENODEV;
 	}
 

@@ -175,8 +175,8 @@ int rt2x00mmio_initialize(struct rt2x00_dev *rt2x00dev)
 			     rt2x00dev->ops->lib->irq_handler,
 			     IRQF_SHARED, rt2x00dev->name, rt2x00dev);
 	if (status) {
-		ERROR(rt2x00dev, "IRQ %d allocation failed (error %d).\n",
-		      rt2x00dev->irq, status);
+		rt2x00_err(rt2x00dev, "IRQ %d allocation failed (error %d)\n",
+			   rt2x00dev->irq, status);
 		goto exit;
 	}
 
