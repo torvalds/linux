@@ -2910,7 +2910,8 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			break;
 		case CHIP_ID_EM2820:
 			chip_name = "em2710/2820";
-			if (dev->udev->descriptor.idVendor == 0xeb1a) {
+			if (le16_to_cpu(dev->udev->descriptor.idVendor)
+								    == 0xeb1a) {
 				__le16 idProd = dev->udev->descriptor.idProduct;
 				if (le16_to_cpu(idProd) == 0x2710)
 					chip_name = "em2710";
