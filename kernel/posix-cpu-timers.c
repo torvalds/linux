@@ -155,6 +155,21 @@ static void bump_cpu_timer(struct k_itimer *timer,
 	}
 }
 
+/**
+ * task_cputime_zero - Check a task_cputime struct for all zero fields.
+ *
+ * @cputime:	The struct to compare.
+ *
+ * Checks @cputime to see if all fields are zero.  Returns true if all fields
+ * are zero, false if any field is nonzero.
+ */
+static inline int task_cputime_zero(const struct task_cputime *cputime)
+{
+	if (!cputime->utime && !cputime->stime && !cputime->sum_exec_runtime)
+		return 1;
+	return 0;
+}
+
 static inline cputime_t prof_ticks(struct task_struct *p)
 {
 	cputime_t utime, stime;
@@ -654,6 +669,17 @@ static void posix_cpu_timer_kick_nohz(void)
 {
 	schedule_work(&nohz_kick_work);
 }
+
+bool posix_cpu_timers_can_stop_tick(struct task_struct *tsk)
+{
+	if (!task_cputime_zero(&tsk->cputime_expires))
+		return true;
+
+	if (tsk->signal->cputimer.running)
+		return true;
+
+	return false;
+}
 #else
 static inline void posix_cpu_timer_kick_nohz(void) { }
 #endif
@@ -1030,21 +1056,6 @@ static void check_cpu_itimer(struct task_struct *tsk, struct cpu_itimer *it,
 	if (it->expires && (!*expires || it->expires < *expires)) {
 		*expires = it->expires;
 	}
-}
-
-/**
- * task_cputime_zero - Check a task_cputime struct for all zero fields.
- *
- * @cputime:	The struct to compare.
- *
- * Checks @cputime to see if all fields are zero.  Returns true if all fields
- * are zero, false if any field is nonzero.
- */
-static inline int task_cputime_zero(const struct task_cputime *cputime)
-{
-	if (!cputime->utime && !cputime->stime && !cputime->sum_exec_runtime)
-		return 1;
-	return 0;
 }
 
 /*
