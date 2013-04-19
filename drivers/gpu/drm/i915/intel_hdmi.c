@@ -783,6 +783,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
+	int clock_12bpc = pipe_config->requested_mode.clock * 3 / 2;
 
 	if (intel_hdmi->color_range_auto) {
 		/* See CEA-861-E - 5.1 Default Encoding Parameters */
@@ -802,14 +803,26 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	/*
 	 * HDMI is either 12 or 8, so if the display lets 10bpc sneak
 	 * through, clamp it down. Note that g4x/vlv don't support 12bpc hdmi
-	 * outputs.
+	 * outputs. We also need to check that the higher clock still fits
+	 * within limits.
 	 */
-	if (pipe_config->pipe_bpp > 8*3 && HAS_PCH_SPLIT(dev)) {
+	if (pipe_config->pipe_bpp > 8*3 && clock_12bpc <= 225000
+	    && HAS_PCH_SPLIT(dev)) {
 		DRM_DEBUG_KMS("forcing bpc to 12 for HDMI\n");
 		pipe_config->pipe_bpp = 12*3;
+
+		/* Need to adjust the port link by 1.5x for 12bpc. */
+		adjusted_mode->clock = clock_12bpc;
+		pipe_config->pixel_target_clock =
+			pipe_config->requested_mode.clock;
 	} else {
 		DRM_DEBUG_KMS("forcing bpc to 8 for HDMI\n");
 		pipe_config->pipe_bpp = 8*3;
+	}
+
+	if (adjusted_mode->clock > 225000) {
+		DRM_DEBUG_KMS("too high HDMI clock, rejecting mode\n");
+		return false;
 	}
 
 	return true;
