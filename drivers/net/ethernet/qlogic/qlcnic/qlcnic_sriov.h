@@ -91,6 +91,8 @@ enum qlcnic_vf_state {
 	QLC_BC_VF_RECV,
 	QLC_BC_VF_CHANNEL,
 	QLC_BC_VF_STATE,
+	QLC_BC_VF_FLR,
+	QLC_BC_VF_SOFT_FLR,
 };
 
 struct qlcnic_resources {
@@ -124,9 +126,11 @@ struct qlcnic_vf_info {
 	unsigned long			state;
 	struct completion		ch_free_cmpl;
 	struct work_struct		trans_work;
+	struct work_struct		flr_work;
 	/* It synchronizes commands sent from VF */
 	struct mutex			send_cmd_lock;
 	struct qlcnic_bc_trans		*send_cmd;
+	struct qlcnic_bc_trans		*flr_trans;
 	struct qlcnic_trans_list	rcv_act;
 	struct qlcnic_trans_list	rcv_pend;
 	struct qlcnic_adapter		*adapter;
@@ -143,6 +147,7 @@ struct qlcnic_back_channel {
 	u16			trans_counter;
 	struct workqueue_struct *bc_trans_wq;
 	struct workqueue_struct *bc_async_wq;
+	struct workqueue_struct *bc_flr_wq;
 	struct list_head	async_list;
 };
 
@@ -165,6 +170,9 @@ int qlcnic_sriov_channel_cfg_cmd(struct qlcnic_adapter *, u8);
 void qlcnic_sriov_handle_bc_event(struct qlcnic_adapter *, u32);
 int qlcnic_sriov_cfg_bc_intr(struct qlcnic_adapter *, u8);
 void qlcnic_sriov_cleanup_async_list(struct qlcnic_back_channel *);
+void qlcnic_sriov_cleanup_list(struct qlcnic_trans_list *);
+int __qlcnic_sriov_add_act_list(struct qlcnic_sriov *, struct qlcnic_vf_info *,
+				struct qlcnic_bc_trans *);
 
 static inline bool qlcnic_sriov_enable_check(struct qlcnic_adapter *adapter)
 {
@@ -185,6 +193,10 @@ void qlcnic_pf_set_interface_id_del_tx_ctx(struct qlcnic_adapter *, u32 *);
 void qlcnic_pf_set_interface_id_promisc(struct qlcnic_adapter *, u32 *);
 void qlcnic_pf_set_interface_id_ipaddr(struct qlcnic_adapter *, u32 *);
 void qlcnic_pf_set_interface_id_macaddr(struct qlcnic_adapter *, u32 *);
+void qlcnic_sriov_pf_handle_flr(struct qlcnic_sriov *, struct qlcnic_vf_info *);
+bool qlcnic_sriov_soft_flr_check(struct qlcnic_adapter *,
+				 struct qlcnic_bc_trans *,
+				 struct qlcnic_vf_info *);
 #else
 static inline void qlcnic_sriov_pf_disable(struct qlcnic_adapter *adapter) {}
 static inline void qlcnic_sriov_pf_cleanup(struct qlcnic_adapter *adapter) {}
@@ -209,6 +221,12 @@ qlcnic_pf_set_interface_id_macaddr(struct qlcnic_adapter *adapter, u32 *int_id)
 static inline void
 qlcnic_pf_set_interface_id_promisc(struct qlcnic_adapter *adapter, u32 *int_id)
 {}
+static inline void qlcnic_sriov_pf_handle_flr(struct qlcnic_sriov *sriov,
+					      struct qlcnic_vf_info *vf) {}
+static inline bool qlcnic_sriov_soft_flr_check(struct qlcnic_adapter *adapter,
+					       struct qlcnic_bc_trans *trans,
+					       struct qlcnic_vf_info *vf)
+{ return false; }
 #endif
 
 #endif

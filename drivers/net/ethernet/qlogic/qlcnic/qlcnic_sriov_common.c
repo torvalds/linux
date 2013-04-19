@@ -18,12 +18,14 @@
 
 #define QLC_BC_MSG		0
 #define QLC_BC_CFREE		1
+#define QLC_BC_FLR		2
 #define QLC_BC_HDR_SZ		16
 #define QLC_BC_PAYLOAD_SZ	(1024 - QLC_BC_HDR_SZ)
 
 #define QLC_DEFAULT_RCV_DESCRIPTORS_SRIOV_VF		2048
 #define QLC_DEFAULT_JUMBO_RCV_DESCRIPTORS_SRIOV_VF	512
 
+static void qlcnic_sriov_cleanup_transaction(struct qlcnic_bc_trans *);
 static int qlcnic_sriov_vf_mbx_op(struct qlcnic_adapter *,
 				  struct qlcnic_cmd_args *);
 
@@ -82,6 +84,11 @@ static inline bool qlcnic_sriov_bc_msg_check(u32 val)
 static inline bool qlcnic_sriov_channel_free_check(u32 val)
 {
 	return (val & (1 << QLC_BC_CFREE)) ? true : false;
+}
+
+static inline bool qlcnic_sriov_flr_check(u32 val)
+{
+	return (val & (1 << QLC_BC_FLR)) ? true : false;
 }
 
 static inline u8 qlcnic_sriov_target_func_id(u32 val)
@@ -192,10 +199,33 @@ qlcnic_free_sriov:
 	return err;
 }
 
+void qlcnic_sriov_cleanup_list(struct qlcnic_trans_list *t_list)
+{
+	struct qlcnic_bc_trans *trans;
+	struct qlcnic_cmd_args cmd;
+	unsigned long flags;
+
+	spin_lock_irqsave(&t_list->lock, flags);
+
+	while (!list_empty(&t_list->wait_list)) {
+		trans = list_first_entry(&t_list->wait_list,
+					 struct qlcnic_bc_trans, list);
+		list_del(&trans->list);
+		t_list->count--;
+		cmd.req.arg = (u32 *)trans->req_pay;
+		cmd.rsp.arg = (u32 *)trans->rsp_pay;
+		qlcnic_free_mbx_args(&cmd);
+		qlcnic_sriov_cleanup_transaction(trans);
+	}
+
+	spin_unlock_irqrestore(&t_list->lock, flags);
+}
+
 void __qlcnic_sriov_cleanup(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
 	struct qlcnic_back_channel *bc = &sriov->bc;
+	struct qlcnic_vf_info *vf;
 	int i;
 
 	if (!qlcnic_sriov_enable_check(adapter))
@@ -203,6 +233,14 @@ void __qlcnic_sriov_cleanup(struct qlcnic_adapter *adapter)
 
 	qlcnic_sriov_cleanup_async_list(bc);
 	destroy_workqueue(bc->bc_async_wq);
+
+	for (i = 0; i < sriov->num_vfs; i++) {
+		vf = &sriov->vf_info[i];
+		qlcnic_sriov_cleanup_list(&vf->rcv_pend);
+		cancel_work_sync(&vf->trans_work);
+		qlcnic_sriov_cleanup_list(&vf->rcv_act);
+	}
+
 	destroy_workqueue(bc->bc_trans_wq);
 
 	for (i = 0; i < sriov->num_vfs; i++)
@@ -651,6 +689,9 @@ static void qlcnic_sriov_schedule_bc_cmd(struct qlcnic_sriov *sriov,
 					 struct qlcnic_vf_info *vf,
 					 work_func_t func)
 {
+	if (test_bit(QLC_BC_VF_FLR, &vf->state))
+		return;
+
 	INIT_WORK(&vf->trans_work, func);
 	queue_work(sriov->bc.bc_trans_wq, &vf->trans_work);
 }
@@ -768,10 +809,13 @@ static int qlcnic_sriov_issue_bc_post(struct qlcnic_bc_trans *trans, u8 type)
 static int __qlcnic_sriov_send_bc_msg(struct qlcnic_bc_trans *trans,
 				      struct qlcnic_vf_info *vf, u8 type)
 {
-	int err;
 	bool flag = true;
+	int err = -EIO;
 
 	while (flag) {
+		if (test_bit(QLC_BC_VF_FLR, &vf->state))
+			trans->trans_state = QLC_ABORT;
+
 		switch (trans->trans_state) {
 		case QLC_INIT:
 			trans->trans_state = QLC_WAIT_FOR_CHANNEL_FREE;
@@ -853,6 +897,9 @@ static void qlcnic_sriov_process_bc_cmd(struct work_struct *work)
 	struct qlcnic_cmd_args cmd;
 	u8 req;
 
+	if (test_bit(QLC_BC_VF_FLR, &vf->state))
+		return;
+
 	trans = list_first_entry(&vf->rcv_act.wait_list,
 				 struct qlcnic_bc_trans, list);
 	adapter = vf->adapter;
@@ -906,6 +953,20 @@ clear_send:
 	clear_bit(QLC_BC_VF_SEND, &vf->state);
 }
 
+int __qlcnic_sriov_add_act_list(struct qlcnic_sriov *sriov,
+				struct qlcnic_vf_info *vf,
+				struct qlcnic_bc_trans *trans)
+{
+	struct qlcnic_trans_list *t_list = &vf->rcv_act;
+
+	t_list->count++;
+	list_add_tail(&trans->list, &t_list->wait_list);
+	if (t_list->count == 1)
+		qlcnic_sriov_schedule_bc_cmd(sriov, vf,
+					     qlcnic_sriov_process_bc_cmd);
+	return 0;
+}
+
 static int qlcnic_sriov_add_act_list(struct qlcnic_sriov *sriov,
 				     struct qlcnic_vf_info *vf,
 				     struct qlcnic_bc_trans *trans)
@@ -913,11 +974,9 @@ static int qlcnic_sriov_add_act_list(struct qlcnic_sriov *sriov,
 	struct qlcnic_trans_list *t_list = &vf->rcv_act;
 
 	spin_lock(&t_list->lock);
-	t_list->count++;
-	list_add_tail(&trans->list, &t_list->wait_list);
-	if (t_list->count == 1)
-		qlcnic_sriov_schedule_bc_cmd(sriov, vf,
-					     qlcnic_sriov_process_bc_cmd);
+
+	__qlcnic_sriov_add_act_list(sriov, vf, trans);
+
 	spin_unlock(&t_list->lock);
 	return 0;
 }
@@ -1019,6 +1078,10 @@ static void qlcnic_sriov_handle_bc_cmd(struct qlcnic_sriov *sriov,
 	trans->vf = vf;
 	trans->trans_id = hdr->seq_id;
 	trans->curr_req_frag++;
+
+	if (qlcnic_sriov_soft_flr_check(adapter, trans, vf))
+		return;
+
 	if (trans->curr_req_frag == trans->req_hdr->num_frags) {
 		if (qlcnic_sriov_add_act_list(sriov, vf, trans)) {
 			qlcnic_free_mbx_args(&cmd);
@@ -1053,6 +1116,18 @@ static void qlcnic_sriov_handle_msg_event(struct qlcnic_sriov *sriov,
 	}
 }
 
+static void qlcnic_sriov_handle_flr_event(struct qlcnic_sriov *sriov,
+					  struct qlcnic_vf_info *vf)
+{
+	struct qlcnic_adapter *adapter = vf->adapter;
+
+	if (qlcnic_sriov_pf_check(adapter))
+		qlcnic_sriov_pf_handle_flr(sriov, vf);
+	else
+		dev_err(&adapter->pdev->dev,
+			"Invalid event to VF. VF should not get FLR event\n");
+}
+
 void qlcnic_sriov_handle_bc_event(struct qlcnic_adapter *adapter, u32 event)
 {
 	struct qlcnic_vf_info *vf;
@@ -1072,6 +1147,11 @@ void qlcnic_sriov_handle_bc_event(struct qlcnic_adapter *adapter, u32 event)
 
 	if (qlcnic_sriov_channel_free_check(event))
 		complete(&vf->ch_free_cmpl);
+
+	if (qlcnic_sriov_flr_check(event)) {
+		qlcnic_sriov_handle_flr_event(sriov, vf);
+		return;
+	}
 
 	if (qlcnic_sriov_bc_msg_check(event))
 		qlcnic_sriov_handle_msg_event(sriov, vf);
