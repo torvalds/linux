@@ -16,18 +16,16 @@
 #include <linux/ahci_platform.h>
 #include <linux/amba/serial.h>
 #include <linux/delay.h>
-#include <linux/dw_dmac.h>
 #include <linux/of_platform.h>
 #include <linux/irqchip.h>
 #include <asm/mach/arch.h>
 #include "generic.h"
 #include <mach/spear.h>
 
-#include "spear13xx-dma.h"
+/* FIXME: Move SATA PHY code into a standalone driver */
 
 /* Base addresses */
 #define SPEAR1340_SATA_BASE			UL(0xB1000000)
-#define SPEAR1340_UART1_BASE			UL(0xB4100000)
 
 /* Power Management Registers */
 #define SPEAR1340_PCM_CFG			(VA_MISC_BASE + 0x100)
@@ -78,28 +76,6 @@
 	#define SPEAR1340_PCIE_SATA_MIPHY_CFG_PCIE \
 			(SPEAR1340_MIPHY_OSC_BYPASS_EXT | \
 			SPEAR1340_MIPHY_PLL_RATIO_TOP(25))
-
-static struct dw_dma_slave uart1_dma_param[] = {
-	{
-		/* Tx */
-		.cfg_hi = DWC_CFGH_DST_PER(SPEAR1340_DMA_REQ_UART1_TX),
-		.cfg_lo = 0,
-		.src_master = DMA_MASTER_MEMORY,
-		.dst_master = SPEAR1340_DMA_MASTER_UART1,
-	}, {
-		/* Rx */
-		.cfg_hi = DWC_CFGH_SRC_PER(SPEAR1340_DMA_REQ_UART1_RX),
-		.cfg_lo = 0,
-		.src_master = SPEAR1340_DMA_MASTER_UART1,
-		.dst_master = DMA_MASTER_MEMORY,
-	}
-};
-
-static struct amba_pl011_data uart1_data = {
-	.dma_filter = dw_dma_filter,
-	.dma_tx_param = &uart1_dma_param[0],
-	.dma_rx_param = &uart1_dma_param[1],
-};
 
 /* SATA device registration */
 static int sata_miphy_init(struct device *dev, void __iomem *addr)
@@ -159,14 +135,8 @@ static struct ahci_platform_data sata_pdata = {
 
 /* Add SPEAr1340 auxdata to pass platform data */
 static struct of_dev_auxdata spear1340_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("arasan,cf-spear1340", MCIF_CF_BASE, NULL, &cf_dma_priv),
-	OF_DEV_AUXDATA("snps,dma-spear1340", DMAC0_BASE, NULL, &dmac_plat_data),
-	OF_DEV_AUXDATA("snps,dma-spear1340", DMAC1_BASE, NULL, &dmac_plat_data),
-	OF_DEV_AUXDATA("arm,pl022", SSP_BASE, NULL, &pl022_plat_data),
-
 	OF_DEV_AUXDATA("snps,spear-ahci", SPEAR1340_SATA_BASE, NULL,
 			&sata_pdata),
-	OF_DEV_AUXDATA("arm,pl011", SPEAR1340_UART1_BASE, NULL, &uart1_data),
 	{}
 };
 
