@@ -1123,33 +1123,6 @@ static unsigned long mtdchar_get_unmapped_area(struct file *file,
 }
 #endif
 
-static inline unsigned long get_vm_size(struct vm_area_struct *vma)
-{
-	return vma->vm_end - vma->vm_start;
-}
-
-static inline resource_size_t get_vm_offset(struct vm_area_struct *vma)
-{
-	return (resource_size_t) vma->vm_pgoff << PAGE_SHIFT;
-}
-
-/*
- * Set a new vm offset.
- *
- * Verify that the incoming offset really works as a page offset,
- * and that the offset and size fit in a resource_size_t.
- */
-static inline int set_vm_offset(struct vm_area_struct *vma, resource_size_t off)
-{
-	pgoff_t pgoff = off >> PAGE_SHIFT;
-	if (off != (resource_size_t) pgoff << PAGE_SHIFT)
-		return -EINVAL;
-	if (off + get_vm_size(vma) - 1 < off)
-		return -EINVAL;
-	vma->vm_pgoff = pgoff;
-	return 0;
-}
-
 /*
  * set up a mapping for shared memory segments
  */
