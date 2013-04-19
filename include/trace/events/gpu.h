@@ -11,6 +11,7 @@
 	({ \
 		u64 t = ns + (NSEC_PER_USEC / 2); \
 		do_div(t, NSEC_PER_SEC); \
+		t; \
 	})
 
 #define show_usecs_from_ns(ns) \
@@ -77,7 +78,7 @@ TRACE_EVENT(gpu_sched_switch,
 		__entry->next_job_id = next_job_id;
 	),
 
-	TP_printk("gpu_name=%s ts=%5llu.%06lu next_ctx_id=%lu next_prio=%ld "
+	TP_printk("gpu_name=%s ts=%llu.%06lu next_ctx_id=%lu next_prio=%ld "
 		"next_job_id=%lu",
 		__get_str(gpu_name),
 		(unsigned long long)show_secs_from_ns(__entry->timestamp),
