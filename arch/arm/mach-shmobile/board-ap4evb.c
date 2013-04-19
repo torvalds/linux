@@ -1137,6 +1137,13 @@ static const struct pinctrl_map ap4evb_pinctrl_map[] = {
 	PIN_MAP_MUX_GROUP_DEFAULT("1-0048", "pfc-sh7372",
 				  "intc_irq7_0", "intc"),
 #endif
+	/* USBHS1 */
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a66597_hcd.1", "pfc-sh7372",
+				  "usb1_vbus", "usb1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a66597_hcd.1", "pfc-sh7372",
+				  "usb1_otg_id_0", "usb1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("r8a66597_hcd.1", "pfc-sh7372",
+				  "usb1_otg_ctrl_0", "usb1"),
 };
 
 #define GPIO_PORT9CR	IOMEM(0xE6051009)
@@ -1174,14 +1181,6 @@ static void __init ap4evb_init(void)
 	gpio_request_one(33, GPIOF_IN | GPIOF_EXPORT, NULL);
 	gpio_request_one(34, GPIOF_IN | GPIOF_EXPORT, NULL);
 	gpio_request_one(35, GPIOF_IN | GPIOF_EXPORT, NULL);
-
-	/* USB enable */
-	gpio_request(GPIO_FN_VBUS0_1,    NULL);
-	gpio_request(GPIO_FN_IDIN_1_18,  NULL);
-	gpio_request(GPIO_FN_PWEN_1_115, NULL);
-	gpio_request(GPIO_FN_OVCN_1_114, NULL);
-	gpio_request(GPIO_FN_EXTLP_1,    NULL);
-	gpio_request(GPIO_FN_OVCN2_1,    NULL);
 
 	/* setup USB phy */
 	__raw_writew(0x8a0a, IOMEM(0xE6058130));	/* USBCR4 */
