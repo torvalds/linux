@@ -16,7 +16,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
-#include <plat/cpu.h>
 #include "clk.h"
 #include "clk-pll.h"
 

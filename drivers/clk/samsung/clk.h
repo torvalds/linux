@@ -20,8 +20,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
-#include <mach/map.h>
-
 /**
  * struct samsung_clock_alias: information about mux clock
  * @id: platform specific id of the clock.
