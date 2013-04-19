@@ -3933,7 +3933,7 @@ static void rt2800_init_bbp_5592_glrt(struct rt2x00_dev *rt2x00dev)
 	}
 };
 
-static void rt2800_init_bbb_early(struct rt2x00_dev *rt2x00dev)
+static void rt2800_init_bbp_early(struct rt2x00_dev *rt2x00dev)
 {
 	rt2800_bbp_write(rt2x00dev, 65, 0x2C);
 	rt2800_bbp_write(rt2x00dev, 66, 0x38);
@@ -3959,7 +3959,7 @@ static void rt2800_init_bbp_5592(struct rt2x00_dev *rt2x00dev)
 	u16 eeprom;
 	u8 value;
 
-	rt2800_init_bbb_early(rt2x00dev);
+	rt2800_init_bbp_early(rt2x00dev);
 
 	rt2800_bbp_read(rt2x00dev, 105, &value);
 	rt2x00_set_field8(&value, BBP105_MLD,
