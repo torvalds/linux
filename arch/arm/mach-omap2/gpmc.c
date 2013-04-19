@@ -1345,6 +1345,13 @@ static const char * const nand_ecc_opts[] = {
 	[OMAP_ECC_BCH8_CODE_HW]			= "bch8",
 };
 
+static const char * const nand_xfer_types[] = {
+	[NAND_OMAP_PREFETCH_POLLED]		= "prefetch-polled",
+	[NAND_OMAP_POLLED]			= "polled",
+	[NAND_OMAP_PREFETCH_DMA]		= "prefetch-dma",
+	[NAND_OMAP_PREFETCH_IRQ]		= "prefetch-irq",
+};
+
 static int gpmc_probe_nand_child(struct platform_device *pdev,
 				 struct device_node *child)
 {
@@ -1371,6 +1378,13 @@ static int gpmc_probe_nand_child(struct platform_device *pdev,
 		for (val = 0; val < ARRAY_SIZE(nand_ecc_opts); val++)
 			if (!strcasecmp(s, nand_ecc_opts[val])) {
 				gpmc_nand_data->ecc_opt = val;
+				break;
+			}
+
+	if (!of_property_read_string(child, "ti,nand-xfer-type", &s))
+		for (val = 0; val < ARRAY_SIZE(nand_xfer_types); val++)
+			if (!strcasecmp(s, nand_xfer_types[val])) {
+				gpmc_nand_data->xfer_type = val;
 				break;
 			}
 
