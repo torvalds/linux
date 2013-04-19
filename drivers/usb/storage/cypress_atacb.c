@@ -159,7 +159,7 @@ static void cypress_atacb_passthrough(struct scsi_cmnd *srb, struct us_data *us)
 	if (srb->result == SAM_STAT_CHECK_CONDITION &&
 			memcmp(srb->sense_buffer, usb_stor_sense_invalidCDB,
 				sizeof(usb_stor_sense_invalidCDB)) == 0) {
-		US_DEBUGP("cypress atacb not supported ???\n");
+		usb_stor_dbg(us, "cypress atacb not supported ???\n");
 		goto end;
 	}
 
