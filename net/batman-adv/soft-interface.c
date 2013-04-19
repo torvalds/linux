@@ -582,6 +582,13 @@ static void batadv_softif_free(struct net_device *dev)
 {
 	batadv_debugfs_del_meshif(dev);
 	batadv_mesh_free(dev);
+
+	/* some scheduled RCU callbacks need the bat_priv struct to accomplish
+	 * their tasks. Wait for them all to be finished before freeing the
+	 * netdev and its private data (bat_priv)
+	 */
+	rcu_barrier();
+
 	free_netdev(dev);
 }
 
