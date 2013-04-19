@@ -1481,7 +1481,7 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 	if (ret == 0) {
 		l = path->nodes[0];
 		slot = path->slots[0];
-		btrfs_read_root_item(tree_root, l, slot, &root->root_item);
+		btrfs_read_root_item(l, slot, &root->root_item);
 		memcpy(&root->root_key, location, sizeof(*location));
 	}
 	btrfs_free_path(path);
