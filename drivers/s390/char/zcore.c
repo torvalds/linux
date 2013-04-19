@@ -127,7 +127,7 @@ static int memcpy_hsa(void *dest, unsigned long src, size_t count, int mode)
 	}
 	if (mode == TO_USER) {
 		if (copy_to_user((__force __user void*) dest + offs, buf,
-				 PAGE_SIZE))
+				 count - offs))
 			return -EFAULT;
 	} else
 		memcpy(dest + offs, buf, count - offs);
