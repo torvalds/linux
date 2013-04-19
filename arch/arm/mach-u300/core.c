@@ -19,6 +19,7 @@
 #include <linux/dmaengine.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/mmci.h>
+#include <linux/amba/pl022.h>
 #include <linux/amba/serial.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
@@ -704,6 +705,22 @@ MACHINE_END
 
 #ifdef CONFIG_OF
 
+static struct pl022_ssp_controller spi_plat_data = {
+	/* If you have several SPI buses this varies, we have only bus 0 */
+	.bus_id = 0,
+	/*
+	 * On the APP CPU GPIO 4, 5 and 6 are connected as generic
+	 * chip selects for SPI. (Same on U330, U335 and U365.)
+	 * TODO: make sure the GPIO driver can select these properly
+	 * and do padmuxing accordingly too.
+	 */
+	.num_chipselect = 3,
+	.enable_dma = 1,
+	.dma_filter = coh901318_filter_id,
+	.dma_rx_param = (void *) U300_DMA_SPI_RX,
+	.dma_tx_param = (void *) U300_DMA_SPI_TX,
+};
+
 /* These are mostly to get the right device names for the clock lookups */
 static struct of_dev_auxdata u300_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("stericsson,pinctrl-u300", U300_SYSCON_BASE,
@@ -720,6 +737,8 @@ static struct of_dev_auxdata u300_auxdata_lookup[] __initdata = {
 		"uart0", &uart0_plat_data),
 	OF_DEV_AUXDATA("arm,primecell", U300_UART1_BASE,
 		"uart1", &uart1_plat_data),
+	OF_DEV_AUXDATA("arm,primecell", U300_SPI_BASE,
+		"pl022", &spi_plat_data),
 	OF_DEV_AUXDATA("st,ddci2c", U300_I2C0_BASE,
 		"stu300.0", NULL),
 	OF_DEV_AUXDATA("st,ddci2c", U300_I2C1_BASE,

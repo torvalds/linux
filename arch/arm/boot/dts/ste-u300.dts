@@ -222,5 +222,17 @@
 			dmas = <&dmac 14>;
 			dma-names = "rx";
 		};
+
+		spi: ssp@c0006000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0xc0006000 0x1000>;
+			interrupt-parent = <&vica>;
+			interrupts = <23>;
+			dmas = <&dmac 27 &dmac 28>;
+			dma-names = "tx", "rx";
+			num-cs = <3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
 	};
 };
