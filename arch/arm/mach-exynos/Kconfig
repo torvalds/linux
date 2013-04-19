@@ -7,6 +7,21 @@
 
 # Configuration options for the EXYNOS4
 
+config ARCH_EXYNOS
+	# TODO: make this visible after all drivers are converted
+	bool "Samsung EXYNOS" if ARCH_MULTI_V7 && BROKEN
+	default ARCH_EXYNOS_SINGLE
+	select ARCH_HAS_CPUFREQ
+	select CLKDEV_LOOKUP
+	select COMMON_CLK
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
+	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C_RTC if RTC_CLASS
+	help
+	  Support for SAMSUNG's EXYNOS SoCs (EXYNOS4/5)
+
 if ARCH_EXYNOS
 
 menu "SAMSUNG EXYNOS SoCs Support"
@@ -18,6 +33,9 @@ config ARCH_EXYNOS4
 	select MIGHT_HAVE_CACHE_L2X0
 	help
 	  Samsung EXYNOS4 SoCs based systems
+
+config ARCH_EXYNOS4_SINGLE
+	def_bool ARCH_EXYNOS4 && ARCH_EXYNOS_SINGLE
 
 config ARCH_EXYNOS5
 	bool "SAMSUNG EXYNOS5"
@@ -35,7 +53,7 @@ config CPU_EXYNOS4210
 	select PM_GENERIC_DOMAINS
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
-	select SAMSUNG_DMADEV
+	select SAMSUNG_DMADEV if ARCH_EXYNOS_SINGLE
 	help
 	  Enable EXYNOS4210 CPU support
 
@@ -45,7 +63,7 @@ config SOC_EXYNOS4212
 	depends on ARCH_EXYNOS4
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
-	select SAMSUNG_DMADEV
+	select SAMSUNG_DMADEV if ARCH_EXYNOS_SINGLE
 	help
 	  Enable EXYNOS4212 SoC support
 
@@ -53,7 +71,7 @@ config SOC_EXYNOS4412
 	bool "SAMSUNG EXYNOS4412"
 	default y
 	depends on ARCH_EXYNOS4
-	select SAMSUNG_DMADEV
+	select SAMSUNG_DMADEV if ARCH_EXYNOS_SINGLE
 	help
 	  Enable EXYNOS4412 SoC support
 
@@ -65,7 +83,7 @@ config SOC_EXYNOS5250
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
 	select S5P_DEV_MFC
-	select SAMSUNG_DMADEV
+	select SAMSUNG_DMADEV if ARCH_EXYNOS_SINGLE
 	help
 	  Enable EXYNOS5250 SoC support
 
@@ -79,6 +97,19 @@ config SOC_EXYNOS5440
 	select PINCTRL_EXYNOS5440
 	help
 	  Enable EXYNOS5440 SoC support
+
+config EXYNOS_ATAGS
+	bool "ATAGS based boot for EXYNOS (deprecated)"
+	depends on !ARCH_MULTIPLATFORM
+	depends on ATAGS
+	default y
+	help
+	  The EXYNOS platform is moving towards being completely probed
+	  through device tree. This enables support for board files using
+	  the traditional ATAGS boot format.
+	  Note that this option is not available for multiplatform builds.
+
+if EXYNOS_ATAGS
 
 config EXYNOS_DEV_DMA
 	bool
@@ -393,6 +424,8 @@ config MACH_SMDK4412
 	select SOC_EXYNOS4412
 	help
 	  Machine support for Samsung SMDK4412
+endif
+
 endif
 
 comment "Flattened Device Tree based board for EXYNOS SoCs"

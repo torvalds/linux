@@ -4,6 +4,7 @@
 #		http://www.samsung.com/
 #
 # Licensed under GPLv2
+ccflags-$(CONFIG_ARCH_MULTIPLATFORM) += -I$(srctree)/$(src)/include -I$(srctree)/arch/arm/plat-samsung/include
 
 obj-y				:=
 obj-m				:=
@@ -42,12 +43,12 @@ obj-$(CONFIG_MACH_EXYNOS5_DT)		+= mach-exynos5-dt.o
 # device support
 
 obj-y					+= dev-uart.o
-obj-$(CONFIG_ARCH_EXYNOS4)		+= dev-audio.o
+obj-$(CONFIG_ARCH_EXYNOS4_SINGLE)	+= dev-audio.o
 obj-$(CONFIG_EXYNOS4_DEV_AHCI)		+= dev-ahci.o
 obj-$(CONFIG_EXYNOS_DEV_DMA)		+= dma.o
 obj-$(CONFIG_EXYNOS4_DEV_USB_OHCI)	+= dev-ohci.o
 
-obj-$(CONFIG_ARCH_EXYNOS)		+= setup-i2c0.o
+obj-$(CONFIG_ARCH_EXYNOS_SINGLE)	+= setup-i2c0.o
 obj-$(CONFIG_EXYNOS4_SETUP_FIMC)	+= setup-fimc.o
 obj-$(CONFIG_EXYNOS4_SETUP_FIMD0)	+= setup-fimd0.o
 obj-$(CONFIG_EXYNOS4_SETUP_I2C1)	+= setup-i2c1.o
