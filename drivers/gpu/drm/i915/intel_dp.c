@@ -1597,14 +1597,7 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 	unsigned long demph_reg_value, preemph_reg_value,
 		uniqtranscale_reg_value;
 	uint8_t train_set = intel_dp->train_set[0];
-	int port;
-
-	if (dport->port == PORT_B)
-		port = 0;
-	else if (dport->port == PORT_C)
-		port = 1;
-	else
-		BUG();
+	int port = vlv_dport_to_channel(dport);
 
 	WARN_ON(!mutex_is_locked(&dev_priv->dpio_lock));
 
