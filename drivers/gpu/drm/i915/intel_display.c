@@ -5471,11 +5471,6 @@ static bool ironlake_check_fdi_lanes(struct intel_crtc *intel_crtc)
 			return false;
 		}
 
-		if (intel_crtc->config.fdi_lanes > 2)
-			WARN_ON(I915_READ(SOUTH_CHICKEN1) & FDI_BC_BIFURCATION_SELECT);
-		else
-			cpt_enable_fdi_bc_bifurcation(dev);
-
 		return true;
 	case PIPE_C:
 		if (!pipe_B_crtc->base.enabled || pipe_B_crtc->config.fdi_lanes <= 2) {
@@ -5492,9 +5487,31 @@ static bool ironlake_check_fdi_lanes(struct intel_crtc *intel_crtc)
 			return false;
 		}
 
+		return true;
+	default:
+		BUG();
+	}
+}
+
+static void ivybridge_update_fdi_bc_bifurcation(struct intel_crtc *intel_crtc)
+{
+	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	switch (intel_crtc->pipe) {
+	case PIPE_A:
+		break;
+	case PIPE_B:
+		if (intel_crtc->config.fdi_lanes > 2)
+			WARN_ON(I915_READ(SOUTH_CHICKEN1) & FDI_BC_BIFURCATION_SELECT);
+		else
+			cpt_enable_fdi_bc_bifurcation(dev);
+
+		break;
+	case PIPE_C:
 		cpt_enable_fdi_bc_bifurcation(dev);
 
-		return true;
+		break;
 	default:
 		BUG();
 	}
@@ -5768,6 +5785,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	fdi_config_ok = ironlake_check_fdi_lanes(intel_crtc);
+	if (IS_IVYBRIDGE(dev))
+		ivybridge_update_fdi_bc_bifurcation(intel_crtc);
 
 	ironlake_set_pipeconf(crtc);
 
