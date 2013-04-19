@@ -162,6 +162,17 @@ enum batadv_uev_type {
 #include <linux/seq_file.h>
 #include "types.h"
 
+/**
+ * batadv_vlan_flags - flags for the four MSB of any vlan ID field
+ * @BATADV_VLAN_HAS_TAG: whether the field contains a valid vlan tag or not
+ */
+enum batadv_vlan_flags {
+	BATADV_VLAN_HAS_TAG	= BIT(15),
+};
+
+#define BATADV_PRINT_VID(vid) (vid & BATADV_VLAN_HAS_TAG ? \
+			       (int)(vid & VLAN_VID_MASK) : -1)
+
 extern char batadv_routing_algo[];
 extern struct list_head batadv_hardif_list;
 

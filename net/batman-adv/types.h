@@ -642,7 +642,7 @@ struct batadv_socket_packet {
 #ifdef CONFIG_BATMAN_ADV_BLA
 struct batadv_bla_backbone_gw {
 	uint8_t orig[ETH_ALEN];
-	short vid;
+	unsigned short vid;
 	struct hlist_node hash_entry;
 	struct batadv_priv *bat_priv;
 	unsigned long lasttime;
@@ -665,7 +665,7 @@ struct batadv_bla_backbone_gw {
  */
 struct batadv_bla_claim {
 	uint8_t addr[ETH_ALEN];
-	short vid;
+	unsigned short vid;
 	struct batadv_bla_backbone_gw *backbone_gw;
 	unsigned long lasttime;
 	struct hlist_node hash_entry;
