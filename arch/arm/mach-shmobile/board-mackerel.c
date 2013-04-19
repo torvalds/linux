@@ -1359,6 +1359,8 @@ static const struct pinctrl_map mackerel_pinctrl_map[] = {
 				  "sdhi0_ctrl", "sdhi0"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
 				  "sdhi0_wp", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
+				  "intc_irq26_1", "intc"),
 	/* SDHI1 */
 #if !IS_ENABLED(CONFIG_MMC_SH_MMCIF)
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.1", "pfc-sh7372",
@@ -1468,9 +1470,6 @@ static void __init mackerel_init(void)
 
 	/* Accelerometer */
 	irq_set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
-
-	/* SDHI0 PORT172 card-detect IRQ26 */
-	gpio_request(GPIO_FN_IRQ26_172, NULL);
 
 	/* Reset HDMI, must be held at least one EXTALR (32768Hz) period */
 	srcr4 = __raw_readl(SRCR4);
