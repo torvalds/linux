@@ -5569,8 +5569,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 		}
 		dpll |= DPLL_DVO_HIGH_SPEED;
 	}
-	if (intel_crtc->config.has_dp_encoder &&
-	    intel_crtc->config.has_pch_encoder)
+	if (intel_crtc->config.has_dp_encoder)
 		dpll |= DPLL_DVO_HIGH_SPEED;
 
 	/* compute bitmask from p1 value */
