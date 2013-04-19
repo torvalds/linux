@@ -134,7 +134,7 @@ failed:
 }
 
 struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
-				  void *param, u8 event, u32 timeout)
+				  const void *param, u8 event, u32 timeout)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	struct hci_request req;
@@ -188,7 +188,7 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 EXPORT_SYMBOL(__hci_cmd_sync_ev);
 
 struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
-			       void *param, u32 timeout)
+			       const void *param, u32 timeout)
 {
 	return __hci_cmd_sync_ev(hdev, opcode, plen, param, 0, timeout);
 }
@@ -2602,7 +2602,7 @@ int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
 }
 
 static struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode,
-				       u32 plen, void *param)
+				       u32 plen, const void *param)
 {
 	int len = HCI_COMMAND_HDR_SIZE + plen;
 	struct hci_command_hdr *hdr;
@@ -2628,7 +2628,8 @@ static struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode,
 }
 
 /* Send HCI command */
-int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
+int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen,
+		 const void *param)
 {
 	struct sk_buff *skb;
 
@@ -2652,8 +2653,8 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
 }
 
 /* Queue a command to an asynchronous HCI request */
-void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen, void *param,
-		    u8 event)
+void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
+		    const void *param, u8 event)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct sk_buff *skb;
@@ -2682,7 +2683,8 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen, void *param,
 	skb_queue_tail(&req->cmd_q, skb);
 }
 
-void hci_req_add(struct hci_request *req, u16 opcode, u32 plen, void *param)
+void hci_req_add(struct hci_request *req, u16 opcode, u32 plen,
+		 const void *param)
 {
 	hci_req_add_ev(req, opcode, plen, param, 0);
 }
