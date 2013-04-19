@@ -1312,6 +1312,15 @@ static const struct pinctrl_map mackerel_pinctrl_map[] = {
 	/* ADXL34X */
 	PIN_MAP_MUX_GROUP_DEFAULT("1-0053", "pfc-sh7372",
 				  "intc_irq21", "intc"),
+	/* CEU */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
+				  "ceu_data_0_7", "ceu"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
+				  "ceu_clk_0", "ceu"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
+				  "ceu_sync", "ceu"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_ceu.0", "pfc-sh7372",
+				  "ceu_field", "ceu"),
 	/* SDHI0 */
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-sh7372",
 				  "sdhi0_data4", "sdhi0"),
@@ -1496,21 +1505,6 @@ static void __init mackerel_init(void)
 	/* enable GPS module (GT-720F) */
 	gpio_request(GPIO_FN_SCIFA2_TXD1, NULL);
 	gpio_request(GPIO_FN_SCIFA2_RXD1, NULL);
-
-	/* CEU */
-	gpio_request(GPIO_FN_VIO_CLK, NULL);
-	gpio_request(GPIO_FN_VIO_VD, NULL);
-	gpio_request(GPIO_FN_VIO_HD, NULL);
-	gpio_request(GPIO_FN_VIO_FIELD, NULL);
-	gpio_request(GPIO_FN_VIO_CKO, NULL);
-	gpio_request(GPIO_FN_VIO_D7, NULL);
-	gpio_request(GPIO_FN_VIO_D6, NULL);
-	gpio_request(GPIO_FN_VIO_D5, NULL);
-	gpio_request(GPIO_FN_VIO_D4, NULL);
-	gpio_request(GPIO_FN_VIO_D3, NULL);
-	gpio_request(GPIO_FN_VIO_D2, NULL);
-	gpio_request(GPIO_FN_VIO_D1, NULL);
-	gpio_request(GPIO_FN_VIO_D0, NULL);
 
 	/* HDMI */
 	gpio_request(GPIO_FN_HDMI_HPD, NULL);
