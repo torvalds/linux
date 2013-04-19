@@ -1276,6 +1276,17 @@ struct radeon_phase_shedding_limits_table {
 	struct radeon_phase_shedding_limits_entry *entries;
 };
 
+struct radeon_uvd_clock_voltage_dependency_entry {
+	u32 vclk;
+	u32 dclk;
+	u16 v;
+};
+
+struct radeon_uvd_clock_voltage_dependency_table {
+	u8 count;
+	struct radeon_uvd_clock_voltage_dependency_entry *entries;
+};
+
 struct radeon_ppm_table {
 	u8 ppm_design;
 	u16 cpu_core_number;
@@ -1294,6 +1305,7 @@ struct radeon_dpm_dynamic_state {
 	struct radeon_clock_voltage_dependency_table vddci_dependency_on_mclk;
 	struct radeon_clock_voltage_dependency_table vddc_dependency_on_mclk;
 	struct radeon_clock_voltage_dependency_table vddc_dependency_on_dispclk;
+	struct radeon_uvd_clock_voltage_dependency_table uvd_clock_voltage_dependency_table;
 	struct radeon_clock_array valid_sclk_values;
 	struct radeon_clock_array valid_mclk_values;
 	struct radeon_clock_and_voltage_limits max_clock_voltage_on_dc;
