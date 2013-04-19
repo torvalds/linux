@@ -312,7 +312,7 @@ vxge_rx_complete(struct vxge_ring *ring, struct sk_buff *skb, u16 vlan,
 
 	if (ext_info->vlan &&
 	    ring->vlan_tag_strip == VXGE_HW_VPATH_RPA_STRIP_VLAN_TAG_ENABLE)
-		__vlan_hwaccel_put_tag(skb, ext_info->vlan);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ext_info->vlan);
 	napi_gro_receive(ring->napi_p, skb);
 
 	vxge_debug_entryexit(VXGE_TRACE,
@@ -3300,12 +3300,13 @@ static void vxge_tx_watchdog(struct net_device *dev)
 /**
  * vxge_vlan_rx_add_vid
  * @dev: net device pointer.
+ * @proto: vlan protocol
  * @vid: vid
  *
  * Add the vlan id to the devices vlan id table
  */
 static int
-vxge_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+vxge_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
 	struct vxge_vpath *vpath;
@@ -3323,14 +3324,15 @@ vxge_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 }
 
 /**
- * vxge_vlan_rx_add_vid
+ * vxge_vlan_rx_kill_vid
  * @dev: net device pointer.
+ * @proto: vlan protocol
  * @vid: vid
  *
  * Remove the vlan id from the device's vlan id table
  */
 static int
-vxge_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+vxge_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
 	struct vxge_vpath *vpath;
@@ -3415,12 +3417,12 @@ static int vxge_device_register(struct __vxge_hw_device *hldev,
 	ndev->hw_features = NETIF_F_RXCSUM | NETIF_F_SG |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_TSO | NETIF_F_TSO6 |
-		NETIF_F_HW_VLAN_TX;
+		NETIF_F_HW_VLAN_CTAG_TX;
 	if (vdev->config.rth_steering != NO_STEERING)
 		ndev->hw_features |= NETIF_F_RXHASH;
 
 	ndev->features |= ndev->hw_features |
-		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
+		NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_FILTER;
 
 
 	ndev->netdev_ops = &vxge_netdev_ops;

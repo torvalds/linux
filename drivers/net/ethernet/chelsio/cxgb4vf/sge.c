@@ -1482,7 +1482,8 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 	skb_record_rx_queue(skb, rxq->rspq.idx);
 
 	if (pkt->vlan_ex) {
-		__vlan_hwaccel_put_tag(skb, be16_to_cpu(pkt->vlan));
+		__vlan_hwaccel_put_tag(skb, cpu_to_be16(ETH_P_8021Q),
+					be16_to_cpu(pkt->vlan));
 		rxq->stats.vlan_ex++;
 	}
 	ret = napi_gro_frags(&rxq->rspq.napi);
@@ -1551,7 +1552,7 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 
 	if (pkt->vlan_ex) {
 		rxq->stats.vlan_ex++;
-		__vlan_hwaccel_put_tag(skb, be16_to_cpu(pkt->vlan));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), be16_to_cpu(pkt->vlan));
 	}
 
 	netif_receive_skb(skb);

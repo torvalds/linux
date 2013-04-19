@@ -2110,7 +2110,7 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static int ehea_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int ehea_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct ehea_port *port = netdev_priv(dev);
 	struct ehea_adapter *adapter = port->adapter;
@@ -2148,7 +2148,7 @@ out:
 	return err;
 }
 
-static int ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int ehea_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct ehea_port *port = netdev_priv(dev);
 	struct ehea_adapter *adapter = port->adapter;
@@ -3021,11 +3021,11 @@ static struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 	ehea_set_ethtool_ops(dev);
 
 	dev->hw_features = NETIF_F_SG | NETIF_F_TSO
-		      | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX;
+		      | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_CTAG_TX;
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_TSO
-		      | NETIF_F_HIGHDMA | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX
-		      | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER
-		      | NETIF_F_RXCSUM;
+		      | NETIF_F_HIGHDMA | NETIF_F_IP_CSUM |
+		      | NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
+		      | NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXCSUM;
 	dev->vlan_features = NETIF_F_SG | NETIF_F_TSO | NETIF_F_HIGHDMA |
 			NETIF_F_IP_CSUM;
 	dev->watchdog_timeo = EHEA_WATCH_DOG_TIMEOUT;

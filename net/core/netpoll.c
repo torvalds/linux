@@ -383,8 +383,9 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 			if (__netif_tx_trylock(txq)) {
 				if (!netif_xmit_stopped(txq)) {
 					if (vlan_tx_tag_present(skb) &&
-					    !(netif_skb_features(skb) & NETIF_F_HW_VLAN_TX)) {
-						skb = __vlan_put_tag(skb, vlan_tx_tag_get(skb));
+					    !vlan_hw_offload_capable(netif_skb_features(skb),
+								     skb->vlan_proto)) {
+						skb = __vlan_put_tag(skb, skb->vlan_proto, vlan_tx_tag_get(skb));
 						if (unlikely(!skb))
 							break;
 						skb->vlan_tci = 0;

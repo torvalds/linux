@@ -185,7 +185,7 @@ static struct net_device *get_iff_from_mac(struct adapter *adapter,
 		if (!memcmp(dev->dev_addr, mac, ETH_ALEN)) {
 			rcu_read_lock();
 			if (vlan && vlan != VLAN_VID_MASK) {
-				dev = __vlan_find_dev_deep(dev, vlan);
+				dev = __vlan_find_dev_deep(dev, htons(ETH_P_8021Q), vlan);
 			} else if (netif_is_bond_slave(dev)) {
 				struct net_device *upper_dev;
 

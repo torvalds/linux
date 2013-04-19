@@ -2448,7 +2448,8 @@ static int sh_eth_get_vtag_index(struct sh_eth_private *mdp)
 		return TSU_VTAG1;
 }
 
-static int sh_eth_vlan_rx_add_vid(struct net_device *ndev, u16 vid)
+static int sh_eth_vlan_rx_add_vid(struct net_device *ndev,
+				  __be16 proto, u16 vid)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	int vtag_reg_index = sh_eth_get_vtag_index(mdp);
@@ -2478,7 +2479,8 @@ static int sh_eth_vlan_rx_add_vid(struct net_device *ndev, u16 vid)
 	return 0;
 }
 
-static int sh_eth_vlan_rx_kill_vid(struct net_device *ndev, u16 vid)
+static int sh_eth_vlan_rx_kill_vid(struct net_device *ndev,
+				   __be16 proto, u16 vid)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 	int vtag_reg_index = sh_eth_get_vtag_index(mdp);
@@ -2749,7 +2751,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 			goto out_release;
 		}
 		mdp->port = devno % 2;
-		ndev->features = NETIF_F_HW_VLAN_FILTER;
+		ndev->features = NETIF_F_HW_VLAN_CTAG_FILTER;
 	}
 
 	/* initialize first or needed device */

@@ -2329,8 +2329,8 @@ spider_net_setup_netdev(struct spider_net_card *card)
 	if (SPIDER_NET_RX_CSUM_DEFAULT)
 		netdev->features |= NETIF_F_RXCSUM;
 	netdev->features |= NETIF_F_IP_CSUM | NETIF_F_LLTX;
-	/* some time: NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
-	 *		NETIF_F_HW_VLAN_FILTER */
+	/* some time: NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
+	 *		NETIF_F_HW_VLAN_CTAG_FILTER */
 
 	netdev->irq = card->pdev->irq;
 	card->num_rx_ints = 0;

@@ -1281,7 +1281,8 @@ myri10ge_vlan_rx(struct net_device *dev, void *addr, struct sk_buff *skb)
 	va = addr;
 	va += MXGEFW_PAD;
 	veh = (struct vlan_ethhdr *)va;
-	if ((dev->features & NETIF_F_HW_VLAN_RX) == NETIF_F_HW_VLAN_RX &&
+	if ((dev->features & NETIF_F_HW_VLAN_CTAG_RX) ==
+	    NETIF_F_HW_VLAN_CTAG_RX &&
 	    veh->h_vlan_proto == htons(ETH_P_8021Q)) {
 		/* fixup csum if needed */
 		if (skb->ip_summed == CHECKSUM_COMPLETE) {
@@ -1289,7 +1290,7 @@ myri10ge_vlan_rx(struct net_device *dev, void *addr, struct sk_buff *skb)
 			skb->csum = csum_sub(skb->csum, vsum);
 		}
 		/* pop tag */
-		__vlan_hwaccel_put_tag(skb, ntohs(veh->h_vlan_TCI));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(veh->h_vlan_TCI));
 		memmove(va + VLAN_HLEN, va, 2 * ETH_ALEN);
 		skb->len -= VLAN_HLEN;
 		skb->data_len -= VLAN_HLEN;
@@ -3887,8 +3888,8 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->mtu = myri10ge_initial_mtu;
 	netdev->hw_features = mgp->features | NETIF_F_RXCSUM;
 
-	/* fake NETIF_F_HW_VLAN_RX for good GRO performance */
-	netdev->hw_features |= NETIF_F_HW_VLAN_RX;
+	/* fake NETIF_F_HW_VLAN_CTAG_RX for good GRO performance */
+	netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX;
 
 	netdev->features = netdev->hw_features;
 

@@ -341,7 +341,7 @@ static void batadv_bla_send_claim(struct batadv_priv *bat_priv, uint8_t *mac,
 	}
 
 	if (vid != -1)
-		skb = vlan_insert_tag(skb, vid);
+		skb = vlan_insert_tag(skb, htons(ETH_P_8021Q), vid);
 
 	skb_reset_mac_header(skb);
 	skb->protocol = eth_type_trans(skb, soft_iface);
