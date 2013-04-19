@@ -477,28 +477,13 @@ nla_put_failure:
 }
 
 static int
-nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
+__nfqnl_enqueue_packet(struct net *net, struct nfqnl_instance *queue,
+			struct nf_queue_entry *entry)
 {
 	struct sk_buff *nskb;
-	struct nfqnl_instance *queue;
 	int err = -ENOBUFS;
 	__be32 *packet_id_ptr;
 	int failopen = 0;
-	struct net *net = dev_net(entry->indev ?
-				  entry->indev : entry->outdev);
-	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
-
-	/* rcu_read_lock()ed by nf_hook_slow() */
-	queue = instance_lookup(q, queuenum);
-	if (!queue) {
-		err = -ESRCH;
-		goto err_out;
-	}
-
-	if (queue->copy_mode == NFQNL_COPY_NONE) {
-		err = -EINVAL;
-		goto err_out;
-	}
 
 	nskb = nfqnl_build_packet_message(queue, entry, &packet_id_ptr);
 	if (nskb == NULL) {
@@ -544,6 +529,141 @@ err_out_unlock:
 	if (failopen)
 		nf_reinject(entry, NF_ACCEPT);
 err_out:
+	return err;
+}
+
+static struct nf_queue_entry *
+nf_queue_entry_dup(struct nf_queue_entry *e)
+{
+	struct nf_queue_entry *entry = kmemdup(e, e->size, GFP_ATOMIC);
+	if (entry) {
+		if (nf_queue_entry_get_refs(entry))
+			return entry;
+		kfree(entry);
+	}
+	return NULL;
+}
+
+#ifdef CONFIG_BRIDGE_NETFILTER
+/* When called from bridge netfilter, skb->data must point to MAC header
+ * before calling skb_gso_segment(). Else, original MAC header is lost
+ * and segmented skbs will be sent to wrong destination.
+ */
+static void nf_bridge_adjust_skb_data(struct sk_buff *skb)
+{
+	if (skb->nf_bridge)
+		__skb_push(skb, skb->network_header - skb->mac_header);
+}
+
+static void nf_bridge_adjust_segmented_data(struct sk_buff *skb)
+{
+	if (skb->nf_bridge)
+		__skb_pull(skb, skb->network_header - skb->mac_header);
+}
+#else
+#define nf_bridge_adjust_skb_data(s) do {} while (0)
+#define nf_bridge_adjust_segmented_data(s) do {} while (0)
+#endif
+
+static void free_entry(struct nf_queue_entry *entry)
+{
+	nf_queue_entry_release_refs(entry);
+	kfree(entry);
+}
+
+static int
+__nfqnl_enqueue_packet_gso(struct net *net, struct nfqnl_instance *queue,
+			   struct sk_buff *skb, struct nf_queue_entry *entry)
+{
+	int ret = -ENOMEM;
+	struct nf_queue_entry *entry_seg;
+
+	nf_bridge_adjust_segmented_data(skb);
+
+	if (skb->next == NULL) { /* last packet, no need to copy entry */
+		struct sk_buff *gso_skb = entry->skb;
+		entry->skb = skb;
+		ret = __nfqnl_enqueue_packet(net, queue, entry);
+		if (ret)
+			entry->skb = gso_skb;
+		return ret;
+	}
+
+	skb->next = NULL;
+
+	entry_seg = nf_queue_entry_dup(entry);
+	if (entry_seg) {
+		entry_seg->skb = skb;
+		ret = __nfqnl_enqueue_packet(net, queue, entry_seg);
+		if (ret)
+			free_entry(entry_seg);
+	}
+	return ret;
+}
+
+static int
+nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
+{
+	unsigned int queued;
+	struct nfqnl_instance *queue;
+	struct sk_buff *skb, *segs;
+	int err = -ENOBUFS;
+	struct net *net = dev_net(entry->indev ?
+				  entry->indev : entry->outdev);
+	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
+
+	/* rcu_read_lock()ed by nf_hook_slow() */
+	queue = instance_lookup(q, queuenum);
+	if (!queue)
+		return -ESRCH;
+
+	if (queue->copy_mode == NFQNL_COPY_NONE)
+		return -EINVAL;
+
+	if (!skb_is_gso(entry->skb))
+		return __nfqnl_enqueue_packet(net, queue, entry);
+
+	skb = entry->skb;
+
+	switch (entry->pf) {
+	case NFPROTO_IPV4:
+		skb->protocol = htons(ETH_P_IP);
+		break;
+	case NFPROTO_IPV6:
+		skb->protocol = htons(ETH_P_IPV6);
+		break;
+	}
+
+	nf_bridge_adjust_skb_data(skb);
+	segs = skb_gso_segment(skb, 0);
+	/* Does not use PTR_ERR to limit the number of error codes that can be
+	 * returned by nf_queue.  For instance, callers rely on -ECANCELED to
+	 * mean 'ignore this hook'.
+	 */
+	if (IS_ERR(segs))
+		goto out_err;
+	queued = 0;
+	err = 0;
+	do {
+		struct sk_buff *nskb = segs->next;
+		if (err == 0)
+			err = __nfqnl_enqueue_packet_gso(net, queue,
+							segs, entry);
+		if (err == 0)
+			queued++;
+		else
+			kfree_skb(segs);
+		segs = nskb;
+	} while (segs);
+
+	if (queued) {
+		if (err) /* some segments are already queued */
+			free_entry(entry);
+		kfree_skb(skb);
+		return 0;
+	}
+ out_err:
+	nf_bridge_adjust_segmented_data(skb);
 	return err;
 }
 
