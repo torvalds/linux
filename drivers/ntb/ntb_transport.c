@@ -64,7 +64,7 @@ static unsigned int transport_mtu = 0x401E;
 module_param(transport_mtu, uint, 0644);
 MODULE_PARM_DESC(transport_mtu, "Maximum size of NTB transport packets");
 
-static unsigned char max_num_clients = 2;
+static unsigned char max_num_clients;
 module_param(max_num_clients, byte, 0644);
 MODULE_PARM_DESC(max_num_clients, "Maximum number of NTB transport clients");
 
@@ -150,7 +150,7 @@ struct ntb_transport {
 	struct list_head client_devs;
 
 	struct ntb_device *ndev;
-	struct ntb_transport_mw mw[NTB_NUM_MW];
+	struct ntb_transport_mw *mw;
 	struct ntb_transport_qp *qps;
 	unsigned int max_qps;
 	unsigned long qp_bitmap;
@@ -182,7 +182,7 @@ enum {
 	MAX_SPAD,
 };
 
-#define QP_TO_MW(qp)		((qp) % NTB_NUM_MW)
+#define QP_TO_MW(ndev, qp)	((qp) % ntb_max_mw(ndev))
 #define NTB_QP_DEF_NUM_ENTRIES	100
 #define NTB_LINK_DOWN_TIMEOUT	10
 
@@ -474,19 +474,22 @@ static void ntb_transport_setup_qp_mw(struct ntb_transport *nt,
 {
 	struct ntb_transport_qp *qp = &nt->qps[qp_num];
 	unsigned int rx_size, num_qps_mw;
-	u8 mw_num = QP_TO_MW(qp_num);
+	u8 mw_num, mw_max;
 	unsigned int i;
+
+	mw_max = ntb_max_mw(nt->ndev);
+	mw_num = QP_TO_MW(nt->ndev, qp_num);
 
 	WARN_ON(nt->mw[mw_num].virt_addr == NULL);
 
-	if (nt->max_qps % NTB_NUM_MW && mw_num < nt->max_qps % NTB_NUM_MW)
-		num_qps_mw = nt->max_qps / NTB_NUM_MW + 1;
+	if (nt->max_qps % mw_max && mw_num < nt->max_qps % mw_max)
+		num_qps_mw = nt->max_qps / mw_max + 1;
 	else
-		num_qps_mw = nt->max_qps / NTB_NUM_MW;
+		num_qps_mw = nt->max_qps / mw_max;
 
 	rx_size = (unsigned int) nt->mw[mw_num].size / num_qps_mw;
 	qp->remote_rx_info = nt->mw[mw_num].virt_addr +
-			     (qp_num / NTB_NUM_MW * rx_size);
+			     (qp_num / mw_max * rx_size);
 	rx_size -= sizeof(struct ntb_rx_info);
 
 	qp->rx_buff = qp->remote_rx_info + 1;
@@ -630,7 +633,7 @@ static void ntb_transport_link_work(struct work_struct *work)
 	int rc, i;
 
 	/* send the local info, in the opposite order of the way we read it */
-	for (i = 0; i < NTB_NUM_MW; i++) {
+	for (i = 0; i < ntb_max_mw(ndev); i++) {
 		rc = ntb_write_remote_spad(ndev, MW0_SZ_HIGH + (i * 2),
 					   ntb_get_mw_size(ndev, i) >> 32);
 		if (rc) {
@@ -650,10 +653,10 @@ static void ntb_transport_link_work(struct work_struct *work)
 		}
 	}
 
-	rc = ntb_write_remote_spad(ndev, NUM_MWS, NTB_NUM_MW);
+	rc = ntb_write_remote_spad(ndev, NUM_MWS, ntb_max_mw(ndev));
 	if (rc) {
 		dev_err(&pdev->dev, "Error writing %x to remote spad %d\n",
-			NTB_NUM_MW, NUM_MWS);
+			ntb_max_mw(ndev), NUM_MWS);
 		goto out;
 	}
 
@@ -698,11 +701,11 @@ static void ntb_transport_link_work(struct work_struct *work)
 		goto out;
 	}
 
-	if (val != NTB_NUM_MW)
+	if (val != ntb_max_mw(ndev))
 		goto out;
 	dev_dbg(&pdev->dev, "Remote number of mws = %d\n", val);
 
-	for (i = 0; i < NTB_NUM_MW; i++) {
+	for (i = 0; i < ntb_max_mw(ndev); i++) {
 		u64 val64;
 
 		rc = ntb_read_remote_spad(ndev, MW0_SZ_HIGH + (i * 2), &val);
@@ -744,7 +747,7 @@ static void ntb_transport_link_work(struct work_struct *work)
 	return;
 
 out1:
-	for (i = 0; i < NTB_NUM_MW; i++)
+	for (i = 0; i < ntb_max_mw(ndev); i++)
 		ntb_free_mw(nt, i);
 out:
 	if (ntb_hw_link_status(ndev))
@@ -798,7 +801,10 @@ static void ntb_transport_init_queue(struct ntb_transport *nt,
 {
 	struct ntb_transport_qp *qp;
 	unsigned int num_qps_mw, tx_size;
-	u8 mw_num = QP_TO_MW(qp_num);
+	u8 mw_num, mw_max;
+
+	mw_max = ntb_max_mw(nt->ndev);
+	mw_num = QP_TO_MW(nt->ndev, qp_num);
 
 	qp = &nt->qps[qp_num];
 	qp->qp_num = qp_num;
@@ -808,14 +814,14 @@ static void ntb_transport_init_queue(struct ntb_transport *nt,
 	qp->client_ready = NTB_LINK_DOWN;
 	qp->event_handler = NULL;
 
-	if (nt->max_qps % NTB_NUM_MW && mw_num < nt->max_qps % NTB_NUM_MW)
-		num_qps_mw = nt->max_qps / NTB_NUM_MW + 1;
+	if (nt->max_qps % mw_max && mw_num < nt->max_qps % mw_max)
+		num_qps_mw = nt->max_qps / mw_max + 1;
 	else
-		num_qps_mw = nt->max_qps / NTB_NUM_MW;
+		num_qps_mw = nt->max_qps / mw_max;
 
 	tx_size = (unsigned int) ntb_get_mw_size(qp->ndev, mw_num) / num_qps_mw;
 	qp->rx_info = ntb_get_mw_vbase(nt->ndev, mw_num) +
-		      (qp_num / NTB_NUM_MW * tx_size);
+		      (qp_num / mw_max * tx_size);
 	tx_size -= sizeof(struct ntb_rx_info);
 
 	qp->tx_mw = qp->rx_info + 1;
@@ -862,13 +868,23 @@ int ntb_transport_init(struct pci_dev *pdev)
 		goto err;
 	}
 
-	nt->max_qps = min(nt->ndev->max_cbs, max_num_clients);
+	nt->mw = kcalloc(ntb_max_mw(nt->ndev), sizeof(struct ntb_transport_mw),
+			 GFP_KERNEL);
+	if (!nt->mw) {
+		rc = -ENOMEM;
+		goto err1;
+	}
+
+	if (max_num_clients)
+		nt->max_qps = min(ntb_max_cbs(nt->ndev), max_num_clients);
+	else
+		nt->max_qps = min(ntb_max_cbs(nt->ndev), ntb_max_mw(nt->ndev));
 
 	nt->qps = kcalloc(nt->max_qps, sizeof(struct ntb_transport_qp),
 			  GFP_KERNEL);
 	if (!nt->qps) {
 		rc = -ENOMEM;
-		goto err1;
+		goto err2;
 	}
 
 	nt->qp_bitmap = ((u64) 1 << nt->max_qps) - 1;
@@ -882,22 +898,24 @@ int ntb_transport_init(struct pci_dev *pdev)
 	rc = ntb_register_event_callback(nt->ndev,
 					 ntb_transport_event_callback);
 	if (rc)
-		goto err2;
+		goto err3;
 
 	INIT_LIST_HEAD(&nt->client_devs);
 	rc = ntb_bus_init(nt);
 	if (rc)
-		goto err3;
+		goto err4;
 
 	if (ntb_hw_link_status(nt->ndev))
 		schedule_delayed_work(&nt->link_work, 0);
 
 	return 0;
 
-err3:
+err4:
 	ntb_unregister_event_callback(nt->ndev);
-err2:
+err3:
 	kfree(nt->qps);
+err2:
+	kfree(nt->mw);
 err1:
 	ntb_unregister_transport(nt->ndev);
 err:
@@ -908,6 +926,7 @@ err:
 void ntb_transport_free(void *transport)
 {
 	struct ntb_transport *nt = transport;
+	struct ntb_device *ndev = nt->ndev;
 	struct pci_dev *pdev;
 	int i;
 
@@ -924,15 +943,16 @@ void ntb_transport_free(void *transport)
 
 	cancel_delayed_work_sync(&nt->link_work);
 
-	ntb_unregister_event_callback(nt->ndev);
+	ntb_unregister_event_callback(ndev);
 
-	pdev = ntb_query_pdev(nt->ndev);
+	pdev = ntb_query_pdev(ndev);
 
-	for (i = 0; i < NTB_NUM_MW; i++)
+	for (i = 0; i < ntb_max_mw(ndev); i++)
 		ntb_free_mw(nt, i);
 
 	kfree(nt->qps);
-	ntb_unregister_transport(nt->ndev);
+	kfree(nt->mw);
+	ntb_unregister_transport(ndev);
 	kfree(nt);
 }
 

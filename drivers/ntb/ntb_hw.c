@@ -62,6 +62,10 @@ MODULE_VERSION(NTB_VER);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel Corporation");
 
+static bool xeon_errata_workaround = true;
+module_param(xeon_errata_workaround, bool, 0644);
+MODULE_PARM_DESC(xeon_errata_workaround, "Workaround for the Xeon Errata");
+
 enum {
 	NTB_CONN_CLASSIC = 0,
 	NTB_CONN_B2B,
@@ -81,7 +85,7 @@ enum {
 static struct dentry *debugfs_dir;
 
 /* Translate memory window 0,1 to BAR 2,4 */
-#define MW_TO_BAR(mw)	(mw * 2 + 2)
+#define MW_TO_BAR(mw)	(mw * NTB_MAX_NUM_MW + 2)
 
 static DEFINE_PCI_DEVICE_TABLE(ntb_pci_tbl) = {
 	{PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_NTB_B2B_BWD)},
@@ -347,7 +351,7 @@ int ntb_read_remote_spad(struct ntb_device *ndev, unsigned int idx, u32 *val)
  */
 void __iomem *ntb_get_mw_vbase(struct ntb_device *ndev, unsigned int mw)
 {
-	if (mw >= NTB_NUM_MW)
+	if (mw >= ntb_max_mw(ndev))
 		return NULL;
 
 	return ndev->mw[mw].vbase;
@@ -364,7 +368,7 @@ void __iomem *ntb_get_mw_vbase(struct ntb_device *ndev, unsigned int mw)
  */
 resource_size_t ntb_get_mw_size(struct ntb_device *ndev, unsigned int mw)
 {
-	if (mw >= NTB_NUM_MW)
+	if (mw >= ntb_max_mw(ndev))
 		return 0;
 
 	return ndev->mw[mw].bar_sz;
@@ -382,7 +386,7 @@ resource_size_t ntb_get_mw_size(struct ntb_device *ndev, unsigned int mw)
  */
 void ntb_set_mw_addr(struct ntb_device *ndev, unsigned int mw, u64 addr)
 {
-	if (mw >= NTB_NUM_MW)
+	if (mw >= ntb_max_mw(ndev))
 		return;
 
 	dev_dbg(&ndev->pdev->dev, "Writing addr %Lx to BAR %d\n", addr,
@@ -546,16 +550,94 @@ static int ntb_xeon_setup(struct ntb_device *ndev)
 	ndev->reg_ofs.spad_read = ndev->reg_base + SNB_SPAD_OFFSET;
 	ndev->reg_ofs.spci_cmd = ndev->reg_base + SNB_PCICMD_OFFSET;
 
-	if (ndev->conn_type == NTB_CONN_B2B) {
-		ndev->reg_ofs.sdb = ndev->reg_base + SNB_B2B_DOORBELL_OFFSET;
-		ndev->reg_ofs.spad_write = ndev->reg_base + SNB_B2B_SPAD_OFFSET;
-		ndev->limits.max_spads = SNB_MAX_B2B_SPADS;
+	/* There is a Xeon hardware errata related to writes to
+	 * SDOORBELL or B2BDOORBELL in conjunction with inbound access
+	 * to NTB MMIO Space, which may hang the system.  To workaround
+	 * this use the second memory window to access the interrupt and
+	 * scratch pad registers on the remote system.
+	 */
+	if (xeon_errata_workaround) {
+		if (!ndev->mw[1].bar_sz)
+			return -EINVAL;
+
+		ndev->limits.max_mw = SNB_ERRATA_MAX_MW;
+		ndev->reg_ofs.spad_write = ndev->mw[1].vbase +
+					   SNB_SPAD_OFFSET;
+		ndev->reg_ofs.sdb = ndev->mw[1].vbase +
+				    SNB_PDOORBELL_OFFSET;
+
+		/* Set the Limit register to 4k, the minimum size, to
+		 * prevent an illegal access
+		 */
+		writeq(ndev->mw[1].bar_sz + 0x1000, ndev->reg_base +
+		       SNB_PBAR4LMT_OFFSET);
 	} else {
-		ndev->reg_ofs.sdb = ndev->reg_base + SNB_SDOORBELL_OFFSET;
-		ndev->reg_ofs.spad_write = ndev->reg_base + SNB_SPAD_OFFSET;
-		ndev->limits.max_spads = SNB_MAX_COMPAT_SPADS;
+		ndev->limits.max_mw = SNB_MAX_MW;
+		ndev->reg_ofs.spad_write = ndev->reg_base +
+					   SNB_B2B_SPAD_OFFSET;
+		ndev->reg_ofs.sdb = ndev->reg_base +
+				    SNB_B2B_DOORBELL_OFFSET;
+
+		/* Disable the Limit register, just incase it is set to
+		 * something silly
+		 */
+		writeq(0, ndev->reg_base + SNB_PBAR4LMT_OFFSET);
 	}
 
+	/* The Xeon errata workaround requires setting SBAR Base
+	 * addresses to known values, so that the PBAR XLAT can be
+	 * pointed at SBAR0 of the remote system.
+	 */
+	if (ndev->dev_type == NTB_DEV_USD) {
+		writeq(SNB_MBAR23_DSD_ADDR, ndev->reg_base +
+		       SNB_PBAR2XLAT_OFFSET);
+		if (xeon_errata_workaround)
+			writeq(SNB_MBAR01_DSD_ADDR, ndev->reg_base +
+			       SNB_PBAR4XLAT_OFFSET);
+		else {
+			writeq(SNB_MBAR45_DSD_ADDR, ndev->reg_base +
+			       SNB_PBAR4XLAT_OFFSET);
+			/* B2B_XLAT_OFFSET is a 64bit register, but can
+			 * only take 32bit writes
+			 */
+			writel(SNB_MBAR01_USD_ADDR & 0xffffffff,
+			       ndev->reg_base + SNB_B2B_XLAT_OFFSETL);
+			writel(SNB_MBAR01_DSD_ADDR >> 32,
+			       ndev->reg_base + SNB_B2B_XLAT_OFFSETU);
+		}
+
+		writeq(SNB_MBAR01_USD_ADDR, ndev->reg_base +
+		       SNB_SBAR0BASE_OFFSET);
+		writeq(SNB_MBAR23_USD_ADDR, ndev->reg_base +
+		       SNB_SBAR2BASE_OFFSET);
+		writeq(SNB_MBAR45_USD_ADDR, ndev->reg_base +
+		       SNB_SBAR4BASE_OFFSET);
+	} else {
+		writeq(SNB_MBAR23_USD_ADDR, ndev->reg_base +
+		       SNB_PBAR2XLAT_OFFSET);
+		if (xeon_errata_workaround)
+			writeq(SNB_MBAR01_USD_ADDR, ndev->reg_base +
+			       SNB_PBAR4XLAT_OFFSET);
+		else {
+			writeq(SNB_MBAR45_USD_ADDR, ndev->reg_base +
+			       SNB_PBAR4XLAT_OFFSET);
+			/* B2B_XLAT_OFFSET is a 64bit register, but can
+			 * only take 32bit writes
+			 */
+			writel(SNB_MBAR01_USD_ADDR & 0xffffffff,
+			       ndev->reg_base + SNB_B2B_XLAT_OFFSETL);
+			writel(SNB_MBAR01_USD_ADDR >> 32,
+			       ndev->reg_base + SNB_B2B_XLAT_OFFSETU);
+		}
+		writeq(SNB_MBAR01_DSD_ADDR, ndev->reg_base +
+		       SNB_SBAR0BASE_OFFSET);
+		writeq(SNB_MBAR23_DSD_ADDR, ndev->reg_base +
+		       SNB_SBAR2BASE_OFFSET);
+		writeq(SNB_MBAR45_DSD_ADDR, ndev->reg_base +
+		       SNB_SBAR4BASE_OFFSET);
+	}
+
+	ndev->limits.max_spads = SNB_MAX_B2B_SPADS;
 	ndev->limits.max_db_bits = SNB_MAX_DB_BITS;
 	ndev->limits.msix_cnt = SNB_MSIX_CNT;
 	ndev->bits_per_vector = SNB_DB_BITS_PER_VEC;
@@ -614,6 +696,7 @@ static int ntb_bwd_setup(struct ntb_device *ndev)
 		ndev->limits.max_spads = BWD_MAX_COMPAT_SPADS;
 	}
 
+	ndev->limits.max_mw = BWD_MAX_MW;
 	ndev->limits.max_db_bits = BWD_MAX_DB_BITS;
 	ndev->limits.msix_cnt = BWD_MSIX_CNT;
 	ndev->bits_per_vector = BWD_DB_BITS_PER_VEC;
@@ -1053,7 +1136,7 @@ static int ntb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err2;
 	}
 
-	for (i = 0; i < NTB_NUM_MW; i++) {
+	for (i = 0; i < NTB_MAX_NUM_MW; i++) {
 		ndev->mw[i].bar_sz = pci_resource_len(pdev, MW_TO_BAR(i));
 		ndev->mw[i].vbase =
 		    ioremap_wc(pci_resource_start(pdev, MW_TO_BAR(i)),
@@ -1155,7 +1238,7 @@ static void ntb_pci_remove(struct pci_dev *pdev)
 	ntb_free_callbacks(ndev);
 	ntb_device_free(ndev);
 
-	for (i = 0; i < NTB_NUM_MW; i++)
+	for (i = 0; i < NTB_MAX_NUM_MW; i++)
 		iounmap(ndev->mw[i].vbase);
 
 	iounmap(ndev->reg_base);

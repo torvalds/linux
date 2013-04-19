@@ -68,7 +68,7 @@
 
 #define NTB_HB_TIMEOUT		msecs_to_jiffies(1000)
 
-#define NTB_NUM_MW		2
+#define NTB_MAX_NUM_MW		2
 
 enum ntb_hw_event {
 	NTB_EVENT_SW_EVENT0 = 0,
@@ -96,11 +96,12 @@ struct ntb_device {
 	struct pci_dev *pdev;
 	struct msix_entry *msix_entries;
 	void __iomem *reg_base;
-	struct ntb_mw mw[NTB_NUM_MW];
+	struct ntb_mw mw[NTB_MAX_NUM_MW];
 	struct {
-		unsigned int max_spads;
-		unsigned int max_db_bits;
-		unsigned int msix_cnt;
+		unsigned char max_mw;
+		unsigned char max_spads;
+		unsigned char max_db_bits;
+		unsigned char msix_cnt;
 	} limits;
 	struct {
 		void __iomem *pdb;
@@ -132,6 +133,32 @@ struct ntb_device {
 };
 
 /**
+ * ntb_max_cbs() - return the max callbacks
+ * @ndev: pointer to ntb_device instance
+ *
+ * Given the ntb pointer, return the maximum number of callbacks
+ *
+ * RETURNS: the maximum number of callbacks
+ */
+static inline unsigned char ntb_max_cbs(struct ntb_device *ndev)
+{
+	return ndev->max_cbs;
+}
+
+/**
+ * ntb_max_mw() - return the max number of memory windows
+ * @ndev: pointer to ntb_device instance
+ *
+ * Given the ntb pointer, return the maximum number of memory windows
+ *
+ * RETURNS: the maximum number of memory windows
+ */
+static inline unsigned char ntb_max_mw(struct ntb_device *ndev)
+{
+	return ndev->limits.max_mw;
+}
+
+/**
  * ntb_hw_link_status() - return the hardware link status
  * @ndev: pointer to ntb_device instance
  *
@@ -148,7 +175,7 @@ static inline bool ntb_hw_link_status(struct ntb_device *ndev)
  * ntb_query_pdev() - return the pci_dev pointer
  * @ndev: pointer to ntb_device instance
  *
- * Given the ntb pointer return the pci_dev pointerfor the NTB hardware device
+ * Given the ntb pointer, return the pci_dev pointer for the NTB hardware device
  *
  * RETURNS: a pointer to the ntb pci_dev
  */
