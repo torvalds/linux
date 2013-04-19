@@ -54,6 +54,68 @@ static void evergreen_hdmi_update_ACR(struct drm_encoder *encoder, uint32_t cloc
 	WREG32(HDMI_ACR_48_1 + offset, acr.n_48khz);
 }
 
+static void evergreen_hdmi_write_sad_regs(struct drm_encoder *encoder)
+{
+	struct radeon_device *rdev = encoder->dev->dev_private;
+	struct drm_connector *connector;
+	struct radeon_connector *radeon_connector = NULL;
+	struct cea_sad *sads;
+	int i, sad_count;
+
+	static const u16 eld_reg_to_type[][2] = {
+		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR0, HDMI_AUDIO_CODING_TYPE_PCM },
+		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR1, HDMI_AUDIO_CODING_TYPE_AC3 },
+		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR2, HDMI_AUDIO_CODING_TYPE_MPEG1 },
+		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR3, HDMI_AUDIO_CODING_TYPE_MP3 },
+		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR4, HDMI_AUDIO_CODING_TYPE_MPEG2 },
+		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR5, HDMI_AUDIO_CODING_TYPE_AAC_LC },
+		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR6, HDMI_AUDIO_CODING_TYPE_DTS },
+		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR7, HDMI_AUDIO_CODING_TYPE_ATRAC },
+		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR9, HDMI_AUDIO_CODING_TYPE_EAC3 },
+		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR10, HDMI_AUDIO_CODING_TYPE_DTS_HD },
+		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR11, HDMI_AUDIO_CODING_TYPE_MLP },
+		{ AZ_F0_CODEC_PIN0_CONTROL_AUDIO_DESCRIPTOR13, HDMI_AUDIO_CODING_TYPE_WMA_PRO },
+	};
+
+	list_for_each_entry(connector, &encoder->dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder)
+			radeon_connector = to_radeon_connector(connector);
+	}
+
+	if (!radeon_connector) {
+		DRM_ERROR("Couldn't find encoder's connector\n");
+		return;
+	}
+
+	sad_count = drm_edid_to_sad(radeon_connector->edid, &sads);
+	if (sad_count < 0) {
+		DRM_ERROR("Couldn't read SADs: %d\n", sad_count);
+		return;
+	}
+	BUG_ON(!sads);
+
+	for (i = 0; i < ARRAY_SIZE(eld_reg_to_type); i++) {
+		u32 value = 0;
+		int j;
+
+		for (j = 0; j < sad_count; j++) {
+			struct cea_sad *sad = &sads[j];
+
+			if (sad->format == eld_reg_to_type[i][1]) {
+				value = MAX_CHANNELS(sad->channels) |
+					DESCRIPTOR_BYTE_2(sad->byte2) |
+					SUPPORTED_FREQUENCIES(sad->freq);
+				if (sad->format == HDMI_AUDIO_CODING_TYPE_PCM)
+					value |= SUPPORTED_FREQUENCIES_STEREO(sad->freq);
+				break;
+			}
+		}
+		WREG32(eld_reg_to_type[i][0], value);
+	}
+
+	kfree(sads);
+}
+
 /*
  * build a HDMI Video Info Frame
  */
@@ -187,6 +249,7 @@ void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode
 	       AFMT_AUDIO_CHANNEL_ENABLE(0xff));
 
 	/* fglrx sets 0x40 in 0x5f80 here */
+	evergreen_hdmi_write_sad_regs(encoder);
 
 	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
 	if (err < 0) {
