@@ -7710,6 +7710,13 @@ pipe_config_set_bpp(struct drm_crtc *crtc,
 				      bpp, connector->display_info.bpc*3);
 			pipe_config->pipe_bpp = connector->display_info.bpc*3;
 		}
+
+		/* Clamp bpp to 8 on screens without EDID 1.4 */
+		if (connector->display_info.bpc == 0 && bpp > 24) {
+			DRM_DEBUG_KMS("clamping display bpp (was %d) to default limit of 24\n",
+				      bpp);
+			pipe_config->pipe_bpp = 24;
+		}
 	}
 
 	return bpp;
