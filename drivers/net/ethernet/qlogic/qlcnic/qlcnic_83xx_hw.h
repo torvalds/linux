@@ -558,7 +558,7 @@ void qlcnic_83xx_disable_intr(struct qlcnic_adapter *,
 			     struct qlcnic_host_sds_ring *);
 void qlcnic_83xx_check_vf(struct qlcnic_adapter *,
 			  const struct pci_device_id *);
-void qlcnic_83xx_process_aen(struct qlcnic_adapter *);
+void __qlcnic_83xx_process_aen(struct qlcnic_adapter *);
 int qlcnic_83xx_get_port_config(struct qlcnic_adapter *);
 int qlcnic_83xx_set_port_config(struct qlcnic_adapter *);
 int qlcnic_enable_eswitch(struct qlcnic_adapter *, u8, u8);

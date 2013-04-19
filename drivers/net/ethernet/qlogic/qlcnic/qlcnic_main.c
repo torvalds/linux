@@ -1743,7 +1743,10 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 
 	qlcnic_change_mtu(netdev, netdev->mtu);
 
-	SET_ETHTOOL_OPS(netdev, &qlcnic_ethtool_ops);
+	if (qlcnic_sriov_vf_check(adapter))
+		SET_ETHTOOL_OPS(netdev, &qlcnic_sriov_vf_ethtool_ops);
+	else
+		SET_ETHTOOL_OPS(netdev, &qlcnic_ethtool_ops);
 
 	netdev->features |= (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
 			     NETIF_F_IPV6_CSUM | NETIF_F_GRO |

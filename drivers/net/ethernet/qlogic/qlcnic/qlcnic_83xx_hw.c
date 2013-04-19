@@ -402,7 +402,8 @@ static void qlcnic_83xx_poll_process_aen(struct qlcnic_adapter *adapter)
 
 	event = readl(QLCNIC_MBX_FW(adapter->ahw, 0));
 	if (event &  QLCNIC_MBX_ASYNC_EVENT)
-		qlcnic_83xx_process_aen(adapter);
+		__qlcnic_83xx_process_aen(adapter);
+
 out:
 	qlcnic_83xx_enable_legacy_msix_mbx_intr(adapter);
 	spin_unlock_irqrestore(&adapter->ahw->mbx_lock, flags);
@@ -758,7 +759,7 @@ poll:
 		/* Get the FW response data */
 		fw_data = readl(QLCNIC_MBX_FW(ahw, 0));
 		if (fw_data &  QLCNIC_MBX_ASYNC_EVENT) {
-			qlcnic_83xx_process_aen(adapter);
+			__qlcnic_83xx_process_aen(adapter);
 			mbx_val = QLCRDX(ahw, QLCNIC_HOST_MBX_CTRL);
 			if (mbx_val)
 				goto poll;
@@ -862,7 +863,7 @@ static void qlcnic_83xx_handle_idc_comp_aen(struct qlcnic_adapter *adapter,
 	return;
 }
 
-void qlcnic_83xx_process_aen(struct qlcnic_adapter *adapter)
+void __qlcnic_83xx_process_aen(struct qlcnic_adapter *adapter)
 {
 	u32 event[QLC_83XX_MBX_AEN_CNT];
 	int i;
@@ -905,6 +906,24 @@ void qlcnic_83xx_process_aen(struct qlcnic_adapter *adapter)
 	}
 
 	QLCWRX(ahw, QLCNIC_FW_MBX_CTRL, QLCNIC_CLR_OWNER);
+}
+
+static void qlcnic_83xx_process_aen(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	u32 resp, event;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ahw->mbx_lock, flags);
+
+	resp = QLCRDX(ahw, QLCNIC_FW_MBX_CTRL);
+	if (resp & QLCNIC_SET_OWNER) {
+		event = readl(QLCNIC_MBX_FW(ahw, 0));
+		if (event &  QLCNIC_MBX_ASYNC_EVENT)
+			__qlcnic_83xx_process_aen(adapter);
+	}
+
+	spin_unlock_irqrestore(&ahw->mbx_lock, flags);
 }
 
 static int qlcnic_83xx_add_rings(struct qlcnic_adapter *adapter)
@@ -1274,7 +1293,8 @@ static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test)
 
 	if (adapter->ahw->diag_test == QLCNIC_LOOPBACK_TEST) {
 		/* disable and free mailbox interrupt */
-		qlcnic_83xx_free_mbx_intr(adapter);
+		if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
+			qlcnic_83xx_free_mbx_intr(adapter);
 		adapter->ahw->loopback_state = 0;
 		adapter->ahw->hw_ops->setup_link_event(adapter, 1);
 	}
@@ -1302,12 +1322,14 @@ static void qlcnic_83xx_diag_free_res(struct net_device *netdev,
 	qlcnic_detach(adapter);
 
 	if (adapter->ahw->diag_test == QLCNIC_LOOPBACK_TEST) {
-		err = qlcnic_83xx_setup_mbx_intr(adapter);
-		if (err) {
-			dev_err(&adapter->pdev->dev,
-				"%s: failed to setup mbx interrupt\n",
-				__func__);
-			goto out;
+		if (!(adapter->flags & QLCNIC_MSIX_ENABLED)) {
+			err = qlcnic_83xx_setup_mbx_intr(adapter);
+			if (err) {
+				dev_err(&adapter->pdev->dev,
+					"%s: failed to setup mbx interrupt\n",
+					__func__);
+				goto out;
+			}
 		}
 	}
 	adapter->ahw->diag_test = 0;
@@ -1556,7 +1578,9 @@ int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
 	/* Poll for link up event before running traffic */
 	do {
 		msleep(500);
-		qlcnic_83xx_process_aen(adapter);
+		if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
+			qlcnic_83xx_process_aen(adapter);
+
 		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
 			dev_info(&adapter->pdev->dev,
 				 "Firmware didn't sent link up event to loopback request\n");
@@ -1610,7 +1634,9 @@ int qlcnic_83xx_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 	/* Wait for Link and IDC Completion AEN */
 	do {
 		msleep(300);
-		qlcnic_83xx_process_aen(adapter);
+		if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
+			qlcnic_83xx_process_aen(adapter);
+
 		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
 			dev_err(&adapter->pdev->dev,
 				"FW did not generate IDC completion AEN\n");
@@ -1650,7 +1676,9 @@ int qlcnic_83xx_clear_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
 	/* Wait for Link and IDC Completion AEN */
 	do {
 		msleep(300);
-		qlcnic_83xx_process_aen(adapter);
+		if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
+			qlcnic_83xx_process_aen(adapter);
+
 		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
 			dev_err(&adapter->pdev->dev,
 				"Firmware didn't sent IDC completion AEN\n");
@@ -1924,7 +1952,7 @@ irqreturn_t qlcnic_83xx_handle_aen(int irq, void *data)
 
 	event = readl(QLCNIC_MBX_FW(adapter->ahw, 0));
 	if (event &  QLCNIC_MBX_ASYNC_EVENT)
-		qlcnic_83xx_process_aen(adapter);
+		__qlcnic_83xx_process_aen(adapter);
 out:
 	mask = QLCRDX(adapter->ahw, QLCNIC_DEF_INT_MASK);
 	writel(0, adapter->ahw->pci_base0 + mask);

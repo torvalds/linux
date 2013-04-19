@@ -335,7 +335,7 @@ poll:
 		/* Get the FW response data */
 		fw_data = readl(QLCNIC_MBX_FW(ahw, 0));
 		if (fw_data &  QLCNIC_MBX_ASYNC_EVENT) {
-			qlcnic_83xx_process_aen(adapter);
+			__qlcnic_83xx_process_aen(adapter);
 			mbx_val = QLCRDX(ahw, QLCNIC_HOST_MBX_CTRL);
 			if (mbx_val)
 				goto poll;
