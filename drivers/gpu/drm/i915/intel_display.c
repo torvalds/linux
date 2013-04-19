@@ -4235,7 +4235,7 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 	u32 dpll, mdiv;
 	u32 bestn, bestm1, bestm2, bestp1, bestp2;
 	bool is_hdmi;
-	u32 coreclk, reg_val, temp;
+	u32 coreclk, reg_val, dpll_md;
 
 	mutex_lock(&dev_priv->dpio_lock);
 
@@ -4333,16 +4333,13 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 	if (wait_for(((I915_READ(DPLL(pipe)) & DPLL_LOCK_VLV) == DPLL_LOCK_VLV), 1))
 		DRM_ERROR("DPLL %d failed to lock\n", pipe);
 
-	if (is_hdmi) {
-		temp = 0;
-		if (crtc->config.pixel_multiplier > 1) {
-			temp = (crtc->config.pixel_multiplier - 1)
-				<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
-		}
-
-		I915_WRITE(DPLL_MD(pipe), temp);
-		POSTING_READ(DPLL_MD(pipe));
+	dpll_md = 0;
+	if (crtc->config.pixel_multiplier > 1) {
+		dpll_md = (crtc->config.pixel_multiplier - 1)
+			<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
 	}
+	I915_WRITE(DPLL_MD(pipe), dpll_md);
+	POSTING_READ(DPLL_MD(pipe));
 
 	if (crtc->config.has_dp_encoder)
 		intel_dp_set_m_n(crtc);
@@ -4374,14 +4371,15 @@ static void i9xx_update_pll(struct intel_crtc *crtc,
 	else
 		dpll |= DPLLB_MODE_DAC_SERIAL;
 
-	if (is_sdvo) {
-		if ((crtc->config.pixel_multiplier > 1) &&
-		    (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))) {
-			dpll |= (crtc->config.pixel_multiplier - 1)
-				<< SDVO_MULTIPLIER_SHIFT_HIRES;
-		}
-		dpll |= DPLL_DVO_HIGH_SPEED;
+	if ((crtc->config.pixel_multiplier > 1) &&
+	    (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))) {
+		dpll |= (crtc->config.pixel_multiplier - 1)
+			<< SDVO_MULTIPLIER_SHIFT_HIRES;
 	}
+
+	if (is_sdvo)
+		dpll |= DPLL_DVO_HIGH_SPEED;
+
 	if (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_DISPLAYPORT))
 		dpll |= DPLL_DVO_HIGH_SPEED;
 
@@ -4441,15 +4439,12 @@ static void i9xx_update_pll(struct intel_crtc *crtc,
 	udelay(150);
 
 	if (INTEL_INFO(dev)->gen >= 4) {
-		u32 temp = 0;
-		if (is_sdvo) {
-			temp = 0;
-			if (crtc->config.pixel_multiplier > 1) {
-				temp = (crtc->config.pixel_multiplier - 1)
-					<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
-			}
+		u32 dpll_md = 0;
+		if (crtc->config.pixel_multiplier > 1) {
+			dpll_md = (crtc->config.pixel_multiplier - 1)
+				<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
 		}
-		I915_WRITE(DPLL_MD(pipe), temp);
+		I915_WRITE(DPLL_MD(pipe), dpll_md);
 	} else {
 		/* The pixel multiplier can only be updated once the
 		 * DPLL is enabled and the clocks are stable.
@@ -5562,13 +5557,14 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 		dpll |= DPLLB_MODE_LVDS;
 	else
 		dpll |= DPLLB_MODE_DAC_SERIAL;
-	if (is_sdvo) {
-		if (intel_crtc->config.pixel_multiplier > 1) {
-			dpll |= (intel_crtc->config.pixel_multiplier - 1)
-				<< PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
-		}
-		dpll |= DPLL_DVO_HIGH_SPEED;
+
+	if (intel_crtc->config.pixel_multiplier > 1) {
+		dpll |= (intel_crtc->config.pixel_multiplier - 1)
+			<< PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT;
 	}
+
+	if (is_sdvo)
+		dpll |= DPLL_DVO_HIGH_SPEED;
 	if (intel_crtc->config.has_dp_encoder)
 		dpll |= DPLL_DVO_HIGH_SPEED;
 
