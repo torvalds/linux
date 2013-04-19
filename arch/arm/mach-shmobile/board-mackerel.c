@@ -1390,6 +1390,14 @@ static const struct pinctrl_map mackerel_pinctrl_map[] = {
 	/* TCA6416 */
 	PIN_MAP_MUX_GROUP_DEFAULT("0-0020", "pfc-sh7372",
 				  "intc_irq9_0", "intc"),
+	/* USBHS0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.0", "pfc-sh7372",
+				  "usb0_vbus", "usb0"),
+	/* USBHS1 */
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.1", "pfc-sh7372",
+				  "usb1_vbus", "usb1"),
+	PIN_MAP_MUX_GROUP_DEFAULT("renesas_usbhs.1", "pfc-sh7372",
+				  "usb1_otg_id_0", "usb1"),
 };
 
 #define GPIO_PORT9CR	IOMEM(0xE6051009)
@@ -1439,13 +1447,10 @@ static void __init mackerel_init(void)
 	gpio_request_one(151, GPIOF_OUT_INIT_HIGH, NULL); /* LCDDON */
 
 	/* USBHS0 */
-	gpio_request(GPIO_FN_VBUS0_0, NULL);
 	gpio_request_pulldown(GPIO_PORT168CR); /* VBUS0_0 pull down */
 
 	/* USBHS1 */
-	gpio_request(GPIO_FN_VBUS0_1, NULL);
 	gpio_request_pulldown(GPIO_PORT167CR); /* VBUS0_1 pull down */
-	gpio_request(GPIO_FN_IDIN_1_113, NULL);
 
 	/* FSI2 port A (ak4643) */
 	gpio_request_one(161, GPIOF_OUT_INIT_LOW, NULL); /* slave */
