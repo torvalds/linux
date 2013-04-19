@@ -18,6 +18,7 @@
 #include "node.h"
 #include "xattr.h"
 #include "acl.h"
+#include <trace/events/f2fs.h>
 
 static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 {
@@ -235,6 +236,7 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 	int err = -ENOENT;
 	int ilock;
 
+	trace_f2fs_unlink_enter(dir, dentry);
 	f2fs_balance_fs(sbi);
 
 	de = f2fs_find_entry(dir, &dentry->d_name, &page);
@@ -255,6 +257,7 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 	/* In order to evict this inode,  we set it dirty */
 	mark_inode_dirty(inode);
 fail:
+	trace_f2fs_unlink_exit(inode, err);
 	return err;
 }
 

@@ -25,6 +25,7 @@
 #include "segment.h"
 #include "xattr.h"
 #include "acl.h"
+#include <trace/events/f2fs.h>
 
 static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 						struct vm_fault *vmf)
@@ -116,9 +117,12 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	if (inode->i_sb->s_flags & MS_RDONLY)
 		return 0;
 
+	trace_f2fs_sync_file_enter(inode);
 	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
-	if (ret)
+	if (ret) {
+		trace_f2fs_sync_file_exit(inode, need_cp, datasync, ret);
 		return ret;
+	}
 
 	/* guarantee free sections for fsync */
 	f2fs_balance_fs(sbi);
@@ -153,6 +157,7 @@ int f2fs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	}
 out:
 	mutex_unlock(&inode->i_mutex);
+	trace_f2fs_sync_file_exit(inode, need_cp, datasync, ret);
 	return ret;
 }
 

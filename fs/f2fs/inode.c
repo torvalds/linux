@@ -16,6 +16,8 @@
 #include "f2fs.h"
 #include "node.h"
 
+#include <trace/events/f2fs.h>
+
 void f2fs_set_inode_flags(struct inode *inode)
 {
 	unsigned int flags = F2FS_I(inode)->i_flags;
@@ -91,13 +93,16 @@ struct inode *f2fs_iget(struct super_block *sb, unsigned long ino)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	struct inode *inode;
-	int ret;
+	int ret = 0;
 
 	inode = iget_locked(sb, ino);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
+
+	if (!(inode->i_state & I_NEW)) {
+		trace_f2fs_iget(inode);
 		return inode;
+	}
 	if (ino == F2FS_NODE_INO(sbi) || ino == F2FS_META_INO(sbi))
 		goto make_now;
 
@@ -139,11 +144,12 @@ make_now:
 		goto bad_inode;
 	}
 	unlock_new_inode(inode);
-
+	trace_f2fs_iget(inode);
 	return inode;
 
 bad_inode:
 	iget_failed(inode);
+	trace_f2fs_iget_exit(inode, ret);
 	return ERR_PTR(ret);
 }
 
@@ -239,6 +245,7 @@ void f2fs_evict_inode(struct inode *inode)
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	int ilock;
 
+	trace_f2fs_evict_inode(inode);
 	truncate_inode_pages(&inode->i_data, 0);
 
 	if (inode->i_ino == F2FS_NODE_INO(sbi) ||

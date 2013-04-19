@@ -29,6 +29,9 @@
 #include "segment.h"
 #include "xattr.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/f2fs.h>
+
 static struct kmem_cache *f2fs_inode_cachep;
 
 enum {
@@ -133,6 +136,8 @@ static void f2fs_put_super(struct super_block *sb)
 int f2fs_sync_fs(struct super_block *sb, int sync)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+
+	trace_f2fs_sync_fs(sb, sync);
 
 	if (!sbi->s_dirty && !get_pages(sbi, F2FS_DIRTY_NODES))
 		return 0;
