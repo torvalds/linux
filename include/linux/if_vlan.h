@@ -86,7 +86,7 @@ static inline int is_vlan_dev(struct net_device *dev)
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 
 extern struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
-					       u16 vlan_id);
+					       __be16 vlan_proto, u16 vlan_id);
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
 extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 

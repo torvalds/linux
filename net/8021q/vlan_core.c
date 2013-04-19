@@ -12,7 +12,7 @@ bool vlan_do_receive(struct sk_buff **skbp)
 	struct net_device *vlan_dev;
 	struct vlan_pcpu_stats *rx_stats;
 
-	vlan_dev = vlan_find_dev(skb->dev, vlan_id);
+	vlan_dev = vlan_find_dev(skb->dev, htons(ETH_P_8021Q), vlan_id);
 	if (!vlan_dev)
 		return false;
 
@@ -62,12 +62,13 @@ bool vlan_do_receive(struct sk_buff **skbp)
 
 /* Must be invoked with rcu_read_lock. */
 struct net_device *__vlan_find_dev_deep(struct net_device *dev,
-					u16 vlan_id)
+					__be16 vlan_proto, u16 vlan_id)
 {
 	struct vlan_info *vlan_info = rcu_dereference(dev->vlan_info);
 
 	if (vlan_info) {
-		return vlan_group_get_device(&vlan_info->grp, vlan_id);
+		return vlan_group_get_device(&vlan_info->grp,
+					     vlan_proto, vlan_id);
 	} else {
 		/*
 		 * Lower devices of master uppers (bonding, team) do not have
@@ -78,7 +79,8 @@ struct net_device *__vlan_find_dev_deep(struct net_device *dev,
 
 		upper_dev = netdev_master_upper_dev_get_rcu(dev);
 		if (upper_dev)
-			return __vlan_find_dev_deep(upper_dev, vlan_id);
+			return __vlan_find_dev_deep(upper_dev,
+						    vlan_proto, vlan_id);
 	}
 
 	return NULL;

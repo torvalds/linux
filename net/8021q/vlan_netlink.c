@@ -118,11 +118,12 @@ static int vlan_newlink(struct net *src_net, struct net_device *dev,
 	if (!real_dev)
 		return -ENODEV;
 
-	vlan->vlan_id  = nla_get_u16(data[IFLA_VLAN_ID]);
-	vlan->real_dev = real_dev;
-	vlan->flags    = VLAN_FLAG_REORDER_HDR;
+	vlan->vlan_proto = htons(ETH_P_8021Q);
+	vlan->vlan_id	 = nla_get_u16(data[IFLA_VLAN_ID]);
+	vlan->real_dev	 = real_dev;
+	vlan->flags	 = VLAN_FLAG_REORDER_HDR;
 
-	err = vlan_check_real_dev(real_dev, vlan->vlan_id);
+	err = vlan_check_real_dev(real_dev, vlan->vlan_proto, vlan->vlan_id);
 	if (err < 0)
 		return err;
 

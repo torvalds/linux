@@ -782,7 +782,7 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 
 	/* rejoin all groups on vlan devices */
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		vlan_dev = __vlan_find_dev_deep(bond_dev,
+		vlan_dev = __vlan_find_dev_deep(bond_dev, htons(ETH_P_8021Q),
 						vlan->vlan_id);
 		if (vlan_dev)
 			__bond_resend_igmp_join_requests(vlan_dev);
@@ -2512,7 +2512,8 @@ static int bond_has_this_ip(struct bonding *bond, __be32 ip)
 
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 		rcu_read_lock();
-		vlan_dev = __vlan_find_dev_deep(bond->dev, vlan->vlan_id);
+		vlan_dev = __vlan_find_dev_deep(bond->dev, htons(ETH_P_8021Q),
+						vlan->vlan_id);
 		rcu_read_unlock();
 		if (vlan_dev && ip == bond_confirm_addr(vlan_dev, 0, ip))
 			return 1;
@@ -2541,7 +2542,7 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op, __be32 dest_
 		return;
 	}
 	if (vlan_id) {
-		skb = vlan_put_tag(skb, vlan_id);
+		skb = vlan_put_tag(skb, htons(ETH_P_8021Q), vlan_id);
 		if (!skb) {
 			pr_err("failed to insert VLAN tag\n");
 			return;
@@ -2603,6 +2604,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 			rcu_read_lock();
 			vlan_dev = __vlan_find_dev_deep(bond->dev,
+							htons(ETH_P_8021Q),
 							vlan->vlan_id);
 			rcu_read_unlock();
 			if (vlan_dev == rt->dst.dev) {
