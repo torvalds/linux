@@ -272,6 +272,18 @@ nfqnl_zcopy(struct sk_buff *to, const struct sk_buff *from, int len, int hlen)
 	skb_shinfo(to)->nr_frags = j;
 }
 
+static int nfqnl_put_packet_info(struct sk_buff *nlskb, struct sk_buff *packet)
+{
+	__u32 flags = 0;
+
+	if (packet->ip_summed == CHECKSUM_PARTIAL)
+		flags = NFQA_SKB_CSUMNOTREADY;
+	if (skb_is_gso(packet))
+		flags |= NFQA_SKB_GSO;
+
+	return flags ? nla_put_be32(nlskb, NFQA_SKB_INFO, htonl(flags)) : 0;
+}
+
 static struct sk_buff *
 nfqnl_build_packet_message(struct nfqnl_instance *queue,
 			   struct nf_queue_entry *entry,
@@ -301,6 +313,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 #endif
 		+ nla_total_size(sizeof(u_int32_t))	/* mark */
 		+ nla_total_size(sizeof(struct nfqnl_msg_packet_hw))
+		+ nla_total_size(sizeof(u_int32_t))	/* skbinfo */
 		+ nla_total_size(sizeof(u_int32_t));	/* cap_len */
 
 	if (entskb->tstamp.tv64)
@@ -452,6 +465,9 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		goto nla_put_failure;
 
 	if (cap_len > 0 && nla_put_be32(skb, NFQA_CAP_LEN, htonl(cap_len)))
+		goto nla_put_failure;
+
+	if (nfqnl_put_packet_info(skb, entskb))
 		goto nla_put_failure;
 
 	if (data_len) {
