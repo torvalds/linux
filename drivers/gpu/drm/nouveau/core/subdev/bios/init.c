@@ -830,7 +830,7 @@ init_io_mask_or(struct nvbios_init *init)
 	u8    or = init_or(init);
 	u8  data;
 
-	trace("IO_MASK_OR\t0x03d4[0x%02x] &= ~(1 << 0x%02x)", index, or);
+	trace("IO_MASK_OR\t0x03d4[0x%02x] &= ~(1 << 0x%02x)\n", index, or);
 	init->offset += 2;
 
 	data = init_rdvgai(init, 0x03d4, index);
@@ -849,7 +849,7 @@ init_io_or(struct nvbios_init *init)
 	u8    or = init_or(init);
 	u8  data;
 
-	trace("IO_OR\t0x03d4[0x%02x] |= (1 << 0x%02x)", index, or);
+	trace("IO_OR\t0x03d4[0x%02x] |= (1 << 0x%02x)\n", index, or);
 	init->offset += 2;
 
 	data = init_rdvgai(init, 0x03d4, index);
