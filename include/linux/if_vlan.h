@@ -157,9 +157,18 @@ static inline bool vlan_uses_dev(const struct net_device *dev)
 }
 #endif
 
+static inline bool vlan_hw_offload_capable(netdev_features_t features,
+					   __be16 proto)
+{
+	if (proto == htons(ETH_P_8021Q) && features & NETIF_F_HW_VLAN_CTAG_TX)
+		return true;
+	return false;
+}
+
 /**
  * vlan_insert_tag - regular VLAN tag inserting
  * @skb: skbuff to tag
+ * @vlan_proto: VLAN encapsulation protocol
  * @vlan_tci: VLAN TCI to insert
  *
  * Inserts the VLAN tag into @skb as part of the payload
@@ -170,7 +179,8 @@ static inline bool vlan_uses_dev(const struct net_device *dev)
  *
  * Does not change skb->protocol so this function can be used during receive.
  */
-static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb, u16 vlan_tci)
+static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb,
+					      __be16 vlan_proto, u16 vlan_tci)
 {
 	struct vlan_ethhdr *veth;
 
@@ -185,7 +195,7 @@ static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb, u16 vlan_tci)
 	skb->mac_header -= VLAN_HLEN;
 
 	/* first, the ethernet type */
-	veth->h_vlan_proto = htons(ETH_P_8021Q);
+	veth->h_vlan_proto = vlan_proto;
 
 	/* now, the TCI */
 	veth->h_vlan_TCI = htons(vlan_tci);
@@ -204,24 +214,28 @@ static inline struct sk_buff *vlan_insert_tag(struct sk_buff *skb, u16 vlan_tci)
  * Following the skb_unshare() example, in case of error, the calling function
  * doesn't have to worry about freeing the original skb.
  */
-static inline struct sk_buff *__vlan_put_tag(struct sk_buff *skb, u16 vlan_tci)
+static inline struct sk_buff *__vlan_put_tag(struct sk_buff *skb,
+					     __be16 vlan_proto, u16 vlan_tci)
 {
-	skb = vlan_insert_tag(skb, vlan_tci);
+	skb = vlan_insert_tag(skb, vlan_proto, vlan_tci);
 	if (skb)
-		skb->protocol = htons(ETH_P_8021Q);
+		skb->protocol = vlan_proto;
 	return skb;
 }
 
 /**
  * __vlan_hwaccel_put_tag - hardware accelerated VLAN inserting
  * @skb: skbuff to tag
+ * @vlan_proto: VLAN encapsulation protocol
  * @vlan_tci: VLAN TCI to insert
  *
  * Puts the VLAN TCI in @skb->vlan_tci and lets the device do the rest
  */
 static inline struct sk_buff *__vlan_hwaccel_put_tag(struct sk_buff *skb,
+						     __be16 vlan_proto,
 						     u16 vlan_tci)
 {
+	skb->vlan_proto = vlan_proto;
 	skb->vlan_tci = VLAN_TAG_PRESENT | vlan_tci;
 	return skb;
 }
@@ -236,12 +250,13 @@ static inline struct sk_buff *__vlan_hwaccel_put_tag(struct sk_buff *skb,
  * Assumes skb->dev is the target that will xmit this frame.
  * Returns a VLAN tagged skb.
  */
-static inline struct sk_buff *vlan_put_tag(struct sk_buff *skb, u16 vlan_tci)
+static inline struct sk_buff *vlan_put_tag(struct sk_buff *skb,
+					   __be16 vlan_proto, u16 vlan_tci)
 {
-	if (skb->dev->features & NETIF_F_HW_VLAN_CTAG_TX) {
-		return __vlan_hwaccel_put_tag(skb, vlan_tci);
+	if (vlan_hw_offload_capable(skb->dev->features, vlan_proto)) {
+		return __vlan_hwaccel_put_tag(skb, vlan_proto, vlan_tci);
 	} else {
-		return __vlan_put_tag(skb, vlan_tci);
+		return __vlan_put_tag(skb, vlan_proto, vlan_tci);
 	}
 }
 

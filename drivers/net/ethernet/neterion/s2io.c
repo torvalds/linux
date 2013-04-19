@@ -8555,7 +8555,7 @@ static void queue_rx_frame(struct sk_buff *skb, u16 vlan_tag)
 
 	skb->protocol = eth_type_trans(skb, dev);
 	if (vlan_tag && sp->vlan_strip_flag)
-		__vlan_hwaccel_put_tag(skb, vlan_tag);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 	if (sp->config.napi)
 		netif_receive_skb(skb);
 	else

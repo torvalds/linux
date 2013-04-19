@@ -6683,7 +6683,7 @@ static void igb_process_skb_fields(struct igb_ring *rx_ring,
 		else
 			vid = le16_to_cpu(rx_desc->wb.upper.vlan);
 
-		__vlan_hwaccel_put_tag(skb, vid);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
 	}
 
 	skb_record_rx_queue(skb, rx_ring->queue_index);

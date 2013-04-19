@@ -911,7 +911,7 @@ static void rx_irq(struct net_device *ndev)
 				unsigned short tag;
 
 				tag = ntohs(extsts & EXTSTS_VTG_MASK);
-				__vlan_hwaccel_put_tag(skb, tag);
+				__vlan_hwaccel_put_tag(skb, htons(ETH_P_IPV6), tag);
 			}
 #endif
 			rx_rc = netif_rx(skb);

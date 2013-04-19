@@ -1936,7 +1936,7 @@ static int rhine_rx(struct net_device *dev, int limit)
 			skb->protocol = eth_type_trans(skb, dev);
 
 			if (unlikely(desc_length & DescTag))
-				__vlan_hwaccel_put_tag(skb, vlan_tci);
+				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tci);
 			netif_receive_skb(skb);
 
 			u64_stats_update_begin(&rp->rx_stats.syncp);

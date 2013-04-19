@@ -6715,7 +6715,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 
 		if (desc->type_flags & RXD_FLAG_VLAN &&
 		    !(tp->rx_mode & RX_MODE_KEEP_VLAN_TAG))
-			__vlan_hwaccel_put_tag(skb,
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
 					       desc->err_vlan & RXD_VLAN_MASK);
 
 		napi_gro_receive(&tnapi->napi, skb);

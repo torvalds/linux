@@ -1293,7 +1293,7 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 			skb->protocol = eth_type_trans(skb, adapter->netdev);
 
 			if (unlikely(rcd->ts))
-				__vlan_hwaccel_put_tag(skb, rcd->tci);
+				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), rcd->tci);
 
 			if (adapter->netdev->features & NETIF_F_LRO)
 				netif_receive_skb(skb);

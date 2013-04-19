@@ -312,7 +312,7 @@ vxge_rx_complete(struct vxge_ring *ring, struct sk_buff *skb, u16 vlan,
 
 	if (ext_info->vlan &&
 	    ring->vlan_tag_strip == VXGE_HW_VPATH_RPA_STRIP_VLAN_TAG_ENABLE)
-		__vlan_hwaccel_put_tag(skb, ext_info->vlan);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ext_info->vlan);
 	napi_gro_receive(ring->napi_p, skb);
 
 	vxge_debug_entryexit(VXGE_TRACE,

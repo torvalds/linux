@@ -116,7 +116,7 @@ static void igbvf_receive_skb(struct igbvf_adapter *adapter,
 		else
 			vid = le16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
 		if (test_bit(vid, adapter->active_vlans))
-			__vlan_hwaccel_put_tag(skb, vid);
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
 	}
 
 	napi_gro_receive(&adapter->rx_ring->napi, skb);

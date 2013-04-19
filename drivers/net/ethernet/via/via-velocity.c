@@ -2080,7 +2080,7 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 	if (rd->rdesc0.RSR & RSR_DETAG) {
 		u16 vid = swab16(le16_to_cpu(rd->rdesc1.PQTAG));
 
-		__vlan_hwaccel_put_tag(skb, vid);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
 	}
 	netif_rx(skb);
 

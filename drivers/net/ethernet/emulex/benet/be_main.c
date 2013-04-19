@@ -771,7 +771,7 @@ static struct sk_buff *be_insert_vlan_in_pkt(struct be_adapter *adapter,
 
 	if (vlan_tx_tag_present(skb)) {
 		vlan_tag = be_get_tx_vlan_tag(adapter, skb);
-		__vlan_put_tag(skb, vlan_tag);
+		__vlan_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 		skb->vlan_tci = 0;
 	}
 
@@ -1383,7 +1383,7 @@ static void be_rx_compl_process(struct be_rx_obj *rxo,
 
 
 	if (rxcp->vlanf)
-		__vlan_hwaccel_put_tag(skb, rxcp->vlan_tag);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), rxcp->vlan_tag);
 
 	netif_receive_skb(skb);
 }
@@ -1439,7 +1439,7 @@ void be_rx_compl_process_gro(struct be_rx_obj *rxo, struct napi_struct *napi,
 		skb->rxhash = rxcp->rss_hash;
 
 	if (rxcp->vlanf)
-		__vlan_hwaccel_put_tag(skb, rxcp->vlan_tag);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), rxcp->vlan_tag);
 
 	napi_gro_frags(napi);
 }

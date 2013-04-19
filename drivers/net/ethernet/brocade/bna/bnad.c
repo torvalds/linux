@@ -610,7 +610,7 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 		rcb->rxq->rx_bytes += length;
 
 		if (flags & BNA_CQ_EF_VLAN)
-			__vlan_hwaccel_put_tag(skb, ntohs(cmpl->vlan_tag));
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(cmpl->vlan_tag));
 
 		if (BNAD_RXBUF_IS_PAGE(unmap_q->type))
 			napi_gro_frags(&rx_ctrl->napi);

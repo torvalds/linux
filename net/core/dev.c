@@ -2482,8 +2482,9 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 		features = netif_skb_features(skb);
 
 		if (vlan_tx_tag_present(skb) &&
-		    !(features & NETIF_F_HW_VLAN_CTAG_TX)) {
-			skb = __vlan_put_tag(skb, vlan_tx_tag_get(skb));
+		    !vlan_hw_offload_capable(features, skb->vlan_proto)) {
+			skb = __vlan_put_tag(skb, skb->vlan_proto,
+					     vlan_tx_tag_get(skb));
 			if (unlikely(!skb))
 				goto out;
 

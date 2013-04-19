@@ -1809,7 +1809,7 @@ rrs_checked:
 
 			AT_TAG_TO_VLAN(rrs->vlan_tag, vlan);
 			vlan = le16_to_cpu(vlan);
-			__vlan_hwaccel_put_tag(skb, vlan);
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan);
 		}
 		netif_receive_skb(skb);
 

@@ -1386,7 +1386,7 @@ static void sge_rx(struct sge *sge, struct freelQ *fl, unsigned int len)
 
 	if (p->vlan_valid) {
 		st->vlan_xtract++;
-		__vlan_hwaccel_put_tag(skb, ntohs(p->vlan));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(p->vlan));
 	}
 	netif_receive_skb(skb);
 }

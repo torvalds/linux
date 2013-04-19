@@ -2082,8 +2082,8 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 
 		skb->protocol = eth_type_trans(skb, netdev);
 		if (status & IXGB_RX_DESC_STATUS_VP)
-			__vlan_hwaccel_put_tag(skb,
-					       le16_to_cpu(rx_desc->special));
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+				       le16_to_cpu(rx_desc->special));
 
 		netif_receive_skb(skb);
 

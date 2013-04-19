@@ -387,6 +387,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@secmark: security marking
  *	@mark: Generic packet mark
  *	@dropcount: total number of sk_receive_queue overflows
+ *	@vlan_proto: vlan encapsulation protocol
  *	@vlan_tci: vlan tag control information
  *	@inner_transport_header: Inner transport layer header (encapsulation)
  *	@inner_network_header: Network layer header (encapsulation)
@@ -465,6 +466,7 @@ struct sk_buff {
 
 	__u32			rxhash;
 
+	__be16			vlan_proto;
 	__u16			vlan_tci;
 
 #ifdef CONFIG_NET_SCHED

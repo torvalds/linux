@@ -2024,7 +2024,7 @@ rrd_ok:
 					((rrd->vlan_tag & 7) << 13) |
 					((rrd->vlan_tag & 8) << 9);
 
-			__vlan_hwaccel_put_tag(skb, vlan_tag);
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 		}
 		netif_receive_skb(skb);
 

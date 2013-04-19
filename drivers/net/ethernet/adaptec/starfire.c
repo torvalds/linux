@@ -1498,7 +1498,7 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 				printk(KERN_DEBUG "  netdev_rx() vlanid = %d\n",
 				       vlid);
 			}
-			__vlan_hwaccel_put_tag(skb, vlid);
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlid);
 		}
 #endif /* VLAN_SUPPORT */
 		netif_receive_skb(skb);

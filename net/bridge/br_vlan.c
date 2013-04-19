@@ -175,7 +175,7 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 			 * mac header.
 			 */
 			skb_push(skb, ETH_HLEN);
-			skb = __vlan_put_tag(skb, skb->vlan_tci);
+			skb = __vlan_put_tag(skb, skb->vlan_proto, skb->vlan_tci);
 			if (!skb)
 				goto out;
 			/* put skb->data back to where it was */
@@ -217,7 +217,7 @@ bool br_allowed_ingress(struct net_bridge *br, struct net_port_vlans *v,
 		/* PVID is set on this port.  Any untagged ingress
 		 * frame is considered to belong to this vlan.
 		 */
-		__vlan_hwaccel_put_tag(skb, pvid);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), pvid);
 		return true;
 	}
 

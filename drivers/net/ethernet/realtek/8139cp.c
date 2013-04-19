@@ -431,7 +431,7 @@ static inline void cp_rx_skb (struct cp_private *cp, struct sk_buff *skb,
 	cp->dev->stats.rx_bytes += skb->len;
 
 	if (opts2 & RxVlanTagged)
-		__vlan_hwaccel_put_tag(skb, swab16(opts2 & 0xffff));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), swab16(opts2 & 0xffff));
 
 	napi_gro_receive(&cp->napi, skb);
 }

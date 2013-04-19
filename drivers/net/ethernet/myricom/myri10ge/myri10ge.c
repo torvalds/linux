@@ -1290,7 +1290,7 @@ myri10ge_vlan_rx(struct net_device *dev, void *addr, struct sk_buff *skb)
 			skb->csum = csum_sub(skb->csum, vsum);
 		}
 		/* pop tag */
-		__vlan_hwaccel_put_tag(skb, ntohs(veh->h_vlan_TCI));
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), ntohs(veh->h_vlan_TCI));
 		memmove(va + VLAN_HLEN, va, 2 * ETH_ALEN);
 		skb->len -= VLAN_HLEN;
 		skb->data_len -= VLAN_HLEN;
