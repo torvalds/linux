@@ -685,9 +685,6 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 					if (!intel_PLL_is_valid(dev, limit,
 								&clock))
 						continue;
-					if (match_clock &&
-					    clock.p != match_clock->p)
-						continue;
 
 					this_err = abs(clock.dot - target);
 					if (this_err < err_most) {
