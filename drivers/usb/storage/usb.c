@@ -1071,10 +1071,6 @@ static int storage_probe(struct usb_interface *intf,
 	return result;
 }
 
-/***********************************************************************
- * Initialization and registration
- ***********************************************************************/
-
 static struct usb_driver usb_storage_driver = {
 	.name =		"usb-storage",
 	.probe =	storage_probe,
@@ -1089,28 +1085,4 @@ static struct usb_driver usb_storage_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init usb_stor_init(void)
-{
-	int retval;
-
-	pr_info("Initializing USB Mass Storage driver...\n");
-
-	/* register the driver, return usb_register return code if error */
-	retval = usb_register(&usb_storage_driver);
-	if (retval == 0)
-		pr_info("USB Mass Storage support registered\n");
-	return retval;
-}
-
-static void __exit usb_stor_exit(void)
-{
-	/* Deregister the driver
-	 * This will cause disconnect() to be called for each
-	 * attached unit
-	 */
-	pr_info("Deregistering USB Mass Storage driver...\n");
-	usb_deregister(&usb_storage_driver);
-}
-
-module_init(usb_stor_init);
-module_exit(usb_stor_exit);
+module_usb_driver(usb_storage_driver);
