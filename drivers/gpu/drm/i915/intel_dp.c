@@ -758,7 +758,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	/* Walk through all bpp values. Luckily they're all nicely spaced with 2
 	 * bpc in between. */
-	bpp = min_t(int, 8*3, pipe_config->pipe_bpp);
+	bpp = pipe_config->pipe_bpp;
 
 	/*
 	 * eDP panels are really fickle, try to enfore the bpp the firmware
