@@ -2749,7 +2749,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 			goto out_release;
 		}
 		mdp->port = devno % 2;
-		ndev->features = NETIF_F_HW_VLAN_FILTER;
+		ndev->features = NETIF_F_HW_VLAN_CTAG_FILTER;
 	}
 
 	/* initialize first or needed device */

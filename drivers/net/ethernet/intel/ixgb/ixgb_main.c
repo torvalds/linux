@@ -332,8 +332,8 @@ ixgb_fix_features(struct net_device *netdev, netdev_features_t features)
 	 * Tx VLAN insertion does not work per HW design when Rx stripping is
 	 * disabled.
 	 */
-	if (!(features & NETIF_F_HW_VLAN_RX))
-		features &= ~NETIF_F_HW_VLAN_TX;
+	if (!(features & NETIF_F_HW_VLAN_CTAG_RX))
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	return features;
 }
@@ -344,7 +344,7 @@ ixgb_set_features(struct net_device *netdev, netdev_features_t features)
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	netdev_features_t changed = features ^ netdev->features;
 
-	if (!(changed & (NETIF_F_RXCSUM|NETIF_F_HW_VLAN_RX)))
+	if (!(changed & (NETIF_F_RXCSUM|NETIF_F_HW_VLAN_CTAG_RX)))
 		return 0;
 
 	adapter->rx_csum = !!(features & NETIF_F_RXCSUM);
@@ -479,10 +479,10 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->hw_features = NETIF_F_SG |
 			   NETIF_F_TSO |
 			   NETIF_F_HW_CSUM |
-			   NETIF_F_HW_VLAN_TX |
-			   NETIF_F_HW_VLAN_RX;
+			   NETIF_F_HW_VLAN_CTAG_TX |
+			   NETIF_F_HW_VLAN_CTAG_RX;
 	netdev->features = netdev->hw_features |
-			   NETIF_F_HW_VLAN_FILTER;
+			   NETIF_F_HW_VLAN_CTAG_FILTER;
 	netdev->hw_features |= NETIF_F_RXCSUM;
 
 	if (pci_using_dac) {
@@ -1140,7 +1140,7 @@ ixgb_set_multi(struct net_device *netdev)
 	}
 
 alloc_failed:
-	if (netdev->features & NETIF_F_HW_VLAN_RX)
+	if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX)
 		ixgb_vlan_strip_enable(adapter);
 	else
 		ixgb_vlan_strip_disable(adapter);

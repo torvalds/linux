@@ -959,7 +959,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 		SET_ETHTOOL_OPS(card->dev, &qeth_l2_ethtool_ops);
 	else
 		SET_ETHTOOL_OPS(card->dev, &qeth_l2_osn_ops);
-	card->dev->features |= NETIF_F_HW_VLAN_FILTER;
+	card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	card->info.broadcast_capable = 1;
 	qeth_l2_request_initial_mac(card);
 	SET_NETDEV_DEV(card->dev, &card->gdev->dev);

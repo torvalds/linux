@@ -17197,7 +17197,7 @@ static int tg3_init_one(struct pci_dev *pdev,
 
 	tg3_init_bufmgr_config(tp);
 
-	features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+	features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 
 	/* 5700 B0 chips do not support checksumming correctly due
 	 * to hardware bugs.

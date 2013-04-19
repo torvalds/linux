@@ -1026,8 +1026,9 @@ static int rhine_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev->features |= NETIF_F_SG|NETIF_F_HW_CSUM;
 
 	if (pdev->revision >= VT6105M)
-		dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
-		NETIF_F_HW_VLAN_FILTER;
+		dev->features |= NETIF_F_HW_VLAN_CTAG_TX |
+				 NETIF_F_HW_VLAN_CTAG_RX |
+				 NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	/* dev->name not defined before register_netdev()! */
 	rc = register_netdev(dev);

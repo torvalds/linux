@@ -1655,7 +1655,7 @@ static int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	skb->priority = fcoe->priority;
 
 	if (fcoe->netdev->priv_flags & IFF_802_1Q_VLAN &&
-	    fcoe->realdev->features & NETIF_F_HW_VLAN_TX) {
+	    fcoe->realdev->features & NETIF_F_HW_VLAN_CTAG_TX) {
 		skb->vlan_tci = VLAN_TAG_PRESENT |
 				vlan_dev_vlan_id(fcoe->netdev);
 		skb->dev = fcoe->realdev;

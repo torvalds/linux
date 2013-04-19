@@ -137,7 +137,7 @@ static void do_setup(struct net_device *netdev)
 			   NETIF_F_HIGHDMA | NETIF_F_HW_CSUM | NETIF_F_TSO;
 
 	netdev->vlan_features = netdev->features;
-	netdev->features |= NETIF_F_HW_VLAN_TX;
+	netdev->features |= NETIF_F_HW_VLAN_CTAG_TX;
 	netdev->hw_features = netdev->features & ~NETIF_F_LLTX;
 	eth_hw_addr_random(netdev);
 }

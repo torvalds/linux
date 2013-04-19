@@ -1860,10 +1860,10 @@ static netdev_features_t igb_fix_features(struct net_device *netdev,
 	/* Since there is no support for separate Rx/Tx vlan accel
 	 * enable/disable make sure Tx flag is always in same state as Rx.
 	 */
-	if (features & NETIF_F_HW_VLAN_RX)
-		features |= NETIF_F_HW_VLAN_TX;
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
 	else
-		features &= ~NETIF_F_HW_VLAN_TX;
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	return features;
 }
@@ -1874,7 +1874,7 @@ static int igb_set_features(struct net_device *netdev,
 	netdev_features_t changed = netdev->features ^ features;
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
-	if (changed & NETIF_F_HW_VLAN_RX)
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
 		igb_vlan_mode(netdev, features);
 
 	if (!(changed & NETIF_F_RXALL))
@@ -2127,15 +2127,15 @@ static int igb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			    NETIF_F_TSO6 |
 			    NETIF_F_RXHASH |
 			    NETIF_F_RXCSUM |
-			    NETIF_F_HW_VLAN_RX |
-			    NETIF_F_HW_VLAN_TX;
+			    NETIF_F_HW_VLAN_CTAG_RX |
+			    NETIF_F_HW_VLAN_CTAG_TX;
 
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= netdev->features;
 	netdev->hw_features |= NETIF_F_RXALL;
 
 	/* set this bit last since it cannot be part of hw_features */
-	netdev->features |= NETIF_F_HW_VLAN_FILTER;
+	netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	netdev->vlan_features |= NETIF_F_TSO |
 				 NETIF_F_TSO6 |
@@ -6674,7 +6674,7 @@ static void igb_process_skb_fields(struct igb_ring *rx_ring,
 
 	igb_ptp_rx_hwtstamp(rx_ring->q_vector, rx_desc, skb);
 
-	if ((dev->features & NETIF_F_HW_VLAN_RX) &&
+	if ((dev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
 	    igb_test_staterr(rx_desc, E1000_RXD_STAT_VP)) {
 		u16 vid;
 		if (igb_test_staterr(rx_desc, E1000_RXDEXT_STATERR_LB) &&
@@ -6954,7 +6954,7 @@ static void igb_vlan_mode(struct net_device *netdev, netdev_features_t features)
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl, rctl;
-	bool enable = !!(features & NETIF_F_HW_VLAN_RX);
+	bool enable = !!(features & NETIF_F_HW_VLAN_CTAG_RX);
 
 	if (enable) {
 		/* enable VLAN tag insert/strip */

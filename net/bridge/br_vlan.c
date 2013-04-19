@@ -54,7 +54,7 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 			dev = br->dev;
 		}
 
-		if (p && (dev->features & NETIF_F_HW_VLAN_FILTER)) {
+		if (p && (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)) {
 			/* Add VLAN to the device filter if it is supported.
 			 * Stricly speaking, this is not necessary now, since
 			 * devices are made promiscuous by the bridge, but if
@@ -82,7 +82,7 @@ static int __vlan_add(struct net_port_vlans *v, u16 vid, u16 flags)
 	return 0;
 
 out_filt:
-	if (p && (dev->features & NETIF_F_HW_VLAN_FILTER))
+	if (p && (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER))
 		dev->netdev_ops->ndo_vlan_rx_kill_vid(dev, vid);
 	return err;
 }
@@ -98,7 +98,7 @@ static int __vlan_del(struct net_port_vlans *v, u16 vid)
 	if (v->port_idx && vid) {
 		struct net_device *dev = v->parent.port->dev;
 
-		if (dev->features & NETIF_F_HW_VLAN_FILTER)
+		if (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
 			dev->netdev_ops->ndo_vlan_rx_kill_vid(dev, vid);
 	}
 

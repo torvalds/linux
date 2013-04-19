@@ -409,7 +409,7 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 				      (qdev->
 				       func << CAM_OUT_FUNC_SHIFT) |
 					(0 << CAM_OUT_CQ_ID_SHIFT));
-			if (qdev->ndev->features & NETIF_F_HW_VLAN_RX)
+			if (qdev->ndev->features & NETIF_F_HW_VLAN_CTAG_RX)
 				cam_output |= CAM_OUT_RV;
 			/* route to NIC core */
 			ql_write32(qdev, MAC_ADDR_DATA, cam_output);
@@ -2279,7 +2279,7 @@ static void qlge_vlan_mode(struct net_device *ndev, netdev_features_t features)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
 
-	if (features & NETIF_F_HW_VLAN_RX) {
+	if (features & NETIF_F_HW_VLAN_CTAG_RX) {
 		ql_write32(qdev, NIC_RCV_CFG, NIC_RCV_CFG_VLAN_MASK |
 				 NIC_RCV_CFG_VLAN_MATCH_AND_NON);
 	} else {
@@ -2294,10 +2294,10 @@ static netdev_features_t qlge_fix_features(struct net_device *ndev,
 	 * Since there is no support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
-	if (features & NETIF_F_HW_VLAN_RX)
-		features |= NETIF_F_HW_VLAN_TX;
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
 	else
-		features &= ~NETIF_F_HW_VLAN_TX;
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	return features;
 }
@@ -2307,7 +2307,7 @@ static int qlge_set_features(struct net_device *ndev,
 {
 	netdev_features_t changed = ndev->features ^ features;
 
-	if (changed & NETIF_F_HW_VLAN_RX)
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
 		qlge_vlan_mode(ndev, features);
 
 	return 0;
@@ -4665,9 +4665,9 @@ static int qlge_probe(struct pci_dev *pdev,
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	ndev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
 		NETIF_F_TSO | NETIF_F_TSO_ECN |
-		NETIF_F_HW_VLAN_TX | NETIF_F_RXCSUM;
+		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_RXCSUM;
 	ndev->features = ndev->hw_features |
-		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
+		NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_FILTER;
 	ndev->vlan_features = ndev->hw_features;
 
 	if (test_bit(QL_DMA64, &qdev->flags))

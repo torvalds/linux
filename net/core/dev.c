@@ -2435,13 +2435,13 @@ netdev_features_t netif_skb_features(struct sk_buff *skb)
 		return harmonize_features(skb, protocol, features);
 	}
 
-	features &= (skb->dev->vlan_features | NETIF_F_HW_VLAN_TX);
+	features &= (skb->dev->vlan_features | NETIF_F_HW_VLAN_CTAG_TX);
 
 	if (protocol != htons(ETH_P_8021Q)) {
 		return harmonize_features(skb, protocol, features);
 	} else {
 		features &= NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST |
-				NETIF_F_GEN_CSUM | NETIF_F_HW_VLAN_TX;
+				NETIF_F_GEN_CSUM | NETIF_F_HW_VLAN_CTAG_TX;
 		return harmonize_features(skb, protocol, features);
 	}
 }
@@ -2482,7 +2482,7 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 		features = netif_skb_features(skb);
 
 		if (vlan_tx_tag_present(skb) &&
-		    !(features & NETIF_F_HW_VLAN_TX)) {
+		    !(features & NETIF_F_HW_VLAN_CTAG_TX)) {
 			skb = __vlan_put_tag(skb, vlan_tx_tag_get(skb));
 			if (unlikely(!skb))
 				goto out;
@@ -5180,7 +5180,8 @@ int register_netdevice(struct net_device *dev)
 		}
 	}
 
-	if (((dev->hw_features | dev->features) & NETIF_F_HW_VLAN_FILTER) &&
+	if (((dev->hw_features | dev->features) &
+	     NETIF_F_HW_VLAN_CTAG_FILTER) &&
 	    (!dev->netdev_ops->ndo_vlan_rx_add_vid ||
 	     !dev->netdev_ops->ndo_vlan_rx_kill_vid)) {
 		netdev_WARN(dev, "Buggy VLAN acceleration in driver!\n");

@@ -225,7 +225,7 @@ static int __vlan_vid_add(struct vlan_info *vlan_info, unsigned short vid,
 	if (!vid_info)
 		return -ENOMEM;
 
-	if (dev->features & NETIF_F_HW_VLAN_FILTER) {
+	if (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER) {
 		err =  ops->ndo_vlan_rx_add_vid(dev, vid);
 		if (err) {
 			kfree(vid_info);
@@ -282,7 +282,7 @@ static void __vlan_vid_del(struct vlan_info *vlan_info,
 	unsigned short vid = vid_info->vid;
 	int err;
 
-	if (dev->features & NETIF_F_HW_VLAN_FILTER) {
+	if (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER) {
 		err = ops->ndo_vlan_rx_kill_vid(dev, vid);
 		if (err) {
 			pr_warn("failed to kill vid %d for device %s\n",

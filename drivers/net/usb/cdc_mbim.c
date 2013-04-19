@@ -101,7 +101,7 @@ static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->flags |= IFF_NOARP;
 
 	/* no need to put the VLAN tci in the packet headers */
-	dev->net->features |= NETIF_F_HW_VLAN_TX;
+	dev->net->features |= NETIF_F_HW_VLAN_CTAG_TX;
 err:
 	return ret;
 }

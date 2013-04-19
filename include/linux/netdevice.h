@@ -785,11 +785,13 @@ struct netdev_fcoe_hbainfo {
  *	   neither operation.
  *
  * int (*ndo_vlan_rx_add_vid)(struct net_device *dev, unsigned short vid);
- *	If device support VLAN filtering (dev->features & NETIF_F_HW_VLAN_FILTER)
+ *	If device support VLAN filtering (dev->features &
+		 *			  NETIF_F_HW_VLAN_CTAG_FILTER)
  *	this function is called when a VLAN id is registered.
  *
  * int (*ndo_vlan_rx_kill_vid)(struct net_device *dev, unsigned short vid);
- *	If device support VLAN filtering (dev->features & NETIF_F_HW_VLAN_FILTER)
+ *	If device support VLAN filtering (dev->features &
+		 *			  NETIF_F_HW_VLAN_CTAG_FILTER)
  *	this function is called when a VLAN id is unregistered.
  *
  * void (*ndo_poll_controller)(struct net_device *dev);

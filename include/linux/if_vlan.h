@@ -238,7 +238,7 @@ static inline struct sk_buff *__vlan_hwaccel_put_tag(struct sk_buff *skb,
  */
 static inline struct sk_buff *vlan_put_tag(struct sk_buff *skb, u16 vlan_tci)
 {
-	if (skb->dev->features & NETIF_F_HW_VLAN_TX) {
+	if (skb->dev->features & NETIF_F_HW_VLAN_CTAG_TX) {
 		return __vlan_hwaccel_put_tag(skb, vlan_tci);
 	} else {
 		return __vlan_put_tag(skb, vlan_tci);
@@ -294,7 +294,7 @@ static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
  */
 static inline int vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
 {
-	if (skb->dev->features & NETIF_F_HW_VLAN_TX) {
+	if (skb->dev->features & NETIF_F_HW_VLAN_CTAG_TX) {
 		return __vlan_hwaccel_get_tag(skb, vlan_tci);
 	} else {
 		return __vlan_get_tag(skb, vlan_tci);

@@ -301,7 +301,7 @@ static void vlan_transfer_features(struct net_device *dev,
 {
 	vlandev->gso_max_size = dev->gso_max_size;
 
-	if (dev->features & NETIF_F_HW_VLAN_TX)
+	if (dev->features & NETIF_F_HW_VLAN_CTAG_TX)
 		vlandev->hard_header_len = dev->hard_header_len;
 	else
 		vlandev->hard_header_len = dev->hard_header_len + VLAN_HLEN;
@@ -347,7 +347,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		__vlan_device_event(dev, event);
 
 	if ((event == NETDEV_UP) &&
-	    (dev->features & NETIF_F_HW_VLAN_FILTER)) {
+	    (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)) {
 		pr_info("adding VLAN 0 to HW filter on device %s\n",
 			dev->name);
 		vlan_vid_add(dev, 0);
@@ -415,7 +415,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		break;
 
 	case NETDEV_DOWN:
-		if (dev->features & NETIF_F_HW_VLAN_FILTER)
+		if (dev->features & NETIF_F_HW_VLAN_CTAG_FILTER)
 			vlan_vid_del(dev, 0);
 
 		/* Put all VLANs for this dev in the down state too.  */
