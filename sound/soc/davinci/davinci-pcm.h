@@ -27,7 +27,6 @@ struct davinci_pcm_dma_params {
 	unsigned char data_type;	/* xfer data type */
 	unsigned char convert_mono_stereo;
 	unsigned int fifo_level;
-	unsigned char active_serializers; /* num. of active audio serializers */
 };
 
 int davinci_soc_platform_register(struct device *dev);
