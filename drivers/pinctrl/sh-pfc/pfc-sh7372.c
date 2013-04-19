@@ -1241,6 +1241,75 @@ IRQC_PINS_MUX(28, 123, 181);
 IRQC_PINS_MUX(29, 129, 182);
 IRQC_PINS_MUX(30, 130, 183);
 IRQC_PINS_MUX(31, 138, 184);
+/* - KEYSC ------------------------------------------------------------------ */
+static const unsigned int keysc_in04_0_pins[] = {
+	/* KEYIN[0:4] */
+	136, 135, 134, 133, 132,
+};
+static const unsigned int keysc_in04_0_mux[] = {
+	KEYIN0_136_MARK, KEYIN1_135_MARK, KEYIN2_134_MARK, KEYIN3_133_MARK,
+	KEYIN4_MARK,
+};
+static const unsigned int keysc_in04_1_pins[] = {
+	/* KEYIN[0:4] */
+	121, 122, 123, 124, 132,
+};
+static const unsigned int keysc_in04_1_mux[] = {
+	KEYIN0_121_MARK, KEYIN1_122_MARK, KEYIN2_123_MARK, KEYIN3_124_MARK,
+	KEYIN4_MARK,
+};
+static const unsigned int keysc_in5_pins[] = {
+	/* KEYIN5 */
+	131,
+};
+static const unsigned int keysc_in5_mux[] = {
+	KEYIN5_MARK,
+};
+static const unsigned int keysc_in6_pins[] = {
+	/* KEYIN6 */
+	130,
+};
+static const unsigned int keysc_in6_mux[] = {
+	KEYIN6_MARK,
+};
+static const unsigned int keysc_in7_pins[] = {
+	/* KEYIN7 */
+	129,
+};
+static const unsigned int keysc_in7_mux[] = {
+	KEYIN7_MARK,
+};
+static const unsigned int keysc_out4_pins[] = {
+	/* KEYOUT[0:3] */
+	128, 127, 126, 125,
+};
+static const unsigned int keysc_out4_mux[] = {
+	KEYOUT0_MARK, KEYOUT1_MARK, KEYOUT2_MARK, KEYOUT3_MARK,
+};
+static const unsigned int keysc_out5_pins[] = {
+	/* KEYOUT[0:4] */
+	128, 127, 126, 125, 124,
+};
+static const unsigned int keysc_out5_mux[] = {
+	KEYOUT0_MARK, KEYOUT1_MARK, KEYOUT2_MARK, KEYOUT3_MARK,
+	KEYOUT4_MARK,
+};
+static const unsigned int keysc_out6_pins[] = {
+	/* KEYOUT[0:5] */
+	128, 127, 126, 125, 124, 123,
+};
+static const unsigned int keysc_out6_mux[] = {
+	KEYOUT0_MARK, KEYOUT1_MARK, KEYOUT2_MARK, KEYOUT3_MARK,
+	KEYOUT4_MARK, KEYOUT5_MARK,
+};
+static const unsigned int keysc_out8_pins[] = {
+	/* KEYOUT[0:7] */
+	128, 127, 126, 125, 124, 123, 122, 121,
+};
+static const unsigned int keysc_out8_mux[] = {
+	KEYOUT0_MARK, KEYOUT1_MARK, KEYOUT2_MARK, KEYOUT3_MARK,
+	KEYOUT4_MARK, KEYOUT5_MARK, KEYOUT6_MARK, KEYOUT7_MARK,
+};
 /* - MMCIF ------------------------------------------------------------------ */
 static const unsigned int mmc0_data1_0_pins[] = {
 	/* D[0] */
@@ -1467,6 +1536,15 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(intc_irq30_1),
 	SH_PFC_PIN_GROUP(intc_irq31_0),
 	SH_PFC_PIN_GROUP(intc_irq31_1),
+	SH_PFC_PIN_GROUP(keysc_in04_0),
+	SH_PFC_PIN_GROUP(keysc_in04_1),
+	SH_PFC_PIN_GROUP(keysc_in5),
+	SH_PFC_PIN_GROUP(keysc_in6),
+	SH_PFC_PIN_GROUP(keysc_in7),
+	SH_PFC_PIN_GROUP(keysc_out4),
+	SH_PFC_PIN_GROUP(keysc_out5),
+	SH_PFC_PIN_GROUP(keysc_out6),
+	SH_PFC_PIN_GROUP(keysc_out8),
 	SH_PFC_PIN_GROUP(mmc0_data1_0),
 	SH_PFC_PIN_GROUP(mmc0_data4_0),
 	SH_PFC_PIN_GROUP(mmc0_data8_0),
@@ -1593,6 +1671,18 @@ static const char * const intc_groups[] = {
 	"intc_irq31_1",
 };
 
+static const char * const keysc_groups[] = {
+	"keysc_in04_0",
+	"keysc_in04_1",
+	"keysc_in5",
+	"keysc_in6",
+	"keysc_in7",
+	"keysc_out4",
+	"keysc_out5",
+	"keysc_out6",
+	"keysc_out8",
+};
+
 static const char * const mmc0_groups[] = {
 	"mmc0_data1_0",
 	"mmc0_data4_0",
@@ -1632,6 +1722,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(fsib),
 	SH_PFC_FUNCTION(hdmi),
 	SH_PFC_FUNCTION(intc),
+	SH_PFC_FUNCTION(keysc),
 	SH_PFC_FUNCTION(mmc0),
 	SH_PFC_FUNCTION(sdhi0),
 	SH_PFC_FUNCTION(sdhi1),
