@@ -1278,11 +1278,11 @@ int cfg80211_can_use_iftype_chan(struct cfg80211_registered_device *rdev,
 	list_for_each_entry(wdev_iter, &rdev->wdev_list, list) {
 		if (wdev_iter == wdev)
 			continue;
-		if (wdev_iter->netdev) {
-			if (!netif_running(wdev_iter->netdev))
-				continue;
-		} else if (wdev_iter->iftype == NL80211_IFTYPE_P2P_DEVICE) {
+		if (wdev_iter->iftype == NL80211_IFTYPE_P2P_DEVICE) {
 			if (!wdev_iter->p2p_started)
+				continue;
+		} else if (wdev_iter->netdev) {
+			if (!netif_running(wdev_iter->netdev))
 				continue;
 		} else {
 			WARN_ON(1);
