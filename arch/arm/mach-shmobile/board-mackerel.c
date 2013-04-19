@@ -1379,6 +1379,11 @@ static const struct pinctrl_map mackerel_pinctrl_map[] = {
 				  "sdhi2_data4", "sdhi2"),
 	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.2", "pfc-sh7372",
 				  "sdhi2_ctrl", "sdhi2"),
+	/* SMSC911X */
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-sh7372",
+				  "bsc_cs5a", "bsc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-sh7372",
+				  "intc_irq6_0", "intc"),
 };
 
 #define GPIO_PORT9CR	IOMEM(0xE6051009)
@@ -1421,10 +1426,6 @@ static void __init mackerel_init(void)
 	pinctrl_register_mappings(mackerel_pinctrl_map,
 				  ARRAY_SIZE(mackerel_pinctrl_map));
 	sh7372_pinmux_init();
-
-	/* enable SMSC911X */
-	gpio_request(GPIO_FN_CS5A,	NULL);
-	gpio_request(GPIO_FN_IRQ6_39,	NULL);
 
 	/* backlight, off by default */
 	gpio_request_one(31, GPIOF_OUT_INIT_LOW, NULL);
