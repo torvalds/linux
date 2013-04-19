@@ -464,8 +464,6 @@ static void batadv_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	}
 	skb_reserve(forw_packet_aggr->skb, ETH_HLEN);
 
-	INIT_HLIST_NODE(&forw_packet_aggr->list);
-
 	skb_buff = skb_put(forw_packet_aggr->skb, packet_len);
 	forw_packet_aggr->packet_len = packet_len;
 	memcpy(skb_buff, packet_buff, packet_len);
