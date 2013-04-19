@@ -44,8 +44,7 @@
 #include "gpmc.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
-#include <video/omap-panel-tfp410.h>
+#include <video/omap-panel-data.h>
 
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
@@ -95,15 +94,6 @@ static void __init omap3_stalker_display_init(void)
 	return;
 }
 
-static int omap3_stalker_enable_tv(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
-
-static void omap3_stalker_disable_tv(struct omap_dss_device *dssdev)
-{
-}
-
 static struct omap_dss_device omap3_stalker_tv_device = {
 	.name			= "tv",
 	.driver_name		= "venc",
@@ -113,8 +103,6 @@ static struct omap_dss_device omap3_stalker_tv_device = {
 #elif defined(CONFIG_OMAP2_VENC_OUT_TYPE_COMPOSITE)
 	.u.venc.type		= OMAP_DSS_VENC_TYPE_COMPOSITE,
 #endif
-	.platform_enable	= omap3_stalker_enable_tv,
-	.platform_disable	= omap3_stalker_disable_tv,
 };
 
 static struct tfp410_platform_data dvi_panel = {

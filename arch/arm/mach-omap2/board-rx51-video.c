@@ -16,6 +16,8 @@
 #include <linux/mm.h>
 #include <asm/mach-types.h>
 #include <video/omapdss.h>
+#include <video/omap-panel-data.h>
+
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include "soc.h"
@@ -27,25 +29,16 @@
 
 #if defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE)
 
-static int rx51_lcd_enable(struct omap_dss_device *dssdev)
-{
-	gpio_set_value(dssdev->reset_gpio, 1);
-	return 0;
-}
-
-static void rx51_lcd_disable(struct omap_dss_device *dssdev)
-{
-	gpio_set_value(dssdev->reset_gpio, 0);
-}
+static struct panel_acx565akm_data lcd_data = {
+	.reset_gpio	= RX51_LCD_RESET_GPIO,
+};
 
 static struct omap_dss_device rx51_lcd_device = {
 	.name			= "lcd",
 	.driver_name		= "panel-acx565akm",
 	.type			= OMAP_DISPLAY_TYPE_SDI,
 	.phy.sdi.datapairs	= 2,
-	.reset_gpio		= RX51_LCD_RESET_GPIO,
-	.platform_enable	= rx51_lcd_enable,
-	.platform_disable	= rx51_lcd_disable,
+	.data			= &lcd_data,
 };
 
 static struct omap_dss_device  rx51_tv_device = {
@@ -76,13 +69,8 @@ static int __init rx51_video_init(void)
 		return 0;
 	}
 
-	if (gpio_request_one(RX51_LCD_RESET_GPIO, GPIOF_OUT_INIT_HIGH,
-			     "LCD ACX565AKM reset")) {
-		pr_err("%s failed to get LCD Reset GPIO\n", __func__);
-		return 0;
-	}
-
 	omap_display_init(&rx51_dss_board_info);
+
 	return 0;
 }
 
