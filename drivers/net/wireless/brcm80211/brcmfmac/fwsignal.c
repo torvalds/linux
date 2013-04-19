@@ -834,10 +834,11 @@ brcmf_fws_flow_control_check(struct brcmf_fws_info *fws, struct pktq *pq,
 {
 	struct brcmf_if *ifp = fws->drvr->iflist[if_id];
 
-	brcmf_dbg(TRACE,
-		  "enter: bssidx=%d, ifidx=%d\n", ifp->bssidx, ifp->ifidx);
 	if (WARN_ON(!ifp))
 		return;
+
+	brcmf_dbg(TRACE,
+		  "enter: bssidx=%d, ifidx=%d\n", ifp->bssidx, ifp->ifidx);
 
 	if ((ifp->netif_stop & BRCMF_NETIF_STOP_REASON_FWS_FC) &&
 	    pq->len <= BRCMF_FWS_FLOWCONTROL_LOWATER)
