@@ -141,6 +141,24 @@ void ntb_unregister_event_callback(struct ntb_device *ndev)
 	ndev->event_cb = NULL;
 }
 
+static void ntb_irq_work(unsigned long data)
+{
+	struct ntb_db_cb *db_cb = (struct ntb_db_cb *)data;
+	int rc;
+
+	rc = db_cb->callback(db_cb->data, db_cb->db_num);
+	if (rc)
+		tasklet_schedule(&db_cb->irq_work);
+	else {
+		struct ntb_device *ndev = db_cb->ndev;
+		unsigned long mask;
+
+		mask = readw(ndev->reg_ofs.ldb_mask);
+		clear_bit(db_cb->db_num * ndev->bits_per_vector, &mask);
+		writew(mask, ndev->reg_ofs.ldb_mask);
+	}
+}
+
 /**
  * ntb_register_db_callback() - register a callback for doorbell interrupt
  * @ndev: pointer to ntb_device instance
@@ -155,7 +173,7 @@ void ntb_unregister_event_callback(struct ntb_device *ndev)
  * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
  */
 int ntb_register_db_callback(struct ntb_device *ndev, unsigned int idx,
-			     void *data, void (*func)(void *data, int db_num))
+			     void *data, int (*func)(void *data, int db_num))
 {
 	unsigned long mask;
 
@@ -166,6 +184,10 @@ int ntb_register_db_callback(struct ntb_device *ndev, unsigned int idx,
 
 	ndev->db_cb[idx].callback = func;
 	ndev->db_cb[idx].data = data;
+	ndev->db_cb[idx].ndev = ndev;
+
+	tasklet_init(&ndev->db_cb[idx].irq_work, ntb_irq_work,
+		     (unsigned long) &ndev->db_cb[idx]);
 
 	/* unmask interrupt */
 	mask = readw(ndev->reg_ofs.ldb_mask);
@@ -193,6 +215,8 @@ void ntb_unregister_db_callback(struct ntb_device *ndev, unsigned int idx)
 	mask = readw(ndev->reg_ofs.ldb_mask);
 	set_bit(idx * ndev->bits_per_vector, &mask);
 	writew(mask, ndev->reg_ofs.ldb_mask);
+
+	tasklet_disable(&ndev->db_cb[idx].irq_work);
 
 	ndev->db_cb[idx].callback = NULL;
 }
@@ -955,12 +979,16 @@ static irqreturn_t bwd_callback_msix_irq(int irq, void *data)
 {
 	struct ntb_db_cb *db_cb = data;
 	struct ntb_device *ndev = db_cb->ndev;
+	unsigned long mask;
 
 	dev_dbg(&ndev->pdev->dev, "MSI-X irq %d received for DB %d\n", irq,
 		db_cb->db_num);
 
-	if (db_cb->callback)
-		db_cb->callback(db_cb->data, db_cb->db_num);
+	mask = readw(ndev->reg_ofs.ldb_mask);
+	set_bit(db_cb->db_num * ndev->bits_per_vector, &mask);
+	writew(mask, ndev->reg_ofs.ldb_mask);
+
+	tasklet_schedule(&db_cb->irq_work);
 
 	/* No need to check for the specific HB irq, any interrupt means
 	 * we're connected.
@@ -976,12 +1004,16 @@ static irqreturn_t xeon_callback_msix_irq(int irq, void *data)
 {
 	struct ntb_db_cb *db_cb = data;
 	struct ntb_device *ndev = db_cb->ndev;
+	unsigned long mask;
 
 	dev_dbg(&ndev->pdev->dev, "MSI-X irq %d received for DB %d\n", irq,
 		db_cb->db_num);
 
-	if (db_cb->callback)
-		db_cb->callback(db_cb->data, db_cb->db_num);
+	mask = readw(ndev->reg_ofs.ldb_mask);
+	set_bit(db_cb->db_num * ndev->bits_per_vector, &mask);
+	writew(mask, ndev->reg_ofs.ldb_mask);
+
+	tasklet_schedule(&db_cb->irq_work);
 
 	/* On Sandybridge, there are 16 bits in the interrupt register
 	 * but only 4 vectors.  So, 5 bits are assigned to the first 3

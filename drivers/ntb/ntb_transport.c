@@ -119,7 +119,6 @@ struct ntb_transport_qp {
 
 	void (*rx_handler) (struct ntb_transport_qp *qp, void *qp_data,
 			    void *data, int len);
-	struct tasklet_struct rx_work;
 	struct list_head rx_pend_q;
 	struct list_head rx_free_q;
 	spinlock_t ntb_rx_pend_q_lock;
@@ -1188,10 +1187,13 @@ err:
 	goto out;
 }
 
-static void ntb_transport_rx(unsigned long data)
+static int ntb_transport_rxc_db(void *data, int db_num)
 {
-	struct ntb_transport_qp *qp = (struct ntb_transport_qp *)data;
+	struct ntb_transport_qp *qp = data;
 	int rc, i;
+
+	dev_dbg(&ntb_query_pdev(qp->ndev)->dev, "%s: doorbell %d received\n",
+		__func__, db_num);
 
 	/* Limit the number of packets processed in a single interrupt to
 	 * provide fairness to others
@@ -1204,16 +1206,8 @@ static void ntb_transport_rx(unsigned long data)
 
 	if (qp->dma_chan)
 		dma_async_issue_pending(qp->dma_chan);
-}
 
-static void ntb_transport_rxc_db(void *data, int db_num)
-{
-	struct ntb_transport_qp *qp = data;
-
-	dev_dbg(&ntb_query_pdev(qp->ndev)->dev, "%s: doorbell %d received\n",
-		__func__, db_num);
-
-	tasklet_schedule(&qp->rx_work);
+	return i;
 }
 
 static void ntb_tx_copy_callback(void *data)
@@ -1446,19 +1440,15 @@ ntb_transport_create_queue(void *data, struct pci_dev *pdev,
 			     &qp->tx_free_q);
 	}
 
-	tasklet_init(&qp->rx_work, ntb_transport_rx, (unsigned long) qp);
-
 	rc = ntb_register_db_callback(qp->ndev, free_queue, qp,
 				      ntb_transport_rxc_db);
 	if (rc)
-		goto err3;
+		goto err2;
 
 	dev_info(&pdev->dev, "NTB Transport QP %d created\n", qp->qp_num);
 
 	return qp;
 
-err3:
-	tasklet_disable(&qp->rx_work);
 err2:
 	while ((entry = ntb_list_rm(&qp->ntb_tx_free_q_lock, &qp->tx_free_q)))
 		kfree(entry);
@@ -1505,7 +1495,6 @@ void ntb_transport_free_queue(struct ntb_transport_qp *qp)
 	}
 
 	ntb_unregister_db_callback(qp->ndev, qp->qp_num);
-	tasklet_disable(&qp->rx_work);
 
 	cancel_delayed_work_sync(&qp->link_work);
 
