@@ -377,6 +377,8 @@ static void bredr_setup(struct hci_request *req)
 
 static void le_setup(struct hci_request *req)
 {
+	struct hci_dev *hdev = req->hdev;
+
 	/* Read LE Buffer Size */
 	hci_req_add(req, HCI_OP_LE_READ_BUFFER_SIZE, 0, NULL);
 
@@ -391,6 +393,10 @@ static void le_setup(struct hci_request *req)
 
 	/* Read LE Supported States */
 	hci_req_add(req, HCI_OP_LE_READ_SUPPORTED_STATES, 0, NULL);
+
+	/* LE-only controllers have LE implicitly enabled */
+	if (!lmp_bredr_capable(hdev))
+		set_bit(HCI_LE_ENABLED, &hdev->dev_flags);
 }
 
 static u8 hci_get_inquiry_mode(struct hci_dev *hdev)
@@ -573,6 +579,10 @@ static void hci_set_le_support(struct hci_request *req)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_write_le_host_supported cp;
+
+	/* LE-only devices do not support explicit enablement */
+	if (!lmp_bredr_capable(hdev))
+		return;
 
 	memset(&cp, 0, sizeof(cp));
 
