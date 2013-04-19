@@ -184,6 +184,7 @@ struct rk616_platform_data {
 	enum lcd_port_func lcd0_func;
 	enum lcd_port_func lcd1_func;
 	int lvds_ch_nr;			//the number of used  lvds channel 
+	int hdmi_irq;
 };
 
 struct rk616_route {

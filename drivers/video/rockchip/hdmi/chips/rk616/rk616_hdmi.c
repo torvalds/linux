@@ -11,11 +11,19 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/uaccess.h>
 
 #include <mach/board.h>
 #include <mach/io.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
+
+#if defined(CONFIG_DEBUG_FS)
+#include <linux/fs.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+#endif
+
 #include "rk616_hdmi.h"
 #include "rk616_hdmi_hw.h"
 
@@ -27,6 +35,59 @@ extern void hdmi_work(struct work_struct *work);
 extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
 extern void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent);
 extern void hdmi_unregister_display_sysfs(struct hdmi *hdmi);
+
+
+
+#if defined(CONFIG_DEBUG_FS)
+static int rk616_hdmi_reg_show(struct seq_file *s, void *v)
+{
+	int i = 0;
+	u32 val = 0;
+	struct mfd_rk616 *rk616 = s->private;
+	if(!rk616)
+	{
+		dev_err(rk616->dev,"no mfd rk616!\n");
+		return 0;
+	}
+
+	for(i=0;i<= (PHY_PRE_DIV_RATIO << 2);i+=4)
+	{
+		rk616->read_dev(rk616,i,&val);
+		seq_printf(s,"reg%02x>>0x%08x\n",i>>2,val);
+	}
+
+	return 0;
+}
+
+static ssize_t rk616_hdmi_reg_write (struct file *file, const char __user *buf, size_t count, loff_t *ppos)
+{ 
+	struct mfd_rk616 *rk616 = file->f_path.dentry->d_inode->i_private;
+	u32 reg;
+	u32 val;
+	char kbuf[25];
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+	sscanf(kbuf, "%x%x", &reg,&val);
+	dev_dbg(rk616->dev,"%s:reg:0x%04x val:0x%08x\n",__func__,reg,val);
+	rk616->write_dev(rk616,reg,&val);
+	return count;
+}
+
+static int rk616_hdmi_reg_open(struct inode *inode, struct file *file)
+{
+	struct mfd_rk616 *rk616 = inode->i_private;
+	return single_open(file,rk616_hdmi_reg_show,rk616);
+}
+
+static const struct file_operations rk616_hdmi_reg_fops = {
+	.owner		= THIS_MODULE,
+	.open		= rk616_hdmi_reg_open,
+	.read		= seq_read,
+	.write          = rk616_hdmi_reg_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+#endif
 
 int rk616_hdmi_register_hdcp_callbacks(void (*hdcp_cb)(void),
 		void (*hdcp_irq_cb)(int status),
@@ -144,21 +205,35 @@ static int __devinit rk616_hdmi_probe (struct platform_device *pdev)
 	mutex_init(&hdmi->enable_mutex);
 
 	/* get the IRQ */
-	hdmi->irq = platform_get_irq(pdev, 0);
-	if(hdmi->irq <= 0) {
-		dev_err(hdmi->dev, "failed to get hdmi irq resource (%d).\n", hdmi->irq);
-		ret = -ENXIO;
-		goto err1;
-	}
-
-	/* request the IRQ */
-	ret = request_irq(hdmi->irq, hdmi_irq, 0, dev_name(&pdev->dev), hdmi);
-	if (ret)
+	if(rk616->pdata->hdmi_irq != INVALID_GPIO)
 	{
-		dev_err(hdmi->dev, "hdmi request_irq failed (%d).\n", ret);
-		goto err1;
-	}
+		ret = gpio_request(rk616->pdata->hdmi_irq,"rk616_hdmi_irq");
+		if(ret < 0)
+		{
+			dev_err(hdmi->dev,"request gpio for rk616 hdmi irq fail\n");
+		}
+		gpio_direction_input(rk616->pdata->hdmi_irq);
+		hdmi->irq = gpio_to_irq(rk616->pdata->hdmi_irq);
+		if(hdmi->irq <= 0) {
+			dev_err(hdmi->dev, "failed to get hdmi irq resource (%d).\n", hdmi->irq);
+			ret = -ENXIO;
+			goto err1;
+		}
 
+		/* request the IRQ */
+		ret = request_irq(hdmi->irq, hdmi_irq,IRQF_TRIGGER_FALLING,dev_name(&pdev->dev), hdmi);
+		if (ret)
+		{
+			dev_err(hdmi->dev, "hdmi request_irq failed (%d).\n", ret);
+			goto err1;
+		}
+	}
+#if defined(CONFIG_DEBUG_FS)
+	if(rk616->debugfs_dir)
+	{
+		debugfs_create_file("rk616-hdmi", S_IRUSR,rk616->debugfs_dir,rk616,&rk616_hdmi_reg_fops);
+	}
+#endif
 	dev_info(hdmi->dev, "rk616 hdmi probe success.\n");
 	return 0;
 err1:

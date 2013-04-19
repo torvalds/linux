@@ -1,6 +1,7 @@
 #ifndef _RK616_HDMI_HW_H
 #define _RK616_HDMI_HW_H
 
+#define RK616_HDMI_BASE 0x400
 enum PWR_MODE{
     NORMAL,
     LOWER_PWR,
@@ -268,11 +269,11 @@ enum {
 #define PHY_PRE_DIV_RATIO 		0xed
 	#define v_PRE_DIV_RATIO(n) 	(n&1f)
 
-#define HDMIRdReg(addr,val)		g_rk616_hdmi->read_dev(g_rk616_hdmi,addr,(u32 *)val) 
+#define HDMIRdReg(addr,val)		g_rk616_hdmi->read_dev(g_rk616_hdmi,(RK616_HDMI_BASE + ((addr)<<2)),(u32 *)val) 
 
 #define HDMIWrReg(addr, val)         	do{ \
 						u32 temp = val; \
-						g_rk616_hdmi->write_dev(g_rk616_hdmi,addr,&temp); \
+						g_rk616_hdmi->write_dev(g_rk616_hdmi,(RK616_HDMI_BASE + ((addr)<<2)),&temp); \
 					}while(0)
 
 #define HDMIMskReg(addr,Msk,val) 	do{ \

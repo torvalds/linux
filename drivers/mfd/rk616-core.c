@@ -312,7 +312,7 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 		dev_err(rk616->dev,"failed to create debugfs dir for rk616!\n");
 	}
 	else
-		debugfs_create_file("rk616-reg", S_IRUSR,rk616->debugfs_dir,rk616,&rk616_reg_fops);
+		debugfs_create_file("rk616-core", S_IRUSR,rk616->debugfs_dir,rk616,&rk616_reg_fops);
 #endif
 	rk616_clk_common_init(rk616);
 	ret = mfd_add_devices(rk616->dev, -1,

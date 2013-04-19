@@ -7,6 +7,20 @@
 static char edid_result = 0;
 static bool analog_sync = 0;
 
+
+static int rk616_hdmi_init_pol_set(struct mfd_rk616 * rk616,int pol)
+{
+	u32 val;
+	int ret;
+	ret = rk616->read_dev(rk616,CRU_CFGMISC_CON,&val);
+	if(pol)
+		val &= 0xffffffdf;
+	else
+		val |= 0x20;
+	ret = rk616->write_dev(rk616,CRU_CFGMISC_CON,&val);
+
+	return 0;
+}
 static inline void delay100us(void)
 {
 	msleep(1);
@@ -462,7 +476,7 @@ int rk616_hdmi_initial(void)
 	hdmi->read_edid = rk616_hdmi_read_edid;
 	
 	rk616_hdmi_reset();
-	
+	//rk616_hdmi_init_pol_set(g_rk616_hdmi,0);
 	if(hdmi->hdcp_power_on_cb)
 		rc = hdmi->hdcp_power_on_cb();
 
