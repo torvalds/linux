@@ -43,44 +43,6 @@ static struct platform_device gpmc_nand_device = {
 	.resource	= gpmc_nand_resource,
 };
 
-static int omap2_nand_gpmc_retime(
-				struct omap_nand_platform_data *gpmc_nand_data,
-				struct gpmc_timings *gpmc_t)
-{
-	struct gpmc_timings t;
-	int err;
-
-	memset(&t, 0, sizeof(t));
-	t.sync_clk = gpmc_t->sync_clk;
-	t.cs_on = gpmc_t->cs_on;
-	t.adv_on = gpmc_t->adv_on;
-
-	/* Read */
-	t.adv_rd_off = gpmc_t->adv_rd_off;
-	t.oe_on  = t.adv_on;
-	t.access = gpmc_t->access;
-	t.oe_off = gpmc_t->oe_off;
-	t.cs_rd_off = gpmc_t->cs_rd_off;
-	t.rd_cycle = gpmc_t->rd_cycle;
-
-	/* Write */
-	t.adv_wr_off = gpmc_t->adv_wr_off;
-	t.we_on  = t.oe_on;
-	if (cpu_is_omap34xx()) {
-		t.wr_data_mux_bus = gpmc_t->wr_data_mux_bus;
-		t.wr_access = gpmc_t->wr_access;
-	}
-	t.we_off = gpmc_t->we_off;
-	t.cs_wr_off = gpmc_t->cs_wr_off;
-	t.wr_cycle = gpmc_t->wr_cycle;
-
-	err = gpmc_cs_set_timings(gpmc_nand_data->cs, &t);
-	if (err)
-		return err;
-
-	return 0;
-}
-
 static bool gpmc_hwecc_bch_capable(enum omap_ecc ecc_opt)
 {
 	/* support only OMAP3 class */
@@ -131,7 +93,7 @@ int gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data,
 				gpmc_get_client_irq(GPMC_IRQ_COUNT_EVENT);
 
 	if (gpmc_t) {
-		err = omap2_nand_gpmc_retime(gpmc_nand_data, gpmc_t);
+		err = gpmc_cs_set_timings(gpmc_nand_data->cs, gpmc_t);
 		if (err < 0) {
 			dev_err(dev, "Unable to set gpmc timings: %d\n", err);
 			return err;
