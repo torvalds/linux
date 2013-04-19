@@ -3970,6 +3970,37 @@ bool intel_connector_get_hw_state(struct intel_connector *connector)
 	return encoder->get_hw_state(encoder, &pipe);
 }
 
+static void ironlake_fdi_compute_config(struct drm_device *dev,
+					struct intel_crtc_config *pipe_config)
+{
+	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
+	int target_clock, lane, link_bw;
+
+	/* FDI is a binary signal running at ~2.7GHz, encoding
+	 * each output octet as 10 bits. The actual frequency
+	 * is stored as a divider into a 100MHz clock, and the
+	 * mode pixel clock is stored in units of 1KHz.
+	 * Hence the bw of each lane in terms of the mode signal
+	 * is:
+	 */
+	link_bw = intel_fdi_link_freq(dev) * MHz(100)/KHz(1)/10;
+
+	if (pipe_config->pixel_target_clock)
+		target_clock = pipe_config->pixel_target_clock;
+	else
+		target_clock = adjusted_mode->clock;
+
+	lane = ironlake_get_lanes_required(target_clock, link_bw,
+					   pipe_config->pipe_bpp);
+
+	pipe_config->fdi_lanes = lane;
+
+	if (pipe_config->pixel_multiplier > 1)
+		link_bw *= pipe_config->pixel_multiplier;
+	intel_link_compute_m_n(pipe_config->pipe_bpp, lane, target_clock,
+			       link_bw, &pipe_config->fdi_m_n);
+}
+
 static bool intel_crtc_compute_config(struct drm_crtc *crtc,
 				      struct intel_crtc_config *pipe_config)
 {
@@ -4003,6 +4034,9 @@ static bool intel_crtc_compute_config(struct drm_crtc *crtc,
 		 * for lvds. */
 		pipe_config->pipe_bpp = 8*3;
 	}
+
+	if (pipe_config->has_pch_encoder)
+		ironlake_fdi_compute_config(dev, pipe_config);
 
 	return true;
 }
@@ -5511,38 +5545,6 @@ void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
 	}
 }
 
-static void ironlake_fdi_compute_config(struct intel_crtc *intel_crtc)
-{
-	struct drm_device *dev = intel_crtc->base.dev;
-	struct drm_display_mode *adjusted_mode =
-		&intel_crtc->config.adjusted_mode;
-	int target_clock, lane, link_bw;
-
-	/* FDI is a binary signal running at ~2.7GHz, encoding
-	 * each output octet as 10 bits. The actual frequency
-	 * is stored as a divider into a 100MHz clock, and the
-	 * mode pixel clock is stored in units of 1KHz.
-	 * Hence the bw of each lane in terms of the mode signal
-	 * is:
-	 */
-	link_bw = intel_fdi_link_freq(dev) * MHz(100)/KHz(1)/10;
-
-	if (intel_crtc->config.pixel_target_clock)
-		target_clock = intel_crtc->config.pixel_target_clock;
-	else
-		target_clock = adjusted_mode->clock;
-
-	lane = ironlake_get_lanes_required(target_clock, link_bw,
-					   intel_crtc->config.pipe_bpp);
-
-	intel_crtc->config.fdi_lanes = lane;
-
-	if (intel_crtc->config.pixel_multiplier > 1)
-		link_bw *= intel_crtc->config.pixel_multiplier;
-	intel_link_compute_m_n(intel_crtc->config.pipe_bpp, lane, target_clock,
-			       link_bw, &intel_crtc->config.fdi_m_n);
-}
-
 static bool ironlake_needs_fb_cb_tune(struct dpll *dpll, int factor)
 {
 	return i9xx_dpll_compute_m(dpll) < factor * dpll->n;
@@ -5760,10 +5762,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* Note, this also computes intel_crtc->fdi_lanes which is used below in
 	 * ironlake_check_fdi_lanes. */
-	intel_crtc->config.fdi_lanes = 0;
 	if (intel_crtc->config.has_pch_encoder) {
-		ironlake_fdi_compute_config(intel_crtc);
-
 		intel_cpu_transcoder_set_m_n(intel_crtc,
 					     &intel_crtc->config.fdi_m_n);
 	}
@@ -5897,8 +5896,6 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	intel_set_pipe_timings(intel_crtc, mode, adjusted_mode);
 
 	if (intel_crtc->config.has_pch_encoder) {
-		ironlake_fdi_compute_config(intel_crtc);
-
 		intel_cpu_transcoder_set_m_n(intel_crtc,
 					     &intel_crtc->config.fdi_m_n);
 	}
