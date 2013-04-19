@@ -24,6 +24,9 @@
 #ifndef __CIK_REG_H__
 #define __CIK_REG_H__
 
+#define CIK_DIDT_IND_INDEX                        0xca00
+#define CIK_DIDT_IND_DATA                         0xca04
+
 #define CIK_DC_GPIO_HPD_MASK                      0x65b0
 #define CIK_DC_GPIO_HPD_A                         0x65b4
 #define CIK_DC_GPIO_HPD_EN                        0x65b8

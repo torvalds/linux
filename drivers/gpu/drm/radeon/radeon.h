@@ -2141,6 +2141,8 @@ void cik_mm_wdoorbell(struct radeon_device *rdev, u32 offset, u32 v);
 #define WREG32_PIF_PHY1(reg, v) eg_pif_phy1_wreg(rdev, (reg), (v))
 #define RREG32_UVD_CTX(reg) r600_uvd_ctx_rreg(rdev, (reg))
 #define WREG32_UVD_CTX(reg, v) r600_uvd_ctx_wreg(rdev, (reg), (v))
+#define RREG32_DIDT(reg) cik_didt_rreg(rdev, (reg))
+#define WREG32_DIDT(reg, v) cik_didt_wreg(rdev, (reg), (v))
 #define WREG32_P(reg, val, mask)				\
 	do {							\
 		uint32_t tmp_ = RREG32(reg);			\
@@ -2270,6 +2272,22 @@ static inline void r600_uvd_ctx_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 {
 	WREG32(R600_UVD_CTX_INDEX, ((reg) & 0x1ff));
 	WREG32(R600_UVD_CTX_DATA, (v));
+}
+
+
+static inline u32 cik_didt_rreg(struct radeon_device *rdev, u32 reg)
+{
+	u32 r;
+
+	WREG32(CIK_DIDT_IND_INDEX, (reg));
+	r = RREG32(CIK_DIDT_IND_DATA);
+	return r;
+}
+
+static inline void cik_didt_wreg(struct radeon_device *rdev, u32 reg, u32 v)
+{
+	WREG32(CIK_DIDT_IND_INDEX, (reg));
+	WREG32(CIK_DIDT_IND_DATA, (v));
 }
 
 void r100_pll_errata_after_index(struct radeon_device *rdev);
