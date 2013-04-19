@@ -68,6 +68,15 @@
 		interrupts = <10>;
 	};
 
+	dmac: dma-controller@c00020000 {
+		compatible = "stericsson,coh901318";
+		reg = <0xc0020000 0x1000>;
+		interrupt-parent = <&vica>;
+		interrupts = <2>;
+		#dma-cells = <1>;
+		dma-channels = <40>;
+	};
+
 	i2c0: i2c@c0004000 {
 		compatible = "st,ddci2c";
 		reg = <0xc0004000 0x1000>;
