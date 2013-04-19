@@ -52,7 +52,7 @@ static void mei_hbm_me_cl_allocate(struct mei_device *dev)
 			sizeof(struct mei_me_client), GFP_KERNEL);
 	if (!clients) {
 		dev_err(&dev->pdev->dev, "memory allocation for ME clients failed.\n");
-		dev->dev_state = MEI_DEV_RESETING;
+		dev->dev_state = MEI_DEV_RESETTING;
 		mei_reset(dev, 1);
 		return;
 	}
@@ -167,7 +167,7 @@ int mei_hbm_start_req(struct mei_device *dev)
 	dev->hbm_state = MEI_HBM_IDLE;
 	if (mei_write_message(dev, mei_hdr, dev->wr_msg.data)) {
 		dev_err(&dev->pdev->dev, "version message writet failed\n");
-		dev->dev_state = MEI_DEV_RESETING;
+		dev->dev_state = MEI_DEV_RESETTING;
 		mei_reset(dev, 1);
 		return -ENODEV;
 	}
@@ -196,7 +196,7 @@ static void mei_hbm_enum_clients_req(struct mei_device *dev)
 	enum_req->hbm_cmd = HOST_ENUM_REQ_CMD;
 
 	if (mei_write_message(dev, mei_hdr, dev->wr_msg.data)) {
-		dev->dev_state = MEI_DEV_RESETING;
+		dev->dev_state = MEI_DEV_RESETTING;
 		dev_err(&dev->pdev->dev, "enumeration request write failed.\n");
 		mei_reset(dev, 1);
 	}
@@ -249,7 +249,7 @@ static int mei_hbm_prop_req(struct mei_device *dev)
 	prop_req->address = next_client_index;
 
 	if (mei_write_message(dev, mei_hdr, dev->wr_msg.data)) {
-		dev->dev_state = MEI_DEV_RESETING;
+		dev->dev_state = MEI_DEV_RESETTING;
 		dev_err(&dev->pdev->dev, "properties request write failed\n");
 		mei_reset(dev, 1);
 
