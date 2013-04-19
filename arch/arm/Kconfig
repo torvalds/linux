@@ -410,6 +410,7 @@ config ARCH_GEMINI
 	bool "Cortina Systems Gemini"
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_GPIO_H
 	select CPU_FA526
 	help
 	  Support for the Cortina Systems Gemini family SoCs
@@ -493,14 +494,6 @@ config ARCH_NETX
 	select GENERIC_CLOCKEVENTS
 	help
 	  This enables support for systems based on the Hilscher NetX Soc
-
-config ARCH_H720X
-	bool "Hynix HMS720x-based"
-	select ARCH_USES_GETTIMEOFFSET
-	select CPU_ARM720T
-	select ISA_DMA_API
-	help
-	  This enables support for systems based on the Hynix HMS720x
 
 config ARCH_IOP13XX
 	bool "IOP13xx-based"
@@ -1052,8 +1045,6 @@ source "arch/arm/mach-ep93xx/Kconfig"
 source "arch/arm/mach-footbridge/Kconfig"
 
 source "arch/arm/mach-gemini/Kconfig"
-
-source "arch/arm/mach-h720x/Kconfig"
 
 source "arch/arm/mach-highbank/Kconfig"
 

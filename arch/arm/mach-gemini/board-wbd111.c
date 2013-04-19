@@ -130,4 +130,5 @@ MACHINE_START(WBD111, "Wiliboard WBD-111")
 	.init_irq	= gemini_init_irq,
 	.init_time	= gemini_timer_init,
 	.init_machine	= wbd111_init,
+	.restart	= gemini_restart,
 MACHINE_END
