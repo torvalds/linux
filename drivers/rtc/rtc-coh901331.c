@@ -274,11 +274,17 @@ static void coh901331_shutdown(struct platform_device *pdev)
 	clk_disable_unprepare(rtap->clk);
 }
 
+static const struct of_device_id coh901331_dt_match[] = {
+	{ .compatible = "stericsson,coh901331" },
+	{},
+};
+
 static struct platform_driver coh901331_driver = {
 	.driver = {
 		.name = "rtc-coh901331",
 		.owner = THIS_MODULE,
 		.pm = &coh901331_pm_ops,
+		.of_match_table = coh901331_dt_match,
 	},
 	.remove = __exit_p(coh901331_remove),
 	.shutdown = coh901331_shutdown,
