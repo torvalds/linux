@@ -189,6 +189,9 @@ config ARCH_WANT_GENERAL_HUGETLB
 config ARCH_WANT_HUGE_PMD_SHARE
 	def_bool y if !ARM64_64K_PAGES
 
+config HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	def_bool y
+
 source "mm/Kconfig"
 
 config FORCE_MAX_ZONEORDER
