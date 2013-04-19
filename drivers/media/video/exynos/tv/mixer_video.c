@@ -791,6 +791,7 @@ static int mxr_video_open(struct file *file)
 	}
 	/* set default format, first on the list */
 	layer->fmt = layer->fmt_array[0];
+
 	/* setup default geometry */
 	mxr_layer_default_geo(layer);
 
@@ -871,7 +872,7 @@ static int queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 	*nplanes = fmt->num_subframes;
 	for (i = 0; i < fmt->num_subframes; ++i) {
 		alloc_ctxs[i] = layer->mdev->alloc_ctx;
-		sizes[i] = PAGE_ALIGN(planes[i].sizeimage);
+		sizes[i] = PAGE_ALIGN(planes[i].sizeimage * 2);
 		mxr_dbg(mdev, "size[%d] = %08lx\n", i, sizes[i]);
 	}
 

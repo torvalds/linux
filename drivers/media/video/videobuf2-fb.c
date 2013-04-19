@@ -24,6 +24,9 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-fb.h>
+#include <media/videobuf2-dma-contig.h>
+
+#include "exynos/tv/mixer.h"
 
 static int debug = 1;
 module_param(debug, int, 0644);
@@ -46,13 +49,18 @@ struct vb2_fb_data {
 	int refcount;
 	int blank;
 	int streaming;
+	int mmapped;
+	int dv_preset;
 
 	struct file fake_file;
 	struct dentry fake_dentry;
 	struct inode fake_inode;
 };
 
+static int vb2_fb_activate(struct fb_info *info);
+static int vb2_fb_deactivate(struct fb_info *info);
 static int vb2_fb_stop(struct fb_info *info);
+static int vb2_fb_blank(int blank_mode, struct fb_info *info);
 
 struct fmt_desc {
 	__u32			fourcc;
@@ -111,6 +119,91 @@ static inline void vb2_drv_unlock(struct vb2_queue *q)
 {
 	q->ops->wait_prepare(q);
 }
+
+static int odroid_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+        struct vb2_fb_data *data = info->par;
+        struct vb2_queue *q = data->q;
+        struct mxr_layer *layer = vb2_get_drv_priv(q);
+        struct mxr_device *mdev = layer->mdev;
+
+        dma_addr_t addr = vb2_dma_contig_plane_paddr(q->bufs[0], 0);
+
+        if (var->yoffset)
+                addr += var->yoffset * info->fix.line_length;
+
+        mxr_reg_graph_buffer(mdev, 0, addr);
+
+        return 0;
+}
+
+
+static int find_dv_preset(struct fb_info *info, int xres, int yres) {
+        struct vb2_fb_data *data = info->par;
+        int dv_preset = 0;
+        int i;
+
+        if (!data->vfd->ioctl_ops->vidioc_enum_dv_presets) {
+                return 0;
+        }
+
+        for (i = 0; ; i++) {
+                int enum_status;
+                struct v4l2_dv_enum_preset preset = {0};
+                preset.index = i;
+                enum_status = data->vfd->ioctl_ops->vidioc_enum_dv_presets(&data->fake_file, data->fake_file.private_data, &preset);
+                if (enum_status)
+                        break;  
+                pr_emerg("DV preset: %d: %s (%dx%d)\n", preset.preset, preset.name, preset.width, preset.height);
+                if (preset.width == xres && preset.height == yres) {
+                        dv_preset = preset.preset;
+                }
+        }
+
+        return dv_preset;
+}
+
+static int odroid_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+        struct vb2_fb_data *data = info->par;
+
+        if ( (var->xres != 0 && var->xres != info->var.xres) || (var->yres != 0 && var->yres != info->var.yres) ) {
+                int preset;
+                preset = find_dv_preset(info, var->xres, var->yres);
+                if (!preset) {
+                        pr_emerg("Did not find preset for resolution (%dx%d)\n", var->xres, var->yres);
+                        return -EINVAL;
+                }
+                data->dv_preset = preset;
+                info->var.xres = var->xres;
+                info->var.yres = var->yres;
+        }
+        var->xres_virtual = var->xres;
+        var->yres_virtual = var->yres * 2;
+
+        return 0;
+}
+
+static int odroid_set_par(struct fb_info *info)
+{
+        struct vb2_fb_data *data = info->par;
+
+        if (data->dv_preset != 0) {
+                if (data->mmapped) {
+                        pr_emerg("Refusing to change resolution because "
+                               "framebuffer is mmaped by user\n");
+                        return -EBUSY;
+                }
+
+                vb2_drv_lock(data->q);
+                vb2_fb_deactivate(info);
+                vb2_fb_activate(info);  
+                vb2_drv_unlock(data->q);
+                vb2_fb_blank(FB_BLANK_UNBLANK, info);
+        }
+        return 0;
+}
+
 
 /**
  * vb2_fb_activate() - activate framebuffer emulator
@@ -223,7 +316,7 @@ static int vb2_fb_activate(struct fb_info *info)
 		goto err;
 	}
 	data->size = size = vb2_plane_size(q->bufs[0], 0);
-
+	data->mmapped = 0;
 	/*
 	 * Clear the buffer
 	 */
@@ -451,6 +544,8 @@ static int vb2_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 	vb2_drv_lock(data->q);
 	ret = vb2_mmap(data->q, vma);
+	if(!ret)
+	    data->mmapped = 1;
 	vb2_drv_unlock(data->q);
 
 	return ret;
@@ -516,6 +611,9 @@ static struct fb_ops vb2_fb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
+//	.fb_pan_display = odroid_pan_display,
+	.fb_check_var	= odroid_check_var,
+	.fb_set_par	= odroid_set_par,
 };
 
 /**
