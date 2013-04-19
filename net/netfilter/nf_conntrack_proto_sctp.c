@@ -1,6 +1,9 @@
 /*
  * Connection tracking protocol helper module for SCTP.
  *
+ * Copyright (c) 2004 Kiran Kumar Immidi <immidi_kiran@yahoo.com>
+ * Copyright (c) 2004-2012 Patrick McHardy <kaber@trash.net>
+ *
  * SCTP is defined in RFC 2960. References to various sections in this code
  * are to this RFC.
  *
