@@ -1725,6 +1725,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 				for (j = 0; j < i; j++)
 					free_irq(j, (void *)
 					(&vpif_obj.dev[res_idx]->channel_id));
+				vpif_err("VPIF IRQ request failed\n");
 				goto vpif_int_err;
 			}
 		}
@@ -1878,7 +1879,6 @@ vpif_sd_error:
 	}
 vpif_int_err:
 	v4l2_device_unregister(&vpif_obj.v4l2_dev);
-	vpif_err("VPIF IRQ request failed\n");
 	for (i = 0; i < res_idx; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
 		for (j = res->start; j <= res->end; j++)
