@@ -271,7 +271,6 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 			 * refcount on gem itself instead of f_count of dmabuf.
 			 */
 			drm_gem_object_reference(obj);
-			dma_buf_put(dma_buf);
 			return obj;
 		}
 	}
@@ -279,6 +278,8 @@ struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 	attach = dma_buf_attach(dma_buf, dev->dev);
 	if (IS_ERR(attach))
 		return ERR_PTR(PTR_ERR(attach));
+
+	get_dma_buf(dma_buf);
 
 	sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
 	if (IS_ERR_OR_NULL(sgt)) {
@@ -300,6 +301,8 @@ fail_unmap:
 	dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
 fail_detach:
 	dma_buf_detach(dma_buf, attach);
+	dma_buf_put(dma_buf);
+
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(drm_gem_prime_import);
@@ -342,6 +345,9 @@ int drm_gem_prime_fd_to_handle(struct drm_device *dev,
 		goto fail;
 
 	mutex_unlock(&file_priv->prime.lock);
+
+	dma_buf_put(dma_buf);
+
 	return 0;
 
 fail:
