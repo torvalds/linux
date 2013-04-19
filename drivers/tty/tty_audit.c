@@ -60,24 +60,22 @@ static void tty_audit_buf_put(struct tty_audit_buf *buf)
 		tty_audit_buf_free(buf);
 }
 
-static void tty_audit_log(const char *description, struct task_struct *tsk,
-			  kuid_t loginuid, unsigned sessionid, int major,
-			  int minor, unsigned char *data, size_t size)
+static void tty_audit_log(const char *description, int major, int minor,
+			  unsigned char *data, size_t size)
 {
 	struct audit_buffer *ab;
+	struct task_struct *tsk = current;
+	uid_t uid = from_kuid(&init_user_ns, task_uid(tsk));
+	uid_t loginuid = from_kuid(&init_user_ns, audit_get_loginuid(tsk));
+	u32 sessionid = audit_get_sessionid(tsk);
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_TTY);
 	if (ab) {
 		char name[sizeof(tsk->comm)];
-		kuid_t uid = task_uid(tsk);
 
-		audit_log_format(ab, "%s pid=%u uid=%u auid=%u ses=%u "
-				 "major=%d minor=%d comm=", description,
-				 tsk->pid,
-				 from_kuid(&init_user_ns, uid),
-				 from_kuid(&init_user_ns, loginuid),
-				 sessionid,
-				 major, minor);
+		audit_log_format(ab, "%s pid=%u uid=%u auid=%u ses=%u major=%d"
+				 " minor=%d comm=", description, tsk->pid, uid,
+				 loginuid, sessionid, major, minor);
 		get_task_comm(name, tsk);
 		audit_log_untrustedstring(ab, name);
 		audit_log_format(ab, " data=");
@@ -90,11 +88,9 @@ static void tty_audit_log(const char *description, struct task_struct *tsk,
  *	tty_audit_buf_push	-	Push buffered data out
  *
  *	Generate an audit message from the contents of @buf, which is owned by
- *	@tsk with @loginuid.  @buf->mutex must be locked.
+ *	the current task.  @buf->mutex must be locked.
  */
-static void tty_audit_buf_push(struct task_struct *tsk, kuid_t loginuid,
-			       unsigned int sessionid,
-			       struct tty_audit_buf *buf)
+static void tty_audit_buf_push(struct tty_audit_buf *buf)
 {
 	if (buf->valid == 0)
 		return;
@@ -102,22 +98,8 @@ static void tty_audit_buf_push(struct task_struct *tsk, kuid_t loginuid,
 		buf->valid = 0;
 		return;
 	}
-	tty_audit_log("tty", tsk, loginuid, sessionid, buf->major, buf->minor,
-		      buf->data, buf->valid);
+	tty_audit_log("tty", buf->major, buf->minor, buf->data, buf->valid);
 	buf->valid = 0;
-}
-
-/**
- *	tty_audit_buf_push_current	-	Push buffered data out
- *
- *	Generate an audit message from the contents of @buf, which is owned by
- *	the current task.  @buf->mutex must be locked.
- */
-static void tty_audit_buf_push_current(struct tty_audit_buf *buf)
-{
-	kuid_t auid = audit_get_loginuid(current);
-	unsigned int sessionid = audit_get_sessionid(current);
-	tty_audit_buf_push(current, auid, sessionid, buf);
 }
 
 /**
@@ -138,7 +120,7 @@ void tty_audit_exit(void)
 		return;
 
 	mutex_lock(&buf->mutex);
-	tty_audit_buf_push_current(buf);
+	tty_audit_buf_push(buf);
 	mutex_unlock(&buf->mutex);
 
 	tty_audit_buf_put(buf);
@@ -176,7 +158,7 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 	if (buf) {
 		mutex_lock(&buf->mutex);
 		if (buf->major == major && buf->minor == minor)
-			tty_audit_buf_push_current(buf);
+			tty_audit_buf_push(buf);
 		mutex_unlock(&buf->mutex);
 		tty_audit_buf_put(buf);
 	}
@@ -187,27 +169,21 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 
 		auid = audit_get_loginuid(current);
 		sessionid = audit_get_sessionid(current);
-		tty_audit_log("ioctl=TIOCSTI", current, auid, sessionid, major,
-			      minor, &ch, 1);
+		tty_audit_log("ioctl=TIOCSTI", major, minor, &ch, 1);
 	}
 }
 
 /**
- * tty_audit_push_task	-	Flush task's pending audit data
- * @tsk:		task pointer
- * @loginuid:		sender login uid
- * @sessionid:		sender session id
+ * tty_audit_push_current -	Flush current's pending audit data
  *
- * Called with a ref on @tsk held. Try to lock sighand and get a
- * reference to the tty audit buffer if available.
+ * Try to lock sighand and get a reference to the tty audit buffer if available.
  * Flush the buffer or return an appropriate error code.
  */
-int tty_audit_push_task(struct task_struct *tsk)
+int tty_audit_push_current(void)
 {
 	struct tty_audit_buf *buf = ERR_PTR(-EPERM);
+	struct task_struct *tsk = current;
 	unsigned long flags;
-	kuid_t loginuid = audit_get_loginuid(tsk);
-	u32 sessionid = audit_get_sessionid(tsk);
 
 	if (!lock_task_sighand(tsk, &flags))
 		return -ESRCH;
@@ -227,7 +203,7 @@ int tty_audit_push_task(struct task_struct *tsk)
 		return PTR_ERR(buf);
 
 	mutex_lock(&buf->mutex);
-	tty_audit_buf_push(tsk, loginuid, sessionid, buf);
+	tty_audit_buf_push(buf);
 	mutex_unlock(&buf->mutex);
 
 	tty_audit_buf_put(buf);
@@ -311,7 +287,7 @@ void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
 	minor = tty->driver->minor_start + tty->index;
 	if (buf->major != major || buf->minor != minor
 	    || buf->icanon != icanon) {
-		tty_audit_buf_push_current(buf);
+		tty_audit_buf_push(buf);
 		buf->major = major;
 		buf->minor = minor;
 		buf->icanon = icanon;
@@ -327,7 +303,7 @@ void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
 		data += run;
 		size -= run;
 		if (buf->valid == N_TTY_BUF_SIZE)
-			tty_audit_buf_push_current(buf);
+			tty_audit_buf_push(buf);
 	} while (size != 0);
 	mutex_unlock(&buf->mutex);
 	tty_audit_buf_put(buf);
@@ -359,7 +335,7 @@ void tty_audit_push(struct tty_struct *tty)
 		minor = tty->driver->minor_start + tty->index;
 		mutex_lock(&buf->mutex);
 		if (buf->major == major && buf->minor == minor)
-			tty_audit_buf_push_current(buf);
+			tty_audit_buf_push(buf);
 		mutex_unlock(&buf->mutex);
 		tty_audit_buf_put(buf);
 	}

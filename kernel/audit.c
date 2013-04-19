@@ -727,7 +727,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (err == 1) {
 			err = 0;
 			if (msg_type == AUDIT_USER_TTY) {
-				err = tty_audit_push_task(current);
+				err = tty_audit_push_current();
 				if (err)
 					break;
 			}
