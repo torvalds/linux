@@ -541,7 +541,11 @@ static void __init mct_init_dt(struct device_node *np, unsigned int int_type)
 	 * timer irqs are specified after the four global timer
 	 * irqs are specified.
 	 */
+#ifdef CONFIG_OF
 	nr_irqs = of_irq_count(np);
+#else
+	nr_irqs = 0;
+#endif
 	for (i = MCT_L0_IRQ; i < nr_irqs; i++)
 		mct_irqs[i] = irq_of_parse_and_map(np, i);
 
