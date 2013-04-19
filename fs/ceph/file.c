@@ -747,7 +747,7 @@ retry_snap:
 		goto out;
 	}
 
-	dout("aio_write %p %llx.%llx %llu~%ld getting caps. i_size %llu\n",
+	dout("aio_write %p %llx.%llx %llu~%zd getting caps. i_size %llu\n",
 	     inode, ceph_vinop(inode), pos, count, inode->i_size);
 	if (fi->fmode & CEPH_FILE_MODE_LAZY)
 		want = CEPH_CAP_FILE_BUFFER | CEPH_CAP_FILE_LAZYIO;
@@ -758,7 +758,7 @@ retry_snap:
 	if (err < 0)
 		goto out;
 
-	dout("aio_write %p %llx.%llx %llu~%ld got cap refs on %s\n",
+	dout("aio_write %p %llx.%llx %llu~%zd got cap refs on %s\n",
 	     inode, ceph_vinop(inode), pos, count, ceph_cap_string(got));
 
 	if ((got & (CEPH_CAP_FILE_BUFFER|CEPH_CAP_FILE_LAZYIO)) == 0 ||
