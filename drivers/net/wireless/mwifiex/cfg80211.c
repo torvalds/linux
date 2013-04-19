@@ -2136,10 +2136,9 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 
 		/* At start-up, wpa_supplicant tries to change the interface
 		 * to NL80211_IFTYPE_STATION if it is not managed mode.
-		 * So, we initialize it to STA mode.
 		 */
-		wdev->iftype = NL80211_IFTYPE_STATION;
-		priv->bss_mode = NL80211_IFTYPE_STATION;
+		wdev->iftype = NL80211_IFTYPE_P2P_CLIENT;
+		priv->bss_mode = NL80211_IFTYPE_P2P_CLIENT;
 
 		/* Setting bss_type to P2P tells firmware that this interface
 		 * is receiving P2P peers found during find phase and doing
