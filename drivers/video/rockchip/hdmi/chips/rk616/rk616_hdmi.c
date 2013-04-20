@@ -225,7 +225,7 @@ static int __devinit rk616_hdmi_probe (struct platform_device *pdev)
 		}
 
 		/* request the IRQ */
-		ret = request_irq(hdmi->irq, hdmi_irq,IRQF_TRIGGER_FALLING,dev_name(&pdev->dev), hdmi);
+		ret = request_threaded_irq(hdmi->irq,NULL,hdmi_irq,IRQF_TRIGGER_FALLING,dev_name(&pdev->dev), hdmi);
 		if (ret)
 		{
 			dev_err(hdmi->dev, "hdmi request_irq failed (%d).\n", ret);

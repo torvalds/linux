@@ -422,14 +422,12 @@ int rk616_hdmi_removed(void)
 
 irqreturn_t hdmi_irq(int irq, void *priv)
 {		
-	char interrupt1 = 0;
+	u32 interrupt1 = 0;
 	unsigned long flags;
 	spin_lock_irqsave(&hdmi->irq_lock,flags);
 	HDMIRdReg(INTERRUPT_STATUS1,&interrupt1);
 	HDMIWrReg(INTERRUPT_STATUS1, interrupt1);
-#if 1
-	hdmi_dbg(hdmi->dev,"[%s] interrupt1 %02x\n",__func__, interrupt1);
-#endif
+
 	if(interrupt1 & m_INT_HOTPLUG ){
 		if(hdmi->state == HDMI_SLEEP)
 			hdmi->state = WAIT_HOTPLUG;
@@ -447,6 +445,7 @@ irqreturn_t hdmi_irq(int irq, void *priv)
 		hdmi->hdcp_irq_cb(interrupt2);
 #endif
 	spin_unlock_irqrestore(&hdmi->irq_lock,flags);
+	printk("int statu1:0x%08x\n",interrupt1);
 	return IRQ_HANDLED;
 }
 
@@ -460,7 +459,7 @@ static void rk616_hdmi_reset(void)
 	HDMIMskReg(SYS_CTRL,m_RST_ANALOG,v_NOT_RST_ANALOG); 		
 	delay100us();
 	msk = m_REG_CLK_INV | m_VCLK_INV | m_REG_CLK_SOURCE | m_POWER | m_INT_POL;
-	val = v_REG_CLK_INV| v_VCLK_INV | v_REG_CLK_SOURCE_SYS | v_PWR_ON |v_INT_POL_LOW;
+	val = v_REG_CLK_INV| v_VCLK_INV | v_REG_CLK_SOURCE_SYS | v_PWR_ON |v_INT_POL_HIGH;
 	HDMIMskReg(SYS_CTRL,msk,val);
 	rk616_hdmi_set_pwr_mode(LOWER_PWR);
 }
