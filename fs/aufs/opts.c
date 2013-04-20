@@ -186,17 +186,16 @@ static match_table_t brperm = {
 	{0, NULL}
 };
 
-static match_table_t brrattr = {
+static match_table_t brattr = {
+	{AuBrAttr_UNPIN, AUFS_BRATTR_UNPIN},
 	{AuBrRAttr_WH, AUFS_BRRATTR_WH},
-	{0, NULL}
-};
-
-static match_table_t brwattr = {
 	{AuBrWAttr_NoLinkWH, AUFS_BRWATTR_NLWH},
 	{0, NULL}
 };
 
-#define AuBrStr_LONGEST	AUFS_BRPERM_RW "+" AUFS_BRWATTR_NLWH
+#define AuBrStr_LONGEST	AUFS_BRPERM_RW \
+	"+" AUFS_BRATTR_UNPIN \
+	"+" AUFS_BRWATTR_NLWH
 
 static int br_attr_val(char *str, match_table_t table, substring_t args[])
 {
@@ -227,7 +226,7 @@ static int br_attr_val(char *str, match_table_t table, substring_t args[])
 static int noinline_for_stack br_perm_val(char *perm)
 {
 	int val;
-	char *p;
+	char *p, *q;
 	substring_t args[MAX_OPT_ARGS];
 
 	p = strchr(perm, '+');
@@ -244,13 +243,33 @@ static int noinline_for_stack br_perm_val(char *perm)
 	if (!p)
 		goto out;
 
-	switch (val) {
+	p++;
+	while (1) {
+		q = strchr(p, '+');
+		if (q)
+			*q = 0;
+		val |= br_attr_val(p, brattr, args);
+		if (q) {
+			*q = '+';
+			p = q + 1;
+		} else
+			break;
+	}
+	switch (val & AuBrPerm_Mask) {
 	case AuBrPerm_RO:
 	case AuBrPerm_RR:
-		val |= br_attr_val(p + 1, brrattr, args);
+		if (unlikely(val & AuBrWAttr_NoLinkWH)) {
+			pr_warn("ignored branch attribute %s\n",
+				AUFS_BRWATTR_NLWH);
+			val &= ~AuBrWAttr_NoLinkWH;
+		}
 		break;
 	case AuBrPerm_RW:
-		val |= br_attr_val(p + 1, brwattr, args);
+		if (unlikely(val & AuBrRAttr_WH)) {
+			pr_warn("ignored branch attribute %s\n",
+				AUFS_BRRATTR_WH);
+			val &= ~AuBrRAttr_WH;
+		}
 		break;
 	}
 
@@ -293,6 +312,7 @@ char *au_optstr_br_perm(int brperm)
 		AuDebugOn(1);
 	}
 
+	AppendAttr(AuBrAttr_UNPIN, AUFS_BRATTR_UNPIN);
 	AppendAttr(AuBrRAttr_WH, AUFS_BRRATTR_WH);
 	AppendAttr(AuBrWAttr_NoLinkWH, AUFS_BRWATTR_NLWH);
 
@@ -1518,7 +1538,7 @@ int au_opts_verify(struct super_block *sb, unsigned long sb_flags,
 		au_hn_imtx_lock_nested(hdir, AuLsc_I_PARENT);
 		if (wbr)
 			wbr_wh_write_lock(wbr);
-		err = au_wh_init(au_h_dptr(root, bindex), br, sb);
+		err = au_wh_init(br, sb);
 		if (wbr)
 			wbr_wh_write_unlock(wbr);
 		au_hn_imtx_unlock(hdir);
