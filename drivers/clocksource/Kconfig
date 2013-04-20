@@ -67,3 +67,13 @@ config CLKSRC_METAG_GENERIC
 	def_bool y if METAG
 	help
 	  This option enables support for the Meta per-thread timers.
+
+config CLKSRC_SAMSUNG_PWM
+	def_bool ARCH_EXYNOS4
+	depends on OF
+	select CLKSRC_MMIO
+	help
+	  This is a new clocksource driver for the PWM timer found in
+	  Samsung S3C, S5P and Exynos SoCs, replacing an earlier driver
+	  for all devicetree enabled platforms. This driver will be
+	  needed only on systems that do not have the Exynos MCT available.
