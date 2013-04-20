@@ -79,7 +79,8 @@ static void hci_req_cancel(struct hci_dev *hdev, int err)
 	}
 }
 
-struct sk_buff *hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 event)
+static struct sk_buff *hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode,
+					    u8 event)
 {
 	struct hci_ev_cmd_complete *ev;
 	struct hci_event_hdr *hdr;
