@@ -314,22 +314,15 @@ static int ep93xx_ac97_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int ep93xx_ac97_startup(struct snd_pcm_substream *substream,
-			       struct snd_soc_dai *dai)
+static int ep93xx_ac97_dai_probe(struct snd_soc_dai *dai)
 {
-	struct ep93xx_dma_data *dma_data;
+	dai->playback_dma_data = &ep93xx_ac97_pcm_out;
+	dai->capture_dma_data = &ep93xx_ac97_pcm_in;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		dma_data = &ep93xx_ac97_pcm_out;
-	else
-		dma_data = &ep93xx_ac97_pcm_in;
-
-	snd_soc_dai_set_dma_data(dai, substream, dma_data);
 	return 0;
 }
 
 static const struct snd_soc_dai_ops ep93xx_ac97_dai_ops = {
-	.startup	= ep93xx_ac97_startup,
 	.trigger	= ep93xx_ac97_trigger,
 };
 
@@ -337,6 +330,7 @@ static struct snd_soc_dai_driver ep93xx_ac97_dai = {
 	.name		= "ep93xx-ac97",
 	.id		= 0,
 	.ac97_control	= 1,
+	.probe		= ep93xx_ac97_dai_probe,
 	.playback	= {
 		.stream_name	= "AC97 Playback",
 		.channels_min	= 2,
