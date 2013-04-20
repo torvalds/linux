@@ -144,6 +144,7 @@ struct nfs4_lock_state {
 enum {
 	LK_STATE_IN_USE,
 	NFS_DELEGATED_STATE,		/* Current stateid is delegation */
+	NFS_OPEN_STATE,			/* OPEN stateid is set */
 	NFS_O_RDONLY_STATE,		/* OPEN stateid has read-only state */
 	NFS_O_WRONLY_STATE,		/* OPEN stateid has write-only state */
 	NFS_O_RDWR_STATE,		/* OPEN stateid has read/write state */
