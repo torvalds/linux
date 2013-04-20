@@ -217,7 +217,7 @@ enum {
 #define INTERRUPT_MASK1			0xc0
 #define INTERRUPT_STATUS1		0xc1
 	#define m_INT_HOTPLUG		(1 << 7)
-	#define	m_INT_ACTIVE_VSYNC	(1 << 6)
+	#define	m_INT_ACTIVE_VSYNC	(1 << 5)
 	#define m_INT_EDID_READY	(1 << 2)
 	
 #define INTERRUPT_MASK2			0xc2

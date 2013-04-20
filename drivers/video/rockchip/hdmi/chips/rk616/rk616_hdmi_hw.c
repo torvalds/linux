@@ -44,11 +44,12 @@ static void rk616_hdmi_sys_power_down(void)
 
 static void rk616_hdmi_set_pwr_mode(int mode)
 {
-	hdmi_dbg(hdmi->dev,"%s \n",__FUNCTION__);
 	if(hdmi->pwr_mode == mode)
 		return; 
+	hdmi_dbg(hdmi->dev,"%s change pwr_mode %d --> %d\n",__FUNCTION__,hdmi->pwr_mode,mode);
     switch(mode){
      case NORMAL:
+		hdmi_dbg(hdmi->dev,"%s change pwr_mode NORMAL\n",__FUNCTION__,hdmi->pwr_mode,mode);
 	   	rk616_hdmi_sys_power_down();
 		HDMIWrReg(PHY_DRIVER,0xaa);
 		HDMIWrReg(PHY_PRE_EMPHASIS,0x0f);
@@ -64,6 +65,7 @@ static void rk616_hdmi_set_pwr_mode(int mode)
 		analog_sync = 1;
 		break;
 	case LOWER_PWR:
+		hdmi_dbg(hdmi->dev,"%s change pwr_mode LOWER_PWR\n",__FUNCTION__,hdmi->pwr_mode,mode);
 		rk616_hdmi_av_mute(0);
 	   	rk616_hdmi_sys_power_down();
 		HDMIWrReg(PHY_DRIVER,0x00);
@@ -98,68 +100,51 @@ int rk616_hdmi_detect_hotplug(void)
 #define HDMI_DDC_CONFIG          (HDMI_SYS_FREG_CLK>>2)/HDMI_SCL_RATE
 #define DDC_BUS_FREQ_L 			0x4b
 #define DDC_BUS_FREQ_H 			0x4c
+#define EDID_BLOCK_SIZE 128
 
-int rk616_hdmi_read_edid(int block, unsigned char *buff)
+int rk616_hdmi_read_edid(u8 block, u8 * buf)
 {
-	int value, ret = -1, ddc_bus_freq = 0;
-	char interrupt = 0, trytime = 2;
-	unsigned long flags;
-	
-	hdmi_dbg(hdmi->dev, "[%s] block %d\n", __FUNCTION__, block);
-	spin_lock_irqsave(&hdmi->irq_lock, flags);
-	edid_result = 0;
-	spin_unlock_irqrestore(&hdmi->irq_lock, flags);
-	//Before Phy parameter was set, DDC_CLK is equal to PLLA freq which is 30MHz.
-	//Set DDC I2C CLK which devided from DDC_CLK to 100KHz.
+	u32 c = 0;
+	int ret = 0,i;
+	u8 Segment = 0;
+	u8 Offset = 0;
+	if(block%2)
+		Offset = EDID_BLOCK_SIZE;
+	if(block/2)
+		Segment = 1;
+	printk("EDID DATA (Segment = %d Block = %d Offset = %d):\n", (int) Segment, (int) block, (int) Offset);
+	//set edid fifo first addr
+	c = 0x00;
+	HDMIWrReg(0x4f,0);
+	//set edid word address 00/80
+	c = Offset;
+	HDMIWrReg(0x4e, c);
+	//set edid segment pointer
+	c = Segment;
+	HDMIWrReg(0x4d, c);
 
-	ddc_bus_freq = HDMI_DDC_CONFIG; 
-	HDMIWrReg(DDC_BUS_FREQ_L, ddc_bus_freq & 0xFF);
-	HDMIWrReg(DDC_BUS_FREQ_H, (ddc_bus_freq >> 8) & 0xFF);
-	
-	// Enable edid interrupt
-	HDMIWrReg(INTERRUPT_MASK1, m_INT_HOTPLUG | m_INT_EDID_READY);
-	
-	while(trytime--) {
-		// Config EDID block and segment addr
-		HDMIWrReg(EDID_WORD_ADDR, (block%2) * 0x80);
-		HDMIWrReg(EDID_SEGMENT_POINTER, block/2);	
-	
-		value = 10;
-		while(value--)
-		{
-			spin_lock_irqsave(&hdmi->irq_lock, flags);
-			interrupt = edid_result;
-			edid_result = 0;
-			spin_unlock_irqrestore(&hdmi->irq_lock, flags);
-			if(interrupt & (m_INT_EDID_READY))
-				break;
-			msleep(10);
-		}
-		hdmi_dbg(hdmi->dev, "[%s] edid read value %d\n", __FUNCTION__, value);
-		if(interrupt & m_INT_EDID_READY)
-		{
-			for(value = 0; value < HDMI_EDID_BLOCK_SIZE; value++) 
-				 HDMIRdReg(EDID_FIFO_ADDR,(buff+value));
-			ret = 0;
-			
-			hdmi_dbg(hdmi->dev, "[%s] edid read sucess\n", __FUNCTION__);
-#ifdef HDMI_DEBUG
-			for(value = 0; value < 128; value++) {
-				printk("%02x ,", buff[value]);
-				if( (value + 1) % 16 == 0)
-					printk("\n");
-			}
+	//enable edid interrupt
+//	c=0xc6;
+//	HDMIWrReg(0xc0, c);
+	//wait edid interrupt
+#if 0
+	msleep(10);
+	printk("Interrupt generated\n");
+	c=0x00;
+	ret = HDMIRdReg(0xc1, &c);
+	printk("Interrupt reg=%x \n",c);
+	//clear EDID interrupt reg
+	c=0x04;
+	HDMIWrReg(0xc1, c);
 #endif
-			break;
-		}else
-			hdmi_err(hdmi->dev, "[%s] edid read error\n", __FUNCTION__);
-			
-		hdmi_dbg(hdmi->dev, "[%s] edid try times %d\n", __FUNCTION__, trytime);
-		msleep(100);
+	for(i=0; i <EDID_BLOCK_SIZE;i++){
+		c = 0;	    
+		HDMIRdReg( 0x50, &c);
+		buf[i] = c;
+		if(i%16==0)
+			printk("\n>>>%d:",i);
+		printk("%02x ",c);
 	}
-	// Disable edid interrupt
-	HDMIWrReg(INTERRUPT_MASK1, m_INT_HOTPLUG);
-//	msleep(100);
 	return ret;
 }
 
@@ -283,10 +268,12 @@ static int rk616_hdmi_config_video(struct hdmi_video_para *vpara)
 	}
 	
 	if(hdmi->tmdsclk >= 148500000) {
-		HDMIWrReg(0xe3, 0x4f);
+		HDMIWrReg(0xed, 0xc);
+		HDMIWrReg(0xe7, 0x78);
 	}
 	else {
-		HDMIWrReg(0xe3, 0x0f);
+		HDMIWrReg(0xed, 0x3);
+		HDMIWrReg(0xe7, 0x1e);
 	}
 	return 0;
 }
@@ -420,33 +407,40 @@ int rk616_hdmi_removed(void)
 }
 
 
-irqreturn_t hdmi_irq(int irq, void *priv)
+void hdmi_irq(void)
 {		
+	static int hpd = 0;
 	u32 interrupt1 = 0;
 	unsigned long flags;
-	spin_lock_irqsave(&hdmi->irq_lock,flags);
-	HDMIRdReg(INTERRUPT_STATUS1,&interrupt1);
-	HDMIWrReg(INTERRUPT_STATUS1, interrupt1);
+	int i=0;
+	
+	int value = 0;
+	HDMIRdReg(HDMI_STATUS,&value);
+	//spin_lock(&hdmi->irq_lock,flags);
+//	HDMIRdReg(INTERRUPT_STATUS1,&interrupt1);
+//	HDMIWrReg(INTERRUPT_STATUS1, interrupt1);
 
-	if(interrupt1 & m_INT_HOTPLUG ){
+	if((value & m_HOTPLUG)&& hpd == 0){
 		if(hdmi->state == HDMI_SLEEP)
 			hdmi->state = WAIT_HOTPLUG;
 		if(hdmi->pwr_mode == LOWER_PWR)
 			rk616_hdmi_set_pwr_mode(NORMAL);
 		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
-	}else if(interrupt1 & m_INT_EDID_READY) {
-		edid_result = interrupt1;
-	}else if(hdmi->state == HDMI_SLEEP) {
-		hdmi_dbg(hdmi->dev, "hdmi return to sleep mode\n");
+		hpd = 1;
+	}else if ((value & m_HOTPLUG)== 0 && hpd == 1 ){
+		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
+		hpd = 0;
+	}
+	
+	if(hdmi->state == HDMI_SLEEP) {
+//		hdmi_dbg(hdmi->dev, "hdmi return to sleep mode\n");
 		rk616_hdmi_set_pwr_mode(LOWER_PWR);
 	}
 #if 0
 	if(hdmi->hdcp_irq_cb)
 		hdmi->hdcp_irq_cb(interrupt2);
 #endif
-	spin_unlock_irqrestore(&hdmi->irq_lock,flags);
-	printk("int statu1:0x%08x\n",interrupt1);
-	return IRQ_HANDLED;
+	//spin_unlock(&hdmi->irq_lock,flags);
 }
 
 static void rk616_hdmi_reset(void)
@@ -458,17 +452,22 @@ static void rk616_hdmi_reset(void)
 	delay100us();
 	HDMIMskReg(SYS_CTRL,m_RST_ANALOG,v_NOT_RST_ANALOG); 		
 	delay100us();
-	msk = m_REG_CLK_INV | m_VCLK_INV | m_REG_CLK_SOURCE | m_POWER | m_INT_POL;
-	val = v_REG_CLK_INV| v_VCLK_INV | v_REG_CLK_SOURCE_SYS | v_PWR_ON |v_INT_POL_HIGH;
+	msk = m_REG_CLK_INV | m_REG_CLK_SOURCE | m_POWER | m_INT_POL;
+	val = v_REG_CLK_INV | v_REG_CLK_SOURCE_TMDS | v_PWR_ON |v_INT_POL_HIGH;
 	HDMIMskReg(SYS_CTRL,msk,val);
-	rk616_hdmi_set_pwr_mode(LOWER_PWR);
+	HDMIWrReg(INTERRUPT_MASK1,0x80);//m_INT_HOTPLUG);
+	val = 0;
+	HDMIRdReg(INTERRUPT_MASK1,&val);
+	//rk616_hdmi_set_pwr_mode(LOWER_PWR);
+	rk616_hdmi_set_pwr_mode(NORMAL);
+	printk(">>>%s mask = %x\n",__func__,val);
 }
 
 int rk616_hdmi_initial(void)
 {
 	int rc = HDMI_ERROR_SUCESS;
 
-	hdmi->pwr_mode = NORMAL;
+	hdmi->pwr_mode = LOWER_PWR;
 	hdmi->remove = rk616_hdmi_removed ;
 	hdmi->control_output = rk616_hdmi_control_output;
 	hdmi->config_video = rk616_hdmi_config_video;
