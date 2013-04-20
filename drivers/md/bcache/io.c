@@ -38,6 +38,15 @@ static void bch_generic_make_request_hack(struct bio *bio)
 		bio = clone;
 	}
 
+	/*
+	 * Hack, since drivers that clone bios clone up to bi_max_vecs, but our
+	 * bios might have had more than that (before we split them per device
+	 * limitations).
+	 *
+	 * To be taken out once immutable bvec stuff is in.
+	 */
+	bio->bi_max_vecs = bio->bi_vcnt;
+
 	generic_make_request(bio);
 }
 
