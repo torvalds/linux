@@ -97,6 +97,17 @@ struct rtl28xxu_reg_val {
 	u8 val;
 };
 
+enum OP{
+	OP_AND	=0,
+	OP_OR
+};
+
+struct rtl28xxu_xreg_val {
+	u16 reg;
+	u8 op;
+	u8 mask;
+};
+
 /*
  * memory map
  *
