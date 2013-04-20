@@ -70,6 +70,22 @@ typedef u32		compat_ulong_t;
 typedef u64		compat_u64;
 typedef u32		compat_uptr_t;
 
+typedef struct {
+	u32 mask;
+	u32 addr;
+} __aligned(8) psw_compat_t;
+
+typedef struct {
+	psw_compat_t psw;
+	u32 gprs[NUM_GPRS];
+	u32 acrs[NUM_ACRS];
+	u32 orig_gpr2;
+} s390_compat_regs;
+
+typedef struct {
+	u32 gprs_high[NUM_GPRS];
+} s390_compat_regs_high;
+
 struct compat_timespec {
 	compat_time_t	tv_sec;
 	s32		tv_nsec;

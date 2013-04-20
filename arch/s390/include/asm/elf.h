@@ -119,6 +119,7 @@
  */
 
 #include <asm/ptrace.h>
+#include <asm/compat.h>
 #include <asm/user.h>
 
 typedef s390_fp_regs elf_fpregset_t;
