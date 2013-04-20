@@ -991,7 +991,7 @@ static inline bool pl011_dma_rx_running(struct uart_amba_port *uap)
 
 #else
 /* Blank functions if the DMA engine is not available */
-static inline void pl011_dma_probe(struct uart_amba_port *uap)
+static inline void pl011_dma_probe(struct device *dev, struct uart_amba_port *uap)
 {
 }
 
