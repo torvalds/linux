@@ -2988,6 +2988,11 @@ int submit_bh(int rw, struct buffer_head * bh)
 	/* Take care of bh's that straddle the end of the device */
 	guard_bh_eod(rw, bio, bh);
 
+	if (buffer_meta(bh))
+		rw |= REQ_META;
+	if (buffer_prio(bh))
+		rw |= REQ_PRIO;
+
 	bio_get(bio);
 	submit_bio(rw, bio);
 
