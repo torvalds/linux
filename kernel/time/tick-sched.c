@@ -21,6 +21,8 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/irq_work.h>
+#include <linux/posix-timers.h>
+#include <linux/perf_event.h>
 
 #include <asm/irq_regs.h>
 
@@ -147,16 +149,48 @@ static void tick_sched_handle(struct tick_sched *ts, struct pt_regs *regs)
 static cpumask_var_t nohz_full_mask;
 bool have_nohz_full_mask;
 
+static bool can_stop_full_tick(void)
+{
+	WARN_ON_ONCE(!irqs_disabled());
+
+	if (!sched_can_stop_tick())
+		return false;
+
+	if (!posix_cpu_timers_can_stop_tick(current))
+		return false;
+
+	if (!perf_event_can_stop_tick())
+		return false;
+
+	/* sched_clock_tick() needs us? */
+#ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
+	/*
+	 * TODO: kick full dynticks CPUs when
+	 * sched_clock_stable is set.
+	 */
+	if (!sched_clock_stable)
+		return false;
+#endif
+
+	return true;
+}
+
+static void tick_nohz_restart_sched_tick(struct tick_sched *ts, ktime_t now);
+
 /*
  * Re-evaluate the need for the tick on the current CPU
  * and restart it if necessary.
  */
 void tick_nohz_full_check(void)
 {
-	/*
-	 * STUB for now, will be filled with the full tick stop/restart
-	 * infrastructure patches
-	 */
+	struct tick_sched *ts = &__get_cpu_var(tick_cpu_sched);
+
+	if (tick_nohz_full_cpu(smp_processor_id())) {
+		if (ts->tick_stopped && !is_idle_task(current)) {
+			if (!can_stop_full_tick())
+				tick_nohz_restart_sched_tick(ts, ktime_get());
+		}
+	}
 }
 
 static void nohz_full_kick_work_func(struct irq_work *work)
