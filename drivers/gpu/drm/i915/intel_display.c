@@ -549,13 +549,18 @@ static void pineview_clock(int refclk, intel_clock_t *clock)
 	clock->dot = clock->vco / clock->p;
 }
 
+static uint32_t i9xx_dpll_compute_m(struct dpll *dpll)
+{
+	return 5 * (dpll->m1 + 2) + (dpll->m2 + 2);
+}
+
 static void intel_clock(struct drm_device *dev, int refclk, intel_clock_t *clock)
 {
 	if (IS_PINEVIEW(dev)) {
 		pineview_clock(refclk, clock);
 		return;
 	}
-	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
+	clock->m = i9xx_dpll_compute_m(clock);
 	clock->p = clock->p1 * clock->p2;
 	clock->vco = refclk * clock->m / (clock->n + 2);
 	clock->dot = clock->vco / clock->p;
@@ -4241,6 +4246,16 @@ static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc *crtc)
 	crtc->config.clock_set = true;
 }
 
+static uint32_t pnv_dpll_compute_fp(struct dpll *dpll)
+{
+	return (1 << dpll->n) << 16 | dpll->m1 << 8 | dpll->m2;
+}
+
+static uint32_t i9xx_dpll_compute_fp(struct dpll *dpll)
+{
+	return dpll->n << 16 | dpll->m1 << 8 | dpll->m2;
+}
+
 static void i9xx_update_pll_dividers(struct intel_crtc *crtc,
 				     intel_clock_t *reduced_clock)
 {
@@ -4248,18 +4263,15 @@ static void i9xx_update_pll_dividers(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = crtc->pipe;
 	u32 fp, fp2 = 0;
-	struct dpll *clock = &crtc->config.dpll;
 
 	if (IS_PINEVIEW(dev)) {
-		fp = (1 << clock->n) << 16 | clock->m1 << 8 | clock->m2;
+		fp = pnv_dpll_compute_fp(&crtc->config.dpll);
 		if (reduced_clock)
-			fp2 = (1 << reduced_clock->n) << 16 |
-				reduced_clock->m1 << 8 | reduced_clock->m2;
+			fp2 = pnv_dpll_compute_fp(reduced_clock);
 	} else {
-		fp = clock->n << 16 | clock->m1 << 8 | clock->m2;
+		fp = i9xx_dpll_compute_fp(&crtc->config.dpll);
 		if (reduced_clock)
-			fp2 = reduced_clock->n << 16 | reduced_clock->m1 << 8 |
-				reduced_clock->m2;
+			fp2 = i9xx_dpll_compute_fp(reduced_clock);
 	}
 
 	I915_WRITE(FP0(pipe), fp);
@@ -5592,8 +5604,13 @@ static void ironlake_fdi_set_m_n(struct drm_crtc *crtc)
 	intel_cpu_transcoder_set_m_n(intel_crtc, &m_n);
 }
 
+static bool ironlake_needs_fb_cb_tune(struct dpll *dpll, int factor)
+{
+	return i9xx_dpll_compute_m(dpll) < factor * dpll->n;
+}
+
 static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
-				      intel_clock_t *clock, u32 *fp,
+				      u32 *fp,
 				      intel_clock_t *reduced_clock, u32 *fp2)
 {
 	struct drm_crtc *crtc = &intel_crtc->base;
@@ -5633,7 +5650,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	} else if (is_sdvo && is_tv)
 		factor = 20;
 
-	if (clock->m < factor * clock->n)
+	if (ironlake_needs_fb_cb_tune(&intel_crtc->config.dpll, factor))
 		*fp |= FP_CB_TUNE;
 
 	if (fp2 && (reduced_clock->m < factor * reduced_clock->n))
@@ -5657,11 +5674,11 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 		dpll |= DPLL_DVO_HIGH_SPEED;
 
 	/* compute bitmask from p1 value */
-	dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
+	dpll |= (1 << (intel_crtc->config.dpll.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
 	/* also FPA1 */
-	dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
+	dpll |= (1 << (intel_crtc->config.dpll.p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
 
-	switch (clock->p2) {
+	switch (intel_crtc->config.dpll.p2) {
 	case 5:
 		dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
 		break;
@@ -5756,12 +5773,11 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	if (intel_crtc->config.has_pch_encoder) {
 		struct intel_pch_pll *pll;
 
-		fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
+		fp = i9xx_dpll_compute_fp(&intel_crtc->config.dpll);
 		if (has_reduced_clock)
-			fp2 = reduced_clock.n << 16 | reduced_clock.m1 << 8 |
-				reduced_clock.m2;
+			fp2 = i9xx_dpll_compute_fp(&reduced_clock);
 
-		dpll = ironlake_compute_dpll(intel_crtc, &clock,
+		dpll = ironlake_compute_dpll(intel_crtc,
 					     &fp, &reduced_clock,
 					     has_reduced_clock ? &fp2 : NULL);
 
