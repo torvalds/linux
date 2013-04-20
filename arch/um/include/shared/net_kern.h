@@ -18,7 +18,6 @@ struct uml_net {
 	struct net_device *dev;
 	struct platform_device pdev;
 	int index;
-	unsigned char mac[ETH_ALEN];
 };
 
 struct uml_net_private {

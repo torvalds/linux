@@ -695,9 +695,9 @@ error_dto_alloc:
 	cnt--;
 error_seg_kzalloc:
 	/* use the fact that cnt is left at were it failed */
-	for (; cnt > 0; cnt--) {
-		if (xfer->is_inbound == 0)
-			kfree(xfer->seg[cnt]->dto_urb);
+	for (; cnt >= 0; cnt--) {
+		if (xfer->seg[cnt] && xfer->is_inbound == 0)
+			usb_free_urb(xfer->seg[cnt]->dto_urb);
 		kfree(xfer->seg[cnt]);
 	}
 error_segs_kzalloc:

@@ -1067,15 +1067,19 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 
 	last_rssi = priv->rx.last_rssi;
 
-	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
-		rxbuf->rxstatus.rs_rssi = ATH_EP_RND(last_rssi,
-						     ATH_RSSI_EP_MULTIPLIER);
+	if (ieee80211_is_beacon(hdr->frame_control) &&
+	    !is_zero_ether_addr(common->curbssid) &&
+	    ether_addr_equal(hdr->addr3, common->curbssid)) {
+		s8 rssi = rxbuf->rxstatus.rs_rssi;
 
-	if (rxbuf->rxstatus.rs_rssi < 0)
-		rxbuf->rxstatus.rs_rssi = 0;
+		if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
+			rssi = ATH_EP_RND(last_rssi, ATH_RSSI_EP_MULTIPLIER);
 
-	if (ieee80211_is_beacon(fc))
-		priv->ah->stats.avgbrssi = rxbuf->rxstatus.rs_rssi;
+		if (rssi < 0)
+			rssi = 0;
+
+		priv->ah->stats.avgbrssi = rssi;
+	}
 
 	rx_status->mactime = be64_to_cpu(rxbuf->rxstatus.rs_tstamp);
 	rx_status->band = hw->conf.channel->band;
@@ -1196,20 +1200,17 @@ void ath9k_rx_cleanup(struct ath9k_htc_priv *priv)
 
 int ath9k_rx_init(struct ath9k_htc_priv *priv)
 {
-	struct ath_hw *ah = priv->ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_rxbuf *rxbuf;
 	int i = 0;
 
 	INIT_LIST_HEAD(&priv->rx.rxbuf);
 	spin_lock_init(&priv->rx.rxbuflock);
 
 	for (i = 0; i < ATH9K_HTC_RXBUF; i++) {
-		rxbuf = kzalloc(sizeof(struct ath9k_htc_rxbuf), GFP_KERNEL);
-		if (rxbuf == NULL) {
-			ath_err(common, "Unable to allocate RX buffers\n");
+		struct ath9k_htc_rxbuf *rxbuf =
+			kzalloc(sizeof(struct ath9k_htc_rxbuf), GFP_KERNEL);
+		if (rxbuf == NULL)
 			goto err;
-		}
+
 		list_add_tail(&rxbuf->list, &priv->rx.rxbuf);
 	}
 

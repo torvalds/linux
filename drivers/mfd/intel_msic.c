@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -424,11 +425,9 @@ static int intel_msic_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	msic->irq_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!msic->irq_base) {
-		dev_err(&pdev->dev, "failed to map SRAM memory\n");
-		return -ENOMEM;
-	}
+	msic->irq_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(msic->irq_base))
+		return PTR_ERR(msic->irq_base);
 
 	platform_set_drvdata(pdev, msic);
 

@@ -1356,6 +1356,8 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	u64 bytes_per_bg = BITS_PER_BITMAP * ctl->unit;
 	int max_bitmaps = div64_u64(size + bytes_per_bg - 1, bytes_per_bg);
 
+	max_bitmaps = max(max_bitmaps, 1);
+
 	BUG_ON(ctl->total_bitmaps > max_bitmaps);
 
 	/*
@@ -1463,10 +1465,14 @@ static int search_bitmap(struct btrfs_free_space_ctl *ctl,
 }
 
 static struct btrfs_free_space *
-find_free_space(struct btrfs_free_space_ctl *ctl, u64 *offset, u64 *bytes)
+find_free_space(struct btrfs_free_space_ctl *ctl, u64 *offset, u64 *bytes,
+		unsigned long align)
 {
 	struct btrfs_free_space *entry;
 	struct rb_node *node;
+	u64 ctl_off;
+	u64 tmp;
+	u64 align_off;
 	int ret;
 
 	if (!ctl->free_space_offset.rb_node)
@@ -1481,15 +1487,34 @@ find_free_space(struct btrfs_free_space_ctl *ctl, u64 *offset, u64 *bytes)
 		if (entry->bytes < *bytes)
 			continue;
 
+		/* make sure the space returned is big enough
+		 * to match our requested alignment
+		 */
+		if (*bytes >= align) {
+			ctl_off = entry->offset - ctl->start;
+			tmp = ctl_off + align - 1;;
+			do_div(tmp, align);
+			tmp = tmp * align + ctl->start;
+			align_off = tmp - entry->offset;
+		} else {
+			align_off = 0;
+			tmp = entry->offset;
+		}
+
+		if (entry->bytes < *bytes + align_off)
+			continue;
+
 		if (entry->bitmap) {
-			ret = search_bitmap(ctl, entry, offset, bytes);
-			if (!ret)
+			ret = search_bitmap(ctl, entry, &tmp, bytes);
+			if (!ret) {
+				*offset = tmp;
 				return entry;
+			}
 			continue;
 		}
 
-		*offset = entry->offset;
-		*bytes = entry->bytes;
+		*offset = tmp;
+		*bytes = entry->bytes - align_off;
 		return entry;
 	}
 
@@ -1636,10 +1661,14 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 	}
 
 	/*
-	 * some block groups are so tiny they can't be enveloped by a bitmap, so
-	 * don't even bother to create a bitmap for this
+	 * The original block groups from mkfs can be really small, like 8
+	 * megabytes, so don't bother with a bitmap for those entries.  However
+	 * some block groups can be smaller than what a bitmap would cover but
+	 * are still large enough that they could overflow the 32k memory limit,
+	 * so allow those block groups to still be allowed to have a bitmap
+	 * entry.
 	 */
-	if (BITS_PER_BITMAP * ctl->unit > block_group->key.offset)
+	if (((BITS_PER_BITMAP * ctl->unit) >> 1) > block_group->key.offset)
 		return false;
 
 	return true;
@@ -2095,9 +2124,12 @@ u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
 	struct btrfs_free_space *entry = NULL;
 	u64 bytes_search = bytes + empty_size;
 	u64 ret = 0;
+	u64 align_gap = 0;
+	u64 align_gap_len = 0;
 
 	spin_lock(&ctl->tree_lock);
-	entry = find_free_space(ctl, &offset, &bytes_search);
+	entry = find_free_space(ctl, &offset, &bytes_search,
+				block_group->full_stripe_len);
 	if (!entry)
 		goto out;
 
@@ -2107,9 +2139,15 @@ u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
 		if (!entry->bytes)
 			free_bitmap(ctl, entry);
 	} else {
+
 		unlink_free_space(ctl, entry);
-		entry->offset += bytes;
-		entry->bytes -= bytes;
+		align_gap_len = offset - entry->offset;
+		align_gap = entry->offset;
+
+		entry->offset = offset + bytes;
+		WARN_ON(entry->bytes < bytes + align_gap_len);
+
+		entry->bytes -= bytes + align_gap_len;
 		if (!entry->bytes)
 			kmem_cache_free(btrfs_free_space_cachep, entry);
 		else
@@ -2119,6 +2157,8 @@ u64 btrfs_find_space_for_alloc(struct btrfs_block_group_cache *block_group,
 out:
 	spin_unlock(&ctl->tree_lock);
 
+	if (align_gap_len)
+		__btrfs_add_free_space(ctl, align_gap, align_gap_len);
 	return ret;
 }
 

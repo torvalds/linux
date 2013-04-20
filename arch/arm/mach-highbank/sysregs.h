@@ -37,7 +37,7 @@ extern void __iomem *sregs_base;
 
 static inline void highbank_set_core_pwr(void)
 {
-	int cpu = cpu_logical_map(smp_processor_id());
+	int cpu = MPIDR_AFFINITY_LEVEL(cpu_logical_map(smp_processor_id()), 0);
 	if (scu_base_addr)
 		scu_power_mode(scu_base_addr, SCU_PM_POWEROFF);
 	else
@@ -46,7 +46,7 @@ static inline void highbank_set_core_pwr(void)
 
 static inline void highbank_clear_core_pwr(void)
 {
-	int cpu = cpu_logical_map(smp_processor_id());
+	int cpu = MPIDR_AFFINITY_LEVEL(cpu_logical_map(smp_processor_id()), 0);
 	if (scu_base_addr)
 		scu_power_mode(scu_base_addr, SCU_PM_NORMAL);
 	else

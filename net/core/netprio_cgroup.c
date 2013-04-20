@@ -69,10 +69,8 @@ static int extend_netdev_table(struct net_device *dev, u32 target_idx)
 
 	/* allocate & copy */
 	new = kzalloc(new_sz, GFP_KERNEL);
-	if (!new) {
-		pr_warn("Unable to alloc new priomap!\n");
+	if (!new)
 		return -ENOMEM;
-	}
 
 	if (old)
 		memcpy(new->priomap, old->priomap,

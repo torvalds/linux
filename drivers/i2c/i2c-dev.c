@@ -148,7 +148,7 @@ static ssize_t i2cdev_read(struct file *file, char __user *buf, size_t count,
 		return -ENOMEM;
 
 	pr_debug("i2c-dev: i2c-%d reading %zu bytes.\n",
-		iminor(file->f_path.dentry->d_inode), count);
+		iminor(file_inode(file)), count);
 
 	ret = i2c_master_recv(client, tmp, count);
 	if (ret >= 0)
@@ -172,7 +172,7 @@ static ssize_t i2cdev_write(struct file *file, const char __user *buf,
 		return PTR_ERR(tmp);
 
 	pr_debug("i2c-dev: i2c-%d writing %zu bytes.\n",
-		iminor(file->f_path.dentry->d_inode), count);
+		iminor(file_inode(file)), count);
 
 	ret = i2c_master_send(client, tmp, count);
 	kfree(tmp);

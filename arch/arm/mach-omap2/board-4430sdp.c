@@ -24,12 +24,15 @@
 #include <linux/gpio_keys.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
+#include <linux/pwm.h>
 #include <linux/leds.h>
 #include <linux/leds_pwm.h>
+#include <linux/pwm_backlight.h>
+#include <linux/irqchip/arm-gic.h>
 #include <linux/platform_data/omap4-keypad.h>
 #include <linux/usb/musb.h>
+#include <linux/usb/phy.h>
 
-#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -256,10 +259,20 @@ static struct gpio_led_platform_data sdp4430_led_data = {
 	.num_leds	= ARRAY_SIZE(sdp4430_gpio_leds),
 };
 
+static struct pwm_lookup sdp4430_pwm_lookup[] = {
+	PWM_LOOKUP("twl-pwm", 0, "leds_pwm", "omap4::keypad"),
+	PWM_LOOKUP("twl-pwm", 1, "pwm-backlight", NULL),
+	PWM_LOOKUP("twl-pwmled", 0, "leds_pwm", "omap4:green:chrg"),
+};
+
 static struct led_pwm sdp4430_pwm_leds[] = {
 	{
+		.name		= "omap4::keypad",
+		.max_brightness	= 127,
+		.pwm_period_ns	= 7812500,
+	},
+	{
 		.name		= "omap4:green:chrg",
-		.pwm_id		= 1,
 		.max_brightness	= 255,
 		.pwm_period_ns	= 7812500,
 	},
@@ -275,6 +288,20 @@ static struct platform_device sdp4430_leds_pwm = {
 	.id	= -1,
 	.dev	= {
 		.platform_data = &sdp4430_pwm_data,
+	},
+};
+
+static struct platform_pwm_backlight_data sdp4430_backlight_data = {
+	.max_brightness = 127,
+	.dft_brightness = 127,
+	.pwm_period_ns = 7812500,
+};
+
+static struct platform_device sdp4430_backlight_pwm = {
+	.name   = "pwm-backlight",
+	.id     = -1,
+	.dev    = {
+		.platform_data = &sdp4430_backlight_data,
 	},
 };
 
@@ -412,6 +439,7 @@ static struct platform_device *sdp4430_devices[] __initdata = {
 	&sdp4430_gpio_keys_device,
 	&sdp4430_leds_gpio,
 	&sdp4430_leds_pwm,
+	&sdp4430_backlight_pwm,
 	&sdp4430_vbat,
 	&sdp4430_dmic_codec,
 	&sdp4430_abe_audio,
@@ -696,6 +724,7 @@ static void __init omap_4430sdp_init(void)
 	omap4_sdp4430_wifi_init();
 	omap4_twl6030_hsmmc_init(mmc);
 
+	usb_bind_phy("musb-hdrc.0.auto", 0, "omap-usb2.1.auto");
 	usb_musb_init(&musb_board_data);
 
 	status = omap_ethernet_init();
@@ -707,6 +736,7 @@ static void __init omap_4430sdp_init(void)
 				ARRAY_SIZE(sdp4430_spi_board_info));
 	}
 
+	pwm_add_table(sdp4430_pwm_lookup, ARRAY_SIZE(sdp4430_pwm_lookup));
 	status = omap4_keyboard_init(&sdp4430_keypad_data, &keypad_data);
 	if (status)
 		pr_err("Keypad initialization failed: %d\n", status);
@@ -722,9 +752,8 @@ MACHINE_START(OMAP_4430SDP, "OMAP4430 4430SDP board")
 	.map_io		= omap4_map_io,
 	.init_early	= omap4430_init_early,
 	.init_irq	= gic_init_irq,
-	.handle_irq	= gic_handle_irq,
 	.init_machine	= omap_4430sdp_init,
 	.init_late	= omap4430_init_late,
-	.timer		= &omap4_timer,
+	.init_time	= omap4_local_timer_init,
 	.restart	= omap44xx_restart,
 MACHINE_END

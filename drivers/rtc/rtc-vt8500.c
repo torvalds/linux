@@ -137,7 +137,7 @@ static int vt8500_rtc_set_time(struct device *dev, struct rtc_time *tm)
 		return -EINVAL;
 	}
 
-	writel((bin2bcd(tm->tm_year - 100) << DATE_YEAR_S)
+	writel((bin2bcd(tm->tm_year % 100) << DATE_YEAR_S)
 		| (bin2bcd(tm->tm_mon + 1) << DATE_MONTH_S)
 		| (bin2bcd(tm->tm_mday))
 		| ((tm->tm_year >= 200) << DATE_CENTURY_S),
@@ -231,20 +231,21 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	vt8500_rtc->res = request_mem_region(vt8500_rtc->res->start,
-					     resource_size(vt8500_rtc->res),
-					     "vt8500-rtc");
+	vt8500_rtc->res = devm_request_mem_region(&pdev->dev,
+					vt8500_rtc->res->start,
+					resource_size(vt8500_rtc->res),
+					"vt8500-rtc");
 	if (vt8500_rtc->res == NULL) {
 		dev_err(&pdev->dev, "failed to request I/O memory\n");
 		return -EBUSY;
 	}
 
-	vt8500_rtc->regbase = ioremap(vt8500_rtc->res->start,
+	vt8500_rtc->regbase = devm_ioremap(&pdev->dev, vt8500_rtc->res->start,
 				      resource_size(vt8500_rtc->res));
 	if (!vt8500_rtc->regbase) {
 		dev_err(&pdev->dev, "Unable to map RTC I/O memory\n");
 		ret = -EBUSY;
-		goto err_release;
+		goto err_return;
 	}
 
 	/* Enable RTC and set it to 24-hour mode */
@@ -257,11 +258,11 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(vt8500_rtc->rtc);
 		dev_err(&pdev->dev,
 			"Failed to register RTC device -> %d\n", ret);
-		goto err_unmap;
+		goto err_return;
 	}
 
-	ret = request_irq(vt8500_rtc->irq_alarm, vt8500_rtc_irq, 0,
-			  "rtc alarm", vt8500_rtc);
+	ret = devm_request_irq(&pdev->dev, vt8500_rtc->irq_alarm,
+				vt8500_rtc_irq, 0, "rtc alarm", vt8500_rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "can't get irq %i, err %d\n",
 			vt8500_rtc->irq_alarm, ret);
@@ -272,11 +273,7 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 
 err_unreg:
 	rtc_device_unregister(vt8500_rtc->rtc);
-err_unmap:
-	iounmap(vt8500_rtc->regbase);
-err_release:
-	release_mem_region(vt8500_rtc->res->start,
-			   resource_size(vt8500_rtc->res));
+err_return:
 	return ret;
 }
 
@@ -284,15 +281,10 @@ static int vt8500_rtc_remove(struct platform_device *pdev)
 {
 	struct vt8500_rtc *vt8500_rtc = platform_get_drvdata(pdev);
 
-	free_irq(vt8500_rtc->irq_alarm, vt8500_rtc);
-
 	rtc_device_unregister(vt8500_rtc->rtc);
 
 	/* Disable alarm matching */
 	writel(0, vt8500_rtc->regbase + VT8500_RTC_IS);
-	iounmap(vt8500_rtc->regbase);
-	release_mem_region(vt8500_rtc->res->start,
-			   resource_size(vt8500_rtc->res));
 
 	platform_set_drvdata(pdev, NULL);
 

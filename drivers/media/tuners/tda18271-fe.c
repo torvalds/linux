@@ -1122,6 +1122,7 @@ static int tda18271_dump_std_map(struct dvb_frontend *fe)
 	tda18271_dump_std_item(dvbt_7, "dvbt 7");
 	tda18271_dump_std_item(dvbt_8, "dvbt 8");
 	tda18271_dump_std_item(qam_6,  "qam 6 ");
+	tda18271_dump_std_item(qam_7,  "qam 7 ");
 	tda18271_dump_std_item(qam_8,  "qam 8 ");
 
 	return 0;
@@ -1149,6 +1150,7 @@ static int tda18271_update_std_map(struct dvb_frontend *fe,
 	tda18271_update_std(dvbt_7, "dvbt 7");
 	tda18271_update_std(dvbt_8, "dvbt 8");
 	tda18271_update_std(qam_6,  "qam 6");
+	tda18271_update_std(qam_7,  "qam 7");
 	tda18271_update_std(qam_8,  "qam 8");
 
 	return 0;

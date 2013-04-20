@@ -299,6 +299,7 @@ static struct file_system_type debug_fs_type = {
 	.mount =	debug_mount,
 	.kill_sb =	kill_litter_super,
 };
+MODULE_ALIAS_FS("debugfs");
 
 static struct dentry *__create_file(const char *name, umode_t mode,
 				    struct dentry *parent, void *data,
@@ -322,7 +323,6 @@ static struct dentry *__create_file(const char *name, umode_t mode,
 	if (!parent)
 		parent = debugfs_mount->mnt_root;
 
-	dentry = NULL;
 	mutex_lock(&parent->d_inode->i_mutex);
 	dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(dentry)) {

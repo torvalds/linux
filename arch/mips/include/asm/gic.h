@@ -66,7 +66,7 @@
 
 /* Register Map for Shared Section */
 
-#define	GIC_SH_CONFIG_OFS		0x0000
+#define GIC_SH_CONFIG_OFS		0x0000
 
 /* Shared Global Counter */
 #define GIC_SH_COUNTER_31_00_OFS	0x0010
@@ -146,13 +146,13 @@
 #define GIC_SH_PEND_223_192_OFS		0x0498
 #define GIC_SH_PEND_255_224_OFS		0x049c
 
-#define GIC_SH_INTR_MAP_TO_PIN_BASE_OFS	0x0500
+#define GIC_SH_INTR_MAP_TO_PIN_BASE_OFS 0x0500
 
 /* Maps Interrupt X to a Pin */
 #define GIC_SH_MAP_TO_PIN(intr) \
 	(GIC_SH_INTR_MAP_TO_PIN_BASE_OFS + (4 * intr))
 
-#define GIC_SH_INTR_MAP_TO_VPE_BASE_OFS	0x2000
+#define GIC_SH_INTR_MAP_TO_VPE_BASE_OFS 0x2000
 
 /* Maps Interrupt X to a VPE */
 #define GIC_SH_MAP_TO_VPE_REG_OFF(intr, vpe) \
@@ -326,7 +326,7 @@ struct gic_intr_map {
 	unsigned int polarity;	/* Polarity : +/-	*/
 	unsigned int trigtype;	/* Trigger  : Edge/Levl */
 	unsigned int flags;	/* Misc flags	*/
-#define GIC_FLAG_IPI           0x01
+#define GIC_FLAG_IPI	       0x01
 #define GIC_FLAG_TRANSPARENT   0x02
 };
 
@@ -343,10 +343,10 @@ struct gic_shared_intr_map {
 
 /* GIC nomenclature for Core Interrupt Pins. */
 #define GIC_CPU_INT0		0 /* Core Interrupt 2 */
-#define GIC_CPU_INT1		1 /* .                */
-#define GIC_CPU_INT2		2 /* .                */
-#define GIC_CPU_INT3		3 /* .                */
-#define GIC_CPU_INT4		4 /* .                */
+#define GIC_CPU_INT1		1 /* .		      */
+#define GIC_CPU_INT2		2 /* .		      */
+#define GIC_CPU_INT3		3 /* .		      */
+#define GIC_CPU_INT4		4 /* .		      */
 #define GIC_CPU_INT5		5 /* Core Interrupt 5 */
 
 /* Local GIC interrupts. */
@@ -359,6 +359,7 @@ struct gic_shared_intr_map {
 /* Mapped interrupt to pin X, then GIC will generate the vector (X+1). */
 #define GIC_PIN_TO_VEC_OFFSET	(1)
 
+extern int gic_present;
 extern unsigned long _gic_base;
 extern unsigned int gic_irq_base;
 extern unsigned int gic_irq_flags[];

@@ -281,6 +281,6 @@ MACHINE_START(RD88F5182, "Marvell Orion-NAS Reference Design")
 	.map_io		= orion5x_map_io,
 	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
-	.timer		= &orion5x_timer,
+	.init_time	= orion5x_timer_init,
 	.restart	= orion5x_restart,
 MACHINE_END

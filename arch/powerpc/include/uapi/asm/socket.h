@@ -29,7 +29,7 @@
 #define SO_PRIORITY	12
 #define SO_LINGER	13
 #define SO_BSDCOMPAT	14
-/* To add :#define SO_REUSEPORT 15 */
+#define SO_REUSEPORT	15
 #define SO_RCVLOWAT	16
 #define SO_SNDLOWAT	17
 #define SO_RCVTIMEO	18
@@ -76,5 +76,7 @@
 
 /* Instruct lower device to use last 4-bytes of skb data as FCS */
 #define SO_NOFCS		43
+
+#define SO_LOCK_FILTER		44
 
 #endif	/* _ASM_POWERPC_SOCKET_H */

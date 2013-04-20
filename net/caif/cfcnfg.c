@@ -402,7 +402,7 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 
 	phyinfo = cfcnfg_get_phyinfo_rcu(cnfg, phyid);
 	if (phyinfo == NULL) {
-		pr_err("ERROR: Link Layer Device dissapeared"
+		pr_err("ERROR: Link Layer Device disappeared"
 				"while connecting\n");
 		goto unlock;
 	}

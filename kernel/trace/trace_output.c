@@ -739,12 +739,11 @@ static int task_state_char(unsigned long state)
 struct trace_event *ftrace_find_event(int type)
 {
 	struct trace_event *event;
-	struct hlist_node *n;
 	unsigned key;
 
 	key = type & (EVENT_HASHSIZE - 1);
 
-	hlist_for_each_entry(event, n, &event_hash[key], node) {
+	hlist_for_each_entry(event, &event_hash[key], node) {
 		if (event->type == type)
 			return event;
 	}

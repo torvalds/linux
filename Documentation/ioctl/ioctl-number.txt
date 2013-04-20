@@ -179,7 +179,7 @@ Code  Seq#(hex)	Include File		Comments
 'V'	C0	media/davinci/vpfe_capture.h	conflict!
 'V'	C0	media/si4713.h		conflict!
 'W'	00-1F	linux/watchdog.h	conflict!
-'W'	00-1F	linux/wanrouter.h	conflict!
+'W'	00-1F	linux/wanrouter.h	conflict!		(pre 3.9)
 'W'	00-3F	sound/asound.h		conflict!
 'X'	all	fs/xfs/xfs_fs.h		conflict!
 		and fs/xfs/linux-2.6/xfs_ioctl32.h

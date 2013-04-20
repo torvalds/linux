@@ -13,6 +13,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
+#include "soc.h"
 #include "common.h"
 #include "prm2xxx.h"
 
@@ -62,4 +63,4 @@ static int __init omap2xxx_common_look_up_clks_for_reset(void)
 
 	return 0;
 }
-core_initcall(omap2xxx_common_look_up_clks_for_reset);
+omap_core_initcall(omap2xxx_common_look_up_clks_for_reset);

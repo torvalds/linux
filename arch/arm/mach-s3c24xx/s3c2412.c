@@ -1,5 +1,4 @@
-/* linux/arch/arm/mach-s3c2412/s3c2412.c
- *
+/*
  * Copyright (c) 2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -28,28 +27,31 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/hardware.h>
 #include <asm/proc-fns.h>
 #include <asm/irq.h>
 #include <asm/system_misc.h>
 
-#include <plat/cpu-freq.h>
-
+#include <mach/hardware.h>
 #include <mach/regs-clock.h>
-#include <plat/regs-serial.h>
-#include <mach/regs-power.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-dsc.h>
-#include <plat/regs-spi.h>
-#include <mach/regs-s3c2412.h>
 
-#include <plat/s3c2412.h>
-#include <plat/cpu.h>
-#include <plat/devs.h>
 #include <plat/clock.h>
-#include <plat/pm.h>
-#include <plat/pll.h>
+#include <plat/cpu.h>
+#include <plat/cpu-freq.h>
+#include <plat/devs.h>
 #include <plat/nand-core.h>
+#include <plat/pll.h>
+#include <plat/pm.h>
+#include <plat/regs-serial.h>
+#include <plat/regs-spi.h>
+#include <plat/s3c2412.h>
+
+#include "common.h"
+#include "regs-dsc.h"
+#include "s3c2412-power.h"
+
+#define S3C2412_SWRST			(S3C24XX_VA_CLKPWR + 0x30)
+#define S3C2412_SWRST_RESET		(0x533C2412)
 
 #ifndef CONFIG_CPU_S3C2412_ONLY
 void __iomem *s3c24xx_va_gpio2 = S3C24XX_VA_GPIO;
@@ -244,8 +246,8 @@ int __init s3c2412_init(void)
 
 #ifdef CONFIG_PM
 	register_syscore_ops(&s3c2412_pm_syscore_ops);
-#endif
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
+#endif
 
 	return device_register(&s3c2412_dev);
 }

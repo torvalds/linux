@@ -82,8 +82,11 @@ static inline void *nfct_help_data(const struct nf_conn *ct)
 	return (void *)help->data;
 }
 
-extern int nf_conntrack_helper_init(struct net *net);
-extern void nf_conntrack_helper_fini(struct net *net);
+extern int nf_conntrack_helper_pernet_init(struct net *net);
+extern void nf_conntrack_helper_pernet_fini(struct net *net);
+
+extern int nf_conntrack_helper_init(void);
+extern void nf_conntrack_helper_fini(void);
 
 extern int nf_conntrack_broadcast_help(struct sk_buff *skb,
 				       unsigned int protoff,
@@ -96,6 +99,10 @@ struct nf_ct_helper_expectfn {
 	const char *name;
 	void (*expectfn)(struct nf_conn *ct, struct nf_conntrack_expect *exp);
 };
+
+__printf(3,4)
+void nf_ct_helper_log(struct sk_buff *skb, const struct nf_conn *ct,
+		      const char *fmt, ...);
 
 void nf_ct_helper_expectfn_register(struct nf_ct_helper_expectfn *n);
 void nf_ct_helper_expectfn_unregister(struct nf_ct_helper_expectfn *n);

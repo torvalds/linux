@@ -288,6 +288,26 @@ lpfc_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 }
 
 /**
+ * lpfc_change_queue_type() - Change a device's scsi tag queuing type
+ * @sdev: Pointer the scsi device whose queue depth is to change
+ * @tag_type: Identifier for queue tag type
+ */
+static int
+lpfc_change_queue_type(struct scsi_device *sdev, int tag_type)
+{
+	if (sdev->tagged_supported) {
+		scsi_set_tag_type(sdev, tag_type);
+		if (tag_type)
+			scsi_activate_tcq(sdev, sdev->queue_depth);
+		else
+			scsi_deactivate_tcq(sdev, sdev->queue_depth);
+	} else
+		tag_type = 0;
+
+	return tag_type;
+}
+
+/**
  * lpfc_rampdown_queue_depth - Post RAMP_DOWN_QUEUE event to worker thread
  * @phba: The Hba for which this call is being executed.
  *
@@ -3972,7 +3992,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 			break;
 		}
 	} else
-		fcp_cmnd->fcpCntl1 = 0;
+		fcp_cmnd->fcpCntl1 = SIMPLE_Q;
 
 	sli4 = (phba->sli_rev == LPFC_SLI_REV4);
 
@@ -5150,6 +5170,7 @@ struct scsi_host_template lpfc_template = {
 	.max_sectors		= 0xFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
 	.change_queue_depth	= lpfc_change_queue_depth,
+	.change_queue_type	= lpfc_change_queue_type,
 };
 
 struct scsi_host_template lpfc_vport_template = {
@@ -5172,4 +5193,5 @@ struct scsi_host_template lpfc_vport_template = {
 	.shost_attrs		= lpfc_vport_attrs,
 	.max_sectors		= 0xFFFF,
 	.change_queue_depth	= lpfc_change_queue_depth,
+	.change_queue_type	= lpfc_change_queue_type,
 };

@@ -116,7 +116,6 @@ void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
  * For memory reclaim.
  */
 int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec);
-int mem_cgroup_inactive_file_is_low(struct lruvec *lruvec);
 int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
 unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list);
 void mem_cgroup_update_lru_size(struct lruvec *, enum lru_list, int);
@@ -321,12 +320,6 @@ mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
 	return 1;
 }
 
-static inline int
-mem_cgroup_inactive_file_is_low(struct lruvec *lruvec)
-{
-	return 1;
-}
-
 static inline unsigned long
 mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
 {
@@ -429,7 +422,7 @@ extern int memcg_limited_groups_array_size;
  * the slab_mutex must be held when looping through those caches
  */
 #define for_each_memcg_cache_index(_idx)	\
-	for ((_idx) = 0; i < memcg_limited_groups_array_size; (_idx)++)
+	for ((_idx) = 0; (_idx) < memcg_limited_groups_array_size; (_idx)++)
 
 static inline bool memcg_kmem_enabled(void)
 {

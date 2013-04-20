@@ -337,7 +337,7 @@ static unsigned char da9052_determine_vc_tbl_index(unsigned char adc_temp)
 	if (adc_temp > vc_tbl_ref[DA9052_VC_TBL_REF_SZ - 1])
 		return DA9052_VC_TBL_REF_SZ - 1;
 
-	for (i = 0; i < DA9052_VC_TBL_REF_SZ; i++) {
+	for (i = 0; i < DA9052_VC_TBL_REF_SZ - 1; i++) {
 		if ((adc_temp > vc_tbl_ref[i]) &&
 		    (adc_temp <= DA9052_MEAN(vc_tbl_ref[i], vc_tbl_ref[i + 1])))
 				return i;

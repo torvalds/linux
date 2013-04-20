@@ -32,8 +32,8 @@ config HAMACHI
 	  called hamachi.
 
 config YELLOWFIN
-	tristate "Packet Engines Yellowfin Gigabit-NIC support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "Packet Engines Yellowfin Gigabit-NIC support"
+	depends on PCI
 	select CRC32
 	---help---
 	  Say Y here if you have a Packet Engines G-NIC PCI Gigabit Ethernet

@@ -46,15 +46,11 @@ static struct proc_dir_entry *proc_ppc64_scan_log_dump;	/* The proc file */
 static ssize_t scanlog_read(struct file *file, char __user *buf,
 			    size_t count, loff_t *ppos)
 {
-        struct inode * inode = file->f_path.dentry->d_inode;
-	struct proc_dir_entry *dp;
-	unsigned int *data;
+	struct proc_dir_entry *dp = PDE(file_inode(file));
+	unsigned int *data = (unsigned int *)dp->data;
 	int status;
 	unsigned long len, off;
 	unsigned int wait_time;
-
-        dp = PDE(inode);
- 	data = (unsigned int *)dp->data;
 
 	if (count > RTAS_DATA_BUF_SIZE)
 		count = RTAS_DATA_BUF_SIZE;

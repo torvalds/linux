@@ -219,7 +219,6 @@ struct moschip_port {
 	char open;
 	char open_ports;
 	wait_queue_head_t wait_chase;	/* for handling sleeping while waiting for chase to finish */
-	wait_queue_head_t delta_msr_wait;	/* for handling sleeping while waiting for msr change to happen */
 	int delta_msr_cond;
 	struct async_icount icount;
 	struct usb_serial_port *port;	/* loop back to the owner of this object */
@@ -423,6 +422,9 @@ static void mos7840_handle_new_msr(struct moschip_port *port, __u8 new_msr)
 			icount->rng++;
 			smp_wmb();
 		}
+
+		mos7840_port->delta_msr_cond = 1;
+		wake_up_interruptible(&port->port->delta_msr_wait);
 	}
 }
 
@@ -744,7 +746,6 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	struct usb_serial *serial;
 	struct usb_serial_port *port;
 	struct moschip_port *mos7840_port;
-	struct tty_struct *tty;
 	int status = urb->status;
 
 	mos7840_port = urb->context;
@@ -773,12 +774,9 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 
 	if (urb->actual_length) {
-		tty = tty_port_tty_get(&mos7840_port->port->port);
-		if (tty) {
-			tty_insert_flip_string(tty, data, urb->actual_length);
-			tty_flip_buffer_push(tty);
-			tty_kref_put(tty);
-		}
+		struct tty_port *tport = &mos7840_port->port->port;
+		tty_insert_flip_string(tport, data, urb->actual_length);
+		tty_flip_buffer_push(tport);
 		mos7840_port->icount.rx += urb->actual_length;
 		smp_wmb();
 		dev_dbg(&port->dev, "mos7840_port->icount.rx is %d:\n", mos7840_port->icount.rx);
@@ -1131,7 +1129,6 @@ static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	/* initialize our wait queues */
 	init_waitqueue_head(&mos7840_port->wait_chase);
-	init_waitqueue_head(&mos7840_port->delta_msr_wait);
 
 	/* initialize our icount structure */
 	memset(&(mos7840_port->icount), 0x00, sizeof(mos7840_port->icount));
@@ -2021,8 +2018,6 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 			mos7840_port->read_urb_busy = false;
 		}
 	}
-	wake_up(&mos7840_port->delta_msr_wait);
-	mos7840_port->delta_msr_cond = 1;
 	dev_dbg(&port->dev, "%s - mos7840_port->shadowLCR is End %x\n", __func__,
 		mos7840_port->shadowLCR);
 }
@@ -2223,13 +2218,18 @@ static int mos7840_ioctl(struct tty_struct *tty,
 		while (1) {
 			/* interruptible_sleep_on(&mos7840_port->delta_msr_wait); */
 			mos7840_port->delta_msr_cond = 0;
-			wait_event_interruptible(mos7840_port->delta_msr_wait,
-						 (mos7840_port->
+			wait_event_interruptible(port->delta_msr_wait,
+						 (port->serial->disconnected ||
+						  mos7840_port->
 						  delta_msr_cond == 1));
 
 			/* see if a signal did it */
 			if (signal_pending(current))
 				return -ERESTARTSYS;
+
+			if (port->serial->disconnected)
+				return -EIO;
+
 			cnow = mos7840_port->icount;
 			smp_rmb();
 			if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&

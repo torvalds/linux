@@ -260,8 +260,7 @@ config MTD_NAND_S3C2410_CLKSTOP
 	  approximately 5mA of power when there is nothing happening.
 
 config MTD_NAND_DISKONCHIP
-	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation) (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation)"
 	depends on HAS_IOMEM
 	select REED_SOLOMON
 	select REED_SOLOMON_DEC16
@@ -331,8 +330,8 @@ config MTD_NAND_DISKONCHIP_BBTWRITE
 	  parameter "inftl_bbt_write=1".
 
 config MTD_NAND_DOCG4
-	tristate "Support for DiskOnChip G4 (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && HAS_IOMEM
+	tristate "Support for DiskOnChip G4"
+	depends on HAS_IOMEM
 	select BCH
 	select BITREVERSE
 	help

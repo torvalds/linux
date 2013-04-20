@@ -168,7 +168,7 @@ static void wake_all_senders(struct drbd_tconn *tconn) {
 }
 
 /* must hold resource->req_lock */
-static void start_new_tl_epoch(struct drbd_tconn *tconn)
+void start_new_tl_epoch(struct drbd_tconn *tconn)
 {
 	/* no point closing an epoch, if it is empty, anyways. */
 	if (tconn->current_tle_writes == 0)

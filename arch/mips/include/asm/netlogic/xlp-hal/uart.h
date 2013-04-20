@@ -91,8 +91,8 @@
 
 #if !defined(LOCORE) && !defined(__ASSEMBLY__)
 
-#define	nlm_read_uart_reg(b, r)		nlm_read_reg(b, r)
-#define	nlm_write_uart_reg(b, r, v)	nlm_write_reg(b, r, v)
+#define nlm_read_uart_reg(b, r)		nlm_read_reg(b, r)
+#define nlm_write_uart_reg(b, r, v)	nlm_write_reg(b, r, v)
 #define nlm_get_uart_pcibase(node, inst)	\
 		nlm_pcicfg_base(XLP_IO_UART_OFFSET(node, inst))
 #define nlm_get_uart_regbase(node, inst)	\

@@ -545,7 +545,7 @@ static int ext4_convert_inline_data_to_extent(struct address_space *mapping,
 		return ret;
 
 retry:
-	handle = ext4_journal_start(inode, needed_blocks);
+	handle = ext4_journal_start(inode, EXT4_HT_WRITE_PAGE, needed_blocks);
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
 		handle = NULL;
@@ -657,7 +657,7 @@ int ext4_try_to_write_inline_data(struct address_space *mapping,
 	 * The possible write could happen in the inode,
 	 * so try to reserve the space in inode first.
 	 */
-	handle = ext4_journal_start(inode, 1);
+	handle = ext4_journal_start(inode, EXT4_HT_INODE, 1);
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
 		handle = NULL;
@@ -853,7 +853,7 @@ int ext4_da_write_inline_data_begin(struct address_space *mapping,
 	if (ret)
 		return ret;
 
-	handle = ext4_journal_start(inode, 1);
+	handle = ext4_journal_start(inode, EXT4_HT_INODE, 1);
 	if (IS_ERR(handle)) {
 		ret = PTR_ERR(handle);
 		handle = NULL;
@@ -1188,7 +1188,7 @@ static int ext4_convert_inline_data_nolock(handle_t *handle,
 
 	data_bh = sb_getblk(inode->i_sb, map.m_pblk);
 	if (!data_bh) {
-		error = -EIO;
+		error = -ENOMEM;
 		goto out_restore;
 	}
 
@@ -1298,7 +1298,7 @@ int ext4_read_inline_dir(struct file *filp,
 	int i, stored;
 	struct ext4_dir_entry_2 *de;
 	struct super_block *sb;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	int ret, inline_size = 0;
 	struct ext4_iloc iloc;
 	void *dir_buf = NULL;
@@ -1770,7 +1770,7 @@ void ext4_inline_data_truncate(struct inode *inode, int *has_inline)
 
 
 	needed_blocks = ext4_writepage_trans_blocks(inode);
-	handle = ext4_journal_start(inode, needed_blocks);
+	handle = ext4_journal_start(inode, EXT4_HT_INODE, needed_blocks);
 	if (IS_ERR(handle))
 		return;
 
@@ -1862,7 +1862,7 @@ int ext4_convert_inline_data(struct inode *inode)
 	if (error)
 		return error;
 
-	handle = ext4_journal_start(inode, needed_blocks);
+	handle = ext4_journal_start(inode, EXT4_HT_WRITE_PAGE, needed_blocks);
 	if (IS_ERR(handle)) {
 		error = PTR_ERR(handle);
 		goto out_free;

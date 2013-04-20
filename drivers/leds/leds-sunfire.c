@@ -3,6 +3,8 @@
  * Copyright (C) 2008 David S. Miller <davem@davemloft.net>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -13,9 +15,6 @@
 
 #include <asm/fhc.h>
 #include <asm/upa.h>
-
-#define DRIVER_NAME	"leds-sunfire"
-#define PFX		DRIVER_NAME ": "
 
 MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
 MODULE_DESCRIPTION("Sun Fire LED driver");
@@ -130,14 +129,14 @@ static int sunfire_led_generic_probe(struct platform_device *pdev,
 	int i, err;
 
 	if (pdev->num_resources != 1) {
-		printk(KERN_ERR PFX "Wrong number of resources %d, should be 1\n",
+		dev_err(&pdev->dev, "Wrong number of resources %d, should be 1\n",
 		       pdev->num_resources);
 		return -EINVAL;
 	}
 
 	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
 	if (!p) {
-		printk(KERN_ERR PFX "Could not allocate struct sunfire_drvdata\n");
+		dev_err(&pdev->dev, "Could not allocate struct sunfire_drvdata\n");
 		return -ENOMEM;
 	}
 
@@ -152,7 +151,7 @@ static int sunfire_led_generic_probe(struct platform_device *pdev,
 
 		err = led_classdev_register(&pdev->dev, lp);
 		if (err) {
-			printk(KERN_ERR PFX "Could not register %s LED\n",
+			dev_err(&pdev->dev, "Could not register %s LED\n",
 			       lp->name);
 			for (i--; i >= 0; i--)
 				led_classdev_unregister(&p->leds[i].led_cdev);
@@ -188,7 +187,7 @@ static struct led_type clockboard_led_types[NUM_LEDS_PER_BOARD] = {
 	{
 		.name		= "clockboard-right",
 		.handler	= clockboard_right_set,
-		.default_trigger= "heartbeat",
+		.default_trigger = "heartbeat",
 	},
 };
 
@@ -209,7 +208,7 @@ static struct led_type fhc_led_types[NUM_LEDS_PER_BOARD] = {
 	{
 		.name		= "fhc-right",
 		.handler	= fhc_right_set,
-		.default_trigger= "heartbeat",
+		.default_trigger = "heartbeat",
 	},
 };
 
@@ -244,13 +243,13 @@ static int __init sunfire_leds_init(void)
 	int err = platform_driver_register(&sunfire_clockboard_led_driver);
 
 	if (err) {
-		printk(KERN_ERR PFX "Could not register clock board LED driver\n");
+		pr_err("Could not register clock board LED driver\n");
 		return err;
 	}
 
 	err = platform_driver_register(&sunfire_fhc_led_driver);
 	if (err) {
-		printk(KERN_ERR PFX "Could not register FHC LED driver\n");
+		pr_err("Could not register FHC LED driver\n");
 		platform_driver_unregister(&sunfire_clockboard_led_driver);
 	}
 

@@ -25,4 +25,9 @@ config MACH_VERSATILE_DT
 	  Include support for the ARM(R) Versatile/PB platform,
 	  using the device tree for discovery
 
+config MACH_VERSATILE_AUTO
+	def_bool y
+	depends on !ARCH_VERSATILE_PB && !MACH_VERSATILE_AB
+	select MACH_VERSATILE_DT
+
 endmenu

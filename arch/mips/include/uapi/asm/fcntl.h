@@ -12,7 +12,7 @@
 #define O_APPEND	0x0008
 #define O_DSYNC		0x0010	/* used to be O_SYNC, see below */
 #define O_NONBLOCK	0x0080
-#define O_CREAT         0x0100	/* not fcntl */
+#define O_CREAT		0x0100	/* not fcntl */
 #define O_TRUNC		0x0200	/* not fcntl */
 #define O_EXCL		0x0400	/* not fcntl */
 #define O_NOCTTY	0x0800	/* not fcntl */
@@ -50,7 +50,7 @@
 
 /*
  * The flavours of struct flock.  "struct flock" is the ABI compliant
- * variant.  Finally struct flock64 is the LFS variant of struct flock.  As
+ * variant.  Finally struct flock64 is the LFS variant of struct flock.	 As
  * a historic accident and inconsistence with the ABI definition it doesn't
  * contain all the same fields as struct flock.
  */

@@ -83,15 +83,14 @@ descriptor. The application may pass it to other DMABUF-aware devices. Refer to
 <link linkend="dmabuf">DMABUF importing</link> for details about importing
 DMABUF files into V4L2 nodes. It is recommended to close a DMABUF file when it
 is no longer used to allow the associated memory to be reclaimed. </para>
-
   </refsect1>
-  <refsect1>
-   <section>
-      <title>Examples</title>
 
-      <example>
-	<title>Exporting a buffer.</title>
-	<programlisting>
+  <refsect1>
+    <title>Examples</title>
+
+    <example>
+      <title>Exporting a buffer.</title>
+      <programlisting>
 int buffer_export(int v4lfd, &v4l2-buf-type; bt, int index, int *dmafd)
 {
 	&v4l2-exportbuffer; expbuf;
@@ -108,12 +107,12 @@ int buffer_export(int v4lfd, &v4l2-buf-type; bt, int index, int *dmafd)
 
 	return 0;
 }
-        </programlisting>
-      </example>
+      </programlisting>
+    </example>
 
-      <example>
-	<title>Exporting a buffer using the multi-planar API.</title>
-	<programlisting>
+    <example>
+      <title>Exporting a buffer using the multi-planar API.</title>
+      <programlisting>
 int buffer_export_mp(int v4lfd, &v4l2-buf-type; bt, int index,
 	int dmafd[], int n_planes)
 {
@@ -137,12 +136,9 @@ int buffer_export_mp(int v4lfd, &v4l2-buf-type; bt, int index,
 
 	return 0;
 }
-        </programlisting>
-      </example>
-   </section>
-  </refsect1>
+      </programlisting>
+    </example>
 
-  <refsect1>
     <table pgwide="1" frame="none" id="v4l2-exportbuffer">
       <title>struct <structname>v4l2_exportbuffer</structname></title>
       <tgroup cols="3">

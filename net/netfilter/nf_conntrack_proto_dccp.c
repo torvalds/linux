@@ -935,32 +935,27 @@ static struct nf_conntrack_l4proto dccp_proto6 __read_mostly = {
 static __net_init int dccp_net_init(struct net *net)
 {
 	int ret = 0;
-	ret = nf_conntrack_l4proto_register(net,
-					    &dccp_proto4);
+	ret = nf_ct_l4proto_pernet_register(net, &dccp_proto4);
 	if (ret < 0) {
-		pr_err("nf_conntrack_l4proto_dccp4 :protocol register failed.\n");
+		pr_err("nf_conntrack_dccp4: pernet registration failed.\n");
 		goto out;
 	}
-	ret = nf_conntrack_l4proto_register(net,
-					    &dccp_proto6);
+	ret = nf_ct_l4proto_pernet_register(net, &dccp_proto6);
 	if (ret < 0) {
-		pr_err("nf_conntrack_l4proto_dccp6 :protocol register failed.\n");
+		pr_err("nf_conntrack_dccp6: pernet registration failed.\n");
 		goto cleanup_dccp4;
 	}
 	return 0;
 cleanup_dccp4:
-	nf_conntrack_l4proto_unregister(net,
-					&dccp_proto4);
+	nf_ct_l4proto_pernet_unregister(net, &dccp_proto4);
 out:
 	return ret;
 }
 
 static __net_exit void dccp_net_exit(struct net *net)
 {
-	nf_conntrack_l4proto_unregister(net,
-					&dccp_proto6);
-	nf_conntrack_l4proto_unregister(net,
-					&dccp_proto4);
+	nf_ct_l4proto_pernet_unregister(net, &dccp_proto6);
+	nf_ct_l4proto_pernet_unregister(net, &dccp_proto4);
 }
 
 static struct pernet_operations dccp_net_ops = {
@@ -972,11 +967,33 @@ static struct pernet_operations dccp_net_ops = {
 
 static int __init nf_conntrack_proto_dccp_init(void)
 {
-	return register_pernet_subsys(&dccp_net_ops);
+	int ret;
+
+	ret = register_pernet_subsys(&dccp_net_ops);
+	if (ret < 0)
+		goto out_pernet;
+
+	ret = nf_ct_l4proto_register(&dccp_proto4);
+	if (ret < 0)
+		goto out_dccp4;
+
+	ret = nf_ct_l4proto_register(&dccp_proto6);
+	if (ret < 0)
+		goto out_dccp6;
+
+	return 0;
+out_dccp6:
+	nf_ct_l4proto_unregister(&dccp_proto4);
+out_dccp4:
+	unregister_pernet_subsys(&dccp_net_ops);
+out_pernet:
+	return ret;
 }
 
 static void __exit nf_conntrack_proto_dccp_fini(void)
 {
+	nf_ct_l4proto_unregister(&dccp_proto6);
+	nf_ct_l4proto_unregister(&dccp_proto4);
 	unregister_pernet_subsys(&dccp_net_ops);
 }
 

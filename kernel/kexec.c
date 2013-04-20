@@ -54,6 +54,12 @@ struct resource crashk_res = {
 	.end   = 0,
 	.flags = IORESOURCE_BUSY | IORESOURCE_MEM
 };
+struct resource crashk_low_res = {
+	.name  = "Crash kernel low",
+	.start = 0,
+	.end   = 0,
+	.flags = IORESOURCE_BUSY | IORESOURCE_MEM
+};
 
 int kexec_should_crash(struct task_struct *p)
 {
@@ -223,6 +229,8 @@ out:
 
 }
 
+static void kimage_free_page_list(struct list_head *list);
+
 static int kimage_normal_alloc(struct kimage **rimage, unsigned long entry,
 				unsigned long nr_segments,
 				struct kexec_segment __user *segments)
@@ -236,8 +244,6 @@ static int kimage_normal_alloc(struct kimage **rimage, unsigned long entry,
 	if (result)
 		goto out;
 
-	*rimage = image;
-
 	/*
 	 * Find a location for the control code buffer, and add it
 	 * the vector of segments so that it's pages will also be
@@ -248,22 +254,22 @@ static int kimage_normal_alloc(struct kimage **rimage, unsigned long entry,
 					   get_order(KEXEC_CONTROL_PAGE_SIZE));
 	if (!image->control_code_page) {
 		printk(KERN_ERR "Could not allocate control_code_buffer\n");
-		goto out;
+		goto out_free;
 	}
 
 	image->swap_page = kimage_alloc_control_pages(image, 0);
 	if (!image->swap_page) {
 		printk(KERN_ERR "Could not allocate swap buffer\n");
-		goto out;
+		goto out_free;
 	}
 
-	result = 0;
- out:
-	if (result == 0)
-		*rimage = image;
-	else
-		kfree(image);
+	*rimage = image;
+	return 0;
 
+out_free:
+	kimage_free_page_list(&image->control_pages);
+	kfree(image);
+out:
 	return result;
 }
 
@@ -310,7 +316,7 @@ static int kimage_crash_alloc(struct kimage **rimage, unsigned long entry,
 		mend = mstart + image->segment[i].memsz - 1;
 		/* Ensure we are within the crash kernel limits */
 		if ((mstart < crashk_res.start) || (mend > crashk_res.end))
-			goto out;
+			goto out_free;
 	}
 
 	/*
@@ -323,16 +329,15 @@ static int kimage_crash_alloc(struct kimage **rimage, unsigned long entry,
 					   get_order(KEXEC_CONTROL_PAGE_SIZE));
 	if (!image->control_code_page) {
 		printk(KERN_ERR "Could not allocate control_code_buffer\n");
-		goto out;
+		goto out_free;
 	}
 
-	result = 0;
-out:
-	if (result == 0)
-		*rimage = image;
-	else
-		kfree(image);
+	*rimage = image;
+	return 0;
 
+out_free:
+	kfree(image);
+out:
 	return result;
 }
 
@@ -496,8 +501,6 @@ static struct page *kimage_alloc_crash_control_pages(struct kimage *image,
 		unsigned long i;
 
 		if (hole_end > KEXEC_CRASH_CONTROL_MEMORY_LIMIT)
-			break;
-		if (hole_end > crashk_res.end)
 			break;
 		/* See if I overlap any of the segments */
 		for (i = 0; i < image->nr_segments; i++) {
@@ -1369,10 +1372,11 @@ static int __init parse_crashkernel_simple(char 		*cmdline,
  * That function is the entry point for command line parsing and should be
  * called from the arch-specific code.
  */
-int __init parse_crashkernel(char 		 *cmdline,
+static int __init __parse_crashkernel(char *cmdline,
 			     unsigned long long system_ram,
 			     unsigned long long *crash_size,
-			     unsigned long long *crash_base)
+			     unsigned long long *crash_base,
+				const char *name)
 {
 	char 	*p = cmdline, *ck_cmdline = NULL;
 	char	*first_colon, *first_space;
@@ -1382,16 +1386,16 @@ int __init parse_crashkernel(char 		 *cmdline,
 	*crash_base = 0;
 
 	/* find crashkernel and use the last one if there are more */
-	p = strstr(p, "crashkernel=");
+	p = strstr(p, name);
 	while (p) {
 		ck_cmdline = p;
-		p = strstr(p+1, "crashkernel=");
+		p = strstr(p+1, name);
 	}
 
 	if (!ck_cmdline)
 		return -EINVAL;
 
-	ck_cmdline += 12; /* strlen("crashkernel=") */
+	ck_cmdline += strlen(name);
 
 	/*
 	 * if the commandline contains a ':', then that's the extended
@@ -1409,6 +1413,23 @@ int __init parse_crashkernel(char 		 *cmdline,
 	return 0;
 }
 
+int __init parse_crashkernel(char *cmdline,
+			     unsigned long long system_ram,
+			     unsigned long long *crash_size,
+			     unsigned long long *crash_base)
+{
+	return __parse_crashkernel(cmdline, system_ram, crash_size, crash_base,
+					"crashkernel=");
+}
+
+int __init parse_crashkernel_low(char *cmdline,
+			     unsigned long long system_ram,
+			     unsigned long long *crash_size,
+			     unsigned long long *crash_base)
+{
+	return __parse_crashkernel(cmdline, system_ram, crash_size, crash_base,
+					"crashkernel_low=");
+}
 
 static void update_vmcoreinfo_note(void)
 {
@@ -1490,6 +1511,8 @@ static int __init crash_save_vmcoreinfo_init(void)
 	VMCOREINFO_OFFSET(page, _count);
 	VMCOREINFO_OFFSET(page, mapping);
 	VMCOREINFO_OFFSET(page, lru);
+	VMCOREINFO_OFFSET(page, _mapcount);
+	VMCOREINFO_OFFSET(page, private);
 	VMCOREINFO_OFFSET(pglist_data, node_zones);
 	VMCOREINFO_OFFSET(pglist_data, nr_zones);
 #ifdef CONFIG_FLAT_NODE_MEM_MAP
@@ -1512,6 +1535,11 @@ static int __init crash_save_vmcoreinfo_init(void)
 	VMCOREINFO_NUMBER(PG_lru);
 	VMCOREINFO_NUMBER(PG_private);
 	VMCOREINFO_NUMBER(PG_swapcache);
+	VMCOREINFO_NUMBER(PG_slab);
+#ifdef CONFIG_MEMORY_FAILURE
+	VMCOREINFO_NUMBER(PG_hwpoison);
+#endif
+	VMCOREINFO_NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE);
 
 	arch_crash_save_vmcoreinfo();
 	update_vmcoreinfo_note();

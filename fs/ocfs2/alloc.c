@@ -6751,8 +6751,7 @@ int ocfs2_zero_range_for_truncate(struct inode *inode, handle_t *handle,
 		mlog_errno(ret);
 
 out:
-	if (pages)
-		kfree(pages);
+	kfree(pages);
 
 	return ret;
 }

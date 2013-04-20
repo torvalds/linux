@@ -2660,25 +2660,24 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, 
 	mdev->read_requests = RB_ROOT;
 	mdev->write_requests = RB_ROOT;
 
-	if (!idr_pre_get(&minors, GFP_KERNEL))
+	minor_got = idr_alloc(&minors, mdev, minor, minor + 1, GFP_KERNEL);
+	if (minor_got < 0) {
+		if (minor_got == -ENOSPC) {
+			err = ERR_MINOR_EXISTS;
+			drbd_msg_put_info("requested minor exists already");
+		}
 		goto out_no_minor_idr;
-	if (idr_get_new_above(&minors, mdev, minor, &minor_got))
-		goto out_no_minor_idr;
-	if (minor_got != minor) {
-		err = ERR_MINOR_EXISTS;
-		drbd_msg_put_info("requested minor exists already");
+	}
+
+	vnr_got = idr_alloc(&tconn->volumes, mdev, vnr, vnr + 1, GFP_KERNEL);
+	if (vnr_got < 0) {
+		if (vnr_got == -ENOSPC) {
+			err = ERR_INVALID_REQUEST;
+			drbd_msg_put_info("requested volume exists already");
+		}
 		goto out_idr_remove_minor;
 	}
 
-	if (!idr_pre_get(&tconn->volumes, GFP_KERNEL))
-		goto out_idr_remove_minor;
-	if (idr_get_new_above(&tconn->volumes, mdev, vnr, &vnr_got))
-		goto out_idr_remove_minor;
-	if (vnr_got != vnr) {
-		err = ERR_INVALID_REQUEST;
-		drbd_msg_put_info("requested volume exists already");
-		goto out_idr_remove_vol;
-	}
 	add_disk(disk);
 	kref_init(&mdev->kref); /* one ref for both idrs and the the add_disk */
 
@@ -2689,8 +2688,6 @@ enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, 
 
 	return NO_ERROR;
 
-out_idr_remove_vol:
-	idr_remove(&tconn->volumes, vnr_got);
 out_idr_remove_minor:
 	idr_remove(&minors, minor_got);
 	synchronize_rcu();

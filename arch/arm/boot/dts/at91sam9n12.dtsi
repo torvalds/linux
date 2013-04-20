@@ -324,8 +324,6 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf801c000 0x4000>;
 				interrupts = <5 4 5>;
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart0>;
 				status = "disabled";
@@ -335,8 +333,6 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8020000 0x4000>;
 				interrupts = <6 4 5>;
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart1>;
 				status = "disabled";
@@ -346,8 +342,6 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8024000 0x4000>;
 				interrupts = <7 4 5>;
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart2>;
 				status = "disabled";
@@ -357,8 +351,6 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8028000 0x4000>;
 				interrupts = <8 4 5>;
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart3>;
 				status = "disabled";
@@ -390,8 +382,9 @@
 			reg = < 0x40000000 0x10000000
 				0xffffe000 0x00000600
 				0xffffe600 0x00000200
-				0x00100000 0x00100000
+				0x00108000 0x00018000
 			       >;
+			atmel,pmecc-lookup-table-offset = <0x0 0x8000>;
 			atmel,nand-addr-offset = <21>;
 			atmel,nand-cmd-offset = <22>;
 			pinctrl-names = "default";

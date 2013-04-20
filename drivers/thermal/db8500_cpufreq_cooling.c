@@ -21,6 +21,7 @@
 #include <linux/cpufreq.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -73,15 +74,13 @@ static const struct of_device_id db8500_cpufreq_cooling_match[] = {
 	{ .compatible = "stericsson,db8500-cpufreq-cooling" },
 	{},
 };
-#else
-#define db8500_cpufreq_cooling_match NULL
 #endif
 
 static struct platform_driver db8500_cpufreq_cooling_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "db8500-cpufreq-cooling",
-		.of_match_table = db8500_cpufreq_cooling_match,
+		.of_match_table = of_match_ptr(db8500_cpufreq_cooling_match),
 	},
 	.probe = db8500_cpufreq_cooling_probe,
 	.suspend = db8500_cpufreq_cooling_suspend,

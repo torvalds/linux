@@ -183,10 +183,12 @@ static int stat_show(struct seq_file *s, void *v)
 
 	mutex_lock(&f2fs_stat_mutex);
 	list_for_each_entry_safe(si, next, &f2fs_stat_list, stat_list) {
+		char devname[BDEVNAME_SIZE];
 
 		update_general_status(si->sbi);
 
-		seq_printf(s, "\n=====[ partition info. #%d ]=====\n", i++);
+		seq_printf(s, "\n=====[ partition info(%s). #%d ]=====\n",
+			bdevname(si->sbi->sb->s_bdev, devname), i++);
 		seq_printf(s, "[SB: 1] [CP: 2] [SIT: %d] [NAT: %d] ",
 			   si->sit_area_segs, si->nat_area_segs);
 		seq_printf(s, "[SSA: %d] [MAIN: %d",

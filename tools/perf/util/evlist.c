@@ -49,10 +49,16 @@ struct perf_evlist *perf_evlist__new(struct cpu_map *cpus,
 	return evlist;
 }
 
-void perf_evlist__config_attrs(struct perf_evlist *evlist,
-			       struct perf_record_opts *opts)
+void perf_evlist__config(struct perf_evlist *evlist,
+			struct perf_record_opts *opts)
 {
 	struct perf_evsel *evsel;
+	/*
+	 * Set the evsel leader links before we configure attributes,
+	 * since some might depend on this info.
+	 */
+	if (opts->group)
+		perf_evlist__set_leader(evlist);
 
 	if (evlist->cpus->map[0] < 0)
 		opts->no_inherit = true;
@@ -61,7 +67,7 @@ void perf_evlist__config_attrs(struct perf_evlist *evlist,
 		perf_evsel__config(evsel, opts);
 
 		if (evlist->nr_entries > 1)
-			evsel->attr.sample_type |= PERF_SAMPLE_ID;
+			perf_evsel__set_sample_id(evsel);
 	}
 }
 
@@ -111,18 +117,21 @@ void __perf_evlist__set_leader(struct list_head *list)
 	struct perf_evsel *evsel, *leader;
 
 	leader = list_entry(list->next, struct perf_evsel, node);
-	leader->leader = NULL;
+	evsel = list_entry(list->prev, struct perf_evsel, node);
+
+	leader->nr_members = evsel->idx - leader->idx + 1;
 
 	list_for_each_entry(evsel, list, node) {
-		if (evsel != leader)
-			evsel->leader = leader;
+		evsel->leader = leader;
 	}
 }
 
 void perf_evlist__set_leader(struct perf_evlist *evlist)
 {
-	if (evlist->nr_entries)
+	if (evlist->nr_entries) {
+		evlist->nr_groups = evlist->nr_entries > 1 ? 1 : 0;
 		__perf_evlist__set_leader(&evlist->entries);
+	}
 }
 
 int perf_evlist__add_default(struct perf_evlist *evlist)
@@ -222,7 +231,7 @@ void perf_evlist__disable(struct perf_evlist *evlist)
 
 	for (cpu = 0; cpu < evlist->cpus->nr; cpu++) {
 		list_for_each_entry(pos, &evlist->entries, node) {
-			if (perf_evsel__is_group_member(pos))
+			if (!perf_evsel__is_group_leader(pos))
 				continue;
 			for (thread = 0; thread < evlist->threads->nr; thread++)
 				ioctl(FD(pos, cpu, thread),
@@ -238,7 +247,7 @@ void perf_evlist__enable(struct perf_evlist *evlist)
 
 	for (cpu = 0; cpu < cpu_map__nr(evlist->cpus); cpu++) {
 		list_for_each_entry(pos, &evlist->entries, node) {
-			if (perf_evsel__is_group_member(pos))
+			if (!perf_evsel__is_group_leader(pos))
 				continue;
 			for (thread = 0; thread < evlist->threads->nr; thread++)
 				ioctl(FD(pos, cpu, thread),
@@ -305,7 +314,6 @@ static int perf_evlist__id_add_fd(struct perf_evlist *evlist,
 struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
 {
 	struct hlist_head *head;
-	struct hlist_node *pos;
 	struct perf_sample_id *sid;
 	int hash;
 
@@ -315,7 +323,7 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
 	hash = hash_64(id, PERF_EVLIST__HLIST_BITS);
 	head = &evlist->heads[hash];
 
-	hlist_for_each_entry(sid, pos, head, node)
+	hlist_for_each_entry(sid, head, node)
 		if (sid->id == id)
 			return sid->evsel;
 
@@ -366,7 +374,7 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 		if ((old & md->mask) + size != ((old + size) & md->mask)) {
 			unsigned int offset = old;
 			unsigned int len = min(sizeof(*event), size), cpy;
-			void *dst = &evlist->event_copy;
+			void *dst = &md->event_copy;
 
 			do {
 				cpy = min(md->mask + 1 - (offset & md->mask), len);
@@ -376,7 +384,7 @@ union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 				len -= cpy;
 			} while (len);
 
-			event = &evlist->event_copy;
+			event = &md->event_copy;
 		}
 
 		old += size;

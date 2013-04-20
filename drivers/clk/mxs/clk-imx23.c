@@ -99,7 +99,7 @@ static enum imx23_clk clks_init_on[] __initdata = {
 int __init mx23_clocks_init(void)
 {
 	struct device_node *np;
-	int i;
+	u32 i;
 
 	clk_misc_init();
 

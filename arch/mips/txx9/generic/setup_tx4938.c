@@ -329,7 +329,7 @@ void __init tx4938_mtd_init(int ch)
 	unsigned long size = txx9_ce_res[ch].end - start + 1;
 
 	if (!(TX4938_EBUSC_CR(ch) & 0x8))
-		return;	/* disabled */
+		return; /* disabled */
 	txx9_physmap_flash_init(ch, start, size, &pdata);
 }
 

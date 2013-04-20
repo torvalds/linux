@@ -387,11 +387,8 @@ void hsu_dma_rx(struct uart_hsu_port *up, u32 int_sts)
 	struct hsu_dma_buffer *dbuf = &up->rxbuf;
 	struct hsu_dma_chan *chan = up->rxc;
 	struct uart_port *port = &up->port;
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 	int count;
-
-	if (!tty)
-		return;
 
 	/*
 	 * First need to know how many is already transferred,
@@ -423,7 +420,7 @@ void hsu_dma_rx(struct uart_hsu_port *up, u32 int_sts)
 	 * explicitly set tail to 0. So head will
 	 * always be greater than tail.
 	 */
-	tty_insert_flip_string(tty, dbuf->buf, count);
+	tty_insert_flip_string(tport, dbuf->buf, count);
 	port->icount.rx += count;
 
 	dma_sync_single_for_device(up->port.dev, dbuf->dma_addr,
@@ -437,7 +434,7 @@ void hsu_dma_rx(struct uart_hsu_port *up, u32 int_sts)
 					 | (0x1 << 16)
 					 | (0x1 << 24)	/* timeout bit, see HSU Errata 1 */
 					 );
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tport);
 
 	chan_writel(chan, HSU_CH_CR, 0x3);
 
@@ -460,12 +457,8 @@ static void serial_hsu_stop_rx(struct uart_port *port)
 
 static inline void receive_chars(struct uart_hsu_port *up, int *status)
 {
-	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned int ch, flag;
 	unsigned int max_count = 256;
-
-	if (!tty)
-		return;
 
 	do {
 		ch = serial_in(up, UART_RX);
@@ -522,7 +515,7 @@ static inline void receive_chars(struct uart_hsu_port *up, int *status)
 	ignore_char:
 		*status = serial_in(up, UART_LSR);
 	} while ((*status & UART_LSR_DR) && max_count--);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&up->port.state->port);
 }
 
 static void transmit_chars(struct uart_hsu_port *up)

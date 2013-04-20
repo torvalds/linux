@@ -46,6 +46,7 @@
 #include <xen/xen.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
+#include <xen/balloon.h>
 #include "common.h"
 
 /*
@@ -161,10 +162,12 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 static void make_response(struct xen_blkif *blkif, u64 id,
 			  unsigned short op, int st);
 
-#define foreach_grant(pos, rbtree, node) \
-	for ((pos) = container_of(rb_first((rbtree)), typeof(*(pos)), node); \
+#define foreach_grant_safe(pos, n, rbtree, node) \
+	for ((pos) = container_of(rb_first((rbtree)), typeof(*(pos)), node), \
+	     (n) = (&(pos)->node != NULL) ? rb_next(&(pos)->node) : NULL; \
 	     &(pos)->node != NULL; \
-	     (pos) = container_of(rb_next(&(pos)->node), typeof(*(pos)), node))
+	     (pos) = container_of(n, typeof(*(pos)), node), \
+	     (n) = (&(pos)->node != NULL) ? rb_next(&(pos)->node) : NULL)
 
 
 static void add_persistent_gnt(struct rb_root *root,
@@ -217,10 +220,11 @@ static void free_persistent_gnts(struct rb_root *root, unsigned int num)
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct persistent_gnt *persistent_gnt;
+	struct rb_node *n;
 	int ret = 0;
 	int segs_to_unmap = 0;
 
-	foreach_grant(persistent_gnt, root, node) {
+	foreach_grant_safe(persistent_gnt, n, root, node) {
 		BUG_ON(persistent_gnt->handle ==
 			BLKBACK_INVALID_HANDLE);
 		gnttab_set_unmap_op(&unmap[segs_to_unmap],
@@ -230,17 +234,19 @@ static void free_persistent_gnts(struct rb_root *root, unsigned int num)
 			persistent_gnt->handle);
 
 		pages[segs_to_unmap] = persistent_gnt->page;
-		rb_erase(&persistent_gnt->node, root);
-		kfree(persistent_gnt);
-		num--;
 
 		if (++segs_to_unmap == BLKIF_MAX_SEGMENTS_PER_REQUEST ||
 			!rb_next(&persistent_gnt->node)) {
 			ret = gnttab_unmap_refs(unmap, NULL, pages,
 				segs_to_unmap);
 			BUG_ON(ret);
+			free_xenballooned_pages(segs_to_unmap, pages);
 			segs_to_unmap = 0;
 		}
+
+		rb_erase(&persistent_gnt->node, root);
+		kfree(persistent_gnt);
+		num--;
 	}
 	BUG_ON(num != 0);
 }
@@ -375,8 +381,8 @@ irqreturn_t xen_blkif_be_int(int irq, void *dev_id)
 
 static void print_stats(struct xen_blkif *blkif)
 {
-	pr_info("xen-blkback (%s): oo %3d  |  rd %4d  |  wr %4d  |  f %4d"
-		 "  |  ds %4d\n",
+	pr_info("xen-blkback (%s): oo %3llu  |  rd %4llu  |  wr %4llu  |  f %4llu"
+		 "  |  ds %4llu\n",
 		 current->comm, blkif->st_oo_req,
 		 blkif->st_rd_req, blkif->st_wr_req,
 		 blkif->st_f_req, blkif->st_ds_req);
@@ -436,7 +442,7 @@ int xen_blkif_schedule(void *arg)
 }
 
 struct seg_buf {
-	unsigned long buf;
+	unsigned int offset;
 	unsigned int nsec;
 };
 /*
@@ -523,8 +529,8 @@ static int xen_blkbk_map(struct blkif_request *req,
 				GFP_KERNEL);
 			if (!persistent_gnt)
 				return -ENOMEM;
-			persistent_gnt->page = alloc_page(GFP_KERNEL);
-			if (!persistent_gnt->page) {
+			if (alloc_xenballooned_pages(1, &persistent_gnt->page,
+			    false)) {
 				kfree(persistent_gnt);
 				return -ENOMEM;
 			}
@@ -615,30 +621,21 @@ static int xen_blkbk_map(struct blkif_request *req,
 				 * If this is a new persistent grant
 				 * save the handler
 				 */
-				persistent_gnts[i]->handle = map[j].handle;
-				persistent_gnts[i]->dev_bus_addr =
-					map[j++].dev_bus_addr;
+				persistent_gnts[i]->handle = map[j++].handle;
 			}
 			pending_handle(pending_req, i) =
 				persistent_gnts[i]->handle;
 
 			if (ret)
 				continue;
-
-			seg[i].buf = persistent_gnts[i]->dev_bus_addr |
-				(req->u.rw.seg[i].first_sect << 9);
 		} else {
-			pending_handle(pending_req, i) = map[j].handle;
+			pending_handle(pending_req, i) = map[j++].handle;
 			bitmap_set(pending_req->unmap_seg, i, 1);
 
-			if (ret) {
-				j++;
+			if (ret)
 				continue;
-			}
-
-			seg[i].buf = map[j++].dev_bus_addr |
-				(req->u.rw.seg[i].first_sect << 9);
 		}
+		seg[i].offset = (req->u.rw.seg[i].first_sect << 9);
 	}
 	return ret;
 }
@@ -671,6 +668,16 @@ static int dispatch_discard_io(struct xen_blkif *blkif,
 	make_response(blkif, req->u.discard.id, req->operation, status);
 	xen_blkif_put(blkif);
 	return err;
+}
+
+static int dispatch_other_io(struct xen_blkif *blkif,
+			     struct blkif_request *req,
+			     struct pending_req *pending_req)
+{
+	free_req(pending_req);
+	make_response(blkif, req->u.other.id, req->operation,
+		      BLKIF_RSP_EOPNOTSUPP);
+	return -EIO;
 }
 
 static void xen_blk_drain_io(struct xen_blkif *blkif)
@@ -794,17 +801,30 @@ __do_block_io_op(struct xen_blkif *blkif)
 
 		/* Apply all sanity checks to /private copy/ of request. */
 		barrier();
-		if (unlikely(req.operation == BLKIF_OP_DISCARD)) {
+
+		switch (req.operation) {
+		case BLKIF_OP_READ:
+		case BLKIF_OP_WRITE:
+		case BLKIF_OP_WRITE_BARRIER:
+		case BLKIF_OP_FLUSH_DISKCACHE:
+			if (dispatch_rw_block_io(blkif, &req, pending_req))
+				goto done;
+			break;
+		case BLKIF_OP_DISCARD:
 			free_req(pending_req);
 			if (dispatch_discard_io(blkif, &req))
-				break;
-		} else if (dispatch_rw_block_io(blkif, &req, pending_req))
+				goto done;
 			break;
+		default:
+			if (dispatch_other_io(blkif, &req, pending_req))
+				goto done;
+			break;
+		}
 
 		/* Yield point for this unbounded loop. */
 		cond_resched();
 	}
-
+done:
 	return more_to_do;
 }
 
@@ -875,7 +895,6 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		goto fail_response;
 	}
 
-	preq.dev           = req->u.rw.handle;
 	preq.sector_number = req->u.rw.sector_number;
 	preq.nr_sects      = 0;
 
@@ -899,7 +918,8 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		pr_debug(DRV_PFX "access denied: %s of [%llu,%llu] on dev=%04x\n",
 			 operation == READ ? "read" : "write",
 			 preq.sector_number,
-			 preq.sector_number + preq.nr_sects, preq.dev);
+			 preq.sector_number + preq.nr_sects,
+			 blkif->vbd.pdevice);
 		goto fail_response;
 	}
 
@@ -942,7 +962,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		       (bio_add_page(bio,
 				     pages[i],
 				     seg[i].nsec << 9,
-				     seg[i].buf & ~PAGE_MASK) == 0)) {
+				     seg[i].offset) == 0)) {
 
 			bio = bio_alloc(GFP_KERNEL, nseg-i);
 			if (unlikely(bio == NULL))
@@ -972,13 +992,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		bio->bi_end_io  = end_block_io_op;
 	}
 
-	/*
-	 * We set it one so that the last submit_bio does not have to call
-	 * atomic_inc.
-	 */
 	atomic_set(&pending_req->pendcnt, nbio);
-
-	/* Get a reference count for the disk queue and start sending I/O */
 	blk_start_plug(&plug);
 
 	for (i = 0; i < nbio; i++)
@@ -1006,6 +1020,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
  fail_put_bio:
 	for (i = 0; i < nbio; i++)
 		bio_put(biolist[i]);
+	atomic_set(&pending_req->pendcnt, 1);
 	__end_block_io_op(pending_req, -EINVAL);
 	msleep(1); /* back off a bit */
 	return -EIO;

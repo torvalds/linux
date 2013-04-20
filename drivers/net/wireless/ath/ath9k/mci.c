@@ -438,7 +438,7 @@ int ath_mci_setup(struct ath_softc *sc)
 	struct ath_mci_buf *buf = &mci->sched_buf;
 	int ret;
 
-	buf->bf_addr = dma_alloc_coherent(sc->dev,
+	buf->bf_addr = dmam_alloc_coherent(sc->dev,
 				  ATH_MCI_SCHED_BUF_SIZE + ATH_MCI_GPM_BUF_SIZE,
 				  &buf->bf_paddr, GFP_KERNEL);
 
@@ -474,13 +474,6 @@ void ath_mci_cleanup(struct ath_softc *sc)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_hw *ah = sc->sc_ah;
-	struct ath_mci_coex *mci = &sc->mci_coex;
-	struct ath_mci_buf *buf = &mci->sched_buf;
-
-	if (buf->bf_addr)
-		dma_free_coherent(sc->dev,
-				  ATH_MCI_SCHED_BUF_SIZE + ATH_MCI_GPM_BUF_SIZE,
-				  buf->bf_addr, buf->bf_paddr);
 
 	ar9003_mci_cleanup(ah);
 

@@ -197,9 +197,9 @@
 				};
 
 				usart3 {
-					pinctrl_uart3: usart3-0 {
+					pinctrl_usart3: usart3-0 {
 						atmel,pins =
-							<2 23 0x2 0x1	/* PC22 periph B with pullup */
+							<2 22 0x2 0x1	/* PC22 periph B with pullup */
 							 2 23 0x2 0x0>;	/* PC23 periph B */
 					};
 
@@ -238,8 +238,32 @@
 				nand {
 					pinctrl_nand: nand-0 {
 						atmel,pins =
-							<3 4 0x0 0x1	/* PD5 gpio RDY pin pull_up */
-							 3 5 0x0 0x1>;	/* PD4 gpio enable pin pull_up */
+							<3 0 0x1 0x0	/* PD0 periph A Read Enable */
+							 3 1 0x1 0x0	/* PD1 periph A Write Enable */
+							 3 2 0x1 0x0	/* PD2 periph A Address Latch Enable */
+							 3 3 0x1 0x0	/* PD3 periph A Command Latch Enable */
+							 3 4 0x0 0x1	/* PD4 gpio Chip Enable pin pull_up */
+							 3 5 0x0 0x1	/* PD5 gpio RDY/BUSY pin pull_up */
+							 3 6 0x1 0x0	/* PD6 periph A Data bit 0 */
+							 3 7 0x1 0x0	/* PD7 periph A Data bit 1 */
+							 3 8 0x1 0x0	/* PD8 periph A Data bit 2 */
+							 3 9 0x1 0x0	/* PD9 periph A Data bit 3 */
+							 3 10 0x1 0x0	/* PD10 periph A Data bit 4 */
+							 3 11 0x1 0x0	/* PD11 periph A Data bit 5 */
+							 3 12 0x1 0x0	/* PD12 periph A Data bit 6 */
+							 3 13 0x1 0x0>;	/* PD13 periph A Data bit 7 */
+					};
+
+					pinctrl_nand_16bits: nand_16bits-0 {
+						atmel,pins =
+							<3 14 0x1 0x0	/* PD14 periph A Data bit 8 */
+							 3 15 0x1 0x0	/* PD15 periph A Data bit 9 */
+							 3 16 0x1 0x0	/* PD16 periph A Data bit 10 */
+							 3 17 0x1 0x0	/* PD17 periph A Data bit 11 */
+							 3 18 0x1 0x0	/* PD18 periph A Data bit 12 */
+							 3 19 0x1 0x0	/* PD19 periph A Data bit 13 */
+							 3 20 0x1 0x0	/* PD20 periph A Data bit 14 */
+							 3 21 0x1 0x0>;	/* PD21 periph A Data bit 15 */
 					};
 				};
 
@@ -402,8 +426,6 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf801c000 0x200>;
 				interrupts = <5 4 5>;
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart0>;
 				status = "disabled";
@@ -413,8 +435,6 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8020000 0x200>;
 				interrupts = <6 4 5>;
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart1>;
 				status = "disabled";
@@ -424,8 +444,6 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8024000 0x200>;
 				interrupts = <7 4 5>;
-				atmel,use-dma-rx;
-				atmel,use-dma-tx;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_usart2>;
 				status = "disabled";
@@ -518,7 +536,11 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x40000000 0x10000000
+			       0xffffe000 0x600		/* PMECC Registers */
+			       0xffffe600 0x200		/* PMECC Error Location Registers */
+			       0x00108000 0x18000	/* PMECC looup table in ROM code  */
 			      >;
+			atmel,pmecc-lookup-table-offset = <0x0 0x8000>;
 			atmel,nand-addr-offset = <21>;
 			atmel,nand-cmd-offset = <22>;
 			pinctrl-names = "default";

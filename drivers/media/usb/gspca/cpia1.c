@@ -541,7 +541,7 @@ static int do_command(struct gspca_dev *gspca_dev, u16 command,
 		/* test button press */
 		a = ((gspca_dev->usb_buf[1] & 0x02) == 0);
 		if (a != sd->params.qx3.button) {
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 			input_report_key(gspca_dev->input_dev, KEY_CAMERA, a);
 			input_sync(gspca_dev->input_dev);
 #endif
@@ -1640,7 +1640,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	/* Update the camera status */
 	do_command(gspca_dev, CPIA_COMMAND_GetCameraStatus, 0, 0, 0, 0);
 
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 	/* If the last button state is pressed, release it now! */
 	if (sd->params.qx3.button) {
 		/* The camera latch will hold the pressed state until we reset
@@ -1869,7 +1869,7 @@ static const struct sd_desc sd_desc = {
 	.stopN = sd_stopN,
 	.dq_callback = sd_dq_callback,
 	.pkt_scan = sd_pkt_scan,
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 	.other_input = 1,
 #endif
 };

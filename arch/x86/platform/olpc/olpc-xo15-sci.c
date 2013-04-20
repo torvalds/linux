@@ -195,7 +195,7 @@ err_sysfs:
 	return r;
 }
 
-static int xo15_sci_remove(struct acpi_device *device, int type)
+static int xo15_sci_remove(struct acpi_device *device)
 {
 	acpi_disable_gpe(NULL, xo15_sci_gpe);
 	acpi_remove_gpe_handler(NULL, xo15_sci_gpe, xo15_sci_gpe_handler);

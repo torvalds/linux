@@ -41,8 +41,6 @@ static struct fb_videomode mx23evk_video_modes[] = {
 		.lower_margin	= 4,
 		.hsync_len	= 1,
 		.vsync_len	= 1,
-		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT |
-				  FB_SYNC_DOTCLK_FAILING_ACT,
 	},
 };
 
@@ -59,8 +57,6 @@ static struct fb_videomode mx28evk_video_modes[] = {
 		.lower_margin	= 10,
 		.hsync_len	= 10,
 		.vsync_len	= 10,
-		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT |
-				  FB_SYNC_DOTCLK_FAILING_ACT,
 	},
 };
 
@@ -77,7 +73,6 @@ static struct fb_videomode m28evk_video_modes[] = {
 		.lower_margin	= 45,
 		.hsync_len	= 1,
 		.vsync_len	= 1,
-		.sync		= FB_SYNC_DATA_ENABLE_HIGH_ACT,
 	},
 };
 
@@ -94,9 +89,7 @@ static struct fb_videomode apx4devkit_video_modes[] = {
 		.lower_margin	= 13,
 		.hsync_len	= 48,
 		.vsync_len	= 3,
-		.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT |
-				  FB_SYNC_DATA_ENABLE_HIGH_ACT |
-				  FB_SYNC_DOTCLK_FAILING_ACT,
+		.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	},
 };
 
@@ -113,9 +106,23 @@ static struct fb_videomode apf28dev_video_modes[] = {
 		.lower_margin = 0x15,
 		.hsync_len = 64,
 		.vsync_len = 4,
-		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT |
-				FB_SYNC_DATA_ENABLE_HIGH_ACT |
-				FB_SYNC_DOTCLK_FAILING_ACT,
+		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+	},
+};
+
+static struct fb_videomode cfa10049_video_modes[] = {
+	{
+		.name		= "Himax HX8357-B",
+		.refresh	= 60,
+		.xres		= 320,
+		.yres		= 480,
+		.pixclock	= 108506, /* picosecond (9.216 MHz) */
+		.left_margin	= 2,
+		.right_margin	= 2,
+		.upper_margin	= 2,
+		.lower_margin	= 2,
+		.hsync_len	= 15,
+		.vsync_len	= 15,
 	},
 };
 
@@ -163,18 +170,10 @@ static void __init imx23_timer_init(void)
 	mx23_clocks_init();
 }
 
-static struct sys_timer imx23_timer = {
-	.init = imx23_timer_init,
-};
-
 static void __init imx28_timer_init(void)
 {
 	mx28_clocks_init();
 }
-
-static struct sys_timer imx28_timer = {
-	.init = imx28_timer_init,
-};
 
 enum mac_oui {
 	OUI_FSL,
@@ -250,6 +249,8 @@ static void __init imx23_evk_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(mx23evk_video_modes);
 	mxsfb_pdata.default_bpp = 32;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
+				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 }
 
 static inline void enable_clk_enet_out(void)
@@ -269,6 +270,8 @@ static void __init imx28_evk_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(mx28evk_video_modes);
 	mxsfb_pdata.default_bpp = 32;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
+				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 
 	mxs_saif_clkmux_select(MXS_DIGCTL_SAIF_CLKMUX_EXTMSTR0);
 }
@@ -288,6 +291,7 @@ static void __init m28evk_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(m28evk_video_modes);
 	mxsfb_pdata.default_bpp = 16;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT;
 }
 
 static void __init sc_sps1_init(void)
@@ -313,6 +317,8 @@ static void __init apx4devkit_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(apx4devkit_video_modes);
 	mxsfb_pdata.default_bpp = 32;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_24BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
+				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 }
 
 #define ENET0_MDC__GPIO_4_0	MXS_GPIO_NR(4, 0)
@@ -393,6 +399,18 @@ static void __init cfa10049_init(void)
 {
 	enable_clk_enet_out();
 	update_fec_mac_prop(OUI_CRYSTALFONTZ);
+
+	mxsfb_pdata.mode_list = cfa10049_video_modes;
+	mxsfb_pdata.mode_count = ARRAY_SIZE(cfa10049_video_modes);
+	mxsfb_pdata.default_bpp = 32;
+	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT;
+}
+
+static void __init cfa10037_init(void)
+{
+	enable_clk_enet_out();
+	update_fec_mac_prop(OUI_CRYSTALFONTZ);
 }
 
 static void __init apf28_init(void)
@@ -403,6 +421,8 @@ static void __init apf28_init(void)
 	mxsfb_pdata.mode_count = ARRAY_SIZE(apf28dev_video_modes);
 	mxsfb_pdata.default_bpp = 16;
 	mxsfb_pdata.ld_intf_width = STMLCDIF_16BIT;
+	mxsfb_pdata.sync = MXSFB_SYNC_DATA_ENABLE_HIGH_ACT |
+				MXSFB_SYNC_DOTCLK_FAILING_ACT;
 }
 
 static void __init mxs_machine_init(void)
@@ -415,6 +435,8 @@ static void __init mxs_machine_init(void)
 		m28evk_init();
 	else if (of_machine_is_compatible("bluegiga,apx4devkit"))
 		apx4devkit_init();
+	else if (of_machine_is_compatible("crystalfontz,cfa10037"))
+		cfa10037_init();
 	else if (of_machine_is_compatible("crystalfontz,cfa10049"))
 		cfa10049_init();
 	else if (of_machine_is_compatible("armadeus,imx28-apf28"))
@@ -446,7 +468,7 @@ DT_MACHINE_START(IMX23, "Freescale i.MX23 (Device Tree)")
 	.map_io		= mx23_map_io,
 	.init_irq	= icoll_init_irq,
 	.handle_irq	= icoll_handle_irq,
-	.timer		= &imx23_timer,
+	.init_time	= imx23_timer_init,
 	.init_machine	= mxs_machine_init,
 	.dt_compat	= imx23_dt_compat,
 	.restart	= mxs_restart,
@@ -456,7 +478,7 @@ DT_MACHINE_START(IMX28, "Freescale i.MX28 (Device Tree)")
 	.map_io		= mx28_map_io,
 	.init_irq	= icoll_init_irq,
 	.handle_irq	= icoll_handle_irq,
-	.timer		= &imx28_timer,
+	.init_time	= imx28_timer_init,
 	.init_machine	= mxs_machine_init,
 	.dt_compat	= imx28_dt_compat,
 	.restart	= mxs_restart,

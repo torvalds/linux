@@ -85,17 +85,17 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
 	if (!fb_cma)
 		return ERR_PTR(-ENOMEM);
 
+	drm_helper_mode_fill_fb_struct(&fb_cma->fb, mode_cmd);
+
+	for (i = 0; i < num_planes; i++)
+		fb_cma->obj[i] = obj[i];
+
 	ret = drm_framebuffer_init(dev, &fb_cma->fb, &drm_fb_cma_funcs);
 	if (ret) {
 		dev_err(dev->dev, "Failed to initalize framebuffer: %d\n", ret);
 		kfree(fb_cma);
 		return ERR_PTR(ret);
 	}
-
-	drm_helper_mode_fill_fb_struct(&fb_cma->fb, mode_cmd);
-
-	for (i = 0; i < num_planes; i++)
-		fb_cma->obj[i] = obj[i];
 
 	return fb_cma;
 }
@@ -179,6 +179,59 @@ struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
 	return fb_cma->obj[plane];
 }
 EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_obj);
+
+#ifdef CONFIG_DEBUG_FS
+/**
+ * drm_fb_cma_describe() - Helper to dump information about a single
+ * CMA framebuffer object
+ */
+void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
+{
+	struct drm_fb_cma *fb_cma = to_fb_cma(fb);
+	int i, n = drm_format_num_planes(fb->pixel_format);
+
+	seq_printf(m, "fb: %dx%d@%4.4s\n", fb->width, fb->height,
+			(char *)&fb->pixel_format);
+
+	for (i = 0; i < n; i++) {
+		seq_printf(m, "   %d: offset=%d pitch=%d, obj: ",
+				i, fb->offsets[i], fb->pitches[i]);
+		drm_gem_cma_describe(fb_cma->obj[i], m);
+	}
+}
+EXPORT_SYMBOL_GPL(drm_fb_cma_describe);
+
+/**
+ * drm_fb_cma_debugfs_show() - Helper to list CMA framebuffer objects
+ * in debugfs.
+ */
+int drm_fb_cma_debugfs_show(struct seq_file *m, void *arg)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_framebuffer *fb;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
+	if (ret)
+		return ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret) {
+		mutex_unlock(&dev->mode_config.mutex);
+		return ret;
+	}
+
+	list_for_each_entry(fb, &dev->mode_config.fb_list, head)
+		drm_fb_cma_describe(fb, m);
+
+	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(drm_fb_cma_debugfs_show);
+#endif
 
 static struct fb_ops drm_fbdev_cma_ops = {
 	.owner		= THIS_MODULE,
@@ -266,6 +319,7 @@ static int drm_fbdev_cma_create(struct drm_fb_helper *helper,
 	return 0;
 
 err_drm_fb_cma_destroy:
+	drm_framebuffer_unregister_private(fb);
 	drm_fb_cma_destroy(fb);
 err_framebuffer_release:
 	framebuffer_release(fbi);
@@ -274,23 +328,8 @@ err_drm_gem_cma_free_object:
 	return ret;
 }
 
-static int drm_fbdev_cma_probe(struct drm_fb_helper *helper,
-	struct drm_fb_helper_surface_size *sizes)
-{
-	int ret = 0;
-
-	if (!helper->fb) {
-		ret = drm_fbdev_cma_create(helper, sizes);
-		if (ret < 0)
-			return ret;
-		ret = 1;
-	}
-
-	return ret;
-}
-
 static struct drm_fb_helper_funcs drm_fb_cma_helper_funcs = {
-	.fb_probe = drm_fbdev_cma_probe,
+	.fb_probe = drm_fbdev_cma_create,
 };
 
 /**
@@ -332,6 +371,9 @@ struct drm_fbdev_cma *drm_fbdev_cma_init(struct drm_device *dev,
 
 	}
 
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(dev);
+
 	ret = drm_fb_helper_initial_config(helper, preferred_bpp);
 	if (ret < 0) {
 		dev_err(dev->dev, "Failed to set inital hw configuration.\n");
@@ -370,8 +412,10 @@ void drm_fbdev_cma_fini(struct drm_fbdev_cma *fbdev_cma)
 		framebuffer_release(info);
 	}
 
-	if (fbdev_cma->fb)
+	if (fbdev_cma->fb) {
+		drm_framebuffer_unregister_private(&fbdev_cma->fb->fb);
 		drm_fb_cma_destroy(&fbdev_cma->fb->fb);
+	}
 
 	drm_fb_helper_fini(&fbdev_cma->fb_helper);
 	kfree(fbdev_cma);
@@ -386,8 +430,13 @@ EXPORT_SYMBOL_GPL(drm_fbdev_cma_fini);
  */
 void drm_fbdev_cma_restore_mode(struct drm_fbdev_cma *fbdev_cma)
 {
-	if (fbdev_cma)
+	if (fbdev_cma) {
+		struct drm_device *dev = fbdev_cma->fb_helper.dev;
+
+		drm_modeset_lock_all(dev);
 		drm_fb_helper_restore_fbdev_mode(&fbdev_cma->fb_helper);
+		drm_modeset_unlock_all(dev);
+	}
 }
 EXPORT_SYMBOL_GPL(drm_fbdev_cma_restore_mode);
 

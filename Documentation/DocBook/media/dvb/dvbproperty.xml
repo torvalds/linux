@@ -7,14 +7,41 @@ the capability ioctls weren't implemented yet via the new way.</para>
 <para>The typical usage for the <constant>FE_GET_PROPERTY/FE_SET_PROPERTY</constant>
 API is to replace the ioctl's were the <link linkend="dvb-frontend-parameters">
 struct <constant>dvb_frontend_parameters</constant></link> were used.</para>
+<section id="dtv-stats">
+<title>DTV stats type</title>
+<programlisting>
+struct dtv_stats {
+	__u8 scale;	/* enum fecap_scale_params type */
+	union {
+		__u64 uvalue;	/* for counters and relative scales */
+		__s64 svalue;	/* for 1/1000 dB measures */
+	};
+} __packed;
+</programlisting>
+</section>
+<section id="dtv-fe-stats">
+<title>DTV stats type</title>
+<programlisting>
+#define MAX_DTV_STATS   4
+
+struct dtv_fe_stats {
+	__u8 len;
+	struct dtv_stats stat[MAX_DTV_STATS];
+} __packed;
+</programlisting>
+</section>
+
 <section id="dtv-property">
 <title>DTV property type</title>
 <programlisting>
 /* Reserved fields should be set to 0 */
+
 struct dtv_property {
 	__u32 cmd;
+	__u32 reserved[3];
 	union {
 		__u32 data;
+		struct dtv_fe_stats st;
 		struct {
 			__u8 data[32];
 			__u32 len;
@@ -440,7 +467,7 @@ typedef enum fe_delivery_system {
 		<title><constant>DTV-ISDBT-LAYER*</constant> parameters</title>
 		<para>ISDB-T channels can be coded hierarchically. As opposed to DVB-T in
 			ISDB-T hierarchical layers can be decoded simultaneously. For that
-			reason a ISDB-T demodulator has 3 viterbi and 3 reed-solomon-decoders.</para>
+			reason a ISDB-T demodulator has 3 Viterbi and 3 Reed-Solomon decoders.</para>
 		<para>ISDB-T has 3 hierarchical layers which each can use a part of the
 			available segments. The total number of segments over all layers has
 			to 13 in ISDB-T.</para>
@@ -850,6 +877,147 @@ enum fe_interleaving {
 	<para>use the special macro LNA_AUTO to set LNA auto</para>
 	</section>
 </section>
+
+	<section id="frontend-stat-properties">
+	<title>Frontend statistics indicators</title>
+	<para>The values are returned via <constant>dtv_property.stat</constant>.
+	      If the property is supported, <constant>dtv_property.stat.len</constant> is bigger than zero.</para>
+	<para>For most delivery systems, <constant>dtv_property.stat.len</constant>
+	      will be 1 if the stats is supported, and the properties will
+	      return a single value for each parameter.</para>
+	<para>It should be noticed, however, that new OFDM delivery systems
+	      like ISDB can use different modulation types for each group of
+	      carriers. On such standards, up to 3 groups of statistics can be
+	      provided, and <constant>dtv_property.stat.len</constant> is updated
+	      to reflect the "global" metrics, plus one metric per each carrier
+	      group (called "layer" on ISDB).</para>
+	<para>So, in order to be consistent with other delivery systems, the first
+	      value at <link linkend="dtv-stats"><constant>dtv_property.stat.dtv_stats</constant></link>
+	      array refers to the global metric. The other elements of the array
+	      represent each layer, starting from layer A(index 1),
+	      layer B (index 2) and so on.</para>
+	<para>The number of filled elements are stored at <constant>dtv_property.stat.len</constant>.</para>
+	<para>Each element of the <constant>dtv_property.stat.dtv_stats</constant> array consists on two elements:</para>
+	<itemizedlist mark='opencircle'>
+		<listitem><para><constant>svalue</constant> or <constant>uvalue</constant>, where
+			<constant>svalue</constant> is for signed values of the measure (dB measures)
+			and <constant>uvalue</constant> is for unsigned values (counters, relative scale)</para></listitem>
+		<listitem><para><constant>scale</constant> - Scale for the value. It can be:</para>
+			<section id = "fecap-scale-params">
+			<itemizedlist mark='bullet'>
+				<listitem><para><constant>FE_SCALE_NOT_AVAILABLE</constant> - The parameter is supported by the frontend, but it was not possible to collect it (could be a transitory or permanent condition)</para></listitem>
+				<listitem><para><constant>FE_SCALE_DECIBEL</constant> - parameter is a signed value, measured in 1/1000 dB</para></listitem>
+				<listitem><para><constant>FE_SCALE_RELATIVE</constant> - parameter is a unsigned value, where 0 means 0% and 65535 means 100%.</para></listitem>
+				<listitem><para><constant>FE_SCALE_COUNTER</constant> - parameter is a unsigned value that counts the occurrence of an event, like bit error, block error, or lapsed time.</para></listitem>
+			</itemizedlist>
+			</section>
+		</listitem>
+	</itemizedlist>
+	<section id="DTV-STAT-SIGNAL-STRENGTH">
+		<title><constant>DTV_STAT_SIGNAL_STRENGTH</constant></title>
+		<para>Indicates the signal strength level at the analog part of the tuner or of the demod.</para>
+		<para>Possible scales for this metric are:</para>
+		<itemizedlist mark='bullet'>
+			<listitem><constant>FE_SCALE_NOT_AVAILABLE</constant> - it failed to measure it, or the measurement was not complete yet.</listitem>
+			<listitem><constant>FE_SCALE_DECIBEL</constant> - signal strength is in 0.0001 dBm units, power measured in miliwatts. This value is generally negative.</listitem>
+			<listitem><constant>FE_SCALE_RELATIVE</constant> - The frontend provides a 0% to 100% measurement for power (actually, 0 to 65535).</listitem>
+		</itemizedlist>
+	</section>
+	<section id="DTV-STAT-CNR">
+		<title><constant>DTV_STAT_CNR</constant></title>
+		<para>Indicates the Signal to Noise ratio for the main carrier.</para>
+		<para>Possible scales for this metric are:</para>
+		<itemizedlist mark='bullet'>
+			<listitem><constant>FE_SCALE_NOT_AVAILABLE</constant> - it failed to measure it, or the measurement was not complete yet.</listitem>
+			<listitem><constant>FE_SCALE_DECIBEL</constant> - Signal/Noise ratio is in 0.0001 dB units.</listitem>
+			<listitem><constant>FE_SCALE_RELATIVE</constant> - The frontend provides a 0% to 100% measurement for Signal/Noise (actually, 0 to 65535).</listitem>
+		</itemizedlist>
+	</section>
+	<section id="DTV-STAT-PRE-ERROR-BIT-COUNT">
+		<title><constant>DTV_STAT_PRE_ERROR_BIT_COUNT</constant></title>
+		<para>Measures the number of bit errors before the forward error correction (FEC) on the inner coding block (before Viterbi, LDPC or other inner code).</para>
+		<para>This measure is taken during the same interval as <constant>DTV_STAT_PRE_TOTAL_BIT_COUNT</constant>.</para>
+		<para>In order to get the BER (Bit Error Rate) measurement, it should be divided by
+		<link linkend="DTV-STAT-PRE-TOTAL-BIT-COUNT"><constant>DTV_STAT_PRE_TOTAL_BIT_COUNT</constant></link>.</para>
+		<para>This measurement is monotonically increased, as the frontend gets more bit count measurements.
+		      The frontend may reset it when a channel/transponder is tuned.</para>
+		<para>Possible scales for this metric are:</para>
+		<itemizedlist mark='bullet'>
+			<listitem><constant>FE_SCALE_NOT_AVAILABLE</constant> - it failed to measure it, or the measurement was not complete yet.</listitem>
+			<listitem><constant>FE_SCALE_COUNTER</constant> - Number of error bits counted before the inner coding.</listitem>
+		</itemizedlist>
+	</section>
+	<section id="DTV-STAT-PRE-TOTAL-BIT-COUNT">
+		<title><constant>DTV_STAT_PRE_TOTAL_BIT_COUNT</constant></title>
+		<para>Measures the amount of bits received before the inner code block, during the same period as
+		<link linkend="DTV-STAT-PRE-ERROR-BIT-COUNT"><constant>DTV_STAT_PRE_ERROR_BIT_COUNT</constant></link> measurement was taken.</para>
+		<para>It should be noticed that this measurement can be smaller than the total amount of bits on the transport stream,
+		      as the frontend may need to manually restart the measurement, loosing some data between each measurement interval.</para>
+		<para>This measurement is monotonically increased, as the frontend gets more bit count measurements.
+		      The frontend may reset it when a channel/transponder is tuned.</para>
+		<para>Possible scales for this metric are:</para>
+		<itemizedlist mark='bullet'>
+			<listitem><constant>FE_SCALE_NOT_AVAILABLE</constant> - it failed to measure it, or the measurement was not complete yet.</listitem>
+			<listitem><constant>FE_SCALE_COUNTER</constant> - Number of bits counted while measuring
+				 <link linkend="DTV-STAT-PRE-ERROR-BIT-COUNT"><constant>DTV_STAT_PRE_ERROR_BIT_COUNT</constant></link>.</listitem>
+		</itemizedlist>
+	</section>
+	<section id="DTV-STAT-POST-ERROR-BIT-COUNT">
+		<title><constant>DTV_STAT_POST_ERROR_BIT_COUNT</constant></title>
+		<para>Measures the number of bit errors after the forward error correction (FEC) done by inner code block (after Viterbi, LDPC or other inner code).</para>
+		<para>This measure is taken during the same interval as <constant>DTV_STAT_POST_TOTAL_BIT_COUNT</constant>.</para>
+		<para>In order to get the BER (Bit Error Rate) measurement, it should be divided by
+		<link linkend="DTV-STAT-POST-TOTAL-BIT-COUNT"><constant>DTV_STAT_POST_TOTAL_BIT_COUNT</constant></link>.</para>
+		<para>This measurement is monotonically increased, as the frontend gets more bit count measurements.
+		      The frontend may reset it when a channel/transponder is tuned.</para>
+		<para>Possible scales for this metric are:</para>
+		<itemizedlist mark='bullet'>
+			<listitem><constant>FE_SCALE_NOT_AVAILABLE</constant> - it failed to measure it, or the measurement was not complete yet.</listitem>
+			<listitem><constant>FE_SCALE_COUNTER</constant> - Number of error bits counted after the inner coding.</listitem>
+		</itemizedlist>
+	</section>
+	<section id="DTV-STAT-POST-TOTAL-BIT-COUNT">
+		<title><constant>DTV_STAT_POST_TOTAL_BIT_COUNT</constant></title>
+		<para>Measures the amount of bits received after the inner coding, during the same period as
+		<link linkend="DTV-STAT-POST-ERROR-BIT-COUNT"><constant>DTV_STAT_POST_ERROR_BIT_COUNT</constant></link> measurement was taken.</para>
+		<para>It should be noticed that this measurement can be smaller than the total amount of bits on the transport stream,
+		      as the frontend may need to manually restart the measurement, loosing some data between each measurement interval.</para>
+		<para>This measurement is monotonically increased, as the frontend gets more bit count measurements.
+		      The frontend may reset it when a channel/transponder is tuned.</para>
+		<para>Possible scales for this metric are:</para>
+		<itemizedlist mark='bullet'>
+			<listitem><constant>FE_SCALE_NOT_AVAILABLE</constant> - it failed to measure it, or the measurement was not complete yet.</listitem>
+			<listitem><constant>FE_SCALE_COUNTER</constant> - Number of bits counted while measuring
+				 <link linkend="DTV-STAT-POST-ERROR-BIT-COUNT"><constant>DTV_STAT_POST_ERROR_BIT_COUNT</constant></link>.</listitem>
+		</itemizedlist>
+	</section>
+	<section id="DTV-STAT-ERROR-BLOCK-COUNT">
+		<title><constant>DTV_STAT_ERROR_BLOCK_COUNT</constant></title>
+		<para>Measures the number of block errors after the outer forward error correction coding (after Reed-Solomon or other outer code).</para>
+		<para>This measurement is monotonically increased, as the frontend gets more bit count measurements.
+		      The frontend may reset it when a channel/transponder is tuned.</para>
+		<para>Possible scales for this metric are:</para>
+		<itemizedlist mark='bullet'>
+			<listitem><constant>FE_SCALE_NOT_AVAILABLE</constant> - it failed to measure it, or the measurement was not complete yet.</listitem>
+			<listitem><constant>FE_SCALE_COUNTER</constant> - Number of error blocks counted after the outer coding.</listitem>
+		</itemizedlist>
+	</section>
+	<section id="DTV-STAT-TOTAL-BLOCK-COUNT">
+		<title><constant>DTV-STAT_TOTAL_BLOCK_COUNT</constant></title>
+		<para>Measures the total number of blocks received during the same period as
+		<link linkend="DTV-STAT-ERROR-BLOCK-COUNT"><constant>DTV_STAT_ERROR_BLOCK_COUNT</constant></link> measurement was taken.</para>
+		<para>It can be used to calculate the PER indicator, by dividing
+		<link linkend="DTV-STAT-ERROR-BLOCK-COUNT"><constant>DTV_STAT_ERROR_BLOCK_COUNT</constant></link>
+		by <link linkend="DTV-STAT-TOTAL-BLOCK-COUNT"><constant>DTV-STAT-TOTAL-BLOCK-COUNT</constant></link>.</para>
+		<para>Possible scales for this metric are:</para>
+		<itemizedlist mark='bullet'>
+			<listitem><constant>FE_SCALE_NOT_AVAILABLE</constant> - it failed to measure it, or the measurement was not complete yet.</listitem>
+			<listitem><constant>FE_SCALE_COUNTER</constant> - Number of blocks counted while measuring
+			<link linkend="DTV-STAT-ERROR-BLOCK-COUNT"><constant>DTV_STAT_ERROR_BLOCK_COUNT</constant></link>.</listitem>
+		</itemizedlist>
+	</section>
+	</section>
+
 	<section id="frontend-property-terrestrial-systems">
 	<title>Properties used on terrestrial delivery systems</title>
 		<section id="dvbt-params">
@@ -871,6 +1039,7 @@ enum fe_interleaving {
 				<listitem><para><link linkend="DTV-HIERARCHY"><constant>DTV_HIERARCHY</constant></link></para></listitem>
 				<listitem><para><link linkend="DTV-LNA"><constant>DTV_LNA</constant></link></para></listitem>
 			</itemizedlist>
+			<para>In addition, the <link linkend="frontend-stat-properties">DTV QoS statistics</link> are also valid.</para>
 		</section>
 		<section id="dvbt2-params">
 			<title>DVB-T2 delivery system</title>
@@ -895,6 +1064,7 @@ enum fe_interleaving {
 			<listitem><para><link linkend="DTV-STREAM-ID"><constant>DTV_STREAM_ID</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-LNA"><constant>DTV_LNA</constant></link></para></listitem>
 		</itemizedlist>
+		<para>In addition, the <link linkend="frontend-stat-properties">DTV QoS statistics</link> are also valid.</para>
 		</section>
 		<section id="isdbt">
 		<title>ISDB-T delivery system</title>
@@ -948,6 +1118,7 @@ enum fe_interleaving {
 			<listitem><para><link linkend="DTV-ISDBT-LAYER-SEGMENT-COUNT"><constant>DTV_ISDBT_LAYERC_SEGMENT_COUNT</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-ISDBT-LAYER-TIME-INTERLEAVING"><constant>DTV_ISDBT_LAYERC_TIME_INTERLEAVING</constant></link></para></listitem>
 		</itemizedlist>
+		<para>In addition, the <link linkend="frontend-stat-properties">DTV QoS statistics</link> are also valid.</para>
 		</section>
 		<section id="atsc-params">
 			<title>ATSC delivery system</title>
@@ -961,6 +1132,7 @@ enum fe_interleaving {
 				<listitem><para><link linkend="DTV-MODULATION"><constant>DTV_MODULATION</constant></link></para></listitem>
 				<listitem><para><link linkend="DTV-BANDWIDTH-HZ"><constant>DTV_BANDWIDTH_HZ</constant></link></para></listitem>
 			</itemizedlist>
+			<para>In addition, the <link linkend="frontend-stat-properties">DTV QoS statistics</link> are also valid.</para>
 		</section>
 		<section id="atscmh-params">
 			<title>ATSC-MH delivery system</title>
@@ -988,6 +1160,7 @@ enum fe_interleaving {
 				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE-MODE-C"><constant>DTV_ATSCMH_SCCC_CODE_MODE_C</constant></link></para></listitem>
 				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE-MODE-D"><constant>DTV_ATSCMH_SCCC_CODE_MODE_D</constant></link></para></listitem>
 			</itemizedlist>
+			<para>In addition, the <link linkend="frontend-stat-properties">DTV QoS statistics</link> are also valid.</para>
 		</section>
 		<section id="dtmb-params">
 			<title>DTMB delivery system</title>
@@ -1007,6 +1180,7 @@ enum fe_interleaving {
 				<listitem><para><link linkend="DTV-INTERLEAVING"><constant>DTV_INTERLEAVING</constant></link></para></listitem>
 				<listitem><para><link linkend="DTV-LNA"><constant>DTV_LNA</constant></link></para></listitem>
 			</itemizedlist>
+			<para>In addition, the <link linkend="frontend-stat-properties">DTV QoS statistics</link> are also valid.</para>
 		</section>
 	</section>
 	<section id="frontend-property-cable-systems">
@@ -1028,6 +1202,7 @@ enum fe_interleaving {
 			<listitem><para><link linkend="DTV-INNER-FEC"><constant>DTV_INNER_FEC</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-LNA"><constant>DTV_LNA</constant></link></para></listitem>
 		</itemizedlist>
+		<para>In addition, the <link linkend="frontend-stat-properties">DTV QoS statistics</link> are also valid.</para>
 	</section>
 	<section id="dvbc-annex-b-params">
 		<title>DVB-C Annex B delivery system</title>
@@ -1043,6 +1218,7 @@ enum fe_interleaving {
 			<listitem><para><link linkend="DTV-INVERSION"><constant>DTV_INVERSION</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-LNA"><constant>DTV_LNA</constant></link></para></listitem>
 		</itemizedlist>
+		<para>In addition, the <link linkend="frontend-stat-properties">DTV QoS statistics</link> are also valid.</para>
 	</section>
 	</section>
 	<section id="frontend-property-satellital-systems">
@@ -1062,6 +1238,7 @@ enum fe_interleaving {
 			<listitem><para><link linkend="DTV-VOLTAGE"><constant>DTV_VOLTAGE</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-TONE"><constant>DTV_TONE</constant></link></para></listitem>
 		</itemizedlist>
+		<para>In addition, the <link linkend="frontend-stat-properties">DTV QoS statistics</link> are also valid.</para>
 		<para>Future implementations might add those two missing parameters:</para>
 		<itemizedlist mark='opencircle'>
 			<listitem><para><link linkend="DTV-DISEQC-MASTER"><constant>DTV_DISEQC_MASTER</constant></link></para></listitem>
@@ -1077,6 +1254,7 @@ enum fe_interleaving {
 			<listitem><para><link linkend="DTV-ROLLOFF"><constant>DTV_ROLLOFF</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-STREAM-ID"><constant>DTV_STREAM_ID</constant></link></para></listitem>
 		</itemizedlist>
+		<para>In addition, the <link linkend="frontend-stat-properties">DTV QoS statistics</link> are also valid.</para>
 	</section>
 	<section id="turbo-params">
 		<title>Turbo code delivery system</title>

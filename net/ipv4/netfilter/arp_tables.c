@@ -901,7 +901,7 @@ static int get_info(struct net *net, void __user *user,
 #endif
 	t = try_then_request_module(xt_find_table_lock(net, NFPROTO_ARP, name),
 				    "arptable_%s", name);
-	if (t && !IS_ERR(t)) {
+	if (!IS_ERR_OR_NULL(t)) {
 		struct arpt_getinfo info;
 		const struct xt_table_info *private = t->private;
 #ifdef CONFIG_COMPAT
@@ -958,7 +958,7 @@ static int get_entries(struct net *net, struct arpt_get_entries __user *uptr,
 	}
 
 	t = xt_find_table_lock(net, NFPROTO_ARP, get.name);
-	if (t && !IS_ERR(t)) {
+	if (!IS_ERR_OR_NULL(t)) {
 		const struct xt_table_info *private = t->private;
 
 		duprintf("t->private->number = %u\n",
@@ -1001,7 +1001,7 @@ static int __do_replace(struct net *net, const char *name,
 
 	t = try_then_request_module(xt_find_table_lock(net, NFPROTO_ARP, name),
 				    "arptable_%s", name);
-	if (!t || IS_ERR(t)) {
+	if (IS_ERR_OR_NULL(t)) {
 		ret = t ? PTR_ERR(t) : -ENOENT;
 		goto free_newinfo_counters_untrans;
 	}
@@ -1158,7 +1158,7 @@ static int do_add_counters(struct net *net, const void __user *user,
 	}
 
 	t = xt_find_table_lock(net, NFPROTO_ARP, name);
-	if (!t || IS_ERR(t)) {
+	if (IS_ERR_OR_NULL(t)) {
 		ret = t ? PTR_ERR(t) : -ENOENT;
 		goto free;
 	}
@@ -1646,7 +1646,7 @@ static int compat_get_entries(struct net *net,
 
 	xt_compat_lock(NFPROTO_ARP);
 	t = xt_find_table_lock(net, NFPROTO_ARP, get.name);
-	if (t && !IS_ERR(t)) {
+	if (!IS_ERR_OR_NULL(t)) {
 		const struct xt_table_info *private = t->private;
 		struct xt_table_info info;
 

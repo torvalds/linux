@@ -538,6 +538,7 @@ struct fc_vft_header {
 #define ELS_CMD_ECHO      0x10000000
 #define ELS_CMD_TEST      0x11000000
 #define ELS_CMD_RRQ       0x12000000
+#define ELS_CMD_REC       0x13000000
 #define ELS_CMD_PRLI      0x20100014
 #define ELS_CMD_PRLO      0x21100014
 #define ELS_CMD_PRLO_ACC  0x02100014
@@ -574,6 +575,7 @@ struct fc_vft_header {
 #define ELS_CMD_ECHO      0x10
 #define ELS_CMD_TEST      0x11
 #define ELS_CMD_RRQ       0x12
+#define ELS_CMD_REC       0x13
 #define ELS_CMD_PRLI      0x14001020
 #define ELS_CMD_PRLO      0x14001021
 #define ELS_CMD_PRLO_ACC  0x14001002

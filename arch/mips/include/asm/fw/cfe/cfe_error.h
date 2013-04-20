@@ -25,7 +25,7 @@
  */
 
 #define CFE_OK			 0
-#define CFE_ERR                 -1	/* generic error */
+#define CFE_ERR			-1	/* generic error */
 #define CFE_ERR_INV_COMMAND	-2
 #define CFE_ERR_EOF		-3
 #define CFE_ERR_IOERR		-4
@@ -37,12 +37,12 @@
 #define CFE_ERR_ENVREADONLY	-10
 
 #define CFE_ERR_NOTELF		-11
-#define CFE_ERR_NOT32BIT 	-12
-#define CFE_ERR_WRONGENDIAN 	-13
-#define CFE_ERR_BADELFVERS 	-14
-#define CFE_ERR_NOTMIPS 	-15
-#define CFE_ERR_BADELFFMT 	-16
-#define CFE_ERR_BADADDR 	-17
+#define CFE_ERR_NOT32BIT	-12
+#define CFE_ERR_WRONGENDIAN	-13
+#define CFE_ERR_BADELFVERS	-14
+#define CFE_ERR_NOTMIPS		-15
+#define CFE_ERR_BADELFFMT	-16
+#define CFE_ERR_BADADDR		-17
 
 #define CFE_ERR_FILENOTFOUND	-18
 #define CFE_ERR_UNSUPPORTED	-19
@@ -73,8 +73,8 @@
 
 #define CFE_ERR_NOTREADY	-36
 
-#define CFE_ERR_GETMEM          -37
-#define CFE_ERR_SETMEM          -38
+#define CFE_ERR_GETMEM		-37
+#define CFE_ERR_SETMEM		-38
 
 #define CFE_ERR_NOTCONN		-39
 #define CFE_ERR_ADDRINUSE	-40

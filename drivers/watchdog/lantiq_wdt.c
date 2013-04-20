@@ -197,11 +197,9 @@ ltq_wdt_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	ltq_wdt_membase = devm_request_and_ioremap(&pdev->dev, res);
-	if (!ltq_wdt_membase) {
-		dev_err(&pdev->dev, "cannot remap I/O memory region\n");
-		return -ENOMEM;
-	}
+	ltq_wdt_membase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ltq_wdt_membase))
+		return PTR_ERR(ltq_wdt_membase);
 
 	/* we do not need to enable the clock as it is always running */
 	clk = clk_get_io();

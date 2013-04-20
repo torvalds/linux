@@ -1,0 +1,20 @@
+* Toshiba Mobile IO SD/MMC controller
+
+The tmio-mmc driver doesn't probe its devices actively, instead its binding to
+devices is managed by either MFD drivers or by the sh_mobile_sdhi platform
+driver. Those drivers supply the tmio-mmc driver with platform data, that either
+describe hardware capabilities, known to them, or are obtained by them from
+their own platform data or from their DT information. In the latter case all
+compulsory and any optional properties, common to all SD/MMC drivers, as
+described in mmc.txt, can be used. Additionally the following tmio_mmc-specific
+optional bindings can be used.
+
+Optional properties:
+- toshiba,mmc-wrprotect-disable: write-protect detection is unavailable
+
+When used with Renesas SDHI hardware, the following compatibility strings
+configure various model-specific properties:
+
+"renesas,sh7372-sdhi":	(default) compatible with SH7372
+"renesas,r8a7740-sdhi":	compatible with R8A7740: certain MMC/SD commands have to
+			wait for the interface to become idle.

@@ -23,6 +23,9 @@ enum nf_ct_ext_id {
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	NF_CT_EXT_TIMEOUT,
 #endif
+#ifdef CONFIG_NF_CONNTRACK_LABELS
+	NF_CT_EXT_LABELS,
+#endif
 	NF_CT_EXT_NUM,
 };
 
@@ -33,6 +36,7 @@ enum nf_ct_ext_id {
 #define NF_CT_EXT_ZONE_TYPE struct nf_conntrack_zone
 #define NF_CT_EXT_TSTAMP_TYPE struct nf_conn_tstamp
 #define NF_CT_EXT_TIMEOUT_TYPE struct nf_conn_timeout
+#define NF_CT_EXT_LABELS_TYPE struct nf_conn_labels
 
 /* Extensions: optional stuff which isn't permanently in struct. */
 struct nf_ct_ext {

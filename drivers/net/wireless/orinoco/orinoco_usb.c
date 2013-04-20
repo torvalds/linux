@@ -804,10 +804,15 @@ static inline int ezusb_8051_cpucs(struct ezusb_priv *upriv, int reset)
 static int ezusb_firmware_download(struct ezusb_priv *upriv,
 				   struct ez_usb_fw *fw)
 {
-	u8 fw_buffer[FW_BUF_SIZE];
+	u8 *fw_buffer;
 	int retval, addr;
 	int variant_offset;
 
+	fw_buffer = kmalloc(FW_BUF_SIZE, GFP_KERNEL);
+	if (!fw_buffer) {
+		printk(KERN_ERR PFX "Out of memory for firmware buffer.\n");
+		return -ENOMEM;
+	}
 	/*
 	 * This byte is 1 and should be replaced with 0.  The offset is
 	 * 0x10AD in version 0.0.6.  The byte in question should follow
@@ -859,6 +864,7 @@ static int ezusb_firmware_download(struct ezusb_priv *upriv,
 	printk(KERN_ERR PFX "Firmware download failed, error %d\n",
 	       retval);
  exit:
+	kfree(fw_buffer);
 	return retval;
 }
 
@@ -1681,7 +1687,8 @@ static int ezusb_probe(struct usb_interface *interface,
 		firmware.code = fw_entry->data;
 	}
 	if (firmware.size && firmware.code) {
-		ezusb_firmware_download(upriv, &firmware);
+		if (ezusb_firmware_download(upriv, &firmware))
+			goto error;
 	} else {
 		err("No firmware to download");
 		goto error;

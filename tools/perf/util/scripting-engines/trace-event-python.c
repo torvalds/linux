@@ -265,6 +265,7 @@ static void python_process_tracepoint(union perf_event *perf_event
 	ns = nsecs - s * NSECS_PER_SEC;
 
 	scripting_context->event_data = data;
+	scripting_context->pevent = evsel->tp_format->pevent;
 
 	context = PyCObject_FromVoidPtr(scripting_context, NULL);
 

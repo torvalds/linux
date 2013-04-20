@@ -55,6 +55,8 @@ EXPORT_SYMBOL(hv_dev_poll_cancel);
 EXPORT_SYMBOL(hv_dev_close);
 EXPORT_SYMBOL(hv_sysconf);
 EXPORT_SYMBOL(hv_confstr);
+EXPORT_SYMBOL(hv_get_rtc);
+EXPORT_SYMBOL(hv_set_rtc);
 
 /* libgcc.a */
 uint32_t __udivsi3(uint32_t dividend, uint32_t divisor);

@@ -22,35 +22,15 @@ int test__basic_mmap(void)
 	struct thread_map *threads;
 	struct cpu_map *cpus;
 	struct perf_evlist *evlist;
-	struct perf_event_attr attr = {
-		.type		= PERF_TYPE_TRACEPOINT,
-		.read_format	= PERF_FORMAT_ID,
-		.sample_type	= PERF_SAMPLE_ID,
-		.watermark	= 0,
-	};
 	cpu_set_t cpu_set;
 	const char *syscall_names[] = { "getsid", "getppid", "getpgrp",
 					"getpgid", };
 	pid_t (*syscalls[])(void) = { (void *)getsid, getppid, getpgrp,
 				      (void*)getpgid };
 #define nsyscalls ARRAY_SIZE(syscall_names)
-	int ids[nsyscalls];
 	unsigned int nr_events[nsyscalls],
 		     expected_nr_events[nsyscalls], i, j;
 	struct perf_evsel *evsels[nsyscalls], *evsel;
-
-	for (i = 0; i < nsyscalls; ++i) {
-		char name[64];
-
-		snprintf(name, sizeof(name), "sys_enter_%s", syscall_names[i]);
-		ids[i] = trace_event__id(name);
-		if (ids[i] < 0) {
-			pr_debug("Is debugfs mounted on /sys/kernel/debug?\n");
-			return -1;
-		}
-		nr_events[i] = 0;
-		expected_nr_events[i] = random() % 257;
-	}
 
 	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	if (threads == NULL) {
@@ -79,17 +59,18 @@ int test__basic_mmap(void)
 		goto out_free_cpus;
 	}
 
-	/* anonymous union fields, can't be initialized above */
-	attr.wakeup_events = 1;
-	attr.sample_period = 1;
-
 	for (i = 0; i < nsyscalls; ++i) {
-		attr.config = ids[i];
-		evsels[i] = perf_evsel__new(&attr, i);
+		char name[64];
+
+		snprintf(name, sizeof(name), "sys_enter_%s", syscall_names[i]);
+		evsels[i] = perf_evsel__newtp("syscalls", name, i);
 		if (evsels[i] == NULL) {
 			pr_debug("perf_evsel__new\n");
 			goto out_free_evlist;
 		}
+
+		evsels[i]->attr.wakeup_events = 1;
+		perf_evsel__set_sample_id(evsels[i]);
 
 		perf_evlist__add(evlist, evsels[i]);
 
@@ -99,6 +80,9 @@ int test__basic_mmap(void)
 				 strerror(errno));
 			goto out_close_fd;
 		}
+
+		nr_events[i] = 0;
+		expected_nr_events[i] = 1 + rand() % 127;
 	}
 
 	if (perf_evlist__mmap(evlist, 128, true) < 0) {
@@ -128,6 +112,7 @@ int test__basic_mmap(void)
 			goto out_munmap;
 		}
 
+		err = -1;
 		evsel = perf_evlist__id2evsel(evlist, sample.id);
 		if (evsel == NULL) {
 			pr_debug("event with id %" PRIu64
@@ -137,16 +122,17 @@ int test__basic_mmap(void)
 		nr_events[evsel->idx]++;
 	}
 
+	err = 0;
 	list_for_each_entry(evsel, &evlist->entries, node) {
 		if (nr_events[evsel->idx] != expected_nr_events[evsel->idx]) {
 			pr_debug("expected %d %s events, got %d\n",
 				 expected_nr_events[evsel->idx],
 				 perf_evsel__name(evsel), nr_events[evsel->idx]);
+			err = -1;
 			goto out_munmap;
 		}
 	}
 
-	err = 0;
 out_munmap:
 	perf_evlist__munmap(evlist);
 out_close_fd:

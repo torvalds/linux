@@ -94,8 +94,8 @@ int proc_nr_files(ctl_table *table, int write,
 #endif
 
 /* Find an unused file structure and return a pointer to it.
- * Returns NULL, if there are no more free file structures or
- * we run out of memory.
+ * Returns an error pointer if some error happend e.g. we over file
+ * structures limit, run out of memory or operation is not permitted.
  *
  * Be very careful using this.  You are responsible for
  * getting write access to any mount that you might assign
@@ -107,7 +107,8 @@ struct file *get_empty_filp(void)
 {
 	const struct cred *cred = current_cred();
 	static long old_max;
-	struct file * f;
+	struct file *f;
+	int error;
 
 	/*
 	 * Privileged users can go above max_files
@@ -122,13 +123,16 @@ struct file *get_empty_filp(void)
 	}
 
 	f = kmem_cache_zalloc(filp_cachep, GFP_KERNEL);
-	if (f == NULL)
-		goto fail;
+	if (unlikely(!f))
+		return ERR_PTR(-ENOMEM);
 
 	percpu_counter_inc(&nr_files);
 	f->f_cred = get_cred(cred);
-	if (security_file_alloc(f))
-		goto fail_sec;
+	error = security_file_alloc(f);
+	if (unlikely(error)) {
+		file_free(f);
+		return ERR_PTR(error);
+	}
 
 	INIT_LIST_HEAD(&f->f_u.fu_list);
 	atomic_long_set(&f->f_count, 1);
@@ -144,12 +148,7 @@ over:
 		pr_info("VFS: file-max limit %lu reached\n", get_max_files());
 		old_max = get_nr_files();
 	}
-	goto fail;
-
-fail_sec:
-	file_free(f);
-fail:
-	return NULL;
+	return ERR_PTR(-ENFILE);
 }
 
 /**
@@ -173,10 +172,11 @@ struct file *alloc_file(struct path *path, fmode_t mode,
 	struct file *file;
 
 	file = get_empty_filp();
-	if (!file)
-		return NULL;
+	if (IS_ERR(file))
+		return file;
 
 	file->f_path = *path;
+	file->f_inode = path->dentry->d_inode;
 	file->f_mapping = path->dentry->d_inode->i_mapping;
 	file->f_mode = mode;
 	file->f_op = fop;
@@ -259,6 +259,7 @@ static void __fput(struct file *file)
 		drop_file_write_access(file);
 	file->f_path.dentry = NULL;
 	file->f_path.mnt = NULL;
+	file->f_inode = NULL;
 	file_free(file);
 	dput(dentry);
 	mntput(mnt);
@@ -447,7 +448,7 @@ void mark_files_ro(struct super_block *sb)
 
 	lg_global_lock(&files_lglock);
 	do_file_list_for_each_entry(sb, f) {
-		if (!S_ISREG(f->f_path.dentry->d_inode->i_mode))
+		if (!S_ISREG(file_inode(f)->i_mode))
 		       continue;
 		if (!file_count(f))
 			continue;

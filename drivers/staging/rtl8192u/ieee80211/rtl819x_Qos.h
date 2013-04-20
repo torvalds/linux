@@ -81,8 +81,7 @@ typedef	union _QOS_CTRL_FIELD{
 	u16	shortData;
 
 	// WMM spec
-	struct
-	{
+	struct {
 		u8		UP:3;
 		u8		usRsvd1:1;
 		u8		EOSP:1;
@@ -92,8 +91,7 @@ typedef	union _QOS_CTRL_FIELD{
 	}WMM;
 
 	// 802.11e: QoS data type frame sent by non-AP QSTAs.
-	struct
-	{
+	struct {
 		u8		TID:4;
 		u8		bIsQsize:1;// 0: BIT[8:15] is TXOP Duration Requested, 1: BIT[8:15] is Queue Size.
 		u8		AckPolicy:2;
@@ -102,8 +100,7 @@ typedef	union _QOS_CTRL_FIELD{
 	}BySta;
 
 	// 802.11e: QoS data, QoS Null, and QoS Data+CF-Ack frames sent by HC.
-	struct
-	{
+	struct {
 		u8		TID:4;
 		u8		EOSP:1;
 		u8		AckPolicy:2;
@@ -112,8 +109,7 @@ typedef	union _QOS_CTRL_FIELD{
 	}ByHc_Data;
 
 	// 802.11e: QoS (+) CF-Poll frames sent by HC.
-	struct
-	{
+	struct {
 		u8		TID:4;
 		u8		EOSP:1;
 		u8		AckPolicy:2;
@@ -133,14 +129,12 @@ typedef	union _QOS_CTRL_FIELD{
 typedef	union _QOS_INFO_FIELD{
 	u8	charData;
 
-	struct
-	{
+	struct {
 		u8		ucParameterSetCount:4;
 		u8		ucReserved:4;
 	}WMM;
 
-	struct
-	{
+	struct {
 		//Ref WMM_Specification_1-1.pdf, 2006-06-13 Isaiah
 		u8		ucAC_VO_UAPSD:1;
 		u8		ucAC_VI_UAPSD:1;
@@ -152,16 +146,14 @@ typedef	union _QOS_INFO_FIELD{
 
 	}ByWmmPsSta;
 
-	struct
-	{
+	struct {
 		//Ref WMM_Specification_1-1.pdf, 2006-06-13 Isaiah
 		u8		ucParameterSetCount:4;
 		u8		ucReserved:3;
 		u8		ucApUapsd:1;
 	}ByWmmPsAp;
 
-	struct
-	{
+	struct {
 		u8		ucAC3_UAPSD:1;
 		u8		ucAC2_UAPSD:1;
 		u8		ucAC1_UAPSD:1;
@@ -171,8 +163,7 @@ typedef	union _QOS_INFO_FIELD{
 		u8		ucMoreDataAck:1;
 	} By11eSta;
 
-	struct
-	{
+	struct {
 		u8		ucParameterSetCount:4;
 		u8		ucQAck:1;
 		u8		ucQueueReq:1;
@@ -180,16 +171,14 @@ typedef	union _QOS_INFO_FIELD{
 		u8		ucReserved:1;
 	} By11eAp;
 
-	struct
-	{
+	struct {
 		u8		ucReserved1:4;
 		u8		ucQAck:1;
 		u8		ucReserved2:2;
 		u8		ucMoreDataAck:1;
 	} ByWmmsaSta;
 
-	struct
-	{
+	struct {
 		u8		ucReserved1:4;
 		u8		ucQAck:1;
 		u8		ucQueueReq:1;
@@ -197,8 +186,7 @@ typedef	union _QOS_INFO_FIELD{
 		u8		ucReserved2:1;
 	} ByWmmsaAp;
 
-	struct
-	{
+	struct {
 		u8		ucAC3_UAPSD:1;
 		u8		ucAC2_UAPSD:1;
 		u8		ucAC1_UAPSD:1;
@@ -208,8 +196,7 @@ typedef	union _QOS_INFO_FIELD{
 		u8		ucMoreDataAck:1;
 	} ByAllSta;
 
-	struct
-	{
+	struct {
 		u8		ucParameterSetCount:4;
 		u8		ucQAck:1;
 		u8		ucQueueReq:1;
@@ -246,8 +233,7 @@ typedef u32 AC_CODING;
 typedef	union _ACI_AIFSN{
 	u8	charData;
 
-	struct
-	{
+	struct {
 		u8	AIFSN:4;
 		u8	ACM:1;
 		u8	ACI:2;
@@ -261,8 +247,7 @@ typedef	union _ACI_AIFSN{
 //
 typedef	union _ECW{
 	u8	charData;
-	struct
-	{
+	struct {
 		u8	ECWmin:4;
 		u8	ECWmax:4;
 	}f;	// Field
@@ -276,8 +261,7 @@ typedef	union _AC_PARAM{
 	u32	longData;
 	u8	charData[4];
 
-	struct
-	{
+	struct {
 		ACI_AIFSN	AciAifsn;
 		ECW		Ecw;
 		u16		TXOPLimit;
@@ -336,8 +320,7 @@ typedef union _QOS_TSINFO{
 typedef union _TSPEC_BODY{
 	u8		charData[55];
 
-	struct
-	{
+	struct {
 		QOS_TSINFO	TSInfo;	//u8	TSInfo[3];
 		u16	NominalMSDUsize;
 		u16	MaxMSDUsize;
@@ -412,14 +395,14 @@ typedef union _QOS_TCLAS{
 
 	struct _TYPE_GENERAL{
 		u8		Priority;
-		u8 		ClassifierType;
-		u8 		Mask;
+		u8		ClassifierType;
+		u8		Mask;
 	} TYPE_GENERAL;
 
 	struct _TYPE0_ETH{
 		u8		Priority;
-		u8 		ClassifierType;
-		u8 		Mask;
+		u8		ClassifierType;
+		u8		Mask;
 		u8		SrcAddr[6];
 		u8		DstAddr[6];
 		u16		Type;
@@ -427,9 +410,9 @@ typedef union _QOS_TCLAS{
 
 	struct _TYPE1_IPV4{
 		u8		Priority;
-		u8 		ClassifierType;
-		u8 		Mask;
-		u8 		Version;
+		u8		ClassifierType;
+		u8		Mask;
+		u8		Version;
 		u8		SrcIP[4];
 		u8		DstIP[4];
 		u16		SrcPort;
@@ -441,9 +424,9 @@ typedef union _QOS_TCLAS{
 
 	struct _TYPE1_IPV6{
 		u8		Priority;
-		u8 		ClassifierType;
-		u8 		Mask;
-		u8 		Version;
+		u8		ClassifierType;
+		u8		Mask;
+		u8		Version;
 		u8		SrcIP[16];
 		u8		DstIP[16];
 		u16		SrcPort;
@@ -453,8 +436,8 @@ typedef union _QOS_TCLAS{
 
 	struct _TYPE2_8021Q{
 		u8		Priority;
-		u8 		ClassifierType;
-		u8 		Mask;
+		u8		ClassifierType;
+		u8		Mask;
 		u16		TagType;
 	} TYPE2_8021Q;
 } QOS_TCLAS, *PQOS_TCLAS;
@@ -481,7 +464,7 @@ typedef struct _QOS_TSTREAM{
 //	"Qos control field" and "Qos info field"
 //typedef struct _QOS_UAPSD{
 //	u8			bTriggerEnable[4];
-//	u8 			MaxSPLength;
+//	u8			MaxSPLength;
 //	u8			HighestBufAC;
 //} QOS_UAPSD, *PQOS_APSD;
 
@@ -489,7 +472,7 @@ typedef struct _QOS_TSTREAM{
 //      802.11 Management frame Status Code field
 //----------------------------------------------------------------------------
 typedef struct _OCTET_STRING{
-	u8        	*Octet;
+	u8		*Octet;
 	u16             Length;
 }OCTET_STRING, *POCTET_STRING;
 
@@ -512,7 +495,7 @@ typedef struct _STA_QOS{
 	AC_UAPSD			Curr4acUapsd;
 	u8				bInServicePeriod;
 	u8				MaxSPLength;
-	int 				NumBcnBeforeTrigger;
+	int				NumBcnBeforeTrigger;
 
 	// Part 2. EDCA Parameter (perAC)
 	u8 *				pWMMInfoEle;
@@ -523,7 +506,7 @@ typedef struct _STA_QOS{
 	//2 ToDo: remove the Qos Info Field and replace it by the above WMM Info element.
 	// By Bruce, 2008-01-30.
 	// Part 2. EDCA Parameter (perAC)
-	QOS_INFO_FIELD			QosInfoField_STA; 	// Maintained by STA
+	QOS_INFO_FIELD			QosInfoField_STA;	// Maintained by STA
 	QOS_INFO_FIELD			QosInfoField_AP;	// Retrieved from AP
 
 	AC_PARAM			CurAcParameters[4];

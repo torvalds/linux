@@ -807,3 +807,55 @@ int dm_btree_find_highest_key(struct dm_btree_info *info, dm_block_t root,
 	return r ? r : count;
 }
 EXPORT_SYMBOL_GPL(dm_btree_find_highest_key);
+
+/*
+ * FIXME: We shouldn't use a recursive algorithm when we have limited stack
+ * space.  Also this only works for single level trees.
+ */
+static int walk_node(struct ro_spine *s, dm_block_t block,
+		     int (*fn)(void *context, uint64_t *keys, void *leaf),
+		     void *context)
+{
+	int r;
+	unsigned i, nr;
+	struct btree_node *n;
+	uint64_t keys;
+
+	r = ro_step(s, block);
+	n = ro_node(s);
+
+	nr = le32_to_cpu(n->header.nr_entries);
+	for (i = 0; i < nr; i++) {
+		if (le32_to_cpu(n->header.flags) & INTERNAL_NODE) {
+			r = walk_node(s, value64(n, i), fn, context);
+			if (r)
+				goto out;
+		} else {
+			keys = le64_to_cpu(*key_ptr(n, i));
+			r = fn(context, &keys, value_ptr(n, i));
+			if (r)
+				goto out;
+		}
+	}
+
+out:
+	ro_pop(s);
+	return r;
+}
+
+int dm_btree_walk(struct dm_btree_info *info, dm_block_t root,
+		  int (*fn)(void *context, uint64_t *keys, void *leaf),
+		  void *context)
+{
+	int r;
+	struct ro_spine spine;
+
+	BUG_ON(info->levels > 1);
+
+	init_ro_spine(&spine, info);
+	r = walk_node(&spine, root, fn, context);
+	exit_ro_spine(&spine);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(dm_btree_walk);

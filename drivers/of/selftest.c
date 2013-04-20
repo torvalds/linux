@@ -2,7 +2,7 @@
  * Self tests for device tree subsystem
  */
 
-#define pr_fmt(fmt) "### %s(): " fmt, __func__
+#define pr_fmt(fmt) "### dt-test ### " fmt
 
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -16,26 +16,30 @@
 
 static bool selftest_passed = true;
 #define selftest(result, fmt, ...) { \
-	selftest_passed &= (result); \
-	if (!(result)) \
+	if (!(result)) { \
 		pr_err("FAIL %s:%i " fmt, __FILE__, __LINE__, ##__VA_ARGS__); \
+		selftest_passed = false; \
+	} else { \
+		pr_info("pass %s:%i\n", __FILE__, __LINE__); \
+	} \
 }
 
 static void __init of_selftest_parse_phandle_with_args(void)
 {
 	struct device_node *np;
 	struct of_phandle_args args;
-	int rc, i;
-	bool passed_all = true;
+	int i, rc;
 
-	pr_info("start\n");
 	np = of_find_node_by_path("/testcase-data/phandle-tests/consumer-a");
 	if (!np) {
 		pr_err("missing testcase data\n");
 		return;
 	}
 
-	for (i = 0; i < 7; i++) {
+	rc = of_count_phandle_with_args(np, "phandle-list", "#phandle-cells");
+	selftest(rc == 7, "of_count_phandle_with_args() returned %i, expected 7\n", rc);
+
+	for (i = 0; i < 8; i++) {
 		bool passed = true;
 		rc = of_parse_phandle_with_args(np, "phandle-list",
 						"#phandle-cells", i, &args);
@@ -79,45 +83,47 @@ static void __init of_selftest_parse_phandle_with_args(void)
 			passed &= (args.args[0] == (i + 1));
 			break;
 		case 7:
-			passed &= (rc == -EINVAL);
+			passed &= (rc == -ENOENT);
 			break;
 		default:
 			passed = false;
 		}
 
-		if (!passed) {
-			int j;
-			pr_err("index %i - data error on node %s rc=%i regs=[",
-				i, args.np->full_name, rc);
-			for (j = 0; j < args.args_count; j++)
-				printk(" %i", args.args[j]);
-			printk(" ]\n");
-
-			passed_all = false;
-		}
+		selftest(passed, "index %i - data error on node %s rc=%i\n",
+			 i, args.np->full_name, rc);
 	}
 
 	/* Check for missing list property */
 	rc = of_parse_phandle_with_args(np, "phandle-list-missing",
 					"#phandle-cells", 0, &args);
-	passed_all &= (rc == -EINVAL);
+	selftest(rc == -ENOENT, "expected:%i got:%i\n", -ENOENT, rc);
+	rc = of_count_phandle_with_args(np, "phandle-list-missing",
+					"#phandle-cells");
+	selftest(rc == -ENOENT, "expected:%i got:%i\n", -ENOENT, rc);
 
 	/* Check for missing cells property */
 	rc = of_parse_phandle_with_args(np, "phandle-list",
 					"#phandle-cells-missing", 0, &args);
-	passed_all &= (rc == -EINVAL);
+	selftest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
+	rc = of_count_phandle_with_args(np, "phandle-list",
+					"#phandle-cells-missing");
+	selftest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
 
 	/* Check for bad phandle in list */
 	rc = of_parse_phandle_with_args(np, "phandle-list-bad-phandle",
 					"#phandle-cells", 0, &args);
-	passed_all &= (rc == -EINVAL);
+	selftest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
+	rc = of_count_phandle_with_args(np, "phandle-list-bad-phandle",
+					"#phandle-cells");
+	selftest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
 
 	/* Check for incorrectly formed argument list */
 	rc = of_parse_phandle_with_args(np, "phandle-list-bad-args",
 					"#phandle-cells", 1, &args);
-	passed_all &= (rc == -EINVAL);
-
-	pr_info("end - %s\n", passed_all ? "PASS" : "FAIL");
+	selftest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
+	rc = of_count_phandle_with_args(np, "phandle-list-bad-args",
+					"#phandle-cells");
+	selftest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
 }
 
 static void __init of_selftest_property_match_string(void)

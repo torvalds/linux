@@ -243,8 +243,8 @@ static const struct comedi_lrange range_pcl818l_h_ai = { 4, {
 };
 
 static const struct comedi_lrange range718_bipolar1 = { 1, {BIP_RANGE(1),} };
-static const struct comedi_lrange range718_bipolar0_5 =
-    { 1, {BIP_RANGE(0.5),} };
+static const struct comedi_lrange range718_bipolar0_5 = {
+	1, {BIP_RANGE(0.5),} };
 static const struct comedi_lrange range718_unipolar2 = { 1, {UNI_RANGE(2),} };
 static const struct comedi_lrange range718_unipolar1 = { 1, {BIP_RANGE(1),} };
 
@@ -1005,17 +1005,14 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 	switch (devpriv->dma) {
 	case 1:		/*  DMA */
 	case 3:
-		if (devpriv->dma_rtc == 0) {
+		if (devpriv->dma_rtc == 0)
 			pcl818_ai_mode13dma_int(mode, dev, s);
-		}
 #ifdef unused
-		else {
+		else
 			pcl818_ai_mode13dma_rtc(mode, dev, s);
-		}
 #else
-		else {
+		else
 			return -EINVAL;
-		}
 #endif
 		break;
 	case 0:
@@ -1069,7 +1066,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 */
 #ifdef PCL818_MODE13_AO
 static int pcl818_ao_mode13(int mode, struct comedi_device *dev,
-			    struct comedi_subdevice *s, comedi_trig * it)
+			    struct comedi_subdevice *s, comedi_trig *it)
 {
 	struct pcl818_private *devpriv = dev->private;
 	int divisor1 = 0, divisor2 = 0;
@@ -1124,7 +1121,7 @@ static int pcl818_ao_mode13(int mode, struct comedi_device *dev,
    ANALOG OUTPUT MODE 1, 818 cards
 */
 static int pcl818_ao_mode1(struct comedi_device *dev,
-			   struct comedi_subdevice *s, comedi_trig * it)
+			   struct comedi_subdevice *s, comedi_trig *it)
 {
 	return pcl818_ao_mode13(1, dev, s, it);
 }
@@ -1134,7 +1131,7 @@ static int pcl818_ao_mode1(struct comedi_device *dev,
    ANALOG OUTPUT MODE 3, 818 cards
 */
 static int pcl818_ao_mode3(struct comedi_device *dev,
-			   struct comedi_subdevice *s, comedi_trig * it)
+			   struct comedi_subdevice *s, comedi_trig *it)
 {
 	return pcl818_ao_mode13(3, dev, s, it);
 }

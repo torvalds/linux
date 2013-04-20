@@ -198,7 +198,6 @@ enum cq_type {
  */
 #define ROUNDUP_LOG2(x)		ilog2(roundup_pow_of_two(x))
 #define XNOR(x, y)		(!(x) == !(y))
-#define ILLEGAL_MAC(addr)	(addr == 0xffffffffffffULL || addr == 0x0)
 
 
 struct mlx4_en_tx_info {
@@ -427,9 +426,25 @@ struct mlx4_en_frag_info {
 #endif
 
 struct ethtool_flow_id {
+	struct list_head list;
 	struct ethtool_rx_flow_spec flow_spec;
 	u64 id;
 };
+
+enum {
+	MLX4_EN_FLAG_PROMISC		= (1 << 0),
+	MLX4_EN_FLAG_MC_PROMISC		= (1 << 1),
+	/* whether we need to enable hardware loopback by putting dmac
+	 * in Tx WQE
+	 */
+	MLX4_EN_FLAG_ENABLE_HW_LOOPBACK	= (1 << 2),
+	/* whether we need to drop packets that hardware loopback-ed */
+	MLX4_EN_FLAG_RX_FILTER_NEEDED	= (1 << 3),
+	MLX4_EN_FLAG_FORCE_PROMISC	= (1 << 4)
+};
+
+#define MLX4_EN_MAC_HASH_SIZE (1 << BITS_PER_BYTE)
+#define MLX4_EN_MAC_HASH_IDX 5
 
 struct mlx4_en_priv {
 	struct mlx4_en_dev *mdev;
@@ -441,6 +456,8 @@ struct mlx4_en_priv {
 	struct mlx4_en_port_state port_state;
 	spinlock_t stats_lock;
 	struct ethtool_flow_id ethtool_rules[MAX_NUM_OF_FS_RULES];
+	/* To allow rules removal while port is going down */
+	struct list_head ethtool_list;
 
 	unsigned long last_moder_packets[MAX_RX_RINGS];
 	unsigned long last_moder_tx_packets;
@@ -469,7 +486,7 @@ struct mlx4_en_priv {
 	int registered;
 	int allocated;
 	int stride;
-	u64 mac;
+	unsigned char prev_mac[ETH_ALEN + 2];
 	int mac_index;
 	unsigned max_mtu;
 	int base_qpn;
@@ -478,8 +495,6 @@ struct mlx4_en_priv {
 	struct mlx4_en_rss_map rss_map;
 	__be32 ctrl_flags;
 	u32 flags;
-#define MLX4_EN_FLAG_PROMISC	0x1
-#define MLX4_EN_FLAG_MC_PROMISC	0x2
 	u8 num_tx_rings_p_up;
 	u32 tx_ring_num;
 	u32 rx_ring_num;
@@ -493,8 +508,7 @@ struct mlx4_en_priv {
 	struct mlx4_en_cq *tx_cq;
 	struct mlx4_en_cq rx_cq[MAX_RX_RINGS];
 	struct mlx4_qp drop_qp;
-	struct work_struct mcast_task;
-	struct work_struct mac_task;
+	struct work_struct rx_mode_task;
 	struct work_struct watchdog_task;
 	struct work_struct linkstate_task;
 	struct delayed_work stats_task;
@@ -510,6 +524,7 @@ struct mlx4_en_priv {
 	bool wol;
 	struct device *ddev;
 	int base_tx_qpn;
+	struct hlist_head mac_hash[MLX4_EN_MAC_HASH_SIZE];
 
 #ifdef CONFIG_MLX4_EN_DCB
 	struct ieee_ets ets;
@@ -529,14 +544,24 @@ enum mlx4_en_wol {
 	MLX4_EN_WOL_ENABLED = (1ULL << 62),
 };
 
+struct mlx4_mac_entry {
+	struct hlist_node hlist;
+	unsigned char mac[ETH_ALEN + 2];
+	u64 reg_id;
+	struct rcu_head rcu;
+};
+
 #define MLX4_EN_WOL_DO_MODIFY (1ULL << 63)
+
+void mlx4_en_update_loopback_state(struct net_device *dev,
+				   netdev_features_t features);
 
 void mlx4_en_destroy_netdev(struct net_device *dev);
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 			struct mlx4_en_port_profile *prof);
 
 int mlx4_en_start_port(struct net_device *dev);
-void mlx4_en_stop_port(struct net_device *dev);
+void mlx4_en_stop_port(struct net_device *dev, int detach);
 
 void mlx4_en_free_resources(struct mlx4_en_priv *priv);
 int mlx4_en_alloc_resources(struct mlx4_en_priv *priv);

@@ -98,7 +98,6 @@ static void serial_pxa_stop_rx(struct uart_port *port)
 
 static inline void receive_chars(struct uart_pxa_port *up, int *status)
 {
-	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned int ch, flag;
 	int max_count = 256;
 
@@ -168,7 +167,7 @@ static inline void receive_chars(struct uart_pxa_port *up, int *status)
 	ignore_char:
 		*status = serial_in(up, UART_LSR);
 	} while ((*status & UART_LSR_DR) && (max_count-- > 0));
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&up->port.state->port);
 
 	/* work around Errata #20 according to
 	 * Intel(R) PXA27x Processor Family
@@ -673,8 +672,7 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 	unsigned long flags;
 	int locked = 1;
 
-	clk_prepare_enable(up->clk);
-
+	clk_enable(up->clk);
 	local_irq_save(flags);
 	if (up->port.sysrq)
 		locked = 0;
@@ -701,8 +699,8 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 	if (locked)
 		spin_unlock(&up->port.lock);
 	local_irq_restore(flags);
+	clk_disable(up->clk);
 
-	clk_disable_unprepare(up->clk);
 }
 
 #ifdef CONFIG_CONSOLE_POLL
@@ -899,6 +897,12 @@ static int serial_pxa_probe(struct platform_device *dev)
 		goto err_free;
 	}
 
+	ret = clk_prepare(sport->clk);
+	if (ret) {
+		clk_put(sport->clk);
+		goto err_free;
+	}
+
 	sport->port.type = PORT_PXA;
 	sport->port.iotype = UPIO_MEM;
 	sport->port.mapbase = mmres->start;
@@ -930,6 +934,7 @@ static int serial_pxa_probe(struct platform_device *dev)
 	return 0;
 
  err_clk:
+	clk_unprepare(sport->clk);
 	clk_put(sport->clk);
  err_free:
 	kfree(sport);
@@ -943,6 +948,8 @@ static int serial_pxa_remove(struct platform_device *dev)
 	platform_set_drvdata(dev, NULL);
 
 	uart_remove_one_port(&serial_pxa_reg, &sport->port);
+
+	clk_unprepare(sport->clk);
 	clk_put(sport->clk);
 	kfree(sport);
 

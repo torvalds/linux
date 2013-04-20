@@ -47,10 +47,11 @@ include config/utilities.mak
 # backtrace post unwind.
 #
 # Define NO_BACKTRACE if you do not want stack backtrace debug feature
+#
+# Define NO_LIBNUMA if you do not want numa perf benchmark
 
 $(OUTPUT)PERF-VERSION-FILE: .FORCE-PERF-VERSION-FILE
 	@$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
--include $(OUTPUT)PERF-VERSION-FILE
 
 uname_M := $(shell uname -m 2>/dev/null || echo not)
 
@@ -94,7 +95,7 @@ ifeq ("$(origin DEBUG)", "command line")
   PERF_DEBUG = $(DEBUG)
 endif
 ifndef PERF_DEBUG
-  CFLAGS_OPTIMIZE = -O6 -D_FORTIFY_SOURCE=2
+  CFLAGS_OPTIMIZE = -O6
 endif
 
 ifdef PARSER_DEBUG
@@ -148,12 +149,24 @@ RM = rm -f
 MKDIR = mkdir
 FIND = find
 INSTALL = install
+FLEX = flex
+BISON= bison
 
 # sparse is architecture-neutral, which means that we need to tell it
 # explicitly what architecture to check for. Fix this up for yours..
 SPARSE_FLAGS = -D__BIG_ENDIAN__ -D__powerpc__
 
+ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(MAKECMDGOALS),tags)
 -include config/feature-tests.mak
+
+ifeq ($(call get-executable,$(FLEX)),)
+	dummy := $(error Error: $(FLEX) is missing on this system, please install it)
+endif
+
+ifeq ($(call get-executable,$(BISON)),)
+	dummy := $(error Error: $(BISON) is missing on this system, please install it)
+endif
 
 ifeq ($(call try-cc,$(SOURCE_HELLO),$(CFLAGS) -Werror -fstack-protector-all,-fstack-protector-all),y)
 	CFLAGS := $(CFLAGS) -fstack-protector-all
@@ -165,6 +178,12 @@ endif
 
 ifeq ($(call try-cc,$(SOURCE_HELLO),$(CFLAGS) -Werror -Wvolatile-register-var,-Wvolatile-register-var),y)
        CFLAGS := $(CFLAGS) -Wvolatile-register-var
+endif
+
+ifndef PERF_DEBUG
+	ifeq ($(call try-cc,$(SOURCE_HELLO),$(CFLAGS) -D_FORTIFY_SOURCE=2,-D_FORTIFY_SOURCE=2),y)
+		CFLAGS := $(CFLAGS) -D_FORTIFY_SOURCE=2
+	endif
 endif
 
 ### --- END CONFIGURATION SECTION ---
@@ -206,6 +225,8 @@ ifeq ($(call try-cc,$(SOURCE_BIONIC),$(CFLAGS),bionic),y)
 	EXTLIBS := $(filter-out -lpthread,$(EXTLIBS))
 	BASIC_CFLAGS += -I.
 endif
+endif # MAKECMDGOALS != tags
+endif # MAKECMDGOALS != clean
 
 # Guard against environment variables
 BUILTIN_OBJS =
@@ -230,10 +251,18 @@ endif
 LIBTRACEEVENT = $(TE_PATH)libtraceevent.a
 TE_LIB := -L$(TE_PATH) -ltraceevent
 
+export LIBTRACEEVENT
+
+# python extension build directories
+PYTHON_EXTBUILD     := $(OUTPUT)python_ext_build/
+PYTHON_EXTBUILD_LIB := $(PYTHON_EXTBUILD)lib/
+PYTHON_EXTBUILD_TMP := $(PYTHON_EXTBUILD)tmp/
+export PYTHON_EXTBUILD_LIB PYTHON_EXTBUILD_TMP
+
+python-clean := rm -rf $(PYTHON_EXTBUILD) $(OUTPUT)python/perf.so
+
 PYTHON_EXT_SRCS := $(shell grep -v ^\# util/python-ext-sources)
 PYTHON_EXT_DEPS := util/python-ext-sources util/setup.py
-
-export LIBTRACEEVENT
 
 $(OUTPUT)python/perf.so: $(PYTHON_EXT_SRCS) $(PYTHON_EXT_DEPS)
 	$(QUIET_GEN)CFLAGS='$(BASIC_CFLAGS)' $(PYTHON_WORD) util/setup.py \
@@ -269,20 +298,17 @@ endif
 
 export PERL_PATH
 
-FLEX = flex
-BISON= bison
-
 $(OUTPUT)util/parse-events-flex.c: util/parse-events.l $(OUTPUT)util/parse-events-bison.c
 	$(QUIET_FLEX)$(FLEX) --header-file=$(OUTPUT)util/parse-events-flex.h $(PARSER_DEBUG_FLEX) -t util/parse-events.l > $(OUTPUT)util/parse-events-flex.c
 
 $(OUTPUT)util/parse-events-bison.c: util/parse-events.y
-	$(QUIET_BISON)$(BISON) -v util/parse-events.y -d $(PARSER_DEBUG_BISON) -o $(OUTPUT)util/parse-events-bison.c
+	$(QUIET_BISON)$(BISON) -v util/parse-events.y -d $(PARSER_DEBUG_BISON) -o $(OUTPUT)util/parse-events-bison.c -p parse_events_
 
 $(OUTPUT)util/pmu-flex.c: util/pmu.l $(OUTPUT)util/pmu-bison.c
 	$(QUIET_FLEX)$(FLEX) --header-file=$(OUTPUT)util/pmu-flex.h -t util/pmu.l > $(OUTPUT)util/pmu-flex.c
 
 $(OUTPUT)util/pmu-bison.c: util/pmu.y
-	$(QUIET_BISON)$(BISON) -v util/pmu.y -d -o $(OUTPUT)util/pmu-bison.c
+	$(QUIET_BISON)$(BISON) -v util/pmu.y -d -o $(OUTPUT)util/pmu-bison.c -p perf_pmu_
 
 $(OUTPUT)util/parse-events.o: $(OUTPUT)util/parse-events-flex.c $(OUTPUT)util/parse-events-bison.c
 $(OUTPUT)util/pmu.o: $(OUTPUT)util/pmu-flex.c $(OUTPUT)util/pmu-bison.c
@@ -378,8 +404,11 @@ LIB_H += util/rblist.h
 LIB_H += util/intlist.h
 LIB_H += util/perf_regs.h
 LIB_H += util/unwind.h
-LIB_H += ui/helpline.h
 LIB_H += util/vdso.h
+LIB_H += ui/helpline.h
+LIB_H += ui/progress.h
+LIB_H += ui/util.h
+LIB_H += ui/ui.h
 
 LIB_OBJS += $(OUTPUT)util/abspath.o
 LIB_OBJS += $(OUTPUT)util/alias.o
@@ -453,6 +482,7 @@ LIB_OBJS += $(OUTPUT)util/stat.o
 LIB_OBJS += $(OUTPUT)ui/setup.o
 LIB_OBJS += $(OUTPUT)ui/helpline.o
 LIB_OBJS += $(OUTPUT)ui/progress.o
+LIB_OBJS += $(OUTPUT)ui/util.o
 LIB_OBJS += $(OUTPUT)ui/hist.o
 LIB_OBJS += $(OUTPUT)ui/stdio/hist.o
 
@@ -471,7 +501,8 @@ LIB_OBJS += $(OUTPUT)tests/rdpmc.o
 LIB_OBJS += $(OUTPUT)tests/evsel-roundtrip-name.o
 LIB_OBJS += $(OUTPUT)tests/evsel-tp-sched.o
 LIB_OBJS += $(OUTPUT)tests/pmu.o
-LIB_OBJS += $(OUTPUT)tests/util.o
+LIB_OBJS += $(OUTPUT)tests/hists_link.o
+LIB_OBJS += $(OUTPUT)tests/python-use.o
 
 BUILTIN_OBJS += $(OUTPUT)builtin-annotate.o
 BUILTIN_OBJS += $(OUTPUT)builtin-bench.o
@@ -510,13 +541,12 @@ PERFLIBS = $(LIB_FILE) $(LIBTRACEEVENT)
 #
 # Platform specific tweaks
 #
+ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(MAKECMDGOALS),tags)
 
 # We choose to avoid "if .. else if .. else .. endif endif"
 # because maintaining the nesting to match is a pain.  If
 # we had "elif" things would have been much nicer...
-
--include config.mak.autogen
--include config.mak
 
 ifdef NO_LIBELF
 	NO_DWARF := 1
@@ -556,6 +586,11 @@ else
 	endif # Dwarf support
 endif # SOURCE_LIBELF
 endif # NO_LIBELF
+
+# There's only x86 (both 32 and 64) support for CFI unwind so far
+ifneq ($(ARCH),x86)
+	NO_LIBUNWIND := 1
+endif
 
 ifndef NO_LIBUNWIND
 # for linking with debug library, run like:
@@ -646,7 +681,6 @@ ifndef NO_NEWT
 		LIB_OBJS += $(OUTPUT)ui/browsers/hists.o
 		LIB_OBJS += $(OUTPUT)ui/browsers/map.o
 		LIB_OBJS += $(OUTPUT)ui/browsers/scripts.o
-		LIB_OBJS += $(OUTPUT)ui/util.o
 		LIB_OBJS += $(OUTPUT)ui/tui/setup.o
 		LIB_OBJS += $(OUTPUT)ui/tui/util.o
 		LIB_OBJS += $(OUTPUT)ui/tui/helpline.o
@@ -655,9 +689,6 @@ ifndef NO_NEWT
 		LIB_H += ui/browsers/map.h
 		LIB_H += ui/keysyms.h
 		LIB_H += ui/libslang.h
-		LIB_H += ui/progress.h
-		LIB_H += ui/util.h
-		LIB_H += ui/ui.h
 	endif
 endif
 
@@ -673,14 +704,12 @@ ifndef NO_GTK2
 		BASIC_CFLAGS += $(shell pkg-config --cflags gtk+-2.0 2>/dev/null)
 		EXTLIBS += $(shell pkg-config --libs gtk+-2.0 2>/dev/null)
 		LIB_OBJS += $(OUTPUT)ui/gtk/browser.o
+		LIB_OBJS += $(OUTPUT)ui/gtk/hists.o
 		LIB_OBJS += $(OUTPUT)ui/gtk/setup.o
 		LIB_OBJS += $(OUTPUT)ui/gtk/util.o
 		LIB_OBJS += $(OUTPUT)ui/gtk/helpline.o
 		LIB_OBJS += $(OUTPUT)ui/gtk/progress.o
-		# Make sure that it'd be included only once.
-		ifeq ($(findstring -DNEWT_SUPPORT,$(BASIC_CFLAGS)),)
-			LIB_OBJS += $(OUTPUT)ui/util.o
-		endif
+		LIB_OBJS += $(OUTPUT)ui/gtk/annotate.o
 	endif
 endif
 
@@ -707,7 +736,7 @@ disable-python = $(eval $(disable-python_code))
 define disable-python_code
   BASIC_CFLAGS += -DNO_LIBPYTHON
   $(if $(1),$(warning No $(1) was found))
-  $(warning Python support won't be built)
+  $(warning Python support will not be built)
 endef
 
 override PYTHON := \
@@ -715,18 +744,9 @@ override PYTHON := \
 
 ifndef PYTHON
   $(call disable-python,python interpreter)
-  python-clean :=
 else
 
   PYTHON_WORD := $(call shell-wordify,$(PYTHON))
-
-  # python extension build directories
-  PYTHON_EXTBUILD     := $(OUTPUT)python_ext_build/
-  PYTHON_EXTBUILD_LIB := $(PYTHON_EXTBUILD)lib/
-  PYTHON_EXTBUILD_TMP := $(PYTHON_EXTBUILD)tmp/
-  export PYTHON_EXTBUILD_LIB PYTHON_EXTBUILD_TMP
-
-  python-clean := rm -rf $(PYTHON_EXTBUILD) $(OUTPUT)python/perf.so
 
   ifdef NO_LIBPYTHON
     $(call disable-python)
@@ -839,9 +859,23 @@ ifndef NO_BACKTRACE
        endif
 endif
 
+ifndef NO_LIBNUMA
+	FLAGS_LIBNUMA = $(ALL_CFLAGS) $(ALL_LDFLAGS) -lnuma
+	ifneq ($(call try-cc,$(SOURCE_LIBNUMA),$(FLAGS_LIBNUMA),libnuma),y)
+		msg := $(warning No numa.h found, disables 'perf bench numa mem' benchmark, please install numa-libs-devel or libnuma-dev);
+	else
+		BASIC_CFLAGS += -DLIBNUMA_SUPPORT
+		BUILTIN_OBJS += $(OUTPUT)bench/numa.o
+		EXTLIBS += -lnuma
+	endif
+endif
+
 ifdef ASCIIDOC8
 	export ASCIIDOC8
 endif
+
+endif # MAKECMDGOALS != tags
+endif # MAKECMDGOALS != clean
 
 # Shell quote (do not use $(call) to accommodate ancient setups);
 
@@ -884,7 +918,7 @@ strip: $(PROGRAMS) $(OUTPUT)perf
 	$(STRIP) $(STRIP_OPTS) $(PROGRAMS) $(OUTPUT)perf
 
 $(OUTPUT)perf.o: perf.c $(OUTPUT)common-cmds.h $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -DPERF_VERSION='"$(PERF_VERSION)"' \
+	$(QUIET_CC)$(CC) -include $(OUTPUT)PERF-VERSION-FILE \
 		'-DPERF_HTML_PATH="$(htmldir_SQ)"' \
 		$(ALL_CFLAGS) -c $(filter %.c,$^) -o $@
 
@@ -948,7 +982,13 @@ $(OUTPUT)util/exec_cmd.o: util/exec_cmd.c $(OUTPUT)PERF-CFLAGS
 
 $(OUTPUT)tests/attr.o: tests/attr.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) \
-		'-DBINDIR="$(bindir_SQ)"' \
+		'-DBINDIR="$(bindir_SQ)"' -DPYTHON='"$(PYTHON_WORD)"' \
+		$<
+
+$(OUTPUT)tests/python-use.o: tests/python-use.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) \
+		-DPYTHONPATH='"$(OUTPUT)python"' \
+		-DPYTHON='"$(PYTHON_WORD)"' \
 		$<
 
 $(OUTPUT)util/config.o: util/config.c $(OUTPUT)PERF-CFLAGS
@@ -1099,7 +1139,7 @@ perfexec_instdir = $(prefix)/$(perfexecdir)
 endif
 perfexec_instdir_SQ = $(subst ','\'',$(perfexec_instdir))
 
-install: all try-install-man
+install-bin: all
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(bindir_SQ)'
 	$(INSTALL) $(OUTPUT)perf '$(DESTDIR_SQ)$(bindir_SQ)'
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/Perf-Trace-Util/lib/Perf/Trace'
@@ -1119,6 +1159,8 @@ install: all try-install-man
 	$(INSTALL) tests/attr.py '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests'
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests/attr'
 	$(INSTALL) tests/attr/* '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests/attr'
+
+install: install-bin try-install-man
 
 install-python_ext:
 	$(PYTHON_WORD) util/setup.py --quiet install --root='/$(DESTDIR_SQ)'

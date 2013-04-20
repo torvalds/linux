@@ -430,13 +430,11 @@ const struct dev_pm_ops tegra_gart_pm_ops = {
 	.resume		= tegra_gart_resume,
 };
 
-#ifdef CONFIG_OF
 static struct of_device_id tegra_gart_of_match[] = {
 	{ .compatible = "nvidia,tegra20-gart", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, tegra_gart_of_match);
-#endif
 
 static struct platform_driver tegra_gart_driver = {
 	.probe		= tegra_gart_probe,
@@ -445,7 +443,7 @@ static struct platform_driver tegra_gart_driver = {
 		.owner	= THIS_MODULE,
 		.name	= "tegra-gart",
 		.pm	= &tegra_gart_pm_ops,
-		.of_match_table = of_match_ptr(tegra_gart_of_match),
+		.of_match_table = tegra_gart_of_match,
 	},
 };
 

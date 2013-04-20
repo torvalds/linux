@@ -118,6 +118,7 @@ static struct file_system_type udf_fstype = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("udf");
 
 static struct kmem_cache *udf_inode_cachep;
 
@@ -134,6 +135,8 @@ static struct inode *udf_alloc_inode(struct super_block *sb)
 	ei->i_next_alloc_goal = 0;
 	ei->i_strat4096 = 0;
 	init_rwsem(&ei->i_data_sem);
+	ei->cached_extent.lstart = -1;
+	spin_lock_init(&ei->i_extent_cache_lock);
 
 	return &ei->vfs_inode;
 }
@@ -1021,7 +1024,6 @@ static struct udf_bitmap *udf_sb_alloc_bitmap(struct super_block *sb, u32 index)
 	if (bitmap == NULL)
 		return NULL;
 
-	bitmap->s_block_bitmap = (struct buffer_head **)(bitmap + 1);
 	bitmap->s_nr_groups = nr_groups;
 	return bitmap;
 }
@@ -1079,8 +1081,6 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 		if (!bitmap)
 			return 1;
 		map->s_uspace.s_bitmap = bitmap;
-		bitmap->s_extLength = le32_to_cpu(
-				phd->unallocSpaceBitmap.extLength);
 		bitmap->s_extPosition = le32_to_cpu(
 				phd->unallocSpaceBitmap.extPosition);
 		map->s_partition_flags |= UDF_PART_FLAG_UNALLOC_BITMAP;
@@ -1115,8 +1115,6 @@ static int udf_fill_partdesc_info(struct super_block *sb,
 		if (!bitmap)
 			return 1;
 		map->s_fspace.s_bitmap = bitmap;
-		bitmap->s_extLength = le32_to_cpu(
-				phd->freedSpaceBitmap.extLength);
 		bitmap->s_extPosition = le32_to_cpu(
 				phd->freedSpaceBitmap.extPosition);
 		map->s_partition_flags |= UDF_PART_FLAG_FREED_BITMAP;
@@ -1866,6 +1864,8 @@ static void udf_open_lvid(struct super_block *sb)
 	mark_buffer_dirty(bh);
 	sbi->s_lvid_dirty = 0;
 	mutex_unlock(&sbi->s_alloc_mutex);
+	/* Make opening of filesystem visible on the media immediately */
+	sync_dirty_buffer(bh);
 }
 
 static void udf_close_lvid(struct super_block *sb)
@@ -1906,6 +1906,8 @@ static void udf_close_lvid(struct super_block *sb)
 	mark_buffer_dirty(bh);
 	sbi->s_lvid_dirty = 0;
 	mutex_unlock(&sbi->s_alloc_mutex);
+	/* Make closing of filesystem visible on the media immediately */
+	sync_dirty_buffer(bh);
 }
 
 u64 lvid_get_unique_id(struct super_block *sb)

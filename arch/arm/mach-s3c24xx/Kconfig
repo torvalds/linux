@@ -9,6 +9,15 @@
 
 if ARCH_S3C24XX
 
+config PLAT_S3C24XX
+	def_bool y
+	select ARCH_REQUIRE_GPIOLIB
+	select NO_IOPORT
+	select S3C_DEV_NAND
+	select IRQ_DOMAIN
+	help
+	  Base platform code for any Samsung S3C24XX device
+
 menu "SAMSUNG S3C24XX SoCs Support"
 
 comment "S3C24XX SoCs"
@@ -83,6 +92,17 @@ config CPU_S3C2443
 
 # common code
 
+config S3C2410_CLOCK
+	bool
+	help
+	  Clock code for the S3C2410, and similar processors which
+	  is currently includes the S3C2410, S3C2440, S3C2442.
+
+config S3C24XX_DCLK
+	bool
+	help
+	  Clock code for supporting DCLK/CLKOUT on S3C24XX architectures
+
 config S3C24XX_SMDK
 	bool
 	help
@@ -111,6 +131,22 @@ config S3C24XX_SETUP_TS
 	help
 	  Compile in platform device definition for Samsung TouchScreen.
 
+config S3C24XX_DMA
+	bool "S3C2410 DMA support"
+	depends on ARCH_S3C24XX
+	select S3C_DMA
+	help
+	  S3C2410 DMA support. This is needed for drivers like sound which
+	  use the S3C2410's DMA system to move data to and from the
+	  peripheral blocks.
+
+config S3C2410_DMA_DEBUG
+	bool "S3C2410 DMA support debug"
+	depends on ARCH_S3C24XX && S3C2410_DMA
+	help
+	  Enable debugging output for the DMA code. This option sends info
+	  to the kernel log, at priority KERN_DEBUG.
+
 config S3C2410_DMA
 	bool
 	depends on S3C24XX_DMA && (CPU_S3C2410 || CPU_S3C2442)
@@ -123,9 +159,91 @@ config S3C2410_PM
 	help
 	  Power Management code common to S3C2410 and better
 
+# low-level serial option nodes
+
+config CPU_LLSERIAL_S3C2410_ONLY
+	bool
+	default y if CPU_LLSERIAL_S3C2410 && !CPU_LLSERIAL_S3C2440
+
+config CPU_LLSERIAL_S3C2440_ONLY
+	bool
+	default y if CPU_LLSERIAL_S3C2440 && !CPU_LLSERIAL_S3C2410
+
+config CPU_LLSERIAL_S3C2410
+	bool
+	help
+	  Selected if there is an S3C2410 (or register compatible) serial
+	  low-level implementation needed
+
+config CPU_LLSERIAL_S3C2440
+	bool
+	help
+	  Selected if there is an S3C2440 (or register compatible) serial
+	  low-level implementation needed
+
+# gpio configurations
+
+config S3C24XX_GPIO_EXTRA
+	int
+	default 128 if S3C24XX_GPIO_EXTRA128
+	default 64 if S3C24XX_GPIO_EXTRA64
+	default 16 if ARCH_H1940
+	default 0
+
+config S3C24XX_GPIO_EXTRA64
+	bool
+	help
+	  Add an extra 64 gpio numbers to the available GPIO pool. This is
+	  available for boards that need extra gpios for external devices.
+
+config S3C24XX_GPIO_EXTRA128
+	bool
+	help
+	  Add an extra 128 gpio numbers to the available GPIO pool. This is
+	  available for boards that need extra gpios for external devices.
+
+# cpu frequency items common between s3c2410 and s3c2440/s3c2442
+
+config S3C2410_IOTIMING
+	bool
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Internal node to select io timing code that is common to the s3c2410
+	  and s3c2440/s3c2442 cpu frequency support.
+
+config S3C2410_CPUFREQ_UTILS
+	bool
+	depends on CPU_FREQ_S3C24XX
+	help
+	  Internal node to select timing code that is common to the s3c2410
+	  and s3c2440/s3c244 cpu frequency support.
+
+# cpu frequency support common to s3c2412, s3c2413 and s3c2442
+
+config S3C2412_IOTIMING
+	bool
+	depends on CPU_FREQ_S3C24XX && (CPU_S3C2412 || CPU_S3C2443)
+	help
+	  Intel node to select io timing code that is common to the s3c2412
+	  and the s3c2443.
+
 # cpu-specific sections
 
 if CPU_S3C2410
+
+config S3C2410_CPUFREQ
+	bool
+	depends on CPU_FREQ_S3C24XX && CPU_S3C2410
+	select S3C2410_CPUFREQ_UTILS
+	help
+	  CPU Frequency scaling support for S3C2410
+
+config S3C2410_PLL
+	bool
+	depends on S3C2410_CPUFREQ && CPU_FREQ_S3C24XX_PLL
+	default y
+	help
+	  Select the PLL table for the S3C2410
 
 config S3C24XX_SIMTEC_NOR
 	bool
@@ -226,6 +344,7 @@ config MACH_QT2410
 config ARCH_SMDK2410
 	bool "SMDK2410/A9M2410"
 	select S3C24XX_SMDK
+	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the SMDK2410 or the derived module A9M2410
 	  <http://www.fsforth.de>
@@ -266,6 +385,14 @@ config CPU_S3C2412_ONLY
 		   !CPU_S3C2443 && CPU_S3C2412
 	default y
 
+config S3C2412_CPUFREQ
+	bool
+	depends on CPU_FREQ_S3C24XX && CPU_S3C2412
+	default y
+	select S3C2412_IOTIMING
+	help
+	  CPU Frequency scaling support for S3C2412 and S3C2413 SoC CPUs.
+
 config S3C2412_DMA
 	bool
 	help
@@ -273,6 +400,7 @@ config S3C2412_DMA
 
 config S3C2412_PM
 	bool
+	select S3C2412_PM_SLEEP
 	help
 	  Internal config node to apply S3C2412 power management
 
@@ -291,8 +419,8 @@ config MACH_JIVE
 	  Say Y here if you are using the Logitech Jive.
 
 config MACH_JIVE_SHOW_BOOTLOADER
-	bool "Allow access to bootloader partitions in MTD (EXPERIMENTAL)"
-	depends on MACH_JIVE && EXPERIMENTAL
+	bool "Allow access to bootloader partitions in MTD"
+	depends on MACH_JIVE
 
 config MACH_S3C2413
 	bool
@@ -365,10 +493,44 @@ endif	# CPU_S3C2416
 
 if CPU_S3C2440
 
+config S3C2440_CPUFREQ
+	bool "S3C2440/S3C2442 CPU Frequency scaling support"
+	depends on CPU_FREQ_S3C24XX && (CPU_S3C2440 || CPU_S3C2442)
+	default y
+	select S3C2410_CPUFREQ_UTILS
+	help
+	  CPU Frequency scaling support for S3C2440 and S3C2442 SoC CPUs.
+
 config S3C2440_DMA
 	bool
 	help
 	  Support for S3C2440 specific DMA code5A
+
+config S3C2440_XTAL_12000000
+	bool
+	help
+	  Indicate that the build needs to support 12MHz system
+	  crystal.
+
+config S3C2440_XTAL_16934400
+	bool
+	help
+	  Indicate that the build needs to support 16.9344MHz system
+	  crystal.
+
+config S3C2440_PLL_12000000
+	bool
+	depends on S3C2440_CPUFREQ && S3C2440_XTAL_12000000
+	default y if CPU_FREQ_S3C24XX_PLL
+	help
+	  PLL tables for S3C2440 or S3C2442 CPUs with 12MHz crystals.
+
+config S3C2440_PLL_16934400
+	bool
+	depends on S3C2440_CPUFREQ && S3C2440_XTAL_16934400
+	default y if CPU_FREQ_S3C24XX_PLL
+	help
+	  PLL tables for S3C2440 or S3C2442 CPUs with 16.934MHz crystals.
 
 comment "S3C2440 Boards"
 

@@ -660,9 +660,9 @@ static int jzfb_probe(struct platform_device *pdev)
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	jzfb->base = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!jzfb->base) {
-		ret = -EBUSY;
+	jzfb->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(jzfb->base)) {
+		ret = PTR_ERR(jzfb->base);
 		goto err_framebuffer_release;
 	}
 

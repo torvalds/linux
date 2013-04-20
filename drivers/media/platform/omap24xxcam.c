@@ -402,7 +402,7 @@ static void omap24xxcam_vbq_complete(struct omap24xxcam_sgdma *sgdma,
 		omap24xxcam_core_disable(cam);
 	spin_unlock_irqrestore(&cam->core_enable_disable_lock, flags);
 
-	do_gettimeofday(&vb->ts);
+	v4l2_get_timestamp(&vb->ts);
 	vb->field_count = atomic_add_return(2, &fh->field_count);
 	if (csr & csr_error) {
 		vb->state = VIDEOBUF_ERROR;

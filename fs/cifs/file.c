@@ -43,6 +43,7 @@
 #include "cifs_fs_sb.h"
 #include "fscache.h"
 
+
 static inline int cifs_convert_flags(unsigned int flags)
 {
 	if ((flags & O_ACCMODE) == O_RDONLY)
@@ -72,10 +73,15 @@ static u32 cifs_posix_convert_flags(unsigned int flags)
 	else if ((flags & O_ACCMODE) == O_RDWR)
 		posix_flags = SMB_O_RDWR;
 
-	if (flags & O_CREAT)
+	if (flags & O_CREAT) {
 		posix_flags |= SMB_O_CREAT;
-	if (flags & O_EXCL)
-		posix_flags |= SMB_O_EXCL;
+		if (flags & O_EXCL)
+			posix_flags |= SMB_O_EXCL;
+	} else if (flags & O_EXCL)
+		cFYI(1, "Application %s pid %d has incorrectly set O_EXCL flag"
+			"but not O_CREAT on file open. Ignoring O_EXCL",
+			current->comm, current->tgid);
+
 	if (flags & O_TRUNC)
 		posix_flags |= SMB_O_TRUNC;
 	/* be safe and imply O_SYNC for O_DSYNC */
@@ -294,6 +300,8 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	INIT_WORK(&cfile->oplock_break, cifs_oplock_break);
 	mutex_init(&cfile->fh_mutex);
 
+	cifs_sb_active(inode->i_sb);
+
 	/*
 	 * If the server returned a read oplock and we have mandatory brlocks,
 	 * set oplock level to None.
@@ -343,7 +351,8 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 	struct cifs_tcon *tcon = tlink_tcon(cifs_file->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct super_block *sb = inode->i_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsLockInfo *li, *tmp;
 	struct cifs_fid fid;
 	struct cifs_pending_open open;
@@ -408,6 +417,7 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 
 	cifs_put_tlink(cifs_file->tlink);
 	dput(cifs_file->dentry);
+	cifs_sb_deactive(sb);
 	kfree(cifs_file);
 }
 
@@ -515,8 +525,8 @@ int cifs_open(struct inode *inode, struct file *file)
 		 */
 		struct cifs_unix_set_info_args args = {
 			.mode	= inode->i_mode,
-			.uid	= NO_CHANGE_64,
-			.gid	= NO_CHANGE_64,
+			.uid	= INVALID_UID, /* no change */
+			.gid	= INVALID_GID, /* no change */
 			.ctime	= NO_CHANGE_64,
 			.atime	= NO_CHANGE_64,
 			.mtime	= NO_CHANGE_64,
@@ -947,7 +957,7 @@ static int
 cifs_posix_lock_test(struct file *file, struct file_lock *flock)
 {
 	int rc = 0;
-	struct cifsInodeInfo *cinode = CIFS_I(file->f_path.dentry->d_inode);
+	struct cifsInodeInfo *cinode = CIFS_I(file_inode(file));
 	unsigned char saved_type = flock->fl_type;
 
 	if ((flock->fl_flags & FL_POSIX) == 0)
@@ -974,7 +984,7 @@ cifs_posix_lock_test(struct file *file, struct file_lock *flock)
 static int
 cifs_posix_lock_set(struct file *file, struct file_lock *flock)
 {
-	struct cifsInodeInfo *cinode = CIFS_I(file->f_path.dentry->d_inode);
+	struct cifsInodeInfo *cinode = CIFS_I(file_inode(file));
 	int rc = 1;
 
 	if ((flock->fl_flags & FL_POSIX) == 0)
@@ -1548,7 +1558,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *flock)
 
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	netfid = cfile->fid.netfid;
-	cinode = CIFS_I(file->f_path.dentry->d_inode);
+	cinode = CIFS_I(file_inode(file));
 
 	if (cap_unix(tcon->ses) &&
 	    (CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability)) &&
@@ -1693,7 +1703,7 @@ struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode,
 	   are always at the end of the list but since the first entry might
 	   have a close pending, we go through the whole list */
 	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
-		if (fsuid_only && open_file->uid != current_fsuid())
+		if (fsuid_only && !uid_eq(open_file->uid, current_fsuid()))
 			continue;
 		if (OPEN_FMODE(open_file->f_flags) & FMODE_READ) {
 			if (!open_file->invalidHandle) {
@@ -1746,7 +1756,7 @@ refind_writable:
 	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
 		if (!any_available && open_file->pid != current->tgid)
 			continue;
-		if (fsuid_only && open_file->uid != current_fsuid())
+		if (fsuid_only && !uid_eq(open_file->uid, current_fsuid()))
 			continue;
 		if (OPEN_FMODE(open_file->f_flags) & FMODE_WRITE) {
 			if (!open_file->invalidHandle) {
@@ -2171,7 +2181,7 @@ int cifs_strict_fsync(struct file *file, loff_t start, loff_t end,
 	struct cifs_tcon *tcon;
 	struct TCP_Server_Info *server;
 	struct cifsFileInfo *smbfile = file->private_data;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
 	rc = filemap_write_and_wait_range(inode->i_mapping, start, end);
@@ -2246,7 +2256,7 @@ int cifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
  */
 int cifs_flush(struct file *file, fl_owner_t id)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	int rc = 0;
 
 	if (file->f_mode & FMODE_WRITE)
@@ -2480,7 +2490,7 @@ ssize_t cifs_user_writev(struct kiocb *iocb, const struct iovec *iov,
 	ssize_t written;
 	struct inode *inode;
 
-	inode = iocb->ki_filp->f_path.dentry->d_inode;
+	inode = file_inode(iocb->ki_filp);
 
 	/*
 	 * BB - optimize the way when signing is disabled. We can drop this
@@ -2543,7 +2553,7 @@ ssize_t
 cifs_strict_writev(struct kiocb *iocb, const struct iovec *iov,
 		   unsigned long nr_segs, loff_t pos)
 {
-	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(iocb->ki_filp);
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsFileInfo *cfile = (struct cifsFileInfo *)
@@ -2915,7 +2925,7 @@ ssize_t
 cifs_strict_readv(struct kiocb *iocb, const struct iovec *iov,
 		  unsigned long nr_segs, loff_t pos)
 {
-	struct inode *inode = iocb->ki_filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(iocb->ki_filp);
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsFileInfo *cfile = (struct cifsFileInfo *)
@@ -3063,7 +3073,7 @@ static struct vm_operations_struct cifs_file_vm_ops = {
 int cifs_file_strict_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int rc, xid;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 
 	xid = get_xid();
 
@@ -3356,7 +3366,7 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 	int rc;
 
 	/* Is the page cached? */
-	rc = cifs_readpage_from_fscache(file->f_path.dentry->d_inode, page);
+	rc = cifs_readpage_from_fscache(file_inode(file), page);
 	if (rc == 0)
 		goto read_complete;
 
@@ -3371,8 +3381,8 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 	else
 		cFYI(1, "Bytes read %d", rc);
 
-	file->f_path.dentry->d_inode->i_atime =
-		current_fs_time(file->f_path.dentry->d_inode->i_sb);
+	file_inode(file)->i_atime =
+		current_fs_time(file_inode(file)->i_sb);
 
 	if (PAGE_CACHE_SIZE > rc)
 		memset(read_data + rc, 0, PAGE_CACHE_SIZE - rc);
@@ -3381,7 +3391,7 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 	SetPageUptodate(page);
 
 	/* send this page to the cache */
-	cifs_readpage_to_fscache(file->f_path.dentry->d_inode, page);
+	cifs_readpage_to_fscache(file_inode(file), page);
 
 	rc = 0;
 

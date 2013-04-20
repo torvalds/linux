@@ -296,7 +296,7 @@ static int zisofs_fill_pages(struct inode *inode, int full_page, int pcount,
  */
 static int zisofs_readpage(struct file *file, struct page *page)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct address_space *mapping = inode->i_mapping;
 	int err;
 	int i, pcount, full_page;

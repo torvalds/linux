@@ -187,6 +187,40 @@ static void lm3530_als_configure(struct lm3530_platform_data *pdata,
 		(pdata->als2_resistor_sel << LM3530_ALS2_IMP_SHIFT);
 }
 
+static int lm3530_led_enable(struct lm3530_data *drvdata)
+{
+	int ret;
+
+	if (drvdata->enable)
+		return 0;
+
+	ret = regulator_enable(drvdata->regulator);
+	if (ret) {
+		dev_err(drvdata->led_dev.dev, "Failed to enable vin:%d\n", ret);
+		return ret;
+	}
+
+	drvdata->enable = true;
+	return 0;
+}
+
+static void lm3530_led_disable(struct lm3530_data *drvdata)
+{
+	int ret;
+
+	if (!drvdata->enable)
+		return;
+
+	ret = regulator_disable(drvdata->regulator);
+	if (ret) {
+		dev_err(drvdata->led_dev.dev, "Failed to disable vin:%d\n",
+			ret);
+		return;
+	}
+
+	drvdata->enable = false;
+}
+
 static int lm3530_init_registers(struct lm3530_data *drvdata)
 {
 	int ret = 0;
@@ -245,15 +279,9 @@ static int lm3530_init_registers(struct lm3530_data *drvdata)
 	reg_val[12] = LM3530_DEF_ZT_3;	/* LM3530_ALS_Z3T_REG */
 	reg_val[13] = LM3530_DEF_ZT_4;	/* LM3530_ALS_Z4T_REG */
 
-	if (!drvdata->enable) {
-		ret = regulator_enable(drvdata->regulator);
-		if (ret) {
-			dev_err(&drvdata->client->dev,
-					"Enable regulator failed\n");
-			return ret;
-		}
-		drvdata->enable = true;
-	}
+	ret = lm3530_led_enable(drvdata);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < LM3530_REG_MAX; i++) {
 		/* do not update brightness register when pwm mode */
@@ -305,13 +333,8 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 		else
 			drvdata->brightness = brt_val;
 
-		if (brt_val == 0) {
-			err = regulator_disable(drvdata->regulator);
-			if (err)
-				dev_err(&drvdata->client->dev,
-					"Disable regulator failed\n");
-			drvdata->enable = false;
-		}
+		if (brt_val == 0)
+			lm3530_led_disable(drvdata);
 		break;
 	case LM3530_BL_MODE_ALS:
 		break;
@@ -458,8 +481,7 @@ static int lm3530_remove(struct i2c_client *client)
 
 	device_remove_file(drvdata->led_dev.dev, &dev_attr_mode);
 
-	if (drvdata->enable)
-		regulator_disable(drvdata->regulator);
+	lm3530_led_disable(drvdata);
 	led_classdev_unregister(&drvdata->led_dev);
 	return 0;
 }

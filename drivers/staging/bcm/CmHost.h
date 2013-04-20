@@ -27,32 +27,28 @@ struct bcm_add_indication_alt {
 	u8	u8Type;
 	u8	u8Direction;
 	u16	u16TID;
-	/* brief 16bitCID */
 	u16	u16CID;
-	/* brief 16bitVCID */
 	u16	u16VCID;
 	struct bcm_connect_mgr_params sfAuthorizedSet;
 	struct bcm_connect_mgr_params sfAdmittedSet;
 	struct bcm_connect_mgr_params sfActiveSet;
 	u8	u8CC;    /* < Confirmation Code */
-	u8	u8Padd;  /* < 8-bit Padding */
-	u16	u16Padd; /* < 16 bit Padding */
+	u8	u8Padd;
+	u16	u16Padd;
 };
 
 struct bcm_change_indication {
 	u8	u8Type;
 	u8	u8Direction;
 	u16	u16TID;
-	/* brief 16bitCID */
 	u16	u16CID;
-	/* brief 16bitVCID */
 	u16	u16VCID;
 	struct bcm_connect_mgr_params sfAuthorizedSet;
 	struct bcm_connect_mgr_params sfAdmittedSet;
 	struct bcm_connect_mgr_params sfActiveSet;
 	u8	u8CC;    /* < Confirmation Code */
-	u8	u8Padd;  /* < 8-bit Padding */
-	u16	u16Padd; /* < 16 bit */
+	u8	u8Padd;
+	u16	u16Padd;
 };
 
 unsigned long StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, void *pvBuffer, unsigned int *puBufferLength);

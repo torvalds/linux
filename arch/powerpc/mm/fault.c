@@ -249,8 +249,8 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 #if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE) || \
 			     defined(CONFIG_PPC_BOOK3S_64))
   	if (error_code & DSISR_DABRMATCH) {
-		/* DABR match */
-		do_dabr(regs, address, error_code);
+		/* breakpoint match */
+		do_break(regs, address, error_code);
 		return 0;
 	}
 #endif

@@ -6,7 +6,7 @@
  *    Daniel Laird <daniel.j.laird@nxp.com>
  *
  *  Based on software written by:
- *      Nikita Youshchenko <yoush@debian.org>, based on PNX8550 code.
+ *	Nikita Youshchenko <yoush@debian.org>, based on PNX8550 code.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

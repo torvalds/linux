@@ -1237,13 +1237,11 @@ int cx23888_ir_probe(struct cx23885_dev *dev)
 		cx23888_ir_write4(dev, CX23888_IR_IRQEN_REG, 0);
 
 		mutex_init(&state->rx_params_lock);
-		memcpy(&default_params, &default_rx_params,
-		       sizeof(struct v4l2_subdev_ir_parameters));
+		default_params = default_rx_params;
 		v4l2_subdev_call(sd, ir, rx_s_parameters, &default_params);
 
 		mutex_init(&state->tx_params_lock);
-		memcpy(&default_params, &default_tx_params,
-		       sizeof(struct v4l2_subdev_ir_parameters));
+		default_params = default_tx_params;
 		v4l2_subdev_call(sd, ir, tx_s_parameters, &default_params);
 	} else {
 		kfifo_free(&state->rx_kfifo);

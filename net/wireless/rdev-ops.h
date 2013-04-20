@@ -875,4 +875,16 @@ static inline void rdev_stop_p2p_device(struct cfg80211_registered_device *rdev,
 	rdev->ops->stop_p2p_device(&rdev->wiphy, wdev);
 	trace_rdev_return_void(&rdev->wiphy);
 }					
+
+static inline int rdev_set_mac_acl(struct cfg80211_registered_device *rdev,
+				   struct net_device *dev,
+				   struct cfg80211_acl_data *params)
+{
+	int ret;
+
+	trace_rdev_set_mac_acl(&rdev->wiphy, dev, params);
+	ret = rdev->ops->set_mac_acl(&rdev->wiphy, dev, params);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+	return ret;
+}
 #endif /* __CFG80211_RDEV_OPS */

@@ -6,8 +6,8 @@
  * include/asm-mips/time.h
  *     header file for the new style time.c file and time services.
  *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
+ * This program is free software; you can redistribute	it and/or modify it
+ * under  the terms of	the GNU General	 Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
@@ -75,7 +75,7 @@ extern int init_r4k_clocksource(void);
 
 static inline int init_mips_clocksource(void)
 {
-#ifdef CONFIG_CSRC_R4K
+#if defined(CONFIG_CSRC_R4K) && !defined(CONFIG_CSRC_GIC)
 	return init_r4k_clocksource();
 #else
 	return 0;

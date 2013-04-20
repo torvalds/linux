@@ -231,6 +231,7 @@ enum {
 	AHCI_HFLAG_DELAY_ENGINE		= (1 << 15), /* do not start engine on
 						        port start (wait until
 						        error-handling stage) */
+	AHCI_HFLAG_MULTI_MSI		= (1 << 16), /* multiple PCI MSIs */
 
 	/* ap->flags bits */
 
@@ -297,6 +298,8 @@ struct ahci_port_priv {
 	unsigned int		ncq_saw_d2h:1;
 	unsigned int		ncq_saw_dmas:1;
 	unsigned int		ncq_saw_sdb:1;
+	u32			intr_status;	/* interrupts to handle */
+	spinlock_t		lock;		/* protects parent ata_port */
 	u32 			intr_mask;	/* interrupts to enable */
 	bool			fbs_supported;	/* set iff FBS is supported */
 	bool			fbs_enabled;	/* set iff FBS is enabled */
@@ -359,7 +362,10 @@ void ahci_set_em_messages(struct ahci_host_priv *hpriv,
 			  struct ata_port_info *pi);
 int ahci_reset_em(struct ata_host *host);
 irqreturn_t ahci_interrupt(int irq, void *dev_instance);
+irqreturn_t ahci_hw_interrupt(int irq, void *dev_instance);
+irqreturn_t ahci_thread_fn(int irq, void *dev_instance);
 void ahci_print_info(struct ata_host *host, const char *scc_s);
+int ahci_host_activate(struct ata_host *host, int irq, unsigned int n_msis);
 
 static inline void __iomem *__ahci_port_base(struct ata_host *host,
 					     unsigned int port_no)

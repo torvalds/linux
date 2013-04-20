@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -92,6 +92,8 @@ static const struct igb_stats igb_gstrings_stats[] = {
 	IGB_STAT("os2bmc_tx_by_bmc", stats.b2ospc),
 	IGB_STAT("os2bmc_tx_by_host", stats.o2bspc),
 	IGB_STAT("os2bmc_rx_by_host", stats.b2ogprc),
+	IGB_STAT("tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
+	IGB_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
 };
 
 #define IGB_NETDEV_STAT(_net_stat) { \
@@ -1889,7 +1891,7 @@ static int igb_link_test(struct igb_adapter *adapter, u64 *data)
 	} else {
 		hw->mac.ops.check_for_link(&adapter->hw);
 		if (hw->mac.autoneg)
-			msleep(4000);
+			msleep(5000);
 
 		if (!(rd32(E1000_STATUS) & E1000_STATUS_LU))
 			*data = 1;
@@ -2272,12 +2274,21 @@ static int igb_get_ts_info(struct net_device *dev,
 	struct igb_adapter *adapter = netdev_priv(dev);
 
 	switch (adapter->hw.mac.type) {
+	case e1000_82575:
+		info->so_timestamping =
+			SOF_TIMESTAMPING_TX_SOFTWARE |
+			SOF_TIMESTAMPING_RX_SOFTWARE |
+			SOF_TIMESTAMPING_SOFTWARE;
+		return 0;
 	case e1000_82576:
 	case e1000_82580:
 	case e1000_i350:
 	case e1000_i210:
 	case e1000_i211:
 		info->so_timestamping =
+			SOF_TIMESTAMPING_TX_SOFTWARE |
+			SOF_TIMESTAMPING_RX_SOFTWARE |
+			SOF_TIMESTAMPING_SOFTWARE |
 			SOF_TIMESTAMPING_TX_HARDWARE |
 			SOF_TIMESTAMPING_RX_HARDWARE |
 			SOF_TIMESTAMPING_RAW_HARDWARE;

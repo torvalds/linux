@@ -191,7 +191,7 @@ WIND_RING(struct nouveau_channel *chan)
 #define NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG                    0x00000002
 #define NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL                0x00000004
 #define NVC0_SUBCHAN_SEMAPHORE_TRIGGER_YIELD                         0x00001000
-#define NV84_SUBCHAN_NOTIFY_INTR                                     0x00000020
+#define NV84_SUBCHAN_UEVENT                                          0x00000020
 #define NV84_SUBCHAN_WRCACHE_FLUSH                                   0x00000024
 #define NV10_SUBCHAN_REF_CNT                                         0x00000050
 #define NVSW_SUBCHAN_PAGE_FLIP                                       0x00000054

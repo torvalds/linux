@@ -116,6 +116,10 @@ static bool enable_suspend = 0;
 /* "modprobe net2280 enable_suspend=1" etc */
 module_param (enable_suspend, bool, S_IRUGO);
 
+/* force full-speed operation */
+static bool full_speed;
+module_param(full_speed, bool, 0444);
+MODULE_PARM_DESC(full_speed, "force full-speed mode -- for testing only!");
 
 #define	DIR_STRING(bAddress) (((bAddress) & USB_DIR_IN) ? "in" : "out")
 
@@ -1899,6 +1903,10 @@ static int net2280_start(struct usb_gadget *_gadget,
 	retval = device_create_file (&dev->pdev->dev, &dev_attr_queues);
 	if (retval) goto err_func;
 
+	/* Enable force-full-speed testing mode, if desired */
+	if (full_speed)
+		writel(1 << FORCE_FULL_SPEED_MODE, &dev->usb->xcvrdiag);
+
 	/* ... then enable host detection and ep0; and we're ready
 	 * for set_configuration as well as eventual disconnect.
 	 */
@@ -1916,7 +1924,6 @@ static int net2280_start(struct usb_gadget *_gadget,
 err_func:
 	device_remove_file (&dev->pdev->dev, &dev_attr_function);
 err_unbind:
-	driver->unbind (&dev->gadget);
 	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 	return retval;
@@ -1938,6 +1945,13 @@ stop_activity (struct net2280 *dev, struct usb_gadget_driver *driver)
 	for (i = 0; i < 7; i++)
 		nuke (&dev->ep [i]);
 
+	/* report disconnect; the driver is already quiesced */
+	if (driver) {
+		spin_unlock(&dev->lock);
+		driver->disconnect(&dev->gadget);
+		spin_lock(&dev->lock);
+	}
+
 	usb_reinit (dev);
 }
 
@@ -1957,6 +1971,10 @@ static int net2280_stop(struct usb_gadget *_gadget,
 	dev->driver = NULL;
 
 	net2280_led_active (dev, 0);
+
+	/* Disable full-speed test mode */
+	writel(0, &dev->usb->xcvrdiag);
+
 	device_remove_file (&dev->pdev->dev, &dev_attr_function);
 	device_remove_file (&dev->pdev->dev, &dev_attr_queues);
 
@@ -2841,6 +2859,9 @@ static void net2280_shutdown (struct pci_dev *pdev)
 
 	/* disable the pullup so the host will think we're gone */
 	writel (0, &dev->usb->usbctl);
+
+	/* Disable full-speed test mode */
+	writel(0, &dev->usb->xcvrdiag);
 }
 
 

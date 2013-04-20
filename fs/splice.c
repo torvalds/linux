@@ -31,6 +31,7 @@
 #include <linux/security.h>
 #include <linux/gfp.h>
 #include <linux/socket.h>
+#include "internal.h"
 
 /*
  * Attempt to steal a page from a pipe buffer. This should perhaps go into
@@ -569,7 +570,7 @@ static ssize_t kernel_readv(struct file *file, const struct iovec *vec,
 	return res;
 }
 
-static ssize_t kernel_write(struct file *file, const char *buf, size_t count,
+ssize_t kernel_write(struct file *file, const char *buf, size_t count,
 			    loff_t pos)
 {
 	mm_segment_t old_fs;
@@ -578,11 +579,12 @@ static ssize_t kernel_write(struct file *file, const char *buf, size_t count,
 	old_fs = get_fs();
 	set_fs(get_ds());
 	/* The cast to a user pointer is valid due to the set_fs() */
-	res = vfs_write(file, (const char __user *)buf, count, &pos);
+	res = vfs_write(file, (__force const char __user *)buf, count, &pos);
 	set_fs(old_fs);
 
 	return res;
 }
+EXPORT_SYMBOL(kernel_write);
 
 ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 				 struct pipe_inode_info *pipe, size_t len,
@@ -1047,9 +1049,10 @@ static int write_pipe_buf(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 {
 	int ret;
 	void *data;
+	loff_t tmp = sd->pos;
 
 	data = buf->ops->map(pipe, buf, 0);
-	ret = kernel_write(sd->u.file, data + buf->offset, sd->len, sd->pos);
+	ret = __kernel_write(sd->u.file, data + buf->offset, sd->len, &tmp);
 	buf->ops->unmap(pipe, buf, data);
 
 	return ret;
@@ -1170,7 +1173,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 	 * randomly drop data for eg socket -> socket splicing. Use the
 	 * piped splicing for that!
 	 */
-	i_mode = in->f_path.dentry->d_inode->i_mode;
+	i_mode = file_inode(in)->i_mode;
 	if (unlikely(!S_ISREG(i_mode) && !S_ISBLK(i_mode)))
 		return -EINVAL;
 

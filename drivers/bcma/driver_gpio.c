@@ -73,6 +73,16 @@ static void bcma_gpio_free(struct gpio_chip *chip, unsigned gpio)
 	bcma_chipco_gpio_pullup(cc, 1 << gpio, 0);
 }
 
+static int bcma_gpio_to_irq(struct gpio_chip *chip, unsigned gpio)
+{
+	struct bcma_drv_cc *cc = bcma_gpio_get_cc(chip);
+
+	if (cc->core->bus->hosttype == BCMA_HOSTTYPE_SOC)
+		return bcma_core_irq(cc->core);
+	else
+		return -EINVAL;
+}
+
 int bcma_gpio_init(struct bcma_drv_cc *cc)
 {
 	struct gpio_chip *chip = &cc->gpio;
@@ -85,6 +95,7 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	chip->set		= bcma_gpio_set_value;
 	chip->direction_input	= bcma_gpio_direction_input;
 	chip->direction_output	= bcma_gpio_direction_output;
+	chip->to_irq		= bcma_gpio_to_irq;
 	chip->ngpio		= 16;
 	/* There is just one SoC in one device and its GPIO addresses should be
 	 * deterministic to address them more easily. The other buses could get
@@ -95,4 +106,9 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 		chip->base		= -1;
 
 	return gpiochip_add(chip);
+}
+
+int bcma_gpio_unregister(struct bcma_drv_cc *cc)
+{
+	return gpiochip_remove(&cc->gpio);
 }

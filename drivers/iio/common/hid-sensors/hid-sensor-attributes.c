@@ -25,7 +25,6 @@
 #include <linux/hid-sensor-hub.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include "hid-sensor-attributes.h"
 
 static int pow_10(unsigned power)
 {
@@ -114,7 +113,7 @@ static u32 convert_to_vtf_format(int size, int exp, int val1, int val2)
 	return value;
 }
 
-int hid_sensor_read_samp_freq_value(struct hid_sensor_iio_common *st,
+int hid_sensor_read_samp_freq_value(struct hid_sensor_common *st,
 				int *val1, int *val2)
 {
 	s32 value;
@@ -141,7 +140,7 @@ int hid_sensor_read_samp_freq_value(struct hid_sensor_iio_common *st,
 }
 EXPORT_SYMBOL(hid_sensor_read_samp_freq_value);
 
-int hid_sensor_write_samp_freq_value(struct hid_sensor_iio_common *st,
+int hid_sensor_write_samp_freq_value(struct hid_sensor_common *st,
 				int val1, int val2)
 {
 	s32 value;
@@ -169,7 +168,7 @@ int hid_sensor_write_samp_freq_value(struct hid_sensor_iio_common *st,
 }
 EXPORT_SYMBOL(hid_sensor_write_samp_freq_value);
 
-int hid_sensor_read_raw_hyst_value(struct hid_sensor_iio_common *st,
+int hid_sensor_read_raw_hyst_value(struct hid_sensor_common *st,
 				int *val1, int *val2)
 {
 	s32 value;
@@ -191,7 +190,7 @@ int hid_sensor_read_raw_hyst_value(struct hid_sensor_iio_common *st,
 }
 EXPORT_SYMBOL(hid_sensor_read_raw_hyst_value);
 
-int hid_sensor_write_raw_hyst_value(struct hid_sensor_iio_common *st,
+int hid_sensor_write_raw_hyst_value(struct hid_sensor_common *st,
 					int val1, int val2)
 {
 	s32 value;
@@ -212,7 +211,7 @@ EXPORT_SYMBOL(hid_sensor_write_raw_hyst_value);
 
 int hid_sensor_parse_common_attributes(struct hid_sensor_hub_device *hsdev,
 					u32 usage_id,
-					struct hid_sensor_iio_common *st)
+					struct hid_sensor_common *st)
 {
 
 	sensor_hub_input_get_attribute_info(hsdev,

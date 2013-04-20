@@ -494,8 +494,8 @@ store_hard_offline_page(struct device *dev,
 	return ret ? ret : count;
 }
 
-static DEVICE_ATTR(soft_offline_page, 0644, NULL, store_soft_offline_page);
-static DEVICE_ATTR(hard_offline_page, 0644, NULL, store_hard_offline_page);
+static DEVICE_ATTR(soft_offline_page, S_IWUSR, NULL, store_soft_offline_page);
+static DEVICE_ATTR(hard_offline_page, S_IWUSR, NULL, store_hard_offline_page);
 
 static __init int memory_fail_init(void)
 {
@@ -691,6 +691,12 @@ int offline_memory_block(struct memory_block *mem)
 	mutex_unlock(&mem->state_mutex);
 
 	return ret;
+}
+
+/* return true if the memory block is offlined, otherwise, return false */
+bool is_memblock_offlined(struct memory_block *mem)
+{
+	return mem->state == MEM_OFFLINE;
 }
 
 /*

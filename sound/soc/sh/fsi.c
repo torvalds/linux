@@ -16,6 +16,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/scatterlist.h>
 #include <linux/sh_dma.h>
 #include <linux/slab.h>
@@ -131,8 +133,6 @@
 
 #define FSI_FMTS (SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE)
 
-typedef int (*set_rate_func)(struct device *dev, int rate, int enable);
-
 /*
  * bus options
  *
@@ -244,8 +244,7 @@ struct fsi_clk {
 	struct clk *ick;
 	struct clk *div;
 	int (*set_rate)(struct device *dev,
-			struct fsi_priv *fsi,
-			unsigned long rate);
+			struct fsi_priv *fsi);
 
 	unsigned long rate;
 	unsigned int count;
@@ -254,7 +253,6 @@ struct fsi_clk {
 struct fsi_priv {
 	void __iomem *base;
 	struct fsi_master *master;
-	struct sh_fsi_port_info *info;
 
 	struct fsi_stream playback;
 	struct fsi_stream capture;
@@ -270,8 +268,6 @@ struct fsi_priv {
 	int enable_stream:1;
 	int bit_clk_inv:1;
 	int lr_clk_inv:1;
-
-	long rate;
 };
 
 struct fsi_stream_handler {
@@ -303,7 +299,7 @@ struct fsi_master {
 	int irq;
 	struct fsi_priv fsia;
 	struct fsi_priv fsib;
-	struct fsi_core *core;
+	const struct fsi_core *core;
 	spinlock_t lock;
 };
 
@@ -429,22 +425,6 @@ static struct fsi_priv *fsi_get_priv_frm_dai(struct snd_soc_dai *dai)
 static struct fsi_priv *fsi_get_priv(struct snd_pcm_substream *substream)
 {
 	return fsi_get_priv_frm_dai(fsi_get_dai(substream));
-}
-
-static set_rate_func fsi_get_info_set_rate(struct fsi_priv *fsi)
-{
-	if (!fsi->info)
-		return NULL;
-
-	return fsi->info->set_rate;
-}
-
-static u32 fsi_get_info_flags(struct fsi_priv *fsi)
-{
-	if (!fsi->info)
-		return 0;
-
-	return fsi->info->flags;
 }
 
 static u32 fsi_get_port_shift(struct fsi_priv *fsi, struct fsi_stream *io)
@@ -757,8 +737,7 @@ static int fsi_clk_init(struct device *dev,
 			int ick,
 			int div,
 			int (*set_rate)(struct device *dev,
-					struct fsi_priv *fsi,
-					unsigned long rate))
+					struct fsi_priv *fsi))
 {
 	struct fsi_clk *clock = &fsi->clock;
 	int is_porta = fsi_is_port_a(fsi);
@@ -829,8 +808,7 @@ static int fsi_clk_is_valid(struct fsi_priv *fsi)
 }
 
 static int fsi_clk_enable(struct device *dev,
-			  struct fsi_priv *fsi,
-			  unsigned long rate)
+			  struct fsi_priv *fsi)
 {
 	struct fsi_clk *clock = &fsi->clock;
 	int ret = -EINVAL;
@@ -839,7 +817,7 @@ static int fsi_clk_enable(struct device *dev,
 		return ret;
 
 	if (0 == clock->count) {
-		ret = clock->set_rate(dev, fsi, rate);
+		ret = clock->set_rate(dev, fsi);
 		if (ret < 0) {
 			fsi_clk_invalid(fsi);
 			return ret;
@@ -946,11 +924,11 @@ static int fsi_clk_set_ackbpf(struct device *dev,
 }
 
 static int fsi_clk_set_rate_external(struct device *dev,
-				     struct fsi_priv *fsi,
-				     unsigned long rate)
+				     struct fsi_priv *fsi)
 {
 	struct clk *xck = fsi->clock.xck;
 	struct clk *ick = fsi->clock.ick;
+	unsigned long rate = fsi->clock.rate;
 	unsigned long xrate;
 	int ackmd, bpfmd;
 	int ret = 0;
@@ -978,11 +956,11 @@ static int fsi_clk_set_rate_external(struct device *dev,
 }
 
 static int fsi_clk_set_rate_cpg(struct device *dev,
-				struct fsi_priv *fsi,
-				unsigned long rate)
+				struct fsi_priv *fsi)
 {
 	struct clk *ick = fsi->clock.ick;
 	struct clk *div = fsi->clock.div;
+	unsigned long rate = fsi->clock.rate;
 	unsigned long target = 0; /* 12288000 or 11289600 */
 	unsigned long actual, cout;
 	unsigned long diff, min;
@@ -1059,85 +1037,6 @@ static int fsi_clk_set_rate_cpg(struct device *dev,
 
 	dev_dbg(dev, "ick/div = %ld/%ld\n",
 		clk_get_rate(ick), clk_get_rate(div));
-
-	return ret;
-}
-
-static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
-			      long rate, int enable)
-{
-	set_rate_func set_rate = fsi_get_info_set_rate(fsi);
-	int ret;
-
-	/*
-	 * CAUTION
-	 *
-	 * set_rate will be deleted
-	 */
-	if (!set_rate) {
-		if (enable)
-			return fsi_clk_enable(dev, fsi, rate);
-		else
-			return fsi_clk_disable(dev, fsi);
-	}
-
-	ret = set_rate(dev, rate, enable);
-	if (ret < 0) /* error */
-		return ret;
-
-	if (!enable)
-		return 0;
-
-	if (ret > 0) {
-		u32 data = 0;
-
-		switch (ret & SH_FSI_ACKMD_MASK) {
-		default:
-			/* FALL THROUGH */
-		case SH_FSI_ACKMD_512:
-			data |= (0x0 << 12);
-			break;
-		case SH_FSI_ACKMD_256:
-			data |= (0x1 << 12);
-			break;
-		case SH_FSI_ACKMD_128:
-			data |= (0x2 << 12);
-			break;
-		case SH_FSI_ACKMD_64:
-			data |= (0x3 << 12);
-			break;
-		case SH_FSI_ACKMD_32:
-			data |= (0x4 << 12);
-			break;
-		}
-
-		switch (ret & SH_FSI_BPFMD_MASK) {
-		default:
-			/* FALL THROUGH */
-		case SH_FSI_BPFMD_32:
-			data |= (0x0 << 8);
-			break;
-		case SH_FSI_BPFMD_64:
-			data |= (0x1 << 8);
-			break;
-		case SH_FSI_BPFMD_128:
-			data |= (0x2 << 8);
-			break;
-		case SH_FSI_BPFMD_256:
-			data |= (0x3 << 8);
-			break;
-		case SH_FSI_BPFMD_512:
-			data |= (0x4 << 8);
-			break;
-		case SH_FSI_BPFMD_16:
-			data |= (0x7 << 8);
-			break;
-		}
-
-		fsi_reg_mask_set(fsi, CKG1, (ACKMD_MASK | BPFMD_MASK) , data);
-		udelay(10);
-		ret = 0;
-	}
 
 	return ret;
 }
@@ -1637,7 +1536,6 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 			  struct fsi_stream *io,
 			  struct device *dev)
 {
-	u32 flags = fsi_get_info_flags(fsi);
 	u32 data = 0;
 
 	/* clock setting */
@@ -1654,19 +1552,6 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 		data |= (1 << 4);
 	if (fsi_is_clk_master(fsi))
 		data <<= 8;
-	/* FIXME
-	 *
-	 * SH_FSI_xxx_INV style will be removed
-	 */
-	if (SH_FSI_LRM_INV & flags)
-		data |= 1 << 12;
-	if (SH_FSI_BRM_INV & flags)
-		data |= 1 << 8;
-	if (SH_FSI_LRS_INV & flags)
-		data |= 1 << 4;
-	if (SH_FSI_BRS_INV & flags)
-		data |= 1 << 0;
-
 	fsi_reg_write(fsi, CKG2, data);
 
 	/* spdif ? */
@@ -1698,7 +1583,7 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 
 	/* start master clock */
 	if (fsi_is_clk_master(fsi))
-		return fsi_set_master_clk(dev, fsi, fsi->rate, 1);
+		return fsi_clk_enable(dev, fsi);
 
 	return 0;
 }
@@ -1708,7 +1593,7 @@ static int fsi_hw_shutdown(struct fsi_priv *fsi,
 {
 	/* stop master clock */
 	if (fsi_is_clk_master(fsi))
-		return fsi_set_master_clk(dev, fsi, fsi->rate, 0);
+		return fsi_clk_disable(dev, fsi);
 
 	return 0;
 }
@@ -1719,7 +1604,6 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 
 	fsi_clk_invalid(fsi);
-	fsi->rate = 0;
 
 	return 0;
 }
@@ -1730,7 +1614,6 @@ static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 
 	fsi_clk_invalid(fsi);
-	fsi->rate = 0;
 }
 
 static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -1795,7 +1678,6 @@ static int fsi_set_fmt_spdif(struct fsi_priv *fsi)
 static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct fsi_priv *fsi = fsi_get_priv_frm_dai(dai);
-	set_rate_func set_rate = fsi_get_info_set_rate(fsi);
 	int ret;
 
 	/* set master/slave audio interface */
@@ -1831,14 +1713,6 @@ static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	if (fsi_is_clk_master(fsi)) {
-		/*
-		 * CAUTION
-		 *
-		 * set_rate will be deleted
-		 */
-		if (set_rate)
-			dev_warn(dai->dev, "set_rate will be removed soon\n");
-
 		if (fsi->clk_cpg)
 			fsi_clk_init(dai->dev, fsi, 0, 1, 1,
 				     fsi_clk_set_rate_cpg);
@@ -1862,10 +1736,8 @@ static int fsi_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 
-	if (fsi_is_clk_master(fsi)) {
-		fsi->rate = params_rate(params);
-		fsi_clk_valid(fsi, fsi->rate);
-	}
+	if (fsi_is_clk_master(fsi))
+		fsi_clk_valid(fsi, params_rate(params));
 
 	return 0;
 }
@@ -2017,6 +1889,33 @@ static struct snd_soc_platform_driver fsi_soc_platform = {
 /*
  *		platform function
  */
+static void fsi_of_parse(char *name,
+			 struct device_node *np,
+			 struct sh_fsi_port_info *info,
+			 struct device *dev)
+{
+	int i;
+	char prop[128];
+	unsigned long flags = 0;
+	struct {
+		char *name;
+		unsigned int val;
+	} of_parse_property[] = {
+		{ "spdif-connection",		SH_FSI_FMT_SPDIF },
+		{ "stream-mode-support",	SH_FSI_ENABLE_STREAM_MODE },
+		{ "use-internal-clock",		SH_FSI_CLK_CPG },
+	};
+
+	for (i = 0; i < ARRAY_SIZE(of_parse_property); i++) {
+		sprintf(prop, "%s,%s", name, of_parse_property[i].name);
+		if (of_get_property(np, prop, NULL))
+			flags |= of_parse_property[i].val;
+	}
+	info->flags = flags;
+
+	dev_dbg(dev, "%s flags : %lx\n", name, info->flags);
+}
+
 static void fsi_port_info_init(struct fsi_priv *fsi,
 			       struct sh_fsi_port_info *info)
 {
@@ -2044,23 +1943,40 @@ static void fsi_handler_init(struct fsi_priv *fsi,
 	}
 }
 
+static struct of_device_id fsi_of_match[];
 static int fsi_probe(struct platform_device *pdev)
 {
 	struct fsi_master *master;
-	const struct platform_device_id	*id_entry;
-	struct sh_fsi_platform_info *info = pdev->dev.platform_data;
-	struct sh_fsi_port_info nul_info, *pinfo;
+	struct device_node *np = pdev->dev.of_node;
+	struct sh_fsi_platform_info info;
+	const struct fsi_core *core;
 	struct fsi_priv *fsi;
 	struct resource *res;
 	unsigned int irq;
 	int ret;
 
-	nul_info.flags	= 0;
-	nul_info.tx_id	= 0;
-	nul_info.rx_id	= 0;
+	memset(&info, 0, sizeof(info));
 
-	id_entry = pdev->id_entry;
-	if (!id_entry) {
+	core = NULL;
+	if (np) {
+		const struct of_device_id *of_id;
+
+		of_id = of_match_device(fsi_of_match, &pdev->dev);
+		if (of_id) {
+			core = of_id->data;
+			fsi_of_parse("fsia", np, &info.port_a, &pdev->dev);
+			fsi_of_parse("fsib", np, &info.port_b, &pdev->dev);
+		}
+	} else {
+		const struct platform_device_id	*id_entry = pdev->id_entry;
+		if (id_entry)
+			core = (struct fsi_core *)id_entry->driver_data;
+
+		if (pdev->dev.platform_data)
+			memcpy(&info, pdev->dev.platform_data, sizeof(info));
+	}
+
+	if (!core) {
 		dev_err(&pdev->dev, "unknown fsi device\n");
 		return -ENODEV;
 	}
@@ -2087,17 +2003,15 @@ static int fsi_probe(struct platform_device *pdev)
 
 	/* master setting */
 	master->irq		= irq;
-	master->core		= (struct fsi_core *)id_entry->driver_data;
+	master->core		= core;
 	spin_lock_init(&master->lock);
 
 	/* FSI A setting */
-	pinfo		= (info) ? &info->port_a : &nul_info;
 	fsi		= &master->fsia;
 	fsi->base	= master->base;
 	fsi->master	= master;
-	fsi->info	= pinfo;
-	fsi_port_info_init(fsi, pinfo);
-	fsi_handler_init(fsi, pinfo);
+	fsi_port_info_init(fsi, &info.port_a);
+	fsi_handler_init(fsi, &info.port_a);
 	ret = fsi_stream_probe(fsi, &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "FSIA stream probe failed\n");
@@ -2105,13 +2019,11 @@ static int fsi_probe(struct platform_device *pdev)
 	}
 
 	/* FSI B setting */
-	pinfo		= (info) ? &info->port_b : &nul_info;
 	fsi		= &master->fsib;
 	fsi->base	= master->base + 0x40;
 	fsi->master	= master;
-	fsi->info	= pinfo;
-	fsi_port_info_init(fsi, pinfo);
-	fsi_handler_init(fsi, pinfo);
+	fsi_port_info_init(fsi, &info.port_b);
+	fsi_handler_init(fsi, &info.port_b);
 	ret = fsi_stream_probe(fsi, &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "FSIB stream probe failed\n");
@@ -2122,7 +2034,7 @@ static int fsi_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, master);
 
 	ret = devm_request_irq(&pdev->dev, irq, &fsi_interrupt, 0,
-			  id_entry->name, master);
+			       dev_name(&pdev->dev), master);
 	if (ret) {
 		dev_err(&pdev->dev, "irq request err\n");
 		goto exit_fsib;
@@ -2248,6 +2160,13 @@ static struct fsi_core fsi2_core = {
 	.b_mclk	= B_MST_CTLR,
 };
 
+static struct of_device_id fsi_of_match[] = {
+	{ .compatible = "renesas,sh_fsi",	.data = &fsi1_core},
+	{ .compatible = "renesas,sh_fsi2",	.data = &fsi2_core},
+	{},
+};
+MODULE_DEVICE_TABLE(of, fsi_of_match);
+
 static struct platform_device_id fsi_id_table[] = {
 	{ "sh_fsi",	(kernel_ulong_t)&fsi1_core },
 	{ "sh_fsi2",	(kernel_ulong_t)&fsi2_core },
@@ -2259,6 +2178,7 @@ static struct platform_driver fsi_driver = {
 	.driver 	= {
 		.name	= "fsi-pcm-audio",
 		.pm	= &fsi_pm_ops,
+		.of_match_table = fsi_of_match,
 	},
 	.probe		= fsi_probe,
 	.remove		= fsi_remove,

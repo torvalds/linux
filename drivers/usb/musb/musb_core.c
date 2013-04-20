@@ -1624,8 +1624,6 @@ EXPORT_SYMBOL_GPL(musb_dma_completion);
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef CONFIG_SYSFS
-
 static ssize_t
 musb_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -1741,8 +1739,6 @@ static struct attribute *musb_attributes[] = {
 static const struct attribute_group musb_attr_group = {
 	.attrs = musb_attributes,
 };
-
-#endif	/* sysfs */
 
 /* Only used to provide driver mode change events */
 static void musb_irq_work(struct work_struct *data)
@@ -1968,11 +1964,9 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (status < 0)
 		goto fail4;
 
-#ifdef CONFIG_SYSFS
 	status = sysfs_create_group(&musb->controller->kobj, &musb_attr_group);
 	if (status)
 		goto fail5;
-#endif
 
 	pm_runtime_put(musb->controller);
 
@@ -1993,6 +1987,7 @@ fail2:
 	musb_platform_exit(musb);
 
 fail1:
+	pm_runtime_disable(musb->controller);
 	dev_err(musb->controller,
 		"musb_init_controller failed with status %d\n", status);
 

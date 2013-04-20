@@ -36,16 +36,15 @@ enum {
 struct sk_buff;
 
 struct l2tp_stats {
-	u64			tx_packets;
-	u64			tx_bytes;
-	u64			tx_errors;
-	u64			rx_packets;
-	u64			rx_bytes;
-	u64			rx_seq_discards;
-	u64			rx_oos_packets;
-	u64			rx_errors;
-	u64			rx_cookie_discards;
-	struct u64_stats_sync	syncp;
+	atomic_long_t		tx_packets;
+	atomic_long_t		tx_bytes;
+	atomic_long_t		tx_errors;
+	atomic_long_t		rx_packets;
+	atomic_long_t		rx_bytes;
+	atomic_long_t		rx_seq_discards;
+	atomic_long_t		rx_oos_packets;
+	atomic_long_t		rx_errors;
+	atomic_long_t		rx_cookie_discards;
 };
 
 struct l2tp_tunnel;
@@ -188,7 +187,10 @@ struct l2tp_tunnel {
 	int (*recv_payload_hook)(struct sk_buff *skb);
 	void (*old_sk_destruct)(struct sock *);
 	struct sock		*sock;		/* Parent socket */
-	int			fd;
+	int			fd;		/* Parent fd, if tunnel socket
+						 * was created by userspace */
+
+	struct work_struct	del_work;
 
 	uint8_t			priv[0];	/* private data */
 };
@@ -228,6 +230,8 @@ out:
 	return tunnel;
 }
 
+extern struct sock *l2tp_tunnel_sock_lookup(struct l2tp_tunnel *tunnel);
+extern void l2tp_tunnel_sock_put(struct sock *sk);
 extern struct l2tp_session *l2tp_session_find(struct net *net, struct l2tp_tunnel *tunnel, u32 session_id);
 extern struct l2tp_session *l2tp_session_find_nth(struct l2tp_tunnel *tunnel, int nth);
 extern struct l2tp_session *l2tp_session_find_by_ifname(struct net *net, char *ifname);
@@ -235,11 +239,14 @@ extern struct l2tp_tunnel *l2tp_tunnel_find(struct net *net, u32 tunnel_id);
 extern struct l2tp_tunnel *l2tp_tunnel_find_nth(struct net *net, int nth);
 
 extern int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 peer_tunnel_id, struct l2tp_tunnel_cfg *cfg, struct l2tp_tunnel **tunnelp);
+extern void l2tp_tunnel_closeall(struct l2tp_tunnel *tunnel);
 extern int l2tp_tunnel_delete(struct l2tp_tunnel *tunnel);
 extern struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunnel, u32 session_id, u32 peer_session_id, struct l2tp_session_cfg *cfg);
+extern void __l2tp_session_unhash(struct l2tp_session *session);
 extern int l2tp_session_delete(struct l2tp_session *session);
 extern void l2tp_session_free(struct l2tp_session *session);
 extern void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb, unsigned char *ptr, unsigned char *optr, u16 hdrflags, int length, int (*payload_hook)(struct sk_buff *skb));
+extern int l2tp_session_queue_purge(struct l2tp_session *session);
 extern int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb);
 
 extern int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len);

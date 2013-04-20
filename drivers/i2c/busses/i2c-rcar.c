@@ -642,11 +642,9 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	priv->io = devm_request_and_ioremap(dev, res);
-	if (!priv->io) {
-		dev_err(dev, "cannot ioremap\n");
-		return -ENODEV;
-	}
+	priv->io = devm_ioremap_resource(dev, res);
+	if (IS_ERR(priv->io))
+		return PTR_ERR(priv->io);
 
 	priv->irq = platform_get_irq(pdev, 0);
 	init_waitqueue_head(&priv->wait);

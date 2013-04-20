@@ -39,71 +39,71 @@
  * Level 2 Cache Tag register (Table 5-3)
  */
 
-#define S_L2C_TAG_MBZ               0
-#define M_L2C_TAG_MBZ               _SB_MAKEMASK(5, S_L2C_TAG_MBZ)
+#define S_L2C_TAG_MBZ		    0
+#define M_L2C_TAG_MBZ		    _SB_MAKEMASK(5, S_L2C_TAG_MBZ)
 
-#define S_L2C_TAG_INDEX             5
-#define M_L2C_TAG_INDEX             _SB_MAKEMASK(12, S_L2C_TAG_INDEX)
-#define V_L2C_TAG_INDEX(x)          _SB_MAKEVALUE(x, S_L2C_TAG_INDEX)
-#define G_L2C_TAG_INDEX(x)          _SB_GETVALUE(x, S_L2C_TAG_INDEX, M_L2C_TAG_INDEX)
+#define S_L2C_TAG_INDEX		    5
+#define M_L2C_TAG_INDEX		    _SB_MAKEMASK(12, S_L2C_TAG_INDEX)
+#define V_L2C_TAG_INDEX(x)	    _SB_MAKEVALUE(x, S_L2C_TAG_INDEX)
+#define G_L2C_TAG_INDEX(x)	    _SB_GETVALUE(x, S_L2C_TAG_INDEX, M_L2C_TAG_INDEX)
 
-#define S_L2C_TAG_TAG               17
-#define M_L2C_TAG_TAG               _SB_MAKEMASK(23, S_L2C_TAG_TAG)
-#define V_L2C_TAG_TAG(x)            _SB_MAKEVALUE(x, S_L2C_TAG_TAG)
-#define G_L2C_TAG_TAG(x)            _SB_GETVALUE(x, S_L2C_TAG_TAG, M_L2C_TAG_TAG)
+#define S_L2C_TAG_TAG		    17
+#define M_L2C_TAG_TAG		    _SB_MAKEMASK(23, S_L2C_TAG_TAG)
+#define V_L2C_TAG_TAG(x)	    _SB_MAKEVALUE(x, S_L2C_TAG_TAG)
+#define G_L2C_TAG_TAG(x)	    _SB_GETVALUE(x, S_L2C_TAG_TAG, M_L2C_TAG_TAG)
 
-#define S_L2C_TAG_ECC               40
-#define M_L2C_TAG_ECC               _SB_MAKEMASK(6, S_L2C_TAG_ECC)
-#define V_L2C_TAG_ECC(x)            _SB_MAKEVALUE(x, S_L2C_TAG_ECC)
-#define G_L2C_TAG_ECC(x)            _SB_GETVALUE(x, S_L2C_TAG_ECC, M_L2C_TAG_ECC)
+#define S_L2C_TAG_ECC		    40
+#define M_L2C_TAG_ECC		    _SB_MAKEMASK(6, S_L2C_TAG_ECC)
+#define V_L2C_TAG_ECC(x)	    _SB_MAKEVALUE(x, S_L2C_TAG_ECC)
+#define G_L2C_TAG_ECC(x)	    _SB_GETVALUE(x, S_L2C_TAG_ECC, M_L2C_TAG_ECC)
 
-#define S_L2C_TAG_WAY               46
-#define M_L2C_TAG_WAY               _SB_MAKEMASK(2, S_L2C_TAG_WAY)
-#define V_L2C_TAG_WAY(x)            _SB_MAKEVALUE(x, S_L2C_TAG_WAY)
-#define G_L2C_TAG_WAY(x)            _SB_GETVALUE(x, S_L2C_TAG_WAY, M_L2C_TAG_WAY)
+#define S_L2C_TAG_WAY		    46
+#define M_L2C_TAG_WAY		    _SB_MAKEMASK(2, S_L2C_TAG_WAY)
+#define V_L2C_TAG_WAY(x)	    _SB_MAKEVALUE(x, S_L2C_TAG_WAY)
+#define G_L2C_TAG_WAY(x)	    _SB_GETVALUE(x, S_L2C_TAG_WAY, M_L2C_TAG_WAY)
 
-#define M_L2C_TAG_DIRTY             _SB_MAKEMASK1(48)
-#define M_L2C_TAG_VALID             _SB_MAKEMASK1(49)
+#define M_L2C_TAG_DIRTY		    _SB_MAKEMASK1(48)
+#define M_L2C_TAG_VALID		    _SB_MAKEMASK1(49)
 
 /*
  * Format of level 2 cache management address (table 5-2)
  */
 
-#define S_L2C_MGMT_INDEX            5
-#define M_L2C_MGMT_INDEX            _SB_MAKEMASK(12, S_L2C_MGMT_INDEX)
-#define V_L2C_MGMT_INDEX(x)         _SB_MAKEVALUE(x, S_L2C_MGMT_INDEX)
-#define G_L2C_MGMT_INDEX(x)         _SB_GETVALUE(x, S_L2C_MGMT_INDEX, M_L2C_MGMT_INDEX)
+#define S_L2C_MGMT_INDEX	    5
+#define M_L2C_MGMT_INDEX	    _SB_MAKEMASK(12, S_L2C_MGMT_INDEX)
+#define V_L2C_MGMT_INDEX(x)	    _SB_MAKEVALUE(x, S_L2C_MGMT_INDEX)
+#define G_L2C_MGMT_INDEX(x)	    _SB_GETVALUE(x, S_L2C_MGMT_INDEX, M_L2C_MGMT_INDEX)
 
-#define S_L2C_MGMT_QUADRANT         15
-#define M_L2C_MGMT_QUADRANT         _SB_MAKEMASK(2, S_L2C_MGMT_QUADRANT)
-#define V_L2C_MGMT_QUADRANT(x)      _SB_MAKEVALUE(x, S_L2C_MGMT_QUADRANT)
-#define G_L2C_MGMT_QUADRANT(x)      _SB_GETVALUE(x, S_L2C_MGMT_QUADRANT, M_L2C_MGMT_QUADRANT)
+#define S_L2C_MGMT_QUADRANT	    15
+#define M_L2C_MGMT_QUADRANT	    _SB_MAKEMASK(2, S_L2C_MGMT_QUADRANT)
+#define V_L2C_MGMT_QUADRANT(x)	    _SB_MAKEVALUE(x, S_L2C_MGMT_QUADRANT)
+#define G_L2C_MGMT_QUADRANT(x)	    _SB_GETVALUE(x, S_L2C_MGMT_QUADRANT, M_L2C_MGMT_QUADRANT)
 
 #define S_L2C_MGMT_HALF		    16
-#define M_L2C_MGMT_HALF	            _SB_MAKEMASK(1, S_L2C_MGMT_HALF)
+#define M_L2C_MGMT_HALF		    _SB_MAKEMASK(1, S_L2C_MGMT_HALF)
 
-#define S_L2C_MGMT_WAY              17
-#define M_L2C_MGMT_WAY              _SB_MAKEMASK(2, S_L2C_MGMT_WAY)
-#define V_L2C_MGMT_WAY(x)           _SB_MAKEVALUE(x, S_L2C_MGMT_WAY)
-#define G_L2C_MGMT_WAY(x)           _SB_GETVALUE(x, S_L2C_MGMT_WAY, M_L2C_MGMT_WAY)
+#define S_L2C_MGMT_WAY		    17
+#define M_L2C_MGMT_WAY		    _SB_MAKEMASK(2, S_L2C_MGMT_WAY)
+#define V_L2C_MGMT_WAY(x)	    _SB_MAKEVALUE(x, S_L2C_MGMT_WAY)
+#define G_L2C_MGMT_WAY(x)	    _SB_GETVALUE(x, S_L2C_MGMT_WAY, M_L2C_MGMT_WAY)
 
-#define S_L2C_MGMT_ECC_DIAG         21
-#define M_L2C_MGMT_ECC_DIAG         _SB_MAKEMASK(2, S_L2C_MGMT_ECC_DIAG)
-#define V_L2C_MGMT_ECC_DIAG(x)      _SB_MAKEVALUE(x, S_L2C_MGMT_ECC_DIAG)
-#define G_L2C_MGMT_ECC_DIAG(x)      _SB_GETVALUE(x, S_L2C_MGMT_ECC_DIAG, M_L2C_MGMT_ECC_DIAG)
+#define S_L2C_MGMT_ECC_DIAG	    21
+#define M_L2C_MGMT_ECC_DIAG	    _SB_MAKEMASK(2, S_L2C_MGMT_ECC_DIAG)
+#define V_L2C_MGMT_ECC_DIAG(x)	    _SB_MAKEVALUE(x, S_L2C_MGMT_ECC_DIAG)
+#define G_L2C_MGMT_ECC_DIAG(x)	    _SB_GETVALUE(x, S_L2C_MGMT_ECC_DIAG, M_L2C_MGMT_ECC_DIAG)
 
-#define S_L2C_MGMT_TAG              23
-#define M_L2C_MGMT_TAG              _SB_MAKEMASK(4, S_L2C_MGMT_TAG)
-#define V_L2C_MGMT_TAG(x)           _SB_MAKEVALUE(x, S_L2C_MGMT_TAG)
-#define G_L2C_MGMT_TAG(x)           _SB_GETVALUE(x, S_L2C_MGMT_TAG, M_L2C_MGMT_TAG)
+#define S_L2C_MGMT_TAG		    23
+#define M_L2C_MGMT_TAG		    _SB_MAKEMASK(4, S_L2C_MGMT_TAG)
+#define V_L2C_MGMT_TAG(x)	    _SB_MAKEVALUE(x, S_L2C_MGMT_TAG)
+#define G_L2C_MGMT_TAG(x)	    _SB_GETVALUE(x, S_L2C_MGMT_TAG, M_L2C_MGMT_TAG)
 
-#define M_L2C_MGMT_DIRTY            _SB_MAKEMASK1(19)
-#define M_L2C_MGMT_VALID            _SB_MAKEMASK1(20)
+#define M_L2C_MGMT_DIRTY	    _SB_MAKEMASK1(19)
+#define M_L2C_MGMT_VALID	    _SB_MAKEMASK1(20)
 
-#define A_L2C_MGMT_TAG_BASE         0x00D0000000
+#define A_L2C_MGMT_TAG_BASE	    0x00D0000000
 
-#define L2C_ENTRIES_PER_WAY       4096
-#define L2C_NUM_WAYS              4
+#define L2C_ENTRIES_PER_WAY	  4096
+#define L2C_NUM_WAYS		  4
 
 
 #if SIBYTE_HDR_FEATURE(1250, PASS3) || SIBYTE_HDR_FEATURE(112x, PASS1)

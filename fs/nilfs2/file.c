@@ -67,7 +67,7 @@ int nilfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 static int nilfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
-	struct inode *inode = vma->vm_file->f_dentry->d_inode;
+	struct inode *inode = file_inode(vma->vm_file);
 	struct nilfs_transaction_info ti;
 	int ret = 0;
 
@@ -126,7 +126,7 @@ static int nilfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	nilfs_transaction_commit(inode->i_sb);
 
  mapped:
-	wait_on_page_writeback(page);
+	wait_for_stable_page(page);
  out:
 	sb_end_pagefault(inode->i_sb);
 	return block_page_mkwrite_return(ret);

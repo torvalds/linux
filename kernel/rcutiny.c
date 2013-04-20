@@ -51,9 +51,9 @@ static void __call_rcu(struct rcu_head *head,
 		       void (*func)(struct rcu_head *rcu),
 		       struct rcu_ctrlblk *rcp);
 
-#include "rcutiny_plugin.h"
-
 static long long rcu_dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
+
+#include "rcutiny_plugin.h"
 
 /* Common code for rcu_idle_enter() and rcu_irq_exit(), see kernel/rcutree.c. */
 static void rcu_idle_enter_common(long long newval)
@@ -193,7 +193,7 @@ EXPORT_SYMBOL(rcu_is_cpu_idle);
  * interrupts don't count, we must be running at the first interrupt
  * level.
  */
-int rcu_is_cpu_rrupt_from_idle(void)
+static int rcu_is_cpu_rrupt_from_idle(void)
 {
 	return rcu_dynticks_nesting <= 1;
 }
@@ -205,6 +205,7 @@ int rcu_is_cpu_rrupt_from_idle(void)
  */
 static int rcu_qsctr_help(struct rcu_ctrlblk *rcp)
 {
+	reset_cpu_stall_ticks(rcp);
 	if (rcp->rcucblist != NULL &&
 	    rcp->donetail != rcp->curtail) {
 		rcp->donetail = rcp->curtail;
@@ -251,6 +252,7 @@ void rcu_bh_qs(int cpu)
  */
 void rcu_check_callbacks(int cpu, int user)
 {
+	check_cpu_stalls();
 	if (user || rcu_is_cpu_rrupt_from_idle())
 		rcu_sched_qs(cpu);
 	else if (!in_softirq())

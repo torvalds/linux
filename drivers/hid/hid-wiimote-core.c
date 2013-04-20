@@ -1294,25 +1294,8 @@ static struct hid_driver wiimote_hid_driver = {
 	.remove = wiimote_hid_remove,
 	.raw_event = wiimote_hid_event,
 };
+module_hid_driver(wiimote_hid_driver);
 
-static int __init wiimote_init(void)
-{
-	int ret;
-
-	ret = hid_register_driver(&wiimote_hid_driver);
-	if (ret)
-		pr_err("Can't register wiimote hid driver\n");
-
-	return ret;
-}
-
-static void __exit wiimote_exit(void)
-{
-	hid_unregister_driver(&wiimote_hid_driver);
-}
-
-module_init(wiimote_init);
-module_exit(wiimote_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Herrmann <dh.herrmann@gmail.com>");
 MODULE_DESCRIPTION(WIIMOTE_NAME " Device Driver");

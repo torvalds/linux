@@ -240,27 +240,27 @@ static int mxr_acquire_clocks(struct mxr_device *mdev)
 	struct device *dev = mdev->dev;
 
 	res->mixer = clk_get(dev, "mixer");
-	if (IS_ERR_OR_NULL(res->mixer)) {
+	if (IS_ERR(res->mixer)) {
 		mxr_err(mdev, "failed to get clock 'mixer'\n");
 		goto fail;
 	}
 	res->vp = clk_get(dev, "vp");
-	if (IS_ERR_OR_NULL(res->vp)) {
+	if (IS_ERR(res->vp)) {
 		mxr_err(mdev, "failed to get clock 'vp'\n");
 		goto fail;
 	}
 	res->sclk_mixer = clk_get(dev, "sclk_mixer");
-	if (IS_ERR_OR_NULL(res->sclk_mixer)) {
+	if (IS_ERR(res->sclk_mixer)) {
 		mxr_err(mdev, "failed to get clock 'sclk_mixer'\n");
 		goto fail;
 	}
 	res->sclk_hdmi = clk_get(dev, "sclk_hdmi");
-	if (IS_ERR_OR_NULL(res->sclk_hdmi)) {
+	if (IS_ERR(res->sclk_hdmi)) {
 		mxr_err(mdev, "failed to get clock 'sclk_hdmi'\n");
 		goto fail;
 	}
 	res->sclk_dac = clk_get(dev, "sclk_dac");
-	if (IS_ERR_OR_NULL(res->sclk_dac)) {
+	if (IS_ERR(res->sclk_dac)) {
 		mxr_err(mdev, "failed to get clock 'sclk_dac'\n");
 		goto fail;
 	}
@@ -298,7 +298,7 @@ static void mxr_release_resources(struct mxr_device *mdev)
 {
 	mxr_release_clocks(mdev);
 	mxr_release_plat_resources(mdev);
-	memset(&mdev->res, 0, sizeof mdev->res);
+	memset(&mdev->res, 0, sizeof(mdev->res));
 }
 
 static void mxr_release_layers(struct mxr_device *mdev)
@@ -382,7 +382,7 @@ static int mxr_probe(struct platform_device *pdev)
 	/* mdev does not exist yet so no mxr_dbg is used */
 	dev_info(dev, "probe start\n");
 
-	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev) {
 		dev_err(dev, "not enough memory.\n");
 		ret = -ENOMEM;

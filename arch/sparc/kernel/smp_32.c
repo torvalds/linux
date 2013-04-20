@@ -20,6 +20,7 @@
 #include <linux/seq_file.h>
 #include <linux/cache.h>
 #include <linux/delay.h>
+#include <linux/cpu.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
@@ -32,8 +33,10 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/cpudata.h>
+#include <asm/timer.h>
 #include <asm/leon.h>
 
+#include "kernel.h"
 #include "irq.h"
 
 volatile unsigned long cpu_callin_map[NR_CPUS] __cpuinitdata = {0,};
@@ -292,6 +295,89 @@ int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 			mb();
 	}
 	return ret;
+}
+
+void __cpuinit arch_cpu_pre_starting(void *arg)
+{
+	local_ops->cache_all();
+	local_ops->tlb_all();
+
+	switch(sparc_cpu_model) {
+	case sun4m:
+		sun4m_cpu_pre_starting(arg);
+		break;
+	case sun4d:
+		sun4d_cpu_pre_starting(arg);
+		break;
+	case sparc_leon:
+		leon_cpu_pre_starting(arg);
+		break;
+	default:
+		BUG();
+	}
+}
+
+void __cpuinit arch_cpu_pre_online(void *arg)
+{
+	unsigned int cpuid = hard_smp_processor_id();
+
+	register_percpu_ce(cpuid);
+
+	calibrate_delay();
+	smp_store_cpu_info(cpuid);
+
+	local_ops->cache_all();
+	local_ops->tlb_all();
+
+	switch(sparc_cpu_model) {
+	case sun4m:
+		sun4m_cpu_pre_online(arg);
+		break;
+	case sun4d:
+		sun4d_cpu_pre_online(arg);
+		break;
+	case sparc_leon:
+		leon_cpu_pre_online(arg);
+		break;
+	default:
+		BUG();
+	}
+}
+
+void __cpuinit sparc_start_secondary(void *arg)
+{
+	unsigned int cpu;
+
+	/*
+	 * SMP booting is extremely fragile in some architectures. So run
+	 * the cpu initialization code first before anything else.
+	 */
+	arch_cpu_pre_starting(arg);
+
+	preempt_disable();
+	cpu = smp_processor_id();
+
+	/* Invoke the CPU_STARTING notifier callbacks */
+	notify_cpu_starting(cpu);
+
+	arch_cpu_pre_online(arg);
+
+	/* Set the CPU in the cpu_online_mask */
+	set_cpu_online(cpu, true);
+
+	/* Enable local interrupts now */
+	local_irq_enable();
+
+	wmb();
+	cpu_idle();
+
+	/* We should never reach here! */
+	BUG();
+}
+
+void __cpuinit smp_callin(void)
+{
+	sparc_start_secondary(NULL);
 }
 
 void smp_bogo(struct seq_file *m)

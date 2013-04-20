@@ -95,5 +95,6 @@ struct s3c2410_udc {
 	u8				vbus;
 	struct dentry			*regs_info;
 };
+#define to_s3c2410(g)	(container_of((g), struct s3c2410_udc, gadget))
 
 #endif

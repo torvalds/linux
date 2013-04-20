@@ -394,8 +394,11 @@ void __snd_printk(unsigned int level, const char *file, int line,
 
 #else /* !CONFIG_SND_DEBUG */
 
-#define snd_printd(fmt, args...)	do { } while (0)
-#define _snd_printd(level, fmt, args...) do { } while (0)
+__printf(1, 2)
+static inline void snd_printd(const char *format, ...) {}
+__printf(2, 3)
+static inline void _snd_printd(int level, const char *format, ...) {}
+
 #define snd_BUG()			do { } while (0)
 static inline int __snd_bug_on(int cond)
 {
@@ -416,7 +419,8 @@ static inline int __snd_bug_on(int cond)
 #define snd_printdd(format, args...) \
 	__snd_printk(2, __FILE__, __LINE__, format, ##args)
 #else
-#define snd_printdd(format, args...)	do { } while (0)
+__printf(1, 2)
+static inline void snd_printdd(const char *format, ...) {}
 #endif
 
 
@@ -454,6 +458,7 @@ struct snd_pci_quirk {
 #define SND_PCI_QUIRK_MASK(vend, mask, dev, xname, val)			\
 	{_SND_PCI_QUIRK_ID_MASK(vend, mask, dev),			\
 			.value = (val), .name = (xname)}
+#define snd_pci_quirk_name(q)	((q)->name)
 #else
 #define SND_PCI_QUIRK(vend,dev,xname,val) \
 	{_SND_PCI_QUIRK_ID(vend, dev), .value = (val)}
@@ -461,6 +466,7 @@ struct snd_pci_quirk {
 	{_SND_PCI_QUIRK_ID_MASK(vend, mask, dev), .value = (val)}
 #define SND_PCI_QUIRK_VENDOR(vend, xname, val)			\
 	{_SND_PCI_QUIRK_ID_MASK(vend, 0, 0), .value = (val)}
+#define snd_pci_quirk_name(q)	""
 #endif
 
 const struct snd_pci_quirk *

@@ -60,8 +60,9 @@
  * multi-complete should come to the tgt driver or be handled there by qla2xxx
  */
 #define CTIO_COMPLETION_HANDLE_MARK	BIT_29
-#if (CTIO_COMPLETION_HANDLE_MARK <= MAX_OUTSTANDING_COMMANDS)
-#error "CTIO_COMPLETION_HANDLE_MARK not larger than MAX_OUTSTANDING_COMMANDS"
+#if (CTIO_COMPLETION_HANDLE_MARK <= DEFAULT_OUTSTANDING_COMMANDS)
+#error "CTIO_COMPLETION_HANDLE_MARK not larger than "
+	"DEFAULT_OUTSTANDING_COMMANDS"
 #endif
 #define HANDLE_IS_CTIO_COMP(h) (h & CTIO_COMPLETION_HANDLE_MARK)
 
@@ -161,7 +162,7 @@ struct imm_ntfy_from_isp {
 			uint16_t srr_rx_id;
 			uint16_t status;
 			uint8_t  status_subcode;
-			uint8_t  reserved_3;
+			uint8_t  fw_handle;
 			uint32_t exchange_address;
 			uint32_t srr_rel_offs;
 			uint16_t srr_ui;
@@ -217,7 +218,7 @@ struct nack_to_isp {
 			uint16_t srr_rx_id;
 			uint16_t status;
 			uint8_t  status_subcode;
-			uint8_t  reserved_3;
+			uint8_t  fw_handle;
 			uint32_t exchange_address;
 			uint32_t srr_rel_offs;
 			uint16_t srr_ui;
@@ -948,6 +949,7 @@ extern void qlt_update_vp_map(struct scsi_qla_host *, int);
  * is not set. Right now, ha value is ignored.
  */
 #define QLA_TGT_MODE_ENABLED() (ql2x_ini_mode != QLA2XXX_INI_MODE_ENABLED)
+extern int ql2x_ini_mode;
 
 static inline bool qla_tgt_mode_enabled(struct scsi_qla_host *ha)
 {
@@ -985,12 +987,15 @@ extern void qlt_vport_create(struct scsi_qla_host *, struct qla_hw_data *);
 extern void qlt_rff_id(struct scsi_qla_host *, struct ct_sns_req *);
 extern void qlt_init_atio_q_entries(struct scsi_qla_host *);
 extern void qlt_24xx_process_atio_queue(struct scsi_qla_host *);
-extern void qlt_24xx_config_rings(struct scsi_qla_host *,
-	device_reg_t __iomem *);
+extern void qlt_24xx_config_rings(struct scsi_qla_host *);
 extern void qlt_24xx_config_nvram_stage1(struct scsi_qla_host *,
 	struct nvram_24xx *);
 extern void qlt_24xx_config_nvram_stage2(struct scsi_qla_host *,
 	struct init_cb_24xx *);
+extern void qlt_81xx_config_nvram_stage2(struct scsi_qla_host *,
+	struct init_cb_81xx *);
+extern void qlt_81xx_config_nvram_stage1(struct scsi_qla_host *,
+	struct nvram_81xx *);
 extern int qlt_24xx_process_response_error(struct scsi_qla_host *,
 	struct sts_entry_24xx *);
 extern void qlt_modify_vp_config(struct scsi_qla_host *,
@@ -1000,5 +1005,7 @@ extern int qlt_mem_alloc(struct qla_hw_data *);
 extern void qlt_mem_free(struct qla_hw_data *);
 extern void qlt_stop_phase1(struct qla_tgt *);
 extern void qlt_stop_phase2(struct qla_tgt *);
+extern irqreturn_t qla83xx_msix_atio_q(int, void *);
+extern void qlt_83xx_iospace_config(struct qla_hw_data *);
 
 #endif /* __QLA_TARGET_H */

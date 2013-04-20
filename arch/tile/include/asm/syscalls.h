@@ -64,9 +64,7 @@ long sys_ftruncate64(unsigned int fd, loff_t length);
 
 /* Provide versions of standard syscalls that use current_pt_regs(). */
 long sys_rt_sigreturn(void);
-long sys_sigaltstack(const stack_t __user *, stack_t __user *);
 #define sys_rt_sigreturn sys_rt_sigreturn
-#define sys_sigaltstack sys_sigaltstack
 
 /* These are the intvec*.S trampolines. */
 long _sys_rt_sigreturn(void);

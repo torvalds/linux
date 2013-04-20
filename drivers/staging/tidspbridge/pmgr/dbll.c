@@ -1382,7 +1382,7 @@ void find_symbol_callback(void *elem, void *user_data)
 		offset < context->cur_best_offset) {
 		context->cur_best_offset = offset;
 		context->sym_addr = symbol_addr;
-		strncpy(context->name, symbol->name, sizeof(context->name));
+		strlcpy(context->name, symbol->name, sizeof(context->name));
 	}
 
 	return;

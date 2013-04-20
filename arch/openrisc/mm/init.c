@@ -167,14 +167,25 @@ void __init paging_init(void)
 		unsigned long *dtlb_vector = __va(0x900);
 		unsigned long *itlb_vector = __va(0xa00);
 
+		printk(KERN_INFO "itlb_miss_handler %p\n", &itlb_miss_handler);
+		*itlb_vector = ((unsigned long)&itlb_miss_handler -
+				(unsigned long)itlb_vector) >> 2;
+
+		/* Soft ordering constraint to ensure that dtlb_vector is
+		 * the last thing updated
+		 */
+		barrier();
+
 		printk(KERN_INFO "dtlb_miss_handler %p\n", &dtlb_miss_handler);
 		*dtlb_vector = ((unsigned long)&dtlb_miss_handler -
 				(unsigned long)dtlb_vector) >> 2;
 
-		printk(KERN_INFO "itlb_miss_handler %p\n", &itlb_miss_handler);
-		*itlb_vector = ((unsigned long)&itlb_miss_handler -
-				(unsigned long)itlb_vector) >> 2;
 	}
+
+	/* Soft ordering constraint to ensure that cache invalidation and
+	 * TLB flush really happen _after_ code has been modified.
+	 */
+	barrier();
 
 	/* Invalidate instruction caches after code modification */
 	mtspr(SPR_ICBIR, 0x900);

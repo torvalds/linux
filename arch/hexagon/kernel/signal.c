@@ -125,6 +125,7 @@ static int setup_rt_frame(int signr, struct k_sigaction *ka, siginfo_t *info,
 	err |= __put_user(0x5400c004, &frame->tramp[1]);
 	err |= setup_sigcontext(regs, &frame->uc.uc_mcontext);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
+	err |= __save_altstack(&frame->uc.uc_stack, user_stack_pointer(regs));
 	if (err)
 		goto sigsegv;
 
@@ -247,12 +248,6 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 /*
  * Architecture-specific wrappers for signal-related system calls
  */
-asmlinkage int sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss)
-{
-	struct pt_regs *regs = current_pt_regs();
-
-	return do_sigaltstack(uss, uoss, regs->r29);
-}
 
 asmlinkage int sys_rt_sigreturn(void)
 {
@@ -288,14 +283,7 @@ asmlinkage int sys_rt_sigreturn(void)
 	 */
 	regs->syscall_nr = __NR_rt_sigreturn;
 
-	/*
-	 * If we were meticulous, we'd only call this if we knew that
-	 * we were actually going to use an alternate stack, and we'd
-	 * consider any error to be fatal.  What we do here, in common
-	 * with many other architectures, is call it blindly and only
-	 * consider the -EFAULT return case to be proof of a problem.
-	 */
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, pt_psp(regs)) == -EFAULT)
+	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
 
 	return 0;

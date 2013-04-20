@@ -596,10 +596,6 @@ static void __init mx31moboard_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-static struct sys_timer mx31moboard_timer = {
-	.init	= mx31moboard_timer_init,
-};
-
 static void __init mx31moboard_reserve(void)
 {
 	/* reserve 4 MiB for mx3-camera */
@@ -615,7 +611,7 @@ MACHINE_START(MX31MOBOARD, "EPFL Mobots mx31moboard")
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
 	.handle_irq = imx31_handle_irq,
-	.timer = &mx31moboard_timer,
+	.init_time	= mx31moboard_timer_init,
 	.init_machine = mx31moboard_init,
 	.restart	= mxc_restart,
 MACHINE_END

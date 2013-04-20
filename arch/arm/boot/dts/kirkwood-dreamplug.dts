@@ -38,7 +38,6 @@
 			};
 		};
 		serial@12000 {
-			clock-frequency = <200000000>;
 			status = "ok";
 		};
 
@@ -73,6 +72,13 @@
 		sata@80000 {
 			status = "okay";
 			nr-ports = <1>;
+		};
+
+		mvsdio@90000 {
+			pinctrl-0 = <&pmx_sdio>;
+			pinctrl-names = "default";
+			status = "okay";
+			/* No CD or WP GPIOs */
 		};
 	};
 

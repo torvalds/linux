@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -341,7 +341,7 @@ typedef u32 acpi_physical_address;
 
 /* PM Timer ticks per second (HZ) */
 
-#define PM_TIMER_FREQUENCY              3579545
+#define ACPI_PM_TIMER_FREQUENCY         3579545
 
 /*******************************************************************************
  *
@@ -373,6 +373,21 @@ typedef u32 acpi_name;		/* 4-byte ACPI name */
 typedef char *acpi_string;	/* Null terminated ASCII string */
 typedef void *acpi_handle;	/* Actually a ptr to a NS Node */
 
+/* Time constants for timer calculations */
+
+#define ACPI_MSEC_PER_SEC               1000L
+
+#define ACPI_USEC_PER_MSEC              1000L
+#define ACPI_USEC_PER_SEC               1000000L
+
+#define ACPI_100NSEC_PER_USEC           10L
+#define ACPI_100NSEC_PER_MSEC           10000L
+#define ACPI_100NSEC_PER_SEC            10000000L
+
+#define ACPI_NSEC_PER_USEC              1000L
+#define ACPI_NSEC_PER_MSEC              1000000L
+#define ACPI_NSEC_PER_SEC               1000000000L
+
 /* Owner IDs are used to track namespace nodes for selective deletion */
 
 typedef u8 acpi_owner_id;
@@ -389,10 +404,6 @@ typedef u8 acpi_owner_id;
 #define ACPI_MAX32_DECIMAL_DIGITS       10
 #define ACPI_MAX16_DECIMAL_DIGITS        5
 #define ACPI_MAX8_DECIMAL_DIGITS         3
-
-/* PM Timer ticks per second (HZ) */
-
-#define PM_TIMER_FREQUENCY  3579545
 
 /*
  * Constants with special meanings
@@ -474,6 +485,7 @@ typedef u64 acpi_integer;
  */
 #define ACPI_FULL_INITIALIZATION        0x00
 #define ACPI_NO_ADDRESS_SPACE_INIT      0x01
+#define ACPI_NO_HARDWARE_INIT           0x02
 #define ACPI_NO_EVENT_INIT              0x04
 #define ACPI_NO_HANDLER_INIT            0x08
 #define ACPI_NO_ACPI_ENABLE             0x10
@@ -595,7 +607,7 @@ typedef u32 acpi_object_type;
 
 /*
  * These are special object types that never appear in
- * a Namespace node, only in a union acpi_operand_object
+ * a Namespace node, only in an object of union acpi_operand_object
  */
 #define ACPI_TYPE_LOCAL_EXTRA           0x1C
 #define ACPI_TYPE_LOCAL_DATA            0x1D
@@ -662,7 +674,7 @@ typedef u32 acpi_event_status;
 #define ACPI_GPE_MAX                    0xFF
 #define ACPI_NUM_GPE                    256
 
-/* Actions for acpi_set_gpe_wake_mask, acpi_hw_low_set_gpe */
+/* Actions for acpi_set_gpe, acpi_gpe_wakeup, acpi_hw_low_set_gpe */
 
 #define ACPI_GPE_ENABLE                 0
 #define ACPI_GPE_DISABLE                1
@@ -880,6 +892,10 @@ struct acpi_buffer {
 	void *pointer;		/* pointer to buffer */
 };
 
+/* Free a buffer created in an struct acpi_buffer via ACPI_ALLOCATE_LOCAL_BUFFER */
+
+#define ACPI_FREE_BUFFER(b)         ACPI_FREE(b.pointer)
+
 /*
  * name_type for acpi_get_name
  */
@@ -968,7 +984,11 @@ acpi_status(*acpi_exception_handler) (acpi_status aml_status,
 /* Table Event handler (Load, load_table, etc.) and types */
 
 typedef
-acpi_status(*acpi_tbl_handler) (u32 event, void *table, void *context);
+acpi_status(*acpi_table_handler) (u32 event, void *table, void *context);
+
+#define ACPI_TABLE_LOAD             0x0
+#define ACPI_TABLE_UNLOAD           0x1
+#define ACPI_NUM_TABLE_EVENTS       2
 
 /* Address Spaces (For Operation Regions) */
 

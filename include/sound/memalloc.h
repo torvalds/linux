@@ -37,7 +37,7 @@ struct snd_dma_device {
 #ifndef snd_dma_pci_data
 #define snd_dma_pci_data(pci)	(&(pci)->dev)
 #define snd_dma_isa_data()	NULL
-#define snd_dma_continuous_data(x)	((struct device *)(unsigned long)(x))
+#define snd_dma_continuous_data(x)	((struct device *)(__force unsigned long)(x))
 #endif
 
 

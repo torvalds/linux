@@ -47,6 +47,7 @@ extern void pm_runtime_set_autosuspend_delay(struct device *dev, int delay);
 extern unsigned long pm_runtime_autosuspend_expiration(struct device *dev);
 extern void pm_runtime_update_max_time_suspended(struct device *dev,
 						 s64 delta_ns);
+extern void pm_runtime_set_memalloc_noio(struct device *dev, bool enable);
 
 static inline bool pm_children_suspended(struct device *dev)
 {
@@ -78,6 +79,12 @@ static inline bool pm_runtime_suspended(struct device *dev)
 {
 	return dev->power.runtime_status == RPM_SUSPENDED
 		&& !dev->power.disable_depth;
+}
+
+static inline bool pm_runtime_active(struct device *dev)
+{
+	return dev->power.runtime_status == RPM_ACTIVE
+		|| dev->power.disable_depth;
 }
 
 static inline bool pm_runtime_status_suspended(struct device *dev)
@@ -132,6 +139,7 @@ static inline void pm_runtime_put_noidle(struct device *dev) {}
 static inline bool device_run_wake(struct device *dev) { return false; }
 static inline void device_set_run_wake(struct device *dev, bool enable) {}
 static inline bool pm_runtime_suspended(struct device *dev) { return false; }
+static inline bool pm_runtime_active(struct device *dev) { return true; }
 static inline bool pm_runtime_status_suspended(struct device *dev) { return false; }
 static inline bool pm_runtime_enabled(struct device *dev) { return false; }
 
@@ -149,6 +157,8 @@ static inline void pm_runtime_set_autosuspend_delay(struct device *dev,
 						int delay) {}
 static inline unsigned long pm_runtime_autosuspend_expiration(
 				struct device *dev) { return 0; }
+static inline void pm_runtime_set_memalloc_noio(struct device *dev,
+						bool enable){}
 
 #endif /* !CONFIG_PM_RUNTIME */
 

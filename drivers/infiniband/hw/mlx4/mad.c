@@ -1999,16 +1999,17 @@ int mlx4_ib_init_sriov(struct mlx4_ib_dev *dev)
 			goto demux_err;
 		err = mlx4_ib_alloc_demux_ctx(dev, &dev->sriov.demux[i], i + 1);
 		if (err)
-			goto demux_err;
+			goto free_pv;
 	}
 	mlx4_ib_master_tunnels(dev, 1);
 	return 0;
 
+free_pv:
+	free_pv_object(dev, mlx4_master_func_num(dev->dev), i + 1);
 demux_err:
-	while (i > 0) {
+	while (--i >= 0) {
 		free_pv_object(dev, mlx4_master_func_num(dev->dev), i + 1);
 		mlx4_ib_free_demux_ctx(&dev->sriov.demux[i]);
-		--i;
 	}
 	mlx4_ib_device_unregister_sysfs(dev);
 

@@ -557,9 +557,9 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	st->reg_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!st->reg_base) {
-		ret = -ENOMEM;
+	st->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(st->reg_base)) {
+		ret = PTR_ERR(st->reg_base);
 		goto error_free_device;
 	}
 

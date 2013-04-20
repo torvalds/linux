@@ -852,7 +852,7 @@ static int acpi_ec_add(struct acpi_device *device)
 	return ret;
 }
 
-static int acpi_ec_remove(struct acpi_device *device, int type)
+static int acpi_ec_remove(struct acpi_device *device)
 {
 	struct acpi_ec *ec;
 	struct acpi_ec_query_handler *handler, *tmp;

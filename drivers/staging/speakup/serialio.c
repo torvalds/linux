@@ -116,7 +116,7 @@ static void start_serial_interrupt(int irq)
 	outb(1, speakup_info.port_tts + UART_FCR);	/* Turn FIFO On */
 }
 
-void stop_serial_interrupt(void)
+void spk_stop_serial_interrupt(void)
 {
 	if (speakup_info.port_tts == 0)
 		return;
@@ -130,7 +130,7 @@ void stop_serial_interrupt(void)
 	free_irq(serstate->irq, (void *) synth_readbuf_handler);
 }
 
-int wait_for_xmitr(void)
+int spk_wait_for_xmitr(void)
 {
 	int tmout = SPK_XMITR_TIMEOUT;
 	if ((synth->alive) && (timeouts >= NUM_DISABLE_TIMEOUTS)) {
@@ -195,7 +195,7 @@ EXPORT_SYMBOL_GPL(spk_serial_in_nowait);
 
 int spk_serial_out(const char ch)
 {
-	if (synth->alive && wait_for_xmitr()) {
+	if (synth->alive && spk_wait_for_xmitr()) {
 		outb_p(ch, speakup_info.port_tts);
 		return 1;
 	}

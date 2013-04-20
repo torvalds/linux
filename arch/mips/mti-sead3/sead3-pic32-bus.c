@@ -17,16 +17,16 @@
 #define PIC32_SYSRD	0x02
 #define PIC32_WR	0x10
 #define PIC32_SYSWR	0x20
-#define PIC32_IRQ_CLR   0x40
+#define PIC32_IRQ_CLR	0x40
 #define PIC32_STATUS	0x80
 
-#define DELAY()	udelay(100)	/* FIXME: needed? */
+#define DELAY() udelay(100)	/* FIXME: needed? */
 
 /* spinlock to ensure atomic access to PIC32 */
 static DEFINE_SPINLOCK(pic32_bus_lock);
 
 /* FIXME: io_remap these */
-static void __iomem *bus_xfer   = (void __iomem *)0xbf000600;
+static void __iomem *bus_xfer	= (void __iomem *)0xbf000600;
 static void __iomem *bus_status = (void __iomem *)0xbf000060;
 
 static inline unsigned int ioready(void)

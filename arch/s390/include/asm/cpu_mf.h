@@ -12,6 +12,7 @@
 #ifndef _ASM_S390_CPU_MF_H
 #define _ASM_S390_CPU_MF_H
 
+#include <linux/errno.h>
 #include <asm/facility.h>
 
 #define CPU_MF_INT_SF_IAE	(1 << 31)	/* invalid entry address */
@@ -34,12 +35,12 @@
 /* CPU measurement facility support */
 static inline int cpum_cf_avail(void)
 {
-	return MACHINE_HAS_SPP && test_facility(67);
+	return MACHINE_HAS_LPP && test_facility(67);
 }
 
 static inline int cpum_sf_avail(void)
 {
-	return MACHINE_HAS_SPP && test_facility(68);
+	return MACHINE_HAS_LPP && test_facility(68);
 }
 
 

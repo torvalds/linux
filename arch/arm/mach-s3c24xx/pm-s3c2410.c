@@ -29,15 +29,15 @@
 #include <linux/gpio.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
-
 #include <asm/mach-types.h>
 
+#include <mach/hardware.h>
 #include <mach/regs-gpio.h>
-#include <mach/h1940.h>
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
+
+#include "h1940.h"
 
 static void s3c2410_pm_prepare(void)
 {

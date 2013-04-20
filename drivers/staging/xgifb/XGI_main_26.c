@@ -91,11 +91,10 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	unsigned short ModeIdIndex, index = 0;
 	unsigned short RefreshRateTableIndex = 0;
 
-	unsigned short VRE, VBE, VRS, VBS, VDE, VT;
-	unsigned short HRE, HBE, HRS, HBS, HDE, HT;
+	unsigned short VRE, VBE, VRS, VDE;
+	unsigned short HRE, HBE, HRS, HDE;
 	unsigned char sr_data, cr_data, cr_data2;
-	unsigned long cr_data3;
-	int A, B, C, D, E, F, temp, j;
+	int B, C, D, F, temp, j;
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 	if (!XGI_SearchModeID(ModeNo, &ModeIdIndex, XGI_Pr))
 		return 0;
@@ -105,25 +104,13 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 
 	sr_data = XGI_CRT1Table[index].CR[5];
 
-	cr_data = XGI_CRT1Table[index].CR[0];
-
-	/* Horizontal total */
-	HT = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x03) << 8);
-	A = HT + 5;
-
-	HDE = (XGI330_RefIndex[RefreshRateTableIndex].XRes >> 3) - 1;
-	E = HDE + 1;
+	HDE = (XGI330_RefIndex[RefreshRateTableIndex].XRes >> 3);
 
 	cr_data = XGI_CRT1Table[index].CR[3];
 
 	/* Horizontal retrace (=sync) start */
 	HRS = (cr_data & 0xff) | ((unsigned short) (sr_data & 0xC0) << 2);
-	F = HRS - E - 3;
-
-	cr_data = XGI_CRT1Table[index].CR[1];
-
-	/* Horizontal blank start */
-	HBS = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x30) << 4);
+	F = HRS - HDE - 3;
 
 	sr_data = XGI_CRT1Table[index].CR[6];
 
@@ -138,10 +125,10 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	/* Horizontal retrace (=sync) end */
 	HRE = (cr_data2 & 0x1f) | ((sr_data & 0x04) << 3);
 
-	temp = HBE - ((E - 1) & 255);
+	temp = HBE - ((HDE - 1) & 255);
 	B = (temp > 0) ? temp : (temp + 256);
 
-	temp = HRE - ((E + F + 3) & 63);
+	temp = HRE - ((HDE + F + 3) & 63);
 	C = (temp > 0) ? temp : (temp + 64);
 
 	D = B - F - C;
@@ -152,18 +139,9 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 
 	sr_data = XGI_CRT1Table[index].CR[14];
 
-	cr_data = XGI_CRT1Table[index].CR[8];
-
 	cr_data2 = XGI_CRT1Table[index].CR[9];
 
-	/* Vertical total */
-	VT = (cr_data & 0xFF) | ((unsigned short) (cr_data2 & 0x01) << 8)
-			| ((unsigned short) (cr_data2 & 0x20) << 4)
-			| ((unsigned short) (sr_data & 0x01) << 10);
-	A = VT + 2;
-
-	VDE = XGI330_RefIndex[RefreshRateTableIndex].YRes - 1;
-	E = VDE + 1;
+	VDE = XGI330_RefIndex[RefreshRateTableIndex].YRes;
 
 	cr_data = XGI_CRT1Table[index].CR[10];
 
@@ -171,29 +149,20 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	VRS = (cr_data & 0xff) | ((unsigned short) (cr_data2 & 0x04) << 6)
 			| ((unsigned short) (cr_data2 & 0x80) << 2)
 			| ((unsigned short) (sr_data & 0x08) << 7);
-	F = VRS + 1 - E;
-
-	cr_data = XGI_CRT1Table[index].CR[12];
-
-	cr_data3 = (XGI_CRT1Table[index].CR[14] & 0x80) << 5;
-
-	/* Vertical blank start */
-	VBS = (cr_data & 0xff) | ((unsigned short) (cr_data2 & 0x08) << 5)
-			| ((unsigned short) (cr_data3 & 0x20) << 4)
-			| ((unsigned short) (sr_data & 0x04) << 8);
+	F = VRS + 1 - VDE;
 
 	cr_data = XGI_CRT1Table[index].CR[13];
 
 	/* Vertical blank end */
 	VBE = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x10) << 4);
-	temp = VBE - ((E - 1) & 511);
+	temp = VBE - ((VDE - 1) & 511);
 	B = (temp > 0) ? temp : (temp + 512);
 
 	cr_data = XGI_CRT1Table[index].CR[11];
 
 	/* Vertical retrace (=sync) end */
 	VRE = (cr_data & 0x0f) | ((sr_data & 0x20) >> 1);
-	temp = VRE - ((E + F - 1) & 31);
+	temp = VRE - ((VDE + F - 1) & 31);
 	C = (temp > 0) ? temp : (temp + 32);
 
 	D = B - F - C;
@@ -233,13 +202,14 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	return 1;
 }
 
-static void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
+void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 {
 	XGI_Pr->P3c4 = BaseAddr + 0x14;
 	XGI_Pr->P3d4 = BaseAddr + 0x24;
 	XGI_Pr->P3c0 = BaseAddr + 0x10;
 	XGI_Pr->P3ce = BaseAddr + 0x1e;
 	XGI_Pr->P3c2 = BaseAddr + 0x12;
+	XGI_Pr->P3cc = BaseAddr + 0x1c;
 	XGI_Pr->P3ca = BaseAddr + 0x1a;
 	XGI_Pr->P3c6 = BaseAddr + 0x16;
 	XGI_Pr->P3c7 = BaseAddr + 0x17;
@@ -1160,22 +1130,10 @@ static int XGIfb_release(struct fb_info *info, int user)
 	return 0;
 }
 
+/* similar to sisfb_get_cmap_len */
 static int XGIfb_get_cmap_len(const struct fb_var_screeninfo *var)
 {
-	int rc = 16;
-
-	switch (var->bits_per_pixel) {
-	case 8:
-		rc = 256;
-		break;
-	case 16:
-		rc = 16;
-		break;
-	case 32:
-		rc = 16;
-		break;
-	}
-	return rc;
+	return (var->bits_per_pixel == 8) ? 256 : 16;
 }
 
 static int XGIfb_setcolreg(unsigned regno, unsigned red, unsigned green,
@@ -1362,12 +1320,6 @@ static int XGIfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	/* Adapt RGB settings */
 	XGIfb_bpp_to_var(xgifb_info, var);
 
-	/* Sanity check for offsets */
-	if (var->xoffset < 0)
-		var->xoffset = 0;
-	if (var->yoffset < 0)
-		var->yoffset = 0;
-
 	if (!XGIfb_ypan) {
 		if (var->xres != var->xres_virtual)
 			var->xres_virtual = var->xres;
@@ -1402,8 +1354,7 @@ static int XGIfb_pan_display(struct fb_var_screeninfo *var,
 		return -EINVAL;
 
 	if (var->vmode & FB_VMODE_YWRAP) {
-		if (var->yoffset < 0 || var->yoffset >= info->var.yres_virtual
-				|| var->xoffset)
+		if (var->yoffset >= info->var.yres_virtual || var->xoffset)
 			return -EINVAL;
 	} else if (var->xoffset + info->var.xres > info->var.xres_virtual
 				|| var->yoffset + info->var.yres
@@ -1838,7 +1789,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 	if (!XGIInitNew(pdev))
 		dev_err(&pdev->dev, "XGIInitNew() failed!\n");
 
-	xgifb_info->mtrr = (unsigned int) 0;
+	xgifb_info->mtrr = -1;
 
 	xgifb_info->hasVB = HASVB_NONE;
 	if ((xgifb_info->chip == XG20) ||
@@ -1957,6 +1908,7 @@ static int xgifb_probe(struct pci_dev *pdev,
 
 	if (xgifb_info->mode_idx < 0) {
 		dev_err(&pdev->dev, "No supported video mode found\n");
+		ret = -EINVAL;
 		goto error_1;
 	}
 

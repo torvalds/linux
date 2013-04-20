@@ -337,7 +337,7 @@ static int read_page(struct file *file, unsigned long index,
 		     struct page *page)
 {
 	int ret = 0;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct buffer_head *bh;
 	sector_t block;
 
@@ -755,7 +755,7 @@ static void bitmap_file_unmap(struct bitmap_storage *store)
 		free_buffers(sb_page);
 
 	if (file) {
-		struct inode *inode = file->f_path.dentry->d_inode;
+		struct inode *inode = file_inode(file);
 		invalidate_mapping_pages(inode->i_mapping, 0, -1);
 		fput(file);
 	}

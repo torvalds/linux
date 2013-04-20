@@ -772,9 +772,7 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 	 *	Push down and install the IP header.
 	 */
 	ipv6h = ipv6_hdr(skb);
-	*(__be32 *)ipv6h = fl6->flowlabel | htonl(0x60000000);
-	dsfield = INET_ECN_encapsulate(0, dsfield);
-	ipv6_change_dsfield(ipv6h, ~INET_ECN_MASK, dsfield);
+	ip6_flow_hdr(ipv6h, INET_ECN_encapsulate(0, dsfield), fl6->flowlabel);
 	ipv6h->hop_limit = tunnel->parms.hop_limit;
 	ipv6h->nexthdr = proto;
 	ipv6h->saddr = fl6->saddr;
@@ -960,7 +958,7 @@ static netdev_tx_t ip6gre_tunnel_xmit(struct sk_buff *skb,
 	int ret;
 
 	if (!ip6_tnl_xmit_ctl(t))
-		return -1;
+		goto tx_err;
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
@@ -1240,7 +1238,7 @@ static int ip6gre_header(struct sk_buff *skb, struct net_device *dev,
 	struct ipv6hdr *ipv6h = (struct ipv6hdr *)skb_push(skb, t->hlen);
 	__be16 *p = (__be16 *)(ipv6h+1);
 
-	*(__be32 *)ipv6h = t->fl.u.ip6.flowlabel | htonl(0x60000000);
+	ip6_flow_hdr(ipv6h, 0, t->fl.u.ip6.flowlabel);
 	ipv6h->hop_limit = t->parms.hop_limit;
 	ipv6h->nexthdr = NEXTHDR_GRE;
 	ipv6h->saddr = t->parms.laddr;

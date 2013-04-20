@@ -85,8 +85,7 @@ void qdio_allocate_dbf(struct qdio_initialize *init_data,
 		       struct qdio_irq *irq_ptr);
 void qdio_setup_debug_entries(struct qdio_irq *irq_ptr,
 			      struct ccw_device *cdev);
-void qdio_shutdown_debug_entries(struct qdio_irq *irq_ptr,
-				 struct ccw_device *cdev);
+void qdio_shutdown_debug_entries(struct qdio_irq *irq_ptr);
 int qdio_debug_init(void);
 void qdio_debug_exit(void);
 

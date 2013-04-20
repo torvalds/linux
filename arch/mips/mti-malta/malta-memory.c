@@ -47,7 +47,7 @@ static char *mtypes[3] = {
 };
 #endif
 
-/* determined physical memory size, not overridden by command line args  */
+/* determined physical memory size, not overridden by command line args	 */
 unsigned long physical_memsize = 0L;
 
 static struct prom_pmemblock * __init prom_getmdesc(void)
@@ -158,7 +158,7 @@ void __init prom_meminit(void)
 		size = p->size;
 
 		add_memory_region(base, size, type);
-                p++;
+		p++;
 	}
 }
 

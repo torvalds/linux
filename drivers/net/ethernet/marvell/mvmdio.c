@@ -164,7 +164,6 @@ static int orion_mdio_probe(struct platform_device *pdev)
 
 	bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
 	if (!bus->irq) {
-		dev_err(&pdev->dev, "Cannot allocate PHY IRQ array\n");
 		mdiobus_free(bus);
 		return -ENOMEM;
 	}

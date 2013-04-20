@@ -316,7 +316,7 @@ int qla4xxx_send_command_to_isp(struct scsi_qla_host *ha, struct srb * srb)
 		goto queuing_error;
 
 	/* total iocbs active */
-	if ((ha->iocb_cnt + req_cnt) >= REQUEST_QUEUE_DEPTH)
+	if ((ha->iocb_cnt + req_cnt) >= ha->iocb_hiwat)
 		goto queuing_error;
 
 	/* Build command packet */

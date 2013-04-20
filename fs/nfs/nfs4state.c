@@ -136,16 +136,11 @@ int nfs40_discover_server_trunking(struct nfs_client *clp,
 	clp->cl_confirm = clid.confirm;
 
 	status = nfs40_walk_client_list(clp, result, cred);
-	switch (status) {
-	case -NFS4ERR_STALE_CLIENTID:
-		set_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
-	case 0:
+	if (status == 0) {
 		/* Sustain the lease, even if it's empty.  If the clientid4
 		 * goes stale it's of no use for trunking discovery. */
 		nfs4_schedule_state_renewal(*result);
-		break;
 	}
-
 out:
 	return status;
 }
@@ -523,6 +518,8 @@ nfs4_alloc_state_owner(struct nfs_server *server,
 	nfs4_init_seqid_counter(&sp->so_seqid);
 	atomic_set(&sp->so_count, 1);
 	INIT_LIST_HEAD(&sp->so_lru);
+	seqcount_init(&sp->so_reclaim_seqcount);
+	mutex_init(&sp->so_delegreturn_mutex);
 	return sp;
 }
 
@@ -1395,8 +1392,9 @@ static int nfs4_reclaim_open_state(struct nfs4_state_owner *sp, const struct nfs
 	 * recovering after a network partition or a reboot from a
 	 * server that doesn't support a grace period.
 	 */
-restart:
 	spin_lock(&sp->so_lock);
+	write_seqcount_begin(&sp->so_reclaim_seqcount);
+restart:
 	list_for_each_entry(state, &sp->so_states, open_states) {
 		if (!test_and_clear_bit(ops->state_flag_bit, &state->flags))
 			continue;
@@ -1417,6 +1415,7 @@ restart:
 				}
 				spin_unlock(&state->state_lock);
 				nfs4_put_open_state(state);
+				spin_lock(&sp->so_lock);
 				goto restart;
 			}
 		}
@@ -1454,12 +1453,17 @@ restart:
 				goto out_err;
 		}
 		nfs4_put_open_state(state);
+		spin_lock(&sp->so_lock);
 		goto restart;
 	}
+	write_seqcount_end(&sp->so_reclaim_seqcount);
 	spin_unlock(&sp->so_lock);
 	return 0;
 out_err:
 	nfs4_put_open_state(state);
+	spin_lock(&sp->so_lock);
+	write_seqcount_end(&sp->so_reclaim_seqcount);
+	spin_unlock(&sp->so_lock);
 	return status;
 }
 
@@ -1863,6 +1867,7 @@ again:
 	case -ETIMEDOUT:
 	case -EAGAIN:
 		ssleep(1);
+	case -NFS4ERR_STALE_CLIENTID:
 		dprintk("NFS: %s after status %d, retrying\n",
 			__func__, status);
 		goto again;
@@ -2022,8 +2027,18 @@ static int nfs4_reset_session(struct nfs_client *clp)
 	nfs4_begin_drain_session(clp);
 	cred = nfs4_get_exchange_id_cred(clp);
 	status = nfs4_proc_destroy_session(clp->cl_session, cred);
-	if (status && status != -NFS4ERR_BADSESSION &&
-	    status != -NFS4ERR_DEADSESSION) {
+	switch (status) {
+	case 0:
+	case -NFS4ERR_BADSESSION:
+	case -NFS4ERR_DEADSESSION:
+		break;
+	case -NFS4ERR_BACK_CHAN_BUSY:
+	case -NFS4ERR_DELAY:
+		set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
+		status = 0;
+		ssleep(1);
+		goto out;
+	default:
 		status = nfs4_recovery_handle_error(clp, status);
 		goto out;
 	}

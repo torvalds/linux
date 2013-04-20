@@ -840,14 +840,14 @@ static void pscsi_bi_endio(struct bio *bio, int error)
 	bio_put(bio);
 }
 
-static inline struct bio *pscsi_get_bio(int sg_num)
+static inline struct bio *pscsi_get_bio(int nr_vecs)
 {
 	struct bio *bio;
 	/*
 	 * Use bio_malloc() following the comment in for bio -> struct request
 	 * in block/blk-core.c:blk_make_request()
 	 */
-	bio = bio_kmalloc(GFP_KERNEL, sg_num);
+	bio = bio_kmalloc(GFP_KERNEL, nr_vecs);
 	if (!bio) {
 		pr_err("PSCSI: bio_kmalloc() failed\n");
 		return NULL;
@@ -883,7 +883,14 @@ pscsi_map_sg(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		pr_debug("PSCSI: i: %d page: %p len: %d off: %d\n", i,
 			page, len, off);
 
-		while (len > 0 && data_len > 0) {
+		/*
+		 * We only have one page of data in each sg element,
+		 * we can not cross a page boundary.
+		 */
+		if (off + len > PAGE_SIZE)
+			goto fail;
+
+		if (len > 0 && data_len > 0) {
 			bytes = min_t(unsigned int, len, PAGE_SIZE - off);
 			bytes = min(bytes, data_len);
 
@@ -940,10 +947,7 @@ pscsi_map_sg(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 				bio = NULL;
 			}
 
-			page++;
-			len -= bytes;
 			data_len -= bytes;
-			off = 0;
 		}
 	}
 
@@ -952,7 +956,6 @@ fail:
 	while (*hbio) {
 		bio = *hbio;
 		*hbio = (*hbio)->bi_next;
-		bio->bi_next = NULL;
 		bio_endio(bio, 0);	/* XXX: should be error */
 	}
 	return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -1092,7 +1095,6 @@ fail_free_bio:
 	while (hbio) {
 		struct bio *bio = hbio;
 		hbio = hbio->bi_next;
-		bio->bi_next = NULL;
 		bio_endio(bio, 0);	/* XXX: should be error */
 	}
 	ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -1178,7 +1180,7 @@ static int __init pscsi_module_init(void)
 	return transport_subsystem_register(&pscsi_template);
 }
 
-static void pscsi_module_exit(void)
+static void __exit pscsi_module_exit(void)
 {
 	transport_subsystem_release(&pscsi_template);
 }

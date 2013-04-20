@@ -5,10 +5,6 @@
 # Rewritten to use lists instead of if-statements.
 #
 
-cyclomx-y                       := cycx_main.o
-cyclomx-$(CONFIG_CYCLOMX_X25)	+= cycx_x25.o
-cyclomx-objs			:= $(cyclomx-y)  
-
 obj-$(CONFIG_HDLC)		+= hdlc.o
 obj-$(CONFIG_HDLC_RAW)		+= hdlc_raw.o
 obj-$(CONFIG_HDLC_RAW_ETH)	+= hdlc_raw_eth.o
@@ -28,7 +24,6 @@ obj-$(CONFIG_LANMEDIA)		+= lmc/
 
 obj-$(CONFIG_DLCI)		+= dlci.o 
 obj-$(CONFIG_SDLA)		+= sdla.o
-obj-$(CONFIG_CYCLADES_SYNC)	+= cycx_drv.o cyclomx.o
 obj-$(CONFIG_LAPBETHER)		+= lapbether.o
 obj-$(CONFIG_SBNI)		+= sbni.o
 obj-$(CONFIG_N2)		+= n2.o

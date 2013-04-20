@@ -208,7 +208,7 @@ static inline int write_pattern(int ebnum, void *buf)
 static int __init tort_init(void)
 {
 	int err = 0, i, infinite = !cycles_count;
-	int bad_ebs[ebcnt];
+	int *bad_ebs;
 
 	printk(KERN_INFO "\n");
 	printk(KERN_INFO "=================================================\n");
@@ -250,28 +250,24 @@ static int __init tort_init(void)
 
 	err = -ENOMEM;
 	patt_5A5 = kmalloc(mtd->erasesize, GFP_KERNEL);
-	if (!patt_5A5) {
-		pr_err("error: cannot allocate memory\n");
+	if (!patt_5A5)
 		goto out_mtd;
-	}
 
 	patt_A5A = kmalloc(mtd->erasesize, GFP_KERNEL);
-	if (!patt_A5A) {
-		pr_err("error: cannot allocate memory\n");
+	if (!patt_A5A)
 		goto out_patt_5A5;
-	}
 
 	patt_FF = kmalloc(mtd->erasesize, GFP_KERNEL);
-	if (!patt_FF) {
-		pr_err("error: cannot allocate memory\n");
+	if (!patt_FF)
 		goto out_patt_A5A;
-	}
 
 	check_buf = kmalloc(mtd->erasesize, GFP_KERNEL);
-	if (!check_buf) {
-		pr_err("error: cannot allocate memory\n");
+	if (!check_buf)
 		goto out_patt_FF;
-	}
+
+	bad_ebs = kcalloc(ebcnt, sizeof(*bad_ebs), GFP_KERNEL);
+	if (!bad_ebs)
+		goto out_check_buf;
 
 	err = 0;
 
@@ -290,7 +286,6 @@ static int __init tort_init(void)
 	/*
 	 * Check if there is a bad eraseblock among those we are going to test.
 	 */
-	memset(&bad_ebs[0], 0, sizeof(int) * ebcnt);
 	if (mtd_can_have_bb(mtd)) {
 		for (i = eb; i < eb + ebcnt; i++) {
 			err = mtd_block_isbad(mtd, (loff_t)i * mtd->erasesize);
@@ -394,6 +389,8 @@ out:
 
 	pr_info("finished after %u erase cycles\n",
 	       erase_cycles);
+	kfree(bad_ebs);
+out_check_buf:
 	kfree(check_buf);
 out_patt_FF:
 	kfree(patt_FF);

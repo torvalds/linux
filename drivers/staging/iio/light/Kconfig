@@ -25,16 +25,6 @@ config SENSORS_ISL29028
 	 Proximity value via iio. The ISL29028 provides the concurrent sensing
 	 of ambient light and proximity.
 
-config SENSORS_TSL2563
-	tristate "TAOS TSL2560, TSL2561, TSL2562 and TSL2563 ambient light sensors"
-	depends on I2C
-	help
-	 If you say yes here you get support for the Taos TSL2560,
-	 TSL2561, TSL2562 and TSL2563 ambient light sensors.
-
-	 This driver can also be built as a module.  If so, the module
-	 will be called tsl2563.
-
 config TSL2583
 	tristate "TAOS TSL2580, TSL2581 and TSL2583 light-to-digital converters"
 	depends on I2C

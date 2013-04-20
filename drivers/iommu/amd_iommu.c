@@ -2466,18 +2466,16 @@ static int device_change_notifier(struct notifier_block *nb,
 
 		/* allocate a protection domain if a device is added */
 		dma_domain = find_protection_domain(devid);
-		if (dma_domain)
-			goto out;
-		dma_domain = dma_ops_domain_alloc();
-		if (!dma_domain)
-			goto out;
-		dma_domain->target_dev = devid;
+		if (!dma_domain) {
+			dma_domain = dma_ops_domain_alloc();
+			if (!dma_domain)
+				goto out;
+			dma_domain->target_dev = devid;
 
-		spin_lock_irqsave(&iommu_pd_list_lock, flags);
-		list_add_tail(&dma_domain->list, &iommu_pd_list);
-		spin_unlock_irqrestore(&iommu_pd_list_lock, flags);
-
-		dev_data = get_dev_data(dev);
+			spin_lock_irqsave(&iommu_pd_list_lock, flags);
+			list_add_tail(&dma_domain->list, &iommu_pd_list);
+			spin_unlock_irqrestore(&iommu_pd_list_lock, flags);
+		}
 
 		dev->archdata.dma_ops = &amd_iommu_dma_ops;
 
@@ -3187,8 +3185,7 @@ int __init amd_iommu_init_dma_ops(void)
 free_domains:
 
 	for_each_iommu(iommu) {
-		if (iommu->default_dom)
-			dma_ops_domain_free(iommu->default_dom);
+		dma_ops_domain_free(iommu->default_dom);
 	}
 
 	return ret;
@@ -4017,10 +4014,10 @@ static int alloc_irq_index(struct irq_cfg *cfg, u16 devid, int count)
 
 			index -= count - 1;
 
+			cfg->remapped	      = 1;
 			irte_info             = &cfg->irq_2_iommu;
 			irte_info->sub_handle = devid;
 			irte_info->irte_index = index;
-			irte_info->iommu      = (void *)cfg;
 
 			goto out;
 		}
@@ -4127,9 +4124,9 @@ static int setup_ioapic_entry(int irq, struct IO_APIC_route_entry *entry,
 	index = attr->ioapic_pin;
 
 	/* Setup IRQ remapping info */
+	cfg->remapped	      = 1;
 	irte_info->sub_handle = devid;
 	irte_info->irte_index = index;
-	irte_info->iommu      = (void *)cfg;
 
 	/* Setup IRTE for IOMMU */
 	irte.val		= 0;
@@ -4288,9 +4285,9 @@ static int msi_setup_irq(struct pci_dev *pdev, unsigned int irq,
 	devid		= get_device_id(&pdev->dev);
 	irte_info	= &cfg->irq_2_iommu;
 
+	cfg->remapped	      = 1;
 	irte_info->sub_handle = devid;
 	irte_info->irte_index = index + offset;
-	irte_info->iommu      = (void *)cfg;
 
 	return 0;
 }
@@ -4314,9 +4311,9 @@ static int setup_hpet_msi(unsigned int irq, unsigned int id)
 	if (index < 0)
 		return index;
 
+	cfg->remapped	      = 1;
 	irte_info->sub_handle = devid;
 	irte_info->irte_index = index;
-	irte_info->iommu      = (void *)cfg;
 
 	return 0;
 }

@@ -158,11 +158,10 @@ static struct hlist_head *vport_hash_bucket(const struct datapath *dp,
 struct vport *ovs_lookup_vport(const struct datapath *dp, u16 port_no)
 {
 	struct vport *vport;
-	struct hlist_node *n;
 	struct hlist_head *head;
 
 	head = vport_hash_bucket(dp, port_no);
-	hlist_for_each_entry_rcu(vport, n, head, dp_hash_node) {
+	hlist_for_each_entry_rcu(vport, head, dp_hash_node) {
 		if (vport->port_no == port_no)
 			return vport;
 	}
@@ -301,7 +300,7 @@ static int queue_gso_packets(struct net *net, int dp_ifindex,
 	struct sk_buff *segs, *nskb;
 	int err;
 
-	segs = skb_gso_segment(skb, NETIF_F_SG | NETIF_F_HW_CSUM);
+	segs = __skb_gso_segment(skb, NETIF_F_SG | NETIF_F_HW_CSUM, false);
 	if (IS_ERR(segs))
 		return PTR_ERR(segs);
 
@@ -395,6 +394,7 @@ static int queue_userspace_packet(struct net *net, int dp_ifindex,
 
 	skb_copy_and_csum_dev(skb, nla_data(nla));
 
+	genlmsg_end(user_skb, upcall);
 	err = genlmsg_unicast(net, user_skb, upcall_info->portid);
 
 out:
@@ -1386,9 +1386,9 @@ static void __dp_destroy(struct datapath *dp)
 
 	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
 		struct vport *vport;
-		struct hlist_node *node, *n;
+		struct hlist_node *n;
 
-		hlist_for_each_entry_safe(vport, node, n, &dp->ports[i], dp_hash_node)
+		hlist_for_each_entry_safe(vport, n, &dp->ports[i], dp_hash_node)
 			if (vport->port_no != OVSP_LOCAL)
 				ovs_dp_detach_port(vport);
 	}
@@ -1691,6 +1691,7 @@ static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	if (IS_ERR(vport))
 		goto exit_unlock;
 
+	err = 0;
 	reply = ovs_vport_cmd_build_info(vport, info->snd_portid, info->snd_seq,
 					 OVS_VPORT_CMD_NEW);
 	if (IS_ERR(reply)) {
@@ -1772,6 +1773,7 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	if (IS_ERR(reply))
 		goto exit_unlock;
 
+	err = 0;
 	ovs_dp_detach_port(vport);
 
 	genl_notify(reply, genl_info_net(info), info->snd_portid,
@@ -1825,10 +1827,9 @@ static int ovs_vport_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	rcu_read_lock();
 	for (i = bucket; i < DP_VPORT_HASH_BUCKETS; i++) {
 		struct vport *vport;
-		struct hlist_node *n;
 
 		j = 0;
-		hlist_for_each_entry_rcu(vport, n, &dp->ports[i], dp_hash_node) {
+		hlist_for_each_entry_rcu(vport, &dp->ports[i], dp_hash_node) {
 			if (j >= skip &&
 			    ovs_vport_cmd_fill_info(vport, skb,
 						    NETLINK_CB(cb->skb).portid,
@@ -1989,10 +1990,9 @@ static struct pernet_operations ovs_net_ops = {
 
 static int __init dp_init(void)
 {
-	struct sk_buff *dummy_skb;
 	int err;
 
-	BUILD_BUG_ON(sizeof(struct ovs_skb_cb) > sizeof(dummy_skb->cb));
+	BUILD_BUG_ON(sizeof(struct ovs_skb_cb) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	pr_info("Open vSwitch switching datapath\n");
 

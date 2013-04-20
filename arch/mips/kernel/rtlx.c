@@ -252,12 +252,12 @@ int rtlx_release(int index)
 
 unsigned int rtlx_read_poll(int index, int can_sleep)
 {
- 	struct rtlx_channel *chan;
+	struct rtlx_channel *chan;
 
- 	if (rtlx == NULL)
- 		return 0;
+	if (rtlx == NULL)
+		return 0;
 
- 	chan = &rtlx->channel[index];
+	chan = &rtlx->channel[index];
 
 	/* data available to read? */
 	if (chan->lx_read == chan->lx_write) {
@@ -399,10 +399,8 @@ static int file_release(struct inode *inode, struct file *filp)
 
 static unsigned int file_poll(struct file *file, poll_table * wait)
 {
-	int minor;
+	int minor = iminor(file_inode(file));
 	unsigned int mask = 0;
-
-	minor = iminor(file->f_path.dentry->d_inode);
 
 	poll_wait(file, &channel_wqs[minor].rt_queue, wait);
 	poll_wait(file, &channel_wqs[minor].lx_queue, wait);
@@ -424,7 +422,7 @@ static unsigned int file_poll(struct file *file, poll_table * wait)
 static ssize_t file_read(struct file *file, char __user * buffer, size_t count,
 			 loff_t * ppos)
 {
-	int minor = iminor(file->f_path.dentry->d_inode);
+	int minor = iminor(file_inode(file));
 
 	/* data available? */
 	if (!rtlx_read_poll(minor, (file->f_flags & O_NONBLOCK) ? 0 : 1)) {
@@ -437,11 +435,8 @@ static ssize_t file_read(struct file *file, char __user * buffer, size_t count,
 static ssize_t file_write(struct file *file, const char __user * buffer,
 			  size_t count, loff_t * ppos)
 {
-	int minor;
-	struct rtlx_channel *rt;
-
-	minor = iminor(file->f_path.dentry->d_inode);
-	rt = &rtlx->channel[minor];
+	int minor = iminor(file_inode(file));
+	struct rtlx_channel *rt = &rtlx->channel[minor];
 
 	/* any space left... */
 	if (!rtlx_write_poll(minor)) {
@@ -451,8 +446,8 @@ static ssize_t file_write(struct file *file, const char __user * buffer,
 			return -EAGAIN;
 
 		__wait_event_interruptible(channel_wqs[minor].rt_queue,
-		                           rtlx_write_poll(minor),
-		                           ret);
+					   rtlx_write_poll(minor),
+					   ret);
 		if (ret)
 			return ret;
 	}
@@ -462,11 +457,11 @@ static ssize_t file_write(struct file *file, const char __user * buffer,
 
 static const struct file_operations rtlx_fops = {
 	.owner =   THIS_MODULE,
-	.open =    file_open,
+	.open =	   file_open,
 	.release = file_release,
 	.write =   file_write,
-	.read =    file_read,
-	.poll =    file_poll,
+	.read =	   file_read,
+	.poll =	   file_poll,
 	.llseek =  noop_llseek,
 };
 

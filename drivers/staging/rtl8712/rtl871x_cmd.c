@@ -525,7 +525,6 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		kfree(pcmd);
 		return _FAIL;
 	}
-	memset(psecnetwork, 0, t_len);
 	memcpy(psecnetwork, &pnetwork->network, t_len);
 	auth = &psecuritypriv->authenticator_ie[0];
 	psecuritypriv->authenticator_ie[0] = (unsigned char)

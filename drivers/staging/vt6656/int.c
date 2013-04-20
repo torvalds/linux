@@ -75,23 +75,22 @@ static int msglevel = MSG_LEVEL_INFO; /* MSG_LEVEL_DEBUG */
  *  if we've gotten no data
  *
 -*/
-void INTvWorkItem(void *Context)
+void INTvWorkItem(struct vnt_private *pDevice)
 {
-	PSDevice pDevice = Context;
 	int ntStatus;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->Interrupt Polling Thread\n");
 
 	spin_lock_irq(&pDevice->lock);
-	if (pDevice->fKillEventPollingThread != TRUE)
+	if (pDevice->fKillEventPollingThread != true)
 		ntStatus = PIPEnsInterruptRead(pDevice);
 	spin_unlock_irq(&pDevice->lock);
 }
 
-void INTnsProcessData(PSDevice pDevice)
+void INTnsProcessData(struct vnt_private *pDevice)
 {
 	PSINTData pINTData;
-	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
+	struct vnt_manager *pMgmt = &pDevice->vnt_mgmt;
 	struct net_device_stats *pStats = &pDevice->stats;
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---->s_nsInterruptProcessData\n");
@@ -147,12 +146,12 @@ void INTnsProcessData(PSDevice pDevice)
 				if (pMgmt->byDTIMCount > 0) {
 					pMgmt->byDTIMCount--;
 					pMgmt->sNodeDBTable[0].bRxPSPoll =
-						FALSE;
+						false;
 				} else if (pMgmt->byDTIMCount == 0) {
 					/* check if multicast tx buffering */
 					pMgmt->byDTIMCount =
 						pMgmt->byDTIMPeriod-1;
-					pMgmt->sNodeDBTable[0].bRxPSPoll = TRUE;
+					pMgmt->sNodeDBTable[0].bRxPSPoll = true;
 					if (pMgmt->sNodeDBTable[0].bPSEnable)
 						bScheduleCommand((void *) pDevice,
 								 WLAN_CMD_RX_PSPOLL,
@@ -162,9 +161,9 @@ void INTnsProcessData(PSDevice pDevice)
 						WLAN_CMD_BECON_SEND,
 						NULL);
 			} /* if (pDevice->eOPMode == OP_MODE_AP) */
-		pDevice->bBeaconSent = TRUE;
+		pDevice->bBeaconSent = true;
 		} else {
-			pDevice->bBeaconSent = FALSE;
+			pDevice->bBeaconSent = false;
 		}
 		if (pINTData->byISR0 & ISR_TBTT) {
 			if (pDevice->bEnablePSMode)
@@ -179,8 +178,7 @@ void INTnsProcessData(PSDevice pDevice)
 							NULL);
 			}
 		}
-		LODWORD(pDevice->qwCurrTSF) = pINTData->dwLoTSF;
-		HIDWORD(pDevice->qwCurrTSF) = pINTData->dwHiTSF;
+		pDevice->qwCurrTSF = cpu_to_le64(pINTData->qwTSF);
 		/*DBG_PRN_GRP01(("ISR0 = %02x ,
 		  LoTsf =  %08x,
 		  HiTsf =  %08x\n",
@@ -204,7 +202,7 @@ void INTnsProcessData(PSDevice pDevice)
 					WLAN_CMD_RADIO,
 					NULL);
 	pDevice->intBuf.uDataLen = 0;
-	pDevice->intBuf.bInUse = FALSE;
+	pDevice->intBuf.bInUse = false;
 
 	pStats->tx_packets = pDevice->scStatistic.ullTsrOK;
 	pStats->tx_bytes = pDevice->scStatistic.ullTxDirectedBytes +

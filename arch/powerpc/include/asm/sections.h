@@ -10,6 +10,9 @@
 
 extern char __end_interrupts[];
 
+extern char __prom_init_toc_start[];
+extern char __prom_init_toc_end[];
+
 static inline int in_kernel_text(unsigned long addr)
 {
 	if (addr >= (unsigned long)_stext && addr < (unsigned long)__init_end)

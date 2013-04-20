@@ -38,11 +38,12 @@
 /* position control register for hardware window 0, 2 ~ 4.*/
 #define VIDOSD_A(win)		(VIDOSD_BASE + 0x00 + (win) * 16)
 #define VIDOSD_B(win)		(VIDOSD_BASE + 0x04 + (win) * 16)
-/* size control register for hardware window 0. */
-#define VIDOSD_C_SIZE_W0	(VIDOSD_BASE + 0x08)
-/* alpha control register for hardware window 1 ~ 4. */
-#define VIDOSD_C(win)		(VIDOSD_BASE + 0x18 + (win) * 16)
-/* size control register for hardware window 1 ~ 4. */
+/*
+ * size control register for hardware windows 0 and alpha control register
+ * for hardware windows 1 ~ 4
+ */
+#define VIDOSD_C(win)		(VIDOSD_BASE + 0x08 + (win) * 16)
+/* size control register for hardware windows 1 ~ 2. */
 #define VIDOSD_D(win)		(VIDOSD_BASE + 0x0C + (win) * 16)
 
 #define VIDWx_BUF_START(win, buf)	(VIDW_BUF_START(buf) + (win) * 8)
@@ -50,9 +51,9 @@
 #define VIDWx_BUF_SIZE(win, buf)	(VIDW_BUF_SIZE(buf) + (win) * 4)
 
 /* color key control register for hardware window 1 ~ 4. */
-#define WKEYCON0_BASE(x)		((WKEYCON0 + 0x140) + (x * 8))
+#define WKEYCON0_BASE(x)		((WKEYCON0 + 0x140) + ((x - 1) * 8))
 /* color key value register for hardware window 1 ~ 4. */
-#define WKEYCON1_BASE(x)		((WKEYCON1 + 0x140) + (x * 8))
+#define WKEYCON1_BASE(x)		((WKEYCON1 + 0x140) + ((x - 1) * 8))
 
 /* FIMD has totally five hardware windows. */
 #define WINDOWS_NR	5
@@ -109,9 +110,9 @@ struct fimd_context {
 
 #ifdef CONFIG_OF
 static const struct of_device_id fimd_driver_dt_match[] = {
-	{ .compatible = "samsung,exynos4-fimd",
+	{ .compatible = "samsung,exynos4210-fimd",
 	  .data = &exynos4_fimd_driver_data },
-	{ .compatible = "samsung,exynos5-fimd",
+	{ .compatible = "samsung,exynos5250-fimd",
 	  .data = &exynos5_fimd_driver_data },
 	{},
 };
@@ -581,7 +582,7 @@ static void fimd_win_commit(struct device *dev, int zpos)
 	if (win != 3 && win != 4) {
 		u32 offset = VIDOSD_D(win);
 		if (win == 0)
-			offset = VIDOSD_C_SIZE_W0;
+			offset = VIDOSD_C(win);
 		val = win_data->ovl_width * win_data->ovl_height;
 		writel(val, ctx->regs + offset);
 
@@ -913,11 +914,9 @@ static int fimd_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	ctx->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!ctx->regs) {
-		dev_err(dev, "failed to map registers\n");
-		return -ENXIO;
-	}
+	ctx->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ctx->regs))
+		return PTR_ERR(ctx->regs);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {

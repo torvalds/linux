@@ -4,7 +4,6 @@
 
 menuconfig I2C
 	tristate "I2C support"
-	depends on !S390
 	select RT_MUTEXES
 	---help---
 	  I2C (pronounce: I-squared-C) is a slow serial bus protocol used in
@@ -76,6 +75,7 @@ config I2C_HELPER_AUTO
 
 config I2C_SMBUS
 	tristate "SMBus-specific protocols" if !I2C_HELPER_AUTO
+	depends on GENERIC_HARDIRQS
 	help
 	  Say Y here if you want support for SMBus extensions to the I2C
 	  specification. At the moment, the only supported extension is
@@ -89,7 +89,7 @@ source drivers/i2c/busses/Kconfig
 
 config I2C_STUB
 	tristate "I2C/SMBus Test Stub"
-	depends on EXPERIMENTAL && m
+	depends on m
 	default 'n'
 	help
 	  This module may be useful to developers of SMBus client drivers,

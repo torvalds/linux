@@ -41,14 +41,18 @@ MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol, temperature famil
  * If it was disabled a parasite powered device might not get the require
  * current to do a temperature conversion.  If it is enabled parasite powered
  * devices have a better chance of getting the current required.
+ * In case the parasite power-detection is not working (seems to be the case
+ * for some DS18S20) the strong pullup can also be forced, regardless of the
+ * power state of the devices.
+ *
+ * Summary of options:
+ * - strong_pullup = 0	Disable strong pullup completely
+ * - strong_pullup = 1	Enable automatic strong pullup detection
+ * - strong_pullup = 2	Force strong pullup
  */
 static int w1_strong_pullup = 1;
 module_param_named(strong_pullup, w1_strong_pullup, int, 0);
 
-static u8 bad_roms[][9] = {
-				{0xaa, 0x00, 0x4b, 0x46, 0xff, 0xff, 0x0c, 0x10, 0x87},
-				{}
-			};
 
 static ssize_t w1_therm_read(struct device *device,
 	struct device_attribute *attr, char *buf);
@@ -168,16 +172,6 @@ static inline int w1_convert_temp(u8 rom[9], u8 fid)
 	return 0;
 }
 
-static int w1_therm_check_rom(u8 rom[9])
-{
-	int i;
-
-	for (i=0; i<sizeof(bad_roms)/9; ++i)
-		if (!memcmp(bad_roms[i], rom, 9))
-			return 1;
-
-	return 0;
-}
 
 static ssize_t w1_therm_read(struct device *device,
 	struct device_attribute *attr, char *buf)
@@ -194,10 +188,11 @@ static ssize_t w1_therm_read(struct device *device,
 
 	memset(rom, 0, sizeof(rom));
 
-	verdict = 0;
-	crc = 0;
-
 	while (max_trying--) {
+
+		verdict = 0;
+		crc = 0;
+
 		if (!w1_reset_select_slave(sl)) {
 			int count = 0;
 			unsigned int tm = 750;
@@ -210,7 +205,8 @@ static ssize_t w1_therm_read(struct device *device,
 				continue;
 
 			/* 750ms strong pullup (or delay) after the convert */
-			if (!external_power && w1_strong_pullup)
+			if (w1_strong_pullup == 2 ||
+					(!external_power && w1_strong_pullup))
 				w1_next_pullup(dev, tm);
 
 			w1_write_8(dev, W1_CONVERT_TEMP);
@@ -249,7 +245,7 @@ static ssize_t w1_therm_read(struct device *device,
 			}
 		}
 
-		if (!w1_therm_check_rom(rom))
+		if (verdict)
 			break;
 	}
 
@@ -260,7 +256,7 @@ static ssize_t w1_therm_read(struct device *device,
 	if (verdict)
 		memcpy(sl->rom, rom, sizeof(sl->rom));
 	else
-		dev_warn(device, "18S20 doesn't respond to CONVERT_TEMP.\n");
+		dev_warn(device, "Read failed CRC check\n");
 
 	for (i = 0; i < 9; ++i)
 		c -= snprintf(buf + PAGE_SIZE - c, c, "%02x ", sl->rom[i]);

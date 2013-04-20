@@ -145,7 +145,7 @@ void remove_divas_proc(void)
 static ssize_t grp_opt_proc_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
-	diva_os_xdi_adapter_t *a = PDE(file->f_path.dentry->d_inode)->data;
+	diva_os_xdi_adapter_t *a = PDE(file_inode(file))->data;
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 
 	if ((count == 1) || (count == 2)) {
@@ -172,7 +172,7 @@ static ssize_t grp_opt_proc_write(struct file *file, const char __user *buffer,
 static ssize_t d_l1_down_proc_write(struct file *file, const char __user *buffer,
 				    size_t count, loff_t *pos)
 {
-	diva_os_xdi_adapter_t *a = PDE(file->f_path.dentry->d_inode)->data;
+	diva_os_xdi_adapter_t *a = PDE(file_inode(file))->data;
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 
 	if ((count == 1) || (count == 2)) {
@@ -251,7 +251,7 @@ static const struct file_operations grp_opt_proc_fops = {
 static ssize_t info_proc_write(struct file *file, const char __user *buffer,
 			       size_t count, loff_t *pos)
 {
-	diva_os_xdi_adapter_t *a = PDE(file->f_path.dentry->d_inode)->data;
+	diva_os_xdi_adapter_t *a = PDE(file_inode(file))->data;
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 	char c[4];
 

@@ -37,8 +37,8 @@
 #include <asm/octeon/cvmx-fpa.h>
 #include <asm/octeon/cvmx-pip-defs.h>
 
-#define CVMX_PIP_NUM_INPUT_PORTS                40
-#define CVMX_PIP_NUM_WATCHERS                   4
+#define CVMX_PIP_NUM_INPUT_PORTS		40
+#define CVMX_PIP_NUM_WATCHERS			4
 
 /*
  * Encodes the different error and exception codes
@@ -92,10 +92,10 @@ typedef enum {
 
 /**
  * NOTES
- *       late collision (data received before collision)
- *            late collisions cannot be detected by the receiver
- *            they would appear as JAM bits which would appear as bad FCS
- *            or carrier extend error which is CVMX_PIP_EXTEND_ERR
+ *	 late collision (data received before collision)
+ *	      late collisions cannot be detected by the receiver
+ *	      they would appear as JAM bits which would appear as bad FCS
+ *	      or carrier extend error which is CVMX_PIP_EXTEND_ERR
  */
 typedef enum {
 	/* No error */
@@ -122,11 +122,11 @@ typedef enum {
 	 * error)
 	 */
 	CVMX_PIP_UNDER_FCS_ERR = 6ull,
-	/* RGM     7 = FCS error */
+	/* RGM	   7 = FCS error */
 	CVMX_PIP_GMX_FCS_ERR = 7ull,
 	/* RGM+SPI 8 = min frame error (pkt len < min frame len) */
 	CVMX_PIP_UNDER_ERR = 8ull,
-	/* RGM     9 = Frame carrier extend error */
+	/* RGM	   9 = Frame carrier extend error */
 	CVMX_PIP_EXTEND_ERR = 9ull,
 	/*
 	 * RGM 10 = length mismatch (len did not match len in L2
@@ -161,10 +161,10 @@ typedef enum {
 	CVMX_PIP_PIP_L2_MAL_HDR = 18L
 	/*
 	 * NOTES: xx = late collision (data received before collision)
-	 *       late collisions cannot be detected by the receiver
-	 *       they would appear as JAM bits which would appear as
-	 *       bad FCS or carrier extend error which is
-	 *       CVMX_PIP_EXTEND_ERR
+	 *	 late collisions cannot be detected by the receiver
+	 *	 they would appear as JAM bits which would appear as
+	 *	 bad FCS or carrier extend error which is
+	 *	 CVMX_PIP_EXTEND_ERR
 	 */
 } cvmx_pip_rcv_err_t;
 
@@ -192,13 +192,13 @@ typedef struct {
 	/* Number of packets processed by PIP */
 	uint32_t packets;
 	/*
-	 * Number of indentified L2 multicast packets.  Does not
+	 * Number of indentified L2 multicast packets.	Does not
 	 * include broadcast packets.  Only includes packets whose
 	 * parse mode is SKIP_TO_L2
 	 */
 	uint32_t multicast_packets;
 	/*
-	 * Number of indentified L2 broadcast packets.  Does not
+	 * Number of indentified L2 broadcast packets.	Does not
 	 * include multicast packets.  Only includes packets whose
 	 * parse mode is SKIP_TO_L2
 	 */
@@ -287,7 +287,7 @@ typedef union {
  * @port_num: Port number to configure
  * @port_cfg: Port hardware configuration
  * @port_tag_cfg:
- *                 Port POW tagging configuration
+ *		   Port POW tagging configuration
  */
 static inline void cvmx_pip_config_port(uint64_t port_num,
 					union cvmx_pip_prt_cfgx port_cfg,
@@ -298,20 +298,20 @@ static inline void cvmx_pip_config_port(uint64_t port_num,
 }
 #if 0
 /**
- * @deprecated      This function is a thin wrapper around the Pass1 version
- *                  of the CVMX_PIP_QOS_WATCHX CSR; Pass2 has added a field for
- *                  setting the group that is incompatible with this function,
- *                  the preferred upgrade path is to use the CSR directly.
+ * @deprecated	    This function is a thin wrapper around the Pass1 version
+ *		    of the CVMX_PIP_QOS_WATCHX CSR; Pass2 has added a field for
+ *		    setting the group that is incompatible with this function,
+ *		    the preferred upgrade path is to use the CSR directly.
  *
  * Configure the global QoS packet watchers. Each watcher is
  * capable of matching a field in a packet to determine the
  * QoS queue for scheduling.
  *
- * @watcher:    Watcher number to configure (0 - 3).
+ * @watcher:	Watcher number to configure (0 - 3).
  * @match_type: Watcher match type
  * @match_value:
- *                   Value the watcher will match against
- * @qos:        QoS queue for packets matching this watcher
+ *		     Value the watcher will match against
+ * @qos:	QoS queue for packets matching this watcher
  */
 static inline void cvmx_pip_config_watcher(uint64_t watcher,
 					   cvmx_pip_qos_watch_types match_type,
@@ -331,7 +331,7 @@ static inline void cvmx_pip_config_watcher(uint64_t watcher,
  * Configure the VLAN priority to QoS queue mapping.
  *
  * @vlan_priority:
- *               VLAN priority (0-7)
+ *		 VLAN priority (0-7)
  * @qos:    QoS queue for packets matching this watcher
  */
 static inline void cvmx_pip_config_vlan_qos(uint64_t vlan_priority,
@@ -451,10 +451,10 @@ static inline void cvmx_pip_get_port_status(uint64_t port_num, uint64_t clear,
  *
  * @interface: Interface to configure (0 or 1)
  * @invert_result:
- *                 Invert the result of the CRC
+ *		   Invert the result of the CRC
  * @reflect:  Reflect
  * @initialization_vector:
- *                 CRC initialization vector
+ *		   CRC initialization vector
  */
 static inline void cvmx_pip_config_crc(uint64_t interface,
 				       uint64_t invert_result, uint64_t reflect,
@@ -500,13 +500,13 @@ static inline void cvmx_pip_tag_mask_clear(uint64_t mask_index)
  *
  * @mask_index: Which tag mask to modify (0..3)
  * @offset: Offset into the bitmask to set bits at. Use the GCC macro
- *          offsetof() to determine the offsets into packet headers.
- *          For example, offsetof(ethhdr, protocol) returns the offset
- *          of the ethernet protocol field.  The bitmask selects which
- *          bytes to include the the tag, with bit offset X selecting
- *          byte at offset X from the beginning of the packet data.
+ *	    offsetof() to determine the offsets into packet headers.
+ *	    For example, offsetof(ethhdr, protocol) returns the offset
+ *	    of the ethernet protocol field.  The bitmask selects which
+ *	    bytes to include the the tag, with bit offset X selecting
+ *	    byte at offset X from the beginning of the packet data.
  * @len:    Number of bytes to include. Usually this is the sizeof()
- *          the field.
+ *	    the field.
  */
 static inline void cvmx_pip_tag_mask_set(uint64_t mask_index, uint64_t offset,
 					 uint64_t len)

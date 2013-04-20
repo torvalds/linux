@@ -168,13 +168,13 @@ static struct class mISDN_class = {
 };
 
 static int
-_get_mdevice(struct device *dev, void *id)
+_get_mdevice(struct device *dev, const void *id)
 {
 	struct mISDNdevice *mdev = dev_to_mISDN(dev);
 
 	if (!mdev)
 		return 0;
-	if (mdev->id != *(u_int *)id)
+	if (mdev->id != *(const u_int *)id)
 		return 0;
 	return 1;
 }

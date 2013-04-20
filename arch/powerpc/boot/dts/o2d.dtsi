@@ -12,6 +12,13 @@
 
 /include/ "mpc5200b.dtsi"
 
+&gpt0 {
+	gpio-controller;
+	fsl,has-wdt;
+	fsl,wdt-on-boot = <0>;
+};
+&gpt1 { gpio-controller; };
+
 / {
 	model = "ifm,o2d";
 	compatible = "ifm,o2d";
@@ -21,24 +28,6 @@
 	};
 
 	soc5200@f0000000 {
-
-		gpio_simple: gpio@b00 {
-		};
-
-		timer@600 {	// General Purpose Timer
-			#gpio-cells = <2>;
-			gpio-controller;
-			fsl,has-wdt;
-			fsl,wdt-on-boot = <0>;
-		};
-
-		timer@610 {
-			#gpio-cells = <2>;
-			gpio-controller;
-		};
-
-		timer7: timer@670 {
-		};
 
 		rtc@800 {
 			status = "disabled";
@@ -118,7 +107,7 @@
 		csi@3,0 {
 			compatible = "ifm,o2d-csi";
 			reg = <3 0 0x00100000>;
-			ifm,csi-clk-handle = <&timer7>;
+			ifm,csi-clk-handle = <&gpt7>;
 			gpios = <&gpio_simple 23 0	/* imag_capture */
 				 &gpio_simple 26 0	/* imag_reset */
 				 &gpio_simple 29 0>;	/* imag_master_en */

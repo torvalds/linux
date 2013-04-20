@@ -182,6 +182,8 @@
 #define	CP_COHER_BASE					0x85F8
 #define	CP_DEBUG					0xC1FC
 #define	R_0086D8_CP_ME_CNTL			0x86D8
+#define		S_0086D8_CP_PFP_HALT(x)			(((x) & 1)<<26)
+#define		C_0086D8_CP_PFP_HALT(x)			((x) & 0xFBFFFFFF)
 #define		S_0086D8_CP_ME_HALT(x)			(((x) & 1)<<28)
 #define		C_0086D8_CP_ME_HALT(x)			((x) & 0xEFFFFFFF)
 #define	CP_ME_RAM_DATA					0xC160
@@ -1143,19 +1145,10 @@
 /*
  * PM4
  */
-#define	PACKET_TYPE0	0
-#define	PACKET_TYPE1	1
-#define	PACKET_TYPE2	2
-#define	PACKET_TYPE3	3
-
-#define CP_PACKET_GET_TYPE(h) (((h) >> 30) & 3)
-#define CP_PACKET_GET_COUNT(h) (((h) >> 16) & 0x3FFF)
-#define CP_PACKET0_GET_REG(h) (((h) & 0xFFFF) << 2)
-#define CP_PACKET3_GET_OPCODE(h) (((h) >> 8) & 0xFF)
-#define PACKET0(reg, n)	((PACKET_TYPE0 << 30) |				\
+#define PACKET0(reg, n)	((RADEON_PACKET_TYPE0 << 30) |			\
 			 (((reg) >> 2) & 0xFFFF) |			\
 			 ((n) & 0x3FFF) << 16)
-#define PACKET3(op, n)	((PACKET_TYPE3 << 30) |				\
+#define PACKET3(op, n)	((RADEON_PACKET_TYPE3 << 30) |			\
 			 (((op) & 0xFF) << 8) |				\
 			 ((n) & 0x3FFF) << 16)
 
@@ -1328,6 +1321,7 @@
 #define		G_008010_VC_BUSY(x)			(((x) >> 11) & 1)
 #define		G_008010_DB03_CLEAN(x)			(((x) >> 12) & 1)
 #define		G_008010_CB03_CLEAN(x)			(((x) >> 13) & 1)
+#define		G_008010_TA_BUSY(x)			(((x) >> 14) & 1)
 #define		G_008010_VGT_BUSY_NO_DMA(x)		(((x) >> 16) & 1)
 #define		G_008010_VGT_BUSY(x)			(((x) >> 17) & 1)
 #define		G_008010_TA03_BUSY(x)			(((x) >> 18) & 1)
@@ -1395,6 +1389,7 @@
 #define		G_000E50_MCDW_BUSY(x)			(((x) >> 13) & 1)
 #define		G_000E50_SEM_BUSY(x)			(((x) >> 14) & 1)
 #define		G_000E50_RLC_BUSY(x)			(((x) >> 15) & 1)
+#define		G_000E50_IH_BUSY(x)			(((x) >> 17) & 1)
 #define		G_000E50_BIF_BUSY(x)			(((x) >> 29) & 1)
 #define	R_000E60_SRBM_SOFT_RESET			0x0E60
 #define		S_000E60_SOFT_RESET_BIF(x)		(((x) & 1) << 1)

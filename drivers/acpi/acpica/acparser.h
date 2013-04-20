@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,7 +105,28 @@ union acpi_parse_object *acpi_ps_find_name(union acpi_parse_object *scope,
 union acpi_parse_object *acpi_ps_get_parent(union acpi_parse_object *op);
 
 /*
- * psopcode - AML Opcode information
+ * psobject - support for parse object processing
+ */
+acpi_status
+acpi_ps_build_named_op(struct acpi_walk_state *walk_state,
+		       u8 *aml_op_start,
+		       union acpi_parse_object *unnamed_op,
+		       union acpi_parse_object **op);
+
+acpi_status
+acpi_ps_create_op(struct acpi_walk_state *walk_state,
+		  u8 *aml_op_start, union acpi_parse_object **new_op);
+
+acpi_status
+acpi_ps_complete_op(struct acpi_walk_state *walk_state,
+		    union acpi_parse_object **op, acpi_status status);
+
+acpi_status
+acpi_ps_complete_final_op(struct acpi_walk_state *walk_state,
+			  union acpi_parse_object *op, acpi_status status);
+
+/*
+ * psopinfo - AML Opcode information
  */
 const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode);
 
@@ -210,8 +231,6 @@ union acpi_parse_object *acpi_ps_alloc_op(u16 opcode);
 void acpi_ps_free_op(union acpi_parse_object *op);
 
 u8 acpi_ps_is_leading_char(u32 c);
-
-u8 acpi_ps_is_prefix_char(u32 c);
 
 #ifdef	ACPI_FUTURE_USAGE
 u32 acpi_ps_get_name(union acpi_parse_object *op);

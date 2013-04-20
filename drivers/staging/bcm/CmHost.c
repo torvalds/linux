@@ -113,7 +113,7 @@ static VOID deleteSFBySfid(struct bcm_mini_adapter *Adapter, UINT uiSearchRuleIn
 static inline VOID
 CopyIpAddrToClassifier(struct bcm_classifier_rule *pstClassifierEntry,
 		B_UINT8 u8IpAddressLen, B_UINT8 *pu8IpAddressMaskSrc,
-		BOOLEAN bIpVersion6, E_IPADDR_CONTEXT eIpAddrContext)
+		BOOLEAN bIpVersion6, enum bcm_ipaddr_context eIpAddrContext)
 {
 	int i = 0;
 	UINT nSizeOfIPAddressInBytes = IP_LENGTH_OF_ADDRESS;
@@ -440,7 +440,7 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 	B_UINT16 u16PacketClassificationRuleIndex = 0;
 	int i;
 	struct bcm_convergence_types *psfCSType = NULL;
-	S_PHS_RULE sPhsRule;
+	struct bcm_phs_rule sPhsRule;
 	USHORT uVCID = Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value;
 	UINT UGIValue = 0;
 
@@ -703,7 +703,7 @@ static VOID CopyToAdapter(register struct bcm_mini_adapter *Adapter, /* <Pointer
 							/* Update PHS Rule For the Classifier */
 							if (sPhsRule.u8PHSI) {
 								Adapter->astClassifierTable[uiClassifierIndex].u32PHSRuleID = sPhsRule.u8PHSI;
-								memcpy(&Adapter->astClassifierTable[uiClassifierIndex].sPhsRule, &sPhsRule, sizeof(S_PHS_RULE));
+								memcpy(&Adapter->astClassifierTable[uiClassifierIndex].sPhsRule, &sPhsRule, sizeof(struct bcm_phs_rule));
 							}
 						}
 					}

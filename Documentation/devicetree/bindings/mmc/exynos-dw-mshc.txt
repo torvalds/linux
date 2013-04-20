@@ -4,18 +4,18 @@
 The Synopsis designware mobile storage host controller is used to interface
 a SoC with storage medium such as eMMC or SD/MMC cards. This file documents
 differences between the core Synopsis dw mshc controller properties described
-by synposis-dw-mshc.txt and the properties used by the Samsung Exynos specific
+by synopsis-dw-mshc.txt and the properties used by the Samsung Exynos specific
 extensions to the Synopsis Designware Mobile Storage Host Controller.
 
 Required Properties:
 
 * compatible: should be
 	- "samsung,exynos4210-dw-mshc": for controllers with Samsung Exynos4210
-	  specific extentions.
+	  specific extensions.
 	- "samsung,exynos4412-dw-mshc": for controllers with Samsung Exynos4412
-	  specific extentions.
+	  specific extensions.
 	- "samsung,exynos5250-dw-mshc": for controllers with Samsung Exynos5250
-	  specific extentions.
+	  specific extensions.
 
 * samsung,dw-mshc-ciu-div: Specifies the divider value for the card interface
   unit (ciu) clock. This property is applicable only for Exynos5 SoC's and

@@ -635,9 +635,7 @@ static int ds1305_probe(struct spi_device *spi)
 		goto fail0;
 	}
 
-	dev_dbg(&spi->dev, "ctrl %s: %02x %02x %02x\n",
-			"read", ds1305->ctrl[0],
-			ds1305->ctrl[1], ds1305->ctrl[2]);
+	dev_dbg(&spi->dev, "ctrl %s: %3ph\n", "read", ds1305->ctrl);
 
 	/* Sanity check register values ... partially compensating for the
 	 * fact that SPI has no device handshake.  A pullup on MISO would
@@ -723,9 +721,7 @@ static int ds1305_probe(struct spi_device *spi)
 			goto fail0;
 		}
 
-		dev_dbg(&spi->dev, "ctrl %s: %02x %02x %02x\n",
-				"write", ds1305->ctrl[0],
-				ds1305->ctrl[1], ds1305->ctrl[2]);
+		dev_dbg(&spi->dev, "ctrl %s: %3ph\n", "write", ds1305->ctrl);
 	}
 
 	/* see if non-Linux software set up AM/PM mode */

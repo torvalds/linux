@@ -706,7 +706,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 			rtc_cmos_int_handler = hpet_rtc_interrupt;
 			err = hpet_register_irq_handler(cmos_interrupt);
 			if (err != 0) {
-				printk(KERN_WARNING "hpet_register_irq_handler "
+				dev_warn(dev, "hpet_register_irq_handler "
 						" failed in rtc_init().");
 				goto cleanup1;
 			}
@@ -731,8 +731,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 		goto cleanup2;
 	}
 
-	pr_info("%s: %s%s, %zd bytes nvram%s\n",
-		dev_name(&cmos_rtc.rtc->dev),
+	dev_info(dev, "%s%s, %zd bytes nvram%s\n",
 		!is_valid_irq(rtc_irq) ? "no alarms" :
 			cmos_rtc.mon_alrm ? "alarms up to one year" :
 			cmos_rtc.day_alrm ? "alarms up to one month" :
@@ -820,8 +819,7 @@ static int cmos_suspend(struct device *dev)
 			enable_irq_wake(cmos->irq);
 	}
 
-	pr_debug("%s: suspend%s, ctrl %02x\n",
-			dev_name(&cmos_rtc.rtc->dev),
+	dev_dbg(dev, "suspend%s, ctrl %02x\n",
 			(tmp & RTC_AIE) ? ", alarm may wake" : "",
 			tmp);
 
@@ -876,9 +874,7 @@ static int cmos_resume(struct device *dev)
 		spin_unlock_irq(&rtc_lock);
 	}
 
-	pr_debug("%s: resume, ctrl %02x\n",
-			dev_name(&cmos_rtc.rtc->dev),
-			tmp);
+	dev_dbg(dev, "resume, ctrl %02x\n", tmp);
 
 	return 0;
 }
@@ -1098,7 +1094,6 @@ static __init void cmos_of_init(struct platform_device *pdev)
 }
 #else
 static inline void cmos_of_init(struct platform_device *pdev) {}
-#define of_cmos_match NULL
 #endif
 /*----------------------------------------------------------------*/
 
@@ -1140,7 +1135,7 @@ static struct platform_driver cmos_platform_driver = {
 #ifdef CONFIG_PM
 		.pm		= &cmos_pm_ops,
 #endif
-		.of_match_table = of_cmos_match,
+		.of_match_table = of_match_ptr(of_cmos_match),
 	}
 };
 

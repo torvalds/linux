@@ -778,15 +778,13 @@ err:
  */
 static int
 atc_dma_cyclic_check_values(unsigned int reg_width, dma_addr_t buf_addr,
-		size_t period_len, enum dma_transfer_direction direction)
+		size_t period_len)
 {
 	if (period_len > (ATC_BTSIZE_MAX << reg_width))
 		goto err_out;
 	if (unlikely(period_len & ((1 << reg_width) - 1)))
 		goto err_out;
 	if (unlikely(buf_addr & ((1 << reg_width) - 1)))
-		goto err_out;
-	if (unlikely(!(direction & (DMA_DEV_TO_MEM | DMA_MEM_TO_DEV))))
 		goto err_out;
 
 	return 0;
@@ -886,14 +884,16 @@ atc_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 		return NULL;
 	}
 
+	if (unlikely(!is_slave_direction(direction)))
+		goto err_out;
+
 	if (sconfig->direction == DMA_MEM_TO_DEV)
 		reg_width = convert_buswidth(sconfig->dst_addr_width);
 	else
 		reg_width = convert_buswidth(sconfig->src_addr_width);
 
 	/* Check for too big/unaligned periods and unaligned DMA buffer */
-	if (atc_dma_cyclic_check_values(reg_width, buf_addr,
-					period_len, direction))
+	if (atc_dma_cyclic_check_values(reg_width, buf_addr, period_len))
 		goto err_out;
 
 	/* build cyclic linked list */

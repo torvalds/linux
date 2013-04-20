@@ -173,7 +173,7 @@ machine-$(CONFIG_ARCH_PRIMA2)		+= prima2
 machine-$(CONFIG_ARCH_PXA)		+= pxa
 machine-$(CONFIG_ARCH_REALVIEW)		+= realview
 machine-$(CONFIG_ARCH_RPC)		+= rpc
-machine-$(CONFIG_ARCH_S3C24XX)		+= s3c24xx s3c2412 s3c2440
+machine-$(CONFIG_ARCH_S3C24XX)		+= s3c24xx
 machine-$(CONFIG_ARCH_S3C64XX)		+= s3c64xx
 machine-$(CONFIG_ARCH_S5P64X0)		+= s5p64x0
 machine-$(CONFIG_ARCH_S5PC100)		+= s5pc100
@@ -194,6 +194,7 @@ machine-$(CONFIG_ARCH_SOCFPGA)		+= socfpga
 machine-$(CONFIG_ARCH_SPEAR13XX)	+= spear13xx
 machine-$(CONFIG_ARCH_SPEAR3XX)		+= spear3xx
 machine-$(CONFIG_MACH_SPEAR600)		+= spear6xx
+machine-$(CONFIG_ARCH_VIRT)		+= virt
 machine-$(CONFIG_ARCH_ZYNQ)		+= zynq
 machine-$(CONFIG_ARCH_SUNXI)		+= sunxi
 
@@ -204,7 +205,7 @@ plat-$(CONFIG_ARCH_S3C64XX)	+= samsung
 plat-$(CONFIG_PLAT_IOP)		+= iop
 plat-$(CONFIG_PLAT_ORION)	+= orion
 plat-$(CONFIG_PLAT_PXA)		+= pxa
-plat-$(CONFIG_PLAT_S3C24XX)	+= s3c24xx samsung
+plat-$(CONFIG_PLAT_S3C24XX)	+= samsung
 plat-$(CONFIG_PLAT_S5P)		+= samsung
 plat-$(CONFIG_PLAT_SPEAR)	+= spear
 plat-$(CONFIG_PLAT_VERSATILE)	+= versatile
@@ -252,6 +253,7 @@ core-$(CONFIG_FPE_NWFPE)	+= arch/arm/nwfpe/
 core-$(CONFIG_FPE_FASTFPE)	+= $(FASTFPE_OBJ)
 core-$(CONFIG_VFP)		+= arch/arm/vfp/
 core-$(CONFIG_XEN)		+= arch/arm/xen/
+core-$(CONFIG_KVM_ARM_HOST) 	+= arch/arm/kvm/
 
 # If we have a machine-specific directory, then include it in the build.
 core-y				+= arch/arm/kernel/ arch/arm/mm/ arch/arm/common/

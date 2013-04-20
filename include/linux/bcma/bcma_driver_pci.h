@@ -179,6 +179,8 @@ struct pci_dev;
 #define BCMA_CORE_PCI_CFG_FUN_MASK		7	/* Function mask */
 #define BCMA_CORE_PCI_CFG_OFF_MASK		0xfff	/* Register mask */
 
+#define BCMA_CORE_PCI_CFG_DEVCTRL		0xd8
+
 /* PCIE Root Capability Register bits (Host mode only) */
 #define BCMA_CORE_PCI_RC_CRS_VISIBILITY		0x0001
 

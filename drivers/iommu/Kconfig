@@ -65,8 +65,8 @@ config AMD_IOMMU_STATS
 	  If unsure, say N.
 
 config AMD_IOMMU_V2
-	tristate "AMD IOMMU Version 2 driver (EXPERIMENTAL)"
-	depends on AMD_IOMMU && PROFILING && EXPERIMENTAL
+	tristate "AMD IOMMU Version 2 driver"
+	depends on AMD_IOMMU && PROFILING
 	select MMU_NOTIFIER
 	---help---
 	  This option enables support for the AMD IOMMUv2 features of the IOMMU
@@ -119,8 +119,8 @@ config INTEL_IOMMU_FLOPPY_WA
 	  16MiB to make floppy (an ISA device) work.
 
 config IRQ_REMAP
-	bool "Support for Interrupt Remapping (EXPERIMENTAL)"
-	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI && EXPERIMENTAL
+	bool "Support for Interrupt Remapping"
+	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI
 	select DMAR_TABLE
 	---help---
 	  Supports Interrupt remapping for IO-APIC and MSI devices.
@@ -130,7 +130,7 @@ config IRQ_REMAP
 # OMAP IOMMU support
 config OMAP_IOMMU
 	bool "OMAP IOMMU Support"
-	depends on ARCH_OMAP
+	depends on ARCH_OMAP2PLUS
 	select IOMMU_API
 
 config OMAP_IOVMM
@@ -158,7 +158,7 @@ config TEGRA_IOMMU_GART
 
 config TEGRA_IOMMU_SMMU
 	bool "Tegra SMMU IOMMU Support"
-	depends on ARCH_TEGRA_3x_SOC && TEGRA_AHB
+	depends on ARCH_TEGRA && TEGRA_AHB
 	select IOMMU_API
 	help
 	  Enables support for remapping discontiguous physical memory
@@ -186,5 +186,79 @@ config EXYNOS_IOMMU_DEBUG
 	  happens in the IOMMU driver
 
 	  Say N unless you need kernel log message for IOMMU debugging
+
+config SHMOBILE_IPMMU
+	bool
+
+config SHMOBILE_IPMMU_TLB
+	bool
+
+config SHMOBILE_IOMMU
+	bool "IOMMU for Renesas IPMMU/IPMMUI"
+	default n
+	depends on (ARM && ARCH_SHMOBILE)
+	select IOMMU_API
+	select ARM_DMA_USE_IOMMU
+	select SHMOBILE_IPMMU
+	select SHMOBILE_IPMMU_TLB
+	help
+	  Support for Renesas IPMMU/IPMMUI. This option enables
+	  remapping of DMA memory accesses from all of the IP blocks
+	  on the ICB.
+
+	  Warning: Drivers (including userspace drivers of UIO
+	  devices) of the IP blocks on the ICB *must* use addresses
+	  allocated from the IPMMU (iova) for DMA with this option
+	  enabled.
+
+	  If unsure, say N.
+
+choice
+	prompt "IPMMU/IPMMUI address space size"
+	default SHMOBILE_IOMMU_ADDRSIZE_2048MB
+	depends on SHMOBILE_IOMMU
+	help
+	  This option sets IPMMU/IPMMUI address space size by
+	  adjusting the 1st level page table size. The page table size
+	  is calculated as follows:
+
+	      page table size = number of page table entries * 4 bytes
+	      number of page table entries = address space size / 1 MiB
+
+	  For example, when the address space size is 2048 MiB, the
+	  1st level page table size is 8192 bytes.
+
+	config SHMOBILE_IOMMU_ADDRSIZE_2048MB
+		bool "2 GiB"
+
+	config SHMOBILE_IOMMU_ADDRSIZE_1024MB
+		bool "1 GiB"
+
+	config SHMOBILE_IOMMU_ADDRSIZE_512MB
+		bool "512 MiB"
+
+	config SHMOBILE_IOMMU_ADDRSIZE_256MB
+		bool "256 MiB"
+
+	config SHMOBILE_IOMMU_ADDRSIZE_128MB
+		bool "128 MiB"
+
+	config SHMOBILE_IOMMU_ADDRSIZE_64MB
+		bool "64 MiB"
+
+	config SHMOBILE_IOMMU_ADDRSIZE_32MB
+		bool "32 MiB"
+
+endchoice
+
+config SHMOBILE_IOMMU_L1SIZE
+	int
+	default 8192 if SHMOBILE_IOMMU_ADDRSIZE_2048MB
+	default 4096 if SHMOBILE_IOMMU_ADDRSIZE_1024MB
+	default 2048 if SHMOBILE_IOMMU_ADDRSIZE_512MB
+	default 1024 if SHMOBILE_IOMMU_ADDRSIZE_256MB
+	default 512 if SHMOBILE_IOMMU_ADDRSIZE_128MB
+	default 256 if SHMOBILE_IOMMU_ADDRSIZE_64MB
+	default 128 if SHMOBILE_IOMMU_ADDRSIZE_32MB
 
 endif # IOMMU_SUPPORT

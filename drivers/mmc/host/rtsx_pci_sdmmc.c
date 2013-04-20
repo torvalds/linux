@@ -678,9 +678,16 @@ static void sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct mmc_command *cmd = mrq->cmd;
 	struct mmc_data *data = mrq->data;
 	unsigned int data_size = 0;
+	int err;
 
 	if (host->eject) {
 		cmd->error = -ENOMEDIUM;
+		goto finish;
+	}
+
+	err = rtsx_pci_card_exclusive_check(host->pcr, RTSX_SD_CARD);
+	if (err) {
+		cmd->error = err;
 		goto finish;
 	}
 
@@ -901,6 +908,9 @@ static void sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (host->eject)
 		return;
 
+	if (rtsx_pci_card_exclusive_check(host->pcr, RTSX_SD_CARD))
+		return;
+
 	mutex_lock(&pcr->pcr_mutex);
 
 	rtsx_pci_start_run(pcr);
@@ -1073,6 +1083,10 @@ static int sdmmc_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (host->eject)
 		return -ENOMEDIUM;
 
+	err = rtsx_pci_card_exclusive_check(host->pcr, RTSX_SD_CARD);
+	if (err)
+		return err;
+
 	mutex_lock(&pcr->pcr_mutex);
 
 	rtsx_pci_start_run(pcr);
@@ -1083,11 +1097,6 @@ static int sdmmc_switch_voltage(struct mmc_host *mmc, struct mmc_ios *ios)
 		voltage = OUTPUT_1V8;
 
 	if (voltage == OUTPUT_1V8) {
-		err = rtsx_pci_write_register(pcr,
-				SD30_DRIVE_SEL, 0x07, DRIVER_TYPE_B);
-		if (err < 0)
-			goto out;
-
 		err = sd_wait_voltage_stable_1(host);
 		if (err < 0)
 			goto out;
@@ -1121,6 +1130,10 @@ static int sdmmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 	if (host->eject)
 		return -ENOMEDIUM;
+
+	err = rtsx_pci_card_exclusive_check(host->pcr, RTSX_SD_CARD);
+	if (err)
+		return err;
 
 	mutex_lock(&pcr->pcr_mutex);
 

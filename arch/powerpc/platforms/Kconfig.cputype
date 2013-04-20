@@ -76,6 +76,7 @@ config PPC_BOOK3E_64
 	bool "Embedded processors"
 	select PPC_FPU # Make it a choice ?
 	select PPC_SMP_MUXED_IPI
+	select PPC_DOORBELL
 
 endchoice
 
@@ -123,9 +124,8 @@ config 6xx
 	select PPC_HAVE_PMU_SUPPORT
 
 config POWER3
-	bool
 	depends on PPC64 && PPC_BOOK3S
-	default y if !POWER4_ONLY
+	def_bool y
 
 config POWER4
 	depends on PPC64 && PPC_BOOK3S
@@ -144,8 +144,7 @@ config TUNE_CELL
 	  but somewhat slower on other machines. This option only changes
 	  the scheduling of instructions, not the selection of instructions
 	  itself, so the resulting kernel will keep running on all other
-	  machines. When building a kernel that is supposed to run only
-	  on Cell, you should also select the POWER4_ONLY option.
+	  machines.
 
 # this is temp to handle compat with arch=ppc
 config 8xx
@@ -208,6 +207,7 @@ config PPC_FSL_BOOK3E
 	select FSL_EMB_PERFMON
 	select PPC_SMP_MUXED_IPI
 	select SYS_SUPPORTS_HUGETLBFS if PHYS_64BIT || PPC64
+	select PPC_DOORBELL
 	default y if FSL_BOOKE
 
 config PTE_64BIT
@@ -381,5 +381,9 @@ config NOT_COHERENT_CACHE
 
 config CHECK_CACHE_COHERENCY
 	bool
+
+config PPC_DOORBELL
+	bool
+	default n
 
 endmenu

@@ -753,3 +753,4 @@ module_spi_driver(tsc2005_driver);
 MODULE_AUTHOR("Lauri Leukkunen <lauri.leukkunen@nokia.com>");
 MODULE_DESCRIPTION("TSC2005 Touchscreen Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("spi:tsc2005");

@@ -27,6 +27,7 @@
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
+#include <linux/slab.h>
 
 #include "vfio_pci_private.h"
 
@@ -587,11 +588,45 @@ static int __init init_pci_cap_basic_perm(struct perm_bits *perm)
 	return 0;
 }
 
+static int vfio_pm_config_write(struct vfio_pci_device *vdev, int pos,
+				int count, struct perm_bits *perm,
+				int offset, __le32 val)
+{
+	count = vfio_default_config_write(vdev, pos, count, perm, offset, val);
+	if (count < 0)
+		return count;
+
+	if (offset == PCI_PM_CTRL) {
+		pci_power_t state;
+
+		switch (le32_to_cpu(val) & PCI_PM_CTRL_STATE_MASK) {
+		case 0:
+			state = PCI_D0;
+			break;
+		case 1:
+			state = PCI_D1;
+			break;
+		case 2:
+			state = PCI_D2;
+			break;
+		case 3:
+			state = PCI_D3hot;
+			break;
+		}
+
+		pci_set_power_state(vdev->pdev, state);
+	}
+
+	return count;
+}
+
 /* Permissions for the Power Management capability */
 static int __init init_pci_cap_pm_perm(struct perm_bits *perm)
 {
 	if (alloc_perm_bits(perm, pci_cap_length[PCI_CAP_ID_PM]))
 		return -ENOMEM;
+
+	perm->writefn = vfio_pm_config_write;
 
 	/*
 	 * We always virtualize the next field so we can remove
@@ -600,10 +635,11 @@ static int __init init_pci_cap_pm_perm(struct perm_bits *perm)
 	p_setb(perm, PCI_CAP_LIST_NEXT, (u8)ALL_VIRT, NO_WRITE);
 
 	/*
-	 * Power management is defined *per function*,
-	 * so we let the user write this
+	 * Power management is defined *per function*, so we can let
+	 * the user change power state, but we trap and initiate the
+	 * change ourselves, so the state bits are read-only.
 	 */
-	p_setd(perm, PCI_PM_CTRL, NO_VIRT, ALL_WRITE);
+	p_setd(perm, PCI_PM_CTRL, NO_VIRT, ~PCI_PM_CTRL_STATE_MASK);
 	return 0;
 }
 
@@ -985,12 +1021,12 @@ static int vfio_cap_len(struct vfio_pci_device *vdev, u8 cap, u8 pos)
 		if (ret)
 			return pcibios_err_to_errno(ret);
 
+		vdev->extended_caps = true;
+
 		if ((word & PCI_EXP_FLAGS_VERS) == 1)
 			return PCI_CAP_EXP_ENDPOINT_SIZEOF_V1;
-		else {
-			vdev->extended_caps = true;
+		else
 			return PCI_CAP_EXP_ENDPOINT_SIZEOF_V2;
-		}
 	case PCI_CAP_ID_HT:
 		ret = pci_read_config_byte(pdev, pos + 3, &byte);
 		if (ret)
@@ -1501,9 +1537,8 @@ static ssize_t vfio_config_do_rw(struct vfio_pci_device *vdev, char __user *buf,
 	return ret;
 }
 
-ssize_t vfio_pci_config_readwrite(struct vfio_pci_device *vdev,
-				  char __user *buf, size_t count,
-				  loff_t *ppos, bool iswrite)
+ssize_t vfio_pci_config_rw(struct vfio_pci_device *vdev, char __user *buf,
+			   size_t count, loff_t *ppos, bool iswrite)
 {
 	size_t done = 0;
 	int ret = 0;

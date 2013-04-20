@@ -14,7 +14,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #ifdef CONFIG_BCM47XX
-#include <asm/mach-bcm47xx/nvram.h>
+#include <bcm47xx_nvram.h>
 #endif
 
 #include "ssb_private.h"
@@ -322,7 +322,7 @@ static void ssb_pmu_pll_init(struct ssb_chipcommon *cc)
 	if (bus->bustype == SSB_BUSTYPE_SSB) {
 #ifdef CONFIG_BCM47XX
 		char buf[20];
-		if (nvram_getenv("xtalfreq", buf, sizeof(buf)) >= 0)
+		if (bcm47xx_nvram_getenv("xtalfreq", buf, sizeof(buf)) >= 0)
 			crystalfreq = simple_strtoul(buf, NULL, 0);
 #endif
 	}

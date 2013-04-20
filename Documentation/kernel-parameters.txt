@@ -564,6 +564,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			UART at the specified I/O port or MMIO address,
 			switching to the matching ttyS device later.  The
 			options are the same as for ttyS, above.
+		hvc<n>	Use the hypervisor console device <n>. This is for
+			both Xen and PowerPC hypervisors.
 
                 If the device connected to the port is not a TTY but a braille
                 device, prepend "brl," before the device type, for instance
@@ -593,6 +595,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			image. If '@offset' is omitted, then a suitable offset
 			is selected automatically. Check
 			Documentation/kdump/kdump.txt for further details.
+
+	crashkernel_low=size[KMG]
+			[KNL, x86] parts under 4G.
 
 	crashkernel=range1:size1[,range2:size2,...][@offset]
 			[KNL] Same as above, but depends on the memory
@@ -754,6 +759,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	earlyprintk=	[X86,SH,BLACKFIN]
 			earlyprintk=vga
+			earlyprintk=xen
 			earlyprintk=serial[,ttySn[,baudrate]]
 			earlyprintk=ttySn[,baudrate]
 			earlyprintk=dbgp[debugController#]
@@ -770,6 +776,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 			The VGA output is eventually overwritten by the real
 			console.
+
+			The xen output can only be used by Xen PV guests.
 
 	ekgdboc=	[X86,KGDB] Allow early kernel console debugging
 			ekgdboc=kbd
@@ -970,6 +978,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			       If specified, z/VM IUCV HVC accepts connections
 			       from listed z/VM user IDs only.
 
+	hwthread_map=	[METAG] Comma-separated list of Linux cpu id to
+			        hardware thread id mappings.
+				Format: <cpu>:<hwthread>
+
 	keep_bootcon	[KNL]
 			Do not unregister boot console at start. This is only
 			useful for debugging when something happens in the window
@@ -1039,16 +1051,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Claim all unknown PCI IDE storage controllers.
 
 	idle=		[X86]
-			Format: idle=poll, idle=mwait, idle=halt, idle=nomwait
+			Format: idle=poll, idle=halt, idle=nomwait
 			Poll forces a polling idle loop that can slightly
 			improve the performance of waking up a idle CPU, but
 			will use a lot of power and make the system run hot.
 			Not recommended.
-			idle=mwait: On systems which support MONITOR/MWAIT but
-			the kernel chose to not use it because it doesn't save
-			as much power as a normal idle loop, use the
-			MONITOR/MWAIT idle loop anyways. Performance should be
-			the same as idle=poll.
 			idle=halt: Halt is forced to be used for CPU idle.
 			In such case C2/C3 won't be used again.
 			idle=nomwait: Disable mwait for CPU C-states
@@ -1130,6 +1137,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	intel_idle.max_cstate=	[KNL,HW,ACPI,X86]
 			0	disables intel_idle and fall back on acpi_idle.
 			1 to 6	specify maximum depth of C-state.
+
+	intel_pstate=  [X86]
+		       disable
+		         Do not enable intel_pstate as the default
+		         scaling driver for the supported processors
 
 	intremap=	[X86-64, Intel-IOMMU]
 			on	enable Interrupt Remapping (default)
@@ -1886,10 +1898,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			wfi(ARM) instruction doesn't work correctly and not to
 			use it. This is also useful when using JTAG debugger.
 
-	no-hlt		[BUGS=X86-32] Tells the kernel that the hlt
-			instruction doesn't work correctly and not to
-			use it.
-
 	no_file_caps	Tells the kernel not to honor file capabilities.  The
 			only way then for a file to be executed with privilege
 			is to be setuid root or executed by root.
@@ -2227,6 +2235,21 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				This sorting is done to get a device
 				order compatible with older (<= 2.4) kernels.
 		nobfsort	Don't sort PCI devices into breadth-first order.
+		pcie_bus_tune_off	Disable PCIe MPS (Max Payload Size)
+				tuning and use the BIOS-configured MPS defaults.
+		pcie_bus_safe	Set every device's MPS to the largest value
+				supported by all devices below the root complex.
+		pcie_bus_perf	Set device MPS to the largest allowable MPS
+				based on its parent bus. Also set MRRS (Max
+				Read Request Size) to the largest supported
+				value (no larger than the MPS that the device
+				or bus can support) for best performance.
+		pcie_bus_peer2peer	Set every device's MPS to 128B, which
+				every device is guaranteed to support. This
+				configuration allows peer-to-peer DMA between
+				any pair of devices, possibly at the cost of
+				reduced performance.  This also guarantees
+				that hot-added devices will work.
 		cbiosize=nn[KMG]	The fixed amount of bus space which is
 				reserved for the CardBus bridge's IO window.
 				The default value is 256 bytes.
@@ -2248,6 +2271,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				the default.
 				off: Turn ECRC off
 				on: Turn ECRC on.
+		hpiosize=nn[KMG]	The fixed amount of bus space which is
+				reserved for hotplug bridge's IO window.
+				Default size is 256 bytes.
+		hpmemsize=nn[KMG]	The fixed amount of bus space which is
+				reserved for hotplug bridge's memory window.
+				Default size is 2 megabytes.
 		realloc=	Enable/disable reallocating PCI bridge resources
 				if allocations done by BIOS are too small to
 				accommodate resources required by all child
@@ -2438,7 +2467,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			real-time workloads.  It can also improve energy
 			efficiency for asymmetric multiprocessors.
 
-	rcu_nocbs_poll	[KNL,BOOT]
+	rcu_nocb_poll	[KNL,BOOT]
 			Rather than requiring that offloaded CPUs
 			(specified by rcu_nocbs= above) explicitly
 			awaken the corresponding "rcuoN" kthreads,

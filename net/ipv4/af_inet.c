@@ -248,8 +248,12 @@ EXPORT_SYMBOL(inet_listen);
 u32 inet_ehash_secret __read_mostly;
 EXPORT_SYMBOL(inet_ehash_secret);
 
+u32 ipv6_hash_secret __read_mostly;
+EXPORT_SYMBOL(ipv6_hash_secret);
+
 /*
- * inet_ehash_secret must be set exactly once
+ * inet_ehash_secret must be set exactly once, and to a non nul value
+ * ipv6_hash_secret must be set exactly once.
  */
 void build_ehash_secret(void)
 {
@@ -259,24 +263,10 @@ void build_ehash_secret(void)
 		get_random_bytes(&rnd, sizeof(rnd));
 	} while (rnd == 0);
 
-	cmpxchg(&inet_ehash_secret, 0, rnd);
+	if (cmpxchg(&inet_ehash_secret, 0, rnd) == 0)
+		get_random_bytes(&ipv6_hash_secret, sizeof(ipv6_hash_secret));
 }
 EXPORT_SYMBOL(build_ehash_secret);
-
-static inline int inet_netns_ok(struct net *net, __u8 protocol)
-{
-	const struct net_protocol *ipprot;
-
-	if (net_eq(net, &init_net))
-		return 1;
-
-	ipprot = rcu_dereference(inet_protos[protocol]);
-	if (ipprot == NULL) {
-		/* raw IP is OK */
-		return 1;
-	}
-	return ipprot->netns_ok;
-}
 
 /*
  *	Create an inet socket.
@@ -348,10 +338,6 @@ lookup_protocol:
 	err = -EPERM;
 	if (sock->type == SOCK_RAW && !kern &&
 	    !ns_capable(net->user_ns, CAP_NET_RAW))
-		goto out_rcu_unlock;
-
-	err = -EAFNOSUPPORT;
-	if (!inet_netns_ok(net, protocol))
 		goto out_rcu_unlock;
 
 	sock->ops = answer->ops;
@@ -1306,6 +1292,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 		       SKB_GSO_UDP |
 		       SKB_GSO_DODGY |
 		       SKB_GSO_TCP_ECN |
+		       SKB_GSO_GRE |
 		       0)))
 		goto out;
 
@@ -1333,7 +1320,7 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 		segs = ops->callbacks.gso_segment(skb, features);
 	rcu_read_unlock();
 
-	if (!segs || IS_ERR(segs))
+	if (IS_ERR_OR_NULL(segs))
 		goto out;
 
 	skb = segs;
@@ -1345,8 +1332,9 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 			if (skb->next != NULL)
 				iph->frag_off |= htons(IP_MF);
 			offset += (skb->len - skb->mac_len - iph->ihl * 4);
-		} else
+		} else  {
 			iph->id = htons(id++);
+		}
 		iph->tot_len = htons(skb->len - skb->mac_len);
 		iph->check = 0;
 		iph->check = ip_fast_csum(skb_network_header(skb), iph->ihl);
@@ -1590,7 +1578,7 @@ static const struct net_offload udp_offload = {
 
 static const struct net_protocol icmp_protocol = {
 	.handler =	icmp_rcv,
-	.err_handler =	ping_err,
+	.err_handler =	icmp_err,
 	.no_policy =	1,
 	.netns_ok =	1,
 };
@@ -1705,12 +1693,11 @@ static struct packet_type ip_packet_type __read_mostly = {
 
 static int __init inet_init(void)
 {
-	struct sk_buff *dummy_skb;
 	struct inet_protosw *q;
 	struct list_head *r;
 	int rc = -EINVAL;
 
-	BUILD_BUG_ON(sizeof(struct inet_skb_parm) > sizeof(dummy_skb->cb));
+	BUILD_BUG_ON(sizeof(struct inet_skb_parm) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	sysctl_local_reserved_ports = kzalloc(65536 / 8, GFP_KERNEL);
 	if (!sysctl_local_reserved_ports)

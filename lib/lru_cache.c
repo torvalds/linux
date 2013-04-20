@@ -262,12 +262,11 @@ static struct hlist_head *lc_hash_slot(struct lru_cache *lc, unsigned int enr)
 static struct lc_element *__lc_find(struct lru_cache *lc, unsigned int enr,
 		bool include_changing)
 {
-	struct hlist_node *n;
 	struct lc_element *e;
 
 	BUG_ON(!lc);
 	BUG_ON(!lc->nr_elements);
-	hlist_for_each_entry(e, n, lc_hash_slot(lc, enr), colision) {
+	hlist_for_each_entry(e, lc_hash_slot(lc, enr), colision) {
 		/* "about to be changed" elements, pending transaction commit,
 		 * are hashed by their "new number". "Normal" elements have
 		 * lc_number == lc_new_number. */

@@ -21,15 +21,27 @@
 #include <asm/types.h>
 #include <asm/cache.h>
 
-#define clear_page(page)	memset((void *)(page), 0, PAGE_SIZE)
-#define copy_page(to,from)      copy_user_page_asm((void *)(to), (void *)(from))
+#define clear_page(page)	clear_page_asm((void *)(page))
+#define copy_page(to, from)	copy_page_asm((void *)(to), (void *)(from))
 
 struct page;
 
-void copy_user_page_asm(void *to, void *from);
+void clear_page_asm(void *page);
+void copy_page_asm(void *to, void *from);
+void clear_user_page(void *vto, unsigned long vaddr, struct page *pg);
 void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 			   struct page *pg);
-void clear_user_page(void *page, unsigned long vaddr, struct page *pg);
+
+/* #define CONFIG_PARISC_TMPALIAS */
+
+#ifdef CONFIG_PARISC_TMPALIAS
+void clear_user_highpage(struct page *page, unsigned long vaddr);
+#define clear_user_highpage clear_user_highpage
+struct vm_area_struct;
+void copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr, struct vm_area_struct *vma);
+#define __HAVE_ARCH_COPY_USER_HIGHPAGE
+#endif
 
 /*
  * These are used to make use of C type-checking..

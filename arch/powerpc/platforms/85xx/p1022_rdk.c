@@ -35,17 +35,6 @@
 #define CLKDVDR_PXCLK_MASK	0x00FF0000
 
 /**
- * p1022rdk_set_monitor_port: switch the output to a different monitor port
- */
-static void p1022rdk_set_monitor_port(enum fsl_diu_monitor_port port)
-{
-	if (port != FSL_DIU_PORT_DVI) {
-		pr_err("p1022rdk: unsupported monitor port %i\n", port);
-		return;
-	}
-}
-
-/**
  * p1022rdk_set_pixel_clock: program the DIU's clock
  *
  * @pixclock: the wavelength, in picoseconds, of the clock
@@ -124,7 +113,6 @@ static void __init p1022_rdk_setup_arch(void)
 		ppc_md.progress("p1022_rdk_setup_arch()", 0);
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
-	diu_ops.set_monitor_port	= p1022rdk_set_monitor_port;
 	diu_ops.set_pixel_clock		= p1022rdk_set_pixel_clock;
 	diu_ops.valid_monitor_port	= p1022rdk_valid_monitor_port;
 #endif

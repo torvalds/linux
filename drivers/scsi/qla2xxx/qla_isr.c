@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -12,6 +12,8 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_bsg_fc.h>
 #include <scsi/scsi_eh.h>
+
+#include "qla_target.h"
 
 static void qla2x00_mbx_completion(scsi_qla_host_t *, uint16_t);
 static void qla2x00_process_completed_request(struct scsi_qla_host *,
@@ -489,8 +491,35 @@ qla83xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
 	if (mb[1] & IDC_DEVICE_STATE_CHANGE) {
 		ql_log(ql_log_info, vha, 0x506a,
 		    "IDC Device-State changed = 0x%x.\n", mb[4]);
+		if (ha->flags.nic_core_reset_owner)
+			return;
 		qla83xx_schedule_work(vha, MBA_IDC_AEN);
 	}
+}
+
+int
+qla2x00_is_a_vp_did(scsi_qla_host_t *vha, uint32_t rscn_entry)
+{
+	struct qla_hw_data *ha = vha->hw;
+	scsi_qla_host_t *vp;
+	uint32_t vp_did;
+	unsigned long flags;
+	int ret = 0;
+
+	if (!ha->num_vhosts)
+		return ret;
+
+	spin_lock_irqsave(&ha->vport_slock, flags);
+	list_for_each_entry(vp, &ha->vp_list, list) {
+		vp_did = vp->d_id.b24;
+		if (vp_did == rscn_entry) {
+			ret = 1;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
+
+	return ret;
 }
 
 /**
@@ -899,6 +928,10 @@ skip_rio:
 		/* Ignore reserved bits from RSCN-payload. */
 		rscn_entry = ((mb[1] & 0x3ff) << 16) | mb[2];
 
+		/* Skip RSCNs for virtual ports on the same physical port */
+		if (qla2x00_is_a_vp_did(vha, rscn_entry))
+			break;
+
 		atomic_set(&vha->loop_down_timer, 0);
 		vha->flags.management_server_logged_in = 0;
 
@@ -983,14 +1016,25 @@ skip_rio:
 		    mb[1], mb[2], mb[3]);
 		break;
 	case MBA_IDC_NOTIFY:
-		/* See if we need to quiesce any I/O */
-		if (IS_QLA8031(vha->hw))
-			if ((mb[2] & 0x7fff) == MBC_PORT_RESET ||
-			    (mb[2] & 0x7fff) == MBC_SET_PORT_CONFIG) {
+		if (IS_QLA8031(vha->hw)) {
+			mb[4] = RD_REG_WORD(&reg24->mailbox4);
+			if (((mb[2] & 0x7fff) == MBC_PORT_RESET ||
+			    (mb[2] & 0x7fff) == MBC_SET_PORT_CONFIG) &&
+			    (mb[4] & INTERNAL_LOOPBACK_MASK) != 0) {
 				set_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags);
+				/*
+				 * Extend loop down timer since port is active.
+				 */
+				if (atomic_read(&vha->loop_state) == LOOP_DOWN)
+					atomic_set(&vha->loop_down_timer,
+					    LOOP_DOWN_TIME);
 				qla2xxx_wake_dpc(vha);
 			}
+		}
 	case MBA_IDC_COMPLETE:
+		if (ha->notify_lb_portup_comp)
+			complete(&ha->lb_portup_comp);
+		/* Fallthru */
 	case MBA_IDC_TIME_EXT:
 		if (IS_QLA81XX(vha->hw) || IS_QLA8031(vha->hw))
 			qla81xx_idc_event(vha, mb[0], mb[1]);
@@ -1029,7 +1073,7 @@ qla2x00_process_completed_request(struct scsi_qla_host *vha,
 	struct qla_hw_data *ha = vha->hw;
 
 	/* Validate handle. */
-	if (index >= MAX_OUTSTANDING_COMMANDS) {
+	if (index >= req->num_outstanding_cmds) {
 		ql_log(ql_log_warn, vha, 0x3014,
 		    "Invalid SCSI command index (%x).\n", index);
 
@@ -1067,7 +1111,7 @@ qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
 	uint16_t index;
 
 	index = LSW(pkt->handle);
-	if (index >= MAX_OUTSTANDING_COMMANDS) {
+	if (index >= req->num_outstanding_cmds) {
 		ql_log(ql_log_warn, vha, 0x5031,
 		    "Invalid command index (%x).\n", index);
 		if (IS_QLA82XX(ha))
@@ -1740,7 +1784,7 @@ qla25xx_process_bidir_status_iocb(scsi_qla_host_t *vha, void *pkt,
 	sts24 = (struct sts_entry_24xx *) pkt;
 
 	/* Validate handle. */
-	if (index >= MAX_OUTSTANDING_COMMANDS) {
+	if (index >= req->num_outstanding_cmds) {
 		ql_log(ql_log_warn, vha, 0x70af,
 		    "Invalid SCSI completion handle 0x%x.\n", index);
 		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
@@ -1910,9 +1954,9 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	req = ha->req_q_map[que];
 
 	/* Validate handle. */
-	if (handle < MAX_OUTSTANDING_COMMANDS) {
+	if (handle < req->num_outstanding_cmds)
 		sp = req->outstanding_cmds[handle];
-	} else
+	else
 		sp = NULL;
 
 	if (sp == NULL) {
@@ -1934,6 +1978,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 
 	/* Fast path completion. */
 	if (comp_status == CS_COMPLETE && scsi_status == 0) {
+		qla2x00_do_host_ramp_up(vha);
 		qla2x00_process_completed_request(vha, req, handle);
 
 		return;
@@ -2192,6 +2237,9 @@ out:
 		    cp->cmnd[4], cp->cmnd[5], cp->cmnd[6], cp->cmnd[7],
 		    cp->cmnd[8], cp->cmnd[9], scsi_bufflen(cp), rsp_info_len,
 		    resid_len, fw_resid_len);
+
+	if (!res)
+		qla2x00_do_host_ramp_up(vha);
 
 	if (rsp->status_srb == NULL)
 		sp->done(ha, sp, res);
@@ -2747,6 +2795,12 @@ static struct qla_init_msix_entry qla82xx_msix_entries[2] = {
 	{ "qla2xxx (rsp_q)", qla82xx_msix_rsp_q },
 };
 
+static struct qla_init_msix_entry qla83xx_msix_entries[3] = {
+	{ "qla2xxx (default)", qla24xx_msix_default },
+	{ "qla2xxx (rsp_q)", qla24xx_msix_rsp_q },
+	{ "qla2xxx (atio_q)", qla83xx_msix_atio_q },
+};
+
 static void
 qla24xx_disable_msix(struct qla_hw_data *ha)
 {
@@ -2827,9 +2881,13 @@ msix_failed:
 	}
 
 	/* Enable MSI-X vectors for the base queue */
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < ha->msix_count; i++) {
 		qentry = &ha->msix_entries[i];
-		if (IS_QLA82XX(ha)) {
+		if (QLA_TGT_MODE_ENABLED() && IS_ATIO_MSIX_CAPABLE(ha)) {
+			ret = request_irq(qentry->vector,
+				qla83xx_msix_entries[i].handler,
+				0, qla83xx_msix_entries[i].name, rsp);
+		} else if (IS_QLA82XX(ha)) {
 			ret = request_irq(qentry->vector,
 				qla82xx_msix_entries[i].handler,
 				0, qla82xx_msix_entries[i].name, rsp);

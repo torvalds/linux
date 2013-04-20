@@ -415,11 +415,14 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 			break;
 
 #define REQBASICRATE(N) \
-	if ((count >= N) && DOT11_RATE5_ISBASIC_GET(item->supprates[(N)-1])) { \
-		req->basicrate ## N .data = item->supprates[(N)-1]; \
-		req->basicrate ## N .status = \
-			P80211ENUM_msgitem_status_data_ok; \
-	}
+	do { \
+		if ((count >= N) && DOT11_RATE5_ISBASIC_GET( \
+			item->supprates[(N)-1])) { \
+			req->basicrate ## N .data = item->supprates[(N)-1]; \
+			req->basicrate ## N .status = \
+				P80211ENUM_msgitem_status_data_ok; \
+		} \
+	} while (0)
 
 	REQBASICRATE(1);
 	REQBASICRATE(2);
@@ -431,11 +434,13 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 	REQBASICRATE(8);
 
 #define REQSUPPRATE(N) \
-	if (count >= N) { \
-		req->supprate ## N .data = item->supprates[(N)-1]; \
-		req->supprate ## N .status = \
-			P80211ENUM_msgitem_status_data_ok; \
-	}
+	do { \
+		if (count >= N) { \
+			req->supprate ## N .data = item->supprates[(N)-1]; \
+			req->supprate ## N .status = \
+				P80211ENUM_msgitem_status_data_ok; \
+		} \
+	} while (0)
 
 	REQSUPPRATE(1);
 	REQSUPPRATE(2);
@@ -1139,9 +1144,8 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 			/* Enable the port */
 			result = hfa384x_drvr_enable(hw, 0);
 			if (result) {
-				pr_debug
-				("failed to enable port to presniff setting, result=%d\n",
-				     result);
+				pr_debug("failed to enable port to presniff setting, result=%d\n",
+					 result);
 				goto failed;
 			}
 		} else {
@@ -1181,18 +1185,16 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 				hfa384x_drvr_stop(hw);
 				result = hfa384x_drvr_start(hw);
 				if (result) {
-					pr_debug
-					    ("failed to restart the card for sniffing, result=%d\n",
-					     result);
+					pr_debug("failed to restart the card for sniffing, result=%d\n",
+						 result);
 					goto failed;
 				}
 			} else {
 				/* Disable the port */
 				result = hfa384x_drvr_disable(hw, 0);
 				if (result) {
-					pr_debug
-					    ("failed to enable port for sniffing, result=%d\n",
-					     result);
+					pr_debug("failed to enable port for sniffing, result=%d\n",
+						 result);
 					goto failed;
 				}
 			}

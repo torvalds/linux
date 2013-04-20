@@ -297,17 +297,6 @@ static struct hid_driver dr_driver = {
 	.report_fixup = dr_report_fixup,
 	.probe = dr_probe,
 };
+module_hid_driver(dr_driver);
 
-static int __init dr_init(void)
-{
-	return hid_register_driver(&dr_driver);
-}
-
-static void __exit dr_exit(void)
-{
-	hid_unregister_driver(&dr_driver);
-}
-
-module_init(dr_init);
-module_exit(dr_exit);
 MODULE_LICENSE("GPL");

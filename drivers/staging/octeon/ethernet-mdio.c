@@ -46,9 +46,9 @@
 static void cvm_oct_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, "cavium-ethernet");
-	strcpy(info->version, OCTEON_ETHERNET_VERSION);
-	strcpy(info->bus_info, "Builtin");
+	strlcpy(info->driver, "cavium-ethernet", sizeof(info->driver));
+	strlcpy(info->version, OCTEON_ETHERNET_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, "Builtin", sizeof(info->bus_info));
 }
 
 static int cvm_oct_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)

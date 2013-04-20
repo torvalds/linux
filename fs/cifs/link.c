@@ -76,7 +76,7 @@ symlink_hash(unsigned int link_len, const char *link_str, u8 *md5_hash)
 	}
 	rc = crypto_shash_update(&sdescmd5->shash, link_str, link_len);
 	if (rc) {
-		cERROR(1, "%s: Could not update iwth link_str", __func__);
+		cERROR(1, "%s: Could not update with link_str", __func__);
 		goto symlink_hash_err;
 	}
 	rc = crypto_shash_final(&sdescmd5->shash, md5_hash);

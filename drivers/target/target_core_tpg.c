@@ -111,16 +111,10 @@ struct se_node_acl *core_tpg_get_initiator_node_acl(
 	struct se_node_acl *acl;
 
 	spin_lock_irq(&tpg->acl_node_lock);
-	list_for_each_entry(acl, &tpg->acl_node_list, acl_list) {
-		if (!strcmp(acl->initiatorname, initiatorname) &&
-		    !acl->dynamic_node_acl) {
-			spin_unlock_irq(&tpg->acl_node_lock);
-			return acl;
-		}
-	}
+	acl = __core_tpg_get_initiator_node_acl(tpg, initiatorname);
 	spin_unlock_irq(&tpg->acl_node_lock);
 
-	return NULL;
+	return acl;
 }
 
 /*	core_tpg_add_node_to_devs():
@@ -717,7 +711,8 @@ int core_tpg_register(
 
 	if (se_tpg->se_tpg_type == TRANSPORT_TPG_TYPE_NORMAL) {
 		if (core_tpg_setup_virtual_lun0(se_tpg) < 0) {
-			kfree(se_tpg);
+			array_free(se_tpg->tpg_lun_list,
+				   TRANSPORT_MAX_LUNS_PER_TPG);
 			return -ENOMEM;
 		}
 	}

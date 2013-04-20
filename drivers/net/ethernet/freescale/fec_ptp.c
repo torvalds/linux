@@ -104,7 +104,7 @@ void fec_ptp_start_cyclecounter(struct net_device *ndev)
 	unsigned long flags;
 	int inc;
 
-	inc = 1000000000 / clk_get_rate(fep->clk_ptp);
+	inc = 1000000000 / fep->cycle_speed;
 
 	/* grab the ptp lock */
 	spin_lock_irqsave(&fep->tmreg_lock, flags);
@@ -128,6 +128,7 @@ void fec_ptp_start_cyclecounter(struct net_device *ndev)
 
 	spin_unlock_irqrestore(&fep->tmreg_lock, flags);
 }
+EXPORT_SYMBOL(fec_ptp_start_cyclecounter);
 
 /**
  * fec_ptp_adjfreq - adjust ptp cycle frequency
@@ -318,6 +319,7 @@ int fec_ptp_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 	    -EFAULT : 0;
 }
+EXPORT_SYMBOL(fec_ptp_ioctl);
 
 /**
  * fec_time_keep - call timecounter_read every second to avoid timer overrun
@@ -363,6 +365,8 @@ void fec_ptp_init(struct net_device *ndev, struct platform_device *pdev)
 	fep->ptp_caps.settime = fec_ptp_settime;
 	fep->ptp_caps.enable = fec_ptp_enable;
 
+	fep->cycle_speed = clk_get_rate(fep->clk_ptp);
+
 	spin_lock_init(&fep->tmreg_lock);
 
 	fec_ptp_start_cyclecounter(ndev);
@@ -381,3 +385,4 @@ void fec_ptp_init(struct net_device *ndev, struct platform_device *pdev)
 		pr_info("registered PHC device on %s\n", ndev->name);
 	}
 }
+EXPORT_SYMBOL(fec_ptp_init);

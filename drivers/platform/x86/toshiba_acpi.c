@@ -583,7 +583,7 @@ static int set_lcd_status(struct backlight_device *bd)
 static ssize_t lcd_proc_write(struct file *file, const char __user *buf,
 			      size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE(file->f_path.dentry->d_inode)->data;
+	struct toshiba_acpi_dev *dev = PDE(file_inode(file))->data;
 	char cmd[42];
 	size_t len;
 	int value;
@@ -650,7 +650,7 @@ static int video_proc_open(struct inode *inode, struct file *file)
 static ssize_t video_proc_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE(file->f_path.dentry->d_inode)->data;
+	struct toshiba_acpi_dev *dev = PDE(file_inode(file))->data;
 	char *cmd, *buffer;
 	int ret;
 	int value;
@@ -750,7 +750,7 @@ static int fan_proc_open(struct inode *inode, struct file *file)
 static ssize_t fan_proc_write(struct file *file, const char __user *buf,
 			      size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE(file->f_path.dentry->d_inode)->data;
+	struct toshiba_acpi_dev *dev = PDE(file_inode(file))->data;
 	char cmd[42];
 	size_t len;
 	int value;
@@ -822,7 +822,7 @@ static int keys_proc_open(struct inode *inode, struct file *file)
 static ssize_t keys_proc_write(struct file *file, const char __user *buf,
 			       size_t count, loff_t *pos)
 {
-	struct toshiba_acpi_dev *dev = PDE(file->f_path.dentry->d_inode)->data;
+	struct toshiba_acpi_dev *dev = PDE(file_inode(file))->data;
 	char cmd[42];
 	size_t len;
 	int value;
@@ -1118,7 +1118,7 @@ static int toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
 	return 0;
 }
 
-static int toshiba_acpi_remove(struct acpi_device *acpi_dev, int type)
+static int toshiba_acpi_remove(struct acpi_device *acpi_dev)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
 
@@ -1250,7 +1250,7 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 	return 0;
 
 error:
-	toshiba_acpi_remove(acpi_dev, 0);
+	toshiba_acpi_remove(acpi_dev);
 	return ret;
 }
 

@@ -311,3 +311,10 @@ int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_event_unsubscribe);
+
+int v4l2_event_subdev_unsubscribe(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+				  struct v4l2_event_subscription *sub)
+{
+	return v4l2_event_unsubscribe(fh, sub);
+}
+EXPORT_SYMBOL_GPL(v4l2_event_subdev_unsubscribe);

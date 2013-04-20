@@ -28,6 +28,7 @@
 #include "dev-replace.h"
 #include "check-integrity.h"
 #include "rcu-string.h"
+#include "raid56.h"
 
 /*
  * This is only the first step towards a full-features scrub. It reads all
@@ -541,7 +542,6 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	eb = path->nodes[0];
 	ei = btrfs_item_ptr(eb, path->slots[0], struct btrfs_extent_item);
 	item_size = btrfs_item_size_nr(eb, path->slots[0]);
-	btrfs_release_path(path);
 
 	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
 		do {
@@ -557,7 +557,9 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 				ret < 0 ? -1 : ref_level,
 				ret < 0 ? -1 : ref_root);
 		} while (ret != 1);
+		btrfs_release_path(path);
 	} else {
+		btrfs_release_path(path);
 		swarn.path = path;
 		swarn.dev = dev;
 		iterate_extent_inodes(fs_info, found_key.objectid,
@@ -580,20 +582,29 @@ static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *fixup_ctx)
 	int corrected = 0;
 	struct btrfs_key key;
 	struct inode *inode = NULL;
+	struct btrfs_fs_info *fs_info;
 	u64 end = offset + PAGE_SIZE - 1;
 	struct btrfs_root *local_root;
+	int srcu_index;
 
 	key.objectid = root;
 	key.type = BTRFS_ROOT_ITEM_KEY;
 	key.offset = (u64)-1;
-	local_root = btrfs_read_fs_root_no_name(fixup->root->fs_info, &key);
-	if (IS_ERR(local_root))
+
+	fs_info = fixup->root->fs_info;
+	srcu_index = srcu_read_lock(&fs_info->subvol_srcu);
+
+	local_root = btrfs_read_fs_root_no_name(fs_info, &key);
+	if (IS_ERR(local_root)) {
+		srcu_read_unlock(&fs_info->subvol_srcu, srcu_index);
 		return PTR_ERR(local_root);
+	}
 
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.objectid = inum;
 	key.offset = 0;
-	inode = btrfs_iget(fixup->root->fs_info->sb, &key, local_root, NULL);
+	inode = btrfs_iget(fs_info->sb, &key, local_root, NULL);
+	srcu_read_unlock(&fs_info->subvol_srcu, srcu_index);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
@@ -606,7 +617,6 @@ static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *fixup_ctx)
 	}
 
 	if (PageUptodate(page)) {
-		struct btrfs_fs_info *fs_info;
 		if (PageDirty(page)) {
 			/*
 			 * we need to write the data to the defect sector. the
@@ -2246,6 +2256,13 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	struct btrfs_device *extent_dev;
 	int extent_mirror_num;
 
+	if (map->type & (BTRFS_BLOCK_GROUP_RAID5 |
+			 BTRFS_BLOCK_GROUP_RAID6)) {
+		if (num >= nr_data_stripes(map)) {
+			return 0;
+		}
+	}
+
 	nstripes = length;
 	offset = 0;
 	do_div(nstripes, map->stripe_len);
@@ -2700,7 +2717,7 @@ static noinline_for_stack int scrub_supers(struct scrub_ctx *sctx,
 	int	ret;
 	struct btrfs_root *root = sctx->dev_root;
 
-	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)
+	if (test_bit(BTRFS_FS_STATE_ERROR, &root->fs_info->fs_state))
 		return -EIO;
 
 	gen = root->fs_info->last_trans_committed;
@@ -3180,18 +3197,25 @@ static int copy_nocow_pages_for_inode(u64 inum, u64 offset, u64 root, void *ctx)
 	u64 physical_for_dev_replace;
 	u64 len;
 	struct btrfs_fs_info *fs_info = nocow_ctx->sctx->dev_root->fs_info;
+	int srcu_index;
 
 	key.objectid = root;
 	key.type = BTRFS_ROOT_ITEM_KEY;
 	key.offset = (u64)-1;
+
+	srcu_index = srcu_read_lock(&fs_info->subvol_srcu);
+
 	local_root = btrfs_read_fs_root_no_name(fs_info, &key);
-	if (IS_ERR(local_root))
+	if (IS_ERR(local_root)) {
+		srcu_read_unlock(&fs_info->subvol_srcu, srcu_index);
 		return PTR_ERR(local_root);
+	}
 
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.objectid = inum;
 	key.offset = 0;
 	inode = btrfs_iget(fs_info->sb, &key, local_root, NULL);
+	srcu_read_unlock(&fs_info->subvol_srcu, srcu_index);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 

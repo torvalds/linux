@@ -1,3 +1,12 @@
+Release Date    : Sat. Feb 9, 2013 17:00:00 PST 2013 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Adam Radford
+Current Version : 06.506.00.00-rc1
+Old Version     : 06.504.01.00-rc1
+    1. Add 4k FastPath DIF support.
+    2. Dont load DevHandle unless FastPath enabled.
+    3. Version and Changelog update.
+-------------------------------------------------------------------------------
 Release Date    : Mon. Oct 1, 2012 17:00:00 PST 2012 -
 			(emaild-id:megaraidlinux@lsi.com)
 			Adam Radford

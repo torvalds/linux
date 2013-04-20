@@ -840,7 +840,6 @@ static struct insn opcode_b2[] = {
 	{ "stcke", 0x78, INSTR_S_RD },
 	{ "sacf", 0x79, INSTR_S_RD },
 	{ "stsi", 0x7d, INSTR_S_RD },
-	{ "spp", 0x80, INSTR_S_RD },
 	{ "srnm", 0x99, INSTR_S_RD },
 	{ "stfpc", 0x9c, INSTR_S_RD },
 	{ "lfpc", 0x9d, INSTR_S_RD },
@@ -1712,10 +1711,10 @@ int insn_to_mnemonic(unsigned char *instruction, char buf[8])
 	if (!insn)
 		return -ENOENT;
 	if (insn->name[0] == '\0')
-		snprintf(buf, sizeof(buf), "%s",
+		snprintf(buf, 8, "%s",
 			 long_insn_name[(int) insn->name[1]]);
 	else
-		snprintf(buf, sizeof(buf), "%.5s", insn->name);
+		snprintf(buf, 8, "%.5s", insn->name);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(insn_to_mnemonic);

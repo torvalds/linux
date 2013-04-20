@@ -101,7 +101,7 @@ static void debounce(unsigned long data)
 	del_timer(&debounce_timer);
 	if (sgint->istat1 & SGINT_ISTAT1_PWR) {
 		/* Interrupt still being sent. */
-		debounce_timer.expires = jiffies + (HZ / 20); /* 0.05s  */
+		debounce_timer.expires = jiffies + (HZ / 20); /* 0.05s	*/
 		add_timer(&debounce_timer);
 
 		sgioc->panel = SGIOC_PANEL_POWERON | SGIOC_PANEL_POWERINTR |
@@ -166,7 +166,7 @@ static irqreturn_t panel_int(int irq, void *dev_id)
 }
 
 static int panic_event(struct notifier_block *this, unsigned long event,
-                      void *ptr)
+		      void *ptr)
 {
 	if (machine_state & MACHINE_PANICED)
 		return NOTIFY_DONE;

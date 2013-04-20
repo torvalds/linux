@@ -1,10 +1,21 @@
 config INTEL_MEI
-	tristate "Intel Management Engine Interface (Intel MEI)"
+	tristate "Intel Management Engine Interface"
 	depends on X86 && PCI && WATCHDOG_CORE
 	help
 	  The Intel Management Engine (Intel ME) provides Manageability,
 	  Security and Media services for system containing Intel chipsets.
 	  if selected /dev/mei misc device will be created.
+
+	  For more information see
+	  <http://software.intel.com/en-us/manageability/>
+
+config INTEL_MEI_ME
+	bool "ME Enabled Intel Chipsets"
+	depends on INTEL_MEI
+	depends on X86 && PCI && WATCHDOG_CORE
+	default y
+	help
+	  MEI support for ME Enabled Intel chipsets.
 
 	  Supported Chipsets are:
 	  7 Series Chipset Family
@@ -24,5 +35,3 @@ config INTEL_MEI
 	  82Q33 Express
 	  82X38/X48 Express
 
-	  For more information see
-	  <http://software.intel.com/en-us/manageability/>

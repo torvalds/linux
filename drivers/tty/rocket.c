@@ -55,7 +55,7 @@
 #undef REV_PCI_ORDER
 #undef ROCKET_DEBUG_IO
 
-#define POLL_PERIOD HZ/100	/*  Polling period .01 seconds (10ms) */
+#define POLL_PERIOD (HZ/100)	/*  Polling period .01 seconds (10ms) */
 
 /****** Kernel includes ******/
 
@@ -315,9 +315,8 @@ static inline int rocket_paranoia_check(struct r_port *info,
  *  that receive data is present on a serial port.  Pulls data from FIFO, moves it into the 
  *  tty layer.  
  */
-static void rp_do_receive(struct r_port *info,
-			  struct tty_struct *tty,
-			  CHANNEL_t * cp, unsigned int ChanStatus)
+static void rp_do_receive(struct r_port *info, CHANNEL_t *cp,
+		unsigned int ChanStatus)
 {
 	unsigned int CharNStat;
 	int ToRecv, wRecv, space;
@@ -379,7 +378,8 @@ static void rp_do_receive(struct r_port *info,
 				flag = TTY_OVERRUN;
 			else
 				flag = TTY_NORMAL;
-			tty_insert_flip_char(tty, CharNStat & 0xff, flag);
+			tty_insert_flip_char(&info->port, CharNStat & 0xff,
+					flag);
 			ToRecv--;
 		}
 
@@ -399,7 +399,7 @@ static void rp_do_receive(struct r_port *info,
 		 * characters at time by doing repeated word IO
 		 * transfer.
 		 */
-		space = tty_prepare_flip_string(tty, &cbuf, ToRecv);
+		space = tty_prepare_flip_string(&info->port, &cbuf, ToRecv);
 		if (space < ToRecv) {
 #ifdef ROCKET_DEBUG_RECEIVE
 			printk(KERN_INFO "rp_do_receive:insufficient space ToRecv=%d space=%d\n", ToRecv, space);
@@ -415,7 +415,7 @@ static void rp_do_receive(struct r_port *info,
 			cbuf[ToRecv - 1] = sInB(sGetTxRxDataIO(cp));
 	}
 	/*  Push the data up to the tty layer */
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&info->port);
 }
 
 /*
@@ -494,7 +494,6 @@ static void rp_do_transmit(struct r_port *info)
 static void rp_handle_port(struct r_port *info)
 {
 	CHANNEL_t *cp;
-	struct tty_struct *tty;
 	unsigned int IntMask, ChanStatus;
 
 	if (!info)
@@ -505,12 +504,7 @@ static void rp_handle_port(struct r_port *info)
 				"info->flags & NOT_INIT\n");
 		return;
 	}
-	tty = tty_port_tty_get(&info->port);
-	if (!tty) {
-		printk(KERN_WARNING "rp: WARNING: rp_handle_port called with "
-				"tty==NULL\n");
-		return;
-	}
+
 	cp = &info->channel;
 
 	IntMask = sGetChanIntID(cp) & info->intmask;
@@ -519,7 +513,7 @@ static void rp_handle_port(struct r_port *info)
 #endif
 	ChanStatus = sGetChanStatus(cp);
 	if (IntMask & RXF_TRIG) {	/* Rx FIFO trigger level */
-		rp_do_receive(info, tty, cp, ChanStatus);
+		rp_do_receive(info, cp, ChanStatus);
 	}
 	if (IntMask & DELTA_CD) {	/* CD change  */
 #if (defined(ROCKET_DEBUG_OPEN) || defined(ROCKET_DEBUG_INTR) || defined(ROCKET_DEBUG_HANGUP))
@@ -527,10 +521,15 @@ static void rp_handle_port(struct r_port *info)
 		       (ChanStatus & CD_ACT) ? "on" : "off");
 #endif
 		if (!(ChanStatus & CD_ACT) && info->cd_status) {
+			struct tty_struct *tty;
 #ifdef ROCKET_DEBUG_HANGUP
 			printk(KERN_INFO "CD drop, calling hangup.\n");
 #endif
-			tty_hangup(tty);
+			tty = tty_port_tty_get(&info->port);
+			if (tty) {
+				tty_hangup(tty);
+				tty_kref_put(tty);
+			}
 		}
 		info->cd_status = (ChanStatus & CD_ACT) ? 1 : 0;
 		wake_up_interruptible(&info->port.open_wait);
@@ -543,7 +542,6 @@ static void rp_handle_port(struct r_port *info)
 		printk(KERN_INFO "DSR change...\n");
 	}
 #endif
-	tty_kref_put(tty);
 }
 
 /*
@@ -1758,8 +1756,29 @@ static void rp_flush_buffer(struct tty_struct *tty)
 
 #ifdef CONFIG_PCI
 
-static struct pci_device_id __used rocket_pci_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_ANY_ID) },
+static DEFINE_PCI_DEVICE_TABLE(rocket_pci_ids) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP4QUAD) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP8OCTA) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_URP8OCTA) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP8INTF) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_URP8INTF) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP8J) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP4J) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP8SNI) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP16SNI) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP16INTF) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_URP16INTF) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_CRP16INTF) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP32INTF) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_URP32INTF) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RPP4) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RPP8) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP2_232) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP2_422) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP6M) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_RP4M) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_UPCI_RM3_8PORT) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RP, PCI_DEVICE_ID_UPCI_RM3_4PORT) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, rocket_pci_ids);
@@ -1781,7 +1800,8 @@ static __init int register_PCI(int i, struct pci_dev *dev)
 	WordIO_t ConfigIO = 0;
 	ByteIO_t UPCIRingInd = 0;
 
-	if (!dev || pci_enable_device(dev))
+	if (!dev || !pci_match_id(rocket_pci_ids, dev) ||
+	    pci_enable_device(dev))
 		return 0;
 
 	rcktpt_io_addr[i] = pci_resource_start(dev, 0);

@@ -30,6 +30,7 @@
 #include <linux/rculist_bl.h>
 #include <linux/bit_spinlock.h>
 #include <linux/percpu.h>
+#include <linux/list_sort.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -1376,56 +1377,105 @@ void gfs2_glock_complete(struct gfs2_glock *gl, int ret)
 		gfs2_glock_put(gl);
 }
 
+static int glock_cmp(void *priv, struct list_head *a, struct list_head *b)
+{
+	struct gfs2_glock *gla, *glb;
 
-static int gfs2_shrink_glock_memory(struct shrinker *shrink,
-				    struct shrink_control *sc)
+	gla = list_entry(a, struct gfs2_glock, gl_lru);
+	glb = list_entry(b, struct gfs2_glock, gl_lru);
+
+	if (gla->gl_name.ln_number > glb->gl_name.ln_number)
+		return 1;
+	if (gla->gl_name.ln_number < glb->gl_name.ln_number)
+		return -1;
+
+	return 0;
+}
+
+/**
+ * gfs2_dispose_glock_lru - Demote a list of glocks
+ * @list: The list to dispose of
+ *
+ * Disposing of glocks may involve disk accesses, so that here we sort
+ * the glocks by number (i.e. disk location of the inodes) so that if
+ * there are any such accesses, they'll be sent in order (mostly).
+ *
+ * Must be called under the lru_lock, but may drop and retake this
+ * lock. While the lru_lock is dropped, entries may vanish from the
+ * list, but no new entries will appear on the list (since it is
+ * private)
+ */
+
+static void gfs2_dispose_glock_lru(struct list_head *list)
+__releases(&lru_lock)
+__acquires(&lru_lock)
 {
 	struct gfs2_glock *gl;
-	int may_demote;
-	int nr_skipped = 0;
-	int nr = sc->nr_to_scan;
-	gfp_t gfp_mask = sc->gfp_mask;
+
+	list_sort(NULL, list, glock_cmp);
+
+	while(!list_empty(list)) {
+		gl = list_entry(list->next, struct gfs2_glock, gl_lru);
+		list_del_init(&gl->gl_lru);
+		clear_bit(GLF_LRU, &gl->gl_flags);
+		gfs2_glock_hold(gl);
+		spin_unlock(&lru_lock);
+		spin_lock(&gl->gl_spin);
+		if (demote_ok(gl))
+			handle_callback(gl, LM_ST_UNLOCKED, 0);
+		WARN_ON(!test_and_clear_bit(GLF_LOCK, &gl->gl_flags));
+		smp_mb__after_clear_bit();
+		if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
+			gfs2_glock_put_nolock(gl);
+		spin_unlock(&gl->gl_spin);
+		spin_lock(&lru_lock);
+	}
+}
+
+/**
+ * gfs2_scan_glock_lru - Scan the LRU looking for locks to demote
+ * @nr: The number of entries to scan
+ *
+ * This function selects the entries on the LRU which are able to
+ * be demoted, and then kicks off the process by calling
+ * gfs2_dispose_glock_lru() above.
+ */
+
+static void gfs2_scan_glock_lru(int nr)
+{
+	struct gfs2_glock *gl;
 	LIST_HEAD(skipped);
-
-	if (nr == 0)
-		goto out;
-
-	if (!(gfp_mask & __GFP_FS))
-		return -1;
+	LIST_HEAD(dispose);
 
 	spin_lock(&lru_lock);
 	while(nr && !list_empty(&lru_list)) {
 		gl = list_entry(lru_list.next, struct gfs2_glock, gl_lru);
-		list_del_init(&gl->gl_lru);
-		clear_bit(GLF_LRU, &gl->gl_flags);
-		atomic_dec(&lru_count);
 
 		/* Test for being demotable */
 		if (!test_and_set_bit(GLF_LOCK, &gl->gl_flags)) {
-			gfs2_glock_hold(gl);
-			spin_unlock(&lru_lock);
-			spin_lock(&gl->gl_spin);
-			may_demote = demote_ok(gl);
-			if (may_demote) {
-				handle_callback(gl, LM_ST_UNLOCKED, 0);
-				nr--;
-			}
-			clear_bit(GLF_LOCK, &gl->gl_flags);
-			smp_mb__after_clear_bit();
-			if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
-				gfs2_glock_put_nolock(gl);
-			spin_unlock(&gl->gl_spin);
-			spin_lock(&lru_lock);
+			list_move(&gl->gl_lru, &dispose);
+			atomic_dec(&lru_count);
+			nr--;
 			continue;
 		}
-		nr_skipped++;
-		list_add(&gl->gl_lru, &skipped);
-		set_bit(GLF_LRU, &gl->gl_flags);
+
+		list_move(&gl->gl_lru, &skipped);
 	}
 	list_splice(&skipped, &lru_list);
-	atomic_add(nr_skipped, &lru_count);
+	if (!list_empty(&dispose))
+		gfs2_dispose_glock_lru(&dispose);
 	spin_unlock(&lru_lock);
-out:
+}
+
+static int gfs2_shrink_glock_memory(struct shrinker *shrink,
+				    struct shrink_control *sc)
+{
+	if (sc->nr_to_scan) {
+		if (!(sc->gfp_mask & __GFP_FS))
+			return -1;
+		gfs2_scan_glock_lru(sc->nr_to_scan);
+	}
+
 	return (atomic_read(&lru_count) / 100) * sysctl_vfs_cache_pressure;
 }
 

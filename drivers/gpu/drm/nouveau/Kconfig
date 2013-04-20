@@ -11,8 +11,9 @@ config DRM_NOUVEAU
 	select FRAMEBUFFER_CONSOLE if !EXPERT
 	select FB_BACKLIGHT if DRM_NOUVEAU_BACKLIGHT
 	select ACPI_VIDEO if ACPI && X86 && BACKLIGHT_CLASS_DEVICE && VIDEO_OUTPUT_CONTROL && INPUT
-	select ACPI_WMI if ACPI
-	select MXM_WMI if ACPI
+	select X86_PLATFORM_DEVICES if ACPI && X86
+	select ACPI_WMI if ACPI && X86
+	select MXM_WMI if ACPI && X86
 	select POWER_SUPPLY
 	help
 	  Choose this option for open-source nVidia support.
@@ -52,26 +53,3 @@ config DRM_NOUVEAU_BACKLIGHT
 	help
 	  Say Y here if you want to control the backlight of your display
 	  (e.g. a laptop panel).
-
-menu "I2C encoder or helper chips"
-     depends on DRM && DRM_KMS_HELPER && I2C
-
-config DRM_I2C_CH7006
-	tristate "Chrontel ch7006 TV encoder"
-	default m if DRM_NOUVEAU
-	help
-	  Support for Chrontel ch7006 and similar TV encoders, found
-	  on some nVidia video cards.
-
-	  This driver is currently only useful if you're also using
-	  the nouveau driver.
-
-config DRM_I2C_SIL164
-	tristate "Silicon Image sil164 TMDS transmitter"
-	default m if DRM_NOUVEAU
-	help
-	  Support for sil164 and similar single-link (or dual-link
-	  when used in pairs) TMDS transmitters, used in some nVidia
-	  video cards.
-
-endmenu

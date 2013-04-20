@@ -103,6 +103,7 @@ Caveats:
      correctly.
 */
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 
@@ -1512,11 +1513,6 @@ static int amplc_pci224_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &amplc_pci224_driver);
 }
 
-static void amplc_pci224_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(amplc_pci224_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI224) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI234) },
@@ -1528,7 +1524,7 @@ static struct pci_driver amplc_pci224_pci_driver = {
 	.name		= "amplc_pci224",
 	.id_table	= amplc_pci224_pci_table,
 	.probe		= amplc_pci224_pci_probe,
-	.remove		= amplc_pci224_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(amplc_pci224_driver, amplc_pci224_pci_driver);
 

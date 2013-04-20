@@ -1098,7 +1098,7 @@ static int get_info(struct net *net, void __user *user,
 #endif
 	t = try_then_request_module(xt_find_table_lock(net, AF_INET6, name),
 				    "ip6table_%s", name);
-	if (t && !IS_ERR(t)) {
+	if (!IS_ERR_OR_NULL(t)) {
 		struct ip6t_getinfo info;
 		const struct xt_table_info *private = t->private;
 #ifdef CONFIG_COMPAT
@@ -1157,7 +1157,7 @@ get_entries(struct net *net, struct ip6t_get_entries __user *uptr,
 	}
 
 	t = xt_find_table_lock(net, AF_INET6, get.name);
-	if (t && !IS_ERR(t)) {
+	if (!IS_ERR_OR_NULL(t)) {
 		struct xt_table_info *private = t->private;
 		duprintf("t->private->number = %u\n", private->number);
 		if (get.size == private->size)
@@ -1197,7 +1197,7 @@ __do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 
 	t = try_then_request_module(xt_find_table_lock(net, AF_INET6, name),
 				    "ip6table_%s", name);
-	if (!t || IS_ERR(t)) {
+	if (IS_ERR_OR_NULL(t)) {
 		ret = t ? PTR_ERR(t) : -ENOENT;
 		goto free_newinfo_counters_untrans;
 	}
@@ -1355,7 +1355,7 @@ do_add_counters(struct net *net, const void __user *user, unsigned int len,
 	}
 
 	t = xt_find_table_lock(net, AF_INET6, name);
-	if (!t || IS_ERR(t)) {
+	if (IS_ERR_OR_NULL(t)) {
 		ret = t ? PTR_ERR(t) : -ENOENT;
 		goto free;
 	}
@@ -1939,7 +1939,7 @@ compat_get_entries(struct net *net, struct compat_ip6t_get_entries __user *uptr,
 
 	xt_compat_lock(AF_INET6);
 	t = xt_find_table_lock(net, AF_INET6, get.name);
-	if (t && !IS_ERR(t)) {
+	if (!IS_ERR_OR_NULL(t)) {
 		const struct xt_table_info *private = t->private;
 		struct xt_table_info info;
 		duprintf("t->private->number = %u\n", private->number);

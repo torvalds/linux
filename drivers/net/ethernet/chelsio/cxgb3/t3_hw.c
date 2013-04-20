@@ -3725,8 +3725,6 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 
 		memcpy(adapter->port[i]->dev_addr, hw_addr,
 		       ETH_ALEN);
-		memcpy(adapter->port[i]->perm_addr, hw_addr,
-		       ETH_ALEN);
 		init_link_config(&p->link_config, p->phy.caps);
 		p->phy.ops->power_down(&p->phy, 1);
 

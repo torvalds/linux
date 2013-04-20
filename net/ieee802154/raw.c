@@ -221,10 +221,9 @@ static int raw_rcv_skb(struct sock *sk, struct sk_buff *skb)
 void ieee802154_raw_deliver(struct net_device *dev, struct sk_buff *skb)
 {
 	struct sock *sk;
-	struct hlist_node *node;
 
 	read_lock(&raw_lock);
-	sk_for_each(sk, node, &raw_head) {
+	sk_for_each(sk, &raw_head) {
 		bh_lock_sock(sk);
 		if (!sk->sk_bound_dev_if ||
 		    sk->sk_bound_dev_if == dev->ifindex) {

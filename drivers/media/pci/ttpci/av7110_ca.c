@@ -253,12 +253,17 @@ static int dvb_ca_ioctl(struct file *file, unsigned int cmd, void *parg)
 	struct dvb_device *dvbdev = file->private_data;
 	struct av7110 *av7110 = dvbdev->priv;
 	unsigned long arg = (unsigned long) parg;
+	int ret = 0;
 
 	dprintk(8, "av7110:%p\n",av7110);
 
+	if (mutex_lock_interruptible(&av7110->ioctl_mutex))
+		return -ERESTARTSYS;
+
 	switch (cmd) {
 	case CA_RESET:
-		return ci_ll_reset(&av7110->ci_wbuffer, file, arg, &av7110->ci_slot[0]);
+		ret = ci_ll_reset(&av7110->ci_wbuffer, file, arg,
+				  &av7110->ci_slot[0]);
 		break;
 	case CA_GET_CAP:
 	{
@@ -277,8 +282,10 @@ static int dvb_ca_ioctl(struct file *file, unsigned int cmd, void *parg)
 	{
 		ca_slot_info_t *info=(ca_slot_info_t *)parg;
 
-		if (info->num < 0 || info->num > 1)
+		if (info->num < 0 || info->num > 1) {
+			mutex_unlock(&av7110->ioctl_mutex);
 			return -EINVAL;
+		}
 		av7110->ci_slot[info->num].num = info->num;
 		av7110->ci_slot[info->num].type = FW_CI_LL_SUPPORT(av7110->arm_app) ?
 							CA_CI_LINK : CA_CI;
@@ -306,10 +313,10 @@ static int dvb_ca_ioctl(struct file *file, unsigned int cmd, void *parg)
 	{
 		ca_descr_t *descr = (ca_descr_t*) parg;
 
-		if (descr->index >= 16)
+		if (descr->index >= 16 || descr->parity > 1) {
+			mutex_unlock(&av7110->ioctl_mutex);
 			return -EINVAL;
-		if (descr->parity > 1)
-			return -EINVAL;
+		}
 		av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, SetDescr, 5,
 			      (descr->index<<8)|descr->parity,
 			      (descr->cw[0]<<8)|descr->cw[1],
@@ -320,9 +327,12 @@ static int dvb_ca_ioctl(struct file *file, unsigned int cmd, void *parg)
 	}
 
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
-	return 0;
+
+	mutex_unlock(&av7110->ioctl_mutex);
+	return ret;
 }
 
 static ssize_t dvb_ca_write(struct file *file, const char __user *buf,

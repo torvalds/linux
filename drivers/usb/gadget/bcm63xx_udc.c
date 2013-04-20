@@ -2351,19 +2351,20 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 		dev_err(dev, "error finding USBD resource\n");
 		return -ENXIO;
 	}
-	udc->usbd_regs = devm_request_and_ioremap(dev, res);
+
+	udc->usbd_regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(udc->usbd_regs))
+		return PTR_ERR(udc->usbd_regs);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
 		dev_err(dev, "error finding IUDMA resource\n");
 		return -ENXIO;
 	}
-	udc->iudma_regs = devm_request_and_ioremap(dev, res);
 
-	if (!udc->usbd_regs || !udc->iudma_regs) {
-		dev_err(dev, "error requesting resources\n");
-		return -ENXIO;
-	}
+	udc->iudma_regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(udc->iudma_regs))
+		return PTR_ERR(udc->iudma_regs);
 
 	spin_lock_init(&udc->lock);
 	INIT_WORK(&udc->ep0_wq, bcm63xx_ep0_process);

@@ -57,8 +57,6 @@ void (*ia64_mark_idle)(int);
 
 unsigned long boot_option_idle_override = IDLE_NO_OVERRIDE;
 EXPORT_SYMBOL(boot_option_idle_override);
-void (*pm_idle) (void);
-EXPORT_SYMBOL(pm_idle);
 void (*pm_power_off) (void);
 EXPORT_SYMBOL(pm_power_off);
 
@@ -293,7 +291,6 @@ cpu_idle (void)
 		}
 
 		if (!need_resched()) {
-			void (*idle)(void);
 #ifdef CONFIG_SMP
 			min_xtp();
 #endif
@@ -301,10 +298,7 @@ cpu_idle (void)
 			if (mark_idle)
 				(*mark_idle)(1);
 
-			idle = pm_idle;
-			if (!idle)
-				idle = default_idle;
-			(*idle)();
+			default_idle();
 			if (mark_idle)
 				(*mark_idle)(0);
 #ifdef CONFIG_SMP

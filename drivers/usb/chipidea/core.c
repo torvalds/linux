@@ -411,7 +411,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	base = devm_request_and_ioremap(dev, res);
-	if (!res) {
+	if (!base) {
 		dev_err(dev, "can't request and ioremap resource\n");
 		return -ENOMEM;
 	}

@@ -800,7 +800,7 @@ static int lpc_mii_probe(struct net_device *ndev)
 	else
 		netdev_info(ndev, "using RMII interface\n");
 	phydev = phy_connect(ndev, dev_name(&phydev->dev),
-			     &lpc_handle_link_change, 0,
+			     &lpc_handle_link_change,
 			     lpc_phy_interface_mode(&pldat->pdev->dev));
 
 	if (IS_ERR(phydev)) {
@@ -1239,9 +1239,10 @@ static int lpc_eth_open(struct net_device *ndev)
 static void lpc_eth_ethtool_getdrvinfo(struct net_device *ndev,
 	struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, MODNAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, dev_name(ndev->dev.parent));
+	strlcpy(info->driver, MODNAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, dev_name(ndev->dev.parent),
+		sizeof(info->bus_info));
 }
 
 static u32 lpc_eth_ethtool_getmsglevel(struct net_device *ndev)
@@ -1471,7 +1472,8 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, ndev);
 
-	if (lpc_mii_init(pldat) != 0)
+	ret = lpc_mii_init(pldat);
+	if (ret)
 		goto err_out_unregister_netdev;
 
 	netdev_info(ndev, "LPC mac at 0x%08x irq %d\n",

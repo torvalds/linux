@@ -970,6 +970,15 @@ struct radeon_encoder_primary_dac *radeon_combios_get_primary_dac_info(struct
 			found = 1;
 	}
 
+	/* quirks */
+	/* Radeon 9100 (R200) */
+	if ((dev->pdev->device == 0x514D) &&
+	    (dev->pdev->subsystem_vendor == 0x174B) &&
+	    (dev->pdev->subsystem_device == 0x7149)) {
+		/* vbios value is bad, use the default */
+		found = 0;
+	}
+
 	if (!found) /* fallback to defaults */
 		radeon_legacy_get_primary_dac_info_from_table(rdev, p_dac);
 
@@ -2469,6 +2478,14 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 								   ATOM_DEVICE_CRT1_SUPPORT,
 								   1),
 								  ATOM_DEVICE_CRT1_SUPPORT);
+				}
+				/* RV100 board with external TDMS bit mis-set.
+				 * Actually uses internal TMDS, clear the bit.
+				 */
+				if (dev->pdev->device == 0x5159 &&
+				    dev->pdev->subsystem_vendor == 0x1014 &&
+				    dev->pdev->subsystem_device == 0x029A) {
+					tmp &= ~(1 << 4);
 				}
 				if ((tmp >> 4) & 0x1) {
 					devices |= ATOM_DEVICE_DFP2_SUPPORT;

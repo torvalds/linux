@@ -41,6 +41,7 @@ Configuration options:
 	device will be used.
 */
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 
 #include "../comedidev.h"
@@ -1402,11 +1403,6 @@ static int adv_pci1710_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &adv_pci1710_driver);
 }
 
-static void adv_pci1710_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(adv_pci1710_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1710) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1711) },
@@ -1421,7 +1417,7 @@ static struct pci_driver adv_pci1710_pci_driver = {
 	.name		= "adv_pci1710",
 	.id_table	= adv_pci1710_pci_table,
 	.probe		= adv_pci1710_pci_probe,
-	.remove		= adv_pci1710_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(adv_pci1710_driver, adv_pci1710_pci_driver);
 

@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2013 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -139,8 +139,10 @@ struct iwl_drv {
 #endif
 };
 
-#define DVM_OP_MODE	0
-#define MVM_OP_MODE	1
+enum {
+	DVM_OP_MODE =	0,
+	MVM_OP_MODE =	1,
+};
 
 /* Protects the table contents, i.e. the ops pointer & drv list */
 static struct mutex iwlwifi_opmode_table_mtx;
@@ -149,8 +151,8 @@ static struct iwlwifi_opmode_table {
 	const struct iwl_op_mode_ops *ops;	/* pointer to op_mode ops */
 	struct list_head drv;		/* list of devices using this op_mode */
 } iwlwifi_opmode_table[] = {		/* ops set when driver is initialized */
-	{ .name = "iwldvm", .ops = NULL },
-	{ .name = "iwlmvm", .ops = NULL },
+	[DVM_OP_MODE] = { .name = "iwldvm", .ops = NULL },
+	[MVM_OP_MODE] = { .name = "iwlmvm", .ops = NULL },
 };
 
 /*
@@ -268,7 +270,7 @@ struct fw_sec_parsing {
  */
 struct iwl_tlv_calib_data {
 	__le32 ucode_type;
-	__le64 calib;
+	struct iwl_tlv_calib_ctrl calib;
 } __packed;
 
 struct iwl_firmware_pieces {
@@ -358,7 +360,11 @@ static int iwl_set_default_calib(struct iwl_drv *drv, const u8 *data)
 			ucode_type);
 		return -EINVAL;
 	}
-	drv->fw.default_calib[ucode_type] = le64_to_cpu(def_calib->calib);
+	drv->fw.default_calib[ucode_type].flow_trigger =
+		def_calib->calib.flow_trigger;
+	drv->fw.default_calib[ucode_type].event_trigger =
+		def_calib->calib.event_trigger;
+
 	return 0;
 }
 
@@ -959,7 +965,10 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	release_firmware(ucode_raw);
 
 	mutex_lock(&iwlwifi_opmode_table_mtx);
-	op = &iwlwifi_opmode_table[DVM_OP_MODE];
+	if (fw->mvm_fw)
+		op = &iwlwifi_opmode_table[MVM_OP_MODE];
+	else
+		op = &iwlwifi_opmode_table[DVM_OP_MODE];
 
 	/* add this device to the list of devices using this op_mode */
 	list_add_tail(&drv->list, &op->drv);
@@ -1093,7 +1102,6 @@ void iwl_drv_stop(struct iwl_drv *drv)
 
 /* shared module parameters */
 struct iwl_mod_params iwlwifi_mod_params = {
-	.amsdu_size_8K = 1,
 	.restart_fw = 1,
 	.plcp_check = true,
 	.bt_coex_active = true,
@@ -1198,7 +1206,7 @@ MODULE_PARM_DESC(11n_disable,
 	"disable 11n functionality, bitmap: 1: full, 2: agg TX, 4: agg RX");
 module_param_named(amsdu_size_8K, iwlwifi_mod_params.amsdu_size_8K,
 		   int, S_IRUGO);
-MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
+MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size (default 0)");
 module_param_named(fw_restart, iwlwifi_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");
 

@@ -141,7 +141,7 @@ static int wis_saa7113_command(struct i2c_client *client,
 		} else if (dec->norm & V4L2_STD_PAL) {
 			write_reg(client, 0x0e, 0x01);
 			write_reg(client, 0x10, 0x48);
-		} else if (dec->norm * V4L2_STD_SECAM) {
+		} else if (dec->norm & V4L2_STD_SECAM) {
 			write_reg(client, 0x0e, 0x50);
 			write_reg(client, 0x10, 0x48);
 		}

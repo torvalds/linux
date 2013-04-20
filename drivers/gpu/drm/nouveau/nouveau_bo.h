@@ -28,10 +28,11 @@ struct nouveau_bo {
 	struct nouveau_drm_tile *tile;
 
 	struct drm_gem_object *gem;
+
+	/* protect by the ttm reservation lock */
 	int pin_refcnt;
 
 	struct ttm_bo_kmap_obj dma_buf_vmap;
-	int vmapping_count;
 };
 
 static inline struct nouveau_bo *

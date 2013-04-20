@@ -98,9 +98,25 @@ __rpc_add_timer(struct rpc_wait_queue *queue, struct rpc_task *task)
 	list_add(&task->u.tk_wait.timer_list, &queue->timer_list.list);
 }
 
+static void rpc_rotate_queue_owner(struct rpc_wait_queue *queue)
+{
+	struct list_head *q = &queue->tasks[queue->priority];
+	struct rpc_task *task;
+
+	if (!list_empty(q)) {
+		task = list_first_entry(q, struct rpc_task, u.tk_wait.list);
+		if (task->tk_owner == queue->owner)
+			list_move_tail(&task->u.tk_wait.list, q);
+	}
+}
+
 static void rpc_set_waitqueue_priority(struct rpc_wait_queue *queue, int priority)
 {
-	queue->priority = priority;
+	if (queue->priority != priority) {
+		/* Fairness: rotate the list when changing priority */
+		rpc_rotate_queue_owner(queue);
+		queue->priority = priority;
+	}
 }
 
 static void rpc_set_waitqueue_owner(struct rpc_wait_queue *queue, pid_t pid)
@@ -164,6 +180,8 @@ static void __rpc_add_wait_queue(struct rpc_wait_queue *queue,
 		list_add_tail(&task->u.tk_wait.list, &queue->tasks[0]);
 	task->tk_waitqueue = queue;
 	queue->qlen++;
+	/* barrier matches the read in rpc_wake_up_task_queue_locked() */
+	smp_wmb();
 	rpc_set_queued(task);
 
 	dprintk("RPC: %5u added to queue %p \"%s\"\n",
@@ -414,8 +432,11 @@ static void __rpc_do_wake_up_task(struct rpc_wait_queue *queue, struct rpc_task 
  */
 static void rpc_wake_up_task_queue_locked(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
-	if (RPC_IS_QUEUED(task) && task->tk_waitqueue == queue)
-		__rpc_do_wake_up_task(queue, task);
+	if (RPC_IS_QUEUED(task)) {
+		smp_rmb();
+		if (task->tk_waitqueue == queue)
+			__rpc_do_wake_up_task(queue, task);
+	}
 }
 
 /*

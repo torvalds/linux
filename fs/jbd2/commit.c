@@ -435,7 +435,12 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 
 	trace_jbd2_commit_locking(journal, commit_transaction);
 	stats.run.rs_wait = commit_transaction->t_max_wait;
+	stats.run.rs_request_delay = 0;
 	stats.run.rs_locked = jiffies;
+	if (commit_transaction->t_requested)
+		stats.run.rs_request_delay =
+			jbd2_time_diff(commit_transaction->t_requested,
+				       stats.run.rs_locked);
 	stats.run.rs_running = jbd2_time_diff(commit_transaction->t_start,
 					      stats.run.rs_locked);
 
@@ -1116,7 +1121,10 @@ restart_loop:
 	 */
 	spin_lock(&journal->j_history_lock);
 	journal->j_stats.ts_tid++;
+	if (commit_transaction->t_requested)
+		journal->j_stats.ts_requested++;
 	journal->j_stats.run.rs_wait += stats.run.rs_wait;
+	journal->j_stats.run.rs_request_delay += stats.run.rs_request_delay;
 	journal->j_stats.run.rs_running += stats.run.rs_running;
 	journal->j_stats.run.rs_locked += stats.run.rs_locked;
 	journal->j_stats.run.rs_flushing += stats.run.rs_flushing;

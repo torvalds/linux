@@ -819,8 +819,6 @@ static int atl1e_setup_ring_resources(struct atl1e_adapter *adapter)
 	size = sizeof(struct atl1e_tx_buffer) * (tx_ring->count);
 	tx_ring->tx_buffer = kzalloc(size, GFP_KERNEL);
 	if (tx_ring->tx_buffer == NULL) {
-		netdev_err(adapter->netdev, "kzalloc failed, size = D%d\n",
-			   size);
 		err = -ENOMEM;
 		goto failed;
 	}
@@ -2342,7 +2340,6 @@ static int atl1e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
-	memcpy(netdev->perm_addr, adapter->hw.mac_addr, netdev->addr_len);
 	netdev_dbg(netdev, "mac address : %pM\n", adapter->hw.mac_addr);
 
 	INIT_WORK(&adapter->reset_task, atl1e_reset_task);

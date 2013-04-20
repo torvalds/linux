@@ -3,16 +3,12 @@
 
 #include <uapi/asm/signal.h>
 
-
 #define _NSIG		64
 /* bits-per-word, where word apparently means 'long' not 'int' */
 #define _NSIG_BPW	BITS_PER_LONG
 #define _NSIG_WORDS	(_NSIG / _NSIG_BPW)
 
 # ifndef __ASSEMBLY__
-#ifdef CONFIG_64BIT
-#else
-#endif
 
 /* Most things should be clean enough to redefine this at will, if care
    is taken to make libc match.  */
@@ -24,15 +20,13 @@ typedef struct {
 	unsigned long sig[_NSIG_WORDS];
 } sigset_t;
 
+#ifndef __KERNEL__
 struct sigaction {
 	__sighandler_t sa_handler;
 	unsigned long sa_flags;
 	sigset_t sa_mask;		/* mask last for extensibility */
 };
-
-struct k_sigaction {
-	struct sigaction sa;
-};
+#endif
 
 #include <asm/sigcontext.h>
 

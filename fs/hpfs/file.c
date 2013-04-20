@@ -152,7 +152,7 @@ static ssize_t hpfs_file_write(struct file *file, const char __user *buf,
 	retval = do_sync_write(file, buf, count, ppos);
 	if (retval > 0) {
 		hpfs_lock(file->f_path.dentry->d_sb);
-		hpfs_i(file->f_path.dentry->d_inode)->i_dirty = 1;
+		hpfs_i(file_inode(file))->i_dirty = 1;
 		hpfs_unlock(file->f_path.dentry->d_sb);
 	}
 	return retval;

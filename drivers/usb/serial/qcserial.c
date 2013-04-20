@@ -53,6 +53,7 @@ static const struct usb_device_id id_table[] = {
 	{DEVICE_G1K(0x05c6, 0x9221)},	/* Generic Gobi QDL device */
 	{DEVICE_G1K(0x05c6, 0x9231)},	/* Generic Gobi QDL device */
 	{DEVICE_G1K(0x1f45, 0x0001)},	/* Unknown Gobi QDL device */
+	{DEVICE_G1K(0x1bc7, 0x900e)},	/* Telit Gobi QDL device */
 
 	/* Gobi 2000 devices */
 	{USB_DEVICE(0x1410, 0xa010)},	/* Novatel Gobi 2000 QDL device */
@@ -196,12 +197,15 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 
 	if (is_gobi1k) {
 		/* Gobi 1K USB layout:
-		 * 0: serial port (doesn't respond)
+		 * 0: DM/DIAG (use libqcdm from ModemManager for communication)
 		 * 1: serial port (doesn't respond)
 		 * 2: AT-capable modem port
 		 * 3: QMI/net
 		 */
-		if (ifnum == 2)
+		if (ifnum == 0) {
+			dev_dbg(dev, "Gobi 1K DM/DIAG interface found\n");
+			altsetting = 1;
+		} else if (ifnum == 2)
 			dev_dbg(dev, "Modem port found\n");
 		else
 			altsetting = -1;

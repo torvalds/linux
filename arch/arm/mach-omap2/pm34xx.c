@@ -351,12 +351,10 @@ static void omap3_pm_idle(void)
 	if (omap_irq_pending())
 		goto out;
 
-	trace_power_start(POWER_CSTATE, 1, smp_processor_id());
 	trace_cpu_idle(1, smp_processor_id());
 
 	omap_sram_idle();
 
-	trace_power_end(smp_processor_id());
 	trace_cpu_idle(PWR_EVENT_EXIT, smp_processor_id());
 
 out:

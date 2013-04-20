@@ -116,17 +116,7 @@ static int fm3130_get_time(struct device *dev, struct rtc_time *t)
 
 	fm3130_rtc_mode(dev, FM3130_MODE_NORMAL);
 
-	dev_dbg(dev, "%s: %02x %02x %02x %02x %02x %02x %02x %02x"
-			"%02x %02x %02x %02x %02x %02x %02x\n",
-			"read",
-			fm3130->regs[0], fm3130->regs[1],
-			fm3130->regs[2], fm3130->regs[3],
-			fm3130->regs[4], fm3130->regs[5],
-			fm3130->regs[6], fm3130->regs[7],
-			fm3130->regs[8], fm3130->regs[9],
-			fm3130->regs[0xa], fm3130->regs[0xb],
-			fm3130->regs[0xc], fm3130->regs[0xd],
-			fm3130->regs[0xe]);
+	dev_dbg(dev, "%s: %15ph\n", "read", fm3130->regs);
 
 	t->tm_sec = bcd2bin(fm3130->regs[FM3130_RTC_SECONDS] & 0x7f);
 	t->tm_min = bcd2bin(fm3130->regs[FM3130_RTC_MINUTES] & 0x7f);
@@ -175,12 +165,7 @@ static int fm3130_set_time(struct device *dev, struct rtc_time *t)
 	tmp = t->tm_year - 100;
 	buf[FM3130_RTC_YEARS] = bin2bcd(tmp);
 
-	dev_dbg(dev, "%s: %02x %02x %02x %02x %02x %02x %02x"
-		"%02x %02x %02x %02x %02x %02x %02x %02x\n",
-		"write", buf[0], buf[1], buf[2], buf[3],
-		buf[4], buf[5], buf[6], buf[7],
-		buf[8], buf[9], buf[0xa], buf[0xb],
-		buf[0xc], buf[0xd], buf[0xe]);
+	dev_dbg(dev, "%s: %15ph\n", "write", buf);
 
 	fm3130_rtc_mode(dev, FM3130_MODE_WRITE);
 
@@ -517,18 +502,8 @@ bad_alarm:
 bad_clock:
 
 	if (!fm3130->data_valid || !fm3130->alarm_valid)
-		dev_dbg(&client->dev,
-				"%s: %02x %02x %02x %02x %02x %02x %02x %02x"
-				"%02x %02x %02x %02x %02x %02x %02x\n",
-			"bogus registers",
-			fm3130->regs[0], fm3130->regs[1],
-			fm3130->regs[2], fm3130->regs[3],
-			fm3130->regs[4], fm3130->regs[5],
-			fm3130->regs[6], fm3130->regs[7],
-			fm3130->regs[8], fm3130->regs[9],
-			fm3130->regs[0xa], fm3130->regs[0xb],
-			fm3130->regs[0xc], fm3130->regs[0xd],
-			fm3130->regs[0xe]);
+		dev_dbg(&client->dev, "%s: %15ph\n", "bogus registers",
+			fm3130->regs);
 
 	/* We won't bail out here because we just got invalid data.
 	   Time setting from u-boot doesn't work anyway */

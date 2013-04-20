@@ -29,6 +29,7 @@
 #include <linux/time.h>
 #include <linux/cper.h>
 #include <linux/acpi.h>
+#include <linux/pci.h>
 #include <linux/aer.h>
 
 /*
@@ -249,6 +250,10 @@ static const char *cper_pcie_port_type_strs[] = {
 static void cper_print_pcie(const char *pfx, const struct cper_sec_pcie *pcie,
 			    const struct acpi_hest_generic_data *gdata)
 {
+#ifdef CONFIG_ACPI_APEI_PCIEAER
+	struct pci_dev *dev;
+#endif
+
 	if (pcie->validation_bits & CPER_PCIE_VALID_PORT_TYPE)
 		printk("%s""port_type: %d, %s\n", pfx, pcie->port_type,
 		       pcie->port_type < ARRAY_SIZE(cper_pcie_port_type_strs) ?
@@ -281,10 +286,18 @@ static void cper_print_pcie(const char *pfx, const struct cper_sec_pcie *pcie,
 	"%s""bridge: secondary_status: 0x%04x, control: 0x%04x\n",
 	pfx, pcie->bridge.secondary_status, pcie->bridge.control);
 #ifdef CONFIG_ACPI_APEI_PCIEAER
-	if (pcie->validation_bits & CPER_PCIE_VALID_AER_INFO) {
-		struct aer_capability_regs *aer_regs = (void *)pcie->aer_info;
-		cper_print_aer(pfx, gdata->error_severity, aer_regs);
+	dev = pci_get_domain_bus_and_slot(pcie->device_id.segment,
+			pcie->device_id.bus, pcie->device_id.function);
+	if (!dev) {
+		pr_err("PCI AER Cannot get PCI device %04x:%02x:%02x.%d\n",
+			pcie->device_id.segment, pcie->device_id.bus,
+			pcie->device_id.slot, pcie->device_id.function);
+		return;
 	}
+	if (pcie->validation_bits & CPER_PCIE_VALID_AER_INFO)
+		cper_print_aer(pfx, dev, gdata->error_severity,
+				(struct aer_capability_regs *) pcie->aer_info);
+	pci_dev_put(dev);
 #endif
 }
 
@@ -392,7 +405,7 @@ int apei_estatus_check(const struct acpi_hest_generic_status *estatus)
 		return rc;
 	data_len = estatus->data_length;
 	gdata = (struct acpi_hest_generic_data *)(estatus + 1);
-	while (data_len > sizeof(*gdata)) {
+	while (data_len >= sizeof(*gdata)) {
 		gedata_len = gdata->error_data_length;
 		if (gedata_len > data_len - sizeof(*gdata))
 			return -EINVAL;

@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/rtc.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
@@ -403,17 +404,19 @@ static int mpc5121_rtc_remove(struct platform_device *op)
 	return 0;
 }
 
+#ifdef CONFIG_OF
 static struct of_device_id mpc5121_rtc_match[] = {
 	{ .compatible = "fsl,mpc5121-rtc", },
 	{ .compatible = "fsl,mpc5200-rtc", },
 	{},
 };
+#endif
 
 static struct platform_driver mpc5121_rtc_driver = {
 	.driver = {
 		.name = "mpc5121-rtc",
 		.owner = THIS_MODULE,
-		.of_match_table = mpc5121_rtc_match,
+		.of_match_table = of_match_ptr(mpc5121_rtc_match),
 	},
 	.probe = mpc5121_rtc_probe,
 	.remove = mpc5121_rtc_remove,

@@ -271,41 +271,6 @@ int gfs2_meta_wait(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	return 0;
 }
 
-/**
- * gfs2_attach_bufdata - attach a struct gfs2_bufdata structure to a buffer
- * @gl: the glock the buffer belongs to
- * @bh: The buffer to be attached to
- * @meta: Flag to indicate whether its metadata or not
- */
-
-void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh,
-			 int meta)
-{
-	struct gfs2_bufdata *bd;
-
-	if (meta)
-		lock_page(bh->b_page);
-
-	if (bh->b_private) {
-		if (meta)
-			unlock_page(bh->b_page);
-		return;
-	}
-
-	bd = kmem_cache_zalloc(gfs2_bufdata_cachep, GFP_NOFS | __GFP_NOFAIL);
-	bd->bd_bh = bh;
-	bd->bd_gl = gl;
-
-	if (meta)
-		lops_init_le(bd, &gfs2_buf_lops);
-	else
-		lops_init_le(bd, &gfs2_databuf_lops);
-	bh->b_private = bd;
-
-	if (meta)
-		unlock_page(bh->b_page);
-}
-
 void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int meta)
 {
 	struct address_space *mapping = bh->b_page->mapping;

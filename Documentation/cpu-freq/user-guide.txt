@@ -190,11 +190,11 @@ scaling_max_freq		show the current "policy limits" (in
 				first set scaling_max_freq, then
 				scaling_min_freq.
 
-affected_cpus :			List of CPUs that require software coordination
-				of frequency.
+affected_cpus :			List of Online CPUs that require software
+				coordination of frequency.
 
-related_cpus :			List of CPUs that need some sort of frequency
-				coordination, whether software or hardware.
+related_cpus :			List of Online + Offline CPUs that need software
+				coordination of frequency.
 
 scaling_driver :		Hardware driver for cpufreq.
 

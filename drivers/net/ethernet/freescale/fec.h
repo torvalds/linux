@@ -13,11 +13,9 @@
 #define	FEC_H
 /****************************************************************************/
 
-#ifdef CONFIG_FEC_PTP
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
-#endif
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
     defined(CONFIG_M520x) || defined(CONFIG_M532x) || \
@@ -50,6 +48,10 @@
 #define FEC_R_DES_START		0x180 /* Receive descriptor ring */
 #define FEC_X_DES_START		0x184 /* Transmit descriptor ring */
 #define FEC_R_BUFF_SIZE		0x188 /* Maximum receive buff size */
+#define FEC_R_FIFO_RSFL		0x190 /* Receive FIFO section full threshold */
+#define FEC_R_FIFO_RSEM		0x194 /* Receive FIFO section empty threshold */
+#define FEC_R_FIFO_RAEM		0x198 /* Receive FIFO almost empty threshold */
+#define FEC_R_FIFO_RAFL		0x19c /* Receive FIFO almost full threshold */
 #define FEC_MIIGSK_CFGR		0x300 /* MIIGSK Configuration reg */
 #define FEC_MIIGSK_ENR		0x308 /* MIIGSK Enable reg */
 
@@ -94,13 +96,6 @@ struct bufdesc {
 	unsigned short cbd_datlen;	/* Data length */
 	unsigned short cbd_sc;	/* Control and status info */
 	unsigned long cbd_bufaddr;	/* Buffer address */
-#ifdef CONFIG_FEC_PTP
-	unsigned long cbd_esc;
-	unsigned long cbd_prot;
-	unsigned long cbd_bdu;
-	unsigned long ts;
-	unsigned short res0[4];
-#endif
 };
 #else
 struct bufdesc {
@@ -109,6 +104,15 @@ struct bufdesc {
 	unsigned long	cbd_bufaddr;		/* Buffer address */
 };
 #endif
+
+struct bufdesc_ex {
+	struct bufdesc desc;
+	unsigned long cbd_esc;
+	unsigned long cbd_prot;
+	unsigned long cbd_bdu;
+	unsigned long ts;
+	unsigned short res0[4];
+};
 
 /*
  *	The following definitions courtesy of commproc.h, which where
@@ -203,16 +207,12 @@ struct fec_enet_private {
 
 	struct clk *clk_ipg;
 	struct clk *clk_ahb;
-#ifdef CONFIG_FEC_PTP
 	struct clk *clk_ptp;
-#endif
 
 	/* The saved address of a sent-in-place packet/buffer, for skfree(). */
 	unsigned char *tx_bounce[TX_RING_SIZE];
 	struct	sk_buff *tx_skbuff[TX_RING_SIZE];
 	struct	sk_buff *rx_skbuff[RX_RING_SIZE];
-	ushort	skb_cur;
-	ushort	skb_dirty;
 
 	/* CPM dual port RAM relative addresses */
 	dma_addr_t	bd_dma;
@@ -224,7 +224,6 @@ struct fec_enet_private {
 	/* The ring entries to be free()ed */
 	struct bufdesc	*dirty_tx;
 
-	uint	tx_full;
 	/* hold while accessing the HW like ringbuffer for tx/rx but not MAC */
 	spinlock_t hw_lock;
 
@@ -241,10 +240,14 @@ struct fec_enet_private {
 	phy_interface_t	phy_interface;
 	int	link;
 	int	full_duplex;
+	int	speed;
 	struct	completion mdio_done;
 	int	irq[FEC_IRQ_NUM];
+	int	bufdesc_ex;
+	int	pause_flag;
 
-#ifdef CONFIG_FEC_PTP
+	struct	napi_struct napi;
+
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
 	unsigned long last_overflow_check;
@@ -257,15 +260,12 @@ struct fec_enet_private {
 	int hwts_rx_en;
 	int hwts_tx_en;
 	struct timer_list time_keep;
-#endif
 
 };
 
-#ifdef CONFIG_FEC_PTP
 void fec_ptp_init(struct net_device *ndev, struct platform_device *pdev);
 void fec_ptp_start_cyclecounter(struct net_device *ndev);
 int fec_ptp_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd);
-#endif
 
 /****************************************************************************/
 #endif /* FEC_H */

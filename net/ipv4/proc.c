@@ -471,28 +471,29 @@ static const struct file_operations netstat_seq_fops = {
 
 static __net_init int ip_proc_init_net(struct net *net)
 {
-	if (!proc_net_fops_create(net, "sockstat", S_IRUGO, &sockstat_seq_fops))
+	if (!proc_create("sockstat", S_IRUGO, net->proc_net,
+			 &sockstat_seq_fops))
 		goto out_sockstat;
-	if (!proc_net_fops_create(net, "netstat", S_IRUGO, &netstat_seq_fops))
+	if (!proc_create("netstat", S_IRUGO, net->proc_net, &netstat_seq_fops))
 		goto out_netstat;
-	if (!proc_net_fops_create(net, "snmp", S_IRUGO, &snmp_seq_fops))
+	if (!proc_create("snmp", S_IRUGO, net->proc_net, &snmp_seq_fops))
 		goto out_snmp;
 
 	return 0;
 
 out_snmp:
-	proc_net_remove(net, "netstat");
+	remove_proc_entry("netstat", net->proc_net);
 out_netstat:
-	proc_net_remove(net, "sockstat");
+	remove_proc_entry("sockstat", net->proc_net);
 out_sockstat:
 	return -ENOMEM;
 }
 
 static __net_exit void ip_proc_exit_net(struct net *net)
 {
-	proc_net_remove(net, "snmp");
-	proc_net_remove(net, "netstat");
-	proc_net_remove(net, "sockstat");
+	remove_proc_entry("snmp", net->proc_net);
+	remove_proc_entry("netstat", net->proc_net);
+	remove_proc_entry("sockstat", net->proc_net);
 }
 
 static __net_initdata struct pernet_operations ip_proc_ops = {

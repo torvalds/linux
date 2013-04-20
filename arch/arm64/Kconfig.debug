@@ -6,22 +6,28 @@ config FRAME_POINTER
 	bool
 	default y
 
-config DEBUG_ERRORS
-	bool "Verbose kernel error messages"
-	depends on DEBUG_KERNEL
-	help
-	  This option controls verbose debugging information which can be
-	  printed when the kernel detects an internal error. This debugging
-	  information is useful to kernel hackers when tracking down problems,
-	  but mostly meaningless to other people. It's safe to say Y unless
-	  you are concerned with the code size or don't want to see these
-	  messages.
-
 config DEBUG_STACK_USAGE
 	bool "Enable stack utilization instrumentation"
 	depends on DEBUG_KERNEL
 	help
 	  Enables the display of the minimum amount of free stack which each
 	  task has ever had available in the sysrq-T output.
+
+config EARLY_PRINTK
+	bool "Early printk support"
+	default y
+	help
+	  Say Y here if you want to have an early console using the
+	  earlyprintk=<name>[,<addr>][,<options>] kernel parameter. It
+	  is assumed that the early console device has been initialised
+	  by the boot loader prior to starting the Linux kernel.
+
+config PID_IN_CONTEXTIDR
+	bool "Write the current PID to the CONTEXTIDR register"
+	help
+	  Enabling this option causes the kernel to write the current PID to
+	  the CONTEXTIDR register, at the expense of some additional
+	  instructions during context switch. Say Y here only if you are
+	  planning to use hardware trace tools with this kernel.
 
 endmenu

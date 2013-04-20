@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2012 Intel Corporation.
+  Copyright(c) 2007-2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -325,6 +325,10 @@ struct e1000_mac_operations {
 	s32  (*get_speed_and_duplex)(struct e1000_hw *, u16 *, u16 *);
 	s32  (*acquire_swfw_sync)(struct e1000_hw *, u16);
 	void (*release_swfw_sync)(struct e1000_hw *, u16);
+#ifdef CONFIG_IGB_HWMON
+	s32 (*get_thermal_sensor_data)(struct e1000_hw *);
+	s32 (*init_thermal_sensor_thresh)(struct e1000_hw *);
+#endif
 
 };
 
@@ -342,6 +346,8 @@ struct e1000_phy_operations {
 	s32  (*set_d0_lplu_state)(struct e1000_hw *, bool);
 	s32  (*set_d3_lplu_state)(struct e1000_hw *, bool);
 	s32  (*write_reg)(struct e1000_hw *, u32, u16);
+	s32 (*read_i2c_byte)(struct e1000_hw *, u8, u8, u8 *);
+	s32 (*write_i2c_byte)(struct e1000_hw *, u8, u8, u8);
 };
 
 struct e1000_nvm_operations {
@@ -352,6 +358,19 @@ struct e1000_nvm_operations {
 	s32  (*update)(struct e1000_hw *);
 	s32  (*validate)(struct e1000_hw *);
 	s32  (*valid_led_default)(struct e1000_hw *, u16 *);
+};
+
+#define E1000_MAX_SENSORS		3
+
+struct e1000_thermal_diode_data {
+	u8 location;
+	u8 temp;
+	u8 caution_thresh;
+	u8 max_op_thresh;
+};
+
+struct e1000_thermal_sensor_data {
+	struct e1000_thermal_diode_data sensor[E1000_MAX_SENSORS];
 };
 
 struct e1000_info {
@@ -399,6 +418,7 @@ struct e1000_mac_info {
 	bool report_tx_early;
 	bool serdes_has_link;
 	bool tx_pkt_filtering;
+	struct e1000_thermal_sensor_data thermal_sensor_data;
 };
 
 struct e1000_phy_info {

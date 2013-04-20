@@ -49,3 +49,6 @@ obj-y				+= carma/
 obj-$(CONFIG_USB_SWITCH_FSA9480) += fsa9480.o
 obj-$(CONFIG_ALTERA_STAPL)	+=altera-stapl/
 obj-$(CONFIG_INTEL_MEI)		+= mei/
+obj-$(CONFIG_MAX8997_MUIC)	+= max8997-muic.o
+obj-$(CONFIG_VMWARE_VMCI)	+= vmw_vmci/
+obj-$(CONFIG_LATTICE_ECP3_CONFIG)	+= lattice-ecp3-config.o

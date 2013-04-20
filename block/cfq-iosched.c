@@ -85,7 +85,6 @@ struct cfq_rb_root {
 	struct rb_root rb;
 	struct rb_node *left;
 	unsigned count;
-	unsigned total_weight;
 	u64 min_vdisktime;
 	struct cfq_ttime ttime;
 };
@@ -155,7 +154,7 @@ struct cfq_queue {
  * First index in the service_trees.
  * IDLE is handled separately, so it has negative index
  */
-enum wl_prio_t {
+enum wl_class_t {
 	BE_WORKLOAD = 0,
 	RT_WORKLOAD = 1,
 	IDLE_WORKLOAD = 2,
@@ -223,9 +222,44 @@ struct cfq_group {
 
 	/* group service_tree key */
 	u64 vdisktime;
+
+	/*
+	 * The number of active cfqgs and sum of their weights under this
+	 * cfqg.  This covers this cfqg's leaf_weight and all children's
+	 * weights, but does not cover weights of further descendants.
+	 *
+	 * If a cfqg is on the service tree, it's active.  An active cfqg
+	 * also activates its parent and contributes to the children_weight
+	 * of the parent.
+	 */
+	int nr_active;
+	unsigned int children_weight;
+
+	/*
+	 * vfraction is the fraction of vdisktime that the tasks in this
+	 * cfqg are entitled to.  This is determined by compounding the
+	 * ratios walking up from this cfqg to the root.
+	 *
+	 * It is in fixed point w/ CFQ_SERVICE_SHIFT and the sum of all
+	 * vfractions on a service tree is approximately 1.  The sum may
+	 * deviate a bit due to rounding errors and fluctuations caused by
+	 * cfqgs entering and leaving the service tree.
+	 */
+	unsigned int vfraction;
+
+	/*
+	 * There are two weights - (internal) weight is the weight of this
+	 * cfqg against the sibling cfqgs.  leaf_weight is the wight of
+	 * this cfqg against the child cfqgs.  For the root cfqg, both
+	 * weights are kept in sync for backward compatibility.
+	 */
 	unsigned int weight;
 	unsigned int new_weight;
 	unsigned int dev_weight;
+
+	unsigned int leaf_weight;
+	unsigned int new_leaf_weight;
+	unsigned int dev_leaf_weight;
 
 	/* number of cfqq currently on this group */
 	int nr_cfqq;
@@ -248,14 +282,15 @@ struct cfq_group {
 	struct cfq_rb_root service_trees[2][3];
 	struct cfq_rb_root service_tree_idle;
 
-	unsigned long saved_workload_slice;
-	enum wl_type_t saved_workload;
-	enum wl_prio_t saved_serving_prio;
+	unsigned long saved_wl_slice;
+	enum wl_type_t saved_wl_type;
+	enum wl_class_t saved_wl_class;
 
 	/* number of requests that are on the dispatch list or inside driver */
 	int dispatched;
 	struct cfq_ttime ttime;
-	struct cfqg_stats stats;
+	struct cfqg_stats stats;	/* stats for this cfqg */
+	struct cfqg_stats dead_stats;	/* stats pushed from dead children */
 };
 
 struct cfq_io_cq {
@@ -280,8 +315,8 @@ struct cfq_data {
 	/*
 	 * The priority currently being served
 	 */
-	enum wl_prio_t serving_prio;
-	enum wl_type_t serving_type;
+	enum wl_class_t serving_wl_class;
+	enum wl_type_t serving_wl_type;
 	unsigned long workload_expires;
 	struct cfq_group *serving_group;
 
@@ -353,17 +388,17 @@ struct cfq_data {
 
 static struct cfq_group *cfq_get_next_cfqg(struct cfq_data *cfqd);
 
-static struct cfq_rb_root *service_tree_for(struct cfq_group *cfqg,
-					    enum wl_prio_t prio,
+static struct cfq_rb_root *st_for(struct cfq_group *cfqg,
+					    enum wl_class_t class,
 					    enum wl_type_t type)
 {
 	if (!cfqg)
 		return NULL;
 
-	if (prio == IDLE_WORKLOAD)
+	if (class == IDLE_WORKLOAD)
 		return &cfqg->service_tree_idle;
 
-	return &cfqg->service_trees[prio][type];
+	return &cfqg->service_trees[class][type];
 }
 
 enum cfqq_state_flags {
@@ -502,7 +537,7 @@ static void cfqg_stats_set_start_empty_time(struct cfq_group *cfqg)
 {
 	struct cfqg_stats *stats = &cfqg->stats;
 
-	if (blkg_rwstat_sum(&stats->queued))
+	if (blkg_rwstat_total(&stats->queued))
 		return;
 
 	/*
@@ -546,7 +581,7 @@ static void cfqg_stats_update_avg_queue_size(struct cfq_group *cfqg)
 	struct cfqg_stats *stats = &cfqg->stats;
 
 	blkg_stat_add(&stats->avg_queue_size_sum,
-		      blkg_rwstat_sum(&stats->queued));
+		      blkg_rwstat_total(&stats->queued));
 	blkg_stat_add(&stats->avg_queue_size_samples, 1);
 	cfqg_stats_update_group_wait_time(stats);
 }
@@ -572,6 +607,13 @@ static inline struct cfq_group *blkg_to_cfqg(struct blkcg_gq *blkg)
 	return pd_to_cfqg(blkg_to_pd(blkg, &blkcg_policy_cfq));
 }
 
+static inline struct cfq_group *cfqg_parent(struct cfq_group *cfqg)
+{
+	struct blkcg_gq *pblkg = cfqg_to_blkg(cfqg)->parent;
+
+	return pblkg ? blkg_to_cfqg(pblkg) : NULL;
+}
+
 static inline void cfqg_get(struct cfq_group *cfqg)
 {
 	return blkg_get(cfqg_to_blkg(cfqg));
@@ -586,8 +628,9 @@ static inline void cfqg_put(struct cfq_group *cfqg)
 	char __pbuf[128];						\
 									\
 	blkg_path(cfqg_to_blkg((cfqq)->cfqg), __pbuf, sizeof(__pbuf));	\
-	blk_add_trace_msg((cfqd)->queue, "cfq%d%c %s " fmt, (cfqq)->pid, \
-			  cfq_cfqq_sync((cfqq)) ? 'S' : 'A',		\
+	blk_add_trace_msg((cfqd)->queue, "cfq%d%c%c %s " fmt, (cfqq)->pid, \
+			cfq_cfqq_sync((cfqq)) ? 'S' : 'A',		\
+			cfqq_type((cfqq)) == SYNC_NOIDLE_WORKLOAD ? 'N' : ' ',\
 			  __pbuf, ##args);				\
 } while (0)
 
@@ -646,11 +689,9 @@ static inline void cfqg_stats_update_completion(struct cfq_group *cfqg,
 				io_start_time - start_time);
 }
 
-static void cfq_pd_reset_stats(struct blkcg_gq *blkg)
+/* @stats = 0 */
+static void cfqg_stats_reset(struct cfqg_stats *stats)
 {
-	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
-	struct cfqg_stats *stats = &cfqg->stats;
-
 	/* queued stats shouldn't be cleared */
 	blkg_rwstat_reset(&stats->service_bytes);
 	blkg_rwstat_reset(&stats->serviced);
@@ -669,13 +710,58 @@ static void cfq_pd_reset_stats(struct blkcg_gq *blkg)
 #endif
 }
 
+/* @to += @from */
+static void cfqg_stats_merge(struct cfqg_stats *to, struct cfqg_stats *from)
+{
+	/* queued stats shouldn't be cleared */
+	blkg_rwstat_merge(&to->service_bytes, &from->service_bytes);
+	blkg_rwstat_merge(&to->serviced, &from->serviced);
+	blkg_rwstat_merge(&to->merged, &from->merged);
+	blkg_rwstat_merge(&to->service_time, &from->service_time);
+	blkg_rwstat_merge(&to->wait_time, &from->wait_time);
+	blkg_stat_merge(&from->time, &from->time);
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+	blkg_stat_merge(&to->unaccounted_time, &from->unaccounted_time);
+	blkg_stat_merge(&to->avg_queue_size_sum, &from->avg_queue_size_sum);
+	blkg_stat_merge(&to->avg_queue_size_samples, &from->avg_queue_size_samples);
+	blkg_stat_merge(&to->dequeue, &from->dequeue);
+	blkg_stat_merge(&to->group_wait_time, &from->group_wait_time);
+	blkg_stat_merge(&to->idle_time, &from->idle_time);
+	blkg_stat_merge(&to->empty_time, &from->empty_time);
+#endif
+}
+
+/*
+ * Transfer @cfqg's stats to its parent's dead_stats so that the ancestors'
+ * recursive stats can still account for the amount used by this cfqg after
+ * it's gone.
+ */
+static void cfqg_stats_xfer_dead(struct cfq_group *cfqg)
+{
+	struct cfq_group *parent = cfqg_parent(cfqg);
+
+	lockdep_assert_held(cfqg_to_blkg(cfqg)->q->queue_lock);
+
+	if (unlikely(!parent))
+		return;
+
+	cfqg_stats_merge(&parent->dead_stats, &cfqg->stats);
+	cfqg_stats_merge(&parent->dead_stats, &cfqg->dead_stats);
+	cfqg_stats_reset(&cfqg->stats);
+	cfqg_stats_reset(&cfqg->dead_stats);
+}
+
 #else	/* CONFIG_CFQ_GROUP_IOSCHED */
 
+static inline struct cfq_group *cfqg_parent(struct cfq_group *cfqg) { return NULL; }
 static inline void cfqg_get(struct cfq_group *cfqg) { }
 static inline void cfqg_put(struct cfq_group *cfqg) { }
 
 #define cfq_log_cfqq(cfqd, cfqq, fmt, args...)	\
-	blk_add_trace_msg((cfqd)->queue, "cfq%d " fmt, (cfqq)->pid, ##args)
+	blk_add_trace_msg((cfqd)->queue, "cfq%d%c%c " fmt, (cfqq)->pid,	\
+			cfq_cfqq_sync((cfqq)) ? 'S' : 'A',		\
+			cfqq_type((cfqq)) == SYNC_NOIDLE_WORKLOAD ? 'N' : ' ',\
+				##args)
 #define cfq_log_cfqg(cfqd, cfqg, fmt, args...)		do {} while (0)
 
 static inline void cfqg_stats_update_io_add(struct cfq_group *cfqg,
@@ -732,7 +818,7 @@ static inline bool iops_mode(struct cfq_data *cfqd)
 		return false;
 }
 
-static inline enum wl_prio_t cfqq_prio(struct cfq_queue *cfqq)
+static inline enum wl_class_t cfqq_class(struct cfq_queue *cfqq)
 {
 	if (cfq_class_idle(cfqq))
 		return IDLE_WORKLOAD;
@@ -751,23 +837,23 @@ static enum wl_type_t cfqq_type(struct cfq_queue *cfqq)
 	return SYNC_WORKLOAD;
 }
 
-static inline int cfq_group_busy_queues_wl(enum wl_prio_t wl,
+static inline int cfq_group_busy_queues_wl(enum wl_class_t wl_class,
 					struct cfq_data *cfqd,
 					struct cfq_group *cfqg)
 {
-	if (wl == IDLE_WORKLOAD)
+	if (wl_class == IDLE_WORKLOAD)
 		return cfqg->service_tree_idle.count;
 
-	return cfqg->service_trees[wl][ASYNC_WORKLOAD].count
-		+ cfqg->service_trees[wl][SYNC_NOIDLE_WORKLOAD].count
-		+ cfqg->service_trees[wl][SYNC_WORKLOAD].count;
+	return cfqg->service_trees[wl_class][ASYNC_WORKLOAD].count +
+		cfqg->service_trees[wl_class][SYNC_NOIDLE_WORKLOAD].count +
+		cfqg->service_trees[wl_class][SYNC_WORKLOAD].count;
 }
 
 static inline int cfqg_busy_async_queues(struct cfq_data *cfqd,
 					struct cfq_group *cfqg)
 {
-	return cfqg->service_trees[RT_WORKLOAD][ASYNC_WORKLOAD].count
-		+ cfqg->service_trees[BE_WORKLOAD][ASYNC_WORKLOAD].count;
+	return cfqg->service_trees[RT_WORKLOAD][ASYNC_WORKLOAD].count +
+		cfqg->service_trees[BE_WORKLOAD][ASYNC_WORKLOAD].count;
 }
 
 static void cfq_dispatch_insert(struct request_queue *, struct request *);
@@ -847,13 +933,27 @@ cfq_prio_to_slice(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	return cfq_prio_slice(cfqd, cfq_cfqq_sync(cfqq), cfqq->ioprio);
 }
 
-static inline u64 cfq_scale_slice(unsigned long delta, struct cfq_group *cfqg)
+/**
+ * cfqg_scale_charge - scale disk time charge according to cfqg weight
+ * @charge: disk time being charged
+ * @vfraction: vfraction of the cfqg, fixed point w/ CFQ_SERVICE_SHIFT
+ *
+ * Scale @charge according to @vfraction, which is in range (0, 1].  The
+ * scaling is inversely proportional.
+ *
+ * scaled = charge / vfraction
+ *
+ * The result is also in fixed point w/ CFQ_SERVICE_SHIFT.
+ */
+static inline u64 cfqg_scale_charge(unsigned long charge,
+				    unsigned int vfraction)
 {
-	u64 d = delta << CFQ_SERVICE_SHIFT;
+	u64 c = charge << CFQ_SERVICE_SHIFT;	/* make it fixed point */
 
-	d = d * CFQ_WEIGHT_DEFAULT;
-	do_div(d, cfqg->weight);
-	return d;
+	/* charge / vfraction */
+	c <<= CFQ_SERVICE_SHIFT;
+	do_div(c, vfraction);
+	return c;
 }
 
 static inline u64 max_vdisktime(u64 min_vdisktime, u64 vdisktime)
@@ -909,9 +1009,7 @@ static inline unsigned cfq_group_get_avg_queues(struct cfq_data *cfqd,
 static inline unsigned
 cfq_group_slice(struct cfq_data *cfqd, struct cfq_group *cfqg)
 {
-	struct cfq_rb_root *st = &cfqd->grp_service_tree;
-
-	return cfqd->cfq_target_latency * cfqg->weight / st->total_weight;
+	return cfqd->cfq_target_latency * cfqg->vfraction >> CFQ_SERVICE_SHIFT;
 }
 
 static inline unsigned
@@ -1178,20 +1276,61 @@ static void
 cfq_update_group_weight(struct cfq_group *cfqg)
 {
 	BUG_ON(!RB_EMPTY_NODE(&cfqg->rb_node));
+
 	if (cfqg->new_weight) {
 		cfqg->weight = cfqg->new_weight;
 		cfqg->new_weight = 0;
+	}
+
+	if (cfqg->new_leaf_weight) {
+		cfqg->leaf_weight = cfqg->new_leaf_weight;
+		cfqg->new_leaf_weight = 0;
 	}
 }
 
 static void
 cfq_group_service_tree_add(struct cfq_rb_root *st, struct cfq_group *cfqg)
 {
+	unsigned int vfr = 1 << CFQ_SERVICE_SHIFT;	/* start with 1 */
+	struct cfq_group *pos = cfqg;
+	struct cfq_group *parent;
+	bool propagate;
+
+	/* add to the service tree */
 	BUG_ON(!RB_EMPTY_NODE(&cfqg->rb_node));
 
 	cfq_update_group_weight(cfqg);
 	__cfq_group_service_tree_add(st, cfqg);
-	st->total_weight += cfqg->weight;
+
+	/*
+	 * Activate @cfqg and calculate the portion of vfraction @cfqg is
+	 * entitled to.  vfraction is calculated by walking the tree
+	 * towards the root calculating the fraction it has at each level.
+	 * The compounded ratio is how much vfraction @cfqg owns.
+	 *
+	 * Start with the proportion tasks in this cfqg has against active
+	 * children cfqgs - its leaf_weight against children_weight.
+	 */
+	propagate = !pos->nr_active++;
+	pos->children_weight += pos->leaf_weight;
+	vfr = vfr * pos->leaf_weight / pos->children_weight;
+
+	/*
+	 * Compound ->weight walking up the tree.  Both activation and
+	 * vfraction calculation are done in the same loop.  Propagation
+	 * stops once an already activated node is met.  vfraction
+	 * calculation should always continue to the root.
+	 */
+	while ((parent = cfqg_parent(pos))) {
+		if (propagate) {
+			propagate = !parent->nr_active++;
+			parent->children_weight += pos->weight;
+		}
+		vfr = vfr * pos->weight / parent->children_weight;
+		pos = parent;
+	}
+
+	cfqg->vfraction = max_t(unsigned, vfr, 1);
 }
 
 static void
@@ -1222,7 +1361,32 @@ cfq_group_notify_queue_add(struct cfq_data *cfqd, struct cfq_group *cfqg)
 static void
 cfq_group_service_tree_del(struct cfq_rb_root *st, struct cfq_group *cfqg)
 {
-	st->total_weight -= cfqg->weight;
+	struct cfq_group *pos = cfqg;
+	bool propagate;
+
+	/*
+	 * Undo activation from cfq_group_service_tree_add().  Deactivate
+	 * @cfqg and propagate deactivation upwards.
+	 */
+	propagate = !--pos->nr_active;
+	pos->children_weight -= pos->leaf_weight;
+
+	while (propagate) {
+		struct cfq_group *parent = cfqg_parent(pos);
+
+		/* @pos has 0 nr_active at this point */
+		WARN_ON_ONCE(pos->children_weight);
+		pos->vfraction = 0;
+
+		if (!parent)
+			break;
+
+		propagate = !--parent->nr_active;
+		parent->children_weight -= pos->weight;
+		pos = parent;
+	}
+
+	/* remove from the service tree */
 	if (!RB_EMPTY_NODE(&cfqg->rb_node))
 		cfq_rb_erase(&cfqg->rb_node, st);
 }
@@ -1241,7 +1405,7 @@ cfq_group_notify_queue_del(struct cfq_data *cfqd, struct cfq_group *cfqg)
 
 	cfq_log_cfqg(cfqd, cfqg, "del_from_rr group");
 	cfq_group_service_tree_del(st, cfqg);
-	cfqg->saved_workload_slice = 0;
+	cfqg->saved_wl_slice = 0;
 	cfqg_stats_update_dequeue(cfqg);
 }
 
@@ -1284,6 +1448,7 @@ static void cfq_group_served(struct cfq_data *cfqd, struct cfq_group *cfqg,
 	unsigned int used_sl, charge, unaccounted_sl = 0;
 	int nr_sync = cfqg->nr_cfqq - cfqg_busy_async_queues(cfqd, cfqg)
 			- cfqg->service_tree_idle.count;
+	unsigned int vfr;
 
 	BUG_ON(nr_sync < 0);
 	used_sl = charge = cfq_cfqq_slice_usage(cfqq, &unaccounted_sl);
@@ -1293,20 +1458,25 @@ static void cfq_group_served(struct cfq_data *cfqd, struct cfq_group *cfqg,
 	else if (!cfq_cfqq_sync(cfqq) && !nr_sync)
 		charge = cfqq->allocated_slice;
 
-	/* Can't update vdisktime while group is on service tree */
+	/*
+	 * Can't update vdisktime while on service tree and cfqg->vfraction
+	 * is valid only while on it.  Cache vfr, leave the service tree,
+	 * update vdisktime and go back on.  The re-addition to the tree
+	 * will also update the weights as necessary.
+	 */
+	vfr = cfqg->vfraction;
 	cfq_group_service_tree_del(st, cfqg);
-	cfqg->vdisktime += cfq_scale_slice(charge, cfqg);
-	/* If a new weight was requested, update now, off tree */
+	cfqg->vdisktime += cfqg_scale_charge(charge, vfr);
 	cfq_group_service_tree_add(st, cfqg);
 
 	/* This group is being expired. Save the context */
 	if (time_after(cfqd->workload_expires, jiffies)) {
-		cfqg->saved_workload_slice = cfqd->workload_expires
+		cfqg->saved_wl_slice = cfqd->workload_expires
 						- jiffies;
-		cfqg->saved_workload = cfqd->serving_type;
-		cfqg->saved_serving_prio = cfqd->serving_prio;
+		cfqg->saved_wl_type = cfqd->serving_wl_type;
+		cfqg->saved_wl_class = cfqd->serving_wl_class;
 	} else
-		cfqg->saved_workload_slice = 0;
+		cfqg->saved_wl_slice = 0;
 
 	cfq_log_cfqg(cfqd, cfqg, "served: vt=%llu min_vt=%llu", cfqg->vdisktime,
 					st->min_vdisktime);
@@ -1344,6 +1514,52 @@ static void cfq_pd_init(struct blkcg_gq *blkg)
 
 	cfq_init_cfqg_base(cfqg);
 	cfqg->weight = blkg->blkcg->cfq_weight;
+	cfqg->leaf_weight = blkg->blkcg->cfq_leaf_weight;
+}
+
+static void cfq_pd_offline(struct blkcg_gq *blkg)
+{
+	/*
+	 * @blkg is going offline and will be ignored by
+	 * blkg_[rw]stat_recursive_sum().  Transfer stats to the parent so
+	 * that they don't get lost.  If IOs complete after this point, the
+	 * stats for them will be lost.  Oh well...
+	 */
+	cfqg_stats_xfer_dead(blkg_to_cfqg(blkg));
+}
+
+/* offset delta from cfqg->stats to cfqg->dead_stats */
+static const int dead_stats_off_delta = offsetof(struct cfq_group, dead_stats) -
+					offsetof(struct cfq_group, stats);
+
+/* to be used by recursive prfill, sums live and dead stats recursively */
+static u64 cfqg_stat_pd_recursive_sum(struct blkg_policy_data *pd, int off)
+{
+	u64 sum = 0;
+
+	sum += blkg_stat_recursive_sum(pd, off);
+	sum += blkg_stat_recursive_sum(pd, off + dead_stats_off_delta);
+	return sum;
+}
+
+/* to be used by recursive prfill, sums live and dead rwstats recursively */
+static struct blkg_rwstat cfqg_rwstat_pd_recursive_sum(struct blkg_policy_data *pd,
+						       int off)
+{
+	struct blkg_rwstat a, b;
+
+	a = blkg_rwstat_recursive_sum(pd, off);
+	b = blkg_rwstat_recursive_sum(pd, off + dead_stats_off_delta);
+	blkg_rwstat_merge(&a, &b);
+	return a;
+}
+
+static void cfq_pd_reset_stats(struct blkcg_gq *blkg)
+{
+	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
+
+	cfqg_stats_reset(&cfqg->stats);
+	cfqg_stats_reset(&cfqg->dead_stats);
 }
 
 /*
@@ -1400,6 +1616,26 @@ static int cfqg_print_weight_device(struct cgroup *cgrp, struct cftype *cft,
 	return 0;
 }
 
+static u64 cfqg_prfill_leaf_weight_device(struct seq_file *sf,
+					  struct blkg_policy_data *pd, int off)
+{
+	struct cfq_group *cfqg = pd_to_cfqg(pd);
+
+	if (!cfqg->dev_leaf_weight)
+		return 0;
+	return __blkg_prfill_u64(sf, pd, cfqg->dev_leaf_weight);
+}
+
+static int cfqg_print_leaf_weight_device(struct cgroup *cgrp,
+					 struct cftype *cft,
+					 struct seq_file *sf)
+{
+	blkcg_print_blkgs(sf, cgroup_to_blkcg(cgrp),
+			  cfqg_prfill_leaf_weight_device, &blkcg_policy_cfq, 0,
+			  false);
+	return 0;
+}
+
 static int cfq_print_weight(struct cgroup *cgrp, struct cftype *cft,
 			    struct seq_file *sf)
 {
@@ -1407,8 +1643,16 @@ static int cfq_print_weight(struct cgroup *cgrp, struct cftype *cft,
 	return 0;
 }
 
-static int cfqg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
-				  const char *buf)
+static int cfq_print_leaf_weight(struct cgroup *cgrp, struct cftype *cft,
+				 struct seq_file *sf)
+{
+	seq_printf(sf, "%u\n",
+		   cgroup_to_blkcg(cgrp)->cfq_leaf_weight);
+	return 0;
+}
+
+static int __cfqg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
+				    const char *buf, bool is_leaf_weight)
 {
 	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
 	struct blkg_conf_ctx ctx;
@@ -1422,8 +1666,13 @@ static int cfqg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
 	ret = -EINVAL;
 	cfqg = blkg_to_cfqg(ctx.blkg);
 	if (!ctx.v || (ctx.v >= CFQ_WEIGHT_MIN && ctx.v <= CFQ_WEIGHT_MAX)) {
-		cfqg->dev_weight = ctx.v;
-		cfqg->new_weight = cfqg->dev_weight ?: blkcg->cfq_weight;
+		if (!is_leaf_weight) {
+			cfqg->dev_weight = ctx.v;
+			cfqg->new_weight = ctx.v ?: blkcg->cfq_weight;
+		} else {
+			cfqg->dev_leaf_weight = ctx.v;
+			cfqg->new_leaf_weight = ctx.v ?: blkcg->cfq_leaf_weight;
+		}
 		ret = 0;
 	}
 
@@ -1431,27 +1680,61 @@ static int cfqg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
 	return ret;
 }
 
-static int cfq_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val)
+static int cfqg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
+				  const char *buf)
+{
+	return __cfqg_set_weight_device(cgrp, cft, buf, false);
+}
+
+static int cfqg_set_leaf_weight_device(struct cgroup *cgrp, struct cftype *cft,
+				       const char *buf)
+{
+	return __cfqg_set_weight_device(cgrp, cft, buf, true);
+}
+
+static int __cfq_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val,
+			    bool is_leaf_weight)
 {
 	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
 	struct blkcg_gq *blkg;
-	struct hlist_node *n;
 
 	if (val < CFQ_WEIGHT_MIN || val > CFQ_WEIGHT_MAX)
 		return -EINVAL;
 
 	spin_lock_irq(&blkcg->lock);
-	blkcg->cfq_weight = (unsigned int)val;
 
-	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
+	if (!is_leaf_weight)
+		blkcg->cfq_weight = val;
+	else
+		blkcg->cfq_leaf_weight = val;
+
+	hlist_for_each_entry(blkg, &blkcg->blkg_list, blkcg_node) {
 		struct cfq_group *cfqg = blkg_to_cfqg(blkg);
 
-		if (cfqg && !cfqg->dev_weight)
-			cfqg->new_weight = blkcg->cfq_weight;
+		if (!cfqg)
+			continue;
+
+		if (!is_leaf_weight) {
+			if (!cfqg->dev_weight)
+				cfqg->new_weight = blkcg->cfq_weight;
+		} else {
+			if (!cfqg->dev_leaf_weight)
+				cfqg->new_leaf_weight = blkcg->cfq_leaf_weight;
+		}
 	}
 
 	spin_unlock_irq(&blkcg->lock);
 	return 0;
+}
+
+static int cfq_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val)
+{
+	return __cfq_set_weight(cgrp, cft, val, false);
+}
+
+static int cfq_set_leaf_weight(struct cgroup *cgrp, struct cftype *cft, u64 val)
+{
+	return __cfq_set_weight(cgrp, cft, val, true);
 }
 
 static int cfqg_print_stat(struct cgroup *cgrp, struct cftype *cft,
@@ -1471,6 +1754,42 @@ static int cfqg_print_rwstat(struct cgroup *cgrp, struct cftype *cft,
 
 	blkcg_print_blkgs(sf, blkcg, blkg_prfill_rwstat, &blkcg_policy_cfq,
 			  cft->private, true);
+	return 0;
+}
+
+static u64 cfqg_prfill_stat_recursive(struct seq_file *sf,
+				      struct blkg_policy_data *pd, int off)
+{
+	u64 sum = cfqg_stat_pd_recursive_sum(pd, off);
+
+	return __blkg_prfill_u64(sf, pd, sum);
+}
+
+static u64 cfqg_prfill_rwstat_recursive(struct seq_file *sf,
+					struct blkg_policy_data *pd, int off)
+{
+	struct blkg_rwstat sum = cfqg_rwstat_pd_recursive_sum(pd, off);
+
+	return __blkg_prfill_rwstat(sf, pd, &sum);
+}
+
+static int cfqg_print_stat_recursive(struct cgroup *cgrp, struct cftype *cft,
+				     struct seq_file *sf)
+{
+	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
+
+	blkcg_print_blkgs(sf, blkcg, cfqg_prfill_stat_recursive,
+			  &blkcg_policy_cfq, cft->private, false);
+	return 0;
+}
+
+static int cfqg_print_rwstat_recursive(struct cgroup *cgrp, struct cftype *cft,
+				       struct seq_file *sf)
+{
+	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
+
+	blkcg_print_blkgs(sf, blkcg, cfqg_prfill_rwstat_recursive,
+			  &blkcg_policy_cfq, cft->private, true);
 	return 0;
 }
 
@@ -1503,17 +1822,49 @@ static int cfqg_print_avg_queue_size(struct cgroup *cgrp, struct cftype *cft,
 #endif	/* CONFIG_DEBUG_BLK_CGROUP */
 
 static struct cftype cfq_blkcg_files[] = {
+	/* on root, weight is mapped to leaf_weight */
 	{
 		.name = "weight_device",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.read_seq_string = cfqg_print_leaf_weight_device,
+		.write_string = cfqg_set_leaf_weight_device,
+		.max_write_len = 256,
+	},
+	{
+		.name = "weight",
+		.flags = CFTYPE_ONLY_ON_ROOT,
+		.read_seq_string = cfq_print_leaf_weight,
+		.write_u64 = cfq_set_leaf_weight,
+	},
+
+	/* no such mapping necessary for !roots */
+	{
+		.name = "weight_device",
+		.flags = CFTYPE_NOT_ON_ROOT,
 		.read_seq_string = cfqg_print_weight_device,
 		.write_string = cfqg_set_weight_device,
 		.max_write_len = 256,
 	},
 	{
 		.name = "weight",
+		.flags = CFTYPE_NOT_ON_ROOT,
 		.read_seq_string = cfq_print_weight,
 		.write_u64 = cfq_set_weight,
 	},
+
+	{
+		.name = "leaf_weight_device",
+		.read_seq_string = cfqg_print_leaf_weight_device,
+		.write_string = cfqg_set_leaf_weight_device,
+		.max_write_len = 256,
+	},
+	{
+		.name = "leaf_weight",
+		.read_seq_string = cfq_print_leaf_weight,
+		.write_u64 = cfq_set_leaf_weight,
+	},
+
+	/* statistics, covers only the tasks in the cfqg */
 	{
 		.name = "time",
 		.private = offsetof(struct cfq_group, stats.time),
@@ -1553,6 +1904,48 @@ static struct cftype cfq_blkcg_files[] = {
 		.name = "io_queued",
 		.private = offsetof(struct cfq_group, stats.queued),
 		.read_seq_string = cfqg_print_rwstat,
+	},
+
+	/* the same statictics which cover the cfqg and its descendants */
+	{
+		.name = "time_recursive",
+		.private = offsetof(struct cfq_group, stats.time),
+		.read_seq_string = cfqg_print_stat_recursive,
+	},
+	{
+		.name = "sectors_recursive",
+		.private = offsetof(struct cfq_group, stats.sectors),
+		.read_seq_string = cfqg_print_stat_recursive,
+	},
+	{
+		.name = "io_service_bytes_recursive",
+		.private = offsetof(struct cfq_group, stats.service_bytes),
+		.read_seq_string = cfqg_print_rwstat_recursive,
+	},
+	{
+		.name = "io_serviced_recursive",
+		.private = offsetof(struct cfq_group, stats.serviced),
+		.read_seq_string = cfqg_print_rwstat_recursive,
+	},
+	{
+		.name = "io_service_time_recursive",
+		.private = offsetof(struct cfq_group, stats.service_time),
+		.read_seq_string = cfqg_print_rwstat_recursive,
+	},
+	{
+		.name = "io_wait_time_recursive",
+		.private = offsetof(struct cfq_group, stats.wait_time),
+		.read_seq_string = cfqg_print_rwstat_recursive,
+	},
+	{
+		.name = "io_merged_recursive",
+		.private = offsetof(struct cfq_group, stats.merged),
+		.read_seq_string = cfqg_print_rwstat_recursive,
+	},
+	{
+		.name = "io_queued_recursive",
+		.private = offsetof(struct cfq_group, stats.queued),
+		.read_seq_string = cfqg_print_rwstat_recursive,
 	},
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 	{
@@ -1612,15 +2005,14 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	struct rb_node **p, *parent;
 	struct cfq_queue *__cfqq;
 	unsigned long rb_key;
-	struct cfq_rb_root *service_tree;
+	struct cfq_rb_root *st;
 	int left;
 	int new_cfqq = 1;
 
-	service_tree = service_tree_for(cfqq->cfqg, cfqq_prio(cfqq),
-						cfqq_type(cfqq));
+	st = st_for(cfqq->cfqg, cfqq_class(cfqq), cfqq_type(cfqq));
 	if (cfq_class_idle(cfqq)) {
 		rb_key = CFQ_IDLE_DELAY;
-		parent = rb_last(&service_tree->rb);
+		parent = rb_last(&st->rb);
 		if (parent && parent != &cfqq->rb_node) {
 			__cfqq = rb_entry(parent, struct cfq_queue, rb_node);
 			rb_key += __cfqq->rb_key;
@@ -1638,7 +2030,7 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		cfqq->slice_resid = 0;
 	} else {
 		rb_key = -HZ;
-		__cfqq = cfq_rb_first(service_tree);
+		__cfqq = cfq_rb_first(st);
 		rb_key += __cfqq ? __cfqq->rb_key : jiffies;
 	}
 
@@ -1647,8 +2039,7 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		/*
 		 * same position, nothing more to do
 		 */
-		if (rb_key == cfqq->rb_key &&
-		    cfqq->service_tree == service_tree)
+		if (rb_key == cfqq->rb_key && cfqq->service_tree == st)
 			return;
 
 		cfq_rb_erase(&cfqq->rb_node, cfqq->service_tree);
@@ -1657,11 +2048,9 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 
 	left = 1;
 	parent = NULL;
-	cfqq->service_tree = service_tree;
-	p = &service_tree->rb.rb_node;
+	cfqq->service_tree = st;
+	p = &st->rb.rb_node;
 	while (*p) {
-		struct rb_node **n;
-
 		parent = *p;
 		__cfqq = rb_entry(parent, struct cfq_queue, rb_node);
 
@@ -1669,22 +2058,20 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		 * sort by key, that represents service time.
 		 */
 		if (time_before(rb_key, __cfqq->rb_key))
-			n = &(*p)->rb_left;
+			p = &parent->rb_left;
 		else {
-			n = &(*p)->rb_right;
+			p = &parent->rb_right;
 			left = 0;
 		}
-
-		p = n;
 	}
 
 	if (left)
-		service_tree->left = &cfqq->rb_node;
+		st->left = &cfqq->rb_node;
 
 	cfqq->rb_key = rb_key;
 	rb_link_node(&cfqq->rb_node, parent, p);
-	rb_insert_color(&cfqq->rb_node, &service_tree->rb);
-	service_tree->count++;
+	rb_insert_color(&cfqq->rb_node, &st->rb);
+	st->count++;
 	if (add_front || !new_cfqq)
 		return;
 	cfq_group_notify_queue_add(cfqd, cfqq->cfqg);
@@ -2030,8 +2417,8 @@ static void __cfq_set_active_queue(struct cfq_data *cfqd,
 				   struct cfq_queue *cfqq)
 {
 	if (cfqq) {
-		cfq_log_cfqq(cfqd, cfqq, "set_active wl_prio:%d wl_type:%d",
-				cfqd->serving_prio, cfqd->serving_type);
+		cfq_log_cfqq(cfqd, cfqq, "set_active wl_class:%d wl_type:%d",
+				cfqd->serving_wl_class, cfqd->serving_wl_type);
 		cfqg_stats_update_avg_queue_size(cfqq->cfqg);
 		cfqq->slice_start = 0;
 		cfqq->dispatch_start = jiffies;
@@ -2117,19 +2504,18 @@ static inline void cfq_slice_expired(struct cfq_data *cfqd, bool timed_out)
  */
 static struct cfq_queue *cfq_get_next_queue(struct cfq_data *cfqd)
 {
-	struct cfq_rb_root *service_tree =
-		service_tree_for(cfqd->serving_group, cfqd->serving_prio,
-					cfqd->serving_type);
+	struct cfq_rb_root *st = st_for(cfqd->serving_group,
+			cfqd->serving_wl_class, cfqd->serving_wl_type);
 
 	if (!cfqd->rq_queued)
 		return NULL;
 
 	/* There is nothing to dispatch */
-	if (!service_tree)
+	if (!st)
 		return NULL;
-	if (RB_EMPTY_ROOT(&service_tree->rb))
+	if (RB_EMPTY_ROOT(&st->rb))
 		return NULL;
-	return cfq_rb_first(service_tree);
+	return cfq_rb_first(st);
 }
 
 static struct cfq_queue *cfq_get_next_queue_forced(struct cfq_data *cfqd)
@@ -2285,17 +2671,17 @@ static struct cfq_queue *cfq_close_cooperator(struct cfq_data *cfqd,
 
 static bool cfq_should_idle(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
-	enum wl_prio_t prio = cfqq_prio(cfqq);
-	struct cfq_rb_root *service_tree = cfqq->service_tree;
+	enum wl_class_t wl_class = cfqq_class(cfqq);
+	struct cfq_rb_root *st = cfqq->service_tree;
 
-	BUG_ON(!service_tree);
-	BUG_ON(!service_tree->count);
+	BUG_ON(!st);
+	BUG_ON(!st->count);
 
 	if (!cfqd->cfq_slice_idle)
 		return false;
 
 	/* We never do for idle class queues. */
-	if (prio == IDLE_WORKLOAD)
+	if (wl_class == IDLE_WORKLOAD)
 		return false;
 
 	/* We do for queues that were marked with idle window flag. */
@@ -2307,11 +2693,10 @@ static bool cfq_should_idle(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * Otherwise, we do only if they are the last ones
 	 * in their service tree.
 	 */
-	if (service_tree->count == 1 && cfq_cfqq_sync(cfqq) &&
-	   !cfq_io_thinktime_big(cfqd, &service_tree->ttime, false))
+	if (st->count == 1 && cfq_cfqq_sync(cfqq) &&
+	   !cfq_io_thinktime_big(cfqd, &st->ttime, false))
 		return true;
-	cfq_log_cfqq(cfqd, cfqq, "Not idling. st->count:%d",
-			service_tree->count);
+	cfq_log_cfqq(cfqd, cfqq, "Not idling. st->count:%d", st->count);
 	return false;
 }
 
@@ -2494,8 +2879,8 @@ static void cfq_setup_merge(struct cfq_queue *cfqq, struct cfq_queue *new_cfqq)
 	}
 }
 
-static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
-				struct cfq_group *cfqg, enum wl_prio_t prio)
+static enum wl_type_t cfq_choose_wl_type(struct cfq_data *cfqd,
+			struct cfq_group *cfqg, enum wl_class_t wl_class)
 {
 	struct cfq_queue *queue;
 	int i;
@@ -2505,7 +2890,7 @@ static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
 
 	for (i = 0; i <= SYNC_WORKLOAD; ++i) {
 		/* select the one with lowest rb_key */
-		queue = cfq_rb_first(service_tree_for(cfqg, prio, i));
+		queue = cfq_rb_first(st_for(cfqg, wl_class, i));
 		if (queue &&
 		    (!key_valid || time_before(queue->rb_key, lowest_key))) {
 			lowest_key = queue->rb_key;
@@ -2517,26 +2902,27 @@ static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
 	return cur_best;
 }
 
-static void choose_service_tree(struct cfq_data *cfqd, struct cfq_group *cfqg)
+static void
+choose_wl_class_and_type(struct cfq_data *cfqd, struct cfq_group *cfqg)
 {
 	unsigned slice;
 	unsigned count;
 	struct cfq_rb_root *st;
 	unsigned group_slice;
-	enum wl_prio_t original_prio = cfqd->serving_prio;
+	enum wl_class_t original_class = cfqd->serving_wl_class;
 
 	/* Choose next priority. RT > BE > IDLE */
 	if (cfq_group_busy_queues_wl(RT_WORKLOAD, cfqd, cfqg))
-		cfqd->serving_prio = RT_WORKLOAD;
+		cfqd->serving_wl_class = RT_WORKLOAD;
 	else if (cfq_group_busy_queues_wl(BE_WORKLOAD, cfqd, cfqg))
-		cfqd->serving_prio = BE_WORKLOAD;
+		cfqd->serving_wl_class = BE_WORKLOAD;
 	else {
-		cfqd->serving_prio = IDLE_WORKLOAD;
+		cfqd->serving_wl_class = IDLE_WORKLOAD;
 		cfqd->workload_expires = jiffies + 1;
 		return;
 	}
 
-	if (original_prio != cfqd->serving_prio)
+	if (original_class != cfqd->serving_wl_class)
 		goto new_workload;
 
 	/*
@@ -2544,7 +2930,7 @@ static void choose_service_tree(struct cfq_data *cfqd, struct cfq_group *cfqg)
 	 * (SYNC, SYNC_NOIDLE, ASYNC), and to compute a workload
 	 * expiration time
 	 */
-	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type);
+	st = st_for(cfqg, cfqd->serving_wl_class, cfqd->serving_wl_type);
 	count = st->count;
 
 	/*
@@ -2555,9 +2941,9 @@ static void choose_service_tree(struct cfq_data *cfqd, struct cfq_group *cfqg)
 
 new_workload:
 	/* otherwise select new workload type */
-	cfqd->serving_type =
-		cfq_choose_wl(cfqd, cfqg, cfqd->serving_prio);
-	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type);
+	cfqd->serving_wl_type = cfq_choose_wl_type(cfqd, cfqg,
+					cfqd->serving_wl_class);
+	st = st_for(cfqg, cfqd->serving_wl_class, cfqd->serving_wl_type);
 	count = st->count;
 
 	/*
@@ -2568,10 +2954,11 @@ new_workload:
 	group_slice = cfq_group_slice(cfqd, cfqg);
 
 	slice = group_slice * count /
-		max_t(unsigned, cfqg->busy_queues_avg[cfqd->serving_prio],
-		      cfq_group_busy_queues_wl(cfqd->serving_prio, cfqd, cfqg));
+		max_t(unsigned, cfqg->busy_queues_avg[cfqd->serving_wl_class],
+		      cfq_group_busy_queues_wl(cfqd->serving_wl_class, cfqd,
+					cfqg));
 
-	if (cfqd->serving_type == ASYNC_WORKLOAD) {
+	if (cfqd->serving_wl_type == ASYNC_WORKLOAD) {
 		unsigned int tmp;
 
 		/*
@@ -2617,14 +3004,14 @@ static void cfq_choose_cfqg(struct cfq_data *cfqd)
 	cfqd->serving_group = cfqg;
 
 	/* Restore the workload type data */
-	if (cfqg->saved_workload_slice) {
-		cfqd->workload_expires = jiffies + cfqg->saved_workload_slice;
-		cfqd->serving_type = cfqg->saved_workload;
-		cfqd->serving_prio = cfqg->saved_serving_prio;
+	if (cfqg->saved_wl_slice) {
+		cfqd->workload_expires = jiffies + cfqg->saved_wl_slice;
+		cfqd->serving_wl_type = cfqg->saved_wl_type;
+		cfqd->serving_wl_class = cfqg->saved_wl_class;
 	} else
 		cfqd->workload_expires = jiffies - 1;
 
-	choose_service_tree(cfqd, cfqg);
+	choose_wl_class_and_type(cfqd, cfqg);
 }
 
 /*
@@ -3206,6 +3593,8 @@ retry:
 			spin_lock_irq(cfqd->queue->queue_lock);
 			if (new_cfqq)
 				goto retry;
+			else
+				return &cfqd->oom_cfqq;
 		} else {
 			cfqq = kmem_cache_alloc_node(cfq_pool,
 					gfp_mask | __GFP_ZERO,
@@ -3403,7 +3792,7 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 		return true;
 
 	/* Allow preemption only if we are idling on sync-noidle tree */
-	if (cfqd->serving_type == SYNC_NOIDLE_WORKLOAD &&
+	if (cfqd->serving_wl_type == SYNC_NOIDLE_WORKLOAD &&
 	    cfqq_type(new_cfqq) == SYNC_NOIDLE_WORKLOAD &&
 	    new_cfqq->service_tree->count == 2 &&
 	    RB_EMPTY_ROOT(&cfqq->sort_list))
@@ -3455,7 +3844,7 @@ static void cfq_preempt_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * doesn't happen
 	 */
 	if (old_type != cfqq_type(cfqq))
-		cfqq->cfqg->saved_workload_slice = 0;
+		cfqq->cfqg->saved_wl_slice = 0;
 
 	/*
 	 * Put the new queue at the front of the of the current list,
@@ -3637,16 +4026,17 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 	cfqd->rq_in_flight[cfq_cfqq_sync(cfqq)]--;
 
 	if (sync) {
-		struct cfq_rb_root *service_tree;
+		struct cfq_rb_root *st;
 
 		RQ_CIC(rq)->ttime.last_end_request = now;
 
 		if (cfq_cfqq_on_rr(cfqq))
-			service_tree = cfqq->service_tree;
+			st = cfqq->service_tree;
 		else
-			service_tree = service_tree_for(cfqq->cfqg,
-				cfqq_prio(cfqq), cfqq_type(cfqq));
-		service_tree->ttime.last_end_request = now;
+			st = st_for(cfqq->cfqg, cfqq_class(cfqq),
+					cfqq_type(cfqq));
+
+		st->ttime.last_end_request = now;
 		if (!time_after(rq->start_time + cfqd->cfq_fifo_expire[1], now))
 			cfqd->last_delayed_sync = now;
 	}
@@ -3993,6 +4383,7 @@ static int cfq_init_queue(struct request_queue *q)
 	cfq_init_cfqg_base(cfqd->root_group);
 #endif
 	cfqd->root_group->weight = 2 * CFQ_WEIGHT_DEFAULT;
+	cfqd->root_group->leaf_weight = 2 * CFQ_WEIGHT_DEFAULT;
 
 	/*
 	 * Not strictly needed (since RB_ROOT just clears the node and we
@@ -4177,6 +4568,7 @@ static struct blkcg_policy blkcg_policy_cfq = {
 	.cftypes		= cfq_blkcg_files,
 
 	.pd_init_fn		= cfq_pd_init,
+	.pd_offline_fn		= cfq_pd_offline,
 	.pd_reset_stats_fn	= cfq_pd_reset_stats,
 };
 #endif

@@ -75,18 +75,7 @@ static struct hid_driver px_driver = {
 	.id_table = px_devices,
 	.raw_event = px_raw_event,
 };
+module_hid_driver(px_driver);
 
-static int __init px_init(void)
-{
-	return hid_register_driver(&px_driver);
-}
-
-static void __exit px_exit(void)
-{
-	hid_unregister_driver(&px_driver);
-}
-
-module_init(px_init);
-module_exit(px_exit);
 MODULE_AUTHOR("Terry Lambert <tlambert@google.com>");
 MODULE_LICENSE("GPL");

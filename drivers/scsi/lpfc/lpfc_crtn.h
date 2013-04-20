@@ -164,8 +164,7 @@ void lpfc_hb_timeout_handler(struct lpfc_hba *);
 
 void lpfc_ct_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
 			 struct lpfc_iocbq *);
-void lpfc_sli4_ct_abort_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
-				    struct lpfc_iocbq *);
+int lpfc_ct_handle_unsol_abort(struct lpfc_hba *, struct hbq_dmabuf *);
 int lpfc_ns_cmd(struct lpfc_vport *, int, uint8_t, uint32_t);
 int lpfc_fdmi_cmd(struct lpfc_vport *, struct lpfc_nodelist *, int);
 void lpfc_fdmi_tmo(unsigned long);
@@ -427,6 +426,7 @@ int lpfc_bsg_request(struct fc_bsg_job *);
 int lpfc_bsg_timeout(struct fc_bsg_job *);
 int lpfc_bsg_ct_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
 			     struct lpfc_iocbq *);
+int lpfc_bsg_ct_unsol_abort(struct lpfc_hba *, struct hbq_dmabuf *);
 void __lpfc_sli_ringtx_put(struct lpfc_hba *, struct lpfc_sli_ring *,
 	struct lpfc_iocbq *);
 struct lpfc_iocbq *lpfc_sli_ringtx_get(struct lpfc_hba *,

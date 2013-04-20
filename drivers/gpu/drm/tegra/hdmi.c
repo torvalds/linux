@@ -10,12 +10,14 @@
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/gpio.h>
+#include <linux/hdmi.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
+#include <linux/clk/tegra.h>
 
-#include <mach/clk.h>
+#include <drm/drm_edid.h>
 
 #include "hdmi.h"
 #include "drm.h"
@@ -401,54 +403,65 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi, unsigned int pclk)
 	return 0;
 }
 
-static void tegra_hdmi_write_infopack(struct tegra_hdmi *hdmi,
-				      unsigned int offset, u8 type,
-				      u8 version, void *data, size_t size)
+static inline unsigned long tegra_hdmi_subpack(const u8 *ptr, size_t size)
 {
-	unsigned long value;
-	u8 *ptr = data;
-	u32 subpack[2];
+	unsigned long value = 0;
 	size_t i;
-	u8 csum;
 
-	/* first byte of data is the checksum */
-	csum = type + version + size - 1;
+	for (i = size; i > 0; i--)
+		value = (value << 8) | ptr[i - 1];
 
-	for (i = 1; i < size; i++)
-		csum += ptr[i];
+	return value;
+}
 
-	ptr[0] = 0x100 - csum;
+static void tegra_hdmi_write_infopack(struct tegra_hdmi *hdmi, const void *data,
+				      size_t size)
+{
+	const u8 *ptr = data;
+	unsigned long offset;
+	unsigned long value;
+	size_t i, j;
 
-	value = INFOFRAME_HEADER_TYPE(type) |
-		INFOFRAME_HEADER_VERSION(version) |
-		INFOFRAME_HEADER_LEN(size - 1);
+	switch (ptr[0]) {
+	case HDMI_INFOFRAME_TYPE_AVI:
+		offset = HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_HEADER;
+		break;
+
+	case HDMI_INFOFRAME_TYPE_AUDIO:
+		offset = HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_HEADER;
+		break;
+
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		offset = HDMI_NV_PDISP_HDMI_GENERIC_HEADER;
+		break;
+
+	default:
+		dev_err(hdmi->dev, "unsupported infoframe type: %02x\n",
+			ptr[0]);
+		return;
+	}
+
+	value = INFOFRAME_HEADER_TYPE(ptr[0]) |
+		INFOFRAME_HEADER_VERSION(ptr[1]) |
+		INFOFRAME_HEADER_LEN(ptr[2]);
 	tegra_hdmi_writel(hdmi, value, offset);
+	offset++;
 
-	/* The audio inforame only has one set of subpack registers.  The hdmi
-	 * block pads the rest of the data as per the spec so we have to fixup
-	 * the length before filling in the subpacks.
+	/*
+	 * Each subpack contains 7 bytes, divided into:
+	 * - subpack_low: bytes 0 - 3
+	 * - subpack_high: bytes 4 - 6 (with byte 7 padded to 0x00)
 	 */
-	if (offset == HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_HEADER)
-		size = 6;
+	for (i = 3, j = 0; i < size; i += 7, j += 8) {
+		size_t rem = size - i, num = min_t(size_t, rem, 4);
 
-	/* each subpack 7 bytes devided into:
-	 *   subpack_low - bytes 0 - 3
-	 *   subpack_high - bytes 4 - 6 (with byte 7 padded to 0x00)
-	 */
-	for (i = 0; i < size; i++) {
-		size_t index = i % 7;
+		value = tegra_hdmi_subpack(&ptr[i], num);
+		tegra_hdmi_writel(hdmi, value, offset++);
 
-		if (index == 0)
-			memset(subpack, 0x0, sizeof(subpack));
+		num = min_t(size_t, rem - num, 3);
 
-		((u8 *)subpack)[index] = ptr[i];
-
-		if (index == 6 || (i + 1 == size)) {
-			unsigned int reg = offset + 1 + (i / 7) * 2;
-
-			tegra_hdmi_writel(hdmi, subpack[0], reg);
-			tegra_hdmi_writel(hdmi, subpack[1], reg + 1);
-		}
+		value = tegra_hdmi_subpack(&ptr[i + 4], num);
+		tegra_hdmi_writel(hdmi, value, offset++);
 	}
 }
 
@@ -456,9 +469,8 @@ static void tegra_hdmi_setup_avi_infoframe(struct tegra_hdmi *hdmi,
 					   struct drm_display_mode *mode)
 {
 	struct hdmi_avi_infoframe frame;
-	unsigned int h_front_porch;
-	unsigned int hsize = 16;
-	unsigned int vsize = 9;
+	u8 buffer[17];
+	ssize_t err;
 
 	if (hdmi->dvi) {
 		tegra_hdmi_writel(hdmi, 0,
@@ -466,69 +478,19 @@ static void tegra_hdmi_setup_avi_infoframe(struct tegra_hdmi *hdmi,
 		return;
 	}
 
-	h_front_porch = mode->hsync_start - mode->hdisplay;
-	memset(&frame, 0, sizeof(frame));
-	frame.r = HDMI_AVI_R_SAME;
-
-	switch (mode->vdisplay) {
-	case 480:
-		if (mode->hdisplay == 640) {
-			frame.m = HDMI_AVI_M_4_3;
-			frame.vic = 1;
-		} else {
-			frame.m = HDMI_AVI_M_16_9;
-			frame.vic = 3;
-		}
-		break;
-
-	case 576:
-		if (((hsize * 10) / vsize) > 14) {
-			frame.m = HDMI_AVI_M_16_9;
-			frame.vic = 18;
-		} else {
-			frame.m = HDMI_AVI_M_4_3;
-			frame.vic = 17;
-		}
-		break;
-
-	case 720:
-	case 1470: /* stereo mode */
-		frame.m = HDMI_AVI_M_16_9;
-
-		if (h_front_porch == 110)
-			frame.vic = 4;
-		else
-			frame.vic = 19;
-		break;
-
-	case 1080:
-	case 2205: /* stereo mode */
-		frame.m = HDMI_AVI_M_16_9;
-
-		switch (h_front_porch) {
-		case 88:
-			frame.vic = 16;
-			break;
-
-		case 528:
-			frame.vic = 31;
-			break;
-
-		default:
-			frame.vic = 32;
-			break;
-		}
-		break;
-
-	default:
-		frame.m = HDMI_AVI_M_16_9;
-		frame.vic = 0;
-		break;
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
+	if (err < 0) {
+		dev_err(hdmi->dev, "failed to setup AVI infoframe: %zd\n", err);
+		return;
 	}
 
-	tegra_hdmi_write_infopack(hdmi, HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_HEADER,
-				  HDMI_INFOFRAME_TYPE_AVI, HDMI_AVI_VERSION,
-				  &frame, sizeof(frame));
+	err = hdmi_avi_infoframe_pack(&frame, buffer, sizeof(buffer));
+	if (err < 0) {
+		dev_err(hdmi->dev, "failed to pack AVI infoframe: %zd\n", err);
+		return;
+	}
+
+	tegra_hdmi_write_infopack(hdmi, buffer, err);
 
 	tegra_hdmi_writel(hdmi, INFOFRAME_CTRL_ENABLE,
 			  HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_CTRL);
@@ -537,6 +499,8 @@ static void tegra_hdmi_setup_avi_infoframe(struct tegra_hdmi *hdmi,
 static void tegra_hdmi_setup_audio_infoframe(struct tegra_hdmi *hdmi)
 {
 	struct hdmi_audio_infoframe frame;
+	u8 buffer[14];
+	ssize_t err;
 
 	if (hdmi->dvi) {
 		tegra_hdmi_writel(hdmi, 0,
@@ -544,14 +508,29 @@ static void tegra_hdmi_setup_audio_infoframe(struct tegra_hdmi *hdmi)
 		return;
 	}
 
-	memset(&frame, 0, sizeof(frame));
-	frame.cc = HDMI_AUDIO_CC_2;
+	err = hdmi_audio_infoframe_init(&frame);
+	if (err < 0) {
+		dev_err(hdmi->dev, "failed to initialize audio infoframe: %d\n",
+			err);
+		return;
+	}
 
-	tegra_hdmi_write_infopack(hdmi,
-				  HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_HEADER,
-				  HDMI_INFOFRAME_TYPE_AUDIO,
-				  HDMI_AUDIO_VERSION,
-				  &frame, sizeof(frame));
+	frame.channels = 2;
+
+	err = hdmi_audio_infoframe_pack(&frame, buffer, sizeof(buffer));
+	if (err < 0) {
+		dev_err(hdmi->dev, "failed to pack audio infoframe: %zd\n",
+			err);
+		return;
+	}
+
+	/*
+	 * The audio infoframe has only one set of subpack registers, so the
+	 * infoframe needs to be truncated. One set of subpack registers can
+	 * contain 7 bytes. Including the 3 byte header only the first 10
+	 * bytes can be programmed.
+	 */
+	tegra_hdmi_write_infopack(hdmi, buffer, min(10, err));
 
 	tegra_hdmi_writel(hdmi, INFOFRAME_CTRL_ENABLE,
 			  HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL);
@@ -559,8 +538,10 @@ static void tegra_hdmi_setup_audio_infoframe(struct tegra_hdmi *hdmi)
 
 static void tegra_hdmi_setup_stereo_infoframe(struct tegra_hdmi *hdmi)
 {
-	struct hdmi_stereo_infoframe frame;
+	struct hdmi_vendor_infoframe frame;
 	unsigned long value;
+	u8 buffer[10];
+	ssize_t err;
 
 	if (!hdmi->stereo) {
 		value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
@@ -570,22 +551,32 @@ static void tegra_hdmi_setup_stereo_infoframe(struct tegra_hdmi *hdmi)
 	}
 
 	memset(&frame, 0, sizeof(frame));
-	frame.regid0 = 0x03;
-	frame.regid1 = 0x0c;
-	frame.regid2 = 0x00;
-	frame.hdmi_video_format = 2;
+
+	frame.type = HDMI_INFOFRAME_TYPE_VENDOR;
+	frame.version = 0x01;
+	frame.length = 6;
+
+	frame.data[0] = 0x03; /* regid0 */
+	frame.data[1] = 0x0c; /* regid1 */
+	frame.data[2] = 0x00; /* regid2 */
+	frame.data[3] = 0x02 << 5; /* video format */
 
 	/* TODO: 74 MHz limit? */
 	if (1) {
-		frame._3d_structure = 0;
+		frame.data[4] = 0x00 << 4; /* 3D structure */
 	} else {
-		frame._3d_structure = 8;
-		frame._3d_ext_data = 0;
+		frame.data[4] = 0x08 << 4; /* 3D structure */
+		frame.data[5] = 0x00 << 4; /* 3D ext. data */
 	}
 
-	tegra_hdmi_write_infopack(hdmi, HDMI_NV_PDISP_HDMI_GENERIC_HEADER,
-				  HDMI_INFOFRAME_TYPE_VENDOR,
-				  HDMI_VENDOR_VERSION, &frame, 6);
+	err = hdmi_vendor_infoframe_pack(&frame, buffer, sizeof(buffer));
+	if (err < 0) {
+		dev_err(hdmi->dev, "failed to pack vendor infoframe: %zd\n",
+			err);
+		return;
+	}
+
+	tegra_hdmi_write_infopack(hdmi, buffer, err);
 
 	value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
 	value |= GENERIC_CTRL_ENABLE;
@@ -1259,9 +1250,9 @@ static int tegra_hdmi_probe(struct platform_device *pdev)
 	if (!regs)
 		return -ENXIO;
 
-	hdmi->regs = devm_request_and_ioremap(&pdev->dev, regs);
-	if (!hdmi->regs)
-		return -EADDRNOTAVAIL;
+	hdmi->regs = devm_ioremap_resource(&pdev->dev, regs);
+	if (IS_ERR(hdmi->regs))
+		return PTR_ERR(hdmi->regs);
 
 	err = platform_get_irq(pdev, 0);
 	if (err < 0)

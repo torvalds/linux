@@ -72,10 +72,8 @@ static int download_image(struct sdio_func *func, const char *img_name)
 	}
 
 	buf = kmalloc(DOWNLOAD_SIZE + TYPE_A_HEADER_SIZE, GFP_KERNEL);
-	if (buf == NULL) {
-		dev_err(&func->dev, "Error: kmalloc\n");
+	if (buf == NULL)
 		return -ENOMEM;
-	}
 
 	img_len = firm->size;
 
@@ -141,11 +139,8 @@ int sdio_boot(struct sdio_func *func)
 	const char *rfs_name = FW_DIR FW_RFS;
 
 	tx_buf = kmalloc(YMEM0_SIZE, GFP_KERNEL);
-	if (tx_buf == NULL) {
-		dev_err(&func->dev, "Error: kmalloc: %s %d\n",
-			__func__, __LINE__);
+	if (tx_buf == NULL)
 		return -ENOMEM;
-	}
 
 	ret = download_image(func, krn_name);
 	if (ret)

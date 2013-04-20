@@ -185,7 +185,7 @@ int __init pvclock_init_vsyscall(struct pvclock_vsyscall_time_info *i,
 
 	for (idx = 0; idx <= (PVCLOCK_FIXMAP_END-PVCLOCK_FIXMAP_BEGIN); idx++) {
 		__set_fixmap(PVCLOCK_FIXMAP_BEGIN + idx,
-			     __pa_symbol(i) + (idx*PAGE_SIZE),
+			     __pa(i) + (idx*PAGE_SIZE),
 			     PAGE_KERNEL_VVAR);
 	}
 

@@ -100,7 +100,7 @@ static void __init update_clock_frequency(struct device_node *node)
 	}
 
 	*(u32 *)newfreq->value = cpu_to_be32(*(u32 *)XTFPGA_CLKFRQ_VADDR);
-	prom_update_property(node, newfreq);
+	of_update_property(node, newfreq);
 }
 
 #define MAC_LEN 6
@@ -128,7 +128,7 @@ static void __init update_local_mac(struct device_node *node)
 
 	memcpy(newmac->value, macaddr, MAC_LEN);
 	((u8*)newmac->value)[5] = (*(u32*)DIP_SWITCHES_VADDR) & 0x3f;
-	prom_update_property(node, newmac);
+	of_update_property(node, newmac);
 }
 
 static int __init machine_setup(void)

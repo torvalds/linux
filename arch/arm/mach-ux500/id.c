@@ -17,6 +17,8 @@
 #include <mach/hardware.h>
 #include <mach/setup.h>
 
+#include "id.h"
+
 struct dbx500_asic_id dbx500_id;
 
 static unsigned int ux500_read_asicid(phys_addr_t addr)

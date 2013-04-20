@@ -612,15 +612,9 @@ xfs_qm_dqread(
 	if (flags & XFS_QMOPT_DQALLOC) {
 		tp = xfs_trans_alloc(mp, XFS_TRANS_QM_DQALLOC);
 		error = xfs_trans_reserve(tp, XFS_QM_DQALLOC_SPACE_RES(mp),
-				XFS_WRITE_LOG_RES(mp) +
-				/*
-				 * Round the chunklen up to the next multiple
-				 * of 128 (buf log item chunk size)).
-				 */
-				BBTOB(mp->m_quotainfo->qi_dqchunklen) - 1 + 128,
-				0,
-				XFS_TRANS_PERM_LOG_RES,
-				XFS_WRITE_LOG_COUNT);
+					  XFS_QM_DQALLOC_LOG_RES(mp), 0,
+					  XFS_TRANS_PERM_LOG_RES,
+					  XFS_WRITE_LOG_COUNT);
 		if (error)
 			goto error1;
 		cancelflags = XFS_TRANS_RELEASE_LOG_RES;

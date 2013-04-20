@@ -208,19 +208,7 @@ static struct hid_driver lua_driver = {
 		.probe = lua_probe,
 		.remove = lua_remove
 };
-
-static int __init lua_init(void)
-{
-	return hid_register_driver(&lua_driver);
-}
-
-static void __exit lua_exit(void)
-{
-	hid_unregister_driver(&lua_driver);
-}
-
-module_init(lua_init);
-module_exit(lua_exit);
+module_hid_driver(lua_driver);
 
 MODULE_AUTHOR("Stefan Achatz");
 MODULE_DESCRIPTION("USB Roccat Lua driver");

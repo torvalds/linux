@@ -156,14 +156,9 @@ void __init iop_init_time(unsigned long tick_rate)
 	write_tmr0(timer_ctl & ~IOP_TMR_EN);
 	write_tisr(1);
 	setup_irq(IRQ_IOP_TIMER0, &iop_timer_irq);
-	clockevents_calc_mult_shift(&iop_clockevent,
-				    tick_rate, IOP_MIN_RANGE);
-	iop_clockevent.max_delta_ns =
-		clockevent_delta2ns(0xfffffffe, &iop_clockevent);
-	iop_clockevent.min_delta_ns =
-		clockevent_delta2ns(0xf, &iop_clockevent);
 	iop_clockevent.cpumask = cpumask_of(0);
-	clockevents_register_device(&iop_clockevent);
+	clockevents_config_and_register(&iop_clockevent, tick_rate,
+					0xf, 0xfffffffe);
 
 	/*
 	 * Set up free-running clocksource timer 1.

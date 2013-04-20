@@ -1479,8 +1479,7 @@ intel_tv_set_property(struct drm_connector *connector, struct drm_property *prop
 	}
 
 	if (changed && crtc)
-		intel_set_mode(crtc, &crtc->mode,
-			       crtc->x, crtc->y, crtc->fb);
+		intel_crtc_restore_mode(crtc);
 out:
 	return ret;
 }
@@ -1488,7 +1487,6 @@ out:
 static const struct drm_encoder_helper_funcs intel_tv_helper_funcs = {
 	.mode_fixup = intel_tv_mode_fixup,
 	.mode_set = intel_tv_mode_set,
-	.disable = intel_encoder_noop,
 };
 
 static const struct drm_connector_funcs intel_tv_connector_funcs = {

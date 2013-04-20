@@ -577,8 +577,6 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_GAIN:			return "Gain";
 	case V4L2_CID_HFLIP:			return "Horizontal Flip";
 	case V4L2_CID_VFLIP:			return "Vertical Flip";
-	case V4L2_CID_HCENTER:			return "Horizontal Center";
-	case V4L2_CID_VCENTER:			return "Vertical Center";
 	case V4L2_CID_POWER_LINE_FREQUENCY:	return "Power Line Frequency";
 	case V4L2_CID_HUE_AUTO:			return "Hue, Automatic";
 	case V4L2_CID_WHITE_BALANCE_TEMPERATURE: return "White Balance Temperature";
@@ -1160,8 +1158,7 @@ static int new_to_user(struct v4l2_ext_control *c,
 }
 
 /* Copy the new value to the current value. */
-static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
-						bool update_inactive)
+static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 ch_flags)
 {
 	bool changed = false;
 
@@ -1185,8 +1182,8 @@ static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
 		ctrl->cur.val = ctrl->val;
 		break;
 	}
-	if (update_inactive) {
-		/* Note: update_inactive can only be true for auto clusters. */
+	if (ch_flags & V4L2_EVENT_CTRL_CH_FLAGS) {
+		/* Note: CH_FLAGS is only set for auto clusters. */
 		ctrl->flags &=
 			~(V4L2_CTRL_FLAG_INACTIVE | V4L2_CTRL_FLAG_VOLATILE);
 		if (!is_cur_manual(ctrl->cluster[0])) {
@@ -1196,14 +1193,15 @@ static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
 		}
 		fh = NULL;
 	}
-	if (changed || update_inactive) {
+	if (changed || ch_flags) {
 		/* If a control was changed that was not one of the controls
 		   modified by the application, then send the event to all. */
 		if (!ctrl->is_new)
 			fh = NULL;
 		send_event(fh, ctrl,
-			(changed ? V4L2_EVENT_CTRL_CH_VALUE : 0) |
-			(update_inactive ? V4L2_EVENT_CTRL_CH_FLAGS : 0));
+			(changed ? V4L2_EVENT_CTRL_CH_VALUE : 0) | ch_flags);
+		if (ctrl->call_notify && changed && ctrl->handler->notify)
+			ctrl->handler->notify(ctrl, ctrl->handler->notify_priv);
 	}
 }
 
@@ -1255,6 +1253,41 @@ static int cluster_changed(struct v4l2_ctrl *master)
 		}
 	}
 	return diff;
+}
+
+/* Control range checking */
+static int check_range(enum v4l2_ctrl_type type,
+		s32 min, s32 max, u32 step, s32 def)
+{
+	switch (type) {
+	case V4L2_CTRL_TYPE_BOOLEAN:
+		if (step != 1 || max > 1 || min < 0)
+			return -ERANGE;
+		/* fall through */
+	case V4L2_CTRL_TYPE_INTEGER:
+		if (step <= 0 || min > max || def < min || def > max)
+			return -ERANGE;
+		return 0;
+	case V4L2_CTRL_TYPE_BITMASK:
+		if (step || min || !max || (def & ~max))
+			return -ERANGE;
+		return 0;
+	case V4L2_CTRL_TYPE_MENU:
+	case V4L2_CTRL_TYPE_INTEGER_MENU:
+		if (min > max || def < min || def > max)
+			return -ERANGE;
+		/* Note: step == menu_skip_mask for menu controls.
+		   So here we check if the default value is masked out. */
+		if (step && ((1 << def) & step))
+			return -EINVAL;
+		return 0;
+	case V4L2_CTRL_TYPE_STRING:
+		if (min > max || min < 0 || step < 1 || def)
+			return -ERANGE;
+		return 0;
+	default:
+		return 0;
+	}
 }
 
 /* Validate a new control */
@@ -1529,30 +1562,21 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 {
 	struct v4l2_ctrl *ctrl;
 	unsigned sz_extra = 0;
+	int err;
 
 	if (hdl->error)
 		return NULL;
 
 	/* Sanity checks */
 	if (id == 0 || name == NULL || id >= V4L2_CID_PRIVATE_BASE ||
-	    (type == V4L2_CTRL_TYPE_INTEGER && step == 0) ||
-	    (type == V4L2_CTRL_TYPE_BITMASK && max == 0) ||
 	    (type == V4L2_CTRL_TYPE_MENU && qmenu == NULL) ||
-	    (type == V4L2_CTRL_TYPE_INTEGER_MENU && qmenu_int == NULL) ||
-	    (type == V4L2_CTRL_TYPE_STRING && max == 0)) {
+	    (type == V4L2_CTRL_TYPE_INTEGER_MENU && qmenu_int == NULL)) {
 		handler_set_err(hdl, -ERANGE);
 		return NULL;
 	}
-	if (type != V4L2_CTRL_TYPE_BITMASK && max < min) {
-		handler_set_err(hdl, -ERANGE);
-		return NULL;
-	}
-	if ((type == V4L2_CTRL_TYPE_INTEGER ||
-	     type == V4L2_CTRL_TYPE_MENU ||
-	     type == V4L2_CTRL_TYPE_INTEGER_MENU ||
-	     type == V4L2_CTRL_TYPE_BOOLEAN) &&
-	    (def < min || def > max)) {
-		handler_set_err(hdl, -ERANGE);
+	err = check_range(type, min, max, step, def);
+	if (err) {
+		handler_set_err(hdl, err);
 		return NULL;
 	}
 	if (type == V4L2_CTRL_TYPE_BITMASK && ((def & ~max) || min || step)) {
@@ -1979,6 +2003,13 @@ void v4l2_ctrl_handler_log_status(struct v4l2_ctrl_handler *hdl,
 	mutex_unlock(hdl->lock);
 }
 EXPORT_SYMBOL(v4l2_ctrl_handler_log_status);
+
+int v4l2_ctrl_subdev_log_status(struct v4l2_subdev *sd)
+{
+	v4l2_ctrl_handler_log_status(sd->ctrl_handler, sd->name);
+	return 0;
+}
+EXPORT_SYMBOL(v4l2_ctrl_subdev_log_status);
 
 /* Call s_ctrl for all controls owned by the handler */
 int v4l2_ctrl_handler_setup(struct v4l2_ctrl_handler *hdl)
@@ -2426,8 +2457,8 @@ EXPORT_SYMBOL(v4l2_ctrl_g_ctrl_int64);
 /* Core function that calls try/s_ctrl and ensures that the new value is
    copied to the current value on a set.
    Must be called with ctrl->handler->lock held. */
-static int try_or_set_cluster(struct v4l2_fh *fh,
-			      struct v4l2_ctrl *master, bool set)
+static int try_or_set_cluster(struct v4l2_fh *fh, struct v4l2_ctrl *master,
+			      bool set, u32 ch_flags)
 {
 	bool update_flag;
 	int ret;
@@ -2465,7 +2496,8 @@ static int try_or_set_cluster(struct v4l2_fh *fh,
 	/* If OK, then make the new values permanent. */
 	update_flag = is_cur_manual(master) != is_new_manual(master);
 	for (i = 0; i < master->ncontrols; i++)
-		new_to_cur(fh, master->cluster[i], update_flag && i > 0);
+		new_to_cur(fh, master->cluster[i], ch_flags |
+			((update_flag && i > 0) ? V4L2_EVENT_CTRL_CH_FLAGS : 0));
 	return 0;
 }
 
@@ -2592,7 +2624,7 @@ static int try_set_ext_ctrls(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
 		} while (!ret && idx);
 
 		if (!ret)
-			ret = try_or_set_cluster(fh, master, set);
+			ret = try_or_set_cluster(fh, master, set, 0);
 
 		/* Copy the new values back to userspace. */
 		if (!ret) {
@@ -2638,10 +2670,9 @@ EXPORT_SYMBOL(v4l2_subdev_s_ext_ctrls);
 
 /* Helper function for VIDIOC_S_CTRL compatibility */
 static int set_ctrl(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
-		    struct v4l2_ext_control *c)
+		    struct v4l2_ext_control *c, u32 ch_flags)
 {
 	struct v4l2_ctrl *master = ctrl->cluster[0];
-	int ret;
 	int i;
 
 	/* String controls are not supported. The user_to_new() and
@@ -2650,12 +2681,6 @@ static int set_ctrl(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
 	 */
 	if (ctrl->type == V4L2_CTRL_TYPE_STRING)
 		return -EINVAL;
-
-	ret = validate_new(ctrl, c);
-	if (ret)
-		return ret;
-
-	v4l2_ctrl_lock(ctrl);
 
 	/* Reset the 'is_new' flags of the cluster */
 	for (i = 0; i < master->ncontrols; i++)
@@ -2670,10 +2695,22 @@ static int set_ctrl(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
 		update_from_auto_cluster(master);
 
 	user_to_new(c, ctrl);
-	ret = try_or_set_cluster(fh, master, true);
-	cur_to_user(c, ctrl);
+	return try_or_set_cluster(fh, master, true, ch_flags);
+}
 
-	v4l2_ctrl_unlock(ctrl);
+/* Helper function for VIDIOC_S_CTRL compatibility */
+static int set_ctrl_lock(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
+			 struct v4l2_ext_control *c)
+{
+	int ret = validate_new(ctrl, c);
+
+	if (!ret) {
+		v4l2_ctrl_lock(ctrl);
+		ret = set_ctrl(fh, ctrl, c, 0);
+		if (!ret)
+			cur_to_user(c, ctrl);
+		v4l2_ctrl_unlock(ctrl);
+	}
 	return ret;
 }
 
@@ -2691,7 +2728,7 @@ int v4l2_s_ctrl(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
 		return -EACCES;
 
 	c.value = control->value;
-	ret = set_ctrl(fh, ctrl, &c);
+	ret = set_ctrl_lock(fh, ctrl, &c);
 	control->value = c.value;
 	return ret;
 }
@@ -2710,7 +2747,7 @@ int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
 	/* It's a driver bug if this happens. */
 	WARN_ON(!type_is_int(ctrl));
 	c.value = val;
-	return set_ctrl(NULL, ctrl, &c);
+	return set_ctrl_lock(NULL, ctrl, &c);
 }
 EXPORT_SYMBOL(v4l2_ctrl_s_ctrl);
 
@@ -2721,9 +2758,60 @@ int v4l2_ctrl_s_ctrl_int64(struct v4l2_ctrl *ctrl, s64 val)
 	/* It's a driver bug if this happens. */
 	WARN_ON(ctrl->type != V4L2_CTRL_TYPE_INTEGER64);
 	c.value64 = val;
-	return set_ctrl(NULL, ctrl, &c);
+	return set_ctrl_lock(NULL, ctrl, &c);
 }
 EXPORT_SYMBOL(v4l2_ctrl_s_ctrl_int64);
+
+void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl, v4l2_ctrl_notify_fnc notify, void *priv)
+{
+	if (ctrl == NULL)
+		return;
+	if (notify == NULL) {
+		ctrl->call_notify = 0;
+		return;
+	}
+	if (WARN_ON(ctrl->handler->notify && ctrl->handler->notify != notify))
+		return;
+	ctrl->handler->notify = notify;
+	ctrl->handler->notify_priv = priv;
+	ctrl->call_notify = 1;
+}
+EXPORT_SYMBOL(v4l2_ctrl_notify);
+
+int v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
+			s32 min, s32 max, u32 step, s32 def)
+{
+	int ret = check_range(ctrl->type, min, max, step, def);
+	struct v4l2_ext_control c;
+
+	switch (ctrl->type) {
+	case V4L2_CTRL_TYPE_INTEGER:
+	case V4L2_CTRL_TYPE_BOOLEAN:
+	case V4L2_CTRL_TYPE_MENU:
+	case V4L2_CTRL_TYPE_INTEGER_MENU:
+	case V4L2_CTRL_TYPE_BITMASK:
+		if (ret)
+			return ret;
+		break;
+	default:
+		return -EINVAL;
+	}
+	v4l2_ctrl_lock(ctrl);
+	ctrl->minimum = min;
+	ctrl->maximum = max;
+	ctrl->step = step;
+	ctrl->default_value = def;
+	c.value = ctrl->cur.val;
+	if (validate_new(ctrl, &c))
+		c.value = def;
+	if (c.value != ctrl->cur.val)
+		ret = set_ctrl(NULL, ctrl, &c, V4L2_EVENT_CTRL_CH_RANGE);
+	else
+		send_event(NULL, ctrl, V4L2_EVENT_CTRL_CH_RANGE);
+	v4l2_ctrl_unlock(ctrl);
+	return ret;
+}
+EXPORT_SYMBOL(v4l2_ctrl_modify_range);
 
 static int v4l2_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems)
 {
@@ -2803,6 +2891,15 @@ int v4l2_ctrl_subscribe_event(struct v4l2_fh *fh,
 	return -EINVAL;
 }
 EXPORT_SYMBOL(v4l2_ctrl_subscribe_event);
+
+int v4l2_ctrl_subdev_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+				     struct v4l2_event_subscription *sub)
+{
+	if (!sd->ctrl_handler)
+		return -EINVAL;
+	return v4l2_ctrl_subscribe_event(fh, sub);
+}
+EXPORT_SYMBOL(v4l2_ctrl_subdev_subscribe_event);
 
 unsigned int v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait)
 {

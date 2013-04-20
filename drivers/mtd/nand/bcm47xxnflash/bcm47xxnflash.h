@@ -1,6 +1,10 @@
 #ifndef __BCM47XXNFLASH_H
 #define __BCM47XXNFLASH_H
 
+#ifndef pr_fmt
+#define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
+#endif
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 

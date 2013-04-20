@@ -627,7 +627,6 @@ static int pxa168_eth_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(sa->sa_data))
 		return -EADDRNOTAVAIL;
 	memcpy(oldMac, dev->dev_addr, ETH_ALEN);
-	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
 	netif_addr_lock_bh(dev);
 	update_hash_table_mac_address(pep, oldMac, dev->dev_addr);
@@ -1391,7 +1390,7 @@ static void phy_init(struct pxa168_eth_private *pep, int speed, int duplex)
 	struct phy_device *phy = pep->phy;
 	ethernet_phy_reset(pep);
 
-	phy_attach(pep->dev, dev_name(&phy->dev), 0, PHY_INTERFACE_MODE_MII);
+	phy_attach(pep->dev, dev_name(&phy->dev), PHY_INTERFACE_MODE_MII);
 
 	if (speed == 0) {
 		phy->autoneg = AUTONEG_ENABLE;
@@ -1444,10 +1443,10 @@ static int pxa168_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static void pxa168_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
-	strncpy(info->driver, DRIVER_NAME, 32);
-	strncpy(info->version, DRIVER_VERSION, 32);
-	strncpy(info->fw_version, "N/A", 32);
-	strncpy(info->bus_info, "N/A", 32);
+	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
+	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
+	strlcpy(info->bus_info, "N/A", sizeof(info->bus_info));
 }
 
 static const struct ethtool_ops pxa168_ethtool_ops = {

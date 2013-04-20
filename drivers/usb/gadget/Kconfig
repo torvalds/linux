@@ -145,6 +145,7 @@ config USB_LPC32XX
 	tristate "LPC32XX USB Peripheral Controller"
 	depends on ARCH_LPC32XX
 	select USB_ISP1301
+	select USB_OTG_UTILS
 	help
 	   This option selects the USB device controller in the LPC32xx SoC.
 
@@ -281,6 +282,7 @@ config USB_S3C_HSOTG
 config USB_IMX
 	tristate "Freescale i.MX1 USB Peripheral Controller"
 	depends on ARCH_MXC
+	depends on BROKEN
 	help
 	   Freescale's i.MX1 includes an integrated full speed
 	   USB 1.1 device controller.
@@ -319,6 +321,7 @@ config USB_S3C_HSUDC
 
 config USB_MV_UDC
 	tristate "Marvell USB2.0 Device Controller"
+	depends on GENERIC_HARDIRQS
 	help
 	  Marvell Socs (including PXA and MMP series) include a high speed
 	  USB2.0 OTG controller, which can be configured as high speed or
@@ -440,7 +443,7 @@ config USB_GOKU
 
 config USB_EG20T
 	tristate "Intel EG20T PCH/LAPIS Semiconductor IOH(ML7213/ML7831) UDC"
-	depends on PCI
+	depends on PCI && GENERIC_HARDIRQS
 	help
 	  This is a USB device driver for EG20T PCH.
 	  EG20T PCH is the platform controller hub that is used in Intel's
@@ -500,6 +503,15 @@ config USB_LIBCOMPOSITE
 	tristate
 	depends on USB_GADGET
 
+config USB_F_ACM
+	tristate
+
+config USB_F_SS_LB
+	tristate
+
+config USB_U_SERIAL
+	tristate
+
 choice
 	tristate "USB Gadget Drivers"
 	default USB_ETH
@@ -524,6 +536,7 @@ choice
 config USB_ZERO
 	tristate "Gadget Zero (DEVELOPMENT)"
 	select USB_LIBCOMPOSITE
+	select USB_F_SS_LB
 	help
 	  Gadget Zero is a two-configuration device.  It either sinks and
 	  sources bulk data; or it loops back a configurable number of
@@ -750,6 +763,9 @@ config USB_GADGET_TARGET
 
 config USB_G_SERIAL
 	tristate "Serial Gadget (with CDC ACM and CDC OBEX support)"
+	depends on TTY
+	select USB_U_SERIAL
+	select USB_F_ACM
 	select USB_LIBCOMPOSITE
 	help
 	  The Serial Gadget talks to the Linux-USB generic serial driver.
@@ -799,10 +815,14 @@ config USB_G_PRINTER
 	  For more information, see Documentation/usb/gadget_printer.txt
 	  which includes sample code for accessing the device file.
 
+if TTY
+
 config USB_CDC_COMPOSITE
 	tristate "CDC Composite Device (Ethernet and ACM)"
 	depends on NET
 	select USB_LIBCOMPOSITE
+	select USB_U_SERIAL
+	select USB_F_ACM
 	help
 	  This driver provides two functions in one configuration:
 	  a CDC Ethernet (ECM) link, and a CDC ACM (serial port) link.
@@ -818,6 +838,7 @@ config USB_G_NOKIA
 	tristate "Nokia composite gadget"
 	depends on PHONET
 	select USB_LIBCOMPOSITE
+	select USB_U_SERIAL
 	help
 	  The Nokia composite gadget provides support for acm, obex
 	  and phonet in only one composite gadget driver.
@@ -829,6 +850,8 @@ config USB_G_ACM_MS
 	tristate "CDC Composite Device (ACM and mass storage)"
 	depends on BLOCK
 	select USB_LIBCOMPOSITE
+	select USB_U_SERIAL
+	select USB_F_ACM
 	help
 	  This driver provides two functions in one configuration:
 	  a mass storage, and a CDC ACM (serial port) link.
@@ -841,6 +864,8 @@ config USB_G_MULTI
 	depends on BLOCK && NET
 	select USB_G_MULTI_CDC if !USB_G_MULTI_RNDIS
 	select USB_LIBCOMPOSITE
+	select USB_U_SERIAL
+	select USB_F_ACM
 	help
 	  The Multifunction Composite Gadget provides Ethernet (RNDIS
 	  and/or CDC Ethernet), mass storage and ACM serial link
@@ -879,6 +904,8 @@ config USB_G_MULTI_CDC
 
 	  If unsure, say "y".
 
+endif # TTY
+
 config USB_G_HID
 	tristate "HID Gadget"
 	select USB_LIBCOMPOSITE
@@ -895,6 +922,7 @@ config USB_G_HID
 # Standalone / single function gadgets
 config USB_G_DBGP
 	tristate "EHCI Debug Device Gadget"
+	depends on TTY
 	select USB_LIBCOMPOSITE
 	help
 	  This gadget emulates an EHCI Debug device. This is useful when you want
@@ -916,6 +944,7 @@ config USB_G_DBGP_PRINTK
 
 config USB_G_DBGP_SERIAL
 	depends on USB_G_DBGP
+	select USB_U_SERIAL
 	bool "serial"
 	help
 	  Userland can interact using /dev/ttyGSxxx.

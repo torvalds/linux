@@ -135,8 +135,7 @@ static int adc_jack_probe(struct platform_device *pdev)
 		;
 	data->num_conditions = i;
 
-	data->chan = iio_channel_get(dev_name(&pdev->dev),
-			pdata->consumer_channel);
+	data->chan = iio_channel_get(&pdev->dev, pdata->consumer_channel);
 	if (IS_ERR(data->chan)) {
 		err = PTR_ERR(data->chan);
 		goto out;

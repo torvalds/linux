@@ -1293,7 +1293,6 @@ static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
 		pr_cont(" ***INVALID CHECKSUM %4.4x*** ", checksum);
 	for (i = 0; i < 3; i++)
 		((__be16 *)dev->dev_addr)[i] = htons(eeprom[i + 10]);
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 	if (print_info)
 		pr_cont(" %pM", dev->dev_addr);
 	/* Unfortunately an all zero eeprom passes the checksum and this

@@ -23,6 +23,7 @@
  *
  */
 
+#include <linux/linkage.h>
 #include "glue_helper-asm-avx.S"
 
 .file "twofish-avx-x86_64-asm_64.S"
@@ -243,8 +244,6 @@
 	vpxor		x3, wkey, x3;
 
 .align 8
-.type	__twofish_enc_blk8,@function;
-
 __twofish_enc_blk8:
 	/* input:
 	 *	%rdi: ctx, CTX
@@ -284,10 +283,9 @@ __twofish_enc_blk8:
 	outunpack_blocks(RC2, RD2, RA2, RB2, RK1, RX0, RY0, RK2);
 
 	ret;
+ENDPROC(__twofish_enc_blk8)
 
 .align 8
-.type	__twofish_dec_blk8,@function;
-
 __twofish_dec_blk8:
 	/* input:
 	 *	%rdi: ctx, CTX
@@ -325,12 +323,9 @@ __twofish_dec_blk8:
 	outunpack_blocks(RA2, RB2, RC2, RD2, RK1, RX0, RY0, RK2);
 
 	ret;
+ENDPROC(__twofish_dec_blk8)
 
-.align 8
-.global twofish_ecb_enc_8way
-.type   twofish_ecb_enc_8way,@function;
-
-twofish_ecb_enc_8way:
+ENTRY(twofish_ecb_enc_8way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -346,12 +341,9 @@ twofish_ecb_enc_8way:
 	store_8way(%r11, RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2);
 
 	ret;
+ENDPROC(twofish_ecb_enc_8way)
 
-.align 8
-.global twofish_ecb_dec_8way
-.type   twofish_ecb_dec_8way,@function;
-
-twofish_ecb_dec_8way:
+ENTRY(twofish_ecb_dec_8way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -367,12 +359,9 @@ twofish_ecb_dec_8way:
 	store_8way(%r11, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
 	ret;
+ENDPROC(twofish_ecb_dec_8way)
 
-.align 8
-.global twofish_cbc_dec_8way
-.type   twofish_cbc_dec_8way,@function;
-
-twofish_cbc_dec_8way:
+ENTRY(twofish_cbc_dec_8way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -393,12 +382,9 @@ twofish_cbc_dec_8way:
 	popq %r12;
 
 	ret;
+ENDPROC(twofish_cbc_dec_8way)
 
-.align 8
-.global twofish_ctr_8way
-.type   twofish_ctr_8way,@function;
-
-twofish_ctr_8way:
+ENTRY(twofish_ctr_8way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -421,3 +407,4 @@ twofish_ctr_8way:
 	popq %r12;
 
 	ret;
+ENDPROC(twofish_ctr_8way)

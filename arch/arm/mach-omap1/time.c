@@ -145,7 +145,6 @@ static void omap_mpu_set_mode(enum clock_event_mode mode,
 static struct clock_event_device clockevent_mpu_timer1 = {
 	.name		= "mpu_timer1",
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.shift		= 32,
 	.set_next_event	= omap_mpu_set_next_event,
 	.set_mode	= omap_mpu_set_mode,
 };
@@ -170,15 +169,9 @@ static __init void omap_init_mpu_timer(unsigned long rate)
 	setup_irq(INT_TIMER1, &omap_mpu_timer1_irq);
 	omap_mpu_timer_start(0, (rate / HZ) - 1, 1);
 
-	clockevent_mpu_timer1.mult = div_sc(rate, NSEC_PER_SEC,
-					    clockevent_mpu_timer1.shift);
-	clockevent_mpu_timer1.max_delta_ns =
-		clockevent_delta2ns(-1, &clockevent_mpu_timer1);
-	clockevent_mpu_timer1.min_delta_ns =
-		clockevent_delta2ns(1, &clockevent_mpu_timer1);
-
 	clockevent_mpu_timer1.cpumask = cpumask_of(0);
-	clockevents_register_device(&clockevent_mpu_timer1);
+	clockevents_config_and_register(&clockevent_mpu_timer1, rate,
+					1, -1);
 }
 
 
@@ -236,12 +229,8 @@ static inline void omap_mpu_timer_init(void)
  * Timer initialization
  * ---------------------------------------------------------------------------
  */
-static void __init omap1_timer_init(void)
+void __init omap1_timer_init(void)
 {
 	if (omap_32k_timer_init() != 0)
 		omap_mpu_timer_init();
 }
-
-struct sys_timer omap1_timer = {
-	.init		= omap1_timer_init,
-};

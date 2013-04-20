@@ -38,7 +38,7 @@ static struct powerdomain dsp_pwrdm = {
 	.pwrsts_mem_on	  = {
 		[0] = PWRSTS_ON,
 	},
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
 };
 
 static struct powerdomain mpu_24xx_pwrdm = {
@@ -53,13 +53,14 @@ static struct powerdomain mpu_24xx_pwrdm = {
 	.pwrsts_mem_on	  = {
 		[0] = PWRSTS_ON,
 	},
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
 };
 
 static struct powerdomain core_24xx_pwrdm = {
 	.name		  = "core_pwrdm",
 	.prcm_offs	  = CORE_MOD,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
+	.pwrsts_logic_ret = PWRSTS_RET,
 	.banks		  = 3,
 	.pwrsts_mem_ret	  = {
 		[0] = PWRSTS_OFF_RET,	 /* MEM1RETSTATE */
@@ -71,7 +72,7 @@ static struct powerdomain core_24xx_pwrdm = {
 		[1] = PWRSTS_OFF_RET_ON, /* MEM2ONSTATE */
 		[2] = PWRSTS_OFF_RET_ON, /* MEM3ONSTATE */
 	},
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
 };
 
 
@@ -93,7 +94,7 @@ static struct powerdomain mdm_pwrdm = {
 	.pwrsts_mem_on	  = {
 		[0] = PWRSTS_ON,  /* MEMONSTATE */
 	},
-	.voltdm           = { .name = "core" },
+	.voltdm		  = { .name = "core" },
 };
 
 /*

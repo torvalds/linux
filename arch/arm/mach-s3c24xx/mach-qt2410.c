@@ -343,6 +343,6 @@ MACHINE_START(QT2410, "QT2410")
 	.map_io		= qt2410_map_io,
 	.init_irq	= s3c24xx_init_irq,
 	.init_machine	= qt2410_machine_init,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.restart	= s3c2410_restart,
 MACHINE_END

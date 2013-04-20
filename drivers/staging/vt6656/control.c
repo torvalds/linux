@@ -56,43 +56,34 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-void ControlvWriteByte(PSDevice pDevice, BYTE byRegType, BYTE byRegOfs,
-			BYTE byData)
+void ControlvWriteByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
+			u8 data)
 {
-	BYTE	byData1;
-	byData1 = byData;
-	CONTROLnsRequestOut(pDevice,
-		MESSAGE_TYPE_WRITE,
-		byRegOfs,
-		byRegType,
-		1,
-		&byData1);
+
+	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_WRITE, reg_off, reg,
+		sizeof(u8), &data);
+
+	return;
 }
 
-void ControlvReadByte(PSDevice pDevice, BYTE byRegType, BYTE byRegOfs,
-			PBYTE pbyData)
+void ControlvReadByte(struct vnt_private *pDevice, u8 reg, u8 reg_off,
+			u8 *data)
 {
-	int ntStatus;
-	BYTE	byData1;
-	ntStatus = CONTROLnsRequestIn(pDevice,
-					MESSAGE_TYPE_READ,
-					byRegOfs,
-					byRegType,
-					1,
-					&byData1);
-	*pbyData = byData1;
+	CONTROLnsRequestIn(pDevice, MESSAGE_TYPE_READ,
+			reg_off, reg, sizeof(u8), data);
+	return;
 }
 
-void ControlvMaskByte(PSDevice pDevice, BYTE byRegType, BYTE byRegOfs,
-			BYTE byMask, BYTE byData)
+void ControlvMaskByte(struct vnt_private *pDevice, u8 reg_type, u8 reg_off,
+			u8 reg_mask, u8 data)
 {
-	BYTE	pbyData[2];
-	pbyData[0] = byData;
-	pbyData[1] = byMask;
-	CONTROLnsRequestOut(pDevice,
-				MESSAGE_TYPE_WRITE_MASK,
-				byRegOfs,
-				byRegType,
-				2,
-				pbyData);
+	u8 reg_data[2];
+
+	reg_data[0] = data;
+	reg_data[1] = reg_mask;
+
+	CONTROLnsRequestOut(pDevice, MESSAGE_TYPE_WRITE_MASK, reg_off,
+			reg_type, ARRAY_SIZE(reg_data), reg_data);
+
+	return;
 }

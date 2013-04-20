@@ -1,1 +1,1 @@
-obj-$(CONFIG_ARCH_VT8500) += irq.o timer.o vt8500.o
+obj-$(CONFIG_ARCH_VT8500) += irq.o vt8500.o

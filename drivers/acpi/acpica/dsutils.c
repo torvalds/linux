@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -178,7 +178,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 
 	if (!op) {
 		ACPI_ERROR((AE_INFO, "Null Op"));
-		return_UINT8(TRUE);
+		return_VALUE(TRUE);
 	}
 
 	/*
@@ -210,7 +210,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 				  "At Method level, result of [%s] not used\n",
 				  acpi_ps_get_opcode_name(op->common.
 							  aml_opcode)));
-		return_UINT8(FALSE);
+		return_VALUE(FALSE);
 	}
 
 	/* Get info on the parent. The root_op is AML_SCOPE */
@@ -219,7 +219,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 	    acpi_ps_get_opcode_info(op->common.parent->common.aml_opcode);
 	if (parent_info->class == AML_CLASS_UNKNOWN) {
 		ACPI_ERROR((AE_INFO, "Unknown parent opcode Op=%p", op));
-		return_UINT8(FALSE);
+		return_VALUE(FALSE);
 	}
 
 	/*
@@ -307,7 +307,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			  acpi_ps_get_opcode_name(op->common.parent->common.
 						  aml_opcode), op));
 
-	return_UINT8(TRUE);
+	return_VALUE(TRUE);
 
       result_not_used:
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
@@ -316,7 +316,7 @@ acpi_ds_is_result_used(union acpi_parse_object * op,
 			  acpi_ps_get_opcode_name(op->common.parent->common.
 						  aml_opcode), op));
 
-	return_UINT8(FALSE);
+	return_VALUE(FALSE);
 }
 
 /*******************************************************************************

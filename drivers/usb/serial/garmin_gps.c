@@ -252,14 +252,11 @@ static inline int isAbortTrfCmnd(const unsigned char *buf)
 static void send_to_tty(struct usb_serial_port *port,
 			char *data, unsigned int actual_length)
 {
-	struct tty_struct *tty = tty_port_tty_get(&port->port);
-
-	if (tty && actual_length) {
+	if (actual_length) {
 		usb_serial_debug_data(&port->dev, __func__, actual_length, data);
-		tty_insert_flip_string(tty, data, actual_length);
-		tty_flip_buffer_push(tty);
+		tty_insert_flip_string(&port->port, data, actual_length);
+		tty_flip_buffer_push(&port->port);
 	}
-	tty_kref_put(tty);
 }
 
 
@@ -959,10 +956,7 @@ static void garmin_close(struct usb_serial_port *port)
 	if (!serial)
 		return;
 
-	mutex_lock(&port->serial->disc_mutex);
-
-	if (!port->serial->disconnected)
-		garmin_clear(garmin_data_p);
+	garmin_clear(garmin_data_p);
 
 	/* shutdown our urbs */
 	usb_kill_urb(port->read_urb);
@@ -971,8 +965,6 @@ static void garmin_close(struct usb_serial_port *port)
 	/* keep reset state so we know that we must start a new session */
 	if (garmin_data_p->state != STATE_RESET)
 		garmin_data_p->state = STATE_DISCONNECTED;
-
-	mutex_unlock(&port->serial->disc_mutex);
 }
 
 

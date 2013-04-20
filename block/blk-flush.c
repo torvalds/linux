@@ -436,7 +436,7 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 
 	bio_get(bio);
 	submit_bio(WRITE_FLUSH, bio);
-	wait_for_completion(&wait);
+	wait_for_completion_io(&wait);
 
 	/*
 	 * The driver must store the error location in ->bi_sector, if
@@ -444,7 +444,7 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 	 * copied from blk_rq_pos(rq).
 	 */
 	if (error_sector)
-               *error_sector = bio->bi_sector;
+		*error_sector = bio->bi_sector;
 
 	if (!bio_flagged(bio, BIO_UPTODATE))
 		ret = -EIO;

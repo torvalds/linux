@@ -410,19 +410,12 @@ static int acm_submit_read_urbs(struct acm *acm, gfp_t mem_flags)
 
 static void acm_process_read_urb(struct acm *acm, struct urb *urb)
 {
-	struct tty_struct *tty;
-
 	if (!urb->actual_length)
 		return;
 
-	tty = tty_port_tty_get(&acm->port);
-	if (!tty)
-		return;
-
-	tty_insert_flip_string(tty, urb->transfer_buffer, urb->actual_length);
-	tty_flip_buffer_push(tty);
-
-	tty_kref_put(tty);
+	tty_insert_flip_string(&acm->port, urb->transfer_buffer,
+			urb->actual_length);
+	tty_flip_buffer_push(&acm->port);
 }
 
 static void acm_read_bulk_callback(struct urb *urb)
@@ -600,7 +593,6 @@ static void acm_port_destruct(struct tty_port *port)
 
 	dev_dbg(&acm->control->dev, "%s\n", __func__);
 
-	tty_unregister_device(acm_tty_driver, acm->minor);
 	acm_release_minor(acm);
 	usb_put_intf(acm->control);
 	kfree(acm->country_codes);
@@ -984,6 +976,8 @@ static int acm_probe(struct usb_interface *intf,
 	int num_rx_buf;
 	int i;
 	int combined_interfaces = 0;
+	struct device *tty_dev;
+	int rv = -ENOMEM;
 
 	/* normal quirks */
 	quirks = (unsigned long)id->driver_info;
@@ -1346,11 +1340,24 @@ skip_countries:
 	usb_set_intfdata(data_interface, acm);
 
 	usb_get_intf(control_interface);
-	tty_port_register_device(&acm->port, acm_tty_driver, minor,
+	tty_dev = tty_port_register_device(&acm->port, acm_tty_driver, minor,
 			&control_interface->dev);
+	if (IS_ERR(tty_dev)) {
+		rv = PTR_ERR(tty_dev);
+		goto alloc_fail8;
+	}
 
 	return 0;
+alloc_fail8:
+	if (acm->country_codes) {
+		device_remove_file(&acm->control->dev,
+				&dev_attr_wCountryCodes);
+		device_remove_file(&acm->control->dev,
+				&dev_attr_iCountryCodeRelDate);
+	}
+	device_remove_file(&acm->control->dev, &dev_attr_bmCapabilities);
 alloc_fail7:
+	usb_set_intfdata(intf, NULL);
 	for (i = 0; i < ACM_NW; i++)
 		usb_free_urb(acm->wb[i].urb);
 alloc_fail6:
@@ -1366,7 +1373,7 @@ alloc_fail2:
 	acm_release_minor(acm);
 	kfree(acm);
 alloc_fail:
-	return -ENOMEM;
+	return rv;
 }
 
 static void stop_data_traffic(struct acm *acm)
@@ -1417,6 +1424,8 @@ static void acm_disconnect(struct usb_interface *intf)
 	}
 
 	stop_data_traffic(acm);
+
+	tty_unregister_device(acm_tty_driver, acm->minor);
 
 	usb_free_urb(acm->ctrlurb);
 	for (i = 0; i < ACM_NW; i++)

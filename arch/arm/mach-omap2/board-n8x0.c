@@ -731,7 +731,7 @@ MACHINE_START(NOKIA_N800, "Nokia N800")
 	.handle_irq	= omap2_intc_handle_irq,
 	.init_machine	= n8x0_init_machine,
 	.init_late	= omap2420_init_late,
-	.timer		= &omap2_timer,
+	.init_time	= omap2_sync32k_timer_init,
 	.restart	= omap2xxx_restart,
 MACHINE_END
 
@@ -744,7 +744,7 @@ MACHINE_START(NOKIA_N810, "Nokia N810")
 	.handle_irq	= omap2_intc_handle_irq,
 	.init_machine	= n8x0_init_machine,
 	.init_late	= omap2420_init_late,
-	.timer		= &omap2_timer,
+	.init_time	= omap2_sync32k_timer_init,
 	.restart	= omap2xxx_restart,
 MACHINE_END
 
@@ -757,6 +757,6 @@ MACHINE_START(NOKIA_N810_WIMAX, "Nokia N810 WiMAX")
 	.handle_irq	= omap2_intc_handle_irq,
 	.init_machine	= n8x0_init_machine,
 	.init_late	= omap2420_init_late,
-	.timer		= &omap2_timer,
+	.init_time	= omap2_sync32k_timer_init,
 	.restart	= omap2xxx_restart,
 MACHINE_END

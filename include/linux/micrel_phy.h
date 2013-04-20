@@ -21,8 +21,15 @@
 #define PHY_ID_KSZ8021		0x00221555
 #define PHY_ID_KSZ8041		0x00221510
 #define PHY_ID_KSZ8051		0x00221550
-/* both for ks8001 Rev. A/B, and for ks8721 Rev 3. */
+/* same id: ks8001 Rev. A/B, and ks8721 Rev 3. */
 #define PHY_ID_KSZ8001		0x0022161A
+/* same id: KS8081, KS8091 */
+#define PHY_ID_KSZ8081		0x00221560
+#define PHY_ID_KSZ8061		0x00221570
+#define PHY_ID_KSZ9031		0x00221620
+
+#define PHY_ID_KSZ886X		0x00221430
+#define PHY_ID_KSZ8863		0x00221435
 
 /* struct phy_device dev_flags definitions */
 #define MICREL_PHY_50MHZ_CLK	0x00000001

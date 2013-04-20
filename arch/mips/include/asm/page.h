@@ -31,7 +31,7 @@
 #define PAGE_SHIFT	16
 #endif
 #define PAGE_SIZE	(_AC(1,UL) << PAGE_SHIFT)
-#define PAGE_MASK       (~(PAGE_SIZE - 1))
+#define PAGE_MASK	(~(PAGE_SIZE - 1))
 
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 #define HPAGE_SHIFT	(PAGE_SHIFT + PAGE_SHIFT - 3)
@@ -95,11 +95,11 @@ extern void copy_user_highpage(struct page *to, struct page *from,
 #ifdef CONFIG_64BIT_PHYS_ADDR
   #ifdef CONFIG_CPU_MIPS32
     typedef struct { unsigned long pte_low, pte_high; } pte_t;
-    #define pte_val(x)    ((x).pte_low | ((unsigned long long)(x).pte_high << 32))
-    #define __pte(x)      ({ pte_t __pte = {(x), ((unsigned long long)(x)) >> 32}; __pte; })
+    #define pte_val(x)	  ((x).pte_low | ((unsigned long long)(x).pte_high << 32))
+    #define __pte(x)	  ({ pte_t __pte = {(x), ((unsigned long long)(x)) >> 32}; __pte; })
   #else
      typedef struct { unsigned long long pte; } pte_t;
-     #define pte_val(x)	((x).pte)
+     #define pte_val(x) ((x).pte)
      #define __pte(x)	((pte_t) { (x) } )
   #endif
 #else
@@ -191,8 +191,8 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 	unsigned long __pfn = (pfn);					\
 	int __n = pfn_to_nid(__pfn);					\
 	((__n >= 0) ? (__pfn < NODE_DATA(__n)->node_start_pfn +		\
-	                       NODE_DATA(__n)->node_spanned_pages)	\
-	            : 0);						\
+			       NODE_DATA(__n)->node_spanned_pages)	\
+		    : 0);						\
 })
 
 #endif
@@ -206,7 +206,7 @@ extern int __virt_addr_valid(const volatile void *kaddr);
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
-#define UNCAC_ADDR(addr)	((addr) - PAGE_OFFSET + UNCAC_BASE + 	\
+#define UNCAC_ADDR(addr)	((addr) - PAGE_OFFSET + UNCAC_BASE +	\
 								PHYS_OFFSET)
 #define CAC_ADDR(addr)		((addr) - UNCAC_BASE + PAGE_OFFSET -	\
 								PHYS_OFFSET)

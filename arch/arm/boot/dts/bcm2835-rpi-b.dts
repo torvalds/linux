@@ -1,5 +1,4 @@
 /dts-v1/;
-/memreserve/ 0x0c000000 0x04000000;
 /include/ "bcm2835.dtsi"
 
 / {
@@ -24,4 +23,19 @@
 		brcm,pins = <48 49 50 51 52 53>;
 		brcm,function = <7>; /* alt3 */
 	};
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
+&sdhci {
+	status = "okay";
+	bus-width = <4>;
 };

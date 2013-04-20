@@ -951,8 +951,6 @@ xfs_buf_trylock(
 	locked = down_trylock(&bp->b_sema) == 0;
 	if (locked)
 		XB_SET_OWNER(bp);
-	else if (atomic_read(&bp->b_pin_count) && (bp->b_flags & XBF_STALE))
-		xfs_log_force(bp->b_target->bt_mount, 0);
 
 	trace_xfs_buf_trylock(bp, _RET_IP_);
 	return locked;
@@ -1335,6 +1333,12 @@ _xfs_buf_ioapply(
 	int		offset;
 	int		size;
 	int		i;
+
+	/*
+	 * Make sure we capture only current IO errors rather than stale errors
+	 * left over from previous use of the buffer (e.g. failed readahead).
+	 */
+	bp->b_error = 0;
 
 	if (bp->b_flags & XBF_WRITE) {
 		if (bp->b_flags & XBF_SYNCIO)

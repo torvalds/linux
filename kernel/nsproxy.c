@@ -153,8 +153,7 @@ int copy_namespaces(unsigned long flags, struct task_struct *tsk)
 		goto out;
 	}
 
-	new_ns = create_new_namespaces(flags, tsk,
-				       task_cred_xxx(tsk, user_ns), tsk->fs);
+	new_ns = create_new_namespaces(flags, tsk, user_ns, tsk->fs);
 	if (IS_ERR(new_ns)) {
 		err = PTR_ERR(new_ns);
 		goto out;
@@ -251,7 +250,7 @@ SYSCALL_DEFINE2(setns, int, fd, int, nstype)
 		return PTR_ERR(file);
 
 	err = -EINVAL;
-	ei = PROC_I(file->f_dentry->d_inode);
+	ei = PROC_I(file_inode(file));
 	ops = ei->ns_ops;
 	if (nstype && (ops->type != nstype))
 		goto out;

@@ -76,6 +76,15 @@ config OPTPROBES
 	depends on KPROBES && HAVE_OPTPROBES
 	depends on !PREEMPT
 
+config KPROBES_ON_FTRACE
+	def_bool y
+	depends on KPROBES && HAVE_KPROBES_ON_FTRACE
+	depends on DYNAMIC_FTRACE_WITH_REGS
+	help
+	 If function tracer is enabled and the arch supports full
+	 passing of pt_regs to function tracing, then kprobes can
+	 optimize on top of function tracing.
+
 config UPROBES
 	bool "Transparent user-space probes (EXPERIMENTAL)"
 	depends on UPROBE_EVENT && PERF_EVENTS
@@ -93,6 +102,22 @@ config UPROBES
 	    application. )
 
 	  If in doubt, say "N".
+
+config HAVE_64BIT_ALIGNED_ACCESS
+	def_bool 64BIT && !HAVE_EFFICIENT_UNALIGNED_ACCESS
+	help
+	  Some architectures require 64 bit accesses to be 64 bit
+	  aligned, which also requires structs containing 64 bit values
+	  to be 64 bit aligned too. This includes some 32 bit
+	  architectures which can do 64 bit accesses, as well as 64 bit
+	  architectures without unaligned access.
+
+	  This symbol should be selected by an architecture if 64 bit
+	  accesses are required to be 64 bit aligned in this way even
+	  though it is not a 64 bit architecture.
+
+	  See Documentation/unaligned-memory-access.txt for more
+	  information on the topic of unaligned memory accesses.
 
 config HAVE_EFFICIENT_UNALIGNED_ACCESS
 	bool
@@ -156,6 +181,9 @@ config HAVE_KRETPROBES
 	bool
 
 config HAVE_OPTPROBES
+	bool
+
+config HAVE_KPROBES_ON_FTRACE
 	bool
 
 config HAVE_NMI_WATCHDOG
@@ -356,9 +384,6 @@ config MODULES_USE_ELF_REL
 	  Modules only use ELF REL relocations.  Modules with ELF RELA
 	  relocations will give an error.
 
-config GENERIC_SIGALTSTACK
-	bool
-
 #
 # ABI hall of shame
 #
@@ -372,5 +397,31 @@ config CLONE_BACKWARDS2
 	bool
 	help
 	  Architecture has the first two arguments of clone(2) swapped.
+
+config ODD_RT_SIGACTION
+	bool
+	help
+	  Architecture has unusual rt_sigaction(2) arguments
+
+config OLD_SIGSUSPEND
+	bool
+	help
+	  Architecture has old sigsuspend(2) syscall, of one-argument variety
+
+config OLD_SIGSUSPEND3
+	bool
+	help
+	  Even weirder antique ABI - three-argument sigsuspend(2)
+
+config OLD_SIGACTION
+	bool
+	help
+	  Architecture has old sigaction(2) syscall.  Nope, not the same
+	  as OLD_SIGSUSPEND | OLD_SIGSUSPEND3 - alpha has sigsuspend(2),
+	  but fairly different variant of sigaction(2), thanks to OSF/1
+	  compatibility...
+
+config COMPAT_OLD_SIGACTION
+	bool
 
 source "kernel/gcov/Kconfig"

@@ -301,9 +301,9 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	if (!mem)
 		return -EINVAL;
 
-	dw_wdt.regs = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!dw_wdt.regs)
-		return -ENOMEM;
+	dw_wdt.regs = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(dw_wdt.regs))
+		return PTR_ERR(dw_wdt.regs);
 
 	dw_wdt.clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dw_wdt.clk))

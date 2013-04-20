@@ -69,33 +69,40 @@ void __init mminit_verify_pageflags_layout(void)
 	unsigned long or_mask, add_mask;
 
 	shift = 8 * sizeof(unsigned long);
-	width = shift - SECTIONS_WIDTH - NODES_WIDTH - ZONES_WIDTH;
+	width = shift - SECTIONS_WIDTH - NODES_WIDTH - ZONES_WIDTH - LAST_NID_SHIFT;
 	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_widths",
-		"Section %d Node %d Zone %d Flags %d\n",
+		"Section %d Node %d Zone %d Lastnid %d Flags %d\n",
 		SECTIONS_WIDTH,
 		NODES_WIDTH,
 		ZONES_WIDTH,
+		LAST_NID_WIDTH,
 		NR_PAGEFLAGS);
 	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_shifts",
-		"Section %d Node %d Zone %d\n",
+		"Section %d Node %d Zone %d Lastnid %d\n",
 		SECTIONS_SHIFT,
 		NODES_SHIFT,
-		ZONES_SHIFT);
-	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_offsets",
-		"Section %lu Node %lu Zone %lu\n",
+		ZONES_SHIFT,
+		LAST_NID_SHIFT);
+	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_pgshifts",
+		"Section %lu Node %lu Zone %lu Lastnid %lu\n",
 		(unsigned long)SECTIONS_PGSHIFT,
 		(unsigned long)NODES_PGSHIFT,
-		(unsigned long)ZONES_PGSHIFT);
-	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_zoneid",
-		"Zone ID: %lu -> %lu\n",
-		(unsigned long)ZONEID_PGOFF,
-		(unsigned long)(ZONEID_PGOFF + ZONEID_SHIFT));
+		(unsigned long)ZONES_PGSHIFT,
+		(unsigned long)LAST_NID_PGSHIFT);
+	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_nodezoneid",
+		"Node/Zone ID: %lu -> %lu\n",
+		(unsigned long)(ZONEID_PGOFF + ZONEID_SHIFT),
+		(unsigned long)ZONEID_PGOFF);
 	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_usage",
-		"location: %d -> %d unused %d -> %d flags %d -> %d\n",
+		"location: %d -> %d layout %d -> %d unused %d -> %d page-flags\n",
 		shift, width, width, NR_PAGEFLAGS, NR_PAGEFLAGS, 0);
 #ifdef NODE_NOT_IN_PAGE_FLAGS
 	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_nodeflags",
 		"Node not in page flags");
+#endif
+#ifdef LAST_NID_NOT_IN_PAGE_FLAGS
+	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_nodeflags",
+		"Last nid not in page flags");
 #endif
 
 	if (SECTIONS_WIDTH) {

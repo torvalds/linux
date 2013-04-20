@@ -136,22 +136,14 @@ static void vt8500_enable_ms(struct uart_port *port)
 
 static void handle_rx(struct uart_port *port)
 {
-	struct tty_struct *tty = tty_port_tty_get(&port->state->port);
-	if (!tty) {
-		/* Discard data: no tty available */
-		int count = (vt8500_read(port, VT8500_URFIDX) & 0x1f00) >> 8;
-		u16 ch;
-		while (count--)
-			ch = readw(port->membase + VT8500_RXFIFO);
-		return;
-	}
+	struct tty_port *tport = &port->state->port;
 
 	/*
 	 * Handle overrun
 	 */
 	if ((vt8500_read(port, VT8500_URISR) & RXOVER)) {
 		port->icount.overrun++;
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 	}
 
 	/* and now the main RX loop */
@@ -174,11 +166,10 @@ static void handle_rx(struct uart_port *port)
 		port->icount.rx++;
 
 		if (!uart_handle_sysrq_char(port, c))
-			tty_insert_flip_char(tty, c, flag);
+			tty_insert_flip_char(tport, c, flag);
 	}
 
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(tport);
 }
 
 static void handle_tx(struct uart_port *port)
@@ -569,7 +560,7 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 
 	if (np)
 		port = of_alias_get_id(np, "serial");
-		if (port > VT8500_MAX_PORTS)
+		if (port >= VT8500_MAX_PORTS)
 			port = -1;
 	else
 		port = -1;
@@ -580,7 +571,7 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 					sizeof(vt8500_ports_in_use));
 	}
 
-	if (port > VT8500_MAX_PORTS)
+	if (port >= VT8500_MAX_PORTS)
 		return -ENODEV;
 
 	/* reserve the port id */
@@ -589,9 +580,26 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	vt8500_port = kzalloc(sizeof(struct vt8500_port), GFP_KERNEL);
+	vt8500_port = devm_kzalloc(&pdev->dev, sizeof(struct vt8500_port),
+				   GFP_KERNEL);
 	if (!vt8500_port)
 		return -ENOMEM;
+
+	vt8500_port->uart.membase = devm_request_and_ioremap(&pdev->dev, mmres);
+	if (!vt8500_port->uart.membase)
+		return -EADDRNOTAVAIL;
+
+	vt8500_port->clk = of_clk_get(pdev->dev.of_node, 0);
+	if (IS_ERR(vt8500_port->clk)) {
+		dev_err(&pdev->dev, "failed to get clock\n");
+		return  -EINVAL;
+	}
+
+	ret = clk_prepare_enable(vt8500_port->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable clock\n");
+		return ret;
+	}
 
 	vt8500_port->uart.type = PORT_VT8500;
 	vt8500_port->uart.iotype = UPIO_MEM;
@@ -603,23 +611,10 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	vt8500_port->uart.dev = &pdev->dev;
 	vt8500_port->uart.flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
 
-	vt8500_port->clk = of_clk_get(pdev->dev.of_node, 0);
-	if (!IS_ERR(vt8500_port->clk)) {
-		vt8500_port->uart.uartclk = clk_get_rate(vt8500_port->clk);
-	} else {
-		/* use the default of 24Mhz if not specified and warn */
-		pr_warn("%s: serial clock source not specified\n", __func__);
-		vt8500_port->uart.uartclk = 24000000;
-	}
+	vt8500_port->uart.uartclk = clk_get_rate(vt8500_port->clk);
 
 	snprintf(vt8500_port->name, sizeof(vt8500_port->name),
 		 "VT8500 UART%d", pdev->id);
-
-	vt8500_port->uart.membase = ioremap(mmres->start, resource_size(mmres));
-	if (!vt8500_port->uart.membase) {
-		ret = -ENOMEM;
-		goto err;
-	}
 
 	vt8500_uart_ports[port] = vt8500_port;
 
@@ -628,10 +623,6 @@ static int vt8500_serial_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, vt8500_port);
 
 	return 0;
-
-err:
-	kfree(vt8500_port);
-	return ret;
 }
 
 static int vt8500_serial_remove(struct platform_device *pdev)
@@ -639,8 +630,8 @@ static int vt8500_serial_remove(struct platform_device *pdev)
 	struct vt8500_port *vt8500_port = platform_get_drvdata(pdev);
 
 	platform_set_drvdata(pdev, NULL);
+	clk_disable_unprepare(vt8500_port->clk);
 	uart_remove_one_port(&vt8500_uart_driver, &vt8500_port->uart);
-	kfree(vt8500_port);
 
 	return 0;
 }

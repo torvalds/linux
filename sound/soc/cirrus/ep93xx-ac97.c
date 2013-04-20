@@ -11,6 +11,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -367,9 +368,9 @@ static int ep93xx_ac97_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	info->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!info->regs)
-		return -ENXIO;
+	info->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(info->regs))
+		return PTR_ERR(info->regs);
 
 	irq = platform_get_irq(pdev, 0);
 	if (!irq)

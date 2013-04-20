@@ -179,7 +179,7 @@ static int led_proc_open(struct inode *inode, struct file *file)
 static ssize_t led_proc_write(struct file *file, const char *buf,
 	size_t count, loff_t *pos)
 {
-	void *data = PDE(file->f_path.dentry->d_inode)->data;
+	void *data = PDE(file_inode(file))->data;
 	char *cur, lbuf[32];
 	int d;
 

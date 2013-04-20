@@ -36,7 +36,6 @@ TABLE OF CONTENTS
     4.1 Compiling the Driver as a Loadable Module
     4.2 Compiling the driver to support memory mode
     4.3 Compiling the driver to support Rx DMA 
-    4.4 Compiling the Driver into the Kernel
 
 5.0 TESTING AND TROUBLESHOOTING
     5.1 Known Defects and Limitations
@@ -363,84 +362,6 @@ Support for memory mode was not carried over into the 2.3 series kernels.
 The compile-time optionality for DMA was removed in the 2.3 kernel
 series.  DMA support is now unconditionally part of the driver.  It is
 enabled by the 'use_dma=1' module option.
-
-4.4 COMPILING THE DRIVER INTO THE KERNEL
-
-If your Linux distribution already has support for the cs89x0 driver
-then simply copy the source file to the /usr/src/linux/drivers/net
-directory to replace the original ones and run the make utility to
-rebuild the kernel.  See Step 3 for rebuilding the kernel.
-
-If your Linux does not include the cs89x0 driver, you need to edit three 
-configuration files, copy the source file to the /usr/src/linux/drivers/net
-directory, and then run the make utility to rebuild the kernel.
-
-1. Edit the following configuration files by adding the statements as
-indicated.  (When possible, try to locate the added text to the section of the
-file containing similar statements).
-
-
-a.) In /usr/src/linux/drivers/net/Config.in, add:
-
-tristate 'CS89x0 support' CONFIG_CS89x0
-
-Example:
-
-     if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
-       tristate 'ICL EtherTeam 16i/32 support' CONFIG_ETH16I
-     fi
-
-     tristate 'CS89x0 support' CONFIG_CS89x0
-
-     tristate 'NE2000/NE1000 support' CONFIG_NE2000
-     if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
-       tristate 'NI5210 support' CONFIG_NI52
-
-
-b.) In /usr/src/linux/drivers/net/Makefile, add the following lines: 
-
-ifeq ($(CONFIG_CS89x0),y)
-L_OBJS += cs89x0.o
-else
-  ifeq ($(CONFIG_CS89x0),m)
-  M_OBJS += cs89x0.o
-  endif
-endif
-
-
-c.) In /linux/drivers/net/Space.c file, add the line:
-
-extern int cs89x0_probe(struct device *dev);
-
-
-Example:
-
- extern int ultra_probe(struct device *dev);
- extern int wd_probe(struct device *dev);
- extern int el2_probe(struct device *dev);
-
- extern int cs89x0_probe(struct device *dev);
-
- extern int ne_probe(struct device *dev);
- extern int hp_probe(struct device *dev);
- extern int hp_plus_probe(struct device *dev);
-
-
-Also add:
-
- #ifdef CONFIG_CS89x0
- 	{ cs89x0_probe,0 },
- #endif
-
-
-2.) Copy the driver source files (cs89x0.c and cs89x0.h) 
-into the /usr/src/linux/drivers/net directory.
-
-
-3.) Go to /usr/src/linux directory and run 'make config' followed by 'make' 
-(or make bzImage) to rebuild the kernel. 
-
-4.) Use the DOS 'setup' utility to disable plug and play on the NIC.
 
 
 5.0 TESTING AND TROUBLESHOOTING

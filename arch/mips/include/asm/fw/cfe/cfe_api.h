@@ -40,7 +40,7 @@ typedef long intptr_t;
 /* Seal indicating CFE's presence, passed to user program. */
 #define CFE_EPTSEAL 0x43464531
 
-#define CFE_MI_RESERVED	0	/* memory is reserved, do not use */
+#define CFE_MI_RESERVED 0	/* memory is reserved, do not use */
 #define CFE_MI_AVAILABLE 1	/* memory is available */
 
 #define CFE_FLG_WARMSTART     0x00000001
@@ -52,13 +52,13 @@ typedef long intptr_t;
 
 #define CFE_STDHANDLE_CONSOLE	0
 
-#define CFE_DEV_NETWORK 	1
+#define CFE_DEV_NETWORK		1
 #define CFE_DEV_DISK		2
 #define CFE_DEV_FLASH		3
 #define CFE_DEV_SERIAL		4
 #define CFE_DEV_CPU		5
 #define CFE_DEV_NVRAM		6
-#define CFE_DEV_CLOCK           7
+#define CFE_DEV_CLOCK		7
 #define CFE_DEV_OTHER		8
 #define CFE_DEV_MASK		0x0F
 

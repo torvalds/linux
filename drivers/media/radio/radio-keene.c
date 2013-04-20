@@ -374,6 +374,7 @@ static int usb_keene_probe(struct usb_interface *intf,
 	radio->vdev.ioctl_ops = &usb_keene_ioctl_ops;
 	radio->vdev.lock = &radio->lock;
 	radio->vdev.release = video_device_release_empty;
+	radio->vdev.vfl_dir = VFL_DIR_TX;
 
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->intf = intf;

@@ -340,7 +340,7 @@ static void videobuf_status(struct videobuf_queue *q, struct v4l2_buffer *b,
 		break;
 	}
 
-	b->flags    = 0;
+	b->flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	if (vb->map)
 		b->flags |= V4L2_BUF_FLAG_MAPPED;
 

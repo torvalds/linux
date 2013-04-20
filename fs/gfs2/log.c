@@ -482,70 +482,66 @@ static void log_flush_wait(struct gfs2_sbd *sdp)
 	}
 }
 
-static int bd_cmp(void *priv, struct list_head *a, struct list_head *b)
+static int ip_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
-	struct gfs2_bufdata *bda, *bdb;
+	struct gfs2_inode *ipa, *ipb;
 
-	bda = list_entry(a, struct gfs2_bufdata, bd_list);
-	bdb = list_entry(b, struct gfs2_bufdata, bd_list);
+	ipa = list_entry(a, struct gfs2_inode, i_ordered);
+	ipb = list_entry(b, struct gfs2_inode, i_ordered);
 
-	if (bda->bd_bh->b_blocknr < bdb->bd_bh->b_blocknr)
+	if (ipa->i_no_addr < ipb->i_no_addr)
 		return -1;
-	if (bda->bd_bh->b_blocknr > bdb->bd_bh->b_blocknr)
+	if (ipa->i_no_addr > ipb->i_no_addr)
 		return 1;
 	return 0;
 }
 
 static void gfs2_ordered_write(struct gfs2_sbd *sdp)
 {
-	struct gfs2_bufdata *bd;
-	struct buffer_head *bh;
+	struct gfs2_inode *ip;
 	LIST_HEAD(written);
 
-	gfs2_log_lock(sdp);
-	list_sort(NULL, &sdp->sd_log_le_ordered, &bd_cmp);
+	spin_lock(&sdp->sd_ordered_lock);
+	list_sort(NULL, &sdp->sd_log_le_ordered, &ip_cmp);
 	while (!list_empty(&sdp->sd_log_le_ordered)) {
-		bd = list_entry(sdp->sd_log_le_ordered.next, struct gfs2_bufdata, bd_list);
-		list_move(&bd->bd_list, &written);
-		bh = bd->bd_bh;
-		if (!buffer_dirty(bh))
+		ip = list_entry(sdp->sd_log_le_ordered.next, struct gfs2_inode, i_ordered);
+		list_move(&ip->i_ordered, &written);
+		if (ip->i_inode.i_mapping->nrpages == 0)
 			continue;
-		get_bh(bh);
-		gfs2_log_unlock(sdp);
-		lock_buffer(bh);
-		if (buffer_mapped(bh) && test_clear_buffer_dirty(bh)) {
-			bh->b_end_io = end_buffer_write_sync;
-			submit_bh(WRITE_SYNC, bh);
-		} else {
-			unlock_buffer(bh);
-			brelse(bh);
-		}
-		gfs2_log_lock(sdp);
+		spin_unlock(&sdp->sd_ordered_lock);
+		filemap_fdatawrite(ip->i_inode.i_mapping);
+		spin_lock(&sdp->sd_ordered_lock);
 	}
 	list_splice(&written, &sdp->sd_log_le_ordered);
-	gfs2_log_unlock(sdp);
+	spin_unlock(&sdp->sd_ordered_lock);
 }
 
 static void gfs2_ordered_wait(struct gfs2_sbd *sdp)
 {
-	struct gfs2_bufdata *bd;
-	struct buffer_head *bh;
+	struct gfs2_inode *ip;
 
-	gfs2_log_lock(sdp);
+	spin_lock(&sdp->sd_ordered_lock);
 	while (!list_empty(&sdp->sd_log_le_ordered)) {
-		bd = list_entry(sdp->sd_log_le_ordered.prev, struct gfs2_bufdata, bd_list);
-		bh = bd->bd_bh;
-		if (buffer_locked(bh)) {
-			get_bh(bh);
-			gfs2_log_unlock(sdp);
-			wait_on_buffer(bh);
-			brelse(bh);
-			gfs2_log_lock(sdp);
+		ip = list_entry(sdp->sd_log_le_ordered.next, struct gfs2_inode, i_ordered);
+		list_del(&ip->i_ordered);
+		WARN_ON(!test_and_clear_bit(GIF_ORDERED, &ip->i_flags));
+		if (ip->i_inode.i_mapping->nrpages == 0)
 			continue;
-		}
-		list_del_init(&bd->bd_list);
+		spin_unlock(&sdp->sd_ordered_lock);
+		filemap_fdatawait(ip->i_inode.i_mapping);
+		spin_lock(&sdp->sd_ordered_lock);
 	}
-	gfs2_log_unlock(sdp);
+	spin_unlock(&sdp->sd_ordered_lock);
+}
+
+void gfs2_ordered_del_inode(struct gfs2_inode *ip)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+
+	spin_lock(&sdp->sd_ordered_lock);
+	if (test_and_clear_bit(GIF_ORDERED, &ip->i_flags))
+		list_del(&ip->i_ordered);
+	spin_unlock(&sdp->sd_ordered_lock);
 }
 
 /**

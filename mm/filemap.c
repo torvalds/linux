@@ -1711,7 +1711,7 @@ EXPORT_SYMBOL(filemap_fault);
 int filemap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
-	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(vma->vm_file);
 	int ret = VM_FAULT_LOCKED;
 
 	sb_start_pagefault(inode->i_sb);
@@ -1728,6 +1728,7 @@ int filemap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 * see the dirty page and writeprotect it again.
 	 */
 	set_page_dirty(page);
+	wait_for_stable_page(page);
 out:
 	sb_end_pagefault(inode->i_sb);
 	return ret;
@@ -2056,7 +2057,7 @@ EXPORT_SYMBOL(iov_iter_fault_in_readable);
 /*
  * Return the count of just the current iov_iter segment.
  */
-size_t iov_iter_single_seg_count(struct iov_iter *i)
+size_t iov_iter_single_seg_count(const struct iov_iter *i)
 {
 	const struct iovec *iov = i->iov;
 	if (i->nr_segs == 1)
@@ -2274,7 +2275,7 @@ repeat:
 		return NULL;
 	}
 found:
-	wait_on_page_writeback(page);
+	wait_for_stable_page(page);
 	return page;
 }
 EXPORT_SYMBOL(grab_cache_page_write_begin);

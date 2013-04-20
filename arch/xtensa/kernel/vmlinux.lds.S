@@ -7,7 +7,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001 - 2005 Tensilica Inc.
+ * Copyright (C) 2001 - 2008 Tensilica Inc.
  *
  * Chris Zankel <chris@zankel.net>
  * Marc Gauthier <marc@tensilica.com, marc@alumni.uwaterloo.ca>
@@ -134,6 +134,26 @@ SECTIONS
 
     RELOCATE_ENTRY(_WindowVectors_text,
 		   .WindowVectors.text);
+#if XCHAL_EXCM_LEVEL >= 2
+    RELOCATE_ENTRY(_Level2InterruptVector_text,
+		   .Level2InterruptVector.text);
+#endif
+#if XCHAL_EXCM_LEVEL >= 3
+    RELOCATE_ENTRY(_Level3InterruptVector_text,
+		   .Level3InterruptVector.text);
+#endif
+#if XCHAL_EXCM_LEVEL >= 4
+    RELOCATE_ENTRY(_Level4InterruptVector_text,
+		   .Level4InterruptVector.text);
+#endif
+#if XCHAL_EXCM_LEVEL >= 5
+    RELOCATE_ENTRY(_Level5InterruptVector_text,
+		   .Level5InterruptVector.text);
+#endif
+#if XCHAL_EXCM_LEVEL >= 6
+    RELOCATE_ENTRY(_Level6InterruptVector_text,
+		   .Level6InterruptVector.text);
+#endif
     RELOCATE_ENTRY(_KernelExceptionVector_text,
 		   .KernelExceptionVector.text);
     RELOCATE_ENTRY(_UserExceptionVector_text,
@@ -177,11 +197,53 @@ SECTIONS
 		  XCHAL_DEBUG_VECTOR_VADDR,
 		  4,
 		  .DebugInterruptVector.literal)
+#undef LAST
+#define LAST	.DebugInterruptVector.text
+#if XCHAL_EXCM_LEVEL >= 2
+  SECTION_VECTOR (_Level2InterruptVector_text,
+		  .Level2InterruptVector.text,
+		  XCHAL_INTLEVEL2_VECTOR_VADDR,
+		  SIZEOF(LAST), LAST)
+# undef LAST
+# define LAST	.Level2InterruptVector.text
+#endif
+#if XCHAL_EXCM_LEVEL >= 3
+  SECTION_VECTOR (_Level3InterruptVector_text,
+		  .Level3InterruptVector.text,
+		  XCHAL_INTLEVEL3_VECTOR_VADDR,
+		  SIZEOF(LAST), LAST)
+# undef LAST
+# define LAST	.Level3InterruptVector.text
+#endif
+#if XCHAL_EXCM_LEVEL >= 4
+  SECTION_VECTOR (_Level4InterruptVector_text,
+		  .Level4InterruptVector.text,
+		  XCHAL_INTLEVEL4_VECTOR_VADDR,
+		  SIZEOF(LAST), LAST)
+# undef LAST
+# define LAST	.Level4InterruptVector.text
+#endif
+#if XCHAL_EXCM_LEVEL >= 5
+  SECTION_VECTOR (_Level5InterruptVector_text,
+		  .Level5InterruptVector.text,
+		  XCHAL_INTLEVEL5_VECTOR_VADDR,
+		  SIZEOF(LAST), LAST)
+# undef LAST
+# define LAST	.Level5InterruptVector.text
+#endif
+#if XCHAL_EXCM_LEVEL >= 6
+  SECTION_VECTOR (_Level6InterruptVector_text,
+		  .Level6InterruptVector.text,
+		  XCHAL_INTLEVEL6_VECTOR_VADDR,
+		  SIZEOF(LAST), LAST)
+# undef LAST
+# define LAST	.Level6InterruptVector.text
+#endif
   SECTION_VECTOR (_KernelExceptionVector_literal,
 		  .KernelExceptionVector.literal,
 		  XCHAL_KERNEL_VECTOR_VADDR - 4,
-		  SIZEOF(.DebugInterruptVector.text),
-		  .DebugInterruptVector.text)
+		  SIZEOF(LAST), LAST)
+#undef LAST
   SECTION_VECTOR (_KernelExceptionVector_text,
 		  .KernelExceptionVector.text,
 		  XCHAL_KERNEL_VECTOR_VADDR,

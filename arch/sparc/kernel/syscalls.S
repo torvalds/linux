@@ -25,15 +25,9 @@ sys_nis_syscall:
 sys_memory_ordering:
 	ba,pt	%xcc, sparc_memory_ordering
 	 add	%sp, PTREGS_OFF, %o1
-sys_sigaltstack:
-	ba,pt	%xcc, do_sigaltstack
-	 add	%i6, STACK_BIAS, %o2
 #ifdef CONFIG_COMPAT
 sys32_sigstack:
 	ba,pt	%xcc, do_sys32_sigstack
-	 mov	%i6, %o2
-sys32_sigaltstack:
-	ba,pt	%xcc, do_sys32_sigaltstack
 	 mov	%i6, %o2
 #endif
 	.align	32

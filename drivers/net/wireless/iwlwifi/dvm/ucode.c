@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -286,89 +286,6 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 	return iwl_send_calib_results(priv);
 }
 
-
-/**
- * iwl_verify_inst_sparse - verify runtime uCode image in card vs. host,
- *   using sample data 100 bytes apart.  If these sample points are good,
- *   it's a pretty good bet that everything between them is good, too.
- */
-static int iwl_verify_sec_sparse(struct iwl_priv *priv,
-				  const struct fw_desc *fw_desc)
-{
-	__le32 *image = (__le32 *)fw_desc->data;
-	u32 len = fw_desc->len;
-	u32 val;
-	u32 i;
-
-	IWL_DEBUG_FW(priv, "ucode inst image size is %u\n", len);
-
-	for (i = 0; i < len; i += 100, image += 100/sizeof(u32)) {
-		/* read data comes through single port, auto-incr addr */
-		/* NOTE: Use the debugless read so we don't flood kernel log
-		 * if IWL_DL_IO is set */
-		iwl_write_direct32(priv->trans, HBUS_TARG_MEM_RADDR,
-			i + fw_desc->offset);
-		val = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
-		if (val != le32_to_cpu(*image))
-			return -EIO;
-	}
-
-	return 0;
-}
-
-static void iwl_print_mismatch_sec(struct iwl_priv *priv,
-				    const struct fw_desc *fw_desc)
-{
-	__le32 *image = (__le32 *)fw_desc->data;
-	u32 len = fw_desc->len;
-	u32 val;
-	u32 offs;
-	int errors = 0;
-
-	IWL_DEBUG_FW(priv, "ucode inst image size is %u\n", len);
-
-	iwl_write_direct32(priv->trans, HBUS_TARG_MEM_RADDR,
-				fw_desc->offset);
-
-	for (offs = 0;
-	     offs < len && errors < 20;
-	     offs += sizeof(u32), image++) {
-		/* read data comes through single port, auto-incr addr */
-		val = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
-		if (val != le32_to_cpu(*image)) {
-			IWL_ERR(priv, "uCode INST section at "
-				"offset 0x%x, is 0x%x, s/b 0x%x\n",
-				offs, val, le32_to_cpu(*image));
-			errors++;
-		}
-	}
-}
-
-/**
- * iwl_verify_ucode - determine which instruction image is in SRAM,
- *    and verify its contents
- */
-static int iwl_verify_ucode(struct iwl_priv *priv,
-			    enum iwl_ucode_type ucode_type)
-{
-	const struct fw_img *img = iwl_get_ucode_image(priv, ucode_type);
-
-	if (!img) {
-		IWL_ERR(priv, "Invalid ucode requested (%d)\n", ucode_type);
-		return -EINVAL;
-	}
-
-	if (!iwl_verify_sec_sparse(priv, &img->sec[IWL_UCODE_SECTION_INST])) {
-		IWL_DEBUG_FW(priv, "uCode is good in inst SRAM\n");
-		return 0;
-	}
-
-	IWL_ERR(priv, "UCODE IMAGE IN INSTRUCTION SRAM NOT VALID!!\n");
-
-	iwl_print_mismatch_sec(priv, &img->sec[IWL_UCODE_SECTION_INST]);
-	return -EIO;
-}
-
 struct iwl_alive_data {
 	bool valid;
 	u8 subtype;
@@ -426,7 +343,7 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 				   alive_cmd, ARRAY_SIZE(alive_cmd),
 				   iwl_alive_fn, &alive_data);
 
-	ret = iwl_trans_start_fw(priv->trans, fw);
+	ret = iwl_trans_start_fw(priv->trans, fw, false);
 	if (ret) {
 		priv->cur_ucode = old_type;
 		iwl_remove_notification(&priv->notif_wait, &alive_wait);
@@ -450,18 +367,7 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 		return -EIO;
 	}
 
-	/*
-	 * This step takes a long time (60-80ms!!) and
-	 * WoWLAN image should be loaded quickly, so
-	 * skip it for WoWLAN.
-	 */
 	if (ucode_type != IWL_UCODE_WOWLAN) {
-		ret = iwl_verify_ucode(priv, ucode_type);
-		if (ret) {
-			priv->cur_ucode = old_type;
-			return ret;
-		}
-
 		/* delay a bit to give rfkill time to run */
 		msleep(5);
 	}

@@ -182,6 +182,14 @@ static void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu,
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_INST_STORAGE);
 }
 
+static void kvmppc_core_queue_alignment(struct kvm_vcpu *vcpu, ulong dear_flags,
+					ulong esr_flags)
+{
+	vcpu->arch.queued_dear = dear_flags;
+	vcpu->arch.queued_esr = esr_flags;
+	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ALIGNMENT);
+}
+
 void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong esr_flags)
 {
 	vcpu->arch.queued_esr = esr_flags;
@@ -300,13 +308,22 @@ static void set_guest_esr(struct kvm_vcpu *vcpu, u32 esr)
 #endif
 }
 
+static unsigned long get_guest_epr(struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_KVM_BOOKE_HV
+	return mfspr(SPRN_GEPR);
+#else
+	return vcpu->arch.epr;
+#endif
+}
+
 /* Deliver the interrupt of the corresponding priority, if possible. */
 static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
                                         unsigned int priority)
 {
 	int allowed = 0;
 	ulong msr_mask = 0;
-	bool update_esr = false, update_dear = false;
+	bool update_esr = false, update_dear = false, update_epr = false;
 	ulong crit_raw = vcpu->arch.shared->critical;
 	ulong crit_r1 = kvmppc_get_gpr(vcpu, 1);
 	bool crit;
@@ -330,9 +347,13 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 		keep_irq = true;
 	}
 
+	if ((priority == BOOKE_IRQPRIO_EXTERNAL) && vcpu->arch.epr_enabled)
+		update_epr = true;
+
 	switch (priority) {
 	case BOOKE_IRQPRIO_DTLB_MISS:
 	case BOOKE_IRQPRIO_DATA_STORAGE:
+	case BOOKE_IRQPRIO_ALIGNMENT:
 		update_dear = true;
 		/* fall through */
 	case BOOKE_IRQPRIO_INST_STORAGE:
@@ -346,7 +367,6 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	case BOOKE_IRQPRIO_SPE_FP_DATA:
 	case BOOKE_IRQPRIO_SPE_FP_ROUND:
 	case BOOKE_IRQPRIO_AP_UNAVAIL:
-	case BOOKE_IRQPRIO_ALIGNMENT:
 		allowed = 1;
 		msr_mask = MSR_CE | MSR_ME | MSR_DE;
 		int_class = INT_CLASS_NONCRIT;
@@ -408,6 +428,8 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 			set_guest_esr(vcpu, vcpu->arch.queued_esr);
 		if (update_dear == true)
 			set_guest_dear(vcpu, vcpu->arch.queued_dear);
+		if (update_epr == true)
+			kvm_make_request(KVM_REQ_EPR_EXIT, vcpu);
 
 		new_msr &= msr_mask;
 #if defined(CONFIG_64BIT)
@@ -581,6 +603,11 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 
 	kvmppc_core_check_exceptions(vcpu);
 
+	if (vcpu->requests) {
+		/* Exception delivery raised request; start over */
+		return 1;
+	}
+
 	if (vcpu->arch.shared->msr & MSR_WE) {
 		local_irq_enable();
 		kvm_vcpu_block(vcpu);
@@ -607,6 +634,13 @@ int kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
 
 	if (kvm_check_request(KVM_REQ_WATCHDOG, vcpu)) {
 		vcpu->run->exit_reason = KVM_EXIT_WATCHDOG;
+		r = 0;
+	}
+
+	if (kvm_check_request(KVM_REQ_EPR_EXIT, vcpu)) {
+		vcpu->run->epr.epr = 0;
+		vcpu->arch.epr_needed = true;
+		vcpu->run->exit_reason = KVM_EXIT_EPR;
 		r = 0;
 	}
 
@@ -942,6 +976,12 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case BOOKE_INTERRUPT_INST_STORAGE:
 		kvmppc_core_queue_inst_storage(vcpu, vcpu->arch.fault_esr);
 		kvmppc_account_exit(vcpu, ISI_EXITS);
+		r = RESUME_GUEST;
+		break;
+
+	case BOOKE_INTERRUPT_ALIGNMENT:
+		kvmppc_core_queue_alignment(vcpu, vcpu->arch.fault_dear,
+		                            vcpu->arch.fault_esr);
 		r = RESUME_GUEST;
 		break;
 
@@ -1388,6 +1428,11 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 				 &vcpu->arch.dbg_reg.dac[dac], sizeof(u64));
 		break;
 	}
+	case KVM_REG_PPC_EPR: {
+		u32 epr = get_guest_epr(vcpu);
+		r = put_user(epr, (u32 __user *)(long)reg->addr);
+		break;
+	}
 #if defined(CONFIG_64BIT)
 	case KVM_REG_PPC_EPCR:
 		r = put_user(vcpu->arch.epcr, (u32 __user *)(long)reg->addr);
@@ -1418,6 +1463,13 @@ int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 		int dac = reg->id - KVM_REG_PPC_DAC1;
 		r = copy_from_user(&vcpu->arch.dbg_reg.dac[dac],
 			     (u64 __user *)(long)reg->addr, sizeof(u64));
+		break;
+	}
+	case KVM_REG_PPC_EPR: {
+		u32 new_epr;
+		r = get_user(new_epr, (u32 __user *)(long)reg->addr);
+		if (!r)
+			kvmppc_set_epr(vcpu, new_epr);
 		break;
 	}
 #if defined(CONFIG_64BIT)
@@ -1556,7 +1608,9 @@ int __init kvmppc_booke_init(void)
 {
 #ifndef CONFIG_KVM_BOOKE_HV
 	unsigned long ivor[16];
+	unsigned long *handler = kvmppc_booke_handler_addr;
 	unsigned long max_ivor = 0;
+	unsigned long handler_len;
 	int i;
 
 	/* We install our own exception handlers by hijacking IVPR. IVPR must
@@ -1589,14 +1643,16 @@ int __init kvmppc_booke_init(void)
 
 	for (i = 0; i < 16; i++) {
 		if (ivor[i] > max_ivor)
-			max_ivor = ivor[i];
+			max_ivor = i;
 
+		handler_len = handler[i + 1] - handler[i];
 		memcpy((void *)kvmppc_booke_handlers + ivor[i],
-		       kvmppc_handlers_start + i * kvmppc_handler_len,
-		       kvmppc_handler_len);
+		       (void *)handler[i], handler_len);
 	}
-	flush_icache_range(kvmppc_booke_handlers,
-	                   kvmppc_booke_handlers + max_ivor + kvmppc_handler_len);
+
+	handler_len = handler[max_ivor + 1] - handler[max_ivor];
+	flush_icache_range(kvmppc_booke_handlers, kvmppc_booke_handlers +
+			   ivor[max_ivor] + handler_len);
 #endif /* !BOOKE_HV */
 	return 0;
 }

@@ -146,7 +146,7 @@ static int iommu_enable(struct omap_iommu *obj)
 	struct platform_device *pdev = to_platform_device(obj->dev);
 	struct iommu_platform_data *pdata = pdev->dev.platform_data;
 
-	if (!obj || !pdata)
+	if (!pdata)
 		return -EINVAL;
 
 	if (!arch_iommu)
@@ -172,7 +172,7 @@ static void iommu_disable(struct omap_iommu *obj)
 	struct platform_device *pdev = to_platform_device(obj->dev);
 	struct iommu_platform_data *pdata = pdev->dev.platform_data;
 
-	if (!obj || !pdata)
+	if (!pdata)
 		return;
 
 	arch_iommu->disable(obj);

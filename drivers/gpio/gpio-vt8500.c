@@ -73,19 +73,20 @@ struct vt8500_gpio_data {
 static struct vt8500_gpio_data vt8500_data = {
 	.num_banks	= 7,
 	.banks	= {
+		VT8500_BANK(NO_REG, 0x3C, 0x5C, 0x7C, 9),
 		VT8500_BANK(0x00, 0x20, 0x40, 0x60, 26),
 		VT8500_BANK(0x04, 0x24, 0x44, 0x64, 28),
 		VT8500_BANK(0x08, 0x28, 0x48, 0x68, 31),
 		VT8500_BANK(0x0C, 0x2C, 0x4C, 0x6C, 19),
 		VT8500_BANK(0x10, 0x30, 0x50, 0x70, 19),
 		VT8500_BANK(0x14, 0x34, 0x54, 0x74, 23),
-		VT8500_BANK(NO_REG, 0x3C, 0x5C, 0x7C, 9),
 	},
 };
 
 static struct vt8500_gpio_data wm8505_data = {
 	.num_banks	= 10,
 	.banks	= {
+		VT8500_BANK(0x64, 0x8C, 0xB4, 0xDC, 22),
 		VT8500_BANK(0x40, 0x68, 0x90, 0xB8, 8),
 		VT8500_BANK(0x44, 0x6C, 0x94, 0xBC, 32),
 		VT8500_BANK(0x48, 0x70, 0x98, 0xC0, 6),
@@ -95,7 +96,6 @@ static struct vt8500_gpio_data wm8505_data = {
 		VT8500_BANK(0x58, 0x80, 0xA8, 0xD0, 5),
 		VT8500_BANK(0x5C, 0x84, 0xAC, 0xD4, 12),
 		VT8500_BANK(0x60, 0x88, 0xB0, 0xD8, 16),
-		VT8500_BANK(0x64, 0x8C, 0xB4, 0xDC, 22),
 		VT8500_BANK(0x500, 0x504, 0x508, 0x50C, 6),
 	},
 };
@@ -125,6 +125,12 @@ struct vt8500_gpio_chip {
 
 	const struct vt8500_gpio_bank_regoffsets *regs;
 	void __iomem	*base;
+};
+
+struct vt8500_data {
+	struct vt8500_gpio_chip *chip;
+	void __iomem *iobase;
+	int num_banks;
 };
 
 
@@ -224,18 +230,31 @@ static int vt8500_of_xlate(struct gpio_chip *gc,
 static int vt8500_add_chips(struct platform_device *pdev, void __iomem *base,
 				const struct vt8500_gpio_data *data)
 {
+	struct vt8500_data *priv;
 	struct vt8500_gpio_chip *vtchip;
 	struct gpio_chip *chip;
 	int i;
 	int pin_cnt = 0;
 
-	vtchip = devm_kzalloc(&pdev->dev,
-			sizeof(struct vt8500_gpio_chip) * data->num_banks,
-			GFP_KERNEL);
-	if (!vtchip) {
-		pr_err("%s: failed to allocate chip memory\n", __func__);
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct vt8500_data), GFP_KERNEL);
+	if (!priv) {
+		dev_err(&pdev->dev, "failed to allocate memory\n");
 		return -ENOMEM;
 	}
+
+	priv->chip = devm_kzalloc(&pdev->dev,
+			sizeof(struct vt8500_gpio_chip) * data->num_banks,
+			GFP_KERNEL);
+	if (!priv->chip) {
+		dev_err(&pdev->dev, "failed to allocate chip memory\n");
+		return -ENOMEM;
+	}
+
+	priv->iobase = base;
+	priv->num_banks = data->num_banks;
+	platform_set_drvdata(pdev, priv);
+
+	vtchip = priv->chip;
 
 	for (i = 0; i < data->num_banks; i++) {
 		vtchip[i].base = base;
@@ -273,36 +292,54 @@ static struct of_device_id vt8500_gpio_dt_ids[] = {
 
 static int vt8500_gpio_probe(struct platform_device *pdev)
 {
+	int ret;
 	void __iomem *gpio_base;
-	struct device_node *np;
+	struct resource *res;
 	const struct of_device_id *of_id =
 				of_match_device(vt8500_gpio_dt_ids, &pdev->dev);
 
 	if (!of_id) {
-		dev_err(&pdev->dev, "Failed to find gpio controller\n");
+		dev_err(&pdev->dev, "No matching driver data\n");
 		return -ENODEV;
 	}
 
-	np = pdev->dev.of_node;
-	if (!np) {
-		dev_err(&pdev->dev, "Missing GPIO description in devicetree\n");
-		return -EFAULT;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "Unable to get IO resource\n");
+		return -ENODEV;
 	}
 
-	gpio_base = of_iomap(np, 0);
+	gpio_base = devm_request_and_ioremap(&pdev->dev, res);
 	if (!gpio_base) {
 		dev_err(&pdev->dev, "Unable to map GPIO registers\n");
-		of_node_put(np);
 		return -ENOMEM;
 	}
 
-	vt8500_add_chips(pdev, gpio_base, of_id->data);
+	ret = vt8500_add_chips(pdev, gpio_base, of_id->data);
+
+	return ret;
+}
+
+static int vt8500_gpio_remove(struct platform_device *pdev)
+{
+	int i;
+	int ret;
+	struct vt8500_data *priv = platform_get_drvdata(pdev);
+	struct vt8500_gpio_chip *vtchip = priv->chip;
+
+	for (i = 0; i < priv->num_banks; i++) {
+		ret = gpiochip_remove(&vtchip[i].chip);
+		if (ret)
+			dev_warn(&pdev->dev, "gpiochip_remove returned %d\n",
+				 ret);
+	}
 
 	return 0;
 }
 
 static struct platform_driver vt8500_gpio_driver = {
 	.probe		= vt8500_gpio_probe,
+	.remove		= vt8500_gpio_remove,
 	.driver		= {
 		.name	= "vt8500-gpio",
 		.owner	= THIS_MODULE,

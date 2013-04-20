@@ -469,7 +469,7 @@ static int s3c24xx_iis_dev_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 
-	ret = s3c_i2sv2_register_dai(&pdev->dev, -1, &s3c2412_i2s_dai);
+	ret = snd_soc_register_dai(&pdev->dev, &s3c24xx_i2s_dai);
 	if (ret) {
 		pr_err("failed to register the dai\n");
 		return ret;

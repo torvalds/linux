@@ -81,6 +81,8 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 	struct regmap_debugfs_off_cache *c = NULL;
 	loff_t p = 0;
 	unsigned int i, ret;
+	unsigned int fpos_offset;
+	unsigned int reg_offset;
 
 	/*
 	 * If we don't have a cache build one so we don't have to do a
@@ -93,6 +95,9 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 			    regmap_precious(map, i)) {
 				if (c) {
 					c->max = p - 1;
+					fpos_offset = c->max - c->min;
+					reg_offset = fpos_offset / map->debugfs_tot_len;
+					c->max_reg = c->base_reg + reg_offset;
 					list_add_tail(&c->list,
 						      &map->debugfs_off_cache);
 					c = NULL;
@@ -119,6 +124,9 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 	/* Close the last entry off if we didn't scan beyond it */
 	if (c) {
 		c->max = p - 1;
+		fpos_offset = c->max - c->min;
+		reg_offset = fpos_offset / map->debugfs_tot_len;
+		c->max_reg = c->base_reg + reg_offset;
 		list_add_tail(&c->list,
 			      &map->debugfs_off_cache);
 	}
@@ -128,23 +136,36 @@ static unsigned int regmap_debugfs_get_dump_start(struct regmap *map,
 	 * allocate and we should never be in this code if there are
 	 * no registers at all.
 	 */
-	if (list_empty(&map->debugfs_off_cache)) {
-		WARN_ON(list_empty(&map->debugfs_off_cache));
-		return base;
-	}
+	WARN_ON(list_empty(&map->debugfs_off_cache));
+	ret = base;
 
-	/* Find the relevant block */
+	/* Find the relevant block:offset */
 	list_for_each_entry(c, &map->debugfs_off_cache, list) {
 		if (from >= c->min && from <= c->max) {
-			*pos = c->min;
-			return c->base_reg;
+			fpos_offset = from - c->min;
+			reg_offset = fpos_offset / map->debugfs_tot_len;
+			*pos = c->min + (reg_offset * map->debugfs_tot_len);
+			return c->base_reg + reg_offset;
 		}
 
-		*pos = c->min;
-		ret = c->base_reg;
+		*pos = c->max;
+		ret = c->max_reg;
 	}
 
 	return ret;
+}
+
+static inline void regmap_calc_tot_len(struct regmap *map,
+				       void *buf, size_t count)
+{
+	/* Calculate the length of a fixed format  */
+	if (!map->debugfs_tot_len) {
+		map->debugfs_reg_len = regmap_calc_reg_len(map->max_register,
+							   buf, count);
+		map->debugfs_val_len = 2 * map->format.val_bytes;
+		map->debugfs_tot_len = map->debugfs_reg_len +
+			map->debugfs_val_len + 3;      /* : \n */
+	}
 }
 
 static ssize_t regmap_read_debugfs(struct regmap *map, unsigned int from,
@@ -165,14 +186,7 @@ static ssize_t regmap_read_debugfs(struct regmap *map, unsigned int from,
 	if (!buf)
 		return -ENOMEM;
 
-	/* Calculate the length of a fixed format  */
-	if (!map->debugfs_tot_len) {
-		map->debugfs_reg_len = regmap_calc_reg_len(map->max_register,
-							   buf, count);
-		map->debugfs_val_len = 2 * map->format.val_bytes;
-		map->debugfs_tot_len = map->debugfs_reg_len +
-			map->debugfs_val_len + 3;      /* : \n */
-	}
+	regmap_calc_tot_len(map, buf, count);
 
 	/* Work out which register we're starting at */
 	start_reg = regmap_debugfs_get_dump_start(map, from, *ppos, &p);
@@ -187,7 +201,7 @@ static ssize_t regmap_read_debugfs(struct regmap *map, unsigned int from,
 		/* If we're in the region the user is trying to read */
 		if (p >= *ppos) {
 			/* ...but not beyond it */
-			if (buf_pos + 1 + map->debugfs_tot_len >= count)
+			if (buf_pos + map->debugfs_tot_len > count)
 				break;
 
 			/* Format the register */
@@ -265,7 +279,7 @@ static ssize_t regmap_map_write_file(struct file *file,
 		return -EINVAL;
 
 	/* Userspace has been fiddling around behind the kernel's back */
-	add_taint(TAINT_USER);
+	add_taint(TAINT_USER, LOCKDEP_NOW_UNRELIABLE);
 
 	regmap_write(map, reg, value);
 	return buf_size;

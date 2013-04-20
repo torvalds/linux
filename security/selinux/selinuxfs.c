@@ -202,7 +202,7 @@ static ssize_t sel_read_handle_unknown(struct file *filp, char __user *buf,
 {
 	char tmpbuf[TMPBUFLEN];
 	ssize_t length;
-	ino_t ino = filp->f_path.dentry->d_inode->i_ino;
+	ino_t ino = file_inode(filp)->i_ino;
 	int handle_unknown = (ino == SEL_REJECT_UNKNOWN) ?
 		security_get_reject_unknown() : !security_get_allow_unknown();
 
@@ -671,7 +671,7 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 
 static ssize_t selinux_transaction_write(struct file *file, const char __user *buf, size_t size, loff_t *pos)
 {
-	ino_t ino = file->f_path.dentry->d_inode->i_ino;
+	ino_t ino = file_inode(file)->i_ino;
 	char *data;
 	ssize_t rv;
 
@@ -1042,8 +1042,7 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 	ssize_t length;
 	ssize_t ret;
 	int cur_enforcing;
-	struct inode *inode = filep->f_path.dentry->d_inode;
-	unsigned index = inode->i_ino & SEL_INO_MASK;
+	unsigned index = file_inode(filep)->i_ino & SEL_INO_MASK;
 	const char *name = filep->f_path.dentry->d_name.name;
 
 	mutex_lock(&sel_mutex);
@@ -1077,8 +1076,7 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 	char *page = NULL;
 	ssize_t length;
 	int new_value;
-	struct inode *inode = filep->f_path.dentry->d_inode;
-	unsigned index = inode->i_ino & SEL_INO_MASK;
+	unsigned index = file_inode(filep)->i_ino & SEL_INO_MASK;
 	const char *name = filep->f_path.dentry->d_name.name;
 
 	mutex_lock(&sel_mutex);
@@ -1486,13 +1484,11 @@ static int sel_make_avc_files(struct dentry *dir)
 static ssize_t sel_read_initcon(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	struct inode *inode;
 	char *con;
 	u32 sid, len;
 	ssize_t ret;
 
-	inode = file->f_path.dentry->d_inode;
-	sid = inode->i_ino&SEL_INO_MASK;
+	sid = file_inode(file)->i_ino&SEL_INO_MASK;
 	ret = security_sid_to_context(sid, &con, &len);
 	if (ret)
 		return ret;
@@ -1553,7 +1549,7 @@ static inline u32 sel_ino_to_perm(unsigned long ino)
 static ssize_t sel_read_class(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	unsigned long ino = file->f_path.dentry->d_inode->i_ino;
+	unsigned long ino = file_inode(file)->i_ino;
 	char res[TMPBUFLEN];
 	ssize_t len = snprintf(res, sizeof(res), "%d", sel_ino_to_class(ino));
 	return simple_read_from_buffer(buf, count, ppos, res, len);
@@ -1567,7 +1563,7 @@ static const struct file_operations sel_class_ops = {
 static ssize_t sel_read_perm(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	unsigned long ino = file->f_path.dentry->d_inode->i_ino;
+	unsigned long ino = file_inode(file)->i_ino;
 	char res[TMPBUFLEN];
 	ssize_t len = snprintf(res, sizeof(res), "%d", sel_ino_to_perm(ino));
 	return simple_read_from_buffer(buf, count, ppos, res, len);
@@ -1584,7 +1580,7 @@ static ssize_t sel_read_policycap(struct file *file, char __user *buf,
 	int value;
 	char tmpbuf[TMPBUFLEN];
 	ssize_t length;
-	unsigned long i_ino = file->f_path.dentry->d_inode->i_ino;
+	unsigned long i_ino = file_inode(file)->i_ino;
 
 	value = security_policycap_supported(i_ino & SEL_INO_MASK);
 	length = scnprintf(tmpbuf, TMPBUFLEN, "%d", value);

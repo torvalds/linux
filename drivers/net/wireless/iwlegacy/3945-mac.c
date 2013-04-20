@@ -475,6 +475,7 @@ il3945_tx_skb(struct il_priv *il,
 	dma_addr_t txcmd_phys;
 	int txq_id = skb_get_queue_mapping(skb);
 	u16 len, idx, hdr_len;
+	u16 firstlen, secondlen;
 	u8 id;
 	u8 unicast;
 	u8 sta_id;
@@ -572,25 +573,10 @@ il3945_tx_skb(struct il_priv *il,
 	il3945_hw_build_tx_cmd_rate(il, out_cmd, info, hdr, sta_id);
 
 	/* Total # bytes to be transmitted */
-	len = (u16) skb->len;
-	tx_cmd->len = cpu_to_le16(len);
+	tx_cmd->len = cpu_to_le16((u16) skb->len);
 
-	il_update_stats(il, true, fc, len);
 	tx_cmd->tx_flags &= ~TX_CMD_FLG_ANT_A_MSK;
 	tx_cmd->tx_flags &= ~TX_CMD_FLG_ANT_B_MSK;
-
-	if (!ieee80211_has_morefrags(hdr->frame_control)) {
-		txq->need_update = 1;
-	} else {
-		wait_write_ptr = 1;
-		txq->need_update = 0;
-	}
-
-	D_TX("sequence nr = 0X%x\n", le16_to_cpu(out_cmd->hdr.sequence));
-	D_TX("tx_flags = 0X%x\n", le32_to_cpu(tx_cmd->tx_flags));
-	il_print_hex_dump(il, IL_DL_TX, tx_cmd, sizeof(*tx_cmd));
-	il_print_hex_dump(il, IL_DL_TX, (u8 *) tx_cmd->hdr,
-			  ieee80211_hdrlen(fc));
 
 	/*
 	 * Use the first empty entry in this queue's command buffer array
@@ -604,31 +590,50 @@ il3945_tx_skb(struct il_priv *il,
 	len =
 	    sizeof(struct il3945_tx_cmd) + sizeof(struct il_cmd_header) +
 	    hdr_len;
-	len = (len + 3) & ~3;
+	firstlen = (len + 3) & ~3;
 
 	/* Physical address of this Tx command's header (not MAC header!),
 	 * within command buffer array. */
 	txcmd_phys =
-	    pci_map_single(il->pci_dev, &out_cmd->hdr, len, PCI_DMA_TODEVICE);
-	/* we do not map meta data ... so we can safely access address to
-	 * provide to unmap command*/
-	dma_unmap_addr_set(out_meta, mapping, txcmd_phys);
-	dma_unmap_len_set(out_meta, len, len);
-
-	/* Add buffer containing Tx command and MAC(!) header to TFD's
-	 * first entry */
-	il->ops->txq_attach_buf_to_tfd(il, txq, txcmd_phys, len, 1, 0);
+	    pci_map_single(il->pci_dev, &out_cmd->hdr, firstlen,
+			   PCI_DMA_TODEVICE);
+	if (unlikely(pci_dma_mapping_error(il->pci_dev, txcmd_phys)))
+		goto drop_unlock;
 
 	/* Set up TFD's 2nd entry to point directly to remainder of skb,
 	 * if any (802.11 null frames have no payload). */
-	len = skb->len - hdr_len;
-	if (len) {
+	secondlen = skb->len - hdr_len;
+	if (secondlen > 0) {
 		phys_addr =
-		    pci_map_single(il->pci_dev, skb->data + hdr_len, len,
+		    pci_map_single(il->pci_dev, skb->data + hdr_len, secondlen,
 				   PCI_DMA_TODEVICE);
-		il->ops->txq_attach_buf_to_tfd(il, txq, phys_addr, len, 0,
-					       U32_PAD(len));
+		if (unlikely(pci_dma_mapping_error(il->pci_dev, phys_addr)))
+			goto drop_unlock;
 	}
+
+	/* Add buffer containing Tx command and MAC(!) header to TFD's
+	 * first entry */
+	il->ops->txq_attach_buf_to_tfd(il, txq, txcmd_phys, firstlen, 1, 0);
+	dma_unmap_addr_set(out_meta, mapping, txcmd_phys);
+	dma_unmap_len_set(out_meta, len, firstlen);
+	if (secondlen > 0)
+		il->ops->txq_attach_buf_to_tfd(il, txq, phys_addr, secondlen, 0,
+					       U32_PAD(secondlen));
+
+	if (!ieee80211_has_morefrags(hdr->frame_control)) {
+		txq->need_update = 1;
+	} else {
+		wait_write_ptr = 1;
+		txq->need_update = 0;
+	}
+
+	il_update_stats(il, true, fc, skb->len);
+
+	D_TX("sequence nr = 0X%x\n", le16_to_cpu(out_cmd->hdr.sequence));
+	D_TX("tx_flags = 0X%x\n", le32_to_cpu(tx_cmd->tx_flags));
+	il_print_hex_dump(il, IL_DL_TX, tx_cmd, sizeof(*tx_cmd));
+	il_print_hex_dump(il, IL_DL_TX, (u8 *) tx_cmd->hdr,
+			  ieee80211_hdrlen(fc));
 
 	/* Tell device the write idx *just past* this latest filled TFD */
 	q->write_ptr = il_queue_inc_wrap(q->write_ptr, q->n_bd);
@@ -1001,12 +1006,12 @@ il3945_rx_allocate(struct il_priv *il, gfp_t priority)
 	struct list_head *element;
 	struct il_rx_buf *rxb;
 	struct page *page;
+	dma_addr_t page_dma;
 	unsigned long flags;
 	gfp_t gfp_mask = priority;
 
 	while (1) {
 		spin_lock_irqsave(&rxq->lock, flags);
-
 		if (list_empty(&rxq->rx_used)) {
 			spin_unlock_irqrestore(&rxq->lock, flags);
 			return;
@@ -1035,26 +1040,34 @@ il3945_rx_allocate(struct il_priv *il, gfp_t priority)
 			break;
 		}
 
-		spin_lock_irqsave(&rxq->lock, flags);
-		if (list_empty(&rxq->rx_used)) {
-			spin_unlock_irqrestore(&rxq->lock, flags);
-			__free_pages(page, il->hw_params.rx_page_order);
-			return;
-		}
-		element = rxq->rx_used.next;
-		rxb = list_entry(element, struct il_rx_buf, list);
-		list_del(element);
-		spin_unlock_irqrestore(&rxq->lock, flags);
-
-		rxb->page = page;
 		/* Get physical address of RB/SKB */
-		rxb->page_dma =
+		page_dma =
 		    pci_map_page(il->pci_dev, page, 0,
 				 PAGE_SIZE << il->hw_params.rx_page_order,
 				 PCI_DMA_FROMDEVICE);
 
+		if (unlikely(pci_dma_mapping_error(il->pci_dev, page_dma))) {
+			__free_pages(page, il->hw_params.rx_page_order);
+			break;
+		}
+
 		spin_lock_irqsave(&rxq->lock, flags);
 
+		if (list_empty(&rxq->rx_used)) {
+			spin_unlock_irqrestore(&rxq->lock, flags);
+			pci_unmap_page(il->pci_dev, page_dma,
+				       PAGE_SIZE << il->hw_params.rx_page_order,
+				       PCI_DMA_FROMDEVICE);
+			__free_pages(page, il->hw_params.rx_page_order);
+			return;
+		}
+
+		element = rxq->rx_used.next;
+		rxb = list_entry(element, struct il_rx_buf, list);
+		list_del(element);
+
+		rxb->page = page;
+		rxb->page_dma = page_dma;
 		list_add_tail(&rxb->list, &rxq->rx_free);
 		rxq->free_count++;
 		il->alloc_rxb_page++;
@@ -1284,8 +1297,15 @@ il3945_rx_handle(struct il_priv *il)
 			    pci_map_page(il->pci_dev, rxb->page, 0,
 					 PAGE_SIZE << il->hw_params.
 					 rx_page_order, PCI_DMA_FROMDEVICE);
-			list_add_tail(&rxb->list, &rxq->rx_free);
-			rxq->free_count++;
+			if (unlikely(pci_dma_mapping_error(il->pci_dev,
+							   rxb->page_dma))) {
+				__il_free_pages(il, rxb->page);
+				rxb->page = NULL;
+				list_add_tail(&rxb->list, &rxq->rx_used);
+			} else {
+				list_add_tail(&rxb->list, &rxq->rx_free);
+				rxq->free_count++;
+			}
 		} else
 			list_add_tail(&rxb->list, &rxq->rx_used);
 
@@ -3474,6 +3494,7 @@ struct ieee80211_ops il3945_mac_ops = {
 	.sta_add = il3945_mac_sta_add,
 	.sta_remove = il_mac_sta_remove,
 	.tx_last_beacon = il_mac_tx_last_beacon,
+	.flush = il_mac_flush,
 };
 
 static int
@@ -3548,7 +3569,8 @@ il3945_setup_mac(struct il_priv *il)
 	hw->vif_data_size = sizeof(struct il_vif_priv);
 
 	/* Tell mac80211 our characteristics */
-	hw->flags = IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_SPECTRUM_MGMT;
+	hw->flags = IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_SPECTRUM_MGMT |
+		    IEEE80211_HW_SUPPORTS_PS | IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
 
 	hw->wiphy->interface_modes =
 	    BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
@@ -3556,6 +3578,8 @@ il3945_setup_mac(struct il_priv *il)
 	hw->wiphy->flags |=
 	    WIPHY_FLAG_CUSTOM_REGULATORY | WIPHY_FLAG_DISABLE_BEACON_HINTS |
 	    WIPHY_FLAG_IBSS_RSN;
+
+	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX_3945;
 	/* we create the 802.11 header and a zero-length SSID element */

@@ -650,6 +650,29 @@ static int snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 					      snd_dma_pci_data(chip->pci_dev),
 					      0x10000, 0x10000);
 
+	switch (VORTEX_PCM_TYPE(pcm)) {
+	case VORTEX_PCM_ADB:
+		err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+					     snd_pcm_std_chmaps,
+					     VORTEX_IS_QUAD(chip) ? 4 : 2,
+					     0, NULL);
+		if (err < 0)
+			return err;
+		err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_CAPTURE,
+					     snd_pcm_std_chmaps, 2, 0, NULL);
+		if (err < 0)
+			return err;
+		break;
+#ifdef CHIP_AU8830
+	case VORTEX_PCM_A3D:
+		err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+					     snd_pcm_std_chmaps, 1, 0, NULL);
+		if (err < 0)
+			return err;
+		break;
+#endif
+	};
+
 	if (VORTEX_PCM_TYPE(pcm) == VORTEX_PCM_SPDIF) {
 		for (i = 0; i < ARRAY_SIZE(snd_vortex_mixer_spdif); i++) {
 			kctl = snd_ctl_new1(&snd_vortex_mixer_spdif[i], chip);

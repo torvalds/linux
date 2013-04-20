@@ -214,6 +214,9 @@ void gsc_hw_set_in_image_format(struct gsc_ctx *ctx)
 		break;
 	}
 
+	if (is_tiled(frame->fmt))
+		cfg |= GSC_IN_TILE_C_16x8 | GSC_IN_TILE_MODE;
+
 	writel(cfg, dev->regs + GSC_IN_CON);
 }
 
@@ -333,6 +336,9 @@ void gsc_hw_set_out_image_format(struct gsc_ctx *ctx)
 		cfg |= GSC_OUT_YUV420_3P;
 		break;
 	}
+
+	if (is_tiled(frame->fmt))
+		cfg |= GSC_OUT_TILE_C_16x8 | GSC_OUT_TILE_MODE;
 
 end_set:
 	writel(cfg, dev->regs + GSC_OUT_CON);

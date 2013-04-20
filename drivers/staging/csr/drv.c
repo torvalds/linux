@@ -819,15 +819,15 @@ unifi_write(struct file *filp, const char *p, size_t len, loff_t *poff)
         unifi_trace(priv, UDBG2, "unifi_write: signal 0x%.4X len:%d\n",
                     sig_id, signal_size);
 
-        /* Allocate a buffer for the signal */
-        signal_buf = kmalloc(signal_size, GFP_KERNEL);
+	/* Allocate a buffer for the signal */
+	signal_buf = kmemdup(bulkdata.d[0].os_data_ptr, signal_size,
+				GFP_KERNEL);
         if (!signal_buf) {
             unifi_net_data_free(priv, &bulkdata.d[0]);
             return -ENOMEM;
         }
 
         /* Get the signal from the os_data_ptr */
-        memcpy(signal_buf, bulkdata.d[0].os_data_ptr, signal_size);
         signal_buf[5] = (pcli->sender_id >> 8) & 0xff;
 
         if (signal_size < len) {

@@ -177,19 +177,8 @@ static struct hid_driver sjoy_driver = {
 	.id_table = sjoy_devices,
 	.probe = sjoy_probe,
 };
+module_hid_driver(sjoy_driver);
 
-static int __init sjoy_init(void)
-{
-	return hid_register_driver(&sjoy_driver);
-}
-
-static void __exit sjoy_exit(void)
-{
-	hid_unregister_driver(&sjoy_driver);
-}
-
-module_init(sjoy_init);
-module_exit(sjoy_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jussi Kivilinna");
 

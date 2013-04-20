@@ -1700,10 +1700,8 @@ static void sctp_check_transmitted(struct sctp_outq *q,
 		 * address.
 		 */
 		if (!transport->flight_size) {
-			if (timer_pending(&transport->T3_rtx_timer) &&
-			    del_timer(&transport->T3_rtx_timer)) {
+			if (del_timer(&transport->T3_rtx_timer))
 				sctp_transport_put(transport);
-			}
 		} else if (restart_timer) {
 			if (!mod_timer(&transport->T3_rtx_timer,
 				       jiffies + transport->rto))

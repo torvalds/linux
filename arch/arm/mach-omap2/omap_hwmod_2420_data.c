@@ -121,7 +121,12 @@ static struct omap_hwmod omap2420_i2c1_hwmod = {
 	},
 	.class		= &i2c_class,
 	.dev_attr	= &i2c_dev_attr,
-	.flags		= HWMOD_16BIT_REG,
+	/*
+	 * From mach-omap2/pm24xx.c: "Putting MPU into the WFI state
+	 * while a transfer is active seems to cause the I2C block to
+	 * timeout. Why? Good question."
+	 */
+	.flags		= (HWMOD_16BIT_REG | HWMOD_BLOCK_WFI),
 };
 
 /* I2C2 */

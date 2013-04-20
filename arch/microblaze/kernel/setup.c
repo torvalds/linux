@@ -150,33 +150,35 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 	/* printk("TLB1 0x%08x, TLB0 0x%08x, tlb 0x%x\n", tlb0,
 							tlb1, kernel_tlb); */
 
-	printk("Ramdisk addr 0x%08x, ", ram);
+	pr_info("Ramdisk addr 0x%08x, ", ram);
 	if (fdt)
-		printk("FDT at 0x%08x\n", fdt);
+		pr_info("FDT at 0x%08x\n", fdt);
 	else
-		printk("Compiled-in FDT at 0x%08x\n",
+		pr_info("Compiled-in FDT at 0x%08x\n",
 					(unsigned int)_fdt_start);
 
 #ifdef CONFIG_MTD_UCLINUX
-	printk("Found romfs @ 0x%08x (0x%08x)\n",
+	pr_info("Found romfs @ 0x%08x (0x%08x)\n",
 			romfs_base, romfs_size);
-	printk("#### klimit %p ####\n", old_klimit);
+	pr_info("#### klimit %p ####\n", old_klimit);
 	BUG_ON(romfs_size < 0); /* What else can we do? */
 
-	printk("Moved 0x%08x bytes from 0x%08x to 0x%08x\n",
+	pr_info("Moved 0x%08x bytes from 0x%08x to 0x%08x\n",
 			romfs_size, romfs_base, (unsigned)&__bss_stop);
 
-	printk("New klimit: 0x%08x\n", (unsigned)klimit);
+	pr_info("New klimit: 0x%08x\n", (unsigned)klimit);
 #endif
 
 #if CONFIG_XILINX_MICROBLAZE0_USE_MSR_INSTR
-	if (msr)
-		printk("!!!Your kernel has setup MSR instruction but "
-				"CPU don't have it %x\n", msr);
+	if (msr) {
+		pr_info("!!!Your kernel has setup MSR instruction but ");
+		pr_cont("CPU don't have it %x\n", msr);
+	}
 #else
-	if (!msr)
-		printk("!!!Your kernel not setup MSR instruction but "
-				"CPU have it %x\n", msr);
+	if (!msr) {
+		pr_info("!!!Your kernel not setup MSR instruction but ");
+		pr_cont"CPU have it %x\n", msr);
+	}
 #endif
 
 	/* Do not copy reset vectors. offset = 0x2 means skip the first
@@ -216,6 +218,8 @@ static int __init debugfs_tlb(void)
 	d = debugfs_create_u32("tlb_skip", S_IRUGO, of_debugfs_root, &tlb_skip);
 	if (!d)
 		return -ENOMEM;
+
+	return 0;
 }
 device_initcall(debugfs_tlb);
 # endif

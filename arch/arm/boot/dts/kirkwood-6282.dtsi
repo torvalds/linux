@@ -5,6 +5,12 @@
 			compatible = "marvell,88f6282-pinctrl";
 			reg = <0x10000 0x20>;
 
+			pmx_nand: pmx-nand {
+				marvell,pins = "mpp0", "mpp1", "mpp2", "mpp3",
+							"mpp4", "mpp5", "mpp18", "mpp19";
+				marvell,function = "nand";
+			};
+
 			pmx_sata0: pmx-sata0 {
 				marvell,pins = "mpp5", "mpp21", "mpp23";
 				marvell,function = "sata0";
@@ -21,6 +27,12 @@
 				marvell,pins = "mpp8", "mpp9";
 				marvell,function = "twsi0";
 			};
+
+			pmx_twsi1: pmx-twsi1 {
+				marvell,pins = "mpp36", "mpp37";
+				marvell,function = "twsi1";
+			};
+
 			pmx_uart0: pmx-uart0 {
 				marvell,pins = "mpp10", "mpp11";
 				marvell,function = "uart0";
@@ -29,6 +41,11 @@
 			pmx_uart1: pmx-uart1 {
 				marvell,pins = "mpp13", "mpp14";
 				marvell,function = "uart1";
+			};
+			pmx_sdio: pmx-sdio {
+				marvell,pins = "mpp12", "mpp13", "mpp14",
+					       "mpp15", "mpp16", "mpp17";
+				marvell,function = "sdio";
 			};
 		};
 

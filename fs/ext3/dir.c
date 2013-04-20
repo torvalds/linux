@@ -99,7 +99,7 @@ static int ext3_readdir(struct file * filp,
 	int i, stored;
 	struct ext3_dir_entry_2 *de;
 	int err;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block *sb = inode->i_sb;
 	int ret = 0;
 	int dir_has_error = 0;
@@ -114,7 +114,7 @@ static int ext3_readdir(struct file * filp,
 		 * We don't set the inode dirty flag since it's not
 		 * critical that it get flushed back to the disk.
 		 */
-		EXT3_I(filp->f_path.dentry->d_inode)->i_flags &= ~EXT3_INDEX_FL;
+		EXT3_I(file_inode(filp))->i_flags &= ~EXT3_INDEX_FL;
 	}
 	stored = 0;
 	offset = filp->f_pos & (sb->s_blocksize - 1);
@@ -457,7 +457,7 @@ static int call_filldir(struct file * filp, void * dirent,
 {
 	struct dir_private_info *info = filp->private_data;
 	loff_t	curr_pos;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block * sb;
 	int error;
 
@@ -487,7 +487,7 @@ static int ext3_dx_readdir(struct file * filp,
 			 void * dirent, filldir_t filldir)
 {
 	struct dir_private_info *info = filp->private_data;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct fname *fname;
 	int	ret;
 

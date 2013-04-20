@@ -86,15 +86,10 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 
 	grp = &vlan_info->grp;
 
-	/* Take it out of our own structures, but be sure to interlock with
-	 * HW accelerating devices or SW vlan input packet processing if
-	 * VLAN is not 0 (leave it there for 802.1p).
-	 */
-	if (vlan_id)
-		vlan_vid_del(real_dev, vlan_id);
-
 	grp->nr_vlan_devs--;
 
+	if (vlan->flags & VLAN_FLAG_MVRP)
+		vlan_mvrp_request_leave(dev);
 	if (vlan->flags & VLAN_FLAG_GVRP)
 		vlan_gvrp_request_leave(dev);
 
@@ -105,8 +100,19 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 	 */
 	unregister_netdevice_queue(dev, head);
 
-	if (grp->nr_vlan_devs == 0)
+	netdev_upper_dev_unlink(real_dev, dev);
+
+	if (grp->nr_vlan_devs == 0) {
+		vlan_mvrp_uninit_applicant(real_dev);
 		vlan_gvrp_uninit_applicant(real_dev);
+	}
+
+	/* Take it out of our own structures, but be sure to interlock with
+	 * HW accelerating devices or SW vlan input packet processing if
+	 * VLAN is not 0 (leave it there for 802.1p).
+	 */
+	if (vlan_id)
+		vlan_vid_del(real_dev, vlan_id);
 
 	/* Get rid of the vlan's reference to real_dev */
 	dev_put(real_dev);
@@ -115,16 +121,9 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 int vlan_check_real_dev(struct net_device *real_dev, u16 vlan_id)
 {
 	const char *name = real_dev->name;
-	const struct net_device_ops *ops = real_dev->netdev_ops;
 
 	if (real_dev->features & NETIF_F_VLAN_CHALLENGED) {
 		pr_info("VLANs not supported on %s\n", name);
-		return -EOPNOTSUPP;
-	}
-
-	if ((real_dev->features & NETIF_F_HW_VLAN_FILTER) &&
-	    (!ops->ndo_vlan_rx_add_vid || !ops->ndo_vlan_rx_kill_vid)) {
-		pr_info("Device %s has buggy VLAN hw accel\n", name);
 		return -EOPNOTSUPP;
 	}
 
@@ -156,15 +155,22 @@ int register_vlan_dev(struct net_device *dev)
 		err = vlan_gvrp_init_applicant(real_dev);
 		if (err < 0)
 			goto out_vid_del;
+		err = vlan_mvrp_init_applicant(real_dev);
+		if (err < 0)
+			goto out_uninit_gvrp;
 	}
 
 	err = vlan_group_prealloc_vid(grp, vlan_id);
 	if (err < 0)
-		goto out_uninit_applicant;
+		goto out_uninit_mvrp;
+
+	err = netdev_upper_dev_link(real_dev, dev);
+	if (err)
+		goto out_uninit_mvrp;
 
 	err = register_netdevice(dev);
 	if (err < 0)
-		goto out_uninit_applicant;
+		goto out_upper_dev_unlink;
 
 	/* Account for reference in struct vlan_dev_priv */
 	dev_hold(real_dev);
@@ -180,7 +186,12 @@ int register_vlan_dev(struct net_device *dev)
 
 	return 0;
 
-out_uninit_applicant:
+out_upper_dev_unlink:
+	netdev_upper_dev_unlink(real_dev, dev);
+out_uninit_mvrp:
+	if (grp->nr_vlan_devs == 0)
+		vlan_mvrp_uninit_applicant(real_dev);
+out_uninit_gvrp:
 	if (grp->nr_vlan_devs == 0)
 		vlan_gvrp_uninit_applicant(real_dev);
 out_vid_del:
@@ -654,13 +665,19 @@ static int __init vlan_proto_init(void)
 	if (err < 0)
 		goto err3;
 
-	err = vlan_netlink_init();
+	err = vlan_mvrp_init();
 	if (err < 0)
 		goto err4;
+
+	err = vlan_netlink_init();
+	if (err < 0)
+		goto err5;
 
 	vlan_ioctl_set(vlan_ioctl_handler);
 	return 0;
 
+err5:
+	vlan_mvrp_uninit();
 err4:
 	vlan_gvrp_uninit();
 err3:
@@ -681,6 +698,7 @@ static void __exit vlan_cleanup_module(void)
 	unregister_pernet_subsys(&vlan_net_ops);
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 
+	vlan_mvrp_uninit();
 	vlan_gvrp_uninit();
 }
 

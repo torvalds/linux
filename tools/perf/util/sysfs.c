@@ -8,7 +8,7 @@ static const char * const sysfs_known_mountpoints[] = {
 };
 
 static int sysfs_found;
-char sysfs_mountpoint[PATH_MAX];
+char sysfs_mountpoint[PATH_MAX + 1];
 
 static int sysfs_valid_mountpoint(const char *sysfs)
 {

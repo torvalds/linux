@@ -900,6 +900,7 @@ defined:
 
 struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, unsigned int);
+	int (*d_weak_revalidate)(struct dentry *, unsigned int);
 	int (*d_hash)(const struct dentry *, const struct inode *,
 			struct qstr *);
 	int (*d_compare)(const struct dentry *, const struct inode *,
@@ -915,8 +916,13 @@ struct dentry_operations {
 
   d_revalidate: called when the VFS needs to revalidate a dentry. This
 	is called whenever a name look-up finds a dentry in the
-	dcache. Most filesystems leave this as NULL, because all their
-	dentries in the dcache are valid
+	dcache. Most local filesystems leave this as NULL, because all their
+	dentries in the dcache are valid. Network filesystems are different
+	since things can change on the server without the client necessarily
+	being aware of it.
+
+	This function should return a positive value if the dentry is still
+	valid, and zero or a negative error code if it isn't.
 
 	d_revalidate may be called in rcu-walk mode (flags & LOOKUP_RCU).
 	If in rcu-walk mode, the filesystem must revalidate the dentry without
@@ -926,6 +932,20 @@ struct dentry_operations {
 
 	If a situation is encountered that rcu-walk cannot handle, return
 	-ECHILD and it will be called again in ref-walk mode.
+
+ d_weak_revalidate: called when the VFS needs to revalidate a "jumped" dentry.
+	This is called when a path-walk ends at dentry that was not acquired by
+	doing a lookup in the parent directory. This includes "/", "." and "..",
+	as well as procfs-style symlinks and mountpoint traversal.
+
+	In this case, we are less concerned with whether the dentry is still
+	fully correct, but rather that the inode is still valid. As with
+	d_revalidate, most local filesystems will set this to NULL since their
+	dcache entries are always valid.
+
+	This function has the same return code semantics as d_revalidate.
+
+	d_weak_revalidate is only called after leaving rcu-walk mode.
 
   d_hash: called when the VFS adds a dentry to the hash table. The first
 	dentry passed to d_hash is the parent directory that the name is

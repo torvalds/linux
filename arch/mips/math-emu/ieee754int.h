@@ -56,7 +56,7 @@
 
 #define CLPAIR(x, y)	((x)*6+(y))
 
-#define CLEARCX	\
+#define CLEARCX \
   (ieee754_csr.cx = 0)
 
 #define SETCX(x) \

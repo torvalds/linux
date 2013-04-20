@@ -137,7 +137,7 @@ static int udl_gem_get_pages(struct udl_gem_object *obj, gfp_t gfpmask)
 	if (obj->pages == NULL)
 		return -ENOMEM;
 
-	inode = obj->base.filp->f_path.dentry->d_inode;
+	inode = file_inode(obj->base.filp);
 	mapping = inode->i_mapping;
 	gfpmask |= mapping_gfp_mask(mapping);
 

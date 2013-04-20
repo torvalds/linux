@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -26,6 +27,7 @@
 struct regmap_mmio_context {
 	void __iomem *regs;
 	unsigned val_bytes;
+	struct clk *clk;
 };
 
 static int regmap_mmio_gather_write(void *context,
@@ -34,8 +36,15 @@ static int regmap_mmio_gather_write(void *context,
 {
 	struct regmap_mmio_context *ctx = context;
 	u32 offset;
+	int ret;
 
 	BUG_ON(reg_size != 4);
+
+	if (ctx->clk) {
+		ret = clk_enable(ctx->clk);
+		if (ret < 0)
+			return ret;
+	}
 
 	offset = *(u32 *)reg;
 
@@ -64,6 +73,9 @@ static int regmap_mmio_gather_write(void *context,
 		offset += ctx->val_bytes;
 	}
 
+	if (ctx->clk)
+		clk_disable(ctx->clk);
+
 	return 0;
 }
 
@@ -80,8 +92,15 @@ static int regmap_mmio_read(void *context,
 {
 	struct regmap_mmio_context *ctx = context;
 	u32 offset;
+	int ret;
 
 	BUG_ON(reg_size != 4);
+
+	if (ctx->clk) {
+		ret = clk_enable(ctx->clk);
+		if (ret < 0)
+			return ret;
+	}
 
 	offset = *(u32 *)reg;
 
@@ -110,11 +129,20 @@ static int regmap_mmio_read(void *context,
 		offset += ctx->val_bytes;
 	}
 
+	if (ctx->clk)
+		clk_disable(ctx->clk);
+
 	return 0;
 }
 
 static void regmap_mmio_free_context(void *context)
 {
+	struct regmap_mmio_context *ctx = context;
+
+	if (ctx->clk) {
+		clk_unprepare(ctx->clk);
+		clk_put(ctx->clk);
+	}
 	kfree(context);
 }
 
@@ -128,11 +156,14 @@ static struct regmap_bus regmap_mmio = {
 	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
 };
 
-static struct regmap_mmio_context *regmap_mmio_gen_context(void __iomem *regs,
+static struct regmap_mmio_context *regmap_mmio_gen_context(struct device *dev,
+					const char *clk_id,
+					void __iomem *regs,
 					const struct regmap_config *config)
 {
 	struct regmap_mmio_context *ctx;
 	int min_stride;
+	int ret;
 
 	if (config->reg_bits != 32)
 		return ERR_PTR(-EINVAL);
@@ -179,37 +210,59 @@ static struct regmap_mmio_context *regmap_mmio_gen_context(void __iomem *regs,
 	ctx->regs = regs;
 	ctx->val_bytes = config->val_bits / 8;
 
+	if (clk_id == NULL)
+		return ctx;
+
+	ctx->clk = clk_get(dev, clk_id);
+	if (IS_ERR(ctx->clk)) {
+		ret = PTR_ERR(ctx->clk);
+		goto err_free;
+	}
+
+	ret = clk_prepare(ctx->clk);
+	if (ret < 0) {
+		clk_put(ctx->clk);
+		goto err_free;
+	}
+
 	return ctx;
+
+err_free:
+	kfree(ctx);
+
+	return ERR_PTR(ret);
 }
 
 /**
- * regmap_init_mmio(): Initialise register map
+ * regmap_init_mmio_clk(): Initialise register map with register clock
  *
  * @dev: Device that will be interacted with
+ * @clk_id: register clock consumer ID
  * @regs: Pointer to memory-mapped IO region
  * @config: Configuration for register map
  *
  * The return value will be an ERR_PTR() on error or a valid pointer to
  * a struct regmap.
  */
-struct regmap *regmap_init_mmio(struct device *dev,
-				void __iomem *regs,
-				const struct regmap_config *config)
+struct regmap *regmap_init_mmio_clk(struct device *dev, const char *clk_id,
+				    void __iomem *regs,
+				    const struct regmap_config *config)
 {
 	struct regmap_mmio_context *ctx;
 
-	ctx = regmap_mmio_gen_context(regs, config);
+	ctx = regmap_mmio_gen_context(dev, clk_id, regs, config);
 	if (IS_ERR(ctx))
 		return ERR_CAST(ctx);
 
 	return regmap_init(dev, &regmap_mmio, ctx, config);
 }
-EXPORT_SYMBOL_GPL(regmap_init_mmio);
+EXPORT_SYMBOL_GPL(regmap_init_mmio_clk);
 
 /**
- * devm_regmap_init_mmio(): Initialise managed register map
+ * devm_regmap_init_mmio_clk(): Initialise managed register map with clock
  *
  * @dev: Device that will be interacted with
+ * @clk_id: register clock consumer ID
  * @regs: Pointer to memory-mapped IO region
  * @config: Configuration for register map
  *
@@ -217,18 +270,18 @@ EXPORT_SYMBOL_GPL(regmap_init_mmio);
  * to a struct regmap.  The regmap will be automatically freed by the
  * device management code.
  */
-struct regmap *devm_regmap_init_mmio(struct device *dev,
-				     void __iomem *regs,
-				     const struct regmap_config *config)
+struct regmap *devm_regmap_init_mmio_clk(struct device *dev, const char *clk_id,
+					 void __iomem *regs,
+					 const struct regmap_config *config)
 {
 	struct regmap_mmio_context *ctx;
 
-	ctx = regmap_mmio_gen_context(regs, config);
+	ctx = regmap_mmio_gen_context(dev, clk_id, regs, config);
 	if (IS_ERR(ctx))
 		return ERR_CAST(ctx);
 
 	return devm_regmap_init(dev, &regmap_mmio, ctx, config);
 }
-EXPORT_SYMBOL_GPL(devm_regmap_init_mmio);
+EXPORT_SYMBOL_GPL(devm_regmap_init_mmio_clk);
 
 MODULE_LICENSE("GPL v2");

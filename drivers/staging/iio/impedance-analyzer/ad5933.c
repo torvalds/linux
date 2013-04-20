@@ -22,7 +22,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
-#include "../ring_sw.h"
+#include <linux/iio/kfifo_buf.h>
 
 #include "ad5933.h"
 
@@ -630,7 +630,7 @@ static const struct iio_buffer_setup_ops ad5933_ring_setup_ops = {
 
 static int ad5933_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
-	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
 	if (!indio_dev->buffer)
 		return -ENOMEM;
 
@@ -774,7 +774,7 @@ static int ad5933_probe(struct i2c_client *client,
 error_uninitialize_ring:
 	iio_buffer_unregister(indio_dev);
 error_unreg_ring:
-	iio_sw_rb_free(indio_dev->buffer);
+	iio_kfifo_free(indio_dev->buffer);
 error_disable_reg:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
@@ -794,7 +794,7 @@ static int ad5933_remove(struct i2c_client *client)
 
 	iio_device_unregister(indio_dev);
 	iio_buffer_unregister(indio_dev);
-	iio_sw_rb_free(indio_dev->buffer);
+	iio_kfifo_free(indio_dev->buffer);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);

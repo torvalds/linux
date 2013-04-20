@@ -1107,14 +1107,8 @@ static int gdth_init_pci(struct pci_dev *pdev, gdth_pci_str *pcistr,
 	pci_read_config_word(pdev, PCI_COMMAND, &command);
         command |= 6;
 	pci_write_config_word(pdev, PCI_COMMAND, command);
-	if (pci_resource_start(pdev, 8) == 1UL)
-	    pci_resource_start(pdev, 8) = 0UL;
-        i = 0xFEFF0001UL;
-	pci_write_config_dword(pdev, PCI_ROM_ADDRESS, i);
-        gdth_delay(1);
-	pci_write_config_dword(pdev, PCI_ROM_ADDRESS,
-			       pci_resource_start(pdev, 8));
-        
+	gdth_delay(1);
+
         dp6m_ptr = ha->brd;
 
         /* Ensure that it is safe to access the non HW portions of DPMEM.

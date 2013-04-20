@@ -178,7 +178,7 @@ handle_real_irq:
 	} else {
 		inb(PIC_MASTER_IMR);	/* DUMMY - (do we need this?) */
 		outb(cached_master_mask, PIC_MASTER_IMR);
-		outb(0x60+irq, PIC_MASTER_CMD);	/* 'Specific EOI to master */
+		outb(0x60+irq, PIC_MASTER_CMD); /* 'Specific EOI to master */
 	}
 	smtc_im_ack_irq(irq);
 	raw_spin_unlock_irqrestore(&i8259A_lock, flags);

@@ -411,7 +411,7 @@ static struct ddr_config ddr_config_table[] __attribute__((section(".data_l1")))
 		.dmc_ddrcfg = 0x00000422,
 		.dmc_ddrtr0 = 0x20E0A424,
 		.dmc_ddrtr1 = 0x3020079E,
-		.dmc_ddrtr2 = 0x0032020D,
+		.dmc_ddrtr2 = 0x0032050D,
 		.dmc_ddrmr  = 0x00000842,
 		.dmc_ddrmr1 = 0x4,
 	},

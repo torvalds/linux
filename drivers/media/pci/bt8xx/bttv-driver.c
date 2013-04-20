@@ -250,17 +250,19 @@ static u8 SRAM_Table[][60] =
    vdelay	start of active video in 2 * field lines relative to
 		trailing edge of /VRESET pulse (VDELAY register).
    sheight	height of active video in 2 * field lines.
+   extraheight	Added to sheight for cropcap.bounds.height only
    videostart0	ITU-R frame line number of the line corresponding
 		to vdelay in the first field. */
 #define CROPCAP(minhdelayx1, hdelayx1, swidth, totalwidth, sqwidth,	 \
-		vdelay, sheight, videostart0)				 \
+		vdelay, sheight, extraheight, videostart0)		 \
 	.cropcap.bounds.left = minhdelayx1,				 \
 	/* * 2 because vertically we count field lines times two, */	 \
 	/* e.g. 23 * 2 to 23 * 2 + 576 in PAL-BGHI defrect. */		 \
 	.cropcap.bounds.top = (videostart0) * 2 - (vdelay) + MIN_VDELAY, \
 	/* 4 is a safety margin at the end of the line. */		 \
 	.cropcap.bounds.width = (totalwidth) - (minhdelayx1) - 4,	 \
-	.cropcap.bounds.height = (sheight) + (vdelay) - MIN_VDELAY,	 \
+	.cropcap.bounds.height = (sheight) + (extraheight) + (vdelay) -	 \
+				 MIN_VDELAY,				 \
 	.cropcap.defrect.left = hdelayx1,				 \
 	.cropcap.defrect.top = (videostart0) * 2,			 \
 	.cropcap.defrect.width = swidth,				 \
@@ -301,9 +303,10 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 			/* totalwidth */ 1135,
 			/* sqwidth */ 944,
 			/* vdelay */ 0x20,
-		/* bt878 (and bt848?) can capture another
-		   line below active video. */
-			/* sheight */ (576 + 2) + 0x20 - 2,
+			/* sheight */ 576,
+			/* bt878 (and bt848?) can capture another
+			   line below active video. */
+			/* extraheight */ 2,
 			/* videostart0 */ 23)
 	},{
 		.v4l2_id        = V4L2_STD_NTSC_M | V4L2_STD_NTSC_M_KR,
@@ -330,6 +333,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 			/* sqwidth */ 780,
 			/* vdelay */ 0x1a,
 			/* sheight */ 480,
+			/* extraheight */ 0,
 			/* videostart0 */ 23)
 	},{
 		.v4l2_id        = V4L2_STD_SECAM,
@@ -355,6 +359,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 			/* sqwidth */ 944,
 			/* vdelay */ 0x20,
 			/* sheight */ 576,
+			/* extraheight */ 0,
 			/* videostart0 */ 23)
 	},{
 		.v4l2_id        = V4L2_STD_PAL_Nc,
@@ -380,6 +385,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 			/* sqwidth */ 780,
 			/* vdelay */ 0x1a,
 			/* sheight */ 576,
+			/* extraheight */ 0,
 			/* videostart0 */ 23)
 	},{
 		.v4l2_id        = V4L2_STD_PAL_M,
@@ -405,6 +411,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 			/* sqwidth */ 780,
 			/* vdelay */ 0x1a,
 			/* sheight */ 480,
+			/* extraheight */ 0,
 			/* videostart0 */ 23)
 	},{
 		.v4l2_id        = V4L2_STD_PAL_N,
@@ -430,6 +437,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 			/* sqwidth */ 944,
 			/* vdelay */ 0x20,
 			/* sheight */ 576,
+			/* extraheight */ 0,
 			/* videostart0 */ 23)
 	},{
 		.v4l2_id        = V4L2_STD_NTSC_M_JP,
@@ -455,6 +463,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 			/* sqwidth */ 780,
 			/* vdelay */ 0x16,
 			/* sheight */ 480,
+			/* extraheight */ 0,
 			/* videostart0 */ 23)
 	},{
 		/* that one hopefully works with the strange timing
@@ -484,6 +493,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 			/* sqwidth */ 944,
 			/* vdelay */ 0x1a,
 			/* sheight */ 480,
+			/* extraheight */ 0,
 			/* videostart0 */ 23)
 	}
 };
@@ -3835,7 +3845,7 @@ bttv_irq_wakeup_video(struct bttv *btv, struct bttv_buffer_set *wakeup,
 {
 	struct timeval ts;
 
-	do_gettimeofday(&ts);
+	v4l2_get_timestamp(&ts);
 
 	if (wakeup->top == wakeup->bottom) {
 		if (NULL != wakeup->top && curr->top != wakeup->top) {
@@ -3878,7 +3888,7 @@ bttv_irq_wakeup_vbi(struct bttv *btv, struct bttv_buffer *wakeup,
 	if (NULL == wakeup)
 		return;
 
-	do_gettimeofday(&ts);
+	v4l2_get_timestamp(&ts);
 	wakeup->vb.ts = ts;
 	wakeup->vb.field_count = btv->field_count;
 	wakeup->vb.state = state;
@@ -3949,7 +3959,7 @@ bttv_irq_wakeup_top(struct bttv *btv)
 	btv->curr.top = NULL;
 	bttv_risc_hook(btv, RISC_SLOT_O_FIELD, NULL, 0);
 
-	do_gettimeofday(&wakeup->vb.ts);
+	v4l2_get_timestamp(&wakeup->vb.ts);
 	wakeup->vb.field_count = btv->field_count;
 	wakeup->vb.state = VIDEOBUF_DONE;
 	wake_up(&wakeup->vb.done);

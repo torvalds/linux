@@ -15,14 +15,37 @@
 #include <linux/dmaengine.h>
 
 /**
+ * struct dw_dma_slave - Controller-specific information about a slave
+ *
+ * @dma_dev: required DMA master device. Depricated.
+ * @bus_id: name of this device channel, not just a device name since
+ *          devices may have more than one channel e.g. "foo_tx"
+ * @cfg_hi: Platform-specific initializer for the CFG_HI register
+ * @cfg_lo: Platform-specific initializer for the CFG_LO register
+ * @src_master: src master for transfers on allocated channel.
+ * @dst_master: dest master for transfers on allocated channel.
+ */
+struct dw_dma_slave {
+	struct device		*dma_dev;
+	u32			cfg_hi;
+	u32			cfg_lo;
+	u8			src_master;
+	u8			dst_master;
+};
+
+/**
  * struct dw_dma_platform_data - Controller configuration parameters
  * @nr_channels: Number of channels supported by hardware (max 8)
  * @is_private: The device channels should be marked as private and not for
  *	by the general purpose DMA channel allocator.
+ * @chan_allocation_order: Allocate channels starting from 0 or 7
+ * @chan_priority: Set channel priority increasing from 0 to 7 or 7 to 0.
  * @block_size: Maximum block size supported by the controller
  * @nr_masters: Number of AHB masters supported by the controller
  * @data_width: Maximum data width supported by hardware per AHB master
  *		(0 - 8bits, 1 - 16bits, ..., 5 - 256bits)
+ * @sd: slave specific data. Used for configuring channels
+ * @sd_count: count of slave data structures passed.
  */
 struct dw_dma_platform_data {
 	unsigned int	nr_channels;
@@ -48,23 +71,6 @@ enum dw_dma_msize {
 	DW_DMA_MSIZE_64,
 	DW_DMA_MSIZE_128,
 	DW_DMA_MSIZE_256,
-};
-
-/**
- * struct dw_dma_slave - Controller-specific information about a slave
- *
- * @dma_dev: required DMA master device
- * @cfg_hi: Platform-specific initializer for the CFG_HI register
- * @cfg_lo: Platform-specific initializer for the CFG_LO register
- * @src_master: src master for transfers on allocated channel.
- * @dst_master: dest master for transfers on allocated channel.
- */
-struct dw_dma_slave {
-	struct device		*dma_dev;
-	u32			cfg_hi;
-	u32			cfg_lo;
-	u8			src_master;
-	u8			dst_master;
 };
 
 /* Platform-configurable bits in CFG_HI */

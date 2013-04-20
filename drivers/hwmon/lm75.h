@@ -25,7 +25,7 @@
     which contains this code, we don't worry about the wasted space.
 */
 
-#include <linux/hwmon.h>
+#include <linux/kernel.h>
 
 /* straight from the datasheet */
 #define LM75_TEMP_MIN (-55000)
@@ -36,7 +36,7 @@
    REG: (0.5C/bit, two's complement) << 7 */
 static inline u16 LM75_TEMP_TO_REG(long temp)
 {
-	int ntemp = SENSORS_LIMIT(temp, LM75_TEMP_MIN, LM75_TEMP_MAX);
+	int ntemp = clamp_val(temp, LM75_TEMP_MIN, LM75_TEMP_MAX);
 	ntemp += (ntemp < 0 ? -250 : 250);
 	return (u16)((ntemp / 500) << 7);
 }

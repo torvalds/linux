@@ -43,7 +43,6 @@ static __be32
 nfsd3_proc_getattr(struct svc_rqst *rqstp, struct nfsd_fhandle  *argp,
 					   struct nfsd3_attrstat *resp)
 {
-	int	err;
 	__be32	nfserr;
 
 	dprintk("nfsd: GETATTR(3)  %s\n",
@@ -55,9 +54,7 @@ nfsd3_proc_getattr(struct svc_rqst *rqstp, struct nfsd_fhandle  *argp,
 	if (nfserr)
 		RETURN_STATUS(nfserr);
 
-	err = vfs_getattr(resp->fh.fh_export->ex_path.mnt,
-			  resp->fh.fh_dentry, &resp->stat);
-	nfserr = nfserrno(err);
+	nfserr = fh_getattr(&resp->fh, &resp->stat);
 
 	RETURN_STATUS(nfserr);
 }

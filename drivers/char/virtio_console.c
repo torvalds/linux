@@ -61,9 +61,6 @@ struct ports_driver_data {
 	/* List of all the devices we're handling */
 	struct list_head portdevs;
 
-	/* Number of devices this driver is handling */
-	unsigned int index;
-
 	/*
 	 * This is used to keep track of the number of hvc consoles
 	 * spawned by this driver.  This number is given as the first
@@ -168,9 +165,6 @@ struct ports_device {
 
 	/* Array of per-port IO virtqueues */
 	struct virtqueue **in_vqs, **out_vqs;
-
-	/* Used for numbering devices for sysfs and debugfs */
-	unsigned int drv_index;
 
 	/* Major number for this device.  Ports will be created as minors. */
 	int chr_major;
@@ -1415,7 +1409,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 	}
 	port->dev = device_create(pdrvdata.class, &port->portdev->vdev->dev,
 				  devt, port, "vport%up%u",
-				  port->portdev->drv_index, id);
+				  port->portdev->vdev->index, id);
 	if (IS_ERR(port->dev)) {
 		err = PTR_ERR(port->dev);
 		dev_err(&port->portdev->vdev->dev,
@@ -1442,7 +1436,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 		 * rproc_serial does not want the console port, only
 		 * the generic port implementation.
 		 */
-		port->host_connected = true;
+		port->host_connected = port->guest_connected = true;
 	else if (!use_multiport(port->portdev)) {
 		/*
 		 * If we're not using multiport support,
@@ -1470,7 +1464,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 		 * inspect a port's state at any time
 		 */
 		sprintf(debugfs_name, "vport%up%u",
-			port->portdev->drv_index, id);
+			port->portdev->vdev->index, id);
 		port->debugfs_file = debugfs_create_file(debugfs_name, 0444,
 							 pdrvdata.debugfs_dir,
 							 port,
@@ -1958,16 +1952,12 @@ static int virtcons_probe(struct virtio_device *vdev)
 	portdev->vdev = vdev;
 	vdev->priv = portdev;
 
-	spin_lock_irq(&pdrvdata_lock);
-	portdev->drv_index = pdrvdata.index++;
-	spin_unlock_irq(&pdrvdata_lock);
-
 	portdev->chr_major = register_chrdev(0, "virtio-portsdev",
 					     &portdev_fops);
 	if (portdev->chr_major < 0) {
 		dev_err(&vdev->dev,
 			"Error %d registering chrdev for device %u\n",
-			portdev->chr_major, portdev->drv_index);
+			portdev->chr_major, vdev->index);
 		err = portdev->chr_major;
 		goto free;
 	}
@@ -2062,7 +2052,8 @@ static void virtcons_remove(struct virtio_device *vdev)
 	/* Disable interrupts for vqs */
 	vdev->config->reset(vdev);
 	/* Finish up work that's lined up */
-	cancel_work_sync(&portdev->control_work);
+	if (use_multiport(portdev))
+		cancel_work_sync(&portdev->control_work);
 
 	list_for_each_entry_safe(port, port2, &portdev->ports, list)
 		unplug_port(port);

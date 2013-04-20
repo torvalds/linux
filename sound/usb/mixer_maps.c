@@ -380,6 +380,10 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.selector_map = c400_selectors,
 	},
 	{
+		.id = USB_ID(0x0763, 0x2031),
+		.selector_map = c400_selectors,
+	},
+	{
 		.id = USB_ID(0x08bb, 0x2702),
 		.map = linex_map,
 		.ignore_ctl_error = 1,

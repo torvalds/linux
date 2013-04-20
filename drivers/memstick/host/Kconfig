@@ -5,8 +5,8 @@
 comment "MemoryStick Host Controller Drivers"
 
 config MEMSTICK_TIFM_MS
-	tristate "TI Flash Media MemoryStick Interface support  (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PCI
+	tristate "TI Flash Media MemoryStick Interface support "
+	depends on PCI
 	select TIFM_CORE
 	help
 	  Say Y here if you want to be able to access MemoryStick cards with
@@ -21,8 +21,8 @@ config MEMSTICK_TIFM_MS
 	  module will be called tifm_ms.
 
 config MEMSTICK_JMICRON_38X
-	tristate "JMicron JMB38X MemoryStick interface support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PCI
+	tristate "JMicron JMB38X MemoryStick interface support"
+	depends on PCI
 
 	help
 	  Say Y here if you want to be able to access MemoryStick cards with
@@ -32,8 +32,8 @@ config MEMSTICK_JMICRON_38X
 	  module will be called jmb38x_ms.
 
 config MEMSTICK_R592
-	tristate "Ricoh R5C592 MemoryStick interface support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PCI
+	tristate "Ricoh R5C592 MemoryStick interface support"
+	depends on PCI
 
 	help
 	  Say Y here if you want to be able to access MemoryStick cards with

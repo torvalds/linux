@@ -95,7 +95,7 @@ static inline unsigned long fix_to_virt(const unsigned int idx)
 	if (idx >= __end_of_fixed_addresses)
 		__this_fixmap_does_not_exist();
 
-        return __fix_to_virt(idx);
+	return __fix_to_virt(idx);
 }
 
 static inline unsigned long virt_to_fix(const unsigned long vaddr)
@@ -111,7 +111,7 @@ static inline unsigned long virt_to_fix(const unsigned long vaddr)
  * Called from pgtable_init()
  */
 extern void fixrange_init(unsigned long start, unsigned long end,
-        pgd_t *pgd_base);
+	pgd_t *pgd_base);
 
 
 #endif

@@ -965,10 +965,11 @@ static struct exynos_dp_platdata *exynos_dp_dt_parse_pdata(struct device *dev)
 
 static int exynos_dp_dt_parse_phydata(struct exynos_dp_device *dp)
 {
-	struct device_node *dp_phy_node;
+	struct device_node *dp_phy_node = of_node_get(dp->dev->of_node);
 	u32 phy_base;
+	int ret = 0;
 
-	dp_phy_node = of_find_node_by_name(dp->dev->of_node, "dptx-phy");
+	dp_phy_node = of_find_node_by_name(dp_phy_node, "dptx-phy");
 	if (!dp_phy_node) {
 		dev_err(dp->dev, "could not find dptx-phy node\n");
 		return -ENODEV;
@@ -976,22 +977,28 @@ static int exynos_dp_dt_parse_phydata(struct exynos_dp_device *dp)
 
 	if (of_property_read_u32(dp_phy_node, "reg", &phy_base)) {
 		dev_err(dp->dev, "faild to get reg for dptx-phy\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	if (of_property_read_u32(dp_phy_node, "samsung,enable-mask",
 				&dp->enable_mask)) {
 		dev_err(dp->dev, "faild to get enable-mask for dptx-phy\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	dp->phy_addr = ioremap(phy_base, SZ_4);
 	if (!dp->phy_addr) {
 		dev_err(dp->dev, "failed to ioremap dp-phy\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 
-	return 0;
+err:
+	of_node_put(dp_phy_node);
+
+	return ret;
 }
 
 static void exynos_dp_phy_init(struct exynos_dp_device *dp)
@@ -1076,11 +1083,9 @@ static int exynos_dp_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	dp->reg_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!dp->reg_base) {
-		dev_err(&pdev->dev, "failed to ioremap\n");
-		return -ENOMEM;
-	}
+	dp->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dp->reg_base))
+		return PTR_ERR(dp->reg_base);
 
 	dp->irq = platform_get_irq(pdev, 0);
 	if (dp->irq == -ENXIO) {
@@ -1119,10 +1124,7 @@ static int exynos_dp_remove(struct platform_device *pdev)
 	struct exynos_dp_platdata *pdata = pdev->dev.platform_data;
 	struct exynos_dp_device *dp = platform_get_drvdata(pdev);
 
-	disable_irq(dp->irq);
-
-	if (work_pending(&dp->hotplug_work))
-		flush_work(&dp->hotplug_work);
+	flush_work(&dp->hotplug_work);
 
 	if (pdev->dev.of_node) {
 		if (dp->phy_addr)
@@ -1144,8 +1146,9 @@ static int exynos_dp_suspend(struct device *dev)
 	struct exynos_dp_platdata *pdata = dev->platform_data;
 	struct exynos_dp_device *dp = dev_get_drvdata(dev);
 
-	if (work_pending(&dp->hotplug_work))
-		flush_work(&dp->hotplug_work);
+	disable_irq(dp->irq);
+
+	flush_work(&dp->hotplug_work);
 
 	if (dev->of_node) {
 		if (dp->phy_addr)

@@ -204,6 +204,7 @@ static struct ipa_rc_msg qeth_ipa_rc_msg[] = {
 	{IPA_RC_INVALID_SETRTG_INDICATOR, "Invalid SETRTG indicator"},
 	{IPA_RC_MC_ADDR_ALREADY_DEFINED, "Multicast address already defined"},
 	{IPA_RC_LAN_OFFLINE,		"STRTLAN_LAN_DISABLED - LAN offline"},
+	{IPA_RC_VEPA_TO_VEB_TRANSITION,	"Adj. switch disabled port mode RR"},
 	{IPA_RC_INVALID_IP_VERSION2,	"Invalid IP version"},
 	{IPA_RC_ENOMEM,			"Memory problem"},
 	{IPA_RC_FFFF,			"Unknown Error"}

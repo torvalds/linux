@@ -15,6 +15,7 @@
 
 variant-$(CONFIG_XTENSA_VARIANT_FSF)		:= fsf
 variant-$(CONFIG_XTENSA_VARIANT_DC232B)		:= dc232b
+variant-$(CONFIG_XTENSA_VARIANT_DC233C)		:= dc233c
 variant-$(CONFIG_XTENSA_VARIANT_S6000)		:= s6000
 variant-$(CONFIG_XTENSA_VARIANT_LINUX_CUSTOM)	:= custom
 
@@ -86,9 +87,10 @@ core-y		+= arch/xtensa/kernel/ arch/xtensa/mm/
 core-y		+= $(buildvar) $(buildplf)
 
 libs-y		+= arch/xtensa/lib/ $(LIBGCC)
+drivers-$(CONFIG_OPROFILE)	+= arch/xtensa/oprofile/
 
 ifneq ($(CONFIG_BUILTIN_DTB),"")
-core-$(CONFIG_OF) += arch/xtensa/boot/
+core-$(CONFIG_OF) += arch/xtensa/boot/dts/
 endif
 
 boot		:= arch/xtensa/boot
@@ -101,7 +103,7 @@ zImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
 %.dtb:
-	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
 
 define archhelp
   @echo '* zImage      - Compressed kernel image (arch/xtensa/boot/images/zImage.*)'

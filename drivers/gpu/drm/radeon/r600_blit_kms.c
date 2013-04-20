@@ -31,6 +31,37 @@
 #include "r600_blit_shaders.h"
 #include "radeon_blit_common.h"
 
+/* 23 bits of float fractional data */
+#define I2F_FRAC_BITS  23
+#define I2F_MASK ((1 << I2F_FRAC_BITS) - 1)
+
+/*
+ * Converts unsigned integer into 32-bit IEEE floating point representation.
+ * Will be exact from 0 to 2^24.  Above that, we round towards zero
+ * as the fractional bits will not fit in a float.  (It would be better to
+ * round towards even as the fpu does, but that is slower.)
+ */
+__pure uint32_t int2float(uint32_t x)
+{
+	uint32_t msb, exponent, fraction;
+
+	/* Zero is special */
+	if (!x) return 0;
+
+	/* Get location of the most significant bit */
+	msb = __fls(x);
+
+	/*
+	 * Use a rotate instead of a shift because that works both leftwards
+	 * and rightwards due to the mod(32) behaviour.  This means we don't
+	 * need to check to see if we are above 2^24 or not.
+	 */
+	fraction = ror32(x, (msb - I2F_FRAC_BITS) & 0x1f) & I2F_MASK;
+	exponent = (127 + msb) << I2F_FRAC_BITS;
+
+	return fraction + exponent;
+}
+
 /* emits 21 on rv770+, 23 on r600 */
 static void
 set_render_target(struct radeon_device *rdev, int format,

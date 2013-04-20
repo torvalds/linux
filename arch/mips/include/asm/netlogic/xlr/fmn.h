@@ -38,108 +38,108 @@
 #include <asm/netlogic/mips-extns.h> /* for COP2 access */
 
 /* Station IDs */
-#define	FMN_STNID_CPU0			0x00
-#define	FMN_STNID_CPU1			0x08
-#define	FMN_STNID_CPU2			0x10
-#define	FMN_STNID_CPU3			0x18
-#define	FMN_STNID_CPU4			0x20
-#define	FMN_STNID_CPU5			0x28
-#define	FMN_STNID_CPU6			0x30
-#define	FMN_STNID_CPU7			0x38
+#define FMN_STNID_CPU0			0x00
+#define FMN_STNID_CPU1			0x08
+#define FMN_STNID_CPU2			0x10
+#define FMN_STNID_CPU3			0x18
+#define FMN_STNID_CPU4			0x20
+#define FMN_STNID_CPU5			0x28
+#define FMN_STNID_CPU6			0x30
+#define FMN_STNID_CPU7			0x38
 
-#define	FMN_STNID_XGS0_TX		64
-#define	FMN_STNID_XMAC0_00_TX		64
-#define	FMN_STNID_XMAC0_01_TX		65
-#define	FMN_STNID_XMAC0_02_TX		66
-#define	FMN_STNID_XMAC0_03_TX		67
-#define	FMN_STNID_XMAC0_04_TX		68
-#define	FMN_STNID_XMAC0_05_TX		69
-#define	FMN_STNID_XMAC0_06_TX		70
-#define	FMN_STNID_XMAC0_07_TX		71
-#define	FMN_STNID_XMAC0_08_TX		72
-#define	FMN_STNID_XMAC0_09_TX		73
-#define	FMN_STNID_XMAC0_10_TX		74
-#define	FMN_STNID_XMAC0_11_TX		75
-#define	FMN_STNID_XMAC0_12_TX		76
-#define	FMN_STNID_XMAC0_13_TX		77
-#define	FMN_STNID_XMAC0_14_TX		78
-#define	FMN_STNID_XMAC0_15_TX		79
+#define FMN_STNID_XGS0_TX		64
+#define FMN_STNID_XMAC0_00_TX		64
+#define FMN_STNID_XMAC0_01_TX		65
+#define FMN_STNID_XMAC0_02_TX		66
+#define FMN_STNID_XMAC0_03_TX		67
+#define FMN_STNID_XMAC0_04_TX		68
+#define FMN_STNID_XMAC0_05_TX		69
+#define FMN_STNID_XMAC0_06_TX		70
+#define FMN_STNID_XMAC0_07_TX		71
+#define FMN_STNID_XMAC0_08_TX		72
+#define FMN_STNID_XMAC0_09_TX		73
+#define FMN_STNID_XMAC0_10_TX		74
+#define FMN_STNID_XMAC0_11_TX		75
+#define FMN_STNID_XMAC0_12_TX		76
+#define FMN_STNID_XMAC0_13_TX		77
+#define FMN_STNID_XMAC0_14_TX		78
+#define FMN_STNID_XMAC0_15_TX		79
 
-#define	FMN_STNID_XGS1_TX		80
-#define	FMN_STNID_XMAC1_00_TX		80
-#define	FMN_STNID_XMAC1_01_TX		81
-#define	FMN_STNID_XMAC1_02_TX		82
-#define	FMN_STNID_XMAC1_03_TX		83
-#define	FMN_STNID_XMAC1_04_TX		84
-#define	FMN_STNID_XMAC1_05_TX		85
-#define	FMN_STNID_XMAC1_06_TX		86
-#define	FMN_STNID_XMAC1_07_TX		87
-#define	FMN_STNID_XMAC1_08_TX		88
-#define	FMN_STNID_XMAC1_09_TX		89
-#define	FMN_STNID_XMAC1_10_TX		90
-#define	FMN_STNID_XMAC1_11_TX		91
-#define	FMN_STNID_XMAC1_12_TX		92
-#define	FMN_STNID_XMAC1_13_TX		93
-#define	FMN_STNID_XMAC1_14_TX		94
-#define	FMN_STNID_XMAC1_15_TX		95
+#define FMN_STNID_XGS1_TX		80
+#define FMN_STNID_XMAC1_00_TX		80
+#define FMN_STNID_XMAC1_01_TX		81
+#define FMN_STNID_XMAC1_02_TX		82
+#define FMN_STNID_XMAC1_03_TX		83
+#define FMN_STNID_XMAC1_04_TX		84
+#define FMN_STNID_XMAC1_05_TX		85
+#define FMN_STNID_XMAC1_06_TX		86
+#define FMN_STNID_XMAC1_07_TX		87
+#define FMN_STNID_XMAC1_08_TX		88
+#define FMN_STNID_XMAC1_09_TX		89
+#define FMN_STNID_XMAC1_10_TX		90
+#define FMN_STNID_XMAC1_11_TX		91
+#define FMN_STNID_XMAC1_12_TX		92
+#define FMN_STNID_XMAC1_13_TX		93
+#define FMN_STNID_XMAC1_14_TX		94
+#define FMN_STNID_XMAC1_15_TX		95
 
-#define	FMN_STNID_GMAC			96
-#define	FMN_STNID_GMACJFR_0		96
-#define	FMN_STNID_GMACRFR_0		97
-#define	FMN_STNID_GMACTX0		98
-#define	FMN_STNID_GMACTX1		99
-#define	FMN_STNID_GMACTX2		100
-#define	FMN_STNID_GMACTX3		101
-#define	FMN_STNID_GMACJFR_1		102
-#define	FMN_STNID_GMACRFR_1		103
+#define FMN_STNID_GMAC			96
+#define FMN_STNID_GMACJFR_0		96
+#define FMN_STNID_GMACRFR_0		97
+#define FMN_STNID_GMACTX0		98
+#define FMN_STNID_GMACTX1		99
+#define FMN_STNID_GMACTX2		100
+#define FMN_STNID_GMACTX3		101
+#define FMN_STNID_GMACJFR_1		102
+#define FMN_STNID_GMACRFR_1		103
 
-#define	FMN_STNID_DMA			104
-#define	FMN_STNID_DMA_0			104
-#define	FMN_STNID_DMA_1			105
-#define	FMN_STNID_DMA_2			106
-#define	FMN_STNID_DMA_3			107
+#define FMN_STNID_DMA			104
+#define FMN_STNID_DMA_0			104
+#define FMN_STNID_DMA_1			105
+#define FMN_STNID_DMA_2			106
+#define FMN_STNID_DMA_3			107
 
-#define	FMN_STNID_XGS0FR		112
-#define	FMN_STNID_XMAC0JFR		112
-#define	FMN_STNID_XMAC0RFR		113
+#define FMN_STNID_XGS0FR		112
+#define FMN_STNID_XMAC0JFR		112
+#define FMN_STNID_XMAC0RFR		113
 
-#define	FMN_STNID_XGS1FR		114
-#define	FMN_STNID_XMAC1JFR		114
-#define	FMN_STNID_XMAC1RFR		115
-#define	FMN_STNID_SEC			120
-#define	FMN_STNID_SEC0			120
-#define	FMN_STNID_SEC1			121
-#define	FMN_STNID_SEC2			122
-#define	FMN_STNID_SEC3			123
-#define	FMN_STNID_PK0			124
-#define	FMN_STNID_SEC_RSA		124
-#define	FMN_STNID_SEC_RSVD0		125
-#define	FMN_STNID_SEC_RSVD1		126
-#define	FMN_STNID_SEC_RSVD2		127
+#define FMN_STNID_XGS1FR		114
+#define FMN_STNID_XMAC1JFR		114
+#define FMN_STNID_XMAC1RFR		115
+#define FMN_STNID_SEC			120
+#define FMN_STNID_SEC0			120
+#define FMN_STNID_SEC1			121
+#define FMN_STNID_SEC2			122
+#define FMN_STNID_SEC3			123
+#define FMN_STNID_PK0			124
+#define FMN_STNID_SEC_RSA		124
+#define FMN_STNID_SEC_RSVD0		125
+#define FMN_STNID_SEC_RSVD1		126
+#define FMN_STNID_SEC_RSVD2		127
 
-#define	FMN_STNID_GMAC1			80
-#define	FMN_STNID_GMAC1_FR_0		81
-#define	FMN_STNID_GMAC1_TX0		82
-#define	FMN_STNID_GMAC1_TX1		83
-#define	FMN_STNID_GMAC1_TX2		84
-#define	FMN_STNID_GMAC1_TX3		85
-#define	FMN_STNID_GMAC1_FR_1		87
-#define	FMN_STNID_GMAC0			96
-#define	FMN_STNID_GMAC0_FR_0		97
-#define	FMN_STNID_GMAC0_TX0		98
-#define	FMN_STNID_GMAC0_TX1		99
-#define	FMN_STNID_GMAC0_TX2		100
-#define	FMN_STNID_GMAC0_TX3		101
-#define	FMN_STNID_GMAC0_FR_1		103
-#define	FMN_STNID_CMP_0			108
-#define	FMN_STNID_CMP_1			109
-#define	FMN_STNID_CMP_2			110
-#define	FMN_STNID_CMP_3			111
-#define	FMN_STNID_PCIE_0		116
-#define	FMN_STNID_PCIE_1		117
-#define	FMN_STNID_PCIE_2		118
-#define	FMN_STNID_PCIE_3		119
-#define	FMN_STNID_XLS_PK0		121
+#define FMN_STNID_GMAC1			80
+#define FMN_STNID_GMAC1_FR_0		81
+#define FMN_STNID_GMAC1_TX0		82
+#define FMN_STNID_GMAC1_TX1		83
+#define FMN_STNID_GMAC1_TX2		84
+#define FMN_STNID_GMAC1_TX3		85
+#define FMN_STNID_GMAC1_FR_1		87
+#define FMN_STNID_GMAC0			96
+#define FMN_STNID_GMAC0_FR_0		97
+#define FMN_STNID_GMAC0_TX0		98
+#define FMN_STNID_GMAC0_TX1		99
+#define FMN_STNID_GMAC0_TX2		100
+#define FMN_STNID_GMAC0_TX3		101
+#define FMN_STNID_GMAC0_FR_1		103
+#define FMN_STNID_CMP_0			108
+#define FMN_STNID_CMP_1			109
+#define FMN_STNID_CMP_2			110
+#define FMN_STNID_CMP_3			111
+#define FMN_STNID_PCIE_0		116
+#define FMN_STNID_PCIE_1		117
+#define FMN_STNID_PCIE_2		118
+#define FMN_STNID_PCIE_3		119
+#define FMN_STNID_XLS_PK0		121
 
 #define nlm_read_c2_cc0(s)		__read_32bit_c2_register($16, s)
 #define nlm_read_c2_cc1(s)		__read_32bit_c2_register($17, s)
@@ -175,25 +175,25 @@
 #define nlm_write_c2_cc14(s, v)		__write_32bit_c2_register($30, s, v)
 #define nlm_write_c2_cc15(s, v)		__write_32bit_c2_register($31, s, v)
 
-#define	nlm_read_c2_status(sel)		__read_32bit_c2_register($2, 0)
-#define	nlm_read_c2_config()		__read_32bit_c2_register($3, 0)
-#define	nlm_write_c2_config(v)		__write_32bit_c2_register($3, 0, v)
-#define	nlm_read_c2_bucksize(b)		__read_32bit_c2_register($4, b)
-#define	nlm_write_c2_bucksize(b, v)	__write_32bit_c2_register($4, b, v)
+#define nlm_read_c2_status(sel)		__read_32bit_c2_register($2, 0)
+#define nlm_read_c2_config()		__read_32bit_c2_register($3, 0)
+#define nlm_write_c2_config(v)		__write_32bit_c2_register($3, 0, v)
+#define nlm_read_c2_bucksize(b)		__read_32bit_c2_register($4, b)
+#define nlm_write_c2_bucksize(b, v)	__write_32bit_c2_register($4, b, v)
 
-#define	nlm_read_c2_rx_msg0()		__read_64bit_c2_register($1, 0)
-#define	nlm_read_c2_rx_msg1()		__read_64bit_c2_register($1, 1)
-#define	nlm_read_c2_rx_msg2()		__read_64bit_c2_register($1, 2)
-#define	nlm_read_c2_rx_msg3()		__read_64bit_c2_register($1, 3)
+#define nlm_read_c2_rx_msg0()		__read_64bit_c2_register($1, 0)
+#define nlm_read_c2_rx_msg1()		__read_64bit_c2_register($1, 1)
+#define nlm_read_c2_rx_msg2()		__read_64bit_c2_register($1, 2)
+#define nlm_read_c2_rx_msg3()		__read_64bit_c2_register($1, 3)
 
-#define	nlm_write_c2_tx_msg0(v)		__write_64bit_c2_register($0, 0, v)
-#define	nlm_write_c2_tx_msg1(v)		__write_64bit_c2_register($0, 1, v)
-#define	nlm_write_c2_tx_msg2(v)		__write_64bit_c2_register($0, 2, v)
-#define	nlm_write_c2_tx_msg3(v)		__write_64bit_c2_register($0, 3, v)
+#define nlm_write_c2_tx_msg0(v)		__write_64bit_c2_register($0, 0, v)
+#define nlm_write_c2_tx_msg1(v)		__write_64bit_c2_register($0, 1, v)
+#define nlm_write_c2_tx_msg2(v)		__write_64bit_c2_register($0, 2, v)
+#define nlm_write_c2_tx_msg3(v)		__write_64bit_c2_register($0, 3, v)
 
-#define	FMN_STN_RX_QSIZE		256
-#define	FMN_NSTATIONS			128
-#define	FMN_CORE_NBUCKETS		8
+#define FMN_STN_RX_QSIZE		256
+#define FMN_NSTATIONS			128
+#define FMN_CORE_NBUCKETS		8
 
 static inline void nlm_msgsnd(unsigned int stid)
 {

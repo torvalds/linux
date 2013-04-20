@@ -48,6 +48,8 @@
 	bus-range = <0x0 0xff>;
 	clock-frequency = <33333333>;
 	interrupts = <16 2 1 15>;
+	fsl,iommu-parent = <&pamu0>;
+	fsl,liodn-reg = <&guts 0x500>; /* PEX1LIODNR */
 	pcie@0 {
 		reg = <0 0 0 0 0>;
 		#interrupt-cells = <1>;
@@ -75,6 +77,8 @@
 	bus-range = <0 0xff>;
 	clock-frequency = <33333333>;
 	interrupts = <16 2 1 14>;
+	fsl,iommu-parent = <&pamu0>;
+	fsl,liodn-reg = <&guts 0x504>; /* PEX2LIODNR */
 	pcie@0 {
 		reg = <0 0 0 0 0>;
 		#interrupt-cells = <1>;
@@ -102,6 +106,8 @@
 	bus-range = <0x0 0xff>;
 	clock-frequency = <33333333>;
 	interrupts = <16 2 1 13>;
+	fsl,iommu-parent = <&pamu0>;
+	fsl,liodn-reg = <&guts 0x508>; /* PEX3LIODNR */
 	pcie@0 {
 		reg = <0 0 0 0 0>;
 		#interrupt-cells = <1>;
@@ -125,18 +131,21 @@
 	interrupts = <16 2 1 11>;
 	#address-cells = <2>;
 	#size-cells = <2>;
+	fsl,iommu-parent = <&pamu0>;
 	ranges;
 
 	port1 {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		cell-index = <1>;
+		fsl,liodn-reg = <&guts 0x510>; /* RIO1LIODNR */
 	};
 
 	port2 {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		cell-index = <2>;
+		fsl,liodn-reg = <&guts 0x514>; /* RIO2LIODNR */
 	};
 };
 
@@ -246,10 +255,37 @@
 
 	iommu@20000 {
 		compatible = "fsl,pamu-v1.0", "fsl,pamu";
-		reg = <0x20000 0x4000>;
+		reg = <0x20000 0x4000>; /* for compatibility with older PAMU drivers */
+		ranges = <0 0x20000 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 		interrupts = <
 			24 2 0 0
 			16 2 1 30>;
+
+		pamu0: pamu@0 {
+			reg = <0 0x1000>;
+			fsl,primary-cache-geometry = <32 1>;
+			fsl,secondary-cache-geometry = <128 2>;
+		};
+
+		pamu1: pamu@1000 {
+			reg = <0x1000 0x1000>;
+			fsl,primary-cache-geometry = <32 1>;
+			fsl,secondary-cache-geometry = <128 2>;
+		};
+
+		pamu2: pamu@2000 {
+			reg = <0x2000 0x1000>;
+			fsl,primary-cache-geometry = <32 1>;
+			fsl,secondary-cache-geometry = <128 2>;
+		};
+
+		pamu3: pamu@3000 {
+			reg = <0x3000 0x1000>;
+			fsl,primary-cache-geometry = <32 1>;
+			fsl,secondary-cache-geometry = <128 2>;
+		};
 	};
 
 /include/ "qoriq-mpic.dtsi"
@@ -291,7 +327,17 @@
 	};
 
 /include/ "qoriq-dma-0.dtsi"
+	dma@100300 {
+		fsl,iommu-parent = <&pamu0>;
+		fsl,liodn-reg = <&guts 0x580>; /* DMA1LIODNR */
+	};
+
 /include/ "qoriq-dma-1.dtsi"
+	dma@101300 {
+		fsl,iommu-parent = <&pamu0>;
+		fsl,liodn-reg = <&guts 0x584>; /* DMA2LIODNR */
+	};
+
 /include/ "qoriq-espi-0.dtsi"
 	spi@110000 {
 		fsl,espi-num-chipselects = <4>;
@@ -299,6 +345,8 @@
 
 /include/ "qoriq-esdhc-0.dtsi"
 	sdhc@114000 {
+		fsl,iommu-parent = <&pamu1>;
+		fsl,liodn-reg = <&guts 0x530>; /* eSDHCLIODNR */
 		sdhci,auto-cmd12;
 	};
 
@@ -308,20 +356,37 @@
 /include/ "qoriq-duart-1.dtsi"
 /include/ "qoriq-gpio-0.dtsi"
 /include/ "qoriq-usb2-mph-0.dtsi"
-		usb0: usb@210000 {
-			compatible = "fsl-usb2-mph-v1.6", "fsl,mpc85xx-usb2-mph", "fsl-usb2-mph";
-			phy_type = "utmi";
-			port0;
-		};
+	usb0: usb@210000 {
+		compatible = "fsl-usb2-mph-v1.6", "fsl,mpc85xx-usb2-mph", "fsl-usb2-mph";
+		phy_type = "utmi";
+		fsl,iommu-parent = <&pamu1>;
+		fsl,liodn-reg = <&guts 0x520>; /* USB1LIODNR */
+		port0;
+	};
 
 /include/ "qoriq-usb2-dr-0.dtsi"
-		usb1: usb@211000 {
-			compatible = "fsl-usb2-dr-v1.6", "fsl,mpc85xx-usb2-dr", "fsl-usb2-dr";
-			dr_mode = "host";
-			phy_type = "utmi";
-		};
+	usb1: usb@211000 {
+		compatible = "fsl-usb2-dr-v1.6", "fsl,mpc85xx-usb2-dr", "fsl-usb2-dr";
+		fsl,iommu-parent = <&pamu1>;
+		fsl,liodn-reg = <&guts 0x524>; /* USB2LIODNR */
+		dr_mode = "host";
+		phy_type = "utmi";
+	};
 
 /include/ "qoriq-sata2-0.dtsi"
+	sata@220000 {
+		fsl,iommu-parent = <&pamu1>;
+		fsl,liodn-reg = <&guts 0x550>; /* SATA1LIODNR */
+	};
+
 /include/ "qoriq-sata2-1.dtsi"
+	sata@221000 {
+		fsl,iommu-parent = <&pamu1>;
+		fsl,liodn-reg = <&guts 0x554>; /* SATA2LIODNR */
+	};
+
 /include/ "qoriq-sec4.2-0.dtsi"
+crypto: crypto@300000 {
+		fsl,iommu-parent = <&pamu1>;
+	};
 };

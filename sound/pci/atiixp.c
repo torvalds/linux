@@ -567,8 +567,9 @@ static int ac97_probing_bugs(struct pci_dev *pci)
 
 	q = snd_pci_quirk_lookup(pci, atiixp_quirks);
 	if (q) {
-		snd_printdd(KERN_INFO "Atiixp quirk for %s.  "
-			    "Forcing codec %d\n", q->name, q->value);
+		snd_printdd(KERN_INFO
+			    "Atiixp quirk for %s.  Forcing codec %d\n",
+			    snd_pci_quirk_name(q), q->value);
 		return q->value;
 	}
 	/* this hardware doesn't need workarounds.  Probe for codec */

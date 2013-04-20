@@ -1,6 +1,6 @@
 /*
  * QLogic qlcnic NIC Driver
- * Copyright (c)  2009-2010 QLogic Corporation
+ * Copyright (c) 2009-2013 QLogic Corporation
  *
  * See LICENSE.qlcnic for copyright and licensing details.
  */
@@ -10,6 +10,8 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+
+#include "qlcnic_hw.h"
 
 /*
  * The basic unit of access when reading/writing control registers.
@@ -387,9 +389,6 @@ enum {
 #define QLCNIC_ROMUSB_ROM_DUMMY_BYTE_CNT (ROMUSB_ROM + 0x0014)
 #define QLCNIC_ROMUSB_ROM_RDATA		(ROMUSB_ROM + 0x0018)
 
-/* Lock IDs for ROM lock */
-#define ROM_LOCK_DRIVER	0x0d417340
-
 /******************************************************************************
 *
 *    Definitions specific to M25P flash
@@ -449,13 +448,10 @@ enum {
 #define ISR_INT_TARGET_STATUS_F7   (QLCNIC_PCIX_PS_REG(PCIX_TARGET_STATUS_F7))
 #define ISR_INT_TARGET_MASK_F7     (QLCNIC_PCIX_PS_REG(PCIX_TARGET_MASK_F7))
 
-#define QLCNIC_PCI_MN_2M	(0)
-#define QLCNIC_PCI_MS_2M	(0x80000)
 #define QLCNIC_PCI_OCM0_2M	(0x000c0000UL)
 #define QLCNIC_PCI_CRBSPACE	(0x06000000UL)
 #define QLCNIC_PCI_CAMQM	(0x04800000UL)
 #define QLCNIC_PCI_CAMQM_END	(0x04800800UL)
-#define QLCNIC_PCI_2MB_SIZE	(0x00200000UL)
 #define QLCNIC_PCI_CAMQM_2M_BASE	(0x000ff800UL)
 
 #define QLCNIC_CRB_CAM	QLCNIC_PCI_CRB_WINDOW(QLCNIC_HW_PX_MAP_CRB_CAM)
@@ -491,51 +487,13 @@ enum {
 #define QLCNIC_NIU_GB_MAC_CONFIG_1(I)		\
 		(QLCNIC_CRB_NIU + 0x30004 + (I)*0x10000)
 
-
+#define MAX_CTL_CHECK	1000
 #define TEST_AGT_CTRL	(0x00)
 
 #define TA_CTL_START	BIT_0
 #define TA_CTL_ENABLE	BIT_1
 #define TA_CTL_WRITE	BIT_2
 #define TA_CTL_BUSY	BIT_3
-
-/*
- *   Register offsets for MN
- */
-#define MIU_TEST_AGT_BASE		(0x90)
-
-#define MIU_TEST_AGT_ADDR_LO		(0x04)
-#define MIU_TEST_AGT_ADDR_HI		(0x08)
-#define MIU_TEST_AGT_WRDATA_LO		(0x10)
-#define MIU_TEST_AGT_WRDATA_HI		(0x14)
-#define MIU_TEST_AGT_WRDATA_UPPER_LO	(0x20)
-#define MIU_TEST_AGT_WRDATA_UPPER_HI	(0x24)
-#define MIU_TEST_AGT_WRDATA(i)		(0x10+(0x10*((i)>>1))+(4*((i)&1)))
-#define MIU_TEST_AGT_RDDATA_LO		(0x18)
-#define MIU_TEST_AGT_RDDATA_HI		(0x1c)
-#define MIU_TEST_AGT_RDDATA_UPPER_LO	(0x28)
-#define MIU_TEST_AGT_RDDATA_UPPER_HI	(0x2c)
-#define MIU_TEST_AGT_RDDATA(i)		(0x18+(0x10*((i)>>1))+(4*((i)&1)))
-
-#define MIU_TEST_AGT_ADDR_MASK		0xfffffff8
-#define MIU_TEST_AGT_UPPER_ADDR(off)	(0)
-
-/*
- *   Register offsets for MS
- */
-#define SIU_TEST_AGT_BASE		(0x60)
-
-#define SIU_TEST_AGT_ADDR_LO		(0x04)
-#define SIU_TEST_AGT_ADDR_HI		(0x18)
-#define SIU_TEST_AGT_WRDATA_LO		(0x08)
-#define SIU_TEST_AGT_WRDATA_HI		(0x0c)
-#define SIU_TEST_AGT_WRDATA(i)		(0x08+(4*(i)))
-#define SIU_TEST_AGT_RDDATA_LO		(0x10)
-#define SIU_TEST_AGT_RDDATA_HI		(0x14)
-#define SIU_TEST_AGT_RDDATA(i)		(0x10+(4*(i)))
-
-#define SIU_TEST_AGT_ADDR_MASK		0x3ffff8
-#define SIU_TEST_AGT_UPPER_ADDR(off)	((off)>>22)
 
 /* XG Link status */
 #define XG_LINK_UP	0x10
@@ -556,9 +514,6 @@ enum {
 
 #define QLCNIC_CAM_RAM_BASE	(QLCNIC_CRB_CAM + 0x02000)
 #define QLCNIC_CAM_RAM(reg)	(QLCNIC_CAM_RAM_BASE + (reg))
-#define QLCNIC_FW_VERSION_MAJOR (QLCNIC_CAM_RAM(0x150))
-#define QLCNIC_FW_VERSION_MINOR (QLCNIC_CAM_RAM(0x154))
-#define QLCNIC_FW_VERSION_SUB	(QLCNIC_CAM_RAM(0x158))
 #define QLCNIC_ROM_LOCK_ID	(QLCNIC_CAM_RAM(0x100))
 #define QLCNIC_PHY_LOCK_ID	(QLCNIC_CAM_RAM(0x120))
 #define QLCNIC_CRB_WIN_LOCK_ID	(QLCNIC_CAM_RAM(0x124))
@@ -568,28 +523,17 @@ enum {
 #define QLCNIC_REG(X)		(NIC_CRB_BASE+(X))
 #define QLCNIC_REG_2(X) 	(NIC_CRB_BASE_2+(X))
 
-#define QLCNIC_CDRP_CRB_OFFSET		(QLCNIC_REG(0x18))
-#define QLCNIC_ARG1_CRB_OFFSET		(QLCNIC_REG(0x1c))
-#define QLCNIC_ARG2_CRB_OFFSET		(QLCNIC_REG(0x20))
-#define QLCNIC_ARG3_CRB_OFFSET		(QLCNIC_REG(0x24))
-#define QLCNIC_SIGN_CRB_OFFSET		(QLCNIC_REG(0x28))
+#define QLCNIC_CDRP_MAX_ARGS	4
+#define QLCNIC_CDRP_ARG(i)	(QLCNIC_REG(0x18 + ((i) * 4)))
 
-#define CRB_CMDPEG_STATE		(QLCNIC_REG(0x50))
-#define CRB_RCVPEG_STATE		(QLCNIC_REG(0x13c))
+#define QLCNIC_CDRP_CRB_OFFSET		(QLCNIC_REG(0x18))
+#define QLCNIC_SIGN_CRB_OFFSET		(QLCNIC_REG(0x28))
 
 #define CRB_XG_STATE_P3P		(QLCNIC_REG(0x98))
 #define CRB_PF_LINK_SPEED_1		(QLCNIC_REG(0xe8))
-#define CRB_PF_LINK_SPEED_2		(QLCNIC_REG(0xec))
-
-#define CRB_TEMP_STATE			(QLCNIC_REG(0x1b4))
-
-#define CRB_V2P_0			(QLCNIC_REG(0x290))
-#define CRB_V2P(port)			(CRB_V2P_0+((port)*4))
 #define CRB_DRIVER_VERSION		(QLCNIC_REG(0x2a0))
 
-#define CRB_FW_CAPABILITIES_1		(QLCNIC_CAM_RAM(0x128))
 #define CRB_FW_CAPABILITIES_2		(QLCNIC_CAM_RAM(0x12c))
-#define CRB_MAC_BLOCK_START		(QLCNIC_CAM_RAM(0x1c0))
 
 /*
  * CrbPortPhanCntrHi/Lo is used to pass the address of HostPhantomIndex address
@@ -615,11 +559,6 @@ enum {
 
 /* Lock IDs for PHY lock */
 #define PHY_LOCK_DRIVER		0x44524956
-
-/* Used for PS PCI Memory access */
-#define PCIX_PS_OP_ADDR_LO	(0x10000)
-/*   via CRB  (PS side only)     */
-#define PCIX_PS_OP_ADDR_HI	(0x10004)
 
 #define PCIX_INT_VECTOR 	(0x10100)
 #define PCIX_INT_MASK		(0x10104)
@@ -682,17 +621,6 @@ enum {
 #define QLCNIC_PEG_TUNE_CAPABILITY	(QLCNIC_CAM_RAM(0x02c))
 
 #define QLCNIC_DMA_WATCHDOG_CTRL	(QLCNIC_CAM_RAM(0x14))
-#define QLCNIC_PEG_ALIVE_COUNTER	(QLCNIC_CAM_RAM(0xb0))
-#define QLCNIC_PEG_HALT_STATUS1 	(QLCNIC_CAM_RAM(0xa8))
-#define QLCNIC_PEG_HALT_STATUS2 	(QLCNIC_CAM_RAM(0xac))
-#define QLCNIC_CRB_DRV_ACTIVE	(QLCNIC_CAM_RAM(0x138))
-#define QLCNIC_CRB_DEV_STATE		(QLCNIC_CAM_RAM(0x140))
-
-#define QLCNIC_CRB_DRV_STATE		(QLCNIC_CAM_RAM(0x144))
-#define QLCNIC_CRB_DRV_SCRATCH		(QLCNIC_CAM_RAM(0x148))
-#define QLCNIC_CRB_DEV_PARTITION_INFO	(QLCNIC_CAM_RAM(0x14c))
-#define QLCNIC_CRB_DRV_IDC_VER		(QLCNIC_CAM_RAM(0x174))
-#define QLCNIC_CRB_DEV_NPAR_STATE	(QLCNIC_CAM_RAM(0x19c))
 #define QLCNIC_ROM_DEV_INIT_TIMEOUT	(0x3e885c)
 #define QLCNIC_ROM_DRV_RESET_TIMEOUT	(0x3e8860)
 
@@ -711,7 +639,6 @@ enum {
 #define QLCNIC_DEV_NPAR_OPER		1 /* NPAR Operational */
 #define QLCNIC_DEV_NPAR_OPER_TIMEO	30 /* Operational time out */
 
-#define QLC_DEV_CHECK_ACTIVE(VAL, FN)		((VAL) & (1 << (FN * 4)))
 #define QLC_DEV_SET_REF_CNT(VAL, FN)		((VAL) |= (1 << (FN * 4)))
 #define QLC_DEV_CLR_REF_CNT(VAL, FN)		((VAL) &= ~(1 << (FN * 4)))
 #define QLC_DEV_SET_RST_RDY(VAL, FN)		((VAL) |= (1 << (FN * 4)))
@@ -744,6 +671,9 @@ enum {
 #define QLCNIC_HEARTBEAT_PERIOD_MSECS	200
 #define QLCNIC_HEARTBEAT_CHECK_RETRY_COUNT	45
 
+#define QLCNIC_MAX_MC_COUNT		38
+#define QLCNIC_WATCHDOG_TIMEOUTVALUE	5
+
 #define	ISR_MSI_INT_TRIGGER(FUNC) (QLCNIC_PCIX_PS_REG(PCIX_MSI_F(FUNC)))
 #define ISR_LEGACY_INT_TRIGGERED(VAL)	(((VAL) & 0x300) == 0x200)
 
@@ -766,25 +696,12 @@ struct qlcnic_legacy_intr_set {
 	u32	pci_int_reg;
 };
 
-#define QLCNIC_FW_API		0x1b216c
-#define QLCNIC_DRV_OP_MODE	0x1b2170
 #define QLCNIC_MSIX_BASE	0x132110
 #define QLCNIC_MAX_PCI_FUNC	8
 #define QLCNIC_MAX_VLAN_FILTERS	64
 
-/* FW dump defines */
-#define MIU_TEST_CTR		0x41000090
-#define MIU_TEST_ADDR_LO	0x41000094
-#define MIU_TEST_ADDR_HI	0x41000098
 #define FLASH_ROM_WINDOW	0x42110030
 #define FLASH_ROM_DATA		0x42150000
-
-
-static const u32 FW_DUMP_LEVELS[] = {
-	0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff };
-
-static const u32 MIU_TEST_READ_DATA[] = {
-	0x410000A8, 0x410000AC, 0x410000B8, 0x410000BC, };
 
 #define QLCNIC_FW_DUMP_REG1	0x00130060
 #define QLCNIC_FW_DUMP_REG2	0x001e0000
@@ -796,7 +713,8 @@ static const u32 MIU_TEST_READ_DATA[] = {
 enum {
 	QLCNIC_MGMT_FUNC	= 0,
 	QLCNIC_PRIV_FUNC	= 1,
-	QLCNIC_NON_PRIV_FUNC	= 2
+	QLCNIC_NON_PRIV_FUNC	= 2,
+	QLCNIC_UNKNOWN_FUNC_MODE = 3
 };
 
 enum {
@@ -1012,6 +930,8 @@ enum {
 #define QLCNIC_NIU_NON_PROMISC_MODE	0
 #define QLCNIC_NIU_PROMISC_MODE		1
 #define QLCNIC_NIU_ALLMULTI_MODE	2
+
+#define QLCNIC_PCIE_SEM_TIMEOUT	10000
 
 struct crb_128M_2M_sub_block_map {
 	unsigned valid;

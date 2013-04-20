@@ -229,6 +229,18 @@
 
 /* 60-FB reserved */
 
+#define SDHCI_PRESET_FOR_SDR12 0x66
+#define SDHCI_PRESET_FOR_SDR25 0x68
+#define SDHCI_PRESET_FOR_SDR50 0x6A
+#define SDHCI_PRESET_FOR_SDR104        0x6C
+#define SDHCI_PRESET_FOR_DDR50 0x6E
+#define SDHCI_PRESET_DRV_MASK  0xC000
+#define SDHCI_PRESET_DRV_SHIFT  14
+#define SDHCI_PRESET_CLKGEN_SEL_MASK   0x400
+#define SDHCI_PRESET_CLKGEN_SEL_SHIFT	10
+#define SDHCI_PRESET_SDCLK_FREQ_MASK   0x3FF
+#define SDHCI_PRESET_SDCLK_FREQ_SHIFT	0
+
 #define SDHCI_SLOT_INT_STATUS	0xFC
 
 #define SDHCI_HOST_VERSION	0xFE
@@ -269,7 +281,7 @@ struct sdhci_ops {
 	unsigned int	(*get_max_clock)(struct sdhci_host *host);
 	unsigned int	(*get_min_clock)(struct sdhci_host *host);
 	unsigned int	(*get_timeout_clock)(struct sdhci_host *host);
-	int		(*platform_8bit_width)(struct sdhci_host *host,
+	int		(*platform_bus_width)(struct sdhci_host *host,
 					       int width);
 	void (*platform_send_init_74_clocks)(struct sdhci_host *host,
 					     u8 power_mode);

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -176,7 +176,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 
 	/* Save the Result */
 
-	acpi_ex_truncate_for32bit_table(return_desc);
+	(void)acpi_ex_truncate_for32bit_table(return_desc);
 	*result_desc = return_desc;
 	return_ACPI_STATUS(AE_OK);
 }

@@ -101,7 +101,7 @@ static int count_them(struct net *net,
 {
 	const struct nf_conntrack_tuple_hash *found;
 	struct xt_connlimit_conn *conn;
-	struct hlist_node *pos, *n;
+	struct hlist_node *n;
 	struct nf_conn *found_ct;
 	struct hlist_head *hash;
 	bool addit = true;
@@ -115,7 +115,7 @@ static int count_them(struct net *net,
 	rcu_read_lock();
 
 	/* check the saved connections */
-	hlist_for_each_entry_safe(conn, pos, n, hash, node) {
+	hlist_for_each_entry_safe(conn, n, hash, node) {
 		found    = nf_conntrack_find_get(net, NF_CT_DEFAULT_ZONE,
 						 &conn->tuple);
 		found_ct = NULL;
@@ -258,14 +258,14 @@ static void connlimit_mt_destroy(const struct xt_mtdtor_param *par)
 {
 	const struct xt_connlimit_info *info = par->matchinfo;
 	struct xt_connlimit_conn *conn;
-	struct hlist_node *pos, *n;
+	struct hlist_node *n;
 	struct hlist_head *hash = info->data->iphash;
 	unsigned int i;
 
 	nf_ct_l3proto_module_put(par->family);
 
 	for (i = 0; i < ARRAY_SIZE(info->data->iphash); ++i) {
-		hlist_for_each_entry_safe(conn, pos, n, &hash[i], node) {
+		hlist_for_each_entry_safe(conn, n, &hash[i], node) {
 			hlist_del(&conn->node);
 			kfree(conn);
 		}

@@ -26,17 +26,13 @@ static __be32
 nfsd_return_attrs(__be32 err, struct nfsd_attrstat *resp)
 {
 	if (err) return err;
-	return nfserrno(vfs_getattr(resp->fh.fh_export->ex_path.mnt,
-				    resp->fh.fh_dentry,
-				    &resp->stat));
+	return fh_getattr(&resp->fh, &resp->stat);
 }
 static __be32
 nfsd_return_dirop(__be32 err, struct nfsd_diropres *resp)
 {
 	if (err) return err;
-	return nfserrno(vfs_getattr(resp->fh.fh_export->ex_path.mnt,
-				    resp->fh.fh_dentry,
-				    &resp->stat));
+	return fh_getattr(&resp->fh, &resp->stat);
 }
 /*
  * Get a file's attributes
@@ -150,9 +146,7 @@ nfsd_proc_read(struct svc_rqst *rqstp, struct nfsd_readargs *argp,
 				  &resp->count);
 
 	if (nfserr) return nfserr;
-	return nfserrno(vfs_getattr(resp->fh.fh_export->ex_path.mnt,
-				    resp->fh.fh_dentry,
-				    &resp->stat));
+	return fh_getattr(&resp->fh, &resp->stat);
 }
 
 /*

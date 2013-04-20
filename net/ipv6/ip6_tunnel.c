@@ -1030,9 +1030,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
 	ipv6h = ipv6_hdr(skb);
-	*(__be32*)ipv6h = fl6->flowlabel | htonl(0x60000000);
-	dsfield = INET_ECN_encapsulate(0, dsfield);
-	ipv6_change_dsfield(ipv6h, ~INET_ECN_MASK, dsfield);
+	ip6_flow_hdr(ipv6h, INET_ECN_encapsulate(0, dsfield), fl6->flowlabel);
 	ipv6h->hop_limit = t->parms.hop_limit;
 	ipv6h->nexthdr = proto;
 	ipv6h->saddr = fl6->saddr;

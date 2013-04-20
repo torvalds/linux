@@ -53,7 +53,7 @@ source "drivers/tty/serial/Kconfig"
 
 config TTY_PRINTK
 	bool "TTY driver to output user messages via printk"
-	depends on EXPERT
+	depends on EXPERT && TTY
 	default n
 	---help---
 	  If you say Y here, the support for writing user messages (i.e.
@@ -159,7 +159,7 @@ source "drivers/tty/hvc/Kconfig"
 
 config VIRTIO_CONSOLE
 	tristate "Virtio console"
-	depends on VIRTIO
+	depends on VIRTIO && TTY
 	select HVC_DRIVER
 	help
 	  Virtio console for use with lguest and other hypervisors.
@@ -392,6 +392,7 @@ config XILINX_HWICAP
 
 config R3964
 	tristate "Siemens R3964 line discipline"
+	depends on TTY
 	---help---
 	  This driver allows synchronous communication with devices using the
 	  Siemens R3964 packet protocol. Unless you are dealing with special
@@ -439,7 +440,7 @@ source "drivers/char/pcmcia/Kconfig"
 
 config MWAVE
 	tristate "ACP Modem (Mwave) support"
-	depends on X86
+	depends on X86 && TTY
 	select SERIAL_8250
 	---help---
 	  The ACP modem (Mwave) for Linux is a WinModem. It is composed of a

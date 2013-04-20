@@ -158,7 +158,7 @@ MACHINE_START(H3600, "Compaq iPAQ H3600")
 	.map_io		= h3600_map_io,
 	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
-	.timer		= &sa1100_timer,
+	.init_time	= sa1100_timer_init,
 	.init_machine	= h3600_mach_init,
 	.init_late	= sa11x0_init_late,
 	.restart	= sa11x0_restart,

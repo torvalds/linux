@@ -41,14 +41,14 @@ int wl1271_init_templates_config(struct wl1271 *wl)
 
 	/* send empty templates for fw memory reservation */
 	ret = wl1271_cmd_template_set(wl, WL12XX_INVALID_ROLE_ID,
-				      CMD_TEMPL_CFG_PROBE_REQ_2_4, NULL,
+				      wl->scan_templ_id_2_4, NULL,
 				      WL1271_CMD_TEMPL_MAX_SIZE,
 				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
 
 	ret = wl1271_cmd_template_set(wl, WL12XX_INVALID_ROLE_ID,
-				      CMD_TEMPL_CFG_PROBE_REQ_5,
+				      wl->scan_templ_id_5,
 				      NULL, WL1271_CMD_TEMPL_MAX_SIZE, 0,
 				      WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
@@ -56,14 +56,16 @@ int wl1271_init_templates_config(struct wl1271 *wl)
 
 	if (wl->quirks & WLCORE_QUIRK_DUAL_PROBE_TMPL) {
 		ret = wl1271_cmd_template_set(wl, WL12XX_INVALID_ROLE_ID,
-					      CMD_TEMPL_APP_PROBE_REQ_2_4, NULL,
+					      wl->sched_scan_templ_id_2_4,
+					      NULL,
 					      WL1271_CMD_TEMPL_MAX_SIZE,
 					      0, WL1271_RATE_AUTOMATIC);
 		if (ret < 0)
 			return ret;
 
 		ret = wl1271_cmd_template_set(wl, WL12XX_INVALID_ROLE_ID,
-					      CMD_TEMPL_APP_PROBE_REQ_5, NULL,
+					      wl->sched_scan_templ_id_5,
+					      NULL,
 					      WL1271_CMD_TEMPL_MAX_SIZE,
 					      0, WL1271_RATE_AUTOMATIC);
 		if (ret < 0)
@@ -463,7 +465,7 @@ int wl1271_init_ap_rates(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	if ((wlvif->basic_rate_set & CONF_TX_OFDM_RATES))
 		supported_rates = CONF_TX_OFDM_RATES;
 	else
-		supported_rates = CONF_TX_AP_ENABLED_RATES;
+		supported_rates = CONF_TX_ENABLED_RATES;
 
 	/* unconditionally enable HT rates */
 	supported_rates |= CONF_TX_MCS_RATES;
@@ -575,9 +577,6 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 		/* Configure for power according to debugfs */
 		if (sta_auth != WL1271_PSM_ILLEGAL)
 			ret = wl1271_acx_sleep_auth(wl, sta_auth);
-		/* Configure for power always on */
-		else if (wl->quirks & WLCORE_QUIRK_NO_ELP)
-			ret = wl1271_acx_sleep_auth(wl, WL1271_PSM_CAM);
 		/* Configure for ELP power saving */
 		else
 			ret = wl1271_acx_sleep_auth(wl, WL1271_PSM_ELP);
@@ -676,6 +675,10 @@ int wl1271_hw_init(struct wl1271 *wl)
 
 	/* Configure the FW logger */
 	ret = wl12xx_init_fwlog(wl);
+	if (ret < 0)
+		return ret;
+
+	ret = wlcore_cmd_regdomain_config_locked(wl);
 	if (ret < 0)
 		return ret;
 

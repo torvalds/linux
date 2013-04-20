@@ -17,9 +17,9 @@ config VIDEO_PVRUSB2
 	  module will be called pvrusb2
 
 config VIDEO_PVRUSB2_SYSFS
-	bool "pvrusb2 sysfs support (EXPERIMENTAL)"
+	bool "pvrusb2 sysfs support"
 	default y
-	depends on VIDEO_PVRUSB2 && SYSFS && EXPERIMENTAL
+	depends on VIDEO_PVRUSB2 && SYSFS
 	---help---
 	  This option enables the operation of a sysfs based
 	  interface for query and control of the pvrusb2 driver.
@@ -33,9 +33,9 @@ config VIDEO_PVRUSB2_SYSFS
 	  Note: This feature is experimental and subject to change.
 
 config VIDEO_PVRUSB2_DVB
-	bool "pvrusb2 ATSC/DVB support (EXPERIMENTAL)"
+	bool "pvrusb2 ATSC/DVB support"
 	default y
-	depends on VIDEO_PVRUSB2 && DVB_CORE && EXPERIMENTAL
+	depends on VIDEO_PVRUSB2 && DVB_CORE
 	select DVB_LGDT330X if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_S5H1409 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_S5H1411 if MEDIA_SUBDRV_AUTOSELECT

@@ -530,7 +530,7 @@ xfs_file_compat_ioctl(
 	unsigned		cmd,
 	unsigned long		p)
 {
-	struct inode		*inode = filp->f_path.dentry->d_inode;
+	struct inode		*inode = file_inode(filp);
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 	void			__user *arg = (void __user *)p;

@@ -190,6 +190,7 @@ DEFINE_GUEST_HANDLE_STRUCT(xen_add_to_physmap);
 
 #define XENMEM_add_to_physmap_range 23
 struct xen_add_to_physmap_range {
+    /* IN */
     /* Which domain to change the mapping for. */
     domid_t domid;
     uint16_t space; /* => enum phys_map_space */
@@ -203,6 +204,11 @@ struct xen_add_to_physmap_range {
 
     /* GPFN in domid where the source mapping page should appear. */
     GUEST_HANDLE(xen_pfn_t) gpfns;
+
+    /* OUT */
+
+    /* Per index error code. */
+    GUEST_HANDLE(int) errs;
 };
 DEFINE_GUEST_HANDLE_STRUCT(xen_add_to_physmap_range);
 

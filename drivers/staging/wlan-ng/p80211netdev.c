@@ -351,6 +351,8 @@ static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 	union p80211_hdr p80211_hdr;
 	struct p80211_metawep p80211_wep;
 
+	p80211_wep.data = NULL;
+
 	if (skb == NULL)
 		return NETDEV_TX_OK;
 

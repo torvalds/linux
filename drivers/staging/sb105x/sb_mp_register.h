@@ -45,7 +45,7 @@
 #define IIR_RS232		0x00		/* RS232 type */
 #define IIR_RS422		0x10		/* RS422 type */
 #define IIR_RS485		0x20		/* RS485 type */
-#define IIR_UNKNOWN		0x30		/* unknown type */
+#define IIR_TYPE_MASK		0x30
 
 /* Interrrupt Mask Register */
 #define MP_OPTR_IMR0		0x0C 	/* port0 ~ port8 */

@@ -74,7 +74,6 @@ struct ti_port {
 	int			tp_flags;
 	int			tp_closing_wait;/* in .01 secs */
 	struct async_icount	tp_icount;
-	wait_queue_head_t	tp_msr_wait;	/* wait for msr change */
 	wait_queue_head_t	tp_write_wait;
 	struct ti_device	*tp_tdev;
 	struct usb_serial_port	*tp_port;
@@ -121,8 +120,8 @@ static void ti_interrupt_callback(struct urb *urb);
 static void ti_bulk_in_callback(struct urb *urb);
 static void ti_bulk_out_callback(struct urb *urb);
 
-static void ti_recv(struct device *dev, struct tty_struct *tty,
-	unsigned char *data, int length);
+static void ti_recv(struct usb_serial_port *port, unsigned char *data,
+		int length);
 static void ti_send(struct ti_port *tport);
 static int ti_set_mcr(struct ti_port *tport, unsigned int mcr);
 static int ti_get_lsr(struct ti_port *tport);
@@ -432,7 +431,6 @@ static int ti_port_probe(struct usb_serial_port *port)
 	else
 		tport->tp_uart_base_addr = TI_UART2_BASE_ADDR;
 	tport->tp_closing_wait = closing_wait;
-	init_waitqueue_head(&tport->tp_msr_wait);
 	init_waitqueue_head(&tport->tp_write_wait);
 	if (kfifo_alloc(&tport->write_fifo, TI_WRITE_BUF_SIZE, GFP_KERNEL)) {
 		kfree(tport);
@@ -784,9 +782,13 @@ static int ti_ioctl(struct tty_struct *tty,
 		dev_dbg(&port->dev, "%s - TIOCMIWAIT\n", __func__);
 		cprev = tport->tp_icount;
 		while (1) {
-			interruptible_sleep_on(&tport->tp_msr_wait);
+			interruptible_sleep_on(&port->delta_msr_wait);
 			if (signal_pending(current))
 				return -ERESTARTSYS;
+
+			if (port->serial->disconnected)
+				return -EIO;
+
 			cnow = tport->tp_icount;
 			if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
 			    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts)
@@ -1118,7 +1120,6 @@ static void ti_bulk_in_callback(struct urb *urb)
 	struct device *dev = &urb->dev->dev;
 	int status = urb->status;
 	int retval = 0;
-	struct tty_struct *tty;
 
 	switch (status) {
 	case 0:
@@ -1145,24 +1146,18 @@ static void ti_bulk_in_callback(struct urb *urb)
 		return;
 	}
 
-	tty = tty_port_tty_get(&port->port);
-	if (tty) {
-		if (urb->actual_length) {
-			usb_serial_debug_data(dev, __func__, urb->actual_length,
-					      urb->transfer_buffer);
+	if (urb->actual_length) {
+		usb_serial_debug_data(dev, __func__, urb->actual_length,
+				      urb->transfer_buffer);
 
-			if (!tport->tp_is_open)
-				dev_dbg(dev, "%s - port closed, dropping data\n",
-					__func__);
-			else
-				ti_recv(&urb->dev->dev, tty,
-						urb->transfer_buffer,
-						urb->actual_length);
-			spin_lock(&tport->tp_lock);
-			tport->tp_icount.rx += urb->actual_length;
-			spin_unlock(&tport->tp_lock);
-		}
-		tty_kref_put(tty);
+		if (!tport->tp_is_open)
+			dev_dbg(dev, "%s - port closed, dropping data\n",
+				__func__);
+		else
+			ti_recv(port, urb->transfer_buffer, urb->actual_length);
+		spin_lock(&tport->tp_lock);
+		tport->tp_icount.rx += urb->actual_length;
+		spin_unlock(&tport->tp_lock);
 	}
 
 exit:
@@ -1210,24 +1205,23 @@ static void ti_bulk_out_callback(struct urb *urb)
 }
 
 
-static void ti_recv(struct device *dev, struct tty_struct *tty,
-	unsigned char *data, int length)
+static void ti_recv(struct usb_serial_port *port, unsigned char *data,
+		int length)
 {
 	int cnt;
 
 	do {
-		cnt = tty_insert_flip_string(tty, data, length);
+		cnt = tty_insert_flip_string(&port->port, data, length);
 		if (cnt < length) {
-			dev_err(dev, "%s - dropping data, %d bytes lost\n",
+			dev_err(&port->dev, "%s - dropping data, %d bytes lost\n",
 						__func__, length - cnt);
 			if (cnt == 0)
 				break;
 		}
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&port->port);
 		data += cnt;
 		length -= cnt;
 	} while (length > 0);
-
 }
 
 
@@ -1400,7 +1394,7 @@ static void ti_handle_new_msr(struct ti_port *tport, __u8 msr)
 			icount->dcd++;
 		if (msr & TI_MSR_DELTA_RI)
 			icount->rng++;
-		wake_up_interruptible(&tport->tp_msr_wait);
+		wake_up_interruptible(&tport->tp_port->delta_msr_wait);
 		spin_unlock_irqrestore(&tport->tp_lock, flags);
 	}
 

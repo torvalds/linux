@@ -562,7 +562,7 @@ static void slab_bug(struct kmem_cache *s, char *fmt, ...)
 	printk(KERN_ERR "----------------------------------------"
 			"-------------------------------------\n\n");
 
-	add_taint(TAINT_BAD_PAGE);
+	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 }
 
 static void slab_fix(struct kmem_cache *s, char *fmt, ...)
@@ -1408,7 +1408,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 	__ClearPageSlab(page);
 
 	memcg_release_pages(s, order);
-	reset_page_mapcount(page);
+	page_mapcount_reset(page);
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += pages;
 	__free_memcg_kmem_pages(page, order);

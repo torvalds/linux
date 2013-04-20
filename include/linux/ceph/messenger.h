@@ -83,9 +83,11 @@ struct ceph_msg {
 	struct list_head list_head;
 
 	struct kref kref;
+#ifdef CONFIG_BLOCK
 	struct bio  *bio;		/* instead of pages/pagelist */
 	struct bio  *bio_iter;		/* bio iterator */
 	int bio_seg;			/* current bio segment */
+#endif /* CONFIG_BLOCK */
 	struct ceph_pagelist *trail;	/* the trailing part of the data */
 	bool front_is_vmalloc;
 	bool more_to_follow;

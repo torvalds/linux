@@ -335,7 +335,7 @@ static const struct file_operations fops_tlbflush = {
 	.llseek = default_llseek,
 };
 
-static int __cpuinit create_tlb_flushall_shift(void)
+static int __init create_tlb_flushall_shift(void)
 {
 	debugfs_create_file("tlb_flushall_shift", S_IRUSR | S_IWUSR,
 			    arch_debugfs_dir, NULL, &fops_tlbflush);

@@ -141,7 +141,9 @@ static inline void map_dma_buffer(struct musb_request *request,
 static inline void unmap_dma_buffer(struct musb_request *request,
 				struct musb *musb)
 {
-	if (!is_buffer_mapped(request))
+	struct musb_ep *musb_ep = request->ep;
+
+	if (!is_buffer_mapped(request) || !musb_ep->dma)
 		return;
 
 	if (request->request.dma == DMA_ADDR_INVALID) {
@@ -195,7 +197,10 @@ __acquires(ep->musb->lock)
 
 	ep->busy = 1;
 	spin_unlock(&musb->lock);
-	unmap_dma_buffer(req, musb);
+
+	if (!dma_mapping_error(&musb->g.dev, request->dma))
+		unmap_dma_buffer(req, musb);
+
 	if (request->status == 0)
 		dev_dbg(musb->controller, "%s done request %p,  %d/%d\n",
 				ep->end_point.name, request,
@@ -408,7 +413,19 @@ static void txstate(struct musb *musb, struct musb_request *req)
 					csr |= (MUSB_TXCSR_DMAENAB
 							| MUSB_TXCSR_DMAMODE
 							| MUSB_TXCSR_MODE);
-					if (!musb_ep->hb_mult)
+					/*
+					 * Enable Autoset according to table
+					 * below
+					 * bulk_split hb_mult	Autoset_Enable
+					 *	0	0	Yes(Normal)
+					 *	0	>0	No(High BW ISO)
+					 *	1	0	Yes(HS bulk)
+					 *	1	>0	Yes(FS bulk)
+					 */
+					if (!musb_ep->hb_mult ||
+						(musb_ep->hb_mult &&
+						 can_bulk_split(musb,
+						    musb_ep->type)))
 						csr |= MUSB_TXCSR_AUTOSET;
 				}
 				csr &= ~MUSB_TXCSR_P_UNDERRUN;
@@ -1110,11 +1127,15 @@ static int musb_gadget_enable(struct usb_ep *ep,
 		/* Set TXMAXP with the FIFO size of the endpoint
 		 * to disable double buffering mode.
 		 */
-		if (musb->double_buffer_not_ok)
+		if (musb->double_buffer_not_ok) {
 			musb_writew(regs, MUSB_TXMAXP, hw_ep->max_packet_sz_tx);
-		else
+		} else {
+			if (can_bulk_split(musb, musb_ep->type))
+				musb_ep->hb_mult = (hw_ep->max_packet_sz_tx /
+							musb_ep->packet_sz) - 1;
 			musb_writew(regs, MUSB_TXMAXP, musb_ep->packet_sz
 					| (musb_ep->hb_mult << 11));
+		}
 
 		csr = MUSB_TXCSR_MODE | MUSB_TXCSR_CLRDATATOG;
 		if (musb_readw(regs, MUSB_TXCSR)

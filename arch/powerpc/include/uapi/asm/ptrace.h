@@ -108,6 +108,7 @@ struct pt_regs {
 #define PT_DAR	41
 #define PT_DSISR 42
 #define PT_RESULT 43
+#define PT_DSCR 44
 #define PT_REGS_COUNT 44
 
 #define PT_FPR0	48	/* each FP reg occupies 2 slots in this space */
@@ -146,34 +147,34 @@ struct pt_regs {
  * structures.  This also simplifies the implementation of a bi-arch
  * (combined (32- and 64-bit) gdb.
  */
-#define PTRACE_GETVRREGS	18
-#define PTRACE_SETVRREGS	19
+#define PTRACE_GETVRREGS	0x12
+#define PTRACE_SETVRREGS	0x13
 
 /* Get/set all the upper 32-bits of the SPE registers, accumulator, and
  * spefscr, in one go */
-#define PTRACE_GETEVRREGS	20
-#define PTRACE_SETEVRREGS	21
+#define PTRACE_GETEVRREGS	0x14
+#define PTRACE_SETEVRREGS	0x15
 
 /* Get the first 32 128bit VSX registers */
-#define PTRACE_GETVSRREGS	27
-#define PTRACE_SETVSRREGS	28
+#define PTRACE_GETVSRREGS	0x1b
+#define PTRACE_SETVSRREGS	0x1c
 
 /*
  * Get or set a debug register. The first 16 are DABR registers and the
  * second 16 are IABR registers.
  */
-#define PTRACE_GET_DEBUGREG	25
-#define PTRACE_SET_DEBUGREG	26
+#define PTRACE_GET_DEBUGREG	0x19
+#define PTRACE_SET_DEBUGREG	0x1a
 
 /* (new) PTRACE requests using the same numbers as x86 and the same
  * argument ordering. Additionally, they support more registers too
  */
-#define PTRACE_GETREGS            12
-#define PTRACE_SETREGS            13
-#define PTRACE_GETFPREGS          14
-#define PTRACE_SETFPREGS          15
-#define PTRACE_GETREGS64	  22
-#define PTRACE_SETREGS64	  23
+#define PTRACE_GETREGS            0xc
+#define PTRACE_SETREGS            0xd
+#define PTRACE_GETFPREGS          0xe
+#define PTRACE_SETFPREGS          0xf
+#define PTRACE_GETREGS64	  0x16
+#define PTRACE_SETREGS64	  0x17
 
 /* Calls to trace a 64bit program from a 32bit program */
 #define PPC_PTRACE_PEEKTEXT_3264 0x95

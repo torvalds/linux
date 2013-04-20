@@ -183,6 +183,11 @@ int bond_create_slave_symlinks(struct net_device *master,
 	sprintf(linkname, "slave_%s", slave->name);
 	ret = sysfs_create_link(&(master->dev.kobj), &(slave->dev.kobj),
 				linkname);
+
+	/* free the master link created earlier in case of error */
+	if (ret)
+		sysfs_remove_link(&(slave->dev.kobj), "master");
+
 	return ret;
 
 }
@@ -1053,6 +1058,7 @@ static ssize_t bonding_store_primary(struct device *d,
 		pr_info("%s: Setting primary slave to None.\n",
 			bond->dev->name);
 		bond->primary_slave = NULL;
+		memset(bond->params.primary, 0, sizeof(bond->params.primary));
 		bond_select_active_slave(bond);
 		goto out;
 	}

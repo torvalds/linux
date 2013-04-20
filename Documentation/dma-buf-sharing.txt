@@ -302,7 +302,11 @@ Access to a dma_buf from the kernel context involves three steps:
       void dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
 
    The vmap call can fail if there is no vmap support in the exporter, or if it
-   runs out of vmalloc space. Fallback to kmap should be implemented.
+   runs out of vmalloc space. Fallback to kmap should be implemented. Note that
+   the dma-buf layer keeps a reference count for all vmap access and calls down
+   into the exporter's vmap function only when no vmapping exists, and only
+   unmaps it once. Protection against concurrent vmap/vunmap calls is provided
+   by taking the dma_buf->lock mutex.
 
 3. Finish access
 

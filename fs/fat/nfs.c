@@ -21,13 +21,12 @@ static struct inode *fat_dget(struct super_block *sb, int i_logstart)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	struct hlist_head *head;
-	struct hlist_node *_p;
 	struct msdos_inode_info *i;
 	struct inode *inode = NULL;
 
 	head = sbi->dir_hashtable + fat_dir_hash(i_logstart);
 	spin_lock(&sbi->dir_hash_lock);
-	hlist_for_each_entry(i, _p, head, i_dir_hash) {
+	hlist_for_each_entry(i, head, i_dir_hash) {
 		BUG_ON(i->vfs_inode.i_sb != sb);
 		if (i->i_logstart != i_logstart)
 			continue;

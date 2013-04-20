@@ -9,6 +9,12 @@ Required properties:
 	row << 24 | column << 16 | key-code
 
 Optional properties:
+Properties for the number of rows and columns are optional because some
+drivers will use fixed values for these.
+- keypad,num-rows: Number of row lines connected to the keypad controller.
+- keypad,num-columns: Number of column lines connected to the keypad
+  controller.
+
 Some users of this binding might choose to specify secondary keymaps for
 cases where there is a modifier key such as a Fn key. Proposed names
 for said properties are "linux,fn-keymap" or with another descriptive
@@ -17,3 +23,5 @@ word for the modifier other from "Fn".
 Example:
 	linux,keymap = < 0x00030012
 			 0x0102003a >;
+	keypad,num-rows = <2>;
+	keypad,num-columns = <8>;

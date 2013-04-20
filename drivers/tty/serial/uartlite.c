@@ -19,7 +19,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -34,7 +34,7 @@
  * Register definitions
  *
  * For register details see datasheet:
- * http://www.xilinx.com/support/documentation/ip_documentation/opb_uartlite.pdf 
+ * http://www.xilinx.com/support/documentation/ip_documentation/opb_uartlite.pdf
  */
 
 #define ULITE_RX		0x00
@@ -57,6 +57,54 @@
 #define ULITE_CONTROL_RST_RX	0x02
 #define ULITE_CONTROL_IE	0x10
 
+struct uartlite_reg_ops {
+	u32 (*in)(void __iomem *addr);
+	void (*out)(u32 val, void __iomem *addr);
+};
+
+static u32 uartlite_inbe32(void __iomem *addr)
+{
+	return ioread32be(addr);
+}
+
+static void uartlite_outbe32(u32 val, void __iomem *addr)
+{
+	iowrite32be(val, addr);
+}
+
+static struct uartlite_reg_ops uartlite_be = {
+	.in = uartlite_inbe32,
+	.out = uartlite_outbe32,
+};
+
+static u32 uartlite_inle32(void __iomem *addr)
+{
+	return ioread32(addr);
+}
+
+static void uartlite_outle32(u32 val, void __iomem *addr)
+{
+	iowrite32(val, addr);
+}
+
+static struct uartlite_reg_ops uartlite_le = {
+	.in = uartlite_inle32,
+	.out = uartlite_outle32,
+};
+
+static inline u32 uart_in32(u32 offset, struct uart_port *port)
+{
+	struct uartlite_reg_ops *reg_ops = port->private_data;
+
+	return reg_ops->in(port->membase + offset);
+}
+
+static inline void uart_out32(u32 val, u32 offset, struct uart_port *port)
+{
+	struct uartlite_reg_ops *reg_ops = port->private_data;
+
+	reg_ops->out(val, port->membase + offset);
+}
 
 static struct uart_port ulite_ports[ULITE_NR_UARTS];
 
@@ -66,7 +114,7 @@ static struct uart_port ulite_ports[ULITE_NR_UARTS];
 
 static int ulite_receive(struct uart_port *port, int stat)
 {
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 	unsigned char ch = 0;
 	char flag = TTY_NORMAL;
 
@@ -77,7 +125,7 @@ static int ulite_receive(struct uart_port *port, int stat)
 	/* stats */
 	if (stat & ULITE_STATUS_RXVALID) {
 		port->icount.rx++;
-		ch = ioread32be(port->membase + ULITE_RX);
+		ch = uart_in32(ULITE_RX, port);
 
 		if (stat & ULITE_STATUS_PARITY)
 			port->icount.parity++;
@@ -103,13 +151,13 @@ static int ulite_receive(struct uart_port *port, int stat)
 	stat &= ~port->ignore_status_mask;
 
 	if (stat & ULITE_STATUS_RXVALID)
-		tty_insert_flip_char(tty, ch, flag);
+		tty_insert_flip_char(tport, ch, flag);
 
 	if (stat & ULITE_STATUS_FRAME)
-		tty_insert_flip_char(tty, 0, TTY_FRAME);
+		tty_insert_flip_char(tport, 0, TTY_FRAME);
 
 	if (stat & ULITE_STATUS_OVERRUN)
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 
 	return 1;
 }
@@ -122,7 +170,7 @@ static int ulite_transmit(struct uart_port *port, int stat)
 		return 0;
 
 	if (port->x_char) {
-		iowrite32be(port->x_char, port->membase + ULITE_TX);
+		uart_out32(port->x_char, ULITE_TX, port);
 		port->x_char = 0;
 		port->icount.tx++;
 		return 1;
@@ -131,7 +179,7 @@ static int ulite_transmit(struct uart_port *port, int stat)
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port))
 		return 0;
 
-	iowrite32be(xmit->buf[xmit->tail], port->membase + ULITE_TX);
+	uart_out32(xmit->buf[xmit->tail], ULITE_TX, port);
 	xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE-1);
 	port->icount.tx++;
 
@@ -148,7 +196,7 @@ static irqreturn_t ulite_isr(int irq, void *dev_id)
 	int busy, n = 0;
 
 	do {
-		int stat = ioread32be(port->membase + ULITE_STATUS);
+		int stat = uart_in32(ULITE_STATUS, port);
 		busy  = ulite_receive(port, stat);
 		busy |= ulite_transmit(port, stat);
 		n++;
@@ -156,7 +204,7 @@ static irqreturn_t ulite_isr(int irq, void *dev_id)
 
 	/* work done? */
 	if (n > 1) {
-		tty_flip_buffer_push(port->state->port.tty);
+		tty_flip_buffer_push(&port->state->port);
 		return IRQ_HANDLED;
 	} else {
 		return IRQ_NONE;
@@ -169,7 +217,7 @@ static unsigned int ulite_tx_empty(struct uart_port *port)
 	unsigned int ret;
 
 	spin_lock_irqsave(&port->lock, flags);
-	ret = ioread32be(port->membase + ULITE_STATUS);
+	ret = uart_in32(ULITE_STATUS, port);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	return ret & ULITE_STATUS_TXEMPTY ? TIOCSER_TEMT : 0;
@@ -192,7 +240,7 @@ static void ulite_stop_tx(struct uart_port *port)
 
 static void ulite_start_tx(struct uart_port *port)
 {
-	ulite_transmit(port, ioread32be(port->membase + ULITE_STATUS));
+	ulite_transmit(port, uart_in32(ULITE_STATUS, port));
 }
 
 static void ulite_stop_rx(struct uart_port *port)
@@ -220,17 +268,17 @@ static int ulite_startup(struct uart_port *port)
 	if (ret)
 		return ret;
 
-	iowrite32be(ULITE_CONTROL_RST_RX | ULITE_CONTROL_RST_TX,
-	       port->membase + ULITE_CONTROL);
-	iowrite32be(ULITE_CONTROL_IE, port->membase + ULITE_CONTROL);
+	uart_out32(ULITE_CONTROL_RST_RX | ULITE_CONTROL_RST_TX,
+		ULITE_CONTROL, port);
+	uart_out32(ULITE_CONTROL_IE, ULITE_CONTROL, port);
 
 	return 0;
 }
 
 static void ulite_shutdown(struct uart_port *port)
 {
-	iowrite32be(0, port->membase + ULITE_CONTROL);
-	ioread32be(port->membase + ULITE_CONTROL); /* dummy */
+	uart_out32(0, ULITE_CONTROL, port);
+	uart_in32(ULITE_CONTROL, port); /* dummy */
 	free_irq(port->irq, port);
 }
 
@@ -281,6 +329,8 @@ static void ulite_release_port(struct uart_port *port)
 
 static int ulite_request_port(struct uart_port *port)
 {
+	int ret;
+
 	pr_debug("ulite console: port=%p; port->mapbase=%llx\n",
 		 port, (unsigned long long) port->mapbase);
 
@@ -295,6 +345,14 @@ static int ulite_request_port(struct uart_port *port)
 		release_mem_region(port->mapbase, ULITE_REGION);
 		return -EBUSY;
 	}
+
+	port->private_data = &uartlite_be;
+	ret = uart_in32(ULITE_CONTROL, port);
+	uart_out32(ULITE_CONTROL_RST_TX, ULITE_CONTROL, port);
+	ret = uart_in32(ULITE_STATUS, port);
+	/* Endianess detection */
+	if ((ret & ULITE_STATUS_TXEMPTY) != ULITE_STATUS_TXEMPTY)
+		port->private_data = &uartlite_le;
 
 	return 0;
 }
@@ -314,20 +372,19 @@ static int ulite_verify_port(struct uart_port *port, struct serial_struct *ser)
 #ifdef CONFIG_CONSOLE_POLL
 static int ulite_get_poll_char(struct uart_port *port)
 {
-	if (!(ioread32be(port->membase + ULITE_STATUS)
-						& ULITE_STATUS_RXVALID))
+	if (!(uart_in32(ULITE_STATUS, port) & ULITE_STATUS_RXVALID))
 		return NO_POLL_CHAR;
 
-	return ioread32be(port->membase + ULITE_RX);
+	return uart_in32(ULITE_RX, port);
 }
 
 static void ulite_put_poll_char(struct uart_port *port, unsigned char ch)
 {
-	while (ioread32be(port->membase + ULITE_STATUS) & ULITE_STATUS_TXFULL)
+	while (uart_in32(ULITE_STATUS, port) & ULITE_STATUS_TXFULL)
 		cpu_relax();
 
 	/* write char to device */
-	iowrite32be(ch, port->membase + ULITE_TX);
+	uart_out32(ch, ULITE_TX, port);
 }
 #endif
 
@@ -366,7 +423,7 @@ static void ulite_console_wait_tx(struct uart_port *port)
 
 	/* Spin waiting for TX fifo to have space available */
 	for (i = 0; i < 100000; i++) {
-		val = ioread32be(port->membase + ULITE_STATUS);
+		val = uart_in32(ULITE_STATUS, port);
 		if ((val & ULITE_STATUS_TXFULL) == 0)
 			break;
 		cpu_relax();
@@ -376,7 +433,7 @@ static void ulite_console_wait_tx(struct uart_port *port)
 static void ulite_console_putchar(struct uart_port *port, int ch)
 {
 	ulite_console_wait_tx(port);
-	iowrite32be(ch, port->membase + ULITE_TX);
+	uart_out32(ch, ULITE_TX, port);
 }
 
 static void ulite_console_write(struct console *co, const char *s,
@@ -393,8 +450,8 @@ static void ulite_console_write(struct console *co, const char *s,
 		spin_lock_irqsave(&port->lock, flags);
 
 	/* save and disable interrupt */
-	ier = ioread32be(port->membase + ULITE_STATUS) & ULITE_STATUS_IE;
-	iowrite32be(0, port->membase + ULITE_CONTROL);
+	ier = uart_in32(ULITE_STATUS, port) & ULITE_STATUS_IE;
+	uart_out32(0, ULITE_CONTROL, port);
 
 	uart_console_write(port, s, count, ulite_console_putchar);
 
@@ -402,7 +459,7 @@ static void ulite_console_write(struct console *co, const char *s,
 
 	/* restore interrupt state */
 	if (ier)
-		iowrite32be(ULITE_CONTROL_IE, port->membase + ULITE_CONTROL);
+		uart_out32(ULITE_CONTROL_IE, ULITE_CONTROL, port);
 
 	if (locked)
 		spin_unlock_irqrestore(&port->lock, flags);
@@ -615,7 +672,7 @@ static struct platform_driver ulite_platform_driver = {
  * Module setup/teardown
  */
 
-int __init ulite_init(void)
+static int __init ulite_init(void)
 {
 	int ret;
 
@@ -634,11 +691,11 @@ int __init ulite_init(void)
 err_plat:
 	uart_unregister_driver(&ulite_uart_driver);
 err_uart:
-	printk(KERN_ERR "registering uartlite driver failed: err=%i", ret);
+	pr_err("registering uartlite driver failed: err=%i", ret);
 	return ret;
 }
 
-void __exit ulite_exit(void)
+static void __exit ulite_exit(void)
 {
 	platform_driver_unregister(&ulite_platform_driver);
 	uart_unregister_driver(&ulite_uart_driver);

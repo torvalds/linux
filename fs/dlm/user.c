@@ -503,11 +503,11 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 #endif
 		return -EINVAL;
 
-#ifdef CONFIG_COMPAT
-	if (count > sizeof(struct dlm_write_request32) + DLM_RESNAME_MAXLEN)
-#else
+	/*
+	 * can't compare against COMPAT/dlm_write_request32 because
+	 * we don't yet know if is64bit is zero
+	 */
 	if (count > sizeof(struct dlm_write_request) + DLM_RESNAME_MAXLEN)
-#endif
 		return -EINVAL;
 
 	kbuf = kzalloc(count + 1, GFP_NOFS);

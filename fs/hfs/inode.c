@@ -128,7 +128,7 @@ static ssize_t hfs_direct_IO(int rw, struct kiocb *iocb,
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = file->f_path.dentry->d_inode->i_mapping->host;
+	struct inode *inode = file_inode(file)->i_mapping->host;
 	ssize_t ret;
 
 	ret = blockdev_direct_IO(rw, iocb, inode, iov, offset, nr_segs,

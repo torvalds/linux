@@ -305,27 +305,26 @@ static int recover_idr_empty(struct dlm_ls *ls)
 static int recover_idr_add(struct dlm_rsb *r)
 {
 	struct dlm_ls *ls = r->res_ls;
-	int rv, id;
+	int rv;
 
-	rv = idr_pre_get(&ls->ls_recover_idr, GFP_NOFS);
-	if (!rv)
-		return -ENOMEM;
-
+	idr_preload(GFP_NOFS);
 	spin_lock(&ls->ls_recover_idr_lock);
 	if (r->res_id) {
-		spin_unlock(&ls->ls_recover_idr_lock);
-		return -1;
+		rv = -1;
+		goto out_unlock;
 	}
-	rv = idr_get_new_above(&ls->ls_recover_idr, r, 1, &id);
-	if (rv) {
-		spin_unlock(&ls->ls_recover_idr_lock);
-		return rv;
-	}
-	r->res_id = id;
+	rv = idr_alloc(&ls->ls_recover_idr, r, 1, 0, GFP_NOWAIT);
+	if (rv < 0)
+		goto out_unlock;
+
+	r->res_id = rv;
 	ls->ls_recover_list_count++;
 	dlm_hold_rsb(r);
+	rv = 0;
+out_unlock:
 	spin_unlock(&ls->ls_recover_idr_lock);
-	return 0;
+	idr_preload_end();
+	return rv;
 }
 
 static void recover_idr_del(struct dlm_rsb *r)
@@ -351,24 +350,21 @@ static struct dlm_rsb *recover_idr_find(struct dlm_ls *ls, uint64_t id)
 	return r;
 }
 
-static int recover_idr_clear_rsb(int id, void *p, void *data)
-{
-	struct dlm_ls *ls = data;
-	struct dlm_rsb *r = p;
-
-	r->res_id = 0;
-	r->res_recover_locks_count = 0;
-	ls->ls_recover_list_count--;
-
-	dlm_put_rsb(r);
-	return 0;
-}
-
 static void recover_idr_clear(struct dlm_ls *ls)
 {
+	struct dlm_rsb *r;
+	int id;
+
 	spin_lock(&ls->ls_recover_idr_lock);
-	idr_for_each(&ls->ls_recover_idr, recover_idr_clear_rsb, ls);
-	idr_remove_all(&ls->ls_recover_idr);
+
+	idr_for_each_entry(&ls->ls_recover_idr, r, id) {
+		idr_remove(&ls->ls_recover_idr, id);
+		r->res_id = 0;
+		r->res_recover_locks_count = 0;
+		ls->ls_recover_list_count--;
+
+		dlm_put_rsb(r);
+	}
 
 	if (ls->ls_recover_list_count != 0) {
 		log_error(ls, "warning: recover_list_count %d",

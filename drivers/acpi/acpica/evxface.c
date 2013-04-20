@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,13 +56,13 @@ ACPI_MODULE_NAME("evxface")
  *
  * FUNCTION:    acpi_install_notify_handler
  *
- * PARAMETERS:  Device          - The device for which notifies will be handled
+ * PARAMETERS:  device          - The device for which notifies will be handled
  *              handler_type    - The type of handler:
  *                                  ACPI_SYSTEM_NOTIFY: System Handler (00-7F)
  *                                  ACPI_DEVICE_NOTIFY: Device Handler (80-FF)
  *                                  ACPI_ALL_NOTIFY:    Both System and Device
- *              Handler         - Address of the handler
- *              Context         - Value passed to the handler on each GPE
+ *              handler         - Address of the handler
+ *              context         - Value passed to the handler on each GPE
  *
  * RETURN:      Status
  *
@@ -217,12 +217,12 @@ ACPI_EXPORT_SYMBOL(acpi_install_notify_handler)
  *
  * FUNCTION:    acpi_remove_notify_handler
  *
- * PARAMETERS:  Device          - The device for which the handler is installed
+ * PARAMETERS:  device          - The device for which the handler is installed
  *              handler_type    - The type of handler:
  *                                  ACPI_SYSTEM_NOTIFY: System Handler (00-7F)
  *                                  ACPI_DEVICE_NOTIFY: Device Handler (80-FF)
  *                                  ACPI_ALL_NOTIFY:    Both System and Device
- *              Handler         - Address of the handler
+ *              handler         - Address of the handler
  *
  * RETURN:      Status
  *
@@ -249,7 +249,8 @@ acpi_remove_notify_handler(acpi_handle device,
 	    (handler_type > ACPI_MAX_NOTIFY_HANDLER_TYPE)) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
-	/* Make sure all deferred tasks are completed */
+
+	/* Make sure all deferred notify tasks are completed */
 
 	acpi_os_wait_events_complete();
 
@@ -596,7 +597,7 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 		return_ACPI_STATUS(status);
 	}
 
-	/* Allocate memory for the handler object */
+	/* Allocate and init handler object (before lock) */
 
 	handler = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_gpe_handler_info));
 	if (!handler) {
@@ -622,16 +623,15 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 		goto free_and_exit;
 	}
 
-	/* Allocate and init handler object */
-
 	handler->address = address;
 	handler->context = context;
 	handler->method_node = gpe_event_info->dispatch.method_node;
-	handler->original_flags = gpe_event_info->flags &
-			(ACPI_GPE_XRUPT_TYPE_MASK | ACPI_GPE_DISPATCH_MASK);
+	handler->original_flags = (u8)(gpe_event_info->flags &
+				       (ACPI_GPE_XRUPT_TYPE_MASK |
+				        ACPI_GPE_DISPATCH_MASK));
 
 	/*
-	 * If the GPE is associated with a method, it might have been enabled
+	 * If the GPE is associated with a method, it may have been enabled
 	 * automatically during initialization, in which case it has to be
 	 * disabled now to avoid spurious execution of the handler.
 	 */
@@ -646,7 +646,7 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 
 	gpe_event_info->dispatch.handler = handler;
 
-	/* Setup up dispatch flags to indicate handler (vs. method) */
+	/* Setup up dispatch flags to indicate handler (vs. method/notify) */
 
 	gpe_event_info->flags &=
 	    ~(ACPI_GPE_XRUPT_TYPE_MASK | ACPI_GPE_DISPATCH_MASK);
@@ -697,7 +697,7 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Make sure all deferred tasks are completed */
+	/* Make sure all deferred GPE tasks are completed */
 
 	acpi_os_wait_events_complete();
 
@@ -747,10 +747,10 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 	 * enabled, it should be enabled at this point to restore the
 	 * post-initialization configuration.
 	 */
-
-	if ((handler->original_flags & ACPI_GPE_DISPATCH_METHOD)
-	    && handler->originally_enabled)
+	if ((handler->original_flags & ACPI_GPE_DISPATCH_METHOD) &&
+	    handler->originally_enabled) {
 		(void)acpi_ev_add_gpe_reference(gpe_event_info);
+	}
 
 	/* Now we can free the handler object */
 

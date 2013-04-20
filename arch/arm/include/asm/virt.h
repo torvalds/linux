@@ -24,9 +24,9 @@
 /*
  * Flag indicating that the kernel was not entered in the same mode on every
  * CPU.  The zImage loader stashes this value in an SPSR, so we need an
- * architecturally defined flag bit here (the N flag, as it happens)
+ * architecturally defined flag bit here.
  */
-#define BOOT_CPU_MODE_MISMATCH (1<<31)
+#define BOOT_CPU_MODE_MISMATCH	PSR_N_BIT
 
 #ifndef __ASSEMBLY__
 

@@ -9,7 +9,7 @@
 #include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/nsproxy.h>
-#include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <asm/uaccess.h>
 
 #include "state.h"
@@ -101,7 +101,7 @@ static ssize_t fault_inject_read(struct file *file, char __user *buf,
 	loff_t pos = *ppos;
 
 	if (!pos)
-		nfsd_inject_get(file->f_dentry->d_inode->i_private, &val);
+		nfsd_inject_get(file_inode(file)->i_private, &val);
 	size = scnprintf(read_buf, sizeof(read_buf), "%llu\n", val);
 
 	if (pos < 0)
@@ -133,10 +133,10 @@ static ssize_t fault_inject_write(struct file *file, const char __user *buf,
 
 	size = rpc_pton(net, write_buf, size, (struct sockaddr *)&sa, sizeof(sa));
 	if (size > 0)
-		nfsd_inject_set_client(file->f_dentry->d_inode->i_private, &sa, size);
+		nfsd_inject_set_client(file_inode(file)->i_private, &sa, size);
 	else {
 		val = simple_strtoll(write_buf, NULL, 0);
-		nfsd_inject_set(file->f_dentry->d_inode->i_private, val);
+		nfsd_inject_set(file_inode(file)->i_private, val);
 	}
 	return len; /* on success, claim we got the whole input */
 }

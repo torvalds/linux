@@ -242,7 +242,6 @@ static void belkin_sa_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct belkin_sa_private *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned long flags;
 	unsigned char status;
@@ -259,10 +258,6 @@ static void belkin_sa_process_read_urb(struct urb *urb)
 	if (!urb->actual_length)
 		return;
 
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
-
 	if (status & BELKIN_SA_LSR_ERR) {
 		/* Break takes precedence over parity, which takes precedence
 		 * over framing errors. */
@@ -276,13 +271,12 @@ static void belkin_sa_process_read_urb(struct urb *urb)
 
 		/* Overrun is special, not associated with a char. */
 		if (status & BELKIN_SA_LSR_OE)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 	}
 
-	tty_insert_flip_string_fixed_flag(tty, data, tty_flag,
+	tty_insert_flip_string_fixed_flag(&port->port, data, tty_flag,
 							urb->actual_length);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&port->port);
 }
 
 static void belkin_sa_set_termios(struct tty_struct *tty,

@@ -143,6 +143,10 @@
  *
  * SW41	:  ON : SH-Mobile AP4 Audio Mode
  *	: OFF : Bluetooth Audio Mode
+ *
+ * it needs amixer settings for playing
+ *
+ * amixer set "Headphone Enable" on
  */
 
 /*
@@ -657,14 +661,8 @@ static struct platform_device lcdc_device = {
 /* FSI */
 #define IRQ_FSI		evt2irq(0x1840)
 static struct sh_fsi_platform_info fsi_info = {
-	.port_a = {
-		.flags		= SH_FSI_BRS_INV,
-	},
 	.port_b = {
-		.flags		= SH_FSI_BRS_INV |
-				  SH_FSI_BRM_INV |
-				  SH_FSI_LRS_INV |
-				  SH_FSI_CLK_CPG |
+		.flags		= SH_FSI_CLK_CPG |
 				  SH_FSI_FMT_SPDIF,
 	},
 };
@@ -692,21 +690,21 @@ static struct platform_device fsi_device = {
 	},
 };
 
-static struct asoc_simple_dai_init_info fsi2_ak4643_init_info = {
-	.fmt		= SND_SOC_DAIFMT_LEFT_J,
-	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
-	.sysclk		= 11289600,
-};
-
 static struct asoc_simple_card_info fsi2_ak4643_info = {
 	.name		= "AK4643",
 	.card		= "FSI2A-AK4643",
-	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi2",
-	.codec_dai	= "ak4642-hifi",
-	.init		= &fsi2_ak4643_init_info,
+	.daifmt		= SND_SOC_DAIFMT_LEFT_J,
+	.cpu_dai = {
+		.name	= "fsia-dai",
+		.fmt	= SND_SOC_DAIFMT_CBS_CFS,
+	},
+	.codec_dai = {
+		.name	= "ak4642-hifi",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM,
+		.sysclk	= 11289600,
+	},
 };
 
 static struct platform_device fsi_ak4643_device = {
@@ -815,18 +813,18 @@ static struct platform_device lcdc1_device = {
 	},
 };
 
-static struct asoc_simple_dai_init_info fsi2_hdmi_init_info = {
-	.cpu_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
-};
-
 static struct asoc_simple_card_info fsi2_hdmi_info = {
 	.name		= "HDMI",
 	.card		= "FSI2B-HDMI",
-	.cpu_dai	= "fsib-dai",
 	.codec		= "sh-mobile-hdmi",
 	.platform	= "sh_fsi2",
-	.codec_dai	= "sh_mobile_hdmi-hifi",
-	.init		= &fsi2_hdmi_init_info,
+	.cpu_dai = {
+		.name	= "fsib-dai",
+		.fmt	= SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_IB_NF,
+	},
+	.codec_dai = {
+		.name	= "sh_mobile_hdmi-hifi",
+	},
 };
 
 static struct platform_device fsi_hdmi_device = {
@@ -1042,9 +1040,7 @@ static int ts_get_pendown_state(void)
 
 	gpio_free(GPIO_TSC_IRQ);
 
-	gpio_request(GPIO_TSC_PORT, NULL);
-
-	gpio_direction_input(GPIO_TSC_PORT);
+	gpio_request_one(GPIO_TSC_PORT, GPIOF_IN, NULL);
 
 	val = gpio_get_value(GPIO_TSC_PORT);
 
@@ -1125,18 +1121,10 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_IRQ6_39,	NULL);
 
 	/* enable Debug switch (S6) */
-	gpio_request(GPIO_PORT32, NULL);
-	gpio_request(GPIO_PORT33, NULL);
-	gpio_request(GPIO_PORT34, NULL);
-	gpio_request(GPIO_PORT35, NULL);
-	gpio_direction_input(GPIO_PORT32);
-	gpio_direction_input(GPIO_PORT33);
-	gpio_direction_input(GPIO_PORT34);
-	gpio_direction_input(GPIO_PORT35);
-	gpio_export(GPIO_PORT32, 0);
-	gpio_export(GPIO_PORT33, 0);
-	gpio_export(GPIO_PORT34, 0);
-	gpio_export(GPIO_PORT35, 0);
+	gpio_request_one(GPIO_PORT32, GPIOF_IN | GPIOF_EXPORT, NULL);
+	gpio_request_one(GPIO_PORT33, GPIOF_IN | GPIOF_EXPORT, NULL);
+	gpio_request_one(GPIO_PORT34, GPIOF_IN | GPIOF_EXPORT, NULL);
+	gpio_request_one(GPIO_PORT35, GPIOF_IN | GPIOF_EXPORT, NULL);
 
 	/* SDHI0 */
 	gpio_request(GPIO_FN_SDHICD0, NULL);
@@ -1184,8 +1172,7 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_FSIAILR,	NULL);
 	gpio_request(GPIO_FN_FSIAISLD,	NULL);
 	gpio_request(GPIO_FN_FSIAOSLD,	NULL);
-	gpio_request(GPIO_PORT161,	NULL);
-	gpio_direction_output(GPIO_PORT161, 0); /* slave */
+	gpio_request_one(GPIO_PORT161, GPIOF_OUT_INIT_LOW, NULL); /* slave */
 
 	gpio_request(GPIO_PORT9, NULL);
 	gpio_request(GPIO_PORT10, NULL);
@@ -1193,8 +1180,7 @@ static void __init ap4evb_init(void)
 	gpio_direction_none(GPIO_PORT10CR); /* FSIAOLR needs no direction */
 
 	/* card detect pin for MMC slot (CN7) */
-	gpio_request(GPIO_PORT41, NULL);
-	gpio_direction_input(GPIO_PORT41);
+	gpio_request_one(GPIO_PORT41, GPIOF_IN, NULL);
 
 	/* setup FSI2 port B (HDMI) */
 	gpio_request(GPIO_FN_FSIBCK, NULL);
@@ -1282,11 +1268,8 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_LCDDISP,  NULL);
 	gpio_request(GPIO_FN_LCDDCK,   NULL);
 
-	gpio_request(GPIO_PORT189, NULL); /* backlight */
-	gpio_direction_output(GPIO_PORT189, 1);
-
-	gpio_request(GPIO_PORT151, NULL); /* LCDDON */
-	gpio_direction_output(GPIO_PORT151, 1);
+	gpio_request_one(GPIO_PORT189, GPIOF_OUT_INIT_HIGH, NULL); /* backlight */
+	gpio_request_one(GPIO_PORT151, GPIOF_OUT_INIT_HIGH, NULL); /* LCDDON */
 
 	lcdc_info.clock_source			= LCDC_CLK_BUS;
 	lcdc_info.ch[0].interface_type		= RGB18;
@@ -1350,5 +1333,5 @@ MACHINE_START(AP4EVB, "ap4evb")
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= ap4evb_init,
 	.init_late	= sh7372_pm_init_late,
-	.timer		= &shmobile_timer,
+	.init_time	= sh7372_earlytimer_init,
 MACHINE_END

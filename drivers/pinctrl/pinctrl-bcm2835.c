@@ -959,9 +959,9 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	pc->base = devm_request_and_ioremap(dev, &iomem);
-	if (!pc->base)
-		return -EADDRNOTAVAIL;
+	pc->base = devm_ioremap_resource(dev, &iomem);
+	if (IS_ERR(pc->base))
+		return PTR_ERR(pc->base);
 
 	pc->gpio_chip = bcm2835_gpio_chip;
 	pc->gpio_chip.dev = dev;

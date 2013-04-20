@@ -1,15 +1,12 @@
 /*
  * QLogic qlcnic NIC Driver
- * Copyright (c)  2009-2010 QLogic Corporation
+ * Copyright (c) 2009-2013 QLogic Corporation
  *
  * See LICENSE.qlcnic for copyright and licensing details.
  */
 
-#include <linux/netdevice.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
-#include <linux/if_vlan.h>
 #include "qlcnic.h"
+#include "qlcnic_hw.h"
 
 struct crb_addr_pair {
 	u32 addr;
@@ -166,13 +163,12 @@ void qlcnic_free_sw_resources(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_recv_context *recv_ctx;
 	struct qlcnic_host_rds_ring *rds_ring;
-	struct qlcnic_host_tx_ring *tx_ring;
 	int ring;
 
 	recv_ctx = adapter->recv_ctx;
 
 	if (recv_ctx->rds_rings == NULL)
-		goto skip_rds;
+		return;
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
@@ -180,16 +176,6 @@ void qlcnic_free_sw_resources(struct qlcnic_adapter *adapter)
 		rds_ring->rx_buf_arr = NULL;
 	}
 	kfree(recv_ctx->rds_rings);
-
-skip_rds:
-	if (adapter->tx_ring == NULL)
-		return;
-
-	tx_ring = adapter->tx_ring;
-	vfree(tx_ring->cmd_buf_arr);
-	tx_ring->cmd_buf_arr = NULL;
-	kfree(adapter->tx_ring);
-	adapter->tx_ring = NULL;
 }
 
 int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
@@ -197,39 +183,16 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 	struct qlcnic_recv_context *recv_ctx;
 	struct qlcnic_host_rds_ring *rds_ring;
 	struct qlcnic_host_sds_ring *sds_ring;
-	struct qlcnic_host_tx_ring *tx_ring;
 	struct qlcnic_rx_buffer *rx_buf;
-	int ring, i, size;
-
-	struct qlcnic_cmd_buffer *cmd_buf_arr;
-	struct net_device *netdev = adapter->netdev;
-
-	size = sizeof(struct qlcnic_host_tx_ring);
-	tx_ring = kzalloc(size, GFP_KERNEL);
-	if (tx_ring == NULL) {
-		dev_err(&netdev->dev, "failed to allocate tx ring struct\n");
-		return -ENOMEM;
-	}
-	adapter->tx_ring = tx_ring;
-
-	tx_ring->num_desc = adapter->num_txd;
-	tx_ring->txq = netdev_get_tx_queue(netdev, 0);
-
-	cmd_buf_arr = vzalloc(TX_BUFF_RINGSIZE(tx_ring));
-	if (cmd_buf_arr == NULL) {
-		dev_err(&netdev->dev, "failed to allocate cmd buffer ring\n");
-		goto err_out;
-	}
-	tx_ring->cmd_buf_arr = cmd_buf_arr;
+	int ring, i;
 
 	recv_ctx = adapter->recv_ctx;
 
-	size = adapter->max_rds_rings * sizeof(struct qlcnic_host_rds_ring);
-	rds_ring = kzalloc(size, GFP_KERNEL);
-	if (rds_ring == NULL) {
-		dev_err(&netdev->dev, "failed to allocate rds ring struct\n");
+	rds_ring = kcalloc(adapter->max_rds_rings,
+			   sizeof(struct qlcnic_host_rds_ring), GFP_KERNEL);
+	if (rds_ring == NULL)
 		goto err_out;
-	}
+
 	recv_ctx->rds_rings = rds_ring;
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
@@ -255,11 +218,9 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 			break;
 		}
 		rds_ring->rx_buf_arr = vzalloc(RCV_BUFF_RINGSIZE(rds_ring));
-		if (rds_ring->rx_buf_arr == NULL) {
-			dev_err(&netdev->dev, "Failed to allocate "
-				"rx buffer ring %d\n", ring);
+		if (rds_ring->rx_buf_arr == NULL)
 			goto err_out;
-		}
+
 		INIT_LIST_HEAD(&rds_ring->free_list);
 		/*
 		 * Now go through all of them, set reference handles
@@ -327,7 +288,6 @@ static int qlcnic_wait_rom_done(struct qlcnic_adapter *adapter)
 	long done = 0;
 
 	cond_resched();
-
 	while (done == 0) {
 		done = QLCRD32(adapter, QLCNIC_ROMUSB_GLB_STATUS);
 		done &= 2;
@@ -416,8 +376,8 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	u32 off;
 	struct pci_dev *pdev = adapter->pdev;
 
-	QLCWR32(adapter, CRB_CMDPEG_STATE, 0);
-	QLCWR32(adapter, CRB_RCVPEG_STATE, 0);
+	QLC_SHARED_REG_WR32(adapter, QLCNIC_CMDPEG_STATE, 0);
+	QLC_SHARED_REG_WR32(adapter, QLCNIC_RCVPEG_STATE, 0);
 
 	/* Halt all the indiviual PEGs and other blocks */
 	/* disable all I2Q */
@@ -482,10 +442,8 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	}
 
 	buf = kcalloc(n, sizeof(struct crb_addr_pair), GFP_KERNEL);
-	if (buf == NULL) {
-		dev_err(&pdev->dev, "Unable to calloc memory for rom read.\n");
+	if (buf == NULL)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < n; i++) {
 		if (qlcnic_rom_fast_read(adapter, 8*i + 4*offset, &val) != 0 ||
@@ -564,8 +522,8 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	QLCWR32(adapter, QLCNIC_CRB_PEG_NET_4 + 0xc, 0);
 	msleep(1);
 
-	QLCWR32(adapter, QLCNIC_PEG_HALT_STATUS1, 0);
-	QLCWR32(adapter, QLCNIC_PEG_HALT_STATUS2, 0);
+	QLC_SHARED_REG_WR32(adapter, QLCNIC_PEG_HALT_STATUS1, 0);
+	QLC_SHARED_REG_WR32(adapter, QLCNIC_PEG_HALT_STATUS2, 0);
 
 	return 0;
 }
@@ -576,7 +534,7 @@ static int qlcnic_cmd_peg_ready(struct qlcnic_adapter *adapter)
 	int retries = QLCNIC_CMDPEG_CHECK_RETRY_COUNT;
 
 	do {
-		val = QLCRD32(adapter, CRB_CMDPEG_STATE);
+		val = QLC_SHARED_REG_RD32(adapter, QLCNIC_CMDPEG_STATE);
 
 		switch (val) {
 		case PHAN_INITIALIZE_COMPLETE:
@@ -592,7 +550,8 @@ static int qlcnic_cmd_peg_ready(struct qlcnic_adapter *adapter)
 
 	} while (--retries);
 
-	QLCWR32(adapter, CRB_CMDPEG_STATE, PHAN_INITIALIZE_FAILED);
+	QLC_SHARED_REG_WR32(adapter, QLCNIC_CMDPEG_STATE,
+			    PHAN_INITIALIZE_FAILED);
 
 out_err:
 	dev_err(&adapter->pdev->dev, "Command Peg initialization not "
@@ -607,7 +566,7 @@ qlcnic_receive_peg_ready(struct qlcnic_adapter *adapter)
 	int retries = QLCNIC_RCVPEG_CHECK_RETRY_COUNT;
 
 	do {
-		val = QLCRD32(adapter, CRB_RCVPEG_STATE);
+		val = QLC_SHARED_REG_RD32(adapter, QLCNIC_RCVPEG_STATE);
 
 		if (val == PHAN_PEG_RCV_INITIALIZED)
 			return 0;
@@ -638,7 +597,7 @@ qlcnic_check_fw_status(struct qlcnic_adapter *adapter)
 	if (err)
 		return err;
 
-	QLCWR32(adapter, CRB_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
+	QLC_SHARED_REG_WR32(adapter, QLCNIC_CMDPEG_STATE, PHAN_INITIALIZE_ACK);
 
 	return err;
 }
@@ -649,7 +608,7 @@ qlcnic_setup_idc_param(struct qlcnic_adapter *adapter) {
 	int timeo;
 	u32 val;
 
-	val = QLCRD32(adapter, QLCNIC_CRB_DEV_PARTITION_INFO);
+	val = QLC_SHARED_REG_RD32(adapter, QLCNIC_CRB_DEV_PARTITION_INFO);
 	val = QLC_DEV_GET_DRV(val, adapter->portnum);
 	if ((val & 0x3) != QLCNIC_TYPE_NIC) {
 		dev_err(&adapter->pdev->dev,
@@ -689,11 +648,9 @@ static int qlcnic_get_flt_entry(struct qlcnic_adapter *adapter, u8 region,
 	}
 
 	entry_size = flt_hdr.len - sizeof(struct qlcnic_flt_header);
-	flt_entry = (struct qlcnic_flt_entry *)vzalloc(entry_size);
-	if (flt_entry == NULL) {
-		dev_warn(&adapter->pdev->dev, "error allocating memory\n");
+	flt_entry = vzalloc(entry_size);
+	if (flt_entry == NULL)
 		return -EIO;
-	}
 
 	ret = qlcnic_rom_fast_read_words(adapter, QLCNIC_FLT_LOCATION +
 					 sizeof(struct qlcnic_flt_header),
@@ -1096,11 +1053,13 @@ qlcnic_check_fw_hearbeat(struct qlcnic_adapter *adapter)
 	u32 heartbeat, ret = -EIO;
 	int retries = QLCNIC_HEARTBEAT_CHECK_RETRY_COUNT;
 
-	adapter->heartbeat = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
+	adapter->heartbeat = QLC_SHARED_REG_RD32(adapter,
+						 QLCNIC_PEG_ALIVE_COUNTER);
 
 	do {
 		msleep(QLCNIC_HEARTBEAT_PERIOD_MSECS);
-		heartbeat = QLCRD32(adapter, QLCNIC_PEG_ALIVE_COUNTER);
+		heartbeat = QLC_SHARED_REG_RD32(adapter,
+						QLCNIC_PEG_ALIVE_COUNTER);
 		if (heartbeat != adapter->heartbeat) {
 			ret = QLCNIC_RCODE_SUCCESS;
 			break;
@@ -1270,7 +1229,7 @@ qlcnic_validate_firmware(struct qlcnic_adapter *adapter)
 		return -EINVAL;
 	}
 
-	QLCWR32(adapter, QLCNIC_CAM_RAM(0x1fc), QLCNIC_BDINFO_MAGIC);
+	QLC_SHARED_REG_WR32(adapter, QLCNIC_FW_IMG_VALID, QLCNIC_BDINFO_MAGIC);
 	return 0;
 }
 

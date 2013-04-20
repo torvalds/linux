@@ -23,5 +23,10 @@ struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
 struct drm_gem_cma_object *drm_fb_cma_get_gem_obj(struct drm_framebuffer *fb,
 	unsigned int plane);
 
+#ifdef CONFIG_DEBUG_FS
+void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m);
+int drm_fb_cma_debugfs_show(struct seq_file *m, void *arg);
+#endif
+
 #endif
 

@@ -447,7 +447,7 @@ EXPORT_SYMBOL_GPL(crypto_register_template);
 void crypto_unregister_template(struct crypto_template *tmpl)
 {
 	struct crypto_instance *inst;
-	struct hlist_node *p, *n;
+	struct hlist_node *n;
 	struct hlist_head *list;
 	LIST_HEAD(users);
 
@@ -457,7 +457,7 @@ void crypto_unregister_template(struct crypto_template *tmpl)
 	list_del_init(&tmpl->list);
 
 	list = &tmpl->instances;
-	hlist_for_each_entry(inst, p, list, list) {
+	hlist_for_each_entry(inst, list, list) {
 		int err = crypto_remove_alg(&inst->alg, &users);
 		BUG_ON(err);
 	}
@@ -466,7 +466,7 @@ void crypto_unregister_template(struct crypto_template *tmpl)
 
 	up_write(&crypto_alg_sem);
 
-	hlist_for_each_entry_safe(inst, p, n, list, list) {
+	hlist_for_each_entry_safe(inst, n, list, list) {
 		BUG_ON(atomic_read(&inst->alg.cra_refcnt) != 1);
 		tmpl->free(inst);
 	}
@@ -749,12 +749,10 @@ struct crypto_alg *crypto_attr_alg2(struct rtattr *rta,
 				    u32 type, u32 mask)
 {
 	const char *name;
-	int err;
 
 	name = crypto_attr_alg_name(rta);
-	err = PTR_ERR(name);
 	if (IS_ERR(name))
-		return ERR_PTR(err);
+		return ERR_CAST(name);
 
 	return crypto_find_alg(name, frontend, type, mask);
 }

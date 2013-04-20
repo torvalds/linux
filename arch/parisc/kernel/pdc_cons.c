@@ -138,23 +138,17 @@ static const struct tty_operations pdc_console_tty_ops = {
 static void pdc_console_poll(unsigned long unused)
 {
 	int data, count = 0;
-	struct tty_struct *tty = tty_port_tty_get(&tty_port);
-
-	if (!tty)
-		return;
 
 	while (1) {
 		data = pdc_console_poll_key(NULL);
 		if (data == -1)
 			break;
-		tty_insert_flip_char(tty, data & 0xFF, TTY_NORMAL);
+		tty_insert_flip_char(&tty_port, data & 0xFF, TTY_NORMAL);
 		count ++;
 	}
 
 	if (count)
-		tty_flip_buffer_push(tty);
-
-	tty_kref_put(tty);
+		tty_flip_buffer_push(&tty_port);
 
 	if (pdc_cons.flags & CON_ENABLED)
 		mod_timer(&pdc_console_timer, jiffies + PDC_CONS_POLL_DELAY);

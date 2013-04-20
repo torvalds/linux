@@ -25,7 +25,6 @@
 #include <linux/spinlock.h>
 #include <linux/compiler.h>
 #include <linux/io.h>
-#include <mach/hardware.h>
 #include <media/davinci/vpss.h>
 
 MODULE_LICENSE("GPL");
@@ -51,13 +50,29 @@ MODULE_AUTHOR("Texas Instruments");
 /* VENCINT - vpss_int8 */
 #define DM355_VPSSBL_EVTSEL_DEFAULT	0x4
 
-#define DM365_ISP5_PCCR 		0x04
+#define DM365_ISP5_PCCR				0x04
+#define DM365_ISP5_PCCR_BL_CLK_ENABLE		BIT(0)
+#define DM365_ISP5_PCCR_ISIF_CLK_ENABLE		BIT(1)
+#define DM365_ISP5_PCCR_H3A_CLK_ENABLE		BIT(2)
+#define DM365_ISP5_PCCR_RSZ_CLK_ENABLE		BIT(3)
+#define DM365_ISP5_PCCR_IPIPE_CLK_ENABLE	BIT(4)
+#define DM365_ISP5_PCCR_IPIPEIF_CLK_ENABLE	BIT(5)
+#define DM365_ISP5_PCCR_RSV			BIT(6)
+
+#define DM365_ISP5_BCR			0x08
+#define DM365_ISP5_BCR_ISIF_OUT_ENABLE	BIT(1)
+
 #define DM365_ISP5_INTSEL1		0x10
 #define DM365_ISP5_INTSEL2		0x14
 #define DM365_ISP5_INTSEL3		0x18
 #define DM365_ISP5_CCDCMUX 		0x20
 #define DM365_ISP5_PG_FRAME_SIZE 	0x28
 #define DM365_VPBE_CLK_CTRL 		0x00
+
+#define VPSS_CLK_CTRL			0x01c40044
+#define VPSS_CLK_CTRL_VENCCLKEN		BIT(3)
+#define VPSS_CLK_CTRL_DACCLKEN		BIT(4)
+
 /*
  * vpss interrupts. VDINT0 - vpss_int0, VDINT1 - vpss_int1,
  * AF - vpss_int3
@@ -95,12 +110,19 @@ struct vpss_hw_ops {
 	void (*select_ccdc_source)(enum vpss_ccdc_source_sel src_sel);
 	/* clear wbl overflow bit */
 	int (*clear_wbl_overflow)(enum vpss_wbl_sel wbl_sel);
+	/* set sync polarity */
+	void (*set_sync_pol)(struct vpss_sync_pol);
+	/* set the PG_FRAME_SIZE register*/
+	void (*set_pg_frame_size)(struct vpss_pg_frame_size);
+	/* check and clear interrupt if occured */
+	int (*dma_complete_interrupt)(void);
 };
 
 /* vpss configuration */
 struct vpss_oper_config {
 	__iomem void *vpss_regs_base0;
 	__iomem void *vpss_regs_base1;
+	resource_size_t *vpss_regs_base2;
 	enum vpss_platform_type platform;
 	spinlock_t vpss_lock;
 	struct vpss_hw_ops hw_ops;
@@ -158,6 +180,14 @@ static void dm355_select_ccdc_source(enum vpss_ccdc_source_sel src_sel)
 	bl_regw(src_sel << VPSS_HSSISEL_SHIFT, DM355_VPSSBL_CCDCMUX);
 }
 
+int vpss_dma_complete_interrupt(void)
+{
+	if (!oper_cfg.hw_ops.dma_complete_interrupt)
+		return 2;
+	return oper_cfg.hw_ops.dma_complete_interrupt();
+}
+EXPORT_SYMBOL(vpss_dma_complete_interrupt);
+
 int vpss_select_ccdc_source(enum vpss_ccdc_source_sel src_sel)
 {
 	if (!oper_cfg.hw_ops.select_ccdc_source)
@@ -182,6 +212,15 @@ static int dm644x_clear_wbl_overflow(enum vpss_wbl_sel wbl_sel)
 	bl_regw(val, DM644X_SBL_PCR_VPSS);
 	return 0;
 }
+
+void vpss_set_sync_pol(struct vpss_sync_pol sync)
+{
+	if (!oper_cfg.hw_ops.set_sync_pol)
+		return;
+
+	oper_cfg.hw_ops.set_sync_pol(sync);
+}
+EXPORT_SYMBOL(vpss_set_sync_pol);
 
 int vpss_clear_wbl_overflow(enum vpss_wbl_sel wbl_sel)
 {
@@ -348,6 +387,15 @@ void dm365_vpss_set_sync_pol(struct vpss_sync_pol sync)
 }
 EXPORT_SYMBOL(dm365_vpss_set_sync_pol);
 
+void vpss_set_pg_frame_size(struct vpss_pg_frame_size frame_size)
+{
+	if (!oper_cfg.hw_ops.set_pg_frame_size)
+		return;
+
+	oper_cfg.hw_ops.set_pg_frame_size(frame_size);
+}
+EXPORT_SYMBOL(vpss_set_pg_frame_size);
+
 void dm365_vpss_set_pg_frame_size(struct vpss_pg_frame_size frame_size)
 {
 	int current_reg = ((frame_size.hlpfr >> 1) - 1) << 16;
@@ -426,6 +474,16 @@ static int vpss_probe(struct platform_device *pdev)
 		oper_cfg.hw_ops.enable_clock = dm365_enable_clock;
 		oper_cfg.hw_ops.select_ccdc_source = dm365_select_ccdc_source;
 		/* Setup vpss interrupts */
+		isp5_write((isp5_read(DM365_ISP5_PCCR) |
+				      DM365_ISP5_PCCR_BL_CLK_ENABLE |
+				      DM365_ISP5_PCCR_ISIF_CLK_ENABLE |
+				      DM365_ISP5_PCCR_H3A_CLK_ENABLE |
+				      DM365_ISP5_PCCR_RSZ_CLK_ENABLE |
+				      DM365_ISP5_PCCR_IPIPE_CLK_ENABLE |
+				      DM365_ISP5_PCCR_IPIPEIF_CLK_ENABLE |
+				      DM365_ISP5_PCCR_RSV), DM365_ISP5_PCCR);
+		isp5_write((isp5_read(DM365_ISP5_BCR) |
+			    DM365_ISP5_BCR_ISIF_OUT_ENABLE), DM365_ISP5_BCR);
 		isp5_write(DM365_ISP5_INTSEL1_DEFAULT, DM365_ISP5_INTSEL1);
 		isp5_write(DM365_ISP5_INTSEL2_DEFAULT, DM365_ISP5_INTSEL2);
 		isp5_write(DM365_ISP5_INTSEL3_DEFAULT, DM365_ISP5_INTSEL3);
@@ -471,11 +529,20 @@ static struct platform_driver vpss_driver = {
 
 static void vpss_exit(void)
 {
+	iounmap(oper_cfg.vpss_regs_base2);
+	release_mem_region(VPSS_CLK_CTRL, 4);
 	platform_driver_unregister(&vpss_driver);
 }
 
 static int __init vpss_init(void)
 {
+	if (!request_mem_region(VPSS_CLK_CTRL, 4, "vpss_clock_control"))
+		return -EBUSY;
+
+	oper_cfg.vpss_regs_base2 = ioremap(VPSS_CLK_CTRL, 4);
+	writel(VPSS_CLK_CTRL_VENCCLKEN |
+		     VPSS_CLK_CTRL_DACCLKEN, oper_cfg.vpss_regs_base2);
+
 	return platform_driver_register(&vpss_driver);
 }
 subsys_initcall(vpss_init);

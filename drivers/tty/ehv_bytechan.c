@@ -371,22 +371,17 @@ console_initcall(ehv_bc_console_init);
 static irqreturn_t ehv_bc_tty_rx_isr(int irq, void *data)
 {
 	struct ehv_bc_data *bc = data;
-	struct tty_struct *ttys = tty_port_tty_get(&bc->port);
 	unsigned int rx_count, tx_count, len;
 	int count;
 	char buffer[EV_BYTE_CHANNEL_MAX_BYTES];
 	int ret;
-
-	/* ttys could be NULL during a hangup */
-	if (!ttys)
-		return IRQ_HANDLED;
 
 	/* Find out how much data needs to be read, and then ask the TTY layer
 	 * if it can handle that much.  We want to ensure that every byte we
 	 * read from the byte channel will be accepted by the TTY layer.
 	 */
 	ev_byte_channel_poll(bc->handle, &rx_count, &tx_count);
-	count = tty_buffer_request_room(ttys, rx_count);
+	count = tty_buffer_request_room(&bc->port, rx_count);
 
 	/* 'count' is the maximum amount of data the TTY layer can accept at
 	 * this time.  However, during testing, I was never able to get 'count'
@@ -407,7 +402,7 @@ static irqreturn_t ehv_bc_tty_rx_isr(int irq, void *data)
 		 */
 
 		/* Pass the received data to the tty layer. */
-		ret = tty_insert_flip_string(ttys, buffer, len);
+		ret = tty_insert_flip_string(&bc->port, buffer, len);
 
 		/* 'ret' is the number of bytes that the TTY layer accepted.
 		 * If it's not equal to 'len', then it means the buffer is
@@ -422,9 +417,7 @@ static irqreturn_t ehv_bc_tty_rx_isr(int irq, void *data)
 	}
 
 	/* Tell the tty layer that we're done. */
-	tty_flip_buffer_push(ttys);
-
-	tty_kref_put(ttys);
+	tty_flip_buffer_push(&bc->port);
 
 	return IRQ_HANDLED;
 }

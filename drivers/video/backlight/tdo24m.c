@@ -390,7 +390,7 @@ static int tdo24m_probe(struct spi_device *spi)
 	if (IS_ERR(lcd->lcd_dev))
 		return PTR_ERR(lcd->lcd_dev);
 
-	dev_set_drvdata(&spi->dev, lcd);
+	spi_set_drvdata(spi, lcd);
 	err = tdo24m_power(lcd, FB_BLANK_UNBLANK);
 	if (err)
 		goto out_unregister;
@@ -404,7 +404,7 @@ out_unregister:
 
 static int tdo24m_remove(struct spi_device *spi)
 {
-	struct tdo24m *lcd = dev_get_drvdata(&spi->dev);
+	struct tdo24m *lcd = spi_get_drvdata(spi);
 
 	tdo24m_power(lcd, FB_BLANK_POWERDOWN);
 	lcd_device_unregister(lcd->lcd_dev);
@@ -415,14 +415,14 @@ static int tdo24m_remove(struct spi_device *spi)
 #ifdef CONFIG_PM
 static int tdo24m_suspend(struct spi_device *spi, pm_message_t state)
 {
-	struct tdo24m *lcd = dev_get_drvdata(&spi->dev);
+	struct tdo24m *lcd = spi_get_drvdata(spi);
 
 	return tdo24m_power(lcd, FB_BLANK_POWERDOWN);
 }
 
 static int tdo24m_resume(struct spi_device *spi)
 {
-	struct tdo24m *lcd = dev_get_drvdata(&spi->dev);
+	struct tdo24m *lcd = spi_get_drvdata(spi);
 
 	return tdo24m_power(lcd, FB_BLANK_UNBLANK);
 }
@@ -434,7 +434,7 @@ static int tdo24m_resume(struct spi_device *spi)
 /* Power down all displays on reboot, poweroff or halt */
 static void tdo24m_shutdown(struct spi_device *spi)
 {
-	struct tdo24m *lcd = dev_get_drvdata(&spi->dev);
+	struct tdo24m *lcd = spi_get_drvdata(spi);
 
 	tdo24m_power(lcd, FB_BLANK_POWERDOWN);
 }

@@ -241,7 +241,7 @@ static int fimc_get_scaler_factor(u32 src, u32 tar, u32 *ratio, u32 *shift)
 
 int fimc_set_scaler_info(struct fimc_ctx *ctx)
 {
-	struct fimc_variant *variant = ctx->fimc_dev->variant;
+	const struct fimc_variant *variant = ctx->fimc_dev->variant;
 	struct device *dev = &ctx->fimc_dev->pdev->dev;
 	struct fimc_scaler *sc = &ctx->scaler;
 	struct fimc_frame *s_frame = &ctx->s_frame;
@@ -257,14 +257,14 @@ int fimc_set_scaler_info(struct fimc_ctx *ctx)
 		ty = d_frame->height;
 	}
 	if (tx <= 0 || ty <= 0) {
-		dev_err(dev, "Invalid target size: %dx%d", tx, ty);
+		dev_err(dev, "Invalid target size: %dx%d\n", tx, ty);
 		return -EINVAL;
 	}
 
 	sx = s_frame->width;
 	sy = s_frame->height;
 	if (sx <= 0 || sy <= 0) {
-		dev_err(dev, "Invalid source size: %dx%d", sx, sy);
+		dev_err(dev, "Invalid source size: %dx%d\n", sx, sy);
 		return -EINVAL;
 	}
 	sc->real_width = sx;
@@ -440,7 +440,7 @@ void fimc_set_yuv_order(struct fimc_ctx *ctx)
 
 void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f)
 {
-	struct fimc_variant *variant = ctx->fimc_dev->variant;
+	const struct fimc_variant *variant = ctx->fimc_dev->variant;
 	u32 i, depth = 0;
 
 	for (i = 0; i < f->fmt->colplanes; i++)
@@ -524,8 +524,7 @@ static int fimc_set_color_effect(struct fimc_ctx *ctx, enum v4l2_colorfx colorfx
 static int __fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_ctrl *ctrl)
 {
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct fimc_variant *variant = fimc->variant;
-	unsigned int flags = FIMC_DST_FMT | FIMC_SRC_FMT;
+	const struct fimc_variant *variant = fimc->variant;
 	int ret = 0;
 
 	if (ctrl->flags & V4L2_CTRL_FLAG_INACTIVE)
@@ -541,8 +540,7 @@ static int __fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_ctrl *ctrl)
 		break;
 
 	case V4L2_CID_ROTATE:
-		if (fimc_capture_pending(fimc) ||
-		    (ctx->state & flags) == flags) {
+		if (fimc_capture_pending(fimc)) {
 			ret = fimc_check_scaler_ratio(ctx, ctx->s_frame.width,
 					ctx->s_frame.height, ctx->d_frame.width,
 					ctx->d_frame.height, ctrl->val);
@@ -591,7 +589,7 @@ static const struct v4l2_ctrl_ops fimc_ctrl_ops = {
 
 int fimc_ctrls_create(struct fimc_ctx *ctx)
 {
-	struct fimc_variant *variant = ctx->fimc_dev->variant;
+	const struct fimc_variant *variant = ctx->fimc_dev->variant;
 	unsigned int max_alpha = fimc_get_alpha_mask(ctx->d_frame.fmt);
 	struct fimc_ctrls *ctrls = &ctx->ctrls;
 	struct v4l2_ctrl_handler *handler = &ctrls->handler;
@@ -691,7 +689,7 @@ void fimc_alpha_ctrl_update(struct fimc_ctx *ctx)
 	v4l2_ctrl_unlock(ctrl);
 }
 
-int fimc_fill_format(struct fimc_frame *frame, struct v4l2_format *f)
+void __fimc_get_format(struct fimc_frame *frame, struct v4l2_format *f)
 {
 	struct v4l2_pix_format_mplane *pixm = &f->fmt.pix_mp;
 	int i;
@@ -704,35 +702,9 @@ int fimc_fill_format(struct fimc_frame *frame, struct v4l2_format *f)
 	pixm->num_planes = frame->fmt->memplanes;
 
 	for (i = 0; i < pixm->num_planes; ++i) {
-		int bpl = frame->f_width;
-		if (frame->fmt->colplanes == 1) /* packed formats */
-			bpl = (bpl * frame->fmt->depth[0]) / 8;
-		pixm->plane_fmt[i].bytesperline = bpl;
-
-		if (frame->fmt->flags & FMT_FLAGS_COMPRESSED) {
-			pixm->plane_fmt[i].sizeimage = frame->payload[i];
-			continue;
-		}
-		pixm->plane_fmt[i].sizeimage = (frame->o_width *
-			frame->o_height * frame->fmt->depth[i]) / 8;
+		pixm->plane_fmt[i].bytesperline = frame->bytesperline[i];
+		pixm->plane_fmt[i].sizeimage = frame->payload[i];
 	}
-	return 0;
-}
-
-void fimc_fill_frame(struct fimc_frame *frame, struct v4l2_format *f)
-{
-	struct v4l2_pix_format_mplane *pixm = &f->fmt.pix_mp;
-
-	frame->f_width  = pixm->plane_fmt[0].bytesperline;
-	if (frame->fmt->colplanes == 1)
-		frame->f_width = (frame->f_width * 8) / frame->fmt->depth[0];
-	frame->f_height	= pixm->height;
-	frame->width    = pixm->width;
-	frame->height   = pixm->height;
-	frame->o_width  = pixm->width;
-	frame->o_height = pixm->height;
-	frame->offs_h   = 0;
-	frame->offs_v   = 0;
 }
 
 /**
@@ -765,9 +737,16 @@ void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 		if (fmt->colplanes == 1 && /* Packed */
 		    (bpl == 0 || ((bpl * 8) / fmt->depth[i]) < pix->width))
 			bpl = (pix->width * fmt->depth[0]) / 8;
-
-		if (i == 0) /* Same bytesperline for each plane. */
+		/*
+		 * Currently bytesperline for each plane is same, except
+		 * V4L2_PIX_FMT_YUV420M format. This calculation may need
+		 * to be changed when other multi-planar formats are added
+		 * to the fimc_formats[] array.
+		 */
+		if (i == 0)
 			bytesperline = bpl;
+		else if (i == 1 && fmt->memplanes == 3)
+			bytesperline /= 2;
 
 		plane_fmt->bytesperline = bytesperline;
 		plane_fmt->sizeimage = max((pix->width * pix->height *
@@ -811,11 +790,11 @@ static void fimc_clk_put(struct fimc_dev *fimc)
 {
 	int i;
 	for (i = 0; i < MAX_FIMC_CLOCKS; i++) {
-		if (IS_ERR_OR_NULL(fimc->clock[i]))
+		if (IS_ERR(fimc->clock[i]))
 			continue;
 		clk_unprepare(fimc->clock[i]);
 		clk_put(fimc->clock[i]);
-		fimc->clock[i] = NULL;
+		fimc->clock[i] = ERR_PTR(-EINVAL);
 	}
 }
 
@@ -823,14 +802,19 @@ static int fimc_clk_get(struct fimc_dev *fimc)
 {
 	int i, ret;
 
+	for (i = 0; i < MAX_FIMC_CLOCKS; i++)
+		fimc->clock[i] = ERR_PTR(-EINVAL);
+
 	for (i = 0; i < MAX_FIMC_CLOCKS; i++) {
 		fimc->clock[i] = clk_get(&fimc->pdev->dev, fimc_clocks[i]);
-		if (IS_ERR(fimc->clock[i]))
+		if (IS_ERR(fimc->clock[i])) {
+			ret = PTR_ERR(fimc->clock[i]);
 			goto err;
+		}
 		ret = clk_prepare(fimc->clock[i]);
 		if (ret < 0) {
 			clk_put(fimc->clock[i]);
-			fimc->clock[i] = NULL;
+			fimc->clock[i] = ERR_PTR(-EINVAL);
 			goto err;
 		}
 	}
@@ -866,22 +850,24 @@ static int fimc_m2m_suspend(struct fimc_dev *fimc)
 
 static int fimc_m2m_resume(struct fimc_dev *fimc)
 {
+	struct fimc_ctx *ctx;
 	unsigned long flags;
 
 	spin_lock_irqsave(&fimc->slock, flags);
 	/* Clear for full H/W setup in first run after resume */
+	ctx = fimc->m2m.ctx;
 	fimc->m2m.ctx = NULL;
 	spin_unlock_irqrestore(&fimc->slock, flags);
 
 	if (test_and_clear_bit(ST_M2M_SUSPENDED, &fimc->state))
-		fimc_m2m_job_finish(fimc->m2m.ctx,
-				    VB2_BUF_STATE_ERROR);
+		fimc_m2m_job_finish(ctx, VB2_BUF_STATE_ERROR);
+
 	return 0;
 }
 
 static int fimc_probe(struct platform_device *pdev)
 {
-	struct fimc_drvdata *drv_data = fimc_get_drvdata(pdev);
+	const struct fimc_drvdata *drv_data = fimc_get_drvdata(pdev);
 	struct s5p_platform_fimc *pdata;
 	struct fimc_dev *fimc;
 	struct resource *res;
@@ -909,11 +895,9 @@ static int fimc_probe(struct platform_device *pdev)
 	mutex_init(&fimc->lock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	fimc->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (fimc->regs == NULL) {
-		dev_err(&pdev->dev, "Failed to obtain io memory\n");
-		return -ENOENT;
-	}
+	fimc->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(fimc->regs))
+		return PTR_ERR(fimc->regs);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
@@ -924,8 +908,14 @@ static int fimc_probe(struct platform_device *pdev)
 	ret = fimc_clk_get(fimc);
 	if (ret)
 		return ret;
-	clk_set_rate(fimc->clock[CLK_BUS], drv_data->lclk_frequency);
-	clk_enable(fimc->clock[CLK_BUS]);
+
+	ret = clk_set_rate(fimc->clock[CLK_BUS], drv_data->lclk_frequency);
+	if (ret < 0)
+		return ret;
+
+	ret = clk_enable(fimc->clock[CLK_BUS]);
+	if (ret < 0)
+		return ret;
 
 	ret = devm_request_irq(&pdev->dev, res->start, fimc_irq_handler,
 			       0, dev_name(&pdev->dev), fimc);
@@ -959,6 +949,7 @@ err_pm:
 err_sd:
 	fimc_unregister_capture_subdev(fimc);
 err_clk:
+	clk_disable(fimc->clock[CLK_BUS]);
 	fimc_clk_put(fimc);
 	return ret;
 }
@@ -1053,7 +1044,7 @@ static int fimc_remove(struct platform_device *pdev)
 }
 
 /* Image pixel limits, similar across several FIMC HW revisions. */
-static struct fimc_pix_limit s5p_pix_limit[4] = {
+static const struct fimc_pix_limit s5p_pix_limit[4] = {
 	[0] = {
 		.scaler_en_w	= 3264,
 		.scaler_dis_w	= 8192,
@@ -1088,7 +1079,7 @@ static struct fimc_pix_limit s5p_pix_limit[4] = {
 	},
 };
 
-static struct fimc_variant fimc0_variant_s5p = {
+static const struct fimc_variant fimc0_variant_s5p = {
 	.has_inp_rot	 = 1,
 	.has_out_rot	 = 1,
 	.has_cam_if	 = 1,
@@ -1100,7 +1091,7 @@ static struct fimc_variant fimc0_variant_s5p = {
 	.pix_limit	 = &s5p_pix_limit[0],
 };
 
-static struct fimc_variant fimc2_variant_s5p = {
+static const struct fimc_variant fimc2_variant_s5p = {
 	.has_cam_if	 = 1,
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
@@ -1110,7 +1101,7 @@ static struct fimc_variant fimc2_variant_s5p = {
 	.pix_limit	 = &s5p_pix_limit[1],
 };
 
-static struct fimc_variant fimc0_variant_s5pv210 = {
+static const struct fimc_variant fimc0_variant_s5pv210 = {
 	.pix_hoff	 = 1,
 	.has_inp_rot	 = 1,
 	.has_out_rot	 = 1,
@@ -1123,7 +1114,7 @@ static struct fimc_variant fimc0_variant_s5pv210 = {
 	.pix_limit	 = &s5p_pix_limit[1],
 };
 
-static struct fimc_variant fimc1_variant_s5pv210 = {
+static const struct fimc_variant fimc1_variant_s5pv210 = {
 	.pix_hoff	 = 1,
 	.has_inp_rot	 = 1,
 	.has_out_rot	 = 1,
@@ -1137,7 +1128,7 @@ static struct fimc_variant fimc1_variant_s5pv210 = {
 	.pix_limit	 = &s5p_pix_limit[2],
 };
 
-static struct fimc_variant fimc2_variant_s5pv210 = {
+static const struct fimc_variant fimc2_variant_s5pv210 = {
 	.has_cam_if	 = 1,
 	.pix_hoff	 = 1,
 	.min_inp_pixsize = 16,
@@ -1148,7 +1139,7 @@ static struct fimc_variant fimc2_variant_s5pv210 = {
 	.pix_limit	 = &s5p_pix_limit[2],
 };
 
-static struct fimc_variant fimc0_variant_exynos4 = {
+static const struct fimc_variant fimc0_variant_exynos4210 = {
 	.pix_hoff	 = 1,
 	.has_inp_rot	 = 1,
 	.has_out_rot	 = 1,
@@ -1164,9 +1155,8 @@ static struct fimc_variant fimc0_variant_exynos4 = {
 	.pix_limit	 = &s5p_pix_limit[1],
 };
 
-static struct fimc_variant fimc3_variant_exynos4 = {
+static const struct fimc_variant fimc3_variant_exynos4210 = {
 	.pix_hoff	 = 1,
-	.has_cam_if	 = 1,
 	.has_cistatus2	 = 1,
 	.has_mainscaler_ext = 1,
 	.has_alpha	 = 1,
@@ -1178,8 +1168,38 @@ static struct fimc_variant fimc3_variant_exynos4 = {
 	.pix_limit	 = &s5p_pix_limit[3],
 };
 
+static const struct fimc_variant fimc0_variant_exynos4x12 = {
+	.pix_hoff		= 1,
+	.has_inp_rot		= 1,
+	.has_out_rot		= 1,
+	.has_cam_if		= 1,
+	.has_isp_wb		= 1,
+	.has_cistatus2		= 1,
+	.has_mainscaler_ext	= 1,
+	.has_alpha		= 1,
+	.min_inp_pixsize	= 16,
+	.min_out_pixsize	= 16,
+	.hor_offs_align		= 2,
+	.min_vsize_align	= 1,
+	.out_buf_count		= 32,
+	.pix_limit		= &s5p_pix_limit[1],
+};
+
+static const struct fimc_variant fimc3_variant_exynos4x12 = {
+	.pix_hoff		= 1,
+	.has_cistatus2		= 1,
+	.has_mainscaler_ext	= 1,
+	.has_alpha		= 1,
+	.min_inp_pixsize	= 16,
+	.min_out_pixsize	= 16,
+	.hor_offs_align		= 2,
+	.min_vsize_align	= 1,
+	.out_buf_count		= 32,
+	.pix_limit		= &s5p_pix_limit[3],
+};
+
 /* S5PC100 */
-static struct fimc_drvdata fimc_drvdata_s5p = {
+static const struct fimc_drvdata fimc_drvdata_s5p = {
 	.variant = {
 		[0] = &fimc0_variant_s5p,
 		[1] = &fimc0_variant_s5p,
@@ -1190,7 +1210,7 @@ static struct fimc_drvdata fimc_drvdata_s5p = {
 };
 
 /* S5PV210, S5PC110 */
-static struct fimc_drvdata fimc_drvdata_s5pv210 = {
+static const struct fimc_drvdata fimc_drvdata_s5pv210 = {
 	.variant = {
 		[0] = &fimc0_variant_s5pv210,
 		[1] = &fimc1_variant_s5pv210,
@@ -1201,18 +1221,30 @@ static struct fimc_drvdata fimc_drvdata_s5pv210 = {
 };
 
 /* EXYNOS4210, S5PV310, S5PC210 */
-static struct fimc_drvdata fimc_drvdata_exynos4 = {
+static const struct fimc_drvdata fimc_drvdata_exynos4210 = {
 	.variant = {
-		[0] = &fimc0_variant_exynos4,
-		[1] = &fimc0_variant_exynos4,
-		[2] = &fimc0_variant_exynos4,
-		[3] = &fimc3_variant_exynos4,
+		[0] = &fimc0_variant_exynos4210,
+		[1] = &fimc0_variant_exynos4210,
+		[2] = &fimc0_variant_exynos4210,
+		[3] = &fimc3_variant_exynos4210,
 	},
 	.num_entities = 4,
 	.lclk_frequency = 166000000UL,
 };
 
-static struct platform_device_id fimc_driver_ids[] = {
+/* EXYNOS4212, EXYNOS4412 */
+static const struct fimc_drvdata fimc_drvdata_exynos4x12 = {
+	.variant = {
+		[0] = &fimc0_variant_exynos4x12,
+		[1] = &fimc0_variant_exynos4x12,
+		[2] = &fimc0_variant_exynos4x12,
+		[3] = &fimc3_variant_exynos4x12,
+	},
+	.num_entities = 4,
+	.lclk_frequency = 166000000UL,
+};
+
+static const struct platform_device_id fimc_driver_ids[] = {
 	{
 		.name		= "s5p-fimc",
 		.driver_data	= (unsigned long)&fimc_drvdata_s5p,
@@ -1221,7 +1253,10 @@ static struct platform_device_id fimc_driver_ids[] = {
 		.driver_data	= (unsigned long)&fimc_drvdata_s5pv210,
 	}, {
 		.name		= "exynos4-fimc",
-		.driver_data	= (unsigned long)&fimc_drvdata_exynos4,
+		.driver_data	= (unsigned long)&fimc_drvdata_exynos4210,
+	}, {
+		.name		= "exynos4x12-fimc",
+		.driver_data	= (unsigned long)&fimc_drvdata_exynos4x12,
 	},
 	{},
 };

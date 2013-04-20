@@ -354,9 +354,17 @@ static struct config_group *target_fabric_make_mappedlun(
 		ret = -EINVAL;
 		goto out;
 	}
+	if (mapped_lun > (TRANSPORT_MAX_LUNS_PER_TPG-1)) {
+		pr_err("Mapped LUN: %lu exceeds TRANSPORT_MAX_LUNS_PER_TPG"
+			"-1: %u for Target Portal Group: %u\n", mapped_lun,
+			TRANSPORT_MAX_LUNS_PER_TPG-1,
+			se_tpg->se_tpg_tfo->tpg_get_tag(se_tpg));
+		ret = -EINVAL;
+		goto out;
+	}
 
-	lacl = core_dev_init_initiator_node_lun_acl(se_tpg, mapped_lun,
-			config_item_name(acl_ci), &ret);
+	lacl = core_dev_init_initiator_node_lun_acl(se_tpg, se_nacl,
+			mapped_lun, &ret);
 	if (!lacl) {
 		ret = -EINVAL;
 		goto out;
@@ -752,6 +760,11 @@ static int target_fabric_port_link(
 		pr_err("Bad dev->dev_link_magic, not a valid se_dev_ci pointer:"
 			" %p to struct se_device: %p\n", se_dev_ci, dev);
 		return -EFAULT;
+	}
+
+	if (!(dev->dev_flags & DF_CONFIGURED)) {
+		pr_err("se_device not configured yet, cannot port link\n");
+		return -ENODEV;
 	}
 
 	tpg_ci = &lun_ci->ci_parent->ci_group->cg_item;

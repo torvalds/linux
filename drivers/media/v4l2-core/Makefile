@@ -10,7 +10,8 @@ ifeq ($(CONFIG_COMPAT),y)
   videodev-objs += v4l2-compat-ioctl32.o
 endif
 
-obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-int-device.o
+obj-$(CONFIG_VIDEO_V4L2) += videodev.o
+obj-$(CONFIG_VIDEO_V4L2_INT_DEVICE) += v4l2-int-device.o
 obj-$(CONFIG_VIDEO_V4L2) += v4l2-common.o
 
 obj-$(CONFIG_VIDEO_TUNER) += tuner.o

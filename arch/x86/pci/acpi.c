@@ -521,6 +521,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	sd = &info->sd;
 	sd->domain = domain;
 	sd->node = node;
+	sd->acpi = device->handle;
 	/*
 	 * Maybe the desired pci bus has been already scanned. In such case
 	 * it is unnecessary to scan the pci bus with the given domain,busnum.
@@ -590,6 +591,14 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	}
 
 	return bus;
+}
+
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	struct pci_sysdata *sd = bridge->bus->sysdata;
+
+	ACPI_HANDLE_SET(&bridge->dev, sd->acpi);
+	return 0;
 }
 
 int __init pci_acpi_init(void)

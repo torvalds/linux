@@ -36,7 +36,8 @@ u16 hfs_brec_keylen(struct hfs_bnode *node, u16 rec)
 		return 0;
 
 	if ((node->type == HFS_NODE_INDEX) &&
-	   !(node->tree->attributes & HFS_TREE_VARIDXKEYS)) {
+	   !(node->tree->attributes & HFS_TREE_VARIDXKEYS) &&
+	   (node->tree->cnid != HFSPLUS_ATTR_CNID)) {
 		retval = node->tree->max_key_len + 2;
 	} else {
 		recoff = hfs_bnode_read_u16(node,
@@ -151,12 +152,13 @@ skip:
 
 		/* get index key */
 		hfs_bnode_read_key(new_node, fd->search_key, 14);
-		__hfs_brec_find(fd->bnode, fd);
+		__hfs_brec_find(fd->bnode, fd, hfs_find_rec_by_key);
 
 		hfs_bnode_put(new_node);
 		new_node = NULL;
 
-		if (tree->attributes & HFS_TREE_VARIDXKEYS)
+		if ((tree->attributes & HFS_TREE_VARIDXKEYS) ||
+				(tree->cnid == HFSPLUS_ATTR_CNID))
 			key_len = be16_to_cpu(fd->search_key->key_len) + 2;
 		else {
 			fd->search_key->key_len =
@@ -201,7 +203,7 @@ again:
 		hfs_bnode_put(node);
 		node = fd->bnode = parent;
 
-		__hfs_brec_find(node, fd);
+		__hfs_brec_find(node, fd, hfs_find_rec_by_key);
 		goto again;
 	}
 	hfs_bnode_write_u16(node,
@@ -367,12 +369,13 @@ again:
 	parent = hfs_bnode_find(tree, node->parent);
 	if (IS_ERR(parent))
 		return PTR_ERR(parent);
-	__hfs_brec_find(parent, fd);
+	__hfs_brec_find(parent, fd, hfs_find_rec_by_key);
 	hfs_bnode_dump(parent);
 	rec = fd->record;
 
 	/* size difference between old and new key */
-	if (tree->attributes & HFS_TREE_VARIDXKEYS)
+	if ((tree->attributes & HFS_TREE_VARIDXKEYS) ||
+				(tree->cnid == HFSPLUS_ATTR_CNID))
 		newkeylen = hfs_bnode_read_u16(node, 14) + 2;
 	else
 		fd->keylength = newkeylen = tree->max_key_len + 2;
@@ -427,7 +430,7 @@ skip:
 		hfs_bnode_read_key(new_node, fd->search_key, 14);
 		cnid = cpu_to_be32(new_node->this);
 
-		__hfs_brec_find(fd->bnode, fd);
+		__hfs_brec_find(fd->bnode, fd, hfs_find_rec_by_key);
 		hfs_brec_insert(fd, &cnid, sizeof(cnid));
 		hfs_bnode_put(fd->bnode);
 		hfs_bnode_put(new_node);
@@ -495,13 +498,15 @@ static int hfs_btree_inc_height(struct hfs_btree *tree)
 		/* insert old root idx into new root */
 		node->parent = tree->root;
 		if (node->type == HFS_NODE_LEAF ||
-		    tree->attributes & HFS_TREE_VARIDXKEYS)
+				tree->attributes & HFS_TREE_VARIDXKEYS ||
+				tree->cnid == HFSPLUS_ATTR_CNID)
 			key_size = hfs_bnode_read_u16(node, 14) + 2;
 		else
 			key_size = tree->max_key_len + 2;
 		hfs_bnode_copy(new_node, 14, node, 14, key_size);
 
-		if (!(tree->attributes & HFS_TREE_VARIDXKEYS)) {
+		if (!(tree->attributes & HFS_TREE_VARIDXKEYS) &&
+				(tree->cnid != HFSPLUS_ATTR_CNID)) {
 			key_size = tree->max_key_len + 2;
 			hfs_bnode_write_u16(new_node, 14, tree->max_key_len);
 		}

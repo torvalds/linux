@@ -182,6 +182,7 @@ void rc_map_init(void);
 #define RC_MAP_TEVII_NEC                 "rc-tevii-nec"
 #define RC_MAP_TIVO                      "rc-tivo"
 #define RC_MAP_TOTAL_MEDIA_IN_HAND       "rc-total-media-in-hand"
+#define RC_MAP_TOTAL_MEDIA_IN_HAND_02    "rc-total-media-in-hand-02"
 #define RC_MAP_TREKSTOR                  "rc-trekstor"
 #define RC_MAP_TT_1500                   "rc-tt-1500"
 #define RC_MAP_TWINHAN_VP1027_DVBS       "rc-twinhan1027"

@@ -17,6 +17,7 @@ config TILE
 	select GENERIC_IRQ_SHOW
 	select HAVE_DEBUG_BUGVERBOSE
 	select HAVE_SYSCALL_WRAPPERS if TILEGX
+	select VIRT_TO_BUS
 	select SYS_HYPERVISOR
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_CLOCKEVENTS
@@ -121,6 +122,7 @@ config DEBUG_COPY_FROM_USER
 	def_bool n
 
 config HVC_TILE
+	depends on TTY
 	select HVC_DRIVER
 	def_bool y
 
@@ -139,6 +141,8 @@ config ARCH_DEFCONFIG
 	default "arch/tile/configs/tilegx_defconfig" if TILEGX
 
 source "init/Kconfig"
+
+source "kernel/Kconfig.freezer"
 
 menu "Tilera-specific configuration"
 
@@ -409,12 +413,6 @@ config TILE_USB
 	---help---
 	  Provides USB host adapter support for the built-in EHCI and OHCI
 	  interfaces on TILE-Gx chips.
-
-# USB OHCI needs the bounce pool since tilegx will often have more
-# than 4GB of memory, but we don't currently use the IOTLB to present
-# a 32-bit address to OHCI.  So we need to use a bounce pool instead.
-config NEED_BOUNCE_POOL
-	def_bool USB_OHCI_HCD
 
 source "drivers/pci/hotplug/Kconfig"
 

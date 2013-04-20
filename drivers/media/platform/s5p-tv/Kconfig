@@ -7,9 +7,8 @@
 # Licensed under GPL
 
 config VIDEO_SAMSUNG_S5P_TV
-	bool "Samsung TV driver for S5P platform (experimental)"
+	bool "Samsung TV driver for S5P platform"
 	depends on PLAT_S5P && PM_RUNTIME
-	depends on EXPERIMENTAL
 	default n
 	---help---
 	  Say Y here to enable selecting the TV output devices for

@@ -4,7 +4,7 @@
  * for more details.
  *
  * Version from mach-generic modified to support PowerTV port
- * Portions Copyright (C) 2009  Cisco Systems, Inc.
+ * Portions Copyright (C) 2009	Cisco Systems, Inc.
  * Copyright (C) 2006  Ralf Baechle <ralf@linux-mips.org>
  *
  */

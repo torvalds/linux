@@ -610,6 +610,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 	twl->phy.dev		= twl->dev;
 	twl->phy.label		= "twl4030";
 	twl->phy.otg		= otg;
+	twl->phy.type		= USB_PHY_TYPE_USB2;
 	twl->phy.set_suspend	= twl4030_set_suspend;
 
 	otg->phy		= &twl->phy;
@@ -624,7 +625,7 @@ static int twl4030_usb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "ldo init failed\n");
 		return err;
 	}
-	usb_add_phy(&twl->phy, USB_PHY_TYPE_USB2);
+	usb_add_phy_dev(&twl->phy);
 
 	platform_set_drvdata(pdev, twl);
 	if (device_create_file(&pdev->dev, &dev_attr_vbus))

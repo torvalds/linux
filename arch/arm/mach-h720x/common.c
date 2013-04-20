@@ -42,12 +42,12 @@ void __init arch_dma_init(dma_t *dma)
 }
 
 /*
- * Return usecs since last timer reload
+ * Return nsecs since last timer reload
  * (timercount * (usecs perjiffie)) / (ticks per jiffie)
  */
-unsigned long h720x_gettimeoffset(void)
+u32 h720x_gettimeoffset(void)
 {
-	return (CPU_REG (TIMER_VIRT, TM0_COUNT) * tick_usec) / LATCH;
+	return ((CPU_REG(TIMER_VIRT, TM0_COUNT) * tick_usec) / LATCH) * 1000;
 }
 
 /*

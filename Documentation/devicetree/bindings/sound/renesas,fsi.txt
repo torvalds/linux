@@ -1,0 +1,26 @@
+Renesas FSI
+
+Required properties:
+- compatible			: "renesas,sh_fsi2" or "renesas,sh_fsi"
+- reg				: Should contain the register physical address and length
+- interrupts			: Should contain FSI interrupt
+
+- fsia,spdif-connection		: FSI is connected by S/PDFI
+- fsia,stream-mode-support	: FSI supports 16bit stream mode.
+- fsia,use-internal-clock	: FSI uses internal clock when master mode.
+
+- fsib,spdif-connection		: same as fsia
+- fsib,stream-mode-support	: same as fsia
+- fsib,use-internal-clock	: same as fsia
+
+Example:
+
+sh_fsi2: sh_fsi2@0xec230000 {
+	compatible = "renesas,sh_fsi2";
+	reg = <0xec230000 0x400>;
+	interrupts = <0 146 0x4>;
+
+	fsia,spdif-connection;
+	fsia,stream-mode-support;
+	fsia,use-internal-clock;
+};

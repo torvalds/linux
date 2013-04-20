@@ -23,6 +23,8 @@ source "drivers/staging/media/as102/Kconfig"
 
 source "drivers/staging/media/cxd2099/Kconfig"
 
+source "drivers/staging/media/davinci_vpfe/Kconfig"
+
 source "drivers/staging/media/dt3155v4l/Kconfig"
 
 source "drivers/staging/media/go7007/Kconfig"

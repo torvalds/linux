@@ -169,7 +169,6 @@ static struct ft_sess *ft_sess_get(struct fc_lport *lport, u32 port_id)
 {
 	struct ft_tport *tport;
 	struct hlist_head *head;
-	struct hlist_node *pos;
 	struct ft_sess *sess;
 
 	rcu_read_lock();
@@ -178,7 +177,7 @@ static struct ft_sess *ft_sess_get(struct fc_lport *lport, u32 port_id)
 		goto out;
 
 	head = &tport->hash[ft_sess_hash(port_id)];
-	hlist_for_each_entry_rcu(sess, pos, head, hash) {
+	hlist_for_each_entry_rcu(sess, head, hash) {
 		if (sess->port_id == port_id) {
 			kref_get(&sess->kref);
 			rcu_read_unlock();
@@ -201,10 +200,9 @@ static struct ft_sess *ft_sess_create(struct ft_tport *tport, u32 port_id,
 {
 	struct ft_sess *sess;
 	struct hlist_head *head;
-	struct hlist_node *pos;
 
 	head = &tport->hash[ft_sess_hash(port_id)];
-	hlist_for_each_entry_rcu(sess, pos, head, hash)
+	hlist_for_each_entry_rcu(sess, head, hash)
 		if (sess->port_id == port_id)
 			return sess;
 
@@ -253,11 +251,10 @@ static void ft_sess_unhash(struct ft_sess *sess)
 static struct ft_sess *ft_sess_delete(struct ft_tport *tport, u32 port_id)
 {
 	struct hlist_head *head;
-	struct hlist_node *pos;
 	struct ft_sess *sess;
 
 	head = &tport->hash[ft_sess_hash(port_id)];
-	hlist_for_each_entry_rcu(sess, pos, head, hash) {
+	hlist_for_each_entry_rcu(sess, head, hash) {
 		if (sess->port_id == port_id) {
 			ft_sess_unhash(sess);
 			return sess;
@@ -273,12 +270,11 @@ static struct ft_sess *ft_sess_delete(struct ft_tport *tport, u32 port_id)
 static void ft_sess_delete_all(struct ft_tport *tport)
 {
 	struct hlist_head *head;
-	struct hlist_node *pos;
 	struct ft_sess *sess;
 
 	for (head = tport->hash;
 	     head < &tport->hash[FT_SESS_HASH_SIZE]; head++) {
-		hlist_for_each_entry_rcu(sess, pos, head, hash) {
+		hlist_for_each_entry_rcu(sess, head, hash) {
 			ft_sess_unhash(sess);
 			transport_deregister_session_configfs(sess->se_sess);
 			ft_sess_put(sess);	/* release from table */

@@ -381,7 +381,7 @@ static void b44_set_flow_ctrl(struct b44 *bp, u32 local, u32 remote)
 }
 
 #ifdef CONFIG_BCM47XX
-#include <asm/mach-bcm47xx/nvram.h>
+#include <bcm47xx_nvram.h>
 static void b44_wap54g10_workaround(struct b44 *bp)
 {
 	char buf[20];
@@ -393,7 +393,7 @@ static void b44_wap54g10_workaround(struct b44 *bp)
 	 * see https://dev.openwrt.org/ticket/146
 	 * check and reset bit "isolate"
 	 */
-	if (nvram_getenv("boardnum", buf, sizeof(buf)) < 0)
+	if (bcm47xx_nvram_getenv("boardnum", buf, sizeof(buf)) < 0)
 		return;
 	if (simple_strtoul(buf, NULL, 0) == 2) {
 		err = __b44_readphy(bp, 0, MII_BMCR, &val);
@@ -809,11 +809,10 @@ static int b44_rx(struct b44 *bp, int budget)
 			struct sk_buff *copy_skb;
 
 			b44_recycle_rx(bp, cons, bp->rx_prod);
-			copy_skb = netdev_alloc_skb(bp->dev, len + 2);
+			copy_skb = netdev_alloc_skb_ip_align(bp->dev, len);
 			if (copy_skb == NULL)
 				goto drop_it_no_recycle;
 
-			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
 			/* DMA sync done above, copy just the actual packet */
 			skb_copy_from_linear_data_offset(skb, RX_PKT_OFFSET,
@@ -1518,10 +1517,8 @@ static void b44_setup_pseudo_magicp(struct b44 *bp)
 	u8 pwol_mask[B44_PMASK_SIZE];
 
 	pwol_pattern = kzalloc(B44_PATTERN_SIZE, GFP_KERNEL);
-	if (!pwol_pattern) {
-		pr_err("Memory not available for WOL\n");
+	if (!pwol_pattern)
 		return;
-	}
 
 	/* Ipv4 magic packet pattern - pattern 0.*/
 	memset(pwol_mask, 0, B44_PMASK_SIZE);
@@ -2110,8 +2107,6 @@ static int b44_get_invariants(struct b44 *bp)
 		pr_err("Invalid MAC address found in EEPROM\n");
 		return -EINVAL;
 	}
-
-	memcpy(bp->dev->perm_addr, bp->dev->dev_addr, bp->dev->addr_len);
 
 	bp->imask = IMASK_DEF;
 

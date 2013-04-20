@@ -124,9 +124,14 @@ config NF_CONNTRACK_TIMESTAMP
 
 	  If unsure, say `N'.
 
+config NF_CONNTRACK_LABELS
+	bool
+	help
+	  This option enables support for assigning user-defined flag bits
+	  to connection tracking entries.  It selected by the connlabel match.
+
 config NF_CT_PROTO_DCCP
-	tristate 'DCCP protocol connection tracking support (EXPERIMENTAL)'
-	depends on EXPERIMENTAL
+	tristate 'DCCP protocol connection tracking support'
 	depends on NETFILTER_ADVANCED
 	default IP_DCCP
 	help
@@ -139,8 +144,7 @@ config NF_CT_PROTO_GRE
 	tristate
 
 config NF_CT_PROTO_SCTP
-	tristate 'SCTP protocol connection tracking support (EXPERIMENTAL)'
-	depends on EXPERIMENTAL
+	tristate 'SCTP protocol connection tracking support'
 	depends on NETFILTER_ADVANCED
 	default IP_SCTP
 	help
@@ -281,8 +285,7 @@ config NF_CONNTRACK_PPTP
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NF_CONNTRACK_SANE
-	tristate "SANE protocol support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "SANE protocol support"
 	depends on NETFILTER_ADVANCED
 	help
 	  SANE is a protocol for remote access to scanners as implemented
@@ -409,8 +412,7 @@ endif # NF_CONNTRACK
 
 # transparent proxy support
 config NETFILTER_TPROXY
-	tristate "Transparent proxying support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Transparent proxying support"
 	depends on IP_NF_MANGLE
 	depends on NETFILTER_ADVANCED
 	help
@@ -718,8 +720,7 @@ config NETFILTER_XT_TARGET_TEE
 	this clone be rerouted to another nexthop.
 
 config NETFILTER_XT_TARGET_TPROXY
-	tristate '"TPROXY" target support (EXPERIMENTAL)'
-	depends on EXPERIMENTAL
+	tristate '"TPROXY" target support'
 	depends on NETFILTER_TPROXY
 	depends on NETFILTER_XTABLES
 	depends on NETFILTER_ADVANCED
@@ -783,8 +784,7 @@ config NETFILTER_XT_TARGET_TCPMSS
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NETFILTER_XT_TARGET_TCPOPTSTRIP
-	tristate '"TCPOPTSTRIP" target support (EXPERIMENTAL)'
-	depends on EXPERIMENTAL
+	tristate '"TCPOPTSTRIP" target support'
 	depends on IP_NF_MANGLE || IP6_NF_MANGLE
 	depends on NETFILTER_ADVANCED
 	help
@@ -804,6 +804,15 @@ config NETFILTER_XT_MATCH_ADDRTYPE
 
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_BPF
+	tristate '"bpf" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  BPF matching applies a linux socket filter to each packet and
+	  accepts those for which the filter returns non-zero.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NETFILTER_XT_MATCH_CLUSTER
 	tristate '"cluster" match support'
@@ -841,6 +850,19 @@ config NETFILTER_XT_MATCH_CONNBYTES
 
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+
+config NETFILTER_XT_MATCH_CONNLABEL
+	tristate '"connlabel" match support'
+	select NF_CONNTRACK_LABELS
+	depends on NF_CONNTRACK
+	depends on NETFILTER_ADVANCED
+	---help---
+	  This match allows you to test and assign userspace-defined labels names
+	  to a connection.  The kernel only stores bit values - mapping
+	  names to bits is done by userspace.
+
+	  Unlike connmark, more than 32 flag bits may be assigned to a
+	  connection simultaneously.
 
 config NETFILTER_XT_MATCH_CONNLIMIT
 	tristate '"connlimit" match support"'
@@ -1145,8 +1167,7 @@ config NETFILTER_XT_MATCH_RECENT
 	Official Website: <http://snowman.net/projects/ipt_recent/>
 
 config NETFILTER_XT_MATCH_SCTP
-	tristate  '"sctp" protocol match support (EXPERIMENTAL)'
-	depends on EXPERIMENTAL
+	tristate  '"sctp" protocol match support'
 	depends on NETFILTER_ADVANCED
 	default IP_SCTP
 	help
@@ -1158,8 +1179,7 @@ config NETFILTER_XT_MATCH_SCTP
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_SOCKET
-	tristate '"socket" match support (EXPERIMENTAL)'
-	depends on EXPERIMENTAL
+	tristate '"socket" match support'
 	depends on NETFILTER_TPROXY
 	depends on NETFILTER_XTABLES
 	depends on NETFILTER_ADVANCED

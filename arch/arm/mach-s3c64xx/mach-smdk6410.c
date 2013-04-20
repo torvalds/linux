@@ -45,7 +45,6 @@
 #include <video/platform_lcd.h>
 #include <video/samsung_fimd.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
@@ -57,10 +56,7 @@
 #include <asm/mach-types.h>
 
 #include <plat/regs-serial.h>
-#include <mach/regs-modem.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-sys.h>
-#include <mach/regs-srom.h>
 #include <linux/platform_data/ata-samsung_cf.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/fb.h>
@@ -75,6 +71,9 @@
 #include <plat/backlight.h>
 
 #include "common.h"
+#include "regs-modem.h"
+#include "regs-srom.h"
+#include "regs-sys.h"
 
 #define UCON S3C2410_UCON_DEFAULT | S3C2410_UCON_UCLK
 #define ULCON S3C2410_LCON_CS8 | S3C2410_LCON_PNONE | S3C2410_LCON_STOPB
@@ -700,10 +699,9 @@ MACHINE_START(SMDK6410, "SMDK6410")
 	.atag_offset	= 0x100,
 
 	.init_irq	= s3c6410_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.map_io		= smdk6410_map_io,
 	.init_machine	= smdk6410_machine_init,
 	.init_late	= s3c64xx_init_late,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.restart	= s3c64xx_restart,
 MACHINE_END

@@ -76,16 +76,16 @@ MODULE_PARM_DESC(msg_level, "msg_level");
 MODULE_PARM_DESC(prop_carrier_state, "Propagate carrier state of physical "
 		 "port to stack. 1:yes, 0:no.  Default = 0 ");
 MODULE_PARM_DESC(rq3_entries, "Number of entries for Receive Queue 3 "
-		 "[2^x - 1], x = [6..14]. Default = "
+		 "[2^x - 1], x = [7..14]. Default = "
 		 __MODULE_STRING(EHEA_DEF_ENTRIES_RQ3) ")");
 MODULE_PARM_DESC(rq2_entries, "Number of entries for Receive Queue 2 "
-		 "[2^x - 1], x = [6..14]. Default = "
+		 "[2^x - 1], x = [7..14]. Default = "
 		 __MODULE_STRING(EHEA_DEF_ENTRIES_RQ2) ")");
 MODULE_PARM_DESC(rq1_entries, "Number of entries for Receive Queue 1 "
-		 "[2^x - 1], x = [6..14]. Default = "
+		 "[2^x - 1], x = [7..14]. Default = "
 		 __MODULE_STRING(EHEA_DEF_ENTRIES_RQ1) ")");
 MODULE_PARM_DESC(sq_entries, " Number of entries for the Send Queue  "
-		 "[2^x - 1], x = [6..14]. Default = "
+		 "[2^x - 1], x = [7..14]. Default = "
 		 __MODULE_STRING(EHEA_DEF_ENTRIES_SQ) ")");
 MODULE_PARM_DESC(use_mcs, " Multiple receive queues, 1: enable, 0: disable, "
 		 "Default = 1");
@@ -1921,10 +1921,8 @@ static void ehea_add_multicast_entry(struct ehea_port *port, u8 *mc_mac_addr)
 	u64 hret;
 
 	ehea_mcl_entry = kzalloc(sizeof(*ehea_mcl_entry), GFP_ATOMIC);
-	if (!ehea_mcl_entry) {
-		pr_err("no mem for mcl_entry\n");
+	if (!ehea_mcl_entry)
 		return;
-	}
 
 	INIT_LIST_HEAD(&ehea_mcl_entry->list);
 

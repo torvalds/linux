@@ -178,11 +178,9 @@ static struct scatterlist *sep_alloc_sg_buf(
 		nbr_pages += 1;
 	}
 
-	sg = kmalloc((sizeof(struct scatterlist) * nbr_pages), GFP_ATOMIC);
-	if (!sg) {
-		dev_warn(&sep->pdev->dev, "Cannot allocate page for new sg\n");
+	sg = kmalloc_array(nbr_pages, sizeof(struct scatterlist), GFP_ATOMIC);
+	if (!sg)
 		return NULL;
-	}
 
 	sg_init_table(sg, nbr_pages);
 
@@ -3908,13 +3906,9 @@ int sep_crypto_setup(void)
 		return -ENOMEM;
 	}
 
-	i = 0;
-	j = 0;
-
 	spin_lock_init(&queue_lock);
 
 	err = 0;
-
 	for (i = 0; i < ARRAY_SIZE(hash_algs); i++) {
 		err = crypto_register_ahash(&hash_algs[i]);
 		if (err)

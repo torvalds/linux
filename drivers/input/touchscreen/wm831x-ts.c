@@ -247,7 +247,7 @@ static int wm831x_ts_probe(struct platform_device *pdev)
 
 	wm831x_ts = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_ts),
 				 GFP_KERNEL);
-	input_dev = input_allocate_device();
+	input_dev = devm_input_allocate_device(&pdev->dev);
 	if (!wm831x_ts || !input_dev) {
 		error = -ENOMEM;
 		goto err_alloc;
@@ -376,7 +376,6 @@ err_pd_irq:
 err_data_irq:
 	free_irq(wm831x_ts->data_irq, wm831x_ts);
 err_alloc:
-	input_free_device(input_dev);
 
 	return error;
 }
@@ -387,7 +386,6 @@ static int wm831x_ts_remove(struct platform_device *pdev)
 
 	free_irq(wm831x_ts->pd_irq, wm831x_ts);
 	free_irq(wm831x_ts->data_irq, wm831x_ts);
-	input_unregister_device(wm831x_ts->input_dev);
 
 	return 0;
 }

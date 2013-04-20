@@ -260,19 +260,14 @@ static int
 uac2_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_uac2_chip *uac2 = snd_pcm_substream_chip(substream);
-	struct audio_dev *agdev = uac2_to_agdev(uac2);
 	struct uac2_rtd_params *prm;
 	unsigned long flags;
-	struct usb_ep *ep;
 	int err = 0;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		ep = agdev->in_ep;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		prm = &uac2->p_prm;
-	} else {
-		ep = agdev->out_ep;
+	else
 		prm = &uac2->c_prm;
-	}
 
 	spin_lock_irqsave(&prm->lock, flags);
 

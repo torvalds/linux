@@ -10,6 +10,7 @@
 #include <linux/ceph/osdmap.h>
 #include <linux/ceph/messenger.h>
 #include <linux/ceph/auth.h>
+#include <linux/ceph/pagelist.h>
 
 /* 
  * Maximum object name size 
@@ -22,7 +23,6 @@ struct ceph_snap_context;
 struct ceph_osd_request;
 struct ceph_osd_client;
 struct ceph_authorizer;
-struct ceph_pagelist;
 
 /*
  * completion callback for async writepages
@@ -47,6 +47,9 @@ struct ceph_osd {
 	struct list_head o_keepalive_item;
 };
 
+
+#define CEPH_OSD_MAX_OP 10
+
 /* an in-flight request */
 struct ceph_osd_request {
 	u64             r_tid;              /* unique for this client */
@@ -63,9 +66,23 @@ struct ceph_osd_request {
 	struct ceph_connection *r_con_filling_msg;
 
 	struct ceph_msg  *r_request, *r_reply;
-	int               r_result;
 	int               r_flags;     /* any additional flags for the osd */
 	u32               r_sent;      /* >0 if r_request is sending/sent */
+	int               r_num_ops;
+
+	/* encoded message content */
+	struct ceph_osd_op *r_request_ops;
+	/* these are updated on each send */
+	__le32           *r_request_osdmap_epoch;
+	__le32           *r_request_flags;
+	__le64           *r_request_pool;
+	void             *r_request_pgid;
+	__le32           *r_request_attempts;
+	struct ceph_eversion *r_request_reassert_version;
+
+	int               r_result;
+	int               r_reply_op_len[CEPH_OSD_MAX_OP];
+	s32               r_reply_op_result[CEPH_OSD_MAX_OP];
 	int               r_got_reply;
 	int		  r_linger;
 
@@ -82,6 +99,7 @@ struct ceph_osd_request {
 
 	char              r_oid[MAX_OBJ_NAME_SIZE];          /* object name */
 	int               r_oid_len;
+	u64               r_snapid;
 	unsigned long     r_stamp;            /* send OR check time */
 
 	struct ceph_file_layout r_file_layout;
@@ -95,7 +113,7 @@ struct ceph_osd_request {
 	struct bio       *r_bio;	      /* instead of pages */
 #endif
 
-	struct ceph_pagelist *r_trail;	      /* trailing part of the data */
+	struct ceph_pagelist r_trail;	      /* trailing part of the data */
 };
 
 struct ceph_osd_event {
@@ -107,7 +125,6 @@ struct ceph_osd_event {
 	struct rb_node node;
 	struct list_head osd_node;
 	struct kref kref;
-	struct completion completion;
 };
 
 struct ceph_osd_event_work {
@@ -157,7 +174,7 @@ struct ceph_osd_client {
 
 struct ceph_osd_req_op {
 	u16 op;           /* CEPH_OSD_OP_* */
-	u32 flags;        /* CEPH_OSD_FLAG_* */
+	u32 payload_len;
 	union {
 		struct {
 			u64 offset, length;
@@ -166,23 +183,24 @@ struct ceph_osd_req_op {
 		} extent;
 		struct {
 			const char *name;
-			u32 name_len;
 			const char  *val;
+			u32 name_len;
 			u32 value_len;
 			__u8 cmp_op;       /* CEPH_OSD_CMPXATTR_OP_* */
 			__u8 cmp_mode;     /* CEPH_OSD_CMPXATTR_MODE_* */
 		} xattr;
 		struct {
 			const char *class_name;
-			__u8 class_len;
 			const char *method_name;
-			__u8 method_len;
-			__u8 argc;
 			const char *indata;
 			u32 indata_len;
+			__u8 class_len;
+			__u8 method_len;
+			__u8 argc;
 		} cls;
 		struct {
-			u64 cookie, count;
+			u64 cookie;
+			u64 count;
 		} pgls;
 	        struct {
 		        u64 snapid;
@@ -190,12 +208,11 @@ struct ceph_osd_req_op {
 		struct {
 			u64 cookie;
 			u64 ver;
-			__u8 flag;
 			u32 prot_ver;
 			u32 timeout;
+			__u8 flag;
 		} watch;
 	};
-	u32 payload_len;
 };
 
 extern int ceph_osdc_init(struct ceph_osd_client *osdc,
@@ -207,29 +224,19 @@ extern void ceph_osdc_handle_reply(struct ceph_osd_client *osdc,
 extern void ceph_osdc_handle_map(struct ceph_osd_client *osdc,
 				 struct ceph_msg *msg);
 
-extern int ceph_calc_raw_layout(struct ceph_osd_client *osdc,
-			struct ceph_file_layout *layout,
-			u64 snapid,
-			u64 off, u64 *plen, u64 *bno,
-			struct ceph_osd_request *req,
-			struct ceph_osd_req_op *op);
-
 extern struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
-					       int flags,
 					       struct ceph_snap_context *snapc,
-					       struct ceph_osd_req_op *ops,
+					       unsigned int num_op,
 					       bool use_mempool,
-					       gfp_t gfp_flags,
-					       struct page **pages,
-					       struct bio *bio);
+					       gfp_t gfp_flags);
 
 extern void ceph_osdc_build_request(struct ceph_osd_request *req,
-				    u64 off, u64 *plen,
+				    u64 off, u64 len,
+				    unsigned int num_op,
 				    struct ceph_osd_req_op *src_ops,
 				    struct ceph_snap_context *snapc,
-				    struct timespec *mtime,
-				    const char *oid,
-				    int oid_len);
+				    u64 snap_id,
+				    struct timespec *mtime);
 
 extern struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *,
 				      struct ceph_file_layout *layout,
@@ -239,8 +246,7 @@ extern struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *,
 				      int do_sync, u32 truncate_seq,
 				      u64 truncate_size,
 				      struct timespec *mtime,
-				      bool use_mempool, int num_reply,
-				      int page_align);
+				      bool use_mempool, int page_align);
 
 extern void ceph_osdc_set_request_linger(struct ceph_osd_client *osdc,
 					 struct ceph_osd_request *req);
@@ -279,17 +285,13 @@ extern int ceph_osdc_writepages(struct ceph_osd_client *osdc,
 				u64 off, u64 len,
 				u32 truncate_seq, u64 truncate_size,
 				struct timespec *mtime,
-				struct page **pages, int nr_pages,
-				int flags, int do_sync, bool nofail);
+				struct page **pages, int nr_pages);
 
 /* watch/notify events */
 extern int ceph_osdc_create_event(struct ceph_osd_client *osdc,
 				  void (*event_cb)(u64, u64, u8, void *),
-				  int one_shot, void *data,
-				  struct ceph_osd_event **pevent);
+				  void *data, struct ceph_osd_event **pevent);
 extern void ceph_osdc_cancel_event(struct ceph_osd_event *event);
-extern int ceph_osdc_wait_event(struct ceph_osd_event *event,
-				unsigned long timeout);
 extern void ceph_osdc_put_event(struct ceph_osd_event *event);
 #endif
 

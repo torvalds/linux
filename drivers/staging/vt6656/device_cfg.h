@@ -38,12 +38,12 @@ struct _version {
     unsigned char   build;
 } version_t, *pversion_t;
 
-#ifndef FALSE
-#define FALSE   (0)
+#ifndef false
+#define false   (0)
 #endif
 
-#ifndef TRUE
-#define TRUE    (!(FALSE))
+#ifndef true
+#define true    (!(false))
 #endif
 
 #define VID_TABLE_SIZE      64
@@ -67,14 +67,14 @@ struct _version {
 #define DEVICE_VERSION       "1.19_12"
 #endif
 
-//config file
+/* config file */
 #include <linux/fs.h>
 #include <linux/fcntl.h>
 #ifndef CONFIG_PATH
 #define CONFIG_PATH            "/etc/vntconfiguration.dat"
 #endif
 
-//Max: 2378=2312Payload + 30HD +4CRC + 2Padding + 4Len + 8TSF + 4RSR
+/* Max: 2378 = 2312 Payload + 30HD + 4CRC + 2Padding + 4Len + 8TSF + 4RSR */
 #define PKT_BUF_SZ          2390
 
 #define MAX_UINTS           8

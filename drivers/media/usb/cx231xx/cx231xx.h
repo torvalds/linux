@@ -68,6 +68,7 @@
 #define CX231XX_BOARD_ICONBIT_U100 13
 #define CX231XX_BOARD_HAUPPAUGE_USB2_FM_PAL 14
 #define CX231XX_BOARD_HAUPPAUGE_USB2_FM_NTSC 15
+#define CX231XX_BOARD_ELGATO_VIDEO_CAPTURE_V2 16
 
 /* Limits minimum and default number of buffers */
 #define CX231XX_MIN_BUF                 4

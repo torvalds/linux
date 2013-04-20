@@ -720,7 +720,7 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
                       pDevice->nTxDataTimeCout = 0;
 		 }
 		 else {
-		   // printk("mike:-->First time triger TimerTxData InSleep\n");
+		   // printk("mike:-->First time trigger TimerTxData InSleep\n");
 		 }
 		pDevice->IsTxDataTrigger = true;
                 add_timer(&pDevice->sTimerTxData);

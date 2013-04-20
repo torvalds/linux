@@ -531,7 +531,7 @@ static int pm800_probe(struct i2c_client *client,
 	ret = device_800_init(chip, pdata);
 	if (ret) {
 		dev_err(chip->dev, "%s id 0x%x failed!\n", __func__, chip->id);
-		goto err_800_init;
+		goto err_subchip_alloc;
 	}
 
 	ret = pm800_pages_init(chip);
@@ -546,10 +546,8 @@ static int pm800_probe(struct i2c_client *client,
 err_page_init:
 	mfd_remove_devices(chip->dev);
 	device_irq_exit_800(chip);
-err_800_init:
-	devm_kfree(&client->dev, subchip);
 err_subchip_alloc:
-	pm80x_deinit(client);
+	pm80x_deinit();
 out_init:
 	return ret;
 }
@@ -562,9 +560,7 @@ static int pm800_remove(struct i2c_client *client)
 	device_irq_exit_800(chip);
 
 	pm800_pages_exit(chip);
-	devm_kfree(&client->dev, chip->subchip);
-
-	pm80x_deinit(client);
+	pm80x_deinit();
 
 	return 0;
 }

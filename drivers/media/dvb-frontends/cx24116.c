@@ -819,7 +819,7 @@ static int cx24116_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 static void cx24116_clone_params(struct dvb_frontend *fe)
 {
 	struct cx24116_state *state = fe->demodulator_priv;
-	memcpy(&state->dcur, &state->dnxt, sizeof(state->dcur));
+	state->dcur = state->dnxt;
 }
 
 /* Wait for LNB */

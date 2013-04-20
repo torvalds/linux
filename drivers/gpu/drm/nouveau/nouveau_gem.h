@@ -35,9 +35,11 @@ extern int nouveau_gem_ioctl_cpu_fini(struct drm_device *, void *,
 extern int nouveau_gem_ioctl_info(struct drm_device *, void *,
 				  struct drm_file *);
 
-extern struct dma_buf *nouveau_gem_prime_export(struct drm_device *dev,
-				struct drm_gem_object *obj, int flags);
-extern struct drm_gem_object *nouveau_gem_prime_import(struct drm_device *dev,
-				struct dma_buf *dma_buf);
+extern int nouveau_gem_prime_pin(struct drm_gem_object *);
+extern struct sg_table *nouveau_gem_prime_get_sg_table(struct drm_gem_object *);
+extern struct drm_gem_object *nouveau_gem_prime_import_sg_table(
+	struct drm_device *, size_t size, struct sg_table *);
+extern void *nouveau_gem_prime_vmap(struct drm_gem_object *);
+extern void nouveau_gem_prime_vunmap(struct drm_gem_object *, void *);
 
 #endif

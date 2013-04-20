@@ -205,7 +205,7 @@ static int acct_on(struct filename *pathname)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	if (!S_ISREG(file->f_path.dentry->d_inode->i_mode)) {
+	if (!S_ISREG(file_inode(file)->i_mode)) {
 		filp_close(file, NULL);
 		return -EACCES;
 	}
@@ -566,6 +566,7 @@ out:
 void acct_collect(long exitcode, int group_dead)
 {
 	struct pacct_struct *pacct = &current->signal->pacct;
+	cputime_t utime, stime;
 	unsigned long vsize = 0;
 
 	if (group_dead && current->mm) {
@@ -593,8 +594,9 @@ void acct_collect(long exitcode, int group_dead)
 		pacct->ac_flag |= ACORE;
 	if (current->flags & PF_SIGNALED)
 		pacct->ac_flag |= AXSIG;
-	pacct->ac_utime += current->utime;
-	pacct->ac_stime += current->stime;
+	task_cputime(current, &utime, &stime);
+	pacct->ac_utime += utime;
+	pacct->ac_stime += stime;
 	pacct->ac_minflt += current->min_flt;
 	pacct->ac_majflt += current->maj_flt;
 	spin_unlock_irq(&current->sighand->siglock);

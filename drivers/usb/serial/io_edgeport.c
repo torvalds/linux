@@ -110,7 +110,6 @@ struct edgeport_port {
 	wait_queue_head_t	wait_chase;		/* for handling sleeping while waiting for chase to finish */
 	wait_queue_head_t	wait_open;		/* for handling sleeping while waiting for open to finish */
 	wait_queue_head_t	wait_command;		/* for handling sleeping while waiting for command to finish */
-	wait_queue_head_t	delta_msr_wait;		/* for handling sleeping while waiting for msr change to happen */
 
 	struct async_icount	icount;
 	struct usb_serial_port	*port;			/* loop back to the owner of this object */
@@ -232,8 +231,8 @@ static void  process_rcvd_data(struct edgeport_serial *edge_serial,
 				unsigned char *buffer, __u16 bufferLength);
 static void process_rcvd_status(struct edgeport_serial *edge_serial,
 				__u8 byte2, __u8 byte3);
-static void edge_tty_recv(struct device *dev, struct tty_struct *tty,
-				unsigned char *data, int length);
+static void edge_tty_recv(struct usb_serial_port *port, unsigned char *data,
+		int length);
 static void handle_new_msr(struct edgeport_port *edge_port, __u8 newMsr);
 static void handle_new_lsr(struct edgeport_port *edge_port, __u8 lsrData,
 				__u8 lsr, __u8 data);
@@ -884,7 +883,6 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 	/* initialize our wait queues */
 	init_waitqueue_head(&edge_port->wait_open);
 	init_waitqueue_head(&edge_port->wait_chase);
-	init_waitqueue_head(&edge_port->delta_msr_wait);
 	init_waitqueue_head(&edge_port->wait_command);
 
 	/* initialize our icount structure */
@@ -1669,13 +1667,17 @@ static int edge_ioctl(struct tty_struct *tty,
 		dev_dbg(&port->dev, "%s (%d) TIOCMIWAIT\n", __func__,  port->number);
 		cprev = edge_port->icount;
 		while (1) {
-			prepare_to_wait(&edge_port->delta_msr_wait,
+			prepare_to_wait(&port->delta_msr_wait,
 						&wait, TASK_INTERRUPTIBLE);
 			schedule();
-			finish_wait(&edge_port->delta_msr_wait, &wait);
+			finish_wait(&port->delta_msr_wait, &wait);
 			/* see if a signal did it */
 			if (signal_pending(current))
 				return -ERESTARTSYS;
+
+			if (port->serial->disconnected)
+				return -EIO;
+
 			cnow = edge_port->icount;
 			if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
 			    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts)
@@ -1752,7 +1754,6 @@ static void process_rcvd_data(struct edgeport_serial *edge_serial,
 	struct device *dev = &edge_serial->serial->dev->dev;
 	struct usb_serial_port *port;
 	struct edgeport_port *edge_port;
-	struct tty_struct *tty;
 	__u16 lastBufferLength;
 	__u16 rxLen;
 
@@ -1860,14 +1861,11 @@ static void process_rcvd_data(struct edgeport_serial *edge_serial,
 							edge_serial->rxPort];
 				edge_port = usb_get_serial_port_data(port);
 				if (edge_port->open) {
-					tty = tty_port_tty_get(
-						&edge_port->port->port);
-					if (tty) {
-						dev_dbg(dev, "%s - Sending %d bytes to TTY for port %d\n",
-							__func__, rxLen, edge_serial->rxPort);
-						edge_tty_recv(&edge_serial->serial->dev->dev, tty, buffer, rxLen);
-						tty_kref_put(tty);
-					}
+					dev_dbg(dev, "%s - Sending %d bytes to TTY for port %d\n",
+						__func__, rxLen,
+						edge_serial->rxPort);
+					edge_tty_recv(edge_port->port, buffer,
+							rxLen);
 					edge_port->icount.rx += rxLen;
 				}
 				buffer += rxLen;
@@ -2017,20 +2015,20 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
  * edge_tty_recv
  *	this function passes data on to the tty flip buffer
  *****************************************************************************/
-static void edge_tty_recv(struct device *dev, struct tty_struct *tty,
-					unsigned char *data, int length)
+static void edge_tty_recv(struct usb_serial_port *port, unsigned char *data,
+		int length)
 {
 	int cnt;
 
-	cnt = tty_insert_flip_string(tty, data, length);
+	cnt = tty_insert_flip_string(&port->port, data, length);
 	if (cnt < length) {
-		dev_err(dev, "%s - dropping data, %d bytes lost\n",
+		dev_err(&port->dev, "%s - dropping data, %d bytes lost\n",
 				__func__, length - cnt);
 	}
 	data += cnt;
 	length -= cnt;
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->port);
 }
 
 
@@ -2055,7 +2053,7 @@ static void handle_new_msr(struct edgeport_port *edge_port, __u8 newMsr)
 			icount->dcd++;
 		if (newMsr & EDGEPORT_MSR_DELTA_RI)
 			icount->rng++;
-		wake_up_interruptible(&edge_port->delta_msr_wait);
+		wake_up_interruptible(&edge_port->port->delta_msr_wait);
 	}
 
 	/* Save the new modem status */
@@ -2086,14 +2084,9 @@ static void handle_new_lsr(struct edgeport_port *edge_port, __u8 lsrData,
 	}
 
 	/* Place LSR data byte into Rx buffer */
-	if (lsrData) {
-		struct tty_struct *tty =
-				tty_port_tty_get(&edge_port->port->port);
-		if (tty) {
-			edge_tty_recv(&edge_port->port->dev, tty, &data, 1);
-			tty_kref_put(tty);
-		}
-	}
+	if (lsrData)
+		edge_tty_recv(edge_port->port, &data, 1);
+
 	/* update input line counters */
 	icount = &edge_port->icount;
 	if (newLsr & LSR_BREAK)

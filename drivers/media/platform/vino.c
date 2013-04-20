@@ -2474,8 +2474,8 @@ static irqreturn_t vino_interrupt(int irq, void *dev_id)
 
 		if ((!handled_a) && (done_a || skip_a)) {
 			if (!skip_a) {
-				do_gettimeofday(&vino_drvdata->
-						a.int_data.timestamp);
+				v4l2_get_timestamp(
+					&vino_drvdata->a.int_data.timestamp);
 				vino_drvdata->a.int_data.frame_counter = fc_a;
 			}
 			vino_drvdata->a.int_data.skip = skip_a;
@@ -2489,8 +2489,8 @@ static irqreturn_t vino_interrupt(int irq, void *dev_id)
 
 		if ((!handled_b) && (done_b || skip_b)) {
 			if (!skip_b) {
-				do_gettimeofday(&vino_drvdata->
-						b.int_data.timestamp);
+				v4l2_get_timestamp(
+					&vino_drvdata->b.int_data.timestamp);
 				vino_drvdata->b.int_data.frame_counter = fc_b;
 			}
 			vino_drvdata->b.int_data.skip = skip_b;
@@ -3409,6 +3409,9 @@ static void vino_v4l2_get_buffer_status(struct vino_channel_settings *vcs,
 
 	if (fb->map_count > 0)
 		b->flags |= V4L2_BUF_FLAG_MAPPED;
+
+	b->flags &= ~V4L2_BUF_FLAG_TIMESTAMP_MASK;
+	b->flags |= V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	b->index = fb->id;
 	b->memory = (vcs->fb_queue.type == VINO_MEMORY_MMAP) ?

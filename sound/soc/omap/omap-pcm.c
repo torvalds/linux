@@ -174,23 +174,15 @@ static snd_pcm_uframes_t omap_pcm_pointer(struct snd_pcm_substream *substream)
 
 static int omap_pcm_open(struct snd_pcm_substream *substream)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct omap_pcm_dma_data *dma_data;
-	int ret;
 
 	snd_soc_set_runtime_hwparams(substream, &omap_pcm_hardware);
 
-	/* Ensure that buffer size is a multiple of period size */
-	ret = snd_pcm_hw_constraint_integer(runtime,
-					    SNDRV_PCM_HW_PARAM_PERIODS);
-	if (ret < 0)
-		return ret;
-
 	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-	ret = snd_dmaengine_pcm_open(substream, omap_dma_filter_fn,
-				     &dma_data->dma_req);
-	return ret;
+
+	return snd_dmaengine_pcm_open(substream, omap_dma_filter_fn,
+				      &dma_data->dma_req);
 }
 
 static int omap_pcm_close(struct snd_pcm_substream *substream)

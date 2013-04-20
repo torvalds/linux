@@ -246,6 +246,7 @@
 
 #define MDSTAT_STATE_MASK	0x3f
 #define PDSTAT_STATE_MASK	0x1f
+#define MDCTL_LRST		BIT(8)
 #define MDCTL_FORCE		BIT(31)
 #define PDCTL_NEXT		BIT(0)
 #define PDCTL_EPCGOOD		BIT(8)
@@ -253,6 +254,8 @@
 #ifndef __ASSEMBLER__
 
 extern int davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id);
+extern void davinci_psc_reset(unsigned int ctlr, unsigned int id,
+		bool reset);
 extern void davinci_psc_config(unsigned int domain, unsigned int ctlr,
 		unsigned int id, bool enable, u32 flags);
 

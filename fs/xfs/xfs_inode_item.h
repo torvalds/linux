@@ -148,10 +148,6 @@ typedef struct xfs_inode_log_item {
 						      data exts */
 	struct xfs_bmbt_rec	*ili_aextents_buf; /* array of logged
 						      attr exts */
-#ifdef XFS_TRANS_DEBUG
-	int			ili_root_size;
-	char			*ili_orig_root;
-#endif
 	xfs_inode_log_format_t	ili_format;	   /* logged structure */
 } xfs_inode_log_item_t;
 

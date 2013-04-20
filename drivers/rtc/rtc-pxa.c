@@ -62,6 +62,10 @@
 #define RYxR_MONTH_S	5
 #define RYxR_MONTH_MASK	(0xf << RYxR_MONTH_S)
 #define RYxR_DAY_MASK	0x1f
+#define RDxR_WOM_S     20
+#define RDxR_WOM_MASK  (0x7 << RDxR_WOM_S)
+#define RDxR_DOW_S     17
+#define RDxR_DOW_MASK  (0x7 << RDxR_DOW_S)
 #define RDxR_HOUR_S	12
 #define RDxR_HOUR_MASK	(0x1f << RDxR_HOUR_S)
 #define RDxR_MIN_S	6
@@ -91,6 +95,7 @@ struct pxa_rtc {
 	spinlock_t		lock;		/* Protects this structure */
 };
 
+
 static u32 ryxr_calc(struct rtc_time *tm)
 {
 	return ((tm->tm_year + 1900) << RYxR_YEAR_S)
@@ -100,7 +105,10 @@ static u32 ryxr_calc(struct rtc_time *tm)
 
 static u32 rdxr_calc(struct rtc_time *tm)
 {
-	return (tm->tm_hour << RDxR_HOUR_S) | (tm->tm_min << RDxR_MIN_S)
+	return ((((tm->tm_mday + 6) / 7) << RDxR_WOM_S) & RDxR_WOM_MASK)
+		| (((tm->tm_wday + 1) << RDxR_DOW_S) & RDxR_DOW_MASK)
+		| (tm->tm_hour << RDxR_HOUR_S)
+		| (tm->tm_min << RDxR_MIN_S)
 		| tm->tm_sec;
 }
 
@@ -109,6 +117,7 @@ static void tm_calc(u32 rycr, u32 rdcr, struct rtc_time *tm)
 	tm->tm_year = ((rycr & RYxR_YEAR_MASK) >> RYxR_YEAR_S) - 1900;
 	tm->tm_mon = (((rycr & RYxR_MONTH_MASK) >> RYxR_MONTH_S)) - 1;
 	tm->tm_mday = (rycr & RYxR_DAY_MASK);
+	tm->tm_wday = ((rycr & RDxR_DOW_MASK) >> RDxR_DOW_S) - 1;
 	tm->tm_hour = (rdcr & RDxR_HOUR_MASK) >> RDxR_HOUR_S;
 	tm->tm_min = (rdcr & RDxR_MIN_MASK) >> RDxR_MIN_S;
 	tm->tm_sec = rdcr & RDxR_SEC_MASK;
@@ -300,8 +309,6 @@ static int pxa_rtc_proc(struct device *dev, struct seq_file *seq)
 }
 
 static const struct rtc_class_ops pxa_rtc_ops = {
-	.open = pxa_rtc_open,
-	.release = pxa_rtc_release,
 	.read_time = pxa_rtc_read_time,
 	.set_time = pxa_rtc_set_time,
 	.read_alarm = pxa_rtc_read_alarm,
@@ -341,7 +348,7 @@ static int __init pxa_rtc_probe(struct platform_device *pdev)
 		dev_err(dev, "No alarm IRQ resource defined\n");
 		goto err_ress;
 	}
-
+	pxa_rtc_open(dev);
 	ret = -ENOMEM;
 	pxa_rtc->base = ioremap(pxa_rtc->ress->start,
 				resource_size(pxa_rtc->ress));
@@ -386,6 +393,9 @@ err_map:
 static int __exit pxa_rtc_remove(struct platform_device *pdev)
 {
 	struct pxa_rtc *pxa_rtc = platform_get_drvdata(pdev);
+
+	struct device *dev = &pdev->dev;
+	pxa_rtc_release(dev);
 
 	rtc_device_unregister(pxa_rtc->rtc);
 
@@ -444,10 +454,7 @@ static struct platform_driver pxa_rtc_driver = {
 
 static int __init pxa_rtc_init(void)
 {
-	if (cpu_is_pxa27x() || cpu_is_pxa3xx())
-		return platform_driver_probe(&pxa_rtc_driver, pxa_rtc_probe);
-
-	return -ENODEV;
+	return platform_driver_probe(&pxa_rtc_driver, pxa_rtc_probe);
 }
 
 static void __exit pxa_rtc_exit(void)

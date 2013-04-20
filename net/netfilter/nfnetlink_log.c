@@ -87,11 +87,10 @@ static struct nfulnl_instance *
 __instance_lookup(u_int16_t group_num)
 {
 	struct hlist_head *head;
-	struct hlist_node *pos;
 	struct nfulnl_instance *inst;
 
 	head = &instance_table[instance_hashfn(group_num)];
-	hlist_for_each_entry_rcu(inst, pos, head, hlist) {
+	hlist_for_each_entry_rcu(inst, head, hlist) {
 		if (inst->group_num == group_num)
 			return inst;
 	}
@@ -717,11 +716,11 @@ nfulnl_rcv_nl_event(struct notifier_block *this,
 		/* destroy all instances for this portid */
 		spin_lock_bh(&instances_lock);
 		for  (i = 0; i < INSTANCE_BUCKETS; i++) {
-			struct hlist_node *tmp, *t2;
+			struct hlist_node *t2;
 			struct nfulnl_instance *inst;
 			struct hlist_head *head = &instance_table[i];
 
-			hlist_for_each_entry_safe(inst, tmp, t2, head, hlist) {
+			hlist_for_each_entry_safe(inst, t2, head, hlist) {
 				if ((net_eq(n->net, &init_net)) &&
 				    (n->portid == inst->peer_portid))
 					__instance_destroy(inst);

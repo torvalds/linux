@@ -81,7 +81,9 @@ struct inet_bind_bucket {
 	struct net		*ib_net;
 #endif
 	unsigned short		port;
-	signed short		fastreuse;
+	signed char		fastreuse;
+	signed char		fastreuseport;
+	kuid_t			fastuid;
 	int			num_owners;
 	struct hlist_node	node;
 	struct hlist_head	owners;
@@ -92,8 +94,8 @@ static inline struct net *ib_net(struct inet_bind_bucket *ib)
 	return read_pnet(&ib->ib_net);
 }
 
-#define inet_bind_bucket_for_each(tb, pos, head) \
-	hlist_for_each_entry(tb, pos, head, node)
+#define inet_bind_bucket_for_each(tb, head) \
+	hlist_for_each_entry(tb, head, node)
 
 struct inet_bind_hashbucket {
 	spinlock_t		lock;
@@ -257,15 +259,19 @@ extern void inet_unhash(struct sock *sk);
 
 extern struct sock *__inet_lookup_listener(struct net *net,
 					   struct inet_hashinfo *hashinfo,
+					   const __be32 saddr,
+					   const __be16 sport,
 					   const __be32 daddr,
 					   const unsigned short hnum,
 					   const int dif);
 
 static inline struct sock *inet_lookup_listener(struct net *net,
 		struct inet_hashinfo *hashinfo,
+		__be32 saddr, __be16 sport,
 		__be32 daddr, __be16 dport, int dif)
 {
-	return __inet_lookup_listener(net, hashinfo, daddr, ntohs(dport), dif);
+	return __inet_lookup_listener(net, hashinfo, saddr, sport,
+				      daddr, ntohs(dport), dif);
 }
 
 /* Socket demux engine toys. */
@@ -358,7 +364,8 @@ static inline struct sock *__inet_lookup(struct net *net,
 	struct sock *sk = __inet_lookup_established(net, hashinfo,
 				saddr, sport, daddr, hnum, dif);
 
-	return sk ? : __inet_lookup_listener(net, hashinfo, daddr, hnum, dif);
+	return sk ? : __inet_lookup_listener(net, hashinfo, saddr, sport,
+					     daddr, hnum, dif);
 }
 
 static inline struct sock *inet_lookup(struct net *net,

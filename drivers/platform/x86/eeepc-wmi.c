@@ -63,6 +63,8 @@ MODULE_PARM_DESC(hotplug_wireless,
 #define HOME_RELEASE	0xe5
 
 static const struct key_entry eeepc_wmi_keymap[] = {
+	{ KE_KEY, ASUS_WMI_BRN_DOWN, { KEY_BRIGHTNESSDOWN } },
+	{ KE_KEY, ASUS_WMI_BRN_UP, { KEY_BRIGHTNESSUP } },
 	/* Sleep already handled via generic ACPI code */
 	{ KE_KEY, 0x30, { KEY_VOLUMEUP } },
 	{ KE_KEY, 0x31, { KEY_VOLUMEDOWN } },

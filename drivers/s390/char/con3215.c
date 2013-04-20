@@ -412,8 +412,9 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 				break;
 
 			case CTRLCHAR_CTRL:
-				tty_insert_flip_char(tty, cchar, TTY_NORMAL);
-				tty_flip_buffer_push(tty);
+				tty_insert_flip_char(&raw->port, cchar,
+						TTY_NORMAL);
+				tty_flip_buffer_push(&raw->port);
 				break;
 
 			case CTRLCHAR_NONE:
@@ -425,8 +426,9 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 					count++;
 				} else
 					count -= 2;
-				tty_insert_flip_string(tty, raw->inbuf, count);
-				tty_flip_buffer_push(tty);
+				tty_insert_flip_string(&raw->port, raw->inbuf,
+						count);
+				tty_flip_buffer_push(&raw->port);
 				break;
 			}
 		} else if (req->type == RAW3215_WRITE) {
@@ -970,7 +972,7 @@ static int tty3215_open(struct tty_struct *tty, struct file * filp)
 
 	tty_port_tty_set(&raw->port, tty);
 
-	tty->low_latency = 0;  /* don't use bottom half for pushing chars */
+	raw->port.low_latency = 0; /* don't use bottom half for pushing chars */
 	/*
 	 * Start up 3215 device
 	 */

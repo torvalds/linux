@@ -144,7 +144,6 @@ int cpuidle_idle_call(void)
 		return 0;
 	}
 
-	trace_power_start_rcuidle(POWER_CSTATE, next_state, dev->cpu);
 	trace_cpu_idle_rcuidle(next_state, dev->cpu);
 
 	if (cpuidle_state_is_coupled(dev, drv, next_state))
@@ -153,7 +152,6 @@ int cpuidle_idle_call(void)
 	else
 		entered_state = cpuidle_enter_state(dev, drv, next_state);
 
-	trace_power_end_rcuidle(dev->cpu);
 	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, dev->cpu);
 
 	/* give the governor an opportunity to reflect on the outcome */

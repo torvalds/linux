@@ -299,7 +299,7 @@ static int bq27x00_battery_read_energy(struct bq27x00_device_info *di)
 }
 
 /*
- * Return the battery temperature in tenths of degree Celsius
+ * Return the battery temperature in tenths of degree Kelvin
  * Or < 0 if something fails.
  */
 static int bq27x00_battery_read_temperature(struct bq27x00_device_info *di)
@@ -312,10 +312,8 @@ static int bq27x00_battery_read_temperature(struct bq27x00_device_info *di)
 		return temp;
 	}
 
-	if (bq27xxx_is_chip_version_higher(di))
-		temp -= 2731;
-	else
-		temp = ((temp * 5) - 5463) / 2;
+	if (!bq27xxx_is_chip_version_higher(di))
+		temp = 5 * temp / 2;
 
 	return temp;
 }
@@ -448,7 +446,6 @@ static void bq27x00_update(struct bq27x00_device_info *di)
 		cache.temperature = bq27x00_battery_read_temperature(di);
 		if (!is_bq27425)
 			cache.cycle_count = bq27x00_battery_read_cyct(di);
-		cache.cycle_count = bq27x00_battery_read_cyct(di);
 		cache.power_avg =
 			bq27x00_battery_read_pwr_avg(di, BQ27x00_POWER_AVG);
 
@@ -642,6 +639,8 @@ static int bq27x00_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		ret = bq27x00_simple_value(di->cache.temperature, val);
+		if (ret == 0)
+			val->intval -= 2731;
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
 		ret = bq27x00_simple_value(di->cache.time_to_empty, val);
@@ -696,7 +695,6 @@ static int bq27x00_powersupply_init(struct bq27x00_device_info *di)
 	int ret;
 
 	di->bat.type = POWER_SUPPLY_TYPE_BATTERY;
-	di->chip = BQ27425;
 	if (di->chip == BQ27425) {
 		di->bat.properties = bq27425_battery_props;
 		di->bat.num_properties = ARRAY_SIZE(bq27425_battery_props);
@@ -793,14 +791,11 @@ static int bq27x00_battery_probe(struct i2c_client *client,
 	int retval = 0;
 
 	/* Get new ID for the new battery device */
-	retval = idr_pre_get(&battery_id, GFP_KERNEL);
-	if (retval == 0)
-		return -ENOMEM;
 	mutex_lock(&battery_mutex);
-	retval = idr_get_new(&battery_id, client, &num);
+	num = idr_alloc(&battery_id, client, 0, 0, GFP_KERNEL);
 	mutex_unlock(&battery_mutex);
-	if (retval < 0)
-		return retval;
+	if (num < 0)
+		return num;
 
 	name = kasprintf(GFP_KERNEL, "%s-%d", id->name, num);
 	if (!name) {

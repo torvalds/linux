@@ -1925,8 +1925,6 @@ xfs_alloc_fix_freelist(
 	targs.mp = mp;
 	targs.agbp = agbp;
 	targs.agno = args->agno;
-	targs.mod = targs.minleft = targs.wasdel = targs.userdata =
-		targs.minalignslop = 0;
 	targs.alignment = targs.minlen = targs.prod = targs.isfl = 1;
 	targs.type = XFS_ALLOCTYPE_THIS_AG;
 	targs.pag = pag;

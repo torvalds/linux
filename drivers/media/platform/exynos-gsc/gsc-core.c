@@ -185,6 +185,15 @@ static const struct gsc_fmt gsc_formats[] = {
 		.corder		= GSC_CRCB,
 		.num_planes	= 3,
 		.num_comp	= 3,
+	}, {
+		.name		= "YUV 4:2:0 n.c. 2p, Y/CbCr tiled",
+		.pixelformat	= V4L2_PIX_FMT_NV12MT_16X16,
+		.depth		= { 8, 4 },
+		.color		= GSC_YUV420,
+		.yorder		= GSC_LSB_Y,
+		.corder		= GSC_CBCR,
+		.num_planes	= 2,
+		.num_comp	= 2,
 	}
 };
 
@@ -935,8 +944,8 @@ static struct gsc_variant gsc_v_100_variant = {
 	.pix_max		= &gsc_v_100_max,
 	.pix_min		= &gsc_v_100_min,
 	.pix_align		= &gsc_v_100_align,
-	.in_buf_cnt		= 8,
-	.out_buf_cnt		= 16,
+	.in_buf_cnt		= 32,
+	.out_buf_cnt		= 32,
 	.sc_up_max		= 8,
 	.sc_down_max		= 16,
 	.poly_sc_down_max	= 4,
@@ -993,12 +1002,8 @@ static void *gsc_get_drv_data(struct platform_device *pdev)
 
 static void gsc_clk_put(struct gsc_dev *gsc)
 {
-	if (IS_ERR_OR_NULL(gsc->clock))
-		return;
-
-	clk_unprepare(gsc->clock);
-	clk_put(gsc->clock);
-	gsc->clock = NULL;
+	if (!IS_ERR(gsc->clock))
+		clk_unprepare(gsc->clock);
 }
 
 static int gsc_clk_get(struct gsc_dev *gsc)
@@ -1007,27 +1012,22 @@ static int gsc_clk_get(struct gsc_dev *gsc)
 
 	dev_dbg(&gsc->pdev->dev, "gsc_clk_get Called\n");
 
-	gsc->clock = clk_get(&gsc->pdev->dev, GSC_CLOCK_GATE_NAME);
-	if (IS_ERR(gsc->clock))
-		goto err_print;
+	gsc->clock = devm_clk_get(&gsc->pdev->dev, GSC_CLOCK_GATE_NAME);
+	if (IS_ERR(gsc->clock)) {
+		dev_err(&gsc->pdev->dev, "failed to get clock~~~: %s\n",
+			GSC_CLOCK_GATE_NAME);
+		return PTR_ERR(gsc->clock);
+	}
 
 	ret = clk_prepare(gsc->clock);
 	if (ret < 0) {
-		clk_put(gsc->clock);
-		gsc->clock = NULL;
-		goto err;
+		dev_err(&gsc->pdev->dev, "clock prepare failed for clock: %s\n",
+			GSC_CLOCK_GATE_NAME);
+		gsc->clock = ERR_PTR(-EINVAL);
+		return ret;
 	}
 
 	return 0;
-
-err:
-	dev_err(&gsc->pdev->dev, "clock prepare failed for clock: %s\n",
-					GSC_CLOCK_GATE_NAME);
-	gsc_clk_put(gsc);
-err_print:
-	dev_err(&gsc->pdev->dev, "failed to get clock~~~: %s\n",
-					GSC_CLOCK_GATE_NAME);
-	return -ENXIO;
 }
 
 static int gsc_m2m_suspend(struct gsc_dev *gsc)
@@ -1054,16 +1054,18 @@ static int gsc_m2m_suspend(struct gsc_dev *gsc)
 
 static int gsc_m2m_resume(struct gsc_dev *gsc)
 {
+	struct gsc_ctx *ctx;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gsc->slock, flags);
 	/* Clear for full H/W setup in first run after resume */
+	ctx = gsc->m2m.ctx;
 	gsc->m2m.ctx = NULL;
 	spin_unlock_irqrestore(&gsc->slock, flags);
 
 	if (test_and_clear_bit(ST_M2M_SUSPENDED, &gsc->state))
-		gsc_m2m_job_finish(gsc->m2m.ctx,
-				    VB2_BUF_STATE_ERROR);
+		gsc_m2m_job_finish(ctx, VB2_BUF_STATE_ERROR);
+
 	return 0;
 }
 
@@ -1096,13 +1098,12 @@ static int gsc_probe(struct platform_device *pdev)
 	init_waitqueue_head(&gsc->irq_queue);
 	spin_lock_init(&gsc->slock);
 	mutex_init(&gsc->lock);
+	gsc->clock = ERR_PTR(-EINVAL);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	gsc->regs = devm_request_and_ioremap(dev, res);
-	if (!gsc->regs) {
-		dev_err(dev, "failed to map registers\n");
-		return -ENOENT;
-	}
+	gsc->regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(gsc->regs))
+		return PTR_ERR(gsc->regs);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
@@ -1159,6 +1160,7 @@ static int gsc_remove(struct platform_device *pdev)
 
 	vb2_dma_contig_cleanup_ctx(gsc->alloc_ctx);
 	pm_runtime_disable(&pdev->dev);
+	gsc_clk_put(gsc);
 
 	dev_dbg(&pdev->dev, "%s driver unloaded\n", pdev->name);
 	return 0;
@@ -1204,7 +1206,7 @@ static int gsc_resume(struct device *dev)
 	/* Do not resume if the device was idle before system suspend */
 	spin_lock_irqsave(&gsc->slock, flags);
 	if (!test_and_clear_bit(ST_SUSPEND, &gsc->state) ||
-	    !gsc_m2m_active(gsc)) {
+	    !gsc_m2m_opened(gsc)) {
 		spin_unlock_irqrestore(&gsc->slock, flags);
 		return 0;
 	}

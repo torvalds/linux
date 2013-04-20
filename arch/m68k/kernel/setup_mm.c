@@ -84,7 +84,6 @@ void (*mach_init_IRQ) (void) __initdata = NULL;
 void (*mach_get_model) (char *model);
 void (*mach_get_hardware_list) (struct seq_file *m);
 /* machine dependent timer functions */
-unsigned long (*mach_gettimeoffset) (void);
 int (*mach_hwclk) (int, struct rtc_time*);
 EXPORT_SYMBOL(mach_hwclk);
 int (*mach_set_clock_mmss) (unsigned long);

@@ -669,19 +669,14 @@ static struct resource dm644x_osd_resources[] = {
 	},
 };
 
-static struct osd_platform_data dm644x_osd_data = {
-	.vpbe_type     = VPBE_VERSION_1,
-};
-
 static struct platform_device dm644x_osd_dev = {
-	.name		= VPBE_OSD_SUBDEV_NAME,
+	.name		= DM644X_VPBE_OSD_SUBDEV_NAME,
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(dm644x_osd_resources),
 	.resource	= dm644x_osd_resources,
 	.dev		= {
 		.dma_mask		= &dm644x_video_dma_mask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &dm644x_osd_data,
 	},
 };
 
@@ -751,12 +746,11 @@ static struct platform_device dm644x_vpbe_display = {
 };
 
 static struct venc_platform_data dm644x_venc_pdata = {
-	.venc_type	= VPBE_VERSION_1,
 	.setup_clock	= dm644x_venc_setup_clock,
 };
 
 static struct platform_device dm644x_venc_dev = {
-	.name		= VPBE_VENC_SUBDEV_NAME,
+	.name		= DM644X_VPBE_VENC_SUBDEV_NAME,
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(dm644x_venc_resources),
 	.resource	= dm644x_venc_resources,

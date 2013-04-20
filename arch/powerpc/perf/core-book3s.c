@@ -880,8 +880,16 @@ static int power_pmu_add(struct perf_event *event, int ef_flags)
 	cpuhw->events[n0] = event->hw.config;
 	cpuhw->flags[n0] = event->hw.event_base;
 
+	/*
+	 * This event may have been disabled/stopped in record_and_restart()
+	 * because we exceeded the ->event_limit. If re-starting the event,
+	 * clear the ->hw.state (STOPPED and UPTODATE flags), so the user
+	 * notification is re-enabled.
+	 */
 	if (!(ef_flags & PERF_EF_START))
 		event->hw.state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
+	else
+		event->hw.state = 0;
 
 	/*
 	 * If group events scheduling transaction was started,
@@ -1305,6 +1313,16 @@ static int power_pmu_event_idx(struct perf_event *event)
 	return event->hw.idx;
 }
 
+ssize_t power_events_sysfs_show(struct device *dev,
+				struct device_attribute *attr, char *page)
+{
+	struct perf_pmu_events_attr *pmu_attr;
+
+	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr);
+
+	return sprintf(page, "event=0x%02llx\n", pmu_attr->id);
+}
+
 struct pmu power_pmu = {
 	.pmu_enable	= power_pmu_enable,
 	.pmu_disable	= power_pmu_disable,
@@ -1349,6 +1367,8 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 	 */
 	val = 0;
 	left = local64_read(&event->hw.period_left) - delta;
+	if (delta == 0)
+		left++;
 	if (period) {
 		if (left <= 0) {
 			left += period;
@@ -1412,11 +1432,8 @@ unsigned long perf_instruction_pointer(struct pt_regs *regs)
 		return regs->nip;
 }
 
-static bool pmc_overflow(unsigned long val)
+static bool pmc_overflow_power7(unsigned long val)
 {
-	if ((int)val < 0)
-		return true;
-
 	/*
 	 * Events on POWER7 can roll back if a speculative event doesn't
 	 * eventually complete. Unfortunately in some rare cases they will
@@ -1428,7 +1445,15 @@ static bool pmc_overflow(unsigned long val)
 	 * PMCs because a user might set a period of less than 256 and we
 	 * don't want to mistakenly reset them.
 	 */
-	if (pvr_version_is(PVR_POWER7) && ((0x80000000 - val) <= 256))
+	if ((0x80000000 - val) <= 256)
+		return true;
+
+	return false;
+}
+
+static bool pmc_overflow(unsigned long val)
+{
+	if ((int)val < 0)
 		return true;
 
 	return false;
@@ -1439,11 +1464,11 @@ static bool pmc_overflow(unsigned long val)
  */
 static void perf_event_interrupt(struct pt_regs *regs)
 {
-	int i;
+	int i, j;
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 	struct perf_event *event;
-	unsigned long val;
-	int found = 0;
+	unsigned long val[8];
+	int found, active;
 	int nmi;
 
 	if (cpuhw->n_limited)
@@ -1458,33 +1483,53 @@ static void perf_event_interrupt(struct pt_regs *regs)
 	else
 		irq_enter();
 
-	for (i = 0; i < cpuhw->n_events; ++i) {
-		event = cpuhw->event[i];
-		if (!event->hw.idx || is_limited_pmc(event->hw.idx))
-			continue;
-		val = read_pmc(event->hw.idx);
-		if ((int)val < 0) {
-			/* event has overflowed */
-			found = 1;
-			record_and_restart(event, val, regs);
-		}
-	}
+	/* Read all the PMCs since we'll need them a bunch of times */
+	for (i = 0; i < ppmu->n_counter; ++i)
+		val[i] = read_pmc(i + 1);
 
-	/*
-	 * In case we didn't find and reset the event that caused
-	 * the interrupt, scan all events and reset any that are
-	 * negative, to avoid getting continual interrupts.
-	 * Any that we processed in the previous loop will not be negative.
-	 */
-	if (!found) {
-		for (i = 0; i < ppmu->n_counter; ++i) {
-			if (is_limited_pmc(i + 1))
+	/* Try to find what caused the IRQ */
+	found = 0;
+	for (i = 0; i < ppmu->n_counter; ++i) {
+		if (!pmc_overflow(val[i]))
+			continue;
+		if (is_limited_pmc(i + 1))
+			continue; /* these won't generate IRQs */
+		/*
+		 * We've found one that's overflowed.  For active
+		 * counters we need to log this.  For inactive
+		 * counters, we need to reset it anyway
+		 */
+		found = 1;
+		active = 0;
+		for (j = 0; j < cpuhw->n_events; ++j) {
+			event = cpuhw->event[j];
+			if (event->hw.idx == (i + 1)) {
+				active = 1;
+				record_and_restart(event, val[i], regs);
+				break;
+			}
+		}
+		if (!active)
+			/* reset non active counters that have overflowed */
+			write_pmc(i + 1, 0);
+	}
+	if (!found && pvr_version_is(PVR_POWER7)) {
+		/* check active counters for special buggy p7 overflow */
+		for (i = 0; i < cpuhw->n_events; ++i) {
+			event = cpuhw->event[i];
+			if (!event->hw.idx || is_limited_pmc(event->hw.idx))
 				continue;
-			val = read_pmc(i + 1);
-			if (pmc_overflow(val))
-				write_pmc(i + 1, 0);
+			if (pmc_overflow_power7(val[event->hw.idx - 1])) {
+				/* event has overflowed in a buggy way*/
+				found = 1;
+				record_and_restart(event,
+						   val[event->hw.idx - 1],
+						   regs);
+			}
 		}
 	}
+	if ((!found) && printk_ratelimit())
+		printk(KERN_WARNING "Can't find PMC that caused IRQ\n");
 
 	/*
 	 * Reset MMCR0 to its normal value.  This will set PMXE and
@@ -1536,6 +1581,8 @@ int __cpuinit register_power_pmu(struct power_pmu *pmu)
 	ppmu = pmu;
 	pr_info("%s performance monitor hardware support registered\n",
 		pmu->name);
+
+	power_pmu.attr_groups = ppmu->attr_groups;
 
 #ifdef MSR_HV
 	/*

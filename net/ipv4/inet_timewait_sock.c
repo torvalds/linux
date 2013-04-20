@@ -216,7 +216,6 @@ static int inet_twdr_do_twkill_work(struct inet_timewait_death_row *twdr,
 				    const int slot)
 {
 	struct inet_timewait_sock *tw;
-	struct hlist_node *node;
 	unsigned int killed;
 	int ret;
 
@@ -229,7 +228,7 @@ static int inet_twdr_do_twkill_work(struct inet_timewait_death_row *twdr,
 	killed = 0;
 	ret = 0;
 rescan:
-	inet_twsk_for_each_inmate(tw, node, &twdr->cells[slot]) {
+	inet_twsk_for_each_inmate(tw, &twdr->cells[slot]) {
 		__inet_twsk_del_dead_node(tw);
 		spin_unlock(&twdr->death_lock);
 		__inet_twsk_kill(tw, twdr->hashinfo);
@@ -438,10 +437,10 @@ void inet_twdr_twcal_tick(unsigned long data)
 
 	for (n = 0; n < INET_TWDR_RECYCLE_SLOTS; n++) {
 		if (time_before_eq(j, now)) {
-			struct hlist_node *node, *safe;
+			struct hlist_node *safe;
 			struct inet_timewait_sock *tw;
 
-			inet_twsk_for_each_inmate_safe(tw, node, safe,
+			inet_twsk_for_each_inmate_safe(tw, safe,
 						       &twdr->twcal_row[slot]) {
 				__inet_twsk_del_dead_node(tw);
 				__inet_twsk_kill(tw, twdr->hashinfo);

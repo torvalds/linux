@@ -699,51 +699,6 @@ END(syscall_badsys)
  */
 	.popsection
 
-/*
- * System calls that need a pt_regs pointer.
- */
-#define PTREGSCALL0(name) \
-ENTRY(ptregs_##name) ;  \
-	leal 4(%esp),%eax; \
-	jmp sys_##name; \
-ENDPROC(ptregs_##name)
-
-#define PTREGSCALL1(name) \
-ENTRY(ptregs_##name) ; \
-	leal 4(%esp),%edx; \
-	movl (PT_EBX+4)(%esp),%eax; \
-	jmp sys_##name; \
-ENDPROC(ptregs_##name)
-
-#define PTREGSCALL2(name) \
-ENTRY(ptregs_##name) ; \
-	leal 4(%esp),%ecx; \
-	movl (PT_ECX+4)(%esp),%edx; \
-	movl (PT_EBX+4)(%esp),%eax; \
-	jmp sys_##name; \
-ENDPROC(ptregs_##name)
-
-#define PTREGSCALL3(name) \
-ENTRY(ptregs_##name) ; \
-	CFI_STARTPROC; \
-	leal 4(%esp),%eax; \
-	pushl_cfi %eax; \
-	movl PT_EDX(%eax),%ecx; \
-	movl PT_ECX(%eax),%edx; \
-	movl PT_EBX(%eax),%eax; \
-	call sys_##name; \
-	addl $4,%esp; \
-	CFI_ADJUST_CFA_OFFSET -4; \
-	ret; \
-	CFI_ENDPROC; \
-ENDPROC(ptregs_##name)
-
-PTREGSCALL1(iopl)
-PTREGSCALL0(sigreturn)
-PTREGSCALL0(rt_sigreturn)
-PTREGSCALL2(vm86)
-PTREGSCALL1(vm86old)
-
 .macro FIXUP_ESPFIX_STACK
 /*
  * Switch back for ESPFIX stack to the normal zerobased stack
@@ -1091,10 +1046,17 @@ ENTRY(xen_failsafe_callback)
 	_ASM_EXTABLE(4b,9b)
 ENDPROC(xen_failsafe_callback)
 
-BUILD_INTERRUPT3(xen_hvm_callback_vector, XEN_HVM_EVTCHN_CALLBACK,
+BUILD_INTERRUPT3(xen_hvm_callback_vector, HYPERVISOR_CALLBACK_VECTOR,
 		xen_evtchn_do_upcall)
 
 #endif	/* CONFIG_XEN */
+
+#if IS_ENABLED(CONFIG_HYPERV)
+
+BUILD_INTERRUPT3(hyperv_callback_vector, HYPERVISOR_CALLBACK_VECTOR,
+	hyperv_vector_handler)
+
+#endif /* CONFIG_HYPERV */
 
 #ifdef CONFIG_FUNCTION_TRACER
 #ifdef CONFIG_DYNAMIC_FTRACE

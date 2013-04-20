@@ -1,15 +1,14 @@
 #ifndef __ASM_MACH_PXA910_H
 #define __ASM_MACH_PXA910_H
 
-struct sys_timer;
-
-extern struct sys_timer pxa910_timer;
+extern void pxa910_timer_init(void);
 extern void __init pxa910_init_irq(void);
 
 #include <linux/i2c.h>
 #include <linux/i2c/pxa-i2c.h>
 #include <mach/devices.h>
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
+#include <video/mmp_disp.h>
 
 extern struct pxa_device_desc pxa910_device_uart1;
 extern struct pxa_device_desc pxa910_device_uart2;
@@ -23,7 +22,9 @@ extern struct pxa_device_desc pxa910_device_nand;
 extern struct platform_device pxa168_device_u2o;
 extern struct platform_device pxa168_device_u2ootg;
 extern struct platform_device pxa168_device_u2oehci;
-
+extern struct pxa_device_desc pxa910_device_disp;
+extern struct pxa_device_desc pxa910_device_fb;
+extern struct pxa_device_desc pxa910_device_panel;
 extern struct platform_device pxa910_device_gpio;
 extern struct platform_device pxa910_device_rtc;
 

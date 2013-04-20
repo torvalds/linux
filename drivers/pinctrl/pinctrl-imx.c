@@ -584,9 +584,9 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	if (!res)
 		return -ENOENT;
 
-	ipctl->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!ipctl->base)
-		return -EBUSY;
+	ipctl->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ipctl->base))
+		return PTR_ERR(ipctl->base);
 
 	imx_pinctrl_desc.name = dev_name(&pdev->dev);
 	imx_pinctrl_desc.pins = info->pins;

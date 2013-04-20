@@ -23,7 +23,6 @@ config SPARC
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select RTC_CLASS
 	select RTC_DRV_M48T59
-	select HAVE_IRQ_WORK
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select HAVE_ARCH_JUMP_LABEL
@@ -41,12 +40,15 @@ config SPARC
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select MODULES_USE_ELF_RELA
+	select ODD_RT_SIGACTION
+	select OLD_SIGSUSPEND
 
 config SPARC32
 	def_bool !64BIT
 	select GENERIC_ATOMIC64
 	select CLZ_TAB
 	select HAVE_UID16
+	select OLD_SIGACTION
 
 config SPARC64
 	def_bool 64BIT
@@ -61,6 +63,7 @@ config SPARC64
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_SYSCALL_WRAPPERS
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_SYSCALL_TRACEPOINTS
@@ -80,12 +83,6 @@ config ARCH_DEFCONFIG
 	string
 	default "arch/sparc/configs/sparc32_defconfig" if SPARC32
 	default "arch/sparc/configs/sparc64_defconfig" if SPARC64
-
-# CONFIG_BITS can be used at source level to get 32/64 bits
-config BITS
-	int
-	default 32 if SPARC32
-	default 64 if SPARC64
 
 config IOMMU_HELPER
 	bool
@@ -143,9 +140,6 @@ config GENERIC_GPIO
 	help
 	  Generic GPIO API support
 
-config ARCH_NO_VIRT_TO_BUS
-	def_bool y
-
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y if SPARC64
 
@@ -197,7 +191,7 @@ config RWSEM_XCHGADD_ALGORITHM
 
 config GENERIC_HWEIGHT
 	bool
-	default y if !ULTRA_HAS_POPULATION_COUNT
+	default y
 
 config GENERIC_CALIBRATE_DELAY
 	bool
@@ -543,6 +537,7 @@ config COMPAT
 	select COMPAT_BINFMT_ELF
 	select HAVE_UID16
 	select ARCH_WANT_OLD_COMPAT_IPC
+	select COMPAT_OLD_SIGACTION
 
 config SYSVIPC_COMPAT
 	bool

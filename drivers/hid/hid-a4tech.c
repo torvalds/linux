@@ -146,17 +146,6 @@ static struct hid_driver a4_driver = {
 	.probe = a4_probe,
 	.remove = a4_remove,
 };
+module_hid_driver(a4_driver);
 
-static int __init a4_init(void)
-{
-	return hid_register_driver(&a4_driver);
-}
-
-static void __exit a4_exit(void)
-{
-	hid_unregister_driver(&a4_driver);
-}
-
-module_init(a4_init);
-module_exit(a4_exit);
 MODULE_LICENSE("GPL");

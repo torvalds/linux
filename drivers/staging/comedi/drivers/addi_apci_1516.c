@@ -29,7 +29,10 @@
  * this source code.
  */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
+#include "addi_watchdog.h"
 #include "comedi_fc.h"
 
 /*
@@ -49,13 +52,6 @@
  * PCI bar 2 I/O Register map - Watchdog (APCI-1516 and APCI-2016)
  */
 #define APCI1516_WDOG_REG		0x00
-#define APCI1516_WDOG_RELOAD_REG	0x04
-#define APCI1516_WDOG_CTRL_REG		0x0c
-#define APCI1516_WDOG_CTRL_ENABLE	(1 << 0)
-#define APCI1516_WDOG_CTRL_SW_TRIG	(1 << 9)
-#define APCI1516_WDOG_STATUS_REG	0x10
-#define APCI1516_WDOG_STATUS_ENABLED	(1 << 0)
-#define APCI1516_WDOG_STATUS_SW_TRIG	(1 << 1)
 
 struct apci1516_boardinfo {
 	const char *name;
@@ -86,7 +82,6 @@ static const struct apci1516_boardinfo apci1516_boardtypes[] = {
 
 struct apci1516_private {
 	unsigned long wdog_iobase;
-	unsigned int ctrl;
 };
 
 static int apci1516_di_insn_bits(struct comedi_device *dev,
@@ -120,82 +115,6 @@ static int apci1516_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * The watchdog subdevice is configured with two INSN_CONFIG instructions:
- *
- * Enable the watchdog and set the reload timeout:
- *	data[0] = INSN_CONFIG_ARM
- *	data[1] = timeout reload value
- *
- * Disable the watchdog:
- *	data[0] = INSN_CONFIG_DISARM
- */
-static int apci1516_wdog_insn_config(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     struct comedi_insn *insn,
-				     unsigned int *data)
-{
-	struct apci1516_private *devpriv = dev->private;
-	unsigned int reload;
-
-	switch (data[0]) {
-	case INSN_CONFIG_ARM:
-		devpriv->ctrl = APCI1516_WDOG_CTRL_ENABLE;
-		reload = data[1] & s->maxdata;
-		outw(reload, devpriv->wdog_iobase + APCI1516_WDOG_RELOAD_REG);
-
-		/* Time base is 20ms, let the user know the timeout */
-		dev_info(dev->class_dev, "watchdog enabled, timeout:%dms\n",
-			20 * reload + 20);
-		break;
-	case INSN_CONFIG_DISARM:
-		devpriv->ctrl = 0;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	outw(devpriv->ctrl, devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
-
-	return insn->n;
-}
-
-static int apci1516_wdog_insn_write(struct comedi_device *dev,
-				    struct comedi_subdevice *s,
-				    struct comedi_insn *insn,
-				    unsigned int *data)
-{
-	struct apci1516_private *devpriv = dev->private;
-	int i;
-
-	if (devpriv->ctrl == 0) {
-		dev_warn(dev->class_dev, "watchdog is disabled\n");
-		return -EINVAL;
-	}
-
-	/* "ping" the watchdog */
-	for (i = 0; i < insn->n; i++) {
-		outw(devpriv->ctrl | APCI1516_WDOG_CTRL_SW_TRIG,
-			devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
-	}
-
-	return insn->n;
-}
-
-static int apci1516_wdog_insn_read(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn,
-				   unsigned int *data)
-{
-	struct apci1516_private *devpriv = dev->private;
-	int i;
-
-	for (i = 0; i < insn->n; i++)
-		data[i] = inw(devpriv->wdog_iobase + APCI1516_WDOG_STATUS_REG);
-
-	return insn->n;
-}
-
 static int apci1516_reset(struct comedi_device *dev)
 {
 	const struct apci1516_boardinfo *this_board = comedi_board(dev);
@@ -205,8 +124,8 @@ static int apci1516_reset(struct comedi_device *dev)
 		return 0;
 
 	outw(0x0, dev->iobase + APCI1516_DO_REG);
-	outw(0x0, devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
-	outw(0x0, devpriv->wdog_iobase + APCI1516_WDOG_RELOAD_REG);
+
+	addi_watchdog_reset(devpriv->wdog_iobase);
 
 	return 0;
 }
@@ -285,13 +204,9 @@ static int apci1516_auto_attach(struct comedi_device *dev,
 	/* Initialize the watchdog subdevice */
 	s = &dev->subdevices[2];
 	if (this_board->has_wdog) {
-		s->type		= COMEDI_SUBD_TIMER;
-		s->subdev_flags	= SDF_WRITEABLE;
-		s->n_chan	= 1;
-		s->maxdata	= 0xff;
-		s->insn_write	= apci1516_wdog_insn_write;
-		s->insn_read	= apci1516_wdog_insn_read;
-		s->insn_config	= apci1516_wdog_insn_config;
+		ret = addi_watchdog_init(s, devpriv->wdog_iobase);
+		if (ret)
+			return ret;
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
@@ -304,10 +219,12 @@ static void apci1516_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
-	if (dev->iobase) {
+	if (dev->iobase)
 		apci1516_reset(dev);
+	if (dev->subdevices)
+		addi_watchdog_cleanup(&dev->subdevices[2]);
+	if (dev->iobase)
 		comedi_pci_disable(pcidev);
-	}
 }
 
 static struct comedi_driver apci1516_driver = {
@@ -323,11 +240,6 @@ static int apci1516_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci1516_driver);
 }
 
-static void apci1516_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(apci1516_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, PCI_DEVICE_ID_APCI1016) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, PCI_DEVICE_ID_APCI1516) },
@@ -340,7 +252,7 @@ static struct pci_driver apci1516_pci_driver = {
 	.name		= "addi_apci_1516",
 	.id_table	= apci1516_pci_table,
 	.probe		= apci1516_pci_probe,
-	.remove		= apci1516_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(apci1516_driver, apci1516_pci_driver);
 

@@ -449,10 +449,6 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 	omap_mcpdm_dai_dma_params[0].port_addr = res->start + MCPDM_REG_DN_DATA;
 	omap_mcpdm_dai_dma_params[1].port_addr = res->start + MCPDM_REG_UP_DATA;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL)
-		return -ENOMEM;
-
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "dn_link");
 	if (!res)
 		return -ENODEV;

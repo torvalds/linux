@@ -131,7 +131,7 @@ static int spear_thermal_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	stdev->clk = clk_get(&pdev->dev, NULL);
+	stdev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(stdev->clk)) {
 		dev_err(&pdev->dev, "Can't get clock\n");
 		return PTR_ERR(stdev->clk);
@@ -140,7 +140,7 @@ static int spear_thermal_probe(struct platform_device *pdev)
 	ret = clk_enable(stdev->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't enable clock\n");
-		goto put_clk;
+		return ret;
 	}
 
 	stdev->flags = val;
@@ -163,8 +163,6 @@ static int spear_thermal_probe(struct platform_device *pdev)
 
 disable_clk:
 	clk_disable(stdev->clk);
-put_clk:
-	clk_put(stdev->clk);
 
 	return ret;
 }
@@ -183,7 +181,6 @@ static int spear_thermal_exit(struct platform_device *pdev)
 	writel_relaxed(actual_mask & ~stdev->flags, stdev->thermal_base);
 
 	clk_disable(stdev->clk);
-	clk_put(stdev->clk);
 
 	return 0;
 }

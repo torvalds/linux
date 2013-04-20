@@ -328,6 +328,27 @@ extern char _UserExceptionVector_literal_start;
 extern char _UserExceptionVector_text_end;
 extern char _DoubleExceptionVector_literal_start;
 extern char _DoubleExceptionVector_text_end;
+#if XCHAL_EXCM_LEVEL >= 2
+extern char _Level2InterruptVector_text_start;
+extern char _Level2InterruptVector_text_end;
+#endif
+#if XCHAL_EXCM_LEVEL >= 3
+extern char _Level3InterruptVector_text_start;
+extern char _Level3InterruptVector_text_end;
+#endif
+#if XCHAL_EXCM_LEVEL >= 4
+extern char _Level4InterruptVector_text_start;
+extern char _Level4InterruptVector_text_end;
+#endif
+#if XCHAL_EXCM_LEVEL >= 5
+extern char _Level5InterruptVector_text_start;
+extern char _Level5InterruptVector_text_end;
+#endif
+#if XCHAL_EXCM_LEVEL >= 6
+extern char _Level6InterruptVector_text_start;
+extern char _Level6InterruptVector_text_end;
+#endif
+
 
 
 #ifdef CONFIG_S32C1I_SELFTEST
@@ -481,6 +502,27 @@ void __init setup_arch(char **cmdline_p)
 
 	mem_reserve(__pa(&_DoubleExceptionVector_literal_start),
 		    __pa(&_DoubleExceptionVector_text_end), 0);
+
+#if XCHAL_EXCM_LEVEL >= 2
+	mem_reserve(__pa(&_Level2InterruptVector_text_start),
+		    __pa(&_Level2InterruptVector_text_end), 0);
+#endif
+#if XCHAL_EXCM_LEVEL >= 3
+	mem_reserve(__pa(&_Level3InterruptVector_text_start),
+		    __pa(&_Level3InterruptVector_text_end), 0);
+#endif
+#if XCHAL_EXCM_LEVEL >= 4
+	mem_reserve(__pa(&_Level4InterruptVector_text_start),
+		    __pa(&_Level4InterruptVector_text_end), 0);
+#endif
+#if XCHAL_EXCM_LEVEL >= 5
+	mem_reserve(__pa(&_Level5InterruptVector_text_start),
+		    __pa(&_Level5InterruptVector_text_end), 0);
+#endif
+#if XCHAL_EXCM_LEVEL >= 6
+	mem_reserve(__pa(&_Level6InterruptVector_text_start),
+		    __pa(&_Level6InterruptVector_text_end), 0);
+#endif
 
 	bootmem_init();
 

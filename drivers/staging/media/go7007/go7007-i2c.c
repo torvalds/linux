@@ -60,10 +60,10 @@ static int go7007_i2c_xfer(struct go7007 *go, u16 addr, int read,
 
 #ifdef GO7007_I2C_DEBUG
 	if (read)
-		printk(KERN_DEBUG "go7007-i2c: reading 0x%02x on 0x%02x\n",
+		dev_dbg(go->dev, "go7007-i2c: reading 0x%02x on 0x%02x\n",
 			command, addr);
 	else
-		printk(KERN_DEBUG
+		dev_dbg(go->dev,
 			"go7007-i2c: writing 0x%02x to 0x%02x on 0x%02x\n",
 			*data, command, addr);
 #endif
@@ -85,7 +85,7 @@ static int go7007_i2c_xfer(struct go7007 *go, u16 addr, int read,
 		msleep(100);
 	}
 	if (i == 10) {
-		printk(KERN_ERR "go7007-i2c: I2C adapter is hung\n");
+		dev_err(go->dev, "go7007-i2c: I2C adapter is hung\n");
 		goto i2c_done;
 	}
 
@@ -119,7 +119,7 @@ static int go7007_i2c_xfer(struct go7007 *go, u16 addr, int read,
 		msleep(100);
 	}
 	if (i == 10) {
-		printk(KERN_ERR "go7007-i2c: I2C adapter is hung\n");
+		dev_err(go->dev, "go7007-i2c: I2C adapter is hung\n");
 		goto i2c_done;
 	}
 
@@ -216,7 +216,7 @@ int go7007_i2c_init(struct go7007 *go)
 	go->i2c_adapter.dev.parent = go->dev;
 	i2c_set_adapdata(&go->i2c_adapter, go);
 	if (i2c_add_adapter(&go->i2c_adapter) < 0) {
-		printk(KERN_ERR
+		dev_err(go->dev,
 			"go7007-i2c: error: i2c_add_adapter failed\n");
 		return -1;
 	}

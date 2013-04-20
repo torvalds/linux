@@ -66,6 +66,7 @@ static const u64 disable_map[] = {
 	[NVDEV_SUBDEV_CLOCK]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_MXM]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_MC]	= NV_DEVICE_DISABLE_CORE,
+	[NVDEV_SUBDEV_BUS]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_TIMER]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_FB]	= NV_DEVICE_DISABLE_CORE,
 	[NVDEV_SUBDEV_LTCG]	= NV_DEVICE_DISABLE_CORE,
@@ -103,8 +104,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 	struct nouveau_device *device;
 	struct nouveau_devobj *devobj;
 	struct nv_device_class *args = data;
-	u64 disable, boot0, strap;
-	u64 mmio_base, mmio_size;
+	u32 boot0, strap;
+	u64 disable, mmio_base, mmio_size;
 	void __iomem *map;
 	int ret, i, c;
 

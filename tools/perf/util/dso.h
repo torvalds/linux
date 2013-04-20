@@ -138,7 +138,7 @@ struct dso *__dsos__findnew(struct list_head *head, const char *name);
 bool __dsos__read_build_ids(struct list_head *head, bool with_hits);
 
 size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,
-			       bool with_hits);
+			       bool (skip)(struct dso *dso, int parm), int parm);
 size_t __dsos__fprintf(struct list_head *head, FILE *fp);
 
 size_t dso__fprintf_buildid(struct dso *dso, FILE *fp);

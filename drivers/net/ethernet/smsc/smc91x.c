@@ -1597,9 +1597,10 @@ smc_ethtool_setsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 static void
 smc_ethtool_getdrvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strncpy(info->driver, CARDNAME, sizeof(info->driver));
-	strncpy(info->version, version, sizeof(info->version));
-	strncpy(info->bus_info, dev_name(dev->dev.parent), sizeof(info->bus_info));
+	strlcpy(info->driver, CARDNAME, sizeof(info->driver));
+	strlcpy(info->version, version, sizeof(info->version));
+	strlcpy(info->bus_info, dev_name(dev->dev.parent),
+		sizeof(info->bus_info));
 }
 
 static int smc_ethtool_nwayreset(struct net_device *dev)

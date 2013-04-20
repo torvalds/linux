@@ -2,7 +2,7 @@
  *  asm-mips/nile4.h -- NEC Vrc-5074 Nile 4 definitions
  *
  *  Copyright (C) 2000 Geert Uytterhoeven <geert@sonycom.com>
- *                     Sony Software Development Center Europe (SDCE), Brussels
+ *		       Sony Software Development Center Europe (SDCE), Brussels
  *
  *  This file is based on the following documentation:
  *
@@ -17,7 +17,7 @@
 
 
     /*
-     *  Physical Device Address Registers (PDARs)
+     *	Physical Device Address Registers (PDARs)
      */
 
 #define NILE4_SDRAM0	0x0000	/* SDRAM Bank 0 [R/W] */
@@ -37,7 +37,7 @@
 
 
     /*
-     *  CPU Interface Registers
+     *	CPU Interface Registers
      */
 
 #define NILE4_CPUSTAT	0x0080	/* CPU Status [R/W] */
@@ -50,7 +50,7 @@
 
 
     /*
-     *  Memory-Interface Registers
+     *	Memory-Interface Registers
      */
 
 #define NILE4_MEMCTRL	0x00C0	/* Memory Control */
@@ -59,7 +59,7 @@
 
 
     /*
-     *  PCI-Bus Registers
+     *	PCI-Bus Registers
      */
 
 #define NILE4_PCICTRL	0x00E0	/* PCI Control [R/W] */
@@ -70,7 +70,7 @@
 
 
     /*
-     *  Local-Bus Registers
+     *	Local-Bus Registers
      */
 
 #define NILE4_LCNFG	0x0100	/* Local Bus Configuration [R/W] */
@@ -88,7 +88,7 @@
 
 
     /*
-     *  DMA Registers
+     *	DMA Registers
      */
 
 #define NILE4_DMACTRL0	0x0180	/* DMA Control 0 [R/W] */
@@ -100,7 +100,7 @@
 
 
     /*
-     *  Timer Registers
+     *	Timer Registers
      */
 
 #define NILE4_T0CTRL	0x01C0	/* SDRAM Refresh Control [R/W] */
@@ -114,7 +114,7 @@
 
 
     /*
-     *  PCI Configuration Space Registers
+     *	PCI Configuration Space Registers
      */
 
 #define NILE4_PCI_BASE	0x0200
@@ -153,10 +153,10 @@
 
 
     /*
-     *  Serial-Port Registers
+     *	Serial-Port Registers
      */
 
-#define NILE4_UART_BASE	0x0300
+#define NILE4_UART_BASE 0x0300
 
 #define NILE4_UARTRBR	0x0300	/* UART Receiver Data Buffer [R] */
 #define NILE4_UARTTHR	0x0300	/* UART Transmitter Data Holding [W] */
@@ -175,7 +175,7 @@
 
 
     /*
-     *  Interrupt Lines
+     *	Interrupt Lines
      */
 
 #define NILE4_INT_CPCE	0	/* CPU-Interface Parity-Error Interrupt */
@@ -185,7 +185,7 @@
 #define NILE4_INT_UART	4	/* UART Interrupt */
 #define NILE4_INT_WDOG	5	/* Watchdog Timer Interrupt */
 #define NILE4_INT_GPT	6	/* General-Purpose Timer Interrupt */
-#define NILE4_INT_LBRTD	7	/* Local-Bus Ready Timer Interrupt */
+#define NILE4_INT_LBRTD 7	/* Local-Bus Ready Timer Interrupt */
 #define NILE4_INT_INTA	8	/* PCI Interrupt Signal INTA# */
 #define NILE4_INT_INTB	9	/* PCI Interrupt Signal INTB# */
 #define NILE4_INT_INTC	10	/* PCI Interrupt Signal INTC# */
@@ -197,7 +197,7 @@
 
 
     /*
-     *  Nile 4 Register Access
+     *	Nile 4 Register Access
      */
 
 static inline void nile4_sync(void)
@@ -247,7 +247,7 @@ static inline u8 nile4_in8(u32 offset)
 
 
     /*
-     *  Physical Device Address Registers
+     *	Physical Device Address Registers
      */
 
 extern void nile4_set_pdar(u32 pdar, u32 phys, u32 size, int width,
@@ -255,7 +255,7 @@ extern void nile4_set_pdar(u32 pdar, u32 phys, u32 size, int width,
 
 
     /*
-     *  PCI Master Registers
+     *	PCI Master Registers
      */
 
 #define NILE4_PCICMD_IACK	0	/* PCI Interrupt Acknowledge */
@@ -265,9 +265,9 @@ extern void nile4_set_pdar(u32 pdar, u32 phys, u32 size, int width,
 
 
     /*
-     *  PCI Address Spaces
+     *	PCI Address Spaces
      *
-     *  Note that these are multiplexed using PCIINIT[01]!
+     *	Note that these are multiplexed using PCIINIT[01]!
      */
 
 #define NILE4_PCI_IO_BASE	0xa6000000
@@ -280,7 +280,7 @@ extern void nile4_set_pmr(u32 pmr, u32 type, u32 addr);
 
 
     /*
-     *  Interrupt Programming
+     *	Interrupt Programming
      */
 
 #define NUM_I8259_INTERRUPTS	16

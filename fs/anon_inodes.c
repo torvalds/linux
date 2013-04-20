@@ -131,7 +131,6 @@ struct file *anon_inode_getfile(const char *name,
 	struct qstr this;
 	struct path path;
 	struct file *file;
-	int error;
 
 	if (IS_ERR(anon_inode_inode))
 		return ERR_PTR(-ENODEV);
@@ -143,7 +142,7 @@ struct file *anon_inode_getfile(const char *name,
 	 * Link the inode to a directory entry by creating a unique name
 	 * using the inode sequence number.
 	 */
-	error = -ENOMEM;
+	file = ERR_PTR(-ENOMEM);
 	this.name = name;
 	this.len = strlen(name);
 	this.hash = 0;
@@ -160,15 +159,12 @@ struct file *anon_inode_getfile(const char *name,
 
 	d_instantiate(path.dentry, anon_inode_inode);
 
-	error = -ENFILE;
 	file = alloc_file(&path, OPEN_FMODE(flags), fops);
-	if (!file)
+	if (IS_ERR(file))
 		goto err_dput;
 	file->f_mapping = anon_inode_inode->i_mapping;
 
-	file->f_pos = 0;
 	file->f_flags = flags & (O_ACCMODE | O_NONBLOCK);
-	file->f_version = 0;
 	file->private_data = priv;
 
 	return file;
@@ -177,7 +173,7 @@ err_dput:
 	path_put(&path);
 err_module:
 	module_put(fops->owner);
-	return ERR_PTR(error);
+	return file;
 }
 EXPORT_SYMBOL_GPL(anon_inode_getfile);
 

@@ -277,7 +277,6 @@ static void serial_txx9_initialize(struct uart_port *port)
 static inline void
 receive_chars(struct uart_txx9_port *up, unsigned int *status)
 {
-	struct tty_struct *tty = up->port.state->port.tty;
 	unsigned char ch;
 	unsigned int disr = *status;
 	int max_count = 256;
@@ -346,7 +345,7 @@ receive_chars(struct uart_txx9_port *up, unsigned int *status)
 		disr = sio_in(up, TXX9_SIDISR);
 	} while (!(disr & TXX9_SIDISR_UVALID) && (max_count-- > 0));
 	spin_unlock(&up->port.lock);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&up->port.state->port);
 	spin_lock(&up->port.lock);
 	*status = disr;
 }

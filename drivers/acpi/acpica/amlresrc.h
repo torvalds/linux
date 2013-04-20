@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -198,6 +198,12 @@ struct aml_resource_fixed_dma {
 
 struct aml_resource_large_header {
 AML_RESOURCE_LARGE_HEADER_COMMON};
+
+/* General Flags for address space resource descriptors */
+
+#define ACPI_RESOURCE_FLAG_DEC      2
+#define ACPI_RESOURCE_FLAG_MIF      4
+#define ACPI_RESOURCE_FLAG_MAF      8
 
 struct aml_resource_memory24 {
 	AML_RESOURCE_LARGE_HEADER_COMMON u8 flags;

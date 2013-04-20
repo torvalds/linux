@@ -51,15 +51,8 @@ struct opticon_private {
 static void opticon_process_data_packet(struct usb_serial_port *port,
 					const unsigned char *buf, size_t len)
 {
-	struct tty_struct *tty;
-
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
-
-	tty_insert_flip_string(tty, buf, len);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_insert_flip_string(&port->port, buf, len);
+	tty_flip_buffer_push(&port->port);
 }
 
 static void opticon_process_status_packet(struct usb_serial_port *port,

@@ -47,14 +47,13 @@ L3_START_KERNEL = pud_index(__START_KERNEL_map)
 	.code64
 	.globl startup_64
 startup_64:
-
 	/*
-	 * At this point the CPU runs in 64bit mode CS.L = 1 CS.D = 1,
+	 * At this point the CPU runs in 64bit mode CS.L = 1 CS.D = 0,
 	 * and someone has loaded an identity mapped page table
 	 * for us.  These identity mapped page tables map all of the
 	 * kernel pages and possibly all of memory.
 	 *
-	 * %esi holds a physical pointer to real_mode_data.
+	 * %rsi holds a physical pointer to real_mode_data.
 	 *
 	 * We come here either directly from a 64bit bootloader, or from
 	 * arch/x86_64/boot/compressed/head.S.
@@ -66,7 +65,8 @@ startup_64:
 	 * tables and then reload them.
 	 */
 
-	/* Compute the delta between the address I am compiled to run at and the
+	/*
+	 * Compute the delta between the address I am compiled to run at and the
 	 * address I am actually running at.
 	 */
 	leaq	_text(%rip), %rbp
@@ -78,45 +78,62 @@ startup_64:
 	testl	%eax, %eax
 	jnz	bad_address
 
-	/* Is the address too large? */
-	leaq	_text(%rip), %rdx
-	movq	$PGDIR_SIZE, %rax
-	cmpq	%rax, %rdx
-	jae	bad_address
-
-	/* Fixup the physical addresses in the page table
+	/*
+	 * Is the address too large?
 	 */
-	addq	%rbp, init_level4_pgt + 0(%rip)
-	addq	%rbp, init_level4_pgt + (L4_PAGE_OFFSET*8)(%rip)
-	addq	%rbp, init_level4_pgt + (L4_START_KERNEL*8)(%rip)
+	leaq	_text(%rip), %rax
+	shrq	$MAX_PHYSMEM_BITS, %rax
+	jnz	bad_address
 
-	addq	%rbp, level3_ident_pgt + 0(%rip)
+	/*
+	 * Fixup the physical addresses in the page table
+	 */
+	addq	%rbp, early_level4_pgt + (L4_START_KERNEL*8)(%rip)
 
 	addq	%rbp, level3_kernel_pgt + (510*8)(%rip)
 	addq	%rbp, level3_kernel_pgt + (511*8)(%rip)
 
 	addq	%rbp, level2_fixmap_pgt + (506*8)(%rip)
 
-	/* Add an Identity mapping if I am above 1G */
+	/*
+	 * Set up the identity mapping for the switchover.  These
+	 * entries should *NOT* have the global bit set!  This also
+	 * creates a bunch of nonsense entries but that is fine --
+	 * it avoids problems around wraparound.
+	 */
 	leaq	_text(%rip), %rdi
-	andq	$PMD_PAGE_MASK, %rdi
+	leaq	early_level4_pgt(%rip), %rbx
 
+	movq	%rdi, %rax
+	shrq	$PGDIR_SHIFT, %rax
+
+	leaq	(4096 + _KERNPG_TABLE)(%rbx), %rdx
+	movq	%rdx, 0(%rbx,%rax,8)
+	movq	%rdx, 8(%rbx,%rax,8)
+
+	addq	$4096, %rdx
 	movq	%rdi, %rax
 	shrq	$PUD_SHIFT, %rax
-	andq	$(PTRS_PER_PUD - 1), %rax
-	jz	ident_complete
+	andl	$(PTRS_PER_PUD-1), %eax
+	movq	%rdx, (4096+0)(%rbx,%rax,8)
+	movq	%rdx, (4096+8)(%rbx,%rax,8)
 
-	leaq	(level2_spare_pgt - __START_KERNEL_map + _KERNPG_TABLE)(%rbp), %rdx
-	leaq	level3_ident_pgt(%rip), %rbx
-	movq	%rdx, 0(%rbx, %rax, 8)
-
+	addq	$8192, %rbx
 	movq	%rdi, %rax
-	shrq	$PMD_SHIFT, %rax
-	andq	$(PTRS_PER_PMD - 1), %rax
-	leaq	__PAGE_KERNEL_IDENT_LARGE_EXEC(%rdi), %rdx
-	leaq	level2_spare_pgt(%rip), %rbx
-	movq	%rdx, 0(%rbx, %rax, 8)
-ident_complete:
+	shrq	$PMD_SHIFT, %rdi
+	addq	$(__PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL), %rax
+	leaq	(_end - 1)(%rip), %rcx
+	shrq	$PMD_SHIFT, %rcx
+	subq	%rdi, %rcx
+	incl	%ecx
+
+1:
+	andq	$(PTRS_PER_PMD - 1), %rdi
+	movq	%rax, (%rbx,%rdi,8)
+	incq	%rdi
+	addq	$PMD_SIZE, %rax
+	decl	%ecx
+	jnz	1b
 
 	/*
 	 * Fixup the kernel text+data virtual addresses. Note that
@@ -124,7 +141,6 @@ ident_complete:
 	 * cleanup_highmap() fixes this up along with the mappings
 	 * beyond _end.
 	 */
-
 	leaq	level2_kernel_pgt(%rip), %rdi
 	leaq	4096(%rdi), %r8
 	/* See if it is a valid page table entry */
@@ -139,17 +155,14 @@ ident_complete:
 	/* Fixup phys_base */
 	addq	%rbp, phys_base(%rip)
 
-	/* Due to ENTRY(), sometimes the empty space gets filled with
-	 * zeros. Better take a jmp than relying on empty space being
-	 * filled with 0x90 (nop)
-	 */
-	jmp secondary_startup_64
+	movq	$(early_level4_pgt - __START_KERNEL_map), %rax
+	jmp 1f
 ENTRY(secondary_startup_64)
 	/*
-	 * At this point the CPU runs in 64bit mode CS.L = 1 CS.D = 1,
+	 * At this point the CPU runs in 64bit mode CS.L = 1 CS.D = 0,
 	 * and someone has loaded a mapped page table.
 	 *
-	 * %esi holds a physical pointer to real_mode_data.
+	 * %rsi holds a physical pointer to real_mode_data.
 	 *
 	 * We come here either from startup_64 (using physical addresses)
 	 * or from trampoline.S (using virtual addresses).
@@ -159,12 +172,14 @@ ENTRY(secondary_startup_64)
 	 * after the boot processor executes this code.
 	 */
 
+	movq	$(init_level4_pgt - __START_KERNEL_map), %rax
+1:
+
 	/* Enable PAE mode and PGE */
-	movl	$(X86_CR4_PAE | X86_CR4_PGE), %eax
-	movq	%rax, %cr4
+	movl	$(X86_CR4_PAE | X86_CR4_PGE), %ecx
+	movq	%rcx, %cr4
 
 	/* Setup early boot stage 4 level pagetables. */
-	movq	$(init_level4_pgt - __START_KERNEL_map), %rax
 	addq	phys_base(%rip), %rax
 	movq	%rax, %cr3
 
@@ -196,7 +211,7 @@ ENTRY(secondary_startup_64)
 	movq	%rax, %cr0
 
 	/* Setup a boot time stack */
-	movq stack_start(%rip),%rsp
+	movq stack_start(%rip), %rsp
 
 	/* zero EFLAGS after setting rsp */
 	pushq $0
@@ -236,15 +251,33 @@ ENTRY(secondary_startup_64)
 	movl	initial_gs+4(%rip),%edx
 	wrmsr	
 
-	/* esi is pointer to real mode structure with interesting info.
+	/* rsi is pointer to real mode structure with interesting info.
 	   pass it to C */
-	movl	%esi, %edi
+	movq	%rsi, %rdi
 	
 	/* Finally jump to run C code and to be on real kernel address
 	 * Since we are running on identity-mapped space we have to jump
 	 * to the full 64bit address, this is only possible as indirect
 	 * jump.  In addition we need to ensure %cs is set so we make this
 	 * a far return.
+	 *
+	 * Note: do not change to far jump indirect with 64bit offset.
+	 *
+	 * AMD does not support far jump indirect with 64bit offset.
+	 * AMD64 Architecture Programmer's Manual, Volume 3: states only
+	 *	JMP FAR mem16:16 FF /5 Far jump indirect,
+	 *		with the target specified by a far pointer in memory.
+	 *	JMP FAR mem16:32 FF /5 Far jump indirect,
+	 *		with the target specified by a far pointer in memory.
+	 *
+	 * Intel64 does support 64bit offset.
+	 * Software Developer Manual Vol 2: states:
+	 *	FF /5 JMP m16:16 Jump far, absolute indirect,
+	 *		address given in m16:16
+	 *	FF /5 JMP m16:32 Jump far, absolute indirect,
+	 *		address given in m16:32.
+	 *	REX.W + FF /5 JMP m16:64 Jump far, absolute indirect,
+	 *		address given in m16:64.
 	 */
 	movq	initial_code(%rip),%rax
 	pushq	$0		# fake return address to stop unwinder
@@ -270,13 +303,13 @@ ENDPROC(start_cpu0)
 
 	/* SMP bootup changes these two */
 	__REFDATA
-	.align	8
-	ENTRY(initial_code)
+	.balign	8
+	GLOBAL(initial_code)
 	.quad	x86_64_start_kernel
-	ENTRY(initial_gs)
+	GLOBAL(initial_gs)
 	.quad	INIT_PER_CPU_VAR(irq_stack_union)
 
-	ENTRY(stack_start)
+	GLOBAL(stack_start)
 	.quad  init_thread_union+THREAD_SIZE-8
 	.word  0
 	__FINITDATA
@@ -284,7 +317,7 @@ ENDPROC(start_cpu0)
 bad_address:
 	jmp bad_address
 
-	.section ".init.text","ax"
+	__INIT
 	.globl early_idt_handlers
 early_idt_handlers:
 	# 104(%rsp) %rflags
@@ -303,6 +336,7 @@ early_idt_handlers:
 	i = i + 1
 	.endr
 
+/* This is global to keep gas from relaxing the jumps */
 ENTRY(early_idt_handler)
 	cld
 
@@ -321,14 +355,22 @@ ENTRY(early_idt_handler)
 	pushq %r11		#  0(%rsp)
 
 	cmpl $__KERNEL_CS,96(%rsp)
-	jne 10f
+	jne 11f
 
+	cmpl $14,72(%rsp)	# Page fault?
+	jnz 10f
+	GET_CR2_INTO(%rdi)	# can clobber any volatile register if pv
+	call early_make_pgtable
+	andl %eax,%eax
+	jz 20f			# All good
+
+10:
 	leaq 88(%rsp),%rdi	# Pointer to %rip
 	call early_fixup_exception
 	andl %eax,%eax
 	jnz 20f			# Found an exception entry
 
-10:
+11:
 #ifdef CONFIG_EARLY_PRINTK
 	GET_CR2_INTO(%r9)	# can clobber any volatile register if pv
 	movl 80(%rsp),%r8d	# error code
@@ -350,7 +392,7 @@ ENTRY(early_idt_handler)
 1:	hlt
 	jmp 1b
 
-20:	# Exception table entry found
+20:	# Exception table entry found or page table generated
 	popq %r11
 	popq %r10
 	popq %r9
@@ -363,6 +405,9 @@ ENTRY(early_idt_handler)
 	addq $16,%rsp		# drop vector number and error code
 	decl early_recursion_flag(%rip)
 	INTERRUPT_RETURN
+ENDPROC(early_idt_handler)
+
+	__INITDATA
 
 	.balign 4
 early_recursion_flag:
@@ -374,11 +419,10 @@ early_idt_msg:
 early_idt_ripmsg:
 	.asciz "RIP %s\n"
 #endif /* CONFIG_EARLY_PRINTK */
-	.previous
 
 #define NEXT_PAGE(name) \
 	.balign	PAGE_SIZE; \
-ENTRY(name)
+GLOBAL(name)
 
 /* Automate the creation of 1 to 1 mapping pmd entries */
 #define PMDS(START, PERM, COUNT)			\
@@ -388,45 +432,43 @@ ENTRY(name)
 	i = i + 1 ;					\
 	.endr
 
-	.data
-	/*
-	 * This default setting generates an ident mapping at address 0x100000
-	 * and a mapping for the kernel that precisely maps virtual address
-	 * 0xffffffff80000000 to physical address 0x000000. (always using
-	 * 2Mbyte large pages provided by PAE mode)
-	 */
-NEXT_PAGE(init_level4_pgt)
-	.quad	level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
-	.org	init_level4_pgt + L4_PAGE_OFFSET*8, 0
-	.quad	level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
-	.org	init_level4_pgt + L4_START_KERNEL*8, 0
-	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
+	__INITDATA
+NEXT_PAGE(early_level4_pgt)
+	.fill	511,8,0
 	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
+
+NEXT_PAGE(early_dynamic_pgts)
+	.fill	512*EARLY_DYNAMIC_PAGE_TABLES,8,0
+
+	.data
+
+#ifndef CONFIG_XEN
+NEXT_PAGE(init_level4_pgt)
+	.fill	512,8,0
+#else
+NEXT_PAGE(init_level4_pgt)
+	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
+	.org    init_level4_pgt + L4_PAGE_OFFSET*8, 0
+	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
+	.org    init_level4_pgt + L4_START_KERNEL*8, 0
+	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
+	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
 
 NEXT_PAGE(level3_ident_pgt)
 	.quad	level2_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
-	.fill	511,8,0
+	.fill	511, 8, 0
+NEXT_PAGE(level2_ident_pgt)
+	/* Since I easily can, map the first 1G.
+	 * Don't set NX because code runs from these pages.
+	 */
+	PMDS(0, __PAGE_KERNEL_IDENT_LARGE_EXEC, PTRS_PER_PMD)
+#endif
 
 NEXT_PAGE(level3_kernel_pgt)
 	.fill	L3_START_KERNEL,8,0
 	/* (2^48-(2*1024*1024*1024)-((2^39)*511))/(2^30) = 510 */
 	.quad	level2_kernel_pgt - __START_KERNEL_map + _KERNPG_TABLE
 	.quad	level2_fixmap_pgt - __START_KERNEL_map + _PAGE_TABLE
-
-NEXT_PAGE(level2_fixmap_pgt)
-	.fill	506,8,0
-	.quad	level1_fixmap_pgt - __START_KERNEL_map + _PAGE_TABLE
-	/* 8MB reserved for vsyscalls + a 2MB hole = 4 + 1 entries */
-	.fill	5,8,0
-
-NEXT_PAGE(level1_fixmap_pgt)
-	.fill	512,8,0
-
-NEXT_PAGE(level2_ident_pgt)
-	/* Since I easily can, map the first 1G.
-	 * Don't set NX because code runs from these pages.
-	 */
-	PMDS(0, __PAGE_KERNEL_IDENT_LARGE_EXEC, PTRS_PER_PMD)
 
 NEXT_PAGE(level2_kernel_pgt)
 	/*
@@ -442,11 +484,16 @@ NEXT_PAGE(level2_kernel_pgt)
 	PMDS(0, __PAGE_KERNEL_LARGE_EXEC,
 		KERNEL_IMAGE_SIZE/PMD_SIZE)
 
-NEXT_PAGE(level2_spare_pgt)
-	.fill   512, 8, 0
+NEXT_PAGE(level2_fixmap_pgt)
+	.fill	506,8,0
+	.quad	level1_fixmap_pgt - __START_KERNEL_map + _PAGE_TABLE
+	/* 8MB reserved for vsyscalls + a 2MB hole = 4 + 1 entries */
+	.fill	5,8,0
+
+NEXT_PAGE(level1_fixmap_pgt)
+	.fill	512,8,0
 
 #undef PMDS
-#undef NEXT_PAGE
 
 	.data
 	.align 16
@@ -472,6 +519,5 @@ ENTRY(nmi_idt_table)
 	.skip IDT_ENTRIES * 16
 
 	__PAGE_ALIGNED_BSS
-	.align PAGE_SIZE
-ENTRY(empty_zero_page)
+NEXT_PAGE(empty_zero_page)
 	.skip PAGE_SIZE

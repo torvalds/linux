@@ -140,7 +140,7 @@ MACHINE_START(CDB89712, "Cirrus-CDB89712")
 	.nr_irqs	= CLPS711X_NR_IRQS,
 	.map_io		= clps711x_map_io,
 	.init_irq	= clps711x_init_irq,
-	.timer		= &clps711x_timer,
+	.init_time	= clps711x_timer_init,
 	.init_machine	= cdb89712_init,
 	.handle_irq	= clps711x_handle_irq,
 	.restart	= clps711x_restart,

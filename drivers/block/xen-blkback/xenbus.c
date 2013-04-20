@@ -230,13 +230,13 @@ int __init xen_blkif_interface_init(void)
 	}								\
 	static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
 
-VBD_SHOW(oo_req,  "%d\n", be->blkif->st_oo_req);
-VBD_SHOW(rd_req,  "%d\n", be->blkif->st_rd_req);
-VBD_SHOW(wr_req,  "%d\n", be->blkif->st_wr_req);
-VBD_SHOW(f_req,  "%d\n", be->blkif->st_f_req);
-VBD_SHOW(ds_req,  "%d\n", be->blkif->st_ds_req);
-VBD_SHOW(rd_sect, "%d\n", be->blkif->st_rd_sect);
-VBD_SHOW(wr_sect, "%d\n", be->blkif->st_wr_sect);
+VBD_SHOW(oo_req,  "%llu\n", be->blkif->st_oo_req);
+VBD_SHOW(rd_req,  "%llu\n", be->blkif->st_rd_req);
+VBD_SHOW(wr_req,  "%llu\n", be->blkif->st_wr_req);
+VBD_SHOW(f_req,  "%llu\n", be->blkif->st_f_req);
+VBD_SHOW(ds_req,  "%llu\n", be->blkif->st_ds_req);
+VBD_SHOW(rd_sect, "%llu\n", be->blkif->st_rd_sect);
+VBD_SHOW(wr_sect, "%llu\n", be->blkif->st_wr_sect);
 
 static struct attribute *xen_vbdstat_attrs[] = {
 	&dev_attr_oo_req.attr,
@@ -367,6 +367,7 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 		be->blkif = NULL;
 	}
 
+	kfree(be->mode);
 	kfree(be);
 	dev_set_drvdata(&dev->dev, NULL);
 	return 0;
@@ -502,6 +503,7 @@ static void backend_changed(struct xenbus_watch *watch,
 		= container_of(watch, struct backend_info, backend_watch);
 	struct xenbus_device *dev = be->dev;
 	int cdrom = 0;
+	unsigned long handle;
 	char *device_type;
 
 	DPRINTK("");
@@ -521,10 +523,10 @@ static void backend_changed(struct xenbus_watch *watch,
 		return;
 	}
 
-	if ((be->major || be->minor) &&
-	    ((be->major != major) || (be->minor != minor))) {
-		pr_warn(DRV_PFX "changing physical device (from %x:%x to %x:%x) not supported.\n",
-			be->major, be->minor, major, minor);
+	if (be->major | be->minor) {
+		if (be->major != major || be->minor != minor)
+			pr_warn(DRV_PFX "changing physical device (from %x:%x to %x:%x) not supported.\n",
+				be->major, be->minor, major, minor);
 		return;
 	}
 
@@ -542,36 +544,33 @@ static void backend_changed(struct xenbus_watch *watch,
 		kfree(device_type);
 	}
 
-	if (be->major == 0 && be->minor == 0) {
-		/* Front end dir is a number, which is used as the handle. */
+	/* Front end dir is a number, which is used as the handle. */
+	err = strict_strtoul(strrchr(dev->otherend, '/') + 1, 0, &handle);
+	if (err)
+		return;
 
-		char *p = strrchr(dev->otherend, '/') + 1;
-		long handle;
-		err = strict_strtoul(p, 0, &handle);
-		if (err)
-			return;
+	be->major = major;
+	be->minor = minor;
 
-		be->major = major;
-		be->minor = minor;
+	err = xen_vbd_create(be->blkif, handle, major, minor,
+			     !strchr(be->mode, 'w'), cdrom);
 
-		err = xen_vbd_create(be->blkif, handle, major, minor,
-				 (NULL == strchr(be->mode, 'w')), cdrom);
-		if (err) {
-			be->major = 0;
-			be->minor = 0;
-			xenbus_dev_fatal(dev, err, "creating vbd structure");
-			return;
-		}
-
+	if (err)
+		xenbus_dev_fatal(dev, err, "creating vbd structure");
+	else {
 		err = xenvbd_sysfs_addif(dev);
 		if (err) {
 			xen_vbd_free(&be->blkif->vbd);
-			be->major = 0;
-			be->minor = 0;
 			xenbus_dev_fatal(dev, err, "creating sysfs entries");
-			return;
 		}
+	}
 
+	if (err) {
+		kfree(be->mode);
+		be->mode = NULL;
+		be->major = 0;
+		be->minor = 0;
+	} else {
 		/* We're potentially connected now */
 		xen_update_blkif_status(be->blkif);
 	}

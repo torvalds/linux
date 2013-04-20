@@ -18,12 +18,10 @@
 
 	ocp@f1000000 {
 		serial@12000 {
-			clock-frequency = <200000000>;
 			status = "ok";
 		};
 
 		serial@12100 {
-			clock-frequency = <200000000>;
 			status = "ok";
 		};
 
@@ -73,6 +71,122 @@
 			s35390a: s35390a@30 {
 				compatible = "s35390a";
 				reg = <0x30>;
+			};
+		};
+
+		pinctrl: pinctrl@10000 {
+			pinctrl-0 = < &pmx_nand &pmx_uart0
+				&pmx_uart1 &pmx_twsi1
+				&pmx_dip_sw0 &pmx_dip_sw1
+				&pmx_dip_sw2 &pmx_dip_sw3
+				&pmx_gpio_0 &pmx_gpio_1
+				&pmx_gpio_2 &pmx_gpio_3
+				&pmx_gpio_4 &pmx_gpio_5
+				&pmx_gpio_6 &pmx_gpio_7
+				&pmx_led_red &pmx_led_green
+				&pmx_led_yellow >;
+			pinctrl-names = "default";
+
+			pmx_uart0: pmx-uart0 {
+				marvell,pins = "mpp10", "mpp11", "mpp15",
+					"mpp16";
+				marvell,function = "uart0";
+			};
+
+			pmx_uart1: pmx-uart1 {
+				marvell,pins = "mpp13", "mpp14", "mpp8",
+					"mpp9";
+				marvell,function = "uart1";
+			};
+
+			pmx_sysrst: pmx-sysrst {
+				marvell,pins = "mpp6";
+				marvell,function = "sysrst";
+			};
+
+			pmx_dip_sw0: pmx-dip-sw0 {
+				marvell,pins = "mpp20";
+				marvell,function = "gpio";
+			};
+
+			pmx_dip_sw1: pmx-dip-sw1 {
+				marvell,pins = "mpp21";
+				marvell,function = "gpio";
+			};
+
+			pmx_dip_sw2: pmx-dip-sw2 {
+				marvell,pins = "mpp22";
+				marvell,function = "gpio";
+			};
+
+			pmx_dip_sw3: pmx-dip-sw3 {
+				marvell,pins = "mpp23";
+				marvell,function = "gpio";
+			};
+
+			pmx_gpio_0: pmx-gpio-0 {
+				marvell,pins = "mpp24";
+				marvell,function = "gpio";
+			};
+
+			pmx_gpio_1: pmx-gpio-1 {
+				marvell,pins = "mpp25";
+				marvell,function = "gpio";
+			};
+
+			pmx_gpio_2: pmx-gpio-2 {
+				marvell,pins = "mpp26";
+				marvell,function = "gpio";
+			};
+
+			pmx_gpio_3: pmx-gpio-3 {
+				marvell,pins = "mpp27";
+				marvell,function = "gpio";
+			};
+
+			pmx_gpio_4: pmx-gpio-4 {
+				marvell,pins = "mpp28";
+				marvell,function = "gpio";
+			};
+
+			pmx_gpio_5: pmx-gpio-5 {
+				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+
+			pmx_gpio_6: pmx-gpio-6 {
+				marvell,pins = "mpp30";
+				marvell,function = "gpio";
+			};
+
+			pmx_gpio_7: pmx-gpio-7 {
+				marvell,pins = "mpp31";
+				marvell,function = "gpio";
+			};
+
+			pmx_gpio_init: pmx-init {
+				marvell,pins = "mpp38";
+				marvell,function = "gpio";
+			};
+
+			pmx_usb_oc: pmx-usb-oc {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_red: pmx-led-red {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_green: pmx-led-green {
+				marvell,pins = "mpp42";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_yellow: pmx-led-yellow {
+				marvell,pins = "mpp43";
+				marvell,function = "gpio";
 			};
 		};
 	};

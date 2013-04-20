@@ -145,6 +145,7 @@ static int amanda_help(struct sk_buff *skb,
 
 		exp = nf_ct_expect_alloc(ct);
 		if (exp == NULL) {
+			nf_ct_helper_log(skb, ct, "cannot alloc expectation");
 			ret = NF_DROP;
 			goto out;
 		}
@@ -158,8 +159,10 @@ static int amanda_help(struct sk_buff *skb,
 		if (nf_nat_amanda && ct->status & IPS_NAT_MASK)
 			ret = nf_nat_amanda(skb, ctinfo, protoff,
 					    off - dataoff, len, exp);
-		else if (nf_ct_expect_related(exp) != 0)
+		else if (nf_ct_expect_related(exp) != 0) {
+			nf_ct_helper_log(skb, ct, "cannot add expectation");
 			ret = NF_DROP;
+		}
 		nf_ct_expect_put(exp);
 	}
 

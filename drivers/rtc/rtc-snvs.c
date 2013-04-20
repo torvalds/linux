@@ -252,9 +252,9 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->ioaddr = devm_request_and_ioremap(&pdev->dev, res);
-	if (!data->ioaddr)
-		return -EADDRNOTAVAIL;
+	data->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(data->ioaddr))
+		return PTR_ERR(data->ioaddr);
 
 	data->irq = platform_get_irq(pdev, 0);
 	if (data->irq < 0)
@@ -338,7 +338,7 @@ static struct platform_driver snvs_rtc_driver = {
 		.name	= "snvs_rtc",
 		.owner	= THIS_MODULE,
 		.pm	= &snvs_rtc_pm_ops,
-		.of_match_table = snvs_dt_ids,
+		.of_match_table = of_match_ptr(snvs_dt_ids),
 	},
 	.probe		= snvs_rtc_probe,
 	.remove		= snvs_rtc_remove,

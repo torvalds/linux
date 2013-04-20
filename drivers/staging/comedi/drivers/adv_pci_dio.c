@@ -29,9 +29,10 @@ Configuration options:
 
 */
 
-#include "../comedidev.h"
-
+#include <linux/pci.h>
 #include <linux/delay.h>
+
+#include "../comedidev.h"
 
 #include "8255.h"
 #include "8253.h"
@@ -1206,11 +1207,6 @@ static int adv_pci_dio_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &adv_pci_dio_driver);
 }
 
-static void adv_pci_dio_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(adv_pci_dio_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1730) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1733) },
@@ -1234,7 +1230,7 @@ static struct pci_driver adv_pci_dio_pci_driver = {
 	.name		= "adv_pci_dio",
 	.id_table	= adv_pci_dio_pci_table,
 	.probe		= adv_pci_dio_pci_probe,
-	.remove		= adv_pci_dio_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(adv_pci_dio_driver, adv_pci_dio_pci_driver);
 

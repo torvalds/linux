@@ -382,6 +382,7 @@ static int tce_clearrange_multi_pSeriesLP(unsigned long start_pfn,
 		rc = plpar_tce_stuff((u64)be32_to_cpu(maprange->liobn),
 					     dma_offset,
 					     0, limit);
+		next += limit * tce_size;
 		num_tce -= limit;
 	} while (num_tce > 0 && !rc);
 
@@ -786,33 +787,68 @@ static u64 find_existing_ddw(struct device_node *pdn)
 	return dma_addr;
 }
 
+static void __restore_default_window(struct eeh_dev *edev,
+						u32 ddw_restore_token)
+{
+	u32 cfg_addr;
+	u64 buid;
+	int ret;
+
+	/*
+	 * Get the config address and phb buid of the PE window.
+	 * Rely on eeh to retrieve this for us.
+	 * Retrieve them from the pci device, not the node with the
+	 * dma-window property
+	 */
+	cfg_addr = edev->config_addr;
+	if (edev->pe_config_addr)
+		cfg_addr = edev->pe_config_addr;
+	buid = edev->phb->buid;
+
+	do {
+		ret = rtas_call(ddw_restore_token, 3, 1, NULL, cfg_addr,
+					BUID_HI(buid), BUID_LO(buid));
+	} while (rtas_busy_delay(ret));
+	pr_info("ibm,reset-pe-dma-windows(%x) %x %x %x returned %d\n",
+		 ddw_restore_token, cfg_addr, BUID_HI(buid), BUID_LO(buid), ret);
+}
+
 static int find_existing_ddw_windows(void)
 {
-	int len;
 	struct device_node *pdn;
-	struct direct_window *window;
 	const struct dynamic_dma_window_prop *direct64;
+	const u32 *ddw_extensions;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
 		return 0;
 
 	for_each_node_with_property(pdn, DIRECT64_PROPNAME) {
-		direct64 = of_get_property(pdn, DIRECT64_PROPNAME, &len);
+		direct64 = of_get_property(pdn, DIRECT64_PROPNAME, NULL);
 		if (!direct64)
 			continue;
 
-		window = kzalloc(sizeof(*window), GFP_KERNEL);
-		if (!window || len < sizeof(struct dynamic_dma_window_prop)) {
-			kfree(window);
-			remove_ddw(pdn);
-			continue;
-		}
+		/*
+		 * We need to ensure the IOMMU table is active when we
+		 * return from the IOMMU setup so that the common code
+		 * can clear the table or find the holes. To that end,
+		 * first, remove any existing DDW configuration.
+		 */
+		remove_ddw(pdn);
 
-		window->device = pdn;
-		window->prop = direct64;
-		spin_lock(&direct_window_list_lock);
-		list_add(&window->list, &direct_window_list);
-		spin_unlock(&direct_window_list_lock);
+		/*
+		 * Second, if we are running on a new enough level of
+		 * firmware where the restore API is present, use it to
+		 * restore the 32-bit window, which was removed in
+		 * create_ddw.
+		 * If the API is not present, then create_ddw couldn't
+		 * have removed the 32-bit window in the first place, so
+		 * removing the DDW configuration should be sufficient.
+		 */
+		ddw_extensions = of_get_property(pdn, "ibm,ddw-extensions",
+									NULL);
+		if (ddw_extensions && ddw_extensions[0] > 0)
+			__restore_default_window(of_node_to_eeh_dev(pdn),
+							ddw_extensions[1]);
 	}
 
 	return 0;
@@ -883,32 +919,9 @@ static int create_ddw(struct pci_dev *dev, const u32 *ddw_avail,
 }
 
 static void restore_default_window(struct pci_dev *dev,
-				u32 ddw_restore_token, unsigned long liobn)
+					u32 ddw_restore_token)
 {
-	struct eeh_dev *edev;
-	u32 cfg_addr;
-	u64 buid;
-	int ret;
-
-	/*
-	 * Get the config address and phb buid of the PE window.
-	 * Rely on eeh to retrieve this for us.
-	 * Retrieve them from the pci device, not the node with the
-	 * dma-window property
-	 */
-	edev = pci_dev_to_eeh_dev(dev);
-	cfg_addr = edev->config_addr;
-	if (edev->pe_config_addr)
-		cfg_addr = edev->pe_config_addr;
-	buid = edev->phb->buid;
-
-	do {
-		ret = rtas_call(ddw_restore_token, 3, 1, NULL, cfg_addr,
-					BUID_HI(buid), BUID_LO(buid));
-	} while (rtas_busy_delay(ret));
-	dev_info(&dev->dev,
-		"ibm,reset-pe-dma-windows(%x) %x %x %x returned %d\n",
-		 ddw_restore_token, cfg_addr, BUID_HI(buid), BUID_LO(buid), ret);
+	__restore_default_window(pci_dev_to_eeh_dev(dev), ddw_restore_token);
 }
 
 /*
@@ -1099,7 +1112,7 @@ out_free_prop:
 
 out_restore_window:
 	if (ddw_restore_token)
-		restore_default_window(dev, ddw_restore_token, liobn);
+		restore_default_window(dev, ddw_restore_token);
 
 out_unlock:
 	mutex_unlock(&direct_window_init_mutex);
@@ -1295,6 +1308,7 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 
 	switch (action) {
 	case OF_RECONFIG_DETACH_NODE:
+		remove_ddw(np);
 		if (pci && pci->iommu_table)
 			iommu_free_table(pci->iommu_table, np->full_name);
 
@@ -1307,16 +1321,6 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 			}
 		}
 		spin_unlock(&direct_window_list_lock);
-
-		/*
-		 * Because the notifier runs after isolation of the
-		 * slot, we are guaranteed any DMA window has already
-		 * been revoked and the TCEs have been marked invalid,
-		 * so we don't need a call to remove_ddw(np). However,
-		 * if an additional notifier action is added before the
-		 * isolate call, we should update this code for
-		 * completeness with such a call.
-		 */
 		break;
 	default:
 		err = NOTIFY_DONE;

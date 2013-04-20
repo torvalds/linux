@@ -1040,6 +1040,253 @@ static int pci_asix_setup(struct serial_private *priv,
 	return pci_default_setup(priv, board, port, idx);
 }
 
+/* Quatech devices have their own extra interface features */
+
+struct quatech_feature {
+	u16 devid;
+	bool amcc;
+};
+
+#define QPCR_TEST_FOR1		0x3F
+#define QPCR_TEST_GET1		0x00
+#define QPCR_TEST_FOR2		0x40
+#define QPCR_TEST_GET2		0x40
+#define QPCR_TEST_FOR3		0x80
+#define QPCR_TEST_GET3		0x40
+#define QPCR_TEST_FOR4		0xC0
+#define QPCR_TEST_GET4		0x80
+
+#define QOPR_CLOCK_X1		0x0000
+#define QOPR_CLOCK_X2		0x0001
+#define QOPR_CLOCK_X4		0x0002
+#define QOPR_CLOCK_X8		0x0003
+#define QOPR_CLOCK_RATE_MASK	0x0003
+
+
+static struct quatech_feature quatech_cards[] = {
+	{ PCI_DEVICE_ID_QUATECH_QSC100,   1 },
+	{ PCI_DEVICE_ID_QUATECH_DSC100,   1 },
+	{ PCI_DEVICE_ID_QUATECH_DSC100E,  0 },
+	{ PCI_DEVICE_ID_QUATECH_DSC200,   1 },
+	{ PCI_DEVICE_ID_QUATECH_DSC200E,  0 },
+	{ PCI_DEVICE_ID_QUATECH_ESC100D,  1 },
+	{ PCI_DEVICE_ID_QUATECH_ESC100M,  1 },
+	{ PCI_DEVICE_ID_QUATECH_QSCP100,  1 },
+	{ PCI_DEVICE_ID_QUATECH_DSCP100,  1 },
+	{ PCI_DEVICE_ID_QUATECH_QSCP200,  1 },
+	{ PCI_DEVICE_ID_QUATECH_DSCP200,  1 },
+	{ PCI_DEVICE_ID_QUATECH_ESCLP100, 0 },
+	{ PCI_DEVICE_ID_QUATECH_QSCLP100, 0 },
+	{ PCI_DEVICE_ID_QUATECH_DSCLP100, 0 },
+	{ PCI_DEVICE_ID_QUATECH_SSCLP100, 0 },
+	{ PCI_DEVICE_ID_QUATECH_QSCLP200, 0 },
+	{ PCI_DEVICE_ID_QUATECH_DSCLP200, 0 },
+	{ PCI_DEVICE_ID_QUATECH_SSCLP200, 0 },
+	{ PCI_DEVICE_ID_QUATECH_SPPXP_100, 0 },
+	{ 0, }
+};
+
+static int pci_quatech_amcc(u16 devid)
+{
+	struct quatech_feature *qf = &quatech_cards[0];
+	while (qf->devid) {
+		if (qf->devid == devid)
+			return qf->amcc;
+		qf++;
+	}
+	pr_err("quatech: unknown port type '0x%04X'.\n", devid);
+	return 0;
+};
+
+static int pci_quatech_rqopr(struct uart_8250_port *port)
+{
+	unsigned long base = port->port.iobase;
+	u8 LCR, val;
+
+	LCR = inb(base + UART_LCR);
+	outb(0xBF, base + UART_LCR);
+	val = inb(base + UART_SCR);
+	outb(LCR, base + UART_LCR);
+	return val;
+}
+
+static void pci_quatech_wqopr(struct uart_8250_port *port, u8 qopr)
+{
+	unsigned long base = port->port.iobase;
+	u8 LCR, val;
+
+	LCR = inb(base + UART_LCR);
+	outb(0xBF, base + UART_LCR);
+	val = inb(base + UART_SCR);
+	outb(qopr, base + UART_SCR);
+	outb(LCR, base + UART_LCR);
+}
+
+static int pci_quatech_rqmcr(struct uart_8250_port *port)
+{
+	unsigned long base = port->port.iobase;
+	u8 LCR, val, qmcr;
+
+	LCR = inb(base + UART_LCR);
+	outb(0xBF, base + UART_LCR);
+	val = inb(base + UART_SCR);
+	outb(val | 0x10, base + UART_SCR);
+	qmcr = inb(base + UART_MCR);
+	outb(val, base + UART_SCR);
+	outb(LCR, base + UART_LCR);
+
+	return qmcr;
+}
+
+static void pci_quatech_wqmcr(struct uart_8250_port *port, u8 qmcr)
+{
+	unsigned long base = port->port.iobase;
+	u8 LCR, val;
+
+	LCR = inb(base + UART_LCR);
+	outb(0xBF, base + UART_LCR);
+	val = inb(base + UART_SCR);
+	outb(val | 0x10, base + UART_SCR);
+	outb(qmcr, base + UART_MCR);
+	outb(val, base + UART_SCR);
+	outb(LCR, base + UART_LCR);
+}
+
+static int pci_quatech_has_qmcr(struct uart_8250_port *port)
+{
+	unsigned long base = port->port.iobase;
+	u8 LCR, val;
+
+	LCR = inb(base + UART_LCR);
+	outb(0xBF, base + UART_LCR);
+	val = inb(base + UART_SCR);
+	if (val & 0x20) {
+		outb(0x80, UART_LCR);
+		if (!(inb(UART_SCR) & 0x20)) {
+			outb(LCR, base + UART_LCR);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static int pci_quatech_test(struct uart_8250_port *port)
+{
+	u8 reg;
+	u8 qopr = pci_quatech_rqopr(port);
+	pci_quatech_wqopr(port, qopr & QPCR_TEST_FOR1);
+	reg = pci_quatech_rqopr(port) & 0xC0;
+	if (reg != QPCR_TEST_GET1)
+		return -EINVAL;
+	pci_quatech_wqopr(port, (qopr & QPCR_TEST_FOR1)|QPCR_TEST_FOR2);
+	reg = pci_quatech_rqopr(port) & 0xC0;
+	if (reg != QPCR_TEST_GET2)
+		return -EINVAL;
+	pci_quatech_wqopr(port, (qopr & QPCR_TEST_FOR1)|QPCR_TEST_FOR3);
+	reg = pci_quatech_rqopr(port) & 0xC0;
+	if (reg != QPCR_TEST_GET3)
+		return -EINVAL;
+	pci_quatech_wqopr(port, (qopr & QPCR_TEST_FOR1)|QPCR_TEST_FOR4);
+	reg = pci_quatech_rqopr(port) & 0xC0;
+	if (reg != QPCR_TEST_GET4)
+		return -EINVAL;
+
+	pci_quatech_wqopr(port, qopr);
+	return 0;
+}
+
+static int pci_quatech_clock(struct uart_8250_port *port)
+{
+	u8 qopr, reg, set;
+	unsigned long clock;
+
+	if (pci_quatech_test(port) < 0)
+		return 1843200;
+
+	qopr = pci_quatech_rqopr(port);
+
+	pci_quatech_wqopr(port, qopr & ~QOPR_CLOCK_X8);
+	reg = pci_quatech_rqopr(port);
+	if (reg & QOPR_CLOCK_X8) {
+		clock = 1843200;
+		goto out;
+	}
+	pci_quatech_wqopr(port, qopr | QOPR_CLOCK_X8);
+	reg = pci_quatech_rqopr(port);
+	if (!(reg & QOPR_CLOCK_X8)) {
+		clock = 1843200;
+		goto out;
+	}
+	reg &= QOPR_CLOCK_X8;
+	if (reg == QOPR_CLOCK_X2) {
+		clock =  3685400;
+		set = QOPR_CLOCK_X2;
+	} else if (reg == QOPR_CLOCK_X4) {
+		clock = 7372800;
+		set = QOPR_CLOCK_X4;
+	} else if (reg == QOPR_CLOCK_X8) {
+		clock = 14745600;
+		set = QOPR_CLOCK_X8;
+	} else {
+		clock = 1843200;
+		set = QOPR_CLOCK_X1;
+	}
+	qopr &= ~QOPR_CLOCK_RATE_MASK;
+	qopr |= set;
+
+out:
+	pci_quatech_wqopr(port, qopr);
+	return clock;
+}
+
+static int pci_quatech_rs422(struct uart_8250_port *port)
+{
+	u8 qmcr;
+	int rs422 = 0;
+
+	if (!pci_quatech_has_qmcr(port))
+		return 0;
+	qmcr = pci_quatech_rqmcr(port);
+	pci_quatech_wqmcr(port, 0xFF);
+	if (pci_quatech_rqmcr(port))
+		rs422 = 1;
+	pci_quatech_wqmcr(port, qmcr);
+	return rs422;
+}
+
+static int pci_quatech_init(struct pci_dev *dev)
+{
+	if (pci_quatech_amcc(dev->device)) {
+		unsigned long base = pci_resource_start(dev, 0);
+		if (base) {
+			u32 tmp;
+			outl(inl(base + 0x38), base + 0x38);
+			tmp = inl(base + 0x3c);
+			outl(tmp | 0x01000000, base + 0x3c);
+			outl(tmp, base + 0x3c);
+		}
+	}
+	return 0;
+}
+
+static int pci_quatech_setup(struct serial_private *priv,
+		  const struct pciserial_board *board,
+		  struct uart_8250_port *port, int idx)
+{
+	/* Needed by pci_quatech calls below */
+	port->port.iobase = pci_resource_start(priv->dev, FL_GET_BASE(board->flags));
+	/* Set up the clocking */
+	port->port.uartclk = pci_quatech_clock(port);
+	/* For now just warn about RS422 */
+	if (pci_quatech_rs422(port))
+		pr_warn("quatech: software control of RS422 features not currently supported.\n");
+	return pci_default_setup(priv, board, port, idx);
+}
+
+static void pci_quatech_exit(struct pci_dev *dev)
+{
+}
+
 static int pci_default_setup(struct serial_private *priv,
 		  const struct pciserial_board *board,
 		  struct uart_8250_port *port, int idx)
@@ -1307,6 +1554,7 @@ pci_wch_ch353_setup(struct serial_private *priv,
 #define PCI_DEVICE_ID_PLX_CRONYX_OMEGA	0xc001
 #define PCI_DEVICE_ID_INTEL_PATSBURG_KT 0x1d3d
 #define PCI_VENDOR_ID_WCH		0x4348
+#define PCI_DEVICE_ID_WCH_CH352_2S	0x3253
 #define PCI_DEVICE_ID_WCH_CH353_4S	0x3453
 #define PCI_DEVICE_ID_WCH_CH353_2S1PF	0x5046
 #define PCI_DEVICE_ID_WCH_CH353_2S1P	0x7053
@@ -1318,9 +1566,13 @@ pci_wch_ch353_setup(struct serial_private *priv,
 #define PCI_DEVICE_ID_COMMTECH_4222PCIE	0x0022
 #define PCI_DEVICE_ID_BROADCOM_TRUMANAGE 0x160a
 
+#define PCI_VENDOR_ID_SUNIX		0x1fd4
+#define PCI_DEVICE_ID_SUNIX_1999	0x1999
+
 
 /* Unknown vendors/cards - this should not be in linux/pci_ids.h */
 #define PCI_SUBDEVICE_ID_UNKNOWN_0x1584	0x1584
+#define PCI_SUBDEVICE_ID_UNKNOWN_0x1588	0x1588
 
 /*
  * Master list of serial port init/setup/exit quirks.
@@ -1541,6 +1793,16 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.setup		= pci_ni8430_setup,
 		.exit		= pci_ni8430_exit,
 	},
+	/* Quatech */
+	{
+		.vendor		= PCI_VENDOR_ID_QUATECH,
+		.device		= PCI_ANY_ID,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_quatech_init,
+		.setup		= pci_quatech_setup,
+		.exit		= pci_quatech_exit,
+	},
 	/*
 	 * Panacom
 	 */
@@ -1586,15 +1848,6 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.device		= PCI_DEVICE_ID_PLX_9050,
 		.subvendor	= PCI_SUBVENDOR_ID_KEYSPAN,
 		.subdevice	= PCI_SUBDEVICE_ID_KEYSPAN_SX2,
-		.init		= pci_plx9050_init,
-		.setup		= pci_default_setup,
-		.exit		= pci_plx9050_exit,
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_PLX,
-		.device		= PCI_DEVICE_ID_PLX_9050,
-		.subvendor	= PCI_VENDOR_ID_PLX,
-		.subdevice	= PCI_SUBDEVICE_ID_UNKNOWN_0x1584,
 		.init		= pci_plx9050_init,
 		.setup		= pci_default_setup,
 		.exit		= pci_plx9050_exit,
@@ -1701,6 +1954,23 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.device		= PCI_ANY_ID,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
+		.setup		= pci_timedia_setup,
+	},
+	/*
+	 * SUNIX (Timedia) cards
+	 * Do not "probe" for these cards as there is at least one combination
+	 * card that should be handled by parport_pc that doesn't match the
+	 * rule in pci_timedia_probe.
+	 * It is part number is MIO5079A but its subdevice ID is 0x0102.
+	 * There are some boards with part number SER5037AL that report
+	 * subdevice ID 0x0002.
+	 */
+	{
+		.vendor		= PCI_VENDOR_ID_SUNIX,
+		.device		= PCI_DEVICE_ID_SUNIX_1999,
+		.subvendor	= PCI_VENDOR_ID_SUNIX,
+		.subdevice	= PCI_ANY_ID,
+		.init		= pci_timedia_init,
 		.setup		= pci_timedia_setup,
 	},
 	/*
@@ -1902,6 +2172,14 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subvendor      = PCI_ANY_ID,
 		.subdevice      = PCI_ANY_ID,
 		.setup          = pci_wch_ch353_setup,
+	},
+	/* WCH CH352 2S card (16550 clone) */
+	{
+		.vendor		= PCI_VENDOR_ID_WCH,
+		.device		= PCI_DEVICE_ID_WCH_CH352_2S,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.setup		= pci_wch_ch353_setup,
 	},
 	/*
 	 * ASIX devices with FIFO bug
@@ -3456,7 +3734,12 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050,
 		PCI_VENDOR_ID_PLX,
 		PCI_SUBDEVICE_ID_UNKNOWN_0x1584, 0, 0,
-		pbn_b0_4_115200 },
+		pbn_b2_4_115200 },
+	/* Unknown card - subdevice 0x1588 */
+	{	PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050,
+		PCI_VENDOR_ID_PLX,
+		PCI_SUBDEVICE_ID_UNKNOWN_0x1588, 0, 0,
+		pbn_b2_8_115200 },
 	{	PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050,
 		PCI_SUBVENDOR_ID_KEYSPAN,
 		PCI_SUBDEVICE_ID_KEYSPAN_SX2, 0, 0,
@@ -3506,18 +3789,70 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_ROMULUS,
 		0x10b5, 0x106a, 0, 0,
 		pbn_plx_romulus },
+	/*
+	 * Quatech cards. These actually have configurable clocks but for
+	 * now we just use the default.
+	 *
+	 * 100 series are RS232, 200 series RS422,
+	 */
 	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_QSC100,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_b1_4_115200 },
 	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_DSC100,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_b1_2_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_DSC100E,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b2_2_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_DSC200,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_2_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_DSC200E,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b2_2_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_QSC200,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_4_115200 },
 	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_ESC100D,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_b1_8_115200 },
 	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_ESC100M,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		pbn_b1_8_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_QSCP100,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_4_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_DSCP100,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_2_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_QSCP200,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_4_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_DSCP200,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b1_2_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_QSCLP100,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b2_4_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_DSCLP100,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b2_2_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_SSCLP100,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b2_1_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_QSCLP200,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b2_4_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_DSCLP200,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b2_2_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_SSCLP200,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b2_1_115200 },
+	{	PCI_VENDOR_ID_QUATECH, PCI_DEVICE_ID_QUATECH_ESCLP100,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		pbn_b0_8_115200 },
+
 	{	PCI_VENDOR_ID_SPECIALIX, PCI_DEVICE_ID_OXSEMI_16PCI954,
 		PCI_VENDOR_ID_SPECIALIX, PCI_SUBDEVICE_ID_SPECIALIX_SPEED4,
 		0, 0,
@@ -3899,6 +4234,19 @@ static struct pci_device_id serial_pci_tbl[] = {
 		pbn_oxsemi },
 	{	PCI_VENDOR_ID_TIMEDIA, PCI_DEVICE_ID_TIMEDIA_1889,
 		PCI_VENDOR_ID_TIMEDIA, PCI_ANY_ID, 0, 0,
+		pbn_b0_bt_1_921600 },
+
+	/*
+	 * SUNIX (TIMEDIA)
+	 */
+	{	PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999,
+		PCI_VENDOR_ID_SUNIX, PCI_ANY_ID,
+		PCI_CLASS_COMMUNICATION_SERIAL << 8, 0xffff00,
+		pbn_b0_bt_1_921600 },
+
+	{	PCI_VENDOR_ID_SUNIX, PCI_DEVICE_ID_SUNIX_1999,
+		PCI_VENDOR_ID_SUNIX, PCI_ANY_ID,
+		PCI_CLASS_COMMUNICATION_MULTISERIAL << 8, 0xffff00,
 		pbn_b0_bt_1_921600 },
 
 	/*
@@ -4449,6 +4797,10 @@ static struct pci_device_id serial_pci_tbl[] = {
 		PCI_VENDOR_ID_IBM, 0x0299,
 		0, 0, pbn_b0_bt_2_115200 },
 
+	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9835,
+		0x1000, 0x0012,
+		0, 0, pbn_b0_bt_2_115200 },
+
 	{	PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9901,
 		0xA000, 0x1000,
 		0, 0, pbn_b0_1_115200 },
@@ -4524,6 +4876,10 @@ static struct pci_device_id serial_pci_tbl[] = {
 		0, 0, pbn_b0_bt_4_115200 },
 
 	{	PCI_VENDOR_ID_WCH, PCI_DEVICE_ID_WCH_CH353_2S1PF,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0, pbn_b0_bt_2_115200 },
+
+	{	PCI_VENDOR_ID_WCH, PCI_DEVICE_ID_WCH_CH352_2S,
 		PCI_ANY_ID, PCI_ANY_ID,
 		0, 0, pbn_b0_bt_2_115200 },
 

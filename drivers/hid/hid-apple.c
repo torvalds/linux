@@ -555,23 +555,6 @@ static struct hid_driver apple_driver = {
 	.input_mapping = apple_input_mapping,
 	.input_mapped = apple_input_mapped,
 };
+module_hid_driver(apple_driver);
 
-static int __init apple_init(void)
-{
-	int ret;
-
-	ret = hid_register_driver(&apple_driver);
-	if (ret)
-		pr_err("can't register apple driver\n");
-
-	return ret;
-}
-
-static void __exit apple_exit(void)
-{
-	hid_unregister_driver(&apple_driver);
-}
-
-module_init(apple_init);
-module_exit(apple_exit);
 MODULE_LICENSE("GPL");

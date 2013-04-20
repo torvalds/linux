@@ -1,6 +1,6 @@
 menuconfig IP_DCCP
-	tristate "The DCCP Protocol (EXPERIMENTAL)"
-	depends on INET && EXPERIMENTAL
+	tristate "The DCCP Protocol"
+	depends on INET
 	---help---
 	  Datagram Congestion Control Protocol (RFC 4340)
 

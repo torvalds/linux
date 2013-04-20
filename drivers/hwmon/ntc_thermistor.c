@@ -43,7 +43,7 @@ struct ntc_compensation {
  * The following compensation tables are from the specification of Murata NTC
  * Thermistors Datasheet
  */
-const struct ntc_compensation ncpXXwb473[] = {
+static const struct ntc_compensation ncpXXwb473[] = {
 	{ .temp_C	= -40, .ohm	= 1747920 },
 	{ .temp_C	= -35, .ohm	= 1245428 },
 	{ .temp_C	= -30, .ohm	= 898485 },
@@ -79,7 +79,7 @@ const struct ntc_compensation ncpXXwb473[] = {
 	{ .temp_C	= 120, .ohm	= 1615 },
 	{ .temp_C	= 125, .ohm	= 1406 },
 };
-const struct ntc_compensation ncpXXwl333[] = {
+static const struct ntc_compensation ncpXXwl333[] = {
 	{ .temp_C	= -40, .ohm	= 1610154 },
 	{ .temp_C	= -35, .ohm	= 1130850 },
 	{ .temp_C	= -30, .ohm	= 802609 },

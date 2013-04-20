@@ -253,7 +253,7 @@ static int isofs_readdir(struct file *filp,
 	int result;
 	char *tmpname;
 	struct iso_directory_record *tmpde;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 
 	tmpname = (char *)__get_free_page(GFP_KERNEL);
 	if (tmpname == NULL)

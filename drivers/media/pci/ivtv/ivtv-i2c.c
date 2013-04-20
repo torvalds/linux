@@ -267,8 +267,6 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 	const char *type = hw_devicenames[idx];
 	u32 hw = 1 << idx;
 
-	if (idx >= ARRAY_SIZE(hw_addrs))
-		return -1;
 	if (hw == IVTV_HW_TUNER) {
 		/* special tuner handling */
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev, adap, type, 0,
@@ -719,13 +717,10 @@ int init_ivtv_i2c(struct ivtv *itv)
 		return -ENODEV;
 	}
 	if (itv->options.newi2c > 0) {
-		memcpy(&itv->i2c_adap, &ivtv_i2c_adap_hw_template,
-		       sizeof(struct i2c_adapter));
+		itv->i2c_adap = ivtv_i2c_adap_hw_template;
 	} else {
-		memcpy(&itv->i2c_adap, &ivtv_i2c_adap_template,
-		       sizeof(struct i2c_adapter));
-		memcpy(&itv->i2c_algo, &ivtv_i2c_algo_template,
-		       sizeof(struct i2c_algo_bit_data));
+		itv->i2c_adap = ivtv_i2c_adap_template;
+		itv->i2c_algo = ivtv_i2c_algo_template;
 	}
 	itv->i2c_algo.udelay = itv->options.i2c_clock_period / 2;
 	itv->i2c_algo.data = itv;
@@ -735,8 +730,7 @@ int init_ivtv_i2c(struct ivtv *itv)
 		itv->instance);
 	i2c_set_adapdata(&itv->i2c_adap, &itv->v4l2_dev);
 
-	memcpy(&itv->i2c_client, &ivtv_i2c_client_template,
-	       sizeof(struct i2c_client));
+	itv->i2c_client = ivtv_i2c_client_template;
 	itv->i2c_client.adapter = &itv->i2c_adap;
 	itv->i2c_adap.dev.parent = &itv->pdev->dev;
 

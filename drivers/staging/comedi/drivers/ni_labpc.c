@@ -73,12 +73,14 @@ NI manuals:
 
 */
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/delay.h>
+
 #include "../comedidev.h"
 
-#include <linux/delay.h>
 #include <asm/dma.h>
 
 #include "8253.h"
@@ -568,13 +570,11 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		return -EINVAL;
 	} else if (dma_chan) {
 		/* allocate dma buffer */
-		devpriv->dma_buffer =
-		    kmalloc(dma_buffer_size, GFP_KERNEL | GFP_DMA);
-		if (devpriv->dma_buffer == NULL) {
-			dev_err(dev->class_dev,
-				"failed to allocate dma buffer\n");
+		devpriv->dma_buffer = kmalloc(dma_buffer_size,
+					      GFP_KERNEL | GFP_DMA);
+		if (devpriv->dma_buffer == NULL)
 			return -ENOMEM;
-		}
+
 		if (request_dma(dma_chan, DRV_NAME)) {
 			dev_err(dev->class_dev,
 				"failed to allocate dma channel %u\n",
@@ -1202,7 +1202,8 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	else
 		channel = CR_CHAN(cmd->chanlist[0]);
 	/* munge channel bits for differential / scan disabled mode */
-	if (mode != MODE_SINGLE_CHAN && aref == AREF_DIFF)
+	if ((mode == MODE_SINGLE_CHAN || mode == MODE_SINGLE_CHAN_INTERVAL) &&
+	    aref == AREF_DIFF)
 		channel *= 2;
 	devpriv->command1_bits |= ADC_CHAN_BITS(channel);
 	devpriv->command1_bits |= thisboard->ai_range_code[range];
@@ -1217,21 +1218,6 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->write_byte(devpriv->command1_bits,
 				    dev->iobase + COMMAND1_REG);
 	}
-	/*  setup any external triggering/pacing (command4 register) */
-	devpriv->command4_bits = 0;
-	if (cmd->convert_src != TRIG_EXT)
-		devpriv->command4_bits |= EXT_CONVERT_DISABLE_BIT;
-	/* XXX should discard first scan when using interval scanning
-	 * since manual says it is not synced with scan clock */
-	if (labpc_use_continuous_mode(cmd, mode) == 0) {
-		devpriv->command4_bits |= INTERVAL_SCAN_EN_BIT;
-		if (cmd->scan_begin_src == TRIG_EXT)
-			devpriv->command4_bits |= EXT_SCAN_EN_BIT;
-	}
-	/*  single-ended/differential */
-	if (aref == AREF_DIFF)
-		devpriv->command4_bits |= ADC_DIFF_BIT;
-	devpriv->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
 
 	devpriv->write_byte(cmd->chanlist_len,
 			    dev->iobase + INTERVAL_COUNT_REG);
@@ -1310,6 +1296,22 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	else
 		devpriv->command3_bits &= ~ADC_FNE_INTR_EN_BIT;
 	devpriv->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
+
+	/*  setup any external triggering/pacing (command4 register) */
+	devpriv->command4_bits = 0;
+	if (cmd->convert_src != TRIG_EXT)
+		devpriv->command4_bits |= EXT_CONVERT_DISABLE_BIT;
+	/* XXX should discard first scan when using interval scanning
+	 * since manual says it is not synced with scan clock */
+	if (labpc_use_continuous_mode(cmd, mode) == 0) {
+		devpriv->command4_bits |= INTERVAL_SCAN_EN_BIT;
+		if (cmd->scan_begin_src == TRIG_EXT)
+			devpriv->command4_bits |= EXT_SCAN_EN_BIT;
+	}
+	/*  single-ended/differential */
+	if (aref == AREF_DIFF)
+		devpriv->command4_bits |= ADC_DIFF_BIT;
+	devpriv->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
 
 	/*  startup acquisition */
 
@@ -2116,16 +2118,11 @@ static int labpc_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &labpc_driver);
 }
 
-static void labpc_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static struct pci_driver labpc_pci_driver = {
 	.name = DRV_NAME,
 	.id_table = labpc_pci_table,
 	.probe = labpc_pci_probe,
-	.remove = labpc_pci_remove
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(labpc_driver, labpc_pci_driver);
 #else

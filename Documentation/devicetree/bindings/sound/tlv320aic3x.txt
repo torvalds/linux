@@ -11,6 +11,12 @@ Optional properties:
 
 - gpio-reset - gpio pin number used for codec reset
 - ai3x-gpio-func - <array of 2 int> - AIC3X_GPIO1 & AIC3X_GPIO2 Functionality
+- ai3x-micbias-vg - MicBias Voltage required.
+	1 - MICBIAS output is powered to 2.0V,
+	2 - MICBIAS output is powered to 2.5V,
+	3 - MICBIAS output is connected to AVDD,
+	If this node is not mentioned or if the value is incorrect, then MicBias
+	is powered down.
 
 Example:
 

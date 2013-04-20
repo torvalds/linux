@@ -61,10 +61,12 @@ OPTIONS
 
 --stdio:: Use the stdio interface.
 
---tui:: Use the TUI interface Use of --tui requires a tty, if one is not
+--tui:: Use the TUI interface. Use of --tui requires a tty, if one is not
 	present, as when piping to other commands, the stdio interface is
 	used. This interfaces starts by centering on the line with more
 	samples, TAB/UNTAB cycles through the lines with more samples.
+
+--gtk:: Use the GTK interface.
 
 -C::
 --cpu:: Only report samples for the list of CPUs provided. Multiple CPUs can
@@ -87,6 +89,9 @@ OPTIONS
 
 --objdump=<path>::
         Path to objdump binary.
+
+--skip-missing::
+	Skip symbols that cannot be annotated.
 
 SEE ALSO
 --------

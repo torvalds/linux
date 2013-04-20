@@ -54,6 +54,7 @@
 #include <linux/skbuff.h>
 #include <linux/can.h>
 #include <linux/can/core.h>
+#include <linux/can/skb.h>
 #include <linux/can/bcm.h>
 #include <linux/slab.h>
 #include <net/sock.h>
@@ -256,9 +257,12 @@ static void bcm_can_tx(struct bcm_op *op)
 		return;
 	}
 
-	skb = alloc_skb(CFSIZ, gfp_any());
+	skb = alloc_skb(CFSIZ + sizeof(struct can_skb_priv), gfp_any());
 	if (!skb)
 		goto out;
+
+	can_skb_reserve(skb);
+	can_skb_prv(skb)->ifindex = dev->ifindex;
 
 	memcpy(skb_put(skb, CFSIZ), cf, CFSIZ);
 
@@ -1199,10 +1203,11 @@ static int bcm_tx_send(struct msghdr *msg, int ifindex, struct sock *sk)
 	if (!ifindex)
 		return -ENODEV;
 
-	skb = alloc_skb(CFSIZ, GFP_KERNEL);
-
+	skb = alloc_skb(CFSIZ + sizeof(struct can_skb_priv), GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
+
+	can_skb_reserve(skb);
 
 	err = memcpy_fromiovec(skb_put(skb, CFSIZ), msg->msg_iov, CFSIZ);
 	if (err < 0) {
@@ -1216,6 +1221,7 @@ static int bcm_tx_send(struct msghdr *msg, int ifindex, struct sock *sk)
 		return -ENODEV;
 	}
 
+	can_skb_prv(skb)->ifindex = dev->ifindex;
 	skb->dev = dev;
 	skb->sk  = sk;
 	err = can_send(skb, 1); /* send with loopback */
@@ -1627,7 +1633,7 @@ static void __exit bcm_module_exit(void)
 	can_proto_unregister(&bcm_can_proto);
 
 	if (proc_dir)
-		proc_net_remove(&init_net, "can-bcm");
+		remove_proc_entry("can-bcm", init_net.proc_net);
 }
 
 module_init(bcm_module_init);

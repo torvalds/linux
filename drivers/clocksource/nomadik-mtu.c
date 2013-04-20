@@ -15,6 +15,7 @@
 #include <linux/clocksource.h>
 #include <linux/clk.h>
 #include <linux/jiffies.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/platform_data/clocksource-nomadik-mtu.h>
 #include <asm/mach/time.h>
@@ -64,6 +65,7 @@ static void __iomem *mtu_base;
 static bool clkevt_periodic;
 static u32 clk_prescale;
 static u32 nmdk_cycle;		/* write-once */
+static struct delay_timer mtu_delay_timer;
 
 #ifdef CONFIG_NOMADIK_MTU_SCHED_CLOCK
 /*
@@ -79,6 +81,11 @@ static u32 notrace nomadik_read_sched_clock(void)
 	return -readl(mtu_base + MTU_VAL(0));
 }
 #endif
+
+static unsigned long nmdk_timer_read_current_timer(void)
+{
+	return ~readl_relaxed(mtu_base + MTU_VAL(0));
+}
 
 /* Clockevent device: use one-shot mode */
 static int nmdk_clkevt_next(unsigned long evt, struct clock_event_device *ev)
@@ -134,12 +141,32 @@ static void nmdk_clkevt_mode(enum clock_event_mode mode,
 	}
 }
 
+void nmdk_clksrc_reset(void)
+{
+	/* Disable */
+	writel(0, mtu_base + MTU_CR(0));
+
+	/* ClockSource: configure load and background-load, and fire it up */
+	writel(nmdk_cycle, mtu_base + MTU_LR(0));
+	writel(nmdk_cycle, mtu_base + MTU_BGLR(0));
+
+	writel(clk_prescale | MTU_CRn_32BITS | MTU_CRn_ENA,
+	       mtu_base + MTU_CR(0));
+}
+
+static void nmdk_clkevt_resume(struct clock_event_device *cedev)
+{
+	nmdk_clkevt_reset();
+	nmdk_clksrc_reset();
+}
+
 static struct clock_event_device nmdk_clkevt = {
 	.name		= "mtu_1",
 	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
 	.rating		= 200,
 	.set_mode	= nmdk_clkevt_mode,
 	.set_next_event	= nmdk_clkevt_next,
+	.resume		= nmdk_clkevt_resume,
 };
 
 /*
@@ -160,19 +187,6 @@ static struct irqaction nmdk_timer_irq = {
 	.handler	= nmdk_timer_interrupt,
 	.dev_id		= &nmdk_clkevt,
 };
-
-void nmdk_clksrc_reset(void)
-{
-	/* Disable */
-	writel(0, mtu_base + MTU_CR(0));
-
-	/* ClockSource: configure load and background-load, and fire it up */
-	writel(nmdk_cycle, mtu_base + MTU_LR(0));
-	writel(nmdk_cycle, mtu_base + MTU_BGLR(0));
-
-	writel(clk_prescale | MTU_CRn_32BITS | MTU_CRn_ENA,
-	       mtu_base + MTU_CR(0));
-}
 
 void __init nmdk_timer_init(void __iomem *base, int irq)
 {
@@ -226,5 +240,10 @@ void __init nmdk_timer_init(void __iomem *base, int irq)
 	/* Timer 1 is used for events, register irq and clockevents */
 	setup_irq(irq, &nmdk_timer_irq);
 	nmdk_clkevt.cpumask = cpumask_of(0);
+	nmdk_clkevt.irq = irq;
 	clockevents_config_and_register(&nmdk_clkevt, rate, 2, 0xffffffffU);
+
+	mtu_delay_timer.read_current_timer = &nmdk_timer_read_current_timer;
+	mtu_delay_timer.freq = rate;
+	register_current_timer_delay(&mtu_delay_timer);
 }

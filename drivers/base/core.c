@@ -1617,9 +1617,9 @@ struct device *device_create(struct class *class, struct device *parent,
 }
 EXPORT_SYMBOL_GPL(device_create);
 
-static int __match_devt(struct device *dev, void *data)
+static int __match_devt(struct device *dev, const void *data)
 {
-	dev_t *devt = data;
+	const dev_t *devt = data;
 
 	return dev->devt == *devt;
 }
@@ -1685,8 +1685,6 @@ EXPORT_SYMBOL_GPL(device_destroy);
  */
 int device_rename(struct device *dev, const char *new_name)
 {
-	char *old_class_name = NULL;
-	char *new_class_name = NULL;
 	char *old_device_name = NULL;
 	int error;
 
@@ -1717,8 +1715,6 @@ int device_rename(struct device *dev, const char *new_name)
 out:
 	put_device(dev);
 
-	kfree(new_class_name);
-	kfree(old_class_name);
 	kfree(old_device_name);
 
 	return error;

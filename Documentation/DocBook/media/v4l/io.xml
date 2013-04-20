@@ -477,7 +477,7 @@ rest should be evident.</para>
 
     <note>
       <title>Experimental</title>
-      <para>This is an <link linkend="experimental"> experimental </link>
+      <para>This is an <link linkend="experimental">experimental</link>
       interface and may change in the future.</para>
     </note>
 
@@ -488,7 +488,7 @@ DMA buffer from userspace using a file descriptor previously exported for a
 different or the same device (known as the importer role), or both. This
 section describes the DMABUF importer role API in V4L2.</para>
 
-    <para>Refer to <link linked="vidioc-expbuf"> DMABUF exporting </link> for
+    <para>Refer to <link linkend="vidioc-expbuf">DMABUF exporting</link> for
 details about exporting V4L2 buffers as DMABUF file descriptors.</para>
 
 <para>Input and output devices support the streaming I/O method when the
@@ -741,17 +741,19 @@ applications when an output stream.</entry>
 	    <entry>struct timeval</entry>
 	    <entry><structfield>timestamp</structfield></entry>
 	    <entry></entry>
-	    <entry><para>For input streams this is the
-system time (as returned by the <function>gettimeofday()</function>
-function) when the first data byte was captured. For output streams
-the data will not be displayed before this time, secondary to the
-nominal frame rate determined by the current video standard in
-enqueued order. Applications can for example zero this field to
-display frames as soon as possible. The driver stores the time at
-which the first data byte was actually sent out in the
-<structfield>timestamp</structfield> field. This permits
-applications to monitor the drift between the video and system
-clock.</para></entry>
+	    <entry><para>For input streams this is time when the first data
+	    byte was captured, as returned by the
+	    <function>clock_gettime()</function> function for the relevant
+	    clock id; see <constant>V4L2_BUF_FLAG_TIMESTAMP_*</constant> in
+	    <xref linkend="buffer-flags" />. For output streams the data
+	    will not be displayed before this time, secondary to the nominal
+	    frame rate determined by the current video standard in enqueued
+	    order. Applications can for example zero this field to display
+	    frames as soon as possible. The driver stores the time at which
+	    the first data byte was actually sent out in the
+	    <structfield>timestamp</structfield> field. This permits
+	    applications to monitor the drift between the video and system
+	    clock.</para></entry>
 	  </row>
 	  <row>
 	    <entry>&v4l2-timecode;</entry>
@@ -903,7 +905,7 @@ should set this to 0.</entry>
 	  </row>
 	  <row>
 	    <entry></entry>
-	    <entry>__unsigned long</entry>
+	    <entry>unsigned long</entry>
 	    <entry><structfield>userptr</structfield></entry>
 	    <entry>When the memory type in the containing &v4l2-buffer; is
 	      <constant>V4L2_MEMORY_USERPTR</constant>, this is a userspace
@@ -1113,6 +1115,35 @@ passed on to a DMA-capable hardware unit for further processing or output.
 Typically applications shall use this flag for output buffers if the data
 in this buffer has not been created by the CPU but by some DMA-capable unit,
 in which case caches have not been used.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_TIMESTAMP_MASK</constant></entry>
+	    <entry>0xe000</entry>
+	    <entry>Mask for timestamp types below. To test the
+	    timestamp type, mask out bits not belonging to timestamp
+	    type by performing a logical and operation with buffer
+	    flags and timestamp mask.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN</constant></entry>
+	    <entry>0x0000</entry>
+	    <entry>Unknown timestamp type. This type is used by
+	    drivers before Linux 3.9 and may be either monotonic (see
+	    below) or realtime (wall clock). Monotonic clock has been
+	    favoured in embedded systems whereas most of the drivers
+	    use the realtime clock. Either kinds of timestamps are
+	    available in user space via
+	    <function>clock_gettime(2)</function> using clock IDs
+	    <constant>CLOCK_MONOTONIC</constant> and
+	    <constant>CLOCK_REALTIME</constant>, respectively.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC</constant></entry>
+	    <entry>0x2000</entry>
+	    <entry>The buffer timestamp has been taken from the
+	    <constant>CLOCK_MONOTONIC</constant> clock. To access the
+	    same clock outside V4L2, use
+	    <function>clock_gettime(2)</function> .</entry>
 	  </row>
 	</tbody>
       </tgroup>

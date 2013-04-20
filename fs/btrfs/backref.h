@@ -19,7 +19,7 @@
 #ifndef __BTRFS_BACKREF__
 #define __BTRFS_BACKREF__
 
-#include "ioctl.h"
+#include <linux/btrfs.h>
 #include "ulist.h"
 #include "extent_io.h"
 

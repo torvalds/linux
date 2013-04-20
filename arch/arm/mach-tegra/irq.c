@@ -22,8 +22,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/of.h>
-
-#include <asm/hardware/gic.h>
+#include <linux/irqchip/arm-gic.h>
 
 #include "board.h"
 #include "iomap.h"
@@ -45,6 +44,8 @@
 
 #define FIRST_LEGACY_IRQ 32
 
+#define SGI_MASK 0xFFFF
+
 static int num_ictlrs;
 
 static void __iomem *ictlr_reg_base[] = {
@@ -54,6 +55,19 @@ static void __iomem *ictlr_reg_base[] = {
 	IO_ADDRESS(TEGRA_QUATERNARY_ICTLR_BASE),
 	IO_ADDRESS(TEGRA_QUINARY_ICTLR_BASE),
 };
+
+bool tegra_pending_sgi(void)
+{
+	u32 pending_set;
+	void __iomem *distbase = IO_ADDRESS(TEGRA_ARM_INT_DIST_BASE);
+
+	pending_set = readl_relaxed(distbase + GIC_DIST_PENDING_SET);
+
+	if (pending_set & SGI_MASK)
+		return true;
+
+	return false;
+}
 
 static inline void tegra_irq_write_mask(unsigned int irq, unsigned long reg)
 {

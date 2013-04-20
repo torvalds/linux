@@ -64,7 +64,7 @@ static const char mlx4_en_version[] =
 
 /* Enable RSS UDP traffic */
 MLX4_EN_PARM_INT(udp_rss, 1,
-		 "Enable RSS for incomming UDP traffic or disabled (0)");
+		 "Enable RSS for incoming UDP traffic or disabled (0)");
 
 /* Priority pausing */
 MLX4_EN_PARM_INT(pfctx, 0, "Priority based Flow Control policy on TX[7:0]."
@@ -93,6 +93,28 @@ int en_print(const char *level, const struct mlx4_en_priv *priv,
 	va_end(args);
 
 	return i;
+}
+
+void mlx4_en_update_loopback_state(struct net_device *dev,
+				   netdev_features_t features)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	priv->flags &= ~(MLX4_EN_FLAG_RX_FILTER_NEEDED|
+			MLX4_EN_FLAG_ENABLE_HW_LOOPBACK);
+
+	/* Drop the packet if SRIOV is not enabled
+	 * and not performing the selftest or flb disabled
+	 */
+	if (mlx4_is_mfunc(priv->mdev->dev) &&
+	    !(features & NETIF_F_LOOPBACK) && !priv->validate_loopback)
+		priv->flags |= MLX4_EN_FLAG_RX_FILTER_NEEDED;
+
+	/* Set dmac in Tx WQE if we are in SRIOV mode or if loopback selftest
+	 * is requested
+	 */
+	if (mlx4_is_mfunc(priv->mdev->dev) || priv->validate_loopback)
+		priv->flags |= MLX4_EN_FLAG_ENABLE_HW_LOOPBACK;
 }
 
 static int mlx4_en_get_profile(struct mlx4_en_dev *mdev)
@@ -176,7 +198,7 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 
 	flush_workqueue(mdev->workqueue);
 	destroy_workqueue(mdev->workqueue);
-	mlx4_mr_free(dev, &mdev->mr);
+	(void) mlx4_mr_free(dev, &mdev->mr);
 	iounmap(mdev->uar_map);
 	mlx4_uar_free(dev, &mdev->priv_uar);
 	mlx4_pd_free(dev, mdev->priv_pdn);
@@ -191,10 +213,8 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 
 	printk_once(KERN_INFO "%s", mlx4_en_version);
 
-	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev) {
-		dev_err(&dev->pdev->dev, "Device struct alloc failed, "
-			"aborting.\n");
 		err = -ENOMEM;
 		goto err_free_res;
 	}
@@ -283,7 +303,7 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	return mdev;
 
 err_mr:
-	mlx4_mr_free(dev, &mdev->mr);
+	(void) mlx4_mr_free(dev, &mdev->mr);
 err_map:
 	if (!mdev->uar_map)
 		iounmap(mdev->uar_map);

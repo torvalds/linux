@@ -24,6 +24,7 @@
 extern int evm_initialized;
 extern char *evm_hmac;
 extern char *evm_hash;
+extern int evm_hmac_version;
 
 extern struct crypto_shash *hmac_tfm;
 extern struct crypto_shash *hash_tfm;
@@ -45,6 +46,5 @@ extern int evm_calc_hash(struct dentry *dentry, const char *req_xattr_name,
 extern int evm_init_hmac(struct inode *inode, const struct xattr *xattr,
 			 char *hmac_val);
 extern int evm_init_secfs(void);
-extern void evm_cleanup_secfs(void);
 
 #endif

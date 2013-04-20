@@ -65,7 +65,7 @@ static const struct voltage_map_desc ldo9_voltage_map_desc = {
 	.min = 2800000,	.step = 100000,	.max = 3100000,
 };
 static const struct voltage_map_desc ldo10_voltage_map_desc = {
-	.min = 95000,	.step = 50000,	.max = 1300000,
+	.min = 950000,	.step = 50000,	.max = 1300000,
 };
 static const struct voltage_map_desc ldo1213_voltage_map_desc = {
 	.min = 800000,	.step = 100000,	.max = 3300000,
@@ -311,24 +311,12 @@ static int max8998_set_voltage_buck_sel(struct regulator_dev *rdev,
 		dev_get_platdata(max8998->iodev->dev);
 	struct i2c_client *i2c = max8998->iodev->i2c;
 	int buck = rdev_get_id(rdev);
-	int reg, shift = 0, mask, ret;
-	int j, previous_sel;
+	int reg, shift = 0, mask, ret, j;
 	static u8 buck1_last_val;
 
 	ret = max8998_get_voltage_register(rdev, &reg, &shift, &mask);
 	if (ret)
 		return ret;
-
-	previous_sel = max8998_get_voltage_sel(rdev);
-
-	/* Check if voltage needs to be changed */
-	/* if previous_voltage equal new voltage, return */
-	if (previous_sel == selector) {
-		dev_dbg(max8998->dev, "No voltage change, old:%d, new:%d\n",
-			regulator_list_voltage_linear(rdev, previous_sel),
-			regulator_list_voltage_linear(rdev, selector));
-		return ret;
-	}
 
 	switch (buck) {
 	case MAX8998_BUCK1:

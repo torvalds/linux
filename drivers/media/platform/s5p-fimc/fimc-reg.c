@@ -44,9 +44,9 @@ static u32 fimc_hw_get_in_flip(struct fimc_ctx *ctx)
 	u32 flip = FIMC_REG_MSCTRL_FLIP_NORMAL;
 
 	if (ctx->hflip)
-		flip = FIMC_REG_MSCTRL_FLIP_X_MIRROR;
-	if (ctx->vflip)
 		flip = FIMC_REG_MSCTRL_FLIP_Y_MIRROR;
+	if (ctx->vflip)
+		flip = FIMC_REG_MSCTRL_FLIP_X_MIRROR;
 
 	if (ctx->rotation <= 90)
 		return flip;
@@ -59,9 +59,9 @@ static u32 fimc_hw_get_target_flip(struct fimc_ctx *ctx)
 	u32 flip = FIMC_REG_CITRGFMT_FLIP_NORMAL;
 
 	if (ctx->hflip)
-		flip |= FIMC_REG_CITRGFMT_FLIP_X_MIRROR;
-	if (ctx->vflip)
 		flip |= FIMC_REG_CITRGFMT_FLIP_Y_MIRROR;
+	if (ctx->vflip)
+		flip |= FIMC_REG_CITRGFMT_FLIP_X_MIRROR;
 
 	if (ctx->rotation <= 90)
 		return flip;
@@ -312,7 +312,7 @@ static void fimc_hw_set_scaler(struct fimc_ctx *ctx)
 void fimc_hw_set_mainscaler(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
-	struct fimc_variant *variant = dev->variant;
+	const struct fimc_variant *variant = dev->variant;
 	struct fimc_scaler *sc = &ctx->scaler;
 	u32 cfg;
 
@@ -344,27 +344,28 @@ void fimc_hw_set_mainscaler(struct fimc_ctx *ctx)
 	}
 }
 
-void fimc_hw_en_capture(struct fimc_ctx *ctx)
+void fimc_hw_enable_capture(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
+	u32 cfg;
 
-	u32 cfg = readl(dev->regs + FIMC_REG_CIIMGCPT);
-
-	if (ctx->out_path == FIMC_IO_DMA) {
-		/* one shot mode */
-		cfg |= FIMC_REG_CIIMGCPT_CPT_FREN_ENABLE |
-			FIMC_REG_CIIMGCPT_IMGCPTEN;
-	} else {
-		/* Continuous frame capture mode (freerun). */
-		cfg &= ~(FIMC_REG_CIIMGCPT_CPT_FREN_ENABLE |
-			 FIMC_REG_CIIMGCPT_CPT_FRMOD_CNT);
-		cfg |= FIMC_REG_CIIMGCPT_IMGCPTEN;
-	}
+	cfg = readl(dev->regs + FIMC_REG_CIIMGCPT);
+	cfg |= FIMC_REG_CIIMGCPT_CPT_FREN_ENABLE;
 
 	if (ctx->scaler.enabled)
 		cfg |= FIMC_REG_CIIMGCPT_IMGCPTEN_SC;
+	else
+		cfg &= FIMC_REG_CIIMGCPT_IMGCPTEN_SC;
 
 	cfg |= FIMC_REG_CIIMGCPT_IMGCPTEN;
+	writel(cfg, dev->regs + FIMC_REG_CIIMGCPT);
+}
+
+void fimc_hw_disable_capture(struct fimc_dev *dev)
+{
+	u32 cfg = readl(dev->regs + FIMC_REG_CIIMGCPT);
+	cfg &= ~(FIMC_REG_CIIMGCPT_IMGCPTEN |
+		 FIMC_REG_CIIMGCPT_IMGCPTEN_SC);
 	writel(cfg, dev->regs + FIMC_REG_CIIMGCPT);
 }
 
@@ -553,7 +554,7 @@ void fimc_hw_set_output_addr(struct fimc_dev *dev,
 }
 
 int fimc_hw_set_camera_polarity(struct fimc_dev *fimc,
-				struct s5p_fimc_isp_info *cam)
+				struct fimc_source_info *cam)
 {
 	u32 cfg = readl(fimc->regs + FIMC_REG_CIGCTRL);
 
@@ -595,14 +596,15 @@ static const struct mbus_pixfmt_desc pix_desc[] = {
 };
 
 int fimc_hw_set_camera_source(struct fimc_dev *fimc,
-			      struct s5p_fimc_isp_info *cam)
+			      struct fimc_source_info *source)
 {
 	struct fimc_frame *f = &fimc->vid_cap.ctx->s_frame;
-	u32 cfg = 0;
-	u32 bus_width;
+	u32 bus_width, cfg = 0;
 	int i;
 
-	if (cam->bus_type == FIMC_ITU_601 || cam->bus_type == FIMC_ITU_656) {
+	switch (source->fimc_bus_type) {
+	case FIMC_BUS_TYPE_ITU_601:
+	case FIMC_BUS_TYPE_ITU_656:
 		for (i = 0; i < ARRAY_SIZE(pix_desc); i++) {
 			if (fimc->vid_cap.mf.code == pix_desc[i].pixelcode) {
 				cfg = pix_desc[i].cisrcfmt;
@@ -618,15 +620,17 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 			return -EINVAL;
 		}
 
-		if (cam->bus_type == FIMC_ITU_601) {
+		if (source->fimc_bus_type == FIMC_BUS_TYPE_ITU_601) {
 			if (bus_width == 8)
 				cfg |= FIMC_REG_CISRCFMT_ITU601_8BIT;
 			else if (bus_width == 16)
 				cfg |= FIMC_REG_CISRCFMT_ITU601_16BIT;
 		} /* else defaults to ITU-R BT.656 8-bit */
-	} else if (cam->bus_type == FIMC_MIPI_CSI2) {
+		break;
+	case FIMC_BUS_TYPE_MIPI_CSI2:
 		if (fimc_fmt_is_user_defined(f->fmt->color))
 			cfg |= FIMC_REG_CISRCFMT_ITU601_8BIT;
+		break;
 	}
 
 	cfg |= (f->o_width << 16) | f->o_height;
@@ -654,7 +658,7 @@ void fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f)
 }
 
 int fimc_hw_set_camera_type(struct fimc_dev *fimc,
-			    struct s5p_fimc_isp_info *cam)
+			    struct fimc_source_info *source)
 {
 	u32 cfg, tmp;
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
@@ -667,11 +671,11 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 		FIMC_REG_CIGCTRL_SELCAM_MIPI | FIMC_REG_CIGCTRL_CAMIF_SELWB |
 		FIMC_REG_CIGCTRL_SELCAM_MIPI_A | FIMC_REG_CIGCTRL_CAM_JPEG);
 
-	switch (cam->bus_type) {
-	case FIMC_MIPI_CSI2:
+	switch (source->fimc_bus_type) {
+	case FIMC_BUS_TYPE_MIPI_CSI2:
 		cfg |= FIMC_REG_CIGCTRL_SELCAM_MIPI;
 
-		if (cam->mux_id == 0)
+		if (source->mux_id == 0)
 			cfg |= FIMC_REG_CIGCTRL_SELCAM_MIPI_A;
 
 		/* TODO: add remaining supported formats. */
@@ -694,15 +698,16 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 
 		writel(tmp, fimc->regs + FIMC_REG_CSIIMGFMT);
 		break;
-	case FIMC_ITU_601...FIMC_ITU_656:
-		if (cam->mux_id == 0) /* ITU-A, ITU-B: 0, 1 */
+	case FIMC_BUS_TYPE_ITU_601...FIMC_BUS_TYPE_ITU_656:
+		if (source->mux_id == 0) /* ITU-A, ITU-B: 0, 1 */
 			cfg |= FIMC_REG_CIGCTRL_SELCAM_ITU_A;
 		break;
-	case FIMC_LCD_WB:
+	case FIMC_BUS_TYPE_LCD_WRITEBACK_A:
 		cfg |= FIMC_REG_CIGCTRL_CAMIF_SELWB;
 		break;
 	default:
-		v4l2_err(&vid_cap->vfd, "Invalid camera bus type selected\n");
+		v4l2_err(&vid_cap->vfd, "Invalid FIMC bus type selected: %d\n",
+			 source->fimc_bus_type);
 		return -EINVAL;
 	}
 	writel(cfg, fimc->regs + FIMC_REG_CIGCTRL);
@@ -737,13 +742,6 @@ void fimc_hw_activate_input_dma(struct fimc_dev *dev, bool on)
 	writel(cfg, dev->regs + FIMC_REG_MSCTRL);
 }
 
-void fimc_hw_dis_capture(struct fimc_dev *dev)
-{
-	u32 cfg = readl(dev->regs + FIMC_REG_CIIMGCPT);
-	cfg &= ~(FIMC_REG_CIIMGCPT_IMGCPTEN | FIMC_REG_CIIMGCPT_IMGCPTEN_SC);
-	writel(cfg, dev->regs + FIMC_REG_CIIMGCPT);
-}
-
 /* Return an index to the buffer actually being written. */
 s32 fimc_hw_get_frame_index(struct fimc_dev *dev)
 {
@@ -776,13 +774,13 @@ s32 fimc_hw_get_prev_frame_index(struct fimc_dev *dev)
 void fimc_activate_capture(struct fimc_ctx *ctx)
 {
 	fimc_hw_enable_scaler(ctx->fimc_dev, ctx->scaler.enabled);
-	fimc_hw_en_capture(ctx);
+	fimc_hw_enable_capture(ctx);
 }
 
 void fimc_deactivate_capture(struct fimc_dev *fimc)
 {
 	fimc_hw_en_lastirq(fimc, true);
-	fimc_hw_dis_capture(fimc);
+	fimc_hw_disable_capture(fimc);
 	fimc_hw_enable_scaler(fimc, false);
 	fimc_hw_en_lastirq(fimc, false);
 }

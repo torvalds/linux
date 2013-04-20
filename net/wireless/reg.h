@@ -16,10 +16,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-extern const struct ieee80211_regdomain *cfg80211_regdomain;
+extern const struct ieee80211_regdomain __rcu *cfg80211_regdomain;
 
 bool is_world_regdom(const char *alpha2);
-bool reg_is_valid_request(const char *alpha2);
 bool reg_supported_dfs_region(u8 dfs_region);
 
 int regulatory_hint_user(const char *alpha2,
@@ -55,8 +54,8 @@ bool reg_last_request_cell_base(void);
  * set the wiphy->disable_beacon_hints to true.
  */
 int regulatory_hint_found_beacon(struct wiphy *wiphy,
-					struct ieee80211_channel *beacon_chan,
-					gfp_t gfp);
+				 struct ieee80211_channel *beacon_chan,
+				 gfp_t gfp);
 
 /**
  * regulatory_hint_11d - hints a country IE as a regulatory domain

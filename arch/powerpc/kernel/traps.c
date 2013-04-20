@@ -58,6 +58,7 @@
 #include <asm/rio.h>
 #include <asm/fadump.h>
 #include <asm/switch_to.h>
+#include <asm/tm.h>
 #include <asm/debug.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
@@ -66,7 +67,7 @@ int (*__debugger_ipi)(struct pt_regs *regs) __read_mostly;
 int (*__debugger_bpt)(struct pt_regs *regs) __read_mostly;
 int (*__debugger_sstep)(struct pt_regs *regs) __read_mostly;
 int (*__debugger_iabr_match)(struct pt_regs *regs) __read_mostly;
-int (*__debugger_dabr_match)(struct pt_regs *regs) __read_mostly;
+int (*__debugger_break_match)(struct pt_regs *regs) __read_mostly;
 int (*__debugger_fault_handler)(struct pt_regs *regs) __read_mostly;
 
 EXPORT_SYMBOL(__debugger);
@@ -74,8 +75,15 @@ EXPORT_SYMBOL(__debugger_ipi);
 EXPORT_SYMBOL(__debugger_bpt);
 EXPORT_SYMBOL(__debugger_sstep);
 EXPORT_SYMBOL(__debugger_iabr_match);
-EXPORT_SYMBOL(__debugger_dabr_match);
+EXPORT_SYMBOL(__debugger_break_match);
 EXPORT_SYMBOL(__debugger_fault_handler);
+#endif
+
+/* Transactional Memory trap debug */
+#ifdef TM_DEBUG_SW
+#define TM_DEBUG(x...) printk(KERN_INFO x)
+#else
+#define TM_DEBUG(x...) do { } while(0)
 #endif
 
 /*
@@ -138,7 +146,7 @@ static void __kprobes oops_end(unsigned long flags, struct pt_regs *regs,
 {
 	bust_spinlocks(0);
 	die_owner = -1;
-	add_taint(TAINT_DIE);
+	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 	die_nest_count--;
 	oops_exit();
 	printk("\n");
@@ -350,6 +358,7 @@ static inline int check_io_access(struct pt_regs *regs)
    exception is in the MSR. */
 #define get_reason(regs)	((regs)->msr)
 #define get_mc_reason(regs)	((regs)->msr)
+#define REASON_TM		0x200000
 #define REASON_FP		0x100000
 #define REASON_ILLEGAL		0x80000
 #define REASON_PRIVILEGED	0x40000
@@ -1020,6 +1029,38 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 		_exception(SIGTRAP, regs, TRAP_BRKPT, regs->nip);
 		return;
 	}
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (reason & REASON_TM) {
+		/* This is a TM "Bad Thing Exception" program check.
+		 * This occurs when:
+		 * -  An rfid/hrfid/mtmsrd attempts to cause an illegal
+		 *    transition in TM states.
+		 * -  A trechkpt is attempted when transactional.
+		 * -  A treclaim is attempted when non transactional.
+		 * -  A tend is illegally attempted.
+		 * -  writing a TM SPR when transactional.
+		 */
+		if (!user_mode(regs) &&
+		    report_bug(regs->nip, regs) == BUG_TRAP_TYPE_WARN) {
+			regs->nip += 4;
+			return;
+		}
+		/* If usermode caused this, it's done something illegal and
+		 * gets a SIGILL slap on the wrist.  We call it an illegal
+		 * operand to distinguish from the instruction just being bad
+		 * (e.g. executing a 'tend' on a CPU without TM!); it's an
+		 * illegal /placement/ of a valid instruction.
+		 */
+		if (user_mode(regs)) {
+			_exception(SIGILL, regs, ILL_ILLOPN, regs->nip);
+			return;
+		} else {
+			printk(KERN_EMERG "Unexpected TM Bad Thing exception "
+			       "at %lx (msr 0x%x)\n", regs->nip, reason);
+			die("Unrecoverable exception", regs, SIGABRT);
+		}
+	}
+#endif
 
 	/* We restore the interrupt state now */
 	if (!arch_irq_disabled_regs(regs))
@@ -1159,6 +1200,109 @@ void vsx_unavailable_exception(struct pt_regs *regs)
 			"%lx at %lx\n", regs->trap, regs->nip);
 	die("Unrecoverable VSX Unavailable Exception", regs, SIGABRT);
 }
+
+void tm_unavailable_exception(struct pt_regs *regs)
+{
+	/* We restore the interrupt state now */
+	if (!arch_irq_disabled_regs(regs))
+		local_irq_enable();
+
+	/* Currently we never expect a TMU exception.  Catch
+	 * this and kill the process!
+	 */
+	printk(KERN_EMERG "Unexpected TM unavailable exception at %lx "
+	       "(msr %lx)\n",
+	       regs->nip, regs->msr);
+
+	if (user_mode(regs)) {
+		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
+		return;
+	}
+
+	die("Unexpected TM unavailable exception", regs, SIGABRT);
+}
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+
+extern void do_load_up_fpu(struct pt_regs *regs);
+
+void fp_unavailable_tm(struct pt_regs *regs)
+{
+	/* Note:  This does not handle any kind of FP laziness. */
+
+	TM_DEBUG("FP Unavailable trap whilst transactional at 0x%lx, MSR=%lx\n",
+		 regs->nip, regs->msr);
+	tm_enable();
+
+        /* We can only have got here if the task started using FP after
+         * beginning the transaction.  So, the transactional regs are just a
+         * copy of the checkpointed ones.  But, we still need to recheckpoint
+         * as we're enabling FP for the process; it will return, abort the
+         * transaction, and probably retry but now with FP enabled.  So the
+         * checkpointed FP registers need to be loaded.
+	 */
+	tm_reclaim(&current->thread, current->thread.regs->msr,
+		   TM_CAUSE_FAC_UNAV);
+	/* Reclaim didn't save out any FPRs to transact_fprs. */
+
+	/* Enable FP for the task: */
+	regs->msr |= (MSR_FP | current->thread.fpexc_mode);
+
+	/* This loads and recheckpoints the FP registers from
+	 * thread.fpr[].  They will remain in registers after the
+	 * checkpoint so we don't need to reload them after.
+	 */
+	tm_recheckpoint(&current->thread, regs->msr);
+}
+
+#ifdef CONFIG_ALTIVEC
+extern void do_load_up_altivec(struct pt_regs *regs);
+
+void altivec_unavailable_tm(struct pt_regs *regs)
+{
+	/* See the comments in fp_unavailable_tm().  This function operates
+	 * the same way.
+	 */
+
+	TM_DEBUG("Vector Unavailable trap whilst transactional at 0x%lx,"
+		 "MSR=%lx\n",
+		 regs->nip, regs->msr);
+	tm_enable();
+	tm_reclaim(&current->thread, current->thread.regs->msr,
+		   TM_CAUSE_FAC_UNAV);
+	regs->msr |= MSR_VEC;
+	tm_recheckpoint(&current->thread, regs->msr);
+	current->thread.used_vr = 1;
+}
+#endif
+
+#ifdef CONFIG_VSX
+void vsx_unavailable_tm(struct pt_regs *regs)
+{
+	/* See the comments in fp_unavailable_tm().  This works similarly,
+	 * though we're loading both FP and VEC registers in here.
+	 *
+	 * If FP isn't in use, load FP regs.  If VEC isn't in use, load VEC
+	 * regs.  Either way, set MSR_VSX.
+	 */
+
+	TM_DEBUG("VSX Unavailable trap whilst transactional at 0x%lx,"
+		 "MSR=%lx\n",
+		 regs->nip, regs->msr);
+
+	tm_enable();
+	/* This reclaims FP and/or VR regs if they're already enabled */
+	tm_reclaim(&current->thread, current->thread.regs->msr,
+		   TM_CAUSE_FAC_UNAV);
+
+	regs->msr |= MSR_VEC | MSR_FP | current->thread.fpexc_mode |
+		MSR_VSX;
+	/* This loads & recheckpoints FP and VRs. */
+	tm_recheckpoint(&current->thread, regs->msr);
+	current->thread.used_vsr = 1;
+}
+#endif
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 void performance_monitor_exception(struct pt_regs *regs)
 {
@@ -1515,7 +1659,7 @@ void unrecoverable_exception(struct pt_regs *regs)
 	die("Unrecoverable exception", regs, SIGABRT);
 }
 
-#ifdef CONFIG_BOOKE_WDT
+#if defined(CONFIG_BOOKE_WDT) || defined(CONFIG_40x)
 /*
  * Default handler for a Watchdog exception,
  * spins until a reboot occurs

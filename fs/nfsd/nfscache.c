@@ -9,22 +9,22 @@
  */
 
 #include <linux/slab.h>
+#include <linux/sunrpc/addr.h>
+#include <linux/highmem.h>
+#include <net/checksum.h>
 
 #include "nfsd.h"
 #include "cache.h"
 
-/* Size of reply cache. Common values are:
- * 4.3BSD:	128
- * 4.4BSD:	256
- * Solaris2:	1024
- * DEC Unix:	512-4096
- */
-#define CACHESIZE		1024
+#define NFSDDBG_FACILITY	NFSDDBG_REPCACHE
+
 #define HASHSIZE		64
 
 static struct hlist_head *	cache_hash;
 static struct list_head 	lru_head;
-static int			cache_disabled = 1;
+static struct kmem_cache	*drc_slab;
+static unsigned int		num_drc_entries;
+static unsigned int		max_drc_entries;
 
 /*
  * Calculate the hash index from an XID.
@@ -37,6 +37,14 @@ static inline u32 request_hash(u32 xid)
 }
 
 static int	nfsd_cache_append(struct svc_rqst *rqstp, struct kvec *vec);
+static void	cache_cleaner_func(struct work_struct *unused);
+static int 	nfsd_reply_cache_shrink(struct shrinker *shrink,
+					struct shrink_control *sc);
+
+struct shrinker nfsd_reply_cache_shrinker = {
+	.shrink	= nfsd_reply_cache_shrink,
+	.seeks	= 1,
+};
 
 /*
  * locking for the reply cache:
@@ -44,30 +52,87 @@ static int	nfsd_cache_append(struct svc_rqst *rqstp, struct kvec *vec);
  * Otherwise, it when accessing _prev or _next, the lock must be held.
  */
 static DEFINE_SPINLOCK(cache_lock);
+static DECLARE_DELAYED_WORK(cache_cleaner, cache_cleaner_func);
+
+/*
+ * Put a cap on the size of the DRC based on the amount of available
+ * low memory in the machine.
+ *
+ *  64MB:    8192
+ * 128MB:   11585
+ * 256MB:   16384
+ * 512MB:   23170
+ *   1GB:   32768
+ *   2GB:   46340
+ *   4GB:   65536
+ *   8GB:   92681
+ *  16GB:  131072
+ *
+ * ...with a hard cap of 256k entries. In the worst case, each entry will be
+ * ~1k, so the above numbers should give a rough max of the amount of memory
+ * used in k.
+ */
+static unsigned int
+nfsd_cache_size_limit(void)
+{
+	unsigned int limit;
+	unsigned long low_pages = totalram_pages - totalhigh_pages;
+
+	limit = (16 * int_sqrt(low_pages)) << (PAGE_SHIFT-10);
+	return min_t(unsigned int, limit, 256*1024);
+}
+
+static struct svc_cacherep *
+nfsd_reply_cache_alloc(void)
+{
+	struct svc_cacherep	*rp;
+
+	rp = kmem_cache_alloc(drc_slab, GFP_KERNEL);
+	if (rp) {
+		rp->c_state = RC_UNUSED;
+		rp->c_type = RC_NOCACHE;
+		INIT_LIST_HEAD(&rp->c_lru);
+		INIT_HLIST_NODE(&rp->c_hash);
+	}
+	return rp;
+}
+
+static void
+nfsd_reply_cache_free_locked(struct svc_cacherep *rp)
+{
+	if (rp->c_type == RC_REPLBUFF)
+		kfree(rp->c_replvec.iov_base);
+	if (!hlist_unhashed(&rp->c_hash))
+		hlist_del(&rp->c_hash);
+	list_del(&rp->c_lru);
+	--num_drc_entries;
+	kmem_cache_free(drc_slab, rp);
+}
+
+static void
+nfsd_reply_cache_free(struct svc_cacherep *rp)
+{
+	spin_lock(&cache_lock);
+	nfsd_reply_cache_free_locked(rp);
+	spin_unlock(&cache_lock);
+}
 
 int nfsd_reply_cache_init(void)
 {
-	struct svc_cacherep	*rp;
-	int			i;
-
 	INIT_LIST_HEAD(&lru_head);
-	i = CACHESIZE;
-	while (i) {
-		rp = kmalloc(sizeof(*rp), GFP_KERNEL);
-		if (!rp)
-			goto out_nomem;
-		list_add(&rp->c_lru, &lru_head);
-		rp->c_state = RC_UNUSED;
-		rp->c_type = RC_NOCACHE;
-		INIT_HLIST_NODE(&rp->c_hash);
-		i--;
-	}
+	max_drc_entries = nfsd_cache_size_limit();
+	num_drc_entries = 0;
 
-	cache_hash = kcalloc (HASHSIZE, sizeof(struct hlist_head), GFP_KERNEL);
+	register_shrinker(&nfsd_reply_cache_shrinker);
+	drc_slab = kmem_cache_create("nfsd_drc", sizeof(struct svc_cacherep),
+					0, 0, NULL);
+	if (!drc_slab)
+		goto out_nomem;
+
+	cache_hash = kcalloc(HASHSIZE, sizeof(struct hlist_head), GFP_KERNEL);
 	if (!cache_hash)
 		goto out_nomem;
 
-	cache_disabled = 0;
 	return 0;
 out_nomem:
 	printk(KERN_ERR "nfsd: failed to allocate reply cache\n");
@@ -79,27 +144,33 @@ void nfsd_reply_cache_shutdown(void)
 {
 	struct svc_cacherep	*rp;
 
+	unregister_shrinker(&nfsd_reply_cache_shrinker);
+	cancel_delayed_work_sync(&cache_cleaner);
+
 	while (!list_empty(&lru_head)) {
 		rp = list_entry(lru_head.next, struct svc_cacherep, c_lru);
-		if (rp->c_state == RC_DONE && rp->c_type == RC_REPLBUFF)
-			kfree(rp->c_replvec.iov_base);
-		list_del(&rp->c_lru);
-		kfree(rp);
+		nfsd_reply_cache_free_locked(rp);
 	}
-
-	cache_disabled = 1;
 
 	kfree (cache_hash);
 	cache_hash = NULL;
+
+	if (drc_slab) {
+		kmem_cache_destroy(drc_slab);
+		drc_slab = NULL;
+	}
 }
 
 /*
- * Move cache entry to end of LRU list
+ * Move cache entry to end of LRU list, and queue the cleaner to run if it's
+ * not already scheduled.
  */
 static void
 lru_put_end(struct svc_cacherep *rp)
 {
+	rp->c_timestamp = jiffies;
 	list_move_tail(&rp->c_lru, &lru_head);
+	schedule_delayed_work(&cache_cleaner, RC_EXPIRE);
 }
 
 /*
@@ -112,83 +183,214 @@ hash_refile(struct svc_cacherep *rp)
 	hlist_add_head(&rp->c_hash, cache_hash + request_hash(rp->c_xid));
 }
 
-/*
- * Try to find an entry matching the current call in the cache. When none
- * is found, we grab the oldest unlocked entry off the LRU list.
- * Note that no operation within the loop may sleep.
- */
-int
-nfsd_cache_lookup(struct svc_rqst *rqstp)
+static inline bool
+nfsd_cache_entry_expired(struct svc_cacherep *rp)
 {
-	struct hlist_node	*hn;
-	struct hlist_head 	*rh;
+	return rp->c_state != RC_INPROG &&
+	       time_after(jiffies, rp->c_timestamp + RC_EXPIRE);
+}
+
+/*
+ * Walk the LRU list and prune off entries that are older than RC_EXPIRE.
+ * Also prune the oldest ones when the total exceeds the max number of entries.
+ */
+static void
+prune_cache_entries(void)
+{
+	struct svc_cacherep *rp, *tmp;
+
+	list_for_each_entry_safe(rp, tmp, &lru_head, c_lru) {
+		if (!nfsd_cache_entry_expired(rp) &&
+		    num_drc_entries <= max_drc_entries)
+			break;
+		nfsd_reply_cache_free_locked(rp);
+	}
+
+	/*
+	 * Conditionally rearm the job. If we cleaned out the list, then
+	 * cancel any pending run (since there won't be any work to do).
+	 * Otherwise, we rearm the job or modify the existing one to run in
+	 * RC_EXPIRE since we just ran the pruner.
+	 */
+	if (list_empty(&lru_head))
+		cancel_delayed_work(&cache_cleaner);
+	else
+		mod_delayed_work(system_wq, &cache_cleaner, RC_EXPIRE);
+}
+
+static void
+cache_cleaner_func(struct work_struct *unused)
+{
+	spin_lock(&cache_lock);
+	prune_cache_entries();
+	spin_unlock(&cache_lock);
+}
+
+static int
+nfsd_reply_cache_shrink(struct shrinker *shrink, struct shrink_control *sc)
+{
+	unsigned int num;
+
+	spin_lock(&cache_lock);
+	if (sc->nr_to_scan)
+		prune_cache_entries();
+	num = num_drc_entries;
+	spin_unlock(&cache_lock);
+
+	return num;
+}
+
+/*
+ * Walk an xdr_buf and get a CRC for at most the first RC_CSUMLEN bytes
+ */
+static __wsum
+nfsd_cache_csum(struct svc_rqst *rqstp)
+{
+	int idx;
+	unsigned int base;
+	__wsum csum;
+	struct xdr_buf *buf = &rqstp->rq_arg;
+	const unsigned char *p = buf->head[0].iov_base;
+	size_t csum_len = min_t(size_t, buf->head[0].iov_len + buf->page_len,
+				RC_CSUMLEN);
+	size_t len = min(buf->head[0].iov_len, csum_len);
+
+	/* rq_arg.head first */
+	csum = csum_partial(p, len, 0);
+	csum_len -= len;
+
+	/* Continue into page array */
+	idx = buf->page_base / PAGE_SIZE;
+	base = buf->page_base & ~PAGE_MASK;
+	while (csum_len) {
+		p = page_address(buf->pages[idx]) + base;
+		len = min_t(size_t, PAGE_SIZE - base, csum_len);
+		csum = csum_partial(p, len, csum);
+		csum_len -= len;
+		base = 0;
+		++idx;
+	}
+	return csum;
+}
+
+/*
+ * Search the request hash for an entry that matches the given rqstp.
+ * Must be called with cache_lock held. Returns the found entry or
+ * NULL on failure.
+ */
+static struct svc_cacherep *
+nfsd_cache_search(struct svc_rqst *rqstp, __wsum csum)
+{
 	struct svc_cacherep	*rp;
+	struct hlist_head 	*rh;
 	__be32			xid = rqstp->rq_xid;
 	u32			proto =  rqstp->rq_prot,
 				vers = rqstp->rq_vers,
 				proc = rqstp->rq_proc;
+
+	rh = &cache_hash[request_hash(xid)];
+	hlist_for_each_entry(rp, rh, c_hash) {
+		if (xid == rp->c_xid && proc == rp->c_proc &&
+		    proto == rp->c_prot && vers == rp->c_vers &&
+		    rqstp->rq_arg.len == rp->c_len && csum == rp->c_csum &&
+		    rpc_cmp_addr(svc_addr(rqstp), (struct sockaddr *)&rp->c_addr) &&
+		    rpc_get_port(svc_addr(rqstp)) == rpc_get_port((struct sockaddr *)&rp->c_addr))
+			return rp;
+	}
+	return NULL;
+}
+
+/*
+ * Try to find an entry matching the current call in the cache. When none
+ * is found, we try to grab the oldest expired entry off the LRU list. If
+ * a suitable one isn't there, then drop the cache_lock and allocate a
+ * new one, then search again in case one got inserted while this thread
+ * didn't hold the lock.
+ */
+int
+nfsd_cache_lookup(struct svc_rqst *rqstp)
+{
+	struct svc_cacherep	*rp, *found;
+	__be32			xid = rqstp->rq_xid;
+	u32			proto =  rqstp->rq_prot,
+				vers = rqstp->rq_vers,
+				proc = rqstp->rq_proc;
+	__wsum			csum;
 	unsigned long		age;
 	int type = rqstp->rq_cachetype;
 	int rtn;
 
 	rqstp->rq_cacherep = NULL;
-	if (cache_disabled || type == RC_NOCACHE) {
+	if (type == RC_NOCACHE) {
 		nfsdstats.rcnocache++;
 		return RC_DOIT;
 	}
 
+	csum = nfsd_cache_csum(rqstp);
+
 	spin_lock(&cache_lock);
 	rtn = RC_DOIT;
 
-	rh = &cache_hash[request_hash(xid)];
-	hlist_for_each_entry(rp, hn, rh, c_hash) {
-		if (rp->c_state != RC_UNUSED &&
-		    xid == rp->c_xid && proc == rp->c_proc &&
-		    proto == rp->c_prot && vers == rp->c_vers &&
-		    time_before(jiffies, rp->c_timestamp + 120*HZ) &&
-		    memcmp((char*)&rqstp->rq_addr, (char*)&rp->c_addr, sizeof(rp->c_addr))==0) {
-			nfsdstats.rchits++;
-			goto found_entry;
+	rp = nfsd_cache_search(rqstp, csum);
+	if (rp)
+		goto found_entry;
+
+	/* Try to use the first entry on the LRU */
+	if (!list_empty(&lru_head)) {
+		rp = list_first_entry(&lru_head, struct svc_cacherep, c_lru);
+		if (nfsd_cache_entry_expired(rp) ||
+		    num_drc_entries >= max_drc_entries) {
+			lru_put_end(rp);
+			prune_cache_entries();
+			goto setup_entry;
 		}
 	}
+
+	/* Drop the lock and allocate a new entry */
+	spin_unlock(&cache_lock);
+	rp = nfsd_reply_cache_alloc();
+	if (!rp) {
+		dprintk("nfsd: unable to allocate DRC entry!\n");
+		return RC_DOIT;
+	}
+	spin_lock(&cache_lock);
+	++num_drc_entries;
+
+	/*
+	 * Must search again just in case someone inserted one
+	 * after we dropped the lock above.
+	 */
+	found = nfsd_cache_search(rqstp, csum);
+	if (found) {
+		nfsd_reply_cache_free_locked(rp);
+		rp = found;
+		goto found_entry;
+	}
+
+	/*
+	 * We're keeping the one we just allocated. Are we now over the
+	 * limit? Prune one off the tip of the LRU in trade for the one we
+	 * just allocated if so.
+	 */
+	if (num_drc_entries >= max_drc_entries)
+		nfsd_reply_cache_free_locked(list_first_entry(&lru_head,
+						struct svc_cacherep, c_lru));
+
+setup_entry:
 	nfsdstats.rcmisses++;
-
-	/* This loop shouldn't take more than a few iterations normally */
-	{
-	int	safe = 0;
-	list_for_each_entry(rp, &lru_head, c_lru) {
-		if (rp->c_state != RC_INPROG)
-			break;
-		if (safe++ > CACHESIZE) {
-			printk("nfsd: loop in repcache LRU list\n");
-			cache_disabled = 1;
-			goto out;
-		}
-	}
-	}
-
-	/* All entries on the LRU are in-progress. This should not happen */
-	if (&rp->c_lru == &lru_head) {
-		static int	complaints;
-
-		printk(KERN_WARNING "nfsd: all repcache entries locked!\n");
-		if (++complaints > 5) {
-			printk(KERN_WARNING "nfsd: disabling repcache.\n");
-			cache_disabled = 1;
-		}
-		goto out;
-	}
-
 	rqstp->rq_cacherep = rp;
 	rp->c_state = RC_INPROG;
 	rp->c_xid = xid;
 	rp->c_proc = proc;
-	memcpy(&rp->c_addr, svc_addr_in(rqstp), sizeof(rp->c_addr));
+	rpc_copy_addr((struct sockaddr *)&rp->c_addr, svc_addr(rqstp));
+	rpc_set_port((struct sockaddr *)&rp->c_addr, rpc_get_port(svc_addr(rqstp)));
 	rp->c_prot = proto;
 	rp->c_vers = vers;
-	rp->c_timestamp = jiffies;
+	rp->c_len = rqstp->rq_arg.len;
+	rp->c_csum = csum;
 
 	hash_refile(rp);
+	lru_put_end(rp);
 
 	/* release any buffer */
 	if (rp->c_type == RC_REPLBUFF) {
@@ -201,9 +403,9 @@ nfsd_cache_lookup(struct svc_rqst *rqstp)
 	return rtn;
 
 found_entry:
+	nfsdstats.rchits++;
 	/* We found a matching entry which is either in progress or done. */
 	age = jiffies - rp->c_timestamp;
-	rp->c_timestamp = jiffies;
 	lru_put_end(rp);
 
 	rtn = RC_DROPIT;
@@ -232,7 +434,7 @@ found_entry:
 		break;
 	default:
 		printk(KERN_WARNING "nfsd: bad repcache type %d\n", rp->c_type);
-		rp->c_state = RC_UNUSED;
+		nfsd_reply_cache_free_locked(rp);
 	}
 
 	goto out;
@@ -257,11 +459,11 @@ found_entry:
 void
 nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 {
-	struct svc_cacherep *rp;
+	struct svc_cacherep *rp = rqstp->rq_cacherep;
 	struct kvec	*resv = &rqstp->rq_res.head[0], *cachv;
 	int		len;
 
-	if (!(rp = rqstp->rq_cacherep) || cache_disabled)
+	if (!rp)
 		return;
 
 	len = resv->iov_len - ((char*)statp - (char*)resv->iov_base);
@@ -269,7 +471,7 @@ nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 
 	/* Don't cache excessive amounts of data and XDR failures */
 	if (!statp || len > (256 >> 2)) {
-		rp->c_state = RC_UNUSED;
+		nfsd_reply_cache_free(rp);
 		return;
 	}
 
@@ -283,21 +485,21 @@ nfsd_cache_update(struct svc_rqst *rqstp, int cachetype, __be32 *statp)
 		cachv = &rp->c_replvec;
 		cachv->iov_base = kmalloc(len << 2, GFP_KERNEL);
 		if (!cachv->iov_base) {
-			spin_lock(&cache_lock);
-			rp->c_state = RC_UNUSED;
-			spin_unlock(&cache_lock);
+			nfsd_reply_cache_free(rp);
 			return;
 		}
 		cachv->iov_len = len << 2;
 		memcpy(cachv->iov_base, statp, len << 2);
 		break;
+	case RC_NOCACHE:
+		nfsd_reply_cache_free(rp);
+		return;
 	}
 	spin_lock(&cache_lock);
 	lru_put_end(rp);
 	rp->c_secure = rqstp->rq_secure;
 	rp->c_type = cachetype;
 	rp->c_state = RC_DONE;
-	rp->c_timestamp = jiffies;
 	spin_unlock(&cache_lock);
 	return;
 }

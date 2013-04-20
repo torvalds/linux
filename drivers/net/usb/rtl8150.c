@@ -776,9 +776,9 @@ static void rtl8150_get_drvinfo(struct net_device *netdev, struct ethtool_drvinf
 {
 	rtl8150_t *dev = netdev_priv(netdev);
 
-	strncpy(info->driver, driver_name, ETHTOOL_BUSINFO_LEN);
-	strncpy(info->version, DRIVER_VERSION, ETHTOOL_BUSINFO_LEN);
-	usb_make_path(dev->udev, info->bus_info, sizeof info->bus_info);
+	strlcpy(info->driver, driver_name, sizeof(info->driver));
+	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
+	usb_make_path(dev->udev, info->bus_info, sizeof(info->bus_info));
 }
 
 static int rtl8150_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)

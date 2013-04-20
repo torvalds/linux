@@ -750,12 +750,37 @@ static void ixgbevf_set_itr(struct ixgbevf_q_vector *q_vector)
 static irqreturn_t ixgbevf_msix_other(int irq, void *data)
 {
 	struct ixgbevf_adapter *adapter = data;
+	struct pci_dev *pdev = adapter->pdev;
 	struct ixgbe_hw *hw = &adapter->hw;
+	u32 msg;
+	bool got_ack = false;
 
 	hw->mac.get_link_status = 1;
+	if (!hw->mbx.ops.check_for_ack(hw))
+		got_ack = true;
 
-	if (!test_bit(__IXGBEVF_DOWN, &adapter->state))
-		mod_timer(&adapter->watchdog_timer, jiffies);
+	if (!hw->mbx.ops.check_for_msg(hw)) {
+		hw->mbx.ops.read(hw, &msg, 1);
+
+		if ((msg & IXGBE_MBVFICR_VFREQ_MASK) == IXGBE_PF_CONTROL_MSG) {
+			mod_timer(&adapter->watchdog_timer,
+				  round_jiffies(jiffies + 1));
+			adapter->link_up = false;
+		}
+
+		if (msg & IXGBE_VT_MSGTYPE_NACK)
+			dev_info(&pdev->dev,
+				 "Last Request of type %2.2x to PF Nacked\n",
+				 msg & 0xFF);
+		hw->mbx.v2p_mailbox |= IXGBE_VFMAILBOX_PFSTS;
+	}
+
+	/* checking for the ack clears the PFACK bit.  Place
+	 * it back in the v2p_mailbox cache so that anyone
+	 * polling for an ack will not miss it
+	 */
+	if (got_ack)
+		hw->mbx.v2p_mailbox |= IXGBE_VFMAILBOX_PFACK;
 
 	IXGBE_WRITE_REG(hw, IXGBE_VTEIMS, adapter->eims_other);
 
@@ -919,9 +944,17 @@ free_queue_irqs:
 		free_irq(adapter->msix_entries[vector].vector,
 			 adapter->q_vector[vector]);
 	}
-	pci_disable_msix(adapter->pdev);
-	kfree(adapter->msix_entries);
-	adapter->msix_entries = NULL;
+	/* This failure is non-recoverable - it indicates the system is
+	 * out of MSIX vector resources and the VF driver cannot run
+	 * without them.  Set the number of msix vectors to zero
+	 * indicating that not enough can be allocated.  The error
+	 * will be returned to the user indicating device open failed.
+	 * Any further attempts to force the driver to open will also
+	 * fail.  The only way to recover is to unload the driver and
+	 * reload it again.  If the system has recovered some MSIX
+	 * vectors then it may succeed.
+	 */
+	adapter->num_msix_vectors = 0;
 	return err;
 }
 
@@ -2095,6 +2128,9 @@ void ixgbevf_update_stats(struct ixgbevf_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	int i;
 
+	if (!adapter->link_up)
+		return;
+
 	UPDATE_VF_COUNTER_32bit(IXGBE_VFGPRC, adapter->stats.last_vfgprc,
 				adapter->stats.vfgprc);
 	UPDATE_VF_COUNTER_32bit(IXGBE_VFGPTC, adapter->stats.last_vfgptc,
@@ -2217,9 +2253,23 @@ static void ixgbevf_watchdog_task(struct work_struct *work)
 
 	if (link_up) {
 		if (!netif_carrier_ok(netdev)) {
-			hw_dbg(&adapter->hw, "NIC Link is Up, %u Gbps\n",
-			       (link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
-			       10 : 1);
+			char *link_speed_string;
+			switch (link_speed) {
+			case IXGBE_LINK_SPEED_10GB_FULL:
+				link_speed_string = "10 Gbps";
+				break;
+			case IXGBE_LINK_SPEED_1GB_FULL:
+				link_speed_string = "1 Gbps";
+				break;
+			case IXGBE_LINK_SPEED_100_FULL:
+				link_speed_string = "100 Mbps";
+				break;
+			default:
+				link_speed_string = "unknown speed";
+				break;
+			}
+			dev_info(&adapter->pdev->dev,
+				"NIC Link is Up, %s\n", link_speed_string);
 			netif_carrier_on(netdev);
 			netif_tx_wake_all_queues(netdev);
 		}
@@ -2227,7 +2277,7 @@ static void ixgbevf_watchdog_task(struct work_struct *work)
 		adapter->link_up = false;
 		adapter->link_speed = 0;
 		if (netif_carrier_ok(netdev)) {
-			hw_dbg(&adapter->hw, "NIC Link is Down\n");
+			dev_info(&adapter->pdev->dev, "NIC Link is Down\n");
 			netif_carrier_off(netdev);
 			netif_tx_stop_all_queues(netdev);
 		}
@@ -2530,6 +2580,15 @@ static int ixgbevf_open(struct net_device *netdev)
 	struct ixgbe_hw *hw = &adapter->hw;
 	int err;
 
+	/* A previous failure to open the device because of a lack of
+	 * available MSIX vector resources may have reset the number
+	 * of msix vectors variable to zero.  The only way to recover
+	 * is to unload/reload the driver and hope that the system has
+	 * been able to recover some MSIX vector resources.
+	 */
+	if (!adapter->num_msix_vectors)
+		return -ENOMEM;
+
 	/* disallow open during test */
 	if (test_bit(__IXGBEVF_TESTING, &adapter->state))
 		return -EBUSY;
@@ -2586,7 +2645,6 @@ static int ixgbevf_open(struct net_device *netdev)
 
 err_req_irq:
 	ixgbevf_down(adapter);
-	ixgbevf_free_irq(adapter);
 err_setup_rx:
 	ixgbevf_free_all_rx_resources(adapter);
 err_setup_tx:
@@ -3328,8 +3386,6 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_sw_init;
 
 	/* The HW MAC address was set and/or determined in sw_init */
-	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
-
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		pr_err("invalid MAC address\n");
 		err = -EIO;

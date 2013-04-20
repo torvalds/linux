@@ -156,8 +156,10 @@ int chsc_scm_info(struct chsc_scm_info *scm_area, u64 token);
 
 #ifdef CONFIG_SCM_BUS
 int scm_update_information(void);
+int scm_process_availability_information(void);
 #else /* CONFIG_SCM_BUS */
-#define scm_update_information() 0
+static inline int scm_update_information(void) { return 0; }
+static inline int scm_process_availability_information(void) { return 0; }
 #endif /* CONFIG_SCM_BUS */
 
 

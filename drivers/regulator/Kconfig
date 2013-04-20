@@ -91,6 +91,7 @@ config REGULATOR_AAT2870
 config REGULATOR_ARIZONA
 	tristate "Wolfson Arizona class devices"
 	depends on MFD_ARIZONA
+	depends on SND_SOC
 	help
 	  Support for the regulators found on Wolfson Arizona class
 	  devices.
@@ -276,6 +277,15 @@ config REGULATOR_LP872X
 	select REGMAP_I2C
 	help
 	  This driver supports LP8720/LP8725 PMIC
+
+config REGULATOR_LP8755
+	tristate "TI LP8755 High Performance PMU driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports LP8755 High Performance PMU driver. This
+	  chip contains six step-down DC/DC converters which can support
+	  9 mode multiphase configuration.
 
 config REGULATOR_LP8788
 	bool "TI LP8788 Power Regulators"

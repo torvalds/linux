@@ -49,11 +49,11 @@ static ssize_t pcm_set_impulse_volume(struct device *dev,
 {
 	struct snd_line6_pcm *line6pcm = dev2pcm(dev);
 	int value;
-	int rv;
+	int ret;
 
-	rv = kstrtoint(buf, 10, &value);
-	if (rv < 0)
-		return rv;
+	ret = kstrtoint(buf, 10, &value);
+	if (ret < 0)
+		return ret;
 
 	line6pcm->impulse_volume = value;
 
@@ -81,7 +81,14 @@ static ssize_t pcm_set_impulse_period(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
-	dev2pcm(dev)->impulse_period = simple_strtoul(buf, NULL, 10);
+	int value;
+	int ret;
+
+	ret = kstrtoint(buf, 10, &value);
+	if (ret < 0)
+		return ret;
+
+	dev2pcm(dev)->impulse_period = value;
 	return count;
 }
 
@@ -114,10 +121,7 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 			line6pcm->buffer_in =
 				kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
 					line6pcm->max_packet_size, GFP_KERNEL);
-
 			if (!line6pcm->buffer_in) {
-				dev_err(line6pcm->line6->ifcdev,
-					"cannot malloc capture buffer\n");
 				err = -ENOMEM;
 				goto pcm_acquire_error;
 			}
@@ -153,10 +157,7 @@ int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 			line6pcm->buffer_out =
 				kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
 					line6pcm->max_packet_size, GFP_KERNEL);
-
 			if (!line6pcm->buffer_out) {
-				dev_err(line6pcm->line6->ifcdev,
-					"cannot malloc playback buffer\n");
 				err = -ENOMEM;
 				goto pcm_acquire_error;
 			}
@@ -455,13 +456,12 @@ int line6_init_pcm(struct usb_line6 *line6,
 		ep_write = 0x01;
 		break;
 
-		/* this is for interface_number == 1:
-		   case LINE6_DEVID_TONEPORT_UX2:
-		   case LINE6_DEVID_PODSTUDIO_UX2:
-		   ep_read  = 0x87;
-		   ep_write = 0x00;
-		   break;
-		 */
+	/* this is for interface_number == 1:
+	case LINE6_DEVID_TONEPORT_UX2:
+	case LINE6_DEVID_PODSTUDIO_UX2:
+		ep_read  = 0x87;
+		ep_write = 0x00;
+		break; */
 
 	default:
 		MISSING_CASE;

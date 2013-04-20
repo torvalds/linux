@@ -14,7 +14,7 @@
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-#include <asm/mach-bcm47xx/nvram.h>
+#include <bcm47xx_nvram.h>
 
 /* 10 parts were found on sflash on Netgear WNDR4500 */
 #define BCM47XXPART_MAX_PARTS		12
@@ -59,8 +59,14 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 	uint32_t *buf;
 	size_t bytes_read;
 	uint32_t offset;
-	uint32_t blocksize = 0x10000;
+	uint32_t blocksize = master->erasesize;
 	struct trx_header *trx;
+	int trx_part = -1;
+	int last_trx_part = -1;
+	int possible_nvram_sizes[] = { 0x8000, 0xF000, 0x10000, };
+
+	if (blocksize <= 0x10000)
+		blocksize = 0x10000;
 
 	/* Alloc */
 	parts = kzalloc(sizeof(struct mtd_partition) * BCM47XXPART_MAX_PARTS,
@@ -94,13 +100,6 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			continue;
 		}
 
-		/* Standard NVRAM */
-		if (buf[0x000 / 4] == NVRAM_HEADER) {
-			bcm47xxpart_add_part(&parts[curr_part++], "nvram",
-					     offset, 0);
-			continue;
-		}
-
 		/*
 		 * board_data starts with board_id which differs across boards,
 		 * but we can use 'MPFR' (hopefully) magic at 0x100
@@ -131,6 +130,10 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 		if (buf[0x000 / 4] == TRX_MAGIC) {
 			trx = (struct trx_header *)buf;
 
+			trx_part = curr_part;
+			bcm47xxpart_add_part(&parts[curr_part++], "firmware",
+					     offset, 0);
+
 			i = 0;
 			/* We have LZMA loader if offset[2] points to sth */
 			if (trx->offset[2]) {
@@ -154,6 +157,8 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 					     offset + trx->offset[i], 0);
 			i++;
 
+			last_trx_part = curr_part - 1;
+
 			/*
 			 * We have whole TRX scanned, skip to the next part. Use
 			 * roundown (not roundup), as the loop will increase
@@ -163,17 +168,45 @@ static int bcm47xxpart_parse(struct mtd_info *master,
 			continue;
 		}
 	}
+
+	/* Look for NVRAM at the end of the last block. */
+	for (i = 0; i < ARRAY_SIZE(possible_nvram_sizes); i++) {
+		if (curr_part > BCM47XXPART_MAX_PARTS) {
+			pr_warn("Reached maximum number of partitions, scanning stopped!\n");
+			break;
+		}
+
+		offset = master->size - possible_nvram_sizes[i];
+		if (mtd_read(master, offset, 0x4, &bytes_read,
+			     (uint8_t *)buf) < 0) {
+			pr_err("mtd_read error while reading at offset 0x%X!\n",
+			       offset);
+			continue;
+		}
+
+		/* Standard NVRAM */
+		if (buf[0] == NVRAM_HEADER) {
+			bcm47xxpart_add_part(&parts[curr_part++], "nvram",
+					     master->size - blocksize, 0);
+			break;
+		}
+	}
+
 	kfree(buf);
 
 	/*
 	 * Assume that partitions end at the beginning of the one they are
 	 * followed by.
 	 */
-	for (i = 0; i < curr_part - 1; i++)
-		parts[i].size = parts[i + 1].offset - parts[i].offset;
-	if (curr_part > 0)
-		parts[curr_part - 1].size =
-				master->size - parts[curr_part - 1].offset;
+	for (i = 0; i < curr_part; i++) {
+		u64 next_part_offset = (i < curr_part - 1) ?
+				       parts[i + 1].offset : master->size;
+
+		parts[i].size = next_part_offset - parts[i].offset;
+		if (i == last_trx_part && trx_part >= 0)
+			parts[trx_part].size = next_part_offset -
+					       parts[trx_part].offset;
+	}
 
 	*pparts = parts;
 	return curr_part;

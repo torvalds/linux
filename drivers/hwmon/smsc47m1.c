@@ -326,7 +326,7 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute
 	/* Preserve fan min */
 	tmp = 192 - (old_div * (192 - data->fan_preload[nr])
 		     + new_div / 2) / new_div;
-	data->fan_preload[nr] = SENSORS_LIMIT(tmp, 0, 191);
+	data->fan_preload[nr] = clamp_val(tmp, 0, 191);
 	smsc47m1_write_value(data, SMSC47M1_REG_FAN_PRELOAD[nr],
 			     data->fan_preload[nr]);
 	mutex_unlock(&data->update_lock);

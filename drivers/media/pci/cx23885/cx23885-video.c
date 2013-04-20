@@ -300,7 +300,7 @@ void cx23885_video_wakeup(struct cx23885_dev *dev,
 		if ((s16) (count - buf->count) < 0)
 			break;
 
-		do_gettimeofday(&buf->vb.ts);
+		v4l2_get_timestamp(&buf->vb.ts);
 		dprintk(2, "[%p/%d] wakeup reg=%d buf=%d\n", buf, buf->vb.i,
 			count, buf->count);
 		buf->vb.state = VIDEOBUF_DONE;
@@ -509,7 +509,8 @@ static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1255) ||
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1255_22111) ||
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1850) ||
-		(dev->board == CX23885_BOARD_MYGICA_X8507)) {
+		(dev->board == CX23885_BOARD_MYGICA_X8507) ||
+		(dev->board == CX23885_BOARD_AVERMEDIA_HC81R)) {
 		/* Configure audio routing */
 		v4l2_subdev_call(dev->sd_cx25840, audio, s_routing,
 			INPUT(input)->amux, 0, 0);
@@ -1818,8 +1819,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	spin_lock_init(&dev->slock);
 
 	/* Initialize VBI template */
-	memcpy(&cx23885_vbi_template, &cx23885_video_template,
-		sizeof(cx23885_vbi_template));
+	cx23885_vbi_template = cx23885_video_template;
 	strcpy(cx23885_vbi_template.name, "cx23885-vbi");
 
 	dev->tvnorm = cx23885_video_template.current_norm;
@@ -1870,6 +1870,18 @@ int cx23885_video_register(struct cx23885_dev *dev)
 			if (dev->board == CX23885_BOARD_LEADTEK_WINFAST_PXTV1200) {
 				struct xc2028_ctrl ctrl = {
 					.fname = XC2028_DEFAULT_FIRMWARE,
+					.max_len = 64
+				};
+				struct v4l2_priv_tun_config cfg = {
+					.tuner = dev->tuner_type,
+					.priv = &ctrl
+				};
+				v4l2_subdev_call(sd, tuner, s_config, &cfg);
+			}
+
+			if (dev->board == CX23885_BOARD_AVERMEDIA_HC81R) {
+				struct xc2028_ctrl ctrl = {
+					.fname = "xc3028L-v36.fw",
 					.max_len = 64
 				};
 				struct v4l2_priv_tun_config cfg = {

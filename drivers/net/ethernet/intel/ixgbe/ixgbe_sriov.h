@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -41,12 +41,20 @@ int ixgbe_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting);
 int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 			    int vf, struct ifla_vf_info *ivi);
 void ixgbe_check_vf_rate_limit(struct ixgbe_adapter *adapter);
-void ixgbe_disable_sriov(struct ixgbe_adapter *adapter);
+int ixgbe_disable_sriov(struct ixgbe_adapter *adapter);
 #ifdef CONFIG_PCI_IOV
-void ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
-			const struct ixgbe_info *ii);
+void ixgbe_enable_sriov(struct ixgbe_adapter *adapter);
 #endif
+int ixgbe_pci_sriov_configure(struct pci_dev *dev, int num_vfs);
 
+static inline void ixgbe_set_vmvir(struct ixgbe_adapter *adapter,
+				   u16 vid, u16 qos, u32 vf)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 vmvir = vid | (qos << VLAN_PRIO_SHIFT) | IXGBE_VMVIR_VLANA_DEFAULT;
+
+	IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf), vmvir);
+}
 
 #endif /* _IXGBE_SRIOV_H_ */
 

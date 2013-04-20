@@ -29,7 +29,6 @@
 #include <video/platform_lcd.h>
 #include <video/samsung_fimd.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/irq.h>
@@ -38,7 +37,6 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
-#include <mach/i2c.h>
 #include <mach/regs-gpio.h>
 
 #include <plat/regs-serial.h>
@@ -56,6 +54,7 @@
 #include <plat/sdhci.h>
 
 #include "common.h"
+#include "i2c.h"
 
 #define SMDK6440_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
 				S3C2410_UCON_RXILEVEL |		\
@@ -272,9 +271,8 @@ MACHINE_START(SMDK6440, "SMDK6440")
 	.atag_offset	= 0x100,
 
 	.init_irq	= s5p6440_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.map_io		= smdk6440_map_io,
 	.init_machine	= smdk6440_machine_init,
-	.timer		= &s5p_timer,
+	.init_time	= s5p_timer_init,
 	.restart	= s5p64x0_restart,
 MACHINE_END

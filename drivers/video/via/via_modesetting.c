@@ -30,9 +30,9 @@
 #include "debug.h"
 
 
-void via_set_primary_timing(const struct display_timing *timing)
+void via_set_primary_timing(const struct via_display_timing *timing)
 {
-	struct display_timing raw;
+	struct via_display_timing raw;
 
 	raw.hor_total = timing->hor_total / 8 - 5;
 	raw.hor_addr = timing->hor_addr / 8 - 1;
@@ -88,9 +88,9 @@ void via_set_primary_timing(const struct display_timing *timing)
 	via_write_reg_mask(VIACR, 0x17, 0x80, 0x80);
 }
 
-void via_set_secondary_timing(const struct display_timing *timing)
+void via_set_secondary_timing(const struct via_display_timing *timing)
 {
-	struct display_timing raw;
+	struct via_display_timing raw;
 
 	raw.hor_total = timing->hor_total - 1;
 	raw.hor_addr = timing->hor_addr - 1;

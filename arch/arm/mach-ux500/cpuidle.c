@@ -40,8 +40,10 @@ static inline int ux500_enter_idle(struct cpuidle_device *dev,
 			goto wfi;
 
 		/* decouple the gic from the A9 cores */
-		if (prcmu_gic_decouple())
+		if (prcmu_gic_decouple()) {
+			spin_unlock(&master_lock);
 			goto out;
+		}
 
 		/* If an error occur, we will have to recouple the gic
 		 * manually */

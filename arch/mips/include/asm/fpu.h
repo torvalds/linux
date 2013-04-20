@@ -35,14 +35,14 @@ extern void _restore_fp(struct task_struct *);
 
 #define __enable_fpu()							\
 do {									\
-        set_c0_status(ST0_CU1);						\
-        enable_fpu_hazard();						\
+	set_c0_status(ST0_CU1);						\
+	enable_fpu_hazard();						\
 } while (0)
 
 #define __disable_fpu()							\
 do {									\
 	clear_c0_status(ST0_CU1);					\
-        disable_fpu_hazard();						\
+	disable_fpu_hazard();						\
 } while (0)
 
 #define enable_fpu()							\

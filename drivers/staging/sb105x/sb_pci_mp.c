@@ -1563,12 +1563,12 @@ static int mp_open(struct tty_struct *tty, struct file *filp)
 
 	state = uart_get(drv, line);
 
-	mtpt  = (struct mp_port *)state->port;
-
 	if (IS_ERR(state)) {
 		retval = PTR_ERR(state);
 		goto fail;
 	}
+
+	mtpt  = (struct mp_port *)state->port;
 
 	tty->driver_data = state;
 	tty->low_latency = (state->port->flags & UPF_LOW_LATENCY) ? 1 : 0;
@@ -2851,18 +2851,12 @@ static void __init multi_init_ports(void)
 				printk("IIR_RET = %x\n",b_ret);
 			}
 
-			if(IIR_RS232 == (b_ret & IIR_RS232))
-			{
-				mtpt->interface = RS232;
-			}
-			if(IIR_RS422 == (b_ret & IIR_RS422))
-			{
+			/* default to RS232 */
+			mtpt->interface = RS232;
+			if (IIR_RS422 == (b_ret & IIR_TYPE_MASK))
 				mtpt->interface = RS422PTP;
-			}
-			if(IIR_RS485 == (b_ret & IIR_RS485))
-			{
+			if (IIR_RS485 == (b_ret & IIR_TYPE_MASK))
 				mtpt->interface = RS485NE;
-			}
 		}
 	}
 }

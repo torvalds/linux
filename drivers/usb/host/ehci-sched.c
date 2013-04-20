@@ -213,7 +213,7 @@ static inline unsigned char tt_start_uframe(struct ehci_hcd *ehci, __hc32 mask)
 }
 
 static const unsigned char
-max_tt_usecs[] = { 125, 125, 125, 125, 125, 125, 30, 0 };
+max_tt_usecs[] = { 125, 125, 125, 125, 125, 125, 125, 25 };
 
 /* carryover low/fullspeed bandwidth that crosses uframe boundries */
 static inline void carryover_tt_bandwidth(unsigned short tt_usecs[8])
@@ -1214,6 +1214,7 @@ itd_urb_transaction (
 
 		memset (itd, 0, sizeof *itd);
 		itd->itd_dma = itd_dma;
+		itd->frame = 9999;		/* an invalid value */
 		list_add (&itd->itd_list, &sched->td_list);
 	}
 	spin_unlock_irqrestore (&ehci->lock, flags);
@@ -1915,6 +1916,7 @@ sitd_urb_transaction (
 
 		memset (sitd, 0, sizeof *sitd);
 		sitd->sitd_dma = sitd_dma;
+		sitd->frame = 9999;		/* an invalid value */
 		list_add (&sitd->sitd_list, &iso_sched->td_list);
 	}
 
@@ -2212,11 +2214,11 @@ static void scan_isoc(struct ehci_hcd *ehci)
 	}
 	ehci->now_frame = now_frame;
 
+	frame = ehci->last_iso_frame;
 	for (;;) {
 		union ehci_shadow	q, *q_p;
 		__hc32			type, *hw_p;
 
-		frame = ehci->last_iso_frame;
 restart:
 		/* scan each element in frame's queue for completions */
 		q_p = &ehci->pshadow [frame];
@@ -2321,6 +2323,9 @@ restart:
 		/* Stop when we have reached the current frame */
 		if (frame == now_frame)
 			break;
-		ehci->last_iso_frame = (frame + 1) & fmask;
+
+		/* The last frame may still have active siTDs */
+		ehci->last_iso_frame = frame;
+		frame = (frame + 1) & fmask;
 	}
 }

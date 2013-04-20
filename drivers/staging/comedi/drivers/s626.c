@@ -64,6 +64,7 @@ INSN_CONFIG instructions:
    comedi_do_insn(cf,&insn); //executing configuration
 */
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -1482,7 +1483,7 @@ static int s626_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	case TRIG_NONE:
 		/*  continous acquisition */
 		devpriv->ai_continous = 1;
-		devpriv->ai_sample_count = 0;
+		devpriv->ai_sample_count = 1;
 		break;
 	}
 
@@ -2836,11 +2837,6 @@ static int s626_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &s626_driver);
 }
 
-static void s626_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 /*
  * For devices with vendor:device id == 0x1131:0x7146 you must specify
  * also subvendor:subdevice ids, because otherwise it will conflict with
@@ -2857,7 +2853,7 @@ static struct pci_driver s626_pci_driver = {
 	.name		= "s626",
 	.id_table	= s626_pci_table,
 	.probe		= s626_pci_probe,
-	.remove		= s626_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(s626_driver, s626_pci_driver);
 

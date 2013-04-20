@@ -3,8 +3,8 @@
 #
 
 config HIPPI
-	bool "HIPPI driver support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && INET && PCI
+	bool "HIPPI driver support"
+	depends on INET && PCI
 	---help---
 	  HIgh Performance Parallel Interface (HIPPI) is a 800Mbit/sec and
 	  1600Mbit/sec dual-simplex switched or point-to-point network. HIPPI
@@ -18,7 +18,7 @@ config HIPPI
 if HIPPI
 
 config ROADRUNNER
-	tristate "Essential RoadRunner HIPPI PCI adapter support (EXPERIMENTAL)"
+	tristate "Essential RoadRunner HIPPI PCI adapter support"
 	depends on PCI
 	---help---
 	  Say Y here if this is your PCI HIPPI network card.
@@ -27,7 +27,7 @@ config ROADRUNNER
 	  will be called rrunner.  If unsure, say N.
 
 config ROADRUNNER_LARGE_RINGS
-	bool "Use large TX/RX rings (EXPERIMENTAL)"
+	bool "Use large TX/RX rings"
 	depends on ROADRUNNER
 	---help---
 	  If you say Y here, the RoadRunner driver will preallocate up to 2 MB

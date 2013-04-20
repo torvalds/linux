@@ -443,6 +443,15 @@ static void ssb_devices_unregister(struct ssb_bus *bus)
 
 void ssb_bus_unregister(struct ssb_bus *bus)
 {
+	int err;
+
+	err = ssb_gpio_unregister(bus);
+	if (err == -EBUSY)
+		ssb_dprintk(KERN_ERR PFX "Some GPIOs are still in use.\n");
+	else if (err)
+		ssb_dprintk(KERN_ERR PFX
+			    "Can not unregister GPIO driver: %i\n", err);
+
 	ssb_buses_lock();
 	ssb_devices_unregister(bus);
 	list_del(&bus->list);
@@ -539,6 +548,14 @@ static int ssb_devices_register(struct ssb_bus *bus)
 		}
 		dev_idx++;
 	}
+
+#ifdef CONFIG_SSB_DRIVER_MIPS
+	if (bus->mipscore.pflash.present) {
+		err = platform_device_register(&ssb_pflash_dev);
+		if (err)
+			pr_err("Error registering parallel flash\n");
+	}
+#endif
 
 	return 0;
 error:

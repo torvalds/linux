@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -847,14 +847,21 @@ static int
 qla82xx_rom_lock(struct qla_hw_data *ha)
 {
 	int done = 0, timeout = 0;
+	uint32_t lock_owner = 0;
+	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
 	while (!done) {
 		/* acquire semaphore2 from PCI HW block */
 		done = qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_LOCK));
 		if (done == 1)
 			break;
-		if (timeout >= qla82xx_rom_lock_timeout)
+		if (timeout >= qla82xx_rom_lock_timeout) {
+			lock_owner = qla82xx_rd_32(ha, QLA82XX_ROM_LOCK_ID);
+			ql_dbg(ql_dbg_p3p, vha, 0xb085,
+			    "Failed to acquire rom lock, acquired by %d.\n",
+			    lock_owner);
 			return -1;
+		}
 		timeout++;
 	}
 	qla82xx_wr_32(ha, QLA82XX_ROM_LOCK_ID, ROM_LOCK_DRIVER);
@@ -3629,7 +3636,7 @@ qla82xx_chip_reset_cleanup(scsi_qla_host_t *vha)
 			req = ha->req_q_map[que];
 			if (!req)
 				continue;
-			for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
+			for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++) {
 				sp = req->outstanding_cmds[cnt];
 				if (sp) {
 					if (!sp->u.scmd.ctx ||

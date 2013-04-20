@@ -1394,7 +1394,7 @@ static int __init ip_auto_config(void)
 	unsigned int i;
 
 #ifdef CONFIG_PROC_FS
-	proc_net_fops_create(&init_net, "pnp", S_IRUGO, &pnp_seq_fops);
+	proc_create("pnp", S_IRUGO, init_net.proc_net, &pnp_seq_fops);
 #endif /* CONFIG_PROC_FS */
 
 	if (!ic_enable)
@@ -1522,7 +1522,8 @@ static int __init ip_auto_config(void)
 		}
 	for (i++; i < CONF_NAMESERVERS_MAX; i++)
 		if (ic_nameservers[i] != NONE)
-			pr_cont(", nameserver%u=%pI4\n", i, &ic_nameservers[i]);
+			pr_cont(", nameserver%u=%pI4", i, &ic_nameservers[i]);
+	pr_cont("\n");
 #endif /* !SILENT */
 
 	return 0;

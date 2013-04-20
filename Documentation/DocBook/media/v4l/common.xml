@@ -609,7 +609,7 @@ to zero and the <constant>VIDIOC_G_STD</constant>,
 	<para>Applications can make use of the <xref linkend="input-capabilities" /> and
 <xref linkend="output-capabilities"/> flags to determine whether the video standard ioctls
 are available for the device.</para>
-&ENOTTY;.
+
 	<para>See <xref linkend="buffer" /> for a rationale. Probably
 even USB cameras follow some well known video standard. It might have
 been better to explicitly indicate elsewhere if a device cannot live

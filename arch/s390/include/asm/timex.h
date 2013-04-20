@@ -15,7 +15,7 @@
 #define TOD_UNIX_EPOCH 0x7d91048bca000000ULL
 
 /* Inline functions for clock register access. */
-static inline int set_clock(__u64 time)
+static inline int set_tod_clock(__u64 time)
 {
 	int cc;
 
@@ -27,7 +27,7 @@ static inline int set_clock(__u64 time)
 	return cc;
 }
 
-static inline int store_clock(__u64 *time)
+static inline int store_tod_clock(__u64 *time)
 {
 	int cc;
 
@@ -71,7 +71,7 @@ static inline void local_tick_enable(unsigned long long comp)
 
 typedef unsigned long long cycles_t;
 
-static inline unsigned long long get_clock(void)
+static inline unsigned long long get_tod_clock(void)
 {
 	unsigned long long clk;
 
@@ -83,21 +83,21 @@ static inline unsigned long long get_clock(void)
 	return clk;
 }
 
-static inline void get_clock_ext(char *clk)
+static inline void get_tod_clock_ext(char *clk)
 {
 	asm volatile("stcke %0" : "=Q" (*clk) : : "cc");
 }
 
-static inline unsigned long long get_clock_xt(void)
+static inline unsigned long long get_tod_clock_xt(void)
 {
 	unsigned char clk[16];
-	get_clock_ext(clk);
+	get_tod_clock_ext(clk);
 	return *((unsigned long long *)&clk[1]);
 }
 
 static inline cycles_t get_cycles(void)
 {
-	return (cycles_t) get_clock() >> 2;
+	return (cycles_t) get_tod_clock() >> 2;
 }
 
 int get_sync_clock(unsigned long long *clock);
@@ -123,9 +123,9 @@ extern u64 sched_clock_base_cc;
  * function, otherwise the returned value is not guaranteed to
  * be monotonic.
  */
-static inline unsigned long long get_clock_monotonic(void)
+static inline unsigned long long get_tod_clock_monotonic(void)
 {
-	return get_clock_xt() - sched_clock_base_cc;
+	return get_tod_clock_xt() - sched_clock_base_cc;
 }
 
 /**

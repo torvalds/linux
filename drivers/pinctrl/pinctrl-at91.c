@@ -1277,21 +1277,80 @@ static int alt_gpio_irq_type(struct irq_data *d, unsigned type)
 }
 
 #ifdef CONFIG_PM
+
+static u32 wakeups[MAX_GPIO_BANKS];
+static u32 backups[MAX_GPIO_BANKS];
+
 static int gpio_irq_set_wake(struct irq_data *d, unsigned state)
 {
 	struct at91_gpio_chip *at91_gpio = irq_data_get_irq_chip_data(d);
 	unsigned	bank = at91_gpio->pioc_idx;
+	unsigned mask = 1 << d->hwirq;
 
 	if (unlikely(bank >= MAX_GPIO_BANKS))
 		return -EINVAL;
+
+	if (state)
+		wakeups[bank] |= mask;
+	else
+		wakeups[bank] &= ~mask;
 
 	irq_set_irq_wake(at91_gpio->pioc_virq, state);
 
 	return 0;
 }
+
+void at91_pinctrl_gpio_suspend(void)
+{
+	int i;
+
+	for (i = 0; i < gpio_banks; i++) {
+		void __iomem  *pio;
+
+		if (!gpio_chips[i])
+			continue;
+
+		pio = gpio_chips[i]->regbase;
+
+		backups[i] = __raw_readl(pio + PIO_IMR);
+		__raw_writel(backups[i], pio + PIO_IDR);
+		__raw_writel(wakeups[i], pio + PIO_IER);
+
+		if (!wakeups[i]) {
+			clk_unprepare(gpio_chips[i]->clock);
+			clk_disable(gpio_chips[i]->clock);
+		} else {
+			printk(KERN_DEBUG "GPIO-%c may wake for %08x\n",
+			       'A'+i, wakeups[i]);
+		}
+	}
+}
+
+void at91_pinctrl_gpio_resume(void)
+{
+	int i;
+
+	for (i = 0; i < gpio_banks; i++) {
+		void __iomem  *pio;
+
+		if (!gpio_chips[i])
+			continue;
+
+		pio = gpio_chips[i]->regbase;
+
+		if (!wakeups[i]) {
+			if (clk_prepare(gpio_chips[i]->clock) == 0)
+				clk_enable(gpio_chips[i]->clock);
+		}
+
+		__raw_writel(wakeups[i], pio + PIO_IDR);
+		__raw_writel(backups[i], pio + PIO_IER);
+	}
+}
+
 #else
 #define gpio_irq_set_wake	NULL
-#endif
+#endif /* CONFIG_PM */
 
 static struct irq_chip gpio_irqchip = {
 	.name		= "GPIO",
@@ -1503,10 +1562,9 @@ static int at91_gpio_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	at91_chip->regbase = devm_request_and_ioremap(&pdev->dev, res);
-	if (!at91_chip->regbase) {
-		dev_err(&pdev->dev, "failed to map registers, ignoring.\n");
-		ret = -EBUSY;
+	at91_chip->regbase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(at91_chip->regbase)) {
+		ret = PTR_ERR(at91_chip->regbase);
 		goto err;
 	}
 

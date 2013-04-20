@@ -352,12 +352,6 @@ config MACH_USB_A9263
 	  Select this if you are using a Calao Systems USB-A9263.
 	  <http://www.calao-systems.com>
 
-config MACH_NEOCORE926
-	bool "Adeneo NEOCORE926"
-	select HAVE_AT91_DATAFLASH_CARD
-	help
-	  Select this if you are using the Adeneo Neocore 926 board.
-
 endif
 
 # ----------------------------------------------------------

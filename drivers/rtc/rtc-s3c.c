@@ -115,7 +115,7 @@ static int s3c_rtc_setaie(struct device *dev, unsigned int enabled)
 {
 	unsigned int tmp;
 
-	pr_debug("%s: aie=%d\n", __func__, enabled);
+	dev_dbg(dev, "%s: aie=%d\n", __func__, enabled);
 
 	clk_enable(rtc_clk);
 	tmp = readb(s3c_rtc_base + S3C2410_RTCALM) & ~S3C2410_RTCALM_ALMEN;
@@ -203,7 +203,7 @@ static int s3c_rtc_gettime(struct device *dev, struct rtc_time *rtc_tm)
 
 	rtc_tm->tm_year += 100;
 
-	pr_debug("read time %04d.%02d.%02d %02d:%02d:%02d\n",
+	dev_dbg(dev, "read time %04d.%02d.%02d %02d:%02d:%02d\n",
 		 1900 + rtc_tm->tm_year, rtc_tm->tm_mon, rtc_tm->tm_mday,
 		 rtc_tm->tm_hour, rtc_tm->tm_min, rtc_tm->tm_sec);
 
@@ -218,7 +218,7 @@ static int s3c_rtc_settime(struct device *dev, struct rtc_time *tm)
 	void __iomem *base = s3c_rtc_base;
 	int year = tm->tm_year - 100;
 
-	pr_debug("set time %04d.%02d.%02d %02d:%02d:%02d\n",
+	dev_dbg(dev, "set time %04d.%02d.%02d %02d:%02d:%02d\n",
 		 1900 + tm->tm_year, tm->tm_mon, tm->tm_mday,
 		 tm->tm_hour, tm->tm_min, tm->tm_sec);
 
@@ -259,7 +259,7 @@ static int s3c_rtc_getalarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	alrm->enabled = (alm_en & S3C2410_RTCALM_ALMEN) ? 1 : 0;
 
-	pr_debug("read alarm %d, %04d.%02d.%02d %02d:%02d:%02d\n",
+	dev_dbg(dev, "read alarm %d, %04d.%02d.%02d %02d:%02d:%02d\n",
 		 alm_en,
 		 1900 + alm_tm->tm_year, alm_tm->tm_mon, alm_tm->tm_mday,
 		 alm_tm->tm_hour, alm_tm->tm_min, alm_tm->tm_sec);
@@ -310,7 +310,7 @@ static int s3c_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	unsigned int alrm_en;
 
 	clk_enable(rtc_clk);
-	pr_debug("s3c_rtc_setalarm: %d, %04d.%02d.%02d %02d:%02d:%02d\n",
+	dev_dbg(dev, "s3c_rtc_setalarm: %d, %04d.%02d.%02d %02d:%02d:%02d\n",
 		 alrm->enabled,
 		 1900 + tm->tm_year, tm->tm_mon + 1, tm->tm_mday,
 		 tm->tm_hour, tm->tm_min, tm->tm_sec);
@@ -333,7 +333,7 @@ static int s3c_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 		writeb(bin2bcd(tm->tm_hour), base + S3C2410_ALMHOUR);
 	}
 
-	pr_debug("setting S3C2410_RTCALM to %08x\n", alrm_en);
+	dev_dbg(dev, "setting S3C2410_RTCALM to %08x\n", alrm_en);
 
 	writeb(alrm_en, base + S3C2410_RTCALM);
 
@@ -459,7 +459,7 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 	int ret;
 	int tmp;
 
-	pr_debug("%s: probe=%p\n", __func__, pdev);
+	dev_dbg(&pdev->dev, "%s: probe=%p\n", __func__, pdev);
 
 	/* find the IRQs */
 
@@ -475,7 +475,7 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 		return s3c_rtc_alarmno;
 	}
 
-	pr_debug("s3c2410_rtc: tick irq %d, alarm irq %d\n",
+	dev_dbg(&pdev->dev, "s3c2410_rtc: tick irq %d, alarm irq %d\n",
 		 s3c_rtc_tickno, s3c_rtc_alarmno);
 
 	/* get the memory region */
@@ -486,11 +486,9 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	s3c_rtc_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (s3c_rtc_base == NULL) {
-		dev_err(&pdev->dev, "failed to ioremap memory region\n");
-		return -EINVAL;
-	}
+	s3c_rtc_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(s3c_rtc_base))
+		return PTR_ERR(s3c_rtc_base);
 
 	rtc_clk = devm_clk_get(&pdev->dev, "rtc");
 	if (IS_ERR(rtc_clk)) {
@@ -506,7 +504,7 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 
 	s3c_rtc_enable(pdev, 1);
 
-	pr_debug("s3c2410_rtc: RTCCON=%02x\n",
+	dev_dbg(&pdev->dev, "s3c2410_rtc: RTCCON=%02x\n",
 		 readw(s3c_rtc_base + S3C2410_RTCCON));
 
 	device_init_wakeup(&pdev->dev, 1);

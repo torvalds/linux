@@ -180,7 +180,7 @@ static int lms283gf05_probe(struct spi_device *spi)
 	st->spi = spi;
 	st->ld = ld;
 
-	dev_set_drvdata(&spi->dev, st);
+	spi_set_drvdata(spi, st);
 
 	/* kick in the LCD */
 	if (pdata)
@@ -192,7 +192,7 @@ static int lms283gf05_probe(struct spi_device *spi)
 
 static int lms283gf05_remove(struct spi_device *spi)
 {
-	struct lms283gf05_state *st = dev_get_drvdata(&spi->dev);
+	struct lms283gf05_state *st = spi_get_drvdata(spi);
 
 	lcd_device_unregister(st->ld);
 

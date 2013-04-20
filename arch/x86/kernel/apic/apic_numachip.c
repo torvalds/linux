@@ -28,6 +28,7 @@
 #include <asm/apic.h>
 #include <asm/ipi.h>
 #include <asm/apic_flat_64.h>
+#include <asm/pgtable.h>
 
 static int numachip_system __read_mostly;
 

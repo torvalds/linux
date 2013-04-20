@@ -60,6 +60,8 @@ struct omap_nand_platform_data {
 	int			devsize;
 	enum omap_ecc           ecc_opt;
 	struct gpmc_nand_regs	reg;
-};
 
+	/* for passing the partitions */
+	struct device_node	*of_node;
+};
 #endif

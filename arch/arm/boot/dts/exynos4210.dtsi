@@ -48,13 +48,13 @@
 	};
 
 	pinctrl_0: pinctrl@11400000 {
-		compatible = "samsung,pinctrl-exynos4210";
+		compatible = "samsung,exynos4210-pinctrl";
 		reg = <0x11400000 0x1000>;
 		interrupts = <0 47 0>;
 	};
 
 	pinctrl_1: pinctrl@11000000 {
-		compatible = "samsung,pinctrl-exynos4210";
+		compatible = "samsung,exynos4210-pinctrl";
 		reg = <0x11000000 0x1000>;
 		interrupts = <0 46 0>;
 
@@ -66,7 +66,7 @@
 	};
 
 	pinctrl_2: pinctrl@03860000 {
-		compatible = "samsung,pinctrl-exynos4210";
+		compatible = "samsung,exynos4210-pinctrl";
 		reg = <0x03860000 0x1000>;
 	};
 

@@ -32,9 +32,6 @@
  * Should never return.
  */
 ENTRY(tegra30_hotplug_shutdown)
-	/* Turn off SMP coherency */
-	exit_smp r4, r5
-
 	/* Powergate this CPU */
 	mov	r0, #TEGRA30_POWER_HOTPLUG_SHUTDOWN
 	bl	tegra30_cpu_shutdown

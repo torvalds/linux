@@ -160,7 +160,7 @@ static void __cpuinit r4k_blast_dcache_setup(void)
 		"1:\n\t" \
 		)
 #define CACHE32_UNROLL32_ALIGN	JUMP_TO_ALIGN(10) /* 32 * 32 = 1024 */
-#define CACHE32_UNROLL32_ALIGN2	JUMP_TO_ALIGN(11)
+#define CACHE32_UNROLL32_ALIGN2 JUMP_TO_ALIGN(11)
 
 static inline void blast_r4600_v1_icache32(void)
 {
@@ -177,7 +177,7 @@ static inline void tx49_blast_icache32(void)
 	unsigned long end = start + current_cpu_data.icache.waysize;
 	unsigned long ws_inc = 1UL << current_cpu_data.icache.waybit;
 	unsigned long ws_end = current_cpu_data.icache.ways <<
-	                       current_cpu_data.icache.waybit;
+			       current_cpu_data.icache.waybit;
 	unsigned long ws, addr;
 
 	CACHE32_UNROLL32_ALIGN2;
@@ -208,7 +208,7 @@ static inline void tx49_blast_icache32_page_indexed(unsigned long page)
 	unsigned long end = start + PAGE_SIZE;
 	unsigned long ws_inc = 1UL << current_cpu_data.icache.waybit;
 	unsigned long ws_end = current_cpu_data.icache.ways <<
-	                       current_cpu_data.icache.waybit;
+			       current_cpu_data.icache.waybit;
 	unsigned long ws, addr;
 
 	CACHE32_UNROLL32_ALIGN2;
@@ -637,7 +637,7 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 			 * for the cache instruction on MIPS processors and
 			 * some processors, among them the RM5200 and RM7000
 			 * QED processors will throw an address error for cache
-			 * hit ops with insufficient alignment.  Solved by
+			 * hit ops with insufficient alignment.	 Solved by
 			 * aligning the address to cache line size.
 			 */
 			blast_inv_scache_range(addr, addr + size);
@@ -864,7 +864,7 @@ static void __cpuinit probe_pcache(void)
 		icache_size = 1 << (12 + ((config & CONF_IC) >> 9));
 		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
 		c->icache.ways = 1;
-		c->icache.waybit = 0; 	/* doesn't matter */
+		c->icache.waybit = 0;	/* doesn't matter */
 
 		dcache_size = 1 << (12 + ((config & CONF_DC) >> 6));
 		c->dcache.linesz = 16 << ((config & CONF_DB) >> 4);
@@ -923,7 +923,7 @@ static void __cpuinit probe_pcache(void)
 		icache_size = 1 << (10 + ((config & CONF_IC) >> 9));
 		c->icache.linesz = 16 << ((config & CONF_IB) >> 5);
 		c->icache.ways = 1;
-		c->icache.waybit = 0; 	/* doesn't matter */
+		c->icache.waybit = 0;	/* doesn't matter */
 
 		dcache_size = 1 << (10 + ((config & CONF_DC) >> 6));
 		c->dcache.linesz = 16 << ((config & CONF_DB) >> 4);
@@ -986,8 +986,8 @@ static void __cpuinit probe_pcache(void)
 		c->icache.ways = 1 + ((config1 >> 16) & 7);
 
 		icache_size = c->icache.sets *
-		              c->icache.ways *
-		              c->icache.linesz;
+			      c->icache.ways *
+			      c->icache.linesz;
 		c->icache.waybit = __ffs(icache_size/c->icache.ways);
 
 		if (config & 0x8)		/* VI bit */
@@ -1006,8 +1006,8 @@ static void __cpuinit probe_pcache(void)
 		c->dcache.ways = 1 + ((config1 >> 7) & 7);
 
 		dcache_size = c->dcache.sets *
-		              c->dcache.ways *
-		              c->dcache.linesz;
+			      c->dcache.ways *
+			      c->dcache.linesz;
 		c->dcache.waybit = __ffs(dcache_size/c->dcache.ways);
 
 		c->options |= MIPS_CPU_PREFETCH;
@@ -1016,7 +1016,7 @@ static void __cpuinit probe_pcache(void)
 
 	/*
 	 * Processor configuration sanity check for the R4000SC erratum
-	 * #5.  With page sizes larger than 32kB there is no possibility
+	 * #5.	With page sizes larger than 32kB there is no possibility
 	 * to get a VCE exception anymore so we don't care about this
 	 * misconfiguration.  The case is rather theoretical anyway;
 	 * presumably no vendor is shipping his hardware in the "bad"
@@ -1057,6 +1057,7 @@ static void __cpuinit probe_pcache(void)
 		break;
 
 	case CPU_M14KC:
+	case CPU_M14KEC:
 	case CPU_24K:
 	case CPU_34K:
 	case CPU_74K:
@@ -1088,7 +1089,7 @@ static void __cpuinit probe_pcache(void)
 		break;
 	}
 
-#ifdef  CONFIG_CPU_LOONGSON2
+#ifdef	CONFIG_CPU_LOONGSON2
 	/*
 	 * LOONGSON2 has 4 way icache, but when using indexed cache op,
 	 * one op will act on all 4 ways
@@ -1228,7 +1229,7 @@ static void __cpuinit setup_scache(void)
 #ifdef CONFIG_R5000_CPU_SCACHE
 		r5k_sc_init();
 #endif
-                return;
+		return;
 
 	case CPU_RM7000:
 #ifdef CONFIG_RM7000_CPU_SCACHE

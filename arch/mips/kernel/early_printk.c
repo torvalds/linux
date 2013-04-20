@@ -14,8 +14,7 @@
 
 extern void prom_putchar(char);
 
-static void __init
-early_console_write(struct console *con, const char *s, unsigned n)
+static void early_console_write(struct console *con, const char *s, unsigned n)
 {
 	while (n-- && *s) {
 		if (*s == '\n')
@@ -25,7 +24,7 @@ early_console_write(struct console *con, const char *s, unsigned n)
 	}
 }
 
-static struct console early_console __initdata = {
+static struct console early_console = {
 	.name	= "early",
 	.write	= early_console_write,
 	.flags	= CON_PRINTBUFFER | CON_BOOT,

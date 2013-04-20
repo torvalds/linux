@@ -332,7 +332,7 @@ static int atmel_aes_crypt_cpu_start(struct atmel_aes_dev *dd)
 		return -EINVAL;
 
 	dd->nb_out_sg = atmel_aes_sg_length(dd->req, dd->out_sg);
-	if (!dd->nb_in_sg)
+	if (!dd->nb_out_sg)
 		return -EINVAL;
 
 	dd->bufcnt = sg_copy_to_buffer(dd->in_sg, dd->nb_in_sg,

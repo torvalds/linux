@@ -321,7 +321,7 @@ replay:
 		}
 	}
 
-	err = tp->ops->change(skb, tp, cl, t->tcm_handle, tca, &fh);
+	err = tp->ops->change(net, skb, tp, cl, t->tcm_handle, tca, &fh);
 	if (err == 0) {
 		if (tp_created) {
 			spin_lock_bh(root_lock);
@@ -508,7 +508,7 @@ void tcf_exts_destroy(struct tcf_proto *tp, struct tcf_exts *exts)
 }
 EXPORT_SYMBOL(tcf_exts_destroy);
 
-int tcf_exts_validate(struct tcf_proto *tp, struct nlattr **tb,
+int tcf_exts_validate(struct net *net, struct tcf_proto *tp, struct nlattr **tb,
 		  struct nlattr *rate_tlv, struct tcf_exts *exts,
 		  const struct tcf_ext_map *map)
 {
@@ -519,7 +519,7 @@ int tcf_exts_validate(struct tcf_proto *tp, struct nlattr **tb,
 		struct tc_action *act;
 
 		if (map->police && tb[map->police]) {
-			act = tcf_action_init_1(tb[map->police], rate_tlv,
+			act = tcf_action_init_1(net, tb[map->police], rate_tlv,
 						"police", TCA_ACT_NOREPLACE,
 						TCA_ACT_BIND);
 			if (IS_ERR(act))
@@ -528,8 +528,9 @@ int tcf_exts_validate(struct tcf_proto *tp, struct nlattr **tb,
 			act->type = TCA_OLD_COMPAT;
 			exts->action = act;
 		} else if (map->action && tb[map->action]) {
-			act = tcf_action_init(tb[map->action], rate_tlv, NULL,
-					      TCA_ACT_NOREPLACE, TCA_ACT_BIND);
+			act = tcf_action_init(net, tb[map->action], rate_tlv,
+					      NULL, TCA_ACT_NOREPLACE,
+					      TCA_ACT_BIND);
 			if (IS_ERR(act))
 				return PTR_ERR(act);
 

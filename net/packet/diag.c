@@ -172,13 +172,12 @@ static int packet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	struct packet_diag_req *req;
 	struct net *net;
 	struct sock *sk;
-	struct hlist_node *node;
 
 	net = sock_net(skb->sk);
 	req = nlmsg_data(cb->nlh);
 
 	mutex_lock(&net->packet.sklist_lock);
-	sk_for_each(sk, node, &net->packet.sklist) {
+	sk_for_each(sk, &net->packet.sklist) {
 		if (!net_eq(sock_net(sk), net))
 			continue;
 		if (num < s_num)

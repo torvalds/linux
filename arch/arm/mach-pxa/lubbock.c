@@ -650,7 +650,7 @@ MACHINE_START(LUBBOCK, "Intel DBPXA250 Development Platform (aka Lubbock)")
 	.nr_irqs	= LUBBOCK_NR_IRQS,
 	.init_irq	= lubbock_init_irq,
 	.handle_irq	= pxa25x_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine	= lubbock_init,
 	.restart	= pxa_restart,
 MACHINE_END

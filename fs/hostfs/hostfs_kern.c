@@ -30,7 +30,7 @@ static inline struct hostfs_inode_info *HOSTFS_I(struct inode *inode)
 	return list_entry(inode, struct hostfs_inode_info, vfs_inode);
 }
 
-#define FILE_HOSTFS_I(file) HOSTFS_I((file)->f_path.dentry->d_inode)
+#define FILE_HOSTFS_I(file) HOSTFS_I(file_inode(file))
 
 static int hostfs_d_delete(const struct dentry *dentry)
 {
@@ -845,15 +845,8 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 		return err;
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		int error;
-
-		error = inode_newsize_ok(inode, attr->ia_size);
-		if (error)
-			return error;
-
+	    attr->ia_size != i_size_read(inode))
 		truncate_setsize(inode, attr->ia_size);
-	}
 
 	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);
@@ -861,14 +854,6 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 }
 
 static const struct inode_operations hostfs_iops = {
-	.create		= hostfs_create,
-	.link		= hostfs_link,
-	.unlink		= hostfs_unlink,
-	.symlink	= hostfs_symlink,
-	.mkdir		= hostfs_mkdir,
-	.rmdir		= hostfs_rmdir,
-	.mknod		= hostfs_mknod,
-	.rename		= hostfs_rename,
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
 };
@@ -1001,6 +986,7 @@ static struct file_system_type hostfs_type = {
 	.kill_sb	= hostfs_kill_sb,
 	.fs_flags 	= 0,
 };
+MODULE_ALIAS_FS("hostfs");
 
 static int __init init_hostfs(void)
 {

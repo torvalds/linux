@@ -1,13 +1,14 @@
 * ARM architected timer
 
-ARM Cortex-A7 and Cortex-A15 have a per-core architected timer, which
-provides per-cpu timers.
+ARM cores may have a per-core architected timer, which provides per-cpu timers.
 
 The timer is attached to a GIC to deliver its per-processor interrupts.
 
 ** Timer node properties:
 
-- compatible : Should at least contain "arm,armv7-timer".
+- compatible : Should at least contain one of
+	"arm,armv7-timer"
+	"arm,armv8-timer"
 
 - interrupts : Interrupt list for secure, non-secure, virtual and
   hypervisor timers, in that order.

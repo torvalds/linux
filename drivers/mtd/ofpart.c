@@ -174,7 +174,14 @@ out:
 	return rc;
 }
 
+static void __exit ofpart_parser_exit(void)
+{
+	deregister_mtd_parser(&ofpart_parser);
+	deregister_mtd_parser(&ofoldpart_parser);
+}
+
 module_init(ofpart_parser_init);
+module_exit(ofpart_parser_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Parser for MTD partitioning information in device tree");

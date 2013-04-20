@@ -42,9 +42,10 @@
 #define	AT91_TC_CLK1BASE	0x40
 #define	AT91_TC_CLK2BASE	0x80
 
-static unsigned long at91x40_gettimeoffset(void)
+static u32 at91x40_gettimeoffset(void)
 {
-	return (at91_tc_read(AT91_TC_CLK1BASE + AT91_TC_CV) * 1000000 / (AT91X40_MASTER_CLOCK / 128));
+	return (at91_tc_read(AT91_TC_CLK1BASE + AT91_TC_CV) * 1000000 /
+		(AT91X40_MASTER_CLOCK / 128)) * 1000;
 }
 
 static irqreturn_t at91x40_timer_interrupt(int irq, void *dev_id)
@@ -64,6 +65,8 @@ void __init at91x40_timer_init(void)
 {
 	unsigned int v;
 
+	arch_gettimeoffset = at91x40_gettimeoffset;
+
 	at91_tc_write(AT91_TC_BCR, 0);
 	v = at91_tc_read(AT91_TC_BMR);
 	v = (v & ~AT91_TC_TC1XC1S) | AT91_TC_TC1XC1S_NONE;
@@ -79,9 +82,3 @@ void __init at91x40_timer_init(void)
 
 	at91_tc_write(AT91_TC_CLK1BASE + AT91_TC_CCR, (AT91_TC_SWTRG | AT91_TC_CLKEN));
 }
-
-struct sys_timer at91x40_timer = {
-	.init	= at91x40_timer_init,
-	.offset	= at91x40_gettimeoffset,
-};
-

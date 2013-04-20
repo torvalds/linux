@@ -17,6 +17,8 @@
 
 /include/ "mpc5200b.dtsi"
 
+&gpt0 { fsl,has-wdt; };
+
 / {
 	model = "anonymous,a3m071";
 	compatible = "anonymous,a3m071";
@@ -29,10 +31,6 @@
 		reg = <0xf0000000 0x00000100>;
 		bus-frequency = <0>; /* From boot loader */
 		system-frequency = <0>; /* From boot loader */
-
-		timer@600 {
-			fsl,has-wdt;
-		};
 
 		spi@f00 {
 			status = "disabled";

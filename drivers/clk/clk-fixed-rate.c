@@ -85,7 +85,7 @@ struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
 /**
  * of_fixed_clk_setup() - Setup function for simple fixed rate clock
  */
-void __init of_fixed_clk_setup(struct device_node *node)
+void of_fixed_clk_setup(struct device_node *node)
 {
 	struct clk *clk;
 	const char *clk_name = node->name;
@@ -101,4 +101,5 @@ void __init of_fixed_clk_setup(struct device_node *node)
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
 }
 EXPORT_SYMBOL_GPL(of_fixed_clk_setup);
+CLK_OF_DECLARE(fixed_clk, "fixed-clock", of_fixed_clk_setup);
 #endif

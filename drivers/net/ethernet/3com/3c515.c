@@ -1542,9 +1542,10 @@ static void set_rx_mode(struct net_device *dev)
 static void netdev_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	sprintf(info->bus_info, "ISA 0x%lx", dev->base_addr);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	snprintf(info->bus_info, sizeof(info->bus_info), "ISA 0x%lx",
+		 dev->base_addr);
 }
 
 static u32 netdev_get_msglevel(struct net_device *dev)

@@ -33,6 +33,7 @@
  *   interrupts.
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
@@ -41,6 +42,7 @@
 #include <linux/io.h>
 #include <linux/of_irq.h>
 #include <linux/of_device.h>
+#include <linux/clk.h>
 #include <linux/pinctrl/consumer.h>
 
 /*
@@ -495,6 +497,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
+	struct clk *clk;
 	unsigned int ngpios;
 	int soc_variant;
 	int i, cpu, id;
@@ -528,6 +531,11 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 		return id;
 	}
 
+	clk = devm_clk_get(&pdev->dev, NULL);
+	/* Not all SoCs require a clock.*/
+	if (!IS_ERR(clk))
+		clk_prepare_enable(clk);
+
 	mvchip->soc_variant = soc_variant;
 	mvchip->chip.label = dev_name(&pdev->dev);
 	mvchip->chip.dev = &pdev->dev;
@@ -544,11 +552,9 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->chip.of_node = np;
 
 	spin_lock_init(&mvchip->lock);
-	mvchip->membase = devm_request_and_ioremap(&pdev->dev, res);
-	if (! mvchip->membase) {
-		dev_err(&pdev->dev, "Cannot ioremap\n");
-		return -ENOMEM;
-	}
+	mvchip->membase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(mvchip->membase))
+		return PTR_ERR(mvchip->membase);
 
 	/* The Armada XP has a second range of registers for the
 	 * per-CPU registers */
@@ -559,11 +565,10 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 			return -ENODEV;
 		}
 
-		mvchip->percpu_membase = devm_request_and_ioremap(&pdev->dev, res);
-		if (! mvchip->percpu_membase) {
-			dev_err(&pdev->dev, "Cannot ioremap\n");
-			return -ENOMEM;
-		}
+		mvchip->percpu_membase = devm_ioremap_resource(&pdev->dev,
+							       res);
+		if (IS_ERR(mvchip->percpu_membase)) 
+			return PTR_ERR(mvchip->percpu_membase);
 	}
 
 	/*

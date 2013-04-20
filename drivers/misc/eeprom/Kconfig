@@ -1,13 +1,14 @@
 menu "EEPROM support"
 
 config EEPROM_AT24
-	tristate "I2C EEPROMs from most vendors"
+	tristate "I2C EEPROMs / RAMs / ROMs from most vendors"
 	depends on I2C && SYSFS
 	help
-	  Enable this driver to get read/write support to most I2C EEPROMs,
-	  after you configure the driver to know about each EEPROM on
-	  your target board.  Use these generic chip names, instead of
-	  vendor-specific ones like at24c64 or 24lc02:
+	  Enable this driver to get read/write support to most I2C EEPROMs
+	  and compatible devices like FRAMs, SRAMs, ROMs etc. After you
+	  configure the driver to know about each chip on your target
+	  board.  Use these generic chip names, instead of vendor-specific
+	  ones like at24c64, 24lc02 or fm24c04:
 
 	     24c00, 24c01, 24c02, spd (readonly 24c02), 24c04, 24c08,
 	     24c16, 24c32, 24c64, 24c128, 24c256, 24c512, 24c1024

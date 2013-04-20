@@ -45,9 +45,10 @@
 
 #include <asm/compat.h>
 #include <asm/cacheflush.h>
+#include <asm/fpsimd.h>
+#include <asm/mmu_context.h>
 #include <asm/processor.h>
 #include <asm/stacktrace.h>
-#include <asm/fpsimd.h>
 
 static void setup_restart(void)
 {
@@ -97,14 +98,9 @@ static void default_idle(void)
 	local_irq_enable();
 }
 
-void (*pm_idle)(void) = default_idle;
-EXPORT_SYMBOL_GPL(pm_idle);
-
 /*
- * The idle thread, has rather strange semantics for calling pm_idle,
- * but this is what x86 does and we need to do the same, so that
- * things like cpuidle get called in the same way.  The only difference
- * is that we always respect 'hlt_counter' to prevent low power idle.
+ * The idle thread.
+ * We always respect 'hlt_counter' to prevent low power idle.
  */
 void cpu_idle(void)
 {
@@ -122,10 +118,10 @@ void cpu_idle(void)
 			local_irq_disable();
 			if (!need_resched()) {
 				stop_critical_timings();
-				pm_idle();
+				default_idle();
 				start_critical_timings();
 				/*
-				 * pm_idle functions should always return
+				 * default_idle functions should always return
 				 * with IRQs enabled.
 				 */
 				WARN_ON(irqs_disabled());
@@ -319,6 +315,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	/* the actual thread switch */
 	last = cpu_switch_to(prev, next);
 
+	contextidr_thread_switch(next);
 	return last;
 }
 

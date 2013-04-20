@@ -23,7 +23,6 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
-#include <mach/s5p64x0-clock.h>
 
 #include <plat/cpu-freq.h>
 #include <plat/clock.h>
@@ -32,6 +31,7 @@
 #include <plat/s5p-clock.h>
 #include <plat/clock-clksrc.h>
 
+#include "clock.h"
 #include "common.h"
 
 static struct clksrc_clk clk_mout_dpll = {

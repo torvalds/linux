@@ -48,6 +48,18 @@ static inline void gfs2_log_pointers_init(struct gfs2_sbd *sdp,
 	sdp->sd_log_head = sdp->sd_log_tail = value;
 }
 
+static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+
+	if (!test_bit(GIF_ORDERED, &ip->i_flags)) {
+		spin_lock(&sdp->sd_ordered_lock);
+		if (!test_and_set_bit(GIF_ORDERED, &ip->i_flags))
+			list_add(&ip->i_ordered, &sdp->sd_log_le_ordered);
+		spin_unlock(&sdp->sd_ordered_lock);
+	}
+}
+extern void gfs2_ordered_del_inode(struct gfs2_inode *ip);
 extern unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 			    unsigned int ssize);
 

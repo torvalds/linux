@@ -20,7 +20,7 @@
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 
-#if defined(CONFIG_MEDIA_TUNER_TEA5761) || (defined(CONFIG_MEDIA_TUNER_TEA5761_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_MEDIA_TUNER_TEA5761)
 extern int tea5761_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr);
 
 extern struct dvb_frontend *tea5761_attach(struct dvb_frontend *fe,

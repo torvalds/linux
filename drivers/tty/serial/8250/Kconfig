@@ -33,6 +33,23 @@ config SERIAL_8250
 	  Most people will say Y or M here, so that they can use serial mice,
 	  modems and similar devices connecting to the standard serial ports.
 
+config SERIAL_8250_DEPRECATED_OPTIONS
+	bool "Support 8250_core.* kernel options (DEPRECATED)"
+	depends on SERIAL_8250
+	default y
+	---help---
+	  In 3.7 we renamed 8250 to 8250_core by mistake, so now we have to
+	  accept kernel parameters in both forms like 8250_core.nr_uarts=4 and
+	  8250.nr_uarts=4. We now renamed the module back to 8250, but if
+	  anybody noticed in 3.7 and changed their userspace we still have to
+	  keep the 8350_core.* options around until they revert the changes
+	  they already did.
+
+	  If 8250 is built as a module, this adds 8250_core alias instead. 
+
+	  If you did not notice yet and/or you have userspace from pre-3.7, it
+	  is safe (and recommended) to say N here.
+
 config SERIAL_8250_PNP
 	bool "8250/16550 PNP device support" if EXPERT
 	depends on SERIAL_8250 && PNP
@@ -83,6 +100,14 @@ config SERIAL_8250_GSC
 	tristate
 	depends on SERIAL_8250 && GSC
 	default SERIAL_8250
+
+config SERIAL_8250_DMA
+	bool "DMA support for 16550 compatible UART controllers" if EXPERT
+	depends on SERIAL_8250 && DMADEVICES=y
+	default SERIAL_8250
+	help
+	  This builds DMA support that can be used with 8250/16650
+	  compatible UART controllers that support DMA signaling.
 
 config SERIAL_8250_PCI
 	tristate "8250/16550 PCI device support" if EXPERT
@@ -249,15 +274,6 @@ config SERIAL_8250_ACORN
 	  system, say Y to this option.  The driver can handle 1, 2, or 3 port
 	  cards.  If unsure, say N.
 
-config SERIAL_8250_RM9K
-	bool "Support for MIPS RM9xxx integrated serial port"
-	depends on SERIAL_8250 != n && SERIAL_RM9000
-	select SERIAL_8250_SHARE_IRQ
-	help
-	  Selecting this option will add support for the integrated serial
-	  port hardware found on MIPS RM9122 and similar processors.
-	  If unsure, say N.
-
 config SERIAL_8250_FSL
 	bool
 	depends on SERIAL_8250_CONSOLE && PPC_UDBG_16550
@@ -265,7 +281,7 @@ config SERIAL_8250_FSL
 
 config SERIAL_8250_DW
 	tristate "Support for Synopsys DesignWare 8250 quirks"
-	depends on SERIAL_8250 && OF
+	depends on SERIAL_8250
 	help
 	  Selecting this option will enable handling of the extra features
 	  present in the Synopsys DesignWare APB UART.
@@ -277,3 +293,11 @@ config SERIAL_8250_EM
 	  Selecting this option will add support for the integrated serial
 	  port hardware found on the Emma Mobile line of processors.
 	  If unsure, say N.
+
+config SERIAL_8250_RT288X
+	bool "Ralink RT288x/RT305x/RT3662/RT3883 serial port support"
+	depends on SERIAL_8250 && (SOC_RT288X || SOC_RT305X || SOC_RT3883)
+	help
+	  If you have a Ralink RT288x/RT305x SoC based board and want to use the
+	  serial port, say Y to this option. The driver can handle up to 2 serial
+	  ports. If unsure, say N.

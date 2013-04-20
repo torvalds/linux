@@ -130,8 +130,9 @@ static int do_signal(struct pt_regs *regs)
 	 * user space. The DABR will have been cleared if it
 	 * triggered inside the kernel.
 	 */
-	if (current->thread.dabr)
-		set_dabr(current->thread.dabr, current->thread.dabrx);
+	if (current->thread.hw_brk.address &&
+		current->thread.hw_brk.type)
+		set_breakpoint(&current->thread.hw_brk);
 #endif
 	/* Re-enable the breakpoints for the signal stack */
 	thread_change_pc(current, regs);
@@ -168,11 +169,4 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
 	}
-}
-
-long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
-		unsigned long r5, unsigned long r6, unsigned long r7,
-		unsigned long r8, struct pt_regs *regs)
-{
-	return do_sigaltstack(uss, uoss, regs->gpr[1]);
 }

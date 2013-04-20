@@ -907,15 +907,18 @@ int transport_dump_vpd_ident(
 
 	switch (vpd->device_identifier_code_set) {
 	case 0x01: /* Binary */
-		sprintf(buf, "T10 VPD Binary Device Identifier: %s\n",
+		snprintf(buf, sizeof(buf),
+			"T10 VPD Binary Device Identifier: %s\n",
 			&vpd->device_identifier[0]);
 		break;
 	case 0x02: /* ASCII */
-		sprintf(buf, "T10 VPD ASCII Device Identifier: %s\n",
+		snprintf(buf, sizeof(buf),
+			"T10 VPD ASCII Device Identifier: %s\n",
 			&vpd->device_identifier[0]);
 		break;
 	case 0x03: /* UTF-8 */
-		sprintf(buf, "T10 VPD UTF-8 Device Identifier: %s\n",
+		snprintf(buf, sizeof(buf),
+			"T10 VPD UTF-8 Device Identifier: %s\n",
 			&vpd->device_identifier[0]);
 		break;
 	default:
@@ -1136,8 +1139,10 @@ target_setup_cmd_from_cdb(struct se_cmd *cmd, unsigned char *cdb)
 		return ret;
 
 	ret = target_check_reservation(cmd);
-	if (ret)
+	if (ret) {
+		cmd->scsi_status = SAM_STAT_RESERVATION_CONFLICT;
 		return ret;
+	}
 
 	ret = dev->transport->parse_cdb(cmd);
 	if (ret)
@@ -1514,6 +1519,7 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	case TCM_UNSUPPORTED_SCSI_OPCODE:
 	case TCM_INVALID_CDB_FIELD:
 	case TCM_INVALID_PARAMETER_LIST:
+	case TCM_PARAMETER_LIST_LENGTH_ERROR:
 	case TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE:
 	case TCM_UNKNOWN_MODE_PAGE:
 	case TCM_WRITE_PROTECTED:
@@ -2673,6 +2679,15 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 		buffer[SPC_SENSE_KEY_OFFSET] = ILLEGAL_REQUEST;
 		/* INVALID FIELD IN PARAMETER LIST */
 		buffer[SPC_ASC_KEY_OFFSET] = 0x26;
+		break;
+	case TCM_PARAMETER_LIST_LENGTH_ERROR:
+		/* CURRENT ERROR */
+		buffer[0] = 0x70;
+		buffer[SPC_ADD_SENSE_LEN_OFFSET] = 10;
+		/* ILLEGAL REQUEST */
+		buffer[SPC_SENSE_KEY_OFFSET] = ILLEGAL_REQUEST;
+		/* PARAMETER LIST LENGTH ERROR */
+		buffer[SPC_ASC_KEY_OFFSET] = 0x1a;
 		break;
 	case TCM_UNEXPECTED_UNSOLICITED_DATA:
 		/* CURRENT ERROR */

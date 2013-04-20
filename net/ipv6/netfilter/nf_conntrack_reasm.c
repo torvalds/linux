@@ -14,6 +14,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) "IPv6-nf: " fmt
+
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -97,9 +99,9 @@ static int nf_ct_frag6_sysctl_register(struct net *net)
 		if (table == NULL)
 			goto err_alloc;
 
-		table[0].data = &net->ipv6.frags.high_thresh;
-		table[1].data = &net->ipv6.frags.low_thresh;
-		table[2].data = &net->ipv6.frags.timeout;
+		table[0].data = &net->nf_frag.frags.timeout;
+		table[1].data = &net->nf_frag.frags.low_thresh;
+		table[2].data = &net->nf_frag.frags.high_thresh;
 	}
 
 	hdr = register_net_sysctl(net, "net/netfilter", table);
@@ -180,13 +182,11 @@ static inline struct frag_queue *fq_find(struct net *net, __be32 id,
 
 	q = inet_frag_find(&net->nf_frag.frags, &nf_frags, &arg, hash);
 	local_bh_enable();
-	if (q == NULL)
-		goto oom;
-
+	if (IS_ERR_OR_NULL(q)) {
+		inet_frag_maybe_warn_overflow(q, pr_fmt());
+		return NULL;
+	}
 	return container_of(q, struct frag_queue, q);
-
-oom:
-	return NULL;
 }
 
 
@@ -319,7 +319,7 @@ found:
 	fq->q.meat += skb->len;
 	if (payload_len > fq->q.max_size)
 		fq->q.max_size = payload_len;
-	atomic_add(skb->truesize, &fq->q.net->mem);
+	add_frag_mem_limit(&fq->q, skb->truesize);
 
 	/* The first fragment.
 	 * nhoffset is obtained from the first fragment, of course.
@@ -328,9 +328,8 @@ found:
 		fq->nhoffset = nhoff;
 		fq->q.last_in |= INET_FRAG_FIRST_IN;
 	}
-	write_lock(&nf_frags.lock);
-	list_move_tail(&fq->q.lru_list, &fq->q.net->lru_list);
-	write_unlock(&nf_frags.lock);
+
+	inet_frag_lru_move(&fq->q);
 	return 0;
 
 discard_fq:
@@ -369,7 +368,7 @@ nf_ct_frag6_reasm(struct frag_queue *fq, struct net_device *dev)
 	}
 
 	/* Head of list must not be cloned. */
-	if (skb_cloned(head) && pskb_expand_head(head, 0, 0, GFP_ATOMIC)) {
+	if (skb_unclone(head, GFP_ATOMIC)) {
 		pr_debug("skb is cloned but can't expand head");
 		goto out_oom;
 	}
@@ -398,7 +397,7 @@ nf_ct_frag6_reasm(struct frag_queue *fq, struct net_device *dev)
 		clone->ip_summed = head->ip_summed;
 
 		NFCT_FRAG6_CB(clone)->orig = NULL;
-		atomic_add(clone->truesize, &fq->q.net->mem);
+		add_frag_mem_limit(&fq->q, clone->truesize);
 	}
 
 	/* We have to remove fragment header from datagram and to relocate
@@ -422,7 +421,7 @@ nf_ct_frag6_reasm(struct frag_queue *fq, struct net_device *dev)
 			head->csum = csum_add(head->csum, fp->csum);
 		head->truesize += fp->truesize;
 	}
-	atomic_sub(head->truesize, &fq->q.net->mem);
+	sub_frag_mem_limit(&fq->q, head->truesize);
 
 	head->local_df = 1;
 	head->next = NULL;

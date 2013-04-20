@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -547,9 +548,9 @@ static int mmp_tdma_probe(struct platform_device *pdev)
 	if (!iores)
 		return -EINVAL;
 
-	tdev->base = devm_request_and_ioremap(&pdev->dev, iores);
-	if (!tdev->base)
-		return -EADDRNOTAVAIL;
+	tdev->base = devm_ioremap_resource(&pdev->dev, iores);
+	if (IS_ERR(tdev->base))
+		return PTR_ERR(tdev->base);
 
 	INIT_LIST_HEAD(&tdev->device.channels);
 

@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/gpio.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/fb.h>
 #include <linux/delay.h>

@@ -82,7 +82,9 @@ www.measurementcomputing.com
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+
 #include <asm/dma.h>
+
 #include "../comedidev.h"
 
 #include "8253.h"

@@ -872,11 +872,11 @@ static int ati_remote_probe(struct usb_interface *interface,
 	ati_remote = kzalloc(sizeof (struct ati_remote), GFP_KERNEL);
 	rc_dev = rc_allocate_device();
 	if (!ati_remote || !rc_dev)
-		goto fail1;
+		goto exit_free_dev_rdev;
 
 	/* Allocate URB buffers, URBs */
 	if (ati_remote_alloc_buffers(udev, ati_remote))
-		goto fail2;
+		goto exit_free_buffers;
 
 	ati_remote->endpoint_in = endpoint_in;
 	ati_remote->endpoint_out = endpoint_out;
@@ -924,12 +924,12 @@ static int ati_remote_probe(struct usb_interface *interface,
 	/* Device Hardware Initialization - fills in ati_remote->idev from udev. */
 	err = ati_remote_initialize(ati_remote);
 	if (err)
-		goto fail3;
+		goto exit_kill_urbs;
 
 	/* Set up and register rc device */
 	err = rc_register_device(ati_remote->rdev);
 	if (err)
-		goto fail3;
+		goto exit_kill_urbs;
 
 	/* use our delay for rc_dev */
 	ati_remote->rdev->input_dev->rep[REP_DELAY] = repeat_delay;
@@ -939,7 +939,7 @@ static int ati_remote_probe(struct usb_interface *interface,
 		input_dev = input_allocate_device();
 		if (!input_dev) {
 			err = -ENOMEM;
-			goto fail4;
+			goto exit_unregister_device;
 		}
 
 		ati_remote->idev = input_dev;
@@ -947,19 +947,24 @@ static int ati_remote_probe(struct usb_interface *interface,
 		err = input_register_device(input_dev);
 
 		if (err)
-			goto fail5;
+			goto exit_free_input_device;
 	}
 
 	usb_set_intfdata(interface, ati_remote);
 	return 0;
 
- fail5:	input_free_device(input_dev);
- fail4:	rc_unregister_device(rc_dev);
+ exit_free_input_device:
+	input_free_device(input_dev);
+ exit_unregister_device:
+	rc_unregister_device(rc_dev);
 	rc_dev = NULL;
- fail3:	usb_kill_urb(ati_remote->irq_urb);
+ exit_kill_urbs:
+	usb_kill_urb(ati_remote->irq_urb);
 	usb_kill_urb(ati_remote->out_urb);
- fail2:	ati_remote_free_buffers(ati_remote);
- fail1:	rc_free_device(rc_dev);
+ exit_free_buffers:
+	ati_remote_free_buffers(ati_remote);
+ exit_free_dev_rdev:
+	 rc_free_device(rc_dev);
 	kfree(ati_remote);
 	return err;
 }

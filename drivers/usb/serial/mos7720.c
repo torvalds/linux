@@ -899,7 +899,6 @@ static void mos7720_bulk_in_callback(struct urb *urb)
 	int retval;
 	unsigned char *data ;
 	struct usb_serial_port *port;
-	struct tty_struct *tty;
 	int status = urb->status;
 
 	if (status) {
@@ -913,12 +912,10 @@ static void mos7720_bulk_in_callback(struct urb *urb)
 
 	data = urb->transfer_buffer;
 
-	tty = tty_port_tty_get(&port->port);
-	if (tty && urb->actual_length) {
-		tty_insert_flip_string(tty, data, urb->actual_length);
-		tty_flip_buffer_push(tty);
+	if (urb->actual_length) {
+		tty_insert_flip_string(&port->port, data, urb->actual_length);
+		tty_flip_buffer_push(&port->port);
 	}
-	tty_kref_put(tty);
 
 	if (port->read_urb->status != -EINPROGRESS) {
 		retval = usb_submit_urb(port->read_urb, GFP_ATOMIC);

@@ -158,7 +158,7 @@ struct atmel_uart_port {
 };
 
 static struct atmel_uart_port atmel_ports[ATMEL_MAX_UART];
-static unsigned long atmel_ports_in_use;
+static DECLARE_BITMAP(atmel_ports_in_use, ATMEL_MAX_UART);
 
 #ifdef SUPPORT_SYSRQ
 static struct console atmel_console;
@@ -774,14 +774,14 @@ static void atmel_rx_from_ring(struct uart_port *port)
 	 * uart_start(), which takes the lock.
 	 */
 	spin_unlock(&port->lock);
-	tty_flip_buffer_push(port->state->port.tty);
+	tty_flip_buffer_push(&port->state->port);
 	spin_lock(&port->lock);
 }
 
 static void atmel_rx_from_dma(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 	struct atmel_dma_buffer *pdc;
 	int rx_idx = atmel_port->pdc_rx_idx;
 	unsigned int head;
@@ -820,7 +820,8 @@ static void atmel_rx_from_dma(struct uart_port *port)
 			 */
 			count = head - tail;
 
-			tty_insert_flip_string(tty, pdc->buf + pdc->ofs, count);
+			tty_insert_flip_string(tport, pdc->buf + pdc->ofs,
+						count);
 
 			dma_sync_single_for_device(port->dev, pdc->dma_addr,
 					pdc->dma_size, DMA_FROM_DEVICE);
@@ -848,7 +849,7 @@ static void atmel_rx_from_dma(struct uart_port *port)
 	 * uart_start(), which takes the lock.
 	 */
 	spin_unlock(&port->lock);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tport);
 	spin_lock(&port->lock);
 
 	UART_PUT_IER(port, ATMEL_US_ENDRX | ATMEL_US_TIMEOUT);
@@ -1768,15 +1769,14 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	if (ret < 0)
 		/* port id not found in platform data nor device-tree aliases:
 		 * auto-enumerate it */
-		ret = find_first_zero_bit(&atmel_ports_in_use,
-				sizeof(atmel_ports_in_use));
+		ret = find_first_zero_bit(atmel_ports_in_use, ATMEL_MAX_UART);
 
-	if (ret > ATMEL_MAX_UART) {
+	if (ret >= ATMEL_MAX_UART) {
 		ret = -ENODEV;
 		goto err;
 	}
 
-	if (test_and_set_bit(ret, &atmel_ports_in_use)) {
+	if (test_and_set_bit(ret, atmel_ports_in_use)) {
 		/* port already in use */
 		ret = -EBUSY;
 		goto err;
@@ -1856,7 +1856,7 @@ static int atmel_serial_remove(struct platform_device *pdev)
 
 	/* "port" is allocated statically, so we shouldn't free it */
 
-	clear_bit(port->line, &atmel_ports_in_use);
+	clear_bit(port->line, atmel_ports_in_use);
 
 	clk_put(atmel_port->clk);
 

@@ -206,133 +206,19 @@ asmlinkage long compat_sys_fstatat64(unsigned int dfd,
 	return cp_compat_stat64(&stat, statbuf);
 }
 
-asmlinkage long compat_sys_sysfs(int option, u32 arg1, u32 arg2)
+COMPAT_SYSCALL_DEFINE3(sparc_sigaction, int, sig,
+			struct compat_old_sigaction __user *,act,
+			struct compat_old_sigaction __user *,oact)
 {
-	return sys_sysfs(option, arg1, arg2);
-}
-
-asmlinkage long compat_sys_rt_sigprocmask(int how,
-					  compat_sigset_t __user *set,
-					  compat_sigset_t __user *oset,
-					  compat_size_t sigsetsize)
-{
-	sigset_t s;
-	compat_sigset_t s32;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-	
-	if (set) {
-		if (copy_from_user (&s32, set, sizeof(compat_sigset_t)))
-			return -EFAULT;
-		switch (_NSIG_WORDS) {
-		case 4: s.sig[3] = s32.sig[6] | (((long)s32.sig[7]) << 32);
-		case 3: s.sig[2] = s32.sig[4] | (((long)s32.sig[5]) << 32);
-		case 2: s.sig[1] = s32.sig[2] | (((long)s32.sig[3]) << 32);
-		case 1: s.sig[0] = s32.sig[0] | (((long)s32.sig[1]) << 32);
-		}
-	}
-	set_fs (KERNEL_DS);
-	ret = sys_rt_sigprocmask(how,
-				 set ? (sigset_t __user *) &s : NULL,
-				 oset ? (sigset_t __user *) &s : NULL,
-				 sigsetsize);
-	set_fs (old_fs);
-	if (ret) return ret;
-	if (oset) {
-		switch (_NSIG_WORDS) {
-		case 4: s32.sig[7] = (s.sig[3] >> 32); s32.sig[6] = s.sig[3];
-		case 3: s32.sig[5] = (s.sig[2] >> 32); s32.sig[4] = s.sig[2];
-		case 2: s32.sig[3] = (s.sig[1] >> 32); s32.sig[2] = s.sig[1];
-		case 1: s32.sig[1] = (s.sig[0] >> 32); s32.sig[0] = s.sig[0];
-		}
-		if (copy_to_user (oset, &s32, sizeof(compat_sigset_t)))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-asmlinkage long sys32_rt_sigpending(compat_sigset_t __user *set,
-				    compat_size_t sigsetsize)
-{
-	sigset_t s;
-	compat_sigset_t s32;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-		
-	set_fs (KERNEL_DS);
-	ret = sys_rt_sigpending((sigset_t __user *) &s, sigsetsize);
-	set_fs (old_fs);
-	if (!ret) {
-		switch (_NSIG_WORDS) {
-		case 4: s32.sig[7] = (s.sig[3] >> 32); s32.sig[6] = s.sig[3];
-		case 3: s32.sig[5] = (s.sig[2] >> 32); s32.sig[4] = s.sig[2];
-		case 2: s32.sig[3] = (s.sig[1] >> 32); s32.sig[2] = s.sig[1];
-		case 1: s32.sig[1] = (s.sig[0] >> 32); s32.sig[0] = s.sig[0];
-		}
-		if (copy_to_user (set, &s32, sizeof(compat_sigset_t)))
-			return -EFAULT;
-	}
-	return ret;
-}
-
-asmlinkage long compat_sys_rt_sigqueueinfo(int pid, int sig,
-					   struct compat_siginfo __user *uinfo)
-{
-	siginfo_t info;
-	int ret;
-	mm_segment_t old_fs = get_fs();
-	
-	if (copy_siginfo_from_user32(&info, uinfo))
-		return -EFAULT;
-
-	set_fs (KERNEL_DS);
-	ret = sys_rt_sigqueueinfo(pid, sig, (siginfo_t __user *) &info);
-	set_fs (old_fs);
-	return ret;
-}
-
-asmlinkage long compat_sys_sigaction(int sig, struct old_sigaction32 __user *act,
-				     struct old_sigaction32 __user *oact)
-{
-        struct k_sigaction new_ka, old_ka;
-        int ret;
-
 	WARN_ON_ONCE(sig >= 0);
-	sig = -sig;
-
-        if (act) {
-		compat_old_sigset_t mask;
-		u32 u_handler, u_restorer;
-		
-		ret = get_user(u_handler, &act->sa_handler);
-		new_ka.sa.sa_handler =  compat_ptr(u_handler);
-		ret |= __get_user(u_restorer, &act->sa_restorer);
-		new_ka.sa.sa_restorer = compat_ptr(u_restorer);
-		ret |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		ret |= __get_user(mask, &act->sa_mask);
-		if (ret)
-			return ret;
-		new_ka.ka_restorer = NULL;
-		siginitset(&new_ka.sa.sa_mask, mask);
-        }
-
-        ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		ret = put_user(ptr_to_compat(old_ka.sa.sa_handler), &oact->sa_handler);
-		ret |= __put_user(ptr_to_compat(old_ka.sa.sa_restorer), &oact->sa_restorer);
-		ret |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		ret |= __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
-        }
-
-	return ret;
+	return compat_sys_sigaction(-sig, act, oact);
 }
 
-asmlinkage long compat_sys_rt_sigaction(int sig,
-					struct sigaction32 __user *act,
-					struct sigaction32 __user *oact,
-					void __user *restorer,
-					compat_size_t sigsetsize)
+COMPAT_SYSCALL_DEFINE5(rt_sigaction, int, sig,
+			struct compat_sigaction __user *,act,
+			struct compat_sigaction __user *,oact,
+			void __user *,restorer,
+			compat_size_t,sigsetsize)
 {
         struct k_sigaction new_ka, old_ka;
         int ret;
@@ -349,12 +235,7 @@ asmlinkage long compat_sys_rt_sigaction(int sig,
 		ret = get_user(u_handler, &act->sa_handler);
 		new_ka.sa.sa_handler =  compat_ptr(u_handler);
 		ret |= __copy_from_user(&set32, &act->sa_mask, sizeof(compat_sigset_t));
-		switch (_NSIG_WORDS) {
-		case 4: new_ka.sa.sa_mask.sig[3] = set32.sig[6] | (((long)set32.sig[7]) << 32);
-		case 3: new_ka.sa.sa_mask.sig[2] = set32.sig[4] | (((long)set32.sig[5]) << 32);
-		case 2: new_ka.sa.sa_mask.sig[1] = set32.sig[2] | (((long)set32.sig[3]) << 32);
-		case 1: new_ka.sa.sa_mask.sig[0] = set32.sig[0] | (((long)set32.sig[1]) << 32);
-		}
+		sigset_from_compat(&new_ka.sa.sa_mask, &set32);
 		ret |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
 		ret |= __get_user(u_restorer, &act->sa_restorer);
 		new_ka.sa.sa_restorer = compat_ptr(u_restorer);
@@ -365,12 +246,7 @@ asmlinkage long compat_sys_rt_sigaction(int sig,
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
 	if (!ret && oact) {
-		switch (_NSIG_WORDS) {
-		case 4: set32.sig[7] = (old_ka.sa.sa_mask.sig[3] >> 32); set32.sig[6] = old_ka.sa.sa_mask.sig[3];
-		case 3: set32.sig[5] = (old_ka.sa.sa_mask.sig[2] >> 32); set32.sig[4] = old_ka.sa.sa_mask.sig[2];
-		case 2: set32.sig[3] = (old_ka.sa.sa_mask.sig[1] >> 32); set32.sig[2] = old_ka.sa.sa_mask.sig[1];
-		case 1: set32.sig[1] = (old_ka.sa.sa_mask.sig[0] >> 32); set32.sig[0] = old_ka.sa.sa_mask.sig[0];
-		}
+		sigset_to_compat(&set32, &old_ka.sa.sa_mask);
 		ret = put_user(ptr_to_compat(old_ka.sa.sa_handler), &oact->sa_handler);
 		ret |= __copy_to_user(&oact->sa_mask, &set32, sizeof(compat_sigset_t));
 		ret |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
@@ -381,35 +257,6 @@ asmlinkage long compat_sys_rt_sigaction(int sig,
 
         return ret;
 }
-
-#ifdef CONFIG_MODULES
-
-asmlinkage long sys32_init_module(void __user *umod, u32 len,
-				  const char __user *uargs)
-{
-	return sys_init_module(umod, len, uargs);
-}
-
-asmlinkage long sys32_delete_module(const char __user *name_user,
-				    unsigned int flags)
-{
-	return sys_delete_module(name_user, flags);
-}
-
-#else /* CONFIG_MODULES */
-
-asmlinkage long sys32_init_module(const char __user *name_user,
-				  struct module __user *mod_user)
-{
-	return -ENOSYS;
-}
-
-asmlinkage long sys32_delete_module(const char __user *name_user)
-{
-	return -ENOSYS;
-}
-
-#endif  /* CONFIG_MODULES */
 
 asmlinkage compat_ssize_t sys32_pread64(unsigned int fd,
 					char __user *ubuf,
@@ -454,16 +301,6 @@ long compat_sys_fadvise64_64(int fd,
 				(offhi << 32) | offlo,
 				(lenhi << 32) | lenlo,
 				advice);
-}
-
-/* This is just a version for 32-bit applications which does
- * not force O_LARGEFILE on.
- */
-
-asmlinkage long sparc32_open(const char __user *filename,
-			     int flags, int mode)
-{
-	return do_sys_open(AT_FDCWD, filename, flags, mode);
 }
 
 long sys32_lookup_dcookie(unsigned long cookie_high,

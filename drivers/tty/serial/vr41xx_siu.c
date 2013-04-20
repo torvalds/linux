@@ -313,12 +313,10 @@ static void siu_break_ctl(struct uart_port *port, int ctl)
 
 static inline void receive_chars(struct uart_port *port, uint8_t *status)
 {
-	struct tty_struct *tty;
 	uint8_t lsr, ch;
 	char flag;
 	int max_count = RX_MAX_COUNT;
 
-	tty = port->state->port.tty;
 	lsr = *status;
 
 	do {
@@ -365,7 +363,7 @@ static inline void receive_chars(struct uart_port *port, uint8_t *status)
 		lsr = siu_read(port, UART_LSR);
 	} while ((lsr & UART_LSR_DR) && (max_count-- > 0));
 
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->state->port);
 
 	*status = lsr;
 }

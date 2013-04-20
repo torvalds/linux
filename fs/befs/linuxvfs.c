@@ -213,7 +213,7 @@ befs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 static int
 befs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block *sb = inode->i_sb;
 	befs_data_stream *ds = &BEFS_I(inode)->i_data.ds;
 	befs_off_t value;
@@ -951,6 +951,7 @@ static struct file_system_type befs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,	
 };
+MODULE_ALIAS_FS("befs");
 
 static int __init
 init_befs_fs(void)

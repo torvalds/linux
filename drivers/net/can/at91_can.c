@@ -37,6 +37,7 @@
 
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
+#include <linux/can/led.h>
 
 #define AT91_MB_MASK(i)		((1 << (i)) - 1)
 
@@ -641,6 +642,8 @@ static void at91_read_msg(struct net_device *dev, unsigned int mb)
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+
+	can_led_event(dev, CAN_LED_EVENT_RX);
 }
 
 /**
@@ -875,6 +878,7 @@ static void at91_irq_tx(struct net_device *dev, u32 reg_sr)
 			/* _NOTE_: subtract AT91_MB_TX_FIRST offset from mb! */
 			can_get_echo_skb(dev, mb - get_mb_tx_first(priv));
 			dev->stats.tx_packets++;
+			can_led_event(dev, CAN_LED_EVENT_TX);
 		}
 	}
 
@@ -1128,6 +1132,8 @@ static int at91_open(struct net_device *dev)
 		goto out_close;
 	}
 
+	can_led_event(dev, CAN_LED_EVENT_OPEN);
+
 	/* start chip and queuing */
 	at91_chip_start(dev);
 	napi_enable(&priv->napi);
@@ -1158,6 +1164,8 @@ static int at91_close(struct net_device *dev)
 	clk_disable(priv->clk);
 
 	close_candev(dev);
+
+	can_led_event(dev, CAN_LED_EVENT_STOP);
 
 	return 0;
 }
@@ -1320,6 +1328,8 @@ static int at91_can_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "registering netdev failed\n");
 		goto exit_free;
 	}
+
+	devm_can_led_init(dev);
 
 	dev_info(&pdev->dev, "device registered (reg_base=%p, irq=%d)\n",
 		 priv->reg_base, dev->irq);

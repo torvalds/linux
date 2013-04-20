@@ -385,5 +385,19 @@
 				mac-address = [ 00 00 00 00 00 00 ];
 			};
 		};
+
+		ocmcram: ocmcram@40300000 {
+			compatible = "ti,am3352-ocmcram";
+			reg = <0x40300000 0x10000>;
+			ti,hwmods = "ocmcram";
+			ti,no_idle_on_suspend;
+		};
+
+		wkup_m3: wkup_m3@44d00000 {
+			compatible = "ti,am3353-wkup-m3";
+			reg = <0x44d00000 0x4000	/* M3 UMEM */
+			       0x44d80000 0x2000>;	/* M3 DMEM */
+			ti,hwmods = "wkup_m3";
+		};
 	};
 };

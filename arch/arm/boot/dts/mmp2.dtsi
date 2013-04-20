@@ -46,7 +46,7 @@
 				mrvl,intc-nr-irqs = <64>;
 			};
 
-			intcmux4@d4282150 {
+			intcmux4: interrupt-controller@d4282150 {
 				compatible = "mrvl,mmp2-mux-intc";
 				interrupts = <4>;
 				interrupt-controller;
@@ -201,6 +201,8 @@
 				compatible = "mrvl,mmp-twsi";
 				reg = <0xd4011000 0x1000>;
 				interrupts = <7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				mrvl,i2c-fast-mode;
 				status = "disabled";
 			};

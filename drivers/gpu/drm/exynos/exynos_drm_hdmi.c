@@ -124,8 +124,20 @@ static struct edid *drm_hdmi_get_edid(struct device *dev,
 static int drm_hdmi_check_timing(struct device *dev, void *timing)
 {
 	struct drm_hdmi_context *ctx = to_context(dev);
+	int ret = 0;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	/*
+	* Both, mixer and hdmi should be able to handle the requested mode.
+	* If any of the two fails, return mode as BAD.
+	*/
+
+	if (mixer_ops && mixer_ops->check_timing)
+		ret = mixer_ops->check_timing(ctx->mixer_ctx->ctx, timing);
+
+	if (ret)
+		return ret;
 
 	if (hdmi_ops && hdmi_ops->check_timing)
 		return hdmi_ops->check_timing(ctx->hdmi_ctx->ctx, timing);

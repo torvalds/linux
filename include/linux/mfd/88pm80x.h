@@ -365,5 +365,5 @@ static inline int pm80x_dev_resume(struct device *dev)
 
 extern int pm80x_init(struct i2c_client *client,
 		      const struct i2c_device_id *id);
-extern int pm80x_deinit(struct i2c_client *client);
+extern int pm80x_deinit(void);
 #endif /* __LINUX_MFD_88PM80X_H */

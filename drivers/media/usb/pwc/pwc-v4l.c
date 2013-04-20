@@ -434,19 +434,18 @@ static int pwc_vidioc_try_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 		case V4L2_PIX_FMT_PWC1:
 			if (DEVICE_USE_CODEC23(pdev->type)) {
 				PWC_DEBUG_IOCTL("codec1 is only supported for old pwc webcam\n");
-				return -EINVAL;
+				f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
 			}
 			break;
 		case V4L2_PIX_FMT_PWC2:
 			if (DEVICE_USE_CODEC1(pdev->type)) {
 				PWC_DEBUG_IOCTL("codec23 is only supported for new pwc webcam\n");
-				return -EINVAL;
+				f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
 			}
 			break;
 		default:
 			PWC_DEBUG_IOCTL("Unsupported pixel format\n");
-			return -EINVAL;
-
+			f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
 	}
 
 	size = pwc_get_size(pdev, f->fmt.pix.width, f->fmt.pix.height);

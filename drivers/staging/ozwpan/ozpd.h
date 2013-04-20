@@ -99,7 +99,7 @@ struct oz_pd {
 
 #define OZ_MAX_QUEUED_FRAMES	4
 
-struct oz_pd *oz_pd_alloc(u8 *mac_addr);
+struct oz_pd *oz_pd_alloc(const u8 *mac_addr);
 void oz_pd_destroy(struct oz_pd *pd);
 void oz_pd_get(struct oz_pd *pd);
 void oz_pd_put(struct oz_pd *pd);
@@ -115,7 +115,7 @@ void oz_send_queued_frames(struct oz_pd *pd, int backlog);
 void oz_retire_tx_frames(struct oz_pd *pd, u8 lpn);
 int oz_isoc_stream_create(struct oz_pd *pd, u8 ep_num);
 int oz_isoc_stream_delete(struct oz_pd *pd, u8 ep_num);
-int oz_send_isoc_unit(struct oz_pd *pd, u8 ep_num, u8 *data, int len);
+int oz_send_isoc_unit(struct oz_pd *pd, u8 ep_num, const u8 *data, int len);
 void oz_handle_app_elt(struct oz_pd *pd, u8 app_id, struct oz_elt *elt);
 void oz_apps_init(void);
 void oz_apps_term(void);

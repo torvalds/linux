@@ -53,7 +53,7 @@
 #define PIIX4_OCW2_SP		(0x6 << 5)
 #define PIIX4_OCW2_NOP		(0x2 << 5)
 
-#define PIIX4_OCW2_SEL          (0x0 << 3)
+#define PIIX4_OCW2_SEL		(0x0 << 3)
 
 #define PIIX4_OCW2_ILS_0	0
 #define PIIX4_OCW2_ILS_1	1
@@ -72,9 +72,9 @@
 #define PIIX4_OCW2_ILS_14	6
 #define PIIX4_OCW2_ILS_15	7
 
-#define PIIX4_OCW3_SEL          (0x1 << 3)
+#define PIIX4_OCW3_SEL		(0x1 << 3)
 
-#define PIIX4_OCW3_IRR          0x2
-#define PIIX4_OCW3_ISR          0x3
+#define PIIX4_OCW3_IRR		0x2
+#define PIIX4_OCW3_ISR		0x3
 
 #endif /* __ASM_MIPS_BOARDS_PIIX4_H */

@@ -105,7 +105,7 @@ void saa7146_buffer_finish(struct saa7146_dev *dev,
 	}
 
 	q->curr->vb.state = state;
-	do_gettimeofday(&q->curr->vb.ts);
+	v4l2_get_timestamp(&q->curr->vb.ts);
 	wake_up(&q->curr->vb.done);
 
 	q->curr = NULL;
@@ -265,8 +265,7 @@ static int fops_release(struct file *file)
 
 	DEB_EE("file:%p\n", file);
 
-	if (mutex_lock_interruptible(vdev->lock))
-		return -ERESTARTSYS;
+	mutex_lock(vdev->lock);
 
 	if (vdev->vfl_type == VFL_TYPE_VBI) {
 		if (dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE)

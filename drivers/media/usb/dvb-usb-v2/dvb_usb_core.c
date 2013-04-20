@@ -102,6 +102,7 @@ static int dvb_usbv2_i2c_exit(struct dvb_usb_device *d)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_RC_CORE)
 static void dvb_usb_read_remote_control(struct work_struct *work)
 {
 	struct dvb_usb_device *d = container_of(work,
@@ -112,13 +113,16 @@ static void dvb_usb_read_remote_control(struct work_struct *work)
 	 * When the parameter has been set to 1 via sysfs while the
 	 * driver was running, or when bulk mode is enabled after IR init.
 	 */
-	if (dvb_usbv2_disable_rc_polling || d->rc.bulk_mode)
+	if (dvb_usbv2_disable_rc_polling || d->rc.bulk_mode) {
+		d->rc_polling_active = false;
 		return;
+	}
 
 	ret = d->rc.query(d);
 	if (ret < 0) {
 		dev_err(&d->udev->dev, "%s: rc.query() failed=%d\n",
 				KBUILD_MODNAME, ret);
+		d->rc_polling_active = false;
 		return; /* stop polling */
 	}
 
@@ -182,6 +186,7 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 				d->rc.interval);
 		schedule_delayed_work(&d->rc_query_work,
 				msecs_to_jiffies(d->rc.interval));
+		d->rc_polling_active = true;
 	}
 
 	return 0;
@@ -202,6 +207,10 @@ static int dvb_usbv2_remote_exit(struct dvb_usb_device *d)
 
 	return 0;
 }
+#else
+	#define dvb_usbv2_remote_init(args...) 0
+	#define dvb_usbv2_remote_exit(args...)
+#endif
 
 static void dvb_usb_data_complete(struct usb_data_stream *stream, u8 *buf,
 		size_t len)
@@ -959,7 +968,7 @@ int dvb_usbv2_suspend(struct usb_interface *intf, pm_message_t msg)
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
 	/* stop remote controller poll */
-	if (d->rc.query && !d->rc.bulk_mode)
+	if (d->rc_polling_active)
 		cancel_delayed_work_sync(&d->rc_query_work);
 
 	for (i = MAX_NO_OF_ADAPTER_PER_DEVICE - 1; i >= 0; i--) {
@@ -1006,7 +1015,7 @@ static int dvb_usbv2_resume_common(struct dvb_usb_device *d)
 	}
 
 	/* start remote controller poll */
-	if (d->rc.query && !d->rc.bulk_mode)
+	if (d->rc_polling_active)
 		schedule_delayed_work(&d->rc_query_work,
 				msecs_to_jiffies(d->rc.interval));
 

@@ -21,8 +21,8 @@ config XFRM_USER
 	  If unsure, say Y.
 
 config XFRM_SUB_POLICY
-	bool "Transformation sub policy support (EXPERIMENTAL)"
-	depends on XFRM && EXPERIMENTAL
+	bool "Transformation sub policy support"
+	depends on XFRM
 	---help---
 	  Support sub policy for developers. By using sub policy with main
 	  one, two policies can be applied to the same packet at once.
@@ -31,8 +31,8 @@ config XFRM_SUB_POLICY
 	  If unsure, say N.
 
 config XFRM_MIGRATE
-	bool "Transformation migrate database (EXPERIMENTAL)"
-	depends on XFRM && EXPERIMENTAL
+	bool "Transformation migrate database"
+	depends on XFRM
 	---help---
 	  A feature to update locator(s) of a given IPsec security
 	  association dynamically.  This feature is required, for
@@ -42,8 +42,8 @@ config XFRM_MIGRATE
 	  If unsure, say N.
 
 config XFRM_STATISTICS
-	bool "Transformation statistics (EXPERIMENTAL)"
-	depends on INET && XFRM && PROC_FS && EXPERIMENTAL
+	bool "Transformation statistics"
+	depends on INET && XFRM && PROC_FS
 	---help---
 	  This statistics is not a SNMP/MIB specification but shows
 	  statistics about transformation error (or almost error) factor
@@ -68,8 +68,8 @@ config NET_KEY
 	  Say Y unless you know what you are doing.
 
 config NET_KEY_MIGRATE
-	bool "PF_KEY MIGRATE (EXPERIMENTAL)"
-	depends on NET_KEY && EXPERIMENTAL
+	bool "PF_KEY MIGRATE"
+	depends on NET_KEY
 	select XFRM_MIGRATE
 	---help---
 	  Add a PF_KEY MIGRATE message to PF_KEYv2 socket family.

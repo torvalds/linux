@@ -111,7 +111,7 @@ int cvmx_helper_ports_on_interface(int interface)
  * @interface: Interface to probe
  *
  * Returns Mode of the interface. Unknown or unsupported interfaces return
- *         DISABLED.
+ *	   DISABLED.
  */
 cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int interface)
 {
@@ -187,7 +187,7 @@ cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int interface)
  * the defines in executive-config.h.
  *
  * @ipd_port: Port to configure. This follows the IPD numbering, not the
- *                 per interface numbering
+ *		   per interface numbering
  *
  * Returns Zero on success, negative on failure
  */
@@ -591,7 +591,7 @@ static int __cvmx_helper_packet_hardware_enable(int interface)
  * Function to adjust internal IPD pointer alignments
  *
  * Returns 0 on success
- *         !0 on failure
+ *	   !0 on failure
  */
 int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 {
@@ -1068,9 +1068,9 @@ int cvmx_helper_link_set(int ipd_port, cvmx_helper_link_info_t link_info)
  *
  * @ipd_port: IPD/PKO port to loopback.
  * @enable_internal:
- *                 Non zero if you want internal loopback
+ *		   Non zero if you want internal loopback
  * @enable_external:
- *                 Non zero if you want external loopback
+ *		   Non zero if you want external loopback
  *
  * Returns Zero on success, negative on failure.
  */

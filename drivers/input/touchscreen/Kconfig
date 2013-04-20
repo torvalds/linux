@@ -359,7 +359,7 @@ config TOUCHSCREEN_MCS5000
 
 config TOUCHSCREEN_MMS114
 	tristate "MELFAS MMS114 touchscreen"
-	depends on I2C
+	depends on I2C && GENERIC_HARDIRQS
 	help
 	  Say Y here if you have the MELFAS MMS114 touchscreen controller
 	  chip in your system.

@@ -40,6 +40,7 @@
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
 #include <linux/sh_clk.h>
+#include <linux/irqchip/arm-gic.h>
 #include <video/sh_mobile_lcdc.h>
 #include <video/sh_mipi_dsi.h>
 #include <sound/sh_fsi.h>
@@ -49,7 +50,6 @@
 #include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/traps.h>
 
@@ -479,11 +479,10 @@ static void ag5evm_sdhi1_set_pwr(struct platform_device *pdev, int state)
 	static int power_gpio = -EINVAL;
 
 	if (power_gpio < 0) {
-		int ret = gpio_request(GPIO_PORT114, "sdhi1_power");
-		if (!ret) {
+		int ret = gpio_request_one(GPIO_PORT114, GPIOF_OUT_INIT_LOW,
+					   "sdhi1_power");
+		if (!ret)
 			power_gpio = GPIO_PORT114;
-			gpio_direction_output(power_gpio, 0);
-		}
 	}
 
 	/*
@@ -604,14 +603,11 @@ static void __init ag5evm_init(void)
 	gpio_request(GPIO_FN_MMCD0_5_PU, NULL);
 	gpio_request(GPIO_FN_MMCD0_6_PU, NULL);
 	gpio_request(GPIO_FN_MMCD0_7_PU, NULL);
-	gpio_request(GPIO_PORT208, NULL); /* Reset */
-	gpio_direction_output(GPIO_PORT208, 1);
+	gpio_request_one(GPIO_PORT208, GPIOF_OUT_INIT_HIGH, NULL); /* Reset */
 
 	/* enable SMSC911X */
-	gpio_request(GPIO_PORT144, NULL); /* PINTA2 */
-	gpio_direction_input(GPIO_PORT144);
-	gpio_request(GPIO_PORT145, NULL); /* RESET */
-	gpio_direction_output(GPIO_PORT145, 1);
+	gpio_request_one(GPIO_PORT144, GPIOF_IN, NULL); /* PINTA2 */
+	gpio_request_one(GPIO_PORT145, GPIOF_OUT_INIT_HIGH, NULL); /* RESET */
 
 	/* FSI A */
 	gpio_request(GPIO_FN_FSIACK, NULL);
@@ -626,15 +622,13 @@ static void __init ag5evm_init(void)
 	gpio_request(GPIO_FN_PORT243_IRDA_FIRSEL, NULL);
 
 	/* LCD panel */
-	gpio_request(GPIO_PORT217, NULL); /* RESET */
-	gpio_direction_output(GPIO_PORT217, 0);
+	gpio_request_one(GPIO_PORT217, GPIOF_OUT_INIT_LOW, NULL); /* RESET */
 	mdelay(1);
 	gpio_set_value(GPIO_PORT217, 1);
 	mdelay(100);
 
 	/* LCD backlight controller */
-	gpio_request(GPIO_PORT235, NULL); /* RESET */
-	gpio_direction_output(GPIO_PORT235, 0);
+	gpio_request_one(GPIO_PORT235, GPIOF_OUT_INIT_LOW, NULL); /* RESET */
 	lcd_backlight_set_brightness(0);
 
 	/* enable SDHI0 on CN15 [SD I/F] */
@@ -668,8 +662,7 @@ MACHINE_START(AG5EVM, "ag5evm")
 	.init_early	= sh73a0_add_early_devices,
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= sh73a0_init_irq,
-	.handle_irq	= gic_handle_irq,
 	.init_machine	= ag5evm_init,
 	.init_late	= shmobile_init_late,
-	.timer		= &shmobile_timer,
+	.init_time	= sh73a0_earlytimer_init,
 MACHINE_END

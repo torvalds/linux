@@ -6,7 +6,7 @@
 #include <asm/lasat/lasat.h>
 #include <asm/nile4.h>
 
-#define PCI_ACCESS_READ  0
+#define PCI_ACCESS_READ	 0
 #define PCI_ACCESS_WRITE 1
 
 #define LO(reg) (reg / 4)

@@ -269,6 +269,14 @@ static int evtchn_bind_to_user(struct per_user_data *u, int port)
 				       u->name, (void *)(unsigned long)port);
 	if (rc >= 0)
 		rc = evtchn_make_refcounted(port);
+	else {
+		/* bind failed, should close the port now */
+		struct evtchn_close close;
+		close.port = port;
+		if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
+			BUG();
+		set_port_user(port, NULL);
+	}
 
 	return rc;
 }
@@ -276,6 +284,8 @@ static int evtchn_bind_to_user(struct per_user_data *u, int port)
 static void evtchn_unbind_from_user(struct per_user_data *u, int port)
 {
 	int irq = irq_from_evtchn(port);
+
+	BUG_ON(irq < 0);
 
 	unbind_from_irqhandler(irq, (void *)(unsigned long)port);
 
@@ -534,10 +544,10 @@ static int __init evtchn_init(void)
 
 	spin_lock_init(&port_user_lock);
 
-	/* Create '/dev/misc/evtchn'. */
+	/* Create '/dev/xen/evtchn'. */
 	err = misc_register(&evtchn_miscdev);
 	if (err != 0) {
-		printk(KERN_ALERT "Could not register /dev/misc/evtchn\n");
+		printk(KERN_ERR "Could not register /dev/xen/evtchn\n");
 		return err;
 	}
 

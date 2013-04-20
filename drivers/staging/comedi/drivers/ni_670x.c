@@ -41,8 +41,10 @@ Commands are not supported.
 
 */
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+
 #include "../comedidev.h"
 
 #include "mite.h"
@@ -309,11 +311,6 @@ static int ni_670x_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni_670x_driver);
 }
 
-static void ni_670x_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(ni_670x_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2c90) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1920) },
@@ -325,7 +322,7 @@ static struct pci_driver ni_670x_pci_driver = {
 	.name		= "ni_670x",
 	.id_table	= ni_670x_pci_table,
 	.probe		= ni_670x_pci_probe,
-	.remove		= ni_670x_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(ni_670x_driver, ni_670x_pci_driver);
 

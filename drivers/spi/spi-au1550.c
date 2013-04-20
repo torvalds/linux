@@ -717,7 +717,7 @@ static void au1550_spi_bits_handlers_set(struct au1550_spi *hw, int bpw)
 	}
 }
 
-static void __init au1550_spi_setup_psc_as_spi(struct au1550_spi *hw)
+static void au1550_spi_setup_psc_as_spi(struct au1550_spi *hw)
 {
 	u32 stat, cfg;
 
@@ -766,7 +766,7 @@ static void __init au1550_spi_setup_psc_as_spi(struct au1550_spi *hw)
 }
 
 
-static int __init au1550_spi_probe(struct platform_device *pdev)
+static int au1550_spi_probe(struct platform_device *pdev)
 {
 	struct au1550_spi *hw;
 	struct spi_master *master;
@@ -968,7 +968,7 @@ err_nomem:
 	return err;
 }
 
-static int __exit au1550_spi_remove(struct platform_device *pdev)
+static int au1550_spi_remove(struct platform_device *pdev)
 {
 	struct au1550_spi *hw = platform_get_drvdata(pdev);
 
@@ -997,7 +997,7 @@ static int __exit au1550_spi_remove(struct platform_device *pdev)
 MODULE_ALIAS("platform:au1550-spi");
 
 static struct platform_driver au1550_spi_drv = {
-	.remove = __exit_p(au1550_spi_remove),
+	.remove = au1550_spi_remove,
 	.driver = {
 		.name = "au1550-spi",
 		.owner = THIS_MODULE,

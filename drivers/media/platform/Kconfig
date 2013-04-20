@@ -92,14 +92,14 @@ config VIDEO_M32R_AR_M64278
 
 config VIDEO_OMAP2
 	tristate "OMAP2 Camera Capture Interface driver"
-	depends on VIDEO_DEV && ARCH_OMAP2
+	depends on VIDEO_DEV && ARCH_OMAP2 && VIDEO_V4L2_INT_DEVICE
 	select VIDEOBUF_DMA_SG
 	---help---
 	  This is a v4l2 driver for the TI OMAP2 camera capture interface
 
 config VIDEO_OMAP3
-	tristate "OMAP 3 Camera support (EXPERIMENTAL)"
-	depends on OMAP_IOVMM && VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && ARCH_OMAP3 && EXPERIMENTAL
+	tristate "OMAP 3 Camera support"
+	depends on OMAP_IOVMM && VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && ARCH_OMAP3
 	---help---
 	  Driver for an OMAP 3 camera controller.
 
@@ -169,8 +169,8 @@ config VIDEO_SAMSUNG_S5P_G2D
 	  2d graphics accelerator.
 
 config VIDEO_SAMSUNG_S5P_JPEG
-	tristate "Samsung S5P/Exynos4 JPEG codec driver (EXPERIMENTAL)"
-	depends on VIDEO_DEV && VIDEO_V4L2 && PLAT_S5P && EXPERIMENTAL
+	tristate "Samsung S5P/Exynos4 JPEG codec driver"
+	depends on VIDEO_DEV && VIDEO_V4L2 && PLAT_S5P
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
 	---help---
@@ -201,6 +201,15 @@ config VIDEO_SAMSUNG_EXYNOS_GSC
 	select V4L2_MEM2MEM_DEV
 	help
 	  This is a v4l2 driver for Samsung EXYNOS5 SoC G-Scaler.
+
+config VIDEO_SH_VEU
+	tristate "SuperH VEU mem2mem video processing driver"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	    Support for the Video Engine Unit (VEU) on SuperH and
+	    SH-Mobile SoCs.
 
 endif # V4L_MEM2MEM_DRIVERS
 

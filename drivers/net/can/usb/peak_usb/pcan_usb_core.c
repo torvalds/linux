@@ -386,7 +386,6 @@ static int peak_usb_start(struct peak_usb_device *dev)
 
 		buf = kmalloc(dev->adapter->rx_buffer_size, GFP_KERNEL);
 		if (!buf) {
-			netdev_err(netdev, "No memory left for USB buffer\n");
 			usb_free_urb(urb);
 			err = -ENOMEM;
 			break;
@@ -442,7 +441,6 @@ static int peak_usb_start(struct peak_usb_device *dev)
 
 		buf = kmalloc(dev->adapter->tx_buffer_size, GFP_KERNEL);
 		if (!buf) {
-			netdev_err(netdev, "No memory left for USB buffer\n");
 			usb_free_urb(urb);
 			err = -ENOMEM;
 			break;
@@ -634,7 +632,6 @@ static int peak_usb_restart(struct peak_usb_device *dev)
 	/* also allocate enough space for the commands to send */
 	buf = kmalloc(PCAN_USB_MAX_CMD_LEN, GFP_ATOMIC);
 	if (!buf) {
-		netdev_err(dev->netdev, "no memory left for async cmd\n");
 		usb_free_urb(urb);
 		return -ENOMEM;
 	}
@@ -729,8 +726,6 @@ static int peak_usb_create_dev(struct peak_usb_adapter *peak_usb_adapter,
 	/* allocate a buffer large enough to send commands */
 	dev->cmd_buf = kmalloc(PCAN_USB_MAX_CMD_LEN, GFP_KERNEL);
 	if (!dev->cmd_buf) {
-		dev_err(&intf->dev, "%s: couldn't alloc cmd buffer\n",
-			PCAN_USB_DRIVER_NAME);
 		err = -ENOMEM;
 		goto lbl_set_intf_data;
 	}

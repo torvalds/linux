@@ -447,12 +447,6 @@ void intel_update_fbc(struct drm_device *dev)
 		dev_priv->no_fbc_reason = FBC_MODULE_PARAM;
 		goto out_disable;
 	}
-	if (intel_fb->obj->base.size > dev_priv->cfb_size) {
-		DRM_DEBUG_KMS("framebuffer too large, disabling "
-			      "compression\n");
-		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
-		goto out_disable;
-	}
 	if ((crtc->mode.flags & DRM_MODE_FLAG_INTERLACE) ||
 	    (crtc->mode.flags & DRM_MODE_FLAG_DBLSCAN)) {
 		DRM_DEBUG_KMS("mode incompatible with compression, "
@@ -485,6 +479,14 @@ void intel_update_fbc(struct drm_device *dev)
 	/* If the kernel debugger is active, always disable compression */
 	if (in_dbg_master())
 		goto out_disable;
+
+	if (i915_gem_stolen_setup_compression(dev, intel_fb->obj->base.size)) {
+		DRM_INFO("not enough stolen space for compressed buffer (need %zd bytes), disabling\n", intel_fb->obj->base.size);
+		DRM_INFO("hint: you may be able to increase stolen memory size in the BIOS to avoid this\n");
+		DRM_DEBUG_KMS("framebuffer too large, disabling compression\n");
+		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
+		goto out_disable;
+	}
 
 	/* If the scanout has not changed, don't modify the FBC settings.
 	 * Note that we make the fundamental assumption that the fb->obj
@@ -533,6 +535,7 @@ out_disable:
 		DRM_DEBUG_KMS("unsupported config, disabling FBC\n");
 		intel_disable_fbc(dev);
 	}
+	i915_gem_stolen_cleanup_compression(dev);
 }
 
 static void i915_pineview_get_mem_freq(struct drm_device *dev)
@@ -2286,7 +2289,6 @@ err_unpin:
 	i915_gem_object_unpin(ctx);
 err_unref:
 	drm_gem_object_unreference(&ctx->base);
-	mutex_unlock(&dev->struct_mutex);
 	return NULL;
 }
 
@@ -2572,7 +2574,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 	I915_WRITE(GEN6_RC1e_THRESHOLD, 1000);
 	I915_WRITE(GEN6_RC6_THRESHOLD, 50000);
-	I915_WRITE(GEN6_RC6p_THRESHOLD, 100000);
+	I915_WRITE(GEN6_RC6p_THRESHOLD, 150000);
 	I915_WRITE(GEN6_RC6pp_THRESHOLD, 64000); /* unused */
 
 	/* Check if we are enabling RC6 */
@@ -3581,6 +3583,19 @@ static void cpt_init_clock_gating(struct drm_device *dev)
 	}
 }
 
+static void gen6_check_mch_setup(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t tmp;
+
+	tmp = I915_READ(MCH_SSKPD);
+	if ((tmp & MCH_SSKPD_WM0_MASK) != MCH_SSKPD_WM0_VAL) {
+		DRM_INFO("Wrong MCH_SSKPD value: 0x%08x\n", tmp);
+		DRM_INFO("This can cause pipe underruns and display issues.\n");
+		DRM_INFO("Please upgrade your BIOS to fix this.\n");
+	}
+}
+
 static void gen6_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3673,6 +3688,8 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN6_GT_MODE, _MASKED_BIT_ENABLE(GEN6_GT_MODE_HI));
 
 	cpt_init_clock_gating(dev);
+
+	gen6_check_mch_setup(dev);
 }
 
 static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
@@ -3683,6 +3700,10 @@ static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
 	reg |= GEN7_FF_TS_SCHED_HW;
 	reg |= GEN7_FF_VS_SCHED_HW;
 	reg |= GEN7_FF_DS_SCHED_HW;
+
+	/* WaVSRefCountFullforceMissDisable */
+	if (IS_HASWELL(dev_priv->dev))
+		reg &= ~GEN7_FF_VS_REF_CNT_FFME;
 
 	I915_WRITE(GEN7_FF_THREAD_MODE, reg);
 }
@@ -3854,6 +3875,8 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN6_MBCUNIT_SNPCR, snpcr);
 
 	cpt_init_clock_gating(dev);
+
+	gen6_check_mch_setup(dev);
 }
 
 static void valleyview_init_clock_gating(struct drm_device *dev)
@@ -4047,35 +4070,60 @@ void intel_init_clock_gating(struct drm_device *dev)
 	dev_priv->display.init_clock_gating(dev);
 }
 
-/* Starting with Haswell, we have different power wells for
- * different parts of the GPU. This attempts to enable them all.
- */
-void intel_init_power_wells(struct drm_device *dev)
+void intel_set_power_well(struct drm_device *dev, bool enable)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long power_wells[] = {
-		HSW_PWR_WELL_CTL1,
-		HSW_PWR_WELL_CTL2,
-		HSW_PWR_WELL_CTL4
-	};
-	int i;
+	bool is_enabled, enable_requested;
+	uint32_t tmp;
 
 	if (!IS_HASWELL(dev))
 		return;
 
-	mutex_lock(&dev->struct_mutex);
+	if (!i915_disable_power_well && !enable)
+		return;
 
-	for (i = 0; i < ARRAY_SIZE(power_wells); i++) {
-		int well = I915_READ(power_wells[i]);
+	tmp = I915_READ(HSW_PWR_WELL_DRIVER);
+	is_enabled = tmp & HSW_PWR_WELL_STATE;
+	enable_requested = tmp & HSW_PWR_WELL_ENABLE;
 
-		if ((well & HSW_PWR_WELL_STATE) == 0) {
-			I915_WRITE(power_wells[i], well & HSW_PWR_WELL_ENABLE);
-			if (wait_for((I915_READ(power_wells[i]) & HSW_PWR_WELL_STATE), 20))
-				DRM_ERROR("Error enabling power well %lx\n", power_wells[i]);
+	if (enable) {
+		if (!enable_requested)
+			I915_WRITE(HSW_PWR_WELL_DRIVER, HSW_PWR_WELL_ENABLE);
+
+		if (!is_enabled) {
+			DRM_DEBUG_KMS("Enabling power well\n");
+			if (wait_for((I915_READ(HSW_PWR_WELL_DRIVER) &
+				      HSW_PWR_WELL_STATE), 20))
+				DRM_ERROR("Timeout enabling power well\n");
+		}
+	} else {
+		if (enable_requested) {
+			I915_WRITE(HSW_PWR_WELL_DRIVER, 0);
+			DRM_DEBUG_KMS("Requesting to disable the power well\n");
 		}
 	}
+}
 
-	mutex_unlock(&dev->struct_mutex);
+/*
+ * Starting with Haswell, we have a "Power Down Well" that can be turned off
+ * when not needed anymore. We have 4 registers that can request the power well
+ * to be enabled, and it will only be disabled if none of the registers is
+ * requesting it to be enabled.
+ */
+void intel_init_power_well(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!IS_HASWELL(dev))
+		return;
+
+	/* For now, we need the power well to be always enabled. */
+	intel_set_power_well(dev, true);
+
+	/* We're taking over the BIOS, so clear any requests made by it since
+	 * the driver is in charge now. */
+	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE)
+		I915_WRITE(HSW_PWR_WELL_BIOS, 0);
 }
 
 /* Set up chip specific power management-related functions */

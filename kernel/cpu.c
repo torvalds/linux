@@ -224,11 +224,13 @@ void clear_tasks_mm_cpumask(int cpu)
 static inline void check_for_tasks(int cpu)
 {
 	struct task_struct *p;
+	cputime_t utime, stime;
 
 	write_lock_irq(&tasklist_lock);
 	for_each_process(p) {
+		task_cputime(p, &utime, &stime);
 		if (task_cpu(p) == cpu && p->state == TASK_RUNNING &&
-		    (p->utime || p->stime))
+		    (utime || stime))
 			printk(KERN_WARNING "Task %s (pid = %d) is on cpu %d "
 				"(state = %ld, flags = %x)\n",
 				p->comm, task_pid_nr(p), cpu,
@@ -254,6 +256,8 @@ static int __ref take_cpu_down(void *_param)
 		return err;
 
 	cpu_notify(CPU_DYING | param->mod, param->hcpu);
+	/* Park the stopper thread */
+	kthread_park(current);
 	return 0;
 }
 

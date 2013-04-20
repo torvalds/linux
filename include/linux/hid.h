@@ -589,6 +589,7 @@ struct hid_usage_id {
  * @raw_event: if report in report_table, this hook is called (NULL means nop)
  * @usage_table: on which events to call event (NULL means all)
  * @event: if usage in usage_table, this hook is called (NULL means nop)
+ * @report: this hook is called after parsing a report (NULL means nop)
  * @report_fixup: called before report descriptor parsing (NULL means nop)
  * @input_mapping: invoked on input registering before mapping an usage
  * @input_mapped: invoked on input registering after mapping an usage
@@ -627,6 +628,7 @@ struct hid_driver {
 	const struct hid_usage_id *usage_table;
 	int (*event)(struct hid_device *hdev, struct hid_field *field,
 			struct hid_usage *usage, __s32 value);
+	void (*report)(struct hid_device *hdev, struct hid_report *report);
 
 	__u8 *(*report_fixup)(struct hid_device *hdev, __u8 *buf,
 			unsigned int *size);
@@ -699,6 +701,18 @@ extern int __must_check __hid_register_driver(struct hid_driver *,
 	__hid_register_driver(driver, THIS_MODULE, KBUILD_MODNAME)
 
 extern void hid_unregister_driver(struct hid_driver *);
+
+/**
+ * module_hid_driver() - Helper macro for registering a HID driver
+ * @__hid_driver: hid_driver struct
+ *
+ * Helper macro for HID drivers which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate. Each module may only
+ * use this macro once, and calling it replaces module_init() and module_exit()
+ */
+#define module_hid_driver(__hid_driver) \
+	module_driver(__hid_driver, hid_register_driver, \
+		      hid_unregister_driver)
 
 extern void hidinput_hid_event(struct hid_device *, struct hid_field *, struct hid_usage *, __s32);
 extern void hidinput_report_event(struct hid_device *hid, struct hid_report *report);
@@ -871,9 +885,6 @@ static inline int hid_hw_power(struct hid_device *hdev, int level)
 
 int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
 		int interrupt);
-
-extern int hid_generic_init(void);
-extern void hid_generic_exit(void);
 
 /* HID quirks API */
 u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct);

@@ -45,7 +45,7 @@ static void line6_midi_transmit(struct snd_rawmidi_substream *substream)
 	struct usb_line6 *line6 =
 	    line6_rawmidi_substream_midi(substream)->line6;
 	struct snd_line6_midi *line6midi = line6->line6midi;
-	struct MidiBuffer *mb = &line6midi->midibuf_out;
+	struct midi_buffer *mb = &line6midi->midibuf_out;
 	unsigned long flags;
 	unsigned char chunk[line6->max_packet_size];
 	int req, done;

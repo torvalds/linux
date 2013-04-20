@@ -37,6 +37,7 @@
 #include <linux/proc_fs.h>
 #include <linux/types.h>
 #include <linux/string.h>
+#include <linux/device.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/spinlock.h>
@@ -211,7 +212,7 @@ static void dgrp_input(struct ch_struct *ch)
 	data_len = (ch->ch_rin - ch->ch_rout) & RBUF_MASK;
 
 	/* len is the amount of data we are going to transfer here */
-	len = tty_buffer_request_room(tty, data_len);
+	len = tty_buffer_request_room(&ch->port, data_len);
 
 	/* Check DPA flow control */
 	if ((nd->nd_dpa_debug) &&
@@ -232,9 +233,9 @@ static void dgrp_input(struct ch_struct *ch)
 		    (nd->nd_dpa_port == PORT_NUM(MINOR(tty_devnum(tty)))))
 			dgrp_dpa_data(nd, 1, myflipbuf, len);
 
-		tty_insert_flip_string_flags(tty, myflipbuf,
+		tty_insert_flip_string_flags(&ch->port, myflipbuf,
 					     myflipflagbuf, len);
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&ch->port);
 
 		ch->ch_rxcount += len;
 	}
@@ -2956,9 +2957,9 @@ check_query:
 			    I_BRKINT(ch->ch_tun.un_tty) &&
 			    !(I_IGNBRK(ch->ch_tun.un_tty))) {
 
-				tty_buffer_request_room(ch->ch_tun.un_tty, 1);
-				tty_insert_flip_char(ch->ch_tun.un_tty, 0, TTY_BREAK);
-				tty_flip_buffer_push(ch->ch_tun.un_tty);
+				tty_buffer_request_room(&ch->port, 1);
+				tty_insert_flip_char(&ch->port, 0, TTY_BREAK);
+				tty_flip_buffer_push(&ch->port);
 
 			}
 

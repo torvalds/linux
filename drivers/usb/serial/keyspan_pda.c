@@ -138,7 +138,6 @@ static void keyspan_pda_request_unthrottle(struct work_struct *work)
 static void keyspan_pda_rx_interrupt(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int retval;
 	int status = urb->status;
@@ -163,14 +162,12 @@ static void keyspan_pda_rx_interrupt(struct urb *urb)
 	/* see if the message is data or a status interrupt */
 	switch (data[0]) {
 	case 0:
-		tty = tty_port_tty_get(&port->port);
 		 /* rest of message is rx data */
-		if (tty && urb->actual_length) {
-			tty_insert_flip_string(tty, data + 1,
+		if (urb->actual_length) {
+			tty_insert_flip_string(&port->port, data + 1,
 						urb->actual_length - 1);
-			tty_flip_buffer_push(tty);
+			tty_flip_buffer_push(&port->port);
 		}
-		tty_kref_put(tty);
 		break;
 	case 1:
 		/* status interrupt */

@@ -147,6 +147,7 @@ struct nci_dev {
 /* ----- NCI Devices ----- */
 struct nci_dev *nci_allocate_device(struct nci_ops *ops,
 				    __u32 supported_protocols,
+				    __u32 supported_se,
 				    int tx_headroom,
 				    int tx_tailroom);
 void nci_free_device(struct nci_dev *ndev);

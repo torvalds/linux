@@ -43,9 +43,9 @@ int hugetlb_mempolicy_sysctl_handler(struct ctl_table *, int,
 #endif
 
 int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
-int follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *,
-			struct page **, struct vm_area_struct **,
-			unsigned long *, int *, int, unsigned int flags);
+long follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *,
+			 struct page **, struct vm_area_struct **,
+			 unsigned long *, unsigned long *, long, unsigned int);
 void unmap_hugepage_range(struct vm_area_struct *,
 			  unsigned long, unsigned long, struct page *);
 void __unmap_hugepage_range_final(struct mmu_gather *tlb,
@@ -281,7 +281,7 @@ static inline struct hstate *hstate_inode(struct inode *i)
 
 static inline struct hstate *hstate_file(struct file *f)
 {
-	return hstate_inode(f->f_dentry->d_inode);
+	return hstate_inode(file_inode(f));
 }
 
 static inline struct hstate *hstate_vma(struct vm_area_struct *vma)

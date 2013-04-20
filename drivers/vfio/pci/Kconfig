@@ -6,3 +6,13 @@ config VFIO_PCI
 	  use of PCI drivers using the VFIO framework.
 
 	  If you don't know what to do here, say N.
+
+config VFIO_PCI_VGA
+	bool "VFIO PCI support for VGA devices"
+	depends on VFIO_PCI && X86 && VGA_ARB
+	help
+	  Support for VGA extension to VFIO PCI.  This exposes an additional
+	  region on VGA devices for accessing legacy VGA addresses used by
+	  BIOS and generic video drivers.
+
+	  If you don't know what to do here, say N.

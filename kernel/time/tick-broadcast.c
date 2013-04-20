@@ -18,6 +18,7 @@
 #include <linux/percpu.h>
 #include <linux/profile.h>
 #include <linux/sched.h>
+#include <linux/smp.h>
 
 #include "tick-internal.h"
 
@@ -66,7 +67,8 @@ static void tick_broadcast_start_periodic(struct clock_event_device *bc)
  */
 int tick_check_broadcast_device(struct clock_event_device *dev)
 {
-	if ((tick_broadcast_device.evtdev &&
+	if ((dev->features & CLOCK_EVT_FEAT_DUMMY) ||
+	    (tick_broadcast_device.evtdev &&
 	     tick_broadcast_device.evtdev->rating >= dev->rating) ||
 	     (dev->features & CLOCK_EVT_FEAT_C3STOP))
 		return 0;
@@ -84,6 +86,22 @@ int tick_check_broadcast_device(struct clock_event_device *dev)
 int tick_is_broadcast_device(struct clock_event_device *dev)
 {
 	return (dev && tick_broadcast_device.evtdev == dev);
+}
+
+static void err_broadcast(const struct cpumask *mask)
+{
+	pr_crit_once("Failed to broadcast timer tick. Some CPUs may be unresponsive.\n");
+}
+
+static void tick_device_setup_broadcast_func(struct clock_event_device *dev)
+{
+	if (!dev->broadcast)
+		dev->broadcast = tick_broadcast;
+	if (!dev->broadcast) {
+		pr_warn_once("%s depends on broadcast, but no broadcast function available\n",
+			     dev->name);
+		dev->broadcast = err_broadcast;
+	}
 }
 
 /*
@@ -105,6 +123,7 @@ int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu)
 	 */
 	if (!tick_device_is_functional(dev)) {
 		dev->event_handler = tick_handle_periodic;
+		tick_device_setup_broadcast_func(dev);
 		cpumask_set_cpu(cpu, tick_get_broadcast_mask());
 		tick_broadcast_start_periodic(tick_broadcast_device.evtdev);
 		ret = 1;
@@ -116,14 +135,32 @@ int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu)
 		 */
 		if (!(dev->features & CLOCK_EVT_FEAT_C3STOP)) {
 			int cpu = smp_processor_id();
-
 			cpumask_clear_cpu(cpu, tick_get_broadcast_mask());
 			tick_broadcast_clear_oneshot(cpu);
+		} else {
+			tick_device_setup_broadcast_func(dev);
 		}
 	}
 	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 	return ret;
 }
+
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+int tick_receive_broadcast(void)
+{
+	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
+	struct clock_event_device *evt = td->evtdev;
+
+	if (!evt)
+		return -ENODEV;
+
+	if (!evt->event_handler)
+		return -EINVAL;
+
+	evt->event_handler(evt);
+	return 0;
+}
+#endif
 
 /*
  * Broadcast the event to the cpus, which are set in the mask (mangled).

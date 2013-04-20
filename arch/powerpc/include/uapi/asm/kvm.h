@@ -114,7 +114,10 @@ struct kvm_regs {
 /* Embedded Floating Point (SPE) -- IVOR32-34 if KVM_SREGS_E_IVOR */
 #define KVM_SREGS_E_SPE			(1 << 9)
 
-/* External Proxy (EXP) -- EPR */
+/*
+ * DEPRECATED! USE ONE_REG FOR THIS ONE!
+ * External Proxy (EXP) -- EPR
+ */
 #define KVM_SREGS_EXP			(1 << 10)
 
 /* External PID (E.PD) -- EPSC/EPLC */
@@ -412,5 +415,6 @@ struct kvm_get_htab_header {
 #define KVM_REG_PPC_VPA_DTL	(KVM_REG_PPC | KVM_REG_SIZE_U128 | 0x84)
 
 #define KVM_REG_PPC_EPCR	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x85)
+#define KVM_REG_PPC_EPR		(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x86)
 
 #endif /* __LINUX_KVM_POWERPC_H */

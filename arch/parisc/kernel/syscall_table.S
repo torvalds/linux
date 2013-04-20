@@ -76,7 +76,7 @@
 	ENTRY_SAME(socket)
 	/* struct stat is MAYBE identical wide and narrow ?? */
 	ENTRY_COMP(newstat)
-	ENTRY_DIFF(lseek)
+	ENTRY_COMP(lseek)
 	ENTRY_SAME(getpid)		/* 20 */
 	/* the 'void * data' parameter may need re-packing in wide */
 	ENTRY_COMP(mount)
@@ -165,8 +165,8 @@
 	ENTRY_SAME(mmap2)
 	ENTRY_SAME(mmap)		/* 90 */
 	ENTRY_SAME(munmap)
-	ENTRY_SAME(truncate)
-	ENTRY_SAME(ftruncate)
+	ENTRY_COMP(truncate)
+	ENTRY_COMP(ftruncate)
 	ENTRY_SAME(fchmod)
 	ENTRY_SAME(fchown)		/* 95 */
 	ENTRY_SAME(getpriority)
@@ -247,15 +247,12 @@
 	ENTRY_SAME(sched_yield)
 	ENTRY_SAME(sched_get_priority_max)
 	ENTRY_SAME(sched_get_priority_min)	/* 160 */
-	/* These 2 would've worked if someone had defined struct timespec
-	 * carefully, like timeval for example (which is about the same).
-	 * Unfortunately it contains a long :-( */
-	ENTRY_DIFF(sched_rr_get_interval)
+	ENTRY_COMP(sched_rr_get_interval)
 	ENTRY_COMP(nanosleep)
 	ENTRY_SAME(mremap)
 	ENTRY_SAME(setresuid)
 	ENTRY_SAME(getresuid)		/* 165 */
-	ENTRY_DIFF(sigaltstack_wrapper)
+	ENTRY_COMP(sigaltstack)
 	ENTRY_SAME(ni_syscall)		/* query_module */
 	ENTRY_SAME(poll)
 	/* structs contain pointers and an in_addr... */
@@ -265,9 +262,9 @@
 	ENTRY_SAME(prctl)
 	/* signals need a careful review */
 	ENTRY_SAME(rt_sigreturn_wrapper)
-	ENTRY_DIFF(rt_sigaction)
-	ENTRY_DIFF(rt_sigprocmask)	/* 175 */
-	ENTRY_DIFF(rt_sigpending)
+	ENTRY_COMP(rt_sigaction)
+	ENTRY_COMP(rt_sigprocmask)	/* 175 */
+	ENTRY_COMP(rt_sigpending)
 	ENTRY_COMP(rt_sigtimedwait)
 	/* even though the struct siginfo_t is different, it appears like
 	 * all the paths use values which should be same wide and narrow.
@@ -286,8 +283,8 @@
 	ENTRY_SAME(semop)		/* 185 */
 	ENTRY_SAME(semget)
 	ENTRY_DIFF(semctl)
-	ENTRY_DIFF(msgsnd)
-	ENTRY_DIFF(msgrcv)
+	ENTRY_COMP(msgsnd)
+	ENTRY_COMP(msgrcv)
 	ENTRY_SAME(msgget)		/* 190 */
 	ENTRY_SAME(msgctl)
 	ENTRY_SAME(shmat)
@@ -307,16 +304,16 @@
 	ENTRY_SAME(gettid)
 	ENTRY_OURS(readahead)
 	ENTRY_SAME(tkill)
-	ENTRY_SAME(sendfile64)
+	ENTRY_DIFF(sendfile64)
 	ENTRY_COMP(futex)		/* 210 */
 	ENTRY_COMP(sched_setaffinity)
 	ENTRY_COMP(sched_getaffinity)
 	ENTRY_SAME(ni_syscall)	/* set_thread_area */
 	ENTRY_SAME(ni_syscall)	/* get_thread_area */
-	ENTRY_SAME(io_setup)		/* 215 */
+	ENTRY_COMP(io_setup)		/* 215 */
 	ENTRY_SAME(io_destroy)
-	ENTRY_SAME(io_getevents)
-	ENTRY_SAME(io_submit)
+	ENTRY_COMP(io_getevents)
+	ENTRY_COMP(io_submit)
 	ENTRY_SAME(io_cancel)
 	ENTRY_SAME(alloc_hugepages)	/* 220 */
 	ENTRY_SAME(free_hugepages)
@@ -327,12 +324,12 @@
 	ENTRY_SAME(epoll_wait)
  	ENTRY_SAME(remap_file_pages)
 	ENTRY_SAME(semtimedop)
-	ENTRY_SAME(mq_open)
+	ENTRY_COMP(mq_open)
 	ENTRY_SAME(mq_unlink)		/* 230 */
-	ENTRY_SAME(mq_timedsend)
-	ENTRY_SAME(mq_timedreceive)
-	ENTRY_SAME(mq_notify)
-	ENTRY_SAME(mq_getsetattr)
+	ENTRY_COMP(mq_timedsend)
+	ENTRY_COMP(mq_timedreceive)
+	ENTRY_COMP(mq_notify)
+	ENTRY_COMP(mq_getsetattr)
 	ENTRY_COMP(waitid)		/* 235 */
 	ENTRY_OURS(fadvise64_64)
 	ENTRY_SAME(set_tid_address)
@@ -403,7 +400,7 @@
 	ENTRY_COMP(signalfd)
 	ENTRY_SAME(ni_syscall)		/* was timerfd */
 	ENTRY_SAME(eventfd)
-	ENTRY_COMP(fallocate)		/* 305 */
+	ENTRY_OURS(fallocate)		/* 305 */
 	ENTRY_SAME(timerfd_create)
 	ENTRY_COMP(timerfd_settime)
 	ENTRY_COMP(timerfd_gettime)
@@ -428,6 +425,10 @@
 	ENTRY_SAME(syncfs)
 	ENTRY_SAME(setns)
 	ENTRY_COMP(sendmmsg)
+	ENTRY_COMP(process_vm_readv)	/* 330 */
+	ENTRY_COMP(process_vm_writev)
+	ENTRY_SAME(kcmp)
+	ENTRY_SAME(finit_module)
 
 	/* Nothing yet */
 

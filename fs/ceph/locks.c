@@ -13,7 +13,7 @@
 static int ceph_lock_message(u8 lock_type, u16 operation, struct file *file,
 			     int cmd, u8 wait, struct file_lock *fl)
 {
-	struct inode *inode = file->f_dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct ceph_mds_client *mdsc =
 		ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_mds_request *req;

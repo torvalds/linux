@@ -16,12 +16,6 @@
 /*
  * Registers
  */
-#define DB8500_PRCM_GPIOCR 0x138
-#define DB8500_PRCM_GPIOCR_DBG_UARTMOD_CMD0	BIT(0)
-#define DB8500_PRCM_GPIOCR_DBG_STM_APE_CMD	BIT(9)
-#define DB8500_PRCM_GPIOCR_DBG_STM_MOD_CMD1	BIT(11)
-#define DB8500_PRCM_GPIOCR_SPI2_SELECT		BIT(23)
-
 #define DB8500_PRCM_LINE_VALUE 0x170
 #define DB8500_PRCM_LINE_VALUE_HSI_CAWAKE0	BIT(3)
 
@@ -491,20 +485,6 @@ struct prcmu_auto_pm_config {
 	u8 sva_auto_pm_enable;
 	u8 sva_power_on;
 	u8 sva_policy;
-};
-
-#define PRCMU_FW_PROJECT_U8500		2
-#define PRCMU_FW_PROJECT_U9500		4
-#define PRCMU_FW_PROJECT_U8500_C2	7
-#define PRCMU_FW_PROJECT_U9500_C2	11
-#define PRCMU_FW_PROJECT_U8520		13
-#define PRCMU_FW_PROJECT_U8420		14
-
-struct prcmu_fw_version {
-	u8 project;
-	u8 api_version;
-	u8 func_version;
-	u8 errata;
 };
 
 #ifdef CONFIG_MFD_DB8500_PRCMU

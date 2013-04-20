@@ -11,6 +11,8 @@
  * published by the Free Software Foundation.
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/rtc.h>
 #include <linux/kdev_t.h>
@@ -50,6 +52,10 @@ static int rtc_suspend(struct device *dev, pm_message_t mesg)
 	struct rtc_device	*rtc = to_rtc_device(dev);
 	struct rtc_time		tm;
 	struct timespec		delta, delta_delta;
+
+	if (has_persistent_clock())
+		return 0;
+
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;
 
@@ -87,6 +93,9 @@ static int rtc_resume(struct device *dev)
 	struct rtc_time		tm;
 	struct timespec		new_system, new_rtc;
 	struct timespec		sleep_time;
+
+	if (has_persistent_clock())
+		return 0;
 
 	rtc_hctosys_ret = -ENODEV;
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
@@ -254,7 +263,7 @@ static int __init rtc_init(void)
 {
 	rtc_class = class_create(THIS_MODULE, "rtc");
 	if (IS_ERR(rtc_class)) {
-		printk(KERN_ERR "%s: couldn't create class\n", __FILE__);
+		pr_err("couldn't create class\n");
 		return PTR_ERR(rtc_class);
 	}
 	rtc_class->suspend = rtc_suspend;

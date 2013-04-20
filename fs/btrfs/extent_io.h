@@ -72,10 +72,9 @@ struct extent_io_ops {
 	int (*writepage_start_hook)(struct page *page, u64 start, u64 end);
 	int (*writepage_io_hook)(struct page *page, u64 start, u64 end);
 	extent_submit_bio_hook_t *submit_bio_hook;
-	int (*merge_bio_hook)(struct page *page, unsigned long offset,
+	int (*merge_bio_hook)(int rw, struct page *page, unsigned long offset,
 			      size_t size, struct bio *bio,
 			      unsigned long bio_flags);
-	int (*readpage_io_hook)(struct page *page, u64 start, u64 end);
 	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
 	int (*readpage_end_io_hook)(struct page *page, u64 start, u64 end,
 				    struct extent_state *state, int mirror);
@@ -90,8 +89,6 @@ struct extent_io_ops {
 				  struct extent_state *other);
 	void (*split_extent_hook)(struct inode *inode,
 				  struct extent_state *orig, u64 split);
-	int (*write_cache_pages_lock_hook)(struct page *page, void *data,
-					   void (*flush_fn)(void *));
 };
 
 struct extent_io_tree {
@@ -161,8 +158,7 @@ struct extent_buffer {
 	 */
 	wait_queue_head_t read_lock_wq;
 	wait_queue_head_t lock_wq;
-	struct page *inline_pages[INLINE_EXTENT_BUFFER_PAGES];
-	struct page **pages;
+	struct page *pages[INLINE_EXTENT_BUFFER_PAGES];
 };
 
 static inline void extent_set_compress_type(unsigned long *bio_flags,
@@ -329,6 +325,8 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long offset,
 		      unsigned long *map_len);
 int extent_range_uptodate(struct extent_io_tree *tree,
 			  u64 start, u64 end);
+int extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end);
+int extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end);
 int extent_clear_unlock_delalloc(struct inode *inode,
 				struct extent_io_tree *tree,
 				u64 start, u64 end, struct page *locked_page,

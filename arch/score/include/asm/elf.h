@@ -52,11 +52,6 @@ typedef elf_fpreg_t	elf_fpregset_t;
 #define ELF_DATA	ELFDATA2LSB
 #define ELF_ARCH	EM_SCORE7
 
-#define SET_PERSONALITY(ex)					\
-do {								\
-	set_personality(PER_LINUX | (current->personality & (~PER_MASK))); \
-} while (0)
-
 struct task_struct;
 struct pt_regs;
 

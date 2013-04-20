@@ -68,10 +68,6 @@ struct fsl_diu_shared_fb {
 	bool		in_use;
 };
 
-void mpc512x_set_monitor_port(enum fsl_diu_monitor_port port)
-{
-}
-
 #define DIU_DIV_MASK	0x000000ff
 void mpc512x_set_pixel_clock(unsigned int pixclock)
 {
@@ -303,7 +299,6 @@ void __init mpc512x_setup_diu(void)
 		}
 	}
 
-	diu_ops.set_monitor_port	= mpc512x_set_monitor_port;
 	diu_ops.set_pixel_clock		= mpc512x_set_pixel_clock;
 	diu_ops.valid_monitor_port	= mpc512x_valid_monitor_port;
 	diu_ops.release_bootmem		= mpc512x_release_bootmem;
@@ -431,8 +426,38 @@ void __init mpc512x_psc_fifo_init(void)
 
 void __init mpc512x_init(void)
 {
-	mpc512x_declare_of_platform_devices();
 	mpc5121_clk_init();
+	mpc512x_declare_of_platform_devices();
 	mpc512x_restart_init();
 	mpc512x_psc_fifo_init();
 }
+
+/**
+ * mpc512x_cs_config - Setup chip select configuration
+ * @cs: chip select number
+ * @val: chip select configuration value
+ *
+ * Perform chip select configuration for devices on LocalPlus Bus.
+ * Intended to dynamically reconfigure the chip select parameters
+ * for configurable devices on the bus.
+ */
+int mpc512x_cs_config(unsigned int cs, u32 val)
+{
+	static struct mpc512x_lpc __iomem *lpc;
+	struct device_node *np;
+
+	if (cs > 7)
+		return -EINVAL;
+
+	if (!lpc) {
+		np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-lpc");
+		lpc = of_iomap(np, 0);
+		of_node_put(np);
+		if (!lpc)
+			return -ENOMEM;
+	}
+
+	out_be32(&lpc->cs_cfg[cs], val);
+	return 0;
+}
+EXPORT_SYMBOL(mpc512x_cs_config);

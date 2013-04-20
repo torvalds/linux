@@ -124,6 +124,9 @@ struct dm_snapshot {
 #define RUNNING_MERGE          0
 #define SHUTDOWN_MERGE         1
 
+DECLARE_DM_KCOPYD_THROTTLE_WITH_MODULE_PARM(snapshot_copy_throttle,
+		"A percentage of time allocated for copy on write");
+
 struct dm_dev *dm_snap_origin(struct dm_snapshot *s)
 {
 	return s->origin;
@@ -227,12 +230,11 @@ static void stop_tracking_chunk(struct dm_snapshot *s, struct bio *bio)
 static int __chunk_is_tracked(struct dm_snapshot *s, chunk_t chunk)
 {
 	struct dm_snap_tracked_chunk *c;
-	struct hlist_node *hn;
 	int found = 0;
 
 	spin_lock_irq(&s->tracked_chunk_lock);
 
-	hlist_for_each_entry(c, hn,
+	hlist_for_each_entry(c,
 	    &s->tracked_chunk_hash[DM_TRACKED_CHUNK_HASH(chunk)], node) {
 		if (c->chunk == chunk) {
 			found = 1;
@@ -1038,7 +1040,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	int i;
 	int r = -EINVAL;
 	char *origin_path, *cow_path;
-	unsigned args_used, num_flush_requests = 1;
+	unsigned args_used, num_flush_bios = 1;
 	fmode_t origin_mode = FMODE_READ;
 
 	if (argc != 4) {
@@ -1048,7 +1050,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	if (dm_target_is_snapshot_merge(ti)) {
-		num_flush_requests = 2;
+		num_flush_bios = 2;
 		origin_mode = FMODE_WRITE;
 	}
 
@@ -1109,7 +1111,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_hash_tables;
 	}
 
-	s->kcopyd_client = dm_kcopyd_client_create();
+	s->kcopyd_client = dm_kcopyd_client_create(&dm_kcopyd_throttle);
 	if (IS_ERR(s->kcopyd_client)) {
 		r = PTR_ERR(s->kcopyd_client);
 		ti->error = "Could not create kcopyd client";
@@ -1128,7 +1130,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	spin_lock_init(&s->tracked_chunk_lock);
 
 	ti->private = s;
-	ti->num_flush_requests = num_flush_requests;
+	ti->num_flush_bios = num_flush_bios;
 	ti->per_bio_data_size = sizeof(struct dm_snap_tracked_chunk);
 
 	/* Add snapshot to the list of snapshots for this origin */
@@ -1692,7 +1694,7 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio)
 	init_tracked_chunk(bio);
 
 	if (bio->bi_rw & REQ_FLUSH) {
-		if (!dm_bio_get_target_request_nr(bio))
+		if (!dm_bio_get_target_bio_nr(bio))
 			bio->bi_bdev = s->origin->bdev;
 		else
 			bio->bi_bdev = s->cow->bdev;
@@ -1837,8 +1839,8 @@ static void snapshot_merge_resume(struct dm_target *ti)
 	start_merge(s);
 }
 
-static int snapshot_status(struct dm_target *ti, status_type_t type,
-			   unsigned status_flags, char *result, unsigned maxlen)
+static void snapshot_status(struct dm_target *ti, status_type_t type,
+			    unsigned status_flags, char *result, unsigned maxlen)
 {
 	unsigned sz = 0;
 	struct dm_snapshot *snap = ti->private;
@@ -1884,8 +1886,6 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 					  maxlen - sz);
 		break;
 	}
-
-	return 0;
 }
 
 static int snapshot_iterate_devices(struct dm_target *ti,
@@ -2105,7 +2105,7 @@ static int origin_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	ti->private = dev;
-	ti->num_flush_requests = 1;
+	ti->num_flush_bios = 1;
 
 	return 0;
 }
@@ -2139,8 +2139,8 @@ static void origin_resume(struct dm_target *ti)
 	ti->max_io_len = get_origin_minimum_chunksize(dev->bdev);
 }
 
-static int origin_status(struct dm_target *ti, status_type_t type,
-			 unsigned status_flags, char *result, unsigned maxlen)
+static void origin_status(struct dm_target *ti, status_type_t type,
+			  unsigned status_flags, char *result, unsigned maxlen)
 {
 	struct dm_dev *dev = ti->private;
 
@@ -2153,8 +2153,6 @@ static int origin_status(struct dm_target *ti, status_type_t type,
 		snprintf(result, maxlen, "%s", dev->name);
 		break;
 	}
-
-	return 0;
 }
 
 static int origin_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
@@ -2181,7 +2179,7 @@ static int origin_iterate_devices(struct dm_target *ti,
 
 static struct target_type origin_target = {
 	.name    = "snapshot-origin",
-	.version = {1, 8, 0},
+	.version = {1, 8, 1},
 	.module  = THIS_MODULE,
 	.ctr     = origin_ctr,
 	.dtr     = origin_dtr,
@@ -2194,7 +2192,7 @@ static struct target_type origin_target = {
 
 static struct target_type snapshot_target = {
 	.name    = "snapshot",
-	.version = {1, 11, 0},
+	.version = {1, 11, 1},
 	.module  = THIS_MODULE,
 	.ctr     = snapshot_ctr,
 	.dtr     = snapshot_dtr,
@@ -2307,3 +2305,5 @@ module_exit(dm_snapshot_exit);
 MODULE_DESCRIPTION(DM_NAME " snapshot target");
 MODULE_AUTHOR("Joe Thornber");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("dm-snapshot-origin");
+MODULE_ALIAS("dm-snapshot-merge");

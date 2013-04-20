@@ -152,17 +152,6 @@ static struct hid_driver zp_driver = {
 	.id_table = zp_devices,
 	.probe = zp_probe,
 };
+module_hid_driver(zp_driver);
 
-static int __init zp_init(void)
-{
-	return hid_register_driver(&zp_driver);
-}
-
-static void __exit zp_exit(void)
-{
-	hid_unregister_driver(&zp_driver);
-}
-
-module_init(zp_init);
-module_exit(zp_exit);
 MODULE_LICENSE("GPL");

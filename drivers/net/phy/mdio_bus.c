@@ -95,7 +95,7 @@ static struct class mdio_bus_class = {
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
 /* Helper function for of_mdio_find_bus */
-static int of_mdio_bus_match(struct device *dev, void *mdio_bus_np)
+static int of_mdio_bus_match(struct device *dev, const void *mdio_bus_np)
 {
 	return dev->of_node == mdio_bus_np;
 }

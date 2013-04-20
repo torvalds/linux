@@ -93,7 +93,7 @@ vcs_poll_data_free(struct vcs_poll_data *poll)
 static struct vcs_poll_data *
 vcs_poll_data_get(struct file *file)
 {
-	struct vcs_poll_data *poll = file->private_data;
+	struct vcs_poll_data *poll = file->private_data, *kill = NULL;
 
 	if (poll)
 		return poll;
@@ -101,7 +101,7 @@ vcs_poll_data_get(struct file *file)
 	poll = kzalloc(sizeof(*poll), GFP_KERNEL);
 	if (!poll)
 		return NULL;
-	poll->cons_num = iminor(file->f_path.dentry->d_inode) & 127;
+	poll->cons_num = iminor(file_inode(file)) & 127;
 	init_waitqueue_head(&poll->waitq);
 	poll->notifier.notifier_call = vcs_notifier;
 	if (register_vt_notifier(&poll->notifier) != 0) {
@@ -122,10 +122,12 @@ vcs_poll_data_get(struct file *file)
 		file->private_data = poll;
 	} else {
 		/* someone else raced ahead of us */
-		vcs_poll_data_free(poll);
+		kill = poll;
 		poll = file->private_data;
 	}
 	spin_unlock(&file->f_lock);
+	if (kill)
+		vcs_poll_data_free(kill);
 
 	return poll;
 }
@@ -182,7 +184,7 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 	int size;
 
 	console_lock();
-	size = vcs_size(file->f_path.dentry->d_inode);
+	size = vcs_size(file_inode(file));
 	console_unlock();
 	if (size < 0)
 		return size;
@@ -208,7 +210,7 @@ static loff_t vcs_lseek(struct file *file, loff_t offset, int orig)
 static ssize_t
 vcs_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	unsigned int currcons = iminor(inode);
 	struct vc_data *vc;
 	struct vcs_poll_data *poll;
@@ -386,7 +388,7 @@ unlock_out:
 static ssize_t
 vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	unsigned int currcons = iminor(inode);
 	struct vc_data *vc;
 	long pos;

@@ -55,7 +55,7 @@
 #define ISL6405_ENT2	0x20
 #define ISL6405_ISEL2	0x40
 
-#if defined(CONFIG_DVB_ISL6405) || (defined(CONFIG_DVB_ISL6405_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_ISL6405)
 /* override_set and override_clear control which system register bits (above)
  * to always set & clear
  */

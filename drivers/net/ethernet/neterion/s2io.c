@@ -8014,7 +8014,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	/*  Set the factory defined MAC address initially   */
 	dev->addr_len = ETH_ALEN;
 	memcpy(dev->dev_addr, sp->def_mac_addr, ETH_ALEN);
-	memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
 
 	/* initialize number of multicast & unicast MAC entries variables */
 	if (sp->device_type == XFRAME_I_DEVICE) {

@@ -205,8 +205,9 @@ static int max8907_rtc_probe(struct platform_device *pdev)
 		goto err_unregister;
 	}
 
-	ret = request_threaded_irq(rtc->irq, NULL, max8907_irq_handler,
-				   IRQF_ONESHOT, "max8907-alarm0", rtc);
+	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL,
+				max8907_irq_handler,
+				IRQF_ONESHOT, "max8907-alarm0", rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to request IRQ%d: %d\n",
 			rtc->irq, ret);
@@ -224,7 +225,6 @@ static int max8907_rtc_remove(struct platform_device *pdev)
 {
 	struct max8907_rtc *rtc = platform_get_drvdata(pdev);
 
-	free_irq(rtc->irq, rtc);
 	rtc_device_unregister(rtc->rtc_dev);
 
 	return 0;

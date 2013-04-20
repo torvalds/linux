@@ -103,8 +103,7 @@ static u16 vid_regs_fp[] = {
 };
 
 /* PAL specific values */
-static u16 vid_regs_fp_pal[] =
-{
+static u16 vid_regs_fp_pal[] = {
 	0x120, 0x017,
 	0x121, 0xd22,
 	0x122, 0x122,
@@ -174,7 +173,7 @@ static int write_reg(struct i2c_client *client, u8 reg, u8 value)
 
 	usb = go->hpi_context;
 	if (mutex_lock_interruptible(&usb->i2c_lock) != 0) {
-		printk(KERN_INFO "i2c lock failed\n");
+		dev_info(&client->dev, "i2c lock failed\n");
 		kfree(buf);
 		return -EINTR;
 	}
@@ -213,7 +212,7 @@ static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 
 	usb = go->hpi_context;
 	if (mutex_lock_interruptible(&usb->i2c_lock) != 0) {
-		printk(KERN_INFO "i2c lock failed\n");
+		dev_info(&client->dev, "i2c lock failed\n");
 		kfree(buf);
 		return -EINTR;
 	}
@@ -231,13 +230,13 @@ static int write_reg_fp(struct i2c_client *client, u16 addr, u16 val)
 		val_read = (buf[2] << 8) + buf[3];
 		kfree(buf);
 		if (val_read != val) {
-			printk(KERN_INFO "invalid fp write %x %x\n",
-			       val_read, val);
+			dev_info(&client->dev, "invalid fp write %x %x\n",
+				 val_read, val);
 			return -EFAULT;
 		}
 		if (subaddr != addr) {
-			printk(KERN_INFO "invalid fp write addr %x %x\n",
-			       subaddr, addr);
+			dev_info(&client->dev, "invalid fp write addr %x %x\n",
+				 subaddr, addr);
 			return -EFAULT;
 		}
 	} else {
@@ -275,7 +274,7 @@ static int read_reg_fp(struct i2c_client *client, u16 addr, u16 *val)
 	memset(buf, 0xcd, 6);
 	usb = go->hpi_context;
 	if (mutex_lock_interruptible(&usb->i2c_lock) != 0) {
-		printk(KERN_INFO "i2c lock failed\n");
+		dev_info(&client->dev, "i2c lock failed\n");
 		kfree(buf);
 		return -EINTR;
 	}
@@ -299,7 +298,7 @@ static int write_regs(struct i2c_client *client, u8 *regs)
 
 	for (i = 0; !((regs[i] == 0x00) && (regs[i+1] == 0x00)); i += 2) {
 		if (write_reg(client, regs[i], regs[i+1]) < 0) {
-			printk(KERN_INFO "s2250: failed\n");
+			dev_info(&client->dev, "failed\n");
 			return -1;
 		}
 	}
@@ -312,7 +311,7 @@ static int write_regs_fp(struct i2c_client *client, u16 *regs)
 
 	for (i = 0; !((regs[i] == 0x00) && (regs[i+1] == 0x00)); i += 2) {
 		if (write_reg_fp(client, regs[i], regs[i+1]) < 0) {
-			printk(KERN_INFO "s2250: failed fp\n");
+			dev_info(&client->dev, "failed fp\n");
 			return -1;
 		}
 	}
@@ -535,7 +534,7 @@ static int s2250_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "Brightness: %d\n", state->brightness);
 	v4l2_info(sd, "Contrast: %d\n", state->contrast);
 	v4l2_info(sd, "Saturation: %d\n", state->saturation);
-	v4l2_info(sd, "Hue: %d\n", state->hue);	return 0;
+	v4l2_info(sd, "Hue: %d\n", state->hue);
 	v4l2_info(sd, "Audio input: %s\n", state->audio_input == 0 ? "Line In" :
 					state->audio_input == 1 ? "Mic" :
 					state->audio_input == 2 ? "Mic Boost" :
@@ -606,23 +605,20 @@ static int s2250_probe(struct i2c_client *client,
 
 	/* initialize the audio */
 	if (write_regs(audio, aud_regs) < 0) {
-		printk(KERN_ERR
-		       "s2250: error initializing audio\n");
+		dev_err(&client->dev, "error initializing audio\n");
 		i2c_unregister_device(audio);
 		kfree(state);
 		return 0;
 	}
 
 	if (write_regs(client, vid_regs) < 0) {
-		printk(KERN_ERR
-		       "s2250: error initializing decoder\n");
+		dev_err(&client->dev, "error initializing decoder\n");
 		i2c_unregister_device(audio);
 		kfree(state);
 		return 0;
 	}
 	if (write_regs_fp(client, vid_regs_fp) < 0) {
-		printk(KERN_ERR
-		       "s2250: error initializing decoder\n");
+		dev_err(&client->dev, "error initializing decoder\n");
 		i2c_unregister_device(audio);
 		kfree(state);
 		return 0;

@@ -52,7 +52,7 @@ static long coda_pioctl(struct file *filp, unsigned int cmd,
 	struct path path;
 	int error;
 	struct PioctlData data;
-	struct inode *inode = filp->f_dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct inode *target_inode = NULL;
 	struct coda_inode_info *cnp;
 

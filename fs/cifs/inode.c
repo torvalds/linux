@@ -244,15 +244,25 @@ cifs_unix_basic_to_fattr(struct cifs_fattr *fattr, FILE_UNIX_BASIC_INFO *info,
 		break;
 	}
 
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)
-		fattr->cf_uid = cifs_sb->mnt_uid;
-	else
-		fattr->cf_uid = le64_to_cpu(info->Uid);
-
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)
-		fattr->cf_gid = cifs_sb->mnt_gid;
-	else
-		fattr->cf_gid = le64_to_cpu(info->Gid);
+	fattr->cf_uid = cifs_sb->mnt_uid;
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)) {
+		u64 id = le64_to_cpu(info->Uid);
+		if (id < ((uid_t)-1)) {
+			kuid_t uid = make_kuid(&init_user_ns, id);
+			if (uid_valid(uid))
+				fattr->cf_uid = uid;
+		}
+	}
+	
+	fattr->cf_gid = cifs_sb->mnt_gid;
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)) {
+		u64 id = le64_to_cpu(info->Gid);
+		if (id < ((gid_t)-1)) {
+			kgid_t gid = make_kgid(&init_user_ns, id);
+			if (gid_valid(gid))
+				fattr->cf_gid = gid;
+		}
+	}
 
 	fattr->cf_nlink = le64_to_cpu(info->Nlinks);
 }
@@ -289,7 +299,7 @@ cifs_get_file_info_unix(struct file *filp)
 	unsigned int xid;
 	FILE_UNIX_BASIC_INFO find_data;
 	struct cifs_fattr fattr;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsFileInfo *cfile = filp->private_data;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
@@ -558,7 +568,7 @@ cifs_get_file_info(struct file *filp)
 	unsigned int xid;
 	FILE_ALL_INFO find_data;
 	struct cifs_fattr fattr;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsFileInfo *cfile = filp->private_data;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
@@ -806,10 +816,9 @@ static bool
 inode_has_hashed_dentries(struct inode *inode)
 {
 	struct dentry *dentry;
-	struct hlist_node *p;
 
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(dentry, p, &inode->i_dentry, d_alias) {
+	hlist_for_each_entry(dentry, &inode->i_dentry, d_alias) {
 		if (!d_unhashed(dentry) || IS_ROOT(dentry)) {
 			spin_unlock(&inode->i_lock);
 			return true;
@@ -986,6 +995,15 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 		return PTR_ERR(tlink);
 	tcon = tlink_tcon(tlink);
 
+	/*
+	 * We cannot rename the file if the server doesn't support
+	 * CAP_INFOLEVEL_PASSTHRU
+	 */
+	if (!(tcon->ses->capabilities & CAP_INFOLEVEL_PASSTHRU)) {
+		rc = -EBUSY;
+		goto out;
+	}
+
 	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
 			 DELETE|FILE_WRITE_ATTRIBUTES, CREATE_NOT_DIR,
 			 &netfid, &oplock, NULL, cifs_sb->local_nls,
@@ -1014,7 +1032,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 					current->tgid);
 		/* although we would like to mark the file hidden
  		   if that fails we will still try to rename it */
-		if (rc != 0)
+		if (!rc)
 			cifsInode->cifsAttrs = dosattr;
 		else
 			dosattr = origattr; /* since not able to change them */
@@ -1025,7 +1043,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 				   cifs_sb->mnt_cifs_flags &
 					    CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc != 0) {
-		rc = -ETXTBSY;
+		rc = -EBUSY;
 		goto undo_setattr;
 	}
 
@@ -1044,7 +1062,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 		if (rc == -ENOENT)
 			rc = 0;
 		else if (rc != 0) {
-			rc = -ETXTBSY;
+			rc = -EBUSY;
 			goto undo_rename;
 		}
 		cifsInode->delete_pending = true;
@@ -1151,15 +1169,13 @@ psx_del_no_retry:
 			cifs_drop_nlink(inode);
 	} else if (rc == -ENOENT) {
 		d_drop(dentry);
-	} else if (rc == -ETXTBSY) {
+	} else if (rc == -EBUSY) {
 		if (server->ops->rename_pending_delete) {
 			rc = server->ops->rename_pending_delete(full_path,
 								dentry, xid);
 			if (rc == 0)
 				cifs_drop_nlink(inode);
 		}
-		if (rc == -ETXTBSY)
-			rc = -EBUSY;
 	} else if ((rc == -EACCES) && (dosattr == 0) && inode) {
 		attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
 		if (attrs == NULL) {
@@ -1245,14 +1261,14 @@ cifs_mkdir_qinfo(struct inode *parent, struct dentry *dentry, umode_t mode,
 			.device	= 0,
 		};
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
-			args.uid = (__u64)current_fsuid();
+			args.uid = current_fsuid();
 			if (parent->i_mode & S_ISGID)
-				args.gid = (__u64)parent->i_gid;
+				args.gid = parent->i_gid;
 			else
-				args.gid = (__u64)current_fsgid();
+				args.gid = current_fsgid();
 		} else {
-			args.uid = NO_CHANGE_64;
-			args.gid = NO_CHANGE_64;
+			args.uid = INVALID_UID; /* no change */
+			args.gid = INVALID_GID; /* no change */
 		}
 		CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
 				       cifs_sb->local_nls,
@@ -1500,7 +1516,7 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 	 * source. Note that cross directory moves do not work with
 	 * rename by filehandle to various Windows servers.
 	 */
-	if (rc == 0 || rc != -ETXTBSY)
+	if (rc == 0 || rc != -EBUSY)
 		goto do_rename_exit;
 
 	/* open-file renames don't work across directories */
@@ -1678,7 +1694,7 @@ cifs_invalidate_mapping(struct inode *inode)
 int cifs_revalidate_file_attr(struct file *filp)
 {
 	int rc = 0;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct cifsFileInfo *cfile = (struct cifsFileInfo *) filp->private_data;
 
 	if (!cifs_inode_needs_reval(inode))
@@ -1735,7 +1751,7 @@ out:
 int cifs_revalidate_file(struct file *filp)
 {
 	int rc;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 
 	rc = cifs_revalidate_file_attr(filp);
 	if (rc)
@@ -2013,12 +2029,12 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	if (attrs->ia_valid & ATTR_UID)
 		args->uid = attrs->ia_uid;
 	else
-		args->uid = NO_CHANGE_64;
+		args->uid = INVALID_UID; /* no change */
 
 	if (attrs->ia_valid & ATTR_GID)
 		args->gid = attrs->ia_gid;
 	else
-		args->gid = NO_CHANGE_64;
+		args->gid = INVALID_GID; /* no change */
 
 	if (attrs->ia_valid & ATTR_ATIME)
 		args->atime = cifs_UnixTimeToNT(attrs->ia_atime);
@@ -2086,8 +2102,8 @@ static int
 cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 {
 	unsigned int xid;
-	uid_t uid = NO_CHANGE_32;
-	gid_t gid = NO_CHANGE_32;
+	kuid_t uid = INVALID_UID;
+	kgid_t gid = INVALID_GID;
 	struct inode *inode = direntry->d_inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
@@ -2146,7 +2162,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 
 #ifdef CONFIG_CIFS_ACL
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
-		if (uid != NO_CHANGE_32 || gid != NO_CHANGE_32) {
+		if (uid_valid(uid) || gid_valid(gid)) {
 			rc = id_mode_to_cifs_acl(inode, full_path, NO_CHANGE_64,
 							uid, gid);
 			if (rc) {
@@ -2170,7 +2186,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 #ifdef CONFIG_CIFS_ACL
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
 			rc = id_mode_to_cifs_acl(inode, full_path, mode,
-						NO_CHANGE_32, NO_CHANGE_32);
+						INVALID_UID, INVALID_GID);
 			if (rc) {
 				cFYI(1, "%s: Setting ACL failed with error: %d",
 					__func__, rc);

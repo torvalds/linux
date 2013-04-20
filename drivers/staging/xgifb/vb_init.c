@@ -131,22 +131,6 @@ static void XGINew_SetMemoryClock(struct xgi_hw_device_info *HwDeviceExtension,
 	xgifb_reg_set(pVBInfo->P3c4,
 		      0x30,
 		      XGI340_ECLKData[pVBInfo->ram_type].SR30);
-
-	/* When XG42 ECLK = MCLK = 207MHz, Set SR32 D[1:0] = 10b */
-	/* Modify SR32 value, when MCLK=207MHZ, ELCK=250MHz,
-	 * Set SR32 D[1:0] = 10b */
-	if (HwDeviceExtension->jChipType == XG42) {
-		if ((pVBInfo->MCLKData[pVBInfo->ram_type].SR28 == 0x1C) &&
-		    (pVBInfo->MCLKData[pVBInfo->ram_type].SR29 == 0x01) &&
-		    (((XGI340_ECLKData[pVBInfo->ram_type].SR2E == 0x1C) &&
-		      (XGI340_ECLKData[pVBInfo->ram_type].SR2F == 0x01)) ||
-		     ((XGI340_ECLKData[pVBInfo->ram_type].SR2E == 0x22) &&
-		      (XGI340_ECLKData[pVBInfo->ram_type].SR2F == 0x01))))
-			xgifb_reg_set(pVBInfo->P3c4,
-				      0x32,
-				      ((unsigned char) xgifb_reg_get(
-					  pVBInfo->P3c4, 0x32) & 0xFC) | 0x02);
-	}
 }
 
 static void XGINew_DDRII_Bootup_XG27(
@@ -413,11 +397,24 @@ static void XGINew_DDR2_DefaultRegister(
 		XGINew_DDR2_MRS_XG20(HwDeviceExtension, P3c4, pVBInfo);
 }
 
+static void XGI_SetDRAM_Helper(unsigned long P3d4, u8 seed, u8 temp2, u8 reg,
+	u8 shift_factor, u8 mask1, u8 mask2)
+{
+	u8 j;
+	for (j = 0; j < 4; j++) {
+		temp2 |= (((seed >> (2 * j)) & 0x03) << shift_factor);
+		xgifb_reg_set(P3d4, reg, temp2);
+		xgifb_reg_get(P3d4, reg);
+		temp2 &= mask1;
+		temp2 += mask2;
+	}
+}
+
 static void XGINew_SetDRAMDefaultRegister340(
 		struct xgi_hw_device_info *HwDeviceExtension,
 		unsigned long Port, struct vb_device_info *pVBInfo)
 {
-	unsigned char temp, temp1, temp2, temp3, i, j, k;
+	unsigned char temp, temp1, temp2, temp3, j, k;
 
 	unsigned long P3d4 = Port, P3c4 = Port - 0x10;
 
@@ -426,54 +423,18 @@ static void XGINew_SetDRAMDefaultRegister340(
 	xgifb_reg_set(P3d4, 0x69, pVBInfo->CR40[6][pVBInfo->ram_type]);
 	xgifb_reg_set(P3d4, 0x6A, pVBInfo->CR40[7][pVBInfo->ram_type]);
 
-	temp2 = 0;
-	for (i = 0; i < 4; i++) {
-		/* CR6B DQS fine tune delay */
-		temp = XGI340_CR6B[pVBInfo->ram_type][i];
-		for (j = 0; j < 4; j++) {
-			temp1 = ((temp >> (2 * j)) & 0x03) << 2;
-			temp2 |= temp1;
-			xgifb_reg_set(P3d4, 0x6B, temp2);
-			/* Insert read command for delay */
-			xgifb_reg_get(P3d4, 0x6B);
-			temp2 &= 0xF0;
-			temp2 += 0x10;
-		}
-	}
+	/* CR6B DQS fine tune delay */
+	temp = 0xaa;
+	XGI_SetDRAM_Helper(P3d4, temp, 0, 0x6B, 2, 0xF0, 0x10);
 
-	temp2 = 0;
-	for (i = 0; i < 4; i++) {
-		/* CR6E DQM fine tune delay */
-		temp = 0;
-		for (j = 0; j < 4; j++) {
-			temp1 = ((temp >> (2 * j)) & 0x03) << 2;
-			temp2 |= temp1;
-			xgifb_reg_set(P3d4, 0x6E, temp2);
-			/* Insert read command for delay */
-			xgifb_reg_get(P3d4, 0x6E);
-			temp2 &= 0xF0;
-			temp2 += 0x10;
-		}
-	}
+	/* CR6E DQM fine tune delay */
+	XGI_SetDRAM_Helper(P3d4, 0, 0, 0x6E, 2, 0xF0, 0x10);
 
 	temp3 = 0;
 	for (k = 0; k < 4; k++) {
 		/* CR6E_D[1:0] select channel */
 		xgifb_reg_and_or(P3d4, 0x6E, 0xFC, temp3);
-		temp2 = 0;
-		for (i = 0; i < 8; i++) {
-			/* CR6F DQ fine tune delay */
-			temp = 0;
-			for (j = 0; j < 4; j++) {
-				temp1 = (temp >> (2 * j)) & 0x03;
-				temp2 |= temp1;
-				xgifb_reg_set(P3d4, 0x6F, temp2);
-				/* Insert read command for delay */
-				xgifb_reg_get(P3d4, 0x6F);
-				temp2 &= 0xF8;
-				temp2 += 0x08;
-			}
-		}
+		XGI_SetDRAM_Helper(P3d4, 0, 0, 0x6F, 0, 0xF8, 0x08);
 		temp3 += 0x01;
 	}
 
@@ -486,15 +447,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 
 	temp2 = 0x80;
 	/* CR89 terminator type select */
-	temp = 0;
-	for (j = 0; j < 4; j++) {
-		temp1 = (temp >> (2 * j)) & 0x03;
-		temp2 |= temp1;
-		xgifb_reg_set(P3d4, 0x89, temp2);
-		xgifb_reg_get(P3d4, 0x89); /* Insert read command for delay */
-		temp2 &= 0xF0;
-		temp2 += 0x10;
-	}
+	XGI_SetDRAM_Helper(P3d4, 0, temp2, 0x89, 0, 0xF0, 0x10);
 
 	temp = 0;
 	temp1 = temp & 0x03;
@@ -1286,36 +1239,14 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	pVBInfo->FBAddr = HwDeviceExtension->pjVideoMemoryAddress;
 
-	pVBInfo->BaseAddr = xgifb_info->vga_base;
-
 	if (pVBInfo->FBAddr == NULL) {
 		dev_dbg(&pdev->dev, "pVBInfo->FBAddr == 0\n");
 		return 0;
 	}
-	if (pVBInfo->BaseAddr == 0) {
-		dev_dbg(&pdev->dev, "pVBInfo->BaseAddr == 0\n");
-		return 0;
-	}
 
-	outb(0x67, (pVBInfo->BaseAddr + 0x12)); /* 3c2 <- 67 ,ynlai */
+	XGIRegInit(pVBInfo, xgifb_info->vga_base);
 
-	pVBInfo->P3c4 = pVBInfo->BaseAddr + 0x14;
-	pVBInfo->P3d4 = pVBInfo->BaseAddr + 0x24;
-	pVBInfo->P3c0 = pVBInfo->BaseAddr + 0x10;
-	pVBInfo->P3ce = pVBInfo->BaseAddr + 0x1e;
-	pVBInfo->P3c2 = pVBInfo->BaseAddr + 0x12;
-	pVBInfo->P3ca = pVBInfo->BaseAddr + 0x1a;
-	pVBInfo->P3c6 = pVBInfo->BaseAddr + 0x16;
-	pVBInfo->P3c7 = pVBInfo->BaseAddr + 0x17;
-	pVBInfo->P3c8 = pVBInfo->BaseAddr + 0x18;
-	pVBInfo->P3c9 = pVBInfo->BaseAddr + 0x19;
-	pVBInfo->P3da = pVBInfo->BaseAddr + 0x2A;
-	pVBInfo->Part0Port = pVBInfo->BaseAddr + XGI_CRT2_PORT_00;
-	pVBInfo->Part1Port = pVBInfo->BaseAddr + SIS_CRT2_PORT_04;
-	pVBInfo->Part2Port = pVBInfo->BaseAddr + SIS_CRT2_PORT_10;
-	pVBInfo->Part3Port = pVBInfo->BaseAddr + SIS_CRT2_PORT_12;
-	pVBInfo->Part4Port = pVBInfo->BaseAddr + SIS_CRT2_PORT_14;
-	pVBInfo->Part5Port = pVBInfo->BaseAddr + SIS_CRT2_PORT_14 + 2;
+	outb(0x67, pVBInfo->P3c2);
 
 	if (HwDeviceExtension->jChipType < XG20)
 		/* Run XGI_GetVBType before InitTo330Pointer */
@@ -1410,7 +1341,7 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 		xgifb_reg_and_or(pVBInfo->Part0Port, 0x3F, 0xEF, 0x00);
 		xgifb_reg_set(pVBInfo->Part1Port, 0x00, 0x00);
 		/* chk if BCLK>=100MHz */
-		temp1 = (unsigned char) xgifb_reg_get(pVBInfo->P3d4, 0x7B);
+		temp1 = xgifb_reg_get(pVBInfo->P3d4, 0x7B);
 		temp = (unsigned char) ((temp1 >> 4) & 0x0F);
 
 		xgifb_reg_set(pVBInfo->Part1Port,

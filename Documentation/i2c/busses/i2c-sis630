@@ -4,9 +4,11 @@ Supported adapters:
   * Silicon Integrated Systems Corp (SiS)
 	630 chipset (Datasheet: available at http://www.sfr-fresh.com/linux)
 	730 chipset
+	964 chipset
   * Possible other SiS chipsets ?
 
 Author: Alexander Malysh <amalysh@web.de>
+	Amaury Decrême <amaury.decreme@gmail.com> - SiS964 support
 
 Module Parameters
 -----------------
@@ -18,6 +20,7 @@ Module Parameters
 * high_clock = [1|0] Forcibly set Host Master Clock to 56KHz (default,
 			what your BIOS use). DANGEROUS! This should be a bit
 			faster, but freeze some systems (i.e. my Laptop).
+			SIS630/730 chip only.
 
 
 Description
@@ -35,6 +38,12 @@ or like this:
 
 00:00.0 Host bridge: Silicon Integrated Systems [SiS] 730 Host (rev 02)
 00:01.0 ISA bridge: Silicon Integrated Systems [SiS] 85C503/5513
+
+or like this:
+
+00:00.0 Host bridge: Silicon Integrated Systems [SiS] 760/M760 Host (rev 02)
+00:02.0 ISA bridge: Silicon Integrated Systems [SiS] SiS964 [MuTIOL Media IO]
+							LPC Controller (rev 36)
 
 in your 'lspci' output , then this driver is for your chipset.
 

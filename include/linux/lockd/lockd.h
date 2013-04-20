@@ -212,7 +212,8 @@ int		  nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout)
 __be32		  nlmclnt_grant(const struct sockaddr *addr,
 				const struct nlm_lock *lock);
 void		  nlmclnt_recovery(struct nlm_host *);
-int		  nlmclnt_reclaim(struct nlm_host *, struct file_lock *);
+int		  nlmclnt_reclaim(struct nlm_host *, struct file_lock *,
+				  struct nlm_rqst *);
 void		  nlmclnt_next_cookie(struct nlm_cookie *);
 
 /*
@@ -291,7 +292,7 @@ int           nlmsvc_unlock_all_by_ip(struct sockaddr *server_addr);
 
 static inline struct inode *nlmsvc_file_inode(struct nlm_file *file)
 {
-	return file->f_file->f_path.dentry->d_inode;
+	return file_inode(file->f_file);
 }
 
 static inline int __nlm_privileged_request4(const struct sockaddr *sap)

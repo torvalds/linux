@@ -497,8 +497,9 @@ int t4_memory_write(struct adapter *adap, int mtype, u32 addr, u32 len,
 }
 
 #define EEPROM_STAT_ADDR   0x7bfc
-#define VPD_BASE           0
 #define VPD_LEN            512
+#define VPD_BASE           0x400
+#define VPD_BASE_OLD       0
 
 /**
  *	t4_seeprom_wp - enable/disable EEPROM write protection
@@ -524,7 +525,7 @@ int t4_seeprom_wp(struct adapter *adapter, bool enable)
 int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
 	u32 cclk_param, cclk_val;
-	int i, ret;
+	int i, ret, addr;
 	int ec, sn;
 	u8 *vpd, csum;
 	unsigned int vpdr_len, kw_offset, id_len;
@@ -533,7 +534,12 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	if (!vpd)
 		return -ENOMEM;
 
-	ret = pci_read_vpd(adapter->pdev, VPD_BASE, VPD_LEN, vpd);
+	ret = pci_read_vpd(adapter->pdev, VPD_BASE, sizeof(u32), vpd);
+	if (ret < 0)
+		goto out;
+	addr = *vpd == 0x82 ? VPD_BASE : VPD_BASE_OLD;
+
+	ret = pci_read_vpd(adapter->pdev, addr, VPD_LEN, vpd);
 	if (ret < 0)
 		goto out;
 
@@ -3603,7 +3609,6 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 		p->lport = j;
 		p->rss_size = rss_size;
 		memcpy(adap->port[i]->dev_addr, addr, ETH_ALEN);
-		memcpy(adap->port[i]->perm_addr, addr, ETH_ALEN);
 		adap->port[i]->dev_id = j;
 
 		ret = ntohl(c.u.info.lstatus_to_modtype);

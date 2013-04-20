@@ -44,8 +44,8 @@ config ATL1
 	  will be called atl1.
 
 config ATL1E
-	tristate "Atheros L1E Gigabit Ethernet support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "Atheros L1E Gigabit Ethernet support"
+	depends on PCI
 	select CRC32
 	select NET_CORE
 	select MII
@@ -56,8 +56,8 @@ config ATL1E
 	  will be called atl1e.
 
 config ATL1C
-	tristate "Atheros L1C Gigabit Ethernet support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "Atheros L1C Gigabit Ethernet support"
+	depends on PCI
 	select CRC32
 	select NET_CORE
 	select MII

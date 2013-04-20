@@ -96,8 +96,10 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 		}
 	}
 
-	if (port == 0)
+	if (port == 0) {
+		nf_ct_helper_log(skb, ct, "all ports in use");
 		return NF_DROP;
+	}
 
 	buflen = nf_nat_ftp_fmt_cmd(ct, type, buffer, sizeof(buffer),
 				    &newaddr, port);
@@ -113,6 +115,7 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 	return NF_ACCEPT;
 
 out:
+	nf_ct_helper_log(skb, ct, "cannot mangle packet");
 	nf_ct_unexpect_related(exp);
 	return NF_DROP;
 }

@@ -34,6 +34,8 @@ This driver is a simple driver to read the counter values from
 Kolter Electronic PCI Counter Card.
 */
 
+#include <linux/pci.h>
+
 #include "../comedidev.h"
 
 #define CNT_CARD_DEVICE_ID      0x0014
@@ -152,11 +154,6 @@ static int ke_counter_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ke_counter_driver);
 }
 
-static void ke_counter_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(ke_counter_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_KOLTER, CNT_CARD_DEVICE_ID) },
 	{ 0 }
@@ -167,7 +164,7 @@ static struct pci_driver ke_counter_pci_driver = {
 	.name		= "ke_counter",
 	.id_table	= ke_counter_pci_table,
 	.probe		= ke_counter_pci_probe,
-	.remove		= ke_counter_pci_remove,
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(ke_counter_driver, ke_counter_pci_driver);
 

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -192,7 +192,7 @@ static acpi_status acpi_tb_load_namespace(void)
 		(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INIT, "ACPI Tables successfully acquired\n"));
+	ACPI_INFO((AE_INFO, "All ACPI Tables successfully acquired"));
 
       unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);

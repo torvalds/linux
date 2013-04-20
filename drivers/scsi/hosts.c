@@ -468,10 +468,10 @@ void scsi_unregister(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL(scsi_unregister);
 
-static int __scsi_host_match(struct device *dev, void *data)
+static int __scsi_host_match(struct device *dev, const void *data)
 {
 	struct Scsi_Host *p;
-	unsigned short *hostnum = (unsigned short *)data;
+	const unsigned short *hostnum = data;
 
 	p = class_to_shost(dev);
 	return p->host_no == *hostnum;

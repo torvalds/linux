@@ -55,6 +55,7 @@
 #include <asm/code-patching.h>
 #include <asm/fadump.h>
 #include <asm/firmware.h>
+#include <asm/tm.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -194,6 +195,11 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		unsigned long vpn  = hpt_vpn(vaddr, vsid, ssize);
 		unsigned long tprot = prot;
 
+		/*
+		 * If we hit a bad address return error.
+		 */
+		if (!vsid)
+			return -1;
 		/* Make kernel text executable */
 		if (overlaps_kernel_text(vaddr, vaddr + step))
 			tprot &= ~HPTE_R_N;
@@ -758,6 +764,8 @@ void __init early_init_mmu(void)
 	/* Initialize stab / SLB management */
 	if (mmu_has_feature(MMU_FTR_SLB))
 		slb_initialize();
+	else
+		stab_initialize(get_paca()->stab_real);
 }
 
 #ifdef CONFIG_SMP
@@ -921,11 +929,6 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	DBG_LOW("hash_page(ea=%016lx, access=%lx, trap=%lx\n",
 		ea, access, trap);
 
-	if ((ea & ~REGION_MASK) >= PGTABLE_RANGE) {
-		DBG_LOW(" out of pgtable range !\n");
- 		return 1;
-	}
-
 	/* Get region & vsid */
  	switch (REGION_ID(ea)) {
 	case USER_REGION_ID:
@@ -956,6 +959,11 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	}
 	DBG_LOW(" mm=%p, mm->pgdir=%p, vsid=%016lx\n", mm, mm->pgd, vsid);
 
+	/* Bad address. */
+	if (!vsid) {
+		DBG_LOW("Bad address!\n");
+		return 1;
+	}
 	/* Get pgdir */
 	pgdir = mm->pgd;
 	if (pgdir == NULL)
@@ -1125,6 +1133,8 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	/* Get VSID */
 	ssize = user_segment_size(ea);
 	vsid = get_vsid(mm->context.id, ea, ssize);
+	if (!vsid)
+		return;
 
 	/* Hash doesn't like irqs */
 	local_irq_save(flags);
@@ -1171,6 +1181,21 @@ void flush_hash_page(unsigned long vpn, real_pte_t pte, int psize, int ssize,
 		DBG_LOW(" sub %ld: hash=%lx, hidx=%lx\n", index, slot, hidx);
 		ppc_md.hpte_invalidate(slot, vpn, psize, ssize, local);
 	} pte_iterate_hashed_end();
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	/* Transactions are not aborted by tlbiel, only tlbie.
+	 * Without, syncing a page back to a block device w/ PIO could pick up
+	 * transactional data (bad!) so we force an abort here.  Before the
+	 * sync the page will be made read-only, which will flush_hash_page.
+	 * BIG ISSUE here: if the kernel uses a page from userspace without
+	 * unmapping it first, it may see the speculated version.
+	 */
+	if (local && cpu_has_feature(CPU_FTR_TM) &&
+	    MSR_TM_ACTIVE(current->thread.regs->msr)) {
+		tm_enable();
+		tm_abort(TM_CAUSE_TLBI);
+	}
+#endif
 }
 
 void flush_hash_range(unsigned long number, int local)
@@ -1217,6 +1242,9 @@ static void kernel_map_linear_page(unsigned long vaddr, unsigned long lmi)
 	hash = hpt_hash(vpn, PAGE_SHIFT, mmu_kernel_ssize);
 	hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
+	/* Don't create HPTE entries for bad address */
+	if (!vsid)
+		return;
 	ret = ppc_md.hpte_insert(hpteg, vpn, __pa(vaddr),
 				 mode, HPTE_V_BOLTED,
 				 mmu_linear_psize, mmu_kernel_ssize);

@@ -161,6 +161,6 @@ S802_11Header, *PS802_11Header;
 
 BYTE ETHbyGetHashIndexByCrc32(PBYTE pbyMultiAddr);
 //BYTE ETHbyGetHashIndexByCrc(PBYTE pbyMultiAddr);
-BOOL ETHbIsBufferCrc32Ok(PBYTE pbyBuffer, unsigned int cbFrameLength);
+bool ETHbIsBufferCrc32Ok(PBYTE pbyBuffer, unsigned int cbFrameLength);
 
 #endif /* __TETHER_H__ */

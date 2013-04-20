@@ -2,7 +2,7 @@ menu "Microsoft Hyper-V guest support"
 
 config HYPERV
 	tristate "Microsoft Hyper-V client drivers"
-	depends on X86 && ACPI && PCI
+	depends on X86 && ACPI && PCI && X86_LOCAL_APIC
 	help
 	  Select this option to run Linux as a Hyper-V client operating
 	  system.

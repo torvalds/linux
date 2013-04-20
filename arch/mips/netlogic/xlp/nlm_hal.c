@@ -111,8 +111,8 @@ unsigned int nlm_get_core_frequency(int node, int core)
 	dfsval = nlm_read_sys_reg(sysbase, SYS_CORE_DFS_DIV_VALUE);
 	pll_divf = ((rstval >> 10) & 0x7f) + 1;
 	pll_divr = ((rstval >> 8)  & 0x3) + 1;
-	ext_div  = ((rstval >> 30) & 0x3) + 1;
-	dfs_div  = ((dfsval >> (core * 4)) & 0xf) + 1;
+	ext_div	 = ((rstval >> 30) & 0x3) + 1;
+	dfs_div	 = ((dfsval >> (core * 4)) & 0xf) + 1;
 
 	num = 800000000ULL * pll_divf;
 	denom = 3 * pll_divr * ext_div * dfs_div;

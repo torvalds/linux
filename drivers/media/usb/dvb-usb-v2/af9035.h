@@ -26,6 +26,7 @@
 #include "af9033.h"
 #include "tua9001.h"
 #include "fc0011.h"
+#include "fc0012.h"
 #include "mxl5007t.h"
 #include "tda18218.h"
 #include "fc2580.h"
@@ -53,7 +54,6 @@ struct usb_req {
 struct state {
 	u8 seq; /* packet sequence number */
 	bool dual_mode;
-
 	struct af9033_config af9033_config[2];
 };
 
@@ -91,6 +91,7 @@ u32 clock_lut_it9135[] = {
 /* EEPROM locations */
 #define EEPROM_IR_MODE            0x430d
 #define EEPROM_DUAL_MODE          0x4326
+#define EEPROM_2ND_DEMOD_ADDR     0x4327
 #define EEPROM_IR_TYPE            0x4329
 #define EEPROM_1_IFFREQ_L         0x432d
 #define EEPROM_1_IFFREQ_H         0x432e

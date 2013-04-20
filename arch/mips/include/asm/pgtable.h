@@ -112,7 +112,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 		 * it better already be global)
 		 */
 		if (pte_none(*buddy)) {
-			buddy->pte_low  |= _PAGE_GLOBAL;
+			buddy->pte_low	|= _PAGE_GLOBAL;
 			buddy->pte_high |= _PAGE_GLOBAL;
 		}
 	}
@@ -319,7 +319,7 @@ static inline int pte_special(pte_t pte)	{ return 0; }
 static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 
 /*
- * Macro to make mark a page protection value as "uncacheable".  Note
+ * Macro to make mark a page protection value as "uncacheable".	 Note
  * that "protection" is really a misnomer here as the protection value
  * contains the memory attribute bits, dirty bits, and various other
  * bits as well.

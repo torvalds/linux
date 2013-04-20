@@ -191,7 +191,7 @@ static void __init ip27_cpus_done(void)
 }
 
 /*
- * Launch a slave into smp_bootstrap().  It doesn't take an argument, and we
+ * Launch a slave into smp_bootstrap().	 It doesn't take an argument, and we
  * set sp to the kernel stack of the newly created idle process, gp to the proc
  * struct so that current_thread_info() will work.
  */
@@ -219,7 +219,7 @@ static void __init ip27_smp_setup(void)
 
 	/*
 	 * Assumption to be fixed: we're always booted on logical / physical
-	 * processor 0.  While we're always running on logical processor 0
+	 * processor 0.	 While we're always running on logical processor 0
 	 * this still means this is physical processor zero; it might for
 	 * example be disabled in the firmware.
 	 */

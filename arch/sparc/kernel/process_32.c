@@ -43,8 +43,7 @@
  * Power management idle function 
  * Set in pm platform drivers (apc.c and pmc.c)
  */
-void (*pm_idle)(void);
-EXPORT_SYMBOL(pm_idle);
+void (*sparc_idle)(void);
 
 /* 
  * Power-off handler instantiation for pm.h compliance
@@ -75,8 +74,8 @@ void cpu_idle(void)
 	/* endless idle loop with no priority at all */
 	for (;;) {
 		while (!need_resched()) {
-			if (pm_idle)
-				(*pm_idle)();
+			if (sparc_idle)
+				(*sparc_idle)();
 			else
 				cpu_relax();
 		}

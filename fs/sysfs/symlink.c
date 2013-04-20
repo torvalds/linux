@@ -21,26 +21,17 @@
 
 #include "sysfs.h"
 
-static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
-				const char *name, int warn)
+static int sysfs_do_create_link_sd(struct sysfs_dirent *parent_sd,
+				   struct kobject *target,
+				   const char *name, int warn)
 {
-	struct sysfs_dirent *parent_sd = NULL;
 	struct sysfs_dirent *target_sd = NULL;
 	struct sysfs_dirent *sd = NULL;
 	struct sysfs_addrm_cxt acxt;
 	enum kobj_ns_type ns_type;
 	int error;
 
-	BUG_ON(!name);
-
-	if (!kobj)
-		parent_sd = &sysfs_root;
-	else
-		parent_sd = kobj->sd;
-
-	error = -EFAULT;
-	if (!parent_sd)
-		goto out_put;
+	BUG_ON(!name || !parent_sd);
 
 	/* target->sd can go away beneath us but is protected with
 	 * sysfs_assoc_lock.  Fetch target_sd from it.
@@ -93,6 +84,34 @@ static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
 	sysfs_put(target_sd);
 	sysfs_put(sd);
 	return error;
+}
+
+/**
+ *	sysfs_create_link_sd - create symlink to a given object.
+ *	@sd:		directory we're creating the link in.
+ *	@target:	object we're pointing to.
+ *	@name:		name of the symlink.
+ */
+int sysfs_create_link_sd(struct sysfs_dirent *sd, struct kobject *target,
+			 const char *name)
+{
+	return sysfs_do_create_link_sd(sd, target, name, 1);
+}
+
+static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
+				const char *name, int warn)
+{
+	struct sysfs_dirent *parent_sd = NULL;
+
+	if (!kobj)
+		parent_sd = &sysfs_root;
+	else
+		parent_sd = kobj->sd;
+
+	if (!parent_sd)
+		return -EFAULT;
+
+	return sysfs_do_create_link_sd(parent_sd, target, name, warn);
 }
 
 /**

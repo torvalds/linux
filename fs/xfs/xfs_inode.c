@@ -2379,9 +2379,6 @@ xfs_iflush_fork(
 	char			*cp;
 	xfs_ifork_t		*ifp;
 	xfs_mount_t		*mp;
-#ifdef XFS_TRANS_DEBUG
-	int			first;
-#endif
 	static const short	brootflag[2] =
 		{ XFS_ILOG_DBROOT, XFS_ILOG_ABROOT };
 	static const short	dataflag[2] =
@@ -2724,9 +2721,6 @@ xfs_iflush_int(
 	xfs_inode_log_item_t	*iip;
 	xfs_dinode_t		*dip;
 	xfs_mount_t		*mp;
-#ifdef XFS_TRANS_DEBUG
-	int			first;
-#endif
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
 	ASSERT(xfs_isiflocked(ip));

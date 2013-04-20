@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -768,7 +768,7 @@ struct acpi_madt_interrupt_source {
 
 struct acpi_madt_local_x2apic {
 	struct acpi_subtable_header header;
-	u16 reserved;		/* Reserved - must be zero */
+	u16 reserved;		/* reserved - must be zero */
 	u32 local_apic_id;	/* Processor x2APIC ID  */
 	u32 lapic_flags;
 	u32 uid;		/* ACPI processor UID */
@@ -781,14 +781,14 @@ struct acpi_madt_local_x2apic_nmi {
 	u16 inti_flags;
 	u32 uid;		/* ACPI processor UID */
 	u8 lint;		/* LINTn to which NMI is connected */
-	u8 reserved[3];
+	u8 reserved[3];		/* reserved - must be zero */
 };
 
 /* 11: Generic Interrupt (ACPI 5.0) */
 
 struct acpi_madt_generic_interrupt {
 	struct acpi_subtable_header header;
-	u16 reserved;		/* Reserved - must be zero */
+	u16 reserved;		/* reserved - must be zero */
 	u32 gic_id;
 	u32 uid;
 	u32 flags;

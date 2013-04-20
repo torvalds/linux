@@ -139,16 +139,9 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data) < sizeof(struct qmi_wwan_state)));
 
-	/* control and data is shared? */
-	if (intf->cur_altsetting->desc.bNumEndpoints == 3) {
-		info->control = intf;
-		info->data = intf;
-		goto shared;
-	}
-
-	/* else require a single interrupt status endpoint on control intf */
-	if (intf->cur_altsetting->desc.bNumEndpoints != 1)
-		goto err;
+	/* set up initial state */
+	info->control = intf;
+	info->data = intf;
 
 	/* and a number of CDC descriptors */
 	while (len > 3) {
@@ -207,25 +200,14 @@ next_desc:
 		buf += h->bLength;
 	}
 
-	/* did we find all the required ones? */
-	if (!(found & (1 << USB_CDC_HEADER_TYPE)) ||
-	    !(found & (1 << USB_CDC_UNION_TYPE))) {
-		dev_err(&intf->dev, "CDC functional descriptors missing\n");
-		goto err;
-	}
-
-	/* verify CDC Union */
-	if (desc->bInterfaceNumber != cdc_union->bMasterInterface0) {
-		dev_err(&intf->dev, "bogus CDC Union: master=%u\n", cdc_union->bMasterInterface0);
-		goto err;
-	}
-
-	/* need to save these for unbind */
-	info->control = intf;
-	info->data = usb_ifnum_to_if(dev->udev,	cdc_union->bSlaveInterface0);
-	if (!info->data) {
-		dev_err(&intf->dev, "bogus CDC Union: slave=%u\n", cdc_union->bSlaveInterface0);
-		goto err;
+	/* Use separate control and data interfaces if we found a CDC Union */
+	if (cdc_union) {
+		info->data = usb_ifnum_to_if(dev->udev, cdc_union->bSlaveInterface0);
+		if (desc->bInterfaceNumber != cdc_union->bMasterInterface0 || !info->data) {
+			dev_err(&intf->dev, "bogus CDC Union: master=%u, slave=%u\n",
+				cdc_union->bMasterInterface0, cdc_union->bSlaveInterface0);
+			goto err;
+		}
 	}
 
 	/* errors aren't fatal - we can live with the dynamic address */
@@ -235,11 +217,12 @@ next_desc:
 	}
 
 	/* claim data interface and set it up */
-	status = usb_driver_claim_interface(driver, info->data, dev);
-	if (status < 0)
-		goto err;
+	if (info->control != info->data) {
+		status = usb_driver_claim_interface(driver, info->data, dev);
+		if (status < 0)
+			goto err;
+	}
 
-shared:
 	status = qmi_wwan_register_subdriver(dev);
 	if (status < 0 && info->control != info->data) {
 		usb_set_intfdata(info->data, NULL);
@@ -351,6 +334,10 @@ static const struct usb_device_id products[] = {
 		USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, USB_CLASS_VENDOR_SPEC, 1, 57),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
+	{	/* HUAWEI_INTERFACE_NDIS_CONTROL_QUALCOMM */
+		USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, USB_CLASS_VENDOR_SPEC, 0x01, 0x69),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
 
 	/* 2. Combined interface devices matching on class+protocol */
 	{	/* Huawei E367 and possibly others in "Windows mode" */
@@ -359,6 +346,14 @@ static const struct usb_device_id products[] = {
 	},
 	{	/* Huawei E392, E398 and possibly others in "Windows mode" */
 		USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, USB_CLASS_VENDOR_SPEC, 1, 17),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
+	{	/* HUAWEI_NDIS_SINGLE_INTERFACE_VDF */
+		USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, USB_CLASS_VENDOR_SPEC, 0x01, 0x37),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
+	{	/* HUAWEI_INTERFACE_NDIS_HW_QUALCOMM */
+		USB_VENDOR_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, USB_CLASS_VENDOR_SPEC, 0x01, 0x67),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
 	{	/* Pantech UML290, P4200 and more */
@@ -397,8 +392,16 @@ static const struct usb_device_id products[] = {
 					      USB_CDC_PROTO_NONE),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
+	{	/* ADU960S */
+		USB_DEVICE_AND_INTERFACE_INFO(0x16d5, 0x650a,
+					      USB_CLASS_COMM,
+					      USB_CDC_SUBCLASS_ETHERNET,
+					      USB_CDC_PROTO_NONE),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
 
 	/* 3. Combined interface devices matching on interface number */
+	{QMI_FIXED_INTF(0x0408, 0xea42, 4)},	/* Yota / Megafon M100-1 */
 	{QMI_FIXED_INTF(0x12d1, 0x140c, 1)},	/* Huawei E173 */
 	{QMI_FIXED_INTF(0x19d2, 0x0002, 1)},
 	{QMI_FIXED_INTF(0x19d2, 0x0012, 1)},
@@ -461,6 +464,7 @@ static const struct usb_device_id products[] = {
 	{QMI_FIXED_INTF(0x1199, 0x901c, 8)},    /* Sierra Wireless EM7700 */
 	{QMI_FIXED_INTF(0x1bbb, 0x011e, 4)},	/* Telekom Speedstick LTE II (Alcatel One Touch L100V LTE) */
 	{QMI_FIXED_INTF(0x2357, 0x0201, 4)},	/* TP-LINK HSUPA Modem MA180 */
+	{QMI_FIXED_INTF(0x1bc7, 0x1200, 5)},	/* Telit LE920 */
 
 	/* 4. Gobi 1000 devices */
 	{QMI_GOBI1K_DEVICE(0x05c6, 0x9212)},	/* Acer Gobi Modem Device */

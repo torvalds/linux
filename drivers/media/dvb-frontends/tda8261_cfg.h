@@ -78,7 +78,7 @@ static int tda8261_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 			return err;
 		}
 		*bandwidth = t_state.bandwidth;
+		printk("%s: Bandwidth=%d\n", __func__, t_state.bandwidth);
 	}
-	printk("%s: Bandwidth=%d\n", __func__, t_state.bandwidth);
 	return 0;
 }

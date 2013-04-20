@@ -63,7 +63,7 @@ static int __init omap4430_phy_power_down(void)
 
 	return 0;
 }
-early_initcall(omap4430_phy_power_down);
+omap_early_initcall(omap4430_phy_power_down);
 
 void am35x_musb_reset(void)
 {

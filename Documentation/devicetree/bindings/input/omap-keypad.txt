@@ -6,18 +6,15 @@ A key can be placed at each intersection of a unique row and a unique column.
 The keypad controller can sense a key-press and key-release and report the
 event using a interrupt to the cpu.
 
+This binding is based on the matrix-keymap binding with the following
+changes:
+
+keypad,num-rows and keypad,num-columns are required.
+
 Required SoC Specific Properties:
 - compatible: should be one of the following
    - "ti,omap4-keypad": For controllers compatible with omap4 keypad
       controller.
-
-Required Board Specific Properties, in addition to those specified by
-the shared matrix-keyboard bindings:
-- keypad,num-rows: Number of row lines connected to the keypad
-  controller.
-
-- keypad,num-columns: Number of column lines connected to the
-  keypad controller.
 
 Optional Properties specific to linux:
 - linux,keypad-no-autorepeat: do no enable autorepeat feature.

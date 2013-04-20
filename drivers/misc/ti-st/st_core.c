@@ -240,7 +240,8 @@ void st_int_recv(void *disc_data,
 	char *ptr;
 	struct st_proto_s *proto;
 	unsigned short payload_len = 0;
-	int len = 0, type = 0;
+	int len = 0;
+	unsigned char type = 0;
 	unsigned char *plen;
 	struct st_data_s *st_gdata = (struct st_data_s *)disc_data;
 	unsigned long flags;

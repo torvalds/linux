@@ -521,6 +521,7 @@ void jsm_input(struct jsm_channel *ch)
 {
 	struct jsm_board *bd;
 	struct tty_struct *tp;
+	struct tty_port *port;
 	u32 rmask;
 	u16 head;
 	u16 tail;
@@ -536,7 +537,8 @@ void jsm_input(struct jsm_channel *ch)
 	if (!ch)
 		return;
 
-	tp = ch->uart_port.state->port.tty;
+	port = &ch->uart_port.state->port;
+	tp = port->tty;
 
 	bd = ch->ch_bd;
 	if(!bd)
@@ -600,7 +602,7 @@ void jsm_input(struct jsm_channel *ch)
 		return;
 	}
 
-	len = tty_buffer_request_room(tp, data_len);
+	len = tty_buffer_request_room(port, data_len);
 	n = len;
 
 	/*
@@ -629,16 +631,16 @@ void jsm_input(struct jsm_channel *ch)
 				 * format it likes.
 				 */
 				if (*(ch->ch_equeue +tail +i) & UART_LSR_BI)
-					tty_insert_flip_char(tp, *(ch->ch_rqueue +tail +i),  TTY_BREAK);
+					tty_insert_flip_char(port, *(ch->ch_rqueue +tail +i),  TTY_BREAK);
 				else if (*(ch->ch_equeue +tail +i) & UART_LSR_PE)
-					tty_insert_flip_char(tp, *(ch->ch_rqueue +tail +i), TTY_PARITY);
+					tty_insert_flip_char(port, *(ch->ch_rqueue +tail +i), TTY_PARITY);
 				else if (*(ch->ch_equeue +tail +i) & UART_LSR_FE)
-					tty_insert_flip_char(tp, *(ch->ch_rqueue +tail +i), TTY_FRAME);
+					tty_insert_flip_char(port, *(ch->ch_rqueue +tail +i), TTY_FRAME);
 				else
-					tty_insert_flip_char(tp, *(ch->ch_rqueue +tail +i), TTY_NORMAL);
+					tty_insert_flip_char(port, *(ch->ch_rqueue +tail +i), TTY_NORMAL);
 			}
 		} else {
-			tty_insert_flip_string(tp, ch->ch_rqueue + tail, s) ;
+			tty_insert_flip_string(port, ch->ch_rqueue + tail, s);
 		}
 		tail += s;
 		n -= s;
@@ -652,7 +654,7 @@ void jsm_input(struct jsm_channel *ch)
 	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
 	/* Tell the tty layer its okay to "eat" the data now */
-	tty_flip_buffer_push(tp);
+	tty_flip_buffer_push(port);
 
 	jsm_dbg(IOCTL, &ch->ch_bd->pci_dev, "finish\n");
 }

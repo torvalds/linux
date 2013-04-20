@@ -505,6 +505,7 @@ static struct w1_gpio_platform_data w1_gpio_platform_data = {
 	.pin			= GPIO_ONE_WIRE,
 	.is_open_drain		= 0,
 	.enable_external_pullup	= w1_enable_external_pullup,
+	.ext_pullup_enable_pin	= -EINVAL,
 };
 
 struct platform_device raumfeld_w1_gpio_device = {
@@ -1095,7 +1096,7 @@ MACHINE_START(RAUMFELD_RC, "Raumfeld Controller")
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif
@@ -1108,7 +1109,7 @@ MACHINE_START(RAUMFELD_CONNECTOR, "Raumfeld Connector")
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif
@@ -1121,7 +1122,7 @@ MACHINE_START(RAUMFELD_SPEAKER, "Raumfeld Speaker")
 	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 MACHINE_END
 #endif

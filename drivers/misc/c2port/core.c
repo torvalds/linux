@@ -885,7 +885,7 @@ struct c2port_device *c2port_device_register(char *name,
 					struct c2port_ops *ops, void *devdata)
 {
 	struct c2port_device *c2dev;
-	int id, ret;
+	int ret;
 
 	if (unlikely(!ops) || unlikely(!ops->access) || \
 		unlikely(!ops->c2d_dir) || unlikely(!ops->c2ck_set) || \
@@ -897,22 +897,18 @@ struct c2port_device *c2port_device_register(char *name,
 	if (unlikely(!c2dev))
 		return ERR_PTR(-ENOMEM);
 
-	ret = idr_pre_get(&c2port_idr, GFP_KERNEL);
-	if (!ret) {
-		ret = -ENOMEM;
-		goto error_idr_get_new;
-	}
-
+	idr_preload(GFP_KERNEL);
 	spin_lock_irq(&c2port_idr_lock);
-	ret = idr_get_new(&c2port_idr, c2dev, &id);
+	ret = idr_alloc(&c2port_idr, c2dev, 0, 0, GFP_NOWAIT);
 	spin_unlock_irq(&c2port_idr_lock);
+	idr_preload_end();
 
 	if (ret < 0)
-		goto error_idr_get_new;
-	c2dev->id = id;
+		goto error_idr_alloc;
+	c2dev->id = ret;
 
 	c2dev->dev = device_create(c2port_class, NULL, 0, c2dev,
-					"c2port%d", id);
+				   "c2port%d", c2dev->id);
 	if (unlikely(IS_ERR(c2dev->dev))) {
 		ret = PTR_ERR(c2dev->dev);
 		goto error_device_create;
@@ -946,10 +942,10 @@ error_device_create_bin_file:
 
 error_device_create:
 	spin_lock_irq(&c2port_idr_lock);
-	idr_remove(&c2port_idr, id);
+	idr_remove(&c2port_idr, c2dev->id);
 	spin_unlock_irq(&c2port_idr_lock);
 
-error_idr_get_new:
+error_idr_alloc:
 	kfree(c2dev);
 
 	return ERR_PTR(ret);

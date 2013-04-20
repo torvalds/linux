@@ -32,10 +32,16 @@ int omap_i2c_add_bus(struct omap_i2c_bus_platform_data *i2c_pdata,
 extern int omap_register_i2c_bus(int bus_id, u32 clkrate,
 				 struct i2c_board_info const *info,
 				 unsigned len);
+extern int omap_register_i2c_bus_cmdline(void);
 #else
 static inline int omap_register_i2c_bus(int bus_id, u32 clkrate,
 				 struct i2c_board_info const *info,
 				 unsigned len)
+{
+	return 0;
+}
+
+static inline int omap_register_i2c_bus_cmdline(void)
 {
 	return 0;
 }

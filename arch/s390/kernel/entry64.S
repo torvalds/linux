@@ -72,9 +72,9 @@ _TIF_EXIT_SIE = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
 #endif
 	.endm
 
-	.macro SPP newpp
+	.macro LPP newpp
 #if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
-	tm	__LC_MACHINE_FLAGS+6,0x20	# MACHINE_FLAG_SPP
+	tm	__LC_MACHINE_FLAGS+6,0x20	# MACHINE_FLAG_LPP
 	jz	.+8
 	.insn	s,0xb2800000,\newpp
 #endif
@@ -96,7 +96,7 @@ _TIF_EXIT_SIE = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
 	jhe	.+22
 	.endif
 	lg	%r9,BASED(.Lsie_loop)
-	SPP	BASED(.Lhost_id)	# set host id
+	LPP	BASED(.Lhost_id)	# set host id
 #endif
 	.endm
 
@@ -678,8 +678,9 @@ ENTRY(mcck_int_handler)
 	UPDATE_VTIME %r14,__LC_MCCK_ENTER_TIMER
 	LAST_BREAK %r14
 mcck_skip:
-	lghi	%r14,__LC_GPREGS_SAVE_AREA
-	mvc	__PT_R0(128,%r11),0(%r14)
+	lghi	%r14,__LC_GPREGS_SAVE_AREA+64
+	stmg	%r0,%r7,__PT_R0(%r11)
+	mvc	__PT_R8(64,%r11),0(%r14)
 	stmg	%r8,%r9,__PT_PSW(%r11)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lgr	%r2,%r11		# pass pointer to pt_regs
@@ -967,10 +968,10 @@ sie_loop:
 	lctlg	%c1,%c1,__GMAP_ASCE(%r14)	# load primary asce
 sie_gmap:
 	lg	%r14,__SF_EMPTY(%r15)		# get control block pointer
-	SPP	__SF_EMPTY(%r15)		# set guest id
+	LPP	__SF_EMPTY(%r15)		# set guest id
 	sie	0(%r14)
 sie_done:
-	SPP	__SF_EMPTY+16(%r15)		# set host id
+	LPP	__SF_EMPTY+16(%r15)		# set host id
 	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
 sie_exit:
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce

@@ -87,6 +87,10 @@ As any static code analyzer, Coccinelle produces false
 positives. Thus, reports must be carefully checked, and patches
 reviewed.
 
+To enable verbose messages set the V= variable, for example:
+
+   make coccicheck MODE=report V=1
+
 
  Using Coccinelle with a single semantic patch
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

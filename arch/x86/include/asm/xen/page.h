@@ -212,4 +212,6 @@ unsigned long arbitrary_virt_to_mfn(void *vaddr);
 void make_lowmem_page_readonly(void *vaddr);
 void make_lowmem_page_readwrite(void *vaddr);
 
+#define xen_remap(cookie, size) ioremap((cookie), (size));
+
 #endif /* _ASM_X86_XEN_PAGE_H */

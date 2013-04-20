@@ -385,7 +385,7 @@ static int __init xen_tmem_init(void)
 		if (old_ops.init != NULL)
 			s = " (WARNING: frontswap_ops overridden)";
 		printk(KERN_INFO "frontswap enabled, RAM provided by "
-				 "Xen Transcendent Memory\n");
+				 "Xen Transcendent Memory%s\n", s);
 	}
 #endif
 #ifdef CONFIG_CLEANCACHE

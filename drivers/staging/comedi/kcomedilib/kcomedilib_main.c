@@ -42,7 +42,6 @@ MODULE_LICENSE("GPL");
 
 struct comedi_device *comedi_open(const char *filename)
 {
-	struct comedi_device_file_info *dev_file_info;
 	struct comedi_device *dev;
 	unsigned int minor;
 
@@ -54,12 +53,9 @@ struct comedi_device *comedi_open(const char *filename)
 	if (minor >= COMEDI_NUM_BOARD_MINORS)
 		return NULL;
 
-	dev_file_info = comedi_get_device_file_info(minor);
-	if (dev_file_info == NULL)
-		return NULL;
-	dev = dev_file_info->device;
+	dev = comedi_dev_from_minor(minor);
 
-	if (dev == NULL || !dev->attached)
+	if (!dev || !dev->attached)
 		return NULL;
 
 	if (!try_module_get(dev->driver->module))

@@ -429,9 +429,9 @@ static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 	if (res == NULL)
 		return -ENOMEM;
 
-	priv->sspa->mmio_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (priv->sspa->mmio_base == NULL)
-		return -ENODEV;
+	priv->sspa->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv->sspa->mmio_base))
+		return PTR_ERR(priv->sspa->mmio_base);
 
 	priv->sspa->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->sspa->clk))

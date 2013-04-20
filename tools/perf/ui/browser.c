@@ -273,6 +273,8 @@ void ui_browser__hide(struct ui_browser *browser __maybe_unused)
 {
 	pthread_mutex_lock(&ui__lock);
 	ui_helpline__pop();
+	free(browser->helpline);
+	browser->helpline = NULL;
 	pthread_mutex_unlock(&ui__lock);
 }
 
@@ -471,7 +473,7 @@ unsigned int ui_browser__list_head_refresh(struct ui_browser *browser)
 	return row;
 }
 
-static struct ui_browser__colorset {
+static struct ui_browser_colorset {
 	const char *name, *fg, *bg;
 	int colorset;
 } ui_browser__colorsets[] = {
@@ -706,7 +708,7 @@ void ui_browser__init(void)
 	perf_config(ui_browser__color_config, NULL);
 
 	while (ui_browser__colorsets[i].name) {
-		struct ui_browser__colorset *c = &ui_browser__colorsets[i++];
+		struct ui_browser_colorset *c = &ui_browser__colorsets[i++];
 		sltt_set_color(c->colorset, c->name, c->fg, c->bg);
 	}
 

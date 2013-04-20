@@ -40,9 +40,10 @@ module_param(debug, int, 0644);
 #define call_qop(q, op, args...)					\
 	(((q)->ops->op) ? ((q)->ops->op(args)) : 0)
 
-#define V4L2_BUFFER_STATE_FLAGS	(V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_QUEUED | \
+#define V4L2_BUFFER_MASK_FLAGS	(V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_QUEUED | \
 				 V4L2_BUF_FLAG_DONE | V4L2_BUF_FLAG_ERROR | \
-				 V4L2_BUF_FLAG_PREPARED)
+				 V4L2_BUF_FLAG_PREPARED | \
+				 V4L2_BUF_FLAG_TIMESTAMP_MASK)
 
 /**
  * __vb2_buf_mem_alloc() - allocate video memory for the given buffer
@@ -401,7 +402,8 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 	/*
 	 * Clear any buffer state related flags.
 	 */
-	b->flags &= ~V4L2_BUFFER_STATE_FLAGS;
+	b->flags &= ~V4L2_BUFFER_MASK_FLAGS;
+	b->flags |= V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	switch (vb->state) {
 	case VB2_BUF_STATE_QUEUED:
@@ -941,7 +943,7 @@ static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b
 
 	vb->v4l2_buf.field = b->field;
 	vb->v4l2_buf.timestamp = b->timestamp;
-	vb->v4l2_buf.flags = b->flags & ~V4L2_BUFFER_STATE_FLAGS;
+	vb->v4l2_buf.flags = b->flags & ~V4L2_BUFFER_MASK_FLAGS;
 }
 
 /**
@@ -1962,6 +1964,11 @@ unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 		else if (req_events & POLLPRI)
 			poll_wait(file, &fh->wait, wait);
 	}
+
+	if (!V4L2_TYPE_IS_OUTPUT(q->type) && !(req_events & (POLLIN | POLLRDNORM)))
+		return res;
+	if (V4L2_TYPE_IS_OUTPUT(q->type) && !(req_events & (POLLOUT | POLLWRNORM)))
+		return res;
 
 	/*
 	 * Start file I/O emulator only if streaming API has not been used yet.

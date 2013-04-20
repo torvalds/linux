@@ -73,8 +73,6 @@ static const unsigned int buck_voltage_map[] = {
 };
 
 #define BUCK_TARGET_VOL_MASK 0x3f
-#define BUCK_TARGET_VOL_MIN_IDX 0x01
-#define BUCK_TARGET_VOL_MAX_IDX 0x19
 
 #define LP3971_BUCK_RAMP_REG(x)	(buck_base_addr[x]+2)
 
@@ -140,7 +138,7 @@ static int lp3971_ldo_disable(struct regulator_dev *dev)
 	return lp3971_set_bits(lp3971, LP3971_LDO_ENABLE_REG, mask, 0);
 }
 
-static int lp3971_ldo_get_voltage(struct regulator_dev *dev)
+static int lp3971_ldo_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct lp3971 *lp3971 = rdev_get_drvdata(dev);
 	int ldo = rdev_get_id(dev) - LP3971_LDO1;
@@ -149,7 +147,7 @@ static int lp3971_ldo_get_voltage(struct regulator_dev *dev)
 	reg = lp3971_reg_read(lp3971, LP3971_LDO_VOL_CONTR_REG(ldo));
 	val = (reg >> LDO_VOL_CONTR_SHIFT(ldo)) & LDO_VOL_CONTR_MASK;
 
-	return dev->desc->volt_table[val];
+	return val;
 }
 
 static int lp3971_ldo_set_voltage_sel(struct regulator_dev *dev,
@@ -168,7 +166,7 @@ static struct regulator_ops lp3971_ldo_ops = {
 	.is_enabled = lp3971_ldo_is_enabled,
 	.enable = lp3971_ldo_enable,
 	.disable = lp3971_ldo_disable,
-	.get_voltage = lp3971_ldo_get_voltage,
+	.get_voltage_sel = lp3971_ldo_get_voltage_sel,
 	.set_voltage_sel = lp3971_ldo_set_voltage_sel,
 };
 
@@ -201,24 +199,16 @@ static int lp3971_dcdc_disable(struct regulator_dev *dev)
 	return lp3971_set_bits(lp3971, LP3971_BUCK_VOL_ENABLE_REG, mask, 0);
 }
 
-static int lp3971_dcdc_get_voltage(struct regulator_dev *dev)
+static int lp3971_dcdc_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct lp3971 *lp3971 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - LP3971_DCDC1;
 	u16 reg;
-	int val;
 
 	reg = lp3971_reg_read(lp3971, LP3971_BUCK_TARGET_VOL1_REG(buck));
 	reg &= BUCK_TARGET_VOL_MASK;
 
-	if (reg <= BUCK_TARGET_VOL_MAX_IDX)
-		val = buck_voltage_map[reg];
-	else {
-		val = 0;
-		dev_warn(&dev->dev, "chip reported incorrect voltage value.\n");
-	}
-
-	return val;
+	return reg;
 }
 
 static int lp3971_dcdc_set_voltage_sel(struct regulator_dev *dev,
@@ -249,7 +239,7 @@ static struct regulator_ops lp3971_dcdc_ops = {
 	.is_enabled = lp3971_dcdc_is_enabled,
 	.enable = lp3971_dcdc_enable,
 	.disable = lp3971_dcdc_disable,
-	.get_voltage = lp3971_dcdc_get_voltage,
+	.get_voltage_sel = lp3971_dcdc_get_voltage_sel,
 	.set_voltage_sel = lp3971_dcdc_set_voltage_sel,
 };
 

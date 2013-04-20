@@ -28,7 +28,6 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
-#include "../common/hid-sensors/hid-sensor-attributes.h"
 #include "../common/hid-sensors/hid-sensor-trigger.h"
 
 /*Format: HID-SENSOR-usage_id_in_hex*/
@@ -44,7 +43,7 @@ enum magn_3d_channel {
 
 struct magn_3d_state {
 	struct hid_sensor_hub_callbacks callbacks;
-	struct hid_sensor_iio_common common_attributes;
+	struct hid_sensor_common common_attributes;
 	struct hid_sensor_hub_attribute_info magn[MAGN_3D_CHANNEL_MAX];
 	u32 magn_val[MAGN_3D_CHANNEL_MAX];
 };

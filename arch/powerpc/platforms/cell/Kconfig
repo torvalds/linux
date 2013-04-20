@@ -124,7 +124,7 @@ config CBE_CPUFREQ
 
 config CBE_CPUFREQ_PMI_ENABLE
 	bool "CBE frequency scaling using PMI interface"
-	depends on CBE_CPUFREQ && EXPERIMENTAL
+	depends on CBE_CPUFREQ
 	default n
 	help
 	  Select this, if you want to use the PMI interface

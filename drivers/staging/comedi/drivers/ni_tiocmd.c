@@ -159,6 +159,7 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, struct comedi_async *async)
 		async->inttrig = NULL;
 		mite_dma_arm(counter->mite_chan);
 		retval = ni_tio_arm(counter, 1, cmd->start_arg);
+		break;
 	case TRIG_OTHER:
 		async->inttrig = NULL;
 		mite_dma_arm(counter->mite_chan);

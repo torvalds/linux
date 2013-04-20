@@ -102,6 +102,64 @@ processing of request. Therefore, increasing the value can imporve the
 performace although this can cause the latency of some I/O to increase due
 to more number of requests.
 
+CFQ Group scheduling
+====================
+
+CFQ supports blkio cgroup and has "blkio." prefixed files in each
+blkio cgroup directory. It is weight-based and there are four knobs
+for configuration - weight[_device] and leaf_weight[_device].
+Internal cgroup nodes (the ones with children) can also have tasks in
+them, so the former two configure how much proportion the cgroup as a
+whole is entitled to at its parent's level while the latter two
+configure how much proportion the tasks in the cgroup have compared to
+its direct children.
+
+Another way to think about it is assuming that each internal node has
+an implicit leaf child node which hosts all the tasks whose weight is
+configured by leaf_weight[_device]. Let's assume a blkio hierarchy
+composed of five cgroups - root, A, B, AA and AB - with the following
+weights where the names represent the hierarchy.
+
+        weight leaf_weight
+ root :  125    125
+ A    :  500    750
+ B    :  250    500
+ AA   :  500    500
+ AB   : 1000    500
+
+root never has a parent making its weight is meaningless. For backward
+compatibility, weight is always kept in sync with leaf_weight. B, AA
+and AB have no child and thus its tasks have no children cgroup to
+compete with. They always get 100% of what the cgroup won at the
+parent level. Considering only the weights which matter, the hierarchy
+looks like the following.
+
+          root
+       /    |   \
+      A     B    leaf
+     500   250   125
+   /  |  \
+  AA  AB  leaf
+ 500 1000 750
+
+If all cgroups have active IOs and competing with each other, disk
+time will be distributed like the following.
+
+Distribution below root. The total active weight at this level is
+A:500 + B:250 + C:125 = 875.
+
+ root-leaf :   125 /  875      =~ 14%
+ A         :   500 /  875      =~ 57%
+ B(-leaf)  :   250 /  875      =~ 28%
+
+A has children and further distributes its 57% among the children and
+the implicit leaf node. The total active weight at this level is
+AA:500 + AB:1000 + A-leaf:750 = 2250.
+
+ A-leaf    : ( 750 / 2250) * A =~ 19%
+ AA(-leaf) : ( 500 / 2250) * A =~ 12%
+ AB(-leaf) : (1000 / 2250) * A =~ 25%
+
 CFQ IOPS Mode for group scheduling
 ===================================
 Basic CFQ design is to provide priority based time slices. Higher priority

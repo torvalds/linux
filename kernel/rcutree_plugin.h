@@ -40,8 +40,7 @@
 #ifdef CONFIG_RCU_NOCB_CPU
 static cpumask_var_t rcu_nocb_mask; /* CPUs to have callbacks offloaded. */
 static bool have_rcu_nocb_mask;	    /* Was rcu_nocb_mask allocated? */
-static bool rcu_nocb_poll;	    /* Offload kthread are to poll. */
-module_param(rcu_nocb_poll, bool, 0444);
+static bool __read_mostly rcu_nocb_poll;    /* Offload kthread are to poll. */
 static char __initdata nocb_buf[NR_CPUS * 5];
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
@@ -2159,6 +2158,13 @@ static int __init rcu_nocb_setup(char *str)
 }
 __setup("rcu_nocbs=", rcu_nocb_setup);
 
+static int __init parse_rcu_nocb_poll(char *arg)
+{
+	rcu_nocb_poll = 1;
+	return 0;
+}
+early_param("rcu_nocb_poll", parse_rcu_nocb_poll);
+
 /* Is the specified CPU a no-CPUs CPU? */
 static bool is_nocb_cpu(int cpu)
 {
@@ -2366,10 +2372,11 @@ static int rcu_nocb_kthread(void *arg)
 	for (;;) {
 		/* If not polling, wait for next batch of callbacks. */
 		if (!rcu_nocb_poll)
-			wait_event(rdp->nocb_wq, rdp->nocb_head);
+			wait_event_interruptible(rdp->nocb_wq, rdp->nocb_head);
 		list = ACCESS_ONCE(rdp->nocb_head);
 		if (!list) {
 			schedule_timeout_interruptible(1);
+			flush_signals(current);
 			continue;
 		}
 

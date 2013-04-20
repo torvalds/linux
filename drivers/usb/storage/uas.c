@@ -66,6 +66,8 @@ enum {
 	DATA_OUT_URB_INFLIGHT   = (1 << 10),
 	COMMAND_COMPLETED       = (1 << 11),
 	COMMAND_ABORTED         = (1 << 12),
+	UNLINK_DATA_URBS        = (1 << 13),
+	IS_IN_WORK_LIST         = (1 << 14),
 };
 
 /* Overrides scsi_pointer */
@@ -82,10 +84,35 @@ struct uas_cmd_info {
 static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 				struct uas_dev_info *devinfo, gfp_t gfp);
 static void uas_do_work(struct work_struct *work);
+static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller);
 
 static DECLARE_WORK(uas_work, uas_do_work);
 static DEFINE_SPINLOCK(uas_work_lock);
 static LIST_HEAD(uas_work_list);
+
+static void uas_unlink_data_urbs(struct uas_dev_info *devinfo,
+				 struct uas_cmd_info *cmdinfo)
+{
+	unsigned long flags;
+
+	/*
+	 * The UNLINK_DATA_URBS flag makes sure uas_try_complete
+	 * (called by urb completion) doesn't release cmdinfo
+	 * underneath us.
+	 */
+	spin_lock_irqsave(&devinfo->lock, flags);
+	cmdinfo->state |= UNLINK_DATA_URBS;
+	spin_unlock_irqrestore(&devinfo->lock, flags);
+
+	if (cmdinfo->data_in_urb)
+		usb_unlink_urb(cmdinfo->data_in_urb);
+	if (cmdinfo->data_out_urb)
+		usb_unlink_urb(cmdinfo->data_out_urb);
+
+	spin_lock_irqsave(&devinfo->lock, flags);
+	cmdinfo->state &= ~UNLINK_DATA_URBS;
+	spin_unlock_irqrestore(&devinfo->lock, flags);
+}
 
 static void uas_do_work(struct work_struct *work)
 {
@@ -106,6 +133,8 @@ static void uas_do_work(struct work_struct *work)
 		struct uas_dev_info *devinfo = (void *)cmnd->device->hostdata;
 		spin_lock_irqsave(&devinfo->lock, flags);
 		err = uas_submit_urbs(cmnd, cmnd->device->hostdata, GFP_ATOMIC);
+		if (!err)
+			cmdinfo->state &= ~IS_IN_WORK_LIST;
 		spin_unlock_irqrestore(&devinfo->lock, flags);
 		if (err) {
 			list_del(&cmdinfo->list);
@@ -115,6 +144,45 @@ static void uas_do_work(struct work_struct *work)
 			schedule_work(&uas_work);
 		}
 	}
+}
+
+static void uas_abort_work(struct uas_dev_info *devinfo)
+{
+	struct uas_cmd_info *cmdinfo;
+	struct uas_cmd_info *temp;
+	struct list_head list;
+	unsigned long flags;
+
+	spin_lock_irq(&uas_work_lock);
+	list_replace_init(&uas_work_list, &list);
+	spin_unlock_irq(&uas_work_lock);
+
+	spin_lock_irqsave(&devinfo->lock, flags);
+	list_for_each_entry_safe(cmdinfo, temp, &list, list) {
+		struct scsi_pointer *scp = (void *)cmdinfo;
+		struct scsi_cmnd *cmnd = container_of(scp,
+							struct scsi_cmnd, SCp);
+		struct uas_dev_info *di = (void *)cmnd->device->hostdata;
+
+		if (di == devinfo) {
+			cmdinfo->state |= COMMAND_ABORTED;
+			cmdinfo->state &= ~IS_IN_WORK_LIST;
+			if (devinfo->resetting) {
+				/* uas_stat_cmplt() will not do that
+				 * when a device reset is in
+				 * progress */
+				cmdinfo->state &= ~COMMAND_INFLIGHT;
+			}
+			uas_try_complete(cmnd, __func__);
+		} else {
+			/* not our uas device, relink into list */
+			list_del(&cmdinfo->list);
+			spin_lock_irq(&uas_work_lock);
+			list_add_tail(&cmdinfo->list, &uas_work_list);
+			spin_unlock_irq(&uas_work_lock);
+		}
+	}
+	spin_unlock_irqrestore(&devinfo->lock, flags);
 }
 
 static void uas_sense(struct urb *urb, struct scsi_cmnd *cmnd)
@@ -168,7 +236,7 @@ static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 	struct uas_cmd_info *ci = (void *)&cmnd->SCp;
 
 	scmd_printk(KERN_INFO, cmnd, "%s %p tag %d, inflight:"
-		    "%s%s%s%s%s%s%s%s%s%s%s%s\n",
+		    "%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		    caller, cmnd, cmnd->request->tag,
 		    (ci->state & SUBMIT_STATUS_URB)     ? " s-st"  : "",
 		    (ci->state & ALLOC_DATA_IN_URB)     ? " a-in"  : "",
@@ -181,7 +249,9 @@ static void uas_log_cmd_state(struct scsi_cmnd *cmnd, const char *caller)
 		    (ci->state & DATA_IN_URB_INFLIGHT)  ? " IN"    : "",
 		    (ci->state & DATA_OUT_URB_INFLIGHT) ? " OUT"   : "",
 		    (ci->state & COMMAND_COMPLETED)     ? " done"  : "",
-		    (ci->state & COMMAND_ABORTED)       ? " abort" : "");
+		    (ci->state & COMMAND_ABORTED)       ? " abort" : "",
+		    (ci->state & UNLINK_DATA_URBS)      ? " unlink": "",
+		    (ci->state & IS_IN_WORK_LIST)       ? " work"  : "");
 }
 
 static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
@@ -192,7 +262,8 @@ static int uas_try_complete(struct scsi_cmnd *cmnd, const char *caller)
 	WARN_ON(!spin_is_locked(&devinfo->lock));
 	if (cmdinfo->state & (COMMAND_INFLIGHT |
 			      DATA_IN_URB_INFLIGHT |
-			      DATA_OUT_URB_INFLIGHT))
+			      DATA_OUT_URB_INFLIGHT |
+			      UNLINK_DATA_URBS))
 		return -EBUSY;
 	BUG_ON(cmdinfo->state & COMMAND_COMPLETED);
 	cmdinfo->state |= COMMAND_COMPLETED;
@@ -217,6 +288,7 @@ static void uas_xfer_data(struct urb *urb, struct scsi_cmnd *cmnd,
 	if (err) {
 		spin_lock(&uas_work_lock);
 		list_add_tail(&cmdinfo->list, &uas_work_list);
+		cmdinfo->state |= IS_IN_WORK_LIST;
 		spin_unlock(&uas_work_lock);
 		schedule_work(&uas_work);
 	}
@@ -274,16 +346,9 @@ static void uas_stat_cmplt(struct urb *urb)
 			uas_sense(urb, cmnd);
 		if (cmnd->result != 0) {
 			/* cancel data transfers on error */
-			if (cmdinfo->state & DATA_IN_URB_INFLIGHT) {
-				spin_unlock_irqrestore(&devinfo->lock, flags);
-				usb_unlink_urb(cmdinfo->data_in_urb);
-				spin_lock_irqsave(&devinfo->lock, flags);
-			}
-			if (cmdinfo->state & DATA_OUT_URB_INFLIGHT) {
-				spin_unlock_irqrestore(&devinfo->lock, flags);
-				usb_unlink_urb(cmdinfo->data_out_urb);
-				spin_lock_irqsave(&devinfo->lock, flags);
-			}
+			spin_unlock_irqrestore(&devinfo->lock, flags);
+			uas_unlink_data_urbs(devinfo, cmdinfo);
+			spin_lock_irqsave(&devinfo->lock, flags);
 		}
 		cmdinfo->state &= ~COMMAND_INFLIGHT;
 		uas_try_complete(cmnd, __func__);
@@ -579,6 +644,12 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 
 	BUILD_BUG_ON(sizeof(struct uas_cmd_info) > sizeof(struct scsi_pointer));
 
+	if (devinfo->resetting) {
+		cmnd->result = DID_ERROR << 16;
+		cmnd->scsi_done(cmnd);
+		return 0;
+	}
+
 	spin_lock_irqsave(&devinfo->lock, flags);
 	if (devinfo->cmnd) {
 		spin_unlock_irqrestore(&devinfo->lock, flags);
@@ -623,6 +694,7 @@ static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 		}
 		spin_lock(&uas_work_lock);
 		list_add_tail(&cmdinfo->list, &uas_work_list);
+		cmdinfo->state |= IS_IN_WORK_LIST;
 		spin_unlock(&uas_work_lock);
 		schedule_work(&uas_work);
 	}
@@ -689,8 +761,23 @@ static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 	uas_log_cmd_state(cmnd, __func__);
 	spin_lock_irqsave(&devinfo->lock, flags);
 	cmdinfo->state |= COMMAND_ABORTED;
-	spin_unlock_irqrestore(&devinfo->lock, flags);
-	ret = uas_eh_task_mgmt(cmnd, "ABORT TASK", TMF_ABORT_TASK);
+	if (cmdinfo->state & IS_IN_WORK_LIST) {
+		spin_lock(&uas_work_lock);
+		list_del(&cmdinfo->list);
+		cmdinfo->state &= ~IS_IN_WORK_LIST;
+		spin_unlock(&uas_work_lock);
+	}
+	if (cmdinfo->state & COMMAND_INFLIGHT) {
+		spin_unlock_irqrestore(&devinfo->lock, flags);
+		ret = uas_eh_task_mgmt(cmnd, "ABORT TASK", TMF_ABORT_TASK);
+	} else {
+		spin_unlock_irqrestore(&devinfo->lock, flags);
+		uas_unlink_data_urbs(devinfo, cmdinfo);
+		spin_lock_irqsave(&devinfo->lock, flags);
+		uas_try_complete(cmnd, __func__);
+		spin_unlock_irqrestore(&devinfo->lock, flags);
+		ret = SUCCESS;
+	}
 	return ret;
 }
 
@@ -709,6 +796,7 @@ static int uas_eh_bus_reset_handler(struct scsi_cmnd *cmnd)
 	int err;
 
 	devinfo->resetting = 1;
+	uas_abort_work(devinfo);
 	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
@@ -903,6 +991,8 @@ static int uas_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	shost->max_cmd_len = 16 + 252;
 	shost->max_id = 1;
+	shost->max_lun = 256;
+	shost->max_channel = 0;
 	shost->sg_tablesize = udev->bus->sg_tablesize;
 
 	devinfo->intf = intf;
@@ -954,10 +1044,12 @@ static void uas_disconnect(struct usb_interface *intf)
 	struct Scsi_Host *shost = usb_get_intfdata(intf);
 	struct uas_dev_info *devinfo = (void *)shost->hostdata[0];
 
-	scsi_remove_host(shost);
+	devinfo->resetting = 1;
+	uas_abort_work(devinfo);
 	usb_kill_anchored_urbs(&devinfo->cmd_urbs);
 	usb_kill_anchored_urbs(&devinfo->sense_urbs);
 	usb_kill_anchored_urbs(&devinfo->data_urbs);
+	scsi_remove_host(shost);
 	uas_free_streams(devinfo);
 	kfree(devinfo);
 }

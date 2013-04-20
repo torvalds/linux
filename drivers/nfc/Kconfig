@@ -5,19 +5,6 @@
 menu "Near Field Communication (NFC) devices"
 	depends on NFC
 
-config PN544_HCI_NFC
-	tristate "HCI PN544 NFC driver"
-	depends on I2C && NFC_HCI && NFC_SHDLC
-	select CRC_CCITT
-	default n
-	---help---
-	  NXP PN544 i2c driver.
-	  This is a driver based on the SHDLC and HCI NFC kernel layers and
-	  will thus not work with NXP libnfc library.
-
-	  To compile this driver as a module, choose m here. The module will
-	  be called pn544_hci.
-
 config NFC_PN533
 	tristate "NXP PN533 USB driver"
 	depends on USB
@@ -38,5 +25,8 @@ config NFC_WILINK
 
 	  Say Y here to compile support for Texas Instrument's NFC WiLink driver
 	  into the kernel or say M to compile it as module.
+
+source "drivers/nfc/pn544/Kconfig"
+source "drivers/nfc/microread/Kconfig"
 
 endmenu

@@ -623,7 +623,7 @@ static int h245_help(struct sk_buff *skb, unsigned int protoff,
 
       drop:
 	spin_unlock_bh(&nf_h323_lock);
-	net_info_ratelimited("nf_ct_h245: packet dropped\n");
+	nf_ct_helper_log(skb, ct, "cannot process H.245 message");
 	return NF_DROP;
 }
 
@@ -1197,7 +1197,7 @@ static int q931_help(struct sk_buff *skb, unsigned int protoff,
 
       drop:
 	spin_unlock_bh(&nf_h323_lock);
-	net_info_ratelimited("nf_ct_q931: packet dropped\n");
+	nf_ct_helper_log(skb, ct, "cannot process Q.931 message");
 	return NF_DROP;
 }
 
@@ -1795,7 +1795,7 @@ static int ras_help(struct sk_buff *skb, unsigned int protoff,
 
       drop:
 	spin_unlock_bh(&nf_h323_lock);
-	net_info_ratelimited("nf_ct_ras: packet dropped\n");
+	nf_ct_helper_log(skb, ct, "cannot process RAS message");
 	return NF_DROP;
 }
 

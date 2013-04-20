@@ -17,8 +17,6 @@
 
     - gcc >= 4.0
 
-    - libglib2.0-dev >= 2.6.0
-
     - libtool, automake >= 1.9, autoconf >= 2.5.0, pkg-config
 
 

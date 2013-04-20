@@ -103,19 +103,6 @@ int iio_update_buffers(struct iio_dev *indio_dev,
  **/
 void iio_buffer_init(struct iio_buffer *buffer);
 
-/**
- * __iio_update_buffer() - update common elements of buffers
- * @buffer:		buffer that is the event source
- * @bytes_per_datum:	size of individual datum including timestamp
- * @length:		number of datums in buffer
- **/
-static inline void __iio_update_buffer(struct iio_buffer *buffer,
-				       int bytes_per_datum, int length)
-{
-	buffer->bytes_per_datum = bytes_per_datum;
-	buffer->length = length;
-}
-
 int iio_scan_mask_query(struct iio_dev *indio_dev,
 			struct iio_buffer *buffer, int bit);
 
