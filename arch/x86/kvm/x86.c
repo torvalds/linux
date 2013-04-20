@@ -845,23 +845,17 @@ static const u32 emulated_msrs[] = {
 	MSR_IA32_MCG_CTL,
 };
 
-static int set_efer(struct kvm_vcpu *vcpu, u64 efer)
+bool kvm_valid_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
-	u64 old_efer = vcpu->arch.efer;
-
 	if (efer & efer_reserved_bits)
-		return 1;
-
-	if (is_paging(vcpu)
-	    && (vcpu->arch.efer & EFER_LME) != (efer & EFER_LME))
-		return 1;
+		return false;
 
 	if (efer & EFER_FFXSR) {
 		struct kvm_cpuid_entry2 *feat;
 
 		feat = kvm_find_cpuid_entry(vcpu, 0x80000001, 0);
 		if (!feat || !(feat->edx & bit(X86_FEATURE_FXSR_OPT)))
-			return 1;
+			return false;
 	}
 
 	if (efer & EFER_SVME) {
@@ -869,8 +863,23 @@ static int set_efer(struct kvm_vcpu *vcpu, u64 efer)
 
 		feat = kvm_find_cpuid_entry(vcpu, 0x80000001, 0);
 		if (!feat || !(feat->ecx & bit(X86_FEATURE_SVM)))
-			return 1;
+			return false;
 	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(kvm_valid_efer);
+
+static int set_efer(struct kvm_vcpu *vcpu, u64 efer)
+{
+	u64 old_efer = vcpu->arch.efer;
+
+	if (!kvm_valid_efer(vcpu, efer))
+		return 1;
+
+	if (is_paging(vcpu)
+	    && (vcpu->arch.efer & EFER_LME) != (efer & EFER_LME))
+		return 1;
 
 	efer &= ~EFER_LMA;
 	efer |= vcpu->arch.efer & EFER_LMA;

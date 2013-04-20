@@ -809,6 +809,7 @@ static inline int emulate_instruction(struct kvm_vcpu *vcpu,
 }
 
 void kvm_enable_efer_bits(u64);
+bool kvm_valid_efer(struct kvm_vcpu *vcpu, u64 efer);
 int kvm_get_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *data);
 int kvm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr);
 
