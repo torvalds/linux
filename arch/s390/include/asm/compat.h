@@ -135,7 +135,7 @@ struct compat_statfs {
 	s32		f_namelen;
 	s32		f_frsize;
 	s32		f_flags;
-	s32		f_spare[5];
+	s32		f_spare[4];
 };
 
 #define COMPAT_RLIM_OLD_INFINITY	0x7fffffff
