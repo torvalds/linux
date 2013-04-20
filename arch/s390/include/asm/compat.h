@@ -248,8 +248,6 @@ static inline int is_compat_task(void)
 	return is_32bit_task();
 }
 
-#endif
-
 static inline void __user *arch_compat_alloc_user_space(long len)
 {
 	unsigned long stack;
@@ -259,6 +257,8 @@ static inline void __user *arch_compat_alloc_user_space(long len)
 		stack &= 0x7fffffffUL;
 	return (void __user *) (stack - len);
 }
+
+#endif
 
 struct compat_ipc64_perm {
 	compat_key_t key;
