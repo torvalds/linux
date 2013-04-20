@@ -232,6 +232,26 @@ void tick_nohz_full_kick_all(void)
 	preempt_enable();
 }
 
+/*
+ * Re-evaluate the need for the tick as we switch the current task.
+ * It might need the tick due to per task/process properties:
+ * perf events, posix cpu timers, ...
+ */
+void tick_nohz_task_switch(struct task_struct *tsk)
+{
+	unsigned long flags;
+
+	if (!tick_nohz_full_cpu(smp_processor_id()))
+		return;
+
+	local_irq_save(flags);
+
+	if (tick_nohz_tick_stopped() && !can_stop_full_tick())
+		tick_nohz_full_kick();
+
+	local_irq_restore(flags);
+}
+
 int tick_nohz_full_cpu(int cpu)
 {
 	if (!have_nohz_full_mask)
