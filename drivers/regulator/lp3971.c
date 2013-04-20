@@ -163,6 +163,7 @@ static int lp3971_ldo_set_voltage_sel(struct regulator_dev *dev,
 
 static struct regulator_ops lp3971_ldo_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.is_enabled = lp3971_ldo_is_enabled,
 	.enable = lp3971_ldo_enable,
 	.disable = lp3971_ldo_disable,
@@ -236,6 +237,7 @@ static int lp3971_dcdc_set_voltage_sel(struct regulator_dev *dev,
 
 static struct regulator_ops lp3971_dcdc_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.is_enabled = lp3971_dcdc_is_enabled,
 	.enable = lp3971_dcdc_enable,
 	.disable = lp3971_dcdc_disable,
