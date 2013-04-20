@@ -60,7 +60,7 @@ struct dentry *au_lkup_one(struct qstr *name, struct dentry *h_parent,
 
 	au_h_nd(&h_nd, nd);
 	h_nd.path.dentry = h_parent;
-	h_nd.path.mnt = br->br_mnt;
+	h_nd.path.mnt = au_br_mnt(br);
 
 	err = vfsub_name_hash(name->name, &h_nd.last, name->len);
 	h_dentry = ERR_PTR(err);
@@ -308,15 +308,19 @@ struct dentry *au_sio_lkup_one(struct qstr *name, struct dentry *parent,
 /*
  * lookup @dentry on @bindex which should be negative.
  */
-int au_lkup_neg(struct dentry *dentry, aufs_bindex_t bindex)
+int au_lkup_neg(struct dentry *dentry, aufs_bindex_t bindex, int wh)
 {
 	int err;
 	struct dentry *parent, *h_parent, *h_dentry;
+	struct au_branch *br;
 
 	parent = dget_parent(dentry);
 	h_parent = au_h_dptr(parent, bindex);
-	h_dentry = au_sio_lkup_one(&dentry->d_name, h_parent,
-				   au_sbr(dentry->d_sb, bindex));
+	br = au_sbr(dentry->d_sb, bindex);
+	if (wh)
+		h_dentry = au_whtmp_lkup(h_parent, br, &dentry->d_name);
+	else
+		h_dentry = au_sio_lkup_one(&dentry->d_name, h_parent, br);
 	err = PTR_ERR(h_dentry);
 	if (IS_ERR(h_dentry))
 		goto out;
@@ -849,7 +853,7 @@ int au_do_h_d_reval(struct dentry *h_dentry, struct nameidata *nd,
 		BUG_ON(bindex > au_dbend(parent));
 		h_nd.path.dentry = au_h_dptr(parent, bindex);
 		BUG_ON(!h_nd.path.dentry);
-		h_nd.path.mnt = au_sbr(parent->d_sb, bindex)->br_mnt;
+		h_nd.path.mnt = au_sbr_mnt(parent->d_sb, bindex);
 		path_get(&h_nd.path);
 		valid = reval(h_dentry, &h_nd);
 		path_put(&h_nd.path);

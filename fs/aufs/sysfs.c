@@ -69,7 +69,7 @@ static int sysaufs_si_br(struct seq_file *seq, struct super_block *sb,
 	root = sb->s_root;
 	di_read_lock_parent(root, !AuLock_IR);
 	br = au_sbr(sb, bindex);
-	path.mnt = br->br_mnt;
+	path.mnt = au_br_mnt(br);
 	path.dentry = au_h_dptr(root, bindex);
 	au_seq_path(seq, &path);
 	di_read_unlock(root, !AuLock_IR);
