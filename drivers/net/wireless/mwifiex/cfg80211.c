@@ -1666,17 +1666,13 @@ mwifiex_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 			 struct cfg80211_connect_params *sme)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
-	int ret = 0;
+	int ret;
 
-	if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
-		wiphy_err(wiphy, "received infra assoc request "
-				"when station is in ibss mode\n");
-		goto done;
-	}
-
-	if (priv->bss_mode == NL80211_IFTYPE_AP) {
-		wiphy_err(wiphy, "skip association request for AP interface\n");
-		goto done;
+	if (priv->bss_mode != NL80211_IFTYPE_STATION) {
+		wiphy_err(wiphy,
+			  "%s: reject infra assoc request in non-STA mode\n",
+			  dev->name);
+		return -EINVAL;
 	}
 
 	wiphy_dbg(wiphy, "info: Trying to associate to %s and bssid %pM\n",
@@ -1684,7 +1680,6 @@ mwifiex_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	ret = mwifiex_cfg80211_assoc(priv, sme->ssid_len, sme->ssid, sme->bssid,
 				     priv->bss_mode, sme->channel, sme, 0);
-done:
 	if (!ret) {
 		cfg80211_connect_result(priv->netdev, priv->cfg_bssid, NULL, 0,
 					NULL, 0, WLAN_STATUS_SUCCESS,
