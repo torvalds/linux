@@ -636,10 +636,9 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	if (!ret)
 		set_extent_buffer_uptodate(eb);
 err:
-	if (test_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags)) {
-		clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags);
+	if (reads_done &&
+	    test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
 		btree_readahead_hook(root, eb, eb->start, ret);
-	}
 
 	if (ret) {
 		/*
