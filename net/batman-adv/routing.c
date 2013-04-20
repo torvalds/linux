@@ -285,7 +285,7 @@ static int batadv_recv_my_icmp_packet(struct batadv_priv *bat_priv,
 	icmp_packet->msg_type = BATADV_ECHO_REPLY;
 	icmp_packet->header.ttl = BATADV_TTL;
 
-	if (batadv_send_skb_to_orig(skb, orig_node, NULL))
+	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
 		ret = NET_RX_SUCCESS;
 
 out:
@@ -333,7 +333,7 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 	icmp_packet->msg_type = BATADV_TTL_EXCEEDED;
 	icmp_packet->header.ttl = BATADV_TTL;
 
-	if (batadv_send_skb_to_orig(skb, orig_node, NULL))
+	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
 		ret = NET_RX_SUCCESS;
 
 out:
@@ -410,7 +410,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 	icmp_packet->header.ttl--;
 
 	/* route it */
-	if (batadv_send_skb_to_orig(skb, orig_node, recv_if))
+	if (batadv_send_skb_to_orig(skb, orig_node, recv_if) != NET_XMIT_DROP)
 		ret = NET_RX_SUCCESS;
 
 out:
@@ -775,7 +775,7 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 	struct batadv_neigh_node *neigh_node = NULL;
 	struct batadv_unicast_packet *unicast_packet;
 	struct ethhdr *ethhdr = eth_hdr(skb);
-	int ret = NET_RX_DROP;
+	int res, ret = NET_RX_DROP;
 	struct sk_buff *new_skb;
 
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
@@ -835,16 +835,19 @@ static int batadv_route_unicast_packet(struct sk_buff *skb,
 	/* decrement ttl */
 	unicast_packet->header.ttl--;
 
-	/* network code packet if possible */
-	if (batadv_nc_skb_forward(skb, neigh_node, ethhdr)) {
-		ret = NET_RX_SUCCESS;
-	} else if (batadv_send_skb_to_orig(skb, orig_node, recv_if)) {
-		ret = NET_RX_SUCCESS;
+	res = batadv_send_skb_to_orig(skb, orig_node, recv_if);
 
-		/* Update stats counter */
+	/* translate transmit result into receive result */
+	if (res == NET_XMIT_SUCCESS) {
+		/* skb was transmitted and consumed */
 		batadv_inc_counter(bat_priv, BATADV_CNT_FORWARD);
 		batadv_add_counter(bat_priv, BATADV_CNT_FORWARD_BYTES,
 				   skb->len + ETH_HLEN);
+
+		ret = NET_RX_SUCCESS;
+	} else if (res == NET_XMIT_POLICED) {
+		/* skb was buffered and consumed */
+		ret = NET_RX_SUCCESS;
 	}
 
 out:

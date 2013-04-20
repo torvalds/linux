@@ -96,26 +96,37 @@ send_skb_err:
  * host, NULL can be passed as recv_if and no interface alternating is
  * attempted.
  *
- * Returns TRUE on success; FALSE otherwise.
+ * Returns NET_XMIT_SUCCESS on success, NET_XMIT_DROP on failure, or
+ * NET_XMIT_POLICED if the skb is buffered for later transmit.
  */
-bool batadv_send_skb_to_orig(struct sk_buff *skb,
-			     struct batadv_orig_node *orig_node,
-			     struct batadv_hard_iface *recv_if)
+int batadv_send_skb_to_orig(struct sk_buff *skb,
+			    struct batadv_orig_node *orig_node,
+			    struct batadv_hard_iface *recv_if)
 {
 	struct batadv_priv *bat_priv = orig_node->bat_priv;
 	struct batadv_neigh_node *neigh_node;
+	int ret = NET_XMIT_DROP;
 
 	/* batadv_find_router() increases neigh_nodes refcount if found. */
 	neigh_node = batadv_find_router(bat_priv, orig_node, recv_if);
 	if (!neigh_node)
-		return false;
+		return ret;
 
-	/* route it */
-	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+	/* try to network code the packet, if it is received on an interface
+	 * (i.e. being forwarded). If the packet originates from this node or if
+	 * network coding fails, then send the packet as usual.
+	 */
+	if (recv_if && batadv_nc_skb_forward(skb, neigh_node)) {
+		ret = NET_XMIT_POLICED;
+	} else {
+		batadv_send_skb_packet(skb, neigh_node->if_incoming,
+				       neigh_node->addr);
+		ret = NET_XMIT_SUCCESS;
+	}
 
 	batadv_neigh_node_free_ref(neigh_node);
 
-	return true;
+	return ret;
 }
 
 void batadv_schedule_bat_ogm(struct batadv_hard_iface *hard_iface)

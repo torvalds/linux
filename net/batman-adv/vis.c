@@ -697,7 +697,7 @@ static void batadv_broadcast_vis_packet(struct batadv_priv *bat_priv,
 	struct batadv_orig_node *orig_node;
 	struct batadv_vis_packet *packet;
 	struct sk_buff *skb;
-	uint32_t i;
+	uint32_t i, res;
 
 
 	packet = (struct batadv_vis_packet *)info->skb_packet->data;
@@ -724,7 +724,8 @@ static void batadv_broadcast_vis_packet(struct batadv_priv *bat_priv,
 			if (!skb)
 				continue;
 
-			if (!batadv_send_skb_to_orig(skb, orig_node, NULL))
+			res = batadv_send_skb_to_orig(skb, orig_node, NULL);
+			if (res == NET_XMIT_DROP)
 				kfree_skb(skb);
 		}
 		rcu_read_unlock();
@@ -748,7 +749,7 @@ static void batadv_unicast_vis_packet(struct batadv_priv *bat_priv,
 	if (!skb)
 		goto out;
 
-	if (!batadv_send_skb_to_orig(skb, orig_node, NULL))
+	if (batadv_send_skb_to_orig(skb, orig_node, NULL) == NET_XMIT_DROP)
 		kfree_skb(skb);
 
 out:

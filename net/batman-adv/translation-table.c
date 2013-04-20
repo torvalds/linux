@@ -1713,7 +1713,7 @@ static int batadv_send_tt_request(struct batadv_priv *bat_priv,
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_TT_REQUEST_TX);
 
-	if (batadv_send_skb_to_orig(skb, dst_orig_node, NULL))
+	if (batadv_send_skb_to_orig(skb, dst_orig_node, NULL) != NET_XMIT_DROP)
 		ret = 0;
 
 out:
@@ -1737,7 +1737,7 @@ batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 	struct batadv_orig_node *req_dst_orig_node;
 	struct batadv_orig_node *res_dst_orig_node = NULL;
 	uint8_t orig_ttvn, req_ttvn, ttvn;
-	int ret = false;
+	int res, ret = false;
 	unsigned char *tt_buff;
 	bool full_table;
 	uint16_t tt_len, tt_tot;
@@ -1832,8 +1832,10 @@ batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_TT_RESPONSE_TX);
 
-	if (batadv_send_skb_to_orig(skb, res_dst_orig_node, NULL))
+	res = batadv_send_skb_to_orig(skb, res_dst_orig_node, NULL);
+	if (res != NET_XMIT_DROP)
 		ret = true;
+
 	goto out;
 
 unlock:
@@ -1947,7 +1949,7 @@ batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_TT_RESPONSE_TX);
 
-	if (batadv_send_skb_to_orig(skb, orig_node, NULL))
+	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
 		ret = true;
 	goto out;
 
@@ -2260,7 +2262,7 @@ static void batadv_send_roam_adv(struct batadv_priv *bat_priv, uint8_t *client,
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_TT_ROAM_ADV_TX);
 
-	if (batadv_send_skb_to_orig(skb, orig_node, NULL))
+	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
 		ret = 0;
 
 out:
