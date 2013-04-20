@@ -151,7 +151,7 @@ bool have_nohz_full_mask;
  * Re-evaluate the need for the tick on the current CPU
  * and restart it if necessary.
  */
-static void tick_nohz_full_check(void)
+void tick_nohz_full_check(void)
 {
 	/*
 	 * STUB for now, will be filled with the full tick stop/restart
