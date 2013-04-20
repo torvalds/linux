@@ -369,7 +369,6 @@ static int mxs_saif_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *cpu_dai)
 {
 	struct mxs_saif *saif = snd_soc_dai_get_drvdata(cpu_dai);
-	snd_soc_dai_set_dma_data(cpu_dai, substream, &saif->dma_param);
 
 	/* clear error status to 0 for each re-open */
 	saif->fifo_underrun = 0;
@@ -605,6 +604,8 @@ static int mxs_saif_dai_probe(struct snd_soc_dai *dai)
 	struct mxs_saif *saif = dev_get_drvdata(dai->dev);
 
 	snd_soc_dai_set_drvdata(dai, saif);
+	dai->playback_dma_data = &saif->dma_param;
+	dai->capture_dma_data = &saif->dma_param;
 
 	return 0;
 }
