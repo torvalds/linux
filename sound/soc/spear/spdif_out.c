@@ -62,8 +62,6 @@ static int spdif_out_startup(struct snd_pcm_substream *substream,
 	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
 		return -EINVAL;
 
-	snd_soc_dai_set_dma_data(cpu_dai, substream, (void *)&host->dma_params);
-
 	ret = clk_enable(host->clk);
 	if (ret)
 		return ret;
@@ -84,7 +82,6 @@ static void spdif_out_shutdown(struct snd_pcm_substream *substream,
 
 	clk_disable(host->clk);
 	host->running = false;
-	snd_soc_dai_set_dma_data(dai, substream, NULL);
 }
 
 static void spdif_out_clock(struct spdif_out_dev *host, u32 core_freq,
@@ -245,6 +242,10 @@ static const struct snd_kcontrol_new spdif_out_controls[] = {
 
 int spdif_soc_dai_probe(struct snd_soc_dai *dai)
 {
+	struct spdif_out_dev *host = snd_soc_dai_get_drvdata(dai);
+
+	dai->playback_dma_data = &host->dma_params;
+
 	return snd_soc_add_dai_controls(dai, spdif_out_controls,
 				ARRAY_SIZE(spdif_out_controls));
 }

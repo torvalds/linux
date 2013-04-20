@@ -49,15 +49,12 @@ static void spdif_in_configure(struct spdif_in_dev *host)
 	writel(0xF, host->io_base + SPDIF_IN_IRQ_MASK);
 }
 
-static int spdif_in_startup(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *cpu_dai)
+static int spdif_in_dai_probe(struct snd_soc_dai *dai)
 {
-	struct spdif_in_dev *host = snd_soc_dai_get_drvdata(cpu_dai);
+	struct spdif_in_dev *host = snd_soc_dai_get_drvdata(dai);
 
-	if (substream->stream != SNDRV_PCM_STREAM_CAPTURE)
-		return -EINVAL;
+	dai->capture_dma_data = &host->dma_params;
 
-	snd_soc_dai_set_dma_data(cpu_dai, substream, (void *)&host->dma_params);
 	return 0;
 }
 
@@ -70,7 +67,6 @@ static void spdif_in_shutdown(struct snd_pcm_substream *substream,
 		return;
 
 	writel(0x0, host->io_base + SPDIF_IN_IRQ_MASK);
-	snd_soc_dai_set_dma_data(dai, substream, NULL);
 }
 
 static void spdif_in_format(struct spdif_in_dev *host, u32 format)
@@ -151,13 +147,13 @@ static int spdif_in_trigger(struct snd_pcm_substream *substream, int cmd,
 }
 
 static struct snd_soc_dai_ops spdif_in_dai_ops = {
-	.startup	= spdif_in_startup,
 	.shutdown	= spdif_in_shutdown,
 	.trigger	= spdif_in_trigger,
 	.hw_params	= spdif_in_hw_params,
 };
 
 struct snd_soc_dai_driver spdif_in_dai = {
+	.probe = spdif_in_dai_probe,
 	.capture = {
 		.channels_min = 2,
 		.channels_max = 2,
