@@ -157,10 +157,11 @@ EXPORT_SYMBOL(vlan_untag);
 
 static void vlan_group_free(struct vlan_group *grp)
 {
-	int i;
+	int i, j;
 
-	for (i = 0; i < VLAN_GROUP_ARRAY_SPLIT_PARTS; i++)
-		kfree(grp->vlan_devices_arrays[i]);
+	for (i = 0; i < VLAN_PROTO_NUM; i++)
+		for (j = 0; j < VLAN_GROUP_ARRAY_SPLIT_PARTS; j++)
+			kfree(grp->vlan_devices_arrays[i][j]);
 }
 
 static void vlan_info_free(struct vlan_info *vlan_info)
