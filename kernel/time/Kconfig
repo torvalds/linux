@@ -104,8 +104,6 @@ config NO_HZ_FULL
 	depends on SMP
 	# RCU_USER_QS dependency
 	depends on HAVE_CONTEXT_TRACKING
-	# RCU_NOCB_CPU dependency
-	depends on TREE_RCU || TREE_PREEMPT_RCU
 	depends on VIRT_CPU_ACCOUNTING_GEN
 	select NO_HZ_COMMON
 	select RCU_USER_QS
