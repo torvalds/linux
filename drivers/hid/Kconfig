@@ -373,13 +373,13 @@ config LOGIWHEELS_FF
 	  - Logitech Formula Force EX
 
 config HID_MAGICMOUSE
-	tristate "Apple MagicMouse multi-touch support"
+	tristate "Apple Magic Mouse/Trackpad multi-touch support"
 	depends on BT_HIDP
 	---help---
-	Support for the Apple Magic Mouse multi-touch.
+	Support for the Apple Magic Mouse/Trackpad multi-touch.
 
 	Say Y here if you want support for the multi-touch features of the
-	Apple Wireless "Magic" Mouse.
+	Apple Wireless "Magic" Mouse and the Apple Wireless "Magic" Trackpad.
 
 config HID_MICROSOFT
 	tristate "Microsoft non-fully HID-compliant devices" if EXPERT
