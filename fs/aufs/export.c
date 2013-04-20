@@ -508,7 +508,7 @@ struct dentry *decode_by_path(struct super_block *sb, ino_t ino, __u32 *fh,
 	struct path path;
 
 	br = au_sbr(sb, nsi_lock->bindex);
-	h_mnt = br->br_mnt;
+	h_mnt = au_br_mnt(br);
 	h_sb = h_mnt->mnt_sb;
 	/* todo: call lower fh_to_dentry()? fh_to_parent()? */
 	h_parent = exportfs_decode_fh(h_mnt, (void *)(fh + Fh_tail),
@@ -726,7 +726,7 @@ static int aufs_encode_fh(struct dentry *dentry, __u32 *fh, int *max_len,
 
 	err = -EPERM;
 	br = au_sbr(sb, bindex);
-	h_sb = br->br_mnt->mnt_sb;
+	h_sb = au_br_sb(br);
 	if (unlikely(!h_sb->s_export_op)) {
 		AuErr1("%s branch is not exportable\n", au_sbtype(h_sb));
 		goto out_dput;
