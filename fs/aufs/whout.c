@@ -174,7 +174,7 @@ int au_whtmp_ren(struct dentry *h_dentry, struct au_branch *br)
 {
 	int err;
 	struct path h_path = {
-		.mnt = br->br_mnt
+		.mnt = au_br_mnt(br)
 	};
 	struct inode *h_dir;
 	struct dentry *h_parent;
@@ -233,7 +233,7 @@ static int unlink_wh_name(struct dentry *h_parent, struct qstr *wh,
 {
 	int err;
 	struct path h_path = {
-		.mnt = br->br_mnt
+		.mnt = au_br_mnt(br)
 	};
 
 	err = 0;
@@ -422,16 +422,14 @@ out:
 /*
  * initialize the whiteout base file/dir for @br.
  */
-int au_wh_init(struct dentry *h_root, struct au_branch *br,
-	       struct super_block *sb)
+int au_wh_init(struct au_branch *br, struct super_block *sb)
 {
 	int err, i;
 	const unsigned char do_plink
 		= !!au_opt_test(au_mntflags(sb), PLINK);
-	struct path path = {
-		.mnt = br->br_mnt
-	};
 	struct inode *h_dir;
+	struct path path = br->br_path;
+	struct dentry *h_root = path.dentry;
 	struct au_wbr *wbr = br->br_wbr;
 	static const struct qstr base_name[] = {
 		[AuBrWh_BASE] = QSTR_INIT(AUFS_BASE_NAME,
@@ -545,6 +543,7 @@ static void reinit_br_wh(void *arg)
 	dir = a->sb->s_root->d_inode;
 	hdir = au_hi(dir, bindex);
 	h_root = au_h_dptr(a->sb->s_root, bindex);
+	AuDebugOn(h_root != au_br_dentry(a->br));
 
 	au_hn_imtx_lock_nested(hdir, AuLsc_I_PARENT);
 	wbr_wh_write_lock(wbr);
@@ -552,7 +551,7 @@ static void reinit_br_wh(void *arg)
 			  h_root, a->br);
 	if (!err) {
 		h_path.dentry = wbr->wbr_whbase;
-		h_path.mnt = a->br->br_mnt;
+		h_path.mnt = au_br_mnt(a->br);
 		err = vfsub_unlink(hdir->hi_inode, &h_path, /*force*/0);
 	} else {
 		pr_warn("%.*s is moved, ignored\n",
@@ -562,7 +561,7 @@ static void reinit_br_wh(void *arg)
 	dput(wbr->wbr_whbase);
 	wbr->wbr_whbase = NULL;
 	if (!err)
-		err = au_wh_init(h_root, a->br, a->sb);
+		err = au_wh_init(a->br, a->sb);
 	wbr_wh_write_unlock(wbr);
 	au_hn_imtx_unlock(hdir);
 	di_read_unlock(a->sb->s_root, AuLock_IR);
@@ -633,7 +632,7 @@ static int link_or_create_wh(struct super_block *sb, aufs_bindex_t bindex,
 	IMustLock(h_dir);
 
 	br = au_sbr(sb, bindex);
-	h_path.mnt = br->br_mnt;
+	h_path.mnt = au_br_mnt(br);
 	wbr = br->br_wbr;
 	wbr_wh_read_lock(wbr);
 	if (wbr->wbr_whbase) {
@@ -682,7 +681,7 @@ static struct dentry *do_diropq(struct dentry *dentry, aufs_bindex_t bindex,
 	} else {
 		struct path tmp = {
 			.dentry = opq_dentry,
-			.mnt	= br->br_mnt
+			.mnt	= au_br_mnt(br)
 		};
 		err = do_unlink_wh(au_h_iptr(dentry->d_inode, bindex), &tmp);
 		if (!err)
@@ -934,7 +933,7 @@ int au_whtmp_rmdir(struct inode *dir, aufs_bindex_t bindex,
 
 	if (!err) {
 		h_tmp.dentry = wh_dentry;
-		h_tmp.mnt = br->br_mnt;
+		h_tmp.mnt = au_br_mnt(br);
 		err = vfsub_rmdir(h_dir, &h_tmp);
 	}
 
@@ -978,7 +977,7 @@ static void call_rmdir_whtmp(void *args)
 	h_parent = dget_parent(a->wh_dentry);
 	h_dir = h_parent->d_inode;
 	hdir = au_hi(a->dir, bindex);
-	err = vfsub_mnt_want_write(a->br->br_mnt);
+	err = vfsub_mnt_want_write(au_br_mnt(a->br));
 	if (unlikely(err))
 		goto out_mnt;
 	au_hn_imtx_lock_nested(hdir, AuLsc_I_PARENT);
@@ -987,7 +986,7 @@ static void call_rmdir_whtmp(void *args)
 	if (!err)
 		err = au_whtmp_rmdir(a->dir, bindex, a->wh_dentry, &a->whlist);
 	au_hn_imtx_unlock(hdir);
-	vfsub_mnt_drop_write(a->br->br_mnt);
+	vfsub_mnt_drop_write(au_br_mnt(a->br));
 
 out_mnt:
 	dput(h_parent);
