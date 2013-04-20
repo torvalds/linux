@@ -260,7 +260,7 @@ static int do_whplink(struct qstr *tgt, struct dentry *h_parent,
 {
 	int err;
 	struct path h_path = {
-		.mnt = br->br_mnt
+		.mnt = au_br_mnt(br)
 	};
 	struct inode *h_dir;
 
