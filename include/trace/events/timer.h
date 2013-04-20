@@ -323,7 +323,7 @@ TRACE_EVENT(itimer_expire,
 		  (int) __entry->pid, (unsigned long long)__entry->now)
 );
 
-#ifdef CONFIG_NO_HZ_FULL
+#ifdef CONFIG_NO_HZ_COMMON
 TRACE_EVENT(tick_stop,
 
 	TP_PROTO(int success, char *error_msg),
