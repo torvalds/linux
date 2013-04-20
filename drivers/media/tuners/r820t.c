@@ -1854,15 +1854,12 @@ static int r820t_imr(struct r820t_priv *priv, unsigned imr_mem, bool im_flag)
 	else
 		ring_ref = priv->cfg->xtal;
 
+	n_ring = 15;
 	for (n = 0; n < 16; n++) {
 		if ((16 + n) * 8 * ring_ref >= 3100000) {
 			n_ring = n;
 			break;
 		}
-
-		/* n_ring not found */
-		if (n == 15)
-			n_ring = n;
 	}
 
 	reg18 = r820t_read_cache_reg(priv, 0x18);
