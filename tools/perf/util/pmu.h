@@ -3,6 +3,7 @@
 
 #include <linux/bitops.h>
 #include <linux/perf_event.h>
+#include <stdbool.h>
 
 enum {
 	PERF_PMU_FORMAT_VALUE_CONFIG,
@@ -39,6 +40,8 @@ void perf_pmu__set_format(unsigned long *bits, long from, long to);
 int perf_pmu__format_parse(char *dir, struct list_head *head);
 
 struct perf_pmu *perf_pmu__scan(struct perf_pmu *pmu);
+
+void print_pmu_events(const char *event_glob, bool name_only);
 
 int perf_pmu__test(void);
 #endif /* __PMU_H */
