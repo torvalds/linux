@@ -35,10 +35,10 @@ Configuration Options:
 #include "../comedidev.h"
 
 #include <linux/ioport.h>
-#include <linux/mc146818rtc.h>
 #include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/interrupt.h>
 #include <asm/dma.h>
 
 #include "comedi_fc.h"
@@ -82,14 +82,6 @@ Configuration Options:
 #define INT_TYPE_AI1_DMA 2
 #define INT_TYPE_AI3_INT 4
 #define INT_TYPE_AI3_DMA 5
-#ifdef unused
-#define INT_TYPE_AI1_DMA_RTC 9
-#define INT_TYPE_AI3_DMA_RTC 10
-
-/* RTC stuff... */
-#define RTC_IRQ		8
-#define RTC_IO_EXTENT	0x10
-#endif
 
 #define MAGIC_DMA_WORD 0x5a5a
 
@@ -126,26 +118,14 @@ struct pcl816_board {
 	int i8254_osc_base;	/*  1/frequency of on board oscilator in ns */
 };
 
-#ifdef unused
-static int RTC_lock;	/* RTC lock */
-static int RTC_timer_lock;	/* RTC int lock */
-#endif
-
 struct pcl816_private {
 
 	unsigned int dma;	/*  used DMA, 0=don't use DMA */
-	int dma_rtc;		/*  1=RTC used with DMA, 0=no RTC alloc */
-#ifdef unused
-	unsigned long rtc_iobase;	/*  RTC port region */
-	unsigned int rtc_iosize;
-	unsigned int rtc_irq;
-#endif
 	unsigned long dmabuf[2];	/*  pointers to begin of DMA buffers */
 	unsigned int dmapages[2];	/*  len of DMA buffers in PAGE_SIZEs */
 	unsigned int hwdmaptr[2];	/*  hardware address of DMA buffers */
 	unsigned int hwdmasize[2];	/*  len of DMA buffers in Bytes */
 	unsigned int dmasamplsize;	/*  size in samples hwdmasize[0]/2 */
-	unsigned int last_top_dma;	/*  DMA pointer in last RTC int */
 	int next_dma_buf;	/*  which DMA buffer will be used next round */
 	long dma_runs_to_end;	/*  how many we must permorm DMA transfer to end of record */
 	unsigned long last_dma_run;	/*  how many bytes we must transfer on last DMA page */
@@ -154,9 +134,6 @@ struct pcl816_private {
 	unsigned char ai_neverending;	/*  if=1, then we do neverending record (you must use cancel()) */
 	int irq_free;		/*  1=have allocated IRQ */
 	int irq_blocked;	/*  1=IRQ now uses any subdev */
-#ifdef unused
-	int rtc_irq_blocked;	/*  1=we now do AI with DMA&RTC */
-#endif
 	int irq_was_now_closed;	/*  when IRQ finish, there's stored int816_mode for last interrupt */
 	int int816_mode;	/*  who now uses IRQ - 1=AI1 int, 2=AI1 dma, 3=AI3 int, 4AI3 dma */
 	struct comedi_subdevice *last_int_sub;	/*  ptr to subdevice which now finish */
@@ -167,10 +144,6 @@ struct pcl816_private {
 	unsigned int ai_n_chan;		/*  how many channels per scan */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	struct comedi_subdevice *sub_ai;	/*  ptr to AI subdevice */
-#ifdef unused
-	struct timer_list rtc_irq_timer;	/*  timer for RTC sanity check */
-	unsigned long rtc_freq;	/*  RTC int freq */
-#endif
 };
 
 /*
@@ -186,9 +159,6 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s);
 static void start_pacer(struct comedi_device *dev, int mode,
 			unsigned int divisor1, unsigned int divisor2);
-#ifdef unused
-static int set_rtc_irq_bit(unsigned char bit);
-#endif
 
 static int pcl816_ai_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
@@ -718,12 +688,6 @@ static int pcl816_ai_cancel(struct comedi_device *dev,
 
 	if (devpriv->irq_blocked > 0) {
 		switch (devpriv->int816_mode) {
-#ifdef unused
-		case INT_TYPE_AI1_DMA_RTC:
-		case INT_TYPE_AI3_DMA_RTC:
-			set_rtc_irq_bit(0);	/*  stop RTC */
-			del_timer(&devpriv->rtc_irq_timer);
-#endif
 		case INT_TYPE_AI1_DMA:
 		case INT_TYPE_AI3_DMA:
 			disable_dma(devpriv->dma);
@@ -939,43 +903,6 @@ setup_channel_list(struct comedi_device *dev,
 	     dev->iobase + PCL816_MUX);
 }
 
-#ifdef unused
-/*
-==============================================================================
-  Enable(1)/disable(0) periodic interrupts from RTC
-*/
-static int set_rtc_irq_bit(unsigned char bit)
-{
-	unsigned char val;
-	unsigned long flags;
-
-	if (bit == 1) {
-		RTC_timer_lock++;
-		if (RTC_timer_lock > 1)
-			return 0;
-	} else {
-		RTC_timer_lock--;
-		if (RTC_timer_lock < 0)
-			RTC_timer_lock = 0;
-		if (RTC_timer_lock > 0)
-			return 0;
-	}
-
-	save_flags(flags);
-	cli();
-	val = CMOS_READ(RTC_CONTROL);
-	if (bit)
-		val |= RTC_PIE;
-	else
-		val &= ~RTC_PIE;
-
-	CMOS_WRITE(val, RTC_CONTROL);
-	CMOS_READ(RTC_INTR_FLAGS);
-	restore_flags(flags);
-	return 0;
-}
-#endif
-
 static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl816_board *board = comedi_board(dev);
@@ -1033,47 +960,10 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->irq_blocked = 0;	/* number of subdevice which use IRQ */
 	devpriv->int816_mode = 0;	/* mode of irq */
 
-#ifdef unused
-	/* grab RTC for DMA operations */
-	devpriv->dma_rtc = 0;
-	if (it->options[2] > 0) {	/*  we want to use DMA */
-		if (RTC_lock == 0) {
-			ret = __comedi_request_region(dev, RTC_PORT(0),
-						      RTC_IO_EXTENT);
-			if (ret)
-				goto no_rtc;
-		}
-		devpriv->rtc_iobase = RTC_PORT(0);
-		devpriv->rtc_iosize = RTC_IO_EXTENT;
-		RTC_lock++;
-#ifdef UNTESTED_CODE
-		if (!request_irq(RTC_IRQ, interrupt_pcl816_ai_mode13_dma_rtc, 0,
-				 "pcl816 DMA (RTC)", dev)) {
-			devpriv->dma_rtc = 1;
-			devpriv->rtc_irq = RTC_IRQ;
-			printk(", dma_irq=%u", devpriv->rtc_irq);
-		} else {
-			RTC_lock--;
-			if (RTC_lock == 0) {
-				if (devpriv->rtc_iobase)
-					release_region(devpriv->rtc_iobase,
-						       devpriv->rtc_iosize);
-			}
-			devpriv->rtc_iobase = 0;
-			devpriv->rtc_iosize = 0;
-		}
-#else
-		printk("pcl816: RTC code missing");
-#endif
-
-	}
-
-no_rtc:
-#endif
 	/* grab our DMA */
 	dma = 0;
 	devpriv->dma = dma;
-	if ((devpriv->irq_free == 0) && (devpriv->dma_rtc == 0))
+	if (!devpriv->irq_free)
 		goto no_dma;	/* if we haven't IRQ, we can't use DMA */
 
 	if (board->DMAbits != 0) {	/* board support DMA */
@@ -1110,19 +1000,16 @@ no_rtc:
 		devpriv->hwdmasize[0] = (1 << pages) * PAGE_SIZE;
 		/* printk("%d %d %ld, ",devpriv->dmapages[0],devpriv->hwdmasize[0],PAGE_SIZE); */
 
-		if (devpriv->dma_rtc == 0) {	/*  we must do duble buff :-( */
-			devpriv->dmabuf[1] = __get_dma_pages(GFP_KERNEL, pages);
-			if (!devpriv->dmabuf[1]) {
-				printk(KERN_ERR
-				       ", unable to allocate DMA buffer, "
-				       "FAIL!\n");
-				return -EBUSY;
-			}
-			devpriv->dmapages[1] = pages;
-			devpriv->hwdmaptr[1] =
-			    virt_to_bus((void *)devpriv->dmabuf[1]);
-			devpriv->hwdmasize[1] = (1 << pages) * PAGE_SIZE;
+		devpriv->dmabuf[1] = __get_dma_pages(GFP_KERNEL, pages);
+		if (!devpriv->dmabuf[1]) {
+			printk(KERN_ERR
+				", unable to allocate DMA buffer, "
+				"FAIL!\n");
+			return -EBUSY;
 		}
+		devpriv->dmapages[1] = pages;
+		devpriv->hwdmaptr[1] = virt_to_bus((void *)devpriv->dmabuf[1]);
+		devpriv->hwdmasize[1] = (1 << pages) * PAGE_SIZE;
 	}
 
 no_dma:
@@ -1206,17 +1093,6 @@ static void pcl816_detach(struct comedi_device *dev)
 			free_pages(devpriv->dmabuf[0], devpriv->dmapages[0]);
 		if (devpriv->dmabuf[1])
 			free_pages(devpriv->dmabuf[1], devpriv->dmapages[1]);
-#ifdef unused
-		if (devpriv->rtc_irq)
-			free_irq(devpriv->rtc_irq, dev);
-		if ((devpriv->dma_rtc) && (RTC_lock == 1)) {
-			if (devpriv->rtc_iobase)
-				release_region(devpriv->rtc_iobase,
-					       devpriv->rtc_iosize);
-		}
-		if (devpriv->dma_rtc)
-			RTC_lock--;
-#endif
 	}
 	comedi_legacy_detach(dev);
 }
