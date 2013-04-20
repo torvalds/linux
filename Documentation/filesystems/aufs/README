@@ -115,20 +115,20 @@ represents the linux kernel version, "linux-3.x". For instance,
 
 o aufs3-linux tree
 $ git clone --reference /your/linux/git/tree \
-	git://aufs.git.sourceforge.net/gitroot/aufs/aufs3-linux.git \
+	git://git.code.sf.net/p/aufs/aufs3-linux aufs-aufs3-linux \
 	aufs3-linux.git
 - if you don't have linux GIT tree, then remove "--reference ..."
 $ cd aufs3-linux.git
 $ git checkout origin/aufs3.0
 
 o aufs3-standalone tree
-$ git clone git://aufs.git.sourceforge.net/gitroot/aufs/aufs3-standalone.git \
+$ git clone git://git.code.sf.net/p/aufs/aufs3-standalone \
 	aufs3-standalone.git
 $ cd aufs3-standalone.git
 $ git checkout origin/aufs3.0
 
 o aufs-util tree
-$ git clone git://aufs.git.sourceforge.net/gitroot/aufs/aufs-util.git \
+$ git clone git://git.code.sf.net/p/aufs/aufs-util \
 	aufs-util.git
 $ cd aufs-util.git
 $ git checkout origin/aufs3.0
@@ -314,6 +314,7 @@ Iridium and Inmarsat satellite phone retailer (www.mailasail.com), Nippy
 Max Lekomcev (DOM-TV project) made a donation (2011/7, 12, 2012/3, 6 and
 11).
 Sam Liddicott made a donation (2011/9).
+Era Scarecrow made a donation (2013/4).
 
 Thank you very much.
 Donations are always, including future donations, very important and
