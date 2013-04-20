@@ -2560,6 +2560,16 @@ done:
 		list_del_init(&cpuctx->rotation_list);
 }
 
+#ifdef CONFIG_NO_HZ_FULL
+bool perf_event_can_stop_tick(void)
+{
+	if (list_empty(&__get_cpu_var(rotation_list)))
+		return true;
+	else
+		return false;
+}
+#endif
+
 void perf_event_task_tick(void)
 {
 	struct list_head *head = &__get_cpu_var(rotation_list);
