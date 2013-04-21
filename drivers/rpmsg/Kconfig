@@ -4,5 +4,6 @@ menu "Rpmsg drivers"
 config RPMSG
 	tristate
 	select VIRTIO
+	select VIRTUALIZATION
 
 endmenu
