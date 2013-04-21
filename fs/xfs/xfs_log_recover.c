@@ -29,6 +29,7 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
+#include "xfs_btree.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
@@ -1928,6 +1929,33 @@ xlog_recover_do_reg_buffer(
 
 	/* Shouldn't be any more regions */
 	ASSERT(i == item->ri_total);
+
+	switch (buf_f->blf_flags & XFS_BLF_TYPE_MASK) {
+	case XFS_BLF_BTREE_BUF:
+		switch (be32_to_cpu(*(__be32 *)bp->b_addr)) {
+		case XFS_ABTB_CRC_MAGIC:
+		case XFS_ABTC_CRC_MAGIC:
+		case XFS_ABTB_MAGIC:
+		case XFS_ABTC_MAGIC:
+			bp->b_ops = &xfs_allocbt_buf_ops;
+			break;
+		case XFS_IBT_CRC_MAGIC:
+		case XFS_IBT_MAGIC:
+			bp->b_ops = &xfs_inobt_buf_ops;
+			break;
+		case XFS_BMAP_CRC_MAGIC:
+		case XFS_BMAP_MAGIC:
+			bp->b_ops = &xfs_bmbt_buf_ops;
+			break;
+		default:
+			xfs_warn(mp, "Bad btree block magic!");
+			ASSERT(0);
+			break;
+		}
+		break;
+	default:
+		break;
+	}
 }
 
 /*

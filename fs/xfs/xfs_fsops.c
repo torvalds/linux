@@ -316,7 +316,13 @@ xfs_growfs_data_private(
 			goto error0;
 		}
 
-		xfs_btree_init_block(mp, bp, XFS_ABTB_MAGIC, 0, 1, 0);
+		if (xfs_sb_version_hascrc(&mp->m_sb))
+			xfs_btree_init_block(mp, bp, XFS_ABTB_CRC_MAGIC, 0, 1,
+						agno, XFS_BTREE_CRC_BLOCKS);
+		else
+			xfs_btree_init_block(mp, bp, XFS_ABTB_MAGIC, 0, 1,
+						agno, 0);
+
 		arec = XFS_ALLOC_REC_ADDR(mp, XFS_BUF_TO_BLOCK(bp), 1);
 		arec->ar_startblock = cpu_to_be32(XFS_PREALLOC_BLOCKS(mp));
 		arec->ar_blockcount = cpu_to_be32(
@@ -339,7 +345,13 @@ xfs_growfs_data_private(
 			goto error0;
 		}
 
-		xfs_btree_init_block(mp, bp, XFS_ABTC_MAGIC, 0, 1, 0);
+		if (xfs_sb_version_hascrc(&mp->m_sb))
+			xfs_btree_init_block(mp, bp, XFS_ABTC_CRC_MAGIC, 0, 1,
+						agno, XFS_BTREE_CRC_BLOCKS);
+		else
+			xfs_btree_init_block(mp, bp, XFS_ABTC_MAGIC, 0, 1,
+						agno, 0);
+
 		arec = XFS_ALLOC_REC_ADDR(mp, XFS_BUF_TO_BLOCK(bp), 1);
 		arec->ar_startblock = cpu_to_be32(XFS_PREALLOC_BLOCKS(mp));
 		arec->ar_blockcount = cpu_to_be32(
@@ -363,7 +375,12 @@ xfs_growfs_data_private(
 			goto error0;
 		}
 
-		xfs_btree_init_block(mp, bp, XFS_IBT_MAGIC, 0, 0, 0);
+		if (xfs_sb_version_hascrc(&mp->m_sb))
+			xfs_btree_init_block(mp, bp, XFS_IBT_CRC_MAGIC, 0, 0,
+						agno, XFS_BTREE_CRC_BLOCKS);
+		else
+			xfs_btree_init_block(mp, bp, XFS_IBT_MAGIC, 0, 0,
+						agno, 0);
 
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);

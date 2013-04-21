@@ -24,19 +24,33 @@ extern kmem_zone_t	*xfs_buf_item_zone;
  * This flag indicates that the buffer contains on disk inodes
  * and requires special recovery handling.
  */
-#define	XFS_BLF_INODE_BUF	0x1
+#define	XFS_BLF_INODE_BUF	(1<<0)
 /*
  * This flag indicates that the buffer should not be replayed
  * during recovery because its blocks are being freed.
  */
-#define	XFS_BLF_CANCEL		0x2
+#define	XFS_BLF_CANCEL		(1<<1)
+
 /*
  * This flag indicates that the buffer contains on disk
  * user or group dquots and may require special recovery handling.
  */
-#define	XFS_BLF_UDQUOT_BUF	0x4
-#define XFS_BLF_PDQUOT_BUF	0x8
-#define	XFS_BLF_GDQUOT_BUF	0x10
+#define	XFS_BLF_UDQUOT_BUF	(1<<2)
+#define XFS_BLF_PDQUOT_BUF	(1<<3)
+#define	XFS_BLF_GDQUOT_BUF	(1<<4)
+
+/*
+ * all buffers now need flags to tell recovery where the magic number
+ * is so that it can verify and calculate the CRCs on the buffer correctly
+ * once the changes have been replayed into the buffer.
+ */
+#define XFS_BLF_BTREE_BUF	(1<<5)
+
+#define XFS_BLF_TYPE_MASK	\
+		(XFS_BLF_UDQUOT_BUF | \
+		 XFS_BLF_PDQUOT_BUF | \
+		 XFS_BLF_GDQUOT_BUF | \
+		 XFS_BLF_BTREE_BUF)
 
 #define	XFS_BLF_CHUNK		128
 #define	XFS_BLF_SHIFT		7

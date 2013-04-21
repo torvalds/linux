@@ -232,7 +232,7 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 				return 0;
 			return dp->i_d.di_forkoff;
 		}
-		dsize = XFS_BMAP_BROOT_SPACE(dp->i_df.if_broot);
+		dsize = XFS_BMAP_BROOT_SPACE(mp, dp->i_df.if_broot);
 		break;
 	}
 
