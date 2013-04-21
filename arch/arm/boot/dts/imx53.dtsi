@@ -301,6 +301,15 @@
 							MX53_PAD_KEY_ROW1__AUDMUX_AUD5_RXD  0x80000000
 						>;
 					};
+
+					pinctrl_audmux_2: audmuxgrp-2 {
+						fsl,pins = <
+							MX53_PAD_SD2_DATA3__AUDMUX_AUD4_TXC	0x80000000
+							MX53_PAD_SD2_DATA2__AUDMUX_AUD4_TXD	0x80000000
+							MX53_PAD_SD2_DATA1__AUDMUX_AUD4_TXFS	0x80000000
+							MX53_PAD_SD2_DATA0__AUDMUX_AUD4_RXD	0x80000000
+						>;
+					};
 				};
 
 				fec {
