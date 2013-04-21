@@ -310,27 +310,20 @@ static int  rk616_set_router(struct mfd_rk616 *rk616,rk_screen *screen)
 	}
 	else if((pdata->lcd0_func == INPUT) && (pdata->lcd1_func == OUTPUT))
 	{
-		if(screen->type == SCREEN_RGB)
-		{
-			route->vif0_bypass = 1;
-			route->vif0_en = 0;
-			route->vif1_bypass = 1;
-			route->vif1_en = 0;
-			route->sclin_sel = 0;  // scl from vif0
-			route->scl_en	= 1;
-			route->dither_sel = 1;
-			route->hdmi_sel = 2;  //hdmi from lcd0
-			route->lcd1_input = 0; //lcd1 as out put
-			route->lvds_en	= 0;
-			dev_info(rk616->dev,
-				"rk616 use lcd0 as input and lcd1 as"
-				"output for dual display\n");
-		}
-		else
-		{
-			dev_err(rk616->dev,"rk616 lcd1 only support RGB port in output mode\n");
-			return -EINVAL;
-		}
+		route->vif0_bypass = 1;
+		route->vif0_en = 0;
+		route->vif1_bypass = 1;
+		route->vif1_en = 0;
+		route->sclin_sel = 0;  // scl from vif0
+		route->scl_en	= 1;
+		route->dither_sel = 0;
+		route->hdmi_sel = 2;  //hdmi from lcd0
+		route->lcd1_input = 0; //lcd1 as out put
+		route->lvds_en	= 0;
+		dev_info(rk616->dev,
+			"rk616 use lcd0 as input and lcd1 as"
+			"output for dual display\n");
+
 	}
 	else if((pdata->lcd0_func == UNUSED) && (pdata->lcd1_func == INPUT))
 	{
@@ -400,8 +393,7 @@ static int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 
 		if(!route->lcd1_input)  //set lcd1 port for output as RGB interface
 		{
-			val &= ~(LCD1_INPUT_EN);
-			val |= (LCD1_INPUT_EN << 16);
+			val = (LCD1_INPUT_EN << 16);
 			ret = rk616->write_dev(rk616,CRU_IO_CON0,&val);
 		}
 	}
@@ -434,11 +426,6 @@ static int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 				dev_info(rk616->dev,"rk616 use single lvds channel.......\n");
 			}
 
-			val = FRC_DCLK_INV | (FRC_DCLK_INV << 16);
-			ret = rk616->write_dev(rk616,FRC_REG,&val);
-			
-			
-		
 		}
 		else //mux lvds port to RGB mode
 		{
@@ -457,6 +444,8 @@ static int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 	}
 	
 	
+	val = FRC_DCLK_INV | (FRC_DCLK_INV << 16);
+	ret = rk616->write_dev(rk616,FRC_REG,&val);
 	
 	ret = rk616_vif_cfg(rk616,screen,0);
 	ret = rk616_vif_cfg(rk616,screen,1);
