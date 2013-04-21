@@ -158,8 +158,10 @@ static inline u64 get_cpu_iowait_time_us(int cpu, u64 *unused) { return -1; }
 # endif /* !CONFIG_NO_HZ_COMMON */
 
 #ifdef CONFIG_NO_HZ_FULL
+extern void tick_nohz_init(void);
 extern int tick_nohz_full_cpu(int cpu);
 #else
+static inline void tick_nohz_init(void) { }
 static inline int tick_nohz_full_cpu(int cpu) { return 0; }
 #endif
 

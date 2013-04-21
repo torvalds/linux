@@ -158,11 +158,21 @@ int tick_nohz_full_cpu(int cpu)
 /* Parse the boot-time nohz CPU list from the kernel parameters. */
 static int __init tick_nohz_full_setup(char *str)
 {
+	int cpu;
+
 	alloc_bootmem_cpumask_var(&nohz_full_mask);
-	if (cpulist_parse(str, nohz_full_mask) < 0)
+	if (cpulist_parse(str, nohz_full_mask) < 0) {
 		pr_warning("NOHZ: Incorrect nohz_full cpumask\n");
-	else
-		have_nohz_full_mask = true;
+		return 1;
+	}
+
+	cpu = smp_processor_id();
+	if (cpumask_test_cpu(cpu, nohz_full_mask)) {
+		pr_warning("NO_HZ: Clearing %d from nohz_full range for timekeeping\n", cpu);
+		cpumask_clear_cpu(cpu, nohz_full_mask);
+	}
+	have_nohz_full_mask = true;
+
 	return 1;
 }
 __setup("nohz_full=", tick_nohz_full_setup);
@@ -193,51 +203,46 @@ static int __cpuinit tick_nohz_cpu_down_callback(struct notifier_block *nfb,
  */
 static char __initdata nohz_full_buf[NR_CPUS + 1];
 
-static int __init init_tick_nohz_full(void)
+static int tick_nohz_init_all(void)
 {
-	cpumask_var_t online_nohz;
+	int err = -1;
+
+#ifdef CONFIG_NO_HZ_FULL_ALL
+	if (!alloc_cpumask_var(&nohz_full_mask, GFP_KERNEL)) {
+		pr_err("NO_HZ: Can't allocate full dynticks cpumask\n");
+		return err;
+	}
+	err = 0;
+	cpumask_setall(nohz_full_mask);
+	cpumask_clear_cpu(smp_processor_id(), nohz_full_mask);
+	have_nohz_full_mask = true;
+#endif
+	return err;
+}
+
+void __init tick_nohz_init(void)
+{
 	int cpu;
 
-	if (!have_nohz_full_mask)
-		return 0;
+	if (!have_nohz_full_mask) {
+		if (tick_nohz_init_all() < 0)
+			return;
+	}
 
 	cpu_notifier(tick_nohz_cpu_down_callback, 0);
 
-	if (!zalloc_cpumask_var(&online_nohz, GFP_KERNEL)) {
-		pr_warning("NO_HZ: Not enough memory to check full nohz mask\n");
-		return -ENOMEM;
+	/* Make sure full dynticks CPU are also RCU nocbs */
+	for_each_cpu(cpu, nohz_full_mask) {
+		if (!rcu_is_nocb_cpu(cpu)) {
+			pr_warning("NO_HZ: CPU %d is not RCU nocb: "
+				   "cleared from nohz_full range", cpu);
+			cpumask_clear_cpu(cpu, nohz_full_mask);
+		}
 	}
-
-	/*
-	 * CPUs can probably not be concurrently offlined on initcall time.
-	 * But we are paranoid, aren't we?
-	 */
-	get_online_cpus();
-
-	/* Ensure we keep a CPU outside the dynticks range for timekeeping */
-	cpumask_and(online_nohz, cpu_online_mask, nohz_full_mask);
-	if (cpumask_equal(online_nohz, cpu_online_mask)) {
-		pr_warning("NO_HZ: Must keep at least one online CPU "
-			   "out of nohz_full range\n");
-		/*
-		 * We know the current CPU doesn't have its tick stopped.
-		 * Let's use it for the timekeeping duty.
-		 */
-		preempt_disable();
-		cpu = smp_processor_id();
-		pr_warning("NO_HZ: Clearing %d from nohz_full range\n", cpu);
-		cpumask_clear_cpu(cpu, nohz_full_mask);
-		preempt_enable();
-	}
-	put_online_cpus();
-	free_cpumask_var(online_nohz);
 
 	cpulist_scnprintf(nohz_full_buf, sizeof(nohz_full_buf), nohz_full_mask);
 	pr_info("NO_HZ: Full dynticks CPUs: %s.\n", nohz_full_buf);
-
-	return 0;
 }
-core_initcall(init_tick_nohz_full);
 #else
 #define have_nohz_full_mask (0)
 #endif
