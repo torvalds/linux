@@ -57,11 +57,13 @@ static int rk616_hdmi_reg_show(struct seq_file *s, void *v)
 		rk616->read_dev(rk616,RK616_HDMI_BASE + i,&val);
 		//seq_printf(s,"reg%02x>>0x%08x\n",(i>>2),val);
 		if((i>>2)%16==0)
-			seq_printf(s,"\n>>>rk610_ctl %x:",i>>2);
-		seq_printf(s," %2x",val);
+			seq_printf(s,"\n>>>rk610_ctl %02x:",i>>2);
+		seq_printf(s," %02x",val);
 
 	}
-
+	
+	seq_printf(s,"\n");
+	
 	return 0;
 }
 
