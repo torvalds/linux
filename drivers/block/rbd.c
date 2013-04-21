@@ -317,6 +317,9 @@ struct rbd_device {
 	u64			parent_overlap;
 	struct rbd_device	*parent;
 
+	u64			stripe_unit;
+	u64			stripe_count;
+
 	/* protects updating the header */
 	struct rw_semaphore     header_rwsem;
 
@@ -3749,6 +3752,56 @@ out_err:
 	return ret;
 }
 
+static int rbd_dev_v2_striping_info(struct rbd_device *rbd_dev)
+{
+	struct {
+		__le64 stripe_unit;
+		__le64 stripe_count;
+	} __attribute__ ((packed)) striping_info_buf = { 0 };
+	size_t size = sizeof (striping_info_buf);
+	void *p;
+	u64 obj_size;
+	u64 stripe_unit;
+	u64 stripe_count;
+	int ret;
+
+	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
+				"rbd", "get_stripe_unit_count", NULL, 0,
+				(char *)&striping_info_buf, size, NULL);
+	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
+	if (ret < 0)
+		return ret;
+	if (ret < size)
+		return -ERANGE;
+
+	/*
+	 * We don't actually support the "fancy striping" feature
+	 * (STRIPINGV2) yet, but if the striping sizes are the
+	 * defaults the behavior is the same as before.  So find
+	 * out, and only fail if the image has non-default values.
+	 */
+	ret = -EINVAL;
+	obj_size = (u64)1 << rbd_dev->header.obj_order;
+	p = &striping_info_buf;
+	stripe_unit = ceph_decode_64(&p);
+	if (stripe_unit != obj_size) {
+		rbd_warn(rbd_dev, "unsupported stripe unit "
+				"(got %llu want %llu)",
+				stripe_unit, obj_size);
+		return -EINVAL;
+	}
+	stripe_count = ceph_decode_64(&p);
+	if (stripe_count != 1) {
+		rbd_warn(rbd_dev, "unsupported stripe count "
+				"(got %llu want 1)", stripe_count);
+		return -EINVAL;
+	}
+	rbd_dev->stripe_unit = stripe_unit;
+	rbd_dev->stripe_count = stripe_count;
+
+	return 0;
+}
+
 static char *rbd_dev_image_name(struct rbd_device *rbd_dev)
 {
 	size_t image_id_size;
@@ -4670,6 +4723,14 @@ static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 	if (rbd_dev->header.features & RBD_FEATURE_LAYERING) {
 		ret = rbd_dev_v2_parent_info(rbd_dev);
 		if (ret)
+			goto out_err;
+	}
+
+	/* If the image supports fancy striping, get its parameters */
+
+	if (rbd_dev->header.features & RBD_FEATURE_STRIPINGV2) {
+		ret = rbd_dev_v2_striping_info(rbd_dev);
+		if (ret < 0)
 			goto out_err;
 	}
 
