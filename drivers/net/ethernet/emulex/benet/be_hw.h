@@ -499,7 +499,8 @@ struct flash_file_hdr_g3 {
 	u32 antidote;
 	u32 num_imgs;
 	u8 build[24];
-	u8 rsvd[32];
+	u8 asic_type_rev;
+	u8 rsvd[31];
 };
 
 struct flash_section_hdr {

@@ -1848,8 +1848,8 @@ extern int be_cmd_set_flow_control(struct be_adapter *adapter,
 			u32 tx_fc, u32 rx_fc);
 extern int be_cmd_get_flow_control(struct be_adapter *adapter,
 			u32 *tx_fc, u32 *rx_fc);
-extern int be_cmd_query_fw_cfg(struct be_adapter *adapter,
-			u32 *port_num, u32 *function_mode, u32 *function_caps);
+extern int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num,
+			u32 *function_mode, u32 *function_caps, u16 *asic_rev);
 extern int be_cmd_reset_function(struct be_adapter *adapter);
 extern int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
 			u16 table_size);

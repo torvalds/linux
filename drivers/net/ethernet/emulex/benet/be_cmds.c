@@ -1834,7 +1834,7 @@ err:
 
 /* Uses mbox */
 int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num,
-		u32 *mode, u32 *caps)
+			u32 *mode, u32 *caps, u16 *asic_rev)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_query_fw_cfg *req;
@@ -1855,6 +1855,7 @@ int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num,
 		*port_num = le32_to_cpu(resp->phys_port);
 		*mode = le32_to_cpu(resp->function_mode);
 		*caps = le32_to_cpu(resp->function_caps);
+		*asic_rev = le32_to_cpu(resp->asic_revision) & 0xFF;
 	}
 
 	mutex_unlock(&adapter->mbox_lock);

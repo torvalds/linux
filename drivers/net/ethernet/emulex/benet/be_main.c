@@ -2959,7 +2959,8 @@ static int be_get_config(struct be_adapter *adapter)
 
 	status = be_cmd_query_fw_cfg(adapter, &adapter->port_num,
 				     &adapter->function_mode,
-				     &adapter->function_caps);
+				     &adapter->function_caps,
+				     &adapter->asic_rev);
 	if (status)
 		goto err;
 
@@ -3220,7 +3221,7 @@ static int be_flash(struct be_adapter *adapter, const u8 *img,
 	return 0;
 }
 
-/* For BE2 and BE3 */
+/* For BE2, BE3 and BE3-R */
 static int be_flash_BEx(struct be_adapter *adapter,
 			 const struct firmware *fw,
 			 struct be_dma_mem *flash_cmd,
@@ -3533,18 +3534,22 @@ lancer_fw_exit:
 
 #define UFI_TYPE2		2
 #define UFI_TYPE3		3
+#define UFI_TYPE3R		10
 #define UFI_TYPE4		4
 static int be_get_ufi_type(struct be_adapter *adapter,
-			   struct flash_file_hdr_g2 *fhdr)
+			   struct flash_file_hdr_g3 *fhdr)
 {
 	if (fhdr == NULL)
 		goto be_get_ufi_exit;
 
 	if (skyhawk_chip(adapter) && fhdr->build[0] == '4')
 		return UFI_TYPE4;
-	else if (BE3_chip(adapter) && fhdr->build[0] == '3')
-		return UFI_TYPE3;
-	else if (BE2_chip(adapter) && fhdr->build[0] == '2')
+	else if (BE3_chip(adapter) && fhdr->build[0] == '3') {
+		if (fhdr->asic_type_rev == 0x10)
+			return UFI_TYPE3R;
+		else
+			return UFI_TYPE3;
+	} else if (BE2_chip(adapter) && fhdr->build[0] == '2')
 		return UFI_TYPE2;
 
 be_get_ufi_exit:
@@ -3555,7 +3560,6 @@ be_get_ufi_exit:
 
 static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
 {
-	struct flash_file_hdr_g2 *fhdr;
 	struct flash_file_hdr_g3 *fhdr3;
 	struct image_hdr *img_hdr_ptr = NULL;
 	struct be_dma_mem flash_cmd;
@@ -3571,23 +3575,37 @@ static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
 	}
 
 	p = fw->data;
-	fhdr = (struct flash_file_hdr_g2 *)p;
+	fhdr3 = (struct flash_file_hdr_g3 *)p;
 
-	ufi_type = be_get_ufi_type(adapter, fhdr);
+	ufi_type = be_get_ufi_type(adapter, fhdr3);
 
-	fhdr3 = (struct flash_file_hdr_g3 *)fw->data;
 	num_imgs = le32_to_cpu(fhdr3->num_imgs);
 	for (i = 0; i < num_imgs; i++) {
 		img_hdr_ptr = (struct image_hdr *)(fw->data +
 				(sizeof(struct flash_file_hdr_g3) +
 				 i * sizeof(struct image_hdr)));
 		if (le32_to_cpu(img_hdr_ptr->imageid) == 1) {
-			if (ufi_type == UFI_TYPE4)
+			switch (ufi_type) {
+			case UFI_TYPE4:
 				status = be_flash_skyhawk(adapter, fw,
 							&flash_cmd, num_imgs);
-			else if (ufi_type == UFI_TYPE3)
+				break;
+			case UFI_TYPE3R:
 				status = be_flash_BEx(adapter, fw, &flash_cmd,
 						      num_imgs);
+				break;
+			case UFI_TYPE3:
+				/* Do not flash this ufi on BE3-R cards */
+				if (adapter->asic_rev < 0x10)
+					status = be_flash_BEx(adapter, fw,
+							      &flash_cmd,
+							      num_imgs);
+				else {
+					status = -1;
+					dev_err(&adapter->pdev->dev,
+						"Can't load BE3 UFI on BE3R\n");
+				}
+			}
 		}
 	}
 
