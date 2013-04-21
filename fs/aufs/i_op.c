@@ -821,8 +821,9 @@ static void au_refresh_iattr(struct inode *inode, struct kstat *st,
 	unsigned int n;
 
 	inode->i_mode = st->mode;
-	i_uid_write(inode, st->uid);
-	i_gid_write(inode, st->gid);
+	/* don't i_[ug]id_write() here */
+	inode->i_uid = st->uid;
+	inode->i_gid = st->gid;
 	inode->i_atime = st->atime;
 	inode->i_mtime = st->mtime;
 	inode->i_ctime = st->ctime;
