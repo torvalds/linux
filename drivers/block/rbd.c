@@ -2854,7 +2854,7 @@ static void rbd_free_disk(struct rbd_device *rbd_dev)
 static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 				const char *object_name,
 				u64 offset, u64 length,
-				char *buf, u64 *version)
+				void *buf, u64 *version)
 
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
@@ -2957,8 +2957,7 @@ rbd_dev_v1_header_read(struct rbd_device *rbd_dev, u64 *version)
 			return ERR_PTR(-ENOMEM);
 
 		ret = rbd_obj_read_sync(rbd_dev, rbd_dev->header_name,
-				       0, size,
-				       (char *) ondisk, version);
+				       0, size, ondisk, version);
 		if (ret < 0)
 			goto out_err;
 		if (WARN_ON((size_t) ret < size)) {
