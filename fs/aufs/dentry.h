@@ -52,7 +52,7 @@ int au_h_verify(struct dentry *h_dentry, unsigned int udba, struct inode *h_dir,
 		struct dentry *h_parent, struct au_branch *br);
 
 int au_lkup_dentry(struct dentry *dentry, aufs_bindex_t bstart, mode_t type);
-int au_lkup_neg(struct dentry *dentry, aufs_bindex_t bindex);
+int au_lkup_neg(struct dentry *dentry, aufs_bindex_t bindex, int wh);
 int au_refresh_dentry(struct dentry *dentry, struct dentry *parent);
 int au_reval_dpath(struct dentry *dentry, unsigned int sigen);
 
