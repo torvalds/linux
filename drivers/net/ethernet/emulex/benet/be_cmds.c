@@ -687,10 +687,8 @@ static struct be_mcc_wrb *wrb_from_mccq(struct be_adapter *adapter)
 	if (!mccq->created)
 		return NULL;
 
-	if (atomic_read(&mccq->used) >= mccq->len) {
-		dev_err(&adapter->pdev->dev, "Out of MCCQ wrbs\n");
+	if (atomic_read(&mccq->used) >= mccq->len)
 		return NULL;
-	}
 
 	wrb = queue_head_node(mccq);
 	queue_head_inc(mccq);
