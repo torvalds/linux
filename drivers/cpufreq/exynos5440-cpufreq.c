@@ -120,11 +120,13 @@ static int init_div_table(void)
 	int i = 0;
 	struct opp *opp;
 
+	rcu_read_lock();
 	for (i = 0; freq_tbl[i].frequency != CPUFREQ_TABLE_END; i++) {
 
 		opp = opp_find_freq_exact(dvfs_info->dev,
 					freq_tbl[i].frequency * 1000, true);
 		if (IS_ERR(opp)) {
+			rcu_read_unlock();
 			dev_err(dvfs_info->dev,
 				"failed to find valid OPP for %u KHZ\n",
 				freq_tbl[i].frequency);
@@ -159,6 +161,7 @@ static int init_div_table(void)
 		__raw_writel(tmp, dvfs_info->base + XMU_PMU_P0_7 + 4 * i);
 	}
 
+	rcu_read_unlock();
 	return 0;
 }
 
