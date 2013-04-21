@@ -255,7 +255,7 @@ static int do_pri_br(aufs_bindex_t bindex, struct au_branch *br)
 
 	if (!br || IS_ERR(br))
 		goto out;
-	mnt = br->br_mnt;
+	mnt = au_br_mnt(br);
 	if (!mnt || IS_ERR(mnt))
 		goto out;
 	sb = mnt->mnt_sb;
@@ -296,7 +296,7 @@ void au_dpri_sb(struct super_block *sb)
 
 	a->mnt.mnt_sb = sb;
 	a->fake.br_perm = 0;
-	a->fake.br_mnt = &a->mnt;
+	a->fake.br_path.mnt = &a->mnt;
 	a->fake.br_xino.xi_file = NULL;
 	atomic_set(&a->fake.br_count, 0);
 	smp_mb(); /* atomic_set */
