@@ -39,7 +39,7 @@ static int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 	
 	ret = rk616->write_dev(rk616,VIF0_REG0 + offset,&val);	
 
-	val = (screen->hsync_len + screen->left_margin) | ((screen->vsync_len + screen->upper_margin)<<16);
+	val = (1) | (1<<16);
 	ret = rk616->write_dev(rk616,VIF0_REG1 + offset,&val);
 
 	val = (screen->hsync_len << 16) | (screen->hsync_len + screen->left_margin + 
