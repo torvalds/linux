@@ -3638,6 +3638,12 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		goto out;
 	}
 
+	if (crtc->fb->pixel_format != fb->pixel_format) {
+		DRM_DEBUG_KMS("Page flip is not allowed to change frame buffer format.\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
 	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 		ret = -ENOMEM;
 		spin_lock_irqsave(&dev->event_lock, flags);
