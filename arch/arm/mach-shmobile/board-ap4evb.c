@@ -1037,22 +1037,13 @@ out:
 #define IRQ7	evt2irq(0x02e0) /* IRQ7A */
 static int ts_get_pendown_state(void)
 {
-	int val;
-
-	gpio_free(GPIO_TSC_IRQ);
-
-	gpio_request_one(GPIO_TSC_PORT, GPIOF_IN, NULL);
-
-	val = gpio_get_value(GPIO_TSC_PORT);
-
-	gpio_request(GPIO_TSC_IRQ, NULL);
-
-	return !val;
+	return !gpio_get_value(GPIO_TSC_PORT);
 }
 
 static int ts_init(void)
 {
 	gpio_request(GPIO_TSC_IRQ, NULL);
+	gpio_request_one(GPIO_TSC_PORT, GPIOF_IN, NULL);
 
 	return 0;
 }
