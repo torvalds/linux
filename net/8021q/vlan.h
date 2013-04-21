@@ -121,6 +121,7 @@ static inline unsigned int vlan_proto_idx(__be16 proto)
 		return VLAN_PROTO_8021AD;
 	default:
 		BUG();
+		return 0;
 	}
 }
 
