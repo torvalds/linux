@@ -1687,9 +1687,11 @@ struct be_cmd_req_set_ext_fat_caps {
 	struct be_fat_conf_params set_params;
 };
 
-#define RESOURCE_DESC_SIZE			72
-#define NIC_RESOURCE_DESC_TYPE_ID		0x41
+#define RESOURCE_DESC_SIZE			88
+#define NIC_RESOURCE_DESC_TYPE_V0		0x41
+#define NIC_RESOURCE_DESC_TYPE_V1		0x51
 #define MAX_RESOURCE_DESC			4
+#define MAX_RESOURCE_DESC_V1			32
 
 /* QOS unit number */
 #define QUN					4
@@ -1753,6 +1755,12 @@ struct be_cmd_resp_get_profile_config {
 	struct be_cmd_req_hdr hdr;
 	u32 desc_count;
 	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE];
+};
+
+struct be_cmd_resp_get_profile_config_v1 {
+	struct be_cmd_req_hdr hdr;
+	u32 desc_count;
+	u8 func_param[MAX_RESOURCE_DESC_V1 * RESOURCE_DESC_SIZE];
 };
 
 struct be_cmd_req_set_profile_config {
@@ -1917,7 +1925,7 @@ extern int lancer_test_and_set_rdy_state(struct be_adapter *adapter);
 extern int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name);
 extern int be_cmd_get_func_config(struct be_adapter *adapter);
 extern int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
-				     u8 domain);
+				     u16 *txq_count, u8 domain);
 
 extern int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps,
 				     u8 domain);

@@ -2946,7 +2946,8 @@ static struct be_nic_resource_desc *be_get_nic_desc(u8 *buf, u32 desc_count,
 			break;
 		}
 
-		if (desc->desc_type == NIC_RESOURCE_DESC_TYPE_ID)
+		if (desc->desc_type == NIC_RESOURCE_DESC_TYPE_V0 ||
+		    desc->desc_type == NIC_RESOURCE_DESC_TYPE_V1)
 			break;
 
 		desc = (void *)desc + desc->desc_len;
@@ -3020,23 +3021,41 @@ err:
 	return status;
 }
 
- /* Uses sync mcc */
-int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
-			      u8 domain)
+/* Uses mbox */
+int be_cmd_get_profile_config_mbox(struct be_adapter *adapter,
+				   u8 domain, struct be_dma_mem *cmd)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_profile_config *req;
 	int status;
-	struct be_dma_mem cmd;
 
-	memset(&cmd, 0, sizeof(struct be_dma_mem));
-	cmd.size = sizeof(struct be_cmd_resp_get_profile_config);
-	cmd.va = pci_alloc_consistent(adapter->pdev, cmd.size,
-				      &cmd.dma);
-	if (!cmd.va) {
-		dev_err(&adapter->pdev->dev, "Memory alloc failure\n");
-		return -ENOMEM;
-	}
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
+	wrb = wrb_from_mbox(adapter);
+
+	req = cmd->va;
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_GET_PROFILE_CONFIG,
+			       cmd->size, wrb, cmd);
+
+	req->type = ACTIVE_PROFILE_TYPE;
+	req->hdr.domain = domain;
+	if (!lancer_chip(adapter))
+		req->hdr.version = 1;
+
+	status = be_mbox_notify_wait(adapter);
+
+	mutex_unlock(&adapter->mbox_lock);
+	return status;
+}
+
+/* Uses sync mcc */
+int be_cmd_get_profile_config_mccq(struct be_adapter *adapter,
+				   u8 domain, struct be_dma_mem *cmd)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_profile_config *req;
+	int status;
 
 	spin_lock_bh(&adapter->mcc_lock);
 
@@ -3046,16 +3065,47 @@ int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
 		goto err;
 	}
 
-	req = cmd.va;
-
+	req = cmd->va;
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 			       OPCODE_COMMON_GET_PROFILE_CONFIG,
-			       cmd.size, wrb, &cmd);
+			       cmd->size, wrb, cmd);
 
 	req->type = ACTIVE_PROFILE_TYPE;
 	req->hdr.domain = domain;
+	if (!lancer_chip(adapter))
+		req->hdr.version = 1;
 
 	status = be_mcc_notify_wait(adapter);
+
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+/* Uses sync mcc, if MCCQ is already created otherwise mbox */
+int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
+			      u16 *txq_count, u8 domain)
+{
+	struct be_queue_info *mccq = &adapter->mcc_obj.q;
+	struct be_dma_mem cmd;
+	int status;
+
+	memset(&cmd, 0, sizeof(struct be_dma_mem));
+	if (!lancer_chip(adapter))
+		cmd.size = sizeof(struct be_cmd_resp_get_profile_config_v1);
+	else
+		cmd.size = sizeof(struct be_cmd_resp_get_profile_config);
+	cmd.va = pci_alloc_consistent(adapter->pdev, cmd.size,
+				      &cmd.dma);
+	if (!cmd.va) {
+		dev_err(&adapter->pdev->dev, "Memory alloc failure\n");
+		return -ENOMEM;
+	}
+
+	if (!mccq->created)
+		status = be_cmd_get_profile_config_mbox(adapter, domain, &cmd);
+	else
+		status = be_cmd_get_profile_config_mccq(adapter, domain, &cmd);
 	if (!status) {
 		struct be_cmd_resp_get_profile_config *resp = cmd.va;
 		u32 desc_count = le32_to_cpu(resp->desc_count);
@@ -3068,12 +3118,15 @@ int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
 			status = -EINVAL;
 			goto err;
 		}
-		*cap_flags = le32_to_cpu(desc->cap_flags);
+		if (cap_flags)
+			*cap_flags = le32_to_cpu(desc->cap_flags);
+		if (txq_count)
+			*txq_count = le32_to_cpu(desc->txq_count);
 	}
 err:
-	spin_unlock_bh(&adapter->mcc_lock);
-	pci_free_consistent(adapter->pdev, cmd.size,
-			    cmd.va, cmd.dma);
+	if (cmd.va)
+		pci_free_consistent(adapter->pdev, cmd.size,
+				    cmd.va, cmd.dma);
 	return status;
 }
 
@@ -3102,7 +3155,7 @@ int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps,
 	req->hdr.domain = domain;
 	req->desc_count = cpu_to_le32(1);
 
-	req->nic_desc.desc_type = NIC_RESOURCE_DESC_TYPE_ID;
+	req->nic_desc.desc_type = NIC_RESOURCE_DESC_TYPE_V0;
 	req->nic_desc.desc_len = RESOURCE_DESC_SIZE;
 	req->nic_desc.flags = (1 << QUN) | (1 << IMM) | (1 << NOSV);
 	req->nic_desc.pf_num = adapter->pf_number;
