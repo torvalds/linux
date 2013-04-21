@@ -197,14 +197,15 @@ static void be_rxq_notify(struct be_adapter *adapter, u16 qid, u16 posted)
 	iowrite32(val, adapter->db + DB_RQ_OFFSET);
 }
 
-static void be_txq_notify(struct be_adapter *adapter, u16 qid, u16 posted)
+static void be_txq_notify(struct be_adapter *adapter, struct be_tx_obj *txo,
+			  u16 posted)
 {
 	u32 val = 0;
-	val |= qid & DB_TXULP_RING_ID_MASK;
+	val |= txo->q.id & DB_TXULP_RING_ID_MASK;
 	val |= (posted & DB_TXULP_NUM_POSTED_MASK) << DB_TXULP_NUM_POSTED_SHIFT;
 
 	wmb();
-	iowrite32(val, adapter->db + DB_TXULP1_OFFSET);
+	iowrite32(val, adapter->db + txo->db_offset);
 }
 
 static void be_eq_notify(struct be_adapter *adapter, u16 qid,
@@ -833,7 +834,7 @@ static netdev_tx_t be_xmit(struct sk_buff *skb,
 			stopped = true;
 		}
 
-		be_txq_notify(adapter, txq->id, wrb_cnt);
+		be_txq_notify(adapter, txo, wrb_cnt);
 
 		be_tx_stats_update(txo, wrb_cnt, copied, gso_segs, stopped);
 	} else {
@@ -1969,7 +1970,7 @@ static int be_tx_qs_create(struct be_adapter *adapter)
 		if (status)
 			return status;
 
-		status = be_cmd_txq_create(adapter, &txo->q, &txo->cq);
+		status = be_cmd_txq_create(adapter, txo);
 		if (status)
 			return status;
 	}

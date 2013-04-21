@@ -72,6 +72,10 @@
  */
 #define MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK	(1 << 29) /* bit 29 */
 
+/********* PCI Function Capability *********/
+#define BE_FUNCTION_CAPS_RSS			0x2
+#define BE_FUNCTION_CAPS_SUPER_NIC		0x40
+
 /********* Power management (WOL) **********/
 #define PCICFG_PM_CONTROL_OFFSET		0x44
 #define PCICFG_PM_CONTROL_MASK			0x108	/* bits 3 & 8 */

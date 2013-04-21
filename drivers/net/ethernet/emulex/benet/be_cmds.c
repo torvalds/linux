@@ -1095,15 +1095,14 @@ int be_cmd_mccq_create(struct be_adapter *adapter,
 	return status;
 }
 
-int be_cmd_txq_create(struct be_adapter *adapter,
-			struct be_queue_info *txq,
-			struct be_queue_info *cq)
+int be_cmd_txq_create(struct be_adapter *adapter, struct be_tx_obj *txo)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_eth_tx_create *req;
+	struct be_queue_info *txq = &txo->q;
+	struct be_queue_info *cq = &txo->cq;
 	struct be_dma_mem *q_mem = &txq->dma_mem;
-	void *ctxt;
-	int status;
+	int status, ver = 0;
 
 	spin_lock_bh(&adapter->mcc_lock);
 
@@ -1114,34 +1113,37 @@ int be_cmd_txq_create(struct be_adapter *adapter,
 	}
 
 	req = embedded_payload(wrb);
-	ctxt = &req->context;
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ETH,
 		OPCODE_ETH_TX_CREATE, sizeof(*req), wrb, NULL);
 
 	if (lancer_chip(adapter)) {
 		req->hdr.version = 1;
-		AMAP_SET_BITS(struct amap_tx_context, if_id, ctxt,
-					adapter->if_handle);
+		req->if_id = cpu_to_le16(adapter->if_handle);
+	} else if (BEx_chip(adapter)) {
+		if (adapter->function_caps & BE_FUNCTION_CAPS_SUPER_NIC)
+			req->hdr.version = 2;
+	} else { /* For SH */
+		req->hdr.version = 2;
 	}
 
 	req->num_pages = PAGES_4K_SPANNED(q_mem->va, q_mem->size);
 	req->ulp_num = BE_ULP1_NUM;
 	req->type = BE_ETH_TX_RING_TYPE_STANDARD;
-
-	AMAP_SET_BITS(struct amap_tx_context, tx_ring_size, ctxt,
-		be_encoded_q_len(txq->len));
-	AMAP_SET_BITS(struct amap_tx_context, ctx_valid, ctxt, 1);
-	AMAP_SET_BITS(struct amap_tx_context, cq_id_send, ctxt, cq->id);
-
-	be_dws_cpu_to_le(ctxt, sizeof(req->context));
-
+	req->cq_id = cpu_to_le16(cq->id);
+	req->queue_size = be_encoded_q_len(txq->len);
 	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
+
+	ver = req->hdr.version;
 
 	status = be_mcc_notify_wait(adapter);
 	if (!status) {
 		struct be_cmd_resp_eth_tx_create *resp = embedded_payload(wrb);
 		txq->id = le16_to_cpu(resp->cid);
+		if (ver == 2)
+			txo->db_offset = le32_to_cpu(resp->db_offset);
+		else
+			txo->db_offset = DB_TXULP1_OFFSET;
 		txq->created = true;
 	}
 

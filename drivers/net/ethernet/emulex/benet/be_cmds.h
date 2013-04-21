@@ -474,46 +474,27 @@ struct be_cmd_resp_mcc_create {
 #define BE_ETH_TX_RING_TYPE_STANDARD    	2
 #define BE_ULP1_NUM				1
 
-/* Pseudo amap definition in which each bit of the actual structure is defined
- * as a byte: used to calculate offset/shift/mask of each field */
-struct amap_tx_context {
-	u8 if_id[16];		/* dword 0 */
-	u8 tx_ring_size[4];	/* dword 0 */
-	u8 rsvd1[26];		/* dword 0 */
-	u8 pci_func_id[8];	/* dword 1 */
-	u8 rsvd2[9];		/* dword 1 */
-	u8 ctx_valid;		/* dword 1 */
-	u8 cq_id_send[16];	/* dword 2 */
-	u8 rsvd3[16];		/* dword 2 */
-	u8 rsvd4[32];		/* dword 3 */
-	u8 rsvd5[32];		/* dword 4 */
-	u8 rsvd6[32];		/* dword 5 */
-	u8 rsvd7[32];		/* dword 6 */
-	u8 rsvd8[32];		/* dword 7 */
-	u8 rsvd9[32];		/* dword 8 */
-	u8 rsvd10[32];		/* dword 9 */
-	u8 rsvd11[32];		/* dword 10 */
-	u8 rsvd12[32];		/* dword 11 */
-	u8 rsvd13[32];		/* dword 12 */
-	u8 rsvd14[32];		/* dword 13 */
-	u8 rsvd15[32];		/* dword 14 */
-	u8 rsvd16[32];		/* dword 15 */
-} __packed;
-
 struct be_cmd_req_eth_tx_create {
 	struct be_cmd_req_hdr hdr;
 	u8 num_pages;
 	u8 ulp_num;
-	u8 type;
-	u8 bound_port;
-	u8 context[sizeof(struct amap_tx_context) / 8];
+	u16 type;
+	u16 if_id;
+	u8 queue_size;
+	u8 rsvd0;
+	u32 rsvd1;
+	u16 cq_id;
+	u16 rsvd2;
+	u32 rsvd3[13];
 	struct phys_addr pages[8];
 } __packed;
 
 struct be_cmd_resp_eth_tx_create {
 	struct be_cmd_resp_hdr hdr;
 	u16 cid;
-	u16 rsvd0;
+	u16 rid;
+	u32 db_offset;
+	u32 rsvd0[4];
 } __packed;
 
 /******************** Create RxQ ***************************/
@@ -1067,7 +1048,6 @@ struct be_cmd_resp_modify_eq_delay {
 } __packed;
 
 /******************** Get FW Config *******************/
-#define BE_FUNCTION_CAPS_RSS			0x2
 /* The HW can come up in either of the following multi-channel modes
  * based on the skew/IPL.
  */
@@ -1841,8 +1821,7 @@ extern int be_cmd_mccq_create(struct be_adapter *adapter,
 			struct be_queue_info *mccq,
 			struct be_queue_info *cq);
 extern int be_cmd_txq_create(struct be_adapter *adapter,
-			struct be_queue_info *txq,
-			struct be_queue_info *cq);
+			struct be_tx_obj *txo);
 extern int be_cmd_rxq_create(struct be_adapter *adapter,
 			struct be_queue_info *rxq, u16 cq_id,
 			u16 frag_size, u32 if_id, u32 rss, u8 *rss_id);
