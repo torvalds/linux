@@ -239,7 +239,7 @@ static struct au_dykey *dy_get(struct au_dynop *op, struct au_branch *br)
 
 	key->dk_op.dy_hop = op->dy_hop;
 	kref_init(&key->dk_kref);
-	p->set(key, op->dy_hop, br->br_mnt->mnt_sb);
+	p->set(key, op->dy_hop, au_br_sb(br));
 	old = dy_gadd(spl, key);
 	if (old) {
 		kfree(key);
