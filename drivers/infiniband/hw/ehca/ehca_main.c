@@ -713,8 +713,7 @@ static struct attribute_group ehca_dev_attr_grp = {
 	.attrs = ehca_dev_attrs
 };
 
-static int ehca_probe(struct platform_device *dev,
-		      const struct of_device_id *id)
+static int ehca_probe(struct platform_device *dev)
 {
 	struct ehca_shca *shca;
 	const u64 *handle;
@@ -937,7 +936,7 @@ static struct of_device_id ehca_device_table[] =
 };
 MODULE_DEVICE_TABLE(of, ehca_device_table);
 
-static struct of_platform_driver ehca_driver = {
+static struct platform_driver ehca_driver = {
 	.probe       = ehca_probe,
 	.remove      = ehca_remove,
 	.driver = {
