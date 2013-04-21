@@ -23,6 +23,7 @@
 #include <mach/dma.h>
 #include <mach/mfp.h>
 #include <mach/devices.h>
+#include <mach/pxa910.h>
 
 #include "common.h"
 

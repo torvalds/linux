@@ -30,8 +30,6 @@
 #include <mach/pm-pxa910.h>
 #endif
 
-#include "common.h"
-
 #define MAX_ICU_NR		16
 
 struct icu_chip_data {
