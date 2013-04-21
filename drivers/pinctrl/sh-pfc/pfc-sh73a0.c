@@ -20,7 +20,11 @@
  */
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/machine.h>
+#include <linux/slab.h>
 
 #include <mach/sh73a0.h>
 #include <mach/irqs.h>
@@ -3888,6 +3892,92 @@ static const struct pinmux_irq pinmux_irqs[] = {
 	PINMUX_IRQ(EXT_IRQ16L(9), 308),
 };
 
+/* -----------------------------------------------------------------------------
+ * VCCQ MC0 regulator
+ */
+
+static void sh73a0_vccq_mc0_endisable(struct regulator_dev *reg, bool enable)
+{
+	struct sh_pfc *pfc = reg->reg_data;
+	void __iomem *addr = pfc->window[1].virt + 4;
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&pfc->lock, flags);
+
+	value = ioread32(addr);
+
+	if (enable)
+		value |= BIT(28);
+	else
+		value &= ~BIT(28);
+
+	iowrite32(value, addr);
+
+	spin_unlock_irqrestore(&pfc->lock, flags);
+}
+
+static int sh73a0_vccq_mc0_enable(struct regulator_dev *reg)
+{
+	sh73a0_vccq_mc0_endisable(reg, true);
+	return 0;
+}
+
+static int sh73a0_vccq_mc0_disable(struct regulator_dev *reg)
+{
+	sh73a0_vccq_mc0_endisable(reg, false);
+	return 0;
+}
+
+static int sh73a0_vccq_mc0_is_enabled(struct regulator_dev *reg)
+{
+	struct sh_pfc *pfc = reg->reg_data;
+	void __iomem *addr = pfc->window[1].virt + 4;
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&pfc->lock, flags);
+	value = ioread32(addr);
+	spin_unlock_irqrestore(&pfc->lock, flags);
+
+	return !!(value & BIT(28));
+}
+
+static int sh73a0_vccq_mc0_get_voltage(struct regulator_dev *reg)
+{
+	return 3300000;
+}
+
+static struct regulator_ops sh73a0_vccq_mc0_ops = {
+	.enable = sh73a0_vccq_mc0_enable,
+	.disable = sh73a0_vccq_mc0_disable,
+	.is_enabled = sh73a0_vccq_mc0_is_enabled,
+	.get_voltage = sh73a0_vccq_mc0_get_voltage,
+};
+
+static const struct regulator_desc sh73a0_vccq_mc0_desc = {
+	.owner = THIS_MODULE,
+	.name = "vccq_mc0",
+	.type = REGULATOR_VOLTAGE,
+	.ops = &sh73a0_vccq_mc0_ops,
+};
+
+static struct regulator_consumer_supply sh73a0_vccq_mc0_consumers[] = {
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.0"),
+};
+
+static const struct regulator_init_data sh73a0_vccq_mc0_init_data = {
+	.constraints = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(sh73a0_vccq_mc0_consumers),
+	.consumer_supplies = sh73a0_vccq_mc0_consumers,
+};
+
+/* -----------------------------------------------------------------------------
+ * Pin bias
+ */
+
 #define PORTnCR_PULMD_OFF	(0 << 6)
 #define PORTnCR_PULMD_DOWN	(2 << 6)
 #define PORTnCR_PULMD_UP	(3 << 6)
@@ -3934,7 +4024,51 @@ static void sh73a0_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	iowrite8(value, addr);
 }
 
+/* -----------------------------------------------------------------------------
+ * SoC information
+ */
+
+struct sh73a0_pinmux_data {
+	struct regulator_dev *vccq_mc0;
+};
+
+static int sh73a0_pinmux_soc_init(struct sh_pfc *pfc)
+{
+	struct sh73a0_pinmux_data *data;
+	struct regulator_config cfg = { };
+	int ret;
+
+	data = devm_kzalloc(pfc->dev, sizeof(*data), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	cfg.dev = pfc->dev;
+	cfg.init_data = &sh73a0_vccq_mc0_init_data;
+	cfg.driver_data = pfc;
+
+	data->vccq_mc0 = regulator_register(&sh73a0_vccq_mc0_desc, &cfg);
+	if (IS_ERR(data->vccq_mc0)) {
+		ret = PTR_ERR(data->vccq_mc0);
+		dev_err(pfc->dev, "Failed to register VCCQ MC0 regulator: %d\n",
+			ret);
+		return ret;
+	}
+
+	pfc->soc_data = data;
+
+	return 0;
+}
+
+static void sh73a0_pinmux_soc_exit(struct sh_pfc *pfc)
+{
+	struct sh73a0_pinmux_data *data = pfc->soc_data;
+
+	regulator_unregister(data->vccq_mc0);
+}
+
 static const struct sh_pfc_soc_operations sh73a0_pinmux_ops = {
+	.init = sh73a0_pinmux_soc_init,
+	.exit = sh73a0_pinmux_soc_exit,
 	.get_bias = sh73a0_pinmux_get_bias,
 	.set_bias = sh73a0_pinmux_set_bias,
 };
