@@ -268,12 +268,12 @@ int au_xino_trunc(struct super_block *sb, aufs_bindex_t bindex)
 	fput(file);
 	br->br_xino.xi_file = new_xino;
 
-	h_sb = br->br_mnt->mnt_sb;
+	h_sb = au_br_sb(br);
 	for (bi = 0; bi <= bend; bi++) {
 		if (unlikely(bi == bindex))
 			continue;
 		br = au_sbr(sb, bi);
-		if (br->br_mnt->mnt_sb != h_sb)
+		if (au_br_sb(br) != h_sb)
 			continue;
 
 		fput(br->br_xino.xi_file);
@@ -408,7 +408,7 @@ int au_xino_write(struct super_block *sb, aufs_bindex_t bindex, ino_t h_ino,
 			       h_ino, ino);
 	if (!err) {
 		if (au_opt_test(mnt_flags, TRUNC_XINO)
-		    && au_test_fs_trunc_xino(br->br_mnt->mnt_sb))
+		    && au_test_fs_trunc_xino(au_br_sb(br)))
 			xino_try_trunc(sb, br);
 		return 0; /* success */
 	}
@@ -561,7 +561,7 @@ void au_xino_delete_inode(struct inode *inode, const int unlinked)
 		err = au_xino_do_write(xwrite, br->br_xino.xi_file,
 				       h_inode->i_ino, /*ino*/0);
 		if (!err && try_trunc
-		    && au_test_fs_trunc_xino(br->br_mnt->mnt_sb))
+		    && au_test_fs_trunc_xino(au_br_sb(br)))
 			xino_try_trunc(sb, br);
 	}
 }
@@ -768,10 +768,10 @@ int au_xino_br(struct super_block *sb, struct au_branch *br, ino_t h_ino,
 	shared_br = NULL;
 	bend = au_sbend(sb);
 	if (do_test) {
-		tgt_sb = br->br_mnt->mnt_sb;
+		tgt_sb = au_br_sb(br);
 		for (bindex = 0; bindex <= bend; bindex++) {
 			b = au_sbr(sb, bindex);
-			if (tgt_sb == b->br_mnt->mnt_sb) {
+			if (tgt_sb == au_br_sb(b)) {
 				shared_br = b;
 				break;
 			}
@@ -1200,7 +1200,7 @@ struct file *au_xino_def(struct super_block *sb)
 	for (bindex = 0; bindex <= bend; bindex++) {
 		br = au_sbr(sb, bindex);
 		if (au_br_writable(br->br_perm)
-		    && !au_test_fs_bad_xino(br->br_mnt->mnt_sb)) {
+		    && !au_test_fs_bad_xino(au_br_sb(br))) {
 			bwr = bindex;
 			break;
 		}
@@ -1211,7 +1211,7 @@ struct file *au_xino_def(struct super_block *sb)
 		page = (void *)__get_free_page(GFP_NOFS);
 		if (unlikely(!page))
 			goto out;
-		path.mnt = br->br_mnt;
+		path.mnt = au_br_mnt(br);
 		path.dentry = au_h_dptr(sb->s_root, bwr);
 		p = d_path(&path, page, PATH_MAX - sizeof(AUFS_XINO_FNAME));
 		file = (void *)p;
