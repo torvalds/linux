@@ -303,7 +303,8 @@ static void iriap_disconnect_indication(void *instance, void *sap,
 {
 	struct iriap_cb *self;
 
-	IRDA_DEBUG(4, "%s(), reason=%s\n", __func__, irlmp_reasons[reason]);
+	IRDA_DEBUG(4, "%s(), reason=%s [%d]\n", __func__,
+		   irlmp_reason_str(reason), reason);
 
 	self = instance;
 

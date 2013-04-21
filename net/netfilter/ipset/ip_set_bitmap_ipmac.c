@@ -339,7 +339,11 @@ bitmap_ipmac_tlist(const struct ip_set *set,
 nla_put_failure:
 	nla_nest_cancel(skb, nested);
 	ipset_nest_end(skb, atd);
-	return -EMSGSIZE;
+	if (unlikely(id == first)) {
+		cb->args[2] = 0;
+		return -EMSGSIZE;
+	}
+	return 0;
 }
 
 static int
