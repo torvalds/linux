@@ -83,11 +83,16 @@
 #define VIF0_CLK_SEL		(1<<0)
 
 #define CRU_PLL0_CON0   	0x0068
+#define PLL0_POSTDIV1_MASK	(7<<28)
+#define PLL0_FBDIV_MASK		(0xfff << 16)
 #define PLL0_BYPASS		(1<<15)
 #define PLL0_POSTDIV1(x) 	(((x)&7)<<12)
 #define PLL0_FBDIV(x)	  	(((x)&0xfff)<<0)
 
 #define CRU_PLL0_CON1   	0x006C
+#define PLL0_POSTDIV2_MASK	(7<<22)
+#define PLL0_REFDIV_MASK	(0x3f<<16)
+#define PLL0_LOCK		(1<<15)
 #define PLL0_PWR_DN		(1<<10)
 #define PLL0_DIV_MODE		(1<<9)
 #define PLL0_POSTDIV2(x)	(((x)&7)<<6)
@@ -101,11 +106,16 @@
 #define PLL0_FRAC(x)		(((x)&0xffffff)<0)
 
 #define CRU_PLL1_CON0   	0x0074
+#define PLL1_POSTDIV1_MASK	(7<<28)
+#define PLL1_FBDIV_MASK		(0xfff << 16)
 #define PLL1_BYPASS		(1<<15)
 #define PLL1_POSTDIV1(x) 	(((x)&7)<<12)
 #define PLL1_FBDIV(x)	  	(((x)&0xfff)<<0)
 
 #define CRU_PLL1_CON1   	0x0078
+#define PLL1_POSTDIV2_MASK	(7<<22)
+#define PLL1_REFDIV_MASK	(0x3f<<16)
+#define PLL1_LOCK		(1<<15)
 #define PLL1_PWR_DN		(1<<10)
 #define PLL1_DIV_MODE		(1<<9)
 #define PLL1_POSTDIV2(x)	(((x)&7)<<6)

@@ -222,6 +222,74 @@ static int rk616_pll_clk_get_set(struct mfd_rk616 *rk616,unsigned long fin_hz,un
 	return 0;
 }
 
+
+static  int  rk616_pll_wait_lock(struct mfd_rk616 *rk616,int id)
+{
+	u32 delay = 50;
+	u32 val ;
+	int ret;
+	int offset;
+
+	if(id == 0)  //PLL0
+	{
+		offset = 0;
+	}
+	else // PLL1
+	{
+		offset = 0x0c;
+	}
+	while (delay >= 1) 
+	{
+		ret = rk616->write_dev(rk616,CRU_PLL0_CON1 + offset,&val);
+		if (val&PLL0_LOCK)
+		{
+			break;
+		}
+		msleep(1);
+		printk("0x%08x\n",val);
+		delay--;
+	}
+	if (delay == 1)
+	{
+		dev_err(rk616->dev,"wait pll bit time out!\n");
+		while(1);
+	}
+
+	return 0;
+}
+
+static int rk616_pll_cfg(struct mfd_rk616 *rk616,int id)
+{
+	u32 val = 0;
+	int ret;
+	int offset;
+	if(id == 0)  //PLL0
+	{
+		offset = 0;
+	}
+	else // PLL1
+	{
+		offset = 0x0c;
+	}
+	
+	val = PLL0_PWR_DN | (PLL0_PWR_DN << 16);
+	ret = rk616->write_dev(rk616,CRU_PLL0_CON1 + offset,&val);
+
+	val = PLL0_POSTDIV1(1) | PLL0_FBDIV(20) | PLL0_POSTDIV1_MASK | 
+		PLL0_FBDIV_MASK | (PLL0_BYPASS << 16);
+	ret = rk616->write_dev(rk616,CRU_PLL0_CON0 + offset,&val);
+
+	val = PLL0_DIV_MODE | PLL0_POSTDIV2(1) | PLL0_REFDIV(20) |
+		(PLL0_DIV_MODE << 16) | PLL0_POSTDIV1_MASK | PLL0_REFDIV_MASK;
+	ret = rk616->write_dev(rk616,CRU_PLL0_CON1 + offset,&val);
+	
+	val = (PLL0_PWR_DN << 16);
+	ret = rk616->write_dev(rk616,CRU_PLL0_CON1 + offset,&val);
+	rk616_pll_wait_lock(rk616,id);
+
+	return 0;	
+	
+}
 /***********************************
 default clk patch settiing:
 CLKIN-------->CODEC
@@ -245,8 +313,12 @@ static int rk616_clk_common_init(struct mfd_rk616 *rk616)
 	val = 0; //codec mck = clkin
 	ret = rk616->write_dev(rk616,CRU_CODEC_DIV,&val);
 
+#if 0
 	val = (PLL0_BYPASS) | (PLL0_BYPASS << 16);  //bypass pll0 
 	ret = rk616->write_dev(rk616,CRU_PLL0_CON0,&val);
+#else
+	rk616_pll_cfg(rk616,0);
+#endif
 
 	val = (PLL1_BYPASS) | (PLL1_BYPASS << 16);
 	ret = rk616->write_dev(rk616,CRU_PLL1_CON0,&val);
