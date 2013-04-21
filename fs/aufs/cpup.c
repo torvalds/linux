@@ -418,9 +418,8 @@ static int au_do_cpup_regular(struct au_cpup_basic *basic, struct au_pin *pin,
 {
 	int err, rerr;
 	loff_t l;
-	struct dentry *h_src_dentry;
+	struct path h_path;
 	struct inode *h_src_inode;
-	struct vfsmount *h_src_mnt;
 
 	err = 0;
 	h_src_inode = au_h_iptr(basic->dentry->d_inode, basic->bsrc);
@@ -432,10 +431,10 @@ static int au_do_cpup_regular(struct au_cpup_basic *basic, struct au_pin *pin,
 		mutex_lock_nested(&h_src_inode->i_mutex, AuLsc_I_CHILD);
 		pin->hdir_unlock(pin);
 
-		h_src_dentry = au_h_dptr(basic->dentry, basic->bsrc);
-		h_src_mnt = au_sbr_mnt(basic->dentry->d_sb, basic->bsrc);
+		h_path.dentry = au_h_dptr(basic->dentry, basic->bsrc);
+		h_path.mnt = au_sbr_mnt(basic->dentry->d_sb, basic->bsrc);
 		h_src_attr->iflags = h_src_inode->i_flags;
-		err = vfs_getattr(h_src_mnt, h_src_dentry, &h_src_attr->st);
+		err = vfs_getattr(&h_path, &h_src_attr->st);
 		if (unlikely(err)) {
 			mutex_unlock(&h_src_inode->i_mutex);
 			goto out;
