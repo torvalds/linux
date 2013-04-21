@@ -432,6 +432,7 @@ static long dgrp_dpa_ioctl(struct file *file, unsigned int cmd,
 
 
 	case DIGI_GETVPD:
+		memset(&vpd, 0, sizeof(vpd));
 		if (nd->nd_vpd_len > 0) {
 			vpd.vpd_len = nd->nd_vpd_len;
 			memcpy(&vpd.vpd_data, &nd->nd_vpd, nd->nd_vpd_len);
