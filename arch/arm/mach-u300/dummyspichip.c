@@ -263,10 +263,16 @@ static int pl022_dummy_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct of_device_id pl022_dummy_dt_match[] = {
+	{ .compatible = "arm,pl022-dummy" },
+	{},
+};
+
 static struct spi_driver pl022_dummy_driver = {
 	.driver = {
 		.name	= "spi-dummy",
 		.owner	= THIS_MODULE,
+		.of_match_table = pl022_dummy_dt_match,
 	},
 	.probe	= pl022_dummy_probe,
 	.remove	= pl022_dummy_remove,

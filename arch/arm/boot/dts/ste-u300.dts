@@ -233,6 +233,11 @@
 			num-cs = <3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			spi-dummy@1 {
+				compatible = "arm,pl022-dummy";
+				reg = <1>;
+				spi-max-frequency = <20000000>;
+			};
 		};
 	};
 };
