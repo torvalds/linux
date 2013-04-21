@@ -29,7 +29,7 @@
 
 struct hdmi *hdmi = NULL;
 struct mfd_rk616 *g_rk616_hdmi = NULL;
-struct delayed_work	g_irq_work;
+struct work_struct	g_irq_work;
 
 extern void hdmi_irq(void);
 extern void hdmi_work(struct work_struct *work);
@@ -156,10 +156,10 @@ static void rk616_irq_work_func(struct work_struct *work)
 		if(hdmi->enable == 1) {
 			hdmi_irq();
 		}
-		queue_delayed_work(hdmi->workqueue, &g_irq_work, 100);
+//		queue_delayed_work(hdmi->workqueue, &g_irq_work, 100);
 	}
 }
-#if 0
+#if 1
 static irqreturn_t rk616_hdmi_irq(int irq, void *dev_id)
 {
 	printk(KERN_INFO "rk616_hdmi_irq irq triggered.\n");
@@ -229,7 +229,7 @@ static int __devinit rk616_hdmi_probe (struct platform_device *pdev)
 	/* get the IRQ */
 	if(rk616->pdata->hdmi_irq != INVALID_GPIO)
 	{
-		INIT_DELAYED_WORK(&g_irq_work, rk616_irq_work_func);
+		INIT_WORK(&g_irq_work, rk616_irq_work_func);
 		ret = gpio_request(rk616->pdata->hdmi_irq,"rk616_hdmi_irq");
 		if(ret < 0)
 		{
@@ -243,7 +243,6 @@ static int __devinit rk616_hdmi_probe (struct platform_device *pdev)
 			goto err1;
 		}
 
-#if 0
 		/* request the IRQ */
 		ret = request_irq(hdmi->irq,rk616_hdmi_irq,IRQF_TRIGGER_FALLING,dev_name(&pdev->dev), hdmi);
 		if (ret)
@@ -251,7 +250,6 @@ static int __devinit rk616_hdmi_probe (struct platform_device *pdev)
 			dev_err(hdmi->dev, "hdmi request_irq failed (%d).\n", ret);
 			goto err1;
 		}
-#endif
 	}
 #if defined(CONFIG_DEBUG_FS)
 	if(rk616->debugfs_dir)

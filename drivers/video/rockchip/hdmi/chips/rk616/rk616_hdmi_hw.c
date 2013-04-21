@@ -127,16 +127,14 @@ int rk616_hdmi_read_edid(u8 block, u8 * buf)
 //	c=0xc6;
 //	HDMIWrReg(0xc0, c);
 	//wait edid interrupt
-#if 0
 	msleep(10);
-	printk("Interrupt generated\n");
-	c=0x00;
-	ret = HDMIRdReg(0xc1, &c);
-	printk("Interrupt reg=%x \n",c);
+	//printk("Interrupt generated\n");
+	//c=0x00;
+	//ret = HDMIRdReg(0xc1, &c);
+	//printk("Interrupt reg=%x \n",c);
 	//clear EDID interrupt reg
-	c=0x04;
-	HDMIWrReg(0xc1, c);
-#endif
+	//c=0x04;
+	//HDMIWrReg(0xc1, c);
 	for(i=0; i <EDID_BLOCK_SIZE;i++){
 		c = 0;	    
 		HDMIRdReg( 0x50, &c);
@@ -186,7 +184,7 @@ static int rk616_hdmi_config_video(struct hdmi_video_para *vpara)
 		hdmi_err(hdmi->dev, "[%s] input parameter error\n", __FUNCTION__);
 		return -1;
 	}
-	
+	vpara->output_color = VIDEO_OUTPUT_RGB444;
 	if(hdmi->hdcp_power_off_cb)
 		hdmi->hdcp_power_off_cb();
 		// Diable video and audio output
@@ -409,27 +407,17 @@ int rk616_hdmi_removed(void)
 
 void hdmi_irq(void)
 {		
-	static int hpd = 0;
-	u32 interrupt1 = 0;
-	unsigned long flags;
-	int i=0;
+	u32 interrupt = 0;
 	
-	int value = 0;
-	HDMIRdReg(HDMI_STATUS,&value);
-	//spin_lock(&hdmi->irq_lock,flags);
-//	HDMIRdReg(INTERRUPT_STATUS1,&interrupt1);
-//	HDMIWrReg(INTERRUPT_STATUS1, interrupt1);
+	HDMIRdReg(INTERRUPT_STATUS1,&interrupt);
+	HDMIWrReg(INTERRUPT_STATUS1, interrupt);
 
-	if((value & m_HOTPLUG)&& hpd == 0){
+	if(interrupt & m_HOTPLUG){
 		if(hdmi->state == HDMI_SLEEP)
 			hdmi->state = WAIT_HOTPLUG;
 		if(hdmi->pwr_mode == LOWER_PWR)
 			rk616_hdmi_set_pwr_mode(NORMAL);
 		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
-		hpd = 1;
-	}else if ((value & m_HOTPLUG)== 0 && hpd == 1 ){
-		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
-		hpd = 0;
 	}
 	
 	if(hdmi->state == HDMI_SLEEP) {
@@ -440,7 +428,6 @@ void hdmi_irq(void)
 	if(hdmi->hdcp_irq_cb)
 		hdmi->hdcp_irq_cb(interrupt2);
 #endif
-	//spin_unlock(&hdmi->irq_lock,flags);
 }
 
 static void rk616_hdmi_reset(void)
@@ -453,21 +440,17 @@ static void rk616_hdmi_reset(void)
 	HDMIMskReg(SYS_CTRL,m_RST_ANALOG,v_NOT_RST_ANALOG); 		
 	delay100us();
 	msk = m_REG_CLK_INV | m_REG_CLK_SOURCE | m_POWER | m_INT_POL;
-	val = v_REG_CLK_INV | v_REG_CLK_SOURCE_TMDS | v_PWR_ON |v_INT_POL_HIGH;
+	val = v_REG_CLK_INV | v_REG_CLK_SOURCE_SYS | v_PWR_ON |v_INT_POL_HIGH;
 	HDMIMskReg(SYS_CTRL,msk,val);
-	HDMIWrReg(INTERRUPT_MASK1,0x80);//m_INT_HOTPLUG);
-	val = 0;
-	HDMIRdReg(INTERRUPT_MASK1,&val);
-	//rk616_hdmi_set_pwr_mode(LOWER_PWR);
-	rk616_hdmi_set_pwr_mode(NORMAL);
-	printk(">>>%s mask = %x\n",__func__,val);
+	HDMIWrReg(INTERRUPT_MASK1,m_INT_HOTPLUG);
+	rk616_hdmi_set_pwr_mode(LOWER_PWR);
 }
 
 int rk616_hdmi_initial(void)
 {
 	int rc = HDMI_ERROR_SUCESS;
 
-	hdmi->pwr_mode = LOWER_PWR;
+	hdmi->pwr_mode = NORMAL;
 	hdmi->remove = rk616_hdmi_removed ;
 	hdmi->control_output = rk616_hdmi_control_output;
 	hdmi->config_video = rk616_hdmi_config_video;
