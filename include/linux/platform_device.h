@@ -180,6 +180,9 @@ struct platform_driver {
 	const struct platform_device_id *id_table;
 };
 
+#define to_platform_driver(drv)	(container_of((drv), struct platform_driver, \
+				 driver))
+
 extern int platform_driver_register(struct platform_driver *);
 extern void platform_driver_unregister(struct platform_driver *);
 

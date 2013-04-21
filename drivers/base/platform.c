@@ -29,9 +29,6 @@
 /* For automatically allocated device IDs */
 static DEFINE_IDA(platform_devid_ida);
 
-#define to_platform_driver(drv)	(container_of((drv), struct platform_driver, \
-				 driver))
-
 struct device platform_bus = {
 	.init_name	= "platform",
 };
