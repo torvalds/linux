@@ -4035,7 +4035,7 @@ static struct platform_driver nct6775_driver = {
 	.remove		= nct6775_remove,
 };
 
-static const char *nct6775_sio_names[] __initconst = {
+static const char * const nct6775_sio_names[] __initconst = {
 	"NCT6775F",
 	"NCT6776D/F",
 	"NCT6779D",
