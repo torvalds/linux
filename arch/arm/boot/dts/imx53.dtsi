@@ -449,6 +449,13 @@
 							MX53_PAD_KEY_ROW2__CAN1_RXCAN 0x80000000
 						>;
 					};
+
+					pinctrl_can1_3: can1grp-3 {
+						fsl,pins = <
+							MX53_PAD_GPIO_7__CAN1_TXCAN	0x80000000
+							MX53_PAD_GPIO_8__CAN1_RXCAN	0x80000000
+						>;
+					};
 				};
 
 				can2 {
