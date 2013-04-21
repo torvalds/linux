@@ -9,6 +9,16 @@
 #ifndef __RK616_CODEC_H__
 #define __RK616_CODEC_H__
 
+//#define CRU_PCM2IS2_CON2   			0x0098
+#define APS_SEL					(1 << 2)
+#define APS_CLR					(1 << 1)
+#define I2S_CHANNEL_SEL				(1 << 0)
+
+//#define CRU_CFGMISC_CON			0x009C
+#define MICDET1_PIN_F_CODEC			(1 << 18)
+#define MICDET2_PIN_F_CODEC			(1 << 17)
+#define AD_DA_LOOP				(1 << 0)
+
 #define RK616_CODEC_BASE			0x0800
 
 #define RK616_RESET				(RK616_CODEC_BASE + 0x00)
@@ -70,7 +80,7 @@
 #define RK616_PWRD				(0x1 << 7)
 #define RK616_PWRD_SFT				7
 
-#define RK616_INIT_MASK				(0x1 << 6)//? INIT
+#define RK616_INIT_MASK				(0x1 << 6)
 #define RK616_INIT_SFT				6
 #define RK616_INIT_RN				(0x1 << 6)
 #define RK616_INIT_AFT				(0x0 << 6)
@@ -350,7 +360,7 @@
 #define RK616_HPL_HPR_PWRD			(0x1 << 7)
 #define RK616_HPL_HPR_PWRD_SFT			7
 
-#define RK616_DAC_PWRD				(0x1 << 6)//? Interface or not
+#define RK616_DAC_PWRD				(0x1 << 6)
 #define RK616_DAC_PWRD_SFT			6
 
 #define RK616_DACL_RLPWRD			(0x1 << 5)
@@ -372,12 +382,12 @@
 #define RK616_HM_RLPWRD_SFT			0
 
 /* DAC Control (0x6c) */
-#define RK616_DACL_INIT_MASK			(0x1 << 5)//? INIT？
+#define RK616_DACL_INIT_MASK			(0x1 << 5)
 #define RK616_DACL_INIT_SFT			5
 #define RK616_DACL_INIT_RN			(0x1 << 5)
 #define RK616_DACL_INIT_AFT			(0x0 << 5)
 
-#define RK616_DACR_INIT_MASK			(0x1 << 4)//? INIT？
+#define RK616_DACR_INIT_MASK			(0x1 << 4)
 #define RK616_DACR_INIT_SFT			4
 #define RK616_DACR_INIT_RN			(0x1 << 4)
 #define RK616_DACR_INIT_AFT			(0x0 << 4)
@@ -414,7 +424,7 @@
 #define RK616_HML_PWRD				(0x1 << 5)
 #define RK616_HML_PWRD_SFT			5
 
-#define RK616_HML_INIT_MASK			(0x1 << 4)//? INIT?
+#define RK616_HML_INIT_MASK			(0x1 << 4)
 #define RK616_HML_INIT_SFT			4
 #define RK616_HML_INIT_RN			(0x1 << 4)
 #define RK616_HML_INIT_AFT			(0x0 << 4)
@@ -422,7 +432,7 @@
 #define RK616_HMR_PWRD				(0x1 << 3)
 #define RK616_HMR_PWRD_SFT			3
 
-#define RK616_HMR_INIT_MASK			(0x1 << 2)//? INIT?
+#define RK616_HMR_INIT_MASK			(0x1 << 2)
 #define RK616_HMR_INIT_SFT			2
 #define RK616_HMR_INIT_RN			(0x1 << 2)
 #define RK616_HMR_INIT_AFT			(0x0 << 2)
@@ -732,6 +742,12 @@ enum {
 struct rk616_reg_val_typ {
 	unsigned int reg;
 	unsigned int  value;
+};
+
+struct rk616_init_bit_typ {
+	unsigned int reg;
+	unsigned int power_bit;
+	unsigned int init_bit;
 };
 
 #endif //__RK616_CODEC_H__

@@ -5,8 +5,6 @@
  * Author: chenjq <chenjq@rock-chips.com>
  */
 
-#define DEBUG //for log
-
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -42,6 +40,12 @@
 #include "../../../drivers/headset_observe/rk_headset.h"
 #endif
 
+#if 1
+#define	DBG(x...)	printk(KERN_INFO x)
+#else
+#define	DBG(x...)
+#endif
+
 struct rk616_codec_priv {
 	struct snd_soc_codec *codec;
 
@@ -51,20 +55,17 @@ struct rk616_codec_priv {
 	int playback_active;
 	int capture_active;
 #endif
-	int spk_ctr_status;
-	int spk_ctr_pin;
-	int spk_ctr_on;
-	int spk_ctr_off;
 };
 
 static struct rk616_codec_priv *rk616_priv = NULL;
+static struct mfd_rk616 *rk616_mfd = NULL;
 
 static const unsigned int rk616_reg_defaults[RK616_PGAR_AGC_CTL5 + 1] = {
 	[RK616_RESET] = 0x0003,
 	[RK616_ADC_INT_CTL1] = 0x0050,
 	[RK616_ADC_INT_CTL2] = 0x000e,
 	[RK616_DAC_INT_CTL1] = 0x0050,
-	[RK616_DAC_INT_CTL2] = 0x001c,
+	[RK616_DAC_INT_CTL2] = 0x000e,
 	[RK616_PGA_AGC_CTL] = 0x000c,
 	[RK616_PWR_ADD1] = 0x007c,
 	[RK616_BST_CTL] = 0x0099,
@@ -94,7 +95,7 @@ static const unsigned int rk616_reg_defaults[RK616_PGAR_AGC_CTL5 + 1] = {
 	[RK616_MICKEY_DET_CTL] = 0x0028,
 	[RK616_PWR_ADD3] = 0x000f,
 	[RK616_ADC_CTL] = 0x0036,
-	[RK616_PGAL_AGC_CTL1] = 0x001f,
+	[RK616_PGAL_AGC_CTL1] = 0x0010,
 	[RK616_PGAL_AGC_CTL2] = 0x0025,
 	[RK616_PGAL_AGC_CTL3] = 0x0041,
 	[RK616_PGAL_AGC_CTL4] = 0x002c,
@@ -104,7 +105,7 @@ static const unsigned int rk616_reg_defaults[RK616_PGAR_AGC_CTL5 + 1] = {
 	[RK616_PGAL_AGC_MIN_H] = 0x0036,
 	[RK616_PGAL_AGC_MIN_L] = 0x0020,
 	[RK616_PGAL_AGC_CTL5] = 0x0038,
-	[RK616_PGAR_AGC_CTL1] = 0x001f,
+	[RK616_PGAR_AGC_CTL1] = 0x0010,
 	[RK616_PGAR_AGC_CTL2] = 0x0025,
 	[RK616_PGAR_AGC_CTL3] = 0x0041,
 	[RK616_PGAR_AGC_CTL4] = 0x002c,
@@ -118,16 +119,18 @@ static const unsigned int rk616_reg_defaults[RK616_PGAR_AGC_CTL5 + 1] = {
 
 static struct rk616_reg_val_typ rk616_mfd_reg_defaults[] = {
 	{CRU_CODEC_DIV, 0x00000000},
-	{CRU_IO_CON0, (I2S1_OUT_EN | I2S0_OUT_EN | I2S1_PD_DISABLE | I2S0_PD_DISABLE) | 
-		((I2S1_OUT_EN | I2S0_OUT_EN | I2S1_PD_DISABLE | I2S0_PD_DISABLE) << 16)},
+	{CRU_IO_CON0, (I2S1_OUT_DISABLE | I2S0_OUT_DISABLE | I2S1_PD_DISABLE | I2S0_PD_DISABLE) | 
+		((I2S1_OUT_DISABLE | I2S0_OUT_DISABLE | I2S1_PD_DISABLE | I2S0_PD_DISABLE) << 16)},
 	{CRU_IO_CON1, (I2S1_SI_EN | I2S0_SI_EN) | ((I2S1_SI_EN | I2S0_SI_EN) << 16)},
+	{CRU_PCM2IS2_CON2, (0) | ((APS_SEL | APS_CLR | I2S_CHANNEL_SEL) << 16)},
 };
 
 static struct rk616_reg_val_typ rk616_mfd_reg_cache[] = {
 	{CRU_CODEC_DIV, 0x00000000},
-	{CRU_IO_CON0, (I2S1_OUT_EN | I2S0_OUT_EN | I2S1_PD_DISABLE | I2S0_PD_DISABLE) | 
-		((I2S1_OUT_EN | I2S0_OUT_EN | I2S1_PD_DISABLE | I2S0_PD_DISABLE) << 16)},
+	{CRU_IO_CON0, (I2S1_OUT_DISABLE | I2S0_OUT_DISABLE | I2S1_PD_DISABLE | I2S0_PD_DISABLE) | 
+		((I2S1_OUT_DISABLE | I2S0_OUT_DISABLE | I2S1_PD_DISABLE | I2S0_PD_DISABLE) << 16)},
 	{CRU_IO_CON1, (I2S1_SI_EN | I2S0_SI_EN) | ((I2S1_SI_EN | I2S0_SI_EN) << 16)},
+	{CRU_PCM2IS2_CON2, (0) | ((APS_SEL | APS_CLR | I2S_CHANNEL_SEL) << 16)},
 };
 
 #define RK616_MFD_REG_LEN ARRAY_SIZE(rk616_mfd_reg_cache)
@@ -144,16 +147,40 @@ static int rk616_mfd_register(unsigned int reg)
 	return 0;
 }
 
-//writeable mask bit 16~31
 static int rk616_mfd_mask_register(unsigned int reg)
 {
 	switch (reg) {
 	case CRU_IO_CON0:
 	case CRU_IO_CON1:
+	case CRU_PCM2IS2_CON2:
 		return 1;
 	default:
 		return 0;
 	}
+}
+
+static struct rk616_init_bit_typ rk616_init_bit_list[] = {
+	{RK616_SPKL_CTL, RK616_PWRD, RK616_INIT_MASK},
+	{RK616_SPKR_CTL, RK616_PWRD, RK616_INIT_MASK},
+	{RK616_HPL_CTL, RK616_PWRD, RK616_INIT_MASK},
+	{RK616_HPR_CTL, RK616_PWRD, RK616_INIT_MASK},
+	{RK616_DAC_CTL, RK616_DACL_PWRD, RK616_DACL_INIT_MASK},
+	{RK616_DAC_CTL, RK616_DACR_PWRD, RK616_DACR_INIT_MASK},
+	{RK616_MUXHP_HPMIX_CTL, RK616_HML_PWRD, RK616_HML_INIT_MASK},
+	{RK616_MUXHP_HPMIX_CTL, RK616_HMR_PWRD, RK616_HMR_INIT_MASK},
+};
+#define RK616_INIT_BIT_LIST_LEN ARRAY_SIZE(rk616_init_bit_list)
+
+static int rk616_init_bit_register(unsigned int reg)
+{
+	int i;
+
+	for (i = 0; i < RK616_INIT_BIT_LIST_LEN; i++) {
+		if (rk616_init_bit_list[i].reg == reg)
+			return i;
+	}
+
+	return -1;
 }
 
 static int rk616_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
@@ -171,8 +198,8 @@ static int rk616_codec_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case RK616_RESET:
-	case RK616_ADC_INT_CTL1	:
-	case RK616_ADC_INT_CTL2	:
+	case RK616_ADC_INT_CTL1:
+	case RK616_ADC_INT_CTL2:
 	case RK616_DAC_INT_CTL1:
 	case RK616_DAC_INT_CTL2:
 	case RK616_PGA_AGC_CTL:
@@ -186,7 +213,7 @@ static int rk616_codec_register(struct snd_soc_codec *codec, unsigned int reg)
 	case RK616_MIXINR_VOL1:
 	case RK616_MIXINR_VOL2:
 	case RK616_PGAL_CTL:
-	case RK616_PGAR_CTL	:
+	case RK616_PGAR_CTL:
 	case RK616_PWR_ADD2:
 	case RK616_DAC_CTL:
 	case RK616_LINEMIX_CTL:
@@ -246,6 +273,8 @@ static inline unsigned int rk616_read_reg_cache(struct snd_soc_codec *codec,
 		}
 	}
 
+	printk("rk616_read_reg_cache : reg error!\n");
+
 	return -EINVAL;
 }
 
@@ -268,47 +297,85 @@ static inline void rk616_write_reg_cache(struct snd_soc_codec *codec,
 			}
 		}
 	}
+
+	printk("rk616_write_reg_cache : reg error!\n");
 }
 
 static unsigned int rk616_codec_read(struct snd_soc_codec *codec, unsigned int reg)
 {
+	struct mfd_rk616 *rk616 = rk616_mfd;
 	unsigned int value;
-	struct mfd_rk616 *rk616 = snd_soc_codec_get_drvdata(codec);
 
-	if (!rk616)
+	if (!rk616) {
+		printk("rk616_codec_read : rk616 is NULL\n");
 		return -EINVAL;
-
-	if (rk616_volatile_register(codec, reg) == 0) {
-		value = rk616_read_reg_cache(codec, reg);
-	} else {
-		if (rk616->read_dev(rk616, reg, &value) < 0) {
-			dev_err(codec->dev, "%s reg = 0x%x failed\n", __func__, reg);
-			return -EIO;
-		}
 	}
 
-	dev_dbg(codec->dev, "%s reg = %x, val= %x\n", __func__, reg, value);
+	if (!rk616_mfd_register(reg) && !rk616_codec_register(codec, reg)) {
+		printk("rk616_codec_read : reg error!\n");
+		return -EINVAL;
+	}
+
+	//if (rk616_volatile_register(codec, reg) == 0) {
+		//value = rk616_read_reg_cache(codec, reg);
+	//} else {
+		if (rk616->read_dev(rk616, reg, &value) < 0) {
+			printk("%s reg = 0x%x failed\n", __func__, reg);
+			return -EIO;
+		}
+	//}
+
+	if (value <= 0xffff)
+		DBG("%s reg = 0x%x, val= 0x%x\n", __func__, reg, value);
+
 	return value;
 }
 
 static int rk616_codec_write(struct snd_soc_codec *codec, unsigned int reg, unsigned int value)
 {
-	struct mfd_rk616 *rk616 = snd_soc_codec_get_drvdata(codec);
+	struct mfd_rk616 *rk616 = rk616_mfd;
+	unsigned int power_bit, set_bit, read_value;
+	int i;
 
-	if (!rk616)
+	if (!rk616) {
+		printk("rk616_codec_write : rk616 is NULL\n");
 		return -EINVAL;
+	} else if (!rk616_mfd_register(reg) && ((reg % 4) > 0)) {//!rk616_codec_register(codec, reg)) {
+		printk("rk616_codec_write : reg error!\n");
+		return -EINVAL;
+	}
 
 	if (rk616_mfd_mask_register(reg))
 		value = ((0xffff0000 & rk616_read_reg_cache(codec, reg)) | (value & 0x0000ffff));
 
+	i = rk616_init_bit_register(reg);
+
+	if (i >= 0) {
+		read_value = rk616_codec_read(codec, reg);
+	}
+
 	if (rk616->write_dev(rk616, reg, &value) < 0) {
-		dev_err(codec->dev, "%s reg = 0x%x failed\n", __func__, reg);
+		printk("%s reg = 0x%x failed\n", __func__, reg);
 		return -EIO;
+	}
+
+	// widget init bit should be setted 0 after widget power up,
+	// and should be setted 1 after widget power down.
+	if (i >= 0) {
+		power_bit = rk616_init_bit_list[i].power_bit;
+		set_bit = rk616_init_bit_list[i].init_bit;
+		if ((read_value & power_bit) != (value & power_bit)) {
+			value = (value & ~set_bit) | ((value & power_bit) ?  set_bit : 0);
+			if (rk616->write_dev(rk616, reg, &value) < 0) {
+				printk("%s reg = 0x%x failed\n", __func__, reg);
+				return -EIO;
+			}
+		}
 	}
 
 	rk616_write_reg_cache(codec, reg, value);
 
-	dev_dbg(codec->dev, "%s reg=0x%x, val=0x%x\n", __func__, reg, value);
+	DBG("%s reg = 0x%x, val = 0x%x\n", __func__, reg, value);
 	return 0;
 }
 
@@ -318,15 +385,18 @@ static int rk616_hw_write(const struct i2c_client *client, const char *buf, int 
 	unsigned int reg, value;
 	int ret = -1;
 
-	if (!rk616_priv & !rk616_priv->codec)
+	if (!rk616_priv || !rk616_priv->codec) {
+		printk("rk616_hw_write : %s %s\n", rk616_priv ? "" : "rk616_priv is NULL",
+				rk616_priv->codec ? "" : "rk616_priv->codec is NULL");
 		return -EINVAL;
+	}
 
 	if (count == 3) {
 		reg = (unsigned int)buf[0];
 		value = (buf[1] & 0xff00) | (0x00ff & buf[2]);
 		ret = rk616_codec_write(codec, reg, value);
 	} else {
-		dev_err(codec->dev, "%s i2c len error\n", __func__);
+		printk("%s i2c len error\n", __func__);
 	}
 
 	return (ret == 0) ? count : ret;
@@ -334,32 +404,38 @@ static int rk616_hw_write(const struct i2c_client *client, const char *buf, int 
 
 static int rk616_reset(struct snd_soc_codec *codec)
 {
-	int ret;
+	int i;
 
-	ret = snd_soc_write(codec, RK616_RESET, 0);
-	if (ret >= 0) {
-		memcpy(codec->reg_cache, rk616_reg_defaults,
-		       sizeof(rk616_reg_defaults));
-		memcpy(rk616_mfd_reg_cache, rk616_mfd_reg_defaults,
-		       sizeof(rk616_mfd_reg_defaults));
-	}
+	snd_soc_write(codec, RK616_RESET, 0xfc);
 
-	return ret;
+	mdelay(10);
+
+	snd_soc_write(codec, RK616_RESET, 3);
+
+	mdelay(10);
+
+	for (i = 0; i < RK616_MFD_REG_LEN; i++)
+		snd_soc_write(codec, rk616_mfd_reg_defaults[i].reg, rk616_mfd_reg_defaults[i].value);
+
+	memcpy(codec->reg_cache, rk616_reg_defaults,
+	       sizeof(rk616_reg_defaults));
+
+	return 0;
 }
 
 #ifdef RK616_FOR_MID
-static struct rk616_reg_val_typ init_list[] = {
+static struct rk616_reg_val_typ write_reg_list[] = {
 
 };
 
-#define RK616_INIT_REG_LEN ARRAY_SIZE(init_list)
+#define RK616_WRITE_REG_LIST_LEN ARRAY_SIZE(write_reg_list)
 
-static int rk616_reg_init(struct snd_soc_codec *codec)
+static int rk616_write_reg_init(struct snd_soc_codec *codec)
 {
 	int i;
 
-	for (i = 0; i < RK616_INIT_REG_LEN; i++)
-		snd_soc_write(codec, init_list[i].reg, init_list[i].value);
+	for (i = 0; i < RK616_WRITE_REG_LIST_LEN; i++)
+		snd_soc_write(codec, write_reg_list[i].reg, write_reg_list[i].value);
 
 	return 0;
 }
@@ -367,17 +443,20 @@ static int rk616_reg_init(struct snd_soc_codec *codec)
 
 int rk616_headset_mic_detect(bool headset_status)
 {
-	struct snd_soc_codec *codec = rk616_priv->codec;
+	//struct snd_soc_codec *codec = rk616_priv->codec;
 
-	dev_dbg(codec->dev, "%s::%d\n", __FUNCTION__, __LINE__);
+	DBG("%s::%d\n", __FUNCTION__, __LINE__);
 
-	if (!rk616_priv & !rk616_priv->codec)
+	if (!rk616_priv || !rk616_priv->codec) {
+		printk("rk616_headset_mic_detect : %s %s\n", rk616_priv ? "" : "rk616_priv is NULL",
+				rk616_priv->codec ? "" : "rk616_priv->codec is NULL");
 		return -EINVAL;
+	}
 
 	if (headset_status) {
 
 	} else {// headset is out, disable MIC2 Bias
-		dev_dbg(codec->dev, "headset is out,disable Mic2 Bias\n");
+		DBG("headset is out,disable Mic2 Bias\n");
 	}
 	return 0;
 }
@@ -387,10 +466,13 @@ void codec_set_spk(bool on)
 {
 	struct snd_soc_codec *codec = rk616_priv->codec;
 
-	dev_dbg(codec->dev, "%s:: %s\n", __func__, on?"enable spk":"disable spk");
+	DBG("%s:: %s\n", __func__, on?"enable spk":"disable spk");
 
-	if (!rk616_priv & !rk616_priv->codec)
+	if (!rk616_priv || !rk616_priv->codec) {
+		printk("codec_set_spk : %s %s\n", rk616_priv ? "" : "rk616_priv is NULL",
+				rk616_priv->codec ? "" : "rk616_priv->codec is NULL");
 		return;
+	}
 
 	if (on) {
 #ifdef RK616_FOR_MID
@@ -746,11 +828,15 @@ static int rk616_dacl_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(codec, RK616_DAC_INT_CTL2,
+			RK616_DAC_RST_SFT, 0);
 		snd_soc_update_bits(codec, RK616_DAC_CTL,
 			RK616_DACL_PWRD | RK616_DACL_CLK_PWRD, 0);
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
+		snd_soc_update_bits(codec, RK616_DAC_INT_CTL2,
+			RK616_DAC_RST_SFT, RK616_DAC_RST_SFT);
 		snd_soc_update_bits(codec, RK616_DAC_CTL,
 			RK616_DACL_PWRD | RK616_DACL_CLK_PWRD,
 			RK616_DACL_PWRD | RK616_DACL_CLK_PWRD);
@@ -794,14 +880,21 @@ static int rk616_adcl_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(codec, RK616_ADC_INT_CTL2,
+			RK616_ADC_RST_SFT, 0);
 		snd_soc_update_bits(codec, RK616_ADC_CTL,
-			RK616_ADCL_CLK_PWRD | RK616_ADCL_PWRD, 0);
+			RK616_ADCL_CLK_PWRD | RK616_ADCL_PWRD |
+			RK616_ADCL_RST_SFT, 0);
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
+		snd_soc_update_bits(codec, RK616_ADC_INT_CTL2,
+			RK616_ADC_RST_SFT, RK616_ADC_RST_SFT);
 		snd_soc_update_bits(codec, RK616_ADC_CTL,
-			RK616_ADCL_CLK_PWRD | RK616_ADCL_PWRD,
-			RK616_ADCL_CLK_PWRD | RK616_ADCL_PWRD);
+			RK616_ADCL_CLK_PWRD | RK616_ADCL_PWRD |
+			RK616_ADCL_RST_SFT,
+			RK616_ADCL_CLK_PWRD | RK616_ADCL_PWRD |
+			RK616_ADCL_RST_SFT);
 		break;
 
 	default:
@@ -819,13 +912,16 @@ static int rk616_adcr_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, RK616_ADC_CTL,
-			RK616_ADCR_CLK_PWRD | RK616_ADCR_PWRD, 0);
+			RK616_ADCR_CLK_PWRD | RK616_ADCR_PWRD |
+			RK616_ADCR_RST_SFT, 0);
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
 		snd_soc_update_bits(codec, RK616_ADC_CTL,
-			RK616_ADCR_CLK_PWRD | RK616_ADCR_PWRD,
-			RK616_ADCR_CLK_PWRD | RK616_ADCR_PWRD);
+			RK616_ADCR_CLK_PWRD | RK616_ADCR_PWRD |
+			RK616_ADCR_RST_SFT,
+			RK616_ADCR_CLK_PWRD | RK616_ADCR_PWRD |
+			RK616_ADCR_RST_SFT);
 		break;
 
 	default:
@@ -955,22 +1051,18 @@ static const struct snd_soc_dapm_widget rk616_dapm_widgets[] = {
 					RK616_MICBIAS2_PWRD_SFT, 1),
 
 	/* DACs */
-	SND_SOC_DAPM_SUPPLY("DAC", RK616_PWR_ADD2,
-				RK616_DAC_PWRD_SFT, 1, NULL, 0),
-	SND_SOC_DAPM_ADC_E("DAC L", NULL, SND_SOC_NOPM,
+	SND_SOC_DAPM_ADC_E("DACL", NULL, SND_SOC_NOPM,
 		0, 0, rk616_dacl_event,
 		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
-	SND_SOC_DAPM_ADC_E("DAC R", NULL, SND_SOC_NOPM,
+	SND_SOC_DAPM_ADC_E("DACR", NULL, SND_SOC_NOPM,
 		0, 0, rk616_dacr_event,
 		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
 
 	/* ADCs */
-	SND_SOC_DAPM_SUPPLY("ADC", RK616_PWR_ADD1,
-				RK616_ADC_PWRD_SFT, 1, NULL, 0),
-	SND_SOC_DAPM_ADC_E("ADC L", NULL, SND_SOC_NOPM,
+	SND_SOC_DAPM_ADC_E("ADCL", NULL, SND_SOC_NOPM,
 		0, 0, rk616_adcl_event,
 		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
-	SND_SOC_DAPM_ADC_E("ADC R", NULL, SND_SOC_NOPM,
+	SND_SOC_DAPM_ADC_E("ADCR", NULL, SND_SOC_NOPM,
 		0, 0, rk616_adcr_event,
 		SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU),
 
@@ -980,11 +1072,11 @@ static const struct snd_soc_dapm_widget rk616_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("BSTR", RK616_BST_CTL,
 		RK616_BSTR_PWRD_SFT, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("DIFFIN", RK616_DIFFIN_CTL,
-		RK616_DIFFIN_PWRD, 1, NULL, 0),
+		RK616_DIFFIN_PWRD_SFT, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("PGAL", RK616_PGAL_CTL,
-		RK616_PGA_PWRD, 1, NULL, 0),
+		RK616_PGA_PWRD_SFT, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("PGAR", RK616_PGAR_CTL,
-		RK616_PGA_PWRD, 1, NULL, 0),
+		RK616_PGA_PWRD_SFT, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("SPKL", RK616_SPKL_CTL,
 		RK616_PWRD_SFT, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("SPKR", RK616_SPKR_CTL,
@@ -994,9 +1086,9 @@ static const struct snd_soc_dapm_widget rk616_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("HPR", RK616_HPR_CTL,
 		RK616_PWRD_SFT, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("LINE1", RK616_LINEOUT1_CTL,
-		RK616_LINEOUT_PWRD, 1, NULL, 0),
+		RK616_LINEOUT_PWRD_SFT, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("LINE2", RK616_LINEOUT2_CTL,
-		RK616_LINEOUT_PWRD, 1, NULL, 0),
+		RK616_LINEOUT_PWRD_SFT, 1, NULL, 0),
 
 	/* MIXER */
 	SND_SOC_DAPM_MIXER("MIXINL", RK616_MIXINL_CTL,
@@ -1055,8 +1147,8 @@ static const struct snd_soc_dapm_widget rk616_dapm_widgets[] = {
 static const struct snd_soc_dapm_route rk616_dapm_routes[] = {
 	{"I2S0 DAC", NULL, "I2S0 Interface"},
 	{"I2S0 ADC", NULL, "I2S0 Interface"},
-	{"I2S1 DAC", NULL, "I2S1Interface"},
-	{"I2S1 ADC", NULL, "I2S1Interface"},
+	{"I2S1 DAC", NULL, "I2S1 Interface"},
+	{"I2S1 ADC", NULL, "I2S1 Interface"},
 
 	/* Input */
 	{"DIFFIN", NULL, "IN1P"},
@@ -1064,7 +1156,6 @@ static const struct snd_soc_dapm_route rk616_dapm_routes[] = {
 
 	{"BSTR", NULL, "MIC2P"},
 	{"BSTR", NULL, "MIC2N"},
-
 	{"BSTL", NULL, "MIC1P"},
 	{"BSTL", NULL, "MIC1N"},
 
@@ -1092,23 +1183,23 @@ static const struct snd_soc_dapm_route rk616_dapm_routes[] = {
 	{"ADCR", NULL, "PGAR"},
 	{"ADCL", NULL, "PGAL"},
 
-	{"ADC", NULL, "ADCR"},
-	{"ADC", NULL, "ADCL"},
+	{"I2S0 ADC", NULL, "ADCR"},
+	{"I2S0 ADC", NULL, "ADCL"},
 
-	{"I2S0 ADC", NULL, "ADC"},
-	{"I2S1 ADC", NULL, "ADC"},
+	{"I2S1 ADC", NULL, "ADCR"},
+	{"I2S1 ADC", NULL, "ADCL"},
 
 	/* Output */
-	{"DAC", NULL, "I2S0 DAC"},
-	{"DAC", NULL, "I2S1 DAC"},
+	{"DACR", NULL, "I2S0 DAC"},
+	{"DACL", NULL, "I2S0 DAC"},
 
-	{"DACR", NULL, "DAC"},
-	{"DACL", NULL, "DAC"},
+	{"DACR", NULL, "I2S1 DAC"},
+	{"DACL", NULL, "I2S1 DAC"},
 
 	{"LINEMIX", "PGAR Switch", "PGAR"},
 	{"LINEMIX", "PGAL Switch", "PGAL"},
 	{"LINEMIX", "DACR Switch", "DACR"},
-	{"LINEMIX", "DACL Mux Switch", "DACL"},
+	{"LINEMIX", "DACL Switch", "DACL"},
 
 	{"HPMIXR", "HPMix Mux Switch", "HPMix Mux"},
 	{"HPMIXR", "PGAR Switch", "PGAR"},
@@ -1122,28 +1213,22 @@ static const struct snd_soc_dapm_route rk616_dapm_routes[] = {
 
 	{"HPR Mux", "DACR", "DACR"},
 	{"HPR Mux", "HPMIXR", "HPMIXR"},
-
 	{"HPL Mux", "DACL", "DACL"},
-	{"HPL Mux", "HPMIXL", "HPMIXR"},
+	{"HPL Mux", "HPMIXL", "HPMIXL"},
 
 	{"LINE1", NULL, "LINEMIX"},
 	{"LINE2", NULL, "LINEMIX"},
-
 	{"SPKR", NULL, "HPR Mux"},
 	{"SPKL", NULL, "HPL Mux"},
-
 	{"HPR", NULL, "HPR Mux"},
 	{"HPL", NULL, "HPL Mux"},
 
 	{"LINEOUT1", NULL, "LINE1"},
 	{"LINEOUT2", NULL, "LINE2"},
-
 	{"SPKOUTR", NULL, "SPKR"},
 	{"SPKOUTL", NULL, "SPKL"},
-
 	{"HPOUTR", NULL, "HPR"},
 	{"HPOUTL", NULL, "HPL"},
-
 };
 
 static int rk616_set_bias_level(struct snd_soc_codec *codec,
@@ -1162,21 +1247,19 @@ static int rk616_set_bias_level(struct snd_soc_codec *codec,
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* set power */
 			snd_soc_update_bits(codec, RK616_PWR_ADD1, 
-				RK616_DIFFIN_MIR_PGAR_RLPWRD | RK616_MIC1_MIC2_MIL_PGAL_RLPWRD |
-				RK616_ADCL_RLPWRD | RK616_ADCR_RLPWRD, 
-				RK616_DIFFIN_MIR_PGAR_RLPWRD | RK616_MIC1_MIC2_MIL_PGAL_RLPWRD |
-				RK616_ADCL_RLPWRD | RK616_ADCR_RLPWRD);
+				RK616_ADC_PWRD | RK616_DIFFIN_MIR_PGAR_RLPWRD |
+				RK616_MIC1_MIC2_MIL_PGAL_RLPWRD |
+				RK616_ADCL_RLPWRD | RK616_ADCR_RLPWRD, 0);
 
 			snd_soc_update_bits(codec, RK616_PWR_ADD2, 
-				RK616_HPL_HPR_PWRD | RK616_DACL_SPKL_RLPWRD |
-				RK616_DACR_SPKR_RLPWRD | RK616_LM_LO_RLPWRD |
-				RK616_HM_RLPWRD, 
-				RK616_DACL_SPKL_RLPWRD | RK616_DACR_SPKR_RLPWRD |
-				RK616_LM_LO_RLPWRD | RK616_HM_RLPWRD);
+				RK616_HPL_HPR_PWRD | RK616_DAC_PWRD |
+				RK616_DACL_SPKL_RLPWRD | RK616_DACL_RLPWRD |
+				RK616_DACR_SPKR_RLPWRD | RK616_DACR_RLPWRD |
+				RK616_LM_LO_RLPWRD | RK616_HM_RLPWRD, 0);
 
 			snd_soc_update_bits(codec, RK616_PWR_ADD3, 
 				RK616_ADCL_ZO_PWRD | RK616_ADCR_ZO_PWRD |
-				RK616_DACL_ZO_PWRD | RK616_DACR_ZO_PWRD , 
+				RK616_DACL_ZO_PWRD | RK616_DACR_ZO_PWRD,
 				RK616_ADCL_ZO_PWRD | RK616_ADCR_ZO_PWRD |
 				RK616_DACL_ZO_PWRD | RK616_DACR_ZO_PWRD );
 
@@ -1187,9 +1270,9 @@ static int rk616_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		snd_soc_write(codec, RK616_PWR_ADD1, 0xffff);
-		snd_soc_write(codec, RK616_PWR_ADD2, 0xffff);
-		snd_soc_write(codec, RK616_PWR_ADD3, 0xffff);
+		snd_soc_write(codec, RK616_PWR_ADD1, rk616_reg_defaults[RK616_PWR_ADD1]);
+		snd_soc_write(codec, RK616_PWR_ADD2, rk616_reg_defaults[RK616_PWR_ADD2]);
+		snd_soc_write(codec, RK616_PWR_ADD3, rk616_reg_defaults[RK616_PWR_ADD3]);
 		snd_soc_update_bits(codec, RK616_MICBIAS_CTL,
 			RK616_MICBIAS1_PWRD | RK616_MICBIAS2_PWRD,
 			RK616_MICBIAS1_PWRD | RK616_MICBIAS2_PWRD);
@@ -1206,8 +1289,10 @@ static int rk616_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct rk616_codec_priv *rk616 = rk616_priv;
 
-	if (!rk616)
+	if (!rk616) {
+		printk("rk616_set_dai_sysclk : rk616 is NULL\n");
 		return -EINVAL;
+	}
 
 	rk616->stereo_sysclk = freq;
 
@@ -1228,6 +1313,7 @@ static int rk616_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		adc_aif2 |= RK616_I2S_MODE_MST;
 		break;
 	default:
+		printk("rk616_set_dai_fmt : set master mask failed!\n");
 		return -EINVAL;
 	}
 
@@ -1251,6 +1337,7 @@ static int rk616_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		dac_aif1 |= RK616_DAC_DF_LJ;
 		break;
 	default:
+		printk("rk616_set_dai_fmt : set format failed!\n");
 		return -EINVAL;
 	}
 
@@ -1280,6 +1367,7 @@ static int rk616_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		dac_aif2 |= RK616_DBCLK_POL_DIS;
 		break;
 	default:
+		printk("rk616_set_dai_fmt : set dai format failed!\n");
 		return -EINVAL;
 	}
 
@@ -1305,44 +1393,63 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 	unsigned int rate = params_rate(params);
 	unsigned int div;
 	unsigned int adc_aif1 = 0, adc_aif2  = 0, dac_aif1 = 0, dac_aif2  = 0;
-	u32 mfd_aif1 = 0, mfd_aif2 = 0;
+	u32 mfd_aif1 = 0, mfd_aif2 = 0, mfd_i2s_ctl = 0;
 
-	if (!rk616)
-		return -EINVAL;
-
-	if (rk616->stereo_sysclk % rate > 0) {
-		dev_err(codec->dev, "need PLL");
+	if (!rk616) {
+		printk("rk616_hw_params : rk616 is NULL\n");
 		return -EINVAL;
 	}
 
-	div = (rk616->stereo_sysclk / rate) - 1;
+	// bclk = codec_clk / 4
+	// lrck = bclk / (vwl * 2)
+	div = (((rk616->stereo_sysclk / 4) / rate) / 2);
 
-	dev_dbg(codec->dev, "MCLK = %dHz, sample rate = %dHz, div = %d\n",
+	if ((rk616->stereo_sysclk % (4 * rate * 2) > 0) ||
+	    (div != 16 && div != 20 && div != 24 && div != 32)) {
+		printk("need PLL");
+		return -EINVAL;
+	}
+
+	switch (div) {
+	case 16:
+		adc_aif1 |= RK616_ADC_VWL_16;
+		dac_aif1 |= RK616_DAC_VWL_16;
+		break;
+	case 20:
+		adc_aif1 |= RK616_ADC_VWL_20;
+		dac_aif1 |= RK616_DAC_VWL_20;
+		break;
+	case 24:
+		adc_aif1 |= RK616_ADC_VWL_24;
+		dac_aif1 |= RK616_DAC_VWL_24;
+		break;
+	case 32:
+		adc_aif1 |= RK616_ADC_VWL_32;
+		dac_aif1 |= RK616_DAC_VWL_32;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+
+	DBG("MCLK = %dHz, sample rate = %dHz, div = %d\n",
 		rk616->stereo_sysclk, rate, div);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		adc_aif1 |= RK616_ADC_VWL_16;
 		adc_aif2 |= RK616_ADC_WL_16;
-		dac_aif1 |= RK616_DAC_VWL_16;
 		dac_aif2 |= RK616_DAC_WL_16;
 		break;
 	case SNDRV_PCM_FORMAT_S20_3LE:
-		adc_aif1 |= RK616_ADC_VWL_20;
 		adc_aif2 |= RK616_ADC_WL_20;
-		dac_aif1 |= RK616_DAC_VWL_20;
 		dac_aif2 |= RK616_DAC_WL_20;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		adc_aif1 |= RK616_ADC_VWL_24;
 		adc_aif2 |= RK616_ADC_WL_24;
-		dac_aif1 |= RK616_DAC_VWL_24;
 		dac_aif2 |= RK616_DAC_WL_24;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
-		adc_aif1 |= RK616_ADC_VWL_32;
 		adc_aif2 |= RK616_ADC_WL_32;
-		dac_aif1 |= RK616_DAC_VWL_32;
 		dac_aif2 |= RK616_DAC_WL_32;
 		break;
 	default:
@@ -1367,7 +1474,9 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 
 	rk616->rate = rate;
 
-	snd_soc_write(codec, CRU_CODEC_DIV, div);//(lrclk = mclk / div + 1)
+	//bclk = codec_clk / 4, codec clk = mclk or pll, CRU_CODEC_DIV is set for pll in
+
+	//snd_soc_write(codec, CRU_CODEC_DIV, div);
 
 	snd_soc_update_bits(codec, RK616_ADC_INT_CTL1,
 			 RK616_ADC_VWL_MASK | RK616_ADC_SWAP_MASK |
@@ -1381,16 +1490,20 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 
 	switch (dai->id) {
 	case RK616_HIFI:
-		mfd_aif1 |= (I2S0_OUT_EN | I2S1_PD_DISABLE) |
-			((I2S1_OUT_EN | I2S0_OUT_EN |
+		mfd_aif1 |= (I2S1_OUT_DISABLE | I2S0_PD_DISABLE) |
+			((I2S1_OUT_DISABLE | I2S0_OUT_DISABLE |
 			I2S1_PD_DISABLE | I2S0_PD_DISABLE) << 16);
 		mfd_aif2 |= I2S0_SI_EN | ((I2S1_SI_EN | I2S0_SI_EN) << 16);
+		mfd_i2s_ctl |= ((0) |
+			(I2S_CHANNEL_SEL) << 16);
 		break;
 	case RK616_VOICE:
-		mfd_aif1 |= (I2S1_OUT_EN | I2S0_PD_DISABLE) |
-			((I2S1_OUT_EN | I2S0_OUT_EN |
+		mfd_aif1 |= (I2S0_OUT_DISABLE | I2S1_PD_DISABLE) |
+			((I2S1_OUT_DISABLE | I2S0_OUT_DISABLE |
 			I2S1_PD_DISABLE | I2S0_PD_DISABLE) << 16);
 		mfd_aif2 |= I2S1_SI_EN | ((I2S1_SI_EN | I2S0_SI_EN) << 16);
+		mfd_i2s_ctl |= ((I2S_CHANNEL_SEL) |
+			(I2S_CHANNEL_SEL) << 16);
 		break;
 	default:
 		return -EINVAL;
@@ -1398,7 +1511,7 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 
 	snd_soc_write(codec, CRU_IO_CON0, mfd_aif1);
 	snd_soc_write(codec, CRU_IO_CON1, mfd_aif2);
-
+	snd_soc_write(codec, CRU_PCM2IS2_CON2, mfd_i2s_ctl);
 	return 0;
 }
 
@@ -1413,8 +1526,10 @@ static int rk616_trigger(struct snd_pcm_substream *substream,
 	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 	bool is_codec_running = rk616->playback_active > 0 || rk616->capture_active > 0;
 
-	if (!rk616)
+	if (!rk616) {
+		printk("rk616_hw_params : rk616 is NULL\n");
 		return -EINVAL;
+	}
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -1442,11 +1557,11 @@ static int rk616_trigger(struct snd_pcm_substream *substream,
 
 	if (rk616->playback_active > 0 || rk616->capture_active > 0){
 		if (is_codec_running == false) {
-			rk616_reg_init(codec);
+			rk616_write_reg_init(codec);
 		}
 	} else {
 		if (is_codec_running == true) {
-			rk616_reset(codec);
+			//rk616_reset(codec);
 		}
 	}
 
@@ -1548,9 +1663,13 @@ static int rk616_probe(struct snd_soc_codec *codec)
 	int ret;
 	unsigned int val;
 
+	DBG("%s\n", __func__);
+
 	rk616 = kzalloc(sizeof(struct rk616_codec_priv), GFP_KERNEL);
-	if (rk616 == NULL)
+	if (!rk616) {
+		printk("rk616_probe : rk616 priv kzalloc failed!\n");
 		return -ENOMEM;
+	}
 
 	rk616->codec = codec;
 
@@ -1563,7 +1682,7 @@ static int rk616_probe(struct snd_soc_codec *codec)
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
-		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		printk("Failed to set cache I/O: %d\n", ret);
 		goto err__;
 	}
 
@@ -1574,13 +1693,22 @@ static int rk616_probe(struct snd_soc_codec *codec)
 
 	val = snd_soc_read(codec, RK616_RESET);
 	if (val != rk616_reg_defaults[RK616_RESET]) {
-		dev_err(codec->dev,
-			"Device register 0: %x is not a 0x0003\n", val);
+		printk("rk616 codec register 0: %x is not a 0x00000003\n", val);
 		ret = -ENODEV;
 		goto err__;
 	}
 
+	if (rk616_mfd && rk616_mfd->pdata && rk616_mfd->pdata->spk_ctl_gpio) {
+		gpio_request(rk616_mfd->pdata->spk_ctl_gpio, NULL);
+		gpio_direction_output(rk616_mfd->pdata->spk_ctl_gpio, 1);
+	} else {
+		printk("rk616_probe : rk616 or pdata or spk_ctl_gpio is NULL!\n");
+		//return -EINVAL;
+	}
+
 	rk616_reset(codec);
+
+	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 
 	rk616_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -1590,6 +1718,8 @@ static int rk616_probe(struct snd_soc_codec *codec)
 
 	snd_soc_add_controls(codec, rk616_snd_controls,
 				ARRAY_SIZE(rk616_snd_controls));
+
+	return 0;
 
 err__:
 	kfree(rk616);
@@ -1601,6 +1731,10 @@ err__:
 static int rk616_remove(struct snd_soc_codec *codec)
 {
 	rk616_set_bias_level(codec, SND_SOC_BIAS_OFF);
+
+	if (rk616_priv)
+		kfree(rk616_priv);
+
 	return 0;
 }
 
@@ -1614,7 +1748,7 @@ static struct snd_soc_codec_driver soc_codec_dev_rk616 = {
 	.reg_word_size = sizeof(unsigned int),
 	.reg_cache_default = rk616_reg_defaults,
 	.volatile_register = rk616_volatile_register,
-	//.seq_notifier = wm8903_seq_notifier,
+	.readable_register = rk616_codec_register,
 	.dapm_widgets = rk616_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(rk616_dapm_widgets),
 	.dapm_routes = rk616_dapm_routes,
@@ -1623,6 +1757,17 @@ static struct snd_soc_codec_driver soc_codec_dev_rk616 = {
 
 static __devinit int rk616_platform_probe(struct platform_device *pdev)
 {
+	struct mfd_rk616 *rk616 = dev_get_drvdata(pdev->dev.parent);
+
+	DBG("%s\n", __func__);
+
+	if (!rk616) {
+		printk("rk616_platform_probe : rk616 is NULL\n");
+		return -EINVAL;
+	}
+
+	rk616_mfd = rk616;
+
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_rk616, rk616_dai, ARRAY_SIZE(rk616_dai));
 }
@@ -1663,8 +1808,11 @@ static ssize_t rk616_proc_write(struct file *file, const char __user *buffer,
 	char *cookie_pot, *p, debug_write_read = 0;
 	int reg, value;
 
-	if (!rk616_priv & !rk616_priv->codec)
+	if (!rk616_priv || !rk616_priv->codec) {
+		printk("rk616_proc_write : %s %s\n", rk616_priv ? "" : "rk616_priv is NULL",
+				rk616_priv->codec ? "" : "rk616_priv->codec is NULL");
 		return -EINVAL;
+	}
 
 	cookie_pot = (char *)vmalloc( len );
 	if (!cookie_pot) {
@@ -1693,7 +1841,8 @@ static ssize_t rk616_proc_write(struct file *file, const char __user *buffer,
 			while ((p = strsep(&cookie_pot, ","))) {
 				reg = simple_strtol(p, NULL, 16);
 				value = snd_soc_read(codec, reg);
-				printk("rk616_read:0x%04x = 0x%04x\n", reg, value);
+				if (value <= 0xffff)
+					printk("rk616_read:0x%04x = 0x%04x\n", reg, value);
 			}
 			debug_write_read = 0;
 			printk("\n");

@@ -139,8 +139,8 @@
 
 
 #define CRU_IO_CON0    		0x0088
-#define I2S1_OUT_EN		(1<<13)
-#define I2S0_OUT_EN		(1<<12)
+#define I2S1_OUT_DISABLE	(1<<13)
+#define I2S0_OUT_DISABLE	(1<<12)
 #define LVDS_OUT_EN		(1<<11)
 #define LCD1_INPUT_EN		(1<<10)
 #define LVDS_RGBIO_PD_DISABLE	(1<<9)
@@ -185,6 +185,7 @@ struct rk616_platform_data {
 	enum lcd_port_func lcd1_func;
 	int lvds_ch_nr;			//the number of used  lvds channel 
 	int hdmi_irq;
+	int spk_ctl_gpio;
 };
 
 struct rk616_route {

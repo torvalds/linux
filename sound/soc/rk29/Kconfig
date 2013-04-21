@@ -253,7 +253,7 @@ config SND_RK29_SOC_RK610
 
 config SND_RK29_SOC_RK616
 	tristate "SoC I2S Audio support for rockchip - RK616"
-	depends on SND_RK29_SOC
+	depends on SND_RK29_SOC && MFD_RK616
 	select SND_RK29_SOC_I2S
 	select SND_SOC_RK616
 	help

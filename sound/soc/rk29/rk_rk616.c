@@ -40,19 +40,19 @@ static const struct snd_soc_dapm_route rk_audio_map[]={
 
 	/* Mic Jack --> MIC_IN*/
 	{"Mic1 Bias", NULL, "Mic Jack"},
-	{"MIC1", NULL, "Mic1 Bias"},
-	
+	{"MIC1P", NULL, "Mic1 Bias"},
+	{"MIC1N", NULL, "Mic1 Bias"},
+
 	// HP MIC
-	{"Mic1 Bias", NULL, "Headset Jack"},
-	{"MIC3", NULL, "Mic1 Bias"},
+	{"Mic2 Bias", NULL, "Headset Jack"},
+	{"MIC2P", NULL, "Mic2 Bias"},
+	{"MIC2N", NULL, "Mic2 Bias"},
 
-	{"Ext Spk", NULL, "SPOLP"},
-   	{"Ext Spk", NULL, "SPOLN"},
-   	{"Ext Spk", NULL, "SPORP"},
-      	{"Ext Spk", NULL, "SPORN"},
+	{"Ext Spk", NULL, "SPKOUTR"},
+	{"Ext Spk", NULL, "SPKOUTL"},
 
-	{"Headphone Jack", NULL, "HPOL"},
-	{"Headphone Jack", NULL, "HPOR"},
+	{"Headphone Jack", NULL, "HPOUTR"},
+	{"Headphone Jack", NULL, "HPOUTL"},
 } ;
 
 static const struct snd_kcontrol_new rk_controls[] = {
@@ -223,9 +223,9 @@ static struct snd_soc_dai_link rk_dai[] = {
 	{
 		.name = "RK616 I2S1",
 		.stream_name = "RK616 PCM",
-		.codec_name = "rk616 codec.0-0050",
+		.codec_name = "rk616-codec.4-0050",
 		.platform_name = "rockchip-audio",
-		.cpu_dai_name = "rk29_i2s.0",
+		.cpu_dai_name = "rk29_i2s.1",
 		.codec_dai_name = "rk616-hifi",
 		.init = rk616_init,
 		.ops = &rk616_hifi_ops,
@@ -233,9 +233,9 @@ static struct snd_soc_dai_link rk_dai[] = {
 	{
 		.name = "RK616 I2S2",
 		.stream_name = "RK616 PCM",
-		.codec_name = "rtk616.0-001f",
+		.codec_name = "rk616-codec.4-0050",
 		.platform_name = "rockchip-audio",
-		.cpu_dai_name = "rk29_i2s.0",
+		.cpu_dai_name = "rk29_i2s.1",
 		.codec_dai_name = "rk616-voice",
 		.ops = &rk616_voice_ops,
 	},
