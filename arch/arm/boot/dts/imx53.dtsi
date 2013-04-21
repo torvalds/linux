@@ -594,6 +594,14 @@
 					};
 				};
 
+				pwm1 {
+					pinctrl_pwm1_1: pwm1grp-1 {
+						fsl,pins = <
+							MX53_PAD_DISP0_DAT8__PWM1_PWMO	0x5
+						>;
+					};
+				};
+
 				uart1 {
 					pinctrl_uart1_1: uart1grp-1 {
 						fsl,pins = <
