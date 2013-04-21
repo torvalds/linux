@@ -37,7 +37,7 @@ int au_cpdown_attr(struct path *h_path, struct dentry *h_src)
 	ia.ia_uid = h_isrc->i_uid;
 	ia.ia_gid = h_isrc->i_gid;
 	sbits = !!(ia.ia_mode & (S_ISUID | S_ISGID));
-	au_cpup_attr_flags(h_path->dentry->d_inode, h_isrc);
+	au_cpup_attr_flags(h_path->dentry->d_inode, h_isrc->i_flags);
 	err = vfsub_sio_notify_change(h_path, &ia);
 
 	/* is this nfs only? */
@@ -97,7 +97,7 @@ static int au_cpdown_dir_wh(struct dentry *dentry, struct dentry *h_parent,
 
 	err = 0;
 	if (h_path.dentry->d_inode) {
-		h_path.mnt = br->br_mnt;
+		h_path.mnt = au_br_mnt(br);
 		err = au_wh_unlink_dentry(au_h_iptr(dir, bdst), &h_path,
 					  dentry);
 	}
@@ -108,6 +108,7 @@ out:
 }
 
 static int au_cpdown_dir(struct dentry *dentry, aufs_bindex_t bdst,
+			 struct au_pin *pin,
 			 struct dentry *h_parent, void *arg)
 {
 	int err, rerr;
@@ -125,7 +126,7 @@ static int au_cpdown_dir(struct dentry *dentry, aufs_bindex_t bdst,
 	AuDebugOn(h_dir != au_h_iptr(dir, bdst));
 	IMustLock(h_dir);
 
-	err = au_lkup_neg(dentry, bdst);
+	err = au_lkup_neg(dentry, bdst, /*wh*/0);
 	if (unlikely(err < 0))
 		goto out;
 	h_path.dentry = au_h_dptr(dentry, bdst);
@@ -431,7 +432,7 @@ static void au_mfs(struct dentry *dentry)
 			continue;
 
 		/* sb->s_root for NFS is unreliable */
-		h_path.mnt = br->br_mnt;
+		h_path.mnt = au_br_mnt(br);
 		h_path.dentry = h_path.mnt->mnt_root;
 		err = vfs_statfs(&h_path, st);
 		if (unlikely(err)) {

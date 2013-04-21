@@ -104,7 +104,7 @@ static int au_show_brs(struct seq_file *seq, struct super_block *sb)
 	hdp = au_di(sb->s_root)->di_hdentry;
 	for (bindex = 0; !err && bindex <= bend; bindex++) {
 		br = au_sbr(sb, bindex);
-		path.mnt = br->br_mnt;
+		path.mnt = au_br_mnt(br);
 		path.dentry = hdp[bindex].hd_dentry;
 		err = au_seq_path(seq, &path);
 		if (err > 0) {
