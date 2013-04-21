@@ -474,6 +474,13 @@
 							MX53_PAD_CSI0_DAT9__I2C1_SCL 0xc0000000
 						>;
 					};
+
+					pinctrl_i2c1_2: i2c1grp-2 {
+						fsl,pins = <
+							MX53_PAD_EIM_D21__I2C1_SCL	0xc0000000
+							MX53_PAD_EIM_D28__I2C1_SDA	0xc0000000
+						>;
+					};
 				};
 
 				i2c2 {
