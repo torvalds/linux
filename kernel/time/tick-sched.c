@@ -147,6 +147,57 @@ static void tick_sched_handle(struct tick_sched *ts, struct pt_regs *regs)
 static cpumask_var_t nohz_full_mask;
 bool have_nohz_full_mask;
 
+/*
+ * Re-evaluate the need for the tick on the current CPU
+ * and restart it if necessary.
+ */
+static void tick_nohz_full_check(void)
+{
+	/*
+	 * STUB for now, will be filled with the full tick stop/restart
+	 * infrastructure patches
+	 */
+}
+
+static void nohz_full_kick_work_func(struct irq_work *work)
+{
+	tick_nohz_full_check();
+}
+
+static DEFINE_PER_CPU(struct irq_work, nohz_full_kick_work) = {
+	.func = nohz_full_kick_work_func,
+};
+
+/*
+ * Kick the current CPU if it's full dynticks in order to force it to
+ * re-evaluate its dependency on the tick and restart it if necessary.
+ */
+void tick_nohz_full_kick(void)
+{
+	if (tick_nohz_full_cpu(smp_processor_id()))
+		irq_work_queue(&__get_cpu_var(nohz_full_kick_work));
+}
+
+static void nohz_full_kick_ipi(void *info)
+{
+	tick_nohz_full_check();
+}
+
+/*
+ * Kick all full dynticks CPUs in order to force these to re-evaluate
+ * their dependency on the tick and restart it if necessary.
+ */
+void tick_nohz_full_kick_all(void)
+{
+	if (!have_nohz_full_mask)
+		return;
+
+	preempt_disable();
+	smp_call_function_many(nohz_full_mask,
+			       nohz_full_kick_ipi, NULL, false);
+	preempt_enable();
+}
+
 int tick_nohz_full_cpu(int cpu)
 {
 	if (!have_nohz_full_mask)
