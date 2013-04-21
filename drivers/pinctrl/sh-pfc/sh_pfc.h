@@ -129,6 +129,8 @@ struct pinmux_range {
 struct sh_pfc;
 
 struct sh_pfc_soc_operations {
+	int (*init)(struct sh_pfc *pfc);
+	void (*exit)(struct sh_pfc *pfc);
 	unsigned int (*get_bias)(struct sh_pfc *pfc, unsigned int pin);
 	void (*set_bias)(struct sh_pfc *pfc, unsigned int pin,
 			 unsigned int bias);
