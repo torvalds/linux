@@ -577,8 +577,7 @@ void osd_req_op_watch_init(struct ceph_osd_request *osd_req,
 	BUG_ON(opcode != CEPH_OSD_OP_NOTIFY_ACK && opcode != CEPH_OSD_OP_WATCH);
 
 	op->watch.cookie = cookie;
-	/* op->watch.ver = version; */	/* XXX 3847 */
-	op->watch.ver = cpu_to_le64(version);
+	op->watch.ver = version;
 	if (opcode == CEPH_OSD_OP_WATCH && flag)
 		op->watch.flag = (u8)1;
 }
