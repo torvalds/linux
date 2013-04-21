@@ -508,6 +508,28 @@
 					};
 				};
 
+				nand {
+					pinctrl_nand_1: nandgrp-1 {
+						fsl,pins = <
+							MX53_PAD_NANDF_WE_B__EMI_NANDF_WE_B	0x4
+							MX53_PAD_NANDF_RE_B__EMI_NANDF_RE_B	0x4
+							MX53_PAD_NANDF_CLE__EMI_NANDF_CLE	0x4
+							MX53_PAD_NANDF_ALE__EMI_NANDF_ALE	0x4
+							MX53_PAD_NANDF_WP_B__EMI_NANDF_WP_B	0xe0
+							MX53_PAD_NANDF_RB0__EMI_NANDF_RB_0	0xe0
+							MX53_PAD_NANDF_CS0__EMI_NANDF_CS_0	0x4
+							MX53_PAD_PATA_DATA0__EMI_NANDF_D_0	0xa4
+							MX53_PAD_PATA_DATA1__EMI_NANDF_D_1	0xa4
+							MX53_PAD_PATA_DATA2__EMI_NANDF_D_2	0xa4
+							MX53_PAD_PATA_DATA3__EMI_NANDF_D_3	0xa4
+							MX53_PAD_PATA_DATA4__EMI_NANDF_D_4	0xa4
+							MX53_PAD_PATA_DATA5__EMI_NANDF_D_5	0xa4
+							MX53_PAD_PATA_DATA6__EMI_NANDF_D_6	0xa4
+							MX53_PAD_PATA_DATA7__EMI_NANDF_D_7	0xa4
+						>;
+					};
+				};
+
 				owire {
 					pinctrl_owire_1: owiregrp-1 {
 						fsl,pins = <
@@ -577,7 +599,6 @@
 						>;
 					};
 				};
-
 			};
 
 			gpr: iomuxc-gpr@53fa8000 {
