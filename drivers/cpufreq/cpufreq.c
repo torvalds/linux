@@ -858,13 +858,18 @@ static int cpufreq_add_policy_cpu(unsigned int cpu, unsigned int sibling,
 				  struct device *dev)
 {
 	struct cpufreq_policy *policy;
-	int ret = 0;
+	int ret = 0, has_target = 0;
 	unsigned long flags;
 
 	policy = cpufreq_cpu_get(sibling);
 	WARN_ON(!policy);
 
-	__cpufreq_governor(policy, CPUFREQ_GOV_STOP);
+	rcu_read_lock();
+	has_target = !!rcu_dereference(cpufreq_driver)->target;
+	rcu_read_unlock();
+
+	if (has_target)
+		__cpufreq_governor(policy, CPUFREQ_GOV_STOP);
 
 	lock_policy_rwsem_write(sibling);
 
@@ -877,8 +882,10 @@ static int cpufreq_add_policy_cpu(unsigned int cpu, unsigned int sibling,
 
 	unlock_policy_rwsem_write(sibling);
 
-	__cpufreq_governor(policy, CPUFREQ_GOV_START);
-	__cpufreq_governor(policy, CPUFREQ_GOV_LIMITS);
+	if (has_target) {
+		__cpufreq_governor(policy, CPUFREQ_GOV_START);
+		__cpufreq_governor(policy, CPUFREQ_GOV_LIMITS);
+	}
 
 	ret = sysfs_create_link(&dev->kobj, &policy->kobj, "cpufreq");
 	if (ret) {
@@ -1146,7 +1153,8 @@ static int __cpufreq_remove_dev(struct device *dev, struct subsys_interface *sif
 
 	/* If cpu is last user of policy, free policy */
 	if (cpus == 1) {
-		__cpufreq_governor(data, CPUFREQ_GOV_POLICY_EXIT);
+		if (has_target)
+			__cpufreq_governor(data, CPUFREQ_GOV_POLICY_EXIT);
 
 		lock_policy_rwsem_read(cpu);
 		kobj = &data->kobj;
