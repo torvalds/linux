@@ -1588,7 +1588,7 @@ static int labpc_eeprom_insn_read(struct comedi_device *dev,
 }
 
 int labpc_common_attach(struct comedi_device *dev,
-			unsigned int irq, unsigned int dma_chan)
+			unsigned int irq)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
@@ -1625,27 +1625,6 @@ int labpc_common_attach(struct comedi_device *dev,
 		if (ret == 0)
 			dev->irq = irq;
 	}
-
-#ifdef CONFIG_ISA_DMA_API
-	if (dev->irq && (dma_chan == 1 || dma_chan == 3)) {
-		devpriv->dma_buffer = kmalloc(dma_buffer_size,
-					      GFP_KERNEL | GFP_DMA);
-		if (devpriv->dma_buffer) {
-			ret = request_dma(dma_chan, dev->board_name);
-			if (ret == 0) {
-				unsigned long dma_flags;
-
-				devpriv->dma_chan = dma_chan;
-				dma_flags = claim_dma_lock();
-				disable_dma(devpriv->dma_chan);
-				set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
-				release_dma_lock(dma_flags);
-			} else {
-				kfree(devpriv->dma_buffer);
-			}
-		}
-	}
-#endif
 
 	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
@@ -1759,7 +1738,32 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	return labpc_common_attach(dev, irq, dma_chan);
+	ret = labpc_common_attach(dev, irq);
+	if (ret)
+		return ret;
+
+#ifdef CONFIG_ISA_DMA_API
+	if (dev->irq && (dma_chan == 1 || dma_chan == 3)) {
+		devpriv->dma_buffer = kmalloc(dma_buffer_size,
+					      GFP_KERNEL | GFP_DMA);
+		if (devpriv->dma_buffer) {
+			ret = request_dma(dma_chan, dev->board_name);
+			if (ret == 0) {
+				unsigned long dma_flags;
+
+				devpriv->dma_chan = dma_chan;
+				dma_flags = claim_dma_lock();
+				disable_dma(devpriv->dma_chan);
+				set_dma_mode(devpriv->dma_chan, DMA_MODE_READ);
+				release_dma_lock(dma_flags);
+			} else {
+				kfree(devpriv->dma_buffer);
+			}
+		}
+	}
+#endif
+
+	return 0;
 }
 
 void labpc_detach(struct comedi_device *dev)
