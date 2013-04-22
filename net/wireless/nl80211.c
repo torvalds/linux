@@ -3376,6 +3376,32 @@ static bool nl80211_put_sta_rate(struct sk_buff *msg, struct rate_info *info,
 	return true;
 }
 
+static bool nl80211_put_signal(struct sk_buff *msg, u8 mask, s8 *signal,
+			       int id)
+{
+	void *attr;
+	int i = 0;
+
+	if (!mask)
+		return true;
+
+	attr = nla_nest_start(msg, id);
+	if (!attr)
+		return false;
+
+	for (i = 0; i < IEEE80211_MAX_CHAINS; i++) {
+		if (!(mask & BIT(i)))
+			continue;
+
+		if (nla_put_u8(msg, i, signal[i]))
+			return false;
+	}
+
+	nla_nest_end(msg, attr);
+
+	return true;
+}
+
 static int nl80211_send_station(struct sk_buff *msg, u32 portid, u32 seq,
 				int flags,
 				struct cfg80211_registered_device *rdev,
@@ -3446,6 +3472,18 @@ static int nl80211_send_station(struct sk_buff *msg, u32 portid, u32 seq,
 		break;
 	default:
 		break;
+	}
+	if (sinfo->filled & STATION_INFO_CHAIN_SIGNAL) {
+		if (!nl80211_put_signal(msg, sinfo->chains,
+					sinfo->chain_signal,
+					NL80211_STA_INFO_CHAIN_SIGNAL))
+			goto nla_put_failure;
+	}
+	if (sinfo->filled & STATION_INFO_CHAIN_SIGNAL_AVG) {
+		if (!nl80211_put_signal(msg, sinfo->chains,
+					sinfo->chain_signal_avg,
+					NL80211_STA_INFO_CHAIN_SIGNAL_AVG))
+			goto nla_put_failure;
 	}
 	if (sinfo->filled & STATION_INFO_TX_BITRATE) {
 		if (!nl80211_put_sta_rate(msg, &sinfo->txrate,
