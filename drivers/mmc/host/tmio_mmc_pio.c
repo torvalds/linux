@@ -862,6 +862,10 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		if (!host->power) {
 			tmio_mmc_clk_update(mmc);
 			pm_runtime_get_sync(dev);
+			if (host->resuming) {
+				tmio_mmc_reset(host);
+				host->resuming = false;
+			}
 		}
 		tmio_mmc_set_clock(host, ios->clock);
 		if (!host->power) {
@@ -1154,10 +1158,10 @@ int tmio_mmc_host_resume(struct device *dev)
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 
-	tmio_mmc_reset(host);
 	tmio_mmc_enable_dma(host, true);
 
 	/* The MMC core will perform the complete set up */
+	host->resuming = true;
 	return mmc_resume_host(mmc);
 }
 EXPORT_SYMBOL(tmio_mmc_host_resume);
