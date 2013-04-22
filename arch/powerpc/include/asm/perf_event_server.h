@@ -73,6 +73,7 @@ extern int register_power_pmu(struct power_pmu *);
 struct pt_regs;
 extern unsigned long perf_misc_flags(struct pt_regs *regs);
 extern unsigned long perf_instruction_pointer(struct pt_regs *regs);
+extern unsigned long int read_bhrb(int n);
 
 /*
  * Only override the default definitions in include/linux/perf_event.h
