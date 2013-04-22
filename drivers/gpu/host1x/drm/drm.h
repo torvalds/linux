@@ -1,24 +1,36 @@
 /*
  * Copyright (C) 2012 Avionic Design GmbH
- * Copyright (C) 2012 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (C) 2012-2013 NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
-#ifndef TEGRA_DRM_H
-#define TEGRA_DRM_H 1
+#ifndef HOST1X_DRM_H
+#define HOST1X_DRM_H 1
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fixed.h>
+#include <uapi/drm/tegra_drm.h>
 
-struct host1x {
+#include "host1x.h"
+
+struct tegra_fb {
+	struct drm_framebuffer base;
+	struct tegra_bo **planes;
+	unsigned int num_planes;
+};
+
+struct tegra_fbdev {
+	struct drm_fb_helper base;
+	struct tegra_fb *fb;
+};
+
+struct host1x_drm {
 	struct drm_device *drm;
 	struct device *dev;
 	void __iomem *regs;
@@ -33,31 +45,53 @@ struct host1x {
 	struct mutex clients_lock;
 	struct list_head clients;
 
-	struct drm_fbdev_cma *fbdev;
+	struct tegra_fbdev *fbdev;
 };
 
 struct host1x_client;
 
+struct host1x_drm_context {
+	struct host1x_client *client;
+	struct host1x_channel *channel;
+	struct list_head list;
+};
+
 struct host1x_client_ops {
 	int (*drm_init)(struct host1x_client *client, struct drm_device *drm);
 	int (*drm_exit)(struct host1x_client *client);
+	int (*open_channel)(struct host1x_client *client,
+			    struct host1x_drm_context *context);
+	void (*close_channel)(struct host1x_drm_context *context);
+	int (*submit)(struct host1x_drm_context *context,
+		      struct drm_tegra_submit *args, struct drm_device *drm,
+		      struct drm_file *file);
+};
+
+struct host1x_drm_file {
+	struct list_head contexts;
 };
 
 struct host1x_client {
-	struct host1x *host1x;
+	struct host1x_drm *host1x;
 	struct device *dev;
 
 	const struct host1x_client_ops *ops;
 
+	enum host1x_class class;
+	struct host1x_channel *channel;
+
+	struct host1x_syncpt **syncpts;
+	unsigned int num_syncpts;
+
 	struct list_head list;
 };
 
-extern int host1x_drm_init(struct host1x *host1x, struct drm_device *drm);
-extern int host1x_drm_exit(struct host1x *host1x);
+extern int host1x_drm_init(struct host1x_drm *host1x, struct drm_device *drm);
+extern int host1x_drm_exit(struct host1x_drm *host1x);
 
-extern int host1x_register_client(struct host1x *host1x,
+extern int host1x_register_client(struct host1x_drm *host1x,
 				  struct host1x_client *client);
-extern int host1x_unregister_client(struct host1x *host1x,
+extern int host1x_unregister_client(struct host1x_drm *host1x,
 				    struct host1x_client *client);
 
 struct tegra_output;
@@ -66,7 +100,7 @@ struct tegra_dc {
 	struct host1x_client client;
 	spinlock_t lock;
 
-	struct host1x *host1x;
+	struct host1x_drm *host1x;
 	struct device *dev;
 
 	struct drm_crtc base;
@@ -226,12 +260,12 @@ extern int tegra_output_init(struct drm_device *drm, struct tegra_output *output
 extern int tegra_output_exit(struct tegra_output *output);
 
 /* from fb.c */
+struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
+				    unsigned int index);
 extern int tegra_drm_fb_init(struct drm_device *drm);
 extern void tegra_drm_fb_exit(struct drm_device *drm);
+extern void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev);
 
-extern struct platform_driver tegra_host1x_driver;
-extern struct platform_driver tegra_hdmi_driver;
-extern struct platform_driver tegra_dc_driver;
 extern struct drm_driver tegra_drm_driver;
 
-#endif /* TEGRA_DRM_H */
+#endif /* HOST1X_DRM_H */

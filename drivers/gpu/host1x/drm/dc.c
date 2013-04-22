@@ -14,8 +14,10 @@
 #include <linux/platform_device.h>
 #include <linux/clk/tegra.h>
 
-#include "drm.h"
+#include "host1x_client.h"
 #include "dc.h"
+#include "drm.h"
+#include "gem.h"
 
 struct tegra_plane {
 	struct drm_plane base;
@@ -51,9 +53,9 @@ static int tegra_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	window.bits_per_pixel = fb->bits_per_pixel;
 
 	for (i = 0; i < drm_format_num_planes(fb->pixel_format); i++) {
-		struct drm_gem_cma_object *gem = drm_fb_cma_get_gem_obj(fb, i);
+		struct tegra_bo *bo = tegra_fb_get_plane(fb, i);
 
-		window.base[i] = gem->paddr + fb->offsets[i];
+		window.base[i] = bo->paddr + fb->offsets[i];
 
 		/*
 		 * Tegra doesn't support different strides for U and V planes
@@ -103,7 +105,9 @@ static const struct drm_plane_funcs tegra_plane_funcs = {
 };
 
 static const uint32_t plane_formats[] = {
+	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB565,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_YUV420,
 	DRM_FORMAT_YUV422,
@@ -136,7 +140,7 @@ static int tegra_dc_add_planes(struct drm_device *drm, struct tegra_dc *dc)
 static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 			     struct drm_framebuffer *fb)
 {
-	struct drm_gem_cma_object *gem = drm_fb_cma_get_gem_obj(fb, 0);
+	struct tegra_bo *bo = tegra_fb_get_plane(fb, 0);
 	unsigned long value;
 
 	tegra_dc_writel(dc, WINDOW_A_SELECT, DC_CMD_DISPLAY_WINDOW_HEADER);
@@ -144,7 +148,7 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 	value = fb->offsets[0] + y * fb->pitches[0] +
 		x * fb->bits_per_pixel / 8;
 
-	tegra_dc_writel(dc, gem->paddr + value, DC_WINBUF_START_ADDR);
+	tegra_dc_writel(dc, bo->paddr + value, DC_WINBUF_START_ADDR);
 	tegra_dc_writel(dc, fb->pitches[0], DC_WIN_LINE_STRIDE);
 
 	value = GENERAL_UPDATE | WIN_A_UPDATE;
@@ -186,20 +190,20 @@ static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
 {
 	struct drm_device *drm = dc->base.dev;
 	struct drm_crtc *crtc = &dc->base;
-	struct drm_gem_cma_object *gem;
 	unsigned long flags, base;
+	struct tegra_bo *bo;
 
 	if (!dc->event)
 		return;
 
-	gem = drm_fb_cma_get_gem_obj(crtc->fb, 0);
+	bo = tegra_fb_get_plane(crtc->fb, 0);
 
 	/* check if new start address has been latched */
 	tegra_dc_writel(dc, READ_MUX, DC_CMD_STATE_ACCESS);
 	base = tegra_dc_readl(dc, DC_WINBUF_START_ADDR);
 	tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
 
-	if (base == gem->paddr + crtc->fb->offsets[0]) {
+	if (base == bo->paddr + crtc->fb->offsets[0]) {
 		spin_lock_irqsave(&drm->event_lock, flags);
 		drm_send_vblank_event(drm, dc->pipe, dc->event);
 		drm_vblank_put(drm, dc->pipe);
@@ -541,6 +545,9 @@ int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 unsigned int tegra_dc_format(uint32_t format)
 {
 	switch (format) {
+	case DRM_FORMAT_XBGR8888:
+		return WIN_COLOR_DEPTH_R8G8B8A8;
+
 	case DRM_FORMAT_XRGB8888:
 		return WIN_COLOR_DEPTH_B8G8R8A8;
 
@@ -569,7 +576,7 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 			       struct drm_display_mode *adjusted,
 			       int x, int y, struct drm_framebuffer *old_fb)
 {
-	struct drm_gem_cma_object *gem = drm_fb_cma_get_gem_obj(crtc->fb, 0);
+	struct tegra_bo *bo = tegra_fb_get_plane(crtc->fb, 0);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	struct tegra_dc_window window;
 	unsigned long div, value;
@@ -616,7 +623,7 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 	window.format = tegra_dc_format(crtc->fb->pixel_format);
 	window.bits_per_pixel = crtc->fb->bits_per_pixel;
 	window.stride[0] = crtc->fb->pitches[0];
-	window.base[0] = gem->paddr;
+	window.base[0] = bo->paddr;
 
 	err = tegra_dc_setup_window(dc, 0, &window);
 	if (err < 0)
@@ -1097,7 +1104,7 @@ static const struct host1x_client_ops dc_client_ops = {
 
 static int tegra_dc_probe(struct platform_device *pdev)
 {
-	struct host1x *host1x = dev_get_drvdata(pdev->dev.parent);
+	struct host1x_drm *host1x = host1x_get_drm_data(pdev->dev.parent);
 	struct resource *regs;
 	struct tegra_dc *dc;
 	int err;
@@ -1160,7 +1167,7 @@ static int tegra_dc_probe(struct platform_device *pdev)
 
 static int tegra_dc_remove(struct platform_device *pdev)
 {
-	struct host1x *host1x = dev_get_drvdata(pdev->dev.parent);
+	struct host1x_drm *host1x = host1x_get_drm_data(pdev->dev.parent);
 	struct tegra_dc *dc = platform_get_drvdata(pdev);
 	int err;
 

@@ -13,5 +13,6 @@ header-y += r128_drm.h
 header-y += radeon_drm.h
 header-y += savage_drm.h
 header-y += sis_drm.h
+header-y += tegra_drm.h
 header-y += via_drm.h
 header-y += vmwgfx_drm.h
