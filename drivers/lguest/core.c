@@ -83,18 +83,13 @@ static __init int map_switcher(void)
 		}
 	}
 
-	switcher_addr = SWITCHER_ADDR;
-
 	/*
-	 * First we check that the Switcher won't overlap the fixmap area at
-	 * the top of memory.  It's currently nowhere near, but it could have
-	 * very strange effects if it ever happened.
+	 * We place the Switcher underneath the fixmap area, which is the
+	 * highest virtual address we can get.  This is important, since we
+	 * tell the Guest it can't access this memory, so we want its ceiling
+	 * as high as possible.
 	 */
-	if (switcher_addr + (TOTAL_SWITCHER_PAGES+1)*PAGE_SIZE > FIXADDR_START){
-		err = -ENOMEM;
-		printk("lguest: mapping switcher would thwack fixmap\n");
-		goto free_pages;
-	}
+	switcher_addr = FIXADDR_START - (TOTAL_SWITCHER_PAGES+1)*PAGE_SIZE;
 
 	/*
 	 * Now we reserve the "virtual memory area" we want.  We might
