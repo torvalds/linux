@@ -51,6 +51,11 @@ struct ssd1307fb_par {
 	u32 width;
 };
 
+struct ssd1307fb_array {
+	u8	type;
+	u8	data[0];
+};
+
 static struct fb_fix_screeninfo ssd1307fb_fix = {
 	.id		= "Solomon SSD1307",
 	.type		= FB_TYPE_PACKED_PIXELS,
@@ -65,49 +70,67 @@ static struct fb_var_screeninfo ssd1307fb_var = {
 	.bits_per_pixel	= 1,
 };
 
-static int ssd1307fb_write_array(struct i2c_client *client, u8 type, u8 *cmd, u32 len)
+static struct ssd1307fb_array *ssd1307fb_alloc_array(u32 len, u8 type)
 {
-	u8 *buf;
-	int ret = 0;
+	struct ssd1307fb_array *array;
 
-	buf = kzalloc(len + 1, GFP_KERNEL);
-	if (!buf) {
-		dev_err(&client->dev, "Couldn't allocate sending buffer.\n");
-		return -ENOMEM;
-	}
+	array = kzalloc(sizeof(struct ssd1307fb_array) + len, GFP_KERNEL);
+	if (!array)
+		return NULL;
 
-	buf[0] = type;
-	memcpy(buf + 1, cmd, len);
+	array->type = type;
 
-	ret = i2c_master_send(client, buf, len + 1);
-	if (ret != len + 1) {
-		dev_err(&client->dev, "Couldn't send I2C command.\n");
-		goto error;
-	}
-
-error:
-	kfree(buf);
-	return ret;
+	return array;
 }
 
-static inline int ssd1307fb_write_cmd_array(struct i2c_client *client, u8 *cmd, u32 len)
+static int ssd1307fb_write_array(struct i2c_client *client,
+				 struct ssd1307fb_array *array, u32 len)
 {
-	return ssd1307fb_write_array(client, SSD1307FB_COMMAND, cmd, len);
+	int ret;
+
+	len += sizeof(struct ssd1307fb_array);
+
+	ret = i2c_master_send(client, (u8 *)array, len);
+	if (ret != len) {
+		dev_err(&client->dev, "Couldn't send I2C command.\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static inline int ssd1307fb_write_cmd(struct i2c_client *client, u8 cmd)
 {
-	return ssd1307fb_write_cmd_array(client, &cmd, 1);
-}
+	struct ssd1307fb_array *array;
+	int ret;
 
-static inline int ssd1307fb_write_data_array(struct i2c_client *client, u8 *cmd, u32 len)
-{
-	return ssd1307fb_write_array(client, SSD1307FB_DATA, cmd, len);
+	array = ssd1307fb_alloc_array(1, SSD1307FB_COMMAND);
+	if (!array)
+		return -ENOMEM;
+
+	array->data[0] = cmd;
+
+	ret = ssd1307fb_write_array(client, array, 1);
+	kfree(array);
+
+	return ret;
 }
 
 static inline int ssd1307fb_write_data(struct i2c_client *client, u8 data)
 {
-	return ssd1307fb_write_data_array(client, &data, 1);
+	struct ssd1307fb_array *array;
+	int ret;
+
+	array = ssd1307fb_alloc_array(1, SSD1307FB_DATA);
+	if (!array)
+		return -ENOMEM;
+
+	array->data[0] = data;
+
+	ret = ssd1307fb_write_array(client, array, 1);
+	kfree(array);
+
+	return ret;
 }
 
 static void ssd1307fb_update_display(struct ssd1307fb_par *par)
