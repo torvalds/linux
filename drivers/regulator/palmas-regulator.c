@@ -447,9 +447,9 @@ static int palmas_smps_set_ramp_delay(struct regulator_dev *rdev,
 
 	if (ramp_delay <= 0)
 		reg = 0;
-	else if (ramp_delay < 2500)
+	else if (ramp_delay <= 2500)
 		reg = 3;
-	else if (ramp_delay < 5000)
+	else if (ramp_delay <= 5000)
 		reg = 2;
 	else
 		reg = 1;
