@@ -23,6 +23,8 @@
 #else
 #define SWITCHER_ADDR 0xFFC00000
 #endif
+/* Where we map the Switcher, in both Host and Guest. */
+extern unsigned long switcher_addr;
 
 /* Found in switcher.S */
 extern unsigned long default_idt_entries[];

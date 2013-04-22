@@ -20,7 +20,7 @@
 #include <asm/asm-offsets.h>
 #include "lg.h"
 
-
+unsigned long switcher_addr;
 static struct vm_struct *switcher_vma;
 static struct page **switcher_page;
 
@@ -75,25 +75,27 @@ static __init int map_switcher(void)
 		}
 	}
 
+	switcher_addr = SWITCHER_ADDR;
+
 	/*
 	 * First we check that the Switcher won't overlap the fixmap area at
 	 * the top of memory.  It's currently nowhere near, but it could have
 	 * very strange effects if it ever happened.
 	 */
-	if (SWITCHER_ADDR + (TOTAL_SWITCHER_PAGES+1)*PAGE_SIZE > FIXADDR_START){
+	if (switcher_addr + (TOTAL_SWITCHER_PAGES+1)*PAGE_SIZE > FIXADDR_START){
 		err = -ENOMEM;
 		printk("lguest: mapping switcher would thwack fixmap\n");
 		goto free_pages;
 	}
 
 	/*
-	 * Now we reserve the "virtual memory area" we want: 0xFFC00000
-	 * (SWITCHER_ADDR).  We might not get it in theory, but in practice
-	 * it's worked so far.  The end address needs +1 because __get_vm_area
-	 * allocates an extra guard page, so we need space for that.
+	 * Now we reserve the "virtual memory area" we want.  We might
+	 * not get it in theory, but in practice it's worked so far.
+	 * The end address needs +1 because __get_vm_area allocates an
+	 * extra guard page, so we need space for that.
 	 */
 	switcher_vma = __get_vm_area(TOTAL_SWITCHER_PAGES * PAGE_SIZE,
-				     VM_ALLOC, SWITCHER_ADDR, SWITCHER_ADDR
+				     VM_ALLOC, switcher_addr, switcher_addr
 				     + (TOTAL_SWITCHER_PAGES+1) * PAGE_SIZE);
 	if (!switcher_vma) {
 		err = -ENOMEM;
@@ -103,7 +105,7 @@ static __init int map_switcher(void)
 
 	/*
 	 * This code actually sets up the pages we've allocated to appear at
-	 * SWITCHER_ADDR.  map_vm_area() takes the vma we allocated above, the
+	 * switcher_addr.  map_vm_area() takes the vma we allocated above, the
 	 * kind of pages we're mapping (kernel pages), and a pointer to our
 	 * array of struct pages.  It increments that pointer, but we don't
 	 * care.
