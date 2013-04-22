@@ -551,20 +551,25 @@ static int pn544_hci_complete_target_discovered(struct nfc_hci_dev *hdev,
 			return -EPROTO;
 		}
 
-		r = nfc_hci_send_cmd(hdev, PN544_RF_READER_F_GATE,
-				     PN544_RF_READER_CMD_ACTIVATE_NEXT,
-				     uid_skb->data, uid_skb->len, NULL);
-		kfree_skb(uid_skb);
-
-		r = nfc_hci_send_cmd(hdev,
+		/* Type F NFC-DEP IDm has prefix 0x01FE */
+		if ((uid_skb->data[0] == 0x01) && (uid_skb->data[1] == 0xfe)) {
+			kfree_skb(uid_skb);
+			r = nfc_hci_send_cmd(hdev,
 					PN544_RF_READER_NFCIP1_INITIATOR_GATE,
 					PN544_HCI_CMD_CONTINUE_ACTIVATION,
 					NULL, 0, NULL);
-		if (r < 0)
-			return r;
+			if (r < 0)
+				return r;
 
-		target->hci_reader_gate = PN544_RF_READER_NFCIP1_INITIATOR_GATE;
-		target->supported_protocols = NFC_PROTO_NFC_DEP_MASK;
+			target->supported_protocols = NFC_PROTO_NFC_DEP_MASK;
+			target->hci_reader_gate =
+				PN544_RF_READER_NFCIP1_INITIATOR_GATE;
+		} else {
+			r = nfc_hci_send_cmd(hdev, PN544_RF_READER_F_GATE,
+					     PN544_RF_READER_CMD_ACTIVATE_NEXT,
+					     uid_skb->data, uid_skb->len, NULL);
+			kfree_skb(uid_skb);
+		}
 	} else if (target->supported_protocols & NFC_PROTO_ISO14443_MASK) {
 		/*
 		 * TODO: maybe other ISO 14443 require some kind of continue
