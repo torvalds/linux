@@ -230,6 +230,8 @@ static int imx_pd_probe(struct platform_device *pdev)
 			imxpd->interface_pix_fmt = V4L2_PIX_FMT_RGB24;
 		else if (!strcmp(fmt, "rgb565"))
 			imxpd->interface_pix_fmt = V4L2_PIX_FMT_RGB565;
+		else if (!strcmp(fmt, "bgr666"))
+			imxpd->interface_pix_fmt = V4L2_PIX_FMT_BGR666;
 	}
 
 	imxpd->dev = &pdev->dev;
