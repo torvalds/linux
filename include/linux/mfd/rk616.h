@@ -90,11 +90,12 @@
 #define PLL0_FBDIV(x)	  	(((x)&0xfff)<<0)
 
 #define CRU_PLL0_CON1   	0x006C
+#define PLL0_DIV_MODE_MASK	(1<<25)
 #define PLL0_POSTDIV2_MASK	(7<<22)
 #define PLL0_REFDIV_MASK	(0x3f<<16)
 #define PLL0_LOCK		(1<<15)
 #define PLL0_PWR_DN		(1<<10)
-#define PLL0_DIV_MODE		(1<<9)
+#define PLL0_DIV_MODE(x)	(((x)&1)<<9)
 #define PLL0_POSTDIV2(x)	(((x)&7)<<6)
 #define PLL0_REFDIV(x)		(((x)&0x3f)<<0)
 

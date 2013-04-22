@@ -112,8 +112,11 @@ static int rk616_reg_show(struct seq_file *s, void *v)
 	for(i=0;i<= CRU_CFGMISC_CON;i+=4)
 	{
 		rk616->read_dev(rk616,i,&val);
-		seq_printf(s,"0x%04x>>0x%08x\n",i,val);
+		if(i%16==0)
+			seq_printf(s,"\n%04x:",i);
+		seq_printf(s," %08x",val);
 	}
+	seq_printf(s,"\n");
 
 	return 0;
 }
@@ -123,6 +126,7 @@ static ssize_t rk616_reg_write (struct file *file, const char __user *buf, size_
 	struct mfd_rk616 *rk616 = file->f_path.dentry->d_inode->i_private;
 	u32 reg;
 	u32 val;
+	
 	char kbuf[25];
 	if (copy_from_user(kbuf, buf, count))
 		return -EFAULT;
@@ -174,15 +178,15 @@ static u32 rk616_clk_gcd(u32 numerator, u32 denominator)
 }
 
 
-static int rk616_pll_clk_get_set(struct mfd_rk616 *rk616,unsigned long fin_hz,unsigned long fout_hz,
-					u32 *refdiv, u32 *fbdiv, u32 *postdiv1, u32 *postdiv2, u32 *frac)
+static int rk616_pll_par_calc(u32 fin_hz,u32 fout_hz,u32 *refdiv, u32 *fbdiv,
+					u32 *postdiv1, u32 *postdiv2, u32 *frac)
 {
 	// FIXME set postdiv1/2 always 1 	
 	u32 gcd;
 	u64 fin_64, frac_64;
 	u32 f_frac;
-	if(!fin_hz || !fout_hz || fout_hz == fin_hz)
-		return -1;
+	if(!fin_hz || !fout_hz)
+		return -EINVAL;
 
 	if(fin_hz / MHZ * MHZ == fin_hz && fout_hz /MHZ * MHZ == fout_hz)
 	{
@@ -195,14 +199,11 @@ static int rk616_pll_clk_get_set(struct mfd_rk616 *rk616,unsigned long fin_hz,un
 		*postdiv2 = 1;
 
 		*frac = 0;
-
-		dev_info(rk616->dev,"fin=%lu,fout=%lu,gcd=%u,refdiv=%u,fbdiv=%u,postdiv1=%u,postdiv2=%u,frac=%u\n",
-				fin_hz, fout_hz, gcd, *refdiv, *fbdiv, *postdiv1, *postdiv2, *frac);
+		
 	} 
 	else 
 	{
-		dev_info(rk616->dev,"******frac div running, fin_hz=%lu, fout_hz=%lu, fin_mhz=%lu, fout_mhz=%lu\n",
-				fin_hz, fout_hz, fin_hz / MHZ * MHZ, fout_hz / MHZ * MHZ);
+		
 		gcd = rk616_clk_gcd(fin_hz / MHZ, fout_hz / MHZ);
 		*refdiv = fin_hz / MHZ / gcd;
 		*fbdiv = fout_hz / MHZ / gcd;
@@ -217,16 +218,18 @@ static int rk616_pll_clk_get_set(struct mfd_rk616 *rk616,unsigned long fin_hz,un
 		frac_64 = (u64)f_frac << 24;
 		do_div(frac_64, fin_64);
 		*frac = (u32) frac_64;
-		dev_dbg(rk616->dev,"frac_64=%llx, frac=%u\n", frac_64, *frac);
+		printk(KERN_INFO "frac_64=%llx, frac=%u\n", frac_64, *frac);
 	}
+	printk(KERN_INFO "fin=%u,fout=%u,gcd=%u,refdiv=%u,fbdiv=%u,postdiv1=%u,postdiv2=%u,frac=%u\n",
+				fin_hz, fout_hz, gcd, *refdiv, *fbdiv, *postdiv1, *postdiv2, *frac);
 	return 0;
 }
 
 
 static  int  rk616_pll_wait_lock(struct mfd_rk616 *rk616,int id)
 {
-	u32 delay = 50;
-	u32 val ;
+	u32 delay = 10;
+	u32 val = 0;
 	int ret;
 	int offset;
 
@@ -240,29 +243,47 @@ static  int  rk616_pll_wait_lock(struct mfd_rk616 *rk616,int id)
 	}
 	while (delay >= 1) 
 	{
-		ret = rk616->write_dev(rk616,CRU_PLL0_CON1 + offset,&val);
+		ret = rk616->read_dev(rk616,CRU_PLL0_CON1 + offset,&val);
 		if (val&PLL0_LOCK)
 		{
+			dev_info(rk616->dev,"pll locked\n");
 			break;
 		}
 		msleep(1);
-		printk("0x%08x\n",val);
 		delay--;
 	}
-	if (delay == 1)
+	if (delay == 0)
 	{
-		dev_err(rk616->dev,"wait pll bit time out!\n");
-		while(1);
+		printk(KERN_ALERT "rk616 wait pll bit time out!\n");
 	}
 
 	return 0;
 }
 
-static int rk616_pll_cfg(struct mfd_rk616 *rk616,int id)
+
+int rk616_pll_set_rate(struct mfd_rk616 *rk616,int id,u32 fin,u32 fout)
 {
 	u32 val = 0;
 	int ret;
 	int offset;
+	u32 refdiv,fbdiv,postdiv1,postdiv2,frac;
+	int mode; //pll div mode,integer or frac
+
+
+	ret = rk616_pll_par_calc(fin,fout,&refdiv,&fbdiv,
+					&postdiv1,&postdiv2,&frac);
+	refdiv = 4;
+	fbdiv = 32;
+	postdiv1 = 2;
+	postdiv2 = 4;
+	frac = 0;
+	if(ret < 0)
+	{
+		return -EINVAL;
+	}
+
+	mode = !frac;
+	
 	if(id == 0)  //PLL0
 	{
 		offset = 0;
@@ -271,16 +292,19 @@ static int rk616_pll_cfg(struct mfd_rk616 *rk616,int id)
 	{
 		offset = 0x0c;
 	}
+
+
+	
 	
 	val = PLL0_PWR_DN | (PLL0_PWR_DN << 16);
 	ret = rk616->write_dev(rk616,CRU_PLL0_CON1 + offset,&val);
 
-	val = PLL0_POSTDIV1(1) | PLL0_FBDIV(20) | PLL0_POSTDIV1_MASK | 
+	val = PLL0_POSTDIV1(postdiv1) | PLL0_FBDIV(fbdiv) | PLL0_POSTDIV1_MASK | 
 		PLL0_FBDIV_MASK | (PLL0_BYPASS << 16);
 	ret = rk616->write_dev(rk616,CRU_PLL0_CON0 + offset,&val);
 
-	val = PLL0_DIV_MODE | PLL0_POSTDIV2(1) | PLL0_REFDIV(20) |
-		(PLL0_DIV_MODE << 16) | PLL0_POSTDIV1_MASK | PLL0_REFDIV_MASK;
+	val = PLL0_DIV_MODE(mode) | PLL0_POSTDIV2(postdiv2) | PLL0_REFDIV(refdiv) |
+		(PLL0_DIV_MODE_MASK) | PLL0_POSTDIV2_MASK | PLL0_REFDIV_MASK;
 	ret = rk616->write_dev(rk616,CRU_PLL0_CON1 + offset,&val);
 	
 	val = (PLL0_PWR_DN << 16);
@@ -313,11 +337,11 @@ static int rk616_clk_common_init(struct mfd_rk616 *rk616)
 	val = 0; //codec mck = clkin
 	ret = rk616->write_dev(rk616,CRU_CODEC_DIV,&val);
 
-#if 0
+#if 1
 	val = (PLL0_BYPASS) | (PLL0_BYPASS << 16);  //bypass pll0 
 	ret = rk616->write_dev(rk616,CRU_PLL0_CON0,&val);
 #else
-	rk616_pll_cfg(rk616,0);
+	rk616_pll_set_rate(rk616,0,66500000,66500000);
 #endif
 
 	val = (PLL1_BYPASS) | (PLL1_BYPASS << 16);
@@ -325,6 +349,8 @@ static int rk616_clk_common_init(struct mfd_rk616 *rk616)
 
 	return 0;
 }
+
+
 static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id *id)
 {
 	int ret;
