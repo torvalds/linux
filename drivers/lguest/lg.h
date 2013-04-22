@@ -16,6 +16,7 @@
 
 struct pgdir {
 	unsigned long gpgdir;
+	bool switcher_mapped;
 	pgd_t *pgdir;
 };
 

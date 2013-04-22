@@ -736,18 +736,39 @@ static unsigned int new_pgdir(struct lg_cpu *cpu,
 
 /*H:501
  * We do need the Switcher code mapped at all times, so we allocate that
- * part of the Guest page table here, and populate it when we're about to run
- * the guest.
+ * part of the Guest page table here.  We map the Switcher code immediately,
+ * but defer mapping of the guest register page and IDT/LDT etc page until
+ * just before we run the guest in map_switcher_in_guest().
+ *
+ * We *could* do this setup in map_switcher_in_guest(), but at that point
+ * we've interrupts disabled, and allocating pages like that is fraught: we
+ * can't sleep if we need to free up some memory.
  */
 static bool allocate_switcher_mapping(struct lg_cpu *cpu)
 {
 	int i;
 
 	for (i = 0; i < TOTAL_SWITCHER_PAGES; i++) {
-		if (!find_spte(cpu, switcher_addr + i * PAGE_SIZE, true,
-			       CHECK_GPGD_MASK, _PAGE_TABLE))
+		pte_t *pte = find_spte(cpu, switcher_addr + i * PAGE_SIZE, true,
+				       CHECK_GPGD_MASK, _PAGE_TABLE);
+		if (!pte)
 			return false;
+
+		/*
+		 * Map the switcher page if not already there.  It might
+		 * already be there because we call allocate_switcher_mapping()
+		 * in guest_set_pgd() just in case it did discard our Switcher
+		 * mapping, but it probably didn't.
+		 */
+		if (i == 0 && !(pte_flags(*pte) & _PAGE_PRESENT)) {
+			/* Get a reference to the Switcher page. */
+			get_page(lg_switcher_pages[0]);
+			/* Create a read-only, exectuable, kernel-style PTE */
+			set_pte(pte,
+				mk_pte(lg_switcher_pages[0], PAGE_KERNEL_RX));
+		}
 	}
+	cpu->lg->pgdirs[cpu->cpu_pgd].switcher_mapped = true;
 	return true;
 }
 
@@ -768,6 +789,7 @@ static void release_all_pagetables(struct lguest *lg)
 		/* Every PGD entry. */
 		for (j = 0; j < PTRS_PER_PGD; j++)
 			release_pgd(lg->pgdirs[i].pgdir + j);
+		lg->pgdirs[i].switcher_mapped = false;
 	}
 }
 
@@ -827,8 +849,10 @@ void guest_new_pagetable(struct lg_cpu *cpu, unsigned long pgtable)
 	if (repin)
 		pin_stack_pages(cpu);
 
-	if (!allocate_switcher_mapping(cpu))
-		kill_guest(cpu, "Cannot populate switcher mapping");
+	if (!cpu->lg->pgdirs[cpu->cpu_pgd].switcher_mapped) {
+		if (!allocate_switcher_mapping(cpu))
+			kill_guest(cpu, "Cannot populate switcher mapping");
+	}
 }
 /*:*/
 
@@ -1076,10 +1100,8 @@ void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages)
 	struct page *percpu_switcher_page, *regs_page;
 	pte_t *pte;
 
-	/* Code page should always be mapped, and executable. */
-	pte = find_spte(cpu, switcher_addr, false, 0, 0);
-	get_page(lg_switcher_pages[0]);
-	set_pte(pte, mk_pte(lg_switcher_pages[0], PAGE_KERNEL_RX));
+	/* Switcher page should always be mapped! */
+	BUG_ON(!cpu->lg->pgdirs[cpu->cpu_pgd].switcher_mapped);
 
 	/* Clear all the Switcher mappings for any other CPUs. */
 	/* FIXME: This is dumb: update only when Host CPU changes. */
