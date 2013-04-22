@@ -1377,13 +1377,12 @@ static void dwc2_hc_nyet_intr(struct dwc2_hsotg *hsotg,
 		    hsotg->core_params->dma_enable > 0) {
 			qtd->complete_split = 0;
 			qtd->isoc_split_offset = 0;
-			if (++qtd->isoc_frame_index == qtd->urb->packet_count) {
-				if (qtd->urb)
-					dwc2_host_complete(hsotg,
-							   qtd->urb->priv,
-							   qtd->urb, 0);
+			if (qtd->urb &&
+			    ++qtd->isoc_frame_index == qtd->urb->packet_count) {
+				dwc2_host_complete(hsotg, qtd->urb->priv,
+						   qtd->urb, 0);
 				dwc2_release_channel(hsotg, chan, qtd,
-						DWC2_HC_XFER_URB_COMPLETE);
+						     DWC2_HC_XFER_URB_COMPLETE);
 			} else {
 				dwc2_release_channel(hsotg, chan, qtd,
 						DWC2_HC_XFER_NO_HALT_STATUS);
