@@ -163,13 +163,6 @@ static unsigned bch_bio_max_sectors(struct bio *bio)
 	struct bio_vec *bv, *end = bio_iovec(bio) +
 		min_t(int, bio_segments(bio), max_segments);
 
-	struct bvec_merge_data bvm = {
-		.bi_bdev	= bio->bi_bdev,
-		.bi_sector	= bio->bi_sector,
-		.bi_size	= 0,
-		.bi_rw		= bio->bi_rw,
-	};
-
 	if (bio->bi_rw & REQ_DISCARD)
 		return min(ret, q->limits.max_discard_sectors);
 
@@ -178,12 +171,18 @@ static unsigned bch_bio_max_sectors(struct bio *bio)
 		ret = 0;
 
 		for (bv = bio_iovec(bio); bv < end; bv++) {
+			struct bvec_merge_data bvm = {
+				.bi_bdev	= bio->bi_bdev,
+				.bi_sector	= bio->bi_sector,
+				.bi_size	= ret << 9,
+				.bi_rw		= bio->bi_rw,
+			};
+
 			if (q->merge_bvec_fn &&
 			    q->merge_bvec_fn(q, &bvm, bv) < (int) bv->bv_len)
 				break;
 
-			ret		+= bv->bv_len >> 9;
-			bvm.bi_size	+= bv->bv_len;
+			ret += bv->bv_len >> 9;
 		}
 	}
 
