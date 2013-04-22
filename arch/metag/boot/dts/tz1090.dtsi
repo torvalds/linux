@@ -90,5 +90,19 @@
 				gpio-ranges = <&pinctrl 0 60 30>;
 			};
 		};
+
+		pdc_gpios: gpios@02006500 {
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			compatible = "img,tz1090-pdc-gpio";
+			reg = <0x02006500 0x100>;
+
+			interrupt-parent = <&pdc>;
+			interrupts =	<8  IRQ_TYPE_NONE>,
+					<9  IRQ_TYPE_NONE>,
+					<10 IRQ_TYPE_NONE>;
+			gpio-ranges = <&pdc_pinctrl 0 0 7>;
+		};
 	};
 };
