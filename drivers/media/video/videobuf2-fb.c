@@ -37,6 +37,8 @@ module_param(debug, int, 0644);
 			printk(KERN_DEBUG "vb2: " fmt, ## arg);		\
 	} while (0)
 
+#define NB 2
+
 struct vb2_fb_data {
 	struct video_device *vfd;
 	struct vb2_queue *q;
@@ -179,7 +181,7 @@ static int odroid_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
                 info->var.yres = var->yres;
         }
         var->xres_virtual = var->xres;
-        var->yres_virtual = var->yres * 2;
+        var->yres_virtual = var->yres * NB;
 
         return 0;
 }
@@ -237,6 +239,18 @@ static int vb2_fb_activate(struct fb_info *info)
 	ret = data->vfd->fops->open(&data->fake_file);
 	if (ret)
 		return ret;
+		
+        // mdrjr
+        if (data->dv_preset && data->vfd->ioctl_ops->vidioc_s_dv_preset) {
+                struct v4l2_dv_preset preset = {0};
+                printk("Setting video node to preset: %d\n", data->dv_preset);
+                preset.preset = data->dv_preset;
+                ret = data->vfd->ioctl_ops->vidioc_s_dv_preset(
+                        &data->fake_file, data->fake_file.private_data, &preset);
+                if (ret)
+                        printk(KERN_ERR "fb emu: Setting dv preset failed: %d\n", ret);
+        }
+
 
 	/*
 	 * Get format from the video node.
@@ -362,12 +376,17 @@ static int vb2_fb_activate(struct fb_info *info)
 
 	var = &info->var;
 	var->xres = var->xres_virtual = var->width = width;
-	var->yres = var->yres_virtual = var->height = height;
+//	var->yres = var->yres_virtual = var->height = height;
+	var->yres = var->height = height;
+	var->yres_virtual = var->yres * NB;
 	var->bits_per_pixel = conv->bits_per_pixel;
 	var->red = conv->red;
 	var->green = conv->green;
 	var->blue = conv->blue;
 	var->transp = conv->transp;
+
+        pr_emerg("Activating framebuffer res: %u:%u; bps: %u; size: %u\n", var->xres, var->yres, var->bits_per_pixel, size);
+
 
 	return 0;
 
@@ -385,12 +404,12 @@ static int vb2_fb_deactivate(struct fb_info *info)
 {
 	struct vb2_fb_data *data = info->par;
 
+	vb2_fb_stop(info);
+
 	info->screen_base = NULL;
 	info->screen_size = 0;
 	data->blank = 1;
-	data->streaming = 0;
-
-	vb2_fb_stop(info);
+	
 	return data->vfd->fops->release(&data->fake_file);
 }
 
@@ -444,7 +463,7 @@ static int vb2_fb_start(struct fb_info *info)
 }
 
 /**
- * vb2_fb_start() - stop displaying video buffer
+ * vb2_fb_stop() - stop displaying video buffer
  * @info:	framebuffer vb2 emulator data
  * This function stops streaming on the video driver.
  */
@@ -493,6 +512,8 @@ static int vb2_fb_open(struct fb_info *info, int user)
 
 	vb2_drv_unlock(data->q);
 
+	vb2_fb_blank(FB_BLANK_UNBLANK, info);
+        
 	return ret;
 }
 
@@ -561,7 +582,7 @@ static int vb2_fb_blank(int blank_mode, struct fb_info *info)
 	struct vb2_fb_data *data = info->par;
 	int ret = -EBUSY;
 
-	dprintk(3, "fb emu: blank mode %d, blank %d, streaming %d\n",
+	pr_emerg("fb emu: blank mode %d, blank %d, streaming %d\n",
 		blank_mode, data->blank, data->streaming);
 
 	/*
@@ -648,6 +669,7 @@ void *vb2_fb_register(struct vb2_queue *q, struct video_device *vfd)
 	info->fix.type	= FB_TYPE_PACKED_PIXELS;
 	info->fix.accel	= FB_ACCEL_NONE;
 	info->fix.visual = FB_VISUAL_TRUECOLOR,
+	info->fix.ypanstep = 1;
 	info->var.activate = FB_ACTIVATE_NOW;
 	info->var.vmode	= FB_VMODE_NONINTERLACED;
 	info->fbops = &vb2_fb_ops;
@@ -667,7 +689,7 @@ void *vb2_fb_register(struct vb2_queue *q, struct video_device *vfd)
 	data->fake_file.f_path.dentry = &data->fake_dentry;
 	data->fake_dentry.d_inode = &data->fake_inode;
 	data->fake_inode.i_rdev = vfd->cdev->dev;
-
+	data->dv_preset = 0;
 	return info;
 }
 EXPORT_SYMBOL_GPL(vb2_fb_register);
