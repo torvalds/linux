@@ -147,6 +147,7 @@
 		reg = <0x0a>;
 		VDDA-supply = <&reg_3p2v>;
 		VDDIO-supply = <&reg_3p2v>;
+		clocks = <&clks 150>;
 	};
 };
 
