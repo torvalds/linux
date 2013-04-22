@@ -1472,7 +1472,7 @@ static void intel_early_sanitize_regs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (IS_HASWELL(dev))
+	if (HAS_FPGA_DBG_UNCLAIMED(dev))
 		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
 }
 
