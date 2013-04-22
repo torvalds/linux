@@ -357,7 +357,8 @@ struct drm_i915_gt_funcs {
 	func(supports_tv) sep \
 	func(has_bsd_ring) sep \
 	func(has_blt_ring) sep \
-	func(has_llc)
+	func(has_llc) sep \
+	func(has_ddi)
 
 #define DEFINE_FLAG(name) u8 name:1
 #define SEP_SEMICOLON ;
@@ -1368,7 +1369,7 @@ struct drm_i915_file_private {
 
 #define HAS_PIPE_CONTROL(dev) (INTEL_INFO(dev)->gen >= 5)
 
-#define HAS_DDI(dev)		(IS_HASWELL(dev))
+#define HAS_DDI(dev)		(INTEL_INFO(dev)->has_ddi)
 #define HAS_POWER_WELL(dev)	(IS_HASWELL(dev))
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
