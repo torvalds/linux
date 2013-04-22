@@ -15,7 +15,7 @@
 #include <asm/lguest.h>
 
 void free_pagetables(void);
-int init_pagetables(struct page **switcher_pages, unsigned int pages);
+int init_pagetables(struct page **switcher_pages);
 
 struct pgdir {
 	unsigned long gpgdir;

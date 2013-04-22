@@ -1079,25 +1079,20 @@ static void free_switcher_pte_pages(void)
 
 /*H:520
  * Setting up the Switcher PTE page for given CPU is fairly easy, given
- * the CPU number and the "struct page"s for the Switcher code itself.
- *
- * Currently the Switcher is less than a page long, so "pages" is always 1.
+ * the CPU number and the "struct page"s for the Switcher and per-cpu pages.
  */
 static __init void populate_switcher_pte_page(unsigned int cpu,
-					      struct page *switcher_pages[],
-					      unsigned int pages)
+					      struct page *switcher_pages[])
 {
-	unsigned int i;
 	pte_t *pte = switcher_pte_page(cpu);
+	int i;
 
-	/* The first entries are easy: they map the Switcher code. */
-	for (i = 0; i < pages; i++) {
-		set_pte(&pte[i], mk_pte(switcher_pages[i],
+	/* The first entries maps the Switcher code. */
+	set_pte(&pte[0], mk_pte(switcher_pages[0],
 				__pgprot(_PAGE_PRESENT|_PAGE_ACCESSED)));
-	}
 
 	/* The only other thing we map is this CPU's pair of pages. */
-	i = pages + cpu*2;
+	i = 1 + cpu*2;
 
 	/* First page (Guest registers) is writable from the Guest */
 	set_pte(&pte[i], pfn_pte(page_to_pfn(switcher_pages[i]),
@@ -1128,7 +1123,7 @@ static __init void populate_switcher_pte_page(unsigned int cpu,
  * At boot or module load time, init_pagetables() allocates and populates
  * the Switcher PTE page for each CPU.
  */
-__init int init_pagetables(struct page **switcher_pages, unsigned int pages)
+__init int init_pagetables(struct page **switcher_pages)
 {
 	unsigned int i;
 
@@ -1138,7 +1133,7 @@ __init int init_pagetables(struct page **switcher_pages, unsigned int pages)
 			free_switcher_pte_pages();
 			return -ENOMEM;
 		}
-		populate_switcher_pte_page(i, switcher_pages, pages);
+		populate_switcher_pte_page(i, switcher_pages);
 	}
 	return 0;
 }

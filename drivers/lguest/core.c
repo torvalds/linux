@@ -52,6 +52,13 @@ static __init int map_switcher(void)
 	 * easy.
 	 */
 
+	/* We assume Switcher text fits into a single page. */
+	if (end_switcher_text - start_switcher_text > PAGE_SIZE) {
+		printk(KERN_ERR "lguest: switcher text too large (%zu)\n",
+		       end_switcher_text - start_switcher_text);
+		return -EINVAL;
+	}
+
 	/*
 	 * We allocate an array of struct page pointers.  map_vm_area() wants
 	 * this, rather than just an array of pages.
@@ -326,7 +333,7 @@ static int __init init(void)
 		goto out;
 
 	/* Now we set up the pagetable implementation for the Guests. */
-	err = init_pagetables(switcher_pages, SHARED_SWITCHER_PAGES);
+	err = init_pagetables(switcher_pages);
 	if (err)
 		goto unmap;
 

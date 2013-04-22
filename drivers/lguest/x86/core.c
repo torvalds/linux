@@ -62,11 +62,10 @@ static unsigned long switcher_offset(void)
 	return switcher_addr - (unsigned long)start_switcher_text;
 }
 
-/* This cpu's struct lguest_pages. */
+/* This cpu's struct lguest_pages (after the Switcher text page) */
 static struct lguest_pages *lguest_pages(unsigned int cpu)
 {
-	return &(((struct lguest_pages *)
-		  (switcher_addr + SHARED_SWITCHER_PAGES*PAGE_SIZE))[cpu]);
+	return &(((struct lguest_pages *)(switcher_addr + PAGE_SIZE))[cpu]);
 }
 
 static DEFINE_PER_CPU(struct lg_cpu *, lg_last_cpu);
