@@ -168,23 +168,28 @@ static void ssd1307fb_update_display(struct ssd1307fb_par *par)
 	 */
 
 	for (i = 0; i < (par->height / 8); i++) {
+		struct ssd1307fb_array *array;
 		ssd1307fb_write_cmd(par->client,
 				    SSD1307FB_START_PAGE_ADDRESS + i + par->page_offset);
 		ssd1307fb_write_cmd(par->client, 0x00);
 		ssd1307fb_write_cmd(par->client, 0x10);
 
+		array = ssd1307fb_alloc_array(par->width, SSD1307FB_DATA);
+
 		for (j = 0; j < par->width; j++) {
-			u8 buf = 0;
+			array->data[j] = 0;
 			for (k = 0; k < 8; k++) {
 				u32 page_length = par->width * i;
 				u32 index = page_length + (par->width * k + j) / 8;
 				u8 byte = *(vmem + index);
 				u8 bit = byte & (1 << (j % 8));
 				bit = bit >> (j % 8);
-				buf |= bit << k;
+				array->data[j] |= bit << k;
 			}
-			ssd1307fb_write_data(par->client, buf);
 		}
+
+		ssd1307fb_write_array(par->client, array, par->width);
+		kfree(array);
 	}
 }
 
