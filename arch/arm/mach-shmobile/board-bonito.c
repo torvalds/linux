@@ -451,7 +451,6 @@ static void __init bonito_init(void)
 		    BIT_ON(bsw2, 2)) {	/* S38.2 = OFF */
 			pinctrl_register_mappings(lcdc0_pinctrl_map,
 						  ARRAY_SIZE(lcdc0_pinctrl_map));
-			gpio_request(GPIO_FN_LCDC0_SELECT, NULL);
 
 			gpio_request_one(61, GPIOF_OUT_INIT_HIGH,
 					 NULL); /* LCDDON */
