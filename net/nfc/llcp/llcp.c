@@ -31,6 +31,8 @@ static u8 llcp_magic[3] = {0x46, 0x66, 0x6d};
 
 static struct list_head llcp_devices;
 
+static void nfc_llcp_rx_skb(struct nfc_llcp_local *local, struct sk_buff *skb);
+
 void nfc_llcp_sock_link(struct llcp_sock_list *l, struct sock *sk)
 {
 	write_lock(&l->lock);
@@ -43,6 +45,12 @@ void nfc_llcp_sock_unlink(struct llcp_sock_list *l, struct sock *sk)
 	write_lock(&l->lock);
 	sk_del_node_init(sk);
 	write_unlock(&l->lock);
+}
+
+void nfc_llcp_socket_remote_param_init(struct nfc_llcp_sock *sock)
+{
+	sock->remote_rw = LLCP_DEFAULT_RW;
+	sock->remote_miu = LLCP_MAX_MIU + 1;
 }
 
 static void nfc_llcp_socket_purge(struct nfc_llcp_sock *sock)
@@ -68,7 +76,7 @@ static void nfc_llcp_socket_purge(struct nfc_llcp_sock *sock)
 	}
 }
 
-static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen,
+static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool device,
 				    int err)
 {
 	struct sock *sk;
@@ -108,21 +116,6 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen,
 
 				bh_unlock_sock(accept_sk);
 			}
-
-			if (listen == true) {
-				bh_unlock_sock(sk);
-				continue;
-			}
-		}
-
-		/*
-		 * If we have a connection less socket bound, we keep it alive
-		 * if the device is still present.
-		 */
-		if (sk->sk_state == LLCP_BOUND && sk->sk_type == SOCK_DGRAM &&
-		    listen == true) {
-			bh_unlock_sock(sk);
-			continue;
 		}
 
 		if (err)
@@ -137,11 +130,8 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen,
 
 	write_unlock(&local->sockets.lock);
 
-	/*
-	 * If we want to keep the listening sockets alive,
-	 * we don't touch the RAW ones.
-	 */
-	if (listen == true)
+	/* If we still have a device, we keep the RAW sockets alive */
+	if (device == true)
 		return;
 
 	write_lock(&local->raw_sockets.lock);
@@ -173,9 +163,9 @@ struct nfc_llcp_local *nfc_llcp_local_get(struct nfc_llcp_local *local)
 	return local;
 }
 
-static void local_cleanup(struct nfc_llcp_local *local, bool listen)
+static void local_cleanup(struct nfc_llcp_local *local)
 {
-	nfc_llcp_socket_release(local, listen, ENXIO);
+	nfc_llcp_socket_release(local, false, ENXIO);
 	del_timer_sync(&local->link_timer);
 	skb_queue_purge(&local->tx_queue);
 	cancel_work_sync(&local->tx_work);
@@ -194,7 +184,7 @@ static void local_release(struct kref *ref)
 	local = container_of(ref, struct nfc_llcp_local, ref);
 
 	list_del(&local->list);
-	local_cleanup(local, false);
+	local_cleanup(local);
 	kfree(local);
 }
 
@@ -1116,6 +1106,12 @@ static void nfc_llcp_recv_disc(struct nfc_llcp_local *local,
 	dsap = nfc_llcp_dsap(skb);
 	ssap = nfc_llcp_ssap(skb);
 
+	if ((dsap == 0) && (ssap == 0)) {
+		pr_debug("Connection termination");
+		nfc_dep_link_down(local->dev);
+		return;
+	}
+
 	llcp_sock = nfc_llcp_sock_get(local, dsap, ssap);
 	if (llcp_sock == NULL) {
 		nfc_llcp_send_dm(local, dsap, ssap, LLCP_DM_NOCONN);
@@ -1349,18 +1345,53 @@ exit:
 		nfc_llcp_send_snl_sdres(local, &llc_sdres_list, sdres_tlvs_len);
 }
 
-static void nfc_llcp_rx_work(struct work_struct *work)
+static void nfc_llcp_recv_agf(struct nfc_llcp_local *local, struct sk_buff *skb)
 {
-	struct nfc_llcp_local *local = container_of(work, struct nfc_llcp_local,
-						    rx_work);
-	u8 dsap, ssap, ptype;
-	struct sk_buff *skb;
+	u8 ptype;
+	u16 pdu_len;
+	struct sk_buff *new_skb;
 
-	skb = local->rx_pending;
-	if (skb == NULL) {
-		pr_debug("No pending SKB\n");
+	if (skb->len <= LLCP_HEADER_SIZE) {
+		pr_err("Malformed AGF PDU\n");
 		return;
 	}
+
+	skb_pull(skb, LLCP_HEADER_SIZE);
+
+	while (skb->len > LLCP_AGF_PDU_HEADER_SIZE) {
+		pdu_len = skb->data[0] << 8 | skb->data[1];
+
+		skb_pull(skb, LLCP_AGF_PDU_HEADER_SIZE);
+
+		if (pdu_len < LLCP_HEADER_SIZE || pdu_len > skb->len) {
+			pr_err("Malformed AGF PDU\n");
+			return;
+		}
+
+		ptype = nfc_llcp_ptype(skb);
+
+		if (ptype == LLCP_PDU_SYMM || ptype == LLCP_PDU_AGF)
+			goto next;
+
+		new_skb = nfc_alloc_recv_skb(pdu_len, GFP_KERNEL);
+		if (new_skb == NULL) {
+			pr_err("Could not allocate PDU\n");
+			return;
+		}
+
+		memcpy(skb_put(new_skb, pdu_len), skb->data, pdu_len);
+
+		nfc_llcp_rx_skb(local, new_skb);
+
+		kfree_skb(new_skb);
+next:
+		skb_pull(skb, pdu_len);
+	}
+}
+
+static void nfc_llcp_rx_skb(struct nfc_llcp_local *local, struct sk_buff *skb)
+{
+	u8 dsap, ssap, ptype;
 
 	ptype = nfc_llcp_ptype(skb);
 	dsap = nfc_llcp_dsap(skb);
@@ -1371,10 +1402,6 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 	if (ptype != LLCP_PDU_SYMM)
 		print_hex_dump(KERN_DEBUG, "LLCP Rx: ", DUMP_PREFIX_OFFSET,
 			       16, 1, skb->data, skb->len, true);
-
-	__net_timestamp(skb);
-
-	nfc_llcp_send_to_raw_sock(local, skb, NFC_LLCP_DIRECTION_RX);
 
 	switch (ptype) {
 	case LLCP_PDU_SYMM:
@@ -1418,7 +1445,30 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 		nfc_llcp_recv_hdlc(local, skb);
 		break;
 
+	case LLCP_PDU_AGF:
+		pr_debug("AGF frame\n");
+		nfc_llcp_recv_agf(local, skb);
+		break;
 	}
+}
+
+static void nfc_llcp_rx_work(struct work_struct *work)
+{
+	struct nfc_llcp_local *local = container_of(work, struct nfc_llcp_local,
+						    rx_work);
+	struct sk_buff *skb;
+
+	skb = local->rx_pending;
+	if (skb == NULL) {
+		pr_debug("No pending SKB\n");
+		return;
+	}
+
+	__net_timestamp(skb);
+
+	nfc_llcp_send_to_raw_sock(local, skb, NFC_LLCP_DIRECTION_RX);
+
+	nfc_llcp_rx_skb(local, skb);
 
 	schedule_work(&local->tx_work);
 	kfree_skb(local->rx_pending);
@@ -1465,6 +1515,9 @@ void nfc_llcp_mac_is_down(struct nfc_dev *dev)
 	local = nfc_llcp_find_local(dev);
 	if (local == NULL)
 		return;
+
+	local->remote_miu = LLCP_DEFAULT_MIU;
+	local->remote_lto = LLCP_DEFAULT_LTO;
 
 	/* Close and purge all existing sockets */
 	nfc_llcp_socket_release(local, true, 0);
@@ -1553,7 +1606,7 @@ void nfc_llcp_unregister_device(struct nfc_dev *dev)
 		return;
 	}
 
-	local_cleanup(local, false);
+	local_cleanup(local);
 
 	nfc_llcp_local_put(local);
 }

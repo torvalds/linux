@@ -31,6 +31,7 @@ enum llcp_state {
 #define LLCP_MAX_LTO  0xff
 #define LLCP_MAX_RW   15
 #define LLCP_MAX_MIUX 0x7ff
+#define LLCP_MAX_MIU (LLCP_MAX_MIUX + 128)
 
 #define LLCP_WKS_NUM_SAP   16
 #define LLCP_SDP_NUM_SAP   16
@@ -124,7 +125,7 @@ struct nfc_llcp_sock {
 	char *service_name;
 	size_t service_name_len;
 	u8 rw;
-	u16 miux;
+	__be16 miux;
 
 
 	/* Remote link parameters */
@@ -162,6 +163,7 @@ struct nfc_llcp_ui_cb {
 
 #define LLCP_HEADER_SIZE   2
 #define LLCP_SEQUENCE_SIZE 1
+#define LLCP_AGF_PDU_HEADER_SIZE 2
 
 /* LLCP versions: 1.1 is 1.0 plus SDP */
 #define LLCP_VERSION_10 0x10
@@ -210,6 +212,7 @@ struct nfc_llcp_ui_cb {
 
 void nfc_llcp_sock_link(struct llcp_sock_list *l, struct sock *s);
 void nfc_llcp_sock_unlink(struct llcp_sock_list *l, struct sock *s);
+void nfc_llcp_socket_remote_param_init(struct nfc_llcp_sock *sock);
 struct nfc_llcp_local *nfc_llcp_find_local(struct nfc_dev *dev);
 struct nfc_llcp_local *nfc_llcp_local_get(struct nfc_llcp_local *local);
 int nfc_llcp_local_put(struct nfc_llcp_local *local);
