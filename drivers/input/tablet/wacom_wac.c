@@ -359,7 +359,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 		case 0x802: /* Intuos4 General Pen */
 		case 0x804: /* Intuos4 Marker Pen */
 		case 0x40802: /* Intuos4 Classic Pen */
-		case 0x18803: /* DTH2242 Grip Pen */
+		case 0x18802: /* DTH2242 Grip Pen */
 		case 0x022:
 			wacom->tool[idx] = BTN_TOOL_PEN;
 			break;
@@ -2144,7 +2144,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x44) },
 	{ USB_DEVICE_WACOM(0x45) },
 	{ USB_DEVICE_WACOM(0x59) },
-	{ USB_DEVICE_WACOM(0x5D) },
+	{ USB_DEVICE_DETAILED(0x5D, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0xB0) },
 	{ USB_DEVICE_WACOM(0xB1) },
 	{ USB_DEVICE_WACOM(0xB2) },
