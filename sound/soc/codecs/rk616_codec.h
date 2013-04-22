@@ -136,8 +136,8 @@
 
 #define RK616_ADC_RST_MASK			(0x1 << 1)
 #define RK616_ADC_RST_SFT			1
-#define RK616_ADC_RST_EN			(0x1 << 1)
-#define RK616_ADC_RST_DIS			(0x0 << 1)
+#define RK616_ADC_RST_DIS			(0x1 << 1)
+#define RK616_ADC_RST_EN			(0x0 << 1)
 
 #define RK616_ABCLK_POL_MASK			0x1
 #define RK616_ABCLK_POL_SFT			0
@@ -179,8 +179,8 @@
 
 #define RK616_DAC_RST_MASK			(0x1 << 1)
 #define RK616_DAC_RST_SFT			1
-#define RK616_DAC_RST_EN			(0x1 << 1)
-#define RK616_DAC_RST_DIS			(0x0 << 1)
+#define RK616_DAC_RST_DIS			(0x1 << 1)
+#define RK616_DAC_RST_EN			(0x0 << 1)
 
 #define RK616_DBCLK_POL_MASK			0x1
 #define RK616_DBCLK_POL_SFT			0
@@ -569,16 +569,16 @@
 #define RK616_DACR_ZO_PWRD_SFT			0
 
 /* ADC control (0xa8) */
-#define RK616_ADCL_CLK_PWRD			(0x1 << 5)//?set to 1
+#define RK616_ADCL_CLK_PWRD			(0x1 << 5)
 #define RK616_ADCL_CLK_PWRD_SFT			5
 
 #define RK616_ADCL_PWRD				(0x1 << 4)
 #define RK616_ADCL_PWRD_SFT			4
 
-#define RK616_ADCL_RST_MASK			(0x1 << 3)//? 0x0c same
-#define RK616_ADCL_RST_SFT			3
-#define RK616_ADCL_RST_EN			(0x1 << 3)//? 1 clear 0 work means
-#define RK616_ADCL_RST_DIS			(0x0 << 3)
+#define RK616_ADCL_CLEAR_MASK			(0x1 << 3)//clear buf
+#define RK616_ADCL_CLEAR_SFT			3
+#define RK616_ADCL_CLEAR_EN			(0x1 << 3)
+#define RK616_ADCL_CLEAR_DIS			(0x0 << 3)
 
 #define RK616_ADCR_CLK_PWRD			(0x1 << 2)
 #define RK616_ADCR_CLK_PWRD_SFT			2
@@ -586,10 +586,10 @@
 #define RK616_ADCR_PWRD				(0x1 << 1)
 #define RK616_ADCR_PWRD_SFT			1
 
-#define RK616_ADCR_RST_MASK			0x1//? 0x0c same
-#define RK616_ADCR_RST_SFT			0
-#define RK616_ADCR_RST_EN			0x1//? 1 clear 0 work means
-#define RK616_ADCR_RST_DIS			0x0
+#define RK616_ADCR_CLEAR_MASK			0x1//clear buf
+#define RK616_ADCR_CLEAR_SFT			0
+#define RK616_ADCR_CLEAR_EN			0x1
+#define RK616_ADCR_CLEAR_DIS			0x0
 
 /* PGA AGC control 1 (0xc0 0x110) */
 #define RK616_PGA_AGC_WAY_MASK			(0x1 << 4)
