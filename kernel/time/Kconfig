@@ -110,6 +110,7 @@ config NO_HZ_FULL
 	select NO_HZ_COMMON
 	select RCU_USER_QS
 	select RCU_NOCB_CPU
+	select RCU_NOCB_CPU_ALL
 	select CONTEXT_TRACKING_FORCE
 	select IRQ_WORK
 	help
