@@ -754,7 +754,7 @@ static const struct file_operations proc_clk_fops = {
 
 static int __init clk_proc_init(void)
 {
-	proc_create("clocks", 0, NULL, &proc_clk_fops);
+	proc_create("clocks", S_IFREG | S_IRUSR | S_IRGRP, NULL, &proc_clk_fops);
 	return 0;
 
 }
