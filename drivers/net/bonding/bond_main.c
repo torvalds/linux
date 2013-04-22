@@ -1915,14 +1915,16 @@ err_detach:
 	bond_detach_slave(bond, new_slave);
 	if (bond->primary_slave == new_slave)
 		bond->primary_slave = NULL;
-	write_unlock_bh(&bond->lock);
 	if (bond->curr_active_slave == new_slave) {
+		bond_change_active_slave(bond, NULL);
+		write_unlock_bh(&bond->lock);
 		read_lock(&bond->lock);
 		write_lock_bh(&bond->curr_slave_lock);
-		bond_change_active_slave(bond, NULL);
 		bond_select_active_slave(bond);
 		write_unlock_bh(&bond->curr_slave_lock);
 		read_unlock(&bond->lock);
+	} else {
+		write_unlock_bh(&bond->lock);
 	}
 	slave_disable_netpoll(new_slave);
 
