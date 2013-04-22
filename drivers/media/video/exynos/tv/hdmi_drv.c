@@ -817,8 +817,6 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
     #else
 	    hdmi_dev->cur_preset = HDMI_DEFAULT_PRESET;
 	#endif
-	//mdrjr
-	hdmi_dev->cur_preset = HDMI_DEFAULT_PRESET;
 	/* FIXME: missing fail preset is not supported */
 	hdmi_dev->cur_conf = hdmi_preset2conf(hdmi_dev->cur_preset);
 
