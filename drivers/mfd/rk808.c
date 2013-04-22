@@ -39,6 +39,8 @@
 #define PM_CONTROL
 
 struct rk808 *g_rk808;
+#define DCDC_RAISE_VOL_BYSTEP 1
+#define DCDC_VOL_STEP 25000  //25mv
 
 static struct mfd_cell rk808s[] = {
 	{
@@ -413,14 +415,34 @@ static int rk808_dcdc_set_voltage(struct regulator_dev *dev,
 	struct rk808 *rk808 = rdev_get_drvdata(dev);
 	int buck = rdev_get_id(dev) - RK808_DCDC1;
 	u16 val;
-	int ret = 0;
+	int ret = 0,old_voltage =0,vol_temp =0;
 
 	if (buck ==2){
-	return 0;
-	}else{
-	val = rk808_dcdc_select_min_voltage(dev,min_uV,max_uV,buck);
-	
-	ret = rk808_set_bits(rk808, rk808_BUCK_SET_VOL_REG(buck), BUCK_VOL_MASK, val);
+		return 0;
+	}else if (buck==3){
+		val = rk808_dcdc_select_min_voltage(dev,min_uV,max_uV,buck);	
+		ret = rk808_set_bits(rk808, rk808_BUCK_SET_VOL_REG(buck), BUCK_VOL_MASK, val);
+	}
+	else {
+#if defined(DCDC_RAISE_VOL_BYSTEP)
+		old_voltage = rk808_dcdc_get_voltage(dev);
+			if (max_uV >old_voltage){
+				vol_temp = old_voltage;
+			       do{
+					vol_temp +=   DCDC_VOL_STEP;
+					val = rk808_dcdc_select_min_voltage(dev,vol_temp,vol_temp,buck);
+				//	printk("rk808_dcdc_set_voltage buck = %d vol_temp= %d old_voltage= %d min_uV =%d \n",buck,vol_temp,old_voltage,min_uV);
+					ret = rk808_set_bits(rk808, rk808_BUCK_SET_VOL_REG(buck), BUCK_VOL_MASK, val);	
+				}while(vol_temp != max_uV);
+			}
+			else{
+				val = rk808_dcdc_select_min_voltage(dev,min_uV,max_uV,buck);
+				ret = rk808_set_bits(rk808, rk808_BUCK_SET_VOL_REG(buck), BUCK_VOL_MASK, val);
+			}
+#else
+		val = rk808_dcdc_select_min_voltage(dev,min_uV,max_uV,buck);
+		ret = rk808_set_bits(rk808, rk808_BUCK_SET_VOL_REG(buck), BUCK_VOL_MASK, val);
+#endif
 	}
 	return ret;
 }
