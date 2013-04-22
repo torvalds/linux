@@ -67,6 +67,7 @@
 			i2c0: i2c@80058000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c0_pins_b>;
+				clock-frequency = <400000>;
 				status = "okay";
 
 				ssd1306: oled@3c {
