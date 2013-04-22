@@ -35,8 +35,7 @@ static struct of_dma *of_dma_find_controller(struct of_phandle_args *dma_spec)
 	struct of_dma *ofdma;
 
 	list_for_each_entry(ofdma, &of_dma_list, of_dma_controllers)
-		if ((ofdma->of_node == dma_spec->np) &&
-		    (ofdma->of_dma_nbcells == dma_spec->args_count))
+		if (ofdma->of_node == dma_spec->np)
 			return ofdma;
 
 	pr_debug("%s: can't find DMA controller %s\n", __func__,
@@ -64,7 +63,6 @@ int of_dma_controller_register(struct device_node *np,
 				void *data)
 {
 	struct of_dma	*ofdma;
-	const __be32	*prop;
 
 	if (!np || !of_dma_xlate) {
 		pr_err("%s: not enough information provided\n", __func__);
@@ -75,17 +73,7 @@ int of_dma_controller_register(struct device_node *np,
 	if (!ofdma)
 		return -ENOMEM;
 
-	prop = of_get_property(np, "#dma-cells", NULL);
-	if (!prop) {
-		pr_err("%s: #dma-cells property is missing\n",
-		       __func__);
-		kfree(ofdma);
-		return -EINVAL;
-	}
-
-
 	ofdma->of_node = np;
-	ofdma->of_dma_nbcells = be32_to_cpup(prop);
 	ofdma->of_dma_xlate = of_dma_xlate;
 	ofdma->of_dma_data = data;
 
