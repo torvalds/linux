@@ -63,6 +63,8 @@ struct minstrel_rate {
 };
 
 struct minstrel_sta_info {
+	struct ieee80211_sta *sta;
+
 	unsigned long stats_update;
 	unsigned int sp_ack_dur;
 	unsigned int rate_avg;
