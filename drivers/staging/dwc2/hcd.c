@@ -2693,6 +2693,7 @@ void dwc2_set_all_params(struct dwc2_core_params *params, int value)
 	for (i = 0; i < size; i++)
 		p[i] = -1;
 }
+EXPORT_SYMBOL_GPL(dwc2_set_all_params);
 
 /*
  * Initializes the HCD. This function allocates memory for and initializes the

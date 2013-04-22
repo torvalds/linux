@@ -8,9 +8,11 @@ config USB_DWC2
 	  USB controller based on the DesignWare HSOTG IP Core.
 
 	  If you choose to build this driver as dynamically linked
-	  modules, the core module will be called dwc2.ko, and the
+	  modules, the core module will be called dwc2.ko, the
 	  PCI bus interface module (if you have a PCI bus system)
-	  will be called dwc2_pci.ko.
+	  will be called dwc2_pci.ko and the platform interface module
+	  (for controllers directly connected to the CPU) will be called
+	  dwc2_platform.ko.
 
 	  NOTE: This driver at present only implements the Host mode
 	  of the controller. The existing s3c-hsotg driver supports

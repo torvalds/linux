@@ -19,5 +19,7 @@ dwc2-y					+= hcd_queue.o hcd_ddma.o
 ifneq ($(CONFIG_PCI),)
 	obj-$(CONFIG_USB_DWC2)		+= dwc2_pci.o
 endif
+obj-$(CONFIG_USB_DWC2)			+= dwc2_platform.o
 
 dwc2_pci-y				+= pci.o
+dwc2_platform-y				+= platform.o
