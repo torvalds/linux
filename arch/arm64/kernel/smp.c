@@ -270,6 +270,7 @@ void __init smp_init_cpus(void)
 	bool bootcpu_valid = false;
 
 	while ((dn = of_find_node_by_type(dn, "cpu"))) {
+		const u32 *cell;
 		u64 hwid;
 
 		/*
@@ -277,10 +278,12 @@ void __init smp_init_cpus(void)
 		 * considered invalid to build a cpu_logical_map
 		 * entry.
 		 */
-		if (of_property_read_u64(dn, "reg", &hwid)) {
+		cell = of_get_property(dn, "reg", NULL);
+		if (!cell) {
 			pr_err("%s: missing reg property\n", dn->full_name);
 			goto next;
 		}
+		hwid = of_read_number(cell, of_n_addr_cells(dn));
 
 		/*
 		 * Non affinity bits must be set to 0 in the DT
