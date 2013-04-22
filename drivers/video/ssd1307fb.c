@@ -19,6 +19,12 @@
 #define SSD1307FB_DATA			0x40
 #define SSD1307FB_COMMAND		0x80
 
+#define SSD1307FB_SET_ADDRESS_MODE	0x20
+#define SSD1307FB_SET_ADDRESS_MODE_HORIZONTAL	(0x00)
+#define SSD1307FB_SET_ADDRESS_MODE_VERTICAL	(0x01)
+#define SSD1307FB_SET_ADDRESS_MODE_PAGE		(0x02)
+#define SSD1307FB_SET_COL_RANGE		0x21
+#define SSD1307FB_SET_PAGE_RANGE	0x22
 #define SSD1307FB_CONTRAST		0x81
 #define	SSD1307FB_CHARGE_PUMP		0x8d
 #define SSD1307FB_SEG_REMAP_ON		0xa1
@@ -135,8 +141,14 @@ static inline int ssd1307fb_write_data(struct i2c_client *client, u8 data)
 
 static void ssd1307fb_update_display(struct ssd1307fb_par *par)
 {
+	struct ssd1307fb_array *array;
 	u8 *vmem = par->info->screen_base;
 	int i, j, k;
+
+	array = ssd1307fb_alloc_array(par->width * par->height / 8,
+				      SSD1307FB_DATA);
+	if (!array)
+		return;
 
 	/*
 	 * The screen is divided in pages, each having a height of 8
@@ -168,29 +180,22 @@ static void ssd1307fb_update_display(struct ssd1307fb_par *par)
 	 */
 
 	for (i = 0; i < (par->height / 8); i++) {
-		struct ssd1307fb_array *array;
-		ssd1307fb_write_cmd(par->client,
-				    SSD1307FB_START_PAGE_ADDRESS + i + par->page_offset);
-		ssd1307fb_write_cmd(par->client, 0x00);
-		ssd1307fb_write_cmd(par->client, 0x10);
-
-		array = ssd1307fb_alloc_array(par->width, SSD1307FB_DATA);
-
 		for (j = 0; j < par->width; j++) {
-			array->data[j] = 0;
+			u32 array_idx = i * par->width + j;
+			array->data[array_idx] = 0;
 			for (k = 0; k < 8; k++) {
 				u32 page_length = par->width * i;
 				u32 index = page_length + (par->width * k + j) / 8;
 				u8 byte = *(vmem + index);
 				u8 bit = byte & (1 << (j % 8));
 				bit = bit >> (j % 8);
-				array->data[j] |= bit << k;
+				array->data[array_idx] |= bit << k;
 			}
 		}
-
-		ssd1307fb_write_array(par->client, array, par->width);
-		kfree(array);
 	}
+
+	ssd1307fb_write_array(par->client, array, par->width * par->height / 8);
+	kfree(array);
 }
 
 
@@ -368,6 +373,26 @@ static int ssd1307fb_ssd1306_init(struct ssd1307fb_par *par)
 	/* Turn on the DC-DC Charge Pump */
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_CHARGE_PUMP);
 	ret = ret & ssd1307fb_write_cmd(par->client, 0x14);
+	if (ret < 0)
+		return ret;
+
+	/* Switch to horizontal addressing mode */
+	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_ADDRESS_MODE);
+	ret = ret & ssd1307fb_write_cmd(par->client,
+					SSD1307FB_SET_ADDRESS_MODE_HORIZONTAL);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_COL_RANGE);
+	ret = ret & ssd1307fb_write_cmd(par->client, 0x0);
+	ret = ret & ssd1307fb_write_cmd(par->client, par->width - 1);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_PAGE_RANGE);
+	ret = ret & ssd1307fb_write_cmd(par->client, 0x0);
+	ret = ret & ssd1307fb_write_cmd(par->client,
+					par->page_offset + (par->height / 8) - 1);
 	if (ret < 0)
 		return ret;
 
