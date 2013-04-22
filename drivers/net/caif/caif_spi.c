@@ -1,6 +1,5 @@
 /*
  * Copyright (C) ST-Ericsson AB 2010
- * Contact: Sjur Brendeland / sjur.brandeland@stericsson.com
  * Author:  Daniel Martensson / Daniel.Martensson@stericsson.com
  * License terms: GNU General Public License (GPL) version 2.
  */

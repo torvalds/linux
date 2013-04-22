@@ -1,7 +1,7 @@
 /*
  * CAIF Interface registration.
  * Copyright (C) ST-Ericsson AB 2010
- * Author:	Sjur Brendeland/sjur.brandeland@stericsson.com
+ * Author:	Sjur Brendeland
  * License terms: GNU General Public License (GPL) version 2
  *
  * Borrowed heavily from file: pn_dev.c. Thanks to Remi Denis-Courmont
