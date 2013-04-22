@@ -12,16 +12,17 @@
 
 #include <linux/clk.h>
 #include <linux/device.h>
+#include <linux/types.h>
 
 struct clk *clk_reg_prcc_pclk(const char *name,
 			      const char *parent_name,
-			      unsigned int phy_base,
+			      resource_size_t phy_base,
 			      u32 cg_sel,
 			      unsigned long flags);
 
 struct clk *clk_reg_prcc_kclk(const char *name,
 			      const char *parent_name,
-			      unsigned int phy_base,
+			      resource_size_t phy_base,
 			      u32 cg_sel,
 			      unsigned long flags);
 
