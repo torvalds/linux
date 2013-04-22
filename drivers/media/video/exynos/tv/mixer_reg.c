@@ -548,8 +548,10 @@ static void mxr_irq_layer_handle(struct mxr_layer *layer)
 		layer->update_buf = next;
 	}
 
-	layer->ops.buffer_set(layer, layer->update_buf);
-
+//	layer->ops.buffer_set(layer, layer->update_buf);
+	if(layer->shadow_buf != layer->update_buf)
+		layer->ops.buffer_set(layer, layer->update_buf);
+		
 	if (done && done != layer->shadow_buf)
 		vb2_buffer_done(&done->vb, VB2_BUF_STATE_DONE);
 
@@ -748,6 +750,7 @@ void mxr_reg_local_path_set(struct mxr_device *mdev, int mxr0_gsc, int mxr1_gsc,
 	} else if (!mxr0_local && mxr1_local) { /* 1-path : sub-mixer1 */
 		val  = MXR_TVOUT_CFG_ONE_PATH;
 		val |= MXR_TVOUT_CFG_PATH_MIXER1;
+
 	} else if (mxr0_local && mxr1_local) { /* 2-path */
 		val  = MXR_TVOUT_CFG_TWO_PATH;
 		val |= MXR_TVOUT_CFG_STEREO_SCOPIC;

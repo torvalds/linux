@@ -307,6 +307,7 @@ static int mxr_g_fmt(struct file *file, void *priv,
 	pix->colorspace = layer->fmt->colorspace;
 	mxr_mplane_fill(pix->plane_fmt, layer->fmt, pix->width, pix->height);
 
+	f->fmt.pix_mp.plane_fmt[0].sizeimage = f->fmt.pix.width * f->fmt.pix.height * 2;
 	return 0;
 }
 
