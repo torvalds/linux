@@ -1311,7 +1311,7 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 		}
 		if (count > 250)
 			dev_err(hsotg->dev,
-				"Connection id status change timed out");
+				"Connection id status change timed out\n");
 		hsotg->op_state = OTG_STATE_B_PERIPHERAL;
 		dwc2_core_init(hsotg, false, -1);
 		dwc2_enable_global_interrupts(hsotg);
@@ -1328,7 +1328,7 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 		}
 		if (count > 250)
 			dev_err(hsotg->dev,
-				"Connection id status change timed out");
+				"Connection id status change timed out\n");
 		hsotg->op_state = OTG_STATE_A_HOST;
 
 		/* Initialize the Core for Host mode */

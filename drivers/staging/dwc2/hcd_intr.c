@@ -2069,7 +2069,7 @@ int dwc2_hcd_intr(struct dwc2_hsotg *hsotg)
 	int retval = 0;
 
 	if (dwc2_check_core_status(hsotg) < 0) {
-		dev_warn(hsotg->dev, "Controller is disconnected");
+		dev_warn(hsotg->dev, "Controller is disconnected\n");
 		return 0;
 	}
 

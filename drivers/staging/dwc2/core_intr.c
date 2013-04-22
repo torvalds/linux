@@ -453,7 +453,7 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 	int retval = 0;
 
 	if (dwc2_check_core_status(hsotg) < 0) {
-		dev_warn(hsotg->dev, "Controller is disconnected");
+		dev_warn(hsotg->dev, "Controller is disconnected\n");
 		goto out;
 	}
 
