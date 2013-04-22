@@ -3055,7 +3055,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		else
 			len = sizeof(struct qeth_hdr_layer3);
 
-		if (qeth_hdr_chk_and_bounce(new_skb, len))
+		if (qeth_hdr_chk_and_bounce(new_skb, &hdr, len))
 			goto tx_drop;
 		rc = qeth_do_send_packet(card, queue, new_skb, hdr,
 					 elements_needed);
