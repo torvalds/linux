@@ -309,6 +309,7 @@ static const struct intel_device_info intel_haswell_d_info = {
 	GEN7_FEATURES,
 	.is_haswell = 1,
 	.has_ddi = 1,
+	.has_fpga_dbg = 1,
 };
 
 static const struct intel_device_info intel_haswell_m_info = {
@@ -316,6 +317,7 @@ static const struct intel_device_info intel_haswell_m_info = {
 	.is_haswell = 1,
 	.is_mobile = 1,
 	.has_ddi = 1,
+	.has_fpga_dbg = 1,
 };
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
