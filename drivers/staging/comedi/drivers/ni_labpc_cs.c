@@ -111,7 +111,7 @@ static int labpc_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	return labpc_common_attach(dev, link->irq);
+	return labpc_common_attach(dev, link->irq, IRQF_SHARED);
 }
 
 static void labpc_detach(struct comedi_device *dev)

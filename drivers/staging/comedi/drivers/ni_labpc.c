@@ -1588,12 +1588,11 @@ static int labpc_eeprom_insn_read(struct comedi_device *dev,
 }
 
 int labpc_common_attach(struct comedi_device *dev,
-			unsigned int irq)
+			unsigned int irq, unsigned long isr_flags)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
-	unsigned long isr_flags;
 	int ret;
 	int i;
 
@@ -1616,10 +1615,6 @@ int labpc_common_attach(struct comedi_device *dev,
 	}
 
 	if (irq) {
-		isr_flags = 0;
-		if (board->bustype == pci_bustype ||
-		    board->bustype == pcmcia_bustype)
-			isr_flags |= IRQF_SHARED;
 		ret = request_irq(irq, labpc_interrupt, isr_flags,
 				  dev->board_name, dev);
 		if (ret == 0)
@@ -1738,7 +1733,7 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	ret = labpc_common_attach(dev, irq);
+	ret = labpc_common_attach(dev, irq, 0);
 	if (ret)
 		return ret;
 
