@@ -291,6 +291,88 @@ static bool check_gpmd(struct lg_cpu *cpu, pmd_t gpmd)
 }
 #endif
 
+/*H:331
+ * This is the core routine to walk the shadow page tables and find the page
+ * table entry for a specific address.
+ *
+ * If allocate is set, then we allocate any missing levels, setting the flags
+ * on the new page directory and mid-level directories using the arguments
+ * (which are copied from the Guest's page table entries).
+ */
+static pte_t *find_spte(struct lg_cpu *cpu, unsigned long vaddr, bool allocate,
+			int pgd_flags, int pmd_flags)
+{
+	pgd_t *spgd;
+	/* Mid level for PAE. */
+#ifdef CONFIG_X86_PAE
+	pmd_t *spmd;
+#endif
+
+	/* Get top level entry. */
+	spgd = spgd_addr(cpu, cpu->cpu_pgd, vaddr);
+	if (!(pgd_flags(*spgd) & _PAGE_PRESENT)) {
+		/* No shadow entry: allocate a new shadow PTE page. */
+		unsigned long ptepage;
+
+		/* If they didn't want us to allocate anything, stop. */
+		if (!allocate)
+			return NULL;
+
+		ptepage = get_zeroed_page(GFP_KERNEL);
+		/*
+		 * This is not really the Guest's fault, but killing it is
+		 * simple for this corner case.
+		 */
+		if (!ptepage) {
+			kill_guest(cpu, "out of memory allocating pte page");
+			return NULL;
+		}
+		/*
+		 * And we copy the flags to the shadow PGD entry.  The page
+		 * number in the shadow PGD is the page we just allocated.
+		 */
+		set_pgd(spgd, __pgd(__pa(ptepage) | pgd_flags));
+	}
+
+	/*
+	 * Intel's Physical Address Extension actually uses three levels of
+	 * page tables, so we need to look in the mid-level.
+	 */
+#ifdef CONFIG_X86_PAE
+	/* Now look at the mid-level shadow entry. */
+	spmd = spmd_addr(cpu, *spgd, vaddr);
+
+	if (!(pmd_flags(*spmd) & _PAGE_PRESENT)) {
+		/* No shadow entry: allocate a new shadow PTE page. */
+		unsigned long ptepage;
+
+		/* If they didn't want us to allocate anything, stop. */
+		if (!allocate)
+			return NULL;
+
+		ptepage = get_zeroed_page(GFP_KERNEL);
+
+		/*
+		 * This is not really the Guest's fault, but killing it is
+		 * simple for this corner case.
+		 */
+		if (!ptepage) {
+			kill_guest(cpu, "out of memory allocating pmd page");
+			return NULL;
+		}
+
+		/*
+		 * And we copy the flags to the shadow PMD entry.  The page
+		 * number in the shadow PMD is the page we just allocated.
+		 */
+		set_pmd(spmd, __pmd(__pa(ptepage) | pmd_flags));
+	}
+#endif
+
+	/* Get the pointer to the shadow PTE entry we're going to set. */
+	return spte_addr(cpu, *spgd, vaddr);
+}
+
 /*H:330
  * (i) Looking up a page table entry when the Guest faults.
  *
@@ -304,17 +386,11 @@ static bool check_gpmd(struct lg_cpu *cpu, pmd_t gpmd)
  */
 bool demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 {
-	pgd_t gpgd;
-	pgd_t *spgd;
 	unsigned long gpte_ptr;
 	pte_t gpte;
 	pte_t *spte;
-
-	/* Mid level for PAE. */
-#ifdef CONFIG_X86_PAE
-	pmd_t *spmd;
 	pmd_t gpmd;
-#endif
+	pgd_t gpgd;
 
 	/* We never demand page the Switcher, so trying is a mistake. */
 	if (vaddr >= switcher_addr)
@@ -329,67 +405,31 @@ bool demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 		/* Toplevel not present?  We can't map it in. */
 		if (!(pgd_flags(gpgd) & _PAGE_PRESENT))
 			return false;
-	}
 
-	/* Now look at the matching shadow entry. */
-	spgd = spgd_addr(cpu, cpu->cpu_pgd, vaddr);
-	if (!(pgd_flags(*spgd) & _PAGE_PRESENT)) {
-		/* No shadow entry: allocate a new shadow PTE page. */
-		unsigned long ptepage = get_zeroed_page(GFP_KERNEL);
-		/*
-		 * This is not really the Guest's fault, but killing it is
-		 * simple for this corner case.
+		/* 
+		 * This kills the Guest if it has weird flags or tries to
+		 * refer to a "physical" address outside the bounds.
 		 */
-		if (!ptepage) {
-			kill_guest(cpu, "out of memory allocating pte page");
-			return false;
-		}
-		/* We check that the Guest pgd is OK. */
 		if (!check_gpgd(cpu, gpgd))
 			return false;
-		/*
-		 * And we copy the flags to the shadow PGD entry.  The page
-		 * number in the shadow PGD is the page we just allocated.
-		 */
-		set_pgd(spgd, __pgd(__pa(ptepage) | pgd_flags(gpgd)));
 	}
 
+	/* This "mid-level" entry is only used for non-linear, PAE mode. */
+	gpmd = __pmd(_PAGE_TABLE);
+
 #ifdef CONFIG_X86_PAE
-	if (unlikely(cpu->linear_pages)) {
-		/* Faking up a linear mapping. */
-		gpmd = __pmd(_PAGE_TABLE);
-	} else {
+	if (likely(!cpu->linear_pages)) {
 		gpmd = lgread(cpu, gpmd_addr(gpgd, vaddr), pmd_t);
 		/* Middle level not present?  We can't map it in. */
 		if (!(pmd_flags(gpmd) & _PAGE_PRESENT))
 			return false;
-	}
 
-	/* Now look at the matching shadow entry. */
-	spmd = spmd_addr(cpu, *spgd, vaddr);
-
-	if (!(pmd_flags(*spmd) & _PAGE_PRESENT)) {
-		/* No shadow entry: allocate a new shadow PTE page. */
-		unsigned long ptepage = get_zeroed_page(GFP_KERNEL);
-
-		/*
-		 * This is not really the Guest's fault, but killing it is
-		 * simple for this corner case.
+		/* 
+		 * This kills the Guest if it has weird flags or tries to
+		 * refer to a "physical" address outside the bounds.
 		 */
-		if (!ptepage) {
-			kill_guest(cpu, "out of memory allocating pte page");
-			return false;
-		}
-
-		/* We check that the Guest pmd is OK. */
 		if (!check_gpmd(cpu, gpmd))
 			return false;
-
-		/*
-		 * And we copy the flags to the shadow PMD entry.  The page
-		 * number in the shadow PMD is the page we just allocated.
-		 */
-		set_pmd(spmd, __pmd(__pa(ptepage) | pmd_flags(gpmd)));
 	}
 
 	/*
@@ -441,7 +481,9 @@ bool demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 		gpte = pte_mkdirty(gpte);
 
 	/* Get the pointer to the shadow PTE entry we're going to set. */
-	spte = spte_addr(cpu, *spgd, vaddr);
+	spte = find_spte(cpu, vaddr, true, pgd_flags(gpgd), pmd_flags(gpmd));
+	if (!spte)
+		return false;
 
 	/*
 	 * If there was a valid shadow PTE entry here before, we release it.
@@ -493,33 +535,23 @@ bool demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
  */
 static bool page_writable(struct lg_cpu *cpu, unsigned long vaddr)
 {
-	pgd_t *spgd;
+	pte_t *spte;
 	unsigned long flags;
-#ifdef CONFIG_X86_PAE
-	pmd_t *spmd;
-#endif
 
 	/* You can't put your stack in the Switcher! */
 	if (vaddr >= switcher_addr)
 		return false;
 
-	/* Look at the current top level entry: is it present? */
-	spgd = spgd_addr(cpu, cpu->cpu_pgd, vaddr);
-	if (!(pgd_flags(*spgd) & _PAGE_PRESENT))
+	/* If there's no shadow PTE, it's not writable. */
+	spte = find_spte(cpu, vaddr, false, 0, 0);
+	if (!spte)
 		return false;
-
-#ifdef CONFIG_X86_PAE
-	spmd = spmd_addr(cpu, *spgd, vaddr);
-	if (!(pmd_flags(*spmd) & _PAGE_PRESENT))
-		return false;
-#endif
 
 	/*
 	 * Check the flags on the pte entry itself: it must be present and
 	 * writable.
 	 */
-	flags = pte_flags(*(spte_addr(cpu, *spgd, vaddr)));
-
+	flags = pte_flags(*spte);
 	return (flags & (_PAGE_PRESENT|_PAGE_RW)) == (_PAGE_PRESENT|_PAGE_RW);
 }
 
