@@ -259,26 +259,35 @@ static void release_pte(pte_t pte)
 }
 /*:*/
 
-static void check_gpte(struct lg_cpu *cpu, pte_t gpte)
+static bool check_gpte(struct lg_cpu *cpu, pte_t gpte)
 {
 	if ((pte_flags(gpte) & _PAGE_PSE) ||
-	    pte_pfn(gpte) >= cpu->lg->pfn_limit)
+	    pte_pfn(gpte) >= cpu->lg->pfn_limit) {
 		kill_guest(cpu, "bad page table entry");
+		return false;
+	}
+	return true;
 }
 
-static void check_gpgd(struct lg_cpu *cpu, pgd_t gpgd)
+static bool check_gpgd(struct lg_cpu *cpu, pgd_t gpgd)
 {
 	if ((pgd_flags(gpgd) & ~CHECK_GPGD_MASK) ||
-	   (pgd_pfn(gpgd) >= cpu->lg->pfn_limit))
+	    (pgd_pfn(gpgd) >= cpu->lg->pfn_limit)) {
 		kill_guest(cpu, "bad page directory entry");
+		return false;
+	}
+	return true;
 }
 
 #ifdef CONFIG_X86_PAE
-static void check_gpmd(struct lg_cpu *cpu, pmd_t gpmd)
+static bool check_gpmd(struct lg_cpu *cpu, pmd_t gpmd)
 {
 	if ((pmd_flags(gpmd) & ~_PAGE_TABLE) ||
-	   (pmd_pfn(gpmd) >= cpu->lg->pfn_limit))
+	    (pmd_pfn(gpmd) >= cpu->lg->pfn_limit)) {
 		kill_guest(cpu, "bad page middle directory entry");
+		return false;
+	}
+	return true;
 }
 #endif
 
@@ -336,7 +345,8 @@ bool demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 			return false;
 		}
 		/* We check that the Guest pgd is OK. */
-		check_gpgd(cpu, gpgd);
+		if (!check_gpgd(cpu, gpgd))
+			return false;
 		/*
 		 * And we copy the flags to the shadow PGD entry.  The page
 		 * number in the shadow PGD is the page we just allocated.
@@ -372,7 +382,8 @@ bool demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 		}
 
 		/* We check that the Guest pmd is OK. */
-		check_gpmd(cpu, gpmd);
+		if (!check_gpmd(cpu, gpmd))
+			return false;
 
 		/*
 		 * And we copy the flags to the shadow PMD entry.  The page
@@ -421,7 +432,8 @@ bool demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 	 * Check that the Guest PTE flags are OK, and the page number is below
 	 * the pfn_limit (ie. not mapping the Launcher binary).
 	 */
-	check_gpte(cpu, gpte);
+	if (!check_gpte(cpu, gpte))
+		return false;
 
 	/* Add the _PAGE_ACCESSED and (for a write) _PAGE_DIRTY flag */
 	gpte = pte_mkyoung(gpte);
@@ -857,7 +869,8 @@ static void do_set_pte(struct lg_cpu *cpu, int idx,
 			 * micro-benchmark.
 			 */
 			if (pte_flags(gpte) & (_PAGE_DIRTY | _PAGE_ACCESSED)) {
-				check_gpte(cpu, gpte);
+				if (!check_gpte(cpu, gpte))
+					return;
 				set_pte(spte,
 					gpte_to_spte(cpu, gpte,
 						pte_flags(gpte) & _PAGE_DIRTY));
