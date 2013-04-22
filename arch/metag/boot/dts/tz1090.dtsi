@@ -55,5 +55,40 @@
 			compatible = "img,tz1090-pdc-pinctrl";
 			reg = <0x02006500 0x100>;
 		};
+
+		gpios: gpios@02005800 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "img,tz1090-gpio";
+			reg = <0x02005800 0x90>;
+
+			gpios0: bank@0 {
+				gpio-controller;
+				interrupt-controller;
+				#gpio-cells = <2>;
+				#interrupt-cells = <2>;
+				reg = <0>;
+				interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
+				gpio-ranges = <&pinctrl 0 0 30>;
+			};
+			gpios1: bank@1 {
+				gpio-controller;
+				interrupt-controller;
+				#gpio-cells = <2>;
+				#interrupt-cells = <2>;
+				reg = <1>;
+				interrupts = <14 IRQ_TYPE_LEVEL_HIGH>;
+				gpio-ranges = <&pinctrl 0 30 30>;
+			};
+			gpios2: bank@2 {
+				gpio-controller;
+				interrupt-controller;
+				#gpio-cells = <2>;
+				#interrupt-cells = <2>;
+				reg = <2>;
+				interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
+				gpio-ranges = <&pinctrl 0 60 30>;
+			};
+		};
 	};
 };
