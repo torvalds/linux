@@ -24,7 +24,6 @@
  * Devices: (National Instruments) Lab-PC-1200 [lab-pc-1200]
  *	    (National Instruments) Lab-PC-1200AI [lab-pc-1200ai]
  *	    (National Instruments) Lab-PC+ [lab-pc+]
- *	    (National Instruments) PCI-1200 [pci-1200]
  * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
  * Status: works
  *
@@ -33,9 +32,6 @@
  *   [1] - IRQ (optional, required for timed or externally triggered
  *		conversions)
  *   [2] - DMA channel (optional)
- *
- * Configuration options - PCI boards:
- *    not applicable, uses PCI auto config
  *
  * Tested with lab-pc-1200.  For the older Lab-PC+, not all input
  * ranges and analog references will work, the available ranges/arefs
@@ -62,11 +58,9 @@
  *
  * NI manuals:
  * 341309a (labpc-1200 register manual)
- * 340914a (pci-1200)
  * 320502b (lab-pc+)
  */
 
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -78,7 +72,6 @@
 
 #include "8253.h"
 #include "8255.h"
-#include "mite.h"
 #include "comedi_fc.h"
 #include "ni_labpc.h"
 
@@ -241,6 +234,7 @@ static inline void labpc_writeb(unsigned int byte, unsigned long address)
 	writeb(byte, (void __iomem *)address);
 }
 
+#ifdef CONFIG_COMEDI_NI_LABPC_ISA
 static const struct labpc_boardinfo labpc_boards[] = {
 	{
 		.name			= "lab-pc-1200",
@@ -268,21 +262,8 @@ static const struct labpc_boardinfo labpc_boards[] = {
 		.ai_range_table		= &range_labpc_plus_ai,
 		.ai_range_code		= labpc_plus_ai_gain_bits,
 	},
-#ifdef CONFIG_COMEDI_PCI_DRIVERS
-	{
-		.name			= "pci-1200",
-		.device_id		= 0x161,
-		.ai_speed		= 10000,
-		.bustype		= pci_bustype,
-		.register_layout	= labpc_1200_layout,
-		.has_ao			= 1,
-		.ai_range_table		= &range_labpc_1200_ai,
-		.ai_range_code		= labpc_1200_ai_gain_bits,
-		.ai_scan_up		= 1,
-		.has_mmio		= 1,
-	},
-#endif
 };
+#endif
 
 /* size in bytes of dma buffer */
 static const int dma_buffer_size = 0xff00;
@@ -1754,12 +1735,19 @@ int labpc_common_attach(struct comedi_device *dev,
 }
 EXPORT_SYMBOL_GPL(labpc_common_attach);
 
+void labpc_common_detach(struct comedi_device *dev)
+{
+	comedi_spriv_free(dev, 2);
+}
+EXPORT_SYMBOL_GPL(labpc_common_detach);
+
+#ifdef CONFIG_COMEDI_NI_LABPC_ISA
 static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv;
-	unsigned int irq = 0;
-	unsigned int dma_chan = 0;
+	unsigned int irq = it->options[1];
+	unsigned int dma_chan = it->options[2];
 	int ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
@@ -1767,160 +1755,49 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	/* get base address, irq etc. based on bustype */
-	switch (board->bustype) {
-	case isa_bustype:
-#ifdef CONFIG_ISA_DMA_API
-		irq = it->options[1];
-		dma_chan = it->options[2];
-		ret = comedi_request_region(dev, it->options[0], LABPC_SIZE);
-		if (ret)
-			return ret;
-#else
-		dev_err(dev->class_dev,
-			"ni_labpc driver has not been built with ISA DMA support.\n");
-		return -EINVAL;
-#endif
-		break;
-	case pci_bustype:
-#ifdef CONFIG_COMEDI_PCI_DRIVERS
-		dev_err(dev->class_dev,
-			"manual configuration of PCI board '%s' is not supported\n",
-			board->name);
-		return -EINVAL;
-#else
-		dev_err(dev->class_dev,
-			"ni_labpc driver has not been built with PCI support.\n");
-		return -EINVAL;
-#endif
-		break;
-	default:
-		dev_err(dev->class_dev,
-			"ni_labpc: bug! couldn't determine board type\n");
-		return -EINVAL;
-		break;
-	}
+	ret = comedi_request_region(dev, it->options[0], LABPC_SIZE);
+	if (ret)
+		return ret;
 
 	return labpc_common_attach(dev, irq, dma_chan);
 }
 
-static const struct labpc_boardinfo *
-labpc_pci_find_boardinfo(struct pci_dev *pcidev)
+void labpc_detach(struct comedi_device *dev)
 {
-	unsigned int device_id = pcidev->device;
-	unsigned int n;
-
-	for (n = 0; n < ARRAY_SIZE(labpc_boards); n++) {
-		const struct labpc_boardinfo *board = &labpc_boards[n];
-		if (board->bustype == pci_bustype &&
-		    board->device_id == device_id)
-			return board;
-	}
-	return NULL;
-}
-
-static int labpc_auto_attach(struct comedi_device *dev,
-				       unsigned long context_unused)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct labpc_boardinfo *board;
-	struct labpc_private *devpriv;
-	unsigned int irq;
-	int ret;
-
-	if (!IS_ENABLED(CONFIG_COMEDI_PCI_DRIVERS))
-		return -ENODEV;
-
-	ret = comedi_pci_enable(dev);
-	if (ret)
-		return ret;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
-
-	board = labpc_pci_find_boardinfo(pcidev);
-	if (!board)
-		return -ENODEV;
-	dev->board_ptr = board;
-	dev->board_name = board->name;
-	devpriv->mite = mite_alloc(pcidev);
-	if (!devpriv->mite)
-		return -ENOMEM;
-	ret = mite_setup(devpriv->mite);
-	if (ret < 0)
-		return ret;
-	dev->iobase = (unsigned long)devpriv->mite->daq_io_addr;
-	irq = mite_irq(devpriv->mite);
-	return labpc_common_attach(dev, irq, 0);
-}
-
-void labpc_common_detach(struct comedi_device *dev)
-{
-	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 
-	if (!board)
-		return;
-	comedi_spriv_free(dev, 2);
-#ifdef CONFIG_ISA_DMA_API
-	/* only free stuff if it has been allocated by _attach */
-	kfree(devpriv->dma_buffer);
-	if (devpriv->dma_chan)
-		free_dma(devpriv->dma_chan);
-#endif
-	if (board->bustype == isa_bustype)
-		comedi_legacy_detach(dev);
-#ifdef CONFIG_COMEDI_PCI_DRIVERS
-	if (devpriv->mite) {
-		mite_unsetup(devpriv->mite);
-		mite_free(devpriv->mite);
+	labpc_common_detach(dev);
+
+	if (devpriv) {
+		kfree(devpriv->dma_buffer);
+		if (devpriv->dma_chan)
+			free_dma(devpriv->dma_chan);
 	}
-	if (board->bustype == pci_bustype) {
-		if (dev->irq)
-			free_irq(dev->irq, dev);
-		comedi_pci_disable(dev);
-	}
-#endif
+	comedi_legacy_detach(dev);
 }
-EXPORT_SYMBOL_GPL(labpc_common_detach);
 
 static struct comedi_driver labpc_driver = {
 	.driver_name	= "ni_labpc",
 	.module		= THIS_MODULE,
 	.attach		= labpc_attach,
-	.auto_attach	= labpc_auto_attach,
-	.detach		= labpc_common_detach,
+	.detach		= labpc_detach,
 	.num_names	= ARRAY_SIZE(labpc_boards),
 	.board_name	= &labpc_boards[0].name,
 	.offset		= sizeof(struct labpc_boardinfo),
 };
-
-#ifdef CONFIG_COMEDI_PCI_DRIVERS
-static DEFINE_PCI_DEVICE_TABLE(labpc_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x161) },
-	{ 0 }
-};
-MODULE_DEVICE_TABLE(pci, labpc_pci_table);
-
-static int labpc_pci_probe(struct pci_dev *dev,
-			   const struct pci_device_id *id)
-{
-	return comedi_pci_auto_config(dev, &labpc_driver, id->driver_data);
-}
-
-static struct pci_driver labpc_pci_driver = {
-	.name		= "ni_labpc",
-	.id_table	= labpc_pci_table,
-	.probe		= labpc_pci_probe,
-	.remove		= comedi_pci_auto_unconfig,
-};
-module_comedi_pci_driver(labpc_driver, labpc_pci_driver);
-#else
 module_comedi_driver(labpc_driver);
-#endif
+#else
+static int __init labpc_common_init(void)
+{
+	return 0;
+}
+module_init(labpc_common_init);
 
+static void __exit labpc_common_exit(void)
+{
+}
+module_exit(labpc_common_exit);
+#endif
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

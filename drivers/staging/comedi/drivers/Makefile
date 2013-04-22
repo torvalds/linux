@@ -106,6 +106,7 @@ obj-$(CONFIG_COMEDI_NI_6527)		+= ni_6527.o
 obj-$(CONFIG_COMEDI_NI_65XX)		+= ni_65xx.o
 obj-$(CONFIG_COMEDI_NI_660X)		+= ni_660x.o
 obj-$(CONFIG_COMEDI_NI_670X)		+= ni_670x.o
+obj-$(CONFIG_COMEDI_NI_LABPC_PCI)	+= ni_labpc_pci.o
 obj-$(CONFIG_COMEDI_NI_PCIDIO)		+= ni_pcidio.o
 obj-$(CONFIG_COMEDI_NI_PCIMIO)		+= ni_pcimio.o
 obj-$(CONFIG_COMEDI_RTD520)		+= rtd520.o

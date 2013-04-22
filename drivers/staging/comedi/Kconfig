@@ -484,6 +484,19 @@ config COMEDI_NI_ATMIO16D
 	  To compile this driver as a module, choose M here: the module will be
 	  called ni_atmio16d.
 
+config COMEDI_NI_LABPC_ISA
+	tristate "NI Lab-PC and compatibles ISA support"
+	select COMEDI_NI_LABPC
+	depends on VIRT_TO_BUS
+	---help---
+	  Enable support for National Instruments Lab-PC and compatibles
+	  Lab-PC-1200, Lab-PC-1200AI, Lab-PC+.
+	  Kernel-level ISA plug-and-play support for the lab-pc-1200 boards has
+	  not yet been added to the driver.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ni_labpc.
+
 config COMEDI_PCMAD
 	tristate "Winsystems PCM-A/D12 and PCM-A/D16 PC/104 board support"
 	---help---
@@ -1007,20 +1020,15 @@ config COMEDI_NI_670X
 	  To compile this driver as a module, choose M here: the module will be
 	  called ni_670x.
 
-config COMEDI_NI_LABPC
-	tristate "NI Lab-PC and compatibles ISA and PCI support"
+config COMEDI_NI_LABPC_PCI
+	tristate "NI Lab-PC PCI-1200 support"
+	select COMEDI_NI_LABPC
 	select COMEDI_MITE
-	select COMEDI_8255
-	select COMEDI_FC
-	depends on VIRT_TO_BUS
 	---help---
-	  Enable support for National Instruments Lab-PC and compatibles
-	  Lab-PC-1200, Lab-PC-1200AI, Lab-PC+ and PCI-1200.
-	  Kernel-level ISA plug-and-play support for the lab-pc-1200 boards has
-	  not yet been added to the driver.
+	  Enable support for National Instruments Lab-PC PCI-1200.
 
 	  To compile this driver as a module, choose M here: the module will be
-	  called ni_labpc.
+	  called ni_labpc_pci.
 
 config COMEDI_NI_PCIDIO
 	tristate "NI PCI-DIO32HS, PCI-6533, PCI-6534 support"
@@ -1142,7 +1150,7 @@ config COMEDI_NI_DAQ_DIO24_CS
 
 config COMEDI_NI_LABPC_CS
 	tristate "NI DAQCard-1200 PCMCIA support"
-	depends on COMEDI_NI_LABPC
+	select COMEDI_NI_LABPC
 	---help---
 	  Enable support for the National Instruments PCMCIA DAQCard-1200
 
@@ -1254,6 +1262,11 @@ config COMEDI_AMPLC_PC236
 config COMEDI_DAS08
 	tristate
 	select COMEDI_8255
+
+config COMEDI_NI_LABPC
+	tristate
+	select COMEDI_8255
+	select COMEDI_FC
 
 config COMEDI_NI_TIO
 	tristate
