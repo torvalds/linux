@@ -700,22 +700,7 @@ retry:
 
 static void iommu_poll_events(struct amd_iommu *iommu)
 {
-	u32 head, tail, status;
-	unsigned long flags;
-
-	spin_lock_irqsave(&iommu->lock, flags);
-
-	/* enable event interrupts again */
-	do {
-		/*
-		 * Workaround for Erratum ERBT1312
-		 * Clearing the EVT_INT bit may race in the hardware, so read
-		 * it again and make sure it was really cleared
-		 */
-		status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
-		writel(MMIO_STATUS_EVT_INT_MASK,
-		       iommu->mmio_base + MMIO_STATUS_OFFSET);
-	} while (status & MMIO_STATUS_EVT_INT_MASK);
+	u32 head, tail;
 
 	head = readl(iommu->mmio_base + MMIO_EVT_HEAD_OFFSET);
 	tail = readl(iommu->mmio_base + MMIO_EVT_TAIL_OFFSET);
@@ -726,8 +711,6 @@ static void iommu_poll_events(struct amd_iommu *iommu)
 	}
 
 	writel(head, iommu->mmio_base + MMIO_EVT_HEAD_OFFSET);
-
-	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
 static void iommu_handle_ppr_entry(struct amd_iommu *iommu, u64 *raw)
@@ -752,25 +735,10 @@ static void iommu_handle_ppr_entry(struct amd_iommu *iommu, u64 *raw)
 
 static void iommu_poll_ppr_log(struct amd_iommu *iommu)
 {
-	unsigned long flags;
-	u32 head, tail, status;
+	u32 head, tail;
 
 	if (iommu->ppr_log == NULL)
 		return;
-
-	spin_lock_irqsave(&iommu->lock, flags);
-
-	/* enable ppr interrupts again */
-	do {
-		/*
-		 * Workaround for Erratum ERBT1312
-		 * Clearing the PPR_INT bit may race in the hardware, so read
-		 * it again and make sure it was really cleared
-		 */
-		status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
-		writel(MMIO_STATUS_PPR_INT_MASK,
-		       iommu->mmio_base + MMIO_STATUS_OFFSET);
-	} while (status & MMIO_STATUS_PPR_INT_MASK);
 
 	head = readl(iommu->mmio_base + MMIO_PPR_HEAD_OFFSET);
 	tail = readl(iommu->mmio_base + MMIO_PPR_TAIL_OFFSET);
@@ -807,34 +775,50 @@ static void iommu_poll_ppr_log(struct amd_iommu *iommu)
 		head = (head + PPR_ENTRY_SIZE) % PPR_LOG_SIZE;
 		writel(head, iommu->mmio_base + MMIO_PPR_HEAD_OFFSET);
 
-		/*
-		 * Release iommu->lock because ppr-handling might need to
-		 * re-acquire it
-		 */
-		spin_unlock_irqrestore(&iommu->lock, flags);
-
 		/* Handle PPR entry */
 		iommu_handle_ppr_entry(iommu, entry);
-
-		spin_lock_irqsave(&iommu->lock, flags);
 
 		/* Refresh ring-buffer information */
 		head = readl(iommu->mmio_base + MMIO_PPR_HEAD_OFFSET);
 		tail = readl(iommu->mmio_base + MMIO_PPR_TAIL_OFFSET);
 	}
-
-	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
 irqreturn_t amd_iommu_int_thread(int irq, void *data)
 {
-	struct amd_iommu *iommu;
+	struct amd_iommu *iommu = (struct amd_iommu *) data;
+	u32 status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
 
-	for_each_iommu(iommu) {
-		iommu_poll_events(iommu);
-		iommu_poll_ppr_log(iommu);
+	while (status & (MMIO_STATUS_EVT_INT_MASK | MMIO_STATUS_PPR_INT_MASK)) {
+		/* Enable EVT and PPR interrupts again */
+		writel((MMIO_STATUS_EVT_INT_MASK | MMIO_STATUS_PPR_INT_MASK),
+			iommu->mmio_base + MMIO_STATUS_OFFSET);
+
+		if (status & MMIO_STATUS_EVT_INT_MASK) {
+			pr_devel("AMD-Vi: Processing IOMMU Event Log\n");
+			iommu_poll_events(iommu);
+		}
+
+		if (status & MMIO_STATUS_PPR_INT_MASK) {
+			pr_devel("AMD-Vi: Processing IOMMU PPR Log\n");
+			iommu_poll_ppr_log(iommu);
+		}
+
+		/*
+		 * Hardware bug: ERBT1312
+		 * When re-enabling interrupt (by writing 1
+		 * to clear the bit), the hardware might also try to set
+		 * the interrupt bit in the event status register.
+		 * In this scenario, the bit will be set, and disable
+		 * subsequent interrupts.
+		 *
+		 * Workaround: The IOMMU driver should read back the
+		 * status register and check if the interrupt bits are cleared.
+		 * If not, driver will need to go through the interrupt handler
+		 * again and re-clear the bits
+		 */
+		status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
 	}
-
 	return IRQ_HANDLED;
 }
 
