@@ -116,7 +116,9 @@ struct extent_state {
 	/* for use by the FS */
 	u64 private;
 
+#ifdef CONFIG_BTRFS_DEBUG
 	struct list_head leak_list;
+#endif
 };
 
 #define INLINE_EXTENT_BUFFER_PAGES 16
@@ -132,7 +134,6 @@ struct extent_buffer {
 	atomic_t refs;
 	atomic_t io_pages;
 	int read_mirror;
-	struct list_head leak_list;
 	struct rcu_head rcu_head;
 	pid_t lock_owner;
 
@@ -159,6 +160,9 @@ struct extent_buffer {
 	wait_queue_head_t read_lock_wq;
 	wait_queue_head_t lock_wq;
 	struct page *pages[INLINE_EXTENT_BUFFER_PAGES];
+#ifdef CONFIG_BTRFS_DEBUG
+	struct list_head leak_list;
+#endif
 };
 
 static inline void extent_set_compress_type(unsigned long *bio_flags,
