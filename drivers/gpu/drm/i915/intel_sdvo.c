@@ -1231,11 +1231,7 @@ static bool intel_sdvo_connector_get_hw_state(struct intel_connector *connector)
 	struct intel_sdvo_connector *intel_sdvo_connector =
 		to_intel_sdvo_connector(&connector->base);
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(&connector->base);
-	struct drm_i915_private *dev_priv = intel_sdvo->base.base.dev->dev_private;
 	u16 active_outputs;
-
-	if (!(I915_READ(intel_sdvo->sdvo_reg) & SDVO_ENABLE))
-		return false;
 
 	intel_sdvo_get_active_outputs(intel_sdvo, &active_outputs);
 
@@ -1251,11 +1247,13 @@ static bool intel_sdvo_get_hw_state(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
+	u16 active_outputs;
 	u32 tmp;
 
 	tmp = I915_READ(intel_sdvo->sdvo_reg);
+	intel_sdvo_get_active_outputs(intel_sdvo, &active_outputs);
 
-	if (!(tmp & SDVO_ENABLE))
+	if (!(tmp & SDVO_ENABLE) && (active_outputs == 0))
 		return false;
 
 	if (HAS_PCH_CPT(dev))
@@ -2276,7 +2274,6 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 	connector = &intel_connector->base;
 	if (intel_sdvo_get_hotplug_support(intel_sdvo) &
 		intel_sdvo_connector->output_flag) {
-		connector->polled = DRM_CONNECTOR_POLL_HPD;
 		intel_sdvo->hotplug_active |= intel_sdvo_connector->output_flag;
 		/* Some SDVO devices have one-shot hotplug interrupts.
 		 * Ensure that they get re-enabled when an interrupt happens.
@@ -2284,7 +2281,7 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 		intel_encoder->hot_plug = intel_sdvo_enable_hotplug;
 		intel_sdvo_enable_hotplug(intel_encoder);
 	} else {
-		connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
+		intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 	}
 	encoder->encoder_type = DRM_MODE_ENCODER_TMDS;
 	connector->connector_type = DRM_MODE_CONNECTOR_DVID;
@@ -2353,7 +2350,7 @@ intel_sdvo_analog_init(struct intel_sdvo *intel_sdvo, int device)
 
 	intel_connector = &intel_sdvo_connector->base;
 	connector = &intel_connector->base;
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 	encoder->encoder_type = DRM_MODE_ENCODER_DAC;
 	connector->connector_type = DRM_MODE_CONNECTOR_VGA;
 
@@ -2746,7 +2743,6 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 	struct intel_sdvo *intel_sdvo;
 	u32 hotplug_mask;
 	int i;
-
 	intel_sdvo = kzalloc(sizeof(struct intel_sdvo), GFP_KERNEL);
 	if (!intel_sdvo)
 		return false;

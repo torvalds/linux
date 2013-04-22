@@ -125,8 +125,14 @@
 #define   HSW_ECOCHK_ARB_PRIO_SOL	(1<<6)
 #define   ECOCHK_PPGTT_CACHE64B		(0x3<<3)
 #define   ECOCHK_PPGTT_CACHE4B		(0x0<<3)
+#define   ECOCHK_PPGTT_GFDT_IVB		(0x1<<4)
+#define   ECOCHK_PPGTT_LLC_IVB		(0x1<<3)
+#define   ECOCHK_PPGTT_UC_HSW		(0x1<<3)
+#define   ECOCHK_PPGTT_WT_HSW		(0x2<<3)
+#define   ECOCHK_PPGTT_WB_HSW		(0x3<<3)
 
 #define GAC_ECO_BITS			0x14090
+#define   ECOBITS_SNB_BIT		(1<<13)
 #define   ECOBITS_PPGTT_CACHE64B	(3<<8)
 #define   ECOBITS_PPGTT_CACHE4B		(0<<8)
 
@@ -424,6 +430,7 @@
 
 #define FENCE_REG_SANDYBRIDGE_0		0x100000
 #define   SANDYBRIDGE_FENCE_PITCH_SHIFT	32
+#define   GEN7_FENCE_MAX_PITCH_VAL	0x0800
 
 /* control register for cpu gtt access */
 #define TILECTL				0x101000
@@ -1202,6 +1209,9 @@
 #define MCHBAR_MIRROR_BASE	0x10000
 
 #define MCHBAR_MIRROR_BASE_SNB	0x140000
+
+/* Memory controller frequency in MCHBAR for Haswell (possible SNB+) */
+#define DCLK 0x5e04
 
 /** 915-945 and GM965 MCH register controlling DRAM channel access */
 #define DCC			0x10200
@@ -3568,6 +3578,9 @@
 #define DISP_ARB_CTL	0x45000
 #define  DISP_TILE_SURFACE_SWIZZLING	(1<<13)
 #define  DISP_FBC_WM_DIS		(1<<15)
+#define GEN7_MSG_CTL	0x45010
+#define  WAIT_FOR_PCH_RESET_ACK		(1<<1)
+#define  WAIT_FOR_PCH_FLR_ACK		(1<<0)
 
 /* GEN7 chicken */
 #define GEN7_COMMON_SLICE_CHICKEN1		0x7010
@@ -3946,8 +3959,11 @@
 #define _TRANSA_CHICKEN2	 0xf0064
 #define _TRANSB_CHICKEN2	 0xf1064
 #define TRANS_CHICKEN2(pipe) _PIPE(pipe, _TRANSA_CHICKEN2, _TRANSB_CHICKEN2)
-#define  TRANS_CHICKEN2_TIMING_OVERRIDE		(1<<31)
-
+#define  TRANS_CHICKEN2_TIMING_OVERRIDE			(1<<31)
+#define  TRANS_CHICKEN2_FDI_POLARITY_REVERSED		(1<<29)
+#define  TRANS_CHICKEN2_FRAME_START_DELAY_MASK		(3<<27)
+#define  TRANS_CHICKEN2_DISABLE_DEEP_COLOR_COUNTER	(1<<26)
+#define  TRANS_CHICKEN2_DISABLE_DEEP_COLOR_MODESWITCH	(1<<25)
 
 #define SOUTH_CHICKEN1		0xc2000
 #define  FDIA_PHASE_SYNC_SHIFT_OVR	19
@@ -4380,6 +4396,7 @@
 #define   GEN6_DECODE_RC6_VID(vids)		(((vids) * 5) + 245)
 #define GEN6_PCODE_DATA				0x138128
 #define   GEN6_PCODE_FREQ_IA_RATIO_SHIFT	8
+#define   GEN6_PCODE_FREQ_RING_RATIO_SHIFT	16
 
 #define VLV_IOSF_DOORBELL_REQ			0x182100
 #define   IOSF_DEVFN_SHIFT			24

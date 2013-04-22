@@ -283,6 +283,9 @@ void intel_fb_restore_mode(struct drm_device *dev)
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_plane *plane;
 
+	if (INTEL_INFO(dev)->num_pipes == 0)
+		return;
+
 	drm_modeset_lock_all(dev);
 
 	ret = drm_fb_helper_restore_fbdev_mode(&dev_priv->fbdev->helper);

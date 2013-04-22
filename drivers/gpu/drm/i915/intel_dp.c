@@ -353,10 +353,14 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 			aux_clock_divider = 200; /* SNB & IVB eDP input clock at 400Mhz */
 		else
 			aux_clock_divider = 225; /* eDP input clock at 450Mhz */
-	} else if (HAS_PCH_SPLIT(dev))
+	} else if (dev_priv->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
+		/* Workaround for non-ULT HSW */
+		aux_clock_divider = 74;
+	} else if (HAS_PCH_SPLIT(dev)) {
 		aux_clock_divider = DIV_ROUND_UP(intel_pch_rawclk(dev), 2);
-	else
+	} else {
 		aux_clock_divider = intel_hrawclk(dev) / 2;
+	}
 
 	if (IS_GEN6(dev))
 		precharge = 3;
@@ -2470,17 +2474,14 @@ done:
 static void
 intel_dp_destroy(struct drm_connector *connector)
 {
-	struct drm_device *dev = connector->dev;
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
 	if (!IS_ERR_OR_NULL(intel_connector->edid))
 		kfree(intel_connector->edid);
 
-	if (is_edp(intel_dp)) {
-		intel_panel_destroy_backlight(dev);
+	if (is_edp(intel_dp))
 		intel_panel_fini(&intel_connector->panel);
-	}
 
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
@@ -2789,7 +2790,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	drm_connector_init(dev, connector, &intel_dp_connector_funcs, type);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
 
-	connector->polled = DRM_CONNECTOR_POLL_HPD;
 	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 

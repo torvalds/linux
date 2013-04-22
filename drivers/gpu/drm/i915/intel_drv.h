@@ -171,6 +171,10 @@ struct intel_connector {
 
 	/* Cached EDID for eDP and LVDS. May hold ERR_PTR for invalid EDID. */
 	struct edid *edid;
+
+	/* since POLL and HPD connectors may use the same HPD line keep the native
+	   state of connector->polled in case hotplug storm detection changes it */
+	u8 polled;
 };
 
 struct intel_crtc_config {
@@ -183,6 +187,10 @@ struct intel_crtc_config {
 	/* Whether to set up the PCH/FDI. Note that we never allow sharing
 	 * between pch encoders and cpu encoders. */
 	bool has_pch_encoder;
+
+	/* CPU Transcoder for the pipe. Currently this can only differ from the
+	 * pipe on Haswell (where we have a special eDP transcoder). */
+	enum transcoder cpu_transcoder;
 
 	/*
 	 * Use reduced/limited/broadcast rbg range, compressing from the full
@@ -222,7 +230,6 @@ struct intel_crtc {
 	struct drm_crtc base;
 	enum pipe pipe;
 	enum plane plane;
-	enum transcoder cpu_transcoder;
 	u8 lut_r[256], lut_g[256], lut_b[256];
 	/*
 	 * Whether the crtc and the connected output pipeline is active. Implies
@@ -693,6 +700,7 @@ extern void intel_update_fbc(struct drm_device *dev);
 extern void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 extern void intel_gpu_ips_teardown(void);
 
+extern bool intel_using_power_well(struct drm_device *dev);
 extern void intel_init_power_well(struct drm_device *dev);
 extern void intel_set_power_well(struct drm_device *dev, bool enable);
 extern void intel_enable_gt_powersave(struct drm_device *dev);

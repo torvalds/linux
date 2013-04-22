@@ -901,7 +901,7 @@ i915_next_seqno_set(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_next_seqno_fops,
 			i915_next_seqno_get, i915_next_seqno_set,
-			"next_seqno :  0x%llx\n");
+			"0x%llx\n");
 
 static int i915_rstdby_delays(struct seq_file *m, void *unused)
 {
@@ -1006,6 +1006,9 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		max_freq = rp_state_cap & 0xff;
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   max_freq * GT_FREQUENCY_MULTIPLIER);
+
+		seq_printf(m, "Max overclocked frequency: %dMHz\n",
+			   dev_priv->rps.hw_max * GT_FREQUENCY_MULTIPLIER);
 	} else {
 		seq_printf(m, "no P-state info available\n");
 	}
@@ -1354,7 +1357,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	if (ret)
 		return ret;
 
-	seq_printf(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\n");
+	seq_printf(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\tEffective Ring freq (MHz)\n");
 
 	for (gpu_freq = dev_priv->rps.min_delay;
 	     gpu_freq <= dev_priv->rps.max_delay;
@@ -1363,7 +1366,10 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 		sandybridge_pcode_read(dev_priv,
 				       GEN6_PCODE_READ_MIN_FREQ_TABLE,
 				       &ia_freq);
-		seq_printf(m, "%d\t\t%d\n", gpu_freq * GT_FREQUENCY_MULTIPLIER, ia_freq * 100);
+		seq_printf(m, "%d\t\t%d\t\t\t\t%d\n",
+			   gpu_freq * GT_FREQUENCY_MULTIPLIER,
+			   ((ia_freq >> 0) & 0xff) * 100,
+			   ((ia_freq >> 8) & 0xff) * 100);
 	}
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
@@ -1687,7 +1693,7 @@ i915_wedged_set(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 			i915_wedged_get, i915_wedged_set,
-			"wedged :  %llu\n");
+			"%llu\n");
 
 static int
 i915_ring_stop_get(void *data, u64 *val)
@@ -1841,7 +1847,7 @@ i915_max_freq_set(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_max_freq_fops,
 			i915_max_freq_get, i915_max_freq_set,
-			"max freq: %llu\n");
+			"%llu\n");
 
 static int
 i915_min_freq_get(void *data, u64 *val)
@@ -1892,7 +1898,7 @@ i915_min_freq_set(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_min_freq_fops,
 			i915_min_freq_get, i915_min_freq_set,
-			"min freq: %llu\n");
+			"%llu\n");
 
 static int
 i915_cache_sharing_get(void *data, u64 *val)

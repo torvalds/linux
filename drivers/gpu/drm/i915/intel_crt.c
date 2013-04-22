@@ -787,10 +787,8 @@ void intel_crt_init(struct drm_device *dev)
 
 	drm_sysfs_connector_add(connector);
 
-	if (I915_HAS_HOTPLUG(dev))
-		connector->polled = DRM_CONNECTOR_POLL_HPD;
-	else
-		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	if (!I915_HAS_HOTPLUG(dev))
+		intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 
 	/*
 	 * Configure the automatic hotplug detection stuff
