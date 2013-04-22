@@ -333,15 +333,10 @@ static int __init init(void)
 	if (err)
 		goto out;
 
-	/* Now we set up the pagetable implementation for the Guests. */
-	err = init_pagetables(lg_switcher_pages);
-	if (err)
-		goto unmap;
-
 	/* We might need to reserve an interrupt vector. */
 	err = init_interrupts();
 	if (err)
-		goto free_pgtables;
+		goto unmap;
 
 	/* /dev/lguest needs to be registered. */
 	err = lguest_device_init();
@@ -356,8 +351,6 @@ static int __init init(void)
 
 free_interrupts:
 	free_interrupts();
-free_pgtables:
-	free_pagetables();
 unmap:
 	unmap_switcher();
 out:
@@ -369,7 +362,6 @@ static void __exit fini(void)
 {
 	lguest_device_remove();
 	free_interrupts();
-	free_pagetables();
 	unmap_switcher();
 
 	lguest_arch_host_fini();

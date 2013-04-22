@@ -62,19 +62,10 @@
  * will need the last pmd entry of the last pmd page.
  */
 #ifdef CONFIG_X86_PAE
-#define SWITCHER_PMD_INDEX 	(PTRS_PER_PMD - 1)
 #define CHECK_GPGD_MASK		_PAGE_PRESENT
 #else
 #define CHECK_GPGD_MASK		_PAGE_TABLE
 #endif
-
-/*
- * We actually need a separate PTE page for each CPU.  Remember that after the
- * Switcher code itself comes two pages for each CPU, and we don't want this
- * CPU's guest to see the pages of any other CPU.
- */
-static DEFINE_PER_CPU(pte_t *, switcher_pte_pages);
-#define switcher_pte_page(cpu) per_cpu(switcher_pte_pages, cpu)
 
 /*H:320
  * The page table code is curly enough to need helper functions to keep it
@@ -714,9 +705,6 @@ static unsigned int new_pgdir(struct lg_cpu *cpu,
 			      int *blank_pgdir)
 {
 	unsigned int next;
-#ifdef CONFIG_X86_PAE
-	pmd_t *pmd_table;
-#endif
 
 	/*
 	 * We pick one entry at random to throw out.  Choosing the Least
@@ -731,29 +719,11 @@ static unsigned int new_pgdir(struct lg_cpu *cpu,
 		if (!cpu->lg->pgdirs[next].pgdir)
 			next = cpu->cpu_pgd;
 		else {
-#ifdef CONFIG_X86_PAE
 			/*
-			 * In PAE mode, allocate a pmd page and populate the
-			 * last pgd entry.
+			 * This is a blank page, so there are no kernel
+			 * mappings: caller must map the stack!
 			 */
-			pmd_table = (pmd_t *)get_zeroed_page(GFP_KERNEL);
-			if (!pmd_table) {
-				free_page((long)cpu->lg->pgdirs[next].pgdir);
-				set_pgd(cpu->lg->pgdirs[next].pgdir, __pgd(0));
-				next = cpu->cpu_pgd;
-			} else {
-				set_pgd(cpu->lg->pgdirs[next].pgdir +
-					SWITCHER_PGD_INDEX,
-					__pgd(__pa(pmd_table) | _PAGE_PRESENT));
-				/*
-				 * This is a blank page, so there are no kernel
-				 * mappings: caller must map the stack!
-				 */
-				*blank_pgdir = 1;
-			}
-#else
 			*blank_pgdir = 1;
-#endif
 		}
 	}
 	/* Record which Guest toplevel this shadows. */
@@ -762,6 +732,23 @@ static unsigned int new_pgdir(struct lg_cpu *cpu,
 	flush_user_mappings(cpu->lg, next);
 
 	return next;
+}
+
+/*H:501
+ * We do need the Switcher code mapped at all times, so we allocate that
+ * part of the Guest page table here, and populate it when we're about to run
+ * the guest.
+ */
+static bool allocate_switcher_mapping(struct lg_cpu *cpu)
+{
+	int i;
+
+	for (i = 0; i < TOTAL_SWITCHER_PAGES; i++) {
+		if (!find_spte(cpu, switcher_addr + i * PAGE_SIZE, true,
+			       CHECK_GPGD_MASK, _PAGE_TABLE))
+			return false;
+	}
+	return true;
 }
 
 /*H:470
@@ -774,28 +761,14 @@ static void release_all_pagetables(struct lguest *lg)
 	unsigned int i, j;
 
 	/* Every shadow pagetable this Guest has */
-	for (i = 0; i < ARRAY_SIZE(lg->pgdirs); i++)
-		if (lg->pgdirs[i].pgdir) {
-#ifdef CONFIG_X86_PAE
-			pgd_t *spgd;
-			pmd_t *pmdpage;
-			unsigned int k;
+	for (i = 0; i < ARRAY_SIZE(lg->pgdirs); i++) {
+		if (!lg->pgdirs[i].pgdir)
+			continue;
 
-			/* Get the last pmd page. */
-			spgd = lg->pgdirs[i].pgdir + SWITCHER_PGD_INDEX;
-			pmdpage = __va(pgd_pfn(*spgd) << PAGE_SHIFT);
-
-			/*
-			 * And release the pmd entries of that pmd page,
-			 * except for the switcher pmd.
-			 */
-			for (k = 0; k < SWITCHER_PMD_INDEX; k++)
-				release_pmd(&pmdpage[k]);
-#endif
-			/* Every PGD entry except the Switcher at the top */
-			for (j = 0; j < SWITCHER_PGD_INDEX; j++)
-				release_pgd(lg->pgdirs[i].pgdir + j);
-		}
+		/* Every PGD entry. */
+		for (j = 0; j < PTRS_PER_PGD; j++)
+			release_pgd(lg->pgdirs[i].pgdir + j);
+	}
 }
 
 /*
@@ -809,6 +782,9 @@ void guest_pagetable_clear_all(struct lg_cpu *cpu)
 	release_all_pagetables(cpu->lg);
 	/* We need the Guest kernel stack mapped again. */
 	pin_stack_pages(cpu);
+	/* And we need Switcher allocated. */
+	if (!allocate_switcher_mapping(cpu))
+		kill_guest(cpu, "Cannot populate switcher mapping");
 }
 
 /*H:430
@@ -844,9 +820,15 @@ void guest_new_pagetable(struct lg_cpu *cpu, unsigned long pgtable)
 		newpgdir = new_pgdir(cpu, pgtable, &repin);
 	/* Change the current pgd index to the new one. */
 	cpu->cpu_pgd = newpgdir;
-	/* If it was completely blank, we map in the Guest kernel stack */
+	/*
+	 * If it was completely blank, we map in the Guest kernel stack and
+	 * the Switcher.
+	 */
 	if (repin)
 		pin_stack_pages(cpu);
+
+	if (!allocate_switcher_mapping(cpu))
+		kill_guest(cpu, "Cannot populate switcher mapping");
 }
 /*:*/
 
@@ -976,14 +958,23 @@ void guest_set_pgd(struct lguest *lg, unsigned long gpgdir, u32 idx)
 {
 	int pgdir;
 
-	if (idx >= SWITCHER_PGD_INDEX)
+	if (idx > PTRS_PER_PGD) {
+		kill_guest(&lg->cpus[0], "Attempt to set pgd %u/%u",
+			   idx, PTRS_PER_PGD);
 		return;
+	}
 
 	/* If they're talking about a page table we have a shadow for... */
 	pgdir = find_pgdir(lg, gpgdir);
-	if (pgdir < ARRAY_SIZE(lg->pgdirs))
+	if (pgdir < ARRAY_SIZE(lg->pgdirs)) {
 		/* ... throw it away. */
 		release_pgd(lg->pgdirs[pgdir].pgdir + idx);
+		/* That might have been the Switcher mapping, remap it. */
+		if (!allocate_switcher_mapping(&lg->cpus[0])) {
+			kill_guest(&lg->cpus[0],
+				   "Cannot populate switcher mapping");
+		}
+	}
 }
 
 #ifdef CONFIG_X86_PAE
@@ -1001,6 +992,9 @@ void guest_set_pmd(struct lguest *lg, unsigned long pmdp, u32 idx)
  * we will populate on future faults.  The Guest doesn't have any actual
  * pagetables yet, so we set linear_pages to tell demand_page() to fake it
  * for the moment.
+ *
+ * We do need the Switcher to be mapped at all times, so we allocate that
+ * part of the Guest page table here.
  */
 int init_guest_pagetable(struct lguest *lg)
 {
@@ -1014,6 +1008,13 @@ int init_guest_pagetable(struct lguest *lg)
 
 	/* We start with a linear mapping until the initialize. */
 	cpu->linear_pages = true;
+
+	/* Allocate the page tables for the Switcher. */
+	if (!allocate_switcher_mapping(cpu)) {
+		release_all_pagetables(lg);
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -1065,91 +1066,68 @@ void free_guest_pagetable(struct lguest *lg)
  * (vi) Mapping the Switcher when the Guest is about to run.
  *
  * The Switcher and the two pages for this CPU need to be visible in the
- * Guest (and not the pages for other CPUs).  We have the appropriate PTE pages
- * for each CPU already set up, we just need to hook them in now we know which
- * Guest is about to run on this CPU.
+ * Guest (and not the pages for other CPUs).
+ *
+ * The pages have all been allocate
  */
 void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages)
 {
-	pte_t *switcher_pte_page = __this_cpu_read(switcher_pte_pages);
-	pte_t regs_pte;
+	unsigned long base, i;
+	struct page *percpu_switcher_page, *regs_page;
+	pte_t *pte;
 
-#ifdef CONFIG_X86_PAE
-	pmd_t switcher_pmd;
-	pmd_t *pmd_table;
+	/* Code page should always be mapped, and executable. */
+	pte = find_spte(cpu, switcher_addr, false, 0, 0);
+	get_page(lg_switcher_pages[0]);
+	set_pte(pte, mk_pte(lg_switcher_pages[0], PAGE_KERNEL_RX));
 
-	switcher_pmd = pfn_pmd(__pa(switcher_pte_page) >> PAGE_SHIFT,
-			       PAGE_KERNEL_EXEC);
+	/* Clear all the Switcher mappings for any other CPUs. */
+	/* FIXME: This is dumb: update only when Host CPU changes. */
+	for_each_possible_cpu(i) {
+		/* Get location of lguest_pages (indexed by Host CPU) */
+		base = switcher_addr + PAGE_SIZE
+			+ i * sizeof(struct lguest_pages);
 
-	/* Figure out where the pmd page is, by reading the PGD, and converting
-	 * it to a virtual address. */
-	pmd_table = __va(pgd_pfn(cpu->lg->
-			pgdirs[cpu->cpu_pgd].pgdir[SWITCHER_PGD_INDEX])
-								<< PAGE_SHIFT);
-	/* Now write it into the shadow page table. */
-	set_pmd(&pmd_table[SWITCHER_PMD_INDEX], switcher_pmd);
-#else
-	pgd_t switcher_pgd;
+		/* Get shadow PTE for first page (where we put guest regs). */
+		pte = find_spte(cpu, base, false, 0, 0);
+		set_pte(pte, __pte(0));
+
+		/* This is where we put R/O state. */
+		pte = find_spte(cpu, base + PAGE_SIZE, false, 0, 0);
+		set_pte(pte, __pte(0));
+	}
 
 	/*
-	 * Make the last PGD entry for this Guest point to the Switcher's PTE
-	 * page for this CPU (with appropriate flags).
+	 * When we're running the Guest, we want the Guest's "regs" page to
+	 * appear where the first Switcher page for this CPU is.  This is an
+	 * optimization: when the Switcher saves the Guest registers, it saves
+	 * them into the first page of this CPU's "struct lguest_pages": if we
+	 * make sure the Guest's register page is already mapped there, we
+	 * don't have to copy them out again.
 	 */
-	switcher_pgd = __pgd(__pa(switcher_pte_page) | __PAGE_KERNEL_EXEC);
+	/* Find the shadow PTE for this regs page. */
+	base = switcher_addr + PAGE_SIZE
+		+ raw_smp_processor_id() * sizeof(struct lguest_pages);
+	pte = find_spte(cpu, base, false, 0, 0);
+	regs_page = pfn_to_page(__pa(cpu->regs_page) >> PAGE_SHIFT);
+	get_page(regs_page);
+	set_pte(pte, mk_pte(regs_page, __pgprot(__PAGE_KERNEL & ~_PAGE_GLOBAL)));
 
-	cpu->lg->pgdirs[cpu->cpu_pgd].pgdir[SWITCHER_PGD_INDEX] = switcher_pgd;
-
-#endif
 	/*
-	 * We also change the Switcher PTE page.  When we're running the Guest,
-	 * we want the Guest's "regs" page to appear where the first Switcher
-	 * page for this CPU is.  This is an optimization: when the Switcher
-	 * saves the Guest registers, it saves them into the first page of this
-	 * CPU's "struct lguest_pages": if we make sure the Guest's register
-	 * page is already mapped there, we don't have to copy them out
-	 * again.
+	 * We map the second page of the struct lguest_pages read-only in
+	 * the Guest: the IDT, GDT and other things it's not supposed to
+	 * change.
 	 */
-	regs_pte = pfn_pte(__pa(cpu->regs_page) >> PAGE_SHIFT, PAGE_KERNEL);
-	set_pte(&switcher_pte_page[pte_index((unsigned long)pages)], regs_pte);
+	base += PAGE_SIZE;
+	pte = find_spte(cpu, base, false, 0, 0);
+
+	percpu_switcher_page
+		= lg_switcher_pages[1 + raw_smp_processor_id()*2 + 1];
+	get_page(percpu_switcher_page);
+	set_pte(pte, mk_pte(percpu_switcher_page,
+			    __pgprot(__PAGE_KERNEL_RO & ~_PAGE_GLOBAL)));
 }
 /*:*/
-
-static void free_switcher_pte_pages(void)
-{
-	unsigned int i;
-
-	for_each_possible_cpu(i)
-		free_page((long)switcher_pte_page(i));
-}
-
-/*H:520
- * Setting up the Switcher PTE page for given CPU is fairly easy, given
- * the CPU number and the "struct page"s for the Switcher and per-cpu pages.
- */
-static __init void populate_switcher_pte_page(unsigned int cpu,
-					      struct page *switcher_pages[])
-{
-	pte_t *pte = switcher_pte_page(cpu);
-	int i;
-
-	/* The first entries maps the Switcher code. */
-	set_pte(&pte[0], mk_pte(switcher_pages[0],
-				__pgprot(_PAGE_PRESENT|_PAGE_ACCESSED)));
-
-	/* The only other thing we map is this CPU's pair of pages. */
-	i = 1 + cpu*2;
-
-	/* First page (Guest registers) is writable from the Guest */
-	set_pte(&pte[i], pfn_pte(page_to_pfn(switcher_pages[i]),
-			 __pgprot(_PAGE_PRESENT|_PAGE_ACCESSED|_PAGE_RW)));
-
-	/*
-	 * The second page contains the "struct lguest_ro_state", and is
-	 * read-only.
-	 */
-	set_pte(&pte[i+1], pfn_pte(page_to_pfn(switcher_pages[i+1]),
-			   __pgprot(_PAGE_PRESENT|_PAGE_ACCESSED)));
-}
 
 /*
  * We've made it through the page table code.  Perhaps our tired brains are
@@ -1163,29 +1141,3 @@ static __init void populate_switcher_pte_page(unsigned int cpu,
  *
  * There is just one file remaining in the Host.
  */
-
-/*H:510
- * At boot or module load time, init_pagetables() allocates and populates
- * the Switcher PTE page for each CPU.
- */
-__init int init_pagetables(struct page **switcher_pages)
-{
-	unsigned int i;
-
-	for_each_possible_cpu(i) {
-		switcher_pte_page(i) = (pte_t *)get_zeroed_page(GFP_KERNEL);
-		if (!switcher_pte_page(i)) {
-			free_switcher_pte_pages();
-			return -ENOMEM;
-		}
-		populate_switcher_pte_page(i, switcher_pages);
-	}
-	return 0;
-}
-/*:*/
-
-/* Cleaning up simply involves freeing the PTE page for each CPU. */
-void free_pagetables(void)
-{
-	free_switcher_pte_pages();
-}
