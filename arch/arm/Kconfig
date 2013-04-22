@@ -906,6 +906,7 @@ config ARCH_RK3188
 	select RK_TIMER
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
+	select ARM_ERRATA_761320
 	select ARM_ERRATA_764369
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
@@ -1304,6 +1305,12 @@ config ARM_ERRATA_754327
 	  continuously polls a memory location waiting to observe an update.
 	  This workaround defines cpu_relax() as smp_mb(), preventing correctly
 	  written polling loops from denying visibility of updates to memory.
+
+config ARM_ERRATA_761320
+	bool "ARM errata: no direct eviction"
+	depends on CPU_V7 && SMP
+	help
+	  This option enables the workaround for the 761320 Cortex-A9 erratum.
 
 config ARM_ERRATA_764369
 	bool "ARM errata: Data cache line maintenance operation by MVA may not succeed"
