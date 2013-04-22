@@ -1392,7 +1392,7 @@ static int __devinit rk3188_lcdc_probe(struct platform_device *pdev)
 	}
 	screen->lcdc_id = lcdc_dev->id;
 	screen->screen_id = 0;
-#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)&& defined(CONFIG_RK610_LVDS)
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)&&  (defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_LVDS))
 	screen1 =  kzalloc(sizeof(rk_screen), GFP_KERNEL);
 	if(!screen1)
 	{
@@ -1402,7 +1402,7 @@ static int __devinit rk3188_lcdc_probe(struct platform_device *pdev)
 	}
 	screen1->lcdc_id = 1;
 	screen1->screen_id = 1;
-	printk("use lcdc%d and rk610 implemention dual display!\n",lcdc_dev->id);
+	printk("use lcdc%d and jetta implemention dual display!\n",lcdc_dev->id);
 	
 #endif
 	
@@ -1442,7 +1442,7 @@ static int __devinit rk3188_lcdc_probe(struct platform_device *pdev)
 	printk("lcdc%d:reg_phy_base = 0x%08x,reg_vir_base:0x%p\n",pdev->id,lcdc_dev->reg_phy_base, lcdc_dev->regs);
 	lcdc_dev->driver.dev = dev;
 	lcdc_dev->driver.screen0 = screen;
-#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)&& defined(CONFIG_RK610_LVDS)
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)&& (defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_LVDS))
 	lcdc_dev->driver.screen1 = screen1;
 #endif
 	lcdc_dev->driver.cur_screen = screen;

@@ -1512,6 +1512,7 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 {
 	struct rk30_lcdc_device *lcdc_dev=NULL;
 	rk_screen *screen;
+	rk_screen *screen1;
 	struct rk29fb_info *screen_ctr_info;
 	struct resource *res = NULL;
 	struct resource *mem;
@@ -1534,6 +1535,25 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
         	ret =  -ENOMEM;
 		goto err0;
 	}
+	else
+	{
+		lcdc_dev->screen = screen;
+		screen->lcdc_id = lcdc_dev->id;
+		screen->screen_id = 0;
+	}
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)&&  (defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_LVDS))
+	screen1 =  kzalloc(sizeof(rk_screen), GFP_KERNEL);
+	if(!screen1)
+	{
+		dev_err(&pdev->dev, ">>rk30 lcdc screen1 kmalloc fail!");
+        	ret =  -ENOMEM;
+		goto err0;
+	}
+	screen1->lcdc_id = 1;
+	screen1->screen_id = 1;
+	printk("use lcdc%d and jetta implemention dual display!\n",lcdc_dev->id);
+	
+#endif
 	/****************get lcdc0 reg  *************************/
 	res = platform_get_resource(pdev, IORESOURCE_MEM,0);
 	if (res == NULL)
@@ -1570,9 +1590,13 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 	lcdc_dev->dsp_lut_addr_base = (lcdc_dev->regs + DSP_LUT_ADDR);
 	printk("lcdc%d:reg_phy_base = 0x%08x,reg_vir_base:0x%p\n",pdev->id,lcdc_dev->reg_phy_base, lcdc_dev->regs);
 	lcdc_dev->driver.dev=&pdev->dev;
-	lcdc_dev->driver.screen0 = screen;
+
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)&& (defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_LVDS))
+	lcdc_dev->driver.screen1 = screen1;
+#endif
 	lcdc_dev->driver.cur_screen = screen;
 	lcdc_dev->driver.screen_ctr_info = screen_ctr_info;
+	
 	spin_lock_init(&lcdc_dev->reg_lock);
 	lcdc_dev->irq = platform_get_irq(pdev, 0);
 	if(lcdc_dev->irq < 0)
