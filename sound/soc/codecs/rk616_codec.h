@@ -55,6 +55,8 @@
 #define RK616_MICKEY_DET_CTL			(RK616_CODEC_BASE + 0xa0)
 #define RK616_PWR_ADD3				(RK616_CODEC_BASE + 0xa4)
 #define RK616_ADC_CTL				(RK616_CODEC_BASE + 0xa8)
+#define RK616_SINGNAL_ZC_CTL1			(RK616_CODEC_BASE + 0xac)//Signal zero-crossing detection
+#define RK616_SINGNAL_ZC_CTL2			(RK616_CODEC_BASE + 0xB0)//Signal zero-crossing detection
 #define RK616_PGAL_AGC_CTL1			(RK616_CODEC_BASE + 0xc0)
 #define RK616_PGAL_AGC_CTL2			(RK616_CODEC_BASE + 0xc4)
 #define RK616_PGAL_AGC_CTL3			(RK616_CODEC_BASE + 0xc8)

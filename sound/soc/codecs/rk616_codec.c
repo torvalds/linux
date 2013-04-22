@@ -40,7 +40,7 @@
 #include "../../../drivers/headset_observe/rk_headset.h"
 #endif
 
-#if 0
+#if 1
 #define	DBG(x...)	printk(KERN_INFO x)
 #else
 #define	DBG(x...)
@@ -245,6 +245,8 @@ static int rk616_codec_register(struct snd_soc_codec *codec, unsigned int reg)
 	case RK616_MICKEY_DET_CTL:
 	case RK616_PWR_ADD3:
 	case RK616_ADC_CTL:
+	case RK616_SINGNAL_ZC_CTL1:
+	case RK616_SINGNAL_ZC_CTL2:
 	case RK616_PGAL_AGC_CTL1:
 	case RK616_PGAL_AGC_CTL2:
 	case RK616_PGAL_AGC_CTL3:
@@ -265,8 +267,6 @@ static int rk616_codec_register(struct snd_soc_codec *codec, unsigned int reg)
 	case RK616_PGAR_AGC_MIN_H:
 	case RK616_PGAR_AGC_MIN_L:
 	case RK616_PGAR_AGC_CTL5:
-	case 0x8ac:
-	case 0x8b0:
 		return 1;
 	default:
 		return 0;
@@ -332,14 +332,14 @@ static unsigned int rk616_codec_read(struct snd_soc_codec *codec, unsigned int r
 		return -EINVAL;
 	}
 
-	//if (rk616_volatile_register(codec, reg) == 0) {
-		//value = rk616_read_reg_cache(codec, reg);
-	//} else {
+	if (rk616_volatile_register(codec, reg) == 0) {
+		value = rk616_read_reg_cache(codec, reg);
+	} else {
 		if (rk616->read_dev(rk616, reg, &value) < 0) {
 			printk("%s reg = 0x%x failed\n", __func__, reg);
 			return -EIO;
 		}
-	//}
+	}
 
 	if (value <= 0xffff)
 		DBG("%s reg = 0x%x, val= 0x%x\n", __func__, reg, value);
@@ -427,6 +427,9 @@ static int rk616_reset(struct snd_soc_codec *codec)
 	mdelay(10);
 
 	snd_soc_write(codec, RK616_RESET, 0x43);
+
+	snd_soc_write(codec, RK616_SINGNAL_ZC_CTL1, 0x3f);
+	snd_soc_write(codec, RK616_SINGNAL_ZC_CTL2, 0xff);
 
 	for (i = 0; i < RK616_MFD_REG_LEN; i++)
 		snd_soc_write(codec, rk616_mfd_reg_defaults[i].reg, rk616_mfd_reg_defaults[i].value);
@@ -1468,20 +1471,14 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 
 	switch (dai->id) {
 	case RK616_HIFI:
-		mfd_aif1 |= (I2S1_OUT_DISABLE | I2S0_PD_DISABLE) |
-			((I2S1_OUT_DISABLE | I2S0_OUT_DISABLE |
-			I2S1_PD_DISABLE | I2S0_PD_DISABLE) << 16);
-		mfd_aif2 |= I2S0_SI_EN | ((I2S1_SI_EN | I2S0_SI_EN) << 16);
-		mfd_i2s_ctl |= ((0) |
-			(I2S_CHANNEL_SEL) << 16);
+		mfd_aif1 |= I2S1_OUT_DISABLE | I2S0_PD_DISABLE;
+		mfd_aif2 |= I2S0_SI_EN;
+		mfd_i2s_ctl |= 0;
 		break;
 	case RK616_VOICE:
-		mfd_aif1 |= (I2S0_OUT_DISABLE | I2S1_PD_DISABLE) |
-			((I2S1_OUT_DISABLE | I2S0_OUT_DISABLE |
-			I2S1_PD_DISABLE | I2S0_PD_DISABLE) << 16);
-		mfd_aif2 |= I2S1_SI_EN | ((I2S1_SI_EN | I2S0_SI_EN) << 16);
-		mfd_i2s_ctl |= ((I2S_CHANNEL_SEL) |
-			(I2S_CHANNEL_SEL) << 16);
+		mfd_aif1 |= I2S0_OUT_DISABLE | I2S1_PD_DISABLE;
+		mfd_aif2 |= I2S1_SI_EN;
+		mfd_i2s_ctl |= I2S_CHANNEL_SEL;
 		break;
 	default:
 		return -EINVAL;
@@ -1495,8 +1492,6 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 
 #ifdef RK616_FOR_MID
 static struct rk616_reg_val_typ power_up_list[] = {
-	{0x8ac, 0x3f}, //
-	{0x8b0, 0xff}, //
 	{0x83c, 0x00}, //power up
 	{0x840, 0x69}, //BST_L power up, unmute, and Single-Ended(bit 6), volume 0-20dB(bit 5)
 	{0x848, 0x06}, //MIXINL power up and unmute, MININL from MICMUX, MICMUX from BST_L
@@ -1520,21 +1515,42 @@ static struct rk616_reg_val_typ power_up_list[] = {
 
 #define RK616_CODEC_POWER_UP_LIST_LEN ARRAY_SIZE(power_up_list)
 
-static int rk616_codec_power_up(struct snd_soc_codec *codec)
+static int rk616_codec_power_up(void)
 {
+	struct snd_soc_codec *codec = rk616_priv->codec;
 	int i;
+
+	if (!rk616_priv || !rk616_priv->codec) {
+		printk("rk616_proc_write : %s %s\n", rk616_priv ? "" : "rk616_priv is NULL",
+				rk616_priv->codec ? "" : "rk616_priv->codec is NULL");
+		return -EINVAL;
+	}
 
 	printk("rk616_codec_power_up\n");
 
 	for (i = 0; i < RK616_CODEC_POWER_UP_LIST_LEN; i++)
 		snd_soc_write(codec, power_up_list[i].reg, power_up_list[i].value);
 
+	if (rk616_priv->spk_ctl_gpio != 0)
+		gpio_set_value(rk616_priv->spk_ctl_gpio, 1);
+
 	return 0;
 }
 
-static int rk616_codec_power_down(struct snd_soc_codec *codec)
+static int rk616_codec_power_down(void)
 {
+	struct snd_soc_codec *codec = rk616_priv->codec;
+
+	if (!rk616_priv || !rk616_priv->codec) {
+		printk("rk616_proc_write : %s %s\n", rk616_priv ? "" : "rk616_priv is NULL",
+				rk616_priv->codec ? "" : "rk616_priv->codec is NULL");
+		return -EINVAL;
+	}
+
 	printk("rk616_codec_power_down\n");
+
+	if (rk616_priv->spk_ctl_gpio != 0)
+		gpio_set_value(rk616_priv->spk_ctl_gpio, 0);
 
 	rk616_reset(codec);
 
@@ -1543,22 +1559,14 @@ static int rk616_codec_power_down(struct snd_soc_codec *codec)
 
 static void rk616_codec_work(struct work_struct *work)
 {
-	struct snd_soc_codec *codec = rk616_priv->codec;
-
-	if (!rk616_priv || !rk616_priv->codec) {
-		printk("rk616_proc_write : %s %s\n", rk616_priv ? "" : "rk616_priv is NULL",
-				rk616_priv->codec ? "" : "rk616_priv->codec is NULL");
-		return;
-	}
-
         DBG("Enter::rk616_codec_work : rk616_codec_work_type = %d\n", rk616_codec_work_type);
 
         switch (rk616_codec_work_type) {
         case RK616_CODEC_WORK_POWER_DOWN:
-                rk616_codec_power_down(codec);
+                rk616_codec_power_down();
                 break;
         case RK616_CODEC_WORK_POWER_UP:
-                rk616_codec_power_up(codec);
+                rk616_codec_power_up();
                 break;
         default:
                 break;
@@ -1630,15 +1638,21 @@ static int rk616_trigger(struct snd_pcm_substream *substream,
 			cancel_delayed_work_sync(&delayed_work);
 
 			/*
-			* if rk616_codec_work_type is NULL means codec already power down,
+			* If rk616_codec_work_type is NULL means codec already power down,
 			* so power up codec.
-			* if rk616_codec_work_type is RK616_CODEC_WORK_POWER_UP it means
+			* If rk616_codec_work_type is RK616_CODEC_WORK_POWER_UP it means
 			* codec haven't power up, so we don't need to power down codec.
+			* If is playback call power down, power down immediatly, because audioflinger
+			* already has delay 3s.
 			*/
 			if (rk616_codec_work_type == RK616_CODEC_WORK_NULL) {
 				rk616_codec_work_type = RK616_CODEC_WORK_POWER_DOWN;
-				queue_delayed_work(rk616_codec_workq, &delayed_work,
-					msecs_to_jiffies(3000));
+				if (playback)
+					queue_delayed_work(rk616_codec_workq, &delayed_work,
+						msecs_to_jiffies(0));
+				else
+					queue_delayed_work(rk616_codec_workq, &delayed_work,
+						msecs_to_jiffies(3000));
 			} else {
 				rk616_codec_work_type = RK616_CODEC_WORK_NULL;
 			}
@@ -1726,7 +1740,7 @@ static int rk616_suspend(struct snd_soc_codec *codec, pm_message_t state)
 
 	if (rk616_codec_work_type != RK616_CODEC_WORK_NULL) {
 		rk616_codec_work_type = RK616_CODEC_WORK_NULL;
-		rk616_codec_power_down(codec);
+		rk616_codec_power_down();
 	}
 #else
 	rk616_set_bias_level(codec, SND_SOC_BIAS_OFF);
@@ -1764,7 +1778,7 @@ static int rk616_probe(struct snd_soc_codec *codec)
 
 	if (rk616_mfd && rk616_mfd->pdata && rk616_mfd->pdata->spk_ctl_gpio) {
 		gpio_request(rk616_mfd->pdata->spk_ctl_gpio, NULL);
-		gpio_direction_output(rk616_mfd->pdata->spk_ctl_gpio, 1);
+		gpio_direction_output(rk616_mfd->pdata->spk_ctl_gpio, 0);
 		rk616->spk_ctl_gpio = rk616_mfd->pdata->spk_ctl_gpio;
 	} else {
 		printk("rk616_probe : rk616 or pdata or spk_ctl_gpio is NULL!\n");
@@ -1805,9 +1819,6 @@ static int rk616_probe(struct snd_soc_codec *codec)
 	}
 
 	rk616_reset(codec);
-
-	snd_soc_write(codec, 0x8ac, 0x3f);//
-	snd_soc_write(codec, 0x8b0, 0xff);//
 
 	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 
