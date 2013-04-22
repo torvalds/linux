@@ -1100,7 +1100,8 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	}
 
 	/* As defined by IEEE 802.11-2007 17.3.8.6 */
-	acktimeout = slottime + sifstime + 3 * ah->coverage_class + ack_offset;
+	slottime += 3 * ah->coverage_class;
+	acktimeout = slottime + sifstime + ack_offset;
 	ctstimeout = acktimeout;
 
 	/*
