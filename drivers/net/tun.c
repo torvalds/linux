@@ -1593,8 +1593,12 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			return err;
 
 		if (tun->flags & TUN_TAP_MQ &&
-		    (tun->numqueues + tun->numdisabled > 1))
-			return -EBUSY;
+		    (tun->numqueues + tun->numdisabled > 1)) {
+			/* One or more queue has already been attached, no need
+			 * to initialize the device again.
+			 */
+			return 0;
+		}
 	}
 	else {
 		char *name;
