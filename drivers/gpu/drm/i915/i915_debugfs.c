@@ -1012,6 +1012,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 	} else if (IS_VALLEYVIEW(dev)) {
 		u32 freq_sts, val;
 
+		mutex_lock(&dev_priv->rps.hw_lock);
 		valleyview_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS,
 				      &freq_sts);
 		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
@@ -1028,6 +1029,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		seq_printf(m, "current GPU freq: %d MHz\n",
 			   vlv_gpu_freq(dev_priv->mem_freq,
 					(freq_sts >> 8) & 0xff));
+		mutex_unlock(&dev_priv->rps.hw_lock);
 	} else {
 		seq_printf(m, "no P-state info available\n");
 	}
