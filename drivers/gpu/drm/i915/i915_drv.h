@@ -359,35 +359,18 @@ struct drm_i915_gt_funcs {
 	func(has_blt_ring) sep \
 	func(has_llc)
 
+#define DEFINE_FLAG(name) u8 name:1
+#define SEP_SEMICOLON ;
+
 struct intel_device_info {
 	u32 display_mmio_offset;
 	u8 num_pipes:3;
 	u8 gen;
-	u8 is_mobile:1;
-	u8 is_i85x:1;
-	u8 is_i915g:1;
-	u8 is_i945gm:1;
-	u8 is_g33:1;
-	u8 need_gfx_hws:1;
-	u8 is_g4x:1;
-	u8 is_pineview:1;
-	u8 is_broadwater:1;
-	u8 is_crestline:1;
-	u8 is_ivybridge:1;
-	u8 is_valleyview:1;
-	u8 has_force_wake:1;
-	u8 is_haswell:1;
-	u8 has_fbc:1;
-	u8 has_pipe_cxsr:1;
-	u8 has_hotplug:1;
-	u8 cursor_needs_physical:1;
-	u8 has_overlay:1;
-	u8 overlay_needs_physical:1;
-	u8 supports_tv:1;
-	u8 has_bsd_ring:1;
-	u8 has_blt_ring:1;
-	u8 has_llc:1;
+	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG, SEP_SEMICOLON);
 };
+
+#undef DEFINE_FLAG
+#undef SEP_SEMICOLON
 
 enum i915_cache_level {
 	I915_CACHE_NONE = 0,
