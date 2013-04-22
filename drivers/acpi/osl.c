@@ -641,7 +641,7 @@ void __init acpi_initrd_override(void *data, size_t size)
 	 * Both memblock_reserve and e820_add_region (via arch_reserve_mem_area)
 	 * works fine.
 	 */
-	memblock_reserve(acpi_tables_addr, acpi_tables_addr + all_tables_size);
+	memblock_reserve(acpi_tables_addr, all_tables_size);
 	arch_reserve_mem_area(acpi_tables_addr, all_tables_size);
 
 	p = early_ioremap(acpi_tables_addr, all_tables_size);
