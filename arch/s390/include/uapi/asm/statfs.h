@@ -7,9 +7,6 @@
 #ifndef _S390_STATFS_H
 #define _S390_STATFS_H
 
-#ifndef __s390x__
-#include <asm-generic/statfs.h>
-#else
 /*
  * We can't use <asm-generic/statfs.h> because in 64-bit mode
  * we mix ints of different sizes in our struct statfs.
@@ -21,49 +18,33 @@ typedef __kernel_fsid_t	fsid_t;
 #endif
 
 struct statfs {
-	int  f_type;
-	int  f_bsize;
-	long f_blocks;
-	long f_bfree;
-	long f_bavail;
-	long f_files;
-	long f_ffree;
+	unsigned int	f_type;
+	unsigned int	f_bsize;
+	unsigned long	f_blocks;
+	unsigned long	f_bfree;
+	unsigned long	f_bavail;
+	unsigned long	f_files;
+	unsigned long	f_ffree;
 	__kernel_fsid_t f_fsid;
-	int  f_namelen;
-	int  f_frsize;
-	int  f_flags;
-	int  f_spare[4];
+	unsigned int	f_namelen;
+	unsigned int	f_frsize;
+	unsigned int	f_flags;
+	unsigned int	f_spare[4];
 };
 
 struct statfs64 {
-	int  f_type;
-	int  f_bsize;
-	long f_blocks;
-	long f_bfree;
-	long f_bavail;
-	long f_files;
-	long f_ffree;
+	unsigned int	f_type;
+	unsigned int	f_bsize;
+	unsigned long	f_blocks;
+	unsigned long	f_bfree;
+	unsigned long	f_bavail;
+	unsigned long	f_files;
+	unsigned long	f_ffree;
 	__kernel_fsid_t f_fsid;
-	int  f_namelen;
-	int  f_frsize;
-	int  f_flags;
-	int  f_spare[4];
+	unsigned int	f_namelen;
+	unsigned int	f_frsize;
+	unsigned int	f_flags;
+	unsigned int	f_spare[4];
 };
 
-struct compat_statfs64 {
-	__u32 f_type;
-	__u32 f_bsize;
-	__u64 f_blocks;
-	__u64 f_bfree;
-	__u64 f_bavail;
-	__u64 f_files;
-	__u64 f_ffree;
-	__kernel_fsid_t f_fsid;
-	__u32 f_namelen;
-	__u32 f_frsize;
-	__u32 f_flags;
-	__u32 f_spare[4];
-};
-
-#endif /* __s390x__ */
 #endif

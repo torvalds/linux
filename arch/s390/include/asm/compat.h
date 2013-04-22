@@ -140,18 +140,33 @@ struct compat_flock64 {
 };
 
 struct compat_statfs {
-	s32		f_type;
-	s32		f_bsize;
-	s32		f_blocks;
-	s32		f_bfree;
-	s32		f_bavail;
-	s32		f_files;
-	s32		f_ffree;
+	u32		f_type;
+	u32		f_bsize;
+	u32		f_blocks;
+	u32		f_bfree;
+	u32		f_bavail;
+	u32		f_files;
+	u32		f_ffree;
 	compat_fsid_t	f_fsid;
-	s32		f_namelen;
-	s32		f_frsize;
-	s32		f_flags;
-	s32		f_spare[4];
+	u32		f_namelen;
+	u32		f_frsize;
+	u32		f_flags;
+	u32		f_spare[4];
+};
+
+struct compat_statfs64 {
+	u32		f_type;
+	u32		f_bsize;
+	u64		f_blocks;
+	u64		f_bfree;
+	u64		f_bavail;
+	u64		f_files;
+	u64		f_ffree;
+	compat_fsid_t	f_fsid;
+	u32		f_namelen;
+	u32		f_frsize;
+	u32		f_flags;
+	u32		f_spare[4];
 };
 
 #define COMPAT_RLIM_OLD_INFINITY	0x7fffffff
