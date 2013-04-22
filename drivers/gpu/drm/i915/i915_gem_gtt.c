@@ -51,20 +51,13 @@ static gen6_gtt_pte_t gen6_pte_encode(struct drm_device *dev,
 
 	switch (level) {
 	case I915_CACHE_LLC_MLC:
-		/* Haswell doesn't set L3 this way */
-		if (IS_HASWELL(dev))
-			pte |= GEN6_PTE_CACHE_LLC;
-		else
-			pte |= GEN6_PTE_CACHE_LLC_MLC;
+		pte |= GEN6_PTE_CACHE_LLC_MLC;
 		break;
 	case I915_CACHE_LLC:
 		pte |= GEN6_PTE_CACHE_LLC;
 		break;
 	case I915_CACHE_NONE:
-		if (IS_HASWELL(dev))
-			pte |= HSW_PTE_UNCACHED;
-		else
-			pte |= GEN6_PTE_UNCACHED;
+		pte |= GEN6_PTE_UNCACHED;
 		break;
 	default:
 		BUG();
@@ -90,6 +83,19 @@ static gen6_gtt_pte_t byt_pte_encode(struct drm_device *dev,
 
 	if (level != I915_CACHE_NONE)
 		pte |= BYT_PTE_SNOOPED_BY_CPU_CACHES;
+
+	return pte;
+}
+
+static gen6_gtt_pte_t hsw_pte_encode(struct drm_device *dev,
+				     dma_addr_t addr,
+				     enum i915_cache_level level)
+{
+	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	pte |= GEN6_PTE_ADDR_ENCODE(addr);
+
+	if (level != I915_CACHE_NONE)
+		pte |= GEN6_PTE_CACHE_LLC;
 
 	return pte;
 }
@@ -254,7 +260,9 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	 * now. */
        first_pd_entry_in_global_pt = gtt_total_entries(dev_priv->gtt);
 
-	if (IS_VALLEYVIEW(dev)) {
+	if (IS_HASWELL(dev)) {
+		ppgtt->pte_encode = hsw_pte_encode;
+	} else if (IS_VALLEYVIEW(dev)) {
 		ppgtt->pte_encode = byt_pte_encode;
 	} else {
 		ppgtt->pte_encode = gen6_pte_encode;
@@ -835,7 +843,9 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	} else {
 		dev_priv->gtt.gtt_probe = gen6_gmch_probe;
 		dev_priv->gtt.gtt_remove = gen6_gmch_remove;
-		if (IS_VALLEYVIEW(dev)) {
+		if (IS_HASWELL(dev)) {
+			dev_priv->gtt.pte_encode = hsw_pte_encode;
+		} else if (IS_VALLEYVIEW(dev)) {
 			dev_priv->gtt.pte_encode = byt_pte_encode;
 		} else {
 			dev_priv->gtt.pte_encode = gen6_pte_encode;
