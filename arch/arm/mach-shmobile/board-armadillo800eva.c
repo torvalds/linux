@@ -584,7 +584,7 @@ static struct regulator_init_data vcc_sdhi0_init_data = {
 static struct fixed_voltage_config vcc_sdhi0_info = {
 	.supply_name = "SDHI0 Vcc",
 	.microvolts = 3300000,
-	.gpio = GPIO_PORT75,
+	.gpio = 75,
 	.enable_high = 1,
 	.init_data = &vcc_sdhi0_init_data,
 };
@@ -615,7 +615,7 @@ static struct regulator_init_data vccq_sdhi0_init_data = {
 };
 
 static struct gpio vccq_sdhi0_gpios[] = {
-	{GPIO_PORT17, GPIOF_OUT_INIT_LOW, "vccq-sdhi0" },
+	{17, GPIOF_OUT_INIT_LOW, "vccq-sdhi0" },
 };
 
 static struct gpio_regulator_state vccq_sdhi0_states[] = {
@@ -626,7 +626,7 @@ static struct gpio_regulator_state vccq_sdhi0_states[] = {
 static struct gpio_regulator_config vccq_sdhi0_info = {
 	.supply_name = "vqmmc",
 
-	.enable_gpio = GPIO_PORT74,
+	.enable_gpio = 74,
 	.enable_high = 1,
 	.enabled_at_boot = 0,
 
@@ -664,7 +664,7 @@ static struct regulator_init_data vcc_sdhi1_init_data = {
 static struct fixed_voltage_config vcc_sdhi1_info = {
 	.supply_name = "SDHI1 Vcc",
 	.microvolts = 3300000,
-	.gpio = GPIO_PORT16,
+	.gpio = 16,
 	.enable_high = 1,
 	.init_data = &vcc_sdhi1_init_data,
 };
@@ -693,7 +693,7 @@ static struct sh_mobile_sdhi_info sdhi0_info = {
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_POWER_OFF_CARD,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_USE_GPIO_CD,
-	.cd_gpio	= GPIO_PORT167,
+	.cd_gpio	= 167,
 };
 
 static struct resource sdhi0_resources[] = {
@@ -736,7 +736,7 @@ static struct sh_mobile_sdhi_info sdhi1_info = {
 			  MMC_CAP_POWER_OFF_CARD,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT | TMIO_MMC_USE_GPIO_CD,
 	/* Port72 cannot generate IRQs, will be used in polling mode. */
-	.cd_gpio	= GPIO_PORT72,
+	.cd_gpio	= 72,
 };
 
 static struct resource sdhi1_resources[] = {
