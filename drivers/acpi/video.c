@@ -632,6 +632,56 @@ acpi_video_cmp_level(const void *a, const void *b)
 }
 
 /*
+ * Decides if _BQC/_BCQ for this system is usable
+ *
+ * We do this by changing the level first and then read out the current
+ * brightness level, if the value does not match, find out if it is using
+ * index. If not, clear the _BQC/_BCQ capability.
+ */
+static int acpi_video_bqc_quirk(struct acpi_video_device *device,
+				int max_level, int current_level)
+{
+	struct acpi_video_device_brightness *br = device->brightness;
+	int result;
+	unsigned long long level;
+	int test_level;
+
+	/* don't mess with existing known broken systems */
+	if (bqc_offset_aml_bug_workaround)
+		return 0;
+
+	/*
+	 * Some systems always report current brightness level as maximum
+	 * through _BQC, we need to test another value for them.
+	 */
+	test_level = current_level == max_level ? br->levels[2] : max_level;
+
+	result = acpi_video_device_lcd_set_level(device, test_level);
+	if (result)
+		return result;
+
+	result = acpi_video_device_lcd_get_level_current(device, &level, true);
+	if (result)
+		return result;
+
+	if (level != test_level) {
+		/* buggy _BQC found, need to find out if it uses index */
+		if (level < br->count) {
+			if (br->flags._BCL_reversed)
+				level = br->count - 3 - level;
+			if (br->levels[level + 2] == test_level)
+				br->flags._BQC_use_index = 1;
+		}
+
+		if (!br->flags._BQC_use_index)
+			device->cap._BQC = device->cap._BCQ = 0;
+	}
+
+	return 0;
+}
+
+
+/*
  *  Arg:	
  *  	device	: video output device (LCD, CRT, ..)
  *
@@ -742,18 +792,15 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 	if (result)
 		goto out_free_levels;
 
+	result = acpi_video_bqc_quirk(device, max_level, level_old);
+	if (result)
+		goto out_free_levels;
 	/*
-	 * Set the level to maximum and check if _BQC uses indexed value
+	 * cap._BQC may get cleared due to _BQC is found to be broken
+	 * in acpi_video_bqc_quirk, so check again here.
 	 */
-	result = acpi_video_device_lcd_set_level(device, max_level);
-	if (result)
-		goto out_free_levels;
-
-	result = acpi_video_device_lcd_get_level_current(device, &level, true);
-	if (result)
-		goto out_free_levels;
-
-	br->flags._BQC_use_index = (level == max_level ? 0 : 1);
+	if (!device->cap._BQC)
+		goto set_level;
 
 	if (use_bios_initial_backlight) {
 		level = acpi_video_bqc_value_to_level(device, level_old);
