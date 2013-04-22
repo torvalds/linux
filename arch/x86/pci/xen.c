@@ -299,7 +299,7 @@ static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 			pci_read_config_dword(dev, pos + PCI_MSIX_TABLE,
 					      &table_offset);
-			bir = (u8)(table_offset & PCI_MSIX_FLAGS_BIRMASK);
+			bir = (u8)(table_offset & PCI_MSIX_TABLE_BIR);
 
 			map_irq.table_base = pci_resource_start(dev, bir);
 			map_irq.entry_nr = msidesc->msi_attrib.entry_nr;
