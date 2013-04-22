@@ -1037,6 +1037,7 @@ static irqreturn_t bnx2x_msix_fp_int(int irq, void *fp_cookie)
 	DP(NETIF_MSG_INTR,
 	   "got an MSI-X interrupt on IDX:SB [fp %d fw_sd %d igusb %d]\n",
 	   fp->index, fp->fw_sb_id, fp->igu_sb_id);
+
 	bnx2x_ack_sb(bp, fp->igu_sb_id, USTORM_ID, 0, IGU_INT_DISABLE, 0);
 
 #ifdef BNX2X_STOP_ON_ERROR
@@ -1718,7 +1719,7 @@ static int bnx2x_req_irq(struct bnx2x *bp)
 	return request_irq(irq, bnx2x_interrupt, flags, bp->dev->name, bp->dev);
 }
 
-static int bnx2x_setup_irqs(struct bnx2x *bp)
+int bnx2x_setup_irqs(struct bnx2x *bp)
 {
 	int rc = 0;
 	if (bp->flags & USING_MSIX_FLAG &&
@@ -2574,6 +2575,8 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		}
 	}
 
+	bnx2x_pre_irq_nic_init(bp);
+
 	/* Connect to IRQs */
 	rc = bnx2x_setup_irqs(bp);
 	if (rc) {
@@ -2583,11 +2586,11 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		LOAD_ERROR_EXIT(bp, load_error2);
 	}
 
-	/* Setup NIC internals and enable interrupts */
-	bnx2x_nic_init(bp, load_code);
-
 	/* Init per-function objects */
 	if (IS_PF(bp)) {
+		/* Setup NIC internals and enable interrupts */
+		bnx2x_post_irq_nic_init(bp, load_code);
+
 		bnx2x_init_bp_objs(bp);
 		bnx2x_iov_nic_init(bp);
 

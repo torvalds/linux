@@ -295,16 +295,29 @@ void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw);
 void bnx2x_nic_init_cnic(struct bnx2x *bp);
 
 /**
- * bnx2x_nic_init - init driver internals.
+ * bnx2x_preirq_nic_init - init driver internals.
  *
  * @bp:		driver handle
  *
  * Initializes:
- *  - rings
+ *  - fastpath object
+ *  - fastpath rings
+ *  etc.
+ */
+void bnx2x_pre_irq_nic_init(struct bnx2x *bp);
+
+/**
+ * bnx2x_postirq_nic_init - init driver internals.
+ *
+ * @bp:		driver handle
+ * @load_code:	COMMON, PORT or FUNCTION
+ *
+ * Initializes:
  *  - status blocks
+ *  - slowpath rings
  *  - etc.
  */
-void bnx2x_nic_init(struct bnx2x *bp, u32 load_code);
+void bnx2x_post_irq_nic_init(struct bnx2x *bp, u32 load_code);
 /**
  * bnx2x_alloc_mem_cnic - allocate driver's memory for cnic.
  *

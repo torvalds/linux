@@ -6018,10 +6018,11 @@ void bnx2x_nic_init_cnic(struct bnx2x *bp)
 	mmiowb();
 }
 
-void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
+void bnx2x_pre_irq_nic_init(struct bnx2x *bp)
 {
 	int i;
 
+	/* Setup NIC internals and enable interrupts */
 	for_each_eth_queue(bp, i)
 		bnx2x_init_eth_fp(bp, i);
 
@@ -6030,17 +6031,21 @@ void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 	bnx2x_init_rx_rings(bp);
 	bnx2x_init_tx_rings(bp);
 
-	if (IS_VF(bp))
-		return;
+	if (IS_PF(bp)) {
+		/* Initialize MOD_ABS interrupts */
+		bnx2x_init_mod_abs_int(bp, &bp->link_vars, bp->common.chip_id,
+				       bp->common.shmem_base,
+				       bp->common.shmem2_base, BP_PORT(bp));
 
-	/* Initialize MOD_ABS interrupts */
-	bnx2x_init_mod_abs_int(bp, &bp->link_vars, bp->common.chip_id,
-			       bp->common.shmem_base, bp->common.shmem2_base,
-			       BP_PORT(bp));
+		/* initialize the default status block and sp ring */
+		bnx2x_init_def_sb(bp);
+		bnx2x_update_dsb_idx(bp);
+		bnx2x_init_sp_ring(bp);
+	}
+}
 
-	bnx2x_init_def_sb(bp);
-	bnx2x_update_dsb_idx(bp);
-	bnx2x_init_sp_ring(bp);
+void bnx2x_post_irq_nic_init(struct bnx2x *bp, u32 load_code)
+{
 	bnx2x_init_eq_ring(bp);
 	bnx2x_init_internal(bp, load_code);
 	bnx2x_pf_init(bp);
@@ -6058,12 +6063,7 @@ void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 				   AEU_INPUTS_ATTN_BITS_SPIO5);
 }
 
-/* end of nic init */
-
-/*
- * gzip service functions
- */
-
+/* gzip service functions */
 static int bnx2x_gunzip_init(struct bnx2x *bp)
 {
 	bp->gunzip_buf = dma_alloc_coherent(&bp->pdev->dev, FW_BUF_SIZE,
