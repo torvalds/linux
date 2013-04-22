@@ -615,6 +615,7 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 	struct net_bridge *br = source->br;
 	struct hlist_head *head = &br->hash[br_mac_hash(addr, vid)];
 	struct net_bridge_fdb_entry *fdb;
+	bool modified = false;
 
 	fdb = fdb_find(head, addr, vid);
 	if (fdb == NULL) {
@@ -624,10 +625,16 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 		fdb = fdb_create(head, source, addr, vid);
 		if (!fdb)
 			return -ENOMEM;
-		fdb_notify(br, fdb, RTM_NEWNEIGH);
+
+		modified = true;
 	} else {
 		if (flags & NLM_F_EXCL)
 			return -EEXIST;
+
+		if (fdb->dst != source) {
+			fdb->dst = source;
+			modified = true;
+		}
 	}
 
 	if (fdb_to_nud(fdb) != state) {
@@ -639,7 +646,12 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 		} else
 			fdb->is_local = fdb->is_static = 0;
 
-		fdb->updated = fdb->used = jiffies;
+		modified = true;
+	}
+
+	fdb->used = jiffies;
+	if (modified) {
+		fdb->updated = jiffies;
 		fdb_notify(br, fdb, RTM_NEWNEIGH);
 	}
 
