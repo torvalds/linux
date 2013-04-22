@@ -1290,6 +1290,7 @@ static int nfs4_open_recover(struct nfs4_opendata *opendata, struct nfs4_state *
 
 	/* memory barrier prior to reading state->n_* */
 	clear_bit(NFS_DELEGATED_STATE, &state->flags);
+	clear_bit(NFS_OPEN_STATE, &state->flags);
 	smp_rmb();
 	if (state->n_rdwr != 0) {
 		clear_bit(NFS_O_RDWR_STATE, &state->flags);
@@ -1893,6 +1894,7 @@ static int nfs41_check_open_stateid(struct nfs4_state *state)
 		clear_bit(NFS_O_RDONLY_STATE, &state->flags);
 		clear_bit(NFS_O_WRONLY_STATE, &state->flags);
 		clear_bit(NFS_O_RDWR_STATE, &state->flags);
+		clear_bit(NFS_OPEN_STATE, &state->flags);
 	}
 	return status;
 }
@@ -2208,11 +2210,19 @@ static void nfs4_close_clear_stateid_flags(struct nfs4_state *state,
 		fmode_t fmode)
 {
 	spin_lock(&state->owner->so_lock);
-	if (!(fmode & FMODE_READ))
-		clear_bit(NFS_O_RDONLY_STATE, &state->flags);
-	if (!(fmode & FMODE_WRITE))
-		clear_bit(NFS_O_WRONLY_STATE, &state->flags);
 	clear_bit(NFS_O_RDWR_STATE, &state->flags);
+	switch (fmode & (FMODE_READ|FMODE_WRITE)) {
+	case FMODE_WRITE:
+		clear_bit(NFS_O_RDONLY_STATE, &state->flags);
+		break;
+	case FMODE_READ:
+		clear_bit(NFS_O_WRONLY_STATE, &state->flags);
+		break;
+	case 0:
+		clear_bit(NFS_O_RDONLY_STATE, &state->flags);
+		clear_bit(NFS_O_WRONLY_STATE, &state->flags);
+		clear_bit(NFS_OPEN_STATE, &state->flags);
+	}
 	spin_unlock(&state->owner->so_lock);
 }
 
