@@ -2093,7 +2093,8 @@ static bool imon_find_endpoints(struct imon_context *ictx,
 
 }
 
-static struct imon_context *imon_init_intf0(struct usb_interface *intf)
+static struct imon_context *imon_init_intf0(struct usb_interface *intf,
+					    const struct usb_device_id *id)
 {
 	struct imon_context *ictx;
 	struct urb *rx_urb;
@@ -2132,6 +2133,10 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 
 	ictx->vendor  = le16_to_cpu(ictx->usbdev_intf0->descriptor.idVendor);
 	ictx->product = le16_to_cpu(ictx->usbdev_intf0->descriptor.idProduct);
+
+	/* default send_packet delay is 5ms but some devices need more */
+	ictx->send_packet_delay = id->driver_info & IMON_NEED_20MS_PKT_DELAY ?
+				  20 : 5;
 
 	ret = -ENODEV;
 	iface_desc = intf->cur_altsetting;
@@ -2311,7 +2316,7 @@ static int imon_probe(struct usb_interface *interface,
 	first_if_ctx = usb_get_intfdata(first_if);
 
 	if (ifnum == 0) {
-		ictx = imon_init_intf0(interface);
+		ictx = imon_init_intf0(interface, id);
 		if (!ictx) {
 			pr_err("failed to initialize context!\n");
 			ret = -ENODEV;
@@ -2328,10 +2333,6 @@ static int imon_probe(struct usb_interface *interface,
 		}
 
 	}
-
-	/* default send_packet delay is 5ms but some devices need more */
-	ictx->send_packet_delay = id->driver_info & IMON_NEED_20MS_PKT_DELAY ?
-				  20 : 5;
 
 	usb_set_intfdata(interface, ictx);
 
