@@ -134,6 +134,8 @@ struct amp_assoc {
 	__u8	data[HCI_MAX_AMP_ASSOC_SIZE];
 };
 
+#define HCI_MAX_PAGES	3
+
 #define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
@@ -151,8 +153,8 @@ struct hci_dev {
 	__u8		dev_class[3];
 	__u8		major_class;
 	__u8		minor_class;
-	__u8		features[8];
-	__u8		host_features[8];
+	__u8		max_page;
+	__u8		features[HCI_MAX_PAGES][8];
 	__u8		le_features[8];
 	__u8		le_white_list_size;
 	__u8		le_states[8];
@@ -244,6 +246,7 @@ struct hci_dev {
 	struct sk_buff_head	raw_q;
 	struct sk_buff_head	cmd_q;
 
+	struct sk_buff		*recv_evt;
 	struct sk_buff		*sent_cmd;
 	struct sk_buff		*reassembly[NUM_REASSEMBLY];
 
@@ -268,8 +271,6 @@ struct hci_dev {
 
 	struct hci_dev_stats	stat;
 
-	struct sk_buff_head	driver_init;
-
 	atomic_t		promisc;
 
 	struct dentry		*debugfs;
@@ -292,6 +293,7 @@ struct hci_dev {
 	int (*open)(struct hci_dev *hdev);
 	int (*close)(struct hci_dev *hdev);
 	int (*flush)(struct hci_dev *hdev);
+	int (*setup)(struct hci_dev *hdev);
 	int (*send)(struct sk_buff *skb);
 	void (*notify)(struct hci_dev *hdev, unsigned int evt);
 	int (*ioctl)(struct hci_dev *hdev, unsigned int cmd, unsigned long arg);
@@ -313,7 +315,7 @@ struct hci_conn {
 	bool		out;
 	__u8		attempt;
 	__u8		dev_class[3];
-	__u8		features[8];
+	__u8		features[HCI_MAX_PAGES][8];
 	__u16		interval;
 	__u16		pkt_type;
 	__u16		link_policy;
@@ -345,7 +347,6 @@ struct hci_conn {
 	struct timer_list auto_accept_timer;
 
 	struct device	dev;
-	atomic_t	devref;
 
 	struct hci_dev	*hdev;
 	void		*l2cap_data;
@@ -584,7 +585,6 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst);
 int hci_conn_del(struct hci_conn *conn);
 void hci_conn_hash_flush(struct hci_dev *hdev);
 void hci_conn_check_pending(struct hci_dev *hdev);
-void hci_conn_accept(struct hci_conn *conn, int mask);
 
 struct hci_chan *hci_chan_create(struct hci_conn *conn);
 void hci_chan_del(struct hci_chan *chan);
@@ -601,8 +601,36 @@ int hci_conn_switch_role(struct hci_conn *conn, __u8 role);
 
 void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active);
 
-void hci_conn_hold_device(struct hci_conn *conn);
-void hci_conn_put_device(struct hci_conn *conn);
+/*
+ * hci_conn_get() and hci_conn_put() are used to control the life-time of an
+ * "hci_conn" object. They do not guarantee that the hci_conn object is running,
+ * working or anything else. They just guarantee that the object is available
+ * and can be dereferenced. So you can use its locks, local variables and any
+ * other constant data.
+ * Before accessing runtime data, you _must_ lock the object and then check that
+ * it is still running. As soon as you release the locks, the connection might
+ * get dropped, though.
+ *
+ * On the other hand, hci_conn_hold() and hci_conn_drop() are used to control
+ * how long the underlying connection is held. So every channel that runs on the
+ * hci_conn object calls this to prevent the connection from disappearing. As
+ * long as you hold a device, you must also guarantee that you have a valid
+ * reference to the device via hci_conn_get() (or the initial reference from
+ * hci_conn_add()).
+ * The hold()/drop() ref-count is known to drop below 0 sometimes, which doesn't
+ * break because nobody cares for that. But this means, we cannot use
+ * _get()/_drop() in it, but require the caller to have a valid ref (FIXME).
+ */
+
+static inline void hci_conn_get(struct hci_conn *conn)
+{
+	get_device(&conn->dev);
+}
+
+static inline void hci_conn_put(struct hci_conn *conn)
+{
+	put_device(&conn->dev);
+}
 
 static inline void hci_conn_hold(struct hci_conn *conn)
 {
@@ -612,7 +640,7 @@ static inline void hci_conn_hold(struct hci_conn *conn)
 	cancel_delayed_work(&conn->disc_work);
 }
 
-static inline void hci_conn_put(struct hci_conn *conn)
+static inline void hci_conn_drop(struct hci_conn *conn)
 {
 	BT_DBG("hcon %p orig refcnt %d", conn, atomic_read(&conn->refcnt));
 
@@ -760,29 +788,29 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define SET_HCIDEV_DEV(hdev, pdev) ((hdev)->dev.parent = (pdev))
 
 /* ----- LMP capabilities ----- */
-#define lmp_encrypt_capable(dev)   ((dev)->features[0] & LMP_ENCRYPT)
-#define lmp_rswitch_capable(dev)   ((dev)->features[0] & LMP_RSWITCH)
-#define lmp_hold_capable(dev)      ((dev)->features[0] & LMP_HOLD)
-#define lmp_sniff_capable(dev)     ((dev)->features[0] & LMP_SNIFF)
-#define lmp_park_capable(dev)      ((dev)->features[1] & LMP_PARK)
-#define lmp_inq_rssi_capable(dev)  ((dev)->features[3] & LMP_RSSI_INQ)
-#define lmp_esco_capable(dev)      ((dev)->features[3] & LMP_ESCO)
-#define lmp_bredr_capable(dev)     (!((dev)->features[4] & LMP_NO_BREDR))
-#define lmp_le_capable(dev)        ((dev)->features[4] & LMP_LE)
-#define lmp_sniffsubr_capable(dev) ((dev)->features[5] & LMP_SNIFF_SUBR)
-#define lmp_pause_enc_capable(dev) ((dev)->features[5] & LMP_PAUSE_ENC)
-#define lmp_ext_inq_capable(dev)   ((dev)->features[6] & LMP_EXT_INQ)
-#define lmp_le_br_capable(dev)     !!((dev)->features[6] & LMP_SIMUL_LE_BR)
-#define lmp_ssp_capable(dev)       ((dev)->features[6] & LMP_SIMPLE_PAIR)
-#define lmp_no_flush_capable(dev)  ((dev)->features[6] & LMP_NO_FLUSH)
-#define lmp_lsto_capable(dev)      ((dev)->features[7] & LMP_LSTO)
-#define lmp_inq_tx_pwr_capable(dev) ((dev)->features[7] & LMP_INQ_TX_PWR)
-#define lmp_ext_feat_capable(dev)  ((dev)->features[7] & LMP_EXTFEATURES)
+#define lmp_encrypt_capable(dev)   ((dev)->features[0][0] & LMP_ENCRYPT)
+#define lmp_rswitch_capable(dev)   ((dev)->features[0][0] & LMP_RSWITCH)
+#define lmp_hold_capable(dev)      ((dev)->features[0][0] & LMP_HOLD)
+#define lmp_sniff_capable(dev)     ((dev)->features[0][0] & LMP_SNIFF)
+#define lmp_park_capable(dev)      ((dev)->features[0][1] & LMP_PARK)
+#define lmp_inq_rssi_capable(dev)  ((dev)->features[0][3] & LMP_RSSI_INQ)
+#define lmp_esco_capable(dev)      ((dev)->features[0][3] & LMP_ESCO)
+#define lmp_bredr_capable(dev)     (!((dev)->features[0][4] & LMP_NO_BREDR))
+#define lmp_le_capable(dev)        ((dev)->features[0][4] & LMP_LE)
+#define lmp_sniffsubr_capable(dev) ((dev)->features[0][5] & LMP_SNIFF_SUBR)
+#define lmp_pause_enc_capable(dev) ((dev)->features[0][5] & LMP_PAUSE_ENC)
+#define lmp_ext_inq_capable(dev)   ((dev)->features[0][6] & LMP_EXT_INQ)
+#define lmp_le_br_capable(dev)     (!!((dev)->features[0][6] & LMP_SIMUL_LE_BR))
+#define lmp_ssp_capable(dev)       ((dev)->features[0][6] & LMP_SIMPLE_PAIR)
+#define lmp_no_flush_capable(dev)  ((dev)->features[0][6] & LMP_NO_FLUSH)
+#define lmp_lsto_capable(dev)      ((dev)->features[0][7] & LMP_LSTO)
+#define lmp_inq_tx_pwr_capable(dev) ((dev)->features[0][7] & LMP_INQ_TX_PWR)
+#define lmp_ext_feat_capable(dev)  ((dev)->features[0][7] & LMP_EXTFEATURES)
 
 /* ----- Extended LMP capabilities ----- */
-#define lmp_host_ssp_capable(dev)  ((dev)->host_features[0] & LMP_HOST_SSP)
-#define lmp_host_le_capable(dev)   !!((dev)->host_features[0] & LMP_HOST_LE)
-#define lmp_host_le_br_capable(dev) !!((dev)->host_features[0] & LMP_HOST_LE_BREDR)
+#define lmp_host_ssp_capable(dev)  ((dev)->features[1][0] & LMP_HOST_SSP)
+#define lmp_host_le_capable(dev)   (!!((dev)->features[1][0] & LMP_HOST_LE))
+#define lmp_host_le_br_capable(dev) (!!((dev)->features[1][0] & LMP_HOST_LE_BREDR))
 
 /* returns true if at least one AMP active */
 static inline bool hci_amp_capable(void)
@@ -1054,8 +1082,14 @@ struct hci_request {
 void hci_req_init(struct hci_request *req, struct hci_dev *hdev);
 int hci_req_run(struct hci_request *req, hci_req_complete_t complete);
 void hci_req_add(struct hci_request *req, u16 opcode, u32 plen, void *param);
+void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen, void *param,
+		    u8 event);
 void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status);
-void hci_req_cmd_status(struct hci_dev *hdev, u16 opcode, u8 status);
+
+struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
+			       void *param, u32 timeout);
+struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
+				  void *param, u8 event, u32 timeout);
 
 int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param);
 void hci_send_acl(struct hci_chan *chan, struct sk_buff *skb, __u16 flags);

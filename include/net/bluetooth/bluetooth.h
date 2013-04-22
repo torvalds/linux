@@ -193,11 +193,11 @@ static inline bool bdaddr_type_is_le(__u8 type)
 #define BDADDR_LOCAL (&(bdaddr_t) {{0, 0, 0, 0xff, 0xff, 0xff} })
 
 /* Copy, swap, convert BD Address */
-static inline int bacmp(bdaddr_t *ba1, bdaddr_t *ba2)
+static inline int bacmp(const bdaddr_t *ba1, const bdaddr_t *ba2)
 {
 	return memcmp(ba1, ba2, sizeof(bdaddr_t));
 }
-static inline void bacpy(bdaddr_t *dst, bdaddr_t *src)
+static inline void bacpy(bdaddr_t *dst, const bdaddr_t *src)
 {
 	memcpy(dst, src, sizeof(bdaddr_t));
 }
@@ -266,6 +266,7 @@ typedef void (*hci_req_complete_t)(struct hci_dev *hdev, u8 status);
 
 struct hci_req_ctrl {
 	bool			start;
+	u8			event;
 	hci_req_complete_t	complete;
 };
 
