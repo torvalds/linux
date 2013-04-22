@@ -1447,6 +1447,12 @@ int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 	case KVM_REG_PPC_TSR:
 		r = put_user(vcpu->arch.tsr, (u32 __user *)(long)reg->addr);
 		break;
+	case KVM_REG_PPC_DEBUG_INST: {
+		u32 opcode = KVMPPC_INST_EHPRIV;
+		r = copy_to_user((u32 __user *)(long)reg->addr,
+				 &opcode, sizeof(u32));
+		break;
+	}
 	default:
 		break;
 	}

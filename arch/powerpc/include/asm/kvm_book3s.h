@@ -458,6 +458,8 @@ static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)
 #define OSI_SC_MAGIC_R4			0x77810F9B
 
 #define INS_DCBZ			0x7c0007ec
+/* TO = 31 for unconditional trap */
+#define INS_TW				0x7fe00008
 
 /* LPIDs we support with this build -- runtime limit may be lower */
 #define KVMPPC_NR_LPIDS			(LPID_RSVD + 1)
