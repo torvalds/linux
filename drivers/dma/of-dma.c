@@ -64,7 +64,6 @@ int of_dma_controller_register(struct device_node *np,
 				void *data)
 {
 	struct of_dma	*ofdma;
-	int		nbcells;
 	const __be32	*prop;
 
 	if (!np || !of_dma_xlate) {
@@ -77,18 +76,16 @@ int of_dma_controller_register(struct device_node *np,
 		return -ENOMEM;
 
 	prop = of_get_property(np, "#dma-cells", NULL);
-	if (prop)
-		nbcells = be32_to_cpup(prop);
-
-	if (!prop || !nbcells) {
-		pr_err("%s: #dma-cells property is missing or invalid\n",
+	if (!prop) {
+		pr_err("%s: #dma-cells property is missing\n",
 		       __func__);
 		kfree(ofdma);
 		return -EINVAL;
 	}
 
+
 	ofdma->of_node = np;
-	ofdma->of_dma_nbcells = nbcells;
+	ofdma->of_dma_nbcells = be32_to_cpup(prop);
 	ofdma->of_dma_xlate = of_dma_xlate;
 	ofdma->of_dma_data = data;
 
