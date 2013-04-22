@@ -365,7 +365,8 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
 {
 	struct usb_interface_descriptor *altsd = get_iface_desc(iface);
 	int protocol = altsd->bInterfaceProtocol;
-	int pcm_format, ret;
+	snd_pcm_format_t pcm_format;
+	int ret;
 
 	if (fmt->bFormatType == UAC_FORMAT_TYPE_III) {
 		/* FIXME: the format type is really IECxxx
@@ -384,7 +385,7 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
 		default:
 			pcm_format = SNDRV_PCM_FORMAT_S16_LE;
 		}
-		fp->formats = 1uLL << pcm_format;
+		fp->formats = pcm_format_to_bits(pcm_format);
 	} else {
 		fp->formats = parse_audio_format_i_type(chip, fp, format,
 							fmt, protocol);

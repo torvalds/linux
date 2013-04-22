@@ -85,7 +85,7 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 		snd_iprintf(buffer, "    Altset %d\n", fp->altsetting);
 		snd_iprintf(buffer, "    Format:");
 		for (fmt = 0; fmt <= SNDRV_PCM_FORMAT_LAST; ++fmt)
-			if (fp->formats & (1uLL << fmt))
+			if (fp->formats & pcm_format_to_bits(fmt))
 				snd_iprintf(buffer, " %s",
 					    snd_pcm_format_name(fmt));
 		snd_iprintf(buffer, "\n");

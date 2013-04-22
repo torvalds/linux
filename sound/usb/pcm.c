@@ -100,7 +100,7 @@ static struct audioformat *find_format(struct snd_usb_substream *subs)
 	int cur_attr = 0, attr;
 
 	list_for_each_entry(fp, &subs->fmt_list, list) {
-		if (!(fp->formats & (1uLL << subs->pcm_format)))
+		if (!(fp->formats & pcm_format_to_bits(subs->pcm_format)))
 			continue;
 		if (fp->channels != subs->channels)
 			continue;
@@ -478,7 +478,7 @@ static int match_endpoint_audioformats(struct audioformat *fp,
 		return 0;
 	}
 
-	if (!(fp->formats & (1ULL << pcm_format))) {
+	if (!(fp->formats & pcm_format_to_bits(pcm_format))) {
 		snd_printdd("%s: (fmt @%p) no match for format %d\n", __func__,
 			fp, pcm_format);
 		return 0;

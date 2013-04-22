@@ -1133,4 +1133,10 @@ int snd_pcm_add_chmap_ctls(struct snd_pcm *pcm, int stream,
 			   unsigned long private_value,
 			   struct snd_pcm_chmap **info_ret);
 
+/* Strong-typed conversion of pcm_format to bitwise */
+static inline u64 pcm_format_to_bits(snd_pcm_format_t pcm_format)
+{
+	return 1ULL << (__force int) pcm_format;
+}
+
 #endif /* __SOUND_PCM_H */
