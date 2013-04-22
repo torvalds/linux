@@ -234,7 +234,10 @@ static int btmrvl_sdio_verify_fw_download(struct btmrvl_sdio_card *card,
 
 	 /* Wait for firmware to become ready */
 	for (tries = 0; tries < pollnum; tries++) {
-		if (btmrvl_sdio_read_fw_status(card, &firmwarestat) < 0)
+		sdio_claim_host(card->func);
+		ret = btmrvl_sdio_read_fw_status(card, &firmwarestat);
+		sdio_release_host(card->func);
+		if (ret < 0)
 			continue;
 
 		if (firmwarestat == FIRMWARE_READY) {
@@ -882,12 +885,13 @@ static int btmrvl_sdio_download_fw(struct btmrvl_sdio_card *card)
 		BT_ERR("card or function is NULL!");
 		return -EINVAL;
 	}
-	sdio_claim_host(card->func);
 
 	if (!btmrvl_sdio_verify_fw_download(card, 1)) {
 		BT_DBG("Firmware already downloaded!");
-		goto done;
+		return 0;
 	}
+
+	sdio_claim_host(card->func);
 
 	/* Check if other function driver is downloading the firmware */
 	fws0 = sdio_readb(card->func, card->reg->card_fw_status0, &ret);
@@ -918,15 +922,17 @@ static int btmrvl_sdio_download_fw(struct btmrvl_sdio_card *card)
 		}
 	}
 
+	sdio_release_host(card->func);
+
 	if (btmrvl_sdio_verify_fw_download(card, pollnum)) {
 		BT_ERR("FW failed to be active in time!");
-		ret = -ETIMEDOUT;
-		goto done;
+		return -ETIMEDOUT;
 	}
+
+	return 0;
 
 done:
 	sdio_release_host(card->func);
-
 	return ret;
 }
 
