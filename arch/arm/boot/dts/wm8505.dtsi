@@ -12,8 +12,12 @@
 	compatible = "wm,wm8505";
 
 	cpus {
-		cpu@0 {
-			compatible = "arm,arm926ejs";
+		#address-cells = <0>;
+		#size-cells = <0>;
+
+		cpu {
+			device_type = "cpu";
+			compatible = "arm,arm926ej-s";
 		};
 	};
 

@@ -11,6 +11,17 @@
 / {
 	compatible = "wm,wm8850";
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0x0>;
+		};
+	};
+
 	aliases {
 		serial0 = &uart0;
 		serial1 = &uart1;
