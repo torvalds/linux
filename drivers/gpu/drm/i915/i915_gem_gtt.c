@@ -73,6 +73,27 @@ static gen6_gtt_pte_t gen6_pte_encode(struct drm_device *dev,
 	return pte;
 }
 
+#define BYT_PTE_WRITEABLE		(1 << 1)
+#define BYT_PTE_SNOOPED_BY_CPU_CACHES	(1 << 2)
+
+static gen6_gtt_pte_t byt_pte_encode(struct drm_device *dev,
+				     dma_addr_t addr,
+				     enum i915_cache_level level)
+{
+	gen6_gtt_pte_t pte = GEN6_PTE_VALID;
+	pte |= GEN6_PTE_ADDR_ENCODE(addr);
+
+	/* Mark the page as writeable.  Other platforms don't have a
+	 * setting for read-only/writable, so this matches that behavior.
+	 */
+	pte |= BYT_PTE_WRITEABLE;
+
+	if (level != I915_CACHE_NONE)
+		pte |= BYT_PTE_SNOOPED_BY_CPU_CACHES;
+
+	return pte;
+}
+
 static int gen6_ppgtt_enable(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -233,7 +254,11 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	 * now. */
        first_pd_entry_in_global_pt = gtt_total_entries(dev_priv->gtt);
 
-	ppgtt->pte_encode = gen6_pte_encode;
+	if (IS_VALLEYVIEW(dev)) {
+		ppgtt->pte_encode = byt_pte_encode;
+	} else {
+		ppgtt->pte_encode = gen6_pte_encode;
+	}
 	ppgtt->num_pd_entries = I915_PPGTT_PD_ENTRIES;
 	ppgtt->enable = gen6_ppgtt_enable;
 	ppgtt->clear_range = gen6_ppgtt_clear_range;
@@ -810,7 +835,11 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	} else {
 		dev_priv->gtt.gtt_probe = gen6_gmch_probe;
 		dev_priv->gtt.gtt_remove = gen6_gmch_remove;
-		dev_priv->gtt.pte_encode = gen6_pte_encode;
+		if (IS_VALLEYVIEW(dev)) {
+			dev_priv->gtt.pte_encode = byt_pte_encode;
+		} else {
+			dev_priv->gtt.pte_encode = gen6_pte_encode;
+		}
 	}
 
 	ret = dev_priv->gtt.gtt_probe(dev, &dev_priv->gtt.total,
