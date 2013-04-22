@@ -373,6 +373,9 @@ int rsa_extract_mpi(void *context, size_t hdrlen,
 	return 0;
 }
 
+/* The keyIdentifier in AuthorityKeyIdentifier SEQUENCE is tag(CONT,PRIM,0) */
+#define SEQ_TAG_KEYID (ASN1_CONT << 6)
+
 /*
  * Process certificate extensions that are used to qualify the certificate.
  */
@@ -407,21 +410,57 @@ int x509_process_extension(void *context, size_t hdrlen,
 	}
 
 	if (ctx->last_oid == OID_authorityKeyIdentifier) {
+		size_t key_len;
+
 		/* Get hold of the CA key fingerprint */
 		if (vlen < 5)
 			return -EBADMSG;
-		if (v[0] != (ASN1_SEQ | (ASN1_CONS << 5)) ||
-		    v[1] != vlen - 2 ||
-		    v[2] != (ASN1_CONT << 6) ||
-		    v[3] != vlen - 4)
-			return -EBADMSG;
-		v += 4;
-		vlen -= 4;
 
-		f = kmalloc(vlen * 2 + 1, GFP_KERNEL);
+		/* Authority Key Identifier must be a Constructed SEQUENCE */
+		if (v[0] != (ASN1_SEQ | (ASN1_CONS << 5)))
+			return -EBADMSG;
+
+		/* Authority Key Identifier is not indefinite length */
+		if (unlikely(vlen == ASN1_INDEFINITE_LENGTH))
+			return -EBADMSG;
+
+		if (vlen < ASN1_INDEFINITE_LENGTH) {
+			/* Short Form length */
+			if (v[1] != vlen - 2 ||
+			    v[2] != SEQ_TAG_KEYID ||
+			    v[3] > vlen - 4)
+				return -EBADMSG;
+
+			key_len = v[3];
+			v += 4;
+		} else {
+			/* Long Form length */
+			size_t seq_len = 0;
+			size_t sub = v[1] - ASN1_INDEFINITE_LENGTH;
+
+			if (sub > 2)
+				return -EBADMSG;
+
+			/* calculate the length from subsequent octets */
+			v += 2;
+			for (i = 0; i < sub; i++) {
+				seq_len <<= 8;
+				seq_len |= v[i];
+			}
+
+			if (seq_len != vlen - 2 - sub ||
+			    v[sub] != SEQ_TAG_KEYID ||
+			    v[sub + 1] > vlen - 4 - sub)
+				return -EBADMSG;
+
+			key_len = v[sub + 1];
+			v += (sub + 2);
+		}
+
+		f = kmalloc(key_len * 2 + 1, GFP_KERNEL);
 		if (!f)
 			return -ENOMEM;
-		for (i = 0; i < vlen; i++)
+		for (i = 0; i < key_len; i++)
 			sprintf(f + i * 2, "%02x", v[i]);
 		pr_debug("authority   %s\n", f);
 		ctx->cert->authority = f;
