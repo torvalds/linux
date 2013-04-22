@@ -234,6 +234,7 @@ struct ath_buf {
 	dma_addr_t bf_daddr;		/* physical addr of desc */
 	dma_addr_t bf_buf_addr;	/* physical addr of data buffer, for DMA */
 	bool bf_stale;
+	struct ieee80211_tx_rate rates[4];
 	struct ath_buf_state bf_state;
 };
 
