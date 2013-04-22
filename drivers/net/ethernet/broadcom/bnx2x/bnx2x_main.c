@@ -10791,6 +10791,12 @@ static void bnx2x_get_fcoe_info(struct bnx2x *bp)
 		(max_fcoe_conn & BNX2X_MAX_FCOE_INIT_CONN_MASK) >>
 		BNX2X_MAX_FCOE_INIT_CONN_SHIFT;
 
+	/* Calculate the number of maximum allowed FCoE tasks */
+	bp->cnic_eth_dev.max_fcoe_exchanges = MAX_NUM_FCOE_TASKS_PER_ENGINE;
+	if (IS_MF(bp) || CHIP_MODE_IS_4_PORT(bp))
+		bp->cnic_eth_dev.max_fcoe_exchanges /=
+						MAX_FCOE_FUNCS_PER_ENGINE;
+
 	/* Read the WWN: */
 	if (!IS_MF(bp)) {
 		/* Port info */

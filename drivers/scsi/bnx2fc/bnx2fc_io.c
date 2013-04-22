@@ -239,8 +239,7 @@ static void bnx2fc_scsi_done(struct bnx2fc_cmd *io_req, int err_code)
 	sc_cmd->scsi_done(sc_cmd);
 }
 
-struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba,
-						u16 min_xid, u16 max_xid)
+struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba)
 {
 	struct bnx2fc_cmd_mgr *cmgr;
 	struct io_bdt *bdt_info;
@@ -252,6 +251,8 @@ struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba,
 	int num_ios, num_pri_ios;
 	size_t bd_tbl_sz;
 	int arr_sz = num_possible_cpus() + 1;
+	u16 min_xid = BNX2FC_MIN_XID;
+	u16 max_xid = hba->max_xid;
 
 	if (max_xid <= min_xid || max_xid == FC_XID_UNKNOWN) {
 		printk(KERN_ERR PFX "cmd_mgr_alloc: Invalid min_xid 0x%x \
@@ -298,7 +299,7 @@ struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba,
 	 * of slow path requests.
 	 */
 	xid = BNX2FC_MIN_XID;
-	num_pri_ios = num_ios - BNX2FC_ELSTM_XIDS;
+	num_pri_ios = num_ios - hba->elstm_xids;
 	for (i = 0; i < num_ios; i++) {
 		io_req = kzalloc(sizeof(*io_req), GFP_KERNEL);
 
@@ -367,7 +368,7 @@ void bnx2fc_cmd_mgr_free(struct bnx2fc_cmd_mgr *cmgr)
 	struct bnx2fc_hba *hba = cmgr->hba;
 	size_t bd_tbl_sz;
 	u16 min_xid = BNX2FC_MIN_XID;
-	u16 max_xid = BNX2FC_MAX_XID;
+	u16 max_xid = hba->max_xid;
 	int num_ios;
 	int i;
 

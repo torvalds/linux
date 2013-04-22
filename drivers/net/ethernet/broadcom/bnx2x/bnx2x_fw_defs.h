@@ -386,4 +386,8 @@
 
 #define UNDEF_IRO 0x80000000
 
+/* used for defining the amount of FCoE tasks supported for PF */
+#define MAX_FCOE_FUNCS_PER_ENGINE 2
+#define MAX_NUM_FCOE_TASKS_PER_ENGINE 4096
+
 #endif /* BNX2X_FW_DEFS_H */
