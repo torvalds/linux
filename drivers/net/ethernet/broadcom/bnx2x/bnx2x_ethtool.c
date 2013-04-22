@@ -1569,9 +1569,8 @@ static int bnx2x_nvram_write1(struct bnx2x *bp, u32 offset, u8 *data_buf,
 			      int buf_size)
 {
 	int rc;
-	u32 cmd_flags;
-	u32 align_offset;
-	__be32 val;
+	u32 cmd_flags, align_offset, val;
+	__be32 val_be;
 
 	if (offset + buf_size > bp->common.flash_size) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
@@ -1590,16 +1589,16 @@ static int bnx2x_nvram_write1(struct bnx2x *bp, u32 offset, u8 *data_buf,
 
 	cmd_flags = (MCPR_NVM_COMMAND_FIRST | MCPR_NVM_COMMAND_LAST);
 	align_offset = (offset & ~0x03);
-	rc = bnx2x_nvram_read_dword(bp, align_offset, &val, cmd_flags);
+	rc = bnx2x_nvram_read_dword(bp, align_offset, &val_be, cmd_flags);
 
 	if (rc == 0) {
-		val &= ~(0xff << BYTE_OFFSET(offset));
-		val |= (*data_buf << BYTE_OFFSET(offset));
-
 		/* nvram data is returned as an array of bytes
 		 * convert it back to cpu order
 		 */
-		val = be32_to_cpu(val);
+		val = be32_to_cpu(val_be);
+
+		val &= ~le32_to_cpu(0xff << BYTE_OFFSET(offset));
+		val |= le32_to_cpu(*data_buf << BYTE_OFFSET(offset));
 
 		rc = bnx2x_nvram_write_dword(bp, align_offset, val,
 					     cmd_flags);
