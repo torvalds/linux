@@ -7,7 +7,7 @@
  * converted Guest pages when running the Guest.
 :*/
 
-/* Copyright (C) Rusty Russell IBM Corporation 2006.
+/* Copyright (C) Rusty Russell IBM Corporation 2013.
  * GPL v2 and any later version */
 #include <linux/mm.h>
 #include <linux/gfp.h>
@@ -731,6 +731,9 @@ static unsigned int new_pgdir(struct lg_cpu *cpu,
 	/* Release all the non-kernel mappings. */
 	flush_user_mappings(cpu->lg, next);
 
+	/* This hasn't run on any CPU at all. */
+	cpu->lg->pgdirs[next].last_host_cpu = -1;
+
 	return next;
 }
 
@@ -790,6 +793,7 @@ static void release_all_pagetables(struct lguest *lg)
 		for (j = 0; j < PTRS_PER_PGD; j++)
 			release_pgd(lg->pgdirs[i].pgdir + j);
 		lg->pgdirs[i].switcher_mapped = false;
+		lg->pgdirs[i].last_host_cpu = -1;
 	}
 }
 
@@ -1086,37 +1090,62 @@ void free_guest_pagetable(struct lguest *lg)
 		free_page((long)lg->pgdirs[i].pgdir);
 }
 
+/*H:481
+ * This clears the Switcher mappings for cpu #i.
+ */
+static void remove_switcher_percpu_map(struct lg_cpu *cpu, unsigned int i)
+{
+	unsigned long base = switcher_addr + PAGE_SIZE + i * PAGE_SIZE*2;
+	pte_t *pte;
+
+	/* Clear the mappings for both pages. */
+	pte = find_spte(cpu, base, false, 0, 0);
+	release_pte(*pte);
+	set_pte(pte, __pte(0));
+
+	pte = find_spte(cpu, base + PAGE_SIZE, false, 0, 0);
+	release_pte(*pte);
+	set_pte(pte, __pte(0));
+}
+
 /*H:480
  * (vi) Mapping the Switcher when the Guest is about to run.
  *
- * The Switcher and the two pages for this CPU need to be visible in the
- * Guest (and not the pages for other CPUs).
+ * The Switcher and the two pages for this CPU need to be visible in the Guest
+ * (and not the pages for other CPUs).
  *
- * The pages have all been allocate
+ * The pages for the pagetables have all been allocated before: we just need
+ * to make sure the actual PTEs are up-to-date for the CPU we're about to run
+ * on.
  */
 void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages)
 {
-	unsigned long base, i;
+	unsigned long base;
 	struct page *percpu_switcher_page, *regs_page;
 	pte_t *pte;
+	struct pgdir *pgdir = &cpu->lg->pgdirs[cpu->cpu_pgd];
 
-	/* Switcher page should always be mapped! */
-	BUG_ON(!cpu->lg->pgdirs[cpu->cpu_pgd].switcher_mapped);
+	/* Switcher page should always be mapped by now! */
+	BUG_ON(!pgdir->switcher_mapped);
 
-	/* Clear all the Switcher mappings for any other CPUs. */
-	/* FIXME: This is dumb: update only when Host CPU changes. */
-	for_each_possible_cpu(i) {
-		/* Get location of lguest_pages (indexed by Host CPU) */
-		base = switcher_addr + PAGE_SIZE
-			+ i * sizeof(struct lguest_pages);
+	/* 
+	 * Remember that we have two pages for each Host CPU, so we can run a
+	 * Guest on each CPU without them interfering.  We need to make sure
+	 * those pages are mapped correctly in the Guest, but since we usually
+	 * run on the same CPU, we cache that, and only update the mappings
+	 * when we move.
+	 */
+	if (pgdir->last_host_cpu == raw_smp_processor_id())
+		return;
 
-		/* Get shadow PTE for first page (where we put guest regs). */
-		pte = find_spte(cpu, base, false, 0, 0);
-		set_pte(pte, __pte(0));
-
-		/* This is where we put R/O state. */
-		pte = find_spte(cpu, base + PAGE_SIZE, false, 0, 0);
-		set_pte(pte, __pte(0));
+	/* -1 means unknown so we remove everything. */
+	if (pgdir->last_host_cpu == -1) {
+		unsigned int i;
+		for_each_possible_cpu(i)
+			remove_switcher_percpu_map(cpu, i);
+	} else {
+		/* We know exactly what CPU mapping to remove. */
+		remove_switcher_percpu_map(cpu, pgdir->last_host_cpu);
 	}
 
 	/*
@@ -1140,18 +1169,17 @@ void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages)
 	 * the Guest: the IDT, GDT and other things it's not supposed to
 	 * change.
 	 */
-	base += PAGE_SIZE;
-	pte = find_spte(cpu, base, false, 0, 0);
-
+	pte = find_spte(cpu, base + PAGE_SIZE, false, 0, 0);
 	percpu_switcher_page
 		= lg_switcher_pages[1 + raw_smp_processor_id()*2 + 1];
 	get_page(percpu_switcher_page);
 	set_pte(pte, mk_pte(percpu_switcher_page,
 			    __pgprot(__PAGE_KERNEL_RO & ~_PAGE_GLOBAL)));
-}
-/*:*/
 
-/*
+	pgdir->last_host_cpu = raw_smp_processor_id();
+}
+
+/*H:490
  * We've made it through the page table code.  Perhaps our tired brains are
  * still processing the details, or perhaps we're simply glad it's over.
  *
