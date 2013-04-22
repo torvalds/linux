@@ -2731,7 +2731,7 @@ static void gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 	 */
 	if (dev->features & NETIF_F_HW_VLAN_CTAG_RX &&
 	    fcb->flags & RXFCB_VLN)
-		__vlan_hwaccel_put_tag(skb, fcb->vlctl);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), fcb->vlctl);
 
 	/* Send the packet up the stack */
 	napi_gro_receive(napi, skb);

@@ -725,7 +725,8 @@ static int ehea_proc_rwqes(struct net_device *dev,
 			processed_bytes += skb->len;
 
 			if (cqe->status & EHEA_CQE_VLAN_TAG_XTRACT)
-				__vlan_hwaccel_put_tag(skb, cqe->vlan_tag);
+				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
+						       cqe->vlan_tag);
 
 			napi_gro_receive(&pr->napi, skb);
 		} else {
