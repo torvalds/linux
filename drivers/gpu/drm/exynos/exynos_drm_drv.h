@@ -322,7 +322,7 @@ void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file);
  * this function registers exynos drm hdmi platform device. It ensures only one
  * instance of the device is created.
  */
-extern int exynos_platform_device_hdmi_register(void);
+int exynos_platform_device_hdmi_register(void);
 
 /*
  * this function unregisters exynos drm hdmi platform device if it exists.

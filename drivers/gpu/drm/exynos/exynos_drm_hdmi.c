@@ -51,21 +51,27 @@ struct drm_hdmi_context {
 
 int exynos_platform_device_hdmi_register(void)
 {
+	struct platform_device *pdev;
+
 	if (exynos_drm_hdmi_pdev)
 		return -EEXIST;
 
-	exynos_drm_hdmi_pdev = platform_device_register_simple(
+	pdev = platform_device_register_simple(
 			"exynos-drm-hdmi", -1, NULL, 0);
-	if (IS_ERR(exynos_drm_hdmi_pdev))
-		return PTR_ERR(exynos_drm_hdmi_pdev);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	exynos_drm_hdmi_pdev = pdev;
 
 	return 0;
 }
 
 void exynos_platform_device_hdmi_unregister(void)
 {
-	if (exynos_drm_hdmi_pdev)
+	if (exynos_drm_hdmi_pdev) {
 		platform_device_unregister(exynos_drm_hdmi_pdev);
+		exynos_drm_hdmi_pdev = NULL;
+	}
 }
 
 void exynos_hdmi_drv_attach(struct exynos_drm_hdmi_context *ctx)
