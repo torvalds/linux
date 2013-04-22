@@ -2324,7 +2324,14 @@ static int imon_probe(struct usb_interface *interface,
 		}
 
 	} else {
-	/* this is the secondary interface on the device */
+		/* this is the secondary interface on the device */
+
+		/* fail early if first intf failed to register */
+		if (!first_if_ctx) {
+			ret = -ENODEV;
+			goto fail;
+		}
+
 		ictx = imon_init_intf1(interface, first_if_ctx);
 		if (!ictx) {
 			pr_err("failed to attach to context!\n");
