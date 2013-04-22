@@ -65,6 +65,8 @@ struct minstrel_mcs_group_data {
 };
 
 struct minstrel_ht_sta {
+	struct ieee80211_sta *sta;
+
 	/* ampdu length (average, per sampling interval) */
 	unsigned int ampdu_len;
 	unsigned int ampdu_packets;
