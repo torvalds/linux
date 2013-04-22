@@ -78,7 +78,6 @@ static const struct labpc_boardinfo labpc_cs_boards[] = {
 		.name			= "daqcard-1200",
 		.device_id		= 0x103,
 		.ai_speed		= 10000,
-		.bustype		= pcmcia_bustype,
 		.register_layout	= labpc_1200_layout,
 		.has_ao			= 1,
 		.ai_range_table		= &range_labpc_1200_ai,

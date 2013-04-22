@@ -50,7 +50,6 @@ static const struct labpc_boardinfo labpc_pci_boards[] = {
 	[BOARD_NI_PCI1200] = {
 		.name			= "ni_pci-1200",
 		.ai_speed		= 10000,
-		.bustype		= pci_bustype,
 		.register_layout	= labpc_1200_layout,
 		.has_ao			= 1,
 		.ai_range_table		= &range_labpc_1200_ai,

@@ -239,7 +239,6 @@ static const struct labpc_boardinfo labpc_boards[] = {
 	{
 		.name			= "lab-pc-1200",
 		.ai_speed		= 10000,
-		.bustype		= isa_bustype,
 		.register_layout	= labpc_1200_layout,
 		.has_ao			= 1,
 		.ai_range_table		= &range_labpc_1200_ai,
@@ -248,7 +247,6 @@ static const struct labpc_boardinfo labpc_boards[] = {
 	}, {
 		.name			= "lab-pc-1200ai",
 		.ai_speed		= 10000,
-		.bustype		= isa_bustype,
 		.register_layout	= labpc_1200_layout,
 		.ai_range_table		= &range_labpc_1200_ai,
 		.ai_range_code		= labpc_1200_ai_gain_bits,
@@ -256,7 +254,6 @@ static const struct labpc_boardinfo labpc_boards[] = {
 	}, {
 		.name			= "lab-pc+",
 		.ai_speed		= 12000,
-		.bustype		= isa_bustype,
 		.register_layout	= labpc_plus_layout,
 		.has_ao			= 1,
 		.ai_range_table		= &range_labpc_plus_ai,

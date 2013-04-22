@@ -27,7 +27,6 @@
 #define EEPROM_SIZE	256	/*  256 byte eeprom */
 #define NUM_AO_CHAN	2	/*  boards have two analog output channels */
 
-enum labpc_bustype { isa_bustype, pci_bustype, pcmcia_bustype };
 enum labpc_register_layout { labpc_plus_layout, labpc_1200_layout };
 enum transfer_type { fifo_not_empty_transfer, fifo_half_full_transfer,
 	isa_dma_transfer
@@ -37,7 +36,6 @@ struct labpc_boardinfo {
 	const char *name;
 	int device_id;		/*  device id for pci and pcmcia boards */
 	int ai_speed;		/*  maximum input speed in nanoseconds */
-	enum labpc_bustype bustype;	/*  ISA/PCI/etc. */
 
 	/*  1200 has extra registers compared to pc+ */
 	enum labpc_register_layout register_layout;
