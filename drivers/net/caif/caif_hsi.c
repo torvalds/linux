@@ -1,7 +1,7 @@
 /*
  * Copyright (C) ST-Ericsson AB 2010
  * Author:  Daniel Martensson
- *	    Dmitry.Tarnyagin  / dmitry.tarnyagin@stericsson.com
+ *	    Dmitry.Tarnyagin  / dmitry.tarnyagin@lockless.no
  * License terms: GNU General Public License (GPL) version 2.
  */
 
