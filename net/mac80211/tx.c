@@ -48,15 +48,15 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	/* assume HW handles this */
-	if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS)
+	if (tx->rate.flags & IEEE80211_TX_RC_MCS)
 		return 0;
 
 	/* uh huh? */
-	if (WARN_ON_ONCE(info->control.rates[0].idx < 0))
+	if (WARN_ON_ONCE(tx->rate.idx < 0))
 		return 0;
 
 	sband = local->hw.wiphy->bands[info->band];
-	txrate = &sband->bitrates[info->control.rates[0].idx];
+	txrate = &sband->bitrates[tx->rate.idx];
 
 	erp = txrate->flags & IEEE80211_RATE_ERP_G;
 
@@ -617,11 +617,9 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	struct ieee80211_hdr *hdr = (void *)tx->skb->data;
 	struct ieee80211_supported_band *sband;
-	struct ieee80211_rate *rate;
-	int i;
 	u32 len;
-	bool inval = false, rts = false, short_preamble = false;
 	struct ieee80211_tx_rate_control txrc;
+	struct ieee80211_sta_rates *ratetbl = NULL;
 	bool assoc = false;
 
 	memset(&txrc, 0, sizeof(txrc));
@@ -653,10 +651,10 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 
 	/* set up RTS protection if desired */
 	if (len > tx->local->hw.wiphy->rts_threshold) {
-		txrc.rts = rts = true;
+		txrc.rts = true;
 	}
 
-	info->control.use_rts = rts;
+	info->control.use_rts = txrc.rts;
 	info->control.use_cts_prot = tx->sdata->vif.bss_conf.use_cts_prot;
 
 	/*
@@ -668,7 +666,9 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	if (tx->sdata->vif.bss_conf.use_short_preamble &&
 	    (ieee80211_is_data(hdr->frame_control) ||
 	     (tx->sta && test_sta_flag(tx->sta, WLAN_STA_SHORT_PREAMBLE))))
-		txrc.short_preamble = short_preamble = true;
+		txrc.short_preamble = true;
+
+	info->control.short_preamble = txrc.short_preamble;
 
 	if (tx->sta)
 		assoc = test_sta_flag(tx->sta, WLAN_STA_ASSOC);
@@ -692,15 +692,37 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	 */
 	rate_control_get_rate(tx->sdata, tx->sta, &txrc);
 
-	if (unlikely(info->control.rates[0].idx < 0))
-		return TX_DROP;
+	if (tx->sta && !info->control.skip_table)
+		ratetbl = rcu_dereference(tx->sta->sta.rates);
+
+	if (unlikely(info->control.rates[0].idx < 0)) {
+		if (ratetbl) {
+			struct ieee80211_tx_rate rate = {
+				.idx = ratetbl->rate[0].idx,
+				.flags = ratetbl->rate[0].flags,
+				.count = ratetbl->rate[0].count
+			};
+
+			if (ratetbl->rate[0].idx < 0)
+				return TX_DROP;
+
+			tx->rate = rate;
+		} else {
+			return TX_DROP;
+		}
+	} else {
+		tx->rate = info->control.rates[0];
+	}
 
 	if (txrc.reported_rate.idx < 0) {
-		txrc.reported_rate = info->control.rates[0];
+		txrc.reported_rate = tx->rate;
 		if (tx->sta && ieee80211_is_data(hdr->frame_control))
 			tx->sta->last_tx_rate = txrc.reported_rate;
 	} else if (tx->sta)
 		tx->sta->last_tx_rate = txrc.reported_rate;
+
+	if (ratetbl)
+		return TX_CONTINUE;
 
 	if (unlikely(!info->control.rates[0].count))
 		info->control.rates[0].count = 1;
@@ -708,102 +730,6 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	if (WARN_ON_ONCE((info->control.rates[0].count > 1) &&
 			 (info->flags & IEEE80211_TX_CTL_NO_ACK)))
 		info->control.rates[0].count = 1;
-
-	if (is_multicast_ether_addr(hdr->addr1)) {
-		/*
-		 * XXX: verify the rate is in the basic rateset
-		 */
-		return TX_CONTINUE;
-	}
-
-	/*
-	 * Set up the RTS/CTS rate as the fastest basic rate
-	 * that is not faster than the data rate unless there
-	 * is no basic rate slower than the data rate, in which
-	 * case we pick the slowest basic rate
-	 *
-	 * XXX: Should this check all retry rates?
-	 */
-	if (!(info->control.rates[0].flags & IEEE80211_TX_RC_MCS)) {
-		u32 basic_rates = tx->sdata->vif.bss_conf.basic_rates;
-		s8 baserate = basic_rates ? ffs(basic_rates - 1) : 0;
-
-		rate = &sband->bitrates[info->control.rates[0].idx];
-
-		for (i = 0; i < sband->n_bitrates; i++) {
-			/* must be a basic rate */
-			if (!(basic_rates & BIT(i)))
-				continue;
-			/* must not be faster than the data rate */
-			if (sband->bitrates[i].bitrate > rate->bitrate)
-				continue;
-			/* maximum */
-			if (sband->bitrates[baserate].bitrate <
-			     sband->bitrates[i].bitrate)
-				baserate = i;
-		}
-
-		info->control.rts_cts_rate_idx = baserate;
-	}
-
-	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
-		struct ieee80211_tx_rate *rc_rate = &info->control.rates[i];
-
-		/*
-		 * make sure there's no valid rate following
-		 * an invalid one, just in case drivers don't
-		 * take the API seriously to stop at -1.
-		 */
-		if (inval) {
-			rc_rate->idx = -1;
-			continue;
-		}
-		if (rc_rate->idx < 0) {
-			inval = true;
-			continue;
-		}
-
-		/*
-		 * For now assume MCS is already set up correctly, this
-		 * needs to be fixed.
-		 */
-		if (rc_rate->flags & IEEE80211_TX_RC_MCS) {
-			WARN_ON(rc_rate->idx > 76);
-
-			if (!(rc_rate->flags & IEEE80211_TX_RC_USE_RTS_CTS) &&
-			    tx->sdata->vif.bss_conf.use_cts_prot)
-				rc_rate->flags |=
-					IEEE80211_TX_RC_USE_CTS_PROTECT;
-			continue;
-		}
-
-		if (rc_rate->flags & IEEE80211_TX_RC_VHT_MCS) {
-			WARN_ON(ieee80211_rate_get_vht_mcs(rc_rate) > 9);
-			continue;
-		}
-
-		/* set up RTS protection if desired */
-		if (rts)
-			rc_rate->flags |= IEEE80211_TX_RC_USE_RTS_CTS;
-
-		/* RC is busted */
-		if (WARN_ON_ONCE(rc_rate->idx >= sband->n_bitrates)) {
-			rc_rate->idx = -1;
-			continue;
-		}
-
-		rate = &sband->bitrates[rc_rate->idx];
-
-		/* set up short preamble */
-		if (short_preamble &&
-		    rate->flags & IEEE80211_RATE_SHORT_PREAMBLE)
-			rc_rate->flags |= IEEE80211_TX_RC_USE_SHORT_PREAMBLE;
-
-		/* set up G protection */
-		if (!rts && tx->sdata->vif.bss_conf.use_cts_prot &&
-		    rate->flags & IEEE80211_RATE_ERP_G)
-			rc_rate->flags |= IEEE80211_TX_RC_USE_CTS_PROTECT;
-	}
 
 	return TX_CONTINUE;
 }
