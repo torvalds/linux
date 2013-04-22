@@ -1084,7 +1084,7 @@ static void free_switcher_pte_pages(void)
  * Currently the Switcher is less than a page long, so "pages" is always 1.
  */
 static __init void populate_switcher_pte_page(unsigned int cpu,
-					      struct page *switcher_page[],
+					      struct page *switcher_pages[],
 					      unsigned int pages)
 {
 	unsigned int i;
@@ -1092,7 +1092,7 @@ static __init void populate_switcher_pte_page(unsigned int cpu,
 
 	/* The first entries are easy: they map the Switcher code. */
 	for (i = 0; i < pages; i++) {
-		set_pte(&pte[i], mk_pte(switcher_page[i],
+		set_pte(&pte[i], mk_pte(switcher_pages[i],
 				__pgprot(_PAGE_PRESENT|_PAGE_ACCESSED)));
 	}
 
@@ -1100,14 +1100,14 @@ static __init void populate_switcher_pte_page(unsigned int cpu,
 	i = pages + cpu*2;
 
 	/* First page (Guest registers) is writable from the Guest */
-	set_pte(&pte[i], pfn_pte(page_to_pfn(switcher_page[i]),
+	set_pte(&pte[i], pfn_pte(page_to_pfn(switcher_pages[i]),
 			 __pgprot(_PAGE_PRESENT|_PAGE_ACCESSED|_PAGE_RW)));
 
 	/*
 	 * The second page contains the "struct lguest_ro_state", and is
 	 * read-only.
 	 */
-	set_pte(&pte[i+1], pfn_pte(page_to_pfn(switcher_page[i+1]),
+	set_pte(&pte[i+1], pfn_pte(page_to_pfn(switcher_pages[i+1]),
 			   __pgprot(_PAGE_PRESENT|_PAGE_ACCESSED)));
 }
 
@@ -1128,7 +1128,7 @@ static __init void populate_switcher_pte_page(unsigned int cpu,
  * At boot or module load time, init_pagetables() allocates and populates
  * the Switcher PTE page for each CPU.
  */
-__init int init_pagetables(struct page **switcher_page, unsigned int pages)
+__init int init_pagetables(struct page **switcher_pages, unsigned int pages)
 {
 	unsigned int i;
 
@@ -1138,7 +1138,7 @@ __init int init_pagetables(struct page **switcher_page, unsigned int pages)
 			free_switcher_pte_pages();
 			return -ENOMEM;
 		}
-		populate_switcher_pte_page(i, switcher_page, pages);
+		populate_switcher_pte_page(i, switcher_pages, pages);
 	}
 	return 0;
 }
