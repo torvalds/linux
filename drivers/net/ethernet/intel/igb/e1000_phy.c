@@ -1130,7 +1130,7 @@ s32 igb_phy_force_speed_duplex_igp(struct e1000_hw *hw)
 	if (phy->autoneg_wait_to_complete) {
 		hw_dbg("Waiting for forced speed/duplex link on IGP phy.\n");
 
-		ret_val = igb_phy_has_link(hw, PHY_FORCE_LIMIT, 100000, &link);
+		ret_val = igb_phy_has_link(hw, PHY_FORCE_LIMIT, 10000, &link);
 		if (ret_val)
 			goto out;
 
@@ -1138,7 +1138,7 @@ s32 igb_phy_force_speed_duplex_igp(struct e1000_hw *hw)
 			hw_dbg("Link taking longer than expected.\n");
 
 		/* Try once more */
-		ret_val = igb_phy_has_link(hw, PHY_FORCE_LIMIT, 100000, &link);
+		ret_val = igb_phy_has_link(hw, PHY_FORCE_LIMIT, 10000, &link);
 		if (ret_val)
 			goto out;
 	}
@@ -1590,7 +1590,7 @@ s32 igb_phy_has_link(struct e1000_hw *hw, u32 iterations,
 		 * it across the board.
 		 */
 		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS, &phy_status);
-		if (ret_val) {
+		if (ret_val && usec_interval > 0) {
 			/* If the first read fails, another entity may have
 			 * ownership of the resources, wait and try again to
 			 * see if they have relinquished the resources yet.
