@@ -77,6 +77,32 @@
 		dma-channels = <40>;
 	};
 
+	/* A NAND flash of 128 MiB */
+	fsmc: flash@40000000 {
+		compatible = "stericsson,fsmc-nand";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x9f800000 0x1000>,	/* FSMC Register*/
+			<0x80000000 0x4000>,	/* NAND Base DATA */
+			<0x80020000 0x4000>,	/* NAND Base ADDR */
+			<0x80010000 0x4000>;	/* NAND Base CMD */
+		reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
+		nand-skip-bbtscan;
+
+		partition@0 {
+		label = "boot records";
+			reg = <0x0 0x20000>;
+		};
+		partition@20000 {
+			label = "free";
+			reg = <0x20000 0x7e0000>;
+		};
+		partition@800000 {
+			label = "platform";
+			reg = <0x800000 0xf800000>;
+		};
+	};
+
 	i2c0: i2c@c0004000 {
 		compatible = "st,ddci2c";
 		reg = <0xc0004000 0x1000>;
