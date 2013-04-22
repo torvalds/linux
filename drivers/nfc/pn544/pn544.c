@@ -711,12 +711,9 @@ static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
 		 return nfc_hci_send_cmd(hdev, NFC_HCI_RF_READER_A_GATE,
 				     PN544_RF_READER_CMD_ACTIVATE_NEXT,
 				     target->nfcid1, target->nfcid1_len, NULL);
-	} else if (target->supported_protocols & NFC_PROTO_JEWEL_MASK) {
-		return nfc_hci_send_cmd(hdev, target->hci_reader_gate,
-					PN544_JEWEL_RAW_CMD, NULL, 0, NULL);
-	} else if (target->supported_protocols & NFC_PROTO_FELICA_MASK) {
-		return nfc_hci_send_cmd(hdev, PN544_RF_READER_F_GATE,
-					PN544_FELICA_RAW, NULL, 0, NULL);
+	} else if (target->supported_protocols & (NFC_PROTO_JEWEL_MASK |
+						NFC_PROTO_FELICA_MASK)) {
+		return -EOPNOTSUPP;
 	} else if (target->supported_protocols & NFC_PROTO_NFC_DEP_MASK) {
 		return nfc_hci_send_cmd(hdev, target->hci_reader_gate,
 					PN544_HCI_CMD_ATTREQUEST,
