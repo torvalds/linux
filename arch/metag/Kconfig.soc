@@ -16,6 +16,7 @@ config META21_FPGA
 
 config SOC_TZ1090
 	bool "Toumaz Xenif TZ1090 SoC (Comet)"
+	select IMGPDC_IRQ
 	select METAG_LNKGET_AROUND_CACHE
 	select METAG_META21
 	select METAG_SMP_WRITE_REORDERING

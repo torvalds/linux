@@ -8,6 +8,8 @@
 
 #include "skeleton.dtsi"
 
+#include <dt-bindings/interrupt-controller/irq.h>
+
 / {
 	compatible = "toumaz,tz1090", "img,meta";
 
@@ -25,6 +27,22 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+
+		pdc: pdc@0x02006000 {
+			interrupt-controller;
+			#interrupt-cells = <2>;
+
+			reg = <0x02006000 0x1000>;
+			compatible = "img,pdc-intc";
+
+			num-perips = <3>;
+			num-syswakes = <3>;
+
+			interrupts = <18 IRQ_TYPE_LEVEL_HIGH>, /* Syswakes */
+			             <30 IRQ_TYPE_LEVEL_HIGH>, /* Perip 0 (RTC) */
+			             <29 IRQ_TYPE_LEVEL_HIGH>, /* Perip 1 (IR) */
+			             <31 IRQ_TYPE_LEVEL_HIGH>; /* Perip 2 (WDT) */
+		};
 
 		pinctrl: pinctrl@02005800 {
 			#gpio-range-cells = <3>;
