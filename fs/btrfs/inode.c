@@ -920,7 +920,8 @@ static noinline int __cow_file_range(struct btrfs_trans_handle *trans,
 		}
 
 		em = alloc_extent_map();
-		BUG_ON(!em); /* -ENOMEM */
+		if (!em)
+			goto out_reserve;
 		em->start = start;
 		em->orig_start = em->start;
 		ram_size = ins.offset;
@@ -947,11 +948,14 @@ static noinline int __cow_file_range(struct btrfs_trans_handle *trans,
 			btrfs_drop_extent_cache(inode, start,
 						start + ram_size - 1, 0);
 		}
+		if (ret)
+			goto out_reserve;
 
 		cur_alloc_size = ins.offset;
 		ret = btrfs_add_ordered_extent(inode, start, ins.objectid,
 					       ram_size, cur_alloc_size, 0);
-		BUG_ON(ret); /* -ENOMEM */
+		if (ret)
+			goto out_reserve;
 
 		if (root->root_key.objectid ==
 		    BTRFS_DATA_RELOC_TREE_OBJECTID) {
@@ -959,7 +963,7 @@ static noinline int __cow_file_range(struct btrfs_trans_handle *trans,
 						      cur_alloc_size);
 			if (ret) {
 				btrfs_abort_transaction(trans, root, ret);
-				goto out_unlock;
+				goto out_reserve;
 			}
 		}
 
@@ -988,6 +992,8 @@ static noinline int __cow_file_range(struct btrfs_trans_handle *trans,
 out:
 	return ret;
 
+out_reserve:
+	btrfs_free_reserved_extent(root, ins.objectid, ins.offset);
 out_unlock:
 	extent_clear_unlock_delalloc(inode,
 		     &BTRFS_I(inode)->io_tree,
