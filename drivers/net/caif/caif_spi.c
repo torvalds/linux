@@ -1,6 +1,6 @@
 /*
  * Copyright (C) ST-Ericsson AB 2010
- * Author:  Daniel Martensson / Daniel.Martensson@stericsson.com
+ * Author:  Daniel Martensson
  * License terms: GNU General Public License (GPL) version 2.
  */
 
@@ -28,7 +28,7 @@
 #endif /* CONFIG_CAIF_SPI_SYNC */
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Daniel Martensson<daniel.martensson@stericsson.com>");
+MODULE_AUTHOR("Daniel Martensson");
 MODULE_DESCRIPTION("CAIF SPI driver");
 
 /* Returns the number of padding bytes for alignment. */
