@@ -95,13 +95,6 @@ static pgd_t *spgd_addr(struct lg_cpu *cpu, u32 i, unsigned long vaddr)
 {
 	unsigned int index = pgd_index(vaddr);
 
-#ifndef CONFIG_X86_PAE
-	/* We kill any Guest trying to touch the Switcher addresses. */
-	if (index >= SWITCHER_PGD_INDEX) {
-		kill_guest(cpu, "attempt to access switcher pages");
-		index = 0;
-	}
-#endif
 	/* Return a pointer index'th pgd entry for the i'th page table. */
 	return &cpu->lg->pgdirs[i].pgdir[index];
 }
@@ -116,13 +109,6 @@ static pmd_t *spmd_addr(struct lg_cpu *cpu, pgd_t spgd, unsigned long vaddr)
 {
 	unsigned int index = pmd_index(vaddr);
 	pmd_t *page;
-
-	/* We kill any Guest trying to touch the Switcher addresses. */
-	if (pgd_index(vaddr) == SWITCHER_PGD_INDEX &&
-					index >= SWITCHER_PMD_INDEX) {
-		kill_guest(cpu, "attempt to access switcher pages");
-		index = 0;
-	}
 
 	/* You should never call this if the PGD entry wasn't valid */
 	BUG_ON(!(pgd_flags(spgd) & _PAGE_PRESENT));
@@ -323,6 +309,10 @@ bool demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 	pmd_t gpmd;
 #endif
 
+	/* We never demand page the Switcher, so trying is a mistake. */
+	if (vaddr >= switcher_addr)
+		return false;
+
 	/* First step: get the top-level Guest page table entry. */
 	if (unlikely(cpu->linear_pages)) {
 		/* Faking up a linear mapping. */
@@ -495,10 +485,14 @@ static bool page_writable(struct lg_cpu *cpu, unsigned long vaddr)
 {
 	pgd_t *spgd;
 	unsigned long flags;
-
 #ifdef CONFIG_X86_PAE
 	pmd_t *spmd;
 #endif
+
+	/* You can't put your stack in the Switcher! */
+	if (vaddr >= switcher_addr)
+		return false;
+
 	/* Look at the current top level entry: is it present? */
 	spgd = spgd_addr(cpu, cpu->cpu_pgd, vaddr);
 	if (!(pgd_flags(*spgd) & _PAGE_PRESENT))
@@ -897,6 +891,12 @@ static void do_set_pte(struct lg_cpu *cpu, int idx,
 void guest_set_pte(struct lg_cpu *cpu,
 		   unsigned long gpgdir, unsigned long vaddr, pte_t gpte)
 {
+	/* We don't let you remap the Switcher; we need it to get back! */
+	if (vaddr >= switcher_addr) {
+		kill_guest(cpu, "attempt to set pte into Switcher pages");
+		return;
+	}
+
 	/*
 	 * Kernel mappings must be changed on all top levels.  Slow, but doesn't
 	 * happen often.
@@ -995,12 +995,7 @@ void page_table_guest_data_init(struct lg_cpu *cpu)
 	 * "pgd_index(lg->kernel_address)".  This assumes it won't hit the
 	 * Switcher mappings, so check that now.
 	 */
-#ifdef CONFIG_X86_PAE
-	if (pgd_index(cpu->lg->kernel_address) == SWITCHER_PGD_INDEX &&
-		pmd_index(cpu->lg->kernel_address) == SWITCHER_PMD_INDEX)
-#else
-	if (pgd_index(cpu->lg->kernel_address) >= SWITCHER_PGD_INDEX)
-#endif
+	if (cpu->lg->kernel_address >= switcher_addr)
 		kill_guest(cpu, "bad kernel address %#lx",
 				 cpu->lg->kernel_address);
 }
