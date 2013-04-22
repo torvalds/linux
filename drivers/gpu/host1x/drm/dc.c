@@ -143,6 +143,7 @@ static int tegra_dc_add_planes(struct drm_device *drm, struct tegra_dc *dc)
 static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 			     struct drm_framebuffer *fb)
 {
+	unsigned int format = tegra_dc_format(fb->pixel_format);
 	struct tegra_bo *bo = tegra_fb_get_plane(fb, 0);
 	unsigned long value;
 
@@ -153,6 +154,7 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 
 	tegra_dc_writel(dc, bo->paddr + value, DC_WINBUF_START_ADDR);
 	tegra_dc_writel(dc, fb->pitches[0], DC_WIN_LINE_STRIDE);
+	tegra_dc_writel(dc, format, DC_WIN_COLOR_DEPTH);
 
 	value = GENERAL_UPDATE | WIN_A_UPDATE;
 	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
