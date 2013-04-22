@@ -2242,7 +2242,7 @@ static void __init rk30_reserve(void)
 	/*if lcd resolution great than or equal to 1920*1200,reserve the ump memory */
 	if(!(get_fb_size() < ALIGN(HD_SCREEN_SIZE,SZ_1M)))
 	{
-		int ump_mem_phy_size=512UL*1024UL*1024UL; 
+		int ump_mem_phy_size=256UL*1024UL*1024UL; 
 		resource_mali[0].start = board_mem_reserve_add("ump buf", ump_mem_phy_size); 
 		resource_mali[0].end = resource_mali[0].start + ump_mem_phy_size -1;
 	}
