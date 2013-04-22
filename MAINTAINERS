@@ -1886,7 +1886,7 @@ F:	Documentation/video4linux/cafe_ccic
 F:	drivers/media/platform/marvell-ccic/
 
 CAIF NETWORK LAYER
-M:	Sjur Braendeland <sjur.brandeland@stericsson.com>
+M:	Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/caif/
