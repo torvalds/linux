@@ -33,6 +33,8 @@ struct power_pmu {
 				unsigned long *valp);
 	int		(*get_alternatives)(u64 event_id, unsigned int flags,
 				u64 alt[]);
+	u64             (*bhrb_filter_map)(u64 branch_sample_type);
+	void            (*config_bhrb)(u64 pmu_bhrb_filter);
 	void		(*disable_pmc)(unsigned int pmc, unsigned long mmcr[]);
 	int		(*limited_pmc_event)(u64 event_id);
 	u32		flags;
@@ -42,6 +44,9 @@ struct power_pmu {
 	int		(*cache_events)[PERF_COUNT_HW_CACHE_MAX]
 			       [PERF_COUNT_HW_CACHE_OP_MAX]
 			       [PERF_COUNT_HW_CACHE_RESULT_MAX];
+
+	/* BHRB entries in the PMU */
+	int		bhrb_nr;
 };
 
 /*
@@ -54,6 +59,7 @@ struct power_pmu {
 #define PPMU_SIAR_VALID		0x00000010 /* Processor has SIAR Valid bit */
 #define PPMU_HAS_SSLOT		0x00000020 /* Has sampled slot in MMCRA */
 #define PPMU_HAS_SIER		0x00000040 /* Has SIER */
+#define PPMU_BHRB		0x00000080 /* has BHRB feature enabled */
 
 /*
  * Values for flags to get_alternatives()
