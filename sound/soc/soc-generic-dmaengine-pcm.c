@@ -227,7 +227,7 @@ static void dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 		return;
 
 	if (pcm->flags & SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX) {
-		pcm->chan[0] = of_dma_request_slave_channel(of_node, "tx_rx");
+		pcm->chan[0] = of_dma_request_slave_channel(of_node, "rx-tx");
 		pcm->chan[1] = pcm->chan[0];
 	} else {
 		for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_CAPTURE; i++) {
