@@ -60,7 +60,7 @@ static int ehci_platform_reset(struct usb_hcd *hcd)
 
 static struct hc_driver __read_mostly ehci_platform_hc_driver;
 
-static const struct ehci_driver_overrides platform_overrides __initdata = {
+static const struct ehci_driver_overrides platform_overrides __initconst = {
 	.reset =	ehci_platform_reset,
 };
 

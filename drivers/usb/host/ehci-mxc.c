@@ -43,7 +43,7 @@ struct ehci_mxc_priv {
 
 static struct hc_driver __read_mostly ehci_mxc_hc_driver;
 
-static const struct ehci_driver_overrides ehci_mxc_overrides __initdata = {
+static const struct ehci_driver_overrides ehci_mxc_overrides __initconst = {
 	.extra_priv_size =	sizeof(struct ehci_mxc_priv),
 };
 

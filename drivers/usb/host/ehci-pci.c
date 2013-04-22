@@ -375,7 +375,7 @@ static int ehci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 
 static struct hc_driver __read_mostly ehci_pci_hc_driver;
 
-static const struct ehci_driver_overrides pci_overrides __initdata = {
+static const struct ehci_driver_overrides pci_overrides __initconst = {
 	.reset =		ehci_pci_setup,
 };
 
