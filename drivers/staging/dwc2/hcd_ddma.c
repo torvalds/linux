@@ -217,18 +217,18 @@ static void dwc2_update_frame_list(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 	struct dwc2_host_chan *chan;
 	u16 i, j, inc;
 
+	if (!hsotg) {
+		pr_err("hsotg = %p", hsotg);
+		return;
+	}
+
 	if (!qh->channel) {
 		dev_err(hsotg->dev, "qh->channel = %p", qh->channel);
 		return;
 	}
 
-	if (!hsotg) {
-		dev_err(hsotg->dev, "------hsotg = %p", hsotg);
-		return;
-	}
-
 	if (!hsotg->frame_list) {
-		dev_err(hsotg->dev, "-------hsotg->frame_list = %p",
+		dev_err(hsotg->dev, "hsotg->frame_list = %p",
 			hsotg->frame_list);
 		return;
 	}
