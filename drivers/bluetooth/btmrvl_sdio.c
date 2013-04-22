@@ -228,9 +228,8 @@ failed:
 static int btmrvl_sdio_verify_fw_download(struct btmrvl_sdio_card *card,
 								int pollnum)
 {
-	int ret = -ETIMEDOUT;
 	u16 firmwarestat;
-	unsigned int tries;
+	int tries, ret;
 
 	 /* Wait for firmware to become ready */
 	for (tries = 0; tries < pollnum; tries++) {
@@ -240,15 +239,13 @@ static int btmrvl_sdio_verify_fw_download(struct btmrvl_sdio_card *card,
 		if (ret < 0)
 			continue;
 
-		if (firmwarestat == FIRMWARE_READY) {
-			ret = 0;
-			break;
-		} else {
-			msleep(10);
-		}
+		if (firmwarestat == FIRMWARE_READY)
+			return 0;
+
+		msleep(10);
 	}
 
-	return ret;
+	return -ETIMEDOUT;
 }
 
 static int btmrvl_sdio_download_helper(struct btmrvl_sdio_card *card)
@@ -924,6 +921,10 @@ static int btmrvl_sdio_download_fw(struct btmrvl_sdio_card *card)
 
 	sdio_release_host(card->func);
 
+	/*
+	 * winner or not, with this test the FW synchronizes when the
+	 * module can continue its initialization
+	 */
 	if (btmrvl_sdio_verify_fw_download(card, pollnum)) {
 		BT_ERR("FW failed to be active in time!");
 		return -ETIMEDOUT;
@@ -994,8 +995,6 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 		ret = -ENODEV;
 		goto unreg_dev;
 	}
-
-	msleep(100);
 
 	btmrvl_sdio_enable_host_int(card);
 
