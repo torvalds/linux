@@ -388,7 +388,7 @@ static int __init exynos_drm_init(void)
 
 	exynos_drm_pdev = platform_device_register_simple("exynos-drm", -1,
 				NULL, 0);
-	if (IS_ERR_OR_NULL(exynos_drm_pdev)) {
+	if (IS_ERR(exynos_drm_pdev)) {
 		ret = PTR_ERR(exynos_drm_pdev);
 		goto out;
 	}

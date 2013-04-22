@@ -56,7 +56,7 @@ int exynos_platform_device_hdmi_register(void)
 
 	exynos_drm_hdmi_pdev = platform_device_register_simple(
 			"exynos-drm-hdmi", -1, NULL, 0);
-	if (IS_ERR_OR_NULL(exynos_drm_hdmi_pdev))
+	if (IS_ERR(exynos_drm_hdmi_pdev))
 		return PTR_ERR(exynos_drm_hdmi_pdev);
 
 	return 0;
