@@ -1850,7 +1850,7 @@ static int dib8096p_agc_startup(struct dvb_frontend *fe)
 	if ((adc_table->freq != 0xffffffff) && better_sampling_freq) {
 		pll.pll_ratio  = adc_table->pll_loopdiv;
 		pll.pll_prediv = adc_table->pll_prediv;
-		dib8000_update_pll(fe, &pll);
+		dib8000_update_pll(fe, &pll, fe->dtv_property_cache.bandwidth_hz / 1000, 0);
 		dib8000_ctrl_timf(fe, DEMOD_TIMF_SET, adc_table->timf);
 	}
 	return 0;
