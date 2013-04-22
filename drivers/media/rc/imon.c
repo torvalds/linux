@@ -528,8 +528,10 @@ static int send_packet(struct imon_context *ictx)
 		mutex_unlock(&ictx->lock);
 		retval = wait_for_completion_interruptible(
 				&ictx->tx.finished);
-		if (retval)
+		if (retval) {
+			usb_kill_urb(ictx->tx_urb);
 			pr_err_ratelimited("task interrupted\n");
+		}
 		mutex_lock(&ictx->lock);
 
 		retval = ictx->tx.status;
