@@ -1159,8 +1159,6 @@ static void __init eva_init(void)
 	gpio_request(GPIO_FN_SCIFA1_TXD, NULL);
 
 	/* LCDC0 */
-	gpio_request(GPIO_FN_LCDC0_SELECT,	NULL);
-
 	gpio_request_one(61, GPIOF_OUT_INIT_HIGH, NULL); /* LCDDON */
 	gpio_request_one(202, GPIOF_OUT_INIT_LOW, NULL); /* LCD0_LED_CONT */
 
