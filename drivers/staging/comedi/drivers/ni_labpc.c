@@ -893,9 +893,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 * dma unsafe at RT priority,
 		 * and too much setup time for TRIG_WAKE_EOS for
 		 */
-	    (cmd->flags & (TRIG_WAKE_EOS | TRIG_RT)) == 0 &&
-	    /*  only available on the isa boards */
-	    board->bustype == isa_bustype) {
+	    (cmd->flags & (TRIG_WAKE_EOS | TRIG_RT)) == 0) {
 		xfer = isa_dma_transfer;
 		/* pc-plus has no fifo-half full interrupt */
 	} else
