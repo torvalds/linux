@@ -1385,7 +1385,6 @@ static int bnx2x_get_eeprom(struct net_device *dev,
 			    struct ethtool_eeprom *eeprom, u8 *eebuf)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	int rc;
 
 	if (!netif_running(dev)) {
 		DP(BNX2X_MSG_ETHTOOL  | BNX2X_MSG_NVM,
@@ -1400,9 +1399,7 @@ static int bnx2x_get_eeprom(struct net_device *dev,
 
 	/* parameters already validated in ethtool_get_eeprom */
 
-	rc = bnx2x_nvram_read(bp, eeprom->offset, eebuf, eeprom->len);
-
-	return rc;
+	return bnx2x_nvram_read(bp, eeprom->offset, eebuf, eeprom->len);
 }
 
 static int bnx2x_get_module_eeprom(struct net_device *dev,
