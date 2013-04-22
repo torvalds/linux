@@ -1884,7 +1884,7 @@ again:
 			break;
 	case -NFS4ERR_CLID_INUSE:
 	case -NFS4ERR_WRONGSEC:
-		clnt = rpc_clone_client_set_auth(clnt, RPC_AUTH_NULL);
+		clnt = rpc_clone_client_set_auth(clnt, RPC_AUTH_UNIX);
 		if (IS_ERR(clnt)) {
 			status = PTR_ERR(clnt);
 			break;
