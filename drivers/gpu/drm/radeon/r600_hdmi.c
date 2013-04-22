@@ -246,9 +246,18 @@ void r600_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
 	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
 	 */
-	WREG32(DCCG_AUDIO_DTO0_PHASE, (base_rate*50) & 0xffffff);
-	WREG32(DCCG_AUDIO_DTO0_MODULE, (clock*100) & 0xffffff);
-	WREG32(DCCG_AUDIO_DTO_SELECT, 0); /* select DTO0 */
+	if (ASIC_IS_DCE3(rdev)) {
+		/* according to the reg specs, this should DCE3.2 only, but in
+		 * practice it seems to cover DCE3.0 as well.
+		 */
+		WREG32(DCCG_AUDIO_DTO0_PHASE, base_rate * 50);
+		WREG32(DCCG_AUDIO_DTO0_MODULE, clock * 100);
+		WREG32(DCCG_AUDIO_DTO_SELECT, 0); /* select DTO0 */
+	} else {
+		/* according to the reg specs, this should be DCE2.0 and DCE3.0 */
+		WREG32(AUDIO_DTO, AUDIO_DTO_PHASE(base_rate * 50) |
+		       AUDIO_DTO_MODULE(clock * 100));
+	}
 }
 
 /*
