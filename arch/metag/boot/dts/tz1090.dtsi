@@ -31,5 +31,11 @@
 			compatible = "img,tz1090-pinctrl";
 			reg = <0x02005800 0xe4>;
 		};
+
+		pdc_pinctrl: pinctrl@02006500 {
+			#gpio-range-cells = <3>;
+			compatible = "img,tz1090-pdc-pinctrl";
+			reg = <0x02006500 0x100>;
+		};
 	};
 };
