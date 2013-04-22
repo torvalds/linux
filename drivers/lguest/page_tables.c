@@ -63,10 +63,8 @@
  */
 #ifdef CONFIG_X86_PAE
 #define SWITCHER_PMD_INDEX 	(PTRS_PER_PMD - 1)
-#define RESERVE_MEM 		2U
 #define CHECK_GPGD_MASK		_PAGE_PRESENT
 #else
-#define RESERVE_MEM 		4U
 #define CHECK_GPGD_MASK		_PAGE_TABLE
 #endif
 
@@ -977,15 +975,21 @@ int init_guest_pagetable(struct lguest *lg)
 /*H:508 When the Guest calls LHCALL_LGUEST_INIT we do more setup. */
 void page_table_guest_data_init(struct lg_cpu *cpu)
 {
+	/*
+	 * We tell the Guest that it can't use the virtual addresses
+	 * used by the Switcher.  This trick is equivalent to 4GB -
+	 * switcher_addr.
+	 */
+	u32 top = ~switcher_addr + 1;
+
 	/* We get the kernel address: above this is all kernel memory. */
 	if (get_user(cpu->lg->kernel_address,
-		&cpu->lg->lguest_data->kernel_address)
+		     &cpu->lg->lguest_data->kernel_address)
 		/*
-		 * We tell the Guest that it can't use the top 2 or 4 MB
-		 * of virtual addresses used by the Switcher.
+		 * We tell the Guest that it can't use the top virtual
+		 * addresses (used by the Switcher).
 		 */
-		|| put_user(RESERVE_MEM * 1024 * 1024,
-			    &cpu->lg->lguest_data->reserve_mem)) {
+	    || put_user(top, &cpu->lg->lguest_data->reserve_mem)) {
 		kill_guest(cpu, "bad guest page %p", cpu->lg->lguest_data);
 		return;
 	}
