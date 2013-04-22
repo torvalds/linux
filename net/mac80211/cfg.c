@@ -1043,6 +1043,7 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
 		sta_info_flush_defer(vlan);
 	sta_info_flush_defer(sdata);
+	synchronize_net();
 	rcu_barrier();
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list) {
 		sta_info_flush_cleanup(vlan);
@@ -1052,6 +1053,7 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	ieee80211_free_keys(sdata);
 
 	sdata->vif.bss_conf.enable_beacon = false;
+	sdata->vif.bss_conf.ssid_len = 0;
 	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
 
@@ -2416,9 +2418,22 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 	}
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+		struct ieee80211_supported_band *sband = wiphy->bands[i];
+		int j;
+
 		sdata->rc_rateidx_mask[i] = mask->control[i].legacy;
 		memcpy(sdata->rc_rateidx_mcs_mask[i], mask->control[i].mcs,
 		       sizeof(mask->control[i].mcs));
+
+		sdata->rc_has_mcs_mask[i] = false;
+		if (!sband)
+			continue;
+
+		for (j = 0; j < IEEE80211_HT_MCS_MASK_LEN; j++)
+			if (~sdata->rc_rateidx_mcs_mask[i][j]) {
+				sdata->rc_has_mcs_mask[i] = true;
+				break;
+			}
 	}
 
 	return 0;

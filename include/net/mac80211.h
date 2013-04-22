@@ -128,6 +128,7 @@ enum ieee80211_ac_numbers {
  *	2^n-1 in the range 1..32767]
  * @cw_max: maximum contention window [like @cw_min]
  * @txop: maximum burst time in units of 32 usecs, 0 meaning disabled
+ * @acm: is mandatory admission control required for the access category
  * @uapsd: is U-APSD mode enabled for the queue
  */
 struct ieee80211_tx_queue_params {
@@ -135,6 +136,7 @@ struct ieee80211_tx_queue_params {
 	u16 cw_min;
 	u16 cw_max;
 	u8 aifs;
+	bool acm;
 	bool uapsd;
 };
 
@@ -209,7 +211,7 @@ struct ieee80211_chanctx_conf {
  * @BSS_CHANGED_QOS: QoS for this association was enabled/disabled. Note
  *	that it is only ever disabled for station mode.
  * @BSS_CHANGED_IDLE: Idle changed for this BSS/interface.
- * @BSS_CHANGED_SSID: SSID changed for this BSS (AP mode)
+ * @BSS_CHANGED_SSID: SSID changed for this BSS (AP and IBSS mode)
  * @BSS_CHANGED_AP_PROBE_RESP: Probe Response changed for this BSS (AP mode)
  * @BSS_CHANGED_PS: PS changed for this BSS (STA mode)
  * @BSS_CHANGED_TXPOWER: TX power setting changed for this interface
@@ -326,7 +328,7 @@ enum ieee80211_rssi_event {
  *	your driver/device needs to do.
  * @ps: power-save mode (STA only). This flag is NOT affected by
  *	offchannel/dynamic_ps operations.
- * @ssid: The SSID of the current vif. Only valid in AP-mode.
+ * @ssid: The SSID of the current vif. Valid in AP and IBSS mode.
  * @ssid_len: Length of SSID given in @ssid.
  * @hidden_ssid: The SSID of the current vif is hidden. Only valid in AP-mode.
  * @txpower: TX power in dBm
@@ -561,6 +563,9 @@ enum mac80211_rate_control_flags {
 /* maximum number of rate stages */
 #define IEEE80211_TX_MAX_RATES	4
 
+/* maximum number of rate table entries */
+#define IEEE80211_TX_RATE_TABLE_SIZE	4
+
 /**
  * struct ieee80211_tx_rate - rate selection/status
  *
@@ -601,8 +606,8 @@ static inline void ieee80211_rate_set_vht(struct ieee80211_tx_rate *rate,
 					  u8 mcs, u8 nss)
 {
 	WARN_ON(mcs & ~0xF);
-	WARN_ON(nss & ~0x7);
-	rate->idx = (nss << 4) | mcs;
+	WARN_ON((nss - 1) & ~0x7);
+	rate->idx = ((nss - 1) << 4) | mcs;
 }
 
 static inline u8
@@ -614,7 +619,7 @@ ieee80211_rate_get_vht_mcs(const struct ieee80211_tx_rate *rate)
 static inline u8
 ieee80211_rate_get_vht_nss(const struct ieee80211_tx_rate *rate)
 {
-	return rate->idx >> 4;
+	return (rate->idx >> 4) + 1;
 }
 
 /**
@@ -655,7 +660,11 @@ struct ieee80211_tx_info {
 					struct ieee80211_tx_rate rates[
 						IEEE80211_TX_MAX_RATES];
 					s8 rts_cts_rate_idx;
-					/* 3 bytes free */
+					u8 use_rts:1;
+					u8 use_cts_prot:1;
+					u8 short_preamble:1;
+					u8 skip_table:1;
+					/* 2 bytes free */
 				};
 				/* only needed before rate control */
 				unsigned long jiffies;
@@ -676,6 +685,8 @@ struct ieee80211_tx_info {
 		struct {
 			struct ieee80211_tx_rate driver_rates[
 				IEEE80211_TX_MAX_RATES];
+			u8 pad[4];
+
 			void *rate_driver_data[
 				IEEE80211_TX_INFO_RATE_DRIVER_DATA_SIZE / sizeof(void *)];
 		};
@@ -1017,13 +1028,13 @@ struct ieee80211_conf {
  *	the driver passed into mac80211.
  * @block_tx: Indicates whether transmission must be blocked before the
  *	scheduled channel switch, as indicated by the AP.
- * @channel: the new channel to switch to
+ * @chandef: the new channel to switch to
  * @count: the number of TBTT's until the channel switch event
  */
 struct ieee80211_channel_switch {
 	u64 timestamp;
 	bool block_tx;
-	struct ieee80211_channel *channel;
+	struct cfg80211_chan_def chandef;
 	u8 count;
 };
 
@@ -1221,6 +1232,24 @@ enum ieee80211_sta_rx_bandwidth {
 };
 
 /**
+ * struct ieee80211_sta_rates - station rate selection table
+ *
+ * @rcu_head: RCU head used for freeing the table on update
+ * @rates: transmit rates/flags to be used by default.
+ *	Overriding entries per-packet is possible by using cb tx control.
+ */
+struct ieee80211_sta_rates {
+	struct rcu_head rcu_head;
+	struct {
+		s8 idx;
+		u8 count;
+		u8 count_cts;
+		u8 count_rts;
+		u16 flags;
+	} rate[IEEE80211_TX_RATE_TABLE_SIZE];
+};
+
+/**
  * struct ieee80211_sta - station table entry
  *
  * A station table entry represents a station we are possibly
@@ -1247,6 +1276,7 @@ enum ieee80211_sta_rx_bandwidth {
  *	notifications and capabilities. The value is only valid after
  *	the station moves to associated state.
  * @smps_mode: current SMPS mode (off, static or dynamic)
+ * @tx_rates: rate control selection table
  */
 struct ieee80211_sta {
 	u32 supp_rates[IEEE80211_NUM_BANDS];
@@ -1260,6 +1290,7 @@ struct ieee80211_sta {
 	u8 rx_nss;
 	enum ieee80211_sta_rx_bandwidth bandwidth;
 	enum ieee80211_smps_mode smps_mode;
+	struct ieee80211_sta_rates __rcu *rates;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
@@ -1415,6 +1446,9 @@ struct ieee80211_tx_control {
  *	for different virtual interfaces. See the doc section on HW queue
  *	control for more details.
  *
+ * @IEEE80211_HW_SUPPORTS_RC_TABLE: The driver supports using a rate
+ *	selection table provided by the rate control algorithm.
+ *
  * @IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF: Use the P2P Device address for any
  *	P2P Interface. This will be honoured even if more than one interface
  *	is supported.
@@ -1447,6 +1481,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_PER_STA_GTK		= 1<<21,
 	IEEE80211_HW_AP_LINK_PS				= 1<<22,
 	IEEE80211_HW_TX_AMPDU_SETUP_IN_HW		= 1<<23,
+	IEEE80211_HW_SUPPORTS_RC_TABLE			= 1<<24,
 	IEEE80211_HW_P2P_DEV_ADDR_FOR_INTF		= 1<<25,
 	IEEE80211_HW_TIMING_BEACON_ONLY			= 1<<26,
 };
@@ -3133,6 +3168,25 @@ void ieee80211_sta_set_buffered(struct ieee80211_sta *sta,
 				u8 tid, bool buffered);
 
 /**
+ * ieee80211_get_tx_rates - get the selected transmit rates for a packet
+ *
+ * Call this function in a driver with per-packet rate selection support
+ * to combine the rate info in the packet tx info with the most recent
+ * rate selection table for the station entry.
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @sta: the receiver station to which this packet is sent.
+ * @skb: the frame to be transmitted.
+ * @dest: buffer for extracted rate/retry information
+ * @max_rates: maximum number of rates to fetch
+ */
+void ieee80211_get_tx_rates(struct ieee80211_vif *vif,
+			    struct ieee80211_sta *sta,
+			    struct sk_buff *skb,
+			    struct ieee80211_tx_rate *dest,
+			    int max_rates);
+
+/**
  * ieee80211_tx_status - transmit status callback
  *
  * Call this function for all transmitted frames after they have been
@@ -4107,7 +4161,7 @@ void ieee80211_send_bar(struct ieee80211_vif *vif, u8 *ra, u16 tid, u16 ssn);
  *	(deprecated; this will be removed once drivers get updated to use
  *	rate_idx_mask)
  * @rate_idx_mask: user-requested (legacy) rate mask
- * @rate_idx_mcs_mask: user-requested MCS rate mask
+ * @rate_idx_mcs_mask: user-requested MCS rate mask (NULL if not in use)
  * @bss: whether this frame is sent out in AP or IBSS mode
  */
 struct ieee80211_tx_rate_control {
@@ -4119,7 +4173,7 @@ struct ieee80211_tx_rate_control {
 	bool rts, short_preamble;
 	u8 max_rate_idx;
 	u32 rate_idx_mask;
-	u8 rate_idx_mcs_mask[IEEE80211_HT_MCS_MASK_LEN];
+	u8 *rate_idx_mcs_mask;
 	bool bss;
 };
 
@@ -4207,6 +4261,22 @@ bool rate_usable_index_exists(struct ieee80211_supported_band *sband,
 			return true;
 	return false;
 }
+
+/**
+ * rate_control_set_rates - pass the sta rate selection to mac80211/driver
+ *
+ * When not doing a rate control probe to test rates, rate control should pass
+ * its rate selection to mac80211. If the driver supports receiving a station
+ * rate table, it will use it to ensure that frames are always sent based on
+ * the most recent rate control module decision.
+ *
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @pubsta: &struct ieee80211_sta pointer to the target destination.
+ * @rates: new tx rate set to be used for this station.
+ */
+int rate_control_set_rates(struct ieee80211_hw *hw,
+			   struct ieee80211_sta *pubsta,
+			   struct ieee80211_sta_rates *rates);
 
 int ieee80211_rate_control_register(struct rate_control_ops *ops);
 void ieee80211_rate_control_unregister(struct rate_control_ops *ops);

@@ -970,7 +970,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct ieee80211_conf *conf = &hw->conf;
-	struct ieee80211_channel *channel = ch_switch->channel;
+	struct ieee80211_channel *channel = ch_switch->chandef.chan;
 	struct iwl_ht_config *ht_conf = &priv->current_ht_config;
 	/*
 	 * MULTI-FIXME
@@ -1008,11 +1008,21 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	priv->current_ht_config.smps = conf->smps_mode;
 
 	/* Configure HT40 channels */
-	ctx->ht.enabled = conf_is_ht(conf);
-	if (ctx->ht.enabled)
-		iwlagn_config_ht40(conf, ctx);
-	else
+	switch (cfg80211_get_chandef_type(&ch_switch->chandef)) {
+	case NL80211_CHAN_NO_HT:
+	case NL80211_CHAN_HT20:
 		ctx->ht.is_40mhz = false;
+		ctx->ht.extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_NONE;
+		break;
+	case NL80211_CHAN_HT40MINUS:
+		ctx->ht.extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_BELOW;
+		ctx->ht.is_40mhz = true;
+		break;
+	case NL80211_CHAN_HT40PLUS:
+		ctx->ht.extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
+		ctx->ht.is_40mhz = true;
+		break;
+	}
 
 	if ((le16_to_cpu(ctx->staging.channel) != ch))
 		ctx->staging.flags = 0;

@@ -156,6 +156,7 @@ struct ieee80211_tx_data {
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
 	struct ieee80211_key *key;
+	struct ieee80211_tx_rate rate;
 
 	unsigned int flags;
 };
@@ -740,6 +741,8 @@ struct ieee80211_sub_if_data {
 
 	/* bitmap of allowed (non-MCS) rate indexes for rate control */
 	u32 rc_rateidx_mask[IEEE80211_NUM_BANDS];
+
+	bool rc_has_mcs_mask[IEEE80211_NUM_BANDS];
 	u8  rc_rateidx_mcs_mask[IEEE80211_NUM_BANDS][IEEE80211_HT_MCS_MASK_LEN];
 
 	union {
@@ -1020,7 +1023,7 @@ struct ieee80211_local {
 	enum mac80211_scan_state next_scan_state;
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data __rcu *scan_sdata;
-	struct ieee80211_channel *csa_channel;
+	struct cfg80211_chan_def csa_chandef;
 	/* For backward compatibility only -- do not use */
 	struct cfg80211_chan_def _oper_chandef;
 
@@ -1179,10 +1182,13 @@ struct ieee802_11_elems {
 	const u8 *perr;
 	const struct ieee80211_rann_ie *rann;
 	const struct ieee80211_channel_sw_ie *ch_switch_ie;
+	const struct ieee80211_ext_chansw_ie *ext_chansw_ie;
+	const struct ieee80211_wide_bw_chansw_ie *wide_bw_chansw_ie;
 	const u8 *country_elem;
 	const u8 *pwr_constr_elem;
 	const struct ieee80211_timeout_interval_ie *timeout_int;
 	const u8 *opmode_notif;
+	const struct ieee80211_sec_chan_offs_ie *sec_chan_offs;
 
 	/* length of them, respectively */
 	u8 ssid_len;
@@ -1253,10 +1259,6 @@ void ieee80211_recalc_ps_vif(struct ieee80211_sub_if_data *sdata);
 int ieee80211_max_network_latency(struct notifier_block *nb,
 				  unsigned long data, void *dummy);
 int ieee80211_set_arp_filter(struct ieee80211_sub_if_data *sdata);
-void
-ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
-				 const struct ieee80211_channel_sw_ie *sw_elem,
-				 struct ieee80211_bss *bss, u64 timestamp);
 void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				  struct sk_buff *skb);
@@ -1494,13 +1496,13 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_skb_tid(sdata, skb, 7);
 }
 
-u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
+u32 ieee802_11_parse_elems_crc(u8 *start, size_t len, bool action,
 			       struct ieee802_11_elems *elems,
 			       u64 filter, u32 crc);
-static inline void ieee802_11_parse_elems(u8 *start, size_t len,
+static inline void ieee802_11_parse_elems(u8 *start, size_t len, bool action,
 					  struct ieee802_11_elems *elems)
 {
-	ieee802_11_parse_elems_crc(start, len, elems, 0, 0);
+	ieee802_11_parse_elems_crc(start, len, action, elems, 0, 0);
 }
 
 u32 ieee80211_mandatory_rates(struct ieee80211_local *local,

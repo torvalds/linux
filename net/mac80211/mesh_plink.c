@@ -544,8 +544,8 @@ static void mesh_plink_timer(unsigned long data)
 		return;
 	}
 	mpl_dbg(sta->sdata,
-		"Mesh plink timer for %pM fired on state %d\n",
-		sta->sta.addr, sta->plink_state);
+		"Mesh plink timer for %pM fired on state %s\n",
+		sta->sta.addr, mplstates[sta->plink_state]);
 	reason = 0;
 	llid = sta->llid;
 	plid = sta->plid;
@@ -687,7 +687,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 		baseaddr += 4;
 		baselen += 4;
 	}
-	ieee802_11_parse_elems(baseaddr, len - baselen, &elems);
+	ieee802_11_parse_elems(baseaddr, len - baselen, true, &elems);
 
 	if (!elems.peering) {
 		mpl_dbg(sdata,

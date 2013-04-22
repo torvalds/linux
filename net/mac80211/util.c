@@ -485,7 +485,8 @@ int ieee80211_queue_stopped(struct ieee80211_hw *hw, int queue)
 		return true;
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
-	ret = !!local->queue_stop_reasons[queue];
+	ret = test_bit(IEEE80211_QUEUE_STOP_REASON_DRIVER,
+		       &local->queue_stop_reasons[queue]);
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 	return ret;
 }
@@ -660,7 +661,7 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_queue_delayed_work);
 
-u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
+u32 ieee802_11_parse_elems_crc(u8 *start, size_t len, bool action,
 			       struct ieee802_11_elems *elems,
 			       u64 filter, u32 crc)
 {
@@ -668,6 +669,7 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 	u8 *pos = start;
 	bool calc_crc = filter != 0;
 	DECLARE_BITMAP(seen_elems, 256);
+	const u8 *ie;
 
 	bitmap_zero(seen_elems, 256);
 	memset(elems, 0, sizeof(*elems));
@@ -715,6 +717,12 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 		case WLAN_EID_COUNTRY:
 		case WLAN_EID_PWR_CONSTRAINT:
 		case WLAN_EID_TIMEOUT_INTERVAL:
+		case WLAN_EID_SECONDARY_CHANNEL_OFFSET:
+		case WLAN_EID_WIDE_BW_CHANNEL_SWITCH:
+		/*
+		 * not listing WLAN_EID_CHANNEL_SWITCH_WRAPPER -- it seems possible
+		 * that if the content gets bigger it might be needed more than once
+		 */
 			if (test_bit(id, seen_elems)) {
 				elems->parse_error = true;
 				left -= elen;
@@ -861,6 +869,48 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 				break;
 			}
 			elems->ch_switch_ie = (void *)pos;
+			break;
+		case WLAN_EID_EXT_CHANSWITCH_ANN:
+			if (elen != sizeof(struct ieee80211_ext_chansw_ie)) {
+				elem_parse_failed = true;
+				break;
+			}
+			elems->ext_chansw_ie = (void *)pos;
+			break;
+		case WLAN_EID_SECONDARY_CHANNEL_OFFSET:
+			if (elen != sizeof(struct ieee80211_sec_chan_offs_ie)) {
+				elem_parse_failed = true;
+				break;
+			}
+			elems->sec_chan_offs = (void *)pos;
+			break;
+		case WLAN_EID_WIDE_BW_CHANNEL_SWITCH:
+			if (!action ||
+			    elen != sizeof(*elems->wide_bw_chansw_ie)) {
+				elem_parse_failed = true;
+				break;
+			}
+			elems->wide_bw_chansw_ie = (void *)pos;
+			break;
+		case WLAN_EID_CHANNEL_SWITCH_WRAPPER:
+			if (action) {
+				elem_parse_failed = true;
+				break;
+			}
+			/*
+			 * This is a bit tricky, but as we only care about
+			 * the wide bandwidth channel switch element, so
+			 * just parse it out manually.
+			 */
+			ie = cfg80211_find_ie(WLAN_EID_WIDE_BW_CHANNEL_SWITCH,
+					      pos, elen);
+			if (ie) {
+				if (ie[1] == sizeof(*elems->wide_bw_chansw_ie))
+					elems->wide_bw_chansw_ie =
+						(void *)(ie + 2);
+				else
+					elem_parse_failed = true;
+			}
 			break;
 		case WLAN_EID_COUNTRY:
 			elems->country_elem = pos;

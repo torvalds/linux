@@ -25,6 +25,7 @@
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/etherdevice.h>
+#include <linux/platform_device.h>
 #include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/ktime.h>
@@ -51,6 +52,10 @@ MODULE_PARM_DESC(channels, "Number of concurrent channels");
 static bool paged_rx = false;
 module_param(paged_rx, bool, 0644);
 MODULE_PARM_DESC(paged_rx, "Use paged SKBs for RX instead of linear ones");
+
+static bool rctbl = false;
+module_param(rctbl, bool, 0444);
+MODULE_PARM_DESC(rctbl, "Handle rate control table");
 
 /**
  * enum hwsim_regtest - the type of regulatory tests we offer
@@ -717,9 +722,17 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	rx_status.flag |= RX_FLAG_MACTIME_START;
 	rx_status.freq = chan->center_freq;
 	rx_status.band = chan->band;
-	rx_status.rate_idx = info->control.rates[0].idx;
-	if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS)
-		rx_status.flag |= RX_FLAG_HT;
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_VHT_MCS) {
+		rx_status.rate_idx =
+			ieee80211_rate_get_vht_mcs(&info->control.rates[0]);
+		rx_status.vht_nss =
+			ieee80211_rate_get_vht_nss(&info->control.rates[0]);
+		rx_status.flag |= RX_FLAG_VHT;
+	} else {
+		rx_status.rate_idx = info->control.rates[0].idx;
+		if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS)
+			rx_status.flag |= RX_FLAG_HT;
+	}
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
 		rx_status.flag |= RX_FLAG_40MHZ;
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
@@ -886,8 +899,12 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	if (control->sta)
 		hwsim_check_sta_magic(control->sta);
 
-	txi->rate_driver_data[0] = channel;
+	if (rctbl)
+		ieee80211_get_tx_rates(txi->control.vif, control->sta, skb,
+				       txi->control.rates,
+				       ARRAY_SIZE(txi->control.rates));
 
+	txi->rate_driver_data[0] = channel;
 	mac80211_hwsim_monitor_rx(hw, skb, channel);
 
 	/* wmediumd mode check */
@@ -989,6 +1006,13 @@ static void mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 {
 	u32 _pid = ACCESS_ONCE(wmediumd_portid);
 
+	if (rctbl) {
+		struct ieee80211_tx_info *txi = IEEE80211_SKB_CB(skb);
+		ieee80211_get_tx_rates(txi->control.vif, NULL, skb,
+				       txi->control.rates,
+				       ARRAY_SIZE(txi->control.rates));
+	}
+
 	mac80211_hwsim_monitor_rx(hw, skb, chan);
 
 	if (_pid)
@@ -1019,6 +1043,11 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	if (skb == NULL)
 		return;
 	info = IEEE80211_SKB_CB(skb);
+	if (rctbl)
+		ieee80211_get_tx_rates(vif, NULL, skb,
+				       info->control.rates,
+				       ARRAY_SIZE(info->control.rates));
+
 	txrate = ieee80211_get_tx_rate(hw, info);
 
 	mgmt = (struct ieee80211_mgmt *) skb->data;
@@ -1687,6 +1716,7 @@ static void mac80211_hwsim_free(void)
 		debugfs_remove(data->debugfs_ps);
 		debugfs_remove(data->debugfs);
 		ieee80211_unregister_hw(data->hw);
+		device_release_driver(data->dev);
 		device_unregister(data->dev);
 		ieee80211_free_hw(data->hw);
 	}
@@ -1695,7 +1725,9 @@ static void mac80211_hwsim_free(void)
 
 
 static struct device_driver mac80211_hwsim_driver = {
-	.name = "mac80211_hwsim"
+	.name = "mac80211_hwsim",
+	.bus = &platform_bus_type,
+	.owner = THIS_MODULE,
 };
 
 static const struct net_device_ops hwsim_netdev_ops = {
@@ -2187,9 +2219,15 @@ static int __init init_mac80211_hwsim(void)
 	spin_lock_init(&hwsim_radio_lock);
 	INIT_LIST_HEAD(&hwsim_radios);
 
+	err = driver_register(&mac80211_hwsim_driver);
+	if (err)
+		return err;
+
 	hwsim_class = class_create(THIS_MODULE, "mac80211_hwsim");
-	if (IS_ERR(hwsim_class))
-		return PTR_ERR(hwsim_class);
+	if (IS_ERR(hwsim_class)) {
+		err = PTR_ERR(hwsim_class);
+		goto failed_unregister_driver;
+	}
 
 	memset(addr, 0, ETH_ALEN);
 	addr[0] = 0x02;
@@ -2211,12 +2249,20 @@ static int __init init_mac80211_hwsim(void)
 					  "hwsim%d", i);
 		if (IS_ERR(data->dev)) {
 			printk(KERN_DEBUG
-			       "mac80211_hwsim: device_create "
-			       "failed (%ld)\n", PTR_ERR(data->dev));
+			       "mac80211_hwsim: device_create failed (%ld)\n",
+			       PTR_ERR(data->dev));
 			err = -ENOMEM;
 			goto failed_drvdata;
 		}
 		data->dev->driver = &mac80211_hwsim_driver;
+		err = device_bind_driver(data->dev);
+		if (err != 0) {
+			printk(KERN_DEBUG
+			       "mac80211_hwsim: device_bind_driver failed (%d)\n",
+			       err);
+			goto failed_hw;
+		}
+
 		skb_queue_head_init(&data->pending);
 
 		SET_IEEE80211_DEV(hw, data->dev);
@@ -2259,6 +2305,8 @@ static int __init init_mac80211_hwsim(void)
 			    IEEE80211_HW_AMPDU_AGGREGATION |
 			    IEEE80211_HW_WANT_MONITOR_VIF |
 			    IEEE80211_HW_QUEUE_CONTROL;
+		if (rctbl)
+			hw->flags |= IEEE80211_HW_SUPPORTS_RC_TABLE;
 
 		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
 				    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
@@ -2515,6 +2563,8 @@ failed_drvdata:
 	ieee80211_free_hw(hw);
 failed:
 	mac80211_hwsim_free();
+failed_unregister_driver:
+	driver_unregister(&mac80211_hwsim_driver);
 	return err;
 }
 module_init(init_mac80211_hwsim);
@@ -2527,5 +2577,6 @@ static void __exit exit_mac80211_hwsim(void)
 
 	mac80211_hwsim_free();
 	unregister_netdev(hwsim_mon);
+	driver_unregister(&mac80211_hwsim_driver);
 }
 module_exit(exit_mac80211_hwsim);

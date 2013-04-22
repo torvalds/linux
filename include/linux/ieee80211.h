@@ -673,6 +673,36 @@ struct ieee80211_channel_sw_ie {
 } __packed;
 
 /**
+ * struct ieee80211_ext_chansw_ie
+ *
+ * This structure represents the "Extended Channel Switch Announcement element"
+ */
+struct ieee80211_ext_chansw_ie {
+	u8 mode;
+	u8 new_operating_class;
+	u8 new_ch_num;
+	u8 count;
+} __packed;
+
+/**
+ * struct ieee80211_sec_chan_offs_ie - secondary channel offset IE
+ * @sec_chan_offs: secondary channel offset, uses IEEE80211_HT_PARAM_CHA_SEC_*
+ *	values here
+ * This structure represents the "Secondary Channel Offset element"
+ */
+struct ieee80211_sec_chan_offs_ie {
+	u8 sec_chan_offs;
+} __packed;
+
+/**
+ * struct ieee80211_wide_bw_chansw_ie - wide bandwidth channel switch IE
+ */
+struct ieee80211_wide_bw_chansw_ie {
+	u8 new_channel_width;
+	u8 new_center_freq_seg0, new_center_freq_seg1;
+} __packed;
+
+/**
  * struct ieee80211_tim
  *
  * This structure refers to "Traffic Indication Map information element"
@@ -840,10 +870,13 @@ struct ieee80211_mgmt {
 				} __packed wme_action;
 				struct{
 					u8 action_code;
-					u8 element_id;
-					u8 length;
-					struct ieee80211_channel_sw_ie sw_elem;
+					u8 variable[0];
 				} __packed chan_switch;
+				struct{
+					u8 action_code;
+					struct ieee80211_ext_chansw_ie data;
+					u8 variable[0];
+				} __packed ext_chan_switch;
 				struct{
 					u8 action_code;
 					u8 dialog_token;
@@ -1638,6 +1671,7 @@ enum ieee80211_eid {
 
 	WLAN_EID_HT_CAPABILITY = 45,
 	WLAN_EID_HT_OPERATION = 61,
+	WLAN_EID_SECONDARY_CHANNEL_OFFSET = 62,
 
 	WLAN_EID_RSN = 48,
 	WLAN_EID_MMIE = 76,
@@ -1672,6 +1706,8 @@ enum ieee80211_eid {
 	WLAN_EID_VHT_CAPABILITY = 191,
 	WLAN_EID_VHT_OPERATION = 192,
 	WLAN_EID_OPMODE_NOTIF = 199,
+	WLAN_EID_WIDE_BW_CHANNEL_SWITCH = 194,
+	WLAN_EID_CHANNEL_SWITCH_WRAPPER = 196,
 
 	/* 802.11ad */
 	WLAN_EID_NON_TX_BSSID_CAP =  83,
@@ -1795,6 +1831,7 @@ enum ieee80211_key_len {
 
 /* Public action codes */
 enum ieee80211_pub_actioncode {
+	WLAN_PUB_ACTION_EXT_CHANSW_ANN = 4,
 	WLAN_PUB_ACTION_TDLS_DISCOVER_RES = 14,
 };
 

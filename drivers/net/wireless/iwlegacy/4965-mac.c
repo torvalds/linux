@@ -6057,7 +6057,7 @@ il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	struct il_priv *il = hw->priv;
 	const struct il_channel_info *ch_info;
 	struct ieee80211_conf *conf = &hw->conf;
-	struct ieee80211_channel *channel = ch_switch->channel;
+	struct ieee80211_channel *channel = ch_switch->chandef.chan;
 	struct il_ht_config *ht_conf = &il->current_ht_config;
 	u16 ch;
 
@@ -6094,23 +6094,21 @@ il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	il->current_ht_config.smps = conf->smps_mode;
 
 	/* Configure HT40 channels */
-	il->ht.enabled = conf_is_ht(conf);
-	if (il->ht.enabled) {
-		if (conf_is_ht40_minus(conf)) {
-			il->ht.extension_chan_offset =
-			    IEEE80211_HT_PARAM_CHA_SEC_BELOW;
-			il->ht.is_40mhz = true;
-		} else if (conf_is_ht40_plus(conf)) {
-			il->ht.extension_chan_offset =
-			    IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-			il->ht.is_40mhz = true;
-		} else {
-			il->ht.extension_chan_offset =
-			    IEEE80211_HT_PARAM_CHA_SEC_NONE;
-			il->ht.is_40mhz = false;
-		}
-	} else
+	switch (cfg80211_get_chandef_type(&ch_switch->chandef)) {
+	case NL80211_CHAN_NO_HT:
+	case NL80211_CHAN_HT20:
 		il->ht.is_40mhz = false;
+		il->ht.extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_NONE;
+		break;
+	case NL80211_CHAN_HT40MINUS:
+		il->ht.extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_BELOW;
+		il->ht.is_40mhz = true;
+		break;
+	case NL80211_CHAN_HT40PLUS:
+		il->ht.extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
+		il->ht.is_40mhz = true;
+		break;
+	}
 
 	if ((le16_to_cpu(il->staging.channel) != ch))
 		il->staging.flags = 0;

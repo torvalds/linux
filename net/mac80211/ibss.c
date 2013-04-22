@@ -209,6 +209,8 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.bss_conf.enable_beacon = true;
 	sdata->vif.bss_conf.beacon_int = beacon_int;
 	sdata->vif.bss_conf.basic_rates = basic_rates;
+	sdata->vif.bss_conf.ssid_len = ifibss->ssid_len;
+	memcpy(sdata->vif.bss_conf.ssid, ifibss->ssid, ifibss->ssid_len);
 	bss_change = BSS_CHANGED_BEACON_INT;
 	bss_change |= ieee80211_reset_erp_info(sdata);
 	bss_change |= BSS_CHANGED_BSSID;
@@ -217,6 +219,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	bss_change |= BSS_CHANGED_BASIC_RATES;
 	bss_change |= BSS_CHANGED_HT;
 	bss_change |= BSS_CHANGED_IBSS;
+	bss_change |= BSS_CHANGED_SSID;
 
 	/*
 	 * In 5 GHz/802.11a, we can always use short slot time.
@@ -911,7 +914,7 @@ void ieee80211_rx_mgmt_probe_beacon(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	ieee802_11_parse_elems(mgmt->u.probe_resp.variable, len - baselen,
-				&elems);
+			       false, &elems);
 
 	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems);
 }
@@ -1159,6 +1162,7 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.ibss_joined = false;
 	sdata->vif.bss_conf.ibss_creator = false;
 	sdata->vif.bss_conf.enable_beacon = false;
+	sdata->vif.bss_conf.ssid_len = 0;
 	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED |
 						BSS_CHANGED_IBSS);

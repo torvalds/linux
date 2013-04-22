@@ -2002,6 +2002,12 @@ struct cfg80211_update_ft_ies_params {
  * @update_ft_ies: Provide updated Fast BSS Transition information to the
  *	driver. If the SME is in the driver/firmware, this information can be
  *	used in building Authentication and Reassociation Request frames.
+ *
+ * @crit_proto_start: Indicates a critical protocol needs more link reliability
+ *	for a given duration (milliseconds). The protocol is provided so the
+ *	driver can take the most appropriate actions.
+ * @crit_proto_stop: Indicates critical protocol no longer needs increased link
+ *	reliability. This operation can not fail.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -2231,6 +2237,12 @@ struct cfg80211_ops {
 					 struct cfg80211_chan_def *chandef);
 	int	(*update_ft_ies)(struct wiphy *wiphy, struct net_device *dev,
 				 struct cfg80211_update_ft_ies_params *ftie);
+	int	(*crit_proto_start)(struct wiphy *wiphy,
+				    struct wireless_dev *wdev,
+				    enum nl80211_crit_proto_id protocol,
+				    u16 duration);
+	void	(*crit_proto_stop)(struct wiphy *wiphy,
+				   struct wireless_dev *wdev);
 };
 
 /*
@@ -4024,6 +4036,17 @@ bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
 void cfg80211_ch_switch_notify(struct net_device *dev,
 			       struct cfg80211_chan_def *chandef);
 
+/**
+ * ieee80211_operating_class_to_band - convert operating class to band
+ *
+ * @operating_class: the operating class to convert
+ * @band: band pointer to fill
+ *
+ * Returns %true if the conversion was successful, %false otherwise.
+ */
+bool ieee80211_operating_class_to_band(u8 operating_class,
+				       enum ieee80211_band *band);
+
 /*
  * cfg80211_tdls_oper_request - request userspace to perform TDLS operation
  * @dev: the device on which the operation is requested
@@ -4125,6 +4148,17 @@ int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
 void cfg80211_report_wowlan_wakeup(struct wireless_dev *wdev,
 				   struct cfg80211_wowlan_wakeup *wakeup,
 				   gfp_t gfp);
+
+/**
+ * cfg80211_crit_proto_stopped() - indicate critical protocol stopped by driver.
+ *
+ * @wdev: the wireless device for which critical protocol is stopped.
+ *
+ * This function can be called by the driver to indicate it has reverted
+ * operation back to normal. One reason could be that the duration given
+ * by .crit_proto_start() has expired.
+ */
+void cfg80211_crit_proto_stopped(struct wireless_dev *wdev, gfp_t gfp);
 
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 
