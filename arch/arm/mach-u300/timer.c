@@ -30,8 +30,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
-#include "timer.h"
-
 /*
  * APP side special timer registers
  * This timer contains four timers which can fire an interrupt each.
@@ -361,12 +359,22 @@ static struct delay_timer u300_delay_timer;
 /*
  * This sets up the system timers, clock source and clock event.
  */
-static void __init u300_timer_setup(void __iomem *base, int irq)
+static void __init u300_timer_init_of(struct device_node *np)
 {
+	struct resource irq_res;
+	int irq;
 	struct clk *clk;
 	unsigned long rate;
 
-	u300_timer_base = base;
+	u300_timer_base = of_iomap(np, 0);
+	if (!u300_timer_base)
+		panic("could not ioremap system timer\n");
+
+	/* Get the IRQ for the GP1 timer */
+	irq = of_irq_to_resource(np, 2, &irq_res);
+	if (irq <= 0)
+		panic("no IRQ for system timer\n");
+
 	pr_info("U300 GP1 timer @ base: %p, IRQ: %d\n", u300_timer_base, irq);
 
 	/* Clock the interrupt controller */
@@ -433,27 +441,5 @@ static void __init u300_timer_setup(void __iomem *base, int irq)
 	 */
 }
 
-
-void __init u300_timer_init()
-{
-	u300_timer_setup(U300_TIMER_APP_VBASE, IRQ_U300_TIMER_APP_GP1);
-}
-
-#ifdef CONFIG_OF
-
-static void __init u300_timer_init_of(struct device_node *np)
-{
-	void __iomem *base;
-	struct resource irq_res;
-	int irq;
-
-	base = of_iomap(np, 0);
-	/* Get the IRQ for the GP1 timer */
-	irq = of_irq_to_resource(np, 2, &irq_res);
-	u300_timer_setup(base, irq);
-}
-
 CLOCKSOURCE_OF_DECLARE(u300_timer, "stericsson,u300-apptimer",
 		       u300_timer_init_of);
-
-#endif

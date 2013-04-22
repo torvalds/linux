@@ -58,10 +58,7 @@ static int __init __u300_init_boardpower(struct platform_device *pdev)
 	u32 val;
 
 	pr_info("U300: setting up board power\n");
-	if (pdev)
-		main_power_15 = regulator_get(&pdev->dev, "vana15");
-	else
-		main_power_15 = regulator_get(NULL, "vana15");
+	main_power_15 = regulator_get(&pdev->dev, "vana15");
 
 	if (IS_ERR(main_power_15)) {
 		pr_err("could not get vana15");
@@ -114,11 +111,8 @@ static struct platform_driver s365_board_driver = {
  */
 static int __init u300_init_boardpower(void)
 {
-	if (of_have_populated_dt())
-		return platform_driver_probe(&s365_board_driver,
-					     s365_board_probe);
-	/* Only call this on non-DT boots */
-	return __u300_init_boardpower(NULL);
+	return platform_driver_probe(&s365_board_driver,
+				     s365_board_probe);
 }
 
 device_initcall(u300_init_boardpower);

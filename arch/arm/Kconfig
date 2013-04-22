@@ -827,6 +827,7 @@ config ARCH_U300
 	select GENERIC_CLOCKEVENTS
 	select HAVE_TCM
 	select SPARSE_IRQ
+	select USE_OF
 	help
 	  Support for ST-Ericsson U300 series mobile platforms.
 
