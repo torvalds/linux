@@ -6,7 +6,6 @@ config IWLWIFI
 	select LEDS_CLASS
 	select LEDS_TRIGGERS
 	select MAC80211_LEDS
-	select IWLDVM
 	---help---
 	  Select to build the driver supporting the:
 
@@ -45,6 +44,7 @@ config IWLWIFI
 config IWLDVM
 	tristate "Intel Wireless WiFi DVM Firmware support"
 	depends on IWLWIFI
+	default IWLWIFI
 	help
 	  This is the driver supporting the DVM firmware which is
 	  currently the only firmware available for existing devices.
@@ -57,6 +57,15 @@ config IWLMVM
 	  currently only available for 7000 series devices.
 
 	  Say yes if you have such a device.
+
+# don't call it _MODULE -- will confuse Kconfig/fixdep/...
+config IWLWIFI_OPMODE_MODULAR
+	bool
+	default y if IWLDVM=m
+	default y if IWLMVM=m
+
+comment "WARNING: iwlwifi is useless without IWLDVM or IWLMVM"
+	depends on IWLWIFI && IWLDVM=n && IWLMVM=n
 
 menu "Debugging Options"
 	depends on IWLWIFI

@@ -112,11 +112,6 @@ struct brcmf_usbdev_info {
 static void brcmf_usb_rx_refill(struct brcmf_usbdev_info *devinfo,
 				struct brcmf_usbreq  *req);
 
-MODULE_AUTHOR("Broadcom Corporation");
-MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN fullmac usb driver.");
-MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN fullmac usb cards");
-MODULE_LICENSE("Dual BSD/GPL");
-
 static struct brcmf_usbdev *brcmf_usb_get_buspub(struct device *dev)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
@@ -422,8 +417,6 @@ static void brcmf_usb_tx_complete(struct urb *urb)
 	brcmf_usb_del_fromq(devinfo, req);
 
 	brcmf_txcomplete(devinfo->dev, req->skb, urb->status == 0);
-
-	brcmu_pkt_buf_free_skb(req->skb);
 	req->skb = NULL;
 	brcmf_usb_enq(devinfo, &devinfo->tx_freeq, req, &devinfo->tx_freecount);
 	if (devinfo->tx_freecount > devinfo->tx_high_watermark &&
@@ -577,15 +570,17 @@ static int brcmf_usb_tx(struct device *dev, struct sk_buff *skb)
 	int ret;
 
 	brcmf_dbg(USB, "Enter, skb=%p\n", skb);
-	if (devinfo->bus_pub.state != BRCMFMAC_USB_STATE_UP)
-		return -EIO;
+	if (devinfo->bus_pub.state != BRCMFMAC_USB_STATE_UP) {
+		ret = -EIO;
+		goto fail;
+	}
 
 	req = brcmf_usb_deq(devinfo, &devinfo->tx_freeq,
 					&devinfo->tx_freecount);
 	if (!req) {
-		brcmu_pkt_buf_free_skb(skb);
 		brcmf_err("no req to send\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail;
 	}
 
 	req->skb = skb;
@@ -598,18 +593,21 @@ static int brcmf_usb_tx(struct device *dev, struct sk_buff *skb)
 	if (ret) {
 		brcmf_err("brcmf_usb_tx usb_submit_urb FAILED\n");
 		brcmf_usb_del_fromq(devinfo, req);
-		brcmu_pkt_buf_free_skb(req->skb);
 		req->skb = NULL;
 		brcmf_usb_enq(devinfo, &devinfo->tx_freeq, req,
-						&devinfo->tx_freecount);
-	} else {
-		if (devinfo->tx_freecount < devinfo->tx_low_watermark &&
-			!devinfo->tx_flowblock) {
-			brcmf_txflowblock(dev, true);
-			devinfo->tx_flowblock = true;
-		}
+			      &devinfo->tx_freecount);
+		goto fail;
 	}
 
+	if (devinfo->tx_freecount < devinfo->tx_low_watermark &&
+	    !devinfo->tx_flowblock) {
+		brcmf_txflowblock(dev, true);
+		devinfo->tx_flowblock = true;
+	}
+	return 0;
+
+fail:
+	brcmf_txcomplete(dev, skb, false);
 	return ret;
 }
 
@@ -1485,6 +1483,7 @@ static struct usb_device_id brcmf_usb_devid_table[] = {
 	{ USB_DEVICE(BRCMF_USB_VENDOR_ID_BROADCOM, BRCMF_USB_DEVICE_ID_BCMFW) },
 	{ }
 };
+
 MODULE_DEVICE_TABLE(usb, brcmf_usb_devid_table);
 MODULE_FIRMWARE(BRCMF_USB_43143_FW_NAME);
 MODULE_FIRMWARE(BRCMF_USB_43236_FW_NAME);

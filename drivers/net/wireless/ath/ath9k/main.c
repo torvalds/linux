@@ -280,6 +280,10 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan)
 	if (r) {
 		ath_err(common,
 			"Unable to reset channel, reset status %d\n", r);
+
+		ath9k_hw_enable_interrupts(ah);
+		ath9k_queue_reset(sc, RESET_TYPE_BB_HANG);
+
 		goto out;
 	}
 
@@ -1247,10 +1251,27 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		if (old_pos >= 0)
 			ath_update_survey_nf(sc, old_pos);
 
-		/* perform spectral scan if requested. */
-		if (sc->scanning && sc->spectral_mode == SPECTRAL_CHANSCAN)
-			ath9k_spectral_scan_trigger(hw);
+		/*
+		 * Enable radar pulse detection if on a DFS channel. Spectral
+		 * scanning and radar detection can not be used concurrently.
+		 */
+		if (hw->conf.radar_enabled) {
+			u32 rxfilter;
 
+			/* set HW specific DFS configuration */
+			ath9k_hw_set_radar_params(ah);
+			rxfilter = ath9k_hw_getrxfilter(ah);
+			rxfilter |= ATH9K_RX_FILTER_PHYRADAR |
+				    ATH9K_RX_FILTER_PHYERR;
+			ath9k_hw_setrxfilter(ah, rxfilter);
+			ath_dbg(common, DFS, "DFS enabled at freq %d\n",
+				curchan->center_freq);
+		} else {
+			/* perform spectral scan if requested. */
+			if (sc->scanning &&
+			    sc->spectral_mode == SPECTRAL_CHANSCAN)
+				ath9k_spectral_scan_trigger(hw);
+		}
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {

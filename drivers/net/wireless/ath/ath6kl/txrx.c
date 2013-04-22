@@ -20,6 +20,7 @@
 #include "core.h"
 #include "debug.h"
 #include "htc-ops.h"
+#include "trace.h"
 
 /*
  * tid - tid_mux0..tid_mux3
@@ -287,6 +288,8 @@ int ath6kl_control_tx(void *devt, struct sk_buff *skb,
 	struct ath6kl *ar = devt;
 	int status = 0;
 	struct ath6kl_cookie *cookie = NULL;
+
+	trace_ath6kl_wmi_cmd(skb->data, skb->len);
 
 	if (WARN_ON_ONCE(ar->state == ATH6KL_STATE_WOW)) {
 		dev_kfree_skb(skb);
@@ -1324,7 +1327,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 		   __func__, ar, ept, skb, packet->buf,
 		   packet->act_len, status);
 
-	if (status || !(skb->data + HTC_HDR_LENGTH)) {
+	if (status || packet->act_len < HTC_HDR_LENGTH) {
 		dev_kfree_skb(skb);
 		return;
 	}

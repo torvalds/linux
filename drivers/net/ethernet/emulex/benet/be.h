@@ -349,6 +349,7 @@ struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
 
+	u8 __iomem *csr;	/* CSR BAR used only for BE2/3 */
 	u8 __iomem *db;		/* Door Bell */
 
 	struct mutex mbox_lock; /* For serializing mbox cmds to BE card */

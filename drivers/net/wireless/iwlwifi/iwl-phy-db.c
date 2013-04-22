@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -65,6 +65,7 @@
 #include <linux/string.h>
 #include <linux/export.h>
 
+#include "iwl-drv.h"
 #include "iwl-phy-db.h"
 #include "iwl-debug.h"
 #include "iwl-op-mode.h"
@@ -136,12 +137,6 @@ struct iwl_calib_res_notif_phy_db {
 	u8 data[];
 } __packed;
 
-#define IWL_PHY_DB_STATIC_PIC cpu_to_le32(0x21436587)
-static inline void iwl_phy_db_test_pic(__le32 pic)
-{
-	WARN_ON(IWL_PHY_DB_STATIC_PIC != pic);
-}
-
 struct iwl_phy_db *iwl_phy_db_init(struct iwl_trans *trans)
 {
 	struct iwl_phy_db *phy_db = kzalloc(sizeof(struct iwl_phy_db),
@@ -155,7 +150,7 @@ struct iwl_phy_db *iwl_phy_db_init(struct iwl_trans *trans)
 	/* TODO: add default values of the phy db. */
 	return phy_db;
 }
-EXPORT_SYMBOL(iwl_phy_db_init);
+IWL_EXPORT_SYMBOL(iwl_phy_db_init);
 
 /*
  * get phy db section: returns a pointer to a phy db section specified by
@@ -221,7 +216,7 @@ void iwl_phy_db_free(struct iwl_phy_db *phy_db)
 
 	kfree(phy_db);
 }
-EXPORT_SYMBOL(iwl_phy_db_free);
+IWL_EXPORT_SYMBOL(iwl_phy_db_free);
 
 int iwl_phy_db_set_section(struct iwl_phy_db *phy_db, struct iwl_rx_packet *pkt,
 			   gfp_t alloc_ctx)
@@ -260,18 +255,13 @@ int iwl_phy_db_set_section(struct iwl_phy_db *phy_db, struct iwl_rx_packet *pkt,
 			(size - CHANNEL_NUM_SIZE) / phy_db->channel_num;
 	}
 
-	/* Test PIC */
-	if (type != IWL_PHY_DB_CFG)
-		iwl_phy_db_test_pic(*(((__le32 *)phy_db_notif->data) +
-				      (size / sizeof(__le32)) - 1));
-
 	IWL_DEBUG_INFO(phy_db->trans,
 		       "%s(%d): [PHYDB]SET: Type %d , Size: %d\n",
 		       __func__, __LINE__, type, size);
 
 	return 0;
 }
-EXPORT_SYMBOL(iwl_phy_db_set_section);
+IWL_EXPORT_SYMBOL(iwl_phy_db_set_section);
 
 static int is_valid_channel(u16 ch_id)
 {
@@ -371,11 +361,6 @@ int iwl_phy_db_get_section_data(struct iwl_phy_db *phy_db,
 		*data = entry->data;
 		*size = entry->size;
 	}
-
-	/* Test PIC */
-	if (type != IWL_PHY_DB_CFG)
-		iwl_phy_db_test_pic(*(((__le32 *)*data) +
-				      (*size / sizeof(__le32)) - 1));
 
 	IWL_DEBUG_INFO(phy_db->trans,
 		       "%s(%d): [PHYDB] GET: Type %d , Size: %d\n",
@@ -511,4 +496,4 @@ int iwl_send_phy_db_data(struct iwl_phy_db *phy_db)
 		       "Finished sending phy db non channel data\n");
 	return 0;
 }
-EXPORT_SYMBOL(iwl_send_phy_db_data);
+IWL_EXPORT_SYMBOL(iwl_send_phy_db_data);

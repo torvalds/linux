@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -72,6 +72,8 @@
 
 /* AUX (TX during scan dwell) queue */
 #define IWL_AUX_QUEUE		10
+
+#define IWL_INVALID_STATION	255
 
 /* device operations */
 extern struct iwl_lib_ops iwl1000_lib;
@@ -176,7 +178,7 @@ int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 /* lib */
 int iwlagn_send_tx_power(struct iwl_priv *priv);
 void iwlagn_temperature(struct iwl_priv *priv);
-int iwlagn_txfifo_flush(struct iwl_priv *priv);
+int iwlagn_txfifo_flush(struct iwl_priv *priv, u32 scd_q_msk);
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
 int iwl_send_statistics_request(struct iwl_priv *priv,
@@ -210,6 +212,8 @@ int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u8 buf_size);
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid);
+int iwlagn_tx_agg_flush(struct iwl_priv *priv, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta, u16 tid);
 int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 				   struct iwl_rx_cmd_buffer *rxb,
 				   struct iwl_device_cmd *cmd);

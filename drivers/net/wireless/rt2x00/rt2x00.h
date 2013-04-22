@@ -193,6 +193,7 @@ struct rt2x00_chip {
 #define RT3883		0x3883	/* WSOC */
 #define RT5390		0x5390  /* 2.4GHz */
 #define RT5392		0x5392  /* 2.4GHz */
+#define RT5592		0x5592
 
 	u16 rf;
 	u16 rev;
@@ -1064,8 +1065,7 @@ static inline void rt2x00_rf_write(struct rt2x00_dev *rt2x00dev,
 }
 
 /*
- *  Generic EEPROM access.
- * The EEPROM is being accessed by word index.
+ * Generic EEPROM access. The EEPROM is being accessed by word or byte index.
  */
 static inline void *rt2x00_eeprom_addr(struct rt2x00_dev *rt2x00dev,
 				       const unsigned int word)
@@ -1085,6 +1085,12 @@ static inline void rt2x00_eeprom_write(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->eeprom[word] = cpu_to_le16(data);
 }
 
+static inline u8 rt2x00_eeprom_byte(struct rt2x00_dev *rt2x00dev,
+				    const unsigned int byte)
+{
+	return *(((u8 *)rt2x00dev->eeprom) + byte);
+}
+
 /*
  * Chipset handlers
  */
@@ -1098,6 +1104,23 @@ static inline void rt2x00_set_chip(struct rt2x00_dev *rt2x00dev,
 	INFO(rt2x00dev,
 	     "Chipset detected - rt: %04x, rf: %04x, rev: %04x.\n",
 	     rt2x00dev->chip.rt, rt2x00dev->chip.rf, rt2x00dev->chip.rev);
+}
+
+static inline void rt2x00_set_rt(struct rt2x00_dev *rt2x00dev,
+				 const u16 rt, const u16 rev)
+{
+	rt2x00dev->chip.rt = rt;
+	rt2x00dev->chip.rev = rev;
+
+	INFO(rt2x00dev, "RT chipset %04x, rev %04x detected\n",
+	     rt2x00dev->chip.rt, rt2x00dev->chip.rev);
+}
+
+static inline void rt2x00_set_rf(struct rt2x00_dev *rt2x00dev, const u16 rf)
+{
+	rt2x00dev->chip.rf = rf;
+
+	INFO(rt2x00dev, "RF chipset %04x detected\n", rt2x00dev->chip.rf);
 }
 
 static inline bool rt2x00_rt(struct rt2x00_dev *rt2x00dev, const u16 rt)

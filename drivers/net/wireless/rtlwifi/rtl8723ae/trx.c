@@ -307,9 +307,6 @@ bool rtl8723ae_rx_query_desc(struct ieee80211_hw *hw,
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->band = hw->conf.chandef.chan->band;
 
-	hdr = (struct ieee80211_hdr *)(skb->data + status->rx_drvinfo_size
-		+ status->rx_bufshift);
-
 	if (status->crc)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
@@ -330,6 +327,13 @@ bool rtl8723ae_rx_query_desc(struct ieee80211_hw *hw,
 	 * to decrypt it
 	 */
 	if (status->decrypted) {
+		hdr = (struct ieee80211_hdr *)(skb->data +
+		       status->rx_drvinfo_size + status->rx_bufshift);
+
+		if (!hdr) {
+			/* during testing, hdr could be NULL here */
+			return false;
+		}
 		if ((ieee80211_is_robust_mgmt_frame(hdr)) &&
 			(ieee80211_has_protected(hdr->frame_control)))
 			rx_status->flag &= ~RX_FLAG_DECRYPTED;

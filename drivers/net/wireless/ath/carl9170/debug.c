@@ -655,8 +655,7 @@ static ssize_t carl9170_debugfs_bug_write(struct ar9170 *ar, const char *buf,
 
 	case 'P':
 		err = carl9170_set_channel(ar, ar->hw->conf.chandef.chan,
-			cfg80211_get_chandef_type(&ar->hw->conf.chandef),
-			CARL9170_RFI_COLD);
+			cfg80211_get_chandef_type(&ar->hw->conf.chandef));
 		if (err < 0)
 			count = err;
 

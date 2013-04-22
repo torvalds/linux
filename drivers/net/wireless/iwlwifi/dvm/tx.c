@@ -19,7 +19,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -674,6 +674,51 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	return ret;
 }
 
+int iwlagn_tx_agg_flush(struct iwl_priv *priv, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta, u16 tid)
+{
+	struct iwl_tid_data *tid_data;
+	enum iwl_agg_state agg_state;
+	int sta_id, txq_id;
+	sta_id = iwl_sta_id(sta);
+
+	/*
+	 * First set the agg state to OFF to avoid calling
+	 * ieee80211_stop_tx_ba_cb in iwlagn_check_ratid_empty.
+	 */
+	spin_lock_bh(&priv->sta_lock);
+
+	tid_data = &priv->tid_data[sta_id][tid];
+	txq_id = tid_data->agg.txq_id;
+	agg_state = tid_data->agg.state;
+	IWL_DEBUG_TX_QUEUES(priv, "Flush AGG: sta %d tid %d q %d state %d\n",
+			    sta_id, tid, txq_id, tid_data->agg.state);
+
+	tid_data->agg.state = IWL_AGG_OFF;
+
+	spin_unlock_bh(&priv->sta_lock);
+
+	if (iwlagn_txfifo_flush(priv, BIT(txq_id)))
+		IWL_ERR(priv, "Couldn't flush the AGG queue\n");
+
+	if (test_bit(txq_id, priv->agg_q_alloc)) {
+		/*
+		 * If the transport didn't know that we wanted to start
+		 * agreggation, don't tell it that we want to stop them.
+		 * This can happen when we don't get the addBA response on
+		 * time, or we hadn't time to drain the AC queues.
+		 */
+		if (agg_state == IWL_AGG_ON)
+			iwl_trans_txq_disable(priv->trans, txq_id);
+		else
+			IWL_DEBUG_TX_QUEUES(priv, "Don't disable tx agg: %d\n",
+					    agg_state);
+		iwlagn_dealloc_agg_txq(priv, txq_id);
+	}
+
+	return 0;
+}
+
 int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u8 buf_size)
 {
@@ -1193,7 +1238,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 			memset(&info->status, 0, sizeof(info->status));
 
 			if (status == TX_STATUS_FAIL_PASSIVE_NO_RX &&
-			    iwl_is_associated_ctx(ctx) && ctx->vif &&
+			    ctx->vif &&
 			    ctx->vif->type == NL80211_IFTYPE_STATION) {
 				/* block and stop all queues */
 				priv->passive_no_rx = true;

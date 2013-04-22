@@ -516,8 +516,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		 * not a holding desc.
 		 */
 		INIT_LIST_HEAD(&bf_head);
-		if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) ||
-		    bf_next != NULL || !bf_last->bf_stale)
+		if (bf_next != NULL || !bf_last->bf_stale)
 			list_move_tail(&bf->list, &bf_head);
 
 		if (!txpending || (tid->state & AGGR_CLEANUP)) {
@@ -537,8 +536,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				!txfail);
 		} else {
 			/* retry the un-acked ones */
-			if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) &&
-			    bf->bf_next == NULL && bf_last->bf_stale) {
+			if (bf->bf_next == NULL && bf_last->bf_stale) {
 				struct ath_buf *tbf;
 
 				tbf = ath_clone_txbuf(sc, bf_last);
@@ -1971,7 +1969,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	}
 
 	/* Add the padding after the header if this is not already done */
-	padpos = ath9k_cmn_padpos(hdr->frame_control);
+	padpos = ieee80211_hdrlen(hdr->frame_control);
 	padsize = padpos & 3;
 	if (padsize && skb->len > padpos) {
 		if (skb_headroom(skb) < padsize)
@@ -2033,7 +2031,7 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		/* Frame was ACKed */
 		tx_info->flags |= IEEE80211_TX_STAT_ACK;
 
-	padpos = ath9k_cmn_padpos(hdr->frame_control);
+	padpos = ieee80211_hdrlen(hdr->frame_control);
 	padsize = padpos & 3;
 	if (padsize && skb->len>padpos+padsize) {
 		/*
@@ -2264,6 +2262,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 	struct ath_txq *txq;
 	struct ath_buf *bf, *lastbf;
 	struct list_head bf_head;
+	struct list_head *fifo_list;
 	int status;
 
 	for (;;) {
@@ -2291,20 +2290,24 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 
 		TX_STAT_INC(txq->axq_qnum, txprocdesc);
 
-		if (list_empty(&txq->txq_fifo[txq->txq_tailidx])) {
+		fifo_list = &txq->txq_fifo[txq->txq_tailidx];
+		if (list_empty(fifo_list)) {
 			ath_txq_unlock(sc, txq);
 			return;
 		}
 
-		bf = list_first_entry(&txq->txq_fifo[txq->txq_tailidx],
-				      struct ath_buf, list);
+		bf = list_first_entry(fifo_list, struct ath_buf, list);
+		if (bf->bf_stale) {
+			list_del(&bf->list);
+			ath_tx_return_buffer(sc, bf);
+			bf = list_first_entry(fifo_list, struct ath_buf, list);
+		}
+
 		lastbf = bf->bf_lastbf;
 
 		INIT_LIST_HEAD(&bf_head);
-		list_cut_position(&bf_head, &txq->txq_fifo[txq->txq_tailidx],
-				  &lastbf->list);
-
-		if (list_empty(&txq->txq_fifo[txq->txq_tailidx])) {
+		if (list_is_last(&lastbf->list, fifo_list)) {
+			list_splice_tail_init(fifo_list, &bf_head);
 			INCR(txq->txq_tailidx, ATH_TXFIFO_DEPTH);
 
 			if (!list_empty(&txq->axq_q)) {
@@ -2315,6 +2318,11 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 				list_splice_tail_init(&txq->axq_q, &bf_q);
 				ath_tx_txqaddbuf(sc, txq, &bf_q, true);
 			}
+		} else {
+			lastbf->bf_stale = true;
+			if (bf != lastbf)
+				list_cut_position(&bf_head, fifo_list,
+						  lastbf->list.prev);
 		}
 
 		ath_tx_process_buffer(sc, txq, &ts, bf, &bf_head);

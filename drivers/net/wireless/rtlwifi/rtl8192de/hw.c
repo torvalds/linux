@@ -1183,7 +1183,7 @@ void rtl92d_linked_set_reg(struct ieee80211_hw *hw)
 	u8 channel = rtlphy->current_channel;
 
 	indexforchannel = rtl92d_get_rightchnlplace_for_iqk(channel);
-	if (!rtlphy->iqk_matrix_regsetting[indexforchannel].iqk_done) {
+	if (!rtlphy->iqk_matrix[indexforchannel].iqk_done) {
 		RT_TRACE(rtlpriv, COMP_SCAN | COMP_INIT, DBG_DMESG,
 			 "Do IQK for channel:%d\n", channel);
 		rtl92d_phy_iq_calibrate(hw);

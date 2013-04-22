@@ -21,8 +21,6 @@
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
 
-#include "dbg_hexdump.h"
-
 #define WIL_NAME "wil6210"
 
 /**
@@ -188,6 +186,7 @@ enum { /* for wil6210_priv.status */
 	wil_status_fwready = 0,
 	wil_status_fwconnected,
 	wil_status_dontscan,
+	wil_status_reset_done,
 	wil_status_irqen, /* FIXME: interrupts enabled - for debug */
 };
 
@@ -210,6 +209,8 @@ struct wil6210_priv {
 	struct wireless_dev *wdev;
 	void __iomem *csr;
 	ulong status;
+	u32 fw_version;
+	u8 n_mids; /* number of additional MIDs as reported by FW */
 	/* profile */
 	u32 monitor_flags;
 	u32 secure_pcp; /* create secure PCP? */
@@ -227,7 +228,7 @@ struct wil6210_priv {
 	struct workqueue_struct *wmi_wq; /* for deferred calls */
 	struct work_struct wmi_event_worker;
 	struct workqueue_struct *wmi_wq_conn; /* for connect worker */
-	struct work_struct wmi_connect_worker;
+	struct work_struct connect_worker;
 	struct work_struct disconnect_worker;
 	struct timer_list connect_timer;
 	int pending_connect_cid;
@@ -277,13 +278,13 @@ struct wil6210_priv {
 
 #define wil_hex_dump_txrx(prefix_str, prefix_type, rowsize,	\
 			  groupsize, buf, len, ascii)		\
-			  wil_print_hex_dump_debug("DBG[TXRX]" prefix_str,\
+			  print_hex_dump_debug("DBG[TXRX]" prefix_str,\
 					 prefix_type, rowsize,	\
 					 groupsize, buf, len, ascii)
 
 #define wil_hex_dump_wmi(prefix_str, prefix_type, rowsize,	\
 			 groupsize, buf, len, ascii)		\
-			 wil_print_hex_dump_debug("DBG[ WMI]" prefix_str,\
+			 print_hex_dump_debug("DBG[ WMI]" prefix_str,\
 					prefix_type, rowsize,	\
 					groupsize, buf, len, ascii)
 
@@ -313,7 +314,6 @@ int wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len);
 void wmi_recv_cmd(struct wil6210_priv *wil);
 int wmi_call(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len,
 	     u16 reply_id, void *reply, u8 reply_size, int to_msec);
-void wmi_connect_worker(struct work_struct *work);
 void wmi_event_worker(struct work_struct *work);
 void wmi_event_flush(struct wil6210_priv *wil);
 int wmi_set_ssid(struct wil6210_priv *wil, u8 ssid_len, const void *ssid);
@@ -328,6 +328,8 @@ int wmi_add_cipher_key(struct wil6210_priv *wil, u8 key_index,
 int wmi_echo(struct wil6210_priv *wil);
 int wmi_set_ie(struct wil6210_priv *wil, u8 type, u16 ie_len, const void *ie);
 int wmi_rx_chain_add(struct wil6210_priv *wil, struct vring *vring);
+int wmi_p2p_cfg(struct wil6210_priv *wil, int channel);
+int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_m, u32 *t_r);
 
 int wil6210_init_irq(struct wil6210_priv *wil, int irq);
 void wil6210_fini_irq(struct wil6210_priv *wil, int irq);
@@ -341,7 +343,8 @@ struct wireless_dev *wil_cfg80211_init(struct device *dev);
 void wil_wdev_free(struct wil6210_priv *wil);
 
 int wmi_set_mac_address(struct wil6210_priv *wil, void *addr);
-int wmi_set_bcon(struct wil6210_priv *wil, int bi, u8 wmi_nettype);
+int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan);
+int wmi_pcp_stop(struct wil6210_priv *wil);
 void wil6210_disconnect(struct wil6210_priv *wil, void *bssid);
 
 int wil_rx_init(struct wil6210_priv *wil);

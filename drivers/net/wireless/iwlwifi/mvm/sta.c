@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -101,8 +101,55 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	}
 	add_sta_cmd.add_modify = update ? 1 : 0;
 
-	/* STA_FLG_FAT_EN_MSK ? */
-	/* STA_FLG_MIMO_EN_MSK ? */
+	add_sta_cmd.station_flags_msk |= cpu_to_le32(STA_FLG_FAT_EN_MSK |
+						     STA_FLG_MIMO_EN_MSK);
+
+	switch (sta->bandwidth) {
+	case IEEE80211_STA_RX_BW_160:
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_FAT_EN_160MHZ);
+		/* fall through */
+	case IEEE80211_STA_RX_BW_80:
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_FAT_EN_80MHZ);
+		/* fall through */
+	case IEEE80211_STA_RX_BW_40:
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_FAT_EN_40MHZ);
+		/* fall through */
+	case IEEE80211_STA_RX_BW_20:
+		if (sta->ht_cap.ht_supported)
+			add_sta_cmd.station_flags |=
+				cpu_to_le32(STA_FLG_FAT_EN_20MHZ);
+		break;
+	}
+
+	switch (sta->rx_nss) {
+	case 1:
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_MIMO_EN_SISO);
+		break;
+	case 2:
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_MIMO_EN_MIMO2);
+		break;
+	case 3 ... 8:
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_MIMO_EN_MIMO3);
+		break;
+	}
+
+	switch (sta->smps_mode) {
+	case IEEE80211_SMPS_AUTOMATIC:
+	case IEEE80211_SMPS_NUM_MODES:
+		WARN_ON(1);
+		break;
+	case IEEE80211_SMPS_STATIC:
+		/* override NSS */
+		add_sta_cmd.station_flags &= ~cpu_to_le32(STA_FLG_MIMO_EN_MSK);
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_MIMO_EN_SISO);
+		break;
+	case IEEE80211_SMPS_DYNAMIC:
+		add_sta_cmd.station_flags |= cpu_to_le32(STA_FLG_RTS_MIMO_PROT);
+		break;
+	case IEEE80211_SMPS_OFF:
+		/* nothing */
+		break;
+	}
 
 	if (sta->ht_cap.ht_supported) {
 		add_sta_cmd.station_flags_msk |=
@@ -340,6 +387,9 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    mvmvif->ap_sta_id == mvm_sta->sta_id) {
+		/* flush its queues here since we are freeing mvm_sta */
+		ret = iwl_mvm_flush_tx_path(mvm, mvm_sta->tfd_queue_msk, true);
+
 		/*
 		 * Put a non-NULL since the fw station isn't removed.
 		 * It will be removed after the MAC will be set as
@@ -347,9 +397,6 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		 */
 		rcu_assign_pointer(mvm->fw_id_to_mac_id[mvm_sta->sta_id],
 				   ERR_PTR(-EINVAL));
-
-		/* flush its queues here since we are freeing mvm_sta */
-		ret = iwl_mvm_flush_tx_path(mvm, mvm_sta->tfd_queue_msk, true);
 
 		/* if we are associated - we can't remove the AP STA now */
 		if (vif->bss_conf.assoc)
@@ -770,6 +817,16 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	u16 txq_id;
 	int err;
 
+
+	/*
+	 * If mac80211 is cleaning its state, then say that we finished since
+	 * our state has been cleared anyway.
+	 */
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		return 0;
+	}
+
 	spin_lock_bh(&mvmsta->lock);
 
 	txq_id = tid_data->txq_id;
@@ -824,6 +881,34 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return err;
 }
 
+int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			    struct ieee80211_sta *sta, u16 tid)
+{
+	struct iwl_mvm_sta *mvmsta = (void *)sta->drv_priv;
+	struct iwl_mvm_tid_data *tid_data = &mvmsta->tid_data[tid];
+	u16 txq_id;
+
+	/*
+	 * First set the agg state to OFF to avoid calling
+	 * ieee80211_stop_tx_ba_cb in iwl_mvm_check_ratid_empty.
+	 */
+	spin_lock_bh(&mvmsta->lock);
+	txq_id = tid_data->txq_id;
+	IWL_DEBUG_TX_QUEUES(mvm, "Flush AGG: sta %d tid %d q %d state %d\n",
+			    mvmsta->sta_id, tid, txq_id, tid_data->state);
+	tid_data->state = IWL_AGG_OFF;
+	spin_unlock_bh(&mvmsta->lock);
+
+	if (iwl_mvm_flush_tx_path(mvm, BIT(txq_id), true))
+		IWL_ERR(mvm, "Couldn't flush the AGG queue\n");
+
+	iwl_trans_txq_disable(mvm->trans, tid_data->txq_id);
+	mvm->queue_to_mac80211[tid_data->txq_id] =
+				IWL_INVALID_MAC80211_QUEUE;
+
+	return 0;
+}
+
 static int iwl_mvm_set_fw_key_idx(struct iwl_mvm *mvm)
 {
 	int i;
@@ -860,7 +945,7 @@ static u8 iwl_mvm_get_key_sta_id(struct ieee80211_vif *vif,
 	    mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT)
 		return mvmvif->ap_sta_id;
 
-	return IWL_INVALID_STATION;
+	return IWL_MVM_STATION_COUNT;
 }
 
 static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
@@ -1008,7 +1093,7 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 
 	/* Get the station id from the mvm local station table */
 	sta_id = iwl_mvm_get_key_sta_id(vif, sta);
-	if (sta_id == IWL_INVALID_STATION) {
+	if (sta_id == IWL_MVM_STATION_COUNT) {
 		IWL_ERR(mvm, "Failed to find station id\n");
 		return -EINVAL;
 	}
@@ -1103,7 +1188,7 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 		return -ENOENT;
 	}
 
-	if (sta_id == IWL_INVALID_STATION) {
+	if (sta_id == IWL_MVM_STATION_COUNT) {
 		IWL_DEBUG_WEP(mvm, "station non-existent, early return.\n");
 		return 0;
 	}
@@ -1169,7 +1254,7 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 	struct iwl_mvm_sta *mvm_sta;
 	u8 sta_id = iwl_mvm_get_key_sta_id(vif, sta);
 
-	if (WARN_ON_ONCE(sta_id == IWL_INVALID_STATION))
+	if (WARN_ON_ONCE(sta_id == IWL_MVM_STATION_COUNT))
 		return;
 
 	rcu_read_lock();

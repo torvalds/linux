@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -142,7 +142,7 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 				      struct cfg80211_chan_def *chandef,
 				      u8 chains_static, u8 chains_dynamic)
 {
-	u8 valid_rx_chains, active_cnt, idle_cnt;
+	u8 active_cnt, idle_cnt;
 
 	/* Set the channel info data */
 	cmd->ci.band = (chandef->chan->band == IEEE80211_BAND_2GHZ ?
@@ -158,17 +158,16 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 	 * Need to add on chain noise calibration limitations, and
 	 * BT coex considerations.
 	 */
-	valid_rx_chains = mvm->nvm_data->valid_rx_ant;
 	idle_cnt = chains_static;
 	active_cnt = chains_dynamic;
 
-	cmd->rxchain_info = cpu_to_le32(valid_rx_chains <<
+	cmd->rxchain_info = cpu_to_le32(iwl_fw_valid_rx_ant(mvm->fw) <<
 					PHY_RX_CHAIN_VALID_POS);
 	cmd->rxchain_info |= cpu_to_le32(idle_cnt << PHY_RX_CHAIN_CNT_POS);
 	cmd->rxchain_info |= cpu_to_le32(active_cnt <<
 					 PHY_RX_CHAIN_MIMO_CNT_POS);
 
-	cmd->txchain_info = cpu_to_le32(mvm->nvm_data->valid_tx_ant);
+	cmd->txchain_info = cpu_to_le32(iwl_fw_valid_tx_ant(mvm->fw));
 }
 
 /*

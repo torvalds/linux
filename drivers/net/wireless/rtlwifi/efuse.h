@@ -32,7 +32,6 @@
 
 #define EFUSE_IC_ID_OFFSET		506
 
-#define EFUSE_REAL_CONTENT_LEN		512
 #define EFUSE_MAP_LEN			128
 #define EFUSE_MAX_WORD_UNIT		4
 

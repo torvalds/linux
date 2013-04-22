@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -462,7 +462,7 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq,
 		.data = { lq, },
 	};
 
-	if (WARN_ON(lq->sta_id == IWL_INVALID_STATION))
+	if (WARN_ON(lq->sta_id == IWL_MVM_STATION_COUNT))
 		return -EINVAL;
 
 	if (WARN_ON(init && (cmd.flags & CMD_ASYNC)))

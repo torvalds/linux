@@ -19,6 +19,8 @@
 #include "hif.h"
 #include "debug.h"
 #include "hif-ops.h"
+#include "trace.h"
+
 #include <asm/unaligned.h>
 
 #define CALC_TXRX_PADDED_LEN(dev, len)  (__ALIGN_MASK((len), (dev)->block_mask))
@@ -537,6 +539,8 @@ static int ath6kl_htc_tx_issue(struct htc_target *target,
 				packet->buf, padded_len,
 				HIF_WR_ASYNC_BLOCK_INC, packet);
 
+	trace_ath6kl_htc_tx(status, packet->endpoint, packet->buf, send_len);
+
 	return status;
 }
 
@@ -757,7 +761,8 @@ static void ath6kl_htc_tx_bundle(struct htc_endpoint *endpoint,
 {
 	struct htc_target *target = endpoint->target;
 	struct hif_scatter_req *scat_req = NULL;
-	int n_scat, n_sent_bundle = 0, tot_pkts_bundle = 0;
+	int n_scat, n_sent_bundle = 0, tot_pkts_bundle = 0, i;
+	struct htc_packet *packet;
 	int status;
 	u32 txb_mask;
 	u8 ac = WMM_NUM_AC;
@@ -832,6 +837,13 @@ static void ath6kl_htc_tx_bundle(struct htc_endpoint *endpoint,
 		ath6kl_dbg(ATH6KL_DBG_HTC,
 			   "htc tx scatter bytes %d entries %d\n",
 			   scat_req->len, scat_req->scat_entries);
+
+		for (i = 0; i < scat_req->scat_entries; i++) {
+			packet = scat_req->scat_list[i].packet;
+			trace_ath6kl_htc_tx(packet->status, packet->endpoint,
+					    packet->buf, packet->act_len);
+		}
+
 		ath6kl_hif_submit_scat_req(target->dev, scat_req, false);
 
 		if (status)
@@ -1903,6 +1915,7 @@ static void ath6kl_htc_rx_complete(struct htc_endpoint *endpoint,
 		ath6kl_dbg(ATH6KL_DBG_HTC,
 			   "htc rx complete ep %d packet 0x%p\n",
 			   endpoint->eid, packet);
+
 		endpoint->ep_cb.rx(endpoint->target, packet);
 }
 
@@ -2010,6 +2023,9 @@ static int ath6kl_htc_rx_process_packets(struct htc_target *target,
 
 	list_for_each_entry_safe(packet, tmp_pkt, comp_pktq, list) {
 		ep = &target->endpoint[packet->endpoint];
+
+		trace_ath6kl_htc_rx(packet->status, packet->endpoint,
+				    packet->buf, packet->act_len);
 
 		/* process header for each of the recv packet */
 		status = ath6kl_htc_rx_process_hdr(target, packet, lk_ahds,
@@ -2290,6 +2306,9 @@ static struct htc_packet *htc_wait_for_ctrl_msg(struct htc_target *target)
 	/* get the message from the device, this will block */
 	if (ath6kl_htc_rx_packet(target, packet, packet->act_len))
 		goto fail_ctrl_rx;
+
+	trace_ath6kl_htc_rx(packet->status, packet->endpoint,
+			    packet->buf, packet->act_len);
 
 	/* process receive header */
 	packet->status = ath6kl_htc_rx_process_hdr(target, packet, NULL, NULL);
