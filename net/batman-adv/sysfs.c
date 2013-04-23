@@ -21,6 +21,7 @@
 #include "sysfs.h"
 #include "translation-table.h"
 #include "distributed-arp-table.h"
+#include "network-coding.h"
 #include "originator.h"
 #include "hard-interface.h"
 #include "gateway_common.h"
@@ -447,7 +448,8 @@ static BATADV_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, batadv_show_gw_bwidth,
 BATADV_ATTR_SIF_UINT(log_level, S_IRUGO | S_IWUSR, 0, BATADV_DBG_ALL, NULL);
 #endif
 #ifdef CONFIG_BATMAN_ADV_NC
-BATADV_ATTR_SIF_BOOL(network_coding, S_IRUGO | S_IWUSR, NULL);
+BATADV_ATTR_SIF_BOOL(network_coding, S_IRUGO | S_IWUSR,
+		     batadv_nc_status_update);
 #endif
 
 static struct batadv_attribute *batadv_mesh_attrs[] = {

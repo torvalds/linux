@@ -59,6 +59,59 @@ static void batadv_nc_start_timer(struct batadv_priv *bat_priv)
 }
 
 /**
+ * batadv_nc_tvlv_container_update - update the network coding tvlv container
+ *  after network coding setting change
+ * @bat_priv: the bat priv with all the soft interface information
+ */
+static void batadv_nc_tvlv_container_update(struct batadv_priv *bat_priv)
+{
+	char nc_mode;
+
+	nc_mode = atomic_read(&bat_priv->network_coding);
+
+	switch (nc_mode) {
+	case 0:
+		batadv_tvlv_container_unregister(bat_priv, BATADV_TVLV_NC, 1);
+		break;
+	case 1:
+		batadv_tvlv_container_register(bat_priv, BATADV_TVLV_NC, 1,
+					       NULL, 0);
+		break;
+	}
+}
+
+/**
+ * batadv_nc_status_update - update the network coding tvlv container after
+ *  network coding setting change
+ * @net_dev: the soft interface net device
+ */
+void batadv_nc_status_update(struct net_device *net_dev)
+{
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
+	batadv_nc_tvlv_container_update(bat_priv);
+}
+
+/**
+ * batadv_nc_tvlv_ogm_handler_v1 - process incoming nc tvlv container
+ * @bat_priv: the bat priv with all the soft interface information
+ * @orig: the orig_node of the ogm
+ * @flags: flags indicating the tvlv state (see batadv_tvlv_handler_flags)
+ * @tvlv_value: tvlv buffer containing the gateway data
+ * @tvlv_value_len: tvlv buffer length
+ */
+static void batadv_nc_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
+					  struct batadv_orig_node *orig,
+					  uint8_t flags,
+					  void *tvlv_value,
+					  uint16_t tvlv_value_len)
+{
+	if (flags & BATADV_TVLV_HANDLER_OGM_CIFNOTFND)
+		orig->capabilities &= ~BATADV_ORIG_CAPA_HAS_NC;
+	else
+		orig->capabilities |= BATADV_ORIG_CAPA_HAS_NC;
+}
+
+/**
  * batadv_nc_mesh_init - initialise coding hash table and start house keeping
  * @bat_priv: the bat priv with all the soft interface information
  */
@@ -87,6 +140,10 @@ int batadv_nc_mesh_init(struct batadv_priv *bat_priv)
 	INIT_DELAYED_WORK(&bat_priv->nc.work, batadv_nc_worker);
 	batadv_nc_start_timer(bat_priv);
 
+	batadv_tvlv_handler_register(bat_priv, batadv_nc_tvlv_ogm_handler_v1,
+				     NULL, BATADV_TVLV_NC, 1,
+				     BATADV_TVLV_HANDLER_OGM_CIFNOTFND);
+	batadv_nc_tvlv_container_update(bat_priv);
 	return 0;
 
 err:
@@ -800,6 +857,10 @@ void batadv_nc_update_nc_node(struct batadv_priv *bat_priv,
 
 	/* Check if network coding is enabled */
 	if (!atomic_read(&bat_priv->network_coding))
+		goto out;
+
+	/* check if orig node is network coding enabled */
+	if (!(orig_node->capabilities & BATADV_ORIG_CAPA_HAS_NC))
 		goto out;
 
 	/* accept ogms from 'good' neighbors and single hop neighbors */
@@ -1735,6 +1796,8 @@ free_nc_packet:
  */
 void batadv_nc_mesh_free(struct batadv_priv *bat_priv)
 {
+	batadv_tvlv_container_unregister(bat_priv, BATADV_TVLV_NC, 1);
+	batadv_tvlv_handler_unregister(bat_priv, BATADV_TVLV_NC, 1);
 	cancel_delayed_work_sync(&bat_priv->nc.work);
 
 	batadv_nc_purge_paths(bat_priv, bat_priv->nc.coding_hash, NULL);
