@@ -121,9 +121,11 @@ enum batadv_bla_claimframe {
 /**
  * enum batadv_tvlv_type - tvlv type definitions
  * @BATADV_TVLV_GW: gateway tvlv
+ * @BATADV_TVLV_DAT: distributed arp table tvlv
  */
 enum batadv_tvlv_type {
 	BATADV_TVLV_GW		= 0x01,
+	BATADV_TVLV_DAT		= 0x02,
 };
 
 /* the destination hardware field in the ARP frame is used to

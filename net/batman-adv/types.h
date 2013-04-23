@@ -100,6 +100,7 @@ struct batadv_hard_iface {
  * @bcast_seqno_reset: time when the broadcast seqno window was reset
  * @batman_seqno_reset: time when the batman seqno window was reset
  * @flags: for now only VIS_SERVER flag
+ * @capabilities: announced capabilities of this originator
  * @last_ttvn: last seen translation table version number
  * @tt_crc: CRC of the translation table
  * @tt_buff: last tt changeset this node received from the orig node
@@ -147,6 +148,7 @@ struct batadv_orig_node {
 	unsigned long bcast_seqno_reset;
 	unsigned long batman_seqno_reset;
 	uint8_t flags;
+	uint8_t capabilities;
 	atomic_t last_ttvn;
 	uint16_t tt_crc;
 	unsigned char *tt_buff;
@@ -181,6 +183,14 @@ struct batadv_orig_node {
 	spinlock_t in_coding_list_lock; /* Protects in_coding_list */
 	spinlock_t out_coding_list_lock; /* Protects out_coding_list */
 #endif
+};
+
+/**
+ * enum batadv_orig_capabilities - orig node capabilities
+ * @BATADV_ORIG_CAPA_HAS_DAT: orig node has distributed arp table enabled
+ */
+enum batadv_orig_capabilities {
+	BATADV_ORIG_CAPA_HAS_DAT = BIT(0),
 };
 
 /**
