@@ -37,6 +37,7 @@ static int lpc32xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct lpc32xx_pwm_chip *lpc32xx = to_lpc32xx_pwm_chip(chip);
 	unsigned long long c;
 	int period_cycles, duty_cycles;
+	u32 val;
 
 	c = clk_get_rate(lpc32xx->clk) / 256;
 	c = c * period_ns;
@@ -68,8 +69,10 @@ static int lpc32xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		c = 255;
 	duty_cycles = 256 - c;
 
-	writel(PWM_ENABLE | PWM_RELOADV(period_cycles) | PWM_DUTY(duty_cycles),
-		lpc32xx->base + (pwm->hwpwm << 2));
+	val = readl(lpc32xx->base + (pwm->hwpwm << 2));
+	val &= ~0xFFFF;
+	val |= PWM_RELOADV(period_cycles) | PWM_DUTY(duty_cycles);
+	writel(val, lpc32xx->base + (pwm->hwpwm << 2));
 
 	return 0;
 }
