@@ -47,6 +47,7 @@
 #include <asm/iommu.h>
 
 #include "irq_remapping.h"
+#include "pci.h"
 
 #define ROOT_SIZE		VTD_PAGE_SIZE
 #define CONTEXT_SIZE		VTD_PAGE_SIZE
@@ -4135,12 +4136,6 @@ static int intel_iommu_domain_has_cap(struct iommu_domain *domain,
 		return irq_remapping_enabled;
 
 	return 0;
-}
-
-static void swap_pci_ref(struct pci_dev **from, struct pci_dev *to)
-{
-	pci_dev_put(*from);
-	*from = to;
 }
 
 #define REQ_ACS_FLAGS	(PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF)

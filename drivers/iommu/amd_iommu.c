@@ -46,6 +46,7 @@
 #include "amd_iommu_proto.h"
 #include "amd_iommu_types.h"
 #include "irq_remapping.h"
+#include "pci.h"
 
 #define CMD_SET_TYPE(cmd, t) ((cmd)->data[1] |= ((t) << 28))
 
@@ -261,12 +262,6 @@ static bool check_device(struct device *dev)
 		return false;
 
 	return true;
-}
-
-static void swap_pci_ref(struct pci_dev **from, struct pci_dev *to)
-{
-	pci_dev_put(*from);
-	*from = to;
 }
 
 static struct pci_bus *find_hosted_bus(struct pci_bus *bus)
