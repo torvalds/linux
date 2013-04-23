@@ -502,7 +502,7 @@ void cpsw_rx_handler(void *token, int len, int status)
 			return;
 
 		ret = cpdma_chan_submit(priv->rxch, skb, skb->data,
-					skb_tailroom(skb), 0, GFP_KERNEL);
+					skb_tailroom(skb), 0);
 	}
 	WARN_ON(ret < 0);
 }
@@ -747,14 +747,14 @@ static inline int cpsw_tx_packet_submit(struct net_device *ndev,
 {
 	if (!priv->data.dual_emac)
 		return cpdma_chan_submit(priv->txch, skb, skb->data,
-				  skb->len, 0, GFP_KERNEL);
+				  skb->len, 0);
 
 	if (ndev == cpsw_get_slave_ndev(priv, 0))
 		return cpdma_chan_submit(priv->txch, skb, skb->data,
-				  skb->len, 1, GFP_KERNEL);
+				  skb->len, 1);
 	else
 		return cpdma_chan_submit(priv->txch, skb, skb->data,
-				  skb->len, 2, GFP_KERNEL);
+				  skb->len, 2);
 }
 
 static inline void cpsw_add_dual_emac_def_ale_entries(
@@ -937,7 +937,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 			if (!skb)
 				goto err_cleanup;
 			ret = cpdma_chan_submit(priv->rxch, skb, skb->data,
-					skb_tailroom(skb), 0, GFP_KERNEL);
+					skb_tailroom(skb), 0);
 			if (ret < 0) {
 				kfree_skb(skb);
 				goto err_cleanup;

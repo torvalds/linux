@@ -1037,7 +1037,7 @@ static void emac_rx_handler(void *token, int len, int status)
 
 recycle:
 	ret = cpdma_chan_submit(priv->rxchan, skb, skb->data,
-			skb_tailroom(skb), 0, GFP_KERNEL);
+			skb_tailroom(skb), 0);
 
 	WARN_ON(ret == -ENOMEM);
 	if (unlikely(ret < 0))
@@ -1092,7 +1092,7 @@ static int emac_dev_xmit(struct sk_buff *skb, struct net_device *ndev)
 	skb_tx_timestamp(skb);
 
 	ret_code = cpdma_chan_submit(priv->txchan, skb, skb->data, skb->len,
-				     0, GFP_KERNEL);
+				     0);
 	if (unlikely(ret_code != 0)) {
 		if (netif_msg_tx_err(priv) && net_ratelimit())
 			dev_err(emac_dev, "DaVinci EMAC: desc submit failed");
@@ -1558,7 +1558,7 @@ static int emac_dev_open(struct net_device *ndev)
 			break;
 
 		ret = cpdma_chan_submit(priv->rxchan, skb, skb->data,
-					skb_tailroom(skb), 0, GFP_KERNEL);
+					skb_tailroom(skb), 0);
 		if (WARN_ON(ret < 0))
 			break;
 	}
