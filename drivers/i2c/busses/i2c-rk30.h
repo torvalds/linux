@@ -96,6 +96,7 @@ struct rk30_i2c {
         unsigned long		scl_rate;
 	unsigned long		i2c_rate;
         unsigned int        addr;
+	unsigned char	    addr_1st, addr_2nd;
         unsigned int        mode;
         unsigned int        count;
 
