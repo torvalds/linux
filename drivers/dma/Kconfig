@@ -172,15 +172,7 @@ config TEGRA20_APB_DMA
 	  This DMA controller transfers data from memory to peripheral fifo
 	  or vice versa. It does not support memory to memory data transfer.
 
-
-
-config SH_DMAE
-	tristate "Renesas SuperH DMAC support"
-	depends on (SUPERH && SH_DMA) || (ARM && ARCH_SHMOBILE)
-	depends on !SH_DMA_API
-	select DMA_ENGINE
-	help
-	  Enable support for the Renesas SuperH DMA controllers.
+source "drivers/dma/sh/Kconfig"
 
 config COH901318
 	bool "ST-Ericsson COH901318 DMA support"
