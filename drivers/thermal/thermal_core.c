@@ -1222,13 +1222,18 @@ free_mem:
 EXPORT_SYMBOL_GPL(thermal_zone_bind_cooling_device);
 
 /**
- * thermal_zone_unbind_cooling_device - unbind a cooling device from a thermal zone
- * @tz:		thermal zone device
+ * thermal_zone_unbind_cooling_device() - unbind a cooling device from a
+ *					  thermal zone.
+ * @tz:		pointer to a struct thermal_zone_device.
  * @trip:	indicates which trip point the cooling devices is
  *		associated with in this thermal zone.
- * @cdev:	thermal cooling device
+ * @cdev:	pointer to a struct thermal_cooling_device.
  *
+ * This interface function unbind a thermal cooling device from the certain
+ * trip point of a thermal zone device.
  * This function is usually called in the thermal zone device .unbind callback.
+ *
+ * Return: 0 on success, the proper error value otherwise.
  */
 int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
 				       int trip,
