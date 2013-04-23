@@ -225,11 +225,11 @@ static const struct das800_board das800_boards[] = {
 };
 
 struct das800_private {
-	volatile unsigned int count;	/* number of data points left to be taken */
-	volatile int forever;	/* flag indicating whether we should take data forever */
-	unsigned int divisor1;	/* value to load into board's counter 1 for timed conversions */
-	unsigned int divisor2;	/* value to load into board's counter 2 for timed conversions */
-	volatile int do_bits;	/* digital output bits */
+	unsigned int count;	/* number of data points left to be taken */
+	int forever;		/* flag that we should take data forever */
+	unsigned int divisor1;	/* counter 1 value for timed conversions */
+	unsigned int divisor2;	/* counter 2 value for timed conversions */
+	int do_bits;		/* digital output bits */
 };
 
 static void das800_ind_write(struct comedi_device *dev,
