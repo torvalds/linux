@@ -5026,8 +5026,21 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 		.cpus		= cpus,
 	};
 
+	/*
+	 * For NEWLY_IDLE load_balancing, we don't need to consider
+	 * other cpus in our group
+	 */
+	if (idle == CPU_NEWLY_IDLE) {
+		env.dst_grpmask = NULL;
+		/*
+		 * we don't care max_lb_iterations in this case,
+		 * in following patch, this will be removed
+		 */
+		max_lb_iterations = 0;
+	} else
+		max_lb_iterations = cpumask_weight(env.dst_grpmask);
+
 	cpumask_copy(cpus, cpu_active_mask);
-	max_lb_iterations = cpumask_weight(env.dst_grpmask);
 
 	schedstat_inc(sd, lb_count[idle]);
 
