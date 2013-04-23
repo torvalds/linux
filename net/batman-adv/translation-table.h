@@ -20,7 +20,6 @@
 #ifndef _NET_BATMAN_ADV_TRANSLATION_TABLE_H_
 #define _NET_BATMAN_ADV_TRANSLATION_TABLE_H_
 
-int batadv_tt_len(int changes_num);
 int batadv_tt_init(struct batadv_priv *bat_priv);
 void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 			 int ifindex);
@@ -43,11 +42,7 @@ struct batadv_orig_node *batadv_transtable_search(struct batadv_priv *bat_priv,
 						  const uint8_t *src,
 						  const uint8_t *addr);
 void batadv_tt_free(struct batadv_priv *bat_priv);
-bool batadv_send_tt_response(struct batadv_priv *bat_priv,
-			     struct batadv_tt_query_packet *tt_request);
 bool batadv_is_my_client(struct batadv_priv *bat_priv, const uint8_t *addr);
-void batadv_handle_tt_response(struct batadv_priv *bat_priv,
-			       struct batadv_tt_query_packet *tt_response);
 bool batadv_is_ap_isolated(struct batadv_priv *bat_priv, uint8_t *src,
 			   uint8_t *dst);
 void batadv_tt_local_commit_changes(struct batadv_priv *bat_priv);

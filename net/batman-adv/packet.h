@@ -31,7 +31,6 @@ enum batadv_packettype {
 	BATADV_BCAST		= 0x04,
 	BATADV_VIS		= 0x05,
 	BATADV_UNICAST_FRAG	= 0x06,
-	BATADV_TT_QUERY		= 0x07,
 	BATADV_ROAM_ADV		= 0x08,
 	BATADV_UNICAST_4ADDR	= 0x09,
 	BATADV_CODED		= 0x0a,
@@ -82,9 +81,6 @@ enum batadv_unicast_frag_flags {
 	BATADV_UNI_FRAG_HEAD	  = BIT(0),
 	BATADV_UNI_FRAG_LARGETAIL = BIT(1),
 };
-
-/* TT_QUERY subtypes */
-#define BATADV_TT_QUERY_TYPE_MASK 0x3
 
 /* tt data subtypes */
 #define BATADV_TT_DATA_TYPE_MASK 0x0F
@@ -271,41 +267,12 @@ struct batadv_vis_packet {
 	uint8_t  sender_orig[ETH_ALEN]; /* who sent or forwarded this packet */
 };
 
-struct batadv_tt_query_packet {
-	struct batadv_header header;
-	/* the flag field is a combination of:
-	 * - TT_REQUEST or TT_RESPONSE
-	 * - TT_FULL_TABLE
-	 */
-	uint8_t  flags;
-	uint8_t  dst[ETH_ALEN];
-	uint8_t  src[ETH_ALEN];
-	/* the ttvn field is:
-	 * if TT_REQUEST: ttvn that triggered the
-	 *		  request
-	 * if TT_RESPONSE: new ttvn for the src
-	 *		   orig_node
-	 */
-	uint8_t  ttvn;
-	/* tt_data field is:
-	 * if TT_REQUEST: crc associated with the
-	 *		  ttvn
-	 * if TT_RESPONSE: table_size
-	 */
-	__be16 tt_data;
-} __packed;
-
 struct batadv_roam_adv_packet {
 	struct batadv_header header;
 	uint8_t  reserved;
 	uint8_t  dst[ETH_ALEN];
 	uint8_t  src[ETH_ALEN];
 	uint8_t  client[ETH_ALEN];
-} __packed;
-
-struct batadv_tt_change {
-	uint8_t flags;
-	uint8_t addr[ETH_ALEN];
 } __packed;
 
 /**
