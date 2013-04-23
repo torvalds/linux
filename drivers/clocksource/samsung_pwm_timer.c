@@ -176,6 +176,19 @@ static void samsung_time_start(unsigned int channel, bool periodic)
 static int samsung_set_next_event(unsigned long cycles,
 				struct clock_event_device *evt)
 {
+	/*
+	 * This check is needed to account for internal rounding
+	 * errors inside clockevents core, which might result in
+	 * passing cycles = 0, which in turn would not generate any
+	 * timer interrupt and hang the system.
+	 *
+	 * Another solution would be to set up the clockevent device
+	 * with min_delta = 2, but this would unnecessarily increase
+	 * the minimum sleep period.
+	 */
+	if (!cycles)
+		cycles = 1;
+
 	samsung_time_setup(pwm.event_id, cycles);
 	samsung_time_start(pwm.event_id, false);
 
