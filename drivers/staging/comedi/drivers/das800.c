@@ -169,51 +169,59 @@ static const struct comedi_lrange range_das80216_ai = {
 	}
 };
 
-enum { das800, ciodas800, das801, ciodas801, das802, ciodas802, ciodas80216 };
+enum das800_boardinfo {
+	BOARD_DAS800,
+	BOARD_CIODAS800,
+	BOARD_DAS801,
+	BOARD_CIODAS801,
+	BOARD_DAS802,
+	BOARD_CIODAS802,
+	BOARD_CIODAS80216,
+};
 
 static const struct das800_board das800_boards[] = {
-	{
-	 .name = "das-800",
-	 .ai_speed = 25000,
-	 .ai_range = &range_bipolar5,
-	 .resolution = 12,
-	 },
-	{
-	 .name = "cio-das800",
-	 .ai_speed = 20000,
-	 .ai_range = &range_bipolar5,
-	 .resolution = 12,
-	 },
-	{
-	 .name = "das-801",
-	 .ai_speed = 25000,
-	 .ai_range = &range_das801_ai,
-	 .resolution = 12,
-	 },
-	{
-	 .name = "cio-das801",
-	 .ai_speed = 20000,
-	 .ai_range = &range_cio_das801_ai,
-	 .resolution = 12,
-	 },
-	{
-	 .name = "das-802",
-	 .ai_speed = 25000,
-	 .ai_range = &range_das802_ai,
-	 .resolution = 12,
-	 },
-	{
-	 .name = "cio-das802",
-	 .ai_speed = 20000,
-	 .ai_range = &range_das802_ai,
-	 .resolution = 12,
-	 },
-	{
-	 .name = "cio-das802/16",
-	 .ai_speed = 10000,
-	 .ai_range = &range_das80216_ai,
-	 .resolution = 16,
-	 },
+	[BOARD_DAS800] = {
+		.name		= "das-800",
+		.ai_speed	= 25000,
+		.ai_range	= &range_bipolar5,
+		.resolution	= 12,
+	},
+	[BOARD_CIODAS800] = {
+		.name		= "cio-das800",
+		.ai_speed	= 20000,
+		.ai_range	= &range_bipolar5,
+		.resolution	= 12,
+	},
+	[BOARD_DAS801] = {
+		.name		= "das-801",
+		.ai_speed	= 25000,
+		.ai_range	= &range_das801_ai,
+		.resolution	= 12,
+	},
+	[BOARD_CIODAS801] = {
+		.name		= "cio-das801",
+		.ai_speed	= 20000,
+		.ai_range	= &range_cio_das801_ai,
+		.resolution	= 12,
+	},
+	[BOARD_DAS802] = {
+		.name		= "das-802",
+		.ai_speed	= 25000,
+		.ai_range	= &range_das802_ai,
+		.resolution	= 12,
+	},
+	[BOARD_CIODAS802] = {
+		.name		= "cio-das802",
+		.ai_speed	= 20000,
+		.ai_range	= &range_das802_ai,
+		.resolution	= 12,
+	},
+	[BOARD_CIODAS80216] = {
+		.name		= "cio-das802/16",
+		.ai_speed	= 10000,
+		.ai_range	= &range_das80216_ai,
+		.resolution	= 16,
+	},
 };
 
 struct das800_private {
@@ -670,65 +678,41 @@ static int das800_do_wbits(struct comedi_device *dev,
 static int das800_probe(struct comedi_device *dev)
 {
 	const struct das800_board *thisboard = comedi_board(dev);
+	int board = thisboard ? thisboard - das800_boards : -EINVAL;
 	int id_bits;
 	unsigned long irq_flags;
-	int board;
 
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	id_bits = das800_ind_read(dev, ID) & 0x3;
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
-	board = thisboard - das800_boards;
-
 	switch (id_bits) {
 	case 0x0:
-		if (board == das800) {
-			dev_dbg(dev->class_dev, "Board model: DAS-800\n");
-			return board;
-		}
-		if (board == ciodas800) {
-			dev_dbg(dev->class_dev, "Board model: CIO-DAS800\n");
-			return board;
-		}
+		if (board == BOARD_DAS800 || board == BOARD_CIODAS800)
+			break;
 		dev_dbg(dev->class_dev, "Board model (probed): DAS-800\n");
-		return das800;
+		board = BOARD_DAS800;
 		break;
 	case 0x2:
-		if (board == das801) {
-			dev_dbg(dev->class_dev, "Board model: DAS-801\n");
-			return board;
-		}
-		if (board == ciodas801) {
-			dev_dbg(dev->class_dev, "Board model: CIO-DAS801\n");
-			return board;
-		}
+		if (board == BOARD_DAS801 || board == BOARD_CIODAS801)
+			break;
 		dev_dbg(dev->class_dev, "Board model (probed): DAS-801\n");
-		return das801;
+		board = BOARD_DAS801;
 		break;
 	case 0x3:
-		if (board == das802) {
-			dev_dbg(dev->class_dev, "Board model: DAS-802\n");
-			return board;
-		}
-		if (board == ciodas802) {
-			dev_dbg(dev->class_dev, "Board model: CIO-DAS802\n");
-			return board;
-		}
-		if (board == ciodas80216) {
-			dev_dbg(dev->class_dev, "Board model: CIO-DAS802/16\n");
-			return board;
-		}
+		if (board == BOARD_DAS802 || board == BOARD_CIODAS802 ||
+		    board == BOARD_CIODAS80216)
+			break;
 		dev_dbg(dev->class_dev, "Board model (probed): DAS-802\n");
-		return das802;
+		board = BOARD_DAS802;
 		break;
 	default:
-		dev_dbg(dev->class_dev,
-			"Board model: probe returned 0x%x (unknown)\n",
+		dev_dbg(dev->class_dev, "Board model: 0x%x (unknown)\n",
 			id_bits);
-		return board;
+		board = -EINVAL;
 		break;
 	}
-	return -1;
+	return board;
 }
 
 static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
