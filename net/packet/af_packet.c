@@ -339,6 +339,37 @@ static int __packet_get_status(struct packet_sock *po, void *frame)
 	}
 }
 
+static void __packet_set_timestamp(struct packet_sock *po, void *frame,
+				   ktime_t tstamp)
+{
+	union tpacket_uhdr h;
+	struct timespec ts;
+
+	if (!ktime_to_timespec_cond(tstamp, &ts) ||
+	    !sock_flag(&po->sk, SOCK_TIMESTAMPING_SOFTWARE))
+		return;
+
+	h.raw = frame;
+	switch (po->tp_version) {
+	case TPACKET_V1:
+		h.h1->tp_sec = ts.tv_sec;
+		h.h1->tp_usec = ts.tv_nsec / NSEC_PER_USEC;
+		break;
+	case TPACKET_V2:
+		h.h2->tp_sec = ts.tv_sec;
+		h.h2->tp_nsec = ts.tv_nsec;
+		break;
+	case TPACKET_V3:
+	default:
+		WARN(1, "TPACKET version not supported.\n");
+		BUG();
+	}
+
+	/* one flush is safe, as both fields always lie on the same cacheline */
+	flush_dcache_page(pgv_to_page(&h.h1->tp_sec));
+	smp_wmb();
+}
+
 static void *packet_lookup_frame(struct packet_sock *po,
 		struct packet_ring_buffer *rb,
 		unsigned int position,
@@ -1877,6 +1908,7 @@ static void tpacket_destruct_skb(struct sk_buff *skb)
 		ph = skb_shinfo(skb)->destructor_arg;
 		BUG_ON(atomic_read(&po->tx_ring.pending) == 0);
 		atomic_dec(&po->tx_ring.pending);
+		__packet_set_timestamp(po, ph, skb->tstamp);
 		__packet_set_status(po, ph, TP_STATUS_AVAILABLE);
 	}
 
@@ -1900,6 +1932,7 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 	skb->dev = dev;
 	skb->priority = po->sk.sk_priority;
 	skb->mark = po->sk.sk_mark;
+	sock_tx_timestamp(&po->sk, &skb_shinfo(skb)->tx_flags);
 	skb_shinfo(skb)->destructor_arg = ph.raw;
 
 	switch (po->tp_version) {
