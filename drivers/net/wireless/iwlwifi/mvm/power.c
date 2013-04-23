@@ -138,7 +138,8 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/* Check skip over DTIM conditions */
 	if (!radar_detect && (dtimper <= 10) &&
-	    (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP)) {
+	    (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP ||
+	     mvm->cur_ucode == IWL_UCODE_WOWLAN)) {
 		cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
 		cmd->num_skip_dtim = cpu_to_le32(2);
 	}
@@ -150,8 +151,13 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	keep_alive = DIV_ROUND_UP(keep_alive, MSEC_PER_SEC);
 	cmd->keep_alive_seconds = keep_alive;
 
-	cmd->rx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
-	cmd->tx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
+	if (mvm->cur_ucode != IWL_UCODE_WOWLAN) {
+		cmd->rx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
+		cmd->tx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
+	} else {
+		cmd->rx_data_timeout = cpu_to_le32(10 * USEC_PER_MSEC);
+		cmd->tx_data_timeout = cpu_to_le32(10 * USEC_PER_MSEC);
+	}
 }
 
 int iwl_mvm_power_update_mode(struct iwl_mvm *mvm, struct ieee80211_vif *vif)

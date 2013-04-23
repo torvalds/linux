@@ -1007,6 +1007,10 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	if (ret)
 		goto out;
 
+	ret = iwl_mvm_power_update_mode(mvm, vif);
+	if (ret)
+		goto out;
+
 	/* must be last -- this switches firmware state */
 	ret = iwl_mvm_send_cmd_pdu(mvm, D3_CONFIG_CMD, CMD_SYNC,
 				   sizeof(d3_cfg_cmd), &d3_cfg_cmd);
