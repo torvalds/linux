@@ -228,10 +228,10 @@ static const struct das800_board das800_boards[] = {
 
 struct das800_private {
 	unsigned int count;	/* number of data points left to be taken */
-	int forever;		/* flag that we should take data forever */
 	unsigned int divisor1;	/* counter 1 value for timed conversions */
 	unsigned int divisor2;	/* counter 2 value for timed conversions */
-	int do_bits;		/* digital output bits */
+	unsigned int do_bits;	/* digital output bits */
+	bool forever;		/* flag that we should take data forever */
 };
 
 static void das800_ind_write(struct comedi_device *dev,
@@ -301,7 +301,7 @@ static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct das800_private *devpriv = dev->private;
 
-	devpriv->forever = 0;
+	devpriv->forever = false;
 	devpriv->count = 0;
 	das800_disable(dev);
 	return 0;
@@ -434,10 +434,10 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	switch (async->cmd.stop_src) {
 	case TRIG_COUNT:
 		devpriv->count = async->cmd.stop_arg * async->cmd.chanlist_len;
-		devpriv->forever = 0;
+		devpriv->forever = false;
 		break;
 	case TRIG_NONE:
-		devpriv->forever = 1;
+		devpriv->forever = true;
 		devpriv->count = 0;
 		break;
 	default:
