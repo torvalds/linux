@@ -3657,6 +3657,7 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 		ironlake_disable_rc6(dev);
 	} else if (INTEL_INFO(dev)->gen >= 6) {
 		cancel_delayed_work_sync(&dev_priv->rps.delayed_resume_work);
+		cancel_work_sync(&dev_priv->rps.work);
 		if (IS_VALLEYVIEW(dev))
 			cancel_delayed_work_sync(&dev_priv->rps.vlv_work);
 		mutex_lock(&dev_priv->rps.hw_lock);
