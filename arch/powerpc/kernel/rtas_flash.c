@@ -57,13 +57,26 @@
 #define VALIDATE_READY	       -1001 /* Firmware image ready for validation */
 #define VALIDATE_PARAM_ERR     -3    /* RTAS Parameter Error */
 #define VALIDATE_HW_ERR        -1    /* RTAS Hardware Error */
-#define VALIDATE_TMP_UPDATE    0     /* Validate Return Status */
-#define VALIDATE_FLASH_AUTH    1     /* Validate Return Status */
-#define VALIDATE_INVALID_IMG   2     /* Validate Return Status */
-#define VALIDATE_CUR_UNKNOWN   3     /* Validate Return Status */
-#define VALIDATE_TMP_COMMIT_DL 4     /* Validate Return Status */
-#define VALIDATE_TMP_COMMIT    5     /* Validate Return Status */
-#define VALIDATE_TMP_UPDATE_DL 6     /* Validate Return Status */
+
+/* ibm,validate-flash-image update result tokens */
+#define VALIDATE_TMP_UPDATE    0     /* T side will be updated */
+#define VALIDATE_FLASH_AUTH    1     /* Partition does not have authority */
+#define VALIDATE_INVALID_IMG   2     /* Candidate image is not valid */
+#define VALIDATE_CUR_UNKNOWN   3     /* Current fixpack level is unknown */
+/*
+ * Current T side will be committed to P side before being replace with new
+ * image, and the new image is downlevel from current image
+ */
+#define VALIDATE_TMP_COMMIT_DL 4
+/*
+ * Current T side will be committed to P side before being replaced with new
+ * image
+ */
+#define VALIDATE_TMP_COMMIT    5
+/*
+ * T side will be updated with a downlevel image
+ */
+#define VALIDATE_TMP_UPDATE_DL 6
 
 /* ibm,manage-flash-image operation tokens */
 #define RTAS_REJECT_TMP_IMG   0
