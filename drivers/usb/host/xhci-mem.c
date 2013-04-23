@@ -358,11 +358,15 @@ int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 static struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
 						    int type, gfp_t flags)
 {
-	struct xhci_container_ctx *ctx = kzalloc(sizeof(*ctx), flags);
+	struct xhci_container_ctx *ctx;
+
+	if ((type != XHCI_CTX_TYPE_DEVICE) && (type != XHCI_CTX_TYPE_INPUT))
+		return NULL;
+
+	ctx = kzalloc(sizeof(*ctx), flags);
 	if (!ctx)
 		return NULL;
 
-	BUG_ON((type != XHCI_CTX_TYPE_DEVICE) && (type != XHCI_CTX_TYPE_INPUT));
 	ctx->type = type;
 	ctx->size = HCC_64BYTE_CONTEXT(xhci->hcc_params) ? 2048 : 1024;
 	if (type == XHCI_CTX_TYPE_INPUT)
