@@ -69,7 +69,7 @@
 		agpio0: gpio@0xc0000000 {
 			compatible = "altr,pio-1.0";
 			/* Register base 0xff200000 is for a light-weight bridge */
-			reg = <0xff200000 0x10>;
+			reg = <0xff210040 0x10>;
 			width = <32>;
 			/* There are 64 interrupts from the FPGA start at 72, so 45 has to be wrong */
 			interrupts = <0 45 4>;
