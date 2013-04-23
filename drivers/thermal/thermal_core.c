@@ -1580,7 +1580,7 @@ static void remove_trip_attrs(struct thermal_zone_device *tz)
 }
 
 /**
- * thermal_zone_device_register - register a new thermal zone device
+ * thermal_zone_device_register() - register a new thermal zone device
  * @type:	the thermal zone device type
  * @trips:	the number of trip points the thermal zone support
  * @mask:	a bit string indicating the writeablility of trip points
@@ -1593,8 +1593,15 @@ static void remove_trip_attrs(struct thermal_zone_device *tz)
  *		   whether trip points have been crossed (0 for interrupt
  *		   driven systems)
  *
+ * This interface function adds a new thermal zone device (sensor) to
+ * /sys/class/thermal folder as thermal_zone[0-*]. It tries to bind all the
+ * thermal cooling devices registered at the same time.
  * thermal_zone_device_unregister() must be called when the device is no
  * longer needed. The passive cooling depends on the .get_trend() return value.
+ *
+ * Return: a pointer to the created struct thermal_zone_device or an
+ * in case of error, an ERR_PTR. Caller must check return value with
+ * IS_ERR*() helpers.
  */
 struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	int trips, int mask, void *devdata,
