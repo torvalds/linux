@@ -16,3 +16,9 @@ config SH_DMAE
 	depends on SH_DMAE_BASE
 	help
 	  Enable support for the Renesas SuperH DMA controllers.
+
+config SUDMAC
+	tristate "Renesas SUDMAC support"
+	depends on SH_DMAE_BASE
+	help
+	  Enable support for the Renesas SUDMAC controllers.
