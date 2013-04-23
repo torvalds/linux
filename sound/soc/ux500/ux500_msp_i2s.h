@@ -543,6 +543,7 @@ struct ux500_msp_dma_params {
 	struct stedma40_chan_cfg *dma_cfg;
 };
 
+struct msp_i2s_platform_data;
 int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 			struct ux500_msp **msp_p,
 			struct msp_i2s_platform_data *platform_data);
