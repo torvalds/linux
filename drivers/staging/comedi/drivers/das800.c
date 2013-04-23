@@ -412,12 +412,6 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	unsigned long irq_flags;
 	struct comedi_async *async = s->async;
 
-	if (!dev->irq) {
-		comedi_error(dev,
-			     "no irq assigned for das-800, cannot do hardware conversions");
-		return -1;
-	}
-
 	disable_das800(dev);
 
 	/* set channel scan limits */
@@ -767,16 +761,19 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* analog input subdevice */
 	s = &dev->subdevices[0];
 	dev->read_subdev = s;
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
-	s->n_chan = 8;
-	s->len_chanlist = 8;
-	s->maxdata = (1 << thisboard->resolution) - 1;
-	s->range_table = thisboard->ai_range;
-	s->do_cmd = das800_ai_do_cmd;
-	s->do_cmdtest = das800_ai_do_cmdtest;
-	s->insn_read = das800_ai_rinsn;
-	s->cancel = das800_cancel;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND;
+	s->n_chan	= 8;
+	s->maxdata	= (1 << thisboard->resolution) - 1;
+	s->range_table	= thisboard->ai_range;
+	s->insn_read	= das800_ai_rinsn;
+	if (dev->irq) {
+		s->subdev_flags	|= SDF_CMD_READ;
+		s->len_chanlist	= 8;
+		s->do_cmdtest	= das800_ai_do_cmdtest;
+		s->do_cmd	= das800_ai_do_cmd;
+		s->cancel	= das800_cancel;
+	}
 
 	/* di */
 	s = &dev->subdevices[1];
