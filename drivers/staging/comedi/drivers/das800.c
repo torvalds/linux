@@ -253,8 +253,7 @@ static unsigned das800_ind_read(struct comedi_device *dev, unsigned reg)
 	return inb(dev->iobase + 7);
 }
 
-/* enable_das800 makes the card start taking hardware triggered conversions */
-static void enable_das800(struct comedi_device *dev)
+static void das800_enable(struct comedi_device *dev)
 {
 	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv = dev->private;
@@ -271,8 +270,7 @@ static void enable_das800(struct comedi_device *dev)
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 }
 
-/* disable_das800 stops hardware triggered conversions */
-static void disable_das800(struct comedi_device *dev)
+static void das800_disable(struct comedi_device *dev)
 {
 	unsigned long irq_flags;
 
@@ -303,7 +301,7 @@ static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->forever = 0;
 	devpriv->count = 0;
-	disable_das800(dev);
+	das800_disable(dev);
 	return 0;
 }
 
@@ -412,7 +410,7 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	unsigned long irq_flags;
 	struct comedi_async *async = s->async;
 
-	disable_das800(dev);
+	das800_disable(dev);
 
 	/* set channel scan limits */
 	startChan = CR_CHAN(async->cmd.chanlist[0]);
@@ -476,7 +474,7 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	async->events = 0;
-	enable_das800(dev);
+	das800_enable(dev);
 	return 0;
 }
 
@@ -569,7 +567,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 		/* otherwise, stop taking data */
 	} else {
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-		disable_das800(dev);	/* disable hardware triggered conversions */
+		das800_disable(dev);
 		async->events |= COMEDI_CB_EOA;
 	}
 	comedi_event(dev, s);
@@ -591,7 +589,7 @@ static int das800_ai_insn_read(struct comedi_device *dev,
 	int timeout = 1000;
 	unsigned long irq_flags;
 
-	disable_das800(dev);	/* disable hardware conversions (enables software conversions) */
+	das800_disable(dev);
 
 	/* set multiplexer */
 	chan = CR_CHAN(insn->chanspec);
@@ -788,7 +786,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table	= &range_digital;
 	s->insn_bits	= das800_do_insn_bits;
 
-	disable_das800(dev);
+	das800_disable(dev);
 
 	/* initialize digital out channels */
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
