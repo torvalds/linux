@@ -95,8 +95,8 @@ cmd triggers supported:
 #define   IRQ                   0x8
 #define   BUSY                  0x80
 #define DAS800_GAIN           3
-#define   CIO_FFOV              0x8	/*  fifo overflow for cio-das802/16 */
-#define   CIO_ENHF              0x90	/*  interrupt fifo half full for cio-das802/16 */
+#define   CIO_FFOV              0x8   /* cio-das802/16 fifo overflow */
+#define   CIO_ENHF              0x90  /* cio-das802/16 fifo half full int ena */
 #define   CONTROL1              0x80
 #define   CONV_CONTROL          0xa0
 #define   SCAN_LIMITS           0xc0
