@@ -44,8 +44,10 @@
 #define CW_I2C_SPEED            100000          // default i2c speed set 100khz
 
 #define BATTERY_UP_MAX_CHANGE   600             // the max time allow battery change quantity
-#define BATTERY_DOWN_MIN_CHANGE_RUN 60          // the min time allow battery change quantity when run
-#define BATTERY_DOWN_MIN_CHANGE_SLEEP 3600      // the min time allow battery change quantity when run 1h
+#define BATTERY_DOWN_MIN_CHANGE_RUN 30          // the min time allow battery change quantity when run
+#define BATTERY_DOWN_MIN_CHANGE_SLEEP 1800      // the min time allow battery change quantity when run 30min
+
+#define BATTERY_DOWN_MAX_CHANGE_RUN_AC_ONLINE 1800
 
 #define Enable_BATDRV_LOG       0
 
@@ -66,10 +68,10 @@ struct cw_battery {
         struct power_supply rk_ac;
         struct power_supply rk_usb;
 
-        long sleep_time_capacity;
+        long sleep_time_capacity;      // the sleep time from capacity change to present, it will set 0 when capacity change 
         long run_time_capacity;
 
-        long sleep_time_ac_online;
+        long sleep_time_ac_online;      // the sleep time from insert ac to present, it will set 0 when insert ac
         long run_time_ac_online;
 
         int dc_online;
@@ -279,6 +281,26 @@ static void cw_update_time_member_capacity(struct cw_battery *cw_bat)
         cw_bat->sleep_time_capacity = new_sleep_time; 
 }
 
+static int cw_quickstart(struct cw_battery *cw_bat)
+{
+        int ret = 0;
+        u8 reg_val = MODE_QUICK_START | MODE_NORMAL;
+
+        ret = cw_write(cw_bat->client, REG_MODE, &reg_val);     //(MODE_QUICK_START | MODE_NORMAL));  // 0x30
+        if(ret < 0) {
+                printk("Error quick start1\n");
+                return ret;
+        }
+        
+        reg_val = MODE_NORMAL;
+        ret = cw_write(cw_bat->client, REG_MODE, &reg_val);
+        if(ret < 0) {
+                printk("Error quick start2\n");
+                return ret;
+        }
+        return 1;
+}
+
 static int cw_get_capacity(struct cw_battery *cw_bat)
 {
         int cw_capacity;
@@ -291,6 +313,7 @@ static int cw_get_capacity(struct cw_battery *cw_bat)
         long capacity_or_aconline_time;
         int allow_change;
         int allow_capacity;
+        static int if_quickstart = 0;
 
 
         ret = cw_read(cw_bat->client, REG_SOC, &reg_val);
@@ -304,7 +327,7 @@ static int cw_get_capacity(struct cw_battery *cw_bat)
         } 
 
         if (cw_capacity == 0) 
-                printk("the cw201x capacity is 0 !!!!!!!, funciton: %s, line: %d\n", __func__, __LINE__);
+                xprintk("the cw201x capacity is 0 !!!!!!!, funciton: %s, line: %d\n", __func__, __LINE__);
         else 
                 xprintk("the cw201x capacity is %d, funciton: %s\n", cw_capacity, __func__);
 
@@ -316,7 +339,7 @@ static int cw_get_capacity(struct cw_battery *cw_bat)
         get_monotonic_boottime(&ts);
         new_sleep_time = ts.tv_sec - new_run_time;
 
-        if ((cw_bat->dc_online == 1) && (cw_capacity >= 95) && (cw_capacity <= cw_bat->capacity) && (cw_bat->capacity != 100)) {     // avoid no charge full
+        if ((cw_bat->dc_online == 1) && (cw_capacity >= 95) && (cw_capacity <= cw_bat->capacity)) {     // avoid no charge full
 
                 capacity_or_aconline_time = (cw_bat->sleep_time_capacity > cw_bat->sleep_time_ac_online) ? cw_bat->sleep_time_capacity : cw_bat->sleep_time_ac_online;
                 capacity_or_aconline_time += (cw_bat->run_time_capacity > cw_bat->run_time_ac_online) ? cw_bat->run_time_capacity : cw_bat->run_time_ac_online;
@@ -329,7 +352,10 @@ static int cw_get_capacity(struct cw_battery *cw_bat)
         } else if (((cw_bat->dc_online == 1) && (cw_capacity == (cw_bat->capacity - 1)))
                         || ((cw_bat->dc_online == 0) && (cw_capacity == (cw_bat->capacity + 1)))) {             // modify battery level swing
 
-                cw_capacity = cw_bat->capacity;
+                if (!(cw_capacity == 0 && cw_bat->capacity == 1)) {			
+		        cw_capacity = cw_bat->capacity;
+		}
+				
 
         } else if ((cw_capacity == 0) && (cw_bat->capacity > 1)) {              // avoid battery level jump to 0% at a moment from more than 2%
                 allow_change = ((new_run_time - cw_bat->run_time_capacity) / BATTERY_DOWN_MIN_CHANGE_RUN);
@@ -339,6 +365,23 @@ static int cw_get_capacity(struct cw_battery *cw_bat)
                 cw_capacity = (allow_capacity >= cw_capacity) ? allow_capacity: cw_capacity;
         } 
  
+#if 1	
+	if((cw_bat->dc_online == 1) &&(cw_capacity == 0))
+	{		  
+                if (((new_sleep_time + new_run_time - cw_bat->sleep_time_ac_online - cw_bat->run_time_ac_online) > BATTERY_DOWN_MAX_CHANGE_RUN_AC_ONLINE) && (if_quickstart == 0)) {
+        		cw_quickstart(cw_bat);      // if the cw_capacity = 0 the cw2015 will qstrt
+                        if_quickstart = 1;
+                } else if (if_quickstart == 1) {
+                        if_quickstart = 0;
+                }
+	} else if (if_quickstart == 1) {
+                if_quickstart = 0;
+        }
+#endif
+
+        if((cw_capacity == 100) && (gpio_get_value(cw_bat->plat_data->chg_ok_pin) != cw_bat->plat_data->chg_ok_level))
+                cw_capacity = 99;
+
         return cw_capacity;
 }
 
@@ -346,7 +389,7 @@ static int cw_get_vol(struct cw_battery *cw_bat)
 {
         int ret;
         u8 reg_val;
-        u16 value16;
+        u16 value16, value16_1, value16_2, value16_3;
         int voltage;
 
         ret = cw_read(cw_bat->client, REG_VCELL, &reg_val);
@@ -359,8 +402,55 @@ static int cw_get_vol(struct cw_battery *cw_bat)
         if (ret < 0)
                 return ret;
 
-        value16 = (value16 << 8) + value16;
-        voltage = value16 * 312 / 1024;
+        value16 = (value16 << 8) + reg_val;
+        
+        ret = cw_read(cw_bat->client, REG_VCELL, &reg_val);
+        if (ret < 0)
+                return ret;
+
+        value16_1 = reg_val;
+
+        ret = cw_read(cw_bat->client, REG_VCELL + 1, &reg_val);
+        if (ret < 0)
+                return ret;
+
+        value16_1 = (value16_1 << 8) + reg_val;
+        
+        ret = cw_read(cw_bat->client, REG_VCELL, &reg_val);
+        if (ret < 0)
+                return ret;
+
+        value16_2 = reg_val;
+
+        ret = cw_read(cw_bat->client, REG_VCELL + 1, &reg_val);
+        if (ret < 0)
+                return ret;
+
+        value16_2 = (value16_2 << 8) + reg_val;
+		
+		
+        if(value16 > value16_1)
+	    {	 
+	    	value16_3 = value16;
+		    value16 = value16_1;
+		    value16_1 = value16_3;
+        }
+		
+        if(value16_1 > value16_2)
+	    {
+	    	value16_3 =value16_1;
+			value16_1 =value16_2;
+			value16_2 =value16_3;
+	    }
+			
+        if(value16 >value16_1)
+	    {	 
+	    	value16_3 =value16;
+			value16 =value16_1;
+			value16_1 =value16_3;
+        }			
+
+        voltage = value16_1 * 312 / 1024;
 
         return voltage;
 }
