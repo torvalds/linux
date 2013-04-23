@@ -84,8 +84,10 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 		return PTR_ERR(channels);
 
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);
-	if (st == NULL)
-		return -ENOMEM;
+	if (st == NULL) {
+		ret = -ENOMEM;
+		goto error_release_channels;
+	}
 
 	st->channels = channels;
 
