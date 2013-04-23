@@ -737,22 +737,14 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->board_ptr = das800_boards + board;
 	thisboard = comedi_board(dev);
-
-	/* grab our IRQ */
-	if (irq == 1 || irq > 7) {
-		dev_err(dev->class_dev, "irq out of range\n");
-		return -EINVAL;
-	}
-	if (irq) {
-		if (request_irq(irq, das800_interrupt, 0, "das800", dev)) {
-			dev_err(dev->class_dev, "unable to allocate irq %u\n",
-				irq);
-			return -EINVAL;
-		}
-	}
-	dev->irq = irq;
-
 	dev->board_name = thisboard->name;
+
+	if (irq > 1 && irq <= 7) {
+		ret = request_irq(irq, das800_interrupt, 0, dev->board_name,
+				  dev);
+		if (ret == 0)
+			dev->irq = irq;
+	}
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
