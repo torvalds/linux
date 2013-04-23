@@ -462,9 +462,9 @@ static void daqboard2000_resetLocalBus(struct comedi_device *dev)
 	struct daqboard2000_private *devpriv = dev->private;
 
 	writel(DAQBOARD2000_SECRLocalBusHi, devpriv->plx + 0x6c);
-	udelay(10000);
+	mdelay(10);
 	writel(DAQBOARD2000_SECRLocalBusLo, devpriv->plx + 0x6c);
-	udelay(10000);
+	mdelay(10);
 }
 
 static void daqboard2000_reloadPLX(struct comedi_device *dev)
@@ -472,11 +472,11 @@ static void daqboard2000_reloadPLX(struct comedi_device *dev)
 	struct daqboard2000_private *devpriv = dev->private;
 
 	writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
-	udelay(10000);
+	mdelay(10);
 	writel(DAQBOARD2000_SECRReloadHi, devpriv->plx + 0x6c);
-	udelay(10000);
+	mdelay(10);
 	writel(DAQBOARD2000_SECRReloadLo, devpriv->plx + 0x6c);
-	udelay(10000);
+	mdelay(10);
 }
 
 static void daqboard2000_pulseProgPin(struct comedi_device *dev)
@@ -484,9 +484,9 @@ static void daqboard2000_pulseProgPin(struct comedi_device *dev)
 	struct daqboard2000_private *devpriv = dev->private;
 
 	writel(DAQBOARD2000_SECRProgPinHi, devpriv->plx + 0x6c);
-	udelay(10000);
+	mdelay(10);
 	writel(DAQBOARD2000_SECRProgPinLo, devpriv->plx + 0x6c);
-	udelay(10000);	/* Not in the original code, but I like symmetry... */
+	mdelay(10);	/* Not in the original code, but I like symmetry... */
 }
 
 static int daqboard2000_pollCPLD(struct comedi_device *dev, int mask)
