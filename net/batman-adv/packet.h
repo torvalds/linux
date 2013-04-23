@@ -20,6 +20,10 @@
 #ifndef _NET_BATMAN_ADV_PACKET_H_
 #define _NET_BATMAN_ADV_PACKET_H_
 
+/**
+ * enum batadv_packettype - types for batman-adv encapsulated packets
+ * @BATADV_UNICAST_TVLV: unicast packet carrying TVLV containers
+ */
 enum batadv_packettype {
 	BATADV_IV_OGM		= 0x01,
 	BATADV_ICMP		= 0x02,
@@ -31,6 +35,7 @@ enum batadv_packettype {
 	BATADV_ROAM_ADV		= 0x08,
 	BATADV_UNICAST_4ADDR	= 0x09,
 	BATADV_CODED		= 0x0a,
+	BATADV_UNICAST_TVLV	= 0x0b,
 };
 
 /**
@@ -131,6 +136,11 @@ struct batadv_header {
 	 */
 };
 
+/**
+ * struct batadv_ogm_packet - ogm (routing protocol) packet
+ * @header: common batman packet header
+ * @tvlv_len: length of tvlv data following the ogm header
+ */
 struct batadv_ogm_packet {
 	struct batadv_header header;
 	uint8_t  flags;    /* 0x40: DIRECTLINK flag, 0x20 VIS_SERVER flag... */
@@ -142,6 +152,7 @@ struct batadv_ogm_packet {
 	uint8_t  tt_num_changes;
 	uint8_t  ttvn; /* translation table version number */
 	__be16   tt_crc;
+	__be16   tvlv_len;
 } __packed;
 
 #define BATADV_OGM_HLEN sizeof(struct batadv_ogm_packet)
@@ -309,6 +320,36 @@ struct batadv_coded_packet {
 	uint8_t  second_orig_dest[ETH_ALEN];
 	__be32   second_crc;
 	__be16   coded_len;
+};
+
+/**
+ * struct batadv_unicast_tvlv - generic unicast packet with tvlv payload
+ * @header: common batman packet header
+ * @reserved: reserved field (for packet alignment)
+ * @src: address of the source
+ * @dst: address of the destination
+ * @tvlv_len: length of tvlv data following the unicast tvlv header
+ * @align: 2 bytes to align the header to a 4 byte boundry
+ */
+struct batadv_unicast_tvlv_packet {
+	struct batadv_header header;
+	uint8_t  reserved;
+	uint8_t  dst[ETH_ALEN];
+	uint8_t  src[ETH_ALEN];
+	__be16   tvlv_len;
+	uint16_t align;
+};
+
+/**
+ * struct batadv_tvlv_hdr - base tvlv header struct
+ * @type: tvlv container type (see batadv_tvlv_type)
+ * @version: tvlv container version
+ * @len: tvlv container length
+ */
+struct batadv_tvlv_hdr {
+	uint8_t type;
+	uint8_t version;
+	__be16  len;
 };
 
 #endif /* _NET_BATMAN_ADV_PACKET_H_ */

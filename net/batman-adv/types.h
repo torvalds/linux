@@ -430,6 +430,20 @@ struct batadv_priv_gw {
 };
 
 /**
+ * struct batadv_priv_tvlv - per mesh interface tvlv data
+ * @container_list: list of registered tvlv containers to be sent with each OGM
+ * @handler_list: list of the various tvlv content handlers
+ * @container_list_lock: protects tvlv container list access
+ * @handler_list_lock: protects handler list access
+ */
+struct batadv_priv_tvlv {
+	struct hlist_head container_list;
+	struct hlist_head handler_list;
+	spinlock_t container_list_lock; /* protects container_list */
+	spinlock_t handler_list_lock; /* protects handler_list */
+};
+
+/**
  * struct batadv_priv_vis - per mesh interface vis data
  * @send_list: list of batadv_vis_info packets to sent
  * @hash: hash table containing vis data from other nodes in the network
@@ -531,6 +545,7 @@ struct batadv_priv_nc {
  * @debug_log: holding debug logging relevant data
  * @gw: gateway data
  * @tt: translation table data
+ * @tvlv: type-version-length-value data
  * @vis: vis data
  * @dat: distributed arp table data
  * @network_coding: bool indicating whether network coding is enabled
@@ -583,6 +598,7 @@ struct batadv_priv {
 #endif
 	struct batadv_priv_gw gw;
 	struct batadv_priv_tt tt;
+	struct batadv_priv_tvlv tvlv;
 	struct batadv_priv_vis vis;
 #ifdef CONFIG_BATMAN_ADV_DAT
 	struct batadv_priv_dat dat;
@@ -990,6 +1006,62 @@ struct batadv_dat_entry {
 struct batadv_dat_candidate {
 	int type;
 	struct batadv_orig_node *orig_node;
+};
+
+/**
+ * struct batadv_tvlv_container - container for tvlv appended to OGMs
+ * @list: hlist node for batadv_priv_tvlv::container_list
+ * @tvlv_hdr: tvlv header information needed to construct the tvlv
+ * @value_len: length of the buffer following this struct which contains
+ *  the actual tvlv payload
+ * @refcount: number of contexts the object is used
+ */
+struct batadv_tvlv_container {
+	struct hlist_node list;
+	struct batadv_tvlv_hdr tvlv_hdr;
+	atomic_t refcount;
+};
+
+/**
+ * struct batadv_tvlv_handler - handler for specific tvlv type and version
+ * @list: hlist node for batadv_priv_tvlv::handler_list
+ * @ogm_handler: handler callback which is given the tvlv payload to process on
+ *  incoming OGM packets
+ * @unicast_handler: handler callback which is given the tvlv payload to process
+ *  on incoming unicast tvlv packets
+ * @type: tvlv type this handler feels responsible for
+ * @version: tvlv version this handler feels responsible for
+ * @flags: tvlv handler flags
+ * @refcount: number of contexts the object is used
+ * @rcu: struct used for freeing in an RCU-safe manner
+ */
+struct batadv_tvlv_handler {
+	struct hlist_node list;
+	void (*ogm_handler)(struct batadv_priv *bat_priv,
+			    struct batadv_orig_node *orig,
+			    uint8_t flags,
+			    void *tvlv_value, uint16_t tvlv_value_len);
+	int (*unicast_handler)(struct batadv_priv *bat_priv,
+			       uint8_t *src, uint8_t *dst,
+			       void *tvlv_value, uint16_t tvlv_value_len);
+	uint8_t type;
+	uint8_t version;
+	uint8_t flags;
+	atomic_t refcount;
+	struct rcu_head rcu;
+};
+
+/**
+ * enum batadv_tvlv_handler_flags - tvlv handler flags definitions
+ * @BATADV_TVLV_HANDLER_OGM_CIFNOTFND: tvlv ogm processing function will call
+ *  this handler even if its type was not found (with no data)
+ * @BATADV_TVLV_HANDLER_OGM_CALLED: interval tvlv handling flag - the API marks
+ *  a handler as being called, so it won't be called if the
+ *  BATADV_TVLV_HANDLER_OGM_CIFNOTFND flag was set
+ */
+enum batadv_tvlv_handler_flags {
+	BATADV_TVLV_HANDLER_OGM_CIFNOTFND = BIT(1),
+	BATADV_TVLV_HANDLER_OGM_CALLED = BIT(2),
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */

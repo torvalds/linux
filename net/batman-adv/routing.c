@@ -1139,6 +1139,54 @@ rx_success:
 	return batadv_route_unicast_packet(skb, recv_if);
 }
 
+/**
+ * batadv_recv_unicast_tvlv - receive and process unicast tvlv packets
+ * @skb: unicast tvlv packet to process
+ * @recv_if: pointer to interface this packet was received on
+ * @dst_addr: the payload destination
+ *
+ * Returns NET_RX_SUCCESS if the packet has been consumed or NET_RX_DROP
+ * otherwise.
+ */
+int batadv_recv_unicast_tvlv(struct sk_buff *skb,
+			     struct batadv_hard_iface *recv_if)
+{
+	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
+	struct batadv_unicast_tvlv_packet *unicast_tvlv_packet;
+	unsigned char *tvlv_buff;
+	uint16_t tvlv_buff_len;
+	int hdr_size = sizeof(*unicast_tvlv_packet);
+	int ret = NET_RX_DROP;
+
+	if (batadv_check_unicast_packet(bat_priv, skb, hdr_size) < 0)
+		return NET_RX_DROP;
+
+	/* the header is likely to be modified while forwarding */
+	if (skb_cow(skb, hdr_size) < 0)
+		return NET_RX_DROP;
+
+	/* packet needs to be linearized to access the tvlv content */
+	if (skb_linearize(skb) < 0)
+		return NET_RX_DROP;
+
+	unicast_tvlv_packet = (struct batadv_unicast_tvlv_packet *)skb->data;
+
+	tvlv_buff = (unsigned char *)(skb->data + hdr_size);
+	tvlv_buff_len = ntohs(unicast_tvlv_packet->tvlv_len);
+
+	if (tvlv_buff_len > skb->len - hdr_size)
+		return NET_RX_DROP;
+
+	ret = batadv_tvlv_containers_process(bat_priv, false, NULL,
+					     unicast_tvlv_packet->src,
+					     unicast_tvlv_packet->dst,
+					     tvlv_buff, tvlv_buff_len);
+
+	if (ret != NET_RX_SUCCESS)
+		ret = batadv_route_unicast_packet(skb, recv_if);
+
+	return ret;
+}
 
 int batadv_recv_bcast_packet(struct sk_buff *skb,
 			     struct batadv_hard_iface *recv_if)

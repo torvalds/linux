@@ -207,12 +207,12 @@ static uint8_t batadv_hop_penalty(uint8_t tq,
 
 /* is there another aggregated packet here? */
 static int batadv_iv_ogm_aggr_packet(int buff_pos, int packet_len,
-				     int tt_num_changes)
+				     __be16 tvlv_len)
 {
 	int next_buff_pos = 0;
 
 	next_buff_pos += buff_pos + BATADV_OGM_HLEN;
-	next_buff_pos += batadv_tt_len(tt_num_changes);
+	next_buff_pos += ntohs(tvlv_len);
 
 	return (next_buff_pos <= packet_len) &&
 	       (next_buff_pos <= BATADV_MAX_AGGREGATION_BYTES);
@@ -240,7 +240,7 @@ static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 
 	/* adjust all flags and log packets */
 	while (batadv_iv_ogm_aggr_packet(buff_pos, forw_packet->packet_len,
-					 batadv_ogm_packet->tt_num_changes)) {
+					 batadv_ogm_packet->tvlv_len)) {
 		/* we might have aggregated direct link packets with an
 		 * ordinary base packet
 		 */
@@ -267,7 +267,7 @@ static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 			   hard_iface->net_dev->dev_addr);
 
 		buff_pos += BATADV_OGM_HLEN;
-		buff_pos += batadv_tt_len(batadv_ogm_packet->tt_num_changes);
+		buff_pos += ntohs(batadv_ogm_packet->tvlv_len);
 		packet_num++;
 		packet_pos = forw_packet->skb->data + buff_pos;
 		batadv_ogm_packet = (struct batadv_ogm_packet *)packet_pos;
@@ -601,7 +601,7 @@ static void batadv_iv_ogm_forward(struct batadv_orig_node *orig_node,
 				  struct batadv_hard_iface *if_incoming)
 {
 	struct batadv_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
-	uint8_t tt_num_changes;
+	uint16_t tvlv_len;
 
 	if (batadv_ogm_packet->header.ttl <= 1) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv, "ttl exceeded\n");
@@ -621,7 +621,7 @@ static void batadv_iv_ogm_forward(struct batadv_orig_node *orig_node,
 			return;
 	}
 
-	tt_num_changes = batadv_ogm_packet->tt_num_changes;
+	tvlv_len = ntohs(batadv_ogm_packet->tvlv_len);
 
 	batadv_ogm_packet->header.ttl--;
 	memcpy(batadv_ogm_packet->prev_sender, ethhdr->h_source, ETH_ALEN);
@@ -642,7 +642,7 @@ static void batadv_iv_ogm_forward(struct batadv_orig_node *orig_node,
 		batadv_ogm_packet->flags &= ~BATADV_DIRECTLINK;
 
 	batadv_iv_ogm_queue_add(bat_priv, (unsigned char *)batadv_ogm_packet,
-				BATADV_OGM_HLEN + batadv_tt_len(tt_num_changes),
+				BATADV_OGM_HLEN + tvlv_len,
 				if_incoming, 0, batadv_iv_ogm_fwd_send_time());
 }
 
@@ -691,16 +691,18 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 	int vis_server, tt_num_changes = 0;
 	uint32_t seqno;
 	uint8_t bandwidth;
+	uint16_t tvlv_len = 0;
 
 	vis_server = atomic_read(&bat_priv->vis_mode);
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 
 	if (hard_iface == primary_if)
-		tt_num_changes = batadv_tt_append_diff(bat_priv, ogm_buff,
-						       ogm_buff_len,
-						       BATADV_OGM_HLEN);
+		tvlv_len = batadv_tvlv_container_ogm_append(bat_priv, ogm_buff,
+							    ogm_buff_len,
+							    BATADV_OGM_HLEN);
 
 	batadv_ogm_packet = (struct batadv_ogm_packet *)(*ogm_buff);
+	batadv_ogm_packet->tvlv_len = htons(tvlv_len);
 
 	/* change sequence number to network order */
 	seqno = (uint32_t)atomic_read(&hard_iface->bat_iv.ogm_seqno);
@@ -1254,6 +1256,8 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 		goto out;
 	}
 
+	batadv_tvlv_ogm_receive(bat_priv, batadv_ogm_packet, orig_node);
+
 	/* if sender is a direct neighbor the sender mac equals
 	 * originator mac
 	 */
@@ -1350,9 +1354,9 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	struct ethhdr *ethhdr;
 	int buff_pos = 0, packet_len;
-	unsigned char *tt_buff, *packet_buff;
-	bool ret;
+	unsigned char *tvlv_buff, *packet_buff;
 	uint8_t *packet_pos;
+	bool ret;
 
 	ret = batadv_check_management_packet(skb, if_incoming, BATADV_OGM_HLEN);
 	if (!ret)
@@ -1375,14 +1379,14 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 
 	/* unpack the aggregated packets and process them one by one */
 	while (batadv_iv_ogm_aggr_packet(buff_pos, packet_len,
-					 batadv_ogm_packet->tt_num_changes)) {
-		tt_buff = packet_buff + buff_pos + BATADV_OGM_HLEN;
+					 batadv_ogm_packet->tvlv_len)) {
+		tvlv_buff = packet_buff + buff_pos + BATADV_OGM_HLEN;
 
-		batadv_iv_ogm_process(ethhdr, batadv_ogm_packet, tt_buff,
-				      if_incoming);
+		batadv_iv_ogm_process(ethhdr, batadv_ogm_packet,
+				      tvlv_buff, if_incoming);
 
 		buff_pos += BATADV_OGM_HLEN;
-		buff_pos += batadv_tt_len(batadv_ogm_packet->tt_num_changes);
+		buff_pos += ntohs(batadv_ogm_packet->tvlv_len);
 
 		packet_pos = packet_buff + buff_pos;
 		batadv_ogm_packet = (struct batadv_ogm_packet *)packet_pos;
