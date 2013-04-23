@@ -77,15 +77,29 @@ static int lpc32xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 static int lpc32xx_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct lpc32xx_pwm_chip *lpc32xx = to_lpc32xx_pwm_chip(chip);
+	u32 val;
+	int ret;
 
-	return clk_enable(lpc32xx->clk);
+	ret = clk_enable(lpc32xx->clk);
+	if (ret)
+		return ret;
+
+	val = readl(lpc32xx->base + (pwm->hwpwm << 2));
+	val |= PWM_ENABLE;
+	writel(val, lpc32xx->base + (pwm->hwpwm << 2));
+
+	return 0;
 }
 
 static void lpc32xx_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct lpc32xx_pwm_chip *lpc32xx = to_lpc32xx_pwm_chip(chip);
+	u32 val;
 
-	writel(0, lpc32xx->base + (pwm->hwpwm << 2));
+	val = readl(lpc32xx->base + (pwm->hwpwm << 2));
+	val &= ~PWM_ENABLE;
+	writel(val, lpc32xx->base + (pwm->hwpwm << 2));
+
 	clk_disable(lpc32xx->clk);
 }
 
