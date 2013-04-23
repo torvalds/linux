@@ -2625,7 +2625,7 @@ int r600_uvd_rbc_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, 0x8);
 
 	radeon_ring_write(ring, PACKET0(UVD_SEMA_CNTL, 0));
-	radeon_ring_write(ring, 1);
+	radeon_ring_write(ring, 3);
 
 	radeon_ring_unlock_commit(rdev, ring);
 
