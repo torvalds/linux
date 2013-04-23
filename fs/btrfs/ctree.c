@@ -1281,7 +1281,8 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 		free_extent_buffer(eb_root);
 		blocksize = btrfs_level_size(root, old_root->level);
 		old = read_tree_block(root, logical, blocksize, 0);
-		if (!old) {
+		if (!old || !extent_buffer_uptodate(old)) {
+			free_extent_buffer(old);
 			pr_warn("btrfs: failed to read tree block %llu from get_old_root\n",
 				logical);
 			WARN_ON(1);
@@ -1526,8 +1527,10 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 			if (!cur) {
 				cur = read_tree_block(root, blocknr,
 							 blocksize, gen);
-				if (!cur)
+				if (!cur || !extent_buffer_uptodate(cur)) {
+					free_extent_buffer(cur);
 					return -EIO;
+				}
 			} else if (!uptodate) {
 				err = btrfs_read_buffer(cur, gen);
 				if (err) {
@@ -1692,6 +1695,8 @@ static noinline struct extent_buffer *read_node_slot(struct btrfs_root *root,
 				   struct extent_buffer *parent, int slot)
 {
 	int level = btrfs_header_level(parent);
+	struct extent_buffer *eb;
+
 	if (slot < 0)
 		return NULL;
 	if (slot >= btrfs_header_nritems(parent))
@@ -1699,9 +1704,15 @@ static noinline struct extent_buffer *read_node_slot(struct btrfs_root *root,
 
 	BUG_ON(level == 0);
 
-	return read_tree_block(root, btrfs_node_blockptr(parent, slot),
-		       btrfs_level_size(root, level - 1),
-		       btrfs_node_ptr_generation(parent, slot));
+	eb = read_tree_block(root, btrfs_node_blockptr(parent, slot),
+			     btrfs_level_size(root, level - 1),
+			     btrfs_node_ptr_generation(parent, slot));
+	if (eb && !extent_buffer_uptodate(eb)) {
+		free_extent_buffer(eb);
+		eb = NULL;
+	}
+
+	return eb;
 }
 
 /*

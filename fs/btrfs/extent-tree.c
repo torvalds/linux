@@ -7087,8 +7087,10 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 		if (reada && level == 1)
 			reada_walk_down(trans, root, wc, path);
 		next = read_tree_block(root, bytenr, blocksize, generation);
-		if (!next)
+		if (!next || !extent_buffer_uptodate(next)) {
+			free_extent_buffer(next);
 			return -EIO;
+		}
 		btrfs_tree_lock(next);
 		btrfs_set_lock_blocking(next);
 	}

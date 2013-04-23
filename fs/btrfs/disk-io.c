@@ -1496,6 +1496,14 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 	blocksize = btrfs_level_size(root, btrfs_root_level(&root->root_item));
 	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
 				     blocksize, generation);
+	if (!root->node || !extent_buffer_uptodate(root->node)) {
+		ret = (!root->node) ? -ENOMEM : -EIO;
+
+		free_extent_buffer(root->node);
+		kfree(root);
+		return ERR_PTR(ret);
+	}
+
 	root->commit_root = btrfs_root_node(root);
 	BUG_ON(!root->node); /* -ENOMEM */
 out:
@@ -2515,8 +2523,8 @@ int open_ctree(struct super_block *sb,
 	chunk_root->node = read_tree_block(chunk_root,
 					   btrfs_super_chunk_root(disk_super),
 					   blocksize, generation);
-	BUG_ON(!chunk_root->node); /* -ENOMEM */
-	if (!test_bit(EXTENT_BUFFER_UPTODATE, &chunk_root->node->bflags)) {
+	if (!chunk_root->node ||
+	    !test_bit(EXTENT_BUFFER_UPTODATE, &chunk_root->node->bflags)) {
 		printk(KERN_WARNING "btrfs: failed to read chunk root on %s\n",
 		       sb->s_id);
 		goto fail_tree_roots;
@@ -2701,6 +2709,13 @@ retry_root_backup:
 		log_tree_root->node = read_tree_block(tree_root, bytenr,
 						      blocksize,
 						      generation + 1);
+		if (!log_tree_root->node ||
+		    !extent_buffer_uptodate(log_tree_root->node)) {
+			printk(KERN_ERR "btrfs: failed to read log tree\n");
+			free_extent_buffer(log_tree_root->node);
+			kfree(log_tree_root);
+			goto fail_trans_kthread;
+		}
 		/* returns with log_tree_root freed on success */
 		ret = btrfs_recover_log_trees(log_tree_root);
 		if (ret) {
