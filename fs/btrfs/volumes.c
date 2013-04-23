@@ -4232,9 +4232,25 @@ int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, logical, len);
 	read_unlock(&em_tree->lock);
-	BUG_ON(!em);
 
-	BUG_ON(em->start > logical || em->start + em->len < logical);
+	/*
+	 * We could return errors for these cases, but that could get ugly and
+	 * we'd probably do the same thing which is just not do anything else
+	 * and exit, so return 1 so the callers don't try to use other copies.
+	 */
+	if (!em) {
+		btrfs_emerg(fs_info, "No mapping for %Lu-%Lu\n", logical,
+			    logical+len);
+		return 1;
+	}
+
+	if (em->start > logical || em->start + em->len < logical) {
+		btrfs_emerg(fs_info, "Invalid mapping for %Lu-%Lu, got "
+			    "%Lu-%Lu\n", logical, logical+len, em->start,
+			    em->start + em->len);
+		return 1;
+	}
+
 	map = (struct map_lookup *)em->bdev;
 	if (map->type & (BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID1))
 		ret = map->num_stripes;
