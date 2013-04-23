@@ -1450,60 +1450,56 @@ SDHI_PFC_PINS(sdhi0_wp,		RCAR_GP_PIN(3, 18));
 SDHI_PFC_WPPN(sdhi0_wp,		SD0_WP);
 
 /* - SDHI1 ------------------------------------------------------------------ */
-SDHI_PFC_PINS(sdhi1_a_cd,	RCAR_GP_PIN(0, 30));
-SDHI_PFC_CDPN(sdhi1_a_cd,	SD1_CD_A);
-SDHI_PFC_PINS(sdhi1_a_ctrl,	RCAR_GP_PIN(1, 5),	RCAR_GP_PIN(1, 6));
-SDHI_PFC_CTRL(sdhi1_a_ctrl,	SD1_CLK_A,		SD1_CMD_A);
-SDHI_PFC_PINS(sdhi1_a_data1,	RCAR_GP_PIN(1, 7));
-SDHI_PFC_DAT1(sdhi1_a_data1,	SD1_DAT0_A);
-SDHI_PFC_PINS(sdhi1_a_data4,	RCAR_GP_PIN(1, 7),	RCAR_GP_PIN(1, 8),
+SDHI_PFC_PINS(sdhi1_cd_a,	RCAR_GP_PIN(0, 30));
+SDHI_PFC_CDPN(sdhi1_cd_a,	SD1_CD_A);
+SDHI_PFC_PINS(sdhi1_cd_b,	RCAR_GP_PIN(2, 24));
+SDHI_PFC_CDPN(sdhi1_cd_b,	SD1_CD_B);
+SDHI_PFC_PINS(sdhi1_ctrl_a,	RCAR_GP_PIN(1, 5),	RCAR_GP_PIN(1, 6));
+SDHI_PFC_CTRL(sdhi1_ctrl_a,	SD1_CLK_A,		SD1_CMD_A);
+SDHI_PFC_PINS(sdhi1_ctrl_b,	RCAR_GP_PIN(1, 17),	RCAR_GP_PIN(1, 16));
+SDHI_PFC_CTRL(sdhi1_ctrl_b,	SD1_CLK_B,		SD1_CMD_B);
+SDHI_PFC_PINS(sdhi1_data1_a,	RCAR_GP_PIN(1, 7));
+SDHI_PFC_DAT1(sdhi1_data1_a,	SD1_DAT0_A);
+SDHI_PFC_PINS(sdhi1_data1_b,	RCAR_GP_PIN(1, 18));
+SDHI_PFC_DAT1(sdhi1_data1_b,	SD1_DAT0_B);
+SDHI_PFC_PINS(sdhi1_data4_a,	RCAR_GP_PIN(1, 7),	RCAR_GP_PIN(1, 8),
 				RCAR_GP_PIN(0, 5),	RCAR_GP_PIN(0, 6));
-SDHI_PFC_DAT4(sdhi1_a_data4,	SD1_DAT0_A,		SD1_DAT1_A,
+SDHI_PFC_DAT4(sdhi1_data4_a,	SD1_DAT0_A,		SD1_DAT1_A,
 				SD1_DAT2_A,		SD1_DAT3_A);
-SDHI_PFC_PINS(sdhi1_a_wp,	RCAR_GP_PIN(0, 31));
-SDHI_PFC_WPPN(sdhi1_a_wp,	SD1_WP_A);
-
-SDHI_PFC_PINS(sdhi1_b_cd,	RCAR_GP_PIN(2, 24));
-SDHI_PFC_CDPN(sdhi1_b_cd,	SD1_CD_B);
-SDHI_PFC_PINS(sdhi1_b_ctrl,	RCAR_GP_PIN(1, 17),	RCAR_GP_PIN(1, 16));
-SDHI_PFC_CTRL(sdhi1_b_ctrl,	SD1_CLK_B,		SD1_CMD_B);
-SDHI_PFC_PINS(sdhi1_b_data1,	RCAR_GP_PIN(1, 18));
-SDHI_PFC_DAT1(sdhi1_b_data1,	SD1_DAT0_B);
-SDHI_PFC_PINS(sdhi1_b_data4,	RCAR_GP_PIN(1, 18),	RCAR_GP_PIN(1, 19),
+SDHI_PFC_PINS(sdhi1_data4_b,	RCAR_GP_PIN(1, 18),	RCAR_GP_PIN(1, 19),
 				RCAR_GP_PIN(1, 20),	RCAR_GP_PIN(1, 21));
-SDHI_PFC_DAT4(sdhi1_b_data4,	SD1_DAT0_B,		SD1_DAT1_B,
+SDHI_PFC_DAT4(sdhi1_data4_b,	SD1_DAT0_B,		SD1_DAT1_B,
 				SD1_DAT2_B,		SD1_DAT3_B);
-SDHI_PFC_PINS(sdhi1_b_wp,	RCAR_GP_PIN(2, 25));
-SDHI_PFC_WPPN(sdhi1_b_wp,	SD1_WP_B);
-
+SDHI_PFC_PINS(sdhi1_wp_a,	RCAR_GP_PIN(0, 31));
+SDHI_PFC_WPPN(sdhi1_wp_a,	SD1_WP_A);
+SDHI_PFC_PINS(sdhi1_wp_b,	RCAR_GP_PIN(2, 25));
+SDHI_PFC_WPPN(sdhi1_wp_b,	SD1_WP_B);
 
 /* - SDH2 ------------------------------------------------------------------- */
-SDHI_PFC_PINS(sdhi2_a_cd,	RCAR_GP_PIN(4, 23));
-SDHI_PFC_CDPN(sdhi2_a_cd,	SD2_CD_A);
-SDHI_PFC_PINS(sdhi2_a_ctrl,	RCAR_GP_PIN(4, 17),	RCAR_GP_PIN(4, 18));
-SDHI_PFC_CTRL(sdhi2_a_ctrl,	SD2_CLK_A,		SD2_CMD_A);
-SDHI_PFC_PINS(sdhi2_a_data1,	RCAR_GP_PIN(4, 19));
-SDHI_PFC_DAT1(sdhi2_a_data1,	SD2_DAT0_A);
-SDHI_PFC_PINS(sdhi2_a_data4,	RCAR_GP_PIN(4, 19),	RCAR_GP_PIN(4, 20),
+SDHI_PFC_PINS(sdhi2_cd_a,	RCAR_GP_PIN(4, 23));
+SDHI_PFC_CDPN(sdhi2_cd_a,	SD2_CD_A);
+SDHI_PFC_PINS(sdhi2_cd_b,	RCAR_GP_PIN(3, 27));
+SDHI_PFC_CDPN(sdhi2_cd_b,	SD2_CD_B);
+SDHI_PFC_PINS(sdhi2_ctrl_a,	RCAR_GP_PIN(4, 17),	RCAR_GP_PIN(4, 18));
+SDHI_PFC_CTRL(sdhi2_ctrl_a,	SD2_CLK_A,		SD2_CMD_A);
+SDHI_PFC_PINS(sdhi2_ctrl_b,	RCAR_GP_PIN(4, 5),	RCAR_GP_PIN(4, 6));
+SDHI_PFC_CTRL(sdhi2_ctrl_b,	SD2_CLK_B,		SD2_CMD_B);
+SDHI_PFC_PINS(sdhi2_data1_a,	RCAR_GP_PIN(4, 19));
+SDHI_PFC_DAT1(sdhi2_data1_a,	SD2_DAT0_A);
+SDHI_PFC_PINS(sdhi2_data1_b,	RCAR_GP_PIN(4, 7));
+SDHI_PFC_DAT1(sdhi2_data1_b,	SD2_DAT0_B);
+SDHI_PFC_PINS(sdhi2_data4_a,	RCAR_GP_PIN(4, 19),	RCAR_GP_PIN(4, 20),
 				RCAR_GP_PIN(4, 21),	RCAR_GP_PIN(4, 22));
-SDHI_PFC_DAT4(sdhi2_a_data4,	SD2_DAT0_A,		SD2_DAT1_A,
+SDHI_PFC_DAT4(sdhi2_data4_a,	SD2_DAT0_A,		SD2_DAT1_A,
 				SD2_DAT2_A,		SD2_DAT3_A);
-SDHI_PFC_PINS(sdhi2_a_wp,	RCAR_GP_PIN(4, 24));
-SDHI_PFC_WPPN(sdhi2_a_wp,	SD2_WP_A);
-
-SDHI_PFC_PINS(sdhi2_b_cd,	RCAR_GP_PIN(3, 27));
-SDHI_PFC_CDPN(sdhi2_b_cd,	SD2_CD_B);
-SDHI_PFC_PINS(sdhi2_b_ctrl,	RCAR_GP_PIN(4, 5),	RCAR_GP_PIN(4, 6));
-SDHI_PFC_CTRL(sdhi2_b_ctrl,	SD2_CLK_B,		SD2_CMD_B);
-SDHI_PFC_PINS(sdhi2_b_data1,	RCAR_GP_PIN(4, 7));
-SDHI_PFC_DAT1(sdhi2_b_data1,	SD2_DAT0_B);
-SDHI_PFC_PINS(sdhi2_b_data4,	RCAR_GP_PIN(4, 7),	RCAR_GP_PIN(4, 8),
+SDHI_PFC_PINS(sdhi2_data4_b,	RCAR_GP_PIN(4, 7),	RCAR_GP_PIN(4, 8),
 				RCAR_GP_PIN(3, 25),	RCAR_GP_PIN(3, 26));
-SDHI_PFC_DAT4(sdhi2_b_data4,	SD2_DAT0_B,		SD2_DAT1_B,
+SDHI_PFC_DAT4(sdhi2_data4_b,	SD2_DAT0_B,		SD2_DAT1_B,
 				SD2_DAT2_B,		SD2_DAT3_B);
-SDHI_PFC_PINS(sdhi2_b_wp,	RCAR_GP_PIN(3, 28));
-SDHI_PFC_WPPN(sdhi2_b_wp,	SD2_WP_B);
-
+SDHI_PFC_PINS(sdhi2_wp_a,	RCAR_GP_PIN(4, 24));
+SDHI_PFC_WPPN(sdhi2_wp_a,	SD2_WP_A);
+SDHI_PFC_PINS(sdhi2_wp_b,	RCAR_GP_PIN(3, 28));
+SDHI_PFC_WPPN(sdhi2_wp_b,	SD2_WP_B);
 
 static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(hscif0_data_a),
@@ -1554,26 +1550,26 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(sdhi0_data1),
 	SH_PFC_PIN_GROUP(sdhi0_data4),
 	SH_PFC_PIN_GROUP(sdhi0_wp),
-	SH_PFC_PIN_GROUP(sdhi1_a_cd),
-	SH_PFC_PIN_GROUP(sdhi1_a_ctrl),
-	SH_PFC_PIN_GROUP(sdhi1_a_data1),
-	SH_PFC_PIN_GROUP(sdhi1_a_data4),
-	SH_PFC_PIN_GROUP(sdhi1_a_wp),
-	SH_PFC_PIN_GROUP(sdhi1_b_cd),
-	SH_PFC_PIN_GROUP(sdhi1_b_ctrl),
-	SH_PFC_PIN_GROUP(sdhi1_b_data1),
-	SH_PFC_PIN_GROUP(sdhi1_b_data4),
-	SH_PFC_PIN_GROUP(sdhi1_b_wp),
-	SH_PFC_PIN_GROUP(sdhi2_a_cd),
-	SH_PFC_PIN_GROUP(sdhi2_a_ctrl),
-	SH_PFC_PIN_GROUP(sdhi2_a_data1),
-	SH_PFC_PIN_GROUP(sdhi2_a_data4),
-	SH_PFC_PIN_GROUP(sdhi2_a_wp),
-	SH_PFC_PIN_GROUP(sdhi2_b_cd),
-	SH_PFC_PIN_GROUP(sdhi2_b_ctrl),
-	SH_PFC_PIN_GROUP(sdhi2_b_data1),
-	SH_PFC_PIN_GROUP(sdhi2_b_data4),
-	SH_PFC_PIN_GROUP(sdhi2_b_wp),
+	SH_PFC_PIN_GROUP(sdhi1_cd_a),
+	SH_PFC_PIN_GROUP(sdhi1_cd_b),
+	SH_PFC_PIN_GROUP(sdhi1_ctrl_a),
+	SH_PFC_PIN_GROUP(sdhi1_ctrl_b),
+	SH_PFC_PIN_GROUP(sdhi1_data1_a),
+	SH_PFC_PIN_GROUP(sdhi1_data1_b),
+	SH_PFC_PIN_GROUP(sdhi1_data4_a),
+	SH_PFC_PIN_GROUP(sdhi1_data4_b),
+	SH_PFC_PIN_GROUP(sdhi1_wp_a),
+	SH_PFC_PIN_GROUP(sdhi1_wp_b),
+	SH_PFC_PIN_GROUP(sdhi2_cd_a),
+	SH_PFC_PIN_GROUP(sdhi2_cd_b),
+	SH_PFC_PIN_GROUP(sdhi2_ctrl_a),
+	SH_PFC_PIN_GROUP(sdhi2_ctrl_b),
+	SH_PFC_PIN_GROUP(sdhi2_data1_a),
+	SH_PFC_PIN_GROUP(sdhi2_data1_b),
+	SH_PFC_PIN_GROUP(sdhi2_data4_a),
+	SH_PFC_PIN_GROUP(sdhi2_data4_b),
+	SH_PFC_PIN_GROUP(sdhi2_wp_a),
+	SH_PFC_PIN_GROUP(sdhi2_wp_b),
 };
 
 static const char * const hscif0_groups[] = {
@@ -1656,29 +1652,29 @@ static const char * const sdhi0_groups[] = {
 };
 
 static const char * const sdhi1_groups[] = {
-	"sdhi1_a_cd",
-	"sdhi1_a_ctrl",
-	"sdhi1_a_data1",
-	"sdhi1_a_data4",
-	"sdhi1_a_wp",
-	"sdhi1_b_cd",
-	"sdhi1_b_ctrl",
-	"sdhi1_b_data1",
-	"sdhi1_b_data4",
-	"sdhi1_b_wp",
+	"sdhi1_cd_a",
+	"sdhi1_cd_b",
+	"sdhi1_ctrl_a",
+	"sdhi1_ctrl_b",
+	"sdhi1_data1_a",
+	"sdhi1_data1_b",
+	"sdhi1_data4_a",
+	"sdhi1_data4_b",
+	"sdhi1_wp_a",
+	"sdhi1_wp_b",
 };
 
 static const char * const sdhi2_groups[] = {
-	"sdhi2_a_cd",
-	"sdhi2_a_ctrl",
-	"sdhi2_a_data1",
-	"sdhi2_a_data4",
-	"sdhi2_a_wp",
-	"sdhi2_b_cd",
-	"sdhi2_b_ctrl",
-	"sdhi2_b_data1",
-	"sdhi2_b_data4",
-	"sdhi2_b_wp",
+	"sdhi2_cd_a",
+	"sdhi2_cd_b",
+	"sdhi2_ctrl_a",
+	"sdhi2_ctrl_b",
+	"sdhi2_data1_a",
+	"sdhi2_data1_b",
+	"sdhi2_data4_a",
+	"sdhi2_data4_b",
+	"sdhi2_wp_a",
+	"sdhi2_wp_b",
 };
 
 static const struct sh_pfc_function pinmux_functions[] = {
