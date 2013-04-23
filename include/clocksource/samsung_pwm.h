@@ -23,6 +23,8 @@
 struct platform_device;
 struct device_node;
 
+extern spinlock_t samsung_pwm_lock;
+
 struct samsung_pwm_variant {
 	u8 bits;
 	u8 div_base;
