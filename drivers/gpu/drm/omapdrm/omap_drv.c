@@ -247,6 +247,9 @@ static int omap_modeset_init(struct drm_device *dev)
 		struct drm_encoder *encoder = priv->encoders[i];
 		struct omap_dss_device *dssdev =
 					omap_encoder_get_dssdev(encoder);
+		struct omap_dss_output *output;
+
+		output = omapdss_find_output_from_display(dssdev);
 
 		/* figure out which crtc's we can connect the encoder to: */
 		encoder->possible_crtcs = 0;
@@ -259,7 +262,7 @@ static int omap_modeset_init(struct drm_device *dev)
 			supported_outputs =
 				dss_feat_get_supported_outputs(crtc_channel);
 
-			if (supported_outputs & dssdev->output->id)
+			if (supported_outputs & output->id)
 				encoder->possible_crtcs |= (1 << id);
 		}
 	}

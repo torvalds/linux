@@ -786,6 +786,9 @@ int omapdss_output_set_device(struct omap_dss_output *out,
 		struct omap_dss_device *dssdev);
 int omapdss_output_unset_device(struct omap_dss_output *out);
 
+struct omap_dss_output *omapdss_find_output_from_display(struct omap_dss_device *dssdev);
+struct omap_overlay_manager *omapdss_find_mgr_from_display(struct omap_dss_device *dssdev);
+
 void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
 		u16 *xres, u16 *yres);
 int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev);

@@ -78,7 +78,9 @@ static ssize_t manager_display_store(struct omap_overlay_manager *mgr,
 	}
 
 	if (dssdev) {
-		struct omap_dss_output *out = dssdev->output;
+		struct omap_dss_output *out;
+
+		out = omapdss_find_output_from_display(dssdev);
 
 		/*
 		 * a registered device should have an output connected to it
