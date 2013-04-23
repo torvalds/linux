@@ -55,6 +55,8 @@ int reserve_new_block(struct dnode_of_data *dn)
 	if (!inc_valid_block_count(sbi, dn->inode, 1))
 		return -ENOSPC;
 
+	trace_f2fs_reserve_new_block(dn->inode, dn->nid, dn->ofs_in_node);
+
 	__set_data_blkaddr(dn, NEW_ADDR);
 	dn->data_blkaddr = NEW_ADDR;
 	sync_inode_page(dn);

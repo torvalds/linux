@@ -546,6 +546,7 @@ static long f2fs_fallocate(struct file *file, int mode,
 		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		mark_inode_dirty(inode);
 	}
+	trace_f2fs_fallocate(inode, mode, offset, len, ret);
 	return ret;
 }
 

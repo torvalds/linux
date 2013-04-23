@@ -514,6 +514,70 @@ TRACE_EVENT(f2fs_get_victim,
 		__entry->free)
 );
 
+TRACE_EVENT(f2fs_fallocate,
+
+	TP_PROTO(struct inode *inode, int mode,
+				loff_t offset, loff_t len, int ret),
+
+	TP_ARGS(inode, mode, offset, len, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(int,	mode)
+		__field(loff_t,	offset)
+		__field(loff_t,	len)
+		__field(loff_t, size)
+		__field(blkcnt_t, blocks)
+		__field(int,	ret)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->mode	= mode;
+		__entry->offset	= offset;
+		__entry->len	= len;
+		__entry->size	= inode->i_size;
+		__entry->blocks = inode->i_blocks;
+		__entry->ret	= ret;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, mode = %x, offset = %lld, "
+		"len = %lld,  i_size = %lld, i_blocks = %llu, ret = %d",
+		show_dev_ino(__entry),
+		__entry->mode,
+		(unsigned long long)__entry->offset,
+		(unsigned long long)__entry->len,
+		(unsigned long long)__entry->size,
+		(unsigned long long)__entry->blocks,
+		__entry->ret)
+);
+
+TRACE_EVENT(f2fs_reserve_new_block,
+
+	TP_PROTO(struct inode *inode, nid_t nid, unsigned int ofs_in_node),
+
+	TP_ARGS(inode, nid, ofs_in_node),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(nid_t, nid)
+		__field(unsigned int, ofs_in_node)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->nid	= nid;
+		__entry->ofs_in_node = ofs_in_node;
+	),
+
+	TP_printk("dev = (%d,%d), nid = %u, ofs_in_node = %u",
+		show_dev(__entry),
+		(unsigned int)__entry->nid,
+		__entry->ofs_in_node)
+);
+
 #endif /* _TRACE_F2FS_H */
 
  /* This part must be outside protection */
