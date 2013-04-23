@@ -411,6 +411,7 @@ static int save_trace(struct stack_trace *trace)
 
 		printk("BUG: MAX_STACK_TRACE_ENTRIES too low!\n");
 		printk("turning off the locking correctness validator.\n");
+		printk("Attach output of /proc/lock_stat to bug report\n");
 		dump_stack();
 
 		return 0;
@@ -765,6 +766,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 
 		printk("BUG: MAX_LOCKDEP_KEYS too low!\n");
 		printk("turning off the locking correctness validator.\n");
+		printk("Attach output of /proc/lock_stat to bug report\n");
 		dump_stack();
 		return NULL;
 	}
@@ -836,6 +838,7 @@ static struct lock_list *alloc_list_entry(void)
 
 		printk("BUG: MAX_LOCKDEP_ENTRIES too low!\n");
 		printk("turning off the locking correctness validator.\n");
+		printk("Attach output of /proc/lock_stat to bug report\n");
 		dump_stack();
 		return NULL;
 	}
@@ -2050,6 +2053,7 @@ cache_hit:
 
 		printk("BUG: MAX_LOCKDEP_CHAINS too low!\n");
 		printk("turning off the locking correctness validator.\n");
+		printk("Attach output of /proc/lock_stat to bug report\n");
 		dump_stack();
 		return 0;
 	}
@@ -3191,6 +3195,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		printk("BUG: MAX_LOCK_DEPTH too low, depth: %i  max: %lu!\n",
 		       curr->lockdep_depth, MAX_LOCK_DEPTH);
 		printk("turning off the locking correctness validator.\n");
+		printk("Attach output of /proc/lock_stat to bug report\n");
 
 		lockdep_print_held_locks(current);
 		debug_show_all_locks();
