@@ -314,9 +314,6 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv = dev->private;
 	int err = 0;
-	int tmp;
-	int gain, startChan;
-	int i;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -362,11 +359,13 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 	/* step 4: fix up any arguments */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		tmp = cmd->convert_arg;
+		int tmp = cmd->convert_arg;
+
 		/* calculate counter values that give desired timing */
-		i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1),
-					       &(devpriv->divisor2),
-					       &(cmd->convert_arg),
+		i8253_cascade_ns_to_timer_2div(TIMER_BASE,
+					       &devpriv->divisor1,
+					       &devpriv->divisor2,
+					       &cmd->convert_arg,
 					       cmd->flags & TRIG_ROUND_MASK);
 		if (tmp != cmd->convert_arg)
 			err++;
@@ -377,18 +376,21 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 
 	/*  check channel/gain list against card's limitations */
 	if (cmd->chanlist) {
-		gain = CR_RANGE(cmd->chanlist[0]);
-		startChan = CR_CHAN(cmd->chanlist[0]);
+		unsigned int chan = CR_CHAN(cmd->chanlist[0]);
+		unsigned int range = CR_RANGE(cmd->chanlist[0]);
+		unsigned int next;
+		int i;
+
 		for (i = 1; i < cmd->chanlist_len; i++) {
-			if (CR_CHAN(cmd->chanlist[i]) !=
-			    (startChan + i) % N_CHAN_AI) {
-				comedi_error(dev,
-					     "entries in chanlist must be consecutive channels, counting upwards\n");
+			next = cmd->chanlist[i];
+			if (CR_CHAN(next) != (chan + i) % N_CHAN_AI) {
+				dev_err(dev->class_dev,
+					"chanlist must be consecutive, counting upwards\n");
 				err++;
 			}
-			if (CR_RANGE(cmd->chanlist[i]) != gain) {
-				comedi_error(dev,
-					     "entries in chanlist must all have the same gain\n");
+			if (CR_RANGE(next) != range) {
+				dev_err(dev->class_dev,
+					"chanlist must all have the same gain\n");
 				err++;
 			}
 		}
