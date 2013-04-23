@@ -185,10 +185,9 @@ static int pnp_devices_proc_show(struct seq_file *m, void *v)
 
 		if (pnp_bios_get_dev_node(&nodenum, PNPMODE_DYNAMIC, node))
 			break;
-		seq_printf(m, "%02x\t%08x\t%02x:%02x:%02x\t%04x\n",
+		seq_printf(m, "%02x\t%08x\t%3phC\t%04x\n",
 			     node->handle, node->eisa_id,
-			     node->type_code[0], node->type_code[1],
-			     node->type_code[2], node->flags);
+			     node->type_code, node->flags);
 		if (nodenum <= thisnodenum) {
 			printk(KERN_ERR
 			       "%s Node number 0x%x is out of sequence following node 0x%x. Aborting.\n",
