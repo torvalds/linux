@@ -49,7 +49,6 @@ enum labpc_pci_boardid {
 static const struct labpc_boardinfo labpc_pci_boards[] = {
 	[BOARD_NI_PCI1200] = {
 		.name			= "ni_pci-1200",
-		.ai_range_table		= &range_labpc_1200_ai,
 		.ai_range_code		= labpc_1200_ai_gain_bits,
 		.ai_speed		= 10000,
 		.ai_scan_up		= 1,

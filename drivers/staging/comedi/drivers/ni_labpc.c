@@ -185,7 +185,7 @@ const int labpc_1200_ai_gain_bits[] = {
 };
 EXPORT_SYMBOL_GPL(labpc_1200_ai_gain_bits);
 
-const struct comedi_lrange range_labpc_1200_ai = {
+static const struct comedi_lrange range_labpc_1200_ai = {
 	14, {
 		BIP_RANGE(5),
 		BIP_RANGE(2.5),
@@ -203,7 +203,6 @@ const struct comedi_lrange range_labpc_1200_ai = {
 		UNI_RANGE(0.1)
 	}
 };
-EXPORT_SYMBOL_GPL(range_labpc_1200_ai);
 
 static const struct comedi_lrange range_labpc_ao = {
 	2, {
@@ -238,7 +237,6 @@ static inline void labpc_writeb(unsigned int byte, unsigned long address)
 static const struct labpc_boardinfo labpc_boards[] = {
 	{
 		.name			= "lab-pc-1200",
-		.ai_range_table		= &range_labpc_1200_ai,
 		.ai_range_code		= labpc_1200_ai_gain_bits,
 		.ai_speed		= 10000,
 		.ai_scan_up		= 1,
@@ -246,14 +244,12 @@ static const struct labpc_boardinfo labpc_boards[] = {
 		.is_labpc1200		= 1,
 	}, {
 		.name			= "lab-pc-1200ai",
-		.ai_range_table		= &range_labpc_1200_ai,
 		.ai_range_code		= labpc_1200_ai_gain_bits,
 		.ai_speed		= 10000,
 		.ai_scan_up		= 1,
 		.is_labpc1200		= 1,
 	}, {
 		.name			= "lab-pc+",
-		.ai_range_table		= &range_labpc_plus_ai,
 		.ai_range_code		= labpc_plus_ai_gain_bits,
 		.ai_speed		= 12000,
 		.has_ao			= 1,
@@ -1625,7 +1621,8 @@ int labpc_common_attach(struct comedi_device *dev,
 	s->n_chan	= 8;
 	s->len_chanlist	= 8;
 	s->maxdata	= 0x0fff;
-	s->range_table	= board->ai_range_table;
+	s->range_table	= board->is_labpc1200
+				? &range_labpc_1200_ai : &range_labpc_plus_ai;
 	s->insn_read	= labpc_ai_insn_read;
 	if (dev->irq) {
 		dev->read_subdev = s;

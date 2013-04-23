@@ -76,7 +76,6 @@ NI manuals:
 static const struct labpc_boardinfo labpc_cs_boards[] = {
 	{
 		.name			= "daqcard-1200",
-		.ai_range_table		= &range_labpc_1200_ai,
 		.ai_range_code		= labpc_1200_ai_gain_bits,
 		.ai_speed		= 10000,
 		.has_ao			= 1,
