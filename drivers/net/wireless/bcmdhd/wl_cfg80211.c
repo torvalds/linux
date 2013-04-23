@@ -8002,9 +8002,7 @@ static s32 wl_notify_escan_complete(struct wl_priv *wl,
 #ifdef WL_SCHED_SCAN
 	if (wl->sched_scan_req && !wl->scan_request) {
 		WL_PNO((">>> REPORTING SCHED SCAN RESULTS \n"));
-		if (aborted)
-			cfg80211_sched_scan_stopped(wl->sched_scan_req->wiphy);
-		else
+		if (!aborted)
 			cfg80211_sched_scan_results(wl->sched_scan_req->wiphy);
 		wl->sched_scan_running = FALSE;
 		wl->sched_scan_req = NULL;
