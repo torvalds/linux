@@ -234,7 +234,7 @@ static inline void labpc_writeb(unsigned int byte, unsigned long address)
 	writeb(byte, (void __iomem *)address);
 }
 
-#ifdef CONFIG_COMEDI_NI_LABPC_ISA
+#if IS_ENABLED(CONFIG_COMEDI_NI_LABPC_ISA)
 static const struct labpc_boardinfo labpc_boards[] = {
 	{
 		.name			= "lab-pc-1200",
@@ -1710,10 +1710,9 @@ void labpc_common_detach(struct comedi_device *dev)
 }
 EXPORT_SYMBOL_GPL(labpc_common_detach);
 
-#ifdef CONFIG_COMEDI_NI_LABPC_ISA
+#if IS_ENABLED(CONFIG_COMEDI_NI_LABPC_ISA)
 static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv;
 	unsigned int irq = it->options[1];
 	unsigned int dma_chan = it->options[2];
@@ -1756,7 +1755,7 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-void labpc_detach(struct comedi_device *dev)
+static void labpc_detach(struct comedi_device *dev)
 {
 	struct labpc_private *devpriv = dev->private;
 
