@@ -1013,6 +1013,9 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 #define QUERY_FW_COMM_BASE_OFFSET      0x40
 #define QUERY_FW_COMM_BAR_OFFSET       0x48
 
+#define QUERY_FW_CLOCK_OFFSET	       0x50
+#define QUERY_FW_CLOCK_BAR	       0x58
+
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
@@ -1086,6 +1089,12 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 	mlx4_dbg(dev, "Communication vector bar:%d offset:0x%llx\n",
 		 fw->comm_bar, fw->comm_base);
 	mlx4_dbg(dev, "FW size %d KB\n", fw->fw_pages >> 2);
+
+	MLX4_GET(fw->clock_offset, outbox, QUERY_FW_CLOCK_OFFSET);
+	MLX4_GET(fw->clock_bar,    outbox, QUERY_FW_CLOCK_BAR);
+	fw->clock_bar = (fw->clock_bar >> 6) * 2;
+	mlx4_dbg(dev, "Internal clock bar:%d offset:0x%llx\n",
+		 fw->clock_bar, fw->clock_offset);
 
 	/*
 	 * Round up number of system pages needed in case
@@ -1374,6 +1383,7 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 	u8 byte_field;
 
 #define QUERY_HCA_GLOBAL_CAPS_OFFSET	0x04
+#define QUERY_HCA_CORE_CLOCK_OFFSET	0x0c
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
@@ -1388,6 +1398,7 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 		goto out;
 
 	MLX4_GET(param->global_caps, outbox, QUERY_HCA_GLOBAL_CAPS_OFFSET);
+	MLX4_GET(param->hca_core_clock, outbox, QUERY_HCA_CORE_CLOCK_OFFSET);
 
 	/* QPC/EEC/CQC/EQC/RDMARC attributes */
 

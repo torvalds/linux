@@ -445,6 +445,7 @@ struct mlx4_caps {
 	u8			eqe_factor;
 	u32			userspace_caps; /* userspace must be aware of these */
 	u32			function_caps;  /* VFs must be aware of these */
+	u16			hca_core_clock;
 };
 
 struct mlx4_buf_list {
