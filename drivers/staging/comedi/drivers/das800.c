@@ -473,6 +473,14 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	return 0;
 }
 
+static unsigned int das800_ai_get_sample(struct comedi_device *dev)
+{
+	unsigned int lsb = inb(dev->iobase + DAS800_LSB);
+	unsigned int msb = inb(dev->iobase + DAS800_MSB);
+
+	return (msb << 8) | lsb;
+}
+
 static irqreturn_t das800_interrupt(int irq, void *d)
 {
 	short i;		/* loop index */
@@ -570,61 +578,60 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
+static int das800_wait_for_conv(struct comedi_device *dev, int timeout)
+{
+	int i;
+
+	for (i = 0; i < timeout; i++) {
+		if (!(inb(dev->iobase + DAS800_STATUS) & BUSY))
+			return 0;
+	}
+	return -ETIME;
+}
+
 static int das800_ai_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv = dev->private;
-	int i, n;
-	int chan;
-	int range;
-	int lsb, msb;
-	int timeout = 1000;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
 	unsigned long irq_flags;
+	unsigned int val;
+	int ret;
+	int i;
 
 	das800_disable(dev);
 
 	/* set multiplexer */
-	chan = CR_CHAN(insn->chanspec);
-
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	das800_ind_write(dev, chan | devpriv->do_bits, CONTROL1);
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	/* set gain / range */
-	range = CR_RANGE(insn->chanspec);
-	if (thisboard->resolution == 12 && range)
+	if (s->maxdata == 0x0fff && range)
 		range += 0x7;
 	range &= 0xf;
 	outb(range, dev->iobase + DAS800_GAIN);
 
 	udelay(5);
 
-	for (n = 0; n < insn->n; n++) {
+	for (i = 0; i < insn->n; i++) {
 		/* trigger conversion */
 		outb_p(0, dev->iobase + DAS800_MSB);
 
-		for (i = 0; i < timeout; i++) {
-			if (!(inb(dev->iobase + DAS800_STATUS) & BUSY))
-				break;
-		}
-		if (i == timeout) {
-			comedi_error(dev, "timeout");
-			return -ETIME;
-		}
-		lsb = inb(dev->iobase + DAS800_LSB);
-		msb = inb(dev->iobase + DAS800_MSB);
-		if (thisboard->resolution == 12) {
-			data[n] = (lsb >> 4) & 0xff;
-			data[n] |= (msb << 4);
-		} else {
-			data[n] = (msb << 8) | lsb;
-		}
+		ret = das800_wait_for_conv(dev, 1000);
+		if (ret)
+			return ret;
+
+		val = das800_ai_get_sample(dev);
+		if (s->maxdata == 0x0fff)
+			val >>= 4;	/* 12-bit sample */
+		data[i] = val & s->maxdata;
 	}
 
-	return n;
+	return insn->n;
 }
 
 static int das800_di_insn_bits(struct comedi_device *dev,
