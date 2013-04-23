@@ -12,11 +12,12 @@
  *
  */
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
-#include <plat/map-base.h>
 
 #include <drm/drmP.h>
 #include <drm/exynos_drm.h>
@@ -140,15 +141,6 @@ struct fimc_capability {
 };
 
 /*
- * A structure of fimc driver data.
- *
- * @parent_clk: name of parent clock.
- */
-struct fimc_driverdata {
-	char	*parent_clk;
-};
-
-/*
  * A structure of fimc context.
  *
  * @ippdrv: prepare initialization using ippdrv.
@@ -157,6 +149,7 @@ struct fimc_driverdata {
  * @lock: locking of operations.
  * @clocks: fimc clocks.
  * @clk_frequency: LCLK clock frequency.
+ * @sysreg: handle to SYSREG block regmap.
  * @sc: scaler infomations.
  * @pol: porarity of writeback.
  * @id: fimc id.
@@ -170,8 +163,8 @@ struct fimc_context {
 	struct mutex	lock;
 	struct clk	*clocks[FIMC_CLKS_MAX];
 	u32		clk_frequency;
+	struct regmap	*sysreg;
 	struct fimc_scaler	sc;
-	struct fimc_driverdata	*ddata;
 	struct exynos_drm_ipp_pol	pol;
 	int	id;
 	int	irq;
@@ -215,17 +208,13 @@ static void fimc_sw_reset(struct fimc_context *ctx)
 	fimc_write(0x0, EXYNOS_CIFCNTSEQ);
 }
 
-static void fimc_set_camblk_fimd0_wb(struct fimc_context *ctx)
+static int fimc_set_camblk_fimd0_wb(struct fimc_context *ctx)
 {
-	u32 camblk_cfg;
-
 	DRM_DEBUG_KMS("%s\n", __func__);
 
-	camblk_cfg = readl(SYSREG_CAMERA_BLK);
-	camblk_cfg &= ~(SYSREG_FIMD0WB_DEST_MASK);
-	camblk_cfg |= ctx->id << (SYSREG_FIMD0WB_DEST_SHIFT);
-
-	writel(camblk_cfg, SYSREG_CAMERA_BLK);
+	return regmap_update_bits(ctx->sysreg, SYSREG_CAMERA_BLK,
+				  SYSREG_FIMD0WB_DEST_MASK,
+				  ctx->id << SYSREG_FIMD0WB_DEST_SHIFT);
 }
 
 static void fimc_set_type_ctrl(struct fimc_context *ctx, enum fimc_wb wb)
@@ -1626,7 +1615,11 @@ static int fimc_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 		fimc_handle_lastend(ctx, true);
 
 		/* setup FIMD */
-		fimc_set_camblk_fimd0_wb(ctx);
+		ret = fimc_set_camblk_fimd0_wb(ctx);
+		if (ret < 0) {
+			dev_err(dev, "camblk setup failed.\n");
+			return ret;
+		}
 
 		set_wb.enable = 1;
 		set_wb.refresh = property->refresh_rate;
@@ -1786,25 +1779,57 @@ e_clk_free:
 	return ret;
 }
 
+static int fimc_parse_dt(struct fimc_context *ctx)
+{
+	struct device_node *node = ctx->ippdrv.dev->of_node;
+
+	/* Handle only devices that support the LCD Writeback data path */
+	if (!of_property_read_bool(node, "samsung,lcd-wb"))
+		return -ENODEV;
+
+	if (of_property_read_u32(node, "clock-frequency",
+					&ctx->clk_frequency))
+		ctx->clk_frequency = FIMC_DEFAULT_LCLK_FREQUENCY;
+
+	ctx->id = of_alias_get_id(node, "fimc");
+
+	if (ctx->id < 0) {
+		dev_err(ctx->ippdrv.dev, "failed to get node alias id.\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int fimc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fimc_context *ctx;
 	struct resource *res;
 	struct exynos_drm_ippdrv *ippdrv;
-	struct exynos_drm_fimc_pdata *pdata;
-	struct fimc_driverdata *ddata;
 	int ret;
 
-	pdata = pdev->dev.platform_data;
-	if (!pdata) {
-		dev_err(dev, "no platform data specified.\n");
-		return -EINVAL;
+	if (!dev->of_node) {
+		dev_err(dev, "device tree node not found.\n");
+		return -ENODEV;
 	}
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
+
+	ctx->ippdrv.dev = dev;
+
+	ret = fimc_parse_dt(ctx);
+	if (ret < 0)
+		return ret;
+
+	ctx->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
+						"samsung,sysreg");
+	if (IS_ERR(ctx->sysreg)) {
+		dev_err(dev, "syscon regmap lookup failed.\n");
+		return PTR_ERR(ctx->sysreg);
+	}
 
 	/* resource memory */
 	ctx->regs_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1830,13 +1855,8 @@ static int fimc_probe(struct platform_device *pdev)
 	ret = fimc_setup_clocks(ctx);
 	if (ret < 0)
 		goto err_free_irq;
-	/* context initailization */
-	ctx->id = pdev->id;
-	ctx->pol = pdata->pol;
-	ctx->ddata = ddata;
 
 	ippdrv = &ctx->ippdrv;
-	ippdrv->dev = dev;
 	ippdrv->ops[EXYNOS_DRM_OPS_SRC] = &fimc_src_ops;
 	ippdrv->ops[EXYNOS_DRM_OPS_DST] = &fimc_dst_ops;
 	ippdrv->check_property = fimc_ippdrv_check_property;
@@ -1942,36 +1962,22 @@ static int fimc_runtime_resume(struct device *dev)
 }
 #endif
 
-static struct fimc_driverdata exynos4210_fimc_data = {
-	.parent_clk = "mout_mpll",
-};
-
-static struct fimc_driverdata exynos4410_fimc_data = {
-	.parent_clk = "mout_mpll_user",
-};
-
-static struct platform_device_id fimc_driver_ids[] = {
-	{
-		.name		= "exynos4210-fimc",
-		.driver_data	= (unsigned long)&exynos4210_fimc_data,
-	}, {
-		.name		= "exynos4412-fimc",
-		.driver_data	= (unsigned long)&exynos4410_fimc_data,
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(platform, fimc_driver_ids);
-
 static const struct dev_pm_ops fimc_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(fimc_suspend, fimc_resume)
 	SET_RUNTIME_PM_OPS(fimc_runtime_suspend, fimc_runtime_resume, NULL)
 };
 
+static const struct of_device_id fimc_of_match[] = {
+	{ .compatible = "samsung,exynos4210-fimc" },
+	{ .compatible = "samsung,exynos4212-fimc" },
+	{ },
+};
+
 struct platform_driver fimc_driver = {
 	.probe		= fimc_probe,
 	.remove		= fimc_remove,
-	.id_table	= fimc_driver_ids,
 	.driver		= {
+		.of_match_table = fimc_of_match,
 		.name	= "exynos-drm-fimc",
 		.owner	= THIS_MODULE,
 		.pm	= &fimc_pm_ops,
