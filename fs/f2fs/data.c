@@ -21,6 +21,7 @@
 #include "f2fs.h"
 #include "node.h"
 #include "segment.h"
+#include <trace/events/f2fs.h>
 
 /*
  * Lock ordering for the change of data block address:
@@ -348,6 +349,8 @@ int f2fs_readpage(struct f2fs_sb_info *sbi, struct page *page,
 	struct block_device *bdev = sbi->sb->s_bdev;
 	struct bio *bio;
 
+	trace_f2fs_readpage(page, blk_addr, type);
+
 	down_read(&sbi->bio_sem);
 
 	/* Allocate a new bio */
@@ -388,14 +391,18 @@ static int get_data_block_ro(struct inode *inode, sector_t iblock,
 	/* Get the page offset from the block offset(iblock) */
 	pgofs =	(pgoff_t)(iblock >> (PAGE_CACHE_SHIFT - blkbits));
 
-	if (check_extent_cache(inode, pgofs, bh_result))
+	if (check_extent_cache(inode, pgofs, bh_result)) {
+		trace_f2fs_get_data_block(inode, iblock, bh_result, 0);
 		return 0;
+	}
 
 	/* When reading holes, we need its node page */
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = get_dnode_of_data(&dn, pgofs, LOOKUP_NODE_RA);
-	if (err)
+	if (err) {
+		trace_f2fs_get_data_block(inode, iblock, bh_result, err);
 		return (err == -ENOENT) ? 0 : err;
+	}
 
 	/* It does not support data allocation */
 	BUG_ON(create);
@@ -420,6 +427,7 @@ static int get_data_block_ro(struct inode *inode, sector_t iblock,
 		bh_result->b_size = (i << blkbits);
 	}
 	f2fs_put_dnode(&dn);
+	trace_f2fs_get_data_block(inode, iblock, bh_result, 0);
 	return 0;
 }
 

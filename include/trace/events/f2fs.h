@@ -8,6 +8,15 @@
 
 #define show_dev(entry)		MAJOR(entry->dev), MINOR(entry->dev)
 #define show_dev_ino(entry)	show_dev(entry), (unsigned long)entry->ino
+#define show_bio_type(type)						\
+	__print_symbolic(type,						\
+		{ READ, 	"READ" },				\
+		{ READA, 	"READAHEAD" },				\
+		{ READ_SYNC, 	"READ_SYNC" },				\
+		{ WRITE, 	"WRITE" },				\
+		{ WRITE_SYNC, 	"WRITE_SYNC" },				\
+		{ WRITE_FLUSH,	"WRITE_FLUSH" },			\
+		{ WRITE_FUA, 	"WRITE_FUA" })
 
 DECLARE_EVENT_CLASS(f2fs__inode,
 
@@ -363,6 +372,71 @@ TRACE_EVENT(f2fs_truncate_partial_nodes,
 		(unsigned int)__entry->nid[2],
 		__entry->depth,
 		__entry->err)
+);
+
+TRACE_EVENT_CONDITION(f2fs_readpage,
+
+	TP_PROTO(struct page *page, sector_t blkaddr, int type),
+
+	TP_ARGS(page, blkaddr, type),
+
+	TP_CONDITION(page->mapping),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(pgoff_t,	index)
+		__field(sector_t,	blkaddr)
+		__field(int,	type)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= page->mapping->host->i_sb->s_dev;
+		__entry->ino		= page->mapping->host->i_ino;
+		__entry->index		= page->index;
+		__entry->blkaddr	= blkaddr;
+		__entry->type		= type;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, page_index = 0x%lx, "
+		"blkaddr = 0x%llx, bio_type = %s",
+		show_dev_ino(__entry),
+		(unsigned long)__entry->index,
+		(unsigned long long)__entry->blkaddr,
+		show_bio_type(__entry->type))
+);
+
+TRACE_EVENT(f2fs_get_data_block,
+	TP_PROTO(struct inode *inode, sector_t iblock,
+				struct buffer_head *bh, int ret),
+
+	TP_ARGS(inode, iblock, bh, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(sector_t,	iblock)
+		__field(sector_t,	bh_start)
+		__field(size_t,	bh_size)
+		__field(int,	ret)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= inode->i_sb->s_dev;
+		__entry->ino		= inode->i_ino;
+		__entry->iblock		= iblock;
+		__entry->bh_start	= bh->b_blocknr;
+		__entry->bh_size	= bh->b_size;
+		__entry->ret		= ret;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, file offset = %llu, "
+		"start blkaddr = 0x%llx, len = 0x%llx bytes, err = %d",
+		show_dev_ino(__entry),
+		(unsigned long long)__entry->iblock,
+		(unsigned long long)__entry->bh_start,
+		(unsigned long long)__entry->bh_size,
+		__entry->ret)
 );
 
 #endif /* _TRACE_F2FS_H */
