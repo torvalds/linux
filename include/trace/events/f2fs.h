@@ -645,6 +645,30 @@ TRACE_EVENT(f2fs_submit_write_page,
 		(unsigned long long)__entry->block)
 );
 
+TRACE_EVENT(f2fs_write_checkpoint,
+
+	TP_PROTO(struct super_block *sb, bool is_umount, char *msg),
+
+	TP_ARGS(sb, is_umount, msg),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(bool,	is_umount)
+		__field(char *,	msg)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sb->s_dev;
+		__entry->is_umount	= is_umount;
+		__entry->msg		= msg;
+	),
+
+	TP_printk("dev = (%d,%d), checkpoint for %s, state = %s",
+		show_dev(__entry),
+		__entry->is_umount ? "clean umount" : "consistency",
+		__entry->msg)
+);
+
 #endif /* _TRACE_F2FS_H */
 
  /* This part must be outside protection */
