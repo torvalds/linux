@@ -2652,14 +2652,14 @@
 #define _PIPEB_GMCH_DATA_M			0x71050
 
 /* Transfer unit size for display port - 1, default is 0x3f (for TU size 64) */
-#define   PIPE_GMCH_DATA_M_TU_SIZE_MASK		(0x3f << 25)
-#define   PIPE_GMCH_DATA_M_TU_SIZE_SHIFT	25
+#define  TU_SIZE(x)             (((x)-1) << 25) /* default size 64 */
+#define  TU_SIZE_MASK           (0x3f << 25)
 
-#define   PIPE_GMCH_DATA_M_MASK			(0xffffff)
+#define  DATA_LINK_M_N_MASK	(0xffffff)
+#define  DATA_LINK_N_MAX	(0x800000)
 
 #define _PIPEA_GMCH_DATA_N			0x70054
 #define _PIPEB_GMCH_DATA_N			0x71054
-#define   PIPE_GMCH_DATA_N_MASK			(0xffffff)
 
 /*
  * Computing Link M and N values for the Display Port link
@@ -2674,11 +2674,9 @@
 
 #define _PIPEA_DP_LINK_M				0x70060
 #define _PIPEB_DP_LINK_M				0x71060
-#define   PIPEA_DP_LINK_M_MASK			(0xffffff)
 
 #define _PIPEA_DP_LINK_N				0x70064
 #define _PIPEB_DP_LINK_N				0x71064
-#define   PIPEA_DP_LINK_N_MASK			(0xffffff)
 
 #define PIPE_GMCH_DATA_M(pipe) _PIPE(pipe, _PIPEA_GMCH_DATA_M, _PIPEB_GMCH_DATA_M)
 #define PIPE_GMCH_DATA_N(pipe) _PIPE(pipe, _PIPEA_GMCH_DATA_N, _PIPEB_GMCH_DATA_N)
@@ -3404,8 +3402,6 @@
 
 
 #define _PIPEA_DATA_M1           (dev_priv->info->display_mmio_offset + 0x60030)
-#define  TU_SIZE(x)             (((x)-1) << 25) /* default size 64 */
-#define  TU_SIZE_MASK           0x7e000000
 #define  PIPE_DATA_M1_OFFSET    0
 #define _PIPEA_DATA_N1           (dev_priv->info->display_mmio_offset + 0x60034)
 #define  PIPE_DATA_N1_OFFSET    0
