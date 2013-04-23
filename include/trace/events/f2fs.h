@@ -18,6 +18,33 @@
 		{ WRITE_FLUSH,	"WRITE_FLUSH" },			\
 		{ WRITE_FUA, 	"WRITE_FUA" })
 
+#define show_data_type(type)						\
+	__print_symbolic(type,						\
+		{ CURSEG_HOT_DATA, 	"Hot DATA" },			\
+		{ CURSEG_WARM_DATA, 	"Warm DATA" },			\
+		{ CURSEG_COLD_DATA, 	"Cold DATA" },			\
+		{ CURSEG_HOT_NODE, 	"Hot NODE" },			\
+		{ CURSEG_WARM_NODE, 	"Warm NODE" },			\
+		{ CURSEG_COLD_NODE, 	"Cold NODE" },			\
+		{ NO_CHECK_TYPE, 	"No TYPE" })
+
+#define show_gc_type(type)						\
+	__print_symbolic(type,						\
+		{ FG_GC,	"Foreground GC" },			\
+		{ BG_GC,	"Background GC" })
+
+#define show_alloc_mode(type)						\
+	__print_symbolic(type,						\
+		{ LFS,	"LFS-mode" },					\
+		{ SSR,	"SSR-mode" })
+
+#define show_victim_policy(type)					\
+	__print_symbolic(type,						\
+		{ GC_GREEDY,	"Greedy" },				\
+		{ GC_CB,	"Cost-Benefit" })
+
+struct victim_sel_policy;
+
 DECLARE_EVENT_CLASS(f2fs__inode,
 
 	TP_PROTO(struct inode *inode),
@@ -437,6 +464,54 @@ TRACE_EVENT(f2fs_get_data_block,
 		(unsigned long long)__entry->bh_start,
 		(unsigned long long)__entry->bh_size,
 		__entry->ret)
+);
+
+TRACE_EVENT(f2fs_get_victim,
+
+	TP_PROTO(struct super_block *sb, int type, int gc_type,
+			struct victim_sel_policy *p, unsigned int pre_victim,
+			unsigned int prefree, unsigned int free),
+
+	TP_ARGS(sb, type, gc_type, p, pre_victim, prefree, free),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(int,	type)
+		__field(int,	gc_type)
+		__field(int,	alloc_mode)
+		__field(int,	gc_mode)
+		__field(unsigned int,	victim)
+		__field(unsigned int,	ofs_unit)
+		__field(unsigned int,	pre_victim)
+		__field(unsigned int,	prefree)
+		__field(unsigned int,	free)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sb->s_dev;
+		__entry->type		= type;
+		__entry->gc_type	= gc_type;
+		__entry->alloc_mode	= p->alloc_mode;
+		__entry->gc_mode	= p->gc_mode;
+		__entry->victim		= p->min_segno;
+		__entry->ofs_unit	= p->ofs_unit;
+		__entry->pre_victim	= pre_victim;
+		__entry->prefree	= prefree;
+		__entry->free		= free;
+	),
+
+	TP_printk("dev = (%d,%d), type = %s, policy = (%s, %s, %s), victim = %u "
+		"ofs_unit = %u, pre_victim_secno = %d, prefree = %u, free = %u",
+		show_dev(__entry),
+		show_data_type(__entry->type),
+		show_gc_type(__entry->gc_type),
+		show_alloc_mode(__entry->alloc_mode),
+		show_victim_policy(__entry->gc_mode),
+		__entry->victim,
+		__entry->ofs_unit,
+		(int)__entry->pre_victim,
+		__entry->prefree,
+		__entry->free)
 );
 
 #endif /* _TRACE_F2FS_H */

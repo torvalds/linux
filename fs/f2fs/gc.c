@@ -23,6 +23,7 @@
 #include "node.h"
 #include "segment.h"
 #include "gc.h"
+#include <trace/events/f2fs.h>
 
 static struct kmem_cache *winode_slab;
 
@@ -301,6 +302,10 @@ got_it:
 				set_bit(secno, dirty_i->victim_secmap);
 		}
 		*result = (p.min_segno / p.ofs_unit) * p.ofs_unit;
+
+		trace_f2fs_get_victim(sbi->sb, type, gc_type, &p,
+				sbi->cur_victim_sec,
+				prefree_segments(sbi), free_segments(sbi));
 	}
 	mutex_unlock(&dirty_i->seglist_lock);
 
