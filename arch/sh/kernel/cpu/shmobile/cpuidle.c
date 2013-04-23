@@ -51,7 +51,6 @@ static int cpuidle_sleep_enter(struct cpuidle_device *dev,
 	return k;
 }
 
-static struct cpuidle_device cpuidle_dev;
 static struct cpuidle_driver cpuidle_driver = {
 	.name   = "sh_idle",
 	.owner  = THIS_MODULE,
@@ -100,9 +99,5 @@ int __init sh_mobile_setup_cpuidle(void)
 	if (sh_mobile_sleep_supported & SUSP_SH_STANDBY)
 		cpuidle_driver.states[2].disabled = false;
 
-	ret = cpuidle_register_driver(&cpuidle_driver);
-	if (ret)
-		return ret;
-
-	return cpuidle_register_device(&cpuidle_dev);
+	return cpuidle_register(&cpuidle_driver);
 }
