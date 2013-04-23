@@ -8,6 +8,14 @@
 
 #define show_dev(entry)		MAJOR(entry->dev), MINOR(entry->dev)
 #define show_dev_ino(entry)	show_dev(entry), (unsigned long)entry->ino
+
+#define show_block_type(type)						\
+	__print_symbolic(type,						\
+		{ NODE,		"NODE" },				\
+		{ DATA,		"DATA" },				\
+		{ META,		"META" },				\
+		{ META_FLUSH,	"META_FLUSH" })
+
 #define show_bio_type(type)						\
 	__print_symbolic(type,						\
 		{ READ, 	"READ" },				\
@@ -576,6 +584,65 @@ TRACE_EVENT(f2fs_reserve_new_block,
 		show_dev(__entry),
 		(unsigned int)__entry->nid,
 		__entry->ofs_in_node)
+);
+
+TRACE_EVENT(f2fs_do_submit_bio,
+
+	TP_PROTO(struct super_block *sb, int btype, bool sync, struct bio *bio),
+
+	TP_ARGS(sb, btype, sync, bio),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(int,	btype)
+		__field(bool,	sync)
+		__field(sector_t,	sector)
+		__field(unsigned int,	size)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= sb->s_dev;
+		__entry->btype		= btype;
+		__entry->sync		= sync;
+		__entry->sector		= bio->bi_sector;
+		__entry->size		= bio->bi_size;
+	),
+
+	TP_printk("dev = (%d,%d), type = %s, io = %s, sector = %lld, size = %u",
+		show_dev(__entry),
+		show_block_type(__entry->btype),
+		__entry->sync ? "sync" : "no sync",
+		(unsigned long long)__entry->sector,
+		__entry->size)
+);
+
+TRACE_EVENT(f2fs_submit_write_page,
+
+	TP_PROTO(struct page *page, block_t blk_addr, int type),
+
+	TP_ARGS(page, blk_addr, type),
+
+	TP_STRUCT__entry(
+		__field(dev_t,	dev)
+		__field(ino_t,	ino)
+		__field(int, type)
+		__field(pgoff_t, index)
+		__field(block_t, block)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= page->mapping->host->i_sb->s_dev;
+		__entry->ino	= page->mapping->host->i_ino;
+		__entry->type	= type;
+		__entry->index	= page->index;
+		__entry->block	= blk_addr;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, %s, index = %lu, blkaddr = 0x%llx",
+		show_dev_ino(__entry),
+		show_block_type(__entry->type),
+		(unsigned long)__entry->index,
+		(unsigned long long)__entry->block)
 );
 
 #endif /* _TRACE_F2FS_H */
