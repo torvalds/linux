@@ -871,9 +871,10 @@ int brcmf_fws_macdesc_indicate(struct brcmf_fws_info *fws, u8 type, u8 *data)
 	entry = &fws->desc.nodes[mac_handle & 0x1F];
 	if (type == BRCMF_FWS_TYPE_MACDESC_DEL) {
 		brcmf_dbg(TRACE, "deleting mac %pM idx %d\n", addr, ifidx);
-		if (entry->occupied)
+		if (entry->occupied) {
+			brcmf_fws_mac_desc_cleanup(fws, entry, -1);
 			brcmf_fws_clear_mac_descriptor(entry);
-		else
+		} else
 			fws->stats.mac_update_failed++;
 		return 0;
 	}
