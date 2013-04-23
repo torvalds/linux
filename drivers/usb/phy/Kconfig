@@ -2,7 +2,7 @@
 # Physical Layer USB driver configuration
 #
 menuconfig USB_PHY
-	tristate "USB Physical Layer drivers"
+	bool "USB Physical Layer drivers"
 	help
 	  USB controllers (those which are host, device or DRD) need a
 	  device to handle the physical layer signalling, commonly called
