@@ -304,10 +304,8 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 	err = rpciod_up();
 	if (err)
 		goto out_no_rpciod;
-	err = -EINVAL;
-	if (!xprt)
-		goto out_no_xprt;
 
+	err = -EINVAL;
 	if (args->version >= program->nrvers)
 		goto out_err;
 	version = program->version[args->version];
@@ -382,10 +380,9 @@ out_no_principal:
 out_no_stats:
 	kfree(clnt);
 out_err:
-	xprt_put(xprt);
-out_no_xprt:
 	rpciod_down();
 out_no_rpciod:
+	xprt_put(xprt);
 	return ERR_PTR(err);
 }
 
@@ -514,7 +511,7 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 	new = rpc_new_client(args, xprt);
 	if (IS_ERR(new)) {
 		err = PTR_ERR(new);
-		goto out_put;
+		goto out_err;
 	}
 
 	atomic_inc(&clnt->cl_count);
@@ -527,8 +524,6 @@ static struct rpc_clnt *__rpc_clone_client(struct rpc_create_args *args,
 	new->cl_chatty = clnt->cl_chatty;
 	return new;
 
-out_put:
-	xprt_put(xprt);
 out_err:
 	dprintk("RPC:       %s: returned error %d\n", __func__, err);
 	return ERR_PTR(err);
