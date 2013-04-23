@@ -348,6 +348,7 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 
 	/* allocate instance-specific endpoints */
 
+	status = -ENODEV;
 	ep = usb_ep_autoconfig(cdev->gadget, &obex_fs_ep_in_desc);
 	if (!ep)
 		goto fail;

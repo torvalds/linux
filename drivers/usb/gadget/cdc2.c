@@ -129,8 +129,10 @@ static int __init cdc_do_config(struct usb_configuration *c)
 		return PTR_ERR(fi_serial);
 
 	f_acm = usb_get_function(fi_serial);
-	if (IS_ERR(f_acm))
+	if (IS_ERR(f_acm)) {
+		status = PTR_ERR(f_acm);
 		goto err_func_acm;
+	}
 
 	status = usb_add_function(c, f_acm);
 	if (status)
