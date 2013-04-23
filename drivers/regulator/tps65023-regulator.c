@@ -154,20 +154,15 @@ struct tps_driver_data {
 static int tps65023_dcdc_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct tps_pmic *tps = rdev_get_drvdata(dev);
-	int ret;
-	int data, dcdc = rdev_get_id(dev);
+	int dcdc = rdev_get_id(dev);
 
 	if (dcdc < TPS65023_DCDC_1 || dcdc > TPS65023_DCDC_3)
 		return -EINVAL;
 
-	if (dcdc == tps->core_regulator) {
-		ret = regmap_read(tps->regmap, TPS65023_REG_DEF_CORE, &data);
-		if (ret != 0)
-			return ret;
-		data &= (tps->info[dcdc]->table_len - 1);
-		return data;
-	} else
+	if (dcdc != tps->core_regulator)
 		return 0;
+
+	return regulator_get_voltage_sel_regmap(dev);
 }
 
 static int tps65023_dcdc_set_voltage_sel(struct regulator_dev *dev,
@@ -175,23 +170,11 @@ static int tps65023_dcdc_set_voltage_sel(struct regulator_dev *dev,
 {
 	struct tps_pmic *tps = rdev_get_drvdata(dev);
 	int dcdc = rdev_get_id(dev);
-	int ret;
 
 	if (dcdc != tps->core_regulator)
 		return -EINVAL;
 
-	ret = regmap_write(tps->regmap, TPS65023_REG_DEF_CORE, selector);
-	if (ret)
-		goto out;
-
-	/* Tell the chip that we have changed the value in DEFCORE
-	 * and its time to update the core voltage
-	 */
-	ret = regmap_update_bits(tps->regmap, TPS65023_REG_CON_CTRL2,
-				 TPS65023_REG_CTRL2_GO, TPS65023_REG_CTRL2_GO);
-
-out:
-	return ret;
+	return regulator_set_voltage_sel_regmap(dev, selector);
 }
 
 /* Operations permitted on VDCDCx */
@@ -285,6 +268,10 @@ static int tps_65023_probe(struct i2c_client *client,
 		default: /* DCDCx */
 			tps->desc[i].enable_mask =
 					1 << (TPS65023_NUM_REGULATOR - i);
+			tps->desc[i].vsel_reg = TPS65023_REG_DEF_CORE;
+			tps->desc[i].vsel_mask = info->table_len - 1;
+			tps->desc[i].apply_reg = TPS65023_REG_CON_CTRL2;
+			tps->desc[i].apply_bit = TPS65023_REG_CTRL2_GO;
 		}
 
 		config.dev = &client->dev;
