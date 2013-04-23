@@ -2161,7 +2161,6 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 	int wret;
 	int level;
 	struct btrfs_path *path;
-	int i;
 	int orig_level;
 
 	path = btrfs_alloc_path();
@@ -2218,12 +2217,6 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 	}
 
 out:
-	for (i = 0; i <= orig_level; i++) {
-		if (path->nodes[i]) {
-			free_extent_buffer(path->nodes[i]);
-			path->nodes[i] = NULL;
-		}
-	}
 	btrfs_free_path(path);
 	return ret;
 }
