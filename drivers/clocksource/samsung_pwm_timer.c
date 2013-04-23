@@ -138,8 +138,6 @@ static void samsung_time_setup(unsigned int channel, unsigned long tcnt)
 
 	tcon = __raw_readl(pwm.base + REG_TCON);
 
-	tcnt--;
-
 	tcon &= ~(TCON_START(tcon_chan) | TCON_AUTORELOAD(tcon_chan));
 	tcon |= TCON_MANUALUPDATE(tcon_chan);
 
@@ -187,7 +185,7 @@ static int samsung_set_next_event(unsigned long cycles,
 static void samsung_timer_resume(void)
 {
 	/* event timer restart */
-	samsung_time_setup(pwm.event_id, pwm.clock_count_per_tick);
+	samsung_time_setup(pwm.event_id, pwm.clock_count_per_tick - 1);
 	samsung_time_start(pwm.event_id, true);
 
 	/* source timer restart */
@@ -202,7 +200,7 @@ static void samsung_set_mode(enum clock_event_mode mode,
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		samsung_time_setup(pwm.event_id, pwm.clock_count_per_tick);
+		samsung_time_setup(pwm.event_id, pwm.clock_count_per_tick - 1);
 		samsung_time_start(pwm.event_id, true);
 		break;
 
