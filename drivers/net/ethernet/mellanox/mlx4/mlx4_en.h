@@ -78,6 +78,7 @@
 #define STAMP_SHIFT		31
 #define STAMP_VAL		0x7fffffff
 #define STATS_DELAY		(HZ / 4)
+#define SERVICE_TASK_DELAY	(HZ / 4)
 #define MAX_NUM_OF_FS_RULES	256
 
 #define MLX4_EN_FILTER_HASH_SHIFT 4
@@ -355,6 +356,7 @@ struct mlx4_en_dev {
 	struct cyclecounter	cycles;
 	struct timecounter	clock;
 	unsigned long		last_overflow_check;
+	unsigned long		overflow_period;
 };
 
 
@@ -519,6 +521,7 @@ struct mlx4_en_priv {
 	struct work_struct watchdog_task;
 	struct work_struct linkstate_task;
 	struct delayed_work stats_task;
+	struct delayed_work service_task;
 	struct mlx4_en_perf_stats pstats;
 	struct mlx4_en_pkt_stats pkstats;
 	struct mlx4_en_port_stats port_stats;
@@ -645,6 +648,7 @@ void mlx4_en_cleanup_filters(struct mlx4_en_priv *priv,
 #define MLX4_EN_NUM_SELF_TEST	5
 void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf);
 u64 mlx4_en_mac_to_u64(u8 *addr);
+void mlx4_en_ptp_overflow_check(struct mlx4_en_dev *mdev);
 
 /*
  * Functions for time stamping

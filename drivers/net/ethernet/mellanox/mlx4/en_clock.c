@@ -129,4 +129,23 @@ void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev)
 
 	timecounter_init(&mdev->clock, &mdev->cycles,
 			 ktime_to_ns(ktime_get_real()));
+
+	/* Calculate period in seconds to call the overflow watchdog - to make
+	 * sure counter is checked at least once every wrap around.
+	 */
+	mdev->overflow_period =
+		(cyclecounter_cyc2ns(&mdev->cycles,
+				    mdev->cycles.mask) / NSEC_PER_SEC / 2)
+		* HZ;
+}
+
+void mlx4_en_ptp_overflow_check(struct mlx4_en_dev *mdev)
+{
+	bool timeout = time_is_before_jiffies(mdev->last_overflow_check +
+					      mdev->overflow_period);
+
+	if (timeout) {
+		timecounter_read(&mdev->clock);
+		mdev->last_overflow_check = jiffies;
+	}
 }
