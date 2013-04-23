@@ -333,31 +333,31 @@ struct drm_i915_gt_funcs {
 	void (*force_wake_put)(struct drm_i915_private *dev_priv);
 };
 
-#define DEV_INFO_FLAGS \
-	DEV_INFO_FLAG(is_mobile) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_i85x) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_i915g) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_i945gm) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_g33) DEV_INFO_SEP \
-	DEV_INFO_FLAG(need_gfx_hws) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_g4x) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_pineview) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_broadwater) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_crestline) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_ivybridge) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_valleyview) DEV_INFO_SEP \
-	DEV_INFO_FLAG(is_haswell) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_force_wake) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_fbc) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_pipe_cxsr) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_hotplug) DEV_INFO_SEP \
-	DEV_INFO_FLAG(cursor_needs_physical) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_overlay) DEV_INFO_SEP \
-	DEV_INFO_FLAG(overlay_needs_physical) DEV_INFO_SEP \
-	DEV_INFO_FLAG(supports_tv) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_bsd_ring) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_blt_ring) DEV_INFO_SEP \
-	DEV_INFO_FLAG(has_llc)
+#define DEV_INFO_FOR_EACH_FLAG(func, sep) \
+	func(is_mobile) sep \
+	func(is_i85x) sep \
+	func(is_i915g) sep \
+	func(is_i945gm) sep \
+	func(is_g33) sep \
+	func(need_gfx_hws) sep \
+	func(is_g4x) sep \
+	func(is_pineview) sep \
+	func(is_broadwater) sep \
+	func(is_crestline) sep \
+	func(is_ivybridge) sep \
+	func(is_valleyview) sep \
+	func(is_haswell) sep \
+	func(has_force_wake) sep \
+	func(has_fbc) sep \
+	func(has_pipe_cxsr) sep \
+	func(has_hotplug) sep \
+	func(cursor_needs_physical) sep \
+	func(has_overlay) sep \
+	func(overlay_needs_physical) sep \
+	func(supports_tv) sep \
+	func(has_bsd_ring) sep \
+	func(has_blt_ring) sep \
+	func(has_llc)
 
 struct intel_device_info {
 	u32 display_mmio_offset;
