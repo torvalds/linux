@@ -40,7 +40,7 @@
 
 MODULE_AUTHOR("Zhang Rui");
 MODULE_DESCRIPTION("Generic thermal management sysfs support");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 static DEFINE_IDR(thermal_tz_idr);
 static DEFINE_IDR(thermal_cdev_idr);
