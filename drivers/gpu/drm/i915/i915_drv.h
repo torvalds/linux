@@ -654,6 +654,7 @@ struct i915_suspend_saved_registers {
 
 struct intel_gen6_power_mgmt {
 	struct work_struct work;
+	struct delayed_work vlv_work;
 	u32 pm_iir;
 	/* lock - irqsave spinlock that protectects the work_struct and
 	 * pm_iir. */
@@ -664,6 +665,7 @@ struct intel_gen6_power_mgmt {
 	u8 cur_delay;
 	u8 min_delay;
 	u8 max_delay;
+	u8 rpe_delay;
 	u8 hw_max;
 
 	struct delayed_work delayed_resume_work;

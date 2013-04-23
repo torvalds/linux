@@ -716,6 +716,17 @@ static void gen6_pm_rps_work(struct work_struct *work)
 			gen6_set_rps(dev_priv->dev, new_delay);
 	}
 
+	if (IS_VALLEYVIEW(dev_priv->dev)) {
+		/*
+		 * On VLV, when we enter RC6 we may not be at the minimum
+		 * voltage level, so arm a timer to check.  It should only
+		 * fire when there's activity or once after we've entered
+		 * RC6, and then won't be re-armed until the next RPS interrupt.
+		 */
+		mod_delayed_work(dev_priv->wq, &dev_priv->rps.vlv_work,
+				 msecs_to_jiffies(100));
+	}
+
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
