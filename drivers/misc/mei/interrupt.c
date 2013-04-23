@@ -356,13 +356,14 @@ static int mei_irq_thread_write_complete(struct mei_device *dev, s32 *slots,
 		return -ENODEV;
 	}
 
-	if (mei_cl_flow_ctrl_reduce(cl))
-		return -ENODEV;
 
 	cl->status = 0;
 	cb->buf_idx += mei_hdr.length;
-	if (mei_hdr.msg_complete)
+	if (mei_hdr.msg_complete) {
+		if (mei_cl_flow_ctrl_reduce(cl))
+			return -ENODEV;
 		list_move_tail(&cb->list, &dev->write_waiting_list.list);
+	}
 
 	return 0;
 }
