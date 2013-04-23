@@ -29,6 +29,7 @@
 #include "tracepoint.h"
 #include "fwil_types.h"
 #include "p2p.h"
+#include "btcoex.h"
 #include "wl_cfg80211.h"
 #include "fwil.h"
 
@@ -1051,6 +1052,7 @@ static void brcmf_init_prof(struct brcmf_cfg80211_profile *prof)
 
 static void brcmf_link_down(struct brcmf_cfg80211_vif *vif)
 {
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(vif->wdev.wiphy);
 	s32 err = 0;
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -1064,6 +1066,8 @@ static void brcmf_link_down(struct brcmf_cfg80211_vif *vif)
 		clear_bit(BRCMF_VIF_STATUS_CONNECTED, &vif->sme_state);
 	}
 	clear_bit(BRCMF_VIF_STATUS_CONNECTING, &vif->sme_state);
+	clear_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status);
+	brcmf_btcoex_set_mode(vif, BRCMF_BTCOEX_ENABLED, 0);
 	brcmf_dbg(TRACE, "Exit\n");
 }
 
@@ -4013,6 +4017,39 @@ exit:
 	return err;
 }
 
+static int brcmf_cfg80211_crit_proto_start(struct wiphy *wiphy,
+					   struct wireless_dev *wdev,
+					   enum nl80211_crit_proto_id proto,
+					   u16 duration)
+{
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct brcmf_cfg80211_vif *vif;
+
+	vif = container_of(wdev, struct brcmf_cfg80211_vif, wdev);
+
+	/* only DHCP support for now */
+	if (proto != NL80211_CRIT_PROTO_DHCP)
+		return -EINVAL;
+
+	/* suppress and abort scanning */
+	set_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status);
+	brcmf_abort_scanning(cfg);
+
+	return brcmf_btcoex_set_mode(vif, BRCMF_BTCOEX_DISABLED, duration);
+}
+
+static void brcmf_cfg80211_crit_proto_stop(struct wiphy *wiphy,
+					   struct wireless_dev *wdev)
+{
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct brcmf_cfg80211_vif *vif;
+
+	vif = container_of(wdev, struct brcmf_cfg80211_vif, wdev);
+
+	brcmf_btcoex_set_mode(vif, BRCMF_BTCOEX_ENABLED, 0);
+	clear_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status);
+}
+
 static struct cfg80211_ops wl_cfg80211_ops = {
 	.add_virtual_intf = brcmf_cfg80211_add_iface,
 	.del_virtual_intf = brcmf_cfg80211_del_iface,
@@ -4049,6 +4086,8 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	.cancel_remain_on_channel = brcmf_cfg80211_cancel_remain_on_channel,
 	.start_p2p_device = brcmf_p2p_start_device,
 	.stop_p2p_device = brcmf_p2p_stop_device,
+	.crit_proto_start = brcmf_cfg80211_crit_proto_start,
+	.crit_proto_stop = brcmf_cfg80211_crit_proto_stop,
 #ifdef CONFIG_NL80211_TESTMODE
 	.testmode_cmd = brcmf_cfg80211_testmode
 #endif
@@ -4786,6 +4825,12 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		brcmf_err("P2P initilisation failed (%d)\n", err);
 		goto cfg80211_p2p_attach_out;
 	}
+	err = brcmf_btcoex_attach(cfg);
+	if (err) {
+		brcmf_err("BT-coex initialisation failed (%d)\n", err);
+		brcmf_p2p_detach(&cfg->p2p);
+		goto cfg80211_p2p_attach_out;
+	}
 
 	err = brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_VERSION,
 				    &io_type);
@@ -4813,6 +4858,7 @@ void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg)
 	struct brcmf_cfg80211_vif *tmp;
 
 	wl_deinit_priv(cfg);
+	brcmf_btcoex_detach(cfg);
 	list_for_each_entry_safe(vif, tmp, &cfg->vif_list, list) {
 		brcmf_free_vif(vif);
 	}

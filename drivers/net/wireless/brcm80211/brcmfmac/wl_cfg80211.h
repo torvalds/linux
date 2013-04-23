@@ -351,6 +351,7 @@ struct brcmf_cfg80211_vif_event {
  * @wiphy: wiphy object for cfg80211 interface.
  * @conf: dongle configuration.
  * @p2p: peer-to-peer specific information.
+ * @btcoex: Bluetooth coexistence information.
  * @scan_request: cfg80211 scan request object.
  * @usr_sync: mainly for dongle up/down synchronization.
  * @bss_list: bss_list holding scanned ap information.
@@ -384,6 +385,7 @@ struct brcmf_cfg80211_info {
 	struct wiphy *wiphy;
 	struct brcmf_cfg80211_conf *conf;
 	struct brcmf_p2p_info p2p;
+	struct brcmf_btcoex_info *btcoex;
 	struct cfg80211_scan_request *scan_request;
 	struct mutex usr_sync;
 	struct brcmf_scan_results *bss_list;
