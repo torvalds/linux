@@ -55,6 +55,7 @@ config SOC_HAS_REALTIME_COUNTER
 config ARCH_OMAP2
 	bool "TI OMAP2"
 	depends on ARCH_OMAP2PLUS
+	depends on ARCH_MULTI_V6
 	default y
 	select CPU_V6
 	select MULTI_IRQ_HANDLER
@@ -64,6 +65,7 @@ config ARCH_OMAP2
 config ARCH_OMAP3
 	bool "TI OMAP3"
 	depends on ARCH_OMAP2PLUS
+	depends on ARCH_MULTI_V7
 	default y
 	select ARCH_HAS_OPP
 	select ARM_CPU_SUSPEND if PM
@@ -80,6 +82,7 @@ config ARCH_OMAP4
 	bool "TI OMAP4"
 	default y
 	depends on ARCH_OMAP2PLUS
+	depends on ARCH_MULTI_V7
 	select ARCH_HAS_OPP
 	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
 	select ARM_CPU_SUSPEND if PM
@@ -99,6 +102,7 @@ config ARCH_OMAP4
 
 config SOC_OMAP5
 	bool "TI OMAP5"
+	depends on ARCH_MULTI_V7
 	select ARM_CPU_SUSPEND if PM
 	select ARM_GIC
 	select CPU_V7
@@ -135,6 +139,7 @@ config SOC_TI81XX
 
 config SOC_AM33XX
 	bool "AM33XX support"
+	depends on ARCH_MULTI_V7
 	default y
 	select ARM_CPU_SUSPEND if PM
 	select CPU_V7
