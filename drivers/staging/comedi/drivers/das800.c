@@ -648,21 +648,22 @@ static int das800_do_insn_bits(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct das800_private *devpriv = dev->private;
-	int wbits;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 	unsigned long irq_flags;
 
-	/*  only set bits that have been masked */
-	data[0] &= 0xf;
-	wbits = devpriv->do_bits >> 4;
-	wbits &= ~data[0];
-	wbits |= data[0] & data[1];
-	devpriv->do_bits = wbits << 4;
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
+		devpriv->do_bits = s->state << 4;
 
-	spin_lock_irqsave(&dev->spinlock, irq_flags);
-	das800_ind_write(dev, CONTROL1_INTE | devpriv->do_bits, CONTROL1);
-	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+		spin_lock_irqsave(&dev->spinlock, irq_flags);
+		das800_ind_write(dev, CONTROL1_INTE | devpriv->do_bits,
+				 CONTROL1);
+		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+	}
 
-	data[1] = wbits;
+	data[1] = s->state;
 
 	return insn->n;
 }
