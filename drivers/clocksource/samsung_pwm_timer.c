@@ -356,7 +356,7 @@ static void __init samsung_timer_resources(void)
 /*
  * PWM master driver
  */
-static void __init samsung_pwm_clocksource_init(void)
+static void __init _samsung_pwm_clocksource_init(void)
 {
 	u8 mask;
 	int channel;
@@ -378,6 +378,17 @@ static void __init samsung_pwm_clocksource_init(void)
 	samsung_clocksource_init();
 }
 
+void __init samsung_pwm_clocksource_init(void __iomem *base,
+			unsigned int *irqs, struct samsung_pwm_variant *variant)
+{
+	pwm.base = base;
+	memcpy(&pwm.variant, variant, sizeof(pwm.variant));
+	memcpy(pwm.irq, irqs, SAMSUNG_PWM_NUM * sizeof(*irqs));
+
+	_samsung_pwm_clocksource_init();
+}
+
+#ifdef CONFIG_CLKSRC_OF
 static void __init samsung_pwm_alloc(struct device_node *np,
 				     const struct samsung_pwm_variant *variant)
 {
@@ -414,7 +425,7 @@ static void __init samsung_pwm_alloc(struct device_node *np,
 		return;
 	}
 
-	samsung_pwm_clocksource_init();
+	_samsung_pwm_clocksource_init();
 }
 
 static const struct samsung_pwm_variant s3c24xx_variant = {
@@ -468,3 +479,4 @@ static void __init s5p_pwm_clocksource_init(struct device_node *np)
 	samsung_pwm_alloc(np, &s5p_variant);
 }
 CLOCKSOURCE_OF_DECLARE(s5pc100_pwm, "samsung,s5pc100-pwm", s5p_pwm_clocksource_init);
+#endif

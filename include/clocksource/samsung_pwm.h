@@ -30,4 +30,7 @@ struct samsung_pwm_variant {
 	bool has_tint_cstat;
 };
 
+void samsung_pwm_clocksource_init(void __iomem *base,
+		unsigned int *irqs, struct samsung_pwm_variant *variant);
+
 #endif /* __CLOCKSOURCE_SAMSUNG_PWM_H */

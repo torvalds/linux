@@ -70,7 +70,6 @@ config CLKSRC_METAG_GENERIC
 
 config CLKSRC_SAMSUNG_PWM
 	bool
-	depends on OF
 	select CLKSRC_MMIO
 	help
 	  This is a new clocksource driver for the PWM timer found in
