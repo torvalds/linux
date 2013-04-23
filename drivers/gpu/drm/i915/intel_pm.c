@@ -2822,6 +2822,23 @@ int valleyview_rps_min_freq(struct drm_i915_private *dev_priv)
 	return val & 0xff;
 }
 
+static void vlv_rps_timer_work(struct work_struct *work)
+{
+	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
+						    rps.vlv_work.work);
+
+	/*
+	 * Timer fired, we must be idle.  Drop to min voltage state.
+	 * Note: we use RPe here since it should match the
+	 * Vmin we were shooting for.  That should give us better
+	 * perf when we come back out of RC6 than if we used the
+	 * min freq available.
+	 */
+	mutex_lock(&dev_priv->rps.hw_lock);
+	valleyview_set_rps(dev_priv->dev, dev_priv->rps.rpe_delay);
+	mutex_unlock(&dev_priv->rps.hw_lock);
+}
+
 static void valleyview_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2886,6 +2903,7 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	rpe = valleyview_rps_rpe_freq(dev_priv);
 	DRM_DEBUG_DRIVER("RPe GPU freq: %d\n",
 			 vlv_gpu_freq(dev_priv->mem_freq, rpe));
+	dev_priv->rps.rpe_delay = rpe;
 
 	val = valleyview_rps_min_freq(dev_priv);
 	DRM_DEBUG_DRIVER("min GPU freq: %d\n", vlv_gpu_freq(dev_priv->mem_freq,
@@ -2894,6 +2912,8 @@ static void valleyview_enable_rps(struct drm_device *dev)
 
 	DRM_DEBUG_DRIVER("setting GPU freq to %d\n",
 			 vlv_gpu_freq(dev_priv->mem_freq, rpe));
+
+	INIT_DELAYED_WORK(&dev_priv->rps.vlv_work, vlv_rps_timer_work);
 
 	valleyview_set_rps(dev_priv->dev, rpe);
 
@@ -3637,6 +3657,8 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 		ironlake_disable_rc6(dev);
 	} else if (INTEL_INFO(dev)->gen >= 6) {
 		cancel_delayed_work_sync(&dev_priv->rps.delayed_resume_work);
+		if (IS_VALLEYVIEW(dev))
+			cancel_delayed_work_sync(&dev_priv->rps.vlv_work);
 		mutex_lock(&dev_priv->rps.hw_lock);
 		gen6_disable_rps(dev);
 		mutex_unlock(&dev_priv->rps.hw_lock);
