@@ -552,6 +552,7 @@ struct nvme_ns {
 
 	int ns_id;
 	int lba_shift;
+	int ms;
 	u64 mode_select_num_blocks;
 	u32 mode_select_block_len;
 };
