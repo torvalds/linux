@@ -549,10 +549,10 @@ static struct csis_pix_format const *s5pcsis_try_format(
 
 static struct v4l2_mbus_framefmt *__s5pcsis_get_format(
 		struct csis_state *state, struct v4l2_subdev_fh *fh,
-		u32 pad, enum v4l2_subdev_format_whence which)
+		enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return fh ? v4l2_subdev_get_try_format(fh, pad) : NULL;
+		return fh ? v4l2_subdev_get_try_format(fh, 0) : NULL;
 
 	return &state->format;
 }
@@ -564,10 +564,7 @@ static int s5pcsis_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	struct csis_pix_format const *csis_fmt;
 	struct v4l2_mbus_framefmt *mf;
 
-	if (fmt->pad != CSIS_PAD_SOURCE && fmt->pad != CSIS_PAD_SINK)
-		return -EINVAL;
-
-	mf = __s5pcsis_get_format(state, fh, fmt->pad, fmt->which);
+	mf = __s5pcsis_get_format(state, fh, fmt->which);
 
 	if (fmt->pad == CSIS_PAD_SOURCE) {
 		if (mf) {
@@ -594,10 +591,7 @@ static int s5pcsis_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	struct csis_state *state = sd_to_csis_state(sd);
 	struct v4l2_mbus_framefmt *mf;
 
-	if (fmt->pad != CSIS_PAD_SOURCE && fmt->pad != CSIS_PAD_SINK)
-		return -EINVAL;
-
-	mf = __s5pcsis_get_format(state, fh, fmt->pad, fmt->which);
+	mf = __s5pcsis_get_format(state, fh, fmt->which);
 	if (!mf)
 		return -EINVAL;
 
