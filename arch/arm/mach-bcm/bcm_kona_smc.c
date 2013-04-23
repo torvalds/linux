@@ -41,7 +41,7 @@ static const struct of_device_id bcm_kona_smc_ids[] __initconst = {
 };
 
 /* Map in the bounce area */
-void bcm_kona_smc_init(void)
+void __init bcm_kona_smc_init(void)
 {
 	struct device_node *node;
 
