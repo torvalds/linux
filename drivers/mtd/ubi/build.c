@@ -1261,7 +1261,11 @@ static int __init ubi_init(void)
 		mtd = open_mtd_device(p->name);
 		if (IS_ERR(mtd)) {
 			err = PTR_ERR(mtd);
-			goto out_detach;
+			ubi_err("cannot open mtd %s, error %d", p->name, err);
+			/* See comment below re-ubi_is_module(). */
+			if (ubi_is_module())
+				goto out_detach;
+			continue;
 		}
 
 		mutex_lock(&ubi_devices_mutex);
