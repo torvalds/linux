@@ -407,25 +407,22 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 {
 	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv = dev->private;
-	int startChan, endChan, scan, gain;
+	struct comedi_async *async = s->async;
+	unsigned int gain = CR_RANGE(async->cmd.chanlist[0]);
+	unsigned int start_chan = CR_CHAN(async->cmd.chanlist[0]);
+	unsigned int end_chan = (start_chan + async->cmd.chanlist_len - 1) % 8;
+	unsigned int scan_chans = (end_chan << 3) | start_chan;
 	int conv_bits;
 	unsigned long irq_flags;
-	struct comedi_async *async = s->async;
 
 	das800_disable(dev);
 
-	/* set channel scan limits */
-	startChan = CR_CHAN(async->cmd.chanlist[0]);
-	endChan = (startChan + async->cmd.chanlist_len - 1) % 8;
-	scan = (endChan << 3) | startChan;
-
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	/* set scan limits */
-	das800_ind_write(dev, scan, SCAN_LIMITS);
+	das800_ind_write(dev, scan_chans, SCAN_LIMITS);
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	/* set gain */
-	gain = CR_RANGE(async->cmd.chanlist[0]);
 	if (thisboard->resolution == 12 && gain > 0)
 		gain += 0x7;
 	gain &= 0xf;
