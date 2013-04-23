@@ -77,14 +77,16 @@
 
 
 /**
- * enum brcmf_scan_status - dongle scan status
+ * enum brcmf_scan_status - scan engine status
  *
  * @BRCMF_SCAN_STATUS_BUSY: scanning in progress on dongle.
  * @BRCMF_SCAN_STATUS_ABORT: scan being aborted on dongle.
+ * @BRCMF_SCAN_STATUS_SUPPRESS: scanning is suppressed in driver.
  */
 enum brcmf_scan_status {
 	BRCMF_SCAN_STATUS_BUSY,
 	BRCMF_SCAN_STATUS_ABORT,
+	BRCMF_SCAN_STATUS_SUPPRESS,
 };
 
 /**

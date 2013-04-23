@@ -856,6 +856,11 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 			  cfg->scan_status);
 		return -EAGAIN;
 	}
+	if (test_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status)) {
+		brcmf_err("Scanning suppressed: status (%lu)\n",
+			  cfg->scan_status);
+		return -EAGAIN;
+	}
 	if (test_bit(BRCMF_VIF_STATUS_CONNECTING, &ifp->vif->sme_state)) {
 		brcmf_err("Connecting: status (%lu)\n", ifp->vif->sme_state);
 		return -EAGAIN;
@@ -3015,6 +3020,11 @@ brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
 		  request->n_match_sets, request->n_ssids);
 	if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
 		brcmf_err("Scanning already: status (%lu)\n", cfg->scan_status);
+		return -EAGAIN;
+	}
+	if (test_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status)) {
+		brcmf_err("Scanning suppressed: status (%lu)\n",
+			  cfg->scan_status);
 		return -EAGAIN;
 	}
 
