@@ -100,6 +100,11 @@ struct tpacket_auxdata {
 #define TP_STATUS_SENDING	(1 << 1)
 #define TP_STATUS_WRONG_FORMAT	(1 << 2)
 
+/* Rx and Tx ring - header status */
+#define TP_STATUS_TS_SOFTWARE		(1 << 29)
+#define TP_STATUS_TS_SYS_HARDWARE	(1 << 30)
+#define TP_STATUS_TS_RAW_HARDWARE	(1 << 31)
+
 /* Rx ring - feature request bits */
 #define TP_FT_REQ_FILL_RXHASH	0x1
 
