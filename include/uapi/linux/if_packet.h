@@ -86,19 +86,19 @@ struct tpacket_auxdata {
 };
 
 /* Rx ring - header status */
-#define TP_STATUS_KERNEL	0x0
-#define TP_STATUS_USER		0x1
-#define TP_STATUS_COPY		0x2
-#define TP_STATUS_LOSING	0x4
-#define TP_STATUS_CSUMNOTREADY	0x8
-#define TP_STATUS_VLAN_VALID   0x10 /* auxdata has valid tp_vlan_tci */
-#define TP_STATUS_BLK_TMO	0x20
+#define TP_STATUS_KERNEL	      0
+#define TP_STATUS_USER		(1 << 0)
+#define TP_STATUS_COPY		(1 << 1)
+#define TP_STATUS_LOSING	(1 << 2)
+#define TP_STATUS_CSUMNOTREADY	(1 << 3)
+#define TP_STATUS_VLAN_VALID	(1 << 4) /* auxdata has valid tp_vlan_tci */
+#define TP_STATUS_BLK_TMO	(1 << 5)
 
 /* Tx ring - header status */
-#define TP_STATUS_AVAILABLE	0x0
-#define TP_STATUS_SEND_REQUEST	0x1
-#define TP_STATUS_SENDING	0x2
-#define TP_STATUS_WRONG_FORMAT	0x4
+#define TP_STATUS_AVAILABLE	      0
+#define TP_STATUS_SEND_REQUEST	(1 << 0)
+#define TP_STATUS_SENDING	(1 << 1)
+#define TP_STATUS_WRONG_FORMAT	(1 << 2)
 
 /* Rx ring - feature request bits */
 #define TP_FT_REQ_FILL_RXHASH	0x1
