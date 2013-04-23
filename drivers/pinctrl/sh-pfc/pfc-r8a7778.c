@@ -376,19 +376,19 @@ enum {
 	AVS1_MARK,
 	AVS2_MARK,
 
-	VI0_R0_C_MARK,  /* see GPIO_FN_VI0_R0_A */
-	VI0_R1_C_MARK,  /* see GPIO_FN_VI0_R1_A */
-	VI0_R2_C_MARK,  /* see GPIO_FN_VI0_R2_A */
-	/* VI0_R3_C_MARK,  see GPIO_FN_VI0_R3_A */
-	VI0_R4_C_MARK,  /* see GPIO_FN_VI0_R4_A */
-	VI0_R5_C_MARK,  /* see GPIO_FN_VI0_R5_A */
+	VI0_R0_C_MARK,		/* see sel_vi0 */
+	VI0_R1_C_MARK,		/* see sel_vi0 */
+	VI0_R2_C_MARK,		/* see sel_vi0 */
+	/* VI0_R3_C_MARK, */
+	VI0_R4_C_MARK,		/* see sel_vi0 */
+	VI0_R5_C_MARK,		/* see sel_vi0 */
 
-	VI0_R0_D_MARK,  /* see GPIO_FN_VI0_R0_B */
-	VI0_R1_D_MARK,  /* see GPIO_FN_VI0_R1_B */
-	VI0_R2_D_MARK,  /* see GPIO_FN_VI0_R2_B */
-	VI0_R3_D_MARK,  /* see GPIO_FN_VI0_R3_B */
-	VI0_R4_D_MARK,  /* see GPIO_FN_VI0_R4_B */
-	VI0_R5_D_MARK,  /* see GPIO_FN_VI0_R5_B */
+	VI0_R0_D_MARK,		/* see sel_vi0 */
+	VI0_R1_D_MARK,		/* see sel_vi0 */
+	VI0_R2_D_MARK,		/* see sel_vi0 */
+	VI0_R3_D_MARK,		/* see sel_vi0 */
+	VI0_R4_D_MARK,		/* see sel_vi0 */
+	VI0_R5_D_MARK,		/* see sel_vi0 */
 
 	/* IPSR0 */
 	PRESETOUT_MARK,	PWM1_MARK,	AUDATA0_MARK,
