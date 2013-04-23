@@ -468,43 +468,36 @@ void cpsw_tx_handler(void *token, int len, int status)
 void cpsw_rx_handler(void *token, int len, int status)
 {
 	struct sk_buff		*skb = token;
+	struct sk_buff		*new_skb;
 	struct net_device	*ndev = skb->dev;
 	struct cpsw_priv	*priv = netdev_priv(ndev);
 	int			ret = 0;
 
 	cpsw_dual_emac_src_port_detect(status, priv, ndev, skb);
 
-	/* free and bail if we are shutting down */
-	if (unlikely(!netif_running(ndev)) ||
-			unlikely(!netif_carrier_ok(ndev))) {
+	if (unlikely(status < 0)) {
+		/* the interface is going down, skbs are purged */
 		dev_kfree_skb_any(skb);
 		return;
 	}
-	if (likely(status >= 0)) {
+
+	new_skb = netdev_alloc_skb_ip_align(ndev, priv->rx_packet_max);
+	if (new_skb) {
 		skb_put(skb, len);
 		cpts_rx_timestamp(priv->cpts, skb);
 		skb->protocol = eth_type_trans(skb, ndev);
 		netif_receive_skb(skb);
 		priv->stats.rx_bytes += len;
 		priv->stats.rx_packets++;
-		skb = NULL;
+	} else {
+		priv->stats.rx_dropped++;
+		new_skb = skb;
 	}
 
-	if (unlikely(!netif_running(ndev))) {
-		if (skb)
-			dev_kfree_skb_any(skb);
-		return;
-	}
-
-	if (likely(!skb)) {
-		skb = netdev_alloc_skb_ip_align(ndev, priv->rx_packet_max);
-		if (WARN_ON(!skb))
-			return;
-
-		ret = cpdma_chan_submit(priv->rxch, skb, skb->data,
-					skb_tailroom(skb), 0);
-	}
-	WARN_ON(ret < 0);
+	ret = cpdma_chan_submit(priv->rxch, new_skb, new_skb->data,
+			skb_tailroom(new_skb), 0);
+	if (WARN_ON(ret < 0))
+		dev_kfree_skb_any(new_skb);
 }
 
 static irqreturn_t cpsw_interrupt(int irq, void *dev_id)

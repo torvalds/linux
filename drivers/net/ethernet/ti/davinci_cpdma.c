@@ -776,6 +776,7 @@ static int __cpdma_chan_process(struct cpdma_chan *chan)
 	struct cpdma_ctlr		*ctlr = chan->ctlr;
 	struct cpdma_desc __iomem	*desc;
 	int				status, outlen;
+	int				cb_status = 0;
 	struct cpdma_desc_pool		*pool = ctlr->pool;
 	dma_addr_t			desc_dma;
 	unsigned long			flags;
@@ -811,8 +812,12 @@ static int __cpdma_chan_process(struct cpdma_chan *chan)
 	}
 
 	spin_unlock_irqrestore(&chan->lock, flags);
+	if (unlikely(status & CPDMA_DESC_TD_COMPLETE))
+		cb_status = -ENOSYS;
+	else
+		cb_status = status;
 
-	__cpdma_chan_free(chan, desc, outlen, status);
+	__cpdma_chan_free(chan, desc, outlen, cb_status);
 	return status;
 
 unlock_ret:
