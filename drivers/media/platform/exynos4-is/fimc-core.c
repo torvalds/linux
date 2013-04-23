@@ -213,6 +213,17 @@ struct fimc_fmt *fimc_get_format(unsigned int index)
 	return &fimc_formats[index];
 }
 
+void __fimc_vidioc_querycap(struct device *dev, struct v4l2_capability *cap,
+						unsigned int caps)
+{
+	strlcpy(cap->driver, dev->driver->name, sizeof(cap->driver));
+	strlcpy(cap->card, dev->driver->name, sizeof(cap->card));
+	snprintf(cap->bus_info, sizeof(cap->bus_info),
+				"platform:%s", dev_name(dev));
+	cap->device_caps = caps;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
+}
+
 int fimc_check_scaler_ratio(struct fimc_ctx *ctx, int sw, int sh,
 			    int dw, int dh, int rotation)
 {
@@ -1283,7 +1294,7 @@ static struct platform_driver fimc_driver = {
 	.id_table	= fimc_driver_ids,
 	.driver = {
 		.of_match_table = fimc_of_match,
-		.name		= FIMC_MODULE_NAME,
+		.name		= FIMC_DRIVER_NAME,
 		.owner		= THIS_MODULE,
 		.pm     	= &fimc_pm_ops,
 	}

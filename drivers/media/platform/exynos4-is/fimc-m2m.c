@@ -249,22 +249,20 @@ static struct vb2_ops fimc_qops = {
  * V4L2 ioctl handlers
  */
 static int fimc_m2m_querycap(struct file *file, void *fh,
-			     struct v4l2_capability *cap)
+				     struct v4l2_capability *cap)
 {
-	struct fimc_ctx *ctx = fh_to_ctx(fh);
-	struct fimc_dev *fimc = ctx->fimc_dev;
+	struct fimc_dev *fimc = video_drvdata(file);
+	unsigned int caps;
 
-	strncpy(cap->driver, fimc->pdev->name, sizeof(cap->driver) - 1);
-	strncpy(cap->card, fimc->pdev->name, sizeof(cap->card) - 1);
-	cap->bus_info[0] = 0;
 	/*
 	 * This is only a mem-to-mem video device. The capture and output
 	 * device capability flags are left only for backward compatibility
 	 * and are scheduled for removal.
 	 */
-	cap->capabilities = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE |
+	caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE |
 		V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_VIDEO_OUTPUT_MPLANE;
 
+	__fimc_vidioc_querycap(&fimc->pdev->dev, cap, caps);
 	return 0;
 }
 

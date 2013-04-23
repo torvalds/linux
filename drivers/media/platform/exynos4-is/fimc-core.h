@@ -35,7 +35,7 @@
 /* Time to wait for next frame VSYNC interrupt while stopping operation. */
 #define FIMC_SHUTDOWN_TIMEOUT	((100*HZ)/1000)
 #define MAX_FIMC_CLOCKS		2
-#define FIMC_MODULE_NAME	"s5p-fimc"
+#define FIMC_DRIVER_NAME	"exynos4-fimc"
 #define FIMC_MAX_DEVS		4
 #define FIMC_MAX_OUT_BUFS	4
 #define SCALER_MAX_HRATIO	64
@@ -620,6 +620,8 @@ static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,
 /* fimc-core.c */
 int fimc_vidioc_enum_fmt_mplane(struct file *file, void *priv,
 				struct v4l2_fmtdesc *f);
+void __fimc_vidioc_querycap(struct device *dev, struct v4l2_capability *cap,
+						unsigned int caps);
 int fimc_ctrls_create(struct fimc_ctx *ctx);
 void fimc_ctrls_delete(struct fimc_ctx *ctx);
 void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active);
