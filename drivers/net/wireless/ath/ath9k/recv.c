@@ -274,49 +274,47 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	common->rx_bufsize = IEEE80211_MAX_MPDU_LEN / 2 +
 			     sc->sc_ah->caps.rx_status_len;
 
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
 		return ath_rx_edma_init(sc, nbufs);
-	} else {
-		ath_dbg(common, CONFIG, "cachelsz %u rxbufsize %u\n",
-			common->cachelsz, common->rx_bufsize);
 
-		/* Initialize rx descriptors */
+	ath_dbg(common, CONFIG, "cachelsz %u rxbufsize %u\n",
+		common->cachelsz, common->rx_bufsize);
 
-		error = ath_descdma_setup(sc, &sc->rx.rxdma, &sc->rx.rxbuf,
-				"rx", nbufs, 1, 0);
-		if (error != 0) {
-			ath_err(common,
-				"failed to allocate rx descriptors: %d\n",
-				error);
+	/* Initialize rx descriptors */
+
+	error = ath_descdma_setup(sc, &sc->rx.rxdma, &sc->rx.rxbuf,
+				  "rx", nbufs, 1, 0);
+	if (error != 0) {
+		ath_err(common,
+			"failed to allocate rx descriptors: %d\n",
+			error);
+		goto err;
+	}
+
+	list_for_each_entry(bf, &sc->rx.rxbuf, list) {
+		skb = ath_rxbuf_alloc(common, common->rx_bufsize,
+				      GFP_KERNEL);
+		if (skb == NULL) {
+			error = -ENOMEM;
 			goto err;
 		}
 
-		list_for_each_entry(bf, &sc->rx.rxbuf, list) {
-			skb = ath_rxbuf_alloc(common, common->rx_bufsize,
-					      GFP_KERNEL);
-			if (skb == NULL) {
-				error = -ENOMEM;
-				goto err;
-			}
-
-			bf->bf_mpdu = skb;
-			bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,
-					common->rx_bufsize,
-					DMA_FROM_DEVICE);
-			if (unlikely(dma_mapping_error(sc->dev,
-							bf->bf_buf_addr))) {
-				dev_kfree_skb_any(skb);
-				bf->bf_mpdu = NULL;
-				bf->bf_buf_addr = 0;
-				ath_err(common,
-					"dma_mapping_error() on RX init\n");
-				error = -ENOMEM;
-				goto err;
-			}
+		bf->bf_mpdu = skb;
+		bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,
+						 common->rx_bufsize,
+						 DMA_FROM_DEVICE);
+		if (unlikely(dma_mapping_error(sc->dev,
+					       bf->bf_buf_addr))) {
+			dev_kfree_skb_any(skb);
+			bf->bf_mpdu = NULL;
+			bf->bf_buf_addr = 0;
+			ath_err(common,
+				"dma_mapping_error() on RX init\n");
+			error = -ENOMEM;
+			goto err;
 		}
-		sc->rx.rxlink = NULL;
 	}
-
+	sc->rx.rxlink = NULL;
 err:
 	if (error)
 		ath_rx_cleanup(sc);
@@ -334,17 +332,17 @@ void ath_rx_cleanup(struct ath_softc *sc)
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		ath_rx_edma_cleanup(sc);
 		return;
-	} else {
-		list_for_each_entry(bf, &sc->rx.rxbuf, list) {
-			skb = bf->bf_mpdu;
-			if (skb) {
-				dma_unmap_single(sc->dev, bf->bf_buf_addr,
-						common->rx_bufsize,
-						DMA_FROM_DEVICE);
-				dev_kfree_skb(skb);
-				bf->bf_buf_addr = 0;
-				bf->bf_mpdu = NULL;
-			}
+	}
+
+	list_for_each_entry(bf, &sc->rx.rxbuf, list) {
+		skb = bf->bf_mpdu;
+		if (skb) {
+			dma_unmap_single(sc->dev, bf->bf_buf_addr,
+					 common->rx_bufsize,
+					 DMA_FROM_DEVICE);
+			dev_kfree_skb(skb);
+			bf->bf_buf_addr = 0;
+			bf->bf_mpdu = NULL;
 		}
 	}
 }
