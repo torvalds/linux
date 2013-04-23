@@ -632,12 +632,7 @@ static int das800_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
-	unsigned int bits;
-
-	bits = inb(dev->iobase + DAS800_STATUS) >> 4;
-	bits &= 0x7;
-	data[1] = bits;
-	data[0] = 0;
+	data[1] = (inb(dev->iobase + DAS800_STATUS) >> 4) & 0x7;
 
 	return insn->n;
 }
