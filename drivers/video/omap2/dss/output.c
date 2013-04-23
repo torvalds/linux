@@ -146,7 +146,13 @@ EXPORT_SYMBOL(omap_dss_find_output_by_node);
 
 struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev)
 {
-	return omap_dss_get_device(dssdev->output);
+	while (dssdev->output)
+		dssdev = dssdev->output;
+
+	if (dssdev->id != 0)
+		return omap_dss_get_device(dssdev);
+
+	return NULL;
 }
 EXPORT_SYMBOL(omapdss_find_output_from_display);
 
