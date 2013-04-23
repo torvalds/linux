@@ -863,7 +863,6 @@ static int mwifiex_pcie_delete_cmdrsp_buf(struct mwifiex_adapter *adapter)
 		MWIFIEX_SKB_PACB(card->cmd_buf, &buf_pa);
 		pci_unmap_single(card->dev, buf_pa, MWIFIEX_SIZE_OF_CMD_BUFFER,
 				 PCI_DMA_TODEVICE);
-		dev_kfree_skb_any(card->cmd_buf);
 	}
 	return 0;
 }
