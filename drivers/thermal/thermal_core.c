@@ -1472,9 +1472,14 @@ void thermal_notify_framework(struct thermal_zone_device *tz, int trip)
 EXPORT_SYMBOL_GPL(thermal_notify_framework);
 
 /**
- * create_trip_attrs - create attributes for trip points
+ * create_trip_attrs() - create attributes for trip points
  * @tz:		the thermal zone device
  * @mask:	Writeable trip point bitmap.
+ *
+ * helper function to instantiate sysfs entries for every trip
+ * point and its properties of a struct thermal_zone_device.
+ *
+ * Return: 0 on success, the proper error value otherwise.
  */
 static int create_trip_attrs(struct thermal_zone_device *tz, int mask)
 {
