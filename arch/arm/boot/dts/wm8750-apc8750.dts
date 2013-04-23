@@ -24,3 +24,7 @@
 		wm,pull = <2>;	/* pull-up */
 	};
 };
+
+&uart0 {
+	status = "okay";
+};

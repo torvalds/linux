@@ -21,6 +21,13 @@
 		};
 	};
 
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -121,32 +128,36 @@
 			reg = <0xd8050400 0x100>;
 		};
 
-		uart@d8200000 {
+		uart0: serial@d8200000 {
 			compatible = "via,vt8500-uart";
 			reg = <0xd8200000 0x1040>;
 			interrupts = <32>;
 			clocks = <&clkuart0>;
+			status = "disabled";
 		};
 
-		uart@d82b0000 {
+		uart1: serial@d82b0000 {
 			compatible = "via,vt8500-uart";
 			reg = <0xd82b0000 0x1040>;
 			interrupts = <33>;
 			clocks = <&clkuart1>;
+			status = "disabled";
 		};
 
-		uart@d8210000 {
+		uart2: serial@d8210000 {
 			compatible = "via,vt8500-uart";
 			reg = <0xd8210000 0x1040>;
 			interrupts = <47>;
 			clocks = <&clkuart2>;
+			status = "disabled";
 		};
 
-		uart@d82c0000 {
+		uart3: serial@d82c0000 {
 			compatible = "via,vt8500-uart";
 			reg = <0xd82c0000 0x1040>;
 			interrupts = <50>;
 			clocks = <&clkuart3>;
+			status = "disabled";
 		};
 
 		rtc@d8100000 {
