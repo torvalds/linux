@@ -228,19 +228,7 @@ struct das800_private {
 	volatile int do_bits;	/* digital output bits */
 };
 
-static int das800_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
 static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
-
-static struct comedi_driver driver_das800 = {
-	.driver_name = "das800",
-	.module = THIS_MODULE,
-	.attach = das800_attach,
-	.detach = comedi_legacy_detach,
-	.num_names = ARRAY_SIZE(das800_boards),
-	.board_name = &das800_boards[0].name,
-	.offset = sizeof(struct das800_board),
-};
 
 static irqreturn_t das800_interrupt(int irq, void *d);
 static void enable_das800(struct comedi_device *dev);
@@ -328,8 +316,6 @@ static int das800_probe(struct comedi_device *dev)
 	}
 	return -1;
 }
-
-module_comedi_driver(driver_das800);
 
 /* interrupt service routine */
 static irqreturn_t das800_interrupt(int irq, void *d)
@@ -847,6 +833,17 @@ static int das800_set_frequency(struct comedi_device *dev)
 
 	return 0;
 }
+
+static struct comedi_driver driver_das800 = {
+	.driver_name	= "das800",
+	.module		= THIS_MODULE,
+	.attach		= das800_attach,
+	.detach		= comedi_legacy_detach,
+	.num_names	= ARRAY_SIZE(das800_boards),
+	.board_name	= &das800_boards[0].name,
+	.offset		= sizeof(struct das800_board),
+};
+module_comedi_driver(driver_das800);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
