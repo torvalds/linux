@@ -446,7 +446,7 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 	for (count = 0; count < tz->trips; count++)
 		handle_thermal_trip(tz, count);
 }
-EXPORT_SYMBOL(thermal_zone_device_update);
+EXPORT_SYMBOL_GPL(thermal_zone_device_update);
 
 static void thermal_zone_device_check(struct work_struct *work)
 {
@@ -1209,7 +1209,7 @@ free_mem:
 	kfree(dev);
 	return result;
 }
-EXPORT_SYMBOL(thermal_zone_bind_cooling_device);
+EXPORT_SYMBOL_GPL(thermal_zone_bind_cooling_device);
 
 /**
  * thermal_zone_unbind_cooling_device - unbind a cooling device from a thermal zone
@@ -1249,7 +1249,7 @@ unbind:
 	kfree(pos);
 	return 0;
 }
-EXPORT_SYMBOL(thermal_zone_unbind_cooling_device);
+EXPORT_SYMBOL_GPL(thermal_zone_unbind_cooling_device);
 
 static void thermal_release(struct device *dev)
 {
@@ -1346,7 +1346,7 @@ unregister:
 	device_unregister(&cdev->device);
 	return ERR_PTR(result);
 }
-EXPORT_SYMBOL(thermal_cooling_device_register);
+EXPORT_SYMBOL_GPL(thermal_cooling_device_register);
 
 /**
  * thermal_cooling_device_unregister - removes the registered thermal cooling device
@@ -1406,7 +1406,7 @@ void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 	device_unregister(&cdev->device);
 	return;
 }
-EXPORT_SYMBOL(thermal_cooling_device_unregister);
+EXPORT_SYMBOL_GPL(thermal_cooling_device_unregister);
 
 void thermal_cdev_update(struct thermal_cooling_device *cdev)
 {
@@ -1447,7 +1447,7 @@ void thermal_notify_framework(struct thermal_zone_device *tz, int trip)
 {
 	handle_thermal_trip(tz, trip);
 }
-EXPORT_SYMBOL(thermal_notify_framework);
+EXPORT_SYMBOL_GPL(thermal_notify_framework);
 
 /**
  * create_trip_attrs - create attributes for trip points
@@ -1699,7 +1699,7 @@ unregister:
 	device_unregister(&tz->device);
 	return ERR_PTR(result);
 }
-EXPORT_SYMBOL(thermal_zone_device_register);
+EXPORT_SYMBOL_GPL(thermal_zone_device_register);
 
 /**
  * thermal_device_unregister - removes the registered thermal zone device
@@ -1766,7 +1766,7 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 	device_unregister(&tz->device);
 	return;
 }
-EXPORT_SYMBOL(thermal_zone_device_unregister);
+EXPORT_SYMBOL_GPL(thermal_zone_device_unregister);
 
 /**
  * thermal_zone_get_zone_by_name() - search for a zone and returns its ref
@@ -1882,7 +1882,7 @@ int thermal_generate_netlink_event(struct thermal_zone_device *tz,
 
 	return result;
 }
-EXPORT_SYMBOL(thermal_generate_netlink_event);
+EXPORT_SYMBOL_GPL(thermal_generate_netlink_event);
 
 static int genetlink_init(void)
 {
