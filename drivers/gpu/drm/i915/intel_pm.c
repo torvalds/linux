@@ -2547,6 +2547,25 @@ static void gen6_disable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
 }
 
+static void valleyview_disable_rps(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(GEN6_RC_CONTROL, 0);
+	I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
+	I915_WRITE(GEN6_PMIER, 0);
+	/* Complete PM interrupt masking here doesn't race with the rps work
+	 * item again unmasking PM interrupts because that is using a different
+	 * register (PMIMR) to mask PM interrupts. The only risk is in leaving
+	 * stale bits in PMIIR and PMIMR which gen6_enable_rps will clean up. */
+
+	spin_lock_irq(&dev_priv->rps.lock);
+	dev_priv->rps.pm_iir = 0;
+	spin_unlock_irq(&dev_priv->rps.lock);
+
+	I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
+}
+
 int intel_enable_rc6(const struct drm_device *dev)
 {
 	/* Respect the kernel parameter if it is set */
@@ -3661,7 +3680,10 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 		if (IS_VALLEYVIEW(dev))
 			cancel_delayed_work_sync(&dev_priv->rps.vlv_work);
 		mutex_lock(&dev_priv->rps.hw_lock);
-		gen6_disable_rps(dev);
+		if (IS_VALLEYVIEW(dev))
+			valleyview_disable_rps(dev);
+		else
+			gen6_disable_rps(dev);
 		mutex_unlock(&dev_priv->rps.hw_lock);
 	}
 }
