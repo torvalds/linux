@@ -130,7 +130,7 @@ static bool ath_rx_edma_buf_link(struct ath_softc *sc,
 }
 
 static void ath_rx_addbuffer_edma(struct ath_softc *sc,
-				  enum ath9k_rx_qtype qtype, int size)
+				  enum ath9k_rx_qtype qtype)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_buf *bf, *tbf;
@@ -250,15 +250,9 @@ rx_init_fail:
 static void ath_edma_start_recv(struct ath_softc *sc)
 {
 	ath9k_hw_rxena(sc->sc_ah);
-
-	ath_rx_addbuffer_edma(sc, ATH9K_RX_QUEUE_HP,
-			      sc->rx.rx_edma[ATH9K_RX_QUEUE_HP].rx_fifo_hwsize);
-
-	ath_rx_addbuffer_edma(sc, ATH9K_RX_QUEUE_LP,
-			      sc->rx.rx_edma[ATH9K_RX_QUEUE_LP].rx_fifo_hwsize);
-
+	ath_rx_addbuffer_edma(sc, ATH9K_RX_QUEUE_HP);
+	ath_rx_addbuffer_edma(sc, ATH9K_RX_QUEUE_LP);
 	ath_opmode_init(sc);
-
 	ath9k_hw_startpcureceive(sc->sc_ah, !!(sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL));
 }
 
