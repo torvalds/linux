@@ -1109,13 +1109,23 @@ thermal_remove_hwmon_sysfs(struct thermal_zone_device *tz)
 #endif
 
 /**
- * thermal_zone_bind_cooling_device - bind a cooling device to a thermal zone
- * @tz:		thermal zone device
+ * thermal_zone_bind_cooling_device() - bind a cooling device to a thermal zone
+ * @tz:		pointer to struct thermal_zone_device
  * @trip:	indicates which trip point the cooling devices is
  *		associated with in this thermal zone.
- * @cdev:	thermal cooling device
+ * @cdev:	pointer to struct thermal_cooling_device
+ * @upper:	the Maximum cooling state for this trip point.
+ *		THERMAL_NO_LIMIT means no upper limit,
+ *		and the cooling device can be in max_state.
+ * @lower:	the Minimum cooling state can be used for this trip point.
+ *		THERMAL_NO_LIMIT means no lower limit,
+ *		and the cooling device can be in cooling state 0.
  *
+ * This interface function bind a thermal cooling device to the certain trip
+ * point of a thermal zone device.
  * This function is usually called in the thermal zone device .bind callback.
+ *
+ * Return: 0 on success, the proper error value otherwise.
  */
 int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 				     int trip,
