@@ -118,6 +118,14 @@ enum batadv_bla_claimframe {
 	BATADV_CLAIM_TYPE_REQUEST	= 0x03,
 };
 
+/**
+ * enum batadv_tvlv_type - tvlv type definitions
+ * @BATADV_TVLV_GW: gateway tvlv
+ */
+enum batadv_tvlv_type {
+	BATADV_TVLV_GW		= 0x01,
+};
+
 /* the destination hardware field in the ARP frame is used to
  * transport the claim type and the group id
  */
@@ -147,7 +155,7 @@ struct batadv_ogm_packet {
 	__be32   seqno;
 	uint8_t  orig[ETH_ALEN];
 	uint8_t  prev_sender[ETH_ALEN];
-	uint8_t  gw_flags;  /* flags related to gateway class */
+	uint8_t  reserved;
 	uint8_t  tq;
 	uint8_t  tt_num_changes;
 	uint8_t  ttvn; /* translation table version number */
@@ -350,6 +358,17 @@ struct batadv_tvlv_hdr {
 	uint8_t type;
 	uint8_t version;
 	__be16  len;
+};
+
+/**
+ * struct batadv_tvlv_gateway_data - gateway data propagated through gw tvlv
+ *  container
+ * @bandwidth_down: advertised uplink download bandwidth
+ * @bandwidth_up: advertised uplink upload bandwidth
+ */
+struct batadv_tvlv_gateway_data {
+	__be32 bandwidth_down;
+	__be32 bandwidth_up;
 };
 
 #endif /* _NET_BATMAN_ADV_PACKET_H_ */

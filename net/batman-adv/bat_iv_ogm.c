@@ -135,6 +135,7 @@ static int batadv_iv_ogm_iface_enable(struct batadv_hard_iface *hard_iface)
 	batadv_ogm_packet->header.version = BATADV_COMPAT_VERSION;
 	batadv_ogm_packet->header.ttl = 2;
 	batadv_ogm_packet->flags = BATADV_NO_FLAGS;
+	batadv_ogm_packet->reserved = 0;
 	batadv_ogm_packet->tq = BATADV_TQ_MAX_VALUE;
 	batadv_ogm_packet->tt_num_changes = 0;
 	batadv_ogm_packet->ttvn = 0;
@@ -690,7 +691,6 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 	int *ogm_buff_len = &hard_iface->bat_iv.ogm_buff_len;
 	int vis_server, tt_num_changes = 0;
 	uint32_t seqno;
-	uint8_t bandwidth;
 	uint16_t tvlv_len = 0;
 
 	vis_server = atomic_read(&bat_priv->vis_mode);
@@ -718,14 +718,6 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 		batadv_ogm_packet->flags |= BATADV_VIS_SERVER;
 	else
 		batadv_ogm_packet->flags &= ~BATADV_VIS_SERVER;
-
-	if (hard_iface == primary_if &&
-	    atomic_read(&bat_priv->gw_mode) == BATADV_GW_MODE_SERVER) {
-		bandwidth = (uint8_t)atomic_read(&bat_priv->gw_bandwidth);
-		batadv_ogm_packet->gw_flags = bandwidth;
-	} else {
-		batadv_ogm_packet->gw_flags = BATADV_NO_FLAGS;
-	}
 
 	batadv_iv_ogm_slide_own_bcast_window(hard_iface);
 	batadv_iv_ogm_queue_add(bat_priv, hard_iface->bat_iv.ogm_buff,
@@ -861,19 +853,6 @@ update_tt:
 				      batadv_ogm_packet->tt_num_changes,
 				      batadv_ogm_packet->ttvn,
 				      ntohs(batadv_ogm_packet->tt_crc));
-
-	if (orig_node->gw_flags != batadv_ogm_packet->gw_flags)
-		batadv_gw_node_update(bat_priv, orig_node,
-				      batadv_ogm_packet->gw_flags);
-
-	orig_node->gw_flags = batadv_ogm_packet->gw_flags;
-
-	/* restart gateway selection if fast or late switching was enabled */
-	if ((orig_node->gw_flags) &&
-	    (atomic_read(&bat_priv->gw_mode) == BATADV_GW_MODE_CLIENT) &&
-	    (atomic_read(&bat_priv->gw_sel_class) > 2))
-		batadv_gw_check_election(bat_priv, orig_node);
-
 	goto out;
 
 unlock:

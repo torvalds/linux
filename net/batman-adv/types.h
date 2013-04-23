@@ -99,7 +99,6 @@ struct batadv_hard_iface {
  * @last_seen: time when last packet from this node was received
  * @bcast_seqno_reset: time when the broadcast seqno window was reset
  * @batman_seqno_reset: time when the batman seqno window was reset
- * @gw_flags: flags related to gateway class
  * @flags: for now only VIS_SERVER flag
  * @last_ttvn: last seen translation table version number
  * @tt_crc: CRC of the translation table
@@ -147,7 +146,6 @@ struct batadv_orig_node {
 	unsigned long last_seen;
 	unsigned long bcast_seqno_reset;
 	unsigned long batman_seqno_reset;
-	uint8_t gw_flags;
 	uint8_t flags;
 	atomic_t last_ttvn;
 	uint16_t tt_crc;
@@ -189,6 +187,8 @@ struct batadv_orig_node {
  * struct batadv_gw_node - structure for orig nodes announcing gw capabilities
  * @list: list node for batadv_priv_gw::list
  * @orig_node: pointer to corresponding orig node
+ * @bandwidth_down: advertised uplink download bandwidth
+ * @bandwidth_up: advertised uplink upload bandwidth
  * @deleted: this struct is scheduled for deletion
  * @refcount: number of contexts the object is used
  * @rcu: struct used for freeing in an RCU-safe manner
@@ -196,6 +196,8 @@ struct batadv_orig_node {
 struct batadv_gw_node {
 	struct hlist_node list;
 	struct batadv_orig_node *orig_node;
+	uint32_t bandwidth_down;
+	uint32_t bandwidth_up;
 	unsigned long deleted;
 	atomic_t refcount;
 	struct rcu_head rcu;
@@ -420,12 +422,16 @@ struct batadv_priv_debug_log {
  * @list: list of available gateway nodes
  * @list_lock: lock protecting gw_list & curr_gw
  * @curr_gw: pointer to currently selected gateway node
+ * @bandwidth_down: advertised uplink download bandwidth (if gw_mode server)
+ * @bandwidth_up: advertised uplink upload bandwidth (if gw_mode server)
  * @reselect: bool indicating a gateway re-selection is in progress
  */
 struct batadv_priv_gw {
 	struct hlist_head list;
 	spinlock_t list_lock; /* protects gw_list & curr_gw */
 	struct batadv_gw_node __rcu *curr_gw;  /* rcu protected pointer */
+	atomic_t bandwidth_down;
+	atomic_t bandwidth_up;
 	atomic_t reselect;
 };
 
@@ -521,7 +527,6 @@ struct batadv_priv_nc {
  * @vis_mode: vis operation: client or server (see batadv_vis_packettype)
  * @gw_mode: gateway operation: off, client or server (see batadv_gw_modes)
  * @gw_sel_class: gateway selection class (applies if gw_mode client)
- * @gw_bandwidth: gateway announced bandwidth (applies if gw_mode server)
  * @orig_interval: OGM broadcast interval in milliseconds
  * @hop_penalty: penalty which will be applied to an OGM's tq-field on every hop
  * @log_level: configured log level (see batadv_dbg_level)
@@ -569,7 +574,6 @@ struct batadv_priv {
 	atomic_t vis_mode;
 	atomic_t gw_mode;
 	atomic_t gw_sel_class;
-	atomic_t gw_bandwidth;
 	atomic_t orig_interval;
 	atomic_t hop_penalty;
 #ifdef CONFIG_BATMAN_ADV_DEBUG

@@ -390,6 +390,7 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 	 */
 	batadv_gw_check_client_stop(bat_priv);
 	atomic_set(&bat_priv->gw_mode, (unsigned int)gw_mode_tmp);
+	batadv_gw_tvlv_container_update(bat_priv);
 	return count;
 }
 
@@ -397,15 +398,13 @@ static ssize_t batadv_show_gw_bwidth(struct kobject *kobj,
 				     struct attribute *attr, char *buff)
 {
 	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
-	int down, up;
-	int gw_bandwidth = atomic_read(&bat_priv->gw_bandwidth);
+	uint32_t down, up;
 
-	batadv_gw_bandwidth_to_kbit(gw_bandwidth, &down, &up);
-	return sprintf(buff, "%i%s/%i%s\n",
-		       (down > 2048 ? down / 1024 : down),
-		       (down > 2048 ? "MBit" : "KBit"),
-		       (up > 2048 ? up / 1024 : up),
-		       (up > 2048 ? "MBit" : "KBit"));
+	down = atomic_read(&bat_priv->gw.bandwidth_down);
+	up = atomic_read(&bat_priv->gw.bandwidth_up);
+
+	return sprintf(buff, "%u.%u/%u.%u MBit\n", down / 10,
+		       down % 10, up / 10, up % 10);
 }
 
 static ssize_t batadv_store_gw_bwidth(struct kobject *kobj,

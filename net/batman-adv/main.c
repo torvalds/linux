@@ -37,6 +37,7 @@
 #include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"
 #include "unicast.h"
+#include "gateway_common.h"
 #include "vis.h"
 #include "hash.h"
 #include "bat_algo.h"
@@ -152,6 +153,8 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	if (ret < 0)
 		goto err;
 
+	batadv_gw_init(bat_priv);
+
 	atomic_set(&bat_priv->gw.reselect, 0);
 	atomic_set(&bat_priv->mesh_state, BATADV_MESH_ACTIVE);
 
@@ -189,6 +192,8 @@ void batadv_mesh_free(struct net_device *soft_iface)
 	 * accessing the TT data are scheduled for later execution.
 	 */
 	batadv_originator_free(bat_priv);
+
+	batadv_gw_free(bat_priv);
 
 	free_percpu(bat_priv->bat_counters);
 	bat_priv->bat_counters = NULL;

@@ -472,7 +472,8 @@ static int batadv_softif_init_late(struct net_device *dev)
 	atomic_set(&bat_priv->vis_mode, BATADV_VIS_TYPE_CLIENT_UPDATE);
 	atomic_set(&bat_priv->gw_mode, BATADV_GW_MODE_OFF);
 	atomic_set(&bat_priv->gw_sel_class, 20);
-	atomic_set(&bat_priv->gw_bandwidth, 41);
+	atomic_set(&bat_priv->gw.bandwidth_down, 100);
+	atomic_set(&bat_priv->gw.bandwidth_up, 20);
 	atomic_set(&bat_priv->orig_interval, 1000);
 	atomic_set(&bat_priv->hop_penalty, 30);
 #ifdef CONFIG_BATMAN_ADV_DEBUG
