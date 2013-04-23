@@ -145,14 +145,14 @@ channel_detector_create(struct dfs_pattern_detector *dpd, u16 freq)
 	struct channel_detector *cd;
 	struct ath_common *common = ath9k_hw_common(dpd->ah);
 
-	cd = kmalloc(sizeof(*cd), GFP_KERNEL);
+	cd = kmalloc(sizeof(*cd), GFP_ATOMIC);
 	if (cd == NULL)
 		goto fail;
 
 	INIT_LIST_HEAD(&cd->head);
 	cd->freq = freq;
 	sz = sizeof(cd->detectors) * dpd->num_radar_types;
-	cd->detectors = kzalloc(sz, GFP_KERNEL);
+	cd->detectors = kzalloc(sz, GFP_ATOMIC);
 	if (cd->detectors == NULL)
 		goto fail;
 
