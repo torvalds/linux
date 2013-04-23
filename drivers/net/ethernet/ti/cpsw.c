@@ -510,20 +510,31 @@ void cpsw_rx_handler(void *token, int len, int status)
 static irqreturn_t cpsw_interrupt(int irq, void *dev_id)
 {
 	struct cpsw_priv *priv = dev_id;
+	u32 rx, tx, rx_thresh;
 
-	if (likely(netif_running(priv->ndev))) {
-		cpsw_intr_disable(priv);
-		cpsw_disable_irq(priv);
+	rx_thresh = __raw_readl(&priv->wr_regs->rx_thresh_stat);
+	rx = __raw_readl(&priv->wr_regs->rx_stat);
+	tx = __raw_readl(&priv->wr_regs->tx_stat);
+	if (!rx_thresh && !rx && !tx)
+		return IRQ_NONE;
+
+	cpsw_intr_disable(priv);
+	cpsw_disable_irq(priv);
+
+	if (netif_running(priv->ndev)) {
 		napi_schedule(&priv->napi);
-	} else {
-		priv = cpsw_get_slave_priv(priv, 1);
-		if (likely(priv) && likely(netif_running(priv->ndev))) {
-			cpsw_intr_disable(priv);
-			cpsw_disable_irq(priv);
-			napi_schedule(&priv->napi);
-		}
+		return IRQ_HANDLED;
 	}
-	return IRQ_HANDLED;
+
+	priv = cpsw_get_slave_priv(priv, 1);
+	if (!priv)
+		return IRQ_NONE;
+
+	if (netif_running(priv->ndev)) {
+		napi_schedule(&priv->napi);
+		return IRQ_HANDLED;
+	}
+	return IRQ_NONE;
 }
 
 static int cpsw_poll(struct napi_struct *napi, int budget)
