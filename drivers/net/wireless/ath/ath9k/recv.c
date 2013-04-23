@@ -1279,12 +1279,12 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			goto requeue_drop_frag;
 		}
 
-		bf->bf_mpdu = requeue_skb;
-		bf->bf_buf_addr = new_buf_addr;
-
 		/* Unmap the frame */
 		dma_unmap_single(sc->dev, bf->bf_buf_addr,
 				 common->rx_bufsize, dma_type);
+
+		bf->bf_mpdu = requeue_skb;
+		bf->bf_buf_addr = new_buf_addr;
 
 		skb_put(skb, rs.rs_datalen + ah->caps.rx_status_len);
 		if (ah->caps.rx_status_len)
