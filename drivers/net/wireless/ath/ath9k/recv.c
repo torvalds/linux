@@ -124,7 +124,7 @@ static bool ath_rx_edma_buf_link(struct ath_softc *sc,
 
 	SKB_CB_ATHBUF(skb) = bf;
 	ath9k_hw_addrxbuf_edma(ah, bf->bf_buf_addr, qtype);
-	skb_queue_tail(&rx_edma->rx_fifo, skb);
+	__skb_queue_tail(&rx_edma->rx_fifo, skb);
 
 	return true;
 }
@@ -155,7 +155,7 @@ static void ath_rx_remove_buffer(struct ath_softc *sc,
 
 	rx_edma = &sc->rx.rx_edma[qtype];
 
-	while ((skb = skb_dequeue(&rx_edma->rx_fifo)) != NULL) {
+	while ((skb = __skb_dequeue(&rx_edma->rx_fifo)) != NULL) {
 		bf = SKB_CB_ATHBUF(skb);
 		BUG_ON(!bf);
 		list_add_tail(&bf->list, &sc->rx.rxbuf);
