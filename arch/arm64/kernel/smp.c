@@ -245,11 +245,11 @@ static const struct smp_enable_ops *smp_enable_ops[NR_CPUS];
 
 static const struct smp_enable_ops * __init smp_get_enable_ops(const char *name)
 {
-	const struct smp_enable_ops *ops = enable_ops[0];
+	const struct smp_enable_ops **ops = enable_ops;
 
-	while (ops) {
-		if (!strcmp(name, ops->name))
-			return ops;
+	while (*ops) {
+		if (!strcmp(name, (*ops)->name))
+			return *ops;
 
 		ops++;
 	}
