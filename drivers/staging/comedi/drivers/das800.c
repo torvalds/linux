@@ -577,9 +577,10 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static int das800_ai_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
+static int das800_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	const struct das800_board *thisboard = comedi_board(dev);
 	struct das800_private *devpriv = dev->private;
@@ -633,9 +634,10 @@ static int das800_ai_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-static int das800_di_rbits(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
+static int das800_di_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	unsigned int bits;
 
@@ -647,9 +649,10 @@ static int das800_di_rbits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int das800_do_wbits(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
+static int das800_do_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
 	struct das800_private *devpriv = dev->private;
 	int wbits;
@@ -750,7 +753,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	/* analog input subdevice */
+	/* Analog Input subdevice */
 	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	s->type		= COMEDI_SUBD_AI;
@@ -758,7 +761,7 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan	= 8;
 	s->maxdata	= (1 << thisboard->resolution) - 1;
 	s->range_table	= thisboard->ai_range;
-	s->insn_read	= das800_ai_rinsn;
+	s->insn_read	= das800_ai_insn_read;
 	if (dev->irq) {
 		s->subdev_flags	|= SDF_CMD_READ;
 		s->len_chanlist	= 8;
@@ -767,23 +770,23 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->cancel	= das800_cancel;
 	}
 
-	/* di */
+	/* Digital Input subdevice */
 	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 3;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = das800_di_rbits;
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 3;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= das800_di_insn_bits;
 
-	/* do */
+	/* Digital Output subdevice */
 	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = 4;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = das800_do_wbits;
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= das800_do_insn_bits;
 
 	disable_das800(dev);
 
