@@ -278,3 +278,14 @@ qla2x00_do_host_ramp_up(scsi_qla_host_t *vha)
 
 	set_bit(HOST_RAMP_UP_QUEUE_DEPTH, &vha->dpc_flags);
 }
+
+static inline void
+qla2x00_handle_mbx_completion(struct qla_hw_data *ha, int status)
+{
+	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
+	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
+		set_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
+		clear_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
+		complete(&ha->mbx_intr_comp);
+	}
+}
