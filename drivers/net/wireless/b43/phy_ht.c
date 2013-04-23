@@ -30,6 +30,17 @@
 #include "radio_2059.h"
 #include "main.h"
 
+/* Force values to keep compatibility with wl */
+enum ht_rssi_type {
+	HT_RSSI_W1 = 0,
+	HT_RSSI_W2 = 1,
+	HT_RSSI_NB = 2,
+	HT_RSSI_IQ = 3,
+	HT_RSSI_TSSI_2G = 4,
+	HT_RSSI_TSSI_5G = 5,
+	HT_RSSI_TBD = 6,
+};
+
 /**************************************************
  * Radio 2059.
  **************************************************/
@@ -37,8 +48,9 @@
 static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
 			const struct b43_phy_ht_channeltab_e_radio2059 *e)
 {
-	u8 i;
-	u16 routing;
+	static const u16 routing[] = { R2059_C1, R2059_C2, R2059_C3, };
+	u16 r;
+	int core;
 
 	b43_radio_write(dev, 0x16, e->radio_syn16);
 	b43_radio_write(dev, 0x17, e->radio_syn17);
@@ -53,25 +65,17 @@ static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
 	b43_radio_write(dev, 0x41, e->radio_syn41);
 	b43_radio_write(dev, 0x43, e->radio_syn43);
 	b43_radio_write(dev, 0x47, e->radio_syn47);
-	b43_radio_write(dev, 0x4a, e->radio_syn4a);
-	b43_radio_write(dev, 0x58, e->radio_syn58);
-	b43_radio_write(dev, 0x5a, e->radio_syn5a);
-	b43_radio_write(dev, 0x6a, e->radio_syn6a);
-	b43_radio_write(dev, 0x6d, e->radio_syn6d);
-	b43_radio_write(dev, 0x6e, e->radio_syn6e);
-	b43_radio_write(dev, 0x92, e->radio_syn92);
-	b43_radio_write(dev, 0x98, e->radio_syn98);
 
-	for (i = 0; i < 2; i++) {
-		routing = i ? R2059_RXRX1 : R2059_TXRX0;
-		b43_radio_write(dev, routing | 0x4a, e->radio_rxtx4a);
-		b43_radio_write(dev, routing | 0x58, e->radio_rxtx58);
-		b43_radio_write(dev, routing | 0x5a, e->radio_rxtx5a);
-		b43_radio_write(dev, routing | 0x6a, e->radio_rxtx6a);
-		b43_radio_write(dev, routing | 0x6d, e->radio_rxtx6d);
-		b43_radio_write(dev, routing | 0x6e, e->radio_rxtx6e);
-		b43_radio_write(dev, routing | 0x92, e->radio_rxtx92);
-		b43_radio_write(dev, routing | 0x98, e->radio_rxtx98);
+	for (core = 0; core < 3; core++) {
+		r = routing[core];
+		b43_radio_write(dev, r | 0x4a, e->radio_rxtx4a);
+		b43_radio_write(dev, r | 0x58, e->radio_rxtx58);
+		b43_radio_write(dev, r | 0x5a, e->radio_rxtx5a);
+		b43_radio_write(dev, r | 0x6a, e->radio_rxtx6a);
+		b43_radio_write(dev, r | 0x6d, e->radio_rxtx6d);
+		b43_radio_write(dev, r | 0x6e, e->radio_rxtx6e);
+		b43_radio_write(dev, r | 0x92, e->radio_rxtx92);
+		b43_radio_write(dev, r | 0x98, e->radio_rxtx98);
 	}
 
 	udelay(50);
@@ -87,7 +91,7 @@ static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
 
 static void b43_radio_2059_init(struct b43_wldev *dev)
 {
-	const u16 routing[] = { R2059_SYN, R2059_TXRX0, R2059_RXRX1 };
+	const u16 routing[] = { R2059_C1, R2059_C2, R2059_C3 };
 	const u16 radio_values[3][2] = {
 		{ 0x61, 0xE9 }, { 0x69, 0xD5 }, { 0x73, 0x99 },
 	};
@@ -106,17 +110,17 @@ static void b43_radio_2059_init(struct b43_wldev *dev)
 	b43_radio_mask(dev, 0xc0, ~0x0080);
 
 	if (1) { /* FIXME */
-		b43_radio_set(dev, R2059_RXRX1 | 0x4, 0x1);
+		b43_radio_set(dev, R2059_C3 | 0x4, 0x1);
 		udelay(10);
-		b43_radio_set(dev, R2059_RXRX1 | 0x0BF, 0x1);
-		b43_radio_maskset(dev, R2059_RXRX1 | 0x19B, 0x3, 0x2);
+		b43_radio_set(dev, R2059_C3 | 0x0BF, 0x1);
+		b43_radio_maskset(dev, R2059_C3 | 0x19B, 0x3, 0x2);
 
-		b43_radio_set(dev, R2059_RXRX1 | 0x4, 0x2);
+		b43_radio_set(dev, R2059_C3 | 0x4, 0x2);
 		udelay(100);
-		b43_radio_mask(dev, R2059_RXRX1 | 0x4, ~0x2);
+		b43_radio_mask(dev, R2059_C3 | 0x4, ~0x2);
 
 		for (i = 0; i < 10000; i++) {
-			if (b43_radio_read(dev, R2059_RXRX1 | 0x145) & 1) {
+			if (b43_radio_read(dev, R2059_C3 | 0x145) & 1) {
 				i = 0;
 				break;
 			}
@@ -125,7 +129,7 @@ static void b43_radio_2059_init(struct b43_wldev *dev)
 		if (i)
 			b43err(dev->wl, "radio 0x945 timeout\n");
 
-		b43_radio_mask(dev, R2059_RXRX1 | 0x4, ~0x1);
+		b43_radio_mask(dev, R2059_C3 | 0x4, ~0x1);
 		b43_radio_set(dev, 0xa, 0x60);
 
 		for (i = 0; i < 3; i++) {
@@ -390,14 +394,14 @@ static void b43_phy_ht_tx_tone(struct b43_wldev *dev)
  **************************************************/
 
 static void b43_phy_ht_rssi_select(struct b43_wldev *dev, u8 core_sel,
-				   u8 rssi_type)
+				   enum ht_rssi_type rssi_type)
 {
 	static const u16 ctl_regs[3][2] = {
 		{ B43_PHY_HT_AFE_C1, B43_PHY_HT_AFE_C1_OVER, },
 		{ B43_PHY_HT_AFE_C2, B43_PHY_HT_AFE_C2_OVER, },
 		{ B43_PHY_HT_AFE_C3, B43_PHY_HT_AFE_C3_OVER, },
 	};
-	static const u16 radio_r[] = { R2059_SYN, R2059_TXRX0, R2059_RXRX1, };
+	static const u16 radio_r[] = { R2059_C1, R2059_C2, R2059_C3, };
 	int core;
 
 	if (core_sel == 0) {
@@ -411,13 +415,13 @@ static void b43_phy_ht_rssi_select(struct b43_wldev *dev, u8 core_sel,
 				continue;
 
 			switch (rssi_type) {
-			case 4:
+			case HT_RSSI_TSSI_2G:
 				b43_phy_set(dev, ctl_regs[core][0], 0x3 << 8);
 				b43_phy_set(dev, ctl_regs[core][0], 0x3 << 10);
 				b43_phy_set(dev, ctl_regs[core][1], 0x1 << 9);
 				b43_phy_set(dev, ctl_regs[core][1], 0x1 << 10);
 
-				b43_radio_set(dev, R2059_RXRX1 | 0xbf, 0x1);
+				b43_radio_set(dev, R2059_C3 | 0xbf, 0x1);
 				b43_radio_write(dev, radio_r[core] | 0x159,
 						0x11);
 				break;
@@ -429,8 +433,8 @@ static void b43_phy_ht_rssi_select(struct b43_wldev *dev, u8 core_sel,
 	}
 }
 
-static void b43_phy_ht_poll_rssi(struct b43_wldev *dev, u8 type, s32 *buf,
-				 u8 nsamp)
+static void b43_phy_ht_poll_rssi(struct b43_wldev *dev, enum ht_rssi_type type,
+				 s32 *buf, u8 nsamp)
 {
 	u16 phy_regs_values[12];
 	static const u16 phy_regs_to_save[] = {
@@ -504,15 +508,17 @@ static void b43_phy_ht_tx_power_ctl(struct b43_wldev *dev, bool enable)
 	static const u16 cmd_regs[3] = { B43_PHY_HT_TXPCTL_CMD_C1,
 					 B43_PHY_HT_TXPCTL_CMD_C2,
 					 B43_PHY_HT_TXPCTL_CMD_C3 };
+	static const u16 status_regs[3] = { B43_PHY_HT_TX_PCTL_STATUS_C1,
+					    B43_PHY_HT_TX_PCTL_STATUS_C2,
+					    B43_PHY_HT_TX_PCTL_STATUS_C3 };
 	int i;
 
 	if (!enable) {
 		if (b43_phy_read(dev, B43_PHY_HT_TXPCTL_CMD_C1) & en_bits) {
 			/* We disable enabled TX pwr ctl, save it's state */
-			/*
-			 * TODO: find the registers. On N-PHY they were 0x1ed
-			 * and 0x1ee, we need 3 such a registers for HT-PHY
-			 */
+			for (i = 0; i < 3; i++)
+				phy_ht->tx_pwr_idx[i] =
+					b43_phy_read(dev, status_regs[i]);
 		}
 		b43_phy_mask(dev, B43_PHY_HT_TXPCTL_CMD_C1, ~en_bits);
 	} else {
@@ -536,13 +542,25 @@ static void b43_phy_ht_tx_power_ctl(struct b43_wldev *dev, bool enable)
 static void b43_phy_ht_tx_power_ctl_idle_tssi(struct b43_wldev *dev)
 {
 	struct b43_phy_ht *phy_ht = dev->phy.ht;
+	static const u16 base[] = { 0x840, 0x860, 0x880 };
+	u16 save_regs[3][3];
 	s32 rssi_buf[6];
+	int core;
 
-	/* TODO */
+	for (core = 0; core < 3; core++) {
+		save_regs[core][1] = b43_phy_read(dev, base[core] + 6);
+		save_regs[core][2] = b43_phy_read(dev, base[core] + 7);
+		save_regs[core][0] = b43_phy_read(dev, base[core] + 0);
+
+		b43_phy_write(dev, base[core] + 6, 0);
+		b43_phy_mask(dev, base[core] + 7, ~0xF); /* 0xF? Or just 0x6? */
+		b43_phy_set(dev, base[core] + 0, 0x0400);
+		b43_phy_set(dev, base[core] + 0, 0x1000);
+	}
 
 	b43_phy_ht_tx_tone(dev);
 	udelay(20);
-	b43_phy_ht_poll_rssi(dev, 4, rssi_buf, 1);
+	b43_phy_ht_poll_rssi(dev, HT_RSSI_TSSI_2G, rssi_buf, 1);
 	b43_phy_ht_stop_playback(dev);
 	b43_phy_ht_reset_cca(dev);
 
@@ -550,7 +568,23 @@ static void b43_phy_ht_tx_power_ctl_idle_tssi(struct b43_wldev *dev)
 	phy_ht->idle_tssi[1] = rssi_buf[2] & 0xff;
 	phy_ht->idle_tssi[2] = rssi_buf[4] & 0xff;
 
-	/* TODO */
+	for (core = 0; core < 3; core++) {
+		b43_phy_write(dev, base[core] + 0, save_regs[core][0]);
+		b43_phy_write(dev, base[core] + 6, save_regs[core][1]);
+		b43_phy_write(dev, base[core] + 7, save_regs[core][2]);
+	}
+}
+
+static void b43_phy_ht_tssi_setup(struct b43_wldev *dev)
+{
+	static const u16 routing[] = { R2059_C1, R2059_C2, R2059_C3, };
+	int core;
+
+	/* 0x159 is probably TX_SSI_MUX or TSSIG (by comparing to N-PHY) */
+	for (core = 0; core < 3; core++) {
+		b43_radio_set(dev, 0x8bf, 0x1);
+		b43_radio_write(dev, routing[core] | 0x0159, 0x0011);
+	}
 }
 
 static void b43_phy_ht_tx_power_ctl_setup(struct b43_wldev *dev)
@@ -946,6 +980,7 @@ static int b43_phy_ht_op_init(struct b43_wldev *dev)
 	b43_phy_ht_tx_power_ctl(dev, false);
 	b43_phy_ht_tx_power_ctl_idle_tssi(dev);
 	b43_phy_ht_tx_power_ctl_setup(dev);
+	b43_phy_ht_tssi_setup(dev);
 	b43_phy_ht_tx_power_ctl(dev, saved_tx_pwr_ctl);
 
 	return 0;
