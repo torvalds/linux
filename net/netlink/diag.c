@@ -7,6 +7,7 @@
 
 #include "af_netlink.h"
 
+#ifdef CONFIG_NETLINK_MMAP
 static int sk_diag_put_ring(struct netlink_ring *ring, int nl_type,
 			    struct sk_buff *nlskb)
 {
@@ -34,6 +35,12 @@ static int sk_diag_put_rings_cfg(struct sock *sk, struct sk_buff *nlskb)
 
 	return ret;
 }
+#else
+static int sk_diag_put_rings_cfg(struct sock *sk, struct sk_buff *nlskb)
+{
+	return 0;
+}
+#endif
 
 static int sk_diag_dump_groups(struct sock *sk, struct sk_buff *nlskb)
 {
