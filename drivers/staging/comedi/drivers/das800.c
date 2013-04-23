@@ -233,21 +233,6 @@ static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static irqreturn_t das800_interrupt(int irq, void *d);
 static void enable_das800(struct comedi_device *dev);
 static void disable_das800(struct comedi_device *dev);
-static int das800_ai_do_cmdtest(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_cmd *cmd);
-static int das800_ai_do_cmd(struct comedi_device *dev,
-			    struct comedi_subdevice *s);
-static int das800_ai_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data);
-static int das800_di_rbits(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data);
-static int das800_do_wbits(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data);
-static int das800_probe(struct comedi_device *dev);
 static int das800_set_frequency(struct comedi_device *dev);
 
 /* checks and probes das-800 series board type */
@@ -416,96 +401,6 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	async->events = 0;
 	return IRQ_HANDLED;
 }
-
-static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
-{
-	const struct das800_board *thisboard = comedi_board(dev);
-	struct das800_private *devpriv;
-	struct comedi_subdevice *s;
-	unsigned int irq = it->options[1];
-	unsigned long irq_flags;
-	int board;
-	int ret;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
-
-	ret = comedi_request_region(dev, it->options[0], DAS800_SIZE);
-	if (ret)
-		return ret;
-
-	board = das800_probe(dev);
-	if (board < 0) {
-		dev_dbg(dev->class_dev, "unable to determine board type\n");
-		return -ENODEV;
-	}
-	dev->board_ptr = das800_boards + board;
-	thisboard = comedi_board(dev);
-
-	/* grab our IRQ */
-	if (irq == 1 || irq > 7) {
-		dev_err(dev->class_dev, "irq out of range\n");
-		return -EINVAL;
-	}
-	if (irq) {
-		if (request_irq(irq, das800_interrupt, 0, "das800", dev)) {
-			dev_err(dev->class_dev, "unable to allocate irq %u\n",
-				irq);
-			return -EINVAL;
-		}
-	}
-	dev->irq = irq;
-
-	dev->board_name = thisboard->name;
-
-	ret = comedi_alloc_subdevices(dev, 3);
-	if (ret)
-		return ret;
-
-	/* analog input subdevice */
-	s = &dev->subdevices[0];
-	dev->read_subdev = s;
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
-	s->n_chan = 8;
-	s->len_chanlist = 8;
-	s->maxdata = (1 << thisboard->resolution) - 1;
-	s->range_table = thisboard->ai_range;
-	s->do_cmd = das800_ai_do_cmd;
-	s->do_cmdtest = das800_ai_do_cmdtest;
-	s->insn_read = das800_ai_rinsn;
-	s->cancel = das800_cancel;
-
-	/* di */
-	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_DI;
-	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 3;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = das800_di_rbits;
-
-	/* do */
-	s = &dev->subdevices[2];
-	s->type = COMEDI_SUBD_DO;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = 4;
-	s->maxdata = 1;
-	s->range_table = &range_digital;
-	s->insn_bits = das800_do_wbits;
-
-	disable_das800(dev);
-
-	/* initialize digital out channels */
-	spin_lock_irqsave(&dev->spinlock, irq_flags);
-	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
-	outb(CONTROL1_INTE | devpriv->do_bits, dev->iobase + DAS800_CONTROL1);
-	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-
-	return 0;
-};
 
 static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
@@ -833,6 +728,96 @@ static int das800_set_frequency(struct comedi_device *dev)
 
 	return 0;
 }
+
+static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	const struct das800_board *thisboard = comedi_board(dev);
+	struct das800_private *devpriv;
+	struct comedi_subdevice *s;
+	unsigned int irq = it->options[1];
+	unsigned long irq_flags;
+	int board;
+	int ret;
+
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
+	ret = comedi_request_region(dev, it->options[0], DAS800_SIZE);
+	if (ret)
+		return ret;
+
+	board = das800_probe(dev);
+	if (board < 0) {
+		dev_dbg(dev->class_dev, "unable to determine board type\n");
+		return -ENODEV;
+	}
+	dev->board_ptr = das800_boards + board;
+	thisboard = comedi_board(dev);
+
+	/* grab our IRQ */
+	if (irq == 1 || irq > 7) {
+		dev_err(dev->class_dev, "irq out of range\n");
+		return -EINVAL;
+	}
+	if (irq) {
+		if (request_irq(irq, das800_interrupt, 0, "das800", dev)) {
+			dev_err(dev->class_dev, "unable to allocate irq %u\n",
+				irq);
+			return -EINVAL;
+		}
+	}
+	dev->irq = irq;
+
+	dev->board_name = thisboard->name;
+
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
+
+	/* analog input subdevice */
+	s = &dev->subdevices[0];
+	dev->read_subdev = s;
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
+	s->n_chan = 8;
+	s->len_chanlist = 8;
+	s->maxdata = (1 << thisboard->resolution) - 1;
+	s->range_table = thisboard->ai_range;
+	s->do_cmd = das800_ai_do_cmd;
+	s->do_cmdtest = das800_ai_do_cmdtest;
+	s->insn_read = das800_ai_rinsn;
+	s->cancel = das800_cancel;
+
+	/* di */
+	s = &dev->subdevices[1];
+	s->type = COMEDI_SUBD_DI;
+	s->subdev_flags = SDF_READABLE;
+	s->n_chan = 3;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = das800_di_rbits;
+
+	/* do */
+	s = &dev->subdevices[2];
+	s->type = COMEDI_SUBD_DO;
+	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+	s->n_chan = 4;
+	s->maxdata = 1;
+	s->range_table = &range_digital;
+	s->insn_bits = das800_do_wbits;
+
+	disable_das800(dev);
+
+	/* initialize digital out channels */
+	spin_lock_irqsave(&dev->spinlock, irq_flags);
+	outb(CONTROL1, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be control register 1 */
+	outb(CONTROL1_INTE | devpriv->do_bits, dev->iobase + DAS800_CONTROL1);
+	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+
+	return 0;
+};
 
 static struct comedi_driver driver_das800 = {
 	.driver_name	= "das800",
