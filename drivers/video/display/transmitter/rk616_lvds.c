@@ -91,14 +91,13 @@ static int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 	u8 hor_down_mode = 1;  //default use Proprietary averaging filter
 	u8 ver_down_mode = 1;
 	u8 bic_coe_sel = 2;
+	rk_screen *src;
+	rk_screen *dst;
+	u32 DCLK_IN;
 
 	double fk = 1.0;
 	struct rk616_route *route = &rk616->route;
-#if 0
-	rk_screen *src = screen->ext_screen;
-	rk_screen *dst = screen;
-	u32 DCLK_IN = src->pixclock;
-#endif
+
 
 	if(!route->scl_en)
 	{
@@ -109,10 +108,16 @@ static int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 	}
 	
 
-#if 0
+	src = screen;
+	dst = screen;
+	DCLK_IN = src->pixclock;
+
+
+#if 1
 
 	src_htotal = src->hsync_len + src->left_margin + src->x_res + src->right_margin;
-	src_vact_st = src->hsync_len + src->left_margin  ;
+	src_vact_st = src->vsync_len + src->upper_margin  ;
+	dst_vact_st = dst->vsync_len + dst->upper_margin;
 
 	dsp_htotal    = dst->hsync_len + dst->left_margin + dst->x_res + dst->right_margin; //dst_htotal ;
 	dsp_hs_end    = dst->hsync_len;
@@ -254,7 +259,7 @@ static int  rk616_set_router(struct mfd_rk616 *rk616,rk_screen *screen)
 		route->vif0_en     = 0;
 		route->vif1_bypass = 1;
 		route->vif1_en     = 0;
-		route->sclin_sel   = 0;
+		route->sclin_sel   = 0; //0:vif0 1:vif1
 		route->scl_en      = 0;
 		route->dither_sel  = 0; //dither from vif0
 		route->hdmi_sel    = 0;
@@ -269,11 +274,13 @@ static int  rk616_set_router(struct mfd_rk616 *rk616,rk_screen *screen)
 			route->lvds_mode = 1;
 			route->lvds_ch_nr = pdata->lvds_ch_nr;
 		}
+		#if 0
 		else
 		{
 			dev_err(rk616->dev,"un supported interface:%d\n",screen->type);
 			return -EINVAL;
 		}
+		#endif
 			
 		dev_info(rk616->dev,"rk616 use dual input for dual display!\n");
 	}
