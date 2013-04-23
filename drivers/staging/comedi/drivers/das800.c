@@ -233,7 +233,6 @@ static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static irqreturn_t das800_interrupt(int irq, void *d);
 static void enable_das800(struct comedi_device *dev);
 static void disable_das800(struct comedi_device *dev);
-static int das800_set_frequency(struct comedi_device *dev);
 
 /* interrupt service routine */
 static irqreturn_t das800_interrupt(int irq, void *d)
@@ -371,6 +370,21 @@ static void disable_das800(struct comedi_device *dev)
 	outb(CONV_CONTROL, dev->iobase + DAS800_GAIN);	/* select dev->iobase + 2 to be conversion control register */
 	outb(0x0, dev->iobase + DAS800_CONV_CONTROL);	/* disable hardware triggering of conversions */
 	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+}
+
+static int das800_set_frequency(struct comedi_device *dev)
+{
+	struct das800_private *devpriv = dev->private;
+	int err = 0;
+
+	if (i8254_load(dev->iobase + DAS800_8254, 0, 1, devpriv->divisor1, 2))
+		err++;
+	if (i8254_load(dev->iobase + DAS800_8254, 0, 2, devpriv->divisor2, 2))
+		err++;
+	if (err)
+		return -1;
+
+	return 0;
 }
 
 static int das800_ai_do_cmdtest(struct comedi_device *dev,
@@ -644,22 +658,6 @@ static int das800_do_wbits(struct comedi_device *dev,
 	data[1] = wbits;
 
 	return insn->n;
-}
-
-/* loads counters with divisor1, divisor2 from private structure */
-static int das800_set_frequency(struct comedi_device *dev)
-{
-	struct das800_private *devpriv = dev->private;
-	int err = 0;
-
-	if (i8254_load(dev->iobase + DAS800_8254, 0, 1, devpriv->divisor1, 2))
-		err++;
-	if (i8254_load(dev->iobase + DAS800_8254, 0, 2, devpriv->divisor2, 2))
-		err++;
-	if (err)
-		return -1;
-
-	return 0;
 }
 
 static int das800_probe(struct comedi_device *dev)
