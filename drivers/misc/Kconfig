@@ -406,7 +406,7 @@ config DS1682
 
 config SPEAR13XX_PCIE_GADGET
 	bool "PCIe gadget support for SPEAr13XX platform"
-	depends on ARCH_SPEAR13XX
+	depends on ARCH_SPEAR13XX && BROKEN
 	default n
 	help
 	 This option enables gadget support for PCIe controller. If
