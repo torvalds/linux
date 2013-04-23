@@ -613,6 +613,12 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		goto err;
 	}
 	found_level = btrfs_header_level(eb);
+	if (found_level >= BTRFS_MAX_LEVEL) {
+		btrfs_info(root->fs_info, "bad tree block level %d\n",
+			   (int)btrfs_header_level(eb));
+		ret = -EIO;
+		goto err;
+	}
 
 	btrfs_set_buffer_lockdep_class(btrfs_header_owner(eb),
 				       eb, found_level);
