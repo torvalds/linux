@@ -50,13 +50,7 @@ void batadv_handle_tt_response(struct batadv_priv *bat_priv,
 			       struct batadv_tt_query_packet *tt_response);
 bool batadv_is_ap_isolated(struct batadv_priv *bat_priv, uint8_t *src,
 			   uint8_t *dst);
-void batadv_tt_update_orig(struct batadv_priv *bat_priv,
-			   struct batadv_orig_node *orig_node,
-			   const unsigned char *tt_buff, uint8_t tt_num_changes,
-			   uint8_t ttvn, uint16_t tt_crc);
-int batadv_tt_append_diff(struct batadv_priv *bat_priv,
-			  unsigned char **packet_buff, int *packet_buff_len,
-			  int packet_min_len);
+void batadv_tt_local_commit_changes(struct batadv_priv *bat_priv);
 bool batadv_tt_global_client_is_roaming(struct batadv_priv *bat_priv,
 					uint8_t *addr);
 bool batadv_tt_local_client_is_roaming(struct batadv_priv *bat_priv,

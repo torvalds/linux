@@ -86,14 +86,21 @@ enum batadv_unicast_frag_flags {
 /* TT_QUERY subtypes */
 #define BATADV_TT_QUERY_TYPE_MASK 0x3
 
-enum batadv_tt_query_packettype {
-	BATADV_TT_REQUEST  = 0,
-	BATADV_TT_RESPONSE = 1,
-};
+/* tt data subtypes */
+#define BATADV_TT_DATA_TYPE_MASK 0x0F
 
-/* TT_QUERY flags */
-enum batadv_tt_query_flags {
-	BATADV_TT_FULL_TABLE = BIT(2),
+/**
+ * enum batadv_tt_data_flags - flags for tt data tvlv
+ * @BATADV_TT_OGM_DIFF: TT diff propagated through OGM
+ * @BATADV_TT_REQUEST: TT request message
+ * @BATADV_TT_RESPONSE: TT response message
+ * @BATADV_TT_FULL_TABLE: contains full table to replace existing table
+ */
+enum batadv_tt_data_flags {
+	BATADV_TT_OGM_DIFF   = BIT(0),
+	BATADV_TT_REQUEST    = BIT(1),
+	BATADV_TT_RESPONSE   = BIT(2),
+	BATADV_TT_FULL_TABLE = BIT(4),
 };
 
 /* BATADV_TT_CLIENT flags.
@@ -123,11 +130,13 @@ enum batadv_bla_claimframe {
  * @BATADV_TVLV_GW: gateway tvlv
  * @BATADV_TVLV_DAT: distributed arp table tvlv
  * @BATADV_TVLV_NC: network coding tvlv
+ * @BATADV_TVLV_TT: translation table tvlv
  */
 enum batadv_tvlv_type {
 	BATADV_TVLV_GW		= 0x01,
 	BATADV_TVLV_DAT		= 0x02,
 	BATADV_TVLV_NC		= 0x03,
+	BATADV_TVLV_TT		= 0x04,
 };
 
 /* the destination hardware field in the ARP frame is used to
@@ -161,9 +170,6 @@ struct batadv_ogm_packet {
 	uint8_t  prev_sender[ETH_ALEN];
 	uint8_t  reserved;
 	uint8_t  tq;
-	uint8_t  tt_num_changes;
-	uint8_t  ttvn; /* translation table version number */
-	__be16   tt_crc;
 	__be16   tvlv_len;
 } __packed;
 
@@ -373,6 +379,31 @@ struct batadv_tvlv_hdr {
 struct batadv_tvlv_gateway_data {
 	__be32 bandwidth_down;
 	__be32 bandwidth_up;
+};
+
+/**
+ * struct batadv_tvlv_tt_data - tt data propagated through the tt tvlv container
+ * @flags: translation table flags (see batadv_tt_data_flags)
+ * @ttvn: translation table version number
+ * @crc: crc16 checksum of the local translation table
+ */
+struct batadv_tvlv_tt_data {
+	uint8_t flags;
+	uint8_t ttvn;
+	__be16  crc;
+};
+
+/**
+ * struct batadv_tvlv_tt_change - translation table diff data
+ * @flags: status indicators concerning the non-mesh client (see
+ *  batadv_tt_client_flags)
+ * @reserved: reserved field
+ * @addr: mac address of non-mesh client that triggered this tt change
+ */
+struct batadv_tvlv_tt_change {
+	uint8_t flags;
+	uint8_t reserved;
+	uint8_t addr[ETH_ALEN];
 };
 
 #endif /* _NET_BATMAN_ADV_PACKET_H_ */

@@ -137,8 +137,6 @@ static int batadv_iv_ogm_iface_enable(struct batadv_hard_iface *hard_iface)
 	batadv_ogm_packet->flags = BATADV_NO_FLAGS;
 	batadv_ogm_packet->reserved = 0;
 	batadv_ogm_packet->tq = BATADV_TQ_MAX_VALUE;
-	batadv_ogm_packet->tt_num_changes = 0;
-	batadv_ogm_packet->ttvn = 0;
 
 	res = 0;
 
@@ -257,14 +255,14 @@ static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 			fwd_str = "Sending own";
 
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "%s %spacket (originator %pM, seqno %u, TQ %d, TTL %d, IDF %s, ttvn %d) on interface %s [%pM]\n",
+			   "%s %spacket (originator %pM, seqno %u, TQ %d, TTL %d, IDF %s) on interface %s [%pM]\n",
 			   fwd_str, (packet_num > 0 ? "aggregated " : ""),
 			   batadv_ogm_packet->orig,
 			   ntohl(batadv_ogm_packet->seqno),
 			   batadv_ogm_packet->tq, batadv_ogm_packet->header.ttl,
 			   (batadv_ogm_packet->flags & BATADV_DIRECTLINK ?
 			    "on" : "off"),
-			   batadv_ogm_packet->ttvn, hard_iface->net_dev->name,
+			   hard_iface->net_dev->name,
 			   hard_iface->net_dev->dev_addr);
 
 		buff_pos += BATADV_OGM_HLEN;
@@ -689,17 +687,22 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	struct batadv_hard_iface *primary_if;
 	int *ogm_buff_len = &hard_iface->bat_iv.ogm_buff_len;
-	int vis_server, tt_num_changes = 0;
+	int vis_server;
 	uint32_t seqno;
 	uint16_t tvlv_len = 0;
 
 	vis_server = atomic_read(&bat_priv->vis_mode);
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 
-	if (hard_iface == primary_if)
+	if (hard_iface == primary_if) {
+		/* tt changes have to be committed before the tvlv data is
+		 * appended as it may alter the tt tvlv container
+		 */
+		batadv_tt_local_commit_changes(bat_priv);
 		tvlv_len = batadv_tvlv_container_ogm_append(bat_priv, ogm_buff,
 							    ogm_buff_len,
 							    BATADV_OGM_HLEN);
+	}
 
 	batadv_ogm_packet = (struct batadv_ogm_packet *)(*ogm_buff);
 	batadv_ogm_packet->tvlv_len = htons(tvlv_len);
@@ -708,11 +711,6 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 	seqno = (uint32_t)atomic_read(&hard_iface->bat_iv.ogm_seqno);
 	batadv_ogm_packet->seqno = htonl(seqno);
 	atomic_inc(&hard_iface->bat_iv.ogm_seqno);
-
-	batadv_ogm_packet->ttvn = atomic_read(&bat_priv->tt.vn);
-	batadv_ogm_packet->tt_crc = htons(bat_priv->tt.local_crc);
-	if (tt_num_changes >= 0)
-		batadv_ogm_packet->tt_num_changes = tt_num_changes;
 
 	if (vis_server == BATADV_VIS_TYPE_SERVER_SYNC)
 		batadv_ogm_packet->flags |= BATADV_VIS_SERVER;
@@ -814,11 +812,11 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 	 */
 	router = batadv_orig_node_get_router(orig_node);
 	if (router == neigh_node)
-		goto update_tt;
+		goto out;
 
 	/* if this neighbor does not offer a better TQ we won't consider it */
 	if (router && (router->tq_avg > neigh_node->tq_avg))
-		goto update_tt;
+		goto out;
 
 	/* if the TQ is the same and the link not more symmetric we
 	 * won't consider it either
@@ -837,22 +835,10 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 		spin_unlock_bh(&orig_node_tmp->ogm_cnt_lock);
 
 		if (sum_orig >= sum_neigh)
-			goto update_tt;
+			goto out;
 	}
 
 	batadv_update_route(bat_priv, orig_node, neigh_node);
-
-update_tt:
-	/* I have to check for transtable changes only if the OGM has been
-	 * sent through a primary interface
-	 */
-	if (((batadv_ogm_packet->orig != ethhdr->h_source) &&
-	     (batadv_ogm_packet->header.ttl > 2)) ||
-	    (batadv_ogm_packet->flags & BATADV_PRIMARIES_FIRST_HOP))
-		batadv_tt_update_orig(bat_priv, orig_node, tt_buff,
-				      batadv_ogm_packet->tt_num_changes,
-				      batadv_ogm_packet->ttvn,
-				      ntohs(batadv_ogm_packet->tt_crc));
 	goto out;
 
 unlock:
@@ -1103,13 +1089,11 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 		is_single_hop_neigh = true;
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-		   "Received BATMAN packet via NB: %pM, IF: %s [%pM] (from OG: %pM, via prev OG: %pM, seqno %u, ttvn %u, crc %#.4x, changes %u, tq %d, TTL %d, V %d, IDF %d)\n",
+		   "Received BATMAN packet via NB: %pM, IF: %s [%pM] (from OG: %pM, via prev OG: %pM, seqno %u, tq %d, TTL %d, V %d, IDF %d)\n",
 		   ethhdr->h_source, if_incoming->net_dev->name,
 		   if_incoming->net_dev->dev_addr, batadv_ogm_packet->orig,
 		   batadv_ogm_packet->prev_sender,
-		   ntohl(batadv_ogm_packet->seqno), batadv_ogm_packet->ttvn,
-		   ntohs(batadv_ogm_packet->tt_crc),
-		   batadv_ogm_packet->tt_num_changes, batadv_ogm_packet->tq,
+		   ntohl(batadv_ogm_packet->seqno), batadv_ogm_packet->tq,
 		   batadv_ogm_packet->header.ttl,
 		   batadv_ogm_packet->header.version, has_directlink_flag);
 

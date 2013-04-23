@@ -772,7 +772,7 @@ struct batadv_tt_orig_list_entry {
  */
 struct batadv_tt_change_node {
 	struct list_head list;
-	struct batadv_tt_change change;
+	struct batadv_tvlv_tt_change change;
 };
 
 /**
