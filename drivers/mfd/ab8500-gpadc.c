@@ -332,7 +332,7 @@ if (ad_value < 0) {
 
 	return voltage;
 }
-EXPORT_SYMBOL(ab8500_gpadc_convert);
+EXPORT_SYMBOL(ab8500_gpadc_sw_hw_convert);
 
 /**
  * ab8500_gpadc_read_raw() - gpadc read
