@@ -55,7 +55,6 @@ static struct cpuidle_device cpuidle_dev;
 static struct cpuidle_driver cpuidle_driver = {
 	.name   = "sh_idle",
 	.owner  = THIS_MODULE,
-	.en_core_tk_irqen = 1,
 	.states = {
 		{
 			.exit_latency = 1,

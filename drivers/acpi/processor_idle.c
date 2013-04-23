@@ -918,7 +918,6 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 struct cpuidle_driver acpi_idle_driver = {
 	.name =		"acpi_idle",
 	.owner =	THIS_MODULE,
-	.en_core_tk_irqen = 1,
 };
 
 /**

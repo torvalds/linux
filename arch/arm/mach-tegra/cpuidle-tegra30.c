@@ -43,7 +43,6 @@ static int tegra30_idle_lp2(struct cpuidle_device *dev,
 static struct cpuidle_driver tegra_idle_driver = {
 	.name = "tegra_idle",
 	.owner = THIS_MODULE,
-	.en_core_tk_irqen = 1,
 #ifdef CONFIG_PM_SLEEP
 	.state_count = 2,
 #else

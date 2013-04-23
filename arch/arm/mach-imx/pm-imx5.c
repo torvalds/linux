@@ -164,7 +164,6 @@ static int imx5_cpuidle_enter(struct cpuidle_device *dev,
 static struct cpuidle_driver imx5_cpuidle_driver = {
 	.name			= "imx5_cpuidle",
 	.owner			= THIS_MODULE,
-	.en_core_tk_irqen	= 1,
 	.states[0]	= {
 		.enter			= imx5_cpuidle_enter,
 		.exit_latency		= 2,

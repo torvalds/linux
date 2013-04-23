@@ -45,7 +45,6 @@ done:
 static struct cpuidle_driver imx6q_cpuidle_driver = {
 	.name = "imx6q_cpuidle",
 	.owner = THIS_MODULE,
-	.en_core_tk_irqen = 1,
 	.states = {
 		/* WFI */
 		ARM_CPUIDLE_WFI_STATE,

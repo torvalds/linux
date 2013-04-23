@@ -43,24 +43,6 @@ void disable_cpuidle(void)
 
 static int __cpuidle_register_device(struct cpuidle_device *dev);
 
-static inline int cpuidle_enter(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv, int index)
-{
-	struct cpuidle_state *target_state = &drv->states[index];
-	return target_state->enter(dev, drv, index);
-}
-
-static inline int cpuidle_enter_tk(struct cpuidle_device *dev,
-			       struct cpuidle_driver *drv, int index)
-{
-	return cpuidle_wrap_enter(dev, drv, index, cpuidle_enter);
-}
-
-typedef int (*cpuidle_enter_t)(struct cpuidle_device *dev,
-			       struct cpuidle_driver *drv, int index);
-
-static cpuidle_enter_t cpuidle_enter_ops;
-
 /**
  * cpuidle_play_dead - cpu off-lining
  *
@@ -90,11 +72,27 @@ int cpuidle_play_dead(void)
  * @next_state: index into drv->states of the state to enter
  */
 int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
-		int next_state)
+			int index)
 {
 	int entered_state;
 
-	entered_state = cpuidle_enter_ops(dev, drv, next_state);
+	struct cpuidle_state *target_state = &drv->states[index];
+	ktime_t time_start, time_end;
+	s64 diff;
+
+	time_start = ktime_get();
+
+	entered_state = target_state->enter(dev, drv, index);
+
+	time_end = ktime_get();
+
+	local_irq_enable();
+
+	diff = ktime_to_us(ktime_sub(time_end, time_start));
+	if (diff > INT_MAX)
+		diff = INT_MAX;
+
+	dev->last_residency = (int) diff;
 
 	if (entered_state >= 0) {
 		/* Update cpuidle counters */
@@ -231,37 +229,6 @@ void cpuidle_resume(void)
 	mutex_unlock(&cpuidle_lock);
 }
 
-/**
- * cpuidle_wrap_enter - performs timekeeping and irqen around enter function
- * @dev: pointer to a valid cpuidle_device object
- * @drv: pointer to a valid cpuidle_driver object
- * @index: index of the target cpuidle state.
- */
-int cpuidle_wrap_enter(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv, int index,
-				int (*enter)(struct cpuidle_device *dev,
-					struct cpuidle_driver *drv, int index))
-{
-	ktime_t time_start, time_end;
-	s64 diff;
-
-	time_start = ktime_get();
-
-	index = enter(dev, drv, index);
-
-	time_end = ktime_get();
-
-	local_irq_enable();
-
-	diff = ktime_to_us(ktime_sub(time_end, time_start));
-	if (diff > INT_MAX)
-		diff = INT_MAX;
-
-	dev->last_residency = (int) diff;
-
-	return index;
-}
-
 #ifdef CONFIG_ARCH_HAS_CPU_RELAX
 static int poll_idle(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
@@ -332,9 +299,6 @@ int cpuidle_enable_device(struct cpuidle_device *dev)
 		if (ret)
 			return ret;
 	}
-
-	cpuidle_enter_ops = drv->en_core_tk_irqen ?
-		cpuidle_enter_tk : cpuidle_enter;
 
 	poll_idle_init(drv);
 

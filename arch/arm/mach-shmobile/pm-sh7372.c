@@ -410,7 +410,6 @@ static int sh7372_enter_a4s(struct cpuidle_device *dev,
 static struct cpuidle_driver sh7372_cpuidle_driver = {
 	.name			= "sh7372_cpuidle",
 	.owner			= THIS_MODULE,
-	.en_core_tk_irqen	= 1,
 	.state_count		= 5,
 	.safe_state_index	= 0, /* C1 */
 	.states[0] = ARM_CPUIDLE_WFI_STATE,

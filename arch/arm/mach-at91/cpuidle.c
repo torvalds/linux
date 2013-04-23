@@ -47,7 +47,6 @@ static int at91_enter_idle(struct cpuidle_device *dev,
 static struct cpuidle_driver at91_idle_driver = {
 	.name			= "at91_idle",
 	.owner			= THIS_MODULE,
-	.en_core_tk_irqen	= 1,
 	.states[0]		= ARM_CPUIDLE_WFI_STATE,
 	.states[1]		= {
 		.enter			= at91_enter_idle,

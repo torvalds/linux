@@ -25,7 +25,6 @@
 struct cpuidle_driver pseries_idle_driver = {
 	.name             = "pseries_idle",
 	.owner            = THIS_MODULE,
-	.en_core_tk_irqen = 1,
 };
 
 #define MAX_IDLE_STATE_COUNT	2

@@ -45,7 +45,6 @@ static DEFINE_PER_CPU(struct cpuidle_device, s3c64xx_cpuidle_device);
 static struct cpuidle_driver s3c64xx_cpuidle_driver = {
 	.name	= "s3c64xx_cpuidle",
 	.owner  = THIS_MODULE,
-	.en_core_tk_irqen = 1,
 	.states = {
 		{
 			.enter            = s3c64xx_enter_idle,

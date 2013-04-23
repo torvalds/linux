@@ -51,7 +51,6 @@ static int tegra20_idle_lp2_coupled(struct cpuidle_device *dev,
 static struct cpuidle_driver tegra_idle_driver = {
 	.name = "tegra_idle",
 	.owner = THIS_MODULE,
-	.en_core_tk_irqen = 1,
 	.states = {
 		ARM_CPUIDLE_WFI_STATE_PWR(600),
 #ifdef CONFIG_PM_SLEEP

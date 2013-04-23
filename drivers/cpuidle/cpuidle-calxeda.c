@@ -100,7 +100,6 @@ static void calxeda_idle_cpuidle_devices_uninit(void)
 
 static struct cpuidle_driver calxeda_idle_driver = {
 	.name = "calxeda_idle",
-	.en_core_tk_irqen = 1,
 	.states = {
 		ARM_CPUIDLE_WFI_STATE,
 		{

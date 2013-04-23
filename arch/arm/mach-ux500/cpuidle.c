@@ -94,7 +94,6 @@ out:
 static struct cpuidle_driver ux500_idle_driver = {
 	.name = "ux500_idle",
 	.owner = THIS_MODULE,
-	.en_core_tk_irqen = 1,
 	.states = {
 		ARM_CPUIDLE_WFI_STATE,
 		{

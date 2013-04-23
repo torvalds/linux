@@ -58,7 +58,6 @@ static DEFINE_PER_CPU(struct cpuidle_device, exynos4_cpuidle_device);
 static struct cpuidle_driver exynos4_idle_driver = {
 	.name			= "exynos4_idle",
 	.owner			= THIS_MODULE,
-	.en_core_tk_irqen	= 1,
 };
 
 /* Ext-GIC nIRQ/nFIQ is the only wakeup source in AFTR */

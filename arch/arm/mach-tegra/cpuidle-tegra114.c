@@ -23,7 +23,6 @@
 static struct cpuidle_driver tegra_idle_driver = {
 	.name = "tegra_idle",
 	.owner = THIS_MODULE,
-	.en_core_tk_irqen = 1,
 	.state_count = 1,
 	.states = {
 		[0] = ARM_CPUIDLE_WFI_STATE_PWR(600),

@@ -264,7 +264,6 @@ static DEFINE_PER_CPU(struct cpuidle_device, omap3_idle_dev);
 static struct cpuidle_driver omap3_idle_driver = {
 	.name             = "omap3_idle",
 	.owner            = THIS_MODULE,
-	.en_core_tk_irqen = 1,
 	.states = {
 		{
 			.enter		  = omap3_enter_idle_bm,
