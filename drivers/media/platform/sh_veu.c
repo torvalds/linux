@@ -1033,8 +1033,6 @@ static int sh_veu_release(struct file *file)
 
 	dev_dbg(veu->dev, "Releasing instance %p\n", veu_file);
 
-	pm_runtime_put(veu->dev);
-
 	if (veu_file == veu->capture) {
 		veu->capture = NULL;
 		vb2_queue_release(v4l2_m2m_get_vq(veu->m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE));
@@ -1049,6 +1047,8 @@ static int sh_veu_release(struct file *file)
 		v4l2_m2m_ctx_release(veu->m2m_ctx);
 		veu->m2m_ctx = NULL;
 	}
+
+	pm_runtime_put(veu->dev);
 
 	kfree(veu_file);
 
