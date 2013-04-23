@@ -86,4 +86,24 @@ static inline int gpio_cansleep(unsigned gpio)
 	return gpio < MCFGPIO_PIN_MAX ? 0 : __gpio_cansleep(gpio);
 }
 
+static inline int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
+{
+	int err;
+
+	err = gpio_request(gpio, label);
+	if (err)
+		return err;
+
+	if (flags & GPIOF_DIR_IN)
+		err = gpio_direction_input(gpio);
+	else
+		err = gpio_direction_output(gpio,
+			(flags & GPIOF_INIT_HIGH) ? 1 : 0);
+
+	if (err)
+		gpio_free(gpio);
+
+	return err;
+}
+
 #endif
