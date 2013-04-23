@@ -148,16 +148,16 @@ static int mei_cl_irq_read_msg(struct mei_device *dev,
 			dev_dbg(&dev->pdev->dev, "message overflow. size %d len %d idx %ld\n",
 				cb->response_buffer.size,
 				mei_hdr->length, cb->buf_idx);
-			cb->response_buffer.data =
-					krealloc(cb->response_buffer.data,
-					mei_hdr->length + cb->buf_idx,
-					GFP_KERNEL);
+			buffer = krealloc(cb->response_buffer.data,
+					  mei_hdr->length + cb->buf_idx,
+					  GFP_KERNEL);
 
-			if (!cb->response_buffer.data) {
+			if (!buffer) {
 				dev_err(&dev->pdev->dev, "allocation failed.\n");
 				list_del(&cb->list);
 				return -ENOMEM;
 			}
+			cb->response_buffer.data = buffer;
 			cb->response_buffer.size =
 				mei_hdr->length + cb->buf_idx;
 		}
