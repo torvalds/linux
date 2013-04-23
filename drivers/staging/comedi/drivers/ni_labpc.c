@@ -238,26 +238,25 @@ static inline void labpc_writeb(unsigned int byte, unsigned long address)
 static const struct labpc_boardinfo labpc_boards[] = {
 	{
 		.name			= "lab-pc-1200",
-		.ai_speed		= 10000,
-		.register_layout	= labpc_1200_layout,
-		.has_ao			= 1,
 		.ai_range_table		= &range_labpc_1200_ai,
 		.ai_range_code		= labpc_1200_ai_gain_bits,
+		.ai_speed		= 10000,
 		.ai_scan_up		= 1,
+		.has_ao			= 1,
+		.is_labpc1200		= 1,
 	}, {
 		.name			= "lab-pc-1200ai",
-		.ai_speed		= 10000,
-		.register_layout	= labpc_1200_layout,
 		.ai_range_table		= &range_labpc_1200_ai,
 		.ai_range_code		= labpc_1200_ai_gain_bits,
+		.ai_speed		= 10000,
 		.ai_scan_up		= 1,
+		.is_labpc1200		= 1,
 	}, {
 		.name			= "lab-pc+",
-		.ai_speed		= 12000,
-		.register_layout	= labpc_plus_layout,
-		.has_ao			= 1,
 		.ai_range_table		= &range_labpc_plus_ai,
 		.ai_range_code		= labpc_plus_ai_gain_bits,
+		.ai_speed		= 12000,
+		.has_ao			= 1,
 	},
 };
 #endif
@@ -347,7 +346,7 @@ static void labpc_setup_cmd6_reg(struct comedi_device *dev,
 	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 
-	if (board->register_layout != labpc_1200_layout)
+	if (!board->is_labpc1200)
 		return;
 
 	/* reference inputs to ground or common? */
@@ -759,7 +758,7 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
 
 	stop_mask = TRIG_COUNT | TRIG_NONE;
-	if (board->register_layout == labpc_1200_layout)
+	if (board->is_labpc1200)
 		stop_mask |= TRIG_EXT;
 	err |= cfc_check_trigger_src(&cmd->stop_src, stop_mask);
 
@@ -895,7 +894,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* pc-plus has no fifo-half full interrupt */
 	} else
 #endif
-	if (board->register_layout == labpc_1200_layout &&
+	if (board->is_labpc1200 &&
 		   /*  wake-end-of-scan should interrupt on fifo not empty */
 		   (cmd->flags & TRIG_WAKE_EOS) == 0 &&
 		   /*  make sure we are taking more than just a few points */
@@ -1176,7 +1175,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 
 	/* read board status */
 	devpriv->stat1 = devpriv->read_byte(dev->iobase + STAT1_REG);
-	if (board->register_layout == labpc_1200_layout)
+	if (board->is_labpc1200)
 		devpriv->stat2 = devpriv->read_byte(dev->iobase + STAT2_REG);
 
 	if ((devpriv->stat1 & (STAT1_GATA0 | STAT1_CNTINT | STAT1_OVERFLOW |
@@ -1202,8 +1201,7 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 		 * has occurred
 		 */
 		if (devpriv->stat1 & STAT1_GATA0 ||
-		    (board->register_layout == labpc_1200_layout
-		     && devpriv->stat2 & STAT2_OUTA1)) {
+		    (board->is_labpc1200 && devpriv->stat2 & STAT2_OUTA1)) {
 			handle_isa_dma(dev);
 		}
 	} else
@@ -1267,7 +1265,7 @@ static int labpc_ao_insn_write(struct comedi_device *dev,
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/* set range */
-	if (board->register_layout == labpc_1200_layout) {
+	if (board->is_labpc1200) {
 		range = CR_RANGE(insn->chanspec);
 		if (labpc_range_is_unipolar(s, range))
 			devpriv->cmd6 |= CMD6_DACUNI(channel);
@@ -1604,7 +1602,7 @@ int labpc_common_attach(struct comedi_device *dev,
 	devpriv->write_byte(devpriv->cmd2, dev->iobase + CMD2_REG);
 	devpriv->write_byte(devpriv->cmd3, dev->iobase + CMD3_REG);
 	devpriv->write_byte(devpriv->cmd4, dev->iobase + CMD4_REG);
-	if (board->register_layout == labpc_1200_layout) {
+	if (board->is_labpc1200) {
 		devpriv->write_byte(devpriv->cmd5, dev->iobase + CMD5_REG);
 		devpriv->write_byte(devpriv->cmd6, dev->iobase + CMD6_REG);
 	}
@@ -1672,7 +1670,7 @@ int labpc_common_attach(struct comedi_device *dev,
 
 	/*  calibration subdevices for boards that have one */
 	s = &dev->subdevices[3];
-	if (board->register_layout == labpc_1200_layout) {
+	if (board->is_labpc1200) {
 		s->type		= COMEDI_SUBD_CALIB;
 		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan	= 16;
@@ -1687,7 +1685,7 @@ int labpc_common_attach(struct comedi_device *dev,
 
 	/* EEPROM */
 	s = &dev->subdevices[4];
-	if (board->register_layout == labpc_1200_layout) {
+	if (board->is_labpc1200) {
 		s->type		= COMEDI_SUBD_MEMORY;
 		s->subdev_flags	= SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
 		s->n_chan	= EEPROM_SIZE;
