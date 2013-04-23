@@ -1138,10 +1138,7 @@ static irqreturn_t sh_veu_isr(int irq, void *dev_id)
 
 	veu->xaction++;
 
-	if (!veu->aborting)
-		return IRQ_WAKE_THREAD;
-
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
 static int sh_veu_probe(struct platform_device *pdev)
