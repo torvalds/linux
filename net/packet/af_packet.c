@@ -339,14 +339,33 @@ static int __packet_get_status(struct packet_sock *po, void *frame)
 	}
 }
 
+static bool tpacket_get_timestamp(struct sk_buff *skb, struct timespec *ts,
+				  unsigned int flags)
+{
+	struct skb_shared_hwtstamps *shhwtstamps = skb_hwtstamps(skb);
+
+	if (shhwtstamps) {
+		if ((flags & SOF_TIMESTAMPING_SYS_HARDWARE) &&
+		    ktime_to_timespec_cond(shhwtstamps->syststamp, ts))
+			return true;
+		if ((flags & SOF_TIMESTAMPING_RAW_HARDWARE) &&
+		    ktime_to_timespec_cond(shhwtstamps->hwtstamp, ts))
+			return true;
+	}
+
+	if (ktime_to_timespec_cond(skb->tstamp, ts))
+		return true;
+
+	return false;
+}
+
 static void __packet_set_timestamp(struct packet_sock *po, void *frame,
-				   ktime_t tstamp)
+				   struct sk_buff *skb)
 {
 	union tpacket_uhdr h;
 	struct timespec ts;
 
-	if (!ktime_to_timespec_cond(tstamp, &ts) ||
-	    !sock_flag(&po->sk, SOCK_TIMESTAMPING_SOFTWARE))
+	if (!tpacket_get_timestamp(skb, &ts, po->tp_tstamp))
 		return;
 
 	h.raw = frame;
@@ -1688,26 +1707,6 @@ drop:
 	return 0;
 }
 
-static void tpacket_get_timestamp(struct sk_buff *skb, struct timespec *ts,
-				  unsigned int flags)
-{
-	struct skb_shared_hwtstamps *shhwtstamps = skb_hwtstamps(skb);
-
-	if (shhwtstamps) {
-		if ((flags & SOF_TIMESTAMPING_SYS_HARDWARE) &&
-		    ktime_to_timespec_cond(shhwtstamps->syststamp, ts))
-			return;
-		if ((flags & SOF_TIMESTAMPING_RAW_HARDWARE) &&
-		    ktime_to_timespec_cond(shhwtstamps->hwtstamp, ts))
-			return;
-	}
-
-	if (ktime_to_timespec_cond(skb->tstamp, ts))
-		return;
-
-	getnstimeofday(ts);
-}
-
 static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		       struct packet_type *pt, struct net_device *orig_dev)
 {
@@ -1804,7 +1803,8 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	spin_unlock(&sk->sk_receive_queue.lock);
 
 	skb_copy_bits(skb, 0, h.raw + macoff, snaplen);
-	tpacket_get_timestamp(skb, &ts, po->tp_tstamp);
+	if (!tpacket_get_timestamp(skb, &ts, po->tp_tstamp))
+		getnstimeofday(&ts);
 
 	switch (po->tp_version) {
 	case TPACKET_V1:
@@ -1908,7 +1908,7 @@ static void tpacket_destruct_skb(struct sk_buff *skb)
 		ph = skb_shinfo(skb)->destructor_arg;
 		BUG_ON(atomic_read(&po->tx_ring.pending) == 0);
 		atomic_dec(&po->tx_ring.pending);
-		__packet_set_timestamp(po, ph, skb->tstamp);
+		__packet_set_timestamp(po, ph, skb);
 		__packet_set_status(po, ph, TP_STATUS_AVAILABLE);
 	}
 
