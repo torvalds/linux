@@ -19,6 +19,7 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/platform_data/leds-lp55xx.h>
+#include <linux/slab.h>
 
 #include "leds-lp55xx-common.h"
 
@@ -553,6 +554,59 @@ void lp55xx_unregister_sysfs(struct lp55xx_chip *chip)
 	sysfs_remove_group(&dev->kobj, &lp55xx_engine_attr_group);
 }
 EXPORT_SYMBOL_GPL(lp55xx_unregister_sysfs);
+
+int lp55xx_of_populate_pdata(struct device *dev, struct device_node *np)
+{
+	struct lp55xx_platform_data *pdata;
+	u8 led_cur[3];
+	u8 max_cur[3];
+	u8 clock_mode;
+	u8 num_channel;
+	const char *label;
+	struct lp55xx_led_config *led_config;
+	int ret;
+	int i;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	ret = of_property_read_u8(np, "num-channel", &num_channel);
+	if (ret < 0)
+		return ret;
+	ret = of_property_read_u8_array(np, "led-cur", led_cur, num_channel);
+	if (ret < 0)
+		return ret;
+	ret = of_property_read_u8_array(np, "max-cur", max_cur, num_channel);
+	if (ret < 0)
+		return ret;
+	ret = of_property_read_string(np, "label", &label);
+	if (ret < 0)
+		return ret;
+	ret = of_property_read_u8_array(np, "clock-mode", &clock_mode, 1);
+	if (ret < 0)
+		return ret;
+
+	led_config = devm_kzalloc(dev, sizeof(*led_config) * num_channel,
+				  GFP_KERNEL);
+	if (!led_config)
+		return -ENOMEM;
+
+	for (i = 0; i < num_channel; i++) {
+		led_config[i].chan_nr = i;
+		led_config[i].led_current = led_cur[i];
+		led_config[i].max_current = max_cur[i];
+	}
+	pdata->label = kzalloc(sizeof(char) * 32, GFP_KERNEL);
+	strcpy((char *)pdata->label, (char *) label);
+	pdata->led_config = &led_config[0];
+	pdata->num_channels = num_channel;
+	pdata->clock_mode = clock_mode;
+	dev->platform_data = pdata;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(lp55xx_of_populate_pdata);
 
 MODULE_AUTHOR("Milo Kim <milo.kim@ti.com>");
 MODULE_DESCRIPTION("LP55xx Common Driver");

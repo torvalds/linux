@@ -429,12 +429,20 @@ static int lp5523_probe(struct i2c_client *client,
 	int ret;
 	struct lp55xx_chip *chip;
 	struct lp55xx_led *led;
-	struct lp55xx_platform_data *pdata = client->dev.platform_data;
+	struct lp55xx_platform_data *pdata;
+	struct device_node *np = client->dev.of_node;
 
-	if (!pdata) {
-		dev_err(&client->dev, "no platform data\n");
-		return -EINVAL;
+	if (!client->dev.platform_data) {
+		if (np) {
+			ret = lp55xx_of_populate_pdata(&client->dev, np);
+			if (ret < 0)
+				return ret;
+		} else {
+			dev_err(&client->dev, "no platform data\n");
+			return -EINVAL;
+		}
 	}
+	pdata = client->dev.platform_data;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -495,6 +503,7 @@ static int lp5523_remove(struct i2c_client *client)
 static const struct i2c_device_id lp5523_id[] = {
 	{ "lp5523",  LP5523 },
 	{ "lp55231", LP55231 },
+	{ "national,lp5523", 0 }, /* OF compatible */
 	{ }
 };
 
