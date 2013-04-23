@@ -81,7 +81,7 @@ static int tcc_bt_dev_release(struct inode *inode, struct file *file)
     	return 0;
 }
 
-int tcc_bt_power_control(int on_off)
+static int tcc_bt_power_control(int on_off)
 {
 //	volatile PGPIO pGPIO = (volatile PGPIO)tcc_p2v(HwGPIO_BASE);
     
@@ -187,7 +187,7 @@ static irqreturn_t rda_5876_host_wake_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-int init_module(void)
+static int tcc_bt_init_module(void)
 {
     int ret;
 
@@ -256,7 +256,7 @@ int init_module(void)
     return 0;
 }
 
-void cleanup_module(void)
+static void tcc_bt_cleanup_module(void)
 {
 	printk("[## BT ##] cleanup_module\n");
     unregister_chrdev(BT_DEV_MAJOR_NUM, DEV_NAME);
@@ -264,8 +264,8 @@ void cleanup_module(void)
 }
 
 
-late_initcall(init_module);
-module_exit(cleanup_module);
+late_initcall(tcc_bt_init_module);
+module_exit(tcc_bt_cleanup_module);
 
 
 MODULE_AUTHOR("Telechips Inc. linux@telechips.com");
