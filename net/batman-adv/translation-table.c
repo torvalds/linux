@@ -1940,7 +1940,7 @@ out:
 bool batadv_send_tt_response(struct batadv_priv *bat_priv,
 			     struct batadv_tt_query_packet *tt_request)
 {
-	if (batadv_is_my_mac(tt_request->dst)) {
+	if (batadv_is_my_mac(bat_priv, tt_request->dst)) {
 		/* don't answer backbone gws! */
 		if (batadv_bla_is_backbone_gw_orig(bat_priv, tt_request->src))
 			return true;

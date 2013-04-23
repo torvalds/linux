@@ -739,12 +739,6 @@ static void blk_add_trace_rq_complete(void *ignore,
 				      struct request_queue *q,
 				      struct request *rq)
 {
-	struct blk_trace *bt = q->blk_trace;
-
-	/* if control ever passes through here, it's a request based driver */
-	if (unlikely(bt && !bt->rq_based))
-		bt->rq_based = true;
-
 	blk_add_trace_rq(q, rq, BLK_TA_COMPLETE);
 }
 
@@ -780,24 +774,10 @@ static void blk_add_trace_bio_bounce(void *ignore,
 	blk_add_trace_bio(q, bio, BLK_TA_BOUNCE, 0);
 }
 
-static void blk_add_trace_bio_complete(void *ignore, struct bio *bio, int error)
+static void blk_add_trace_bio_complete(void *ignore,
+				       struct request_queue *q, struct bio *bio,
+				       int error)
 {
-	struct request_queue *q;
-	struct blk_trace *bt;
-
-	if (!bio->bi_bdev)
-		return;
-
-	q = bdev_get_queue(bio->bi_bdev);
-	bt = q->blk_trace;
-
-	/*
-	 * Request based drivers will generate both rq and bio completions.
-	 * Ignore bio ones.
-	 */
-	if (likely(!bt) || bt->rq_based)
-		return;
-
 	blk_add_trace_bio(q, bio, BLK_TA_COMPLETE, error);
 }
 

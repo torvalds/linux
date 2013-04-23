@@ -1052,6 +1052,12 @@ int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos)
 	if ((vf >= adapter->num_vfs) || (vlan > 4095) || (qos > 7))
 		return -EINVAL;
 	if (vlan || qos) {
+		if (adapter->vfinfo[vf].pf_vlan)
+			err = ixgbe_set_vf_vlan(adapter, false,
+						adapter->vfinfo[vf].pf_vlan,
+						vf);
+		if (err)
+			goto out;
 		err = ixgbe_set_vf_vlan(adapter, true, vlan, vf);
 		if (err)
 			goto out;

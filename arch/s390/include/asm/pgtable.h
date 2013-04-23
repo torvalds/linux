@@ -57,6 +57,10 @@ extern unsigned long zero_page_mask;
 	 (((unsigned long)(vaddr)) &zero_page_mask))))
 #define __HAVE_COLOR_ZERO_PAGE
 
+/* TODO: s390 cannot support io_remap_pfn_range... */
+#define io_remap_pfn_range(vma, vaddr, pfn, size, prot) 	       \
+	remap_pfn_range(vma, vaddr, pfn, size, prot)
+
 #endif /* !__ASSEMBLY__ */
 
 /*

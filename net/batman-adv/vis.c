@@ -477,7 +477,7 @@ void batadv_receive_client_update_packet(struct batadv_priv *bat_priv,
 
 	/* Are we the target for this VIS packet? */
 	if (vis_server == BATADV_VIS_TYPE_SERVER_SYNC	&&
-	    batadv_is_my_mac(vis_packet->target_orig))
+	    batadv_is_my_mac(bat_priv, vis_packet->target_orig))
 		are_target = 1;
 
 	spin_lock_bh(&bat_priv->vis.hash_lock);
@@ -496,7 +496,7 @@ void batadv_receive_client_update_packet(struct batadv_priv *bat_priv,
 		batadv_send_list_add(bat_priv, info);
 
 		/* ... we're not the recipient (and thus need to forward). */
-	} else if (!batadv_is_my_mac(packet->target_orig)) {
+	} else if (!batadv_is_my_mac(bat_priv, packet->target_orig)) {
 		batadv_send_list_add(bat_priv, info);
 	}
 

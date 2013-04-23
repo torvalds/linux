@@ -943,7 +943,8 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 		unsigned int ival;
 		int val_bytes = map->format.val_bytes;
 		for (i = 0; i < val_len / val_bytes; i++) {
-			ival = map->format.parse_val(val + (i * val_bytes));
+			memcpy(map->work_buf, val + (i * val_bytes), val_bytes);
+			ival = map->format.parse_val(map->work_buf);
 			ret = regcache_write(map, reg + (i * map->reg_stride),
 					     ival);
 			if (ret) {

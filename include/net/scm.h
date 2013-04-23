@@ -78,7 +78,7 @@ static __inline__ int scm_send(struct socket *sock, struct msghdr *msg,
 	scm->creds.uid = INVALID_UID;
 	scm->creds.gid = INVALID_GID;
 	if (forcecreds)
-		scm_set_cred(scm, task_tgid(current), current_euid(), current_egid());
+		scm_set_cred(scm, task_tgid(current), current_uid(), current_gid());
 	unix_get_peersec_dgram(sock, scm);
 	if (msg->msg_controllen <= 0)
 		return 0;

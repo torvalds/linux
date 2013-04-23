@@ -1414,7 +1414,7 @@ static void maybe_add_creds(struct sk_buff *skb, const struct socket *sock,
 	    !other->sk_socket ||
 	    test_bit(SOCK_PASSCRED, &other->sk_socket->flags)) {
 		UNIXCB(skb).pid  = get_pid(task_tgid(current));
-		current_euid_egid(&UNIXCB(skb).uid, &UNIXCB(skb).gid);
+		current_uid_gid(&UNIXCB(skb).uid, &UNIXCB(skb).gid);
 	}
 }
 

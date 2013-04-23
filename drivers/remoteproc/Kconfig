@@ -4,7 +4,7 @@ menu "Remoteproc drivers"
 config REMOTEPROC
 	tristate
 	depends on HAS_DMA
-	select FW_CONFIG
+	select FW_LOADER
 	select VIRTIO
 
 config OMAP_REMOTEPROC

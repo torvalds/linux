@@ -33,6 +33,7 @@ config MV643XX_ETH
 
 config MVMDIO
 	tristate "Marvell MDIO interface support"
+	select PHYLIB
 	---help---
 	  This driver supports the MDIO interface found in the network
 	  interface units of the Marvell EBU SoCs (Kirkwood, Orion5x,
@@ -43,7 +44,6 @@ config MVMDIO
 config MVNETA
 	tristate "Marvell Armada 370/XP network interface support"
 	depends on MACH_ARMADA_370_XP
-	select PHYLIB
 	select MVMDIO
 	---help---
 	  This driver supports the network interface units in the

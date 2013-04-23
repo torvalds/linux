@@ -403,7 +403,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 		goto out;
 
 	/* not for me */
-	if (!batadv_is_my_mac(ethhdr->h_dest))
+	if (!batadv_is_my_mac(bat_priv, ethhdr->h_dest))
 		goto out;
 
 	icmp_packet = (struct batadv_icmp_packet_rr *)skb->data;
@@ -417,7 +417,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb,
 	}
 
 	/* packet for me */
-	if (batadv_is_my_mac(icmp_packet->dst))
+	if (batadv_is_my_mac(bat_priv, icmp_packet->dst))
 		return batadv_recv_my_icmp_packet(bat_priv, skb, hdr_size);
 
 	/* TTL exceeded */
@@ -551,6 +551,7 @@ batadv_find_ifalter_router(struct batadv_orig_node *primary_orig,
 
 /**
  * batadv_check_unicast_packet - Check for malformed unicast packets
+ * @bat_priv: the bat priv with all the soft interface information
  * @skb: packet to check
  * @hdr_size: size of header to pull
  *
@@ -559,7 +560,8 @@ batadv_find_ifalter_router(struct batadv_orig_node *primary_orig,
  * reason: -ENODATA for bad header, -EBADR for broadcast destination or source,
  * and -EREMOTE for non-local (other host) destination.
  */
-static int batadv_check_unicast_packet(struct sk_buff *skb, int hdr_size)
+static int batadv_check_unicast_packet(struct batadv_priv *bat_priv,
+				       struct sk_buff *skb, int hdr_size)
 {
 	struct ethhdr *ethhdr;
 
@@ -578,7 +580,7 @@ static int batadv_check_unicast_packet(struct sk_buff *skb, int hdr_size)
 		return -EBADR;
 
 	/* not for me */
-	if (!batadv_is_my_mac(ethhdr->h_dest))
+	if (!batadv_is_my_mac(bat_priv, ethhdr->h_dest))
 		return -EREMOTE;
 
 	return 0;
@@ -593,7 +595,7 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct batadv_hard_iface *recv_if)
 	char tt_flag;
 	size_t packet_size;
 
-	if (batadv_check_unicast_packet(skb, hdr_size) < 0)
+	if (batadv_check_unicast_packet(bat_priv, skb, hdr_size) < 0)
 		return NET_RX_DROP;
 
 	/* I could need to modify it */
@@ -625,7 +627,7 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct batadv_hard_iface *recv_if)
 	case BATADV_TT_RESPONSE:
 		batadv_inc_counter(bat_priv, BATADV_CNT_TT_RESPONSE_RX);
 
-		if (batadv_is_my_mac(tt_query->dst)) {
+		if (batadv_is_my_mac(bat_priv, tt_query->dst)) {
 			/* packet needs to be linearized to access the TT
 			 * changes
 			 */
@@ -668,14 +670,15 @@ int batadv_recv_roam_adv(struct sk_buff *skb, struct batadv_hard_iface *recv_if)
 	struct batadv_roam_adv_packet *roam_adv_packet;
 	struct batadv_orig_node *orig_node;
 
-	if (batadv_check_unicast_packet(skb, sizeof(*roam_adv_packet)) < 0)
+	if (batadv_check_unicast_packet(bat_priv, skb,
+					sizeof(*roam_adv_packet)) < 0)
 		goto out;
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_TT_ROAM_ADV_RX);
 
 	roam_adv_packet = (struct batadv_roam_adv_packet *)skb->data;
 
-	if (!batadv_is_my_mac(roam_adv_packet->dst))
+	if (!batadv_is_my_mac(bat_priv, roam_adv_packet->dst))
 		return batadv_route_unicast_packet(skb, recv_if);
 
 	/* check if it is a backbone gateway. we don't accept
@@ -981,7 +984,7 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	 * last time) the packet had an updated information or not
 	 */
 	curr_ttvn = (uint8_t)atomic_read(&bat_priv->tt.vn);
-	if (!batadv_is_my_mac(unicast_packet->dest)) {
+	if (!batadv_is_my_mac(bat_priv, unicast_packet->dest)) {
 		orig_node = batadv_orig_hash_find(bat_priv,
 						  unicast_packet->dest);
 		/* if it is not possible to find the orig_node representing the
@@ -1059,7 +1062,7 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 		hdr_size = sizeof(*unicast_4addr_packet);
 
 	/* function returns -EREMOTE for promiscuous packets */
-	check = batadv_check_unicast_packet(skb, hdr_size);
+	check = batadv_check_unicast_packet(bat_priv, skb, hdr_size);
 
 	/* Even though the packet is not for us, we might save it to use for
 	 * decoding a later received coded packet
@@ -1074,7 +1077,7 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 		return NET_RX_DROP;
 
 	/* packet for me */
-	if (batadv_is_my_mac(unicast_packet->dest)) {
+	if (batadv_is_my_mac(bat_priv, unicast_packet->dest)) {
 		if (is4addr) {
 			batadv_dat_inc_counter(bat_priv,
 					       unicast_4addr_packet->subtype);
@@ -1111,7 +1114,7 @@ int batadv_recv_ucast_frag_packet(struct sk_buff *skb,
 	struct sk_buff *new_skb = NULL;
 	int ret;
 
-	if (batadv_check_unicast_packet(skb, hdr_size) < 0)
+	if (batadv_check_unicast_packet(bat_priv, skb, hdr_size) < 0)
 		return NET_RX_DROP;
 
 	if (!batadv_check_unicast_ttvn(bat_priv, skb))
@@ -1120,7 +1123,7 @@ int batadv_recv_ucast_frag_packet(struct sk_buff *skb,
 	unicast_packet = (struct batadv_unicast_frag_packet *)skb->data;
 
 	/* packet for me */
-	if (batadv_is_my_mac(unicast_packet->dest)) {
+	if (batadv_is_my_mac(bat_priv, unicast_packet->dest)) {
 		ret = batadv_frag_reassemble_skb(skb, bat_priv, &new_skb);
 
 		if (ret == NET_RX_DROP)
@@ -1174,13 +1177,13 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 		goto out;
 
 	/* ignore broadcasts sent by myself */
-	if (batadv_is_my_mac(ethhdr->h_source))
+	if (batadv_is_my_mac(bat_priv, ethhdr->h_source))
 		goto out;
 
 	bcast_packet = (struct batadv_bcast_packet *)skb->data;
 
 	/* ignore broadcasts originated by myself */
-	if (batadv_is_my_mac(bcast_packet->orig))
+	if (batadv_is_my_mac(bat_priv, bcast_packet->orig))
 		goto out;
 
 	if (bcast_packet->header.ttl < 2)
@@ -1266,14 +1269,14 @@ int batadv_recv_vis_packet(struct sk_buff *skb,
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* not for me */
-	if (!batadv_is_my_mac(ethhdr->h_dest))
+	if (!batadv_is_my_mac(bat_priv, ethhdr->h_dest))
 		return NET_RX_DROP;
 
 	/* ignore own packets */
-	if (batadv_is_my_mac(vis_packet->vis_orig))
+	if (batadv_is_my_mac(bat_priv, vis_packet->vis_orig))
 		return NET_RX_DROP;
 
-	if (batadv_is_my_mac(vis_packet->sender_orig))
+	if (batadv_is_my_mac(bat_priv, vis_packet->sender_orig))
 		return NET_RX_DROP;
 
 	switch (vis_packet->vis_type) {

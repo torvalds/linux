@@ -41,6 +41,7 @@
 #include <linux/io.h>
 #include <linux/reboot.h>
 #include <linux/bcd.h>
+#include <linux/ucs2_string.h>
 
 #include <asm/setup.h>
 #include <asm/efi.h>
@@ -50,6 +51,13 @@
 #include <asm/x86_init.h>
 
 #define EFI_DEBUG	1
+
+/*
+ * There's some additional metadata associated with each
+ * variable. Intel's reference implementation is 60 bytes - bump that
+ * to account for potential alignment constraints
+ */
+#define VAR_METADATA_SIZE 64
 
 struct efi __read_mostly efi = {
 	.mps        = EFI_INVALID_TABLE_ADDR,
@@ -68,6 +76,13 @@ struct efi_memory_map memmap;
 
 static struct efi efi_phys __initdata;
 static efi_system_table_t efi_systab __initdata;
+
+static u64 efi_var_store_size;
+static u64 efi_var_remaining_size;
+static u64 efi_var_max_var_size;
+static u64 boot_used_size;
+static u64 boot_var_size;
+static u64 active_size;
 
 unsigned long x86_efi_facility;
 
@@ -97,6 +112,15 @@ static int __init setup_add_efi_memmap(char *arg)
 	return 0;
 }
 early_param("add_efi_memmap", setup_add_efi_memmap);
+
+static bool efi_no_storage_paranoia;
+
+static int __init setup_storage_paranoia(char *arg)
+{
+	efi_no_storage_paranoia = true;
+	return 0;
+}
+early_param("efi_no_storage_paranoia", setup_storage_paranoia);
 
 
 static efi_status_t virt_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc)
@@ -162,8 +186,53 @@ static efi_status_t virt_efi_get_next_variable(unsigned long *name_size,
 					       efi_char16_t *name,
 					       efi_guid_t *vendor)
 {
-	return efi_call_virt3(get_next_variable,
-			      name_size, name, vendor);
+	efi_status_t status;
+	static bool finished = false;
+	static u64 var_size;
+
+	status = efi_call_virt3(get_next_variable,
+				name_size, name, vendor);
+
+	if (status == EFI_NOT_FOUND) {
+		finished = true;
+		if (var_size < boot_used_size) {
+			boot_var_size = boot_used_size - var_size;
+			active_size += boot_var_size;
+		} else {
+			printk(KERN_WARNING FW_BUG  "efi: Inconsistent initial sizes\n");
+		}
+	}
+
+	if (boot_used_size && !finished) {
+		unsigned long size;
+		u32 attr;
+		efi_status_t s;
+		void *tmp;
+
+		s = virt_efi_get_variable(name, vendor, &attr, &size, NULL);
+
+		if (s != EFI_BUFFER_TOO_SMALL || !size)
+			return status;
+
+		tmp = kmalloc(size, GFP_ATOMIC);
+
+		if (!tmp)
+			return status;
+
+		s = virt_efi_get_variable(name, vendor, &attr, &size, tmp);
+
+		if (s == EFI_SUCCESS && (attr & EFI_VARIABLE_NON_VOLATILE)) {
+			var_size += size;
+			var_size += ucs2_strsize(name, 1024);
+			active_size += size;
+			active_size += VAR_METADATA_SIZE;
+			active_size += ucs2_strsize(name, 1024);
+		}
+
+		kfree(tmp);
+	}
+
+	return status;
 }
 
 static efi_status_t virt_efi_set_variable(efi_char16_t *name,
@@ -172,9 +241,34 @@ static efi_status_t virt_efi_set_variable(efi_char16_t *name,
 					  unsigned long data_size,
 					  void *data)
 {
-	return efi_call_virt5(set_variable,
-			      name, vendor, attr,
-			      data_size, data);
+	efi_status_t status;
+	u32 orig_attr = 0;
+	unsigned long orig_size = 0;
+
+	status = virt_efi_get_variable(name, vendor, &orig_attr, &orig_size,
+				       NULL);
+
+	if (status != EFI_BUFFER_TOO_SMALL)
+		orig_size = 0;
+
+	status = efi_call_virt5(set_variable,
+				name, vendor, attr,
+				data_size, data);
+
+	if (status == EFI_SUCCESS) {
+		if (orig_size) {
+			active_size -= orig_size;
+			active_size -= ucs2_strsize(name, 1024);
+			active_size -= VAR_METADATA_SIZE;
+		}
+		if (data_size) {
+			active_size += data_size;
+			active_size += ucs2_strsize(name, 1024);
+			active_size += VAR_METADATA_SIZE;
+		}
+	}
+
+	return status;
 }
 
 static efi_status_t virt_efi_query_variable_info(u32 attr,
@@ -682,6 +776,9 @@ void __init efi_init(void)
 	char vendor[100] = "unknown";
 	int i = 0;
 	void *tmp;
+	struct setup_data *data;
+	struct efi_var_bootdata *efi_var_data;
+	u64 pa_data;
 
 #ifdef CONFIG_X86_32
 	if (boot_params.efi_info.efi_systab_hi ||
@@ -698,6 +795,22 @@ void __init efi_init(void)
 
 	if (efi_systab_init(efi_phys.systab))
 		return;
+
+	pa_data = boot_params.hdr.setup_data;
+	while (pa_data) {
+		data = early_ioremap(pa_data, sizeof(*efi_var_data));
+		if (data->type == SETUP_EFI_VARS) {
+			efi_var_data = (struct efi_var_bootdata *)data;
+
+			efi_var_store_size = efi_var_data->store_size;
+			efi_var_remaining_size = efi_var_data->remaining_size;
+			efi_var_max_var_size = efi_var_data->max_var_size;
+		}
+		pa_data = data->next;
+		early_iounmap(data, sizeof(*efi_var_data));
+	}
+
+	boot_used_size = efi_var_store_size - efi_var_remaining_size;
 
 	set_bit(EFI_SYSTEM_TABLES, &x86_efi_facility);
 
@@ -999,3 +1112,48 @@ u64 efi_mem_attributes(unsigned long phys_addr)
 	}
 	return 0;
 }
+
+/*
+ * Some firmware has serious problems when using more than 50% of the EFI
+ * variable store, i.e. it triggers bugs that can brick machines. Ensure that
+ * we never use more than this safe limit.
+ *
+ * Return EFI_SUCCESS if it is safe to write 'size' bytes to the variable
+ * store.
+ */
+efi_status_t efi_query_variable_store(u32 attributes, unsigned long size)
+{
+	efi_status_t status;
+	u64 storage_size, remaining_size, max_size;
+
+	status = efi.query_variable_info(attributes, &storage_size,
+					 &remaining_size, &max_size);
+	if (status != EFI_SUCCESS)
+		return status;
+
+	if (!max_size && remaining_size > size)
+		printk_once(KERN_ERR FW_BUG "Broken EFI implementation"
+			    " is returning MaxVariableSize=0\n");
+	/*
+	 * Some firmware implementations refuse to boot if there's insufficient
+	 * space in the variable store. We account for that by refusing the
+	 * write if permitting it would reduce the available space to under
+	 * 50%. However, some firmware won't reclaim variable space until
+	 * after the used (not merely the actively used) space drops below
+	 * a threshold. We can approximate that case with the value calculated
+	 * above. If both the firmware and our calculations indicate that the
+	 * available space would drop below 50%, refuse the write.
+	 */
+
+	if (!storage_size || size > remaining_size ||
+	    (max_size && size > max_size))
+		return EFI_OUT_OF_RESOURCES;
+
+	if (!efi_no_storage_paranoia &&
+	    ((active_size + size + VAR_METADATA_SIZE > storage_size / 2) &&
+	     (remaining_size - size < storage_size / 2)))
+		return EFI_OUT_OF_RESOURCES;
+
+	return EFI_SUCCESS;
+}
+EXPORT_SYMBOL_GPL(efi_query_variable_store);

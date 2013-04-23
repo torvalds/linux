@@ -169,8 +169,6 @@ static void inet6_prefix_notify(int event, struct inet6_dev *idev,
 static bool ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
 			       struct net_device *dev);
 
-static ATOMIC_NOTIFIER_HEAD(inet6addr_chain);
-
 static struct ipv6_devconf ipv6_devconf __read_mostly = {
 	.forwarding		= 0,
 	.hop_limit		= IPV6_DEFAULT_HOPLIMIT,
@@ -910,7 +908,7 @@ out2:
 	rcu_read_unlock_bh();
 
 	if (likely(err == 0))
-		atomic_notifier_call_chain(&inet6addr_chain, NETDEV_UP, ifa);
+		inet6addr_notifier_call_chain(NETDEV_UP, ifa);
 	else {
 		kfree(ifa);
 		ifa = ERR_PTR(err);
@@ -1000,7 +998,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 
 	ipv6_ifa_notify(RTM_DELADDR, ifp);
 
-	atomic_notifier_call_chain(&inet6addr_chain, NETDEV_DOWN, ifp);
+	inet6addr_notifier_call_chain(NETDEV_DOWN, ifp);
 
 	/*
 	 * Purge or update corresponding prefix
@@ -3087,7 +3085,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 		if (state != INET6_IFADDR_STATE_DEAD) {
 			__ipv6_ifa_notify(RTM_DELADDR, ifa);
-			atomic_notifier_call_chain(&inet6addr_chain, NETDEV_DOWN, ifa);
+			inet6addr_notifier_call_chain(NETDEV_DOWN, ifa);
 		}
 		in6_ifa_put(ifa);
 
@@ -5053,22 +5051,6 @@ static struct pernet_operations addrconf_ops = {
 	.init = addrconf_init_net,
 	.exit = addrconf_exit_net,
 };
-
-/*
- *      Device notifier
- */
-
-int register_inet6addr_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_register(&inet6addr_chain, nb);
-}
-EXPORT_SYMBOL(register_inet6addr_notifier);
-
-int unregister_inet6addr_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_unregister(&inet6addr_chain, nb);
-}
-EXPORT_SYMBOL(unregister_inet6addr_notifier);
 
 static struct rtnl_af_ops inet6_ops = {
 	.family		  = AF_INET6,

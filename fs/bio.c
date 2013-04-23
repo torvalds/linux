@@ -1428,8 +1428,6 @@ void bio_endio(struct bio *bio, int error)
 	else if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
 		error = -EIO;
 
-	trace_block_bio_complete(bio, error);
-
 	if (bio->bi_end_io)
 		bio->bi_end_io(bio, error);
 }

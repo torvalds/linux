@@ -4959,7 +4959,7 @@ static void bnx2x_after_function_update(struct bnx2x *bp)
 				  q);
 	}
 
-	if (!NO_FCOE(bp)) {
+	if (!NO_FCOE(bp) && CNIC_ENABLED(bp)) {
 		fp = &bp->fp[FCOE_IDX(bp)];
 		queue_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 
@@ -9946,6 +9946,10 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 				REG_RD(bp, NIG_REG_NIG_INT_STS_CLR_0);
 			}
 		}
+		if (!CHIP_IS_E1x(bp))
+			/* block FW from writing to host */
+			REG_WR(bp, PGLUE_B_REG_INTERNAL_PFID_ENABLE_MASTER, 0);
+
 		/* wait until BRB is empty */
 		tmp_reg = REG_RD(bp, BRB1_REG_NUM_OF_FULL_BLOCKS);
 		while (timer_count) {
@@ -13450,6 +13454,7 @@ static int bnx2x_unregister_cnic(struct net_device *dev)
 	RCU_INIT_POINTER(bp->cnic_ops, NULL);
 	mutex_unlock(&bp->cnic_mutex);
 	synchronize_rcu();
+	bp->cnic_enabled = false;
 	kfree(bp->cnic_kwq);
 	bp->cnic_kwq = NULL;
 

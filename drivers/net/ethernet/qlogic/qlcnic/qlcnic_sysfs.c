@@ -198,10 +198,10 @@ beacon_err:
 	}
 
 	err = qlcnic_config_led(adapter, b_state, b_rate);
-	if (!err)
+	if (!err) {
 		err = len;
-	else
 		ahw->beacon_state = b_state;
+	}
 
 	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state))
 		qlcnic_diag_free_res(adapter->netdev, max_sds_rings);

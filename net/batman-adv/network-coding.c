@@ -1484,7 +1484,7 @@ void batadv_nc_skb_store_sniffed_unicast(struct batadv_priv *bat_priv,
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
-	if (batadv_is_my_mac(ethhdr->h_dest))
+	if (batadv_is_my_mac(bat_priv, ethhdr->h_dest))
 		return;
 
 	/* Set data pointer to MAC header to mimic packets from our tx path */
@@ -1496,6 +1496,7 @@ void batadv_nc_skb_store_sniffed_unicast(struct batadv_priv *bat_priv,
 /**
  * batadv_nc_skb_decode_packet - decode given skb using the decode data stored
  *  in nc_packet
+ * @bat_priv: the bat priv with all the soft interface information
  * @skb: unicast skb to decode
  * @nc_packet: decode data needed to decode the skb
  *
@@ -1503,7 +1504,7 @@ void batadv_nc_skb_store_sniffed_unicast(struct batadv_priv *bat_priv,
  * in case of an error.
  */
 static struct batadv_unicast_packet *
-batadv_nc_skb_decode_packet(struct sk_buff *skb,
+batadv_nc_skb_decode_packet(struct batadv_priv *bat_priv, struct sk_buff *skb,
 			    struct batadv_nc_packet *nc_packet)
 {
 	const int h_size = sizeof(struct batadv_unicast_packet);
@@ -1537,7 +1538,7 @@ batadv_nc_skb_decode_packet(struct sk_buff *skb,
 	/* Select the correct unicast header information based on the location
 	 * of our mac address in the coded_packet header
 	 */
-	if (batadv_is_my_mac(coded_packet_tmp.second_dest)) {
+	if (batadv_is_my_mac(bat_priv, coded_packet_tmp.second_dest)) {
 		/* If we are the second destination the packet was overheard,
 		 * so the Ethernet address must be copied to h_dest and
 		 * pkt_type changed from PACKET_OTHERHOST to PACKET_HOST
@@ -1608,7 +1609,7 @@ batadv_nc_find_decoding_packet(struct batadv_priv *bat_priv,
 
 	/* Select the correct packet id based on the location of our mac-addr */
 	dest = ethhdr->h_source;
-	if (!batadv_is_my_mac(coded->second_dest)) {
+	if (!batadv_is_my_mac(bat_priv, coded->second_dest)) {
 		source = coded->second_source;
 		packet_id = coded->second_crc;
 	} else {
@@ -1675,12 +1676,12 @@ static int batadv_nc_recv_coded_packet(struct sk_buff *skb,
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* Verify frame is destined for us */
-	if (!batadv_is_my_mac(ethhdr->h_dest) &&
-	    !batadv_is_my_mac(coded_packet->second_dest))
+	if (!batadv_is_my_mac(bat_priv, ethhdr->h_dest) &&
+	    !batadv_is_my_mac(bat_priv, coded_packet->second_dest))
 		return NET_RX_DROP;
 
 	/* Update stat counter */
-	if (batadv_is_my_mac(coded_packet->second_dest))
+	if (batadv_is_my_mac(bat_priv, coded_packet->second_dest))
 		batadv_inc_counter(bat_priv, BATADV_CNT_NC_SNIFFED);
 
 	nc_packet = batadv_nc_find_decoding_packet(bat_priv, ethhdr,
@@ -1698,7 +1699,7 @@ static int batadv_nc_recv_coded_packet(struct sk_buff *skb,
 		goto free_nc_packet;
 
 	/* Decode the packet */
-	unicast_packet = batadv_nc_skb_decode_packet(skb, nc_packet);
+	unicast_packet = batadv_nc_skb_decode_packet(bat_priv, skb, nc_packet);
 	if (!unicast_packet) {
 		batadv_inc_counter(bat_priv, BATADV_CNT_NC_DECODE_FAILED);
 		goto free_nc_packet;
