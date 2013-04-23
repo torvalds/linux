@@ -5587,6 +5587,35 @@ static u32 cik_halt_rlc(struct radeon_device *rdev)
 	return orig;
 }
 
+void cik_enter_rlc_safe_mode(struct radeon_device *rdev)
+{
+	u32 tmp, i, mask;
+
+	tmp = REQ | MESSAGE(MSG_ENTER_RLC_SAFE_MODE);
+	WREG32(RLC_GPR_REG2, tmp);
+
+	mask = GFX_POWER_STATUS | GFX_CLOCK_STATUS;
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if ((RREG32(RLC_GPM_STAT) & mask) == mask)
+			break;
+		udelay(1);
+	}
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if ((RREG32(RLC_GPR_REG2) & REQ) == 0)
+			break;
+		udelay(1);
+	}
+}
+
+void cik_exit_rlc_safe_mode(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	tmp = REQ | MESSAGE(MSG_EXIT_RLC_SAFE_MODE);
+	WREG32(RLC_GPR_REG2, tmp);
+}
+
 /**
  * cik_rlc_stop - stop the RLC ME
  *

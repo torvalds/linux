@@ -952,6 +952,8 @@
 
 #define RLC_GPM_STAT                                      0xC400
 #       define RLC_GPM_BUSY                               (1 << 0)
+#       define GFX_POWER_STATUS                           (1 << 1)
+#       define GFX_CLOCK_STATUS                           (1 << 2)
 
 #define RLC_PG_CNTL                                       0xC40C
 #       define GFX_PG_ENABLE                              (1 << 0)
@@ -1003,6 +1005,13 @@
 
 #define RLC_GPM_SCRATCH_ADDR                              0xC4B0
 #define RLC_GPM_SCRATCH_DATA                              0xC4B4
+
+#define RLC_GPR_REG2                                      0xC4E8
+#define		REQ      				0x00000001
+#define		MESSAGE(x)      			((x) << 1)
+#define		MESSAGE_MASK      			0x0000001e
+#define		MSG_ENTER_RLC_SAFE_MODE      			1
+#define		MSG_EXIT_RLC_SAFE_MODE      			0
 
 #define CP_HPD_EOP_BASE_ADDR                              0xC904
 #define CP_HPD_EOP_BASE_ADDR_HI                           0xC908
