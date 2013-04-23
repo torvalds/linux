@@ -1445,13 +1445,17 @@ static void i915_dump_device_info(struct drm_i915_private *dev_priv)
 {
 	const struct intel_device_info *info = dev_priv->info;
 
+#define PRINT_S(name) "%s"
+#define SEP_EMPTY
 #define PRINT_FLAG(name) info->name ? #name "," : ""
 #define SEP_COMMA ,
 	DRM_DEBUG_DRIVER("i915 device info: gen=%i, pciid=0x%04x flags="
-			 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+			 DEV_INFO_FOR_EACH_FLAG(PRINT_S, SEP_EMPTY),
 			 info->gen,
 			 dev_priv->dev->pdev->device,
 			 DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG, SEP_COMMA));
+#undef PRINT_S
+#undef SEP_EMPTY
 #undef PRINT_FLAG
 #undef SEP_COMMA
 }
