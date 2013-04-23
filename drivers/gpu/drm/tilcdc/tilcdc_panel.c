@@ -413,7 +413,6 @@ static struct of_device_id panel_of_match[] = {
 		{ .compatible = "ti,tilcdc,panel", },
 		{ },
 };
-MODULE_DEVICE_TABLE(of, panel_of_match);
 
 struct platform_driver panel_driver = {
 	.probe = panel_probe,
