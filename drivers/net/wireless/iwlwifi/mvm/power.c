@@ -91,6 +91,9 @@ static void iwl_mvm_power_log(struct iwl_mvm *mvm,
 				le32_to_cpu(cmd->tx_data_timeout));
 		IWL_DEBUG_POWER(mvm, "LP RX RSSI threshold = %u\n",
 				cmd->lprx_rssi_threshold);
+		if (cmd->flags & cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK))
+			IWL_DEBUG_POWER(mvm, "DTIMs to skip = %u\n",
+					le32_to_cpu(cmd->num_skip_dtim));
 	}
 }
 
@@ -135,8 +138,10 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/* Check skip over DTIM conditions */
 	if (!radar_detect && (dtimper <= 10) &&
-	    (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP))
+	    (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP)) {
 		cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
+		cmd->num_skip_dtim = cpu_to_le32(2);
+	}
 
 	/* Check that keep alive period is at least 3 * DTIM */
 	dtimper_msec = dtimper * vif->bss_conf.beacon_int;
