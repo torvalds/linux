@@ -454,7 +454,7 @@ void cpuidle_unregister_device(struct cpuidle_device *dev)
 
 EXPORT_SYMBOL_GPL(cpuidle_unregister_device);
 
-/*
+/**
  * cpuidle_unregister: unregister a driver and the devices. This function
  * can be used only if the driver has been previously registered through
  * the cpuidle_register function.
