@@ -28,28 +28,19 @@
 #include "ux500_msp_i2s.h"
 #include "ux500_pcm.h"
 
-static struct snd_pcm_hardware ux500_pcm_hw_playback = {
-	.info = SNDRV_PCM_INFO_INTERLEAVED |
-		SNDRV_PCM_INFO_MMAP |
-		SNDRV_PCM_INFO_RESUME |
-		SNDRV_PCM_INFO_PAUSE,
-	.formats = SNDRV_PCM_FMTBIT_S16_LE |
-		SNDRV_PCM_FMTBIT_U16_LE |
-		SNDRV_PCM_FMTBIT_S16_BE |
-		SNDRV_PCM_FMTBIT_U16_BE,
-	.rates = SNDRV_PCM_RATE_KNOT,
-	.rate_min = UX500_PLATFORM_MIN_RATE_PLAYBACK,
-	.rate_max = UX500_PLATFORM_MAX_RATE_PLAYBACK,
-	.channels_min = UX500_PLATFORM_MIN_CHANNELS,
-	.channels_max = UX500_PLATFORM_MAX_CHANNELS,
-	.buffer_bytes_max = UX500_PLATFORM_BUFFER_BYTES_MAX,
-	.period_bytes_min = UX500_PLATFORM_PERIODS_BYTES_MIN,
-	.period_bytes_max = UX500_PLATFORM_PERIODS_BYTES_MAX,
-	.periods_min = UX500_PLATFORM_PERIODS_MIN,
-	.periods_max = UX500_PLATFORM_PERIODS_MAX,
-};
+#define UX500_PLATFORM_MIN_RATE 8000
+#define UX500_PLATFORM_MAX_RATE 48000
 
-static struct snd_pcm_hardware ux500_pcm_hw_capture = {
+#define UX500_PLATFORM_MIN_CHANNELS 1
+#define UX500_PLATFORM_MAX_CHANNELS 8
+
+#define UX500_PLATFORM_PERIODS_BYTES_MIN	128
+#define UX500_PLATFORM_PERIODS_BYTES_MAX	(64 * PAGE_SIZE)
+#define UX500_PLATFORM_PERIODS_MIN		2
+#define UX500_PLATFORM_PERIODS_MAX		48
+#define UX500_PLATFORM_BUFFER_BYTES_MAX		(2048 * PAGE_SIZE)
+
+static struct snd_pcm_hardware ux500_pcm_hw = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_RESUME |
@@ -59,8 +50,8 @@ static struct snd_pcm_hardware ux500_pcm_hw_capture = {
 		SNDRV_PCM_FMTBIT_S16_BE |
 		SNDRV_PCM_FMTBIT_U16_BE,
 	.rates = SNDRV_PCM_RATE_KNOT,
-	.rate_min = UX500_PLATFORM_MIN_RATE_CAPTURE,
-	.rate_max = UX500_PLATFORM_MAX_RATE_CAPTURE,
+	.rate_min = UX500_PLATFORM_MIN_RATE,
+	.rate_max = UX500_PLATFORM_MAX_RATE,
 	.channels_min = UX500_PLATFORM_MIN_CHANNELS,
 	.channels_max = UX500_PLATFORM_MAX_CHANNELS,
 	.buffer_bytes_max = UX500_PLATFORM_BUFFER_BYTES_MAX,
@@ -90,8 +81,6 @@ static void ux500_pcm_dma_hw_free(struct device *dev,
 
 static int ux500_pcm_open(struct snd_pcm_substream *substream)
 {
-	int stream_id = substream->pstr->stream;
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct device *dev = dai->dev;
@@ -104,26 +93,7 @@ static int ux500_pcm_open(struct snd_pcm_substream *substream)
 		snd_pcm_stream_str(substream));
 
 	dev_dbg(dev, "%s: Set runtime hwparams.\n", __func__);
-	if (stream_id == SNDRV_PCM_STREAM_PLAYBACK)
-		snd_soc_set_runtime_hwparams(substream,
-					&ux500_pcm_hw_playback);
-	else
-		snd_soc_set_runtime_hwparams(substream,
-					&ux500_pcm_hw_capture);
-
-	/* ensure that buffer size is a multiple of period size */
-	ret = snd_pcm_hw_constraint_integer(runtime,
-					SNDRV_PCM_HW_PARAM_PERIODS);
-	if (ret < 0) {
-		dev_err(dev, "%s: Error: snd_pcm_hw_constraints failed (%d)\n",
-			__func__, ret);
-		return ret;
-	}
-
-	dev_dbg(dev, "%s: Set hw-struct for %s.\n", __func__,
-		snd_pcm_stream_str(substream));
-	runtime->hw = (stream_id == SNDRV_PCM_STREAM_PLAYBACK) ?
-		ux500_pcm_hw_playback : ux500_pcm_hw_capture;
+	snd_soc_set_runtime_hwparams(substream, &ux500_pcm_hw);
 
 	mem_data_width = STEDMA40_HALFWORD_WIDTH;
 
@@ -163,20 +133,6 @@ static int ux500_pcm_open(struct snd_pcm_substream *substream)
 			__func__, ret);
 		return ret;
 	}
-
-	snd_dmaengine_pcm_set_data(substream, dma_cfg);
-
-	return 0;
-}
-
-static int ux500_pcm_close(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *dai = rtd->cpu_dai;
-
-	dev_dbg(dai->dev, "%s: Enter\n", __func__);
-
-	snd_dmaengine_pcm_close(substream);
 
 	return 0;
 }
@@ -255,7 +211,7 @@ static int ux500_pcm_mmap(struct snd_pcm_substream *substream,
 
 static struct snd_pcm_ops ux500_pcm_ops = {
 	.open		= ux500_pcm_open,
-	.close		= ux500_pcm_close,
+	.close		= snd_dmaengine_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= ux500_pcm_hw_params,
 	.hw_free	= ux500_pcm_hw_free,

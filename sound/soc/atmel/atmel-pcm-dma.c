@@ -67,9 +67,10 @@ static const struct snd_pcm_hardware atmel_pcm_dma_hardware = {
 static void atmel_pcm_dma_irq(u32 ssc_sr,
 	struct snd_pcm_substream *substream)
 {
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct atmel_pcm_dma_params *prtd;
 
-	prtd = snd_dmaengine_pcm_get_data(substream);
+	prtd = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	if (ssc_sr & prtd->mask->ssc_error) {
 		if (snd_pcm_running(substream))
@@ -104,15 +105,13 @@ static bool filter(struct dma_chan *chan, void *slave)
 }
 
 static int atmel_pcm_configure_dma(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+	struct snd_pcm_hw_params *params, struct atmel_pcm_dma_params *prtd)
 {
-	struct atmel_pcm_dma_params *prtd;
 	struct ssc_device *ssc;
 	struct dma_chan *dma_chan;
 	struct dma_slave_config slave_config;
 	int ret;
 
-	prtd = snd_dmaengine_pcm_get_data(substream);
 	ssc = prtd->ssc;
 
 	ret = snd_hwparams_to_dma_slave_config(substream, params,
@@ -129,8 +128,6 @@ static int atmel_pcm_configure_dma(struct snd_pcm_substream *substream,
 		slave_config.src_addr = (dma_addr_t)ssc->phybase + SSC_RHR;
 		slave_config.src_maxburst = 1;
 	}
-
-	slave_config.device_fc = false;
 
 	dma_chan = snd_dmaengine_pcm_get_chan(substream);
 	if (dmaengine_slave_config(dma_chan, &slave_config)) {
@@ -164,9 +161,7 @@ static int atmel_pcm_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_dmaengine_pcm_set_data(substream, prtd);
-
-	ret = atmel_pcm_configure_dma(substream, params);
+	ret = atmel_pcm_configure_dma(substream, params, prtd);
 	if (ret) {
 		pr_err("atmel-pcm: failed to configure dmai\n");
 		goto err;
@@ -182,9 +177,10 @@ err:
 
 static int atmel_pcm_dma_prepare(struct snd_pcm_substream *substream)
 {
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct atmel_pcm_dma_params *prtd;
 
-	prtd = snd_dmaengine_pcm_get_data(substream);
+	prtd = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	ssc_writex(prtd->ssc->regs, SSC_IER, prtd->mask->ssc_error);
 	ssc_writex(prtd->ssc->regs, SSC_CR, prtd->mask->ssc_enable);
@@ -199,16 +195,9 @@ static int atmel_pcm_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int atmel_pcm_close(struct snd_pcm_substream *substream)
-{
-	snd_dmaengine_pcm_close(substream);
-
-	return 0;
-}
-
 static struct snd_pcm_ops atmel_pcm_ops = {
 	.open		= atmel_pcm_open,
-	.close		= atmel_pcm_close,
+	.close		= snd_dmaengine_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= atmel_pcm_hw_params,
 	.prepare	= atmel_pcm_dma_prepare,

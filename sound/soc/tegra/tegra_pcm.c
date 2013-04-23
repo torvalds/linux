@@ -73,23 +73,14 @@ static int tegra_pcm_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int tegra_pcm_close(struct snd_pcm_substream *substream)
-{
-	snd_dmaengine_pcm_close(substream);
-	return 0;
-}
-
 static int tegra_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct device *dev = rtd->platform->dev;
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
-	struct tegra_pcm_dma_params *dmap;
 	struct dma_slave_config slave_config;
 	int ret;
-
-	dmap = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	ret = snd_hwparams_to_dma_slave_config(substream, params,
 						&slave_config);
@@ -98,16 +89,9 @@ static int tegra_pcm_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		slave_config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-		slave_config.dst_addr = dmap->addr;
-		slave_config.dst_maxburst = 4;
-	} else {
-		slave_config.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-		slave_config.src_addr = dmap->addr;
-		slave_config.src_maxburst = 4;
-	}
-	slave_config.slave_id = dmap->req_sel;
+	snd_dmaengine_pcm_set_config_from_dai_data(substream,
+			snd_soc_dai_get_dma_data(rtd->cpu_dai, substream),
+			&slave_config);
 
 	ret = dmaengine_slave_config(chan, &slave_config);
 	if (ret < 0) {
@@ -138,7 +122,7 @@ static int tegra_pcm_mmap(struct snd_pcm_substream *substream,
 
 static struct snd_pcm_ops tegra_pcm_ops = {
 	.open		= tegra_pcm_open,
-	.close		= tegra_pcm_close,
+	.close		= snd_dmaengine_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= tegra_pcm_hw_params,
 	.hw_free	= tegra_pcm_hw_free,

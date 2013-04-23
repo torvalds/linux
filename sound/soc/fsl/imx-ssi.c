@@ -236,7 +236,7 @@ static int imx_ssi_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *cpu_dai)
 {
 	struct imx_ssi *ssi = snd_soc_dai_get_drvdata(cpu_dai);
-	struct imx_pcm_dma_params *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 
 	/* Tx/Rx config */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -369,8 +369,8 @@ static int imx_ssi_dai_probe(struct snd_soc_dai *dai)
 
 	snd_soc_dai_set_drvdata(dai, ssi);
 
-	val = SSI_SFCSR_TFWM0(ssi->dma_params_tx.burstsize) |
-		SSI_SFCSR_RFWM0(ssi->dma_params_rx.burstsize);
+	val = SSI_SFCSR_TFWM0(ssi->dma_params_tx.maxburst) |
+		SSI_SFCSR_RFWM0(ssi->dma_params_rx.maxburst);
 	writel(val, ssi->base + SSI_SFCSR);
 
 	return 0;
@@ -400,7 +400,7 @@ static struct snd_soc_dai_driver imx_ac97_dai = {
 		.stream_name = "AC97 Playback",
 		.channels_min = 2,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_48000,
+		.rates = SNDRV_PCM_RATE_8000_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.capture = {
@@ -411,6 +411,10 @@ static struct snd_soc_dai_driver imx_ac97_dai = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.ops = &imx_ssi_pcm_dai_ops,
+};
+
+static const struct snd_soc_component_driver imx_component = {
+	.name		= DRV_NAME,
 };
 
 static void setup_channel_to_ac97(struct imx_ssi *imx_ssi)
@@ -575,23 +579,31 @@ static int imx_ssi_probe(struct platform_device *pdev)
 
 	writel(0x0, ssi->base + SSI_SIER);
 
-	ssi->dma_params_rx.dma_addr = res->start + SSI_SRX0;
-	ssi->dma_params_tx.dma_addr = res->start + SSI_STX0;
+	ssi->dma_params_rx.addr = res->start + SSI_SRX0;
+	ssi->dma_params_tx.addr = res->start + SSI_STX0;
 
-	ssi->dma_params_tx.burstsize = 6;
-	ssi->dma_params_rx.burstsize = 4;
+	ssi->dma_params_tx.maxburst = 6;
+	ssi->dma_params_rx.maxburst = 4;
+
+	ssi->dma_params_tx.filter_data = &ssi->filter_data_tx;
+	ssi->dma_params_rx.filter_data = &ssi->filter_data_rx;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx0");
-	if (res)
-		ssi->dma_params_tx.dma = res->start;
+	if (res) {
+		imx_pcm_dma_params_init_data(&ssi->filter_data_tx, res->start,
+			false);
+	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx0");
-	if (res)
-		ssi->dma_params_rx.dma = res->start;
+	if (res) {
+		imx_pcm_dma_params_init_data(&ssi->filter_data_rx, res->start,
+			false);
+	}
 
 	platform_set_drvdata(pdev, ssi);
 
-	ret = snd_soc_register_dai(&pdev->dev, dai);
+	ret = snd_soc_register_component(&pdev->dev, &imx_component,
+					 dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "register DAI failed\n");
 		goto failed_register;
@@ -632,7 +644,7 @@ failed_pdev_alloc:
 failed_pdev_fiq_add:
 	platform_device_put(ssi->soc_platform_pdev_fiq);
 failed_pdev_fiq_alloc:
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 failed_register:
 	release_mem_region(res->start, resource_size(res));
 failed_get_resource:
@@ -650,7 +662,7 @@ static int imx_ssi_remove(struct platform_device *pdev)
 	platform_device_unregister(ssi->soc_platform_pdev);
 	platform_device_unregister(ssi->soc_platform_pdev_fiq);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	if (ssi->flags & IMX_SSI_USE_AC97)
 		ac97_ssi = NULL;

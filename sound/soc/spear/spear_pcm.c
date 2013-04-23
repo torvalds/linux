@@ -25,7 +25,7 @@
 #include <sound/soc.h>
 #include <sound/spear_dma.h>
 
-struct snd_pcm_hardware spear_pcm_hardware = {
+static struct snd_pcm_hardware spear_pcm_hardware = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
 		 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME),
@@ -64,21 +64,7 @@ static int spear_pcm_open(struct snd_pcm_substream *substream)
 	if (ret)
 		return ret;
 
-	ret = snd_dmaengine_pcm_open(substream, dma_data->filter, dma_data);
-	if (ret)
-		return ret;
-
-	snd_dmaengine_pcm_set_data(substream, dma_data);
-
-	return 0;
-}
-
-static int spear_pcm_close(struct snd_pcm_substream *substream)
-{
-
-	snd_dmaengine_pcm_close(substream);
-
-	return 0;
+	return snd_dmaengine_pcm_open(substream, dma_data->filter, dma_data)
 }
 
 static int spear_pcm_mmap(struct snd_pcm_substream *substream,
@@ -93,7 +79,7 @@ static int spear_pcm_mmap(struct snd_pcm_substream *substream,
 
 static struct snd_pcm_ops spear_pcm_ops = {
 	.open		= spear_pcm_open,
-	.close		= spear_pcm_close,
+	.close		= snd_dmaengine_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= spear_pcm_hw_params,
 	.hw_free	= spear_pcm_hw_free,
@@ -178,7 +164,7 @@ static int spear_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-struct snd_soc_platform_driver spear_soc_platform = {
+static struct snd_soc_platform_driver spear_soc_platform = {
 	.ops		=	&spear_pcm_ops,
 	.pcm_new	=	spear_pcm_new,
 	.pcm_free	=	spear_pcm_free,

@@ -768,6 +768,11 @@ static struct snd_soc_dai_driver ux500_msp_dai_drv[UX500_NBR_OF_DAI] = {
 	},
 };
 
+static const struct snd_soc_component_driver ux500_msp_component = {
+	.name		= "ux500-msp",
+};
+
+
 static int ux500_msp_drv_probe(struct platform_device *pdev)
 {
 	struct ux500_msp_i2s_drvdata *drvdata;
@@ -825,8 +830,8 @@ static int ux500_msp_drv_probe(struct platform_device *pdev)
 	}
 	dev_set_drvdata(&pdev->dev, drvdata);
 
-	ret = snd_soc_register_dai(&pdev->dev,
-				&ux500_msp_dai_drv[drvdata->msp->id]);
+	ret = snd_soc_register_component(&pdev->dev, &ux500_msp_component,
+					 &ux500_msp_dai_drv[drvdata->msp->id], 1);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error: %s: Failed to register MSP%d!\n",
 			__func__, drvdata->msp->id);
@@ -844,7 +849,7 @@ static int ux500_msp_drv_probe(struct platform_device *pdev)
 	return 0;
 
 err_reg_plat:
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(ux500_msp_dai_drv));
+	snd_soc_unregister_component(&pdev->dev);
 err_init_msp:
 	clk_put(drvdata->clk);
 err_clk:
@@ -861,7 +866,7 @@ static int ux500_msp_drv_remove(struct platform_device *pdev)
 
 	ux500_pcm_unregister_platform(pdev);
 
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(ux500_msp_dai_drv));
+	snd_soc_unregister_component(&pdev->dev);
 
 	devm_regulator_put(drvdata->reg_vape);
 	prcmu_qos_remove_requirement(PRCMU_QOS_APE_OPP, "ux500_msp_i2s");

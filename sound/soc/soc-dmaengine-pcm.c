@@ -33,8 +33,6 @@ struct dmaengine_pcm_runtime_data {
 	dma_cookie_t cookie;
 
 	unsigned int pos;
-
-	void *data;
 };
 
 static inline struct dmaengine_pcm_runtime_data *substream_to_prtd(
@@ -42,33 +40,6 @@ static inline struct dmaengine_pcm_runtime_data *substream_to_prtd(
 {
 	return substream->runtime->private_data;
 }
-
-/**
- * snd_dmaengine_pcm_set_data - Set dmaengine substream private data
- * @substream: PCM substream
- * @data: Data to set
- */
-void snd_dmaengine_pcm_set_data(struct snd_pcm_substream *substream, void *data)
-{
-	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
-
-	prtd->data = data;
-}
-EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_set_data);
-
-/**
- * snd_dmaengine_pcm_get_data - Get dmaeinge substream private data
- * @substream: PCM substream
- *
- * Returns the data previously set with snd_dmaengine_pcm_set_data
- */
-void *snd_dmaengine_pcm_get_data(struct snd_pcm_substream *substream)
-{
-	struct dmaengine_pcm_runtime_data *prtd = substream_to_prtd(substream);
-
-	return prtd->data;
-}
-EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_get_data);
 
 struct dma_chan *snd_dmaengine_pcm_get_chan(struct snd_pcm_substream *substream)
 {
@@ -118,9 +89,48 @@ int snd_hwparams_to_dma_slave_config(const struct snd_pcm_substream *substream,
 		slave_config->src_addr_width = buswidth;
 	}
 
+	slave_config->device_fc = false;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hwparams_to_dma_slave_config);
+
+/**
+ * snd_dmaengine_pcm_set_config_from_dai_data() - Initializes a dma slave config
+ *  using DAI DMA data.
+ * @substream: PCM substream
+ * @dma_data: DAI DMA data
+ * @slave_config: DMA slave configuration
+ *
+ * Initializes the {dst,src}_addr, {dst,src}_maxburst, {dst,src}_addr_width and
+ * slave_id fields of the DMA slave config from the same fields of the DAI DMA
+ * data struct. The src and dst fields will be initialized depending on the
+ * direction of the substream. If the substream is a playback stream the dst
+ * fields will be initialized, if it is a capture stream the src fields will be
+ * initialized. The {dst,src}_addr_width field will only be initialized if the
+ * addr_width field of the DAI DMA data struct is not equal to
+ * DMA_SLAVE_BUSWIDTH_UNDEFINED.
+ */
+void snd_dmaengine_pcm_set_config_from_dai_data(
+	const struct snd_pcm_substream *substream,
+	const struct snd_dmaengine_dai_dma_data *dma_data,
+	struct dma_slave_config *slave_config)
+{
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		slave_config->dst_addr = dma_data->addr;
+		slave_config->dst_maxburst = dma_data->maxburst;
+		if (dma_data->addr_width != DMA_SLAVE_BUSWIDTH_UNDEFINED)
+			slave_config->dst_addr_width = dma_data->addr_width;
+	} else {
+		slave_config->src_addr = dma_data->addr;
+		slave_config->src_maxburst = dma_data->maxburst;
+		if (dma_data->addr_width != DMA_SLAVE_BUSWIDTH_UNDEFINED)
+			slave_config->src_addr_width = dma_data->addr_width;
+	}
+
+	slave_config->slave_id = dma_data->slave_id;
+}
+EXPORT_SYMBOL_GPL(snd_dmaengine_pcm_set_config_from_dai_data);
 
 static void dmaengine_pcm_dma_complete(void *arg)
 {
