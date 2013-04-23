@@ -123,11 +123,13 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 {
 	int i;
 
+	of_clk_init(NULL);
+
 	clk[dummy] = imx_clk_fixed("dummy", 0);
-	clk[ckil] = imx_clk_fixed("ckil", rate_ckil);
-	clk[osc] = imx_clk_fixed("osc", rate_osc);
-	clk[ckih1] = imx_clk_fixed("ckih1", rate_ckih1);
-	clk[ckih2] = imx_clk_fixed("ckih2", rate_ckih2);
+	clk[ckil] = imx_obtain_fixed_clock("ckil", rate_ckil);
+	clk[osc] = imx_obtain_fixed_clock("osc", rate_osc);
+	clk[ckih1] = imx_obtain_fixed_clock("ckih1", rate_ckih1);
+	clk[ckih2] = imx_obtain_fixed_clock("ckih2", rate_ckih2);
 
 	clk[lp_apm] = imx_clk_mux("lp_apm", MXC_CCM_CCSR, 9, 1,
 				lp_apm_sel, ARRAY_SIZE(lp_apm_sel));
@@ -542,42 +544,12 @@ int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	return 0;
 }
 
-#ifdef CONFIG_OF
-static void __init clk_get_freq_dt(unsigned long *ckil, unsigned long *osc,
-				   unsigned long *ckih1, unsigned long *ckih2)
-{
-	struct device_node *np;
-
-	/* retrieve the freqency of fixed clocks from device tree */
-	for_each_compatible_node(np, NULL, "fixed-clock") {
-		u32 rate;
-		if (of_property_read_u32(np, "clock-frequency", &rate))
-			continue;
-
-		if (of_device_is_compatible(np, "fsl,imx-ckil"))
-			*ckil = rate;
-		else if (of_device_is_compatible(np, "fsl,imx-osc"))
-			*osc = rate;
-		else if (of_device_is_compatible(np, "fsl,imx-ckih1"))
-			*ckih1 = rate;
-		else if (of_device_is_compatible(np, "fsl,imx-ckih2"))
-			*ckih2 = rate;
-	}
-}
-
 int __init mx51_clocks_init_dt(void)
 {
-	unsigned long ckil, osc, ckih1, ckih2;
-
-	clk_get_freq_dt(&ckil, &osc, &ckih1, &ckih2);
-	return mx51_clocks_init(ckil, osc, ckih1, ckih2);
+	return mx51_clocks_init(0, 0, 0, 0);
 }
 
 int __init mx53_clocks_init_dt(void)
 {
-	unsigned long ckil, osc, ckih1, ckih2;
-
-	clk_get_freq_dt(&ckil, &osc, &ckih1, &ckih2);
-	return mx53_clocks_init(ckil, osc, ckih1, ckih2);
+	return mx53_clocks_init(0, 0, 0, 0);
 }
-#endif
