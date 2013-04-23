@@ -25,7 +25,6 @@
 
 #define DAVINCI_CPUIDLE_MAX_STATES	2
 
-static DEFINE_PER_CPU(struct cpuidle_device, davinci_cpuidle_device);
 static void __iomem *ddr2_reg_base;
 static bool ddr2_pdown;
 
@@ -76,11 +75,7 @@ static struct cpuidle_driver davinci_idle_driver = {
 
 static int __init davinci_cpuidle_probe(struct platform_device *pdev)
 {
-	int ret;
-	struct cpuidle_device *device;
 	struct davinci_cpuidle_config *pdata = pdev->dev.platform_data;
-
-	device = &per_cpu(davinci_cpuidle_device, smp_processor_id());
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "cannot get platform data\n");
@@ -91,20 +86,7 @@ static int __init davinci_cpuidle_probe(struct platform_device *pdev)
 
 	ddr2_pdown = pdata->ddr2_pdown;
 
-	ret = cpuidle_register_driver(&davinci_idle_driver);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register driver\n");
-		return ret;
-	}
-
-	ret = cpuidle_register_device(device);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register device\n");
-		cpuidle_unregister_driver(&davinci_idle_driver);
-		return ret;
-	}
-
-	return 0;
+	return cpuidle_register(&davinci_idle_driver, NULL);
 }
 
 static struct platform_driver davinci_cpuidle_driver = {
