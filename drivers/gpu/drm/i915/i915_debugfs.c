@@ -61,11 +61,11 @@ static int i915_capabilities(struct seq_file *m, void *data)
 
 	seq_printf(m, "gen: %d\n", info->gen);
 	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(dev));
-#define DEV_INFO_FLAG(x) seq_printf(m, #x ": %s\n", yesno(info->x))
-#define DEV_INFO_SEP ;
-	DEV_INFO_FLAGS;
-#undef DEV_INFO_FLAG
-#undef DEV_INFO_SEP
+#define PRINT_FLAG(x)  seq_printf(m, #x ": %s\n", yesno(info->x))
+#define SEP_SEMICOLON ;
+	DEV_INFO_FOR_EACH_FLAG(PRINT_FLAG, SEP_SEMICOLON);
+#undef PRINT_FLAG
+#undef SEP_SEMICOLON
 
 	return 0;
 }
