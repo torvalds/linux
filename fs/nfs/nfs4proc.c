@@ -2547,7 +2547,7 @@ static int nfs4_lookup_root_sec(struct nfs_server *server, struct nfs_fh *fhandl
 
 	auth = rpcauth_create(flavor, server->client);
 	if (IS_ERR(auth)) {
-		ret = -EIO;
+		ret = -EACCES;
 		goto out;
 	}
 	ret = nfs4_lookup_root(server, fhandle, info);
@@ -2555,27 +2555,36 @@ out:
 	return ret;
 }
 
+/*
+ * Retry pseudoroot lookup with various security flavors.  We do this when:
+ *
+ *   NFSv4.0: the PUTROOTFH operation returns NFS4ERR_WRONGSEC
+ *   NFSv4.1: the server does not support the SECINFO_NO_NAME operation
+ *
+ * Returns zero on success, or a negative NFS4ERR value, or a
+ * negative errno value.
+ */
 static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 			      struct nfs_fsinfo *info)
 {
-	int i, len, status = 0;
-	rpc_authflavor_t flav_array[NFS_MAX_SECFLAVORS];
+	/* Per 3530bis 15.33.5 */
+	static const rpc_authflavor_t flav_array[] = {
+		RPC_AUTH_GSS_KRB5P,
+		RPC_AUTH_GSS_KRB5I,
+		RPC_AUTH_GSS_KRB5,
+		RPC_AUTH_UNIX,			/* courtesy */
+		RPC_AUTH_NULL,
+	};
+	int status = -EPERM;
+	size_t i;
 
-	len = rpcauth_list_flavors(flav_array, ARRAY_SIZE(flav_array));
-	if (len < 0)
-		return len;
-
-	for (i = 0; i < len; i++) {
-		/* AUTH_UNIX is the default flavor if none was specified,
-		 * thus has already been tried. */
-		if (flav_array[i] == RPC_AUTH_UNIX)
-			continue;
-
+	for (i = 0; i < ARRAY_SIZE(flav_array); i++) {
 		status = nfs4_lookup_root_sec(server, fhandle, info, flav_array[i]);
 		if (status == -NFS4ERR_WRONGSEC || status == -EACCES)
 			continue;
 		break;
 	}
+
 	/*
 	 * -EACCESS could mean that the user doesn't have correct permissions
 	 * to access the mount.  It could also mean that we tried to mount
@@ -2588,24 +2597,36 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	return status;
 }
 
-/*
- * get the file handle for the "/" directory on the server
+static int nfs4_do_find_root_sec(struct nfs_server *server,
+		struct nfs_fh *fhandle, struct nfs_fsinfo *info)
+{
+	int mv = server->nfs_client->cl_minorversion;
+	return nfs_v4_minor_ops[mv]->find_root_sec(server, fhandle, info);
+}
+
+/**
+ * nfs4_proc_get_rootfh - get file handle for server's pseudoroot
+ * @server: initialized nfs_server handle
+ * @fhandle: we fill in the pseudo-fs root file handle
+ * @info: we fill in an FSINFO struct
+ *
+ * Returns zero on success, or a negative errno.
  */
 int nfs4_proc_get_rootfh(struct nfs_server *server, struct nfs_fh *fhandle,
 			 struct nfs_fsinfo *info)
 {
-	int minor_version = server->nfs_client->cl_minorversion;
-	int status = nfs4_lookup_root(server, fhandle, info);
-	if ((status == -NFS4ERR_WRONGSEC) && !(server->flags & NFS_MOUNT_SECFLAVOUR))
-		/*
-		 * A status of -NFS4ERR_WRONGSEC will be mapped to -EPERM
-		 * by nfs4_map_errors() as this function exits.
-		 */
-		status = nfs_v4_minor_ops[minor_version]->find_root_sec(server, fhandle, info);
+	int status;
+
+	status = nfs4_lookup_root(server, fhandle, info);
+	if ((status == -NFS4ERR_WRONGSEC) &&
+	    !(server->flags & NFS_MOUNT_SECFLAVOUR))
+		status = nfs4_do_find_root_sec(server, fhandle, info);
+
 	if (status == 0)
 		status = nfs4_server_capabilities(server, fhandle);
 	if (status == 0)
 		status = nfs4_do_fsinfo(server, fhandle, info);
+
 	return nfs4_map_errors(status);
 }
 
@@ -3484,12 +3505,21 @@ static int _nfs4_do_fsinfo(struct nfs_server *server, struct nfs_fh *fhandle,
 static int nfs4_do_fsinfo(struct nfs_server *server, struct nfs_fh *fhandle, struct nfs_fsinfo *fsinfo)
 {
 	struct nfs4_exception exception = { };
+	unsigned long now = jiffies;
 	int err;
 
 	do {
-		err = nfs4_handle_exception(server,
-				_nfs4_do_fsinfo(server, fhandle, fsinfo),
-				&exception);
+		err = _nfs4_do_fsinfo(server, fhandle, fsinfo);
+		if (err == 0) {
+			struct nfs_client *clp = server->nfs_client;
+
+			spin_lock(&clp->cl_lock);
+			clp->cl_lease_time = fsinfo->lease_time * HZ;
+			clp->cl_last_renewal = now;
+			spin_unlock(&clp->cl_lock);
+			break;
+		}
+		err = nfs4_handle_exception(server, err, &exception);
 	} while (exception.retry);
 	return err;
 }
@@ -4330,27 +4360,17 @@ int nfs4_proc_setclientid_confirm(struct nfs_client *clp,
 		struct nfs4_setclientid_res *arg,
 		struct rpc_cred *cred)
 {
-	struct nfs_fsinfo fsinfo;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SETCLIENTID_CONFIRM],
 		.rpc_argp = arg,
-		.rpc_resp = &fsinfo,
 		.rpc_cred = cred,
 	};
-	unsigned long now;
 	int status;
 
 	dprintk("NFS call  setclientid_confirm auth=%s, (client ID %llx)\n",
 		clp->cl_rpcclient->cl_auth->au_ops->au_name,
 		clp->cl_clientid);
-	now = jiffies;
 	status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
-	if (status == 0) {
-		spin_lock(&clp->cl_lock);
-		clp->cl_lease_time = fsinfo.lease_time * HZ;
-		clp->cl_last_renewal = now;
-		spin_unlock(&clp->cl_lock);
-	}
 	dprintk("NFS reply setclientid_confirm: %d\n", status);
 	return status;
 }

@@ -729,16 +729,19 @@ static const struct gss_api_ops gss_kerberos_ops = {
 static struct pf_desc gss_kerberos_pfs[] = {
 	[0] = {
 		.pseudoflavor = RPC_AUTH_GSS_KRB5,
+		.qop = GSS_C_QOP_DEFAULT,
 		.service = RPC_GSS_SVC_NONE,
 		.name = "krb5",
 	},
 	[1] = {
 		.pseudoflavor = RPC_AUTH_GSS_KRB5I,
+		.qop = GSS_C_QOP_DEFAULT,
 		.service = RPC_GSS_SVC_INTEGRITY,
 		.name = "krb5i",
 	},
 	[2] = {
 		.pseudoflavor = RPC_AUTH_GSS_KRB5P,
+		.qop = GSS_C_QOP_DEFAULT,
 		.service = RPC_GSS_SVC_PRIVACY,
 		.name = "krb5p",
 	},
@@ -750,11 +753,12 @@ MODULE_ALIAS("rpc-auth-gss-krb5p");
 MODULE_ALIAS("rpc-auth-gss-390003");
 MODULE_ALIAS("rpc-auth-gss-390004");
 MODULE_ALIAS("rpc-auth-gss-390005");
+MODULE_ALIAS("rpc-auth-gss-1.2.840.113554.1.2.2");
 
 static struct gss_api_mech gss_kerberos_mech = {
 	.gm_name	= "krb5",
 	.gm_owner	= THIS_MODULE,
-	.gm_oid		= {9, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02"},
+	.gm_oid		= { 9, "\x2a\x86\x48\x86\xf7\x12\x01\x02\x02" },
 	.gm_ops		= &gss_kerberos_ops,
 	.gm_pf_num	= ARRAY_SIZE(gss_kerberos_pfs),
 	.gm_pfs		= gss_kerberos_pfs,
