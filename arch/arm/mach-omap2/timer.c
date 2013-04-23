@@ -621,12 +621,10 @@ void __init omap4_local_timer_init(void)
 #ifdef CONFIG_SOC_OMAP5
 void __init omap5_realtime_timer_init(void)
 {
-	int err;
-
 	omap4_sync32k_timer_init();
 	realtime_counter_init();
 
-        clocksource_of_init();
+	clocksource_of_init();
 }
 #endif /* CONFIG_SOC_OMAP5 */
 
