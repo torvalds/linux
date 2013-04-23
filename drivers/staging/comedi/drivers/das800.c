@@ -453,11 +453,6 @@ static int das800_ai_do_cmd(struct comedi_device *dev,
 	case TRIG_TIMER:
 		conv_bits |= CASC | ITE;
 		/* set conversion frequency */
-		i8253_cascade_ns_to_timer_2div(TIMER_BASE, &(devpriv->divisor1),
-					       &(devpriv->divisor2),
-					       &(async->cmd.convert_arg),
-					       async->cmd.
-					       flags & TRIG_ROUND_MASK);
 		if (das800_set_frequency(dev) < 0) {
 			comedi_error(dev, "Error setting up counters");
 			return -1;
