@@ -235,73 +235,6 @@ static void enable_das800(struct comedi_device *dev);
 static void disable_das800(struct comedi_device *dev);
 static int das800_set_frequency(struct comedi_device *dev);
 
-/* checks and probes das-800 series board type */
-static int das800_probe(struct comedi_device *dev)
-{
-	const struct das800_board *thisboard = comedi_board(dev);
-	int id_bits;
-	unsigned long irq_flags;
-	int board;
-
-	/*  'comedi spin lock irqsave' disables even rt interrupts, we use them to protect indirect addressing */
-	spin_lock_irqsave(&dev->spinlock, irq_flags);
-	outb(ID, dev->iobase + DAS800_GAIN);	/* select base address + 7 to be ID register */
-	id_bits = inb(dev->iobase + DAS800_ID) & 0x3;	/* get id bits */
-	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-
-	board = thisboard - das800_boards;
-
-	switch (id_bits) {
-	case 0x0:
-		if (board == das800) {
-			dev_dbg(dev->class_dev, "Board model: DAS-800\n");
-			return board;
-		}
-		if (board == ciodas800) {
-			dev_dbg(dev->class_dev, "Board model: CIO-DAS800\n");
-			return board;
-		}
-		dev_dbg(dev->class_dev, "Board model (probed): DAS-800\n");
-		return das800;
-		break;
-	case 0x2:
-		if (board == das801) {
-			dev_dbg(dev->class_dev, "Board model: DAS-801\n");
-			return board;
-		}
-		if (board == ciodas801) {
-			dev_dbg(dev->class_dev, "Board model: CIO-DAS801\n");
-			return board;
-		}
-		dev_dbg(dev->class_dev, "Board model (probed): DAS-801\n");
-		return das801;
-		break;
-	case 0x3:
-		if (board == das802) {
-			dev_dbg(dev->class_dev, "Board model: DAS-802\n");
-			return board;
-		}
-		if (board == ciodas802) {
-			dev_dbg(dev->class_dev, "Board model: CIO-DAS802\n");
-			return board;
-		}
-		if (board == ciodas80216) {
-			dev_dbg(dev->class_dev, "Board model: CIO-DAS802/16\n");
-			return board;
-		}
-		dev_dbg(dev->class_dev, "Board model (probed): DAS-802\n");
-		return das802;
-		break;
-	default:
-		dev_dbg(dev->class_dev,
-			"Board model: probe returned 0x%x (unknown)\n",
-			id_bits);
-		return board;
-		break;
-	}
-	return -1;
-}
-
 /* interrupt service routine */
 static irqreturn_t das800_interrupt(int irq, void *d)
 {
@@ -727,6 +660,71 @@ static int das800_set_frequency(struct comedi_device *dev)
 		return -1;
 
 	return 0;
+}
+
+static int das800_probe(struct comedi_device *dev)
+{
+	const struct das800_board *thisboard = comedi_board(dev);
+	int id_bits;
+	unsigned long irq_flags;
+	int board;
+
+	spin_lock_irqsave(&dev->spinlock, irq_flags);
+	outb(ID, dev->iobase + DAS800_GAIN);
+	id_bits = inb(dev->iobase + DAS800_ID) & 0x3;
+	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+
+	board = thisboard - das800_boards;
+
+	switch (id_bits) {
+	case 0x0:
+		if (board == das800) {
+			dev_dbg(dev->class_dev, "Board model: DAS-800\n");
+			return board;
+		}
+		if (board == ciodas800) {
+			dev_dbg(dev->class_dev, "Board model: CIO-DAS800\n");
+			return board;
+		}
+		dev_dbg(dev->class_dev, "Board model (probed): DAS-800\n");
+		return das800;
+		break;
+	case 0x2:
+		if (board == das801) {
+			dev_dbg(dev->class_dev, "Board model: DAS-801\n");
+			return board;
+		}
+		if (board == ciodas801) {
+			dev_dbg(dev->class_dev, "Board model: CIO-DAS801\n");
+			return board;
+		}
+		dev_dbg(dev->class_dev, "Board model (probed): DAS-801\n");
+		return das801;
+		break;
+	case 0x3:
+		if (board == das802) {
+			dev_dbg(dev->class_dev, "Board model: DAS-802\n");
+			return board;
+		}
+		if (board == ciodas802) {
+			dev_dbg(dev->class_dev, "Board model: CIO-DAS802\n");
+			return board;
+		}
+		if (board == ciodas80216) {
+			dev_dbg(dev->class_dev, "Board model: CIO-DAS802/16\n");
+			return board;
+		}
+		dev_dbg(dev->class_dev, "Board model (probed): DAS-802\n");
+		return das802;
+		break;
+	default:
+		dev_dbg(dev->class_dev,
+			"Board model: probe returned 0x%x (unknown)\n",
+			id_bits);
+		return board;
+		break;
+	}
+	return -1;
 }
 
 static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
