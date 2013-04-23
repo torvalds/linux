@@ -71,5 +71,5 @@ int __init imx6q_cpuidle_init(void)
 	/* Set chicken bit to get a reliable WAIT mode support */
 	imx6q_set_chicken_bit();
 
-	return imx_cpuidle_init(&imx6q_cpuidle_driver);
+	return cpuidle_register(&imx6q_cpuidle_driver, NULL);
 }

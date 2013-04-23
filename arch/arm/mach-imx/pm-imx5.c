@@ -149,32 +149,6 @@ static void imx5_pm_idle(void)
 	imx5_cpu_do_idle();
 }
 
-static int imx5_cpuidle_enter(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv, int idx)
-{
-	int ret;
-
-	ret = imx5_cpu_do_idle();
-	if (ret < 0)
-		return ret;
-
-	return idx;
-}
-
-static struct cpuidle_driver imx5_cpuidle_driver = {
-	.name			= "imx5_cpuidle",
-	.owner			= THIS_MODULE,
-	.states[0]	= {
-		.enter			= imx5_cpuidle_enter,
-		.exit_latency		= 2,
-		.target_residency	= 1,
-		.flags			= CPUIDLE_FLAG_TIME_VALID,
-		.name			= "IMX5 SRPG",
-		.desc			= "CPU state retained,powered off",
-	},
-	.state_count		= 1,
-};
-
 static int __init imx5_pm_common_init(void)
 {
 	int ret;
@@ -192,8 +166,7 @@ static int __init imx5_pm_common_init(void)
 	/* Set the registers to the default cpu idle state. */
 	mx5_cpu_lp_set(IMX5_DEFAULT_CPU_IDLE_STATE);
 
-	imx_cpuidle_init(&imx5_cpuidle_driver);
-	return 0;
+	return imx5_cpuidle_init();
 }
 
 void __init imx51_pm_init(void)
