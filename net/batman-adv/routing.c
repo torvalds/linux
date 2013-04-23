@@ -557,48 +557,6 @@ static int batadv_check_unicast_packet(struct batadv_priv *bat_priv,
 	return 0;
 }
 
-int batadv_recv_roam_adv(struct sk_buff *skb, struct batadv_hard_iface *recv_if)
-{
-	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
-	struct batadv_roam_adv_packet *roam_adv_packet;
-	struct batadv_orig_node *orig_node;
-
-	if (batadv_check_unicast_packet(bat_priv, skb,
-					sizeof(*roam_adv_packet)) < 0)
-		goto out;
-
-	batadv_inc_counter(bat_priv, BATADV_CNT_TT_ROAM_ADV_RX);
-
-	roam_adv_packet = (struct batadv_roam_adv_packet *)skb->data;
-
-	if (!batadv_is_my_mac(bat_priv, roam_adv_packet->dst))
-		return batadv_route_unicast_packet(skb, recv_if);
-
-	/* check if it is a backbone gateway. we don't accept
-	 * roaming advertisement from it, as it has the same
-	 * entries as we have.
-	 */
-	if (batadv_bla_is_backbone_gw_orig(bat_priv, roam_adv_packet->src))
-		goto out;
-
-	orig_node = batadv_orig_hash_find(bat_priv, roam_adv_packet->src);
-	if (!orig_node)
-		goto out;
-
-	batadv_dbg(BATADV_DBG_TT, bat_priv,
-		   "Received ROAMING_ADV from %pM (client %pM)\n",
-		   roam_adv_packet->src, roam_adv_packet->client);
-
-	batadv_tt_global_add(bat_priv, orig_node, roam_adv_packet->client,
-			     BATADV_TT_CLIENT_ROAM,
-			     atomic_read(&orig_node->last_ttvn) + 1);
-
-	batadv_orig_node_free_ref(orig_node);
-out:
-	/* returning NET_RX_DROP will make the caller function kfree the skb */
-	return NET_RX_DROP;
-}
-
 /* find a suitable router for this originator, and use
  * bonding if possible. increases the found neighbors
  * refcount.

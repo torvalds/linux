@@ -2189,11 +2189,12 @@ unlock:
 static void batadv_send_roam_adv(struct batadv_priv *bat_priv, uint8_t *client,
 				 struct batadv_orig_node *orig_node)
 {
-	struct sk_buff *skb = NULL;
-	struct batadv_roam_adv_packet *roam_adv_packet;
-	int ret = 1;
 	struct batadv_hard_iface *primary_if;
-	size_t len = sizeof(*roam_adv_packet);
+	struct batadv_tvlv_roam_adv tvlv_roam;
+
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		goto out;
 
 	/* before going on we have to check whether the client has
 	 * already roamed to us too many times
@@ -2201,40 +2202,22 @@ static void batadv_send_roam_adv(struct batadv_priv *bat_priv, uint8_t *client,
 	if (!batadv_tt_check_roam_count(bat_priv, client))
 		goto out;
 
-	skb = netdev_alloc_skb_ip_align(NULL, len + ETH_HLEN);
-	if (!skb)
-		goto out;
-
-	skb->priority = TC_PRIO_CONTROL;
-	skb_reserve(skb, ETH_HLEN);
-
-	roam_adv_packet = (struct batadv_roam_adv_packet *)skb_put(skb, len);
-
-	roam_adv_packet->header.packet_type = BATADV_ROAM_ADV;
-	roam_adv_packet->header.version = BATADV_COMPAT_VERSION;
-	roam_adv_packet->header.ttl = BATADV_TTL;
-	roam_adv_packet->reserved = 0;
-	primary_if = batadv_primary_if_get_selected(bat_priv);
-	if (!primary_if)
-		goto out;
-	memcpy(roam_adv_packet->src, primary_if->net_dev->dev_addr, ETH_ALEN);
-	batadv_hardif_free_ref(primary_if);
-	memcpy(roam_adv_packet->dst, orig_node->orig, ETH_ALEN);
-	memcpy(roam_adv_packet->client, client, ETH_ALEN);
-
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Sending ROAMING_ADV to %pM (client %pM)\n",
 		   orig_node->orig, client);
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_TT_ROAM_ADV_TX);
 
-	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
-		ret = 0;
+	memcpy(tvlv_roam.client, client, sizeof(tvlv_roam.client));
+	tvlv_roam.reserved = 0;
+
+	batadv_tvlv_unicast_send(bat_priv, primary_if->net_dev->dev_addr,
+				 orig_node->orig, BATADV_TVLV_ROAM, 1,
+				 &tvlv_roam, sizeof(tvlv_roam));
 
 out:
-	if (ret && skb)
-		kfree_skb(skb);
-	return;
+	if (primary_if)
+		batadv_hardif_free_ref(primary_if);
 }
 
 static void batadv_tt_purge(struct work_struct *work)
@@ -2668,6 +2651,63 @@ static int batadv_tt_tvlv_unicast_handler_v1(struct batadv_priv *bat_priv,
 }
 
 /**
+ * batadv_roam_tvlv_unicast_handler_v1 - process incoming tt roam tvlv container
+ * @bat_priv: the bat priv with all the soft interface information
+ * @src: mac address of tt tvlv sender
+ * @dst: mac address of tt tvlv recipient
+ * @tvlv_value: tvlv buffer containing the tt data
+ * @tvlv_value_len: tvlv buffer length
+ *
+ * Returns NET_RX_DROP if the tt roam tvlv is to be re-routed, NET_RX_SUCCESS
+ * otherwise.
+ */
+static int batadv_roam_tvlv_unicast_handler_v1(struct batadv_priv *bat_priv,
+					       uint8_t *src, uint8_t *dst,
+					       void *tvlv_value,
+					       uint16_t tvlv_value_len)
+{
+	struct batadv_tvlv_roam_adv *roaming_adv;
+	struct batadv_orig_node *orig_node = NULL;
+
+	/* If this node is not the intended recipient of the
+	 * roaming advertisement the packet is forwarded
+	 * (the tvlv API will re-route the packet).
+	 */
+	if (!batadv_is_my_mac(bat_priv, dst))
+		return NET_RX_DROP;
+
+	/* check if it is a backbone gateway. we don't accept
+	 * roaming advertisement from it, as it has the same
+	 * entries as we have.
+	 */
+	if (batadv_bla_is_backbone_gw_orig(bat_priv, src))
+		goto out;
+
+	if (tvlv_value_len < sizeof(*roaming_adv))
+		goto out;
+
+	orig_node = batadv_orig_hash_find(bat_priv, src);
+	if (!orig_node)
+		goto out;
+
+	batadv_inc_counter(bat_priv, BATADV_CNT_TT_ROAM_ADV_RX);
+	roaming_adv = (struct batadv_tvlv_roam_adv *)tvlv_value;
+
+	batadv_dbg(BATADV_DBG_TT, bat_priv,
+		   "Received ROAMING_ADV from %pM (client %pM)\n",
+		   src, roaming_adv->client);
+
+	batadv_tt_global_add(bat_priv, orig_node, roaming_adv->client,
+			     BATADV_TT_CLIENT_ROAM,
+			     atomic_read(&orig_node->last_ttvn) + 1);
+
+out:
+	if (orig_node)
+		batadv_orig_node_free_ref(orig_node);
+	return NET_RX_SUCCESS;
+}
+
+/**
  * batadv_tt_init - initialise the translation table internals
  * @bat_priv: the bat priv with all the soft interface information
  *
@@ -2688,6 +2728,10 @@ int batadv_tt_init(struct batadv_priv *bat_priv)
 	batadv_tvlv_handler_register(bat_priv, batadv_tt_tvlv_ogm_handler_v1,
 				     batadv_tt_tvlv_unicast_handler_v1,
 				     BATADV_TVLV_TT, 1, BATADV_NO_FLAGS);
+
+	batadv_tvlv_handler_register(bat_priv, NULL,
+				     batadv_roam_tvlv_unicast_handler_v1,
+				     BATADV_TVLV_ROAM, 1, BATADV_NO_FLAGS);
 
 	INIT_DELAYED_WORK(&bat_priv->tt.work, batadv_tt_purge);
 	queue_delayed_work(batadv_event_workqueue, &bat_priv->tt.work,

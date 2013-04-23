@@ -414,8 +414,6 @@ static void batadv_recv_handler_init(void)
 	batadv_rx_handler[BATADV_BCAST] = batadv_recv_bcast_packet;
 	/* vis packet */
 	batadv_rx_handler[BATADV_VIS] = batadv_recv_vis_packet;
-	/* Roaming advertisement */
-	batadv_rx_handler[BATADV_ROAM_ADV] = batadv_recv_roam_adv;
 	/* unicast tvlv packet */
 	batadv_rx_handler[BATADV_UNICAST_TVLV] = batadv_recv_unicast_tvlv;
 }

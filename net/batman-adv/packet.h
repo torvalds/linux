@@ -31,7 +31,6 @@ enum batadv_packettype {
 	BATADV_BCAST		= 0x04,
 	BATADV_VIS		= 0x05,
 	BATADV_UNICAST_FRAG	= 0x06,
-	BATADV_ROAM_ADV		= 0x08,
 	BATADV_UNICAST_4ADDR	= 0x09,
 	BATADV_CODED		= 0x0a,
 	BATADV_UNICAST_TVLV	= 0x0b,
@@ -127,12 +126,14 @@ enum batadv_bla_claimframe {
  * @BATADV_TVLV_DAT: distributed arp table tvlv
  * @BATADV_TVLV_NC: network coding tvlv
  * @BATADV_TVLV_TT: translation table tvlv
+ * @BATADV_TVLV_ROAM: roaming advertisement tvlv
  */
 enum batadv_tvlv_type {
 	BATADV_TVLV_GW		= 0x01,
 	BATADV_TVLV_DAT		= 0x02,
 	BATADV_TVLV_NC		= 0x03,
 	BATADV_TVLV_TT		= 0x04,
+	BATADV_TVLV_ROAM	= 0x05,
 };
 
 /* the destination hardware field in the ARP frame is used to
@@ -267,14 +268,6 @@ struct batadv_vis_packet {
 	uint8_t  sender_orig[ETH_ALEN]; /* who sent or forwarded this packet */
 };
 
-struct batadv_roam_adv_packet {
-	struct batadv_header header;
-	uint8_t  reserved;
-	uint8_t  dst[ETH_ALEN];
-	uint8_t  src[ETH_ALEN];
-	uint8_t  client[ETH_ALEN];
-} __packed;
-
 /**
  * struct batadv_coded_packet - network coded packet
  * @header: common batman packet header and ttl of first included packet
@@ -371,6 +364,16 @@ struct batadv_tvlv_tt_change {
 	uint8_t flags;
 	uint8_t reserved;
 	uint8_t addr[ETH_ALEN];
+};
+
+/**
+ * struct batadv_tvlv_roam_adv - roaming advertisement
+ * @client: mac address of roaming client
+ * @reserved: field reserved for future use
+ */
+struct batadv_tvlv_roam_adv {
+	uint8_t  client[ETH_ALEN];
+	uint16_t reserved;
 };
 
 #endif /* _NET_BATMAN_ADV_PACKET_H_ */
