@@ -436,7 +436,7 @@ void cpsw_tx_handler(void *token, int len, int status)
 	 * queue is stopped then start the queue as we have free desc for tx
 	 */
 	if (unlikely(netif_queue_stopped(ndev)))
-		netif_start_queue(ndev);
+		netif_wake_queue(ndev);
 	cpts_tx_timestamp(priv->cpts, skb);
 	priv->stats.tx_packets++;
 	priv->stats.tx_bytes += len;
@@ -1380,7 +1380,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			memcpy(slave_data->mac_addr, mac_addr, ETH_ALEN);
 
 		if (data->dual_emac) {
-			if (of_property_read_u32(node, "dual_emac_res_vlan",
+			if (of_property_read_u32(slave_node, "dual_emac_res_vlan",
 						 &prop)) {
 				pr_err("Missing dual_emac_res_vlan in DT.\n");
 				slave_data->dual_emac_res_vlan = i+1;

@@ -588,6 +588,7 @@ struct lm_lockstruct {
 	struct dlm_lksb ls_control_lksb; /* control_lock */
 	char ls_control_lvb[GDLM_LVB_SIZE]; /* control_lock lvb */
 	struct completion ls_sync_wait; /* {control,mounted}_{lock,unlock} */
+	char *ls_lvb_bits;
 
 	spinlock_t ls_recover_spin; /* protects following fields */
 	unsigned long ls_recover_flags; /* DFL_ */

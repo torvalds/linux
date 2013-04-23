@@ -2963,7 +2963,7 @@ int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
 	val = val << shift;
 
 	ret = snd_soc_update_bits_locked(codec, reg, val_mask, val);
-	if (ret != 0)
+	if (ret < 0)
 		return ret;
 
 	if (snd_soc_volsw_is_stereo(mc)) {
@@ -3140,7 +3140,7 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 	if (params->mask) {
 		ret = regmap_read(codec->control_data, params->base, &val);
 		if (ret != 0)
-			return ret;
+			goto out;
 
 		val &= params->mask;
 
@@ -3158,13 +3158,15 @@ int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
 			((u32 *)data)[0] |= cpu_to_be32(val);
 			break;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 	}
 
 	ret = regmap_raw_write(codec->control_data, params->base,
 			       data, len);
 
+out:
 	kfree(data);
 
 	return ret;
@@ -4197,7 +4199,6 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 			dev_err(card->dev,
 				"ASoC: Property '%s' index %d could not be read: %d\n",
 				propname, 2 * i, ret);
-			kfree(routes);
 			return -EINVAL;
 		}
 		ret = of_property_read_string_index(np, propname,
@@ -4206,7 +4207,6 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 			dev_err(card->dev,
 				"ASoC: Property '%s' index %d could not be read: %d\n",
 				propname, (2 * i) + 1, ret);
-			kfree(routes);
 			return -EINVAL;
 		}
 	}
