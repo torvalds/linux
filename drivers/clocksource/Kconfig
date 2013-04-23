@@ -69,7 +69,7 @@ config CLKSRC_METAG_GENERIC
 	  This option enables support for the Meta per-thread timers.
 
 config CLKSRC_SAMSUNG_PWM
-	def_bool ARCH_EXYNOS4
+	bool
 	depends on OF
 	select CLKSRC_MMIO
 	help
