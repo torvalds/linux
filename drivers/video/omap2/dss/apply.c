@@ -420,16 +420,14 @@ static void wait_pending_extra_info_updates(void)
 		DSSWARN("timeout in wait_pending_extra_info_updates\n");
 }
 
-static inline struct omap_dss_device *dss_ovl_get_device(struct omap_overlay *ovl)
-{
-	return ovl->manager ?
-		(ovl->manager->output ? ovl->manager->output->device : NULL) :
-		NULL;
-}
-
-static inline struct omap_dss_device *dss_mgr_get_device(struct omap_overlay_manager *mgr)
+static struct omap_dss_device *dss_mgr_get_device(struct omap_overlay_manager *mgr)
 {
 	return mgr->output ? mgr->output->device : NULL;
+}
+
+static struct omap_dss_device *dss_ovl_get_device(struct omap_overlay *ovl)
+{
+	return ovl->manager ? dss_mgr_get_device(ovl->manager) : NULL;
 }
 
 static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
