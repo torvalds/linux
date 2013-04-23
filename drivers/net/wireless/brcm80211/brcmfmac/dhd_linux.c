@@ -899,7 +899,10 @@ int brcmf_bus_start(struct device *dev)
 		goto fail;
 
 	drvr->fw_signals = true;
-	(void)brcmf_fws_init(drvr);
+	ret = brcmf_fws_init(drvr);
+	if (ret < 0)
+		goto fail;
+
 	brcmf_fws_add_interface(ifp);
 
 	drvr->config = brcmf_cfg80211_attach(drvr, bus_if->dev);

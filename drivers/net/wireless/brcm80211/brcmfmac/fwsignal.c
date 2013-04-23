@@ -1897,16 +1897,20 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 		       BRCMF_FWS_FLAGS_CREDIT_STATUS_SIGNALS |
 		       BRCMF_FWS_FLAGS_HOST_PROPTXSTATUS_ACTIVE;
 
-	rc = brcmf_fil_iovar_int_set(drvr->iflist[0], "tlv", tlv);
+	rc = brcmf_fweh_register(drvr, BRCMF_E_FIFO_CREDIT_MAP,
+				 brcmf_fws_notify_credit_map);
 	if (rc < 0) {
-		brcmf_err("failed to set bdcv2 tlv signaling\n");
+		brcmf_err("register credit map handler failed\n");
 		goto fail;
 	}
 
-	if (brcmf_fweh_register(drvr, BRCMF_E_FIFO_CREDIT_MAP,
-				brcmf_fws_notify_credit_map)) {
-		brcmf_err("register credit map handler failed\n");
-		goto fail;
+	/* setting the iovar may fail if feature is unsupported
+	 * so leave the rc as is so driver initialization can
+	 * continue.
+	 */
+	if (brcmf_fil_iovar_int_set(drvr->iflist[0], "tlv", tlv)) {
+		brcmf_err("failed to set bdcv2 tlv signaling\n");
+		goto fail_event;
 	}
 
 	brcmf_fws_hanger_init(&drvr->fws->hanger);
@@ -1922,9 +1926,9 @@ int brcmf_fws_init(struct brcmf_pub *drvr)
 		  drvr->fw_signals ? "enabled" : "disabled", tlv);
 	return 0;
 
+fail_event:
+	brcmf_fweh_unregister(drvr, BRCMF_E_FIFO_CREDIT_MAP);
 fail:
-	/* disable flow control entirely */
-	drvr->fw_signals = false;
 	brcmf_fws_deinit(drvr);
 	return rc;
 }
@@ -1936,6 +1940,14 @@ void brcmf_fws_deinit(struct brcmf_pub *drvr)
 
 	if (!fws)
 		return;
+
+	/* disable firmware signalling entirely
+	 * to avoid using the workqueue.
+	 */
+	drvr->fw_signals = false;
+
+	if (drvr->fws->fws_wq)
+		destroy_workqueue(drvr->fws->fws_wq);
 
 	/* cleanup */
 	brcmf_fws_lock(drvr, flags);
