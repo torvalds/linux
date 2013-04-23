@@ -77,6 +77,11 @@
  * T side will be updated with a downlevel image
  */
 #define VALIDATE_TMP_UPDATE_DL 6
+/*
+ * The candidate image's release date is later than the system's firmware
+ * service entitlement date - service warranty period has expired
+ */
+#define VALIDATE_OUT_OF_WRNTY  7
 
 /* ibm,manage-flash-image operation tokens */
 #define RTAS_REJECT_TMP_IMG   0
