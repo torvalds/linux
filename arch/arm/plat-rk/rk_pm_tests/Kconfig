@@ -27,10 +27,10 @@ config PM_TEST_CPU_USAGE
 	help
 	  Use to Set cpu running at a fixed frequency
 
-config PM_TEST_AUTO_WAKEUP
-	bool "Auto wakeup"
+config PM_TEST_SUSPEND_DBG
+	bool "suspend debug control"
 	help
-	  Use to auto wake up system
+	  Use to suspend debug
 
 config PM_TEST_CLK_AUTO_VOLT
 	bool "Auto scale voltage"

@@ -37,6 +37,24 @@
 	(_save)=cru_readl(cons);\
 	cru_writel((((~(val)|(_save))&(w_msk))|((w_msk)<<16)),cons)
 
+
+__weak void board_gpio_suspend(void) {}
+__weak void board_gpio_resume(void) {}
+__weak void __sramfunc board_pmu_suspend(void) {}
+__weak void __sramfunc board_pmu_resume(void) {}
+__weak void __sramfunc rk30_suspend_voltage_set(unsigned int vol){}
+__weak void __sramfunc rk30_suspend_voltage_resume(unsigned int vol){}
+
+__weak void  rk30_pwm_suspend_voltage_set(void){}
+__weak void  rk30_pwm_resume_voltage_set(void){}
+__weak void board_act8846_set_suspend_vol(void){}
+__weak void board_act8846_set_resume_vol(void){}
+
+__weak void __sramfunc rk30_pwm_logic_suspend_voltage(void){}
+__weak void __sramfunc rk30_pwm_logic_resume_voltage(void){}
+
+
+/********************************sram_printch**************************************************/
 static bool __sramdata pm_log;
 extern void pm_emit_log_char(char c);
 
@@ -80,6 +98,7 @@ void __sramfunc sram_printch(char byte)
 	if (byte == '\n')
 		sram_printch('\r');
 }
+/********************************ddr test**************************************************/
 
 #ifdef CONFIG_DDR_TEST
 static int ddr_debug=0;
@@ -98,8 +117,9 @@ static void ddr_testmode(void)
 	uint32_t n = 0;
 	uint32_t min,max;
 	extern char _stext[], _etext[];
-
-
+	if (ddr_debug == 0)
+		return;
+	
 	if (ddr_debug == 1) {
 	    switch(mem_type)
 	    {
@@ -181,6 +201,7 @@ static void ddr_testmode(void)
 #else
 static void ddr_testmode(void) {}
 #endif
+
 
 #define DUMP_GPIO_INT_STATUS(ID) \
 do { \
@@ -305,11 +326,10 @@ static void power_on_pll(enum rk_plls_id pll_id)
 #define power_off_pll(id) \
 	cru_writel(PLL_PWR_DN_W_MSK | PLL_PWR_DN, PLL_CONS((id), 3))
 
+
 #define DDR_SAVE_SP(save_sp)		do { save_sp = ddr_save_sp(((unsigned long)SRAM_DATA_END & (~7))); } while (0)
 #define DDR_RESTORE_SP(save_sp)		do { ddr_save_sp(save_sp); } while (0)
-
 static unsigned long save_sp;
-
 static noinline void interface_ctr_reg_pread(void)
 {
 	u32 addr;
@@ -334,11 +354,11 @@ static noinline void interface_ctr_reg_pread(void)
 #endif
 }
 
+
 static inline bool pm_pmu_power_domain_is_on(enum pmu_power_domain pd, u32 pmu_pwrdn_st)
 {
 	return !(pmu_pwrdn_st & (1 << pd));
 }
-
 static void rk30_pm_set_power_domain(u32 pmu_pwrdn_st, bool state)
 {
 #if !(defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188))
@@ -436,49 +456,51 @@ static void rk30_pm_set_power_domain(u32 pmu_pwrdn_st, bool state)
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_RGA) | gate[9], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_RGA));
 	}
 }
-
-__weak void board_gpio_suspend(void) {}
-__weak void board_gpio_resume(void) {}
-__weak void __sramfunc board_pmu_suspend(void) {}
-__weak void __sramfunc board_pmu_resume(void) {}
-__weak void __sramfunc rk30_suspend_voltage_set(unsigned int vol){}
-__weak void __sramfunc rk30_suspend_voltage_resume(unsigned int vol){}
-
-__weak void  rk30_pwm_suspend_voltage_set(void){}
-__weak void  rk30_pwm_resume_voltage_set(void){}
-__weak void board_act8846_set_suspend_vol(void){}
-__weak void board_act8846_set_resume_vol(void){}
-
-__weak void __sramfunc rk30_pwm_logic_suspend_voltage(void){}
-__weak void __sramfunc rk30_pwm_logic_resume_voltage(void){}
-
-static void __sramfunc rk30_sram_suspend(void)
+static void __sramfunc rk_pm_soc_sram_volt_suspend(void)
 {
-	u32 cru_clksel0_con, cru_clksel10_con;
-	u32 clkgt_regs[CRU_CLKGATES_CON_CNT];
-	u32 cru_mode_con;
-	u32 grf_uoc0_con0_status;
-	int i;
-	
-	sram_printch('5');
-	ddr_suspend();
-	sram_printch('6');
+	sram_printch('s');
+	sram_printch('v');
+	sram_printch('\n');
+
 	rk30_suspend_voltage_set(1000000);
 	rk30_pwm_logic_suspend_voltage();
-	sram_printch('7');
-	#ifdef CONFIG_ACT8846_SUPPORT_RESET
+#ifdef CONFIG_ACT8846_SUPPORT_RESET
 	board_act8846_set_suspend_vol();
+#endif
+}	
+
+static void __sramfunc rk_pm_soc_sram_volt_resume(void)
+{
+
+	#ifdef CONFIG_ACT8846_SUPPORT_RESET
+		board_act8846_set_resume_vol();
 	#endif
 
-#if defined(CONFIG_ARCH_RK3188) && (CONFIG_RK_DEBUG_UART == 2)
-#ifdef CONFIG_RK_USB_UART
-	grf_uoc0_con0_status = grf_readl(GRF_UOC0_CON0);
-	grf_writel(0x03000000, GRF_UOC0_CON0);
-#endif
-#endif
+	rk30_pwm_logic_resume_voltage();
+	rk30_suspend_voltage_resume(1100000);
 
+}
+
+#define CLK_GATE_W_MSK0 (0xffff)
+#define CLK_GATE_W_MSK1 (0xffff)
+#define CLK_GATE_W_MSK2 (0xffff)
+#define CLK_GATE_W_MSK3 (0xff9f)
+#define CLK_GATE_W_MSK4 (0xffff)
+#define CLK_GATE_W_MSK5 (0xffff)
+#define CLK_GATE_W_MSK6 (0xffff)
+#define CLK_GATE_W_MSK7 (0xffff)
+#define CLK_GATE_W_MSK8 (0x01ff)
+#define CLK_GATE_W_MSK9 (0x07ff)
+static u32 __sramdata clkgt_regs_sram[CRU_CLKGATES_CON_CNT];
+//static u32 __sramdata sram_grf_uoc0_con0_status;
+
+static void __sramfunc rk_pm_soc_sram_clk_gating(void)
+{
+
+	u32 clkgt_regs_sram[CRU_CLKGATES_CON_CNT];
+	int i;
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
-		clkgt_regs[i] = cru_readl(CRU_CLKGATES_CON(i));
+		clkgt_regs_sram[i] = cru_readl(CRU_CLKGATES_CON(i));
 	}
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_CORE_PERIPH)
@@ -486,116 +508,109 @@ static void __sramfunc rk30_sram_suspend(void)
 			  | (1 << CLK_GATE_HCLK_CPU)
 			  | (1 << CLK_GATE_PCLK_CPU)
 			  | (1 << CLK_GATE_ACLK_CORE)
-			  , clkgt_regs[0], CRU_CLKGATES_CON(0), 0xffff);
-	gate_save_soc_clk(0, clkgt_regs[1], CRU_CLKGATES_CON(1), 0xffff);
+			  , clkgt_regs_sram[0], CRU_CLKGATES_CON(0), CLK_GATE_W_MSK0);
+	
+	gate_save_soc_clk(0, clkgt_regs_sram[1], CRU_CLKGATES_CON(1), CLK_GATE_W_MSK1);
+	
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
-	if(((clkgt_regs[8] >> CLK_GATE_PCLK_GPIO3% 16) & 0x01) == 0x01){
+	if(((clkgt_regs_sram[8] >> CLK_GATE_PCLK_GPIO3% 16) & 0x01) == 0x01){
 #else
-	if(((clkgt_regs[8] >> CLK_GATE_PCLK_GPIO3% 16) & 0x03) == 0x03){
+	if(((clkgt_regs_sram[8] >> CLK_GATE_PCLK_GPIO3% 16) & 0x03) == 0x03){
 #endif
 		gate_save_soc_clk(0
-				, clkgt_regs[2], CRU_CLKGATES_CON(2), 0xffff);
+				, clkgt_regs_sram[2], CRU_CLKGATES_CON(2), CLK_GATE_W_MSK2);
 
 	}else{
 		gate_save_soc_clk(0
 				  | (1 << CLK_GATE_PERIPH_SRC % 16)
 				  | (1 << CLK_GATE_PCLK_PERIPH % 16)
-				, clkgt_regs[2], CRU_CLKGATES_CON(2), 0xffff);
+				, clkgt_regs_sram[2], CRU_CLKGATES_CON(2), CLK_GATE_W_MSK2);
 	}
 	gate_save_soc_clk(0
-			  | (1 << CLK_GATE_ACLK_STRC_SYS % 16)
-			  | (1 << CLK_GATE_ACLK_INTMEM % 16)
-#if !defined(CONFIG_ARCH_RK3188)
-			  | (1 << CLK_GATE_HCLK_L2MEM % 16)
-#else
-			  | (1 << CLK_GATE_HCLK_IMEM1 % 16)
-			  | (1 << CLK_GATE_HCLK_IMEM0 % 16)
-#endif
-			  , clkgt_regs[4], CRU_CLKGATES_CON(4), 0xffff);		  
+		#if 1  //for uart befor wfi 
+		| (1 << CLK_GATE_PCLK_PERI_AXI_MATRIX % 16)
+		| (1 << CLK_GATE_ACLK_PERI_AXI_MATRIX % 16)
+		| (1 << CLK_GATE_ACLK_PEI_NIU % 16)
+		#endif	
+		
+		| (1 << CLK_GATE_ACLK_STRC_SYS % 16)
+		| (1 << CLK_GATE_ACLK_INTMEM % 16)
+		#if !defined(CONFIG_ARCH_RK3188)
+		| (1 << CLK_GATE_HCLK_L2MEM % 16)
+		#else
+		| (1 << CLK_GATE_HCLK_IMEM1 % 16)
+		| (1 << CLK_GATE_HCLK_IMEM0 % 16)
+		#endif
+		, clkgt_regs_sram[4], CRU_CLKGATES_CON(4), CLK_GATE_W_MSK4);
+
 	gate_save_soc_clk(0
-			  | (1 << CLK_GATE_PCLK_GRF % 16)
-			  | (1 << CLK_GATE_PCLK_PMU % 16)
-			  , clkgt_regs[5], CRU_CLKGATES_CON(5), 0xffff);
-	gate_save_soc_clk(0, clkgt_regs[7], CRU_CLKGATES_CON(7), 0xffff);
+		  | (1 << CLK_GATE_PCLK_GRF % 16)
+		  | (1 << CLK_GATE_PCLK_PMU % 16)
+		  , clkgt_regs_sram[5], CRU_CLKGATES_CON(5), CLK_GATE_W_MSK5);
+	
+	gate_save_soc_clk(0, clkgt_regs_sram[7], CRU_CLKGATES_CON(7), CLK_GATE_W_MSK7);
+	
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_CLK_L2C % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM0 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM1 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM2 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM3 % 16)
-			  , clkgt_regs[9], CRU_CLKGATES_CON(9), 0x07ff);
-	
-	cru_clksel0_con = cru_readl(CRU_CLKSELS_CON(0));
-#ifdef CONFIG_CLK_SWITCH_TO_32K
-	cru_mode_con = cru_readl(CRU_MODE_CON);
-	cru_clksel10_con = cru_readl(CRU_CLKSELS_CON(10));
-	cru_writel(PERI_ACLK_DIV_W_MSK | PERI_ACLK_DIV(4), CRU_CLKSELS_CON(10));
-	cru_writel(CORE_CLK_DIV_W_MSK | CORE_CLK_DIV(4) | CPU_CLK_DIV_W_MSK | CPU_CLK_DIV(4), CRU_CLKSELS_CON(0));
-	cru_writel(0
-		   | PLL_MODE_DEEP(APLL_ID)
-		   | PLL_MODE_DEEP(DPLL_ID)
-		   | PLL_MODE_DEEP(CPLL_ID)
-		   | PLL_MODE_DEEP(GPLL_ID)
-		   , CRU_MODE_CON);
-	board_pmu_suspend();
-#else
-	board_pmu_suspend();
-	cru_writel(CORE_CLK_DIV_W_MSK | CORE_CLK_DIV_MSK | CPU_CLK_DIV_W_MSK | CPU_CLK_DIV_MSK, CRU_CLKSELS_CON(0));
-#endif
+			  , clkgt_regs_sram[9], CRU_CLKGATES_CON(9), CLK_GATE_W_MSK9);
 
-	dsb();
-	wfi();
+}
 
-#ifdef CONFIG_CLK_SWITCH_TO_32K
-	board_pmu_resume();
-	cru_writel((0xffff<<16) | cru_mode_con, CRU_MODE_CON);
-	cru_writel(CORE_CLK_DIV_W_MSK | CPU_CLK_DIV_W_MSK | cru_clksel0_con, CRU_CLKSELS_CON(0));
-	cru_writel(PERI_ACLK_DIV_W_MSK | cru_clksel10_con, CRU_CLKSELS_CON(10));
-#else
-	cru_writel(CORE_CLK_DIV_W_MSK | CPU_CLK_DIV_W_MSK | cru_clksel0_con, CRU_CLKSELS_CON(0));
-	board_pmu_resume();
-#endif
-	
-	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
-		cru_writel(clkgt_regs[i] | 0xffff0000, CRU_CLKGATES_CON(i));
-	}
-	
-	#ifdef CONFIG_ACT8846_SUPPORT_RESET
-	board_act8846_set_resume_vol();
-	#endif
-
+static void __sramfunc rk_pm_soc_sram_clk_ungating(void)
+{
+	int i;
 #if defined(CONFIG_ARCH_RK3188) && (CONFIG_RK_DEBUG_UART == 2)
 #ifdef CONFIG_RK_USB_UART
-	grf_writel(0x03000000 | grf_uoc0_con0_status, GRF_UOC0_CON0);
+		grf_writel(0x03000000 | sram_grf_uoc0_con0_status, GRF_UOC0_CON0);
 #endif
 #endif
-
-	sram_printch('7');
-	rk30_pwm_logic_resume_voltage();
-	rk30_suspend_voltage_resume(1100000);
-	
-	sram_printch('6');
-	ddr_resume();
-	sram_printch('5');
-	
+	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
+		cru_writel(clkgt_regs_sram[i] | 0xffff0000, CRU_CLKGATES_CON(i));
+	}
 }
 
-static void noinline rk30_suspend(void)
+static u32 __sramdata sram_cru_clksel0_con, sram_cru_clksel10_con,sram_cru_mode_con;
+static void __sramfunc rk_pm_soc_sram_sys_clk_suspend(void)
 {
-	DDR_SAVE_SP(save_sp);
-	rk30_sram_suspend();
-	DDR_RESTORE_SP(save_sp);
+	sram_cru_clksel0_con = cru_readl(CRU_CLKSELS_CON(0));
+#ifdef CONFIG_CLK_SWITCH_TO_32K
+		sram_cru_mode_con = cru_readl(CRU_MODE_CON);
+		sram_cru_clksel10_con = cru_readl(CRU_CLKSELS_CON(10));
+		cru_writel(PERI_ACLK_DIV_W_MSK | PERI_ACLK_DIV(4), CRU_CLKSELS_CON(10));
+		cru_writel(CORE_CLK_DIV_W_MSK | CORE_CLK_DIV(4) | CPU_CLK_DIV_W_MSK | CPU_CLK_DIV(4), CRU_CLKSELS_CON(0));
+		cru_writel(0
+			   | PLL_MODE_DEEP(APLL_ID)
+			   | PLL_MODE_DEEP(DPLL_ID)
+			   | PLL_MODE_DEEP(CPLL_ID)
+			   | PLL_MODE_DEEP(GPLL_ID)
+			   , CRU_MODE_CON);
+		//board_pmu_suspend();
+#else
+		cru_writel(CORE_CLK_DIV_W_MSK | CORE_CLK_DIV_MSK | CPU_CLK_DIV_W_MSK | CPU_CLK_DIV_MSK, CRU_CLKSELS_CON(0));
+#endif
+
 }
 
-static int rk30_pm_enter(suspend_state_t state)
+static void __sramfunc  rk_pm_soc_sram_sys_clk_resume(void)
 {
-	u32 i;
-	u32 clkgt_regs[CRU_CLKGATES_CON_CNT];
-	u32 clk_sel0, clk_sel1, clk_sel10;
-	u32 cpll_con3;
-	u32 cru_mode_con;
-	u32 pmu_pwrdn_st;
 
+#ifdef CONFIG_CLK_SWITCH_TO_32K
+	cru_writel((0xffff<<16) | sram_cru_mode_con, CRU_MODE_CON);
+	cru_writel(CORE_CLK_DIV_W_MSK | CPU_CLK_DIV_W_MSK | sram_cru_clksel0_con, CRU_CLKSELS_CON(0));
+	cru_writel(PERI_ACLK_DIV_W_MSK | sram_cru_clksel10_con, CRU_CLKSELS_CON(10));
+#else
+	cru_writel(CORE_CLK_DIV_W_MSK | CPU_CLK_DIV_W_MSK | sram_cru_clksel0_con, CRU_CLKSELS_CON(0));
+#endif
+
+}
+/*********************************code is in ddr ******************************************/
+
+static inline void rk_pm_soc_prepare(void)
+{
 	// dump GPIO INTEN for debug
 	rk30_pm_dump_inten();
 #if !(defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188))
@@ -606,23 +621,37 @@ static int rk30_pm_enter(suspend_state_t state)
 
 #ifdef CONFIG_DDR_TEST
 	// memory tester
-	if (ddr_debug != 0)
 		ddr_testmode();
 #endif
+}
 
-	printk(KERN_DEBUG "pm: ");
-	pm_log = true;
-	sram_log_reset();
-	sram_printch('0');
+static inline void rk_pm_soc_finsh(void)
+{
+	rk30_pm_dump_irq();
+}
 
+
+static u32 pmu_pwrdn_st;
+
+static inline void rk_pm_soc_pd_suspend(void)
+{
 	pmu_pwrdn_st = pmu_readl(PMU_PWRDN_ST);
 	rk30_pm_set_power_domain(pmu_pwrdn_st, false);
+}
 
-	sram_printch('1');
-	local_fiq_disable();
+static inline void rk_pm_soc_pd_resume(void)
+{
+	rk30_pm_set_power_domain(pmu_pwrdn_st, true);
+}
+
+
+static u32 clkgt_regs_first[CRU_CLKGATES_CON_CNT];
+static void rk_pm_soc_clk_gating_first(void)
+{
+	int i;
 
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
-		clkgt_regs[i] = cru_readl(CRU_CLKGATES_CON(i));
+		clkgt_regs_first[i] = cru_readl(CRU_CLKGATES_CON(i));
 	}
 
 	gate_save_soc_clk(0
@@ -635,16 +664,16 @@ static int rk30_pm_enter(suspend_state_t state)
 			  | (1 << CLK_GATE_ACLK_CPU)
 			  | (1 << CLK_GATE_HCLK_CPU)
 			  | (1 << CLK_GATE_PCLK_CPU)
-			  , clkgt_regs[0], CRU_CLKGATES_CON(0), 0xffff);
+			  , clkgt_regs_first[0], CRU_CLKGATES_CON(0), CLK_GATE_W_MSK0);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_DDR_GPLL % 16)
-			  , clkgt_regs[1], CRU_CLKGATES_CON(1), 0xffff);
+			  , clkgt_regs_first[1], CRU_CLKGATES_CON(1), CLK_GATE_W_MSK1);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_PERIPH_SRC % 16)
 			  | (1 << CLK_GATE_PCLK_PERIPH % 16)
 			  | (1 << CLK_GATE_ACLK_PERIPH % 16)
-			  , clkgt_regs[2], CRU_CLKGATES_CON(2), 0xffff);
-	gate_save_soc_clk(0, clkgt_regs[3], CRU_CLKGATES_CON(3), 0xff9f);
+			  , clkgt_regs_first[2], CRU_CLKGATES_CON(2),CLK_GATE_W_MSK2 );
+	gate_save_soc_clk(0, clkgt_regs_first[3], CRU_CLKGATES_CON(3),CLK_GATE_W_MSK3);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_HCLK_PERI_AXI_MATRIX % 16)
 			  | (1 << CLK_GATE_PCLK_PERI_AXI_MATRIX % 16)
@@ -661,18 +690,18 @@ static int rk30_pm_enter(suspend_state_t state)
 			  | (1 << CLK_GATE_HCLK_IMEM1 % 16)
 			  | (1 << CLK_GATE_HCLK_IMEM0 % 16)
 #endif
-			  , clkgt_regs[4], CRU_CLKGATES_CON(4), 0xffff);
+			  , clkgt_regs_first[4], CRU_CLKGATES_CON(4), CLK_GATE_W_MSK4);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_PCLK_GRF % 16)
 			  | (1 << CLK_GATE_PCLK_PMU % 16)
 			  | (1 << CLK_GATE_PCLK_DDRUPCTL % 16)
-			  , clkgt_regs[5], CRU_CLKGATES_CON(5), 0xffff);
-	gate_save_soc_clk(0, clkgt_regs[6], CRU_CLKGATES_CON(6), 0xffff);
+			  , clkgt_regs_first[5], CRU_CLKGATES_CON(5), CLK_GATE_W_MSK5);
+	gate_save_soc_clk(0, clkgt_regs_first[6], CRU_CLKGATES_CON(6), CLK_GATE_W_MSK6);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_PCLK_PWM01 % 16)
 			  | (1 << CLK_GATE_PCLK_PWM23 % 16)
-			  , clkgt_regs[7], CRU_CLKGATES_CON(7), 0xffff);
-	gate_save_soc_clk(0 , clkgt_regs[8], CRU_CLKGATES_CON(8), 0x01ff);
+			  , clkgt_regs_first[7], CRU_CLKGATES_CON(7),CLK_GATE_W_MSK7);
+	gate_save_soc_clk(0 , clkgt_regs_first[8], CRU_CLKGATES_CON(8), CLK_GATE_W_MSK8);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_CLK_L2C % 16)
 			  | (1 << CLK_GATE_PCLK_PUBL % 16)
@@ -680,65 +709,65 @@ static int rk30_pm_enter(suspend_state_t state)
 			  | (1 << CLK_GATE_ACLK_INTMEM1 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM2 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM3 % 16)
-			  , clkgt_regs[9], CRU_CLKGATES_CON(9), 0x07ff);
+			  , clkgt_regs_first[9], CRU_CLKGATES_CON(9), CLK_GATE_W_MSK9);
+}
 
-	sram_printch('2');
+static void rk_pm_soc_clk_ungating_first(void)
+{
+	int i;
+	
+	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
+		cru_writel(clkgt_regs_first[i] | 0xffff0000, CRU_CLKGATES_CON(i));
+	}
+}
 
+static u32 clk_sel0, clk_sel1, clk_sel10;
+static u32 cpll_con3;
+static u32 cru_mode_con;
+static void rk_pm_soc_pll_suspend(void)
+{
 	cru_mode_con = cru_readl(CRU_MODE_CON);
-
-	//cpll
-	cru_writel(PLL_MODE_SLOW(CPLL_ID), CRU_MODE_CON);
-	cpll_con3 = cru_readl(PLL_CONS(CPLL_ID, 3));
-	power_off_pll(CPLL_ID);
-
-	//apll
-	clk_sel0 = cru_readl(CRU_CLKSELS_CON(0));
-	clk_sel1 = cru_readl(CRU_CLKSELS_CON(1));
-
-	cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
-	cru_writel(CORE_PERIPH_W_MSK | CORE_PERIPH_2
-		   | CORE_CLK_DIV_W_MSK | CORE_CLK_DIV(1)
-		   | CPU_CLK_DIV_W_MSK | CPU_CLK_DIV(1)
-		   | CORE_SEL_PLL_W_MSK | CORE_SEL_APLL
-		   | CPU_SEL_PLL_W_MSK | CPU_SEL_APLL
-		   , CRU_CLKSELS_CON(0));
-	cru_writel(CORE_ACLK_W_MSK | CORE_ACLK_11
+	
+		//cpll
+		cru_writel(PLL_MODE_SLOW(CPLL_ID), CRU_MODE_CON);
+		cpll_con3 = cru_readl(PLL_CONS(CPLL_ID, 3));
+		power_off_pll(CPLL_ID);
+	
+		//apll
+		clk_sel0 = cru_readl(CRU_CLKSELS_CON(0));
+		clk_sel1 = cru_readl(CRU_CLKSELS_CON(1));
+	
+		cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
+		cru_writel(CORE_PERIPH_W_MSK | CORE_PERIPH_2
+			   | CORE_CLK_DIV_W_MSK | CORE_CLK_DIV(1)
+			   | CPU_CLK_DIV_W_MSK | CPU_CLK_DIV(1)
+			   | CORE_SEL_PLL_W_MSK | CORE_SEL_APLL
+			   | CPU_SEL_PLL_W_MSK | CPU_SEL_APLL
+			   , CRU_CLKSELS_CON(0));
+		cru_writel(CORE_ACLK_W_MSK | CORE_ACLK_11
 #if !defined(CONFIG_ARCH_RK3188)
-		   | CPU_ACLK_W_MSK | CPU_ACLK_11
+			   | CPU_ACLK_W_MSK | CPU_ACLK_11
 #endif
-		   | ACLK_HCLK_W_MSK | ACLK_HCLK_11
-		   | ACLK_PCLK_W_MSK | ACLK_PCLK_11
-		   | AHB2APB_W_MSK | AHB2APB_11
-		   , CRU_CLKSELS_CON(1));
-	power_off_pll(APLL_ID);
+			   | ACLK_HCLK_W_MSK | ACLK_HCLK_11
+			   | ACLK_PCLK_W_MSK | ACLK_PCLK_11
+			   | AHB2APB_W_MSK | AHB2APB_11
+			   , CRU_CLKSELS_CON(1));
+		power_off_pll(APLL_ID);
+	
+		//gpll
+		cru_writel(PLL_MODE_SLOW(GPLL_ID), CRU_MODE_CON);
+		clk_sel10 = cru_readl(CRU_CLKSELS_CON(10));
+		cru_writel(CRU_W_MSK_SETBITS(0, PERI_ACLK_DIV_OFF, PERI_ACLK_DIV_MASK)
+			   | CRU_W_MSK_SETBITS(0, PERI_HCLK_DIV_OFF, PERI_HCLK_DIV_MASK)
+			   | CRU_W_MSK_SETBITS(0, PERI_PCLK_DIV_OFF, PERI_PCLK_DIV_MASK)
+			   , CRU_CLKSELS_CON(10));
+		power_off_pll(GPLL_ID);
 
-	//gpll
-	cru_writel(PLL_MODE_SLOW(GPLL_ID), CRU_MODE_CON);
-	clk_sel10 = cru_readl(CRU_CLKSELS_CON(10));
-	cru_writel(CRU_W_MSK_SETBITS(0, PERI_ACLK_DIV_OFF, PERI_ACLK_DIV_MASK)
-		   | CRU_W_MSK_SETBITS(0, PERI_HCLK_DIV_OFF, PERI_HCLK_DIV_MASK)
-		   | CRU_W_MSK_SETBITS(0, PERI_PCLK_DIV_OFF, PERI_PCLK_DIV_MASK)
-		   , CRU_CLKSELS_CON(10));
-	power_off_pll(GPLL_ID);
+}
 
-	sram_printch('3');
-	rk30_pwm_suspend_voltage_set();
-
-	board_gpio_suspend();
-
-	interface_ctr_reg_pread();
-
-	sram_printch('4');
-	pm_log = false;
-	rk30_suspend();
-	pm_log = true;
-	sram_printch('4');
-
-	board_gpio_resume();
-	rk30_pwm_resume_voltage_set();
-	sram_printch('3');
-
-
+static void rk_pm_soc_pll_resume(void)
+{
+	
 	//gpll
 	cru_writel(0xffff0000 | clk_sel10, CRU_CLKSELS_CON(10));
 	power_on_pll(GPLL_ID);
@@ -752,29 +781,233 @@ static int rk30_pm_enter(suspend_state_t state)
 
 	//cpll
 	if (((cpll_con3 & PLL_PWR_DN_MSK) == PLL_PWR_ON) &&
-	    ((PLL_MODE_NORM(CPLL_ID) & PLL_MODE_MSK(CPLL_ID)) == (cru_mode_con & PLL_MODE_MSK(CPLL_ID)))) {
+		((PLL_MODE_NORM(CPLL_ID) & PLL_MODE_MSK(CPLL_ID)) == (cru_mode_con & PLL_MODE_MSK(CPLL_ID)))) {
 		power_on_pll(CPLL_ID);
 	}
 	cru_writel((PLL_MODE_MSK(CPLL_ID) << 16) | (PLL_MODE_MSK(CPLL_ID) & cru_mode_con), CRU_MODE_CON);
 
-	sram_printch('2');
 
-	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
-		cru_writel(clkgt_regs[i] | 0xffff0000, CRU_CLKGATES_CON(i));
+}
+
+/*********************************pm control******************************************/
+
+enum rk_soc_pm_ctr_flags_offset {
+
+	RK_PM_CTR_NO_PD=0,
+	RK_PM_CTR_NO_CLK_GATING,
+	RK_PM_CTR_NO_PLL,
+	RK_PM_CTR_NO_VOLT,
+	RK_PM_CTR_NO_GPIO,
+	RK_PM_CTR_NO_SRAM,
+	RK_PM_CTR_NO_DDR,
+	RK_PM_CTR_NO_SYS_CLK,
+	RK_PM_CTR_NO_PMIC,
+
+	RK_PM_CTR_RET_DIRT=24,
+	RK_PM_CTR_SRAM_NO_WFI,
+	RK_PM_CTR_WAKE_UP_KEY,
+	RK_PM_CTR_ALL=31,
+};
+
+struct rk_soc_pm_info_st {
+	int offset;
+	char *name;
+};
+
+#define RK_SOC_PM_HELP_(id,NAME)\
+	{\
+	.offset= RK_PM_CTR_##id,\
+	.name= NAME,\
 	}
 
+struct rk_soc_pm_info_st rk_soc_pm_helps[]={
+	RK_SOC_PM_HELP_(NO_PD,"pd is not power dn"),
+	RK_SOC_PM_HELP_(NO_CLK_GATING,"clk is not gating"),
+	RK_SOC_PM_HELP_(NO_PLL,"pll is not power dn"),
+	RK_SOC_PM_HELP_(NO_VOLT,"volt is not set suspend"),
+	RK_SOC_PM_HELP_(NO_GPIO,"gpio is not control "),
+	//RK_SOC_PM_HELP_(NO_SRAM,"not enter sram code"),
+	RK_SOC_PM_HELP_(NO_DDR,"ddr is not reflash"),
+	RK_SOC_PM_HELP_(NO_PMIC,"pmic is not suspend"),
+	RK_SOC_PM_HELP_(RET_DIRT,"sys return from pm_enter directly"),
+	RK_SOC_PM_HELP_(SRAM_NO_WFI,"sys is not runing wfi in sram"),
+	RK_SOC_PM_HELP_(WAKE_UP_KEY,"send a power key to wake up lcd"),
+};
+
+ssize_t rk_soc_pm_helps_print(char *buf)
+{
+	char *s = buf;
+	int i;
+
+	for(i=0;i<ARRAY_SIZE(rk_soc_pm_helps);i++)
+	{
+		s += sprintf(s, "bit(%d): %s\n", rk_soc_pm_helps[i].offset,rk_soc_pm_helps[i].name);
+	}
+
+	return (s-buf);
+}	
+
+// pm enter return directly
+#define RK_SUSPEND_RET_DIRT_BITS ((1<<RK_PM_CTR_RET_DIRT))
+// not enter rk30_suspend
+#define RK_NO_SUSPEND_CTR_BITS ((1<<RK_PM_CTR_NO_PLL))
+//not running wfi in sram code
+#define RK_SUSPEND_NO_SRAM_WFI_BITS ((1<<RK_PM_CTR_SRAM_NO_WFI))
+
+
+static u32  __sramdata rk_soc_pm_ctr_flags_sram=0;
+static u32   rk_soc_pm_ctr_flags=0;
+
+static int __init early_param_rk_soc_pm_ctr(char *str)
+{
+	get_option(&str, &rk_soc_pm_ctr_flags);
+	printk("early_param_rk_soc_pm_ctr=%x\n",rk_soc_pm_ctr_flags);
+	return 0;
+}
+
+early_param("rk_soc_pm_ctr", early_param_rk_soc_pm_ctr);
+
+void  rk_soc_pm_ctr_bits_set(u32 flags)
+{	
+	rk_soc_pm_ctr_flags = flags;
+	
+}
+u32  rk_soc_pm_ctr_bits_get(void)
+{	
+	return rk_soc_pm_ctr_flags;
+}
+
+void  rk_soc_pm_ctr_bit_set(int offset)
+{	
+	rk_soc_pm_ctr_flags|=(1<<offset);
+}
+void inline rk_soc_pm_ctr_bit_clear(int offset)
+{
+	rk_soc_pm_ctr_flags&=~(1<<offset);
+}
+
+u32 inline rk_soc_pm_ctr_bits_check(int bits)
+{
+	return (rk_soc_pm_ctr_flags_sram&(bits));
+}	
+
+#define  RK_SOC_PM_CTR_FUN(ctr,fun) \
+	if(!(rk_soc_pm_ctr_bits_check((1<<RK_PM_CTR_##ctr))))\
+		(fun)()
+
+void rk_soc_pm_ctr_bits_prepare(void)
+{
+	
+	rk_soc_pm_ctr_flags_sram=rk_soc_pm_ctr_flags;
+	if(rk_soc_pm_ctr_flags_sram&(1<<RK_PM_CTR_NO_PLL))
+	{
+		rk_soc_pm_ctr_flags_sram|=(1<<RK_PM_CTR_NO_VOLT);
+	}
+		
+}	
+
+static void __sramfunc rk30_sram_suspend(void)
+{
+
+	sram_printch('5');
+	
+	RK_SOC_PM_CTR_FUN(NO_DDR,ddr_suspend);
+	sram_printch('6');
+	RK_SOC_PM_CTR_FUN(NO_VOLT,rk_pm_soc_sram_volt_suspend);
+	sram_printch('7');
+	RK_SOC_PM_CTR_FUN(NO_CLK_GATING,rk_pm_soc_sram_clk_gating);
+	RK_SOC_PM_CTR_FUN(NO_SYS_CLK,rk_pm_soc_sram_sys_clk_suspend);
+	RK_SOC_PM_CTR_FUN(NO_PMIC,board_pmu_suspend);
+	if(!rk_soc_pm_ctr_bits_check(RK_SUSPEND_NO_SRAM_WFI_BITS))
+	{
+		dsb();
+		wfi();
+	}
+
+	RK_SOC_PM_CTR_FUN(NO_PMIC,board_pmu_resume);
+	RK_SOC_PM_CTR_FUN(NO_SYS_CLK,rk_pm_soc_sram_sys_clk_resume);
+	RK_SOC_PM_CTR_FUN(NO_CLK_GATING,rk_pm_soc_sram_clk_ungating);
+	sram_printch('7');
+	RK_SOC_PM_CTR_FUN(NO_VOLT,rk_pm_soc_sram_volt_resume);
+	sram_printch('6');	
+	RK_SOC_PM_CTR_FUN(NO_DDR,ddr_resume);
+	sram_printch('5');
+	
+}
+
+static void noinline rk30_suspend(void)
+{
+	DDR_SAVE_SP(save_sp);
+	rk30_sram_suspend();
+	DDR_RESTORE_SP(save_sp);
+}
+
+static int rk30_pm_enter(suspend_state_t state)
+{
+	rk_soc_pm_ctr_bits_prepare();
+
+	if(rk_soc_pm_ctr_bits_check(RK_SUSPEND_RET_DIRT_BITS))
+	{
+		printk("%s return directly\n",__FUNCTION__);
+		return 0;
+	}
+	
+	rk_pm_soc_prepare();
+	
+	printk(KERN_DEBUG "pm: ");
+	pm_log = true;
+	sram_log_reset();
+	sram_printch('0');
+	
+	RK_SOC_PM_CTR_FUN(NO_PD,rk_pm_soc_pd_suspend);
+
+	sram_printch('1');
+	local_fiq_disable();
+	
+	RK_SOC_PM_CTR_FUN(NO_CLK_GATING,rk_pm_soc_clk_gating_first);
+
+	sram_printch('2');
+	RK_SOC_PM_CTR_FUN(NO_PLL,rk_pm_soc_pll_suspend);
+
+	sram_printch('3');
+
+	RK_SOC_PM_CTR_FUN(NO_VOLT,rk30_pwm_suspend_voltage_set);
+	RK_SOC_PM_CTR_FUN(NO_GPIO,board_gpio_suspend);
+
+
+	interface_ctr_reg_pread();
+
+	sram_printch('4');
+	pm_log = false;
+	
+	if(!rk_soc_pm_ctr_bits_check(RK_NO_SUSPEND_CTR_BITS))
+		rk30_suspend();
+	
+	
+	pm_log = true;
+	sram_printch('4');
+
+	RK_SOC_PM_CTR_FUN(NO_GPIO,board_gpio_resume);
+	RK_SOC_PM_CTR_FUN(NO_VOLT,rk30_pwm_resume_voltage_set);
+
+	sram_printch('3');
+	
+	RK_SOC_PM_CTR_FUN(NO_PLL,rk_pm_soc_pll_resume);
+
+	sram_printch('2');
+	
+	RK_SOC_PM_CTR_FUN(NO_CLK_GATING,rk_pm_soc_clk_ungating_first);
+	
 	local_fiq_enable();
 	sram_printch('1');
 
-	rk30_pm_set_power_domain(pmu_pwrdn_st, true);
-
+	RK_SOC_PM_CTR_FUN(NO_PD,rk_pm_soc_pd_resume);
+	
 	sram_printch('0');
 	pm_log = false;
 	printk(KERN_CONT "\n");
 	sram_printch('\n');
-
-	rk30_pm_dump_irq();
-
+	rk_pm_soc_finsh();
 	return 0;
 }
 
@@ -788,6 +1021,12 @@ static int rk30_pm_prepare(void)
 static void rk30_pm_finish(void)
 {
 	enable_hlt();
+	if(rk_soc_pm_ctr_bits_check(1<<RK_PM_CTR_WAKE_UP_KEY))
+	{
+		rk28_send_wakeup_key();
+		printk("rk30_pm_finish rk28_send_wakeup_key\n");
+	}
+
 }
 
 static struct platform_suspend_ops rk30_pm_ops = {
