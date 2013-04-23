@@ -20,6 +20,7 @@ if RT2X00
 config RT2400PCI
 	tristate "Ralink rt2400 (PCI/PCMCIA) support"
 	depends on PCI
+	select RT2X00_LIB_MMIO
 	select RT2X00_LIB_PCI
 	select EEPROM_93CX6
 	---help---
@@ -31,6 +32,7 @@ config RT2400PCI
 config RT2500PCI
 	tristate "Ralink rt2500 (PCI/PCMCIA) support"
 	depends on PCI
+	select RT2X00_LIB_MMIO
 	select RT2X00_LIB_PCI
 	select EEPROM_93CX6
 	---help---
@@ -43,6 +45,7 @@ config RT61PCI
 	tristate "Ralink rt2501/rt61 (PCI/PCMCIA) support"
 	depends on PCI
 	select RT2X00_LIB_PCI
+	select RT2X00_LIB_MMIO
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
 	select CRC_ITU_T
@@ -57,6 +60,7 @@ config RT2800PCI
 	tristate "Ralink rt27xx/rt28xx/rt30xx (PCI/PCIe/PCMCIA) support"
 	depends on PCI || SOC_RT288X || SOC_RT305X
 	select RT2800_LIB
+	select RT2X00_LIB_MMIO
 	select RT2X00_LIB_PCI if PCI
 	select RT2X00_LIB_SOC if SOC_RT288X || SOC_RT305X
 	select RT2X00_LIB_FIRMWARE
@@ -183,6 +187,9 @@ config RT2800USB_UNKNOWN
 endif
 
 config RT2800_LIB
+	tristate
+
+config RT2X00_LIB_MMIO
 	tristate
 
 config RT2X00_LIB_PCI
