@@ -329,6 +329,16 @@ int exynos_platform_device_hdmi_register(void);
  */
 void exynos_platform_device_hdmi_unregister(void);
 
+/*
+ * this function registers exynos drm ipp platform device.
+ */
+int exynos_platform_device_ipp_register(void);
+
+/*
+ * this function unregisters exynos drm ipp platform device if it exists.
+ */
+void exynos_platform_device_ipp_unregister(void);
+
 extern struct platform_driver fimd_driver;
 extern struct platform_driver hdmi_driver;
 extern struct platform_driver mixer_driver;
