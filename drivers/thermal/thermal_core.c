@@ -1432,7 +1432,7 @@ void thermal_cdev_update(struct thermal_cooling_device *cdev)
 EXPORT_SYMBOL(thermal_cdev_update);
 
 /**
- * notify_thermal_framework - Sensor drivers use this API to notify framework
+ * thermal_notify_framework - Sensor drivers use this API to notify framework
  * @tz:		thermal zone device
  * @trip:	indicates which trip point has been crossed
  *
@@ -1443,11 +1443,11 @@ EXPORT_SYMBOL(thermal_cdev_update);
  * The throttling policy is based on the configured platform data; if no
  * platform data is provided, this uses the step_wise throttling policy.
  */
-void notify_thermal_framework(struct thermal_zone_device *tz, int trip)
+void thermal_notify_framework(struct thermal_zone_device *tz, int trip)
 {
 	handle_thermal_trip(tz, trip);
 }
-EXPORT_SYMBOL(notify_thermal_framework);
+EXPORT_SYMBOL(thermal_notify_framework);
 
 /**
  * create_trip_attrs - create attributes for trip points

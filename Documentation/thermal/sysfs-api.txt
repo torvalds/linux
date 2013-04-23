@@ -367,7 +367,7 @@ This function returns the thermal_instance corresponding to a given
 {thermal_zone, cooling_device, trip_point} combination. Returns NULL
 if such an instance does not exist.
 
-5.3:notify_thermal_framework:
+5.3:thermal_notify_framework:
 This function handles the trip events from sensor drivers. It starts
 throttling the cooling devices according to the policy configured.
 For CRITICAL and HOT trip points, this notifies the respective drivers,
