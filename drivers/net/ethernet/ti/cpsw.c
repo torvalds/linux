@@ -867,6 +867,15 @@ static void cpsw_init_host_port(struct cpsw_priv *priv)
 	}
 }
 
+static void cpsw_slave_stop(struct cpsw_slave *slave, struct cpsw_priv *priv)
+{
+	if (!slave->phy)
+		return;
+	phy_stop(slave->phy);
+	phy_disconnect(slave->phy);
+	slave->phy = NULL;
+}
+
 static int cpsw_ndo_open(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
@@ -912,14 +921,16 @@ static int cpsw_ndo_open(struct net_device *ndev)
 			struct sk_buff *skb;
 
 			ret = -ENOMEM;
-			skb = netdev_alloc_skb_ip_align(priv->ndev,
-							priv->rx_packet_max);
+			skb = __netdev_alloc_skb_ip_align(priv->ndev,
+					priv->rx_packet_max, GFP_KERNEL);
 			if (!skb)
-				break;
+				goto err_cleanup;
 			ret = cpdma_chan_submit(priv->rxch, skb, skb->data,
 					skb_tailroom(skb), 0, GFP_KERNEL);
-			if (WARN_ON(ret < 0))
-				break;
+			if (ret < 0) {
+				kfree_skb(skb);
+				goto err_cleanup;
+			}
 		}
 		/* continue even if we didn't manage to submit all
 		 * receive descs
@@ -944,15 +955,13 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	if (priv->data.dual_emac)
 		priv->slaves[priv->emac_port].open_stat = true;
 	return 0;
-}
 
-static void cpsw_slave_stop(struct cpsw_slave *slave, struct cpsw_priv *priv)
-{
-	if (!slave->phy)
-		return;
-	phy_stop(slave->phy);
-	phy_disconnect(slave->phy);
-	slave->phy = NULL;
+err_cleanup:
+	cpdma_ctlr_stop(priv->dma);
+	for_each_slave(priv, cpsw_slave_stop, priv);
+	pm_runtime_put_sync(&priv->pdev->dev);
+	netif_carrier_off(priv->ndev);
+	return ret;
 }
 
 static int cpsw_ndo_stop(struct net_device *ndev)
