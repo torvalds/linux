@@ -155,7 +155,7 @@ static int atmel_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (ssc->pdev)
 		sdata = ssc->pdev->dev.platform_data;
 
-	ret = snd_dmaengine_pcm_open(substream, filter, sdata);
+	ret = snd_dmaengine_pcm_open_request_chan(substream, filter, sdata);
 	if (ret) {
 		pr_err("atmel-pcm: dmaengine pcm open failed\n");
 		return -EINVAL;
@@ -171,7 +171,7 @@ static int atmel_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	return 0;
 err:
-	snd_dmaengine_pcm_close(substream);
+	snd_dmaengine_pcm_close_release_chan(substream);
 	return ret;
 }
 
@@ -197,7 +197,7 @@ static int atmel_pcm_open(struct snd_pcm_substream *substream)
 
 static struct snd_pcm_ops atmel_pcm_ops = {
 	.open		= atmel_pcm_open,
-	.close		= snd_dmaengine_pcm_close,
+	.close		= snd_dmaengine_pcm_close_release_chan,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= atmel_pcm_hw_params,
 	.prepare	= atmel_pcm_dma_prepare,

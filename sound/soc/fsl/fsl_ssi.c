@@ -425,12 +425,6 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 		ssi_private->second_stream = substream;
 	}
 
-	if (ssi_private->ssi_on_imx)
-		snd_soc_dai_set_dma_data(dai, substream,
-			(substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
-				&ssi_private->dma_params_tx :
-				&ssi_private->dma_params_rx);
-
 	return 0;
 }
 
@@ -552,6 +546,18 @@ static void fsl_ssi_shutdown(struct snd_pcm_substream *substream,
 	}
 }
 
+static int fsl_ssi_dai_probe(struct snd_soc_dai *dai)
+{
+	struct fsl_ssi_private *ssi_private = snd_soc_dai_get_drvdata(dai);
+
+	if (ssi_private->ssi_on_imx) {
+		dai->playback_dma_data = &ssi_private->dma_params_tx;
+		dai->capture_dma_data = &ssi_private->dma_params_rx;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops fsl_ssi_dai_ops = {
 	.startup	= fsl_ssi_startup,
 	.hw_params	= fsl_ssi_hw_params,
@@ -561,6 +567,7 @@ static const struct snd_soc_dai_ops fsl_ssi_dai_ops = {
 
 /* Template for the CPU dai driver structure */
 static struct snd_soc_dai_driver fsl_ssi_dai_template = {
+	.probe = fsl_ssi_dai_probe,
 	.playback = {
 		/* The SSI does not support monaural audio. */
 		.channels_min = 2,

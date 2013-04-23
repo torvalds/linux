@@ -3900,21 +3900,14 @@ static void snd_soc_unregister_dais(struct device *dev, size_t count)
 }
 
 /**
- * snd_soc_register_platform - Register a platform with the ASoC core
- *
- * @platform: platform to register
+ * snd_soc_add_platform - Add a platform to the ASoC core
+ * @dev: The parent device for the platform
+ * @platform: The platform to add
+ * @platform_driver: The driver for the platform
  */
-int snd_soc_register_platform(struct device *dev,
+int snd_soc_add_platform(struct device *dev, struct snd_soc_platform *platform,
 		const struct snd_soc_platform_driver *platform_drv)
 {
-	struct snd_soc_platform *platform;
-
-	dev_dbg(dev, "ASoC: platform register %s\n", dev_name(dev));
-
-	platform = kzalloc(sizeof(struct snd_soc_platform), GFP_KERNEL);
-	if (platform == NULL)
-		return -ENOMEM;
-
 	/* create platform component name */
 	platform->name = fmt_single_name(dev, &platform->id);
 	if (platform->name == NULL) {
@@ -3937,7 +3930,61 @@ int snd_soc_register_platform(struct device *dev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(snd_soc_add_platform);
+
+/**
+ * snd_soc_register_platform - Register a platform with the ASoC core
+ *
+ * @platform: platform to register
+ */
+int snd_soc_register_platform(struct device *dev,
+		const struct snd_soc_platform_driver *platform_drv)
+{
+	struct snd_soc_platform *platform;
+	int ret;
+
+	dev_dbg(dev, "ASoC: platform register %s\n", dev_name(dev));
+
+	platform = kzalloc(sizeof(struct snd_soc_platform), GFP_KERNEL);
+	if (platform == NULL)
+		return -ENOMEM;
+
+	ret = snd_soc_add_platform(dev, platform, platform_drv);
+	if (ret)
+		kfree(platform);
+
+	return ret;
+}
 EXPORT_SYMBOL_GPL(snd_soc_register_platform);
+
+/**
+ * snd_soc_remove_platform - Remove a platform from the ASoC core
+ * @platform: the platform to remove
+ */
+void snd_soc_remove_platform(struct snd_soc_platform *platform)
+{
+	mutex_lock(&client_mutex);
+	list_del(&platform->list);
+	mutex_unlock(&client_mutex);
+
+	dev_dbg(platform->dev, "ASoC: Unregistered platform '%s'\n",
+		platform->name);
+	kfree(platform->name);
+}
+EXPORT_SYMBOL_GPL(snd_soc_remove_platform);
+
+struct snd_soc_platform *snd_soc_lookup_platform(struct device *dev)
+{
+	struct snd_soc_platform *platform;
+
+	list_for_each_entry(platform, &platform_list, list) {
+		if (dev == platform->dev)
+			return platform;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_lookup_platform);
 
 /**
  * snd_soc_unregister_platform - Unregister a platform from the ASoC core
@@ -3948,19 +3995,11 @@ void snd_soc_unregister_platform(struct device *dev)
 {
 	struct snd_soc_platform *platform;
 
-	list_for_each_entry(platform, &platform_list, list) {
-		if (dev == platform->dev)
-			goto found;
-	}
-	return;
+	platform = snd_soc_lookup_platform(dev);
+	if (!platform)
+		return;
 
-found:
-	mutex_lock(&client_mutex);
-	list_del(&platform->list);
-	mutex_unlock(&client_mutex);
-
-	dev_dbg(dev, "ASoC: Unregistered platform '%s'\n", platform->name);
-	kfree(platform->name);
+	snd_soc_remove_platform(platform);
 	kfree(platform);
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_platform);

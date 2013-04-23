@@ -40,7 +40,7 @@
 #define UX500_PLATFORM_PERIODS_MAX		48
 #define UX500_PLATFORM_BUFFER_BYTES_MAX		(2048 * PAGE_SIZE)
 
-static struct snd_pcm_hardware ux500_pcm_hw = {
+static const struct snd_pcm_hardware ux500_pcm_hw = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_RESUME |
@@ -61,43 +61,23 @@ static struct snd_pcm_hardware ux500_pcm_hw = {
 	.periods_max = UX500_PLATFORM_PERIODS_MAX,
 };
 
-static void ux500_pcm_dma_hw_free(struct device *dev,
-				struct snd_pcm_substream *substream)
+static struct dma_chan *ux500_pcm_request_chan(struct snd_soc_pcm_runtime *rtd,
+	struct snd_pcm_substream *substream)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_dma_buffer *buf = runtime->dma_buffer_p;
-
-	if (runtime->dma_area == NULL)
-		return;
-
-	if (buf != &substream->dma_buffer) {
-		dma_free_coherent(buf->dev.dev, buf->bytes, buf->area,
-				buf->addr);
-		kfree(runtime->dma_buffer_p);
-	}
-
-	snd_pcm_set_runtime_buffer(substream, NULL);
-}
-
-static int ux500_pcm_open(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct device *dev = dai->dev;
-	int ret;
-	struct ux500_msp_dma_params *dma_params;
 	u16 per_data_width, mem_data_width;
 	struct stedma40_chan_cfg *dma_cfg;
+	struct ux500_msp_dma_params *dma_params;
 
 	dev_dbg(dev, "%s: MSP %d (%s): Enter.\n", __func__, dai->id,
 		snd_pcm_stream_str(substream));
 
-	dev_dbg(dev, "%s: Set runtime hwparams.\n", __func__);
-	snd_soc_set_runtime_hwparams(substream, &ux500_pcm_hw);
+	dma_params = snd_soc_dai_get_dma_data(dai, substream);
+	dma_cfg = dma_params->dma_cfg;
 
 	mem_data_width = STEDMA40_HALFWORD_WIDTH;
 
-	dma_params = snd_soc_dai_get_dma_data(dai, substream);
 	switch (dma_params->data_size) {
 	case 32:
 		per_data_width = STEDMA40_WORD_WIDTH;
@@ -110,12 +90,7 @@ static int ux500_pcm_open(struct snd_pcm_substream *substream)
 		break;
 	default:
 		per_data_width = STEDMA40_WORD_WIDTH;
-		dev_warn(rtd->platform->dev,
-			"%s: Unknown data-size (%d)! Assuming 32 bits.\n",
-			__func__, dma_params->data_size);
 	}
-
-	dma_cfg = dma_params->dma_cfg;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		dma_cfg->src_info.data_width = mem_data_width;
@@ -125,123 +100,24 @@ static int ux500_pcm_open(struct snd_pcm_substream *substream)
 		dma_cfg->dst_info.data_width = mem_data_width;
 	}
 
-
-	ret = snd_dmaengine_pcm_open(substream, stedma40_filter, dma_cfg);
-	if (ret) {
-		dev_dbg(dai->dev,
-			"%s: ERROR: snd_dmaengine_pcm_open failed (%d)!\n",
-			__func__, ret);
-		return ret;
-	}
-
-	return 0;
+	return snd_dmaengine_pcm_request_channel(stedma40_filter, dma_cfg);
 }
 
-static int ux500_pcm_hw_params(struct snd_pcm_substream *substream,
-			struct snd_pcm_hw_params *hw_params)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_dma_buffer *buf = runtime->dma_buffer_p;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	int ret = 0;
-	int size;
-
-	dev_dbg(rtd->platform->dev, "%s: Enter\n", __func__);
-
-	size = params_buffer_bytes(hw_params);
-
-	if (buf) {
-		if (buf->bytes >= size)
-			goto out;
-		ux500_pcm_dma_hw_free(NULL, substream);
-	}
-
-	if (substream->dma_buffer.area != NULL &&
-		substream->dma_buffer.bytes >= size) {
-		buf = &substream->dma_buffer;
-	} else {
-		buf = kmalloc(sizeof(struct snd_dma_buffer), GFP_KERNEL);
-		if (!buf)
-			goto nomem;
-
-		buf->dev.type = SNDRV_DMA_TYPE_DEV;
-		buf->dev.dev = NULL;
-		buf->area = dma_alloc_coherent(NULL, size, &buf->addr,
-					GFP_KERNEL);
-		buf->bytes = size;
-		buf->private_data = NULL;
-
-		if (!buf->area)
-			goto free;
-	}
-	snd_pcm_set_runtime_buffer(substream, buf);
-	ret = 1;
- out:
-	runtime->dma_bytes = size;
-	return ret;
-
- free:
-	kfree(buf);
- nomem:
-	return -ENOMEM;
-}
-
-static int ux500_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-
-	dev_dbg(rtd->platform->dev, "%s: Enter\n", __func__);
-
-	ux500_pcm_dma_hw_free(NULL, substream);
-
-	return 0;
-}
-
-static int ux500_pcm_mmap(struct snd_pcm_substream *substream,
-			struct vm_area_struct *vma)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-
-	dev_dbg(rtd->platform->dev, "%s: Enter.\n", __func__);
-
-	return dma_mmap_coherent(NULL, vma, runtime->dma_area,
-				runtime->dma_addr, runtime->dma_bytes);
-}
-
-static struct snd_pcm_ops ux500_pcm_ops = {
-	.open		= ux500_pcm_open,
-	.close		= snd_dmaengine_pcm_close,
-	.ioctl		= snd_pcm_lib_ioctl,
-	.hw_params	= ux500_pcm_hw_params,
-	.hw_free	= ux500_pcm_hw_free,
-	.trigger	= snd_dmaengine_pcm_trigger,
-	.pointer	= snd_dmaengine_pcm_pointer_no_residue,
-	.mmap		= ux500_pcm_mmap
-};
-
-int ux500_pcm_new(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_pcm *pcm = rtd->pcm;
-
-	dev_dbg(rtd->platform->dev, "%s: Enter (id = '%s').\n", __func__,
-		pcm->id);
-
-	pcm->info_flags = 0;
-
-	return 0;
-}
-
-static struct snd_soc_platform_driver ux500_pcm_soc_drv = {
-	.ops		= &ux500_pcm_ops,
-	.pcm_new        = ux500_pcm_new,
+static const struct snd_dmaengine_pcm_config ux500_dmaengine_pcm_config = {
+	.pcm_hardware = &ux500_pcm_hw,
+	.compat_request_channel = ux500_pcm_request_chan,
+	.prealloc_buffer_size = 128 * 1024,
 };
 
 int ux500_pcm_register_platform(struct platform_device *pdev)
 {
 	int ret;
 
-	ret = snd_soc_register_platform(&pdev->dev, &ux500_pcm_soc_drv);
+	ret = snd_dmaengine_pcm_register(&pdev->dev,
+			&ux500_dmaengine_pcm_config,
+			SND_DMAENGINE_PCM_FLAG_NO_RESIDUE |
+			SND_DMAENGINE_PCM_FLAG_COMPAT |
+			SND_DMAENGINE_PCM_FLAG_NO_DT);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"%s: ERROR: Failed to register platform '%s' (%d)!\n",
@@ -255,8 +131,7 @@ EXPORT_SYMBOL_GPL(ux500_pcm_register_platform);
 
 int ux500_pcm_unregister_platform(struct platform_device *pdev)
 {
-	snd_soc_unregister_platform(&pdev->dev);
-
+	snd_dmaengine_pcm_unregister(&pdev->dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ux500_pcm_unregister_platform);
