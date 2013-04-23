@@ -21,12 +21,36 @@
 #include <linux/interrupt.h>
 #include <linux/irqchip.h>
 #include <linux/kernel.h>
+#include <linux/leds.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/platform_data/gpio-rcar.h>
 #include <linux/platform_device.h>
 #include <mach/common.h>
 #include <mach/r8a7790.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+
+/* LEDS */
+static struct gpio_led lager_leds[] = {
+	{
+		.name		= "led8",
+		.gpio		= RCAR_GP_PIN(5, 17),
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	}, {
+		.name		= "led7",
+		.gpio		= RCAR_GP_PIN(4, 23),
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	}, {
+		.name		= "led6",
+		.gpio		= RCAR_GP_PIN(4, 22),
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+};
+
+static struct gpio_led_platform_data lager_leds_pdata = {
+	.leds		= lager_leds,
+	.num_leds	= ARRAY_SIZE(lager_leds),
+};
 
 static const struct pinctrl_map lager_pinctrl_map[] = {
 	/* SCIF0 (CN19: DEBUG SERIAL0) */
@@ -46,6 +70,9 @@ static void __init lager_add_standard_devices(void)
 	r8a7790_pinmux_init();
 
 	r8a7790_add_standard_devices();
+	platform_device_register_data(&platform_bus, "leds-gpio", -1,
+				      &lager_leds_pdata,
+				      sizeof(lager_leds_pdata));
 }
 
 static const char *lager_boards_compat_dt[] __initdata = {
