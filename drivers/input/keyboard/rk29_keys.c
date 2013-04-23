@@ -258,13 +258,11 @@ static irqreturn_t keys_isr(int irq, void *dev_id)
 	BUG_ON(irq != gpio_to_irq(button->gpio));
 
         if(button->wakeup == 1 && bdata->ddata->in_suspend == true){
+		bdata->state = 1;
 		key_dbg(bdata, "wakeup: %skey[%s]: report ev[%d] state[%d]\n", 
 			(button->gpio == INVALID_GPIO)?"ad":"io", button->desc, button->code, bdata->state);
-		input_event(input, type, button->code, 1);
+		input_event(input, type, button->code, bdata->state);
 		input_sync(input);
-		input_event(input, type, button->code, 0);
-		input_sync(input);
-	        return IRQ_HANDLED;
         }
 	bdata->long_press_count = 0;
 	mod_timer(&bdata->timer,
