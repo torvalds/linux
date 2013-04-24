@@ -134,6 +134,7 @@ static int update_dt_node(u32 phandle, s32 scope)
 	char *prop_data;
 	char *rtas_buf;
 	int update_properties_token;
+	u32 vd;
 
 	update_properties_token = rtas_token("ibm,update-properties");
 	if (update_properties_token == RTAS_UNKNOWN_SERVICE)
@@ -160,13 +161,24 @@ static int update_dt_node(u32 phandle, s32 scope)
 
 		prop_data = rtas_buf + sizeof(*upwa);
 
-		for (i = 0; i < upwa->nprops; i++) {
-			char *prop_name;
-			u32 vd;
+		/* The first element of the buffer is the path of the node
+		 * being updated in the form of a 8 byte string length
+		 * followed by the string. Skip past this to get to the
+		 * properties being updated.
+		 */
+		vd = *prop_data++;
+		prop_data += vd;
 
-			prop_name = prop_data + 1;
+		/* The path we skipped over is counted as one of the elements
+		 * returned so start counting at one.
+		 */
+		for (i = 1; i < upwa->nprops; i++) {
+			char *prop_name;
+
+			prop_name = prop_data;
 			prop_data += strlen(prop_name) + 1;
-			vd = *prop_data++;
+			vd = *(u32 *)prop_data;
+			prop_data += sizeof(vd);
 
 			switch (vd) {
 			case 0x00000000:
