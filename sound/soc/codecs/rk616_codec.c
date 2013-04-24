@@ -76,6 +76,7 @@ static int rk616_codec_work_type = RK616_CODEC_WORK_NULL;
 
 static const unsigned int rk616_reg_defaults[RK616_PGAR_AGC_CTL5 + 1] = {
 	[RK616_RESET] = 0x0003,
+	[RK616_DAC_VOL] = 0x0046,
 	[RK616_ADC_INT_CTL1] = 0x0050,
 	[RK616_ADC_INT_CTL2] = 0x000e,
 	[RK616_DAC_INT_CTL1] = 0x0050,
@@ -109,6 +110,8 @@ static const unsigned int rk616_reg_defaults[RK616_PGAR_AGC_CTL5 + 1] = {
 	[RK616_MICKEY_DET_CTL] = 0x0028,
 	[RK616_PWR_ADD3] = 0x000f,
 	[RK616_ADC_CTL] = 0x0036,
+	[RK616_SINGNAL_ZC_CTL1] = 0x003f,
+	[RK616_SINGNAL_ZC_CTL2] = 0x00ff,
 	[RK616_PGAL_AGC_CTL1] = 0x0010,
 	[RK616_PGAL_AGC_CTL2] = 0x0025,
 	[RK616_PGAL_AGC_CTL3] = 0x0041,
@@ -133,7 +136,7 @@ static const unsigned int rk616_reg_defaults[RK616_PGAR_AGC_CTL5 + 1] = {
 
 static struct rk616_reg_val_typ rk616_mfd_reg_defaults[] = {
 	{CRU_CODEC_DIV, 0x00000000},
-	{CRU_IO_CON0, (I2S1_OUT_DISABLE | I2S0_OUT_DISABLE | I2S1_PD_DISABLE | I2S0_PD_DISABLE) | 
+	{CRU_IO_CON0, (I2S1_OUT_DISABLE | I2S0_OUT_DISABLE | I2S1_PD_DISABLE | I2S0_PD_DISABLE) |
 		((I2S1_OUT_DISABLE | I2S0_OUT_DISABLE | I2S1_PD_DISABLE | I2S0_PD_DISABLE) << 16)},
 	{CRU_IO_CON1, (I2S1_SI_EN | I2S0_SI_EN) | ((I2S1_SI_EN | I2S0_SI_EN) << 16)},
 	{CRU_PCM2IS2_CON2, (0) | ((APS_SEL | APS_CLR | I2S_CHANNEL_SEL) << 16)},
@@ -141,7 +144,7 @@ static struct rk616_reg_val_typ rk616_mfd_reg_defaults[] = {
 
 static struct rk616_reg_val_typ rk616_mfd_reg_cache[] = {
 	{CRU_CODEC_DIV, 0x00000000},
-	{CRU_IO_CON0, (I2S1_OUT_DISABLE | I2S0_OUT_DISABLE | I2S1_PD_DISABLE | I2S0_PD_DISABLE) | 
+	{CRU_IO_CON0, (I2S1_OUT_DISABLE | I2S0_OUT_DISABLE | I2S1_PD_DISABLE | I2S0_PD_DISABLE) |
 		((I2S1_OUT_DISABLE | I2S0_OUT_DISABLE | I2S1_PD_DISABLE | I2S0_PD_DISABLE) << 16)},
 	{CRU_IO_CON1, (I2S1_SI_EN | I2S0_SI_EN) | ((I2S1_SI_EN | I2S0_SI_EN) << 16)},
 	{CRU_PCM2IS2_CON2, (0) | ((APS_SEL | APS_CLR | I2S_CHANNEL_SEL) << 16)},
@@ -178,8 +181,6 @@ static struct rk616_init_bit_typ rk616_init_bit_list[] = {
 	{RK616_SPKR_CTL, RK616_PWRD, RK616_INIT_MASK},
 	{RK616_HPL_CTL, RK616_PWRD, RK616_INIT_MASK},
 	{RK616_HPR_CTL, RK616_PWRD, RK616_INIT_MASK},
-	{RK616_DAC_CTL, RK616_DACL_PWRD, RK616_DACL_INIT_MASK},
-	{RK616_DAC_CTL, RK616_DACR_PWRD, RK616_DACR_INIT_MASK},
 	{RK616_MUXHP_HPMIX_CTL, RK616_HML_PWRD, RK616_HML_INIT_MASK},
 	{RK616_MUXHP_HPMIX_CTL, RK616_HMR_PWRD, RK616_HMR_INIT_MASK},
 };
@@ -212,6 +213,7 @@ static int rk616_codec_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case RK616_RESET:
+	case RK616_DAC_VOL:
 	case RK616_ADC_INT_CTL1:
 	case RK616_ADC_INT_CTL2:
 	case RK616_DAC_INT_CTL1:
@@ -828,13 +830,20 @@ static int rk616_dacl_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, RK616_DAC_CTL,
-			RK616_DACL_PWRD | RK616_DACL_CLK_PWRD, 0);
+			RK616_DACL_PWRD | RK616_DACL_CLK_PWRD |
+			RK616_DACL_INIT_MASK, 0);
+		snd_soc_update_bits(codec, RK616_DAC_CTL,
+			RK616_DACL_INIT_MASK, RK616_DACL_INIT_WORK);
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
 		snd_soc_update_bits(codec, RK616_DAC_CTL,
-			RK616_DACL_PWRD | RK616_DACL_CLK_PWRD,
-			RK616_DACL_PWRD | RK616_DACL_CLK_PWRD);
+			RK616_DACL_PWRD | RK616_DACL_CLK_PWRD |
+			RK616_DACL_INIT_MASK,
+			RK616_DACL_PWRD | RK616_DACL_CLK_PWRD |
+			RK616_DACL_INIT_WORK);
+		snd_soc_update_bits(codec, RK616_DAC_CTL,
+			RK616_DACL_INIT_MASK, 0);
 		break;
 
 	default:
@@ -852,13 +861,20 @@ static int rk616_dacr_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, RK616_DAC_CTL,
-			RK616_DACR_PWRD | RK616_DACR_CLK_PWRD, 0);
+			RK616_DACR_PWRD | RK616_DACR_CLK_PWRD |
+			RK616_DACR_INIT_MASK, 0);
+		snd_soc_update_bits(codec, RK616_DAC_CTL,
+			RK616_DACR_INIT_MASK, RK616_DACR_INIT_WORK);
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
 		snd_soc_update_bits(codec, RK616_DAC_CTL,
-			RK616_DACR_PWRD | RK616_DACR_CLK_PWRD,
-			RK616_DACR_PWRD | RK616_DACR_CLK_PWRD);
+			RK616_DACR_PWRD | RK616_DACR_CLK_PWRD |
+			RK616_DACR_INIT_MASK,
+			RK616_DACR_PWRD | RK616_DACR_CLK_PWRD |
+			RK616_DACR_INIT_WORK);
+		snd_soc_update_bits(codec, RK616_DAC_CTL,
+			RK616_DACR_INIT_MASK, 0);
 		break;
 
 	default:
@@ -1484,33 +1500,39 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_write(codec, CRU_IO_CON0, mfd_aif1);
-	snd_soc_write(codec, CRU_IO_CON1, mfd_aif2);
-	snd_soc_write(codec, CRU_PCM2IS2_CON2, mfd_i2s_ctl);
+	snd_soc_update_bits(codec, CRU_IO_CON0,
+			I2S1_OUT_DISABLE | I2S0_OUT_DISABLE |
+			I2S1_PD_DISABLE | I2S0_PD_DISABLE, mfd_aif1);
+	snd_soc_update_bits(codec, CRU_IO_CON1,
+			I2S1_SI_EN | I2S0_SI_EN, mfd_aif2);
+	snd_soc_update_bits(codec, CRU_PCM2IS2_CON2,
+			APS_SEL | APS_CLR | I2S_CHANNEL_SEL,
+			mfd_i2s_ctl);
 	return 0;
 }
 
 #ifdef RK616_FOR_MID
 static struct rk616_reg_val_typ power_up_list[] = {
+	{0x89c, 0x7f}, //MICBIAS1 power up (bit 7, Vout = 1.7 * Vref(1.65V) = 2.8V (bit 3-5)
+	{0x8a8, 0x00}, //ADCL/R power, and clear ADCL/R buf
+	{0x88c, 0x76}, //power up SPKOUTL (bit 7), volume (bit 0-4)
+	{0x890, 0x76}, //power up SPKOUTR (bit 7), volume (bit 0-4)
+	{0x88c, 0x36}, //INIT SPKOUTL (bit 6), volume (bit 0-4)
+	{0x890, 0x36}, //INIT SPKOUTR (bit 6), volume (bit 0-4)
 	{0x83c, 0x00}, //power up
-	{0x840, 0x69}, //BST_L power up, unmute, and Single-Ended(bit 6), volume 0-20dB(bit 5)
+	{0x868, 0x82}, //power up
+	{0x840, 0x49}, //BST_L power up, unmute, and Single-Ended(bit 6), volume 0-20dB(bit 5)
+	{0x804, 0x46}, //DAC GSM, 0x06: x1, 0x26: x1.25, 0x46: x1.5, 0x66: x1.75
 	{0x848, 0x06}, //MIXINL power up and unmute, MININL from MICMUX, MICMUX from BST_L
 	{0x84c, 0x3c}, //MIXINL from MIXMUX volume (bit 3-5)
 	{0x860, 0x19}, //PGAL power up unmute,volume (bit 0-4)
-	{0x8a8, 0x00}, //ADCL/R power, and clear ADCL/R buf
-	{0x868, 0x82}, //power up
-	{0x86c, 0x30}, //DACL/R and DACL/R CLK power up
-	{0x86c, 0x00}, //DACL/R INIT
+	{0x86c, 0x00}, //DACL/R and DACL/R CLK power up
+	{0x86c, 0x30}, //DACL/R INIT
 	{0x874, 0x14}, //Mux HPMIXR from HPMIXR(bit 0), Mux HPMIXL from HPMIXL(bit 1),HPMIXL/R power up
 	{0x874, 0x00}, //HPMIXL/R init
 	{0x878, 0xee}, //HPMIXL/HPMIXR from DACL/DACR(bit 4, bit 0)
-	{0x88c, 0x6f}, //power up SPKOUTL (bit 7), volume (bit 0-4)
-	{0x890, 0x6f}, //power up SPKOUTR (bit 7), volume (bit 0-4)
-	{0x88c, 0x2f}, //INIT SPKOUTL (bit 6), volume (bit 0-4)
-	{0x890, 0x2f}, //INIT SPKOUTR (bit 6), volume (bit 0-4)
-	{0x88c, 0x0f}, //unmute SPKOUTL (bit 5), volume (bit 0-4)
-	{0x890, 0x0f}, //unmute SPKOUTR (bit 5), volume (bit 0-4)
-	{0x89c, 0x7f}, //MICBIAS1 power up (bit 7, Vout = 1.7 * Vref(1.65V) = 2.8V (bit 3-5)
+	{0x88c, 0x16}, //unmute SPKOUTL (bit 5), volume (bit 0-4)
+	{0x890, 0x16}, //unmute SPKOUTR (bit 5), volume (bit 0-4)
 };
 
 #define RK616_CODEC_POWER_UP_LIST_LEN ARRAY_SIZE(power_up_list)
@@ -1528,8 +1550,9 @@ static int rk616_codec_power_up(void)
 
 	printk("rk616_codec_power_up\n");
 
-	for (i = 0; i < RK616_CODEC_POWER_UP_LIST_LEN; i++)
+	for (i = 0; i < RK616_CODEC_POWER_UP_LIST_LEN; i++) {
 		snd_soc_write(codec, power_up_list[i].reg, power_up_list[i].value);
+	}
 
 	if (rk616_priv->spk_ctl_gpio != 0)
 		gpio_set_value(rk616_priv->spk_ctl_gpio, 1);
@@ -1820,9 +1843,11 @@ static int rk616_probe(struct snd_soc_codec *codec)
 
 	rk616_reset(codec);
 
+#ifndef RK616_FOR_MID
 	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
 
 	rk616_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+#endif
 
 #ifdef RK616_PROC
 	rk616_proc_init();

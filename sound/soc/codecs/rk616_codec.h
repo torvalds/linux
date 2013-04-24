@@ -22,6 +22,7 @@
 #define RK616_CODEC_BASE			0x0800
 
 #define RK616_RESET				(RK616_CODEC_BASE + 0x00)
+#define RK616_DAC_VOL				(RK616_CODEC_BASE + 0x04)
 #define RK616_ADC_INT_CTL1			(RK616_CODEC_BASE + 0x08)
 #define RK616_ADC_INT_CTL2			(RK616_CODEC_BASE + 0x0c)
 #define RK616_DAC_INT_CTL1			(RK616_CODEC_BASE + 0x10)
@@ -386,13 +387,13 @@
 /* DAC Control (0x6c) */
 #define RK616_DACL_INIT_MASK			(0x1 << 5)
 #define RK616_DACL_INIT_SFT			5
-#define RK616_DACL_INIT_RN			(0x1 << 5)
-#define RK616_DACL_INIT_AFT			(0x0 << 5)
+#define RK616_DACL_INIT_WORK			(0x1 << 5)
+#define RK616_DACL_INIT_NOT			(0x0 << 5)
 
 #define RK616_DACR_INIT_MASK			(0x1 << 4)
 #define RK616_DACR_INIT_SFT			4
-#define RK616_DACR_INIT_RN			(0x1 << 4)
-#define RK616_DACR_INIT_AFT			(0x0 << 4)
+#define RK616_DACR_INIT_WORK			(0x1 << 4)
+#define RK616_DACR_INIT_NOT			(0x0 << 4)
 
 #define RK616_DACL_PWRD				(0x1 << 3)
 #define RK616_DACL_PWRD_SFT			3
