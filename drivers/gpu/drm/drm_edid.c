@@ -2330,13 +2330,34 @@ EXPORT_SYMBOL(drm_find_cea_extension);
  */
 u8 drm_match_cea_mode(const struct drm_display_mode *to_match)
 {
-	struct drm_display_mode *cea_mode;
 	u8 mode;
 
-	for (mode = 0; mode < ARRAY_SIZE(edid_cea_modes); mode++) {
-		cea_mode = (struct drm_display_mode *)&edid_cea_modes[mode];
+	if (!to_match->clock)
+		return 0;
 
-		if (drm_mode_equal(to_match, cea_mode))
+	for (mode = 0; mode < ARRAY_SIZE(edid_cea_modes); mode++) {
+		const struct drm_display_mode *cea_mode = &edid_cea_modes[mode];
+		unsigned int clock1, clock2;
+
+		clock1 = clock2 = cea_mode->clock;
+
+		/* Check both 60Hz and 59.94Hz */
+		if (cea_mode->vrefresh % 6 == 0) {
+			/*
+			 * edid_cea_modes contains the 59.94Hz
+			 * variant for 240 and 480 line modes,
+			 * and the 60Hz variant otherwise.
+			 */
+			if (cea_mode->vdisplay == 240 ||
+			    cea_mode->vdisplay == 480)
+				clock1 = clock1 * 1001 / 1000;
+			else
+				clock2 = DIV_ROUND_UP(clock2 * 1000, 1001);
+		}
+
+		if ((KHZ2PICOS(to_match->clock) == KHZ2PICOS(clock1) ||
+		     KHZ2PICOS(to_match->clock) == KHZ2PICOS(clock2)) &&
+		    drm_mode_equal_no_clocks(to_match, cea_mode))
 			return mode + 1;
 	}
 	return 0;
