@@ -313,6 +313,12 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	hw_breakpoint_thread_switch(next);
 	contextidr_thread_switch(next);
 
+	/*
+	 * Complete any pending TLB or cache maintenance on this CPU in case
+	 * the thread migrates to a different CPU.
+	 */
+	dsb();
+
 	/* the actual thread switch */
 	last = cpu_switch_to(prev, next);
 
