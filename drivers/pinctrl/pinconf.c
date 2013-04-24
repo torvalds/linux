@@ -769,8 +769,8 @@ static int pinconf_dbg_config_write(struct file *file,
 	}
 
 	if (!found) {
-		goto exit;
 		count = -EINVAL;
+		goto exit;
 	}
 
 	if (pctldev)
