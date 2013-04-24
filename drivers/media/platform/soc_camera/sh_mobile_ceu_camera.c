@@ -996,7 +996,7 @@ static bool sh_mobile_ceu_packing_supported(const struct soc_mbus_pixelfmt *fmt)
 		 fmt->packing == SOC_MBUS_PACKING_EXTEND16);
 }
 
-static int client_g_rect(struct v4l2_subdev *sd, struct v4l2_rect *rect);
+static int soc_camera_client_g_rect(struct v4l2_subdev *sd, struct v4l2_rect *rect);
 
 static struct soc_camera_device *ctrl_to_icd(struct v4l2_ctrl *ctrl)
 {
@@ -1075,7 +1075,7 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 		/* FIXME: subwindow is lost between close / open */
 
 		/* Cache current client geometry */
-		ret = client_g_rect(sd, &rect);
+		ret = soc_camera_client_g_rect(sd, &rect);
 		if (ret < 0)
 			return ret;
 
@@ -1199,18 +1199,23 @@ static bool is_inside(const struct v4l2_rect *r1, const struct v4l2_rect *r2)
 		r1->top + r1->height < r2->top + r2->height;
 }
 
-static unsigned int scale_down(unsigned int size, unsigned int scale)
+static unsigned int soc_camera_shift_scale(unsigned int size, unsigned int shift,
+					   unsigned int scale)
 {
-	return (size * 4096 + scale / 2) / scale;
+	return ((size << shift) + scale / 2) / scale;
 }
 
-static unsigned int calc_generic_scale(unsigned int input, unsigned int output)
+static unsigned int soc_camera_calc_scale(unsigned int input, unsigned int shift,
+					  unsigned int output)
 {
-	return (input * 4096 + output / 2) / output;
+	return soc_camera_shift_scale(input, shift, output);
 }
+
+#define scale_down(size, scale) soc_camera_shift_scale(size, 12, scale)
+#define calc_generic_scale(in, out) soc_camera_shift_scale(in, 12, out)
 
 /* Get and store current client crop */
-static int client_g_rect(struct v4l2_subdev *sd, struct v4l2_rect *rect)
+static int soc_camera_client_g_rect(struct v4l2_subdev *sd, struct v4l2_rect *rect)
 {
 	struct v4l2_crop crop;
 	struct v4l2_cropcap cap;
@@ -1235,10 +1240,8 @@ static int client_g_rect(struct v4l2_subdev *sd, struct v4l2_rect *rect)
 }
 
 /* Client crop has changed, update our sub-rectangle to remain within the area */
-static void update_subrect(struct sh_mobile_ceu_cam *cam)
+static void update_subrect(struct v4l2_rect *rect, struct v4l2_rect *subrect)
 {
-	struct v4l2_rect *rect = &cam->rect, *subrect = &cam->subrect;
-
 	if (rect->width < subrect->width)
 		subrect->width = rect->width;
 
@@ -1266,19 +1269,18 @@ static void update_subrect(struct sh_mobile_ceu_cam *cam)
  * 2. if (1) failed, try to double the client image until we get one big enough
  * 3. if (2) failed, try to request the maximum image
  */
-static int client_s_crop(struct soc_camera_device *icd, struct v4l2_crop *crop,
-			 struct v4l2_crop *cam_crop)
+static int soc_camera_client_s_crop(struct v4l2_subdev *sd,
+			struct v4l2_crop *crop, struct v4l2_crop *cam_crop,
+			struct v4l2_rect *target_rect, struct v4l2_rect *subrect)
 {
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct v4l2_rect *rect = &crop->c, *cam_rect = &cam_crop->c;
 	struct device *dev = sd->v4l2_dev->dev;
-	struct sh_mobile_ceu_cam *cam = icd->host_priv;
 	struct v4l2_cropcap cap;
 	int ret;
 	unsigned int width, height;
 
 	v4l2_subdev_call(sd, video, s_crop, crop);
-	ret = client_g_rect(sd, cam_rect);
+	ret = soc_camera_client_g_rect(sd, cam_rect);
 	if (ret < 0)
 		return ret;
 
@@ -1290,7 +1292,7 @@ static int client_s_crop(struct soc_camera_device *icd, struct v4l2_crop *crop,
 		/* Even if camera S_CROP failed, but camera rectangle matches */
 		dev_dbg(dev, "Camera S_CROP successful for %dx%d@%d:%d\n",
 			rect->width, rect->height, rect->left, rect->top);
-		cam->rect = *cam_rect;
+		*target_rect = *cam_rect;
 		return 0;
 	}
 
@@ -1356,7 +1358,7 @@ static int client_s_crop(struct soc_camera_device *icd, struct v4l2_crop *crop,
 				cam_rect->top;
 
 		v4l2_subdev_call(sd, video, s_crop, cam_crop);
-		ret = client_g_rect(sd, cam_rect);
+		ret = soc_camera_client_g_rect(sd, cam_rect);
 		dev_geo(dev, "Camera S_CROP %d for %dx%d@%d:%d\n", ret,
 			cam_rect->width, cam_rect->height,
 			cam_rect->left, cam_rect->top);
@@ -1370,15 +1372,15 @@ static int client_s_crop(struct soc_camera_device *icd, struct v4l2_crop *crop,
 		 */
 		*cam_rect = cap.bounds;
 		v4l2_subdev_call(sd, video, s_crop, cam_crop);
-		ret = client_g_rect(sd, cam_rect);
+		ret = soc_camera_client_g_rect(sd, cam_rect);
 		dev_geo(dev, "Camera S_CROP %d for max %dx%d@%d:%d\n", ret,
 			cam_rect->width, cam_rect->height,
 			cam_rect->left, cam_rect->top);
 	}
 
 	if (!ret) {
-		cam->rect = *cam_rect;
-		update_subrect(cam);
+		*target_rect = *cam_rect;
+		update_subrect(target_rect, subrect);
 	}
 
 	return ret;
@@ -1386,15 +1388,13 @@ static int client_s_crop(struct soc_camera_device *icd, struct v4l2_crop *crop,
 
 /* Iterative s_mbus_fmt, also updates cached client crop on success */
 static int client_s_fmt(struct soc_camera_device *icd,
-			struct v4l2_mbus_framefmt *mf, bool ceu_can_scale)
+			struct v4l2_rect *rect, struct v4l2_rect *subrect,
+			unsigned int max_width, unsigned int max_height,
+			struct v4l2_mbus_framefmt *mf, bool host_can_scale)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	struct sh_mobile_ceu_cam *cam = icd->host_priv;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct device *dev = icd->parent;
 	unsigned int width = mf->width, height = mf->height, tmp_w, tmp_h;
-	unsigned int max_width, max_height;
 	struct v4l2_cropcap cap;
 	bool ceu_1to1;
 	int ret;
@@ -1414,7 +1414,7 @@ static int client_s_fmt(struct soc_camera_device *icd,
 	}
 
 	ceu_1to1 = false;
-	if (!ceu_can_scale)
+	if (!host_can_scale)
 		goto update_cache;
 
 	cap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -1423,8 +1423,10 @@ static int client_s_fmt(struct soc_camera_device *icd,
 	if (ret < 0)
 		return ret;
 
-	max_width = min(cap.bounds.width, pcdev->max_width);
-	max_height = min(cap.bounds.height, pcdev->max_height);
+	if (max_width > cap.bounds.width)
+		max_width = cap.bounds.width;
+	if (max_height > cap.bounds.height)
+		max_height = cap.bounds.height;
 
 	/* Camera set a format, but geometry is not precise, try to improve */
 	tmp_w = mf->width;
@@ -1451,29 +1453,36 @@ static int client_s_fmt(struct soc_camera_device *icd,
 
 update_cache:
 	/* Update cache */
-	ret = client_g_rect(sd, &cam->rect);
+	ret = soc_camera_client_g_rect(sd, rect);
 	if (ret < 0)
 		return ret;
 
 	if (ceu_1to1)
-		cam->subrect = cam->rect;
+		*subrect = *rect;
 	else
-		update_subrect(cam);
+		update_subrect(rect, subrect);
 
 	return 0;
 }
 
 /**
- * @width	- on output: user width, mapped back to input
- * @height	- on output: user height, mapped back to input
+ * @icd		- soc-camera device
+ * @rect	- camera cropping window
+ * @subrect	- part of rect, sent to the user
  * @mf		- in- / output camera output window
+ * @width	- on input: max host input width
+ *		  on output: user width, mapped back to input
+ * @height	- on input: max host input height
+ *		  on output: user height, mapped back to input
+ * @host_can_scale - host can scale this pixel format
+ * @shift	- shift, used for scaling
  */
-static int client_scale(struct soc_camera_device *icd,
+static int soc_camera_client_scale(struct soc_camera_device *icd,
+			struct v4l2_rect *rect, struct v4l2_rect *subrect,
 			struct v4l2_mbus_framefmt *mf,
 			unsigned int *width, unsigned int *height,
-			bool ceu_can_scale)
+			bool host_can_scale, unsigned int shift)
 {
-	struct sh_mobile_ceu_cam *cam = icd->host_priv;
 	struct device *dev = icd->parent;
 	struct v4l2_mbus_framefmt mf_tmp = *mf;
 	unsigned int scale_h, scale_v;
@@ -1483,7 +1492,8 @@ static int client_scale(struct soc_camera_device *icd,
 	 * 5. Apply iterative camera S_FMT for camera user window (also updates
 	 *    client crop cache and the imaginary sub-rectangle).
 	 */
-	ret = client_s_fmt(icd, &mf_tmp, ceu_can_scale);
+	ret = client_s_fmt(icd, rect, subrect, *width, *height,
+			   &mf_tmp, host_can_scale);
 	if (ret < 0)
 		return ret;
 
@@ -1495,8 +1505,8 @@ static int client_scale(struct soc_camera_device *icd,
 	/* unneeded - it is already in "mf_tmp" */
 
 	/* 7. Calculate new client scales. */
-	scale_h = calc_generic_scale(cam->rect.width, mf_tmp.width);
-	scale_v = calc_generic_scale(cam->rect.height, mf_tmp.height);
+	scale_h = soc_camera_calc_scale(rect->width, shift, mf_tmp.width);
+	scale_v = soc_camera_calc_scale(rect->height, shift, mf_tmp.height);
 
 	mf->width	= mf_tmp.width;
 	mf->height	= mf_tmp.height;
@@ -1506,8 +1516,8 @@ static int client_scale(struct soc_camera_device *icd,
 	 * 8. Calculate new CEU crop - apply camera scales to previously
 	 *    updated "effective" crop.
 	 */
-	*width = scale_down(cam->subrect.width, scale_h);
-	*height = scale_down(cam->subrect.height, scale_v);
+	*width = soc_camera_shift_scale(subrect->width, shift, scale_h);
+	*height = soc_camera_shift_scale(subrect->height, shift, scale_v);
 
 	dev_geo(dev, "8: new client sub-window %ux%u\n", *width, *height);
 
@@ -1550,7 +1560,8 @@ static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
 	 * 1. - 2. Apply iterative camera S_CROP for new input window, read back
 	 * actual camera rectangle.
 	 */
-	ret = client_s_crop(icd, &a_writable, &cam_crop);
+	ret = soc_camera_client_s_crop(sd, &a_writable, &cam_crop,
+				       &cam->rect, &cam->subrect);
 	if (ret < 0)
 		return ret;
 
@@ -1674,16 +1685,16 @@ static int sh_mobile_ceu_get_crop(struct soc_camera_device *icd,
  * client crop. New scales are calculated from the requested output format and
  * CEU crop, mapped backed onto the client input (subrect).
  */
-static void calculate_client_output(struct soc_camera_device *icd,
-		const struct v4l2_pix_format *pix, struct v4l2_mbus_framefmt *mf)
+static void soc_camera_calc_client_output(struct soc_camera_device *icd,
+		struct v4l2_rect *rect, struct v4l2_rect *subrect,
+		const struct v4l2_pix_format *pix, struct v4l2_mbus_framefmt *mf,
+		unsigned int shift)
 {
-	struct sh_mobile_ceu_cam *cam = icd->host_priv;
 	struct device *dev = icd->parent;
-	struct v4l2_rect *cam_subrect = &cam->subrect;
 	unsigned int scale_v, scale_h;
 
-	if (cam_subrect->width == cam->rect.width &&
-	    cam_subrect->height == cam->rect.height) {
+	if (subrect->width == rect->width &&
+	    subrect->height == rect->height) {
 		/* No sub-cropping */
 		mf->width	= pix->width;
 		mf->height	= pix->height;
@@ -1693,8 +1704,8 @@ static void calculate_client_output(struct soc_camera_device *icd,
 	/* 1.-2. Current camera scales and subwin - cached. */
 
 	dev_geo(dev, "2: subwin %ux%u@%u:%u\n",
-		cam_subrect->width, cam_subrect->height,
-		cam_subrect->left, cam_subrect->top);
+		subrect->width, subrect->height,
+		subrect->left, subrect->top);
 
 	/*
 	 * 3. Calculate new combined scales from input sub-window to requested
@@ -1705,8 +1716,8 @@ static void calculate_client_output(struct soc_camera_device *icd,
 	 * TODO: CEU cannot scale images larger than VGA to smaller than SubQCIF
 	 * (128x96) or larger than VGA
 	 */
-	scale_h = calc_generic_scale(cam_subrect->width, pix->width);
-	scale_v = calc_generic_scale(cam_subrect->height, pix->height);
+	scale_h = soc_camera_calc_scale(subrect->width, shift, pix->width);
+	scale_v = soc_camera_calc_scale(subrect->height, shift, pix->height);
 
 	dev_geo(dev, "3: scales %u:%u\n", scale_h, scale_v);
 
@@ -1714,8 +1725,8 @@ static void calculate_client_output(struct soc_camera_device *icd,
 	 * 4. Calculate desired client output window by applying combined scales
 	 *    to client (real) input window.
 	 */
-	mf->width	= scale_down(cam->rect.width, scale_h);
-	mf->height	= scale_down(cam->rect.height, scale_v);
+	mf->width = soc_camera_shift_scale(rect->width, shift, scale_h);
+	mf->height = soc_camera_shift_scale(rect->height, shift, scale_v);
 }
 
 /* Similar to set_crop multistage iterative algorithm */
@@ -1730,8 +1741,8 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 	struct v4l2_mbus_framefmt mf;
 	__u32 pixfmt = pix->pixelformat;
 	const struct soc_camera_format_xlate *xlate;
-	/* Keep Compiler Happy */
-	unsigned int ceu_sub_width = 0, ceu_sub_height = 0;
+	unsigned int ceu_sub_width = pcdev->max_width,
+		ceu_sub_height = pcdev->max_height;
 	u16 scale_v, scale_h;
 	int ret;
 	bool image_mode;
@@ -1758,7 +1769,7 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 	}
 
 	/* 1.-4. Calculate desired client output geometry */
-	calculate_client_output(icd, pix, &mf);
+	soc_camera_calc_client_output(icd, &cam->rect, &cam->subrect, pix, &mf, 12);
 	mf.field	= pix->field;
 	mf.colorspace	= pix->colorspace;
 	mf.code		= xlate->code;
@@ -1780,8 +1791,9 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 	dev_geo(dev, "4: request camera output %ux%u\n", mf.width, mf.height);
 
 	/* 5. - 9. */
-	ret = client_scale(icd, &mf, &ceu_sub_width, &ceu_sub_height,
-			   image_mode && V4L2_FIELD_NONE == field);
+	ret = soc_camera_client_scale(icd, &cam->rect, &cam->subrect,
+				&mf, &ceu_sub_width, &ceu_sub_height,
+				image_mode && V4L2_FIELD_NONE == field, 12);
 
 	dev_geo(dev, "5-9: client scale return %d\n", ret);
 
