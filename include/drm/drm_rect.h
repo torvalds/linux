@@ -128,5 +128,17 @@ bool drm_rect_intersect(struct drm_rect *r, const struct drm_rect *clip);
 bool drm_rect_clip_scaled(struct drm_rect *src, struct drm_rect *dst,
 			  const struct drm_rect *clip,
 			  int hscale, int vscale);
+int drm_rect_calc_hscale(const struct drm_rect *src,
+			 const struct drm_rect *dst,
+			 int min_hscale, int max_hscale);
+int drm_rect_calc_vscale(const struct drm_rect *src,
+			 const struct drm_rect *dst,
+			 int min_vscale, int max_vscale);
+int drm_rect_calc_hscale_relaxed(struct drm_rect *src,
+				 struct drm_rect *dst,
+				 int min_hscale, int max_hscale);
+int drm_rect_calc_vscale_relaxed(struct drm_rect *src,
+				 struct drm_rect *dst,
+				 int min_vscale, int max_vscale);
 
 #endif
