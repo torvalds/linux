@@ -5596,7 +5596,13 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	}
 
 	refs = btrfs_extent_refs(leaf, ei);
-	BUG_ON(refs < refs_to_drop);
+	if (refs < refs_to_drop) {
+		btrfs_err(info, "trying to drop %d refs but we only have %Lu "
+			  "for bytenr %Lu\n", refs_to_drop, refs, bytenr);
+		ret = -EINVAL;
+		btrfs_abort_transaction(trans, extent_root, ret);
+		goto out;
+	}
 	refs -= refs_to_drop;
 
 	if (refs > 0) {
