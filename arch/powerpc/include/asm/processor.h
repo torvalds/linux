@@ -404,9 +404,7 @@ static inline void prefetchw(const void *x)
 
 #define spin_lock_prefetch(x)	prefetchw(x)
 
-#ifdef CONFIG_PPC64
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
-#endif
 
 #ifdef CONFIG_PPC64
 static inline unsigned long get_clean_sp(unsigned long sp, int is_32)
