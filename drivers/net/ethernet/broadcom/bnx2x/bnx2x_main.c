@@ -7786,7 +7786,7 @@ int bnx2x_alloc_mem_cnic(struct bnx2x *bp)
 				sizeof(struct
 				       host_hc_status_block_e1x));
 
-	if (CONFIGURE_NIC_MODE(bp))
+	if (CONFIGURE_NIC_MODE(bp) && !bp->t2)
 		/* allocate searcher T2 table, as it wan't allocated before */
 		BNX2X_PCI_ALLOC(bp->t2, &bp->t2_mapping, SRC_T2_SZ);
 
@@ -7809,7 +7809,7 @@ int bnx2x_alloc_mem(struct bnx2x *bp)
 {
 	int i, allocated, context_size;
 
-	if (!CONFIGURE_NIC_MODE(bp))
+	if (!CONFIGURE_NIC_MODE(bp) && !bp->t2)
 		/* allocate searcher T2 table */
 		BNX2X_PCI_ALLOC(bp->t2, &bp->t2_mapping, SRC_T2_SZ);
 

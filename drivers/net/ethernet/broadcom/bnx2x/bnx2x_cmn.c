@@ -2934,9 +2934,9 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link)
 		bnx2x_free_fp_mem_cnic(bp);
 
 	if (IS_PF(bp)) {
-		bnx2x_free_mem(bp);
 		if (CNIC_LOADED(bp))
 			bnx2x_free_mem_cnic(bp);
+		bnx2x_free_mem(bp);
 	}
 	bp->state = BNX2X_STATE_CLOSED;
 	bp->cnic_loaded = false;
