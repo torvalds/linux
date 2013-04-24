@@ -30,7 +30,6 @@
  */
 #define ATMEL_LCDC_WIRING_BGR	0
 #define ATMEL_LCDC_WIRING_RGB	1
-#define ATMEL_LCDC_WIRING_RGB555	2
 
 
  /* LCD Controller info data structure, stored in device platform_data */
@@ -62,6 +61,7 @@ struct atmel_lcdfb_info {
 	void (*atmel_lcdfb_power_control)(int on);
 	struct fb_monspecs	*default_monspecs;
 	u32			pseudo_palette[16];
+	bool			have_intensity_bit;
 };
 
 #define ATMEL_LCDC_DMABADDR1	0x00

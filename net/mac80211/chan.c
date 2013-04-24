@@ -63,6 +63,7 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 		      enum ieee80211_chanctx_mode mode)
 {
 	struct ieee80211_chanctx *ctx;
+	u32 changed;
 	int err;
 
 	lockdep_assert_held(&local->chanctx_mtx);
@@ -76,6 +77,13 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 	ctx->conf.rx_chains_dynamic = 1;
 	ctx->mode = mode;
 
+	/* acquire mutex to prevent idle from changing */
+	mutex_lock(&local->mtx);
+	/* turn idle off *before* setting channel -- some drivers need that */
+	changed = ieee80211_idle_off(local);
+	if (changed)
+		ieee80211_hw_config(local, changed);
+
 	if (!local->use_chanctx) {
 		local->_oper_channel_type =
 			cfg80211_get_chandef_type(chandef);
@@ -85,14 +93,17 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 		err = drv_add_chanctx(local, ctx);
 		if (err) {
 			kfree(ctx);
-			return ERR_PTR(err);
+			ctx = ERR_PTR(err);
+
+			ieee80211_recalc_idle(local);
+			goto out;
 		}
 	}
 
+	/* and keep the mutex held until the new chanctx is on the list */
 	list_add_rcu(&ctx->list, &local->chanctx_list);
 
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(local);
+ out:
 	mutex_unlock(&local->mtx);
 
 	return ctx;

@@ -20,6 +20,7 @@
 #include <linux/irqdomain.h>
 #include <linux/list.h>
 #include <linux/regmap.h>
+#include <linux/mfd/wm831x/auxadc.h>
 
 /*
  * Register values.
@@ -355,7 +356,6 @@ enum wm831x_parent {
 };
 
 struct wm831x;
-enum wm831x_auxadc;
 
 typedef int (*wm831x_auxadc_read_fn)(struct wm831x *wm831x,
 				     enum wm831x_auxadc input);

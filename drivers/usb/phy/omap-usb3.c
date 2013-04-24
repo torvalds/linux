@@ -212,11 +212,9 @@ static int omap_usb3_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pll_ctrl");
-	phy->pll_ctrl_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!phy->pll_ctrl_base) {
-		dev_err(&pdev->dev, "ioremap of pll_ctrl failed\n");
-		return -ENOMEM;
-	}
+	phy->pll_ctrl_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(phy->pll_ctrl_base))
+		return PTR_ERR(phy->pll_ctrl_base);
 
 	phy->dev		= &pdev->dev;
 

@@ -236,7 +236,8 @@ static int gic_retrigger(struct irq_data *d)
 	if (gic_arch_extn.irq_retrigger)
 		return gic_arch_extn.irq_retrigger(d);
 
-	return -ENXIO;
+	/* the genirq layer expects 0 if we can't retrigger in hardware */
+	return 0;
 }
 
 #ifdef CONFIG_SMP
@@ -648,7 +649,7 @@ void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 
 	/* Convert our logical CPU mask into a physical one. */
 	for_each_cpu(cpu, mask)
-		map |= 1 << cpu_logical_map(cpu);
+		map |= gic_cpu_map[cpu];
 
 	/*
 	 * Ensure that stores to Normal memory are visible to the

@@ -571,6 +571,8 @@ static void __init setup_memory_end(void)
 
 	/* Split remaining virtual space between 1:1 mapping & vmemmap array */
 	tmp = VMALLOC_START / (PAGE_SIZE + sizeof(struct page));
+	/* vmemmap contains a multiple of PAGES_PER_SECTION struct pages */
+	tmp = SECTION_ALIGN_UP(tmp);
 	tmp = VMALLOC_START - tmp * sizeof(struct page);
 	tmp &= ~((vmax >> 11) - 1);	/* align to page table level */
 	tmp = min(tmp, 1UL << MAX_PHYSMEM_BITS);

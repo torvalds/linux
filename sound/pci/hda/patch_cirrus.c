@@ -168,10 +168,10 @@ static void cs_automute(struct hda_codec *codec)
 	snd_hda_gen_update_outputs(codec);
 
 	if (spec->gpio_eapd_hp) {
-		unsigned int gpio = spec->gen.hp_jack_present ?
+		spec->gpio_data = spec->gen.hp_jack_present ?
 			spec->gpio_eapd_hp : spec->gpio_eapd_speaker;
 		snd_hda_codec_write(codec, 0x01, 0,
-				    AC_VERB_SET_GPIO_DATA, gpio);
+				    AC_VERB_SET_GPIO_DATA, spec->gpio_data);
 	}
 }
 
@@ -505,6 +505,8 @@ static int patch_cs420x(struct hda_codec *codec)
 	spec = cs_alloc_spec(codec, CS420X_VENDOR_NID);
 	if (!spec)
 		return -ENOMEM;
+
+	spec->gen.automute_hook = cs_automute;
 
 	snd_hda_pick_fixup(codec, cs420x_models, cs420x_fixup_tbl,
 			   cs420x_fixups);
@@ -892,6 +894,8 @@ static int patch_cs4210(struct hda_codec *codec)
 	spec = cs_alloc_spec(codec, CS4210_VENDOR_NID);
 	if (!spec)
 		return -ENOMEM;
+
+	spec->gen.automute_hook = cs_automute;
 
 	snd_hda_pick_fixup(codec, cs421x_models, cs421x_fixup_tbl,
 			   cs421x_fixups);

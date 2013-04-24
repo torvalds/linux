@@ -798,6 +798,10 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 	}
 
 	mnt->mnt.mnt_flags = old->mnt.mnt_flags & ~MNT_WRITE_HOLD;
+	/* Don't allow unprivileged users to change mount flags */
+	if ((flag & CL_UNPRIVILEGED) && (mnt->mnt.mnt_flags & MNT_READONLY))
+		mnt->mnt.mnt_flags |= MNT_LOCK_READONLY;
+
 	atomic_inc(&sb->s_active);
 	mnt->mnt.mnt_sb = sb;
 	mnt->mnt.mnt_root = dget(root);
@@ -1686,7 +1690,7 @@ static int do_loopback(struct path *path, const char *old_name,
 
 	if (IS_ERR(mnt)) {
 		err = PTR_ERR(mnt);
-		goto out;
+		goto out2;
 	}
 
 	err = graft_tree(mnt, path);
@@ -1712,6 +1716,9 @@ static int change_mount_flags(struct vfsmount *mnt, int ms_flags)
 		readonly_request = 1;
 	if (readonly_request == __mnt_is_readonly(mnt))
 		return 0;
+
+	if (mnt->mnt_flags & MNT_LOCK_READONLY)
+		return -EPERM;
 
 	if (readonly_request)
 		error = mnt_make_readonly(real_mount(mnt));
@@ -2339,7 +2346,7 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 	/* First pass: copy the tree topology */
 	copy_flags = CL_COPY_ALL | CL_EXPIRE;
 	if (user_ns != mnt_ns->user_ns)
-		copy_flags |= CL_SHARED_TO_SLAVE;
+		copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;
 	new = copy_tree(old, old->mnt.mnt_root, copy_flags);
 	if (IS_ERR(new)) {
 		up_write(&namespace_sem);
@@ -2730,6 +2737,51 @@ EXPORT_SYMBOL(kern_unmount);
 bool our_mnt(struct vfsmount *mnt)
 {
 	return check_mnt(real_mount(mnt));
+}
+
+bool current_chrooted(void)
+{
+	/* Does the current process have a non-standard root */
+	struct path ns_root;
+	struct path fs_root;
+	bool chrooted;
+
+	/* Find the namespace root */
+	ns_root.mnt = &current->nsproxy->mnt_ns->root->mnt;
+	ns_root.dentry = ns_root.mnt->mnt_root;
+	path_get(&ns_root);
+	while (d_mountpoint(ns_root.dentry) && follow_down_one(&ns_root))
+		;
+
+	get_fs_root(current->fs, &fs_root);
+
+	chrooted = !path_equal(&fs_root, &ns_root);
+
+	path_put(&fs_root);
+	path_put(&ns_root);
+
+	return chrooted;
+}
+
+void update_mnt_policy(struct user_namespace *userns)
+{
+	struct mnt_namespace *ns = current->nsproxy->mnt_ns;
+	struct mount *mnt;
+
+	down_read(&namespace_sem);
+	list_for_each_entry(mnt, &ns->list, mnt_list) {
+		switch (mnt->mnt.mnt_sb->s_magic) {
+		case SYSFS_MAGIC:
+			userns->may_mount_sysfs = true;
+			break;
+		case PROC_SUPER_MAGIC:
+			userns->may_mount_proc = true;
+			break;
+		}
+		if (userns->may_mount_sysfs && userns->may_mount_proc)
+			break;
+	}
+	up_read(&namespace_sem);
 }
 
 static void *mntns_get(struct task_struct *task)

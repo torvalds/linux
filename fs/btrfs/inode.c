@@ -353,6 +353,7 @@ static noinline int compress_file_range(struct inode *inode,
 	int i;
 	int will_compress;
 	int compress_type = root->fs_info->compress_type;
+	int redirty = 0;
 
 	/* if this is a small write inside eof, kick off a defrag */
 	if ((end - start + 1) < 16 * 1024 &&
@@ -415,6 +416,17 @@ again:
 		if (BTRFS_I(inode)->force_compress)
 			compress_type = BTRFS_I(inode)->force_compress;
 
+		/*
+		 * we need to call clear_page_dirty_for_io on each
+		 * page in the range.  Otherwise applications with the file
+		 * mmap'd can wander in and change the page contents while
+		 * we are compressing them.
+		 *
+		 * If the compression fails for any reason, we set the pages
+		 * dirty again later on.
+		 */
+		extent_range_clear_dirty_for_io(inode, start, end);
+		redirty = 1;
 		ret = btrfs_compress_pages(compress_type,
 					   inode->i_mapping, start,
 					   total_compressed, pages,
@@ -554,6 +566,8 @@ cleanup_and_bail_uncompressed:
 			__set_page_dirty_nobuffers(locked_page);
 			/* unlocked later on in the async handlers */
 		}
+		if (redirty)
+			extent_range_redirty_for_io(inode, start, end);
 		add_async_extent(async_cow, start, end - start + 1,
 				 0, NULL, 0, BTRFS_COMPRESS_NONE);
 		*num_added += 1;
@@ -1743,8 +1757,10 @@ static noinline int add_pending_csums(struct btrfs_trans_handle *trans,
 	struct btrfs_ordered_sum *sum;
 
 	list_for_each_entry(sum, list, list) {
+		trans->adding_csums = 1;
 		btrfs_csum_file_blocks(trans,
 		       BTRFS_I(inode)->root->fs_info->csum_root, sum);
+		trans->adding_csums = 0;
 	}
 	return 0;
 }
@@ -2312,6 +2328,7 @@ again:
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = start;
 
+	path->leave_spinning = 1;
 	if (merge) {
 		struct btrfs_file_extent_item *fi;
 		u64 extent_len;
@@ -2368,6 +2385,7 @@ again:
 
 	btrfs_mark_buffer_dirty(leaf);
 	inode_add_bytes(inode, len);
+	btrfs_release_path(path);
 
 	ret = btrfs_inc_extent_ref(trans, root, new->bytenr,
 			new->disk_len, 0,
@@ -2381,6 +2399,7 @@ again:
 	ret = 1;
 out_free_path:
 	btrfs_release_path(path);
+	path->leave_spinning = 0;
 	btrfs_end_transaction(trans, root);
 out_unlock:
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, lock_start, lock_end,
@@ -3676,11 +3695,9 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 	 * 1 for the dir item
 	 * 1 for the dir index
 	 * 1 for the inode ref
-	 * 1 for the inode ref in the tree log
-	 * 2 for the dir entries in the log
 	 * 1 for the inode
 	 */
-	trans = btrfs_start_transaction(root, 8);
+	trans = btrfs_start_transaction(root, 5);
 	if (!IS_ERR(trans) || PTR_ERR(trans) != -ENOSPC)
 		return trans;
 
@@ -8124,7 +8141,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * inodes.  So 5 * 2 is 10, plus 1 for the new link, so 11 total items
 	 * should cover the worst case number of items we'll modify.
 	 */
-	trans = btrfs_start_transaction(root, 20);
+	trans = btrfs_start_transaction(root, 11);
 	if (IS_ERR(trans)) {
                 ret = PTR_ERR(trans);
                 goto out_notrans;

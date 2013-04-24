@@ -2549,7 +2549,7 @@ static int snd_asihpi_sampleclock_add(struct snd_card_asihpi *asihpi,
 
 static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 {
-	struct snd_card *card = asihpi->card;
+	struct snd_card *card;
 	unsigned int idx = 0;
 	unsigned int subindex = 0;
 	int err;
@@ -2557,6 +2557,7 @@ static int snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 
 	if (snd_BUG_ON(!asihpi))
 		return -EINVAL;
+	card = asihpi->card;
 	strcpy(card->mixername, "Asihpi Mixer");
 
 	err =

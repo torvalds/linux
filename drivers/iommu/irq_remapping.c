@@ -2,7 +2,6 @@
 #include <linux/cpumask.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/cpumask.h>
 #include <linux/errno.h>
 #include <linux/msi.h>
 #include <linux/irq.h>

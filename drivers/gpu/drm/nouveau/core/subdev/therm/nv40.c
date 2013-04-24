@@ -29,53 +29,82 @@ struct nv40_therm_priv {
 	struct nouveau_therm_priv base;
 };
 
-static int
-nv40_sensor_setup(struct nouveau_therm *therm)
+enum nv40_sensor_style { INVALID_STYLE = -1, OLD_STYLE = 0, NEW_STYLE = 1 };
+
+static enum nv40_sensor_style
+nv40_sensor_style(struct nouveau_therm *therm)
 {
 	struct nouveau_device *device = nv_device(therm);
 
+	switch (device->chipset) {
+	case 0x43:
+	case 0x44:
+	case 0x4a:
+	case 0x47:
+		return OLD_STYLE;
+
+	case 0x46:
+	case 0x49:
+	case 0x4b:
+	case 0x4e:
+	case 0x4c:
+	case 0x67:
+	case 0x68:
+	case 0x63:
+		return NEW_STYLE;
+	default:
+		return INVALID_STYLE;
+	}
+}
+
+static int
+nv40_sensor_setup(struct nouveau_therm *therm)
+{
+	enum nv40_sensor_style style = nv40_sensor_style(therm);
+
 	/* enable ADC readout and disable the ALARM threshold */
-	if (device->chipset >= 0x46) {
+	if (style == NEW_STYLE) {
 		nv_mask(therm, 0x15b8, 0x80000000, 0);
 		nv_wr32(therm, 0x15b0, 0x80003fff);
-		mdelay(10); /* wait for the temperature to stabilize */
+		mdelay(20); /* wait for the temperature to stabilize */
 		return nv_rd32(therm, 0x15b4) & 0x3fff;
-	} else {
+	} else if (style == OLD_STYLE) {
 		nv_wr32(therm, 0x15b0, 0xff);
+		mdelay(20); /* wait for the temperature to stabilize */
 		return nv_rd32(therm, 0x15b4) & 0xff;
-	}
+	} else
+		return -ENODEV;
 }
 
 static int
 nv40_temp_get(struct nouveau_therm *therm)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
-	struct nouveau_device *device = nv_device(therm);
 	struct nvbios_therm_sensor *sensor = &priv->bios_sensor;
+	enum nv40_sensor_style style = nv40_sensor_style(therm);
 	int core_temp;
 
-	if (device->chipset >= 0x46) {
+	if (style == NEW_STYLE) {
 		nv_wr32(therm, 0x15b0, 0x80003fff);
 		core_temp = nv_rd32(therm, 0x15b4) & 0x3fff;
-	} else {
+	} else if (style == OLD_STYLE) {
 		nv_wr32(therm, 0x15b0, 0xff);
 		core_temp = nv_rd32(therm, 0x15b4) & 0xff;
-	}
+	} else
+		return -ENODEV;
 
-	/* Setup the sensor if the temperature is 0 */
-	if (core_temp == 0)
-		core_temp = nv40_sensor_setup(therm);
-
-	if (sensor->slope_div == 0)
-		sensor->slope_div = 1;
-	if (sensor->offset_den == 0)
-		sensor->offset_den = 1;
-	if (sensor->slope_mult < 1)
-		sensor->slope_mult = 1;
+	/* if the slope or the offset is unset, do no use the sensor */
+	if (!sensor->slope_div || !sensor->slope_mult ||
+	    !sensor->offset_num || !sensor->offset_den)
+	    return -ENODEV;
 
 	core_temp = core_temp * sensor->slope_mult / sensor->slope_div;
 	core_temp = core_temp + sensor->offset_num / sensor->offset_den;
 	core_temp = core_temp + sensor->offset_constant - 8;
+
+	/* reserve negative temperatures for errors */
+	if (core_temp < 0)
+		core_temp = 0;
 
 	return core_temp;
 }

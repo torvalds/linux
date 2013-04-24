@@ -335,9 +335,9 @@ struct ext4_group_desc
  */
 
 struct flex_groups {
-	atomic_t free_inodes;
-	atomic_t free_clusters;
-	atomic_t used_dirs;
+	atomic64_t	free_clusters;
+	atomic_t	free_inodes;
+	atomic_t	used_dirs;
 };
 
 #define EXT4_BG_INODE_UNINIT	0x0001 /* Inode table/bitmap not in use */
@@ -2617,7 +2617,7 @@ extern int ext4_move_extents(struct file *o_filp, struct file *d_filp,
 extern int __init ext4_init_pageio(void);
 extern void ext4_add_complete_io(ext4_io_end_t *io_end);
 extern void ext4_exit_pageio(void);
-extern void ext4_ioend_wait(struct inode *);
+extern void ext4_ioend_shutdown(struct inode *);
 extern void ext4_free_io_end(ext4_io_end_t *io);
 extern ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags);
 extern void ext4_end_io_work(struct work_struct *work);

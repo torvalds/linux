@@ -2614,6 +2614,9 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 			}
 		}
 
+		/* initialize FW coalescing state machines in RAM */
+		bnx2x_update_coalesce(bp);
+
 		/* setup the leading queue */
 		rc = bnx2x_setup_leading(bp);
 		if (rc) {
@@ -2760,6 +2763,7 @@ load_error2:
 	bp->port.pmf = 0;
 load_error1:
 	bnx2x_napi_disable(bp);
+	bnx2x_del_all_napi(bp);
 
 	/* clear pf_load status, as it was already set */
 	if (IS_PF(bp))
@@ -4579,11 +4583,11 @@ static void storm_memset_hc_disable(struct bnx2x *bp, u8 port,
 	u32 enable_flag = disable ? 0 : (1 << HC_INDEX_DATA_HC_ENABLED_SHIFT);
 	u32 addr = BAR_CSTRORM_INTMEM +
 		   CSTORM_STATUS_BLOCK_DATA_FLAGS_OFFSET(fw_sb_id, sb_index);
-	u16 flags = REG_RD16(bp, addr);
+	u8 flags = REG_RD8(bp, addr);
 	/* clear and set */
 	flags &= ~HC_INDEX_DATA_HC_ENABLED;
 	flags |= enable_flag;
-	REG_WR16(bp, addr, flags);
+	REG_WR8(bp, addr, flags);
 	DP(NETIF_MSG_IFUP,
 	   "port %x fw_sb_id %d sb_index %d disable %d\n",
 	   port, fw_sb_id, sb_index, disable);

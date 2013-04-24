@@ -26,16 +26,16 @@ ENDPROC(v7_secondary_startup)
 
 #ifdef CONFIG_PM
 /*
- * The following code is located into the .data section.  This is to
- * allow phys_l2x0_saved_regs to be accessed with a relative load
- * as we are running on physical address here.
+ * The following code must assume it is running from physical address
+ * where absolute virtual addresses to the data section have to be
+ * turned into relative ones.
  */
-	.data
-	.align
 
 #ifdef CONFIG_CACHE_L2X0
 	.macro	pl310_resume
-	ldr	r2, phys_l2x0_saved_regs
+	adr	r0, l2x0_saved_regs_offset
+	ldr	r2, [r0]
+	add	r2, r2, r0
 	ldr	r0, [r2, #L2X0_R_PHY_BASE]	@ get physical base of l2x0
 	ldr	r1, [r2, #L2X0_R_AUX_CTRL]	@ get aux_ctrl value
 	str	r1, [r0, #L2X0_AUX_CTRL]	@ restore aux_ctrl
@@ -43,9 +43,9 @@ ENDPROC(v7_secondary_startup)
 	str	r1, [r0, #L2X0_CTRL]		@ re-enable L2
 	.endm
 
-	.globl	phys_l2x0_saved_regs
-phys_l2x0_saved_regs:
-        .long   0
+l2x0_saved_regs_offset:
+	.word	l2x0_saved_regs - .
+
 #else
 	.macro	pl310_resume
 	.endm

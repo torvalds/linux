@@ -193,7 +193,7 @@ static void of_gpiochip_add_pin_range(struct gpio_chip *chip)
 	if (!np)
 		return;
 
-	do {
+	for (;; index++) {
 		ret = of_parse_phandle_with_args(np, "gpio-ranges",
 				"#gpio-range-cells", index, &pinspec);
 		if (ret)
@@ -222,8 +222,7 @@ static void of_gpiochip_add_pin_range(struct gpio_chip *chip)
 
 		if (ret)
 			break;
-
-	} while (index++);
+	}
 }
 
 #else
