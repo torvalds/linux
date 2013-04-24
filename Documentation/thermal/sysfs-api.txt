@@ -31,15 +31,17 @@ temperature) and throttle appropriate devices.
 1. thermal sysfs driver interface functions
 
 1.1 thermal zone device interface
-1.1.1 struct thermal_zone_device *thermal_zone_device_register(char *name,
+1.1.1 struct thermal_zone_device *thermal_zone_device_register(char *type,
 		int trips, int mask, void *devdata,
-		struct thermal_zone_device_ops *ops)
+		struct thermal_zone_device_ops *ops,
+		const struct thermal_zone_params *tzp,
+		int passive_delay, int polling_delay))
 
     This interface function adds a new thermal zone device (sensor) to
     /sys/class/thermal folder as thermal_zone[0-*]. It tries to bind all the
     thermal cooling devices registered at the same time.
 
-    name: the thermal zone name.
+    type: the thermal zone type.
     trips: the total number of trip points this thermal zone supports.
     mask: Bit string: If 'n'th bit is set, then trip point 'n' is writeable.
     devdata: device private data
@@ -57,6 +59,12 @@ temperature) and throttle appropriate devices.
 			will be fired.
 	.set_emul_temp: set the emulation temperature which helps in debugging
 			different threshold temperature points.
+    tzp: thermal zone platform parameters.
+    passive_delay: number of milliseconds to wait between polls when
+	performing passive cooling.
+    polling_delay: number of milliseconds to wait between polls when checking
+	whether trip points have been crossed (0 for interrupt driven systems).
+
 
 1.1.2 void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 
