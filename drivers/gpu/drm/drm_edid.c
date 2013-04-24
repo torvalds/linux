@@ -2511,6 +2511,65 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 EXPORT_SYMBOL(drm_edid_to_eld);
 
 /**
+ * drm_edid_to_sad - extracts SADs from EDID
+ * @edid: EDID to parse
+ * @sads: pointer that will be set to the extracted SADs
+ *
+ * Looks for CEA EDID block and extracts SADs (Short Audio Descriptors) from it.
+ * Note: returned pointer needs to be kfreed
+ *
+ * Return number of found SADs or negative number on error.
+ */
+int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads)
+{
+	int count = 0;
+	int i, start, end, dbl;
+	u8 *cea;
+
+	cea = drm_find_cea_extension(edid);
+	if (!cea) {
+		DRM_DEBUG_KMS("SAD: no CEA Extension found\n");
+		return -ENOENT;
+	}
+
+	if (cea_revision(cea) < 3) {
+		DRM_DEBUG_KMS("SAD: wrong CEA revision\n");
+		return -ENOTSUPP;
+	}
+
+	if (cea_db_offsets(cea, &start, &end)) {
+		DRM_DEBUG_KMS("SAD: invalid data block offsets\n");
+		return -EPROTO;
+	}
+
+	for_each_cea_db(cea, i, start, end) {
+		u8 *db = &cea[i];
+
+		if (cea_db_tag(db) == AUDIO_BLOCK) {
+			int j;
+			dbl = cea_db_payload_len(db);
+
+			count = dbl / 3; /* SAD is 3B */
+			*sads = kcalloc(count, sizeof(**sads), GFP_KERNEL);
+			if (!*sads)
+				return -ENOMEM;
+			for (j = 0; j < count; j++) {
+				u8 *sad = &db[1 + j * 3];
+
+				(*sads)[j].format = (sad[0] & 0x78) >> 3;
+				(*sads)[j].channels = sad[0] & 0x7;
+				(*sads)[j].freq = sad[1] & 0x7F;
+				(*sads)[j].byte2 = sad[2];
+			}
+			break;
+		}
+	}
+
+	return count;
+}
+EXPORT_SYMBOL(drm_edid_to_sad);
+
+/**
  * drm_av_sync_delay - HDMI/DP sink audio-video sync delay in millisecond
  * @connector: connector associated with the HDMI/DP sink
  * @mode: the display mode

@@ -549,6 +549,10 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		r = radeon_cs_handle_lockup(rdev, r);
 		return r;
 	}
+
+	if (parser.ring == R600_RING_TYPE_UVD_INDEX)
+		radeon_uvd_note_usage(rdev);
+
 	r = radeon_cs_ib_chunk(rdev, &parser);
 	if (r) {
 		goto out;

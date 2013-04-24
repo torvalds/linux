@@ -303,8 +303,10 @@ void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save)
 			tmp = RREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i]);
 			if (!(tmp & AVIVO_CRTC_DISP_READ_REQUEST_DISABLE)) {
 				radeon_wait_for_vblank(rdev, i);
+				WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
 				tmp |= AVIVO_CRTC_DISP_READ_REQUEST_DISABLE;
 				WREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i], tmp);
+				WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
 			}
 			/* wait for the next frame */
 			frame_count = radeon_get_vblank_counter(rdev, i);
@@ -313,6 +315,15 @@ void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save)
 					break;
 				udelay(1);
 			}
+
+			/* XXX this is a hack to avoid strange behavior with EFI on certain systems */
+			WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
+			tmp = RREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i]);
+			tmp &= ~AVIVO_CRTC_EN;
+			WREG32(AVIVO_D1CRTC_CONTROL + crtc_offsets[i], tmp);
+			WREG32(AVIVO_D1CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
+			save->crtc_enabled[i] = false;
+			/* ***** */
 		} else {
 			save->crtc_enabled[i] = false;
 		}
@@ -338,6 +349,22 @@ void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save)
 	}
 	/* wait for the MC to settle */
 	udelay(100);
+
+	/* lock double buffered regs */
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (save->crtc_enabled[i]) {
+			tmp = RREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i]);
+			if (!(tmp & AVIVO_D1GRPH_UPDATE_LOCK)) {
+				tmp |= AVIVO_D1GRPH_UPDATE_LOCK;
+				WREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i], tmp);
+			}
+			tmp = RREG32(AVIVO_D1MODE_MASTER_UPDATE_LOCK + crtc_offsets[i]);
+			if (!(tmp & 1)) {
+				tmp |= 1;
+				WREG32(AVIVO_D1MODE_MASTER_UPDATE_LOCK + crtc_offsets[i], tmp);
+			}
+		}
+	}
 }
 
 void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save)
@@ -366,6 +393,33 @@ void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save)
 		       (u32)rdev->mc.vram_start);
 	}
 	WREG32(R_000310_VGA_MEMORY_BASE_ADDRESS, (u32)rdev->mc.vram_start);
+
+	/* unlock regs and wait for update */
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (save->crtc_enabled[i]) {
+			tmp = RREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + crtc_offsets[i]);
+			if ((tmp & 0x3) != 0) {
+				tmp &= ~0x3;
+				WREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + crtc_offsets[i], tmp);
+			}
+			tmp = RREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i]);
+			if (tmp & AVIVO_D1GRPH_UPDATE_LOCK) {
+				tmp &= ~AVIVO_D1GRPH_UPDATE_LOCK;
+				WREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i], tmp);
+			}
+			tmp = RREG32(AVIVO_D1MODE_MASTER_UPDATE_LOCK + crtc_offsets[i]);
+			if (tmp & 1) {
+				tmp &= ~1;
+				WREG32(AVIVO_D1MODE_MASTER_UPDATE_LOCK + crtc_offsets[i], tmp);
+			}
+			for (j = 0; j < rdev->usec_timeout; j++) {
+				tmp = RREG32(AVIVO_D1GRPH_UPDATE + crtc_offsets[i]);
+				if ((tmp & AVIVO_D1GRPH_SURFACE_UPDATE_PENDING) == 0)
+					break;
+				udelay(1);
+			}
+		}
+	}
 
 	if (rdev->family >= CHIP_R600) {
 		/* unblackout the MC */

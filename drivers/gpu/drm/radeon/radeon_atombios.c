@@ -2710,8 +2710,7 @@ int radeon_atom_get_clock_dividers(struct radeon_device *rdev,
 				dividers->enable_post_div = (dividers->fb_div & 1) ? true : false;
 		} else {
 			if (clock_type == COMPUTE_ENGINE_PLL_PARAM) {
-				args.v3.ulClock.ulComputeClockFlag = clock_type;
-				args.v3.ulClock.ulClockFreq = cpu_to_le32(clock);	/* 10 khz */
+				args.v3.ulClockParams = cpu_to_le32((clock_type << 24) | clock);
 
 				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 
@@ -2726,8 +2725,7 @@ int radeon_atom_get_clock_dividers(struct radeon_device *rdev,
 				dividers->vco_mode = (args.v3.ucCntlFlag &
 						      ATOM_PLL_CNTL_FLAG_MPLL_VCO_MODE) ? 1 : 0;
 			} else {
-				args.v5.ulClock.ulComputeClockFlag = clock_type;
-				args.v5.ulClock.ulClockFreq = cpu_to_le32(clock);	/* 10 khz */
+				args.v5.ulClockParams = cpu_to_le32((clock_type << 24) | clock);
 				if (strobe_mode)
 					args.v5.ucInputFlag = ATOM_PLL_INPUT_FLAG_PLL_STROBE_MODE_EN;
 
