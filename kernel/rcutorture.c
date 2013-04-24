@@ -66,6 +66,7 @@ static int fqs_duration;	/* Duration of bursts (us), 0 to disable. */
 static int fqs_holdoff;		/* Hold time within burst (us). */
 static int fqs_stutter = 3;	/* Wait time between bursts (s). */
 static int n_barrier_cbs;	/* Number of callbacks to test RCU barriers. */
+static int object_debug;	/* Test object-debug double call_rcu()?. */
 static int onoff_interval;	/* Wait time between CPU hotplugs, 0=disable. */
 static int onoff_holdoff;	/* Seconds after boot before CPU hotplugs. */
 static int shutdown_secs;	/* Shutdown time (s).  <=0 for no shutdown. */
@@ -100,6 +101,8 @@ module_param(fqs_stutter, int, 0444);
 MODULE_PARM_DESC(fqs_stutter, "Wait time between fqs bursts (s)");
 module_param(n_barrier_cbs, int, 0444);
 MODULE_PARM_DESC(n_barrier_cbs, "# of callbacks/kthreads for barrier testing");
+module_param(object_debug, int, 0444);
+MODULE_PARM_DESC(object_debug, "Enable debug-object double call_rcu() testing");
 module_param(onoff_interval, int, 0444);
 MODULE_PARM_DESC(onoff_interval, "Time between CPU hotplugs (s), 0=disable");
 module_param(onoff_holdoff, int, 0444);
@@ -1934,6 +1937,62 @@ rcu_torture_cleanup(void)
 		rcu_torture_print_module_parms(cur_ops, "End of test: SUCCESS");
 }
 
+#ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
+static void rcu_torture_leak_cb(struct rcu_head *rhp)
+{
+}
+
+static void rcu_torture_err_cb(struct rcu_head *rhp)
+{
+	/*
+	 * This -might- happen due to race conditions, but is unlikely.
+	 * The scenario that leads to this happening is that the
+	 * first of the pair of duplicate callbacks is queued,
+	 * someone else starts a grace period that includes that
+	 * callback, then the second of the pair must wait for the
+	 * next grace period.  Unlikely, but can happen.  If it
+	 * does happen, the debug-objects subsystem won't have splatted.
+	 */
+	pr_alert("rcutorture: duplicated callback was invoked.\n");
+}
+#endif /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+
+/*
+ * Verify that double-free causes debug-objects to complain, but only
+ * if CONFIG_DEBUG_OBJECTS_RCU_HEAD=y.  Otherwise, say that the test
+ * cannot be carried out.
+ */
+static void rcu_test_debug_objects(void)
+{
+#ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
+	struct rcu_head rh1;
+	struct rcu_head rh2;
+
+	init_rcu_head_on_stack(&rh1);
+	init_rcu_head_on_stack(&rh2);
+	pr_alert("rcutorture: WARN: Duplicate call_rcu() test starting.\n");
+
+	/* Try to queue the rh2 pair of callbacks for the same grace period. */
+	preempt_disable(); /* Prevent preemption from interrupting test. */
+	rcu_read_lock(); /* Make it impossible to finish a grace period. */
+	call_rcu(&rh1, rcu_torture_leak_cb); /* Start grace period. */
+	local_irq_disable(); /* Make it harder to start a new grace period. */
+	call_rcu(&rh2, rcu_torture_leak_cb);
+	call_rcu(&rh2, rcu_torture_err_cb); /* Duplicate callback. */
+	local_irq_enable();
+	rcu_read_unlock();
+	preempt_enable();
+
+	/* Wait for them all to get done so we can safely return. */
+	rcu_barrier();
+	pr_alert("rcutorture: WARN: Duplicate call_rcu() test complete.\n");
+	destroy_rcu_head_on_stack(&rh1);
+	destroy_rcu_head_on_stack(&rh2);
+#else /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+	pr_alert("rcutorture: !CONFIG_DEBUG_OBJECTS_RCU_HEAD, not testing duplicate call_rcu()\n");
+#endif /* #else #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+}
+
 static int __init
 rcu_torture_init(void)
 {
@@ -2163,6 +2222,8 @@ rcu_torture_init(void)
 		firsterr = retval;
 		goto unwind;
 	}
+	if (object_debug)
+		rcu_test_debug_objects();
 	rcutorture_record_test_transition();
 	mutex_unlock(&fullstop_mutex);
 	return 0;
