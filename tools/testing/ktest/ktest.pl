@@ -73,6 +73,7 @@ my $ktest_config;
 my $version;
 my $have_version = 0;
 my $machine;
+my $last_machine;
 my $ssh_user;
 my $tmpdir;
 my $builddir;
@@ -1540,7 +1541,8 @@ sub run_scp_mod {
 sub get_grub2_index {
 
     return if (defined($grub_number) && defined($last_grub_menu) &&
-	       $last_grub_menu eq $grub_menu);
+	       $last_grub_menu eq $grub_menu && defined($last_machine) &&
+	       $last_machine eq $machine);
 
     doprint "Find grub2 menu ... ";
     $grub_number = -1;
@@ -1568,6 +1570,7 @@ sub get_grub2_index {
 	if (!$found);
     doprint "$grub_number\n";
     $last_grub_menu = $grub_menu;
+    $last_machine = $machine;
 }
 
 sub get_grub_index {
@@ -1581,7 +1584,8 @@ sub get_grub_index {
 	return;
     }
     return if (defined($grub_number) && defined($last_grub_menu) &&
-	       $last_grub_menu eq $grub_menu);
+	       $last_grub_menu eq $grub_menu && defined($last_machine) &&
+	       $last_machine eq $machine);
 
     doprint "Find grub menu ... ";
     $grub_number = -1;
@@ -1609,6 +1613,7 @@ sub get_grub_index {
 	if (!$found);
     doprint "$grub_number\n";
     $last_grub_menu = $grub_menu;
+    $last_machine = $machine;
 }
 
 sub wait_for_input
