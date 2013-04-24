@@ -85,7 +85,7 @@ static int vss_operate(int operation)
 	if (mounts == NULL)
 		return -1;
 
-	while((ent = getmntent(mounts))) {
+	while ((ent = getmntent(mounts))) {
 		if (strncmp(ent->mnt_fsname, match, strlen(match)))
 			continue;
 		if (strcmp(ent->mnt_type, "iso9660") == 0)
