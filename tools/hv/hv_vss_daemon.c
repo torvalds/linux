@@ -194,8 +194,9 @@ int main(void)
 		}
 
 		if (addr.nl_pid) {
-			syslog(LOG_WARNING, "Received packet from untrusted pid:%u",
-					addr.nl_pid);
+			syslog(LOG_WARNING,
+				"Received packet from untrusted pid:%u",
+				addr.nl_pid);
 			continue;
 		}
 
