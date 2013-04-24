@@ -29,6 +29,7 @@
 #include <asm/nvram.h>
 #include <linux/atomic.h>
 #include <asm/machdep.h>
+#include <asm/topology.h>
 
 
 static DEFINE_SPINLOCK(rtasd_log_lock);
@@ -292,11 +293,13 @@ void prrn_schedule_update(u32 scope)
 
 static void handle_rtas_event(const struct rtas_error_log *log)
 {
-	if (log->type == RTAS_TYPE_PRRN)
+	if (log->type == RTAS_TYPE_PRRN) {
 		/* For PRRN Events the extended log length is used to denote
 		 * the scope for calling rtas update-nodes.
 		 */
-		prrn_schedule_update(log->extended_log_length);
+		if (prrn_is_enabled())
+			prrn_schedule_update(log->extended_log_length);
+	}
 
 	return;
 }
