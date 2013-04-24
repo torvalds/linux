@@ -1361,6 +1361,26 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 	mutex_unlock(&mdev->state_lock);
 }
 
+/* mlx4_en_service_task - Run service task for tasks that needed to be done
+ * periodically
+ */
+static void mlx4_en_service_task(struct work_struct *work)
+{
+	struct delayed_work *delay = to_delayed_work(work);
+	struct mlx4_en_priv *priv = container_of(delay, struct mlx4_en_priv,
+						 service_task);
+	struct mlx4_en_dev *mdev = priv->mdev;
+
+	mutex_lock(&mdev->state_lock);
+	if (mdev->device_up) {
+		mlx4_en_ptp_overflow_check(mdev);
+
+		queue_delayed_work(mdev->workqueue, &priv->service_task,
+				   SERVICE_TASK_DELAY);
+	}
+	mutex_unlock(&mdev->state_lock);
+}
+
 static void mlx4_en_linkstate(struct work_struct *work)
 {
 	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
@@ -1865,6 +1885,7 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 		mlx4_free_hwq_res(mdev->dev, &priv->res, MLX4_EN_PAGE_SIZE);
 
 	cancel_delayed_work(&priv->stats_task);
+	cancel_delayed_work(&priv->service_task);
 	/* flush any pending task for this netdev */
 	flush_workqueue(mdev->workqueue);
 
@@ -1916,6 +1937,75 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static int mlx4_en_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+	struct hwtstamp_config config;
+
+	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
+		return -EFAULT;
+
+	/* reserved for future extensions */
+	if (config.flags)
+		return -EINVAL;
+
+	/* device doesn't support time stamping */
+	if (!(mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS))
+		return -EINVAL;
+
+	/* TX HW timestamp */
+	switch (config.tx_type) {
+	case HWTSTAMP_TX_OFF:
+	case HWTSTAMP_TX_ON:
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	/* RX HW timestamp */
+	switch (config.rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		break;
+	case HWTSTAMP_FILTER_ALL:
+	case HWTSTAMP_FILTER_SOME:
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	if (mlx4_en_timestamp_config(dev, config.tx_type, config.rx_filter)) {
+		config.tx_type = HWTSTAMP_TX_OFF;
+		config.rx_filter = HWTSTAMP_FILTER_NONE;
+	}
+
+	return copy_to_user(ifr->ifr_data, &config,
+			    sizeof(config)) ? -EFAULT : 0;
+}
+
+static int mlx4_en_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	switch (cmd) {
+	case SIOCSHWTSTAMP:
+		return mlx4_en_hwtstamp_ioctl(dev, ifr);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int mlx4_en_set_features(struct net_device *netdev,
 		netdev_features_t features)
 {
@@ -1943,6 +2033,7 @@ static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_set_mac_address	= mlx4_en_set_mac,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= mlx4_en_change_mtu,
+	.ndo_do_ioctl		= mlx4_en_ioctl,
 	.ndo_tx_timeout		= mlx4_en_tx_timeout,
 	.ndo_vlan_rx_add_vid	= mlx4_en_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= mlx4_en_vlan_rx_kill_vid,
@@ -2014,6 +2105,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	INIT_WORK(&priv->watchdog_task, mlx4_en_restart);
 	INIT_WORK(&priv->linkstate_task, mlx4_en_linkstate);
 	INIT_DELAYED_WORK(&priv->stats_task, mlx4_en_do_get_stats);
+	INIT_DELAYED_WORK(&priv->service_task, mlx4_en_service_task);
 #ifdef CONFIG_MLX4_EN_DCB
 	if (!mlx4_is_slave(priv->mdev->dev)) {
 		if (mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_SET_ETH_SCHED) {
@@ -2053,6 +2145,11 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	INIT_LIST_HEAD(&priv->filters);
 	spin_lock_init(&priv->filters_lock);
 #endif
+
+	/* Initialize time stamping config */
+	priv->hwtstamp_config.flags = 0;
+	priv->hwtstamp_config.tx_type = HWTSTAMP_TX_OFF;
+	priv->hwtstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
 
 	/* Allocate page for receive rings */
 	err = mlx4_alloc_hwq_res(mdev->dev, &priv->res,
@@ -2131,6 +2228,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	}
 	mlx4_en_set_default_moderation(priv);
 	queue_delayed_work(mdev->workqueue, &priv->stats_task, STATS_DELAY);
+	queue_delayed_work(mdev->workqueue, &priv->service_task,
+			   SERVICE_TASK_DELAY);
 	return 0;
 
 out:

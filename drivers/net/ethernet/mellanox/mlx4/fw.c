@@ -130,7 +130,8 @@ static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
 		[1] = "RSS Toeplitz Hash Function support",
 		[2] = "RSS XOR Hash Function support",
 		[3] = "Device manage flow steering support",
-		[4] = "Automatic mac reassignment support"
+		[4] = "Automatic MAC reassignment support",
+		[5] = "Time stamping support"
 	};
 	int i;
 
@@ -444,6 +445,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_MAX_MSG_SZ_OFFSET		0x38
 #define QUERY_DEV_CAP_MAX_GID_OFFSET		0x3b
 #define QUERY_DEV_CAP_RATE_SUPPORT_OFFSET	0x3c
+#define QUERY_DEV_CAP_CQ_TS_SUPPORT_OFFSET	0x3e
 #define QUERY_DEV_CAP_MAX_PKEY_OFFSET		0x3f
 #define QUERY_DEV_CAP_EXT_FLAGS_OFFSET		0x40
 #define QUERY_DEV_CAP_FLAGS_OFFSET		0x44
@@ -560,6 +562,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	dev_cap->fs_max_num_qp_per_entry = field;
 	MLX4_GET(stat_rate, outbox, QUERY_DEV_CAP_RATE_SUPPORT_OFFSET);
 	dev_cap->stat_rate_support = stat_rate;
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_CQ_TS_SUPPORT_OFFSET);
+	if (field & 0x80)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_TS;
 	MLX4_GET(ext_flags, outbox, QUERY_DEV_CAP_EXT_FLAGS_OFFSET);
 	MLX4_GET(flags, outbox, QUERY_DEV_CAP_FLAGS_OFFSET);
 	dev_cap->flags = flags | (u64)ext_flags << 32;
@@ -1008,6 +1013,9 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 #define QUERY_FW_COMM_BASE_OFFSET      0x40
 #define QUERY_FW_COMM_BAR_OFFSET       0x48
 
+#define QUERY_FW_CLOCK_OFFSET	       0x50
+#define QUERY_FW_CLOCK_BAR	       0x58
+
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
@@ -1081,6 +1089,12 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 	mlx4_dbg(dev, "Communication vector bar:%d offset:0x%llx\n",
 		 fw->comm_bar, fw->comm_base);
 	mlx4_dbg(dev, "FW size %d KB\n", fw->fw_pages >> 2);
+
+	MLX4_GET(fw->clock_offset, outbox, QUERY_FW_CLOCK_OFFSET);
+	MLX4_GET(fw->clock_bar,    outbox, QUERY_FW_CLOCK_BAR);
+	fw->clock_bar = (fw->clock_bar >> 6) * 2;
+	mlx4_dbg(dev, "Internal clock bar:%d offset:0x%llx\n",
+		 fw->clock_bar, fw->clock_offset);
 
 	/*
 	 * Round up number of system pages needed in case
@@ -1369,6 +1383,7 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 	u8 byte_field;
 
 #define QUERY_HCA_GLOBAL_CAPS_OFFSET	0x04
+#define QUERY_HCA_CORE_CLOCK_OFFSET	0x0c
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
@@ -1383,6 +1398,7 @@ int mlx4_QUERY_HCA(struct mlx4_dev *dev,
 		goto out;
 
 	MLX4_GET(param->global_caps, outbox, QUERY_HCA_GLOBAL_CAPS_OFFSET);
+	MLX4_GET(param->hca_core_clock, outbox, QUERY_HCA_CORE_CLOCK_OFFSET);
 
 	/* QPC/EEC/CQC/EQC/RDMARC attributes */
 
