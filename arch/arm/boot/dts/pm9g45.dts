@@ -64,7 +64,7 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioD 6 0>;
+					cd-gpios = <&pioD 6 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -81,8 +81,8 @@
 			nand-on-flash-bbt;
 			pinctrl-0 = <&pinctrl_board_nand>;
 
-			gpios = <&pioD 3 0
-				 &pioC 14 0
+			gpios = <&pioD 3 GPIO_ACTIVE_HIGH
+				 &pioC 14 GPIO_ACTIVE_HIGH
 				 0
 				>;
 
@@ -134,13 +134,13 @@
 
 		led0 {
 			label = "led0";
-			gpios = <&pioD 0 1>;
+			gpios = <&pioD 0 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "nand-disk";
 		};
 
 		led1 {
 			label = "led1";
-			gpios = <&pioD 31 0>;
+			gpios = <&pioD 31 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 	};
@@ -152,13 +152,13 @@
 
 		right {
 			label = "SW4";
-			gpios = <&pioE 7 1>;
+			gpios = <&pioE 7 GPIO_ACTIVE_LOW>;
 			linux,code = <106>;
 		};
 
 		up {
 			label = "SW3";
-			gpios = <&pioE 8 1>;
+			gpios = <&pioE 8 GPIO_ACTIVE_LOW>;
 			linux,code = <103>;
 		};
 	};

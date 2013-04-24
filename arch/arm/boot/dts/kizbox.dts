@@ -94,26 +94,26 @@
 
 		led1g {
 			label = "led1:green";
-			gpios = <&pioB 0 1>;
+			gpios = <&pioB 0 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "none";
 		};
 
 		led1r {
 			label = "led1:red";
-			gpios = <&pioB 1 1>;
+			gpios = <&pioB 1 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "none";
 		};
 
 		led2g {
 			label = "led2:green";
-			gpios = <&pioB 2 1>;
+			gpios = <&pioB 2 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "none";
 			default-state = "on";
 		};
 
 		led2r {
 			label = "led2:red";
-			gpios = <&pioB 3 1>;
+			gpios = <&pioB 3 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "none";
 		};
 	};
@@ -125,14 +125,14 @@
 
 		reset {
 			label = "reset";
-			gpios = <&pioB 30 1>;
+			gpios = <&pioB 30 GPIO_ACTIVE_LOW>;
 			linux,code = <0x100>;
 			gpio-key,wakeup;
 		};
 
 		mode {
 			label = "mode";
-			gpios = <&pioB 31 1>;
+			gpios = <&pioB 31 GPIO_ACTIVE_LOW>;
 			linux,code = <0x101>;
 			gpio-key,wakeup;
 		};

@@ -65,7 +65,7 @@
 			};
 
 			usb1: gadget@fffa4000 {
-				atmel,vbus-gpio = <&pioC 5 0>;
+				atmel,vbus-gpio = <&pioC 5 GPIO_ACTIVE_HIGH>;
 				status = "okay";
 			};
 
@@ -79,7 +79,7 @@
 				slot@1 {
 					reg = <1>;
 					bus-width = <4>;
-					cd-gpios = <&pioC 9 0>;
+					cd-gpios = <&pioC 9 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -180,14 +180,14 @@
 
 		btn3 {
 			label = "Button 3";
-			gpios = <&pioA 30 1>;
+			gpios = <&pioA 30 GPIO_ACTIVE_LOW>;
 			linux,code = <0x103>;
 			gpio-key,wakeup;
 		};
 
 		btn4 {
 			label = "Button 4";
-			gpios = <&pioA 31 1>;
+			gpios = <&pioA 31 GPIO_ACTIVE_LOW>;
 			linux,code = <0x104>;
 			gpio-key,wakeup;
 		};

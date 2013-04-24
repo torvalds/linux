@@ -10,6 +10,7 @@
  */
 
 #include "skeleton.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Atmel AT91SAM9x5 family SoC";
@@ -664,8 +665,8 @@
 			atmel,nand-cmd-offset = <22>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_nand>;
-			gpios = <&pioD 5 0
-				 &pioD 4 0
+			gpios = <&pioD 5 GPIO_ACTIVE_HIGH
+				 &pioD 4 GPIO_ACTIVE_HIGH
 				 0
 				>;
 			status = "disabled";
@@ -688,8 +689,8 @@
 
 	i2c@0 {
 		compatible = "i2c-gpio";
-		gpios = <&pioA 30 0 /* sda */
-			 &pioA 31 0 /* scl */
+		gpios = <&pioA 30 GPIO_ACTIVE_HIGH /* sda */
+			 &pioA 31 GPIO_ACTIVE_HIGH /* scl */
 			>;
 		i2c-gpio,sda-open-drain;
 		i2c-gpio,scl-open-drain;
@@ -703,8 +704,8 @@
 
 	i2c@1 {
 		compatible = "i2c-gpio";
-		gpios = <&pioC 0 0 /* sda */
-			 &pioC 1 0 /* scl */
+		gpios = <&pioC 0 GPIO_ACTIVE_HIGH /* sda */
+			 &pioC 1 GPIO_ACTIVE_HIGH /* scl */
 			>;
 		i2c-gpio,sda-open-drain;
 		i2c-gpio,scl-open-drain;
@@ -718,8 +719,8 @@
 
 	i2c@2 {
 		compatible = "i2c-gpio";
-		gpios = <&pioB 4 0 /* sda */
-			 &pioB 5 0 /* scl */
+		gpios = <&pioB 4 GPIO_ACTIVE_HIGH /* sda */
+			 &pioB 5 GPIO_ACTIVE_HIGH /* scl */
 			>;
 		i2c-gpio,sda-open-drain;
 		i2c-gpio,scl-open-drain;

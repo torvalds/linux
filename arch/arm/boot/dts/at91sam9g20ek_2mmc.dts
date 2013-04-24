@@ -23,7 +23,7 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioC 2 0>;
+					cd-gpios = <&pioC 2 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -43,13 +43,13 @@
 
 		ds1 {
 			label = "ds1";
-			gpios = <&pioB 9 0>;
+			gpios = <&pioB 9 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
 		ds5 {
 			label = "ds5";
-			gpios = <&pioB 8 1>;
+			gpios = <&pioB 8 GPIO_ACTIVE_LOW>;
 		};
 	};
 };

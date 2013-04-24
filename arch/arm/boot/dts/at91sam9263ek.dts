@@ -51,7 +51,7 @@
 			};
 
 			usb1: gadget@fff78000 {
-				atmel,vbus-gpio = <&pioA 25 0>;
+				atmel,vbus-gpio = <&pioA 25 GPIO_ACTIVE_HIGH>;
 				status = "okay";
 			};
 
@@ -65,8 +65,8 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioE 18 0>;
-					wp-gpios = <&pioE 19 0>;
+					cd-gpios = <&pioE 18 GPIO_ACTIVE_HIGH>;
+					wp-gpios = <&pioE 19 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -141,8 +141,8 @@
 		usb0: ohci@00a00000 {
 			num-ports = <2>;
 			status = "okay";
-			atmel,vbus-gpio = <&pioA 24 0
-					   &pioA 21 0
+			atmel,vbus-gpio = <&pioA 24 GPIO_ACTIVE_HIGH
+					   &pioA 21 GPIO_ACTIVE_HIGH
 					  >;
 		};
 	};
@@ -152,13 +152,13 @@
 
 		d3 {
 			label = "d3";
-			gpios = <&pioB 7 0>;
+			gpios = <&pioB 7 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
 		d2 {
 			label = "d2";
-			gpios = <&pioC 29 1>;
+			gpios = <&pioC 29 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "nand-disk";
 		};
 	};
@@ -168,14 +168,14 @@
 
 		left_click {
 			label = "left_click";
-			gpios = <&pioC 5 1>;
+			gpios = <&pioC 5 GPIO_ACTIVE_LOW>;
 			linux,code = <272>;
 			gpio-key,wakeup;
 		};
 
 		right_click {
 			label = "right_click";
-			gpios = <&pioC 4 1>;
+			gpios = <&pioC 4 GPIO_ACTIVE_LOW>;
 			linux,code = <273>;
 			gpio-key,wakeup;
 		};

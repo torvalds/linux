@@ -20,7 +20,7 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioD 17 0>;
+					cd-gpios = <&pioD 17 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -62,7 +62,7 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioD 18 0>;
+					cd-gpios = <&pioD 18 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -127,7 +127,7 @@
 		};
 
 		usb0: gadget@00500000 {
-			atmel,vbus-gpio = <&pioD 29 0>;
+			atmel,vbus-gpio = <&pioD 29 GPIO_ACTIVE_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usba_vbus>;
 			status = "okay";
@@ -135,9 +135,9 @@
 
 		usb1: ohci@00600000 {
 			num-ports = <3>;
-			atmel,vbus-gpio = <&pioD 25 0
-					   &pioD 26 1
-					   &pioD 27 1
+			atmel,vbus-gpio = <&pioD 25 GPIO_ACTIVE_HIGH
+					   &pioD 26 GPIO_ACTIVE_LOW
+					   &pioD 27 GPIO_ACTIVE_LOW
 					  >;
 			status = "okay";
 		};

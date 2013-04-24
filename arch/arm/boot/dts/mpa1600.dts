@@ -62,7 +62,7 @@
 
 		monitor_mute {
 			label = "Monitor mute";
-			gpios = <&pioC 1 1>;
+			gpios = <&pioC 1 GPIO_ACTIVE_LOW>;
 			linux,code = <113>;
 		};
 	};

@@ -75,19 +75,19 @@
 
 		pb18 {
 			label = "pb18";
-			gpios = <&pioB 18 1>;
+			gpios = <&pioB 18 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 		};
 
 		pd21 {
 			label = "pd21";
-			gpios = <&pioD 21 0>;
+			gpios = <&pioD 21 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
 	1wire_cm {
 		compatible = "w1-gpio";
-		gpios = <&pioB 18 0>;
+		gpios = <&pioB 18 GPIO_ACTIVE_HIGH>;
 		linux,open-drain;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_1wire_cm>;

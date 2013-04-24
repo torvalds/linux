@@ -7,6 +7,7 @@
  */
 
 #include "skeleton.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Atmel AT91SAM9263 family SoC";
@@ -515,8 +516,8 @@
 			atmel,nand-cmd-offset = <22>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_nand>;
-			gpios = <&pioA 22 0
-				 &pioD 15 0
+			gpios = <&pioA 22 GPIO_ACTIVE_HIGH
+				 &pioD 15 GPIO_ACTIVE_HIGH
 				 0
 				>;
 			status = "disabled";
@@ -532,8 +533,8 @@
 
 	i2c@0 {
 		compatible = "i2c-gpio";
-		gpios = <&pioB 4 0 /* sda */
-			 &pioB 5 0 /* scl */
+		gpios = <&pioB 4 GPIO_ACTIVE_HIGH /* sda */
+			 &pioB 5 GPIO_ACTIVE_HIGH /* scl */
 			>;
 		i2c-gpio,sda-open-drain;
 		i2c-gpio,scl-open-drain;

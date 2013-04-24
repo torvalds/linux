@@ -31,7 +31,7 @@
 			};
 
 			usb1: gadget@fffa4000 {
-				atmel,vbus-gpio = <&pioC 5 0>;
+				atmel,vbus-gpio = <&pioC 5 GPIO_ACTIVE_HIGH>;
 				status = "okay";
 			};
 

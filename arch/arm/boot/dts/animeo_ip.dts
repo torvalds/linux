@@ -123,7 +123,7 @@
 
 		usb0: ohci@00500000 {
 			num-ports = <2>;
-			atmel,vbus-gpio = <&pioB 15 1>;
+			atmel,vbus-gpio = <&pioB 15 GPIO_ACTIVE_LOW>;
 			status = "okay";
 		};
 	};
@@ -133,23 +133,23 @@
 
 		power_green {
 			label = "power_green";
-			gpios = <&pioC 17 0>;
+			gpios = <&pioC 17 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 
 		power_red {
 			label = "power_red";
-			gpios = <&pioA 2 0>;
+			gpios = <&pioA 2 GPIO_ACTIVE_HIGH>;
 		};
 
 		tx_green {
 			label = "tx_green";
-			gpios = <&pioC 19 0>;
+			gpios = <&pioC 19 GPIO_ACTIVE_HIGH>;
 		};
 
 		tx_red {
 			label = "tx_red";
-			gpios = <&pioC 18 0>;
+			gpios = <&pioC 18 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -160,21 +160,21 @@
 
 		keyswitch_in {
 			label = "keyswitch_in";
-			gpios = <&pioB 1 0>;
+			gpios = <&pioB 1 GPIO_ACTIVE_HIGH>;
 			linux,code = <28>;
 			gpio-key,wakeup;
 		};
 
 		error_in {
 			label = "error_in";
-			gpios = <&pioB 2 0>;
+			gpios = <&pioB 2 GPIO_ACTIVE_HIGH>;
 			linux,code = <29>;
 			gpio-key,wakeup;
 		};
 
 		btn {
 			label = "btn";
-			gpios = <&pioC 23 0>;
+			gpios = <&pioC 23 GPIO_ACTIVE_HIGH>;
 			linux,code = <31>;
 			gpio-key,wakeup;
 		};

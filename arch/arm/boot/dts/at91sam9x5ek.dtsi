@@ -27,7 +27,7 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioD 15 0>;
+					cd-gpios = <&pioD 15 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -40,7 +40,7 @@
 				slot@0 {
 					reg = <0>;
 					bus-width = <4>;
-					cd-gpios = <&pioD 14 0>;
+					cd-gpios = <&pioD 14 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
@@ -86,8 +86,8 @@
 		usb0: ohci@00600000 {
 			status = "okay";
 			num-ports = <2>;
-			atmel,vbus-gpio = <&pioD 19 1
-					   &pioD 20 1
+			atmel,vbus-gpio = <&pioD 19 GPIO_ACTIVE_LOW
+					   &pioD 20 GPIO_ACTIVE_LOW
 					  >;
 		};
 

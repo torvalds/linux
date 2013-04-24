@@ -38,7 +38,7 @@
 			};
 
 			usb1: gadget@fff78000 {
-				atmel,vbus-gpio = <&pioB 11 0>;
+				atmel,vbus-gpio = <&pioB 11 GPIO_ACTIVE_HIGH>;
 				status = "okay";
 			};
 		};

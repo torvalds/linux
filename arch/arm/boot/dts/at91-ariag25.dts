@@ -156,7 +156,7 @@
 		/* little green LED in middle of Aria G25 module */
 		aria_led {
 			label = "aria_led";
-			gpios = <&pioB 8 0>; /* PB8 */
+			gpios = <&pioB 8 GPIO_ACTIVE_HIGH>; /* PB8 */
 			linux,default-trigger = "heartbeat";
 		};
 
@@ -164,7 +164,7 @@
 
 	onewire@0 {
 		compatible = "w1-gpio";
-		gpios = <&pioA 21 1>;
+		gpios = <&pioA 21 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_w1_0>;
 	};
