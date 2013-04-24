@@ -6,7 +6,7 @@
 *v0.1.1:
 *        add sensor_focus_af_const_pause_usr_cb;
 */
-static int version = KERNEL_VERSION(0,1,0);
+static int version = KERNEL_VERSION(0,1,3);
 module_param(version, int, S_IRUGO);
 
 static int debug;
@@ -378,8 +378,8 @@ static struct rk_sensor_reg sensor_preview_data[] =
 	{0x3703, 0x24},
 	{0x3704, 0x24},
 	{0x3705, 0x0c},
-	//{0x3820, 0x81},
-	//{0x3821, 0x01},
+	{0x3820, 0x81},
+	{0x3821, 0x01},
 	{0x370a, 0x52},
 	{0x4608, 0x00},
 	{0x4609, 0x80},
