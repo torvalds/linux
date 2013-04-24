@@ -9878,6 +9878,10 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 				REG_RD(bp, NIG_REG_NIG_INT_STS_CLR_0);
 			}
 		}
+		if (!CHIP_IS_E1x(bp))
+			/* block FW from writing to host */
+			REG_WR(bp, PGLUE_B_REG_INTERNAL_PFID_ENABLE_MASTER, 0);
+
 		/* wait until BRB is empty */
 		tmp_reg = REG_RD(bp, BRB1_REG_NUM_OF_FULL_BLOCKS);
 		while (timer_count) {

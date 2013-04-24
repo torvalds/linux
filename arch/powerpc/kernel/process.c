@@ -555,10 +555,12 @@ static inline void tm_recheckpoint_new_task(struct task_struct *new)
 		new->thread.regs->msr |=
 			(MSR_FP | new->thread.fpexc_mode);
 	}
+#ifdef CONFIG_ALTIVEC
 	if (msr & MSR_VEC) {
 		do_load_up_transact_altivec(&new->thread);
 		new->thread.regs->msr |= MSR_VEC;
 	}
+#endif
 	/* We may as well turn on VSX too since all the state is restored now */
 	if (msr & MSR_VSX)
 		new->thread.regs->msr |= MSR_VSX;

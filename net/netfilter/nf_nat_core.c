@@ -467,33 +467,22 @@ EXPORT_SYMBOL_GPL(nf_nat_packet);
 struct nf_nat_proto_clean {
 	u8	l3proto;
 	u8	l4proto;
-	bool	hash;
 };
 
-/* Clear NAT section of all conntracks, in case we're loaded again. */
-static int nf_nat_proto_clean(struct nf_conn *i, void *data)
+/* kill conntracks with affected NAT section */
+static int nf_nat_proto_remove(struct nf_conn *i, void *data)
 {
 	const struct nf_nat_proto_clean *clean = data;
 	struct nf_conn_nat *nat = nfct_nat(i);
 
 	if (!nat)
 		return 0;
-	if (!(i->status & IPS_SRC_NAT_DONE))
-		return 0;
+
 	if ((clean->l3proto && nf_ct_l3num(i) != clean->l3proto) ||
 	    (clean->l4proto && nf_ct_protonum(i) != clean->l4proto))
 		return 0;
 
-	if (clean->hash) {
-		spin_lock_bh(&nf_nat_lock);
-		hlist_del_rcu(&nat->bysource);
-		spin_unlock_bh(&nf_nat_lock);
-	} else {
-		memset(nat, 0, sizeof(*nat));
-		i->status &= ~(IPS_NAT_MASK | IPS_NAT_DONE_MASK |
-			       IPS_SEQ_ADJUST);
-	}
-	return 0;
+	return i->status & IPS_NAT_MASK ? 1 : 0;
 }
 
 static void nf_nat_l4proto_clean(u8 l3proto, u8 l4proto)
@@ -505,16 +494,8 @@ static void nf_nat_l4proto_clean(u8 l3proto, u8 l4proto)
 	struct net *net;
 
 	rtnl_lock();
-	/* Step 1 - remove from bysource hash */
-	clean.hash = true;
 	for_each_net(net)
-		nf_ct_iterate_cleanup(net, nf_nat_proto_clean, &clean);
-	synchronize_rcu();
-
-	/* Step 2 - clean NAT section */
-	clean.hash = false;
-	for_each_net(net)
-		nf_ct_iterate_cleanup(net, nf_nat_proto_clean, &clean);
+		nf_ct_iterate_cleanup(net, nf_nat_proto_remove, &clean);
 	rtnl_unlock();
 }
 
@@ -526,16 +507,9 @@ static void nf_nat_l3proto_clean(u8 l3proto)
 	struct net *net;
 
 	rtnl_lock();
-	/* Step 1 - remove from bysource hash */
-	clean.hash = true;
-	for_each_net(net)
-		nf_ct_iterate_cleanup(net, nf_nat_proto_clean, &clean);
-	synchronize_rcu();
 
-	/* Step 2 - clean NAT section */
-	clean.hash = false;
 	for_each_net(net)
-		nf_ct_iterate_cleanup(net, nf_nat_proto_clean, &clean);
+		nf_ct_iterate_cleanup(net, nf_nat_proto_remove, &clean);
 	rtnl_unlock();
 }
 
@@ -773,7 +747,7 @@ static void __net_exit nf_nat_net_exit(struct net *net)
 {
 	struct nf_nat_proto_clean clean = {};
 
-	nf_ct_iterate_cleanup(net, &nf_nat_proto_clean, &clean);
+	nf_ct_iterate_cleanup(net, &nf_nat_proto_remove, &clean);
 	synchronize_rcu();
 	nf_ct_free_hashtable(net->ct.nat_bysource, net->ct.nat_htable_size);
 }

@@ -291,6 +291,7 @@ ip_set_hash_destroy(struct ip_set *set)
 #define type_pf_data_tlist	TOKEN(TYPE, PF, _data_tlist)
 #define type_pf_data_next	TOKEN(TYPE, PF, _data_next)
 #define type_pf_data_flags	TOKEN(TYPE, PF, _data_flags)
+#define type_pf_data_reset_flags TOKEN(TYPE, PF, _data_reset_flags)
 #ifdef IP_SET_HASH_WITH_NETS
 #define type_pf_data_match	TOKEN(TYPE, PF, _data_match)
 #else
@@ -385,9 +386,9 @@ type_pf_resize(struct ip_set *set, bool retried)
 	struct ip_set_hash *h = set->data;
 	struct htable *t, *orig = h->table;
 	u8 htable_bits = orig->htable_bits;
-	const struct type_pf_elem *data;
+	struct type_pf_elem *data;
 	struct hbucket *n, *m;
-	u32 i, j;
+	u32 i, j, flags = 0;
 	int ret;
 
 retry:
@@ -412,9 +413,16 @@ retry:
 		n = hbucket(orig, i);
 		for (j = 0; j < n->pos; j++) {
 			data = ahash_data(n, j);
+#ifdef IP_SET_HASH_WITH_NETS
+			flags = 0;
+			type_pf_data_reset_flags(data, &flags);
+#endif
 			m = hbucket(t, HKEY(data, h->initval, htable_bits));
-			ret = type_pf_elem_add(m, data, AHASH_MAX(h), 0);
+			ret = type_pf_elem_add(m, data, AHASH_MAX(h), flags);
 			if (ret < 0) {
+#ifdef IP_SET_HASH_WITH_NETS
+				type_pf_data_flags(data, flags);
+#endif
 				read_unlock_bh(&set->lock);
 				ahash_destroy(t);
 				if (ret == -EAGAIN)
@@ -836,9 +844,9 @@ type_pf_tresize(struct ip_set *set, bool retried)
 	struct ip_set_hash *h = set->data;
 	struct htable *t, *orig = h->table;
 	u8 htable_bits = orig->htable_bits;
-	const struct type_pf_elem *data;
+	struct type_pf_elem *data;
 	struct hbucket *n, *m;
-	u32 i, j;
+	u32 i, j, flags = 0;
 	int ret;
 
 	/* Try to cleanup once */
@@ -873,10 +881,17 @@ retry:
 		n = hbucket(orig, i);
 		for (j = 0; j < n->pos; j++) {
 			data = ahash_tdata(n, j);
+#ifdef IP_SET_HASH_WITH_NETS
+			flags = 0;
+			type_pf_data_reset_flags(data, &flags);
+#endif
 			m = hbucket(t, HKEY(data, h->initval, htable_bits));
-			ret = type_pf_elem_tadd(m, data, AHASH_MAX(h), 0,
-						ip_set_timeout_get(type_pf_data_timeout(data)));
+			ret = type_pf_elem_tadd(m, data, AHASH_MAX(h), flags,
+				ip_set_timeout_get(type_pf_data_timeout(data)));
 			if (ret < 0) {
+#ifdef IP_SET_HASH_WITH_NETS
+				type_pf_data_flags(data, flags);
+#endif
 				read_unlock_bh(&set->lock);
 				ahash_destroy(t);
 				if (ret == -EAGAIN)
@@ -1187,6 +1202,7 @@ type_pf_gc_init(struct ip_set *set)
 #undef type_pf_data_tlist
 #undef type_pf_data_next
 #undef type_pf_data_flags
+#undef type_pf_data_reset_flags
 #undef type_pf_data_match
 
 #undef type_pf_elem

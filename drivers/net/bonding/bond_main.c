@@ -846,8 +846,10 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
 		if (bond->dev->flags & IFF_ALLMULTI)
 			dev_set_allmulti(old_active->dev, -1);
 
+		netif_addr_lock_bh(bond->dev);
 		netdev_for_each_mc_addr(ha, bond->dev)
 			dev_mc_del(old_active->dev, ha->addr);
+		netif_addr_unlock_bh(bond->dev);
 	}
 
 	if (new_active) {
@@ -858,8 +860,10 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
 		if (bond->dev->flags & IFF_ALLMULTI)
 			dev_set_allmulti(new_active->dev, 1);
 
+		netif_addr_lock_bh(bond->dev);
 		netdev_for_each_mc_addr(ha, bond->dev)
 			dev_mc_add(new_active->dev, ha->addr);
+		netif_addr_unlock_bh(bond->dev);
 	}
 }
 
@@ -1901,11 +1905,29 @@ err_dest_symlinks:
 	bond_destroy_slave_symlinks(bond_dev, slave_dev);
 
 err_detach:
+	if (!USES_PRIMARY(bond->params.mode)) {
+		netif_addr_lock_bh(bond_dev);
+		bond_mc_list_flush(bond_dev, slave_dev);
+		netif_addr_unlock_bh(bond_dev);
+	}
+	bond_del_vlans_from_slave(bond, slave_dev);
 	write_lock_bh(&bond->lock);
 	bond_detach_slave(bond, new_slave);
+	if (bond->primary_slave == new_slave)
+		bond->primary_slave = NULL;
 	write_unlock_bh(&bond->lock);
+	if (bond->curr_active_slave == new_slave) {
+		read_lock(&bond->lock);
+		write_lock_bh(&bond->curr_slave_lock);
+		bond_change_active_slave(bond, NULL);
+		bond_select_active_slave(bond);
+		write_unlock_bh(&bond->curr_slave_lock);
+		read_unlock(&bond->lock);
+	}
+	slave_disable_netpoll(new_slave);
 
 err_close:
+	slave_dev->priv_flags &= ~IFF_BONDING;
 	dev_close(slave_dev);
 
 err_unset_master:
@@ -3168,10 +3190,19 @@ static int bond_slave_netdev_event(unsigned long event,
 				   struct net_device *slave_dev)
 {
 	struct slave *slave = bond_slave_get_rtnl(slave_dev);
-	struct bonding *bond = slave->bond;
-	struct net_device *bond_dev = slave->bond->dev;
+	struct bonding *bond;
+	struct net_device *bond_dev;
 	u32 old_speed;
 	u8 old_duplex;
+
+	/* A netdev event can be generated while enslaving a device
+	 * before netdev_rx_handler_register is called in which case
+	 * slave will be NULL
+	 */
+	if (!slave)
+		return NOTIFY_DONE;
+	bond_dev = slave->bond->dev;
+	bond = slave->bond;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
@@ -3286,20 +3317,22 @@ static int bond_xmit_hash_policy_l2(struct sk_buff *skb, int count)
  */
 static int bond_xmit_hash_policy_l23(struct sk_buff *skb, int count)
 {
-	struct ethhdr *data = (struct ethhdr *)skb->data;
-	struct iphdr *iph;
-	struct ipv6hdr *ipv6h;
+	const struct ethhdr *data;
+	const struct iphdr *iph;
+	const struct ipv6hdr *ipv6h;
 	u32 v6hash;
-	__be32 *s, *d;
+	const __be32 *s, *d;
 
 	if (skb->protocol == htons(ETH_P_IP) &&
-	    skb_network_header_len(skb) >= sizeof(*iph)) {
+	    pskb_network_may_pull(skb, sizeof(*iph))) {
 		iph = ip_hdr(skb);
+		data = (struct ethhdr *)skb->data;
 		return ((ntohl(iph->saddr ^ iph->daddr) & 0xffff) ^
 			(data->h_dest[5] ^ data->h_source[5])) % count;
 	} else if (skb->protocol == htons(ETH_P_IPV6) &&
-		   skb_network_header_len(skb) >= sizeof(*ipv6h)) {
+		   pskb_network_may_pull(skb, sizeof(*ipv6h))) {
 		ipv6h = ipv6_hdr(skb);
+		data = (struct ethhdr *)skb->data;
 		s = &ipv6h->saddr.s6_addr32[0];
 		d = &ipv6h->daddr.s6_addr32[0];
 		v6hash = (s[1] ^ d[1]) ^ (s[2] ^ d[2]) ^ (s[3] ^ d[3]);
@@ -3318,33 +3351,36 @@ static int bond_xmit_hash_policy_l23(struct sk_buff *skb, int count)
 static int bond_xmit_hash_policy_l34(struct sk_buff *skb, int count)
 {
 	u32 layer4_xor = 0;
-	struct iphdr *iph;
-	struct ipv6hdr *ipv6h;
-	__be32 *s, *d;
-	__be16 *layer4hdr;
+	const struct iphdr *iph;
+	const struct ipv6hdr *ipv6h;
+	const __be32 *s, *d;
+	const __be16 *l4 = NULL;
+	__be16 _l4[2];
+	int noff = skb_network_offset(skb);
+	int poff;
 
 	if (skb->protocol == htons(ETH_P_IP) &&
-	    skb_network_header_len(skb) >= sizeof(*iph)) {
+	    pskb_may_pull(skb, noff + sizeof(*iph))) {
 		iph = ip_hdr(skb);
-		if (!ip_is_fragment(iph) &&
-		    (iph->protocol == IPPROTO_TCP ||
-		     iph->protocol == IPPROTO_UDP) &&
-		    (skb_headlen(skb) - skb_network_offset(skb) >=
-		     iph->ihl * sizeof(u32) + sizeof(*layer4hdr) * 2)) {
-			layer4hdr = (__be16 *)((u32 *)iph + iph->ihl);
-			layer4_xor = ntohs(*layer4hdr ^ *(layer4hdr + 1));
+		poff = proto_ports_offset(iph->protocol);
+
+		if (!ip_is_fragment(iph) && poff >= 0) {
+			l4 = skb_header_pointer(skb, noff + (iph->ihl << 2) + poff,
+						sizeof(_l4), &_l4);
+			if (l4)
+				layer4_xor = ntohs(l4[0] ^ l4[1]);
 		}
 		return (layer4_xor ^
 			((ntohl(iph->saddr ^ iph->daddr)) & 0xffff)) % count;
 	} else if (skb->protocol == htons(ETH_P_IPV6) &&
-		   skb_network_header_len(skb) >= sizeof(*ipv6h)) {
+		   pskb_may_pull(skb, noff + sizeof(*ipv6h))) {
 		ipv6h = ipv6_hdr(skb);
-		if ((ipv6h->nexthdr == IPPROTO_TCP ||
-		     ipv6h->nexthdr == IPPROTO_UDP) &&
-		    (skb_headlen(skb) - skb_network_offset(skb) >=
-		     sizeof(*ipv6h) + sizeof(*layer4hdr) * 2)) {
-			layer4hdr = (__be16 *)(ipv6h + 1);
-			layer4_xor = ntohs(*layer4hdr ^ *(layer4hdr + 1));
+		poff = proto_ports_offset(ipv6h->nexthdr);
+		if (poff >= 0) {
+			l4 = skb_header_pointer(skb, noff + sizeof(*ipv6h) + poff,
+						sizeof(_l4), &_l4);
+			if (l4)
+				layer4_xor = ntohs(l4[0] ^ l4[1]);
 		}
 		s = &ipv6h->saddr.s6_addr32[0];
 		d = &ipv6h->daddr.s6_addr32[0];
