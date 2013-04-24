@@ -638,6 +638,14 @@
 					};
 				};
 
+				pwm2 {
+					pinctrl_pwm2_1: pwm2grp-1 {
+						fsl,pins = <
+							MX53_PAD_GPIO_1__PWM2_PWMO	0x80000000
+						>;
+					};
+				};
+
 				uart1 {
 					pinctrl_uart1_1: uart1grp-1 {
 						fsl,pins = <
