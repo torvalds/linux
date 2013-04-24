@@ -592,7 +592,7 @@ static int s5p_mfc_ctx_ready(struct s5p_mfc_ctx *ctx)
 		return 1;
 	/* context is ready to encode a frame */
 	if ((ctx->state == MFCINST_RUNNING ||
-		ctx->state == MFCINST_HEAD_PARSED) &&
+		ctx->state == MFCINST_HEAD_PRODUCED) &&
 		ctx->src_queue_cnt >= 1 && ctx->dst_queue_cnt >= 1)
 		return 1;
 	/* context is ready to encode remaining frames */
@@ -649,6 +649,7 @@ static int enc_post_seq_start(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_enc_params *p = &ctx->enc_params;
 	struct s5p_mfc_buf *dst_mb;
 	unsigned long flags;
+	unsigned int enc_pb_count;
 
 	if (p->seq_hdr_mode == V4L2_MPEG_VIDEO_HEADER_MODE_SEPARATE) {
 		spin_lock_irqsave(&dev->irqlock, flags);
@@ -661,18 +662,19 @@ static int enc_post_seq_start(struct s5p_mfc_ctx *ctx)
 		vb2_buffer_done(dst_mb->b, VB2_BUF_STATE_DONE);
 		spin_unlock_irqrestore(&dev->irqlock, flags);
 	}
-	if (IS_MFCV6(dev)) {
-		ctx->state = MFCINST_HEAD_PARSED; /* for INIT_BUFFER cmd */
-	} else {
+
+	if (!IS_MFCV6(dev)) {
 		ctx->state = MFCINST_RUNNING;
 		if (s5p_mfc_ctx_ready(ctx))
 			set_work_bit_irqsave(ctx);
 		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
-	}
-
-	if (IS_MFCV6(dev))
-		ctx->dpb_count = s5p_mfc_hw_call(dev->mfc_ops,
+	} else {
+		enc_pb_count = s5p_mfc_hw_call(dev->mfc_ops,
 				get_enc_dpb_count, dev);
+		if (ctx->pb_count < enc_pb_count)
+			ctx->pb_count = enc_pb_count;
+		ctx->state = MFCINST_HEAD_PRODUCED;
+	}
 
 	return 0;
 }
@@ -1055,15 +1057,13 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 		}
 		ctx->capture_state = QUEUE_BUFS_REQUESTED;
 
-		if (!IS_MFCV6(dev)) {
-			ret = s5p_mfc_hw_call(ctx->dev->mfc_ops,
-					alloc_codec_buffers, ctx);
-			if (ret) {
-				mfc_err("Failed to allocate encoding buffers\n");
-				reqbufs->count = 0;
-				ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
-				return -ENOMEM;
-			}
+		ret = s5p_mfc_hw_call(ctx->dev->mfc_ops,
+				alloc_codec_buffers, ctx);
+		if (ret) {
+			mfc_err("Failed to allocate encoding buffers\n");
+			reqbufs->count = 0;
+			ret = vb2_reqbufs(&ctx->vq_dst, reqbufs);
+			return -ENOMEM;
 		}
 	} else if (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		if (ctx->output_state != QUEUE_FREE) {
@@ -1071,6 +1071,19 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 							ctx->output_state);
 			return -EINVAL;
 		}
+
+		if (IS_MFCV6(dev)) {
+			/* Check for min encoder buffers */
+			if (ctx->pb_count &&
+				(reqbufs->count < ctx->pb_count)) {
+				reqbufs->count = ctx->pb_count;
+				mfc_debug(2, "Minimum %d output buffers needed\n",
+						ctx->pb_count);
+			} else {
+				ctx->pb_count = reqbufs->count;
+			}
+		}
+
 		ret = vb2_reqbufs(&ctx->vq_src, reqbufs);
 		if (ret != 0) {
 			mfc_err("error in vb2_reqbufs() for E(S)\n");
@@ -1760,11 +1773,28 @@ static int s5p_mfc_start_streaming(struct vb2_queue *q, unsigned int count)
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(q->drv_priv);
 	struct s5p_mfc_dev *dev = ctx->dev;
 
+	if (IS_MFCV6(dev) && (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)) {
+
+		if ((ctx->state == MFCINST_GOT_INST) &&
+			(dev->curr_ctx == ctx->num) && dev->hw_lock) {
+			s5p_mfc_wait_for_done_ctx(ctx,
+						S5P_MFC_R2H_CMD_SEQ_DONE_RET,
+						0);
+		}
+
+		if (ctx->src_bufs_cnt < ctx->pb_count) {
+			mfc_err("Need minimum %d OUTPUT buffers\n",
+					ctx->pb_count);
+			return -EINVAL;
+		}
+	}
+
 	v4l2_ctrl_handler_setup(&ctx->ctrl_handler);
 	/* If context is ready then dev = work->data;schedule it to run */
 	if (s5p_mfc_ctx_ready(ctx))
 		set_work_bit_irqsave(ctx);
 	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
+
 	return 0;
 }
 

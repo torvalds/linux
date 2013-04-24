@@ -167,7 +167,7 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 				S5P_FIMV_SCRATCH_BUFFER_ALIGN_V6);
 		ctx->bank1.size =
 			ctx->scratch_buf_size + ctx->tmv_buffer_size +
-			(ctx->dpb_count * (ctx->luma_dpb_size +
+			(ctx->pb_count * (ctx->luma_dpb_size +
 			ctx->chroma_dpb_size + ctx->me_buffer_size));
 		ctx->bank2.size = 0;
 		break;
@@ -181,7 +181,7 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 				S5P_FIMV_SCRATCH_BUFFER_ALIGN_V6);
 		ctx->bank1.size =
 			ctx->scratch_buf_size + ctx->tmv_buffer_size +
-			(ctx->dpb_count * (ctx->luma_dpb_size +
+			(ctx->pb_count * (ctx->luma_dpb_size +
 			ctx->chroma_dpb_size + ctx->me_buffer_size));
 		ctx->bank2.size = 0;
 		break;
@@ -198,7 +198,6 @@ static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 		}
 		BUG_ON(ctx->bank1.dma & ((1 << MFC_BANK1_ALIGN_ORDER) - 1));
 	}
-
 	return 0;
 }
 
@@ -497,7 +496,7 @@ static int s5p_mfc_set_enc_ref_buffer_v6(struct s5p_mfc_ctx *ctx)
 
 	mfc_debug(2, "Buf1: %p (%d)\n", (void *)buf_addr1, buf_size1);
 
-	for (i = 0; i < ctx->dpb_count; i++) {
+	for (i = 0; i < ctx->pb_count; i++) {
 		WRITEL(buf_addr1, S5P_FIMV_E_LUMA_DPB_V6 + (4 * i));
 		buf_addr1 += ctx->luma_dpb_size;
 		WRITEL(buf_addr1, S5P_FIMV_E_CHROMA_DPB_V6 + (4 * i));
@@ -520,7 +519,7 @@ static int s5p_mfc_set_enc_ref_buffer_v6(struct s5p_mfc_ctx *ctx)
 	buf_size1 -= ctx->tmv_buffer_size;
 
 	mfc_debug(2, "Buf1: %u, buf_size1: %d (ref frames %d)\n",
-			buf_addr1, buf_size1, ctx->dpb_count);
+			buf_addr1, buf_size1, ctx->pb_count);
 	if (buf_size1 < 0) {
 		mfc_debug(2, "Not enough memory has been allocated.\n");
 		return -ENOMEM;
@@ -1522,22 +1521,6 @@ static inline int s5p_mfc_run_init_enc_buffers(struct s5p_mfc_ctx *ctx)
 	struct s5p_mfc_dev *dev = ctx->dev;
 	int ret;
 
-	ret = s5p_mfc_alloc_codec_buffers_v6(ctx);
-	if (ret) {
-		mfc_err("Failed to allocate encoding buffers.\n");
-		return -ENOMEM;
-	}
-
-	/* Header was generated now starting processing
-	 * First set the reference frame buffers
-	 */
-	if (ctx->capture_state != QUEUE_BUFS_REQUESTED) {
-		mfc_err("It seems that destionation buffers were not\n"
-			"requested.MFC requires that header should be generated\n"
-			"before allocating codec buffer.\n");
-		return -EAGAIN;
-	}
-
 	dev->curr_ctx = ctx->num;
 	s5p_mfc_clean_ctx_int_flags(ctx);
 	ret = s5p_mfc_set_enc_ref_buffer_v6(ctx);
@@ -1582,7 +1565,7 @@ static void s5p_mfc_try_run_v6(struct s5p_mfc_dev *dev)
 	mfc_debug(1, "Seting new context to %p\n", ctx);
 	/* Got context to run in ctx */
 	mfc_debug(1, "ctx->dst_queue_cnt=%d ctx->dpb_count=%d ctx->src_queue_cnt=%d\n",
-		ctx->dst_queue_cnt, ctx->dpb_count, ctx->src_queue_cnt);
+		ctx->dst_queue_cnt, ctx->pb_count, ctx->src_queue_cnt);
 	mfc_debug(1, "ctx->state=%d\n", ctx->state);
 	/* Last frame has already been sent to MFC
 	 * Now obtaining frames from MFC buffer */
@@ -1647,7 +1630,7 @@ static void s5p_mfc_try_run_v6(struct s5p_mfc_dev *dev)
 		case MFCINST_GOT_INST:
 			s5p_mfc_run_init_enc(ctx);
 			break;
-		case MFCINST_HEAD_PARSED: /* Only for MFC6.x */
+		case MFCINST_HEAD_PRODUCED:
 			ret = s5p_mfc_run_init_enc_buffers(ctx);
 			break;
 		default:

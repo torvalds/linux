@@ -138,6 +138,7 @@ enum s5p_mfc_inst_state {
 	MFCINST_INIT = 100,
 	MFCINST_GOT_INST,
 	MFCINST_HEAD_PARSED,
+	MFCINST_HEAD_PRODUCED,
 	MFCINST_BUFS_SET,
 	MFCINST_RUNNING,
 	MFCINST_FINISHING,
@@ -602,7 +603,7 @@ struct s5p_mfc_ctx {
 	int after_packed_pb;
 	int sei_fp_parse;
 
-	int dpb_count;
+	int pb_count;
 	int total_dpb_count;
 	int mv_count;
 	/* Buffers */
