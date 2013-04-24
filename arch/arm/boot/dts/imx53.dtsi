@@ -400,6 +400,17 @@
 							MX53_PAD_EIM_D18__ECSPI1_MOSI 0x80000000
 						>;
 					};
+
+					pinctrl_ecspi1_2: ecspi1grp-2 {
+						fsl,pins = <
+							MX53_PAD_GPIO_19__ECSPI1_RDY	0x80000000
+							MX53_PAD_EIM_EB2__ECSPI1_SS0	0x80000000
+							MX53_PAD_EIM_D16__ECSPI1_SCLK	0x80000000
+							MX53_PAD_EIM_D17__ECSPI1_MISO	0x80000000
+							MX53_PAD_EIM_D18__ECSPI1_MOSI	0x80000000
+							MX53_PAD_EIM_D19__ECSPI1_SS1	0x80000000
+						>;
+					};
 				};
 
 				esdhc1 {
