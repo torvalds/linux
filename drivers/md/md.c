@@ -5883,6 +5883,9 @@ static int hot_remove_disk(struct mddev * mddev, dev_t dev)
 	if (!rdev)
 		return -ENXIO;
 
+	clear_bit(Blocked, &rdev->flags);
+	remove_and_add_spares(mddev, rdev);
+
 	if (rdev->raid_disk >= 0)
 		goto busy;
 
@@ -6496,6 +6499,10 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 		err = md_set_readonly(mddev, bdev);
 		goto done_unlock;
 
+	case HOT_REMOVE_DISK:
+		err = hot_remove_disk(mddev, new_decode_dev(arg));
+		goto done_unlock;
+
 	case BLKROSET:
 		if (get_user(ro, (int __user *)(arg))) {
 			err = -EFAULT;
@@ -6565,10 +6572,6 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 			err = add_new_disk(mddev, &info);
 		goto done_unlock;
 	}
-
-	case HOT_REMOVE_DISK:
-		err = hot_remove_disk(mddev, new_decode_dev(arg));
-		goto done_unlock;
 
 	case HOT_ADD_DISK:
 		err = hot_add_disk(mddev, new_decode_dev(arg));
