@@ -340,7 +340,7 @@ static int p54_config(struct ieee80211_hw *dev, u32 changed)
 		 * TODO: Use the LM_SCAN_TRAP to determine the current
 		 * operating channel.
 		 */
-		priv->curchan = priv->hw->conf.channel;
+		priv->curchan = priv->hw->conf.chandef.chan;
 		p54_reset_stats(priv);
 		WARN_ON(p54_fetch_statistics(priv));
 	}
@@ -480,7 +480,7 @@ static void p54_bss_info_changed(struct ieee80211_hw *dev,
 		p54_set_edcf(priv);
 	}
 	if (changed & BSS_CHANGED_BASIC_RATES) {
-		if (dev->conf.channel->band == IEEE80211_BAND_5GHZ)
+		if (dev->conf.chandef.chan->band == IEEE80211_BAND_5GHZ)
 			priv->basic_rate_mask = (info->basic_rates << 4);
 		else
 			priv->basic_rate_mask = info->basic_rates;

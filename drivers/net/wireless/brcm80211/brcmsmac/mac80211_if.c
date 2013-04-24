@@ -556,10 +556,10 @@ static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
 				  new_int);
 	}
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		if (conf->channel_type == NL80211_CHAN_HT20 ||
-		    conf->channel_type == NL80211_CHAN_NO_HT)
+		if (conf->chandef.width == NL80211_CHAN_WIDTH_20 ||
+		    conf->chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
 			err = brcms_c_set_channel(wl->wlc,
-						  conf->channel->hw_value);
+						  conf->chandef.chan->hw_value);
 		else
 			err = -ENOTSUPP;
 	}

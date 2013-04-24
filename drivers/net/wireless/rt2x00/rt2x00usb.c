@@ -70,9 +70,9 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 		}
 	}
 
-	ERROR(rt2x00dev,
-	      "Vendor Request 0x%02x failed for offset 0x%04x with error %d.\n",
-	      request, offset, status);
+	rt2x00_err(rt2x00dev,
+		   "Vendor Request 0x%02x failed for offset 0x%04x with error %d\n",
+		   request, offset, status);
 
 	return status;
 }
@@ -91,7 +91,7 @@ int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
 	 * Check for Cache availability.
 	 */
 	if (unlikely(!rt2x00dev->csr.cache || buffer_length > CSR_CACHE_SIZE)) {
-		ERROR(rt2x00dev, "CSR cache not available.\n");
+		rt2x00_err(rt2x00dev, "CSR cache not available\n");
 		return -ENOMEM;
 	}
 
@@ -157,8 +157,8 @@ int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 		udelay(REGISTER_BUSY_DELAY);
 	}
 
-	ERROR(rt2x00dev, "Indirect register access failed: "
-	      "offset=0x%.08x, value=0x%.08x\n", offset, *reg);
+	rt2x00_err(rt2x00dev, "Indirect register access failed: offset=0x%.08x, value=0x%.08x\n",
+		   offset, *reg);
 	*reg = ~0;
 
 	return 0;
@@ -307,7 +307,7 @@ static bool rt2x00usb_kick_tx_entry(struct queue_entry *entry, void *data)
 	status = skb_padto(entry->skb, length);
 	if (unlikely(status)) {
 		/* TODO: report something more appropriate than IO_FAILED. */
-		WARNING(rt2x00dev, "TX SKB padding error, out of memory\n");
+		rt2x00_warn(rt2x00dev, "TX SKB padding error, out of memory\n");
 		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 		rt2x00lib_dmadone(entry);
 
@@ -520,8 +520,8 @@ EXPORT_SYMBOL_GPL(rt2x00usb_flush_queue);
 
 static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
 {
-	WARNING(queue->rt2x00dev, "TX queue %d DMA timed out,"
-		" invoke forced forced reset\n", queue->qid);
+	rt2x00_warn(queue->rt2x00dev, "TX queue %d DMA timed out, invoke forced forced reset\n",
+		    queue->qid);
 
 	rt2x00queue_flush_queue(queue, true);
 }
@@ -622,7 +622,7 @@ static int rt2x00usb_find_endpoints(struct rt2x00_dev *rt2x00dev)
 	 * At least 1 endpoint for RX and 1 endpoint for TX must be available.
 	 */
 	if (!rt2x00dev->rx->usb_endpoint || !rt2x00dev->tx->usb_endpoint) {
-		ERROR(rt2x00dev, "Bulk-in/Bulk-out endpoints not found\n");
+		rt2x00_err(rt2x00dev, "Bulk-in/Bulk-out endpoints not found\n");
 		return -EPIPE;
 	}
 
@@ -775,7 +775,7 @@ static int rt2x00usb_alloc_reg(struct rt2x00_dev *rt2x00dev)
 	return 0;
 
 exit:
-	ERROR_PROBE("Failed to allocate registers.\n");
+	rt2x00_probe_err("Failed to allocate registers\n");
 
 	rt2x00usb_free_reg(rt2x00dev);
 
@@ -795,7 +795,7 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 
 	hw = ieee80211_alloc_hw(sizeof(struct rt2x00_dev), ops->hw);
 	if (!hw) {
-		ERROR_PROBE("Failed to allocate hardware.\n");
+		rt2x00_probe_err("Failed to allocate hardware\n");
 		retval = -ENOMEM;
 		goto exit_put_device;
 	}

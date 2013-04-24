@@ -79,6 +79,121 @@ static void hci_req_cancel(struct hci_dev *hdev, int err)
 	}
 }
 
+struct sk_buff *hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 event)
+{
+	struct hci_ev_cmd_complete *ev;
+	struct hci_event_hdr *hdr;
+	struct sk_buff *skb;
+
+	hci_dev_lock(hdev);
+
+	skb = hdev->recv_evt;
+	hdev->recv_evt = NULL;
+
+	hci_dev_unlock(hdev);
+
+	if (!skb)
+		return ERR_PTR(-ENODATA);
+
+	if (skb->len < sizeof(*hdr)) {
+		BT_ERR("Too short HCI event");
+		goto failed;
+	}
+
+	hdr = (void *) skb->data;
+	skb_pull(skb, HCI_EVENT_HDR_SIZE);
+
+	if (event) {
+		if (hdr->evt != event)
+			goto failed;
+		return skb;
+	}
+
+	if (hdr->evt != HCI_EV_CMD_COMPLETE) {
+		BT_DBG("Last event is not cmd complete (0x%2.2x)", hdr->evt);
+		goto failed;
+	}
+
+	if (skb->len < sizeof(*ev)) {
+		BT_ERR("Too short cmd_complete event");
+		goto failed;
+	}
+
+	ev = (void *) skb->data;
+	skb_pull(skb, sizeof(*ev));
+
+	if (opcode == __le16_to_cpu(ev->opcode))
+		return skb;
+
+	BT_DBG("opcode doesn't match (0x%2.2x != 0x%2.2x)", opcode,
+	       __le16_to_cpu(ev->opcode));
+
+failed:
+	kfree_skb(skb);
+	return ERR_PTR(-ENODATA);
+}
+
+struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
+				  void *param, u8 event, u32 timeout)
+{
+	DECLARE_WAITQUEUE(wait, current);
+	struct hci_request req;
+	int err = 0;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_req_init(&req, hdev);
+
+	hci_req_add_ev(&req, opcode, plen, param, event);
+
+	hdev->req_status = HCI_REQ_PEND;
+
+	err = hci_req_run(&req, hci_req_sync_complete);
+	if (err < 0)
+		return ERR_PTR(err);
+
+	add_wait_queue(&hdev->req_wait_q, &wait);
+	set_current_state(TASK_INTERRUPTIBLE);
+
+	schedule_timeout(timeout);
+
+	remove_wait_queue(&hdev->req_wait_q, &wait);
+
+	if (signal_pending(current))
+		return ERR_PTR(-EINTR);
+
+	switch (hdev->req_status) {
+	case HCI_REQ_DONE:
+		err = -bt_to_errno(hdev->req_result);
+		break;
+
+	case HCI_REQ_CANCELED:
+		err = -hdev->req_result;
+		break;
+
+	default:
+		err = -ETIMEDOUT;
+		break;
+	}
+
+	hdev->req_status = hdev->req_result = 0;
+
+	BT_DBG("%s end: err %d", hdev->name, err);
+
+	if (err < 0)
+		return ERR_PTR(err);
+
+	return hci_get_cmd_complete(hdev, opcode, event);
+}
+EXPORT_SYMBOL(__hci_cmd_sync_ev);
+
+struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
+			       void *param, u32 timeout)
+{
+	return __hci_cmd_sync_ev(hdev, opcode, plen, param, 0, timeout);
+}
+EXPORT_SYMBOL(__hci_cmd_sync);
+
 /* Execute request and wait for completion. */
 static int __hci_req_sync(struct hci_dev *hdev,
 			  void (*func)(struct hci_request *req,
@@ -201,28 +316,8 @@ static void amp_init(struct hci_request *req)
 static void hci_init1_req(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
-	struct hci_request init_req;
-	struct sk_buff *skb;
 
 	BT_DBG("%s %ld", hdev->name, opt);
-
-	/* Driver initialization */
-
-	hci_req_init(&init_req, hdev);
-
-	/* Special commands */
-	while ((skb = skb_dequeue(&hdev->driver_init))) {
-		bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
-		skb->dev = (void *) hdev;
-
-		if (skb_queue_empty(&init_req.cmd_q))
-			bt_cb(skb)->req.start = true;
-
-		skb_queue_tail(&init_req.cmd_q, skb);
-	}
-	skb_queue_purge(&hdev->driver_init);
-
-	hci_req_run(&init_req, NULL);
 
 	/* Reset */
 	if (!test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks))
@@ -494,6 +589,7 @@ static void hci_set_le_support(struct hci_request *req)
 static void hci_init3_req(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
+	u8 p;
 
 	if (hdev->commands[5] & 0x10)
 		hci_setup_link_policy(req);
@@ -501,6 +597,15 @@ static void hci_init3_req(struct hci_request *req, unsigned long opt)
 	if (lmp_le_capable(hdev)) {
 		hci_set_le_support(req);
 		hci_update_ad(req);
+	}
+
+	/* Read features beyond page 1 if available */
+	for (p = 2; p < HCI_MAX_PAGES && p <= hdev->max_page; p++) {
+		struct hci_cp_read_local_ext_features cp;
+
+		cp.page = p;
+		hci_req_add(req, HCI_OP_READ_LOCAL_EXT_FEATURES,
+			    sizeof(cp), &cp);
 	}
 }
 
@@ -818,6 +923,12 @@ static void hci_inq_req(struct hci_request *req, unsigned long opt)
 	hci_req_add(req, HCI_OP_INQUIRY, sizeof(cp), &cp);
 }
 
+static int wait_inquiry(void *word)
+{
+	schedule();
+	return signal_pending(current);
+}
+
 int hci_inquiry(void __user *arg)
 {
 	__u8 __user *ptr = arg;
@@ -849,6 +960,13 @@ int hci_inquiry(void __user *arg)
 				   timeo);
 		if (err < 0)
 			goto done;
+
+		/* Wait until Inquiry procedure finishes (HCI_INQUIRY flag is
+		 * cleared). If it is interrupted by a signal, return -EINTR.
+		 */
+		if (wait_on_bit(&hdev->flags, HCI_INQUIRY, wait_inquiry,
+				TASK_INTERRUPTIBLE))
+			return -EINTR;
 	}
 
 	/* for unlimited number of responses we will use buffer with
@@ -999,25 +1117,32 @@ int hci_dev_open(__u16 dev)
 		goto done;
 	}
 
-	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
-		set_bit(HCI_RAW, &hdev->flags);
-
-	/* Treat all non BR/EDR controllers as raw devices if
-	   enable_hs is not set */
-	if (hdev->dev_type != HCI_BREDR && !enable_hs)
-		set_bit(HCI_RAW, &hdev->flags);
-
 	if (hdev->open(hdev)) {
 		ret = -EIO;
 		goto done;
 	}
 
-	if (!test_bit(HCI_RAW, &hdev->flags)) {
-		atomic_set(&hdev->cmd_cnt, 1);
-		set_bit(HCI_INIT, &hdev->flags);
-		ret = __hci_init(hdev);
-		clear_bit(HCI_INIT, &hdev->flags);
+	atomic_set(&hdev->cmd_cnt, 1);
+	set_bit(HCI_INIT, &hdev->flags);
+
+	if (hdev->setup && test_bit(HCI_SETUP, &hdev->dev_flags))
+		ret = hdev->setup(hdev);
+
+	if (!ret) {
+		/* Treat all non BR/EDR controllers as raw devices if
+		 * enable_hs is not set.
+		 */
+		if (hdev->dev_type != HCI_BREDR && !enable_hs)
+			set_bit(HCI_RAW, &hdev->flags);
+
+		if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+			set_bit(HCI_RAW, &hdev->flags);
+
+		if (!test_bit(HCI_RAW, &hdev->flags))
+			ret = __hci_init(hdev);
 	}
+
+	clear_bit(HCI_INIT, &hdev->flags);
 
 	if (!ret) {
 		hci_dev_hold(hdev);
@@ -1122,6 +1247,9 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 		kfree_skb(hdev->sent_cmd);
 		hdev->sent_cmd = NULL;
 	}
+
+	kfree_skb(hdev->recv_evt);
+	hdev->recv_evt = NULL;
 
 	/* After this point our queues are empty
 	 * and no tasks are scheduled. */
@@ -1861,8 +1989,8 @@ static void le_scan_enable_req(struct hci_request *req, unsigned long opt)
 	struct hci_cp_le_set_scan_enable cp;
 
 	memset(&cp, 0, sizeof(cp));
-	cp.enable = 1;
-	cp.filter_dup = 1;
+	cp.enable = LE_SCAN_ENABLE;
+	cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
 
 	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
 }
@@ -1896,7 +2024,7 @@ static int hci_do_le_scan(struct hci_dev *hdev, u8 type, u16 interval,
 		return err;
 
 	queue_delayed_work(hdev->workqueue, &hdev->le_scan_disable,
-			   msecs_to_jiffies(timeout));
+			   timeout);
 
 	return 0;
 }
@@ -2006,7 +2134,6 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_DELAYED_WORK(&hdev->discov_off, hci_discov_off);
 	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
 
-	skb_queue_head_init(&hdev->driver_init);
 	skb_queue_head_init(&hdev->rx_q);
 	skb_queue_head_init(&hdev->cmd_q);
 	skb_queue_head_init(&hdev->raw_q);
@@ -2025,8 +2152,6 @@ EXPORT_SYMBOL(hci_alloc_dev);
 /* Free HCI device */
 void hci_free_dev(struct hci_dev *hdev)
 {
-	skb_queue_purge(&hdev->driver_init);
-
 	/* will free via device release */
 	put_device(&hdev->dev);
 }
@@ -2527,7 +2652,8 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
 }
 
 /* Queue a command to an asynchronous HCI request */
-void hci_req_add(struct hci_request *req, u16 opcode, u32 plen, void *param)
+void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen, void *param,
+		    u8 event)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct sk_buff *skb;
@@ -2551,7 +2677,14 @@ void hci_req_add(struct hci_request *req, u16 opcode, u32 plen, void *param)
 	if (skb_queue_empty(&req->cmd_q))
 		bt_cb(skb)->req.start = true;
 
+	bt_cb(skb)->req.event = event;
+
 	skb_queue_tail(&req->cmd_q, skb);
+}
+
+void hci_req_add(struct hci_request *req, u16 opcode, u32 plen, void *param)
+{
+	hci_req_add_ev(req, opcode, plen, param, 0);
 }
 
 /* Get data from the previously sent command */
@@ -3307,32 +3440,6 @@ void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status)
 call_complete:
 	if (req_complete)
 		req_complete(hdev, status);
-}
-
-void hci_req_cmd_status(struct hci_dev *hdev, u16 opcode, u8 status)
-{
-	hci_req_complete_t req_complete = NULL;
-
-	BT_DBG("opcode 0x%04x status 0x%02x", opcode, status);
-
-	if (status) {
-		hci_req_cmd_complete(hdev, opcode, status);
-		return;
-	}
-
-	/* No need to handle success status if there are more commands */
-	if (!hci_req_is_complete(hdev))
-		return;
-
-	if (hdev->sent_cmd)
-		req_complete = bt_cb(hdev->sent_cmd)->req.complete;
-
-	/* If the request doesn't have a complete callback or there
-	 * are other commands/requests in the hdev queue we consider
-	 * this request as completed.
-	 */
-	if (!req_complete || !skb_queue_empty(&hdev->cmd_q))
-		hci_req_cmd_complete(hdev, opcode, status);
 }
 
 static void hci_rx_work(struct work_struct *work)

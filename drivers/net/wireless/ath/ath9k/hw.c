@@ -139,7 +139,7 @@ static void ath9k_hw_set_clockrate(struct ath_hw *ah)
 		clockrate = 117;
 	else if (!ah->curchan) /* should really check for CCK instead */
 		clockrate = ATH9K_CLOCK_RATE_CCK;
-	else if (conf->channel->band == IEEE80211_BAND_2GHZ)
+	else if (conf->chandef.chan->band == IEEE80211_BAND_2GHZ)
 		clockrate = ATH9K_CLOCK_RATE_2GHZ_OFDM;
 	else if (ah->caps.hw_caps & ATH9K_HW_CAP_FASTCLOCK)
 		clockrate = ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM;
@@ -1100,7 +1100,8 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	}
 
 	/* As defined by IEEE 802.11-2007 17.3.8.6 */
-	acktimeout = slottime + sifstime + 3 * ah->coverage_class + ack_offset;
+	slottime += 3 * ah->coverage_class;
+	acktimeout = slottime + sifstime + ack_offset;
 	ctstimeout = acktimeout;
 
 	/*
@@ -1110,7 +1111,8 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	 * BA frames in some implementations, but it has been found to fix ACK
 	 * timeout issues in other cases as well.
 	 */
-	if (conf->channel && conf->channel->band == IEEE80211_BAND_2GHZ &&
+	if (conf->chandef.chan &&
+	    conf->chandef.chan->band == IEEE80211_BAND_2GHZ &&
 	    !IS_CHAN_HALF_RATE(chan) && !IS_CHAN_QUARTER_RATE(chan)) {
 		acktimeout += 64 - sifstime - ah->slottime;
 		ctstimeout += 48 - sifstime - ah->slottime;
@@ -1697,12 +1699,11 @@ static void ath9k_hw_reset_opmode(struct ath_hw *ah,
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
-	REG_WRITE(ah, AR_STA_ID0, get_unaligned_le32(common->macaddr));
-	REG_WRITE(ah, AR_STA_ID1, get_unaligned_le16(common->macaddr + 4)
-		  | macStaId1
+	REG_RMW(ah, AR_STA_ID1, macStaId1
 		  | AR_STA_ID1_RTS_USE_DEF
 		  | (ah->config.ack_6mb ? AR_STA_ID1_ACKCTS_6MB : 0)
-		  | ah->sta_id1_defaults);
+		  | ah->sta_id1_defaults,
+		  ~AR_STA_ID1_SADH_MASK);
 	ath_hw_setbssidmask(common);
 	REG_WRITE(ah, AR_DEF_ANTENNA, saveDefAntenna);
 	ath9k_hw_write_associd(ah);

@@ -29,6 +29,7 @@
 #include "tracepoint.h"
 #include "fwil_types.h"
 #include "p2p.h"
+#include "btcoex.h"
 #include "wl_cfg80211.h"
 #include "fwil.h"
 
@@ -334,22 +335,16 @@ static u8 brcmf_mw_to_qdbm(u16 mw)
 	return qdbm;
 }
 
-u16 channel_to_chanspec(struct ieee80211_channel *ch)
+u16 channel_to_chanspec(struct brcmu_d11inf *d11inf,
+			struct ieee80211_channel *ch)
 {
-	u16 chanspec;
+	struct brcmu_chan ch_inf;
 
-	chanspec = ieee80211_frequency_to_channel(ch->center_freq);
-	chanspec &= WL_CHANSPEC_CHAN_MASK;
+	ch_inf.chnum = ieee80211_frequency_to_channel(ch->center_freq);
+	ch_inf.bw = BRCMU_CHAN_BW_20;
+	d11inf->encchspec(&ch_inf);
 
-	if (ch->band == IEEE80211_BAND_2GHZ)
-		chanspec |= WL_CHANSPEC_BAND_2G;
-	else
-		chanspec |= WL_CHANSPEC_BAND_5G;
-
-	chanspec |= WL_CHANSPEC_BW_20;
-	chanspec |= WL_CHANSPEC_CTL_SB_NONE;
-
-	return chanspec;
+	return ch_inf.chspec;
 }
 
 /* Traverse a string of 1-byte tag/1-byte length/variable-length value
@@ -680,7 +675,8 @@ done:
 	return err;
 }
 
-static void brcmf_escan_prep(struct brcmf_scan_params_le *params_le,
+static void brcmf_escan_prep(struct brcmf_cfg80211_info *cfg,
+			     struct brcmf_scan_params_le *params_le,
 			     struct cfg80211_scan_request *request)
 {
 	u32 n_ssids;
@@ -712,7 +708,8 @@ static void brcmf_escan_prep(struct brcmf_scan_params_le *params_le,
 		  n_channels);
 	if (n_channels > 0) {
 		for (i = 0; i < n_channels; i++) {
-			chanspec = channel_to_chanspec(request->channels[i]);
+			chanspec = channel_to_chanspec(&cfg->d11inf,
+						       request->channels[i]);
 			brcmf_dbg(SCAN, "Chan : %d, Channel spec: %x\n",
 				  request->channels[i]->hw_value, chanspec);
 			params_le->channel_list[i] = cpu_to_le16(chanspec);
@@ -784,7 +781,7 @@ brcmf_run_escan(struct brcmf_cfg80211_info *cfg, struct brcmf_if *ifp,
 		goto exit;
 	}
 	BUG_ON(params_size + sizeof("escan") >= BRCMF_DCMD_MEDLEN);
-	brcmf_escan_prep(&params->params_le, request);
+	brcmf_escan_prep(cfg, &params->params_le, request);
 	params->version = cpu_to_le32(BRCMF_ESCAN_REQ_VERSION);
 	params->action = cpu_to_le16(action);
 	params->sync_id = cpu_to_le16(0x1234);
@@ -857,6 +854,11 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct brcmf_cfg80211_vif *vif,
 	}
 	if (test_bit(BRCMF_SCAN_STATUS_ABORT, &cfg->scan_status)) {
 		brcmf_err("Scanning being aborted: status (%lu)\n",
+			  cfg->scan_status);
+		return -EAGAIN;
+	}
+	if (test_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status)) {
+		brcmf_err("Scanning suppressed: status (%lu)\n",
 			  cfg->scan_status);
 		return -EAGAIN;
 	}
@@ -1050,6 +1052,7 @@ static void brcmf_init_prof(struct brcmf_cfg80211_profile *prof)
 
 static void brcmf_link_down(struct brcmf_cfg80211_vif *vif)
 {
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(vif->wdev.wiphy);
 	s32 err = 0;
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -1063,6 +1066,8 @@ static void brcmf_link_down(struct brcmf_cfg80211_vif *vif)
 		clear_bit(BRCMF_VIF_STATUS_CONNECTED, &vif->sme_state);
 	}
 	clear_bit(BRCMF_VIF_STATUS_CONNECTING, &vif->sme_state);
+	clear_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status);
+	brcmf_btcoex_set_mode(vif, BRCMF_BTCOEX_ENABLED, 0);
 	brcmf_dbg(TRACE, "Exit\n");
 }
 
@@ -1182,7 +1187,8 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 				params->chandef.chan->center_freq);
 		if (params->channel_fixed) {
 			/* adding chanspec */
-			chanspec = channel_to_chanspec(params->chandef.chan);
+			chanspec = channel_to_chanspec(&cfg->d11inf,
+						       params->chandef.chan);
 			join_params.params_le.chanspec_list[0] =
 				cpu_to_le16(chanspec);
 			join_params.params_le.chanspec_num = cpu_to_le32(1);
@@ -1572,7 +1578,7 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 	if (chan) {
 		cfg->channel =
 			ieee80211_frequency_to_channel(chan->center_freq);
-		chanspec = channel_to_chanspec(chan);
+		chanspec = channel_to_chanspec(&cfg->d11inf, chan);
 		brcmf_dbg(CONN, "channel=%d, center_req=%d, chanspec=0x%04x\n",
 			  cfg->channel, chan->center_freq, chanspec);
 	} else {
@@ -2231,6 +2237,7 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_info *cfg,
 	struct ieee80211_channel *notify_channel;
 	struct cfg80211_bss *bss;
 	struct ieee80211_supported_band *band;
+	struct brcmu_chan ch;
 	s32 err = 0;
 	u16 channel;
 	u32 freq;
@@ -2245,8 +2252,12 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_info *cfg,
 		return 0;
 	}
 
-	channel = bi->ctl_ch ? bi->ctl_ch :
-				CHSPEC_CHANNEL(le16_to_cpu(bi->chanspec));
+	if (!bi->ctl_ch) {
+		ch.chspec = le16_to_cpu(bi->chanspec);
+		cfg->d11inf.decchspec(&ch);
+		bi->ctl_ch = ch.chnum;
+	}
+	channel = bi->ctl_ch;
 
 	if (channel <= CH_MAX_2G_CHANNEL)
 		band = wiphy->bands[IEEE80211_BAND_2GHZ];
@@ -2321,9 +2332,9 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_info *cfg,
 	struct brcmf_bss_info_le *bi = NULL;
 	struct ieee80211_supported_band *band;
 	struct cfg80211_bss *bss;
+	struct brcmu_chan ch;
 	u8 *buf = NULL;
 	s32 err = 0;
-	u16 channel;
 	u32 freq;
 	u16 notify_capability;
 	u16 notify_interval;
@@ -2350,15 +2361,15 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_info *cfg,
 
 	bi = (struct brcmf_bss_info_le *)(buf + 4);
 
-	channel = bi->ctl_ch ? bi->ctl_ch :
-				CHSPEC_CHANNEL(le16_to_cpu(bi->chanspec));
+	ch.chspec = le16_to_cpu(bi->chanspec);
+	cfg->d11inf.decchspec(&ch);
 
-	if (channel <= CH_MAX_2G_CHANNEL)
+	if (ch.band == BRCMU_CHAN_BAND_2G)
 		band = wiphy->bands[IEEE80211_BAND_2GHZ];
 	else
 		band = wiphy->bands[IEEE80211_BAND_5GHZ];
 
-	freq = ieee80211_channel_to_frequency(channel, band->band);
+	freq = ieee80211_channel_to_frequency(ch.chnum, band->band);
 	notify_channel = ieee80211_get_channel(wiphy, freq);
 
 	notify_capability = le16_to_cpu(bi->capability);
@@ -2367,7 +2378,7 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_info *cfg,
 	notify_ielen = le32_to_cpu(bi->ie_length);
 	notify_signal = (s16)le16_to_cpu(bi->RSSI) * 100;
 
-	brcmf_dbg(CONN, "channel: %d(%d)\n", channel, freq);
+	brcmf_dbg(CONN, "channel: %d(%d)\n", ch.chnum, freq);
 	brcmf_dbg(CONN, "capability: %X\n", notify_capability);
 	brcmf_dbg(CONN, "beacon interval: %d\n", notify_interval);
 	brcmf_dbg(CONN, "signal: %d\n", notify_signal);
@@ -2490,12 +2501,19 @@ static void brcmf_escan_timeout(unsigned long data)
 }
 
 static s32
-brcmf_compare_update_same_bss(struct brcmf_bss_info_le *bss,
+brcmf_compare_update_same_bss(struct brcmf_cfg80211_info *cfg,
+			      struct brcmf_bss_info_le *bss,
 			      struct brcmf_bss_info_le *bss_info_le)
 {
+	struct brcmu_chan ch_bss, ch_bss_info_le;
+
+	ch_bss.chspec = le16_to_cpu(bss->chanspec);
+	cfg->d11inf.decchspec(&ch_bss);
+	ch_bss_info_le.chspec = le16_to_cpu(bss_info_le->chanspec);
+	cfg->d11inf.decchspec(&ch_bss_info_le);
+
 	if (!memcmp(&bss_info_le->BSSID, &bss->BSSID, ETH_ALEN) &&
-		(CHSPEC_BAND(le16_to_cpu(bss_info_le->chanspec)) ==
-		CHSPEC_BAND(le16_to_cpu(bss->chanspec))) &&
+		ch_bss.band == ch_bss_info_le.band &&
 		bss_info_le->SSID_len == bss->SSID_len &&
 		!memcmp(bss_info_le->SSID, bss->SSID, bss_info_le->SSID_len)) {
 		if ((bss->flags & WLC_BSS_RSSI_ON_CHANNEL) ==
@@ -2593,7 +2611,8 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 			bss = bss ? (struct brcmf_bss_info_le *)
 				((unsigned char *)bss +
 				le32_to_cpu(bss->length)) : list->bss_info_le;
-			if (brcmf_compare_update_same_bss(bss, bss_info_le))
+			if (brcmf_compare_update_same_bss(cfg, bss,
+							  bss_info_le))
 				goto exit;
 		}
 		memcpy(&(cfg->escan_info.escan_buf[list->buflen]),
@@ -3005,6 +3024,11 @@ brcmf_cfg80211_sched_scan_start(struct wiphy *wiphy,
 		  request->n_match_sets, request->n_ssids);
 	if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
 		brcmf_err("Scanning already: status (%lu)\n", cfg->scan_status);
+		return -EAGAIN;
+	}
+	if (test_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status)) {
+		brcmf_err("Scanning suppressed: status (%lu)\n",
+			  cfg->scan_status);
 		return -EAGAIN;
 	}
 
@@ -3993,6 +4017,39 @@ exit:
 	return err;
 }
 
+static int brcmf_cfg80211_crit_proto_start(struct wiphy *wiphy,
+					   struct wireless_dev *wdev,
+					   enum nl80211_crit_proto_id proto,
+					   u16 duration)
+{
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct brcmf_cfg80211_vif *vif;
+
+	vif = container_of(wdev, struct brcmf_cfg80211_vif, wdev);
+
+	/* only DHCP support for now */
+	if (proto != NL80211_CRIT_PROTO_DHCP)
+		return -EINVAL;
+
+	/* suppress and abort scanning */
+	set_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status);
+	brcmf_abort_scanning(cfg);
+
+	return brcmf_btcoex_set_mode(vif, BRCMF_BTCOEX_DISABLED, duration);
+}
+
+static void brcmf_cfg80211_crit_proto_stop(struct wiphy *wiphy,
+					   struct wireless_dev *wdev)
+{
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+	struct brcmf_cfg80211_vif *vif;
+
+	vif = container_of(wdev, struct brcmf_cfg80211_vif, wdev);
+
+	brcmf_btcoex_set_mode(vif, BRCMF_BTCOEX_ENABLED, 0);
+	clear_bit(BRCMF_SCAN_STATUS_SUPPRESS, &cfg->scan_status);
+}
+
 static struct cfg80211_ops wl_cfg80211_ops = {
 	.add_virtual_intf = brcmf_cfg80211_add_iface,
 	.del_virtual_intf = brcmf_cfg80211_del_iface,
@@ -4029,6 +4086,8 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	.cancel_remain_on_channel = brcmf_cfg80211_cancel_remain_on_channel,
 	.start_p2p_device = brcmf_p2p_start_device,
 	.stop_p2p_device = brcmf_p2p_stop_device,
+	.crit_proto_start = brcmf_cfg80211_crit_proto_start,
+	.crit_proto_stop = brcmf_cfg80211_crit_proto_stop,
 #ifdef CONFIG_NL80211_TESTMODE
 	.testmode_cmd = brcmf_cfg80211_testmode
 #endif
@@ -4337,9 +4396,9 @@ brcmf_bss_roaming_done(struct brcmf_cfg80211_info *cfg,
 	struct ieee80211_channel *notify_channel = NULL;
 	struct ieee80211_supported_band *band;
 	struct brcmf_bss_info_le *bi;
+	struct brcmu_chan ch;
 	u32 freq;
 	s32 err = 0;
-	u32 target_channel;
 	u8 *buf;
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -4363,15 +4422,15 @@ brcmf_bss_roaming_done(struct brcmf_cfg80211_info *cfg,
 		goto done;
 
 	bi = (struct brcmf_bss_info_le *)(buf + 4);
-	target_channel = bi->ctl_ch ? bi->ctl_ch :
-				      CHSPEC_CHANNEL(le16_to_cpu(bi->chanspec));
+	ch.chspec = le16_to_cpu(bi->chanspec);
+	cfg->d11inf.decchspec(&ch);
 
-	if (target_channel <= CH_MAX_2G_CHANNEL)
+	if (ch.band == BRCMU_CHAN_BAND_2G)
 		band = wiphy->bands[IEEE80211_BAND_2GHZ];
 	else
 		band = wiphy->bands[IEEE80211_BAND_5GHZ];
 
-	freq = ieee80211_channel_to_frequency(target_channel, band->band);
+	freq = ieee80211_channel_to_frequency(ch.chnum, band->band);
 	notify_channel = ieee80211_get_channel(wiphy, freq);
 
 done:
@@ -4725,6 +4784,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	struct brcmf_cfg80211_vif *vif;
 	struct brcmf_if *ifp;
 	s32 err = 0;
+	s32 io_type;
 
 	if (!ndev) {
 		brcmf_err("ndev is invalid\n");
@@ -4765,6 +4825,21 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		brcmf_err("P2P initilisation failed (%d)\n", err);
 		goto cfg80211_p2p_attach_out;
 	}
+	err = brcmf_btcoex_attach(cfg);
+	if (err) {
+		brcmf_err("BT-coex initialisation failed (%d)\n", err);
+		brcmf_p2p_detach(&cfg->p2p);
+		goto cfg80211_p2p_attach_out;
+	}
+
+	err = brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_VERSION,
+				    &io_type);
+	if (err) {
+		brcmf_err("Failed to get D11 version (%d)\n", err);
+		goto cfg80211_p2p_attach_out;
+	}
+	cfg->d11inf.io_type = (u8)io_type;
+	brcmu_d11_attach(&cfg->d11inf);
 
 	return cfg;
 
@@ -4783,6 +4858,7 @@ void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg)
 	struct brcmf_cfg80211_vif *tmp;
 
 	wl_deinit_priv(cfg);
+	brcmf_btcoex_detach(cfg);
 	list_for_each_entry_safe(vif, tmp, &cfg->vif_list, list) {
 		brcmf_free_vif(vif);
 	}
@@ -4885,11 +4961,11 @@ static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg, u32 bw_cap)
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
 	struct ieee80211_channel *band_chan_arr;
 	struct brcmf_chanspec_list *list;
+	struct brcmu_chan ch;
 	s32 err;
 	u8 *pbuf;
 	u32 i, j;
 	u32 total;
-	u16 chanspec;
 	enum ieee80211_band band;
 	u32 channel;
 	u32 *n_cnt;
@@ -4918,42 +4994,30 @@ static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg, u32 bw_cap)
 
 	total = le32_to_cpu(list->count);
 	for (i = 0; i < total; i++) {
-		chanspec = (u16)le32_to_cpu(list->element[i]);
-		channel = CHSPEC_CHANNEL(chanspec);
+		ch.chspec = (u16)le32_to_cpu(list->element[i]);
+		cfg->d11inf.decchspec(&ch);
 
-		if (CHSPEC_IS40(chanspec)) {
-			if (CHSPEC_SB_UPPER(chanspec))
-				channel += CH_10MHZ_APART;
-			else
-				channel -= CH_10MHZ_APART;
-		} else if (CHSPEC_IS80(chanspec)) {
-			brcmf_dbg(INFO, "HT80 center channel : %d\n",
-				  channel);
-			continue;
-		}
-		if (CHSPEC_IS2G(chanspec) && (channel >= CH_MIN_2G_CHANNEL) &&
-		    (channel <= CH_MAX_2G_CHANNEL)) {
+		if (ch.band == BRCMU_CHAN_BAND_2G) {
 			band_chan_arr = __wl_2ghz_channels;
 			array_size = ARRAY_SIZE(__wl_2ghz_channels);
 			n_cnt = &__wl_band_2ghz.n_channels;
 			band = IEEE80211_BAND_2GHZ;
 			ht40_allowed = (bw_cap == WLC_N_BW_40ALL);
-		} else if (CHSPEC_IS5G(chanspec) &&
-			   channel >= CH_MIN_5G_CHANNEL) {
+		} else if (ch.band == BRCMU_CHAN_BAND_5G) {
 			band_chan_arr = __wl_5ghz_a_channels;
 			array_size = ARRAY_SIZE(__wl_5ghz_a_channels);
 			n_cnt = &__wl_band_5ghz_a.n_channels;
 			band = IEEE80211_BAND_5GHZ;
 			ht40_allowed = !(bw_cap == WLC_N_BW_20ALL);
 		} else {
-			brcmf_err("Invalid channel Sepc. 0x%x.\n", chanspec);
+			brcmf_err("Invalid channel Sepc. 0x%x.\n", ch.chspec);
 			continue;
 		}
-		if (!ht40_allowed && CHSPEC_IS40(chanspec))
+		if (!ht40_allowed && ch.bw == BRCMU_CHAN_BW_40)
 			continue;
 		update = false;
 		for (j = 0; (j < *n_cnt && (*n_cnt < array_size)); j++) {
-			if (band_chan_arr[j].hw_value == channel) {
+			if (band_chan_arr[j].hw_value == ch.chnum) {
 				update = true;
 				break;
 			}
@@ -4964,16 +5028,16 @@ static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg, u32 bw_cap)
 			index = *n_cnt;
 		if (index <  array_size) {
 			band_chan_arr[index].center_freq =
-				ieee80211_channel_to_frequency(channel, band);
-			band_chan_arr[index].hw_value = channel;
+				ieee80211_channel_to_frequency(ch.chnum, band);
+			band_chan_arr[index].hw_value = ch.chnum;
 
-			if (CHSPEC_IS40(chanspec) && ht40_allowed) {
+			if (ch.bw == BRCMU_CHAN_BW_40 && ht40_allowed) {
 				/* assuming the order is HT20, HT40 Upper,
 				 * HT40 lower from chanspecs
 				 */
 				ht40_flag = band_chan_arr[index].flags &
 					    IEEE80211_CHAN_NO_HT40;
-				if (CHSPEC_SB_UPPER(chanspec)) {
+				if (ch.sb == BRCMU_CHAN_SB_U) {
 					if (ht40_flag == IEEE80211_CHAN_NO_HT40)
 						band_chan_arr[index].flags &=
 							~IEEE80211_CHAN_NO_HT40;
@@ -4993,11 +5057,9 @@ static s32 brcmf_construct_reginfo(struct brcmf_cfg80211_info *cfg, u32 bw_cap)
 			} else {
 				band_chan_arr[index].flags =
 							IEEE80211_CHAN_NO_HT40;
-				if (band == IEEE80211_BAND_2GHZ)
-					channel |= WL_CHANSPEC_BAND_2G;
-				else
-					channel |= WL_CHANSPEC_BAND_5G;
-				channel |= WL_CHANSPEC_BW_20;
+				ch.bw = BRCMU_CHAN_BW_20;
+				cfg->d11inf.encchspec(&ch);
+				channel = ch.chspec;
 				err = brcmf_fil_bsscfg_int_get(ifp,
 							       "per_chan_info",
 							       &channel);
@@ -5224,6 +5286,13 @@ s32 brcmf_cfg80211_down(struct net_device *ndev)
 	mutex_unlock(&cfg->usr_sync);
 
 	return err;
+}
+
+enum nl80211_iftype brcmf_cfg80211_get_iftype(struct brcmf_if *ifp)
+{
+	struct wireless_dev *wdev = &ifp->vif->wdev;
+
+	return wdev->iftype;
 }
 
 u32 wl_get_vif_state_all(struct brcmf_cfg80211_info *cfg, unsigned long state)

@@ -912,8 +912,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		}
 	}
 
-	IWL_INFO(drv, "loaded firmware version %s", drv->fw.fw_version);
-
 	/*
 	 * In mvm uCode there is no difference between data and instructions
 	 * sections.
@@ -970,6 +968,9 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	else
 		op = &iwlwifi_opmode_table[DVM_OP_MODE];
 
+	IWL_INFO(drv, "loaded firmware version %s op_mode %s\n",
+		 drv->fw.fw_version, op->name);
+
 	/* add this device to the list of devices using this op_mode */
 	list_add_tail(&drv->list, &op->drv);
 
@@ -997,8 +998,13 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	 * else from proceeding if the module fails to load
 	 * or hangs loading.
 	 */
-	if (load_module)
-		request_module("%s", op->name);
+	if (load_module) {
+		err = request_module("%s", op->name);
+		if (err)
+			IWL_ERR(drv,
+				"failed to load module %s (error %d), is dynamic loading enabled?\n",
+				op->name, err);
+	}
 	return;
 
  try_again:

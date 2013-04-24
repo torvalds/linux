@@ -26,6 +26,7 @@
 #include <linux/sched.h>	/* request_irq() */
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/brcmfmac-sdio.h>
 #include <net/cfg80211.h>
 
 #include <defs.h>
@@ -40,32 +41,30 @@
 
 #define DMA_ALIGN_MASK	0x03
 
+#define SDIO_DEVICE_ID_BROADCOM_43143	43143
 #define SDIO_DEVICE_ID_BROADCOM_43241	0x4324
 #define SDIO_DEVICE_ID_BROADCOM_4329	0x4329
 #define SDIO_DEVICE_ID_BROADCOM_4330	0x4330
 #define SDIO_DEVICE_ID_BROADCOM_4334	0x4334
+#define SDIO_DEVICE_ID_BROADCOM_4335	0x4335
 
 #define SDIO_FUNC1_BLOCKSIZE		64
 #define SDIO_FUNC2_BLOCKSIZE		512
 
 /* devices we support, null terminated */
 static const struct sdio_device_id brcmf_sdmmc_ids[] = {
+	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_43143)},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_43241)},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4329)},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4330)},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4334)},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4335)},
 	{ /* end: all zeroes */ },
 };
 MODULE_DEVICE_TABLE(sdio, brcmf_sdmmc_ids);
 
-#ifdef CONFIG_BRCMFMAC_SDIO_OOB
-static struct list_head oobirq_lh;
-struct brcmf_sdio_oobirq {
-	unsigned int irq;
-	unsigned long flags;
-	struct list_head list;
-};
-#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
+static struct brcmfmac_sdio_platform_data *brcmfmac_sdio_pdata;
+
 
 static bool
 brcmf_pm_resume_error(struct brcmf_sdio_dev *sdiodev)
@@ -424,33 +423,6 @@ void brcmf_sdioh_detach(struct brcmf_sdio_dev *sdiodev)
 
 }
 
-#ifdef CONFIG_BRCMFMAC_SDIO_OOB
-static int brcmf_sdio_getintrcfg(struct brcmf_sdio_dev *sdiodev)
-{
-	struct brcmf_sdio_oobirq *oobirq_entry;
-
-	if (list_empty(&oobirq_lh)) {
-		brcmf_err("no valid oob irq resource\n");
-		return -ENXIO;
-	}
-
-	oobirq_entry = list_first_entry(&oobirq_lh, struct brcmf_sdio_oobirq,
-					list);
-
-	sdiodev->irq = oobirq_entry->irq;
-	sdiodev->irq_flags = oobirq_entry->flags;
-	list_del(&oobirq_entry->list);
-	kfree(oobirq_entry);
-
-	return 0;
-}
-#else
-static inline int brcmf_sdio_getintrcfg(struct brcmf_sdio_dev *sdiodev)
-{
-	return 0;
-}
-#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
-
 static int brcmf_ops_sdio_probe(struct sdio_func *func,
 				const struct sdio_device_id *id)
 {
@@ -491,15 +463,13 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	dev_set_drvdata(&func->dev, bus_if);
 	dev_set_drvdata(&sdiodev->func[1]->dev, bus_if);
 	sdiodev->dev = &sdiodev->func[1]->dev;
+	sdiodev->pdata = brcmfmac_sdio_pdata;
 
 	atomic_set(&sdiodev->suspend, false);
 	init_waitqueue_head(&sdiodev->request_byte_wait);
 	init_waitqueue_head(&sdiodev->request_word_wait);
 	init_waitqueue_head(&sdiodev->request_chain_wait);
 	init_waitqueue_head(&sdiodev->request_buffer_wait);
-	err = brcmf_sdio_getintrcfg(sdiodev);
-	if (err)
-		goto fail;
 
 	brcmf_dbg(SDIO, "F2 found, calling brcmf_sdio_probe...\n");
 	err = brcmf_sdio_probe(sdiodev);
@@ -594,7 +564,7 @@ static const struct dev_pm_ops brcmf_sdio_pm_ops = {
 static struct sdio_driver brcmf_sdmmc_driver = {
 	.probe = brcmf_ops_sdio_probe,
 	.remove = brcmf_ops_sdio_remove,
-	.name = "brcmfmac",
+	.name = BRCMFMAC_SDIO_PDATA_NAME,
 	.id_table = brcmf_sdmmc_ids,
 #ifdef CONFIG_PM_SLEEP
 	.drv = {
@@ -603,43 +573,40 @@ static struct sdio_driver brcmf_sdmmc_driver = {
 #endif	/* CONFIG_PM_SLEEP */
 };
 
-#ifdef CONFIG_BRCMFMAC_SDIO_OOB
 static int brcmf_sdio_pd_probe(struct platform_device *pdev)
 {
-	struct resource *res;
-	struct brcmf_sdio_oobirq *oobirq_entry;
-	int i, ret;
+	int ret;
 
-	INIT_LIST_HEAD(&oobirq_lh);
+	brcmf_dbg(SDIO, "Enter\n");
 
-	for (i = 0; ; i++) {
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
-		if (!res)
-			break;
+	brcmfmac_sdio_pdata = pdev->dev.platform_data;
 
-		oobirq_entry = kzalloc(sizeof(struct brcmf_sdio_oobirq),
-				       GFP_KERNEL);
-		if (!oobirq_entry)
-			return -ENOMEM;
-		oobirq_entry->irq = res->start;
-		oobirq_entry->flags = res->flags & IRQF_TRIGGER_MASK;
-		list_add_tail(&oobirq_entry->list, &oobirq_lh);
-	}
-	if (i == 0)
-		return -ENXIO;
+	if (brcmfmac_sdio_pdata->power_on)
+		brcmfmac_sdio_pdata->power_on();
 
 	ret = sdio_register_driver(&brcmf_sdmmc_driver);
-
 	if (ret)
 		brcmf_err("sdio_register_driver failed: %d\n", ret);
 
 	return ret;
 }
 
+static int brcmf_sdio_pd_remove(struct platform_device *pdev)
+{
+	brcmf_dbg(SDIO, "Enter\n");
+
+	if (brcmfmac_sdio_pdata->power_off)
+		brcmfmac_sdio_pdata->power_off();
+
+	sdio_unregister_driver(&brcmf_sdmmc_driver);
+
+	return 0;
+}
+
 static struct platform_driver brcmf_sdio_pd = {
-	.probe		= brcmf_sdio_pd_probe,
+	.remove		= brcmf_sdio_pd_remove,
 	.driver		= {
-		.name	= "brcmf_sdio_pd"
+		.name	= BRCMFMAC_SDIO_PDATA_NAME
 	}
 };
 
@@ -647,9 +614,10 @@ void brcmf_sdio_exit(void)
 {
 	brcmf_dbg(SDIO, "Enter\n");
 
-	sdio_unregister_driver(&brcmf_sdmmc_driver);
-
-	platform_driver_unregister(&brcmf_sdio_pd);
+	if (brcmfmac_sdio_pdata)
+		platform_driver_unregister(&brcmf_sdio_pd);
+	else
+		sdio_unregister_driver(&brcmf_sdmmc_driver);
 }
 
 void brcmf_sdio_init(void)
@@ -658,28 +626,12 @@ void brcmf_sdio_init(void)
 
 	brcmf_dbg(SDIO, "Enter\n");
 
-	ret = platform_driver_register(&brcmf_sdio_pd);
+	ret = platform_driver_probe(&brcmf_sdio_pd, brcmf_sdio_pd_probe);
+	if (ret == -ENODEV) {
+		brcmf_dbg(SDIO, "No platform data available, registering without.\n");
+		ret = sdio_register_driver(&brcmf_sdmmc_driver);
+	}
 
 	if (ret)
-		brcmf_err("platform_driver_register failed: %d\n", ret);
+		brcmf_err("driver registration failed: %d\n", ret);
 }
-#else
-void brcmf_sdio_exit(void)
-{
-	brcmf_dbg(SDIO, "Enter\n");
-
-	sdio_unregister_driver(&brcmf_sdmmc_driver);
-}
-
-void brcmf_sdio_init(void)
-{
-	int ret;
-
-	brcmf_dbg(SDIO, "Enter\n");
-
-	ret = sdio_register_driver(&brcmf_sdmmc_driver);
-
-	if (ret)
-		brcmf_err("sdio_register_driver failed: %d\n", ret);
-}
-#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */

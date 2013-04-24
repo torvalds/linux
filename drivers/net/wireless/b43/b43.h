@@ -980,7 +980,7 @@ static inline int b43_is_mode(struct b43_wl *wl, int type)
  */
 static inline enum ieee80211_band b43_current_band(struct b43_wl *wl)
 {
-	return wl->hw->conf.channel->band;
+	return wl->hw->conf.chandef.chan->band;
 }
 
 static inline int b43_bus_may_powerdown(struct b43_wldev *wldev)

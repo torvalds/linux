@@ -589,7 +589,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ieee80211_channel *curchan = hw->conf.channel;
+	struct ieee80211_channel *curchan = hw->conf.chandef.chan;
 	struct ath9k_channel *init_channel;
 	int r;
 
@@ -839,10 +839,14 @@ static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 	struct ath9k_vif_iter_data *iter_data = data;
 	int i;
 
-	if (iter_data->hw_macaddr)
+	if (iter_data->has_hw_macaddr) {
 		for (i = 0; i < ETH_ALEN; i++)
 			iter_data->mask[i] &=
 				~(iter_data->hw_macaddr[i] ^ mac[i]);
+	} else {
+		memcpy(iter_data->hw_macaddr, mac, ETH_ALEN);
+		iter_data->has_hw_macaddr = true;
+	}
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
@@ -891,7 +895,6 @@ void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
 	 * together with the BSSID mask when matching addresses.
 	 */
 	memset(iter_data, 0, sizeof(*iter_data));
-	iter_data->hw_macaddr = common->macaddr;
 	memset(&iter_data->mask, 0xff, ETH_ALEN);
 
 	if (vif)
@@ -901,6 +904,8 @@ void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
 	ieee80211_iterate_active_interfaces_atomic(
 		sc->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
 		ath9k_vif_iter, iter_data);
+
+	memcpy(common->macaddr, iter_data->hw_macaddr, ETH_ALEN);
 }
 
 /* Called with sc->mutex held. */
@@ -1188,7 +1193,9 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) || reset_channel) {
-		struct ieee80211_channel *curchan = hw->conf.channel;
+		struct ieee80211_channel *curchan = hw->conf.chandef.chan;
+		enum nl80211_channel_type channel_type =
+			cfg80211_get_chandef_type(&conf->chandef);
 		int pos = curchan->hw_value;
 		int old_pos = -1;
 		unsigned long flags;
@@ -1197,7 +1204,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 			old_pos = ah->curchan - &ah->channels[0];
 
 		ath_dbg(common, CONFIG, "Set channel: %d MHz type: %d\n",
-			curchan->center_freq, conf->channel_type);
+			curchan->center_freq, channel_type);
 
 		/* update survey stats for the old channel before switching */
 		spin_lock_irqsave(&common->cc_lock, flags);
@@ -1212,7 +1219,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 			ath9k_hw_getnf(ah, ah->curchan);
 
 		ath9k_cmn_update_ichannel(&sc->sc_ah->channels[pos],
-					  curchan, conf->channel_type);
+					  curchan, channel_type);
 
 		/*
 		 * If the operating channel changes, change the survey in-use flags

@@ -19,6 +19,10 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	ieee80211_dfs_cac_cancel(local);
 
+	ieee80211_roc_purge(local, NULL);
+
+	ieee80211_del_virtual_monitor(local);
+
 	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
 		mutex_lock(&local->sta_mtx);
 		list_for_each_entry(sta, &local->sta_list, list) {
@@ -33,8 +37,9 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 					IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 
-	/* flush out all packets */
+	/* flush out all packets and station cleanup call_rcu()s */
 	synchronize_net();
+	rcu_barrier();
 
 	ieee80211_flush_queues(local, NULL);
 
@@ -100,10 +105,6 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 			continue;
 		drv_remove_interface(local, sdata);
 	}
-
-	sdata = rtnl_dereference(local->monitor_sdata);
-	if (sdata)
-		drv_remove_interface(local, sdata);
 
 	/*
 	 * We disconnected on all interfaces before suspend, all channel

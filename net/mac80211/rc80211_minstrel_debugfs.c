@@ -68,7 +68,7 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 
 	file->private_data = ms;
 	p = ms->buf;
-	p += sprintf(p, "rate     throughput  ewma prob   this prob  "
+	p += sprintf(p, "rate      throughput  ewma prob  this prob  "
 			"this succ/attempt   success    attempts\n");
 	for (i = 0; i < mi->n_rates; i++) {
 		struct minstrel_rate *mr = &mi->r[i];
@@ -86,7 +86,7 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 		eprob = MINSTREL_TRUNC(mr->probability * 1000);
 
 		p += sprintf(p, "  %6u.%1u   %6u.%1u   %6u.%1u        "
-				"%3u(%3u)   %8llu    %8llu\n",
+				"   %3u(%3u)  %8llu    %8llu\n",
 				tp / 10, tp % 10,
 				eprob / 10, eprob % 10,
 				prob / 10, prob % 10,

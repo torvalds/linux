@@ -281,8 +281,8 @@ static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_8, 0xFFC0, 0x000A);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_8, 0xC0FF, 0x0B00);
 	} else if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ ||
-		  (dev->dev->board_type == 0x048A) || ((dev->phy.rev == 0) &&
-		  (sprom->boardflags_lo & B43_BFL_FEM))) {
+		   (dev->dev->board_type == SSB_BOARD_BU4312) ||
+		   (dev->phy.rev == 0 && (sprom->boardflags_lo & B43_BFL_FEM))) {
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xFFC0, 0x0001);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_1, 0xC0FF, 0x0400);
 		b43_phy_maskset(dev, B43_LPPHY_TR_LOOKUP_2, 0xFFC0, 0x0001);

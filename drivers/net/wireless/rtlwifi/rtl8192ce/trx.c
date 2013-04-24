@@ -363,8 +363,8 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 
 	stats->is_cck = RX_HAL_IS_CCK_RATE(pdesc);
 
-	rx_status->freq = hw->conf.channel->center_freq;
-	rx_status->band = hw->conf.channel->band;
+	rx_status->freq = hw->conf.chandef.chan->center_freq;
+	rx_status->band = hw->conf.chandef.chan->band;
 
 	hdr = (struct ieee80211_hdr *)(skb->data + stats->rx_drvinfo_size
 			+ stats->rx_bufshift);

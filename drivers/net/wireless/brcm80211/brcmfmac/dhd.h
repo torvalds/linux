@@ -28,6 +28,7 @@
 /*******************************************************************************
  * IO codes that are interpreted by dongle firmware
  ******************************************************************************/
+#define BRCMF_C_GET_VERSION			1
 #define BRCMF_C_UP				2
 #define BRCMF_C_DOWN				3
 #define BRCMF_C_SET_PROMISC			10

@@ -572,7 +572,7 @@ static void mwifiex_cleanup_rxq_ring(struct mwifiex_adapter *adapter)
 			if (card->rx_buf_list[i]) {
 				skb = card->rx_buf_list[i];
 				pci_unmap_single(card->dev, desc2->paddr,
-						 skb->len, PCI_DMA_TODEVICE);
+						 skb->len, PCI_DMA_FROMDEVICE);
 				dev_kfree_skb_any(skb);
 			}
 			memset(desc2, 0, sizeof(*desc2));
@@ -581,7 +581,7 @@ static void mwifiex_cleanup_rxq_ring(struct mwifiex_adapter *adapter)
 			if (card->rx_buf_list[i]) {
 				skb = card->rx_buf_list[i];
 				pci_unmap_single(card->dev, desc->paddr,
-						 skb->len, PCI_DMA_TODEVICE);
+						 skb->len, PCI_DMA_FROMDEVICE);
 				dev_kfree_skb_any(skb);
 			}
 			memset(desc, 0, sizeof(*desc));

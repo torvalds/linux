@@ -847,14 +847,7 @@ struct ath_hw {
 	struct ath_hw_ops ops;
 
 	/* Used to program the radio on non single-chip devices */
-	u32 *analogBank0Data;
-	u32 *analogBank1Data;
-	u32 *analogBank2Data;
-	u32 *analogBank3Data;
 	u32 *analogBank6Data;
-	u32 *analogBank6TPCData;
-	u32 *analogBank7Data;
-	u32 *bank6Temp;
 
 	int coverage_class;
 	u32 slottime;
@@ -885,14 +878,8 @@ struct ath_hw {
 
 	struct ar5416IniArray iniModes;
 	struct ar5416IniArray iniCommon;
-	struct ar5416IniArray iniBank0;
 	struct ar5416IniArray iniBB_RfGain;
-	struct ar5416IniArray iniBank1;
-	struct ar5416IniArray iniBank2;
-	struct ar5416IniArray iniBank3;
 	struct ar5416IniArray iniBank6;
-	struct ar5416IniArray iniBank6TPC;
-	struct ar5416IniArray iniBank7;
 	struct ar5416IniArray iniAddac;
 	struct ar5416IniArray iniPcieSerdes;
 #ifdef CONFIG_PM_SLEEP

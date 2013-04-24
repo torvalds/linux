@@ -421,8 +421,8 @@ bool rtl88ee_rx_query_desc(struct ieee80211_hw *hw,
 		RT_TRACE(rtlpriv, COMP_RXDESC, DBG_LOUD,
 			 "Get Wakeup Packet!! WakeMatch =%d\n",
 			 status->wake_match);
-	rx_status->freq = hw->conf.channel->center_freq;
-	rx_status->band = hw->conf.channel->band;
+	rx_status->freq = hw->conf.chandef.chan->center_freq;
+	rx_status->band = hw->conf.chandef.chan->band;
 
 	if (status->crc)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;

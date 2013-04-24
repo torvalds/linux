@@ -2085,6 +2085,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 	}
 
 	fwd_hdr =  (struct ieee80211_hdr *) fwd_skb->data;
+	fwd_hdr->frame_control &= ~cpu_to_le16(IEEE80211_FCTL_RETRY);
 	info = IEEE80211_SKB_CB(fwd_skb);
 	memset(info, 0, sizeof(*info));
 	info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
@@ -2423,6 +2424,22 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		}
 
 		break;
+	case WLAN_CATEGORY_PUBLIC:
+		if (len < IEEE80211_MIN_ACTION_SIZE + 1)
+			goto invalid;
+		if (sdata->vif.type != NL80211_IFTYPE_STATION)
+			break;
+		if (!rx->sta)
+			break;
+		if (!ether_addr_equal(mgmt->bssid, sdata->u.mgd.bssid))
+			break;
+		if (mgmt->u.action.u.ext_chan_switch.action_code !=
+				WLAN_PUB_ACTION_EXT_CHANSW_ANN)
+			break;
+		if (len < offsetof(struct ieee80211_mgmt,
+				   u.action.u.ext_chan_switch.variable))
+			goto invalid;
+		goto queue;
 	case WLAN_CATEGORY_VHT:
 		if (sdata->vif.type != NL80211_IFTYPE_STATION &&
 		    sdata->vif.type != NL80211_IFTYPE_MESH_POINT &&
@@ -2506,10 +2523,6 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			ieee80211_process_measurement_req(sdata, mgmt, len);
 			goto handled;
 		case WLAN_ACTION_SPCT_CHL_SWITCH:
-			if (len < (IEEE80211_MIN_ACTION_SIZE +
-				   sizeof(mgmt->u.action.u.chan_switch)))
-				break;
-
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				break;
 
@@ -3042,7 +3055,8 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 		    !ieee80211_is_probe_resp(hdr->frame_control) &&
 		    !ieee80211_is_beacon(hdr->frame_control))
 			return 0;
-		if (!ether_addr_equal(sdata->vif.addr, hdr->addr1))
+		if (!ether_addr_equal(sdata->vif.addr, hdr->addr1) &&
+		    !multicast)
 			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
 		break;
 	default:

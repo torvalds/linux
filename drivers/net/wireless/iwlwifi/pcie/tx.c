@@ -1061,7 +1061,7 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 		iwl_set_bits_prph(trans, SCD_QUEUECHAIN_SEL, BIT(txq_id));
 
 	/* If this queue is mapped to a certain station: it is an AGG queue */
-	if (sta_id != IWL_INVALID_STATION) {
+	if (sta_id >= 0) {
 		u16 ra_tid = BUILD_RAxTID(sta_id, tid);
 
 		/* Map receiver-address / traffic-ID to this queue */
