@@ -300,7 +300,7 @@ static void walk_v1_v2_rx(int sock, struct ring *ring)
 
 static inline int __v1_tx_kernel_ready(struct tpacket_hdr *hdr)
 {
-	return ((hdr->tp_status & TP_STATUS_AVAILABLE) == TP_STATUS_AVAILABLE);
+	return !(hdr->tp_status & (TP_STATUS_SEND_REQUEST | TP_STATUS_SENDING));
 }
 
 static inline void __v1_tx_user_ready(struct tpacket_hdr *hdr)
@@ -311,7 +311,7 @@ static inline void __v1_tx_user_ready(struct tpacket_hdr *hdr)
 
 static inline int __v2_tx_kernel_ready(struct tpacket2_hdr *hdr)
 {
-	return ((hdr->tp_status & TP_STATUS_AVAILABLE) == TP_STATUS_AVAILABLE);
+	return !(hdr->tp_status & (TP_STATUS_SEND_REQUEST | TP_STATUS_SENDING));
 }
 
 static inline void __v2_tx_user_ready(struct tpacket2_hdr *hdr)
