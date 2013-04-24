@@ -30,6 +30,7 @@
 #include <asm/paca.h>
 #include <asm/hvcall.h>
 #include <asm/setup.h>
+#include <asm/vdso.h>
 
 static int numa_enabled = 1;
 
@@ -1434,6 +1435,7 @@ static int update_cpu_topology(void *data)
 		unregister_cpu_under_node(update->cpu, update->old_nid);
 		unmap_cpu_from_node(update->cpu);
 		map_cpu_to_node(update->cpu, update->new_nid);
+		vdso_getcpu_init();
 		register_cpu_under_node(update->cpu, update->new_nid);
 	}
 
@@ -1449,6 +1451,7 @@ int arch_update_cpu_topology(void)
 	unsigned int cpu, changed = 0;
 	struct topology_update_data *updates, *ud;
 	unsigned int associativity[VPHN_ASSOC_BUFSIZE] = {0};
+	cpumask_t updated_cpus;
 	struct device *dev;
 	int weight, i = 0;
 
@@ -1460,6 +1463,8 @@ int arch_update_cpu_topology(void)
 	if (!updates)
 		return 0;
 
+	cpumask_clear(&updated_cpus);
+
 	for_each_cpu(cpu, &cpu_associativity_changes_mask) {
 		ud = &updates[i++];
 		ud->cpu = cpu;
@@ -1470,12 +1475,13 @@ int arch_update_cpu_topology(void)
 			ud->new_nid = first_online_node;
 
 		ud->old_nid = numa_cpu_lookup_table[cpu];
+		cpumask_set_cpu(cpu, &updated_cpus);
 
 		if (i < weight)
 			ud->next = &updates[i];
 	}
 
-	stop_machine(update_cpu_topology, &updates[0], cpu_online_mask);
+	stop_machine(update_cpu_topology, &updates[0], &updated_cpus);
 
 	for (ud = &updates[0]; ud; ud = ud->next) {
 		dev = get_cpu_device(ud->cpu);
