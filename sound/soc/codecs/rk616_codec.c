@@ -40,7 +40,7 @@
 #include "../../../drivers/headset_observe/rk_headset.h"
 #endif
 
-#if 1
+#if 0
 #define	DBG(x...)	printk(KERN_INFO x)
 #else
 #define	DBG(x...)
@@ -1513,24 +1513,25 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 
 #ifdef RK616_FOR_MID
 static struct rk616_reg_val_typ power_up_list[] = {
+	{0x83c, 0x00}, //power up
+	{0x868, 0x82}, //power up
 	{0x89c, 0x7f}, //MICBIAS1 power up (bit 7, Vout = 1.7 * Vref(1.65V) = 2.8V (bit 3-5)
 	{0x8a8, 0x00}, //ADCL/R power, and clear ADCL/R buf
 	{0x88c, 0x76}, //power up SPKOUTL (bit 7), volume (bit 0-4)
 	{0x890, 0x76}, //power up SPKOUTR (bit 7), volume (bit 0-4)
-	{0x88c, 0x36}, //INIT SPKOUTL (bit 6), volume (bit 0-4)
-	{0x890, 0x36}, //INIT SPKOUTR (bit 6), volume (bit 0-4)
-	{0x83c, 0x00}, //power up
-	{0x868, 0x82}, //power up
 	{0x840, 0x49}, //BST_L power up, unmute, and Single-Ended(bit 6), volume 0-20dB(bit 5)
 	{0x804, 0x46}, //DAC GSM, 0x06: x1, 0x26: x1.25, 0x46: x1.5, 0x66: x1.75
 	{0x848, 0x06}, //MIXINL power up and unmute, MININL from MICMUX, MICMUX from BST_L
 	{0x84c, 0x3c}, //MIXINL from MIXMUX volume (bit 3-5)
 	{0x860, 0x19}, //PGAL power up unmute,volume (bit 0-4)
+	{0x86c, 0x0f}, //DACL/R UN INIT
 	{0x86c, 0x00}, //DACL/R and DACL/R CLK power up
 	{0x86c, 0x30}, //DACL/R INIT
 	{0x874, 0x14}, //Mux HPMIXR from HPMIXR(bit 0), Mux HPMIXL from HPMIXL(bit 1),HPMIXL/R power up
 	{0x874, 0x00}, //HPMIXL/R init
 	{0x878, 0xee}, //HPMIXL/HPMIXR from DACL/DACR(bit 4, bit 0)
+	{0x88c, 0x36}, //INIT SPKOUTL (bit 6), volume (bit 0-4)
+	{0x890, 0x36}, //INIT SPKOUTR (bit 6), volume (bit 0-4)
 	{0x88c, 0x16}, //unmute SPKOUTL (bit 5), volume (bit 0-4)
 	{0x890, 0x16}, //unmute SPKOUTR (bit 5), volume (bit 0-4)
 };
@@ -1598,8 +1599,7 @@ static void rk616_codec_work(struct work_struct *work)
         rk616_codec_work_type = RK616_CODEC_WORK_NULL;
 }
 
-static int rk616_trigger(struct snd_pcm_substream *substream,
-			  int cmd,
+static int rk616_startup(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {
 	struct rk616_codec_priv *rk616 = rk616_priv;
@@ -1611,28 +1611,13 @@ static int rk616_trigger(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_RESUME:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (playback)
-			rk616->playback_active++;
-		else
-			rk616->capture_active++;
-		break;
+	DBG("Enter::%s----%d substream->stream:%s \n",__FUNCTION__,__LINE__,
+		substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");
 
-	case SNDRV_PCM_TRIGGER_STOP:
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (playback)
-			rk616->playback_active--;
-		else
-			rk616->capture_active--;
-		break;
-
-	default:
-		return 0;
-	}
+	if (playback)
+		rk616->playback_active++;
+	else
+		rk616->capture_active++;
 
 	if (rk616->playback_active > 0 || rk616->capture_active > 0){
 		if ((rk616_codec_work_type != RK616_CODEC_WORK_POWER_UP) &&
@@ -1647,14 +1632,37 @@ static int rk616_trigger(struct snd_pcm_substream *substream,
 			* codec haven't power down, so we don't need to power up codec.
 			*/
 			if (rk616_codec_work_type == RK616_CODEC_WORK_NULL) {
-				rk616_codec_work_type = RK616_CODEC_WORK_POWER_UP;
-				queue_delayed_work(rk616_codec_workq, &delayed_work,
-					msecs_to_jiffies(0));
+				rk616_codec_power_up();
 			} else {
 				rk616_codec_work_type = RK616_CODEC_WORK_NULL;
 			}
 		}
-	} else {
+	}
+
+	return 0;
+}
+
+static void rk616_shutdown(struct snd_pcm_substream *substream,
+			    struct snd_soc_dai *dai)
+{
+	struct rk616_codec_priv *rk616 = rk616_priv;
+	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+	bool is_codec_running = rk616->playback_active > 0 || rk616->capture_active > 0;
+
+	if (!rk616) {
+		printk("rk616_hw_params : rk616 is NULL\n");
+		return;
+	}
+
+	DBG("Enter::%s----%d substream->stream:%s \n",__FUNCTION__,__LINE__,
+		substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");
+
+	if (playback)
+		rk616->playback_active--;
+	else
+		rk616->capture_active--;
+
+	if (rk616->playback_active <= 0 && rk616->capture_active <= 0) {
 		if ((rk616_codec_work_type != RK616_CODEC_WORK_POWER_DOWN) &&
 		    (is_codec_running == true)) {
 
@@ -1682,7 +1690,6 @@ static int rk616_trigger(struct snd_pcm_substream *substream,
 		}
 	}
 
-	return 0;
 }
 #endif
 
@@ -1710,7 +1717,8 @@ static struct snd_soc_dai_ops rk616_dai_ops = {
 	.set_fmt	= rk616_set_dai_fmt,
 	.set_sysclk	= rk616_set_dai_sysclk,
 #ifdef RK616_FOR_MID
-	.trigger = rk616_trigger,
+	.startup	= rk616_startup,
+	.shutdown	= rk616_shutdown,
 #endif
 };
 
