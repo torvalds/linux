@@ -6504,7 +6504,9 @@ out:
  * block must be cow'd
  */
 static noinline int can_nocow_odirect(struct btrfs_trans_handle *trans,
-				      struct inode *inode, u64 offset, u64 len)
+				      struct inode *inode, u64 offset, u64 *len,
+				      u64 *orig_start, u64 *orig_block_len,
+				      u64 *ram_bytes)
 {
 	struct btrfs_path *path;
 	int ret;
@@ -6561,8 +6563,12 @@ static noinline int can_nocow_odirect(struct btrfs_trans_handle *trans,
 	disk_bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
 	backref_offset = btrfs_file_extent_offset(leaf, fi);
 
+	*orig_start = key.offset - backref_offset;
+	*orig_block_len = btrfs_file_extent_disk_num_bytes(leaf, fi);
+	*ram_bytes = btrfs_file_extent_ram_bytes(leaf, fi);
+
 	extent_end = key.offset + btrfs_file_extent_num_bytes(leaf, fi);
-	if (extent_end < offset + len) {
+	if (extent_end < offset + *len) {
 		/* extent doesn't include our full range, must cow */
 		goto out;
 	}
@@ -6586,13 +6592,14 @@ static noinline int can_nocow_odirect(struct btrfs_trans_handle *trans,
 	 */
 	disk_bytenr += backref_offset;
 	disk_bytenr += offset - key.offset;
-	num_bytes = min(offset + len, extent_end) - offset;
+	num_bytes = min(offset + *len, extent_end) - offset;
 	if (csum_exist_in_range(root, disk_bytenr, num_bytes))
 				goto out;
 	/*
 	 * all of the above have passed, it is safe to overwrite this extent
 	 * without cow
 	 */
+	*len = num_bytes;
 	ret = 1;
 out:
 	btrfs_free_path(path);
@@ -6790,7 +6797,7 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	     em->block_start != EXTENT_MAP_HOLE)) {
 		int type;
 		int ret;
-		u64 block_start;
+		u64 block_start, orig_start, orig_block_len, ram_bytes;
 
 		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
 			type = BTRFS_ORDERED_PREALLOC;
@@ -6808,11 +6815,8 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 		if (IS_ERR(trans))
 			goto must_cow;
 
-		if (can_nocow_odirect(trans, inode, start, len) == 1) {
-			u64 orig_start = em->orig_start;
-			u64 orig_block_len = em->orig_block_len;
-			u64 ram_bytes = em->ram_bytes;
-
+		if (can_nocow_odirect(trans, inode, start, &len, &orig_start,
+				      &orig_block_len, &ram_bytes) == 1) {
 			if (type == BTRFS_ORDERED_PREALLOC) {
 				free_extent_map(em);
 				em = create_pinned_em(inode, start, len,
