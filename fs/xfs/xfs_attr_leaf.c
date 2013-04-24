@@ -910,6 +910,7 @@ xfs_attr_leaf_to_node(xfs_da_args_t *args)
 	struct xfs_buf *bp1, *bp2;
 	xfs_dablk_t blkno;
 	int error;
+	struct xfs_da_node_entry *btree;
 
 	trace_xfs_attr_leaf_to_node(args);
 
@@ -935,16 +936,16 @@ xfs_attr_leaf_to_node(xfs_da_args_t *args)
 	/*
 	 * Set up the new root node.
 	 */
-	error = xfs_da_node_create(args, 0, 1, &bp1, XFS_ATTR_FORK);
+	error = xfs_da3_node_create(args, 0, 1, &bp1, XFS_ATTR_FORK);
 	if (error)
 		goto out;
 	node = bp1->b_addr;
 	leaf = bp2->b_addr;
 	ASSERT(leaf->hdr.info.magic == cpu_to_be16(XFS_ATTR_LEAF_MAGIC));
 	/* both on-disk, don't endian-flip twice */
-	node->btree[0].hashval =
-		leaf->entries[be16_to_cpu(leaf->hdr.count)-1 ].hashval;
-	node->btree[0].before = cpu_to_be32(blkno);
+	btree = xfs_da3_node_tree_p(node);
+	btree[0].hashval = leaf->entries[be16_to_cpu(leaf->hdr.count)-1 ].hashval;
+	btree[0].before = cpu_to_be32(blkno);
 	node->hdr.count = cpu_to_be16(1);
 	xfs_trans_log_buf(args->trans, bp1, 0, XFS_LBSIZE(dp->i_mount) - 1);
 	error = 0;
@@ -1032,7 +1033,7 @@ xfs_attr_leaf_split(xfs_da_state_t *state, xfs_da_state_blk_t *oldblk,
 	 * NOTE: rebalance() currently depends on the 2nd block being empty.
 	 */
 	xfs_attr_leaf_rebalance(state, oldblk, newblk);
-	error = xfs_da_blk_link(state, oldblk, newblk);
+	error = xfs_da3_blk_link(state, oldblk, newblk);
 	if (error)
 		return(error);
 
@@ -1660,7 +1661,7 @@ xfs_attr_leaf_toosmall(xfs_da_state_t *state, int *action)
 		 */
 		forward = (info->forw != 0);
 		memcpy(&state->altpath, &state->path, sizeof(state->path));
-		error = xfs_da_path_shift(state, &state->altpath, forward,
+		error = xfs_da3_path_shift(state, &state->altpath, forward,
 						 0, &retval);
 		if (error)
 			return(error);
@@ -1717,10 +1718,10 @@ xfs_attr_leaf_toosmall(xfs_da_state_t *state, int *action)
 	 */
 	memcpy(&state->altpath, &state->path, sizeof(state->path));
 	if (blkno < blk->blkno) {
-		error = xfs_da_path_shift(state, &state->altpath, forward,
+		error = xfs_da3_path_shift(state, &state->altpath, forward,
 						 0, &retval);
 	} else {
-		error = xfs_da_path_shift(state, &state->path, forward,
+		error = xfs_da3_path_shift(state, &state->path, forward,
 						 0, &retval);
 	}
 	if (error)
@@ -2783,7 +2784,7 @@ xfs_attr_root_inactive(xfs_trans_t **trans, xfs_inode_t *dp)
 	 * the extents in reverse order the extent containing
 	 * block 0 must still be there.
 	 */
-	error = xfs_da_node_read(*trans, dp, 0, -1, &bp, XFS_ATTR_FORK);
+	error = xfs_da3_node_read(*trans, dp, 0, -1, &bp, XFS_ATTR_FORK);
 	if (error)
 		return(error);
 	blkno = XFS_BUF_ADDR(bp);
@@ -2836,6 +2837,7 @@ xfs_attr_node_inactive(
 	xfs_daddr_t parent_blkno, child_blkno;
 	int error, count, i;
 	struct xfs_buf *child_bp;
+	struct xfs_da_node_entry *btree;
 
 	/*
 	 * Since this code is recursive (gasp!) we must protect ourselves.
@@ -2853,7 +2855,8 @@ xfs_attr_node_inactive(
 		xfs_trans_brelse(*trans, bp);
 		return(0);
 	}
-	child_fsb = be32_to_cpu(node->btree[0].before);
+	btree = xfs_da3_node_tree_p(node);
+	child_fsb = be32_to_cpu(btree[0].before);
 	xfs_trans_brelse(*trans, bp);	/* no locks for later trans */
 
 	/*
@@ -2868,7 +2871,7 @@ xfs_attr_node_inactive(
 		 * traversal of the tree so we may deal with many blocks
 		 * before we come back to this one.
 		 */
-		error = xfs_da_node_read(*trans, dp, child_fsb, -2, &child_bp,
+		error = xfs_da3_node_read(*trans, dp, child_fsb, -2, &child_bp,
 						XFS_ATTR_FORK);
 		if (error)
 			return(error);
@@ -2909,11 +2912,11 @@ xfs_attr_node_inactive(
 		 * child block number.
 		 */
 		if ((i+1) < count) {
-			error = xfs_da_node_read(*trans, dp, 0, parent_blkno,
+			error = xfs_da3_node_read(*trans, dp, 0, parent_blkno,
 						 &bp, XFS_ATTR_FORK);
 			if (error)
 				return(error);
-			child_fsb = be32_to_cpu(node->btree[i+1].before);
+			child_fsb = be32_to_cpu(btree[i+1].before);
 			xfs_trans_brelse(*trans, bp);
 		}
 		/*

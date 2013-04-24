@@ -1371,7 +1371,7 @@ xfs_dir2_leafn_split(
 	 * block into the leaves.
 	 */
 	xfs_dir2_leafn_rebalance(state, oldblk, newblk);
-	error = xfs_da_blk_link(state, oldblk, newblk);
+	error = xfs_da3_blk_link(state, oldblk, newblk);
 	if (error) {
 		return error;
 	}
@@ -1452,7 +1452,7 @@ xfs_dir2_leafn_toosmall(
 		 */
 		forward = (leafhdr.forw != 0);
 		memcpy(&state->altpath, &state->path, sizeof(state->path));
-		error = xfs_da_path_shift(state, &state->altpath, forward, 0,
+		error = xfs_da3_path_shift(state, &state->altpath, forward, 0,
 			&rval);
 		if (error)
 			return error;
@@ -1514,10 +1514,10 @@ xfs_dir2_leafn_toosmall(
 	 */
 	memcpy(&state->altpath, &state->path, sizeof(state->path));
 	if (blkno < blk->blkno)
-		error = xfs_da_path_shift(state, &state->altpath, forward, 0,
+		error = xfs_da3_path_shift(state, &state->altpath, forward, 0,
 			&rval);
 	else
-		error = xfs_da_path_shift(state, &state->path, forward, 0,
+		error = xfs_da3_path_shift(state, &state->path, forward, 0,
 			&rval);
 	if (error) {
 		return error;
@@ -1614,7 +1614,7 @@ xfs_dir2_node_addname(
 	 * Look up the name.  We're not supposed to find it, but
 	 * this gives us the insertion point.
 	 */
-	error = xfs_da_node_lookup_int(state, &rval);
+	error = xfs_da3_node_lookup_int(state, &rval);
 	if (error)
 		rval = error;
 	if (rval != ENOENT) {
@@ -1640,7 +1640,7 @@ xfs_dir2_node_addname(
 		 * It worked, fix the hash values up the btree.
 		 */
 		if (!(args->op_flags & XFS_DA_OP_JUSTCHECK))
-			xfs_da_fixhashpath(state, &state->path);
+			xfs_da3_fixhashpath(state, &state->path);
 	} else {
 		/*
 		 * It didn't work, we need to split the leaf block.
@@ -1652,7 +1652,7 @@ xfs_dir2_node_addname(
 		/*
 		 * Split the leaf block and insert the new entry.
 		 */
-		rval = xfs_da_split(state);
+		rval = xfs_da3_split(state);
 	}
 done:
 	xfs_da_state_free(state);
@@ -2030,7 +2030,7 @@ xfs_dir2_node_addname_int(
 
 /*
  * Lookup an entry in a node-format directory.
- * All the real work happens in xfs_da_node_lookup_int.
+ * All the real work happens in xfs_da3_node_lookup_int.
  * The only real output is the inode number of the entry.
  */
 int						/* error */
@@ -2055,7 +2055,7 @@ xfs_dir2_node_lookup(
 	/*
 	 * Fill in the path to the entry in the cursor.
 	 */
-	error = xfs_da_node_lookup_int(state, &rval);
+	error = xfs_da3_node_lookup_int(state, &rval);
 	if (error)
 		rval = error;
 	else if (rval == ENOENT && args->cmpresult == XFS_CMP_CASE) {
@@ -2110,7 +2110,7 @@ xfs_dir2_node_removename(
 	/*
 	 * Look up the entry we're deleting, set up the cursor.
 	 */
-	error = xfs_da_node_lookup_int(state, &rval);
+	error = xfs_da3_node_lookup_int(state, &rval);
 	if (error)
 		rval = error;
 	/*
@@ -2134,12 +2134,12 @@ xfs_dir2_node_removename(
 	/*
 	 * Fix the hash values up the btree.
 	 */
-	xfs_da_fixhashpath(state, &state->path);
+	xfs_da3_fixhashpath(state, &state->path);
 	/*
 	 * If we need to join leaf blocks, do it.
 	 */
 	if (rval && state->path.active > 1)
-		error = xfs_da_join(state);
+		error = xfs_da3_join(state);
 	/*
 	 * If no errors so far, try conversion to leaf format.
 	 */
@@ -2181,7 +2181,7 @@ xfs_dir2_node_replace(
 	/*
 	 * Lookup the entry to change in the btree.
 	 */
-	error = xfs_da_node_lookup_int(state, &rval);
+	error = xfs_da3_node_lookup_int(state, &rval);
 	if (error) {
 		rval = error;
 	}
