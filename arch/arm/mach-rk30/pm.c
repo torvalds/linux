@@ -492,13 +492,22 @@ static void __sramfunc rk_pm_soc_sram_volt_resume(void)
 #define CLK_GATE_W_MSK8 (0x01ff)
 #define CLK_GATE_W_MSK9 (0x07ff)
 static u32 __sramdata clkgt_regs_sram[CRU_CLKGATES_CON_CNT];
-//static u32 __sramdata sram_grf_uoc0_con0_status;
+static u32 __sramdata sram_grf_uoc0_con0_status;
 
 static void __sramfunc rk_pm_soc_sram_clk_gating(void)
 {
 
 	u32 clkgt_regs_sram[CRU_CLKGATES_CON_CNT];
 	int i;
+
+	#if defined(CONFIG_ARCH_RK3188) && (CONFIG_RK_DEBUG_UART == 2)
+	#ifdef CONFIG_RK_USB_UART
+		sram_grf_uoc0_con0_status = grf_readl(GRF_UOC0_CON0);
+		grf_writel(0x03000000, GRF_UOC0_CON0);
+	#endif
+	#endif
+
+	
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		clkgt_regs_sram[i] = cru_readl(CRU_CLKGATES_CON(i));
 	}
@@ -563,14 +572,15 @@ static void __sramfunc rk_pm_soc_sram_clk_gating(void)
 static void __sramfunc rk_pm_soc_sram_clk_ungating(void)
 {
 	int i;
-#if defined(CONFIG_ARCH_RK3188) && (CONFIG_RK_DEBUG_UART == 2)
-#ifdef CONFIG_RK_USB_UART
-		grf_writel(0x03000000 | sram_grf_uoc0_con0_status, GRF_UOC0_CON0);
-#endif
-#endif
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		cru_writel(clkgt_regs_sram[i] | 0xffff0000, CRU_CLKGATES_CON(i));
 	}
+
+	#if defined(CONFIG_ARCH_RK3188) && (CONFIG_RK_DEBUG_UART == 2)
+	#ifdef CONFIG_RK_USB_UART
+		grf_writel(0x03000000 | sram_grf_uoc0_con0_status, GRF_UOC0_CON0);
+	#endif
+	#endif
 }
 
 static u32 __sramdata sram_cru_clksel0_con, sram_cru_clksel10_con,sram_cru_mode_con;
