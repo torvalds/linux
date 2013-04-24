@@ -188,6 +188,7 @@ sysc_vtime:
 	mvc	__PT_INT_CODE(4,%r11),__LC_SVC_ILC
 sysc_do_svc:
 	oi	__TI_flags+3(%r12),_TIF_SYSCALL
+	l	%r10,__TI_sysc_table(%r12)	# 31 bit system call table
 	lh	%r8,__PT_INT_CODE+2(%r11)
 	sla	%r8,2				# shift and test for svc0
 	jnz	sysc_nr_ok
@@ -198,7 +199,6 @@ sysc_do_svc:
 	lr	%r8,%r1
 	sla	%r8,2
 sysc_nr_ok:
-	l	%r10,BASED(.Lsys_call_table)	# 31 bit system call table
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15)
 	st	%r2,__PT_ORIG_GPR2(%r11)
 	st	%r7,STACK_FRAME_OVERHEAD(%r15)
@@ -906,7 +906,6 @@ cleanup_idle_wait:
 .Ltrace_enter:		.long	do_syscall_trace_enter
 .Ltrace_exit:		.long	do_syscall_trace_exit
 .Lschedule_tail:	.long	schedule_tail
-.Lsys_call_table:	.long	sys_call_table
 .Lsysc_per:		.long	sysc_per + 0x80000000
 #ifdef CONFIG_TRACE_IRQFLAGS
 .Lhardirqs_on:		.long	trace_hardirqs_on_caller

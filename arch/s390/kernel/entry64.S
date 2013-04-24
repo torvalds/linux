@@ -216,6 +216,7 @@ sysc_vtime:
 	mvc	__PT_INT_CODE(4,%r11),__LC_SVC_ILC
 sysc_do_svc:
 	oi	__TI_flags+7(%r12),_TIF_SYSCALL
+	lg	%r10,__TI_sysc_table(%r12)	# address of system call table
 	llgh	%r8,__PT_INT_CODE+2(%r11)
 	slag	%r8,%r8,2			# shift and test for svc 0
 	jnz	sysc_nr_ok
@@ -226,13 +227,6 @@ sysc_do_svc:
 	sth	%r1,__PT_INT_CODE+2(%r11)
 	slag	%r8,%r1,2
 sysc_nr_ok:
-	larl	%r10,sys_call_table		# 64 bit system call table
-#ifdef CONFIG_COMPAT
-	tm	__TI_flags+5(%r12),(_TIF_31BIT>>16)
-	jno	sysc_noemu
-	larl	%r10,sys_call_table_emu		# 31 bit system call table
-sysc_noemu:
-#endif
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	stg	%r2,__PT_ORIG_GPR2(%r11)
 	stg	%r7,STACK_FRAME_OVERHEAD(%r15)
@@ -1005,6 +999,7 @@ sys_call_table:
 #ifdef CONFIG_COMPAT
 
 #define SYSCALL(esa,esame,emu)	.long emu
+	.globl	sys_call_table_emu
 sys_call_table_emu:
 #include "syscalls.S"
 #undef SYSCALL
