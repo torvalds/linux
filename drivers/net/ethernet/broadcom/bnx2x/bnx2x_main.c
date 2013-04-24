@@ -7930,8 +7930,6 @@ int bnx2x_del_all_macs(struct bnx2x *bp,
 
 int bnx2x_set_eth_mac(struct bnx2x *bp, bool set)
 {
-	unsigned long ramrod_flags = 0;
-
 	if (is_zero_ether_addr(bp->dev->dev_addr) &&
 	    (IS_MF_STORAGE_SD(bp) || IS_MF_FCOE_AFEX(bp))) {
 		DP(NETIF_MSG_IFUP | NETIF_MSG_IFDOWN,
@@ -7939,12 +7937,18 @@ int bnx2x_set_eth_mac(struct bnx2x *bp, bool set)
 		return 0;
 	}
 
-	DP(NETIF_MSG_IFUP, "Adding Eth MAC\n");
+	if (IS_PF(bp)) {
+		unsigned long ramrod_flags = 0;
 
-	__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
-	/* Eth MAC is set on RSS leading client (fp[0]) */
-	return bnx2x_set_mac_one(bp, bp->dev->dev_addr, &bp->sp_objs->mac_obj,
-				 set, BNX2X_ETH_MAC, &ramrod_flags);
+		DP(NETIF_MSG_IFUP, "Adding Eth MAC\n");
+		__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
+		return bnx2x_set_mac_one(bp, bp->dev->dev_addr,
+					 &bp->sp_objs->mac_obj, set,
+					 BNX2X_ETH_MAC, &ramrod_flags);
+	} else { /* vf */
+		return bnx2x_vfpf_config_mac(bp, bp->dev->dev_addr,
+					     bp->fp->index, true);
+	}
 }
 
 int bnx2x_setup_leading(struct bnx2x *bp)

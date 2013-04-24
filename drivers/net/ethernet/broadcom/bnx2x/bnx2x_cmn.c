@@ -2664,7 +2664,8 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	if (IS_PF(bp))
 		rc = bnx2x_set_eth_mac(bp, true);
 	else /* vf */
-		rc = bnx2x_vfpf_set_mac(bp);
+		rc = bnx2x_vfpf_config_mac(bp, bp->dev->dev_addr, bp->fp->index,
+					   true);
 	if (rc) {
 		BNX2X_ERR("Setting Ethernet MAC failed\n");
 		LOAD_ERROR_EXIT(bp, load_error3);

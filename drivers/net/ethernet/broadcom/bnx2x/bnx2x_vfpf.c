@@ -406,6 +406,9 @@ void bnx2x_vfpf_close_vf(struct bnx2x *bp)
 	for_each_queue(bp, i)
 		bnx2x_vfpf_teardown_queue(bp, i);
 
+	/* remove mac */
+	bnx2x_vfpf_config_mac(bp, bp->dev->dev_addr, bp->fp->index, false);
+
 	/* clear mailbox and prep first tlv */
 	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_CLOSE, sizeof(*req));
 
@@ -561,10 +564,11 @@ out:
 }
 
 /* request pf to add a mac for the vf */
-int bnx2x_vfpf_set_mac(struct bnx2x *bp)
+int bnx2x_vfpf_config_mac(struct bnx2x *bp, u8 *addr, u8 vf_qid, bool set)
 {
 	struct vfpf_set_q_filters_tlv *req = &bp->vf2pf_mbox->req.set_q_filters;
 	struct pfvf_general_resp_tlv *resp = &bp->vf2pf_mbox->resp.general_resp;
+	struct pf_vf_bulletin_content bulletin = bp->pf2vf_bulletin->content;
 	int rc = 0;
 
 	/* clear mailbox and prep first tlv */
@@ -572,16 +576,18 @@ int bnx2x_vfpf_set_mac(struct bnx2x *bp)
 			sizeof(*req));
 
 	req->flags = VFPF_SET_Q_FILTERS_MAC_VLAN_CHANGED;
-	req->vf_qid = 0;
+	req->vf_qid = vf_qid;
 	req->n_mac_vlan_filters = 1;
-	req->filters[0].flags =
-		VFPF_Q_FILTER_DEST_MAC_VALID | VFPF_Q_FILTER_SET_MAC;
+
+	req->filters[0].flags = VFPF_Q_FILTER_DEST_MAC_VALID;
+	if (set)
+		req->filters[0].flags |= VFPF_Q_FILTER_SET_MAC;
 
 	/* sample bulletin board for new mac */
 	bnx2x_sample_bulletin(bp);
 
 	/* copy mac from device to request */
-	memcpy(req->filters[0].mac, bp->dev->dev_addr, ETH_ALEN);
+	memcpy(req->filters[0].mac, addr, ETH_ALEN);
 
 	/* add list termination tlv */
 	bnx2x_add_tlv(bp, req, req->first_tlv.tl.length, CHANNEL_TLV_LIST_END,
@@ -601,6 +607,9 @@ int bnx2x_vfpf_set_mac(struct bnx2x *bp)
 	while (resp->hdr.status == PFVF_STATUS_FAILURE) {
 		DP(BNX2X_MSG_IOV,
 		   "vfpf SET MAC failed. Check bulletin board for new posts\n");
+
+		/* copy mac from bulletin to device */
+		memcpy(bp->dev->dev_addr, bulletin.mac, ETH_ALEN);
 
 		/* check if bulletin board was updated */
 		if (bnx2x_sample_bulletin(bp) == PFVF_BULLETIN_UPDATED) {
