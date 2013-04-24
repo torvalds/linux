@@ -1632,7 +1632,7 @@ static int cpsw_probe_dual_emac(struct platform_device *pdev,
 
 static int cpsw_probe(struct platform_device *pdev)
 {
-	struct cpsw_platform_data	*data = pdev->dev.platform_data;
+	struct cpsw_platform_data	*data;
 	struct net_device		*ndev;
 	struct cpsw_priv		*priv;
 	struct cpdma_params		dma_params;
@@ -1845,7 +1845,7 @@ static int cpsw_probe(struct platform_device *pdev)
 				goto clean_ale_ret;
 			}
 			priv->irqs_table[k] = i;
-			priv->num_irqs = k;
+			priv->num_irqs = k + 1;
 		}
 		k++;
 	}
@@ -1883,7 +1883,8 @@ static int cpsw_probe(struct platform_device *pdev)
 	return 0;
 
 clean_irq_ret:
-	free_irq(ndev->irq, priv);
+	for (i = 0; i < priv->num_irqs; i++)
+		free_irq(priv->irqs_table[i], priv);
 clean_ale_ret:
 	cpsw_ale_destroy(priv->ale);
 clean_dma_ret:
@@ -1906,7 +1907,8 @@ clean_slave_ret:
 	pm_runtime_disable(&pdev->dev);
 	kfree(priv->slaves);
 clean_ndev_ret:
-	free_netdev(ndev);
+	kfree(priv->data.slave_data);
+	free_netdev(priv->ndev);
 	return ret;
 }
 
@@ -1914,12 +1916,17 @@ static int cpsw_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct cpsw_priv *priv = netdev_priv(ndev);
+	int i;
 
-	pr_info("removing device");
 	platform_set_drvdata(pdev, NULL);
+	if (priv->data.dual_emac)
+		unregister_netdev(cpsw_get_slave_ndev(priv, 1));
+	unregister_netdev(ndev);
 
 	cpts_unregister(priv->cpts);
-	free_irq(ndev->irq, priv);
+	for (i = 0; i < priv->num_irqs; i++)
+		free_irq(priv->irqs_table[i], priv);
+
 	cpsw_ale_destroy(priv->ale);
 	cpdma_chan_destroy(priv->txch);
 	cpdma_chan_destroy(priv->rxch);
@@ -1933,8 +1940,10 @@ static int cpsw_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	clk_put(priv->clk);
 	kfree(priv->slaves);
+	kfree(priv->data.slave_data);
+	if (priv->data.dual_emac)
+		free_netdev(cpsw_get_slave_ndev(priv, 1));
 	free_netdev(ndev);
-
 	return 0;
 }
 
