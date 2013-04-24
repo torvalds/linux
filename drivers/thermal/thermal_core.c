@@ -369,15 +369,27 @@ static void handle_thermal_trip(struct thermal_zone_device *tz, int trip)
 	monitor_thermal_zone(tz);
 }
 
-static int thermal_zone_get_temp(struct thermal_zone_device *tz,
-				unsigned long *temp)
+/**
+ * thermal_zone_get_temp() - returns its the temperature of thermal zone
+ * @tz: a valid pointer to a struct thermal_zone_device
+ * @temp: a valid pointer to where to store the resulting temperature.
+ *
+ * When a valid thermal zone reference is passed, it will fetch its
+ * temperature and fill @temp.
+ *
+ * Return: On success returns 0, an error code otherwise
+ */
+int thermal_zone_get_temp(struct thermal_zone_device *tz, unsigned long *temp)
 {
-	int ret = 0;
+	int ret = -EINVAL;
 #ifdef CONFIG_THERMAL_EMULATION
 	int count;
 	unsigned long crit_temp = -1UL;
 	enum thermal_trip_type type;
 #endif
+
+	if (IS_ERR_OR_NULL(tz))
+		goto exit;
 
 	mutex_lock(&tz->lock);
 
@@ -402,8 +414,10 @@ static int thermal_zone_get_temp(struct thermal_zone_device *tz,
 skip_emul:
 #endif
 	mutex_unlock(&tz->lock);
+exit:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(thermal_zone_get_temp);
 
 static void update_temperature(struct thermal_zone_device *tz)
 {
@@ -1753,6 +1767,44 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 	return;
 }
 EXPORT_SYMBOL(thermal_zone_device_unregister);
+
+/**
+ * thermal_zone_get_zone_by_name() - search for a zone and returns its ref
+ * @name: thermal zone name to fetch the temperature
+ *
+ * When only one zone is found with the passed name, returns a reference to it.
+ *
+ * Return: On success returns a reference to an unique thermal zone with
+ * matching name equals to @name, an ERR_PTR otherwise (-EINVAL for invalid
+ * paramenters, -ENODEV for not found and -EEXIST for multiple matches).
+ */
+struct thermal_zone_device *thermal_zone_get_zone_by_name(const char *name)
+{
+	struct thermal_zone_device *pos = NULL, *ref = ERR_PTR(-EINVAL);
+	unsigned int found = 0;
+
+	if (!name)
+		goto exit;
+
+	mutex_lock(&thermal_list_lock);
+	list_for_each_entry(pos, &thermal_tz_list, node)
+		if (!strnicmp(name, pos->type, THERMAL_NAME_LENGTH)) {
+			found++;
+			ref = pos;
+		}
+	mutex_unlock(&thermal_list_lock);
+
+	/* nothing has been found, thus an error code for it */
+	if (found == 0)
+		ref = ERR_PTR(-ENODEV);
+	else if (found > 1)
+	/* Success only when an unique zone is found */
+		ref = ERR_PTR(-EEXIST);
+
+exit:
+	return ref;
+}
+EXPORT_SYMBOL_GPL(thermal_zone_get_zone_by_name);
 
 #ifdef CONFIG_NET
 static struct genl_family thermal_event_genl_family = {
