@@ -21,7 +21,9 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/poll.h>
+#include <sys/ioctl.h>
 #include <linux/types.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <mntent.h>
 #include <stdlib.h>
@@ -30,6 +32,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <linux/fs.h>
 #include <linux/connector.h>
 #include <linux/hyperv.h>
 #include <linux/netlink.h>
@@ -44,21 +47,35 @@ static struct sockaddr_nl addr;
 #endif
 
 
+static int vss_do_freeze(char *dir, unsigned int cmd, char *fs_op)
+{
+	int ret, fd = open(dir, O_RDONLY);
+
+	if (fd < 0)
+		return 1;
+	ret = ioctl(fd, cmd, 0);
+	syslog(LOG_INFO, "VSS: %s of %s: %s\n", fs_op, dir, strerror(errno));
+	close(fd);
+	return !!ret;
+}
+
 static int vss_operate(int operation)
 {
 	char *fs_op;
-	char cmd[512];
 	char match[] = "/dev/";
 	FILE *mounts;
 	struct mntent *ent;
+	unsigned int cmd;
 	int error = 0, root_seen = 0;
 
 	switch (operation) {
 	case VSS_OP_FREEZE:
-		fs_op = "-f ";
+		cmd = FIFREEZE;
+		fs_op = "freeze";
 		break;
 	case VSS_OP_THAW:
-		fs_op = "-u ";
+		cmd = FITHAW;
+		fs_op = "thaw";
 		break;
 	default:
 		return -1;
@@ -75,16 +92,12 @@ static int vss_operate(int operation)
 			root_seen = 1;
 			continue;
 		}
-		snprintf(cmd, sizeof(cmd), "fsfreeze %s '%s'", fs_op, ent->mnt_dir);
-		syslog(LOG_INFO, "VSS cmd is %s\n", cmd);
-		error |= system(cmd);
+		error |= vss_do_freeze(ent->mnt_dir, cmd, fs_op);
 	}
 	endmntent(mounts);
 
 	if (root_seen) {
-		sprintf(cmd, "fsfreeze %s /", fs_op);
-		syslog(LOG_INFO, "VSS cmd is %s\n", cmd);
-		error |= system(cmd);
+		error |= vss_do_freeze("/", cmd, fs_op);
 	}
 
 	return error;
