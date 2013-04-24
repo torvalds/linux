@@ -277,6 +277,10 @@ extern int early_init_dt_scan_rtas(unsigned long node,
 
 extern void pSeries_log_error(char *buf, unsigned int err_type, int fatal);
 
+#ifdef CONFIG_PPC_PSERIES
+extern int pseries_devicetree_update(s32 scope);
+#endif
+
 #ifdef CONFIG_PPC_RTAS_DAEMON
 extern void rtas_cancel_event_scan(void);
 #else
