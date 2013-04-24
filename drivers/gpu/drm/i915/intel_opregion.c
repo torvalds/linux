@@ -222,43 +222,6 @@ void intel_opregion_asle_intr(struct drm_device *dev)
 	iowrite32(asle_stat, &asle->aslc);
 }
 
-void intel_opregion_gse_intr(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct opregion_asle __iomem *asle = dev_priv->opregion.asle;
-	u32 asle_stat = 0;
-	u32 asle_req;
-
-	if (!asle)
-		return;
-
-	asle_req = ioread32(&asle->aslc) & ASLE_REQ_MSK;
-
-	if (!asle_req) {
-		DRM_DEBUG_DRIVER("non asle set request??\n");
-		return;
-	}
-
-	if (asle_req & ASLE_SET_ALS_ILLUM) {
-		DRM_DEBUG_DRIVER("Illum is not supported\n");
-		asle_stat |= ASLE_ALS_ILLUM_FAILED;
-	}
-
-	if (asle_req & ASLE_SET_BACKLIGHT)
-		asle_stat |= asle_set_backlight(dev, ioread32(&asle->bclp));
-
-	if (asle_req & ASLE_SET_PFIT) {
-		DRM_DEBUG_DRIVER("Pfit is not supported\n");
-		asle_stat |= ASLE_PFIT_FAILED;
-	}
-
-	if (asle_req & ASLE_SET_PWM_FREQ) {
-		DRM_DEBUG_DRIVER("PWM freq is not supported\n");
-		asle_stat |= ASLE_PWM_FREQ_FAILED;
-	}
-
-	iowrite32(asle_stat, &asle->aslc);
-}
 #define ASLE_ALS_EN    (1<<0)
 #define ASLE_BLC_EN    (1<<1)
 #define ASLE_PFIT_EN   (1<<2)

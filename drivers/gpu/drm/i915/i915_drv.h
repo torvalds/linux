@@ -1821,13 +1821,11 @@ extern int intel_opregion_setup(struct drm_device *dev);
 extern void intel_opregion_init(struct drm_device *dev);
 extern void intel_opregion_fini(struct drm_device *dev);
 extern void intel_opregion_asle_intr(struct drm_device *dev);
-extern void intel_opregion_gse_intr(struct drm_device *dev);
 extern void intel_opregion_enable_asle(struct drm_device *dev);
 #else
 static inline void intel_opregion_init(struct drm_device *dev) { return; }
 static inline void intel_opregion_fini(struct drm_device *dev) { return; }
 static inline void intel_opregion_asle_intr(struct drm_device *dev) { return; }
-static inline void intel_opregion_gse_intr(struct drm_device *dev) { return; }
 static inline void intel_opregion_enable_asle(struct drm_device *dev) { return; }
 #endif
 

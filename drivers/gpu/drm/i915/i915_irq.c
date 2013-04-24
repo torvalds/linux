@@ -1205,7 +1205,7 @@ static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 			dp_aux_irq_handler(dev);
 
 		if (de_iir & DE_GSE_IVB)
-			intel_opregion_gse_intr(dev);
+			intel_opregion_asle_intr(dev);
 
 		for (i = 0; i < 3; i++) {
 			if (de_iir & (DE_PIPEA_VBLANK_IVB << (5 * i)))
@@ -1302,7 +1302,7 @@ static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 		dp_aux_irq_handler(dev);
 
 	if (de_iir & DE_GSE)
-		intel_opregion_gse_intr(dev);
+		intel_opregion_asle_intr(dev);
 
 	if (de_iir & DE_PIPEA_VBLANK)
 		drm_handle_vblank(dev, 0);
