@@ -297,7 +297,7 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	/* screen type & face */
 	screen->face = OUT_FACE;
 	screen->type = OUT_TYPE;
-#ifdef CONFIG_RK610_LVDS
+#if defined(CONFIG_RK610_LVDS)|| defined(CONFIG_RK616_LVDS)
 	screen->hw_format = LVDS_FORMAT;
 #endif
 	
