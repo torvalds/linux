@@ -2700,7 +2700,7 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 		break;
 
 	case DISCOV_TYPE_LE:
-		if (!lmp_host_le_capable(hdev)) {
+		if (!test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
 			err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
 					 MGMT_STATUS_NOT_SUPPORTED);
 			mgmt_pending_remove(cmd);
