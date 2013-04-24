@@ -266,7 +266,7 @@ static efi_status_t setup_efi_vars(struct boot_params *params)
 	while (data && data->next)
 		data = (struct setup_data *)(unsigned long)data->next;
 
-	status = efi_call_phys4(sys_table->runtime->query_variable_info,
+	status = efi_call_phys4((void *)sys_table->runtime->query_variable_info,
 				EFI_VARIABLE_NON_VOLATILE |
 				EFI_VARIABLE_BOOTSERVICE_ACCESS |
 				EFI_VARIABLE_RUNTIME_ACCESS, &store_size,
