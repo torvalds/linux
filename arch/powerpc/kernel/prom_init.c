@@ -698,7 +698,7 @@ unsigned char ibm_architecture_vec[] = {
 #else
 	0,
 #endif
-	OV5_FEAT(OV5_TYPE1_AFFINITY),
+	OV5_FEAT(OV5_TYPE1_AFFINITY) | OV5_FEAT(OV5_PRRN),
 	0,
 	0,
 	0,
