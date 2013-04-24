@@ -88,6 +88,8 @@ static int vss_operate(int operation)
 	while((ent = getmntent(mounts))) {
 		if (strncmp(ent->mnt_fsname, match, strlen(match)))
 			continue;
+		if (strcmp(ent->mnt_type, "iso9660") == 0)
+			continue;
 		if (strcmp(ent->mnt_dir, "/") == 0) {
 			root_seen = 1;
 			continue;
