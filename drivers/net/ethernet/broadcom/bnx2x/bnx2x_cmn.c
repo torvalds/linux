@@ -642,6 +642,14 @@ static void bnx2x_gro_ipv6_csum(struct bnx2x *bp, struct sk_buff *skb)
 	th->check = ~tcp_v6_check(skb->len - skb_transport_offset(skb),
 				  &iph->saddr, &iph->daddr, 0);
 }
+
+static void bnx2x_gro_csum(struct bnx2x *bp, struct sk_buff *skb,
+			    void (*gro_func)(struct bnx2x*, struct sk_buff*))
+{
+	skb_set_network_header(skb, 0);
+	gro_func(bp, skb);
+	tcp_gro_complete(skb);
+}
 #endif
 
 static void bnx2x_gro_receive(struct bnx2x *bp, struct bnx2x_fastpath *fp,
@@ -649,19 +657,17 @@ static void bnx2x_gro_receive(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 {
 #ifdef CONFIG_INET
 	if (skb_shinfo(skb)->gso_size) {
-		skb_set_network_header(skb, 0);
 		switch (be16_to_cpu(skb->protocol)) {
 		case ETH_P_IP:
-			bnx2x_gro_ip_csum(bp, skb);
+			bnx2x_gro_csum(bp, skb, bnx2x_gro_ip_csum);
 			break;
 		case ETH_P_IPV6:
-			bnx2x_gro_ipv6_csum(bp, skb);
+			bnx2x_gro_csum(bp, skb, bnx2x_gro_ipv6_csum);
 			break;
 		default:
-			BNX2X_ERR("FW GRO supports only IPv4/IPv6, not 0x%04x\n",
+			BNX2X_ERR("Error: FW GRO supports only IPv4/IPv6, not 0x%04x\n",
 				  be16_to_cpu(skb->protocol));
 		}
-		tcp_gro_complete(skb);
 	}
 #endif
 	napi_gro_receive(&fp->napi, skb);
