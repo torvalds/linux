@@ -174,6 +174,11 @@ static int imx_sgtl5000_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, data);
+	of_node_put(ssi_np);
+	of_node_put(codec_np);
+
+	return 0;
+
 clk_fail:
 	clk_put(data->codec_clk);
 fail:
