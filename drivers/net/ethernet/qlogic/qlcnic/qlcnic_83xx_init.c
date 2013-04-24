@@ -25,6 +25,17 @@
 #define QLC_83XX_OPCODE_TMPL_END		0x0080
 #define QLC_83XX_OPCODE_POLL_READ_LIST		0x0100
 
+/* EPORT control registers */
+#define QLC_83XX_RESET_CONTROL			0x28084E50
+#define QLC_83XX_RESET_REG			0x28084E60
+#define QLC_83XX_RESET_PORT0			0x28084E70
+#define QLC_83XX_RESET_PORT1			0x28084E80
+#define QLC_83XX_RESET_PORT2			0x28084E90
+#define QLC_83XX_RESET_PORT3			0x28084EA0
+#define QLC_83XX_RESET_SRESHIM			0x28084EB0
+#define QLC_83XX_RESET_EPGSHIM			0x28084EC0
+#define QLC_83XX_RESET_ETHERPCS			0x28084ED0
+
 static int qlcnic_83xx_init_default_driver(struct qlcnic_adapter *adapter);
 static int qlcnic_83xx_check_heartbeat(struct qlcnic_adapter *p_dev);
 static int qlcnic_83xx_restart_hw(struct qlcnic_adapter *adapter);
@@ -1374,6 +1385,19 @@ static void qlcnic_83xx_disable_pause_frames(struct qlcnic_adapter *adapter)
 	qlcnic_83xx_unlock_driver(adapter);
 }
 
+static void qlcnic_83xx_take_eport_out_of_reset(struct qlcnic_adapter *adapter)
+{
+	QLCWR32(adapter, QLC_83XX_RESET_REG, 0);
+	QLCWR32(adapter, QLC_83XX_RESET_PORT0, 0);
+	QLCWR32(adapter, QLC_83XX_RESET_PORT1, 0);
+	QLCWR32(adapter, QLC_83XX_RESET_PORT2, 0);
+	QLCWR32(adapter, QLC_83XX_RESET_PORT3, 0);
+	QLCWR32(adapter, QLC_83XX_RESET_SRESHIM, 0);
+	QLCWR32(adapter, QLC_83XX_RESET_EPGSHIM, 0);
+	QLCWR32(adapter, QLC_83XX_RESET_ETHERPCS, 0);
+	QLCWR32(adapter, QLC_83XX_RESET_CONTROL, 1);
+}
+
 static int qlcnic_83xx_check_heartbeat(struct qlcnic_adapter *p_dev)
 {
 	u32 heartbeat, peg_status;
@@ -1395,6 +1419,7 @@ static int qlcnic_83xx_check_heartbeat(struct qlcnic_adapter *p_dev)
 
 	if (ret) {
 		dev_err(&p_dev->pdev->dev, "firmware hang detected\n");
+		qlcnic_83xx_take_eport_out_of_reset(p_dev);
 		qlcnic_83xx_disable_pause_frames(p_dev);
 		peg_status = QLC_SHARED_REG_RD32(p_dev,
 						 QLCNIC_PEG_HALT_STATUS1);
