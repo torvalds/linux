@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_android.c 393868 2013-03-29 05:24:46Z $
+ * $Id: wl_android.c 397123 2013-04-17 08:59:26Z $
  */
 
 #include <linux/module.h>
@@ -76,7 +76,7 @@
 #define CMD_P2P_SET_NOA		"P2P_SET_NOA"
 #if !defined WL_ENABLE_P2P_IF
 #define CMD_P2P_GET_NOA			"P2P_GET_NOA"
-#endif
+#endif /* WL_ENABLE_P2P_IF */
 #define CMD_P2P_SD_OFFLOAD		"P2P_SD_"
 #define CMD_P2P_SET_PS		"P2P_SET_PS"
 #define CMD_SET_AP_WPS_P2P_IE 		"SET_AP_WPS_P2P_IE"
@@ -641,13 +641,18 @@ wl_android_iolist_resume(struct net_device *dev, struct list_head *head)
 {
 	struct io_cfg *config;
 	struct list_head *cur, *q;
+	s32 ret = 0;
 
 	list_for_each_safe(cur, q, head) {
 		config = list_entry(cur, struct io_cfg, list);
 		if (config->iovar) {
-			wldev_iovar_setint(dev, config->iovar, config->param);
+			if (!ret)
+				ret = wldev_iovar_setint(dev, config->iovar,
+					config->param);
 		} else {
-			wldev_ioctl(dev, config->ioctl + 1, config->arg, config->len, true);
+			if (!ret)
+				ret = wldev_ioctl(dev, config->ioctl + 1,
+					config->arg, config->len, true);
 			if (config->ioctl + 1 == WLC_SET_PM)
 				wl_cfg80211_update_power_mode(dev);
 			kfree(config->arg);
@@ -685,6 +690,10 @@ wl_android_set_miracast(struct net_device *dev, char *command, int total_len)
 		ret = wl_android_iolist_add(dev, &miracast_resume_list, &config);
 		if (ret)
 			goto resume;
+		/* FALLTROUGH */
+		/* Source mode shares most configurations with sink mode.
+		 * Fall through here to avoid code duplication
+		 */
 	case MIRACAST_MODE_SINK:
 		/* disable internal roaming */
 		config.iovar = "roam_off";
@@ -1136,6 +1145,7 @@ static int wifi_remove(struct platform_device *pdev)
 {
 	struct wifi_platform_data *wifi_ctrl =
 		(struct wifi_platform_data *)(pdev->dev.platform_data);
+	struct io_cfg *cur, *q;
 
 	DHD_ERROR(("## %s\n", __FUNCTION__));
 	wifi_control_data = wifi_ctrl;
@@ -1144,6 +1154,10 @@ static int wifi_remove(struct platform_device *pdev)
 	wifi_set_power(0, WIFI_TURNOFF_DELAY);	/* Power Off */
 	wifi_set_carddetect(0);	/* CardDetect (1->0) */
 		g_wifi_poweron = FALSE;
+		list_for_each_entry_safe(cur, q, &miracast_resume_list, list) {
+			list_del(&cur->list);
+			kfree(cur);
+		}
 	}
 
 	up(&wifi_control_sem);

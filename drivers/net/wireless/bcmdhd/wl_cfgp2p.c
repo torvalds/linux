@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.c 394172 2013-04-01 09:44:27Z $
+ * $Id: wl_cfgp2p.c 396420 2013-04-12 06:55:45Z $
  *
  */
 #include <typedefs.h>
@@ -55,13 +55,14 @@ wl_cfgp2p_has_ie(u8 *ie, u8 **tlvs, u32 *tlvs_len, const u8 *oui, u32 oui_len, u
 static u32
 wl_cfgp2p_vndr_ie(struct wl_priv *wl, u8 *iebuf, s32 pktflag,
             s8 *oui, s32 ie_id, s8 *data, s32 datalen, const s8* add_del_cmd);
+static s32 wl_cfgp2p_cancel_listen(struct wl_priv *wl, struct net_device *ndev,
+	struct wireless_dev *wdev, bool notify);
 
+#if defined(WL_ENABLE_P2P_IF)
 static int wl_cfgp2p_start_xmit(struct sk_buff *skb, struct net_device *ndev);
 static int wl_cfgp2p_do_ioctl(struct net_device *net, struct ifreq *ifr, int cmd);
 static int wl_cfgp2p_if_open(struct net_device *net);
 static int wl_cfgp2p_if_stop(struct net_device *net);
-static s32 wl_cfgp2p_cancel_listen(struct wl_priv *wl, struct net_device *ndev,
-	bool notify);
 
 static const struct net_device_ops wl_cfgp2p_if_ops = {
 	.ndo_open		= wl_cfgp2p_if_open,
@@ -69,6 +70,7 @@ static const struct net_device_ops wl_cfgp2p_if_ops = {
 	.ndo_do_ioctl		= wl_cfgp2p_do_ioctl,
 	.ndo_start_xmit		= wl_cfgp2p_start_xmit,
 };
+#endif /* WL_ENABLE_P2P_IF */
 
 bool wl_cfgp2p_is_pub_action(void *frame, u32 frame_len)
 {
@@ -377,7 +379,7 @@ wl_cfgp2p_ifadd(struct wl_priv *wl, struct ether_addr *mac, u8 if_type,
 
 /* Disable a P2P BSS.
  * Parameters:
- * @mac      : MAC address of the BSS to create
+ * @mac      : MAC address of the BSS to disable
  * Returns 0 if success.
  */
 s32
@@ -398,7 +400,7 @@ wl_cfgp2p_ifdisable(struct wl_priv *wl, struct ether_addr *mac)
 
 /* Delete a P2P BSS.
  * Parameters:
- * @mac      : MAC address of the BSS to create
+ * @mac      : MAC address of the BSS to delete
  * Returns 0 if success.
  */
 s32
@@ -1553,7 +1555,7 @@ wl_cfgp2p_listen_expired(unsigned long data)
  */
 static s32
 wl_cfgp2p_cancel_listen(struct wl_priv *wl, struct net_device *ndev,
-                         bool notify)
+                         struct wireless_dev *wdev, bool notify)
 {
 	WL_DBG(("Enter \n"));
 	/* Irrespective of whether timer is running or not, reset
@@ -1564,8 +1566,7 @@ wl_cfgp2p_cancel_listen(struct wl_priv *wl, struct net_device *ndev,
 		if (notify)
 			if (ndev && ndev->ieee80211_ptr) {
 				cfg80211_remain_on_channel_expired(ndev, wl->last_roc_id,
-				 &wl->remain_on_chan, wl->remain_on_chan_type,
-				 GFP_KERNEL);
+					&wl->remain_on_chan, wl->remain_on_chan_type, GFP_KERNEL);
 			}
 	}
 	return 0;
@@ -1688,7 +1689,7 @@ wl_cfgp2p_action_tx_complete(struct wl_priv *wl, struct net_device *ndev,
 				if (!wl_get_p2p_status(wl, ACTION_TX_COMPLETED)) {
 				wl_set_p2p_status(wl, ACTION_TX_NOACK);
 				CFGP2P_INFO(("WLC_E_ACTION_FRAME_COMPLETE : NO ACK\n"));
-				wl_stop_wait_next_action_frame(wl, ndev);
+				wl_stop_wait_next_action_frame(wl);
 				}
 			}
 		} else {
@@ -1929,9 +1930,16 @@ wl_cfgp2p_supported(struct wl_priv *wl, struct net_device *ndev)
 s32
 wl_cfgp2p_down(struct wl_priv *wl)
 {
+	struct net_device *ndev = NULL;
+	struct wireless_dev *wdev = NULL;
 	s32 i = 0, index = -1;
-	wl_cfgp2p_cancel_listen(wl,
-		wl->p2p_net ? wl->p2p_net : wl_to_prmry_ndev(wl), TRUE);
+
+#if defined(WL_ENABLE_P2P_IF)
+	ndev = wl->p2p_net ? wl->p2p_net : wl_to_prmry_ndev(wl);
+	wdev = ndev_to_wdev(ndev);
+#endif
+
+	wl_cfgp2p_cancel_listen(wl, ndev, wdev, TRUE);
 	for (i = 0; i < P2PAPI_BSSCFG_MAX; i++) {
 			index = wl_to_p2p_bss_bssidx(wl, i);
 			if (index != WL_INVALID)
@@ -2192,7 +2200,6 @@ wl_cfgp2p_find_attrib_in_all_p2p_Ies(u8 *parse, u32 len, u32 attrib)
 u8 *
 wl_cfgp2p_retreive_p2p_dev_addr(wl_bss_info_t *bi, u32 bi_length)
 {
-	wifi_p2p_ie_t * p2p_ie = NULL;
 	u8 *capability = NULL;
 	bool p2p_go	= 0;
 	u8 *ptr = NULL;
@@ -2210,11 +2217,13 @@ wl_cfgp2p_retreive_p2p_dev_addr(wl_bss_info_t *bi, u32 bi_length)
 	}
 
 	/* In probe responses, DEVICE INFO attribute will be present */
-	if (!(ptr = wl_cfgp2p_retreive_p2pattrib(p2p_ie, P2P_SEID_DEV_INFO))) {
+	if (!(ptr = wl_cfgp2p_find_attrib_in_all_p2p_Ies(((u8 *) bi) + bi->ie_offset,
+	bi->ie_length,  P2P_SEID_DEV_INFO))) {
 		/* If DEVICE_INFO is not found, this might be a beacon frame.
 		 * check for DEVICE_ID in the beacon frame.
 		 */
-		ptr = wl_cfgp2p_retreive_p2pattrib(p2p_ie, P2P_SEID_DEV_ID);
+		ptr = wl_cfgp2p_find_attrib_in_all_p2p_Ies(((u8 *) bi) + bi->ie_offset,
+		bi->ie_length,  P2P_SEID_DEV_ID);
 	}
 
 	if (!ptr)
@@ -2236,6 +2245,7 @@ struct ethtool_ops cfgp2p_ethtool_ops = {
 };
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24) */
 
+#if defined(WL_ENABLE_P2P_IF)
 s32
 wl_cfgp2p_register_ndev(struct wl_priv *wl)
 {
@@ -2420,3 +2430,4 @@ bool wl_cfgp2p_is_ifops(const struct net_device_ops *if_ops)
 {
 	return (if_ops == &wl_cfgp2p_if_ops);
 }
+#endif /* WL_ENABLE_P2P_IF */

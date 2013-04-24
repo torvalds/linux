@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c 392661 2013-03-22 23:17:02Z $
+ * $Id: dhd_common.c 395575 2013-04-08 18:22:06Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -127,7 +127,7 @@ enum {
 	IOV_PROPTXSTATUS_ENABLE,
 	IOV_PROPTXSTATUS_MODE,
 	IOV_PROPTXSTATUS_OPT,
-#endif
+#endif /* PROP_TXSTATUS */
 	IOV_BUS_TYPE,
 #ifdef WLMEDIA_HTSF
 	IOV_WLPKTDLYSTAT_SZ,
@@ -163,7 +163,7 @@ const bcm_iovar_t dhd_iovars[] = {
 	*/
 	{"ptxmode",	IOV_PROPTXSTATUS_MODE,	0,	IOVT_UINT32,	0 },
 	{"proptx_opt", IOV_PROPTXSTATUS_OPT, 	0,	IOVT_UINT32,	0 },
-#endif
+#endif /* PROP_TXSTATUS */
 	{"bustype", IOV_BUS_TYPE, 0, IOVT_UINT32, 0},
 #ifdef WLMEDIA_HTSF
 	{"pktdlystatsz", IOV_WLPKTDLYSTAT_SZ, 0, IOVT_UINT8, 0 },
@@ -1786,22 +1786,22 @@ dhd_get_suspend_bcn_li_dtim(dhd_pub_t *dhd)
 	bcn_li_dtim = dhd->suspend_bcn_li_dtim;
 
 	/* check if sta listen interval fits into AP dtim */
-	if (dtim_assoc > LISTEN_INTERVAL) {
+	if (dtim_assoc > CUSTOM_LISTEN_INTERVAL) {
 		/* AP DTIM to big for our Listen Interval : no dtim skiping */
 		bcn_li_dtim = 1;
 		DHD_ERROR(("%s DTIM=%d > Listen=%d : too big ...\n",
-			__FUNCTION__, dtim_assoc, LISTEN_INTERVAL));
+			__FUNCTION__, dtim_assoc, CUSTOM_LISTEN_INTERVAL));
 		goto exit;
 	}
 
-	if ((bcn_li_dtim * dtim_assoc) > LISTEN_INTERVAL) {
+	if ((bcn_li_dtim * dtim_assoc) > CUSTOM_LISTEN_INTERVAL) {
 		/* Round up dtim_skip to fit into STAs Listen Interval */
-		bcn_li_dtim = (int)(LISTEN_INTERVAL / dtim_assoc);
+		bcn_li_dtim = (int)(CUSTOM_LISTEN_INTERVAL / dtim_assoc);
 		DHD_TRACE(("%s agjust dtim_skip as %d\n", __FUNCTION__, bcn_li_dtim));
 	}
 
 	DHD_ERROR(("%s beacon=%d bcn_li_dtim=%d DTIM=%d Listen=%d\n",
-		__FUNCTION__, ap_beacon, bcn_li_dtim, dtim_assoc, LISTEN_INTERVAL));
+		__FUNCTION__, ap_beacon, bcn_li_dtim, dtim_assoc, CUSTOM_LISTEN_INTERVAL));
 
 exit:
 	return bcn_li_dtim;
