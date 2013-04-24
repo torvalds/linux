@@ -834,6 +834,7 @@ static netdev_tx_t be_xmit(struct sk_buff *skb,
 	u32 start = txq->head, eth_hdr_len;
 	bool dummy_wrb, stopped = false;
 	bool skip_hw_vlan = false;
+	struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
 
 	eth_hdr_len = ntohs(skb->protocol) == ETH_P_8021Q ?
 		VLAN_ETH_HLEN : ETH_HLEN;
@@ -845,6 +846,13 @@ static netdev_tx_t be_xmit(struct sk_buff *skb,
 		ip = (struct iphdr *)ip_hdr(skb);
 		pskb_trim(skb, eth_hdr_len + ntohs(ip->tot_len));
 	}
+
+	/* If vlan tag is already inlined in the packet, skip HW VLAN
+	 * tagging in UMC mode
+	 */
+	if ((adapter->function_mode & UMC_ENABLED) &&
+	    veh->h_vlan_proto == htons(ETH_P_8021Q))
+			skip_hw_vlan = true;
 
 	/* HW has a bug wherein it will calculate CSUM for VLAN
 	 * pkts even though it is disabled.
