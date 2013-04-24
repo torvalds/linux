@@ -291,9 +291,7 @@ EXPORT_SYMBOL_GPL(of_node_to_nid);
 static int __init find_min_common_depth(void)
 {
 	int depth;
-	struct device_node *chosen;
 	struct device_node *root;
-	const char *vec5;
 
 	if (firmware_has_feature(FW_FEATURE_OPAL))
 		root = of_find_node_by_path("/ibm,opal");
@@ -325,24 +323,10 @@ static int __init find_min_common_depth(void)
 
 	distance_ref_points_depth /= sizeof(int);
 
-#define VEC5_AFFINITY_BYTE	5
-#define VEC5_AFFINITY		0x80
-
-	if (firmware_has_feature(FW_FEATURE_OPAL))
+	if (firmware_has_feature(FW_FEATURE_OPAL) ||
+	    firmware_has_feature(FW_FEATURE_TYPE1_AFFINITY)) {
+		dbg("Using form 1 affinity\n");
 		form1_affinity = 1;
-	else {
-		chosen = of_find_node_by_path("/chosen");
-		if (chosen) {
-			vec5 = of_get_property(chosen,
-					       "ibm,architecture-vec-5", NULL);
-			if (vec5 && (vec5[VEC5_AFFINITY_BYTE] &
-							VEC5_AFFINITY)) {
-				dbg("Using form 1 affinity\n");
-				form1_affinity = 1;
-			}
-
-			of_node_put(chosen);
-		}
 	}
 
 	if (form1_affinity) {
