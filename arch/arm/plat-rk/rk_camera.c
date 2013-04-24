@@ -269,7 +269,7 @@ static int camio_version = KERNEL_VERSION(0,1,0);
 module_param(camio_version, int, S_IRUGO);
 
 
-static int camera_debug=1;
+static int camera_debug;
 module_param(camera_debug, int, S_IRUGO|S_IWUSR);    
 
 #undef  CAMMODULE_NAME
