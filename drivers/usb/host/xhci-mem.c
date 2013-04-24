@@ -1055,6 +1055,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	struct xhci_ep_ctx	*ep0_ctx;
 	struct xhci_slot_ctx    *slot_ctx;
 	u32			port_num;
+	u32			max_packets;
 	struct usb_device *top_dev;
 
 	dev = xhci->devs[udev->slot_id];
@@ -1072,15 +1073,20 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	switch (udev->speed) {
 	case USB_SPEED_SUPER:
 		slot_ctx->dev_info |= cpu_to_le32(SLOT_SPEED_SS);
+		max_packets = MAX_PACKET(512);
 		break;
 	case USB_SPEED_HIGH:
 		slot_ctx->dev_info |= cpu_to_le32(SLOT_SPEED_HS);
+		max_packets = MAX_PACKET(64);
 		break;
+	/* USB core guesses at a 64-byte max packet first for FS devices */
 	case USB_SPEED_FULL:
 		slot_ctx->dev_info |= cpu_to_le32(SLOT_SPEED_FS);
+		max_packets = MAX_PACKET(64);
 		break;
 	case USB_SPEED_LOW:
 		slot_ctx->dev_info |= cpu_to_le32(SLOT_SPEED_LS);
+		max_packets = MAX_PACKET(8);
 		break;
 	case USB_SPEED_WIRELESS:
 		xhci_dbg(xhci, "FIXME xHCI doesn't support wireless speeds\n");
@@ -1088,7 +1094,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 		break;
 	default:
 		/* Speed was set earlier, this shouldn't happen. */
-		BUG();
+		return -EINVAL;
 	}
 	/* Find the root hub port this device is under */
 	port_num = xhci_find_real_port_number(xhci, udev);
@@ -1147,31 +1153,10 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	/* Step 4 - ring already allocated */
 	/* Step 5 */
 	ep0_ctx->ep_info2 = cpu_to_le32(EP_TYPE(CTRL_EP));
-	/*
-	 * XXX: Not sure about wireless USB devices.
-	 */
-	switch (udev->speed) {
-	case USB_SPEED_SUPER:
-		ep0_ctx->ep_info2 |= cpu_to_le32(MAX_PACKET(512));
-		break;
-	case USB_SPEED_HIGH:
-	/* USB core guesses at a 64-byte max packet first for FS devices */
-	case USB_SPEED_FULL:
-		ep0_ctx->ep_info2 |= cpu_to_le32(MAX_PACKET(64));
-		break;
-	case USB_SPEED_LOW:
-		ep0_ctx->ep_info2 |= cpu_to_le32(MAX_PACKET(8));
-		break;
-	case USB_SPEED_WIRELESS:
-		xhci_dbg(xhci, "FIXME xHCI doesn't support wireless speeds\n");
-		return -EINVAL;
-		break;
-	default:
-		/* New speed? */
-		BUG();
-	}
+
 	/* EP 0 can handle "burst" sizes of 1, so Max Burst Size field is 0 */
-	ep0_ctx->ep_info2 |= cpu_to_le32(MAX_BURST(0) | ERROR_COUNT(3));
+	ep0_ctx->ep_info2 |= cpu_to_le32(MAX_BURST(0) | ERROR_COUNT(3) |
+					 max_packets);
 
 	ep0_ctx->deq = cpu_to_le64(dev->eps[0].ring->first_seg->dma |
 				   dev->eps[0].ring->cycle_state);
