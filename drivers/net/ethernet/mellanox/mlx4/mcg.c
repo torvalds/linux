@@ -649,10 +649,11 @@ static void trans_rule_ctrl_to_hw(struct mlx4_net_trans_rule *ctrl,
 				  struct mlx4_net_trans_rule_hw_ctrl *hw)
 {
 	static const u8 __promisc_mode[] = {
-		[MLX4_FS_PROMISC_NONE]   = 0x0,
-		[MLX4_FS_PROMISC_UPLINK] = 0x1,
-		[MLX4_FS_PROMISC_FUNCTION_PORT] = 0x2,
-		[MLX4_FS_PROMISC_ALL_MULTI] = 0x3,
+		[MLX4_FS_REGULAR]	= 0x0,
+		[MLX4_FS_ALL_DEFAULT]	= 0x1,
+		[MLX4_FS_MC_DEFAULT]	= 0x3,
+		[MLX4_FS_UC_SNIFFER]	= 0x4,
+		[MLX4_FS_MC_SNIFFER]	= 0x5,
 	};
 
 	u32 dw = 0;
@@ -1153,7 +1154,7 @@ int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 		struct mlx4_net_trans_rule rule = {
 			.queue_mode = MLX4_NET_TRANS_Q_FIFO,
 			.exclusive = 0,
-			.promisc_mode = MLX4_FS_PROMISC_NONE,
+			.promisc_mode = MLX4_FS_REGULAR,
 			.priority = MLX4_DOMAIN_NIC,
 		};
 
@@ -1222,11 +1223,10 @@ int mlx4_flow_steer_promisc_add(struct mlx4_dev *dev, u8 port,
 	u64 *regid_p;
 
 	switch (mode) {
-	case MLX4_FS_PROMISC_UPLINK:
-	case MLX4_FS_PROMISC_FUNCTION_PORT:
+	case MLX4_FS_ALL_DEFAULT:
 		regid_p = &dev->regid_promisc_array[port];
 		break;
-	case MLX4_FS_PROMISC_ALL_MULTI:
+	case MLX4_FS_MC_DEFAULT:
 		regid_p = &dev->regid_allmulti_array[port];
 		break;
 	default:
@@ -1253,11 +1253,10 @@ int mlx4_flow_steer_promisc_remove(struct mlx4_dev *dev, u8 port,
 	u64 *regid_p;
 
 	switch (mode) {
-	case MLX4_FS_PROMISC_UPLINK:
-	case MLX4_FS_PROMISC_FUNCTION_PORT:
+	case MLX4_FS_ALL_DEFAULT:
 		regid_p = &dev->regid_promisc_array[port];
 		break;
-	case MLX4_FS_PROMISC_ALL_MULTI:
+	case MLX4_FS_MC_DEFAULT:
 		regid_p = &dev->regid_allmulti_array[port];
 		break;
 	default:
