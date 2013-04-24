@@ -20,10 +20,8 @@
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/thermal.h>
-#include <linux/platform_device.h>
 #include <linux/cpufreq.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -31,21 +29,19 @@
 #include <linux/cpu_cooling.h>
 
 /**
- * struct cpufreq_cooling_device
+ * struct cpufreq_cooling_device - data for cooling device with cpufreq
  * @id: unique integer value corresponding to each cpufreq_cooling_device
  *	registered.
- * @cool_dev: thermal_cooling_device pointer to keep track of the the
- *	egistered cooling device.
+ * @cool_dev: thermal_cooling_device pointer to keep track of the
+ *	registered cooling device.
  * @cpufreq_state: integer value representing the current state of cpufreq
  *	cooling	devices.
  * @cpufreq_val: integer value representing the absolute value of the clipped
  *	frequency.
  * @allowed_cpus: all the cpus involved for this cpufreq_cooling_device.
- * @node: list_head to link all cpufreq_cooling_device together.
  *
  * This structure is required for keeping information of each
- * cpufreq_cooling_device registered as a list whose head is represented by
- * cooling_cpufreq_list. In order to prevent corruption of this list a
+ * cpufreq_cooling_device registered. In order to prevent corruption of this a
  * mutex lock cooling_cpufreq_lock is used.
  */
 struct cpufreq_cooling_device {
@@ -54,9 +50,7 @@ struct cpufreq_cooling_device {
 	unsigned int cpufreq_state;
 	unsigned int cpufreq_val;
 	struct cpumask allowed_cpus;
-	struct list_head node;
 };
-static LIST_HEAD(cooling_cpufreq_list);
 static DEFINE_IDR(cpufreq_idr);
 static DEFINE_MUTEX(cooling_cpufreq_lock);
 
@@ -99,8 +93,14 @@ static void release_idr(struct idr *idr, int id)
 /* Below code defines functions to be used for cpufreq as cooling device */
 
 /**
- * is_cpufreq_valid - function to check if a cpu has frequency transition policy.
+ * is_cpufreq_valid - function to check frequency transitioning capability.
  * @cpu: cpu for which check is needed.
+ *
+ * This function will check the current state of the system if
+ * it is capable of changing the frequency for a given @cpu.
+ *
+ * Return: 0 if the system is not currently capable of changing
+ * the frequency of given cpu. !0 in case the frequency is changeable.
  */
 static int is_cpufreq_valid(int cpu)
 {
@@ -114,8 +114,14 @@ enum cpufreq_cooling_property {
 	GET_MAXL,
 };
 
-/*
- * this is the common function to
+/**
+ * get_property - fetch a property of interest for a give cpu.
+ * @cpu: cpu for which the property is required
+ * @input: query parameter
+ * @output: query return
+ * @property: type of query (frequency, level, max level)
+ *
+ * This is the common function to
  * 1. get maximum cpu cooling states
  * 2. translate frequency to cooling state
  * 3. translate cooling state to frequency
@@ -124,12 +130,14 @@ enum cpufreq_cooling_property {
  * a) reduce duplicate code as most of the code can be shared.
  * b) make sure the logic is consistent when translating between
  *    cooling states and frequencies.
-*/
+ *
+ * Return: 0 on success, -EINVAL when invalid parameters are passed.
+ */
 static int get_property(unsigned int cpu, unsigned long input,
 	unsigned int* output, enum cpufreq_cooling_property property)
 {
 	int i, j;
-	unsigned long max_level = 0, level;
+	unsigned long max_level = 0, level = 0;
 	unsigned int freq = CPUFREQ_ENTRY_INVALID;
 	int descend = -1;
 	struct cpufreq_frequency_table *table =
@@ -196,6 +204,17 @@ static int get_property(unsigned int cpu, unsigned long input,
 	return -EINVAL;
 }
 
+/**
+ * cpufreq_cooling_get_level - for a give cpu, return the cooling level.
+ * @cpu: cpu for which the level is required
+ * @freq: the frequency of interest
+ *
+ * This function will match the cooling level corresponding to the
+ * requested @freq and return it.
+ *
+ * Return: The matched cooling level on success or THERMAL_CSTATE_INVALID
+ * otherwise.
+ */
 unsigned long cpufreq_cooling_get_level(unsigned int cpu, unsigned int freq)
 {
 	unsigned int val;
@@ -204,14 +223,19 @@ unsigned long cpufreq_cooling_get_level(unsigned int cpu, unsigned int freq)
 		return THERMAL_CSTATE_INVALID;
 	return (unsigned long)val;
 }
-
-EXPORT_SYMBOL(cpufreq_cooling_get_level);
+EXPORT_SYMBOL_GPL(cpufreq_cooling_get_level);
 
 /**
  * get_cpu_frequency - get the absolute value of frequency from level.
  * @cpu: cpu for which frequency is fetched.
- * @level: level of frequency, equals cooling state of cpu cooling device
+ * @level: cooling level
+ *
+ * This function matches cooling level with frequency. Based on a cooling level
+ * of frequency, equals cooling state of cpu cooling device, it will return
+ * the corresponding frequency.
  *	e.g level=0 --> 1st MAX FREQ, level=1 ---> 2nd MAX FREQ, .... etc
+ *
+ * Return: 0 on error, the corresponding frequency otherwise.
  */
 static unsigned int get_cpu_frequency(unsigned int cpu, unsigned long level)
 {
@@ -229,6 +253,12 @@ static unsigned int get_cpu_frequency(unsigned int cpu, unsigned long level)
  * @cpufreq_device: cpufreq_cooling_device pointer containing frequency
  *	clipping data.
  * @cooling_state: value of the cooling state.
+ *
+ * Function used to make sure the cpufreq layer is aware of current thermal
+ * limits. The limits are applied by updating the cpufreq policy.
+ *
+ * Return: 0 on success, an error code otherwise (-EINVAL in case wrong
+ * cooling state).
  */
 static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
 				unsigned long cooling_state)
@@ -265,6 +295,12 @@ static int cpufreq_apply_cooling(struct cpufreq_cooling_device *cpufreq_device,
  * @nb:	struct notifier_block * with callback info.
  * @event: value showing cpufreq event for which this function invoked.
  * @data: callback-specific data
+ *
+ * Callback to highjack the notification on cpufreq policy transition.
+ * Every time there is a change in policy, we will intercept and
+ * update the cpufreq policy with thermal constraints.
+ *
+ * Return: 0 (success)
  */
 static int cpufreq_thermal_notifier(struct notifier_block *nb,
 					unsigned long event, void *data)
@@ -296,6 +332,11 @@ static int cpufreq_thermal_notifier(struct notifier_block *nb,
  * cpufreq_get_max_state - callback function to get the max cooling state.
  * @cdev: thermal cooling device pointer.
  * @state: fill this variable with the max cooling state.
+ *
+ * Callback for the thermal cooling device to return the cpufreq
+ * max cooling state.
+ *
+ * Return: 0 on success, an error code otherwise.
  */
 static int cpufreq_get_max_state(struct thermal_cooling_device *cdev,
 				 unsigned long *state)
@@ -320,6 +361,11 @@ static int cpufreq_get_max_state(struct thermal_cooling_device *cdev,
  * cpufreq_get_cur_state - callback function to get the current cooling state.
  * @cdev: thermal cooling device pointer.
  * @state: fill this variable with the current cooling state.
+ *
+ * Callback for the thermal cooling device to return the cpufreq
+ * current cooling state.
+ *
+ * Return: 0 on success, an error code otherwise.
  */
 static int cpufreq_get_cur_state(struct thermal_cooling_device *cdev,
 				 unsigned long *state)
@@ -334,6 +380,11 @@ static int cpufreq_get_cur_state(struct thermal_cooling_device *cdev,
  * cpufreq_set_cur_state - callback function to set the current cooling state.
  * @cdev: thermal cooling device pointer.
  * @state: set this variable to the current cooling state.
+ *
+ * Callback for the thermal cooling device to change the cpufreq
+ * current cooling state.
+ *
+ * Return: 0 on success, an error code otherwise.
  */
 static int cpufreq_set_cur_state(struct thermal_cooling_device *cdev,
 				 unsigned long state)
@@ -358,6 +409,13 @@ static struct notifier_block thermal_cpufreq_notifier_block = {
 /**
  * cpufreq_cooling_register - function to create cpufreq cooling device.
  * @clip_cpus: cpumask of cpus where the frequency constraints will happen.
+ *
+ * This interface function registers the cpufreq cooling device with the name
+ * "thermal-cpufreq-%x". This api can support multiple instances of cpufreq
+ * cooling devices.
+ *
+ * Return: a valid struct thermal_cooling_device pointer on success,
+ * on failure, it returns a corresponding ERR_PTR().
  */
 struct thermal_cooling_device *cpufreq_cooling_register(
 	const struct cpumask *clip_cpus)
@@ -396,7 +454,8 @@ struct thermal_cooling_device *cpufreq_cooling_register(
 		return ERR_PTR(-EINVAL);
 	}
 
-	sprintf(dev_name, "thermal-cpufreq-%d", cpufreq_dev->id);
+	snprintf(dev_name, sizeof(dev_name), "thermal-cpufreq-%d",
+		 cpufreq_dev->id);
 
 	cool_dev = thermal_cooling_device_register(dev_name, cpufreq_dev,
 						&cpufreq_cooling_ops);
@@ -418,11 +477,13 @@ struct thermal_cooling_device *cpufreq_cooling_register(
 	mutex_unlock(&cooling_cpufreq_lock);
 	return cool_dev;
 }
-EXPORT_SYMBOL(cpufreq_cooling_register);
+EXPORT_SYMBOL_GPL(cpufreq_cooling_register);
 
 /**
  * cpufreq_cooling_unregister - function to remove cpufreq cooling device.
  * @cdev: thermal cooling device pointer.
+ *
+ * This interface function unregisters the "thermal-cpufreq-%x" cooling device.
  */
 void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 {
@@ -432,14 +493,14 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
 	cpufreq_dev_count--;
 
 	/* Unregister the notifier for the last cpufreq cooling device */
-	if (cpufreq_dev_count == 0) {
+	if (cpufreq_dev_count == 0)
 		cpufreq_unregister_notifier(&thermal_cpufreq_notifier_block,
 					CPUFREQ_POLICY_NOTIFIER);
-	}
+
 	mutex_unlock(&cooling_cpufreq_lock);
 
 	thermal_cooling_device_unregister(cpufreq_dev->cool_dev);
 	release_idr(&cpufreq_idr, cpufreq_dev->id);
 	kfree(cpufreq_dev);
 }
-EXPORT_SYMBOL(cpufreq_cooling_unregister);
+EXPORT_SYMBOL_GPL(cpufreq_cooling_unregister);
