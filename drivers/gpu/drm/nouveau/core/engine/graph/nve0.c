@@ -451,11 +451,13 @@ nve0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		priv->firmware = true;
 	}
 
-	ret = nouveau_gpuobj_new(parent, NULL, 0x1000, 256, 0, &priv->unk4188b4);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x1000, 256, 0,
+				&priv->unk4188b4);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL, 0x1000, 256, 0, &priv->unk4188b8);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x1000, 256, 0,
+				&priv->unk4188b8);
 	if (ret)
 		return ret;
 

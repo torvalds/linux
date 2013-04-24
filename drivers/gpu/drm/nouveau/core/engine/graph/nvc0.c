@@ -102,7 +102,8 @@ nvc0_graph_context_ctor(struct nouveau_object *parent,
 	 * fuc to modify some per-context register settings on first load
 	 * of the context.
 	 */
-	ret = nouveau_gpuobj_new(parent, NULL, 0x1000, 0x100, 0, &chan->mmio);
+	ret = nouveau_gpuobj_new(nv_object(chan), NULL, 0x1000, 0x100, 0,
+				&chan->mmio);
 	if (ret)
 		return ret;
 
@@ -114,8 +115,8 @@ nvc0_graph_context_ctor(struct nouveau_object *parent,
 
 	/* allocate buffers referenced by mmio list */
 	for (i = 0; data->size && i < ARRAY_SIZE(priv->mmio_data); i++) {
-		ret = nouveau_gpuobj_new(parent, NULL, data->size, data->align,
-					 0, &chan->data[i].mem);
+		ret = nouveau_gpuobj_new(nv_object(chan), NULL, data->size,
+					 data->align, 0, &chan->data[i].mem);
 		if (ret)
 			return ret;
 
@@ -567,11 +568,13 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		break;
 	}
 
-	ret = nouveau_gpuobj_new(parent, NULL, 0x1000, 256, 0, &priv->unk4188b4);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x1000, 256, 0,
+				&priv->unk4188b4);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL, 0x1000, 256, 0, &priv->unk4188b8);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x1000, 256, 0,
+				&priv->unk4188b8);
 	if (ret)
 		return ret;
 

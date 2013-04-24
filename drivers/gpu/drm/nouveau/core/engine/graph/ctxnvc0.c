@@ -36,7 +36,6 @@ int
 nvc0_grctx_init(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 {
 	struct nouveau_bar *bar = nouveau_bar(priv);
-	struct nouveau_object *parent = nv_object(priv);
 	struct nouveau_gpuobj *chan;
 	u32 size = (0x80000 + priv->size + 4095) & ~4095;
 	int ret, i;
@@ -44,7 +43,7 @@ nvc0_grctx_init(struct nvc0_graph_priv *priv, struct nvc0_grctx *info)
 	/* allocate memory to for a "channel", which we'll use to generate
 	 * the default context values
 	 */
-	ret = nouveau_gpuobj_new(parent, NULL, size, 0x1000,
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, size, 0x1000,
 				 NVOBJ_FLAG_ZERO_ALLOC, &info->chan);
 	chan = info->chan;
 	if (ret) {
