@@ -142,6 +142,8 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	struct e1000_dev_spec_82575 *dev_spec = &hw->dev_spec._82575;
+	struct e1000_sfp_flags *eth_flags = &dev_spec->eth_flags;
 	u32 status;
 
 	if (hw->phy.media_type == e1000_media_type_copper) {
@@ -181,30 +183,22 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ecmd->phy_address = hw->phy.addr;
 		ecmd->transceiver = XCVR_INTERNAL;
 	} else {
-		ecmd->supported = (SUPPORTED_1000baseT_Full |
-				   SUPPORTED_100baseT_Full |
-				   SUPPORTED_FIBRE |
+		ecmd->supported = (SUPPORTED_FIBRE |
 				   SUPPORTED_Autoneg |
 				   SUPPORTED_Pause);
-		if (hw->mac.type == e1000_i354)
-				ecmd->supported |= SUPPORTED_2500baseX_Full;
-
 		ecmd->advertising = ADVERTISED_FIBRE;
-
-		switch (adapter->link_speed) {
-		case SPEED_2500:
-			ecmd->advertising = ADVERTISED_2500baseX_Full;
-			break;
-		case SPEED_1000:
-			ecmd->advertising = ADVERTISED_1000baseT_Full;
-			break;
-		case SPEED_100:
-			ecmd->advertising = ADVERTISED_100baseT_Full;
-			break;
-		default:
-			break;
+		if (hw->mac.type == e1000_i354) {
+			ecmd->supported |= SUPPORTED_2500baseX_Full;
+			ecmd->advertising |= ADVERTISED_2500baseX_Full;
 		}
-
+		if ((eth_flags->e1000_base_lx) || (eth_flags->e1000_base_sx)) {
+			ecmd->supported |= SUPPORTED_1000baseT_Full;
+			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		}
+		if (eth_flags->e100_base_fx) {
+			ecmd->supported |= SUPPORTED_100baseT_Full;
+			ecmd->advertising |= ADVERTISED_100baseT_Full;
+		}
 		if (hw->mac.autoneg == 1)
 			ecmd->advertising |= ADVERTISED_Autoneg;
 
