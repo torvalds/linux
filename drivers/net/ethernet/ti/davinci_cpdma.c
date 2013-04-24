@@ -1040,3 +1040,5 @@ unlock_ret:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cpdma_control_set);
+
+MODULE_LICENSE("GPL");

@@ -1970,6 +1970,7 @@ static const struct of_device_id cpsw_of_mtable[] = {
 	{ .compatible = "ti,cpsw", },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, cpsw_of_mtable);
 
 static struct platform_driver cpsw_driver = {
 	.driver = {
