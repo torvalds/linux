@@ -90,7 +90,7 @@ endif
 
 # Treat warnings as errors unless directed not to
 ifneq ($(WERROR),0)
-	CFLAGS_WERROR := -Werror
+  CFLAGS_WERROR := -Werror
 endif
 
 ifeq ("$(origin DEBUG)", "command line")
@@ -819,10 +819,10 @@ endif
 ifdef NO_DEMANGLE
 	BASIC_CFLAGS += -DNO_DEMANGLE
 else
-        ifdef HAVE_CPLUS_DEMANGLE
+	ifdef HAVE_CPLUS_DEMANGLE
 		EXTLIBS += -liberty
 		BASIC_CFLAGS += -DHAVE_CPLUS_DEMANGLE
-        else
+	else
 		FLAGS_BFD=$(ALL_CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS) -DPACKAGE='perf' -lbfd
 		has_bfd := $(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD),libbfd)
 		ifeq ($(has_bfd),y)
