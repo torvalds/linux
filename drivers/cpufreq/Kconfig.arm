@@ -129,6 +129,7 @@ config ARM_S3C64XX_CPUFREQ
 config ARM_S5PV210_CPUFREQ
 	bool "Samsung S5PV210 and S5PC110"
 	depends on CPU_S5PV210
+	select CPU_FREQ_TABLE
 	default y
 	help
 	  This adds the CPUFreq driver for Samsung S5PV210 and
