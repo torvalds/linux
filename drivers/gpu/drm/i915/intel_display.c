@@ -9530,11 +9530,22 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	struct drm_crtc *crtc;
 	struct intel_crtc *intel_crtc;
 
+	/*
+	 * Interrupts and polling as the first thing to avoid creating havoc.
+	 * Too much stuff here (turning of rps, connectors, ...) would
+	 * experience fancy races otherwise.
+	 */
+	drm_irq_uninstall(dev);
+	cancel_work_sync(&dev_priv->hotplug_work);
+	/*
+	 * Due to the hpd irq storm handling the hotplug work can re-arm the
+	 * poll handlers. Hence disable polling after hpd handling is shut down.
+	 */
 	drm_kms_helper_poll_fini(dev);
+
 	mutex_lock(&dev->struct_mutex);
 
 	intel_unregister_dsm_handler();
-
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		/* Skip inactive CRTCs */
@@ -9552,12 +9563,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	ironlake_teardown_rc6(dev);
 
 	mutex_unlock(&dev->struct_mutex);
-
-	/* Disable the irq before mode object teardown, for the irq might
-	 * enqueue unpin/hotplug work. */
-	drm_irq_uninstall(dev);
-	cancel_work_sync(&dev_priv->hotplug_work);
-	cancel_work_sync(&dev_priv->rps.work);
 
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();
