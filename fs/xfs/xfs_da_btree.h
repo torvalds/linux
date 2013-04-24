@@ -55,6 +55,7 @@ typedef struct xfs_da_blkinfo {
  * magic numbers without modification for both v2 and v3 nodes.
  */
 #define XFS_DA3_NODE_MAGIC	0x3ebe	/* magic number: non-leaf blocks */
+#define XFS_ATTR3_LEAF_MAGIC	0x3bee	/* magic number: attribute leaf blks */
 #define	XFS_DIR3_LEAF1_MAGIC	0x3df1	/* magic number: v2 dirlf single blks */
 #define	XFS_DIR3_LEAFN_MAGIC	0x3dff	/* magic number: v2 dirlf multi blks */
 
@@ -85,13 +86,13 @@ struct xfs_da3_blkinfo {
 
 typedef struct xfs_da_node_hdr {
 	struct xfs_da_blkinfo	info;	/* block type, links, etc. */
-	__be16			count; /* count of active entries */
+	__be16			__count; /* count of active entries */
 	__be16			__level; /* level above leaves (leaf == 0) */
 } xfs_da_node_hdr_t;
 
 struct xfs_da3_node_hdr {
 	struct xfs_da3_blkinfo	info;	/* block type, links, etc. */
-	__be16			count; /* count of active entries */
+	__be16			__count; /* count of active entries */
 	__be16			__level; /* level above leaves (leaf == 0) */
 	__be32			__pad32;
 };
