@@ -2639,7 +2639,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 		   (IS_HASWELL(dev) ? GEN7_RP_DOWN_IDLE_AVG : GEN6_RP_DOWN_IDLE_CONT));
 
 	ret = sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_MIN_FREQ_TABLE, 0);
-	if (!ret && (IS_GEN6(dev) || IS_IVYBRIDGE(dev))) {
+	if (!ret) {
 		pcu_mbox = 0;
 		ret = sandybridge_pcode_read(dev_priv, GEN6_READ_OC_PARAMS, &pcu_mbox);
 		if (!ret && (pcu_mbox & (1<<31))) { /* OC supported */
