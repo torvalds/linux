@@ -156,25 +156,112 @@ static const u32 qlcnic_reg_tbl[] = {
 };
 
 static const struct qlcnic_board_info qlcnic_boards[] = {
-	{0x1077, 0x8020, 0x1077, 0x203,
-	 "8200 Series Single Port 10GbE Converged Network Adapter"
-	 "(TCP/IP Networking)"},
-	{0x1077, 0x8020, 0x1077, 0x207,
-	 "8200 Series Dual Port 10GbE Converged Network Adapter"
-	 "(TCP/IP Networking)"},
-	{0x1077, 0x8020, 0x1077, 0x20b,
-	 "3200 Series Dual Port 10Gb Intelligent Ethernet Adapter"},
-	{0x1077, 0x8020, 0x1077, 0x20c,
-	 "3200 Series Quad Port 1Gb Intelligent Ethernet Adapter"},
-	{0x1077, 0x8020, 0x1077, 0x20f,
-	 "3200 Series Single Port 10Gb Intelligent Ethernet Adapter"},
-	{0x1077, 0x8020, 0x103c, 0x3733,
-	 "NC523SFP 10Gb 2-port Server Adapter"},
-	{0x1077, 0x8020, 0x103c, 0x3346,
-	 "CN1000Q Dual Port Converged Network Adapter"},
-	{0x1077, 0x8020, 0x1077, 0x210,
-	 "QME8242-k 10GbE Dual Port Mezzanine Card"},
-	{0x1077, 0x8020, 0x0, 0x0, "cLOM8214 1/10GbE Controller"},
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE834X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x24e,
+	  "8300 Series Dual Port 10GbE Converged Network Adapter "
+	  "(TCP/IP Networking)" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE834X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x243,
+	  "8300 Series Single Port 10GbE Converged Network Adapter "
+	  "(TCP/IP Networking)" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE834X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x24a,
+	  "8300 Series Dual Port 10GbE Converged Network Adapter "
+	  "(TCP/IP Networking)" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE834X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x246,
+	  "8300 Series Dual Port 10GbE Converged Network Adapter "
+	  "(TCP/IP Networking)" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE834X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x252,
+	  "8300 Series Dual Port 10GbE Converged Network Adapter "
+	  "(TCP/IP Networking)" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE834X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x26e,
+	  "8300 Series Dual Port 10GbE Converged Network Adapter "
+	  "(TCP/IP Networking)" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE834X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x260,
+	  "8300 Series Dual Port 10GbE Converged Network Adapter "
+	  "(TCP/IP Networking)" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE834X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x266,
+	  "8300 Series Single Port 10GbE Converged Network Adapter "
+	  "(TCP/IP Networking)" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE834X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x269,
+	  "8300 Series Dual Port 10GbE Converged Network Adapter "
+	  "(TCP/IP Networking)" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE834X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x271,
+	  "8300 Series Dual Port 10GbE Converged Network Adapter "
+	  "(TCP/IP Networking)" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE834X,
+	  0x0, 0x0, "8300 Series 1/10GbE Controller" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE824X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x203,
+	  "8200 Series Single Port 10GbE Converged Network Adapter"
+	  "(TCP/IP Networking)" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE824X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x207,
+	  "8200 Series Dual Port 10GbE Converged Network Adapter"
+	  "(TCP/IP Networking)" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE824X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x20b,
+	  "3200 Series Dual Port 10Gb Intelligent Ethernet Adapter" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE824X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x20c,
+	  "3200 Series Quad Port 1Gb Intelligent Ethernet Adapter" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE824X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x20f,
+	  "3200 Series Single Port 10Gb Intelligent Ethernet Adapter" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE824X,
+	  0x103c, 0x3733,
+	  "NC523SFP 10Gb 2-port Server Adapter" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE824X,
+	  0x103c, 0x3346,
+	  "CN1000Q Dual Port Converged Network Adapter" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE824X,
+	  PCI_VENDOR_ID_QLOGIC,
+	  0x210,
+	  "QME8242-k 10GbE Dual Port Mezzanine Card" },
+	{ PCI_VENDOR_ID_QLOGIC,
+	  PCI_DEVICE_ID_QLOGIC_QLE824X,
+	  0x0, 0x0, "cLOM8214 1/10GbE Controller" },
 };
 
 #define NUM_SUPPORTED_BOARDS ARRAY_SIZE(qlcnic_boards)
@@ -1287,7 +1374,7 @@ qlcnic_request_irq(struct qlcnic_adapter *adapter)
 	irq_handler_t handler;
 	struct qlcnic_host_sds_ring *sds_ring;
 	struct qlcnic_host_tx_ring *tx_ring;
-	int err, ring;
+	int err, ring, num_sds_rings;
 
 	unsigned long flags = 0;
 	struct net_device *netdev = adapter->netdev;
@@ -1318,10 +1405,20 @@ qlcnic_request_irq(struct qlcnic_adapter *adapter)
 		if (qlcnic_82xx_check(adapter) ||
 		    (qlcnic_83xx_check(adapter) &&
 		     (adapter->flags & QLCNIC_MSIX_ENABLED))) {
-			for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+			num_sds_rings = adapter->max_sds_rings;
+			for (ring = 0; ring < num_sds_rings; ring++) {
 				sds_ring = &recv_ctx->sds_rings[ring];
-				snprintf(sds_ring->name, sizeof(int) + IFNAMSIZ,
-					 "%s[%d]", netdev->name, ring);
+				if (qlcnic_82xx_check(adapter) &&
+				    (ring == (num_sds_rings - 1)))
+					snprintf(sds_ring->name,
+						 sizeof(sds_ring->name),
+						 "qlcnic-%s[Tx0+Rx%d]",
+						 netdev->name, ring);
+				else
+					snprintf(sds_ring->name,
+						 sizeof(sds_ring->name),
+						 "qlcnic-%s[Rx%d]",
+						 netdev->name, ring);
 				err = request_irq(sds_ring->irq, handler, flags,
 						  sds_ring->name, sds_ring);
 				if (err)
@@ -1335,9 +1432,8 @@ qlcnic_request_irq(struct qlcnic_adapter *adapter)
 			for (ring = 0; ring < adapter->max_drv_tx_rings;
 			     ring++) {
 				tx_ring = &adapter->tx_ring[ring];
-				snprintf(tx_ring->name, sizeof(int) + IFNAMSIZ,
-					 "%s[%d]", netdev->name,
-					 adapter->max_sds_rings + ring);
+				snprintf(tx_ring->name, sizeof(tx_ring->name),
+					 "qlcnic-%s[Tx%d]", netdev->name, ring);
 				err = request_irq(tx_ring->irq, handler, flags,
 						  tx_ring->name, tx_ring);
 				if (err)
@@ -1587,7 +1683,9 @@ out:
 
 static int qlcnic_alloc_adapter_resources(struct qlcnic_adapter *adapter)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int err = 0;
+
 	adapter->recv_ctx = kzalloc(sizeof(struct qlcnic_recv_context),
 				GFP_KERNEL);
 	if (!adapter->recv_ctx) {
@@ -1595,9 +1693,14 @@ static int qlcnic_alloc_adapter_resources(struct qlcnic_adapter *adapter)
 		goto err_out;
 	}
 	/* Initialize interrupt coalesce parameters */
-	adapter->ahw->coal.flag = QLCNIC_INTR_DEFAULT;
-	adapter->ahw->coal.rx_time_us = QLCNIC_DEFAULT_INTR_COALESCE_RX_TIME_US;
-	adapter->ahw->coal.rx_packets = QLCNIC_DEFAULT_INTR_COALESCE_RX_PACKETS;
+	ahw->coal.flag = QLCNIC_INTR_DEFAULT;
+	ahw->coal.type = QLCNIC_INTR_COAL_TYPE_RX;
+	ahw->coal.rx_time_us = QLCNIC_DEF_INTR_COALESCE_RX_TIME_US;
+	ahw->coal.rx_packets = QLCNIC_DEF_INTR_COALESCE_RX_PACKETS;
+	if (qlcnic_83xx_check(adapter)) {
+		ahw->coal.tx_time_us = QLCNIC_DEF_INTR_COALESCE_TX_TIME_US;
+		ahw->coal.tx_packets = QLCNIC_DEF_INTR_COALESCE_TX_PACKETS;
+	}
 	/* clear stats */
 	memset(&adapter->stats, 0, sizeof(adapter->stats));
 err_out:
@@ -3273,20 +3376,40 @@ qlcnicvf_start_firmware(struct qlcnic_adapter *adapter)
 	return err;
 }
 
-int qlcnic_validate_max_rss(u8 max_hw, u8 val)
+int qlcnic_validate_max_rss(struct qlcnic_adapter *adapter,
+			    __u32 val)
 {
+	struct net_device *netdev = adapter->netdev;
+	u8 max_hw = adapter->ahw->max_rx_ques;
 	u32 max_allowed;
 
-	if (max_hw > QLC_MAX_SDS_RINGS) {
-		max_hw = QLC_MAX_SDS_RINGS;
-		pr_info("max rss reset to %d\n", QLC_MAX_SDS_RINGS);
+	if (val > QLC_MAX_SDS_RINGS) {
+		netdev_err(netdev, "RSS value should not be higher than %u\n",
+			   QLC_MAX_SDS_RINGS);
+		return -EINVAL;
 	}
 
 	max_allowed = rounddown_pow_of_two(min_t(int, max_hw,
 						 num_online_cpus()));
 	if ((val > max_allowed) || (val < 2) || !is_power_of_2(val)) {
-		pr_info("rss_ring valid range [2 - %x] in powers of 2\n",
-			max_allowed);
+		if (!is_power_of_2(val))
+			netdev_err(netdev, "RSS value should be a power of 2\n");
+
+		if (val < 2)
+			netdev_err(netdev, "RSS value should not be lower than 2\n");
+
+		if (val > max_hw)
+			netdev_err(netdev,
+				   "RSS value should not be higher than[%u], the max RSS rings supported by the adapter\n",
+				   max_hw);
+
+		if (val > num_online_cpus())
+			netdev_err(netdev,
+				   "RSS value should not be higher than[%u], number of online CPUs in the system\n",
+				   num_online_cpus());
+
+		netdev_err(netdev, "Unable to configure %u RSS rings\n", val);
+
 		return -EINVAL;
 	}
 	return 0;

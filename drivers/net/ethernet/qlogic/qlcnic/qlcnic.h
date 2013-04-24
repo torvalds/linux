@@ -38,8 +38,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 2
-#define _QLCNIC_LINUX_SUBVERSION 41
-#define QLCNIC_LINUX_VERSIONID  "5.2.41"
+#define _QLCNIC_LINUX_SUBVERSION 42
+#define QLCNIC_LINUX_VERSIONID  "5.2.42"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -347,8 +347,14 @@ struct qlcnic_rx_buffer {
  * Interrupt coalescing defaults. The defaults are for 1500 MTU. It is
  * adjusted based on configured MTU.
  */
-#define QLCNIC_DEFAULT_INTR_COALESCE_RX_TIME_US	3
-#define QLCNIC_DEFAULT_INTR_COALESCE_RX_PACKETS	256
+#define QLCNIC_INTR_COAL_TYPE_RX		1
+#define QLCNIC_INTR_COAL_TYPE_TX		2
+
+#define QLCNIC_DEF_INTR_COALESCE_RX_TIME_US	3
+#define QLCNIC_DEF_INTR_COALESCE_RX_PACKETS	256
+
+#define QLCNIC_DEF_INTR_COALESCE_TX_TIME_US	64
+#define QLCNIC_DEF_INTR_COALESCE_TX_PACKETS	64
 
 #define QLCNIC_INTR_DEFAULT			0x04
 #define QLCNIC_CONFIG_INTR_COALESCE		3
@@ -359,6 +365,8 @@ struct qlcnic_nic_intr_coalesce {
 	u8	sts_ring_mask;
 	u16	rx_packets;
 	u16	rx_time_us;
+	u16	tx_packets;
+	u16	tx_time_us;
 	u16	flag;
 	u32	timer_out;
 };
@@ -511,13 +519,13 @@ struct qlcnic_host_sds_ring {
 	int irq;
 
 	dma_addr_t phys_addr;
-	char name[IFNAMSIZ+4];
+	char name[IFNAMSIZ + 12];
 } ____cacheline_internodealigned_in_smp;
 
 struct qlcnic_host_tx_ring {
 	int irq;
 	void __iomem *crb_intr_mask;
-	char name[IFNAMSIZ+4];
+	char name[IFNAMSIZ + 12];
 	u16 ctx_id;
 	u32 producer;
 	u32 sw_consumer;
@@ -1474,7 +1482,7 @@ void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings);
 int qlcnic_diag_alloc_res(struct net_device *netdev, int test);
 netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 int qlcnic_set_max_rss(struct qlcnic_adapter *, u8, size_t);
-int qlcnic_validate_max_rss(u8, u8);
+int qlcnic_validate_max_rss(struct qlcnic_adapter *, __u32);
 void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter);
 int qlcnic_enable_msix(struct qlcnic_adapter *, u32);
 

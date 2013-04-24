@@ -1937,7 +1937,7 @@ int qlcnic_83xx_get_mac_address(struct qlcnic_adapter *adapter, u8 *mac)
 void qlcnic_83xx_config_intr_coal(struct qlcnic_adapter *adapter)
 {
 	int err;
-	u32 temp;
+	u16 temp;
 	struct qlcnic_cmd_args cmd;
 	struct qlcnic_nic_intr_coalesce *coal = &adapter->ahw->coal;
 
@@ -1945,10 +1945,18 @@ void qlcnic_83xx_config_intr_coal(struct qlcnic_adapter *adapter)
 		return;
 
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_CONFIG_INTR_COAL);
-	cmd.req.arg[1] = 1 | (adapter->recv_ctx->context_id << 16);
+	if (coal->type == QLCNIC_INTR_COAL_TYPE_RX) {
+		temp = adapter->recv_ctx->context_id;
+		cmd.req.arg[1] = QLCNIC_INTR_COAL_TYPE_RX | temp << 16;
+		temp = coal->rx_time_us;
+		cmd.req.arg[2] = coal->rx_packets | temp << 16;
+	} else if (coal->type == QLCNIC_INTR_COAL_TYPE_TX) {
+		temp = adapter->tx_ring->ctx_id;
+		cmd.req.arg[1] = QLCNIC_INTR_COAL_TYPE_TX | temp << 16;
+		temp = coal->tx_time_us;
+		cmd.req.arg[2] = coal->tx_packets | temp << 16;
+	}
 	cmd.req.arg[3] = coal->flag;
-	temp = coal->rx_time_us << 16;
-	cmd.req.arg[2] = coal->rx_packets | temp;
 	err = qlcnic_issue_cmd(adapter, &cmd);
 	if (err != QLCNIC_RCODE_SUCCESS)
 		dev_info(&adapter->pdev->dev,
@@ -2921,6 +2929,9 @@ static u64 *qlcnic_83xx_fill_stats(struct qlcnic_adapter *adapter,
 		/* skip 24 bytes of reserved area */
 		/* fill in MAC rx frame stats */
 		for (k += 6; k < 80; k += 2)
+			data = qlcnic_83xx_copy_stats(cmd, data, k);
+		/* fill in eSwitch stats */
+		for (; k < total_regs; k += 2)
 			data = qlcnic_83xx_copy_stats(cmd, data, k);
 		break;
 	case QLC_83XX_STAT_RX:
