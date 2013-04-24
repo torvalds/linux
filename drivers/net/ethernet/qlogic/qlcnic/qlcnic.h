@@ -347,8 +347,14 @@ struct qlcnic_rx_buffer {
  * Interrupt coalescing defaults. The defaults are for 1500 MTU. It is
  * adjusted based on configured MTU.
  */
-#define QLCNIC_DEFAULT_INTR_COALESCE_RX_TIME_US	3
-#define QLCNIC_DEFAULT_INTR_COALESCE_RX_PACKETS	256
+#define QLCNIC_INTR_COAL_TYPE_RX		1
+#define QLCNIC_INTR_COAL_TYPE_TX		2
+
+#define QLCNIC_DEF_INTR_COALESCE_RX_TIME_US	3
+#define QLCNIC_DEF_INTR_COALESCE_RX_PACKETS	256
+
+#define QLCNIC_DEF_INTR_COALESCE_TX_TIME_US	64
+#define QLCNIC_DEF_INTR_COALESCE_TX_PACKETS	64
 
 #define QLCNIC_INTR_DEFAULT			0x04
 #define QLCNIC_CONFIG_INTR_COALESCE		3
@@ -359,6 +365,8 @@ struct qlcnic_nic_intr_coalesce {
 	u8	sts_ring_mask;
 	u16	rx_packets;
 	u16	rx_time_us;
+	u16	tx_packets;
+	u16	tx_time_us;
 	u16	flag;
 	u32	timer_out;
 };
