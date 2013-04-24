@@ -676,6 +676,15 @@
 							MX53_PAD_PATA_DMARQ__UART2_TXD_MUX     0x1c5
 						>;
 					};
+
+					pinctrl_uart2_2: uart2grp-2 {
+						fsl,pins = <
+							MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX	0x1c5
+							MX53_PAD_PATA_DMARQ__UART2_TXD_MUX	0x1c5
+							MX53_PAD_PATA_DIOR__UART2_RTS		0x1c5
+							MX53_PAD_PATA_INTRQ__UART2_CTS		0x1c5
+						>;
+					};
 				};
 
 				uart3 {
