@@ -148,6 +148,7 @@ int host1x_drm_init(struct host1x_drm *host1x, struct drm_device *drm)
 				dev_err(host1x->dev,
 					"DRM setup failed for %s: %d\n",
 					dev_name(client->dev), err);
+				mutex_unlock(&host1x->clients_lock);
 				return err;
 			}
 		}
@@ -175,6 +176,7 @@ int host1x_drm_exit(struct host1x_drm *host1x)
 				dev_err(host1x->dev,
 					"DRM cleanup failed for %s: %d\n",
 					dev_name(client->dev), err);
+				mutex_unlock(&host1x->clients_lock);
 				return err;
 			}
 		}
