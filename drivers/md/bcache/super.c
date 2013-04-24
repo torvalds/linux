@@ -139,13 +139,17 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 	if (bch_is_zero(sb->uuid, 16))
 		goto err;
 
+	sb->block_size	= le16_to_cpu(s->block_size);
+
+	err = "Superblock block size smaller than device block size";
+	if (sb->block_size << 9 < bdev_logical_block_size(bdev))
+		goto err;
+
 	switch (sb->version) {
 	case BCACHE_SB_VERSION_BDEV:
-		sb->block_size	= le16_to_cpu(s->block_size);
 		sb->data_offset	= BDEV_DATA_START_DEFAULT;
 		break;
 	case BCACHE_SB_VERSION_BDEV_WITH_OFFSET:
-		sb->block_size	= le16_to_cpu(s->block_size);
 		sb->data_offset	= le64_to_cpu(s->data_offset);
 
 		err = "Bad data offset";
