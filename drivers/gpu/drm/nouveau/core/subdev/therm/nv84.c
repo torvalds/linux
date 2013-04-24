@@ -61,13 +61,13 @@ nv84_therm_program_alarms(struct nouveau_therm *therm)
 	nv_wr32(therm, 0x20414, sensor->thrs_down_clock.temp);
 	spin_unlock_irqrestore(&priv->sensor.alarm_program_lock, flags);
 
-	nv_info(therm,
-		"Programmed thresholds [ %d(%d), %d(%d), %d(%d), %d(%d) ]\n",
-		sensor->thrs_fan_boost.temp, sensor->thrs_fan_boost.hysteresis,
-		sensor->thrs_down_clock.temp,
-		sensor->thrs_down_clock.hysteresis,
-		sensor->thrs_critical.temp, sensor->thrs_critical.hysteresis,
-		sensor->thrs_shutdown.temp, sensor->thrs_shutdown.hysteresis);
+	nv_debug(therm,
+		 "Programmed thresholds [ %d(%d), %d(%d), %d(%d), %d(%d) ]\n",
+		 sensor->thrs_fan_boost.temp, sensor->thrs_fan_boost.hysteresis,
+		 sensor->thrs_down_clock.temp,
+		 sensor->thrs_down_clock.hysteresis,
+		 sensor->thrs_critical.temp, sensor->thrs_critical.hysteresis,
+		 sensor->thrs_shutdown.temp, sensor->thrs_shutdown.hysteresis);
 
 }
 
