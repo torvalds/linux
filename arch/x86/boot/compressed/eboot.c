@@ -258,7 +258,7 @@ static efi_status_t setup_efi_vars(struct boot_params *params)
 	u64 store_size, remaining_size, var_size;
 	efi_status_t status;
 
-	if (!sys_table->runtime->query_variable_info)
+	if (sys_table->runtime->hdr.revision < EFI_2_00_SYSTEM_TABLE_REVISION)
 		return EFI_UNSUPPORTED;
 
 	data = (struct setup_data *)(unsigned long)params->hdr.setup_data;
