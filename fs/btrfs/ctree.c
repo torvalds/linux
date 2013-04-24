@@ -361,6 +361,44 @@ static inline void tree_mod_log_write_unlock(struct btrfs_fs_info *fs_info)
 }
 
 /*
+ * Increment the upper half of tree_mod_seq, set lower half zero.
+ *
+ * Must be called with fs_info->tree_mod_seq_lock held.
+ */
+static inline u64 btrfs_inc_tree_mod_seq_major(struct btrfs_fs_info *fs_info)
+{
+	u64 seq = atomic64_read(&fs_info->tree_mod_seq);
+	seq &= 0xffffffff00000000ull;
+	seq += 1ull << 32;
+	atomic64_set(&fs_info->tree_mod_seq, seq);
+	return seq;
+}
+
+/*
+ * Increment the lower half of tree_mod_seq.
+ *
+ * Must be called with fs_info->tree_mod_seq_lock held. The way major numbers
+ * are generated should not technically require a spin lock here. (Rationale:
+ * incrementing the minor while incrementing the major seq number is between its
+ * atomic64_read and atomic64_set calls doesn't duplicate sequence numbers, it
+ * just returns a unique sequence number as usual.) We have decided to leave
+ * that requirement in here and rethink it once we notice it really imposes a
+ * problem on some workload.
+ */
+static inline u64 btrfs_inc_tree_mod_seq_minor(struct btrfs_fs_info *fs_info)
+{
+	return atomic64_inc_return(&fs_info->tree_mod_seq);
+}
+
+/*
+ * return the last minor in the previous major tree_mod_seq number
+ */
+u64 btrfs_tree_mod_seq_prev(u64 seq)
+{
+	return (seq & 0xffffffff00000000ull) - 1ull;
+}
+
+/*
  * This adds a new blocker to the tree mod log's blocker list if the @elem
  * passed does not already have a sequence number set. So when a caller expects
  * to record tree modifications, it should ensure to set elem->seq to zero
@@ -376,10 +414,10 @@ u64 btrfs_get_tree_mod_seq(struct btrfs_fs_info *fs_info,
 	tree_mod_log_write_lock(fs_info);
 	spin_lock(&fs_info->tree_mod_seq_lock);
 	if (!elem->seq) {
-		elem->seq = btrfs_inc_tree_mod_seq(fs_info);
+		elem->seq = btrfs_inc_tree_mod_seq_major(fs_info);
 		list_add_tail(&elem->list, &fs_info->tree_mod_seq_list);
 	}
-	seq = btrfs_inc_tree_mod_seq(fs_info);
+	seq = btrfs_inc_tree_mod_seq_minor(fs_info);
 	spin_unlock(&fs_info->tree_mod_seq_lock);
 	tree_mod_log_write_unlock(fs_info);
 
@@ -524,7 +562,10 @@ static inline int tree_mod_alloc(struct btrfs_fs_info *fs_info, gfp_t flags,
 	if (!tm)
 		return -ENOMEM;
 
-	tm->seq = btrfs_inc_tree_mod_seq(fs_info);
+	spin_lock(&fs_info->tree_mod_seq_lock);
+	tm->seq = btrfs_inc_tree_mod_seq_minor(fs_info);
+	spin_unlock(&fs_info->tree_mod_seq_lock);
+
 	return tm->seq;
 }
 

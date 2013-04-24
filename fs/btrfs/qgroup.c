@@ -1242,9 +1242,11 @@ int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
 	case BTRFS_ADD_DELAYED_REF:
 	case BTRFS_ADD_DELAYED_EXTENT:
 		sgn = 1;
+		seq = btrfs_tree_mod_seq_prev(node->seq);
 		break;
 	case BTRFS_DROP_DELAYED_REF:
 		sgn = -1;
+		seq = node->seq;
 		break;
 	case BTRFS_UPDATE_DELAYED_HEAD:
 		return 0;
@@ -1254,14 +1256,14 @@ int btrfs_qgroup_account_ref(struct btrfs_trans_handle *trans,
 
 	/*
 	 * the delayed ref sequence number we pass depends on the direction of
-	 * the operation. for add operations, we pass (node->seq - 1) to skip
+	 * the operation. for add operations, we pass
+	 * tree_mod_log_prev_seq(node->seq) to skip
 	 * the delayed ref's current sequence number, because we need the state
 	 * of the tree before the add operation. for delete operations, we pass
 	 * (node->seq) to include the delayed ref's current sequence number,
 	 * because we need the state of the tree after the delete operation.
 	 */
-	ret = btrfs_find_all_roots(trans, fs_info, node->bytenr,
-				   sgn > 0 ? node->seq - 1 : node->seq, &roots);
+	ret = btrfs_find_all_roots(trans, fs_info, node->bytenr, seq, &roots);
 	if (ret < 0)
 		return ret;
 
@@ -1772,8 +1774,9 @@ void assert_qgroups_uptodate(struct btrfs_trans_handle *trans)
 {
 	if (list_empty(&trans->qgroup_ref_list) && !trans->delayed_ref_elem.seq)
 		return;
-	printk(KERN_ERR "btrfs: qgroups not uptodate in trans handle %p: list is%s empty, seq is %llu\n",
+	pr_err("btrfs: qgroups not uptodate in trans handle %p: list is%s empty, seq is %#x.%x\n",
 		trans, list_empty(&trans->qgroup_ref_list) ? "" : " not",
-		trans->delayed_ref_elem.seq);
+		(u32)(trans->delayed_ref_elem.seq >> 32),
+		(u32)trans->delayed_ref_elem.seq);
 	BUG();
 }

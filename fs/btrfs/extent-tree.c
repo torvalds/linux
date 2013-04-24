@@ -2541,9 +2541,10 @@ int btrfs_delayed_refs_qgroup_accounting(struct btrfs_trans_handle *trans,
 	    !trans->delayed_ref_elem.seq) {
 		/* list without seq or seq without list */
 		btrfs_err(fs_info,
-			"qgroup accounting update error, list is%s empty, seq is %llu",
+			"qgroup accounting update error, list is%s empty, seq is %#x.%x",
 			list_empty(&trans->qgroup_ref_list) ? "" : " not",
-			trans->delayed_ref_elem.seq);
+			(u32)(trans->delayed_ref_elem.seq >> 32),
+			(u32)trans->delayed_ref_elem.seq);
 		BUG();
 	}
 

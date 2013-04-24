@@ -1422,7 +1422,7 @@ struct btrfs_fs_info {
 
 	/* this protects tree_mod_seq_list */
 	spinlock_t tree_mod_seq_lock;
-	atomic_t tree_mod_seq;
+	atomic64_t tree_mod_seq;
 	struct list_head tree_mod_seq_list;
 	struct seq_list tree_mod_seq_elem;
 
@@ -3332,10 +3332,7 @@ u64 btrfs_get_tree_mod_seq(struct btrfs_fs_info *fs_info,
 			   struct seq_list *elem);
 void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 			    struct seq_list *elem);
-static inline u64 btrfs_inc_tree_mod_seq(struct btrfs_fs_info *fs_info)
-{
-	return atomic_inc_return(&fs_info->tree_mod_seq);
-}
+u64 btrfs_tree_mod_seq_prev(u64 seq);
 int btrfs_old_root_level(struct btrfs_root *root, u64 time_seq);
 
 /* root-item.c */

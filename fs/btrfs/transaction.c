@@ -162,7 +162,7 @@ loop:
 	if (!RB_EMPTY_ROOT(&fs_info->tree_mod_log))
 		WARN(1, KERN_ERR "btrfs: tree_mod_log rb tree not empty when "
 			"creating a fresh transaction\n");
-	atomic_set(&fs_info->tree_mod_seq, 0);
+	atomic64_set(&fs_info->tree_mod_seq, 0);
 
 	spin_lock_init(&cur_trans->commit_lock);
 	spin_lock_init(&cur_trans->delayed_refs.lock);
