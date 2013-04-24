@@ -24,6 +24,7 @@
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
+#include <drm/drmP.h>
 #include <drm/drm_rect.h>
 
 /**
@@ -271,3 +272,24 @@ int drm_rect_calc_vscale_relaxed(struct drm_rect *src,
 	return vscale;
 }
 EXPORT_SYMBOL(drm_rect_calc_vscale_relaxed);
+
+/**
+ * drm_rect_debug_print - print the rectangle information
+ * @r: rectangle to print
+ * @fixed_point: rectangle is in 16.16 fixed point format
+ */
+void drm_rect_debug_print(const struct drm_rect *r, bool fixed_point)
+{
+	int w = drm_rect_width(r);
+	int h = drm_rect_height(r);
+
+	if (fixed_point)
+		DRM_DEBUG_KMS("%d.%06ux%d.%06u%+d.%06u%+d.%06u\n",
+			      w >> 16, ((w & 0xffff) * 15625) >> 10,
+			      h >> 16, ((h & 0xffff) * 15625) >> 10,
+			      r->x1 >> 16, ((r->x1 & 0xffff) * 15625) >> 10,
+			      r->y1 >> 16, ((r->y1 & 0xffff) * 15625) >> 10);
+	else
+		DRM_DEBUG_KMS("%dx%d%+d%+d\n", w, h, r->x1, r->y1);
+}
+EXPORT_SYMBOL(drm_rect_debug_print);
