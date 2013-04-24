@@ -1109,7 +1109,7 @@ void conf_set_all_new_symbols(enum conf_def_mode mode)
 	int i, cnt;
 
 	for_all_symbols(i, sym) {
-		if (sym_has_value(sym))
+		if (sym_has_value(sym) || (sym->flags & SYMBOL_VALID))
 			continue;
 		switch (sym_get_type(sym)) {
 		case S_BOOLEAN:
