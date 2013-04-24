@@ -1486,7 +1486,11 @@ static inline void pcd_setup( dwc_otg_pcd_t *_pcd )
 		ep0->dwc_ep.is_in = 0;
 		_pcd->ep0state = EP0_OUT_DATA_PHASE;
 	}
-
+    if (ctrl.wLength == 0) 
+	{		 
+		ep0->dwc_ep.is_in = 1;
+		_pcd->ep0state = EP0_STATUS;
+	} 
 	if ((ctrl.bRequestType & USB_TYPE_MASK) != USB_TYPE_STANDARD) 
 	{
 		/* handle non-standard (class/vendor) requests in the gadget driver */

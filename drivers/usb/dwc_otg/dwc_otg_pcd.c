@@ -662,7 +662,13 @@ static int dwc_otg_pcd_ep_queue(struct usb_ep *_ep,
 					pcd->ep0state = EP0_STATUS;
 				}
 				break;
-						
+				
+			case EP0_STATUS:
+ 				DWC_DEBUGPL(DBG_PCD,
+ 					    "%s ep0: EP0_IN_STATUS_PHASE\n",
+ 					    __func__);
+ 				break;
+ 				
 			default:
 				DWC_DEBUGPL(DBG_ANY, "ep0: odd state %d\n", 
 											pcd->ep0state);
