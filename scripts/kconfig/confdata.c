@@ -1125,7 +1125,7 @@ void conf_set_all_new_symbols(enum conf_def_mode mode)
 				sym->def[S_DEF_USER].tri = no;
 				break;
 			case def_random:
-				cnt = sym_get_type(sym) == S_TRISTATE ? 3 : 2;
+				cnt = sym->type == S_TRISTATE ? 3 : 2;
 				sym->def[S_DEF_USER].tri = (tristate)(rand() % cnt);
 				break;
 			default:
