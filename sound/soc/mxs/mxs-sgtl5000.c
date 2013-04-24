@@ -116,7 +116,7 @@ static int mxs_sgtl5000_probe_dt(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *saif_np[2], *codec_np;
-	int i, ret = 0;
+	int i;
 
 	if (!np)
 		return 1; /* no device tree */
@@ -142,7 +142,7 @@ static int mxs_sgtl5000_probe_dt(struct platform_device *pdev)
 	of_node_put(saif_np[0]);
 	of_node_put(saif_np[1]);
 
-	return ret;
+	return 0;
 }
 
 static int mxs_sgtl5000_probe(struct platform_device *pdev)
