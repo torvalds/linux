@@ -90,6 +90,7 @@ int nf_xfrm_me_harder(struct sk_buff *skb, unsigned int family)
 	int err;
 
 	err = xfrm_decode_session(skb, &fl, family);
+	if (err < 0)
 		return err;
 
 	dst = skb_dst(skb);
