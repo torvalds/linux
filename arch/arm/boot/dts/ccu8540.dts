@@ -1,0 +1,36 @@
+/*
+ * Copyright 2013 ST-Ericsson AB
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "dbx5x0.dtsi"
+
+/ {
+	model = "ST-Ericsson U8540 platform with Device Tree";
+	compatible = "st-ericsson,u8540";
+
+	memory {
+		reg = <0x00000000 0x20000000>;
+	};
+
+	soc {
+		uart@80120000 {
+			status = "okay";
+		};
+
+		uart@80121000 {
+			status = "okay";
+		};
+
+		uart@80007000 {
+			status = "okay";
+		};
+	};
+};
