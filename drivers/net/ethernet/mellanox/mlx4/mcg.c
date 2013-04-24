@@ -656,15 +656,15 @@ static void trans_rule_ctrl_to_hw(struct mlx4_net_trans_rule *ctrl,
 		[MLX4_FS_MC_SNIFFER]	= 0x5,
 	};
 
-	u32 dw = 0;
+	u8 flags = 0;
 
-	dw = ctrl->queue_mode == MLX4_NET_TRANS_Q_LIFO ? 1 : 0;
-	dw |= ctrl->exclusive ? (1 << 2) : 0;
-	dw |= ctrl->allow_loopback ? (1 << 3) : 0;
-	dw |= __promisc_mode[ctrl->promisc_mode] << 8;
-	dw |= ctrl->priority << 16;
+	flags = ctrl->queue_mode == MLX4_NET_TRANS_Q_LIFO ? 1 : 0;
+	flags |= ctrl->exclusive ? (1 << 2) : 0;
+	flags |= ctrl->allow_loopback ? (1 << 3) : 0;
 
-	hw->ctrl = cpu_to_be32(dw);
+	hw->flags = flags;
+	hw->type = __promisc_mode[ctrl->promisc_mode];
+	hw->prio = cpu_to_be16(ctrl->priority);
 	hw->port = ctrl->port;
 	hw->qpn = cpu_to_be32(ctrl->qpn);
 }

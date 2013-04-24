@@ -964,7 +964,9 @@ struct mlx4_net_trans_rule {
 };
 
 struct mlx4_net_trans_rule_hw_ctrl {
-	__be32 ctrl;
+	__be16 prio;
+	u8 type;
+	u8 flags;
 	u8 rsvd1;
 	u8 funcid;
 	u8 vep;
