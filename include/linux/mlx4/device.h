@@ -901,7 +901,7 @@ enum mlx4_net_trans_promisc_mode {
 	MLX4_FS_MC_DEFAULT,
 	MLX4_FS_UC_SNIFFER,
 	MLX4_FS_MC_SNIFFER,
-
+	MLX4_FS_MODE_NUM, /* should be last */
 };
 
 struct mlx4_spec_eth {
@@ -1044,6 +1044,11 @@ struct _rule_hw {
 	};
 };
 
+/* translating DMFS verbs sniffer rule to the FW API would need two reg IDs */
+struct mlx4_flow_handle {
+	u64 reg_id[2];
+};
+
 int mlx4_flow_steer_promisc_add(struct mlx4_dev *dev, u8 port, u32 qpn,
 				enum mlx4_net_trans_promisc_mode mode);
 int mlx4_flow_steer_promisc_remove(struct mlx4_dev *dev, u8 port,
@@ -1093,6 +1098,11 @@ void mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
 int mlx4_flow_attach(struct mlx4_dev *dev,
 		     struct mlx4_net_trans_rule *rule, u64 *reg_id);
 int mlx4_flow_detach(struct mlx4_dev *dev, u64 reg_id);
+int mlx4_map_sw_to_hw_steering_mode(struct mlx4_dev *dev,
+				    enum mlx4_net_trans_promisc_mode flow_type);
+int mlx4_map_sw_to_hw_steering_id(struct mlx4_dev *dev,
+				  enum mlx4_net_trans_rule_id id);
+int mlx4_hw_rule_sz(struct mlx4_dev *dev, enum mlx4_net_trans_rule_id id);
 
 void mlx4_sync_pkey_table(struct mlx4_dev *dev, int slave, int port,
 			  int i, int val);
