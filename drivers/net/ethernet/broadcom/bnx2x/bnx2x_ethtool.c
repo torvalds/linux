@@ -1889,12 +1889,15 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 			bp->link_params.req_flow_ctrl[cfg_idx] =
 				BNX2X_FLOW_CTRL_AUTO;
 		}
-		bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_NONE;
+		bp->link_params.req_fc_auto_adv = 0;
 		if (epause->rx_pause)
 			bp->link_params.req_fc_auto_adv |= BNX2X_FLOW_CTRL_RX;
 
 		if (epause->tx_pause)
 			bp->link_params.req_fc_auto_adv |= BNX2X_FLOW_CTRL_TX;
+
+		if (!bp->link_params.req_fc_auto_adv)
+			bp->link_params.req_fc_auto_adv |= BNX2X_FLOW_CTRL_NONE;
 	}
 
 	DP(BNX2X_MSG_ETHTOOL,
