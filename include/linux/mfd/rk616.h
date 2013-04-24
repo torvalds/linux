@@ -71,7 +71,12 @@
 #define VIF1_CLK_DIV_MASK	(7<<25)
 #define VIF0_CLK_DIV_MASK	(7<<19)
 #define SCLIN_CLK_SEL		(1<<15)
+#define SCL_SEL_VIF0           0
+#define SCL_SEL_VIF1           1
 #define DITHER_CLK_SEL		(1<<14)
+#define DITHER_SEL_VIF0		0
+#define DITHER_SEL_SCL		1
+
 #define HDMI_CLK_SEL(x)		(((x)&3)<<12)
 #define VIF1_CLK_DIV(x) 	(((x)&7)<<9)
 #define VIF1_CLK_GATE		(1<<8)
@@ -127,7 +132,7 @@
 #define PLL1_FOUTVCO_PWR_DN	(1<<26)
 #define PLL1_POSTDIV_PWR_DN	(1<<25)
 #define PLL1_DAC_PWR_DN		(1<<24)
-#define PLL1_FRAC(x)		(((x)&0xffffff)<0)
+#define PLL1_FRAC(x)		(((x)&0xffffff)<<0)
 
 #define CRU_I2C_CON0    	0x0080
 

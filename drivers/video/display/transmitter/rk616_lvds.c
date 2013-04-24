@@ -423,14 +423,17 @@ static int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 			}
 			else //single lvds channel
 			{
+				val = 0;
 				val &= ~(LVDS_CH0TTL_EN | LVDS_CH1TTL_EN | LVDS_CH1_PWR_EN | LVDS_PLL_PWR_DN | LVDS_CH_SEL); //use channel 0
 				val |= (LVDS_CH0_PWR_EN) |(LVDS_CBG_PWR_EN) | (LVDS_OUT_FORMAT(screen->hw_format)) | 
-					(LVDS_CH0TTL_EN << 16) | (LVDS_CH1TTL_EN << 16) |(LVDS_CH0_PWR_EN << 16) | 
-					(LVDS_CBG_PWR_EN << 16)|(LVDS_CH_SEL << 16) | (LVDS_PLL_PWR_DN << 16)| 
-					(LVDS_OUT_FORMAT_MASK);
+				      (LVDS_CH0TTL_EN << 16) | (LVDS_CH1TTL_EN << 16) |(LVDS_CH0_PWR_EN << 16) | 
+				       (LVDS_DCLK_INV ) | (LVDS_CH0TTL_EN << 16) | (LVDS_CH1TTL_EN << 16) |(LVDS_CH0_PWR_EN << 16) | 
+				        (LVDS_CBG_PWR_EN << 16)|(LVDS_CH_SEL << 16) | (LVDS_PLL_PWR_DN << 16)| 
+				       (LVDS_OUT_FORMAT_MASK) | (LVDS_DCLK_INV << 16);
 				ret = rk616->write_dev(rk616,CRU_LVDS_CON0,&val);
-				
+
 				dev_info(rk616->dev,"rk616 use single lvds channel.......\n");
+				
 			}
 
 		}
