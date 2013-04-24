@@ -381,7 +381,7 @@ enum qlcnic_83xx_states {
 #define QLC_83XX_STAT_MAC	1
 #define QLC_83XX_TX_STAT_REGS	14
 #define QLC_83XX_RX_STAT_REGS	40
-#define QLC_83XX_MAC_STAT_REGS	80
+#define QLC_83XX_MAC_STAT_REGS	94
 
 #define QLC_83XX_GET_FUNC_PRIVILEGE(VAL, FN)	(0x3 & ((VAL) >> (FN * 2)))
 #define QLC_83XX_SET_FUNC_OPMODE(VAL, FN)	((VAL) << (FN * 2))

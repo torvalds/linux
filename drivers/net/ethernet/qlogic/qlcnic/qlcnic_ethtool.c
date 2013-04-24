@@ -115,6 +115,13 @@ static const char qlcnic_83xx_mac_stats_strings[][ETH_GSTRING_LEN] = {
 	"mac_rx_dropped",
 	"mac_crc_error",
 	"mac_align_error",
+	"eswitch_frames",
+	"eswitch_bytes",
+	"eswitch_multicast_frames",
+	"eswitch_broadcast_frames",
+	"eswitch_unicast_frames",
+	"eswitch_error_free_frames",
+	"eswitch_error_free_bytes",
 };
 
 #define QLCNIC_STATS_LEN	ARRAY_SIZE(qlcnic_gstrings_stats)
