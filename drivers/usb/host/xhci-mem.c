@@ -1329,7 +1329,7 @@ static u32 xhci_get_endpoint_type(struct usb_device *udev,
 		else
 			type = EP_TYPE(INT_OUT_EP);
 	} else {
-		BUG();
+		type = 0;
 	}
 	return type;
 }
@@ -1375,9 +1375,15 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	unsigned int max_burst;
 	enum xhci_ring_type type;
 	u32 max_esit_payload;
+	u32 endpoint_type;
 
 	ep_index = xhci_get_endpoint_index(&ep->desc);
 	ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, ep_index);
+
+	endpoint_type = xhci_get_endpoint_type(udev, ep);
+	if (!endpoint_type)
+		return -EINVAL;
+	ep_ctx->ep_info2 = cpu_to_le32(endpoint_type);
 
 	type = usb_endpoint_type(&ep->desc);
 	/* Set up the endpoint ring */
@@ -1407,11 +1413,9 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	 * CErr shall be set to 0 for Isoch endpoints.
 	 */
 	if (!usb_endpoint_xfer_isoc(&ep->desc))
-		ep_ctx->ep_info2 = cpu_to_le32(ERROR_COUNT(3));
+		ep_ctx->ep_info2 |= cpu_to_le32(ERROR_COUNT(3));
 	else
-		ep_ctx->ep_info2 = cpu_to_le32(ERROR_COUNT(0));
-
-	ep_ctx->ep_info2 |= cpu_to_le32(xhci_get_endpoint_type(udev, ep));
+		ep_ctx->ep_info2 |= cpu_to_le32(ERROR_COUNT(0));
 
 	/* Set the max packet size and max burst */
 	max_packet = GET_MAX_PACKET(usb_endpoint_maxp(&ep->desc));
