@@ -51,7 +51,7 @@ static int vss_operate(int operation)
 	FILE *file;
 	char *p;
 	char *x;
-	int error;
+	int error = 0;
 
 	switch (operation) {
 	case VSS_OP_FREEZE:
@@ -60,11 +60,13 @@ static int vss_operate(int operation)
 	case VSS_OP_THAW:
 		fs_op = "-u ";
 		break;
+	default:
+		return -1;
 	}
 
-	file = popen("mount | awk '/^\/dev\// { print $3}'", "r");
+	file = popen("mount | awk '/^\\/dev\\// { print $3}'", "r");
 	if (file == NULL)
-		return;
+		return -1;
 
 	while ((p = fgets(buf, sizeof(buf), file)) != NULL) {
 		x = strchr(p, '\n');
@@ -128,7 +130,9 @@ int main(void)
 	int	op;
 	struct hv_vss_msg *vss_msg;
 
-	daemon(1, 0);
+	if (daemon(1, 0))
+		return 1;
+
 	openlog("Hyper-V VSS", 0, LOG_USER);
 	syslog(LOG_INFO, "VSS starting; pid is:%d", getpid());
 
