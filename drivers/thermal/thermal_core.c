@@ -40,7 +40,7 @@
 
 MODULE_AUTHOR("Zhang Rui");
 MODULE_DESCRIPTION("Generic thermal management sysfs support");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 static DEFINE_IDR(thermal_tz_idr);
 static DEFINE_IDR(thermal_cdev_idr);
@@ -446,7 +446,7 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 	for (count = 0; count < tz->trips; count++)
 		handle_thermal_trip(tz, count);
 }
-EXPORT_SYMBOL(thermal_zone_device_update);
+EXPORT_SYMBOL_GPL(thermal_zone_device_update);
 
 static void thermal_zone_device_check(struct work_struct *work)
 {
@@ -1109,13 +1109,23 @@ thermal_remove_hwmon_sysfs(struct thermal_zone_device *tz)
 #endif
 
 /**
- * thermal_zone_bind_cooling_device - bind a cooling device to a thermal zone
- * @tz:		thermal zone device
+ * thermal_zone_bind_cooling_device() - bind a cooling device to a thermal zone
+ * @tz:		pointer to struct thermal_zone_device
  * @trip:	indicates which trip point the cooling devices is
  *		associated with in this thermal zone.
- * @cdev:	thermal cooling device
+ * @cdev:	pointer to struct thermal_cooling_device
+ * @upper:	the Maximum cooling state for this trip point.
+ *		THERMAL_NO_LIMIT means no upper limit,
+ *		and the cooling device can be in max_state.
+ * @lower:	the Minimum cooling state can be used for this trip point.
+ *		THERMAL_NO_LIMIT means no lower limit,
+ *		and the cooling device can be in cooling state 0.
  *
+ * This interface function bind a thermal cooling device to the certain trip
+ * point of a thermal zone device.
  * This function is usually called in the thermal zone device .bind callback.
+ *
+ * Return: 0 on success, the proper error value otherwise.
  */
 int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 				     int trip,
@@ -1209,16 +1219,21 @@ free_mem:
 	kfree(dev);
 	return result;
 }
-EXPORT_SYMBOL(thermal_zone_bind_cooling_device);
+EXPORT_SYMBOL_GPL(thermal_zone_bind_cooling_device);
 
 /**
- * thermal_zone_unbind_cooling_device - unbind a cooling device from a thermal zone
- * @tz:		thermal zone device
+ * thermal_zone_unbind_cooling_device() - unbind a cooling device from a
+ *					  thermal zone.
+ * @tz:		pointer to a struct thermal_zone_device.
  * @trip:	indicates which trip point the cooling devices is
  *		associated with in this thermal zone.
- * @cdev:	thermal cooling device
+ * @cdev:	pointer to a struct thermal_cooling_device.
  *
+ * This interface function unbind a thermal cooling device from the certain
+ * trip point of a thermal zone device.
  * This function is usually called in the thermal zone device .unbind callback.
+ *
+ * Return: 0 on success, the proper error value otherwise.
  */
 int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
 				       int trip,
@@ -1249,7 +1264,7 @@ unbind:
 	kfree(pos);
 	return 0;
 }
-EXPORT_SYMBOL(thermal_zone_unbind_cooling_device);
+EXPORT_SYMBOL_GPL(thermal_zone_unbind_cooling_device);
 
 static void thermal_release(struct device *dev)
 {
@@ -1272,10 +1287,17 @@ static struct class thermal_class = {
 };
 
 /**
- * thermal_cooling_device_register - register a new thermal cooling device
+ * thermal_cooling_device_register() - register a new thermal cooling device
  * @type:	the thermal cooling device type.
  * @devdata:	device private data.
  * @ops:		standard thermal cooling devices callbacks.
+ *
+ * This interface function adds a new thermal cooling device (fan/processor/...)
+ * to /sys/class/thermal/ folder as cooling_device[0-*]. It tries to bind itself
+ * to all the thermal zone devices registered at the same time.
+ *
+ * Return: a pointer to the created struct thermal_cooling_device or an
+ * ERR_PTR. Caller must check return value with IS_ERR*() helpers.
  */
 struct thermal_cooling_device *
 thermal_cooling_device_register(char *type, void *devdata,
@@ -1301,7 +1323,7 @@ thermal_cooling_device_register(char *type, void *devdata,
 		return ERR_PTR(result);
 	}
 
-	strcpy(cdev->type, type ? : "");
+	strlcpy(cdev->type, type ? : "", sizeof(cdev->type));
 	mutex_init(&cdev->lock);
 	INIT_LIST_HEAD(&cdev->thermal_instances);
 	cdev->ops = ops;
@@ -1346,7 +1368,7 @@ unregister:
 	device_unregister(&cdev->device);
 	return ERR_PTR(result);
 }
-EXPORT_SYMBOL(thermal_cooling_device_register);
+EXPORT_SYMBOL_GPL(thermal_cooling_device_register);
 
 /**
  * thermal_cooling_device_unregister - removes the registered thermal cooling device
@@ -1406,7 +1428,7 @@ void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 	device_unregister(&cdev->device);
 	return;
 }
-EXPORT_SYMBOL(thermal_cooling_device_unregister);
+EXPORT_SYMBOL_GPL(thermal_cooling_device_unregister);
 
 void thermal_cdev_update(struct thermal_cooling_device *cdev)
 {
@@ -1432,7 +1454,7 @@ void thermal_cdev_update(struct thermal_cooling_device *cdev)
 EXPORT_SYMBOL(thermal_cdev_update);
 
 /**
- * notify_thermal_framework - Sensor drivers use this API to notify framework
+ * thermal_notify_framework - Sensor drivers use this API to notify framework
  * @tz:		thermal zone device
  * @trip:	indicates which trip point has been crossed
  *
@@ -1443,16 +1465,21 @@ EXPORT_SYMBOL(thermal_cdev_update);
  * The throttling policy is based on the configured platform data; if no
  * platform data is provided, this uses the step_wise throttling policy.
  */
-void notify_thermal_framework(struct thermal_zone_device *tz, int trip)
+void thermal_notify_framework(struct thermal_zone_device *tz, int trip)
 {
 	handle_thermal_trip(tz, trip);
 }
-EXPORT_SYMBOL(notify_thermal_framework);
+EXPORT_SYMBOL_GPL(thermal_notify_framework);
 
 /**
- * create_trip_attrs - create attributes for trip points
+ * create_trip_attrs() - create attributes for trip points
  * @tz:		the thermal zone device
  * @mask:	Writeable trip point bitmap.
+ *
+ * helper function to instantiate sysfs entries for every trip
+ * point and its properties of a struct thermal_zone_device.
+ *
+ * Return: 0 on success, the proper error value otherwise.
  */
 static int create_trip_attrs(struct thermal_zone_device *tz, int mask)
 {
@@ -1553,7 +1580,7 @@ static void remove_trip_attrs(struct thermal_zone_device *tz)
 }
 
 /**
- * thermal_zone_device_register - register a new thermal zone device
+ * thermal_zone_device_register() - register a new thermal zone device
  * @type:	the thermal zone device type
  * @trips:	the number of trip points the thermal zone support
  * @mask:	a bit string indicating the writeablility of trip points
@@ -1566,8 +1593,15 @@ static void remove_trip_attrs(struct thermal_zone_device *tz)
  *		   whether trip points have been crossed (0 for interrupt
  *		   driven systems)
  *
+ * This interface function adds a new thermal zone device (sensor) to
+ * /sys/class/thermal folder as thermal_zone[0-*]. It tries to bind all the
+ * thermal cooling devices registered at the same time.
  * thermal_zone_device_unregister() must be called when the device is no
  * longer needed. The passive cooling depends on the .get_trend() return value.
+ *
+ * Return: a pointer to the created struct thermal_zone_device or an
+ * in case of error, an ERR_PTR. Caller must check return value with
+ * IS_ERR*() helpers.
  */
 struct thermal_zone_device *thermal_zone_device_register(const char *type,
 	int trips, int mask, void *devdata,
@@ -1606,7 +1640,7 @@ struct thermal_zone_device *thermal_zone_device_register(const char *type,
 		return ERR_PTR(result);
 	}
 
-	strcpy(tz->type, type ? : "");
+	strlcpy(tz->type, type ? : "", sizeof(tz->type));
 	tz->ops = ops;
 	tz->tzp = tzp;
 	tz->device.class = &thermal_class;
@@ -1699,7 +1733,7 @@ unregister:
 	device_unregister(&tz->device);
 	return ERR_PTR(result);
 }
-EXPORT_SYMBOL(thermal_zone_device_register);
+EXPORT_SYMBOL_GPL(thermal_zone_device_register);
 
 /**
  * thermal_device_unregister - removes the registered thermal zone device
@@ -1766,7 +1800,7 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 	device_unregister(&tz->device);
 	return;
 }
-EXPORT_SYMBOL(thermal_zone_device_unregister);
+EXPORT_SYMBOL_GPL(thermal_zone_device_unregister);
 
 /**
  * thermal_zone_get_zone_by_name() - search for a zone and returns its ref
@@ -1882,7 +1916,7 @@ int thermal_generate_netlink_event(struct thermal_zone_device *tz,
 
 	return result;
 }
-EXPORT_SYMBOL(thermal_generate_netlink_event);
+EXPORT_SYMBOL_GPL(thermal_generate_netlink_event);
 
 static int genetlink_init(void)
 {
