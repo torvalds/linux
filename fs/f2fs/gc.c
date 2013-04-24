@@ -386,6 +386,7 @@ static void gc_node_segment(struct f2fs_sb_info *sbi,
 
 next_step:
 	entry = sum;
+
 	for (off = 0; off < sbi->blocks_per_seg; off++, entry++) {
 		nid_t nid = le32_to_cpu(entry->nid);
 		struct page *node_page;
@@ -417,6 +418,7 @@ next_step:
 		f2fs_put_page(node_page, 1);
 		stat_inc_node_blk_count(sbi, 1);
 	}
+
 	if (initial) {
 		initial = false;
 		goto next_step;
@@ -545,6 +547,7 @@ static void gc_data_segment(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 
 next_step:
 	entry = sum;
+
 	for (off = 0; off < sbi->blocks_per_seg; off++, entry++) {
 		struct page *data_page;
 		struct inode *inode;
@@ -582,7 +585,7 @@ next_step:
 				continue;
 
 			data_page = find_data_page(inode,
-					start_bidx + ofs_in_node);
+					start_bidx + ofs_in_node, false);
 			if (IS_ERR(data_page))
 				goto next_iput;
 
@@ -603,6 +606,7 @@ next_step:
 next_iput:
 		iput(inode);
 	}
+
 	if (++phase < 4)
 		goto next_step;
 
@@ -636,11 +640,14 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 {
 	struct page *sum_page;
 	struct f2fs_summary_block *sum;
+	struct blk_plug plug;
 
 	/* read segment summary of victim */
 	sum_page = get_sum_page(sbi, segno);
 	if (IS_ERR(sum_page))
 		return;
+
+	blk_start_plug(&plug);
 
 	sum = page_address(sum_page);
 
@@ -652,6 +659,8 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 		gc_data_segment(sbi, sum->entries, ilist, segno, gc_type);
 		break;
 	}
+	blk_finish_plug(&plug);
+
 	stat_inc_seg_count(sbi, GET_SUM_TYPE((&sum->footer)));
 	stat_inc_call_count(sbi->stat_info);
 

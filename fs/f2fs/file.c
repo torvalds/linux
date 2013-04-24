@@ -212,7 +212,7 @@ static void truncate_partial_data_page(struct inode *inode, u64 from)
 	if (!offset)
 		return;
 
-	page = find_data_page(inode, from >> PAGE_CACHE_SHIFT);
+	page = find_data_page(inode, from >> PAGE_CACHE_SHIFT, false);
 	if (IS_ERR(page))
 		return;
 

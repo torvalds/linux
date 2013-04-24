@@ -89,9 +89,12 @@ static void ra_nat_pages(struct f2fs_sb_info *sbi, int nid)
 {
 	struct address_space *mapping = sbi->meta_inode->i_mapping;
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
+	struct blk_plug plug;
 	struct page *page;
 	pgoff_t index;
 	int i;
+
+	blk_start_plug(&plug);
 
 	for (i = 0; i < FREE_NID_PAGES; i++, nid += NAT_ENTRY_PER_BLOCK) {
 		if (nid >= nm_i->max_nid)
@@ -110,6 +113,7 @@ static void ra_nat_pages(struct f2fs_sb_info *sbi, int nid)
 
 		f2fs_put_page(page, 0);
 	}
+	blk_finish_plug(&plug);
 }
 
 static struct nat_entry *__lookup_nat_cache(struct f2fs_nm_info *nm_i, nid_t n)
@@ -942,6 +946,7 @@ struct page *get_node_page_ra(struct page *parent, int start)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(parent->mapping->host->i_sb);
 	struct address_space *mapping = sbi->node_inode->i_mapping;
+	struct blk_plug plug;
 	struct page *page;
 	int err, i, end;
 	nid_t nid;
@@ -961,6 +966,8 @@ struct page *get_node_page_ra(struct page *parent, int start)
 	else if (err == LOCKED_PAGE)
 		goto page_hit;
 
+	blk_start_plug(&plug);
+
 	/* Then, try readahead for siblings of the desired node */
 	end = start + MAX_RA_NODE;
 	end = min(end, NIDS_PER_BLOCK);
@@ -970,6 +977,8 @@ struct page *get_node_page_ra(struct page *parent, int start)
 			continue;
 		ra_node_page(sbi, nid);
 	}
+
+	blk_finish_plug(&plug);
 
 	lock_page(page);
 

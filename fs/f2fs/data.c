@@ -172,7 +172,7 @@ end_update:
 	return;
 }
 
-struct page *find_data_page(struct inode *inode, pgoff_t index)
+struct page *find_data_page(struct inode *inode, pgoff_t index, bool sync)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct address_space *mapping = inode->i_mapping;
@@ -207,11 +207,14 @@ struct page *find_data_page(struct inode *inode, pgoff_t index)
 		return page;
 	}
 
-	err = f2fs_readpage(sbi, page, dn.data_blkaddr, READ_SYNC);
-	wait_on_page_locked(page);
-	if (!PageUptodate(page)) {
-		f2fs_put_page(page, 0);
-		return ERR_PTR(-EIO);
+	err = f2fs_readpage(sbi, page, dn.data_blkaddr,
+					sync ? READ_SYNC : READA);
+	if (sync) {
+		wait_on_page_locked(page);
+		if (!PageUptodate(page)) {
+			f2fs_put_page(page, 0);
+			return ERR_PTR(-EIO);
+		}
 	}
 	return page;
 }
