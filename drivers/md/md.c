@@ -5293,7 +5293,8 @@ static void __md_stop_writes(struct mddev *mddev)
 	bitmap_flush(mddev);
 	md_super_wait(mddev);
 
-	if (!mddev->in_sync || mddev->flags) {
+	if (mddev->ro == 0 &&
+	    (!mddev->in_sync || mddev->flags)) {
 		/* mark array as shutdown cleanly */
 		mddev->in_sync = 1;
 		md_update_sb(mddev, 1);
