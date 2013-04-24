@@ -463,6 +463,8 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 	if (dev_priv->hw_contexts_disabled)
 		return 0;
 
+	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+
 	if (ring != &dev_priv->ring[RCS])
 		return 0;
 
