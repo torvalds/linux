@@ -2913,6 +2913,22 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr,
 		if (init_resync(conf))
 			return 0;
 
+	/*
+	 * Allow skipping a full rebuild for incremental assembly
+	 * of a clean array, like RAID1 does.
+	 */
+	if (mddev->bitmap == NULL &&
+	    mddev->recovery_cp == MaxSector &&
+	    !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery) &&
+	    conf->fullsync == 0) {
+		*skipped = 1;
+		max_sector = mddev->dev_sectors;
+		if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) ||
+		    test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery))
+			max_sector = mddev->resync_max_sectors;
+		return max_sector - sector_nr;
+	}
+
  skipped:
 	max_sector = mddev->dev_sectors;
 	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) ||
