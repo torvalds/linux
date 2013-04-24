@@ -23,6 +23,7 @@
 #include <sys/poll.h>
 #include <linux/types.h>
 #include <stdio.h>
+#include <mntent.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -47,11 +48,10 @@ static int vss_operate(int operation)
 {
 	char *fs_op;
 	char cmd[512];
-	char buf[512];
-	FILE *file;
-	char *p;
-	char *x;
-	int error = 0;
+	char match[] = "/dev/";
+	FILE *mounts;
+	struct mntent *ent;
+	int error = 0, root_seen = 0;
 
 	switch (operation) {
 	case VSS_OP_FREEZE:
@@ -64,25 +64,28 @@ static int vss_operate(int operation)
 		return -1;
 	}
 
-	file = popen("mount | awk '/^\\/dev\\// { print $3}'", "r");
-	if (file == NULL)
+	mounts = setmntent("/proc/mounts", "r");
+	if (mounts == NULL)
 		return -1;
 
-	while ((p = fgets(buf, sizeof(buf), file)) != NULL) {
-		x = strchr(p, '\n');
-		*x = '\0';
-		if (!strncmp(p, "/", sizeof("/")))
+	while((ent = getmntent(mounts))) {
+		if (strncmp(ent->mnt_fsname, match, strlen(match)))
 			continue;
-
-		sprintf(cmd, "%s %s %s", "fsfreeze ", fs_op, p);
+		if (strcmp(ent->mnt_dir, "/") == 0) {
+			root_seen = 1;
+			continue;
+		}
+		snprintf(cmd, sizeof(cmd), "fsfreeze %s '%s'", fs_op, ent->mnt_dir);
 		syslog(LOG_INFO, "VSS cmd is %s\n", cmd);
-		error = system(cmd);
+		error |= system(cmd);
 	}
-	pclose(file);
+	endmntent(mounts);
 
-	sprintf(cmd, "%s %s %s", "fsfreeze ", fs_op, "/");
-	syslog(LOG_INFO, "VSS cmd is %s\n", cmd);
-	error = system(cmd);
+	if (root_seen) {
+		sprintf(cmd, "fsfreeze %s /", fs_op);
+		syslog(LOG_INFO, "VSS cmd is %s\n", cmd);
+		error |= system(cmd);
+	}
 
 	return error;
 }
