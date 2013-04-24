@@ -34,6 +34,9 @@
 #define LCD_BACKSPACE           0x4e
 #define LCD_CLEAR_SCREEN        0x51
 #define LCD_BRIGHTNESS          0x53
+#define LCD_CUSTOM_CHAR         0x54
+#define LCD_BYTES_PER_FONT      8
+#define LCD_BYTES_PER_FONT_CMD  (LCD_BYTES_PER_FONT + 3)
 
 #define LCD_BRIGHTNESS_MIN	1
 #define LCD_BRIGHTNESS_MAX	8
@@ -43,6 +46,20 @@
 #define ASCII_CR                0x0d
 #define ASCII_ESC               0x1b
 #define ASCII_SPACE             0x20
+#define ASCII_BACKSLASH         0x5c
+
+/* The NewHaven display has 8 custom characters that are user-loadable init
+   its cg ram. */
+#define CUSTOM_BACKSLASH        0x00
+
+struct custom_font {
+	u8 mapping;
+	u8 font[LCD_BYTES_PER_FONT];
+};
+
+struct custom_font custom_fonts[] = {
+	{ CUSTOM_BACKSLASH, { 0x00, 0x10, 0x08, 0x04, 0x02, 0x01, 0x00, 0x00, }, },
+};
 
 struct lcd {
 	struct device *dev;
@@ -109,6 +126,36 @@ static int lcd_cmd_clear_screen(struct lcd *lcd_data)
 static int lcd_cmd_backspace(struct lcd *lcd_data)
 {
 	return lcd_cmd_no_params(lcd_data, LCD_BACKSPACE);
+}
+
+/* Note that this has to happen early on or the LCD module will not
+   process the command */
+static int lcd_load_custom_fonts(struct lcd *lcd_data)
+{
+	u8 buf[LCD_BYTES_PER_FONT_CMD];
+	int count, i;
+
+	for (i = 0; i < sizeof(custom_fonts) / sizeof(struct custom_font) ; i++) {
+		buf[0] = LCD_COMMAND;
+		buf[1] = LCD_CUSTOM_CHAR;
+		buf[2] = custom_fonts[i].mapping;
+		memcpy(buf + 3, &custom_fonts[i].font, LCD_BYTES_PER_FONT);
+
+		count = i2c_master_send(lcd_data->client, buf, sizeof(buf));
+		if (count != sizeof(buf)) {
+			pr_err("%s: i2c_master_send returns %d\n", __func__, count);
+			return -1;
+		}
+	}
+	return 0;
+}
+
+static char lcd_translate_printable_char(char val)
+{
+	if (val == ASCII_BACKSLASH)
+		return CUSTOM_BACKSLASH;
+
+	return val;
 }
 
 /* From NHD-0216K3Z-NSW-BBY Display Module datasheet. */
@@ -244,6 +291,7 @@ static int lcd_write(struct tty_struct *tty, const unsigned char *buf,
 {
 	struct lcd *lcd_data = tty->driver_data;
 	int buf_i = 0, left;
+	char val;
 
 #ifdef DEBUG
 	char *dbgbuf = kzalloc(count + 1, GFP_KERNEL);
@@ -266,7 +314,8 @@ static int lcd_write(struct tty_struct *tty, const unsigned char *buf,
 		if ((0x20 <= buf[buf_i]) && (buf[buf_i] <= 0x7f)) {
 			while ((buf_i < count) &&
 			       ((0x20 <= buf[buf_i]) && (buf[buf_i] <= 0x7f))) {
-				lcd_add_char_at_cursor(lcd_data, buf[buf_i]);
+				val = lcd_translate_printable_char(buf[buf_i]);
+				lcd_add_char_at_cursor(lcd_data, val);
 				buf_i++;
 			}
 
@@ -465,9 +514,10 @@ static int lcd_probe(struct i2c_client *client,
 	lcd_data->lcd_tty_driver = lcd_tty_driver;
 
 	lcd_clear_buffer(lcd_data);
+	lcd_load_custom_fonts(lcd_data);
 	lcd_cmd_display_on(lcd_data);
-	lcd_cmd_clear_screen(lcd_data);
 	lcd_cmd_backlight_brightness(lcd_data, brightness);
+	lcd_cmd_clear_screen(lcd_data);
 
 	dev_info(&client->dev, "LCD driver initialized\n");
 
