@@ -2411,6 +2411,11 @@ static void md_update_sb(struct mddev * mddev, int force_change)
 	int nospares = 0;
 	int any_badblocks_changed = 0;
 
+	if (mddev->ro) {
+		if (force_change)
+			set_bit(MD_CHANGE_DEVS, &mddev->flags);
+		return;
+	}
 repeat:
 	/* First make sure individual recovery_offsets are correct */
 	rdev_for_each(rdev, mddev) {
