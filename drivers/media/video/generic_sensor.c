@@ -18,8 +18,10 @@
 *v0.0.1: this driver is compatible with generic_sensor
 *v0.1.1:
 *        add WqCmd_af_continues_pause;
+*v0.1.3:
+*        add support flash control;
 */
-static int version = KERNEL_VERSION(0,1,1);
+static int version = KERNEL_VERSION(0,1,3);
 module_param(version, int, S_IRUGO);
 
 
@@ -610,7 +612,6 @@ static const struct rk_sensor_datafmt *generic_sensor_find_datafmt(
 
 	return NULL;
 }
-
 int generic_sensor_softreset(struct i2c_client *client, struct rk_sensor_reg *series) {
     int ret = 0;
     struct generic_sensor *sensor = to_generic_sensor(client);
@@ -715,9 +716,10 @@ int generic_sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cm
 			if (pdata && pdata->sensor_ioctrl) {
 				pdata->sensor_ioctrl(icd->pdev,Cam_Flash, on);
 				if(on==Flash_On){
-					//flash off after 1.5 secs
+                    mdelay(5);
+					//flash off after 2 secs
 					hrtimer_cancel(&(sensor->flash_off_timer.timer));
-					hrtimer_start(&(sensor->flash_off_timer.timer),ktime_set(0, 1500*1000*1000),HRTIMER_MODE_REL);
+					hrtimer_start(&(sensor->flash_off_timer.timer),ktime_set(0, 2000*1000*1000),HRTIMER_MODE_REL);
 				}
 			}
 			break;
@@ -845,9 +847,11 @@ int generic_sensor_g_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 int generic_sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
     struct i2c_client *client = v4l2_get_subdevdata(sd);
+    struct soc_camera_device *icd = client->dev.platform_data;
     const struct rk_sensor_datafmt *fmt;
     struct generic_sensor *sensor = to_generic_sensor(client);
     struct rk_sensor_sequence *winseqe_set_addr=NULL;
+    struct sensor_v4l2ctrl_info_s *v4l2ctrl_info;
     bool is_capture=(mf->reserved[7]==0xfefe5a5a)?true:false;
     int ret=0;
 
@@ -867,6 +871,17 @@ int generic_sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 
         if (sensor->sensor_cb.sensor_s_fmt_cb_th)
             ret |= sensor->sensor_cb.sensor_s_fmt_cb_th(client, mf, is_capture);
+        
+        v4l2ctrl_info = sensor_find_ctrl(sensor->ctrls,V4L2_CID_FLASH); /* ddl@rock-chips.com: v0.1.3 */        
+        if (v4l2ctrl_info) {   
+            if (is_capture) { 
+                if ((v4l2ctrl_info->cur_value == 2) || (v4l2ctrl_info->cur_value == 1)) {
+                    generic_sensor_ioctrl(icd, Sensor_Flash, 1);                    
+                }
+            } else {
+                generic_sensor_ioctrl(icd, Sensor_Flash, 0); 
+            }
+        }
         
         ret |= generic_sensor_write_array(client, winseqe_set_addr->data);
         if (ret != 0) {
@@ -901,45 +916,6 @@ sensor_s_fmt_end:
 	id->revision = 0;
 
 	return 0;
-}
-int generic_sensor_set_flash(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
-{	
-    struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-    struct generic_sensor *sensor = to_generic_sensor(client);
-    
-    if ((value >= qctrl->minimum) && (value <= qctrl->maximum)) {
-        if (value == 3) {		 /* ddl@rock-chips.com: torch */
-            generic_sensor_ioctrl(icd, Sensor_Flash, Flash_Torch);   /* Flash On */
-        } else {
-            generic_sensor_ioctrl(icd, Sensor_Flash, Flash_Off);
-        }
-        SENSOR_DG("%s : %x",__FUNCTION__, value);
-        return 0;
-    }
-
-    SENSOR_TR("%s valure = %d is invalidate",__FUNCTION__,value);
-    return -EINVAL;
-}
-int sensor_v4l2ctrl_flash_cb(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
-                                                     struct v4l2_ext_control *ext_ctrl)
-{
-    struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));   
-    struct generic_sensor *sensor = to_generic_sensor(client);
-    int value = ext_ctrl->value;
-
-    if ((value < ctrl_info->qctrl->minimum) || (value > ctrl_info->qctrl->maximum)) {
-        printk(KERN_ERR "%s(%d): value(0x%x) isn't between in (0x%x,0x%x)\n",__FUNCTION__,__LINE__,value,
-            ctrl_info->qctrl->minimum,ctrl_info->qctrl->maximum);
-        return -EINVAL;
-    }
-
-    if (value == 3) {		 /* ddl@rock-chips.com: torch */
-        generic_sensor_ioctrl(icd, Sensor_Flash, Flash_Torch);   /* Flash On */
-    } else {
-        generic_sensor_ioctrl(icd, Sensor_Flash, Flash_Off);
-    }
-    SENSOR_DG("%s : %x",__FUNCTION__, value);
-    return 0;
 }
  
 int generic_sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)

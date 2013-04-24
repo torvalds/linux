@@ -289,12 +289,9 @@ extern int generic_sensor_s_ext_control(struct soc_camera_device *icd, struct v4
 extern int generic_sensor_g_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ext_ctrl);
 extern int generic_sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ext_ctrl);
 extern long generic_sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg);
-extern long generic_sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg);
 extern int generic_sensor_enum_fmt(struct v4l2_subdev *sd, unsigned int index,enum v4l2_mbus_pixelcode *code);
 extern int generic_sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf);
 extern int generic_sensor_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *id);
-extern int sensor_v4l2ctrl_flash_cb(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
-                                                     struct v4l2_ext_control *ext_ctrl);
 extern int generic_sensor_af_workqueue_set(struct soc_camera_device *icd, enum rk_sensor_focus_wq_cmd cmd, int var, bool wait);
 extern int generic_sensor_s_stream(struct v4l2_subdev *sd, int enable);
 extern int generic_sensor_writebuf(struct i2c_client *client, char *buf, int buf_size);
@@ -492,6 +489,29 @@ static inline int sensor_v4l2ctrl_default_cb(struct soc_camera_device *icd, stru
         printk(KERN_ERR "%s(%d): ctrl_info(id=0x%x)'s sensor_Seqe is invalidate\n",__FUNCTION__,__LINE__,ctrl_info->qctrl->id);
         return -EINVAL;
     }
+}
+static inline int sensor_v4l2ctrl_flash_cb(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
+                                                     struct v4l2_ext_control *ext_ctrl)
+{
+    struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));   
+    struct generic_sensor *sensor = to_generic_sensor(client);
+    int value = ext_ctrl->value;
+
+    if ((value < ctrl_info->qctrl->minimum) || (value > ctrl_info->qctrl->maximum)) {
+        printk(KERN_ERR "%s(%d): value(0x%x) isn't between in (0x%x,0x%x)\n",__FUNCTION__,__LINE__,value,
+            ctrl_info->qctrl->minimum,ctrl_info->qctrl->maximum);
+        return -EINVAL;
+    }
+
+    if (value == 3) {		 /* ddl@rock-chips.com: torch */
+        generic_sensor_ioctrl(icd, Sensor_Flash, Flash_Torch);   /* Flash On */
+    } else {
+        generic_sensor_ioctrl(icd, Sensor_Flash, Flash_Off);
+    }
+    
+    ctrl_info->cur_value = value;  /* ddl@rock-chips.com : v0.1.3 */
+    
+    return 0;
 }
 static inline int sensor_focus_default_cb(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
 													 struct v4l2_ext_control *ext_ctrl)
@@ -888,6 +908,7 @@ static inline int sensor_face_detect_default_cb(struct soc_camera_device *icd, s
         if (SensorConfiguration & (1<<i))\
             num++;\
     num += sizeof(sensor_controls)/sizeof(struct sensor_v4l2ctrl_usr_s);  \
+    num += config_flash;\
     controls = (struct v4l2_queryctrl*)kzalloc(sizeof(struct v4l2_queryctrl)*num,GFP_KERNEL);  \
     if (controls == NULL) {  \
         SENSOR_TR("kzalloc struct v4l2_queryctrl(%d) failed",num);  \
