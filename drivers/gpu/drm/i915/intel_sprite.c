@@ -681,26 +681,19 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 			return -EINVAL;
 	}
 
+	/*
+	 * FIXME the following code does a bunch of fuzzy adjustments to the
+	 * coordinates and sizes. We probably need some way to decide whether
+	 * more strict checking should be done instead.
+	 */
 	max_scale = intel_plane->max_downscale << 16;
 	min_scale = intel_plane->can_scale ? 1 : (1 << 16);
 
-	hscale = drm_rect_calc_hscale(&src, &dst, min_scale, max_scale);
-	if (hscale < 0) {
-		DRM_DEBUG_KMS("Horizontal scaling factor out of limits\n");
-		drm_rect_debug_print(&src, true);
-		drm_rect_debug_print(&dst, false);
+	hscale = drm_rect_calc_hscale_relaxed(&src, &dst, min_scale, max_scale);
+	BUG_ON(hscale < 0);
 
-		return hscale;
-	}
-
-	vscale = drm_rect_calc_vscale(&src, &dst, min_scale, max_scale);
-	if (vscale < 0) {
-		DRM_DEBUG_KMS("Vertical scaling factor out of limits\n");
-		drm_rect_debug_print(&src, true);
-		drm_rect_debug_print(&dst, false);
-
-		return vscale;
-	}
+	vscale = drm_rect_calc_vscale_relaxed(&src, &dst, min_scale, max_scale);
+	BUG_ON(vscale < 0);
 
 	visible = drm_rect_clip_scaled(&src, &dst, &clip, hscale, vscale);
 
@@ -710,6 +703,25 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	crtc_h = drm_rect_height(&dst);
 
 	if (visible) {
+		/* check again in case clipping clamped the results */
+		hscale = drm_rect_calc_hscale(&src, &dst, min_scale, max_scale);
+		if (hscale < 0) {
+			DRM_DEBUG_KMS("Horizontal scaling factor out of limits\n");
+			drm_rect_debug_print(&src, true);
+			drm_rect_debug_print(&dst, false);
+
+			return hscale;
+		}
+
+		vscale = drm_rect_calc_vscale(&src, &dst, min_scale, max_scale);
+		if (vscale < 0) {
+			DRM_DEBUG_KMS("Vertical scaling factor out of limits\n");
+			drm_rect_debug_print(&src, true);
+			drm_rect_debug_print(&dst, false);
+
+			return vscale;
+		}
+
 		/* Make the source viewport size an exact multiple of the scaling factors. */
 		drm_rect_adjust_size(&src,
 				     drm_rect_width(&dst) * hscale - drm_rect_width(&src),
@@ -726,10 +738,6 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		 * Adjust to (macro)pixel boundary, but be careful not to
 		 * increase the source viewport size, because that could
 		 * push the downscaling factor out of bounds.
-		 *
-		 * FIXME Should we be really strict and reject the
-		 * config if it results in non (macro)pixel aligned
-		 * coords?
 		 */
 		src_x = src.x1 >> 16;
 		src_w = drm_rect_width(&src) >> 16;
