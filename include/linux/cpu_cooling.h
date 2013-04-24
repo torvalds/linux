@@ -25,6 +25,7 @@
 #define __CPU_COOLING_H__
 
 #include <linux/thermal.h>
+#include <linux/cpumask.h>
 
 #define CPUFREQ_COOLING_START		0
 #define CPUFREQ_COOLING_STOP		1
