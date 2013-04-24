@@ -930,7 +930,7 @@ struct mlx4_spec_ipv4 {
 };
 
 struct mlx4_spec_ib {
-	__be32	r_qpn;
+	__be32  l3_qpn;
 	__be32	qpn_msk;
 	u8	dst_gid[16];
 	u8	dst_gid_msk[16];
@@ -978,7 +978,7 @@ struct mlx4_net_trans_rule_hw_ib {
 	u8 rsvd1;
 	__be16 id;
 	u32 rsvd2;
-	__be32 qpn;
+	__be32 l3_qpn;
 	__be32 qpn_mask;
 	u8 dst_gid[16];
 	u8 dst_gid_msk[16];
@@ -999,8 +999,8 @@ struct mlx4_net_trans_rule_hw_eth {
 	u8      rsvd5;
 	u8      ether_type_enable;
 	__be16  ether_type;
-	__be16  vlan_id_msk;
-	__be16  vlan_id;
+	__be16  vlan_tag_msk;
+	__be16  vlan_tag;
 } __packed;
 
 struct mlx4_net_trans_rule_hw_tcp_udp {

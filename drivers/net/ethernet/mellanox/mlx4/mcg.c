@@ -714,12 +714,12 @@ static int parse_trans_rule(struct mlx4_dev *dev, struct mlx4_spec_list *spec,
 			rule_hw->eth.ether_type_enable = 1;
 			rule_hw->eth.ether_type = spec->eth.ether_type;
 		}
-		rule_hw->eth.vlan_id = spec->eth.vlan_id;
-		rule_hw->eth.vlan_id_msk = spec->eth.vlan_id_msk;
+		rule_hw->eth.vlan_tag = spec->eth.vlan_id;
+		rule_hw->eth.vlan_tag_msk = spec->eth.vlan_id_msk;
 		break;
 
 	case MLX4_NET_TRANS_RULE_ID_IB:
-		rule_hw->ib.qpn = spec->ib.r_qpn;
+		rule_hw->ib.l3_qpn = spec->ib.l3_qpn;
 		rule_hw->ib.qpn_mask = spec->ib.qpn_msk;
 		memcpy(&rule_hw->ib.dst_gid, &spec->ib.dst_gid, 16);
 		memcpy(&rule_hw->ib.dst_gid_msk, &spec->ib.dst_gid_msk, 16);
