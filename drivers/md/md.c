@@ -5816,7 +5816,7 @@ static int add_new_disk(struct mddev * mddev, mdu_disk_info_t *info)
 		else
 			sysfs_notify_dirent_safe(rdev->sysfs_state);
 
-		md_update_sb(mddev, 1);
+		set_bit(MD_CHANGE_DEVS, &mddev->flags);
 		if (mddev->degraded)
 			set_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
@@ -6502,6 +6502,24 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	case HOT_REMOVE_DISK:
 		err = hot_remove_disk(mddev, new_decode_dev(arg));
 		goto done_unlock;
+
+	case ADD_NEW_DISK:
+		/* We can support ADD_NEW_DISK on read-only arrays
+		 * on if we are re-adding a preexisting device.
+		 * So require mddev->pers and MD_DISK_SYNC.
+		 */
+		if (mddev->pers) {
+			mdu_disk_info_t info;
+			if (copy_from_user(&info, argp, sizeof(info)))
+				err = -EFAULT;
+			else if (!(info.state & (1<<MD_DISK_SYNC)))
+				/* Need to clear read-only for this */
+				break;
+			else
+				err = add_new_disk(mddev, &info);
+			goto done_unlock;
+		}
+		break;
 
 	case BLKROSET:
 		if (get_user(ro, (int __user *)(arg))) {
@@ -7685,17 +7703,36 @@ static int remove_and_add_spares(struct mddev *mddev,
 		    !test_bit(In_sync, &rdev->flags) &&
 		    !test_bit(Faulty, &rdev->flags))
 			spares++;
-		if (rdev->raid_disk < 0
-		    && !test_bit(Faulty, &rdev->flags)) {
-			rdev->recovery_offset = 0;
-			if (mddev->pers->
-			    hot_add_disk(mddev, rdev) == 0) {
-				if (sysfs_link_rdev(mddev, rdev))
-					/* failure here is OK */;
-				spares++;
-				md_new_event(mddev);
-				set_bit(MD_CHANGE_DEVS, &mddev->flags);
-			}
+		if (rdev->raid_disk >= 0)
+			continue;
+		if (test_bit(Faulty, &rdev->flags))
+			continue;
+		if (mddev->ro &&
+		    rdev->saved_raid_disk < 0)
+			continue;
+
+		rdev->recovery_offset = 0;
+		if (rdev->saved_raid_disk >= 0 && mddev->in_sync) {
+			spin_lock_irq(&mddev->write_lock);
+			if (mddev->in_sync)
+				/* OK, this device, which is in_sync,
+				 * will definitely be noticed before
+				 * the next write, so recovery isn't
+				 * needed.
+				 */
+				rdev->recovery_offset = mddev->recovery_cp;
+			spin_unlock_irq(&mddev->write_lock);
+		}
+		if (mddev->ro && rdev->recovery_offset != MaxSector)
+			/* not safe to add this disk now */
+			continue;
+		if (mddev->pers->
+		    hot_add_disk(mddev, rdev) == 0) {
+			if (sysfs_link_rdev(mddev, rdev))
+				/* failure here is OK */;
+			spares++;
+			md_new_event(mddev);
+			set_bit(MD_CHANGE_DEVS, &mddev->flags);
 		}
 	}
 no_add:
@@ -7804,22 +7841,16 @@ void md_check_recovery(struct mddev *mddev)
 		int spares = 0;
 
 		if (mddev->ro) {
-			/* Only thing we do on a ro array is remove
-			 * failed devices.
+			/* On a read-only array we can:
+			 * - remove failed devices
+			 * - add already-in_sync devices if the array itself
+			 *   is in-sync.
+			 * As we only add devices that are already in-sync,
+			 * we can activate the spares immediately.
 			 */
-			struct md_rdev *rdev;
-			rdev_for_each(rdev, mddev)
-				if (rdev->raid_disk >= 0 &&
-				    !test_bit(Blocked, &rdev->flags) &&
-				    test_bit(Faulty, &rdev->flags) &&
-				    atomic_read(&rdev->nr_pending)==0) {
-					if (mddev->pers->hot_remove_disk(
-						    mddev, rdev) == 0) {
-						sysfs_unlink_rdev(mddev, rdev);
-						rdev->raid_disk = -1;
-					}
-				}
 			clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+			remove_and_add_spares(mddev, NULL);
+			mddev->pers->spare_active(mddev);
 			goto unlock;
 		}
 
