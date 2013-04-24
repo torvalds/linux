@@ -355,12 +355,15 @@ struct cpsw_priv {
 #define napi_to_priv(napi)	container_of(napi, struct cpsw_priv, napi)
 #define for_each_slave(priv, func, arg...)				\
 	do {								\
-		int idx;						\
+		struct cpsw_slave *slave;				\
+		int n;							\
 		if (priv->data.dual_emac)				\
 			(func)((priv)->slaves + priv->emac_port, ##arg);\
 		else							\
-			for (idx = 0; idx < (priv)->data.slaves; idx++)	\
-				(func)((priv)->slaves + idx, ##arg);	\
+			for (n = (priv)->data.slaves,			\
+					slave = (priv)->slaves;		\
+					n; n--)				\
+				(func)(slave++, ##arg);			\
 	} while (0)
 #define cpsw_get_slave_ndev(priv, __slave_no__)				\
 	(priv->slaves[__slave_no__].ndev)
