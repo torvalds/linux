@@ -1287,7 +1287,7 @@ qlcnic_request_irq(struct qlcnic_adapter *adapter)
 	irq_handler_t handler;
 	struct qlcnic_host_sds_ring *sds_ring;
 	struct qlcnic_host_tx_ring *tx_ring;
-	int err, ring;
+	int err, ring, num_sds_rings;
 
 	unsigned long flags = 0;
 	struct net_device *netdev = adapter->netdev;
@@ -1318,10 +1318,20 @@ qlcnic_request_irq(struct qlcnic_adapter *adapter)
 		if (qlcnic_82xx_check(adapter) ||
 		    (qlcnic_83xx_check(adapter) &&
 		     (adapter->flags & QLCNIC_MSIX_ENABLED))) {
-			for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+			num_sds_rings = adapter->max_sds_rings;
+			for (ring = 0; ring < num_sds_rings; ring++) {
 				sds_ring = &recv_ctx->sds_rings[ring];
-				snprintf(sds_ring->name, sizeof(int) + IFNAMSIZ,
-					 "%s[%d]", netdev->name, ring);
+				if (qlcnic_82xx_check(adapter) &&
+				    (ring == (num_sds_rings - 1)))
+					snprintf(sds_ring->name,
+						 sizeof(sds_ring->name),
+						 "qlcnic-%s[Tx0+Rx%d]",
+						 netdev->name, ring);
+				else
+					snprintf(sds_ring->name,
+						 sizeof(sds_ring->name),
+						 "qlcnic-%s[Rx%d]",
+						 netdev->name, ring);
 				err = request_irq(sds_ring->irq, handler, flags,
 						  sds_ring->name, sds_ring);
 				if (err)
@@ -1335,9 +1345,8 @@ qlcnic_request_irq(struct qlcnic_adapter *adapter)
 			for (ring = 0; ring < adapter->max_drv_tx_rings;
 			     ring++) {
 				tx_ring = &adapter->tx_ring[ring];
-				snprintf(tx_ring->name, sizeof(int) + IFNAMSIZ,
-					 "%s[%d]", netdev->name,
-					 adapter->max_sds_rings + ring);
+				snprintf(tx_ring->name, sizeof(tx_ring->name),
+					 "qlcnic-%s[Tx%d]", netdev->name, ring);
 				err = request_irq(tx_ring->irq, handler, flags,
 						  tx_ring->name, tx_ring);
 				if (err)

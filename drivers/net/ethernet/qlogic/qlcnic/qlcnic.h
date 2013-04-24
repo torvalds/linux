@@ -519,13 +519,13 @@ struct qlcnic_host_sds_ring {
 	int irq;
 
 	dma_addr_t phys_addr;
-	char name[IFNAMSIZ+4];
+	char name[IFNAMSIZ + 12];
 } ____cacheline_internodealigned_in_smp;
 
 struct qlcnic_host_tx_ring {
 	int irq;
 	void __iomem *crb_intr_mask;
-	char name[IFNAMSIZ+4];
+	char name[IFNAMSIZ + 12];
 	u16 ctx_id;
 	u32 producer;
 	u32 sw_consumer;
