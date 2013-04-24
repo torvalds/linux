@@ -855,6 +855,10 @@ static const struct of_device_id exynos_tmu_match[] = {
 		.data = (void *)EXYNOS4210_TMU_DRV_DATA,
 	},
 	{
+		.compatible = "samsung,exynos4412-tmu",
+		.data = (void *)EXYNOS_TMU_DRV_DATA,
+	},
+	{
 		.compatible = "samsung,exynos5250-tmu",
 		.data = (void *)EXYNOS_TMU_DRV_DATA,
 	},
@@ -937,11 +941,15 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	data->clk = clk_get(NULL, "tmu_apbif");
+	data->clk = devm_clk_get(&pdev->dev, "tmu_apbif");
 	if (IS_ERR(data->clk)) {
 		dev_err(&pdev->dev, "Failed to get clock\n");
 		return  PTR_ERR(data->clk);
 	}
+
+	ret = clk_prepare(data->clk);
+	if (ret)
+		return ret;
 
 	if (pdata->type == SOC_ARCH_EXYNOS ||
 				pdata->type == SOC_ARCH_EXYNOS4210)
@@ -994,7 +1002,7 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 	return 0;
 err_clk:
 	platform_set_drvdata(pdev, NULL);
-	clk_put(data->clk);
+	clk_unprepare(data->clk);
 	return ret;
 }
 
@@ -1006,7 +1014,7 @@ static int exynos_tmu_remove(struct platform_device *pdev)
 
 	exynos_unregister_thermal();
 
-	clk_put(data->clk);
+	clk_unprepare(data->clk);
 
 	platform_set_drvdata(pdev, NULL);
 
