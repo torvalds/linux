@@ -4012,16 +4012,17 @@ again:
 
 	btrfs_free_path(path);
 
+	/* step 4: commit the transaction, which also unpins the blocks */
+	ret = btrfs_commit_transaction(trans, fs_info->tree_root);
+	if (ret)
+		return ret;
+
 	free_extent_buffer(log_root_tree->node);
 	log_root_tree->log_root = NULL;
 	fs_info->log_root_recovering = 0;
-
-	/* step 4: commit the transaction, which also unpins the blocks */
-	btrfs_commit_transaction(trans, fs_info->tree_root);
-
 	kfree(log_root_tree);
-	return 0;
 
+	return 0;
 error:
 	btrfs_free_path(path);
 	return ret;
