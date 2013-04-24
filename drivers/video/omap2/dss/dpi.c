@@ -689,14 +689,14 @@ static void dpi_init_output(struct platform_device *pdev)
 	out->dispc_channel = dpi_get_channel();
 	out->owner = THIS_MODULE;
 
-	dss_register_output(out);
+	omapdss_register_output(out);
 }
 
 static void __exit dpi_uninit_output(struct platform_device *pdev)
 {
 	struct omap_dss_device *out = &dpi.output;
 
-	dss_unregister_output(out);
+	omapdss_unregister_output(out);
 }
 
 static int omap_dpi_probe(struct platform_device *pdev)

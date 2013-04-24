@@ -1022,14 +1022,14 @@ static void rfbi_init_output(struct platform_device *pdev)
 	out->dispc_channel = OMAP_DSS_CHANNEL_LCD;
 	out->owner = THIS_MODULE;
 
-	dss_register_output(out);
+	omapdss_register_output(out);
 }
 
 static void __exit rfbi_uninit_output(struct platform_device *pdev)
 {
 	struct omap_dss_device *out = &rfbi.output;
 
-	dss_unregister_output(out);
+	omapdss_unregister_output(out);
 }
 
 /* RFBI HW IP initialisation */

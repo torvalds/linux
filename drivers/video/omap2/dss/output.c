@@ -92,15 +92,18 @@ err:
 }
 EXPORT_SYMBOL(omapdss_output_unset_device);
 
-void dss_register_output(struct omap_dss_device *out)
+int omapdss_register_output(struct omap_dss_device *out)
 {
 	list_add_tail(&out->list, &output_list);
+	return 0;
 }
+EXPORT_SYMBOL(omapdss_register_output);
 
-void dss_unregister_output(struct omap_dss_device *out)
+void omapdss_unregister_output(struct omap_dss_device *out)
 {
 	list_del(&out->list);
 }
+EXPORT_SYMBOL(omapdss_unregister_output);
 
 struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id)
 {

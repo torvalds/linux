@@ -1036,14 +1036,14 @@ static void hdmi_init_output(struct platform_device *pdev)
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
 	out->owner = THIS_MODULE;
 
-	dss_register_output(out);
+	omapdss_register_output(out);
 }
 
 static void __exit hdmi_uninit_output(struct platform_device *pdev)
 {
 	struct omap_dss_device *out = &hdmi.output;
 
-	dss_unregister_output(out);
+	omapdss_unregister_output(out);
 }
 
 /* HDMI HW IP initialisation */

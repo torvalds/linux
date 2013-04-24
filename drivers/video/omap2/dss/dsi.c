@@ -5426,7 +5426,7 @@ static void dsi_init_output(struct platform_device *dsidev)
 	out->dispc_channel = dsi_get_channel(dsi->module_id);
 	out->owner = THIS_MODULE;
 
-	dss_register_output(out);
+	omapdss_register_output(out);
 }
 
 static void dsi_uninit_output(struct platform_device *dsidev)
@@ -5434,7 +5434,7 @@ static void dsi_uninit_output(struct platform_device *dsidev)
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct omap_dss_device *out = &dsi->output;
 
-	dss_unregister_output(out);
+	omapdss_unregister_output(out);
 }
 
 /* DSI1 HW IP initialisation */

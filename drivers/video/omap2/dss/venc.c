@@ -790,14 +790,14 @@ static void venc_init_output(struct platform_device *pdev)
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
 	out->owner = THIS_MODULE;
 
-	dss_register_output(out);
+	omapdss_register_output(out);
 }
 
 static void __exit venc_uninit_output(struct platform_device *pdev)
 {
 	struct omap_dss_device *out = &venc.output;
 
-	dss_unregister_output(out);
+	omapdss_unregister_output(out);
 }
 
 /* VENC HW IP initialisation */
