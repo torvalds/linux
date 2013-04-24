@@ -263,6 +263,27 @@ static void be_async_grp5_evt_process(struct be_adapter *adapter,
 	}
 }
 
+static void be_async_dbg_evt_process(struct be_adapter *adapter,
+		u32 trailer, struct be_mcc_compl *cmp)
+{
+	u8 event_type = 0;
+	struct be_async_event_qnq *evt = (struct be_async_event_qnq *) cmp;
+
+	event_type = (trailer >> ASYNC_TRAILER_EVENT_TYPE_SHIFT) &
+		ASYNC_TRAILER_EVENT_TYPE_MASK;
+
+	switch (event_type) {
+	case ASYNC_DEBUG_EVENT_TYPE_QNQ:
+		if (evt->valid)
+			adapter->qnq_vid = le16_to_cpu(evt->vlan_tag);
+		adapter->flags |= BE_FLAGS_QNQ_ASYNC_EVT_RCVD;
+	break;
+	default:
+		dev_warn(&adapter->pdev->dev, "Unknown debug event\n");
+	break;
+	}
+}
+
 static inline bool is_link_state_evt(u32 trailer)
 {
 	return ((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
@@ -275,6 +296,13 @@ static inline bool is_grp5_evt(u32 trailer)
 	return (((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
 		ASYNC_TRAILER_EVENT_CODE_MASK) ==
 				ASYNC_EVENT_CODE_GRP_5);
+}
+
+static inline bool is_dbg_evt(u32 trailer)
+{
+	return (((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
+		ASYNC_TRAILER_EVENT_CODE_MASK) ==
+				ASYNC_EVENT_CODE_QNQ);
 }
 
 static struct be_mcc_compl *be_mcc_compl_get(struct be_adapter *adapter)
@@ -324,6 +352,9 @@ int be_process_mcc(struct be_adapter *adapter)
 				(struct be_async_event_link_state *) compl);
 			else if (is_grp5_evt(compl->flags))
 				be_async_grp5_evt_process(adapter,
+				compl->flags, compl);
+			else if (is_dbg_evt(compl->flags))
+				be_async_dbg_evt_process(adapter,
 				compl->flags, compl);
 		} else if (compl->flags & CQE_FLAGS_COMPLETED_MASK) {
 				status = be_mcc_compl_process(adapter, compl);
@@ -1022,6 +1053,7 @@ int be_cmd_mccq_ext_create(struct be_adapter *adapter,
 
 	/* Subscribe to Link State and Group 5 Events(bits 1 and 5 set) */
 	req->async_event_bitmap[0] = cpu_to_le32(0x00000022);
+	req->async_event_bitmap[0] |= cpu_to_le32(1 << ASYNC_EVENT_CODE_QNQ);
 	be_dws_cpu_to_le(ctxt, sizeof(req->context));
 
 	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);

@@ -84,6 +84,9 @@ struct be_mcc_compl {
 #define ASYNC_EVENT_QOS_SPEED		0x1
 #define ASYNC_EVENT_COS_PRIORITY	0x2
 #define ASYNC_EVENT_PVID_STATE		0x3
+#define ASYNC_EVENT_CODE_QNQ		0x6
+#define ASYNC_DEBUG_EVENT_TYPE_QNQ	1
+
 struct be_async_event_trailer {
 	u32 code;
 };
@@ -141,6 +144,16 @@ struct be_async_event_grp5_pvid_state {
 	u16 tag;
 	u32 event_tag;
 	u32 rsvd1;
+	struct be_async_event_trailer trailer;
+} __packed;
+
+/* async event indicating outer VLAN tag in QnQ */
+struct be_async_event_qnq {
+	u8 valid;	/* Indicates if outer VLAN is valid */
+	u8 rsvd0;
+	u16 vlan_tag;
+	u32 event_tag;
+	u8 rsvd1[4];
 	struct be_async_event_trailer trailer;
 } __packed;
 
