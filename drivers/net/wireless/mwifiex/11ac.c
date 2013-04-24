@@ -200,7 +200,7 @@ int mwifiex_cmd_append_11ac_tlv(struct mwifiex_private *priv,
 
 	/* VHT Operation IE */
 	if (bss_desc->bcn_vht_oper) {
-		if (priv->bss_mode == HostCmd_BSS_MODE_IBSS) {
+		if (priv->bss_mode == NL80211_IFTYPE_STATION) {
 			vht_op = (struct mwifiex_ie_types_vht_oper *)*buffer;
 			memset(vht_op, 0, sizeof(*vht_op));
 			vht_op->header.type =

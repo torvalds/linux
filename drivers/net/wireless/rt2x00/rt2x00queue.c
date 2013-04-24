@@ -35,7 +35,8 @@
 
 struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 {
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct data_queue *queue = entry->queue;
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
 	struct sk_buff *skb;
 	struct skb_frame_desc *skbdesc;
 	unsigned int frame_size;
@@ -46,7 +47,7 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 	 * The frame size includes descriptor size, because the
 	 * hardware directly receive the frame into the skbuffer.
 	 */
-	frame_size = entry->queue->data_size + entry->queue->desc_size;
+	frame_size = queue->data_size + queue->desc_size + queue->winfo_size;
 
 	/*
 	 * The payload should be aligned to a 4-byte boundary,
@@ -531,10 +532,10 @@ static int rt2x00queue_write_tx_data(struct queue_entry *entry,
 	 */
 	if (unlikely(rt2x00dev->ops->lib->get_entry_state &&
 		     rt2x00dev->ops->lib->get_entry_state(entry))) {
-		ERROR(rt2x00dev,
-		      "Corrupt queue %d, accessing entry which is not ours.\n"
-		      "Please file bug report to %s.\n",
-		      entry->queue->qid, DRV_PROJECT);
+		rt2x00_err(rt2x00dev,
+			   "Corrupt queue %d, accessing entry which is not ours\n"
+			   "Please file bug report to %s\n",
+			   entry->queue->qid, DRV_PROJECT);
 		return -EINVAL;
 	}
 
@@ -698,8 +699,8 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	spin_lock(&queue->tx_lock);
 
 	if (unlikely(rt2x00queue_full(queue))) {
-		ERROR(queue->rt2x00dev,
-		      "Dropping frame due to full tx queue %d.\n", queue->qid);
+		rt2x00_err(queue->rt2x00dev, "Dropping frame due to full tx queue %d\n",
+			   queue->qid);
 		ret = -ENOBUFS;
 		goto out;
 	}
@@ -708,10 +709,10 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 
 	if (unlikely(test_and_set_bit(ENTRY_OWNER_DEVICE_DATA,
 				      &entry->flags))) {
-		ERROR(queue->rt2x00dev,
-		      "Arrived at non-free entry in the non-full queue %d.\n"
-		      "Please file bug report to %s.\n",
-		      queue->qid, DRV_PROJECT);
+		rt2x00_err(queue->rt2x00dev,
+			   "Arrived at non-free entry in the non-full queue %d\n"
+			   "Please file bug report to %s\n",
+			   queue->qid, DRV_PROJECT);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -842,9 +843,9 @@ bool rt2x00queue_for_each_entry(struct data_queue *queue,
 	unsigned int i;
 
 	if (unlikely(start >= Q_INDEX_MAX || end >= Q_INDEX_MAX)) {
-		ERROR(queue->rt2x00dev,
-		      "Entry requested from invalid index range (%d - %d)\n",
-		      start, end);
+		rt2x00_err(queue->rt2x00dev,
+			   "Entry requested from invalid index range (%d - %d)\n",
+			   start, end);
 		return true;
 	}
 
@@ -891,8 +892,8 @@ struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
 	unsigned long irqflags;
 
 	if (unlikely(index >= Q_INDEX_MAX)) {
-		ERROR(queue->rt2x00dev,
-		      "Entry requested from invalid index type (%d)\n", index);
+		rt2x00_err(queue->rt2x00dev, "Entry requested from invalid index type (%d)\n",
+			   index);
 		return NULL;
 	}
 
@@ -912,8 +913,8 @@ void rt2x00queue_index_inc(struct queue_entry *entry, enum queue_index index)
 	unsigned long irqflags;
 
 	if (unlikely(index >= Q_INDEX_MAX)) {
-		ERROR(queue->rt2x00dev,
-		      "Index change on invalid index type (%d)\n", index);
+		rt2x00_err(queue->rt2x00dev,
+			   "Index change on invalid index type (%d)\n", index);
 		return;
 	}
 
@@ -1073,7 +1074,8 @@ void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 	 * The queue flush has failed...
 	 */
 	if (unlikely(!rt2x00queue_empty(queue)))
-		WARNING(queue->rt2x00dev, "Queue %d failed to flush\n", queue->qid);
+		rt2x00_warn(queue->rt2x00dev, "Queue %d failed to flush\n",
+			    queue->qid);
 
 	/*
 	 * Restore the queue to the previous status
@@ -1172,6 +1174,7 @@ static int rt2x00queue_alloc_entries(struct data_queue *queue,
 	queue->threshold = DIV_ROUND_UP(qdesc->entry_num, 10);
 	queue->data_size = qdesc->data_size;
 	queue->desc_size = qdesc->desc_size;
+	queue->winfo_size = qdesc->winfo_size;
 
 	/*
 	 * Allocate all queue entries.
@@ -1262,7 +1265,7 @@ int rt2x00queue_initialize(struct rt2x00_dev *rt2x00dev)
 	return 0;
 
 exit:
-	ERROR(rt2x00dev, "Queue entries allocation failed.\n");
+	rt2x00_err(rt2x00dev, "Queue entries allocation failed\n");
 
 	rt2x00queue_uninitialize(rt2x00dev);
 
@@ -1314,7 +1317,7 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 
 	queue = kcalloc(rt2x00dev->data_queues, sizeof(*queue), GFP_KERNEL);
 	if (!queue) {
-		ERROR(rt2x00dev, "Queue allocation failed.\n");
+		rt2x00_err(rt2x00dev, "Queue allocation failed\n");
 		return -ENOMEM;
 	}
 

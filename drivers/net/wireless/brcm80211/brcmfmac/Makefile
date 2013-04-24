@@ -30,7 +30,8 @@ brcmfmac-objs += \
 		p2p.o \
 		dhd_cdc.o \
 		dhd_common.o \
-		dhd_linux.o
+		dhd_linux.o \
+		btcoex.o
 brcmfmac-$(CONFIG_BRCMFMAC_SDIO) += \
 		dhd_sdio.o \
 		bcmsdh.o \

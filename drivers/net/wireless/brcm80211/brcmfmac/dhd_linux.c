@@ -754,14 +754,14 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bssidx, s32 ifidx,
 		/* this is P2P_DEVICE interface */
 		brcmf_dbg(INFO, "allocate non-netdev interface\n");
 		ifp = kzalloc(sizeof(*ifp), GFP_KERNEL);
+		if (!ifp)
+			return ERR_PTR(-ENOMEM);
 	} else {
 		brcmf_dbg(INFO, "allocate netdev interface\n");
 		/* Allocate netdev, including space for private structure */
 		ndev = alloc_netdev(sizeof(*ifp), name, ether_setup);
-		if (!ndev) {
-			brcmf_err("OOM - alloc_netdev\n");
+		if (!ndev)
 			return ERR_PTR(-ENOMEM);
-		}
 
 		ifp = netdev_priv(ndev);
 		ifp->ndev = ndev;
@@ -899,7 +899,10 @@ int brcmf_bus_start(struct device *dev)
 		goto fail;
 
 	drvr->fw_signals = true;
-	(void)brcmf_fws_init(drvr);
+	ret = brcmf_fws_init(drvr);
+	if (ret < 0)
+		goto fail;
+
 	brcmf_fws_add_interface(ifp);
 
 	drvr->config = brcmf_cfg80211_attach(drvr, bus_if->dev);

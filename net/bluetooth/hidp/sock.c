@@ -77,21 +77,12 @@ static int hidp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 			return err;
 		}
 
-		if (csock->sk->sk_state != BT_CONNECTED ||
-				isock->sk->sk_state != BT_CONNECTED) {
-			sockfd_put(csock);
-			sockfd_put(isock);
-			return -EBADFD;
-		}
+		err = hidp_connection_add(&ca, csock, isock);
+		if (!err && copy_to_user(argp, &ca, sizeof(ca)))
+			err = -EFAULT;
 
-		err = hidp_add_connection(&ca, csock, isock);
-		if (!err) {
-			if (copy_to_user(argp, &ca, sizeof(ca)))
-				err = -EFAULT;
-		} else {
-			sockfd_put(csock);
-			sockfd_put(isock);
-		}
+		sockfd_put(csock);
+		sockfd_put(isock);
 
 		return err;
 
@@ -102,7 +93,7 @@ static int hidp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 		if (copy_from_user(&cd, argp, sizeof(cd)))
 			return -EFAULT;
 
-		return hidp_del_connection(&cd);
+		return hidp_connection_del(&cd);
 
 	case HIDPGETCONNLIST:
 		if (copy_from_user(&cl, argp, sizeof(cl)))
@@ -296,7 +287,6 @@ int __init hidp_init_sockets(void)
 	return 0;
 
 error:
-	BT_ERR("Can't register HIDP socket");
 	proto_unregister(&hidp_proto);
 	return err;
 }

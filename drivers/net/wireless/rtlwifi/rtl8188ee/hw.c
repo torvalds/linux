@@ -1635,7 +1635,7 @@ static void _rtl8188e_read_power_value_fromprom(struct ieee80211_hw *hw,
 			if (pwr2g->index_cck_base[path][i] == 0xFF)
 				pwr2g->index_cck_base[path][i] = 0x2D;
 		}
-		for (i = 0; i < MAX_CHNL_GROUP_24G-1; i++) {
+		for (i = 0; i < MAX_CHNL_GROUP_24G; i++) {
 			pwr2g->index_bw40_base[path][i] = hwinfo[eadr++];
 			if (pwr2g->index_bw40_base[path][i] == 0xFF)
 				pwr2g->index_bw40_base[path][i] = 0x2D;

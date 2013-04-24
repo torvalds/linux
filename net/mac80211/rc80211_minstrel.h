@@ -9,7 +9,8 @@
 #ifndef __RC_MINSTREL_H
 #define __RC_MINSTREL_H
 
-#define EWMA_LEVEL	75	/* ewma weighting factor [%] */
+#define EWMA_LEVEL	96	/* ewma weighting factor [/EWMA_DIV] */
+#define EWMA_DIV	128
 #define SAMPLE_COLUMNS	10	/* number of columns in sample table */
 
 
@@ -27,7 +28,7 @@
 static inline int
 minstrel_ewma(int old, int new, int weight)
 {
-	return (new * (100 - weight) + old * weight) / 100;
+	return (new * (EWMA_DIV - weight) + old * weight) / EWMA_DIV;
 }
 
 
@@ -62,6 +63,8 @@ struct minstrel_rate {
 };
 
 struct minstrel_sta_info {
+	struct ieee80211_sta *sta;
+
 	unsigned long stats_update;
 	unsigned int sp_ack_dur;
 	unsigned int rate_avg;

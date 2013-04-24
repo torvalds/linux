@@ -945,7 +945,7 @@ static u8 iwl_mvm_get_key_sta_id(struct ieee80211_vif *vif,
 	    mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT)
 		return mvmvif->ap_sta_id;
 
-	return IWL_INVALID_STATION;
+	return IWL_MVM_STATION_COUNT;
 }
 
 static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
@@ -1093,7 +1093,7 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 
 	/* Get the station id from the mvm local station table */
 	sta_id = iwl_mvm_get_key_sta_id(vif, sta);
-	if (sta_id == IWL_INVALID_STATION) {
+	if (sta_id == IWL_MVM_STATION_COUNT) {
 		IWL_ERR(mvm, "Failed to find station id\n");
 		return -EINVAL;
 	}
@@ -1188,7 +1188,7 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 		return -ENOENT;
 	}
 
-	if (sta_id == IWL_INVALID_STATION) {
+	if (sta_id == IWL_MVM_STATION_COUNT) {
 		IWL_DEBUG_WEP(mvm, "station non-existent, early return.\n");
 		return 0;
 	}
@@ -1254,7 +1254,7 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 	struct iwl_mvm_sta *mvm_sta;
 	u8 sta_id = iwl_mvm_get_key_sta_id(vif, sta);
 
-	if (WARN_ON_ONCE(sta_id == IWL_INVALID_STATION))
+	if (WARN_ON_ONCE(sta_id == IWL_MVM_STATION_COUNT))
 		return;
 
 	rcu_read_lock();

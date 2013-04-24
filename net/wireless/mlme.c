@@ -648,6 +648,11 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
 
+	if (nlportid && rdev->crit_proto_nlportid == nlportid) {
+		rdev->crit_proto_nlportid = 0;
+		rdev_crit_proto_stop(rdev, wdev);
+	}
+
 	if (nlportid == wdev->ap_unexpected_nlportid)
 		wdev->ap_unexpected_nlportid = 0;
 }

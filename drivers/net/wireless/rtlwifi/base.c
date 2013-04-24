@@ -722,7 +722,7 @@ int rtlwifi_rate_mapping(struct ieee80211_hw *hw,
 	int rate_idx;
 
 	if (false == isht) {
-		if (IEEE80211_BAND_2GHZ == hw->conf.channel->band) {
+		if (IEEE80211_BAND_2GHZ == hw->conf.chandef.chan->band) {
 			switch (desc_rate) {
 			case DESC92_RATE1M:
 				rate_idx = 0;
@@ -987,8 +987,8 @@ static bool addbareq_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (tid_data->agg.rx_agg_state == RTL_RX_AGG_START) {
 		skb_delba = rtl_make_del_ba(hw, hdr->addr2, hdr->addr3, tid);
 		if (skb_delba) {
-			rx_status.freq = hw->conf.channel->center_freq;
-			rx_status.band = hw->conf.channel->band;
+			rx_status.freq = hw->conf.chandef.chan->center_freq;
+			rx_status.band = hw->conf.chandef.chan->band;
 			rx_status.flag |= RX_FLAG_DECRYPTED;
 			rx_status.flag |= RX_FLAG_MACTIME_END;
 			rx_status.rate_idx = 0;
@@ -1593,7 +1593,7 @@ int rtl_send_smps_action(struct ieee80211_hw *hw,
 		sta_entry->mimo_ps = smps;
 
 		info->control.rates[0].idx = 0;
-		info->band = hw->conf.channel->band;
+		info->band = hw->conf.chandef.chan->band;
 		rtlpriv->intf_ops->adapter_tx(hw, sta, skb, &tcb_desc);
 	}
 	return 1;
