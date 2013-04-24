@@ -150,7 +150,7 @@ struct batadv_orig_node {
 	uint8_t flags;
 	uint8_t capabilities;
 	atomic_t last_ttvn;
-	uint16_t tt_crc;
+	uint32_t tt_crc;
 	unsigned char *tt_buff;
 	int16_t tt_buff_len;
 	spinlock_t tt_buff_lock; /* protects tt_buff & tt_buff_len */
@@ -377,7 +377,7 @@ struct batadv_priv_tt {
 	spinlock_t req_list_lock; /* protects req_list */
 	spinlock_t roam_list_lock; /* protects roam_list */
 	atomic_t local_entry_num;
-	uint16_t local_crc;
+	uint32_t local_crc;
 	unsigned char *last_changeset;
 	int16_t last_changeset_len;
 	/* protects last_changeset & last_changeset_len */
