@@ -1779,7 +1779,11 @@ void try_offline_node(int nid)
 	for (i = 0; i < MAX_NR_ZONES; i++) {
 		struct zone *zone = pgdat->node_zones + i;
 
-		if (zone->wait_table)
+		/*
+		 * wait_table may be allocated from boot memory,
+		 * here only free if it's allocated by vmalloc.
+		 */
+		if (is_vmalloc_addr(zone->wait_table))
 			vfree(zone->wait_table);
 	}
 
@@ -1801,7 +1805,7 @@ int __ref remove_memory(int nid, u64 start, u64 size)
 	int retry = 1;
 
 	start_pfn = PFN_DOWN(start);
-	end_pfn = start_pfn + PFN_DOWN(size);
+	end_pfn = PFN_UP(start + size - 1);
 
 	/*
 	 * When CONFIG_MEMCG is on, one memory block may be used by other

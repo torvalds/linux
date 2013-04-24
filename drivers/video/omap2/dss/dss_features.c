@@ -202,12 +202,10 @@ static const enum omap_dss_output_id omap3630_dss_supported_outputs[] = {
 
 static const enum omap_dss_output_id omap4_dss_supported_outputs[] = {
 	/* OMAP_DSS_CHANNEL_LCD */
-	OMAP_DSS_OUTPUT_DPI | OMAP_DSS_OUTPUT_DBI |
-	OMAP_DSS_OUTPUT_DSI1,
+	OMAP_DSS_OUTPUT_DBI | OMAP_DSS_OUTPUT_DSI1,
 
 	/* OMAP_DSS_CHANNEL_DIGIT */
-	OMAP_DSS_OUTPUT_VENC | OMAP_DSS_OUTPUT_HDMI |
-	OMAP_DSS_OUTPUT_DPI,
+	OMAP_DSS_OUTPUT_VENC | OMAP_DSS_OUTPUT_HDMI,
 
 	/* OMAP_DSS_CHANNEL_LCD2 */
 	OMAP_DSS_OUTPUT_DPI | OMAP_DSS_OUTPUT_DBI |

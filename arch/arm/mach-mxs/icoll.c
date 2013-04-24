@@ -100,7 +100,7 @@ static struct irq_domain_ops icoll_irq_domain_ops = {
 	.xlate = irq_domain_xlate_onecell,
 };
 
-void __init icoll_of_init(struct device_node *np,
+static void __init icoll_of_init(struct device_node *np,
 			  struct device_node *interrupt_parent)
 {
 	/*

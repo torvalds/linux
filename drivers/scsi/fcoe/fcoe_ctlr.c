@@ -2815,6 +2815,47 @@ unlock:
 }
 
 /**
+ * fcoe_ctlr_mode_set() - Set or reset the ctlr's mode
+ * @lport: The local port to be (re)configured
+ * @fip:   The FCoE controller whose mode is changing
+ * @fip_mode: The new fip mode
+ *
+ * Note that the we shouldn't be changing the libfc discovery settings
+ * (fc_disc_config) while an lport is going through the libfc state
+ * machine. The mode can only be changed when a fcoe_ctlr device is
+ * disabled, so that should ensure that this routine is only called
+ * when nothing is happening.
+ */
+void fcoe_ctlr_mode_set(struct fc_lport *lport, struct fcoe_ctlr *fip,
+			enum fip_state fip_mode)
+{
+	void *priv;
+
+	WARN_ON(lport->state != LPORT_ST_RESET &&
+		lport->state != LPORT_ST_DISABLED);
+
+	if (fip_mode == FIP_MODE_VN2VN) {
+		lport->rport_priv_size = sizeof(struct fcoe_rport);
+		lport->point_to_multipoint = 1;
+		lport->tt.disc_recv_req = fcoe_ctlr_disc_recv;
+		lport->tt.disc_start = fcoe_ctlr_disc_start;
+		lport->tt.disc_stop = fcoe_ctlr_disc_stop;
+		lport->tt.disc_stop_final = fcoe_ctlr_disc_stop_final;
+		priv = fip;
+	} else {
+		lport->rport_priv_size = 0;
+		lport->point_to_multipoint = 0;
+		lport->tt.disc_recv_req = NULL;
+		lport->tt.disc_start = NULL;
+		lport->tt.disc_stop = NULL;
+		lport->tt.disc_stop_final = NULL;
+		priv = lport;
+	}
+
+	fc_disc_config(lport, priv);
+}
+
+/**
  * fcoe_libfc_config() - Sets up libfc related properties for local port
  * @lport:    The local port to configure libfc for
  * @fip:      The FCoE controller in use by the local port
@@ -2833,21 +2874,9 @@ int fcoe_libfc_config(struct fc_lport *lport, struct fcoe_ctlr *fip,
 	fc_exch_init(lport);
 	fc_elsct_init(lport);
 	fc_lport_init(lport);
-	if (fip->mode == FIP_MODE_VN2VN)
-		lport->rport_priv_size = sizeof(struct fcoe_rport);
 	fc_rport_init(lport);
-	if (fip->mode == FIP_MODE_VN2VN) {
-		lport->point_to_multipoint = 1;
-		lport->tt.disc_recv_req = fcoe_ctlr_disc_recv;
-		lport->tt.disc_start = fcoe_ctlr_disc_start;
-		lport->tt.disc_stop = fcoe_ctlr_disc_stop;
-		lport->tt.disc_stop_final = fcoe_ctlr_disc_stop_final;
-		mutex_init(&lport->disc.disc_mutex);
-		INIT_LIST_HEAD(&lport->disc.rports);
-		lport->disc.priv = fip;
-	} else {
-		fc_disc_init(lport);
-	}
+	fc_disc_init(lport);
+	fcoe_ctlr_mode_set(lport, fip, fip->mode);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fcoe_libfc_config);
@@ -2875,6 +2904,7 @@ EXPORT_SYMBOL(fcoe_fcf_get_selected);
 void fcoe_ctlr_set_fip_mode(struct fcoe_ctlr_device *ctlr_dev)
 {
 	struct fcoe_ctlr *ctlr = fcoe_ctlr_device_priv(ctlr_dev);
+	struct fc_lport *lport = ctlr->lp;
 
 	mutex_lock(&ctlr->ctlr_mutex);
 	switch (ctlr_dev->mode) {
@@ -2888,5 +2918,7 @@ void fcoe_ctlr_set_fip_mode(struct fcoe_ctlr_device *ctlr_dev)
 	}
 
 	mutex_unlock(&ctlr->ctlr_mutex);
+
+	fcoe_ctlr_mode_set(lport, ctlr, ctlr->mode);
 }
 EXPORT_SYMBOL(fcoe_ctlr_set_fip_mode);

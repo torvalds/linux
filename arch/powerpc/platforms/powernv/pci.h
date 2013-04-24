@@ -73,11 +73,9 @@ struct pnv_phb {
 	spinlock_t		lock;
 
 #ifdef CONFIG_PCI_MSI
-	unsigned long		*msi_map;
 	unsigned int		msi_base;
-	unsigned int		msi_count;
-	unsigned int		msi_next;
 	unsigned int		msi32_support;
+	struct msi_bitmap	msi_bmp;
 #endif
 	int (*msi_setup)(struct pnv_phb *phb, struct pci_dev *dev,
 			 unsigned int hwirq, unsigned int is_64,

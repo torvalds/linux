@@ -40,7 +40,7 @@
  * -- BenH.
  */
 
-/* PREP sub-platform types see residual.h for these */
+/* PREP sub-platform types. Unused */
 #define _PREP_Motorola	0x01	/* motorola prep */
 #define _PREP_Firm	0x02	/* firmworks prep */
 #define _PREP_IBM	0x00	/* ibm prep */
@@ -55,13 +55,6 @@
 #if defined(__KERNEL__) && defined(CONFIG_PPC32)
 
 extern int _chrp_type;
-
-#ifdef CONFIG_PPC_PREP
-
-/* what kind of prep workstation we are */
-extern int _prep_type;
-
-#endif /* CONFIG_PPC_PREP */
 
 #endif /* defined(__KERNEL__) && defined(CONFIG_PPC32) */
 

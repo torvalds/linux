@@ -323,5 +323,6 @@ int tps65912_device_init(struct tps65912 *tps65912);
 void tps65912_device_exit(struct tps65912 *tps65912);
 int tps65912_irq_init(struct tps65912 *tps65912, int irq,
 			struct tps65912_platform_data *pdata);
+int tps65912_irq_exit(struct tps65912 *tps65912);
 
 #endif /*  __LINUX_MFD_TPS65912_H */

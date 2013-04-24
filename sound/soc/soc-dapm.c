@@ -831,6 +831,9 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 		if (path->weak)
 			continue;
 
+		if (path->walking)
+			return 1;
+
 		if (path->walked)
 			continue;
 
@@ -838,6 +841,7 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 
 		if (path->sink && path->connect) {
 			path->walked = 1;
+			path->walking = 1;
 
 			/* do we need to add this widget to the list ? */
 			if (list) {
@@ -847,11 +851,14 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
 					dev_err(widget->dapm->dev,
 						"ASoC: could not add widget %s\n",
 						widget->name);
+					path->walking = 0;
 					return con;
 				}
 			}
 
 			con += is_connected_output_ep(path->sink, list);
+
+			path->walking = 0;
 		}
 	}
 
@@ -931,6 +938,9 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget,
 		if (path->weak)
 			continue;
 
+		if (path->walking)
+			return 1;
+
 		if (path->walked)
 			continue;
 
@@ -938,6 +948,7 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget,
 
 		if (path->source && path->connect) {
 			path->walked = 1;
+			path->walking = 1;
 
 			/* do we need to add this widget to the list ? */
 			if (list) {
@@ -947,11 +958,14 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget,
 					dev_err(widget->dapm->dev,
 						"ASoC: could not add widget %s\n",
 						widget->name);
+					path->walking = 0;
 					return con;
 				}
 			}
 
 			con += is_connected_input_ep(path->source, list);
+
+			path->walking = 0;
 		}
 	}
 

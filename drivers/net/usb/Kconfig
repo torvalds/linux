@@ -268,7 +268,7 @@ config USB_NET_SMSC75XX
 	select CRC16
 	select CRC32
 	help
-	  This option adds support for SMSC LAN95XX based USB 2.0
+	  This option adds support for SMSC LAN75XX based USB 2.0
 	  Gigabit Ethernet adapters.
 
 config USB_NET_SMSC95XX

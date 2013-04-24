@@ -268,6 +268,12 @@
 #define SPRN_FSCR	0x099	/* Facility Status & Control Register */
 #define   FSCR_TAR	(1 << (63-55)) /* Enable Target Address Register */
 #define   FSCR_DSCR	(1 << (63-61)) /* Enable Data Stream Control Register */
+#define SPRN_HFSCR	0xbe	/* HV=1 Facility Status & Control Register */
+#define   HFSCR_TAR	(1 << (63-55)) /* Enable Target Address Register */
+#define   HFSCR_TM	(1 << (63-58)) /* Enable Transactional Memory */
+#define   HFSCR_DSCR	(1 << (63-61)) /* Enable Data Stream Control Register */
+#define   HFSCR_VECVSX	(1 << (63-62)) /* Enable VMX/VSX  */
+#define   HFSCR_FP	(1 << (63-63)) /* Enable Floating Point */
 #define SPRN_TAR	0x32f	/* Target Address Register */
 #define SPRN_LPCR	0x13E	/* LPAR Control Register */
 #define   LPCR_VPM0	(1ul << (63-0))

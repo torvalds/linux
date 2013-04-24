@@ -2077,7 +2077,6 @@ static const struct hid_device_id hid_ignore_list[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_HYBRID) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LD, USB_DEVICE_ID_LD_HEATCONTROL) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MADCATZ, USB_DEVICE_ID_MADCATZ_BEATPAD) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_MASTERKIT, USB_DEVICE_ID_MASTERKIT_MA901RADIO) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MCC, USB_DEVICE_ID_MCC_PMD1024LS) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MCC, USB_DEVICE_ID_MCC_PMD1208LS) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_MICROCHIP, USB_DEVICE_ID_PICKIT1) },
@@ -2242,6 +2241,18 @@ bool hid_ignore(struct hid_device *hdev)
 		     hdev->product <= USB_DEVICE_ID_VELLEMAN_K8055_LAST) ||
 		    (hdev->product >= USB_DEVICE_ID_VELLEMAN_K8061_FIRST &&
 		     hdev->product <= USB_DEVICE_ID_VELLEMAN_K8061_LAST))
+			return true;
+		break;
+	case USB_VENDOR_ID_ATMEL_V_USB:
+		/* Masterkit MA901 usb radio based on Atmel tiny85 chip and
+		 * it has the same USB ID as many Atmel V-USB devices. This
+		 * usb radio is handled by radio-ma901.c driver so we want
+		 * ignore the hid. Check the name, bus, product and ignore
+		 * if we have MA901 usb radio.
+		 */
+		if (hdev->product == USB_DEVICE_ID_ATMEL_V_USB &&
+			hdev->bus == BUS_USB &&
+			strncmp(hdev->name, "www.masterkit.ru MA901", 22) == 0)
 			return true;
 		break;
 	}

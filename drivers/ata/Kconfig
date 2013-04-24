@@ -59,15 +59,16 @@ config ATA_ACPI
 	  option libata.noacpi=1
 
 config SATA_ZPODD
-	bool "SATA Zero Power ODD Support"
+	bool "SATA Zero Power Optical Disc Drive (ZPODD) support"
 	depends on ATA_ACPI
 	default n
 	help
-	  This option adds support for SATA ZPODD. It requires both
-	  ODD and the platform support, and if enabled, will automatically
-	  power on/off the ODD when certain condition is satisfied. This
-	  does not impact user's experience of the ODD, only power is saved
-	  when ODD is not in use(i.e. no disc inside).
+	  This option adds support for SATA Zero Power Optical Disc
+	  Drive (ZPODD). It requires both the ODD and the platform
+	  support, and if enabled, will automatically power on/off the
+	  ODD when certain condition is satisfied. This does not impact
+	  end user's experience of the ODD, only power is saved when
+	  the ODD is not in use (i.e. no disc inside).
 
 	  If unsure, say N.
 
