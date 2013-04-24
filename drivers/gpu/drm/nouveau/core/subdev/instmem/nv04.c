@@ -93,21 +93,12 @@ nv04_instmem_alloc(struct nouveau_instmem *imem, struct nouveau_object *parent,
 		   u32 size, u32 align, struct nouveau_object **pobject)
 {
 	struct nouveau_object *engine = nv_object(imem);
-	struct nv04_instmem_priv *priv = (void *)(imem);
 	int ret;
 
 	ret = nouveau_object_ctor(parent, engine, &nv04_instobj_oclass,
 				  (void *)(unsigned long)align, size, pobject);
 	if (ret)
 		return ret;
-
-	/* INSTMEM itself creates objects to reserve (and preserve across
-	 * suspend/resume) various fixed data locations, each one of these
-	 * takes a reference on INSTMEM itself, causing it to never be
-	 * freed.  We drop all the self-references here to avoid this.
-	 */
-	if (unlikely(!priv->created))
-		atomic_dec(&engine->refcount);
 
 	return 0;
 }
@@ -154,7 +145,6 @@ nv04_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->created = true;
 	return 0;
 }
 

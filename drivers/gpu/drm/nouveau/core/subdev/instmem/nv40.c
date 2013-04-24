@@ -106,7 +106,6 @@ nv40_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->created = true;
 	return 0;
 }
 
