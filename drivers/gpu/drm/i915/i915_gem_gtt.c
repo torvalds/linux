@@ -110,6 +110,8 @@ static int gen6_ppgtt_enable(struct drm_device *dev)
 	uint32_t pd_entry;
 	int i;
 
+	WARN_ON(ppgtt->pd_offset & 0x3f);
+
 	pd_addr = (gen6_gtt_pte_t __iomem*)dev_priv->gtt.gsm +
 		ppgtt->pd_offset / sizeof(gen6_gtt_pte_t);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
