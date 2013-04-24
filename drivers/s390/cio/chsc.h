@@ -61,7 +61,9 @@ struct css_chsc_char {
 	u32 : 20;
 	u32 scssc : 1;  /* bit 107 */
 	u32 scsscf : 1; /* bit 108 */
-	u32 : 19;
+	u32:7;
+	u32 pnso:1; /* bit 116 */
+	u32:11;
 }__attribute__((packed));
 
 extern struct css_chsc_char css_chsc_characteristics;
@@ -187,6 +189,53 @@ struct chsc_scm_info {
 } __packed;
 
 int chsc_scm_info(struct chsc_scm_info *scm_area, u64 token);
+
+struct chsc_brinfo_resume_token {
+	u64 t1;
+	u64 t2;
+} __packed;
+
+struct chsc_brinfo_naihdr {
+	struct chsc_brinfo_resume_token resume_token;
+	u32:32;
+	u32 instance;
+	u32:24;
+	u8 naids;
+	u32 reserved[3];
+} __packed;
+
+struct chsc_pnso_area {
+	struct chsc_header request;
+	u8:2;
+	u8 m:1;
+	u8:5;
+	u8:2;
+	u8 ssid:2;
+	u8 fmt:4;
+	u16 sch;
+	u8:8;
+	u8 cssid;
+	u16:16;
+	u8 oc;
+	u32:24;
+	struct chsc_brinfo_resume_token resume_token;
+	u32 n:1;
+	u32:31;
+	u32 reserved[3];
+	struct chsc_header response;
+	u32:32;
+	struct chsc_brinfo_naihdr naihdr;
+	union {
+		struct qdio_brinfo_entry_l3_ipv6 l3_ipv6[0];
+		struct qdio_brinfo_entry_l3_ipv4 l3_ipv4[0];
+		struct qdio_brinfo_entry_l2	 l2[0];
+	} entries;
+} __packed;
+
+int chsc_pnso_brinfo(struct subchannel_id schid,
+		struct chsc_pnso_area *brinfo_area,
+		struct chsc_brinfo_resume_token resume_token,
+		int cnc);
 
 #ifdef CONFIG_SCM_BUS
 int scm_update_information(void);
