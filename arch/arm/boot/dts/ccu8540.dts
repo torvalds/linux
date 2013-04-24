@@ -21,6 +21,11 @@
 	};
 
 	soc {
+		prcmu@80157000 {
+			reg = <0x80157000 0x2000>, <0x801b0000 0x8000>, <0x801b8000 0x3000>;
+			reg-names = "prcmu", "prcmu-tcpm-per4", "prcmu-tcdm-per4";
+		};
+
 		uart@80120000 {
 			status = "okay";
 		};
