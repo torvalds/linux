@@ -1631,6 +1631,10 @@ static bool ironlake_check_srwm(struct drm_device *dev, int level,
 		I915_WRITE(DISP_ARB_CTL,
 			   I915_READ(DISP_ARB_CTL) | DISP_FBC_WM_DIS);
 		return false;
+	} else if (INTEL_INFO(dev)->gen >= 6) {
+		/* enable FBC WM (except on ILK, where it must remain off) */
+		I915_WRITE(DISP_ARB_CTL,
+			   I915_READ(DISP_ARB_CTL) & ~DISP_FBC_WM_DIS);
 	}
 
 	if (display_wm > display->max_wm) {
