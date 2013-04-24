@@ -39,6 +39,7 @@ __PT_R15     =	__PT_GPRS + 120
 
 STACK_SHIFT = PAGE_SHIFT + THREAD_ORDER
 STACK_SIZE  = 1 << STACK_SHIFT
+STACK_INIT = STACK_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE
 
 _TIF_WORK_SVC = (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | \
 		 _TIF_MCCK_PENDING | _TIF_PER_TRAP )
@@ -124,10 +125,10 @@ _TIF_EXIT_SIE = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
 	srag	%r14,%r14,\shift
 	jnz	1f
 	CHECK_STACK 1<<\shift,\savearea
+	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	2f
 1:	lg	%r15,\stack		# load target stack
-2:	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	la	%r11,STACK_FRAME_OVERHEAD(%r15)
+2:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	.endm
 
 	.macro UPDATE_VTIME scratch,enter_timer
@@ -177,7 +178,7 @@ ENTRY(__switch_to)
 	lg	%r4,__THREAD_info(%r2)		# get thread_info of prev
 	lg	%r5,__THREAD_info(%r3)		# get thread_info of next
 	lgr	%r15,%r5
-	aghi	%r15,STACK_SIZE			# end of kernel stack of next
+	aghi	%r15,STACK_INIT			# end of kernel stack of next
 	stg	%r3,__LC_CURRENT		# store task struct of next
 	stg	%r5,__LC_THREAD_INFO		# store thread info of next
 	stg	%r15,__LC_KERNEL_STACK		# store end of kernel stack
@@ -203,10 +204,8 @@ sysc_stmg:
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
 	lg	%r10,__LC_LAST_BREAK
 	lg	%r12,__LC_THREAD_INFO
-	larl	%r13,system_call
 sysc_per:
 	lg	%r15,__LC_KERNEL_STACK
-	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)	# pointer to pt_regs
 sysc_vtime:
 	UPDATE_VTIME %r13,__LC_SYNC_ENTER_TIMER
@@ -389,6 +388,7 @@ ENTRY(pgm_check_handler)
 	tm	__LC_PGM_ILC+3,0x80	# check for per exception
 	jnz	pgm_svcper		# -> single stepped svc
 0:	CHECK_STACK STACK_SIZE,__LC_SAVE_AREA_SYNC
+	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	2f
 1:	UPDATE_VTIME %r14,__LC_SYNC_ENTER_TIMER
 	LAST_BREAK %r14
@@ -398,8 +398,7 @@ ENTRY(pgm_check_handler)
 	tm	__LC_PGM_ILC+2,0x02	# check for transaction abort
 	jz	2f
 	mvc	__THREAD_trap_tdb(256,%r14),0(%r13)
-2:	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
-	la	%r11,STACK_FRAME_OVERHEAD(%r15)
+2:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
@@ -526,7 +525,6 @@ io_work:
 #
 io_work_user:
 	lg	%r1,__LC_KERNEL_STACK
-	aghi	%r1,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	mvc	STACK_FRAME_OVERHEAD(__PT_SIZE,%r1),0(%r11)
 	xc	__SF_BACKCHAIN(8,%r1),__SF_BACKCHAIN(%r1)
 	la	%r11,STACK_FRAME_OVERHEAD(%r1)
@@ -688,7 +686,6 @@ mcck_skip:
 	tm	__PT_PSW+1(%r11),0x01	# returning to user ?
 	jno	mcck_return
 	lg	%r1,__LC_KERNEL_STACK	# switch to kernel stack
-	aghi	%r1,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	mvc	STACK_FRAME_OVERHEAD(__PT_SIZE,%r1),0(%r11)
 	xc	__SF_BACKCHAIN(8,%r1),__SF_BACKCHAIN(%r1)
 	la	%r11,STACK_FRAME_OVERHEAD(%r1)
@@ -755,14 +752,12 @@ ENTRY(restart_int_handler)
  * Setup a pt_regs so that show_trace can provide a good call trace.
  */
 stack_overflow:
-	lg	%r11,__LC_PANIC_STACK	# change to panic stack
-	aghi	%r11,-__PT_SIZE		# create pt_regs
+	lg	%r15,__LC_PANIC_STACK	# change to panic stack
+	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	stmg	%r8,%r9,__PT_PSW(%r11)
 	mvc	__PT_R8(64,%r11),0(%r14)
 	stg	%r10,__PT_ORIG_GPR2(%r11) # store last break to orig_gpr2
-	lgr	%r15,%r11
-	aghi	%r15,-STACK_FRAME_OVERHEAD
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	jg	kernel_stack_overflow
@@ -846,15 +841,14 @@ cleanup_system_call:
 	mvc	__TI_last_break(8,%r12),16(%r11)
 0:	# set up saved register r11
 	lg	%r15,__LC_KERNEL_STACK
-	aghi	%r15,-__PT_SIZE
-	stg	%r15,24(%r11)		# r11 pt_regs pointer
+	la	%r9,STACK_FRAME_OVERHEAD(%r15)
+	stg	%r9,24(%r11)		# r11 pt_regs pointer
 	# fill pt_regs
-	mvc	__PT_R8(64,%r15),__LC_SAVE_AREA_SYNC
-	stmg	%r0,%r7,__PT_R0(%r15)
-	mvc	__PT_PSW(16,%r15),__LC_SVC_OLD_PSW
-	mvc	__PT_INT_CODE(4,%r15),__LC_SVC_ILC
+	mvc	__PT_R8(64,%r9),__LC_SAVE_AREA_SYNC
+	stmg	%r0,%r7,__PT_R0(%r9)
+	mvc	__PT_PSW(16,%r9),__LC_SVC_OLD_PSW
+	mvc	__PT_INT_CODE(4,%r9),__LC_SVC_ILC
 	# setup saved register r15
-	aghi	%r15,-STACK_FRAME_OVERHEAD
 	stg	%r15,56(%r11)		# r15 stack pointer
 	# set new psw address and exit
 	larl	%r9,sysc_do_svc
