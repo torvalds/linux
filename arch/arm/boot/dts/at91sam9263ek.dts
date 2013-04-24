@@ -74,8 +74,8 @@
 				mmc0 {
 					pinctrl_board_mmc0: mmc0-board {
 						atmel,pins =
-							<5 18 0x0 0x5	/* PE18 gpio CD pin pull up and deglitch */
-							 5 19 0x0 0x1>;	/* PE19 gpio WP pin pull up */
+							<AT91_PIOE 18 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH 	/* PE18 gpio CD pin pull up and deglitch */
+							 AT91_PIOE 19 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;	/* PE19 gpio WP pin pull up */
 					};
 				};
 			};

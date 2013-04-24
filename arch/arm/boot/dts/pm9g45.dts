@@ -42,15 +42,15 @@
 				board {
 					pinctrl_board_nand: nand0-board {
 						atmel,pins =
-							<3 3 0x0 0x1	/* PD3 gpio RDY pin pull_up*/
-							 2 14 0x0 0x1>;	/* PC14 gpio enable pin pull_up */
+							<AT91_PIOD 3 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP	/* PD3 gpio RDY pin pull_up*/
+							 AT91_PIOC 14 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP>;	/* PC14 gpio enable pin pull_up */
 					};
 				};
 
 				mmc {
 					pinctrl_board_mmc: mmc0-board {
 						atmel,pins =
-							<3 6 0x0 0x5>;	/* PD6 gpio CD pin pull_up and deglitch */
+							<AT91_PIOD 6 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PD6 gpio CD pin pull_up and deglitch */
 					};
 				};
 			};

@@ -34,9 +34,16 @@
 				board {
 					pinctrl_pck0_as_mck: pck0_as_mck {
 						atmel,pins =
-							<2 1 0x2 0x0>;	/* PC1 periph B */
+							<AT91_PIOC 1 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PC1 periph B */
 					};
 
+				};
+
+				mmc0_slot1 {
+					pinctrl_board_mmc0_slot1: mmc0_slot1-board {
+						atmel,pins =
+							<AT91_PIOC 9 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PC9 gpio CD pin pull up and deglitch */
+					};
 				};
 			};
 
@@ -80,15 +87,6 @@
 					reg = <1>;
 					bus-width = <4>;
 					cd-gpios = <&pioC 9 GPIO_ACTIVE_HIGH>;
-				};
-			};
-
-			pinctrl@fffff400 {
-				mmc0_slot1 {
-					pinctrl_board_mmc0_slot1: mmc0_slot1-board {
-						atmel,pins =
-							<2 9 0x0 0x5>;	/* PC9 gpio CD pin pull up and deglitch */
-					};
 				};
 			};
 

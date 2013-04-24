@@ -87,32 +87,32 @@
 				board {
 					pinctrl_mmc0_cd: mmc0_cd {
 						atmel,pins =
-							<3 17 0x0 0x5>; /* PD17 GPIO with pullup deglitch */
+							<AT91_PIOD 17 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>; /* PD17 GPIO with pullup deglitch */
 					};
 
 					pinctrl_mmc1_cd: mmc1_cd {
 						atmel,pins =
-							<3 18 0x0 0x5>; /* PD18 GPIO with pullup deglitch */
+							<AT91_PIOD 18 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>; /* PD18 GPIO with pullup deglitch */
 					};
 
 					pinctrl_pck0_as_audio_mck: pck0_as_audio_mck {
 						atmel,pins =
-							<3 30 0x2 0x0>;	/* PD30 periph B */
+							<AT91_PIOD 30 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PD30 periph B */
 					};
 
 					pinctrl_isi_reset: isi_reset-0 {
 						atmel,pins =
-							<4 24 0x0 0x0>;   /* PE24 gpio */
+							<AT91_PIOE 24 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;   /* PE24 gpio */
 					};
 
 					pinctrl_isi_power: isi_power-0 {
 						atmel,pins =
-							<4 29 0x0 0x0>; /* PE29 gpio */
+							<AT91_PIOE 29 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>; /* PE29 gpio */
 					};
 
 					pinctrl_usba_vbus: usba_vbus {
 						atmel,pins =
-							<3 29 0x0 0x4>; /* PD29 GPIO with deglitch */
+							<AT91_PIOD 29 AT91_PERIPH_GPIO AT91_PINCTRL_DEGLITCH>; /* PD29 GPIO with deglitch */
 					};
 				};
 			};

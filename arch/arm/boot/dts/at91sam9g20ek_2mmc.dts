@@ -31,7 +31,7 @@
 				mmc0_slot0 {
 					pinctrl_board_mmc0_slot0: mmc0_slot0-board {
 						atmel,pins =
-							<2 2 0x0 0x5>;	/* PC2 gpio CD pin pull up and deglitch */
+							<AT91_PIOC 2 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PC2 gpio CD pin pull up and deglitch */
 					};
 				};
 			};

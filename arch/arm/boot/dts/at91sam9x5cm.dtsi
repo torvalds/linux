@@ -28,7 +28,7 @@
 			pinctrl@fffff400 {
 				1wire_cm {
 					pinctrl_1wire_cm: 1wire_cm-0 {
-						atmel,pins = <1 18 0x0 0x2>; /* PB18 multidrive, conflicts with led */
+						atmel,pins = <AT91_PIOB 18 AT91_PERIPH_GPIO AT91_PINCTRL_MULTI_DRIVE>; /* PB18 multidrive, conflicts with led */
 					};
 				};
 			};

@@ -63,7 +63,7 @@
 				mmc0 {
 					pinctrl_board_mmc0: mmc0-board {
 						atmel,pins =
-							<0 7 0x0 0x5>;	/* PA7 gpio CD pin pull up and deglitch */
+							<AT91_PIOA 7 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PA7 gpio CD pin pull up and deglitch */
 					};
 				};
 			};
