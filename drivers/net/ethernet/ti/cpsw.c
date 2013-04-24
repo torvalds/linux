@@ -348,6 +348,7 @@ struct cpsw_priv {
 	/* snapshot of IRQ numbers */
 	u32 irqs_table[4];
 	u32 num_irqs;
+	bool irq_enabled;
 	struct cpts *cpts;
 	u32 emac_port;
 };
@@ -515,7 +516,10 @@ static irqreturn_t cpsw_interrupt(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	cpsw_intr_disable(priv);
-	cpsw_disable_irq(priv);
+	if (priv->irq_enabled == true) {
+		cpsw_disable_irq(priv);
+		priv->irq_enabled = false;
+	}
 
 	if (netif_running(priv->ndev)) {
 		napi_schedule(&priv->napi);
@@ -544,10 +548,16 @@ static int cpsw_poll(struct napi_struct *napi, int budget)
 
 	num_rx = cpdma_chan_process(priv->rxch, budget);
 	if (num_rx < budget) {
+		struct cpsw_priv *prim_cpsw;
+
 		napi_complete(napi);
 		cpsw_intr_enable(priv);
 		cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
-		cpsw_enable_irq(priv);
+		prim_cpsw = cpsw_get_slave_priv(priv, 0);
+		if (prim_cpsw->irq_enabled == false) {
+			cpsw_enable_irq(priv);
+			prim_cpsw->irq_enabled = true;
+		}
 	}
 
 	if (num_rx || num_tx)
@@ -886,6 +896,7 @@ static void cpsw_slave_stop(struct cpsw_slave *slave, struct cpsw_priv *priv)
 static int cpsw_ndo_open(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_priv *prim_cpsw;
 	int i, ret;
 	u32 reg;
 
@@ -951,6 +962,14 @@ static int cpsw_ndo_open(struct net_device *ndev)
 
 		coal.rx_coalesce_usecs = (priv->coal_intvl << 4);
 		cpsw_set_coalesce(ndev, &coal);
+	}
+
+	prim_cpsw = cpsw_get_slave_priv(priv, 0);
+	if (prim_cpsw->irq_enabled == false) {
+		if ((priv == prim_cpsw) || !netif_running(prim_cpsw->ndev)) {
+			prim_cpsw->irq_enabled = true;
+			cpsw_enable_irq(prim_cpsw);
+		}
 	}
 
 	cpdma_ctlr_start(priv->dma);
@@ -1614,7 +1633,7 @@ static int cpsw_probe_dual_emac(struct platform_device *pdev,
 		priv_sl2->irqs_table[i] = priv->irqs_table[i];
 		priv_sl2->num_irqs = priv->num_irqs;
 	}
-
+	priv->irq_enabled = true;
 	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	ndev->netdev_ops = &cpsw_netdev_ops;
