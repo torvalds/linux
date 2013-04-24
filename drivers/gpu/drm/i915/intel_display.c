@@ -4633,22 +4633,29 @@ static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 			pipeconf &= ~PIPECONF_DOUBLE_WIDE;
 	}
 
-	/* default to 8bpc */
-	pipeconf &= ~(PIPECONF_BPC_MASK | PIPECONF_DITHER_EN);
-	if (intel_crtc->config.has_dp_encoder) {
-		if (intel_crtc->config.dither) {
-			pipeconf |= PIPECONF_6BPC |
-				    PIPECONF_DITHER_EN |
-				    PIPECONF_DITHER_TYPE_SP;
-		}
-	}
+	/* only g4x and later have fancy bpc/dither controls */
+	if (IS_G4X(dev) || IS_VALLEYVIEW(dev)) {
+		pipeconf &= ~(PIPECONF_BPC_MASK |
+			      PIPECONF_DITHER_EN | PIPECONF_DITHER_TYPE_MASK);
 
-	if (IS_VALLEYVIEW(dev) && intel_pipe_has_type(&intel_crtc->base,
-						      INTEL_OUTPUT_EDP)) {
-		if (intel_crtc->config.dither) {
-			pipeconf |= PIPECONF_6BPC |
-					PIPECONF_ENABLE |
-					I965_PIPECONF_ACTIVE;
+		/* Bspec claims that we can't use dithering for 30bpp pipes. */
+		if (intel_crtc->config.dither && intel_crtc->config.pipe_bpp != 30)
+			pipeconf |= PIPECONF_DITHER_EN |
+				    PIPECONF_DITHER_TYPE_SP;
+
+		switch (intel_crtc->config.pipe_bpp) {
+		case 18:
+			pipeconf |= PIPECONF_6BPC;
+			break;
+		case 24:
+			pipeconf |= PIPECONF_8BPC;
+			break;
+		case 30:
+			pipeconf |= PIPECONF_10BPC;
+			break;
+		default:
+			/* Case prevented by intel_choose_pipe_bpp_dither. */
+			BUG();
 		}
 	}
 
