@@ -18,7 +18,6 @@
 #include <asm/feature-fixups.h>
 
 /* firmware feature bitmask values */
-#define FIRMWARE_MAX_FEATURES 63
 
 #define FW_FEATURE_PFT		ASM_CONST(0x0000000000000001)
 #define FW_FEATURE_TCE		ASM_CONST(0x0000000000000002)

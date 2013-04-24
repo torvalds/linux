@@ -39,7 +39,7 @@ typedef struct {
  * string must match.
  */
 static __initdata firmware_feature_t
-firmware_features_table[FIRMWARE_MAX_FEATURES] = {
+firmware_features_table[] = {
 	{FW_FEATURE_PFT,		"hcall-pft"},
 	{FW_FEATURE_TCE,		"hcall-tce"},
 	{FW_FEATURE_SPRG0,		"hcall-sprg0"},
@@ -77,12 +77,10 @@ void __init fw_feature_init(const char *hypertas, unsigned long len)
 	pr_debug(" -> fw_feature_init()\n");
 
 	for (s = hypertas; s < hypertas + len; s += strlen(s) + 1) {
-		for (i = 0; i < FIRMWARE_MAX_FEATURES; i++) {
+		for (i = 0; i < ARRAY_SIZE(firmware_features_table); i++) {
 			const char *name = firmware_features_table[i].name;
 			size_t size;
-			/* check value against table of strings */
-			if (!name)
-				continue;
+
 			/*
 			 * If there is a '*' at the end of name, only check
 			 * upto there
