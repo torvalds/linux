@@ -110,31 +110,28 @@ struct of_drconf_cell {
 /* Option vector 4: IBM PAPR implementation */
 #define OV4_MIN_ENT_CAP		0x01	/* minimum VP entitled capacity */
 
-/* Option vector 5: PAPR/OF options supported */
-#define OV5_LPAR		0x80	/* logical partitioning supported */
-#define OV5_SPLPAR		0x40	/* shared-processor LPAR supported */
+/* Option vector 5: PAPR/OF options supported
+ * These bits are also used in firmware_has_feature() to validate
+ * the capabilities reported for vector 5 in the device tree so we
+ * encode the vector index in the define and use the OV5_FEAT()
+ * and OV5_INDX() macros to extract the desired information.
+ */
+#define OV5_FEAT(x)	((x) & 0xff)
+#define OV5_INDX(x)	((x) >> 8)
+#define OV5_LPAR		0x0280	/* logical partitioning supported */
+#define OV5_SPLPAR		0x0240	/* shared-processor LPAR supported */
 /* ibm,dynamic-reconfiguration-memory property supported */
-#define OV5_DRCONF_MEMORY	0x20
-#define OV5_LARGE_PAGES		0x10	/* large pages supported */
-#define OV5_DONATE_DEDICATE_CPU	0x02	/* donate dedicated CPU support */
-/* PCIe/MSI support.  Without MSI full PCIe is not supported */
-#ifdef CONFIG_PCI_MSI
-#define OV5_MSI			0x01	/* PCIe/MSI support */
-#else
-#define OV5_MSI			0x00
-#endif /* CONFIG_PCI_MSI */
-#ifdef CONFIG_PPC_SMLPAR
-#define OV5_CMO			0x80	/* Cooperative Memory Overcommitment */
-#define OV5_XCMO		0x40	/* Page Coalescing */
-#else
-#define OV5_CMO			0x00
-#define OV5_XCMO		0x00
-#endif
-#define OV5_TYPE1_AFFINITY	0x80	/* Type 1 NUMA affinity */
-#define OV5_PFO_HW_RNG		0x80	/* PFO Random Number Generator */
-#define OV5_PFO_HW_842		0x40	/* PFO Compression Accelerator */
-#define OV5_PFO_HW_ENCR		0x20	/* PFO Encryption Accelerator */
-#define OV5_SUB_PROCESSORS	0x01	/* 1,2,or 4 Sub-Processors supported */
+#define OV5_DRCONF_MEMORY	0x0220
+#define OV5_LARGE_PAGES		0x0210	/* large pages supported */
+#define OV5_DONATE_DEDICATE_CPU	0x0202	/* donate dedicated CPU support */
+#define OV5_MSI			0x0201	/* PCIe/MSI support */
+#define OV5_CMO			0x0480	/* Cooperative Memory Overcommitment */
+#define OV5_XCMO		0x0440	/* Page Coalescing */
+#define OV5_TYPE1_AFFINITY	0x0580	/* Type 1 NUMA affinity */
+#define OV5_PFO_HW_RNG		0x0E80	/* PFO Random Number Generator */
+#define OV5_PFO_HW_842		0x0E40	/* PFO Compression Accelerator */
+#define OV5_PFO_HW_ENCR		0x0E20	/* PFO Encryption Accelerator */
+#define OV5_SUB_PROCESSORS	0x0F01	/* 1,2,or 4 Sub-Processors supported */
 
 /* Option Vector 6: IBM PAPR hints */
 #define OV6_LINUX		0x02	/* Linux is our OS */

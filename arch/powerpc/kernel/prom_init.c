@@ -684,11 +684,21 @@ unsigned char ibm_architecture_vec[] = {
 	/* option vector 5: PAPR/OF options */
 	19 - 2,				/* length */
 	0,				/* don't ignore, don't halt */
-	OV5_LPAR | OV5_SPLPAR | OV5_LARGE_PAGES | OV5_DRCONF_MEMORY |
-	OV5_DONATE_DEDICATE_CPU | OV5_MSI,
+	OV5_FEAT(OV5_LPAR) | OV5_FEAT(OV5_SPLPAR) | OV5_FEAT(OV5_LARGE_PAGES) |
+	OV5_FEAT(OV5_DRCONF_MEMORY) | OV5_FEAT(OV5_DONATE_DEDICATE_CPU) |
+#ifdef CONFIG_PCI_MSI
+	/* PCIe/MSI support.  Without MSI full PCIe is not supported */
+	OV5_FEAT(OV5_MSI),
+#else
 	0,
-	OV5_CMO | OV5_XCMO,
-	OV5_TYPE1_AFFINITY,
+#endif
+	0,
+#ifdef CONFIG_PPC_SMLPAR
+	OV5_FEAT(OV5_CMO) | OV5_FEAT(OV5_XCMO),
+#else
+	0,
+#endif
+	OV5_FEAT(OV5_TYPE1_AFFINITY),
 	0,
 	0,
 	0,
@@ -702,8 +712,9 @@ unsigned char ibm_architecture_vec[] = {
 	0,
 	0,
 	0,
-	OV5_PFO_HW_RNG | OV5_PFO_HW_ENCR | OV5_PFO_HW_842,
-	OV5_SUB_PROCESSORS,
+	OV5_FEAT(OV5_PFO_HW_RNG) | OV5_FEAT(OV5_PFO_HW_ENCR) |
+	OV5_FEAT(OV5_PFO_HW_842),
+	OV5_FEAT(OV5_SUB_PROCESSORS),
 	/* option vector 6: IBM PAPR hints */
 	4 - 2,				/* length */
 	0,
