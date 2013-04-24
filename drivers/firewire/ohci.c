@@ -68,6 +68,8 @@
 #define DESCRIPTOR_BRANCH_ALWAYS	(3 << 2)
 #define DESCRIPTOR_WAIT			(3 << 0)
 
+#define DESCRIPTOR_CMD			(0xf << 12)
+
 struct descriptor {
 	__le16 req_count;
 	__le16 control;
@@ -149,10 +151,11 @@ struct context {
 	struct descriptor *last;
 
 	/*
-	 * The last descriptor in the DMA program.  It contains the branch
+	 * The last descriptor block in the DMA program. It contains the branch
 	 * address that must be updated upon appending a new descriptor.
 	 */
 	struct descriptor *prev;
+	int prev_z;
 
 	descriptor_callback_t callback;
 
@@ -270,7 +273,9 @@ static char ohci_driver_name[] = KBUILD_MODNAME;
 #define PCI_DEVICE_ID_TI_TSB12LV22	0x8009
 #define PCI_DEVICE_ID_TI_TSB12LV26	0x8020
 #define PCI_DEVICE_ID_TI_TSB82AA2	0x8025
+#define PCI_DEVICE_ID_VIA_VT630X	0x3044
 #define PCI_VENDOR_ID_PINNACLE_SYSTEMS	0x11bd
+#define PCI_REV_ID_VIA_VT6306		0x46
 
 #define QUIRK_CYCLE_TIMER		1
 #define QUIRK_RESET_PACKET		2
@@ -278,6 +283,7 @@ static char ohci_driver_name[] = KBUILD_MODNAME;
 #define QUIRK_NO_1394A			8
 #define QUIRK_NO_MSI			16
 #define QUIRK_TI_SLLZ059		32
+#define QUIRK_IR_WAKE			64
 
 /* In case of multiple matches in ohci_quirks[], only the first one is used. */
 static const struct {
@@ -319,6 +325,9 @@ static const struct {
 	{PCI_VENDOR_ID_TI, PCI_ANY_ID, PCI_ANY_ID,
 		QUIRK_RESET_PACKET},
 
+	{PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VT630X, PCI_REV_ID_VIA_VT6306,
+		QUIRK_CYCLE_TIMER | QUIRK_IR_WAKE},
+
 	{PCI_VENDOR_ID_VIA, PCI_ANY_ID, PCI_ANY_ID,
 		QUIRK_CYCLE_TIMER | QUIRK_NO_MSI},
 };
@@ -333,6 +342,7 @@ MODULE_PARM_DESC(quirks, "Chip quirks (default = 0"
 	", no 1394a enhancements = "	__stringify(QUIRK_NO_1394A)
 	", disable MSI = "		__stringify(QUIRK_NO_MSI)
 	", TI SLLZ059 erratum = "	__stringify(QUIRK_TI_SLLZ059)
+	", IR wake unreliable = "	__stringify(QUIRK_IR_WAKE)
 	")");
 
 #define OHCI_PARAM_DEBUG_AT_AR		1
@@ -1157,6 +1167,7 @@ static int context_init(struct context *ctx, struct fw_ohci *ohci,
 	ctx->buffer_tail->used += sizeof(*ctx->buffer_tail->buffer);
 	ctx->last = ctx->buffer_tail->buffer;
 	ctx->prev = ctx->buffer_tail->buffer;
+	ctx->prev_z = 1;
 
 	return 0;
 }
@@ -1221,14 +1232,35 @@ static void context_append(struct context *ctx,
 {
 	dma_addr_t d_bus;
 	struct descriptor_buffer *desc = ctx->buffer_tail;
+	struct descriptor *d_branch;
 
 	d_bus = desc->buffer_bus + (d - desc->buffer) * sizeof(*d);
 
 	desc->used += (z + extra) * sizeof(*d);
 
 	wmb(); /* finish init of new descriptors before branch_address update */
-	ctx->prev->branch_address = cpu_to_le32(d_bus | z);
-	ctx->prev = find_branch_descriptor(d, z);
+
+	d_branch = find_branch_descriptor(ctx->prev, ctx->prev_z);
+	d_branch->branch_address = cpu_to_le32(d_bus | z);
+
+	/*
+	 * VT6306 incorrectly checks only the single descriptor at the
+	 * CommandPtr when the wake bit is written, so if it's a
+	 * multi-descriptor block starting with an INPUT_MORE, put a copy of
+	 * the branch address in the first descriptor.
+	 *
+	 * Not doing this for transmit contexts since not sure how it interacts
+	 * with skip addresses.
+	 */
+	if (unlikely(ctx->ohci->quirks & QUIRK_IR_WAKE) &&
+	    d_branch != ctx->prev &&
+	    (ctx->prev->control & cpu_to_le16(DESCRIPTOR_CMD)) ==
+	     cpu_to_le16(DESCRIPTOR_INPUT_MORE)) {
+		ctx->prev->branch_address = cpu_to_le32(d_bus | z);
+	}
+
+	ctx->prev = d;
+	ctx->prev_z = z;
 }
 
 static void context_stop(struct context *ctx)
