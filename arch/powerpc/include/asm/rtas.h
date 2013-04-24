@@ -143,6 +143,8 @@ struct rtas_suspend_me_data {
 #define RTAS_TYPE_PMGM_TIME_ALARM	0x6f
 #define RTAS_TYPE_PMGM_CONFIG_CHANGE	0x70
 #define RTAS_TYPE_PMGM_SERVICE_PROC	0x71
+/* Platform Resource Reassignment Notification */
+#define RTAS_TYPE_PRRN			0xA0
 
 /* RTAS check-exception vector offset */
 #define RTAS_VECTOR_EXTERNAL_INTERRUPT	0x500
