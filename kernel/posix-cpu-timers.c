@@ -673,12 +673,12 @@ static void posix_cpu_timer_kick_nohz(void)
 bool posix_cpu_timers_can_stop_tick(struct task_struct *tsk)
 {
 	if (!task_cputime_zero(&tsk->cputime_expires))
-		return true;
+		return false;
 
 	if (tsk->signal->cputimer.running)
-		return true;
+		return false;
 
-	return false;
+	return true;
 }
 #else
 static inline void posix_cpu_timer_kick_nohz(void) { }
