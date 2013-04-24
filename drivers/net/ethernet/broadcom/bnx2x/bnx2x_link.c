@@ -3426,13 +3426,19 @@ static void bnx2x_calc_ieee_aneg_adv(struct bnx2x_phy *phy,
 
 	switch (phy->req_flow_ctrl) {
 	case BNX2X_FLOW_CTRL_AUTO:
-		if (params->req_fc_auto_adv == BNX2X_FLOW_CTRL_BOTH)
+		switch (params->req_fc_auto_adv) {
+		case BNX2X_FLOW_CTRL_BOTH:
 			*ieee_fc |= MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_BOTH;
-		else
+			break;
+		case BNX2X_FLOW_CTRL_RX:
+		case BNX2X_FLOW_CTRL_TX:
 			*ieee_fc |=
-			MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_ASYMMETRIC;
+				MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_ASYMMETRIC;
+			break;
+		default:
+			break;
+		}
 		break;
-
 	case BNX2X_FLOW_CTRL_TX:
 		*ieee_fc |= MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_ASYMMETRIC;
 		break;
