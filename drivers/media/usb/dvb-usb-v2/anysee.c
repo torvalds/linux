@@ -882,7 +882,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 		/* we have no frontend :-( */
 		ret = -ENODEV;
 		dev_err(&d->udev->dev,
-				"%s: Unsupported Anysee version. Please report the <linux-media@vger.kernel.org>.\n",
+				"%s: Unsupported Anysee version. Please report to <linux-media@vger.kernel.org>.\n",
 				KBUILD_MODNAME);
 	}
 error:
