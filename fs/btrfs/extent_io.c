@@ -3162,7 +3162,7 @@ static int eb_wait(void *word)
 	return 0;
 }
 
-static void wait_on_extent_buffer_writeback(struct extent_buffer *eb)
+void wait_on_extent_buffer_writeback(struct extent_buffer *eb)
 {
 	wait_on_bit(&eb->bflags, EXTENT_BUFFER_WRITEBACK, eb_wait,
 		    TASK_UNINTERRUPTIBLE);
