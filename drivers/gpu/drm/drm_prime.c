@@ -488,11 +488,8 @@ EXPORT_SYMBOL(drm_prime_init_file_private);
 
 void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv)
 {
-	struct drm_prime_member *member, *safe;
-	list_for_each_entry_safe(member, safe, &prime_fpriv->head, entry) {
-		list_del(&member->entry);
-		kfree(member);
-	}
+	/* by now drm_gem_release should've made sure the list is empty */
+	WARN_ON(!list_empty(&prime_fpriv->head));
 }
 EXPORT_SYMBOL(drm_prime_destroy_file_private);
 
