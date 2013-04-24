@@ -1424,6 +1424,10 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		 */
 		ctrl_ctx = xhci_get_input_control_ctx(xhci,
 				virt_dev->in_ctx);
+		if (!ctrl_ctx) {
+			xhci_warn(xhci, "Could not get input context, bad type.\n");
+			break;
+		}
 		/* Input ctx add_flags are the endpoint index plus one */
 		ep_index = xhci_last_valid_endpoint(le32_to_cpu(ctrl_ctx->add_flags)) - 1;
 		/* A usb_set_interface() call directly after clearing a halted
