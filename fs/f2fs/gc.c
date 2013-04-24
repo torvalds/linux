@@ -82,9 +82,6 @@ static int gc_thread_func(void *data)
 		/* if return value is not zero, no victim was selected */
 		if (f2fs_gc(sbi))
 			wait_ms = GC_THREAD_NOGC_SLEEP_TIME;
-		else if (wait_ms == GC_THREAD_NOGC_SLEEP_TIME)
-			wait_ms = GC_THREAD_MAX_SLEEP_TIME;
-
 	} while (!kthread_should_stop());
 	return 0;
 }
