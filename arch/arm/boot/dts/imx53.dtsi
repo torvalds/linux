@@ -660,6 +660,13 @@
 							MX53_PAD_PATA_DMACK__UART1_RXD_MUX 0x1c5
 						>;
 					};
+
+					pinctrl_uart1_3: uart1grp-3 {
+						fsl,pins = <
+							MX53_PAD_PATA_RESET_B__UART1_CTS 0x1c5
+							MX53_PAD_PATA_IORDY__UART1_RTS	 0x1c5
+						>;
+					};
 				};
 
 				uart2 {
