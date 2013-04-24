@@ -1572,9 +1572,8 @@ int start_topology_update(void)
 			vphn_enabled = 0;
 			rc = of_reconfig_notifier_register(&dt_update_nb);
 		}
-	} else if (0 && firmware_has_feature(FW_FEATURE_VPHN) &&
+	} else if (firmware_has_feature(FW_FEATURE_VPHN) &&
 		   get_lppaca()->shared_proc) {
-		/* Disabled until races with load balancing are fixed */
 		if (!vphn_enabled) {
 			prrn_enabled = 0;
 			vphn_enabled = 1;
