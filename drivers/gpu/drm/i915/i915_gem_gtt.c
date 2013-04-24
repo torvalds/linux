@@ -100,18 +100,14 @@ static gen6_gtt_pte_t hsw_pte_encode(struct drm_device *dev,
 	return pte;
 }
 
-static int gen6_ppgtt_enable(struct drm_device *dev)
+static void gen6_write_pdes(struct i915_hw_ppgtt *ppgtt)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t pd_offset;
-	struct intel_ring_buffer *ring;
-	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
+	struct drm_i915_private *dev_priv = ppgtt->dev->dev_private;
 	gen6_gtt_pte_t __iomem *pd_addr;
 	uint32_t pd_entry;
 	int i;
 
 	WARN_ON(ppgtt->pd_offset & 0x3f);
-
 	pd_addr = (gen6_gtt_pte_t __iomem*)dev_priv->gtt.gsm +
 		ppgtt->pd_offset / sizeof(gen6_gtt_pte_t);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
@@ -124,6 +120,19 @@ static int gen6_ppgtt_enable(struct drm_device *dev)
 		writel(pd_entry, pd_addr + i);
 	}
 	readl(pd_addr);
+}
+
+static int gen6_ppgtt_enable(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	uint32_t pd_offset;
+	struct intel_ring_buffer *ring;
+	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
+	int i;
+
+	BUG_ON(ppgtt->pd_offset & 0x3f);
+
+	gen6_write_pdes(ppgtt);
 
 	pd_offset = ppgtt->pd_offset;
 	pd_offset /= 64; /* in cachelines, */
