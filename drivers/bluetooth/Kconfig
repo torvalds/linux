@@ -70,6 +70,16 @@ config BT_HCIUART_ATH3K
 
 	  Say Y here to compile support for HCI UART ATH3K protocol.
 
+config BT_HCIUART_RTKH5
+	bool "Realtek H5 protocol support"
+	depends on BT_HCIUART
+	help
+	  Realtek H5 is serial protocol for communication 
+	  between Realtek Bluetooth device and host. This protocol is required for 
+	  Realtek uart h5 bluetooth controller
+
+	  Say Y here to compile support for Realtek HCI H5 protocol.
+
 config BT_HCIUART_LL
 	bool "HCILL protocol support"
 	depends on BT_HCIUART
