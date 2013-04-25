@@ -53,8 +53,17 @@ irqreturn_t mt_bt_eirq_handler(int i, void *arg)
     mt_bt_disable_irq();
 
 #ifdef CONFIG_BT_HCIUART
-    if(mtk_wcn_bt_workqueue)
-        queue_work(mtk_wcn_bt_workqueue, &mtk_wcn_bt_event_work);
+    /* BlueZ stack, hci_uart driver */
+    hdev = hci_dev_get(0);
+    if(hdev == NULL){
+        /* Avoid the early interrupt before hci0 registered */
+        //BT_HWCTL_ALERT("hdev is NULL\n");
+    }else{
+        //BT_HWCTL_ALERT("EINT arrives! notify host wakeup\n");
+        //printk("Send host wakeup command\n");
+        hci_send_cmd(hdev, 0xFCC1, 0, NULL);
+        /* enable irq after receiving host wakeup command's event */
+    }
 #else
     /* Maybe handle the interrupt in user space? */
     eint_gen = 1;
@@ -62,5 +71,6 @@ irqreturn_t mt_bt_eirq_handler(int i, void *arg)
     /* Send host wakeup command in user space, enable irq then */
 #endif
 
+    mt_bt_enable_irq();
     return IRQ_HANDLED;
 }

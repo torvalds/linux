@@ -41,6 +41,7 @@
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <mach/gpio.h>
+#include <mach/iomux.h>
 //#include <plat/gpio-cfg.h>
 
 #include "bt_hwctl.h"
@@ -52,17 +53,25 @@
 
 static int irq_num = -1;
 
+#ifdef CONFIG_ARCH_RK29
+    #define rk_mux_api_set(name,mode)      rk29_mux_api_set(name,mode)
+#elif defined (CONFIG_ARCH_RK30)
+    #define rk_mux_api_set(name,mode)      rk30_mux_api_set(name,mode)
+#else
+    #define rk_mux_api_set(name,mode)      rk30_mux_api_set(name,mode)
+#endif
+
 /****************************************************************************
  *                       I R Q   F U N C T I O N S                          *
 *****************************************************************************/
 static int mt_bt_request_irq(void)
 {
     int iRet;
-    int trigger = IRQF_TRIGGER_HIGH;
+    int trigger = IRQF_TRIGGER_RISING;
     struct mt6622_platform_data *pdata = (struct mt6622_platform_data *)mt_bt_get_platform_data();
 		
     if(pdata->irq_gpio.enable == GPIO_LOW)
-    	trigger = IRQF_TRIGGER_LOW;
+    	trigger = IRQF_TRIGGER_FALLING;
     
     iRet = request_irq(irq_num, mt_bt_eirq_handler, 
         trigger, "BT_INT_B", NULL);
@@ -86,9 +95,28 @@ static void mt_bt_free_irq(void)
     }
 }
 
+int mt6622_suspend(struct platform_device *pdev, pm_message_t state)
+{
+    if(irq_num != -1) {
+        printk(KERN_INFO MODULE_TAG "mt6622_suspend\n");
+        enable_irq_wake(irq_num);
+    }
+	return 0;
+}
+
+int mt6622_resume(struct platform_device *pdev)
+{
+    if(irq_num != -1) {
+        printk(KERN_INFO MODULE_TAG "mt6622_resume\n");
+        disable_irq_wake(irq_num);
+    }
+	return 0;
+}
+
 void mt_bt_enable_irq(void)
 {
     if(irq_num != -1) {
+        //printk("mt_bt_enable_irq\n");
         enable_irq(irq_num);
     }
 }
@@ -97,6 +125,7 @@ EXPORT_SYMBOL(mt_bt_enable_irq);
 void mt_bt_disable_irq(void)
 {
     if(irq_num != -1) {	
+        //printk("mt_bt_disable_irq\n");
         disable_irq_nosync(irq_num);
     }        
 }
@@ -133,7 +162,7 @@ int mt_bt_power_init(void)
 	    if(pdata->reset_gpio.io != INVALID_GPIO)
 	    	gpio_direction_output(pdata->reset_gpio.io, 1);
 	    msleep(1000);
-	    
+
 	    //pdata->power_gpio.io = INVALID_GPIO;
 	    pdata->reset_gpio.io = INVALID_GPIO;
 	}
@@ -193,6 +222,14 @@ int mt_bt_power_on(void)
 	    if(pdata->reset_gpio.io != INVALID_GPIO)
 	    	gpio_direction_output(pdata->reset_gpio.io, 1);
 	    msleep(1000);
+
+        if(gpio_is_valid(pdata->rts_gpio.io)) {
+            printk(KERN_INFO MODULE_TAG "mt_bt_power_on rts iomux\n");
+            rk_mux_api_set(pdata->rts_gpio.iomux.name, pdata->rts_gpio.iomux.fgpio);
+            gpio_direction_output(pdata->rts_gpio.io, 0);
+            msleep(100);
+            rk_mux_api_set(pdata->rts_gpio.iomux.name, pdata->rts_gpio.iomux.fmux);
+        }
 	    
 	    error = mt_bt_request_irq();
 	    if (error){

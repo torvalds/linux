@@ -66,6 +66,7 @@ struct mt6622_platform_data {
     struct rfkill_rk_gpio   power_gpio;
     struct rfkill_rk_gpio   reset_gpio;
     struct rfkill_rk_gpio   irq_gpio;
+    struct rfkill_rk_gpio   rts_gpio;
 };
 
 #endif /* __RFKILL_GPIO_H */

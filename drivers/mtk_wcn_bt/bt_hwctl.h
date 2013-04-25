@@ -59,4 +59,7 @@ extern void mt_bt_enable_irq(void);
 extern void mt_bt_disable_irq(void);
 extern void *mt_bt_get_platform_data(void);
 
+extern int mt6622_suspend(struct platform_device *pdev, pm_message_t state);
+extern int mt6622_resume(struct platform_device *pdev);
+
 #endif

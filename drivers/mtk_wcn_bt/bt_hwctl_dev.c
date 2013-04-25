@@ -245,7 +245,7 @@ static int mt6622_probe(struct platform_device *pdev)
 		if(pdata->power_gpio.io != INVALID_GPIO) {
 			if (gpio_request(pdata->power_gpio.io, "BT_PWR_EN")){
 				printk("mt6622 power_gpio is busy!\n");
-				return -1;
+				//return -1;
 			}
 		}
 		
@@ -253,7 +253,7 @@ static int mt6622_probe(struct platform_device *pdev)
 			if (gpio_request(pdata->reset_gpio.io, "BT_RESET")){
 				printk("mt6622 reset_gpio is busy!\n");
 				gpio_free(pdata->power_gpio.io);
-				return -1;
+				//return -1;
 			}
 		}
 		
@@ -262,7 +262,7 @@ static int mt6622_probe(struct platform_device *pdev)
 				printk("mt6622 irq_gpio is busy!\n");
 				gpio_free(pdata->power_gpio.io);
 				gpio_free(pdata->reset_gpio.io);
-				return -1;
+				//return -1;
 			}
 		}
 		
@@ -309,6 +309,8 @@ static struct file_operations bt_hwctl_fops = {
 static struct platform_driver mt6622_driver = {
     .probe = mt6622_probe,
     .remove = mt6622_remove,
+    .suspend = mt6622_suspend,
+    .resume = mt6622_resume,
     .driver = {
         .name = "mt6622",
         .owner = THIS_MODULE,
@@ -362,13 +364,13 @@ static int __init bt_hwctl_init(void)
     
     init_waitqueue_head(&eint_wait);
     
-    INIT_WORK(&mtk_wcn_bt_event_work, mtk_wcn_bt_work_fun);
+    /*INIT_WORK(&mtk_wcn_bt_event_work, mtk_wcn_bt_work_fun);
     mtk_wcn_bt_workqueue = create_singlethread_workqueue("mtk_wcn_bt");
     if (!mtk_wcn_bt_workqueue) {
         printk("create_singlethread_workqueue failed.\n");
         err = -ESRCH;
         goto ERR_EXIT;
-    }    
+    }*/    
     
     /* request gpio used by BT */
     //mt_bt_gpio_init();
