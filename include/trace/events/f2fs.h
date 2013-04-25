@@ -197,6 +197,13 @@ DEFINE_EVENT(f2fs__inode, f2fs_evict_inode,
 	TP_ARGS(inode)
 );
 
+DEFINE_EVENT(f2fs__inode_exit, f2fs_new_inode,
+
+	TP_PROTO(struct inode *inode, int ret),
+
+	TP_ARGS(inode, ret)
+);
+
 TRACE_EVENT(f2fs_unlink_enter,
 
 	TP_PROTO(struct inode *dir, struct dentry *dentry),
