@@ -393,6 +393,9 @@ static void batadv_recv_handler_init(void)
 	for (i = 0; i < ARRAY_SIZE(batadv_rx_handler); i++)
 		batadv_rx_handler[i] = batadv_recv_unhandled_packet;
 
+	for (i = BATADV_UNICAST_MIN; i <= BATADV_UNICAST_MAX; i++)
+		batadv_rx_handler[i] = batadv_recv_unhandled_unicast_packet;
+
 	/* compile time checks for struct member offsets */
 	BUILD_BUG_ON(offsetof(struct batadv_unicast_4addr_packet, src) != 10);
 	BUILD_BUG_ON(offsetof(struct batadv_unicast_packet, dest) != 4);
@@ -401,18 +404,20 @@ static void batadv_recv_handler_init(void)
 	BUILD_BUG_ON(offsetof(struct batadv_icmp_packet, dst) != 4);
 	BUILD_BUG_ON(offsetof(struct batadv_icmp_packet_rr, dst) != 4);
 
-	/* batman icmp packet */
-	batadv_rx_handler[BATADV_ICMP] = batadv_recv_icmp_packet;
+	/* broadcast packet */
+	batadv_rx_handler[BATADV_BCAST] = batadv_recv_bcast_packet;
+
+	/* unicast packets ... */
 	/* unicast with 4 addresses packet */
 	batadv_rx_handler[BATADV_UNICAST_4ADDR] = batadv_recv_unicast_packet;
 	/* unicast packet */
 	batadv_rx_handler[BATADV_UNICAST] = batadv_recv_unicast_packet;
 	/* fragmented unicast packet */
 	batadv_rx_handler[BATADV_UNICAST_FRAG] = batadv_recv_ucast_frag_packet;
-	/* broadcast packet */
-	batadv_rx_handler[BATADV_BCAST] = batadv_recv_bcast_packet;
 	/* unicast tvlv packet */
 	batadv_rx_handler[BATADV_UNICAST_TVLV] = batadv_recv_unicast_tvlv;
+	/* batman icmp packet */
+	batadv_rx_handler[BATADV_ICMP] = batadv_recv_icmp_packet;
 }
 
 int
@@ -420,7 +425,12 @@ batadv_recv_handler_register(uint8_t packet_type,
 			     int (*recv_handler)(struct sk_buff *,
 						 struct batadv_hard_iface *))
 {
-	if (batadv_rx_handler[packet_type] != &batadv_recv_unhandled_packet)
+	int (*curr)(struct sk_buff *,
+		    struct batadv_hard_iface *);
+	curr = batadv_rx_handler[packet_type];
+
+	if ((curr != batadv_recv_unhandled_packet) &&
+	    (curr != batadv_recv_unhandled_unicast_packet))
 		return -EBUSY;
 
 	batadv_rx_handler[packet_type] = recv_handler;

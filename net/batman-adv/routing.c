@@ -911,6 +911,34 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	return 1;
 }
 
+/**
+ * batadv_recv_unhandled_unicast_packet - receive and process packets which
+ *	are in the unicast number space but not yet known to the implementation
+ * @skb: unicast tvlv packet to process
+ * @recv_if: pointer to interface this packet was received on
+ *
+ * Returns NET_RX_SUCCESS if the packet has been consumed or NET_RX_DROP
+ * otherwise.
+ */
+int batadv_recv_unhandled_unicast_packet(struct sk_buff *skb,
+					 struct batadv_hard_iface *recv_if)
+{
+	struct batadv_unicast_packet *unicast_packet;
+	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
+	int check, hdr_size = sizeof(*unicast_packet);
+
+	check = batadv_check_unicast_packet(bat_priv, skb, hdr_size);
+	if (check < 0)
+		return NET_RX_DROP;
+
+	/* we don't know about this type, drop it. */
+	unicast_packet = (struct batadv_unicast_packet *)skb->data;
+	if (batadv_is_my_mac(bat_priv, unicast_packet->dest))
+		return NET_RX_DROP;
+
+	return batadv_route_unicast_packet(skb, recv_if);
+}
+
 int batadv_recv_unicast_packet(struct sk_buff *skb,
 			       struct batadv_hard_iface *recv_if)
 {

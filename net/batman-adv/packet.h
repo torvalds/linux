@@ -22,17 +22,32 @@
 
 /**
  * enum batadv_packettype - types for batman-adv encapsulated packets
+ * @BATADV_IV_OGM: originator messages for B.A.T.M.A.N. IV
+ * @BATADV_BCAST: broadcast packets carrying broadcast payload
+ * @BATADV_CODED: network coded packets
+ *
+ * @BATADV_UNICAST: unicast packets carrying unicast payload traffic
+ * @BATADV_UNICAST_FRAG: unicast packets carrying a fragment of the original
+ *     payload packet
+ * @BATADV_UNICAST_4ADDR: unicast packet including the originator address of
+ *     the sender
+ * @BATADV_ICMP: unicast packet like IP ICMP used for ping or traceroute
  * @BATADV_UNICAST_TVLV: unicast packet carrying TVLV containers
  */
 enum batadv_packettype {
-	BATADV_IV_OGM		= 0x01,
-	BATADV_ICMP		= 0x02,
-	BATADV_UNICAST		= 0x03,
-	BATADV_BCAST		= 0x04,
-	BATADV_UNICAST_FRAG	= 0x06,
-	BATADV_UNICAST_4ADDR	= 0x09,
-	BATADV_CODED		= 0x0a,
-	BATADV_UNICAST_TVLV	= 0x0b,
+	/* 0x00 - 0x3f: local packets or special rules for handling */
+	BATADV_IV_OGM           = 0x00,
+	BATADV_BCAST            = 0x01,
+	BATADV_CODED            = 0x02,
+	/* 0x40 - 0x7f: unicast */
+#define BATADV_UNICAST_MIN     0x40
+	BATADV_UNICAST          = 0x40,
+	BATADV_UNICAST_FRAG     = 0x41,
+	BATADV_UNICAST_4ADDR    = 0x42,
+	BATADV_ICMP             = 0x43,
+	BATADV_UNICAST_TVLV     = 0x44,
+#define BATADV_UNICAST_MAX     0x7f
+	/* 0x80 - 0xff: reserved */
 };
 
 /**
