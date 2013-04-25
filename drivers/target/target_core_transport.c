@@ -2163,8 +2163,6 @@ void transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 		if (wait_for_tasks)
 			transport_wait_for_tasks(cmd);
 
-		core_dec_lacl_count(cmd->se_sess->se_node_acl, cmd);
-
 		if (cmd->se_lun)
 			transport_lun_remove_cmd(cmd);
 

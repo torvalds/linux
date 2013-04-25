@@ -572,12 +572,8 @@ struct se_dev_entry {
 	bool			def_pr_registered;
 	/* See transport_lunflags_table */
 	u32			lun_flags;
-	u32			deve_cmds;
 	u32			mapped_lun;
-	u32			average_bytes;
-	u32			last_byte_count;
 	u32			total_cmds;
-	u32			total_bytes;
 	u64			pr_res_key;
 	u64			creation_time;
 	u32			attach_count;
