@@ -2826,6 +2826,7 @@ fail_qgroup:
 fail_trans_kthread:
 	kthread_stop(fs_info->transaction_kthread);
 	del_fs_roots(fs_info);
+	btrfs_cleanup_transaction(fs_info->tree_root);
 fail_cleaner:
 	kthread_stop(fs_info->cleaner_kthread);
 
@@ -2836,6 +2837,7 @@ fail_cleaner:
 	filemap_write_and_wait(fs_info->btree_inode->i_mapping);
 
 fail_block_groups:
+	btrfs_put_block_group_cache(fs_info);
 	btrfs_free_block_groups(fs_info);
 
 fail_tree_roots:
@@ -3681,6 +3683,9 @@ int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 				continue;
 			}
 
+			if (head->must_insert_reserved)
+				btrfs_pin_extent(root, ref->bytenr,
+						 ref->num_bytes, 1);
 			btrfs_free_delayed_extent_op(head->extent_op);
 			delayed_refs->num_heads--;
 			if (list_empty(&head->cluster))
@@ -3875,10 +3880,6 @@ int btrfs_cleanup_transaction(struct btrfs_root *root)
 		btrfs_destroy_ordered_extents(root);
 
 		btrfs_destroy_delayed_refs(t, root);
-
-		btrfs_block_rsv_release(root,
-					&root->fs_info->trans_block_rsv,
-					t->dirty_pages.dirty_bytes);
 
 		/* FIXME: cleanup wait for commit */
 		t->in_commit = 1;
