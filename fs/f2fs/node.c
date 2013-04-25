@@ -1309,14 +1309,14 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
 	struct f2fs_summary_block *sum = curseg->sum_blk;
-	nid_t nid = 0;
-	bool is_cycled = false;
-	int fcnt = 0;
-	int i;
+	int fcnt = 0, i = 0;
+	nid_t nid = nm_i->next_scan_nid;
 
-	nid = nm_i->next_scan_nid;
-	nm_i->init_scan_nid = nid;
+	/* Enough entries */
+	if (nm_i->fcnt > NAT_ENTRY_PER_BLOCK)
+		return;
 
+	/* readahead nat pages to be scanned */
 	ra_nat_pages(sbi, nid);
 
 	while (1) {
@@ -1326,19 +1326,15 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 		f2fs_put_page(page, 1);
 
 		nid += (NAT_ENTRY_PER_BLOCK - (nid % NAT_ENTRY_PER_BLOCK));
-
-		if (nid >= nm_i->max_nid) {
+		if (nid >= nm_i->max_nid)
 			nid = 0;
-			is_cycled = true;
-		}
-		if (fcnt > MAX_FREE_NIDS)
-			break;
-		if (is_cycled && nm_i->init_scan_nid <= nid)
+
+		if (i++ == FREE_NID_PAGES)
 			break;
 	}
 
-	/* go to the next nat page in order to reuse free nids first */
-	nm_i->next_scan_nid = nm_i->init_scan_nid + NAT_ENTRY_PER_BLOCK;
+	/* go to the next free nat pages to find free nids abundantly */
+	nm_i->next_scan_nid = nid;
 
 	/* find free nids from current sum_pages */
 	mutex_lock(&curseg->curseg_mutex);
@@ -1375,41 +1371,36 @@ bool alloc_nid(struct f2fs_sb_info *sbi, nid_t *nid)
 	struct free_nid *i = NULL;
 	struct list_head *this;
 retry:
-	mutex_lock(&nm_i->build_lock);
-	if (!nm_i->fcnt) {
-		/* scan NAT in order to build free nid list */
-		build_free_nids(sbi);
-		if (!nm_i->fcnt) {
-			mutex_unlock(&nm_i->build_lock);
-			return false;
-		}
-	}
-	mutex_unlock(&nm_i->build_lock);
+	if (sbi->total_valid_node_count + 1 >= nm_i->max_nid)
+		return false;
 
-	/*
-	 * We check fcnt again since previous check is racy as
-	 * we didn't hold free_nid_list_lock. So other thread
-	 * could consume all of free nids.
-	 */
 	spin_lock(&nm_i->free_nid_list_lock);
-	if (!nm_i->fcnt) {
+
+	/* We should not use stale free nids created by build_free_nids */
+	if (nm_i->fcnt && !sbi->on_build_free_nids) {
+		BUG_ON(list_empty(&nm_i->free_nid_list));
+		list_for_each(this, &nm_i->free_nid_list) {
+			i = list_entry(this, struct free_nid, list);
+			if (i->state == NID_NEW)
+				break;
+		}
+
+		BUG_ON(i->state != NID_NEW);
+		*nid = i->nid;
+		i->state = NID_ALLOC;
+		nm_i->fcnt--;
 		spin_unlock(&nm_i->free_nid_list_lock);
-		goto retry;
+		return true;
 	}
-
-	BUG_ON(list_empty(&nm_i->free_nid_list));
-	list_for_each(this, &nm_i->free_nid_list) {
-		i = list_entry(this, struct free_nid, list);
-		if (i->state == NID_NEW)
-			break;
-	}
-
-	BUG_ON(i->state != NID_NEW);
-	*nid = i->nid;
-	i->state = NID_ALLOC;
-	nm_i->fcnt--;
 	spin_unlock(&nm_i->free_nid_list_lock);
-	return true;
+
+	/* Let's scan nat pages and its caches to get free nids */
+	mutex_lock(&nm_i->build_lock);
+	sbi->on_build_free_nids = 1;
+	build_free_nids(sbi);
+	sbi->on_build_free_nids = 0;
+	mutex_unlock(&nm_i->build_lock);
+	goto retry;
 }
 
 /*
@@ -1696,7 +1687,6 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 	spin_lock_init(&nm_i->free_nid_list_lock);
 	rwlock_init(&nm_i->nat_tree_lock);
 
-	nm_i->init_scan_nid = le32_to_cpu(sbi->ckpt->next_free_nid);
 	nm_i->next_scan_nid = le32_to_cpu(sbi->ckpt->next_free_nid);
 	nm_i->bitmap_size = __bitmap_size(sbi, NAT_BITMAP);
 	version_bitmap = __bitmap_ptr(sbi, NAT_BITMAP);

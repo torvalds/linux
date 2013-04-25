@@ -190,7 +190,6 @@ static inline void set_raw_extent(struct extent_info *ext,
 struct f2fs_nm_info {
 	block_t nat_blkaddr;		/* base disk address of NAT */
 	nid_t max_nid;			/* maximum possible node ids */
-	nid_t init_scan_nid;		/* the first nid to be scanned */
 	nid_t next_scan_nid;		/* the next nid to be scanned */
 
 	/* NAT cache management */
@@ -360,6 +359,7 @@ struct f2fs_sb_info {
 	struct mutex writepages;		/* mutex for writepages() */
 	unsigned char next_lock_num;		/* round-robin global locks */
 	int por_doing;				/* recovery is doing or not */
+	int on_build_free_nids;			/* build_free_nids is doing */
 
 	/* for orphan inode management */
 	struct list_head orphan_inode_list;	/* orphan inode list */
