@@ -191,9 +191,11 @@ Linux it will look something like this:
 	};
 
 The bootargs property contains the kernel arguments, and the initrd-*
-properties define the address and size of an initrd blob.  The
-chosen node may also optionally contain an arbitrary number of
-additional properties for platform-specific configuration data.
+properties define the address and size of an initrd blob.  Note that
+initrd-end is the first address after the initrd image, so this doesn't
+match the usual semantic of struct resource.  The chosen node may also
+optionally contain an arbitrary number of additional properties for
+platform-specific configuration data.
 
 During early boot, the architecture setup code calls of_scan_flat_dt()
 several times with different helper callbacks to parse device tree
