@@ -166,6 +166,10 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 			pdiag_put_fanout(po, skb))
 		goto out_nlmsg_trim;
 
+	if ((req->pdiag_show & PACKET_SHOW_MEMINFO) &&
+	    sock_diag_put_meminfo(sk, skb, PACKET_DIAG_MEMINFO))
+		goto out_nlmsg_trim;
+
 	return nlmsg_end(skb, nlh);
 
 out_nlmsg_trim:
