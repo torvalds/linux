@@ -565,8 +565,7 @@ struct cache {
 
 	unsigned		watermark[WATERMARK_MAX];
 
-	struct closure		alloc;
-	struct workqueue_struct	*alloc_workqueue;
+	struct task_struct	*alloc_thread;
 
 	struct closure		prio;
 	struct prio_set		*disk_buckets;
@@ -702,9 +701,6 @@ struct cache_set {
 
 	/* For the btree cache */
 	struct shrinker		shrink;
-
-	/* For the allocator itself */
-	wait_queue_head_t	alloc_wait;
 
 	/* For the btree cache and anything allocation related */
 	struct mutex		bucket_lock;
@@ -1173,6 +1169,15 @@ static inline uint8_t bucket_disk_gen(struct bucket *b)
 	static struct kobj_attribute ksysfs_##n =			\
 		__ATTR(n, S_IWUSR|S_IRUSR, show, store)
 
+static inline void wake_up_allocators(struct cache_set *c)
+{
+	struct cache *ca;
+	unsigned i;
+
+	for_each_cache(ca, c, i)
+		wake_up_process(ca->alloc_thread);
+}
+
 /* Forward declarations */
 
 void bch_writeback_queue(struct cached_dev *);
@@ -1193,7 +1198,6 @@ void bch_submit_bbio(struct bio *, struct cache_set *, struct bkey *, unsigned);
 uint8_t bch_inc_gen(struct cache *, struct bucket *);
 void bch_rescale_priorities(struct cache_set *, int);
 bool bch_bucket_add_unused(struct cache *, struct bucket *);
-void bch_allocator_thread(struct closure *);
 
 long bch_bucket_alloc(struct cache *, unsigned, struct closure *);
 void bch_bucket_free(struct cache_set *, struct bkey *);
@@ -1244,6 +1248,7 @@ int bch_btree_cache_alloc(struct cache_set *);
 void bch_cached_dev_writeback_init(struct cached_dev *);
 void bch_moving_init_cache_set(struct cache_set *);
 
+int bch_cache_allocator_start(struct cache *ca);
 void bch_cache_allocator_exit(struct cache *ca);
 int bch_cache_allocator_init(struct cache *ca);
 

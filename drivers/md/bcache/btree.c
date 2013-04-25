@@ -273,7 +273,7 @@ static void btree_complete_write(struct btree *b, struct btree_write *w)
 {
 	if (w->prio_blocked &&
 	    !atomic_sub_return(w->prio_blocked, &b->c->prio_blocked))
-		wake_up(&b->c->alloc_wait);
+		wake_up_allocators(b->c);
 
 	if (w->journal) {
 		atomic_dec_bug(w->journal);
@@ -984,7 +984,7 @@ static void btree_node_free(struct btree *b, struct btree_op *op)
 
 	if (b->prio_blocked &&
 	    !atomic_sub_return(b->prio_blocked, &b->c->prio_blocked))
-		wake_up(&b->c->alloc_wait);
+		wake_up_allocators(b->c);
 
 	b->prio_blocked = 0;
 
@@ -1547,7 +1547,7 @@ static void bch_btree_gc(struct closure *cl)
 	blktrace_msg_all(c, "Finished gc");
 
 	trace_bcache_gc_end(c->sb.set_uuid);
-	wake_up(&c->alloc_wait);
+	wake_up_allocators(c);
 
 	continue_at(cl, bch_moving_gc, bch_gc_wq);
 }

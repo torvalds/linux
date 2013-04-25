@@ -63,6 +63,7 @@
 #include "bcache.h"
 #include "btree.h"
 
+#include <linux/kthread.h>
 #include <linux/random.h>
 
 #define MAX_IN_FLIGHT_DISCARDS		8U
@@ -151,7 +152,7 @@ static void discard_finish(struct work_struct *w)
 	mutex_unlock(&ca->set->bucket_lock);
 
 	closure_wake_up(&ca->set->bucket_wait);
-	wake_up(&ca->set->alloc_wait);
+	wake_up_process(ca->alloc_thread);
 
 	closure_put(&ca->set->cl);
 }
@@ -358,30 +359,26 @@ static void invalidate_buckets(struct cache *ca)
 
 #define allocator_wait(ca, cond)					\
 do {									\
-	DEFINE_WAIT(__wait);						\
-									\
 	while (1) {							\
-		prepare_to_wait(&ca->set->alloc_wait,			\
-				&__wait, TASK_INTERRUPTIBLE);		\
+		set_current_state(TASK_INTERRUPTIBLE);			\
 		if (cond)						\
 			break;						\
 									\
 		mutex_unlock(&(ca)->set->bucket_lock);			\
 		if (test_bit(CACHE_SET_STOPPING_2, &ca->set->flags)) {	\
-			finish_wait(&ca->set->alloc_wait, &__wait);	\
-			closure_return(cl);				\
+			closure_put(&ca->set->cl);			\
+			return 0;					\
 		}							\
 									\
 		schedule();						\
 		mutex_lock(&(ca)->set->bucket_lock);			\
 	}								\
-									\
-	finish_wait(&ca->set->alloc_wait, &__wait);			\
+	__set_current_state(TASK_RUNNING);				\
 } while (0)
 
-void bch_allocator_thread(struct closure *cl)
+static int bch_allocator_thread(void *arg)
 {
-	struct cache *ca = container_of(cl, struct cache, alloc);
+	struct cache *ca = arg;
 
 	mutex_lock(&ca->set->bucket_lock);
 
@@ -442,7 +439,7 @@ long bch_bucket_alloc(struct cache *ca, unsigned watermark, struct closure *cl)
 {
 	long r = -1;
 again:
-	wake_up(&ca->set->alloc_wait);
+	wake_up_process(ca->alloc_thread);
 
 	if (fifo_used(&ca->free) > ca->watermark[watermark] &&
 	    fifo_pop(&ca->free, r)) {
@@ -551,6 +548,19 @@ int bch_bucket_alloc_set(struct cache_set *c, unsigned watermark,
 }
 
 /* Init */
+
+int bch_cache_allocator_start(struct cache *ca)
+{
+	ca->alloc_thread = kthread_create(bch_allocator_thread,
+					  ca, "bcache_allocator");
+	if (IS_ERR(ca->alloc_thread))
+		return PTR_ERR(ca->alloc_thread);
+
+	closure_get(&ca->set->cl);
+	wake_up_process(ca->alloc_thread);
+
+	return 0;
+}
 
 void bch_cache_allocator_exit(struct cache *ca)
 {

@@ -1282,7 +1282,7 @@ static void cache_set_flush(struct closure *cl)
 
 	/* Shut down allocator threads */
 	set_bit(CACHE_SET_STOPPING_2, &c->flags);
-	wake_up(&c->alloc_wait);
+	wake_up_allocators(c);
 
 	bch_cache_accounting_destroy(&c->accounting);
 
@@ -1373,7 +1373,6 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 		c->btree_pages = max_t(int, c->btree_pages / 4,
 				       BTREE_MAX_PAGES);
 
-	init_waitqueue_head(&c->alloc_wait);
 	mutex_init(&c->bucket_lock);
 	mutex_init(&c->fill_lock);
 	mutex_init(&c->sort_lock);
@@ -1496,9 +1495,10 @@ static void run_cache_set(struct cache_set *c)
 		 */
 		bch_journal_next(&c->journal);
 
+		err = "error starting allocator thread";
 		for_each_cache(ca, c, i)
-			closure_call(&ca->alloc, bch_allocator_thread,
-				     system_wq, &c->cl);
+			if (bch_cache_allocator_start(ca))
+				goto err;
 
 		/*
 		 * First place it's safe to allocate: btree_check() and
@@ -1531,16 +1531,15 @@ static void run_cache_set(struct cache_set *c)
 
 		bch_btree_gc_finish(c);
 
+		err = "error starting allocator thread";
 		for_each_cache(ca, c, i)
-			closure_call(&ca->alloc, bch_allocator_thread,
-				     ca->alloc_workqueue, &c->cl);
+			if (bch_cache_allocator_start(ca))
+				goto err;
 
 		mutex_lock(&c->bucket_lock);
 		for_each_cache(ca, c, i)
 			bch_prio_write(ca);
 		mutex_unlock(&c->bucket_lock);
-
-		wake_up(&c->alloc_wait);
 
 		err = "cannot allocate new UUID bucket";
 		if (__uuid_write(c))
@@ -1673,9 +1672,6 @@ void bch_cache_release(struct kobject *kobj)
 
 	bio_split_pool_free(&ca->bio_split_hook);
 
-	if (ca->alloc_workqueue)
-		destroy_workqueue(ca->alloc_workqueue);
-
 	free_pages((unsigned long) ca->disk_buckets, ilog2(bucket_pages(ca)));
 	kfree(ca->prio_buckets);
 	vfree(ca->buckets);
@@ -1723,7 +1719,6 @@ static int cache_alloc(struct cache_sb *sb, struct cache *ca)
 	    !(ca->prio_buckets	= kzalloc(sizeof(uint64_t) * prio_buckets(ca) *
 					  2, GFP_KERNEL)) ||
 	    !(ca->disk_buckets	= alloc_bucket_pages(GFP_KERNEL, ca)) ||
-	    !(ca->alloc_workqueue = alloc_workqueue("bch_allocator", 0, 1)) ||
 	    bio_split_pool_init(&ca->bio_split_hook))
 		return -ENOMEM;
 
