@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2003 Petko Manolov - Petkan (petkan@users.sourceforge.net)
+ * Copyright (c) 1999-2013 Petko Manolov (petkan@nucleusys.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as published
@@ -33,8 +33,6 @@
 #define	CTRL_URB_SLEEP		0x00000020
 #define	PEGASUS_UNPLUG		0x00000040
 #define	PEGASUS_RX_URB_FAIL	0x00000080
-#define	ETH_REGS_CHANGE		0x40000000
-#define	ETH_REGS_CHANGED	0x80000000
 
 #define	RX_MULTICAST		2
 #define	RX_PROMISCUOUS		4
@@ -95,10 +93,8 @@ typedef struct pegasus {
 	int			intr_interval;
 	struct tasklet_struct	rx_tl;
 	struct delayed_work	carrier_check;
-	struct urb		*ctrl_urb, *rx_urb, *tx_urb, *intr_urb;
+	struct urb		*rx_urb, *tx_urb, *intr_urb;
 	struct sk_buff		*rx_skb;
-	struct usb_ctrlrequest	dr;
-	wait_queue_head_t	ctrl_wait;
 	int			chip;
 	unsigned char		intr_buff[8];
 	__u8			tx_buff[PEGASUS_MTU];
