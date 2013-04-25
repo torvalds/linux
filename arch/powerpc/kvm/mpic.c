@@ -1781,7 +1781,6 @@ int kvmppc_mpic_connect_vcpu(struct kvm_device *dev, struct kvm_vcpu *vcpu,
 	if (opp->mpic_mode_mask == GCR_MODE_PROXY)
 		vcpu->arch.epr_flags |= KVMPPC_EPR_KERNEL;
 
-	kvm_device_get(dev);
 out:
 	spin_unlock_irq(&opp->lock);
 	return ret;
@@ -1797,7 +1796,6 @@ void kvmppc_mpic_disconnect_vcpu(struct openpic *opp, struct kvm_vcpu *vcpu)
 	BUG_ON(!opp->dst[vcpu->arch.irq_cpu_id].vcpu);
 
 	opp->dst[vcpu->arch.irq_cpu_id].vcpu = NULL;
-	kvm_device_put(opp->dev);
 }
 
 /*
