@@ -1245,6 +1245,10 @@ static int add_free_nid(struct f2fs_nm_info *nm_i, nid_t nid)
 
 	if (nm_i->fcnt > 2 * MAX_FREE_NIDS)
 		return 0;
+
+	/* 0 nid should not be used */
+	if (nid == 0)
+		return 0;
 retry:
 	i = kmem_cache_alloc(free_nid_slab, GFP_NOFS);
 	if (!i) {
@@ -1285,10 +1289,6 @@ static int scan_nat_page(struct f2fs_nm_info *nm_i,
 	block_t blk_addr;
 	int fcnt = 0;
 	int i;
-
-	/* 0 nid should not be used */
-	if (start_nid == 0)
-		++start_nid;
 
 	i = start_nid % NAT_ENTRY_PER_BLOCK;
 
