@@ -600,9 +600,8 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 		 */
 		tbl->it_busno = 0;
 		tbl->it_index = (unsigned long)ioremap(be64_to_cpup(swinvp), 8);
-		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
-		if (phb->type == PNV_PHB_IODA1)
-			tbl->it_type |= TCE_PCI_SWINV_PAIR;
+		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE |
+			       TCE_PCI_SWINV_PAIR;
 	}
 	iommu_init_table(tbl, phb->hose->node);
 
@@ -618,6 +617,81 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 		pe->tce32_seg = -1;
 	if (tce_mem)
 		__free_pages(tce_mem, get_order(TCE32_TABLE_SIZE * segs));
+}
+
+static void pnv_pci_ioda2_setup_dma_pe(struct pnv_phb *phb,
+				       struct pnv_ioda_pe *pe)
+{
+	struct page *tce_mem = NULL;
+	void *addr;
+	const __be64 *swinvp;
+	struct iommu_table *tbl;
+	unsigned int tce_table_size, end;
+	int64_t rc;
+
+	/* We shouldn't already have a 32-bit DMA associated */
+	if (WARN_ON(pe->tce32_seg >= 0))
+		return;
+
+	/* The PE will reserve all possible 32-bits space */
+	pe->tce32_seg = 0;
+	end = (1 << ilog2(phb->ioda.m32_pci_base));
+	tce_table_size = (end / 0x1000) * 8;
+	pe_info(pe, "Setting up 32-bit TCE table at 0..%08x\n",
+		end);
+
+	/* Allocate TCE table */
+	tce_mem = alloc_pages_node(phb->hose->node, GFP_KERNEL,
+				   get_order(tce_table_size));
+	if (!tce_mem) {
+		pe_err(pe, "Failed to allocate a 32-bit TCE memory\n");
+		goto fail;
+	}
+	addr = page_address(tce_mem);
+	memset(addr, 0, tce_table_size);
+
+	/*
+	 * Map TCE table through TVT. The TVE index is the PE number
+	 * shifted by 1 bit for 32-bits DMA space.
+	 */
+	rc = opal_pci_map_pe_dma_window(phb->opal_id, pe->pe_number,
+					pe->pe_number << 1, 1, __pa(addr),
+					tce_table_size, 0x1000);
+	if (rc) {
+		pe_err(pe, "Failed to configure 32-bit TCE table,"
+		       " err %ld\n", rc);
+		goto fail;
+	}
+
+	/* Setup linux iommu table */
+	tbl = &pe->tce32_table;
+	pnv_pci_setup_iommu_table(tbl, addr, tce_table_size, 0);
+
+	/* OPAL variant of PHB3 invalidated TCEs */
+	swinvp = of_get_property(phb->hose->dn, "ibm,opal-tce-kill", NULL);
+	if (swinvp) {
+		/* We need a couple more fields -- an address and a data
+		 * to or.  Since the bus is only printed out on table free
+		 * errors, and on the first pass the data will be a relative
+		 * bus number, print that out instead.
+		 */
+		tbl->it_busno = 0;
+		tbl->it_index = (unsigned long)ioremap(be64_to_cpup(swinvp), 8);
+		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
+	}
+	iommu_init_table(tbl, phb->hose->node);
+
+	if (pe->pdev)
+		set_iommu_table_base(&pe->pdev->dev, tbl);
+	else
+		pnv_ioda_setup_bus_dma(pe, pe->pbus);
+
+	return;
+fail:
+	if (pe->tce32_seg >= 0)
+		pe->tce32_seg = -1;
+	if (tce_mem)
+		__free_pages(tce_mem, get_order(tce_table_size));
 }
 
 static void pnv_ioda_setup_dma(struct pnv_phb *phb)
@@ -662,9 +736,22 @@ static void pnv_ioda_setup_dma(struct pnv_phb *phb)
 			if (segs > remaining)
 				segs = remaining;
 		}
-		pe_info(pe, "DMA weight %d, assigned %d DMA32 segments\n",
-			pe->dma_weight, segs);
-		pnv_pci_ioda_setup_dma_pe(phb, pe, base, segs);
+
+		/*
+		 * For IODA2 compliant PHB3, we needn't care about the weight.
+		 * The all available 32-bits DMA space will be assigned to
+		 * the specific PE.
+		 */
+		if (phb->type == PNV_PHB_IODA1) {
+			pe_info(pe, "DMA weight %d, assigned %d DMA32 segments\n",
+				pe->dma_weight, segs);
+			pnv_pci_ioda_setup_dma_pe(phb, pe, base, segs);
+		} else {
+			pe_info(pe, "Assign DMA32 space\n");
+			segs = 0;
+			pnv_pci_ioda2_setup_dma_pe(phb, pe);
+		}
+
 		remaining -= segs;
 		base += segs;
 	}
