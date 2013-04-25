@@ -992,6 +992,8 @@ static int r600_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(MC_VM_L1_TLB_MCB_WR_GFX_CNTL, tmp);
 	WREG32(MC_VM_L1_TLB_MCB_RD_PDMA_CNTL, tmp);
 	WREG32(MC_VM_L1_TLB_MCB_WR_PDMA_CNTL, tmp);
+	WREG32(MC_VM_L1_TLB_MCB_RD_UVD_CNTL, tmp);
+	WREG32(MC_VM_L1_TLB_MCB_WR_UVD_CNTL, tmp);
 	WREG32(MC_VM_L1_TLB_MCB_RD_SEM_CNTL, tmp | ENABLE_SEMAPHORE_MODE);
 	WREG32(MC_VM_L1_TLB_MCB_WR_SEM_CNTL, tmp | ENABLE_SEMAPHORE_MODE);
 	WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR, rdev->mc.gtt_start >> 12);
@@ -1042,6 +1044,8 @@ static void r600_pcie_gart_disable(struct radeon_device *rdev)
 	WREG32(MC_VM_L1_TLB_MCB_WR_SYS_CNTL, tmp);
 	WREG32(MC_VM_L1_TLB_MCB_RD_HDP_CNTL, tmp);
 	WREG32(MC_VM_L1_TLB_MCB_WR_HDP_CNTL, tmp);
+	WREG32(MC_VM_L1_TLB_MCB_RD_UVD_CNTL, tmp);
+	WREG32(MC_VM_L1_TLB_MCB_WR_UVD_CNTL, tmp);
 	radeon_gart_table_vram_unpin(rdev);
 }
 
