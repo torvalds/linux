@@ -389,6 +389,9 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 		dev_spec->eee_disable = false;
 	else
 		dev_spec->eee_disable = true;
+	/* Allow a single clear of the SW semaphore on I210 and newer */
+	if (mac->type >= e1000_i210)
+		dev_spec->clear_semaphore_once = true;
 	/* physical interface link setup */
 	mac->ops.setup_physical_interface =
 		(hw->phy.media_type == e1000_media_type_copper)
@@ -440,8 +443,6 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		mac->type = e1000_i350;
 		break;
 	case E1000_DEV_ID_I210_COPPER:
-	case E1000_DEV_ID_I210_COPPER_OEM1:
-	case E1000_DEV_ID_I210_COPPER_IT:
 	case E1000_DEV_ID_I210_FIBER:
 	case E1000_DEV_ID_I210_SERDES:
 	case E1000_DEV_ID_I210_SGMII:
@@ -2048,10 +2049,6 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 		 */
 		hw_dbg("Auto Read Done did not complete\n");
 	}
-
-	/* If EEPROM is not present, run manual init scripts */
-	if ((rd32(E1000_EECD) & E1000_EECD_PRES) == 0)
-		igb_reset_init_script_82575(hw);
 
 	/* clear global device reset status bit */
 	wr32(E1000_STATUS, E1000_STAT_DEV_RST_SET);

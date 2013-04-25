@@ -266,6 +266,8 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 	/* Determine 1G link capabilities off of SFP+ type */
 	if (hw->phy.sfp_type == ixgbe_sfp_type_1g_cu_core0 ||
 	    hw->phy.sfp_type == ixgbe_sfp_type_1g_cu_core1 ||
+	    hw->phy.sfp_type == ixgbe_sfp_type_1g_lx_core0 ||
+	    hw->phy.sfp_type == ixgbe_sfp_type_1g_lx_core1 ||
 	    hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core0 ||
 	    hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core1) {
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
@@ -1055,7 +1057,7 @@ mac_reset_top:
 		 * LMS state either.
 		 */
 		if ((hw->phy.multispeed_fiber && hw->mng_fw_enabled) ||
-		    hw->wol_supported)
+		    hw->wol_enabled)
 			hw->mac.orig_autoc =
 				(hw->mac.orig_autoc & ~IXGBE_AUTOC_LMS_MASK) |
 				curr_lms;
