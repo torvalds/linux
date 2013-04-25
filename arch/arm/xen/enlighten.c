@@ -10,9 +10,12 @@
 #include <xen/platform_pci.h>
 #include <xen/xenbus.h>
 #include <xen/page.h>
+#include <xen/xen.h>
+#include <xen/interface/sched.h>
 #include <xen/xen-ops.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
+#include <asm/system_misc.h>
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
 #include <linux/module.h>
@@ -173,6 +176,24 @@ static int __init xen_secondary_init(unsigned int cpu)
 	return 0;
 }
 
+static void xen_restart(char str, const char *cmd)
+{
+	struct sched_shutdown r = { .reason = SHUTDOWN_reboot };
+	int rc;
+	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
+	if (rc)
+		BUG();
+}
+
+static void xen_power_off(void)
+{
+	struct sched_shutdown r = { .reason = SHUTDOWN_poweroff };
+	int rc;
+	rc = HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
+	if (rc)
+		BUG();
+}
+
 /*
  * see Documentation/devicetree/bindings/arm/xen.txt for the
  * documentation of the Xen Device Tree format.
@@ -251,6 +272,9 @@ static int __init xen_guest_init(void)
 	gnttab_init();
 	if (!xen_initial_domain())
 		xenbus_probe(NULL);
+
+	pm_power_off = xen_power_off;
+	arm_pm_restart = xen_restart;
 
 	return 0;
 }
