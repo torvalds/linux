@@ -2062,7 +2062,7 @@ static void dwc2_hc_intr(struct dwc2_hsotg *hsotg)
 }
 
 /* This function handles interrupts for the HCD */
-irqreturn_t dwc2_hcd_intr(struct dwc2_hsotg *hsotg)
+irqreturn_t dwc2_handle_hcd_intr(struct dwc2_hsotg *hsotg)
 {
 	u32 gintsts, dbg_gintsts;
 	irqreturn_t retval = IRQ_NONE;

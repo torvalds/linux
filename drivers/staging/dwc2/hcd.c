@@ -2534,7 +2534,7 @@ static irqreturn_t _dwc2_hcd_irq(struct usb_hcd *hcd)
 {
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
 
-	return dwc2_hcd_intr(hsotg);
+	return dwc2_handle_hcd_intr(hsotg);
 }
 
 /*
