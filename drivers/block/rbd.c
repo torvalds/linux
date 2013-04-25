@@ -359,7 +359,7 @@ static int rbd_img_request_submit(struct rbd_img_request *img_request);
 static int rbd_dev_snaps_update(struct rbd_device *rbd_dev);
 
 static void rbd_dev_release(struct device *dev);
-static void rbd_remove_snap_dev(struct rbd_snap *snap);
+static void rbd_snap_destroy(struct rbd_snap *snap);
 
 static ssize_t rbd_add(struct bus_type *bus, const char *buf,
 		       size_t count);
@@ -3010,8 +3010,10 @@ static void rbd_remove_all_snaps(struct rbd_device *rbd_dev)
 	struct rbd_snap *snap;
 	struct rbd_snap *next;
 
-	list_for_each_entry_safe(snap, next, &rbd_dev->snaps, node)
-		rbd_remove_snap_dev(snap);
+	list_for_each_entry_safe(snap, next, &rbd_dev->snaps, node) {
+		list_del(&snap->node);
+		rbd_snap_destroy(snap);
+	}
 }
 
 static void rbd_update_mapping_size(struct rbd_device *rbd_dev)
@@ -3413,14 +3415,13 @@ static void rbd_dev_destroy(struct rbd_device *rbd_dev)
 	kfree(rbd_dev);
 }
 
-static void rbd_remove_snap_dev(struct rbd_snap *snap)
+static void rbd_snap_destroy(struct rbd_snap *snap)
 {
-	list_del(&snap->node);
 	kfree(snap->name);
 	kfree(snap);
 }
 
-static struct rbd_snap *__rbd_add_snap_dev(struct rbd_device *rbd_dev,
+static struct rbd_snap *rbd_snap_create(struct rbd_device *rbd_dev,
 						const char *snap_name,
 						u64 snap_id, u64 snap_size,
 						u64 snap_features)
@@ -4070,7 +4071,9 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 				rbd_dev->spec->snap_id == snap->id ?
 							"mapped " : "",
 				(unsigned long long)snap->id);
-			rbd_remove_snap_dev(snap);
+
+			list_del(&snap->node);
+			rbd_snap_destroy(snap);
 
 			/* Done with this list entry; advance */
 
@@ -4093,7 +4096,7 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 
 			/* We haven't seen this snapshot before */
 
-			new_snap = __rbd_add_snap_dev(rbd_dev, snap_name,
+			new_snap = rbd_snap_create(rbd_dev, snap_name,
 					snap_id, snap_size, snap_features);
 			if (IS_ERR(new_snap)) {
 				ret = PTR_ERR(new_snap);
