@@ -811,10 +811,8 @@ static int igb_set_eeprom(struct net_device *netdev,
 	ret_val = hw->nvm.ops.write(hw, first_word,
 				    last_word - first_word + 1, eeprom_buff);
 
-	/* Update the checksum over the first part of the EEPROM if needed
-	 * and flush shadow RAM for 82573 controllers
-	 */
-	if ((ret_val == 0) && ((first_word <= NVM_CHECKSUM_REG)))
+	/* Update the checksum if nvm write succeeded */
+	if (ret_val == 0)
 		hw->nvm.ops.update(hw);
 
 	igb_set_fw_version(adapter);
