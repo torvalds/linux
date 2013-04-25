@@ -121,7 +121,7 @@ struct omap_dss_device *omap_dss_find_output(const char *name)
 
 	list_for_each_entry(out, &output_list, list) {
 		if (strcmp(out->name, name) == 0)
-			return out;
+			return omap_dss_get_device(out);
 	}
 
 	return NULL;
@@ -134,7 +134,7 @@ struct omap_dss_device *omap_dss_find_output_by_node(struct device_node *node)
 
 	list_for_each_entry(out, &output_list, list) {
 		if (out->dev->of_node == node)
-			return out;
+			return omap_dss_get_device(out);
 	}
 
 	return NULL;
@@ -143,20 +143,25 @@ EXPORT_SYMBOL(omap_dss_find_output_by_node);
 
 struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev)
 {
-	return dssdev->output;
+	return omap_dss_get_device(dssdev->output);
 }
 EXPORT_SYMBOL(omapdss_find_output_from_display);
 
 struct omap_overlay_manager *omapdss_find_mgr_from_display(struct omap_dss_device *dssdev)
 {
 	struct omap_dss_device *out;
+	struct omap_overlay_manager *mgr;
 
 	out = omapdss_find_output_from_display(dssdev);
 
 	if (out == NULL)
 		return NULL;
 
-	return out->manager;
+	mgr = out->manager;
+
+	omap_dss_put_device(out);
+
+	return mgr;
 }
 EXPORT_SYMBOL(omapdss_find_mgr_from_display);
 

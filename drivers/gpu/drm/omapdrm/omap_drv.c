@@ -277,6 +277,8 @@ static int omap_modeset_init(struct drm_device *dev)
 			if (supported_outputs & output->id)
 				encoder->possible_crtcs |= (1 << id);
 		}
+
+		omap_dss_put_device(output);
 	}
 
 	DBG("registered %d planes, %d crtcs, %d encoders and %d connectors\n",
