@@ -671,6 +671,11 @@
 #define SPRN_PMC8	794
 #define SPRN_SIAR	780
 #define SPRN_SDAR	781
+#define SPRN_SIER	784
+#define   SIER_SIPR		0x2000000	/* Sampled MSR_PR */
+#define   SIER_SIHV		0x1000000	/* Sampled MSR_HV */
+#define   SIER_SIAR_VALID	0x0400000	/* SIAR contents valid */
+#define   SIER_SDAR_VALID	0x0200000	/* SDAR contents valid */
 
 #define SPRN_PA6T_MMCR0 795
 #define   PA6T_MMCR0_EN0	0x0000000000000001UL

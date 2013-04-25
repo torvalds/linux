@@ -53,6 +53,7 @@ struct power_pmu {
 #define PPMU_NO_CONT_SAMPLING	0x00000008 /* no continuous sampling */
 #define PPMU_SIAR_VALID		0x00000010 /* Processor has SIAR Valid bit */
 #define PPMU_HAS_SSLOT		0x00000020 /* Has sampled slot in MMCRA */
+#define PPMU_HAS_SIER		0x00000040 /* Has SIER */
 
 /*
  * Values for flags to get_alternatives()
