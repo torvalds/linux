@@ -67,10 +67,19 @@ enum batadv_subtype {
 /* this file is included by batctl which needs these defines */
 #define BATADV_COMPAT_VERSION 15
 
+/**
+ * enum batadv_iv_flags - flags used in B.A.T.M.A.N. IV OGM packets
+ * @BATADV_NOT_BEST_NEXT_HOP: flag is set when ogm packet is forwarded and was
+ *     previously received from someone else than the best neighbor.
+ * @BATADV_PRIMARIES_FIRST_HOP: flag is set when the primary interface address
+ *     is used, and the packet travels its first hop.
+ * @BATADV_DIRECTLINK: flag is for the first hop or if rebroadcasted from a
+ *     one hop neighbor on the interface where it was originally received.
+ */
 enum batadv_iv_flags {
-	BATADV_NOT_BEST_NEXT_HOP   = BIT(3),
-	BATADV_PRIMARIES_FIRST_HOP = BIT(4),
-	BATADV_DIRECTLINK	   = BIT(6),
+	BATADV_NOT_BEST_NEXT_HOP   = BIT(0),
+	BATADV_PRIMARIES_FIRST_HOP = BIT(1),
+	BATADV_DIRECTLINK          = BIT(2),
 };
 
 /* ICMP message types */
@@ -164,11 +173,12 @@ struct batadv_header {
 /**
  * struct batadv_ogm_packet - ogm (routing protocol) packet
  * @header: common batman packet header
+ * @flags: contains routing relevant flags - see enum batadv_iv_flags
  * @tvlv_len: length of tvlv data following the ogm header
  */
 struct batadv_ogm_packet {
 	struct batadv_header header;
-	uint8_t  flags;    /* 0x40: DIRECTLINK flag ... */
+	uint8_t  flags;
 	__be32   seqno;
 	uint8_t  orig[ETH_ALEN];
 	uint8_t  prev_sender[ETH_ALEN];
