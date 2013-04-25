@@ -149,6 +149,8 @@ static int process_measurement(struct file *file, const char *filename,
 	char *pathbuf = NULL;
 	const char *pathname = NULL;
 	int rc = -ENOMEM, action, must_appraise, _func;
+	struct evm_ima_xattr_data *xattr_value = NULL, **xattr_ptr = NULL;
+	int xattr_len = 0;
 
 	if (!ima_initialized || !S_ISREG(inode->i_mode))
 		return 0;
@@ -187,7 +189,10 @@ static int process_measurement(struct file *file, const char *filename,
 		goto out_digsig;
 	}
 
-	rc = ima_collect_measurement(iint, file);
+	if (action & IMA_APPRAISE_SUBMASK)
+		xattr_ptr = &xattr_value;
+
+	rc = ima_collect_measurement(iint, file, xattr_ptr, &xattr_len);
 	if (rc != 0)
 		goto out_digsig;
 
@@ -198,7 +203,8 @@ static int process_measurement(struct file *file, const char *filename,
 	if (action & IMA_MEASURE)
 		ima_store_measurement(iint, file, pathname);
 	if (action & IMA_APPRAISE_SUBMASK)
-		rc = ima_appraise_measurement(_func, iint, file, pathname);
+		rc = ima_appraise_measurement(_func, iint, file, pathname,
+					      xattr_value, xattr_len);
 	if (action & IMA_AUDIT)
 		ima_audit_measurement(iint, pathname);
 	kfree(pathbuf);
@@ -207,6 +213,7 @@ out_digsig:
 		rc = -EACCES;
 out:
 	mutex_unlock(&inode->i_mutex);
+	kfree(xattr_value);
 	if ((rc && must_appraise) && (ima_appraise & IMA_APPRAISE_ENFORCE))
 		return -EACCES;
 	return 0;

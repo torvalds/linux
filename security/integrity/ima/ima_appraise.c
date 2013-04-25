@@ -107,6 +107,34 @@ static void ima_cache_flags(struct integrity_iint_cache *iint, int func)
 	}
 }
 
+void ima_get_hash_algo(struct evm_ima_xattr_data *xattr_value, int xattr_len,
+		       struct ima_digest_data *hash)
+{
+	struct signature_v2_hdr *sig;
+
+	if (!xattr_value || xattr_len < 0 || xattr_len <= 1 + sizeof(*sig))
+		return;
+
+	sig = (typeof(sig)) xattr_value->digest;
+
+	if (xattr_value->type != EVM_IMA_XATTR_DIGSIG || sig->version != 2)
+		return;
+
+	hash->algo = sig->hash_algo;
+}
+
+int ima_read_xattr(struct dentry *dentry,
+		   struct evm_ima_xattr_data **xattr_value)
+{
+	struct inode *inode = dentry->d_inode;
+
+	if (!inode->i_op->getxattr)
+		return 0;
+
+	return vfs_getxattr_alloc(dentry, XATTR_NAME_IMA, (char **)xattr_value,
+				  0, GFP_NOFS);
+}
+
 /*
  * ima_appraise_measurement - appraise file measurement
  *
@@ -116,23 +144,22 @@ static void ima_cache_flags(struct integrity_iint_cache *iint, int func)
  * Return 0 on success, error code otherwise
  */
 int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
-			     struct file *file, const unsigned char *filename)
+			     struct file *file, const unsigned char *filename,
+			     struct evm_ima_xattr_data *xattr_value,
+			     int xattr_len)
 {
 	struct dentry *dentry = file->f_dentry;
 	struct inode *inode = dentry->d_inode;
-	struct evm_ima_xattr_data *xattr_value = NULL;
 	enum integrity_status status = INTEGRITY_UNKNOWN;
 	const char *op = "appraise_data";
 	char *cause = "unknown";
-	int rc;
+	int rc = xattr_len;
 
 	if (!ima_appraise)
 		return 0;
 	if (!inode->i_op->getxattr)
 		return INTEGRITY_UNKNOWN;
 
-	rc = vfs_getxattr_alloc(dentry, XATTR_NAME_IMA, (char **)&xattr_value,
-				0, GFP_NOFS);
 	if (rc <= 0) {
 		if (rc && rc != -ENODATA)
 			goto out;
@@ -159,7 +186,10 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 			status = INTEGRITY_FAIL;
 			break;
 		}
-		if (rc - 1 == iint->ima_hash.length)
+		if (xattr_len - 1 >= iint->ima_hash.length)
+			/* xattr length may be longer. md5 hash in previous
+			   version occupied 20 bytes in xattr, instead of 16
+			 */
 			rc = memcmp(xattr_value->digest,
 				    iint->ima_hash.digest,
 				    iint->ima_hash.length);
@@ -207,7 +237,6 @@ out:
 		ima_cache_flags(iint, func);
 	}
 	ima_set_cache_status(iint, func, status);
-	kfree(xattr_value);
 	return status;
 }
 
@@ -223,7 +252,7 @@ void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file)
 	if (iint->flags & IMA_DIGSIG)
 		return;
 
-	rc = ima_collect_measurement(iint, file);
+	rc = ima_collect_measurement(iint, file, NULL, NULL);
 	if (rc < 0)
 		return;
 

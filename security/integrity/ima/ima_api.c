@@ -139,17 +139,27 @@ int ima_must_measure(struct inode *inode, int mask, int function)
  * Return 0 on success, error code otherwise
  */
 int ima_collect_measurement(struct integrity_iint_cache *iint,
-			    struct file *file)
+			    struct file *file,
+			    struct evm_ima_xattr_data **xattr_value,
+			    int *xattr_len)
 {
 	struct inode *inode = file_inode(file);
 	const char *filename = file->f_dentry->d_name.name;
 	int result = 0;
+
+	if (xattr_value)
+		*xattr_len = ima_read_xattr(file->f_dentry, xattr_value);
 
 	if (!(iint->flags & IMA_COLLECTED)) {
 		u64 i_version = file_inode(file)->i_version;
 
 		/* use default hash algorithm */
 		iint->ima_hash.algo = ima_hash_algo;
+
+		if (xattr_value)
+			ima_get_hash_algo(*xattr_value, *xattr_len,
+					  &iint->ima_hash);
+
 		result = ima_calc_file_hash(file, &iint->ima_hash);
 		if (!result) {
 			iint->version = i_version;
