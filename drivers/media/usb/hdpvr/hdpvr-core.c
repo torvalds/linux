@@ -220,7 +220,6 @@ static int hdpvr_device_init(struct hdpvr_device *dev)
 {
 	int ret;
 	u8 *buf;
-	struct hdpvr_video_info *vidinf;
 
 	if (device_authorization(dev))
 		return -EACCES;
@@ -241,13 +240,6 @@ static int hdpvr_device_init(struct hdpvr_device *dev)
 	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
 		 "control request returned %d\n", ret);
 	mutex_unlock(&dev->usbc_mutex);
-
-	vidinf = get_video_info(dev);
-	if (!vidinf)
-		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
-			"no valid video signal or device init failed\n");
-	else
-		kfree(vidinf);
 
 	/* enable fan and bling leds */
 	mutex_lock(&dev->usbc_mutex);
