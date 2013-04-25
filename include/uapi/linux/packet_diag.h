@@ -17,6 +17,7 @@ struct packet_diag_req {
 #define PACKET_SHOW_RING_CFG	0x00000004 /* Rings configuration parameters */
 #define PACKET_SHOW_FANOUT	0x00000008
 #define PACKET_SHOW_MEMINFO	0x00000010
+#define PACKET_SHOW_FILTER	0x00000020
 
 struct packet_diag_msg {
 	__u8	pdiag_family;
@@ -35,6 +36,7 @@ enum {
 	PACKET_DIAG_FANOUT,
 	PACKET_DIAG_UID,
 	PACKET_DIAG_MEMINFO,
+	PACKET_DIAG_FILTER,
 
 	__PACKET_DIAG_MAX,
 };
