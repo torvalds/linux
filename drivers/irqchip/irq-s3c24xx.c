@@ -534,7 +534,7 @@ static void s3c24xx_clear_intc(struct s3c_irq_intc *intc)
 	}
 }
 
-static struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
+static struct s3c_irq_intc * __init s3c24xx_init_intc(struct device_node *np,
 				       struct s3c_irq_data *irq_data,
 				       struct s3c_irq_intc *parent,
 				       unsigned long address)
@@ -794,7 +794,7 @@ static struct s3c_irq_data init_s3c2412subint[32] = {
 	{ .type = S3C_IRQTYPE_LEVEL, .parent_irq = 21 }, /* CF */
 };
 
-void s3c2412_init_irq(void)
+void __init s3c2412_init_irq(void)
 {
 	pr_info("S3C2412: IRQ Support\n");
 
