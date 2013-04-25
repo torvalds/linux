@@ -380,6 +380,13 @@ static int verbose(struct lock_class *class)
 unsigned long nr_stack_trace_entries;
 static unsigned long stack_trace[MAX_STACK_TRACE_ENTRIES];
 
+static void print_lockdep_off(const char *bug_msg)
+{
+	printk(KERN_DEBUG "%s\n", bug_msg);
+	printk(KERN_DEBUG "turning off the locking correctness validator.\n");
+	printk(KERN_DEBUG "Please attach the output of /proc/lock_stat to the bug report\n");
+}
+
 static int save_trace(struct stack_trace *trace)
 {
 	trace->nr_entries = 0;
@@ -409,9 +416,7 @@ static int save_trace(struct stack_trace *trace)
 		if (!debug_locks_off_graph_unlock())
 			return 0;
 
-		printk("BUG: MAX_STACK_TRACE_ENTRIES too low!\n");
-		printk("turning off the locking correctness validator.\n");
-		printk("Attach output of /proc/lock_stat to bug report\n");
+		print_lockdep_off("BUG: MAX_STACK_TRACE_ENTRIES too low!");
 		dump_stack();
 
 		return 0;
@@ -764,9 +769,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 		}
 		raw_local_irq_restore(flags);
 
-		printk("BUG: MAX_LOCKDEP_KEYS too low!\n");
-		printk("turning off the locking correctness validator.\n");
-		printk("Attach output of /proc/lock_stat to bug report\n");
+		print_lockdep_off("BUG: MAX_LOCKDEP_KEYS too low!");
 		dump_stack();
 		return NULL;
 	}
@@ -836,9 +839,7 @@ static struct lock_list *alloc_list_entry(void)
 		if (!debug_locks_off_graph_unlock())
 			return NULL;
 
-		printk("BUG: MAX_LOCKDEP_ENTRIES too low!\n");
-		printk("turning off the locking correctness validator.\n");
-		printk("Attach output of /proc/lock_stat to bug report\n");
+		print_lockdep_off("BUG: MAX_LOCKDEP_ENTRIES too low!");
 		dump_stack();
 		return NULL;
 	}
@@ -2051,9 +2052,7 @@ cache_hit:
 		if (!debug_locks_off_graph_unlock())
 			return 0;
 
-		printk("BUG: MAX_LOCKDEP_CHAINS too low!\n");
-		printk("turning off the locking correctness validator.\n");
-		printk("Attach output of /proc/lock_stat to bug report\n");
+		print_lockdep_off("BUG: MAX_LOCKDEP_CHAINS too low!");
 		dump_stack();
 		return 0;
 	}
@@ -3192,10 +3191,9 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 #endif
 	if (unlikely(curr->lockdep_depth >= MAX_LOCK_DEPTH)) {
 		debug_locks_off();
-		printk("BUG: MAX_LOCK_DEPTH too low, depth: %i  max: %lu!\n",
+		print_lockdep_off("BUG: MAX_LOCK_DEPTH too low!");
+		printk(KERN_DEBUG "depth: %i  max: %lu!\n",
 		       curr->lockdep_depth, MAX_LOCK_DEPTH);
-		printk("turning off the locking correctness validator.\n");
-		printk("Attach output of /proc/lock_stat to bug report\n");
 
 		lockdep_print_held_locks(current);
 		debug_show_all_locks();
