@@ -2409,7 +2409,8 @@ static void dib8000_set_isdbt_common_channel(struct dib8000_state *state, u8 seq
 	state->isdbt_cfg_loaded = 0;
 }
 
-u32 dib8000_wait_lock(struct dib8000_state *state, u32 internal, u32 wait0_ms, u32 wait1_ms, u32 wait2_ms)
+static u32 dib8000_wait_lock(struct dib8000_state *state, u32 internal,
+			     u32 wait0_ms, u32 wait1_ms, u32 wait2_ms)
 {
 	u32 value;
 	u16 reg = 11; /* P_search_end0 start addr */
@@ -2685,7 +2686,8 @@ static void dib8000_set_frequency_offset(struct dib8000_state *state)
 }
 
 static u16 LUT_isdbt_symbol_duration[4] = { 26, 101, 63 };
-u32 dib8000_get_symbol_duration(struct dib8000_state *state)
+
+static u32 dib8000_get_symbol_duration(struct dib8000_state *state)
 {
 	u16 i;
 
