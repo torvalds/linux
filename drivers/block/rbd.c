@@ -2521,7 +2521,6 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 {
 	struct rbd_device *rbd_dev = (struct rbd_device *)data;
 	u64 hver;
-	int rc;
 
 	if (!rbd_dev)
 		return;
@@ -2529,10 +2528,7 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 	dout("%s: \"%s\" notify_id %llu opcode %u\n", __func__,
 		rbd_dev->header_name, (unsigned long long) notify_id,
 		(unsigned int) opcode);
-	rc = rbd_dev_refresh(rbd_dev, &hver);
-	if (rc)
-		rbd_warn(rbd_dev, "got notification but failed to "
-			   " update snaps: %d\n", rc);
+	(void)rbd_dev_refresh(rbd_dev, &hver);
 
 	rbd_obj_notify_ack(rbd_dev, hver, notify_id);
 }
@@ -3085,6 +3081,9 @@ static int rbd_dev_refresh(struct rbd_device *rbd_dev, u64 *hver)
 		ret = rbd_dev_v2_refresh(rbd_dev, hver);
 	mutex_unlock(&ctl_mutex);
 	revalidate_disk(rbd_dev->disk);
+	if (ret)
+		rbd_warn(rbd_dev, "got notification but failed to "
+			   " update snaps: %d\n", ret);
 
 	return ret;
 }
@@ -4010,6 +4009,11 @@ out:
  * Assumes the snapshots in the snapshot context are sorted by
  * snapshot id, highest id first.  (Snapshots in the rbd_dev's list
  * are also maintained in that order.)
+ *
+ * Note that any error occurs while updating the snapshot list
+ * aborts the update, and the entire list is cleared.  The snapshot
+ * list becomes inconsistent at that point anyway, so it might as
+ * well be empty.
  */
 static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 {
@@ -4018,8 +4022,9 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 	struct list_head *head = &rbd_dev->snaps;
 	struct list_head *links = head->next;
 	u32 index = 0;
+	int ret = 0;
 
-	dout("%s: snap count is %u\n", __func__, (unsigned int) snap_count);
+	dout("%s: snap count is %u\n", __func__, (unsigned int)snap_count);
 	while (index < snap_count || links != head) {
 		u64 snap_id;
 		struct rbd_snap *snap;
@@ -4040,17 +4045,17 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 			 * A previously-existing snapshot is not in
 			 * the new snap context.
 			 *
-			 * If the now missing snapshot is the one the
-			 * image is mapped to, clear its exists flag
-			 * so we can avoid sending any more requests
-			 * to it.
+			 * If the now-missing snapshot is the one
+			 * the image represents, clear its existence
+			 * flag so we can avoid sending any more
+			 * requests to it.
 			 */
 			if (rbd_dev->spec->snap_id == snap->id)
 				clear_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
 			dout("removing %ssnap id %llu\n",
 				rbd_dev->spec->snap_id == snap->id ?
 							"mapped " : "",
-				(unsigned long long) snap->id);
+				(unsigned long long)snap->id);
 			rbd_remove_snap_dev(snap);
 
 			/* Done with this list entry; advance */
@@ -4061,11 +4066,14 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 
 		snap_name = rbd_dev_snap_info(rbd_dev, index,
 					&snap_size, &snap_features);
-		if (IS_ERR(snap_name))
-			return PTR_ERR(snap_name);
+		if (IS_ERR(snap_name)) {
+			ret = PTR_ERR(snap_name);
+			dout("failed to get snap info, error %d\n", ret);
+			goto out_err;
+		}
 
-		dout("entry %u: snap_id = %llu\n", (unsigned int) snap_count,
-			(unsigned long long) snap_id);
+		dout("entry %u: snap_id = %llu\n", (unsigned int)snap_count,
+			(unsigned long long)snap_id);
 		if (!snap || (snap_id != CEPH_NOSNAP && snap->id < snap_id)) {
 			struct rbd_snap *new_snap;
 
@@ -4074,11 +4082,9 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 			new_snap = __rbd_add_snap_dev(rbd_dev, snap_name,
 					snap_id, snap_size, snap_features);
 			if (IS_ERR(new_snap)) {
-				int err = PTR_ERR(new_snap);
-
-				dout("  failed to add dev, error %d\n", err);
-
-				return err;
+				ret = PTR_ERR(new_snap);
+				dout("  failed to add dev, error %d\n", ret);
+				goto out_err;
 			}
 
 			/* New goes before existing, or at end of list */
@@ -4109,6 +4115,10 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 	dout("%s: done\n", __func__);
 
 	return 0;
+out_err:
+	rbd_remove_all_snaps(rbd_dev);
+
+	return ret;
 }
 
 static int rbd_bus_add_dev(struct rbd_device *rbd_dev)
