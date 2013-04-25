@@ -25,8 +25,8 @@ config DRM_EXYNOS_DMABUF
 config DRM_EXYNOS_FIMD
 	bool "Exynos DRM FIMD"
 	depends on OF && DRM_EXYNOS && !FB_S3C && !ARCH_MULTIPLATFORM
-	select OF_VIDEOMODE
 	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
 	help
 	  Choose this option if you want to use Exynos FIMD for DRM.
 
