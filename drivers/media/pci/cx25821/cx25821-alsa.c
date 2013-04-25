@@ -727,6 +727,8 @@ static void cx25821_audio_fini(void)
 	int ret;
 
 	ret = driver_for_each_device(drv, NULL, NULL, cx25821_alsa_exit_callback);
+	if (ret)
+		pr_err("%s failed to find a cx25821 driver.\n", __func__);
 }
 
 static int cx25821_alsa_init_callback(struct device *dev, void *data)
