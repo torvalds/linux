@@ -647,6 +647,7 @@ void cio_tsch(struct subchannel *sch)
 		local_bh_disable();
 		irq_enter();
 	}
+	kstat_incr_irqs_this_cpu(IO_INTERRUPT, NULL);
 	if (sch->driver && sch->driver->irq)
 		sch->driver->irq(sch);
 	else
