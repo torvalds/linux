@@ -1514,6 +1514,21 @@ static int mlx4_master_activate_admin_state(struct mlx4_priv *priv, int slave)
 				 (int)(vp_oper->state.default_vlan),
 				 vp_oper->vlan_idx, slave, port);
 		}
+		if (vp_admin->spoofchk) {
+			vp_oper->mac_idx = __mlx4_register_mac(&priv->dev,
+							       port,
+							       vp_admin->mac);
+			if (0 > vp_oper->mac_idx) {
+				err = vp_oper->mac_idx;
+				vp_oper->mac_idx = NO_INDX;
+				mlx4_warn((&priv->dev),
+					  "No mac resorces slave %d, port %d\n",
+					  slave, port);
+				return err;
+			}
+			mlx4_dbg((&(priv->dev)), "alloc mac %llx idx  %d slave %d port %d\n",
+				 vp_oper->state.mac, vp_oper->mac_idx, slave, port);
+		}
 	}
 	return 0;
 }
@@ -1529,6 +1544,10 @@ static void mlx4_master_deactivate_admin_state(struct mlx4_priv *priv, int slave
 			__mlx4_unregister_vlan(&priv->dev,
 					       port, vp_oper->vlan_idx);
 			vp_oper->vlan_idx = NO_INDX;
+		}
+		if (NO_INDX != vp_oper->mac_idx) {
+			__mlx4_unregister_mac(&priv->dev, port, vp_oper->mac_idx);
+			vp_oper->mac_idx = NO_INDX;
 		}
 	}
 	return;
@@ -2111,3 +2130,24 @@ int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_set_vf_vlan);
+
+int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_vport_state *s_info;
+	int slave;
+
+	if ((!mlx4_is_master(dev)) ||
+	    !(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_FSM))
+		return -EPROTONOSUPPORT;
+
+	slave = mlx4_get_slave_indx(dev, vf);
+	if (slave < 0)
+		return -EINVAL;
+
+	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
+	s_info->spoofchk = setting;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_set_vf_spoofchk);

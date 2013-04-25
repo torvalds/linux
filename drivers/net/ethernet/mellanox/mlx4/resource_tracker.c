@@ -383,6 +383,14 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 			 vp_oper->vlan_idx, (int)(qpc->pri_path.feup),
 			 (int)(qpc->pri_path.fl));
 	}
+	if (vp_oper->state.spoofchk) {
+		qpc->pri_path.feup |= 1 << 5; /* set fsm bit */;
+		qpc->pri_path.grh_mylmc = (0x80 & qpc->pri_path.grh_mylmc) + vp_oper->mac_idx;
+		mlx4_dbg(dev, "spoof qp %d  port %d feup  0x%x, myLmc 0x%x mindx %d\n",
+			 be32_to_cpu(qpc->local_qpn) & 0xffffff, port,
+			 (int)qpc->pri_path.feup, (int)qpc->pri_path.grh_mylmc,
+			 vp_oper->mac_idx);
+	}
 	return 0;
 }
 

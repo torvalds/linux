@@ -659,6 +659,8 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(field32, outbox, QUERY_DEV_CAP_EXT_2_FLAGS_OFFSET);
 	if (field32 & (1 << 26))
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_VLAN_CONTROL;
+	if (field32 & (1 << 20))
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_FSM;
 
 	if (dev->flags & MLX4_FLAG_OLD_PORT_CMDS) {
 		for (i = 1; i <= dev_cap->num_ports; ++i) {
