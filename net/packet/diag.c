@@ -125,8 +125,10 @@ static int pdiag_put_fanout(struct packet_sock *po, struct sk_buff *nlskb)
 	return ret;
 }
 
-static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct packet_diag_req *req,
-		u32 portid, u32 seq, u32 flags, int sk_ino)
+static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
+			struct packet_diag_req *req,
+			struct user_namespace *user_ns,
+			u32 portid, u32 seq, u32 flags, int sk_ino)
 {
 	struct nlmsghdr *nlh;
 	struct packet_diag_msg *rp;
@@ -145,6 +147,11 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct packet_diag
 
 	if ((req->pdiag_show & PACKET_SHOW_INFO) &&
 			pdiag_put_info(po, skb))
+		goto out_nlmsg_trim;
+
+	if ((req->pdiag_show & PACKET_SHOW_INFO) &&
+	    nla_put_u32(skb, PACKET_DIAG_UID,
+			from_kuid_munged(user_ns, sock_i_uid(sk))))
 		goto out_nlmsg_trim;
 
 	if ((req->pdiag_show & PACKET_SHOW_MCLIST) &&
@@ -183,9 +190,11 @@ static int packet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		if (num < s_num)
 			goto next;
 
-		if (sk_diag_fill(sk, skb, req, NETLINK_CB(cb->skb).portid,
-					cb->nlh->nlmsg_seq, NLM_F_MULTI,
-					sock_i_ino(sk)) < 0)
+		if (sk_diag_fill(sk, skb, req,
+				 sk_user_ns(NETLINK_CB(cb->skb).sk),
+				 NETLINK_CB(cb->skb).portid,
+				 cb->nlh->nlmsg_seq, NLM_F_MULTI,
+				 sock_i_ino(sk)) < 0)
 			goto done;
 next:
 		num++;
