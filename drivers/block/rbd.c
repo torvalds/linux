@@ -2614,7 +2614,8 @@ out_cancel:
 }
 
 /*
- * Synchronous osd object method call
+ * Synchronous osd object method call.  Returns the number of bytes
+ * returned in the outbound buffer, or a negative error code.
  */
 static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 			     const char *object_name,
@@ -3741,7 +3742,8 @@ static char *rbd_dev_image_name(struct rbd_device *rbd_dev)
 	if (ret < 0)
 		goto out;
 	p = reply_buf;
-	end = reply_buf + size;
+	end = reply_buf + ret;
+
 	image_name = ceph_extract_encoded_string(&p, end, &len, GFP_KERNEL);
 	if (IS_ERR(image_name))
 		image_name = NULL;
@@ -3914,26 +3916,23 @@ static char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev, u32 which)
 				&snap_id, sizeof (snap_id),
 				reply_buf, size, NULL);
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
-	if (ret < 0)
+	if (ret < 0) {
+		snap_name = ERR_PTR(ret);
 		goto out;
+	}
 
 	p = reply_buf;
-	end = reply_buf + size;
+	end = reply_buf + ret;
 	snap_name = ceph_extract_encoded_string(&p, end, NULL, GFP_KERNEL);
-	if (IS_ERR(snap_name)) {
-		ret = PTR_ERR(snap_name);
+	if (IS_ERR(snap_name))
 		goto out;
-	} else {
-		dout("  snap_id 0x%016llx snap_name = %s\n",
-			(unsigned long long)le64_to_cpu(snap_id), snap_name);
-	}
-	kfree(reply_buf);
 
-	return snap_name;
+	dout("  snap_id 0x%016llx snap_name = %s\n",
+		(unsigned long long)le64_to_cpu(snap_id), snap_name);
 out:
 	kfree(reply_buf);
 
-	return ERR_PTR(ret);
+	return snap_name;
 }
 
 static char *rbd_dev_v2_snap_info(struct rbd_device *rbd_dev, u32 which,
