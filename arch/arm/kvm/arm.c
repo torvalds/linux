@@ -30,11 +30,9 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-#include <asm/unified.h>
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/mman.h>
-#include <asm/cputype.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <asm/virt.h>
@@ -44,14 +42,13 @@
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_coproc.h>
 #include <asm/kvm_psci.h>
-#include <asm/opcodes.h>
 
 #ifdef REQUIRES_VIRT
 __asm__(".arch_extension	virt");
 #endif
 
 static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
-static struct vfp_hard_struct __percpu *kvm_host_vfp_state;
+static kvm_kernel_vfp_t __percpu *kvm_host_vfp_state;
 static unsigned long hyp_default_vectors;
 
 /* Per-CPU variable containing the currently running vcpu. */
@@ -294,22 +291,6 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-int __attribute_const__ kvm_target_cpu(void)
-{
-	unsigned long implementor = read_cpuid_implementor();
-	unsigned long part_number = read_cpuid_part_number();
-
-	if (implementor != ARM_CPU_IMP_ARM)
-		return -EINVAL;
-
-	switch (part_number) {
-	case ARM_CPU_PART_CORTEX_A15:
-		return KVM_ARM_TARGET_CORTEX_A15;
-	default:
-		return -EINVAL;
-	}
-}
-
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	int ret;
@@ -470,163 +451,6 @@ static void update_vttbr(struct kvm *kvm)
 	kvm->arch.vttbr |= vmid;
 
 	spin_unlock(&kvm_vmid_lock);
-}
-
-static int handle_svc_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	/* SVC called from Hyp mode should never get here */
-	kvm_debug("SVC called from Hyp mode shouldn't go here\n");
-	BUG();
-	return -EINVAL; /* Squash warning */
-}
-
-static int handle_hvc(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	trace_kvm_hvc(*vcpu_pc(vcpu), *vcpu_reg(vcpu, 0),
-		      vcpu->arch.hsr & HSR_HVC_IMM_MASK);
-
-	if (kvm_psci_call(vcpu))
-		return 1;
-
-	kvm_inject_undefined(vcpu);
-	return 1;
-}
-
-static int handle_smc(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	if (kvm_psci_call(vcpu))
-		return 1;
-
-	kvm_inject_undefined(vcpu);
-	return 1;
-}
-
-static int handle_pabt_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	/* The hypervisor should never cause aborts */
-	kvm_err("Prefetch Abort taken from Hyp mode at %#08x (HSR: %#08x)\n",
-		vcpu->arch.hxfar, vcpu->arch.hsr);
-	return -EFAULT;
-}
-
-static int handle_dabt_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	/* This is either an error in the ws. code or an external abort */
-	kvm_err("Data Abort taken from Hyp mode at %#08x (HSR: %#08x)\n",
-		vcpu->arch.hxfar, vcpu->arch.hsr);
-	return -EFAULT;
-}
-
-typedef int (*exit_handle_fn)(struct kvm_vcpu *, struct kvm_run *);
-static exit_handle_fn arm_exit_handlers[] = {
-	[HSR_EC_WFI]		= kvm_handle_wfi,
-	[HSR_EC_CP15_32]	= kvm_handle_cp15_32,
-	[HSR_EC_CP15_64]	= kvm_handle_cp15_64,
-	[HSR_EC_CP14_MR]	= kvm_handle_cp14_access,
-	[HSR_EC_CP14_LS]	= kvm_handle_cp14_load_store,
-	[HSR_EC_CP14_64]	= kvm_handle_cp14_access,
-	[HSR_EC_CP_0_13]	= kvm_handle_cp_0_13_access,
-	[HSR_EC_CP10_ID]	= kvm_handle_cp10_id,
-	[HSR_EC_SVC_HYP]	= handle_svc_hyp,
-	[HSR_EC_HVC]		= handle_hvc,
-	[HSR_EC_SMC]		= handle_smc,
-	[HSR_EC_IABT]		= kvm_handle_guest_abort,
-	[HSR_EC_IABT_HYP]	= handle_pabt_hyp,
-	[HSR_EC_DABT]		= kvm_handle_guest_abort,
-	[HSR_EC_DABT_HYP]	= handle_dabt_hyp,
-};
-
-/*
- * A conditional instruction is allowed to trap, even though it
- * wouldn't be executed.  So let's re-implement the hardware, in
- * software!
- */
-static bool kvm_condition_valid(struct kvm_vcpu *vcpu)
-{
-	unsigned long cpsr, cond, insn;
-
-	/*
-	 * Exception Code 0 can only happen if we set HCR.TGE to 1, to
-	 * catch undefined instructions, and then we won't get past
-	 * the arm_exit_handlers test anyway.
-	 */
-	BUG_ON(((vcpu->arch.hsr & HSR_EC) >> HSR_EC_SHIFT) == 0);
-
-	/* Top two bits non-zero?  Unconditional. */
-	if (vcpu->arch.hsr >> 30)
-		return true;
-
-	cpsr = *vcpu_cpsr(vcpu);
-
-	/* Is condition field valid? */
-	if ((vcpu->arch.hsr & HSR_CV) >> HSR_CV_SHIFT)
-		cond = (vcpu->arch.hsr & HSR_COND) >> HSR_COND_SHIFT;
-	else {
-		/* This can happen in Thumb mode: examine IT state. */
-		unsigned long it;
-
-		it = ((cpsr >> 8) & 0xFC) | ((cpsr >> 25) & 0x3);
-
-		/* it == 0 => unconditional. */
-		if (it == 0)
-			return true;
-
-		/* The cond for this insn works out as the top 4 bits. */
-		cond = (it >> 4);
-	}
-
-	/* Shift makes it look like an ARM-mode instruction */
-	insn = cond << 28;
-	return arm_check_condition(insn, cpsr) != ARM_OPCODE_CONDTEST_FAIL;
-}
-
-/*
- * Return > 0 to return to guest, < 0 on error, 0 (and set exit_reason) on
- * proper exit to QEMU.
- */
-static int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
-		       int exception_index)
-{
-	unsigned long hsr_ec;
-
-	switch (exception_index) {
-	case ARM_EXCEPTION_IRQ:
-		return 1;
-	case ARM_EXCEPTION_UNDEFINED:
-		kvm_err("Undefined exception in Hyp mode at: %#08x\n",
-			vcpu->arch.hyp_pc);
-		BUG();
-		panic("KVM: Hypervisor undefined exception!\n");
-	case ARM_EXCEPTION_DATA_ABORT:
-	case ARM_EXCEPTION_PREF_ABORT:
-	case ARM_EXCEPTION_HVC:
-		hsr_ec = (vcpu->arch.hsr & HSR_EC) >> HSR_EC_SHIFT;
-
-		if (hsr_ec >= ARRAY_SIZE(arm_exit_handlers)
-		    || !arm_exit_handlers[hsr_ec]) {
-			kvm_err("Unkown exception class: %#08lx, "
-				"hsr: %#08x\n", hsr_ec,
-				(unsigned int)vcpu->arch.hsr);
-			BUG();
-		}
-
-		/*
-		 * See ARM ARM B1.14.1: "Hyp traps on instructions
-		 * that fail their condition code check"
-		 */
-		if (!kvm_condition_valid(vcpu)) {
-			bool is_wide = vcpu->arch.hsr & HSR_IL;
-			kvm_skip_instr(vcpu, is_wide);
-			return 1;
-		}
-
-		return arm_exit_handlers[hsr_ec](vcpu, run);
-	default:
-		kvm_pr_unimpl("Unsupported exception type: %d",
-			      exception_index);
-		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-		return 0;
-	}
 }
 
 static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
@@ -964,7 +788,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 static void cpu_init_hyp_mode(void *vector)
 {
 	unsigned long long pgd_ptr;
-	unsigned long pgd_low, pgd_high;
 	unsigned long hyp_stack_ptr;
 	unsigned long stack_page;
 	unsigned long vector_ptr;
@@ -973,20 +796,11 @@ static void cpu_init_hyp_mode(void *vector)
 	__hyp_set_vectors((unsigned long)vector);
 
 	pgd_ptr = (unsigned long long)kvm_mmu_get_httbr();
-	pgd_low = (pgd_ptr & ((1ULL << 32) - 1));
-	pgd_high = (pgd_ptr >> 32ULL);
 	stack_page = __get_cpu_var(kvm_arm_hyp_stack_page);
 	hyp_stack_ptr = stack_page + PAGE_SIZE;
 	vector_ptr = (unsigned long)__kvm_hyp_vector;
 
-	/*
-	 * Call initialization code, and switch to the full blown
-	 * HYP code. The init code doesn't need to preserve these registers as
-	 * r1-r3 and r12 are already callee save according to the AAPCS.
-	 * Note that we slightly misuse the prototype by casing the pgd_low to
-	 * a void *.
-	 */
-	kvm_call_hyp((void *)pgd_low, pgd_high, hyp_stack_ptr, vector_ptr);
+	__cpu_init_hyp_mode(pgd_ptr, hyp_stack_ptr, vector_ptr);
 }
 
 /**
@@ -1069,7 +883,7 @@ static int init_hyp_mode(void)
 	/*
 	 * Map the host VFP structures
 	 */
-	kvm_host_vfp_state = alloc_percpu(struct vfp_hard_struct);
+	kvm_host_vfp_state = alloc_percpu(kvm_kernel_vfp_t);
 	if (!kvm_host_vfp_state) {
 		err = -ENOMEM;
 		kvm_err("Cannot allocate host VFP state\n");
@@ -1077,7 +891,7 @@ static int init_hyp_mode(void)
 	}
 
 	for_each_possible_cpu(cpu) {
-		struct vfp_hard_struct *vfp;
+		kvm_kernel_vfp_t *vfp;
 
 		vfp = per_cpu_ptr(kvm_host_vfp_state, cpu);
 		err = create_hyp_mappings(vfp, vfp + 1);

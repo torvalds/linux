@@ -20,6 +20,7 @@
 #include <linux/kvm_host.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_emulate.h>
+#include <asm/opcodes.h>
 #include <trace/events/kvm.h>
 
 #include "trace.h"
@@ -109,10 +110,10 @@ static const unsigned long vcpu_reg_offsets[VCPU_NR_MODES][15] = {
  * Return a pointer to the register number valid in the current mode of
  * the virtual CPU.
  */
-u32 *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num)
+unsigned long *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num)
 {
-	u32 *reg_array = (u32 *)&vcpu->arch.regs;
-	u32 mode = *vcpu_cpsr(vcpu) & MODE_MASK;
+	unsigned long *reg_array = (unsigned long *)&vcpu->arch.regs;
+	unsigned long mode = *vcpu_cpsr(vcpu) & MODE_MASK;
 
 	switch (mode) {
 	case USR_MODE...SVC_MODE:
@@ -141,9 +142,9 @@ u32 *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num)
 /*
  * Return the SPSR for the current mode of the virtual CPU.
  */
-u32 *vcpu_spsr(struct kvm_vcpu *vcpu)
+unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu)
 {
-	u32 mode = *vcpu_cpsr(vcpu) & MODE_MASK;
+	unsigned long mode = *vcpu_cpsr(vcpu) & MODE_MASK;
 	switch (mode) {
 	case SVC_MODE:
 		return &vcpu->arch.regs.KVM_ARM_SVC_spsr;
@@ -160,20 +161,48 @@ u32 *vcpu_spsr(struct kvm_vcpu *vcpu)
 	}
 }
 
-/**
- * kvm_handle_wfi - handle a wait-for-interrupts instruction executed by a guest
- * @vcpu:	the vcpu pointer
- * @run:	the kvm_run structure pointer
- *
- * Simply sets the wait_for_interrupts flag on the vcpu structure, which will
- * halt execution of world-switches and schedule other host processes until
- * there is an incoming IRQ or FIQ to the VM.
+/*
+ * A conditional instruction is allowed to trap, even though it
+ * wouldn't be executed.  So let's re-implement the hardware, in
+ * software!
  */
-int kvm_handle_wfi(struct kvm_vcpu *vcpu, struct kvm_run *run)
+bool kvm_condition_valid(struct kvm_vcpu *vcpu)
 {
-	trace_kvm_wfi(*vcpu_pc(vcpu));
-	kvm_vcpu_block(vcpu);
-	return 1;
+	unsigned long cpsr, cond, insn;
+
+	/*
+	 * Exception Code 0 can only happen if we set HCR.TGE to 1, to
+	 * catch undefined instructions, and then we won't get past
+	 * the arm_exit_handlers test anyway.
+	 */
+	BUG_ON(!kvm_vcpu_trap_get_class(vcpu));
+
+	/* Top two bits non-zero?  Unconditional. */
+	if (kvm_vcpu_get_hsr(vcpu) >> 30)
+		return true;
+
+	cpsr = *vcpu_cpsr(vcpu);
+
+	/* Is condition field valid? */
+	if ((kvm_vcpu_get_hsr(vcpu) & HSR_CV) >> HSR_CV_SHIFT)
+		cond = (kvm_vcpu_get_hsr(vcpu) & HSR_COND) >> HSR_COND_SHIFT;
+	else {
+		/* This can happen in Thumb mode: examine IT state. */
+		unsigned long it;
+
+		it = ((cpsr >> 8) & 0xFC) | ((cpsr >> 25) & 0x3);
+
+		/* it == 0 => unconditional. */
+		if (it == 0)
+			return true;
+
+		/* The cond for this insn works out as the top 4 bits. */
+		cond = (it >> 4);
+	}
+
+	/* Shift makes it look like an ARM-mode instruction */
+	insn = cond << 28;
+	return arm_check_condition(insn, cpsr) != ARM_OPCODE_CONDTEST_FAIL;
 }
 
 /**
@@ -257,9 +286,9 @@ static u32 exc_vector_base(struct kvm_vcpu *vcpu)
  */
 void kvm_inject_undefined(struct kvm_vcpu *vcpu)
 {
-	u32 new_lr_value;
-	u32 new_spsr_value;
-	u32 cpsr = *vcpu_cpsr(vcpu);
+	unsigned long new_lr_value;
+	unsigned long new_spsr_value;
+	unsigned long cpsr = *vcpu_cpsr(vcpu);
 	u32 sctlr = vcpu->arch.cp15[c1_SCTLR];
 	bool is_thumb = (cpsr & PSR_T_BIT);
 	u32 vect_offset = 4;
@@ -291,9 +320,9 @@ void kvm_inject_undefined(struct kvm_vcpu *vcpu)
  */
 static void inject_abt(struct kvm_vcpu *vcpu, bool is_pabt, unsigned long addr)
 {
-	u32 new_lr_value;
-	u32 new_spsr_value;
-	u32 cpsr = *vcpu_cpsr(vcpu);
+	unsigned long new_lr_value;
+	unsigned long new_spsr_value;
+	unsigned long cpsr = *vcpu_cpsr(vcpu);
 	u32 sctlr = vcpu->arch.cp15[c1_SCTLR];
 	bool is_thumb = (cpsr & PSR_T_BIT);
 	u32 vect_offset;

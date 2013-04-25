@@ -80,6 +80,15 @@ struct kvm_mmu_memory_cache {
 	void *objects[KVM_NR_MEM_OBJS];
 };
 
+struct kvm_vcpu_fault_info {
+	u32 hsr;		/* Hyp Syndrome Register */
+	u32 hxfar;		/* Hyp Data/Inst. Fault Address Register */
+	u32 hpfar;		/* Hyp IPA Fault Address Register */
+	u32 hyp_pc;		/* PC when exception was taken from Hyp mode */
+};
+
+typedef struct vfp_hard_struct kvm_kernel_vfp_t;
+
 struct kvm_vcpu_arch {
 	struct kvm_regs regs;
 
@@ -93,13 +102,11 @@ struct kvm_vcpu_arch {
 	u32 midr;
 
 	/* Exception Information */
-	u32 hsr;		/* Hyp Syndrome Register */
-	u32 hxfar;		/* Hyp Data/Inst Fault Address Register */
-	u32 hpfar;		/* Hyp IPA Fault Address Register */
+	struct kvm_vcpu_fault_info fault;
 
 	/* Floating point registers (VFP and Advanced SIMD/NEON) */
-	struct vfp_hard_struct vfp_guest;
-	struct vfp_hard_struct *vfp_host;
+	kvm_kernel_vfp_t vfp_guest;
+	kvm_kernel_vfp_t *vfp_host;
 
 	/* VGIC state */
 	struct vgic_cpu vgic_cpu;
@@ -121,9 +128,6 @@ struct kvm_vcpu_arch {
 
 	/* Interrupt related fields */
 	u32 irq_lines;		/* IRQ and FIQ levels */
-
-	/* Hyp exception information */
-	u32 hyp_pc;		/* PC when exception was taken from Hyp mode */
 
 	/* Cache some mmu pages needed inside spinlock regions */
 	struct kvm_mmu_memory_cache mmu_page_cache;
@@ -180,5 +184,27 @@ unsigned long kvm_arm_num_coproc_regs(struct kvm_vcpu *vcpu);
 struct kvm_one_reg;
 int kvm_arm_coproc_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *);
 int kvm_arm_coproc_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *);
+
+int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
+		int exception_index);
+
+static inline void __cpu_init_hyp_mode(unsigned long long pgd_ptr,
+				       unsigned long hyp_stack_ptr,
+				       unsigned long vector_ptr)
+{
+	unsigned long pgd_low, pgd_high;
+
+	pgd_low = (pgd_ptr & ((1ULL << 32) - 1));
+	pgd_high = (pgd_ptr >> 32ULL);
+
+	/*
+	 * Call initialization code, and switch to the full blown
+	 * HYP code. The init code doesn't need to preserve these registers as
+	 * r1-r3 and r12 are already callee save according to the AAPCS.
+	 * Note that we slightly misuse the prototype by casing the pgd_low to
+	 * a void *.
+	 */
+	kvm_call_hyp((void *)pgd_low, pgd_high, hyp_stack_ptr, vector_ptr);
+}
 
 #endif /* __ARM_KVM_HOST_H__ */
