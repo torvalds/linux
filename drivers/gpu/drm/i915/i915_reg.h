@@ -2087,6 +2087,10 @@
 #define   BLM_PIPE_A			(0 << 29)
 #define   BLM_PIPE_B			(1 << 29)
 #define   BLM_PIPE_C			(2 << 29) /* ivb + */
+#define   BLM_TRANSCODER_A		BLM_PIPE_A /* hsw */
+#define   BLM_TRANSCODER_B		BLM_PIPE_B
+#define   BLM_TRANSCODER_C		BLM_PIPE_C
+#define   BLM_TRANSCODER_EDP		(3 << 29)
 #define   BLM_PIPE(pipe)		((pipe) << 29)
 #define   BLM_POLARITY_I965		(1 << 28) /* gen4 only */
 #define   BLM_PHASE_IN_INTERUPT_STATUS	(1 << 26)
