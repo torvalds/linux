@@ -314,3 +314,8 @@ failed_register:
 
 	return ret;
 }
+
+void imx_pcm_fiq_exit(struct platform_device *pdev)
+{
+	snd_soc_unregister_platform(&pdev->dev);
+}
