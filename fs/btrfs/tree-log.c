@@ -277,17 +277,19 @@ static int process_one_buffer(struct btrfs_root *log,
 			      struct extent_buffer *eb,
 			      struct walk_control *wc, u64 gen)
 {
-	if (wc->pin)
-		btrfs_pin_extent_for_log_replay(log->fs_info->extent_root,
-						eb->start, eb->len);
+	int ret = 0;
 
-	if (btrfs_buffer_uptodate(eb, gen, 0)) {
+	if (wc->pin)
+		ret = btrfs_pin_extent_for_log_replay(log->fs_info->extent_root,
+						      eb->start, eb->len);
+
+	if (!ret && btrfs_buffer_uptodate(eb, gen, 0)) {
 		if (wc->write)
 			btrfs_write_tree_block(eb);
 		if (wc->wait)
 			btrfs_wait_tree_block_writeback(eb);
 	}
-	return 0;
+	return ret;
 }
 
 /*
@@ -623,7 +625,8 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 						ins.objectid, ins.offset,
 						0, root->root_key.objectid,
 						key->objectid, offset, 0);
-				BUG_ON(ret);
+				if (ret)
+					goto out;
 			} else {
 				/*
 				 * insert the extent pointer in the extent
@@ -632,7 +635,8 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 				ret = btrfs_alloc_logged_file_extent(trans,
 						root, root->root_key.objectid,
 						key->objectid, offset, &ins);
-				BUG_ON(ret);
+				if (ret)
+					goto out;
 			}
 			btrfs_release_path(path);
 
@@ -1952,11 +1956,13 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 			if (S_ISDIR(mode)) {
 				ret = replay_dir_deletes(wc->trans,
 					 root, log, path, key.objectid, 0);
-				BUG_ON(ret);
+				if (ret)
+					break;
 			}
 			ret = overwrite_item(wc->trans, root, path,
 					     eb, i, &key);
-			BUG_ON(ret);
+			if (ret)
+				break;
 
 			/* for regular files, make sure corresponding
 			 * orhpan item exist. extents past the new EOF
@@ -1965,12 +1971,14 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 			if (S_ISREG(mode)) {
 				ret = insert_orphan_item(wc->trans, root,
 							 key.objectid);
-				BUG_ON(ret);
+				if (ret)
+					break;
 			}
 
 			ret = link_to_fixup_dir(wc->trans, root,
 						path, key.objectid);
-			BUG_ON(ret);
+			if (ret)
+				break;
 		}
 		if (wc->stage < LOG_WALK_REPLAY_ALL)
 			continue;
@@ -1979,28 +1987,35 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 		if (key.type == BTRFS_XATTR_ITEM_KEY) {
 			ret = overwrite_item(wc->trans, root, path,
 					     eb, i, &key);
-			BUG_ON(ret);
+			if (ret)
+				break;
 		} else if (key.type == BTRFS_INODE_REF_KEY) {
 			ret = add_inode_ref(wc->trans, root, log, path,
 					    eb, i, &key);
-			BUG_ON(ret && ret != -ENOENT);
+			if (ret && ret != -ENOENT)
+				break;
+			ret = 0;
 		} else if (key.type == BTRFS_INODE_EXTREF_KEY) {
 			ret = add_inode_ref(wc->trans, root, log, path,
 					    eb, i, &key);
-			BUG_ON(ret && ret != -ENOENT);
+			if (ret && ret != -ENOENT)
+				break;
+			ret = 0;
 		} else if (key.type == BTRFS_EXTENT_DATA_KEY) {
 			ret = replay_one_extent(wc->trans, root, path,
 						eb, i, &key);
-			BUG_ON(ret);
+			if (ret)
+				break;
 		} else if (key.type == BTRFS_DIR_ITEM_KEY ||
 			   key.type == BTRFS_DIR_INDEX_KEY) {
 			ret = replay_one_dir_item(wc->trans, root, path,
 						  eb, i, &key);
-			BUG_ON(ret);
+			if (ret)
+				break;
 		}
 	}
 	btrfs_free_path(path);
-	return 0;
+	return ret;
 }
 
 static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
@@ -2045,8 +2060,10 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 
 		if (*level == 1) {
 			ret = wc->process_func(root, next, wc, ptr_gen);
-			if (ret)
+			if (ret) {
+				free_extent_buffer(next);
 				return ret;
+			}
 
 			path->slots[*level]++;
 			if (wc->free) {
@@ -3970,6 +3987,9 @@ again:
 		wc.replay_dest = btrfs_read_fs_root_no_name(fs_info, &tmp_key);
 		if (IS_ERR(wc.replay_dest)) {
 			ret = PTR_ERR(wc.replay_dest);
+			free_extent_buffer(log->node);
+			free_extent_buffer(log->commit_root);
+			kfree(log);
 			btrfs_error(fs_info, ret, "Couldn't read target root "
 				    "for tree log recovery.");
 			goto error;
@@ -3978,12 +3998,10 @@ again:
 		wc.replay_dest->log_root = log;
 		btrfs_record_root_in_trans(trans, wc.replay_dest);
 		ret = walk_log_tree(trans, log, &wc);
-		BUG_ON(ret);
 
-		if (wc.stage == LOG_WALK_REPLAY_ALL) {
+		if (!ret && wc.stage == LOG_WALK_REPLAY_ALL) {
 			ret = fixup_inode_link_counts(trans, wc.replay_dest,
 						      path);
-			BUG_ON(ret);
 		}
 
 		key.offset = found_key.offset - 1;
@@ -3991,6 +4009,9 @@ again:
 		free_extent_buffer(log->node);
 		free_extent_buffer(log->commit_root);
 		kfree(log);
+
+		if (ret)
+			goto error;
 
 		if (found_key.offset == 0)
 			break;
@@ -4024,6 +4045,8 @@ again:
 
 	return 0;
 error:
+	if (wc.trans)
+		btrfs_end_transaction(wc.trans, fs_info->tree_root);
 	btrfs_free_path(path);
 	return ret;
 }

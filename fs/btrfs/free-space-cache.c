@@ -1567,7 +1567,8 @@ again:
 	search_bytes = ctl->unit;
 	search_bytes = min(search_bytes, end - search_start + 1);
 	ret = search_bitmap(ctl, bitmap_info, &search_start, &search_bytes);
-	BUG_ON(ret < 0 || search_start != *offset);
+	if (ret < 0 || search_start != *offset)
+		return -EINVAL;
 
 	/* We may have found more bits than what we need */
 	search_bytes = min(search_bytes, *bytes);
@@ -1973,7 +1974,6 @@ again:
 		re_search = true;
 		goto again;
 	}
-	BUG_ON(ret); /* logic error */
 out_lock:
 	spin_unlock(&ctl->tree_lock);
 out:

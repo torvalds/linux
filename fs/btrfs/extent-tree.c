@@ -5210,9 +5210,11 @@ int btrfs_pin_extent_for_log_replay(struct btrfs_root *root,
 				    u64 bytenr, u64 num_bytes)
 {
 	struct btrfs_block_group_cache *cache;
+	int ret;
 
 	cache = btrfs_lookup_block_group(root->fs_info, bytenr);
-	BUG_ON(!cache); /* Logic error */
+	if (!cache)
+		return -EINVAL;
 
 	/*
 	 * pull in the free space cache (if any) so that our pin
@@ -5225,9 +5227,9 @@ int btrfs_pin_extent_for_log_replay(struct btrfs_root *root,
 	pin_down_extent(root, cache, bytenr, num_bytes, 0);
 
 	/* remove us from the free space cache (if we're there at all) */
-	btrfs_remove_free_space(cache, bytenr, num_bytes);
+	ret = btrfs_remove_free_space(cache, bytenr, num_bytes);
 	btrfs_put_block_group(cache);
-	return 0;
+	return ret;
 }
 
 /**
@@ -6611,40 +6613,42 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 	if (!caching_ctl) {
 		BUG_ON(!block_group_cache_done(block_group));
 		ret = btrfs_remove_free_space(block_group, start, num_bytes);
-		BUG_ON(ret); /* -ENOMEM */
+		if (ret)
+			goto out;
 	} else {
 		mutex_lock(&caching_ctl->mutex);
 
 		if (start >= caching_ctl->progress) {
 			ret = add_excluded_extent(root, start, num_bytes);
-			BUG_ON(ret); /* -ENOMEM */
 		} else if (start + num_bytes <= caching_ctl->progress) {
 			ret = btrfs_remove_free_space(block_group,
 						      start, num_bytes);
-			BUG_ON(ret); /* -ENOMEM */
 		} else {
 			num_bytes = caching_ctl->progress - start;
 			ret = btrfs_remove_free_space(block_group,
 						      start, num_bytes);
-			BUG_ON(ret); /* -ENOMEM */
+			if (ret)
+				goto out_lock;
 
 			start = caching_ctl->progress;
 			num_bytes = ins->objectid + ins->offset -
 				    caching_ctl->progress;
 			ret = add_excluded_extent(root, start, num_bytes);
-			BUG_ON(ret); /* -ENOMEM */
 		}
-
+out_lock:
 		mutex_unlock(&caching_ctl->mutex);
 		put_caching_control(caching_ctl);
+		if (ret)
+			goto out;
 	}
 
 	ret = btrfs_update_reserved_bytes(block_group, ins->offset,
 					  RESERVE_ALLOC_NO_ACCOUNT);
 	BUG_ON(ret); /* logic error */
-	btrfs_put_block_group(block_group);
 	ret = alloc_reserved_file_extent(trans, root, 0, root_objectid,
 					 0, owner, offset, ins, 1);
+out:
+	btrfs_put_block_group(block_group);
 	return ret;
 }
 
