@@ -388,7 +388,7 @@ int thermal_zone_get_temp(struct thermal_zone_device *tz, unsigned long *temp)
 	enum thermal_trip_type type;
 #endif
 
-	if (IS_ERR_OR_NULL(tz))
+	if (!tz || IS_ERR(tz))
 		goto exit;
 
 	mutex_lock(&tz->lock);
