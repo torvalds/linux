@@ -55,7 +55,6 @@ nouveau_device_find(u64 name)
 struct nouveau_devobj {
 	struct nouveau_parent base;
 	struct nouveau_object *subdev[NVDEV_SUBDEV_NR];
-	bool created;
 };
 
 static const u64 disable_map[] = {
@@ -238,25 +237,23 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 	}
 
 	/* ensure requested subsystems are available for use */
-	for (i = 0, c = 0; i < NVDEV_SUBDEV_NR; i++) {
+	for (i = 1, c = 1; i < NVDEV_SUBDEV_NR; i++) {
 		if (!(oclass = device->oclass[i]) || (disable & (1ULL << i)))
 			continue;
 
-		if (!device->subdev[i]) {
-			ret = nouveau_object_ctor(nv_object(device), NULL,
-						  oclass, NULL, i,
-						  &devobj->subdev[i]);
-			if (ret == -ENODEV)
-				continue;
-			if (ret)
-				return ret;
-
-			if (nv_iclass(devobj->subdev[i], NV_ENGINE_CLASS))
-				nouveau_subdev_reset(devobj->subdev[i]);
-		} else {
+		if (device->subdev[i]) {
 			nouveau_object_ref(device->subdev[i],
 					  &devobj->subdev[i]);
+			continue;
 		}
+
+		ret = nouveau_object_ctor(nv_object(device), NULL,
+					  oclass, NULL, i,
+					  &devobj->subdev[i]);
+		if (ret == -ENODEV)
+			continue;
+		if (ret)
+			return ret;
 
 		/* note: can't init *any* subdevs until devinit has been run
 		 * due to not knowing exactly what the vbios init tables will
@@ -273,6 +270,10 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 				ret = nouveau_object_inc(subdev);
 				if (ret)
 					return ret;
+				atomic_dec(&nv_object(device)->usecount);
+			} else
+			if (subdev) {
+				nouveau_subdev_reset(subdev);
 			}
 		}
 	}
@@ -290,74 +291,6 @@ nouveau_devobj_dtor(struct nouveau_object *object)
 		nouveau_object_ref(NULL, &devobj->subdev[i]);
 
 	nouveau_parent_destroy(&devobj->base);
-}
-
-static int
-nouveau_devobj_init(struct nouveau_object *object)
-{
-	struct nouveau_devobj *devobj = (void *)object;
-	struct nouveau_object *subdev;
-	int ret, i;
-
-	ret = nouveau_parent_init(&devobj->base);
-	if (ret)
-		return ret;
-
-	for (i = 0; devobj->created && i < NVDEV_SUBDEV_NR; i++) {
-		if ((subdev = devobj->subdev[i])) {
-			if (!nv_iclass(subdev, NV_ENGINE_CLASS)) {
-				ret = nouveau_object_inc(subdev);
-				if (ret)
-					goto fail;
-			}
-		}
-	}
-
-	devobj->created = true;
-	return 0;
-
-fail:
-	for (--i; i >= 0; i--) {
-		if ((subdev = devobj->subdev[i])) {
-			if (!nv_iclass(subdev, NV_ENGINE_CLASS))
-				nouveau_object_dec(subdev, false);
-		}
-	}
-
-	return ret;
-}
-
-static int
-nouveau_devobj_fini(struct nouveau_object *object, bool suspend)
-{
-	struct nouveau_devobj *devobj = (void *)object;
-	struct nouveau_object *subdev;
-	int ret, i;
-
-	for (i = NVDEV_SUBDEV_NR - 1; i >= 0; i--) {
-		if ((subdev = devobj->subdev[i])) {
-			if (!nv_iclass(subdev, NV_ENGINE_CLASS)) {
-				ret = nouveau_object_dec(subdev, suspend);
-				if (ret && suspend)
-					goto fail;
-			}
-		}
-	}
-
-	ret = nouveau_parent_fini(&devobj->base, suspend);
-fail:
-	for (; ret && suspend && i < NVDEV_SUBDEV_NR; i++) {
-		if ((subdev = devobj->subdev[i])) {
-			if (!nv_iclass(subdev, NV_ENGINE_CLASS)) {
-				ret = nouveau_object_inc(subdev);
-				if (ret) {
-					/* XXX */
-				}
-			}
-		}
-	}
-
-	return ret;
 }
 
 static u8
@@ -400,8 +333,8 @@ static struct nouveau_ofuncs
 nouveau_devobj_ofuncs = {
 	.ctor = nouveau_devobj_ctor,
 	.dtor = nouveau_devobj_dtor,
-	.init = nouveau_devobj_init,
-	.fini = nouveau_devobj_fini,
+	.init = _nouveau_parent_init,
+	.fini = _nouveau_parent_fini,
 	.rd08 = nouveau_devobj_rd08,
 	.rd16 = nouveau_devobj_rd16,
 	.rd32 = nouveau_devobj_rd32,
@@ -423,14 +356,64 @@ static int
 nouveau_device_fini(struct nouveau_object *object, bool suspend)
 {
 	struct nouveau_device *device = (void *)object;
-	return nouveau_subdev_fini(&device->base, suspend);
+	struct nouveau_object *subdev;
+	int ret, i;
+
+	for (i = NVDEV_SUBDEV_NR - 1; i >= 0; i--) {
+		if ((subdev = device->subdev[i])) {
+			if (!nv_iclass(subdev, NV_ENGINE_CLASS)) {
+				ret = nouveau_object_dec(subdev, suspend);
+				if (ret && suspend)
+					goto fail;
+			}
+		}
+	}
+
+	ret = 0;
+fail:
+	for (; ret && i < NVDEV_SUBDEV_NR; i++) {
+		if ((subdev = device->subdev[i])) {
+			if (!nv_iclass(subdev, NV_ENGINE_CLASS)) {
+				ret = nouveau_object_inc(subdev);
+				if (ret) {
+					/* XXX */
+				}
+			}
+		}
+	}
+
+	return ret;
 }
 
 static int
 nouveau_device_init(struct nouveau_object *object)
 {
 	struct nouveau_device *device = (void *)object;
-	return nouveau_subdev_init(&device->base);
+	struct nouveau_object *subdev;
+	int ret, i;
+
+	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
+		if ((subdev = device->subdev[i])) {
+			if (!nv_iclass(subdev, NV_ENGINE_CLASS)) {
+				ret = nouveau_object_inc(subdev);
+				if (ret)
+					goto fail;
+			} else {
+				nouveau_subdev_reset(subdev);
+			}
+		}
+	}
+
+	ret = 0;
+fail:
+	for (--i; ret && i >= 0; i--) {
+		if ((subdev = device->subdev[i])) {
+			if (!nv_iclass(subdev, NV_ENGINE_CLASS))
+				nouveau_object_dec(subdev, false);
+		}
+	}
+
+	return ret;
 }
 
 static void
