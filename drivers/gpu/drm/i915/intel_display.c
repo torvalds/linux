@@ -3601,6 +3601,33 @@ g4x_fixup_plane(struct drm_i915_private *dev_priv, enum pipe pipe)
 	}
 }
 
+static void i9xx_pfit_enable(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc_config *pipe_config = &crtc->config;
+
+	if (!(intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_EDP) ||
+	      intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_LVDS)))
+		return;
+
+	WARN_ON(I915_READ(PFIT_CONTROL) & PFIT_ENABLE);
+	assert_pipe_disabled(dev_priv, crtc->pipe);
+
+	/*
+	 * Enable automatic panel scaling so that non-native modes
+	 * fill the screen.  The panel fitter should only be
+	 * adjusted whilst the pipe is disabled, according to
+	 * register description and PRM.
+	 */
+	DRM_DEBUG_KMS("applying panel-fitter: %x, %x\n",
+		      pipe_config->pfit_control,
+		      pipe_config->pfit_pgm_ratios);
+
+	I915_WRITE(PFIT_PGM_RATIOS, pipe_config->pfit_pgm_ratios);
+	I915_WRITE(PFIT_CONTROL, pipe_config->pfit_control);
+}
+
 static void valleyview_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -3633,6 +3660,9 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	/* VLV wants encoder enabling _before_ the pipe is up. */
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		encoder->enable(encoder);
+
+	/* Enable panel fitting for eDP */
+	i9xx_pfit_enable(intel_crtc);
 
 	intel_enable_pipe(dev_priv, pipe, false);
 	intel_enable_plane(dev_priv, plane, pipe);
@@ -3669,6 +3699,9 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
 			encoder->pre_enable(encoder);
+
+	/* Enable panel fitting for LVDS */
+	i9xx_pfit_enable(intel_crtc);
 
 	intel_enable_pipe(dev_priv, pipe, false);
 	intel_enable_plane(dev_priv, plane, pipe);

@@ -117,6 +117,197 @@ done:
 	dev_priv->pch_pf_size = (width << 16) | height;
 }
 
+static void
+centre_horizontally(struct drm_display_mode *mode,
+		    int width)
+{
+	u32 border, sync_pos, blank_width, sync_width;
+
+	/* keep the hsync and hblank widths constant */
+	sync_width = mode->crtc_hsync_end - mode->crtc_hsync_start;
+	blank_width = mode->crtc_hblank_end - mode->crtc_hblank_start;
+	sync_pos = (blank_width - sync_width + 1) / 2;
+
+	border = (mode->hdisplay - width + 1) / 2;
+	border += border & 1; /* make the border even */
+
+	mode->crtc_hdisplay = width;
+	mode->crtc_hblank_start = width + border;
+	mode->crtc_hblank_end = mode->crtc_hblank_start + blank_width;
+
+	mode->crtc_hsync_start = mode->crtc_hblank_start + sync_pos;
+	mode->crtc_hsync_end = mode->crtc_hsync_start + sync_width;
+}
+
+static void
+centre_vertically(struct drm_display_mode *mode,
+		  int height)
+{
+	u32 border, sync_pos, blank_width, sync_width;
+
+	/* keep the vsync and vblank widths constant */
+	sync_width = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	blank_width = mode->crtc_vblank_end - mode->crtc_vblank_start;
+	sync_pos = (blank_width - sync_width + 1) / 2;
+
+	border = (mode->vdisplay - height + 1) / 2;
+
+	mode->crtc_vdisplay = height;
+	mode->crtc_vblank_start = height + border;
+	mode->crtc_vblank_end = mode->crtc_vblank_start + blank_width;
+
+	mode->crtc_vsync_start = mode->crtc_vblank_start + sync_pos;
+	mode->crtc_vsync_end = mode->crtc_vsync_start + sync_width;
+}
+
+static inline u32 panel_fitter_scaling(u32 source, u32 target)
+{
+	/*
+	 * Floating point operation is not supported. So the FACTOR
+	 * is defined, which can avoid the floating point computation
+	 * when calculating the panel ratio.
+	 */
+#define ACCURACY 12
+#define FACTOR (1 << ACCURACY)
+	u32 ratio = source * FACTOR / target;
+	return (FACTOR * ratio + FACTOR/2) / FACTOR;
+}
+
+void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
+			      struct intel_crtc_config *pipe_config,
+			      int fitting_mode)
+{
+	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
+	struct drm_display_mode *mode, *adjusted_mode;
+
+	mode = &pipe_config->requested_mode;
+	adjusted_mode = &pipe_config->adjusted_mode;
+
+	/* Native modes don't need fitting */
+	if (adjusted_mode->hdisplay == mode->hdisplay &&
+	    adjusted_mode->vdisplay == mode->vdisplay)
+		goto out;
+
+	switch (fitting_mode) {
+	case DRM_MODE_SCALE_CENTER:
+		/*
+		 * For centered modes, we have to calculate border widths &
+		 * heights and modify the values programmed into the CRTC.
+		 */
+		centre_horizontally(adjusted_mode, mode->hdisplay);
+		centre_vertically(adjusted_mode, mode->vdisplay);
+		border = LVDS_BORDER_ENABLE;
+		break;
+	case DRM_MODE_SCALE_ASPECT:
+		/* Scale but preserve the aspect ratio */
+		if (INTEL_INFO(dev)->gen >= 4) {
+			u32 scaled_width = adjusted_mode->hdisplay *
+				mode->vdisplay;
+			u32 scaled_height = mode->hdisplay *
+				adjusted_mode->vdisplay;
+
+			/* 965+ is easy, it does everything in hw */
+			if (scaled_width > scaled_height)
+				pfit_control |= PFIT_ENABLE |
+					PFIT_SCALING_PILLAR;
+			else if (scaled_width < scaled_height)
+				pfit_control |= PFIT_ENABLE |
+					PFIT_SCALING_LETTER;
+			else if (adjusted_mode->hdisplay != mode->hdisplay)
+				pfit_control |= PFIT_ENABLE | PFIT_SCALING_AUTO;
+		} else {
+			u32 scaled_width = adjusted_mode->hdisplay *
+				mode->vdisplay;
+			u32 scaled_height = mode->hdisplay *
+				adjusted_mode->vdisplay;
+			/*
+			 * For earlier chips we have to calculate the scaling
+			 * ratio by hand and program it into the
+			 * PFIT_PGM_RATIO register
+			 */
+			if (scaled_width > scaled_height) { /* pillar */
+				centre_horizontally(adjusted_mode,
+						    scaled_height /
+						    mode->vdisplay);
+
+				border = LVDS_BORDER_ENABLE;
+				if (mode->vdisplay != adjusted_mode->vdisplay) {
+					u32 bits = panel_fitter_scaling(mode->vdisplay, adjusted_mode->vdisplay);
+					pfit_pgm_ratios |= (bits << PFIT_HORIZ_SCALE_SHIFT |
+							    bits << PFIT_VERT_SCALE_SHIFT);
+					pfit_control |= (PFIT_ENABLE |
+							 VERT_INTERP_BILINEAR |
+							 HORIZ_INTERP_BILINEAR);
+				}
+			} else if (scaled_width < scaled_height) { /* letter */
+				centre_vertically(adjusted_mode,
+						  scaled_width /
+						  mode->hdisplay);
+
+				border = LVDS_BORDER_ENABLE;
+				if (mode->hdisplay != adjusted_mode->hdisplay) {
+					u32 bits = panel_fitter_scaling(mode->hdisplay, adjusted_mode->hdisplay);
+					pfit_pgm_ratios |= (bits << PFIT_HORIZ_SCALE_SHIFT |
+							    bits << PFIT_VERT_SCALE_SHIFT);
+					pfit_control |= (PFIT_ENABLE |
+							 VERT_INTERP_BILINEAR |
+							 HORIZ_INTERP_BILINEAR);
+				}
+			} else {
+				/* Aspects match, Let hw scale both directions */
+				pfit_control |= (PFIT_ENABLE |
+						 VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
+						 VERT_INTERP_BILINEAR |
+						 HORIZ_INTERP_BILINEAR);
+			}
+		}
+		break;
+	default:
+	case DRM_MODE_SCALE_FULLSCREEN:
+		/*
+		 * Full scaling, even if it changes the aspect ratio.
+		 * Fortunately this is all done for us in hw.
+		 */
+		if (mode->vdisplay != adjusted_mode->vdisplay ||
+		    mode->hdisplay != adjusted_mode->hdisplay) {
+			pfit_control |= PFIT_ENABLE;
+			if (INTEL_INFO(dev)->gen >= 4)
+				pfit_control |= PFIT_SCALING_AUTO;
+			else
+				pfit_control |= (VERT_AUTO_SCALE |
+						 VERT_INTERP_BILINEAR |
+						 HORIZ_AUTO_SCALE |
+						 HORIZ_INTERP_BILINEAR);
+		}
+		break;
+	}
+
+	/* 965+ wants fuzzy fitting */
+	/* FIXME: handle multiple panels by failing gracefully */
+	if (INTEL_INFO(dev)->gen >= 4)
+		pfit_control |= ((intel_crtc->pipe << PFIT_PIPE_SHIFT) |
+				 PFIT_FILTER_FUZZY);
+
+out:
+	if ((pfit_control & PFIT_ENABLE) == 0) {
+		pfit_control = 0;
+		pfit_pgm_ratios = 0;
+	}
+
+	/* Make sure pre-965 set dither correctly for 18bpp panels. */
+	if (INTEL_INFO(dev)->gen < 4 && pipe_config->pipe_bpp == 18)
+		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
+
+	if (pfit_control != pipe_config->pfit_control ||
+	    pfit_pgm_ratios != pipe_config->pfit_pgm_ratios) {
+		pipe_config->pfit_control = pfit_control;
+		pipe_config->pfit_pgm_ratios = pfit_pgm_ratios;
+	}
+	dev_priv->lvds_border_bits = border;
+}
+
 static int is_backlight_combination_mode(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;

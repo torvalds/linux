@@ -237,6 +237,9 @@ struct intel_crtc_config {
 	int pixel_target_clock;
 	/* Used by SDVO (and if we ever fix it, HDMI). */
 	unsigned pixel_multiplier;
+
+	/* Panel fitter controls for gen2-gen4 + VLV */
+	u32 pfit_control, pfit_pgm_ratios;
 };
 
 struct intel_crtc {
@@ -559,6 +562,9 @@ extern void intel_pch_panel_fitting(struct drm_device *dev,
 				    int fitting_mode,
 				    const struct drm_display_mode *mode,
 				    struct drm_display_mode *adjusted_mode);
+extern void intel_gmch_panel_fitting(struct intel_crtc *crtc,
+				     struct intel_crtc_config *pipe_config,
+				     int fitting_mode);
 extern void intel_panel_set_backlight(struct drm_device *dev,
 				      u32 level, u32 max);
 extern int intel_panel_setup_backlight(struct drm_connector *connector);
