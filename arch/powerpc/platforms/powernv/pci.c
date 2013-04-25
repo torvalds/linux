@@ -329,48 +329,6 @@ struct pci_ops pnv_pci_ops = {
 	.write = pnv_pci_write_config,
 };
 
-
-static void pnv_tce_invalidate(struct iommu_table *tbl,
-			       u64 *startp, u64 *endp)
-{
-	u64 __iomem *invalidate = (u64 __iomem *)tbl->it_index;
-	unsigned long start, end, inc;
-
-	start = __pa(startp);
-	end = __pa(endp);
-
-
-	/* BML uses this case for p6/p7/galaxy2: Shift addr and put in node */
-	if (tbl->it_busno) {
-		start <<= 12;
-		end <<= 12;
-		inc = 128 << 12;
-		start |= tbl->it_busno;
-		end |= tbl->it_busno;
-	}
-	/* p7ioc-style invalidation, 2 TCEs per write */
-	else if (tbl->it_type & TCE_PCI_SWINV_PAIR) {
-		start |= (1ull << 63);
-		end |= (1ull << 63);
-		inc = 16;
-	}
-	/* Default (older HW) */
-	else
-		inc = 128;
-
-	end |= inc - 1;		/* round up end to be different than start */
-
-	mb(); /* Ensure above stores are visible */
-	while (start <= end) {
-		__raw_writeq(start, invalidate);
-		start += inc;
-	}
-	/* The iommu layer will do another mb() for us on build() and
-	 * we don't care on free()
-	 */
-}
-
-
 static int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 			 unsigned long uaddr, enum dma_data_direction direction,
 			 struct dma_attrs *attrs)
@@ -395,7 +353,7 @@ static int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 	 * of flags if that becomes the case
 	 */
 	if (tbl->it_type & TCE_PCI_SWINV_CREATE)
-		pnv_tce_invalidate(tbl, tces, tcep - 1);
+		pnv_pci_ioda_tce_invalidate(tbl, tces, tcep - 1);
 
 	return 0;
 }
@@ -409,8 +367,8 @@ static void pnv_tce_free(struct iommu_table *tbl, long index, long npages)
 	while (npages--)
 		*(tcep++) = 0;
 
-	if (tbl->it_type & TCE_PCI_SWINV_FREE)
-		pnv_tce_invalidate(tbl, tces, tcep - 1);
+	if (tbl->it_type & TCE_PCI_SWINV_CREATE)
+		pnv_pci_ioda_tce_invalidate(tbl, tces, tcep - 1);
 }
 
 static unsigned long pnv_tce_get(struct iommu_table *tbl, long index)

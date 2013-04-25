@@ -23,8 +23,10 @@ enum pnv_phb_model {
 #define PNV_IODA_PE_BUS_ALL	(1 << 2)	/* PE has subordinate buses	*/
 
 /* Data associated with a PE, including IOMMU tracking etc.. */
+struct pnv_phb;
 struct pnv_ioda_pe {
 	unsigned long		flags;
+	struct pnv_phb		*phb;
 
 	/* A PE can be associated with a single device or an
 	 * entire bus (& children). In the former case, pdev
@@ -154,6 +156,6 @@ extern void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 extern void pnv_pci_init_p5ioc2_hub(struct device_node *np);
 extern void pnv_pci_init_ioda_hub(struct device_node *np);
 extern void pnv_pci_init_ioda2_phb(struct device_node *np);
-
-
+extern void pnv_pci_ioda_tce_invalidate(struct iommu_table *tbl,
+					u64 *startp, u64 *endp);
 #endif /* __POWERNV_PCI_H */

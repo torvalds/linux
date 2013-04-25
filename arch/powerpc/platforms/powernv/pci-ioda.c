@@ -89,6 +89,7 @@ static int pnv_ioda_alloc_pe(struct pnv_phb *phb)
 			return IODA_INVALID_PE;
 	} while(test_and_set_bit(pe, phb->ioda.pe_alloc));
 
+	phb->ioda.pe_array[pe].phb = phb;
 	phb->ioda.pe_array[pe].pe_number = pe;
 	return pe;
 }
@@ -449,6 +450,85 @@ static void pnv_ioda_setup_bus_dma(struct pnv_ioda_pe *pe, struct pci_bus *bus)
 	}
 }
 
+static void pnv_pci_ioda1_tce_invalidate(struct iommu_table *tbl,
+					 u64 *startp, u64 *endp)
+{
+	u64 __iomem *invalidate = (u64 __iomem *)tbl->it_index;
+	unsigned long start, end, inc;
+
+	start = __pa(startp);
+	end = __pa(endp);
+
+	/* BML uses this case for p6/p7/galaxy2: Shift addr and put in node */
+	if (tbl->it_busno) {
+		start <<= 12;
+		end <<= 12;
+		inc = 128 << 12;
+		start |= tbl->it_busno;
+		end |= tbl->it_busno;
+	} else if (tbl->it_type & TCE_PCI_SWINV_PAIR) {
+		/* p7ioc-style invalidation, 2 TCEs per write */
+		start |= (1ull << 63);
+		end |= (1ull << 63);
+		inc = 16;
+        } else {
+		/* Default (older HW) */
+                inc = 128;
+	}
+
+        end |= inc - 1;	/* round up end to be different than start */
+
+        mb(); /* Ensure above stores are visible */
+        while (start <= end) {
+                __raw_writeq(start, invalidate);
+                start += inc;
+        }
+
+	/*
+	 * The iommu layer will do another mb() for us on build()
+	 * and we don't care on free()
+	 */
+}
+
+static void pnv_pci_ioda2_tce_invalidate(struct pnv_ioda_pe *pe,
+					 struct iommu_table *tbl,
+					 u64 *startp, u64 *endp)
+{
+	unsigned long start, end, inc;
+	u64 __iomem *invalidate = (u64 __iomem *)tbl->it_index;
+
+	/* We'll invalidate DMA address in PE scope */
+	start = 0x2ul << 60;
+	start |= (pe->pe_number & 0xFF);
+	end = start;
+
+	/* Figure out the start, end and step */
+	inc = tbl->it_offset + (((u64)startp - tbl->it_base) / sizeof(u64));
+	start |= (inc << 12);
+	inc = tbl->it_offset + (((u64)endp - tbl->it_base) / sizeof(u64));
+	end |= (inc << 12);
+	inc = (0x1ul << 12);
+	mb();
+
+	while (start <= end) {
+		__raw_writeq(start, invalidate);
+		start += inc;
+	}
+}
+
+void pnv_pci_ioda_tce_invalidate(struct iommu_table *tbl,
+				 u64 *startp, u64 *endp)
+{
+	struct pnv_ioda_pe *pe = container_of(tbl, struct pnv_ioda_pe,
+					      tce32_table);
+	struct pnv_phb *phb = pe->phb;
+
+	if (phb->type == PNV_PHB_IODA1)
+		pnv_pci_ioda1_tce_invalidate(tbl, startp, endp);
+	else
+		pnv_pci_ioda2_tce_invalidate(pe, tbl, startp, endp);
+}
+
 static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 				      struct pnv_ioda_pe *pe, unsigned int base,
 				      unsigned int segs)
@@ -520,8 +600,9 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 		 */
 		tbl->it_busno = 0;
 		tbl->it_index = (unsigned long)ioremap(be64_to_cpup(swinvp), 8);
-		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE
-			| TCE_PCI_SWINV_PAIR;
+		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
+		if (phb->type == PNV_PHB_IODA1)
+			tbl->it_type |= TCE_PCI_SWINV_PAIR;
 	}
 	iommu_init_table(tbl, phb->hose->node);
 
