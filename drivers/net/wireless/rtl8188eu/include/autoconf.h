@@ -44,7 +44,7 @@
 
 #ifdef CONFIG_PLATFORM_ARM_SUN4I
 	#ifndef CONFIG_IOCTL_CFG80211 
-		#define CONFIG_IOCTL_CFG80211 1
+/*		#define CONFIG_IOCTL_CFG80211 1 */
 	#endif
 #endif
 
