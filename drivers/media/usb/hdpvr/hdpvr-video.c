@@ -298,8 +298,12 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 				      0xb8, 0x38, 0x1, 0, NULL, 0, 8000);
 		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
 			 "encoder start control request returned %d\n", ret);
+		if (ret < 0)
+			return ret;
 
-		hdpvr_config_call(dev, CTRL_START_STREAMING_VALUE, 0x00);
+		ret = hdpvr_config_call(dev, CTRL_START_STREAMING_VALUE, 0x00);
+		if (ret)
+			return ret;
 
 		dev->status = STATUS_STREAMING;
 
