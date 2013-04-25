@@ -136,7 +136,10 @@ static void intel_pre_pll_enable_lvds(struct intel_encoder *encoder)
 	 * special lvds dither control bit on pch-split platforms, dithering is
 	 * only controlled through the PIPECONF reg. */
 	if (INTEL_INFO(dev)->gen == 4) {
-		if (dev_priv->lvds_dither)
+		/* Bspec wording suggests that LVDS port dithering only exists
+		 * for 18bpp panels. */
+		if (intel_crtc->config.dither &&
+		    intel_crtc->config.pipe_bpp == 18)
 			temp |= LVDS_ENABLE_DITHER;
 		else
 			temp &= ~LVDS_ENABLE_DITHER;
@@ -335,7 +338,13 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 		DRM_DEBUG_KMS("forcing display bpp (was %d) to LVDS (%d)\n",
 			      pipe_config->pipe_bpp, lvds_bpp);
 		pipe_config->pipe_bpp = lvds_bpp;
+
+		/* Make sure pre-965 set dither correctly for 18bpp panels. */
+		if (INTEL_INFO(dev)->gen < 4 && lvds_bpp == 18)
+			pfit_control |= PANEL_8TO6_DITHER_ENABLE;
+
 	}
+
 	/*
 	 * We have timings from the BIOS for the panel, put them in
 	 * to the adjusted mode.  The CRTC will be set up for this mode,
@@ -469,10 +478,6 @@ out:
 		pfit_control = 0;
 		pfit_pgm_ratios = 0;
 	}
-
-	/* Make sure pre-965 set dither correctly */
-	if (INTEL_INFO(dev)->gen < 4 && dev_priv->lvds_dither)
-		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 
 	if (pfit_control != lvds_encoder->pfit_control ||
 	    pfit_pgm_ratios != lvds_encoder->pfit_pgm_ratios) {
