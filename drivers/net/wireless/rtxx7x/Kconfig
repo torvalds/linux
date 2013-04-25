@@ -1,0 +1,7 @@
+config RTXX7X_SW
+	tristate "Ralink 3070/3370/5370/5372 USB WiFi for SW"
+	depends on USB
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	---help---
+	Adds support for Ralink 3070/3370/5370/5372 USB WiFi wireless chipset family

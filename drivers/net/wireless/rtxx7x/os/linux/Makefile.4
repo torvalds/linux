@@ -1,0 +1,285 @@
+include $(RT28xx_DIR)/os/linux/config.mk
+
+
+#ifdef CONFIG_STA_SUPPORT
+ifeq ($(RT28xx_MODE), STA)
+MOD_NAME = rt$(CHIPSET)sta
+DAT_PATH = /etc/Wireless/RT$(CHIPSET_DAT)STA
+DAT_FILE_NAME = RT$(CHIPSET_DAT)STA.dat
+endif
+#endif // CONFIG_STA_SUPPORT //
+
+
+
+OBJ := $(MOD_NAME).o
+
+
+#ifdef CONFIG_STA_SUPPORT
+RT28XX_STA_OBJ := \
+	$(RT28xx_DIR)/common/crypt_md5.o\
+	$(RT28xx_DIR)/common/crypt_sha2.o\
+	$(RT28xx_DIR)/common/crypt_hmac.o\
+	$(RT28xx_DIR)/common/crypt_aes.o\
+	$(RT28xx_DIR)/common/crypt_arc4.o\
+	$(RT28xx_DIR)/common/mlme.o\
+	$(RT28xx_DIR)/common/cmm_wep.o\
+	$(RT28xx_DIR)/common/action.o\
+	$(RT28xx_DIR)/common/cmm_data.o\
+	$(RT28xx_DIR)/common/rtmp_init.o\
+	$(RT28xx_DIR)/common/rtmp_init_inf.o\
+	$(RT28xx_DIR)/common/cmm_tkip.o\
+	$(RT28xx_DIR)/common/cmm_aes.o\
+	$(RT28xx_DIR)/common/cmm_sync.o\
+	$(RT28xx_DIR)/common/eeprom.o\
+	$(RT28xx_DIR)/common/cmm_sanity.o\
+	$(RT28xx_DIR)/common/cmm_info.o\
+	$(RT28xx_DIR)/common/cmm_cfg.o\
+	$(RT28xx_DIR)/common/cmm_wpa.o\
+	$(RT28xx_DIR)/common/dfs.o\
+	$(RT28xx_DIR)/common/spectrum.o\
+	$(RT28xx_DIR)/common/rtmp_timer.o\
+	$(RT28xx_DIR)/common/rt_channel.o\
+	$(RT28xx_DIR)/common/cmm_profile.o\
+	$(RT28xx_DIR)/common/cmm_asic.o\
+	$(RT28xx_DIR)/common/cmm_cmd.o\
+	$(RT28xx_DIR)/os/linux/rt_profile.o\
+	$(RT28xx_DIR)/chips/rtmp_chip.o\
+	$(RT28xx_DIR)/sta/assoc.o\
+	$(RT28xx_DIR)/sta/auth.o\
+	$(RT28xx_DIR)/sta/auth_rsp.o\
+	$(RT28xx_DIR)/sta/sync.o\
+	$(RT28xx_DIR)/sta/sanity.o\
+	$(RT28xx_DIR)/sta/rtmp_data.o\
+	$(RT28xx_DIR)/sta/connect.o\
+	$(RT28xx_DIR)/sta/wpa.o\
+	$(RT28xx_DIR)/sta/ags.o\
+	$(RT28xx_DIR)/sta/sta_cfg.o
+
+ifeq ($(OSABL),NO)
+RT28XX_STA_OBJ += \
+	$(RT28xx_DIR)/common/rt_os_util.o\
+	$(RT28xx_DIR)/os/linux/sta_ioctl.o\
+	$(RT28xx_DIR)/os/linux/rt_linux.o\
+	$(RT28xx_DIR)/os/linux/rt_main_dev.o
+else
+RT28XX_STA_OBJ += \
+	$(RT28xx_DIR)/os/linux/rt_symb.o
+endif
+
+#ifdef DOT11_N_SUPPORT
+ifeq ($(HAS_DOT11_N_SUPPORT),y)
+RT28XX_STA_OBJ += \
+	$(RT28xx_DIR)/common/ba_action.o
+endif
+#endif // DOT11_N_SUPPORT //
+
+#ifdef ETH_CONVERT
+ifeq ($(HAS_ETH_CONVERT_SUPPORT), y)
+RT28XX_STA_OBJ += \
+	$(RT28xx_DIR)/common/cmm_mat.o \
+	$(RT28xx_DIR)/common/cmm_mat_iparp.o \
+	$(RT28xx_DIR)/common/cmm_mat_pppoe.o \
+	$(RT28xx_DIR)/common/cmm_mat_ipv6.o
+endif
+#endif // ETH_CONVERT //
+
+
+
+
+ifeq ($(HAS_BLOCK_NET_IF),y)
+RT28XX_STA_OBJ += $(RT28xx_DIR)/common/netif_block.o
+endif
+
+ifeq ($(HAS_QOS_DLS_SUPPORT),y)
+RT28XX_STA_OBJ += $(RT28xx_DIR)/sta/dls.o
+endif
+
+
+#ifdef LED_CONTROL_SUPPORT
+ifeq ($(HAS_LED_CONTROL_SUPPORT),y)
+RT28XX_STA_OBJ += \
+	$(RT28xx_DIR)/common/rt_led.o
+endif
+#endif // LED_CONTROL_SUPPORT //
+
+
+
+
+#ifdef RT3070
+ifeq ($(CHIPSET),2070)
+RT28XX_STA_OBJ += \
+	$(RT28xx_DIR)/common/cmm_mac_usb.o\
+	$(RT28xx_DIR)/common/rtusb_io.o\
+	$(RT28xx_DIR)/common/rtusb_data.o\
+	$(RT28xx_DIR)/common/cmm_data_usb.o\
+	$(RT28xx_DIR)/common/ee_prom.o\
+	$(RT28xx_DIR)/common/ee_efuse.o\
+	$(RT28xx_DIR)/common/rtmp_mcu.o\
+	$(RT28xx_DIR)/chips/rt30xx.o\
+	$(RT28xx_DIR)/common/rt_rf.o\
+	$(RT28xx_DIR)/common/rtusb_bulk.o\
+	$(RT28xx_DIR)/os/linux/rt_usb.o\
+	$(RT28xx_DIR)/chips/rt3070.o
+
+ifeq ($(OSABL),NO)
+RT28XX_STA_OBJ += \
+	$(RT28xx_DIR)/common/rtusb_dev_id.o\
+	$(RT28xx_DIR)/os/linux/rt_usb_util.o\
+	$(RT28xx_DIR)/os/linux/usb_main_dev.o
+endif
+endif
+
+ifeq ($(CHIPSET),3070)
+RT28XX_STA_OBJ += \
+	$(RT28xx_DIR)/common/cmm_mac_usb.o\
+	$(RT28xx_DIR)/common/rtusb_io.o\
+	$(RT28xx_DIR)/common/rtusb_data.o\
+	$(RT28xx_DIR)/common/cmm_data_usb.o\
+	$(RT28xx_DIR)/common/ee_prom.o\
+	$(RT28xx_DIR)/common/ee_efuse.o\
+	$(RT28xx_DIR)/common/rtmp_mcu.o\
+	$(RT28xx_DIR)/chips/rt30xx.o\
+	$(RT28xx_DIR)/common/rt_rf.o\
+	$(RT28xx_DIR)/common/rtusb_bulk.o\
+	$(RT28xx_DIR)/os/linux/rt_usb.o\
+	$(RT28xx_DIR)/chips/rt3070.o
+
+ifeq ($(OSABL),NO)
+RT28XX_STA_OBJ += \
+	$(RT28xx_DIR)/common/rtusb_dev_id.o\
+	$(RT28xx_DIR)/os/linux/rt_usb_util.o\
+	$(RT28xx_DIR)/os/linux/usb_main_dev.o
+endif
+endif
+#endif // RT3070 //
+
+
+
+#ifdef RT3370
+ifeq ($(CHIPSET),3370)
+RT28XX_STA_OBJ += \
+	$(RT28xx_DIR)/common/cmm_mac_usb.o\
+	$(RT28xx_DIR)/common/rtusb_io.o\
+	$(RT28xx_DIR)/common/rtusb_data.o\
+	$(RT28xx_DIR)/common/cmm_data_usb.o\
+	$(RT28xx_DIR)/common/rtusb_bulk.o\
+	$(RT28xx_DIR)/common/ee_prom.o\
+	$(RT28xx_DIR)/common/ee_efuse.o\
+	$(RT28xx_DIR)/common/rtmp_mcu.o\
+	$(RT28xx_DIR)/common/rt_rf.o\
+	$(RT28xx_DIR)/os/linux/rt_usb.o\
+	$(RT28xx_DIR)/chips/rt3070.o\
+	$(RT28xx_DIR)/chips/rt30xx.o\
+	$(RT28xx_DIR)/chips/rt33xx.o\
+	$(RT28xx_DIR)/chips/rt3370.o
+
+ifeq ($(OSABL),NO)
+RT28XX_STA_OBJ += \
+	$(RT28xx_DIR)/common/rtusb_dev_id.o\
+	$(RT28xx_DIR)/os/linux/rt_usb_util.o\
+	$(RT28xx_DIR)/os/linux/usb_main_dev.o
+endif
+endif
+#endif // RT3370 //
+
+
+#ifdef RT5370
+ifeq ($(CHIPSET),5370)
+RT28XX_STA_OBJ += \
+        $(RT28xx_DIR)/common/cmm_mac_usb.o\
+        $(RT28xx_DIR)/common/rtusb_io.o\
+        $(RT28xx_DIR)/common/rtusb_data.o\
+        $(RT28xx_DIR)/common/cmm_data_usb.o\
+        $(RT28xx_DIR)/common/rtusb_bulk.o\
+        $(RT28xx_DIR)/common/ee_prom.o\
+        $(RT28xx_DIR)/common/ee_efuse.o\
+        $(RT28xx_DIR)/common/rtmp_mcu.o\
+        $(RT28xx_DIR)/common/rt_rf.o\
+	$(RT28xx_DIR)/os/linux/rt_usb.o\
+        $(RT28xx_DIR)/chips/rt3070.o\
+        $(RT28xx_DIR)/chips/rt30xx.o\
+        $(RT28xx_DIR)/chips/rt33xx.o\
+        $(RT28xx_DIR)/chips/rt3370.o\
+	$(RT28xx_DIR)/chips/rt5390.o
+
+ifeq ($(OSABL),NO)
+RT28XX_STA_OBJ += \
+        $(RT28xx_DIR)/common/rtusb_dev_id.o\
+        $(RT28xx_DIR)/os/linux/rt_usb_util.o\
+        $(RT28xx_DIR)/os/linux/usb_main_dev.o
+endif
+endif
+#endif // RT5370 //
+
+ifeq ($(HAS_ATE),y)
+RT28XX_STA_OBJ += $(RT28xx_DIR)/common/rt_ate.o
+endif
+
+
+
+
+
+
+
+#endif // CONFIG_STA_SUPPORT //
+
+
+PHONY := all release clean install uninstall
+
+all:$(OBJ)
+
+rt$(CHIPSET)sta.o: $(RT28XX_STA_OBJ)
+	$(LD) -r $^ -o $@
+
+rt$(CHIPSET)ap.o: $(RT28XX_AP_OBJ)
+	$(LD) -r $^ -o $@
+
+rt$(CHIPSET)apsta.o: $(RT28XX_APSTA_OBJ)
+	$(LD) -r $^ -o $@
+
+release:
+	echo "MAKE Linux Station Code Release"
+
+clean:
+	rm -f $(RT28xx_DIR)/common/*.o
+	rm -f $(RT28xx_DIR)/common/.*.{cmd,flags,d}
+	rm -f $(RT28xx_DIR)/os/linux/*.{o,ko,mod.{o,c}}
+	rm -f $(RT28xx_DIR)/os/linux/.*.{cmd,flags,d}
+	rm -fr $(RT28xx_DIR)/os/linux/.tmp_versions
+	rm -f $(RT28xx_DIR)/chips/*.o
+	rm -f $(RT28xx_DIR)/chips/.*.{cmd,flags,d}
+ifeq ($(RT28xx_MODE),AP)
+	rm -f $(RT28xx_DIR)/ap/*.o
+	rm -f $(RT28xx_DIR)/ap/.*.{cmd,flags,d}
+else
+ifeq ($(RT28xx_MODE),STA)
+	rm -f $(RT28xx_DIR)/sta/*.o
+	rm -f $(RT28xx_DIR)/sta/.*.{cmd,flags,d}
+else
+ifeq ($(RT28xx_MODE),APSTA)
+	rm -f $(RT28xx_DIR)/ap/*.o
+	rm -f $(RT28xx_DIR)/ap/.*.{cmd,flags,d}
+	rm -f $(RT28xx_DIR)/sta/*.o
+	rm -f $(RT28xx_DIR)/sta/.*.{cmd,flags,d}
+endif
+endif
+endif
+
+install:
+	rm -rf $(DAT_PATH)
+	$(shell [ ! -f /etc/Wireless ] && mkdir /etc/Wireless)
+	mkdir $(DAT_PATH)
+	cp $(RT28xx_DIR)/$(DAT_FILE_NAME) $(DAT_PATH)/.
+	install -d $(LINUX_SRC_MODULE)
+	install -m 644 -c $(addsuffix .o,$(MOD_NAME)) $(LINUX_SRC_MODULE)
+	/sbin/depmod -a ${shell uname -r}
+
+uninstall:
+#	rm -rf $(DAT_PATH)
+	rm -rf $(addprefix $(LINUX_SRC_MODULE),$(addsuffix .o,$(MOD_NAME)))
+	/sbin/depmod -a ${shell uname -r}
+
+# Declare the contents of the .PHONY variable as phony.  We keep that
+# information in a variable so we can use it in if_changed and friends.
+.PHONY: $(PHONY)
+

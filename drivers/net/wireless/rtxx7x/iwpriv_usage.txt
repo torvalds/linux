@@ -1,0 +1,447 @@
+iwpriv
+=================
+This is detailed explanation of each parameters for iwpriv.
+Before reading this document, make sure you already read README.
+
+-------------------------------------------------------------------------------------------------------
+USAGE:
+	iwpriv ra0 commands val
+
+NOTE:
+	Wireless Extension Private Handlers
+
+where
+[commands]              [val] 
+						{range}
+-----------------   	-------------------------------------------------
+wsc_conf_mode			{0, 1, 2}
+						::Set WPS conf mode
+						0: WPS Disabled
+						1: Enrollee
+						2: Registrar
+
+wsc_mode				{1, 2}
+						::PIN or PBC
+						1: PIN
+						2: PBC
+
+wsc_pin					{00000000 ~ 99999999}
+						::Set Enrollee's PIN Code
+
+wsc_ssid				{0~z, 1~32 ascii characters}
+						::Set WPS AP SSID
+
+wsc_start				NULL
+						::Trigger RT2860 STA driver to do WPS process
+
+wsc_stop				NULL
+						::Stop WPS process
+
+wsc_gen_pincode			NULL
+						::Generate new PIN code
+
+wsc_cred_count			{1 ~ 8}
+						::Set count of WPS credential
+
+wsc_cred_ssid			{"idx ssid_str"}
+						::Set SSID into credtentail[idx]
+						idx: 0 ~ 7
+						ssid_str: 0~z, 1~32 ascii characters
+
+wsc_cred_auth			{"idx auth_str"}
+						::Set AuthMode into credtentail[idx]
+						idx: 0 ~ 7
+						auth_str: OPEN, WPAPSK, WPA2PSK, SHARED, WPA, WPA2
+
+wsc_cred_encr			{"idx encr_str"}
+						::Set EncrypType into credtentail[idx]
+						idx: 0 ~ 7
+				 		encr_str: NONE, WEP, TKIP, AES
+
+wsc_cred_keyIdx			{"idx key_index"}
+						::Set Key Index into credtentail[idx]
+						idx: 0 ~ 7
+						key_index: 1 ~ 4
+
+wsc_cred_key			{"idx key"}
+						::Set Key into credtentail[idx]
+						idx: 0 ~ 7
+						key: ASCII string (wep_key_len(=5,13), passphrase_len(=8~63)) 
+					  		 OR 
+					  		 Hex string (wep_key_len(=10,26), passphrase_len(=64))
+
+wsc_cred_mac			{"idx mac_str"}
+						::Set AP's MAC into credtentail[idx]
+						idx: 0 ~ 7
+						mac_str: xx:xx:xx:xx:xx:xx
+
+wsc_conn_by_idx			{0 ~ 7}
+						::Connect AP by credential index
+
+wsc_auto_conn			{0, 1}
+						::Set driver to re-connecting to AP or not after registration.
+						0: Disabled, driver won't re-connect to AP with new configurations.
+						1: Enabled, driver will re-connect to AP with new configurations.
+
+wsc_ap_band 			{0, 1, 2}
+						::Set prefer band to do WPS with dual band WPS AP
+						0 : prefer 2.4G
+						1 : prefer 5G
+						2 : auto
+						Default value is auto (2)
+
+-------------------------------------------------------------------------------------------------------
+USAGE:
+	iwpriv ra0 set [parameters]=[val]
+	
+NOTE:
+	Execute one iwpriv/set command simultaneously.
+	
+where		
+[parameters]        	[val] 
+						{range}
+-----------------   	-------------------------------------------------
+CountryRegion       	{0~7}
+						::Set country region                                   	
+						0: 1 ~ 11 ch
+						1: 1 ~ 13 ch
+						2: 10, 11 ch
+						3: 10 ~ 13 ch
+						4: 14 ch
+						5: 1 ~ 14 ch
+						6: 3 ~ 9 ch
+						7: 5 ~ 13 ch
+					   31: 1 ~ 14 ch (ch1-11:active scan, ch12-14 passive scan)
+											
+CountryRegionABand		{0~11}
+						::Set country region for A band  										                                       
+       					0: 36, 40, 44, 48, 52, 56, 60, 64, 149, 153, 157, 161, 165 ch
+						1: 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140 ch
+						2: 36, 40, 44, 48, 52, 56, 60, 64 ch
+						3: 52, 56, 60, 64, 149, 153, 157, 161 ch
+						4: 149, 153, 157, 161, 165 ch
+						5: 149, 153, 157, 161 ch
+						6: 36, 40, 44, 48 ch
+						7: 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165 ch
+						8: 52, 56, 60, 64 ch
+						9: 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 132, 136, 140, 149, 153, 157, 161, 165 ch
+					   10: 36, 40, 44, 48, 149, 153, 157, 161, 165 ch
+					   11: 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 149, 153, 157, 161 ch
+                                                           
+SSID                	{0~z, 1~32 ascii characters} 			
+                    	::Set AP SSID
+                    	
+WirelessMode        	{0~10}
+						::Set Wireless Mode								 
+                    	0: legacy 11b/g mixed 
+						1: legacy 11B only 
+						2: legacy 11A only
+						3: legacy 11a/b/g mixed
+						4: legacy 11G only
+						5: 11ABGN mixed
+						6: 11N only
+						7: 11GN mixed
+						8: 11AN mixed
+						9: 11BGN mixed
+	   				   10: 11AGN mixed	
+                    	
+Channel             	depends on CountryRegion or CountryRegionForABand
+                        ::Set Channel
+                    	
+BGProtection        	{0~2}
+						::Set 11B/11G Protection                                   	
+                   		0:Auto, 
+                   		1:Always on, 
+                   		2:Always off
+                    	
+TxPreamble          	{0~2}
+						::Set TxPreamble
+                    	0:Preamble Long, 
+                    	1:Preamble Short, 
+                    	2:Auto
+                    	
+RTSThreshold        	{1~2347}                               	                                                           
+                    	::Set RTS Threshold
+                    	                                       
+FragThreshold       	{256~2346}
+						::Set Fragment Threshold                             	
+                    	
+TxBurst             	{0,1}
+						::Set TxBurst Enable or Disable                                  	
+                  		0:Disable, 
+                  		1:Enable
+
+NetworkType	    		{Infra,Adhoc}
+    					::Set Network type
+    					 									                                                                                                                                                        	                                                          
+AuthMode            	{OPEN,SHARED,WEPAUTO,WPAPSK,WPA2PSK,WPANONE}
+                        ::Set Authentication Mode 	
+
+EncrypType          	{NONE,WEP,TKIP,AES}          			
+						::Set Encryption Type
+						 
+DefaultKeyID        	{1~4}                              		
+						::Set Default Key ID
+						
+						
+Key1                 	{5 ascii characters or 10 hex number or 
+                     	13 ascii characters or 26 hex numbers}
+                     	::Set Key1 String                                                                                                                        
+
+Key2                 	{5 ascii characters or 10 hex number or 
+                     	13 ascii characters or 26 hex numbers}                                                                                                                        
+                      	::Set Key2 String
+                      	           	
+Key3                 	{5 ascii characters or 10 hex number or 
+                     	13 ascii characters or 26 hex numbers}                                                                                                                        
+						::Set Key3 String
+						 
+Key4                 	{5 ascii characters or 10 hex number or 
+                     	13 ascii characters or 26 hex numbers}                                                                                                                        
+                        ::Set Key4 String
+                                                        
+WPAPSK              	{8~63 ascii or 64 hex characters} 		 
+						::WPA Pre-Shared Key
+                    																		
+WmmCapable				{0,1}
+						::Set WMM Capable
+						0:Disable WMM, 
+						1:Enable WMM
+
+PSMode					{CAM, MAX_PSP, FAST_PSP}
+						::Set Power Saving Mode
+
+HtBw					{0,1}
+						::Set BandWidth
+						0: 20Hz
+						1: 40Hz
+
+HtMcs					{0 ~ 15, 33}
+						::Set MCS
+						33: Auto Rate
+
+HtGi					{0,1}
+						::Set Guard Interval(GI)
+						0: long GI
+						1: short GI
+
+HtOpMode				{0,1}
+						::Set HT Operation Mode
+						0: HT mixed format
+						1: HT greenfield format
+
+HtExtcha				{0,1}
+						::Set Extended Channel Switch Announcement
+						0: Below
+						1: Above
+
+HtMpduDensity			{0 ~ 7}
+						::Set The Minimum Time Between MPDUs within an AMPDU
+
+HtBaWinSize				{1 ~ 64}
+						::Set BA WinSize
+
+HtRdg					{0,1}
+						::Set RDG Capable
+						0: Disabled
+						1: Enabled
+
+HtAmsdu					{0,1}
+						::Set AMSDU Capable
+						0: Disabled
+						1: Enabled
+
+HtAutoBa				{0,1}
+						::Set Auto BA Capable
+						0: Disabled
+						1: Enabled
+
+HtBaDecline				{0,1}
+						::Reject BA request from AP
+						0: Disabled
+						1: Enabled
+
+HtProtect				{0,1}
+						::Set HT Protect Capable
+						0: Disabled
+						1: Enabled
+
+FixedTxMode				{CCK, OFDM}
+						:: Set Fixed Tx Mode for fixed rate setting
+						Mode = CCK
+						MCS = 0		=> 1Mbps
+							= 1		=> 2Mbps
+							= 2		=> 5.5 Mbps
+							= 3		=> 11 Mbps
+						Mode = OFDM
+						MCS = 0		=> 6Mbps
+						 	= 1		=> 9Mbps
+							= 2		=> 12Mbps
+							= 3		=> 18Mbps
+							= 4		=> 24Mbps
+							= 5		=> 36Mbps
+							= 6		=> 48Mbps
+							= 7		=> 54Mbps
+
+==> Build Ethernet Convert function. Please set 'HAS_ETH_CONVERT_SUPPORT=y' in os/linux/config.mk
+EthConvertMode			{dongle, clone, hybrid}
+						::Set Ethernet Convert Mode
+
+EthCloneMac				{xx:xx:xx:xx:xx:xx}
+						:: Set Clone MAC
+
+LongRetry				{0,255}
+						:: Set Tx Long Retry Limit
+
+ShortRetry				{0,255}
+						:: Set Tx Short Retry Limit
+
+MeshId					{Length 1~32 ascii characters}
+						:: Set Mesh ID
+
+MeshHostName			{Length 1~32 ascii characters}
+						:: Set Mesh Host Name
+
+MeshAutoLink			{1,0}
+						:: Set Mesh Auto Link Capable
+						0: Disabled
+						1: Enabled
+
+MeshAddLink				{xx:xx:xx:xx:xx:xx}
+						:: Add Mesh Link
+
+MeshDelLink				{xx:xx:xx:xx:xx:xx}
+						:: Delete Mesh Link
+
+MeshMultiCastAgeOut		{20 ~ 65535 seconds}
+						:: Set AgeOut time for Mesh MultiCast
+
+MeshAuthMode			{OPEN, WPANONE}
+						:: Set Mesh Authentication Mode
+
+MeshEncrypType			{NONE, WEP, TKIP, AES}
+						:: Set Mesh Encryption Type
+
+MeshDefaultkey			{1 ~ 4}
+						:: Set Mesh Default Key ID
+
+MeshWEPKEY				{5 ascii characters or 10 hex number or 
+                     	13 ascii characters or 26 hex numbers}
+                     	:: Set Mesh WEP Key String
+
+MeshWPAKEY				{8~63 ascii or 64 hex characters}
+						:: Set Mesh WPA Pre-Shared Key
+
+Examples
+===================================================================
+-------------------------------------------------------------------------------------------------------
+a> Config STA to link with AP which is OPEN/NONE(Authentication/Encryption)
+	1. iwpriv ra0 set NetworkType=Infra
+	2. iwpriv ra0 set AuthMode=OPEN
+	3. iwpriv ra0 set EncrypType=NONE
+	4. iwpriv ra0 set SSID="AP's SSID"
+	
+b> Config STA to link with AP which is SHARED/WEP(Authentication/Encryption)
+	1. iwpriv ra0 set NetworkType=Infra
+	2. iwpriv ra0 set AuthMode=SHARED
+	3. iwpriv ra0 set EncrypType=WEP
+	4. iwpriv ra0 set DefaultKeyID=1
+	5. iwpriv ra0 set Key1="AP's wep key"
+	6. iwpriv ra0 set SSID="AP's SSID"
+	
+c> Config STA to link with AP which is WPAPSK/TKIP(Authentication/Encryption)
+	1. iwpriv ra0 set NetworkType=Infra
+	2. iwpriv ra0 set AuthMode=WPAPSK
+	3. iwpriv ra0 set EncrypType=TKIP
+	4. iwpriv ra0 set SSID="AP's SSID"
+	5. iwpriv ra0 set WPAPSK="AP's wpa-preshared key"
+	6. iwpriv ra0 set SSID="AP's SSID"
+	
+d> Config STA to link with AP which is WPAPSK/AES(Authentication/Encryption)
+	1. iwpriv ra0 set NetworkType=Infra
+	2. iwpriv ra0 set AuthMode=WPAPSK
+	3. iwpriv ra0 set EncrypType=AES
+	4. iwpriv ra0 set SSID="AP's SSID"
+	5. iwpriv ra0 set WPAPSK="AP's wpa-preshared key"
+	6. iwpriv ra0 set SSID="AP's SSID"
+
+e> Config STA to link with AP which is WPA2PSK/TKIP(Authentication/Encryption)
+	1. iwpriv ra0 set NetworkType=Infra
+	2. iwpriv ra0 set AuthMode=WPA2PSK
+	3. iwpriv ra0 set EncrypType=TKIP
+	4. iwpriv ra0 set SSID="AP's SSID"
+	5. iwpriv ra0 set WPAPSK=12345678
+	6. iwpriv ra0 set SSID="AP's SSID"
+	
+f> Config STA to create/link as adhoc mode, which is OPEN/NONE(Authentication/Encryption)
+	1. iwpriv ra0 set NetworkType=Adhoc
+	2. iwpriv ra0 set AuthMode=OPEN
+	3. iwpriv ra0 set EncrypType=NONE
+	4. iwpriv ra0 set SSID="Adhoc's SSID"
+
+g>  Config STA to create/link as adhoc mode, which is WPANONE/TKIP(Authentication/Encryption)
+    1. iwpriv ra0 set NetworkType=Adhoc
+	2. iwpriv ra0 set AuthMode=WPANONE
+	3. iwpriv ra0 set EncrypType=TKIP
+	4. iwpriv ra0 set SSID="AP's SSID"
+	5. iwpriv ra0 set WPAPSK=12345678
+	6. iwpriv ra0 set SSID="AP's SSID"
+  
+h> Get site survey 
+	usage: iwpriv ra0 get_site_survey
+		
+i> Get Statistics 
+	usage: iwpriv ra0 stat						; read statistic counter
+		   iwpriv ra0 set ResetCounter=0		; reset statistic counter
+
+j> Link with an AP which is the largest strength   ; set ANY SSID (ssidLen=0)
+   usage: iwconfig ra0 essid ""                 
+   or
+   usage: iwpriv ra0 set SSID=""
+
+k> Config STA to link as dongle mode with STA own MAC
+	usage: iwpriv ra0 set EthConvertMode=dongle
+
+l> Config STA to link as clone mode
+	usage: iwpriv ra0 set EthConvertMode=clone
+		   iwpriv ra0 set EthCloneMac="Desired MAC"		;; 00:00:00:00:00:00 means using STA own MAC
+														;; FF:FF:FF:FF:FF:FF means using source MAC of first packet coming from wired device
+
+m> Config STA to link as hybrid(dongle+clone) mode
+	usage: iwpriv ra0 set EthConvertMode=hybrid
+		   iwpriv ra0 set EthCloneMac="Desired MAC"		;; 00:00:00:00:00:00 means using STA own MAC
+														;; FF:FF:FF:FF:FF:FF means using source MAC of first packet coming from wired device
+
+===================================================================
+
+iwlist
+=================
+This is detailed explanation of each parameters for iwlist.
+
+-------------------------------------------------------------------------------------------------------
+iwlist ra0 scanning		; list the results after scanning(manual rescan)
+
+
+
+=======================================================================================================
+
+iwconfig
+=================
+The following are our support in standard configuration - iwconfig
+
+-------------------------------------------------------------------------------------------------------
+iwconfig ra0 essid {NN|on|off}			; set essid
+iwconfig ra0 mode {managed|ad-hoc|...}  ; set wireless mode
+>> rt2860sta driver support monitor mode with linux kernel > 2.4.20.
+>> Note: For using monitor mode => if mesh interface is ON, please down the mesh interface first.
+iwconfig ra0 freq N.NNNN[k|M|G]]		; set frequency
+iwconfig ra0 channel N					; set channel
+iwconfig ra0 ap {N|off|auto}			; set AP address
+iwconfig ra0 nick N						; set nickname
+iwconfig ra0 rate {N|auto|fixed}     	; set rate (only support legacy rate setting)
+iwconfig ra0 rts {N|auto|fixed|off}		; set RTS threshold
+iwconfig ra0 frag {N|auto|fixed|off}	; set Fragment threshold
+iwconfig ra0 enc {NNNN-NNNN|off}		; set encryption type
+iwconfig ra0 power {period N|timeout N}	; set power management modes
+
+*** Wireless extension usage please refer to man page of 'iwconfig', 'iwlist' and 'iwpriv'. ***

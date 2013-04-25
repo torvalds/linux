@@ -1,0 +1,47 @@
+include $(RT28xx_DIR)/os/linux/config.mk
+
+PHONY := clean install uninstall
+
+clean:
+	rm -f ../../common/*.o
+	rm -f ../../common/.*.o.cmd
+	rm -f ../../os/linux/*.o
+	rm -f ../../os/linux/*.ko
+	rm -f ../../os/linux/.*.o.cmd
+	rm -f ../../os/linux/.*.ko.cmd
+	rm -f ../../os/linux/*.mod.c
+	rm -fr ../../os/linux/.tmp_versions
+#Must clean Module.symvers; or you will suffer symbol version not match
+#when OS_ABL = YES.
+	rm -f ../../os/linux/Module.symvers
+	rm -f ../../os/linux/Modules.symvers
+	rm -f ../../os/linux/Module.markers
+	rm -f ../../os/linux/modules.order
+	rm -f ../../chips/*.o
+	rm -f ../../chips/.*.o.cmd
+	rm -f ../../modules.order
+	rm -f ../../*.ko
+ifeq ($(RT28xx_MODE),AP)
+	rm -f ../../ap/*.o
+	rm -f ../../ap/.*.o.cmd
+else
+ifeq ($(RT28xx_MODE),STA)
+	rm -f ../../sta/*.o
+	rm -f ../../sta/.*.o.cmd
+ifeq ($(HAS_P2P_SUPPORT),y)
+	rm -f ../../ap/*.o
+	rm -f ../../ap/.*.o.cmd
+endif
+else
+ifeq ($(RT28xx_MODE),APSTA)
+	rm -f ../../ap/*.o
+	rm -f ../../ap/.*.o.cmd
+	rm -f ../../sta/*.o
+	rm -f ../../sta/.*.o.cmd
+endif
+endif
+endif
+
+# Declare the contents of the .PHONY variable as phony.  We keep that
+# information in a variable so we can use it in if_changed and friends.
+.PHONY: $(PHONY)

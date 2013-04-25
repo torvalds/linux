@@ -1,0 +1,380 @@
+include $(RT28xx_DIR)/os/linux/config.mk
+
+#ifdef CONFIG_AP_SUPPORT
+ifeq ($(RT28xx_MODE),AP)
+MOD_NAME = rtnet$(CHIPSET)ap
+endif
+#endif // CONFIG_AP_SUPPORT //
+
+#ifdef CONFIG_STA_SUPPORT
+ifeq ($(RT28xx_MODE), STA)
+MOD_NAME = rtnet$(CHIPSET)sta
+endif
+#endif // CONFIG_STA_SUPPORT //
+
+#ifdef CONFIG_APSTA_SUPPORT
+ifeq ($(RT28xx_MODE), APSTA)
+MOD_NAME = rtnet$(CHIPSET)apsta
+endif
+#endif // CONFIG_APSTA_SUPPORT //
+
+obj-m := $(MOD_NAME).o
+
+#ifdef CONFIG_AP_SUPPORT
+
+rtnet$(CHIPSET)ap-objs := \
+	../../ap/ap_mbss_inf.o\
+	../../os/linux/ap_ioctl.o\
+	../../os/linux/rt_main_dev.o
+
+ifeq ($(HAS_CFG80211_SUPPORT),y)
+rtnet$(CHIPSET)ap-objs += \
+	../../os/linux/cfg80211.o
+endif
+
+ifeq ($(HAS_WDS),y)
+rtnet$(CHIPSET)ap-objs += \
+	../../ap/ap_wds_inf.o
+endif
+
+ifeq ($(HAS_APCLI),y)
+rtnet$(CHIPSET)ap-objs += \
+	../../ap/ap_apcli_inf.o
+endif
+
+ifeq ($(HAS_MESH_SUPPORT),y)
+rtnet$(CHIPSET)ap-objs += \
+	../../common/mesh_inf.o
+endif
+
+#ifdef RT2860
+ifeq ($(CHIPSET),2860)
+rtnet$(CHIPSET)ap-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT3090
+ifeq ($(CHIPSET),3090)
+rtnet$(CHIPSET)ap-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT5390
+ifeq ($(CHIPSET),5390)
+rtnet$(CHIPSET)ap-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+#ifdef RT2870
+ifeq ($(CHIPSET),2870)
+rtnet$(CHIPSET)ap-objs += \
+	../../common/rtusb_dev_id.o\
+	../../os/linux/usb_main_dev.o
+endif
+
+#ifdef RT2070
+ifeq ($(CHIPSET),2070)
+rtnet$(CHIPSET)ap-objs += \
+	../../common/rtusb_dev_id.o\
+	../../os/linux/usb_main_dev.o
+endif
+
+#ifdef RT3070
+ifeq ($(CHIPSET),3070)
+rtnet$(CHIPSET)ap-objs += \
+	../../common/rtusb_dev_id.o\
+	../../os/linux/usb_main_dev.o
+endif
+
+#ifdef RT2880
+ifeq ($(CHIPSET),2880)
+rtnet$(CHIPSET)ap-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT3572
+ifeq ($(CHIPSET),3572)
+rtnet$(CHIPSET)ap-objs += \
+	../../common/rtusb_dev_id.o\
+	../../os/linux/usb_main_dev.o
+endif
+
+#ifdef RT3062
+ifeq ($(CHIPSET),3062)
+rtnet$(CHIPSET)ap-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT3562
+ifeq ($(CHIPSET),3562)
+rtnet$(CHIPSET)ap-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT3593
+ifeq ($(CHIPSET),3593)
+rtnet$(CHIPSET)ap-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT3390
+ifeq ($(CHIPSET),3390)
+rtnet$(CHIPSET)ap-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT3370
+ifeq ($(CHIPSET),3370)
+rtnet$(CHIPSET)ap-objs += \
+	../../common/rtusb_dev_id.o\
+	../../os/linux/usb_main_dev.o
+endif
+
+#ifdef RT5370
+ifeq ($(CHIPSET),5370)
+rtnet$(CHIPSET)ap-objs += \
+        ../../common/rtusb_dev_id.o\
+        ../../os/linux/usb_main_dev.o
+endif
+
+#endif // CONFIG_AP_SUPPORT //
+
+#ifdef CONFIG_STA_SUPPORT
+rtnet$(CHIPSET)sta-objs := \
+	../../os/linux/sta_ioctl.o\
+	../../os/linux/rt_main_dev.o
+
+ifeq ($(HAS_CFG80211_SUPPORT),y)
+rtnet$(CHIPSET)sta-objs += \
+	../../os/linux/cfg80211.o
+endif
+
+ifeq ($(HAS_MESH_SUPPORT),y)
+rtnet$(CHIPSET)sta-objs += \
+	../../common/mesh_inf.o
+endif
+
+ifeq ($(HAS_P2P_SUPPORT), y)
+rtnet$(CHIPSET)sta-objs += \
+	../../common/p2p_inf.o\
+	../../os/linux/ap_ioctl.o
+endif
+
+#ifdef RT2860
+ifeq ($(CHIPSET),2860)
+rtnet$(CHIPSET)sta-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT3090
+ifeq ($(CHIPSET),3090)
+rtnet$(CHIPSET)sta-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT5390
+ifeq ($(CHIPSET),5390)
+rtnet$(CHIPSET)sta-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT2870
+ifeq ($(CHIPSET),2870)
+rtnet$(CHIPSET)sta-objs += \
+	../../common/rtusb_dev_id.o\
+	../../os/linux/usb_main_dev.o
+endif
+
+#ifdef RT2070
+ifeq ($(CHIPSET),2070)
+rtnet$(CHIPSET)sta-objs += \
+	../../common/rtusb_dev_id.o\
+	../../os/linux/usb_main_dev.o
+endif
+
+#ifdef RT3070
+ifeq ($(CHIPSET),3070)
+rtnet$(CHIPSET)sta-objs += \
+	../../common/rtusb_dev_id.o\
+	../../os/linux/usb_main_dev.o
+endif
+
+#ifdef RT2880
+ifeq ($(CHIPSET),2880)
+rtnet$(CHIPSET)sta-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT3572
+ifeq ($(CHIPSET),3572)
+rtnet$(CHIPSET)sta-objs += \
+	../../common/rtusb_dev_id.o\
+	../../os/linux/usb_main_dev.o
+endif
+
+#ifdef RT3062
+ifeq ($(CHIPSET),3062)
+rtnet$(CHIPSET)sta-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT3562
+ifeq ($(CHIPSET),3562)
+rtnet$(CHIPSET)sta-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT3593
+ifeq ($(CHIPSET),3593)
+rtnet$(CHIPSET)sta-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT3390
+ifeq ($(CHIPSET),3390)
+rtnet$(CHIPSET)sta-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT3370
+ifeq ($(CHIPSET),3370)
+rtnet$(CHIPSET)sta-objs += \
+	../../common/rtusb_dev_id.o\
+	../../os/linux/usb_main_dev.o
+endif
+
+#ifdef RT5370
+ifeq ($(CHIPSET),5370)
+rtnet$(CHIPSET)sta-objs += \
+        ../../common/rtusb_dev_id.o\
+        ../../os/linux/usb_main_dev.o
+endif
+
+#endif // CONFIG_STA_SUPPORT //
+
+#ifdef CONFIG_APSTA_SUPPORT
+rtnet$(CHIPSET)apsta-objs := \
+	../../ap/ap_mbss_inf.o\
+	../../common/p2p_inf.o\
+	../../os/linux/ap_ioctl.o\
+	../../os/linux/sta_ioctl.o\
+	../../os/linux/rt_main_dev.o
+
+ifeq ($(HAS_CFG80211_SUPPORT),y)
+rtnet$(CHIPSET)apsta-objs += \
+	../../os/linux/cfg80211.o
+endif
+
+ifeq ($(HAS_WDS),y)
+rtnet$(CHIPSET)apsta-objs += \
+	../../ap/ap_wds_inf.o
+endif
+
+ifeq ($(HAS_APCLI),y)
+rtnet$(CHIPSET)apsta-objs += \
+	../../ap/ap_apcli_inf.o
+endif
+
+ifeq ($(HAS_MESH_SUPPORT),y)
+rtnet$(CHIPSET)apsta-objs += \
+	../../common/mesh_inf.o
+endif
+
+#ifdef RT2860
+ifeq ($(CHIPSET),2860)
+rtnet$(CHIPSET)apsta-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT3090
+ifeq ($(CHIPSET),3090)
+rtnet$(CHIPSET)apsta-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT2870
+ifeq ($(CHIPSET),2870)
+rtnet$(CHIPSET)apsta-objs += \
+	../../os/linux/usb_main_dev.o
+endif
+
+#ifdef RT2070
+ifeq ($(CHIPSET),2070)
+rtnet$(CHIPSET)apsta-objs += \
+	../../os/linux/usb_main_dev.o
+endif
+
+#ifdef RT3070
+ifeq ($(CHIPSET),3070)
+rtnet$(CHIPSET)apsta-objs += \
+	../../os/linux/usb_main_dev.o
+endif
+
+#ifdef RT3390
+ifeq ($(CHIPSET),3390)
+rtnet$(CHIPSET)apsta-objs += \
+	../../os/linux/rt_pci_rbus.o\
+	../../os/linux/pci_main_dev.o
+endif
+
+#ifdef RT3370
+ifeq ($(CHIPSET),3370)
+rtnet$(CHIPSET)apsta-objs += \
+	../../os/linux/usb_main_dev.o
+endif
+
+#ifdef RT5370
+ifeq ($(CHIPSET),5370)
+rtnet$(CHIPSET)apsta-objs += \
+        ../../os/linux/usb_main_dev.o
+endif
+
+#endif // CONFIG_APSTA_SUPPORT //
+
+clean:
+	rm -f ../../common/*.o
+	rm -f ../../common/.*.{cmd,flags,d}
+	rm -f ../../os/linux/*.{o,ko,mod.{o,c}}
+	rm -f ../../os/linux/.*.{cmd,flags,d}
+	rm -fr ../../os/linux/.tmp_versions
+	rm -f ../../os/linux/Module.symvers
+	rm -f ../../os/linux/Modules.symvers
+	rm -f ../../os/linux/Module.markers
+	rm -f ../../os/linux/modules.order
+	rm -f ../../chips/*.o
+	rm -f ../../chips/.*.{cmd,flags,d}
+ifeq ($(RT28xx_MODE),AP)
+	rm -f ../../ap/*.o
+	rm -f ../../ap/.*.{cmd,flags,d}
+else
+ifeq ($(RT28xx_MODE),STA)
+	rm -f ../../sta/*.o
+	rm -f ../../sta/.*.{cmd,flags,d}
+endif
+endif
+
+install:
+	install -d $(LINUX_SRC_MODULE)
+	install -m 644 -c $(addsuffix .ko,$(MOD_NAME)) $(LINUX_SRC_MODULE)
+	/sbin/depmod -a ${shell uname -r}
+
+uninstall:
+	rm -rf $(addprefix $(LINUX_SRC_MODULE),$(addsuffix .ko,$(MOD_NAME)))
+	/sbin/depmod -a ${shell uname -r}

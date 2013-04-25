@@ -1,0 +1,445 @@
+===================================================================================================
+ATE Test Command Format for station driver
+
+****** IMPORTANT ******
+If you are not familiar with hardware, it is recommanded not to modify hardware default value.
+It may damage hardware.
+
+===================================================================================================
+Usage:
+	iwpriv ra0 [act] [parameters]=[val]
+
+
+where
+
+[act]	[parameters] 	[val] constraints		explaination
+-----	------------- 	-----------------    	--------------------------------
+
+=====================================
+1. Set ATE actions.
+	Value:
+		ATESTART	- Start ATE function and stop station function.
+		ATESTOP		- Stop ATE function and start station function.
+		TXCONT		- Start continuous TX, for power mask.
+		TXCARR		- Start carrier test, for frequency calibration.
+		TXFRAME		- Transmit frame, for EVM.
+		RXFRAME		- Continuous RX, for PER/FER.
+		
+1.1 ATEDA
+		Set ATE frame header destination address.
+	Value:
+		xx:xx:xx:xx:xx:xx	; hex
+
+1.2 ATESA		    
+		Set ATE frame header source addr.
+	Value:
+		xx:xx:xx:xx:xx:xx	; hex
+
+1.3 ATEBSSID	    
+		Set ATE frame header BSSID.
+	Value:
+		xx:xx:xx:xx:xx:xx	; hex
+
+1.4 ATECHANNEL	    
+		Set ATE Channel, deimal.
+	Value:
+		802.11b/g: 1 ~ 14 depends on CountryRegion setting
+
+1.5 ATETXPOW0
+		Set ATE Tx power for Antenna 1.
+	Value:
+		0 ~ 31			; 2.4GHz, deimal
+		-7 ~15			; 5.5GHz, deimal
+
+1.6 ATETXPOW1
+		Set ATE Tx power for Antenna 2.
+	Value:
+		0 ~ 31			; 2.4GHz, decimal
+		-7 ~15			; 5.5GHz, deimal
+
+1.7 ATETXFREQOFFSET	    
+		Set ATE RF frequency offset.
+	Value:
+		0 ~ 63			; unit: 2KHz, decimal
+
+1.8 ATETXLEN	    
+		Set ATE frame length.
+	Value:
+		24 ~ 2312			; decimal
+
+1.9 ATETXCNT	    
+		Set ATE frame Tx count.
+	Value:
+		1 ~				; 32-bit, decimal
+
+1.10 ATETXMODE (Refer to TxMode)
+		Set ATE Tx Mode.
+	Value:
+		0: 	CCK			802.11b
+		1: 	OFDM		        802.11g
+		2: 	HT_MIX 		        802.11b/g/n
+		3: 	Green Field		802.11n
+
+1.11 ATETXBW (Refer to TxMode)
+		Set ATE Tx and Rx Bandwidth.
+	Value:
+		0: 	20MHz
+		1: 	40MHz
+
+1.12 ATETXGI (Refer to TxMode) 
+		Set ATE Tx Guard Interval.
+	Value:
+		0: 	Long 
+		1: 	Short
+
+1.13 ATETXMCS (Refer to TxMode)
+		Set ATE Tx MCS type.
+	Value:
+		0 ~ 15
+
+1.14 ATETXANT	    
+		Set ATE TX antenna.
+	Value:
+		0: 	All
+		1: 	Antenna one
+		2: 	Antenna two
+
+1.15 ATERXANT
+		Set ATE RX antenna.
+	Value:
+		0: 	All
+		1: 	Antenna one
+		2: 	Antenna two 
+		3: 	Antenna three
+
+1.16 ATERXFER	    
+		Set ATE to periodically reset and show up RxCount (per-second) and RxTotalCount.
+	Value:
+		0: 	Disable counter visability
+		1: 	Enable counter visability
+
+1.17 ATESHOW	    
+		Show all parameters of ATE.
+	Value:
+		1
+
+1.18 ATEHELP
+		List all commands of ATE.
+	Value:
+		1
+
+1.19 ResetCounter
+		Reset statistic counter.
+	Value:
+		1
+
+1.20 ATERRF
+		Read all of the RF registers.
+	Value:
+		1
+
+1.21 ATEWRF1
+		Write the RF register 1.
+	Value:
+		xxxxxxxx          ;32-bit, hex
+
+1.22 ATEWRF2
+		Write the RF register 2.
+	Value:
+		xxxxxxxx          ;32-bit, hex
+
+1.23 ATEWRF3
+		Write the RF register 3.
+	Value:
+		xxxxxxxx          ;32-bit, hex
+
+1.24 ATEWRF4
+		Write the RF register 4.
+	Value:
+		xxxxxxxx          ;32-bit, hex
+
+1.25 ATELDE2P
+		Overwrite all EEPROM contents
+	Value:
+		1
+	E.g.
+		iwpriv ra0 set ATELDE2P=1
+
+1.26 ATERE2P
+		Display all EEPROM content.
+	Value:
+		1
+	E.g.
+		iwpriv ra0 set ATERE2P=1
+
+===================================================================================================
+2. Examples:
+=========
+
+2.1 Check EVM & Power
+		iwpriv ra0 set ATE=ATESTART
+		iwpriv ra0 set ATEDA=00:11:22:33:44:55
+		iwpriv ra0 set ATESA=00:aa:bb:cc:dd:ee
+		iwpriv ra0 set ATEBSSID=00:11:22:33:44:55
+		iwpriv ra0 set ATECHANNEL=1			; set Channel
+		iwpriv ra0 set ATETXMODE=1			; set TX-Mode.
+		iwpriv ra0 set ATETXMCS=7			; set MCS type.
+		iwpriv ra0 set ATETXBW=0			; set Bandwidth
+		iwpriv ra0 set ATETXGI=0			; set Long GI.
+		iwpriv ra0 set ATETXLEN=1024		        ; set packet length.
+		iwpriv ra0 set ATETXPOW0=18
+		iwpriv ra0 set ATETXPOW1=18
+		iwpriv ra0 set ATETXCNT=100000
+		iwpriv ra0 set ATE=TXFRAME
+		¡K
+		iwpriv ra0 set ATETXPOW0=19
+		¡K
+		iwpriv ra0 set ATETXPOW0=20
+		¡K
+		iwpriv ra0 set ATE=ATESTART
+
+2.2 Check Carrier
+		iwpriv ra0 set ATE=ATESTART
+		iwpriv ra0 set ATECHANNEL=1			; set Channel
+		iwpriv ra0 set ATETXMODE=1			; set TX-Mode.
+		iwpriv ra0 set ATETXMCS=7			; set MCS type.
+		iwpriv ra0 set ATETXBW=0			; set Bandwidth
+		iwpriv ra0 set ATETXCNT=200			; Tx frame count(decmial)
+		iwpriv ra0 set ATE=TXFRAME			; Start Tx Frame(inform BBP to change, modulation mode)
+		iwpriv ra0 set ATE=TXCARR			; Start Tx carrier, Measure carrier with instrument
+		iwpriv ra0 set ATETXPOW0=05
+		iwpriv ra0 set ATETXPOW1=05
+		iwpriv ra0 set ATETXFREQOFFSET=19
+		iwpriv ra0 set ATE=ATESTART
+
+2.3 Check specturm mask
+		iwpriv ra0 set ATE=ATESTART
+		iwpriv ra0 set ATECHANNEL=1			; set Channel
+		iwpriv ra0 set ATETXMODE=1			; set TX-Mode.
+		iwpriv ra0 set ATETXMCS=7			; set MCS type.
+		iwpriv ra0 set ATETXBW=0			; set Bandwidth
+		iwpriv ra0 set ATETXCNT=200			; Tx frame count(decmial)
+		iwpriv ra0 set ATE=TXFRAME			; Start Tx Frame(inform BBP to change, modulation mode)
+		iwpriv ra0 set ATE=TXCONT			; Start continuous TX, Measure specturm mask with instrument
+		iwpriv ra0 set ATETXPOW0=5
+		iwpriv ra0 set ATETXPOW1=5
+		iwpriv ra0 set ATE=ATESTART
+
+2.4 Frequency offset tuning
+		iwpriv ra0 set ATE=ATESTART
+		iwpriv ra0 set ATECHANNEL=1			; set Channel
+		iwpriv ra0 set ATETXMODE=1			; set TX-Mode.
+		iwpriv ra0 set ATETXMCS=7			; set MCS type.
+		iwpriv ra0 set ATETXCNT=200			; Tx frame count(decmial)
+		iwpriv ra0 set ATETXFREQOFFSET=0	        ; Set frequency offset 0(decimal)
+		iwpriv ra0 set ATE=TXFRAME			; Start Tx Frame
+		iwpriv ra0 set ATE=TXCARR			; Start Tx carrier, Measure carrier frequency with instrument
+		iwpriv ra0 set ATETXFREQOFFSET=10	        ; Dynamic turning frequency offset, 10(decimal)
+		iwpriv ra0 set ATETXFREQOFFSET=20	        ; Dynamic turning frequency offset, 20(decimal)
+		iwpriv ra0 set ATE=ATESTART			; Stop, Store the tuning result to EEPROM
+
+2.5 Rx
+		iwpriv ra0 set ATE=ATESTART
+		iwpriv ra0 set ATECHANNEL=1			; set Channel
+		iwpriv ra0 set ResetCounter=1		        ; Reset statistic counter
+		iwpriv ra0 set ATETXFREQOFFSET=value            ;To use the ¡§value¡¨(decimal) you got in tx calibration
+		iwpriv ra0 set ATETXMODE=1			; set TX-Mode.
+		iwpriv ra0 set ATETXMCS=7			; set MCS type.
+		iwpriv ra0 set ATETXBW=0			; set Bandwidth
+		iwpriv ra0 set ATE=RXFRAME			; Start Rx,
+		iwpriv ra0 set ATERXFER=1			; show RxCnt and RSSI/per-antenna, Transmit test packets
+		iwpriv ra0 set ATE=ATESTART			; Stop
+		iwpriv ra0 stat 					; get statistics counter
+		iwpriv ra0 set ATERXFER=1
+		iwpriv ra0 set ATERXANT=1
+		
+		iwpriv ra0 set ATE=ATESTART
+		iwpriv ra0 set ATERXANT=0
+		iwpriv ra0 set ATE=RXFRAME
+
+2.6 Show all ate parameters
+		iwpriv ra0 set ATESHOW=1
+
+			Mode=4
+			TxPower0=0
+			TxPower1=0
+			TxAntennaSel=0
+			RxAntennaSel=0
+			BBPCurrentBW=0
+			GI=0
+			MCS=7
+			TxMode=1
+			Addr1=00:11:22:aa:bb:cc
+			Addr2=00:11:22:aa:bb:cc
+			Addr3=00:11:22:aa:bb:cc
+			Channel=1
+			TxLength=1024
+			TxCount=40000
+			TxRate=11
+			RFFreqOffset=0
+
+2.7 Online help
+		iwpriv ra0 set ATEHELP=1
+		
+			ATE=ATESTART, ATESTOP, TXCONT, TXCARR, TXFRAME, RXFRAME
+			ATEDA
+			ATESA
+			ATEBSSID
+			ATECHANNEL, range:0~14(unless A band !). 
+			ATETXPOW0, set power level of antenna 1.
+			ATETXPOW1, set power level of antenna 2.
+			ATETXANT, set TX antenna. 0: all, 1: antenna one, 2: antenna two.
+			ATERXANT, set RX antenna.0: all, 1: antenna one, 2: antenna two, 3: antenna three.
+			ATETXFREQOFFSET, set frequency offset, range 0~63.
+			ATETXBW, set BandWidth, 0:20MHz, 1:40MHz.
+			ATETXLEN, set Frame length, range 24~2312.
+			ATETXCNT, set how many frame going to transmit.
+			ATETXMCS, set MCS, reference to rate table.
+			ATETXMODE, set Mode 0: CCK, 1: OFDM, 2: HT-Mix, 3: GreenField, reference to rate table.
+			ATETXGI, set GI interval, 0: Long, 1: Short.
+			ATERXFER, 0: disable Rx Frame error rate. 1: enable Rx Frame error rate.
+		  	ATERRF, show all RF registers.
+			ATEWRF1, set RF1 register.
+			ATEWRF2, set RF2 register.
+			ATEWRF3, set RF3 register.
+			ATEWRF4, set RF4 register.
+			ATELDE2P, load EEPROM from .bin file.
+			ATERE2P, display all EEPROM content.
+			ATESHOW, display all parameters of ATE.
+			ATEHELP, online help.
+
+2.8 Display Rx Packet Count and RSSI
+		iwpriv ra0 set ATERXANT=0		==> Enable All Three Rx Antennas
+		iwpriv ra0 set ATERXFER=1		==> Enable Rx Frame Error Rate: RxCnt/RxTotal
+		iwpriv ra0 set ATE=RXFRAME	        ==> Start Rx
+			MlmePeriodicExec: Rx packet cnt = 2/4
+			MlmePeriodicExec: Rx AvgRssi0=-88, AvgRssi1=-80, AvgRssi2=-91
+			MlmePeriodicExec: Rx packet cnt = 2/6
+			MlmePeriodicExec: Rx AvgRssi0=-86, AvgRssi1=-77, AvgRssi2=-89¡K
+			¡K
+
+		iwpriv ra0 set ATERXANT=1		==> Enable Three Rx Antenna-1
+		iwpriv ra0 set ATERXFER=1		==> Enable Rx Frame Error Rate: RxCnt/RxTotal
+		iwpriv ra0 set ATE=RXFRAME	        ==> Start Rx
+			MlmePeriodicExec: Rx packet cnt = 0/7
+			MlmePeriodicExec: Rx AvgRssi=-87
+			MlmePeriodicExec: Rx packet cnt = 7/14
+			MlmePeriodicExec: Rx AvgRssi=-90
+			¡K
+			¡K
+
+
+===================================================================================================
+3. Hardware Access
+==================
+
+=====================================
+3.1 iwpriv ra0 bbp [parameters]=[Value]
+		Read/Write BBP registers by ID number.
+	BBPID
+
+3.1.1 Read BBP register, BBPID only, no ¡§=¡¨ symbol.
+	BBPID:
+		0 ~ xx			; decimal, 8-bit
+	BBPID=Value
+
+3.1.2 Write BBP register.
+	BBPID:
+		0 ~ xx			; decimal, 8-bit
+	Value:
+		00 ~FF			; hexdecimal, 8-bit
+
+=====================================
+3.2 iwpriv ra0 mac [parameters]=[val]
+		Read/Write MAC registers by offset.
+	MAC_OFFSET
+
+3.2.1 Read MAC register, MAC_OFFSET only, no ¡§=¡¨ symbol.
+	MAC_OFFSET:
+		0000 ~ FFFF		; hexdecimal, 16-bit
+	MAC_OFFSET=Value
+
+3.2.2 Write MAC register.
+	MAC_OFFSET:
+		0000 ~ FFFF		; hexdecimal, 16-bit
+	Value:
+		0000 ~FFFF		; hexdecimal, 32-bit
+
+=====================================
+3.3 iwpriv ra0 e2p [parameters]=[val]
+		Read/Write EEPROM content by address.
+	EEP_ADDR
+
+3.3.1 Read EEPROM content, EEP_ADDR only, no ¡§=¡¨ symbol.
+	EEP_ADDR:
+		00 ~ FF			; hexdecimal, 16-bit alignment (0, 2, 4, 6, 8, A, C, ¡K)
+	EEP_ADDR=Value
+
+3.3.2 Write EEPROM content.
+	EEP_ADDR:
+		00 ~ FF			; hexdecimal, 16-bit alignment (0, 2, 4, 6, 8, A, C, ¡K)
+	Value:
+		0000 ~FFFF		; hexdecimal, 16-bit
+
+=====================================
+3.4 Example
+
+3.4.1 Hardware access
+		iwpriv ra0 bbp 0				# read BBP register 0
+		iwpriv ra0 bbp 0=12				# write BBP register 0 as 0x12
+		iwpriv ra0 mac 0				# read MAC register 0
+		iwpriv ra0 mac 0=1234abcd		        # write MAC register 0 as 0x1234abcd
+		iwpriv ra0 e2p 0				# read E2PROM 0
+		iwpriv ra0 e2p c=12ab			        # write E2PROM 0xc as 0x12ab
+
+3.4.2 Statistic counter operation
+		iwpriv ra0 stat					# read statistic counter
+		iwpriv ra0 set ResetCounter=0	                # reset statistic counter
+
+	Suggestion:
+		1. To turn on ATE functionality, you have to add compile flag "RALINK_ATE" to Makefile
+		2. Before doing ATE testing, please stop AP function
+		3. If you want to test another ATE action, prefer to stop AP & ATE function
+		4. All ATE function settings will lose efficacy after reboot.
+		5. Before hardware register access, please reference hardware spec.
+	Note. 
+		In ATE mode, the channel must set via "ATECHANNEL"
+
+===================================================================================================
+4. ated
+=======
+4.1  Introduction
+The ated is an optional user space component for RT28xx Linux driver. 
+When Windows GUI starts, AP enters ATE mode (i.e.,ATESTART) immediately.
+It behaves as a proxy between Windows GUI and RT28xx Linux driver when ATE process proceeds.
+The ated will be killed automatically when Windows GUI is closed.
+You can kill it manually, too(for example, type '$killall ated').
+RT28xx linux driver will leave ATE mode either ated is killed or Windows GUI is closed.
+
+4.2  Environment setup
+1. Connect the platform you want to test directly with a Windows host by ether network line.
+2. In the Windows host, run WinPcap_4_0.exe for the QA GUI or ./RT2880_ATE/RaUI.exe(please unrar "RT2880_ATE.rar" to get it).
+
+4.3  How to use ated for ATE purpose
+0. First you should set both "HAS_ATE=y" and "HAS_QA_SUPPORT=y" in the file ~/Module/os/linux/config.mk and compile the driver.
+1. Modify the Makefile according to our target "PLATFORM".
+2. Change the path of "CROSS_COMPILE" if needed.
+3. Then type 'make' command to compile the source code of the daemon.
+4. After the driver interface has started up, attach both of the wireless interface and the ethernet       interface to the bridge interface.
+5. If you have no bridge interface, please give an IP address to the ethernet interface.
+   (for example : '$ated -beth0')
+6. After the interfaces have entered forwarding states, manually start ated, type '$ated -bbrX -iraX'.
+7. If your WLAN interface and Bridge interface is "ra0" and "br0" respectively, just type $ated.
+   (For further usage of options, type $ated -h)
+8. In the Windows host, run RT28xxQA_ATE.exe or ./RT2880_ATE/RaUI.exe.
+9. Select the wired network adapter, then press OK and wait for a moment.
+10.If the Windows host cannot tolerate such a broadcast storm from ated,
+   please run ated with option -u.(for example : '$ated -ira1 -u')
+11.If your target platform concerns its network security, please run RT28xxQA_unicast.exe instead of RT28xxQA_ATE.exe.
+
+Note : 
+a. The names of WLAN interface(default is "ra0") and Bridge interface(default is "br0") must be specified manually(for example : '$ated -bbr1 -ira2') if your WLAN interface or Bridge interface is not "ra0" or "br0" respectively !
+b. Please make sure no other RaUI is running before you excute ./RT2880_ATE/RaUI.exe.
+
+
+
