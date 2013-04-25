@@ -235,6 +235,7 @@ instruction_access_slb_pSeries:
 	.globl hardware_interrupt_hv;
 hardware_interrupt_pSeries:
 hardware_interrupt_hv:
+	HMT_MEDIUM_PPR_DISCARD
 	BEGIN_FTR_SECTION
 		_MASKABLE_EXCEPTION_PSERIES(0x502, hardware_interrupt,
 					    EXC_HV, SOFTEN_TEST_HV)
@@ -254,7 +255,11 @@ hardware_interrupt_hv:
 	STD_EXCEPTION_PSERIES(0x800, 0x800, fp_unavailable)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0x800)
 
-	MASKABLE_EXCEPTION_PSERIES(0x900, 0x900, decrementer)
+	. = 0x900
+	.globl decrementer_pSeries
+decrementer_pSeries:
+	_MASKABLE_EXCEPTION_PSERIES(0x900, decrementer, EXC_STD, SOFTEN_TEST_PR)
+
 	STD_EXCEPTION_HV(0x980, 0x982, hdecrementer)
 
 	MASKABLE_EXCEPTION_PSERIES(0xa00, 0xa00, doorbell_super)
