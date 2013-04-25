@@ -141,6 +141,7 @@ static inline unsigned long div_sc(unsigned long ticks, unsigned long nsec,
 extern u64 clockevent_delta2ns(unsigned long latch,
 			       struct clock_event_device *evt);
 extern void clockevents_register_device(struct clock_event_device *dev);
+extern int clockevents_unbind_device(struct clock_event_device *ced, int cpu);
 
 extern void clockevents_config(struct clock_event_device *dev, u32 freq);
 extern void clockevents_config_and_register(struct clock_event_device *dev,
