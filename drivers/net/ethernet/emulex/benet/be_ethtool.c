@@ -54,7 +54,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	/* Received packets dropped when they don't pass the unicast or
 	 * multicast address filtering.
 	 */
-	{DRVSTAT_INFO(rx_address_mismatch_drops)},
+	{DRVSTAT_INFO(rx_address_filtered)},
 	/* Received packets dropped when IP packet length field is less than
 	 * the IP header length field.
 	 */
