@@ -49,8 +49,6 @@ struct intel_lvds_connector {
 struct intel_lvds_encoder {
 	struct intel_encoder base;
 
-	u32 pfit_control;
-	u32 pfit_pgm_ratios;
 	bool is_dual_link;
 	u32 reg;
 
@@ -153,32 +151,6 @@ static void intel_pre_pll_enable_lvds(struct intel_encoder *encoder)
 	I915_WRITE(lvds_encoder->reg, temp);
 }
 
-static void intel_pre_enable_lvds(struct intel_encoder *encoder)
-{
-	struct drm_device *dev = encoder->base.dev;
-	struct intel_lvds_encoder *enc = to_lvds_encoder(&encoder->base);
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (HAS_PCH_SPLIT(dev) || !enc->pfit_control)
-		return;
-
-	WARN_ON(I915_READ(PFIT_CONTROL) & PFIT_ENABLE);
-	assert_pipe_disabled(dev_priv, to_intel_crtc(encoder->base.crtc)->pipe);
-
-	/*
-	 * Enable automatic panel scaling so that non-native modes
-	 * fill the screen.  The panel fitter should only be
-	 * adjusted whilst the pipe is disabled, according to
-	 * register description and PRM.
-	 */
-	DRM_DEBUG_KMS("applying panel-fitter: %x, %x\n",
-		      enc->pfit_control,
-		      enc->pfit_pgm_ratios);
-
-	I915_WRITE(PFIT_PGM_RATIOS, enc->pfit_pgm_ratios);
-	I915_WRITE(PFIT_CONTROL, enc->pfit_control);
-}
-
 /**
  * Sets the power state for the panel.
  */
@@ -247,62 +219,6 @@ static int intel_lvds_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static void
-centre_horizontally(struct drm_display_mode *mode,
-		    int width)
-{
-	u32 border, sync_pos, blank_width, sync_width;
-
-	/* keep the hsync and hblank widths constant */
-	sync_width = mode->crtc_hsync_end - mode->crtc_hsync_start;
-	blank_width = mode->crtc_hblank_end - mode->crtc_hblank_start;
-	sync_pos = (blank_width - sync_width + 1) / 2;
-
-	border = (mode->hdisplay - width + 1) / 2;
-	border += border & 1; /* make the border even */
-
-	mode->crtc_hdisplay = width;
-	mode->crtc_hblank_start = width + border;
-	mode->crtc_hblank_end = mode->crtc_hblank_start + blank_width;
-
-	mode->crtc_hsync_start = mode->crtc_hblank_start + sync_pos;
-	mode->crtc_hsync_end = mode->crtc_hsync_start + sync_width;
-}
-
-static void
-centre_vertically(struct drm_display_mode *mode,
-		  int height)
-{
-	u32 border, sync_pos, blank_width, sync_width;
-
-	/* keep the vsync and vblank widths constant */
-	sync_width = mode->crtc_vsync_end - mode->crtc_vsync_start;
-	blank_width = mode->crtc_vblank_end - mode->crtc_vblank_start;
-	sync_pos = (blank_width - sync_width + 1) / 2;
-
-	border = (mode->vdisplay - height + 1) / 2;
-
-	mode->crtc_vdisplay = height;
-	mode->crtc_vblank_start = height + border;
-	mode->crtc_vblank_end = mode->crtc_vblank_start + blank_width;
-
-	mode->crtc_vsync_start = mode->crtc_vblank_start + sync_pos;
-	mode->crtc_vsync_end = mode->crtc_vsync_start + sync_width;
-}
-
-static inline u32 panel_fitter_scaling(u32 source, u32 target)
-{
-	/*
-	 * Floating point operation is not supported. So the FACTOR
-	 * is defined, which can avoid the floating point computation
-	 * when calculating the panel ratio.
-	 */
-#define ACCURACY 12
-#define FACTOR (1 << ACCURACY)
-	u32 ratio = source * FACTOR / target;
-	return (FACTOR * ratio + FACTOR/2) / FACTOR;
-}
-
 static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 				      struct intel_crtc_config *pipe_config)
 {
@@ -315,7 +231,6 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 	struct drm_display_mode *mode = &pipe_config->requested_mode;
 	struct intel_crtc *intel_crtc = lvds_encoder->base.new_crtc;
-	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
 	unsigned int lvds_bpp;
 	int pipe;
 
@@ -338,11 +253,6 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 		DRM_DEBUG_KMS("forcing display bpp (was %d) to LVDS (%d)\n",
 			      pipe_config->pipe_bpp, lvds_bpp);
 		pipe_config->pipe_bpp = lvds_bpp;
-
-		/* Make sure pre-965 set dither correctly for 18bpp panels. */
-		if (INTEL_INFO(dev)->gen < 4 && lvds_bpp == 18)
-			pfit_control |= PANEL_8TO6_DITHER_ENABLE;
-
 	}
 
 	/*
@@ -361,17 +271,10 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 					intel_connector->panel.fitting_mode,
 					mode, adjusted_mode);
 		return true;
+	} else {
+		intel_gmch_panel_fitting(intel_crtc, pipe_config,
+					 intel_connector->panel.fitting_mode);
 	}
-
-	/* Native modes don't need fitting */
-	if (adjusted_mode->hdisplay == mode->hdisplay &&
-	    adjusted_mode->vdisplay == mode->vdisplay)
-		goto out;
-
-	/* 965+ wants fuzzy fitting */
-	if (INTEL_INFO(dev)->gen >= 4)
-		pfit_control |= ((intel_crtc->pipe << PFIT_PIPE_SHIFT) |
-				 PFIT_FILTER_FUZZY);
 
 	/*
 	 * Enable automatic panel scaling for non-native modes so that they fill
@@ -384,107 +287,6 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 	pipe_config->timings_set = true;
-
-	switch (intel_connector->panel.fitting_mode) {
-	case DRM_MODE_SCALE_CENTER:
-		/*
-		 * For centered modes, we have to calculate border widths &
-		 * heights and modify the values programmed into the CRTC.
-		 */
-		centre_horizontally(adjusted_mode, mode->hdisplay);
-		centre_vertically(adjusted_mode, mode->vdisplay);
-		border = LVDS_BORDER_ENABLE;
-		break;
-
-	case DRM_MODE_SCALE_ASPECT:
-		/* Scale but preserve the aspect ratio */
-		if (INTEL_INFO(dev)->gen >= 4) {
-			u32 scaled_width = adjusted_mode->hdisplay * mode->vdisplay;
-			u32 scaled_height = mode->hdisplay * adjusted_mode->vdisplay;
-
-			/* 965+ is easy, it does everything in hw */
-			if (scaled_width > scaled_height)
-				pfit_control |= PFIT_ENABLE | PFIT_SCALING_PILLAR;
-			else if (scaled_width < scaled_height)
-				pfit_control |= PFIT_ENABLE | PFIT_SCALING_LETTER;
-			else if (adjusted_mode->hdisplay != mode->hdisplay)
-				pfit_control |= PFIT_ENABLE | PFIT_SCALING_AUTO;
-		} else {
-			u32 scaled_width = adjusted_mode->hdisplay * mode->vdisplay;
-			u32 scaled_height = mode->hdisplay * adjusted_mode->vdisplay;
-			/*
-			 * For earlier chips we have to calculate the scaling
-			 * ratio by hand and program it into the
-			 * PFIT_PGM_RATIO register
-			 */
-			if (scaled_width > scaled_height) { /* pillar */
-				centre_horizontally(adjusted_mode, scaled_height / mode->vdisplay);
-
-				border = LVDS_BORDER_ENABLE;
-				if (mode->vdisplay != adjusted_mode->vdisplay) {
-					u32 bits = panel_fitter_scaling(mode->vdisplay, adjusted_mode->vdisplay);
-					pfit_pgm_ratios |= (bits << PFIT_HORIZ_SCALE_SHIFT |
-							    bits << PFIT_VERT_SCALE_SHIFT);
-					pfit_control |= (PFIT_ENABLE |
-							 VERT_INTERP_BILINEAR |
-							 HORIZ_INTERP_BILINEAR);
-				}
-			} else if (scaled_width < scaled_height) { /* letter */
-				centre_vertically(adjusted_mode, scaled_width / mode->hdisplay);
-
-				border = LVDS_BORDER_ENABLE;
-				if (mode->hdisplay != adjusted_mode->hdisplay) {
-					u32 bits = panel_fitter_scaling(mode->hdisplay, adjusted_mode->hdisplay);
-					pfit_pgm_ratios |= (bits << PFIT_HORIZ_SCALE_SHIFT |
-							    bits << PFIT_VERT_SCALE_SHIFT);
-					pfit_control |= (PFIT_ENABLE |
-							 VERT_INTERP_BILINEAR |
-							 HORIZ_INTERP_BILINEAR);
-				}
-			} else
-				/* Aspects match, Let hw scale both directions */
-				pfit_control |= (PFIT_ENABLE |
-						 VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
-						 VERT_INTERP_BILINEAR |
-						 HORIZ_INTERP_BILINEAR);
-		}
-		break;
-
-	case DRM_MODE_SCALE_FULLSCREEN:
-		/*
-		 * Full scaling, even if it changes the aspect ratio.
-		 * Fortunately this is all done for us in hw.
-		 */
-		if (mode->vdisplay != adjusted_mode->vdisplay ||
-		    mode->hdisplay != adjusted_mode->hdisplay) {
-			pfit_control |= PFIT_ENABLE;
-			if (INTEL_INFO(dev)->gen >= 4)
-				pfit_control |= PFIT_SCALING_AUTO;
-			else
-				pfit_control |= (VERT_AUTO_SCALE |
-						 VERT_INTERP_BILINEAR |
-						 HORIZ_AUTO_SCALE |
-						 HORIZ_INTERP_BILINEAR);
-		}
-		break;
-
-	default:
-		break;
-	}
-
-out:
-	/* If not enabling scaling, be consistent and always use 0. */
-	if ((pfit_control & PFIT_ENABLE) == 0) {
-		pfit_control = 0;
-		pfit_pgm_ratios = 0;
-	}
-
-	if (pfit_control != lvds_encoder->pfit_control ||
-	    pfit_pgm_ratios != lvds_encoder->pfit_pgm_ratios) {
-		lvds_encoder->pfit_control = pfit_control;
-		lvds_encoder->pfit_pgm_ratios = pfit_pgm_ratios;
-	}
-	dev_priv->lvds_border_bits = border;
 
 	/*
 	 * XXX: It would be nice to support lower refresh rates on the
@@ -1115,10 +917,6 @@ bool intel_lvds_init(struct drm_device *dev)
 
 	lvds_encoder->attached_connector = lvds_connector;
 
-	if (!HAS_PCH_SPLIT(dev)) {
-		lvds_encoder->pfit_control = I915_READ(PFIT_CONTROL);
-	}
-
 	intel_encoder = &lvds_encoder->base;
 	encoder = &intel_encoder->base;
 	intel_connector = &lvds_connector->base;
@@ -1130,7 +928,6 @@ bool intel_lvds_init(struct drm_device *dev)
 			 DRM_MODE_ENCODER_LVDS);
 
 	intel_encoder->enable = intel_enable_lvds;
-	intel_encoder->pre_enable = intel_pre_enable_lvds;
 	intel_encoder->pre_pll_enable = intel_pre_pll_enable_lvds;
 	intel_encoder->compute_config = intel_lvds_compute_config;
 	intel_encoder->disable = intel_disable_lvds;
