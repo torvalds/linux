@@ -808,6 +808,9 @@ static void vhost_scsi_flush(struct vhost_scsi *vs)
 /*
  * Called from vhost_scsi_ioctl() context to walk the list of available
  * tcm_vhost_tpg with an active struct tcm_vhost_nexus
+ *
+ *  The lock nesting rule is:
+ *    tcm_vhost_mutex -> vs->dev.mutex -> tpg->tv_tpg_mutex -> vq->mutex
  */
 static int vhost_scsi_set_endpoint(
 	struct vhost_scsi *vs,
@@ -820,26 +823,27 @@ static int vhost_scsi_set_endpoint(
 	int index, ret, i, len;
 	bool match = false;
 
+	mutex_lock(&tcm_vhost_mutex);
 	mutex_lock(&vs->dev.mutex);
+
 	/* Verify that ring has been setup correctly. */
 	for (index = 0; index < vs->dev.nvqs; ++index) {
 		/* Verify that ring has been setup correctly. */
 		if (!vhost_vq_access_ok(&vs->vqs[index])) {
-			mutex_unlock(&vs->dev.mutex);
-			return -EFAULT;
+			ret = -EFAULT;
+			goto out;
 		}
 	}
 
 	len = sizeof(vs_tpg[0]) * VHOST_SCSI_MAX_TARGET;
 	vs_tpg = kzalloc(len, GFP_KERNEL);
 	if (!vs_tpg) {
-		mutex_unlock(&vs->dev.mutex);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 	if (vs->vs_tpg)
 		memcpy(vs_tpg, vs->vs_tpg, len);
 
-	mutex_lock(&tcm_vhost_mutex);
 	list_for_each_entry(tv_tpg, &tcm_vhost_list, tv_tpg_list) {
 		mutex_lock(&tv_tpg->tv_tpg_mutex);
 		if (!tv_tpg->tpg_nexus) {
@@ -854,11 +858,10 @@ static int vhost_scsi_set_endpoint(
 
 		if (!strcmp(tv_tport->tport_name, t->vhost_wwpn)) {
 			if (vs->vs_tpg && vs->vs_tpg[tv_tpg->tport_tpgt]) {
-				mutex_unlock(&tv_tpg->tv_tpg_mutex);
-				mutex_unlock(&tcm_vhost_mutex);
-				mutex_unlock(&vs->dev.mutex);
 				kfree(vs_tpg);
-				return -EEXIST;
+				mutex_unlock(&tv_tpg->tv_tpg_mutex);
+				ret = -EEXIST;
+				goto out;
 			}
 			tv_tpg->tv_tpg_vhost_count++;
 			vs_tpg[tv_tpg->tport_tpgt] = tv_tpg;
@@ -867,7 +870,6 @@ static int vhost_scsi_set_endpoint(
 		}
 		mutex_unlock(&tv_tpg->tv_tpg_mutex);
 	}
-	mutex_unlock(&tcm_vhost_mutex);
 
 	if (match) {
 		memcpy(vs->vs_vhost_wwpn, t->vhost_wwpn,
@@ -893,7 +895,9 @@ static int vhost_scsi_set_endpoint(
 	kfree(vs->vs_tpg);
 	vs->vs_tpg = vs_tpg;
 
+out:
 	mutex_unlock(&vs->dev.mutex);
+	mutex_unlock(&tcm_vhost_mutex);
 	return ret;
 }
 
@@ -908,6 +912,7 @@ static int vhost_scsi_clear_endpoint(
 	int index, ret, i;
 	u8 target;
 
+	mutex_lock(&tcm_vhost_mutex);
 	mutex_lock(&vs->dev.mutex);
 	/* Verify that ring has been setup correctly. */
 	for (index = 0; index < vs->dev.nvqs; ++index) {
@@ -918,8 +923,8 @@ static int vhost_scsi_clear_endpoint(
 	}
 
 	if (!vs->vs_tpg) {
-		mutex_unlock(&vs->dev.mutex);
-		return 0;
+		ret = 0;
+		goto err_dev;
 	}
 
 	for (i = 0; i < VHOST_SCSI_MAX_TARGET; i++) {
@@ -965,13 +970,14 @@ static int vhost_scsi_clear_endpoint(
 	kfree(vs->vs_tpg);
 	vs->vs_tpg = NULL;
 	mutex_unlock(&vs->dev.mutex);
-
+	mutex_unlock(&tcm_vhost_mutex);
 	return 0;
 
 err_tpg:
 	mutex_unlock(&tv_tpg->tv_tpg_mutex);
 err_dev:
 	mutex_unlock(&vs->dev.mutex);
+	mutex_unlock(&tcm_vhost_mutex);
 	return ret;
 }
 
