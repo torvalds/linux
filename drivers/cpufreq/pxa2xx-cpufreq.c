@@ -221,10 +221,11 @@ static void find_freq_tables(struct cpufreq_frequency_table **freq_table,
 			*pxa_freqs = pxa255_turbo_freqs;
 			*freq_table = pxa255_turbo_freq_table;
 		}
-	}
-	if (cpu_is_pxa27x()) {
+	} else if (cpu_is_pxa27x()) {
 		*pxa_freqs = pxa27x_freqs;
 		*freq_table = pxa27x_freq_table;
+	} else {
+		BUG();
 	}
 }
 
