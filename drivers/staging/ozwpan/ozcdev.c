@@ -355,11 +355,13 @@ int oz_cdev_register(void)
 	g_oz_class = class_create(THIS_MODULE, "ozmo_wpan");
 	if (IS_ERR(g_oz_class)) {
 		oz_trace("Failed to register ozmo_wpan class\n");
+		err = PTR_ERR(g_oz_class);
 		goto out1;
 	}
 	dev = device_create(g_oz_class, NULL, g_cdev.devnum, NULL, "ozwpan");
 	if (IS_ERR(dev)) {
 		oz_trace("Failed to create sysfs entry for cdev\n");
+		err = PTR_ERR(dev);
 		goto out1;
 	}
 	return 0;
