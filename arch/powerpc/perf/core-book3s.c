@@ -89,6 +89,11 @@ static inline int siar_valid(struct pt_regs *regs)
 
 #endif /* CONFIG_PPC32 */
 
+static bool regs_use_siar(struct pt_regs *regs)
+{
+	return !!(regs->result & 1);
+}
+
 /*
  * Things that are specific to 64-bit implementations.
  */
@@ -162,7 +167,7 @@ static inline u32 perf_flags_from_msr(struct pt_regs *regs)
 
 static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 {
-	unsigned long use_siar = regs->result;
+	bool use_siar = regs_use_siar(regs);
 
 	if (!use_siar)
 		return perf_flags_from_msr(regs);
@@ -1425,7 +1430,7 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
  */
 unsigned long perf_instruction_pointer(struct pt_regs *regs)
 {
-	unsigned long use_siar = regs->result;
+	bool use_siar = regs_use_siar(regs);
 
 	if (use_siar && siar_valid(regs))
 		return mfspr(SPRN_SIAR) + perf_ip_adjust(regs);
