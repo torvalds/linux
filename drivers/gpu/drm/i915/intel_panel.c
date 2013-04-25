@@ -54,13 +54,16 @@ intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
 
 /* adjusted_mode has been preset to be the panel's fixed mode */
 void
-intel_pch_panel_fitting(struct drm_device *dev,
-			int fitting_mode,
-			const struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode)
+intel_pch_panel_fitting(struct intel_crtc *intel_crtc,
+			struct intel_crtc_config *pipe_config,
+			int fitting_mode)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = intel_crtc->base.dev->dev_private;
+	struct drm_display_mode *mode, *adjusted_mode;
 	int x, y, width, height;
+
+	mode = &pipe_config->requested_mode;
+	adjusted_mode = &pipe_config->adjusted_mode;
 
 	x = y = width = height = 0;
 
@@ -113,8 +116,8 @@ intel_pch_panel_fitting(struct drm_device *dev,
 	}
 
 done:
-	dev_priv->pch_pf_pos = (x << 16) | y;
-	dev_priv->pch_pf_size = (width << 16) | height;
+	pipe_config->pch_pfit.pos = (x << 16) | y;
+	pipe_config->pch_pfit.size = (width << 16) | height;
 }
 
 static void
@@ -300,10 +303,10 @@ out:
 	if (INTEL_INFO(dev)->gen < 4 && pipe_config->pipe_bpp == 18)
 		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 
-	if (pfit_control != pipe_config->pfit_control ||
-	    pfit_pgm_ratios != pipe_config->pfit_pgm_ratios) {
-		pipe_config->pfit_control = pfit_control;
-		pipe_config->pfit_pgm_ratios = pfit_pgm_ratios;
+	if (pfit_control != pipe_config->gmch_pfit.control ||
+	    pfit_pgm_ratios != pipe_config->gmch_pfit.pgm_ratios) {
+		pipe_config->gmch_pfit.control = pfit_control;
+		pipe_config->gmch_pfit.pgm_ratios = pfit_pgm_ratios;
 	}
 	dev_priv->lvds_border_bits = border;
 }

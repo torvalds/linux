@@ -721,7 +721,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
-	struct drm_display_mode *mode = &pipe_config->requested_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct intel_crtc *intel_crtc = encoder->new_crtc;
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
@@ -744,9 +743,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 			intel_gmch_panel_fitting(intel_crtc, pipe_config,
 						 intel_connector->panel.fitting_mode);
 		else
-			intel_pch_panel_fitting(dev,
-						intel_connector->panel.fitting_mode,
-						mode, adjusted_mode);
+			intel_pch_panel_fitting(intel_crtc, pipe_config,
+						intel_connector->panel.fitting_mode);
 	}
 	/* We need to take the panel's fixed mode into account. */
 	target_clock = adjusted_mode->clock;

@@ -239,7 +239,16 @@ struct intel_crtc_config {
 	unsigned pixel_multiplier;
 
 	/* Panel fitter controls for gen2-gen4 + VLV */
-	u32 pfit_control, pfit_pgm_ratios;
+	struct {
+		u32 control;
+		u32 pgm_ratios;
+	} gmch_pfit;
+
+	/* Panel fitter placement and size for Ironlake+ */
+	struct {
+		u32 pos;
+		u32 size;
+	} pch_pfit;
 };
 
 struct intel_crtc {
@@ -558,10 +567,9 @@ extern void intel_panel_fini(struct intel_panel *panel);
 
 extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
 				   struct drm_display_mode *adjusted_mode);
-extern void intel_pch_panel_fitting(struct drm_device *dev,
-				    int fitting_mode,
-				    const struct drm_display_mode *mode,
-				    struct drm_display_mode *adjusted_mode);
+extern void intel_pch_panel_fitting(struct intel_crtc *crtc,
+				    struct intel_crtc_config *pipe_config,
+				    int fitting_mode);
 extern void intel_gmch_panel_fitting(struct intel_crtc *crtc,
 				     struct intel_crtc_config *pipe_config,
 				     int fitting_mode);

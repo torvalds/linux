@@ -229,7 +229,6 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	struct intel_connector *intel_connector =
 		&lvds_encoder->attached_connector->base;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
-	struct drm_display_mode *mode = &pipe_config->requested_mode;
 	struct intel_crtc *intel_crtc = lvds_encoder->base.new_crtc;
 	unsigned int lvds_bpp;
 	int pipe;
@@ -267,9 +266,8 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	if (HAS_PCH_SPLIT(dev)) {
 		pipe_config->has_pch_encoder = true;
 
-		intel_pch_panel_fitting(dev,
-					intel_connector->panel.fitting_mode,
-					mode, adjusted_mode);
+		intel_pch_panel_fitting(intel_crtc, pipe_config,
+					intel_connector->panel.fitting_mode);
 		return true;
 	} else {
 		intel_gmch_panel_fitting(intel_crtc, pipe_config,

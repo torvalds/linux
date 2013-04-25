@@ -3225,6 +3225,28 @@ void intel_cpt_verify_modeset(struct drm_device *dev, int pipe)
 	}
 }
 
+static void ironlake_pfit_enable(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = crtc->pipe;
+
+	if (crtc->config.pch_pfit.size &&
+	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_EDP)) {
+		/* Force use of hard-coded filter coefficients
+		 * as some pre-programmed values are broken,
+		 * e.g. x201.
+		 */
+		if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
+			I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3 |
+						 PF_PIPE_SEL_IVB(pipe));
+		else
+			I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3);
+		I915_WRITE(PF_WIN_POS(pipe), crtc->config.pch_pfit.pos);
+		I915_WRITE(PF_WIN_SZ(pipe), crtc->config.pch_pfit.size);
+	}
+}
+
 static void ironlake_crtc_enable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -3269,21 +3291,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 			encoder->pre_enable(encoder);
 
 	/* Enable panel fitting for LVDS */
-	if (dev_priv->pch_pf_size &&
-	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) ||
-	     intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))) {
-		/* Force use of hard-coded filter coefficients
-		 * as some pre-programmed values are broken,
-		 * e.g. x201.
-		 */
-		if (IS_IVYBRIDGE(dev))
-			I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3 |
-						 PF_PIPE_SEL_IVB(pipe));
-		else
-			I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3);
-		I915_WRITE(PF_WIN_POS(pipe), dev_priv->pch_pf_pos);
-		I915_WRITE(PF_WIN_SZ(pipe), dev_priv->pch_pf_size);
-	}
+	ironlake_pfit_enable(intel_crtc);
 
 	/*
 	 * On ILK+ LUT must be loaded before the pipe is running but with
@@ -3353,17 +3361,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_ddi_enable_pipe_clock(intel_crtc);
 
 	/* Enable panel fitting for eDP */
-	if (dev_priv->pch_pf_size &&
-	    intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP)) {
-		/* Force use of hard-coded filter coefficients
-		 * as some pre-programmed values are broken,
-		 * e.g. x201.
-		 */
-		I915_WRITE(PF_CTL(pipe), PF_ENABLE | PF_FILTER_MED_3x3 |
-					 PF_PIPE_SEL_IVB(pipe));
-		I915_WRITE(PF_WIN_POS(pipe), dev_priv->pch_pf_pos);
-		I915_WRITE(PF_WIN_SZ(pipe), dev_priv->pch_pf_size);
-	}
+	ironlake_pfit_enable(intel_crtc);
 
 	/*
 	 * On ILK+ LUT must be loaded before the pipe is running but with
@@ -3621,11 +3619,11 @@ static void i9xx_pfit_enable(struct intel_crtc *crtc)
 	 * register description and PRM.
 	 */
 	DRM_DEBUG_KMS("applying panel-fitter: %x, %x\n",
-		      pipe_config->pfit_control,
-		      pipe_config->pfit_pgm_ratios);
+		      pipe_config->gmch_pfit.control,
+		      pipe_config->gmch_pfit.pgm_ratios);
 
-	I915_WRITE(PFIT_PGM_RATIOS, pipe_config->pfit_pgm_ratios);
-	I915_WRITE(PFIT_CONTROL, pipe_config->pfit_control);
+	I915_WRITE(PFIT_PGM_RATIOS, pipe_config->gmch_pfit.pgm_ratios);
+	I915_WRITE(PFIT_CONTROL, pipe_config->gmch_pfit.control);
 }
 
 static void valleyview_crtc_enable(struct drm_crtc *crtc)
@@ -5812,6 +5810,9 @@ static void haswell_modeset_global_resources(struct drm_device *dev)
 		/* XXX: Should check for edp transcoder here, but thanks to init
 		 * sequence that's not yet available. Just in case desktop eDP
 		 * on PORT D is possible on haswell, too. */
+		/* Even the eDP panel fitter is outside the always-on well. */
+		if (I915_READ(PF_WIN_SZ(crtc->pipe)))
+			enable = true;
 	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
@@ -5820,10 +5821,6 @@ static void haswell_modeset_global_resources(struct drm_device *dev)
 		    encoder->connectors_active)
 			enable = true;
 	}
-
-	/* Even the eDP panel fitter is outside the always-on well. */
-	if (dev_priv->pch_pf_size)
-		enable = true;
 
 	intel_set_power_well(dev, enable);
 }
