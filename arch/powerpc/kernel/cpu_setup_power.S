@@ -49,6 +49,7 @@ _GLOBAL(__restore_cpu_power7)
 _GLOBAL(__setup_cpu_power8)
 	mflr	r11
 	bl	__init_FSCR
+	bl	__init_PMU
 	bl	__init_hvmode_206
 	mtlr	r11
 	beqlr
@@ -59,12 +60,14 @@ _GLOBAL(__setup_cpu_power8)
 	bl	__init_LPCR
 	bl	__init_HFSCR
 	bl	__init_TLB
+	bl	__init_PMU_HV
 	mtlr	r11
 	blr
 
 _GLOBAL(__restore_cpu_power8)
 	mflr	r11
 	bl	__init_FSCR
+	bl	__init_PMU
 	mfmsr	r3
 	rldicl.	r0,r3,4,63
 	mtlr	r11
@@ -76,6 +79,7 @@ _GLOBAL(__restore_cpu_power8)
 	bl	__init_LPCR
 	bl	__init_HFSCR
 	bl	__init_TLB
+	bl	__init_PMU_HV
 	mtlr	r11
 	blr
 
@@ -125,7 +129,7 @@ __init_FSCR:
 
 __init_HFSCR:
 	mfspr	r3,SPRN_HFSCR
-	ori	r3,r3,HFSCR_TAR|HFSCR_TM|HFSCR_DSCR|HFSCR_VECVSX|HFSCR_FP
+	ori	r3,r3,HFSCR_TAR|HFSCR_TM|HFSCR_DSCR|HFSCR_VECVSX|HFSCR_FP|HFSCR_PM
 	mtspr	SPRN_HFSCR,r3
 	blr
 
@@ -140,3 +144,18 @@ __init_TLB:
 	bdnz	2b
 	ptesync
 1:	blr
+
+__init_PMU_HV:
+	li	r5,0
+	mtspr	SPRN_MMCRC,r5
+	mtspr	SPRN_MMCRH,r5
+	blr
+
+__init_PMU:
+	li	r5,0
+	mtspr	SPRN_MMCRS,r5
+	mtspr	SPRN_MMCRA,r5
+	mtspr	SPRN_MMCR0,r5
+	mtspr	SPRN_MMCR1,r5
+	mtspr	SPRN_MMCR2,r5
+	blr
