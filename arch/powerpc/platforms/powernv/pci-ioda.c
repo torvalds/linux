@@ -31,6 +31,7 @@
 #include <asm/opal.h>
 #include <asm/iommu.h>
 #include <asm/tce.h>
+#include <asm/xics.h>
 
 #include "powernv.h"
 #include "pci.h"
@@ -589,11 +590,27 @@ static void pnv_ioda_setup_dma(struct pnv_phb *phb)
 }
 
 #ifdef CONFIG_PCI_MSI
+static void pnv_ioda2_msi_eoi(struct irq_data *d)
+{
+	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
+	struct irq_chip *chip = irq_data_get_irq_chip(d);
+	struct pnv_phb *phb = container_of(chip, struct pnv_phb,
+					   ioda.irq_chip);
+	int64_t rc;
+
+	rc = opal_pci_msi_eoi(phb->opal_id, hw_irq);
+	WARN_ON_ONCE(rc);
+
+	icp_native_eoi(d);
+}
+
 static int pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
-				  unsigned int hwirq, unsigned int is_64,
-				  struct msi_msg *msg)
+				  unsigned int hwirq, unsigned int virq,
+				  unsigned int is_64, struct msi_msg *msg)
 {
 	struct pnv_ioda_pe *pe = pnv_ioda_get_pe(dev);
+	struct irq_data *idata;
+	struct irq_chip *ichip;
 	unsigned int xive_num = hwirq - phb->msi_base;
 	uint64_t addr64;
 	uint32_t addr32, data;
@@ -637,6 +654,23 @@ static int pnv_pci_ioda_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
 		msg->address_lo = addr32;
 	}
 	msg->data = data;
+
+	/*
+	 * Change the IRQ chip for the MSI interrupts on PHB3.
+	 * The corresponding IRQ chip should be populated for
+	 * the first time.
+	 */
+	if (phb->type == PNV_PHB_IODA2) {
+		if (!phb->ioda.irq_chip_init) {
+			idata = irq_get_irq_data(virq);
+			ichip = irq_data_get_irq_chip(idata);
+			phb->ioda.irq_chip_init = 1;
+			phb->ioda.irq_chip = *ichip;
+			phb->ioda.irq_chip.irq_eoi = pnv_ioda2_msi_eoi;
+		}
+
+		irq_set_chip(virq, &phb->ioda.irq_chip);
+	}
 
 	pr_devel("%s: %s-bit MSI on hwirq %x (xive #%d),"
 		 " address=%x_%08x data=%x PE# %d\n",

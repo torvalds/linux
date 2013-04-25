@@ -42,8 +42,8 @@
 
 #ifdef CONFIG_PCI_MSI
 static int pnv_pci_p5ioc2_msi_setup(struct pnv_phb *phb, struct pci_dev *dev,
-				    unsigned int hwirq, unsigned int is_64,
-				    struct msi_msg *msg)
+				    unsigned int hwirq, unsigned int virq,
+				    unsigned int is_64, struct msi_msg *msg)
 {
 	if (WARN_ON(!is_64))
 		return -ENXIO;
