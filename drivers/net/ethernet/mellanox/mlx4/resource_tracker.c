@@ -353,6 +353,39 @@ static void update_gid(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *inbox,
 	}
 }
 
+static int update_vport_qp_param(struct mlx4_dev *dev,
+				 struct mlx4_cmd_mailbox *inbox,
+				 u8 slave)
+{
+	struct mlx4_qp_context	*qpc = inbox->buf + 8;
+	struct mlx4_vport_oper_state *vp_oper;
+	struct mlx4_priv *priv;
+	u32 qp_type;
+	int port;
+
+	port = (qpc->pri_path.sched_queue & 0x40) ? 2 : 1;
+	priv = mlx4_priv(dev);
+	vp_oper = &priv->mfunc.master.vf_oper[slave].vport[port];
+
+	if (MLX4_VGT != vp_oper->state.default_vlan) {
+		qp_type	= (be32_to_cpu(qpc->flags) >> 16) & 0xff;
+		if (MLX4_QP_ST_RC == qp_type)
+			return -EINVAL;
+
+		qpc->pri_path.vlan_index = vp_oper->vlan_idx;
+		qpc->pri_path.fl = (1 << 6) | (1 << 2); /* set cv bit and hide_cqe_vlan bit*/
+		qpc->pri_path.feup |= 1 << 3; /* set fvl bit */
+		qpc->pri_path.sched_queue &= 0xC7;
+		qpc->pri_path.sched_queue |= (vp_oper->state.default_qos) << 3;
+		mlx4_dbg(dev, "qp %d  port %d Q 0x%x set vlan to %d vidx %d feup %x fl %x\n",
+			 be32_to_cpu(qpc->local_qpn) & 0xffffff, port,
+			 (int)(qpc->pri_path.sched_queue), vp_oper->state.default_vlan,
+			 vp_oper->vlan_idx, (int)(qpc->pri_path.feup),
+			 (int)(qpc->pri_path.fl));
+	}
+	return 0;
+}
+
 static int mpt_mask(struct mlx4_dev *dev)
 {
 	return dev->caps.num_mpts - 1;
@@ -2798,6 +2831,9 @@ int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
 	update_pkey_index(dev, slave, inbox);
 	update_gid(dev, inbox, (u8)slave);
 	adjust_proxy_tun_qkey(dev, vhcr, qpc);
+	err = update_vport_qp_param(dev, inbox, slave);
+	if (err)
+		return err;
 
 	return mlx4_GEN_QP_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
 }
