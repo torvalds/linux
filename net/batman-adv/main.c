@@ -393,6 +393,14 @@ static void batadv_recv_handler_init(void)
 	for (i = 0; i < ARRAY_SIZE(batadv_rx_handler); i++)
 		batadv_rx_handler[i] = batadv_recv_unhandled_packet;
 
+	/* compile time checks for struct member offsets */
+	BUILD_BUG_ON(offsetof(struct batadv_unicast_4addr_packet, src) != 10);
+	BUILD_BUG_ON(offsetof(struct batadv_unicast_packet, dest) != 4);
+	BUILD_BUG_ON(offsetof(struct batadv_unicast_frag_packet, dest) != 4);
+	BUILD_BUG_ON(offsetof(struct batadv_unicast_tvlv_packet, dst) != 4);
+	BUILD_BUG_ON(offsetof(struct batadv_icmp_packet, dst) != 4);
+	BUILD_BUG_ON(offsetof(struct batadv_icmp_packet_rr, dst) != 4);
+
 	/* batman icmp packet */
 	batadv_rx_handler[BATADV_ICMP] = batadv_recv_icmp_packet;
 	/* unicast with 4 addresses packet */
