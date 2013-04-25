@@ -762,7 +762,8 @@ static int cx25821_vidioc_g_std(struct file *file, void *priv, v4l2_std_id *tvno
 	return 0;
 }
 
-int cx25821_vidioc_s_std(struct file *file, void *priv, v4l2_std_id tvnorms)
+static int cx25821_vidioc_s_std(struct file *file, void *priv,
+				v4l2_std_id tvnorms)
 {
 	struct cx25821_channel *chan = video_drvdata(file);
 	struct cx25821_dev *dev = chan->dev;
