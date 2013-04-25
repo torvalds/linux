@@ -52,6 +52,7 @@ struct rtl2832_config {
 #define RTL2832_TUNER_FC0012    0x26
 #define RTL2832_TUNER_E4000     0x27
 #define RTL2832_TUNER_FC0013    0x29
+#define RTL2832_TUNER_R820T	0x2a
 	u8 tuner;
 };
 

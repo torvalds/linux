@@ -248,4 +248,11 @@ config MEDIA_TUNER_IT913X
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  ITE Tech IT913x silicon tuner driver.
+
+config MEDIA_TUNER_R820T
+	tristate "Rafael Micro R820T silicon tuner"
+	depends on MEDIA_SUPPORT && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Rafael Micro R820T silicon tuner driver.
 endmenu

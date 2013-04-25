@@ -33,6 +33,7 @@
 #include "e4000.h"
 #include "fc2580.h"
 #include "tua9001.h"
+#include "r820t.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -375,6 +376,7 @@ static int rtl2832u_read_config(struct dvb_usb_device *d)
 	struct rtl28xxu_req req_mxl5007t = {0xd9c0, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_e4000 = {0x02c8, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_tda18272 = {0x00c0, CMD_I2C_RD, 2, buf};
+	struct rtl28xxu_req req_r820t = {0x0034, CMD_I2C_RD, 5, buf};
 
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
@@ -476,6 +478,14 @@ static int rtl2832u_read_config(struct dvb_usb_device *d)
 	if (ret == 0 && (buf[0] == 0xc7 || buf[1] == 0x60)) {
 		priv->tuner = TUNER_RTL2832_TDA18272;
 		priv->tuner_name = "TDA18272";
+		goto found;
+	}
+
+	/* check R820T by reading tuner stats at I2C addr 0x1a */
+	ret = rtl28xxu_ctrl_msg(d, &req_r820t);
+	if (ret == 0) {
+		priv->tuner = TUNER_RTL2832_R820T;
+		priv->tuner_name = "R820T";
 		goto found;
 	}
 
@@ -587,6 +597,12 @@ static struct rtl2832_config rtl28xxu_rtl2832_e4000_config = {
 	.i2c_addr = 0x10, /* 0x20 */
 	.xtal = 28800000,
 	.tuner = TUNER_RTL2832_E4000,
+};
+
+static struct rtl2832_config rtl28xxu_rtl2832_r820t_config = {
+	.i2c_addr = 0x10,
+	.xtal = 28800000,
+	.tuner = TUNER_RTL2832_R820T,
 };
 
 static int rtl2832u_fc0012_tuner_callback(struct dvb_usb_device *d,
@@ -728,6 +744,9 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 	case TUNER_RTL2832_E4000:
 		rtl2832_config = &rtl28xxu_rtl2832_e4000_config;
 		break;
+	case TUNER_RTL2832_R820T:
+		rtl2832_config = &rtl28xxu_rtl2832_r820t_config;
+		break;
 	default:
 		dev_err(&d->udev->dev, "%s: unknown tuner=%s\n",
 				KBUILD_MODNAME, priv->tuner_name);
@@ -840,6 +859,13 @@ static const struct fc0012_config rtl2832u_fc0012_config = {
 	.xtal_freq = FC_XTAL_28_8_MHZ,
 };
 
+static const struct r820t_config rtl2832u_r820t_config = {
+	.i2c_addr = 0x1a,
+	.xtal = 28800000,
+	.max_i2c_msg_len = 2,
+	.rafael_chip = CHIP_R820T,
+};
+
 static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
@@ -888,6 +914,14 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 
 		fe = dvb_attach(tua9001_attach, adap->fe[0], &d->i2c_adap,
 				&rtl2832u_tua9001_config);
+		break;
+	case TUNER_RTL2832_R820T:
+		fe = dvb_attach(r820t_attach, adap->fe[0], &d->i2c_adap,
+				&rtl2832u_r820t_config);
+
+		/* Use tuner to get the signal strength */
+		adap->fe[0]->ops.read_signal_strength =
+				adap->fe[0]->ops.tuner_ops.get_rf_strength;
 		break;
 	default:
 		fe = NULL;
