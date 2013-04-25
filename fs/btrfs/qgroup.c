@@ -1493,9 +1493,13 @@ int btrfs_run_qgroups(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_root *quota_root = fs_info->quota_root;
 	int ret = 0;
+	int start_rescan_worker = 0;
 
 	if (!quota_root)
 		goto out;
+
+	if (!fs_info->quota_enabled && fs_info->pending_quota_state)
+		start_rescan_worker = 1;
 
 	fs_info->quota_enabled = fs_info->pending_quota_state;
 
@@ -1521,6 +1525,13 @@ int btrfs_run_qgroups(struct btrfs_trans_handle *trans,
 	ret = update_qgroup_status_item(trans, fs_info, quota_root);
 	if (ret)
 		fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_INCONSISTENT;
+
+	if (!ret && start_rescan_worker) {
+		ret = btrfs_qgroup_rescan(fs_info);
+		if (ret)
+			pr_err("btrfs: start rescan quota failed: %d\n", ret);
+		ret = 0;
+	}
 
 out:
 
