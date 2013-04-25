@@ -3673,6 +3673,11 @@ static void force_metadata_allocation(struct btrfs_fs_info *info)
 	rcu_read_unlock();
 }
 
+static inline u64 calc_global_rsv_need_space(struct btrfs_block_rsv *global)
+{
+	return (global->size << 1);
+}
+
 static int should_alloc_chunk(struct btrfs_root *root,
 			      struct btrfs_space_info *sinfo, int force)
 {
@@ -3690,7 +3695,7 @@ static int should_alloc_chunk(struct btrfs_root *root,
 	 * global_rsv, it doesn't change except when the transaction commits.
 	 */
 	if (sinfo->flags & BTRFS_BLOCK_GROUP_METADATA)
-		num_allocated += global_rsv->size;
+		num_allocated += calc_global_rsv_need_space(global_rsv);
 
 	/*
 	 * in limited mode, we want to have some free space up to
@@ -3862,7 +3867,7 @@ static int can_overcommit(struct btrfs_root *root,
 {
 	struct btrfs_block_rsv *global_rsv = &root->fs_info->global_block_rsv;
 	u64 profile = btrfs_get_alloc_profile(root, 0);
-	u64 rsv_size = 0;
+	u64 space_size;
 	u64 avail;
 	u64 used;
 	u64 to_add;
@@ -3870,18 +3875,16 @@ static int can_overcommit(struct btrfs_root *root,
 	used = space_info->bytes_used + space_info->bytes_reserved +
 		space_info->bytes_pinned + space_info->bytes_readonly;
 
-	spin_lock(&global_rsv->lock);
-	rsv_size = global_rsv->size;
-	spin_unlock(&global_rsv->lock);
-
 	/*
 	 * We only want to allow over committing if we have lots of actual space
 	 * free, but if we don't have enough space to handle the global reserve
 	 * space then we could end up having a real enospc problem when trying
 	 * to allocate a chunk or some other such important allocation.
 	 */
-	rsv_size <<= 1;
-	if (used + rsv_size >= space_info->total_bytes)
+	spin_lock(&global_rsv->lock);
+	space_size = calc_global_rsv_need_space(global_rsv);
+	spin_unlock(&global_rsv->lock);
+	if (used + space_size >= space_info->total_bytes)
 		return 0;
 
 	used += space_info->bytes_may_use;
