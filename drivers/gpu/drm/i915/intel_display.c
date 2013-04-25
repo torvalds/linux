@@ -3632,6 +3632,10 @@ static void i9xx_pfit_enable(struct intel_crtc *crtc)
 
 	I915_WRITE(PFIT_PGM_RATIOS, pipe_config->gmch_pfit.pgm_ratios);
 	I915_WRITE(PFIT_CONTROL, pipe_config->gmch_pfit.control);
+
+	/* Border color in case we don't scale up to the full screen. Black by
+	 * default, change to something else for debugging. */
+	I915_WRITE(BCLRPAT(crtc->pipe), 0);
 }
 
 static void valleyview_crtc_enable(struct drm_crtc *crtc)
