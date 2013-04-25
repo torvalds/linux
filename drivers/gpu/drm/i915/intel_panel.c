@@ -183,7 +183,6 @@ void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
 			      int fitting_mode)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
 	struct drm_display_mode *mode, *adjusted_mode;
 
@@ -312,7 +311,7 @@ out:
 		pipe_config->gmch_pfit.control = pfit_control;
 		pipe_config->gmch_pfit.pgm_ratios = pfit_pgm_ratios;
 	}
-	dev_priv->lvds_border_bits = border;
+	pipe_config->gmch_pfit.lvds_border_bits = border;
 }
 
 static int is_backlight_combination_mode(struct drm_device *dev)
