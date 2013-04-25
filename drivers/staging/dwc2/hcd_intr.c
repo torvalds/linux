@@ -2104,9 +2104,6 @@ irqreturn_t dwc2_handle_hcd_intr(struct dwc2_hsotg *hsotg)
 			dwc2_rx_fifo_level_intr(hsotg);
 		if (gintsts & GINTSTS_NPTXFEMP)
 			dwc2_np_tx_fifo_empty_intr(hsotg);
-		if (gintsts & GINTSTS_I2CINT)
-			/* Todo: Implement i2cintr handler */
-			writel(GINTSTS_I2CINT, hsotg->regs + GINTSTS);
 		if (gintsts & GINTSTS_PRTINT)
 			dwc2_port_intr(hsotg);
 		if (gintsts & GINTSTS_HCHINT)

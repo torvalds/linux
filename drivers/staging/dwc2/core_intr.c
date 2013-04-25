@@ -403,8 +403,7 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 #define GINTMSK_COMMON	(GINTSTS_WKUPINT | GINTSTS_SESSREQINT |		\
 			 GINTSTS_CONIDSTSCHNG | GINTSTS_OTGINT |	\
 			 GINTSTS_MODEMIS | GINTSTS_DISCONNINT |		\
-			 GINTSTS_USBSUSP | GINTSTS_RESTOREDONE |	\
-			 GINTSTS_PRTINT)
+			 GINTSTS_USBSUSP | GINTSTS_PRTINT)
 
 /*
  * This function returns the Core Interrupt register
@@ -477,12 +476,6 @@ irqreturn_t dwc2_handle_common_intr(int irq, void *dev)
 		dwc2_handle_wakeup_detected_intr(hsotg);
 	if (gintsts & GINTSTS_USBSUSP)
 		dwc2_handle_usb_suspend_intr(hsotg);
-
-	if (gintsts & GINTSTS_RESTOREDONE) {
-		gintsts = GINTSTS_RESTOREDONE;
-		writel(gintsts, hsotg->regs + GINTSTS);
-		dev_dbg(hsotg->dev, " --Restore done interrupt received--\n");
-	}
 
 	if (gintsts & GINTSTS_PRTINT) {
 		/*
