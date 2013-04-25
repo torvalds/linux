@@ -90,7 +90,7 @@ static int shmob_drm_setup_clocks(struct shmob_drm_device *sdev,
 		return -EINVAL;
 	}
 
-	clk = clk_get(sdev->dev, clkname);
+	clk = devm_clk_get(sdev->dev, clkname);
 	if (IS_ERR(clk)) {
 		dev_err(sdev->dev, "cannot get dot clock %s\n", clkname);
 		return PTR_ERR(clk);
@@ -106,21 +106,12 @@ static int shmob_drm_setup_clocks(struct shmob_drm_device *sdev,
 
 static int shmob_drm_unload(struct drm_device *dev)
 {
-	struct shmob_drm_device *sdev = dev->dev_private;
-
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
 	drm_vblank_cleanup(dev);
 	drm_irq_uninstall(dev);
 
-	if (sdev->clock)
-		clk_put(sdev->clock);
-
-	if (sdev->mmio)
-		iounmap(sdev->mmio);
-
 	dev->dev_private = NULL;
-	kfree(sdev);
 
 	return 0;
 }
@@ -139,7 +130,7 @@ static int shmob_drm_load(struct drm_device *dev, unsigned long flags)
 		return -EINVAL;
 	}
 
-	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
+	sdev = devm_kzalloc(&pdev->dev, sizeof(*sdev), GFP_KERNEL);
 	if (sdev == NULL) {
 		dev_err(dev->dev, "failed to allocate private data\n");
 		return -ENOMEM;
@@ -156,29 +147,28 @@ static int shmob_drm_load(struct drm_device *dev, unsigned long flags)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "failed to get memory resource\n");
-		ret = -EINVAL;
-		goto done;
+		return -EINVAL;
 	}
 
-	sdev->mmio = ioremap_nocache(res->start, resource_size(res));
+	sdev->mmio = devm_ioremap_nocache(&pdev->dev, res->start,
+					  resource_size(res));
 	if (sdev->mmio == NULL) {
 		dev_err(&pdev->dev, "failed to remap memory resource\n");
-		ret = -ENOMEM;
-		goto done;
+		return -ENOMEM;
 	}
 
 	ret = shmob_drm_setup_clocks(sdev, pdata->clk_source);
 	if (ret < 0)
-		goto done;
+		return ret;
 
 	ret = shmob_drm_init_interface(sdev);
 	if (ret < 0)
-		goto done;
+		return ret;
 
 	ret = shmob_drm_modeset_init(sdev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to initialize mode setting\n");
-		goto done;
+		return ret;
 	}
 
 	for (i = 0; i < 4; ++i) {
