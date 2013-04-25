@@ -864,6 +864,7 @@ static int __init cfspi_init_module(void)
 	driver_remove_file(&cfspi_spi_driver.driver,
 			   &driver_attr_up_head_align);
  err_create_up_head_align:
+	platform_driver_unregister(&cfspi_spi_driver);
  err_dev_register:
 	return result;
 }
