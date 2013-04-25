@@ -687,11 +687,9 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	struct batadv_hard_iface *primary_if;
 	int *ogm_buff_len = &hard_iface->bat_iv.ogm_buff_len;
-	int vis_server;
 	uint32_t seqno;
 	uint16_t tvlv_len = 0;
 
-	vis_server = atomic_read(&bat_priv->vis_mode);
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 
 	if (hard_iface == primary_if) {
@@ -711,11 +709,6 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 	seqno = (uint32_t)atomic_read(&hard_iface->bat_iv.ogm_seqno);
 	batadv_ogm_packet->seqno = htonl(seqno);
 	atomic_inc(&hard_iface->bat_iv.ogm_seqno);
-
-	if (vis_server == BATADV_VIS_TYPE_SERVER_SYNC)
-		batadv_ogm_packet->flags |= BATADV_VIS_SERVER;
-	else
-		batadv_ogm_packet->flags &= ~BATADV_VIS_SERVER;
 
 	batadv_iv_ogm_slide_own_bcast_window(hard_iface);
 	batadv_iv_ogm_queue_add(bat_priv, hard_iface->bat_iv.ogm_buff,
@@ -790,7 +783,6 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 
 	rcu_read_unlock();
 
-	orig_node->flags = batadv_ogm_packet->flags;
 	neigh_node->last_seen = jiffies;
 
 	spin_lock_bh(&neigh_node->lq_update_lock);

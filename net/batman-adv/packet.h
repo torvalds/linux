@@ -29,7 +29,6 @@ enum batadv_packettype {
 	BATADV_ICMP		= 0x02,
 	BATADV_UNICAST		= 0x03,
 	BATADV_BCAST		= 0x04,
-	BATADV_VIS		= 0x05,
 	BATADV_UNICAST_FRAG	= 0x06,
 	BATADV_UNICAST_4ADDR	= 0x09,
 	BATADV_CODED		= 0x0a,
@@ -56,7 +55,6 @@ enum batadv_subtype {
 enum batadv_iv_flags {
 	BATADV_NOT_BEST_NEXT_HOP   = BIT(3),
 	BATADV_PRIMARIES_FIRST_HOP = BIT(4),
-	BATADV_VIS_SERVER	   = BIT(5),
 	BATADV_DIRECTLINK	   = BIT(6),
 };
 
@@ -67,12 +65,6 @@ enum batadv_icmp_packettype {
 	BATADV_ECHO_REQUEST	       = 8,
 	BATADV_TTL_EXCEEDED	       = 11,
 	BATADV_PARAMETER_PROBLEM       = 12,
-};
-
-/* vis defines */
-enum batadv_vis_packettype {
-	BATADV_VIS_TYPE_SERVER_SYNC   = 0,
-	BATADV_VIS_TYPE_CLIENT_UPDATE = 1,
 };
 
 /* fragmentation defines */
@@ -161,7 +153,7 @@ struct batadv_header {
  */
 struct batadv_ogm_packet {
 	struct batadv_header header;
-	uint8_t  flags;    /* 0x40: DIRECTLINK flag, 0x20 VIS_SERVER flag... */
+	uint8_t  flags;    /* 0x40: DIRECTLINK flag ... */
 	__be32   seqno;
 	uint8_t  orig[ETH_ALEN];
 	uint8_t  prev_sender[ETH_ALEN];
@@ -256,17 +248,6 @@ struct batadv_bcast_packet {
 };
 
 #pragma pack()
-
-struct batadv_vis_packet {
-	struct batadv_header header;
-	uint8_t  vis_type;	 /* which type of vis-participant sent this? */
-	__be32   seqno;		 /* sequence number */
-	uint8_t  entries;	 /* number of entries behind this struct */
-	uint8_t  reserved;
-	uint8_t  vis_orig[ETH_ALEN];	/* originator reporting its neighbors */
-	uint8_t  target_orig[ETH_ALEN]; /* who should receive this packet */
-	uint8_t  sender_orig[ETH_ALEN]; /* who sent or forwarded this packet */
-};
 
 /**
  * struct batadv_coded_packet - network coded packet

@@ -26,7 +26,6 @@
 #include "hard-interface.h"
 #include "gateway_common.h"
 #include "gateway_client.h"
-#include "vis.h"
 
 static struct net_device *batadv_kobj_to_netdev(struct kobject *obj)
 {
@@ -231,74 +230,6 @@ __batadv_store_uint_attr(const char *buff, size_t count,
 	return ret;
 }
 
-static ssize_t batadv_show_vis_mode(struct kobject *kobj,
-				    struct attribute *attr, char *buff)
-{
-	struct batadv_priv *bat_priv = batadv_kobj_to_batpriv(kobj);
-	int vis_mode = atomic_read(&bat_priv->vis_mode);
-	const char *mode;
-
-	if (vis_mode == BATADV_VIS_TYPE_CLIENT_UPDATE)
-		mode = "client";
-	else
-		mode = "server";
-
-	return sprintf(buff, "%s\n", mode);
-}
-
-static ssize_t batadv_store_vis_mode(struct kobject *kobj,
-				     struct attribute *attr, char *buff,
-				     size_t count)
-{
-	struct net_device *net_dev = batadv_kobj_to_netdev(kobj);
-	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	unsigned long val;
-	int ret, vis_mode_tmp = -1;
-	const char *old_mode, *new_mode;
-
-	ret = kstrtoul(buff, 10, &val);
-
-	if (((count == 2) && (!ret) &&
-	     (val == BATADV_VIS_TYPE_CLIENT_UPDATE)) ||
-	    (strncmp(buff, "client", 6) == 0) ||
-	    (strncmp(buff, "off", 3) == 0))
-		vis_mode_tmp = BATADV_VIS_TYPE_CLIENT_UPDATE;
-
-	if (((count == 2) && (!ret) &&
-	     (val == BATADV_VIS_TYPE_SERVER_SYNC)) ||
-	    (strncmp(buff, "server", 6) == 0))
-		vis_mode_tmp = BATADV_VIS_TYPE_SERVER_SYNC;
-
-	if (vis_mode_tmp < 0) {
-		if (buff[count - 1] == '\n')
-			buff[count - 1] = '\0';
-
-		batadv_info(net_dev,
-			    "Invalid parameter for 'vis mode' setting received: %s\n",
-			    buff);
-		return -EINVAL;
-	}
-
-	if (atomic_read(&bat_priv->vis_mode) == vis_mode_tmp)
-		return count;
-
-	if (atomic_read(&bat_priv->vis_mode) == BATADV_VIS_TYPE_CLIENT_UPDATE)
-		old_mode =  "client";
-	else
-		old_mode = "server";
-
-	if (vis_mode_tmp == BATADV_VIS_TYPE_CLIENT_UPDATE)
-		new_mode =  "client";
-	else
-		new_mode = "server";
-
-	batadv_info(net_dev, "Changing vis mode from: %s to: %s\n", old_mode,
-		    new_mode);
-
-	atomic_set(&bat_priv->vis_mode, (unsigned int)vis_mode_tmp);
-	return count;
-}
-
 static ssize_t batadv_show_bat_algo(struct kobject *kobj,
 				    struct attribute *attr, char *buff)
 {
@@ -431,8 +362,6 @@ BATADV_ATTR_SIF_BOOL(distributed_arp_table, S_IRUGO | S_IWUSR,
 #endif
 BATADV_ATTR_SIF_BOOL(fragmentation, S_IRUGO | S_IWUSR, batadv_update_min_mtu);
 BATADV_ATTR_SIF_BOOL(ap_isolation, S_IRUGO | S_IWUSR, NULL);
-static BATADV_ATTR(vis_mode, S_IRUGO | S_IWUSR, batadv_show_vis_mode,
-		   batadv_store_vis_mode);
 static BATADV_ATTR(routing_algo, S_IRUGO, batadv_show_bat_algo, NULL);
 static BATADV_ATTR(gw_mode, S_IRUGO | S_IWUSR, batadv_show_gw_mode,
 		   batadv_store_gw_mode);
@@ -463,7 +392,6 @@ static struct batadv_attribute *batadv_mesh_attrs[] = {
 #endif
 	&batadv_attr_fragmentation,
 	&batadv_attr_ap_isolation,
-	&batadv_attr_vis_mode,
 	&batadv_attr_routing_algo,
 	&batadv_attr_gw_mode,
 	&batadv_attr_orig_interval,

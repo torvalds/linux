@@ -88,14 +88,3 @@ Contact:        Marek Lindner <lindner_marek@yahoo.de>
 Description:
                 Defines the routing procotol this mesh instance
                 uses to find the optimal paths through the mesh.
-
-What:           /sys/class/net/<mesh_iface>/mesh/vis_mode
-Date:           May 2010
-Contact:        Marek Lindner <lindner_marek@yahoo.de>
-Description:
-                Each batman node only maintains information about its
-                own local neighborhood, therefore generating graphs
-                showing the topology of the entire mesh is not easily
-                feasible without having a central instance to collect
-                the local topologies from all nodes. This file allows
-                to activate the collecting (server) mode.

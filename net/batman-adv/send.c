@@ -24,7 +24,6 @@
 #include "translation-table.h"
 #include "soft-interface.h"
 #include "hard-interface.h"
-#include "vis.h"
 #include "gateway_common.h"
 #include "originator.h"
 #include "network-coding.h"

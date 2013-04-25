@@ -86,8 +86,6 @@
 /* numbers of originator to contact for any PUT/GET DHT operation */
 #define BATADV_DAT_CANDIDATES_NUM 3
 
-#define BATADV_VIS_INTERVAL 5000	/* 5 seconds */
-
 /* how much worse secondary interfaces may be to be considered as bonding
  * candidates
  */

@@ -99,7 +99,6 @@ struct batadv_hard_iface {
  * @last_seen: time when last packet from this node was received
  * @bcast_seqno_reset: time when the broadcast seqno window was reset
  * @batman_seqno_reset: time when the batman seqno window was reset
- * @flags: for now only VIS_SERVER flag
  * @capabilities: announced capabilities of this originator
  * @last_ttvn: last seen translation table version number
  * @tt_crc: CRC of the translation table
@@ -147,7 +146,6 @@ struct batadv_orig_node {
 	unsigned long last_seen;
 	unsigned long bcast_seqno_reset;
 	unsigned long batman_seqno_reset;
-	uint8_t flags;
 	uint8_t capabilities;
 	atomic_t last_ttvn;
 	uint32_t tt_crc;
@@ -462,24 +460,6 @@ struct batadv_priv_tvlv {
 };
 
 /**
- * struct batadv_priv_vis - per mesh interface vis data
- * @send_list: list of batadv_vis_info packets to sent
- * @hash: hash table containing vis data from other nodes in the network
- * @hash_lock: lock protecting the hash table
- * @list_lock: lock protecting my_info::recv_list
- * @work: work queue callback item for vis packet sending
- * @my_info: holds this node's vis data sent on a regular basis
- */
-struct batadv_priv_vis {
-	struct list_head send_list;
-	struct batadv_hashtable *hash;
-	spinlock_t hash_lock; /* protects hash */
-	spinlock_t list_lock; /* protects my_info::recv_list */
-	struct delayed_work work;
-	struct batadv_vis_info *my_info;
-};
-
-/**
  * struct batadv_priv_dat - per mesh interface DAT private data
  * @addr: node DAT address
  * @hash: hashtable representing the local ARP cache
@@ -536,7 +516,6 @@ struct batadv_priv_nc {
  *  enabled
  * @distributed_arp_table: bool indicating whether distributed ARP table is
  *  enabled
- * @vis_mode: vis operation: client or server (see batadv_vis_packettype)
  * @gw_mode: gateway operation: off, client or server (see batadv_gw_modes)
  * @gw_sel_class: gateway selection class (applies if gw_mode client)
  * @orig_interval: OGM broadcast interval in milliseconds
@@ -563,7 +542,6 @@ struct batadv_priv_nc {
  * @gw: gateway data
  * @tt: translation table data
  * @tvlv: type-version-length-value data
- * @vis: vis data
  * @dat: distributed arp table data
  * @network_coding: bool indicating whether network coding is enabled
  * @batadv_priv_nc: network coding data
@@ -583,7 +561,6 @@ struct batadv_priv {
 #ifdef CONFIG_BATMAN_ADV_DAT
 	atomic_t distributed_arp_table;
 #endif
-	atomic_t vis_mode;
 	atomic_t gw_mode;
 	atomic_t gw_sel_class;
 	atomic_t orig_interval;
@@ -615,7 +592,6 @@ struct batadv_priv {
 	struct batadv_priv_gw gw;
 	struct batadv_priv_tt tt;
 	struct batadv_priv_tvlv tvlv;
-	struct batadv_priv_vis vis;
 #ifdef CONFIG_BATMAN_ADV_DAT
 	struct batadv_priv_dat dat;
 #endif
@@ -907,66 +883,6 @@ struct batadv_frag_packet_list_entry {
 	struct list_head list;
 	uint16_t seqno;
 	struct sk_buff *skb;
-};
-
-/**
- * struct batadv_vis_info - local data for vis information
- * @first_seen: timestamp used for purging stale vis info entries
- * @recv_list: List of server-neighbors we have received this packet from. This
- *  packet should not be re-forward to them again. List elements are struct
- *  batadv_vis_recvlist_node
- * @send_list: list of packets to be forwarded
- * @refcount: number of contexts the object is used
- * @hash_entry: hlist node for batadv_priv_vis::hash
- * @bat_priv: pointer to soft_iface this orig node belongs to
- * @skb_packet: contains the vis packet
- */
-struct batadv_vis_info {
-	unsigned long first_seen;
-	struct list_head recv_list;
-	struct list_head send_list;
-	struct kref refcount;
-	struct hlist_node hash_entry;
-	struct batadv_priv *bat_priv;
-	struct sk_buff *skb_packet;
-} __packed;
-
-/**
- * struct batadv_vis_info_entry - contains link information for vis
- * @src: source MAC of the link, all zero for local TT entry
- * @dst: destination MAC of the link, client mac address for local TT entry
- * @quality: transmission quality of the link, or 0 for local TT entry
- */
-struct batadv_vis_info_entry {
-	uint8_t  src[ETH_ALEN];
-	uint8_t  dest[ETH_ALEN];
-	uint8_t  quality;
-} __packed;
-
-/**
- * struct batadv_vis_recvlist_node - list entry for batadv_vis_info::recv_list
- * @list: list node for batadv_vis_info::recv_list
- * @mac: MAC address of the originator from where the vis_info was received
- */
-struct batadv_vis_recvlist_node {
-	struct list_head list;
-	uint8_t mac[ETH_ALEN];
-};
-
-/**
- * struct batadv_vis_if_list_entry - auxiliary data for vis data generation
- * @addr: MAC address of the interface
- * @primary: true if this interface is the primary interface
- * @list: list node the interface list
- *
- * While scanning for vis-entries of a particular vis-originator
- * this list collects its interfaces to create a subgraph/cluster
- * out of them later
- */
-struct batadv_vis_if_list_entry {
-	uint8_t addr[ETH_ALEN];
-	bool primary;
-	struct hlist_node list;
 };
 
 /**

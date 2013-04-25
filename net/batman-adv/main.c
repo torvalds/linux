@@ -38,7 +38,6 @@
 #include "distributed-arp-table.h"
 #include "unicast.h"
 #include "gateway_common.h"
-#include "vis.h"
 #include "hash.h"
 #include "bat_algo.h"
 #include "network-coding.h"
@@ -112,8 +111,6 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	spin_lock_init(&bat_priv->tt.roam_list_lock);
 	spin_lock_init(&bat_priv->tt.last_changeset_lock);
 	spin_lock_init(&bat_priv->gw.list_lock);
-	spin_lock_init(&bat_priv->vis.hash_lock);
-	spin_lock_init(&bat_priv->vis.list_lock);
 	spin_lock_init(&bat_priv->tvlv.container_list_lock);
 	spin_lock_init(&bat_priv->tvlv.handler_list_lock);
 
@@ -136,10 +133,6 @@ int batadv_mesh_init(struct net_device *soft_iface)
 
 	batadv_tt_local_add(soft_iface, soft_iface->dev_addr,
 			    BATADV_NULL_IFINDEX);
-
-	ret = batadv_vis_init(bat_priv);
-	if (ret < 0)
-		goto err;
 
 	ret = batadv_bla_init(bat_priv);
 	if (ret < 0)
@@ -172,8 +165,6 @@ void batadv_mesh_free(struct net_device *soft_iface)
 	atomic_set(&bat_priv->mesh_state, BATADV_MESH_DEACTIVATING);
 
 	batadv_purge_outstanding_packets(bat_priv, NULL);
-
-	batadv_vis_quit(bat_priv);
 
 	batadv_gw_node_purge(bat_priv);
 	batadv_nc_mesh_free(bat_priv);
@@ -412,8 +403,6 @@ static void batadv_recv_handler_init(void)
 	batadv_rx_handler[BATADV_UNICAST_FRAG] = batadv_recv_ucast_frag_packet;
 	/* broadcast packet */
 	batadv_rx_handler[BATADV_BCAST] = batadv_recv_bcast_packet;
-	/* vis packet */
-	batadv_rx_handler[BATADV_VIS] = batadv_recv_vis_packet;
 	/* unicast tvlv packet */
 	batadv_rx_handler[BATADV_UNICAST_TVLV] = batadv_recv_unicast_tvlv;
 }
