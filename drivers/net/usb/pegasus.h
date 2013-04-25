@@ -13,7 +13,6 @@
 #define	HAS_HOME_PNA		0x40000000
 
 #define	PEGASUS_MTU		1536
-#define	RX_SKBS			4
 
 #define	EPROM_WRITE		0x01
 #define	EPROM_READ		0x02
@@ -97,11 +96,9 @@ typedef struct pegasus {
 	struct tasklet_struct	rx_tl;
 	struct delayed_work	carrier_check;
 	struct urb		*ctrl_urb, *rx_urb, *tx_urb, *intr_urb;
-	struct sk_buff		*rx_pool[RX_SKBS];
 	struct sk_buff		*rx_skb;
 	struct usb_ctrlrequest	dr;
 	wait_queue_head_t	ctrl_wait;
-	spinlock_t		rx_pool_lock;
 	int			chip;
 	unsigned char		intr_buff[8];
 	__u8			tx_buff[PEGASUS_MTU];

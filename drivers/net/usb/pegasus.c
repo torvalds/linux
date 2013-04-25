@@ -575,51 +575,6 @@ static int enable_net_traffic(struct net_device *dev, struct usb_device *usb)
 	return ret;
 }
 
-static void fill_skb_pool(pegasus_t *pegasus)
-{
-	int i;
-
-	for (i = 0; i < RX_SKBS; i++) {
-		if (pegasus->rx_pool[i])
-			continue;
-		pegasus->rx_pool[i] = dev_alloc_skb(PEGASUS_MTU + 2);
-		/*
-		 ** we give up if the allocation fail. the tasklet will be
-		 ** rescheduled again anyway...
-		 */
-		if (pegasus->rx_pool[i] == NULL)
-			return;
-		skb_reserve(pegasus->rx_pool[i], 2);
-	}
-}
-
-static void free_skb_pool(pegasus_t *pegasus)
-{
-	int i;
-
-	for (i = 0; i < RX_SKBS; i++) {
-		if (pegasus->rx_pool[i]) {
-			dev_kfree_skb(pegasus->rx_pool[i]);
-			pegasus->rx_pool[i] = NULL;
-		}
-	}
-}
-
-static inline struct sk_buff *pull_skb(pegasus_t * pegasus)
-{
-	int i;
-	struct sk_buff *skb;
-
-	for (i = 0; i < RX_SKBS; i++) {
-		if (likely(pegasus->rx_pool[i] != NULL)) {
-			skb = pegasus->rx_pool[i];
-			pegasus->rx_pool[i] = NULL;
-			return skb;
-		}
-	}
-	return NULL;
-}
-
 static void read_bulk_callback(struct urb *urb)
 {
 	pegasus_t *pegasus = urb->context;
@@ -704,9 +659,8 @@ static void read_bulk_callback(struct urb *urb)
 	if (pegasus->flags & PEGASUS_UNPLUG)
 		return;
 
-	spin_lock(&pegasus->rx_pool_lock);
-	pegasus->rx_skb = pull_skb(pegasus);
-	spin_unlock(&pegasus->rx_pool_lock);
+	pegasus->rx_skb = __netdev_alloc_skb_ip_align(pegasus->net, PEGASUS_MTU,
+						      GFP_ATOMIC);
 
 	if (pegasus->rx_skb == NULL)
 		goto tl_sched;
@@ -734,24 +688,23 @@ tl_sched:
 static void rx_fixup(unsigned long data)
 {
 	pegasus_t *pegasus;
-	unsigned long flags;
 	int status;
 
 	pegasus = (pegasus_t *) data;
 	if (pegasus->flags & PEGASUS_UNPLUG)
 		return;
 
-	spin_lock_irqsave(&pegasus->rx_pool_lock, flags);
-	fill_skb_pool(pegasus);
 	if (pegasus->flags & PEGASUS_RX_URB_FAIL)
 		if (pegasus->rx_skb)
 			goto try_again;
 	if (pegasus->rx_skb == NULL)
-		pegasus->rx_skb = pull_skb(pegasus);
+		pegasus->rx_skb = __netdev_alloc_skb_ip_align(pegasus->net,
+							      PEGASUS_MTU,
+							      GFP_ATOMIC);
 	if (pegasus->rx_skb == NULL) {
 		netif_warn(pegasus, rx_err, pegasus->net, "low on memory\n");
 		tasklet_schedule(&pegasus->rx_tl);
-		goto done;
+		return;
 	}
 	usb_fill_bulk_urb(pegasus->rx_urb, pegasus->usb,
 			  usb_rcvbulkpipe(pegasus->usb, 1),
@@ -767,8 +720,6 @@ try_again:
 	} else {
 		pegasus->flags &= ~PEGASUS_RX_URB_FAIL;
 	}
-done:
-	spin_unlock_irqrestore(&pegasus->rx_pool_lock, flags);
 }
 
 static void write_bulk_callback(struct urb *urb)
@@ -1007,10 +958,9 @@ static int pegasus_open(struct net_device *net)
 	int res;
 
 	if (pegasus->rx_skb == NULL)
-		pegasus->rx_skb = pull_skb(pegasus);
-	/*
-	 ** Note: no point to free the pool.  it is empty :-)
-	 */
+		pegasus->rx_skb = __netdev_alloc_skb_ip_align(pegasus->net,
+							      PEGASUS_MTU,
+							      GFP_KERNEL);
 	if (!pegasus->rx_skb)
 		return -ENOMEM;
 
@@ -1044,7 +994,6 @@ static int pegasus_open(struct net_device *net)
 		res = -EIO;
 		usb_kill_urb(pegasus->rx_urb);
 		usb_kill_urb(pegasus->intr_urb);
-		free_skb_pool(pegasus);
 		goto exit;
 	}
 	set_carrier(net);
@@ -1364,7 +1313,6 @@ static int pegasus_probe(struct usb_interface *intf,
 	pegasus->mii.mdio_write = mdio_write;
 	pegasus->mii.phy_id_mask = 0x1f;
 	pegasus->mii.reg_num_mask = 0x1f;
-	spin_lock_init(&pegasus->rx_pool_lock);
 	pegasus->msg_enable = netif_msg_init(msg_level, NETIF_MSG_DRV
 				| NETIF_MSG_PROBE | NETIF_MSG_LINK);
 
@@ -1376,7 +1324,6 @@ static int pegasus_probe(struct usb_interface *intf,
 		goto out2;
 	}
 	set_ethernet_addr(pegasus);
-	fill_skb_pool(pegasus);
 	if (pegasus->features & PEGASUS_II) {
 		dev_info(&intf->dev, "setup Pegasus II specific registers\n");
 		setup_pegasus_II(pegasus);
@@ -1404,7 +1351,6 @@ static int pegasus_probe(struct usb_interface *intf,
 
 out3:
 	usb_set_intfdata(intf, NULL);
-	free_skb_pool(pegasus);
 out2:
 	free_all_urbs(pegasus);
 out1:
@@ -1429,7 +1375,6 @@ static void pegasus_disconnect(struct usb_interface *intf)
 	unregister_netdev(pegasus->net);
 	unlink_all_urbs(pegasus);
 	free_all_urbs(pegasus);
-	free_skb_pool(pegasus);
 	if (pegasus->rx_skb != NULL) {
 		dev_kfree_skb(pegasus->rx_skb);
 		pegasus->rx_skb = NULL;
