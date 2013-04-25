@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/xattr.h>
 #include <linux/ima.h>
+#include <crypto/hash_info.h>
 
 #include "ima.h"
 
@@ -35,11 +36,12 @@ int ima_appraise = IMA_APPRAISE_ENFORCE;
 int ima_appraise;
 #endif
 
-char *ima_hash = "sha1";
+int ima_hash_algo = HASH_ALGO_SHA1;
+
 static int __init hash_setup(char *str)
 {
 	if (strncmp(str, "md5", 3) == 0)
-		ima_hash = "md5";
+		ima_hash_algo = HASH_ALGO_MD5;
 	return 1;
 }
 __setup("ima_hash=", hash_setup);

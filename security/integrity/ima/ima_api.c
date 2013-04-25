@@ -44,6 +44,7 @@ int ima_store_template(struct ima_template_entry *entry,
 	const char *op = "add_template_measure";
 	const char *audit_cause = "hashing_error";
 	int result;
+	struct ima_digest_data hash;
 
 	memset(entry->digest, 0, sizeof(entry->digest));
 	entry->template_name = IMA_TEMPLATE_NAME;
@@ -51,14 +52,14 @@ int ima_store_template(struct ima_template_entry *entry,
 
 	if (!violation) {
 		result = ima_calc_buffer_hash(&entry->template,
-						entry->template_len,
-						entry->digest);
+					      entry->template_len, &hash);
 		if (result < 0) {
 			integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode,
 					    entry->template_name, op,
 					    audit_cause, result, 0);
 			return result;
 		}
+		memcpy(entry->digest, hash.digest, hash.length);
 	}
 	result = ima_add_template_entry(entry, violation, op, inode);
 	return result;
@@ -147,8 +148,9 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 	if (!(iint->flags & IMA_COLLECTED)) {
 		u64 i_version = file_inode(file)->i_version;
 
-		iint->ima_xattr.type = IMA_XATTR_DIGEST;
-		result = ima_calc_file_hash(file, iint->ima_xattr.digest);
+		/* use default hash algorithm */
+		iint->ima_hash.algo = ima_hash_algo;
+		result = ima_calc_file_hash(file, &iint->ima_hash);
 		if (!result) {
 			iint->version = i_version;
 			iint->flags |= IMA_COLLECTED;
@@ -196,7 +198,21 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 		return;
 	}
 	memset(&entry->template, 0, sizeof(entry->template));
-	memcpy(entry->template.digest, iint->ima_xattr.digest, IMA_DIGEST_SIZE);
+	if (iint->ima_hash.algo != ima_hash_algo) {
+		struct ima_digest_data hash;
+
+		hash.algo = ima_hash_algo;
+		result = ima_calc_file_hash(file, &hash);
+		if (result)
+			integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode,
+					    filename, "collect_data", "failed",
+					    result, 0);
+		else
+			memcpy(entry->template.digest, hash.digest,
+			       hash.length);
+	} else
+		memcpy(entry->template.digest, iint->ima_hash.digest,
+		       iint->ima_hash.length);
 	strcpy(entry->template.file_name,
 	       (strlen(filename) > IMA_EVENT_NAME_LEN_MAX) ?
 	       file->f_dentry->d_name.name : filename);
@@ -212,14 +228,14 @@ void ima_audit_measurement(struct integrity_iint_cache *iint,
 			   const unsigned char *filename)
 {
 	struct audit_buffer *ab;
-	char hash[(IMA_DIGEST_SIZE * 2) + 1];
+	char hash[(iint->ima_hash.length * 2) + 1];
 	int i;
 
 	if (iint->flags & IMA_AUDITED)
 		return;
 
-	for (i = 0; i < IMA_DIGEST_SIZE; i++)
-		hex_byte_pack(hash + (i * 2), iint->ima_xattr.digest[i]);
+	for (i = 0; i < iint->ima_hash.length; i++)
+		hex_byte_pack(hash + (i * 2), iint->ima_hash.digest[i]);
 	hash[i * 2] = '\0';
 
 	ab = audit_log_start(current->audit_context, GFP_KERNEL,

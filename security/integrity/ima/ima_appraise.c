@@ -43,12 +43,12 @@ int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func)
 }
 
 static int ima_fix_xattr(struct dentry *dentry,
-			  struct integrity_iint_cache *iint)
+			 struct integrity_iint_cache *iint)
 {
-	iint->ima_xattr.type = IMA_XATTR_DIGEST;
+	iint->ima_hash.type = IMA_XATTR_DIGEST;
 	return __vfs_setxattr_noperm(dentry, XATTR_NAME_IMA,
-				     (u8 *)&iint->ima_xattr,
-				      sizeof(iint->ima_xattr), 0);
+				     &iint->ima_hash.type,
+				     1 + iint->ima_hash.length, 0);
 }
 
 /* Return specific func appraised cached result */
@@ -159,8 +159,12 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 			status = INTEGRITY_FAIL;
 			break;
 		}
-		rc = memcmp(xattr_value->digest, iint->ima_xattr.digest,
-			    IMA_DIGEST_SIZE);
+		if (rc - 1 == iint->ima_hash.length)
+			rc = memcmp(xattr_value->digest,
+				    iint->ima_hash.digest,
+				    iint->ima_hash.length);
+		else
+			rc = -EINVAL;
 		if (rc) {
 			cause = "invalid-hash";
 			status = INTEGRITY_FAIL;
@@ -172,8 +176,8 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 		iint->flags |= IMA_DIGSIG;
 		rc = integrity_digsig_verify(INTEGRITY_KEYRING_IMA,
 					     xattr_value->digest, rc - 1,
-					     iint->ima_xattr.digest,
-					     IMA_DIGEST_SIZE);
+					     iint->ima_hash.digest,
+					     iint->ima_hash.length);
 		if (rc == -EOPNOTSUPP) {
 			status = INTEGRITY_UNKNOWN;
 		} else if (rc) {

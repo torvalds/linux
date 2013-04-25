@@ -20,6 +20,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <crypto/hash.h>
+#include <crypto/hash_info.h>
 #include "ima.h"
 
 static struct crypto_shash *ima_shash_tfm;
@@ -28,10 +29,11 @@ int ima_init_crypto(void)
 {
 	long rc;
 
-	ima_shash_tfm = crypto_alloc_shash(ima_hash, 0, 0);
+	ima_shash_tfm = crypto_alloc_shash(hash_algo_name[ima_hash_algo], 0, 0);
 	if (IS_ERR(ima_shash_tfm)) {
 		rc = PTR_ERR(ima_shash_tfm);
-		pr_err("Can not allocate %s (reason: %ld)\n", ima_hash, rc);
+		pr_err("Can not allocate %s (reason: %ld)\n",
+		       hash_algo_name[ima_hash_algo], rc);
 		return rc;
 	}
 	return 0;
@@ -40,17 +42,19 @@ int ima_init_crypto(void)
 /*
  * Calculate the MD5/SHA1 file digest
  */
-int ima_calc_file_hash(struct file *file, char *digest)
+static int ima_calc_file_hash_tfm(struct file *file,
+				  struct ima_digest_data *hash,
+				  struct crypto_shash *tfm)
 {
 	loff_t i_size, offset = 0;
 	char *rbuf;
 	int rc, read = 0;
 	struct {
 		struct shash_desc shash;
-		char ctx[crypto_shash_descsize(ima_shash_tfm)];
+		char ctx[crypto_shash_descsize(tfm)];
 	} desc;
 
-	desc.shash.tfm = ima_shash_tfm;
+	desc.shash.tfm = tfm;
 	desc.shash.flags = 0;
 
 	rc = crypto_shash_init(&desc.shash);
@@ -85,17 +89,42 @@ int ima_calc_file_hash(struct file *file, char *digest)
 	}
 	kfree(rbuf);
 	if (!rc)
-		rc = crypto_shash_final(&desc.shash, digest);
+		rc = crypto_shash_final(&desc.shash, hash->digest);
 	if (read)
 		file->f_mode &= ~FMODE_READ;
 out:
 	return rc;
 }
 
+int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash)
+{
+	struct crypto_shash *tfm = ima_shash_tfm;
+	int rc;
+
+	if (hash->algo != ima_hash_algo && hash->algo < HASH_ALGO__LAST) {
+		tfm = crypto_alloc_shash(hash_algo_name[hash->algo], 0, 0);
+		if (IS_ERR(tfm)) {
+			rc = PTR_ERR(tfm);
+			pr_err("Can not allocate %s (reason: %d)\n",
+			       hash_algo_name[hash->algo], rc);
+			return rc;
+		}
+	}
+
+	hash->length = crypto_shash_digestsize(tfm);
+
+	rc = ima_calc_file_hash_tfm(file, hash, tfm);
+
+	if (tfm != ima_shash_tfm)
+		crypto_free_shash(tfm);
+
+	return rc;
+}
+
 /*
  * Calculate the hash of a given buffer
  */
-int ima_calc_buffer_hash(const void *data, int len, char *digest)
+int ima_calc_buffer_hash(const void *buf, int len, struct ima_digest_data *hash)
 {
 	struct {
 		struct shash_desc shash;
@@ -105,7 +134,11 @@ int ima_calc_buffer_hash(const void *data, int len, char *digest)
 	desc.shash.tfm = ima_shash_tfm;
 	desc.shash.flags = 0;
 
-	return crypto_shash_digest(&desc.shash, data, len, digest);
+	/* this function uses default algo */
+	hash->algo = ima_hash_algo;
+	hash->length = crypto_shash_digestsize(ima_shash_tfm);
+
+	return crypto_shash_digest(&desc.shash, buf, len, hash->digest);
 }
 
 static void __init ima_pcrread(int idx, u8 *pcr)

@@ -59,20 +59,29 @@ enum evm_ima_xattr_type {
 struct evm_ima_xattr_data {
 	u8 type;
 	u8 digest[SHA1_DIGEST_SIZE];
-}  __attribute__((packed));
+} __packed;
+
+#define IMA_MAX_DIGEST_SIZE	64
+
+struct ima_digest_data {
+	u8 algo;
+	u8 length;
+	u8 type;
+	u8 digest[IMA_MAX_DIGEST_SIZE];
+} __packed;
 
 /* integrity data associated with an inode */
 struct integrity_iint_cache {
-	struct rb_node rb_node; /* rooted in integrity_iint_tree */
+	struct rb_node rb_node;	/* rooted in integrity_iint_tree */
 	struct inode *inode;	/* back pointer to inode in question */
 	u64 version;		/* track inode changes */
 	unsigned long flags;
-	struct evm_ima_xattr_data ima_xattr;
 	enum integrity_status ima_file_status:4;
 	enum integrity_status ima_mmap_status:4;
 	enum integrity_status ima_bprm_status:4;
 	enum integrity_status ima_module_status:4;
 	enum integrity_status evm_status:4;
+	struct ima_digest_data ima_hash;
 };
 
 /* rbtree tree calls to lookup, insert, delete

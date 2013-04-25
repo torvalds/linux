@@ -21,8 +21,6 @@ struct x509_certificate {
 	char		*authority;		/* Authority key fingerprint as hex */
 	struct tm	valid_from;
 	struct tm	valid_to;
-	enum pkey_algo	pkey_algo : 8;		/* Public key algorithm */
-	enum hash_algo sig_hash_algo : 8;	/* Signature hash algorithm */
 	const void	*tbs;			/* Signed data */
 	unsigned	tbs_size;		/* Size of signed data */
 	unsigned	raw_sig_size;		/* Size of sigature */

@@ -39,7 +39,7 @@ enum tpm_pcrs { TPM_PCR0 = 0, TPM_PCR8 = 8 };
 /* set during initialization */
 extern int ima_initialized;
 extern int ima_used_chip;
-extern char *ima_hash;
+extern int ima_hash_algo;
 extern int ima_appraise;
 
 /* IMA inode template definition */
@@ -70,8 +70,9 @@ void ima_fs_cleanup(void);
 int ima_inode_alloc(struct inode *inode);
 int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 			   const char *op, struct inode *inode);
-int ima_calc_file_hash(struct file *file, char *digest);
-int ima_calc_buffer_hash(const void *data, int len, char *digest);
+int ima_calc_file_hash(struct file *file, struct ima_digest_data *hash);
+int ima_calc_buffer_hash(const void *data, int len,
+			 struct ima_digest_data *hash);
 int ima_calc_boot_aggregate(char *digest);
 void ima_add_violation(struct inode *inode, const unsigned char *filename,
 		       const char *op, const char *cause);
