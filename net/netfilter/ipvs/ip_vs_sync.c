@@ -246,7 +246,7 @@ struct ip_vs_sync_thread_data {
 struct ip_vs_sync_mesg_v0 {
 	__u8                    nr_conns;
 	__u8                    syncid;
-	__u16                   size;
+	__be16                  size;
 
 	/* ip_vs_sync_conn entries start here */
 };
@@ -255,7 +255,7 @@ struct ip_vs_sync_mesg_v0 {
 struct ip_vs_sync_mesg {
 	__u8			reserved;	/* must be zero */
 	__u8			syncid;
-	__u16			size;
+	__be16			size;
 	__u8			nr_conns;
 	__s8			version;	/* SYNC_PROTO_VER  */
 	__u16			spare;
@@ -335,7 +335,7 @@ ip_vs_sync_buff_create(struct netns_ipvs *ipvs)
 	sb->mesg->reserved = 0;  /* old nr_conns i.e. must be zero now */
 	sb->mesg->version = SYNC_PROTO_VER;
 	sb->mesg->syncid = ipvs->master_syncid;
-	sb->mesg->size = sizeof(struct ip_vs_sync_mesg);
+	sb->mesg->size = htons(sizeof(struct ip_vs_sync_mesg));
 	sb->mesg->nr_conns = 0;
 	sb->mesg->spare = 0;
 	sb->head = (unsigned char *)sb->mesg + sizeof(struct ip_vs_sync_mesg);
@@ -418,7 +418,7 @@ ip_vs_sync_buff_create_v0(struct netns_ipvs *ipvs)
 	mesg = (struct ip_vs_sync_mesg_v0 *)sb->mesg;
 	mesg->nr_conns = 0;
 	mesg->syncid = ipvs->master_syncid;
-	mesg->size = sizeof(struct ip_vs_sync_mesg_v0);
+	mesg->size = htons(sizeof(struct ip_vs_sync_mesg_v0));
 	sb->head = (unsigned char *)mesg + sizeof(struct ip_vs_sync_mesg_v0);
 	sb->end = (unsigned char *)mesg + ipvs->send_mesg_maxlen;
 	sb->firstuse = jiffies;
@@ -582,7 +582,7 @@ static void ip_vs_sync_conn_v0(struct net *net, struct ip_vs_conn *cp,
 	}
 
 	m->nr_conns++;
-	m->size += len;
+	m->size = htons(ntohs(m->size) + len);
 	buff->head += len;
 
 	/* check if there is a space for next one */
@@ -693,7 +693,7 @@ sloop:
 
 	p = buff->head;
 	buff->head += pad + len;
-	m->size += pad + len;
+	m->size = htons(ntohs(m->size) + pad + len);
 	/* Add ev. padding from prev. sync_conn */
 	while (pad--)
 		*(p++) = 0;
@@ -1175,10 +1175,8 @@ static void ip_vs_process_message(struct net *net, __u8 *buffer,
 		IP_VS_DBG(2, "BACKUP, message header too short\n");
 		return;
 	}
-	/* Convert size back to host byte order */
-	m2->size = ntohs(m2->size);
 
-	if (buflen != m2->size) {
+	if (buflen != ntohs(m2->size)) {
 		IP_VS_DBG(2, "BACKUP, bogus message size\n");
 		return;
 	}
@@ -1544,10 +1542,7 @@ ip_vs_send_sync_msg(struct socket *sock, struct ip_vs_sync_mesg *msg)
 	int msize;
 	int ret;
 
-	msize = msg->size;
-
-	/* Put size in network byte order */
-	msg->size = htons(msg->size);
+	msize = ntohs(msg->size);
 
 	ret = ip_vs_send_async(sock, (char *)msg, msize);
 	if (ret >= 0 || ret == -EAGAIN)

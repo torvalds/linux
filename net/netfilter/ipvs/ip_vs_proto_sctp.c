@@ -208,7 +208,7 @@ enum ipvs_sctp_event_t {
 	IP_VS_SCTP_EVE_LAST
 };
 
-static enum ipvs_sctp_event_t sctp_events[255] = {
+static enum ipvs_sctp_event_t sctp_events[256] = {
 	IP_VS_SCTP_EVE_DATA_CLI,
 	IP_VS_SCTP_EVE_INIT_CLI,
 	IP_VS_SCTP_EVE_INIT_ACK_CLI,

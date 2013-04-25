@@ -13,7 +13,8 @@ static const char *ip_vs_dbg_callid(char *buf, size_t buf_len,
 				    const char *callid, size_t callid_len,
 				    int *idx)
 {
-	size_t len = min(min(callid_len, (size_t)64), buf_len - *idx - 1);
+	size_t max_len = 64;
+	size_t len = min3(max_len, callid_len, buf_len - *idx - 1);
 	memcpy(buf + *idx, callid, len);
 	buf[*idx+len] = '\0';
 	*idx += len + 1;

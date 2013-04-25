@@ -966,7 +966,6 @@ static void *ip_vs_conn_array(struct seq_file *seq, loff_t pos)
 	struct ip_vs_iter_state *iter = seq->private;
 
 	for (idx = 0; idx < ip_vs_conn_tab_size; idx++) {
-		rcu_read_lock();
 		hlist_for_each_entry_rcu(cp, &ip_vs_conn_tab[idx], c_list) {
 			/* __ip_vs_conn_get() is not needed by
 			 * ip_vs_conn_seq_show and ip_vs_conn_sync_seq_show
@@ -977,16 +976,19 @@ static void *ip_vs_conn_array(struct seq_file *seq, loff_t pos)
 			}
 		}
 		rcu_read_unlock();
+		rcu_read_lock();
 	}
 
 	return NULL;
 }
 
 static void *ip_vs_conn_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(RCU)
 {
 	struct ip_vs_iter_state *iter = seq->private;
 
 	iter->l = NULL;
+	rcu_read_lock();
 	return *pos ? ip_vs_conn_array(seq, *pos - 1) :SEQ_START_TOKEN;
 }
 
@@ -1006,28 +1008,24 @@ static void *ip_vs_conn_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	e = rcu_dereference(hlist_next_rcu(&cp->c_list));
 	if (e)
 		return hlist_entry(e, struct ip_vs_conn, c_list);
-	rcu_read_unlock();
 
 	idx = l - ip_vs_conn_tab;
 	while (++idx < ip_vs_conn_tab_size) {
-		rcu_read_lock();
 		hlist_for_each_entry_rcu(cp, &ip_vs_conn_tab[idx], c_list) {
 			iter->l = &ip_vs_conn_tab[idx];
 			return cp;
 		}
 		rcu_read_unlock();
+		rcu_read_lock();
 	}
 	iter->l = NULL;
 	return NULL;
 }
 
 static void ip_vs_conn_seq_stop(struct seq_file *seq, void *v)
+	__releases(RCU)
 {
-	struct ip_vs_iter_state *iter = seq->private;
-	struct hlist_head *l = iter->l;
-
-	if (l)
-		rcu_read_unlock();
+	rcu_read_unlock();
 }
 
 static int ip_vs_conn_seq_show(struct seq_file *seq, void *v)

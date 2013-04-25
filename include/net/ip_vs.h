@@ -678,7 +678,7 @@ struct ip_vs_service_user_kern {
 	u16			af;
 	u16			protocol;
 	union nf_inet_addr	addr;		/* virtual ip address */
-	u16			port;
+	__be16			port;
 	u32			fwmark;		/* firwall mark of service */
 
 	/* virtual service options */
@@ -686,14 +686,14 @@ struct ip_vs_service_user_kern {
 	char			*pe_name;
 	unsigned int		flags;		/* virtual service flags */
 	unsigned int		timeout;	/* persistent timeout in sec */
-	u32			netmask;	/* persistent netmask */
+	__be32			netmask;	/* persistent netmask or plen */
 };
 
 
 struct ip_vs_dest_user_kern {
 	/* destination server address */
 	union nf_inet_addr	addr;
-	u16			port;
+	__be16			port;
 
 	/* real server options */
 	unsigned int		conn_flags;	/* connection flags */
@@ -721,7 +721,7 @@ struct ip_vs_service {
 	__u32                   fwmark;   /* firewall mark of the service */
 	unsigned int		flags;	  /* service status flags */
 	unsigned int		timeout;  /* persistent timeout in ticks */
-	__be32			netmask;  /* grouping granularity */
+	__be32			netmask;  /* grouping granularity, mask/plen */
 	struct net		*net;
 
 	struct list_head	destinations;  /* real server d-linked list */

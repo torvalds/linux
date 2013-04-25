@@ -235,7 +235,8 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	/* Mask saddr with the netmask to adjust template granularity */
 #ifdef CONFIG_IP_VS_IPV6
 	if (svc->af == AF_INET6)
-		ipv6_addr_prefix(&snet.in6, &iph->saddr.in6, svc->netmask);
+		ipv6_addr_prefix(&snet.in6, &iph->saddr.in6,
+				 (__force __u32) svc->netmask);
 	else
 #endif
 		snet.ip = iph->saddr.ip & svc->netmask;
@@ -583,9 +584,9 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 #ifdef CONFIG_IP_VS_IPV6
 	if (svc->af == AF_INET6) {
 		if (!skb->dev) {
-			struct net *net = dev_net(skb_dst(skb)->dev);
+			struct net *net_ = dev_net(skb_dst(skb)->dev);
 
-			skb->dev = net->loopback_dev;
+			skb->dev = net_->loopback_dev;
 		}
 		icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
 	} else
