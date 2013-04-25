@@ -330,6 +330,7 @@
 #define	HDP_TILING_CONFIG				0x2F3C
 #define HDP_DEBUG1                                      0x2F34
 
+#define MC_CONFIG					0x2000
 #define MC_VM_AGP_TOP					0x2184
 #define MC_VM_AGP_BOT					0x2188
 #define	MC_VM_AGP_BASE					0x218C
@@ -374,6 +375,8 @@
 #define		LOGICAL_PAGE_NUMBER_SHIFT			0
 #define MC_VM_SYSTEM_APERTURE_HIGH_ADDR			0x2194
 #define MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR		0x2198
+
+#define RS_DQ_RD_RET_CONF				0x2348
 
 #define	PA_CL_ENHANCE					0x8A14
 #define		CLIP_VTX_REORDER_ENA				(1 << 0)

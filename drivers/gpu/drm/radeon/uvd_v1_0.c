@@ -207,8 +207,32 @@ done:
 	/* lower clocks again */
 	radeon_set_uvd_clocks(rdev, 0, 0);
 
-	if (!r)
+	if (!r) {
+		switch (rdev->family) {
+		case CHIP_RV610:
+		case CHIP_RV630:
+		case CHIP_RV620:
+			/* 64byte granularity workaround */
+			WREG32(MC_CONFIG, 0);
+			WREG32(MC_CONFIG, 1 << 4);
+			WREG32(RS_DQ_RD_RET_CONF, 0x3f);
+			WREG32(MC_CONFIG, 0x1f);
+
+			/* fall through */
+		case CHIP_RV670:
+		case CHIP_RV635:
+
+			/* write clean workaround */
+			WREG32_P(UVD_VCPU_CNTL, 0x10, ~0x10);
+			break;
+
+		default:
+			/* TODO: Do we need more? */
+			break;
+		}
+
 		DRM_INFO("UVD initialized successfully.\n");
+	}
 
 	return r;
 }
