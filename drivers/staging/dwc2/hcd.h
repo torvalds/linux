@@ -650,10 +650,10 @@ extern void dwc2_hcd_save_data_toggle(struct dwc2_hsotg *hsotg,
  *
  * @hsotg: The DWC2 HCD
  *
- * Returns non zero if interrupt is handled
- * Return 0 if interrupt is not handled
+ * Returns IRQ_HANDLED if interrupt is handled
+ * Return IRQ_NONE if interrupt is not handled
  */
-extern int dwc2_hcd_intr(struct dwc2_hsotg *hsotg);
+extern irqreturn_t dwc2_hcd_intr(struct dwc2_hsotg *hsotg);
 
 /**
  * dwc2_hcd_stop() - Halts the DWC_otg host mode operation

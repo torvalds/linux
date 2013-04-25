@@ -2533,9 +2533,8 @@ static void _dwc2_hcd_endpoint_reset(struct usb_hcd *hcd,
 static irqreturn_t _dwc2_hcd_irq(struct usb_hcd *hcd)
 {
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
-	int retval = dwc2_hcd_intr(hsotg);
 
-	return IRQ_RETVAL(retval);
+	return dwc2_hcd_intr(hsotg);
 }
 
 /*

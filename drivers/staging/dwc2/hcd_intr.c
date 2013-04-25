@@ -2062,14 +2062,14 @@ static void dwc2_hc_intr(struct dwc2_hsotg *hsotg)
 }
 
 /* This function handles interrupts for the HCD */
-int dwc2_hcd_intr(struct dwc2_hsotg *hsotg)
+irqreturn_t dwc2_hcd_intr(struct dwc2_hsotg *hsotg)
 {
 	u32 gintsts, dbg_gintsts;
-	int retval = 0;
+	irqreturn_t retval = IRQ_NONE;
 
 	if (dwc2_check_core_status(hsotg) < 0) {
 		dev_warn(hsotg->dev, "Controller is disconnected\n");
-		return 0;
+		return retval;
 	}
 
 	spin_lock(&hsotg->lock);
@@ -2079,10 +2079,10 @@ int dwc2_hcd_intr(struct dwc2_hsotg *hsotg)
 		gintsts = dwc2_read_core_intr(hsotg);
 		if (!gintsts) {
 			spin_unlock(&hsotg->lock);
-			return 0;
+			return retval;
 		}
 
-		retval = 1;
+		retval = IRQ_HANDLED;
 
 		dbg_gintsts = gintsts;
 #ifndef DEBUG_SOF
