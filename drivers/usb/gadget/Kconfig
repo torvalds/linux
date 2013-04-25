@@ -144,6 +144,7 @@ config USB_AT91
 config USB_LPC32XX
 	tristate "LPC32XX USB Peripheral Controller"
 	depends on ARCH_LPC32XX
+	depends on USB_PHY
 	select USB_ISP1301
 	select USB_OTG_UTILS
 	help
