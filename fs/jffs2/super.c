@@ -356,6 +356,7 @@ static struct file_system_type jffs2_fs_type = {
 	.mount =	jffs2_mount,
 	.kill_sb =	jffs2_kill_sb,
 };
+MODULE_ALIAS_FS("jffs2");
 
 static int __init init_jffs2_fs(void)
 {

@@ -423,7 +423,7 @@ int ip_options_compile(struct net *net,
 					put_unaligned_be32(midtime, timeptr);
 					opt->is_changed = 1;
 				}
-			} else {
+			} else if ((optptr[3]&0xF) != IPOPT_TS_PRESPEC) {
 				unsigned int overflow = optptr[3]>>4;
 				if (overflow == 15) {
 					pp_ptr = optptr + 3;

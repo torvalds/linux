@@ -1558,6 +1558,7 @@ static struct file_system_type btrfs_fs_type = {
 	.kill_sb	= btrfs_kill_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("btrfs");
 
 /*
  * used by btrfsctl to scan devices when no FS is mounted

@@ -1757,10 +1757,7 @@ static const struct usb_gadget_driver composite_driver_template = {
 /**
  * usb_composite_probe() - register a composite driver
  * @driver: the driver to register
- * @bind: the callback used to allocate resources that are shared across the
- *	whole device, such as string IDs, and add its configurations using
- *	@usb_add_config().  This may fail by returning a negative errno
- *	value; it should return zero on successful initialization.
+ *
  * Context: single threaded during gadget setup
  *
  * This function is used to register drivers using the composite driver

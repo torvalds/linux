@@ -8647,7 +8647,9 @@ void bnx2x_handle_module_detect_int(struct link_params *params)
 						MDIO_WC_DEVAD,
 						MDIO_WC_REG_DIGITAL5_MISC6,
 						&rx_tx_in_reset);
-				if (!rx_tx_in_reset) {
+				if ((!rx_tx_in_reset) &&
+				    (params->link_flags &
+				     PHY_INITIALIZED)) {
 					bnx2x_warpcore_reset_lane(bp, phy, 1);
 					bnx2x_warpcore_config_sfi(phy, params);
 					bnx2x_warpcore_reset_lane(bp, phy, 0);
@@ -10422,6 +10424,28 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LED1_MASK,
 					 0x0);
+			if (phy->type ==
+			    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834) {
+				/* Disable MI_INT interrupt before setting LED4
+				 * source to constant off.
+				 */
+				if (REG_RD(bp, NIG_REG_MASK_INTERRUPT_PORT0 +
+					   params->port*4) &
+				    NIG_MASK_MI_INT) {
+					params->link_flags |=
+					LINK_FLAGS_INT_DISABLED;
+
+					bnx2x_bits_dis(
+						bp,
+						NIG_REG_MASK_INTERRUPT_PORT0 +
+						params->port*4,
+						NIG_MASK_MI_INT);
+				}
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_SIGNAL_MASK,
+						 0x0);
+			}
 		}
 		break;
 	case LED_MODE_ON:
@@ -10468,6 +10492,28 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LED1_MASK,
 					 0x20);
+			if (phy->type ==
+			    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834) {
+				/* Disable MI_INT interrupt before setting LED4
+				 * source to constant on.
+				 */
+				if (REG_RD(bp, NIG_REG_MASK_INTERRUPT_PORT0 +
+					   params->port*4) &
+				    NIG_MASK_MI_INT) {
+					params->link_flags |=
+					LINK_FLAGS_INT_DISABLED;
+
+					bnx2x_bits_dis(
+						bp,
+						NIG_REG_MASK_INTERRUPT_PORT0 +
+						params->port*4,
+						NIG_MASK_MI_INT);
+				}
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_SIGNAL_MASK,
+						 0x20);
+			}
 		}
 		break;
 
@@ -10532,6 +10578,22 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 					 MDIO_PMA_DEVAD,
 					 MDIO_PMA_REG_8481_LINK_SIGNAL,
 					 val);
+			if (phy->type ==
+			    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834) {
+				/* Restore LED4 source to external link,
+				 * and re-enable interrupts.
+				 */
+				bnx2x_cl45_write(bp, phy,
+						 MDIO_PMA_DEVAD,
+						 MDIO_PMA_REG_8481_SIGNAL_MASK,
+						 0x40);
+				if (params->link_flags &
+				    LINK_FLAGS_INT_DISABLED) {
+					bnx2x_link_int_enable(params);
+					params->link_flags &=
+						~LINK_FLAGS_INT_DISABLED;
+				}
+			}
 		}
 		break;
 	}
@@ -11791,6 +11853,8 @@ static int bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
 			phy->media_type = ETH_PHY_KR;
 			phy->flags |= FLAGS_WC_DUAL_MODE;
 			phy->supported &= (SUPPORTED_20000baseKR2_Full |
+					   SUPPORTED_10000baseT_Full |
+					   SUPPORTED_1000baseT_Full |
 					   SUPPORTED_Autoneg |
 					   SUPPORTED_FIBRE |
 					   SUPPORTED_Pause |
@@ -12465,6 +12529,8 @@ int bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 	vars->flow_ctrl = BNX2X_FLOW_CTRL_NONE;
 	vars->mac_type = MAC_TYPE_NONE;
 	vars->phy_flags = 0;
+	vars->check_kr2_recovery_cnt = 0;
+	params->link_flags = PHY_INITIALIZED;
 	/* Driver opens NIG-BRB filters */
 	bnx2x_set_rx_filter(params, 1);
 	/* Check if link flap can be avoided */
@@ -12629,6 +12695,7 @@ int bnx2x_lfa_reset(struct link_params *params,
 	struct bnx2x *bp = params->bp;
 	vars->link_up = 0;
 	vars->phy_flags = 0;
+	params->link_flags &= ~PHY_INITIALIZED;
 	if (!params->lfa_base)
 		return bnx2x_link_reset(params, vars, 1);
 	/*
@@ -13349,6 +13416,7 @@ static void bnx2x_disable_kr2(struct link_params *params,
 	vars->link_attr_sync &= ~LINK_ATTR_SYNC_KR2_ENABLE;
 	bnx2x_update_link_attr(params, vars->link_attr_sync);
 
+	vars->check_kr2_recovery_cnt = CHECK_KR2_RECOVERY_CNT;
 	/* Restart AN on leading lane */
 	bnx2x_warpcore_restart_AN_KR(phy, params);
 }
@@ -13377,6 +13445,15 @@ static void bnx2x_check_kr2_wa(struct link_params *params,
 		return;
 	}
 
+	/* Once KR2 was disabled, wait 5 seconds before checking KR2 recovery
+	 * since some switches tend to reinit the AN process and clear the
+	 * advertised BP/NP after ~2 seconds causing the KR2 to be disabled
+	 * and recovered many times
+	 */
+	if (vars->check_kr2_recovery_cnt > 0) {
+		vars->check_kr2_recovery_cnt--;
+		return;
+	}
 	lane = bnx2x_get_warpcore_lane(phy, params);
 	CL22_WR_OVER_CL45(bp, phy, MDIO_REG_BANK_AER_BLOCK,
 			  MDIO_AER_BLOCK_AER_REG, lane);
@@ -13437,7 +13514,7 @@ void bnx2x_period_func(struct link_params *params, struct link_vars *vars)
 		struct bnx2x_phy *phy = &params->phy[INT_PHY];
 		bnx2x_set_aer_mmd(params, phy);
 		if ((phy->supported & SUPPORTED_20000baseKR2_Full) &&
-		    (phy->speed_cap_mask & SPEED_20000))
+		    (phy->speed_cap_mask & PORT_HW_CFG_SPEED_CAPABILITY_D0_20G))
 			bnx2x_check_kr2_wa(params, vars, phy);
 		bnx2x_check_over_curr(params, vars);
 		if (vars->rx_tx_asic_rst)

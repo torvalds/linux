@@ -687,6 +687,7 @@ static struct file_system_type f2fs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("f2fs");
 
 static int __init init_inodecache(void)
 {

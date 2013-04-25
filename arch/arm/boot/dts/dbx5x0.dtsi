@@ -319,9 +319,8 @@
 				};
 			};
 
-			ab8500@5 {
+			ab8500 {
 				compatible = "stericsson,ab8500";
-				reg = <5>; /* mailbox 5 is i2c */
 				interrupt-parent = <&intc>;
 				interrupts = <0 40 0x4>;
 				interrupt-controller;

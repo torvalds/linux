@@ -39,6 +39,10 @@
 #include <linux/pci.h>
 
 #ifdef CONFIG_IGB_HWMON
+struct i2c_board_info i350_sensor_info = {
+	I2C_BOARD_INFO("i350bb", (0Xf8 >> 1)),
+};
+
 /* hwmon callback functions */
 static ssize_t igb_hwmon_show_location(struct device *dev,
 					 struct device_attribute *attr,
@@ -188,6 +192,7 @@ int igb_sysfs_init(struct igb_adapter *adapter)
 	unsigned int i;
 	int n_attrs;
 	int rc = 0;
+	struct i2c_client *client = NULL;
 
 	/* If this method isn't defined we don't support thermals */
 	if (adapter->hw.mac.ops.init_thermal_sensor_thresh == NULL)
@@ -197,6 +202,15 @@ int igb_sysfs_init(struct igb_adapter *adapter)
 	rc = (adapter->hw.mac.ops.init_thermal_sensor_thresh(&adapter->hw));
 		if (rc)
 			goto exit;
+
+	/* init i2c_client */
+	client = i2c_new_device(&adapter->i2c_adap, &i350_sensor_info);
+	if (client == NULL) {
+		dev_info(&adapter->pdev->dev,
+			"Failed to create new i2c device..\n");
+		goto exit;
+	}
+	adapter->i2c_client = client;
 
 	/* Allocation space for max attributes
 	 * max num sensors * values (loc, temp, max, caution)

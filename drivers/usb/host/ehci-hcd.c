@@ -748,11 +748,9 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		/* guard against (alleged) silicon errata */
 		if (cmd & CMD_IAAD)
 			ehci_dbg(ehci, "IAA with IAAD still set?\n");
-		if (ehci->async_iaa) {
+		if (ehci->async_iaa)
 			COUNT(ehci->stats.iaa);
-			end_unlink_async(ehci);
-		} else
-			ehci_dbg(ehci, "IAA with nothing unlinked?\n");
+		end_unlink_async(ehci);
 	}
 
 	/* remote wakeup [4.3.1] */

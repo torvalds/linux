@@ -183,7 +183,7 @@ u32 __mlx4_alloc_mtt_range(struct mlx4_dev *dev, int order)
 
 static u32 mlx4_alloc_mtt_range(struct mlx4_dev *dev, int order)
 {
-	u64 in_param;
+	u64 in_param = 0;
 	u64 out_param;
 	int err;
 
@@ -240,7 +240,7 @@ void __mlx4_free_mtt_range(struct mlx4_dev *dev, u32 offset, int order)
 
 static void mlx4_free_mtt_range(struct mlx4_dev *dev, u32 offset, int order)
 {
-	u64 in_param;
+	u64 in_param = 0;
 	int err;
 
 	if (mlx4_is_mfunc(dev)) {
@@ -351,7 +351,7 @@ void __mlx4_mpt_release(struct mlx4_dev *dev, u32 index)
 
 static void mlx4_mpt_release(struct mlx4_dev *dev, u32 index)
 {
-	u64 in_param;
+	u64 in_param = 0;
 
 	if (mlx4_is_mfunc(dev)) {
 		set_param_l(&in_param, index);
@@ -374,7 +374,7 @@ int __mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index)
 
 static int mlx4_mpt_alloc_icm(struct mlx4_dev *dev, u32 index)
 {
-	u64 param;
+	u64 param = 0;
 
 	if (mlx4_is_mfunc(dev)) {
 		set_param_l(&param, index);
@@ -395,7 +395,7 @@ void __mlx4_mpt_free_icm(struct mlx4_dev *dev, u32 index)
 
 static void mlx4_mpt_free_icm(struct mlx4_dev *dev, u32 index)
 {
-	u64 in_param;
+	u64 in_param = 0;
 
 	if (mlx4_is_mfunc(dev)) {
 		set_param_l(&in_param, index);

@@ -902,7 +902,9 @@ isdn_tty_send_msg(modem_info *info, atemu *m, char *msg)
 	int j;
 	int l;
 
-	l = strlen(msg);
+	l = min(strlen(msg), sizeof(cmd.parm) - sizeof(cmd.parm.cmsg)
+		+ sizeof(cmd.parm.cmsg.para) - 2);
+
 	if (!l) {
 		isdn_tty_modem_result(RESULT_ERROR, info);
 		return;

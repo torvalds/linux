@@ -749,6 +749,7 @@ static struct file_system_type spufs_type = {
 	.mount = spufs_mount,
 	.kill_sb = kill_litter_super,
 };
+MODULE_ALIAS_FS("spufs");
 
 static int __init spufs_init(void)
 {

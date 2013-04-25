@@ -281,6 +281,8 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			cmd->lp_advertising |= ADVERTISED_2500baseX_Full;
 		if (status & LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE)
 			cmd->lp_advertising |= ADVERTISED_10000baseT_Full;
+		if (status & LINK_STATUS_LINK_PARTNER_20GXFD_CAPABLE)
+			cmd->lp_advertising |= ADVERTISED_20000baseKR2_Full;
 	}
 
 	cmd->maxtxpkt = 0;
@@ -463,6 +465,10 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 						ADVERTISED_10000baseKR_Full))
 				bp->link_params.speed_cap_mask[cfg_idx] |=
 					PORT_HW_CFG_SPEED_CAPABILITY_D0_10G;
+
+			if (cmd->advertising & ADVERTISED_20000baseKR2_Full)
+				bp->link_params.speed_cap_mask[cfg_idx] |=
+					PORT_HW_CFG_SPEED_CAPABILITY_D0_20G;
 		}
 	} else { /* forced speed */
 		/* advertise the requested speed and duplex if supported */

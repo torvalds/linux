@@ -1102,7 +1102,6 @@ void iwl_drv_stop(struct iwl_drv *drv)
 
 /* shared module parameters */
 struct iwl_mod_params iwlwifi_mod_params = {
-	.amsdu_size_8K = 1,
 	.restart_fw = 1,
 	.plcp_check = true,
 	.bt_coex_active = true,
@@ -1207,7 +1206,7 @@ MODULE_PARM_DESC(11n_disable,
 	"disable 11n functionality, bitmap: 1: full, 2: agg TX, 4: agg RX");
 module_param_named(amsdu_size_8K, iwlwifi_mod_params.amsdu_size_8K,
 		   int, S_IRUGO);
-MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
+MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size (default 0)");
 module_param_named(fw_restart, iwlwifi_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");
 

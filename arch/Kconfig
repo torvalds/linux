@@ -319,13 +319,6 @@ config ARCH_WANT_OLD_COMPAT_IPC
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
 	bool
 
-config HAVE_VIRT_TO_BUS
-	bool
-	help
-	  An architecture should select this if it implements the
-	  deprecated interface virt_to_bus().  All new architectures
-	  should probably not select this.
-
 config HAVE_ARCH_SECCOMP_FILTER
 	bool
 	help

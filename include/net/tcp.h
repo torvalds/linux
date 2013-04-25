@@ -1045,6 +1045,10 @@ static inline bool tcp_prequeue(struct sock *sk, struct sk_buff *skb)
 	if (sysctl_tcp_low_latency || !tp->ucopy.task)
 		return false;
 
+	if (skb->len <= tcp_hdrlen(skb) &&
+	    skb_queue_len(&tp->ucopy.prequeue) == 0)
+		return false;
+
 	__skb_queue_tail(&tp->ucopy.prequeue, skb);
 	tp->ucopy.memory += skb->truesize;
 	if (tp->ucopy.memory > sk->sk_rcvbuf) {

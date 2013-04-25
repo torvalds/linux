@@ -331,8 +331,14 @@ static void pci_acpi_cleanup(struct device *dev)
 	}
 }
 
+static bool pci_acpi_bus_match(struct device *dev)
+{
+	return dev->bus == &pci_bus_type;
+}
+
 static struct acpi_bus_type acpi_pci_bus = {
-	.bus = &pci_bus_type,
+	.name = "PCI",
+	.match = pci_acpi_bus_match,
 	.find_device = acpi_pci_find_device,
 	.setup = pci_acpi_setup,
 	.cleanup = pci_acpi_cleanup,

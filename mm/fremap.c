@@ -129,7 +129,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 	struct vm_area_struct *vma;
 	int err = -EINVAL;
 	int has_write_lock = 0;
-	vm_flags_t vm_flags;
+	vm_flags_t vm_flags = 0;
 
 	if (prot)
 		return err;
@@ -254,7 +254,8 @@ get_write_lock:
 	 */
 
 out:
-	vm_flags = vma->vm_flags;
+	if (vma)
+		vm_flags = vma->vm_flags;
 	if (likely(!has_write_lock))
 		up_read(&mm->mmap_sem);
 	else

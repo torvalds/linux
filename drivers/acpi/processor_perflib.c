@@ -465,7 +465,7 @@ static int acpi_processor_get_performance_states(struct acpi_processor *pr)
 	return result;
 }
 
-static int acpi_processor_get_performance_info(struct acpi_processor *pr)
+int acpi_processor_get_performance_info(struct acpi_processor *pr)
 {
 	int result = 0;
 	acpi_status status = AE_OK;
@@ -509,7 +509,7 @@ static int acpi_processor_get_performance_info(struct acpi_processor *pr)
 #endif
 	return result;
 }
-
+EXPORT_SYMBOL_GPL(acpi_processor_get_performance_info);
 int acpi_processor_notify_smm(struct module *calling_module)
 {
 	acpi_status status;

@@ -12,3 +12,11 @@ config ECRYPT_FS
 
 	  To compile this file system support as a module, choose M here: the
 	  module will be called ecryptfs.
+
+config ECRYPT_FS_MESSAGING
+	bool "Enable notifications for userspace key wrap/unwrap"
+	depends on ECRYPT_FS
+	help
+	  Enables the /dev/ecryptfs entry for use by ecryptfsd. This allows
+	  for userspace to wrap/unwrap file encryption keys by other
+	  backends, like OpenSSL.

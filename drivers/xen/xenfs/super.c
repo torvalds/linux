@@ -75,6 +75,7 @@ static struct file_system_type xenfs_type = {
 	.mount =	xenfs_mount,
 	.kill_sb =	kill_litter_super,
 };
+MODULE_ALIAS_FS("xenfs");
 
 static int __init xenfs_init(void)
 {

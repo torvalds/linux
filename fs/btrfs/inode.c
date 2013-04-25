@@ -2312,6 +2312,7 @@ again:
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = start;
 
+	path->leave_spinning = 1;
 	if (merge) {
 		struct btrfs_file_extent_item *fi;
 		u64 extent_len;
@@ -2368,6 +2369,7 @@ again:
 
 	btrfs_mark_buffer_dirty(leaf);
 	inode_add_bytes(inode, len);
+	btrfs_release_path(path);
 
 	ret = btrfs_inc_extent_ref(trans, root, new->bytenr,
 			new->disk_len, 0,
@@ -2381,6 +2383,7 @@ again:
 	ret = 1;
 out_free_path:
 	btrfs_release_path(path);
+	path->leave_spinning = 0;
 	btrfs_end_transaction(trans, root);
 out_unlock:
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, lock_start, lock_end,
@@ -8502,6 +8505,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 	struct btrfs_key ins;
 	u64 cur_offset = start;
 	u64 i_size;
+	u64 cur_bytes;
 	int ret = 0;
 	bool own_trans = true;
 
@@ -8516,8 +8520,9 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 			}
 		}
 
-		ret = btrfs_reserve_extent(trans, root,
-					   min(num_bytes, 256ULL * 1024 * 1024),
+		cur_bytes = min(num_bytes, 256ULL * 1024 * 1024);
+		cur_bytes = max(cur_bytes, min_size);
+		ret = btrfs_reserve_extent(trans, root, cur_bytes,
 					   min_size, 0, *alloc_hint, &ins, 1);
 		if (ret) {
 			if (own_trans)

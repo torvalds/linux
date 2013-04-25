@@ -131,33 +131,42 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 static int iwl_mvm_calc_rssi(struct iwl_mvm *mvm,
 			     struct iwl_rx_phy_info *phy_info)
 {
-	u32 rssi_a, rssi_b, rssi_c, max_rssi, agc_db;
+	int rssi_a, rssi_b, rssi_a_dbm, rssi_b_dbm, max_rssi_dbm;
+	int rssi_all_band_a, rssi_all_band_b;
+	u32 agc_a, agc_b, max_agc;
 	u32 val;
 
-	/* Find max rssi among 3 possible receivers.
+	/* Find max rssi among 2 possible receivers.
 	 * These values are measured by the Digital Signal Processor (DSP).
 	 * They should stay fairly constant even as the signal strength varies,
 	 * if the radio's Automatic Gain Control (AGC) is working right.
 	 * AGC value (see below) will provide the "interesting" info.
 	 */
+	val = le32_to_cpu(phy_info->non_cfg_phy[IWL_RX_INFO_AGC_IDX]);
+	agc_a = (val & IWL_OFDM_AGC_A_MSK) >> IWL_OFDM_AGC_A_POS;
+	agc_b = (val & IWL_OFDM_AGC_B_MSK) >> IWL_OFDM_AGC_B_POS;
+	max_agc = max_t(u32, agc_a, agc_b);
+
 	val = le32_to_cpu(phy_info->non_cfg_phy[IWL_RX_INFO_RSSI_AB_IDX]);
 	rssi_a = (val & IWL_OFDM_RSSI_INBAND_A_MSK) >> IWL_OFDM_RSSI_A_POS;
 	rssi_b = (val & IWL_OFDM_RSSI_INBAND_B_MSK) >> IWL_OFDM_RSSI_B_POS;
-	val = le32_to_cpu(phy_info->non_cfg_phy[IWL_RX_INFO_RSSI_C_IDX]);
-	rssi_c = (val & IWL_OFDM_RSSI_INBAND_C_MSK) >> IWL_OFDM_RSSI_C_POS;
+	rssi_all_band_a = (val & IWL_OFDM_RSSI_ALLBAND_A_MSK) >>
+				IWL_OFDM_RSSI_ALLBAND_A_POS;
+	rssi_all_band_b = (val & IWL_OFDM_RSSI_ALLBAND_B_MSK) >>
+				IWL_OFDM_RSSI_ALLBAND_B_POS;
 
-	val = le32_to_cpu(phy_info->non_cfg_phy[IWL_RX_INFO_AGC_IDX]);
-	agc_db = (val & IWL_OFDM_AGC_DB_MSK) >> IWL_OFDM_AGC_DB_POS;
+	/*
+	 * dBm = rssi dB - agc dB - constant.
+	 * Higher AGC (higher radio gain) means lower signal.
+	 */
+	rssi_a_dbm = rssi_a - IWL_RSSI_OFFSET - agc_a;
+	rssi_b_dbm = rssi_b - IWL_RSSI_OFFSET - agc_b;
+	max_rssi_dbm = max_t(int, rssi_a_dbm, rssi_b_dbm);
 
-	max_rssi = max_t(u32, rssi_a, rssi_b);
-	max_rssi = max_t(u32, max_rssi, rssi_c);
+	IWL_DEBUG_STATS(mvm, "Rssi In A %d B %d Max %d AGCA %d AGCB %d\n",
+			rssi_a_dbm, rssi_b_dbm, max_rssi_dbm, agc_a, agc_b);
 
-	IWL_DEBUG_STATS(mvm, "Rssi In A %d B %d C %d Max %d AGC dB %d\n",
-			rssi_a, rssi_b, rssi_c, max_rssi, agc_db);
-
-	/* dBm = max_rssi dB - agc dB - constant.
-	 * Higher AGC (higher radio gain) means lower signal. */
-	return max_rssi - agc_db - IWL_RSSI_OFFSET;
+	return max_rssi_dbm;
 }
 
 /*

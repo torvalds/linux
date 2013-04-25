@@ -2958,6 +2958,7 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 
 	adapter->num_rx_queues = num_rx_queues;
 	adapter->num_tx_queues = num_tx_queues;
+	adapter->rx_buf_per_pkt = 1;
 
 	size = sizeof(struct Vmxnet3_TxQueueDesc) * adapter->num_tx_queues;
 	size += sizeof(struct Vmxnet3_RxQueueDesc) * adapter->num_rx_queues;

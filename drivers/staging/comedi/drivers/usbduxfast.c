@@ -436,10 +436,14 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 static int usbduxfastsub_start(struct usbduxfastsub_s *udfs)
 {
 	int ret;
-	unsigned char local_transfer_buffer[16];
+	unsigned char *local_transfer_buffer;
+
+	local_transfer_buffer = kmalloc(1, GFP_KERNEL);
+	if (!local_transfer_buffer)
+		return -ENOMEM;
 
 	/* 7f92 to zero */
-	local_transfer_buffer[0] = 0;
+	*local_transfer_buffer = 0;
 	/* bRequest, "Firmware" */
 	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0),
 			      USBDUXFASTSUB_FIRMWARE,
@@ -450,22 +454,25 @@ static int usbduxfastsub_start(struct usbduxfastsub_s *udfs)
 			      local_transfer_buffer,
 			      1,      /* Length */
 			      EZTIMEOUT);    /* Timeout */
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&udfs->interface->dev,
 			"control msg failed (start)\n");
-		return ret;
-	}
 
-	return 0;
+	kfree(local_transfer_buffer);
+	return ret;
 }
 
 static int usbduxfastsub_stop(struct usbduxfastsub_s *udfs)
 {
 	int ret;
-	unsigned char local_transfer_buffer[16];
+	unsigned char *local_transfer_buffer;
+
+	local_transfer_buffer = kmalloc(1, GFP_KERNEL);
+	if (!local_transfer_buffer)
+		return -ENOMEM;
 
 	/* 7f92 to one */
-	local_transfer_buffer[0] = 1;
+	*local_transfer_buffer = 1;
 	/* bRequest, "Firmware" */
 	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0),
 			      USBDUXFASTSUB_FIRMWARE,
@@ -474,13 +481,12 @@ static int usbduxfastsub_stop(struct usbduxfastsub_s *udfs)
 			      0x0000,	/* Index */
 			      local_transfer_buffer, 1,	/* Length */
 			      EZTIMEOUT);	/* Timeout */
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&udfs->interface->dev,
 			"control msg failed (stop)\n");
-		return ret;
-	}
 
-	return 0;
+	kfree(local_transfer_buffer);
+	return ret;
 }
 
 static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,

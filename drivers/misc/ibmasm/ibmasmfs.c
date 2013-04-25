@@ -110,6 +110,7 @@ static struct file_system_type ibmasmfs_type = {
 	.mount          = ibmasmfs_mount,
 	.kill_sb        = kill_litter_super,
 };
+MODULE_ALIAS_FS("ibmasmfs");
 
 static int ibmasmfs_fill_super (struct super_block *sb, void *data, int silent)
 {

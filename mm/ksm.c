@@ -489,7 +489,7 @@ out:		page = NULL;
  */
 static inline int get_kpfn_nid(unsigned long kpfn)
 {
-	return ksm_merge_across_nodes ? 0 : pfn_to_nid(kpfn);
+	return ksm_merge_across_nodes ? 0 : NUMA(pfn_to_nid(kpfn));
 }
 
 static void remove_node_from_stable_tree(struct stable_node *stable_node)

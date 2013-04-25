@@ -1051,6 +1051,7 @@ static struct file_system_type ncp_fs_type = {
 	.kill_sb	= kill_anon_super,
 	.fs_flags	= FS_BINARY_MOUNTDATA,
 };
+MODULE_ALIAS_FS("ncpfs");
 
 static int __init init_ncp_fs(void)
 {

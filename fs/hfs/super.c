@@ -466,6 +466,7 @@ static struct file_system_type hfs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("hfs");
 
 static void hfs_init_once(void *p)
 {

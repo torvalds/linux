@@ -114,12 +114,6 @@ Maintainers List (try to look for most precise areas first)
 
 		-----------------------------------
 
-3C505 NETWORK DRIVER
-M:	Philip Blundell <philb@gnu.org>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	drivers/net/ethernet/i825xx/3c505*
-
 3C59X NETWORK DRIVER
 M:	Steffen Klassert <klassert@mathematik.tu-chemnitz.de>
 L:	netdev@vger.kernel.org
@@ -2361,12 +2355,6 @@ W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	drivers/video/cyber2000fb.*
 
-CYCLADES 2X SYNC CARD DRIVER
-M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
-W:	http://oops.ghostprotocols.net:81/blog
-S:	Maintained
-F:	drivers/net/wan/cycx*
-
 CYCLADES ASYNC MUX DRIVER
 W:	http://www.cyclades.com/
 S:	Orphan
@@ -3066,12 +3054,6 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kristoffer/linux-hpc.git
 F:	drivers/video/s1d13xxxfb.c
 F:	include/video/s1d13xxxfb.h
-
-ETHEREXPRESS-16 NETWORK DRIVER
-M:	Philip Blundell <philb@gnu.org>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	drivers/net/ethernet/i825xx/eexpress.*
 
 ETHERNET BRIDGE
 M:	Stephen Hemminger <stephen@networkplumber.org>
@@ -4022,6 +4004,22 @@ M:	Matthieu Castet <castet.matthieu@free.fr>
 M:	Stanislaw Gruszka <stf_xl@wp.pl>
 S:	Maintained
 F:	drivers/usb/atm/ueagle-atm.c
+
+INA209 HARDWARE MONITOR DRIVER
+M:	Guenter Roeck <linux@roeck-us.net>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/ina209
+F:	Documentation/devicetree/bindings/i2c/ina209.txt
+F:	drivers/hwmon/ina209.c
+
+INA2XX HARDWARE MONITOR DRIVER
+M:	Guenter Roeck <linux@roeck-us.net>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/ina2xx
+F:	drivers/hwmon/ina2xx.c
+F:	include/linux/platform_data/ina2xx.h
 
 INDUSTRY PACK SUBSYSTEM (IPACK)
 M:	Samuel Iglesias Gonsalvez <siglesias@igalia.com>
@@ -5115,6 +5113,15 @@ L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/max6650
 F:	drivers/hwmon/max6650.c
+
+MAX6697 HARDWARE MONITOR DRIVER
+M:	Guenter Roeck <linux@roeck-us.net>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/max6697
+F:	Documentation/devicetree/bindings/i2c/max6697.txt
+F:	drivers/hwmon/max6697.c
+F:	include/linux/platform_data/max6697.h
 
 MAXIRADIO FM RADIO RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
@@ -6430,6 +6437,8 @@ F:	Documentation/networking/LICENSE.qla3xxx
 F:	drivers/net/ethernet/qlogic/qla3xxx.*
 
 QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
+M:	Rajesh Borundia <rajesh.borundia@qlogic.com>
+M:	Shahed Shaikh <shahed.shaikh@qlogic.com>
 M:	Jitendra Kalsaria <jitendra.kalsaria@qlogic.com>
 M:	Sony Chacko <sony.chacko@qlogic.com>
 M:	linux-driver@qlogic.com

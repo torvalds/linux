@@ -1536,6 +1536,7 @@ static struct file_system_type ext2_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("ext2");
 
 static int __init init_ext2_fs(void)
 {

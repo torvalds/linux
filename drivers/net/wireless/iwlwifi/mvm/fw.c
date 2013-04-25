@@ -79,17 +79,8 @@
 #define UCODE_VALID_OK	cpu_to_le32(0x1)
 
 /* Default calibration values for WkP - set to INIT image w/o running */
-static const u8 wkp_calib_values_bb_filter[] = { 0xbf, 0x00, 0x5f, 0x00, 0x2f,
-						 0x00, 0x18, 0x00 };
-static const u8 wkp_calib_values_rx_dc[] = { 0x7f, 0x7f, 0x7f, 0x7f, 0x7f,
-					     0x7f, 0x7f, 0x7f };
-static const u8 wkp_calib_values_tx_lo[] = { 0x00, 0x00, 0x00, 0x00 };
-static const u8 wkp_calib_values_tx_iq[] = { 0xff, 0x00, 0xff, 0x00, 0x00,
-					     0x00 };
-static const u8 wkp_calib_values_rx_iq[] = { 0xff, 0x00, 0x00, 0x00 };
 static const u8 wkp_calib_values_rx_iq_skew[] = { 0x00, 0x00, 0x01, 0x00 };
 static const u8 wkp_calib_values_tx_iq_skew[] = { 0x01, 0x00, 0x00, 0x00 };
-static const u8 wkp_calib_values_xtal[] = { 0xd2, 0xd2 };
 
 struct iwl_calib_default_data {
 	u16 size;
@@ -99,12 +90,7 @@ struct iwl_calib_default_data {
 #define CALIB_SIZE_N_DATA(_buf) {.size = sizeof(_buf), .data = &_buf}
 
 static const struct iwl_calib_default_data wkp_calib_default_data[12] = {
-	[5] = CALIB_SIZE_N_DATA(wkp_calib_values_rx_dc),
-	[6] = CALIB_SIZE_N_DATA(wkp_calib_values_bb_filter),
-	[7] = CALIB_SIZE_N_DATA(wkp_calib_values_tx_lo),
-	[8] = CALIB_SIZE_N_DATA(wkp_calib_values_tx_iq),
 	[9] = CALIB_SIZE_N_DATA(wkp_calib_values_tx_iq_skew),
-	[10] = CALIB_SIZE_N_DATA(wkp_calib_values_rx_iq),
 	[11] = CALIB_SIZE_N_DATA(wkp_calib_values_rx_iq_skew),
 };
 
@@ -241,20 +227,6 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 
 	return 0;
 }
-#define IWL_HW_REV_ID_RAINBOW	0x2
-#define IWL_PROJ_TYPE_LHP	0x5
-
-static u32 iwl_mvm_build_phy_cfg(struct iwl_mvm *mvm)
-{
-	struct iwl_nvm_data *data = mvm->nvm_data;
-	/* Temp calls to static definitions, will be changed to CSR calls */
-	u8 hw_rev_id = IWL_HW_REV_ID_RAINBOW;
-	u8 project_type = IWL_PROJ_TYPE_LHP;
-
-	return data->radio_cfg_dash | (data->radio_cfg_step << 2) |
-		(hw_rev_id << 4) | ((project_type & 0x7f) << 6) |
-		(data->valid_tx_ant << 16) | (data->valid_rx_ant << 20);
-}
 
 static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 {
@@ -262,7 +234,7 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 	enum iwl_ucode_type ucode_type = mvm->cur_ucode;
 
 	/* Set parameters */
-	phy_cfg_cmd.phy_cfg = cpu_to_le32(iwl_mvm_build_phy_cfg(mvm));
+	phy_cfg_cmd.phy_cfg = cpu_to_le32(mvm->fw->phy_config);
 	phy_cfg_cmd.calib_control.event_trigger =
 		mvm->fw->default_calib[ucode_type].event_trigger;
 	phy_cfg_cmd.calib_control.flow_trigger =
@@ -273,103 +245,6 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 
 	return iwl_mvm_send_cmd_pdu(mvm, PHY_CONFIGURATION_CMD, CMD_SYNC,
 				    sizeof(phy_cfg_cmd), &phy_cfg_cmd);
-}
-
-/* Starting with the new PHY DB implementation - New calibs are enabled */
-/* Value - 0x405e7 */
-#define IWL_CALIB_DEFAULT_FLOW_INIT	(IWL_CALIB_CFG_XTAL_IDX		|\
-					 IWL_CALIB_CFG_TEMPERATURE_IDX	|\
-					 IWL_CALIB_CFG_VOLTAGE_READ_IDX	|\
-					 IWL_CALIB_CFG_DC_IDX		|\
-					 IWL_CALIB_CFG_BB_FILTER_IDX	|\
-					 IWL_CALIB_CFG_LO_LEAKAGE_IDX	|\
-					 IWL_CALIB_CFG_TX_IQ_IDX	|\
-					 IWL_CALIB_CFG_RX_IQ_IDX	|\
-					 IWL_CALIB_CFG_AGC_IDX)
-
-#define IWL_CALIB_DEFAULT_EVENT_INIT	0x0
-
-/* Value 0x41567 */
-#define IWL_CALIB_DEFAULT_FLOW_RUN	(IWL_CALIB_CFG_XTAL_IDX		|\
-					 IWL_CALIB_CFG_TEMPERATURE_IDX	|\
-					 IWL_CALIB_CFG_VOLTAGE_READ_IDX	|\
-					 IWL_CALIB_CFG_BB_FILTER_IDX	|\
-					 IWL_CALIB_CFG_DC_IDX		|\
-					 IWL_CALIB_CFG_TX_IQ_IDX	|\
-					 IWL_CALIB_CFG_RX_IQ_IDX	|\
-					 IWL_CALIB_CFG_SENSITIVITY_IDX	|\
-					 IWL_CALIB_CFG_AGC_IDX)
-
-#define IWL_CALIB_DEFAULT_EVENT_RUN	(IWL_CALIB_CFG_XTAL_IDX		|\
-					 IWL_CALIB_CFG_TEMPERATURE_IDX	|\
-					 IWL_CALIB_CFG_VOLTAGE_READ_IDX	|\
-					 IWL_CALIB_CFG_TX_PWR_IDX	|\
-					 IWL_CALIB_CFG_DC_IDX		|\
-					 IWL_CALIB_CFG_TX_IQ_IDX	|\
-					 IWL_CALIB_CFG_SENSITIVITY_IDX)
-
-/*
- * Sets the calibrations trigger values that will be sent to the FW for runtime
- * and init calibrations.
- * The ones given in the FW TLV are not correct.
- */
-static void iwl_set_default_calib_trigger(struct iwl_mvm *mvm)
-{
-	struct iwl_tlv_calib_ctrl default_calib;
-
-	/*
-	 * WkP FW TLV calib bits are wrong, overwrite them.
-	 * This defines the dynamic calibrations which are implemented in the
-	 * uCode both for init(flow) calculation and event driven calibs.
-	 */
-
-	/* Init Image */
-	default_calib.event_trigger = cpu_to_le32(IWL_CALIB_DEFAULT_EVENT_INIT);
-	default_calib.flow_trigger = cpu_to_le32(IWL_CALIB_DEFAULT_FLOW_INIT);
-
-	if (default_calib.event_trigger !=
-	    mvm->fw->default_calib[IWL_UCODE_INIT].event_trigger)
-		IWL_ERR(mvm,
-			"Updating the event calib for INIT image: 0x%x -> 0x%x\n",
-			mvm->fw->default_calib[IWL_UCODE_INIT].event_trigger,
-			default_calib.event_trigger);
-	if (default_calib.flow_trigger !=
-	    mvm->fw->default_calib[IWL_UCODE_INIT].flow_trigger)
-		IWL_ERR(mvm,
-			"Updating the flow calib for INIT image: 0x%x -> 0x%x\n",
-			mvm->fw->default_calib[IWL_UCODE_INIT].flow_trigger,
-			default_calib.flow_trigger);
-
-	memcpy((void *)&mvm->fw->default_calib[IWL_UCODE_INIT],
-	       &default_calib, sizeof(struct iwl_tlv_calib_ctrl));
-	IWL_ERR(mvm,
-		"Setting uCode init calibrations event 0x%x, trigger 0x%x\n",
-		default_calib.event_trigger,
-		default_calib.flow_trigger);
-
-	/* Run time image */
-	default_calib.event_trigger = cpu_to_le32(IWL_CALIB_DEFAULT_EVENT_RUN);
-	default_calib.flow_trigger = cpu_to_le32(IWL_CALIB_DEFAULT_FLOW_RUN);
-
-	if (default_calib.event_trigger !=
-	    mvm->fw->default_calib[IWL_UCODE_REGULAR].event_trigger)
-		IWL_ERR(mvm,
-			"Updating the event calib for RT image: 0x%x -> 0x%x\n",
-			mvm->fw->default_calib[IWL_UCODE_REGULAR].event_trigger,
-			default_calib.event_trigger);
-	if (default_calib.flow_trigger !=
-	    mvm->fw->default_calib[IWL_UCODE_REGULAR].flow_trigger)
-		IWL_ERR(mvm,
-			"Updating the flow calib for RT image: 0x%x -> 0x%x\n",
-			mvm->fw->default_calib[IWL_UCODE_REGULAR].flow_trigger,
-			default_calib.flow_trigger);
-
-	memcpy((void *)&mvm->fw->default_calib[IWL_UCODE_REGULAR],
-	       &default_calib, sizeof(struct iwl_tlv_calib_ctrl));
-	IWL_ERR(mvm,
-		"Setting uCode runtime calibs event 0x%x, trigger 0x%x\n",
-		default_calib.event_trigger,
-		default_calib.flow_trigger);
 }
 
 static int iwl_set_default_calibrations(struct iwl_mvm *mvm)
@@ -446,8 +321,10 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	ret = iwl_nvm_check_version(mvm->nvm_data, mvm->trans);
 	WARN_ON(ret);
 
-	/* Override the calibrations from TLV and the const of fw */
-	iwl_set_default_calib_trigger(mvm);
+	/* Send TX valid antennas before triggering calibrations */
+	ret = iwl_send_tx_ant_cfg(mvm, mvm->nvm_data->valid_tx_ant);
+	if (ret)
+		goto error;
 
 	/* WkP doesn't have all calibrations, need to set default values */
 	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
