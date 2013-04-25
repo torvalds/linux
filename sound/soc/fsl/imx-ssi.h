@@ -212,7 +212,6 @@ struct imx_ssi {
 
 	int enabled;
 
-	struct platform_device *soc_platform_pdev;
 	struct platform_device *soc_platform_pdev_fiq;
 };
 
