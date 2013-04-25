@@ -231,7 +231,6 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 	struct intel_crtc *intel_crtc = lvds_encoder->base.new_crtc;
 	unsigned int lvds_bpp;
-	int pipe;
 
 	/* Should never happen!! */
 	if (INTEL_INFO(dev)->gen < 4 && intel_crtc->pipe == 0) {
@@ -273,15 +272,6 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 		intel_gmch_panel_fitting(intel_crtc, pipe_config,
 					 intel_connector->panel.fitting_mode);
 	}
-
-	/*
-	 * Enable automatic panel scaling for non-native modes so that they fill
-	 * the screen.  Should be enabled before the pipe is enabled, according
-	 * to register description and PRM.
-	 * Change the value here to see the borders for debugging
-	 */
-	for_each_pipe(pipe)
-		I915_WRITE(BCLRPAT(pipe), 0);
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 	pipe_config->timings_set = true;
