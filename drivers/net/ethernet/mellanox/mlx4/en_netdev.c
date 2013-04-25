@@ -1373,7 +1373,8 @@ static void mlx4_en_service_task(struct work_struct *work)
 
 	mutex_lock(&mdev->state_lock);
 	if (mdev->device_up) {
-		mlx4_en_ptp_overflow_check(mdev);
+		if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
+			mlx4_en_ptp_overflow_check(mdev);
 
 		queue_delayed_work(mdev->workqueue, &priv->service_task,
 				   SERVICE_TASK_DELAY);
@@ -2228,8 +2229,11 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	}
 	mlx4_en_set_default_moderation(priv);
 	queue_delayed_work(mdev->workqueue, &priv->stats_task, STATS_DELAY);
-	queue_delayed_work(mdev->workqueue, &priv->service_task,
-			   SERVICE_TASK_DELAY);
+
+	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
+		queue_delayed_work(mdev->workqueue, &priv->service_task,
+				   SERVICE_TASK_DELAY);
+
 	return 0;
 
 out:
