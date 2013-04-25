@@ -588,13 +588,12 @@ static int cx25821_vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	struct cx25821_dev *dev = chan->dev;
 	const struct cx25821_fmt *fmt;
 	enum v4l2_field field = f->fmt.pix.field;
-	unsigned int maxw, maxh;
+	unsigned int maxh;
 	unsigned w;
 
 	fmt = cx25821_format_by_fourcc(f->fmt.pix.pixelformat);
 	if (NULL == fmt)
 		return -EINVAL;
-	maxw = 720;
 	maxh = (dev->tvnorm & V4L2_STD_625_50) ? 576 : 480;
 
 	w = f->fmt.pix.width;
