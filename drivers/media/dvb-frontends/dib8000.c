@@ -2416,19 +2416,19 @@ static void dib8000_set_isdbt_common_channel(struct dib8000_state *state, u8 seq
 static u32 dib8000_wait_lock(struct dib8000_state *state, u32 internal,
 			     u32 wait0_ms, u32 wait1_ms, u32 wait2_ms)
 {
-	u32 value;
-	u16 reg = 11; /* P_search_end0 start addr */
+	u32 value = 0;	/* P_search_end0 wait time */
+	u16 reg = 11;	/* P_search_end0 start addr */
 
 	for (reg = 11; reg < 16; reg += 2) {
 		if (reg == 11) {
 			if (state->revision == 0x8090)
-				value = internal * wait1_ms; /* P_search_end0 wait time */
+				value = internal * wait1_ms;
 			else
-				value = internal * wait0_ms; /* P_search_end0 wait time */
+				value = internal * wait0_ms;
 		} else if (reg == 13)
-			value = internal * wait1_ms; /* P_search_end0 wait time */
+			value = internal * wait1_ms;
 		else if (reg == 15)
-			value = internal * wait2_ms; /* P_search_end0 wait time */
+			value = internal * wait2_ms;
 		dib8000_write_word(state, reg, (u16)((value >> 16) & 0xffff));
 		dib8000_write_word(state, (reg + 1), (u16)(value & 0xffff));
 	}
