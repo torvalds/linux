@@ -21,6 +21,7 @@
 #include <sound/soc.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
+#include <linux/of.h>
 
 #define STUB_RATES	SNDRV_PCM_RATE_8000_192000
 #define STUB_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
@@ -51,12 +52,21 @@ static int spdif_dir_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id spdif_dir_dt_ids[] = {
+	{ .compatible = "linux,spdif-dir", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, spdif_dir_dt_ids);
+#endif
+
 static struct platform_driver spdif_dir_driver = {
 	.probe		= spdif_dir_probe,
 	.remove		= spdif_dir_remove,
 	.driver		= {
 		.name	= "spdif-dir",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(spdif_dir_dt_ids),
 	},
 };
 
