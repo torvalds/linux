@@ -1021,9 +1021,9 @@ struct btrfs_block_group_item {
  */
 #define BTRFS_QGROUP_STATUS_FLAG_ON		(1ULL << 0)
 /*
- * SCANNING is set during the initialization phase
+ * RESCAN is set during the initialization phase
  */
-#define BTRFS_QGROUP_STATUS_FLAG_SCANNING	(1ULL << 1)
+#define BTRFS_QGROUP_STATUS_FLAG_RESCAN		(1ULL << 1)
 /*
  * Some qgroup entries are known to be out of date,
  * either because the configuration has changed in a way that
@@ -1052,7 +1052,7 @@ struct btrfs_qgroup_status_item {
 	 * only used during scanning to record the progress
 	 * of the scan. It contains a logical address
 	 */
-	__le64 scan;
+	__le64 rescan;
 } __attribute__ ((__packed__));
 
 struct btrfs_qgroup_info_item {
@@ -1602,6 +1602,11 @@ struct btrfs_fs_info {
 
 	/* used by btrfs_qgroup_record_ref for an efficient tree traversal */
 	u64 qgroup_seq;
+
+	/* qgroup rescan items */
+	struct mutex qgroup_rescan_lock; /* protects the progress item */
+	struct btrfs_key qgroup_rescan_progress;
+	struct btrfs_workers qgroup_rescan_workers;
 
 	/* filesystem state */
 	unsigned long fs_state;
@@ -2886,8 +2891,8 @@ BTRFS_SETGET_FUNCS(qgroup_status_version, struct btrfs_qgroup_status_item,
 		   version, 64);
 BTRFS_SETGET_FUNCS(qgroup_status_flags, struct btrfs_qgroup_status_item,
 		   flags, 64);
-BTRFS_SETGET_FUNCS(qgroup_status_scan, struct btrfs_qgroup_status_item,
-		   scan, 64);
+BTRFS_SETGET_FUNCS(qgroup_status_rescan, struct btrfs_qgroup_status_item,
+		   rescan, 64);
 
 /* btrfs_qgroup_info_item */
 BTRFS_SETGET_FUNCS(qgroup_info_generation, struct btrfs_qgroup_info_item,
@@ -3828,7 +3833,7 @@ int btrfs_quota_enable(struct btrfs_trans_handle *trans,
 		       struct btrfs_fs_info *fs_info);
 int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info);
-int btrfs_quota_rescan(struct btrfs_fs_info *fs_info);
+int btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info);
 int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 			      struct btrfs_fs_info *fs_info, u64 src, u64 dst);
 int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans,
