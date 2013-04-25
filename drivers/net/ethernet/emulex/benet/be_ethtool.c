@@ -680,7 +680,8 @@ be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 	if (be_is_wol_supported(adapter)) {
 		wol->supported |= WAKE_MAGIC;
-		wol->wolopts |= WAKE_MAGIC;
+		if (adapter->wol)
+			wol->wolopts |= WAKE_MAGIC;
 	} else
 		wol->wolopts = 0;
 	memset(&wol->sopass, 0, sizeof(wol->sopass));
