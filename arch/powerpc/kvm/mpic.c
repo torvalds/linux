@@ -190,7 +190,6 @@ struct openpic {
 	struct kvm_io_device mmio;
 	struct list_head mmio_regions;
 	atomic_t users;
-	bool mmio_mapped;
 
 	gpa_t reg_base;
 	spinlock_t lock;
@@ -1428,24 +1427,13 @@ static int kvm_mpic_write(struct kvm_io_device *this, gpa_t addr,
 	return ret;
 }
 
-static void kvm_mpic_dtor(struct kvm_io_device *this)
-{
-	struct openpic *opp = container_of(this, struct openpic, mmio);
-
-	opp->mmio_mapped = false;
-}
-
 static const struct kvm_io_device_ops mpic_mmio_ops = {
 	.read = kvm_mpic_read,
 	.write = kvm_mpic_write,
-	.destructor = kvm_mpic_dtor,
 };
 
 static void map_mmio(struct openpic *opp)
 {
-	BUG_ON(opp->mmio_mapped);
-	opp->mmio_mapped = true;
-
 	kvm_iodevice_init(&opp->mmio, &mpic_mmio_ops);
 
 	kvm_io_bus_register_dev(opp->kvm, KVM_MMIO_BUS,
@@ -1455,10 +1443,7 @@ static void map_mmio(struct openpic *opp)
 
 static void unmap_mmio(struct openpic *opp)
 {
-	if (opp->mmio_mapped) {
-		opp->mmio_mapped = false;
-		kvm_io_bus_unregister_dev(opp->kvm, KVM_MMIO_BUS, &opp->mmio);
-	}
+	kvm_io_bus_unregister_dev(opp->kvm, KVM_MMIO_BUS, &opp->mmio);
 }
 
 static int set_base_addr(struct openpic *opp, struct kvm_device_attr *attr)
@@ -1636,18 +1621,6 @@ static int mpic_has_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 static void mpic_destroy(struct kvm_device *dev)
 {
 	struct openpic *opp = dev->private;
-
-	if (opp->mmio_mapped) {
-		/*
-		 * Normally we get unmapped by kvm_io_bus_destroy(),
-		 * which happens before the VCPUs release their references.
-		 *
-		 * Thus, we should only get here if no VCPUs took a reference
-		 * to us in the first place.
-		 */
-		WARN_ON(opp->nb_cpus != 0);
-		unmap_mmio(opp);
-	}
 
 	dev->kvm->arch.mpic = NULL;
 	kfree(opp);
