@@ -58,8 +58,9 @@ nouveau_client_create_(const char *name, u64 devname, const char *cfg,
 		return -ENODEV;
 
 	ret = nouveau_namedb_create_(NULL, NULL, &nouveau_client_oclass,
-				     NV_CLIENT_CLASS, nouveau_device_sclass,
-				     0, length, pobject);
+				     NV_CLIENT_CLASS, NULL,
+				     (1ULL << NVDEV_ENGINE_DEVICE),
+				     length, pobject);
 	client = *pobject;
 	if (ret)
 		return ret;

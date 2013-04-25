@@ -18,7 +18,6 @@ int nv50_identify(struct nouveau_device *);
 int nvc0_identify(struct nouveau_device *);
 int nve0_identify(struct nouveau_device *);
 
-extern struct nouveau_oclass nouveau_device_sclass[];
 struct nouveau_device *nouveau_device_find(u64 name);
 
 #endif

@@ -413,7 +413,7 @@ nouveau_devobj_ofuncs = {
 /******************************************************************************
  * nouveau_device: engine functions
  *****************************************************************************/
-struct nouveau_oclass
+static struct nouveau_oclass
 nouveau_device_sclass[] = {
 	{ 0x0080, &nouveau_devobj_ofuncs },
 	{}
@@ -470,6 +470,7 @@ nouveau_device_create_(struct pci_dev *pdev, u64 name, const char *sname,
 	device->name = sname;
 
 	nv_subdev(device)->debug = nouveau_dbgopt(device->dbgopt, "DEVICE");
+	nv_engine(device)->sclass = nouveau_device_sclass;
 	list_add(&device->head, &nv_devices);
 done:
 	mutex_unlock(&nv_devices_mutex);
