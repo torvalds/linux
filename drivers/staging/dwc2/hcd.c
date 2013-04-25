@@ -2920,7 +2920,7 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 	 * allocates the DMA buffer pool, registers the USB bus, requests the
 	 * IRQ line, and calls hcd_start method.
 	 */
-	retval = usb_add_hcd(hcd, irq, IRQF_SHARED | IRQF_DISABLED);
+	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval < 0)
 		goto error3;
 
