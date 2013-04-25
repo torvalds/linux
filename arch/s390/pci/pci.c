@@ -627,17 +627,6 @@ void zpci_free_device(struct zpci_dev *zdev)
 	kfree(zdev);
 }
 
-static void zpci_scan_devices(void)
-{
-	struct zpci_dev *zdev;
-
-	mutex_lock(&zpci_list_lock);
-	list_for_each_entry(zdev, &zpci_list, entry)
-		if (zdev->state == ZPCI_FN_STATE_CONFIGURED)
-			zpci_scan_device(zdev);
-	mutex_unlock(&zpci_list_lock);
-}
-
 /*
  * Too late for any s390 specific setup, since interrupts must be set up
  * already which requires DMA setup too and the pci scan will access the
@@ -846,6 +835,7 @@ int pcibios_add_device(struct pci_dev *pdev)
 {
 	struct zpci_dev *zdev = get_zdev(pdev);
 
+	zdev->pdev = pdev;
 	zpci_debug_init_device(zdev);
 	zpci_fmb_enable_device(zdev);
 	zpci_map_resources(zdev);
@@ -853,7 +843,7 @@ int pcibios_add_device(struct pci_dev *pdev)
 	return 0;
 }
 
-static int zpci_create_device_bus(struct zpci_dev *zdev)
+static int zpci_scan_bus(struct zpci_dev *zdev)
 {
 	struct resource *res;
 	LIST_HEAD(resources);
@@ -890,8 +880,8 @@ static int zpci_create_device_bus(struct zpci_dev *zdev)
 		pci_add_resource(&resources, res);
 	}
 
-	zdev->bus = pci_create_root_bus(NULL, ZPCI_BUS_NR, &pci_root_ops,
-					zdev, &resources);
+	zdev->bus = pci_scan_root_bus(NULL, ZPCI_BUS_NR, &pci_root_ops,
+				      zdev, &resources);
 	if (!zdev->bus)
 		return -EIO;
 
@@ -955,9 +945,16 @@ int zpci_create_device(struct zpci_dev *zdev)
 	if (rc)
 		goto out;
 
-	rc = zpci_create_device_bus(zdev);
+	if (zdev->state == ZPCI_FN_STATE_CONFIGURED) {
+		rc = zpci_enable_device(zdev);
+		if (rc)
+			goto out_free;
+
+		zdev->state = ZPCI_FN_STATE_ONLINE;
+	}
+	rc = zpci_scan_bus(zdev);
 	if (rc)
-		goto out_bus;
+		goto out_disable;
 
 	mutex_lock(&zpci_list_lock);
 	list_add_tail(&zdev->entry, &zpci_list);
@@ -965,21 +962,12 @@ int zpci_create_device(struct zpci_dev *zdev)
 		hotplug_ops->create_slot(zdev);
 	mutex_unlock(&zpci_list_lock);
 
-	if (zdev->state == ZPCI_FN_STATE_STANDBY)
-		return 0;
-
-	rc = zpci_enable_device(zdev);
-	if (rc)
-		goto out_start;
 	return 0;
 
-out_start:
-	mutex_lock(&zpci_list_lock);
-	list_del(&zdev->entry);
-	if (hotplug_ops)
-		hotplug_ops->remove_slot(zdev);
-	mutex_unlock(&zpci_list_lock);
-out_bus:
+out_disable:
+	if (zdev->state == ZPCI_FN_STATE_ONLINE)
+		zpci_disable_device(zdev);
+out_free:
 	zpci_free_domain(zdev);
 out:
 	return rc;
@@ -1006,10 +994,7 @@ int zpci_scan_device(struct zpci_dev *zdev)
 
 	pci_bus_add_devices(zdev->bus);
 
-	/* now that pdev was added to the bus mark it as used */
-	zdev->state = ZPCI_FN_STATE_ONLINE;
 	return 0;
-
 out:
 	zpci_dma_exit_device(zdev);
 	clp_disable_fh(zdev);
@@ -1123,7 +1108,6 @@ static int __init pci_base_init(void)
 	if (rc)
 		goto out_find;
 
-	zpci_scan_devices();
 	return 0;
 
 out_find:
