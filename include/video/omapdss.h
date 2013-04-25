@@ -779,9 +779,6 @@ struct omap_dss_device *omap_dss_find_device(void *data,
 		int (*match)(struct omap_dss_device *dssdev, void *data));
 const char *omapdss_get_default_display_name(void);
 
-int omap_dss_start_device(struct omap_dss_device *dssdev);
-void omap_dss_stop_device(struct omap_dss_device *dssdev);
-
 void videomode_to_omap_video_timings(const struct videomode *vm,
 		struct omap_video_timings *ovt);
 void omap_video_timings_to_videomode(const struct omap_video_timings *ovt,

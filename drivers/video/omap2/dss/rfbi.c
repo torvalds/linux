@@ -902,12 +902,6 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		return r;
 
-	r = omap_dss_start_device(dssdev);
-	if (r) {
-		DSSERR("failed to start device\n");
-		goto err0;
-	}
-
 	r = dss_mgr_register_framedone_handler(out->manager,
 			framedone_callback, NULL);
 	if (r) {
@@ -924,8 +918,6 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 
 	return 0;
 err1:
-	omap_dss_stop_device(dssdev);
-err0:
 	rfbi_runtime_put();
 	return r;
 }
@@ -937,7 +929,6 @@ void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev)
 
 	dss_mgr_unregister_framedone_handler(out->manager,
 			framedone_callback, NULL);
-	omap_dss_stop_device(dssdev);
 
 	rfbi_runtime_put();
 }

@@ -513,23 +513,15 @@ int omapdss_venc_display_enable(struct omap_dss_device *dssdev)
 		goto err0;
 	}
 
-	r = omap_dss_start_device(dssdev);
-	if (r) {
-		DSSERR("failed to start device\n");
-		goto err0;
-	}
-
 	r = venc_power_on(dssdev);
 	if (r)
-		goto err1;
+		goto err0;
 
 	venc.wss_data = 0;
 
 	mutex_unlock(&venc.venc_lock);
 
 	return 0;
-err1:
-	omap_dss_stop_device(dssdev);
 err0:
 	mutex_unlock(&venc.venc_lock);
 	return r;
@@ -542,8 +534,6 @@ void omapdss_venc_display_disable(struct omap_dss_device *dssdev)
 	mutex_lock(&venc.venc_lock);
 
 	venc_power_off(dssdev);
-
-	omap_dss_stop_device(dssdev);
 
 	mutex_unlock(&venc.venc_lock);
 }

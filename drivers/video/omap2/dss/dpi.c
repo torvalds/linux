@@ -364,12 +364,6 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 		goto err_no_out_mgr;
 	}
 
-	r = omap_dss_start_device(dssdev);
-	if (r) {
-		DSSERR("failed to start device\n");
-		goto err_start_dev;
-	}
-
 	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI)) {
 		r = regulator_enable(dpi.vdds_dsi_reg);
 		if (r)
@@ -424,8 +418,6 @@ err_get_dispc:
 	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI))
 		regulator_disable(dpi.vdds_dsi_reg);
 err_reg_enable:
-	omap_dss_stop_device(dssdev);
-err_start_dev:
 err_no_out_mgr:
 err_no_reg:
 	mutex_unlock(&dpi.lock);
@@ -451,8 +443,6 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 
 	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI))
 		regulator_disable(dpi.vdds_dsi_reg);
-
-	omap_dss_stop_device(dssdev);
 
 	mutex_unlock(&dpi.lock);
 }

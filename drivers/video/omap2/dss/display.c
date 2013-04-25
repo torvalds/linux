@@ -233,26 +233,6 @@ struct omap_dss_device *omap_dss_find_device(void *data,
 }
 EXPORT_SYMBOL(omap_dss_find_device);
 
-int omap_dss_start_device(struct omap_dss_device *dssdev)
-{
-	if (!dssdev->driver) {
-		DSSDBG("no driver\n");
-		return -ENODEV;
-	}
-
-	if (!try_module_get(dssdev->dev->driver->owner))
-		return -ENODEV;
-
-	return 0;
-}
-EXPORT_SYMBOL(omap_dss_start_device);
-
-void omap_dss_stop_device(struct omap_dss_device *dssdev)
-{
-	module_put(dssdev->dev->driver->owner);
-}
-EXPORT_SYMBOL(omap_dss_stop_device);
-
 void videomode_to_omap_video_timings(const struct videomode *vm,
 		struct omap_video_timings *ovt)
 {

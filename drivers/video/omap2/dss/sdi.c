@@ -138,12 +138,6 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 		return -ENODEV;
 	}
 
-	r = omap_dss_start_device(dssdev);
-	if (r) {
-		DSSERR("failed to start device\n");
-		goto err_start_dev;
-	}
-
 	r = regulator_enable(sdi.vdds_sdi_reg);
 	if (r)
 		goto err_reg_enable;
@@ -215,8 +209,6 @@ err_calc_clock_div:
 err_get_dispc:
 	regulator_disable(sdi.vdds_sdi_reg);
 err_reg_enable:
-	omap_dss_stop_device(dssdev);
-err_start_dev:
 	return r;
 }
 EXPORT_SYMBOL(omapdss_sdi_display_enable);
@@ -232,8 +224,6 @@ void omapdss_sdi_display_disable(struct omap_dss_device *dssdev)
 	dispc_runtime_put();
 
 	regulator_disable(sdi.vdds_sdi_reg);
-
-	omap_dss_stop_device(dssdev);
 }
 EXPORT_SYMBOL(omapdss_sdi_display_disable);
 

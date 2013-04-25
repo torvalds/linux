@@ -4592,12 +4592,6 @@ int omapdss_dsi_display_enable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&dsi->lock);
 
-	r = omap_dss_start_device(dssdev);
-	if (r) {
-		DSSERR("failed to start device\n");
-		goto err_start_dev;
-	}
-
 	r = dsi_runtime_get(dsidev);
 	if (r)
 		goto err_get_dsi;
@@ -4618,8 +4612,6 @@ err_init_dsi:
 	dsi_enable_pll_clock(dsidev, 0);
 	dsi_runtime_put(dsidev);
 err_get_dsi:
-	omap_dss_stop_device(dssdev);
-err_start_dev:
 	mutex_unlock(&dsi->lock);
 	DSSDBG("dsi_display_enable FAILED\n");
 	return r;
@@ -4647,8 +4639,6 @@ void omapdss_dsi_display_disable(struct omap_dss_device *dssdev,
 
 	dsi_runtime_put(dsidev);
 	dsi_enable_pll_clock(dsidev, 0);
-
-	omap_dss_stop_device(dssdev);
 
 	mutex_unlock(&dsi->lock);
 }
