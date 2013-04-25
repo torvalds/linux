@@ -272,6 +272,7 @@
 #define   HFSCR_TAR	(1 << (63-55)) /* Enable Target Address Register */
 #define   HFSCR_TM	(1 << (63-58)) /* Enable Transactional Memory */
 #define   HFSCR_PM	(1 << (63-60)) /* Enable prob/priv access to PMU SPRs */
+#define   HFSCR_BHRB	(1 << (63-59)) /* Enable Branch History Rolling Buffer*/
 #define   HFSCR_DSCR	(1 << (63-61)) /* Enable Data Stream Control Register */
 #define   HFSCR_VECVSX	(1 << (63-62)) /* Enable VMX/VSX  */
 #define   HFSCR_FP	(1 << (63-63)) /* Enable Floating Point */
