@@ -192,6 +192,9 @@ static int fd_configure_device(struct se_device *dev)
 		 * the smaller WRITE_SAME(10) only has a two-byte block count.
 		 */
 		dev->dev_attrib.max_write_same_len = 0xFFFF;
+
+		if (blk_queue_nonrot(q))
+			dev->dev_attrib.is_nonrot = 1;
 	} else {
 		if (!(fd_dev->fbd_flags & FBDF_HAS_SIZE)) {
 			pr_err("FILEIO: Missing fd_dev_size="
