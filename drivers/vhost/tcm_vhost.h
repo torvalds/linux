@@ -53,6 +53,7 @@ struct tcm_vhost_nacl {
 	struct se_node_acl se_node_acl;
 };
 
+struct vhost_scsi;
 struct tcm_vhost_tpg {
 	/* Vhost port target portal group tag for TCM */
 	u16 tport_tpgt;
@@ -70,6 +71,8 @@ struct tcm_vhost_tpg {
 	struct tcm_vhost_tport *tport;
 	/* Returned by tcm_vhost_make_tpg() */
 	struct se_portal_group se_tpg;
+	/* Pointer back to vhost_scsi, protected by tv_tpg_mutex */
+	struct vhost_scsi *vhost_scsi;
 };
 
 struct tcm_vhost_tport {
@@ -81,6 +84,13 @@ struct tcm_vhost_tport {
 	char tport_name[TCM_VHOST_NAMELEN];
 	/* Returned by tcm_vhost_make_tport() */
 	struct se_wwn tport_wwn;
+};
+
+struct tcm_vhost_evt {
+	/* event to be sent to guest */
+	struct virtio_scsi_event event;
+	/* event list, serviced from vhost worker thread */
+	struct llist_node list;
 };
 
 /*
