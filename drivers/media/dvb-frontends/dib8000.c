@@ -2355,7 +2355,7 @@ static void dib8000_set_isdbt_common_channel(struct dib8000_state *state, u8 seq
 	/* TSB or ISDBT ? apply it now */
 	if (c->isdbt_sb_mode) {
 		dib8000_set_sb_channel(state);
-		if (c->isdbt_sb_subchannel != -1)
+		if (c->isdbt_sb_subchannel < 14)
 			init_prbs = dib8000_get_init_prbs(state, c->isdbt_sb_subchannel);
 		else
 			init_prbs = 0;
@@ -3102,7 +3102,9 @@ static int dib8000_tune(struct dvb_frontend *fe)
 			dib8000_set_isdbt_loop_params(state, LOOP_TUNE_2);
 
 			/* mpeg will never lock on this condition because init_prbs is not set : search for it !*/
-			if (c->isdbt_sb_mode && c->isdbt_sb_subchannel == -1 && !state->differential_constellation) {
+			if (c->isdbt_sb_mode
+			    && c->isdbt_sb_subchannel < 14
+			    && !state->differential_constellation) {
 				state->subchannel = 0;
 				*tune_state = CT_DEMOD_STEP_11;
 			} else {
@@ -3146,14 +3148,18 @@ static int dib8000_tune(struct dvb_frontend *fe)
 			locks = dib8000_read_lock(fe);
 			if (locks&(1<<(7-state->longest_intlv_layer))) { /* mpeg lock : check the longest one */
 				dprintk("Mpeg locks [ L0 : %d | L1 : %d | L2 : %d ]", (locks>>7)&0x1, (locks>>6)&0x1, (locks>>5)&0x1);
-				if (c->isdbt_sb_mode && c->isdbt_sb_subchannel == -1 && !state->differential_constellation)
+				if (c->isdbt_sb_mode
+				    && c->isdbt_sb_subchannel < 14
+				    && !state->differential_constellation)
 					/* signal to the upper layer, that there was a channel found and the parameters can be read */
 					state->status = FE_STATUS_DEMOD_SUCCESS;
 				else
 					state->status = FE_STATUS_DATA_LOCKED;
 				*tune_state = CT_DEMOD_STOP;
 			} else if (now > *timeout) {
-				if (c->isdbt_sb_mode && c->isdbt_sb_subchannel == -1 && !state->differential_constellation) { /* continue to try init prbs autosearch */
+				if (c->isdbt_sb_mode
+				    && c->isdbt_sb_subchannel < 14
+				    && !state->differential_constellation) { /* continue to try init prbs autosearch */
 					state->subchannel += 3;
 					*tune_state = CT_DEMOD_STEP_11;
 				} else { /* we are done mpeg of the longest interleaver xas not locking but let's try if an other layer has locked in the same time */
