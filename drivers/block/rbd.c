@@ -3427,45 +3427,43 @@ static struct rbd_snap *rbd_snap_create(struct rbd_device *rbd_dev,
 						u64 snap_features)
 {
 	struct rbd_snap *snap;
-	int ret;
 
 	snap = kzalloc(sizeof (*snap), GFP_KERNEL);
 	if (!snap)
 		return ERR_PTR(-ENOMEM);
 
-	ret = -ENOMEM;
-	snap->name = kstrdup(snap_name, GFP_KERNEL);
-	if (!snap->name)
-		goto err;
-
+	snap->name = snap_name;
 	snap->id = snap_id;
 	snap->size = snap_size;
 	snap->features = snap_features;
 
 	return snap;
-
-err:
-	kfree(snap->name);
-	kfree(snap);
-
-	return ERR_PTR(ret);
 }
 
+/*
+ * Returns a dynamically-allocated snapshot name if successful, or a
+ * pointer-coded error otherwise.
+ */
 static char *rbd_dev_v1_snap_info(struct rbd_device *rbd_dev, u32 which,
 		u64 *snap_size, u64 *snap_features)
 {
 	char *snap_name;
+	int i;
 
 	rbd_assert(which < rbd_dev->header.snapc->num_snaps);
-
-	*snap_size = rbd_dev->header.snap_sizes[which];
-	*snap_features = 0;	/* No features for v1 */
 
 	/* Skip over names until we find the one we are looking for */
 
 	snap_name = rbd_dev->header.snap_names;
-	while (which--)
+	for (i = 0; i < which; i++)
 		snap_name += strlen(snap_name) + 1;
+
+	snap_name = kstrdup(snap_name, GFP_KERNEL);
+	if (!snap_name)
+		return ERR_PTR(-ENOMEM);
+
+	*snap_size = rbd_dev->header.snap_sizes[which];
+	*snap_features = 0;	/* No features for v1 */
 
 	return snap_name;
 }
