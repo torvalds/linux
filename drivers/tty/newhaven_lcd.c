@@ -47,10 +47,12 @@
 #define ASCII_ESC               0x1b
 #define ASCII_SPACE             0x20
 #define ASCII_BACKSLASH         0x5c
+#define ASCII_TILDE             0x7e
 
 /* The NewHaven display has 8 custom characters that are user-loadable init
    its cg ram. */
 #define CUSTOM_BACKSLASH        0x00
+#define CUSTOM_TILDE            0x01
 
 struct custom_font {
 	u8 mapping;
@@ -59,6 +61,7 @@ struct custom_font {
 
 struct custom_font custom_fonts[] = {
 	{ CUSTOM_BACKSLASH, { 0x00, 0x10, 0x08, 0x04, 0x02, 0x01, 0x00, 0x00, }, },
+	{ CUSTOM_TILDE,     { 0x00, 0x00, 0x00, 0x08, 0x15, 0x02, 0x00, 0x00, }, },
 };
 
 struct lcd {
@@ -154,6 +157,8 @@ static char lcd_translate_printable_char(char val)
 {
 	if (val == ASCII_BACKSLASH)
 		return CUSTOM_BACKSLASH;
+	else if (val == ASCII_TILDE)
+		return CUSTOM_TILDE;
 
 	return val;
 }
