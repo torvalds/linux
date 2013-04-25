@@ -2151,3 +2151,36 @@ int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_set_vf_spoofchk);
+
+int mlx4_get_vf_config(struct mlx4_dev *dev, int port, int vf, struct ifla_vf_info *ivf)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_vport_state *s_info;
+	int slave;
+
+	if (!mlx4_is_master(dev))
+		return -EPROTONOSUPPORT;
+
+	slave = mlx4_get_slave_indx(dev, vf);
+	if (slave < 0)
+		return -EINVAL;
+
+	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
+	ivf->vf = vf;
+
+	/* need to convert it to a func */
+	ivf->mac[0] = ((s_info->mac >> (5*8)) & 0xff);
+	ivf->mac[1] = ((s_info->mac >> (4*8)) & 0xff);
+	ivf->mac[2] = ((s_info->mac >> (3*8)) & 0xff);
+	ivf->mac[3] = ((s_info->mac >> (2*8)) & 0xff);
+	ivf->mac[4] = ((s_info->mac >> (1*8)) & 0xff);
+	ivf->mac[5] = ((s_info->mac)  & 0xff);
+
+	ivf->vlan	= s_info->default_vlan;
+	ivf->qos	= s_info->default_qos;
+	ivf->tx_rate	= s_info->tx_rate;
+	ivf->spoofchk	= s_info->spoofchk;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_get_vf_config);
