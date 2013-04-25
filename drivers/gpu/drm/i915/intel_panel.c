@@ -306,11 +306,8 @@ out:
 	if (INTEL_INFO(dev)->gen < 4 && pipe_config->pipe_bpp == 18)
 		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 
-	if (pfit_control != pipe_config->gmch_pfit.control ||
-	    pfit_pgm_ratios != pipe_config->gmch_pfit.pgm_ratios) {
-		pipe_config->gmch_pfit.control = pfit_control;
-		pipe_config->gmch_pfit.pgm_ratios = pfit_pgm_ratios;
-	}
+	pipe_config->gmch_pfit.control = pfit_control;
+	pipe_config->gmch_pfit.pgm_ratios = pfit_pgm_ratios;
 	pipe_config->gmch_pfit.lvds_border_bits = border;
 }
 
