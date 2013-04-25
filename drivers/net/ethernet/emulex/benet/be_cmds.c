@@ -1898,7 +1898,8 @@ int be_cmd_reset_function(struct be_adapter *adapter)
 	return status;
 }
 
-int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable, u16 table_size)
+int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
+			u32 rss_hash_opts, u16 table_size)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_rss_config *req;
@@ -1917,16 +1918,12 @@ int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable, u16 table_size)
 		OPCODE_ETH_RSS_CONFIG, sizeof(*req), wrb, NULL);
 
 	req->if_id = cpu_to_le32(adapter->if_handle);
-	req->enable_rss = cpu_to_le16(RSS_ENABLE_TCP_IPV4 | RSS_ENABLE_IPV4 |
-				      RSS_ENABLE_TCP_IPV6 | RSS_ENABLE_IPV6);
-
-	if (lancer_chip(adapter) || skyhawk_chip(adapter)) {
-		req->hdr.version = 1;
-		req->enable_rss |= cpu_to_le16(RSS_ENABLE_UDP_IPV4 |
-					       RSS_ENABLE_UDP_IPV6);
-	}
-
+	req->enable_rss = cpu_to_le16(rss_hash_opts);
 	req->cpu_table_size_log2 = cpu_to_le16(fls(table_size) - 1);
+
+	if (lancer_chip(adapter) || skyhawk_chip(adapter))
+		req->hdr.version = 1;
+
 	memcpy(req->cpu_table, rsstable, table_size);
 	memcpy(req->hash, myhash, sizeof(myhash));
 	be_dws_cpu_to_le(req->hash, sizeof(req->hash));

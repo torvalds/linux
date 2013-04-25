@@ -447,6 +447,7 @@ struct be_adapter {
 	u16 max_event_queues;
 	u32 if_cap_flags;
 	u8 pf_number;
+	u64 rss_flags;
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)

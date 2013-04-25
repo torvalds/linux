@@ -1090,6 +1090,9 @@ struct be_cmd_resp_query_fw_cfg {
 #define RSS_ENABLE_UDP_IPV4			0x10
 #define RSS_ENABLE_UDP_IPV6			0x20
 
+#define L3_RSS_FLAGS				(RXH_IP_DST | RXH_IP_SRC)
+#define L4_RSS_FLAGS				(RXH_L4_B_0_1 | RXH_L4_B_2_3)
+
 struct be_cmd_req_rss_config {
 	struct be_cmd_req_hdr hdr;
 	u32 if_id;
@@ -1860,7 +1863,7 @@ extern int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num,
 			u32 *function_mode, u32 *function_caps, u16 *asic_rev);
 extern int be_cmd_reset_function(struct be_adapter *adapter);
 extern int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
-			u16 table_size);
+			     u32 rss_hash_opts, u16 table_size);
 extern int be_process_mcc(struct be_adapter *adapter);
 extern int be_cmd_set_beacon_state(struct be_adapter *adapter,
 			u8 port_num, u8 beacon, u8 status, u8 state);

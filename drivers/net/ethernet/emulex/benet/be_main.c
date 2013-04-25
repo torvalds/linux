@@ -2510,9 +2510,19 @@ static int be_rx_qs_create(struct be_adapter *adapter)
 				rsstable[j + i] = rxo->rss_id;
 			}
 		}
-		rc = be_cmd_rss_config(adapter, rsstable, 128);
-		if (rc)
+		adapter->rss_flags = RSS_ENABLE_TCP_IPV4 | RSS_ENABLE_IPV4 |
+					RSS_ENABLE_TCP_IPV6 | RSS_ENABLE_IPV6;
+
+		if (!BEx_chip(adapter))
+			adapter->rss_flags |= RSS_ENABLE_UDP_IPV4 |
+						RSS_ENABLE_UDP_IPV6;
+
+		rc = be_cmd_rss_config(adapter, rsstable, adapter->rss_flags,
+				       128);
+		if (rc) {
+			adapter->rss_flags = 0;
 			return rc;
+		}
 	}
 
 	/* First time posting */

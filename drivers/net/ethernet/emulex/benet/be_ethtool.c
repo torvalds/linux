@@ -934,6 +934,159 @@ static void be_set_msg_level(struct net_device *netdev, u32 level)
 	return;
 }
 
+static u64 be_get_rss_hash_opts(struct be_adapter *adapter, u64 flow_type)
+{
+	u64 data = 0;
+
+	switch (flow_type) {
+	case TCP_V4_FLOW:
+		if (adapter->rss_flags & RSS_ENABLE_IPV4)
+			data |= RXH_IP_DST | RXH_IP_SRC;
+		if (adapter->rss_flags & RSS_ENABLE_TCP_IPV4)
+			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	case UDP_V4_FLOW:
+		if (adapter->rss_flags & RSS_ENABLE_IPV4)
+			data |= RXH_IP_DST | RXH_IP_SRC;
+		if (adapter->rss_flags & RSS_ENABLE_UDP_IPV4)
+			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	case TCP_V6_FLOW:
+		if (adapter->rss_flags & RSS_ENABLE_IPV6)
+			data |= RXH_IP_DST | RXH_IP_SRC;
+		if (adapter->rss_flags & RSS_ENABLE_TCP_IPV6)
+			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	case UDP_V6_FLOW:
+		if (adapter->rss_flags & RSS_ENABLE_IPV6)
+			data |= RXH_IP_DST | RXH_IP_SRC;
+		if (adapter->rss_flags & RSS_ENABLE_UDP_IPV6)
+			data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	}
+
+	return data;
+}
+
+static int be_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
+		      u32 *rule_locs)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	if (!be_multi_rxq(adapter)) {
+		dev_info(&adapter->pdev->dev,
+			 "ethtool::get_rxnfc: RX flow hashing is disabled\n");
+		return -EINVAL;
+	}
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXFH:
+		cmd->data = be_get_rss_hash_opts(adapter, cmd->flow_type);
+		break;
+	case ETHTOOL_GRXRINGS:
+		cmd->data = adapter->num_rx_qs - 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int be_set_rss_hash_opts(struct be_adapter *adapter,
+				struct ethtool_rxnfc *cmd)
+{
+	struct be_rx_obj *rxo;
+	int status = 0, i, j;
+	u8 rsstable[128];
+	u32 rss_flags = adapter->rss_flags;
+
+	if (cmd->data != L3_RSS_FLAGS &&
+	    cmd->data != (L3_RSS_FLAGS | L4_RSS_FLAGS))
+		return -EINVAL;
+
+	switch (cmd->flow_type) {
+	case TCP_V4_FLOW:
+		if (cmd->data == L3_RSS_FLAGS)
+			rss_flags &= ~RSS_ENABLE_TCP_IPV4;
+		else if (cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS))
+			rss_flags |= RSS_ENABLE_IPV4 |
+					RSS_ENABLE_TCP_IPV4;
+		break;
+	case TCP_V6_FLOW:
+		if (cmd->data == L3_RSS_FLAGS)
+			rss_flags &= ~RSS_ENABLE_TCP_IPV6;
+		else if (cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS))
+			rss_flags |= RSS_ENABLE_IPV6 |
+					RSS_ENABLE_TCP_IPV6;
+		break;
+	case UDP_V4_FLOW:
+		if ((cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS)) &&
+		    BEx_chip(adapter))
+			return -EINVAL;
+
+		if (cmd->data == L3_RSS_FLAGS)
+			rss_flags &= ~RSS_ENABLE_UDP_IPV4;
+		else if (cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS))
+			rss_flags |= RSS_ENABLE_IPV4 |
+					RSS_ENABLE_UDP_IPV4;
+		break;
+	case UDP_V6_FLOW:
+		if ((cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS)) &&
+		    BEx_chip(adapter))
+			return -EINVAL;
+
+		if (cmd->data == L3_RSS_FLAGS)
+			rss_flags &= ~RSS_ENABLE_UDP_IPV6;
+		else if (cmd->data == (L3_RSS_FLAGS | L4_RSS_FLAGS))
+			rss_flags |= RSS_ENABLE_IPV6 |
+					RSS_ENABLE_UDP_IPV6;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (rss_flags == adapter->rss_flags)
+		return status;
+
+	if (be_multi_rxq(adapter)) {
+		for (j = 0; j < 128; j += adapter->num_rx_qs - 1) {
+			for_all_rss_queues(adapter, rxo, i) {
+				if ((j + i) >= 128)
+					break;
+				rsstable[j + i] = rxo->rss_id;
+			}
+		}
+	}
+	status = be_cmd_rss_config(adapter, rsstable, rss_flags, 128);
+	if (!status)
+		adapter->rss_flags = rss_flags;
+
+	return status;
+}
+
+static int be_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	int status = 0;
+
+	if (!be_multi_rxq(adapter)) {
+		dev_err(&adapter->pdev->dev,
+			"ethtool::set_rxnfc: RX flow hashing is disabled\n");
+		return -EINVAL;
+	}
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXFH:
+		status = be_set_rss_hash_opts(adapter, cmd);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return status;
+}
+
 const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
@@ -957,4 +1110,6 @@ const struct ethtool_ops be_ethtool_ops = {
 	.get_regs = be_get_regs,
 	.flash_device = be_do_flash,
 	.self_test = be_self_test,
+	.get_rxnfc = be_get_rxnfc,
+	.set_rxnfc = be_set_rxnfc,
 };
