@@ -191,6 +191,7 @@ struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
 	/* A linear domain is the default */
 	return irq_domain_add_linear(of_node, size, ops, host_data);
 }
+EXPORT_SYMBOL_GPL(irq_domain_add_simple);
 
 /**
  * irq_domain_add_legacy() - Allocate and register a legacy revmap irq_domain.
