@@ -3494,7 +3494,8 @@ static int _rbd_dev_v2_snap_size(struct rbd_device *rbd_dev, u64 snap_id,
 	if (ret < sizeof (size_buf))
 		return -ERANGE;
 
-	*order = size_buf.order;
+	if (order)
+		*order = size_buf.order;
 	*snap_size = le64_to_cpu(size_buf.size);
 
 	dout("  snap_id 0x%016llx order = %u, snap_size = %llu\n",
@@ -3939,11 +3940,10 @@ static char *rbd_dev_v2_snap_info(struct rbd_device *rbd_dev, u32 which,
 		u64 *snap_size, u64 *snap_features)
 {
 	u64 snap_id;
-	u8 order;
 	int ret;
 
 	snap_id = rbd_dev->header.snapc->snaps[which];
-	ret = _rbd_dev_v2_snap_size(rbd_dev, snap_id, &order, snap_size);
+	ret = _rbd_dev_v2_snap_size(rbd_dev, snap_id, NULL, snap_size);
 	if (ret)
 		return ERR_PTR(ret);
 	ret = _rbd_dev_v2_snap_features(rbd_dev, snap_id, snap_features);
