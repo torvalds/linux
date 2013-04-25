@@ -819,10 +819,9 @@ struct cache_set {
 
 	/*
 	 * A btree node on disk could have too many bsets for an iterator to fit
-	 * on the stack - this is a single element mempool for btree_read_work()
+	 * on the stack - have to dynamically allocate them
 	 */
-	struct mutex		fill_lock;
-	struct btree_iter	*fill_iter;
+	mempool_t		*fill_iter;
 
 	/*
 	 * btree_sort() is a merge sort and requires temporary space - single

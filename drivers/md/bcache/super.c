@@ -1255,9 +1255,10 @@ static void cache_set_free(struct closure *cl)
 	free_pages((unsigned long) c->uuids, ilog2(bucket_pages(c)));
 	free_pages((unsigned long) c->sort, ilog2(bucket_pages(c)));
 
-	kfree(c->fill_iter);
 	if (c->bio_split)
 		bioset_free(c->bio_split);
+	if (c->fill_iter)
+		mempool_destroy(c->fill_iter);
 	if (c->bio_meta)
 		mempool_destroy(c->bio_meta);
 	if (c->search)
@@ -1295,7 +1296,7 @@ static void cache_set_flush(struct closure *cl)
 	/* Should skip this if we're unregistering because of an error */
 	list_for_each_entry(b, &c->btree_cache, list)
 		if (btree_node_dirty(b))
-			bch_btree_write(b, true, NULL);
+			bch_btree_node_write(b, NULL);
 
 	closure_return(cl);
 }
@@ -1374,7 +1375,6 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 				       BTREE_MAX_PAGES);
 
 	mutex_init(&c->bucket_lock);
-	mutex_init(&c->fill_lock);
 	mutex_init(&c->sort_lock);
 	spin_lock_init(&c->sort_time_lock);
 	closure_init_unlocked(&c->sb_write);
@@ -1400,16 +1400,14 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	    !(c->bio_meta = mempool_create_kmalloc_pool(2,
 				sizeof(struct bbio) + sizeof(struct bio_vec) *
 				bucket_pages(c))) ||
+	    !(c->fill_iter = mempool_create_kmalloc_pool(1, iter_size)) ||
 	    !(c->bio_split = bioset_create(4, offsetof(struct bbio, bio))) ||
-	    !(c->fill_iter = kmalloc(iter_size, GFP_KERNEL)) ||
 	    !(c->sort = alloc_bucket_pages(GFP_KERNEL, c)) ||
 	    !(c->uuids = alloc_bucket_pages(GFP_KERNEL, c)) ||
 	    bch_journal_alloc(c) ||
 	    bch_btree_cache_alloc(c) ||
 	    bch_open_buckets_alloc(c))
 		goto err;
-
-	c->fill_iter->size = sb->bucket_size / sb->block_size;
 
 	c->congested_read_threshold_us	= 2000;
 	c->congested_write_threshold_us	= 20000;
@@ -1551,7 +1549,7 @@ static void run_cache_set(struct cache_set *c)
 			goto err_unlock_gc;
 
 		bkey_copy_key(&c->root->key, &MAX_KEY);
-		bch_btree_write(c->root, true, &op);
+		bch_btree_node_write(c->root, &op.cl);
 
 		bch_btree_set_root(c->root);
 		rw_unlock(true, c->root);

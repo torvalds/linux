@@ -144,7 +144,7 @@ void bch_btree_verify(struct btree *b, struct bset *new)
 	v->written = 0;
 	v->level = b->level;
 
-	bch_btree_read(v);
+	bch_btree_node_read(v);
 	closure_wait_event(&v->io.wait, &cl,
 			   atomic_read(&b->io.cl.remaining) == -1);
 
@@ -512,7 +512,7 @@ static ssize_t btree_fuzz(struct kobject *k, struct kobj_attribute *a,
 
 		bch_btree_sort(b);
 		fill->written = 0;
-		bch_btree_read_done(&fill->io.cl);
+		bch_btree_node_read_done(fill);
 
 		if (b->sets[0].data->keys != fill->sets[0].data->keys ||
 		    memcmp(b->sets[0].data->start,

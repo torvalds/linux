@@ -384,7 +384,7 @@ out:
 		return;
 found:
 	if (btree_node_dirty(best))
-		bch_btree_write(best, true, NULL);
+		bch_btree_node_write(best, NULL);
 	rw_unlock(true, best);
 }
 

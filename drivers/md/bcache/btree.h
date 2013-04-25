@@ -102,7 +102,6 @@
 #include "debug.h"
 
 struct btree_write {
-	struct closure		*owner;
 	atomic_t		*journal;
 
 	/* If btree_split() frees a btree node, it writes a new pointer to that
@@ -142,16 +141,12 @@ struct btree {
 	 */
 	struct bset_tree	sets[MAX_BSETS];
 
-	/* Used to refcount bio splits, also protects b->bio */
+	/* For outstanding btree writes, used as a lock - protects write_idx */
 	struct closure_with_waitlist	io;
-
-	/* Gets transferred to w->prio_blocked - see the comment there */
-	int			prio_blocked;
 
 	struct list_head	list;
 	struct delayed_work	work;
 
-	uint64_t		io_start_time;
 	struct btree_write	writes[2];
 	struct bio		*bio;
 };
@@ -164,13 +159,11 @@ static inline void set_btree_node_ ## flag(struct btree *b)		\
 {	set_bit(BTREE_NODE_ ## flag, &b->flags); }			\
 
 enum btree_flags {
-	BTREE_NODE_read_done,
 	BTREE_NODE_io_error,
 	BTREE_NODE_dirty,
 	BTREE_NODE_write_idx,
 };
 
-BTREE_FLAG(read_done);
 BTREE_FLAG(io_error);
 BTREE_FLAG(dirty);
 BTREE_FLAG(write_idx);
@@ -293,9 +286,7 @@ static inline void rw_unlock(bool w, struct btree *b)
 #ifdef CONFIG_BCACHE_EDEBUG
 	unsigned i;
 
-	if (w &&
-	    b->key.ptr[0] &&
-	    btree_node_read_done(b))
+	if (w && b->key.ptr[0])
 		for (i = 0; i <= b->nsets; i++)
 			bch_check_key_order(b, b->sets[i].data);
 #endif
@@ -370,9 +361,9 @@ static inline bool should_split(struct btree *b)
 		 > btree_blocks(b));
 }
 
-void bch_btree_read_done(struct closure *);
-void bch_btree_read(struct btree *);
-void bch_btree_write(struct btree *b, bool now, struct btree_op *op);
+void bch_btree_node_read(struct btree *);
+void bch_btree_node_read_done(struct btree *);
+void bch_btree_node_write(struct btree *, struct closure *);
 
 void bch_cannibalize_unlock(struct cache_set *, struct closure *);
 void bch_btree_set_root(struct btree *);
