@@ -207,6 +207,37 @@ static void tick_setup_device(struct tick_device *td,
 		tick_setup_oneshot(newdev, handler, next_event);
 }
 
+static bool tick_check_percpu(struct clock_event_device *curdev,
+			      struct clock_event_device *newdev, int cpu)
+{
+	if (!cpumask_test_cpu(cpu, newdev->cpumask))
+		return false;
+	if (cpumask_equal(newdev->cpumask, cpumask_of(cpu)))
+		return true;
+	/* Check if irq affinity can be set */
+	if (newdev->irq >= 0 && !irq_can_set_affinity(newdev->irq))
+		return false;
+	/* Prefer an existing cpu local device */
+	if (curdev && cpumask_equal(curdev->cpumask, cpumask_of(cpu)))
+		return false;
+	return true;
+}
+
+static bool tick_check_preferred(struct clock_event_device *curdev,
+				 struct clock_event_device *newdev)
+{
+	/* Prefer oneshot capable device */
+	if (!(newdev->features & CLOCK_EVT_FEAT_ONESHOT)) {
+		if (curdev && (curdev->features & CLOCK_EVT_FEAT_ONESHOT))
+			return false;
+		if (tick_oneshot_mode_active())
+			return false;
+	}
+
+	/* Use the higher rated one */
+	return !curdev || newdev->rating > curdev->rating;
+}
+
 /*
  * Check, if the new registered device should be used.
  */
@@ -227,40 +258,12 @@ void tick_check_new_device(struct clock_event_device *newdev)
 	curdev = td->evtdev;
 
 	/* cpu local device ? */
-	if (!cpumask_equal(newdev->cpumask, cpumask_of(cpu))) {
+	if (!tick_check_percpu(curdev, newdev, cpu))
+		goto out_bc;
 
-		/*
-		 * If the cpu affinity of the device interrupt can not
-		 * be set, ignore it.
-		 */
-		if (!irq_can_set_affinity(newdev->irq))
-			goto out_bc;
-
-		/*
-		 * If we have a cpu local device already, do not replace it
-		 * by a non cpu local device
-		 */
-		if (curdev && cpumask_equal(curdev->cpumask, cpumask_of(cpu)))
-			goto out_bc;
-	}
-
-	/*
-	 * If we have an active device, then check the rating and the oneshot
-	 * feature.
-	 */
-	if (curdev) {
-		/*
-		 * Prefer one shot capable devices !
-		 */
-		if ((curdev->features & CLOCK_EVT_FEAT_ONESHOT) &&
-		    !(newdev->features & CLOCK_EVT_FEAT_ONESHOT))
-			goto out_bc;
-		/*
-		 * Check the rating
-		 */
-		if (curdev->rating >= newdev->rating)
-			goto out_bc;
-	}
+	/* Preference decision */
+	if (!tick_check_preferred(curdev, newdev))
+		goto out_bc;
 
 	if (!try_module_get(newdev->owner))
 		return;
