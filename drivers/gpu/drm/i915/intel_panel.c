@@ -58,7 +58,6 @@ intel_pch_panel_fitting(struct intel_crtc *intel_crtc,
 			struct intel_crtc_config *pipe_config,
 			int fitting_mode)
 {
-	struct drm_i915_private *dev_priv = intel_crtc->base.dev->dev_private;
 	struct drm_display_mode *mode, *adjusted_mode;
 	int x, y, width, height;
 
@@ -107,12 +106,15 @@ intel_pch_panel_fitting(struct intel_crtc *intel_crtc,
 		}
 		break;
 
-	default:
 	case DRM_MODE_SCALE_FULLSCREEN:
 		x = y = 0;
 		width = adjusted_mode->hdisplay;
 		height = adjusted_mode->vdisplay;
 		break;
+
+	default:
+		WARN(1, "bad panel fit mode: %d\n", fitting_mode);
+		return;
 	}
 
 done:
@@ -267,7 +269,6 @@ void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
 			}
 		}
 		break;
-	default:
 	case DRM_MODE_SCALE_FULLSCREEN:
 		/*
 		 * Full scaling, even if it changes the aspect ratio.
@@ -285,6 +286,9 @@ void intel_gmch_panel_fitting(struct intel_crtc *intel_crtc,
 						 HORIZ_INTERP_BILINEAR);
 		}
 		break;
+	default:
+		WARN(1, "bad panel fit mode: %d\n", fitting_mode);
+		return;
 	}
 
 	/* 965+ wants fuzzy fitting */
