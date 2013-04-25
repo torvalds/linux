@@ -3908,6 +3908,7 @@ static char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev, u32 which)
 	if (!reply_buf)
 		return ERR_PTR(-ENOMEM);
 
+	rbd_assert(which < rbd_dev->header.snapc->num_snaps);
 	snap_id = cpu_to_le64(rbd_dev->header.snapc->snaps[which]);
 	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_snapshot_name",
@@ -3940,17 +3941,30 @@ static char *rbd_dev_v2_snap_info(struct rbd_device *rbd_dev, u32 which,
 		u64 *snap_size, u64 *snap_features)
 {
 	u64 snap_id;
+	u64 size;
+	u64 features;
+	char *snap_name;
 	int ret;
 
+	rbd_assert(which < rbd_dev->header.snapc->num_snaps);
 	snap_id = rbd_dev->header.snapc->snaps[which];
-	ret = _rbd_dev_v2_snap_size(rbd_dev, snap_id, NULL, snap_size);
+	ret = _rbd_dev_v2_snap_size(rbd_dev, snap_id, NULL, &size);
 	if (ret)
-		return ERR_PTR(ret);
-	ret = _rbd_dev_v2_snap_features(rbd_dev, snap_id, snap_features);
-	if (ret)
-		return ERR_PTR(ret);
+		goto out_err;
 
-	return rbd_dev_v2_snap_name(rbd_dev, which);
+	ret = _rbd_dev_v2_snap_features(rbd_dev, snap_id, &features);
+	if (ret)
+		goto out_err;
+
+	snap_name = rbd_dev_v2_snap_name(rbd_dev, which);
+	if (!IS_ERR(snap_name)) {
+		*snap_size = size;
+		*snap_features = features;
+	}
+
+	return snap_name;
+out_err:
+	return ERR_PTR(ret);
 }
 
 static char *rbd_dev_snap_info(struct rbd_device *rbd_dev, u32 which,
