@@ -755,6 +755,12 @@ be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 	int status;
 	u8 link_status = 0;
 
+	if (adapter->function_caps & BE_FUNCTION_CAPS_SUPER_NIC) {
+		dev_err(&adapter->pdev->dev, "Self test not supported\n");
+		test->flags |= ETH_TEST_FL_FAILED;
+		return;
+	}
+
 	memset(data, 0, sizeof(u64) * ETHTOOL_TESTS_NUM);
 
 	if (test->flags & ETH_TEST_FL_OFFLINE) {
