@@ -4,9 +4,9 @@
 struct pci_dn;
 
 enum pnv_phb_type {
-	PNV_PHB_P5IOC2,
-	PNV_PHB_IODA1,
-	PNV_PHB_IODA2,
+	PNV_PHB_P5IOC2	= 0,
+	PNV_PHB_IODA1	= 1,
+	PNV_PHB_IODA2	= 2,
 };
 
 /* Precise PHB model for error management */
@@ -14,6 +14,7 @@ enum pnv_phb_model {
 	PNV_PHB_MODEL_UNKNOWN,
 	PNV_PHB_MODEL_P5IOC2,
 	PNV_PHB_MODEL_P7IOC,
+	PNV_PHB_MODEL_PHB3,
 };
 
 #define PNV_PCI_DIAG_BUF_SIZE	4096
@@ -148,6 +149,7 @@ extern void pnv_pci_setup_iommu_table(struct iommu_table *tbl,
 				      u64 dma_offset);
 extern void pnv_pci_init_p5ioc2_hub(struct device_node *np);
 extern void pnv_pci_init_ioda_hub(struct device_node *np);
+extern void pnv_pci_init_ioda2_phb(struct device_node *np);
 
 
 #endif /* __POWERNV_PCI_H */
