@@ -21,7 +21,6 @@
 #include <sound/soc.h>
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
-#include <linux/of_dma.h>
 
 #include <sound/dmaengine_pcm.h>
 
@@ -29,7 +28,7 @@ struct dmaengine_pcm {
 	struct dma_chan *chan[SNDRV_PCM_STREAM_CAPTURE + 1];
 	const struct snd_dmaengine_pcm_config *config;
 	struct snd_soc_platform platform;
-	bool compat;
+	unsigned int flags;
 };
 
 static struct dmaengine_pcm *soc_platform_to_pcm(struct snd_soc_platform *p)
@@ -128,6 +127,9 @@ static struct dma_chan *dmaengine_pcm_compat_request_channel(
 {
 	struct dmaengine_pcm *pcm = soc_platform_to_pcm(rtd->platform);
 
+	if ((pcm->flags & SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX) && pcm->chan[0])
+		return pcm->chan[0];
+
 	if (pcm->config->compat_request_channel)
 		return pcm->config->compat_request_channel(rtd, substream);
 
@@ -148,7 +150,7 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		if (!substream)
 			continue;
 
-		if (!pcm->chan[i] && pcm->compat) {
+		if (!pcm->chan[i] && (pcm->flags & SND_DMAENGINE_PCM_FLAG_COMPAT)) {
 			pcm->chan[i] = dmaengine_pcm_compat_request_channel(rtd,
 				substream);
 		}
@@ -215,6 +217,25 @@ static const char * const dmaengine_pcm_dma_channel_names[] = {
 	[SNDRV_PCM_STREAM_CAPTURE] = "rx",
 };
 
+static void dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
+	struct device *dev)
+{
+	unsigned int i;
+
+	if ((pcm->flags & SND_DMAENGINE_PCM_FLAG_NO_DT) || !dev->of_node)
+		return;
+
+	if (pcm->flags & SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX) {
+		pcm->chan[0] = dma_request_slave_channel(dev, "rx-tx");
+		pcm->chan[1] = pcm->chan[0];
+	} else {
+		for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_CAPTURE; i++) {
+			pcm->chan[i] = dma_request_slave_channel(dev,
+					dmaengine_pcm_dma_channel_names[i]);
+		}
+	}
+}
+
 /**
  * snd_dmaengine_pcm_register - Register a dmaengine based PCM device
  * @dev: The parent device for the PCM device
@@ -225,23 +246,15 @@ int snd_dmaengine_pcm_register(struct device *dev,
 	const struct snd_dmaengine_pcm_config *config, unsigned int flags)
 {
 	struct dmaengine_pcm *pcm;
-	unsigned int i;
 
 	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
 		return -ENOMEM;
 
 	pcm->config = config;
+	pcm->flags = flags;
 
-	if (flags & SND_DMAENGINE_PCM_FLAG_COMPAT)
-		pcm->compat = true;
-
-	if (!(flags & SND_DMAENGINE_PCM_FLAG_NO_DT) && dev->of_node) {
-		for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_CAPTURE; i++) {
-			pcm->chan[i] = of_dma_request_slave_channel(dev->of_node,
-					dmaengine_pcm_dma_channel_names[i]);
-		}
-	}
+	dmaengine_pcm_request_chan_of(pcm, dev);
 
 	if (flags & SND_DMAENGINE_PCM_FLAG_NO_RESIDUE)
 		return snd_soc_add_platform(dev, &pcm->platform,
@@ -272,8 +285,11 @@ void snd_dmaengine_pcm_unregister(struct device *dev)
 	pcm = soc_platform_to_pcm(platform);
 
 	for (i = SNDRV_PCM_STREAM_PLAYBACK; i <= SNDRV_PCM_STREAM_CAPTURE; i++) {
-		if (pcm->chan[i])
+		if (pcm->chan[i]) {
 			dma_release_channel(pcm->chan[i]);
+			if (pcm->flags & SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX)
+				break;
+		}
 	}
 
 	snd_soc_remove_platform(platform);

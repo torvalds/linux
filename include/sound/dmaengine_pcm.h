@@ -91,6 +91,11 @@ void snd_dmaengine_pcm_set_config_from_dai_data(
  * bytes that are still left to transfer.
  */
 #define SND_DMAENGINE_PCM_FLAG_NO_RESIDUE BIT(2)
+/*
+ * The PCM is half duplex and the DMA channel is shared between capture and
+ * playback.
+ */
+#define SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX BIT(3)
 
 /**
  * struct snd_dmaengine_pcm_config - Configuration data for dmaengine based PCM

@@ -134,7 +134,7 @@ static struct sk_buff *cdc_mbim_tx_fixup(struct usbnet *dev, struct sk_buff *skb
 		goto error;
 
 	if (skb) {
-		if (skb->len <= sizeof(ETH_HLEN))
+		if (skb->len <= ETH_HLEN)
 			goto error;
 
 		/* mapping VLANs to MBIM sessions:

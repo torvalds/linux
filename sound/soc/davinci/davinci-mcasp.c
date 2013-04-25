@@ -636,11 +636,12 @@ static int davinci_config_channel_size(struct davinci_audio_dev *dev,
 	 * callback, take it into account here. That allows us to for example
 	 * send 32 bits per channel to the codec, while only 16 of them carry
 	 * audio payload.
-	 * The clock ratio is given for a full period of data (both left and
-	 * right channels), so it has to be divided by 2.
+	 * The clock ratio is given for a full period of data (for I2S format
+	 * both left and right channels), so it has to be divided by number of
+	 * tdm-slots (for I2S - divided by 2).
 	 */
 	if (dev->bclk_lrclk_ratio)
-		word_length = dev->bclk_lrclk_ratio / 2;
+		word_length = dev->bclk_lrclk_ratio / dev->tdm_slots;
 
 	/* mapping of the XSSZ bit-field as described in the datasheet */
 	fmt = (word_length >> 1) - 1;
@@ -834,17 +835,20 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	int word_length;
 	u8 fifo_level;
 	u8 slots = dev->tdm_slots;
+	u8 active_serializers;
 	int channels;
 	struct snd_interval *pcm_channels = hw_param_interval(params,
 					SNDRV_PCM_HW_PARAM_CHANNELS);
 	channels = pcm_channels->min;
 
+	active_serializers = (channels + slots - 1) / slots;
+
 	if (davinci_hw_common_param(dev, substream->stream, channels) == -EINVAL)
 		return -EINVAL;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		fifo_level = dev->txnumevt;
+		fifo_level = dev->txnumevt * active_serializers;
 	else
-		fifo_level = dev->rxnumevt;
+		fifo_level = dev->rxnumevt * active_serializers;
 
 	if (dev->op_mode == DAVINCI_MCASP_DIT_MODE)
 		davinci_hw_dit_param(dev);
@@ -889,7 +893,6 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 		dma_params->acnt = dma_params->data_type;
 
 	dma_params->fifo_level = fifo_level;
-	dma_params->active_serializers = (channels + slots - 1) / slots;
 	davinci_config_channel_size(dev, word_length);
 
 	return 0;

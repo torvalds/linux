@@ -1043,7 +1043,7 @@ static int dbg_cpu_pm_notify(struct notifier_block *self, unsigned long action,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata dbg_cpu_pm_nb = {
+static struct notifier_block dbg_cpu_pm_nb = {
 	.notifier_call = dbg_cpu_pm_notify,
 };
 
