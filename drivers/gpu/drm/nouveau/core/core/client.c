@@ -27,7 +27,7 @@
 #include <core/handle.h>
 #include <core/option.h>
 
-#include <subdev/device.h>
+#include <engine/device.h>
 
 static void
 nouveau_client_dtor(struct nouveau_object *object)

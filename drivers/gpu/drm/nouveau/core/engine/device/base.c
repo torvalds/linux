@@ -29,7 +29,7 @@
 
 #include <core/class.h>
 
-#include <subdev/device.h>
+#include <engine/device.h>
 
 static DEFINE_MUTEX(nv_devices_mutex);
 static LIST_HEAD(nv_devices);
@@ -428,15 +428,15 @@ nouveau_device_dtor(struct nouveau_object *object)
 	list_del(&device->head);
 	mutex_unlock(&nv_devices_mutex);
 
-	if (device->base.mmio)
-		iounmap(device->base.mmio);
+	if (nv_subdev(device)->mmio)
+		iounmap(nv_subdev(device)->mmio);
 
-	nouveau_subdev_destroy(&device->base);
+	nouveau_engine_destroy(&device->base);
 }
 
 static struct nouveau_oclass
 nouveau_device_oclass = {
-	.handle = NV_SUBDEV(DEVICE, 0x00),
+	.handle = NV_ENGINE(DEVICE, 0x00),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.dtor = nouveau_device_dtor,
 	},
@@ -456,7 +456,7 @@ nouveau_device_create_(struct pci_dev *pdev, u64 name, const char *sname,
 			goto done;
 	}
 
-	ret = nouveau_subdev_create_(NULL, NULL, &nouveau_device_oclass, 0,
+	ret = nouveau_engine_create_(NULL, NULL, &nouveau_device_oclass, true,
 				     "DEVICE", "device", length, pobject);
 	device = *pobject;
 	if (ret)

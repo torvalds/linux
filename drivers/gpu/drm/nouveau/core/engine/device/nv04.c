@@ -22,7 +22,6 @@
  * Authors: Ben Skeggs
  */
 
-#include <subdev/device.h>
 #include <subdev/bios.h>
 #include <subdev/bus.h>
 #include <subdev/i2c.h>
@@ -34,6 +33,7 @@
 #include <subdev/instmem.h>
 #include <subdev/vm.h>
 
+#include <engine/device.h>
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
 #include <engine/software.h>

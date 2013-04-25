@@ -31,10 +31,10 @@
 #include <core/gpuobj.h>
 #include <core/class.h>
 
-#include <subdev/device.h>
-#include <subdev/vm.h>
-
+#include <engine/device.h>
 #include <engine/disp.h>
+
+#include <subdev/vm.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
