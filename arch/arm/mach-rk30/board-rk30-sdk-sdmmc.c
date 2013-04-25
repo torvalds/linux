@@ -132,7 +132,7 @@
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)//refer to file /arch/arm/mach-rk30/include/mach/iomux-rk3066b.h
     #define WIFI_HOST_WAKE RK30_PIN3_PD2
          
-    #if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
+    #if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) || defined(CONFIG_RTL8723AU)
         #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0            
         #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_LOW//GPIO_HIGH        
         #define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        "wifi_power"
@@ -202,7 +202,7 @@
         //#define RK30SDK_WIFI_GPIO_RESET_IOMUX_FGPIO     GPIO3C_GPIO3C2
 
 
-        #elif defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
+        #elif defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) || defined(CONFIG_RTL8723AU)
         #define RK30SDK_WIFI_GPIO_POWER_N               RK2928_PIN0_PD6
         #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_LOW
         #define RK30SDK_WIFI_GPIO_POWER_PIN_NAME        GPIO0D6_MMC1_PWREN_NAME
@@ -214,7 +214,7 @@
     // refer to file /arch/arm/mach-rk30/include/mach/Iomux.h
     #define WIFI_HOST_WAKE RK30_PIN3_PD2
 
-    #if defined(CONFIG_RKWIFI) || defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU)
+    #if defined(CONFIG_RKWIFI) || defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) || defined(CONFIG_RTL8723AU)
     //power
     #define RK30SDK_WIFI_GPIO_POWER_N               RK30_PIN3_PD0            
     #define RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE    GPIO_HIGH        
@@ -1699,7 +1699,8 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
     return 0;
 }
 
-#if (defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) )&& defined(CONFIG_ARCH_RK2928)
+#if (defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) || defined(CONFIG_RTL8723AU)) \
+	&& defined(CONFIG_ARCH_RK2928)
 static int usbwifi_power_status = 1;
 int rk29sdk_wifi_power(int on)
 {
