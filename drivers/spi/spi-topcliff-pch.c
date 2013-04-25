@@ -1789,8 +1789,10 @@ static int __init pch_spi_init(void)
 		return ret;
 
 	ret = pci_register_driver(&pch_spi_pcidev_driver);
-	if (ret)
+	if (ret) {
+		platform_driver_unregister(&pch_spi_pd_driver);
 		return ret;
+	}
 
 	return 0;
 }
