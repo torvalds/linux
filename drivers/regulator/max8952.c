@@ -225,6 +225,7 @@ static int max8952_pmic_probe(struct i2c_client *client,
 	config.dev = max8952->dev;
 	config.init_data = pdata->reg_data;
 	config.driver_data = max8952;
+	config.of_node = client->dev.of_node;
 
 	config.ena_gpio = pdata->gpio_en;
 	if (pdata->reg_data->constraints.boot_on)
