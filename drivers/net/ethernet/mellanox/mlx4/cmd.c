@@ -2016,3 +2016,34 @@ u32 mlx4_comm_get_version(void)
 {
 	 return ((u32) CMD_CHAN_IF_REV << 8) | (u32) CMD_CHAN_VER;
 }
+
+static int mlx4_get_slave_indx(struct mlx4_dev *dev, int vf)
+{
+	if ((vf < 0) || (vf >= dev->num_vfs)) {
+		mlx4_err(dev, "Bad vf number:%d (number of activated vf: %d)\n", vf, dev->num_vfs);
+		return -EINVAL;
+	}
+
+	return vf+1;
+}
+
+int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_vport_state *s_info;
+	int slave;
+
+	if (!mlx4_is_master(dev))
+		return -EPROTONOSUPPORT;
+
+	slave = mlx4_get_slave_indx(dev, vf);
+	if (slave < 0)
+		return -EINVAL;
+
+	s_info = &priv->mfunc.master.vf_admin[slave].vport[port];
+	s_info->mac = mac;
+	mlx4_info(dev, "default mac on vf %d port %d to %llX will take afect only after vf restart\n",
+		  vf, port, s_info->mac);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_set_vf_mac);

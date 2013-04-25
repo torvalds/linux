@@ -2024,6 +2024,19 @@ static int mlx4_en_set_features(struct net_device *netdev,
 
 }
 
+static int mlx4_en_set_vf_mac(struct net_device *dev, int queue, u8 *mac)
+{
+	struct mlx4_en_priv *en_priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = en_priv->mdev;
+	u64 mac_u64 = mlx4_en_mac_to_u64(mac);
+
+	if (!is_valid_ether_addr(mac))
+		return -EINVAL;
+
+	return mlx4_set_vf_mac(mdev->dev, en_priv->port, queue, mac_u64);
+}
+
+
 static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_open		= mlx4_en_open,
 	.ndo_stop		= mlx4_en_close,
@@ -2038,6 +2051,30 @@ static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_tx_timeout		= mlx4_en_tx_timeout,
 	.ndo_vlan_rx_add_vid	= mlx4_en_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= mlx4_en_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= mlx4_en_netpoll,
+#endif
+	.ndo_set_features	= mlx4_en_set_features,
+	.ndo_setup_tc		= mlx4_en_setup_tc,
+#ifdef CONFIG_RFS_ACCEL
+	.ndo_rx_flow_steer	= mlx4_en_filter_rfs,
+#endif
+};
+
+static const struct net_device_ops mlx4_netdev_ops_master = {
+	.ndo_open		= mlx4_en_open,
+	.ndo_stop		= mlx4_en_close,
+	.ndo_start_xmit		= mlx4_en_xmit,
+	.ndo_select_queue	= mlx4_en_select_queue,
+	.ndo_get_stats		= mlx4_en_get_stats,
+	.ndo_set_rx_mode	= mlx4_en_set_rx_mode,
+	.ndo_set_mac_address	= mlx4_en_set_mac,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= mlx4_en_change_mtu,
+	.ndo_tx_timeout		= mlx4_en_tx_timeout,
+	.ndo_vlan_rx_add_vid	= mlx4_en_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= mlx4_en_vlan_rx_kill_vid,
+	.ndo_set_vf_mac		= mlx4_en_set_vf_mac,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= mlx4_en_netpoll,
 #endif
@@ -2164,7 +2201,10 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	/*
 	 * Initialize netdev entry points
 	 */
-	dev->netdev_ops = &mlx4_netdev_ops;
+	if (mlx4_is_master(priv->mdev->dev))
+		dev->netdev_ops = &mlx4_netdev_ops_master;
+	else
+		dev->netdev_ops = &mlx4_netdev_ops;
 	dev->watchdog_timeo = MLX4_EN_WATCHDOG_TIMEOUT;
 	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
