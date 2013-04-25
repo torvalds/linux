@@ -410,7 +410,7 @@ static void remove_rbio_from_cache(struct btrfs_raid_bio *rbio)
 /*
  * remove everything in the cache
  */
-void btrfs_clear_rbio_cache(struct btrfs_fs_info *info)
+static void btrfs_clear_rbio_cache(struct btrfs_fs_info *info)
 {
 	struct btrfs_stripe_hash_table *table;
 	unsigned long flags;
@@ -1010,12 +1010,12 @@ static int alloc_rbio_parity_pages(struct btrfs_raid_bio *rbio)
  * this will try to merge into existing bios if possible, and returns
  * zero if all went well.
  */
-int rbio_add_io_page(struct btrfs_raid_bio *rbio,
-		     struct bio_list *bio_list,
-		     struct page *page,
-		     int stripe_nr,
-		     unsigned long page_index,
-		     unsigned long bio_max_len)
+static int rbio_add_io_page(struct btrfs_raid_bio *rbio,
+			    struct bio_list *bio_list,
+			    struct page *page,
+			    int stripe_nr,
+			    unsigned long page_index,
+			    unsigned long bio_max_len)
 {
 	struct bio *last = bio_list->tail;
 	u64 last_end = 0;

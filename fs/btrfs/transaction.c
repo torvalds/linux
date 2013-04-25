@@ -34,7 +34,7 @@
 
 #define BTRFS_ROOT_TRANS_TAG 0
 
-void put_transaction(struct btrfs_transaction *transaction)
+static void put_transaction(struct btrfs_transaction *transaction)
 {
 	WARN_ON(atomic_read(&transaction->use_count) == 0);
 	if (atomic_dec_and_test(&transaction->use_count)) {

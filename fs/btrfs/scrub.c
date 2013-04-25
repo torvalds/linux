@@ -3012,28 +3012,6 @@ int btrfs_scrub_cancel_dev(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-int btrfs_scrub_cancel_devid(struct btrfs_root *root, u64 devid)
-{
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_device *dev;
-	int ret;
-
-	/*
-	 * we have to hold the device_list_mutex here so the device
-	 * does not go away in cancel_dev. FIXME: find a better solution
-	 */
-	mutex_lock(&fs_info->fs_devices->device_list_mutex);
-	dev = btrfs_find_device(fs_info, devid, NULL, NULL);
-	if (!dev) {
-		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-		return -ENODEV;
-	}
-	ret = btrfs_scrub_cancel_dev(fs_info, dev);
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-
-	return ret;
-}
-
 int btrfs_scrub_progress(struct btrfs_root *root, u64 devid,
 			 struct btrfs_scrub_progress *progress)
 {

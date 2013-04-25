@@ -103,6 +103,8 @@ static struct extent_map *create_pinned_em(struct inode *inode, u64 start,
 					   u64 orig_block_len, u64 ram_bytes,
 					   int type);
 
+static int btrfs_dirty_inode(struct inode *inode);
+
 static int btrfs_init_inode_security(struct btrfs_trans_handle *trans,
 				     struct inode *inode,  struct inode *dir,
 				     const struct qstr *qstr)
@@ -3024,7 +3026,8 @@ int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode)
  * We have done the truncate/delete so we can go ahead and remove the orphan
  * item for this particular inode.
  */
-int btrfs_orphan_del(struct btrfs_trans_handle *trans, struct inode *inode)
+static int btrfs_orphan_del(struct btrfs_trans_handle *trans,
+			    struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int delete_item = 0;
@@ -5342,7 +5345,7 @@ int btrfs_write_inode(struct inode *inode, struct writeback_control *wbc)
  * FIXME, needs more benchmarking...there are no reasons other than performance
  * to keep or drop this code.
  */
-int btrfs_dirty_inode(struct inode *inode)
+static int btrfs_dirty_inode(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
@@ -7437,8 +7440,8 @@ static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
 	return extent_write_full_page(tree, page, btrfs_get_extent, wbc);
 }
 
-int btrfs_writepages(struct address_space *mapping,
-		     struct writeback_control *wbc)
+static int btrfs_writepages(struct address_space *mapping,
+			    struct writeback_control *wbc)
 {
 	struct extent_io_tree *tree;
 

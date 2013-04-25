@@ -183,10 +183,11 @@ int btrfs_get_inode_ref_index(struct btrfs_trans_handle *trans,
 	return -ENOENT;
 }
 
-int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root,
-			   const char *name, int name_len,
-			   u64 inode_objectid, u64 ref_objectid, u64 *index)
+static int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
+				  struct btrfs_root *root,
+				  const char *name, int name_len,
+				  u64 inode_objectid, u64 ref_objectid,
+				  u64 *index)
 {
 	struct btrfs_path *path;
 	struct btrfs_key key;

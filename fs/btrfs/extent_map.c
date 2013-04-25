@@ -345,8 +345,9 @@ static u64 range_end(u64 start, u64 len)
 	return start + len;
 }
 
-struct extent_map *__lookup_extent_mapping(struct extent_map_tree *tree,
-					   u64 start, u64 len, int strict)
+static struct extent_map *
+__lookup_extent_mapping(struct extent_map_tree *tree,
+			u64 start, u64 len, int strict)
 {
 	struct extent_map *em;
 	struct rb_node *rb_node;
