@@ -197,6 +197,7 @@ static struct regulator_ops tps65023_dcdc_ops = {
 	.get_voltage_sel = tps65023_dcdc_get_voltage_sel,
 	.set_voltage_sel = tps65023_dcdc_set_voltage_sel,
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 };
 
 /* Operations permitted on LDOx */
@@ -207,6 +208,7 @@ static struct regulator_ops tps65023_ldo_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 };
 
 static struct regmap_config tps65023_regmap_config = {
