@@ -918,13 +918,15 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 		break;
 
 	case 7:
-		if (IS_HASWELL(dev) || IS_VALLEYVIEW(dev))
-			intel_plane->can_scale = false;
-		else
+		if (IS_IVYBRIDGE(dev)) {
 			intel_plane->can_scale = true;
+			intel_plane->max_downscale = 2;
+		} else {
+			intel_plane->can_scale = false;
+			intel_plane->max_downscale = 1;
+		}
 
 		if (IS_VALLEYVIEW(dev)) {
-			intel_plane->max_downscale = 1;
 			intel_plane->update_plane = vlv_update_plane;
 			intel_plane->disable_plane = vlv_disable_plane;
 			intel_plane->update_colorkey = vlv_update_colorkey;
@@ -933,7 +935,6 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 			plane_formats = vlv_plane_formats;
 			num_plane_formats = ARRAY_SIZE(vlv_plane_formats);
 		} else {
-			intel_plane->max_downscale = 2;
 			intel_plane->update_plane = ivb_update_plane;
 			intel_plane->disable_plane = ivb_disable_plane;
 			intel_plane->update_colorkey = ivb_update_colorkey;
