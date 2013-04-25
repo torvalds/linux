@@ -39,6 +39,7 @@ struct r820t_config {
 	enum r820t_chip rafael_chip;
 	unsigned max_i2c_msg_len;
 	bool use_diplexer;
+	bool use_predetect;
 };
 
 #if IS_ENABLED(CONFIG_MEDIA_TUNER_R820T)

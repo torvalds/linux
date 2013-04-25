@@ -797,6 +797,13 @@ static int r820t_sysfreq_sel(struct r820t_priv *priv, u32 freq,
 		cable2_in = 0x00;
 	}
 
+
+	if (priv->cfg->use_predetect) {
+		rc = r820t_write_reg_mask(priv, 0x06, pre_dect, 0x40);
+		if (rc < 0)
+			return rc;
+	}
+
 	rc = r820t_write_reg_mask(priv, 0x1d, lna_top, 0xc7);
 	if (rc < 0)
 		return rc;
