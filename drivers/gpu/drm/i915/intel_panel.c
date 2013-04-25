@@ -344,6 +344,8 @@ void intel_panel_enable_backlight(struct drm_device *dev,
 				  enum pipe pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum transcoder cpu_transcoder =
+		intel_pipe_to_cpu_transcoder(dev_priv, pipe);
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev_priv->backlight.lock, flags);
@@ -374,7 +376,10 @@ void intel_panel_enable_backlight(struct drm_device *dev,
 		else
 			tmp &= ~BLM_PIPE_SELECT;
 
-		tmp |= BLM_PIPE(pipe);
+		if (cpu_transcoder == TRANSCODER_EDP)
+			tmp |= BLM_TRANSCODER_EDP;
+		else
+			tmp |= BLM_PIPE(cpu_transcoder);
 		tmp &= ~BLM_PWM_ENABLE;
 
 		I915_WRITE(reg, tmp);
