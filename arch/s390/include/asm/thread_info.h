@@ -14,13 +14,8 @@
 #define THREAD_ORDER 1
 #define ASYNC_ORDER  1
 #else /* CONFIG_64BIT */
-#ifndef __SMALL_STACK
 #define THREAD_ORDER 2
 #define ASYNC_ORDER  2
-#else
-#define THREAD_ORDER 1
-#define ASYNC_ORDER  1
-#endif
 #endif /* CONFIG_64BIT */
 
 #define THREAD_SIZE (PAGE_SIZE << THREAD_ORDER)
