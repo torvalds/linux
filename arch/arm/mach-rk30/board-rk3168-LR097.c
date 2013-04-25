@@ -808,6 +808,7 @@ static struct platform_device rk29_device_vibrator = {
 		{
 			gpio_direction_output(DVDD33_EN_PIN, DVDD33_EN_VALUE);
 		}
+		msleep(5);
 		
 		ret = gpio_request(DVDD18_EN_PIN, "dvdd18_en_pin");
 		if (ret != 0)

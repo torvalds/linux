@@ -749,6 +749,7 @@ static void anx6345_late_resume(struct early_suspend *h)
 {
 	struct edp_anx6345 *anx6345 = container_of(h, struct edp_anx6345, early_suspend);
 	gpio_set_value(anx6345->pdata->dvdd33_en_pin,anx6345->pdata->dvdd33_en_val);
+	msleep(5);
 	gpio_set_value(anx6345->pdata->dvdd18_en_pin,anx6345->pdata->dvdd18_en_val);
 	gpio_set_value(anx6345->pdata->edp_rst_pin,0);
 	msleep(50);
