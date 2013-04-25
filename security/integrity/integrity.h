@@ -67,7 +67,7 @@ struct ima_digest_data {
 	u8 algo;
 	u8 length;
 	u8 type;
-	u8 digest[IMA_MAX_DIGEST_SIZE];
+	u8 digest[0];
 } __packed;
 
 /*
@@ -93,7 +93,7 @@ struct integrity_iint_cache {
 	enum integrity_status ima_bprm_status:4;
 	enum integrity_status ima_module_status:4;
 	enum integrity_status evm_status:4;
-	struct ima_digest_data ima_hash;
+	struct ima_digest_data *ima_hash;
 };
 
 /* rbtree tree calls to lookup, insert, delete

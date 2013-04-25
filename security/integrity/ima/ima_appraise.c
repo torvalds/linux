@@ -45,10 +45,10 @@ int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func)
 static int ima_fix_xattr(struct dentry *dentry,
 			 struct integrity_iint_cache *iint)
 {
-	iint->ima_hash.type = IMA_XATTR_DIGEST;
+	iint->ima_hash->type = IMA_XATTR_DIGEST;
 	return __vfs_setxattr_noperm(dentry, XATTR_NAME_IMA,
-				     &iint->ima_hash.type,
-				     1 + iint->ima_hash.length, 0);
+				     &iint->ima_hash->type,
+				     1 + iint->ima_hash->length, 0);
 }
 
 /* Return specific func appraised cached result */
@@ -186,13 +186,13 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 			status = INTEGRITY_FAIL;
 			break;
 		}
-		if (xattr_len - 1 >= iint->ima_hash.length)
+		if (xattr_len - 1 >= iint->ima_hash->length)
 			/* xattr length may be longer. md5 hash in previous
 			   version occupied 20 bytes in xattr, instead of 16
 			 */
 			rc = memcmp(xattr_value->digest,
-				    iint->ima_hash.digest,
-				    iint->ima_hash.length);
+				    iint->ima_hash->digest,
+				    iint->ima_hash->length);
 		else
 			rc = -EINVAL;
 		if (rc) {
@@ -206,8 +206,8 @@ int ima_appraise_measurement(int func, struct integrity_iint_cache *iint,
 		iint->flags |= IMA_DIGSIG;
 		rc = integrity_digsig_verify(INTEGRITY_KEYRING_IMA,
 					     (const char *)xattr_value, rc,
-					     iint->ima_hash.digest,
-					     iint->ima_hash.length);
+					     iint->ima_hash->digest,
+					     iint->ima_hash->length);
 		if (rc == -EOPNOTSUPP) {
 			status = INTEGRITY_UNKNOWN;
 		} else if (rc) {
