@@ -8,6 +8,9 @@ config SOC_CAMERA
 	  over a bus like PCI or USB. For example some i2c camera connected
 	  directly to the data bus of an SoC.
 
+config SOC_CAMERA_SCALE_CROP
+	tristate
+
 config SOC_CAMERA_PLATFORM
 	tristate "platform camera support"
 	depends on SOC_CAMERA
@@ -51,6 +54,7 @@ config VIDEO_SH_MOBILE_CEU
 	tristate "SuperH Mobile CEU Interface driver"
 	depends on VIDEO_DEV && SOC_CAMERA && HAS_DMA && HAVE_CLK
 	select VIDEOBUF2_DMA_CONTIG
+	select SOC_CAMERA_SCALE_CROP
 	---help---
 	  This is a v4l2 driver for the SuperH Mobile CEU Interface
 
