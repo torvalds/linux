@@ -816,6 +816,7 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			    struct mlx4_cmd_mailbox *outbox,
 			    struct mlx4_cmd_info *cmd)
 {
+	struct mlx4_priv *priv = mlx4_priv(dev);
 	u64 def_mac;
 	u8 port_type;
 	u16 short_field;
@@ -833,6 +834,9 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 		/* set slave default_mac address */
 		MLX4_GET(def_mac, outbox->buf, QUERY_PORT_MAC_OFFSET);
 		def_mac += slave << 8;
+		/* if config MAC in DB use it */
+		if (priv->mfunc.master.vf_oper[slave].vport[vhcr->in_modifier].state.mac)
+			def_mac = priv->mfunc.master.vf_oper[slave].vport[vhcr->in_modifier].state.mac;
 		MLX4_PUT(outbox->buf, def_mac, QUERY_PORT_MAC_OFFSET);
 
 		/* get port type - currently only eth is enabled */
