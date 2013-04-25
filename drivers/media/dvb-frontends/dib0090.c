@@ -1540,13 +1540,9 @@ static void dib0090_set_EFUSE(struct dib0090_state *state)
 		if ((n >= POLY_MAX) || (n <= POLY_MIN))
 			n = 3;
 
-		if ((c >= CAP_VALUE_MIN) && (c <= CAP_VALUE_MAX)
-				&& (h >= HR_MIN) && (h <= HR_MAX)
-				&& (n >= POLY_MIN) && (n <= POLY_MAX)) {
-			dib0090_write_reg(state, 0x13, (h << 10));
-			e2 = (n << 11) | ((h >> 2)<<6) | c;
-			dib0090_write_reg(state, 0x2, e2); /* Load the BB_2 */
-		}
+		dib0090_write_reg(state, 0x13, (h << 10));
+		e2 = (n << 11) | ((h >> 2)<<6) | c;
+		dib0090_write_reg(state, 0x2, e2); /* Load the BB_2 */
 	}
 }
 
