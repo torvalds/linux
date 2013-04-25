@@ -249,6 +249,7 @@ struct intel_crtc_config {
 	struct {
 		u32 control;
 		u32 pgm_ratios;
+		u32 lvds_border_bits;
 	} gmch_pfit;
 
 	/* Panel fitter placement and size for Ironlake+ */
