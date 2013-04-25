@@ -419,6 +419,20 @@ nouveau_device_sclass[] = {
 	{}
 };
 
+static int
+nouveau_device_fini(struct nouveau_object *object, bool suspend)
+{
+	struct nouveau_device *device = (void *)object;
+	return nouveau_subdev_fini(&device->base, suspend);
+}
+
+static int
+nouveau_device_init(struct nouveau_object *object)
+{
+	struct nouveau_device *device = (void *)object;
+	return nouveau_subdev_init(&device->base);
+}
+
 static void
 nouveau_device_dtor(struct nouveau_object *object)
 {
@@ -439,6 +453,8 @@ nouveau_device_oclass = {
 	.handle = NV_ENGINE(DEVICE, 0x00),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.dtor = nouveau_device_dtor,
+		.init = nouveau_device_init,
+		.fini = nouveau_device_fini,
 	},
 };
 
@@ -462,7 +478,6 @@ nouveau_device_create_(struct pci_dev *pdev, u64 name, const char *sname,
 	if (ret)
 		goto done;
 
-	atomic_set(&nv_object(device)->usecount, 2);
 	device->pdev = pdev;
 	device->handle = name;
 	device->cfgopt = cfg;
