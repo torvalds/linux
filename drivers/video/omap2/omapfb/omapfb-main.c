@@ -2422,7 +2422,7 @@ static int omapfb_init_connections(struct omapfb2_device *fbdev,
 	return 0;
 }
 
-static int __init omapfb_probe(struct platform_device *pdev)
+static int omapfb_probe(struct platform_device *pdev)
 {
 	struct omapfb2_device *fbdev = NULL;
 	int r = 0;
@@ -2595,6 +2595,7 @@ static int __exit omapfb_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver omapfb_driver = {
+	.probe		= omapfb_probe,
 	.remove         = __exit_p(omapfb_remove),
 	.driver         = {
 		.name   = "omapfb",
@@ -2602,36 +2603,13 @@ static struct platform_driver omapfb_driver = {
 	},
 };
 
-static int __init omapfb_init(void)
-{
-	DBG("omapfb_init\n");
-
-	if (platform_driver_probe(&omapfb_driver, omapfb_probe)) {
-		printk(KERN_ERR "failed to register omapfb driver\n");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static void __exit omapfb_exit(void)
-{
-	DBG("omapfb_exit\n");
-	platform_driver_unregister(&omapfb_driver);
-}
-
 module_param_named(mode, def_mode, charp, 0);
 module_param_named(vram, def_vram, charp, 0);
 module_param_named(rotate, def_rotate, int, 0);
 module_param_named(vrfb, def_vrfb, bool, 0);
 module_param_named(mirror, def_mirror, bool, 0);
 
-/* late_initcall to let panel/ctrl drivers loaded first.
- * I guess better option would be a more dynamic approach,
- * so that omapfb reacts to new panels when they are loaded */
-late_initcall(omapfb_init);
-/*module_init(omapfb_init);*/
-module_exit(omapfb_exit);
+module_platform_driver(omapfb_driver);
 
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@nokia.com>");
 MODULE_DESCRIPTION("OMAP2/3 Framebuffer");
