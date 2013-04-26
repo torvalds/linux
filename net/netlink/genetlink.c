@@ -598,7 +598,7 @@ static int genl_family_rcv_msg(struct genl_family *family,
 		err = nlmsg_parse(nlh, hdrlen, attrbuf, family->maxattr,
 				  ops->policy);
 		if (err < 0)
-			return err;
+			goto out;
 	}
 
 	info.snd_seq = nlh->nlmsg_seq;
@@ -613,7 +613,7 @@ static int genl_family_rcv_msg(struct genl_family *family,
 	if (family->pre_doit) {
 		err = family->pre_doit(ops, skb, &info);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	err = ops->doit(skb, &info);
@@ -621,6 +621,7 @@ static int genl_family_rcv_msg(struct genl_family *family,
 	if (family->post_doit)
 		family->post_doit(ops, skb, &info);
 
+out:
 	if (family->parallel_ops)
 		kfree(attrbuf);
 
