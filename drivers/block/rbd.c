@@ -3425,8 +3425,6 @@ static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 
 static void rbd_dev_destroy(struct rbd_device *rbd_dev)
 {
-	rbd_spec_put(rbd_dev->parent_spec);
-	kfree(rbd_dev->header_name);
 	rbd_put_client(rbd_dev->rbd_client);
 	rbd_spec_put(rbd_dev->spec);
 	kfree(rbd_dev);
@@ -4788,6 +4786,8 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 	return ret;
 
 err_out_parent:
+	rbd_spec_put(rbd_dev->parent_spec);
+	kfree(rbd_dev->header_name);
 	rbd_dev_destroy(parent);
 err_out_spec:
 	rbd_spec_put(parent_spec);
@@ -4910,6 +4910,8 @@ static ssize_t rbd_add(struct bus_type *bus,
 
 	return count;
 err_out_rbd_dev:
+	rbd_spec_put(rbd_dev->parent_spec);
+	kfree(rbd_dev->header_name);
 	rbd_dev_destroy(rbd_dev);
 err_out_client:
 	rbd_put_client(rbdc);
@@ -4960,6 +4962,8 @@ static void rbd_dev_release(struct device *dev)
 	/* done with the id, and with the rbd_dev */
 	rbd_dev_id_put(rbd_dev);
 	rbd_assert(rbd_dev->rbd_client != NULL);
+	rbd_spec_put(rbd_dev->parent_spec);
+	kfree(rbd_dev->header_name);
 	rbd_dev_destroy(rbd_dev);
 
 	/* release module ref */
