@@ -23,7 +23,7 @@
 
 static struct device *sysctrl_dev;
 
-void ab8500_power_off(void)
+static void ab8500_power_off(void)
 {
 	sigset_t old;
 	sigset_t all;
