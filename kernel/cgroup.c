@@ -848,9 +848,12 @@ static void cgroup_free_fn(struct work_struct *work)
 	 */
 	dput(cgrp->parent->dentry);
 
+	ida_simple_remove(&cgrp->root->cgroup_ida, cgrp->id);
+
 	/*
 	 * Drop the active superblock reference that we took when we
-	 * created the cgroup
+	 * created the cgroup. This will free cgrp->root, if we are
+	 * holding the last reference to @sb.
 	 */
 	deactivate_super(cgrp->root->sb);
 
@@ -862,7 +865,6 @@ static void cgroup_free_fn(struct work_struct *work)
 
 	simple_xattrs_free(&cgrp->xattrs);
 
-	ida_simple_remove(&cgrp->root->cgroup_ida, cgrp->id);
 	kfree(rcu_dereference_raw(cgrp->name));
 	kfree(cgrp);
 }
