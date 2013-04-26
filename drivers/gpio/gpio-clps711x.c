@@ -17,10 +17,11 @@
 
 static int clps711x_gpio_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	void __iomem *dat, *dir;
 	struct bgpio_chip *bgc;
 	struct resource *res;
-	int err, id = pdev->id;
+	int err, id = np ? of_alias_get_id(np, "gpio") : pdev->id;
 
 	if ((id < 0) || (id > 4))
 		return -ENODEV;
@@ -76,10 +77,17 @@ static int clps711x_gpio_remove(struct platform_device *pdev)
 	return bgpio_remove(bgc);
 }
 
+static const struct of_device_id clps711x_gpio_ids[] = {
+	{ .compatible = "cirrus,clps711x-gpio" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, clps711x_gpio_ids);
+
 static struct platform_driver clps711x_gpio_driver = {
 	.driver	= {
-		.name	= "clps711x-gpio",
-		.owner	= THIS_MODULE,
+		.name		= "clps711x-gpio",
+		.owner		= THIS_MODULE,
+		.of_match_table	= of_match_ptr(clps711x_gpio_ids),
 	},
 	.probe	= clps711x_gpio_probe,
 	.remove	= clps711x_gpio_remove,
