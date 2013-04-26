@@ -24,7 +24,6 @@ config SUNRPC_XPRT_RDMA
 config SUNRPC_SWAP
 	bool
 	depends on SUNRPC
-	select NETVM
 
 config RPCSEC_GSS_KRB5
 	tristate "Secure RPC: Kerberos V mechanism"
