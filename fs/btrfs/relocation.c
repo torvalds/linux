@@ -2875,7 +2875,7 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path) {
 		err = -ENOMEM;
-		goto out_path;
+		goto out_free_blocks;
 	}
 
 	rb_node = rb_first(blocks);
@@ -2889,8 +2889,11 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 	rb_node = rb_first(blocks);
 	while (rb_node) {
 		block = rb_entry(rb_node, struct tree_block, rb_node);
-		if (!block->key_ready)
-			get_tree_block_key(rc, block);
+		if (!block->key_ready) {
+			err = get_tree_block_key(rc, block);
+			if (err)
+				goto out_free_path;
+		}
 		rb_node = rb_next(rb_node);
 	}
 
@@ -2917,8 +2920,9 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 out:
 	err = finish_pending_nodes(trans, rc, path, err);
 
+out_free_path:
 	btrfs_free_path(path);
-out_path:
+out_free_blocks:
 	free_block_list(blocks);
 	return err;
 }
