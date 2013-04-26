@@ -5398,7 +5398,7 @@ static struct omap_dss_device *dsi_find_dssdev(struct platform_device *pdev)
 	return def_dssdev;
 }
 
-static void dsi_probe_pdata(struct platform_device *dsidev)
+static int dsi_probe_pdata(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct omap_dss_device *plat_dssdev;
@@ -5408,11 +5408,11 @@ static void dsi_probe_pdata(struct platform_device *dsidev)
 	plat_dssdev = dsi_find_dssdev(dsidev);
 
 	if (!plat_dssdev)
-		return;
+		return 0;
 
 	dssdev = dss_alloc_and_init_device(&dsidev->dev);
 	if (!dssdev)
-		return;
+		return -ENOMEM;
 
 	dss_copy_device_pdata(dssdev, plat_dssdev);
 
@@ -5420,7 +5420,7 @@ static void dsi_probe_pdata(struct platform_device *dsidev)
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
 
 	r = omapdss_output_set_device(&dsi->output, dssdev);
@@ -5428,7 +5428,7 @@ static void dsi_probe_pdata(struct platform_device *dsidev)
 		DSSERR("failed to connect output to new device: %s\n",
 				dssdev->name);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
 
 	r = dss_add_device(dssdev);
@@ -5458,7 +5458,7 @@ static void dsi_init_output(struct platform_device *dsidev)
 	dss_register_output(out);
 }
 
-static void __exit dsi_uninit_output(struct platform_device *dsidev)
+static void dsi_uninit_output(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct omap_dss_output *out = &dsi->output;
@@ -5563,7 +5563,13 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 
 	dsi_init_output(dsidev);
 
-	dsi_probe_pdata(dsidev);
+	r = dsi_probe_pdata(dsidev);
+	if (r) {
+		dsi_runtime_put(dsidev);
+		dsi_uninit_output(dsidev);
+		pm_runtime_disable(&dsidev->dev);
+		return r;
+	}
 
 	dsi_runtime_put(dsidev);
 
