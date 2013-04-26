@@ -86,6 +86,8 @@ struct dma_chan;
 struct tmio_mmc_dma {
 	void *chan_priv_tx;
 	void *chan_priv_rx;
+	int slave_id_tx;
+	int slave_id_rx;
 	int alignment_shift;
 	bool (*filter)(struct dma_chan *chan, void *arg);
 };
