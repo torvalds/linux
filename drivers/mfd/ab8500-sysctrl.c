@@ -191,6 +191,8 @@ static int ab8500_sysctrl_probe(struct platform_device *pdev)
 	if (!(plat && plat->sysctrl))
 		return -EINVAL;
 
+	sysctrl_dev = &pdev->dev;
+
 	if (plat->pm_power_off)
 		pm_power_off = ab8500_power_off;
 
