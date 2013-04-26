@@ -358,7 +358,8 @@ struct radeon_bo {
 	struct radeon_device		*rdev;
 	struct drm_gem_object		gem_base;
 
-	struct ttm_bo_kmap_obj dma_buf_vmap;
+	struct ttm_bo_kmap_obj		dma_buf_vmap;
+	pid_t				pid;
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
 
@@ -371,6 +372,8 @@ struct radeon_bo_list {
 	unsigned		alt_domain;
 	u32			tiling_flags;
 };
+
+int radeon_gem_debugfs_init(struct radeon_device *rdev);
 
 /* sub-allocation manager, it has to be protected by another lock.
  * By conception this is an helper for other part of the driver
