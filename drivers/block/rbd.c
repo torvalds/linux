@@ -3170,13 +3170,9 @@ static ssize_t rbd_size_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
-	sector_t size;
 
-	down_read(&rbd_dev->header_rwsem);
-	size = get_capacity(rbd_dev->disk);
-	up_read(&rbd_dev->header_rwsem);
-
-	return sprintf(buf, "%llu\n", (unsigned long long) size * SECTOR_SIZE);
+	return sprintf(buf, "%llu\n",
+		(unsigned long long)rbd_dev->mapping.size);
 }
 
 /*
@@ -3189,7 +3185,7 @@ static ssize_t rbd_features_show(struct device *dev,
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
 	return sprintf(buf, "0x%016llx\n",
-			(unsigned long long) rbd_dev->mapping.features);
+			(unsigned long long)rbd_dev->mapping.features);
 }
 
 static ssize_t rbd_major_show(struct device *dev,
@@ -3197,7 +3193,11 @@ static ssize_t rbd_major_show(struct device *dev,
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
-	return sprintf(buf, "%d\n", rbd_dev->major);
+	if (rbd_dev->major)
+		return sprintf(buf, "%d\n", rbd_dev->major);
+
+	return sprintf(buf, "(none)\n");
+
 }
 
 static ssize_t rbd_client_id_show(struct device *dev,
@@ -3223,7 +3223,7 @@ static ssize_t rbd_pool_id_show(struct device *dev,
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
 	return sprintf(buf, "%llu\n",
-		(unsigned long long) rbd_dev->spec->pool_id);
+			(unsigned long long) rbd_dev->spec->pool_id);
 }
 
 static ssize_t rbd_name_show(struct device *dev,
