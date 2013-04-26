@@ -10,6 +10,7 @@
 #include "btree.h"
 #include "request.h"
 
+#include <linux/blkdev.h>
 #include <linux/sort.h>
 
 static const char * const cache_replacement_policies[] = {

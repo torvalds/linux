@@ -178,7 +178,6 @@
 #define pr_fmt(fmt) "bcache: %s() " fmt "\n", __func__
 
 #include <linux/bio.h>
-#include <linux/blktrace_api.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -901,8 +900,6 @@ static inline unsigned local_clock_us(void)
 	return local_clock() >> 10;
 }
 
-#define MAX_BSETS		4U
-
 #define BTREE_PRIO		USHRT_MAX
 #define INITIAL_PRIO		32768
 
@@ -1106,23 +1103,6 @@ static inline void __bkey_put(struct cache_set *c, struct bkey *k)
 	for (i = 0; i < KEY_PTRS(k); i++)
 		atomic_dec_bug(&PTR_BUCKET(c, k, i)->pin);
 }
-
-/* Blktrace macros */
-
-#define blktrace_msg(c, fmt, ...)					\
-do {									\
-	struct request_queue *q = bdev_get_queue(c->bdev);		\
-	if (q)								\
-		blk_add_trace_msg(q, fmt, ##__VA_ARGS__);		\
-} while (0)
-
-#define blktrace_msg_all(s, fmt, ...)					\
-do {									\
-	struct cache *_c;						\
-	unsigned i;							\
-	for_each_cache(_c, (s), i)					\
-		blktrace_msg(_c, fmt, ##__VA_ARGS__);			\
-} while (0)
 
 static inline void cached_dev_put(struct cached_dev *dc)
 {

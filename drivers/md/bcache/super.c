@@ -11,6 +11,7 @@
 #include "debug.h"
 #include "request.h"
 
+#include <linux/blkdev.h>
 #include <linux/buffer_head.h>
 #include <linux/debugfs.h>
 #include <linux/genhd.h>
@@ -543,7 +544,6 @@ void bch_prio_write(struct cache *ca)
 
 	pr_debug("free %zu, free_inc %zu, unused %zu", fifo_used(&ca->free),
 		 fifo_used(&ca->free_inc), fifo_used(&ca->unused));
-	blktrace_msg(ca, "Starting priorities: " buckets_free(ca));
 
 	for (i = prio_buckets(ca) - 1; i >= 0; --i) {
 		long bucket;

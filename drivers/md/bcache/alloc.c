@@ -65,6 +65,7 @@
 
 #include <linux/kthread.h>
 #include <linux/random.h>
+#include <trace/events/bcache.h>
 
 #define MAX_IN_FLIGHT_DISCARDS		8U
 
@@ -351,10 +352,7 @@ static void invalidate_buckets(struct cache *ca)
 		break;
 	}
 
-	pr_debug("free %zu/%zu free_inc %zu/%zu unused %zu/%zu",
-		 fifo_used(&ca->free), ca->free.size,
-		 fifo_used(&ca->free_inc), ca->free_inc.size,
-		 fifo_used(&ca->unused), ca->unused.size);
+	trace_bcache_alloc_invalidate(ca);
 }
 
 #define allocator_wait(ca, cond)					\
@@ -473,9 +471,7 @@ again:
 		return r;
 	}
 
-	pr_debug("alloc failure: blocked %i free %zu free_inc %zu unused %zu",
-		 atomic_read(&ca->set->prio_blocked), fifo_used(&ca->free),
-		 fifo_used(&ca->free_inc), fifo_used(&ca->unused));
+	trace_bcache_alloc_fail(ca);
 
 	if (cl) {
 		closure_wait(&ca->set->bucket_wait, cl);

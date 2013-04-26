@@ -9,6 +9,8 @@
 #include "debug.h"
 #include "request.h"
 
+#include <trace/events/bcache.h>
+
 /*
  * Journal replay/recovery:
  *
@@ -300,7 +302,8 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list,
 		for (k = i->j.start;
 		     k < end(&i->j);
 		     k = bkey_next(k)) {
-			pr_debug("%s", pkey(k));
+			trace_bcache_journal_replay_key(k);
+
 			bkey_copy(op->keys.top, k);
 			bch_keylist_push(&op->keys);
 
@@ -712,7 +715,8 @@ void bch_journal(struct closure *cl)
 	spin_lock(&c->journal.lock);
 
 	if (journal_full(&c->journal)) {
-		/* XXX: tracepoint */
+		trace_bcache_journal_full(c);
+
 		closure_wait(&c->journal.wait, cl);
 
 		journal_reclaim(c);
@@ -728,13 +732,15 @@ void bch_journal(struct closure *cl)
 
 	if (b * c->sb.block_size > PAGE_SECTORS << JSET_BITS ||
 	    b > c->journal.blocks_free) {
-		/* XXX: If we were inserting so many keys that they won't fit in
+		trace_bcache_journal_entry_full(c);
+
+		/*
+		 * XXX: If we were inserting so many keys that they won't fit in
 		 * an _empty_ journal write, we'll deadlock. For now, handle
 		 * this in bch_keylist_realloc() - but something to think about.
 		 */
 		BUG_ON(!w->data->keys);
 
-		/* XXX: tracepoint */
 		BUG_ON(!closure_wait(&w->wait, cl));
 
 		closure_flush(&c->journal.io);

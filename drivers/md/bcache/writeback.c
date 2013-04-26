@@ -10,6 +10,8 @@
 #include "btree.h"
 #include "debug.h"
 
+#include <trace/events/bcache.h>
+
 static struct workqueue_struct *dirty_wq;
 
 static void read_dirty(struct closure *);
@@ -236,9 +238,11 @@ static void write_dirty_finish(struct closure *cl)
 		for (i = 0; i < KEY_PTRS(&w->key); i++)
 			atomic_inc(&PTR_BUCKET(dc->disk.c, &w->key, i)->pin);
 
-		pr_debug("clearing %s", pkey(&w->key));
 		bch_btree_insert(&op, dc->disk.c);
 		closure_sync(&op.cl);
+
+		if (op.insert_collision)
+			trace_bcache_writeback_collision(&w->key);
 
 		atomic_long_inc(op.insert_collision
 				? &dc->disk.c->writeback_keys_failed
@@ -275,7 +279,6 @@ static void write_dirty(struct closure *cl)
 	io->bio.bi_bdev		= io->dc->bdev;
 	io->bio.bi_end_io	= dirty_endio;
 
-	trace_bcache_write_dirty(&io->bio);
 	closure_bio_submit(&io->bio, cl, &io->dc->disk);
 
 	continue_at(cl, write_dirty_finish, dirty_wq);
@@ -296,7 +299,6 @@ static void read_dirty_submit(struct closure *cl)
 {
 	struct dirty_io *io = container_of(cl, struct dirty_io, cl);
 
-	trace_bcache_read_dirty(&io->bio);
 	closure_bio_submit(&io->bio, cl, &io->dc->disk);
 
 	continue_at(cl, write_dirty, dirty_wq);
@@ -352,7 +354,7 @@ static void read_dirty(struct closure *cl)
 		if (bch_bio_alloc_pages(&io->bio, GFP_KERNEL))
 			goto err_free;
 
-		pr_debug("%s", pkey(&w->key));
+		trace_bcache_writeback(&w->key);
 
 		closure_call(&io->cl, read_dirty_submit, NULL, &dc->disk.cl);
 

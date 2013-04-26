@@ -15,8 +15,6 @@
 
 struct closure;
 
-#include <trace/events/bcache.h>
-
 #ifdef CONFIG_BCACHE_EDEBUG
 
 #define atomic_dec_bug(v)	BUG_ON(atomic_dec_return(v) < 0)

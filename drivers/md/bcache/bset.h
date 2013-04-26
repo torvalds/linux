@@ -1,6 +1,8 @@
 #ifndef _BCACHE_BSET_H
 #define _BCACHE_BSET_H
 
+#include <linux/slab.h>
+
 /*
  * BKEYS:
  *
@@ -141,6 +143,8 @@
  */
 
 /* Btree key comparison/iteration */
+
+#define MAX_BSETS		4U
 
 struct btree_iter {
 	size_t size, used;

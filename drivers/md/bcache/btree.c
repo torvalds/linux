@@ -223,8 +223,9 @@ void bch_btree_node_read(struct btree *b)
 	struct closure cl;
 	struct bio *bio;
 
+	trace_bcache_btree_read(b);
+
 	closure_init_stack(&cl);
-	pr_debug("%s", pbtree(b));
 
 	bio = bch_bbio_alloc(b->c);
 	bio->bi_rw	= REQ_META|READ_SYNC;
@@ -234,7 +235,6 @@ void bch_btree_node_read(struct btree *b)
 
 	bch_bio_map(bio, b->sets[0].data);
 
-	trace_bcache_btree_read(bio);
 	bch_submit_bbio(bio, b->c, &b->key, 0);
 	closure_sync(&cl);
 
@@ -343,7 +343,6 @@ static void do_btree_node_write(struct btree *b)
 			memcpy(page_address(bv->bv_page),
 			       base + j * PAGE_SIZE, PAGE_SIZE);
 
-		trace_bcache_btree_write(b->bio);
 		bch_submit_bbio(b->bio, b->c, &k.key, 0);
 
 		continue_at(cl, btree_node_write_done, NULL);
@@ -351,7 +350,6 @@ static void do_btree_node_write(struct btree *b)
 		b->bio->bi_vcnt = 0;
 		bch_bio_map(b->bio, i);
 
-		trace_bcache_btree_write(b->bio);
 		bch_submit_bbio(b->bio, b->c, &k.key, 0);
 
 		closure_sync(cl);
@@ -363,10 +361,13 @@ void bch_btree_node_write(struct btree *b, struct closure *parent)
 {
 	struct bset *i = b->sets[b->nsets].data;
 
+	trace_bcache_btree_write(b);
+
 	BUG_ON(current->bio_list);
 	BUG_ON(b->written >= btree_blocks(b));
 	BUG_ON(b->written && !i->keys);
 	BUG_ON(b->sets->data->seq != i->seq);
+	bch_check_key_order(b, i);
 
 	cancel_delayed_work(&b->work);
 
@@ -376,11 +377,7 @@ void bch_btree_node_write(struct btree *b, struct closure *parent)
 	clear_bit(BTREE_NODE_dirty,	 &b->flags);
 	change_bit(BTREE_NODE_write_idx, &b->flags);
 
-	bch_check_key_order(b, i);
-
 	do_btree_node_write(b);
-
-	pr_debug("%s block %i keys %i", pbtree(b), b->written, i->keys);
 
 	b->written += set_blocks(i, b->c);
 	atomic_long_add(set_blocks(i, b->c) * b->c->sb.block_size,
@@ -752,6 +749,8 @@ static struct btree *mca_cannibalize(struct cache_set *c, struct bkey *k,
 	int ret = -ENOMEM;
 	struct btree *i;
 
+	trace_bcache_btree_cache_cannibalize(c);
+
 	if (!cl)
 		return ERR_PTR(-ENOMEM);
 
@@ -770,7 +769,6 @@ static struct btree *mca_cannibalize(struct cache_set *c, struct bkey *k,
 		return ERR_PTR(-EAGAIN);
 	}
 
-	/* XXX: tracepoint */
 	c->try_harder = cl;
 	c->try_harder_start = local_clock();
 retry:
@@ -956,13 +954,14 @@ static void btree_node_free(struct btree *b, struct btree_op *op)
 {
 	unsigned i;
 
+	trace_bcache_btree_node_free(b);
+
 	/*
 	 * The BUG_ON() in btree_node_get() implies that we must have a write
 	 * lock on parent to free or even invalidate a node
 	 */
 	BUG_ON(op->lock <= b->level);
 	BUG_ON(b == b->c->root);
-	pr_debug("bucket %s", pbtree(b));
 
 	if (btree_node_dirty(b))
 		btree_complete_write(b, btree_current_write(b));
@@ -1012,12 +1011,16 @@ retry:
 	bch_bset_init_next(b);
 
 	mutex_unlock(&c->bucket_lock);
+
+	trace_bcache_btree_node_alloc(b);
 	return b;
 err_free:
 	bch_bucket_free(c, &k.key);
 	__bkey_put(c, &k.key);
 err:
 	mutex_unlock(&c->bucket_lock);
+
+	trace_bcache_btree_node_alloc_fail(b);
 	return b;
 }
 
@@ -1254,7 +1257,7 @@ static void btree_gc_coalesce(struct btree *b, struct btree_op *op,
 	btree_node_free(r->b, op);
 	up_write(&r->b->lock);
 
-	pr_debug("coalesced %u nodes", nodes);
+	trace_bcache_btree_gc_coalesce(nodes);
 
 	gc->nodes--;
 	nodes--;
@@ -1479,8 +1482,7 @@ static void bch_btree_gc(struct closure *cl)
 	struct btree_op op;
 	uint64_t start_time = local_clock();
 
-	trace_bcache_gc_start(c->sb.set_uuid);
-	blktrace_msg_all(c, "Starting gc");
+	trace_bcache_gc_start(c);
 
 	memset(&stats, 0, sizeof(struct gc_stat));
 	closure_init_stack(&writes);
@@ -1496,9 +1498,7 @@ static void bch_btree_gc(struct closure *cl)
 	closure_sync(&writes);
 
 	if (ret) {
-		blktrace_msg_all(c, "Stopped gc");
 		pr_warn("gc failed!");
-
 		continue_at(cl, bch_btree_gc, bch_gc_wq);
 	}
 
@@ -1519,8 +1519,7 @@ static void bch_btree_gc(struct closure *cl)
 	stats.in_use	= (c->nbuckets - available) * 100 / c->nbuckets;
 	memcpy(&c->gc_stats, &stats, sizeof(struct gc_stat));
 
-	blktrace_msg_all(c, "Finished gc");
-	trace_bcache_gc_end(c->sb.set_uuid);
+	trace_bcache_gc_end(c);
 
 	continue_at(cl, bch_moving_gc, bch_gc_wq);
 }
@@ -1901,11 +1900,10 @@ static int btree_split(struct btree *b, struct btree_op *op)
 
 	split = set_blocks(n1->sets[0].data, n1->c) > (btree_blocks(b) * 4) / 5;
 
-	pr_debug("%ssplitting at %s keys %i", split ? "" : "not ",
-		 pbtree(b), n1->sets[0].data->keys);
-
 	if (split) {
 		unsigned keys = 0;
+
+		trace_bcache_btree_node_split(b, n1->sets[0].data->keys);
 
 		n2 = bch_btree_node_alloc(b->c, b->level, &op->cl);
 		if (IS_ERR(n2))
@@ -1941,8 +1939,11 @@ static int btree_split(struct btree *b, struct btree_op *op)
 		bch_keylist_add(&op->keys, &n2->key);
 		bch_btree_node_write(n2, &op->cl);
 		rw_unlock(true, n2);
-	} else
+	} else {
+		trace_bcache_btree_node_compact(b, n1->sets[0].data->keys);
+
 		bch_btree_insert_keys(n1, op);
+	}
 
 	bch_keylist_add(&op->keys, &n1->key);
 	bch_btree_node_write(n1, &op->cl);
@@ -2117,6 +2118,8 @@ void bch_btree_set_root(struct btree *b)
 {
 	unsigned i;
 
+	trace_bcache_btree_set_root(b);
+
 	BUG_ON(!b->written);
 
 	for (i = 0; i < KEY_PTRS(&b->key); i++)
@@ -2130,7 +2133,6 @@ void bch_btree_set_root(struct btree *b)
 	__bkey_put(b->c, &b->key);
 
 	bch_journal_meta(b->c, NULL);
-	pr_debug("%s for %pf", pbtree(b), __builtin_return_address(0));
 }
 
 /* Cache lookup */
@@ -2216,7 +2218,6 @@ static int submit_partial_cache_hit(struct btree *b, struct btree_op *op,
 		n->bi_end_io	= bch_cache_read_endio;
 		n->bi_private	= &s->cl;
 
-		trace_bcache_cache_hit(n);
 		__bch_submit_bbio(n, b->c);
 	}
 
