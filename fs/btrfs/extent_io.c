@@ -4450,7 +4450,7 @@ static inline void btrfs_release_extent_buffer_rcu(struct rcu_head *head)
 }
 
 /* Expects to have eb->eb_lock already held */
-static int release_extent_buffer(struct extent_buffer *eb, gfp_t mask)
+static int release_extent_buffer(struct extent_buffer *eb)
 {
 	WARN_ON(atomic_read(&eb->refs) == 0);
 	if (atomic_dec_and_test(&eb->refs)) {
@@ -4508,7 +4508,7 @@ void free_extent_buffer(struct extent_buffer *eb)
 	 * I know this is terrible, but it's temporary until we stop tracking
 	 * the uptodate bits and such for the extent buffers.
 	 */
-	release_extent_buffer(eb, GFP_ATOMIC);
+	release_extent_buffer(eb);
 }
 
 void free_extent_buffer_stale(struct extent_buffer *eb)
@@ -4522,7 +4522,7 @@ void free_extent_buffer_stale(struct extent_buffer *eb)
 	if (atomic_read(&eb->refs) == 2 && !extent_buffer_under_io(eb) &&
 	    test_and_clear_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags))
 		atomic_dec(&eb->refs);
-	release_extent_buffer(eb, GFP_NOFS);
+	release_extent_buffer(eb);
 }
 
 void clear_extent_buffer_dirty(struct extent_buffer *eb)
@@ -5042,7 +5042,7 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 	}
 }
 
-int try_release_extent_buffer(struct page *page, gfp_t mask)
+int try_release_extent_buffer(struct page *page)
 {
 	struct extent_buffer *eb;
 
@@ -5072,9 +5072,6 @@ int try_release_extent_buffer(struct page *page, gfp_t mask)
 	}
 	spin_unlock(&page->mapping->private_lock);
 
-	if ((mask & GFP_NOFS) == GFP_NOFS)
-		mask = GFP_NOFS;
-
 	/*
 	 * If tree ref isn't set then we know the ref on this eb is a real ref,
 	 * so just return, this page will likely be freed soon anyway.
@@ -5084,5 +5081,5 @@ int try_release_extent_buffer(struct page *page, gfp_t mask)
 		return 0;
 	}
 
-	return release_extent_buffer(eb, mask);
+	return release_extent_buffer(eb);
 }

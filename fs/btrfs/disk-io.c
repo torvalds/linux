@@ -966,14 +966,8 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 {
 	if (PageWriteback(page) || PageDirty(page))
 		return 0;
-	/*
-	 * We need to mask out eg. __GFP_HIGHMEM and __GFP_DMA32 as we're doing
-	 * slab allocation from alloc_extent_state down the callchain where
-	 * it'd hit a BUG_ON as those flags are not allowed.
-	 */
-	gfp_flags &= ~GFP_SLAB_BUG_MASK;
 
-	return try_release_extent_buffer(page, gfp_flags);
+	return try_release_extent_buffer(page);
 }
 
 static void btree_invalidatepage(struct page *page, unsigned long offset)
