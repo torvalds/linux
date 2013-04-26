@@ -2484,7 +2484,7 @@ static int omapfb_probe(struct platform_device *pdev)
 
 	if (fbdev->num_displays == 0) {
 		dev_err(&pdev->dev, "no displays\n");
-		r = -EINVAL;
+		r = -EPROBE_DEFER;
 		goto cleanup;
 	}
 
