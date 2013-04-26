@@ -365,7 +365,7 @@ static ssize_t rbd_add(struct bus_type *bus, const char *buf,
 		       size_t count);
 static ssize_t rbd_remove(struct bus_type *bus, const char *buf,
 			  size_t count);
-static int rbd_dev_probe(struct rbd_device *rbd_dev);
+static int rbd_dev_image_probe(struct rbd_device *rbd_dev);
 
 static struct bus_attribute rbd_bus_attrs[] = {
 	__ATTR(add, S_IWUSR, NULL, rbd_add),
@@ -4766,7 +4766,7 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 		}
 		rbdc = NULL;		/* parent now owns reference */
 		parent_spec = NULL;	/* parent now owns reference */
-		ret = rbd_dev_probe(parent);
+		ret = rbd_dev_image_probe(parent);
 		if (ret < 0)
 			goto err_out_parent;
 		rbd_dev->parent = parent;
@@ -4815,7 +4815,7 @@ err_out_snaps:
  * device.  For format 2 images this includes determining the image
  * id.
  */
-static int rbd_dev_probe(struct rbd_device *rbd_dev)
+static int rbd_dev_image_probe(struct rbd_device *rbd_dev)
 {
 	int ret;
 
@@ -4904,7 +4904,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 	kfree(rbd_opts);
 	rbd_opts = NULL;	/* done with this */
 
-	rc = rbd_dev_probe(rbd_dev);
+	rc = rbd_dev_image_probe(rbd_dev);
 	if (rc < 0)
 		goto err_out_rbd_dev;
 
