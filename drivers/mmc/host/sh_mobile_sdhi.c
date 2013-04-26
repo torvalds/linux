@@ -20,6 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/clk.h>
+#include <linux/dmaengine.h>
 #include <linux/slab.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -124,6 +125,13 @@ static void sh_mobile_sdhi_cd_wakeup(const struct platform_device *pdev)
 	mmc_detect_change(dev_get_drvdata(&pdev->dev), msecs_to_jiffies(100));
 }
 
+static bool sh_mobile_sdhi_filter(struct dma_chan *chan, void *arg)
+{
+	dev_dbg(chan->device->dev, "%s: slave data %p\n", __func__, arg);
+	chan->private = arg;
+	return true;
+}
+
 static const struct sh_mobile_sdhi_ops sdhi_ops = {
 	.cd_wakeup = sh_mobile_sdhi_cd_wakeup,
 };
@@ -191,6 +199,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 			priv->dma_priv.chan_priv_tx = &priv->param_tx.shdma_slave;
 			priv->dma_priv.chan_priv_rx = &priv->param_rx.shdma_slave;
 			priv->dma_priv.alignment_shift = 1; /* 2-byte alignment */
+			priv->dma_priv.filter = sh_mobile_sdhi_filter;
 			mmc_data->dma = &priv->dma_priv;
 		}
 	}
