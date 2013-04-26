@@ -1640,6 +1640,36 @@ static int saa711x_detect_chip(struct i2c_client *client,
 		}
 	}
 
+	/* Check if it is a gm7113c */
+	if (!memcmp(name, "0000", 4)) {
+		chip_id = 0;
+		for (i = 0; i < 4; i++) {
+			chip_id = chip_id << 1;
+			chip_id |= (chip_ver[i] & 0x80) ? 1 : 0;
+		}
+
+		/*
+		 * Note: From the datasheet, only versions 1 and 2
+		 * exists. However, tests on a device labeled as:
+		 * "GM7113C 1145" returned "10" on all 16 chip
+		 * version (reg 0x00) reads. So, we need to also
+		 * accept at least verion 0. For now, let's just
+		 * assume that a device that returns "0000" for
+		 * the lower nibble is a gm7113c.
+		 */
+
+		strlcpy(name, "gm7113c", size);
+
+		if (!autodetect && strcmp(name, id->name))
+			return -EINVAL;
+
+		v4l_dbg(1, debug, client,
+			"It seems to be a %s chip (%*ph) @ 0x%x.\n",
+			name, 16, chip_ver, client->addr << 1);
+
+		return V4L2_IDENT_GM7113C;
+	}
+
 	/* Chip was not discovered. Return its ID and don't bind */
 	v4l_dbg(1, debug, client, "chip %*ph @ 0x%x is unknown.\n",
 		16, chip_ver, client->addr << 1);
@@ -1668,6 +1698,11 @@ static int saa711x_probe(struct i2c_client *client,
 	}
 	if (ident < 0)
 		return ident;
+
+	if (ident == V4L2_IDENT_GM7113C) {
+		v4l_warn(client, "%s not yet supported\n", name);
+		return -ENODEV;
+	}
 
 	strlcpy(client->name, name, sizeof(client->name));
 
@@ -1754,6 +1789,7 @@ static const struct i2c_device_id saa711x_id[] = {
 	{ "saa7114", 0 },
 	{ "saa7115", 0 },
 	{ "saa7118", 0 },
+	{ "gm7113c", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, saa711x_id);
