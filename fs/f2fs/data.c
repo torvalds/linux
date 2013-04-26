@@ -240,7 +240,7 @@ struct page *get_lock_data_page(struct inode *inode, pgoff_t index)
 
 	if (dn.data_blkaddr == NULL_ADDR)
 		return ERR_PTR(-ENOENT);
-
+repeat:
 	page = grab_cache_page(mapping, index);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
@@ -259,6 +259,10 @@ struct page *get_lock_data_page(struct inode *inode, pgoff_t index)
 	if (!PageUptodate(page)) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(-EIO);
+	}
+	if (page->mapping != mapping) {
+		f2fs_put_page(page, 1);
+		goto repeat;
 	}
 	return page;
 }
@@ -291,7 +295,7 @@ struct page *get_new_data_page(struct inode *inode, pgoff_t index,
 		}
 	}
 	f2fs_put_dnode(&dn);
-
+repeat:
 	page = grab_cache_page(mapping, index);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
@@ -310,6 +314,10 @@ struct page *get_new_data_page(struct inode *inode, pgoff_t index,
 		if (!PageUptodate(page)) {
 			f2fs_put_page(page, 1);
 			return ERR_PTR(-EIO);
+		}
+		if (page->mapping != mapping) {
+			f2fs_put_page(page, 1);
+			goto repeat;
 		}
 	}
 
@@ -611,7 +619,7 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 	*fsdata = NULL;
 
 	f2fs_balance_fs(sbi);
-
+repeat:
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
 		return -ENOMEM;
@@ -655,6 +663,10 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 		if (!PageUptodate(page)) {
 			f2fs_put_page(page, 1);
 			return -EIO;
+		}
+		if (page->mapping != mapping) {
+			f2fs_put_page(page, 1);
+			goto repeat;
 		}
 	}
 out:

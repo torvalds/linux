@@ -65,6 +65,10 @@ repeat:
 		goto repeat;
 
 	lock_page(page);
+	if (page->mapping != mapping) {
+		f2fs_put_page(page, 1);
+		goto repeat;
+	}
 out:
 	mark_page_accessed(page);
 	return page;

@@ -674,6 +674,7 @@ fail:
 int truncate_inode_blocks(struct inode *inode, pgoff_t from)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	struct address_space *node_mapping = sbi->node_inode->i_mapping;
 	int err = 0, cont = 1;
 	int level, offset[4], noffset[4];
 	unsigned int nofs = 0;
@@ -684,7 +685,7 @@ int truncate_inode_blocks(struct inode *inode, pgoff_t from)
 	trace_f2fs_truncate_inode_blocks_enter(inode, from);
 
 	level = get_node_path(from, offset, noffset);
-
+restart:
 	page = get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(page)) {
 		trace_f2fs_truncate_inode_blocks_exit(inode, PTR_ERR(page));
@@ -748,6 +749,10 @@ skip_partial:
 		if (offset[1] == 0 &&
 				rn->i.i_nid[offset[0] - NODE_DIR1_BLOCK]) {
 			lock_page(page);
+			if (page->mapping != node_mapping) {
+				f2fs_put_page(page, 1);
+				goto restart;
+			}
 			wait_on_page_writeback(page);
 			rn->i.i_nid[offset[0] - NODE_DIR1_BLOCK] = 0;
 			set_page_dirty(page);
@@ -916,7 +921,7 @@ struct page *get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
 	struct address_space *mapping = sbi->node_inode->i_mapping;
 	struct page *page;
 	int err;
-
+repeat:
 	page = grab_cache_page(mapping, nid);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
@@ -931,6 +936,10 @@ struct page *get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
 	if (!PageUptodate(page)) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(-EIO);
+	}
+	if (page->mapping != mapping) {
+		f2fs_put_page(page, 1);
+		goto repeat;
 	}
 got_it:
 	BUG_ON(nid != nid_of_node(page));
@@ -955,7 +964,7 @@ struct page *get_node_page_ra(struct page *parent, int start)
 	nid = get_nid(parent, start, false);
 	if (!nid)
 		return ERR_PTR(-ENOENT);
-
+repeat:
 	page = grab_cache_page(mapping, nid);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
@@ -981,7 +990,10 @@ struct page *get_node_page_ra(struct page *parent, int start)
 	blk_finish_plug(&plug);
 
 	lock_page(page);
-
+	if (page->mapping != mapping) {
+		f2fs_put_page(page, 1);
+		goto repeat;
+	}
 page_hit:
 	if (!PageUptodate(page)) {
 		f2fs_put_page(page, 1);

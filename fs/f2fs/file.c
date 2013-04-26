@@ -217,6 +217,10 @@ static void truncate_partial_data_page(struct inode *inode, u64 from)
 		return;
 
 	lock_page(page);
+	if (page->mapping != inode->i_mapping) {
+		f2fs_put_page(page, 1);
+		return;
+	}
 	wait_on_page_writeback(page);
 	zero_user(page, offset, PAGE_CACHE_SIZE - offset);
 	set_page_dirty(page);
