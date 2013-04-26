@@ -43,6 +43,7 @@
 #include <video/platform_lcd.h>
 
 #include "common.h"
+#include "devices.h"
 
 #define P720T_USERLED		CLPS711X_GPIO(3, 0)
 #define P720T_NAND_CLE		CLPS711X_GPIO(4, 0)
@@ -199,6 +200,11 @@ static struct gpio_led_platform_data p720t_gpio_led_pdata __initdata = {
 
 static void __init p720t_init(void)
 {
+	clps711x_devices_init();
+}
+
+static void __init p720t_init_late(void)
+{
 	platform_device_register(&p720t_nand_pdev);
 	platform_device_register_data(&platform_bus, "platform-lcd", 0,
 				      &p720t_lcd_power_pdata,
@@ -207,10 +213,6 @@ static void __init p720t_init(void)
 				      &p720t_lcd_backlight_pdata,
 				      sizeof(p720t_lcd_backlight_pdata));
 	platform_device_register_simple("video-clps711x", 0, NULL, 0);
-}
-
-static void __init p720t_init_late(void)
-{
 	platform_device_register_data(&platform_bus, "leds-gpio", 0,
 				      &p720t_gpio_led_pdata,
 				      sizeof(p720t_gpio_led_pdata));

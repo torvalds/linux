@@ -43,6 +43,7 @@
 #include <mach/autcpu12.h>
 
 #include "common.h"
+#include "devices.h"
 
 #define AUTCPU12_CS8900_BASE	(CS2_PHYS_BASE + 0x300)
 #define AUTCPU12_CS8900_IRQ	(IRQ_EINT3)
@@ -149,6 +150,7 @@ static struct platform_device autcpu12_mmgpio_pdev __initdata = {
 
 static void __init autcpu12_init(void)
 {
+	clps711x_devices_init();
 	platform_device_register_simple("video-clps711x", 0, NULL, 0);
 	platform_device_register_simple("cs89x0", 0, autcpu12_cs8900_resource,
 					ARRAY_SIZE(autcpu12_cs8900_resource));

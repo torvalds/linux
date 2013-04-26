@@ -39,6 +39,7 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
+#include "devices.h"
 
 #define CDB89712_CS8900_BASE	(CS2_PHYS_BASE + 0x300)
 #define CDB89712_CS8900_IRQ	(IRQ_EINT3)
@@ -127,6 +128,7 @@ static struct platform_device cdb89712_sram_pdev __initdata = {
 
 static void __init cdb89712_init(void)
 {
+	clps711x_devices_init();
 	platform_device_register(&cdb89712_flash_pdev);
 	platform_device_register(&cdb89712_bootrom_pdev);
 	platform_device_register(&cdb89712_sram_pdev);

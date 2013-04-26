@@ -29,6 +29,7 @@
 #include <mach/hardware.h>
 
 #include "common.h"
+#include "devices.h"
 
 #define VIDEORAM_SIZE		SZ_128K
 
@@ -151,6 +152,11 @@ fixup_edb7211(struct tag *tags, char **cmdline, struct meminfo *mi)
 
 static void __init edb7211_init(void)
 {
+	clps711x_devices_init();
+}
+
+static void __init edb7211_init_late(void)
+{
 	gpio_request_array(edb7211_gpios, ARRAY_SIZE(edb7211_gpios));
 
 	platform_device_register(&edb7211_flash_pdev);
@@ -175,6 +181,7 @@ MACHINE_START(EDB7211, "CL-EDB7211 (EP7211 eval board)")
 	.init_irq	= clps711x_init_irq,
 	.init_time	= clps711x_timer_init,
 	.init_machine	= edb7211_init,
+	.init_late	= edb7211_init_late,
 	.handle_irq	= clps711x_handle_irq,
 	.restart	= clps711x_restart,
 MACHINE_END
