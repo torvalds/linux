@@ -398,7 +398,27 @@ out:
 
 int au_pin_hdir_relock(struct au_pin *p)
 {
-	return au_pin_hdir_lock(p);
+	int err, i;
+	struct inode *h_i;
+	struct dentry *h_d[] = {
+		p->h_dentry,
+		p->h_parent
+	};
+
+	err = au_pin_hdir_lock(p);
+	if (unlikely(err))
+		goto out;
+
+	for (i = 0; !err && i < sizeof(h_d)/sizeof(*h_d); i++) {
+		if (!h_d[i])
+			continue;
+		h_i = h_d[i]->d_inode;
+		if (h_i)
+			err = !h_i->i_nlink;
+	}
+
+out:
+	return err;
 }
 
 void au_pin_hdir_set_owner(struct au_pin *p, struct task_struct *task)
