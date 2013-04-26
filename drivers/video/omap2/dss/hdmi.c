@@ -982,7 +982,7 @@ static struct omap_dss_device *hdmi_find_dssdev(struct platform_device *pdev)
 	return def_dssdev;
 }
 
-static void hdmi_probe_pdata(struct platform_device *pdev)
+static int hdmi_probe_pdata(struct platform_device *pdev)
 {
 	struct omap_dss_device *plat_dssdev;
 	struct omap_dss_device *dssdev;
@@ -992,11 +992,11 @@ static void hdmi_probe_pdata(struct platform_device *pdev)
 	plat_dssdev = hdmi_find_dssdev(pdev);
 
 	if (!plat_dssdev)
-		return;
+		return 0;
 
 	dssdev = dss_alloc_and_init_device(&pdev->dev);
 	if (!dssdev)
-		return;
+		return -ENOMEM;
 
 	dss_copy_device_pdata(dssdev, plat_dssdev);
 
@@ -1010,7 +1010,7 @@ static void hdmi_probe_pdata(struct platform_device *pdev)
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
 
 	r = omapdss_output_set_device(&hdmi.output, dssdev);
@@ -1018,7 +1018,7 @@ static void hdmi_probe_pdata(struct platform_device *pdev)
 		DSSERR("failed to connect output to new device: %s\n",
 				dssdev->name);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
 
 	r = dss_add_device(dssdev);
@@ -1027,8 +1027,10 @@ static void hdmi_probe_pdata(struct platform_device *pdev)
 		omapdss_output_unset_device(&hdmi.output);
 		hdmi_uninit_display(dssdev);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
+
+	return 0;
 }
 
 static void hdmi_init_output(struct platform_device *pdev)
@@ -1096,7 +1098,13 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 
 	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
 
-	hdmi_probe_pdata(pdev);
+	r = hdmi_probe_pdata(pdev);
+	if (r) {
+		hdmi_panel_exit();
+		hdmi_uninit_output(pdev);
+		pm_runtime_disable(&pdev->dev);
+		return r;
+	}
 
 	return 0;
 }
