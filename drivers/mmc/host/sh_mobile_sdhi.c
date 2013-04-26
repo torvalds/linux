@@ -20,7 +20,6 @@
 
 #include <linux/kernel.h>
 #include <linux/clk.h>
-#include <linux/dmaengine.h>
 #include <linux/slab.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -47,8 +46,6 @@ static const struct sh_mobile_sdhi_of_data sh_mobile_sdhi_of_cfg[] = {
 struct sh_mobile_sdhi {
 	struct clk *clk;
 	struct tmio_mmc_data mmc_data;
-	struct sh_dmae_slave param_tx;
-	struct sh_dmae_slave param_rx;
 	struct tmio_mmc_dma dma_priv;
 };
 
@@ -125,13 +122,6 @@ static void sh_mobile_sdhi_cd_wakeup(const struct platform_device *pdev)
 	mmc_detect_change(dev_get_drvdata(&pdev->dev), msecs_to_jiffies(100));
 }
 
-static bool sh_mobile_sdhi_filter(struct dma_chan *chan, void *arg)
-{
-	dev_dbg(chan->device->dev, "%s: slave data %p\n", __func__, arg);
-	chan->private = arg;
-	return true;
-}
-
 static const struct sh_mobile_sdhi_ops sdhi_ops = {
 	.cd_wakeup = sh_mobile_sdhi_cd_wakeup,
 };
@@ -194,13 +184,22 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 			mmc_data->get_cd = sh_mobile_sdhi_get_cd;
 
 		if (p->dma_slave_tx > 0 && p->dma_slave_rx > 0) {
-			priv->param_tx.shdma_slave.slave_id = p->dma_slave_tx;
-			priv->param_rx.shdma_slave.slave_id = p->dma_slave_rx;
-			priv->dma_priv.chan_priv_tx = &priv->param_tx.shdma_slave;
-			priv->dma_priv.chan_priv_rx = &priv->param_rx.shdma_slave;
-			priv->dma_priv.alignment_shift = 1; /* 2-byte alignment */
-			priv->dma_priv.filter = sh_mobile_sdhi_filter;
-			mmc_data->dma = &priv->dma_priv;
+			struct tmio_mmc_dma *dma_priv = &priv->dma_priv;
+
+			/*
+			 * Yes, we have to provide slave IDs twice to TMIO:
+			 * once as a filter parameter and once for channel
+			 * configuration as an explicit slave ID
+			 */
+			dma_priv->chan_priv_tx = (void *)p->dma_slave_tx;
+			dma_priv->chan_priv_rx = (void *)p->dma_slave_rx;
+			dma_priv->slave_id_tx = p->dma_slave_tx;
+			dma_priv->slave_id_rx = p->dma_slave_rx;
+
+			dma_priv->alignment_shift = 1; /* 2-byte alignment */
+			dma_priv->filter = shdma_chan_filter;
+
+			mmc_data->dma = dma_priv;
 		}
 	}
 
