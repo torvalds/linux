@@ -4813,8 +4813,7 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 	return ret;
 
 err_out_bus:
-	/* this will also clean up rest of rbd_dev stuff */
-
+	rbd_dev_remove_parent(rbd_dev);
 	rbd_bus_del_dev(rbd_dev);
 
 	return ret;
@@ -4931,7 +4930,6 @@ static ssize_t rbd_add(struct bus_type *bus,
 
 	return count;
 err_out_rbd_dev:
-	rbd_spec_put(rbd_dev->parent_spec);
 	kfree(rbd_dev->header_name);
 	rbd_dev_destroy(rbd_dev);
 err_out_client:
