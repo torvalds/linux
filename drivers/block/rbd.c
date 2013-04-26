@@ -4477,20 +4477,19 @@ static int rbd_dev_image_id(struct rbd_device *rbd_dev)
 	size_t size;
 	char *object_name;
 	void *response;
-	void *p;
-
-	/* If we already have it we don't need to look it up */
-
-	if (rbd_dev->spec->image_id)
-		return 0;
+	char *image_id;
 
 	/*
 	 * When probing a parent image, the image id is already
 	 * known (and the image name likely is not).  There's no
-	 * need to fetch the image id again in this case.
+	 * need to fetch the image id again in this case.  We
+	 * do still need to set the image format though.
 	 */
-	if (rbd_dev->spec->image_id)
+	if (rbd_dev->spec->image_id) {
+		rbd_dev->image_format = *rbd_dev->spec->image_id ? 2 : 1;
+
 		return 0;
+	}
 
 	/*
 	 * First, see if the format 2 image id file exists, and if
@@ -4512,24 +4511,32 @@ static int rbd_dev_image_id(struct rbd_device *rbd_dev)
 		goto out;
 	}
 
+	/* If it doesn't exist we'll assume it's a format 1 image */
+
 	ret = rbd_obj_method_sync(rbd_dev, object_name,
 				"rbd", "get_id", NULL, 0,
 				response, RBD_IMAGE_ID_LEN_MAX, NULL);
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
-	if (ret < 0)
-		goto out;
+	if (ret == -ENOENT) {
+		image_id = kstrdup("", GFP_KERNEL);
+		ret = image_id ? 0 : -ENOMEM;
+		if (!ret)
+			rbd_dev->image_format = 1;
+	} else if (ret > sizeof (__le32)) {
+		void *p = response;
 
-	p = response;
-	rbd_dev->spec->image_id = ceph_extract_encoded_string(&p,
-						p + ret,
+		image_id = ceph_extract_encoded_string(&p, p + ret,
 						NULL, GFP_NOIO);
-	ret = 0;
-
-	if (IS_ERR(rbd_dev->spec->image_id)) {
-		ret = PTR_ERR(rbd_dev->spec->image_id);
-		rbd_dev->spec->image_id = NULL;
+		ret = IS_ERR(image_id) ? PTR_ERR(image_id) : 0;
+		if (!ret)
+			rbd_dev->image_format = 2;
 	} else {
-		dout("image_id is %s\n", rbd_dev->spec->image_id);
+		ret = -EINVAL;
+	}
+
+	if (!ret) {
+		rbd_dev->spec->image_id = image_id;
+		dout("image_id is %s\n", image_id);
 	}
 out:
 	kfree(response);
@@ -4542,12 +4549,6 @@ static int rbd_dev_v1_probe(struct rbd_device *rbd_dev)
 {
 	int ret;
 	size_t size;
-
-	/* Version 1 images have no id; empty string is used */
-
-	rbd_dev->spec->image_id = kstrdup("", GFP_KERNEL);
-	if (!rbd_dev->spec->image_id)
-		return -ENOMEM;
 
 	/* Record the header object name for this rbd image. */
 
@@ -4570,8 +4571,6 @@ static int rbd_dev_v1_probe(struct rbd_device *rbd_dev)
 
 	rbd_dev->parent_spec = NULL;
 	rbd_dev->parent_overlap = 0;
-
-	rbd_dev->image_format = 1;
 
 	dout("discovered version 1 image, header name is %s\n",
 		rbd_dev->header_name);
@@ -4650,8 +4649,6 @@ static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 	if (ret)
 		goto out_err;
 	rbd_dev->header.obj_version = ver;
-
-	rbd_dev->image_format = 2;
 
 	dout("discovered version 2 image, header name is %s\n",
 		rbd_dev->header_name);
@@ -4795,6 +4792,11 @@ static int rbd_dev_probe(struct rbd_device *rbd_dev)
 	 */
 	ret = rbd_dev_image_id(rbd_dev);
 	if (ret)
+		return ret;
+	rbd_assert(rbd_dev->spec->image_id);
+	rbd_assert(rbd_image_format_valid(rbd_dev->image_format));
+
+	if (rbd_dev->image_format == 1)
 		ret = rbd_dev_v1_probe(rbd_dev);
 	else
 		ret = rbd_dev_v2_probe(rbd_dev);
