@@ -830,44 +830,39 @@ static const char *rbd_snap_name(struct rbd_device *rbd_dev, u64 snap_id)
 	return NULL;
 }
 
-static int snap_by_name(struct rbd_device *rbd_dev, const char *snap_name)
+static struct rbd_snap *snap_by_name(struct rbd_device *rbd_dev,
+					const char *snap_name)
 {
-
 	struct rbd_snap *snap;
 
-	list_for_each_entry(snap, &rbd_dev->snaps, node) {
-		if (!strcmp(snap_name, snap->name)) {
-			rbd_dev->spec->snap_id = snap->id;
-			rbd_dev->mapping.size = snap->size;
-			rbd_dev->mapping.features = snap->features;
+	list_for_each_entry(snap, &rbd_dev->snaps, node)
+		if (!strcmp(snap_name, snap->name))
+			return snap;
 
-			return 0;
-		}
-	}
-
-	return -ENOENT;
+	return NULL;
 }
 
 static int rbd_dev_set_mapping(struct rbd_device *rbd_dev)
 {
-	int ret;
-
 	if (!memcmp(rbd_dev->spec->snap_name, RBD_SNAP_HEAD_NAME,
 		    sizeof (RBD_SNAP_HEAD_NAME))) {
 		rbd_dev->spec->snap_id = CEPH_NOSNAP;
 		rbd_dev->mapping.size = rbd_dev->header.image_size;
 		rbd_dev->mapping.features = rbd_dev->header.features;
-		ret = 0;
 	} else {
-		ret = snap_by_name(rbd_dev, rbd_dev->spec->snap_name);
-		if (ret < 0)
-			goto done;
+		struct rbd_snap *snap;
+
+		snap = snap_by_name(rbd_dev, rbd_dev->spec->snap_name);
+		if (!snap)
+			return -ENOENT;
+		rbd_dev->spec->snap_id = snap->id;
+		rbd_dev->mapping.size = snap->size;
+		rbd_dev->mapping.features = snap->features;
 		rbd_dev->mapping.read_only = true;
 	}
 	set_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
 
-done:
-	return ret;
+	return 0;
 }
 
 static void rbd_header_free(struct rbd_image_header *header)
