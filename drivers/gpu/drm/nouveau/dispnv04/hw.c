@@ -24,7 +24,7 @@
 
 #include <drm/drmP.h>
 #include "nouveau_drm.h"
-#include "nouveau_hw.h"
+#include "hw.h"
 
 #include <subdev/bios/pll.h>
 #include <subdev/clock.h>

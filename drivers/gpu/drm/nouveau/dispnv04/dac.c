@@ -31,7 +31,7 @@
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
 #include "nouveau_crtc.h"
-#include "nouveau_hw.h"
+#include "hw.h"
 #include "nvreg.h"
 
 #include <subdev/bios/gpio.h>
