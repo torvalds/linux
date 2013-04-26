@@ -609,6 +609,19 @@ static const u8 ab3100_reg_initvals[] = {
 	LDO_D_SETTING,
 };
 
+static int ab3100_regulators_remove(struct platform_device *pdev)
+{
+	int i;
+
+	for (i = 0; i < AB3100_NUM_REGULATORS; i++) {
+		struct ab3100_regulator *reg = &ab3100_regulators[i];
+
+		regulator_unregister(reg->rdev);
+		reg->rdev = NULL;
+	}
+	return 0;
+}
+
 static int
 ab3100_regulator_of_probe(struct platform_device *pdev, struct device_node *np)
 {
@@ -635,8 +648,10 @@ ab3100_regulator_of_probe(struct platform_device *pdev, struct device_node *np)
 			pdev, NULL, ab3100_regulator_matches[i].init_data,
 			ab3100_regulator_matches[i].of_node,
 			(int) ab3100_regulator_matches[i].driver_data);
-		if (err)
+		if (err) {
+			ab3100_regulators_remove(pdev);
 			return err;
+		}
 	}
 
 	return 0;
@@ -695,22 +710,12 @@ static int ab3100_regulators_probe(struct platform_device *pdev)
 
 		err = ab3100_regulator_register(pdev, plfdata, NULL, NULL,
 						desc->id);
-		if (err)
+		if (err) {
+			ab3100_regulators_remove(pdev);
 			return err;
+		}
 	}
 
-	return 0;
-}
-
-static int ab3100_regulators_remove(struct platform_device *pdev)
-{
-	int i;
-
-	for (i = 0; i < AB3100_NUM_REGULATORS; i++) {
-		struct ab3100_regulator *reg = &ab3100_regulators[i];
-
-		regulator_unregister(reg->rdev);
-	}
 	return 0;
 }
 
