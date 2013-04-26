@@ -622,6 +622,8 @@ static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
 int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
                        unsigned int rt, unsigned int bytes, int is_bigendian)
 {
+	int idx, ret;
+
 	if (bytes > sizeof(run->mmio.data)) {
 		printk(KERN_ERR "%s: bad MMIO length: %d\n", __func__,
 		       run->mmio.len);
@@ -637,8 +639,14 @@ int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	vcpu->mmio_is_write = 0;
 	vcpu->arch.mmio_sign_extend = 0;
 
-	if (!kvm_io_bus_read(vcpu->kvm, KVM_MMIO_BUS, run->mmio.phys_addr,
-			     bytes, &run->mmio.data)) {
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+
+	ret = kvm_io_bus_read(vcpu->kvm, KVM_MMIO_BUS, run->mmio.phys_addr,
+			      bytes, &run->mmio.data);
+
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
+
+	if (!ret) {
 		kvmppc_complete_mmio_load(vcpu, run);
 		vcpu->mmio_needed = 0;
 		return EMULATE_DONE;
@@ -663,6 +671,7 @@ int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
                         u64 val, unsigned int bytes, int is_bigendian)
 {
 	void *data = run->mmio.data;
+	int idx, ret;
 
 	if (bytes > sizeof(run->mmio.data)) {
 		printk(KERN_ERR "%s: bad MMIO length: %d\n", __func__,
@@ -692,8 +701,14 @@ int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		}
 	}
 
-	if (!kvm_io_bus_write(vcpu->kvm, KVM_MMIO_BUS, run->mmio.phys_addr,
-			      bytes, &run->mmio.data)) {
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+
+	ret = kvm_io_bus_write(vcpu->kvm, KVM_MMIO_BUS, run->mmio.phys_addr,
+			       bytes, &run->mmio.data);
+
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
+
+	if (!ret) {
 		vcpu->mmio_needed = 0;
 		return EMULATE_DONE;
 	}
