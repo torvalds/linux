@@ -26,6 +26,12 @@ config WLAN_80211
 	  This option does not affect the kernel build, it only
 	  lets you choose drivers.
 
+config AIDC
+    bool "Enable WIFI AIDS(Automatic Identification USB Wifi Type)"
+	depends on RTL8188EU || RTL8192CU || RTL8723AU || RT5370
+	default n
+	---help---
+
 choice
 	prompt "WiFi device driver support"
 	default WIFI_NONE
