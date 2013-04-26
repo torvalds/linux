@@ -123,6 +123,7 @@ typedef struct rk29fb_screen {
 	u32 mode;
 	/* Timing */
 	u32 pixclock;
+	u32 fps;
 	u16 left_margin;
 	u16 right_margin;
 	u16 hsync_len;
