@@ -881,7 +881,6 @@ static int rbd_dev_set_mapping(struct rbd_device *rbd_dev)
 		rbd_dev->mapping.features = snap->features;
 		rbd_dev->mapping.read_only = true;
 	}
-	set_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
 
 	return 0;
 }
@@ -4785,6 +4784,7 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 
 	/* Everything's ready.  Announce the disk to the world. */
 
+	set_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
 	add_disk(rbd_dev->disk);
 
 	pr_info("%s: added with size 0x%llx\n", rbd_dev->disk->disk_name,
