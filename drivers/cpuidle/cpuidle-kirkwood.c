@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-kirkwood/cpuidle.c
- *
  * CPU idle Marvell Kirkwood SoCs
  *
  * This file is licensed under the terms of the GNU General Public
@@ -11,6 +9,9 @@
  * to implement two idle states -
  * #1 wait-for-interrupt
  * #2 wait-for-interrupt and DDR self refresh
+ *
+ * Maintainer: Jason Cooper <jason@lakedaemon.net>
+ * Maintainer: Andrew Lunn <andrew@lunn.ch>
  */
 
 #include <linux/kernel.h>

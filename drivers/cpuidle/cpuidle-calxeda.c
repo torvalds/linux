@@ -1,7 +1,7 @@
 /*
  * Copyright 2012 Calxeda, Inc.
  *
- * Based on arch/arm/plat-mxc/cpuidle.c:
+ * Based on arch/arm/plat-mxc/cpuidle.c: #v3.7
  * Copyright 2012 Freescale Semiconductor, Inc.
  * Copyright 2012 Linaro Ltd.
  *
@@ -16,6 +16,8 @@
  *
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Maintainer: Rob Herring <rob.herring@calxeda.com>
  */
 
 #include <linux/cpuidle.h>
