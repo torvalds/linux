@@ -357,9 +357,12 @@ static struct attribute *zfcp_unit_attrs[] = {
 	&dev_attr_unit_access_readonly.attr,
 	NULL
 };
-
-struct attribute_group zfcp_sysfs_unit_attrs = {
+static struct attribute_group zfcp_unit_attr_group = {
 	.attrs = zfcp_unit_attrs,
+};
+const struct attribute_group *zfcp_unit_attr_groups[] = {
+	&zfcp_unit_attr_group,
+	NULL,
 };
 
 #define ZFCP_DEFINE_LATENCY_ATTR(_name) 				\
