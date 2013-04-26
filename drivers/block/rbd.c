@@ -3147,8 +3147,6 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 
 	rbd_dev->disk = disk;
 
-	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
-
 	return 0;
 out_disk:
 	put_disk(disk);
@@ -4784,6 +4782,7 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 
 	/* Everything's ready.  Announce the disk to the world. */
 
+	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
 	set_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
 	add_disk(rbd_dev->disk);
 
