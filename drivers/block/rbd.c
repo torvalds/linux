@@ -4800,15 +4800,19 @@ static int rbd_dev_probe(struct rbd_device *rbd_dev)
 		ret = rbd_dev_v1_probe(rbd_dev);
 	else
 		ret = rbd_dev_v2_probe(rbd_dev);
-	if (ret) {
-		dout("probe failed, returning %d\n", ret);
-
-		return ret;
-	}
+	if (ret)
+		goto out_err;
 
 	ret = rbd_dev_probe_finish(rbd_dev);
 	if (ret)
 		rbd_header_free(&rbd_dev->header);
+
+	return ret;
+out_err:
+	kfree(rbd_dev->spec->image_id);
+	rbd_dev->spec->image_id = NULL;
+
+	dout("probe failed, returning %d\n", ret);
 
 	return ret;
 }
