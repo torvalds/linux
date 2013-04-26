@@ -24,7 +24,7 @@
 #include <linux/list.h>
 #include <linux/nfc.h>
 
-#include "../nfc.h"
+#include "nfc.h"
 #include "llcp.h"
 
 static u8 llcp_magic[3] = {0x46, 0x66, 0x6d};
