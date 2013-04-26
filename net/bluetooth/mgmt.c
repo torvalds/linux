@@ -1351,6 +1351,11 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_LE,
 				  MGMT_STATUS_INVALID_PARAMS);
 
+	/* LE-only devices do not allow toggling LE on/off */
+	if (!lmp_bredr_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_LE,
+				  MGMT_STATUS_REJECTED);
+
 	hci_dev_lock(hdev);
 
 	val = !!cp->val;
@@ -3347,7 +3352,8 @@ static int powered_update_hci(struct hci_dev *hdev)
 		hci_req_add(&req, HCI_OP_WRITE_SSP_MODE, 1, &ssp);
 	}
 
-	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
+	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags) &&
+	    lmp_bredr_capable(hdev)) {
 		struct hci_cp_write_le_host_supported cp;
 
 		cp.le = 1;
