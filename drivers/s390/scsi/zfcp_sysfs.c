@@ -75,12 +75,6 @@ ZFCP_DEFINE_ATTR(zfcp_unit, unit, in_recovery, "%d\n",
 ZFCP_DEFINE_ATTR(zfcp_unit, unit, access_denied, "%d\n",
 		 (zfcp_unit_sdev_status(unit) &
 		  ZFCP_STATUS_COMMON_ACCESS_DENIED) != 0);
-ZFCP_DEFINE_ATTR(zfcp_unit, unit, access_shared, "%d\n",
-		 (zfcp_unit_sdev_status(unit) &
-		  ZFCP_STATUS_LUN_SHARED) != 0);
-ZFCP_DEFINE_ATTR(zfcp_unit, unit, access_readonly, "%d\n",
-		 (zfcp_unit_sdev_status(unit) &
-		  ZFCP_STATUS_LUN_READONLY) != 0);
 
 static ssize_t zfcp_sysfs_port_failed_show(struct device *dev,
 					   struct device_attribute *attr,
@@ -353,8 +347,6 @@ static struct attribute *zfcp_unit_attrs[] = {
 	&dev_attr_unit_in_recovery.attr,
 	&dev_attr_unit_status.attr,
 	&dev_attr_unit_access_denied.attr,
-	&dev_attr_unit_access_shared.attr,
-	&dev_attr_unit_access_readonly.attr,
 	NULL
 };
 static struct attribute_group zfcp_unit_attr_group = {

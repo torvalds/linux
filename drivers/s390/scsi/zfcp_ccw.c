@@ -72,15 +72,6 @@ static struct ccw_device_id zfcp_ccw_device_id[] = {
 MODULE_DEVICE_TABLE(ccw, zfcp_ccw_device_id);
 
 /**
- * zfcp_ccw_priv_sch - check if subchannel is privileged
- * @adapter: Adapter/Subchannel to check
- */
-int zfcp_ccw_priv_sch(struct zfcp_adapter *adapter)
-{
-	return adapter->ccw_device->id.dev_model == ZFCP_MODEL_PRIV;
-}
-
-/**
  * zfcp_ccw_probe - probe function of zfcp driver
  * @cdev: pointer to belonging ccw device
  *
