@@ -4994,7 +4994,7 @@ static void rbd_dev_release(struct device *dev)
 
 static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
 {
-	while (rbd_dev->parent_spec) {
+	while (rbd_dev->parent) {
 		struct rbd_device *first = rbd_dev;
 		struct rbd_device *second = first->parent;
 		struct rbd_device *third;
@@ -5007,12 +5007,15 @@ static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
 			first = second;
 			second = third;
 		}
+		rbd_assert(second);
 		rbd_remove_all_snaps(second);
 		rbd_bus_del_dev(second);
+		first->parent = NULL;
+		first->parent_overlap = 0;
+
+		rbd_assert(first->parent_spec);
 		rbd_spec_put(first->parent_spec);
 		first->parent_spec = NULL;
-		first->parent_overlap = 0;
-		first->parent = NULL;
 	}
 }
 
