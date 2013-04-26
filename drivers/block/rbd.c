@@ -108,6 +108,9 @@ struct rbd_image_header {
 	char *snap_names;
 	u64 *snap_sizes;
 
+	u64 stripe_unit;
+	u64 stripe_count;
+
 	u64 obj_version;
 };
 
@@ -315,9 +318,6 @@ struct rbd_device {
 	struct rbd_spec		*parent_spec;
 	u64			parent_overlap;
 	struct rbd_device	*parent;
-
-	u64			stripe_unit;
-	u64			stripe_count;
 
 	/* protects updating the header */
 	struct rw_semaphore     header_rwsem;
@@ -3695,8 +3695,8 @@ static int rbd_dev_v2_striping_info(struct rbd_device *rbd_dev)
 				"(got %llu want 1)", stripe_count);
 		return -EINVAL;
 	}
-	rbd_dev->stripe_unit = stripe_unit;
-	rbd_dev->stripe_count = stripe_count;
+	rbd_dev->header.stripe_unit = stripe_unit;
+	rbd_dev->header.stripe_count = stripe_count;
 
 	return 0;
 }
