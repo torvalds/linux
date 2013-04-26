@@ -846,7 +846,6 @@ static int rbd_dev_set_mapping(struct rbd_device *rbd_dev)
 {
 	if (!memcmp(rbd_dev->spec->snap_name, RBD_SNAP_HEAD_NAME,
 		    sizeof (RBD_SNAP_HEAD_NAME))) {
-		rbd_dev->spec->snap_id = CEPH_NOSNAP;
 		rbd_dev->mapping.size = rbd_dev->header.image_size;
 		rbd_dev->mapping.features = rbd_dev->header.features;
 	} else {
@@ -855,7 +854,6 @@ static int rbd_dev_set_mapping(struct rbd_device *rbd_dev)
 		snap = snap_by_name(rbd_dev, rbd_dev->spec->snap_name);
 		if (!snap)
 			return -ENOENT;
-		rbd_dev->spec->snap_id = snap->id;
 		rbd_dev->mapping.size = snap->size;
 		rbd_dev->mapping.features = snap->features;
 		rbd_dev->mapping.read_only = true;
@@ -3760,6 +3758,10 @@ out:
  * rbd_dev_snaps_update() has completed because some of the
  * information (in particular, snapshot name) is not available
  * until then.
+ *
+ * When an image being mapped (not a parent) is probed, we have the
+ * pool name and pool id, image name and image id, and the snapshot
+ * name.  The only thing we're missing is the snapshot id.
  */
 static int rbd_dev_probe_update_spec(struct rbd_device *rbd_dev)
 {
@@ -3768,8 +3770,24 @@ static int rbd_dev_probe_update_spec(struct rbd_device *rbd_dev)
 	void *reply_buf = NULL;
 	int ret;
 
-	if (rbd_dev->spec->pool_name)
-		return 0;	/* Already have the names */
+	/*
+	 * An image being mapped will have the pool name (etc.), but
+	 * we need to look up the snapshot id.
+	 */
+	if (rbd_dev->spec->pool_name) {
+		if (strcmp(rbd_dev->spec->snap_name, RBD_SNAP_HEAD_NAME)) {
+			struct rbd_snap *snap;
+
+			snap = snap_by_name(rbd_dev, rbd_dev->spec->snap_name);
+			if (!snap)
+				return -ENOENT;
+			rbd_dev->spec->snap_id = snap->id;
+		} else {
+			rbd_dev->spec->snap_id = CEPH_NOSNAP;
+		}
+
+		return 0;
+	}
 
 	/* Look up the pool name */
 
