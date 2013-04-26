@@ -21,8 +21,6 @@ extern struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *, u64, u32,
 					   u32);
 extern void zfcp_sg_free_table(struct scatterlist *, int);
 extern int zfcp_sg_setup_table(struct scatterlist *, int);
-extern void zfcp_device_unregister(struct device *,
-				   const struct attribute_group *);
 extern void zfcp_adapter_release(struct kref *);
 extern void zfcp_adapter_unregister(struct zfcp_adapter *);
 

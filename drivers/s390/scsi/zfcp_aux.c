@@ -464,20 +464,6 @@ void zfcp_adapter_release(struct kref *ref)
 	put_device(&cdev->dev);
 }
 
-/**
- * zfcp_device_unregister - remove port, unit from system
- * @dev: reference to device which is to be removed
- * @grp: related reference to attribute group
- *
- * Helper function to unregister port, unit from system
- */
-void zfcp_device_unregister(struct device *dev,
-			    const struct attribute_group *grp)
-{
-	sysfs_remove_group(&dev->kobj, grp);
-	device_unregister(dev);
-}
-
 static void zfcp_port_release(struct device *dev)
 {
 	struct zfcp_port *port = container_of(dev, struct zfcp_port, dev);
