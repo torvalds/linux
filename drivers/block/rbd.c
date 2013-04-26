@@ -2844,10 +2844,12 @@ static void rbd_free_disk(struct rbd_device *rbd_dev)
 	if (!disk)
 		return;
 
-	if (disk->flags & GENHD_FL_UP)
+	rbd_dev->disk = NULL;
+	if (disk->flags & GENHD_FL_UP) {
 		del_gendisk(disk);
-	if (disk->queue)
-		blk_cleanup_queue(disk->queue);
+		if (disk->queue)
+			blk_cleanup_queue(disk->queue);
+	}
 	put_disk(disk);
 }
 
