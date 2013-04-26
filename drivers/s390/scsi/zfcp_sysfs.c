@@ -268,7 +268,7 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	put_device(&port->dev);
 
 	zfcp_erp_port_shutdown(port, 0, "syprs_1");
-	zfcp_device_unregister(&port->dev, &zfcp_sysfs_port_attrs);
+	device_unregister(&port->dev);
  out:
 	zfcp_ccw_adapter_put(adapter);
 	return retval ? retval : (ssize_t) count;
@@ -340,12 +340,12 @@ static struct attribute *zfcp_port_attrs[] = {
 	&dev_attr_port_access_denied.attr,
 	NULL
 };
-
-/**
- * zfcp_sysfs_port_attrs - sysfs attributes for all other ports
- */
-struct attribute_group zfcp_sysfs_port_attrs = {
+static struct attribute_group zfcp_port_attr_group = {
 	.attrs = zfcp_port_attrs,
+};
+const struct attribute_group *zfcp_port_attr_groups[] = {
+	&zfcp_port_attr_group,
+	NULL,
 };
 
 static struct attribute *zfcp_unit_attrs[] = {

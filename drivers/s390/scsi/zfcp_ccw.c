@@ -132,7 +132,7 @@ static void zfcp_ccw_remove(struct ccw_device *cdev)
 		zfcp_device_unregister(&unit->dev, &zfcp_sysfs_unit_attrs);
 
 	list_for_each_entry_safe(port, p, &port_remove_lh, list)
-		zfcp_device_unregister(&port->dev, &zfcp_sysfs_port_attrs);
+		device_unregister(&port->dev);
 
 	zfcp_adapter_unregister(adapter);
 }
