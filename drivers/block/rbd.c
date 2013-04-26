@@ -4702,11 +4702,49 @@ out_err:
 	return ret;
 }
 
-static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
+static int rbd_dev_probe_parent(struct rbd_device *rbd_dev)
 {
 	struct rbd_device *parent = NULL;
-	struct rbd_spec *parent_spec = NULL;
-	struct rbd_client *rbdc = NULL;
+	struct rbd_spec *parent_spec;
+	struct rbd_client *rbdc;
+	int ret;
+
+	if (!rbd_dev->parent_spec)
+		return 0;
+	/*
+	 * We need to pass a reference to the client and the parent
+	 * spec when creating the parent rbd_dev.  Images related by
+	 * parent/child relationships always share both.
+	 */
+	parent_spec = rbd_spec_get(rbd_dev->parent_spec);
+	rbdc = __rbd_get_client(rbd_dev->rbd_client);
+
+	ret = -ENOMEM;
+	parent = rbd_dev_create(rbdc, parent_spec);
+	if (!parent)
+		goto out_err;
+
+	ret = rbd_dev_image_probe(parent);
+	if (ret < 0)
+		goto out_err;
+	rbd_dev->parent = parent;
+
+	return 0;
+out_err:
+	if (parent) {
+		rbd_spec_put(rbd_dev->parent_spec);
+		kfree(rbd_dev->header_name);
+		rbd_dev_destroy(parent);
+	} else {
+		rbd_put_client(rbdc);
+		rbd_spec_put(parent_spec);
+	}
+
+	return ret;
+}
+
+static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
+{
 	int ret;
 
 	/* no need to lock here, as rbd_dev is not registered yet */
@@ -4747,34 +4785,9 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 	if (ret)
 		goto err_out_disk;
 
-	/*
-	 * At this point cleanup in the event of an error is the job
-	 * of the sysfs code (initiated by rbd_bus_del_dev()).
-	 */
-	/* Probe the parent if there is one */
-
-	if (rbd_dev->parent_spec) {
-		/*
-		 * We need to pass a reference to the client and the
-		 * parent spec when creating the parent rbd_dev.
-		 * Images related by parent/child relationships
-		 * always share both.
-		 */
-		parent_spec = rbd_spec_get(rbd_dev->parent_spec);
-		rbdc = __rbd_get_client(rbd_dev->rbd_client);
-
-		parent = rbd_dev_create(rbdc, parent_spec);
-		if (!parent) {
-			ret = -ENOMEM;
-			goto err_out_spec;
-		}
-		rbdc = NULL;		/* parent now owns reference */
-		parent_spec = NULL;	/* parent now owns reference */
-		ret = rbd_dev_image_probe(parent);
-		if (ret < 0)
-			goto err_out_parent;
-		rbd_dev->parent = parent;
-	}
+	ret = rbd_dev_probe_parent(rbd_dev);
+	if (ret)
+		goto err_out_bus;
 
 	ret = rbd_dev_header_watch_sync(rbd_dev, 1);
 	if (ret)
@@ -4791,13 +4804,6 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 
 	return ret;
 
-err_out_parent:
-	rbd_spec_put(rbd_dev->parent_spec);
-	kfree(rbd_dev->header_name);
-	rbd_dev_destroy(parent);
-err_out_spec:
-	rbd_spec_put(parent_spec);
-	rbd_put_client(rbdc);
 err_out_bus:
 	/* this will also clean up rest of rbd_dev stuff */
 
