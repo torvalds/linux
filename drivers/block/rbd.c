@@ -4772,6 +4772,10 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 	if (ret)
 		goto err_out_snaps;
 
+	ret = rbd_dev_probe_parent(rbd_dev);
+	if (ret)
+		goto err_out_mapping;
+
 	/* generate unique id: find highest unique id, add one */
 	rbd_dev_id_get(rbd_dev);
 
@@ -4797,10 +4801,6 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 	if (ret)
 		goto err_out_disk;
 
-	ret = rbd_dev_probe_parent(rbd_dev);
-	if (ret)
-		goto err_out_bus;
-
 	/* Everything's ready.  Announce the disk to the world. */
 
 	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
@@ -4812,17 +4812,14 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 
 	return ret;
 
-err_out_bus:
-	rbd_dev_remove_parent(rbd_dev);
-	rbd_bus_del_dev(rbd_dev);
-
-	return ret;
 err_out_disk:
 	rbd_free_disk(rbd_dev);
 err_out_blkdev:
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
 err_out_id:
 	rbd_dev_id_put(rbd_dev);
+	rbd_dev_remove_parent(rbd_dev);
+err_out_mapping:
 	rbd_dev_mapping_clear(rbd_dev);
 err_out_snaps:
 	rbd_remove_all_snaps(rbd_dev);
