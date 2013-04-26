@@ -87,6 +87,12 @@ static const struct sdhci_ops sdhci_acpi_ops_dflt = {
 	.enable_dma = sdhci_acpi_enable_dma,
 };
 
+static const struct sdhci_acpi_slot sdhci_acpi_slot_int_emmc = {
+	.caps    = MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE,
+	.caps2   = MMC_CAP2_HC_ERASE_SZ,
+	.flags   = SDHCI_ACPI_RUNTIME_PM,
+};
+
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
 	.quirks2 = SDHCI_QUIRK2_HOST_OFF_CARD_ON,
 	.caps    = MMC_CAP_NONREMOVABLE | MMC_CAP_POWER_OFF_CARD,
@@ -94,21 +100,65 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
 	.pm_caps = MMC_PM_KEEP_POWER,
 };
 
+static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sd = {
+};
+
+struct sdhci_acpi_uid_slot {
+	const char *hid;
+	const char *uid;
+	const struct sdhci_acpi_slot *slot;
+};
+
+static const struct sdhci_acpi_uid_slot sdhci_acpi_uids[] = {
+	{ "80860F14" , "1" , &sdhci_acpi_slot_int_emmc },
+	{ "80860F14" , "3" , &sdhci_acpi_slot_int_sd   },
+	{ "INT33BB"  , "2" , &sdhci_acpi_slot_int_sdio },
+	{ "INT33C6"  , NULL, &sdhci_acpi_slot_int_sdio },
+	{ "PNP0D40"  },
+	{ },
+};
+
 static const struct acpi_device_id sdhci_acpi_ids[] = {
-	{ "INT33C6", (kernel_ulong_t)&sdhci_acpi_slot_int_sdio },
-	{ "PNP0D40" },
+	{ "80860F14" },
+	{ "INT33BB"  },
+	{ "INT33C6"  },
+	{ "PNP0D40"  },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, sdhci_acpi_ids);
 
-static const struct sdhci_acpi_slot *sdhci_acpi_get_slot(const char *hid)
+static const struct sdhci_acpi_slot *sdhci_acpi_get_slot_by_ids(const char *hid,
+								const char *uid)
 {
-	const struct acpi_device_id *id;
+	const struct sdhci_acpi_uid_slot *u;
 
-	for (id = sdhci_acpi_ids; id->id[0]; id++)
-		if (!strcmp(id->id, hid))
-			return (const struct sdhci_acpi_slot *)id->driver_data;
+	for (u = sdhci_acpi_uids; u->hid; u++) {
+		if (strcmp(u->hid, hid))
+			continue;
+		if (!u->uid)
+			return u->slot;
+		if (uid && !strcmp(u->uid, uid))
+			return u->slot;
+	}
 	return NULL;
+}
+
+static const struct sdhci_acpi_slot *sdhci_acpi_get_slot(acpi_handle handle,
+							 const char *hid)
+{
+	const struct sdhci_acpi_slot *slot;
+	struct acpi_device_info *info;
+	const char *uid = NULL;
+	acpi_status status;
+
+	status = acpi_get_object_info(handle, &info);
+	if (!ACPI_FAILURE(status) && (info->valid & ACPI_VALID_UID))
+		uid = info->unique_id.string;
+
+	slot = sdhci_acpi_get_slot_by_ids(hid, uid);
+
+	kfree(info);
+	return slot;
 }
 
 static int sdhci_acpi_probe(struct platform_device *pdev)
@@ -148,7 +198,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 
 	c = sdhci_priv(host);
 	c->host = host;
-	c->slot = sdhci_acpi_get_slot(hid);
+	c->slot = sdhci_acpi_get_slot(handle, hid);
 	c->pdev = pdev;
 	c->use_runtime_pm = sdhci_acpi_flag(c, SDHCI_ACPI_RUNTIME_PM);
 
