@@ -253,10 +253,44 @@ static void __init imx6q_map_io(void)
 	imx_scu_map_io();
 }
 
+#ifdef CONFIG_CACHE_L2X0
+static void __init imx6q_init_l2cache(void)
+{
+	void __iomem *l2x0_base;
+	struct device_node *np;
+	unsigned int val;
+
+	np = of_find_compatible_node(NULL, NULL, "arm,pl310-cache");
+	if (!np)
+		goto out;
+
+	l2x0_base = of_iomap(np, 0);
+	if (!l2x0_base) {
+		of_node_put(np);
+		goto out;
+	}
+
+	/* Configure the L2 PREFETCH and POWER registers */
+	val = readl_relaxed(l2x0_base + L2X0_PREFETCH_CTRL);
+	val |= 0x70800000;
+	writel_relaxed(val, l2x0_base + L2X0_PREFETCH_CTRL);
+	val = L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN;
+	writel_relaxed(val, l2x0_base + L2X0_POWER_CTRL);
+
+	iounmap(l2x0_base);
+	of_node_put(np);
+
+out:
+	l2x0_of_init(0, ~0UL);
+}
+#else
+static inline void imx6q_init_l2cache(void) {}
+#endif
+
 static void __init imx6q_init_irq(void)
 {
 	imx6q_init_revision();
-	l2x0_of_init(0, ~0UL);
+	imx6q_init_l2cache();
 	imx_src_init();
 	imx_gpc_init();
 	irqchip_init();
