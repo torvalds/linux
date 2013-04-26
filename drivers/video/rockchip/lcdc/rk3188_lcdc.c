@@ -503,6 +503,8 @@ static int rk3188_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 			break;
 		case OUT_P888:
 			face = OUT_P888;
+			lcdc_msk_reg(lcdc_dev,DSP_CTRL0,m_DITHER_DOWN_EN | m_DITHER_UP_EN,
+					v_DITHER_DOWN_EN(0) | v_DITHER_UP_EN(0));
 			break;
 		default:
 			printk("unsupported display output interface!\n");
