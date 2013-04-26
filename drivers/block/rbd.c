@@ -427,8 +427,9 @@ void rbd_warn(struct rbd_device *rbd_dev, const char *fmt, ...)
 #  define rbd_assert(expr)	((void) 0)
 #endif /* !RBD_DEBUG */
 
-static void rbd_img_parent_read(struct rbd_obj_request *obj_request);
 static int rbd_img_obj_request_submit(struct rbd_obj_request *obj_request);
+static void rbd_img_parent_read(struct rbd_obj_request *obj_request);
+static void rbd_dev_remove_parent(struct rbd_device *rbd_dev);
 
 static int rbd_dev_refresh(struct rbd_device *rbd_dev, u64 *hver);
 static int rbd_dev_v2_refresh(struct rbd_device *rbd_dev, u64 *hver);
@@ -4988,6 +4989,29 @@ static void __rbd_remove(struct rbd_device *rbd_dev)
 	rbd_bus_del_dev(rbd_dev);
 }
 
+static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
+{
+	while (rbd_dev->parent_spec) {
+		struct rbd_device *first = rbd_dev;
+		struct rbd_device *second = first->parent;
+		struct rbd_device *third;
+
+		/*
+		 * Follow to the parent with no grandparent and
+		 * remove it.
+		 */
+		while (second && (third = second->parent)) {
+			first = second;
+			second = third;
+		}
+		__rbd_remove(second);
+		rbd_spec_put(first->parent_spec);
+		first->parent_spec = NULL;
+		first->parent_overlap = 0;
+		first->parent = NULL;
+	}
+}
+
 static ssize_t rbd_remove(struct bus_type *bus,
 			  const char *buf,
 			  size_t count)
@@ -5023,25 +5047,8 @@ static ssize_t rbd_remove(struct bus_type *bus,
 	if (ret < 0)
 		goto done;
 
-	while (rbd_dev->parent_spec) {
-		struct rbd_device *first = rbd_dev;
-		struct rbd_device *second = first->parent;
-		struct rbd_device *third;
+	rbd_dev_remove_parent(rbd_dev);
 
-		/*
-		 * Follow to the parent with no grandparent and
-		 * remove it.
-		 */
-		while (second && (third = second->parent)) {
-			first = second;
-			second = third;
-		}
-		__rbd_remove(second);
-		rbd_spec_put(first->parent_spec);
-		first->parent_spec = NULL;
-		first->parent_overlap = 0;
-		first->parent = NULL;
-	}
 	__rbd_remove(rbd_dev);
 
 done:
