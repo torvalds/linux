@@ -2432,7 +2432,6 @@ static long btrfs_ioctl_dev_info(struct btrfs_root *root, void __user *arg)
 
 	mutex_lock(&fs_devices->device_list_mutex);
 	dev = btrfs_find_device(root->fs_info, di_args->devid, s_uuid, NULL);
-	mutex_unlock(&fs_devices->device_list_mutex);
 
 	if (!dev) {
 		ret = -ENODEV;
@@ -2456,6 +2455,7 @@ static long btrfs_ioctl_dev_info(struct btrfs_root *root, void __user *arg)
 	}
 
 out:
+	mutex_unlock(&fs_devices->device_list_mutex);
 	if (ret == 0 && copy_to_user(arg, di_args, sizeof(*di_args)))
 		ret = -EFAULT;
 
