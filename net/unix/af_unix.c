@@ -1412,8 +1412,8 @@ static void maybe_add_creds(struct sk_buff *skb, const struct socket *sock,
 	if (UNIXCB(skb).cred)
 		return;
 	if (test_bit(SOCK_PASSCRED, &sock->flags) ||
-	    (other->sk_socket &&
-	    test_bit(SOCK_PASSCRED, &other->sk_socket->flags))) {
+	    !other->sk_socket ||
+	    test_bit(SOCK_PASSCRED, &other->sk_socket->flags)) {
 		UNIXCB(skb).pid  = get_pid(task_tgid(current));
 		UNIXCB(skb).cred = get_current_cred();
 	}
@@ -1993,7 +1993,7 @@ again:
 			if ((UNIXCB(skb).pid  != siocb->scm->pid) ||
 			    (UNIXCB(skb).cred != siocb->scm->cred))
 				break;
-		} else {
+		} else if (test_bit(SOCK_PASSCRED, &sock->flags)) {
 			/* Copy credentials */
 			scm_set_cred(siocb->scm, UNIXCB(skb).pid, UNIXCB(skb).cred);
 			check_creds = 1;

@@ -3866,64 +3866,6 @@ qla81xx_restart_mpi_firmware(scsi_qla_host_t *vha)
 	return rval;
 }
 
-int
-qla2x00_set_driver_version(scsi_qla_host_t *vha, char *version)
-{
-	int rval;
-	mbx_cmd_t mc;
-	mbx_cmd_t *mcp = &mc;
-	int len;
-	uint16_t dwlen;
-	uint8_t *str;
-	dma_addr_t str_dma;
-	struct qla_hw_data *ha = vha->hw;
-
-	if (!IS_FWI2_CAPABLE(ha) || IS_QLA82XX(ha))
-		return QLA_FUNCTION_FAILED;
-
-	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1155,
-	    "Entered %s.\n", __func__);
-
-	str = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &str_dma);
-	if (!str) {
-		ql_log(ql_log_warn, vha, 0x1156,
-		    "Failed to allocate driver version param.\n");
-		return QLA_MEMORY_ALLOC_FAILED;
-	}
-
-	memcpy(str, "\x7\x3\x11\x0", 4);
-	dwlen = str[0];
-	len = dwlen * sizeof(uint32_t) - 4;
-	memset(str + 4, 0, len);
-	if (len > strlen(version))
-		len = strlen(version);
-	memcpy(str + 4, version, len);
-
-	mcp->mb[0] = MBC_SET_RNID_PARAMS;
-	mcp->mb[1] = RNID_TYPE_SET_VERSION << 8 | dwlen;
-	mcp->mb[2] = MSW(LSD(str_dma));
-	mcp->mb[3] = LSW(LSD(str_dma));
-	mcp->mb[6] = MSW(MSD(str_dma));
-	mcp->mb[7] = LSW(MSD(str_dma));
-	mcp->out_mb = MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
-	mcp->in_mb = MBX_0;
-	mcp->tov = MBX_TOV_SECONDS;
-	mcp->flags = 0;
-	rval = qla2x00_mailbox_command(vha, mcp);
-
-	if (rval != QLA_SUCCESS) {
-		ql_dbg(ql_dbg_mbx, vha, 0x1157,
-		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
-	} else {
-		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1158,
-		    "Done %s.\n", __func__);
-	}
-
-	dma_pool_free(ha->s_dma_pool, str, str_dma);
-
-	return rval;
-}
-
 static int
 qla2x00_read_asic_temperature(scsi_qla_host_t *vha, uint16_t *temp)
 {

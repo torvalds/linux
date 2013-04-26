@@ -57,6 +57,10 @@ extern unsigned long zero_page_mask;
 	 (((unsigned long)(vaddr)) &zero_page_mask))))
 #define __HAVE_COLOR_ZERO_PAGE
 
+/* TODO: s390 cannot support io_remap_pfn_range... */
+#define io_remap_pfn_range(vma, vaddr, pfn, size, prot) 	       \
+	remap_pfn_range(vma, vaddr, pfn, size, prot)
+
 #endif /* !__ASSEMBLY__ */
 
 /*
@@ -344,6 +348,7 @@ extern unsigned long MODULES_END;
 #define _REGION3_ENTRY_CO	0x100	/* change-recording override	    */
 
 /* Bits in the segment table entry */
+#define _SEGMENT_ENTRY_ORIGIN_LARGE ~0xfffffUL /* large page address	    */
 #define _SEGMENT_ENTRY_ORIGIN	~0x7ffUL/* segment table origin		    */
 #define _SEGMENT_ENTRY_RO	0x200	/* page protection bit		    */
 #define _SEGMENT_ENTRY_INV	0x20	/* invalid segment table entry	    */
@@ -1531,7 +1536,8 @@ extern int s390_enable_sie(void);
 /*
  * No page table caches to initialise
  */
-#define pgtable_cache_init()	do { } while (0)
+static inline void pgtable_cache_init(void) { }
+static inline void check_pgt_cache(void) { }
 
 #include <asm-generic/pgtable.h>
 

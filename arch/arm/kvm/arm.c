@@ -201,6 +201,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 		break;
 	case KVM_CAP_ARM_SET_DEVICE_ADDR:
 		r = 1;
+		break;
 	case KVM_CAP_NR_VCPUS:
 		r = num_online_cpus();
 		break;

@@ -723,7 +723,7 @@ struct sh_eth_private {
 	u32 phy_id;					/* PHY ID */
 	struct mii_bus *mii_bus;	/* MDIO bus control */
 	struct phy_device *phydev;	/* PHY device control */
-	enum phy_state link;
+	int link;
 	phy_interface_t phy_interface;
 	int msg_enable;
 	int speed;

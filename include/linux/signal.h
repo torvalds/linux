@@ -250,11 +250,11 @@ extern int show_unhandled_signals;
 extern int sigsuspend(sigset_t *);
 
 struct sigaction {
-#ifndef __ARCH_HAS_ODD_SIGACTION
+#ifndef __ARCH_HAS_IRIX_SIGACTION
 	__sighandler_t	sa_handler;
 	unsigned long	sa_flags;
 #else
-	unsigned long	sa_flags;
+	unsigned int	sa_flags;
 	__sighandler_t	sa_handler;
 #endif
 #ifdef __ARCH_HAS_SA_RESTORER

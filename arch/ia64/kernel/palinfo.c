@@ -849,17 +849,6 @@ static palinfo_entry_t palinfo_entries[]={
 
 #define NR_PALINFO_ENTRIES	(int) ARRAY_SIZE(palinfo_entries)
 
-/*
- * this array is used to keep track of the proc entries we create. This is
- * required in the module mode when we need to remove all entries. The procfs code
- * does not do recursion of deletion
- *
- * Notes:
- *	- +1 accounts for the cpuN directory entry in /proc/pal
- */
-#define NR_PALINFO_PROC_ENTRIES	(NR_CPUS*(NR_PALINFO_ENTRIES+1))
-
-static struct proc_dir_entry *palinfo_proc_entries[NR_PALINFO_PROC_ENTRIES];
 static struct proc_dir_entry *palinfo_dir;
 
 /*
@@ -971,60 +960,32 @@ palinfo_read_entry(char *page, char **start, off_t off, int count, int *eof, voi
 static void __cpuinit
 create_palinfo_proc_entries(unsigned int cpu)
 {
-#	define CPUSTR	"cpu%d"
-
 	pal_func_cpu_u_t f;
-	struct proc_dir_entry **pdir;
 	struct proc_dir_entry *cpu_dir;
 	int j;
-	char cpustr[sizeof(CPUSTR)];
-
-
-	/*
-	 * we keep track of created entries in a depth-first order for
-	 * cleanup purposes. Each entry is stored into palinfo_proc_entries
-	 */
-	sprintf(cpustr,CPUSTR, cpu);
+	char cpustr[3+4+1];	/* cpu numbers are up to 4095 on itanic */
+	sprintf(cpustr, "cpu%d", cpu);
 
 	cpu_dir = proc_mkdir(cpustr, palinfo_dir);
+	if (!cpu_dir)
+		return;
 
 	f.req_cpu = cpu;
 
-	/*
-	 * Compute the location to store per cpu entries
-	 * We dont store the top level entry in this list, but
-	 * remove it finally after removing all cpu entries.
-	 */
-	pdir = &palinfo_proc_entries[cpu*(NR_PALINFO_ENTRIES+1)];
-	*pdir++ = cpu_dir;
 	for (j=0; j < NR_PALINFO_ENTRIES; j++) {
 		f.func_id = j;
-		*pdir = create_proc_read_entry(
-				palinfo_entries[j].name, 0, cpu_dir,
-				palinfo_read_entry, (void *)f.value);
-		pdir++;
+		create_proc_read_entry(
+			palinfo_entries[j].name, 0, cpu_dir,
+			palinfo_read_entry, (void *)f.value);
 	}
 }
 
 static void
 remove_palinfo_proc_entries(unsigned int hcpu)
 {
-	int j;
-	struct proc_dir_entry *cpu_dir, **pdir;
-
-	pdir = &palinfo_proc_entries[hcpu*(NR_PALINFO_ENTRIES+1)];
-	cpu_dir = *pdir;
-	*pdir++=NULL;
-	for (j=0; j < (NR_PALINFO_ENTRIES); j++) {
-		if ((*pdir)) {
-			remove_proc_entry ((*pdir)->name, cpu_dir);
-			*pdir ++= NULL;
-		}
-	}
-
-	if (cpu_dir) {
-		remove_proc_entry(cpu_dir->name, palinfo_dir);
-	}
+	char cpustr[3+4+1];	/* cpu numbers are up to 4095 on itanic */
+	sprintf(cpustr, "cpu%d", hcpu);
+	remove_proc_subtree(cpustr, palinfo_dir);
 }
 
 static int __cpuinit palinfo_cpu_callback(struct notifier_block *nfb,
@@ -1058,6 +1019,8 @@ palinfo_init(void)
 
 	printk(KERN_INFO "PAL Information Facility v%s\n", PALINFO_VERSION);
 	palinfo_dir = proc_mkdir("pal", NULL);
+	if (!palinfo_dir)
+		return -ENOMEM;
 
 	/* Create palinfo dirs in /proc for all online cpus */
 	for_each_online_cpu(i) {
@@ -1073,22 +1036,8 @@ palinfo_init(void)
 static void __exit
 palinfo_exit(void)
 {
-	int i = 0;
-
-	/* remove all nodes: depth first pass. Could optimize this  */
-	for_each_online_cpu(i) {
-		remove_palinfo_proc_entries(i);
-	}
-
-	/*
-	 * Remove the top level entry finally
-	 */
-	remove_proc_entry(palinfo_dir->name, NULL);
-
-	/*
-	 * Unregister from cpu notifier callbacks
-	 */
 	unregister_hotcpu_notifier(&palinfo_cpu_notifier);
+	remove_proc_subtree("pal", NULL);
 }
 
 module_init(palinfo_init);
