@@ -153,11 +153,6 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 	cmd->ci.ctrl_pos = iwl_mvm_get_ctrl_pos(chandef);
 
 	/* Set rx the chains */
-
-	/* TODO:
-	 * Need to add on chain noise calibration limitations, and
-	 * BT coex considerations.
-	 */
 	idle_cnt = chains_static;
 	active_cnt = chains_dynamic;
 
