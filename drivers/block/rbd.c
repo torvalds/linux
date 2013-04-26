@@ -3034,15 +3034,17 @@ static void rbd_remove_all_snaps(struct rbd_device *rbd_dev)
 
 static void rbd_update_mapping_size(struct rbd_device *rbd_dev)
 {
-	sector_t size;
-
 	if (rbd_dev->spec->snap_id != CEPH_NOSNAP)
 		return;
 
-	size = (sector_t) rbd_dev->header.image_size / SECTOR_SIZE;
-	dout("setting size to %llu sectors", (unsigned long long) size);
-	rbd_dev->mapping.size = (u64) size;
-	set_capacity(rbd_dev->disk, size);
+	if (rbd_dev->mapping.size != rbd_dev->header.image_size) {
+		sector_t size;
+
+		rbd_dev->mapping.size = rbd_dev->header.image_size;
+		size = (sector_t)rbd_dev->mapping.size / SECTOR_SIZE;
+		dout("setting size to %llu sectors", (unsigned long long)size);
+		set_capacity(rbd_dev->disk, size);
+	}
 }
 
 /*
