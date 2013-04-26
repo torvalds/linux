@@ -138,13 +138,13 @@ struct rbd_image_header {
  */
 struct rbd_spec {
 	u64		pool_id;
-	char		*pool_name;
+	const char	*pool_name;
 
-	char		*image_id;
-	char		*image_name;
+	const char	*image_id;
+	const char	*image_name;
 
 	u64		snap_id;
-	char		*snap_name;
+	const char	*snap_name;
 
 	struct kref	kref;
 };
@@ -4375,6 +4375,7 @@ static int rbd_add_parse_args(const char *buf,
 	size_t len;
 	char *options;
 	const char *mon_addrs;
+	char *snap_name;
 	size_t mon_addrs_size;
 	struct rbd_spec *spec = NULL;
 	struct rbd_options *rbd_opts = NULL;
@@ -4433,10 +4434,11 @@ static int rbd_add_parse_args(const char *buf,
 		ret = -ENAMETOOLONG;
 		goto out_err;
 	}
-	spec->snap_name = kmemdup(buf, len + 1, GFP_KERNEL);
-	if (!spec->snap_name)
+	snap_name = kmemdup(buf, len + 1, GFP_KERNEL);
+	if (!snap_name)
 		goto out_mem;
-	*(spec->snap_name + len) = '\0';
+	*(snap_name + len) = '\0';
+	spec->snap_name = snap_name;
 
 	/* Initialize all rbd options to the defaults */
 
