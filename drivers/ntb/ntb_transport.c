@@ -300,7 +300,7 @@ int ntb_register_client_dev(char *device_name)
 {
 	struct ntb_transport_client_dev *client_dev;
 	struct ntb_transport *nt;
-	int rc;
+	int rc, i = 0;
 
 	if (list_empty(&ntb_transport_list))
 		return -ENODEV;
@@ -318,7 +318,7 @@ int ntb_register_client_dev(char *device_name)
 		dev = &client_dev->dev;
 
 		/* setup and register client devices */
-		dev_set_name(dev, "%s", device_name);
+		dev_set_name(dev, "%s%d", device_name, i);
 		dev->bus = &ntb_bus_type;
 		dev->release = ntb_client_release;
 		dev->parent = &ntb_query_pdev(nt->ndev)->dev;
@@ -330,6 +330,7 @@ int ntb_register_client_dev(char *device_name)
 		}
 
 		list_add_tail(&client_dev->entry, &nt->client_devs);
+		i++;
 	}
 
 	return 0;
