@@ -328,7 +328,7 @@ static void hdmi_runtime_put(void)
 	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
-static int __init hdmi_init_display(struct omap_dss_device *dssdev)
+static int hdmi_init_display(struct omap_dss_device *dssdev)
 {
 	int r;
 
@@ -954,7 +954,7 @@ int hdmi_audio_config(struct omap_dss_audio *audio)
 
 #endif
 
-static struct omap_dss_device * __init hdmi_find_dssdev(struct platform_device *pdev)
+static struct omap_dss_device *hdmi_find_dssdev(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	const char *def_disp_name = omapdss_get_default_display_name();
@@ -982,7 +982,7 @@ static struct omap_dss_device * __init hdmi_find_dssdev(struct platform_device *
 	return def_dssdev;
 }
 
-static void __init hdmi_probe_pdata(struct platform_device *pdev)
+static void hdmi_probe_pdata(struct platform_device *pdev)
 {
 	struct omap_dss_device *plat_dssdev;
 	struct omap_dss_device *dssdev;
@@ -1031,7 +1031,7 @@ static void __init hdmi_probe_pdata(struct platform_device *pdev)
 	}
 }
 
-static void __init hdmi_init_output(struct platform_device *pdev)
+static void hdmi_init_output(struct platform_device *pdev)
 {
 	struct omap_dss_output *out = &hdmi.output;
 
@@ -1052,7 +1052,7 @@ static void __exit hdmi_uninit_output(struct platform_device *pdev)
 }
 
 /* HDMI HW IP initialisation */
-static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
+static int omapdss_hdmihw_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int r;
@@ -1151,6 +1151,7 @@ static const struct dev_pm_ops hdmi_pm_ops = {
 };
 
 static struct platform_driver omapdss_hdmihw_driver = {
+	.probe		= omapdss_hdmihw_probe,
 	.remove         = __exit_p(omapdss_hdmihw_remove),
 	.driver         = {
 		.name   = "omapdss_hdmi",
@@ -1161,7 +1162,7 @@ static struct platform_driver omapdss_hdmihw_driver = {
 
 int __init hdmi_init_platform_driver(void)
 {
-	return platform_driver_probe(&omapdss_hdmihw_driver, omapdss_hdmihw_probe);
+	return platform_driver_register(&omapdss_hdmihw_driver);
 }
 
 void __exit hdmi_uninit_platform_driver(void)
