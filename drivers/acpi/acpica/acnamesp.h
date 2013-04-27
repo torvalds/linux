@@ -167,6 +167,29 @@ void acpi_ns_delete_children(struct acpi_namespace_node *parent);
 int acpi_ns_compare_names(char *name1, char *name2);
 
 /*
+ * nsconvert - Dynamic object conversion routines
+ */
+acpi_status
+acpi_ns_convert_to_integer(union acpi_operand_object *original_object,
+			   union acpi_operand_object **return_object);
+
+acpi_status
+acpi_ns_convert_to_string(union acpi_operand_object *original_object,
+			  union acpi_operand_object **return_object);
+
+acpi_status
+acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
+			  union acpi_operand_object **return_object);
+
+acpi_status
+acpi_ns_convert_to_unicode(union acpi_operand_object *original_object,
+			   union acpi_operand_object **return_object);
+
+acpi_status
+acpi_ns_convert_to_resource(union acpi_operand_object *original_object,
+			    union acpi_operand_object **return_object);
+
+/*
  * nsdump - Namespace dump/print utilities
  */
 #ifdef	ACPI_FUTURE_USAGE
@@ -207,10 +230,6 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 			       u32 user_param_count,
 			       acpi_status return_status,
 			       union acpi_operand_object **return_object);
-
-const union acpi_predefined_info *acpi_ns_check_for_predefined_name(struct
-								    acpi_namespace_node
-								    *node);
 
 void
 acpi_ns_check_parameter_count(char *pathname,
@@ -289,7 +308,7 @@ acpi_ns_get_attached_data(struct acpi_namespace_node *node,
  * predefined methods/objects
  */
 acpi_status
-acpi_ns_repair_object(struct acpi_predefined_data *data,
+acpi_ns_simple_repair(struct acpi_predefined_data *data,
 		      u32 expected_btypes,
 		      u32 package_index,
 		      union acpi_operand_object **return_object_ptr);
