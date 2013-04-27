@@ -25,7 +25,6 @@
 
 #define DAVINCI_CPUIDLE_MAX_STATES	2
 
-static DEFINE_PER_CPU(struct cpuidle_device, davinci_cpuidle_device);
 static void __iomem *ddr2_reg_base;
 static bool ddr2_pdown;
 
@@ -50,14 +49,10 @@ static void davinci_save_ddr_power(int enter, bool pdown)
 
 /* Actual code that puts the SoC in different idle states */
 static int davinci_enter_idle(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv,
-						int index)
+			      struct cpuidle_driver *drv, int index)
 {
 	davinci_save_ddr_power(1, ddr2_pdown);
-
-	index = cpuidle_wrap_enter(dev,	drv, index,
-				arm_cpuidle_simple_enter);
-
+	cpu_do_idle();
 	davinci_save_ddr_power(0, ddr2_pdown);
 
 	return index;
@@ -66,7 +61,6 @@ static int davinci_enter_idle(struct cpuidle_device *dev,
 static struct cpuidle_driver davinci_idle_driver = {
 	.name			= "cpuidle-davinci",
 	.owner			= THIS_MODULE,
-	.en_core_tk_irqen	= 1,
 	.states[0]		= ARM_CPUIDLE_WFI_STATE,
 	.states[1]		= {
 		.enter			= davinci_enter_idle,
@@ -81,11 +75,7 @@ static struct cpuidle_driver davinci_idle_driver = {
 
 static int __init davinci_cpuidle_probe(struct platform_device *pdev)
 {
-	int ret;
-	struct cpuidle_device *device;
 	struct davinci_cpuidle_config *pdata = pdev->dev.platform_data;
-
-	device = &per_cpu(davinci_cpuidle_device, smp_processor_id());
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "cannot get platform data\n");
@@ -96,20 +86,7 @@ static int __init davinci_cpuidle_probe(struct platform_device *pdev)
 
 	ddr2_pdown = pdata->ddr2_pdown;
 
-	ret = cpuidle_register_driver(&davinci_idle_driver);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register driver\n");
-		return ret;
-	}
-
-	ret = cpuidle_register_device(device);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register device\n");
-		cpuidle_unregister_driver(&davinci_idle_driver);
-		return ret;
-	}
-
-	return 0;
+	return cpuidle_register(&davinci_idle_driver, NULL);
 }
 
 static struct platform_driver davinci_cpuidle_driver = {

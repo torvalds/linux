@@ -43,31 +43,32 @@ static atomic_t abort_barrier;
 static int tegra20_idle_lp2_coupled(struct cpuidle_device *dev,
 				    struct cpuidle_driver *drv,
 				    int index);
+#define TEGRA20_MAX_STATES 2
+#else
+#define TEGRA20_MAX_STATES 1
 #endif
-
-static struct cpuidle_state tegra_idle_states[] = {
-	[0] = ARM_CPUIDLE_WFI_STATE_PWR(600),
-#ifdef CONFIG_PM_SLEEP
-	[1] = {
-		.enter			= tegra20_idle_lp2_coupled,
-		.exit_latency		= 5000,
-		.target_residency	= 10000,
-		.power_usage		= 0,
-		.flags			= CPUIDLE_FLAG_TIME_VALID |
-					  CPUIDLE_FLAG_COUPLED,
-		.name			= "powered-down",
-		.desc			= "CPU power gated",
-	},
-#endif
-};
 
 static struct cpuidle_driver tegra_idle_driver = {
 	.name = "tegra_idle",
 	.owner = THIS_MODULE,
-	.en_core_tk_irqen = 1,
+	.states = {
+		ARM_CPUIDLE_WFI_STATE_PWR(600),
+#ifdef CONFIG_PM_SLEEP
+		{
+			.enter            = tegra20_idle_lp2_coupled,
+			.exit_latency     = 5000,
+			.target_residency = 10000,
+			.power_usage      = 0,
+			.flags            = CPUIDLE_FLAG_TIME_VALID |
+			CPUIDLE_FLAG_COUPLED,
+			.name             = "powered-down",
+			.desc             = "CPU power gated",
+		},
+#endif
+	},
+	.state_count = TEGRA20_MAX_STATES,
+	.safe_state_index = 0,
 };
-
-static DEFINE_PER_CPU(struct cpuidle_device, tegra_idle_device);
 
 #ifdef CONFIG_PM_SLEEP
 #ifdef CONFIG_SMP
@@ -217,39 +218,8 @@ static int tegra20_idle_lp2_coupled(struct cpuidle_device *dev,
 
 int __init tegra20_cpuidle_init(void)
 {
-	int ret;
-	unsigned int cpu;
-	struct cpuidle_device *dev;
-	struct cpuidle_driver *drv = &tegra_idle_driver;
-
 #ifdef CONFIG_PM_SLEEP
 	tegra_tear_down_cpu = tegra20_tear_down_cpu;
 #endif
-
-	drv->state_count = ARRAY_SIZE(tegra_idle_states);
-	memcpy(drv->states, tegra_idle_states,
-			drv->state_count * sizeof(drv->states[0]));
-
-	ret = cpuidle_register_driver(&tegra_idle_driver);
-	if (ret) {
-		pr_err("CPUidle driver registration failed\n");
-		return ret;
-	}
-
-	for_each_possible_cpu(cpu) {
-		dev = &per_cpu(tegra_idle_device, cpu);
-		dev->cpu = cpu;
-#ifdef CONFIG_ARCH_NEEDS_CPU_IDLE_COUPLED
-		dev->coupled_cpus = *cpu_possible_mask;
-#endif
-
-		dev->state_count = drv->state_count;
-		ret = cpuidle_register_device(dev);
-		if (ret) {
-			pr_err("CPU%u: CPUidle device registration failed\n",
-				cpu);
-			return ret;
-		}
-	}
-	return 0;
+	return cpuidle_register(&tegra_idle_driver, cpu_possible_mask);
 }

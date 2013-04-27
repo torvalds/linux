@@ -2206,6 +2206,15 @@ S:	Maintained
 F:	drivers/cpufreq/
 F:	include/linux/cpufreq.h
 
+CPUIDLE DRIVERS
+M:	Rafael J. Wysocki <rjw@sisk.pl>
+M:	Daniel Lezcano <daniel.lezcano@linaro.org>
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+T:	git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
+F:	drivers/cpuidle/*
+F:	include/linux/cpuidle.h
+
 CPUID/MSR DRIVER
 M:	"H. Peter Anvin" <hpa@zytor.com>
 S:	Maintained
