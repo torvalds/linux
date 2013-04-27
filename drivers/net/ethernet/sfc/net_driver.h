@@ -186,6 +186,7 @@ struct efx_tx_buffer {
  *	variable indicates that the queue is empty.  This is to
  *	avoid cache-line ping-pong between the xmit path and the
  *	completion path.
+ * @merge_events: Number of TX merged completion events
  * @insert_count: Current insert pointer
  *	This is the number of buffers that have been added to the
  *	software ring.
@@ -222,6 +223,7 @@ struct efx_tx_queue {
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;
 	unsigned int old_write_count;
+	unsigned int merge_events;
 
 	/* Members used only on the xmit path */
 	unsigned int insert_count ____cacheline_aligned_in_smp;

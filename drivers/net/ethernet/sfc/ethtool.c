@@ -65,6 +65,7 @@ static u64 efx_get_atomic_stat(void *field)
 			 unsigned int, efx_get_uint_stat)
 
 static const struct efx_sw_stat_desc efx_sw_stat_desc[] = {
+	EFX_ETHTOOL_UINT_TXQ_STAT(merge_events),
 	EFX_ETHTOOL_UINT_TXQ_STAT(tso_bursts),
 	EFX_ETHTOOL_UINT_TXQ_STAT(tso_long_headers),
 	EFX_ETHTOOL_UINT_TXQ_STAT(tso_packets),
