@@ -47,6 +47,7 @@
 #include <linux/mfd/tps65910.h>
 #include <linux/regulator/act8846.h>
 #include <linux/mfd/rk808.h>
+#include <linux/mfd/ricoh619.h>
 #include <linux/regulator/rk29-pwm-regulator.h>
 
 #ifdef CONFIG_CW2015_BATTERY
@@ -1932,6 +1933,103 @@ static  struct pmu_info  rk808_ldo_info[] = {
 
 #include "board-pmu-rk808.c"
 #endif
+#ifdef CONFIG_MFD_RICOH619
+#define PMU_POWER_SLEEP RK30_PIN0_PA1
+#define RICOH619_HOST_IRQ        RK30_PIN0_PB3
+
+static struct pmu_info  ricoh619_dcdc_info[] = {
+	{
+		.name          = "vdd_cpu",   //arm
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+		.suspend_vol  =  900000,
+	},
+	{
+		.name          = "vdd_core",    //logic
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+		.suspend_vol  =  900000,
+	},
+	
+	{
+		.name          = "ricoh_dc3",   //vcc18
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+		.suspend_vol  =  1800000,
+	},
+	
+	{
+		.name          = "ricoh_dc4",   //vccio
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+		.suspend_vol  =  3300000,
+	},
+
+	{
+		.name          = "ricoh_dc5",   //ddr
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+		.suspend_vol  =  1200000,
+	},
+	
+};
+static  struct pmu_info  ricoh619_ldo_info[] = {
+	{
+		.name          = "ricoh_ldo1",   //vcc30
+		.min_uv          = 3000000,
+		.max_uv         = 3000000,
+	},
+	{
+		.name          = "ricoh_ldo2",    //vcca33
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "ricoh_ldo3",   //vcctp
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "ricoh_ldo4",   //vccsd
+		.min_uv          = 3300000,
+		.max_uv         = 3300000,
+	},
+	{
+		.name          = "ricoh_ldo5",   //vcc18_cif
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},
+	{
+		.name          = "ricoh_ldo6",   //vdd12
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
+	},
+	{
+		.name          = "ricoh_ldo7",   //vcc28_cif
+		.min_uv          = 2800000,
+		.max_uv         = 2800000,
+	},
+	{
+		.name          = "ricoh_ldo8",   //vcc25
+		.min_uv          = 2500000,
+		.max_uv         = 2500000,
+	},
+	{
+		.name          = "ricoh_ldo9",   //vdd10
+		.min_uv          = 1000000,
+		.max_uv         = 1000000,
+	},
+	{
+		.name          = "ricoh_ldo10",   //vcca18
+		.min_uv          = 1800000,
+		.max_uv         = 1800000,
+	},	
+	
+ };
+
+#include "board-pmu-ricoh619.c"
+#endif
+
 
 
 static struct i2c_board_info __initdata i2c1_info[] = {
@@ -1973,6 +2071,16 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 	},
 #endif
 
+#if defined (CONFIG_MFD_RICOH619)
+	{
+		.type                   = "ricoh619",
+		.addr           = 0x32,
+		.flags                  = 0,
+	       .irq            = RICOH619_HOST_IRQ,
+	       .platform_data=&ricoh619_data,
+	},
+#endif
+
 #if defined (CONFIG_RTC_HYM8563)
 	{
 		.type                   = "rtc_hym8563",
@@ -1995,43 +2103,51 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 
 void __sramfunc board_pmu_suspend(void)
 {      
-	#if defined (CONFIG_MFD_WM831X_I2C)
-       if(pmic_is_wm8326())
-       board_pmu_wm8326_suspend();
-	#endif
-	#if defined (CONFIG_MFD_TPS65910)
-       if(pmic_is_tps65910())
-       board_pmu_tps65910_suspend(); 
-    #endif   
-	#if defined (CONFIG_REGULATOR_ACT8846)
-       if(pmic_is_act8846())
-       board_pmu_act8846_suspend(); 
-       #endif   
-	#if defined (CONFIG_MFD_RK808)
-       if(pmic_is_rk808())
-       board_pmu_rk808_suspend();
-       #endif
+#if defined (CONFIG_MFD_WM831X_I2C)
+	if(pmic_is_wm8326())
+	board_pmu_wm8326_suspend();
+#endif
+#if defined (CONFIG_MFD_TPS65910)
+	if(pmic_is_tps65910())
+	board_pmu_tps65910_suspend(); 
+#endif   
+#if defined (CONFIG_REGULATOR_ACT8846)
+	if(pmic_is_act8846())
+	board_pmu_act8846_suspend(); 
+#endif   
+#if defined (CONFIG_MFD_RK808)
+	if(pmic_is_rk808())
+	board_pmu_rk808_suspend();
+#endif
+#if defined (CONFIG_MFD_RICOH619)
+	if(pmic_is_ricoh619())
+	board_pmu_ricoh619_suspend(); 
+#endif 
 
 }
 
 void __sramfunc board_pmu_resume(void)
 {      
-	#if defined (CONFIG_MFD_WM831X_I2C)
-       if(pmic_is_wm8326())
-       board_pmu_wm8326_resume();
-	#endif
-	#if defined (CONFIG_MFD_TPS65910)
-       if(pmic_is_tps65910())
-       board_pmu_tps65910_resume(); 
-	#endif
-	#if defined (CONFIG_REGULATOR_ACT8846)
-       if(pmic_is_act8846())
-       board_pmu_act8846_resume(); 
-       #endif 
-	 #if defined (CONFIG_MFD_RK808)
-       if(pmic_is_rk808())
-       board_pmu_rk808_resume();
-       #endif
+#if defined (CONFIG_MFD_WM831X_I2C)
+	if(pmic_is_wm8326())
+	board_pmu_wm8326_resume();
+#endif
+#if defined (CONFIG_MFD_TPS65910)
+	if(pmic_is_tps65910())
+	board_pmu_tps65910_resume(); 
+#endif
+#if defined (CONFIG_REGULATOR_ACT8846)
+	if(pmic_is_act8846())
+	board_pmu_act8846_resume(); 
+#endif 
+#if defined (CONFIG_MFD_RK808)
+	if(pmic_is_rk808())
+	board_pmu_rk808_resume();
+#endif
+#if defined (CONFIG_MFD_RICOH619)
+	if(pmic_is_ricoh619())
+	board_pmu_ricoh619_resume(); 
+#endif  
   
 }
 
@@ -2267,6 +2383,11 @@ static void rk30_pm_power_off(void)
                 rk808_device_shutdown();//rk808 shutdown
         }
         #endif
+	 #if defined(CONFIG_MFD_RICOH619) 
+	 if(pmic_is_ricoh619()){
+	ricoh619_power_off();    //ricoh619 shutdown
+	}
+	#endif
 
 	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
 	while (1);

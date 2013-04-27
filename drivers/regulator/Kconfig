@@ -171,6 +171,13 @@ config REGULATOR_WM8994
 	  This driver provides support for the voltage regulators on the
 	  WM8994 CODEC.
 
+config REGULATOR_RICOH619
+	tristate "RICOH 619 Power regulators"
+	depends on MFD_RICOH619
+	default n
+	help
+	  This driver supports regulator driver for RICOH619 PMIC.
+
 config REGULATOR_DA903X
 	tristate "Support regulators on Dialog Semiconductor DA9030/DA9034 PMIC"
 	depends on PMIC_DA903X

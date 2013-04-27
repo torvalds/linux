@@ -307,6 +307,18 @@ config MFD_RK808
 	  if you say yes here you get support for the RK808 series of
 	  Power Management chips.
 
+config MFD_RICOH619
+	bool "Ricoh RC5T619 Power Management system device"
+	depends on I2C && GPIOLIB && GENERIC_HARDIRQS
+	select MFD_CORE
+	default n
+	help
+	  If you say yes here you get support for the RICOH619 Power
+	  Management system device.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
+
 config AIC3262_CODEC
 	bool "Support TI Codec Aic3262"
 	select MFD_CORE
