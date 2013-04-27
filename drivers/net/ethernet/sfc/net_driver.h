@@ -263,6 +263,7 @@ struct efx_rx_buffer {
 #define EFX_RX_PKT_CSUMMED	0x0002
 #define EFX_RX_PKT_DISCARD	0x0004
 #define EFX_RX_PKT_TCP		0x0040
+#define EFX_RX_PKT_PREFIX_LEN	0x0080	/* length is in prefix only */
 
 /**
  * struct efx_rx_page_state - Page-based rx buffer state
@@ -668,6 +669,8 @@ struct vfdi_status;
  * @rx_prefix_size: Size of RX prefix before packet data
  * @rx_packet_hash_offset: Offset of RX flow hash from start of packet data
  *	(valid only if @rx_prefix_size != 0; always negative)
+ * @rx_packet_len_offset: Offset of RX packet length from start of packet data
+ *	(valid only for NICs that set %EFX_RX_PKT_PREFIX_LEN; always negative)
  * @rx_hash_key: Toeplitz hash key for RSS
  * @rx_indir_table: Indirection table for RSS
  * @rx_scatter: Scatter mode enabled for receives
@@ -800,6 +803,7 @@ struct efx_nic {
 	unsigned int rx_pages_per_batch;
 	unsigned int rx_prefix_size;
 	int rx_packet_hash_offset;
+	int rx_packet_len_offset;
 	u8 rx_hash_key[40];
 	u32 rx_indir_table[128];
 	bool rx_scatter;
