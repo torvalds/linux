@@ -30,6 +30,8 @@
 
 #include "internal.h"
 
+#include "internal.h"
+
 #define PREFIX "ACPI: "
 
 #define _COMPONENT			ACPI_CONTAINER_COMPONENT
