@@ -499,4 +499,16 @@ struct kvm_get_htab_header {
 #define KVM_REG_PPC_TLB3PS	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x9a)
 #define KVM_REG_PPC_EPTCFG	(KVM_REG_PPC | KVM_REG_SIZE_U32 | 0x9b)
 
+/* PPC64 eXternal Interrupt Controller Specification */
+#define KVM_DEV_XICS_GRP_SOURCES	1	/* 64-bit source attributes */
+
+/* Layout of 64-bit source attribute values */
+#define  KVM_XICS_DESTINATION_SHIFT	0
+#define  KVM_XICS_DESTINATION_MASK	0xffffffffULL
+#define  KVM_XICS_PRIORITY_SHIFT	32
+#define  KVM_XICS_PRIORITY_MASK		0xff
+#define  KVM_XICS_LEVEL_SENSITIVE	(1ULL << 40)
+#define  KVM_XICS_MASKED		(1ULL << 41)
+#define  KVM_XICS_PENDING		(1ULL << 42)
+
 #endif /* __LINUX_KVM_POWERPC_H */

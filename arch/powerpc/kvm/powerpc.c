@@ -342,6 +342,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_SPAPR_TCE:
 	case KVM_CAP_PPC_ALLOC_HTAB:
 	case KVM_CAP_PPC_RTAS:
+#ifdef CONFIG_KVM_XICS
+	case KVM_CAP_IRQ_XICS:
+#endif
 		r = 1;
 		break;
 #endif /* CONFIG_PPC_BOOK3S_64 */
@@ -837,6 +840,25 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		break;
 	}
 #endif
+#ifdef CONFIG_KVM_XICS
+	case KVM_CAP_IRQ_XICS: {
+		struct file *filp;
+		struct kvm_device *dev;
+
+		r = -EBADF;
+		filp = fget(cap->args[0]);
+		if (!filp)
+			break;
+
+		r = -EPERM;
+		dev = kvm_device_from_filp(filp);
+		if (dev)
+			r = kvmppc_xics_connect_vcpu(dev, vcpu, cap->args[1]);
+
+		fput(filp);
+		break;
+	}
+#endif /* CONFIG_KVM_XICS */
 	default:
 		r = -EINVAL;
 		break;

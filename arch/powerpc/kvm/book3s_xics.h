@@ -88,6 +88,7 @@ struct kvmppc_ics {
 
 struct kvmppc_xics {
 	struct kvm *kvm;
+	struct kvm_device *dev;
 	struct dentry *dentry;
 	u32 max_icsid;
 	bool real_mode;

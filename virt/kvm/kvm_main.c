@@ -2247,6 +2247,11 @@ static int kvm_ioctl_create_device(struct kvm *kvm,
 		ops = &kvm_mpic_ops;
 		break;
 #endif
+#ifdef CONFIG_KVM_XICS
+	case KVM_DEV_TYPE_XICS:
+		ops = &kvm_xics_ops;
+		break;
+#endif
 	default:
 		return -ENODEV;
 	}

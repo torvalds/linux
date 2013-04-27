@@ -11,6 +11,7 @@
 #include <linux/kvm_host.h>
 #include <linux/err.h>
 #include <linux/gfp.h>
+#include <linux/anon_inodes.h>
 
 #include <asm/uaccess.h>
 #include <asm/kvm_book3s.h>
@@ -55,8 +56,6 @@
  *
  * - Make ICS lockless as well, or at least a per-interrupt lock or hashed
  *   locks array to improve scalability
- *
- * - ioctl's to save/restore the entire state for snapshot & migration
  */
 
 /* -- ICS routines -- */
@@ -64,7 +63,8 @@
 static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 			    u32 new_irq);
 
-static int ics_deliver_irq(struct kvmppc_xics *xics, u32 irq, u32 level)
+static int ics_deliver_irq(struct kvmppc_xics *xics, u32 irq, u32 level,
+			   bool report_status)
 {
 	struct ics_irq_state *state;
 	struct kvmppc_ics *ics;
@@ -81,6 +81,9 @@ static int ics_deliver_irq(struct kvmppc_xics *xics, u32 irq, u32 level)
 	if (!state->exists)
 		return -EINVAL;
 
+	if (report_status)
+		return state->asserted;
+
 	/*
 	 * We set state->asserted locklessly. This should be fine as
 	 * we are the only setter, thus concurrent access is undefined
@@ -96,7 +99,7 @@ static int ics_deliver_irq(struct kvmppc_xics *xics, u32 irq, u32 level)
 	/* Attempt delivery */
 	icp_deliver_irq(xics, NULL, irq);
 
-	return 0;
+	return state->asserted;
 }
 
 static void ics_check_resend(struct kvmppc_xics *xics, struct kvmppc_ics *ics,
@@ -891,8 +894,8 @@ static void xics_debugfs_init(struct kvmppc_xics *xics)
 	kfree(name);
 }
 
-struct kvmppc_ics *kvmppc_xics_create_ics(struct kvm *kvm,
-					  struct kvmppc_xics *xics, int irq)
+static struct kvmppc_ics *kvmppc_xics_create_ics(struct kvm *kvm,
+					struct kvmppc_xics *xics, int irq)
 {
 	struct kvmppc_ics *ics;
 	int i, icsid;
@@ -1044,34 +1047,138 @@ int kvmppc_xics_set_icp(struct kvm_vcpu *vcpu, u64 icpval)
 	return 0;
 }
 
-/* -- ioctls -- */
-
-int kvm_vm_ioctl_xics_irq(struct kvm *kvm, struct kvm_irq_level *args)
+static int xics_get_source(struct kvmppc_xics *xics, long irq, u64 addr)
 {
-	struct kvmppc_xics *xics;
-	int r;
+	int ret;
+	struct kvmppc_ics *ics;
+	struct ics_irq_state *irqp;
+	u64 __user *ubufp = (u64 __user *) addr;
+	u16 idx;
+	u64 val, prio;
 
-	/* locking against multiple callers? */
+	ics = kvmppc_xics_find_ics(xics, irq, &idx);
+	if (!ics)
+		return -ENOENT;
 
-	xics = kvm->arch.xics;
-	if (!xics)
-		return -ENODEV;
-
-	switch (args->level) {
-	case KVM_INTERRUPT_SET:
-	case KVM_INTERRUPT_SET_LEVEL:
-	case KVM_INTERRUPT_UNSET:
-		r = ics_deliver_irq(xics, args->irq, args->level);
-		break;
-	default:
-		r = -EINVAL;
+	irqp = &ics->irq_state[idx];
+	mutex_lock(&ics->lock);
+	ret = -ENOENT;
+	if (irqp->exists) {
+		val = irqp->server;
+		prio = irqp->priority;
+		if (prio == MASKED) {
+			val |= KVM_XICS_MASKED;
+			prio = irqp->saved_priority;
+		}
+		val |= prio << KVM_XICS_PRIORITY_SHIFT;
+		if (irqp->asserted)
+			val |= KVM_XICS_LEVEL_SENSITIVE | KVM_XICS_PENDING;
+		else if (irqp->masked_pending || irqp->resend)
+			val |= KVM_XICS_PENDING;
+		ret = 0;
 	}
+	mutex_unlock(&ics->lock);
 
-	return r;
+	if (!ret && put_user(val, ubufp))
+		ret = -EFAULT;
+
+	return ret;
 }
 
-void kvmppc_xics_free(struct kvmppc_xics *xics)
+static int xics_set_source(struct kvmppc_xics *xics, long irq, u64 addr)
 {
+	struct kvmppc_ics *ics;
+	struct ics_irq_state *irqp;
+	u64 __user *ubufp = (u64 __user *) addr;
+	u16 idx;
+	u64 val;
+	u8 prio;
+	u32 server;
+
+	if (irq < KVMPPC_XICS_FIRST_IRQ || irq >= KVMPPC_XICS_NR_IRQS)
+		return -ENOENT;
+
+	ics = kvmppc_xics_find_ics(xics, irq, &idx);
+	if (!ics) {
+		ics = kvmppc_xics_create_ics(xics->kvm, xics, irq);
+		if (!ics)
+			return -ENOMEM;
+	}
+	irqp = &ics->irq_state[idx];
+	if (get_user(val, ubufp))
+		return -EFAULT;
+
+	server = val & KVM_XICS_DESTINATION_MASK;
+	prio = val >> KVM_XICS_PRIORITY_SHIFT;
+	if (prio != MASKED &&
+	    kvmppc_xics_find_server(xics->kvm, server) == NULL)
+		return -EINVAL;
+
+	mutex_lock(&ics->lock);
+	irqp->server = server;
+	irqp->saved_priority = prio;
+	if (val & KVM_XICS_MASKED)
+		prio = MASKED;
+	irqp->priority = prio;
+	irqp->resend = 0;
+	irqp->masked_pending = 0;
+	irqp->asserted = 0;
+	if ((val & KVM_XICS_PENDING) && (val & KVM_XICS_LEVEL_SENSITIVE))
+		irqp->asserted = 1;
+	irqp->exists = 1;
+	mutex_unlock(&ics->lock);
+
+	if (val & KVM_XICS_PENDING)
+		icp_deliver_irq(xics, NULL, irqp->number);
+
+	return 0;
+}
+
+int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
+		bool line_status)
+{
+	struct kvmppc_xics *xics = kvm->arch.xics;
+
+	return ics_deliver_irq(xics, irq, level, line_status);
+}
+
+static int xics_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
+{
+	struct kvmppc_xics *xics = dev->private;
+
+	switch (attr->group) {
+	case KVM_DEV_XICS_GRP_SOURCES:
+		return xics_set_source(xics, attr->attr, attr->addr);
+	}
+	return -ENXIO;
+}
+
+static int xics_get_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
+{
+	struct kvmppc_xics *xics = dev->private;
+
+	switch (attr->group) {
+	case KVM_DEV_XICS_GRP_SOURCES:
+		return xics_get_source(xics, attr->attr, attr->addr);
+	}
+	return -ENXIO;
+}
+
+static int xics_has_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
+{
+	switch (attr->group) {
+	case KVM_DEV_XICS_GRP_SOURCES:
+		if (attr->attr >= KVMPPC_XICS_FIRST_IRQ &&
+		    attr->attr < KVMPPC_XICS_NR_IRQS)
+			return 0;
+		break;
+	}
+	return -ENXIO;
+}
+
+static void kvmppc_xics_free(struct kvm_device *dev)
+{
+	struct kvmppc_xics *xics = dev->private;
 	int i;
 	struct kvm *kvm = xics->kvm;
 
@@ -1083,17 +1190,21 @@ void kvmppc_xics_free(struct kvmppc_xics *xics)
 	for (i = 0; i <= xics->max_icsid; i++)
 		kfree(xics->ics[i]);
 	kfree(xics);
+	kfree(dev);
 }
 
-int kvm_xics_create(struct kvm *kvm, u32 type)
+static int kvmppc_xics_create(struct kvm_device *dev, u32 type)
 {
 	struct kvmppc_xics *xics;
+	struct kvm *kvm = dev->kvm;
 	int ret = 0;
 
 	xics = kzalloc(sizeof(*xics), GFP_KERNEL);
 	if (!xics)
 		return -ENOMEM;
 
+	dev->private = xics;
+	xics->dev = dev;
 	xics->kvm = kvm;
 
 	/* Already there ? */
@@ -1118,6 +1229,35 @@ int kvm_xics_create(struct kvm *kvm, u32 type)
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
 
 	return 0;
+}
+
+struct kvm_device_ops kvm_xics_ops = {
+	.name = "kvm-xics",
+	.create = kvmppc_xics_create,
+	.destroy = kvmppc_xics_free,
+	.set_attr = xics_set_attr,
+	.get_attr = xics_get_attr,
+	.has_attr = xics_has_attr,
+};
+
+int kvmppc_xics_connect_vcpu(struct kvm_device *dev, struct kvm_vcpu *vcpu,
+			     u32 xcpu)
+{
+	struct kvmppc_xics *xics = dev->private;
+	int r = -EBUSY;
+
+	if (dev->ops != &kvm_xics_ops)
+		return -EPERM;
+	if (xics->kvm != vcpu->kvm)
+		return -EPERM;
+	if (vcpu->arch.irq_type)
+		return -EBUSY;
+
+	r = kvmppc_xics_create_icp(vcpu, xcpu);
+	if (!r)
+		vcpu->arch.irq_type = KVMPPC_IRQ_XICS;
+
+	return r;
 }
 
 void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu)

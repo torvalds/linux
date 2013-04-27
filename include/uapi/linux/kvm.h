@@ -665,6 +665,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_DEVICE_CTRL 89
 #define KVM_CAP_IRQ_MPIC 90
 #define KVM_CAP_PPC_RTAS 91
+#define KVM_CAP_IRQ_XICS 92
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -837,6 +838,7 @@ struct kvm_device_attr {
 
 #define KVM_DEV_TYPE_FSL_MPIC_20	1
 #define KVM_DEV_TYPE_FSL_MPIC_42	2
+#define KVM_DEV_TYPE_XICS		3
 
 /*
  * ioctls for VM fds
