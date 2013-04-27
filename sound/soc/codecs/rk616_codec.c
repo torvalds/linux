@@ -425,10 +425,9 @@ static int rk616_reset(struct snd_soc_codec *codec)
 	int i;
 
 	snd_soc_write(codec, RK616_RESET, 0xfc);
-
 	mdelay(10);
-
 	snd_soc_write(codec, RK616_RESET, 0x43);
+	mdelay(10);
 
 	snd_soc_write(codec, RK616_SINGNAL_ZC_CTL1, 0x3f);
 	snd_soc_write(codec, RK616_SINGNAL_ZC_CTL2, 0xff);
@@ -830,6 +829,8 @@ static int rk616_dacl_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_update_bits(codec, RK616_DAC_CTL,
+			RK616_DACL_INIT_MASK, 0);
+		snd_soc_update_bits(codec, RK616_DAC_CTL,
 			RK616_DACL_PWRD | RK616_DACL_CLK_PWRD |
 			RK616_DACL_INIT_MASK, 0);
 		snd_soc_update_bits(codec, RK616_DAC_CTL,
@@ -860,6 +861,8 @@ static int rk616_dacr_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+		snd_soc_update_bits(codec, RK616_DAC_CTL,
+			RK616_DACR_INIT_MASK, 0);
 		snd_soc_update_bits(codec, RK616_DAC_CTL,
 			RK616_DACR_PWRD | RK616_DACR_CLK_PWRD |
 			RK616_DACR_INIT_MASK, 0);
@@ -1555,8 +1558,8 @@ static int rk616_codec_power_up(void)
 		snd_soc_write(codec, power_up_list[i].reg, power_up_list[i].value);
 	}
 
-	if (rk616_priv->spk_ctl_gpio != 0)
-		gpio_set_value(rk616_priv->spk_ctl_gpio, 1);
+	if (rk616_priv->spk_ctl_gpio != INVALID_GPIO)
+		gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_HIGH);
 
 	return 0;
 }
@@ -1573,8 +1576,8 @@ static int rk616_codec_power_down(void)
 
 	printk("rk616_codec_power_down\n");
 
-	if (rk616_priv->spk_ctl_gpio != 0)
-		gpio_set_value(rk616_priv->spk_ctl_gpio, 0);
+	if (rk616_priv->spk_ctl_gpio != INVALID_GPIO)
+		gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
 
 	rk616_reset(codec);
 
@@ -1689,7 +1692,6 @@ static void rk616_shutdown(struct snd_pcm_substream *substream,
 			}
 		}
 	}
-
 }
 #endif
 
@@ -1809,11 +1811,11 @@ static int rk616_probe(struct snd_soc_codec *codec)
 
 	if (rk616_mfd && rk616_mfd->pdata && rk616_mfd->pdata->spk_ctl_gpio) {
 		gpio_request(rk616_mfd->pdata->spk_ctl_gpio, NULL);
-		gpio_direction_output(rk616_mfd->pdata->spk_ctl_gpio, 0);
+		gpio_direction_output(rk616_mfd->pdata->spk_ctl_gpio, GPIO_LOW);
 		rk616->spk_ctl_gpio = rk616_mfd->pdata->spk_ctl_gpio;
 	} else {
 		printk("rk616_probe : rk616 or pdata or spk_ctl_gpio is NULL!\n");
-		rk616->spk_ctl_gpio = 0;
+		rk616->spk_ctl_gpio = INVALID_GPIO;
 	}
 
 #ifdef RK616_FOR_MID
@@ -1871,7 +1873,21 @@ err__:
 /* power down chip */
 static int rk616_remove(struct snd_soc_codec *codec)
 {
-	rk616_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	DBG("%s\n", __func__);
+
+#ifdef RK616_FOR_MID
+	cancel_delayed_work_sync(&delayed_work);
+
+	if (rk616_codec_work_type != RK616_CODEC_WORK_NULL) {
+		rk616_codec_work_type = RK616_CODEC_WORK_NULL;
+		rk616_codec_power_down();
+	}
+#else
+	snd_soc_write(codec, RK616_RESET, 0xfc);
+	mdelay(10);
+	snd_soc_write(codec, RK616_RESET, 0x3);
+	mdelay(10);
+#endif
 
 	if (rk616_priv)
 		kfree(rk616_priv);
@@ -1921,6 +1937,35 @@ static __devexit int rk616_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+void rk616_platform_shutdown(struct platform_device *pdev)
+{
+#ifdef RK616_FOR_MID
+	DBG("%s\n", __func__);
+
+	cancel_delayed_work_sync(&delayed_work);
+
+	if (rk616_codec_work_type != RK616_CODEC_WORK_NULL) {
+		rk616_codec_work_type = RK616_CODEC_WORK_NULL;
+		rk616_codec_power_down();
+	}
+#else
+	struct snd_soc_codec *codec = rk616_priv->codec;
+
+	if (!rk616_priv || !rk616_priv->codec) {
+		printk("rk616_hw_write : %s %s\n", rk616_priv ? "" : "rk616_priv is NULL",
+				rk616_priv->codec ? "" : "rk616_priv->codec is NULL");
+		return;
+	}
+
+	DBG("%s\n", __func__);
+
+	snd_soc_write(codec, RK616_RESET, 0xfc);
+	mdelay(10);
+	snd_soc_write(codec, RK616_RESET, 0x3);
+	mdelay(10);
+#endif
+}
+
 static struct platform_driver rk616_codec_driver = {
 	.driver = {
 		   .name = "rk616-codec",
@@ -1928,6 +1973,7 @@ static struct platform_driver rk616_codec_driver = {
 		   },
 	.probe = rk616_platform_probe,
 	.remove = __devexit_p(rk616_platform_remove),
+	.shutdown = rk616_platform_shutdown,
 };
 
 
