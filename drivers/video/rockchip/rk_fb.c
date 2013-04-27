@@ -135,6 +135,35 @@ static int rk_fb_open(struct fb_info *info,int user)
 
 static int rk_fb_close(struct fb_info *info,int user)
 {
+	struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
+	struct layer_par *par = NULL;
+	int layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
+	if(layer_id >= 0)
+	{
+		par = dev_drv->layer_par[layer_id];
+		info->fix.smem_start = par->reserved;
+
+		info->var.xres = dev_drv->cur_screen->x_res;
+		info->var.yres = dev_drv->cur_screen->y_res;
+		info->var.grayscale |= (info->var.xres<<8) + (info->var.yres<<20);
+#ifdef  CONFIG_LOGO_LINUX_BMP
+		info->var.bits_per_pixel = 32;
+#else
+		info->var.bits_per_pixel = 16;
+#endif
+		info->fix.line_length  = (info->var.xres)*(info->var.bits_per_pixel>>3);
+		info->var.xres_virtual = info->var.xres;
+		info->var.yres_virtual = info->var.yres;
+		info->var.width =  dev_drv->cur_screen->width;
+		info->var.height = dev_drv->cur_screen->height;
+		info->var.pixclock = dev_drv->pixclock;
+		info->var.left_margin = dev_drv->cur_screen->left_margin;
+		info->var.right_margin = dev_drv->cur_screen->right_margin;
+		info->var.upper_margin = dev_drv->cur_screen->upper_margin;
+		info->var.lower_margin = dev_drv->cur_screen->lower_margin;
+		info->var.vsync_len = dev_drv->cur_screen->vsync_len;
+		info->var.hsync_len = dev_drv->cur_screen->hsync_len;
+    }
 	/*struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
     	int layer_id;
     	CHK_SUSPEND(dev_drv);
@@ -1040,6 +1069,9 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 
 static int rk_request_fb_buffer(struct fb_info *fbi,int fb_id)
 {
+	struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )fbi->par;
+    	struct layer_par *par = NULL;
+	int layer_id;
 	struct resource *res;
 	struct resource *mem;
 	int ret = 0;
@@ -1082,6 +1114,14 @@ static int rk_request_fb_buffer(struct fb_info *fbi,int fb_id)
 		printk("fb%d:phy:%lx>>vir:%p>>len:0x%x\n",fb_id,
 			fbi->fix.smem_start,fbi->screen_base,fbi->fix.smem_len);	
 	}
+
+	layer_id = dev_drv->fb_get_layer(dev_drv,fbi->fix.id);
+	if(layer_id >= 0)
+	{
+		par = dev_drv->layer_par[layer_id];
+		par->reserved = fbi->fix.smem_start;
+	}
+
     return ret;
 }
 

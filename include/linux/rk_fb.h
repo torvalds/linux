@@ -229,6 +229,7 @@ struct layer_par {
 	u32 uv_addr;
 	u8 fmt_cfg;
 	u8 swap_rb;
+	u32 reserved;
 };
 
 
