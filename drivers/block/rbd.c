@@ -4024,20 +4024,12 @@ static char *rbd_dev_snap_info(struct rbd_device *rbd_dev, u32 which,
 static int rbd_dev_v2_refresh(struct rbd_device *rbd_dev, u64 *hver)
 {
 	int ret;
-	__u8 obj_order;
 
 	down_write(&rbd_dev->header_rwsem);
 
-	/* Grab old order first, to see if it changes */
-
-	obj_order = rbd_dev->header.obj_order,
 	ret = rbd_dev_v2_image_size(rbd_dev);
 	if (ret)
 		goto out;
-	if (rbd_dev->header.obj_order != obj_order) {
-		ret = -EIO;
-		goto out;
-	}
 	rbd_update_mapping_size(rbd_dev);
 
 	ret = rbd_dev_v2_snap_context(rbd_dev, hver);
