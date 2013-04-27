@@ -7650,7 +7650,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	}
 
 	/*
-	 * If the “load IA32_EFER” VM-entry control is 1, the following checks
+	 * If the load IA32_EFER VM-entry control is 1, the following checks
 	 * are performed on the field for the IA32_EFER MSR:
 	 * - Bits reserved in the IA32_EFER MSR must be 0.
 	 * - Bit 10 (corresponding to IA32_EFER.LMA) must equal the value of
