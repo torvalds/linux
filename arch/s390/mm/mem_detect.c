@@ -50,16 +50,28 @@ void detect_memory_layout(struct mem_chunk chunk[])
 	unsigned long flags, flags_dat, cr0;
 
 	memset(chunk, 0, MEMORY_CHUNKS * sizeof(struct mem_chunk));
-	/* Disable IRQs, DAT and low address protection so tprot does the
+	/*
+	 * Disable IRQs, DAT and low address protection so tprot does the
 	 * right thing and we don't get scheduled away with low address
 	 * protection disabled.
 	 */
 	local_irq_save(flags);
 	flags_dat = __arch_local_irq_stnsm(0xfb);
+	/*
+	 * In case DAT was enabled, make sure chunk doesn't reside in vmalloc
+	 * space. We have disabled DAT and any access to vmalloc area will
+	 * cause an exception.
+	 * If DAT was disabled we are called from early ipl code.
+	 */
+	if (test_bit(5, &flags_dat)) {
+		if (WARN_ON_ONCE(is_vmalloc_or_module_addr(chunk)))
+			goto out;
+	}
 	__ctl_store(cr0, 0, 0);
 	__ctl_clear_bit(0, 28);
 	find_memory_chunks(chunk);
 	__ctl_load(cr0, 0, 0);
+out:
 	__arch_local_irq_ssm(flags_dat);
 	local_irq_restore(flags);
 }
