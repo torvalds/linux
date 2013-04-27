@@ -4721,11 +4721,6 @@ out_err:
 static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 {
 	int ret;
-	int tmp;
-
-	ret = rbd_dev_header_watch_sync(rbd_dev, 1);
-	if (ret)
-		return ret;
 
 	ret = rbd_dev_mapping_set(rbd_dev);
 	if (ret)
@@ -4773,9 +4768,6 @@ err_out_blkdev:
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
 err_out_id:
 	rbd_dev_id_put(rbd_dev);
-	tmp = rbd_dev_header_watch_sync(rbd_dev, 0);
-	if (tmp)
-		rbd_warn(rbd_dev, "failed to cancel watch event (%d)\n", ret);
 	rbd_dev_mapping_clear(rbd_dev);
 
 	return ret;
@@ -4816,6 +4808,7 @@ static int rbd_dev_header_name(struct rbd_device *rbd_dev)
 static int rbd_dev_image_probe(struct rbd_device *rbd_dev)
 {
 	int ret;
+	int tmp;
 
 	/*
 	 * Get the id from the image id object.  If it's not a
@@ -4832,16 +4825,20 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev)
 	if (ret)
 		goto err_out_format;
 
+	ret = rbd_dev_header_watch_sync(rbd_dev, 1);
+	if (ret)
+		goto out_header_name;
+
 	if (rbd_dev->image_format == 1)
 		ret = rbd_dev_v1_probe(rbd_dev);
 	else
 		ret = rbd_dev_v2_probe(rbd_dev);
 	if (ret)
-		goto out_header_name;
+		goto err_out_watch;
 
 	ret = rbd_dev_snaps_update(rbd_dev);
 	if (ret)
-		goto out_header_name;
+		goto err_out_watch;
 
 	ret = rbd_dev_spec_update(rbd_dev);
 	if (ret)
@@ -4861,6 +4858,10 @@ err_out_parent:
 	rbd_header_free(&rbd_dev->header);
 err_out_snaps:
 	rbd_remove_all_snaps(rbd_dev);
+err_out_watch:
+	tmp = rbd_dev_header_watch_sync(rbd_dev, 0);
+	if (tmp)
+		rbd_warn(rbd_dev, "unable to tear down watch request\n");
 out_header_name:
 	kfree(rbd_dev->header_name);
 	rbd_dev->header_name = NULL;
