@@ -2172,17 +2172,8 @@ static void cpuset_hotplug_workfn(struct work_struct *work)
 	flush_workqueue(cpuset_propagate_hotplug_wq);
 
 	/* rebuild sched domains if cpus_allowed has changed */
-	if (cpus_updated) {
-		struct sched_domain_attr *attr;
-		cpumask_var_t *doms;
-		int ndoms;
-
-		mutex_lock(&cpuset_mutex);
-		ndoms = generate_sched_domains(&doms, &attr);
-		mutex_unlock(&cpuset_mutex);
-
-		partition_sched_domains(ndoms, doms, attr);
-	}
+	if (cpus_updated)
+		rebuild_sched_domains();
 }
 
 void cpuset_update_active_cpus(bool cpu_online)
