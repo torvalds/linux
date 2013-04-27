@@ -2992,7 +2992,7 @@ static void __init rk30_init_enable_clocks(void)
 	clk_enable_nolock(&clk_hclk_peri_ahb_arbi);
 	clk_enable_nolock(&clk_hclk_emem_peri);
 	//clk_enable_nolock(&clk_hclk_mac);
-	//clk_enable_nolock(&clk_nandc);
+	clk_enable_nolock(&clk_nandc);
 	clk_enable_nolock(&clk_hclk_usb_peri);
 	#if 0
 	clk_enable_nolock(&clk_hclk_otg0);

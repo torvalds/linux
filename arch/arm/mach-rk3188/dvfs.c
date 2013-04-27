@@ -701,7 +701,7 @@ static struct depend_lookup rk30_depends[] = {
 	//RK_DEPPENDS("gpu", &vd_cpu, NULL),
 };
 #endif
-//static struct avs_ctr_st rk30_avs_ctr;
+static struct avs_ctr_st rk30_avs_ctr;
 
 int rk3188_dvfs_init(void)
 {
@@ -723,16 +723,13 @@ int rk3188_dvfs_init(void)
 #ifndef NO_VOLT_DIFF
 	dvfs_clk_cpu = dvfs_get_dvfs_clk_byname("cpu");
 #endif
-	//avs_board_init(&rk30_avs_ctr);
+	avs_board_init(&rk30_avs_ctr);
 	return 0;
 }
 
 
 
 /******************************rk30 avs**************************************************/
-
-#if 0
-
 static void __iomem *rk30_nandc_base=NULL;
 
 #define nandc_readl(offset)	readl_relaxed(rk30_nandc_base + offset)
@@ -757,8 +754,8 @@ static u8 rk30_get_avs_val(void)
 	nandc_writel(nanc_save_reg[0] | 0x1 << 14, 0);
 	nandc_writel(0x5, 0x130);
 
-	nandc_writel(3, 0x158);
-	nandc_writel(1, 0x134);
+	nandc_writel(0x3, 0x158);
+	nandc_writel(0x21, 0x134);
 
 	while(count--) {
 		paramet = nandc_readl(0x138);
@@ -786,6 +783,5 @@ static struct avs_ctr_st rk30_avs_ctr= {
 	.avs_init 		=rk30_avs_init,
 	.avs_get_val	= rk30_get_avs_val,
 };
-#endif
 
 

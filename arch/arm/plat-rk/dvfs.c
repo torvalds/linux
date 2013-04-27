@@ -1237,7 +1237,7 @@ void avs_init(void)
 	memset(&init_avs_paramet[0].is_set, 0, sizeof(init_avs_paramet));
 	if(avs_ctr_data&&avs_ctr_data->avs_init)
 		avs_ctr_data->avs_init();
-	avs_init_val_get(0,1150000,"board_init");
+	//avs_init_val_get(0,1150000,"board_init");
 }
 static u8 rk_get_avs_val(void)
 {
@@ -1258,10 +1258,13 @@ void avs_init_val_get(int index, int vol, char *s)
 	init_avs_paramet[index].vol = vol;
 	init_avs_paramet[index].s = s;
 	init_avs_paramet[index].is_set++;
+	printk("DVFS MSG:\tAVS Value(index=%d): ", index);
 	for(i = 0; i < init_avs_times; i++) {
 		init_avs_paramet[index].paramet[i] = rk_get_avs_val();
 		mdelay(1);
+		printk("%d ", init_avs_paramet[index].paramet[i]);
 	}
+	printk("\n");
 }
 int avs_set_scal_val(u8 avs_base)
 {
