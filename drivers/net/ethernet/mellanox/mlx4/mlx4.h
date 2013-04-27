@@ -473,6 +473,30 @@ struct mlx4_slave_state {
 	enum slave_port_state port_state[MLX4_MAX_PORTS + 1];
 };
 
+#define MLX4_VGT 4095
+#define NO_INDX  (-1)
+
+struct mlx4_vport_state {
+	u64 mac;
+	u16 default_vlan;
+	u8  default_qos;
+	u32 tx_rate;
+	bool spoofchk;
+};
+
+struct mlx4_vf_admin_state {
+	struct mlx4_vport_state vport[MLX4_MAX_PORTS + 1];
+};
+
+struct mlx4_vport_oper_state {
+	struct mlx4_vport_state state;
+	int mac_idx;
+	int vlan_idx;
+};
+struct mlx4_vf_oper_state {
+	struct mlx4_vport_oper_state vport[MLX4_MAX_PORTS + 1];
+};
+
 struct slave_list {
 	struct mutex mutex;
 	struct list_head res_list[MLX4_NUM_OF_RESOURCE_TYPE];
@@ -503,6 +527,8 @@ struct mlx4_master_qp0_state {
 
 struct mlx4_mfunc_master_ctx {
 	struct mlx4_slave_state *slave_state;
+	struct mlx4_vf_admin_state *vf_admin;
+	struct mlx4_vf_oper_state *vf_oper;
 	struct mlx4_master_qp0_state qp0_state[MLX4_MAX_PORTS + 1];
 	int			init_port_ref[MLX4_MAX_PORTS + 1];
 	u16			max_mtu[MLX4_MAX_PORTS + 1];
@@ -1131,6 +1157,8 @@ int mlx4_change_port_types(struct mlx4_dev *dev,
 
 void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table);
 void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table);
+void __mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index);
+int __mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index);
 
 int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port, int pkey_tbl_sz);
 /* resource tracker functions*/

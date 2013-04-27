@@ -141,8 +141,9 @@ int __mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 		}
 
 		if (mac == (MLX4_MAC_MASK & be64_to_cpu(table->entries[i]))) {
-			/* MAC already registered, Must not have duplicates */
-			err = -EEXIST;
+			/* MAC already registered, increment ref count */
+			err = i;
+			++table->refs[i];
 			goto out;
 		}
 	}
@@ -165,7 +166,7 @@ int __mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 		table->entries[free] = 0;
 		goto out;
 	}
-
+	table->refs[free] = 1;
 	err = free;
 	++table->total;
 out:
@@ -206,12 +207,16 @@ void __mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 	struct mlx4_mac_table *table = &info->mac_table;
 	int index;
 
-	index = find_index(dev, table, mac);
-
 	mutex_lock(&table->mutex);
+	index = find_index(dev, table, mac);
 
 	if (validate_index(dev, table, index))
 		goto out;
+	if (--table->refs[index]) {
+		mlx4_dbg(dev, "Have more references for index %d,"
+			 "no need to modify mac table\n", index);
+		goto out;
+	}
 
 	table->entries[index] = 0;
 	mlx4_set_port_mac_table(dev, port, table->entries);
@@ -305,7 +310,7 @@ int mlx4_find_cached_vlan(struct mlx4_dev *dev, u8 port, u16 vid, int *idx)
 }
 EXPORT_SYMBOL_GPL(mlx4_find_cached_vlan);
 
-static int __mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan,
+int __mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan,
 				int *index)
 {
 	struct mlx4_vlan_table *table = &mlx4_priv(dev)->port[port].vlan_table;
@@ -379,7 +384,7 @@ int mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan, int *index)
 }
 EXPORT_SYMBOL_GPL(mlx4_register_vlan);
 
-static void __mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index)
+void __mlx4_unregister_vlan(struct mlx4_dev *dev, u8 port, int index)
 {
 	struct mlx4_vlan_table *table = &mlx4_priv(dev)->port[port].vlan_table;
 

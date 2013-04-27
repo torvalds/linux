@@ -1373,7 +1373,8 @@ static void mlx4_en_service_task(struct work_struct *work)
 
 	mutex_lock(&mdev->state_lock);
 	if (mdev->device_up) {
-		mlx4_en_ptp_overflow_check(mdev);
+		if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
+			mlx4_en_ptp_overflow_check(mdev);
 
 		queue_delayed_work(mdev->workqueue, &priv->service_task,
 				   SERVICE_TASK_DELAY);
@@ -2023,6 +2024,42 @@ static int mlx4_en_set_features(struct net_device *netdev,
 
 }
 
+static int mlx4_en_set_vf_mac(struct net_device *dev, int queue, u8 *mac)
+{
+	struct mlx4_en_priv *en_priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = en_priv->mdev;
+	u64 mac_u64 = mlx4_en_mac_to_u64(mac);
+
+	if (!is_valid_ether_addr(mac))
+		return -EINVAL;
+
+	return mlx4_set_vf_mac(mdev->dev, en_priv->port, queue, mac_u64);
+}
+
+static int mlx4_en_set_vf_vlan(struct net_device *dev, int vf, u16 vlan, u8 qos)
+{
+	struct mlx4_en_priv *en_priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = en_priv->mdev;
+
+	return mlx4_set_vf_vlan(mdev->dev, en_priv->port, vf, vlan, qos);
+}
+
+static int mlx4_en_set_vf_spoofchk(struct net_device *dev, int vf, bool setting)
+{
+	struct mlx4_en_priv *en_priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = en_priv->mdev;
+
+	return mlx4_set_vf_spoofchk(mdev->dev, en_priv->port, vf, setting);
+}
+
+static int mlx4_en_get_vf_config(struct net_device *dev, int vf, struct ifla_vf_info *ivf)
+{
+	struct mlx4_en_priv *en_priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = en_priv->mdev;
+
+	return mlx4_get_vf_config(mdev->dev, en_priv->port, vf, ivf);
+}
+
 static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_open		= mlx4_en_open,
 	.ndo_stop		= mlx4_en_close,
@@ -2037,6 +2074,33 @@ static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_tx_timeout		= mlx4_en_tx_timeout,
 	.ndo_vlan_rx_add_vid	= mlx4_en_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= mlx4_en_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= mlx4_en_netpoll,
+#endif
+	.ndo_set_features	= mlx4_en_set_features,
+	.ndo_setup_tc		= mlx4_en_setup_tc,
+#ifdef CONFIG_RFS_ACCEL
+	.ndo_rx_flow_steer	= mlx4_en_filter_rfs,
+#endif
+};
+
+static const struct net_device_ops mlx4_netdev_ops_master = {
+	.ndo_open		= mlx4_en_open,
+	.ndo_stop		= mlx4_en_close,
+	.ndo_start_xmit		= mlx4_en_xmit,
+	.ndo_select_queue	= mlx4_en_select_queue,
+	.ndo_get_stats		= mlx4_en_get_stats,
+	.ndo_set_rx_mode	= mlx4_en_set_rx_mode,
+	.ndo_set_mac_address	= mlx4_en_set_mac,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= mlx4_en_change_mtu,
+	.ndo_tx_timeout		= mlx4_en_tx_timeout,
+	.ndo_vlan_rx_add_vid	= mlx4_en_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= mlx4_en_vlan_rx_kill_vid,
+	.ndo_set_vf_mac		= mlx4_en_set_vf_mac,
+	.ndo_set_vf_vlan	= mlx4_en_set_vf_vlan,
+	.ndo_set_vf_spoofchk	= mlx4_en_set_vf_spoofchk,
+	.ndo_get_vf_config	= mlx4_en_get_vf_config,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= mlx4_en_netpoll,
 #endif
@@ -2163,7 +2227,10 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	/*
 	 * Initialize netdev entry points
 	 */
-	dev->netdev_ops = &mlx4_netdev_ops;
+	if (mlx4_is_master(priv->mdev->dev))
+		dev->netdev_ops = &mlx4_netdev_ops_master;
+	else
+		dev->netdev_ops = &mlx4_netdev_ops;
 	dev->watchdog_timeo = MLX4_EN_WATCHDOG_TIMEOUT;
 	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
@@ -2228,8 +2295,11 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	}
 	mlx4_en_set_default_moderation(priv);
 	queue_delayed_work(mdev->workqueue, &priv->stats_task, STATS_DELAY);
-	queue_delayed_work(mdev->workqueue, &priv->service_task,
-			   SERVICE_TASK_DELAY);
+
+	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
+		queue_delayed_work(mdev->workqueue, &priv->service_task,
+				   SERVICE_TASK_DELAY);
+
 	return 0;
 
 out:
