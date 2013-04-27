@@ -896,7 +896,7 @@ static void vxlan_set_owner(struct net_device *dev, struct sk_buff *skb)
  *     better and maybe available from hardware
  *   secondary choice is to use jhash on the Ethernet header
  */
-static u16 vxlan_src_port(const struct vxlan_dev *vxlan, struct sk_buff *skb)
+static __be16 vxlan_src_port(const struct vxlan_dev *vxlan, struct sk_buff *skb)
 {
 	unsigned int range = (vxlan->port_max - vxlan->port_min) + 1;
 	u32 hash;
@@ -906,7 +906,7 @@ static u16 vxlan_src_port(const struct vxlan_dev *vxlan, struct sk_buff *skb)
 		hash = jhash(skb->data, 2 * ETH_ALEN,
 			     (__force u32) skb->protocol);
 
-	return (((u64) hash * range) >> 32) + vxlan->port_min;
+	return htons((((u64) hash * range) >> 32) + vxlan->port_min);
 }
 
 static int handle_offloads(struct sk_buff *skb)
@@ -965,8 +965,7 @@ static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	struct udphdr *uh;
 	struct flowi4 fl4;
 	__be32 dst;
-	__u16 src_port;
-	__be16 dst_port;
+	__be16 src_port, dst_port;
         u32 vni;
 	__be16 df = 0;
 	__u8 tos, ttl;
@@ -1053,7 +1052,7 @@ static netdev_tx_t vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 	uh = udp_hdr(skb);
 
 	uh->dest = dst_port;
-	uh->source = htons(src_port);
+	uh->source = src_port;
 
 	uh->len = htons(skb->len);
 	uh->check = 0;
