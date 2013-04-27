@@ -440,7 +440,8 @@ static void ixgbe_get_regs(struct net_device *netdev,
 
 	memset(p, 0, IXGBE_REGS_LEN * sizeof(u32));
 
-	regs->version = (1 << 24) | hw->revision_id << 16 | hw->device_id;
+	regs->version = hw->mac.type << 24 | hw->revision_id << 16 |
+			hw->device_id;
 
 	/* General Registers */
 	regs_buff[0] = IXGBE_READ_REG(hw, IXGBE_CTRL);
@@ -1609,16 +1610,9 @@ static int ixgbe_setup_loopback_test(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 reg_data;
 
-	/* X540 needs to set the MACC.FLU bit to force link up */
-	if (adapter->hw.mac.type == ixgbe_mac_X540) {
-		reg_data = IXGBE_READ_REG(hw, IXGBE_MACC);
-		reg_data |= IXGBE_MACC_FLU;
-		IXGBE_WRITE_REG(hw, IXGBE_MACC, reg_data);
-	}
 
-	/* right now we only support MAC loopback in the driver */
-	reg_data = IXGBE_READ_REG(hw, IXGBE_HLREG0);
 	/* Setup MAC loopback */
+	reg_data = IXGBE_READ_REG(hw, IXGBE_HLREG0);
 	reg_data |= IXGBE_HLREG0_LPBK;
 	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, reg_data);
 
@@ -1626,10 +1620,19 @@ static int ixgbe_setup_loopback_test(struct ixgbe_adapter *adapter)
 	reg_data |= IXGBE_FCTRL_BAM | IXGBE_FCTRL_SBP | IXGBE_FCTRL_MPE;
 	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, reg_data);
 
-	reg_data = IXGBE_READ_REG(hw, IXGBE_AUTOC);
-	reg_data &= ~IXGBE_AUTOC_LMS_MASK;
-	reg_data |= IXGBE_AUTOC_LMS_10G_LINK_NO_AN | IXGBE_AUTOC_FLU;
-	IXGBE_WRITE_REG(hw, IXGBE_AUTOC, reg_data);
+	/* X540 needs to set the MACC.FLU bit to force link up */
+	if (adapter->hw.mac.type == ixgbe_mac_X540) {
+		reg_data = IXGBE_READ_REG(hw, IXGBE_MACC);
+		reg_data |= IXGBE_MACC_FLU;
+		IXGBE_WRITE_REG(hw, IXGBE_MACC, reg_data);
+	} else {
+		if (hw->mac.orig_autoc) {
+			reg_data = hw->mac.orig_autoc | IXGBE_AUTOC_FLU;
+			IXGBE_WRITE_REG(hw, IXGBE_AUTOC, reg_data);
+		} else {
+			return 10;
+		}
+	}
 	IXGBE_WRITE_FLUSH(hw);
 	usleep_range(10000, 20000);
 
