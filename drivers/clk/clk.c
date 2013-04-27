@@ -499,9 +499,22 @@ out:
 	return;
 }
 
+static bool clk_ignore_unused;
+static int __init clk_ignore_unused_setup(char *__unused)
+{
+	clk_ignore_unused = true;
+	return 1;
+}
+__setup("clk_ignore_unused", clk_ignore_unused_setup);
+
 static int clk_disable_unused(void)
 {
 	struct clk *clk;
+
+	if (clk_ignore_unused) {
+		pr_warn("clk: Not disabling unused clocks\n");
+		return 0;
+	}
 
 	clk_prepare_lock();
 
