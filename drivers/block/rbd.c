@@ -866,7 +866,7 @@ static struct rbd_snap *snap_by_name(struct rbd_device *rbd_dev,
 	return NULL;
 }
 
-static int rbd_dev_set_mapping(struct rbd_device *rbd_dev)
+static int rbd_dev_mapping_set(struct rbd_device *rbd_dev)
 {
 	if (!memcmp(rbd_dev->spec->snap_name, RBD_SNAP_HEAD_NAME,
 		    sizeof (RBD_SNAP_HEAD_NAME))) {
@@ -884,6 +884,13 @@ static int rbd_dev_set_mapping(struct rbd_device *rbd_dev)
 	}
 
 	return 0;
+}
+
+static void rbd_dev_mapping_clear(struct rbd_device *rbd_dev)
+{
+	rbd_dev->mapping.size = 0;
+	rbd_dev->mapping.features = 0;
+	rbd_dev->mapping.read_only = true;
 }
 
 static void rbd_header_free(struct rbd_image_header *header)
@@ -4757,7 +4764,11 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 	if (ret)
 		goto err_out_snaps;
 
-	ret = rbd_dev_set_mapping(rbd_dev);
+	ret = rbd_dev_header_watch_sync(rbd_dev, 1);
+	if (ret)
+		goto err_out_snaps;
+
+	ret = rbd_dev_mapping_set(rbd_dev);
 	if (ret)
 		goto err_out_snaps;
 
@@ -4790,10 +4801,6 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 	if (ret)
 		goto err_out_bus;
 
-	ret = rbd_dev_header_watch_sync(rbd_dev, 1);
-	if (ret)
-		goto err_out_bus;
-
 	/* Everything's ready.  Announce the disk to the world. */
 
 	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
@@ -4817,6 +4824,7 @@ err_out_blkdev:
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
 err_out_id:
 	rbd_dev_id_put(rbd_dev);
+	rbd_dev_mapping_clear(rbd_dev);
 err_out_snaps:
 	rbd_remove_all_snaps(rbd_dev);
 
@@ -4974,6 +4982,7 @@ static void rbd_dev_release(struct device *dev)
 
 	/* done with the id, and with the rbd_dev */
 	rbd_dev_id_put(rbd_dev);
+	rbd_dev_mapping_clear(rbd_dev);
 	rbd_assert(rbd_dev->rbd_client != NULL);
 	rbd_spec_put(rbd_dev->parent_spec);
 	kfree(rbd_dev->header_name);
