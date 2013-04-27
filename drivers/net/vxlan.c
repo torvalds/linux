@@ -8,7 +8,6 @@
  * published by the Free Software Foundation.
  *
  * TODO
- *  - use IANA UDP port number (when defined)
  *  - IPv6 (not in RFC)
  */
 
@@ -65,7 +64,10 @@ struct vxlanhdr {
 	__be32 vx_vni;
 };
 
-/* UDP port for VXLAN traffic. */
+/* UDP port for VXLAN traffic.
+ * The IANA assigned port is 4789, but the Linux default is 8472
+ * for compatability with early adopters.
+ */
 static unsigned int vxlan_port __read_mostly = 8472;
 module_param_named(udp_port, vxlan_port, uint, 0444);
 MODULE_PARM_DESC(udp_port, "Destination UDP port");
