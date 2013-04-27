@@ -2048,7 +2048,7 @@ static void rk30_pm_power_off(void)
 
 static void __init machine_rk30_board_init(void)
 {
-	//avs_init();
+	avs_init();
 	gpio_request(POWER_ON_PIN, "poweronpin");
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 	
