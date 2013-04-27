@@ -297,7 +297,7 @@ enum macvlan_mode {
 enum {
 	IFLA_VXLAN_UNSPEC,
 	IFLA_VXLAN_ID,
-	IFLA_VXLAN_REMOTE,
+	IFLA_VXLAN_GROUP,	/* group or remote address */
 	IFLA_VXLAN_LINK,
 	IFLA_VXLAN_LOCAL,
 	IFLA_VXLAN_TTL,

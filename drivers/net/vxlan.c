@@ -1324,7 +1324,7 @@ static void vxlan_setup(struct net_device *dev)
 
 static const struct nla_policy vxlan_policy[IFLA_VXLAN_MAX + 1] = {
 	[IFLA_VXLAN_ID]		= { .type = NLA_U32 },
-	[IFLA_VXLAN_REMOTE]	= { .len = FIELD_SIZEOF(struct iphdr, daddr) },
+	[IFLA_VXLAN_GROUP]	= { .len = FIELD_SIZEOF(struct iphdr, daddr) },
 	[IFLA_VXLAN_LINK]	= { .type = NLA_U32 },
 	[IFLA_VXLAN_LOCAL]	= { .len = FIELD_SIZEOF(struct iphdr, saddr) },
 	[IFLA_VXLAN_TOS]	= { .type = NLA_U8 },
@@ -1406,8 +1406,8 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 	}
 	dst->remote_vni = vni;
 
-	if (data[IFLA_VXLAN_REMOTE])
-		dst->remote_ip = nla_get_be32(data[IFLA_VXLAN_REMOTE]);
+	if (data[IFLA_VXLAN_GROUP])
+		dst->remote_ip = nla_get_be32(data[IFLA_VXLAN_GROUP]);
 
 	if (data[IFLA_VXLAN_LOCAL])
 		vxlan->saddr = nla_get_be32(data[IFLA_VXLAN_LOCAL]);
@@ -1488,7 +1488,7 @@ static size_t vxlan_get_size(const struct net_device *dev)
 {
 
 	return nla_total_size(sizeof(__u32)) +	/* IFLA_VXLAN_ID */
-		nla_total_size(sizeof(__be32)) +/* IFLA_VXLAN_REMOTE */
+		nla_total_size(sizeof(__be32)) +/* IFLA_VXLAN_GROUP */
 		nla_total_size(sizeof(__u32)) +	/* IFLA_VXLAN_LINK */
 		nla_total_size(sizeof(__be32))+	/* IFLA_VXLAN_LOCAL */
 		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_TTL */
@@ -1516,7 +1516,7 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	if (nla_put_u32(skb, IFLA_VXLAN_ID, dst->remote_vni))
 		goto nla_put_failure;
 
-	if (dst->remote_ip && nla_put_be32(skb, IFLA_VXLAN_REMOTE, dst->remote_ip))
+	if (dst->remote_ip && nla_put_be32(skb, IFLA_VXLAN_GROUP, dst->remote_ip))
 		goto nla_put_failure;
 
 	if (dst->remote_ifindex && nla_put_u32(skb, IFLA_VXLAN_LINK, dst->remote_ifindex))
