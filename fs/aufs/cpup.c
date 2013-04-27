@@ -430,7 +430,7 @@ static int au_do_cpup_regular(struct au_cpup_basic *basic, struct au_pin *pin,
 	if (basic->len) {
 		/* try stopping to update while we are referencing */
 		mutex_lock_nested(&h_src_inode->i_mutex, AuLsc_I_CHILD);
-		pin->hdir_unlock(pin);
+		au_pin_hdir_unlock(pin);
 
 		h_src_dentry = au_h_dptr(basic->dentry, basic->bsrc);
 		h_src_mnt = au_sbr_mnt(basic->dentry->d_sb, basic->bsrc);
@@ -443,7 +443,7 @@ static int au_do_cpup_regular(struct au_cpup_basic *basic, struct au_pin *pin,
 		h_src_attr->valid = 1;
 		err = au_cp_regular(basic);
 		mutex_unlock(&h_src_inode->i_mutex);
-		rerr = pin->hdir_relock(pin);
+		rerr = au_pin_hdir_relock(pin);
 		if (!err && rerr)
 			err = rerr;
 	}
@@ -705,12 +705,12 @@ static int au_cpup_single(struct au_cpup_basic *basic, unsigned int flags,
 	dst_inode = h_dst->d_inode;
 	mutex_lock_nested(&dst_inode->i_mutex, AuLsc_I_CHILD2);
 	/* todo: necessary? */
-	/* pin->hdir_unlock(pin); */
+	/* au_pin_hdir_unlock(pin); */
 
 	err = cpup_iattr(basic->dentry, basic->bdst, h_src, &h_src_attr);
 	if (unlikely(err)) {
 		/* todo: necessary? */
-		/* pin->hdir_relock(pin); */ /* ignore an error */
+		/* au_pin_hdir_relock(pin); */ /* ignore an error */
 		mutex_unlock(&dst_inode->i_mutex);
 		goto out_rev;
 	}
@@ -719,7 +719,7 @@ static int au_cpup_single(struct au_cpup_basic *basic, unsigned int flags,
 		if (S_ISREG(inode->i_mode)) {
 			err = au_dy_iaop(inode, basic->bdst, dst_inode);
 			if (unlikely(err)) {
-				/* pin->hdir_relock(pin); ignore an error */
+				/* au_pin_hdir_relock(pin); ignore an error */
 				mutex_unlock(&dst_inode->i_mutex);
 				goto out_rev;
 			}
@@ -730,7 +730,7 @@ static int au_cpup_single(struct au_cpup_basic *basic, unsigned int flags,
 		      au_hi_flags(inode, isdir));
 
 	/* todo: necessary? */
-	/* err = pin->hdir_relock(pin); */
+	/* err = au_pin_hdir_relock(pin); */
 	mutex_unlock(&dst_inode->i_mutex);
 	if (unlikely(err))
 		goto out_rev;
@@ -781,9 +781,9 @@ static void au_call_cpup_single(void *args)
 {
 	struct au_cpup_single_args *a = args;
 
-	a->pin->hdir_acquire_nest(a->pin);
+	au_pin_hdir_acquire_nest(a->pin);
 	*a->errp = au_cpup_single(a->basic, a->flags, a->dst_parent, a->pin);
-	a->pin->hdir_release(a->pin);
+	au_pin_hdir_release(a->pin);
 }
 
 /*
@@ -904,9 +904,9 @@ static void au_call_cpup_simple(void *args)
 {
 	struct au_cpup_simple_args *a = args;
 
-	a->pin->hdir_acquire_nest(a->pin);
+	au_pin_hdir_acquire_nest(a->pin);
 	*a->errp = au_cpup_simple(a->dentry, a->bdst, a->len, a->flags, a->pin);
-	a->pin->hdir_release(a->pin);
+	au_pin_hdir_release(a->pin);
 }
 
 int au_sio_cpup_simple(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
@@ -1042,9 +1042,9 @@ static void au_call_cpup_wh(void *args)
 {
 	struct au_cpup_wh_args *a = args;
 
-	a->pin->hdir_acquire_nest(a->pin);
+	au_pin_hdir_acquire_nest(a->pin);
 	*a->errp = au_cpup_wh(a->dentry, a->bdst, a->len, a->file, a->pin);
-	a->pin->hdir_release(a->pin);
+	au_pin_hdir_release(a->pin);
 }
 
 int au_sio_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,

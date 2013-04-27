@@ -106,11 +106,13 @@ struct au_pin {
 	struct dentry *h_dentry, *h_parent;
 	struct au_branch *br;
 	struct task_struct *task;
-	void (*hdir_unlock)(struct au_pin *p);
-	int (*hdir_relock)(struct au_pin *p);
-	void (*hdir_acquire_nest)(struct au_pin *p);
-	void (*hdir_release)(struct au_pin *p);
 };
+
+void au_pin_hdir_unlock(struct au_pin *p);
+int au_pin_hdir_relock(struct au_pin *p);
+void au_pin_hdir_set_owner(struct au_pin *p, struct task_struct *task);
+void au_pin_hdir_acquire_nest(struct au_pin *p);
+void au_pin_hdir_release(struct au_pin *p);
 
 /* ---------------------------------------------------------------------- */
 
