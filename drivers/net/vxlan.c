@@ -1,7 +1,7 @@
 /*
  * VXLAN: Virtual eXtensible Local Area Network
  *
- * Copyright (c) 2012 Vyatta Inc.
+ * Copyright (c) 2012-2013 Vyatta Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1663,5 +1663,5 @@ module_exit(vxlan_cleanup_module);
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(VXLAN_VERSION);
-MODULE_AUTHOR("Stephen Hemminger <shemminger@vyatta.com>");
+MODULE_AUTHOR("Stephen Hemminger <stephen@networkplumber.org>");
 MODULE_ALIAS_RTNL_LINK("vxlan");
