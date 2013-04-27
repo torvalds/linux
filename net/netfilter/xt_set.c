@@ -189,6 +189,9 @@ set_match_v1(const struct sk_buff *skb, struct xt_action_param *par)
 	ADT_OPT(opt, par->family, info->match_set.dim,
 		info->match_set.flags, 0, UINT_MAX);
 
+	if (opt.flags & IPSET_RETURN_NOMATCH)
+		opt.cmdflags |= IPSET_FLAG_RETURN_NOMATCH;
+
 	return match_set(info->match_set.index, skb, par, &opt,
 			 info->match_set.flags & IPSET_INV_MATCH);
 }
@@ -317,6 +320,52 @@ set_target_v2(struct sk_buff *skb, const struct xt_action_param *par)
 #define set_target_v2_checkentry	set_target_v1_checkentry
 #define set_target_v2_destroy		set_target_v1_destroy
 
+/* Revision 3 match */
+
+static bool
+match_counter(u64 counter, const struct ip_set_counter_match *info)
+{
+	switch (info->op) {
+	case IPSET_COUNTER_NONE:
+		return true;
+	case IPSET_COUNTER_EQ:
+		return counter == info->value;
+	case IPSET_COUNTER_NE:
+		return counter != info->value;
+	case IPSET_COUNTER_LT:
+		return counter < info->value;
+	case IPSET_COUNTER_GT:
+		return counter > info->value;
+	}
+	return false;
+}
+
+static bool
+set_match_v3(const struct sk_buff *skb, struct xt_action_param *par)
+{
+	const struct xt_set_info_match_v3 *info = par->matchinfo;
+	ADT_OPT(opt, par->family, info->match_set.dim,
+		info->match_set.flags, info->flags, UINT_MAX);
+	int ret;
+
+	if (info->packets.op != IPSET_COUNTER_NONE ||
+	    info->bytes.op != IPSET_COUNTER_NONE)
+		opt.cmdflags |= IPSET_FLAG_MATCH_COUNTERS;
+
+	ret = match_set(info->match_set.index, skb, par, &opt,
+			info->match_set.flags & IPSET_INV_MATCH);
+
+	if (!(ret && opt.cmdflags & IPSET_FLAG_MATCH_COUNTERS))
+		return ret;
+
+	if (!match_counter(opt.ext.packets, &info->packets))
+		return 0;
+	return match_counter(opt.ext.bytes, &info->bytes);
+}
+
+#define set_match_v3_checkentry	set_match_v1_checkentry
+#define set_match_v3_destroy	set_match_v1_destroy
+
 static struct xt_match set_matches[] __read_mostly = {
 	{
 		.name		= "set",
@@ -367,6 +416,27 @@ static struct xt_match set_matches[] __read_mostly = {
 		.matchsize	= sizeof(struct xt_set_info_match_v1),
 		.checkentry	= set_match_v1_checkentry,
 		.destroy	= set_match_v1_destroy,
+		.me		= THIS_MODULE
+	},
+	/* counters support: update, match */
+	{
+		.name		= "set",
+		.family		= NFPROTO_IPV4,
+		.revision	= 3,
+		.match		= set_match_v3,
+		.matchsize	= sizeof(struct xt_set_info_match_v3),
+		.checkentry	= set_match_v3_checkentry,
+		.destroy	= set_match_v3_destroy,
+		.me		= THIS_MODULE
+	},
+	{
+		.name		= "set",
+		.family		= NFPROTO_IPV6,
+		.revision	= 3,
+		.match		= set_match_v3,
+		.matchsize	= sizeof(struct xt_set_info_match_v3),
+		.checkentry	= set_match_v3_checkentry,
+		.destroy	= set_match_v3_destroy,
 		.me		= THIS_MODULE
 	},
 };

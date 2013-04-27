@@ -145,7 +145,7 @@ enum ipset_errno {
 	IPSET_ERR_TYPE_SPECIFIC = 4352,
 };
 
-/* Flags at command level */
+/* Flags at command level or match/target flags, lower half of cmdattrs*/
 enum ipset_cmd_flags {
 	IPSET_FLAG_BIT_EXIST	= 0,
 	IPSET_FLAG_EXIST	= (1 << IPSET_FLAG_BIT_EXIST),
@@ -153,10 +153,20 @@ enum ipset_cmd_flags {
 	IPSET_FLAG_LIST_SETNAME	= (1 << IPSET_FLAG_BIT_LIST_SETNAME),
 	IPSET_FLAG_BIT_LIST_HEADER = 2,
 	IPSET_FLAG_LIST_HEADER	= (1 << IPSET_FLAG_BIT_LIST_HEADER),
-	IPSET_FLAG_CMD_MAX = 15,	/* Lower half */
+	IPSET_FLAG_BIT_SKIP_COUNTER_UPDATE = 3,
+	IPSET_FLAG_SKIP_COUNTER_UPDATE =
+		(1 << IPSET_FLAG_BIT_SKIP_COUNTER_UPDATE),
+	IPSET_FLAG_BIT_SKIP_SUBCOUNTER_UPDATE = 4,
+	IPSET_FLAG_SKIP_SUBCOUNTER_UPDATE =
+		(1 << IPSET_FLAG_BIT_SKIP_SUBCOUNTER_UPDATE),
+	IPSET_FLAG_BIT_MATCH_COUNTERS = 5,
+	IPSET_FLAG_MATCH_COUNTERS = (1 << IPSET_FLAG_BIT_MATCH_COUNTERS),
+	IPSET_FLAG_BIT_RETURN_NOMATCH = 7,
+	IPSET_FLAG_RETURN_NOMATCH = (1 << IPSET_FLAG_BIT_RETURN_NOMATCH),
+	IPSET_FLAG_CMD_MAX = 15,
 };
 
-/* Flags at CADT attribute level */
+/* Flags at CADT attribute level, upper half of cmdattrs */
 enum ipset_cadt_flags {
 	IPSET_FLAG_BIT_BEFORE	= 0,
 	IPSET_FLAG_BEFORE	= (1 << IPSET_FLAG_BIT_BEFORE),
@@ -166,7 +176,7 @@ enum ipset_cadt_flags {
 	IPSET_FLAG_NOMATCH	= (1 << IPSET_FLAG_BIT_NOMATCH),
 	IPSET_FLAG_BIT_WITH_COUNTERS = 3,
 	IPSET_FLAG_WITH_COUNTERS = (1 << IPSET_FLAG_BIT_WITH_COUNTERS),
-	IPSET_FLAG_CADT_MAX	= 15,	/* Upper half */
+	IPSET_FLAG_CADT_MAX	= 15,
 };
 
 /* Commands with settype-specific attributes */
@@ -195,6 +205,7 @@ enum ip_set_dim {
 	 * If changed, new revision of iptables match/target is required.
 	 */
 	IPSET_DIM_MAX = 6,
+	/* Backward compatibility: set match revision 2 */
 	IPSET_BIT_RETURN_NOMATCH = 7,
 };
 
@@ -207,6 +218,18 @@ enum ip_set_kopt {
 	IPSET_RETURN_NOMATCH = (1 << IPSET_BIT_RETURN_NOMATCH),
 };
 
+enum {
+	IPSET_COUNTER_NONE = 0,
+	IPSET_COUNTER_EQ,
+	IPSET_COUNTER_NE,
+	IPSET_COUNTER_LT,
+	IPSET_COUNTER_GT,
+};
+
+struct ip_set_counter_match {
+	__u8 op;
+	__u64 value;
+};
 
 /* Interface to iptables/ip6tables */
 

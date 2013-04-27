@@ -84,9 +84,13 @@ list_set_ktest(struct ip_set *set, const struct sk_buff *skb,
 {
 	struct list_set *map = set->data;
 	struct set_elem *e;
-	u32 i;
+	u32 i, cmdflags = opt->cmdflags;
 	int ret;
 
+	/* Don't lookup sub-counters at all */
+	opt->cmdflags &= ~IPSET_FLAG_MATCH_COUNTERS;
+	if (opt->cmdflags & IPSET_FLAG_SKIP_SUBCOUNTER_UPDATE)
+		opt->cmdflags &= ~IPSET_FLAG_SKIP_COUNTER_UPDATE;
 	for (i = 0; i < map->size; i++) {
 		e = list_set_elem(map, i);
 		if (e->id == IPSET_INVALID_ID)
@@ -99,7 +103,7 @@ list_set_ktest(struct ip_set *set, const struct sk_buff *skb,
 			if (SET_WITH_COUNTER(set))
 				ip_set_update_counter(ext_counter(e, map),
 						      ext, &opt->ext,
-						      opt->cmdflags);
+						      cmdflags);
 			return ret;
 		}
 	}

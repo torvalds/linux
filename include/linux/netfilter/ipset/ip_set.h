@@ -76,7 +76,7 @@ struct ip_set;
 
 typedef int (*ipset_adtfn)(struct ip_set *set, void *value,
 			   const struct ip_set_ext *ext,
-			   struct ip_set_ext *mext, u32 flags);
+			   struct ip_set_ext *mext, u32 cmdflags);
 
 /* Kernel API function options */
 struct ip_set_adt_opt {
@@ -217,9 +217,14 @@ ip_set_update_counter(struct ip_set_counter *counter,
 		      const struct ip_set_ext *ext,
 		      struct ip_set_ext *mext, u32 flags)
 {
-	if (ext->packets != ULLONG_MAX) {
+	if (ext->packets != ULLONG_MAX &&
+	    !(flags & IPSET_FLAG_SKIP_COUNTER_UPDATE)) {
 		ip_set_add_bytes(ext->bytes, counter);
 		ip_set_add_packets(ext->packets, counter);
+	}
+	if (flags & IPSET_FLAG_MATCH_COUNTERS) {
+		mext->packets = ip_set_get_packets(counter);
+		mext->bytes = ip_set_get_bytes(counter);
 	}
 }
 
