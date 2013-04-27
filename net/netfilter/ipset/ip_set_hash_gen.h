@@ -909,13 +909,13 @@ mtype_list(const struct ip_set *set,
 
 nla_put_failure:
 	nlmsg_trim(skb, incomplete);
-	ipset_nest_end(skb, atd);
 	if (unlikely(first == cb->args[2])) {
 		pr_warning("Can't list set %s: one bucket does not fit into "
 			   "a message. Please report it!\n", set->name);
 		cb->args[2] = 0;
 		return -EMSGSIZE;
 	}
+	ipset_nest_end(skb, atd);
 	return 0;
 }
 

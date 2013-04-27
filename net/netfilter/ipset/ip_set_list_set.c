@@ -550,11 +550,11 @@ finish:
 
 nla_put_failure:
 	nla_nest_cancel(skb, nested);
-	ipset_nest_end(skb, atd);
 	if (unlikely(i == first)) {
 		cb->args[2] = 0;
 		return -EMSGSIZE;
 	}
+	ipset_nest_end(skb, atd);
 	return 0;
 }
 

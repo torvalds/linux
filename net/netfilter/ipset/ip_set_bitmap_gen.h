@@ -228,11 +228,11 @@ mtype_list(const struct ip_set *set,
 
 nla_put_failure:
 	nla_nest_cancel(skb, nested);
-	ipset_nest_end(skb, adt);
 	if (unlikely(id == first)) {
 		cb->args[2] = 0;
 		return -EMSGSIZE;
 	}
+	ipset_nest_end(skb, adt);
 	return 0;
 }
 
