@@ -74,8 +74,19 @@ enum {
 #define VHOST_SCSI_MAX_VQ	128
 #define VHOST_SCSI_MAX_EVENT	128
 
+struct vhost_scsi_inflight {
+	/* Wait for the flush operation to finish */
+	struct completion comp;
+	/* Refcount for the inflight reqs */
+	struct kref kref;
+};
+
 struct vhost_scsi_virtqueue {
 	struct vhost_virtqueue vq;
+	/* Track inflight reqs, protected by vq->mutex */
+	struct vhost_scsi_inflight inflights[2];
+	/* Indicate current inflight in use, protected by vq->mutex */
+	int inflight_idx;
 };
 
 struct vhost_scsi {
@@ -109,6 +120,59 @@ static int iov_num_pages(struct iovec *iov)
 {
 	return (PAGE_ALIGN((unsigned long)iov->iov_base + iov->iov_len) -
 	       ((unsigned long)iov->iov_base & PAGE_MASK)) >> PAGE_SHIFT;
+}
+
+void tcm_vhost_done_inflight(struct kref *kref)
+{
+	struct vhost_scsi_inflight *inflight;
+
+	inflight = container_of(kref, struct vhost_scsi_inflight, kref);
+	complete(&inflight->comp);
+}
+
+static void tcm_vhost_init_inflight(struct vhost_scsi *vs,
+				    struct vhost_scsi_inflight *old_inflight[])
+{
+	struct vhost_scsi_inflight *new_inflight;
+	struct vhost_virtqueue *vq;
+	int idx, i;
+
+	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++) {
+		vq = &vs->vqs[i].vq;
+
+		mutex_lock(&vq->mutex);
+
+		/* store old infight */
+		idx = vs->vqs[i].inflight_idx;
+		if (old_inflight)
+			old_inflight[i] = &vs->vqs[i].inflights[idx];
+
+		/* setup new infight */
+		vs->vqs[i].inflight_idx = idx ^ 1;
+		new_inflight = &vs->vqs[i].inflights[idx ^ 1];
+		kref_init(&new_inflight->kref);
+		init_completion(&new_inflight->comp);
+
+		mutex_unlock(&vq->mutex);
+	}
+}
+
+static struct vhost_scsi_inflight *
+tcm_vhost_get_inflight(struct vhost_virtqueue *vq)
+{
+	struct vhost_scsi_inflight *inflight;
+	struct vhost_scsi_virtqueue *svq;
+
+	svq = container_of(vq, struct vhost_scsi_virtqueue, vq);
+	inflight = &svq->inflights[svq->inflight_idx];
+	kref_get(&inflight->kref);
+
+	return inflight;
+}
+
+static void tcm_vhost_put_inflight(struct vhost_scsi_inflight *inflight)
+{
+	kref_put(&inflight->kref, tcm_vhost_done_inflight);
 }
 
 static int tcm_vhost_check_true(struct se_portal_group *se_tpg)
@@ -407,6 +471,8 @@ static void vhost_scsi_free_cmd(struct tcm_vhost_cmd *tv_cmd)
 		kfree(tv_cmd->tvc_sgl);
 	}
 
+	tcm_vhost_put_inflight(tv_cmd->inflight);
+
 	kfree(tv_cmd);
 }
 
@@ -533,6 +599,7 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 }
 
 static struct tcm_vhost_cmd *vhost_scsi_allocate_cmd(
+	struct vhost_virtqueue *vq,
 	struct tcm_vhost_tpg *tv_tpg,
 	struct virtio_scsi_cmd_req *v_req,
 	u32 exp_data_len,
@@ -557,6 +624,7 @@ static struct tcm_vhost_cmd *vhost_scsi_allocate_cmd(
 	tv_cmd->tvc_exp_data_len = exp_data_len;
 	tv_cmd->tvc_data_direction = data_direction;
 	tv_cmd->tvc_nexus = tv_nexus;
+	tv_cmd->inflight = tcm_vhost_get_inflight(vq);
 
 	return tv_cmd;
 }
@@ -812,7 +880,7 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs,
 		for (i = 0; i < data_num; i++)
 			exp_data_len += vq->iov[data_first + i].iov_len;
 
-		tv_cmd = vhost_scsi_allocate_cmd(tv_tpg, &v_req,
+		tv_cmd = vhost_scsi_allocate_cmd(vq, tv_tpg, &v_req,
 					exp_data_len, data_direction);
 		if (IS_ERR(tv_cmd)) {
 			vq_err(vq, "vhost_scsi_allocate_cmd failed %ld\n",
@@ -949,12 +1017,29 @@ static void vhost_scsi_flush_vq(struct vhost_scsi *vs, int index)
 
 static void vhost_scsi_flush(struct vhost_scsi *vs)
 {
+	struct vhost_scsi_inflight *old_inflight[VHOST_SCSI_MAX_VQ];
 	int i;
 
+	/* Init new inflight and remember the old inflight */
+	tcm_vhost_init_inflight(vs, old_inflight);
+
+	/*
+	 * The inflight->kref was initialized to 1. We decrement it here to
+	 * indicate the start of the flush operation so that it will reach 0
+	 * when all the reqs are finished.
+	 */
+	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++)
+		kref_put(&old_inflight[i]->kref, tcm_vhost_done_inflight);
+
+	/* Flush both the vhost poll and vhost work */
 	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++)
 		vhost_scsi_flush_vq(vs, i);
 	vhost_work_flush(&vs->dev, &vs->vs_completion_work);
 	vhost_work_flush(&vs->dev, &vs->vs_event_work);
+
+	/* Wait for all reqs issued before the flush to be finished */
+	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++)
+		wait_for_completion(&old_inflight[i]->comp);
 }
 
 /*
@@ -1185,6 +1270,9 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 		s->vqs[i].vq.handle_kick = vhost_scsi_handle_kick;
 	}
 	r = vhost_dev_init(&s->dev, vqs, VHOST_SCSI_MAX_VQ);
+
+	tcm_vhost_init_inflight(s, NULL);
+
 	if (r < 0) {
 		kfree(vqs);
 		kfree(s);

@@ -2,6 +2,7 @@
 #define TCM_VHOST_NAMELEN 256
 #define TCM_VHOST_MAX_CDB_SIZE 32
 
+struct vhost_scsi_inflight;
 struct tcm_vhost_cmd {
 	/* Descriptor from vhost_get_vq_desc() for virt_queue segment */
 	int tvc_vq_desc;
@@ -37,6 +38,8 @@ struct tcm_vhost_cmd {
 	unsigned char tvc_sense_buf[TRANSPORT_SENSE_BUFFER];
 	/* Completed commands list, serviced from vhost worker thread */
 	struct llist_node tvc_completion_list;
+	/* Used to track inflight cmd */
+	struct vhost_scsi_inflight *inflight;
 };
 
 struct tcm_vhost_nexus {
