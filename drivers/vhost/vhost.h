@@ -54,18 +54,6 @@ struct vhost_log {
 
 struct vhost_virtqueue;
 
-struct vhost_ubuf_ref {
-	struct kref kref;
-	wait_queue_head_t wait;
-	struct vhost_virtqueue *vq;
-};
-
-struct vhost_ubuf_ref *vhost_ubuf_alloc(struct vhost_virtqueue *, bool zcopy);
-void vhost_ubuf_put(struct vhost_ubuf_ref *);
-void vhost_ubuf_put_and_wait(struct vhost_ubuf_ref *);
-
-struct ubuf_info;
-
 /* The virtqueue structure describes a queue attached to a device. */
 struct vhost_virtqueue {
 	struct vhost_dev *dev;
@@ -130,16 +118,6 @@ struct vhost_virtqueue {
 	/* Log write descriptors */
 	void __user *log_base;
 	struct vhost_log *log;
-	/* vhost zerocopy support fields below: */
-	/* last used idx for outstanding DMA zerocopy buffers */
-	int upend_idx;
-	/* first used idx for DMA done zerocopy buffers */
-	int done_idx;
-	/* an array of userspace buffers info */
-	struct ubuf_info *ubuf_info;
-	/* Reference counting for outstanding ubufs.
-	 * Protected by vq mutex. Writers must also take device mutex. */
-	struct vhost_ubuf_ref *ubufs;
 };
 
 struct vhost_dev {

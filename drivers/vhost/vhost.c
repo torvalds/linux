@@ -33,8 +33,6 @@ enum {
 	VHOST_MEMORY_F_LOG = 0x1,
 };
 
-static unsigned vhost_zcopy_mask __read_mostly;
-
 #define vhost_used_event(vq) ((u16 __user *)&vq->avail->ring[vq->num])
 #define vhost_avail_event(vq) ((u16 __user *)&vq->used->ring[vq->num])
 
@@ -191,9 +189,6 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->call_ctx = NULL;
 	vq->call = NULL;
 	vq->log_ctx = NULL;
-	vq->upend_idx = 0;
-	vq->done_idx = 0;
-	vq->ubufs = NULL;
 }
 
 static int vhost_worker(void *data)
@@ -253,20 +248,12 @@ static void vhost_vq_free_iovecs(struct vhost_virtqueue *vq)
 	vq->log = NULL;
 	kfree(vq->heads);
 	vq->heads = NULL;
-	kfree(vq->ubuf_info);
-	vq->ubuf_info = NULL;
-}
-
-void vhost_enable_zcopy(int vq)
-{
-	vhost_zcopy_mask |= 0x1 << vq;
 }
 
 /* Helper to allocate iovec buffers for all vqs. */
 static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 {
 	int i;
-	bool zcopy;
 
 	for (i = 0; i < dev->nvqs; ++i) {
 		dev->vqs[i]->indirect = kmalloc(sizeof *dev->vqs[i]->indirect *
@@ -275,14 +262,8 @@ static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 					  GFP_KERNEL);
 		dev->vqs[i]->heads = kmalloc(sizeof *dev->vqs[i]->heads *
 					    UIO_MAXIOV, GFP_KERNEL);
-		zcopy = vhost_zcopy_mask & (0x1 << i);
-		if (zcopy)
-			dev->vqs[i]->ubuf_info =
-				kmalloc(sizeof *dev->vqs[i]->ubuf_info *
-					UIO_MAXIOV, GFP_KERNEL);
 		if (!dev->vqs[i]->indirect || !dev->vqs[i]->log ||
-			!dev->vqs[i]->heads ||
-			(zcopy && !dev->vqs[i]->ubuf_info))
+			!dev->vqs[i]->heads)
 			goto err_nomem;
 	}
 	return 0;
@@ -321,7 +302,6 @@ long vhost_dev_init(struct vhost_dev *dev,
 		dev->vqs[i]->log = NULL;
 		dev->vqs[i]->indirect = NULL;
 		dev->vqs[i]->heads = NULL;
-		dev->vqs[i]->ubuf_info = NULL;
 		dev->vqs[i]->dev = dev;
 		mutex_init(&dev->vqs[i]->mutex);
 		vhost_vq_reset(dev, dev->vqs[i]);
@@ -1550,39 +1530,4 @@ void vhost_disable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 			vq_err(vq, "Failed to enable notification at %p: %d\n",
 			       &vq->used->flags, r);
 	}
-}
-
-static void vhost_zerocopy_done_signal(struct kref *kref)
-{
-	struct vhost_ubuf_ref *ubufs = container_of(kref, struct vhost_ubuf_ref,
-						    kref);
-	wake_up(&ubufs->wait);
-}
-
-struct vhost_ubuf_ref *vhost_ubuf_alloc(struct vhost_virtqueue *vq,
-					bool zcopy)
-{
-	struct vhost_ubuf_ref *ubufs;
-	/* No zero copy backend? Nothing to count. */
-	if (!zcopy)
-		return NULL;
-	ubufs = kmalloc(sizeof *ubufs, GFP_KERNEL);
-	if (!ubufs)
-		return ERR_PTR(-ENOMEM);
-	kref_init(&ubufs->kref);
-	init_waitqueue_head(&ubufs->wait);
-	ubufs->vq = vq;
-	return ubufs;
-}
-
-void vhost_ubuf_put(struct vhost_ubuf_ref *ubufs)
-{
-	kref_put(&ubufs->kref, vhost_zerocopy_done_signal);
-}
-
-void vhost_ubuf_put_and_wait(struct vhost_ubuf_ref *ubufs)
-{
-	kref_put(&ubufs->kref, vhost_zerocopy_done_signal);
-	wait_event(ubufs->wait, !atomic_read(&ubufs->kref.refcount));
-	kfree(ubufs);
 }
