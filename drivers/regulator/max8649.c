@@ -275,10 +275,8 @@ static int max8649_regulator_remove(struct i2c_client *client)
 {
 	struct max8649_regulator_info *info = i2c_get_clientdata(client);
 
-	if (info) {
-		if (info->regulator)
-			regulator_unregister(info->regulator);
-	}
+	if (info)
+		regulator_unregister(info->regulator);
 
 	return 0;
 }

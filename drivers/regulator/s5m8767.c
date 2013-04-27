@@ -923,8 +923,7 @@ static int s5m8767_pmic_probe(struct platform_device *pdev)
 	return 0;
 err:
 	for (i = 0; i < s5m8767->num_regulators; i++)
-		if (rdev[i])
-			regulator_unregister(rdev[i]);
+		regulator_unregister(rdev[i]);
 
 	return ret;
 }
@@ -936,8 +935,7 @@ static int s5m8767_pmic_remove(struct platform_device *pdev)
 	int i;
 
 	for (i = 0; i < s5m8767->num_regulators; i++)
-		if (rdev[i])
-			regulator_unregister(rdev[i]);
+		regulator_unregister(rdev[i]);
 
 	return 0;
 }
