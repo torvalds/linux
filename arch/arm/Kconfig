@@ -1614,13 +1614,49 @@ config ARCH_NR_GPIO
 
 source kernel/Kconfig.preempt
 
-config HZ
+config HZ_FIXED
 	int
 	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || ARCH_S5P64X0 || \
 		ARCH_S5PV210 || ARCH_EXYNOS4
 	default AT91_TIMER_HZ if ARCH_AT91
 	default SHMOBILE_TIMER_HZ if ARCH_SHMOBILE
-	default 100
+
+choice
+	depends on !HZ_FIXED
+	prompt "Timer frequency"
+
+config HZ_100
+	bool "100 Hz"
+
+config HZ_200
+	bool "200 Hz"
+
+config HZ_250
+	bool "250 Hz"
+
+config HZ_300
+	bool "300 Hz"
+
+config HZ_500
+	bool "500 Hz"
+
+config HZ_1000
+	bool "1000 Hz"
+
+endchoice
+
+config HZ
+	int
+	default HZ_FIXED if HZ_FIXED
+	default 100 if HZ_100
+	default 200 if HZ_200
+	default 250 if HZ_250
+	default 300 if HZ_300
+	default 500 if HZ_500
+	default 1000
+
+config SCHED_HRTICK
+	def_bool HIGH_RES_TIMERS
 
 config SCHED_HRTICK
 	def_bool HIGH_RES_TIMERS
