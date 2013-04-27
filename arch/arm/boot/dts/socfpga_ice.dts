@@ -41,6 +41,34 @@
 			};
 		};
 
+		dcan0: d_can@ffc00000 {
+			status = "disabled";
+		};
+
+		dcan1: d_can@ffc10000 {
+			status = "disabled";
+		};
+
+		ethernet@ff700000 {
+			status = "disabled";
+		};
+
+		ethernet@ff702000 {
+			status = "disabled";
+		};
+
+		i2c1: i2c@ffc05000 {
+			status = "disabled";
+ 		};
+
+		i2c2: i2c@ffc06000 {
+			status = "disabled";
+		};
+
+		i2c3: i2c@ffc07000 {
+			status = "disabled";
+		};
+
 		qspi: spi@ff705000 {
 				compatible = "cadence,qspi";
 				#address-cells = <1>;

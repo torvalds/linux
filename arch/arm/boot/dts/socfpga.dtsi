@@ -254,6 +254,19 @@
 				};
 			};
 
+		dcan0: d_can@ffc00000 {
+			compatible = "bosch,d_can";
+			reg = <0xffc00000 0x1000>;
+			interrupts = <0 131 4>;
+			status = "disabled";
+		};
+
+		dcan1: d_can@ffc10000 {
+			compatible = "bosch,d_can";
+			reg = <0xffc10000 0x1000>;
+			interrupts = <0 135 4>;
+			status = "disabled";
+		};
 
 		gmac0: ethernet@ff700000 {
 			compatible = "altr,socfpga-stmmac", "snps,dwmac-3.70a", "snps,dwmac";
@@ -314,6 +327,58 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			clocks = <&per_base_clk>;
+		};
+
+		hps_0_fpgamgr: fpgamgr@0xff706000 {
+			compatible = "altr,fpga-mgr-1.0", "altr,fpga-mgr";
+			transport = "mmio";
+			reg = <0xFF706000 0x1000
+					0xFFB90000 0x1000>;
+			interrupts = <0 175 4>;
+		};
+
+		i2c0: i2c@ffc04000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0xffc04000 0x1000>;
+			interrupts = <0 158 4>;
+			emptyfifo_hold_master = <1>;
+			clocks = <&per_base_clk>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@ffc05000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0xffc05000 0x1000>;
+			interrupts = <0 159 4>;
+			emptyfifo_hold_master = <1>;
+			clocks = <&per_base_clk>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@ffc06000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0xffc06000 0x1000>;
+			interrupts = <0 160 4>;
+			emptyfifo_hold_master = <1>;
+			clocks = <&per_base_clk>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@ffc07000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,designware-i2c";
+			reg = <0xffc07000 0x1000>;
+			interrupts = <0 161 4>;
+			emptyfifo_hold_master = <1>;
+			clocks = <&per_base_clk>;
+			status = "disabled";
 		};
 
 		L2: l2-cache@fffef000 {
@@ -477,34 +542,6 @@
 					512 512 512 512 512 512 512 512 512>;
 				dev-tx-fifo-size = <512 512 512 512 512 512
 					512 512 512 512 512 512 512 512 512>;
-		};
-
-		i2c0: i2c@ffc04000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "snps,designware-i2c";
-			reg = <0xffc04000 0x1000>;
-			interrupts = <0 158 4>;
-			emptyfifo_hold_master = <1>;
-			clocks = <&per_base_clk>;
-		};
-
-		i2c1: i2c@ffc05000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "snps,designware-i2c";
-			reg = <0xffc05000 0x1000>;
-			interrupts = <0 159 4>;
-			emptyfifo_hold_master = <1>;
-			clocks = <&per_base_clk>;
-		};
-
-		hps_0_fpgamgr: fpgamgr@0xff706000 {
-			compatible = "altr,fpga-mgr-1.0", "altr,fpga-mgr";
-			transport = "mmio";
-			reg = <0xFF706000 0x1000
-			       0xFFB90000 0x1000>;
-			interrupts = <0 175 4>;
 		};
 	};
 };

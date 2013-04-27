@@ -82,10 +82,6 @@
 			status = "okay";
 		};
 
-		i2c1: i2c@ffc05000 {
-			status = "disabled";
-		};
-
 		qspi: spi@ff705000 {
 				compatible = "cadence,qspi";
 				#address-cells = <1>;
@@ -157,6 +153,7 @@
 
 		i2c0: i2c@ffc04000 {
 			speed-mode = <0>;
+			status = "okay";
 		};
 
 		leds {
