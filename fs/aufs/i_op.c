@@ -366,13 +366,13 @@ out:
 
 /* ---------------------------------------------------------------------- */
 
-static void au_pin_hdir_unlock(struct au_pin *p)
+void au_pin_hdir_unlock(struct au_pin *p)
 {
 	if (p->hdir)
 		au_hn_imtx_unlock(p->hdir);
 }
 
-static int au_pin_hdir_relock(struct au_pin *p)
+static int au_pin_hdir_lock(struct au_pin *p)
 {
 	int err;
 
@@ -396,14 +396,39 @@ out:
 	return err;
 }
 
-static void au_pin_hdir_set_owner(struct au_pin *p, struct task_struct *task)
+int au_pin_hdir_relock(struct au_pin *p)
+{
+	int err, i;
+	struct inode *h_i;
+	struct dentry *h_d[] = {
+		p->h_dentry,
+		p->h_parent
+	};
+
+	err = au_pin_hdir_lock(p);
+	if (unlikely(err))
+		goto out;
+
+	for (i = 0; !err && i < sizeof(h_d)/sizeof(*h_d); i++) {
+		if (!h_d[i])
+			continue;
+		h_i = h_d[i]->d_inode;
+		if (h_i)
+			err = !h_i->i_nlink;
+	}
+
+out:
+	return err;
+}
+
+void au_pin_hdir_set_owner(struct au_pin *p, struct task_struct *task)
 {
 #if defined(CONFIG_DEBUG_MUTEXES) || defined(CONFIG_SMP)
 	p->hdir->hi_inode->i_mutex.owner = task;
 #endif
 }
 
-static void au_pin_hdir_acquire_nest(struct au_pin *p)
+void au_pin_hdir_acquire_nest(struct au_pin *p)
 {
 	if (p->hdir) {
 		mutex_acquire_nest(&p->hdir->hi_inode->i_mutex.dep_map,
@@ -412,7 +437,7 @@ static void au_pin_hdir_acquire_nest(struct au_pin *p)
 	}
 }
 
-static void au_pin_hdir_release(struct au_pin *p)
+void au_pin_hdir_release(struct au_pin *p)
 {
 	if (p->hdir) {
 		au_pin_hdir_set_owner(p, p->task);
@@ -434,7 +459,7 @@ void au_unpin(struct au_pin *p)
 	if (!p->hdir)
 		return;
 
-	p->hdir_unlock(p);
+	au_pin_hdir_unlock(p);
 	if (!au_ftest_pin(p->flags, DI_LOCKED))
 		di_read_unlock(p->parent, AuLock_IR);
 	iput(p->hdir->hi_inode);
@@ -495,7 +520,7 @@ int au_do_pin(struct au_pin *p)
 	}
 
 	au_igrab(h_dir);
-	err = p->hdir_relock(p);
+	err = au_pin_hdir_lock(p);
 	if (unlikely(err))
 		goto out_unpin;
 
@@ -537,10 +562,6 @@ void au_pin_init(struct au_pin *p, struct dentry *dentry,
 	p->h_parent = NULL;
 	p->br = NULL;
 	p->task = current;
-	p->hdir_unlock = au_pin_hdir_unlock;
-	p->hdir_relock = au_pin_hdir_relock;
-	p->hdir_acquire_nest = au_pin_hdir_acquire_nest;
-	p->hdir_release = au_pin_hdir_release;
 }
 
 int au_pin(struct au_pin *pin, struct dentry *dentry, aufs_bindex_t bindex,
