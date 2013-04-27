@@ -324,6 +324,16 @@ ip_set_get_extensions(struct ip_set *set, struct nlattr *tb[],
 			return -IPSET_ERR_TIMEOUT;
 		ext->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 	}
+	if (tb[IPSET_ATTR_BYTES] || tb[IPSET_ATTR_PACKETS]) {
+		if (!(set->extensions & IPSET_EXT_COUNTER))
+			return -IPSET_ERR_COUNTER;
+		if (tb[IPSET_ATTR_BYTES])
+			ext->bytes = be64_to_cpu(nla_get_be64(
+						 tb[IPSET_ATTR_BYTES]));
+		if (tb[IPSET_ATTR_PACKETS])
+			ext->packets = be64_to_cpu(nla_get_be64(
+						   tb[IPSET_ATTR_PACKETS]));
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ip_set_get_extensions);
