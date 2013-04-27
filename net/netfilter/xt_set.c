@@ -1,7 +1,7 @@
 /* Copyright (C) 2000-2002 Joakim Axelsson <gozem@linux.nu>
  *                         Patrick Schaaf <bof@bof.de>
  *                         Martin Josefsson <gandalf@wlug.westbo.se>
- * Copyright (C) 2003-2011 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+ * Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -30,7 +30,7 @@ MODULE_ALIAS("ip6t_SET");
 static inline int
 match_set(ip_set_id_t index, const struct sk_buff *skb,
 	  const struct xt_action_param *par,
-	  const struct ip_set_adt_opt *opt, int inv)
+	  struct ip_set_adt_opt *opt, int inv)
 {
 	if (ip_set_test(index, skb, par, opt))
 		inv = !inv;
@@ -38,20 +38,12 @@ match_set(ip_set_id_t index, const struct sk_buff *skb,
 }
 
 #define ADT_OPT(n, f, d, fs, cfs, t)	\
-const struct ip_set_adt_opt n = {	\
-	.family	= f,			\
-	.dim = d,			\
-	.flags = fs,			\
-	.cmdflags = cfs,		\
-	.timeout = t,			\
-}
-#define ADT_MOPT(n, f, d, fs, cfs, t)	\
 struct ip_set_adt_opt n = {		\
 	.family	= f,			\
 	.dim = d,			\
 	.flags = fs,			\
 	.cmdflags = cfs,		\
-	.timeout = t,			\
+	.ext.timeout = t,		\
 }
 
 /* Revision 0 interface: backward compatible with netfilter/iptables */
@@ -305,15 +297,15 @@ static unsigned int
 set_target_v2(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_set_info_target_v2 *info = par->targinfo;
-	ADT_MOPT(add_opt, par->family, info->add_set.dim,
-		 info->add_set.flags, info->flags, info->timeout);
+	ADT_OPT(add_opt, par->family, info->add_set.dim,
+		info->add_set.flags, info->flags, info->timeout);
 	ADT_OPT(del_opt, par->family, info->del_set.dim,
 		info->del_set.flags, 0, UINT_MAX);
 
 	/* Normalize to fit into jiffies */
-	if (add_opt.timeout != IPSET_NO_TIMEOUT &&
-	    add_opt.timeout > UINT_MAX/MSEC_PER_SEC)
-		add_opt.timeout = UINT_MAX/MSEC_PER_SEC;
+	if (add_opt.ext.timeout != IPSET_NO_TIMEOUT &&
+	    add_opt.ext.timeout > UINT_MAX/MSEC_PER_SEC)
+		add_opt.ext.timeout = UINT_MAX/MSEC_PER_SEC;
 	if (info->add_set.index != IPSET_INVALID_ID)
 		ip_set_add(info->add_set.index, skb, par, &add_opt);
 	if (info->del_set.index != IPSET_INVALID_ID)

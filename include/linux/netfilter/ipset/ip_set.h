@@ -1,7 +1,7 @@
 /* Copyright (C) 2000-2002 Joakim Axelsson <gozem@linux.nu>
  *                         Patrick Schaaf <bof@bof.de>
  *                         Martin Josefsson <gandalf@wlug.westbo.se>
- * Copyright (C) 2003-2011 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+ * Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -47,10 +47,30 @@ enum ip_set_feature {
 	IPSET_DUMP_LAST = (1 << IPSET_DUMP_LAST_FLAG),
 };
 
+/* Set extensions */
+enum ip_set_extension {
+	IPSET_EXT_NONE = 0,
+	IPSET_EXT_BIT_TIMEOUT = 1,
+	IPSET_EXT_TIMEOUT = (1 << IPSET_EXT_BIT_TIMEOUT),
+};
+
+/* Extension offsets */
+enum ip_set_offset {
+	IPSET_OFFSET_TIMEOUT = 0,
+	IPSET_OFFSET_MAX,
+};
+
+#define SET_WITH_TIMEOUT(s)	((s)->extensions & IPSET_EXT_TIMEOUT)
+
+struct ip_set_ext {
+	unsigned long timeout;
+};
+
 struct ip_set;
 
 typedef int (*ipset_adtfn)(struct ip_set *set, void *value,
-			   u32 timeout, u32 flags);
+			   const struct ip_set_ext *ext,
+			   struct ip_set_ext *mext, u32 flags);
 
 /* Kernel API function options */
 struct ip_set_adt_opt {
@@ -58,7 +78,7 @@ struct ip_set_adt_opt {
 	u8 dim;			/* Dimension of match/target */
 	u8 flags;		/* Direction and negation flags */
 	u32 cmdflags;		/* Command-like flags */
-	u32 timeout;		/* Timeout value */
+	struct ip_set_ext ext;	/* Extensions */
 };
 
 /* Set type, variant-specific part */
@@ -69,7 +89,7 @@ struct ip_set_type_variant {
 	 *			positive for matching element */
 	int (*kadt)(struct ip_set *set, const struct sk_buff *skb,
 		    const struct xt_action_param *par,
-		    enum ipset_adt adt, const struct ip_set_adt_opt *opt);
+		    enum ipset_adt adt, struct ip_set_adt_opt *opt);
 
 	/* Userspace: test/add/del entries
 	 *		returns negative error code,
@@ -151,6 +171,8 @@ struct ip_set {
 	u8 family;
 	/* The type revision */
 	u8 revision;
+	/* Extensions */
+	u8 extensions;
 	/* The type specific data */
 	void *data;
 };
@@ -167,19 +189,21 @@ extern void ip_set_nfnl_put(ip_set_id_t index);
 
 extern int ip_set_add(ip_set_id_t id, const struct sk_buff *skb,
 		      const struct xt_action_param *par,
-		      const struct ip_set_adt_opt *opt);
+		      struct ip_set_adt_opt *opt);
 extern int ip_set_del(ip_set_id_t id, const struct sk_buff *skb,
 		      const struct xt_action_param *par,
-		      const struct ip_set_adt_opt *opt);
+		      struct ip_set_adt_opt *opt);
 extern int ip_set_test(ip_set_id_t id, const struct sk_buff *skb,
 		       const struct xt_action_param *par,
-		       const struct ip_set_adt_opt *opt);
+		       struct ip_set_adt_opt *opt);
 
 /* Utility functions */
 extern void *ip_set_alloc(size_t size);
 extern void ip_set_free(void *members);
 extern int ip_set_get_ipaddr4(struct nlattr *nla,  __be32 *ipaddr);
 extern int ip_set_get_ipaddr6(struct nlattr *nla, union nf_inet_addr *ipaddr);
+extern int ip_set_get_extensions(struct ip_set *set, struct nlattr *tb[],
+				 struct ip_set_ext *ext);
 
 static inline int
 ip_set_get_hostipaddr4(struct nlattr *nla, u32 *ipaddr)
@@ -291,5 +315,13 @@ bitmap_bytes(u32 a, u32 b)
 {
 	return 4 * ((((b - a + 8) / 8) + 3) / 4);
 }
+
+#include <linux/netfilter/ipset/ip_set_timeout.h>
+
+#define IP_SET_INIT_KEXT(skb, opt, map)		\
+	{ .timeout = ip_set_adt_opt_timeout(opt, map) }
+
+#define IP_SET_INIT_UEXT(map)			\
+	{ .timeout = (map)->timeout }
 
 #endif /*_IP_SET_H */
