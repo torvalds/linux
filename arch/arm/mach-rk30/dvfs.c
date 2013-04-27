@@ -612,7 +612,6 @@ int rk_dvfs_init(void)
 
 /******************************rk30 avs**************************************************/
 
-#ifdef CONFIG_ARCH_RK3066B
 
 static void __iomem *rk30_nandc_base=NULL;
 
@@ -638,7 +637,11 @@ static u8 rk30_get_avs_val(void)
 	nandc_writel(nanc_save_reg[0] | 0x1 << 14, 0);
 	nandc_writel(0x5, 0x130);
 
+#ifdef CONFIG_ARCH_RK3066B
 	nandc_writel(3, 0x158);
+#else
+	nandc_writel(7, 0x158);
+#endif
 	nandc_writel(1, 0x134);
 
 	while(count--) {
@@ -667,6 +670,5 @@ static struct avs_ctr_st rk30_avs_ctr= {
 	.avs_init 		=rk30_avs_init,
 	.avs_get_val	= rk30_get_avs_val,
 };
-#endif
 
 

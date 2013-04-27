@@ -1237,7 +1237,7 @@ void avs_init(void)
 	memset(&init_avs_paramet[0].is_set, 0, sizeof(init_avs_paramet));
 	if(avs_ctr_data&&avs_ctr_data->avs_init)
 		avs_ctr_data->avs_init();
-	//avs_init_val_get(0,1150000,"board_init");
+	avs_init_val_get(0, 1200000,"board_init");
 }
 static u8 rk_get_avs_val(void)
 {
