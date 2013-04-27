@@ -4729,6 +4729,7 @@ out_err:
 static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 {
 	int ret;
+	int tmp;
 
 	ret = rbd_dev_header_watch_sync(rbd_dev, 1);
 	if (ret)
@@ -4780,6 +4781,9 @@ err_out_blkdev:
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
 err_out_id:
 	rbd_dev_id_put(rbd_dev);
+	tmp = rbd_dev_header_watch_sync(rbd_dev, 0);
+	if (tmp)
+		rbd_warn(rbd_dev, "failed to cancel watch event (%d)\n", ret);
 	rbd_dev_mapping_clear(rbd_dev);
 
 	return ret;
@@ -4975,9 +4979,6 @@ static void rbd_dev_release(struct device *dev)
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
-	if (rbd_dev->watch_event)
-		rbd_dev_header_watch_sync(rbd_dev, 0);
-
 	/* clean up and free blkdev */
 	rbd_free_disk(rbd_dev);
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
@@ -5003,6 +5004,7 @@ static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
 		struct rbd_device *first = rbd_dev;
 		struct rbd_device *second = first->parent;
 		struct rbd_device *third;
+		int ret;
 
 		/*
 		 * Follow to the parent with no grandparent and
@@ -5013,6 +5015,10 @@ static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
 			second = third;
 		}
 		rbd_assert(second);
+		ret = rbd_dev_header_watch_sync(rbd_dev, 0);
+		if (ret)
+			rbd_warn(rbd_dev,
+				"failed to cancel watch event (%d)\n", ret);
 		rbd_remove_all_snaps(second);
 		rbd_bus_del_dev(second);
 		first->parent = NULL;
@@ -5029,13 +5035,13 @@ static ssize_t rbd_remove(struct bus_type *bus,
 			  size_t count)
 {
 	struct rbd_device *rbd_dev = NULL;
-	int target_id, rc;
+	int target_id;
 	unsigned long ul;
-	int ret = count;
+	int ret;
 
-	rc = strict_strtoul(buf, 10, &ul);
-	if (rc)
-		return rc;
+	ret = strict_strtoul(buf, 10, &ul);
+	if (ret)
+		return ret;
 
 	/* convert to int; abort if we lost anything in the conversion */
 	target_id = (int) ul;
@@ -5058,6 +5064,15 @@ static ssize_t rbd_remove(struct bus_type *bus,
 	spin_unlock_irq(&rbd_dev->lock);
 	if (ret < 0)
 		goto done;
+
+	ret = rbd_dev_header_watch_sync(rbd_dev, 0);
+	if (ret) {
+		rbd_warn(rbd_dev, "failed to cancel watch event (%d)\n", ret);
+		clear_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags);
+		smp_mb();
+		return ret;
+	}
+	ret = count;
 
 	rbd_dev_remove_parent(rbd_dev);
 
