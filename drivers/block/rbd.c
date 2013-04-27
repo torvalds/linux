@@ -4755,26 +4755,13 @@ static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
 {
 	int ret;
 
-	/* no need to lock here, as rbd_dev is not registered yet */
-	ret = rbd_dev_snaps_update(rbd_dev);
+	ret = rbd_dev_header_watch_sync(rbd_dev, 1);
 	if (ret)
 		return ret;
 
-	ret = rbd_dev_spec_update(rbd_dev);
-	if (ret)
-		goto err_out_snaps;
-
-	ret = rbd_dev_header_watch_sync(rbd_dev, 1);
-	if (ret)
-		goto err_out_snaps;
-
 	ret = rbd_dev_mapping_set(rbd_dev);
 	if (ret)
-		goto err_out_snaps;
-
-	ret = rbd_dev_probe_parent(rbd_dev);
-	if (ret)
-		goto err_out_mapping;
+		return ret;
 
 	/* generate unique id: find highest unique id, add one */
 	rbd_dev_id_get(rbd_dev);
@@ -4818,11 +4805,7 @@ err_out_blkdev:
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
 err_out_id:
 	rbd_dev_id_put(rbd_dev);
-	rbd_dev_remove_parent(rbd_dev);
-err_out_mapping:
 	rbd_dev_mapping_clear(rbd_dev);
-err_out_snaps:
-	rbd_remove_all_snaps(rbd_dev);
 
 	return ret;
 }
@@ -4854,11 +4837,28 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev)
 	if (ret)
 		goto out_err;
 
+	ret = rbd_dev_snaps_update(rbd_dev);
+	if (ret)
+		goto out_err;
+
+	ret = rbd_dev_spec_update(rbd_dev);
+	if (ret)
+		goto err_out_snaps;
+
+	ret = rbd_dev_probe_parent(rbd_dev);
+	if (ret)
+		goto err_out_snaps;
+
 	ret = rbd_dev_probe_finish(rbd_dev);
 	if (ret)
-		rbd_header_free(&rbd_dev->header);
+		goto err_out_parent;
 
 	return ret;
+err_out_parent:
+	rbd_dev_remove_parent(rbd_dev);
+	rbd_header_free(&rbd_dev->header);
+err_out_snaps:
+	rbd_remove_all_snaps(rbd_dev);
 out_err:
 	kfree(rbd_dev->spec->image_id);
 	rbd_dev->spec->image_id = NULL;
