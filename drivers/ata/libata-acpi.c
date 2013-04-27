@@ -77,7 +77,7 @@ acpi_handle ata_dev_acpi_handle(struct ata_device *dev)
 	acpi_integer adr;
 	struct ata_port *ap = dev->link->ap;
 
-	if (dev->flags & ATA_DFLAG_ACPI_DISABLED)
+	if (libata_noacpi || dev->flags & ATA_DFLAG_ACPI_DISABLED)
 		return NULL;
 
 	if (ap->flags & ATA_FLAG_ACPI_SATA) {
@@ -1047,7 +1047,7 @@ static int compat_pci_ata(struct ata_port *ap)
 
 static int ata_acpi_bind_host(struct ata_port *ap, acpi_handle *handle)
 {
-	if (ap->flags & ATA_FLAG_ACPI_SATA)
+	if (libata_noacpi || ap->flags & ATA_FLAG_ACPI_SATA)
 		return -ENODEV;
 
 	*handle = acpi_get_child(DEVICE_ACPI_HANDLE(ap->tdev.parent),
