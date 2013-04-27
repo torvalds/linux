@@ -34,6 +34,7 @@
 
 #define DFGT_REV_MAJ 0x13
 #define DFGT_REV_MIN 0x22
+#define DFGT2_REV_MIN 0x26
 #define DFP_REV_MAJ 0x11
 #define DFP_REV_MIN 0x06
 #define FFEX_REV_MAJ 0x21
@@ -125,6 +126,7 @@ static const struct lg4ff_native_cmd native_g27 = {
 
 static const struct lg4ff_usb_revision lg4ff_revs[] = {
 	{DFGT_REV_MAJ, DFGT_REV_MIN, &native_dfgt},	/* Driving Force GT */
+	{DFGT_REV_MAJ, DFGT2_REV_MIN, &native_dfgt},	/* Driving Force GT v2 */
 	{DFP_REV_MAJ,  DFP_REV_MIN,  &native_dfp},	/* Driving Force Pro */
 	{G25_REV_MAJ,  G25_REV_MIN,  &native_g25},	/* G25 */
 	{G27_REV_MAJ,  G27_REV_MIN,  &native_g27},	/* G27 */
