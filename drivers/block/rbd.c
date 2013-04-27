@@ -4592,18 +4592,6 @@ out:
 static int rbd_dev_v1_probe(struct rbd_device *rbd_dev)
 {
 	int ret;
-	size_t size;
-
-	/* Record the header object name for this rbd image. */
-
-	size = strlen(rbd_dev->spec->image_name) + sizeof (RBD_SUFFIX);
-	rbd_dev->header_name = kmalloc(size, GFP_KERNEL);
-	if (!rbd_dev->header_name) {
-		ret = -ENOMEM;
-		goto out_err;
-	}
-	sprintf(rbd_dev->header_name, "%s%s",
-		rbd_dev->spec->image_name, RBD_SUFFIX);
 
 	/* Populate rbd image metadata */
 
@@ -4632,22 +4620,9 @@ out_err:
 
 static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 {
-	size_t size;
 	int ret;
 	u64 ver = 0;
 
-	/*
-	 * Image id was filled in by the caller.  Record the header
-	 * object name for this rbd image.
-	 */
-	size = sizeof (RBD_HEADER_PREFIX) + strlen(rbd_dev->spec->image_id);
-	rbd_dev->header_name = kmalloc(size, GFP_KERNEL);
-	if (!rbd_dev->header_name)
-		return -ENOMEM;
-	sprintf(rbd_dev->header_name, "%s%s",
-			RBD_HEADER_PREFIX, rbd_dev->spec->image_id);
-
-	/* Get the size and object order for the image */
 	ret = rbd_dev_v2_image_size(rbd_dev);
 	if (ret)
 		goto out_err;
@@ -4810,6 +4785,33 @@ err_out_id:
 	return ret;
 }
 
+static int rbd_dev_header_name(struct rbd_device *rbd_dev)
+{
+	struct rbd_spec *spec = rbd_dev->spec;
+	size_t size;
+
+	/* Record the header object name for this rbd image. */
+
+	rbd_assert(rbd_image_format_valid(rbd_dev->image_format));
+
+	if (rbd_dev->image_format == 1)
+		size = strlen(spec->image_name) + sizeof (RBD_SUFFIX);
+	else
+		size = sizeof (RBD_HEADER_PREFIX) + strlen(spec->image_id);
+
+	rbd_dev->header_name = kmalloc(size, GFP_KERNEL);
+	if (!rbd_dev->header_name)
+		return -ENOMEM;
+
+	if (rbd_dev->image_format == 1)
+		sprintf(rbd_dev->header_name, "%s%s",
+			spec->image_name, RBD_SUFFIX);
+	else
+		sprintf(rbd_dev->header_name, "%s%s",
+			RBD_HEADER_PREFIX, spec->image_id);
+	return 0;
+}
+
 /*
  * Probe for the existence of the header object for the given rbd
  * device.  For format 2 images this includes determining the image
@@ -4830,16 +4832,20 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev)
 	rbd_assert(rbd_dev->spec->image_id);
 	rbd_assert(rbd_image_format_valid(rbd_dev->image_format));
 
+	ret = rbd_dev_header_name(rbd_dev);
+	if (ret)
+		goto err_out_format;
+
 	if (rbd_dev->image_format == 1)
 		ret = rbd_dev_v1_probe(rbd_dev);
 	else
 		ret = rbd_dev_v2_probe(rbd_dev);
 	if (ret)
-		goto out_err;
+		goto out_header_name;
 
 	ret = rbd_dev_snaps_update(rbd_dev);
 	if (ret)
-		goto out_err;
+		goto out_header_name;
 
 	ret = rbd_dev_spec_update(rbd_dev);
 	if (ret)
@@ -4859,7 +4865,11 @@ err_out_parent:
 	rbd_header_free(&rbd_dev->header);
 err_out_snaps:
 	rbd_remove_all_snaps(rbd_dev);
-out_err:
+out_header_name:
+	kfree(rbd_dev->header_name);
+	rbd_dev->header_name = NULL;
+err_out_format:
+	rbd_dev->image_format = 0;
 	kfree(rbd_dev->spec->image_id);
 	rbd_dev->spec->image_id = NULL;
 
