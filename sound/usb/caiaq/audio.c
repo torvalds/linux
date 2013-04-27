@@ -683,7 +683,6 @@ static void read_completed(struct urb *urb)
 
 	if (send_it) {
 		out->number_of_packets = outframe;
-		out->transfer_flags = URB_ISO_ASAP;
 		usb_submit_urb(out, GFP_ATOMIC);
 	} else {
 		struct snd_usb_caiaq_cb_info *oinfo = out->context;
@@ -699,7 +698,6 @@ requeue:
 	}
 
 	urb->number_of_packets = FRAMES_PER_URB;
-	urb->transfer_flags = URB_ISO_ASAP;
 	usb_submit_urb(urb, GFP_ATOMIC);
 }
 
@@ -765,7 +763,6 @@ static struct urb **alloc_urbs(struct snd_usb_caiaqdev *cdev, int dir, int *ret)
 						* BYTES_PER_FRAME;
 		urbs[i]->context = &cdev->data_cb_info[i];
 		urbs[i]->interval = 1;
-		urbs[i]->transfer_flags = URB_ISO_ASAP;
 		urbs[i]->number_of_packets = FRAMES_PER_URB;
 		urbs[i]->complete = (dir == SNDRV_PCM_STREAM_CAPTURE) ?
 					read_completed : write_completed;
