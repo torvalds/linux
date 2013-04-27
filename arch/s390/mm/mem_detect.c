@@ -47,19 +47,21 @@ static void find_memory_chunks(struct mem_chunk chunk[])
 
 void detect_memory_layout(struct mem_chunk chunk[])
 {
-	unsigned long flags, cr0;
+	unsigned long flags, flags_dat, cr0;
 
 	memset(chunk, 0, MEMORY_CHUNKS * sizeof(struct mem_chunk));
 	/* Disable IRQs, DAT and low address protection so tprot does the
 	 * right thing and we don't get scheduled away with low address
 	 * protection disabled.
 	 */
-	flags = __arch_local_irq_stnsm(0xf8);
+	local_irq_save(flags);
+	flags_dat = __arch_local_irq_stnsm(0xfb);
 	__ctl_store(cr0, 0, 0);
 	__ctl_clear_bit(0, 28);
 	find_memory_chunks(chunk);
 	__ctl_load(cr0, 0, 0);
-	arch_local_irq_restore(flags);
+	__arch_local_irq_ssm(flags_dat);
+	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(detect_memory_layout);
 
