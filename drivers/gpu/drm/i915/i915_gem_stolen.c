@@ -136,6 +136,7 @@ static int i915_setup_compression(struct drm_device *dev, int size)
 err_fb:
 	drm_mm_put_block(compressed_fb);
 err:
+	pr_info_once("drm: not enough stolen space for compressed buffer (need %d more bytes), disabling. Hint: you may be able to increase stolen memory size in the BIOS to avoid this.\n", size);
 	return -ENOSPC;
 }
 

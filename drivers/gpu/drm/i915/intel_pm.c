@@ -481,8 +481,6 @@ void intel_update_fbc(struct drm_device *dev)
 		goto out_disable;
 
 	if (i915_gem_stolen_setup_compression(dev, intel_fb->obj->base.size)) {
-		DRM_INFO("not enough stolen space for compressed buffer (need %zd bytes), disabling\n", intel_fb->obj->base.size);
-		DRM_INFO("hint: you may be able to increase stolen memory size in the BIOS to avoid this\n");
 		DRM_DEBUG_KMS("framebuffer too large, disabling compression\n");
 		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
 		goto out_disable;
