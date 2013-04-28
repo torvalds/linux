@@ -256,7 +256,7 @@ static int __devinit rk616_hdmi_probe (struct platform_device *pdev)
 #if defined(CONFIG_DEBUG_FS)
 	if(rk616->debugfs_dir)
 	{
-		debugfs_create_file("rk616-hdmi", S_IRUSR,rk616->debugfs_dir,rk616,&rk616_hdmi_reg_fops);
+		debugfs_create_file("hdmi", S_IRUSR,rk616->debugfs_dir,rk616,&rk616_hdmi_reg_fops);
 	}
 #endif
 	rk616_irq_work_func(NULL);
