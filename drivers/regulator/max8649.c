@@ -60,36 +60,6 @@ struct max8649_regulator_info {
 	unsigned	ramp_down:1;
 };
 
-/* EN_PD means pulldown on EN input */
-static int max8649_enable(struct regulator_dev *rdev)
-{
-	struct max8649_regulator_info *info = rdev_get_drvdata(rdev);
-	return regmap_update_bits(info->regmap, MAX8649_CONTROL, MAX8649_EN_PD, 0);
-}
-
-/*
- * Applied internal pulldown resistor on EN input pin.
- * If pulldown EN pin outside, it would be better.
- */
-static int max8649_disable(struct regulator_dev *rdev)
-{
-	struct max8649_regulator_info *info = rdev_get_drvdata(rdev);
-	return regmap_update_bits(info->regmap, MAX8649_CONTROL, MAX8649_EN_PD,
-				MAX8649_EN_PD);
-}
-
-static int max8649_is_enabled(struct regulator_dev *rdev)
-{
-	struct max8649_regulator_info *info = rdev_get_drvdata(rdev);
-	unsigned int val;
-	int ret;
-
-	ret = regmap_read(info->regmap, MAX8649_CONTROL, &val);
-	if (ret != 0)
-		return ret;
-	return !((unsigned char)val & MAX8649_EN_PD);
-}
-
 static int max8649_enable_time(struct regulator_dev *rdev)
 {
 	struct max8649_regulator_info *info = rdev_get_drvdata(rdev);
@@ -151,9 +121,9 @@ static struct regulator_ops max8649_dcdc_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage	= regulator_list_voltage_linear,
 	.map_voltage	= regulator_map_voltage_linear,
-	.enable		= max8649_enable,
-	.disable	= max8649_disable,
-	.is_enabled	= max8649_is_enabled,
+	.enable		= regulator_enable_regmap,
+	.disable	= regulator_disable_regmap,
+	.is_enabled	= regulator_is_enabled_regmap,
 	.enable_time	= max8649_enable_time,
 	.set_mode	= max8649_set_mode,
 	.get_mode	= max8649_get_mode,
@@ -169,6 +139,9 @@ static struct regulator_desc dcdc_desc = {
 	.vsel_mask	= MAX8649_VOL_MASK,
 	.min_uV		= MAX8649_DCDC_VMIN,
 	.uV_step	= MAX8649_DCDC_STEP,
+	.enable_reg	= MAX8649_CONTROL,
+	.enable_mask	= MAX8649_EN_PD,
+	.enable_is_inverted = true,
 };
 
 static struct regmap_config max8649_regmap_config = {
