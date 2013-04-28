@@ -156,34 +156,6 @@ static const int lp8788_aldo7_vtbl[] = {
 	1200000, 1300000, 1400000, 1500000, 1600000, 1700000, 1800000, 1800000,
 };
 
-static enum lp8788_ldo_id lp8788_dldo_id[] = {
-	DLDO1,
-	DLDO2,
-	DLDO3,
-	DLDO4,
-	DLDO5,
-	DLDO6,
-	DLDO7,
-	DLDO8,
-	DLDO9,
-	DLDO10,
-	DLDO11,
-	DLDO12,
-};
-
-static enum lp8788_ldo_id lp8788_aldo_id[] = {
-	ALDO1,
-	ALDO2,
-	ALDO3,
-	ALDO4,
-	ALDO5,
-	ALDO6,
-	ALDO7,
-	ALDO8,
-	ALDO9,
-	ALDO10,
-};
-
 static int lp8788_ldo_enable_time(struct regulator_dev *rdev)
 {
 	struct lp8788_ldo *ldo = rdev_get_drvdata(rdev);
@@ -198,23 +170,6 @@ static int lp8788_ldo_enable_time(struct regulator_dev *rdev)
 	return ENABLE_TIME_USEC * val;
 }
 
-static int lp8788_ldo_fixed_get_voltage(struct regulator_dev *rdev)
-{
-	enum lp8788_ldo_id id = rdev_get_id(rdev);
-
-	switch (id) {
-	case ALDO2 ... ALDO5:
-		return 2850000;
-	case DLDO12:
-	case ALDO8 ... ALDO9:
-		return 2500000;
-	case ALDO10:
-		return 1100000;
-	default:
-		return -EINVAL;
-	}
-}
-
 static struct regulator_ops lp8788_ldo_voltage_table_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
@@ -226,7 +181,7 @@ static struct regulator_ops lp8788_ldo_voltage_table_ops = {
 };
 
 static struct regulator_ops lp8788_ldo_voltage_fixed_ops = {
-	.get_voltage = lp8788_ldo_fixed_get_voltage,
+	.list_voltage = regulator_list_voltage_linear,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -386,6 +341,7 @@ static struct regulator_desc lp8788_dldo_desc[] = {
 		.owner = THIS_MODULE,
 		.enable_reg = LP8788_EN_LDO_B,
 		.enable_mask = LP8788_EN_DLDO12_M,
+		.min_uV = 2500000,
 	},
 };
 
@@ -412,6 +368,7 @@ static struct regulator_desc lp8788_aldo_desc[] = {
 		.owner = THIS_MODULE,
 		.enable_reg = LP8788_EN_LDO_B,
 		.enable_mask = LP8788_EN_ALDO2_M,
+		.min_uV = 2850000,
 	},
 	{
 		.name = "aldo3",
@@ -422,6 +379,7 @@ static struct regulator_desc lp8788_aldo_desc[] = {
 		.owner = THIS_MODULE,
 		.enable_reg = LP8788_EN_LDO_B,
 		.enable_mask = LP8788_EN_ALDO3_M,
+		.min_uV = 2850000,
 	},
 	{
 		.name = "aldo4",
@@ -432,6 +390,7 @@ static struct regulator_desc lp8788_aldo_desc[] = {
 		.owner = THIS_MODULE,
 		.enable_reg = LP8788_EN_LDO_B,
 		.enable_mask = LP8788_EN_ALDO4_M,
+		.min_uV = 2850000,
 	},
 	{
 		.name = "aldo5",
@@ -442,6 +401,7 @@ static struct regulator_desc lp8788_aldo_desc[] = {
 		.owner = THIS_MODULE,
 		.enable_reg = LP8788_EN_LDO_C,
 		.enable_mask = LP8788_EN_ALDO5_M,
+		.min_uV = 2850000,
 	},
 	{
 		.name = "aldo6",
@@ -478,6 +438,7 @@ static struct regulator_desc lp8788_aldo_desc[] = {
 		.owner = THIS_MODULE,
 		.enable_reg = LP8788_EN_LDO_C,
 		.enable_mask = LP8788_EN_ALDO8_M,
+		.min_uV = 2500000,
 	},
 	{
 		.name = "aldo9",
@@ -488,6 +449,7 @@ static struct regulator_desc lp8788_aldo_desc[] = {
 		.owner = THIS_MODULE,
 		.enable_reg = LP8788_EN_LDO_C,
 		.enable_mask = LP8788_EN_ALDO9_M,
+		.min_uV = 2500000,
 	},
 	{
 		.name = "aldo10",
@@ -498,6 +460,7 @@ static struct regulator_desc lp8788_aldo_desc[] = {
 		.owner = THIS_MODULE,
 		.enable_reg = LP8788_EN_LDO_C,
 		.enable_mask = LP8788_EN_ALDO10_M,
+		.min_uV = 1100000,
 	},
 };
 
@@ -566,7 +529,7 @@ static int lp8788_dldo_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ldo->lp = lp;
-	ret = lp8788_config_ldo_enable_mode(pdev, ldo, lp8788_dldo_id[id]);
+	ret = lp8788_config_ldo_enable_mode(pdev, ldo, id);
 	if (ret)
 		return ret;
 
@@ -627,7 +590,7 @@ static int lp8788_aldo_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ldo->lp = lp;
-	ret = lp8788_config_ldo_enable_mode(pdev, ldo, lp8788_aldo_id[id]);
+	ret = lp8788_config_ldo_enable_mode(pdev, ldo, id + ALDO1);
 	if (ret)
 		return ret;
 
