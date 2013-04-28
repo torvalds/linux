@@ -726,9 +726,9 @@ static int rk616_power_on_init(void)
 		else 
 		{
 			gpio_direction_output(RK616_RST_PIN, GPIO_HIGH);
-			msleep(100);
+			msleep(2);
 			gpio_direction_output(RK616_RST_PIN, GPIO_LOW);
-			msleep(100);
+			msleep(10);
 	    		gpio_set_value(RK616_RST_PIN, GPIO_HIGH);
 		}
 	}
