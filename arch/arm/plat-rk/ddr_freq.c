@@ -39,6 +39,8 @@ enum SYS_STATUS {
 	SYS_STATUS_CIF0,	// 0x10
 	SYS_STATUS_CIF1,	// 0x20
 	SYS_STATUS_REBOOT,	// 0x40
+	SYS_STATUS_LCDC0,	// 0x80
+	SYS_STATUS_LCDC1,	// 0x100
 };
 
 struct ddr {
@@ -49,6 +51,7 @@ struct ddr {
 	struct clk *clk;
 	unsigned long normal_rate;
 	unsigned long video_rate;
+       unsigned long dualview_rate;
 	unsigned long idle_rate;
 	unsigned long suspend_rate;
 	unsigned long reboot_rate;
@@ -109,6 +112,11 @@ static noinline void ddrfreq_work(unsigned long sys_status)
 		ddrfreq_mode(false, &ddr.reboot_rate, "shutdown/reboot");
 	} else if (ddr.suspend_rate && (s & (1 << SYS_STATUS_SUSPEND))) {
 		ddrfreq_mode(true, &ddr.suspend_rate, "suspend");
+	} else if (ddr.dualview_rate
+	      && (s & (1 << SYS_STATUS_LCDC0))
+	      && (s & (1 << SYS_STATUS_LCDC1))
+	      ) {
+		ddrfreq_mode(false, &ddr.dualview_rate, "dual-view");
 	} else if (ddr.video_rate && (s & (1 << SYS_STATUS_VIDEO))) {
 		ddrfreq_mode(false, &ddr.video_rate, "video");
 	} else if (ddr.idle_rate
@@ -307,6 +315,8 @@ CLK_NOTIFIER(pd_gpu, GPU);
 CLK_NOTIFIER(pd_rga, RGA);
 CLK_NOTIFIER(pd_cif0, CIF0);
 CLK_NOTIFIER(pd_cif1, CIF1);
+CLK_NOTIFIER(pd_lcdc0, LCDC0);
+CLK_NOTIFIER(pd_lcdc1, LCDC1);
 
 static int ddrfreq_reboot_notifier_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
@@ -405,6 +415,7 @@ static int ddrfreq_init(void)
 	}
 	if (!new_version) {
 		ddr.video_rate = 300 * MHZ;
+		ddr.dualview_rate = ddr.normal_rate;
 		ddr.suspend_rate = 200 * MHZ;
 	}
 	for (i = 0; new_version && table && table[i].frequency != CPUFREQ_TABLE_END; i++) {
@@ -421,6 +432,9 @@ static int ddrfreq_init(void)
 		case DDR_FREQ_VIDEO:
 			ddr.video_rate = rate;
 			break;
+		case DDR_FREQ_DUALVIEW:
+			ddr.dualview_rate= rate;
+			break;
 		case DDR_FREQ_IDLE:
 			ddr.idle_rate = rate;
 			break;
@@ -435,6 +449,11 @@ static int ddrfreq_init(void)
 		REGISTER_CLK_NOTIFIER(pd_rga);
 		REGISTER_CLK_NOTIFIER(pd_cif0);
 		REGISTER_CLK_NOTIFIER(pd_cif1);
+	}
+
+	if (ddr.dualview_rate) {
+             REGISTER_CLK_NOTIFIER(pd_lcdc0);
+             REGISTER_CLK_NOTIFIER(pd_lcdc1);
 	}
 
 	return 0;
@@ -482,9 +501,9 @@ static int ddrfreq_late_init(void)
 
 	register_reboot_notifier(&ddrfreq_reboot_notifier);
 
-	pr_info("verion 2.2\n");
-	dprintk(DEBUG_DDR, "normal %luMHz video %luMHz idle %luMHz suspend %luMHz reboot %luMHz\n",
-		ddr.normal_rate / MHZ, ddr.video_rate / MHZ, ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ, ddr.reboot_rate / MHZ);
+	pr_info("verion 2.4 20130427\n");
+	dprintk(DEBUG_DDR, "normal %luMHz video %luMHz dualview %luMHz idle %luMHz suspend %luMHz reboot %luMHz\n",
+		ddr.normal_rate / MHZ, ddr.video_rate / MHZ, ddr.dualview_rate / MHZ,ddr.idle_rate / MHZ, ddr.suspend_rate / MHZ, ddr.reboot_rate / MHZ);
 
 	return 0;
 
@@ -500,6 +519,10 @@ err:
 		UNREGISTER_CLK_NOTIFIER(pd_cif0);
 		UNREGISTER_CLK_NOTIFIER(pd_cif1);
 	}
+       if (ddr.dualview_rate) {
+        UNREGISTER_CLK_NOTIFIER(pd_lcdc0);
+        UNREGISTER_CLK_NOTIFIER(pd_lcdc1);
+       }
 
 	return ret;
 }

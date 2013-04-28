@@ -531,6 +531,7 @@ void __sramfunc board_pmu_resume(void);
 enum ddr_freq_mode {
 	DDR_FREQ_NORMAL = 1,	// default
 	DDR_FREQ_VIDEO,		// when video is playing
+       DDR_FREQ_DUALVIEW,     // when dual view,lcdc0 and lcdc1 open at the same time
 	DDR_FREQ_IDLE,		// when screen is idle
 	DDR_FREQ_SUSPEND,	// when early suspend
 };
