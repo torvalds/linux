@@ -45,7 +45,6 @@
 #include <target/target_core_configfs.h>
 #include <target/configfs_macros.h>
 #include <linux/vhost.h>
-#include <linux/virtio_net.h> /* TODO vhost.h currently depends on this */
 #include <linux/virtio_scsi.h>
 #include <linux/llist.h>
 #include <linux/bitmap.h>
