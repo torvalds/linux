@@ -37,10 +37,10 @@ static void nl80211_post_doit(struct genl_ops *ops, struct sk_buff *skb,
 
 /* the netlink family */
 static struct genl_family nl80211_fam = {
-	.id = GENL_ID_GENERATE,	/* don't bother with a hardcoded ID */
-	.name = "nl80211",	/* have users key off the name instead */
-	.hdrsize = 0,		/* no private header */
-	.version = 1,		/* no particular meaning now */
+	.id = GENL_ID_GENERATE,		/* don't bother with a hardcoded ID */
+	.name = NL80211_GENL_NAME,	/* have users key off the name instead */
+	.hdrsize = 0,			/* no private header */
+	.version = 1,			/* no particular meaning now */
 	.maxattr = NL80211_ATTR_MAX,
 	.netnsok = true,
 	.pre_doit = nl80211_pre_doit,

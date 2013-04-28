@@ -27,6 +27,8 @@
 
 #include <linux/types.h>
 
+#define NL80211_GENL_NAME "nl80211"
+
 /**
  * DOC: Station handling
  *

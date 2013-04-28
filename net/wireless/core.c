@@ -34,6 +34,7 @@
 MODULE_AUTHOR("Johannes Berg");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("wireless configuration support");
+MODULE_ALIAS_GENL_FAMILY(NL80211_GENL_NAME);
 
 /* RCU-protected (and cfg80211_mutex for writers) */
 LIST_HEAD(cfg80211_rdev_list);
