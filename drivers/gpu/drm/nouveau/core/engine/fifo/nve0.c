@@ -138,10 +138,12 @@ nve0_fifo_context_attach(struct nouveau_object *parent,
 	int ret;
 
 	switch (nv_engidx(object->engine)) {
-	case NVDEV_ENGINE_SW   : return 0;
-	case NVDEV_ENGINE_GR   :
+	case NVDEV_ENGINE_SW   :
 	case NVDEV_ENGINE_COPY0:
-	case NVDEV_ENGINE_COPY1: addr = 0x0210; break;
+	case NVDEV_ENGINE_COPY1:
+	case NVDEV_ENGINE_COPY2:
+		return 0;
+	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
 	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
 	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
 	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
@@ -176,9 +178,10 @@ nve0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 
 	switch (nv_engidx(object->engine)) {
 	case NVDEV_ENGINE_SW   : return 0;
-	case NVDEV_ENGINE_GR   :
 	case NVDEV_ENGINE_COPY0:
-	case NVDEV_ENGINE_COPY1: addr = 0x0210; break;
+	case NVDEV_ENGINE_COPY1:
+	case NVDEV_ENGINE_COPY2: addr = 0x0000; break;
+	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
 	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
 	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
 	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
@@ -194,9 +197,12 @@ nve0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 			return -EBUSY;
 	}
 
-	nv_wo32(base, addr + 0x00, 0x00000000);
-	nv_wo32(base, addr + 0x04, 0x00000000);
-	bar->flush(bar);
+	if (addr) {
+		nv_wo32(base, addr + 0x00, 0x00000000);
+		nv_wo32(base, addr + 0x04, 0x00000000);
+		bar->flush(bar);
+	}
+
 	return 0;
 }
 
