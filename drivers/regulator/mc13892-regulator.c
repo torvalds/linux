@@ -485,6 +485,7 @@ static int mc13892_sw_regulator_set_voltage_sel(struct regulator_dev *rdev,
 
 static struct regulator_ops mc13892_sw_regulator_ops = {
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 	.set_voltage_sel = mc13892_sw_regulator_set_voltage_sel,
 	.get_voltage_sel = mc13892_sw_regulator_get_voltage_sel,
 };

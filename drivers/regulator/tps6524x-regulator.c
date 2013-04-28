@@ -572,6 +572,7 @@ static struct regulator_ops regulator_ops = {
 	.get_voltage_sel	= get_voltage_sel,
 	.set_voltage_sel	= set_voltage_sel,
 	.list_voltage		= regulator_list_voltage_table,
+	.map_voltage		= regulator_map_voltage_ascend,
 	.set_current_limit	= set_current_limit,
 	.get_current_limit	= get_current_limit,
 };

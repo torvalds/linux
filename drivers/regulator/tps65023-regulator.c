@@ -107,12 +107,7 @@ static const unsigned int DCDC_FIXED_1800000_VSEL_table[] = {
 };
 
 /* Supported voltage values for LDO regulators for tps65020 */
-static const unsigned int TPS65020_LDO1_VSEL_table[] = {
-	1000000, 1050000, 1100000, 1300000,
-	1800000, 2500000, 3000000, 3300000,
-};
-
-static const unsigned int TPS65020_LDO2_VSEL_table[] = {
+static const unsigned int TPS65020_LDO_VSEL_table[] = {
 	1000000, 1050000, 1100000, 1300000,
 	1800000, 2500000, 3000000, 3300000,
 };
@@ -202,6 +197,7 @@ static struct regulator_ops tps65023_dcdc_ops = {
 	.get_voltage_sel = tps65023_dcdc_get_voltage_sel,
 	.set_voltage_sel = tps65023_dcdc_set_voltage_sel,
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 };
 
 /* Operations permitted on LDOx */
@@ -212,6 +208,7 @@ static struct regulator_ops tps65023_ldo_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 };
 
 static struct regmap_config tps65023_regmap_config = {
@@ -347,13 +344,13 @@ static const struct tps_info tps65020_regs[] = {
 	},
 	{
 		.name = "LDO1",
-		.table_len = ARRAY_SIZE(TPS65020_LDO1_VSEL_table),
-		.table = TPS65020_LDO1_VSEL_table,
+		.table_len = ARRAY_SIZE(TPS65020_LDO_VSEL_table),
+		.table = TPS65020_LDO_VSEL_table,
 	},
 	{
 		.name = "LDO2",
-		.table_len = ARRAY_SIZE(TPS65020_LDO2_VSEL_table),
-		.table = TPS65020_LDO2_VSEL_table,
+		.table_len = ARRAY_SIZE(TPS65020_LDO_VSEL_table),
+		.table = TPS65020_LDO_VSEL_table,
 	},
 };
 
