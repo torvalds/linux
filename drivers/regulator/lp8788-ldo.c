@@ -184,40 +184,6 @@ static enum lp8788_ldo_id lp8788_aldo_id[] = {
 	ALDO10,
 };
 
-static int lp8788_ldo_enable(struct regulator_dev *rdev)
-{
-	struct lp8788_ldo *ldo = rdev_get_drvdata(rdev);
-
-	if (ldo->en_pin) {
-		gpio_set_value(ldo->en_pin->gpio, ENABLE);
-		return 0;
-	} else {
-		return regulator_enable_regmap(rdev);
-	}
-}
-
-static int lp8788_ldo_disable(struct regulator_dev *rdev)
-{
-	struct lp8788_ldo *ldo = rdev_get_drvdata(rdev);
-
-	if (ldo->en_pin) {
-		gpio_set_value(ldo->en_pin->gpio, DISABLE);
-		return 0;
-	} else {
-		return regulator_disable_regmap(rdev);
-	}
-}
-
-static int lp8788_ldo_is_enabled(struct regulator_dev *rdev)
-{
-	struct lp8788_ldo *ldo = rdev_get_drvdata(rdev);
-
-	if (ldo->en_pin)
-		return gpio_get_value(ldo->en_pin->gpio) ? 1 : 0;
-	else
-		return regulator_is_enabled_regmap(rdev);
-}
-
 static int lp8788_ldo_enable_time(struct regulator_dev *rdev)
 {
 	struct lp8788_ldo *ldo = rdev_get_drvdata(rdev);
@@ -253,17 +219,17 @@ static struct regulator_ops lp8788_ldo_voltage_table_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
-	.enable = lp8788_ldo_enable,
-	.disable = lp8788_ldo_disable,
-	.is_enabled = lp8788_ldo_is_enabled,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
 	.enable_time = lp8788_ldo_enable_time,
 };
 
 static struct regulator_ops lp8788_ldo_voltage_fixed_ops = {
 	.get_voltage = lp8788_ldo_fixed_get_voltage,
-	.enable = lp8788_ldo_enable,
-	.disable = lp8788_ldo_disable,
-	.is_enabled = lp8788_ldo_is_enabled,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
 	.enable_time = lp8788_ldo_enable_time,
 };
 
@@ -535,43 +501,10 @@ static struct regulator_desc lp8788_aldo_desc[] = {
 	},
 };
 
-static int lp8788_gpio_request_ldo_en(struct platform_device *pdev,
-				struct lp8788_ldo *ldo,
-				enum lp8788_ext_ldo_en_id id)
-{
-	struct device *dev = &pdev->dev;
-	struct lp8788_ldo_enable_pin *pin = ldo->en_pin;
-	int ret, gpio, pinstate;
-	char *name[] = {
-		[EN_ALDO1]   = "LP8788_EN_ALDO1",
-		[EN_ALDO234] = "LP8788_EN_ALDO234",
-		[EN_ALDO5]   = "LP8788_EN_ALDO5",
-		[EN_ALDO7]   = "LP8788_EN_ALDO7",
-		[EN_DLDO7]   = "LP8788_EN_DLDO7",
-		[EN_DLDO911] = "LP8788_EN_DLDO911",
-	};
-
-	gpio = pin->gpio;
-	if (!gpio_is_valid(gpio)) {
-		dev_err(dev, "invalid gpio: %d\n", gpio);
-		return -EINVAL;
-	}
-
-	pinstate = pin->init_state;
-	ret = devm_gpio_request_one(dev, gpio, pinstate, name[id]);
-	if (ret == -EBUSY) {
-		dev_warn(dev, "gpio%d already used\n", gpio);
-		return 0;
-	}
-
-	return ret;
-}
-
 static int lp8788_config_ldo_enable_mode(struct platform_device *pdev,
 					struct lp8788_ldo *ldo,
 					enum lp8788_ldo_id id)
 {
-	int ret;
 	struct lp8788 *lp = ldo->lp;
 	struct lp8788_platform_data *pdata = lp->pdata;
 	enum lp8788_ext_ldo_en_id enable_id;
@@ -613,14 +546,7 @@ static int lp8788_config_ldo_enable_mode(struct platform_device *pdev,
 		goto set_default_ldo_enable_mode;
 
 	ldo->en_pin = pdata->ldo_pin[enable_id];
-
-	ret = lp8788_gpio_request_ldo_en(pdev, ldo, enable_id);
-	if (ret) {
-		ldo->en_pin = NULL;
-		goto set_default_ldo_enable_mode;
-	}
-
-	return ret;
+	return 0;
 
 set_default_ldo_enable_mode:
 	return lp8788_update_bits(lp, LP8788_EN_SEL, en_mask[enable_id], 0);
@@ -643,6 +569,11 @@ static int lp8788_dldo_probe(struct platform_device *pdev)
 	ret = lp8788_config_ldo_enable_mode(pdev, ldo, lp8788_dldo_id[id]);
 	if (ret)
 		return ret;
+
+	if (ldo->en_pin) {
+		cfg.ena_gpio = ldo->en_pin->gpio;
+		cfg.ena_gpio_flags = ldo->en_pin->init_state;
+	}
 
 	cfg.dev = pdev->dev.parent;
 	cfg.init_data = lp->pdata ? lp->pdata->dldo_data[id] : NULL;
@@ -699,6 +630,11 @@ static int lp8788_aldo_probe(struct platform_device *pdev)
 	ret = lp8788_config_ldo_enable_mode(pdev, ldo, lp8788_aldo_id[id]);
 	if (ret)
 		return ret;
+
+	if (ldo->en_pin) {
+		cfg.ena_gpio = ldo->en_pin->gpio;
+		cfg.ena_gpio_flags = ldo->en_pin->init_state;
+	}
 
 	cfg.dev = pdev->dev.parent;
 	cfg.init_data = lp->pdata ? lp->pdata->aldo_data[id] : NULL;

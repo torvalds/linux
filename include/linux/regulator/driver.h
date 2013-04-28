@@ -22,6 +22,7 @@
 struct regmap;
 struct regulator_dev;
 struct regulator_init_data;
+struct regulator_enable_gpio;
 
 enum regulator_status {
 	REGULATOR_STATUS_OFF,
@@ -305,8 +306,7 @@ struct regulator_dev {
 
 	struct dentry *debugfs;
 
-	int ena_gpio;
-	unsigned int ena_gpio_invert:1;
+	struct regulator_enable_gpio *ena_pin;
 	unsigned int ena_gpio_state:1;
 };
 
