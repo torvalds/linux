@@ -93,7 +93,12 @@ enum drx_power_mode {
 #endif
 
 
-enum agc_ctrl_mode { DRXK_AGC_CTRL_AUTO = 0, DRXK_AGC_CTRL_USER, DRXK_AGC_CTRL_OFF };
+enum agc_ctrl_mode {
+	DRXK_AGC_CTRL_AUTO = 0,
+	DRXK_AGC_CTRL_USER,
+	DRXK_AGC_CTRL_OFF
+};
+
 enum e_drxk_state {
 	DRXK_UNINITIALIZED = 0,
 	DRXK_STOPPED,
