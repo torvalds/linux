@@ -35,6 +35,7 @@
 #include "qxl_object.h"
 
 
+#if defined(CONFIG_DEBUG_FS)
 static int
 qxl_debugfs_irq_received(struct seq_file *m, void *data)
 {
@@ -69,20 +70,25 @@ static struct drm_info_list qxl_debugfs_list[] = {
 	{ "qxl_buffers", qxl_debugfs_buffers_info, 0, NULL },
 };
 #define QXL_DEBUGFS_ENTRIES ARRAY_SIZE(qxl_debugfs_list)
+#endif
 
 int
 qxl_debugfs_init(struct drm_minor *minor)
 {
+#if defined(CONFIG_DEBUG_FS)
 	drm_debugfs_create_files(qxl_debugfs_list, QXL_DEBUGFS_ENTRIES,
 				 minor->debugfs_root, minor);
+#endif
 	return 0;
 }
 
 void
 qxl_debugfs_takedown(struct drm_minor *minor)
 {
+#if defined(CONFIG_DEBUG_FS)
 	drm_debugfs_remove_files(qxl_debugfs_list, QXL_DEBUGFS_ENTRIES,
 				 minor);
+#endif
 }
 
 int qxl_debugfs_add_files(struct qxl_device *qdev,
