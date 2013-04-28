@@ -140,6 +140,7 @@ static struct rk616_reg_val_typ rk616_mfd_reg_defaults[] = {
 		((I2S1_OUT_DISABLE | I2S0_OUT_DISABLE | I2S1_PD_DISABLE | I2S0_PD_DISABLE) << 16)},
 	{CRU_IO_CON1, (I2S1_SI_EN | I2S0_SI_EN) | ((I2S1_SI_EN | I2S0_SI_EN) << 16)},
 	{CRU_PCM2IS2_CON2, (0) | ((APS_SEL | APS_CLR | I2S_CHANNEL_SEL) << 16)},
+	{CRU_CFGMISC_CON, 0x00000000},
 };
 
 static struct rk616_reg_val_typ rk616_mfd_reg_cache[] = {
@@ -148,6 +149,7 @@ static struct rk616_reg_val_typ rk616_mfd_reg_cache[] = {
 		((I2S1_OUT_DISABLE | I2S0_OUT_DISABLE | I2S1_PD_DISABLE | I2S0_PD_DISABLE) << 16)},
 	{CRU_IO_CON1, (I2S1_SI_EN | I2S0_SI_EN) | ((I2S1_SI_EN | I2S0_SI_EN) << 16)},
 	{CRU_PCM2IS2_CON2, (0) | ((APS_SEL | APS_CLR | I2S_CHANNEL_SEL) << 16)},
+	{CRU_CFGMISC_CON, 0x00000000},
 };
 
 #define RK616_MFD_REG_LEN ARRAY_SIZE(rk616_mfd_reg_cache)
@@ -177,10 +179,10 @@ static int rk616_mfd_mask_register(unsigned int reg)
 }
 
 static struct rk616_init_bit_typ rk616_init_bit_list[] = {
-	{RK616_SPKL_CTL, RK616_PWRD, RK616_INIT_MASK},
-	{RK616_SPKR_CTL, RK616_PWRD, RK616_INIT_MASK},
-	{RK616_HPL_CTL, RK616_PWRD, RK616_INIT_MASK},
-	{RK616_HPR_CTL, RK616_PWRD, RK616_INIT_MASK},
+	{RK616_SPKL_CTL, RK616_MUTE, RK616_INIT_MASK},
+	{RK616_SPKR_CTL, RK616_MUTE, RK616_INIT_MASK},
+	{RK616_HPL_CTL, RK616_MUTE, RK616_INIT_MASK},
+	{RK616_HPR_CTL, RK616_MUTE, RK616_INIT_MASK},
 	{RK616_MUXHP_HPMIX_CTL, RK616_HML_PWRD, RK616_HML_INIT_MASK},
 	{RK616_MUXHP_HPMIX_CTL, RK616_HMR_PWRD, RK616_HMR_INIT_MASK},
 };
@@ -377,8 +379,8 @@ static int rk616_codec_write(struct snd_soc_codec *codec, unsigned int reg, unsi
 		return -EIO;
 	}
 
-	// widget init bit should be setted 0 after widget power up,
-	// and should be setted 1 after widget power down.
+	// widget init bit should be setted 0 after widget power up or unmute,
+	// and should be setted 1 after widget power down or mute.
 	if (i >= 0) {
 		power_bit = rk616_init_bit_list[i].power_bit;
 		set_bit = rk616_init_bit_list[i].init_bit;
@@ -608,6 +610,9 @@ SOC_ENUM_SINGLE(RK616_PGAR_ASR_CTL, RK616_PGA_ASR_SFT, 6, rk616_pga_agc_approxim
 SOC_ENUM_SINGLE(RK616_PGAR_AGC_CTL5, RK616_PGA_AGC_SFT, 2, rk616_dis_en_sel),/*14*/
 };
 
+static const struct soc_enum rk616_loop_enum =
+	SOC_ENUM_SINGLE(CRU_CFGMISC_CON, AD_DA_LOOP_SFT, 2, rk616_dis_en_sel);
+
 #ifdef RK616_REG_RW
 #define REGVAL_MAX 0xffff
 static unsigned int regctl_addr = 0x08;
@@ -809,6 +814,8 @@ static const struct snd_kcontrol_new rk616_snd_controls[] = {
 		RK616_PGA_AGC_MAX_G_SFT, 7, 0, pga_agc_max_vol_tlv),//AGC enable and 0x06 bit 4 is 1
 	SOC_SINGLE_TLV("PGAR AGC Min Gain", RK616_PGAR_AGC_CTL5,
 		RK616_PGA_AGC_MIN_G_SFT, 7, 0, pga_agc_min_vol_tlv),//AGC enable and 0x06 bit 4 is 1
+
+	SOC_ENUM("I2S Loop Enable",  rk616_loop_enum),
 
 #ifdef RK616_REG_RW
 	{
@@ -1516,27 +1523,28 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 
 #ifdef RK616_FOR_MID
 static struct rk616_reg_val_typ power_up_list[] = {
-	{0x83c, 0x00}, //power up
-	{0x868, 0x82}, //power up
-	{0x89c, 0x7f}, //MICBIAS1 power up (bit 7, Vout = 1.7 * Vref(1.65V) = 2.8V (bit 3-5)
-	{0x8a8, 0x00}, //ADCL/R power, and clear ADCL/R buf
-	{0x88c, 0x76}, //power up SPKOUTL (bit 7), volume (bit 0-4)
-	{0x890, 0x76}, //power up SPKOUTR (bit 7), volume (bit 0-4)
-	{0x840, 0x49}, //BST_L power up, unmute, and Single-Ended(bit 6), volume 0-20dB(bit 5)
 	{0x804, 0x46}, //DAC GSM, 0x06: x1, 0x26: x1.25, 0x46: x1.5, 0x66: x1.75
+	{0x83c, 0x00}, //power up
+	{0x840, 0x69}, //BST_L power up, unmute, and Single-Ended(bit 6), volume 0-20dB(bit 5)
 	{0x848, 0x06}, //MIXINL power up and unmute, MININL from MICMUX, MICMUX from BST_L
 	{0x84c, 0x3c}, //MIXINL from MIXMUX volume (bit 3-5)
-	{0x860, 0x19}, //PGAL power up unmute,volume (bit 0-4)
+	{0x860, 0x1f}, //PGAL power up unmute,volume (bit 0-4)
+	{0x868, 0x82}, //power up
 	{0x86c, 0x0f}, //DACL/R UN INIT
 	{0x86c, 0x00}, //DACL/R and DACL/R CLK power up
 	{0x86c, 0x30}, //DACL/R INIT
 	{0x874, 0x14}, //Mux HPMIXR from HPMIXR(bit 0), Mux HPMIXL from HPMIXL(bit 1),HPMIXL/R power up
 	{0x874, 0x00}, //HPMIXL/R init
 	{0x878, 0xee}, //HPMIXL/HPMIXR from DACL/DACR(bit 4, bit 0)
+	{0x88c, 0x76}, //power up SPKOUTL (bit 7), volume (bit 0-4)
+	{0x890, 0x76}, //power up SPKOUTR (bit 7), volume (bit 0-4)
 	{0x88c, 0x36}, //INIT SPKOUTL (bit 6), volume (bit 0-4)
 	{0x890, 0x36}, //INIT SPKOUTR (bit 6), volume (bit 0-4)
 	{0x88c, 0x16}, //unmute SPKOUTL (bit 5), volume (bit 0-4)
 	{0x890, 0x16}, //unmute SPKOUTR (bit 5), volume (bit 0-4)
+	{0x89c, 0x7f}, //MICBIAS1 power up (bit 7, Vout = 1.7 * Vref(1.65V) = 2.8V (bit 3-5)
+	{0x8a8, 0x09}, //ADCL/R power, and clear ADCL/R buf
+	{0x8a8, 0x00}, //ADCL/R power, and clear ADCL/R buf
 };
 
 #define RK616_CODEC_POWER_UP_LIST_LEN ARRAY_SIZE(power_up_list)
@@ -1632,7 +1640,7 @@ static int rk616_startup(struct snd_pcm_substream *substream,
 			* if rk616_codec_work_type is NULL means codec already power down,
 			* so power up codec.
 			* if rk616_codec_work_type is RK616_CODEC_WORK_POWER_DOWN it means
-			* codec haven't power down, so we don't need to power up codec.
+			* codec haven't be powered down, so we don't need to power up codec.
 			*/
 			if (rk616_codec_work_type == RK616_CODEC_WORK_NULL) {
 				rk616_codec_power_up();
@@ -1675,7 +1683,7 @@ static void rk616_shutdown(struct snd_pcm_substream *substream,
 			* If rk616_codec_work_type is NULL means codec already power down,
 			* so power up codec.
 			* If rk616_codec_work_type is RK616_CODEC_WORK_POWER_UP it means
-			* codec haven't power up, so we don't need to power down codec.
+			* codec haven't be powered up, so we don't need to power down codec.
 			* If is playback call power down, power down immediatly, because audioflinger
 			* already has delay 3s.
 			*/
@@ -1693,7 +1701,7 @@ static void rk616_shutdown(struct snd_pcm_substream *substream,
 		}
 	}
 }
-#endif
+#endif //RK616_FOR_MID
 
 #define RK616_PLAYBACK_RATES (SNDRV_PCM_RATE_8000 |\
 			      SNDRV_PCM_RATE_16000 |	\

@@ -9,6 +9,7 @@
 #ifndef __RK616_CODEC_H__
 #define __RK616_CODEC_H__
 
+/* mfd register */
 //#define CRU_PCM2IS2_CON2   			0x0098
 #define APS_SEL					(1 << 2)
 #define APS_CLR					(1 << 1)
@@ -18,7 +19,9 @@
 #define MICDET1_PIN_F_CODEC			(1 << 18)
 #define MICDET2_PIN_F_CODEC			(1 << 17)
 #define AD_DA_LOOP				(1 << 0)
+#define AD_DA_LOOP_SFT				0
 
+/* codec register */
 #define RK616_CODEC_BASE			0x0800
 
 #define RK616_RESET				(RK616_CODEC_BASE + 0x00)
