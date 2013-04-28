@@ -254,7 +254,7 @@ static  int  rk616_pll_wait_lock(struct mfd_rk616 *rk616,int id)
 	}
 	if (delay == 0)
 	{
-		printk(KERN_ALERT "rk616 wait pll bit time out!\n");
+		printk(KERN_ALERT "rk616 wait PLL%d lock time out!\n",id);
 	}
 
 	return 0;
