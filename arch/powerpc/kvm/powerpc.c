@@ -25,6 +25,7 @@
 #include <linux/hrtimer.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/file.h>
 #include <asm/cputable.h>
 #include <asm/uaccess.h>
 #include <asm/kvm_ppc.h>
@@ -32,6 +33,7 @@
 #include <asm/cputhreads.h>
 #include <asm/irqflags.h>
 #include "timing.h"
+#include "irq.h"
 #include "../mm/mmu_decl.h"
 
 #define CREATE_TRACE_POINTS
@@ -317,6 +319,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_ENABLE_CAP:
 	case KVM_CAP_ONE_REG:
 	case KVM_CAP_IOEVENTFD:
+	case KVM_CAP_DEVICE_CTRL:
 		r = 1;
 		break;
 #ifndef CONFIG_KVM_BOOK3S_64_HV
@@ -325,6 +328,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_GET_PVINFO:
 #if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)
 	case KVM_CAP_SW_TLB:
+#endif
+#ifdef CONFIG_KVM_MPIC
+	case KVM_CAP_IRQ_MPIC:
 #endif
 		r = 1;
 		break;
@@ -335,6 +341,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 #ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_CAP_SPAPR_TCE:
 	case KVM_CAP_PPC_ALLOC_HTAB:
+	case KVM_CAP_PPC_RTAS:
 		r = 1;
 		break;
 #endif /* CONFIG_PPC_BOOK3S_64 */
@@ -459,6 +466,16 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 	tasklet_kill(&vcpu->arch.tasklet);
 
 	kvmppc_remove_vcpu_debugfs(vcpu);
+
+	switch (vcpu->arch.irq_type) {
+	case KVMPPC_IRQ_MPIC:
+		kvmppc_mpic_disconnect_vcpu(vcpu->arch.mpic, vcpu);
+		break;
+	case KVMPPC_IRQ_XICS:
+		kvmppc_xics_free_icp(vcpu);
+		break;
+	}
+
 	kvmppc_core_vcpu_free(vcpu);
 }
 
@@ -529,12 +546,6 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_BOOKE
 	vcpu->arch.vrsave = mfspr(SPRN_VRSAVE);
 #endif
-}
-
-int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
-                                        struct kvm_guest_debug *dbg)
-{
-	return -EINVAL;
 }
 
 static void kvmppc_complete_dcr_load(struct kvm_vcpu *vcpu,
@@ -768,7 +779,10 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_CAP_PPC_EPR:
 		r = 0;
-		vcpu->arch.epr_enabled = cap->args[0];
+		if (cap->args[0])
+			vcpu->arch.epr_flags |= KVMPPC_EPR_USER;
+		else
+			vcpu->arch.epr_flags &= ~KVMPPC_EPR_USER;
 		break;
 #ifdef CONFIG_BOOKE
 	case KVM_CAP_PPC_BOOKE_WATCHDOG:
@@ -786,6 +800,25 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 			break;
 
 		r = kvm_vcpu_ioctl_config_tlb(vcpu, &cfg);
+		break;
+	}
+#endif
+#ifdef CONFIG_KVM_MPIC
+	case KVM_CAP_IRQ_MPIC: {
+		struct file *filp;
+		struct kvm_device *dev;
+
+		r = -EBADF;
+		filp = fget(cap->args[0]);
+		if (!filp)
+			break;
+
+		r = -EPERM;
+		dev = kvm_device_from_filp(filp);
+		if (dev)
+			r = kvmppc_mpic_connect_vcpu(dev, vcpu, cap->args[1]);
+
+		fput(filp);
 		break;
 	}
 #endif
@@ -911,9 +944,22 @@ static int kvm_vm_ioctl_get_pvinfo(struct kvm_ppc_pvinfo *pvinfo)
 	return 0;
 }
 
+int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_event,
+			  bool line_status)
+{
+	if (!irqchip_in_kernel(kvm))
+		return -ENXIO;
+
+	irq_event->status = kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID,
+					irq_event->irq, irq_event->level,
+					line_status);
+	return 0;
+}
+
 long kvm_arch_vm_ioctl(struct file *filp,
                        unsigned int ioctl, unsigned long arg)
 {
+	struct kvm *kvm __maybe_unused = filp->private_data;
 	void __user *argp = (void __user *)arg;
 	long r;
 
@@ -932,7 +978,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 #ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_CREATE_SPAPR_TCE: {
 		struct kvm_create_spapr_tce create_tce;
-		struct kvm *kvm = filp->private_data;
 
 		r = -EFAULT;
 		if (copy_from_user(&create_tce, argp, sizeof(create_tce)))
@@ -944,8 +989,8 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	case KVM_ALLOCATE_RMA: {
-		struct kvm *kvm = filp->private_data;
 		struct kvm_allocate_rma rma;
+		struct kvm *kvm = filp->private_data;
 
 		r = kvm_vm_ioctl_allocate_rma(kvm, &rma);
 		if (r >= 0 && copy_to_user(argp, &rma, sizeof(rma)))
@@ -954,7 +999,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	}
 
 	case KVM_PPC_ALLOCATE_HTAB: {
-		struct kvm *kvm = filp->private_data;
 		u32 htab_order;
 
 		r = -EFAULT;
@@ -971,7 +1015,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	}
 
 	case KVM_PPC_GET_HTAB_FD: {
-		struct kvm *kvm = filp->private_data;
 		struct kvm_get_htab_fd ghf;
 
 		r = -EFAULT;
@@ -984,13 +1027,18 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_PPC_GET_SMMU_INFO: {
-		struct kvm *kvm = filp->private_data;
 		struct kvm_ppc_smmu_info info;
 
 		memset(&info, 0, sizeof(info));
 		r = kvm_vm_ioctl_get_smmu_info(kvm, &info);
 		if (r >= 0 && copy_to_user(argp, &info, sizeof(info)))
 			r = -EFAULT;
+		break;
+	}
+	case KVM_PPC_RTAS_DEFINE_TOKEN: {
+		struct kvm *kvm = filp->private_data;
+
+		r = kvm_vm_ioctl_rtas_define_token(kvm, argp);
 		break;
 	}
 #endif /* CONFIG_PPC_BOOK3S_64 */

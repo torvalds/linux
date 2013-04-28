@@ -142,6 +142,8 @@ extern int kvmppc_mmu_hv_init(void);
 extern int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr, bool data);
 extern int kvmppc_st(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr, bool data);
 extern void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec);
+extern void kvmppc_book3s_dequeue_irqprio(struct kvm_vcpu *vcpu,
+					  unsigned int vec);
 extern void kvmppc_inject_interrupt(struct kvm_vcpu *vcpu, int vec, u64 flags);
 extern void kvmppc_set_bat(struct kvm_vcpu *vcpu, struct kvmppc_bat *bat,
 			   bool upper, u32 val);
@@ -156,7 +158,8 @@ void kvmppc_clear_ref_hpte(struct kvm *kvm, unsigned long *hptep,
 			unsigned long pte_index);
 extern void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long addr,
 			unsigned long *nb_ret);
-extern void kvmppc_unpin_guest_page(struct kvm *kvm, void *addr);
+extern void kvmppc_unpin_guest_page(struct kvm *kvm, void *addr,
+			unsigned long gpa, bool dirty);
 extern long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 			long pte_index, unsigned long pteh, unsigned long ptel);
 extern long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,

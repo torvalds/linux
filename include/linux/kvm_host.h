@@ -303,10 +303,10 @@ struct kvm_kernel_irq_routing_entry {
 	struct hlist_node link;
 };
 
-#ifdef __KVM_HAVE_IOAPIC
+#ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
 
 struct kvm_irq_routing_table {
-	int chip[KVM_NR_IRQCHIPS][KVM_IOAPIC_NUM_PINS];
+	int chip[KVM_NR_IRQCHIPS][KVM_IRQCHIP_NUM_PINS];
 	struct kvm_kernel_irq_routing_entry *rt_entries;
 	u32 nr_rt_entries;
 	/*
@@ -392,6 +392,7 @@ struct kvm {
 	long mmu_notifier_count;
 #endif
 	long tlbs_dirty;
+	struct list_head devices;
 };
 
 #define kvm_err(fmt, ...) \
@@ -431,7 +432,7 @@ void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
 int __must_check vcpu_load(struct kvm_vcpu *vcpu);
 void vcpu_put(struct kvm_vcpu *vcpu);
 
-#ifdef __KVM_HAVE_IOAPIC
+#ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
 int kvm_irqfd_init(void);
 void kvm_irqfd_exit(void);
 #else
@@ -718,11 +719,6 @@ void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
 void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
 			     bool mask);
 
-#ifdef __KVM_HAVE_IOAPIC
-void kvm_get_intr_delivery_bitmask(struct kvm_ioapic *ioapic,
-				   union kvm_ioapic_redirect_entry *entry,
-				   unsigned long *deliver_bitmask);
-#endif
 int kvm_set_irq(struct kvm *kvm, int irq_source_id, u32 irq, int level,
 		bool line_status);
 int kvm_set_irq_inatomic(struct kvm *kvm, int irq_source_id, u32 irq, int level);
@@ -956,7 +952,7 @@ static inline int mmu_notifier_retry(struct kvm *kvm, unsigned long mmu_seq)
 }
 #endif
 
-#ifdef KVM_CAP_IRQ_ROUTING
+#ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
 
 #define KVM_MAX_IRQ_ROUTES 1024
 
@@ -965,6 +961,9 @@ int kvm_set_irq_routing(struct kvm *kvm,
 			const struct kvm_irq_routing_entry *entries,
 			unsigned nr,
 			unsigned flags);
+int kvm_set_routing_entry(struct kvm_irq_routing_table *rt,
+			  struct kvm_kernel_irq_routing_entry *e,
+			  const struct kvm_irq_routing_entry *ue);
 void kvm_free_irq_routing(struct kvm *kvm);
 
 int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi);
@@ -1064,6 +1063,43 @@ static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
 }
 
 extern bool kvm_rebooting;
+
+struct kvm_device_ops;
+
+struct kvm_device {
+	struct kvm_device_ops *ops;
+	struct kvm *kvm;
+	void *private;
+	struct list_head vm_node;
+};
+
+/* create, destroy, and name are mandatory */
+struct kvm_device_ops {
+	const char *name;
+	int (*create)(struct kvm_device *dev, u32 type);
+
+	/*
+	 * Destroy is responsible for freeing dev.
+	 *
+	 * Destroy may be called before or after destructors are called
+	 * on emulated I/O regions, depending on whether a reference is
+	 * held by a vcpu or other kvm component that gets destroyed
+	 * after the emulated I/O.
+	 */
+	void (*destroy)(struct kvm_device *dev);
+
+	int (*set_attr)(struct kvm_device *dev, struct kvm_device_attr *attr);
+	int (*get_attr)(struct kvm_device *dev, struct kvm_device_attr *attr);
+	int (*has_attr)(struct kvm_device *dev, struct kvm_device_attr *attr);
+	long (*ioctl)(struct kvm_device *dev, unsigned int ioctl,
+		      unsigned long arg);
+};
+
+void kvm_device_get(struct kvm_device *dev);
+void kvm_device_put(struct kvm_device *dev);
+struct kvm_device *kvm_device_from_filp(struct file *filp);
+
+extern struct kvm_device_ops kvm_mpic_ops;
 
 #ifdef CONFIG_HAVE_KVM_CPU_RELAX_INTERCEPT
 

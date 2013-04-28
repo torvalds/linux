@@ -1792,6 +1792,23 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_TSR	| 32
   PPC   | KVM_REG_PPC_OR_TSR	| 32
   PPC   | KVM_REG_PPC_CLEAR_TSR	| 32
+  PPC   | KVM_REG_PPC_MAS0	| 32
+  PPC   | KVM_REG_PPC_MAS1	| 32
+  PPC   | KVM_REG_PPC_MAS2	| 64
+  PPC   | KVM_REG_PPC_MAS7_3	| 64
+  PPC   | KVM_REG_PPC_MAS4	| 32
+  PPC   | KVM_REG_PPC_MAS6	| 32
+  PPC   | KVM_REG_PPC_MMUCFG	| 32
+  PPC   | KVM_REG_PPC_TLB0CFG	| 32
+  PPC   | KVM_REG_PPC_TLB1CFG	| 32
+  PPC   | KVM_REG_PPC_TLB2CFG	| 32
+  PPC   | KVM_REG_PPC_TLB3CFG	| 32
+  PPC   | KVM_REG_PPC_TLB0PS	| 32
+  PPC   | KVM_REG_PPC_TLB1PS	| 32
+  PPC   | KVM_REG_PPC_TLB2PS	| 32
+  PPC   | KVM_REG_PPC_TLB3PS	| 32
+  PPC   | KVM_REG_PPC_EPTCFG	| 32
+  PPC   | KVM_REG_PPC_ICP_STATE | 64
 
 ARM registers are mapped using the lower 32 bits.  The upper 16 of that
 is the register group type, or coprocessor number:
@@ -2173,6 +2190,76 @@ header; first `n_valid' valid entries with contents from the data
 written, then `n_invalid' invalid entries, invalidating any previously
 valid entries found.
 
+4.79 KVM_CREATE_DEVICE
+
+Capability: KVM_CAP_DEVICE_CTRL
+Type: vm ioctl
+Parameters: struct kvm_create_device (in/out)
+Returns: 0 on success, -1 on error
+Errors:
+  ENODEV: The device type is unknown or unsupported
+  EEXIST: Device already created, and this type of device may not
+          be instantiated multiple times
+
+  Other error conditions may be defined by individual device types or
+  have their standard meanings.
+
+Creates an emulated device in the kernel.  The file descriptor returned
+in fd can be used with KVM_SET/GET/HAS_DEVICE_ATTR.
+
+If the KVM_CREATE_DEVICE_TEST flag is set, only test whether the
+device type is supported (not necessarily whether it can be created
+in the current vm).
+
+Individual devices should not define flags.  Attributes should be used
+for specifying any behavior that is not implied by the device type
+number.
+
+struct kvm_create_device {
+	__u32	type;	/* in: KVM_DEV_TYPE_xxx */
+	__u32	fd;	/* out: device handle */
+	__u32	flags;	/* in: KVM_CREATE_DEVICE_xxx */
+};
+
+4.80 KVM_SET_DEVICE_ATTR/KVM_GET_DEVICE_ATTR
+
+Capability: KVM_CAP_DEVICE_CTRL
+Type: device ioctl
+Parameters: struct kvm_device_attr
+Returns: 0 on success, -1 on error
+Errors:
+  ENXIO:  The group or attribute is unknown/unsupported for this device
+  EPERM:  The attribute cannot (currently) be accessed this way
+          (e.g. read-only attribute, or attribute that only makes
+          sense when the device is in a different state)
+
+  Other error conditions may be defined by individual device types.
+
+Gets/sets a specified piece of device configuration and/or state.  The
+semantics are device-specific.  See individual device documentation in
+the "devices" directory.  As with ONE_REG, the size of the data
+transferred is defined by the particular attribute.
+
+struct kvm_device_attr {
+	__u32	flags;		/* no flags currently defined */
+	__u32	group;		/* device-defined */
+	__u64	attr;		/* group-defined */
+	__u64	addr;		/* userspace address of attr data */
+};
+
+4.81 KVM_HAS_DEVICE_ATTR
+
+Capability: KVM_CAP_DEVICE_CTRL
+Type: device ioctl
+Parameters: struct kvm_device_attr
+Returns: 0 on success, -1 on error
+Errors:
+  ENXIO:  The group or attribute is unknown/unsupported for this device
+
+Tests whether a device supports a particular attribute.  A successful
+return indicates the attribute is implemented.  It does not necessarily
+indicate that the attribute can be read or written in the device's
+current state.  "addr" is ignored.
 
 4.77 KVM_ARM_VCPU_INIT
 
@@ -2254,6 +2341,25 @@ setting the base address for the guest's mapping of the VGIC virtual CPU
 and distributor interface, the ioctl must be called after calling
 KVM_CREATE_IRQCHIP, but before calling KVM_RUN on any of the VCPUs.  Calling
 this ioctl twice for any of the base addresses will return -EEXIST.
+
+4.82 KVM_PPC_RTAS_DEFINE_TOKEN
+
+Capability: KVM_CAP_PPC_RTAS
+Architectures: ppc
+Type: vm ioctl
+Parameters: struct kvm_rtas_token_args
+Returns: 0 on success, -1 on error
+
+Defines a token value for a RTAS (Run Time Abstraction Services)
+service in order to allow it to be handled in the kernel.  The
+argument struct gives the name of the service, which must be the name
+of a service that has a kernel-side implementation.  If the token
+value is non-zero, it will be associated with that service, and
+subsequent RTAS calls by the guest specifying that token will be
+handled by the kernel.  If the token value is 0, then any token
+associated with the service will be forgotten, and subsequent RTAS
+calls by the guest for that service will be passed to userspace to be
+handled.
 
 
 5. The kvm_run structure
@@ -2658,3 +2764,11 @@ to receive the topmost interrupt vector.
 When disabled (args[0] == 0), behavior is as if this facility is unsupported.
 
 When this capability is enabled, KVM_EXIT_EPR can occur.
+
+6.6 KVM_CAP_IRQ_MPIC
+
+Architectures: ppc
+Parameters: args[0] is the MPIC device fd
+            args[1] is the MPIC CPU number for this vcpu
+
+This capability connects the vcpu to an in-kernel MPIC device.
