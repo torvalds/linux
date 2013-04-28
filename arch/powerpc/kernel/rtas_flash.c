@@ -286,12 +286,6 @@ static ssize_t rtas_flash_read(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, count, ppos, msg, strlen(msg));
 }
 
-/* constructor for flash_block_cache */
-void rtas_block_ctor(void *ptr)
-{
-	memset(ptr, 0, RTAS_BLK_SIZE);
-}
-
 /* We could be much more efficient here.  But to keep this function
  * simple we allocate a page to the block list no matter how small the
  * count is.  If the system is low on memory it will be just as well
@@ -316,7 +310,7 @@ static ssize_t rtas_flash_write(struct file *file, const char __user *buffer,
 	 * proc file
 	 */
 	if (uf->flist == NULL) {
-		uf->flist = kmem_cache_alloc(flash_block_cache, GFP_KERNEL);
+		uf->flist = kmem_cache_zalloc(flash_block_cache, GFP_KERNEL);
 		if (!uf->flist)
 			return -ENOMEM;
 	}
@@ -327,7 +321,7 @@ static ssize_t rtas_flash_write(struct file *file, const char __user *buffer,
 	next_free = fl->num_blocks;
 	if (next_free == FLASH_BLOCKS_PER_NODE) {
 		/* Need to allocate another block_list */
-		fl->next = kmem_cache_alloc(flash_block_cache, GFP_KERNEL);
+		fl->next = kmem_cache_zalloc(flash_block_cache, GFP_KERNEL);
 		if (!fl->next)
 			return -ENOMEM;
 		fl = fl->next;
@@ -336,7 +330,7 @@ static ssize_t rtas_flash_write(struct file *file, const char __user *buffer,
 
 	if (count > RTAS_BLK_SIZE)
 		count = RTAS_BLK_SIZE;
-	p = kmem_cache_alloc(flash_block_cache, GFP_KERNEL);
+	p = kmem_cache_zalloc(flash_block_cache, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 	
@@ -786,7 +780,7 @@ static int __init rtas_flash_init(void)
 
 	flash_block_cache = kmem_cache_create("rtas_flash_cache",
 				RTAS_BLK_SIZE, RTAS_BLK_SIZE, 0,
-				rtas_block_ctor);
+				NULL);
 	if (!flash_block_cache) {
 		printk(KERN_ERR "%s: failed to create block cache\n",
 				__func__);
