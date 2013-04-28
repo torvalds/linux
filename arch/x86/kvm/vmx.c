@@ -1917,7 +1917,7 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 	u32 intr_info = nr | INTR_INFO_VALID_MASK;
 
 	if (nr == PF_VECTOR && is_guest_mode(vcpu) &&
-		nested_pf_handled(vcpu))
+	    !vmx->nested.nested_run_pending && nested_pf_handled(vcpu))
 		return;
 
 	if (has_error_code) {
