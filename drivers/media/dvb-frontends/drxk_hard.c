@@ -168,7 +168,7 @@ MODULE_PARM_DESC(debug, "enable debug messages");
 
 #define dprintk(level, fmt, arg...) do {			\
 if (debug >= level)						\
-	printk(KERN_DEBUG "drxk: %s" fmt, __func__, ## arg);	\
+	pr_debug(fmt, ##arg);					\
 } while (0)
 
 
@@ -258,8 +258,8 @@ static int i2c_write(struct drxk_state *state, u8 adr, u8 *data, int len)
 	if (debug > 2) {
 		int i;
 		for (i = 0; i < len; i++)
-			printk(KERN_CONT " %02x", data[i]);
-		printk(KERN_CONT "\n");
+			pr_cont(" %02x", data[i]);
+		pr_cont("\n");
 	}
 	status = drxk_i2c_transfer(state, &msg, 1);
 	if (status >= 0 && status != 1)
@@ -285,7 +285,7 @@ static int i2c_read(struct drxk_state *state,
 	status = drxk_i2c_transfer(state, msgs, 2);
 	if (status != 2) {
 		if (debug > 2)
-			printk(KERN_CONT ": ERROR!\n");
+			pr_cont(": ERROR!\n");
 		if (status >= 0)
 			status = -EIO;
 
@@ -296,11 +296,11 @@ static int i2c_read(struct drxk_state *state,
 		int i;
 		dprintk(2, ": read from");
 		for (i = 0; i < len; i++)
-			printk(KERN_CONT " %02x", msg[i]);
-		printk(KERN_CONT ", value = ");
+			pr_cont(" %02x", msg[i]);
+		pr_cont(", value = ");
 		for (i = 0; i < alen; i++)
-			printk(KERN_CONT " %02x", answ[i]);
-		printk(KERN_CONT "\n");
+			pr_cont(" %02x", answ[i]);
+		pr_cont("\n");
 	}
 	return 0;
 }
@@ -470,8 +470,8 @@ static int write_block(struct drxk_state *state, u32 address,
 			int i;
 			if (p_block)
 				for (i = 0; i < chunk; i++)
-					printk(KERN_CONT " %02x", p_block[i]);
-			printk(KERN_CONT "\n");
+					pr_cont(" %02x", p_block[i]);
+			pr_cont("\n");
 		}
 		status = i2c_write(state, state->demod_address,
 				   &state->chunk[0], chunk + adr_length);
@@ -5412,15 +5412,15 @@ static int set_qam(struct drxk_state *state, u16 intermediate_freqk_hz,
 	}
 
 	if (status < 0) {
-		dprintk(1, "Could not set demodulator parameters. Make "
-			"sure qam_demod_parameter_count (%d) is correct for "
-			"your firmware (%s).\n",
+		dprintk(1, "Could not set demodulator parameters.\n");
+		dprintk(1,
+			"Make sure qam_demod_parameter_count (%d) is correct for your firmware (%s).\n",
 			state->qam_demod_parameter_count,
 			state->microcode_name);
 		goto error;
 	} else if (!state->qam_demod_parameter_count) {
-		dprintk(1, "Auto-probing the correct QAM demodulator command "
-			"parameters was successful - using %d parameters.\n",
+		dprintk(1,
+			"Auto-probing the QAM command parameters was successful - using %d parameters.\n",
 			qam_demod_param_count);
 
 		/*
