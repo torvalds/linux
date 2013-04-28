@@ -640,7 +640,7 @@
 				status = "disabled";
 			};
 
-			usbmisc: usbmisc: usbmisc@02184800 {
+			usbmisc: usbmisc@02184800 {
 				#index-cells = <1>;
 				compatible = "fsl,imx6q-usbmisc";
 				reg = <0x02184800 0x200>;
