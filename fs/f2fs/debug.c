@@ -13,7 +13,6 @@
 
 #include <linux/fs.h>
 #include <linux/backing-dev.h>
-#include <linux/proc_fs.h>
 #include <linux/f2fs_fs.h>
 #include <linux/blkdev.h>
 #include <linux/debugfs.h>
