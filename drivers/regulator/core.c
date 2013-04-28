@@ -116,7 +116,7 @@ static const char *rdev_get_name(struct regulator_dev *rdev)
  * @supply: regulator supply name
  *
  * Extract the regulator device node corresponding to the supply name.
- * retruns the device node corresponding to the regulator if found, else
+ * returns the device node corresponding to the regulator if found, else
  * returns NULL.
  */
 static struct device_node *of_get_regulator(struct device *dev, const char *supply)
@@ -1229,7 +1229,7 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 	struct regulator_dev *rdev;
 	struct regulator *regulator = ERR_PTR(-EPROBE_DEFER);
 	const char *devname = NULL;
-	int ret;
+	int ret = 0;
 
 	if (id == NULL) {
 		pr_err("get() with no identifier\n");
@@ -1244,6 +1244,15 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 	rdev = regulator_dev_lookup(dev, id, &ret);
 	if (rdev)
 		goto found;
+
+	/*
+	 * If we have return value from dev_lookup fail, we do not expect to
+	 * succeed, so, quit with appropriate error value
+	 */
+	if (ret) {
+		regulator = ERR_PTR(ret);
+		goto out;
+	}
 
 	if (board_wants_dummy_regulator) {
 		rdev = dummy_regulator_rdev;
@@ -3512,7 +3521,14 @@ regulator_register(const struct regulator_desc *regulator_desc,
 
 		r = regulator_dev_lookup(dev, supply, &ret);
 
-		if (!r) {
+		if (ret == -ENODEV) {
+			/*
+			 * No supply was specified for this regulator and
+			 * there will never be one.
+			 */
+			ret = 0;
+			goto add_dev;
+		} else if (!r) {
 			dev_err(dev, "Failed to find supply %s\n", supply);
 			ret = -EPROBE_DEFER;
 			goto scrub;
@@ -3530,6 +3546,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 		}
 	}
 
+add_dev:
 	/* add consumers devices */
 	if (init_data) {
 		for (i = 0; i < init_data->num_consumer_supplies; i++) {

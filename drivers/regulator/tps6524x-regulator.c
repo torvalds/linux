@@ -585,8 +585,7 @@ static int pmic_remove(struct spi_device *spi)
 	if (!hw)
 		return 0;
 	for (i = 0; i < N_REGULATORS; i++) {
-		if (hw->rdev[i])
-			regulator_unregister(hw->rdev[i]);
+		regulator_unregister(hw->rdev[i]);
 		hw->rdev[i] = NULL;
 	}
 	spi_set_drvdata(spi, NULL);
