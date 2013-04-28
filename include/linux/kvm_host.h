@@ -119,14 +119,13 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQ_APF_HALT          12
 #define KVM_REQ_STEAL_UPDATE      13
 #define KVM_REQ_NMI               14
-#define KVM_REQ_IMMEDIATE_EXIT    15
-#define KVM_REQ_PMU               16
-#define KVM_REQ_PMI               17
-#define KVM_REQ_WATCHDOG          18
-#define KVM_REQ_MASTERCLOCK_UPDATE 19
-#define KVM_REQ_MCLOCK_INPROGRESS 20
-#define KVM_REQ_EPR_EXIT          21
-#define KVM_REQ_SCAN_IOAPIC       22
+#define KVM_REQ_PMU               15
+#define KVM_REQ_PMI               16
+#define KVM_REQ_WATCHDOG          17
+#define KVM_REQ_MASTERCLOCK_UPDATE 18
+#define KVM_REQ_MCLOCK_INPROGRESS 19
+#define KVM_REQ_EPR_EXIT          20
+#define KVM_REQ_SCAN_IOAPIC       21
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
