@@ -39,7 +39,7 @@
 
 DEFINE_RAW_SPINLOCK(native_tlbie_lock);
 
-static inline void __tlbie(unsigned long vpn, int psize, int ssize)
+static inline void __tlbie(unsigned long vpn, int psize, int apsize, int ssize)
 {
 	unsigned long va;
 	unsigned int penc;
@@ -68,7 +68,7 @@ static inline void __tlbie(unsigned long vpn, int psize, int ssize)
 		break;
 	default:
 		/* We need 14 to 14 + i bits of va */
-		penc = mmu_psize_defs[psize].penc;
+		penc = mmu_psize_defs[psize].penc[apsize];
 		va &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
 		va |= penc << 12;
 		va |= ssize << 8;
@@ -80,7 +80,7 @@ static inline void __tlbie(unsigned long vpn, int psize, int ssize)
 	}
 }
 
-static inline void __tlbiel(unsigned long vpn, int psize, int ssize)
+static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
 {
 	unsigned long va;
 	unsigned int penc;
@@ -102,7 +102,7 @@ static inline void __tlbiel(unsigned long vpn, int psize, int ssize)
 		break;
 	default:
 		/* We need 14 to 14 + i bits of va */
-		penc = mmu_psize_defs[psize].penc;
+		penc = mmu_psize_defs[psize].penc[apsize];
 		va &= ~((1ul << mmu_psize_defs[psize].shift) - 1);
 		va |= penc << 12;
 		va |= ssize << 8;
@@ -114,7 +114,8 @@ static inline void __tlbiel(unsigned long vpn, int psize, int ssize)
 
 }
 
-static inline void tlbie(unsigned long vpn, int psize, int ssize, int local)
+static inline void tlbie(unsigned long vpn, int psize, int apsize,
+			 int ssize, int local)
 {
 	unsigned int use_local = local && mmu_has_feature(MMU_FTR_TLBIEL);
 	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
@@ -125,10 +126,10 @@ static inline void tlbie(unsigned long vpn, int psize, int ssize, int local)
 		raw_spin_lock(&native_tlbie_lock);
 	asm volatile("ptesync": : :"memory");
 	if (use_local) {
-		__tlbiel(vpn, psize, ssize);
+		__tlbiel(vpn, psize, apsize, ssize);
 		asm volatile("ptesync": : :"memory");
 	} else {
-		__tlbie(vpn, psize, ssize);
+		__tlbie(vpn, psize, apsize, ssize);
 		asm volatile("eieio; tlbsync; ptesync": : :"memory");
 	}
 	if (lock_tlbie && !use_local)
@@ -156,7 +157,7 @@ static inline void native_unlock_hpte(struct hash_pte *hptep)
 
 static long native_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 			unsigned long pa, unsigned long rflags,
-			unsigned long vflags, int psize, int ssize)
+			unsigned long vflags, int psize, int apsize, int ssize)
 {
 	struct hash_pte *hptep = htab_address + hpte_group;
 	unsigned long hpte_v, hpte_r;
@@ -183,8 +184,8 @@ static long native_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 	if (i == HPTES_PER_GROUP)
 		return -1;
 
-	hpte_v = hpte_encode_v(vpn, psize, ssize) | vflags | HPTE_V_VALID;
-	hpte_r = hpte_encode_r(pa, psize) | rflags;
+	hpte_v = hpte_encode_v(vpn, psize, apsize, ssize) | vflags | HPTE_V_VALID;
+	hpte_r = hpte_encode_r(pa, psize, apsize) | rflags;
 
 	if (!(vflags & HPTE_V_BOLTED)) {
 		DBG_LOW(" i=%x hpte_v=%016lx, hpte_r=%016lx\n",
@@ -244,6 +245,45 @@ static long native_hpte_remove(unsigned long hpte_group)
 	return i;
 }
 
+static inline int hpte_actual_psize(struct hash_pte *hptep, int psize)
+{
+	int i, shift;
+	unsigned int mask;
+	/* Look at the 8 bit LP value */
+	unsigned int lp = (hptep->r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
+
+	if (!(hptep->v & HPTE_V_VALID))
+		return -1;
+
+	/* First check if it is large page */
+	if (!(hptep->v & HPTE_V_LARGE))
+		return MMU_PAGE_4K;
+
+	/* start from 1 ignoring MMU_PAGE_4K */
+	for (i = 1; i < MMU_PAGE_COUNT; i++) {
+
+		/* invalid penc */
+		if (mmu_psize_defs[psize].penc[i] == -1)
+			continue;
+		/*
+		 * encoding bits per actual page size
+		 *        PTE LP     actual page size
+		 *    rrrr rrrz		>=8KB
+		 *    rrrr rrzz		>=16KB
+		 *    rrrr rzzz		>=32KB
+		 *    rrrr zzzz		>=64KB
+		 * .......
+		 */
+		shift = mmu_psize_defs[i].shift - LP_SHIFT;
+		if (shift > LP_BITS)
+			shift = LP_BITS;
+		mask = (1 << shift) - 1;
+		if ((lp & mask) == mmu_psize_defs[psize].penc[i])
+			return i;
+	}
+	return -1;
+}
+
 static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 				 unsigned long vpn, int psize, int ssize,
 				 int local)
@@ -251,6 +291,7 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	struct hash_pte *hptep = htab_address + slot;
 	unsigned long hpte_v, want_v;
 	int ret = 0;
+	int actual_psize;
 
 	want_v = hpte_encode_avpn(vpn, psize, ssize);
 
@@ -260,9 +301,13 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	native_lock_hpte(hptep);
 
 	hpte_v = hptep->v;
-
+	actual_psize = hpte_actual_psize(hptep, psize);
+	if (actual_psize < 0) {
+		native_unlock_hpte(hptep);
+		return -1;
+	}
 	/* Even if we miss, we need to invalidate the TLB */
-	if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID)) {
+	if (!HPTE_V_COMPARE(hpte_v, want_v)) {
 		DBG_LOW(" -> miss\n");
 		ret = -1;
 	} else {
@@ -274,7 +319,7 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	native_unlock_hpte(hptep);
 
 	/* Ensure it is out of the tlb too. */
-	tlbie(vpn, psize, ssize, local);
+	tlbie(vpn, psize, actual_psize, ssize, local);
 
 	return ret;
 }
@@ -315,6 +360,7 @@ static long native_hpte_find(unsigned long vpn, int psize, int ssize)
 static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 				       int psize, int ssize)
 {
+	int actual_psize;
 	unsigned long vpn;
 	unsigned long vsid;
 	long slot;
@@ -327,13 +373,16 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 	if (slot == -1)
 		panic("could not find page to bolt\n");
 	hptep = htab_address + slot;
+	actual_psize = hpte_actual_psize(hptep, psize);
+	if (actual_psize < 0)
+		return;
 
 	/* Update the HPTE */
 	hptep->r = (hptep->r & ~(HPTE_R_PP | HPTE_R_N)) |
 		(newpp & (HPTE_R_PP | HPTE_R_N));
 
 	/* Ensure it is out of the tlb too. */
-	tlbie(vpn, psize, ssize, 0);
+	tlbie(vpn, psize, actual_psize, ssize, 0);
 }
 
 static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
@@ -343,6 +392,7 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	unsigned long hpte_v;
 	unsigned long want_v;
 	unsigned long flags;
+	int actual_psize;
 
 	local_irq_save(flags);
 
@@ -352,35 +402,38 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 	native_lock_hpte(hptep);
 	hpte_v = hptep->v;
 
+	actual_psize = hpte_actual_psize(hptep, psize);
+	if (actual_psize < 0) {
+		native_unlock_hpte(hptep);
+		local_irq_restore(flags);
+		return;
+	}
 	/* Even if we miss, we need to invalidate the TLB */
-	if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
+	if (!HPTE_V_COMPARE(hpte_v, want_v))
 		native_unlock_hpte(hptep);
 	else
 		/* Invalidate the hpte. NOTE: this also unlocks it */
 		hptep->v = 0;
 
 	/* Invalidate the TLB */
-	tlbie(vpn, psize, ssize, local);
+	tlbie(vpn, psize, actual_psize, ssize, local);
 
 	local_irq_restore(flags);
 }
 
-#define LP_SHIFT	12
-#define LP_BITS		8
-#define LP_MASK(i)	((0xFF >> (i)) << LP_SHIFT)
-
 static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
-			int *psize, int *ssize, unsigned long *vpn)
+			int *psize, int *apsize, int *ssize, unsigned long *vpn)
 {
 	unsigned long avpn, pteg, vpi;
 	unsigned long hpte_r = hpte->r;
 	unsigned long hpte_v = hpte->v;
 	unsigned long vsid, seg_off;
-	int i, size, shift, penc;
+	int i, size, a_size, shift, penc;
 
-	if (!(hpte_v & HPTE_V_LARGE))
-		size = MMU_PAGE_4K;
-	else {
+	if (!(hpte_v & HPTE_V_LARGE)) {
+		size   = MMU_PAGE_4K;
+		a_size = MMU_PAGE_4K;
+	} else {
 		for (i = 0; i < LP_BITS; i++) {
 			if ((hpte_r & LP_MASK(i+1)) == LP_MASK(i+1))
 				break;
@@ -388,19 +441,26 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 		penc = LP_MASK(i+1) >> LP_SHIFT;
 		for (size = 0; size < MMU_PAGE_COUNT; size++) {
 
-			/* 4K pages are not represented by LP */
-			if (size == MMU_PAGE_4K)
-				continue;
-
 			/* valid entries have a shift value */
 			if (!mmu_psize_defs[size].shift)
 				continue;
+			for (a_size = 0; a_size < MMU_PAGE_COUNT; a_size++) {
 
-			if (penc == mmu_psize_defs[size].penc)
-				break;
+				/* 4K pages are not represented by LP */
+				if (a_size == MMU_PAGE_4K)
+					continue;
+
+				/* valid entries have a shift value */
+				if (!mmu_psize_defs[a_size].shift)
+					continue;
+
+				if (penc == mmu_psize_defs[size].penc[a_size])
+					goto out;
+			}
 		}
 	}
 
+out:
 	/* This works for all page sizes, and for 256M and 1T segments */
 	*ssize = hpte_v >> HPTE_V_SSIZE_SHIFT;
 	shift = mmu_psize_defs[size].shift;
@@ -433,7 +493,8 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 	default:
 		*vpn = size = 0;
 	}
-	*psize = size;
+	*psize  = size;
+	*apsize = a_size;
 }
 
 /*
@@ -451,7 +512,7 @@ static void native_hpte_clear(void)
 	struct hash_pte *hptep = htab_address;
 	unsigned long hpte_v;
 	unsigned long pteg_count;
-	int psize, ssize;
+	int psize, apsize, ssize;
 
 	pteg_count = htab_hash_mask + 1;
 
@@ -477,9 +538,9 @@ static void native_hpte_clear(void)
 		 * already hold the native_tlbie_lock.
 		 */
 		if (hpte_v & HPTE_V_VALID) {
-			hpte_decode(hptep, slot, &psize, &ssize, &vpn);
+			hpte_decode(hptep, slot, &psize, &apsize, &ssize, &vpn);
 			hptep->v = 0;
-			__tlbie(vpn, psize, ssize);
+			__tlbie(vpn, psize, apsize, ssize);
 		}
 	}
 
@@ -540,7 +601,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 
 			pte_iterate_hashed_subpages(pte, psize,
 						    vpn, index, shift) {
-				__tlbiel(vpn, psize, ssize);
+				__tlbiel(vpn, psize, psize, ssize);
 			} pte_iterate_hashed_end();
 		}
 		asm volatile("ptesync":::"memory");
@@ -557,7 +618,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 
 			pte_iterate_hashed_subpages(pte, psize,
 						    vpn, index, shift) {
-				__tlbie(vpn, psize, ssize);
+				__tlbie(vpn, psize, psize, ssize);
 			} pte_iterate_hashed_end();
 		}
 		asm volatile("eieio; tlbsync; ptesync":::"memory");

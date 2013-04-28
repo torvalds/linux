@@ -126,7 +126,7 @@ static struct mmu_psize_def mmu_psize_defaults_old[] = {
 	[MMU_PAGE_4K] = {
 		.shift	= 12,
 		.sllp	= 0,
-		.penc	= 0,
+		.penc   = {[MMU_PAGE_4K] = 0, [1 ... MMU_PAGE_COUNT - 1] = -1},
 		.avpnm	= 0,
 		.tlbiel = 0,
 	},
@@ -140,14 +140,15 @@ static struct mmu_psize_def mmu_psize_defaults_gp[] = {
 	[MMU_PAGE_4K] = {
 		.shift	= 12,
 		.sllp	= 0,
-		.penc	= 0,
+		.penc   = {[MMU_PAGE_4K] = 0, [1 ... MMU_PAGE_COUNT - 1] = -1},
 		.avpnm	= 0,
 		.tlbiel = 1,
 	},
 	[MMU_PAGE_16M] = {
 		.shift	= 24,
 		.sllp	= SLB_VSID_L,
-		.penc	= 0,
+		.penc   = {[0 ... MMU_PAGE_16M - 1] = -1, [MMU_PAGE_16M] = 0,
+			    [MMU_PAGE_16M + 1 ... MMU_PAGE_COUNT - 1] = -1 },
 		.avpnm	= 0x1UL,
 		.tlbiel = 0,
 	},
@@ -209,7 +210,7 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 
 		BUG_ON(!ppc_md.hpte_insert);
 		ret = ppc_md.hpte_insert(hpteg, vpn, paddr, tprot,
-					 HPTE_V_BOLTED, psize, ssize);
+					 HPTE_V_BOLTED, psize, psize, ssize);
 
 		if (ret < 0)
 			break;
@@ -276,6 +277,30 @@ static void __init htab_init_seg_sizes(void)
 	of_scan_flat_dt(htab_dt_scan_seg_sizes, NULL);
 }
 
+static int __init get_idx_from_shift(unsigned int shift)
+{
+	int idx = -1;
+
+	switch (shift) {
+	case 0xc:
+		idx = MMU_PAGE_4K;
+		break;
+	case 0x10:
+		idx = MMU_PAGE_64K;
+		break;
+	case 0x14:
+		idx = MMU_PAGE_1M;
+		break;
+	case 0x18:
+		idx = MMU_PAGE_16M;
+		break;
+	case 0x22:
+		idx = MMU_PAGE_16G;
+		break;
+	}
+	return idx;
+}
+
 static int __init htab_dt_scan_page_sizes(unsigned long node,
 					  const char *uname, int depth,
 					  void *data)
@@ -295,60 +320,61 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 		size /= 4;
 		cur_cpu_spec->mmu_features &= ~(MMU_FTR_16M_PAGE);
 		while(size > 0) {
-			unsigned int shift = prop[0];
+			unsigned int base_shift = prop[0];
 			unsigned int slbenc = prop[1];
 			unsigned int lpnum = prop[2];
-			unsigned int lpenc = 0;
 			struct mmu_psize_def *def;
-			int idx = -1;
+			int idx, base_idx;
 
 			size -= 3; prop += 3;
-			while(size > 0 && lpnum) {
-				if (prop[0] == shift)
-					lpenc = prop[1];
-				prop += 2; size -= 2;
-				lpnum--;
-			}
-			switch(shift) {
-			case 0xc:
-				idx = MMU_PAGE_4K;
-				break;
-			case 0x10:
-				idx = MMU_PAGE_64K;
-				break;
-			case 0x14:
-				idx = MMU_PAGE_1M;
-				break;
-			case 0x18:
-				idx = MMU_PAGE_16M;
-				cur_cpu_spec->mmu_features |= MMU_FTR_16M_PAGE;
-				break;
-			case 0x22:
-				idx = MMU_PAGE_16G;
-				break;
-			}
-			if (idx < 0)
+			base_idx = get_idx_from_shift(base_shift);
+			if (base_idx < 0) {
+				/*
+				 * skip the pte encoding also
+				 */
+				prop += lpnum * 2; size -= lpnum * 2;
 				continue;
-			def = &mmu_psize_defs[idx];
-			def->shift = shift;
-			if (shift <= 23)
+			}
+			def = &mmu_psize_defs[base_idx];
+			if (base_idx == MMU_PAGE_16M)
+				cur_cpu_spec->mmu_features |= MMU_FTR_16M_PAGE;
+
+			def->shift = base_shift;
+			if (base_shift <= 23)
 				def->avpnm = 0;
 			else
-				def->avpnm = (1 << (shift - 23)) - 1;
+				def->avpnm = (1 << (base_shift - 23)) - 1;
 			def->sllp = slbenc;
-			def->penc = lpenc;
-			/* We don't know for sure what's up with tlbiel, so
+			/*
+			 * We don't know for sure what's up with tlbiel, so
 			 * for now we only set it for 4K and 64K pages
 			 */
-			if (idx == MMU_PAGE_4K || idx == MMU_PAGE_64K)
+			if (base_idx == MMU_PAGE_4K || base_idx == MMU_PAGE_64K)
 				def->tlbiel = 1;
 			else
 				def->tlbiel = 0;
 
-			DBG(" %d: shift=%02x, sllp=%04lx, avpnm=%08lx, "
-			    "tlbiel=%d, penc=%d\n",
-			    idx, shift, def->sllp, def->avpnm, def->tlbiel,
-			    def->penc);
+			while (size > 0 && lpnum) {
+				unsigned int shift = prop[0];
+				int penc  = prop[1];
+
+				prop += 2; size -= 2;
+				lpnum--;
+
+				idx = get_idx_from_shift(shift);
+				if (idx < 0)
+					continue;
+
+				if (penc == -1)
+					pr_err("Invalid penc for base_shift=%d "
+					       "shift=%d\n", base_shift, shift);
+
+				def->penc[idx] = penc;
+				DBG(" %d: shift=%02x, sllp=%04lx, "
+				    "avpnm=%08lx, tlbiel=%d, penc=%d\n",
+				    idx, shift, def->sllp, def->avpnm,
+				    def->tlbiel, def->penc[idx]);
+			}
 		}
 		return 1;
 	}
@@ -397,9 +423,20 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 }
 #endif /* CONFIG_HUGETLB_PAGE */
 
+static void mmu_psize_set_default_penc(void)
+{
+	int bpsize, apsize;
+	for (bpsize = 0; bpsize < MMU_PAGE_COUNT; bpsize++)
+		for (apsize = 0; apsize < MMU_PAGE_COUNT; apsize++)
+			mmu_psize_defs[bpsize].penc[apsize] = -1;
+}
+
 static void __init htab_init_page_sizes(void)
 {
 	int rc;
+
+	/* se the invalid penc to -1 */
+	mmu_psize_set_default_penc();
 
 	/* Default to 4K pages only */
 	memcpy(mmu_psize_defs, mmu_psize_defaults_old,
@@ -1243,7 +1280,7 @@ repeat:
 
 	/* Insert into the hash table, primary slot */
 	slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags, vflags,
-				  psize, ssize);
+				  psize, psize, ssize);
 
 	/* Primary is full, try the secondary */
 	if (unlikely(slot == -1)) {
@@ -1251,7 +1288,7 @@ repeat:
 			      HPTES_PER_GROUP) & ~0x7UL;
 		slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags,
 					  vflags | HPTE_V_SECONDARY,
-					  psize, ssize);
+					  psize, psize, ssize);
 		if (slot == -1) {
 			if (mftb() & 0x1)
 				hpte_group = ((hash & htab_hash_mask) *

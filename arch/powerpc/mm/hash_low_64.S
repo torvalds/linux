@@ -196,7 +196,8 @@ htab_insert_pte:
 	mr	r4,r29			/* Retrieve vpn */
 	li	r7,0			/* !bolted, !secondary */
 	li	r8,MMU_PAGE_4K		/* page size */
-	ld	r9,STK_PARAM(R9)(r1)	/* segment size */
+	li	r9,MMU_PAGE_4K		/* actual page size */
+	ld	r10,STK_PARAM(R9)(r1)	/* segment size */
 _GLOBAL(htab_call_hpte_insert1)
 	bl	.			/* Patched by htab_finish_init() */
 	cmpdi	0,r3,0
@@ -219,7 +220,8 @@ _GLOBAL(htab_call_hpte_insert1)
 	mr	r4,r29			/* Retrieve vpn */
 	li	r7,HPTE_V_SECONDARY	/* !bolted, secondary */
 	li	r8,MMU_PAGE_4K		/* page size */
-	ld	r9,STK_PARAM(R9)(r1)	/* segment size */
+	li	r9,MMU_PAGE_4K		/* actual page size */
+	ld	r10,STK_PARAM(R9)(r1)	/* segment size */
 _GLOBAL(htab_call_hpte_insert2)
 	bl	.			/* Patched by htab_finish_init() */
 	cmpdi	0,r3,0
@@ -515,7 +517,8 @@ htab_special_pfn:
 	mr	r4,r29			/* Retrieve vpn */
 	li	r7,0			/* !bolted, !secondary */
 	li	r8,MMU_PAGE_4K		/* page size */
-	ld	r9,STK_PARAM(R9)(r1)	/* segment size */
+	li	r9,MMU_PAGE_4K		/* actual page size */
+	ld	r10,STK_PARAM(R9)(r1)	/* segment size */
 _GLOBAL(htab_call_hpte_insert1)
 	bl	.			/* patched by htab_finish_init() */
 	cmpdi	0,r3,0
@@ -542,7 +545,8 @@ _GLOBAL(htab_call_hpte_insert1)
 	mr	r4,r29			/* Retrieve vpn */
 	li	r7,HPTE_V_SECONDARY	/* !bolted, secondary */
 	li	r8,MMU_PAGE_4K		/* page size */
-	ld	r9,STK_PARAM(R9)(r1)	/* segment size */
+	li	r9,MMU_PAGE_4K		/* actual page size */
+	ld	r10,STK_PARAM(R9)(r1)	/* segment size */
 _GLOBAL(htab_call_hpte_insert2)
 	bl	.			/* patched by htab_finish_init() */
 	cmpdi	0,r3,0
@@ -840,7 +844,8 @@ ht64_insert_pte:
 	mr	r4,r29			/* Retrieve vpn */
 	li	r7,0			/* !bolted, !secondary */
 	li	r8,MMU_PAGE_64K
-	ld	r9,STK_PARAM(R9)(r1)	/* segment size */
+	li	r9,MMU_PAGE_64K		/* actual page size */
+	ld	r10,STK_PARAM(R9)(r1)	/* segment size */
 _GLOBAL(ht64_call_hpte_insert1)
 	bl	.			/* patched by htab_finish_init() */
 	cmpdi	0,r3,0
@@ -863,7 +868,8 @@ _GLOBAL(ht64_call_hpte_insert1)
 	mr	r4,r29			/* Retrieve vpn */
 	li	r7,HPTE_V_SECONDARY	/* !bolted, secondary */
 	li	r8,MMU_PAGE_64K
-	ld	r9,STK_PARAM(R9)(r1)	/* segment size */
+	li	r9,MMU_PAGE_64K		/* actual page size */
+	ld	r10,STK_PARAM(R9)(r1)	/* segment size */
 _GLOBAL(ht64_call_hpte_insert2)
 	bl	.			/* patched by htab_finish_init() */
 	cmpdi	0,r3,0
