@@ -284,6 +284,7 @@ static char ohci_driver_name[] = KBUILD_MODNAME;
 #define QUIRK_NO_MSI			16
 #define QUIRK_TI_SLLZ059		32
 #define QUIRK_IR_WAKE			64
+#define QUIRK_PHY_LCTRL_TIMEOUT		128
 
 /* In case of multiple matches in ohci_quirks[], only the first one is used. */
 static const struct {
@@ -296,7 +297,10 @@ static const struct {
 		QUIRK_BE_HEADERS},
 
 	{PCI_VENDOR_ID_ATT, PCI_DEVICE_ID_AGERE_FW643, 6,
-		QUIRK_NO_MSI},
+		QUIRK_PHY_LCTRL_TIMEOUT | QUIRK_NO_MSI},
+
+	{PCI_VENDOR_ID_ATT, PCI_ANY_ID, PCI_ANY_ID,
+		QUIRK_PHY_LCTRL_TIMEOUT},
 
 	{PCI_VENDOR_ID_CREATIVE, PCI_DEVICE_ID_CREATIVE_SB1394, PCI_ANY_ID,
 		QUIRK_RESET_PACKET},
@@ -343,6 +347,7 @@ MODULE_PARM_DESC(quirks, "Chip quirks (default = 0"
 	", disable MSI = "		__stringify(QUIRK_NO_MSI)
 	", TI SLLZ059 erratum = "	__stringify(QUIRK_TI_SLLZ059)
 	", IR wake unreliable = "	__stringify(QUIRK_IR_WAKE)
+	", phy LCtrl timeout = "	__stringify(QUIRK_PHY_LCTRL_TIMEOUT)
 	")");
 
 #define OHCI_PARAM_DEBUG_AT_AR		1
@@ -2293,14 +2298,25 @@ static int ohci_enable(struct fw_card *card,
 	 * will lock up the machine.  Wait 50msec to make sure we have
 	 * full link enabled.  However, with some cards (well, at least
 	 * a JMicron PCIe card), we have to try again sometimes.
+	 *
+	 * TI TSB82AA2 + TSB81BA3(A) cards signal LPS enabled early but
+	 * cannot actually use the phy at that time.  These need tens of
+	 * millisecods pause between LPS write and first phy access too.
+	 *
+	 * But do not wait for 50msec on Agere/LSI cards.  Their phy
+	 * arbitration state machine may time out during such a long wait.
 	 */
+
 	reg_write(ohci, OHCI1394_HCControlSet,
 		  OHCI1394_HCControl_LPS |
 		  OHCI1394_HCControl_postedWriteEnable);
 	flush_writes(ohci);
 
-	for (lps = 0, i = 0; !lps && i < 3; i++) {
+	if (!(ohci->quirks & QUIRK_PHY_LCTRL_TIMEOUT))
 		msleep(50);
+
+	for (lps = 0, i = 0; !lps && i < 150; i++) {
+		msleep(1);
 		lps = reg_read(ohci, OHCI1394_HCControlSet) &
 		      OHCI1394_HCControl_LPS;
 	}
