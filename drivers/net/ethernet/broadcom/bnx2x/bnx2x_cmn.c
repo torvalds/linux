@@ -3530,6 +3530,11 @@ static void bnx2x_update_pbds_gso_enc(struct sk_buff *skb,
 			ETH_TX_PARSE_2ND_BD_IP_HDR_LEN_OUTER_W_SHIFT) |
 		((skb->protocol == cpu_to_be16(ETH_P_8021Q)) <<
 			ETH_TX_PARSE_2ND_BD_LLC_SNAP_EN_SHIFT);
+
+	if (ip_hdr(skb)->protocol == IPPROTO_UDP) {
+		SET_FLAG(*global_data, ETH_TX_PARSE_2ND_BD_TUNNEL_UDP_EXIST, 1);
+		pbd2->tunnel_udp_hdr_start_w = skb_transport_offset(skb) >> 1;
+	}
 }
 
 /* called with netif_tx_lock
