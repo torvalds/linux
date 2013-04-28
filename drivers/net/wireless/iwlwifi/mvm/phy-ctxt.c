@@ -212,8 +212,6 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 				     chains_static, chains_dynamic,
 				     FW_CTXT_ACTION_ADD, 0);
 
-	if (!ret)
-		ctxt->ref = 1;
 	return ret;
 }
 
@@ -223,9 +221,7 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
  */
 void iwl_mvm_phy_ctxt_ref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 {
-	WARN_ON(!ctxt->ref);
 	lockdep_assert_held(&mvm->mutex);
-
 	ctxt->ref++;
 }
 
@@ -246,36 +242,8 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 				      FW_CTXT_ACTION_MODIFY, 0);
 }
 
-/*
- * Send a command to the FW to remove the given phy context.
- * Once the command is sent, regardless of success or failure, the context is
- * marked as invalid
- */
-static void iwl_mvm_phy_ctxt_remove(struct iwl_mvm *mvm,
-				    struct iwl_mvm_phy_ctxt *ctxt)
-{
-	struct iwl_phy_context_cmd cmd;
-	int ret;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	iwl_mvm_phy_ctxt_cmd_hdr(ctxt, &cmd, FW_CTXT_ACTION_REMOVE, 0);
-	ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD, CMD_SYNC,
-				   sizeof(struct iwl_phy_context_cmd),
-				   &cmd);
-	ctxt->channel = NULL;
-	if (ret)
-		IWL_ERR(mvm, "Failed to send PHY remove: ctxt id=%d\n",
-			ctxt->id);
-}
-
 void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 {
 	lockdep_assert_held(&mvm->mutex);
-
 	ctxt->ref--;
-	if (ctxt->ref != 0)
-		return;
-
-	return iwl_mvm_phy_ctxt_remove(mvm, ctxt);
 }

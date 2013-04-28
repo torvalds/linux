@@ -388,6 +388,8 @@ out:
 int iwl_mvm_up(struct iwl_mvm *mvm)
 {
 	int ret, i;
+	struct ieee80211_channel *chan;
+	struct cfg80211_chan_def chandef;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -443,8 +445,22 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		goto error;
 
-	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
+	/* Add all the PHY contexts */
+	chan = &mvm->hw->wiphy->bands[IEEE80211_BAND_2GHZ]->channels[0];
+	cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
+	for (i = 0; i < NUM_PHY_CTX; i++) {
+		/*
+		 * The channel used here isn't relevant as it's
+		 * going to be overwritten in the other flows.
+		 * For now use the first channel we have.
+		 */
+		ret = iwl_mvm_phy_ctxt_add(mvm, &mvm->phy_ctxts[i],
+					   &chandef, 1, 1);
+		if (ret)
+			goto error;
+	}
 
+	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
 	return 0;
  error:
 	iwl_trans_stop_device(mvm->trans);

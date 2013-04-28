@@ -576,8 +576,6 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	 * MAC context is bound to it at this stage.
 	 */
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
-		struct ieee80211_channel *chan;
-		struct cfg80211_chan_def chandef;
 
 		mvmvif->phy_ctxt = iwl_mvm_get_free_phy_ctxt(mvm);
 		if (!mvmvif->phy_ctxt) {
@@ -585,21 +583,10 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 			goto out_remove_mac;
 		}
 
-		/*
-		 * The channel used here isn't relevant as it's
-		 * going to be overwritten as part of the ROC flow.
-		 * For now use the first channel we have.
-		 */
-		chan = &mvm->hw->wiphy->bands[IEEE80211_BAND_2GHZ]->channels[0];
-		cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
-		ret = iwl_mvm_phy_ctxt_add(mvm, mvmvif->phy_ctxt,
-					   &chandef, 1, 1);
-		if (ret)
-			goto out_remove_mac;
-
+		iwl_mvm_phy_ctxt_ref(mvm, mvmvif->phy_ctxt);
 		ret = iwl_mvm_binding_add_vif(mvm, vif);
 		if (ret)
-			goto out_remove_phy;
+			goto out_unref_phy;
 
 		ret = iwl_mvm_add_bcast_sta(mvm, vif, &mvmvif->bcast_sta);
 		if (ret)
@@ -615,7 +602,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 
  out_unbind:
 	iwl_mvm_binding_remove_vif(mvm, vif);
- out_remove_phy:
+ out_unref_phy:
 	iwl_mvm_phy_ctxt_unref(mvm, mvmvif->phy_ctxt);
  out_remove_mac:
 	mvmvif->phy_ctxt = NULL;
@@ -1254,7 +1241,7 @@ static int iwl_mvm_add_chanctx(struct ieee80211_hw *hw,
 	struct iwl_mvm_phy_ctxt *phy_ctxt;
 	int ret;
 
-	IWL_DEBUG_MAC80211(mvm, "Add PHY context\n");
+	IWL_DEBUG_MAC80211(mvm, "Add channel context\n");
 
 	mutex_lock(&mvm->mutex);
 	phy_ctxt = iwl_mvm_get_free_phy_ctxt(mvm);
@@ -1263,14 +1250,15 @@ static int iwl_mvm_add_chanctx(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	ret = iwl_mvm_phy_ctxt_add(mvm, phy_ctxt, &ctx->def,
-				   ctx->rx_chains_static,
-				   ctx->rx_chains_dynamic);
+	ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &ctx->def,
+				       ctx->rx_chains_static,
+				       ctx->rx_chains_dynamic);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to add PHY context\n");
 		goto out;
 	}
 
+	iwl_mvm_phy_ctxt_ref(mvm, phy_ctxt);
 	*phy_ctxt_id = phy_ctxt->id;
 out:
 	mutex_unlock(&mvm->mutex);
