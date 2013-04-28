@@ -628,21 +628,21 @@ static int init_state(struct drxk_state *state)
 
 	/* Init AGC and PGA parameters */
 	/* VSB IF */
-	state->m_vsb_if_agc_cfg.ctrl_mode = (ul_vsb_if_agc_mode);
-	state->m_vsb_if_agc_cfg.output_level = (ul_vsb_if_agc_output_level);
-	state->m_vsb_if_agc_cfg.min_output_level = (ul_vsb_if_agc_min_level);
-	state->m_vsb_if_agc_cfg.max_output_level = (ul_vsb_if_agc_max_level);
-	state->m_vsb_if_agc_cfg.speed = (ul_vsb_if_agc_speed);
+	state->m_vsb_if_agc_cfg.ctrl_mode = ul_vsb_if_agc_mode;
+	state->m_vsb_if_agc_cfg.output_level = ul_vsb_if_agc_output_level;
+	state->m_vsb_if_agc_cfg.min_output_level = ul_vsb_if_agc_min_level;
+	state->m_vsb_if_agc_cfg.max_output_level = ul_vsb_if_agc_max_level;
+	state->m_vsb_if_agc_cfg.speed = ul_vsb_if_agc_speed;
 	state->m_vsb_pga_cfg = 140;
 
 	/* VSB RF */
-	state->m_vsb_rf_agc_cfg.ctrl_mode = (ul_vsb_rf_agc_mode);
-	state->m_vsb_rf_agc_cfg.output_level = (ul_vsb_rf_agc_output_level);
-	state->m_vsb_rf_agc_cfg.min_output_level = (ul_vsb_rf_agc_min_level);
-	state->m_vsb_rf_agc_cfg.max_output_level = (ul_vsb_rf_agc_max_level);
-	state->m_vsb_rf_agc_cfg.speed = (ul_vsb_rf_agc_speed);
-	state->m_vsb_rf_agc_cfg.top = (ul_vsb_rf_agc_top);
-	state->m_vsb_rf_agc_cfg.cut_off_current = (ul_vsb_rf_agc_cut_off_current);
+	state->m_vsb_rf_agc_cfg.ctrl_mode = ul_vsb_rf_agc_mode;
+	state->m_vsb_rf_agc_cfg.output_level = ul_vsb_rf_agc_output_level;
+	state->m_vsb_rf_agc_cfg.min_output_level = ul_vsb_rf_agc_min_level;
+	state->m_vsb_rf_agc_cfg.max_output_level = ul_vsb_rf_agc_max_level;
+	state->m_vsb_rf_agc_cfg.speed = ul_vsb_rf_agc_speed;
+	state->m_vsb_rf_agc_cfg.top = ul_vsb_rf_agc_top;
+	state->m_vsb_rf_agc_cfg.cut_off_current = ul_vsb_rf_agc_cut_off_current;
 	state->m_vsb_pre_saw_cfg.reference = 0x07;
 	state->m_vsb_pre_saw_cfg.use_pre_saw = true;
 
@@ -654,20 +654,20 @@ static int init_state(struct drxk_state *state)
 	}
 
 	/* ATV IF */
-	state->m_atv_if_agc_cfg.ctrl_mode = (ul_atv_if_agc_mode);
-	state->m_atv_if_agc_cfg.output_level = (ul_atv_if_agc_output_level);
-	state->m_atv_if_agc_cfg.min_output_level = (ul_atv_if_agc_min_level);
-	state->m_atv_if_agc_cfg.max_output_level = (ul_atv_if_agc_max_level);
-	state->m_atv_if_agc_cfg.speed = (ul_atv_if_agc_speed);
+	state->m_atv_if_agc_cfg.ctrl_mode = ul_atv_if_agc_mode;
+	state->m_atv_if_agc_cfg.output_level = ul_atv_if_agc_output_level;
+	state->m_atv_if_agc_cfg.min_output_level = ul_atv_if_agc_min_level;
+	state->m_atv_if_agc_cfg.max_output_level = ul_atv_if_agc_max_level;
+	state->m_atv_if_agc_cfg.speed = ul_atv_if_agc_speed;
 
 	/* ATV RF */
-	state->m_atv_rf_agc_cfg.ctrl_mode = (ul_atv_rf_agc_mode);
-	state->m_atv_rf_agc_cfg.output_level = (ul_atv_rf_agc_output_level);
-	state->m_atv_rf_agc_cfg.min_output_level = (ul_atv_rf_agc_min_level);
-	state->m_atv_rf_agc_cfg.max_output_level = (ul_atv_rf_agc_max_level);
-	state->m_atv_rf_agc_cfg.speed = (ul_atv_rf_agc_speed);
-	state->m_atv_rf_agc_cfg.top = (ul_atv_rf_agc_top);
-	state->m_atv_rf_agc_cfg.cut_off_current = (ul_atv_rf_agc_cut_off_current);
+	state->m_atv_rf_agc_cfg.ctrl_mode = ul_atv_rf_agc_mode;
+	state->m_atv_rf_agc_cfg.output_level = ul_atv_rf_agc_output_level;
+	state->m_atv_rf_agc_cfg.min_output_level = ul_atv_rf_agc_min_level;
+	state->m_atv_rf_agc_cfg.max_output_level = ul_atv_rf_agc_max_level;
+	state->m_atv_rf_agc_cfg.speed = ul_atv_rf_agc_speed;
+	state->m_atv_rf_agc_cfg.top = ul_atv_rf_agc_top;
+	state->m_atv_rf_agc_cfg.cut_off_current = ul_atv_rf_agc_cut_off_current;
 	state->m_atv_pre_saw_cfg.reference = 0x04;
 	state->m_atv_pre_saw_cfg.use_pre_saw = true;
 
@@ -764,7 +764,7 @@ static int init_state(struct drxk_state *state)
 	state->m_sqi_speed = DRXK_DVBT_SQI_SPEED_MEDIUM;
 	state->m_agcfast_clip_ctrl_delay = 0;
 
-	state->m_gpio_cfg = (ul_gpio_cfg);
+	state->m_gpio_cfg = ul_gpio_cfg;
 
 	state->m_b_power_down = false;
 	state->m_current_power_mode = DRX_POWER_DOWN;
