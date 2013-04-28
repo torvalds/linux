@@ -245,19 +245,10 @@ static long native_hpte_remove(unsigned long hpte_group)
 	return i;
 }
 
-static inline int hpte_actual_psize(struct hash_pte *hptep, int psize)
+static inline int __hpte_actual_psize(unsigned int lp, int psize)
 {
 	int i, shift;
 	unsigned int mask;
-	/* Look at the 8 bit LP value */
-	unsigned int lp = (hptep->r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
-
-	if (!(hptep->v & HPTE_V_VALID))
-		return -1;
-
-	/* First check if it is large page */
-	if (!(hptep->v & HPTE_V_LARGE))
-		return MMU_PAGE_4K;
 
 	/* start from 1 ignoring MMU_PAGE_4K */
 	for (i = 1; i < MMU_PAGE_COUNT; i++) {
@@ -282,6 +273,21 @@ static inline int hpte_actual_psize(struct hash_pte *hptep, int psize)
 			return i;
 	}
 	return -1;
+}
+
+static inline int hpte_actual_psize(struct hash_pte *hptep, int psize)
+{
+	/* Look at the 8 bit LP value */
+	unsigned int lp = (hptep->r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
+
+	if (!(hptep->v & HPTE_V_VALID))
+		return -1;
+
+	/* First check if it is large page */
+	if (!(hptep->v & HPTE_V_LARGE))
+		return MMU_PAGE_4K;
+
+	return __hpte_actual_psize(lp, psize);
 }
 
 static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
@@ -425,42 +431,27 @@ static void hpte_decode(struct hash_pte *hpte, unsigned long slot,
 			int *psize, int *apsize, int *ssize, unsigned long *vpn)
 {
 	unsigned long avpn, pteg, vpi;
-	unsigned long hpte_r = hpte->r;
 	unsigned long hpte_v = hpte->v;
 	unsigned long vsid, seg_off;
-	int i, size, a_size, shift, penc;
+	int size, a_size, shift;
+	/* Look at the 8 bit LP value */
+	unsigned int lp = (hpte->r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
 
 	if (!(hpte_v & HPTE_V_LARGE)) {
 		size   = MMU_PAGE_4K;
 		a_size = MMU_PAGE_4K;
 	} else {
-		for (i = 0; i < LP_BITS; i++) {
-			if ((hpte_r & LP_MASK(i+1)) == LP_MASK(i+1))
-				break;
-		}
-		penc = LP_MASK(i+1) >> LP_SHIFT;
 		for (size = 0; size < MMU_PAGE_COUNT; size++) {
 
 			/* valid entries have a shift value */
 			if (!mmu_psize_defs[size].shift)
 				continue;
-			for (a_size = 0; a_size < MMU_PAGE_COUNT; a_size++) {
 
-				/* 4K pages are not represented by LP */
-				if (a_size == MMU_PAGE_4K)
-					continue;
-
-				/* valid entries have a shift value */
-				if (!mmu_psize_defs[a_size].shift)
-					continue;
-
-				if (penc == mmu_psize_defs[size].penc[a_size])
-					goto out;
-			}
+			a_size = __hpte_actual_psize(lp, size);
+			if (a_size != -1)
+				break;
 		}
 	}
-
-out:
 	/* This works for all page sizes, and for 256M and 1T segments */
 	*ssize = hpte_v >> HPTE_V_SSIZE_SHIFT;
 	shift = mmu_psize_defs[size].shift;
