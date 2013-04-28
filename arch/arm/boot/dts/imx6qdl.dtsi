@@ -754,11 +754,6 @@
 				reg = <0x021bc000 0x4000>;
 			};
 
-			ocotp@021c0000 {
-				reg = <0x021c0000 0x4000>;
-				interrupts = <0 21 0x04>;
-			};
-
 			tzasc@021d0000 { /* TZASC1 */
 				reg = <0x021d0000 0x4000>;
 				interrupts = <0 108 0x04>;
