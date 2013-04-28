@@ -23,12 +23,11 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/of_irq.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-
-#include <asm/mach/irq.h>
 
 #include "pinctrl-samsung.h"
 #include "pinctrl-exynos.h"
