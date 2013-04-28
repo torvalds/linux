@@ -386,21 +386,19 @@ err_mm:
 	return err;
 }
 
-/* Caller should have device mutex */
-long vhost_dev_reset_owner(struct vhost_dev *dev)
+struct vhost_memory *vhost_dev_reset_owner_prepare(void)
 {
-	struct vhost_memory *memory;
+	return kmalloc(offsetof(struct vhost_memory, regions), GFP_KERNEL);
+}
 
-	/* Restore memory to default empty mapping. */
-	memory = kmalloc(offsetof(struct vhost_memory, regions), GFP_KERNEL);
-	if (!memory)
-		return -ENOMEM;
-
+/* Caller should have device mutex */
+void vhost_dev_reset_owner(struct vhost_dev *dev, struct vhost_memory *memory)
+{
 	vhost_dev_cleanup(dev, true);
 
+	/* Restore memory to default empty mapping. */
 	memory->nregions = 0;
 	RCU_INIT_POINTER(dev->memory, memory);
-	return 0;
 }
 
 void vhost_dev_stop(struct vhost_dev *dev)

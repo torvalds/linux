@@ -219,13 +219,20 @@ static long vhost_test_reset_owner(struct vhost_test *n)
 {
 	void *priv = NULL;
 	long err;
+	struct vhost_memory *memory;
+
 	mutex_lock(&n->dev.mutex);
 	err = vhost_dev_check_owner(&n->dev);
 	if (err)
 		goto done;
+	memory = vhost_dev_reset_owner_prepare();
+	if (!memory) {
+		err = -ENOMEM;
+		goto done;
+	}
 	vhost_test_stop(n, &priv);
 	vhost_test_flush(n);
-	err = vhost_dev_reset_owner(&n->dev);
+	vhost_dev_reset_owner(&n->dev, memory);
 done:
 	mutex_unlock(&n->dev.mutex);
 	return err;
