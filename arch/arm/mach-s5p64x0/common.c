@@ -166,6 +166,23 @@ static struct samsung_pwm_variant s5p64x0_pwm_variant = {
 	.tclk_mask	= 0,
 };
 
+void __init samsung_set_timer_source(unsigned int event, unsigned int source)
+{
+	s5p64x0_pwm_variant.output_mask = BIT(SAMSUNG_PWM_NUM) - 1;
+	s5p64x0_pwm_variant.output_mask &= ~(BIT(event) | BIT(source));
+}
+
+void __init samsung_timer_init(void)
+{
+	unsigned int timer_irqs[SAMSUNG_PWM_NUM] = {
+		IRQ_TIMER0_VIC, IRQ_TIMER1_VIC, IRQ_TIMER2_VIC,
+		IRQ_TIMER3_VIC, IRQ_TIMER4_VIC,
+	};
+
+	samsung_pwm_clocksource_init(S3C_VA_TIMER,
+					timer_irqs, &s5p64x0_pwm_variant);
+}
+
 /*
  * s5p64x0_map_io
  *
