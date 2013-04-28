@@ -4174,22 +4174,22 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 			goto ctrl_clean;
 	}
 
-	/* tell fw we're ready to fire cmds */
-	status = be_cmd_fw_init(adapter);
-	if (status)
-		goto ctrl_clean;
-
 	if (be_reset_required(adapter)) {
 		status = be_cmd_reset_function(adapter);
 		if (status)
 			goto ctrl_clean;
-	}
 
-	/* Wait for interrupts to quiesce after an FLR */
-	msleep(100);
+		/* Wait for interrupts to quiesce after an FLR */
+		msleep(100);
+	}
 
 	/* Allow interrupts for other ULPs running on NIC function */
 	be_intr_set(adapter, true);
+
+	/* tell fw we're ready to fire cmds */
+	status = be_cmd_fw_init(adapter);
+	if (status)
+		goto ctrl_clean;
 
 	status = be_stats_init(adapter);
 	if (status)
@@ -4400,12 +4400,12 @@ static void be_eeh_resume(struct pci_dev *pdev)
 
 	pci_save_state(pdev);
 
-	/* tell fw we're ready to fire cmds */
-	status = be_cmd_fw_init(adapter);
+	status = be_cmd_reset_function(adapter);
 	if (status)
 		goto err;
 
-	status = be_cmd_reset_function(adapter);
+	/* tell fw we're ready to fire cmds */
+	status = be_cmd_fw_init(adapter);
 	if (status)
 		goto err;
 
