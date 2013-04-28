@@ -1741,7 +1741,7 @@ struct be_cmd_req_get_func_config {
 };
 
 struct be_cmd_resp_get_func_config {
-	struct be_cmd_req_hdr hdr;
+	struct be_cmd_resp_hdr hdr;
 	u32 desc_count;
 	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE];
 };

@@ -2936,7 +2936,7 @@ static struct be_nic_resource_desc *be_get_nic_desc(u8 *buf, u32 desc_count,
 	int i;
 
 	for (i = 0; i < desc_count; i++) {
-		desc->desc_len = RESOURCE_DESC_SIZE;
+		desc->desc_len = desc->desc_len ? : RESOURCE_DESC_SIZE;
 		if (((void *)desc + desc->desc_len) >
 		    (void *)(buf + max_buf_size)) {
 			desc = NULL;
@@ -2986,6 +2986,9 @@ int be_cmd_get_func_config(struct be_adapter *adapter)
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 			       OPCODE_COMMON_GET_FUNC_CONFIG,
 			       cmd.size, wrb, &cmd);
+
+	if (skyhawk_chip(adapter))
+		req->hdr.version = 1;
 
 	status = be_mbox_notify_wait(adapter);
 	if (!status) {
