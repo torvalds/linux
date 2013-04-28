@@ -246,7 +246,7 @@ static int tps6586x_regulator_set_slew_rate(struct platform_device *pdev,
 		reg = TPS6586X_SM1SL;
 		break;
 	default:
-		dev_warn(&pdev->dev, "Only SM0/SM1 can set slew rate\n");
+		dev_err(&pdev->dev, "Only SM0/SM1 can set slew rate\n");
 		return -EINVAL;
 	}
 
@@ -305,13 +305,11 @@ static struct tps6586x_platform_data *tps6586x_parse_regulator_dt(
 	}
 
 	err = of_regulator_match(&pdev->dev, regs, tps6586x_matches, num);
+	of_node_put(regs);
 	if (err < 0) {
 		dev_err(&pdev->dev, "Regulator match failed, e %d\n", err);
-		of_node_put(regs);
 		return NULL;
 	}
-
-	of_node_put(regs);
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
