@@ -48,23 +48,6 @@ static u64 gpage_freearray[MAX_NUMBER_GPAGES];
 static unsigned nr_gpages;
 #endif
 
-static inline int shift_to_mmu_psize(unsigned int shift)
-{
-	int psize;
-
-	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize)
-		if (mmu_psize_defs[psize].shift == shift)
-			return psize;
-	return -1;
-}
-
-static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
-{
-	if (mmu_psize_defs[mmu_psize].shift)
-		return mmu_psize_defs[mmu_psize].shift;
-	BUG();
-}
-
 #define hugepd_none(hpd)	((hpd).pd == 0)
 
 pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift)
@@ -145,6 +128,7 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 		if (unlikely(!hugepd_none(*hpdp)))
 			break;
 		else
+			/* We use the old format for PPC_FSL_BOOK3E */
 			hpdp->pd = ((unsigned long)new & ~PD_HUGE) | pshift;
 	}
 	/* If we bailed from the for loop early, an error occurred, clean up */
@@ -156,8 +140,14 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 #else
 	if (!hugepd_none(*hpdp))
 		kmem_cache_free(cachep, new);
-	else
+	else {
+#ifdef CONFIG_PPC_BOOK3S_64
+		hpdp->pd = (unsigned long)new |
+			    (shift_to_mmu_psize(pshift) << 2);
+#else
 		hpdp->pd = ((unsigned long)new & ~PD_HUGE) | pshift;
+#endif
+	}
 #endif
 	spin_unlock(&mm->page_table_lock);
 	return 0;
