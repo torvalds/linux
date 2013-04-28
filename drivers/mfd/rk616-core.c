@@ -21,7 +21,7 @@
 
 static struct mfd_cell rk616_devs[] = {
 	{
-		.name = "rk616-lvds",
+		.name = "rk616-vif",
 		.id = 0,
 	},
 	{
@@ -113,7 +113,7 @@ static int rk616_reg_show(struct seq_file *s, void *v)
 	{
 		rk616->read_dev(rk616,i,&val);
 		if(i%16==0)
-			seq_printf(s,"\n%04x:",i);
+			seq_printf(s,"\n0x%04x:",i);
 		seq_printf(s," %08x",val);
 	}
 	seq_printf(s,"\n");
@@ -246,7 +246,7 @@ static  int  rk616_pll_wait_lock(struct mfd_rk616 *rk616,int id)
 		ret = rk616->read_dev(rk616,CRU_PLL0_CON1 + offset,&val);
 		if (val&PLL0_LOCK)
 		{
-			dev_info(rk616->dev,"pll locked\n");
+			dev_info(rk616->dev,"PLL%d locked\n",id);
 			break;
 		}
 		msleep(1);
@@ -261,28 +261,19 @@ static  int  rk616_pll_wait_lock(struct mfd_rk616 *rk616,int id)
 }
 
 
-int rk616_pll_set_rate(struct mfd_rk616 *rk616,int id,u32 fin,u32 fout)
+int rk616_pll_set_rate(struct mfd_rk616 *rk616,int id,u32 cfg_val,u32 frac)
 {
 	u32 val = 0;
 	int ret;
 	int offset;
-	u32 refdiv,fbdiv,postdiv1,postdiv2,frac;
-	int mode; //pll div mode,integer or frac
-
-
-	ret = rk616_pll_par_calc(fin,fout,&refdiv,&fbdiv,
-					&postdiv1,&postdiv2,&frac);
-	refdiv = 4;
-	fbdiv = 32;
-	postdiv1 = 2;
-	postdiv2 = 4;
-	frac = 0;
-	if(ret < 0)
-	{
-		return -EINVAL;
-	}
-
-	mode = !frac;
+	u16 con0 = cfg_val & 0xffff;
+	u16 con1 = (cfg_val >> 16)&0xffff;
+	u32 fbdiv = con0 & 0xfff;
+	u32 postdiv1 = (con0 >> 12)&0x7;
+	u32 refdiv = con1 & 0x3f;
+	u32 postdiv2 = (con1 >> 6) & 0x7;
+	u8 mode = !frac;
+	
 	
 	if(id == 0)  //PLL0
 	{
@@ -294,8 +285,6 @@ int rk616_pll_set_rate(struct mfd_rk616 *rk616,int id,u32 fin,u32 fout)
 	}
 
 
-	
-	
 	val = PLL0_PWR_DN | (PLL0_PWR_DN << 16);
 	ret = rk616->write_dev(rk616,CRU_PLL0_CON1 + offset,&val);
 
@@ -306,6 +295,9 @@ int rk616_pll_set_rate(struct mfd_rk616 *rk616,int id,u32 fin,u32 fout)
 	val = PLL0_DIV_MODE(mode) | PLL0_POSTDIV2(postdiv2) | PLL0_REFDIV(refdiv) |
 		(PLL0_DIV_MODE_MASK) | PLL0_POSTDIV2_MASK | PLL0_REFDIV_MASK;
 	ret = rk616->write_dev(rk616,CRU_PLL0_CON1 + offset,&val);
+
+	val = PLL0_FRAC(frac);
+	ret = rk616->write_dev(rk616,CRU_PLL0_CON2 + offset,&val);
 	
 	val = (PLL0_PWR_DN << 16);
 	ret = rk616->write_dev(rk616,CRU_PLL0_CON1 + offset,&val);
@@ -326,23 +318,20 @@ static int rk616_clk_common_init(struct mfd_rk616 *rk616)
 	u32 val = 0;
 	int ret;
 
-	val = PLL1_CLK_SEL(1) | PLL0_CLK_SEL(0) | LCD1_CLK_DIV(0) | LCD0_CLK_DIV(0) |
-		PLL1_CLK_SEL_MASK | PLL0_CLK_SEL_MASK | LCD1_CLK_DIV_MASK | 
-		LCD0_CLK_DIV_MASK; //pll1 clk from lcdc1_dclk,pll0 clk from lcdc0_dclk,mux_lcdx = lcdx_clk
+	val = PLL1_CLK_SEL(LCD1_DCLK) | PLL0_CLK_SEL(LCD0_DCLK) | LCD1_CLK_DIV(0) | 
+		LCD0_CLK_DIV(0) | PLL1_CLK_SEL_MASK | PLL0_CLK_SEL_MASK | 
+		LCD1_CLK_DIV_MASK | LCD0_CLK_DIV_MASK; //pll1 clk from lcdc1_dclk,pll0 clk from lcdc0_dclk,mux_lcdx = lcdx_clk
 	ret = rk616->write_dev(rk616,CRU_CLKSEL0_CON,&val);
 
-	val = CODEC_MCLK_SEL(2) | CODEC_MCLK_SEL_MASK; //codec mclk from clkin
+	val = SCLK_SEL(SCLK_SEL_PLL1) | CODEC_MCLK_SEL(CODEC_MCLK_SEL_12M) |
+		CODEC_MCLK_SEL_MASK | SCLK_SEL_MASK; //codec mclk from clkin
 	ret = rk616->write_dev(rk616,CRU_CLKSEL1_CON,&val);
 	
 	val = 0; //codec mck = clkin
 	ret = rk616->write_dev(rk616,CRU_CODEC_DIV,&val);
 
-#if 1
 	val = (PLL0_BYPASS) | (PLL0_BYPASS << 16);  //bypass pll0 
 	ret = rk616->write_dev(rk616,CRU_PLL0_CON0,&val);
-#else
-	rk616_pll_set_rate(rk616,0,66500000,66500000);
-#endif
 
 	val = (PLL1_BYPASS) | (PLL1_BYPASS << 16);
 	ret = rk616->write_dev(rk616,CRU_PLL1_CON0,&val);
@@ -403,6 +392,7 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 	}
 	rk616->read_dev = rk616_i2c_read_reg;
 	rk616->write_dev = rk616_i2c_write_reg;
+	
 #if defined(CONFIG_DEBUG_FS)
 	rk616->debugfs_dir = debugfs_create_dir("rk616", NULL);
 	if (IS_ERR(rk616->debugfs_dir))
@@ -410,7 +400,7 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 		dev_err(rk616->dev,"failed to create debugfs dir for rk616!\n");
 	}
 	else
-		debugfs_create_file("rk616-core", S_IRUSR,rk616->debugfs_dir,rk616,&rk616_reg_fops);
+		debugfs_create_file("core", S_IRUSR,rk616->debugfs_dir,rk616,&rk616_reg_fops);
 #endif
 	rk616_clk_common_init(rk616);
 	ret = mfd_add_devices(rk616->dev, -1,

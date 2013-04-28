@@ -11,8 +11,8 @@ config RK610_LVDS
 	help
 		Support Jetta(RK610) to output LCD1 and LVDS.
 
-config RK616_LVDS
-        bool "RK616(Jetta B) lvds,lcd,scaler transmitter support"
+config RK616_VIF
+        bool "RK616(JettaB) lvds,lcd,scaler vido interface support"
         depends on MFD_RK616
         help
            RK616(Jetta B) LVDS,LCD,scaler transmitter support.

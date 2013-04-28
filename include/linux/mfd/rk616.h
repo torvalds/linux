@@ -41,6 +41,7 @@
 #define FRC_RGB18_MODE		(1<<2)
 #define FRC_HIFRC_MODE		(1<<1)
 #define FRC_DITHER_EN		(1<<0)
+
 #define CRU_CLKSEL0_CON 	0x0058
 #define PLL1_CLK_SEL_MASK	(0x3<<24)
 #define PLL0_CLK_SEL_MASK	(0x3<<22)
@@ -48,10 +49,14 @@
 #define LCD0_CLK_DIV_MASK	(0x7<<16)
 #define PLL1_CLK_SEL(x)  	(((x)&3)<<8)
 #define PLL0_CLK_SEL(x)  	(((x)&3)<<6)
+#define LCD0_DCLK		0
+#define LCD1_DCLK		1
+#define MCLK_12M		2
 #define LCD1_CLK_DIV(x) 	(((x)&7)<<3)
 #define LCD0_CLK_DIV(x) 	(((x)&7)<<0)
 
 #define CRU_CLKSEL1_CON 	0x005C
+#define SCLK_SEL_MASK		(1<<19)
 #define CODEC_MCLK_SEL_MASK	(3<<16)
 #define LCDC_CLK_GATE		(1<<12)
 #define LCDC1_CLK_GATE		(1<<11)
@@ -60,32 +65,47 @@
 #define HDMI_CLK_GATE		(1<<8)
 #define SCL_CLK_DIV(x)		(((x)&7)<<5)
 #define SCL_CLK_GATE		(1<<4)
-#define SCL_CLK_IN_SEL		(1<<3)
+#define SCLK_SEL(x)		(((x)&1)<<3)
+#define SCLK_SEL_PLL0		0
+#define SCLK_SEL_PLL1		1
 #define CODEC_CLK_GATE		(1<<2)
 #define CODEC_MCLK_SEL(x)	(((x)&3)<<0)
+#define CODEC_MCLK_SEL_PLL0	0
+#define CODEC_MCLK_SEL_PLL1	1
+#define CODEC_MCLK_SEL_12M	2
 
 #define CRU_CODEC_DIV		0x0060
 
 #define CRU_CLKSE2_CON  	0x0064
-#define HDMI_CLK_SEL_MASK	(3<<28)
+#define SCL_IN_SEL_MASK		(1<<31)
+#define DITHER_IN_SEL_MASK	(1<<30)
+#define HDMI_IN_SEL_MASK	(3<<28)
 #define VIF1_CLK_DIV_MASK	(7<<25)
 #define VIF0_CLK_DIV_MASK	(7<<19)
-#define SCLIN_CLK_SEL		(1<<15)
-#define SCL_SEL_VIF0           0
-#define SCL_SEL_VIF1           1
-#define DITHER_CLK_SEL		(1<<14)
+#define VIF1_CLKIN_SEL_MASK	(1<<22)
+#define VIF0_CLKIN_SEL_MASK	(1<<16)
+#define SCL_IN_SEL(x)		(((x)&1)<<15)
+#define SCL_SEL_VIF0           	0
+#define SCL_SEL_VIF1           	1
+#define DITHER_IN_SEL(x)	(((x)&1)<<14)
 #define DITHER_SEL_VIF0		0
 #define DITHER_SEL_SCL		1
 
-#define HDMI_CLK_SEL(x)		(((x)&3)<<12)
+#define HDMI_IN_SEL(x)		(((x)&3)<<12)
+#define HDMI_CLK_SEL_VIF1	0
+#define HDMI_CLK_SEL_SCL	1
+#define HDMI_CLK_SEL_VIF0	2
 #define VIF1_CLK_DIV(x) 	(((x)&7)<<9)
 #define VIF1_CLK_GATE		(1<<8)
 #define VIF1_CLK_BYPASS		(1<<7)
-#define VIF1_CLK_SEL		(1<<6)
+#define VIF1_CLKIN_SEL(x)	(((x)&1)<<6)
+#define VIF_CLKIN_SEL_PLL0	0
+#define VIF_CLKIN_SEL_PLL1	1
 #define VIF0_CLK_DIV(x)		(((x)&7)<<3)
 #define VIF0_CLK_GATE		(1<<2)
 #define VIF0_CLK_BYPASS		(1<<1)
-#define VIF0_CLK_SEL		(1<<0)
+#define VIF0_CLKIN_SEL(x)	(((x)&1)<<0)
+
 
 #define CRU_PLL0_CON0   	0x0068
 #define PLL0_POSTDIV1_MASK	(7<<28)
@@ -109,7 +129,7 @@
 #define PLL0_FOUTVCO_PWR_DN	(1<<26)
 #define PLL0_POSTDIV_PWR_DN	(1<<25)
 #define PLL0_DAC_PWR_DN		(1<<24)
-#define PLL0_FRAC(x)		(((x)&0xffffff)<0)
+#define PLL0_FRAC(x)		(((x)&0xffffff)<<0)
 
 #define CRU_PLL1_CON0   	0x0074
 #define PLL1_POSTDIV1_MASK	(7<<28)
@@ -194,6 +214,10 @@ enum lcd_port_func{       // the function of lcd ports(lcd0,lcd1),the lcd0 only 
 	OUTPUT,
 };
 
+enum lvds_mode {
+	RGB,
+	LVDS,
+};
 struct rk616_platform_data {
 	int (*power_init)(void);
 	int scl_rate;
@@ -205,17 +229,23 @@ struct rk616_platform_data {
 };
 
 struct rk616_route {
-	u8 vif0_bypass;
-	u8 vif0_en;
-	u8 vif1_bypass;
-	u8 vif1_en;
-	u8 sclin_sel;
-	u8 scl_en;
-	u8 dither_sel;
-	u8 hdmi_sel;
-	u8 lcd1_input;
-	u8 lvds_en;
-	u8 lvds_mode;                //RGB or LVDS
+	u16 vif0_bypass;
+	u8  vif0_en;
+	u16 vif0_clk_sel;
+	u16 vif1_bypass;
+	u8  vif1_en;
+	u16 vif1_clk_sel;
+	u16 sclin_sel;
+	u8  scl_en;
+	u8  scl_bypass;
+	u16 dither_sel;
+	u16 hdmi_sel;
+	u16 pll0_clk_sel;
+	u16 pll1_clk_sel;
+	u16 sclk_sel;
+	u8  lcd1_input;
+	u8  lvds_en;
+	enum lvds_mode lvds_mode;                //RGB or LVDS
 	int lvds_ch_nr;		//the number of used  lvds channel 
 };
 
