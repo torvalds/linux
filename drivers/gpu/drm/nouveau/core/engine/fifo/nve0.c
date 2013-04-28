@@ -44,7 +44,8 @@ static const struct {
 	u64 subdev;
 	u64 mask;
 } fifo_engine[] = {
-	_(NVDEV_ENGINE_GR      , (1ULL << NVDEV_ENGINE_SW)),
+	_(NVDEV_ENGINE_GR      , (1ULL << NVDEV_ENGINE_SW) |
+				 (1ULL << NVDEV_ENGINE_COPY2)),
 	_(NVDEV_ENGINE_VP      , 0),
 	_(NVDEV_ENGINE_PPP     , 0),
 	_(NVDEV_ENGINE_BSP     , 0),

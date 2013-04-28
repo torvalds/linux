@@ -36,7 +36,6 @@ nve0_graph_sclass[] = {
 	{ 0xa040, &nouveau_object_ofuncs },
 	{ 0xa097, &nouveau_object_ofuncs },
 	{ 0xa0c0, &nouveau_object_ofuncs },
-	{ 0xa0b5, &nouveau_object_ofuncs },
 	{}
 };
 
