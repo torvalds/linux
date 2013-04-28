@@ -67,6 +67,19 @@ nve0_copy_cclass = {
  * PCOPY engine/subdev functions
  ******************************************************************************/
 
+static void
+nve0_copy_intr(struct nouveau_subdev *subdev)
+{
+	const int ce = nv_subidx(nv_object(subdev)) - NVDEV_ENGINE_COPY0;
+	struct nve0_copy_priv *priv = (void *)subdev;
+	u32 stat = nv_rd32(priv, 0x104908 + (ce * 0x1000));
+
+	if (stat) {
+		nv_warn(priv, "unhandled intr 0x%08x\n", stat);
+		nv_wr32(priv, 0x104908 + (ce * 0x1000), stat);
+	}
+}
+
 static int
 nve0_copy0_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
@@ -85,6 +98,7 @@ nve0_copy0_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00000040;
+	nv_subdev(priv)->intr = nve0_copy_intr;
 	nv_engine(priv)->cclass = &nve0_copy_cclass;
 	nv_engine(priv)->sclass = nve0_copy_sclass;
 	return 0;
@@ -108,6 +122,7 @@ nve0_copy1_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00000080;
+	nv_subdev(priv)->intr = nve0_copy_intr;
 	nv_engine(priv)->cclass = &nve0_copy_cclass;
 	nv_engine(priv)->sclass = nve0_copy_sclass;
 	return 0;
@@ -128,6 +143,7 @@ nve0_copy2_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00200000;
+	nv_subdev(priv)->intr = nve0_copy_intr;
 	nv_engine(priv)->cclass = &nve0_copy_cclass;
 	nv_engine(priv)->sclass = nve0_copy_sclass;
 	return 0;
