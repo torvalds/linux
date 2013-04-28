@@ -838,10 +838,6 @@ struct iwl_qosparam_cmd {
 #define STA_MODIFY_DELBA_TID_MSK	0x10
 #define STA_MODIFY_SLEEP_TX_COUNT_MSK	0x20
 
-/* Receiver address (actually, Rx station's index into station table),
- * combined with Traffic ID (QOS priority), in format used by Tx Scheduler */
-#define BUILD_RAxTID(sta_id, tid)	(((sta_id) << 4) + (tid))
-
 /* agn */
 struct iwl_keyinfo {
 	__le16 key_flags;
