@@ -79,14 +79,6 @@ config SAMSUNG_ATAGS
 
 if SAMSUNG_ATAGS
 
-# timer options
-
-config SAMSUNG_HRT
-	bool
-	select SAMSUNG_DEV_PWM
-	help
-	  Use the High Resolution timer support
-
 # clock options
 
 config SAMSUNG_CLOCK
