@@ -9,6 +9,11 @@
 #else
 #define HDMI_SOURCE_DEFAULT HDMI_SOURCE_LCDC0
 #endif
+enum{
+	INPUT_IIS,
+	INPUT_SPDIF
+};
+#define HDMI_CODEC_SOURCE_SELECT INPUT_SPDIF
 
 extern void rk616_hdmi_control_output(int enable);
 extern int rk616_hdmi_register_hdcp_callbacks(void (*hdcp_cb)(void),

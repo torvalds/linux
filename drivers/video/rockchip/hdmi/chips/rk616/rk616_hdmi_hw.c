@@ -353,12 +353,16 @@ static int rk616_hdmi_config_audio(struct hdmi_audio *audio)
 			return -ENOENT;
 	}
 
-	//set_audio source I2S
-	HDMIWrReg(AUDIO_CTRL1, 0x00); //internal CTS, disable down sample, i2s input, disable MCLK
-	HDMIWrReg(AUDIO_SAMPLE_RATE, rate);
-	HDMIWrReg(AUDIO_I2S_MODE, v_I2S_MODE(I2S_STANDARD) | v_I2S_CHANNEL(channel) );	
-	HDMIWrReg(AUDIO_I2S_MAP, 0x00); 
-	HDMIWrReg(AUDIO_I2S_SWAPS_SPDIF, 0); // no swap	
+	if(HDMI_CODEC_SOURCE_SELECT == INPUT_IIS){
+		//set_audio source I2S
+		HDMIWrReg(AUDIO_SAMPLE_RATE, rate);
+		HDMIWrReg(AUDIO_I2S_MODE, v_I2S_MODE(I2S_STANDARD) | v_I2S_CHANNEL(channel) );	
+		HDMIWrReg(AUDIO_I2S_MAP, 0x00); 
+		HDMIWrReg(AUDIO_I2S_SWAPS_SPDIF, 0); // no swap	
+	}else{
+		HDMIWrReg(AUDIO_CTRL1, 0x08); //internal CTS, disable down sample, i2s input, disable MCLK
+		HDMIWrReg(AUDIO_I2S_SWAPS_SPDIF, 0); // no swap	
+	}
 		
     //Set N value
     HDMIWrReg(AUDIO_N_H, (N >> 16) & 0x0F);
