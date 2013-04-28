@@ -789,13 +789,6 @@ out:
 static void rebuild_sched_domains_locked(void)
 {
 }
-
-static int generate_sched_domains(cpumask_var_t **domains,
-			struct sched_domain_attr **attributes)
-{
-	*domains = NULL;
-	return 1;
-}
 #endif /* CONFIG_SMP */
 
 void rebuild_sched_domains(void)
