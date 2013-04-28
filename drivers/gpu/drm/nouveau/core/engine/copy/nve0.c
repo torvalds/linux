@@ -113,6 +113,26 @@ nve0_copy1_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	return 0;
 }
 
+static int
+nve0_copy2_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+		struct nouveau_oclass *oclass, void *data, u32 size,
+		struct nouveau_object **pobject)
+{
+	struct nve0_copy_priv *priv;
+	int ret;
+
+	ret = nouveau_engine_create(parent, engine, oclass, true,
+				    "PCE2", "copy2", &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	nv_subdev(priv)->unit = 0x00200000;
+	nv_engine(priv)->cclass = &nve0_copy_cclass;
+	nv_engine(priv)->sclass = nve0_copy_sclass;
+	return 0;
+}
+
 struct nouveau_oclass
 nve0_copy0_oclass = {
 	.handle = NV_ENGINE(COPY0, 0xe0),
@@ -129,6 +149,17 @@ nve0_copy1_oclass = {
 	.handle = NV_ENGINE(COPY1, 0xe0),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nve0_copy1_ctor,
+		.dtor = _nouveau_engine_dtor,
+		.init = _nouveau_engine_init,
+		.fini = _nouveau_engine_fini,
+	},
+};
+
+struct nouveau_oclass
+nve0_copy2_oclass = {
+	.handle = NV_ENGINE(COPY2, 0xe0),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nve0_copy2_ctor,
 		.dtor = _nouveau_engine_dtor,
 		.init = _nouveau_engine_init,
 		.fini = _nouveau_engine_fini,
