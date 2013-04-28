@@ -618,6 +618,8 @@ struct cx8802_dev {
 /* ----------------------------------------------------------- */
 /* cx88-core.c                                                 */
 
+extern unsigned int cx88_core_debug;
+
 extern void cx88_print_irqbits(const char *name, const char *tag, const char *strings[],
 			       int len, u32 bits, u32 mask);
 
