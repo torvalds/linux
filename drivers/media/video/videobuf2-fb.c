@@ -33,7 +33,7 @@ module_param(debug, int, 0644);
 
 #define dprintk(level, fmt, arg...)					\
 	do {								\
-			pr_debug("vb2: " fmt, ## arg);		\
+			pr_emerg("vb2: " fmt, ## arg);		\
 	} while (0)
 
 #define NB 2
@@ -155,7 +155,7 @@ static int find_dv_preset(struct fb_info *info, int xres, int yres) {
                 enum_status = data->vfd->ioctl_ops->vidioc_enum_dv_presets(&data->fake_file, data->fake_file.private_data, &preset);
                 if (enum_status)
                         break;  
-                pr_debug("DV preset: %d: %s (%dx%d)\n", preset.preset, preset.name, preset.width, preset.height);
+                pr_emerg("DV preset: %d: %s (%dx%d)\n", preset.preset, preset.name, preset.width, preset.height);
                 if (preset.width == xres && preset.height == yres) {
                         dv_preset = preset.preset;
                 }
@@ -172,7 +172,7 @@ static int odroid_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
                 int preset;
                 preset = find_dv_preset(info, var->xres, var->yres);
                 if (!preset) {
-                        pr_debug("Did not find preset for resolution (%dx%d)\n", var->xres, var->yres);
+                        pr_emerg("Did not find preset for resolution (%dx%d)\n", var->xres, var->yres);
                         return -EINVAL;
                 }
                 data->dv_preset = preset;
@@ -191,7 +191,7 @@ static int odroid_set_par(struct fb_info *info)
 
         if (data->dv_preset != 0) {
               /*  if (data->mmapped) {
-                        pr_debug("Refusing to change resolution because "
+                        pr_emerg("Refusing to change resolution because "
                                "framebuffer is mmaped by user\n");
                         return -EBUSY;
                 } */ // mdrjr
@@ -384,7 +384,7 @@ static int vb2_fb_activate(struct fb_info *info)
 	var->blue = conv->blue;
 	var->transp = conv->transp;
 
-        pr_debug("Activating framebuffer res: %u:%u; bps: %u; size: %u\n", var->xres, var->yres, var->bits_per_pixel, size);
+        pr_emerg("Activating framebuffer res: %u:%u; bps: %u; size: %u\n", var->xres, var->yres, var->bits_per_pixel, size);
 
 
 	return 0;
@@ -566,7 +566,7 @@ static int vb2_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	ret = vb2_mmap(data->q, vma);
 	if(!ret) {
 	    data->mmapped = 1;
-	    pr_debug("videobuf2-fb: vb2_mmap returned %d\n", ret);
+	    pr_emerg("videobuf2-fb: vb2_mmap returned %d\n", ret);
         }
         
 	vb2_drv_unlock(data->q);
@@ -584,7 +584,7 @@ static int vb2_fb_blank(int blank_mode, struct fb_info *info)
 	struct vb2_fb_data *data = info->par;
 	int ret = -EBUSY;
 
-	pr_debug("fb emu: blank mode %d, blank %d, streaming %d\n",
+	pr_emerg("fb emu: blank mode %d, blank %d, streaming %d\n",
 		blank_mode, data->blank, data->streaming);
 
 	/*

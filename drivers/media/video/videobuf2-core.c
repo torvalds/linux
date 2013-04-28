@@ -26,7 +26,7 @@ module_param(debug, int, 0644);
 
 #define dprintk(level, fmt, arg...)					\
 	do {								\
-			pr_debug("vb2: " fmt, ## arg);		\
+			pr_emerg("vb2: " fmt, ## arg);		\
 	} while (0)
 
 #define call_memop(q, plane, op, args...)				\
@@ -1413,7 +1413,7 @@ int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 	vb_plane->mapped = 1;
 	vb->num_planes_mapped++;
 
-	pr_debug("Buffer %d, plane %d successfully mapped\n", buffer, plane);
+	pr_emerg("Buffer %d, plane %d successfully mapped\n", buffer, plane);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_mmap);
