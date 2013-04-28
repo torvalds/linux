@@ -26,7 +26,8 @@ module_param(debug, int, 0644);
 
 #define dprintk(level, fmt, arg...)					\
 	do {								\
-			pr_emerg("vb2: " fmt, ## arg);		\
+		if (debug >= level)					\
+			printk(KERN_DEBUG "vb2: " fmt, ## arg);		\
 	} while (0)
 
 #define call_memop(q, plane, op, args...)				\
@@ -253,7 +254,7 @@ static int __vb2_queue_alloc(struct vb2_queue *q, enum v4l2_memory memory,
 		__setup_share(q);
 	}
 
-	dprintk(3, "Allocated %d buffers, %d plane(s) each\n",
+	dprintk(1, "Allocated %d buffers, %d plane(s) each\n",
 			q->num_buffers, num_planes);
 
 	return buffer;
@@ -460,7 +461,6 @@ static int __verify_mmap_ops(struct vb2_queue *q)
  * __buffers_in_use() - return true if any buffers on the queue are in use and
  * the queue cannot be freed (by the means of REQBUFS(0)) call
  */
-
 static bool __buffers_in_use(struct vb2_queue *q)
 {
 	unsigned int buffer, plane;
@@ -1413,7 +1413,7 @@ int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 	vb_plane->mapped = 1;
 	vb->num_planes_mapped++;
 
-	pr_emerg("Buffer %d, plane %d successfully mapped\n", buffer, plane);
+	dprintk(3, "Buffer %d, plane %d successfully mapped\n", buffer, plane);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_mmap);

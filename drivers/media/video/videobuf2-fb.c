@@ -28,12 +28,13 @@
 
 #include "exynos/tv/mixer.h"
 
-static int debug = 9;
+static int debug = 1;
 module_param(debug, int, 0644);
 
 #define dprintk(level, fmt, arg...)					\
 	do {								\
-			pr_emerg("vb2: " fmt, ## arg);		\
+		if (debug >= level)					\
+			printk(KERN_DEBUG "vb2: " fmt, ## arg);		\
 	} while (0)
 
 #define NB 2
@@ -190,11 +191,11 @@ static int odroid_set_par(struct fb_info *info)
         struct vb2_fb_data *data = info->par;
 
         if (data->dv_preset != 0) {
-              /*  if (data->mmapped) {
+                if (data->mmapped) {
                         pr_emerg("Refusing to change resolution because "
                                "framebuffer is mmaped by user\n");
                         return -EBUSY;
-                } */ // mdrjr
+                }
 
                 vb2_drv_lock(data->q);
                 vb2_fb_deactivate(info);
@@ -564,11 +565,8 @@ static int vb2_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 	vb2_drv_lock(data->q);
 	ret = vb2_mmap(data->q, vma);
-	if(!ret) {
+	if(!ret)
 	    data->mmapped = 1;
-	    pr_emerg("videobuf2-fb: vb2_mmap returned %d\n", ret);
-        }
-        
 	vb2_drv_unlock(data->q);
 
 	return ret;
