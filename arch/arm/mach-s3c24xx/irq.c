@@ -34,7 +34,6 @@
 #include <plat/cpu.h>
 #include <plat/regs-irqtype.h>
 #include <plat/pm.h>
-#include <plat/irq.h>
 
 #define S3C_IRQTYPE_NONE	0
 #define S3C_IRQTYPE_EINT	1
@@ -175,8 +174,7 @@ static int s3c_irqext_type_set(void __iomem *gpcon_reg,
 	return 0;
 }
 
-/* FIXME: make static when it's out of plat-samsung/irq.h */
-int s3c_irqext_type(struct irq_data *data, unsigned int type)
+static int s3c_irqext_type(struct irq_data *data, unsigned int type)
 {
 	void __iomem *extint_reg;
 	void __iomem *gpcon_reg;
@@ -224,7 +222,7 @@ static int s3c_irqext0_type(struct irq_data *data, unsigned int type)
 				   extint_offset, type);
 }
 
-struct irq_chip s3c_irq_chip = {
+static struct irq_chip s3c_irq_chip = {
 	.name		= "s3c",
 	.irq_ack	= s3c_irq_ack,
 	.irq_mask	= s3c_irq_mask,
@@ -232,7 +230,7 @@ struct irq_chip s3c_irq_chip = {
 	.irq_set_wake	= s3c_irq_wake
 };
 
-struct irq_chip s3c_irq_level_chip = {
+static struct irq_chip s3c_irq_level_chip = {
 	.name		= "s3c-level",
 	.irq_mask	= s3c_irq_mask,
 	.irq_unmask	= s3c_irq_unmask,

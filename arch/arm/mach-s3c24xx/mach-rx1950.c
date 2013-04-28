@@ -58,6 +58,7 @@
 #include <plat/pm.h>
 #include <plat/regs-iic.h>
 #include <plat/regs-serial.h>
+#include <plat/samsung-time.h>
 
 #include "common.h"
 #include "h1940.h"
@@ -741,6 +742,7 @@ static void __init rx1950_map_io(void)
 	s3c24xx_init_io(rx1950_iodesc, ARRAY_SIZE(rx1950_iodesc));
 	s3c24xx_init_clocks(16934000);
 	s3c24xx_init_uarts(rx1950_uartcfgs, ARRAY_SIZE(rx1950_uartcfgs));
+	samsung_set_timer_source(SAMSUNG_PWM3, SAMSUNG_PWM4);
 
 	/* setup PM */
 
@@ -813,6 +815,6 @@ MACHINE_START(RX1950, "HP iPAQ RX1950")
 	.reserve	= rx1950_reserve,
 	.init_irq = s3c24xx_init_irq,
 	.init_machine = rx1950_init_machine,
-	.init_time	= s3c24xx_timer_init,
+	.init_time	= samsung_timer_init,
 	.restart	= s3c244x_restart,
 MACHINE_END

@@ -754,8 +754,9 @@ static void s5p_tv_setup(void)
 static void __init origen_map_io(void)
 {
 	exynos_init_io(NULL, 0);
-	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(origen_uartcfgs, ARRAY_SIZE(origen_uartcfgs));
+	xxti_f = 0;
+	xusbxti_f = 24000000;
 }
 
 static void __init origen_power_init(void)
@@ -815,7 +816,7 @@ MACHINE_START(ORIGEN, "ORIGEN")
 	.map_io		= origen_map_io,
 	.init_machine	= origen_machine_init,
 	.init_late	= exynos_init_late,
-	.init_time	= exynos4_timer_init,
+	.init_time	= exynos_init_time,
 	.reserve	= &origen_reserve,
 	.restart	= exynos4_restart,
 MACHINE_END

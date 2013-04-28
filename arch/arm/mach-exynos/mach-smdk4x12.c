@@ -322,7 +322,6 @@ static struct platform_device *smdk4x12_devices[] __initdata = {
 static void __init smdk4x12_map_io(void)
 {
 	exynos_init_io(NULL, 0);
-	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(smdk4x12_uartcfgs, ARRAY_SIZE(smdk4x12_uartcfgs));
 }
 
@@ -376,7 +375,7 @@ MACHINE_START(SMDK4212, "SMDK4212")
 	.init_irq	= exynos4_init_irq,
 	.map_io		= smdk4x12_map_io,
 	.init_machine	= smdk4x12_machine_init,
-	.init_time	= exynos4_timer_init,
+	.init_time	= exynos_init_time,
 	.restart	= exynos4_restart,
 	.reserve	= &smdk4x12_reserve,
 MACHINE_END
@@ -390,7 +389,7 @@ MACHINE_START(SMDK4412, "SMDK4412")
 	.map_io		= smdk4x12_map_io,
 	.init_machine	= smdk4x12_machine_init,
 	.init_late	= exynos_init_late,
-	.init_time	= exynos4_timer_init,
+	.init_time	= exynos_init_time,
 	.restart	= exynos4_restart,
 	.reserve	= &smdk4x12_reserve,
 MACHINE_END

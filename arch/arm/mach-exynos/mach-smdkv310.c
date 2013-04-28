@@ -371,8 +371,9 @@ static void s5p_tv_setup(void)
 static void __init smdkv310_map_io(void)
 {
 	exynos_init_io(NULL, 0);
-	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(smdkv310_uartcfgs, ARRAY_SIZE(smdkv310_uartcfgs));
+	xxti_f = 12000000;
+	xusbxti_f = 24000000;
 }
 
 static void __init smdkv310_reserve(void)
@@ -423,7 +424,7 @@ MACHINE_START(SMDKV310, "SMDKV310")
 	.init_irq	= exynos4_init_irq,
 	.map_io		= smdkv310_map_io,
 	.init_machine	= smdkv310_machine_init,
-	.init_time	= exynos4_timer_init,
+	.init_time	= exynos_init_time,
 	.reserve	= &smdkv310_reserve,
 	.restart	= exynos4_restart,
 MACHINE_END
@@ -436,7 +437,7 @@ MACHINE_START(SMDKC210, "SMDKC210")
 	.map_io		= smdkv310_map_io,
 	.init_machine	= smdkv310_machine_init,
 	.init_late	= exynos_init_late,
-	.init_time	= exynos4_timer_init,
+	.init_time	= exynos_init_time,
 	.reserve	= &smdkv310_reserve,
 	.restart	= exynos4_restart,
 MACHINE_END
