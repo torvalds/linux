@@ -179,8 +179,6 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->used_flags = 0;
 	vq->log_used = false;
 	vq->log_addr = -1ull;
-	vq->vhost_hlen = 0;
-	vq->sock_hlen = 0;
 	vq->private_data = NULL;
 	vq->log_base = NULL;
 	vq->error_ctx = NULL;

@@ -102,10 +102,7 @@ struct vhost_virtqueue {
 	/* hdr is used to store the virtio header.
 	 * Since each iovec has >= 1 byte length, we never need more than
 	 * header length entries to store the header. */
-	struct iovec hdr[sizeof(struct virtio_net_hdr_mrg_rxbuf)];
 	struct iovec *indirect;
-	size_t vhost_hlen;
-	size_t sock_hlen;
 	struct vring_used_elem *heads;
 	/* We use a kind of RCU to access private pointer.
 	 * All readers access it from worker, which makes it possible to

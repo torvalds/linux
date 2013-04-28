@@ -72,6 +72,12 @@ struct vhost_ubuf_ref {
 
 struct vhost_net_virtqueue {
 	struct vhost_virtqueue vq;
+	/* hdr is used to store the virtio header.
+	 * Since each iovec has >= 1 byte length, we never need more than
+	 * header length entries to store the header. */
+	struct iovec hdr[sizeof(struct virtio_net_hdr_mrg_rxbuf)];
+	size_t vhost_hlen;
+	size_t sock_hlen;
 	/* vhost zerocopy support fields below: */
 	/* last used idx for outstanding DMA zerocopy buffers */
 	int upend_idx;
@@ -166,7 +172,7 @@ err:
 	return -ENOMEM;
 }
 
-void vhost_net_reset_ubuf_info(struct vhost_net *n)
+void vhost_net_vq_reset(struct vhost_net *n)
 {
 	int i;
 
@@ -176,6 +182,8 @@ void vhost_net_reset_ubuf_info(struct vhost_net *n)
 		n->vqs[i].ubufs = NULL;
 		kfree(n->vqs[i].ubuf_info);
 		n->vqs[i].ubuf_info = NULL;
+		n->vqs[i].vhost_hlen = 0;
+		n->vqs[i].sock_hlen = 0;
 	}
 
 }
@@ -302,8 +310,8 @@ static void vhost_zerocopy_callback(struct ubuf_info *ubuf, bool success)
  * read-size critical section for our kind of RCU. */
 static void handle_tx(struct vhost_net *net)
 {
-	struct vhost_virtqueue *vq = &net->vqs[VHOST_NET_VQ_TX].vq;
 	struct vhost_net_virtqueue *nvq = &net->vqs[VHOST_NET_VQ_TX];
+	struct vhost_virtqueue *vq = &nvq->vq;
 	unsigned out, in, s;
 	int head;
 	struct msghdr msg = {
@@ -329,7 +337,7 @@ static void handle_tx(struct vhost_net *net)
 	mutex_lock(&vq->mutex);
 	vhost_disable_notify(&net->dev, vq);
 
-	hdr_size = vq->vhost_hlen;
+	hdr_size = nvq->vhost_hlen;
 	zcopy = nvq->ubufs;
 
 	for (;;) {
@@ -369,14 +377,14 @@ static void handle_tx(struct vhost_net *net)
 			break;
 		}
 		/* Skip header. TODO: support TSO. */
-		s = move_iovec_hdr(vq->iov, vq->hdr, hdr_size, out);
+		s = move_iovec_hdr(vq->iov, nvq->hdr, hdr_size, out);
 		msg.msg_iovlen = out;
 		len = iov_length(vq->iov, out);
 		/* Sanity check */
 		if (!len) {
 			vq_err(vq, "Unexpected header len for TX: "
 			       "%zd expected %zd\n",
-			       iov_length(vq->hdr, s), hdr_size);
+			       iov_length(nvq->hdr, s), hdr_size);
 			break;
 		}
 		zcopy_used = zcopy && (len >= VHOST_GOODCOPY_LEN ||
@@ -523,7 +531,8 @@ err:
  * read-size critical section for our kind of RCU. */
 static void handle_rx(struct vhost_net *net)
 {
-	struct vhost_virtqueue *vq = &net->vqs[VHOST_NET_VQ_RX].vq;
+	struct vhost_net_virtqueue *nvq = &net->vqs[VHOST_NET_VQ_RX];
+	struct vhost_virtqueue *vq = &nvq->vq;
 	unsigned uninitialized_var(in), log;
 	struct vhost_log *vq_log;
 	struct msghdr msg = {
@@ -551,8 +560,8 @@ static void handle_rx(struct vhost_net *net)
 
 	mutex_lock(&vq->mutex);
 	vhost_disable_notify(&net->dev, vq);
-	vhost_hlen = vq->vhost_hlen;
-	sock_hlen = vq->sock_hlen;
+	vhost_hlen = nvq->vhost_hlen;
+	sock_hlen = nvq->sock_hlen;
 
 	vq_log = unlikely(vhost_has_feature(&net->dev, VHOST_F_LOG_ALL)) ?
 		vq->log : NULL;
@@ -582,11 +591,11 @@ static void handle_rx(struct vhost_net *net)
 		/* We don't need to be notified again. */
 		if (unlikely((vhost_hlen)))
 			/* Skip header. TODO: support TSO. */
-			move_iovec_hdr(vq->iov, vq->hdr, vhost_hlen, in);
+			move_iovec_hdr(vq->iov, nvq->hdr, vhost_hlen, in);
 		else
 			/* Copy the header for use in VIRTIO_NET_F_MRG_RXBUF:
 			 * needed because recvmsg can modify msg_iov. */
-			copy_iovec_hdr(vq->iov, vq->hdr, sock_hlen, in);
+			copy_iovec_hdr(vq->iov, nvq->hdr, sock_hlen, in);
 		msg.msg_iovlen = in;
 		err = sock->ops->recvmsg(NULL, sock, &msg,
 					 sock_len, MSG_DONTWAIT | MSG_TRUNC);
@@ -600,7 +609,7 @@ static void handle_rx(struct vhost_net *net)
 			continue;
 		}
 		if (unlikely(vhost_hlen) &&
-		    memcpy_toiovecend(vq->hdr, (unsigned char *)&hdr, 0,
+		    memcpy_toiovecend(nvq->hdr, (unsigned char *)&hdr, 0,
 				      vhost_hlen)) {
 			vq_err(vq, "Unable to write vnet_hdr at addr %p\n",
 			       vq->iov->iov_base);
@@ -608,7 +617,7 @@ static void handle_rx(struct vhost_net *net)
 		}
 		/* TODO: Should check and handle checksum. */
 		if (likely(mergeable) &&
-		    memcpy_toiovecend(vq->hdr, (unsigned char *)&headcount,
+		    memcpy_toiovecend(nvq->hdr, (unsigned char *)&headcount,
 				      offsetof(typeof(hdr), num_buffers),
 				      sizeof hdr.num_buffers)) {
 			vq_err(vq, "Failed num_buffers write");
@@ -686,6 +695,8 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 		n->vqs[i].ubuf_info = NULL;
 		n->vqs[i].upend_idx = 0;
 		n->vqs[i].done_idx = 0;
+		n->vqs[i].vhost_hlen = 0;
+		n->vqs[i].sock_hlen = 0;
 	}
 	r = vhost_dev_init(dev, vqs, VHOST_NET_VQ_MAX);
 	if (r < 0) {
@@ -783,7 +794,7 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 	vhost_net_flush(n);
 	vhost_dev_stop(&n->dev);
 	vhost_dev_cleanup(&n->dev, false);
-	vhost_net_reset_ubuf_info(n);
+	vhost_net_vq_reset(n);
 	if (tx_sock)
 		fput(tx_sock->file);
 	if (rx_sock)
@@ -964,7 +975,7 @@ static long vhost_net_reset_owner(struct vhost_net *n)
 	vhost_net_stop(n, &tx_sock, &rx_sock);
 	vhost_net_flush(n);
 	err = vhost_dev_reset_owner(&n->dev);
-	vhost_net_reset_ubuf_info(n);
+	vhost_net_vq_reset(n);
 done:
 	mutex_unlock(&n->dev.mutex);
 	if (tx_sock)
@@ -1001,8 +1012,8 @@ static int vhost_net_set_features(struct vhost_net *n, u64 features)
 	smp_wmb();
 	for (i = 0; i < VHOST_NET_VQ_MAX; ++i) {
 		mutex_lock(&n->vqs[i].vq.mutex);
-		n->vqs[i].vq.vhost_hlen = vhost_hlen;
-		n->vqs[i].vq.sock_hlen = sock_hlen;
+		n->vqs[i].vhost_hlen = vhost_hlen;
+		n->vqs[i].sock_hlen = sock_hlen;
 		mutex_unlock(&n->vqs[i].vq.mutex);
 	}
 	vhost_net_flush(n);
