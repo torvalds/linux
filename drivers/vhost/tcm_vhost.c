@@ -83,9 +83,16 @@ struct vhost_scsi_inflight {
 
 struct vhost_scsi_virtqueue {
 	struct vhost_virtqueue vq;
-	/* Track inflight reqs, protected by vq->mutex */
+	/*
+	 * Reference counting for inflight reqs, used for flush operation. At
+	 * each time, one reference tracks new commands submitted, while we
+	 * wait for another one to reach 0.
+	 */
 	struct vhost_scsi_inflight inflights[2];
-	/* Indicate current inflight in use, protected by vq->mutex */
+	/*
+	 * Indicate current inflight in use, protected by vq->mutex.
+	 * Writers must also take dev mutex and flush under it.
+	 */
 	int inflight_idx;
 };
 
@@ -1015,6 +1022,7 @@ static void vhost_scsi_flush_vq(struct vhost_scsi *vs, int index)
 	vhost_poll_flush(&vs->vqs[index].vq.poll);
 }
 
+/* Callers must hold dev mutex */
 static void vhost_scsi_flush(struct vhost_scsi *vs)
 {
 	struct vhost_scsi_inflight *old_inflight[VHOST_SCSI_MAX_VQ];
