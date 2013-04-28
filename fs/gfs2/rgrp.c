@@ -576,7 +576,7 @@ int gfs2_rs_alloc(struct gfs2_inode *ip)
 	RB_CLEAR_NODE(&ip->i_res->rs_node);
 out:
 	up_write(&ip->i_rw_mutex);
-	return 0;
+	return error;
 }
 
 static void dump_rs(struct seq_file *seq, const struct gfs2_blkreserv *rs)
@@ -1181,12 +1181,9 @@ int gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
 			     const struct gfs2_bitmap *bi, unsigned minlen, u64 *ptrimmed)
 {
 	struct super_block *sb = sdp->sd_vfs;
-	struct block_device *bdev = sb->s_bdev;
-	const unsigned int sects_per_blk = sdp->sd_sb.sb_bsize /
-					   bdev_logical_block_size(sb->s_bdev);
 	u64 blk;
 	sector_t start = 0;
-	sector_t nr_sects = 0;
+	sector_t nr_blks = 0;
 	int rv;
 	unsigned int x;
 	u32 trimmed = 0;
@@ -1206,35 +1203,34 @@ int gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
 		if (diff == 0)
 			continue;
 		blk = offset + ((bi->bi_start + x) * GFS2_NBBY);
-		blk *= sects_per_blk; /* convert to sectors */
 		while(diff) {
 			if (diff & 1) {
-				if (nr_sects == 0)
+				if (nr_blks == 0)
 					goto start_new_extent;
-				if ((start + nr_sects) != blk) {
-					if (nr_sects >= minlen) {
-						rv = blkdev_issue_discard(bdev,
-							start, nr_sects,
+				if ((start + nr_blks) != blk) {
+					if (nr_blks >= minlen) {
+						rv = sb_issue_discard(sb,
+							start, nr_blks,
 							GFP_NOFS, 0);
 						if (rv)
 							goto fail;
-						trimmed += nr_sects;
+						trimmed += nr_blks;
 					}
-					nr_sects = 0;
+					nr_blks = 0;
 start_new_extent:
 					start = blk;
 				}
-				nr_sects += sects_per_blk;
+				nr_blks++;
 			}
 			diff >>= 2;
-			blk += sects_per_blk;
+			blk++;
 		}
 	}
-	if (nr_sects >= minlen) {
-		rv = blkdev_issue_discard(bdev, start, nr_sects, GFP_NOFS, 0);
+	if (nr_blks >= minlen) {
+		rv = sb_issue_discard(sb, start, nr_blks, GFP_NOFS, 0);
 		if (rv)
 			goto fail;
-		trimmed += nr_sects;
+		trimmed += nr_blks;
 	}
 	if (ptrimmed)
 		*ptrimmed = trimmed;

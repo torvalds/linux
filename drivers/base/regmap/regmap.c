@@ -710,11 +710,11 @@ skip_format_initialization:
 		}
 	}
 
+	regmap_debugfs_init(map, config->name);
+
 	ret = regcache_init(map, config);
 	if (ret != 0)
 		goto err_range;
-
-	regmap_debugfs_init(map, config->name);
 
 	/* Add a devres resource for dev_get_regmap() */
 	m = devres_alloc(dev_get_regmap_release, sizeof(*m), GFP_KERNEL);
@@ -943,8 +943,7 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 		unsigned int ival;
 		int val_bytes = map->format.val_bytes;
 		for (i = 0; i < val_len / val_bytes; i++) {
-			memcpy(map->work_buf, val + (i * val_bytes), val_bytes);
-			ival = map->format.parse_val(map->work_buf);
+			ival = map->format.parse_val(val + (i * val_bytes));
 			ret = regcache_write(map, reg + (i * map->reg_stride),
 					     ival);
 			if (ret) {
@@ -1036,6 +1035,8 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 			kfree(async->work_buf);
 			kfree(async);
 		}
+
+		return ret;
 	}
 
 	trace_regmap_hw_write_start(map->dev, reg,

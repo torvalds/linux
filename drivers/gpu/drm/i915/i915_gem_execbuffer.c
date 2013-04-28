@@ -57,7 +57,7 @@ eb_create(struct drm_i915_gem_execbuffer2 *args)
 	if (eb == NULL) {
 		int size = args->buffer_count;
 		int count = PAGE_SIZE / sizeof(struct hlist_head) / 2;
-		BUILD_BUG_ON(!is_power_of_2(PAGE_SIZE / sizeof(struct hlist_head)));
+		BUILD_BUG_ON_NOT_POWER_OF_2(PAGE_SIZE / sizeof(struct hlist_head));
 		while (count > 2*size)
 			count >>= 1;
 		eb = kzalloc(count*sizeof(struct hlist_head) +

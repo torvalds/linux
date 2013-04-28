@@ -24,8 +24,6 @@ bool vsock_addr_bound(const struct sockaddr_vm *addr);
 void vsock_addr_unbind(struct sockaddr_vm *addr);
 bool vsock_addr_equals_addr(const struct sockaddr_vm *addr,
 			    const struct sockaddr_vm *other);
-bool vsock_addr_equals_addr_any(const struct sockaddr_vm *addr,
-				const struct sockaddr_vm *other);
 int vsock_addr_cast(const struct sockaddr *addr, size_t len,
 		    struct sockaddr_vm **out_addr);
 
