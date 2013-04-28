@@ -2538,7 +2538,14 @@ source "kernel/power/Kconfig"
 
 endmenu
 
-source "arch/mips/kernel/cpufreq/Kconfig"
+config MIPS_EXTERNAL_TIMER
+	bool
+
+if CPU_SUPPORTS_CPUFREQ && MIPS_EXTERNAL_TIMER
+menu "CPU Power Management"
+source "drivers/cpufreq/Kconfig"
+endmenu
+endif
 
 source "net/Kconfig"
 

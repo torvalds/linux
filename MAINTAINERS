@@ -2200,11 +2200,24 @@ F:	drivers/net/ethernet/ti/cpmac.c
 
 CPU FREQUENCY DRIVERS
 M:	Rafael J. Wysocki <rjw@sisk.pl>
+M:	Viresh Kumar <viresh.kumar@linaro.org>
 L:	cpufreq@vger.kernel.org
 L:	linux-pm@vger.kernel.org
 S:	Maintained
+T:	git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
 F:	drivers/cpufreq/
 F:	include/linux/cpufreq.h
+
+CPU FREQUENCY DRIVERS - ARM BIG LITTLE
+M:	Viresh Kumar <viresh.kumar@linaro.org>
+M:	Sudeep KarkadaNagesha <sudeep.karkadanagesha@arm.com>
+L:	cpufreq@vger.kernel.org
+L:	linux-pm@vger.kernel.org
+W:	http://www.arm.com/products/processors/technologies/biglittleprocessing.php
+S:	Maintained
+F:	drivers/cpufreq/arm_big_little.h
+F:	drivers/cpufreq/arm_big_little.c
+F:	drivers/cpufreq/arm_big_little_dt.c
 
 CPUIDLE DRIVERS
 M:	Rafael J. Wysocki <rjw@sisk.pl>

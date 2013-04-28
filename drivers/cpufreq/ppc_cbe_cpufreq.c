@@ -27,7 +27,8 @@
 #include <asm/machdep.h>
 #include <asm/prom.h>
 #include <asm/cell-regs.h>
-#include "cbe_cpufreq.h"
+
+#include "ppc_cbe_cpufreq.h"
 
 static DEFINE_MUTEX(cbe_switch_mutex);
 
@@ -156,10 +157,9 @@ static int cbe_cpufreq_target(struct cpufreq_policy *policy,
 
 	freqs.old = policy->cur;
 	freqs.new = cbe_freqs[cbe_pmode_new].frequency;
-	freqs.cpu = policy->cpu;
 
 	mutex_lock(&cbe_switch_mutex);
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	pr_debug("setting frequency for cpu %d to %d kHz, " \
 		 "1/%d of max frequency\n",
@@ -169,7 +169,7 @@ static int cbe_cpufreq_target(struct cpufreq_policy *policy,
 
 	rc = set_pmode(policy->cpu, cbe_pmode_new);
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 	mutex_unlock(&cbe_switch_mutex);
 
 	return rc;

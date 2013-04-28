@@ -30,7 +30,7 @@
 #include <asm/hw_irq.h>
 #include <asm/cell-regs.h>
 
-#include "cbe_cpufreq.h"
+#include "ppc_cbe_cpufreq.h"
 
 /* to write to MIC register */
 static u64 MIC_Slow_Fast_Timer_table[] = {

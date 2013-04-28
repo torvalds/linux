@@ -205,9 +205,98 @@ depends on ARM
 source "drivers/cpufreq/Kconfig.arm"
 endmenu
 
+menu "AVR32 CPU frequency scaling drivers"
+depends on AVR32
+
+config AVR32_AT32AP_CPUFREQ
+	bool "CPU frequency driver for AT32AP"
+	depends on PLATFORM_AT32AP
+	default n
+	help
+	  This enables the CPU frequency driver for AT32AP processors.
+	  If in doubt, say N.
+
+endmenu
+
+menu "CPUFreq processor drivers"
+depends on IA64
+
+config IA64_ACPI_CPUFREQ
+	tristate "ACPI Processor P-States driver"
+	select CPU_FREQ_TABLE
+	depends on ACPI_PROCESSOR
+	help
+	This driver adds a CPUFreq driver which utilizes the ACPI
+	Processor Performance States.
+
+	For details, take a look at <file:Documentation/cpu-freq/>.
+
+	If in doubt, say N.
+
+endmenu
+
+menu "MIPS CPUFreq processor drivers"
+depends on MIPS
+
+config LOONGSON2_CPUFREQ
+	tristate "Loongson2 CPUFreq Driver"
+	select CPU_FREQ_TABLE
+	help
+	  This option adds a CPUFreq driver for loongson processors which
+	  support software configurable cpu frequency.
+
+	  Loongson2F and it's successors support this feature.
+
+	  For details, take a look at <file:Documentation/cpu-freq/>.
+
+	  If in doubt, say N.
+
+endmenu
+
 menu "PowerPC CPU frequency scaling drivers"
 depends on PPC32 || PPC64
 source "drivers/cpufreq/Kconfig.powerpc"
+endmenu
+
+menu "SPARC CPU frequency scaling drivers"
+depends on SPARC64
+config SPARC_US3_CPUFREQ
+	tristate "UltraSPARC-III CPU Frequency driver"
+	select CPU_FREQ_TABLE
+	help
+	  This adds the CPUFreq driver for UltraSPARC-III processors.
+
+	  For details, take a look at <file:Documentation/cpu-freq>.
+
+	  If in doubt, say N.
+
+config SPARC_US2E_CPUFREQ
+	tristate "UltraSPARC-IIe CPU Frequency driver"
+	select CPU_FREQ_TABLE
+	help
+	  This adds the CPUFreq driver for UltraSPARC-IIe processors.
+
+	  For details, take a look at <file:Documentation/cpu-freq>.
+
+	  If in doubt, say N.
+endmenu
+
+menu "SH CPU Frequency scaling"
+depends on SUPERH
+config SH_CPU_FREQ
+	tristate "SuperH CPU Frequency driver"
+	select CPU_FREQ_TABLE
+	help
+	  This adds the cpufreq driver for SuperH. Any CPU that supports
+	  clock rate rounding through the clock framework can use this
+	  driver. While it will make the kernel slightly larger, this is
+	  harmless for CPUs that don't support rate rounding. The driver
+	  will also generate a notice in the boot log before disabling
+	  itself if the CPU in question is not capable of rate rounding.
+
+	  For details, take a look at <file:Documentation/cpu-freq>.
+
+	  If unsure, say N.
 endmenu
 
 endif

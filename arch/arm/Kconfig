@@ -2160,7 +2160,6 @@ endmenu
 menu "CPU Power Management"
 
 if ARCH_HAS_CPUFREQ
-
 source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_IMX
@@ -2169,30 +2168,6 @@ config CPU_FREQ_IMX
 	select CPU_FREQ_TABLE
 	help
 	  This enables the CPUfreq driver for i.MX CPUs.
-
-config CPU_FREQ_SA1100
-	bool
-
-config CPU_FREQ_SA1110
-	bool
-
-config CPU_FREQ_INTEGRATOR
-	tristate "CPUfreq driver for ARM Integrator CPUs"
-	depends on ARCH_INTEGRATOR && CPU_FREQ
-	default y
-	help
-	  This enables the CPUfreq driver for ARM Integrator CPUs.
-
-	  For details, take a look at <file:Documentation/cpu-freq>.
-
-	  If in doubt, say Y.
-
-config CPU_FREQ_PXA
-	bool
-	depends on CPU_FREQ && ARCH_PXA && PXA25x
-	default y
-	select CPU_FREQ_DEFAULT_GOV_USERSPACE
-	select CPU_FREQ_TABLE
 
 config CPU_FREQ_S3C
 	bool
