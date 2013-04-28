@@ -1098,24 +1098,6 @@ arch_initcall(s5p_pmu_init);
 /* PWM Timer */
 
 #ifdef CONFIG_SAMSUNG_DEV_PWM
-
-#define DEFINE_S3C_TIMER(_tmr_no)			\
-	.name		= "s3c24xx-pwm",		\
-	.id		= _tmr_no,			\
-
-/*
- * since we already have an static mapping for the timer,
- * we do not bother setting any IO resource for the base.
- */
-
-struct platform_device s3c_device_timer[] = {
-	[0] = { DEFINE_S3C_TIMER(0) },
-	[1] = { DEFINE_S3C_TIMER(1) },
-	[2] = { DEFINE_S3C_TIMER(2) },
-	[3] = { DEFINE_S3C_TIMER(3) },
-	[4] = { DEFINE_S3C_TIMER(4) },
-};
-
 static struct resource samsung_pwm_resource[] = {
 	DEFINE_RES_MEM(SAMSUNG_PA_TIMER, SZ_4K),
 };
