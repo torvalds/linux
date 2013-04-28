@@ -346,7 +346,7 @@ extern void clocksource_of_init(void);
 static inline void clocksource_of_init(void) {}
 #define CLOCKSOURCE_OF_DECLARE(name, compat, fn)			\
 	static const struct of_device_id __clksrc_of_table_##name	\
-		__unused __section(__clksrc_of_table)			\
+		__attribute__((unused))					\
 		 = { .compatible = compat,				\
 		     .data = (fn == (clocksource_of_init_fn)NULL) ? fn : fn }
 #endif
