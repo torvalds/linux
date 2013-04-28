@@ -8,7 +8,7 @@
 /**
  * struct drxk_config - Configure the initial parameters for DRX-K
  *
- * @adr:		I2C Address of the DRX-K
+ * @adr:		I2C address of the DRX-K
  * @parallel_ts:	True means that the device uses parallel TS,
  * 			Serial otherwise.
  * @dynamic_clk:	True means that the clock will be dynamically
