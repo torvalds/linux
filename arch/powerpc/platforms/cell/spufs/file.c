@@ -352,7 +352,7 @@ static unsigned long spufs_get_unmapped_area(struct file *file,
 
 	/* Else, try to obtain a 64K pages slice */
 	return slice_get_unmapped_area(addr, len, flags,
-				       MMU_PAGE_64K, 1, 0);
+				       MMU_PAGE_64K, 1);
 }
 #endif /* CONFIG_SPU_FS_64K_LS */
 
