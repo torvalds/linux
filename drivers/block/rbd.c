@@ -358,7 +358,7 @@ static int rbd_img_request_submit(struct rbd_img_request *img_request);
 
 static int rbd_dev_snaps_update(struct rbd_device *rbd_dev);
 
-static void rbd_dev_release(struct device *dev);
+static void rbd_dev_device_release(struct device *dev);
 static void rbd_snap_destroy(struct rbd_snap *snap);
 
 static ssize_t rbd_add(struct bus_type *bus, const char *buf,
@@ -887,6 +887,13 @@ static int rbd_dev_mapping_set(struct rbd_device *rbd_dev)
 }
 
 static void rbd_dev_mapping_clear(struct rbd_device *rbd_dev)
+{
+	rbd_dev->mapping.size = 0;
+	rbd_dev->mapping.features = 0;
+	rbd_dev->mapping.read_only = true;
+}
+
+static void rbd_dev_clear_mapping(struct rbd_device *rbd_dev)
 {
 	rbd_dev->mapping.size = 0;
 	rbd_dev->mapping.features = 0;
@@ -4182,7 +4189,7 @@ static int rbd_bus_add_dev(struct rbd_device *rbd_dev)
 	dev->bus = &rbd_bus_type;
 	dev->type = &rbd_device_type;
 	dev->parent = &rbd_root_dev;
-	dev->release = rbd_dev_release;
+	dev->release = rbd_dev_device_release;
 	dev_set_name(dev, "%d", rbd_dev->dev_id);
 	ret = device_register(dev);
 
@@ -4718,7 +4725,7 @@ out_err:
 	return ret;
 }
 
-static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
+static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 {
 	int ret;
 
@@ -4800,6 +4807,15 @@ static int rbd_dev_header_name(struct rbd_device *rbd_dev)
 	return 0;
 }
 
+static void rbd_dev_image_release(struct rbd_device *rbd_dev)
+{
+	rbd_header_free(&rbd_dev->header);
+	rbd_assert(rbd_dev->rbd_client != NULL);
+	rbd_spec_put(rbd_dev->parent_spec);
+	kfree(rbd_dev->header_name);
+	rbd_dev_destroy(rbd_dev);
+}
+
 /*
  * Probe for the existence of the header object for the given rbd
  * device.  For format 2 images this includes determining the image
@@ -4848,7 +4864,7 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev)
 	if (ret)
 		goto err_out_snaps;
 
-	ret = rbd_dev_probe_finish(rbd_dev);
+	ret = rbd_dev_device_setup(rbd_dev);
 	if (ret)
 		goto err_out_parent;
 
@@ -4968,24 +4984,19 @@ static struct rbd_device *__rbd_get_dev(unsigned long dev_id)
 	return NULL;
 }
 
-static void rbd_dev_release(struct device *dev)
+static void rbd_dev_device_release(struct device *dev)
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
-	/* clean up and free blkdev */
 	rbd_free_disk(rbd_dev);
+	clear_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
+	rbd_dev_clear_mapping(rbd_dev);
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
-
-	/* release allocated disk header fields */
-	rbd_header_free(&rbd_dev->header);
-
-	/* done with the id, and with the rbd_dev */
+	rbd_dev->major = 0;
 	rbd_dev_id_put(rbd_dev);
 	rbd_dev_mapping_clear(rbd_dev);
-	rbd_assert(rbd_dev->rbd_client != NULL);
-	rbd_spec_put(rbd_dev->parent_spec);
-	kfree(rbd_dev->header_name);
-	rbd_dev_destroy(rbd_dev);
+
+	rbd_dev_image_release(rbd_dev);
 }
 
 static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
