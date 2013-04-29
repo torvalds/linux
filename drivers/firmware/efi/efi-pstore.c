@@ -73,7 +73,11 @@ static int efi_pstore_read_func(struct efivar_entry *entry, void *data)
 	} else
 		return 0;
 
-	__efivar_entry_size(entry, &size);
+	entry->var.DataSize = 1024;
+	__efivar_entry_get(entry, &entry->var.Attributes,
+			   &entry->var.DataSize, entry->var.Data);
+	size = entry->var.DataSize;
+
 	*cb_data->buf = kmalloc(size, GFP_KERNEL);
 	if (*cb_data->buf == NULL)
 		return -ENOMEM;

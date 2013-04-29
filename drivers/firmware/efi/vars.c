@@ -689,32 +689,6 @@ struct efivar_entry *efivar_entry_find(efi_char16_t *name, efi_guid_t guid,
 EXPORT_SYMBOL_GPL(efivar_entry_find);
 
 /**
- * __efivar_entry_size - obtain the size of a variable
- * @entry: entry for this variable
- * @size: location to store the variable's size
- *
- * The caller MUST call efivar_entry_iter_begin() and
- * efivar_entry_iter_end() before and after the invocation of this
- * function, respectively.
- */
-int __efivar_entry_size(struct efivar_entry *entry, unsigned long *size)
-{
-	const struct efivar_operations *ops = __efivars->ops;
-	efi_status_t status;
-
-	WARN_ON(!spin_is_locked(&__efivars->lock));
-
-	*size = 0;
-	status = ops->get_variable(entry->var.VariableName,
-				   &entry->var.VendorGuid, NULL, size, NULL);
-	if (status != EFI_BUFFER_TOO_SMALL)
-		return efi_status_to_err(status);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(__efivar_entry_size);
-
-/**
  * efivar_entry_size - obtain the size of a variable
  * @entry: entry for this variable
  * @size: location to store the variable's size
@@ -737,6 +711,33 @@ int efivar_entry_size(struct efivar_entry *entry, unsigned long *size)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(efivar_entry_size);
+
+/**
+ * __efivar_entry_get - call get_variable()
+ * @entry: read data for this variable
+ * @attributes: variable attributes
+ * @size: size of @data buffer
+ * @data: buffer to store variable data
+ *
+ * The caller MUST call efivar_entry_iter_begin() and
+ * efivar_entry_iter_end() before and after the invocation of this
+ * function, respectively.
+ */
+int __efivar_entry_get(struct efivar_entry *entry, u32 *attributes,
+		       unsigned long *size, void *data)
+{
+	const struct efivar_operations *ops = __efivars->ops;
+	efi_status_t status;
+
+	WARN_ON(!spin_is_locked(&__efivars->lock));
+
+	status = ops->get_variable(entry->var.VariableName,
+				   &entry->var.VendorGuid,
+				   attributes, size, data);
+
+	return efi_status_to_err(status);
+}
+EXPORT_SYMBOL_GPL(__efivar_entry_get);
 
 /**
  * efivar_entry_get - call get_variable()

@@ -808,8 +808,9 @@ void efivar_entry_remove(struct efivar_entry *entry);
 int __efivar_entry_delete(struct efivar_entry *entry);
 int efivar_entry_delete(struct efivar_entry *entry);
 
-int __efivar_entry_size(struct efivar_entry *entry, unsigned long *size);
 int efivar_entry_size(struct efivar_entry *entry, unsigned long *size);
+int __efivar_entry_get(struct efivar_entry *entry, u32 *attributes,
+		       unsigned long *size, void *data);
 int efivar_entry_get(struct efivar_entry *entry, u32 *attributes,
 		     unsigned long *size, void *data);
 int efivar_entry_set(struct efivar_entry *entry, u32 attributes,
