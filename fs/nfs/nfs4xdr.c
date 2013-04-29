@@ -530,14 +530,10 @@ static int nfs4_stat_to_errno(int);
 				decode_setclientid_maxsz)
 #define NFS4_enc_setclientid_confirm_sz \
 				(compound_encode_hdr_maxsz + \
-				encode_setclientid_confirm_maxsz + \
-				encode_putrootfh_maxsz + \
-				encode_fsinfo_maxsz)
+				encode_setclientid_confirm_maxsz)
 #define NFS4_dec_setclientid_confirm_sz \
 				(compound_decode_hdr_maxsz + \
-				decode_setclientid_confirm_maxsz + \
-				decode_putrootfh_maxsz + \
-				decode_fsinfo_maxsz)
+				decode_setclientid_confirm_maxsz)
 #define NFS4_enc_lock_sz        (compound_encode_hdr_maxsz + \
 				encode_sequence_maxsz + \
 				encode_putfh_maxsz + \
@@ -2601,12 +2597,9 @@ static void nfs4_xdr_enc_setclientid_confirm(struct rpc_rqst *req,
 	struct compound_hdr hdr = {
 		.nops	= 0,
 	};
-	const u32 lease_bitmap[3] = { FATTR4_WORD0_LEASE_TIME };
 
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_setclientid_confirm(xdr, arg, &hdr);
-	encode_putrootfh(xdr, &hdr);
-	encode_fsinfo(xdr, lease_bitmap, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -5198,27 +5191,30 @@ static int decode_delegreturn(struct xdr_stream *xdr)
 	return decode_op_hdr(xdr, OP_DELEGRETURN);
 }
 
-static int decode_secinfo_gss(struct xdr_stream *xdr, struct nfs4_secinfo_flavor *flavor)
+static int decode_secinfo_gss(struct xdr_stream *xdr,
+			      struct nfs4_secinfo4 *flavor)
 {
+	u32 oid_len;
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(!p))
 		goto out_overflow;
-	flavor->gss.sec_oid4.len = be32_to_cpup(p);
-	if (flavor->gss.sec_oid4.len > GSS_OID_MAX_LEN)
+	oid_len = be32_to_cpup(p);
+	if (oid_len > GSS_OID_MAX_LEN)
 		goto out_err;
 
-	p = xdr_inline_decode(xdr, flavor->gss.sec_oid4.len);
+	p = xdr_inline_decode(xdr, oid_len);
 	if (unlikely(!p))
 		goto out_overflow;
-	memcpy(flavor->gss.sec_oid4.data, p, flavor->gss.sec_oid4.len);
+	memcpy(flavor->flavor_info.oid.data, p, oid_len);
+	flavor->flavor_info.oid.len = oid_len;
 
 	p = xdr_inline_decode(xdr, 8);
 	if (unlikely(!p))
 		goto out_overflow;
-	flavor->gss.qop4 = be32_to_cpup(p++);
-	flavor->gss.service = be32_to_cpup(p);
+	flavor->flavor_info.qop = be32_to_cpup(p++);
+	flavor->flavor_info.service = be32_to_cpup(p);
 
 	return 0;
 
@@ -5231,10 +5227,10 @@ out_err:
 
 static int decode_secinfo_common(struct xdr_stream *xdr, struct nfs4_secinfo_res *res)
 {
-	struct nfs4_secinfo_flavor *sec_flavor;
+	struct nfs4_secinfo4 *sec_flavor;
+	unsigned int i, num_flavors;
 	int status;
 	__be32 *p;
-	int i, num_flavors;
 
 	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(!p))
@@ -6637,8 +6633,7 @@ static int nfs4_xdr_dec_setclientid(struct rpc_rqst *req,
  * Decode SETCLIENTID_CONFIRM response
  */
 static int nfs4_xdr_dec_setclientid_confirm(struct rpc_rqst *req,
-					    struct xdr_stream *xdr,
-					    struct nfs_fsinfo *fsinfo)
+					    struct xdr_stream *xdr)
 {
 	struct compound_hdr hdr;
 	int status;
@@ -6646,10 +6641,6 @@ static int nfs4_xdr_dec_setclientid_confirm(struct rpc_rqst *req,
 	status = decode_compound_hdr(xdr, &hdr);
 	if (!status)
 		status = decode_setclientid_confirm(xdr);
-	if (!status)
-		status = decode_putrootfh(xdr);
-	if (!status)
-		status = decode_fsinfo(xdr, fsinfo);
 	return status;
 }
 

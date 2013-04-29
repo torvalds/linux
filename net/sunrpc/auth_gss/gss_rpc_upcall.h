@@ -21,6 +21,7 @@
 #ifndef _GSS_RPC_UPCALL_H
 #define _GSS_RPC_UPCALL_H
 
+#include <linux/sunrpc/gss_api.h>
 #include <linux/sunrpc/auth_gss.h>
 #include "gss_rpc_xdr.h"
 #include "../netns.h"
@@ -30,7 +31,7 @@ struct gssp_upcall_data {
 	struct gssp_in_token in_token;
 	struct xdr_netobj out_handle;
 	struct xdr_netobj out_token;
-	struct xdr_netobj mech_oid;
+	struct rpcsec_gss_oid mech_oid;
 	struct svc_cred creds;
 	int found_creds;
 	int major_status;

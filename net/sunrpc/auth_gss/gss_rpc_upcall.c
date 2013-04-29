@@ -220,7 +220,6 @@ static int gssp_call(struct net *net, struct rpc_message *msg)
 
 /* numbers somewhat arbitrary but large enough for current needs */
 #define GSSX_MAX_OUT_HANDLE	128
-#define GSSX_MAX_MECH_OID	16
 #define GSSX_MAX_SRC_PRINC	256
 #define GSSX_KMEMBUF (GSSX_max_output_handle_sz + \
 			GSSX_max_oid_sz + \
@@ -242,7 +241,7 @@ int gssp_accept_sec_context_upcall(struct net *net,
 		 * buffers but let the xdr code kmalloc them:
 		 */
 		.exported_context_token.len = GSSX_max_output_handle_sz,
-		.mech.len = GSSX_max_oid_sz,
+		.mech.len = GSS_OID_MAX_LEN,
 		.src_name.display_name.len = GSSX_max_princ_sz
 	};
 	struct gssx_res_accept_sec_context res = {
@@ -272,7 +271,9 @@ int gssp_accept_sec_context_upcall(struct net *net,
 	data->minor_status = res.status.minor_status;
 	if (res.context_handle) {
 		data->out_handle = rctxh.exported_context_token;
-		data->mech_oid = rctxh.mech;
+		data->mech_oid.len = rctxh.mech.len;
+		memcpy(data->mech_oid.data, rctxh.mech.data,
+						data->mech_oid.len);
 		client_name = rctxh.src_name.display_name;
 	}
 

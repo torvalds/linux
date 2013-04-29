@@ -769,6 +769,7 @@ struct nfs4_opendata {
 	struct iattr attrs;
 	unsigned long timestamp;
 	unsigned int rpc_done : 1;
+	unsigned int is_recover : 1;
 	int rpc_status;
 	int cancelled;
 };
@@ -1101,9 +1102,12 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 		/* Save the delegation */
 		nfs4_stateid_copy(&stateid, &delegation->stateid);
 		rcu_read_unlock();
-		ret = nfs_may_open(state->inode, state->owner->so_cred, open_mode);
-		if (ret != 0)
-			goto out;
+		nfs_release_seqid(opendata->o_arg.seqid);
+		if (!opendata->is_recover) {
+			ret = nfs_may_open(state->inode, state->owner->so_cred, open_mode);
+			if (ret != 0)
+				goto out;
+		}
 		ret = -EAGAIN;
 
 		/* Try to update the stateid using the delegation */
@@ -1543,15 +1547,20 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 		rcu_read_lock();
 		delegation = rcu_dereference(NFS_I(data->state->inode)->delegation);
 		if (data->o_arg.claim != NFS4_OPEN_CLAIM_DELEGATE_CUR &&
+		    data->o_arg.claim != NFS4_OPEN_CLAIM_DELEG_CUR_FH &&
 		    can_open_delegated(delegation, data->o_arg.fmode))
 			goto unlock_no_action;
 		rcu_read_unlock();
 	}
 	/* Update client id. */
 	data->o_arg.clientid = clp->cl_clientid;
-	if (data->o_arg.claim == NFS4_OPEN_CLAIM_PREVIOUS) {
-		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
+	switch (data->o_arg.claim) {
+	case NFS4_OPEN_CLAIM_PREVIOUS:
+	case NFS4_OPEN_CLAIM_DELEG_CUR_FH:
+	case NFS4_OPEN_CLAIM_DELEG_PREV_FH:
 		data->o_arg.open_bitmap = &nfs4_open_noattr_bitmap[0];
+	case NFS4_OPEN_CLAIM_FH:
+		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
 		nfs_copy_fh(&data->o_res.fh, data->o_arg.fh);
 	}
 	data->timestamp = jiffies;
@@ -1665,8 +1674,11 @@ static int nfs4_run_open_task(struct nfs4_opendata *data, int isrecover)
 	data->rpc_done = 0;
 	data->rpc_status = 0;
 	data->cancelled = 0;
-	if (isrecover)
+	data->is_recover = 0;
+	if (isrecover) {
 		nfs4_set_sequence_privileged(&o_arg->seq_args);
+		data->is_recover = 1;
+	}
 	task = rpc_run_task(&task_setup_data);
         if (IS_ERR(task))
                 return PTR_ERR(task);
@@ -2130,20 +2142,25 @@ static int _nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 		.rpc_cred	= cred,
         };
 	unsigned long timestamp = jiffies;
+	fmode_t fmode;
+	bool truncate;
 	int status;
 
 	nfs_fattr_init(fattr);
 
-	if (state != NULL && nfs4_valid_open_stateid(state)) {
+	/* Servers should only apply open mode checks for file size changes */
+	truncate = (sattr->ia_valid & ATTR_SIZE) ? true : false;
+	fmode = truncate ? FMODE_WRITE : FMODE_READ;
+
+	if (nfs4_copy_delegation_stateid(&arg.stateid, inode, fmode)) {
+		/* Use that stateid */
+	} else if (truncate && state != NULL && nfs4_valid_open_stateid(state)) {
 		struct nfs_lockowner lockowner = {
 			.l_owner = current->files,
 			.l_pid = current->tgid,
 		};
 		nfs4_select_rw_stateid(&arg.stateid, state, FMODE_WRITE,
 				&lockowner);
-	} else if (nfs4_copy_delegation_stateid(&arg.stateid, inode,
-				FMODE_WRITE)) {
-		/* Use that stateid */
 	} else
 		nfs4_stateid_copy(&arg.stateid, &zero_stateid);
 
@@ -2167,6 +2184,13 @@ static int nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 		err = _nfs4_do_setattr(inode, cred, fattr, sattr, state);
 		switch (err) {
 		case -NFS4ERR_OPENMODE:
+			if (!(sattr->ia_valid & ATTR_SIZE)) {
+				pr_warn_once("NFSv4: server %s is incorrectly "
+						"applying open mode checks to "
+						"a SETATTR that is not "
+						"changing file size.\n",
+						server->nfs_client->cl_hostname);
+			}
 			if (state && !(state->state & FMODE_WRITE)) {
 				err = -EBADF;
 				if (sattr->ia_valid & ATTR_OPEN)
@@ -2536,7 +2560,7 @@ static int nfs4_lookup_root_sec(struct nfs_server *server, struct nfs_fh *fhandl
 
 	auth = rpcauth_create(flavor, server->client);
 	if (IS_ERR(auth)) {
-		ret = -EIO;
+		ret = -EACCES;
 		goto out;
 	}
 	ret = nfs4_lookup_root(server, fhandle, info);
@@ -2544,27 +2568,36 @@ out:
 	return ret;
 }
 
+/*
+ * Retry pseudoroot lookup with various security flavors.  We do this when:
+ *
+ *   NFSv4.0: the PUTROOTFH operation returns NFS4ERR_WRONGSEC
+ *   NFSv4.1: the server does not support the SECINFO_NO_NAME operation
+ *
+ * Returns zero on success, or a negative NFS4ERR value, or a
+ * negative errno value.
+ */
 static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 			      struct nfs_fsinfo *info)
 {
-	int i, len, status = 0;
-	rpc_authflavor_t flav_array[NFS_MAX_SECFLAVORS];
+	/* Per 3530bis 15.33.5 */
+	static const rpc_authflavor_t flav_array[] = {
+		RPC_AUTH_GSS_KRB5P,
+		RPC_AUTH_GSS_KRB5I,
+		RPC_AUTH_GSS_KRB5,
+		RPC_AUTH_UNIX,			/* courtesy */
+		RPC_AUTH_NULL,
+	};
+	int status = -EPERM;
+	size_t i;
 
-	len = rpcauth_list_flavors(flav_array, ARRAY_SIZE(flav_array));
-	if (len < 0)
-		return len;
-
-	for (i = 0; i < len; i++) {
-		/* AUTH_UNIX is the default flavor if none was specified,
-		 * thus has already been tried. */
-		if (flav_array[i] == RPC_AUTH_UNIX)
-			continue;
-
+	for (i = 0; i < ARRAY_SIZE(flav_array); i++) {
 		status = nfs4_lookup_root_sec(server, fhandle, info, flav_array[i]);
 		if (status == -NFS4ERR_WRONGSEC || status == -EACCES)
 			continue;
 		break;
 	}
+
 	/*
 	 * -EACCESS could mean that the user doesn't have correct permissions
 	 * to access the mount.  It could also mean that we tried to mount
@@ -2577,24 +2610,36 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 	return status;
 }
 
-/*
- * get the file handle for the "/" directory on the server
+static int nfs4_do_find_root_sec(struct nfs_server *server,
+		struct nfs_fh *fhandle, struct nfs_fsinfo *info)
+{
+	int mv = server->nfs_client->cl_minorversion;
+	return nfs_v4_minor_ops[mv]->find_root_sec(server, fhandle, info);
+}
+
+/**
+ * nfs4_proc_get_rootfh - get file handle for server's pseudoroot
+ * @server: initialized nfs_server handle
+ * @fhandle: we fill in the pseudo-fs root file handle
+ * @info: we fill in an FSINFO struct
+ *
+ * Returns zero on success, or a negative errno.
  */
 int nfs4_proc_get_rootfh(struct nfs_server *server, struct nfs_fh *fhandle,
 			 struct nfs_fsinfo *info)
 {
-	int minor_version = server->nfs_client->cl_minorversion;
-	int status = nfs4_lookup_root(server, fhandle, info);
-	if ((status == -NFS4ERR_WRONGSEC) && !(server->flags & NFS_MOUNT_SECFLAVOUR))
-		/*
-		 * A status of -NFS4ERR_WRONGSEC will be mapped to -EPERM
-		 * by nfs4_map_errors() as this function exits.
-		 */
-		status = nfs_v4_minor_ops[minor_version]->find_root_sec(server, fhandle, info);
+	int status;
+
+	status = nfs4_lookup_root(server, fhandle, info);
+	if ((status == -NFS4ERR_WRONGSEC) &&
+	    !(server->flags & NFS_MOUNT_SECFLAVOUR))
+		status = nfs4_do_find_root_sec(server, fhandle, info);
+
 	if (status == 0)
 		status = nfs4_server_capabilities(server, fhandle);
 	if (status == 0)
 		status = nfs4_do_fsinfo(server, fhandle, info);
+
 	return nfs4_map_errors(status);
 }
 
@@ -3473,12 +3518,21 @@ static int _nfs4_do_fsinfo(struct nfs_server *server, struct nfs_fh *fhandle,
 static int nfs4_do_fsinfo(struct nfs_server *server, struct nfs_fh *fhandle, struct nfs_fsinfo *fsinfo)
 {
 	struct nfs4_exception exception = { };
+	unsigned long now = jiffies;
 	int err;
 
 	do {
-		err = nfs4_handle_exception(server,
-				_nfs4_do_fsinfo(server, fhandle, fsinfo),
-				&exception);
+		err = _nfs4_do_fsinfo(server, fhandle, fsinfo);
+		if (err == 0) {
+			struct nfs_client *clp = server->nfs_client;
+
+			spin_lock(&clp->cl_lock);
+			clp->cl_lease_time = fsinfo->lease_time * HZ;
+			clp->cl_last_renewal = now;
+			spin_unlock(&clp->cl_lock);
+			break;
+		}
+		err = nfs4_handle_exception(server, err, &exception);
 	} while (exception.retry);
 	return err;
 }
@@ -4319,27 +4373,17 @@ int nfs4_proc_setclientid_confirm(struct nfs_client *clp,
 		struct nfs4_setclientid_res *arg,
 		struct rpc_cred *cred)
 {
-	struct nfs_fsinfo fsinfo;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SETCLIENTID_CONFIRM],
 		.rpc_argp = arg,
-		.rpc_resp = &fsinfo,
 		.rpc_cred = cred,
 	};
-	unsigned long now;
 	int status;
 
 	dprintk("NFS call  setclientid_confirm auth=%s, (client ID %llx)\n",
 		clp->cl_rpcclient->cl_auth->au_ops->au_name,
 		clp->cl_clientid);
-	now = jiffies;
 	status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
-	if (status == 0) {
-		spin_lock(&clp->cl_lock);
-		clp->cl_lease_time = fsinfo.lease_time * HZ;
-		clp->cl_last_renewal = now;
-		spin_unlock(&clp->cl_lock);
-	}
 	dprintk("NFS reply setclientid_confirm: %d\n", status);
 	return status;
 }
