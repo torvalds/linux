@@ -147,6 +147,13 @@ choice
 	  enable debugging for the wrong type of machine your kernel
 	  _will not boot_.
 
+config PPC_EARLY_DEBUG_BOOTX
+	bool "BootX or OpenFirmware"
+	depends on BOOTX_TEXT
+	help
+	  Select this to enable early debugging for a machine using BootX
+	  or OpenFirmware.
+
 config PPC_EARLY_DEBUG_LPAR
 	bool "LPAR HV Console"
 	depends on PPC_PSERIES
