@@ -327,7 +327,7 @@ static int sa1100_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int sa1100_rtc_suspend(struct device *dev)
 {
 	struct sa1100_rtc *info = dev_get_drvdata(dev);
@@ -343,12 +343,10 @@ static int sa1100_rtc_resume(struct device *dev)
 		disable_irq_wake(info->irq_alarm);
 	return 0;
 }
-
-static const struct dev_pm_ops sa1100_rtc_pm_ops = {
-	.suspend	= sa1100_rtc_suspend,
-	.resume		= sa1100_rtc_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(sa1100_rtc_pm_ops, sa1100_rtc_suspend,
+			sa1100_rtc_resume);
 
 #ifdef CONFIG_OF
 static struct of_device_id sa1100_rtc_dt_ids[] = {
@@ -364,9 +362,7 @@ static struct platform_driver sa1100_rtc_driver = {
 	.remove		= sa1100_rtc_remove,
 	.driver		= {
 		.name	= "sa1100-rtc",
-#ifdef CONFIG_PM
 		.pm	= &sa1100_rtc_pm_ops,
-#endif
 		.of_match_table = of_match_ptr(sa1100_rtc_dt_ids),
 	},
 };
