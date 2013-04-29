@@ -416,7 +416,7 @@ static struct of_device_id pxa_rtc_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, pxa_rtc_dt_ids);
 #endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int pxa_rtc_suspend(struct device *dev)
 {
 	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev);
@@ -434,21 +434,16 @@ static int pxa_rtc_resume(struct device *dev)
 		disable_irq_wake(pxa_rtc->irq_Alrm);
 	return 0;
 }
-
-static const struct dev_pm_ops pxa_rtc_pm_ops = {
-	.suspend	= pxa_rtc_suspend,
-	.resume		= pxa_rtc_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(pxa_rtc_pm_ops, pxa_rtc_suspend, pxa_rtc_resume);
 
 static struct platform_driver pxa_rtc_driver = {
 	.remove		= __exit_p(pxa_rtc_remove),
 	.driver		= {
 		.name	= "pxa-rtc",
 		.of_match_table = of_match_ptr(pxa_rtc_dt_ids),
-#ifdef CONFIG_PM
 		.pm	= &pxa_rtc_pm_ops,
-#endif
 	},
 };
 
