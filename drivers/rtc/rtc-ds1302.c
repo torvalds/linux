@@ -234,7 +234,7 @@ static int __init ds1302_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ds1302_rtc_remove(struct platform_device *pdev)
+static int __exit ds1302_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
 
@@ -249,7 +249,7 @@ static struct platform_driver ds1302_platform_driver = {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
 	},
-	.remove		= ds1302_rtc_remove,
+	.remove		= __exit_p(ds1302_rtc_remove),
 };
 
 static int __init ds1302_rtc_init(void)
