@@ -311,8 +311,16 @@ static ssize_t snd_compr_read(struct file *f, char __user *buf,
 	stream = &data->stream;
 	mutex_lock(&stream->device->lock);
 
-	/* read is allowed when stream is running */
-	if (stream->runtime->state != SNDRV_PCM_STATE_RUNNING) {
+	/* read is allowed when stream is running, paused, draining and setup
+	 * (yes setup is state which we transition to after stop, so if user
+	 * wants to read data after stop we allow that)
+	 */
+	switch (stream->runtime->state) {
+	case SNDRV_PCM_STATE_OPEN:
+	case SNDRV_PCM_STATE_PREPARED:
+	case SNDRV_PCM_STATE_XRUN:
+	case SNDRV_PCM_STATE_SUSPENDED:
+	case SNDRV_PCM_STATE_DISCONNECTED:
 		retval = -EBADFD;
 		goto out;
 	}
