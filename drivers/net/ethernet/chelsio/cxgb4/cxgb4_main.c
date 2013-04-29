@@ -645,6 +645,21 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 	u8 opcode = ((const struct rss_header *)rsp)->opcode;
 
 	rsp++;                                          /* skip RSS header */
+
+	/* FW can send EGR_UPDATEs encapsulated in a CPL_FW4_MSG.
+	 */
+	if (unlikely(opcode == CPL_FW4_MSG &&
+	   ((const struct cpl_fw4_msg *)rsp)->type == FW_TYPE_RSSCPL)) {
+		rsp++;
+		opcode = ((const struct rss_header *)rsp)->opcode;
+		rsp++;
+		if (opcode != CPL_SGE_EGR_UPDATE) {
+			dev_err(q->adap->pdev_dev, "unexpected FW4/CPL %#x on FW event queue\n"
+				, opcode);
+			goto out;
+		}
+	}
+
 	if (likely(opcode == CPL_SGE_EGR_UPDATE)) {
 		const struct cpl_sge_egr_update *p = (void *)rsp;
 		unsigned int qid = EGR_QID(ntohl(p->opcode_qid));
@@ -679,6 +694,7 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 	} else
 		dev_err(q->adap->pdev_dev,
 			"unexpected CPL %#x on FW event queue\n", opcode);
+out:
 	return 0;
 }
 
@@ -695,6 +711,12 @@ static int uldrx_handler(struct sge_rspq *q, const __be64 *rsp,
 			 const struct pkt_gl *gl)
 {
 	struct sge_ofld_rxq *rxq = container_of(q, struct sge_ofld_rxq, rspq);
+
+	/* FW can send CPLs encapsulated in a CPL_FW4_MSG.
+	 */
+	if (((const struct rss_header *)rsp)->opcode == CPL_FW4_MSG &&
+	    ((const struct cpl_fw4_msg *)(rsp + 1))->type == FW_TYPE_RSSCPL)
+		rsp += 2;
 
 	if (ulds[q->uld].rx_handler(q->adap->uld_handle[q->uld], rsp, gl)) {
 		rxq->stats.nomem++;
@@ -4989,6 +5011,15 @@ static int adap_init0(struct adapter *adap)
 		adap->tids.aftid_base = val[0];
 		adap->tids.aftid_end = val[1];
 	}
+
+	/* If we're running on newer firmware, let it know that we're
+	 * prepared to deal with encapsulated CPL messages.  Older
+	 * firmware won't understand this and we'll just get
+	 * unencapsulated messages ...
+	 */
+	params[0] = FW_PARAM_PFVF(CPLFW4MSG_ENCAP);
+	val[0] = 1;
+	(void) t4_set_params(adap, adap->mbox, adap->fn, 0, 1, params, val);
 
 	/*
 	 * Get device capabilities so we can determine what resources we need
