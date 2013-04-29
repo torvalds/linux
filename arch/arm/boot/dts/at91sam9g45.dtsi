@@ -108,6 +108,7 @@
 				compatible = "atmel,at91sam9g45-dma";
 				reg = <0xffffec00 0x200>;
 				interrupts = <21 4 0>;
+				#dma-cells = <2>;
 			};
 
 			pinctrl@fffff200 {
@@ -512,6 +513,8 @@
 				compatible = "atmel,hsmci";
 				reg = <0xfff80000 0x600>;
 				interrupts = <11 4 0>;
+				dmas = <&dma 1 0>;
+				dma-names = "rxtx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -521,6 +524,8 @@
 				compatible = "atmel,hsmci";
 				reg = <0xfffd0000 0x600>;
 				interrupts = <29 4 0>;
+				dmas = <&dma 1 13>;
+				dma-names = "rxtx";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
