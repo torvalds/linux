@@ -491,6 +491,7 @@ static int max8997_rtc_probe(struct platform_device *pdev)
 	virq = irq_create_mapping(max8997->irq_domain, MAX8997_PMICIRQ_RTCA1);
 	if (!virq) {
 		dev_err(&pdev->dev, "Failed to create mapping alarm IRQ\n");
+		ret = -ENXIO;
 		goto err_out;
 	}
 	info->virq = virq;
@@ -498,13 +499,9 @@ static int max8997_rtc_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(&pdev->dev, virq, NULL,
 				max8997_rtc_alarm_irq, 0,
 				"rtc-alarm0", info);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&pdev->dev, "Failed to request alarm IRQ: %d: %d\n",
 			info->virq, ret);
-		goto err_out;
-	}
-
-	return ret;
 
 err_out:
 	return ret;
