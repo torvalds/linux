@@ -320,6 +320,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			on: enable for both 32- and 64-bit processes
 			off: disable for both 32- and 64-bit processes
 
+	alloc_snapshot	[FTRACE]
+			Allocate the ftrace snapshot buffer on boot up when the
+			main buffer is allocated. This is handy if debugging
+			and you need to use tracing_snapshot() on boot up, and
+			do not want to use tracing_snapshot_alloc() as it needs
+			to be done where GFP_KERNEL allocations are allowed.
+
 	amd_iommu=	[HW,X86-64]
 			Pass parameters to the AMD IOMMU driver in the system.
 			Possible values are:

@@ -261,8 +261,10 @@ struct ftrace_probe_ops {
 	void			(*func)(unsigned long ip,
 					unsigned long parent_ip,
 					void **data);
-	int			(*callback)(unsigned long ip, void **data);
-	void			(*free)(void **data);
+	int			(*init)(struct ftrace_probe_ops *ops,
+					unsigned long ip, void **data);
+	void			(*free)(struct ftrace_probe_ops *ops,
+					unsigned long ip, void **data);
 	int			(*print)(struct seq_file *m,
 					 unsigned long ip,
 					 struct ftrace_probe_ops *ops,
