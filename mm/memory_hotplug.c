@@ -1690,11 +1690,15 @@ static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
 {
 	int ret = !is_memblock_offlined(mem);
 
-	if (unlikely(ret))
+	if (unlikely(ret)) {
+		phys_addr_t beginpa, endpa;
+
+		beginpa = PFN_PHYS(section_nr_to_pfn(mem->start_section_nr));
+		endpa = PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1))-1;
 		pr_warn("removing memory fails, because memory "
-			"[%#010llx-%#010llx] is onlined\n",
-			PFN_PHYS(section_nr_to_pfn(mem->start_section_nr)),
-			PFN_PHYS(section_nr_to_pfn(mem->end_section_nr + 1))-1);
+			"[%pa-%pa] is onlined\n",
+			&beginpa, &endpa);
+	}
 
 	return ret;
 }
