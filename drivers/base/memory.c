@@ -207,8 +207,7 @@ int memory_isolate_notify(unsigned long val, void *v)
  * The probe routines leave the pages reserved, just as the bootmem code does.
  * Make sure they're still that way.
  */
-static bool pages_correctly_reserved(unsigned long start_pfn,
-					unsigned long nr_pages)
+static bool pages_correctly_reserved(unsigned long start_pfn)
 {
 	int i, j;
 	struct page *page;
@@ -256,7 +255,7 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
 
 	switch (action) {
 		case MEM_ONLINE:
-			if (!pages_correctly_reserved(start_pfn, nr_pages))
+			if (!pages_correctly_reserved(start_pfn))
 				return -EBUSY;
 
 			ret = online_pages(start_pfn, nr_pages, online_type);
