@@ -230,15 +230,13 @@ static int __init rp5c01_rtc_probe(struct platform_device *dev)
 	if (!res)
 		return -ENODEV;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->regs = ioremap(res->start, resource_size(res));
-	if (!priv->regs) {
-		error = -ENOMEM;
-		goto out_free_priv;
-	}
+	priv->regs = devm_ioremap(&dev->dev, res->start, resource_size(res));
+	if (!priv->regs)
+		return -ENOMEM;
 
 	sysfs_bin_attr_init(&priv->nvram_attr);
 	priv->nvram_attr.attr.name = "nvram";
@@ -251,27 +249,22 @@ static int __init rp5c01_rtc_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, priv);
 
-	rtc = rtc_device_register("rtc-rp5c01", &dev->dev, &rp5c01_rtc_ops,
+	rtc = devm_rtc_device_register(&dev->dev, "rtc-rp5c01", &rp5c01_rtc_ops,
 				  THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		error = PTR_ERR(rtc);
-		goto out_unmap;
+		goto out;
 	}
 	priv->rtc = rtc;
 
 	error = sysfs_create_bin_file(&dev->dev.kobj, &priv->nvram_attr);
 	if (error)
-		goto out_unregister;
+		goto out;
 
 	return 0;
 
-out_unregister:
-	rtc_device_unregister(rtc);
-out_unmap:
+out:
 	platform_set_drvdata(dev, NULL);
-	iounmap(priv->regs);
-out_free_priv:
-	kfree(priv);
 	return error;
 }
 
@@ -280,9 +273,6 @@ static int __exit rp5c01_rtc_remove(struct platform_device *dev)
 	struct rp5c01_priv *priv = platform_get_drvdata(dev);
 
 	sysfs_remove_bin_file(&dev->dev.kobj, &priv->nvram_attr);
-	rtc_device_unregister(priv->rtc);
-	iounmap(priv->regs);
-	kfree(priv);
 	return 0;
 }
 
