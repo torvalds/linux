@@ -3,6 +3,7 @@
 
 #ifdef CONFIG_HUGETLB_PAGE
 #include <asm/page.h>
+#include <asm-generic/hugetlb.h>
 
 extern struct kmem_cache *hugepte_cache;
 
