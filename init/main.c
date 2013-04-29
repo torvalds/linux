@@ -539,11 +539,8 @@ asmlinkage void __init start_kernel(void)
 	 * fragile until we cpu_idle() for the first time.
 	 */
 	preempt_disable();
-	if (!irqs_disabled()) {
-		printk(KERN_WARNING "start_kernel(): bug: interrupts were "
-				"enabled *very* early, fixing it\n");
+	if (WARN(!irqs_disabled(), "Interrupts were enabled *very* early, fixing it\n"))
 		local_irq_disable();
-	}
 	idr_init_cache();
 	perf_event_init();
 	rcu_init();
@@ -558,9 +555,7 @@ asmlinkage void __init start_kernel(void)
 	time_init();
 	profile_init();
 	call_function_init();
-	if (!irqs_disabled())
-		printk(KERN_CRIT "start_kernel(): bug: interrupts were "
-				 "enabled early\n");
+	WARN(!irqs_disabled(), "Interrupts were enabled early\n");
 	early_boot_irqs_disabled = false;
 	local_irq_enable();
 
@@ -702,9 +697,7 @@ int __init_or_module do_one_initcall(initcall_t fn)
 		strlcat(msgbuf, "disabled interrupts ", sizeof(msgbuf));
 		local_irq_enable();
 	}
-	if (msgbuf[0]) {
-		printk("initcall %pF returned with %s\n", fn, msgbuf);
-	}
+	WARN(msgbuf[0], "initcall %pF returned with %s\n", fn, msgbuf);
 
 	return ret;
 }
