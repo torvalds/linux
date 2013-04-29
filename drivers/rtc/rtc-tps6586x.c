@@ -289,14 +289,11 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "request IRQ(%d) failed with ret %d\n",
 				rtc->irq, ret);
-		goto fail_req_irq;
+		goto fail_rtc_register;
 	}
 	disable_irq(rtc->irq);
 	device_set_wakeup_capable(&pdev->dev, 1);
 	return 0;
-
-fail_req_irq:
-	rtc_device_unregister(rtc->rtc);
 
 fail_rtc_register:
 	tps6586x_update(tps_dev, RTC_CTRL, 0,
