@@ -62,7 +62,7 @@ static int __init ps3_rtc_probe(struct platform_device *dev)
 {
 	struct rtc_device *rtc;
 
-	rtc = rtc_device_register("rtc-ps3", &dev->dev, &ps3_rtc_ops,
+	rtc = devm_rtc_device_register(&dev->dev, "rtc-ps3", &ps3_rtc_ops,
 				  THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
@@ -73,7 +73,6 @@ static int __init ps3_rtc_probe(struct platform_device *dev)
 
 static int __exit ps3_rtc_remove(struct platform_device *dev)
 {
-	rtc_device_unregister(platform_get_drvdata(dev));
 	return 0;
 }
 
