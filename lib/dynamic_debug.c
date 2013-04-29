@@ -281,7 +281,6 @@ static inline int parse_lineno(const char *str, unsigned int *val)
  * allow the user to express a query which matches a format
  * containing embedded spaces.
  */
-#define isodigit(c)		((c) >= '0' && (c) <= '7')
 static char *unescape(char *str)
 {
 	char *in = str;
