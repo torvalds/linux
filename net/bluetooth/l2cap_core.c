@@ -504,8 +504,10 @@ void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 		if (conn->hcon->type == LE_LINK) {
 			/* LE connection */
 			chan->omtu = L2CAP_DEFAULT_MTU;
-			chan->scid = L2CAP_CID_ATT;
-			chan->dcid = L2CAP_CID_ATT;
+			if (chan->dcid == L2CAP_CID_ATT)
+				chan->scid = L2CAP_CID_ATT;
+			else
+				chan->scid = l2cap_alloc_cid(conn);
 		} else {
 			/* Alloc CID for connection-oriented socket */
 			chan->scid = l2cap_alloc_cid(conn);
@@ -1356,6 +1358,8 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 	chan = pchan->ops->new_connection(pchan);
 	if (!chan)
 		goto clean;
+
+	chan->dcid = L2CAP_CID_ATT;
 
 	sk = chan->sk;
 
