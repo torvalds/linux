@@ -3477,6 +3477,13 @@ sub process {
 			     "unnecessary cast may hide bugs, see http://c-faq.com/malloc/mallocnocast.html\n" . $herecurr);
 		}
 
+# check for krealloc arg reuse
+		if ($^V && $^V ge 5.10.0 &&
+		    $line =~ /\b($Lval)\s*\=\s*(?:$balanced_parens)?\s*krealloc\s*\(\s*\1\s*,/) {
+			WARN("KREALLOC_ARG_REUSE",
+			     "Reusing the krealloc arg is almost always a bug\n" . $herecurr);
+		}
+
 # check for alloc argument mismatch
 		if ($line =~ /\b(kcalloc|kmalloc_array)\s*\(\s*sizeof\b/) {
 			WARN("ALLOC_ARRAY_ARGS",
