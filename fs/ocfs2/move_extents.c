@@ -471,7 +471,7 @@ static int ocfs2_validate_and_adjust_move_goal(struct inode *inode,
 	int ret, goal_bit = 0;
 
 	struct buffer_head *gd_bh = NULL;
-	struct ocfs2_group_desc *bg = NULL;
+	struct ocfs2_group_desc *bg;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	int c_to_b = 1 << (osb->s_clustersize_bits -
 					inode->i_sb->s_blocksize_bits);
@@ -481,13 +481,6 @@ static int ocfs2_validate_and_adjust_move_goal(struct inode *inode,
 	 */
 	range->me_goal = ocfs2_block_to_cluster_start(inode->i_sb,
 						      range->me_goal);
-	/*
-	 * moving goal is not allowd to start with a group desc blok(#0 blk)
-	 * let's compromise to the latter cluster.
-	 */
-	if (range->me_goal == le64_to_cpu(bg->bg_blkno))
-		range->me_goal += c_to_b;
-
 	/*
 	 * validate goal sits within global_bitmap, and return the victim
 	 * group desc
@@ -500,6 +493,13 @@ static int ocfs2_validate_and_adjust_move_goal(struct inode *inode,
 		goto out;
 
 	bg = (struct ocfs2_group_desc *)gd_bh->b_data;
+
+	/*
+	 * moving goal is not allowd to start with a group desc blok(#0 blk)
+	 * let's compromise to the latter cluster.
+	 */
+	if (range->me_goal == le64_to_cpu(bg->bg_blkno))
+		range->me_goal += c_to_b;
 
 	/*
 	 * movement is not gonna cross two groups.
