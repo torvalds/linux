@@ -8,6 +8,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/blkdev.h>
+
 /* constant macro */
 #define NULL_SEGNO			((unsigned int)(~0))
 #define NULL_SECNO			((unsigned int)(~0))
@@ -86,6 +88,8 @@
 
 #define SECTOR_FROM_BLOCK(sbi, blk_addr)				\
 	(blk_addr << ((sbi)->log_blocksize - F2FS_LOG_SECTOR_SIZE))
+#define SECTOR_TO_BLOCK(sbi, sectors)					\
+	(sectors >> ((sbi)->log_blocksize - F2FS_LOG_SECTOR_SIZE))
 
 /* during checkpoint, bio_private is used to synchronize the last bio */
 struct bio_private {
@@ -623,4 +627,11 @@ static inline bool sec_usage_check(struct f2fs_sb_info *sbi, unsigned int secno)
 	if (IS_CURSEC(sbi, secno) || (sbi->cur_victim_sec == secno))
 		return true;
 	return false;
+}
+
+static inline unsigned int max_hw_blocks(struct f2fs_sb_info *sbi)
+{
+	struct block_device *bdev = sbi->sb->s_bdev;
+	struct request_queue *q = bdev_get_queue(bdev);
+	return SECTOR_TO_BLOCK(sbi, queue_max_sectors(q));
 }

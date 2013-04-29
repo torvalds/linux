@@ -1171,7 +1171,6 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(mapping->host->i_sb);
-	struct block_device *bdev = sbi->sb->s_bdev;
 	long nr_to_write = wbc->nr_to_write;
 
 	/* First check balancing cached NAT entries */
@@ -1185,10 +1184,9 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 		return 0;
 
 	/* if mounting is failed, skip writing node pages */
-	wbc->nr_to_write = bio_get_nr_vecs(bdev);
+	wbc->nr_to_write = max_hw_blocks(sbi);
 	sync_node_pages(sbi, 0, wbc);
-	wbc->nr_to_write = nr_to_write -
-		(bio_get_nr_vecs(bdev) - wbc->nr_to_write);
+	wbc->nr_to_write = nr_to_write - (max_hw_blocks(sbi) - wbc->nr_to_write);
 	return 0;
 }
 

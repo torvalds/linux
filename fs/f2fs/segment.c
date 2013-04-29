@@ -734,7 +734,7 @@ static void submit_write_page(struct f2fs_sb_info *sbi, struct page *page,
 		do_submit_bio(sbi, type, false);
 alloc_new:
 	if (sbi->bio[type] == NULL) {
-		sbi->bio[type] = f2fs_bio_alloc(bdev, bio_get_nr_vecs(bdev));
+		sbi->bio[type] = f2fs_bio_alloc(bdev, max_hw_blocks(sbi));
 		sbi->bio[type]->bi_sector = SECTOR_FROM_BLOCK(sbi, blk_addr);
 		/*
 		 * The end_io will be assigned at the sumbission phase.
