@@ -200,23 +200,16 @@ static int max8907_rtc_probe(struct platform_device *pdev)
 
 	rtc->irq = regmap_irq_get_virq(max8907->irqc_rtc,
 				       MAX8907_IRQ_RTC_ALARM0);
-	if (rtc->irq < 0) {
-		ret = rtc->irq;
-		goto err_unregister;
-	}
+	if (rtc->irq < 0)
+		return rtc->irq;
 
 	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL,
 				max8907_irq_handler,
 				IRQF_ONESHOT, "max8907-alarm0", rtc);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(&pdev->dev, "Failed to request IRQ%d: %d\n",
 			rtc->irq, ret);
-		goto err_unregister;
-	}
 
-	return 0;
-
-err_unregister:
 	return ret;
 }
 
