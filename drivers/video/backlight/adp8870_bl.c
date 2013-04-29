@@ -895,13 +895,13 @@ static int adp8870_probe(struct i2c_client *client,
 
 	data->bl = bl;
 
-	if (pdata->en_ambl_sens)
+	if (pdata->en_ambl_sens) {
 		ret = sysfs_create_group(&bl->dev.kobj,
 			&adp8870_bl_attr_group);
-
-	if (ret) {
-		dev_err(&client->dev, "failed to register sysfs\n");
-		goto out1;
+		if (ret) {
+			dev_err(&client->dev, "failed to register sysfs\n");
+			goto out1;
+		}
 	}
 
 	ret = adp8870_bl_setup(bl);
