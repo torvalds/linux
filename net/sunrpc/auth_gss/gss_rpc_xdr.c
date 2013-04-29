@@ -216,13 +216,13 @@ static int gssx_dec_linux_creds(struct xdr_stream *xdr,
 	err = get_s32(&q, end, &tmp);
 	if (err)
 		return err;
-	creds->cr_uid = tmp;
+	creds->cr_uid = make_kuid(&init_user_ns, tmp);
 
 	/* gid */
 	err = get_s32(&q, end, &tmp);
 	if (err)
 		return err;
-	creds->cr_gid = tmp;
+	creds->cr_gid = make_kgid(&init_user_ns, tmp);
 
 	/* number of additional gid's */
 	err = get_s32(&q, end, &tmp);
@@ -235,15 +235,21 @@ static int gssx_dec_linux_creds(struct xdr_stream *xdr,
 
 	/* gid's */
 	for (i = 0; i < N; i++) {
+		kgid_t kgid;
 		err = get_s32(&q, end, &tmp);
-		if (err) {
-			groups_free(creds->cr_group_info);
-			return err;
-		}
-		GROUP_AT(creds->cr_group_info, i) = tmp;
+		if (err)
+			goto out_free_groups;
+		err = -EINVAL;
+		kgid = make_kgid(&init_user_ns, tmp);
+		if (!gid_valid(kgid))
+			goto out_free_groups;
+		GROUP_AT(creds->cr_group_info, i) = kgid;
 	}
 
 	return 0;
+out_free_groups:
+	groups_free(creds->cr_group_info);
+	return err;
 }
 
 static int gssx_dec_option_array(struct xdr_stream *xdr,
