@@ -900,18 +900,6 @@ static void rbd_dev_clear_mapping(struct rbd_device *rbd_dev)
 	rbd_dev->mapping.read_only = true;
 }
 
-static void rbd_header_free(struct rbd_image_header *header)
-{
-	kfree(header->object_prefix);
-	header->object_prefix = NULL;
-	kfree(header->snap_sizes);
-	header->snap_sizes = NULL;
-	kfree(header->snap_names);
-	header->snap_names = NULL;
-	rbd_snap_context_put(header->snapc);
-	header->snapc = NULL;
-}
-
 static const char *rbd_segment_name(struct rbd_device *rbd_dev, u64 offset)
 {
 	char *name;
@@ -4588,6 +4576,27 @@ out:
 	return ret;
 }
 
+/* Undo whatever state changes are made by v1 or v2 image probe */
+
+static void rbd_dev_unprobe(struct rbd_device *rbd_dev)
+{
+	struct rbd_image_header	*header;
+
+	rbd_dev_remove_parent(rbd_dev);
+	rbd_spec_put(rbd_dev->parent_spec);
+	rbd_dev->parent_spec = NULL;
+	rbd_dev->parent_overlap = 0;
+
+	/* Free dynamic fields from the header, then zero it out */
+
+	header = &rbd_dev->header;
+	rbd_snap_context_put(header->snapc);
+	kfree(header->snap_sizes);
+	kfree(header->snap_names);
+	kfree(header->object_prefix);
+	memset(header, 0, sizeof (*header));
+}
+
 static int rbd_dev_v1_probe(struct rbd_device *rbd_dev)
 {
 	int ret;
@@ -4809,10 +4818,19 @@ static int rbd_dev_header_name(struct rbd_device *rbd_dev)
 
 static void rbd_dev_image_release(struct rbd_device *rbd_dev)
 {
-	rbd_header_free(&rbd_dev->header);
-	rbd_assert(rbd_dev->rbd_client != NULL);
-	rbd_spec_put(rbd_dev->parent_spec);
+	int ret;
+
+	rbd_remove_all_snaps(rbd_dev);
+	rbd_dev_unprobe(rbd_dev);
+	ret = rbd_dev_header_watch_sync(rbd_dev, 0);
+	if (ret)
+		rbd_warn(rbd_dev, "failed to cancel watch event (%d)\n", ret);
 	kfree(rbd_dev->header_name);
+	rbd_dev->header_name = NULL;
+	rbd_dev->image_format = 0;
+	kfree(rbd_dev->spec->image_id);
+	rbd_dev->spec->image_id = NULL;
+
 	rbd_dev_destroy(rbd_dev);
 }
 
@@ -4854,7 +4872,7 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev)
 
 	ret = rbd_dev_snaps_update(rbd_dev);
 	if (ret)
-		goto err_out_watch;
+		goto err_out_probe;
 
 	ret = rbd_dev_spec_update(rbd_dev);
 	if (ret)
@@ -4865,15 +4883,13 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev)
 		goto err_out_snaps;
 
 	ret = rbd_dev_device_setup(rbd_dev);
-	if (ret)
-		goto err_out_parent;
+	if (!ret)
+		return 0;
 
-	return ret;
-err_out_parent:
-	rbd_dev_remove_parent(rbd_dev);
-	rbd_header_free(&rbd_dev->header);
 err_out_snaps:
 	rbd_remove_all_snaps(rbd_dev);
+err_out_probe:
+	rbd_dev_unprobe(rbd_dev);
 err_out_watch:
 	tmp = rbd_dev_header_watch_sync(rbd_dev, 0);
 	if (tmp)
@@ -5005,7 +5021,6 @@ static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
 		struct rbd_device *first = rbd_dev;
 		struct rbd_device *second = first->parent;
 		struct rbd_device *third;
-		int ret;
 
 		/*
 		 * Follow to the parent with no grandparent and
@@ -5016,11 +5031,6 @@ static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
 			second = third;
 		}
 		rbd_assert(second);
-		ret = rbd_dev_header_watch_sync(rbd_dev, 0);
-		if (ret)
-			rbd_warn(rbd_dev,
-				"failed to cancel watch event (%d)\n", ret);
-		rbd_remove_all_snaps(second);
 		rbd_bus_del_dev(second);
 		first->parent = NULL;
 		first->parent_overlap = 0;
@@ -5065,19 +5075,7 @@ static ssize_t rbd_remove(struct bus_type *bus,
 	spin_unlock_irq(&rbd_dev->lock);
 	if (ret < 0)
 		goto done;
-
-	ret = rbd_dev_header_watch_sync(rbd_dev, 0);
-	if (ret) {
-		rbd_warn(rbd_dev, "failed to cancel watch event (%d)\n", ret);
-		clear_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags);
-		smp_mb();
-		return ret;
-	}
 	ret = count;
-
-	rbd_dev_remove_parent(rbd_dev);
-
-	rbd_remove_all_snaps(rbd_dev);
 	rbd_bus_del_dev(rbd_dev);
 	module_put(THIS_MODULE);
 done:
