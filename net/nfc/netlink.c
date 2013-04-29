@@ -56,6 +56,8 @@ static const struct nla_policy nfc_genl_policy[NFC_ATTR_MAX + 1] = {
 	[NFC_ATTR_LLC_PARAM_RW] = { .type = NLA_U8 },
 	[NFC_ATTR_LLC_PARAM_MIUX] = { .type = NLA_U16 },
 	[NFC_ATTR_LLC_SDP] = { .type = NLA_NESTED },
+	[NFC_ATTR_FIRMWARE_NAME] = { .type = NLA_STRING,
+				     .len = NFC_FIRMWARE_NAME_MAXSIZE },
 };
 
 static const struct nla_policy nfc_sdp_genl_policy[NFC_SDP_ATTR_MAX + 1] = {
@@ -1025,6 +1027,62 @@ exit:
 	return rc;
 }
 
+static int nfc_genl_fw_upload(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nfc_dev *dev;
+	int rc;
+	u32 idx;
+	char firmware_name[NFC_FIRMWARE_NAME_MAXSIZE + 1];
+
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX])
+		return -EINVAL;
+
+	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
+
+	dev = nfc_get_device(idx);
+	if (!dev)
+		return -ENODEV;
+
+	nla_strlcpy(firmware_name, info->attrs[NFC_ATTR_FIRMWARE_NAME],
+		    sizeof(firmware_name));
+
+	rc = nfc_fw_upload(dev, firmware_name);
+
+	nfc_put_device(dev);
+	return rc;
+}
+
+int nfc_genl_fw_upload_done(struct nfc_dev *dev, const char *firmware_name)
+{
+	struct sk_buff *msg;
+	void *hdr;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	hdr = genlmsg_put(msg, 0, 0, &nfc_genl_family, 0,
+			  NFC_CMD_FW_UPLOAD);
+	if (!hdr)
+		goto free_msg;
+
+	if (nla_put_string(msg, NFC_ATTR_FIRMWARE_NAME, firmware_name) ||
+	    nla_put_u32(msg, NFC_ATTR_DEVICE_INDEX, dev->idx))
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+
+	genlmsg_multicast(msg, 0, nfc_genl_event_mcgrp.id, GFP_KERNEL);
+
+	return 0;
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+free_msg:
+	nlmsg_free(msg);
+	return -EMSGSIZE;
+}
+
 static struct genl_ops nfc_genl_ops[] = {
 	{
 		.cmd = NFC_CMD_GET_DEVICE,
@@ -1082,6 +1140,11 @@ static struct genl_ops nfc_genl_ops[] = {
 	{
 		.cmd = NFC_CMD_LLC_SDREQ,
 		.doit = nfc_genl_llc_sdreq,
+		.policy = nfc_genl_policy,
+	},
+	{
+		.cmd = NFC_CMD_FW_UPLOAD,
+		.doit = nfc_genl_fw_upload,
 		.policy = nfc_genl_policy,
 	},
 };

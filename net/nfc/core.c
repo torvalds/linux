@@ -44,6 +44,47 @@ DEFINE_MUTEX(nfc_devlist_mutex);
 /* NFC device ID bitmap */
 static DEFINE_IDA(nfc_index_ida);
 
+int nfc_fw_upload(struct nfc_dev *dev, const char *firmware_name)
+{
+	int rc = 0;
+
+	pr_debug("%s do firmware %s\n", dev_name(&dev->dev), firmware_name);
+
+	device_lock(&dev->dev);
+
+	if (!device_is_registered(&dev->dev)) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (dev->dev_up) {
+		rc = -EBUSY;
+		goto error;
+	}
+
+	if (!dev->ops->fw_upload) {
+		rc = -EOPNOTSUPP;
+		goto error;
+	}
+
+	dev->fw_upload_in_progress = true;
+	rc = dev->ops->fw_upload(dev, firmware_name);
+	if (rc)
+		dev->fw_upload_in_progress = false;
+
+error:
+	device_unlock(&dev->dev);
+	return rc;
+}
+
+int nfc_fw_upload_done(struct nfc_dev *dev, const char *firmware_name)
+{
+	dev->fw_upload_in_progress = false;
+
+	return nfc_genl_fw_upload_done(dev, firmware_name);
+}
+EXPORT_SYMBOL(nfc_fw_upload_done);
+
 /**
  * nfc_dev_up - turn on the NFC device
  *
@@ -66,6 +107,11 @@ int nfc_dev_up(struct nfc_dev *dev)
 
 	if (!device_is_registered(&dev->dev)) {
 		rc = -ENODEV;
+		goto error;
+	}
+
+	if (dev->fw_upload_in_progress) {
+		rc = -EBUSY;
 		goto error;
 	}
 
