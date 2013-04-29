@@ -93,24 +93,24 @@ static int max6902_set_time(struct device *dev, struct rtc_time *dt)
 	dt->tm_year = dt->tm_year + 1900;
 
 	/* Remove write protection */
-	max6902_set_reg(dev, 0xF, 0);
+	max6902_set_reg(dev, MAX6902_REG_CONTROL, 0);
 
-	max6902_set_reg(dev, 0x01, bin2bcd(dt->tm_sec));
-	max6902_set_reg(dev, 0x03, bin2bcd(dt->tm_min));
-	max6902_set_reg(dev, 0x05, bin2bcd(dt->tm_hour));
+	max6902_set_reg(dev, MAX6902_REG_SECONDS, bin2bcd(dt->tm_sec));
+	max6902_set_reg(dev, MAX6902_REG_MINUTES, bin2bcd(dt->tm_min));
+	max6902_set_reg(dev, MAX6902_REG_HOURS, bin2bcd(dt->tm_hour));
 
-	max6902_set_reg(dev, 0x07, bin2bcd(dt->tm_mday));
-	max6902_set_reg(dev, 0x09, bin2bcd(dt->tm_mon + 1));
-	max6902_set_reg(dev, 0x0B, bin2bcd(dt->tm_wday));
-	max6902_set_reg(dev, 0x0D, bin2bcd(dt->tm_year % 100));
-	max6902_set_reg(dev, 0x13, bin2bcd(dt->tm_year / 100));
+	max6902_set_reg(dev, MAX6902_REG_DATE, bin2bcd(dt->tm_mday));
+	max6902_set_reg(dev, MAX6902_REG_MONTH, bin2bcd(dt->tm_mon + 1));
+	max6902_set_reg(dev, MAX6902_REG_DAY, bin2bcd(dt->tm_wday));
+	max6902_set_reg(dev, MAX6902_REG_YEAR, bin2bcd(dt->tm_year % 100));
+	max6902_set_reg(dev, MAX6902_REG_CENTURY, bin2bcd(dt->tm_year / 100));
 
 	/* Compulab used a delay here. However, the datasheet
 	 * does not mention a delay being required anywhere... */
 	/* delay(2000); */
 
 	/* Write protect */
-	max6902_set_reg(dev, 0xF, 0x80);
+	max6902_set_reg(dev, MAX6902_REG_CONTROL, 0x80);
 
 	return 0;
 }
