@@ -256,7 +256,7 @@ static int rc5t583_rtc_probe(struct platform_device *pdev)
 	}
 	device_init_wakeup(&pdev->dev, 1);
 
-	ricoh_rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	ricoh_rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 		&rc5t583_rtc_ops, THIS_MODULE);
 	if (IS_ERR(ricoh_rtc->rtc)) {
 		ret = PTR_ERR(ricoh_rtc->rtc);
@@ -276,8 +276,6 @@ static int rc5t583_rtc_remove(struct platform_device *pdev)
 	struct rc5t583_rtc *rc5t583_rtc = dev_get_drvdata(&pdev->dev);
 
 	rc5t583_rtc_alarm_irq_enable(&rc5t583_rtc->rtc->dev, 0);
-
-	rtc_device_unregister(rc5t583_rtc->rtc);
 	return 0;
 }
 
