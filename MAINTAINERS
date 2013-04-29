@@ -8382,9 +8382,10 @@ S:	Maintained
 F:	drivers/usb/serial/option.c
 
 USB PEGASUS DRIVER
-M:	Petko Manolov <petkan@users.sourceforge.net>
+M:	Petko Manolov <petkan@nucleusys.com>
 L:	linux-usb@vger.kernel.org
 L:	netdev@vger.kernel.org
+T:	git git://git.code.sf.net/p/pegasus2/git
 W:	http://pegasus2.sourceforge.net/
 S:	Maintained
 F:	drivers/net/usb/pegasus.*
@@ -8404,9 +8405,10 @@ S:	Supported
 F:	drivers/usb/class/usblp.c
 
 USB RTL8150 DRIVER
-M:	Petko Manolov <petkan@users.sourceforge.net>
+M:	Petko Manolov <petkan@nucleusys.com>
 L:	linux-usb@vger.kernel.org
 L:	netdev@vger.kernel.org
+T:	git git://git.code.sf.net/p/pegasus2/git
 W:	http://pegasus2.sourceforge.net/
 S:	Maintained
 F:	drivers/net/usb/rtl8150.c
