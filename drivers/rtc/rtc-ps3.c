@@ -85,18 +85,7 @@ static struct platform_driver ps3_rtc_driver = {
 	.remove = __exit_p(ps3_rtc_remove),
 };
 
-static int __init ps3_rtc_init(void)
-{
-	return platform_driver_probe(&ps3_rtc_driver, ps3_rtc_probe);
-}
-
-static void __exit ps3_rtc_fini(void)
-{
-	platform_driver_unregister(&ps3_rtc_driver);
-}
-
-module_init(ps3_rtc_init);
-module_exit(ps3_rtc_fini);
+module_platform_driver_probe(ps3_rtc_driver, ps3_rtc_probe);
 
 MODULE_AUTHOR("Sony Corporation");
 MODULE_LICENSE("GPL");
