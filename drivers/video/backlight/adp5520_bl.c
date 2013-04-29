@@ -143,12 +143,15 @@ static int adp5520_bl_setup(struct backlight_device *bl)
 static ssize_t adp5520_show(struct device *dev, char *buf, int reg)
 {
 	struct adp5520_bl *data = dev_get_drvdata(dev);
-	int error;
+	int ret;
 	uint8_t reg_val;
 
 	mutex_lock(&data->lock);
-	error = adp5520_read(data->master, reg, &reg_val);
+	ret = adp5520_read(data->master, reg, &reg_val);
 	mutex_unlock(&data->lock);
+
+	if (ret < 0)
+		return ret;
 
 	return sprintf(buf, "%u\n", reg_val);
 }
