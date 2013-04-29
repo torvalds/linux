@@ -1613,7 +1613,7 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 /**
  * walk_memory_range - walks through all mem sections in [start_pfn, end_pfn)
  * @start_pfn: start pfn of the memory range
- * @end_pfn: end pft of the memory range
+ * @end_pfn: end pfn of the memory range
  * @arg: argument passed to func
  * @func: callback for each memory section walked
  *
