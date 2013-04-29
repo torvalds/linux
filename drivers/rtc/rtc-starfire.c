@@ -66,15 +66,4 @@ static struct platform_driver starfire_rtc_driver = {
 	.remove		= __exit_p(starfire_rtc_remove),
 };
 
-static int __init starfire_rtc_init(void)
-{
-	return platform_driver_probe(&starfire_rtc_driver, starfire_rtc_probe);
-}
-
-static void __exit starfire_rtc_exit(void)
-{
-	platform_driver_unregister(&starfire_rtc_driver);
-}
-
-module_init(starfire_rtc_init);
-module_exit(starfire_rtc_exit);
+module_platform_driver_probe(starfire_rtc_driver, starfire_rtc_probe);
