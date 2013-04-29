@@ -1371,8 +1371,6 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 
 	l2cap_chan_add(conn, chan);
 
-	l2cap_chan_ready(chan);
-
 clean:
 	release_sock(parent);
 }
