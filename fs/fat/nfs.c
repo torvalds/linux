@@ -216,6 +216,53 @@ static struct dentry *fat_fh_to_parent_nostale(struct super_block *sb,
 }
 
 /*
+ * Rebuild the parent for a directory that is not connected
+ *  to the filesystem root
+ */
+static
+struct inode *fat_rebuild_parent(struct super_block *sb, int parent_logstart)
+{
+	int search_clus, clus_to_match;
+	struct msdos_dir_entry *de;
+	struct inode *parent = NULL;
+	struct inode *dummy_grand_parent = NULL;
+	struct fat_slot_info sinfo;
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	sector_t blknr = fat_clus_to_blknr(sbi, parent_logstart);
+	struct buffer_head *parent_bh = sb_bread(sb, blknr);
+	if (!parent_bh) {
+		fat_msg(sb, KERN_ERR,
+			"unable to read cluster of parent directory");
+		return NULL;
+	}
+
+	de = (struct msdos_dir_entry *) parent_bh->b_data;
+	clus_to_match = fat_get_start(sbi, &de[0]);
+	search_clus = fat_get_start(sbi, &de[1]);
+
+	dummy_grand_parent = fat_dget(sb, search_clus);
+	if (!dummy_grand_parent) {
+		dummy_grand_parent = new_inode(sb);
+		if (!dummy_grand_parent) {
+			brelse(parent_bh);
+			return parent;
+		}
+
+		dummy_grand_parent->i_ino = iunique(sb, MSDOS_ROOT_INO);
+		fat_fill_inode(dummy_grand_parent, &de[1]);
+		MSDOS_I(dummy_grand_parent)->i_pos = -1;
+	}
+
+	if (!fat_scan_logstart(dummy_grand_parent, clus_to_match, &sinfo))
+		parent = fat_build_inode(sb, sinfo.de, sinfo.i_pos);
+
+	brelse(parent_bh);
+	iput(dummy_grand_parent);
+
+	return parent;
+}
+
+/*
  * Find the parent for a directory that is not currently connected to
  * the filesystem root.
  *
@@ -227,10 +274,13 @@ static struct dentry *fat_get_parent(struct dentry *child_dir)
 	struct buffer_head *bh = NULL;
 	struct msdos_dir_entry *de;
 	struct inode *parent_inode = NULL;
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 
 	if (!fat_get_dotdot_entry(child_dir->d_inode, &bh, &de)) {
-		int parent_logstart = fat_get_start(MSDOS_SB(sb), de);
+		int parent_logstart = fat_get_start(sbi, de);
 		parent_inode = fat_dget(sb, parent_logstart);
+		if (!parent_inode && sbi->options.nfs == FAT_NFS_NOSTALE_RO)
+			parent_inode = fat_rebuild_parent(sb, parent_logstart);
 	}
 	brelse(bh);
 
