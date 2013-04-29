@@ -347,21 +347,11 @@ void intel_enable_asle(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	unsigned long irqflags;
 
-	/* FIXME: opregion/asle for VLV */
-	if (IS_VALLEYVIEW(dev))
-		return;
-
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 
-	if (HAS_PCH_SPLIT(dev))
-		ironlake_enable_display_irq(dev_priv, DE_GSE);
-	else {
-		i915_enable_pipestat(dev_priv, 1,
-				     PIPE_LEGACY_BLC_EVENT_ENABLE);
-		if (INTEL_INFO(dev)->gen >= 4)
-			i915_enable_pipestat(dev_priv, 0,
-					     PIPE_LEGACY_BLC_EVENT_ENABLE);
-	}
+	i915_enable_pipestat(dev_priv, 1, PIPE_LEGACY_BLC_EVENT_ENABLE);
+	if (INTEL_INFO(dev)->gen >= 4)
+		i915_enable_pipestat(dev_priv, 0, PIPE_LEGACY_BLC_EVENT_ENABLE);
 
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
