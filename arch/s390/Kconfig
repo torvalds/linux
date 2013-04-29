@@ -375,19 +375,6 @@ config PACK_STACK
 
 	  Say Y if you are unsure.
 
-config SMALL_STACK
-	def_bool n
-	prompt "Use 8kb for kernel stack instead of 16kb"
-	depends on PACK_STACK && 64BIT && !LOCKDEP
-	help
-	  If you say Y here and the compiler supports the -mkernel-backchain
-	  option the kernel will use a smaller kernel stack size. The reduced
-	  size is 8kb instead of 16kb. This allows to run more threads on a
-	  system and reduces the pressure on the memory management for higher
-	  order page allocations.
-
-	  Say N if you are unsure.
-
 config CHECK_STACK
 	def_bool y
 	prompt "Detect kernel stack overflow"
