@@ -3970,9 +3970,68 @@ bool intel_connector_get_hw_state(struct intel_connector *connector)
 	return encoder->get_hw_state(encoder, &pipe);
 }
 
-static void ironlake_fdi_compute_config(struct drm_device *dev,
+static bool ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
+				     struct intel_crtc_config *pipe_config)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *pipe_B_crtc =
+		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_B]);
+
+	DRM_DEBUG_KMS("checking fdi config on pipe %c, lanes %i\n",
+		      pipe_name(pipe), pipe_config->fdi_lanes);
+	if (pipe_config->fdi_lanes > 4) {
+		DRM_DEBUG_KMS("invalid fdi lane config on pipe %c: %i lanes\n",
+			      pipe_name(pipe), pipe_config->fdi_lanes);
+		return false;
+	}
+
+	if (IS_HASWELL(dev)) {
+		if (pipe_config->fdi_lanes > 2) {
+			DRM_DEBUG_KMS("only 2 lanes on haswell, required: %i lanes\n",
+				      pipe_config->fdi_lanes);
+			return false;
+		} else {
+			return true;
+		}
+	}
+
+	if (INTEL_INFO(dev)->num_pipes == 2)
+		return true;
+
+	/* Ivybridge 3 pipe is really complicated */
+	switch (pipe) {
+	case PIPE_A:
+		return true;
+	case PIPE_B:
+		if (dev_priv->pipe_to_crtc_mapping[PIPE_C]->enabled &&
+		    pipe_config->fdi_lanes > 2) {
+			DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %c: %i lanes\n",
+				      pipe_name(pipe), pipe_config->fdi_lanes);
+			return false;
+		}
+		return true;
+	case PIPE_C:
+		if (!pipe_B_crtc->base.enabled ||
+		    pipe_B_crtc->config.fdi_lanes <= 2) {
+			if (pipe_config->fdi_lanes > 2) {
+				DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %c: %i lanes\n",
+					      pipe_name(pipe), pipe_config->fdi_lanes);
+				return false;
+			}
+		} else {
+			DRM_DEBUG_KMS("fdi link B uses too many lanes to enable link C\n");
+			return false;
+		}
+		return true;
+	default:
+		BUG();
+	}
+}
+
+static bool ironlake_fdi_compute_config(struct intel_crtc *intel_crtc,
 					struct intel_crtc_config *pipe_config)
 {
+	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 	int target_clock, lane, link_bw;
 
@@ -3999,6 +4058,9 @@ static void ironlake_fdi_compute_config(struct drm_device *dev,
 		link_bw *= pipe_config->pixel_multiplier;
 	intel_link_compute_m_n(pipe_config->pipe_bpp, lane, target_clock,
 			       link_bw, &pipe_config->fdi_m_n);
+
+	return ironlake_check_fdi_lanes(intel_crtc->base.dev,
+					intel_crtc->pipe, pipe_config);
 }
 
 static bool intel_crtc_compute_config(struct drm_crtc *crtc,
@@ -4036,7 +4098,7 @@ static bool intel_crtc_compute_config(struct drm_crtc *crtc,
 	}
 
 	if (pipe_config->has_pch_encoder)
-		ironlake_fdi_compute_config(dev, pipe_config);
+		return ironlake_fdi_compute_config(to_intel_crtc(crtc), pipe_config);
 
 	return true;
 }
@@ -5436,63 +5498,6 @@ static void cpt_enable_fdi_bc_bifurcation(struct drm_device *dev)
 	POSTING_READ(SOUTH_CHICKEN1);
 }
 
-static bool ironlake_check_fdi_lanes(struct intel_crtc *intel_crtc)
-{
-	struct drm_device *dev = intel_crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *pipe_B_crtc =
-		to_intel_crtc(dev_priv->pipe_to_crtc_mapping[PIPE_B]);
-
-	DRM_DEBUG_KMS("checking fdi config on pipe %c, lanes %i\n",
-		      pipe_name(intel_crtc->pipe), intel_crtc->config.fdi_lanes);
-	if (intel_crtc->config.fdi_lanes > 4) {
-		DRM_DEBUG_KMS("invalid fdi lane config on pipe %c: %i lanes\n",
-			      pipe_name(intel_crtc->pipe), intel_crtc->config.fdi_lanes);
-		/* Clamp lanes to avoid programming the hw with bogus values. */
-		intel_crtc->config.fdi_lanes = 4;
-
-		return false;
-	}
-
-	if (INTEL_INFO(dev)->num_pipes == 2)
-		return true;
-
-	switch (intel_crtc->pipe) {
-	case PIPE_A:
-		return true;
-	case PIPE_B:
-		if (dev_priv->pipe_to_crtc_mapping[PIPE_C]->enabled &&
-		    intel_crtc->config.fdi_lanes > 2) {
-			DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %c: %i lanes\n",
-				      pipe_name(intel_crtc->pipe), intel_crtc->config.fdi_lanes);
-			/* Clamp lanes to avoid programming the hw with bogus values. */
-			intel_crtc->config.fdi_lanes = 2;
-
-			return false;
-		}
-
-		return true;
-	case PIPE_C:
-		if (!pipe_B_crtc->base.enabled || pipe_B_crtc->config.fdi_lanes <= 2) {
-			if (intel_crtc->config.fdi_lanes > 2) {
-				DRM_DEBUG_KMS("invalid shared fdi lane config on pipe %c: %i lanes\n",
-					      pipe_name(intel_crtc->pipe), intel_crtc->config.fdi_lanes);
-				/* Clamp lanes to avoid programming the hw with bogus values. */
-				intel_crtc->config.fdi_lanes = 2;
-
-				return false;
-			}
-		} else {
-			DRM_DEBUG_KMS("fdi link B uses too many lanes to enable link C\n");
-			return false;
-		}
-
-		return true;
-	default:
-		BUG();
-	}
-}
-
 static void ivybridge_update_fdi_bc_bifurcation(struct intel_crtc *intel_crtc)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
@@ -5684,7 +5689,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	bool is_lvds = false;
 	struct intel_encoder *encoder;
 	int ret;
-	bool fdi_config_ok;
 
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		switch (encoder->type) {
@@ -5777,14 +5781,11 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	intel_set_pipe_timings(intel_crtc, mode, adjusted_mode);
 
-	/* Note, this also computes intel_crtc->fdi_lanes which is used below in
-	 * ironlake_check_fdi_lanes. */
 	if (intel_crtc->config.has_pch_encoder) {
 		intel_cpu_transcoder_set_m_n(intel_crtc,
 					     &intel_crtc->config.fdi_m_n);
 	}
 
-	fdi_config_ok = ironlake_check_fdi_lanes(intel_crtc);
 	if (IS_IVYBRIDGE(dev))
 		ivybridge_update_fdi_bc_bifurcation(intel_crtc);
 
@@ -5800,7 +5801,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	intel_update_linetime_watermarks(dev, pipe, adjusted_mode);
 
-	return fdi_config_ok ? ret : -EINVAL;
+	return ret;
 }
 
 static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
