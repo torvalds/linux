@@ -624,17 +624,7 @@ static struct platform_driver max77686_rtc_driver = {
 	.id_table	= rtc_id,
 };
 
-static int __init max77686_rtc_init(void)
-{
-	return platform_driver_register(&max77686_rtc_driver);
-}
-module_init(max77686_rtc_init);
-
-static void __exit max77686_rtc_exit(void)
-{
-	platform_driver_unregister(&max77686_rtc_driver);
-}
-module_exit(max77686_rtc_exit);
+module_platform_driver(max77686_rtc_driver);
 
 MODULE_DESCRIPTION("Maxim MAX77686 RTC driver");
 MODULE_AUTHOR("<woong.byun@samsung.com>");
