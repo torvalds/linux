@@ -2522,8 +2522,8 @@ sub process {
 
 # check for whitespace before a non-naked semicolon
 		if ($line =~ /^\+.*\S\s+;/) {
-			CHK("SPACING",
-			    "space prohibited before semicolon\n" . $herecurr);
+			WARN("SPACING",
+			     "space prohibited before semicolon\n" . $herecurr);
 		}
 
 # Check operator spacing.
