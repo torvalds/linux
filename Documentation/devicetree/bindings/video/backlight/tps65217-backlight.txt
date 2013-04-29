@@ -9,6 +9,7 @@ Required properties:
 - backlight: node for specifying WLED1 and WLED2 lines in TPS65217
 - isel: selection bit, valid values: 1 for ISEL1 (low-level) and 2 for ISEL2 (high-level)
 - fdim: PWM dimming frequency, valid values: 100, 200, 500, 1000
+- default-brightness: valid values: 0-100
 
 Each regulator is defined using the standard binding for regulators.
 
@@ -20,5 +21,7 @@ Example:
 		backlight {
 			isel = <1>;  /* 1 - ISET1, 2 ISET2 */
 			fdim = <100>; /* TPS65217_BL_FDIM_100HZ */
+			default-brightness = <50>;
 		};
 	};
+
