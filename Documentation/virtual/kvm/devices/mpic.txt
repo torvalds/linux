@@ -50,7 +50,4 @@ IRQ Routing:
   regard to any subdivisions in chip documentation such as "internal"
   or "external" interrupts.
 
-  Default routes are established for these pins, with the GSI being equal
-  to the pin number.
-
   Access to non-SRC interrupts is not implemented through IRQ routing mechanisms.
