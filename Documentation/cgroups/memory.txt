@@ -40,6 +40,7 @@ Features:
  - soft limit
  - moving(recharging) account at moving a task is selectable.
  - usage threshold notifier
+ - memory pressure notifier
  - oom-killer disable knob and oom-notifier
  - Root cgroup has no limit controls.
 
@@ -65,6 +66,7 @@ Brief summary of control files.
  memory.stat			 # show various statistics
  memory.use_hierarchy		 # set/show hierarchical account enabled
  memory.force_empty		 # trigger forced move charge to parent
+ memory.pressure_level		 # set memory pressure notifications
  memory.swappiness		 # set/show swappiness parameter of vmscan
 				 (See sysctl's vm.swappiness)
  memory.move_charge_at_immigrate # set/show controls of moving charges
@@ -701,7 +703,73 @@ At reading, current status of OOM is shown.
 	under_oom	 0 or 1 (if 1, the memory cgroup is under OOM, tasks may
 				 be stopped.)
 
-11. TODO
+11. Memory Pressure
+
+The pressure level notifications can be used to monitor the memory
+allocation cost; based on the pressure, applications can implement
+different strategies of managing their memory resources. The pressure
+levels are defined as following:
+
+The "low" level means that the system is reclaiming memory for new
+allocations. Monitoring this reclaiming activity might be useful for
+maintaining cache level. Upon notification, the program (typically
+"Activity Manager") might analyze vmstat and act in advance (i.e.
+prematurely shutdown unimportant services).
+
+The "medium" level means that the system is experiencing medium memory
+pressure, the system might be making swap, paging out active file caches,
+etc. Upon this event applications may decide to further analyze
+vmstat/zoneinfo/memcg or internal memory usage statistics and free any
+resources that can be easily reconstructed or re-read from a disk.
+
+The "critical" level means that the system is actively thrashing, it is
+about to out of memory (OOM) or even the in-kernel OOM killer is on its
+way to trigger. Applications should do whatever they can to help the
+system. It might be too late to consult with vmstat or any other
+statistics, so it's advisable to take an immediate action.
+
+The events are propagated upward until the event is handled, i.e. the
+events are not pass-through. Here is what this means: for example you have
+three cgroups: A->B->C. Now you set up an event listener on cgroups A, B
+and C, and suppose group C experiences some pressure. In this situation,
+only group C will receive the notification, i.e. groups A and B will not
+receive it. This is done to avoid excessive "broadcasting" of messages,
+which disturbs the system and which is especially bad if we are low on
+memory or thrashing. So, organize the cgroups wisely, or propagate the
+events manually (or, ask us to implement the pass-through events,
+explaining why would you need them.)
+
+The file memory.pressure_level is only used to setup an eventfd. To
+register a notification, an application must:
+
+- create an eventfd using eventfd(2);
+- open memory.pressure_level;
+- write string like "<event_fd> <fd of memory.pressure_level> <level>"
+  to cgroup.event_control.
+
+Application will be notified through eventfd when memory pressure is at
+the specific level (or higher). Read/write operations to
+memory.pressure_level are no implemented.
+
+Test:
+
+   Here is a small script example that makes a new cgroup, sets up a
+   memory limit, sets up a notification in the cgroup and then makes child
+   cgroup experience a critical pressure:
+
+   # cd /sys/fs/cgroup/memory/
+   # mkdir foo
+   # cd foo
+   # cgroup_event_listener memory.pressure_level low &
+   # echo 8000000 > memory.limit_in_bytes
+   # echo 8000000 > memory.memsw.limit_in_bytes
+   # echo $$ > tasks
+   # dd if=/dev/zero | read x
+
+   (Expect a bunch of notifications, and eventually, the oom-killer will
+   trigger.)
+
+12. TODO
 
 1. Add support for accounting huge pages (as a separate controller)
 2. Make per-cgroup scanner reclaim not-shared pages first
