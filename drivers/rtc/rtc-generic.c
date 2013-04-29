@@ -65,18 +65,7 @@ static struct platform_driver generic_rtc_driver = {
 	.remove = __exit_p(generic_rtc_remove),
 };
 
-static int __init generic_rtc_init(void)
-{
-	return platform_driver_probe(&generic_rtc_driver, generic_rtc_probe);
-}
-
-static void __exit generic_rtc_fini(void)
-{
-	platform_driver_unregister(&generic_rtc_driver);
-}
-
-module_init(generic_rtc_init);
-module_exit(generic_rtc_fini);
+module_platform_driver_probe(generic_rtc_driver, generic_rtc_probe);
 
 MODULE_AUTHOR("Kyle McMartin <kyle@mcmartin.ca>");
 MODULE_LICENSE("GPL");
