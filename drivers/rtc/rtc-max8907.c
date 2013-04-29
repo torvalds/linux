@@ -190,7 +190,7 @@ static int max8907_rtc_probe(struct platform_device *pdev)
 	rtc->max8907 = max8907;
 	rtc->regmap = max8907->regmap_rtc;
 
-	rtc->rtc_dev = rtc_device_register("max8907-rtc", &pdev->dev,
+	rtc->rtc_dev = devm_rtc_device_register(&pdev->dev, "max8907-rtc",
 					&max8907_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc_dev)) {
 		ret = PTR_ERR(rtc->rtc_dev);
@@ -217,16 +217,11 @@ static int max8907_rtc_probe(struct platform_device *pdev)
 	return 0;
 
 err_unregister:
-	rtc_device_unregister(rtc->rtc_dev);
 	return ret;
 }
 
 static int max8907_rtc_remove(struct platform_device *pdev)
 {
-	struct max8907_rtc *rtc = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(rtc->rtc_dev);
-
 	return 0;
 }
 
