@@ -47,7 +47,7 @@ struct coh901331_port {
 	u32 physize;
 	void __iomem *virtbase;
 	int irq;
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	u32 irqmaskstore;
 #endif
 };
@@ -225,17 +225,17 @@ static int __init coh901331_probe(struct platform_device *pdev)
 	return ret;
 }
 
-#ifdef CONFIG_PM
-static int coh901331_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int coh901331_suspend(struct device *dev)
 {
-	struct coh901331_port *rtap = dev_get_drvdata(&pdev->dev);
+	struct coh901331_port *rtap = dev_get_drvdata(dev);
 
 	/*
 	 * If this RTC alarm will be used for waking the system up,
 	 * don't disable it of course. Else we just disable the alarm
 	 * and await suspension.
 	 */
-	if (device_may_wakeup(&pdev->dev)) {
+	if (device_may_wakeup(dev)) {
 		enable_irq_wake(rtap->irq);
 	} else {
 		clk_enable(rtap->clk);
@@ -247,12 +247,12 @@ static int coh901331_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int coh901331_resume(struct platform_device *pdev)
+static int coh901331_resume(struct device *dev)
 {
-	struct coh901331_port *rtap = dev_get_drvdata(&pdev->dev);
+	struct coh901331_port *rtap = dev_get_drvdata(dev);
 
 	clk_prepare(rtap->clk);
-	if (device_may_wakeup(&pdev->dev)) {
+	if (device_may_wakeup(dev)) {
 		disable_irq_wake(rtap->irq);
 	} else {
 		clk_enable(rtap->clk);
@@ -261,10 +261,9 @@ static int coh901331_resume(struct platform_device *pdev)
 	}
 	return 0;
 }
-#else
-#define coh901331_suspend NULL
-#define coh901331_resume NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(coh901331_pm_ops, coh901331_suspend, coh901331_resume);
 
 static void coh901331_shutdown(struct platform_device *pdev)
 {
@@ -279,10 +278,9 @@ static struct platform_driver coh901331_driver = {
 	.driver = {
 		.name = "rtc-coh901331",
 		.owner = THIS_MODULE,
+		.pm = &coh901331_pm_ops,
 	},
 	.remove = __exit_p(coh901331_remove),
-	.suspend = coh901331_suspend,
-	.resume = coh901331_resume,
 	.shutdown = coh901331_shutdown,
 };
 
