@@ -15,6 +15,14 @@ config ARM_DT_BL_CPUFREQ
 	  This enables probing via DT for Generic CPUfreq driver for ARM
 	  big.LITTLE platform. This gets frequency tables from DT.
 
+config ARM_VEXPRESS_BL_CPUFREQ
+	tristate "ARM Vexpress big LITTLE CPUfreq driver"
+	select ARM_BIG_LITTLE_CPUFREQ
+	depends on ARM_SPC
+	help
+	  This enables the CPUfreq driver for ARM Vexpress big.LITTLE platform.
+	  If in doubt, say N.
+
 config ARM_EXYNOS_CPUFREQ
 	bool "SAMSUNG EXYNOS SoCs"
 	depends on ARCH_EXYNOS
