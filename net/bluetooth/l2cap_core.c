@@ -504,8 +504,8 @@ void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 		if (conn->hcon->type == LE_LINK) {
 			/* LE connection */
 			chan->omtu = L2CAP_DEFAULT_MTU;
-			chan->scid = L2CAP_CID_LE_DATA;
-			chan->dcid = L2CAP_CID_LE_DATA;
+			chan->scid = L2CAP_CID_ATT;
+			chan->dcid = L2CAP_CID_ATT;
 		} else {
 			/* Alloc CID for connection-oriented socket */
 			chan->scid = l2cap_alloc_cid(conn);
@@ -1344,7 +1344,7 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 	BT_DBG("");
 
 	/* Check if we have socket listening on cid */
-	pchan = l2cap_global_chan_by_scid(BT_LISTEN, L2CAP_CID_LE_DATA,
+	pchan = l2cap_global_chan_by_scid(BT_LISTEN, L2CAP_CID_ATT,
 					  conn->src, conn->dst);
 	if (!pchan)
 		return;
@@ -1792,7 +1792,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 
 	auth_type = l2cap_get_auth_type(chan);
 
-	if (chan->dcid == L2CAP_CID_LE_DATA)
+	if (chan->dcid == L2CAP_CID_ATT)
 		hcon = hci_connect(hdev, LE_LINK, dst, dst_type,
 				   chan->sec_level, auth_type);
 	else
@@ -6397,7 +6397,7 @@ static void l2cap_att_channel(struct l2cap_conn *conn,
 {
 	struct l2cap_chan *chan;
 
-	chan = l2cap_global_chan_by_scid(0, L2CAP_CID_LE_DATA,
+	chan = l2cap_global_chan_by_scid(0, L2CAP_CID_ATT,
 					 conn->src, conn->dst);
 	if (!chan)
 		goto drop;
@@ -6448,7 +6448,7 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 		l2cap_conless_channel(conn, psm, skb);
 		break;
 
-	case L2CAP_CID_LE_DATA:
+	case L2CAP_CID_ATT:
 		l2cap_att_channel(conn, skb);
 		break;
 
@@ -6574,7 +6574,7 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 			continue;
 		}
 
-		if (chan->scid == L2CAP_CID_LE_DATA) {
+		if (chan->scid == L2CAP_CID_ATT) {
 			if (!status && encrypt) {
 				chan->sec_level = hcon->sec_level;
 				l2cap_chan_ready(chan);
