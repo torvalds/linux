@@ -49,6 +49,7 @@ samsung	Samsung Semiconductor
 sbs	Smart Battery System
 schindler	Schindler
 sil	Silicon Image
+silabs	Silicon Laboratories
 simtek
 sirf	SiRF Technology, Inc.
 snps 	Synopsys, Inc.

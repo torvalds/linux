@@ -21,6 +21,8 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/vexpress.h>
+#include <linux/clk-provider.h>
+#include <linux/clkdev.h>
 
 #include <asm/arch_timer.h>
 #include <asm/mach-types.h>
@@ -433,7 +435,7 @@ static void __init v2m_dt_timer_init(void)
 {
 	struct device_node *node = NULL;
 
-	vexpress_clk_of_init();
+	of_clk_init(NULL);
 
 	do {
 		node = of_find_compatible_node(node, NULL, "arm,sp804");
@@ -441,6 +443,10 @@ static void __init v2m_dt_timer_init(void)
 	if (node) {
 		pr_info("Using SP804 '%s' as a clock & events source\n",
 				node->full_name);
+		WARN_ON(clk_register_clkdev(of_clk_get_by_name(node,
+				"timclken1"), "v2m-timer0", "sp804"));
+		WARN_ON(clk_register_clkdev(of_clk_get_by_name(node,
+				"timclken2"), "v2m-timer1", "sp804"));
 		v2m_sp804_init(of_iomap(node, 0),
 				irq_of_parse_and_map(node, 0));
 	}
