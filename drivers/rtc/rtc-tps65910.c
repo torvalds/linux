@@ -320,9 +320,8 @@ static int tps65910_rtc_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops tps65910_rtc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(tps65910_rtc_suspend, tps65910_rtc_resume)
-};
+static SIMPLE_DEV_PM_OPS(tps65910_rtc_pm_ops, tps65910_rtc_suspend,
+			tps65910_rtc_resume);
 
 static struct platform_driver tps65910_rtc_driver = {
 	.probe		= tps65910_rtc_probe,
