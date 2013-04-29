@@ -1376,6 +1376,14 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 			xfer->bits_per_word = spi->bits_per_word;
 		if (!xfer->speed_hz)
 			xfer->speed_hz = spi->max_speed_hz;
+		if (master->bits_per_word_mask) {
+			/* Only 32 bits fit in the mask */
+			if (xfer->bits_per_word > 32)
+				return -EINVAL;
+			if (!(master->bits_per_word_mask &
+					BIT(xfer->bits_per_word - 1)))
+				return -EINVAL;
+		}
 	}
 
 	message->spi = spi;
