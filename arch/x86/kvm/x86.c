@@ -5756,7 +5756,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 
 		/* enable NMI/IRQ window open exits if needed */
 		if (vcpu->arch.nmi_pending)
-			kvm_x86_ops->enable_nmi_window(vcpu);
+			req_immediate_exit =
+				kvm_x86_ops->enable_nmi_window(vcpu) != 0;
 		else if (kvm_cpu_has_injectable_intr(vcpu) || req_int_win)
 			req_immediate_exit =
 				kvm_x86_ops->enable_irq_window(vcpu) != 0;

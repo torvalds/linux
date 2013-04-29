@@ -3649,13 +3649,13 @@ static int enable_irq_window(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static void enable_nmi_window(struct kvm_vcpu *vcpu)
+static int enable_nmi_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	if ((svm->vcpu.arch.hflags & (HF_NMI_MASK | HF_IRET_MASK))
 	    == HF_NMI_MASK)
-		return; /* IRET will cause a vm exit */
+		return 0; /* IRET will cause a vm exit */
 
 	/*
 	 * Something prevents NMI from been injected. Single step over possible
@@ -3664,6 +3664,7 @@ static void enable_nmi_window(struct kvm_vcpu *vcpu)
 	svm->nmi_singlestep = true;
 	svm->vmcb->save.rflags |= (X86_EFLAGS_TF | X86_EFLAGS_RF);
 	update_db_bp_intercept(vcpu);
+	return 0;
 }
 
 static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
