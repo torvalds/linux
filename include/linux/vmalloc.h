@@ -3,7 +3,9 @@
 
 #include <linux/spinlock.h>
 #include <linux/init.h>
+#include <linux/list.h>
 #include <asm/page.h>		/* pgprot_t */
+#include <linux/rbtree.h>
 
 struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
 
@@ -33,6 +35,17 @@ struct vm_struct {
 	unsigned int		nr_pages;
 	phys_addr_t		phys_addr;
 	const void		*caller;
+};
+
+struct vmap_area {
+	unsigned long va_start;
+	unsigned long va_end;
+	unsigned long flags;
+	struct rb_node rb_node;         /* address sorted rbtree */
+	struct list_head list;          /* address sorted list */
+	struct list_head purge_list;    /* "lazy purge" list */
+	struct vm_struct *vm;
+	struct rcu_head rcu_head;
 };
 
 /*
