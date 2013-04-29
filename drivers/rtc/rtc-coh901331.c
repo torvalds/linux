@@ -287,18 +287,7 @@ static struct platform_driver coh901331_driver = {
 	.shutdown = coh901331_shutdown,
 };
 
-static int __init coh901331_init(void)
-{
-	return platform_driver_probe(&coh901331_driver, coh901331_probe);
-}
-
-static void __exit coh901331_exit(void)
-{
-	platform_driver_unregister(&coh901331_driver);
-}
-
-module_init(coh901331_init);
-module_exit(coh901331_exit);
+module_platform_driver_probe(coh901331_driver, coh901331_probe);
 
 MODULE_AUTHOR("Linus Walleij <linus.walleij@stericsson.com>");
 MODULE_DESCRIPTION("ST-Ericsson AB COH 901 331 RTC Driver");
