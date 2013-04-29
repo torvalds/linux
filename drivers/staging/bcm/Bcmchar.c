@@ -13,7 +13,7 @@
 * Returns	  - Zero(Success)
 ****************************************************************/
 
-static int bcm_char_open(struct inode *inode, struct file * filp)
+static int bcm_char_open(struct inode *inode, struct file *filp)
 {
 	struct bcm_mini_adapter *Adapter = NULL;
 	struct bcm_tarang_data *pTarang = NULL;
