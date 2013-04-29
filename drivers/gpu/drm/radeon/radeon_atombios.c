@@ -2309,7 +2309,7 @@ static void radeon_atombios_parse_pplib_non_clock_info(struct radeon_device *rde
 		rdev->pm.default_power_state_index = state_index;
 		rdev->pm.power_state[state_index].default_clock_mode =
 			&rdev->pm.power_state[state_index].clock_info[mode_index - 1];
-		if (ASIC_IS_DCE5(rdev) && !(rdev->flags & RADEON_IS_IGP)) {
+		if ((rdev->family >= CHIP_BARTS) && !(rdev->flags & RADEON_IS_IGP)) {
 			/* NI chips post without MC ucode, so default clocks are strobe mode only */
 			rdev->pm.default_sclk = rdev->pm.power_state[state_index].clock_info[0].sclk;
 			rdev->pm.default_mclk = rdev->pm.power_state[state_index].clock_info[0].mclk;
@@ -2347,7 +2347,7 @@ static bool radeon_atombios_parse_pplib_clock_info(struct radeon_device *rdev,
 			sclk |= clock_info->rs780.ucLowEngineClockHigh << 16;
 			rdev->pm.power_state[state_index].clock_info[mode_index].sclk = sclk;
 		}
-	} else if (ASIC_IS_DCE6(rdev)) {
+	} else if (rdev->family >= CHIP_TAHITI) {
 		sclk = le16_to_cpu(clock_info->si.usEngineClockLow);
 		sclk |= clock_info->si.ucEngineClockHigh << 16;
 		mclk = le16_to_cpu(clock_info->si.usMemoryClockLow);
@@ -2360,7 +2360,7 @@ static bool radeon_atombios_parse_pplib_clock_info(struct radeon_device *rdev,
 			le16_to_cpu(clock_info->si.usVDDC);
 		rdev->pm.power_state[state_index].clock_info[mode_index].voltage.vddci =
 			le16_to_cpu(clock_info->si.usVDDCI);
-	} else if (ASIC_IS_DCE4(rdev)) {
+	} else if (rdev->family >= CHIP_CEDAR) {
 		sclk = le16_to_cpu(clock_info->evergreen.usEngineClockLow);
 		sclk |= clock_info->evergreen.ucEngineClockHigh << 16;
 		mclk = le16_to_cpu(clock_info->evergreen.usMemoryClockLow);
