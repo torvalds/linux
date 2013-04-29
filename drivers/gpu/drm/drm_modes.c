@@ -506,7 +506,7 @@ drm_gtf_mode(struct drm_device *dev, int hdisplay, int vdisplay, int vrefresh,
 }
 EXPORT_SYMBOL(drm_gtf_mode);
 
-#if IS_ENABLED(CONFIG_VIDEOMODE)
+#ifdef CONFIG_VIDEOMODE_HELPERS
 int drm_display_mode_from_videomode(const struct videomode *vm,
 				    struct drm_display_mode *dmode)
 {
@@ -523,26 +523,25 @@ int drm_display_mode_from_videomode(const struct videomode *vm,
 	dmode->clock = vm->pixelclock / 1000;
 
 	dmode->flags = 0;
-	if (vm->dmt_flags & VESA_DMT_HSYNC_HIGH)
+	if (vm->flags & DISPLAY_FLAGS_HSYNC_HIGH)
 		dmode->flags |= DRM_MODE_FLAG_PHSYNC;
-	else if (vm->dmt_flags & VESA_DMT_HSYNC_LOW)
+	else if (vm->flags & DISPLAY_FLAGS_HSYNC_LOW)
 		dmode->flags |= DRM_MODE_FLAG_NHSYNC;
-	if (vm->dmt_flags & VESA_DMT_VSYNC_HIGH)
+	if (vm->flags & DISPLAY_FLAGS_VSYNC_HIGH)
 		dmode->flags |= DRM_MODE_FLAG_PVSYNC;
-	else if (vm->dmt_flags & VESA_DMT_VSYNC_LOW)
+	else if (vm->flags & DISPLAY_FLAGS_VSYNC_LOW)
 		dmode->flags |= DRM_MODE_FLAG_NVSYNC;
-	if (vm->data_flags & DISPLAY_FLAGS_INTERLACED)
+	if (vm->flags & DISPLAY_FLAGS_INTERLACED)
 		dmode->flags |= DRM_MODE_FLAG_INTERLACE;
-	if (vm->data_flags & DISPLAY_FLAGS_DOUBLESCAN)
+	if (vm->flags & DISPLAY_FLAGS_DOUBLESCAN)
 		dmode->flags |= DRM_MODE_FLAG_DBLSCAN;
 	drm_mode_set_name(dmode);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(drm_display_mode_from_videomode);
-#endif
 
-#if IS_ENABLED(CONFIG_OF_VIDEOMODE)
+#ifdef CONFIG_OF
 /**
  * of_get_drm_display_mode - get a drm_display_mode from devicetree
  * @np: device_node with the timing specification
@@ -572,7 +571,8 @@ int of_get_drm_display_mode(struct device_node *np,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_get_drm_display_mode);
-#endif
+#endif /* CONFIG_OF */
+#endif /* CONFIG_VIDEOMODE_HELPERS */
 
 /**
  * drm_mode_set_name - set the name on a mode
