@@ -2184,6 +2184,13 @@ static int nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 		err = _nfs4_do_setattr(inode, cred, fattr, sattr, state);
 		switch (err) {
 		case -NFS4ERR_OPENMODE:
+			if (!(sattr->ia_valid & ATTR_SIZE)) {
+				pr_warn_once("NFSv4: server %s is incorrectly "
+						"applying open mode checks to "
+						"a SETATTR that is not "
+						"changing file size.\n",
+						server->nfs_client->cl_hostname);
+			}
 			if (state && !(state->state & FMODE_WRITE)) {
 				err = -EBADF;
 				if (sattr->ia_valid & ATTR_OPEN)
