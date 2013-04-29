@@ -229,8 +229,8 @@ static int __init ab3100_rtc_probe(struct platform_device *pdev)
 		/* Ignore any error on this write */
 	}
 
-	rtc = rtc_device_register("ab3100-rtc", &pdev->dev, &ab3100_rtc_ops,
-				  THIS_MODULE);
+	rtc = devm_rtc_device_register(&pdev->dev, "ab3100-rtc",
+					&ab3100_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		err = PTR_ERR(rtc);
 		return err;
@@ -242,9 +242,6 @@ static int __init ab3100_rtc_probe(struct platform_device *pdev)
 
 static int __exit ab3100_rtc_remove(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(rtc);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
