@@ -423,10 +423,7 @@ static void s3c_rtc_enable(struct platform_device *pdev, int en)
 
 static int s3c_rtc_remove(struct platform_device *dev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(dev);
-
 	platform_set_drvdata(dev, NULL);
-	rtc_device_unregister(rtc);
 
 	s3c_rtc_setaie(&dev->dev, 0);
 
@@ -511,7 +508,7 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 
 	/* register RTC and exit */
 
-	rtc = rtc_device_register("s3c", &pdev->dev, &s3c_rtcops,
+	rtc = devm_rtc_device_register(&pdev->dev, "s3c", &s3c_rtcops,
 				  THIS_MODULE);
 
 	if (IS_ERR(rtc)) {
@@ -574,7 +571,6 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 
  err_alarm_irq:
 	platform_set_drvdata(pdev, NULL);
-	rtc_device_unregister(rtc);
 
  err_nortc:
 	s3c_rtc_enable(pdev, 0);
