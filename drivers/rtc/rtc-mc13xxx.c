@@ -420,17 +420,7 @@ static struct platform_driver mc13xxx_rtc_driver = {
 	},
 };
 
-static int __init mc13xxx_rtc_init(void)
-{
-	return platform_driver_probe(&mc13xxx_rtc_driver, &mc13xxx_rtc_probe);
-}
-module_init(mc13xxx_rtc_init);
-
-static void __exit mc13xxx_rtc_exit(void)
-{
-	platform_driver_unregister(&mc13xxx_rtc_driver);
-}
-module_exit(mc13xxx_rtc_exit);
+module_platform_driver_probe(mc13xxx_rtc_driver, &mc13xxx_rtc_probe);
 
 MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
 MODULE_DESCRIPTION("RTC driver for Freescale MC13XXX PMIC");
