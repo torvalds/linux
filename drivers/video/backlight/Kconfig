@@ -59,6 +59,13 @@ config LCD_LTV350QV
 
 	  The LTV350QV panel is present on all ATSTK1000 boards.
 
+config LCD_ILI922X
+	tristate "ILI Technology ILI9221/ILI9222 support"
+	depends on SPI
+	help
+	  If you have a panel based on the ILI9221/9222 controller
+	  chip then say y to include a driver for it.
+
 config LCD_ILI9320
 	tristate "ILI Technology ILI9320 controller support"
 	depends on SPI
