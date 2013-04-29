@@ -30,6 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/mfd/palmas.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/rtc.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
@@ -316,6 +317,14 @@ static const struct dev_pm_ops palmas_rtc_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(palmas_rtc_suspend, palmas_rtc_resume)
 };
 
+#ifdef CONFIG_OF
+static struct of_device_id of_palmas_rtc_match[] = {
+	{ .compatible = "ti,palmas-rtc"},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, of_palmas_rtc_match);
+#endif
+
 static struct platform_driver palmas_rtc_driver = {
 	.probe		= palmas_rtc_probe,
 	.remove		= palmas_rtc_remove,
@@ -323,6 +332,7 @@ static struct platform_driver palmas_rtc_driver = {
 		.owner	= THIS_MODULE,
 		.name	= "palmas-rtc",
 		.pm	= &palmas_rtc_pm_ops,
+		.of_match_table = of_match_ptr(of_palmas_rtc_match),
 	},
 };
 
