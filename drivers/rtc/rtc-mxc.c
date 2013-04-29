@@ -439,7 +439,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	if (pdata->irq >=0)
 		device_init_wakeup(&pdev->dev, 1);
 
-	rtc = rtc_device_register(pdev->name, &pdev->dev, &mxc_rtc_ops,
+	rtc = devm_rtc_device_register(&pdev->dev, pdev->name, &mxc_rtc_ops,
 				  THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		ret = PTR_ERR(rtc);
@@ -463,8 +463,6 @@ exit_free_pdata:
 static int mxc_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(pdata->rtc);
 
 	clk_disable_unprepare(pdata->clk);
 	platform_set_drvdata(pdev, NULL);
