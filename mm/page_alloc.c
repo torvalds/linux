@@ -58,6 +58,7 @@
 #include <linux/prefetch.h>
 #include <linux/migrate.h>
 #include <linux/page-debug-flags.h>
+#include <linux/hugetlb.h>
 #include <linux/sched/rt.h>
 
 #include <asm/tlbflush.h>
@@ -3112,6 +3113,8 @@ void show_free_areas(unsigned int filter)
 		}
 		printk("= %lukB\n", K(total));
 	}
+
+	hugetlb_show_meminfo();
 
 	printk("%ld total pagecache pages\n", global_page_state(NR_FILE_PAGES));
 
