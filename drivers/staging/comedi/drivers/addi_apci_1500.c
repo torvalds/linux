@@ -13,11 +13,7 @@
 static const struct addi_board apci1500_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci1500",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
-		.i_DeviceId		= 0x80fc,
-		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= APCI1500_ADDRESS_RANGE,
-		.i_IorangeBase2		= 4,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.i_NbrDiChannel		= 16,
 		.i_NbrDoChannel		= 16,
@@ -39,24 +35,29 @@ static const struct addi_board apci1500_boardtypes[] = {
 	},
 };
 
+static int apci1500_auto_attach(struct comedi_device *dev,
+				unsigned long context)
+{
+	dev->board_ptr = &apci1500_boardtypes[0];
+
+	return addi_auto_attach(dev, context);
+}
+
 static struct comedi_driver apci1500_driver = {
 	.driver_name	= "addi_apci_1500",
 	.module		= THIS_MODULE,
-	.auto_attach	= addi_auto_attach,
+	.auto_attach	= apci1500_auto_attach,
 	.detach		= i_ADDI_Detach,
-	.num_names	= ARRAY_SIZE(apci1500_boardtypes),
-	.board_name	= &apci1500_boardtypes[0].pc_DriverName,
-	.offset		= sizeof(struct addi_board),
 };
 
 static int apci1500_pci_probe(struct pci_dev *dev,
-					const struct pci_device_id *ent)
+			      const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &apci1500_driver);
+	return comedi_pci_auto_config(dev, &apci1500_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci1500_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, 0x80fc) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMCC, 0x80fc) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, apci1500_pci_table);

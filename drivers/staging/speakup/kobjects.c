@@ -617,9 +617,9 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 			len = E_INC;
 		else
 			len = E_SET;
-		speakup_s2i(cp, &value);
+		value = simple_strtol(cp, NULL, 10);
 		ret = spk_set_num_var(value, param, len);
-		if (ret == E_RANGE) {
+		if (ret == -ERANGE) {
 			var_data = param->data;
 			pr_warn("value for %s out of range, expect %d to %d\n",
 				attr->attr.name,
@@ -637,7 +637,7 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 		cp = (char *) buf;
 		cp[len] = '\0';
 		ret = spk_set_string_var(buf, param, len);
-		if (ret == E_TOOLONG)
+		if (ret == -E2BIG)
 			pr_warn("value too long for %s\n",
 					attr->attr.name);
 		break;
@@ -670,7 +670,7 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 	}
 	spk_unlock(flags);
 
-	if (ret == SET_DEFAULT)
+	if (ret == -ERESTART)
 		pr_info("%s reset to default value\n", attr->attr.name);
 	return count;
 }

@@ -47,12 +47,6 @@ References:
 #include "../comedidev.h"
 
 /*
- * ADLINK PCI Device ID's supported by this driver
- */
-#define PCI_DEVICE_ID_PCI6208		0x6208
-#define PCI_DEVICE_ID_PCI6216		0x6216
-
-/*
  * PCI-6208/6216-GL register map
  */
 #define PCI6208_AO_CONTROL(x)		(0x00 + (2 * (x)))
@@ -66,20 +60,23 @@ References:
 
 #define PCI6208_MAX_AO_CHANNELS		16
 
+enum pci6208_boardid {
+	BOARD_PCI6208,
+	BOARD_PCI6216,
+};
+
 struct pci6208_board {
 	const char *name;
-	unsigned short dev_id;
 	int ao_chans;
 };
 
 static const struct pci6208_board pci6208_boards[] = {
-	{
+	[BOARD_PCI6208] = {
 		.name		= "adl_pci6208",
-		.dev_id		= PCI_DEVICE_ID_PCI6208,
 		.ao_chans	= 8,
-	}, {
+	},
+	[BOARD_PCI6216] = {
 		.name		= "adl_pci6216",
-		.dev_id		= PCI_DEVICE_ID_PCI6216,
 		.ao_chans	= 16,
 	},
 };
@@ -162,31 +159,18 @@ static int pci6208_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static const void *pci6208_find_boardinfo(struct comedi_device *dev,
-					  struct pci_dev *pcidev)
-{
-	const struct pci6208_board *boardinfo;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(pci6208_boards); i++) {
-		boardinfo = &pci6208_boards[i];
-		if (boardinfo->dev_id == pcidev->device)
-			return boardinfo;
-	}
-	return NULL;
-}
-
 static int pci6208_auto_attach(struct comedi_device *dev,
-					 unsigned long context_unused)
+			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct pci6208_board *boardinfo;
+	const struct pci6208_board *boardinfo = NULL;
 	struct pci6208_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned int val;
 	int ret;
 
-	boardinfo = pci6208_find_boardinfo(dev, pcidev);
+	if (context < ARRAY_SIZE(pci6208_boards))
+		boardinfo = &pci6208_boards[context];
 	if (!boardinfo)
 		return -ENODEV;
 	dev->board_ptr = boardinfo;
@@ -197,7 +181,7 @@ static int pci6208_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 2);
@@ -249,32 +233,23 @@ static int pci6208_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void pci6208_detach(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
-}
-
 static struct comedi_driver adl_pci6208_driver = {
 	.driver_name	= "adl_pci6208",
 	.module		= THIS_MODULE,
 	.auto_attach	= pci6208_auto_attach,
-	.detach		= pci6208_detach,
+	.detach		= comedi_pci_disable,
 };
 
 static int adl_pci6208_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+				 const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &adl_pci6208_driver);
+	return comedi_pci_auto_config(dev, &adl_pci6208_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adl_pci6208_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI6208) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI6216) },
+	{ PCI_VDEVICE(ADLINK, 0x6208), BOARD_PCI6208 },
+	{ PCI_VDEVICE(ADLINK, 0x6216), BOARD_PCI6216 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, adl_pci6208_pci_table);

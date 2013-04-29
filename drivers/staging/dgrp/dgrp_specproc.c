@@ -271,9 +271,11 @@ static void register_proc_table(struct dgrp_proc_entry *table,
 			if (!table->child) {
 				de->proc_iops = &proc_inode_ops;
 				if (table->proc_file_ops)
-					de->proc_fops = table->proc_file_ops;
+					rcu_assign_pointer(de->proc_fops,
+							table->proc_file_ops);
 				else
-					de->proc_fops = &dgrp_proc_file_ops;
+					rcu_assign_pointer(de->proc_fops,
+							 &dgrp_proc_file_ops);
 			}
 		}
 		table->de = de;

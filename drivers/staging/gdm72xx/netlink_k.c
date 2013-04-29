@@ -18,6 +18,7 @@
 #include <linux/netlink.h>
 #include <asm/byteorder.h>
 #include <net/sock.h>
+#include "netlink_k.h"
 
 #if !defined(NLMSG_HDRLEN)
 #define NLMSG_HDRLEN	 ((int) NLMSG_ALIGN(sizeof(struct nlmsghdr)))

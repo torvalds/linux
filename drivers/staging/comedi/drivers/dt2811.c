@@ -50,8 +50,6 @@ Configuration options:
 
 #include <linux/ioport.h>
 
-static const char *driver_name = "dt2811";
-
 static const struct comedi_lrange range_dt2811_pgh_ai_5_unipolar = {
 	4, {
 		RANGE(0, 5),
@@ -401,19 +399,10 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct dt2811_private *devpriv;
 	int ret;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 
-	iobase = it->options[0];
-
-	printk(KERN_INFO "comedi%d: dt2811:base=0x%04lx\n", dev->minor, iobase);
-
-	if (!request_region(iobase, DT2811_SIZE, driver_name)) {
-		printk(KERN_ERR "I/O port conflict\n");
-		return -EIO;
-	}
-
-	dev->iobase = iobase;
-	dev->board_name = board->name;
+	ret = comedi_request_region(dev, it->options[0], DT2811_SIZE);
+	if (ret)
+		return ret;
 
 #if 0
 	outb(0, dev->iobase + DT2811_ADCSR);
@@ -449,7 +438,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			i = inb(dev->iobase + DT2811_ADDATHI);
 			printk(KERN_INFO "(irq = %d)\n", irq);
 			ret = request_irq(irq, dt2811_interrupt, 0,
-					  driver_name, dev);
+					  dev->board_name, dev);
 			if (ret < 0)
 				return -EIO;
 			dev->irq = irq;
@@ -567,14 +556,6 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void dt2811_detach(struct comedi_device *dev)
-{
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, DT2811_SIZE);
-}
-
 static const struct dt2811_board boardtypes[] = {
 	{
 		.name		= "dt2811-pgh",
@@ -593,7 +574,7 @@ static struct comedi_driver dt2811_driver = {
 	.driver_name	= "dt2811",
 	.module		= THIS_MODULE,
 	.attach		= dt2811_attach,
-	.detach		= dt2811_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &boardtypes[0].name,
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.offset		= sizeof(struct dt2811_board),

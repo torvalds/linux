@@ -519,6 +519,15 @@ config SENSORS_IBMPEX
 	  This driver can also be built as a module.  If so, the module
 	  will be called ibmpex.
 
+config SENSORS_IIO_HWMON
+	tristate "Hwmon driver that uses channels specified via iio maps"
+	depends on IIO
+	help
+	  This is a platform driver that in combination with a suitable
+	  map allows IIO devices to provide basic hwmon functionality
+	  for those channels specified in the map.  This map can be provided
+	  either via platform data or the device tree bindings.
+
 config SENSORS_IT87
 	tristate "ITE IT87xx and compatibles"
 	depends on !PPC
