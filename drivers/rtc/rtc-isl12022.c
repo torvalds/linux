@@ -280,7 +280,6 @@ static int isl12022_remove(struct i2c_client *client)
 
 static const struct i2c_device_id isl12022_id[] = {
 	{ "isl12022", 0 },
-	{ "rtc8564", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isl12022_id);
