@@ -150,12 +150,28 @@ discard       -- If set, issues discard/TRIM commands to the block
 		 device when blocks are freed. This is useful for SSD devices
 		 and sparse/thinly-provisoned LUNs.
 
-nfs           -- This option maintains an index (cache) of directory
-		 inodes by i_logstart which is used by the nfs-related code to
-		 improve look-ups.
+nfs=stale_rw|nostale_ro
+		Enable this only if you want to export the FAT filesystem
+		over NFS.
 
-		 Enable this only if you want to export the FAT filesystem
-		 over NFS
+		stale_rw: This option maintains an index (cache) of directory
+		inodes by i_logstart which is used by the nfs-related code to
+		improve look-ups. Full file operations (read/write) over NFS is
+		supported but with cache eviction at NFS server, this could
+		result in ESTALE issues.
+
+		nostale_ro: This option bases the inode number and filehandle
+		on the on-disk location of a file in the MS-DOS directory entry.
+		This ensures that ESTALE will not be returned after a file is
+		evicted from the inode cache. However, it means that operations
+		such as rename, create and unlink could cause filehandles that
+		previously pointed at one file to point at a different file,
+		potentially causing data corruption. For this reason, this
+		option also mounts the filesystem readonly.
+
+		To maintain backward compatibility, '-o nfs' is also accepted,
+		defaulting to stale_rw
+
 
 <bool>: 0,1,yes,no,true,false
 
