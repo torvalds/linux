@@ -1162,6 +1162,17 @@ void radeon_uvd_free_handles(struct radeon_device *rdev,
 			     struct drm_file *filp);
 int radeon_uvd_cs_parse(struct radeon_cs_parser *parser);
 void radeon_uvd_note_usage(struct radeon_device *rdev);
+int radeon_uvd_calc_upll_dividers(struct radeon_device *rdev,
+				  unsigned vclk, unsigned dclk,
+				  unsigned vco_min, unsigned vco_max,
+				  unsigned fb_factor, unsigned fb_mask,
+				  unsigned pd_min, unsigned pd_max,
+				  unsigned pd_even,
+				  unsigned *optimal_fb_div,
+				  unsigned *optimal_vclk_div,
+				  unsigned *optimal_dclk_div);
+int radeon_uvd_send_upll_ctlreq(struct radeon_device *rdev,
+                                unsigned cg_upll_func_cntl);
 
 struct r600_audio {
 	int			channels;

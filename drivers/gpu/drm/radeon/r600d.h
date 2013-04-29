@@ -1208,6 +1208,10 @@
 
 #define UVD_CONTEXT_ID					0xf6f4
 
+#	define UPLL_CTLREQ_MASK				0x00000008
+#	define UPLL_CTLACK_MASK				0x40000000
+#	define UPLL_CTLACK2_MASK			0x80000000
+
 /*
  * PM4
  */
