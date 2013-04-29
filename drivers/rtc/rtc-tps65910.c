@@ -263,7 +263,7 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	if (irq <= 0) {
 		dev_warn(&pdev->dev, "Wake up is not possible as irq = %d\n",
 			irq);
-		return ret;
+		return -ENXIO;
 	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
