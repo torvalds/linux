@@ -199,11 +199,6 @@
         .align 5;              						     \
 label:
 
-#define FINISH_EXCEPTION(func)					\
-	bl	transfer_to_handler_full;			\
-	.long	func;						\
-	.long	ret_from_except_full
-
 #define EXCEPTION(n, intno, label, hdlr, xfer)			\
 	START_EXCEPTION(label);					\
 	NORMAL_EXCEPTION_PROLOG(intno);				\
