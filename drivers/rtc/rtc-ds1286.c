@@ -270,7 +270,6 @@ static int ds1286_set_time(struct device *dev, struct rtc_time *tm)
 static int ds1286_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
 	struct ds1286_priv *priv = dev_get_drvdata(dev);
-	unsigned char cmd;
 	unsigned long flags;
 
 	/*
@@ -281,7 +280,7 @@ static int ds1286_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	alm->time.tm_min = ds1286_rtc_read(priv, RTC_MINUTES_ALARM) & 0x7f;
 	alm->time.tm_hour = ds1286_rtc_read(priv, RTC_HOURS_ALARM)  & 0x1f;
 	alm->time.tm_wday = ds1286_rtc_read(priv, RTC_DAY_ALARM)    & 0x07;
-	cmd = ds1286_rtc_read(priv, RTC_CMD);
+	ds1286_rtc_read(priv, RTC_CMD);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	alm->time.tm_min = bcd2bin(alm->time.tm_min);
