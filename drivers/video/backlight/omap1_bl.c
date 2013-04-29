@@ -71,27 +71,24 @@ static void omapbl_blank(struct omap_backlight *bl, int mode)
 	}
 }
 
-#ifdef CONFIG_PM
-static int omapbl_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int omapbl_suspend(struct device *dev)
 {
-	struct backlight_device *dev = platform_get_drvdata(pdev);
-	struct omap_backlight *bl = bl_get_data(dev);
+	struct backlight_device *bl_dev = dev_get_drvdata(dev);
+	struct omap_backlight *bl = bl_get_data(bl_dev);
 
 	omapbl_blank(bl, FB_BLANK_POWERDOWN);
 	return 0;
 }
 
-static int omapbl_resume(struct platform_device *pdev)
+static int omapbl_resume(struct device *dev)
 {
-	struct backlight_device *dev = platform_get_drvdata(pdev);
-	struct omap_backlight *bl = bl_get_data(dev);
+	struct backlight_device *bl_dev = dev_get_drvdata(dev);
+	struct omap_backlight *bl = bl_get_data(bl_dev);
 
 	omapbl_blank(bl, bl->powermode);
 	return 0;
 }
-#else
-#define omapbl_suspend	NULL
-#define omapbl_resume	NULL
 #endif
 
 static int omapbl_set_power(struct backlight_device *dev, int state)
@@ -182,13 +179,14 @@ static int omapbl_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(omapbl_pm_ops, omapbl_suspend, omapbl_resume);
+
 static struct platform_driver omapbl_driver = {
 	.probe		= omapbl_probe,
 	.remove		= omapbl_remove,
-	.suspend	= omapbl_suspend,
-	.resume		= omapbl_resume,
 	.driver		= {
 		.name	= "omap-bl",
+		.pm	= &omapbl_pm_ops,
 	},
 };
 
