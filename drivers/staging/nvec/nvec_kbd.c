@@ -188,4 +188,5 @@ module_platform_driver(nvec_kbd_driver);
 
 MODULE_AUTHOR("Marc Dietrich <marvin24@gmx.de>");
 MODULE_DESCRIPTION("NVEC keyboard driver");
+MODULE_ALIAS("platform:nvec-kbd");
 MODULE_LICENSE("GPL");
