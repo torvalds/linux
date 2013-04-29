@@ -231,7 +231,7 @@ int ili9320_probe_spi(struct spi_device *spi,
 	ili->power = FB_BLANK_POWERDOWN;
 	ili->platdata = cfg;
 
-	dev_set_drvdata(&spi->dev, ili);
+	spi_set_drvdata(spi, ili);
 
 	ili9320_setup_spi(ili, spi);
 
