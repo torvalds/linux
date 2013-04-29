@@ -280,7 +280,6 @@ static int rc5t583_rtc_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-
 static int rc5t583_rtc_suspend(struct device *dev)
 {
 	struct rc5t583 *rc5t583 = dev_get_drvdata(dev->parent);
@@ -302,16 +301,10 @@ static int rc5t583_rtc_resume(struct device *dev)
 	return regmap_write(rc5t583->regmap, RC5T583_RTC_CTL1,
 		rc5t583_rtc->irqen);
 }
-
-static const struct dev_pm_ops rc5t583_rtc_pm_ops = {
-	.suspend	= rc5t583_rtc_suspend,
-	.resume		= rc5t583_rtc_resume,
-};
-
-#define DEV_PM_OPS     (&rc5t583_rtc_pm_ops)
-#else
-#define DEV_PM_OPS     NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(rc5t583_rtc_pm_ops, rc5t583_rtc_suspend,
+			rc5t583_rtc_resume);
 
 static struct platform_driver rc5t583_rtc_driver = {
 	.probe		= rc5t583_rtc_probe,
@@ -319,7 +312,7 @@ static struct platform_driver rc5t583_rtc_driver = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "rtc-rc5t583",
-		.pm	= DEV_PM_OPS,
+		.pm	= &rc5t583_rtc_pm_ops,
 	},
 };
 
