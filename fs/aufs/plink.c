@@ -119,14 +119,6 @@ int au_plink_maint_enter(struct super_block *sb)
 
 /* ---------------------------------------------------------------------- */
 
-struct pseudo_link {
-	union {
-		struct hlist_node hlist;
-		struct rcu_head rcu;
-	};
-	struct inode *inode;
-};
-
 #ifdef CONFIG_AUFS_DEBUG
 void au_plink_list(struct super_block *sb)
 {
