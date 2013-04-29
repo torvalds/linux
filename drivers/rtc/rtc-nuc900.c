@@ -311,18 +311,7 @@ static struct platform_driver nuc900_rtc_driver = {
 	},
 };
 
-static int __init nuc900_rtc_init(void)
-{
-	return platform_driver_probe(&nuc900_rtc_driver, nuc900_rtc_probe);
-}
-
-static void __exit nuc900_rtc_exit(void)
-{
-	platform_driver_unregister(&nuc900_rtc_driver);
-}
-
-module_init(nuc900_rtc_init);
-module_exit(nuc900_rtc_exit);
+module_platform_driver_probe(nuc900_rtc_driver, nuc900_rtc_probe);
 
 MODULE_AUTHOR("Wan ZongShun <mcuos.com@gmail.com>");
 MODULE_DESCRIPTION("nuc910/nuc920 RTC driver");
