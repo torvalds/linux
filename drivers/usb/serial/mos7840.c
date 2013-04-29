@@ -816,7 +816,6 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 {
 	struct moschip_port *mos7840_port;
 	struct usb_serial_port *port;
-	struct tty_struct *tty;
 	int status = urb->status;
 	int i;
 
@@ -839,10 +838,8 @@ static void mos7840_bulk_out_data_callback(struct urb *urb)
 	if (mos7840_port_paranoia_check(port, __func__))
 		return;
 
-	tty = tty_port_tty_get(&port->port);
-	if (tty && mos7840_port->open)
-		tty_wakeup(tty);
-	tty_kref_put(tty);
+	if (mos7840_port->open)
+		tty_port_tty_wakeup(&port->port);
 
 }
 

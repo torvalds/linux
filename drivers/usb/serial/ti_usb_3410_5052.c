@@ -1229,7 +1229,6 @@ static void ti_send(struct ti_port *tport)
 {
 	int count, result;
 	struct usb_serial_port *port = tport->tp_port;
-	struct tty_struct *tty = tty_port_tty_get(&port->port);	/* FIXME */
 	unsigned long flags;
 
 	spin_lock_irqsave(&tport->tp_lock, flags);
@@ -1270,14 +1269,12 @@ static void ti_send(struct ti_port *tport)
 	}
 
 	/* more room in the buffer for new writes, wakeup */
-	if (tty)
-		tty_wakeup(tty);
-	tty_kref_put(tty);
+	tty_port_tty_wakeup(&port->port);
+
 	wake_up_interruptible(&tport->tp_write_wait);
 	return;
 unlock:
 	spin_unlock_irqrestore(&tport->tp_lock, flags);
-	tty_kref_put(tty);
 	return;
 }
 

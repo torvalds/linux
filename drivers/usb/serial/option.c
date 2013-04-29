@@ -1537,13 +1537,8 @@ static void option_instat_callback(struct urb *urb)
 			portdata->dsr_state = ((signals & 0x02) ? 1 : 0);
 			portdata->ri_state = ((signals & 0x08) ? 1 : 0);
 
-			if (old_dcd_state && !portdata->dcd_state) {
-				struct tty_struct *tty =
-						tty_port_tty_get(&port->port);
-				if (tty && !C_CLOCAL(tty))
-					tty_hangup(tty);
-				tty_kref_put(tty);
-			}
+			if (old_dcd_state && !portdata->dcd_state)
+				tty_port_tty_hangup(&port->port, true);
 		} else {
 			dev_dbg(dev, "%s: type %x req %x\n", __func__,
 				req_pkt->bRequestType, req_pkt->bRequest);

@@ -210,7 +210,6 @@ struct digi_port {
 
 /* Local Function Declarations */
 
-static void digi_wakeup_write(struct usb_serial_port *port);
 static void digi_wakeup_write_lock(struct work_struct *work);
 static int digi_write_oob_command(struct usb_serial_port *port,
 	unsigned char *buf, int count, int interruptible);
@@ -374,19 +373,9 @@ static void digi_wakeup_write_lock(struct work_struct *work)
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->dp_port_lock, flags);
-	digi_wakeup_write(port);
+	tty_port_tty_wakeup(&port->port);
 	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
 }
-
-static void digi_wakeup_write(struct usb_serial_port *port)
-{
-	struct tty_struct *tty = tty_port_tty_get(&port->port);
-	if (tty) {
-		tty_wakeup(tty);
-		tty_kref_put(tty);
-	}
-}
-
 
 /*
  *  Digi Write OOB Command
@@ -1044,7 +1033,7 @@ static void digi_write_bulk_callback(struct urb *urb)
 		}
 	}
 	/* wake up processes sleeping on writes immediately */
-	digi_wakeup_write(port);
+	tty_port_tty_wakeup(&port->port);
 	/* also queue up a wakeup at scheduler time, in case we */
 	/* lost the race in write_chan(). */
 	schedule_work(&priv->dp_wakeup_work);
@@ -1522,7 +1511,7 @@ static int digi_read_oob_callback(struct urb *urb)
 				/* port must be open to use tty struct */
 				if (rts) {
 					tty->hw_stopped = 0;
-					digi_wakeup_write(port);
+					tty_port_tty_wakeup(&port->port);
 				}
 			} else {
 				priv->dp_modem_signals &= ~TIOCM_CTS;

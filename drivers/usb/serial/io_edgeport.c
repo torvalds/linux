@@ -564,7 +564,6 @@ static void edge_interrupt_callback(struct urb *urb)
 	struct device *dev;
 	struct edgeport_port *edge_port;
 	struct usb_serial_port *port;
-	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int length = urb->actual_length;
 	int bytes_avail;
@@ -643,12 +642,7 @@ static void edge_interrupt_callback(struct urb *urb)
 
 					/* tell the tty driver that something
 					   has changed */
-					tty = tty_port_tty_get(
-						&edge_port->port->port);
-					if (tty) {
-						tty_wakeup(tty);
-						tty_kref_put(tty);
-					}
+					tty_port_tty_wakeup(&edge_port->port->port);
 					/* Since we have more credit, check
 					   if more data can be sent */
 					send_more_port_data(edge_serial,
@@ -737,7 +731,6 @@ static void edge_bulk_in_callback(struct urb *urb)
 static void edge_bulk_out_data_callback(struct urb *urb)
 {
 	struct edgeport_port *edge_port = urb->context;
-	struct tty_struct *tty;
 	int status = urb->status;
 
 	if (status) {
@@ -746,14 +739,8 @@ static void edge_bulk_out_data_callback(struct urb *urb)
 			__func__, status);
 	}
 
-	tty = tty_port_tty_get(&edge_port->port->port);
-
-	if (tty && edge_port->open) {
-		/* let the tty driver wakeup if it has a special
-		   write_wakeup function */
-		tty_wakeup(tty);
-	}
-	tty_kref_put(tty);
+	if (edge_port->open)
+		tty_port_tty_wakeup(&edge_port->port->port);
 
 	/* Release the Write URB */
 	edge_port->write_in_progress = false;
@@ -772,7 +759,6 @@ static void edge_bulk_out_data_callback(struct urb *urb)
 static void edge_bulk_out_cmd_callback(struct urb *urb)
 {
 	struct edgeport_port *edge_port = urb->context;
-	struct tty_struct *tty;
 	int status = urb->status;
 
 	atomic_dec(&CmdUrbs);
@@ -793,13 +779,9 @@ static void edge_bulk_out_cmd_callback(struct urb *urb)
 		return;
 	}
 
-	/* Get pointer to tty */
-	tty = tty_port_tty_get(&edge_port->port->port);
-
 	/* tell the tty driver that something has changed */
-	if (tty && edge_port->open)
-		tty_wakeup(tty);
-	tty_kref_put(tty);
+	if (edge_port->open)
+		tty_port_tty_wakeup(&edge_port->port->port);
 
 	/* we have completed the command */
 	edge_port->commandPending = false;

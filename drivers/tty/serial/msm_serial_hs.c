@@ -907,7 +907,6 @@ static void msm_hs_dmov_rx_callback(struct msm_dmov_cmd *cmd_ptr,
 	unsigned int error_f = 0;
 	unsigned long flags;
 	unsigned int flush;
-	struct tty_struct *tty;
 	struct tty_port *port;
 	struct uart_port *uport;
 	struct msm_hs_port *msm_uport;
@@ -919,7 +918,6 @@ static void msm_hs_dmov_rx_callback(struct msm_dmov_cmd *cmd_ptr,
 	clk_enable(msm_uport->clk);
 
 	port = &uport->state->port;
-	tty = port->tty;
 
 	msm_hs_write(uport, UARTDM_CR_ADDR, STALE_EVENT_DISABLE);
 

@@ -405,15 +405,8 @@ err:
 	return retval;
 }
 
-/* this is called once with whichever end is closed last */
-static void pty_unix98_shutdown(struct tty_struct *tty)
-{
-	devpts_kill_index(tty->driver_data, tty->index);
-}
-
 static void pty_cleanup(struct tty_struct *tty)
 {
-	tty->port->itty = NULL;
 	tty_port_put(tty->port);
 }
 
@@ -625,6 +618,12 @@ static int pty_unix98_install(struct tty_driver *driver, struct tty_struct *tty)
 
 static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
 {
+}
+
+/* this is called once with whichever end is closed last */
+static void pty_unix98_shutdown(struct tty_struct *tty)
+{
+	devpts_kill_index(tty->driver_data, tty->index);
 }
 
 static const struct tty_operations ptm_unix98_ops = {

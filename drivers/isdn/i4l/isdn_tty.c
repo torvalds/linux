@@ -1472,9 +1472,6 @@ isdn_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 		    tty->termios.c_ospeed == old_termios->c_ospeed)
 			return;
 		isdn_tty_change_speed(info);
-		if ((old_termios->c_cflag & CRTSCTS) &&
-		    !(tty->termios.c_cflag & CRTSCTS))
-			tty->hw_stopped = 0;
 	}
 }
 
