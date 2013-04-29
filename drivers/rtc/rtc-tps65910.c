@@ -276,7 +276,7 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	tps_rtc->irq = irq;
 	device_set_wakeup_capable(&pdev->dev, 1);
 
-	tps_rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	tps_rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 		&tps65910_rtc_ops, THIS_MODULE);
 	if (IS_ERR(tps_rtc->rtc)) {
 		ret = PTR_ERR(tps_rtc->rtc);
@@ -295,12 +295,8 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
  */
 static int tps65910_rtc_remove(struct platform_device *pdev)
 {
-	/* leave rtc running, but disable irqs */
-	struct tps65910_rtc *tps_rtc = platform_get_drvdata(pdev);
-
 	tps65910_rtc_alarm_irq_enable(&pdev->dev, 0);
 
-	rtc_device_unregister(tps_rtc->rtc);
 	return 0;
 }
 
