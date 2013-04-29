@@ -502,12 +502,10 @@ static void __init setup_resources(void)
 	}
 }
 
-unsigned long real_memory_size;
-EXPORT_SYMBOL_GPL(real_memory_size);
-
 static void __init setup_memory_end(void)
 {
 	unsigned long vmax, vmalloc_size, tmp;
+	unsigned long real_memory_size = 0;
 	int i;
 
 
@@ -517,7 +515,6 @@ static void __init setup_memory_end(void)
 		memory_end_set = 1;
 	}
 #endif
-	real_memory_size = 0;
 	memory_end &= PAGE_MASK;
 
 	/*
@@ -719,16 +716,22 @@ static struct notifier_block kdump_mem_nb = {
 static void reserve_oldmem(void)
 {
 #ifdef CONFIG_CRASH_DUMP
+	unsigned long real_size = 0;
+	int i;
+
 	if (!OLDMEM_BASE)
 		return;
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
+		struct mem_chunk *chunk = &memory_chunk[i];
 
+		real_size = max(real_size, chunk->addr + chunk->size);
+	}
 	reserve_kdump_bootmem(OLDMEM_BASE, OLDMEM_SIZE, CHUNK_OLDMEM);
-	reserve_kdump_bootmem(OLDMEM_SIZE, memory_end - OLDMEM_SIZE,
-			      CHUNK_OLDMEM);
-	if (OLDMEM_BASE + OLDMEM_SIZE == real_memory_size)
+	reserve_kdump_bootmem(OLDMEM_SIZE, real_size - OLDMEM_SIZE, CHUNK_OLDMEM);
+	if (OLDMEM_BASE + OLDMEM_SIZE == real_size)
 		saved_max_pfn = PFN_DOWN(OLDMEM_BASE) - 1;
 	else
-		saved_max_pfn = PFN_DOWN(real_memory_size) - 1;
+		saved_max_pfn = PFN_DOWN(real_size) - 1;
 #endif
 }
 
