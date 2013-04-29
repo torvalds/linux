@@ -203,18 +203,7 @@ static struct platform_driver pcap_rtc_driver = {
 	},
 };
 
-static int __init rtc_pcap_init(void)
-{
-	return platform_driver_probe(&pcap_rtc_driver, pcap_rtc_probe);
-}
-
-static void __exit rtc_pcap_exit(void)
-{
-	platform_driver_unregister(&pcap_rtc_driver);
-}
-
-module_init(rtc_pcap_init);
-module_exit(rtc_pcap_exit);
+module_platform_driver_probe(pcap_rtc_driver, pcap_rtc_probe);
 
 MODULE_DESCRIPTION("Motorola pcap rtc driver");
 MODULE_AUTHOR("guiming zhuo <gmzhuo@gmail.com>");
