@@ -61,6 +61,7 @@ struct nfc_hci_ops {
 			      struct sk_buff *skb);
 	int (*enable_se)(struct nfc_dev *dev, u32 secure_element);
 	int (*disable_se)(struct nfc_dev *dev, u32 secure_element);
+	int (*fw_upload)(struct nfc_hci_dev *hdev, const char *firmware_name);
 };
 
 /* Pipes */
