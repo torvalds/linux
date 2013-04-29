@@ -264,7 +264,7 @@ static int palmas_rtc_probe(struct platform_device *pdev)
 
 	palmas_rtc->irq = platform_get_irq(pdev, 0);
 
-	palmas_rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	palmas_rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				&palmas_rtc_ops, THIS_MODULE);
 	if (IS_ERR(palmas_rtc->rtc)) {
 		ret = PTR_ERR(palmas_rtc->rtc);
@@ -272,14 +272,13 @@ static int palmas_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = request_threaded_irq(palmas_rtc->irq, NULL,
+	ret = devm_request_threaded_irq(&pdev->dev, palmas_rtc->irq, NULL,
 			palmas_rtc_interrupt,
 			IRQF_TRIGGER_LOW | IRQF_ONESHOT |
 			IRQF_EARLY_RESUME,
 			dev_name(&pdev->dev), palmas_rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "IRQ request failed, err = %d\n", ret);
-		rtc_device_unregister(palmas_rtc->rtc);
 		return ret;
 	}
 
@@ -289,11 +288,7 @@ static int palmas_rtc_probe(struct platform_device *pdev)
 
 static int palmas_rtc_remove(struct platform_device *pdev)
 {
-	struct palmas_rtc *palmas_rtc = platform_get_drvdata(pdev);
-
 	palmas_rtc_alarm_irq_enable(&pdev->dev, 0);
-	free_irq(palmas_rtc->irq, palmas_rtc);
-	rtc_device_unregister(palmas_rtc->rtc);
 	return 0;
 }
 
