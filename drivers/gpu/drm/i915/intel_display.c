@@ -7997,6 +7997,7 @@ intel_modeset_check_state(struct drm_device *dev)
 		     "(expected %i, found %i)\n", enabled, crtc->base.enabled);
 
 		memset(&pipe_config, 0, sizeof(pipe_config));
+		pipe_config.cpu_transcoder = crtc->config.cpu_transcoder;
 		active = dev_priv->display.get_pipe_config(crtc,
 							   &pipe_config);
 
