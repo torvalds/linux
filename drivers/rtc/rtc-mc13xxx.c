@@ -316,7 +316,7 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 	struct mc13xxx *mc13xxx;
 	int rtcrst_pending;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -351,8 +351,8 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 
 	mc13xxx_unlock(mc13xxx);
 
-	priv->rtc = rtc_device_register(pdev->name,
-			&pdev->dev, &mc13xxx_rtc_ops, THIS_MODULE);
+	priv->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
+					&mc13xxx_rtc_ops, THIS_MODULE);
 	if (IS_ERR(priv->rtc)) {
 		ret = PTR_ERR(priv->rtc);
 
@@ -372,7 +372,6 @@ err_reset_irq_request:
 		mc13xxx_unlock(mc13xxx);
 
 		platform_set_drvdata(pdev, NULL);
-		kfree(priv);
 	}
 
 	return ret;
@@ -384,8 +383,6 @@ static int __exit mc13xxx_rtc_remove(struct platform_device *pdev)
 
 	mc13xxx_lock(priv->mc13xxx);
 
-	rtc_device_unregister(priv->rtc);
-
 	mc13xxx_irq_free(priv->mc13xxx, MC13XXX_IRQ_TODA, priv);
 	mc13xxx_irq_free(priv->mc13xxx, MC13XXX_IRQ_1HZ, priv);
 	mc13xxx_irq_free(priv->mc13xxx, MC13XXX_IRQ_RTCRST, priv);
@@ -393,8 +390,6 @@ static int __exit mc13xxx_rtc_remove(struct platform_device *pdev)
 	mc13xxx_unlock(priv->mc13xxx);
 
 	platform_set_drvdata(pdev, NULL);
-
-	kfree(priv);
 
 	return 0;
 }
