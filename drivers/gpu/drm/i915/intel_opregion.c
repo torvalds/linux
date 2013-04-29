@@ -123,6 +123,12 @@ struct opregion_asle {
 #define ASLE_PFIT_FAILED	(1<<14)
 #define ASLE_PWM_FREQ_FAILED	(1<<16)
 
+/* Technology enabled indicator */
+#define ASLE_TCHE_ALS_EN	(1 << 0)
+#define ASLE_TCHE_BLC_EN	(1 << 1)
+#define ASLE_TCHE_PFIT_EN	(1 << 2)
+#define ASLE_TCHE_PFMB_EN	(1 << 3)
+
 /* ASLE backlight brightness to set */
 #define ASLE_BCLP_VALID                (1<<31)
 #define ASLE_BCLP_MSK          (~(1<<31))
@@ -222,11 +228,6 @@ void intel_opregion_asle_intr(struct drm_device *dev)
 	iowrite32(asle_stat, &asle->aslc);
 }
 
-#define ASLE_ALS_EN    (1<<0)
-#define ASLE_BLC_EN    (1<<1)
-#define ASLE_PFIT_EN   (1<<2)
-#define ASLE_PFMB_EN   (1<<3)
-
 void intel_opregion_enable_asle(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -236,7 +237,7 @@ void intel_opregion_enable_asle(struct drm_device *dev)
 		if (IS_MOBILE(dev))
 			intel_enable_asle(dev);
 
-		iowrite32(ASLE_BLC_EN, &asle->tche);
+		iowrite32(ASLE_TCHE_BLC_EN, &asle->tche);
 		iowrite32(1, &asle->ardy);
 	}
 }
