@@ -336,6 +336,7 @@ static void brcms_remove(struct bcma_device *pdev)
 	struct brcms_info *wl = hw->priv;
 
 	if (wl->wlc) {
+		brcms_led_unregister(wl);
 		wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, false);
 		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
 		ieee80211_unregister_hw(hw);

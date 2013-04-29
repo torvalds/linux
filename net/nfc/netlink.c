@@ -28,8 +28,7 @@
 #include <linux/slab.h>
 
 #include "nfc.h"
-
-#include "llcp/llcp.h"
+#include "llcp.h"
 
 static struct genl_multicast_group nfc_genl_event_mcgrp = {
 	.name = NFC_GENL_MCAST_EVENT_NAME,

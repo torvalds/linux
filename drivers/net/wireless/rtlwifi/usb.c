@@ -521,6 +521,9 @@ static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
 				rtlpriv->link_info.num_rx_inperiod++;
 		}
 
+		/* static bcn for roaming */
+		rtl_beacon_statistic(hw, skb);
+
 		if (likely(rtl_action_proc(hw, skb, false)))
 			ieee80211_rx(hw, skb);
 		else

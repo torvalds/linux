@@ -687,8 +687,23 @@ void ssb_pmu_spuravoid_pllupdate(struct ssb_chipcommon *cc, int spuravoid)
 		pmu_ctl = SSB_CHIPCO_PMU_CTL_PLL_UPD;
 		break;
 	case 43222:
-		/* TODO: BCM43222 requires updating PLLs too */
-		return;
+		if (spuravoid == 1) {
+			ssb_chipco_pll_write(cc, SSB_PMU1_PLLCTL0, 0x11500008);
+			ssb_chipco_pll_write(cc, SSB_PMU1_PLLCTL1, 0x0C000C06);
+			ssb_chipco_pll_write(cc, SSB_PMU1_PLLCTL2, 0x0F600a08);
+			ssb_chipco_pll_write(cc, SSB_PMU1_PLLCTL3, 0x00000000);
+			ssb_chipco_pll_write(cc, SSB_PMU1_PLLCTL4, 0x2001E920);
+			ssb_chipco_pll_write(cc, SSB_PMU1_PLLCTL5, 0x88888815);
+		} else {
+			ssb_chipco_pll_write(cc, SSB_PMU1_PLLCTL0, 0x11100008);
+			ssb_chipco_pll_write(cc, SSB_PMU1_PLLCTL1, 0x0c000c06);
+			ssb_chipco_pll_write(cc, SSB_PMU1_PLLCTL2, 0x03000a08);
+			ssb_chipco_pll_write(cc, SSB_PMU1_PLLCTL3, 0x00000000);
+			ssb_chipco_pll_write(cc, SSB_PMU1_PLLCTL4, 0x200005c0);
+			ssb_chipco_pll_write(cc, SSB_PMU1_PLLCTL5, 0x88888855);
+		}
+		pmu_ctl = SSB_CHIPCO_PMU_CTL_PLL_UPD;
+		break;
 	default:
 		ssb_printk(KERN_ERR PFX
 			   "Unknown spuravoidance settings for chip 0x%04X, not changing PLL\n",
