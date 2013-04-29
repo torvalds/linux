@@ -131,10 +131,8 @@ void __init mem_init(void)
 			datapages++;
 
 #ifdef CONFIG_HIGHMEM
-	for (pfn = num_physpages - 1; pfn >= num_mappedpages; pfn--) {
-		__free_reserved_page(&mem_map[pfn]);
-		totalram_pages++;
-	}
+	for (pfn = num_physpages - 1; pfn >= num_mappedpages; pfn--)
+		free_highmem_page(&mem_map[pfn]);
 #endif
 
 	codek = ((unsigned long) &_etext - (unsigned long) &_stext) >> 10;
