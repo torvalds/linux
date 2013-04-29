@@ -713,6 +713,11 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
 		return VM_FAULT_OOM;
 
 	clear_huge_page(page, haddr, HPAGE_PMD_NR);
+	/*
+	 * The memory barrier inside __SetPageUptodate makes sure that
+	 * clear_huge_page writes become visible before the set_pmd_at()
+	 * write.
+	 */
 	__SetPageUptodate(page);
 
 	spin_lock(&mm->page_table_lock);
@@ -724,12 +729,6 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
 	} else {
 		pmd_t entry;
 		entry = mk_huge_pmd(page, vma);
-		/*
-		 * The spinlocking to take the lru_lock inside
-		 * page_add_new_anon_rmap() acts as a full memory
-		 * barrier to be sure clear_huge_page writes become
-		 * visible after the set_pmd_at() write.
-		 */
 		page_add_new_anon_rmap(page, vma, haddr);
 		set_pmd_at(mm, haddr, pmd, entry);
 		pgtable_trans_huge_deposit(mm, pgtable);
