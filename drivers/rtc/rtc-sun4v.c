@@ -81,8 +81,10 @@ static const struct rtc_class_ops sun4v_rtc_ops = {
 
 static int __init sun4v_rtc_probe(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = rtc_device_register("sun4v", &pdev->dev,
-				     &sun4v_rtc_ops, THIS_MODULE);
+	struct rtc_device *rtc;
+
+	rtc = devm_rtc_device_register(&pdev->dev, "sun4v",
+				&sun4v_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
@@ -92,9 +94,6 @@ static int __init sun4v_rtc_probe(struct platform_device *pdev)
 
 static int __exit sun4v_rtc_remove(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(rtc);
 	return 0;
 }
 
