@@ -1809,8 +1809,6 @@ void dwc2_dump_global_registers(struct dwc2_hsotg *hsotg)
 {
 #ifdef DEBUG
 	u32 __iomem *addr;
-	int i, ep_num;
-	char *txfsiz;
 
 	dev_dbg(hsotg->dev, "Core Global Registers\n");
 	addr = hsotg->regs + GOTGCTL;
@@ -1885,23 +1883,6 @@ void dwc2_dump_global_registers(struct dwc2_hsotg *hsotg)
 	addr = hsotg->regs + HPTXFSIZ;
 	dev_dbg(hsotg->dev, "HPTXFSIZ	 @0x%08lX : 0x%08X\n",
 		(unsigned long)addr, readl(addr));
-
-	if (hsotg->core_params->en_multiple_tx_fifo <= 0) {
-		ep_num = hsotg->hwcfg4 >> GHWCFG4_NUM_DEV_PERIO_IN_EP_SHIFT &
-			 GHWCFG4_NUM_DEV_PERIO_IN_EP_MASK >>
-					 GHWCFG4_NUM_DEV_PERIO_IN_EP_SHIFT;
-		txfsiz = "DPTXFSIZ";
-	} else {
-		ep_num = hsotg->hwcfg4 >> GHWCFG4_NUM_IN_EPS_SHIFT &
-			 GHWCFG4_NUM_IN_EPS_MASK >> GHWCFG4_NUM_IN_EPS_SHIFT;
-		txfsiz = "DIENPTXF";
-	}
-
-	for (i = 0; i < ep_num; i++) {
-		addr = hsotg->regs + DPTXFSIZN(i + 1);
-		dev_dbg(hsotg->dev, "%s[%d] @0x%08lX : 0x%08X\n", txfsiz, i + 1,
-			(unsigned long)addr, readl(addr));
-	}
 
 	addr = hsotg->regs + PCGCTL;
 	dev_dbg(hsotg->dev, "PCGCTL	 @0x%08lX : 0x%08X\n",
