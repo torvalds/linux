@@ -513,18 +513,7 @@ static struct platform_driver dryice_rtc_driver = {
 	.remove = __exit_p(dryice_rtc_remove),
 };
 
-static int __init dryice_rtc_init(void)
-{
-	return platform_driver_probe(&dryice_rtc_driver, dryice_rtc_probe);
-}
-
-static void __exit dryice_rtc_exit(void)
-{
-	platform_driver_unregister(&dryice_rtc_driver);
-}
-
-module_init(dryice_rtc_init);
-module_exit(dryice_rtc_exit);
+module_platform_driver_probe(dryice_rtc_driver, dryice_rtc_probe);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_AUTHOR("Baruch Siach <baruch@tkos.co.il>");
