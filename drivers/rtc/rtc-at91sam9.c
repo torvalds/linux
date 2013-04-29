@@ -20,6 +20,7 @@
 #include <linux/ioctl.h>
 #include <linux/slab.h>
 #include <linux/platform_data/atmel.h>
+#include <linux/io.h>
 
 #include <mach/at91_rtt.h>
 #include <mach/cpu.h>
@@ -309,7 +310,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	rtc = kzalloc(sizeof *rtc, GFP_KERNEL);
+	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
 
@@ -320,18 +321,19 @@ static int at91_rtc_probe(struct platform_device *pdev)
 		device_init_wakeup(&pdev->dev, 1);
 
 	platform_set_drvdata(pdev, rtc);
-	rtc->rtt = ioremap(r->start, resource_size(r));
+	rtc->rtt = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (!rtc->rtt) {
 		dev_err(&pdev->dev, "failed to map registers, aborting.\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
 
-	rtc->gpbr = ioremap(r_gpbr->start, resource_size(r_gpbr));
+	rtc->gpbr = devm_ioremap(&pdev->dev, r_gpbr->start,
+				resource_size(r_gpbr));
 	if (!rtc->gpbr) {
 		dev_err(&pdev->dev, "failed to map gpbr registers, aborting.\n");
 		ret = -ENOMEM;
-		goto fail_gpbr;
+		goto fail;
 	}
 
 	mr = rtt_readl(rtc, MR);
@@ -346,20 +348,19 @@ static int at91_rtc_probe(struct platform_device *pdev)
 	mr &= ~(AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN);
 	rtt_writel(rtc, MR, mr);
 
-	rtc->rtcdev = rtc_device_register(pdev->name, &pdev->dev,
-				&at91_rtc_ops, THIS_MODULE);
+	rtc->rtcdev = devm_rtc_device_register(&pdev->dev, pdev->name,
+					&at91_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtcdev)) {
 		ret = PTR_ERR(rtc->rtcdev);
-		goto fail_register;
+		goto fail;
 	}
 
 	/* register irq handler after we know what name we'll use */
-	ret = request_irq(rtc->irq, at91_rtc_interrupt, IRQF_SHARED,
-				dev_name(&rtc->rtcdev->dev), rtc);
+	ret = devm_request_irq(&pdev->dev, rtc->irq, at91_rtc_interrupt,
+				IRQF_SHARED, dev_name(&rtc->rtcdev->dev), rtc);
 	if (ret) {
 		dev_dbg(&pdev->dev, "can't share IRQ %d?\n", rtc->irq);
-		rtc_device_unregister(rtc->rtcdev);
-		goto fail_register;
+		goto fail;
 	}
 
 	/* NOTE:  sam9260 rev A silicon has a ROM bug which resets the
@@ -374,13 +375,8 @@ static int at91_rtc_probe(struct platform_device *pdev)
 
 	return 0;
 
-fail_register:
-	iounmap(rtc->gpbr);
-fail_gpbr:
-	iounmap(rtc->rtt);
 fail:
 	platform_set_drvdata(pdev, NULL);
-	kfree(rtc);
 	return ret;
 }
 
@@ -394,14 +390,8 @@ static int at91_rtc_remove(struct platform_device *pdev)
 
 	/* disable all interrupts */
 	rtt_writel(rtc, MR, mr & ~(AT91_RTT_ALMIEN | AT91_RTT_RTTINCIEN));
-	free_irq(rtc->irq, rtc);
 
-	rtc_device_unregister(rtc->rtcdev);
-
-	iounmap(rtc->gpbr);
-	iounmap(rtc->rtt);
 	platform_set_drvdata(pdev, NULL);
-	kfree(rtc);
 	return 0;
 }
 
