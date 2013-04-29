@@ -703,7 +703,7 @@ static struct pci_device_id mvs_pci_table[] = {
 	{ PCI_VDEVICE(TTI, 0x2744), chip_9480 },
 	{ PCI_VDEVICE(TTI, 0x2760), chip_9480 },
 	{
-		.vendor		= 0x1b4b,
+		.vendor		= PCI_VENDOR_ID_MARVELL_EXT,
 		.device		= 0x9480,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= 0x9480,
@@ -712,7 +712,7 @@ static struct pci_device_id mvs_pci_table[] = {
 		.driver_data	= chip_9480,
 	},
 	{
-		.vendor		= 0x1b4b,
+		.vendor		= PCI_VENDOR_ID_MARVELL_EXT,
 		.device		= 0x9445,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= 0x9480,
@@ -721,7 +721,7 @@ static struct pci_device_id mvs_pci_table[] = {
 		.driver_data	= chip_9445,
 	},
 	{
-		.vendor		= 0x1b4b,
+		.vendor		= PCI_VENDOR_ID_MARVELL_EXT,
 		.device		= 0x9485,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= 0x9480,

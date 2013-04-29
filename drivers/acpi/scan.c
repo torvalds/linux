@@ -1790,7 +1790,6 @@ int __init acpi_scan_init(void)
 	acpi_platform_init();
 	acpi_csrt_init();
 	acpi_container_init();
-	acpi_pci_slot_init();
 
 	mutex_lock(&acpi_scan_lock);
 	/*

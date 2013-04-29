@@ -152,15 +152,6 @@ void acpi_penalize_isa_irq(int irq, int active);
 
 void acpi_pci_irq_disable (struct pci_dev *dev);
 
-struct acpi_pci_driver {
-	struct list_head node;
-	int (*add)(struct acpi_pci_root *root);
-	void (*remove)(struct acpi_pci_root *root);
-};
-
-int acpi_pci_register_driver(struct acpi_pci_driver *driver);
-void acpi_pci_unregister_driver(struct acpi_pci_driver *driver);
-
 extern int ec_read(u8 addr, u8 *val);
 extern int ec_write(u8 addr, u8 val);
 extern int ec_transaction(u8 command,
