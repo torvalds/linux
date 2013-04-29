@@ -464,7 +464,7 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, imxdi);
-	imxdi->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	imxdi->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				  &dryice_rtc_ops, THIS_MODULE);
 	if (IS_ERR(imxdi->rtc)) {
 		rc = PTR_ERR(imxdi->rtc);
@@ -487,8 +487,6 @@ static int __exit dryice_rtc_remove(struct platform_device *pdev)
 
 	/* mask all interrupts */
 	__raw_writel(0, imxdi->ioaddr + DIER);
-
-	rtc_device_unregister(imxdi->rtc);
 
 	clk_disable_unprepare(imxdi->clk);
 
