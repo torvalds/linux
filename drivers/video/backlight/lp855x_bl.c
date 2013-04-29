@@ -273,7 +273,7 @@ static int lp855x_backlight_register(struct lp855x *lp)
 	struct backlight_device *bl;
 	struct backlight_properties props;
 	struct lp855x_platform_data *pdata = lp->pdata;
-	char *name = pdata->name ? : DEFAULT_BL_NAME;
+	const char *name = pdata->name ? : DEFAULT_BL_NAME;
 
 	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = MAX_BRIGHTNESS;

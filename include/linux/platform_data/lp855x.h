@@ -128,7 +128,7 @@ struct lp855x_rom_data {
  * @rom_data : list of new eeprom/eprom registers
  */
 struct lp855x_platform_data {
-	char *name;
+	const char *name;
 	enum lp855x_brightness_ctrl_mode mode;
 	u8 device_control;
 	int initial_brightness;
