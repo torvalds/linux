@@ -400,8 +400,8 @@ static int spear_rtc_probe(struct platform_device *pdev)
 	spin_lock_init(&config->lock);
 	platform_set_drvdata(pdev, config);
 
-	config->rtc = rtc_device_register(pdev->name, &pdev->dev,
-			&spear_rtc_ops, THIS_MODULE);
+	config->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
+					&spear_rtc_ops, THIS_MODULE);
 	if (IS_ERR(config->rtc)) {
 		dev_err(&pdev->dev, "can't register RTC device, err %ld\n",
 				PTR_ERR(config->rtc));
@@ -427,7 +427,6 @@ static int spear_rtc_remove(struct platform_device *pdev)
 {
 	struct spear_rtc_config *config = platform_get_drvdata(pdev);
 
-	rtc_device_unregister(config->rtc);
 	spear_rtc_disable_interrupt(config);
 	clk_disable_unprepare(config->clk);
 	device_init_wakeup(&pdev->dev, 0);
