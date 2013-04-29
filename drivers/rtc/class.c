@@ -275,8 +275,8 @@ static int devm_rtc_device_match(struct device *dev, void *res, void *data)
 
 /**
  * devm_rtc_device_register - resource managed rtc_device_register()
- * @name: the name of the device
  * @dev: the device to register
+ * @name: the name of the device
  * @ops: the rtc operations structure
  * @owner: the module owner
  *
@@ -287,8 +287,8 @@ static int devm_rtc_device_match(struct device *dev, void *res, void *data)
  * for more information.
  */
 
-struct rtc_device *devm_rtc_device_register(const char *name,
-					struct device *dev,
+struct rtc_device *devm_rtc_device_register(struct device *dev,
+					const char *name,
 					const struct rtc_class_ops *ops,
 					struct module *owner)
 {

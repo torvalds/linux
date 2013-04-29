@@ -133,8 +133,8 @@ extern struct rtc_device *rtc_device_register(const char *name,
 					struct device *dev,
 					const struct rtc_class_ops *ops,
 					struct module *owner);
-extern struct rtc_device *devm_rtc_device_register(const char *name,
-					struct device *dev,
+extern struct rtc_device *devm_rtc_device_register(struct device *dev,
+					const char *name,
 					const struct rtc_class_ops *ops,
 					struct module *owner);
 extern void rtc_device_unregister(struct rtc_device *rtc);
