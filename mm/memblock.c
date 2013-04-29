@@ -771,6 +771,9 @@ static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
 {
 	phys_addr_t found;
 
+	if (WARN_ON(!align))
+		align = __alignof__(long long);
+
 	/* align @size to avoid excessive fragmentation on reserved array */
 	size = round_up(size, align);
 
