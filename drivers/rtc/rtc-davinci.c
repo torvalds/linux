@@ -588,17 +588,7 @@ static struct platform_driver davinci_rtc_driver = {
 	},
 };
 
-static int __init rtc_init(void)
-{
-	return platform_driver_probe(&davinci_rtc_driver, davinci_rtc_probe);
-}
-module_init(rtc_init);
-
-static void __exit rtc_exit(void)
-{
-	platform_driver_unregister(&davinci_rtc_driver);
-}
-module_exit(rtc_exit);
+module_platform_driver_probe(davinci_rtc_driver, davinci_rtc_probe);
 
 MODULE_AUTHOR("Miguel Aguilar <miguel.aguilar@ridgerun.com>");
 MODULE_DESCRIPTION("Texas Instruments DaVinci PRTC Driver");
