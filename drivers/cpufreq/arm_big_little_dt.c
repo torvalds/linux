@@ -78,7 +78,7 @@ static int dt_get_transition_latency(struct device *cpu_dev)
 		of_node_put(np);
 		of_node_put(parent);
 
-		return 0;
+		return transition_latency;
 	}
 
 	return -ENODEV;
