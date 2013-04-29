@@ -396,11 +396,9 @@ static int bfin_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int bfin_rtc_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int bfin_rtc_suspend(struct device *dev)
 {
-	struct device *dev = &pdev->dev;
-
 	dev_dbg_stamp(dev);
 
 	if (device_may_wakeup(dev)) {
@@ -412,10 +410,8 @@ static int bfin_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int bfin_rtc_resume(struct platform_device *pdev)
+static int bfin_rtc_resume(struct device *dev)
 {
-	struct device *dev = &pdev->dev;
-
 	dev_dbg_stamp(dev);
 
 	if (device_may_wakeup(dev))
@@ -434,20 +430,18 @@ static int bfin_rtc_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#else
-# define bfin_rtc_suspend NULL
-# define bfin_rtc_resume  NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(bfin_rtc_pm_ops, bfin_rtc_suspend, bfin_rtc_resume);
 
 static struct platform_driver bfin_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-bfin",
 		.owner	= THIS_MODULE,
+		.pm	= &bfin_rtc_pm_ops,
 	},
 	.probe		= bfin_rtc_probe,
 	.remove		= bfin_rtc_remove,
-	.suspend	= bfin_rtc_suspend,
-	.resume		= bfin_rtc_resume,
 };
 
 module_platform_driver(bfin_rtc_driver);
