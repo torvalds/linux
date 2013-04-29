@@ -130,7 +130,6 @@ static int pageattr_test(void)
 	}
 
 	failed += print_split(&sa);
-	srandom32(100);
 
 	for (i = 0; i < NTEST; i++) {
 		unsigned long pfn = random32() % max_pfn_mapped;
