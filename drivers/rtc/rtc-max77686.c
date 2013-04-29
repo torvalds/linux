@@ -505,7 +505,8 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s\n", __func__);
 
-	info = kzalloc(sizeof(struct max77686_rtc_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct max77686_rtc_info),
+				GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -519,7 +520,6 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(info->max77686->rtc_regmap);
 		dev_err(info->max77686->dev, "Failed to allocate register map: %d\n",
 				ret);
-		kfree(info);
 		return ret;
 	}
 	platform_set_drvdata(pdev, info);
@@ -563,11 +563,7 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 		goto err_rtc;
 	}
 
-	goto out;
 err_rtc:
-	kfree(info);
-	return ret;
-out:
 	return ret;
 }
 
@@ -578,7 +574,6 @@ static int max77686_rtc_remove(struct platform_device *pdev)
 	if (info) {
 		free_irq(info->virq, info);
 		rtc_device_unregister(info->rtc_dev);
-		kfree(info);
 	}
 
 	return 0;
