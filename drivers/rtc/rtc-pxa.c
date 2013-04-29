@@ -452,18 +452,7 @@ static struct platform_driver pxa_rtc_driver = {
 	},
 };
 
-static int __init pxa_rtc_init(void)
-{
-	return platform_driver_probe(&pxa_rtc_driver, pxa_rtc_probe);
-}
-
-static void __exit pxa_rtc_exit(void)
-{
-	platform_driver_unregister(&pxa_rtc_driver);
-}
-
-module_init(pxa_rtc_init);
-module_exit(pxa_rtc_exit);
+module_platform_driver_probe(pxa_rtc_driver, pxa_rtc_probe);
 
 MODULE_AUTHOR("Robert Jarzmik <robert.jarzmik@free.fr>");
 MODULE_DESCRIPTION("PXA27x/PXA3xx Realtime Clock Driver (RTC)");
