@@ -829,7 +829,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	i2c_clk = clk_get(&pdev->dev, "div-clk");
+	i2c_clk = devm_clk_get(&pdev->dev, "div-clk");
 	if (IS_ERR(i2c_clk)) {
 		dev_err(nvec->dev, "failed to get controller clock\n");
 		return -ENODEV;
@@ -916,8 +916,11 @@ static int tegra_nvec_remove(struct platform_device *pdev)
 
 	nvec_toggle_global_events(nvec, false);
 	mfd_remove_devices(nvec->dev);
+	nvec_unregister_notifier(nvec, &nvec->nvec_status_notifier);
 	cancel_work_sync(&nvec->rx_work);
 	cancel_work_sync(&nvec->tx_work);
+	/* FIXME: needs check wether nvec is responsible for power off */
+	pm_power_off = NULL;
 
 	return 0;
 }
