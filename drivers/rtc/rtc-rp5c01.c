@@ -294,18 +294,7 @@ static struct platform_driver rp5c01_rtc_driver = {
 	.remove	= __exit_p(rp5c01_rtc_remove),
 };
 
-static int __init rp5c01_rtc_init(void)
-{
-	return platform_driver_probe(&rp5c01_rtc_driver, rp5c01_rtc_probe);
-}
-
-static void __exit rp5c01_rtc_fini(void)
-{
-	platform_driver_unregister(&rp5c01_rtc_driver);
-}
-
-module_init(rp5c01_rtc_init);
-module_exit(rp5c01_rtc_fini);
+module_platform_driver_probe(rp5c01_rtc_driver, rp5c01_rtc_probe);
 
 MODULE_AUTHOR("Geert Uytterhoeven <geert@linux-m68k.org>");
 MODULE_LICENSE("GPL");
