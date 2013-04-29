@@ -85,8 +85,7 @@ enum xen_irq_type {
  * event channel - irq->event channel mapping
  * cpu - cpu this event channel is bound to
  * index - type-specific information:
- *    PIRQ - vector, with MSB being "needs EIO", or physical IRQ of the HVM
- *           guest, or GSI (real passthrough IRQ) of the device.
+ *    PIRQ - physical IRQ, GSI, flags, and owner domain
  *    VIRQ - virq number
  *    IPI - IPI vector
  *    EVTCHN -
@@ -105,7 +104,6 @@ struct irq_info {
 		struct {
 			unsigned short pirq;
 			unsigned short gsi;
-			unsigned char vector;
 			unsigned char flags;
 			uint16_t domid;
 		} pirq;
@@ -211,7 +209,6 @@ static void xen_irq_info_pirq_init(unsigned irq,
 				   unsigned short evtchn,
 				   unsigned short pirq,
 				   unsigned short gsi,
-				   unsigned short vector,
 				   uint16_t domid,
 				   unsigned char flags)
 {
@@ -221,7 +218,6 @@ static void xen_irq_info_pirq_init(unsigned irq,
 
 	info->u.pirq.pirq = pirq;
 	info->u.pirq.gsi = gsi;
-	info->u.pirq.vector = vector;
 	info->u.pirq.domid = domid;
 	info->u.pirq.flags = flags;
 }
@@ -519,6 +515,9 @@ static void xen_free_irq(unsigned irq)
 {
 	struct irq_info *info = irq_get_handler_data(irq);
 
+	if (WARN_ON(!info))
+		return;
+
 	list_del(&info->list);
 
 	irq_set_handler_data(irq, NULL);
@@ -714,7 +713,7 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 		goto out;
 	}
 
-	xen_irq_info_pirq_init(irq, 0, pirq, gsi, irq_op.vector, DOMID_SELF,
+	xen_irq_info_pirq_init(irq, 0, pirq, gsi, DOMID_SELF,
 			       shareable ? PIRQ_SHAREABLE : 0);
 
 	pirq_query_unmask(irq);
@@ -762,8 +761,7 @@ int xen_allocate_pirq_msi(struct pci_dev *dev, struct msi_desc *msidesc)
 }
 
 int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
-			     int pirq, int vector, const char *name,
-			     domid_t domid)
+			     int pirq, const char *name, domid_t domid)
 {
 	int irq, ret;
 
@@ -776,7 +774,7 @@ int xen_bind_pirq_msi_to_irq(struct pci_dev *dev, struct msi_desc *msidesc,
 	irq_set_chip_and_handler_name(irq, &xen_pirq_chip, handle_edge_irq,
 			name);
 
-	xen_irq_info_pirq_init(irq, 0, pirq, 0, vector, domid, 0);
+	xen_irq_info_pirq_init(irq, 0, pirq, 0, domid, 0);
 	ret = irq_set_msi_desc(irq, msidesc);
 	if (ret < 0)
 		goto error_irq;
@@ -1008,6 +1006,9 @@ static void unbind_from_irq(unsigned int irq)
 	int evtchn = evtchn_from_irq(irq);
 	struct irq_info *info = irq_get_handler_data(irq);
 
+	if (WARN_ON(!info))
+		return;
+
 	mutex_lock(&irq_mapping_update_lock);
 
 	if (info->refcnt > 0) {
@@ -1135,6 +1136,10 @@ int bind_ipi_to_irqhandler(enum ipi_vector ipi,
 
 void unbind_from_irqhandler(unsigned int irq, void *dev_id)
 {
+	struct irq_info *info = irq_get_handler_data(irq);
+
+	if (WARN_ON(!info))
+		return;
 	free_irq(irq, dev_id);
 	unbind_from_irq(irq);
 }
@@ -1457,6 +1462,9 @@ void rebind_evtchn_irq(int evtchn, int irq)
 {
 	struct irq_info *info = info_for_irq(irq);
 
+	if (WARN_ON(!info))
+		return;
+
 	/* Make sure the irq is masked, since the new event channel
 	   will also be masked. */
 	disable_irq(irq);
@@ -1730,7 +1738,12 @@ void xen_poll_irq(int irq)
 int xen_test_irq_shared(int irq)
 {
 	struct irq_info *info = info_for_irq(irq);
-	struct physdev_irq_status_query irq_status = { .irq = info->u.pirq.pirq };
+	struct physdev_irq_status_query irq_status;
+
+	if (WARN_ON(!info))
+		return -ENOENT;
+
+	irq_status.irq = info->u.pirq.pirq;
 
 	if (HYPERVISOR_physdev_op(PHYSDEVOP_irq_status_query, &irq_status))
 		return 0;
