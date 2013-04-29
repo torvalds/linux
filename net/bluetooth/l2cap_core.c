@@ -1387,6 +1387,9 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 	if (!hcon->out && hcon->type == LE_LINK)
 		l2cap_le_conn_ready(conn);
 
+	/* For outgoing pairing which doesn't necessarily have an
+	 * associated socket (e.g. mgmt_pair_device).
+	 */
 	if (hcon->out && hcon->type == LE_LINK)
 		smp_conn_security(hcon, hcon->pending_sec_level);
 
