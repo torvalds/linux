@@ -380,7 +380,6 @@ static void musb_otg_timer_func(unsigned long data)
 		dev_dbg(musb->controller, "HNP: Unhandled mode %s\n",
 			usb_otg_state_string(musb->xceiv->state));
 	}
-	musb->ignore_disconnect = 0;
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
 
@@ -727,7 +726,6 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 b_host:
 			musb->xceiv->state = OTG_STATE_B_HOST;
 			hcd->self.is_b_host = 1;
-			musb->ignore_disconnect = 0;
 			del_timer(&musb->otg_timer);
 			break;
 		default:
@@ -750,7 +748,7 @@ b_host:
 				usb_otg_state_string(musb->xceiv->state), devctl);
 	}
 
-	if ((int_usb & MUSB_INTR_DISCONNECT) && !musb->ignore_disconnect) {
+	if (int_usb & MUSB_INTR_DISCONNECT) {
 		dev_dbg(musb->controller, "DISCONNECT (%s) as %s, devctl %02x\n",
 				usb_otg_state_string(musb->xceiv->state),
 				MUSB_MODE(musb), devctl);
@@ -818,11 +816,6 @@ b_host:
 				usb_otg_state_string(musb->xceiv->state));
 			switch (musb->xceiv->state) {
 			case OTG_STATE_A_SUSPEND:
-				/* We need to ignore disconnect on suspend
-				 * otherwise tusb 2.0 won't reconnect after a
-				 * power cycle, which breaks otg compliance.
-				 */
-				musb->ignore_disconnect = 1;
 				musb_g_reset(musb);
 				/* FALLTHROUGH */
 			case OTG_STATE_A_WAIT_BCON:	/* OPT TD.4.7-900ms */
@@ -834,7 +827,6 @@ b_host:
 					+ msecs_to_jiffies(TA_WAIT_BCON(musb)));
 				break;
 			case OTG_STATE_A_PERIPHERAL:
-				musb->ignore_disconnect = 0;
 				del_timer(&musb->otg_timer);
 				musb_g_reset(musb);
 				break;

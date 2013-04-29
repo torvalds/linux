@@ -145,7 +145,6 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 			msleep(1);
 		}
 
-		musb->ignore_disconnect = true;
 		power &= 0xf0;
 		musb_writeb(mbase, MUSB_POWER,
 				power | MUSB_POWER_RESET);
@@ -157,8 +156,6 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 		dev_dbg(musb->controller, "root port reset stopped\n");
 		musb_writeb(mbase, MUSB_POWER,
 				power & ~MUSB_POWER_RESET);
-
-		musb->ignore_disconnect = false;
 
 		power = musb_readb(mbase, MUSB_POWER);
 		if (power & MUSB_POWER_HSMODE) {

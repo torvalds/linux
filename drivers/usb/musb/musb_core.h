@@ -382,7 +382,6 @@ struct musb {
 	unsigned		is_active:1;
 
 	unsigned is_multipoint:1;
-	unsigned ignore_disconnect:1;	/* during bus resets */
 
 	unsigned		hb_iso_rx:1;	/* high bandwidth iso rx? */
 	unsigned		hb_iso_tx:1;	/* high bandwidth iso tx? */
