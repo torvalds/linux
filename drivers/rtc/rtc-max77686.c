@@ -466,7 +466,7 @@ static void max77686_rtc_enable_smpl(struct max77686_rtc_info *info, bool enable
 
 	val = 0;
 	regmap_read(info->max77686->rtc_regmap, MAX77686_WTSR_SMPL_CNTL, &val);
-	pr_info("%s: WTSR_SMPL(0x%02x)\n", __func__, val);
+	dev_info(info->dev, "%s: WTSR_SMPL(0x%02x)\n", __func__, val);
 }
 #endif /* MAX77686_RTC_WTSR_SMPL */
 
@@ -589,11 +589,14 @@ static void max77686_rtc_shutdown(struct platform_device *pdev)
 	for (i = 0; i < 3; i++) {
 		max77686_rtc_enable_wtsr(info, false);
 		regmap_read(info->max77686->rtc_regmap, MAX77686_WTSR_SMPL_CNTL, &val);
-		pr_info("%s: WTSR_SMPL reg(0x%02x)\n", __func__, val);
-		if (val & WTSR_EN_MASK)
-			pr_emerg("%s: fail to disable WTSR\n", __func__);
-		else {
-			pr_info("%s: success to disable WTSR\n", __func__);
+		dev_info(info->dev, "%s: WTSR_SMPL reg(0x%02x)\n", __func__,
+				val);
+		if (val & WTSR_EN_MASK) {
+			dev_emerg(info->dev, "%s: fail to disable WTSR\n",
+					__func__);
+		} else {
+			dev_info(info->dev, "%s: success to disable WTSR\n",
+					__func__);
 			break;
 		}
 	}
