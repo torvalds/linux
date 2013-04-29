@@ -52,8 +52,21 @@ enum KTHREAD_BITS {
 	KTHREAD_IS_PARKED,
 };
 
-#define to_kthread(tsk)	\
-	container_of((tsk)->vfork_done, struct kthread, exited)
+#define __to_kthread(vfork)	\
+	container_of(vfork, struct kthread, exited)
+
+static inline struct kthread *to_kthread(struct task_struct *k)
+{
+	return __to_kthread(k->vfork_done);
+}
+
+static struct kthread *to_live_kthread(struct task_struct *k)
+{
+	struct completion *vfork = ACCESS_ONCE(k->vfork_done);
+	if (likely(vfork))
+		return __to_kthread(vfork);
+	return NULL;
+}
 
 /**
  * kthread_should_stop - should this kthread return now?
@@ -313,15 +326,8 @@ struct task_struct *kthread_create_on_cpu(int (*threadfn)(void *data),
 
 static struct kthread *task_get_live_kthread(struct task_struct *k)
 {
-	struct kthread *kthread;
-
 	get_task_struct(k);
-	kthread = to_kthread(k);
-	/* It might have exited */
-	barrier();
-	if (k->vfork_done != NULL)
-		return kthread;
-	return NULL;
+	return to_live_kthread(k);
 }
 
 static void __kthread_unpark(struct task_struct *k, struct kthread *kthread)
