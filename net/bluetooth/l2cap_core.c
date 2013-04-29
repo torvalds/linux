@@ -6394,15 +6394,12 @@ static void l2cap_att_channel(struct l2cap_conn *conn,
 {
 	struct l2cap_chan *chan;
 
-	chan = l2cap_global_chan_by_scid(0, L2CAP_CID_ATT,
+	chan = l2cap_global_chan_by_scid(BT_CONNECTED, L2CAP_CID_ATT,
 					 conn->src, conn->dst);
 	if (!chan)
 		goto drop;
 
 	BT_DBG("chan %p, len %d", chan, skb->len);
-
-	if (chan->state != BT_BOUND && chan->state != BT_CONNECTED)
-		goto drop;
 
 	if (chan->imtu < skb->len)
 		goto drop;
