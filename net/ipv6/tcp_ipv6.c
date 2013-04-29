@@ -1405,6 +1405,7 @@ discard:
 	kfree_skb(skb);
 	return 0;
 csum_err:
+	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_CSUMERRORS);
 	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_INERRS);
 	goto discard;
 
@@ -1466,7 +1467,7 @@ static int tcp_v6_rcv(struct sk_buff *skb)
 		goto discard_it;
 
 	if (!skb_csum_unnecessary(skb) && tcp_v6_checksum_init(skb))
-		goto bad_packet;
+		goto csum_error;
 
 	th = tcp_hdr(skb);
 	hdr = ipv6_hdr(skb);
@@ -1530,6 +1531,8 @@ no_tcp_socket:
 		goto discard_it;
 
 	if (skb->len < (th->doff<<2) || tcp_checksum_complete(skb)) {
+csum_error:
+		TCP_INC_STATS_BH(net, TCP_MIB_CSUMERRORS);
 bad_packet:
 		TCP_INC_STATS_BH(net, TCP_MIB_INERRS);
 	} else {
@@ -1537,11 +1540,6 @@ bad_packet:
 	}
 
 discard_it:
-
-	/*
-	 *	Discard frame
-	 */
-
 	kfree_skb(skb);
 	return 0;
 
@@ -1555,10 +1553,13 @@ do_time_wait:
 		goto discard_it;
 	}
 
-	if (skb->len < (th->doff<<2) || tcp_checksum_complete(skb)) {
-		TCP_INC_STATS_BH(net, TCP_MIB_INERRS);
+	if (skb->len < (th->doff<<2)) {
 		inet_twsk_put(inet_twsk(sk));
-		goto discard_it;
+		goto bad_packet;
+	}
+	if (tcp_checksum_complete(skb)) {
+		inet_twsk_put(inet_twsk(sk));
+		goto csum_error;
 	}
 
 	switch (tcp_timewait_state_process(inet_twsk(sk), skb, th)) {

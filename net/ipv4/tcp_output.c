@@ -80,8 +80,9 @@ static void tcp_event_new_data_sent(struct sock *sk, const struct sk_buff *skb)
 
 	tp->packets_out += tcp_skb_pcount(skb);
 	if (!prior_packets || icsk->icsk_pending == ICSK_TIME_EARLY_RETRANS ||
-	    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE)
+	    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE) {
 		tcp_rearm_rto(sk);
+	}
 }
 
 /* SND.NXT, if window was not shrunk.

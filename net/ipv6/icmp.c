@@ -699,7 +699,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		if (__skb_checksum_complete(skb)) {
 			LIMIT_NETDEBUG(KERN_DEBUG "ICMPv6 checksum failed [%pI6 > %pI6]\n",
 				       saddr, daddr);
-			goto discard_it;
+			goto csum_error;
 		}
 	}
 
@@ -785,6 +785,8 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	kfree_skb(skb);
 	return 0;
 
+csum_error:
+	ICMP6_INC_STATS_BH(dev_net(dev), idev, ICMP6_MIB_CSUMERRORS);
 discard_it:
 	ICMP6_INC_STATS_BH(dev_net(dev), idev, ICMP6_MIB_INERRORS);
 drop_no_count:

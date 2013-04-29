@@ -125,6 +125,7 @@ static const struct snmp_mib snmp4_ipextstats_list[] = {
 	SNMP_MIB_ITEM("OutMcastOctets", IPSTATS_MIB_OUTMCASTOCTETS),
 	SNMP_MIB_ITEM("InBcastOctets", IPSTATS_MIB_INBCASTOCTETS),
 	SNMP_MIB_ITEM("OutBcastOctets", IPSTATS_MIB_OUTBCASTOCTETS),
+	SNMP_MIB_ITEM("InCsumErrors", IPSTATS_MIB_CSUMERRORS),
 	SNMP_MIB_SENTINEL
 };
 
@@ -162,6 +163,7 @@ static const struct snmp_mib snmp4_tcp_list[] = {
 	SNMP_MIB_ITEM("RetransSegs", TCP_MIB_RETRANSSEGS),
 	SNMP_MIB_ITEM("InErrs", TCP_MIB_INERRS),
 	SNMP_MIB_ITEM("OutRsts", TCP_MIB_OUTRSTS),
+	SNMP_MIB_ITEM("InCsumErrors", TCP_MIB_CSUMERRORS),
 	SNMP_MIB_SENTINEL
 };
 
@@ -172,6 +174,7 @@ static const struct snmp_mib snmp4_udp_list[] = {
 	SNMP_MIB_ITEM("OutDatagrams", UDP_MIB_OUTDATAGRAMS),
 	SNMP_MIB_ITEM("RcvbufErrors", UDP_MIB_RCVBUFERRORS),
 	SNMP_MIB_ITEM("SndbufErrors", UDP_MIB_SNDBUFERRORS),
+	SNMP_MIB_ITEM("InCsumErrors", UDP_MIB_CSUMERRORS),
 	SNMP_MIB_SENTINEL
 };
 
@@ -322,15 +325,16 @@ static void icmp_put(struct seq_file *seq)
 	struct net *net = seq->private;
 	atomic_long_t *ptr = net->mib.icmpmsg_statistics->mibs;
 
-	seq_puts(seq, "\nIcmp: InMsgs InErrors");
+	seq_puts(seq, "\nIcmp: InMsgs InErrors InCsumErrors");
 	for (i=0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " In%s", icmpmibmap[i].name);
 	seq_printf(seq, " OutMsgs OutErrors");
 	for (i=0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " Out%s", icmpmibmap[i].name);
-	seq_printf(seq, "\nIcmp: %lu %lu",
+	seq_printf(seq, "\nIcmp: %lu %lu %lu",
 		snmp_fold_field((void __percpu **) net->mib.icmp_statistics, ICMP_MIB_INMSGS),
-		snmp_fold_field((void __percpu **) net->mib.icmp_statistics, ICMP_MIB_INERRORS));
+		snmp_fold_field((void __percpu **) net->mib.icmp_statistics, ICMP_MIB_INERRORS),
+		snmp_fold_field((void __percpu **) net->mib.icmp_statistics, ICMP_MIB_CSUMERRORS));
 	for (i=0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
 			   atomic_long_read(ptr + icmpmibmap[i].index));

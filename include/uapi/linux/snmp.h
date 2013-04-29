@@ -50,6 +50,7 @@ enum
 	IPSTATS_MIB_OUTMCASTOCTETS,		/* OutMcastOctets */
 	IPSTATS_MIB_INBCASTOCTETS,		/* InBcastOctets */
 	IPSTATS_MIB_OUTBCASTOCTETS,		/* OutBcastOctets */
+	IPSTATS_MIB_CSUMERRORS,			/* InCsumErrors */
 	__IPSTATS_MIB_MAX
 };
 
@@ -87,6 +88,7 @@ enum
 	ICMP_MIB_OUTTIMESTAMPREPS,		/* OutTimestampReps */
 	ICMP_MIB_OUTADDRMASKS,			/* OutAddrMasks */
 	ICMP_MIB_OUTADDRMASKREPS,		/* OutAddrMaskReps */
+	ICMP_MIB_CSUMERRORS,			/* InCsumErrors */
 	__ICMP_MIB_MAX
 };
 
@@ -103,6 +105,7 @@ enum
 	ICMP6_MIB_INERRORS,			/* InErrors */
 	ICMP6_MIB_OUTMSGS,			/* OutMsgs */
 	ICMP6_MIB_OUTERRORS,			/* OutErrors */
+	ICMP6_MIB_CSUMERRORS,			/* InCsumErrors */
 	__ICMP6_MIB_MAX
 };
 
@@ -130,6 +133,7 @@ enum
 	TCP_MIB_RETRANSSEGS,			/* RetransSegs */
 	TCP_MIB_INERRS,				/* InErrs */
 	TCP_MIB_OUTRSTS,			/* OutRsts */
+	TCP_MIB_CSUMERRORS,			/* InCsumErrors */
 	__TCP_MIB_MAX
 };
 
@@ -147,6 +151,7 @@ enum
 	UDP_MIB_OUTDATAGRAMS,			/* OutDatagrams */
 	UDP_MIB_RCVBUFERRORS,			/* RcvbufErrors */
 	UDP_MIB_SNDBUFERRORS,			/* SndbufErrors */
+	UDP_MIB_CSUMERRORS,			/* InCsumErrors */
 	__UDP_MIB_MAX
 };
 

@@ -483,12 +483,17 @@ out:
 csum_copy_err:
 	slow = lock_sock_fast(sk);
 	if (!skb_kill_datagram(sk, skb, flags)) {
-		if (is_udp4)
+		if (is_udp4) {
+			UDP_INC_STATS_USER(sock_net(sk),
+					UDP_MIB_CSUMERRORS, is_udplite);
 			UDP_INC_STATS_USER(sock_net(sk),
 					UDP_MIB_INERRORS, is_udplite);
-		else
+		} else {
+			UDP6_INC_STATS_USER(sock_net(sk),
+					UDP_MIB_CSUMERRORS, is_udplite);
 			UDP6_INC_STATS_USER(sock_net(sk),
 					UDP_MIB_INERRORS, is_udplite);
+		}
 	}
 	unlock_sock_fast(sk, slow);
 
@@ -637,7 +642,7 @@ int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 	if (rcu_access_pointer(sk->sk_filter)) {
 		if (udp_lib_checksum_complete(skb))
-			goto drop;
+			goto csum_error;
 	}
 
 	if (sk_rcvqueues_full(sk, skb, sk->sk_rcvbuf))
@@ -656,6 +661,8 @@ int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	bh_unlock_sock(sk);
 
 	return rc;
+csum_error:
+	UDP6_INC_STATS_BH(sock_net(sk), UDP_MIB_CSUMERRORS, is_udplite);
 drop:
 	UDP6_INC_STATS_BH(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
 	atomic_inc(&sk->sk_drops);
@@ -817,7 +824,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	}
 
 	if (udp6_csum_init(skb, uh, proto))
-		goto discard;
+		goto csum_error;
 
 	/*
 	 *	Multicast receive code
@@ -850,7 +857,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		goto discard;
 
 	if (udp_lib_checksum_complete(skb))
-		goto discard;
+		goto csum_error;
 
 	UDP6_INC_STATS_BH(net, UDP_MIB_NOPORTS, proto == IPPROTO_UDPLITE);
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
@@ -867,7 +874,9 @@ short_packet:
 		       skb->len,
 		       daddr,
 		       ntohs(uh->dest));
-
+	goto discard;
+csum_error:
+	UDP6_INC_STATS_BH(net, UDP_MIB_CSUMERRORS, proto == IPPROTO_UDPLITE);
 discard:
 	UDP6_INC_STATS_BH(net, UDP_MIB_INERRORS, proto == IPPROTO_UDPLITE);
 	kfree_skb(skb);
