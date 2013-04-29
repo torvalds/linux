@@ -427,8 +427,6 @@ void intel_opregion_init(struct drm_device *dev)
 	}
 
 	if (opregion->asle) {
-		intel_opregion_enable_asle(dev);
-
 		iowrite32(ASLE_TCHE_BLC_EN, &opregion->asle->tche);
 		iowrite32(ASLE_ARDY_READY, &opregion->asle->ardy);
 	}
