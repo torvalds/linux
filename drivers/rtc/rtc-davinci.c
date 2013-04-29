@@ -523,7 +523,7 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, davinci_rtc);
 
-	davinci_rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	davinci_rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				    &davinci_rtc_ops, THIS_MODULE);
 	if (IS_ERR(davinci_rtc->rtc)) {
 		ret = PTR_ERR(davinci_rtc->rtc);
@@ -543,7 +543,7 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 			  0, "davinci_rtc", davinci_rtc);
 	if (ret < 0) {
 		dev_err(dev, "unable to register davinci RTC interrupt\n");
-		goto fail2;
+		goto fail1;
 	}
 
 	/* Enable interrupts */
@@ -557,8 +557,6 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 
 	return 0;
 
-fail2:
-	rtc_device_unregister(davinci_rtc->rtc);
 fail1:
 	platform_set_drvdata(pdev, NULL);
 	return ret;
@@ -571,8 +569,6 @@ static int __exit davinci_rtc_remove(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 0);
 
 	rtcif_write(davinci_rtc, 0, PRTCIF_INTEN);
-
-	rtc_device_unregister(davinci_rtc->rtc);
 
 	platform_set_drvdata(pdev, NULL);
 
