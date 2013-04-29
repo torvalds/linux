@@ -302,17 +302,7 @@ static struct platform_driver at32_rtc_driver = {
 	},
 };
 
-static int __init at32_rtc_init(void)
-{
-	return platform_driver_probe(&at32_rtc_driver, at32_rtc_probe);
-}
-module_init(at32_rtc_init);
-
-static void __exit at32_rtc_exit(void)
-{
-	platform_driver_unregister(&at32_rtc_driver);
-}
-module_exit(at32_rtc_exit);
+module_platform_driver_probe(at32_rtc_driver, at32_rtc_probe);
 
 MODULE_AUTHOR("Hans-Christian Egtvedt <hcegtvedt@atmel.com>");
 MODULE_DESCRIPTION("Real time clock for AVR32 AT32AP700x");
