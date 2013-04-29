@@ -124,7 +124,7 @@ struct lp855x_rom_data {
 struct lp855x_platform_data {
 	const char *name;
 	u8 device_control;
-	int initial_brightness;
+	u8 initial_brightness;
 	unsigned int period_ns;
 	u8 load_new_rom_data;
 	int size_program;
