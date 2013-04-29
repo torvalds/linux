@@ -159,13 +159,13 @@ static int pnx4008_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(wdt_base))
 		return PTR_ERR(wdt_base);
 
-	wdt_clk = clk_get(&pdev->dev, NULL);
+	wdt_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(wdt_clk))
 		return PTR_ERR(wdt_clk);
 
 	ret = clk_enable(wdt_clk);
 	if (ret)
-		goto out;
+		return ret;
 
 	pnx4008_wdd.bootstatus = (readl(WDTIM_RES(wdt_base)) & WDOG_RESET) ?
 			WDIOF_CARDRESET : 0;
@@ -186,8 +186,6 @@ static int pnx4008_wdt_probe(struct platform_device *pdev)
 
 disable_clk:
 	clk_disable(wdt_clk);
-out:
-	clk_put(wdt_clk);
 	return ret;
 }
 
@@ -196,7 +194,6 @@ static int pnx4008_wdt_remove(struct platform_device *pdev)
 	watchdog_unregister_device(&pnx4008_wdd);
 
 	clk_disable(wdt_clk);
-	clk_put(wdt_clk);
 
 	return 0;
 }
