@@ -3759,19 +3759,20 @@ static bool si_validate_phase_shedding_tables(struct radeon_device *rdev,
 }
 
 static void si_trim_voltage_table_to_fit_state_table(struct radeon_device *rdev,
+						     u32 max_voltage_steps,
 						     struct atom_voltage_table *voltage_table)
 {
 	unsigned int i, diff;
 
-	if (voltage_table->count <= SISLANDS_MAX_NO_VREG_STEPS)
+	if (voltage_table->count <= max_voltage_steps)
 		return;
 
-	diff = voltage_table->count - SISLANDS_MAX_NO_VREG_STEPS;
+	diff = voltage_table->count - max_voltage_steps;
 
-	for (i= 0; i < SISLANDS_MAX_NO_VREG_STEPS; i++)
+	for (i= 0; i < max_voltage_steps; i++)
 		voltage_table->entries[i] = voltage_table->entries[i + diff];
 
-	voltage_table->count = SISLANDS_MAX_NO_VREG_STEPS;
+	voltage_table->count = max_voltage_steps;
 }
 
 static int si_construct_voltage_tables(struct radeon_device *rdev)
@@ -3787,7 +3788,9 @@ static int si_construct_voltage_tables(struct radeon_device *rdev)
 		return ret;
 
 	if (eg_pi->vddc_voltage_table.count > SISLANDS_MAX_NO_VREG_STEPS)
-		si_trim_voltage_table_to_fit_state_table(rdev, &eg_pi->vddc_voltage_table);
+		si_trim_voltage_table_to_fit_state_table(rdev,
+							 SISLANDS_MAX_NO_VREG_STEPS,
+							 &eg_pi->vddc_voltage_table);
 
 	if (eg_pi->vddci_control) {
 		ret = radeon_atom_get_voltage_table(rdev, VOLTAGE_TYPE_VDDCI,
@@ -3796,7 +3799,9 @@ static int si_construct_voltage_tables(struct radeon_device *rdev)
 			return ret;
 
 		if (eg_pi->vddci_voltage_table.count > SISLANDS_MAX_NO_VREG_STEPS)
-			si_trim_voltage_table_to_fit_state_table(rdev, &eg_pi->vddci_voltage_table);
+			si_trim_voltage_table_to_fit_state_table(rdev,
+								 SISLANDS_MAX_NO_VREG_STEPS,
+								 &eg_pi->vddci_voltage_table);
 	}
 
 	if (pi->mvdd_control) {
@@ -3814,7 +3819,9 @@ static int si_construct_voltage_tables(struct radeon_device *rdev)
 		}
 
 		if (si_pi->mvdd_voltage_table.count > SISLANDS_MAX_NO_VREG_STEPS)
-			si_trim_voltage_table_to_fit_state_table(rdev, &si_pi->mvdd_voltage_table);
+			si_trim_voltage_table_to_fit_state_table(rdev,
+								 SISLANDS_MAX_NO_VREG_STEPS,
+								 &si_pi->mvdd_voltage_table);
 	}
 
 	if (si_pi->vddc_phase_shed_control) {
