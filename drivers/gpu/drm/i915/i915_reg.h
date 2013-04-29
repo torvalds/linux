@@ -4150,10 +4150,9 @@
 #define  FDI_LINK_TRAIN_600MV_3_5DB_SNB_B	(0x39<<22)
 #define  FDI_LINK_TRAIN_800MV_0DB_SNB_B		(0x38<<22)
 #define  FDI_LINK_TRAIN_VOL_EMP_MASK		(0x3f<<22)
-#define  FDI_DP_PORT_WIDTH_X1           (0<<19)
-#define  FDI_DP_PORT_WIDTH_X2           (1<<19)
-#define  FDI_DP_PORT_WIDTH_X3           (2<<19)
-#define  FDI_DP_PORT_WIDTH_X4           (3<<19)
+#define  FDI_DP_PORT_WIDTH_SHIFT		19
+#define  FDI_DP_PORT_WIDTH_MASK			(7 << FDI_DP_PORT_WIDTH_SHIFT)
+#define  FDI_DP_PORT_WIDTH(width)           (((width) - 1) << FDI_DP_PORT_WIDTH_SHIFT)
 #define  FDI_TX_ENHANCE_FRAME_ENABLE    (1<<18)
 /* Ironlake: hardwired to 1 */
 #define  FDI_TX_PLL_ENABLE              (1<<14)
@@ -4178,7 +4177,6 @@
 /* train, dp width same as FDI_TX */
 #define  FDI_FS_ERRC_ENABLE		(1<<27)
 #define  FDI_FE_ERRC_ENABLE		(1<<26)
-#define  FDI_DP_PORT_WIDTH_X8           (7<<19)
 #define  FDI_RX_POLARITY_REVERSED_LPT	(1<<16)
 #define  FDI_8BPC                       (0<<16)
 #define  FDI_10BPC                      (1<<16)
@@ -4200,9 +4198,6 @@
 #define  FDI_LINK_TRAIN_PATTERN_IDLE_CPT	(2<<8)
 #define  FDI_LINK_TRAIN_NORMAL_CPT		(3<<8)
 #define  FDI_LINK_TRAIN_PATTERN_MASK_CPT	(3<<8)
-/* LPT */
-#define  FDI_PORT_WIDTH_2X_LPT			(1<<19)
-#define  FDI_PORT_WIDTH_1X_LPT			(0<<19)
 
 #define _FDI_RXA_MISC			0xf0010
 #define _FDI_RXB_MISC			0xf1010

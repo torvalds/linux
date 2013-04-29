@@ -2419,8 +2419,8 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	/* enable CPU FDI TX and PCH FDI RX */
 	reg = FDI_TX_CTL(pipe);
 	temp = I915_READ(reg);
-	temp &= ~(7 << 19);
-	temp |= (intel_crtc->config.fdi_lanes - 1) << 19;
+	temp &= ~FDI_DP_PORT_WIDTH_MASK;
+	temp |= FDI_DP_PORT_WIDTH(intel_crtc->config.fdi_lanes);
 	temp &= ~FDI_LINK_TRAIN_NONE;
 	temp |= FDI_LINK_TRAIN_PATTERN_1;
 	I915_WRITE(reg, temp | FDI_TX_ENABLE);
@@ -2517,8 +2517,8 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	/* enable CPU FDI TX and PCH FDI RX */
 	reg = FDI_TX_CTL(pipe);
 	temp = I915_READ(reg);
-	temp &= ~(7 << 19);
-	temp |= (intel_crtc->config.fdi_lanes - 1) << 19;
+	temp &= ~FDI_DP_PORT_WIDTH_MASK;
+	temp |= FDI_DP_PORT_WIDTH(intel_crtc->config.fdi_lanes);
 	temp &= ~FDI_LINK_TRAIN_NONE;
 	temp |= FDI_LINK_TRAIN_PATTERN_1;
 	temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
@@ -2652,8 +2652,8 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 	/* enable CPU FDI TX and PCH FDI RX */
 	reg = FDI_TX_CTL(pipe);
 	temp = I915_READ(reg);
-	temp &= ~(7 << 19);
-	temp |= (intel_crtc->config.fdi_lanes - 1) << 19;
+	temp &= ~FDI_DP_PORT_WIDTH_MASK;
+	temp |= FDI_DP_PORT_WIDTH(intel_crtc->config.fdi_lanes);
 	temp &= ~(FDI_LINK_TRAIN_AUTO | FDI_LINK_TRAIN_NONE_IVB);
 	temp |= FDI_LINK_TRAIN_PATTERN_1_IVB;
 	temp &= ~FDI_LINK_TRAIN_VOL_EMP_MASK;
@@ -2754,8 +2754,8 @@ static void ironlake_fdi_pll_enable(struct intel_crtc *intel_crtc)
 	/* enable PCH FDI RX PLL, wait warmup plus DMI latency */
 	reg = FDI_RX_CTL(pipe);
 	temp = I915_READ(reg);
-	temp &= ~((0x7 << 19) | (0x7 << 16));
-	temp |= (intel_crtc->config.fdi_lanes - 1) << 19;
+	temp &= ~(FDI_DP_PORT_WIDTH_MASK | (0x7 << 16));
+	temp |= FDI_DP_PORT_WIDTH(intel_crtc->config.fdi_lanes);
 	temp |= (I915_READ(PIPECONF(pipe)) & PIPECONF_BPC_MASK) << 11;
 	I915_WRITE(reg, temp | FDI_RX_PLL_ENABLE);
 
@@ -5796,8 +5796,13 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 	if (!(tmp & PIPECONF_ENABLE))
 		return false;
 
-	if (I915_READ(TRANSCONF(crtc->pipe)) & TRANS_ENABLE)
+	if (I915_READ(TRANSCONF(crtc->pipe)) & TRANS_ENABLE) {
 		pipe_config->has_pch_encoder = true;
+
+		tmp = I915_READ(FDI_RX_CTL(crtc->pipe));
+		pipe_config->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
+					  FDI_DP_PORT_WIDTH_SHIFT) + 1;
+	}
 
 	return true;
 }
@@ -5934,8 +5939,13 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	 */
 	tmp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 	if ((tmp & TRANS_DDI_PORT_MASK) == TRANS_DDI_SELECT_PORT(PORT_E) &&
-	    I915_READ(TRANSCONF(PIPE_A)) & TRANS_ENABLE)
+	    I915_READ(TRANSCONF(PIPE_A)) & TRANS_ENABLE) {
 		pipe_config->has_pch_encoder = true;
+
+		tmp = I915_READ(FDI_RX_CTL(PIPE_A));
+		pipe_config->fdi_lanes = ((FDI_DP_PORT_WIDTH_MASK & tmp) >>
+					  FDI_DP_PORT_WIDTH_SHIFT) + 1;
+	}
 
 	return true;
 }
@@ -7899,6 +7909,14 @@ intel_pipe_config_compare(struct intel_crtc_config *current_config,
 			  "(expected %i, found %i)\n",
 			  current_config->has_pch_encoder,
 			  pipe_config->has_pch_encoder);
+		return false;
+	}
+
+	if (current_config->fdi_lanes != pipe_config->fdi_lanes) {
+		DRM_ERROR("mismatch in fdi_lanes "
+			  "(expected %i, found %i)\n",
+			  current_config->fdi_lanes,
+			  pipe_config->fdi_lanes);
 		return false;
 	}
 
