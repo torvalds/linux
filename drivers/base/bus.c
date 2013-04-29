@@ -898,18 +898,18 @@ static ssize_t bus_uevent_store(struct bus_type *bus,
 static BUS_ATTR(uevent, S_IWUSR, NULL, bus_uevent_store);
 
 /**
- * __bus_register - register a driver-core subsystem
+ * bus_register - register a driver-core subsystem
  * @bus: bus to register
- * @key: lockdep class key
  *
  * Once we have that, we register the bus with the kobject
  * infrastructure, then register the children subsystems it has:
  * the devices and drivers that belong to the subsystem.
  */
-int __bus_register(struct bus_type *bus, struct lock_class_key *key)
+int bus_register(struct bus_type *bus)
 {
 	int retval;
 	struct subsys_private *priv;
+	struct lock_class_key *key = &bus->lock_key;
 
 	priv = kzalloc(sizeof(struct subsys_private), GFP_KERNEL);
 	if (!priv)
@@ -981,7 +981,7 @@ out:
 	bus->p = NULL;
 	return retval;
 }
-EXPORT_SYMBOL_GPL(__bus_register);
+EXPORT_SYMBOL_GPL(bus_register);
 
 /**
  * bus_unregister - remove a bus from the system

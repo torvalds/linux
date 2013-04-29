@@ -132,6 +132,17 @@ static ssize_t show_crash_notes(struct device *dev, struct device_attribute *att
 	return rc;
 }
 static DEVICE_ATTR(crash_notes, 0400, show_crash_notes, NULL);
+
+static ssize_t show_crash_notes_size(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	ssize_t rc;
+
+	rc = sprintf(buf, "%zu\n", sizeof(note_buf_t));
+	return rc;
+}
+static DEVICE_ATTR(crash_notes_size, 0400, show_crash_notes_size, NULL);
 #endif
 
 /*
@@ -259,6 +270,9 @@ int __cpuinit register_cpu(struct cpu *cpu, int num)
 #ifdef CONFIG_KEXEC
 	if (!error)
 		error = device_create_file(&cpu->dev, &dev_attr_crash_notes);
+	if (!error)
+		error = device_create_file(&cpu->dev,
+					   &dev_attr_crash_notes_size);
 #endif
 	return error;
 }
