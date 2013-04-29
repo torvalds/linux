@@ -512,7 +512,7 @@ static const struct snd_kcontrol_new codec_snd_controls_a[] = {
 	CODEC_SINGLE("ADC Input Mux",SUN4I_ADC_ACTL,17,7,0),//ADC输入静音
 };
 
-int __init snd_chip_codec_mixer_new(struct snd_card *card)
+int __devinit snd_chip_codec_mixer_new(struct snd_card *card)
 {
   	/*
   	*	每个alsa预定义的组件在构造时需调用snd_device_new()，而每个组件的析构方法则在函数集中被包含

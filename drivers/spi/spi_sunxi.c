@@ -1328,7 +1328,7 @@ static int spi_sunxi_hw_exit(struct sunxi_spi *aw_spi)
 	return 0;
 }
 
-static int __init spi_sunxi_probe(struct platform_device *pdev)
+static int __devinit spi_sunxi_probe(struct platform_device *pdev)
 {
 	struct resource	*mem_res, *dma_res;
 	struct sunxi_spi *aw_spi;
@@ -1775,7 +1775,7 @@ static struct platform_device sunxi_spi3_device = {
 
 /* ---------------- spi resource and platform data end ----------------------- */
 static struct spi_board_info *spi_boards = NULL;
-int spi_sunxi_register_spidev(void)
+int __devinit spi_sunxi_register_spidev(void)
 {
     int spi_dev_num = 0;
     int ret = 0;
