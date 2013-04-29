@@ -274,7 +274,7 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, rtc);
-	rtc->rtc = rtc_device_register(dev_name(&pdev->dev), &pdev->dev,
+	rtc->rtc = devm_rtc_device_register(&pdev->dev, dev_name(&pdev->dev),
 				       &tps6586x_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc)) {
 		ret = PTR_ERR(rtc->rtc);
@@ -306,12 +306,10 @@ fail_rtc_register:
 
 static int tps6586x_rtc_remove(struct platform_device *pdev)
 {
-	struct tps6586x_rtc *rtc = platform_get_drvdata(pdev);
 	struct device *tps_dev = to_tps6586x_dev(&pdev->dev);
 
 	tps6586x_update(tps_dev, RTC_CTRL, 0,
 		RTC_ENABLE | OSC_SRC_SEL | PRE_BYPASS | CL_SEL_MASK);
-	rtc_device_unregister(rtc->rtc);
 	return 0;
 }
 
