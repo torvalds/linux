@@ -87,7 +87,7 @@ static void tlb_batch_add_one(struct mm_struct *mm, unsigned long vaddr,
 	if (!tb->active) {
 		global_flush_tlb_page(mm, vaddr);
 		flush_tsb_user_page(mm, vaddr);
-		return;
+		goto out;
 	}
 
 	if (nr == 0)
@@ -98,6 +98,7 @@ static void tlb_batch_add_one(struct mm_struct *mm, unsigned long vaddr,
 	if (nr >= TLB_BATCH_NR)
 		flush_tlb_pending();
 
+out:
 	put_cpu_var(tlb_batch);
 }
 
