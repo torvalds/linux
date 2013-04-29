@@ -488,13 +488,13 @@ static void snd_usb_caiaq_maschine_dispatch(struct snd_usb_caiaqdev *cdev,
 					unsigned int len)
 {
 	unsigned int i, pad_id;
-	uint16_t pressure;
+	__le16 *pressure = (__le16 *) buf;
 
 	for (i = 0; i < MASCHINE_PADS; i++) {
-		pressure = be16_to_cpu(buf[i * 2] << 8 | buf[(i * 2) + 1]);
-		pad_id = pressure >> 12;
-
-		input_report_abs(cdev->input_dev, MASCHINE_PAD(pad_id), pressure & 0xfff);
+		pad_id = le16_to_cpu(*pressure) >> 12;
+		input_report_abs(cdev->input_dev, MASCHINE_PAD(pad_id),
+				 le16_to_cpu(*pressure) & 0xfff);
+		pressure++;
 	}
 
 	input_sync(cdev->input_dev);
