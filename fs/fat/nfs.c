@@ -50,18 +50,49 @@ static struct inode *fat_dget(struct super_block *sb, int i_logstart)
 	return inode;
 }
 
+static struct inode *fat_ilookup(struct super_block *sb, u64 ino, loff_t i_pos)
+{
+	if (MSDOS_SB(sb)->options.nfs == FAT_NFS_NOSTALE_RO)
+		return fat_iget(sb, i_pos);
+
+	else {
+		if ((ino < MSDOS_ROOT_INO) || (ino == MSDOS_FSINFO_INO))
+			return NULL;
+		return ilookup(sb, ino);
+	}
+}
+
 static struct inode *__fat_nfs_get_inode(struct super_block *sb,
 				       u64 ino, u32 generation, loff_t i_pos)
 {
-	struct inode *inode;
+	struct inode *inode = fat_ilookup(sb, ino, i_pos);
 
-	if ((ino < MSDOS_ROOT_INO) || (ino == MSDOS_FSINFO_INO))
-		return NULL;
-
-	inode = ilookup(sb, ino);
 	if (inode && generation && (inode->i_generation != generation)) {
 		iput(inode);
 		inode = NULL;
+	}
+	if (inode == NULL && MSDOS_SB(sb)->options.nfs == FAT_NFS_NOSTALE_RO) {
+		struct buffer_head *bh = NULL;
+		struct msdos_dir_entry *de ;
+		sector_t blocknr;
+		int offset;
+		fat_get_blknr_offset(MSDOS_SB(sb), i_pos, &blocknr, &offset);
+		bh = sb_bread(sb, blocknr);
+		if (!bh) {
+			fat_msg(sb, KERN_ERR,
+				"unable to read block(%llu) for building NFS inode",
+				(llu)blocknr);
+			return inode;
+		}
+		de = (struct msdos_dir_entry *)bh->b_data;
+		/* If a file is deleted on server and client is not updated
+		 * yet, we must not build the inode upon a lookup call.
+		 */
+		if (IS_FREE(de[offset].name))
+			inode = NULL;
+		else
+			inode = fat_build_inode(sb, &de[offset], i_pos);
+		brelse(bh);
 	}
 
 	return inode;
