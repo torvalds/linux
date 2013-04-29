@@ -2142,20 +2142,25 @@ static int _nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 		.rpc_cred	= cred,
         };
 	unsigned long timestamp = jiffies;
+	fmode_t fmode;
+	bool truncate;
 	int status;
 
 	nfs_fattr_init(fattr);
 
-	if (state != NULL && nfs4_valid_open_stateid(state)) {
+	/* Servers should only apply open mode checks for file size changes */
+	truncate = (sattr->ia_valid & ATTR_SIZE) ? true : false;
+	fmode = truncate ? FMODE_WRITE : FMODE_READ;
+
+	if (nfs4_copy_delegation_stateid(&arg.stateid, inode, fmode)) {
+		/* Use that stateid */
+	} else if (truncate && state != NULL && nfs4_valid_open_stateid(state)) {
 		struct nfs_lockowner lockowner = {
 			.l_owner = current->files,
 			.l_pid = current->tgid,
 		};
 		nfs4_select_rw_stateid(&arg.stateid, state, FMODE_WRITE,
 				&lockowner);
-	} else if (nfs4_copy_delegation_stateid(&arg.stateid, inode,
-				FMODE_WRITE)) {
-		/* Use that stateid */
 	} else
 		nfs4_stateid_copy(&arg.stateid, &zero_stateid);
 
