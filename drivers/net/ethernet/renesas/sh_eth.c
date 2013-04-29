@@ -2735,6 +2735,11 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	/* read and set MAC address */
 	read_mac_address(ndev, pd->mac_addr);
+	if (!is_valid_ether_addr(ndev->dev_addr)) {
+		dev_warn(&pdev->dev,
+			 "no valid MAC address supplied, using a random one.\n");
+		eth_hw_addr_random(ndev);
+	}
 
 	/* ioremap the TSU registers */
 	if (mdp->cd->tsu) {
