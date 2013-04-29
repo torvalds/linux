@@ -179,4 +179,5 @@ module_platform_driver(nvec_mouse_driver);
 
 MODULE_DESCRIPTION("NVEC mouse driver");
 MODULE_AUTHOR("Marc Dietrich <marvin24@gmx.de>");
+MODULE_ALIAS("platform:nvec-mouse");
 MODULE_LICENSE("GPL");
