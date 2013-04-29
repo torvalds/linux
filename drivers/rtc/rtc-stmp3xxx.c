@@ -297,15 +297,15 @@ out:
 	return err;
 }
 
-#ifdef CONFIG_PM
-static int stmp3xxx_rtc_suspend(struct platform_device *dev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int stmp3xxx_rtc_suspend(struct device *dev)
 {
 	return 0;
 }
 
-static int stmp3xxx_rtc_resume(struct platform_device *dev)
+static int stmp3xxx_rtc_resume(struct device *dev)
 {
-	struct stmp3xxx_rtc_data *rtc_data = platform_get_drvdata(dev);
+	struct stmp3xxx_rtc_data *rtc_data = dev_get_drvdata(dev);
 
 	mxs_reset_block(rtc_data->io);
 	writel(STMP3XXX_RTC_PERSISTENT0_ALARM_EN |
@@ -314,10 +314,10 @@ static int stmp3xxx_rtc_resume(struct platform_device *dev)
 			rtc_data->io + STMP3XXX_RTC_PERSISTENT0_CLR);
 	return 0;
 }
-#else
-#define stmp3xxx_rtc_suspend	NULL
-#define stmp3xxx_rtc_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(stmp3xxx_rtc_pm_ops, stmp3xxx_rtc_suspend,
+			stmp3xxx_rtc_resume);
 
 static const struct of_device_id rtc_dt_ids[] = {
 	{ .compatible = "fsl,stmp3xxx-rtc", },
@@ -328,11 +328,10 @@ MODULE_DEVICE_TABLE(of, rtc_dt_ids);
 static struct platform_driver stmp3xxx_rtcdrv = {
 	.probe		= stmp3xxx_rtc_probe,
 	.remove		= stmp3xxx_rtc_remove,
-	.suspend	= stmp3xxx_rtc_suspend,
-	.resume		= stmp3xxx_rtc_resume,
 	.driver		= {
 		.name	= "stmp3xxx-rtc",
 		.owner	= THIS_MODULE,
+		.pm	= &stmp3xxx_rtc_pm_ops,
 		.of_match_table = of_match_ptr(rtc_dt_ids),
 	},
 };
