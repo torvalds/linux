@@ -773,24 +773,28 @@ static int adp8860_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int adp8860_i2c_suspend(struct i2c_client *client, pm_message_t message)
+#ifdef CONFIG_PM_SLEEP
+static int adp8860_i2c_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+
 	adp8860_clr_bits(client, ADP8860_MDCR, NSTBY);
 
 	return 0;
 }
 
-static int adp8860_i2c_resume(struct i2c_client *client)
+static int adp8860_i2c_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+
 	adp8860_set_bits(client, ADP8860_MDCR, NSTBY | BLEN);
 
 	return 0;
 }
-#else
-#define adp8860_i2c_suspend NULL
-#define adp8860_i2c_resume NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(adp8860_i2c_pm_ops, adp8860_i2c_suspend,
+			adp8860_i2c_resume);
 
 static const struct i2c_device_id adp8860_id[] = {
 	{ "adp8860", adp8860 },
@@ -802,12 +806,11 @@ MODULE_DEVICE_TABLE(i2c, adp8860_id);
 
 static struct i2c_driver adp8860_driver = {
 	.driver = {
-		.name = KBUILD_MODNAME,
+		.name	= KBUILD_MODNAME,
+		.pm	= &adp8860_i2c_pm_ops,
 	},
 	.probe    = adp8860_probe,
 	.remove   = adp8860_remove,
-	.suspend = adp8860_i2c_suspend,
-	.resume  = adp8860_i2c_resume,
 	.id_table = adp8860_id,
 };
 
