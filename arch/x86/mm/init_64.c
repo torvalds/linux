@@ -1011,11 +1011,8 @@ remove_pagetable(unsigned long start, unsigned long end, bool direct)
 	flush_tlb_all();
 }
 
-void __ref vmemmap_free(struct page *memmap, unsigned long nr_pages)
+void __ref vmemmap_free(unsigned long start, unsigned long end)
 {
-	unsigned long start = (unsigned long)memmap;
-	unsigned long end = (unsigned long)(memmap + nr_pages);
-
 	remove_pagetable(start, end, false);
 }
 
@@ -1284,17 +1281,15 @@ static long __meminitdata addr_start, addr_end;
 static void __meminitdata *p_start, *p_end;
 static int __meminitdata node_start;
 
-int __meminit
-vmemmap_populate(struct page *start_page, unsigned long size, int node)
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 {
-	unsigned long addr = (unsigned long)start_page;
-	unsigned long end = (unsigned long)(start_page + size);
+	unsigned long addr;
 	unsigned long next;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 
-	for (; addr < end; addr = next) {
+	for (addr = start; addr < end; addr = next) {
 		void *p = NULL;
 
 		pgd = vmemmap_pgd_populate(addr, node);
@@ -1351,7 +1346,7 @@ vmemmap_populate(struct page *start_page, unsigned long size, int node)
 		}
 
 	}
-	sync_global_pgds((unsigned long)start_page, end - 1);
+	sync_global_pgds(start, end - 1);
 	return 0;
 }
 

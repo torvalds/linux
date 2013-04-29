@@ -263,19 +263,14 @@ static __meminit void vmemmap_list_populate(unsigned long phys,
 	vmemmap_list = vmem_back;
 }
 
-int __meminit vmemmap_populate(struct page *start_page,
-			       unsigned long nr_pages, int node)
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 {
-	unsigned long start = (unsigned long)start_page;
-	unsigned long end = (unsigned long)(start_page + nr_pages);
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
 
 	/* Align to the page size of the linear mapping. */
 	start = _ALIGN_DOWN(start, page_size);
 
-	pr_debug("vmemmap_populate page %p, %ld pages, node %d\n",
-		 start_page, nr_pages, node);
-	pr_debug(" -> map %lx..%lx\n", start, end);
+	pr_debug("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
 
 	for (; start < end; start += page_size) {
 		void *p;
@@ -298,7 +293,7 @@ int __meminit vmemmap_populate(struct page *start_page,
 	return 0;
 }
 
-void vmemmap_free(struct page *memmap, unsigned long nr_pages)
+void vmemmap_free(unsigned long start, unsigned long end)
 {
 }
 

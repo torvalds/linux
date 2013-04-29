@@ -147,11 +147,10 @@ pgd_t * __meminit vmemmap_pgd_populate(unsigned long addr, int node)
 	return pgd;
 }
 
-int __meminit vmemmap_populate_basepages(struct page *start_page,
-						unsigned long size, int node)
+int __meminit vmemmap_populate_basepages(unsigned long start,
+					 unsigned long end, int node)
 {
-	unsigned long addr = (unsigned long)start_page;
-	unsigned long end = (unsigned long)(start_page + size);
+	unsigned long addr = start;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -178,9 +177,15 @@ int __meminit vmemmap_populate_basepages(struct page *start_page,
 
 struct page * __meminit sparse_mem_map_populate(unsigned long pnum, int nid)
 {
-	struct page *map = pfn_to_page(pnum * PAGES_PER_SECTION);
-	int error = vmemmap_populate(map, PAGES_PER_SECTION, nid);
-	if (error)
+	unsigned long start;
+	unsigned long end;
+	struct page *map;
+
+	map = pfn_to_page(pnum * PAGES_PER_SECTION);
+	start = (unsigned long)map;
+	end = (unsigned long)(map + PAGES_PER_SECTION);
+
+	if (vmemmap_populate(start, end, nid))
 		return NULL;
 
 	return map;

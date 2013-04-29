@@ -615,11 +615,17 @@ static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
 }
 static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
 {
-	vmemmap_free(memmap, nr_pages);
+	unsigned long start = (unsigned long)memmap;
+	unsigned long end = (unsigned long)(memmap + nr_pages);
+
+	vmemmap_free(start, end);
 }
 static void free_map_bootmem(struct page *memmap, unsigned long nr_pages)
 {
-	vmemmap_free(memmap, nr_pages);
+	unsigned long start = (unsigned long)memmap;
+	unsigned long end = (unsigned long)(memmap + nr_pages);
+
+	vmemmap_free(start, end);
 }
 #else
 static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
