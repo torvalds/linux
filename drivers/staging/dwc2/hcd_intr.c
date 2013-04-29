@@ -117,16 +117,13 @@ static void dwc2_sof_intr(struct dwc2_hsotg *hsotg)
 {
 	struct list_head *qh_entry;
 	struct dwc2_qh *qh;
-	u32 hfnum;
 	enum dwc2_transaction_type tr_type;
 
 #ifdef DEBUG_SOF
 	dev_vdbg(hsotg->dev, "--Start of Frame Interrupt--\n");
 #endif
 
-	hfnum = readl(hsotg->regs + HFNUM);
-	hsotg->frame_number = hfnum >> HFNUM_FRNUM_SHIFT &
-			    HFNUM_FRNUM_MASK >> HFNUM_FRNUM_SHIFT;
+	hsotg->frame_number = dwc2_hcd_get_frame_number(hsotg);
 
 	dwc2_track_missed_sofs(hsotg);
 

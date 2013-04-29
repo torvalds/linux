@@ -1146,16 +1146,10 @@ void dwc2_hc_cleanup(struct dwc2_hsotg *hsotg, struct dwc2_host_chan *chan)
 static void dwc2_hc_set_even_odd_frame(struct dwc2_hsotg *hsotg,
 				       struct dwc2_host_chan *chan, u32 *hcchar)
 {
-	u32 hfnum, frnum;
-
 	if (chan->ep_type == USB_ENDPOINT_XFER_INT ||
 	    chan->ep_type == USB_ENDPOINT_XFER_ISOC) {
-		hfnum = readl(hsotg->regs + HFNUM);
-		frnum = hfnum >> HFNUM_FRNUM_SHIFT &
-			HFNUM_FRNUM_MASK >> HFNUM_FRNUM_SHIFT;
-
 		/* 1 if _next_ frame is odd, 0 if it's even */
-		if (frnum & 0x1)
+		if (dwc2_hcd_get_frame_number(hsotg) & 0x1)
 			*hcchar |= HCCHAR_ODDFRM;
 	}
 }
