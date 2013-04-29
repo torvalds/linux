@@ -187,7 +187,7 @@ static int bL_cpufreq_init(struct cpufreq_policy *policy)
 
 	cpumask_copy(policy->cpus, topology_core_cpumask(policy->cpu));
 
-	dev_info(cpu_dev, "CPU %d initialized\n", policy->cpu);
+	dev_info(cpu_dev, "%s: CPU %d initialized\n", __func__, policy->cpu);
 	return 0;
 }
 
