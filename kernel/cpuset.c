@@ -2251,7 +2251,6 @@ void cpuset_update_active_cpus(bool cpu_online)
 	schedule_work(&cpuset_hotplug_work);
 }
 
-#ifdef CONFIG_MEMORY_HOTPLUG
 /*
  * Keep top_cpuset.mems_allowed tracking node_states[N_MEMORY].
  * Call this routine anytime after node_states[N_MEMORY] changes.
@@ -2263,20 +2262,23 @@ static int cpuset_track_online_nodes(struct notifier_block *self,
 	schedule_work(&cpuset_hotplug_work);
 	return NOTIFY_OK;
 }
-#endif
+
+static struct notifier_block cpuset_track_online_nodes_nb = {
+	.notifier_call = cpuset_track_online_nodes,
+	.priority = 10,		/* ??! */
+};
 
 /**
  * cpuset_init_smp - initialize cpus_allowed
  *
  * Description: Finish top cpuset after cpu, node maps are initialized
- **/
-
+ */
 void __init cpuset_init_smp(void)
 {
 	cpumask_copy(top_cpuset.cpus_allowed, cpu_active_mask);
 	top_cpuset.mems_allowed = node_states[N_MEMORY];
 
-	hotplug_memory_notifier(cpuset_track_online_nodes, 10);
+	register_hotmemory_notifier(&cpuset_track_online_nodes_nb);
 
 	cpuset_propagate_hotplug_wq =
 		alloc_ordered_workqueue("cpuset_hotplug", 0);
