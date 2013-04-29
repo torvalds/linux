@@ -409,7 +409,7 @@ static int ds1374_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ds1374_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -427,19 +427,15 @@ static int ds1374_resume(struct device *dev)
 		disable_irq_wake(client->irq);
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(ds1374_pm, ds1374_suspend, ds1374_resume);
-
-#define DS1374_PM (&ds1374_pm)
-#else
-#define DS1374_PM NULL
-#endif
 
 static struct i2c_driver ds1374_driver = {
 	.driver = {
 		.name = "rtc-ds1374",
 		.owner = THIS_MODULE,
-		.pm = DS1374_PM,
+		.pm = &ds1374_pm,
 	},
 	.probe = ds1374_probe,
 	.remove = ds1374_remove,
