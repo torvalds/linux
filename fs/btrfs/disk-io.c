@@ -3258,7 +3258,7 @@ int btrfs_calc_num_tolerated_disk_barrier_failures(
 					    BTRFS_BLOCK_GROUP_RAID10)) {
 						num_tolerated_disk_barrier_failures = 1;
 					} else if (flags &
-						   BTRFS_BLOCK_GROUP_RAID5) {
+						   BTRFS_BLOCK_GROUP_RAID6) {
 						num_tolerated_disk_barrier_failures = 2;
 					}
 				}
