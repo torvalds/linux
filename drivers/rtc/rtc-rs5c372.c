@@ -579,7 +579,9 @@ static int rs5c372_probe(struct i2c_client *client,
 		}
 	}
 
-	if (!(rs5c372 = kzalloc(sizeof(struct rs5c372), GFP_KERNEL))) {
+	rs5c372 = devm_kzalloc(&client->dev, sizeof(struct rs5c372),
+				GFP_KERNEL);
+	if (!rs5c372) {
 		err = -ENOMEM;
 		goto exit;
 	}
@@ -594,7 +596,7 @@ static int rs5c372_probe(struct i2c_client *client,
 
 	err = rs5c_get_regs(rs5c372);
 	if (err < 0)
-		goto exit_kfree;
+		goto exit;
 
 	/* clock may be set for am/pm or 24 hr time */
 	switch (rs5c372->type) {
@@ -617,7 +619,7 @@ static int rs5c372_probe(struct i2c_client *client,
 		break;
 	default:
 		dev_err(&client->dev, "unknown RTC type\n");
-		goto exit_kfree;
+		goto exit;
 	}
 
 	/* if the oscillator lost power and no other software (like
@@ -629,7 +631,7 @@ static int rs5c372_probe(struct i2c_client *client,
 	err = rs5c_oscillator_setup(rs5c372);
 	if (unlikely(err < 0)) {
 		dev_err(&client->dev, "setup error\n");
-		goto exit_kfree;
+		goto exit;
 	}
 
 	if (rs5c372_get_datetime(client, &tm) < 0)
@@ -648,26 +650,20 @@ static int rs5c372_probe(struct i2c_client *client,
 			);
 
 	/* REVISIT use client->irq to register alarm irq ... */
-
-	rs5c372->rtc = rtc_device_register(rs5c372_driver.driver.name,
-				&client->dev, &rs5c372_rtc_ops, THIS_MODULE);
+	rs5c372->rtc = devm_rtc_device_register(&client->dev,
+					rs5c372_driver.driver.name,
+					&rs5c372_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rs5c372->rtc)) {
 		err = PTR_ERR(rs5c372->rtc);
-		goto exit_kfree;
+		goto exit;
 	}
 
 	err = rs5c_sysfs_register(&client->dev);
 	if (err)
-		goto exit_devreg;
+		goto exit;
 
 	return 0;
-
-exit_devreg:
-	rtc_device_unregister(rs5c372->rtc);
-
-exit_kfree:
-	kfree(rs5c372);
 
 exit:
 	return err;
@@ -675,11 +671,7 @@ exit:
 
 static int rs5c372_remove(struct i2c_client *client)
 {
-	struct rs5c372 *rs5c372 = i2c_get_clientdata(client);
-
-	rtc_device_unregister(rs5c372->rtc);
 	rs5c_sysfs_unregister(&client->dev);
-	kfree(rs5c372);
 	return 0;
 }
 
