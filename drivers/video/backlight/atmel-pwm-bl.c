@@ -225,17 +225,7 @@ static struct platform_driver atmel_pwm_bl_driver = {
 	.remove = __exit_p(atmel_pwm_bl_remove),
 };
 
-static int __init atmel_pwm_bl_init(void)
-{
-	return platform_driver_probe(&atmel_pwm_bl_driver, atmel_pwm_bl_probe);
-}
-module_init(atmel_pwm_bl_init);
-
-static void __exit atmel_pwm_bl_exit(void)
-{
-	platform_driver_unregister(&atmel_pwm_bl_driver);
-}
-module_exit(atmel_pwm_bl_exit);
+module_platform_driver_probe(atmel_pwm_bl_driver, atmel_pwm_bl_probe);
 
 MODULE_AUTHOR("Hans-Christian egtvedt <hans-christian.egtvedt@atmel.com>");
 MODULE_DESCRIPTION("Atmel PWM backlight driver");
