@@ -1283,6 +1283,8 @@ static bool use_gss_proxy(struct net *net)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
+
 static bool set_gss_proxy(struct net *net, int type)
 {
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
@@ -1320,7 +1322,6 @@ static int wait_for_gss_proxy(struct net *net)
 	return wait_event_interruptible(sn->gssp_wq, gssp_ready(sn));
 }
 
-#ifdef CONFIG_PROC_FS
 
 static ssize_t write_gssp(struct file *file, const char __user *buf,
 			 size_t count, loff_t *ppos)
@@ -1406,6 +1407,14 @@ static void destroy_use_gss_proxy_proc_entry(struct net *net)
 		clear_gssp_clnt(sn);
 	}
 }
+#else /* CONFIG_PROC_FS */
+
+static int create_use_gss_proxy_proc_entry(struct net *net)
+{
+	return 0;
+}
+
+static void destroy_use_gss_proxy_proc_entry(struct net *net) {}
 
 #endif /* CONFIG_PROC_FS */
 
