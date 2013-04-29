@@ -82,13 +82,9 @@ static unsigned long highmem_setup(void)
 		/* FIXME not sure about */
 		if (memblock_is_reserved(pfn << PAGE_SHIFT))
 			continue;
-		ClearPageReserved(page);
-		init_page_count(page);
-		__free_page(page);
-		totalhigh_pages++;
+		free_highmem_page(page);
 		reservedpages++;
 	}
-	totalram_pages += totalhigh_pages;
 	pr_info("High memory: %luk\n",
 					totalhigh_pages << (PAGE_SHIFT-10));
 
