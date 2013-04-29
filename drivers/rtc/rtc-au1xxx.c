@@ -134,18 +134,7 @@ static struct platform_driver au1xrtc_driver = {
 	.remove		= au1xtoy_rtc_remove,
 };
 
-static int __init au1xtoy_rtc_init(void)
-{
-	return platform_driver_probe(&au1xrtc_driver, au1xtoy_rtc_probe);
-}
-
-static void __exit au1xtoy_rtc_exit(void)
-{
-	platform_driver_unregister(&au1xrtc_driver);
-}
-
-module_init(au1xtoy_rtc_init);
-module_exit(au1xtoy_rtc_exit);
+module_platform_driver_probe(au1xrtc_driver, au1xtoy_rtc_probe);
 
 MODULE_DESCRIPTION("Au1xxx TOY-counter-based RTC driver");
 MODULE_AUTHOR("Manuel Lauss <manuel.lauss@gmail.com>");
