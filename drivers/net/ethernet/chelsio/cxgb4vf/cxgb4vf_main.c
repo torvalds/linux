@@ -409,6 +409,20 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		break;
 	}
 
+	case CPL_FW4_MSG: {
+		/* FW can send EGR_UPDATEs encapsulated in a CPL_FW4_MSG.
+		 */
+		const struct cpl_sge_egr_update *p = (void *)(rsp + 3);
+		opcode = G_CPL_OPCODE(ntohl(p->opcode_qid));
+		if (opcode != CPL_SGE_EGR_UPDATE) {
+			dev_err(adapter->pdev_dev, "unexpected FW4/CPL %#x on FW event queue\n"
+				, opcode);
+			break;
+		}
+		cpl = (void *)p;
+		/*FALLTHROUGH*/
+	}
+
 	case CPL_SGE_EGR_UPDATE: {
 		/*
 		 * We've received an Egress Queue Status Update message.  We
@@ -2072,6 +2086,7 @@ static int adap_init0(struct adapter *adapter)
 	struct sge *s = &adapter->sge;
 	unsigned int ethqsets;
 	int err;
+	u32 param, val = 0;
 
 	/*
 	 * Wait for the device to become ready before proceeding ...
@@ -2152,6 +2167,16 @@ static int adap_init0(struct adapter *adapter)
 			" err=%d\n", err);
 		return err;
 	}
+
+	/* If we're running on newer firmware, let it know that we're
+	 * prepared to deal with encapsulated CPL messages.  Older
+	 * firmware won't understand this and we'll just get
+	 * unencapsulated messages ...
+	 */
+	param = FW_PARAMS_MNEM(FW_PARAMS_MNEM_PFVF) |
+		FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_PFVF_CPLFW4MSG_ENCAP);
+	val = 1;
+	(void) t4vf_set_params(adapter, 1, &param, &val);
 
 	/*
 	 * Retrieve our RX interrupt holdoff timer values and counter

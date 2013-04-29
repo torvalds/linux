@@ -158,6 +158,7 @@ union opcode_tid {
 };
 
 #define CPL_OPCODE(x) ((x) << 24)
+#define G_CPL_OPCODE(x) (((x) >> 24) & 0xFF)
 #define MK_OPCODE_TID(opcode, tid) (CPL_OPCODE(opcode) | (tid))
 #define OPCODE_TID(cmd) ((cmd)->ot.opcode_tid)
 #define GET_TID(cmd) (ntohl(OPCODE_TID(cmd)) & 0xFFFFFF)
