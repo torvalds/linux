@@ -40,11 +40,6 @@ static struct clk *clk[MAX_CLUSTERS];
 static struct cpufreq_frequency_table *freq_table[MAX_CLUSTERS];
 static atomic_t cluster_usage[MAX_CLUSTERS] = {ATOMIC_INIT(0), ATOMIC_INIT(0)};
 
-static int cpu_to_cluster(int cpu)
-{
-	return topology_physical_package_id(cpu);
-}
-
 static unsigned int bL_cpufreq_get(unsigned int cpu)
 {
 	u32 cur_cluster = cpu_to_cluster(cpu);
