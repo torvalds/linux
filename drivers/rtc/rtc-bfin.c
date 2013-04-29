@@ -352,14 +352,14 @@ static int bfin_rtc_probe(struct platform_device *pdev)
 	dev_dbg_stamp(dev);
 
 	/* Allocate memory for our RTC struct */
-	rtc = kzalloc(sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc(dev, sizeof(*rtc), GFP_KERNEL);
 	if (unlikely(!rtc))
 		return -ENOMEM;
 	platform_set_drvdata(pdev, rtc);
 	device_init_wakeup(dev, 1);
 
 	/* Register our RTC with the RTC framework */
-	rtc->rtc_dev = rtc_device_register(pdev->name, dev, &bfin_rtc_ops,
+	rtc->rtc_dev = devm_rtc_device_register(dev, pdev->name, &bfin_rtc_ops,
 						THIS_MODULE);
 	if (unlikely(IS_ERR(rtc->rtc_dev))) {
 		ret = PTR_ERR(rtc->rtc_dev);
@@ -367,9 +367,10 @@ static int bfin_rtc_probe(struct platform_device *pdev)
 	}
 
 	/* Grab the IRQ and init the hardware */
-	ret = request_irq(IRQ_RTC, bfin_rtc_interrupt, 0, pdev->name, dev);
+	ret = devm_request_irq(dev, IRQ_RTC, bfin_rtc_interrupt, 0,
+				pdev->name, dev);
 	if (unlikely(ret))
-		goto err_reg;
+		goto err;
 	/* sometimes the bootloader touched things, but the write complete was not
 	 * enabled, so let's just do a quick timeout here since the IRQ will not fire ...
 	 */
@@ -381,23 +382,16 @@ static int bfin_rtc_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_reg:
-	rtc_device_unregister(rtc->rtc_dev);
 err:
-	kfree(rtc);
 	return ret;
 }
 
 static int bfin_rtc_remove(struct platform_device *pdev)
 {
-	struct bfin_rtc *rtc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 
 	bfin_rtc_reset(dev, 0);
-	free_irq(IRQ_RTC, dev);
-	rtc_device_unregister(rtc->rtc_dev);
 	platform_set_drvdata(pdev, NULL);
-	kfree(rtc);
 
 	return 0;
 }
