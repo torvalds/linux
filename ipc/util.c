@@ -466,50 +466,12 @@ void ipc_free(void* ptr, int size)
 		kfree(ptr);
 }
 
-/*
- * rcu allocations:
- * There are three headers that are prepended to the actual allocation:
- * - during use: ipc_rcu_hdr.
- * - during the rcu grace period: ipc_rcu_grace.
- * - [only if vmalloc]: ipc_rcu_sched.
- * Their lifetime doesn't overlap, thus the headers share the same memory.
- * Unlike a normal union, they are right-aligned, thus some container_of
- * forward/backward casting is necessary:
- */
-struct ipc_rcu_hdr
-{
-	atomic_t refcount;
-	int is_vmalloc;
-	void *data[0];
-};
-
-
-struct ipc_rcu_grace
-{
+struct ipc_rcu {
 	struct rcu_head rcu;
+	atomic_t refcount;
 	/* "void *" makes sure alignment of following data is sane. */
 	void *data[0];
 };
-
-struct ipc_rcu_sched
-{
-	struct work_struct work;
-	/* "void *" makes sure alignment of following data is sane. */
-	void *data[0];
-};
-
-#define HDRLEN_KMALLOC		(sizeof(struct ipc_rcu_grace) > sizeof(struct ipc_rcu_hdr) ? \
-					sizeof(struct ipc_rcu_grace) : sizeof(struct ipc_rcu_hdr))
-#define HDRLEN_VMALLOC		(sizeof(struct ipc_rcu_sched) > HDRLEN_KMALLOC ? \
-					sizeof(struct ipc_rcu_sched) : HDRLEN_KMALLOC)
-
-static inline int rcu_use_vmalloc(int size)
-{
-	/* Too big for a single page? */
-	if (HDRLEN_KMALLOC + size > PAGE_SIZE)
-		return 1;
-	return 0;
-}
 
 /**
  *	ipc_rcu_alloc	-	allocate ipc and rcu space 
@@ -520,74 +482,41 @@ static inline int rcu_use_vmalloc(int size)
  */
 void *ipc_rcu_alloc(int size)
 {
-	void *out;
-
 	/*
-	 * We prepend the allocation with the rcu struct, and
-	 * workqueue if necessary (for vmalloc).
+	 * We prepend the allocation with the rcu struct
 	 */
-	if (rcu_use_vmalloc(size)) {
-		out = vmalloc(HDRLEN_VMALLOC + size);
-		if (!out)
-			goto done;
-
-		out += HDRLEN_VMALLOC;
-		container_of(out, struct ipc_rcu_hdr, data)->is_vmalloc = 1;
-	} else {
-		out = kmalloc(HDRLEN_KMALLOC + size, GFP_KERNEL);
-		if (!out)
-			goto done;
-
-		out += HDRLEN_KMALLOC;
-		container_of(out, struct ipc_rcu_hdr, data)->is_vmalloc = 0;
-	}
-
-	/* set reference counter no matter what kind of allocation was done */
-	atomic_set(&container_of(out, struct ipc_rcu_hdr, data)->refcount, 1);
-done:
-	return out;
+	struct ipc_rcu *out = ipc_alloc(sizeof(struct ipc_rcu) + size);
+	if (unlikely(!out))
+		return NULL;
+	atomic_set(&out->refcount, 1);
+	return out->data;
 }
 
 int ipc_rcu_getref(void *ptr)
 {
-	return atomic_inc_not_zero(&container_of(ptr, struct ipc_rcu_hdr, data)->refcount);
-}
-
-static void ipc_do_vfree(struct work_struct *work)
-{
-	vfree(container_of(work, struct ipc_rcu_sched, work));
+	return atomic_inc_not_zero(&container_of(ptr, struct ipc_rcu, data)->refcount);
 }
 
 /**
  * ipc_schedule_free - free ipc + rcu space
  * @head: RCU callback structure for queued work
- * 
- * Since RCU callback function is called in bh,
- * we need to defer the vfree to schedule_work().
  */
 static void ipc_schedule_free(struct rcu_head *head)
 {
-	struct ipc_rcu_grace *grace;
-	struct ipc_rcu_sched *sched;
-
-	grace = container_of(head, struct ipc_rcu_grace, rcu);
-	sched = container_of(&(grace->data[0]), struct ipc_rcu_sched,
-				data[0]);
-
-	INIT_WORK(&sched->work, ipc_do_vfree);
-	schedule_work(&sched->work);
+	vfree(container_of(head, struct ipc_rcu, rcu));
 }
 
 void ipc_rcu_putref(void *ptr)
 {
-	if (!atomic_dec_and_test(&container_of(ptr, struct ipc_rcu_hdr, data)->refcount))
+	struct ipc_rcu *p = container_of(ptr, struct ipc_rcu, data);
+
+	if (!atomic_dec_and_test(&p->refcount))
 		return;
 
-	if (container_of(ptr, struct ipc_rcu_hdr, data)->is_vmalloc) {
-		call_rcu(&container_of(ptr, struct ipc_rcu_grace, data)->rcu,
-				ipc_schedule_free);
+	if (is_vmalloc_addr(ptr)) {
+		call_rcu(&p->rcu, ipc_schedule_free);
 	} else {
-		kfree_rcu(container_of(ptr, struct ipc_rcu_grace, data), rcu);
+		kfree_rcu(p, rcu);
 	}
 }
 
