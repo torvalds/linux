@@ -564,7 +564,7 @@ fail1:
 	return ret;
 }
 
-static int davinci_rtc_remove(struct platform_device *pdev)
+static int __exit davinci_rtc_remove(struct platform_device *pdev)
 {
 	struct davinci_rtc *davinci_rtc = platform_get_drvdata(pdev);
 
@@ -581,7 +581,7 @@ static int davinci_rtc_remove(struct platform_device *pdev)
 
 static struct platform_driver davinci_rtc_driver = {
 	.probe		= davinci_rtc_probe,
-	.remove		= davinci_rtc_remove,
+	.remove		= __exit_p(davinci_rtc_remove),
 	.driver		= {
 		.name = "rtc_davinci",
 		.owner = THIS_MODULE,
