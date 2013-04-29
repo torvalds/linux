@@ -4728,6 +4728,45 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc,
 		   ((mode->hdisplay - 1) << 16) | (mode->vdisplay - 1));
 }
 
+static void intel_get_pipe_timings(struct intel_crtc *crtc,
+				   struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
+	uint32_t tmp;
+
+	tmp = I915_READ(HTOTAL(cpu_transcoder));
+	pipe_config->adjusted_mode.crtc_hdisplay = (tmp & 0xffff) + 1;
+	pipe_config->adjusted_mode.crtc_htotal = ((tmp >> 16) & 0xffff) + 1;
+	tmp = I915_READ(HBLANK(cpu_transcoder));
+	pipe_config->adjusted_mode.crtc_hblank_start = (tmp & 0xffff) + 1;
+	pipe_config->adjusted_mode.crtc_hblank_end = ((tmp >> 16) & 0xffff) + 1;
+	tmp = I915_READ(HSYNC(cpu_transcoder));
+	pipe_config->adjusted_mode.crtc_hsync_start = (tmp & 0xffff) + 1;
+	pipe_config->adjusted_mode.crtc_hsync_end = ((tmp >> 16) & 0xffff) + 1;
+
+	tmp = I915_READ(VTOTAL(cpu_transcoder));
+	pipe_config->adjusted_mode.crtc_vdisplay = (tmp & 0xffff) + 1;
+	pipe_config->adjusted_mode.crtc_vtotal = ((tmp >> 16) & 0xffff) + 1;
+	tmp = I915_READ(VBLANK(cpu_transcoder));
+	pipe_config->adjusted_mode.crtc_vblank_start = (tmp & 0xffff) + 1;
+	pipe_config->adjusted_mode.crtc_vblank_end = ((tmp >> 16) & 0xffff) + 1;
+	tmp = I915_READ(VSYNC(cpu_transcoder));
+	pipe_config->adjusted_mode.crtc_vsync_start = (tmp & 0xffff) + 1;
+	pipe_config->adjusted_mode.crtc_vsync_end = ((tmp >> 16) & 0xffff) + 1;
+
+	if (I915_READ(PIPECONF(cpu_transcoder)) & PIPECONF_INTERLACE_MASK) {
+		pipe_config->adjusted_mode.flags |= DRM_MODE_FLAG_INTERLACE;
+		pipe_config->adjusted_mode.crtc_vtotal += 1;
+		pipe_config->adjusted_mode.crtc_vblank_end += 1;
+	}
+
+	tmp = I915_READ(PIPESRC(crtc->pipe));
+	pipe_config->requested_mode.vdisplay = (tmp & 0xffff) + 1;
+	pipe_config->requested_mode.hdisplay = ((tmp >> 16) & 0xffff) + 1;
+}
+
 static void i9xx_set_pipeconf(struct intel_crtc *intel_crtc)
 {
 	struct drm_device *dev = intel_crtc->base.dev;
@@ -4948,6 +4987,8 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	tmp = I915_READ(PIPECONF(crtc->pipe));
 	if (!(tmp & PIPECONF_ENABLE))
 		return false;
+
+	intel_get_pipe_timings(crtc, pipe_config);
 
 	return true;
 }
@@ -5866,6 +5907,8 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 		ironlake_get_fdi_m_n_config(crtc, pipe_config);
 	}
 
+	intel_get_pipe_timings(crtc, pipe_config);
+
 	return true;
 }
 
@@ -6012,6 +6055,8 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 
 		ironlake_get_fdi_m_n_config(crtc, pipe_config);
 	}
+
+	intel_get_pipe_timings(crtc, pipe_config);
 
 	return true;
 }
@@ -7994,6 +8039,15 @@ intel_pipe_config_compare(struct intel_crtc_config *current_config,
 		return false; \
 	}
 
+#define PIPE_CONF_CHECK_FLAGS(name, mask)	\
+	if ((current_config->name ^ pipe_config->name) & (mask)) { \
+		DRM_ERROR("mismatch in " #name " " \
+			  "(expected %i, found %i)\n", \
+			  current_config->name & (mask), \
+			  pipe_config->name & (mask)); \
+		return false; \
+	}
+
 	PIPE_CONF_CHECK_I(has_pch_encoder);
 	PIPE_CONF_CHECK_I(fdi_lanes);
 	PIPE_CONF_CHECK_I(fdi_m_n.gmch_m);
@@ -8002,7 +8056,28 @@ intel_pipe_config_compare(struct intel_crtc_config *current_config,
 	PIPE_CONF_CHECK_I(fdi_m_n.link_n);
 	PIPE_CONF_CHECK_I(fdi_m_n.tu);
 
+	PIPE_CONF_CHECK_I(adjusted_mode.crtc_hdisplay);
+	PIPE_CONF_CHECK_I(adjusted_mode.crtc_htotal);
+	PIPE_CONF_CHECK_I(adjusted_mode.crtc_hblank_start);
+	PIPE_CONF_CHECK_I(adjusted_mode.crtc_hblank_end);
+	PIPE_CONF_CHECK_I(adjusted_mode.crtc_hsync_start);
+	PIPE_CONF_CHECK_I(adjusted_mode.crtc_hsync_end);
+
+	PIPE_CONF_CHECK_I(adjusted_mode.crtc_vdisplay);
+	PIPE_CONF_CHECK_I(adjusted_mode.crtc_vtotal);
+	PIPE_CONF_CHECK_I(adjusted_mode.crtc_vblank_start);
+	PIPE_CONF_CHECK_I(adjusted_mode.crtc_vblank_end);
+	PIPE_CONF_CHECK_I(adjusted_mode.crtc_vsync_start);
+	PIPE_CONF_CHECK_I(adjusted_mode.crtc_vsync_end);
+
+	PIPE_CONF_CHECK_FLAGS(adjusted_mode.flags,
+			      DRM_MODE_FLAG_INTERLACE);
+
+	PIPE_CONF_CHECK_I(requested_mode.hdisplay);
+	PIPE_CONF_CHECK_I(requested_mode.vdisplay);
+
 #undef PIPE_CONF_CHECK_I
+#undef PIPE_CONF_CHECK_FLAGS
 
 	return true;
 }
