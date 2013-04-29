@@ -93,16 +93,6 @@ int register_memory(struct memory_block *memory)
 	return error;
 }
 
-static void
-unregister_memory(struct memory_block *memory)
-{
-	BUG_ON(memory->dev.bus != &memory_subsys);
-
-	/* drop the ref. we got in remove_memory_block() */
-	kobject_put(&memory->dev.kobj);
-	device_unregister(&memory->dev);
-}
-
 unsigned long __weak memory_block_size_bytes(void)
 {
 	return MIN_MEMORY_BLOCK_SIZE;
@@ -637,8 +627,28 @@ static int add_memory_section(int nid, struct mem_section *section,
 	return ret;
 }
 
-int remove_memory_block(unsigned long node_id, struct mem_section *section,
-		int phys_device)
+/*
+ * need an interface for the VM to add new memory regions,
+ * but without onlining it.
+ */
+int register_new_memory(int nid, struct mem_section *section)
+{
+	return add_memory_section(nid, section, NULL, MEM_OFFLINE, HOTPLUG);
+}
+
+#ifdef CONFIG_MEMORY_HOTREMOVE
+static void
+unregister_memory(struct memory_block *memory)
+{
+	BUG_ON(memory->dev.bus != &memory_subsys);
+
+	/* drop the ref. we got in remove_memory_block() */
+	kobject_put(&memory->dev.kobj);
+	device_unregister(&memory->dev);
+}
+
+static int remove_memory_block(unsigned long node_id,
+			       struct mem_section *section, int phys_device)
 {
 	struct memory_block *mem;
 
@@ -661,15 +671,6 @@ int remove_memory_block(unsigned long node_id, struct mem_section *section,
 	return 0;
 }
 
-/*
- * need an interface for the VM to add new memory regions,
- * but without onlining it.
- */
-int register_new_memory(int nid, struct mem_section *section)
-{
-	return add_memory_section(nid, section, NULL, MEM_OFFLINE, HOTPLUG);
-}
-
 int unregister_memory_section(struct mem_section *section)
 {
 	if (!present_section(section))
@@ -677,6 +678,7 @@ int unregister_memory_section(struct mem_section *section)
 
 	return remove_memory_block(0, section, 0);
 }
+#endif /* CONFIG_MEMORY_HOTREMOVE */
 
 /*
  * offline one memory block. If the memory block has been offlined, do nothing.
