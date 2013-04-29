@@ -506,8 +506,7 @@ static void dwc2_config_fifos(struct dwc2_hsotg *hsotg)
 	struct dwc2_core_params *params = hsotg->core_params;
 	u32 rxfsiz, nptxfsiz, ptxfsiz, hptxfsiz, dfifocfg;
 
-	if (!(hsotg->hwcfg2 & GHWCFG2_DYNAMIC_FIFO) ||
-	    !params->enable_dynamic_fifo)
+	if (!params->enable_dynamic_fifo)
 		return;
 
 	dev_dbg(hsotg->dev, "Total FIFO Size=%d\n", hsotg->total_fifo_size);
