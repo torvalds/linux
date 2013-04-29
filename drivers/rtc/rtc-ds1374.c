@@ -347,7 +347,7 @@ static int ds1374_probe(struct i2c_client *client,
 	struct ds1374 *ds1374;
 	int ret;
 
-	ds1374 = kzalloc(sizeof(struct ds1374), GFP_KERNEL);
+	ds1374 = devm_kzalloc(&client->dev, sizeof(struct ds1374), GFP_KERNEL);
 	if (!ds1374)
 		return -ENOMEM;
 
@@ -359,36 +359,27 @@ static int ds1374_probe(struct i2c_client *client,
 
 	ret = ds1374_check_rtc_status(client);
 	if (ret)
-		goto out_free;
+		return ret;
 
 	if (client->irq > 0) {
-		ret = request_irq(client->irq, ds1374_irq, 0,
+		ret = devm_request_irq(&client->dev, client->irq, ds1374_irq, 0,
 		                  "ds1374", client);
 		if (ret) {
 			dev_err(&client->dev, "unable to request IRQ\n");
-			goto out_free;
+			return ret;
 		}
 
 		device_set_wakeup_capable(&client->dev, 1);
 	}
 
-	ds1374->rtc = rtc_device_register(client->name, &client->dev,
+	ds1374->rtc = devm_rtc_device_register(&client->dev, client->name,
 	                                  &ds1374_rtc_ops, THIS_MODULE);
 	if (IS_ERR(ds1374->rtc)) {
-		ret = PTR_ERR(ds1374->rtc);
 		dev_err(&client->dev, "unable to register the class device\n");
-		goto out_irq;
+		return PTR_ERR(ds1374->rtc);
 	}
 
 	return 0;
-
-out_irq:
-	if (client->irq > 0)
-		free_irq(client->irq, client);
-
-out_free:
-	kfree(ds1374);
-	return ret;
 }
 
 static int ds1374_remove(struct i2c_client *client)
@@ -400,12 +391,10 @@ static int ds1374_remove(struct i2c_client *client)
 		ds1374->exiting = 1;
 		mutex_unlock(&ds1374->mutex);
 
-		free_irq(client->irq, client);
+		devm_free_irq(&client->dev, client->irq, client);
 		cancel_work_sync(&ds1374->work);
 	}
 
-	rtc_device_unregister(ds1374->rtc);
-	kfree(ds1374);
 	return 0;
 }
 
