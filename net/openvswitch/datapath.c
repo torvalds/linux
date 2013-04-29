@@ -56,6 +56,7 @@
 #include "datapath.h"
 #include "flow.h"
 #include "vport-internal_dev.h"
+#include "vport-netdev.h"
 
 
 #define REHASH_FLOW_INTERVAL (10 * 60 * HZ)
@@ -151,7 +152,7 @@ static int get_dpifindex(struct datapath *dp)
 
 	local = ovs_vport_rcu(dp, OVSP_LOCAL);
 	if (local)
-		ifindex = local->ops->get_ifindex(local);
+		ifindex = netdev_vport_priv(local)->dev->ifindex;
 	else
 		ifindex = 0;
 
