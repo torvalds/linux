@@ -488,7 +488,7 @@ static int ili922x_probe(struct spi_device *spi)
 	}
 
 	ili->spi = spi;
-	dev_set_drvdata(&spi->dev, ili);
+	spi_set_drvdata(spi, ili);
 
 	/* check if the device is connected */
 	ret = ili922x_read(spi, REG_DRIVER_CODE_READ, &reg);
