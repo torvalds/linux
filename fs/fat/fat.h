@@ -406,12 +406,8 @@ int fat_cache_init(void);
 void fat_cache_destroy(void);
 
 /* fat/nfs.c */
-struct fid;
-extern struct dentry *fat_fh_to_dentry(struct super_block *sb, struct fid *fid,
-				       int fh_len, int fh_type);
-extern struct dentry *fat_fh_to_parent(struct super_block *sb, struct fid *fid,
-				       int fh_len, int fh_type);
-extern struct dentry *fat_get_parent(struct dentry *child_dir);
+extern const struct export_operations fat_export_ops;
+extern const struct export_operations fat_export_ops_nostale;
 
 /* helper for printk */
 typedef unsigned long long	llu;

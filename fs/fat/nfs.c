@@ -14,6 +14,18 @@
 #include <linux/exportfs.h>
 #include "fat.h"
 
+struct fat_fid {
+	u32 i_gen;
+	u32 i_pos_low;
+	u16 i_pos_hi;
+	u16 parent_i_pos_hi;
+	u32 parent_i_pos_low;
+	u32 parent_i_gen;
+};
+
+#define FAT_FID_SIZE_WITHOUT_PARENT 3
+#define FAT_FID_SIZE_WITH_PARENT (sizeof(struct fat_fid)/sizeof(u32))
+
 /**
  * Look up a directory inode given its starting cluster.
  */
@@ -38,8 +50,8 @@ static struct inode *fat_dget(struct super_block *sb, int i_logstart)
 	return inode;
 }
 
-static struct inode *fat_nfs_get_inode(struct super_block *sb,
-				       u64 ino, u32 generation)
+static struct inode *__fat_nfs_get_inode(struct super_block *sb,
+				       u64 ino, u32 generation, loff_t i_pos)
 {
 	struct inode *inode;
 
@@ -55,26 +67,121 @@ static struct inode *fat_nfs_get_inode(struct super_block *sb,
 	return inode;
 }
 
+static struct inode *fat_nfs_get_inode(struct super_block *sb,
+				       u64 ino, u32 generation)
+{
+
+	return __fat_nfs_get_inode(sb, ino, generation, 0);
+}
+
+static int
+fat_encode_fh_nostale(struct inode *inode, __u32 *fh, int *lenp,
+		      struct inode *parent)
+{
+	int len = *lenp;
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	struct fat_fid *fid = (struct fat_fid *) fh;
+	loff_t i_pos;
+	int type = FILEID_FAT_WITHOUT_PARENT;
+
+	if (parent) {
+		if (len < FAT_FID_SIZE_WITH_PARENT) {
+			*lenp = FAT_FID_SIZE_WITH_PARENT;
+			return FILEID_INVALID;
+		}
+	} else {
+		if (len < FAT_FID_SIZE_WITHOUT_PARENT) {
+			*lenp = FAT_FID_SIZE_WITHOUT_PARENT;
+			return FILEID_INVALID;
+		}
+	}
+
+	i_pos = fat_i_pos_read(sbi, inode);
+	*lenp = FAT_FID_SIZE_WITHOUT_PARENT;
+	fid->i_gen = inode->i_generation;
+	fid->i_pos_low = i_pos & 0xFFFFFFFF;
+	fid->i_pos_hi = (i_pos >> 32) & 0xFFFF;
+	if (parent) {
+		i_pos = fat_i_pos_read(sbi, parent);
+		fid->parent_i_pos_hi = (i_pos >> 32) & 0xFFFF;
+		fid->parent_i_pos_low = i_pos & 0xFFFFFFFF;
+		fid->parent_i_gen = parent->i_generation;
+		type = FILEID_FAT_WITH_PARENT;
+		*lenp = FAT_FID_SIZE_WITH_PARENT;
+	}
+
+	return type;
+}
+
 /**
  * Map a NFS file handle to a corresponding dentry.
  * The dentry may or may not be connected to the filesystem root.
  */
-struct dentry *fat_fh_to_dentry(struct super_block *sb, struct fid *fid,
+static struct dentry *fat_fh_to_dentry(struct super_block *sb, struct fid *fid,
 				int fh_len, int fh_type)
 {
 	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
 				    fat_nfs_get_inode);
 }
 
+static struct dentry *fat_fh_to_dentry_nostale(struct super_block *sb,
+					       struct fid *fh, int fh_len,
+					       int fh_type)
+{
+	struct inode *inode = NULL;
+	struct fat_fid *fid = (struct fat_fid *)fh;
+	loff_t i_pos;
+
+	switch (fh_type) {
+	case FILEID_FAT_WITHOUT_PARENT:
+		if (fh_len < FAT_FID_SIZE_WITHOUT_PARENT)
+			return NULL;
+		break;
+	case FILEID_FAT_WITH_PARENT:
+		if (fh_len < FAT_FID_SIZE_WITH_PARENT)
+			return NULL;
+		break;
+	default:
+		return NULL;
+	}
+	i_pos = fid->i_pos_hi;
+	i_pos = (i_pos << 32) | (fid->i_pos_low);
+	inode = __fat_nfs_get_inode(sb, 0, fid->i_gen, i_pos);
+
+	return d_obtain_alias(inode);
+}
+
 /*
  * Find the parent for a file specified by NFS handle.
  * This requires that the handle contain the i_ino of the parent.
  */
-struct dentry *fat_fh_to_parent(struct super_block *sb, struct fid *fid,
+static struct dentry *fat_fh_to_parent(struct super_block *sb, struct fid *fid,
 				int fh_len, int fh_type)
 {
 	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
 				    fat_nfs_get_inode);
+}
+
+static struct dentry *fat_fh_to_parent_nostale(struct super_block *sb,
+					       struct fid *fh, int fh_len,
+					       int fh_type)
+{
+	struct inode *inode = NULL;
+	struct fat_fid *fid = (struct fat_fid *)fh;
+	loff_t i_pos;
+
+	if (fh_len < FAT_FID_SIZE_WITH_PARENT)
+		return NULL;
+
+	switch (fh_type) {
+	case FILEID_FAT_WITH_PARENT:
+		i_pos = fid->parent_i_pos_hi;
+		i_pos = (i_pos << 32) | (fid->parent_i_pos_low);
+		inode = __fat_nfs_get_inode(sb, 0, fid->parent_i_gen, i_pos);
+		break;
+	}
+
+	return d_obtain_alias(inode);
 }
 
 /*
@@ -83,7 +190,7 @@ struct dentry *fat_fh_to_parent(struct super_block *sb, struct fid *fid,
  *
  * On entry, the caller holds child_dir->d_inode->i_mutex.
  */
-struct dentry *fat_get_parent(struct dentry *child_dir)
+static struct dentry *fat_get_parent(struct dentry *child_dir)
 {
 	struct super_block *sb = child_dir->d_sb;
 	struct buffer_head *bh = NULL;
@@ -98,3 +205,16 @@ struct dentry *fat_get_parent(struct dentry *child_dir)
 
 	return d_obtain_alias(parent_inode);
 }
+
+const struct export_operations fat_export_ops = {
+	.fh_to_dentry   = fat_fh_to_dentry,
+	.fh_to_parent   = fat_fh_to_parent,
+	.get_parent     = fat_get_parent,
+};
+
+const struct export_operations fat_export_ops_nostale = {
+	.encode_fh      = fat_encode_fh_nostale,
+	.fh_to_dentry   = fat_fh_to_dentry_nostale,
+	.fh_to_parent   = fat_fh_to_parent_nostale,
+	.get_parent     = fat_get_parent,
+};
