@@ -581,7 +581,7 @@ static void refill_work(struct work_struct *work)
 	bool still_empty;
 	int i;
 
-	for (i = 0; i < vi->max_queue_pairs; i++) {
+	for (i = 0; i < vi->curr_queue_pairs; i++) {
 		struct receive_queue *rq = &vi->rq[i];
 
 		napi_disable(&rq->napi);
@@ -636,7 +636,7 @@ static int virtnet_open(struct net_device *dev)
 	struct virtnet_info *vi = netdev_priv(dev);
 	int i;
 
-	for (i = 0; i < vi->max_queue_pairs; i++) {
+	for (i = 0; i < vi->curr_queue_pairs; i++) {
 		/* Make sure we have some buffers: if oom use wq. */
 		if (!try_fill_recv(&vi->rq[i], GFP_KERNEL))
 			schedule_delayed_work(&vi->refill, 0);
@@ -900,6 +900,7 @@ static int virtnet_set_queues(struct virtnet_info *vi, u16 queue_pairs)
 	struct scatterlist sg;
 	struct virtio_net_ctrl_mq s;
 	struct net_device *dev = vi->dev;
+	int i;
 
 	if (!vi->has_cvq || !virtio_has_feature(vi->vdev, VIRTIO_NET_F_MQ))
 		return 0;
@@ -912,8 +913,12 @@ static int virtnet_set_queues(struct virtnet_info *vi, u16 queue_pairs)
 		dev_warn(&dev->dev, "Fail to set num of queue pairs to %d\n",
 			 queue_pairs);
 		return -EINVAL;
-	} else
+	} else {
+		for (i = vi->curr_queue_pairs; i < queue_pairs; i++)
+			if (!try_fill_recv(&vi->rq[i], GFP_KERNEL))
+				schedule_delayed_work(&vi->refill, 0);
 		vi->curr_queue_pairs = queue_pairs;
+	}
 
 	return 0;
 }
@@ -1566,7 +1571,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 	}
 
 	/* Last of all, set up some receive buffers. */
-	for (i = 0; i < vi->max_queue_pairs; i++) {
+	for (i = 0; i < vi->curr_queue_pairs; i++) {
 		try_fill_recv(&vi->rq[i], GFP_KERNEL);
 
 		/* If we didn't even get one input buffer, we're useless. */
@@ -1690,7 +1695,7 @@ static int virtnet_restore(struct virtio_device *vdev)
 
 	netif_device_attach(vi->dev);
 
-	for (i = 0; i < vi->max_queue_pairs; i++)
+	for (i = 0; i < vi->curr_queue_pairs; i++)
 		if (!try_fill_recv(&vi->rq[i], GFP_KERNEL))
 			schedule_delayed_work(&vi->refill, 0);
 
