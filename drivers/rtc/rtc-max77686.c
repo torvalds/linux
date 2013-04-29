@@ -514,7 +514,7 @@ static int max77686_rtc_probe(struct platform_device *pdev)
 	info->dev = &pdev->dev;
 	info->max77686 = max77686;
 	info->rtc = max77686->rtc;
-	info->max77686->rtc_regmap = regmap_init_i2c(info->max77686->rtc,
+	info->max77686->rtc_regmap = devm_regmap_init_i2c(info->max77686->rtc,
 					 &max77686_rtc_regmap_config);
 	if (IS_ERR(info->max77686->rtc_regmap)) {
 		ret = PTR_ERR(info->max77686->rtc_regmap);
