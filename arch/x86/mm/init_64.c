@@ -1281,7 +1281,8 @@ static long __meminitdata addr_start, addr_end;
 static void __meminitdata *p_start, *p_end;
 static int __meminitdata node_start;
 
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+static int __meminit vmemmap_populate_hugepages(unsigned long start,
+						unsigned long end, int node)
 {
 	unsigned long addr;
 	unsigned long next;
@@ -1290,7 +1291,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 	pmd_t *pmd;
 
 	for (addr = start; addr < end; addr = next) {
-		void *p = NULL;
+		next = pmd_addr_end(addr, end);
 
 		pgd = vmemmap_pgd_populate(addr, node);
 		if (!pgd)
@@ -1300,51 +1301,48 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 		if (!pud)
 			return -ENOMEM;
 
-		if (!cpu_has_pse) {
-			next = (addr + PAGE_SIZE) & PAGE_MASK;
-			pmd = vmemmap_pmd_populate(pud, addr, node);
+		pmd = pmd_offset(pud, addr);
+		if (pmd_none(*pmd)) {
+			pte_t entry;
+			void *p;
 
-			if (!pmd)
-				return -ENOMEM;
-
-			p = vmemmap_pte_populate(pmd, addr, node);
-
+			p = vmemmap_alloc_block_buf(PMD_SIZE, node);
 			if (!p)
 				return -ENOMEM;
-		} else {
-			next = pmd_addr_end(addr, end);
 
-			pmd = pmd_offset(pud, addr);
-			if (pmd_none(*pmd)) {
-				pte_t entry;
+			entry = pfn_pte(__pa(p) >> PAGE_SHIFT,
+					PAGE_KERNEL_LARGE);
+			set_pmd(pmd, __pmd(pte_val(entry)));
 
-				p = vmemmap_alloc_block_buf(PMD_SIZE, node);
-				if (!p)
-					return -ENOMEM;
+			/* check to see if we have contiguous blocks */
+			if (p_end != p || node_start != node) {
+				if (p_start)
+					printk(KERN_DEBUG " [%lx-%lx] PMD -> [%p-%p] on node %d\n",
+					       addr_start, addr_end-1, p_start, p_end-1, node_start);
+				addr_start = addr;
+				node_start = node;
+				p_start = p;
+			}
 
-				entry = pfn_pte(__pa(p) >> PAGE_SHIFT,
-						PAGE_KERNEL_LARGE);
-				set_pmd(pmd, __pmd(pte_val(entry)));
-
-				/* check to see if we have contiguous blocks */
-				if (p_end != p || node_start != node) {
-					if (p_start)
-						printk(KERN_DEBUG " [%lx-%lx] PMD -> [%p-%p] on node %d\n",
-						       addr_start, addr_end-1, p_start, p_end-1, node_start);
-					addr_start = addr;
-					node_start = node;
-					p_start = p;
-				}
-
-				addr_end = addr + PMD_SIZE;
-				p_end = p + PMD_SIZE;
-			} else
-				vmemmap_verify((pte_t *)pmd, node, addr, next);
-		}
-
+			addr_end = addr + PMD_SIZE;
+			p_end = p + PMD_SIZE;
+		} else
+			vmemmap_verify((pte_t *)pmd, node, addr, next);
 	}
-	sync_global_pgds(start, end - 1);
 	return 0;
+}
+
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+{
+	int err;
+
+	if (cpu_has_pse)
+		err = vmemmap_populate_hugepages(start, end, node);
+	else
+		err = vmemmap_populate_basepages(start, end, node);
+	if (!err)
+		sync_global_pgds(start, end - 1);
+	return err;
 }
 
 #if defined(CONFIG_MEMORY_HOTPLUG_SPARSE) && defined(CONFIG_HAVE_BOOTMEM_INFO_NODE)
