@@ -1303,31 +1303,37 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
 
 		pmd = pmd_offset(pud, addr);
 		if (pmd_none(*pmd)) {
-			pte_t entry;
 			void *p;
 
 			p = vmemmap_alloc_block_buf(PMD_SIZE, node);
-			if (!p)
-				return -ENOMEM;
+			if (p) {
+				pte_t entry;
 
-			entry = pfn_pte(__pa(p) >> PAGE_SHIFT,
-					PAGE_KERNEL_LARGE);
-			set_pmd(pmd, __pmd(pte_val(entry)));
+				entry = pfn_pte(__pa(p) >> PAGE_SHIFT,
+						PAGE_KERNEL_LARGE);
+				set_pmd(pmd, __pmd(pte_val(entry)));
 
-			/* check to see if we have contiguous blocks */
-			if (p_end != p || node_start != node) {
-				if (p_start)
-					printk(KERN_DEBUG " [%lx-%lx] PMD -> [%p-%p] on node %d\n",
-					       addr_start, addr_end-1, p_start, p_end-1, node_start);
-				addr_start = addr;
-				node_start = node;
-				p_start = p;
+				/* check to see if we have contiguous blocks */
+				if (p_end != p || node_start != node) {
+					if (p_start)
+						printk(KERN_DEBUG " [%lx-%lx] PMD -> [%p-%p] on node %d\n",
+						       addr_start, addr_end-1, p_start, p_end-1, node_start);
+					addr_start = addr;
+					node_start = node;
+					p_start = p;
+				}
+
+				addr_end = addr + PMD_SIZE;
+				p_end = p + PMD_SIZE;
+				continue;
 			}
-
-			addr_end = addr + PMD_SIZE;
-			p_end = p + PMD_SIZE;
-		} else
+		} else if (pmd_large(*pmd)) {
 			vmemmap_verify((pte_t *)pmd, node, addr, next);
+			continue;
+		}
+		pr_warn_once("vmemmap: falling back to regular page backing\n");
+		if (vmemmap_populate_basepages(addr, next, node))
+			return -ENOMEM;
 	}
 	return 0;
 }
