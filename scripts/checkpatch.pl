@@ -3229,7 +3229,7 @@ sub process {
 		}
 
 # check for unnecessary blank lines around braces
-		if (($line =~ /^..*}\s*$/ && $prevline =~ /^.\s*$/)) {
+		if (($line =~ /^.\s*}\s*$/ && $prevline =~ /^.\s*$/)) {
 			CHK("BRACES",
 			    "Blank lines aren't necessary before a close brace '}'\n" . $hereprev);
 		}
