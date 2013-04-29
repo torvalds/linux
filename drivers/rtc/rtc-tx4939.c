@@ -299,18 +299,7 @@ static struct platform_driver tx4939_rtc_driver = {
 	},
 };
 
-static int __init tx4939rtc_init(void)
-{
-	return platform_driver_probe(&tx4939_rtc_driver, tx4939_rtc_probe);
-}
-
-static void __exit tx4939rtc_exit(void)
-{
-	platform_driver_unregister(&tx4939_rtc_driver);
-}
-
-module_init(tx4939rtc_init);
-module_exit(tx4939rtc_exit);
+module_platform_driver_probe(tx4939_rtc_driver, tx4939_rtc_probe);
 
 MODULE_AUTHOR("Atsushi Nemoto <anemo@mba.ocn.ne.jp>");
 MODULE_DESCRIPTION("TX4939 internal RTC driver");
