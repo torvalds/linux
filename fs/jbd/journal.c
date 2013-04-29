@@ -310,8 +310,6 @@ int journal_write_metadata_buffer(transaction_t *transaction,
 
 	new_bh = alloc_buffer_head(GFP_NOFS|__GFP_NOFAIL);
 	/* keep subsequent assertions sane */
-	new_bh->b_state = 0;
-	init_buffer(new_bh, NULL, NULL);
 	atomic_set(&new_bh->b_count, 1);
 	new_jh = journal_add_journal_head(new_bh);	/* This sleeps */
 

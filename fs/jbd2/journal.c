@@ -367,8 +367,6 @@ retry_alloc:
 	}
 
 	/* keep subsequent assertions sane */
-	new_bh->b_state = 0;
-	init_buffer(new_bh, NULL, NULL);
 	atomic_set(&new_bh->b_count, 1);
 	new_jh = jbd2_journal_add_journal_head(new_bh);	/* This sleeps */
 
