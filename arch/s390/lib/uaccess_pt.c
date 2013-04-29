@@ -89,16 +89,19 @@ static unsigned long follow_table(struct mm_struct *mm,
 		if (unlikely(*table & _REGION_ENTRY_INV))
 			return -0x39UL;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		/* fallthrough */
 	case _ASCE_TYPE_REGION2:
 		table = table + ((address >> 42) & 0x7ff);
 		if (unlikely(*table & _REGION_ENTRY_INV))
 			return -0x3aUL;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		/* fallthrough */
 	case _ASCE_TYPE_REGION3:
 		table = table + ((address >> 31) & 0x7ff);
 		if (unlikely(*table & _REGION_ENTRY_INV))
 			return -0x3bUL;
 		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+		/* fallthrough */
 	case _ASCE_TYPE_SEGMENT:
 		table = table + ((address >> 20) & 0x7ff);
 		if (unlikely(*table & _SEGMENT_ENTRY_INV))
