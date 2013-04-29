@@ -1530,6 +1530,8 @@ static void reset_topology_timer(void)
 	mod_timer(&topology_timer, topology_timer.expires);
 }
 
+#ifdef CONFIG_SMP
+
 static void stage_topology_update(int core_id)
 {
 	cpumask_or(&cpu_associativity_changes_mask,
@@ -1563,6 +1565,8 @@ static struct notifier_block dt_update_nb = {
 	.notifier_call = dt_update_callback,
 };
 
+#endif
+
 /*
  * Start polling for associativity changes.
  */
@@ -1574,7 +1578,9 @@ int start_topology_update(void)
 		if (!prrn_enabled) {
 			prrn_enabled = 1;
 			vphn_enabled = 0;
+#ifdef CONFIG_SMP
 			rc = of_reconfig_notifier_register(&dt_update_nb);
+#endif
 		}
 	} else if (firmware_has_feature(FW_FEATURE_VPHN) &&
 		   get_lppaca()->shared_proc) {
@@ -1599,7 +1605,9 @@ int stop_topology_update(void)
 
 	if (prrn_enabled) {
 		prrn_enabled = 0;
+#ifdef CONFIG_SMP
 		rc = of_reconfig_notifier_unregister(&dt_update_nb);
+#endif
 	} else if (vphn_enabled) {
 		vphn_enabled = 0;
 		rc = del_timer_sync(&topology_timer);
