@@ -106,18 +106,7 @@ static struct platform_driver sun4v_rtc_driver = {
 	.remove		= __exit_p(sun4v_rtc_remove),
 };
 
-static int __init sun4v_rtc_init(void)
-{
-	return platform_driver_probe(&sun4v_rtc_driver, sun4v_rtc_probe);
-}
-
-static void __exit sun4v_rtc_exit(void)
-{
-	platform_driver_unregister(&sun4v_rtc_driver);
-}
-
-module_init(sun4v_rtc_init);
-module_exit(sun4v_rtc_exit);
+module_platform_driver_probe(sun4v_rtc_driver, sun4v_rtc_probe);
 
 MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
 MODULE_DESCRIPTION("SUN4V RTC driver");
