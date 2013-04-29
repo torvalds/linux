@@ -24,8 +24,6 @@
 #include <linux/security.h>
 #include "sysfs.h"
 
-extern struct super_block * sysfs_sb;
-
 static const struct address_space_operations sysfs_aops = {
 	.readpage	= simple_readpage,
 	.write_begin	= simple_write_begin,
