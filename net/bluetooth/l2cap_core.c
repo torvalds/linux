@@ -5292,6 +5292,51 @@ static inline int l2cap_le_sig_cmd(struct l2cap_conn *conn,
 	}
 }
 
+static inline void l2cap_le_sig_channel(struct l2cap_conn *conn,
+					struct sk_buff *skb)
+{
+	u8 *data = skb->data;
+	int len = skb->len;
+	struct l2cap_cmd_hdr cmd;
+	int err;
+
+	l2cap_raw_recv(conn, skb);
+
+	while (len >= L2CAP_CMD_HDR_SIZE) {
+		u16 cmd_len;
+		memcpy(&cmd, data, L2CAP_CMD_HDR_SIZE);
+		data += L2CAP_CMD_HDR_SIZE;
+		len  -= L2CAP_CMD_HDR_SIZE;
+
+		cmd_len = le16_to_cpu(cmd.len);
+
+		BT_DBG("code 0x%2.2x len %d id 0x%2.2x", cmd.code, cmd_len,
+		       cmd.ident);
+
+		if (cmd_len > len || !cmd.ident) {
+			BT_DBG("corrupted command");
+			break;
+		}
+
+		err = l2cap_le_sig_cmd(conn, &cmd, data);
+		if (err) {
+			struct l2cap_cmd_rej_unk rej;
+
+			BT_ERR("Wrong link type (%d)", err);
+
+			/* FIXME: Map err to a valid reason */
+			rej.reason = __constant_cpu_to_le16(L2CAP_REJ_NOT_UNDERSTOOD);
+			l2cap_send_cmd(conn, cmd.ident, L2CAP_COMMAND_REJ,
+				       sizeof(rej), &rej);
+		}
+
+		data += cmd_len;
+		len  -= cmd_len;
+	}
+
+	kfree_skb(skb);
+}
+
 static inline void l2cap_sig_channel(struct l2cap_conn *conn,
 				     struct sk_buff *skb)
 {
@@ -5318,11 +5363,7 @@ static inline void l2cap_sig_channel(struct l2cap_conn *conn,
 			break;
 		}
 
-		if (conn->hcon->type == LE_LINK)
-			err = l2cap_le_sig_cmd(conn, &cmd, data);
-		else
-			err = l2cap_bredr_sig_cmd(conn, &cmd, cmd_len, data);
-
+		err = l2cap_bredr_sig_cmd(conn, &cmd, cmd_len, data);
 		if (err) {
 			struct l2cap_cmd_rej_unk rej;
 
@@ -6395,6 +6436,8 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	switch (cid) {
 	case L2CAP_CID_LE_SIGNALING:
+		l2cap_le_sig_channel(conn, skb);
+		break;
 	case L2CAP_CID_SIGNALING:
 		l2cap_sig_channel(conn, skb);
 		break;
