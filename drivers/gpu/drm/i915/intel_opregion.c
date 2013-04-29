@@ -110,6 +110,10 @@ struct opregion_asle {
 	u8 rsvd[102];
 } __attribute__((packed));
 
+/* Driver readiness indicator */
+#define ASLE_ARDY_READY		(1 << 0)
+#define ASLE_ARDY_NOT_READY	(0 << 0)
+
 /* ASLE irq request bits */
 #define ASLE_SET_ALS_ILLUM     (1 << 0)
 #define ASLE_SET_BACKLIGHT     (1 << 1)
@@ -236,9 +240,6 @@ void intel_opregion_enable_asle(struct drm_device *dev)
 	if (asle) {
 		if (IS_MOBILE(dev))
 			intel_enable_asle(dev);
-
-		iowrite32(ASLE_TCHE_BLC_EN, &asle->tche);
-		iowrite32(1, &asle->ardy);
 	}
 }
 
@@ -425,8 +426,12 @@ void intel_opregion_init(struct drm_device *dev)
 		register_acpi_notifier(&intel_opregion_notifier);
 	}
 
-	if (opregion->asle)
+	if (opregion->asle) {
 		intel_opregion_enable_asle(dev);
+
+		iowrite32(ASLE_TCHE_BLC_EN, &opregion->asle->tche);
+		iowrite32(ASLE_ARDY_READY, &opregion->asle->ardy);
+	}
 }
 
 void intel_opregion_fini(struct drm_device *dev)
@@ -436,6 +441,9 @@ void intel_opregion_fini(struct drm_device *dev)
 
 	if (!opregion->header)
 		return;
+
+	if (opregion->asle)
+		iowrite32(ASLE_ARDY_NOT_READY, &opregion->asle->ardy);
 
 	if (opregion->acpi) {
 		iowrite32(0, &opregion->acpi->drdy);
@@ -499,6 +507,8 @@ int intel_opregion_setup(struct drm_device *dev)
 	if (mboxes & MBOX_ASLE) {
 		DRM_DEBUG_DRIVER("ASLE supported\n");
 		opregion->asle = base + OPREGION_ASLE_OFFSET;
+
+		iowrite32(ASLE_ARDY_NOT_READY, &opregion->asle->ardy);
 	}
 
 	return 0;
