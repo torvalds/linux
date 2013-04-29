@@ -390,18 +390,7 @@ static struct platform_driver at91_rtc_driver = {
 	},
 };
 
-static int __init at91_rtc_init(void)
-{
-	return platform_driver_probe(&at91_rtc_driver, at91_rtc_probe);
-}
-
-static void __exit at91_rtc_exit(void)
-{
-	platform_driver_unregister(&at91_rtc_driver);
-}
-
-module_init(at91_rtc_init);
-module_exit(at91_rtc_exit);
+module_platform_driver_probe(at91_rtc_driver, at91_rtc_probe);
 
 MODULE_AUTHOR("Rick Bronson");
 MODULE_DESCRIPTION("RTC driver for Atmel AT91RM9200");
