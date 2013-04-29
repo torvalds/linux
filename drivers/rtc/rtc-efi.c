@@ -218,18 +218,7 @@ static struct platform_driver efi_rtc_driver = {
 	.remove = __exit_p(efi_rtc_remove),
 };
 
-static int __init efi_rtc_init(void)
-{
-	return platform_driver_probe(&efi_rtc_driver, efi_rtc_probe);
-}
-
-static void __exit efi_rtc_exit(void)
-{
-	platform_driver_unregister(&efi_rtc_driver);
-}
-
-module_init(efi_rtc_init);
-module_exit(efi_rtc_exit);
+module_platform_driver_probe(efi_rtc_driver, efi_rtc_probe);
 
 MODULE_AUTHOR("dann frazier <dannf@hp.com>");
 MODULE_LICENSE("GPL");
