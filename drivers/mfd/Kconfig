@@ -419,7 +419,8 @@ config MFD_PM8XXX
 
 config MFD_PM8921_CORE
 	tristate "Qualcomm PM8921 PMIC chip"
-	depends on SSBI && BROKEN
+	depends on (ARCH_MSM || HEXAGON)
+	depends on BROKEN
 	select MFD_CORE
 	select MFD_PM8XXX
 	help
