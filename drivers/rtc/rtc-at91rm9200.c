@@ -337,7 +337,7 @@ static int __exit at91_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
 /* AT91RM9200 RTC Power management control */
 
@@ -369,24 +369,16 @@ static int at91_rtc_resume(struct device *dev)
 	}
 	return 0;
 }
-
-static const struct dev_pm_ops at91_rtc_pm = {
-	.suspend =	at91_rtc_suspend,
-	.resume =	at91_rtc_resume,
-};
-
-#define at91_rtc_pm_ptr	&at91_rtc_pm
-
-#else
-#define at91_rtc_pm_ptr	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(at91_rtc_pm_ops, at91_rtc_suspend, at91_rtc_resume);
 
 static struct platform_driver at91_rtc_driver = {
 	.remove		= __exit_p(at91_rtc_remove),
 	.driver		= {
 		.name	= "at91_rtc",
 		.owner	= THIS_MODULE,
-		.pm	= at91_rtc_pm_ptr,
+		.pm	= &at91_rtc_pm_ops,
 	},
 };
 
