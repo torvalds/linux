@@ -1811,16 +1811,10 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 		goto done;
 	}
 
-	if (hcon->type == LE_LINK) {
-		err = 0;
-
-		if (!list_empty(&conn->chan_l)) {
-			err = -EBUSY;
-			hci_conn_drop(hcon);
-		}
-
-		if (err)
-			goto done;
+	if (cid && __l2cap_get_chan_by_dcid(conn, cid)) {
+		hci_conn_drop(hcon);
+		err = -EBUSY;
+		goto done;
 	}
 
 	/* Update source addr of the socket */
