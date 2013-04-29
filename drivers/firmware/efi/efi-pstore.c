@@ -174,7 +174,7 @@ static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
 			    struct timespec time, struct pstore_info *psi)
 {
 	struct pstore_erase_data edata;
-	struct efivar_entry *entry;
+	struct efivar_entry *entry = NULL;
 	char name[DUMP_NAME_LEN];
 	efi_char16_t efi_name[DUMP_NAME_LEN];
 	int found, i;
