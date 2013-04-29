@@ -234,7 +234,7 @@ static const struct rtc_class_ops pm80x_rtc_ops = {
 	.alarm_irq_enable = pm80x_rtc_alarm_irq_enable,
 };
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int pm80x_rtc_suspend(struct device *dev)
 {
 	return pm80x_dev_suspend(dev);
