@@ -736,7 +736,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 
 	if (PageWriteback(page)) {
 		/*
-		 * Only in the case of a full syncronous migration is it
+		 * Only in the case of a full synchronous migration is it
 		 * necessary to wait for PageWriteback. In the async case,
 		 * the retry loop is too short and in the sync-light case,
 		 * the overhead of stalling is too much
