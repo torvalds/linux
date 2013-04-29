@@ -121,7 +121,7 @@ int au_plink_maint_enter(struct super_block *sb)
 
 struct pseudo_link {
 	union {
-		struct list_head list;
+		struct hlist_node hlist;
 		struct rcu_head rcu;
 	};
 	struct inode *inode;
@@ -131,7 +131,8 @@ struct pseudo_link {
 void au_plink_list(struct super_block *sb)
 {
 	struct au_sbinfo *sbinfo;
-	struct list_head *plink_list;
+	struct hlist_head *plink_hlist;
+	struct hlist_node *pos;
 	struct pseudo_link *plink;
 
 	SiMustAnyLock(sb);
@@ -140,9 +141,9 @@ void au_plink_list(struct super_block *sb)
 	AuDebugOn(!au_opt_test(au_mntflags(sb), PLINK));
 	AuDebugOn(au_plink_maint(sb, AuLock_NOPLM));
 
-	plink_list = &sbinfo->si_plink.head;
+	plink_hlist = &sbinfo->si_plink.head;
 	rcu_read_lock();
-	list_for_each_entry_rcu(plink, plink_list, list)
+	hlist_for_each_entry_rcu(plink, pos, plink_hlist, hlist)
 		AuDbg("%lu\n", plink->inode->i_ino);
 	rcu_read_unlock();
 }
@@ -153,7 +154,8 @@ int au_plink_test(struct inode *inode)
 {
 	int found;
 	struct au_sbinfo *sbinfo;
-	struct list_head *plink_list;
+	struct hlist_head *plink_hlist;
+	struct hlist_node *pos;
 	struct pseudo_link *plink;
 
 	sbinfo = au_sbi(inode->i_sb);
@@ -162,9 +164,9 @@ int au_plink_test(struct inode *inode)
 	AuDebugOn(au_plink_maint(inode->i_sb, AuLock_NOPLM));
 
 	found = 0;
-	plink_list = &sbinfo->si_plink.head;
+	plink_hlist = &sbinfo->si_plink.head;
 	rcu_read_lock();
-	list_for_each_entry_rcu(plink, plink_list, list)
+	hlist_for_each_entry_rcu(plink, pos, plink_hlist, hlist)
 		if (plink->inode == inode) {
 			found = 1;
 			break;
@@ -347,7 +349,7 @@ static int whplink(struct dentry *h_dentry, struct inode *inode,
 static void do_put_plink(struct pseudo_link *plink, int do_del)
 {
 	if (do_del)
-		list_del(&plink->list);
+		hlist_del(&plink->hlist);
 	iput(plink->inode);
 	kfree(plink);
 }
@@ -370,7 +372,8 @@ void au_plink_append(struct inode *inode, aufs_bindex_t bindex,
 {
 	struct super_block *sb;
 	struct au_sbinfo *sbinfo;
-	struct list_head *plink_list;
+	struct hlist_head *plink_hlist;
+	struct hlist_node *pos;
 	struct pseudo_link *plink, *tmp;
 	int found, err, cnt;
 
@@ -381,9 +384,9 @@ void au_plink_append(struct inode *inode, aufs_bindex_t bindex,
 
 	cnt = 0;
 	found = 0;
-	plink_list = &sbinfo->si_plink.head;
+	plink_hlist = &sbinfo->si_plink.head;
 	rcu_read_lock();
-	list_for_each_entry_rcu(plink, plink_list, list) {
+	hlist_for_each_entry_rcu(plink, pos, plink_hlist, hlist) {
 		cnt++;
 		if (plink->inode == inode) {
 			found = 1;
@@ -403,14 +406,14 @@ void au_plink_append(struct inode *inode, aufs_bindex_t bindex,
 	}
 
 	spin_lock(&sbinfo->si_plink.spin);
-	list_for_each_entry(plink, plink_list, list) {
+	hlist_for_each_entry(plink, pos, plink_hlist, hlist) {
 		if (plink->inode == inode) {
 			found = 1;
 			break;
 		}
 	}
 	if (!found)
-		list_add_rcu(&tmp->list, plink_list);
+		hlist_add_head_rcu(&tmp->hlist, plink_hlist);
 	spin_unlock(&sbinfo->si_plink.spin);
 	if (!found) {
 		cnt++;
@@ -426,7 +429,7 @@ out:
 	if (unlikely(err)) {
 		pr_warn("err %d, damaged pseudo link.\n", err);
 		if (tmp) {
-			au_spl_del_rcu(&tmp->list, &sbinfo->si_plink);
+			au_sphl_del_rcu(&tmp->hlist, &sbinfo->si_plink);
 			call_rcu(&tmp->rcu, do_put_plink_rcu);
 		}
 	}
@@ -436,8 +439,9 @@ out:
 void au_plink_put(struct super_block *sb, int verbose)
 {
 	struct au_sbinfo *sbinfo;
-	struct list_head *plink_list;
-	struct pseudo_link *plink, *tmp;
+	struct hlist_head *plink_hlist;
+	struct hlist_node *pos, *tmp;
+	struct pseudo_link *plink;
 
 	SiMustWriteLock(sb);
 
@@ -445,12 +449,13 @@ void au_plink_put(struct super_block *sb, int verbose)
 	AuDebugOn(!au_opt_test(au_mntflags(sb), PLINK));
 	AuDebugOn(au_plink_maint(sb, AuLock_NOPLM));
 
-	plink_list = &sbinfo->si_plink.head;
+	plink_hlist = &sbinfo->si_plink.head;
 	/* no spin_lock since sbinfo is write-locked */
-	WARN(verbose && !list_empty(plink_list), "pseudo-link is not flushed");
-	list_for_each_entry_safe(plink, tmp, plink_list, list)
+	WARN(verbose && !hlist_empty(plink_hlist),
+	     "pseudo-link is not flushed");
+	hlist_for_each_entry_safe(plink, pos, tmp, plink_hlist, hlist)
 		do_put_plink(plink, 0);
-	INIT_LIST_HEAD(plink_list);
+	INIT_HLIST_HEAD(plink_hlist);
 }
 
 void au_plink_clean(struct super_block *sb, int verbose)
@@ -497,8 +502,9 @@ static int au_plink_do_half_refresh(struct inode *inode, aufs_bindex_t br_id)
 void au_plink_half_refresh(struct super_block *sb, aufs_bindex_t br_id)
 {
 	struct au_sbinfo *sbinfo;
-	struct list_head *plink_list;
-	struct pseudo_link *plink, *tmp;
+	struct hlist_head *plink_hlist;
+	struct hlist_node *pos, *tmp;
+	struct pseudo_link *plink;
 	struct inode *inode;
 	int do_put;
 
@@ -508,9 +514,9 @@ void au_plink_half_refresh(struct super_block *sb, aufs_bindex_t br_id)
 	AuDebugOn(!au_opt_test(au_mntflags(sb), PLINK));
 	AuDebugOn(au_plink_maint(sb, AuLock_NOPLM));
 
-	plink_list = &sbinfo->si_plink.head;
+	plink_hlist = &sbinfo->si_plink.head;
 	/* no spin_lock since sbinfo is write-locked */
-	list_for_each_entry_safe(plink, tmp, plink_list, list) {
+	hlist_for_each_entry_safe(plink, pos, tmp, plink_hlist, hlist) {
 		inode = au_igrab(plink->inode);
 		ii_write_lock_child(inode);
 		do_put = au_plink_do_half_refresh(inode, br_id);

@@ -31,7 +31,7 @@ void au_si_free(struct kobject *kobj)
 	char *locked __maybe_unused; /* debug only */
 
 	sbinfo = container_of(kobj, struct au_sbinfo, si_kobj);
-	AuDebugOn(!list_empty(&sbinfo->si_plink.head));
+	AuDebugOn(!hlist_empty(&sbinfo->si_plink.head));
 	AuDebugOn(atomic_read(&sbinfo->si_nowait.nw_len));
 
 	au_rw_write_lock(&sbinfo->si_rwsem);
@@ -106,7 +106,7 @@ int au_si_alloc(struct super_block *sb)
 	sbinfo->si_rdhash = AUFS_RDHASH_DEF;
 	sbinfo->si_dirwh = AUFS_DIRWH_DEF;
 
-	au_spl_init(&sbinfo->si_plink);
+	au_sphl_init(&sbinfo->si_plink);
 	init_waitqueue_head(&sbinfo->si_plink_wq);
 	spin_lock_init(&sbinfo->si_plink_maint_lock);
 
