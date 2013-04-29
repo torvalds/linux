@@ -4,6 +4,7 @@
  *  Copyright (C) 2005 James Chapman (ds1337 core)
  *  Copyright (C) 2006 David Brownell
  *  Copyright (C) 2009 Matthias Fuchs (rx8025 support)
+ *  Copyright (C) 2012 Bertrand Achard (nvram access fixes)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -196,7 +197,7 @@ static s32 ds1307_read_block_data_once(const struct i2c_client *client,
 static s32 ds1307_read_block_data(const struct i2c_client *client, u8 command,
 				  u8 length, u8 *values)
 {
-	u8 oldvalues[I2C_SMBUS_BLOCK_MAX];
+	u8 oldvalues[255];
 	s32 ret;
 	int tries = 0;
 
@@ -222,7 +223,7 @@ static s32 ds1307_read_block_data(const struct i2c_client *client, u8 command,
 static s32 ds1307_write_block_data(const struct i2c_client *client, u8 command,
 				   u8 length, const u8 *values)
 {
-	u8 currvalues[I2C_SMBUS_BLOCK_MAX];
+	u8 currvalues[255];
 	int tries = 0;
 
 	dev_dbg(&client->dev, "ds1307_write_block_data (length=%d)\n", length);
@@ -245,6 +246,57 @@ static s32 ds1307_write_block_data(const struct i2c_client *client, u8 command,
 		if (ret < 0)
 			return ret;
 	} while (memcmp(currvalues, values, length));
+	return length;
+}
+
+/*----------------------------------------------------------------------*/
+
+/* These RTC devices are not designed to be connected to a SMbus adapter.
+   SMbus limits block operations length to 32 bytes, whereas it's not
+   limited on I2C buses. As a result, accesses may exceed 32 bytes;
+   in that case, split them into smaller blocks */
+
+static s32 ds1307_native_smbus_write_block_data(const struct i2c_client *client,
+				u8 command, u8 length, const u8 *values)
+{
+	u8 suboffset = 0;
+
+	if (length <= I2C_SMBUS_BLOCK_MAX)
+		return i2c_smbus_write_i2c_block_data(client,
+					command, length, values);
+
+	while (suboffset < length) {
+		s32 retval = i2c_smbus_write_i2c_block_data(client,
+				command + suboffset,
+				min(I2C_SMBUS_BLOCK_MAX, length - suboffset),
+				values + suboffset);
+		if (retval < 0)
+			return retval;
+
+		suboffset += I2C_SMBUS_BLOCK_MAX;
+	}
+	return length;
+}
+
+static s32 ds1307_native_smbus_read_block_data(const struct i2c_client *client,
+				u8 command, u8 length, u8 *values)
+{
+	u8 suboffset = 0;
+
+	if (length <= I2C_SMBUS_BLOCK_MAX)
+		return i2c_smbus_read_i2c_block_data(client,
+					command, length, values);
+
+	while (suboffset < length) {
+		s32 retval = i2c_smbus_read_i2c_block_data(client,
+				command + suboffset,
+				min(I2C_SMBUS_BLOCK_MAX, length - suboffset),
+				values + suboffset);
+		if (retval < 0)
+			return retval;
+
+		suboffset += I2C_SMBUS_BLOCK_MAX;
+	}
 	return length;
 }
 
@@ -646,8 +698,8 @@ static int ds1307_probe(struct i2c_client *client,
 
 	buf = ds1307->regs;
 	if (i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK)) {
-		ds1307->read_block_data = i2c_smbus_read_i2c_block_data;
-		ds1307->write_block_data = i2c_smbus_write_i2c_block_data;
+		ds1307->read_block_data = ds1307_native_smbus_read_block_data;
+		ds1307->write_block_data = ds1307_native_smbus_write_block_data;
 	} else {
 		ds1307->read_block_data = ds1307_read_block_data;
 		ds1307->write_block_data = ds1307_write_block_data;
