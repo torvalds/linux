@@ -232,17 +232,6 @@ void intel_opregion_asle_intr(struct drm_device *dev)
 	iowrite32(asle_stat, &asle->aslc);
 }
 
-void intel_opregion_enable_asle(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct opregion_asle __iomem *asle = dev_priv->opregion.asle;
-
-	if (asle) {
-		if (IS_MOBILE(dev))
-			intel_enable_asle(dev);
-	}
-}
-
 #define ACPI_EV_DISPLAY_SWITCH (1<<0)
 #define ACPI_EV_LID            (1<<1)
 #define ACPI_EV_DOCK           (1<<2)

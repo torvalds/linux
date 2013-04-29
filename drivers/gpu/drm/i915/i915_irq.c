@@ -340,12 +340,15 @@ i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask)
 }
 
 /**
- * intel_enable_asle - enable ASLE interrupt for OpRegion
+ * i915_enable_asle_pipestat - enable ASLE pipestat for OpRegion
  */
-void intel_enable_asle(struct drm_device *dev)
+static void i915_enable_asle_pipestat(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	unsigned long irqflags;
+
+	if (!dev_priv->opregion.asle || !IS_MOBILE(dev))
+		return;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 
@@ -3001,7 +3004,7 @@ static int i915_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(IER, enable_mask);
 	POSTING_READ(IER);
 
-	intel_opregion_enable_asle(dev);
+	i915_enable_asle_pipestat(dev);
 
 	return 0;
 }
@@ -3235,7 +3238,7 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	POSTING_READ(PORT_HOTPLUG_EN);
 
-	intel_opregion_enable_asle(dev);
+	i915_enable_asle_pipestat(dev);
 
 	return 0;
 }
