@@ -1363,8 +1363,6 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 
 	chan->dcid = L2CAP_CID_ATT;
 
-	conn->hcon->disc_timeout = HCI_DISCONN_TIMEOUT;
-
 	bacpy(&bt_sk(chan->sk)->src, conn->src);
 	bacpy(&bt_sk(chan->sk)->dst, conn->dst);
 
