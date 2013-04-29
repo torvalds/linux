@@ -223,6 +223,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 		kiocb.ki_left = PAGE_SIZE;
 		kiocb.ki_nbytes = PAGE_SIZE;
 
+		set_page_writeback(page);
 		unlock_page(page);
 		ret = mapping->a_ops->direct_IO(KERNEL_WRITE,
 						&kiocb, &iov,
@@ -232,8 +233,22 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 			count_vm_event(PSWPOUT);
 			ret = 0;
 		} else {
+			/*
+			 * In the case of swap-over-nfs, this can be a
+			 * temporary failure if the system has limited
+			 * memory for allocating transmit buffers.
+			 * Mark the page dirty and avoid
+			 * rotate_reclaimable_page but rate-limit the
+			 * messages but do not flag PageError like
+			 * the normal direct-to-bio case as it could
+			 * be temporary.
+			 */
 			set_page_dirty(page);
+			ClearPageReclaim(page);
+			pr_err_ratelimited("Write error on dio swapfile (%Lu)\n",
+				page_file_offset(page));
 		}
+		end_page_writeback(page);
 		return ret;
 	}
 
