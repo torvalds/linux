@@ -38,6 +38,11 @@
 #define DEFAULT_BL_NAME		"lcd-backlight"
 #define MAX_BRIGHTNESS		255
 
+enum lp855x_brightness_ctrl_mode {
+	PWM_BASED = 1,
+	REGISTER_BASED,
+};
+
 struct lp855x;
 
 /*
@@ -57,6 +62,7 @@ struct lp855x_device_config {
 struct lp855x {
 	const char *chipname;
 	enum lp855x_chip_id chip_id;
+	enum lp855x_brightness_ctrl_mode mode;
 	struct lp855x_device_config *cfg;
 	struct i2c_client *client;
 	struct backlight_device *bl;
@@ -238,18 +244,17 @@ static void lp855x_pwm_ctrl(struct lp855x *lp, int br, int max_br)
 static int lp855x_bl_update_status(struct backlight_device *bl)
 {
 	struct lp855x *lp = bl_get_data(bl);
-	enum lp855x_brightness_ctrl_mode mode = lp->pdata->mode;
 
 	if (bl->props.state & BL_CORE_SUSPENDED)
 		bl->props.brightness = 0;
 
-	if (mode == PWM_BASED) {
+	if (lp->mode == PWM_BASED) {
 		int br = bl->props.brightness;
 		int max_br = bl->props.max_brightness;
 
 		lp855x_pwm_ctrl(lp, br, max_br);
 
-	} else if (mode == REGISTER_BASED) {
+	} else if (lp->mode == REGISTER_BASED) {
 		u8 val = bl->props.brightness;
 		lp855x_write_byte(lp, lp->cfg->reg_brightness, val);
 	}
@@ -310,12 +315,11 @@ static ssize_t lp855x_get_bl_ctl_mode(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct lp855x *lp = dev_get_drvdata(dev);
-	enum lp855x_brightness_ctrl_mode mode = lp->pdata->mode;
 	char *strmode = NULL;
 
-	if (mode == PWM_BASED)
+	if (lp->mode == PWM_BASED)
 		strmode = "pwm based";
-	else if (mode == REGISTER_BASED)
+	else if (lp->mode == REGISTER_BASED)
 		strmode = "register based";
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", strmode);
@@ -351,6 +355,11 @@ static int lp855x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	lp = devm_kzalloc(&cl->dev, sizeof(struct lp855x), GFP_KERNEL);
 	if (!lp)
 		return -ENOMEM;
+
+	if (pdata->period_ns > 0)
+		lp->mode = PWM_BASED;
+	else
+		lp->mode = REGISTER_BASED;
 
 	lp->client = cl;
 	lp->dev = &cl->dev;
