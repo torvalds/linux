@@ -4986,9 +4986,6 @@ static void rbd_dev_release(struct device *dev)
 	rbd_spec_put(rbd_dev->parent_spec);
 	kfree(rbd_dev->header_name);
 	rbd_dev_destroy(rbd_dev);
-
-	/* release module ref */
-	module_put(THIS_MODULE);
 }
 
 static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
@@ -5071,6 +5068,7 @@ static ssize_t rbd_remove(struct bus_type *bus,
 
 	rbd_remove_all_snaps(rbd_dev);
 	rbd_bus_del_dev(rbd_dev);
+	module_put(THIS_MODULE);
 done:
 	mutex_unlock(&ctl_mutex);
 
