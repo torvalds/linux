@@ -115,9 +115,6 @@ struct lp855x_rom_data {
  * @initial_brightness : initial value of backlight brightness
  * @period_ns : platform specific pwm period value. unit is nano.
 		Only valid when mode is PWM_BASED.
- * @load_new_rom_data :
-	0 : use default configuration data
-	1 : update values of eeprom or eprom registers on loading driver
  * @size_program : total size of lp855x_rom_data
  * @rom_data : list of new eeprom/eprom registers
  */
@@ -126,7 +123,6 @@ struct lp855x_platform_data {
 	u8 device_control;
 	u8 initial_brightness;
 	unsigned int period_ns;
-	u8 load_new_rom_data;
 	int size_program;
 	struct lp855x_rom_data *rom_data;
 };

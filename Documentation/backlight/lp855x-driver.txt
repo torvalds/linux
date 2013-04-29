@@ -36,9 +36,6 @@ For supporting platform specific data, the lp855x platform data can be used.
 * initial_brightness : Initial value of backlight brightness.
 * period_ns : Platform specific PWM period value. unit is nano.
 	     Only valid when brightness is pwm input mode.
-* load_new_rom_data :
-	0 : use default configuration data
-	1 : update values of eeprom or eprom registers on loading driver
 * size_program : Total size of lp855x_rom_data.
 * rom_data : List of new eeprom/eprom registers.
 
@@ -55,7 +52,6 @@ static struct lp855x_platform_data lp8552_pdata = {
 	.name = "lcd-bl",
 	.device_control = I2C_CONFIG(LP8552),
 	.initial_brightness = INITIAL_BRT,
-	.load_new_rom_data = 1,
 	.size_program = ARRAY_SIZE(lp8552_eeprom_arr),
 	.rom_data = lp8552_eeprom_arr,
 };

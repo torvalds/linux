@@ -192,7 +192,7 @@ static int lp855x_configure(struct lp855x *lp)
 	if (ret)
 		goto err;
 
-	if (pd->load_new_rom_data && pd->size_program) {
+	if (pd->size_program > 0) {
 		for (i = 0; i < pd->size_program; i++) {
 			addr = pd->rom_data[i].addr;
 			val = pd->rom_data[i].val;
