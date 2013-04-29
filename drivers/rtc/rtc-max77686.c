@@ -24,7 +24,7 @@
 
 /* RTC Control Register */
 #define BCD_EN_SHIFT			0
-#define BCD_EN_MASK				(1 << BCD_EN_SHIFT)
+#define BCD_EN_MASK			(1 << BCD_EN_SHIFT)
 #define MODEL24_SHIFT			1
 #define MODEL24_MASK			(1 << MODEL24_SHIFT)
 /* RTC Update Register1 */
@@ -33,12 +33,12 @@
 #define RTC_RBUDR_SHIFT			4
 #define RTC_RBUDR_MASK			(1 << RTC_RBUDR_SHIFT)
 /* WTSR and SMPL Register */
-#define WTSRT_SHIFT				0
-#define SMPLT_SHIFT				2
+#define WTSRT_SHIFT			0
+#define SMPLT_SHIFT			2
 #define WTSR_EN_SHIFT			6
 #define SMPL_EN_SHIFT			7
-#define WTSRT_MASK				(3 << WTSRT_SHIFT)
-#define SMPLT_MASK				(3 << SMPLT_SHIFT)
+#define WTSRT_MASK			(3 << WTSRT_SHIFT)
+#define SMPLT_MASK			(3 << SMPLT_SHIFT)
 #define WTSR_EN_MASK			(1 << WTSR_EN_SHIFT)
 #define SMPL_EN_MASK			(1 << SMPL_EN_SHIFT)
 /* RTC Hour register */
