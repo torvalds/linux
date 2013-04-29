@@ -1696,7 +1696,7 @@ u32 dwc2_calc_frame_interval(struct dwc2_hsotg *hsotg)
 	    GHWCFG2_FS_PHY_TYPE_DEDICATED)
 		clock = 48;
 
-	if ((hprt0 & HPRT0_SPD_MASK) == 0)
+	if ((hprt0 & HPRT0_SPD_MASK) == HPRT0_SPD_HIGH_SPEED)
 		/* High speed case */
 		return 125 * clock;
 	else
@@ -2298,7 +2298,7 @@ int dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val)
 #ifndef NO_FS_PHY_HW_CHECKS
 		valid = 0;
 #else
-		val = 0;
+		val = DWC2_PHY_TYPE_PARAM_FS;
 		dev_dbg(hsotg->dev, "Setting phy_type to %d\n", val);
 		retval = -EINVAL;
 #endif
@@ -2325,7 +2325,7 @@ int dwc2_set_param_phy_type(struct dwc2_hsotg *hsotg, int val)
 			dev_err(hsotg->dev,
 				"%d invalid for phy_type. Check HW configuration.\n",
 				val);
-		val = 0;
+		val = DWC2_PHY_TYPE_PARAM_FS;
 		if (hs_phy_type != GHWCFG2_HS_PHY_TYPE_NOT_SUPPORTED) {
 			if (hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI ||
 			    hs_phy_type == GHWCFG2_HS_PHY_TYPE_UTMI_ULPI)
@@ -2360,8 +2360,8 @@ int dwc2_set_param_speed(struct dwc2_hsotg *hsotg, int val)
 		valid = 0;
 	}
 
-	if (val == 0 && dwc2_get_param_phy_type(hsotg) ==
-					DWC2_PHY_TYPE_PARAM_FS)
+	if (val == DWC2_SPEED_PARAM_HIGH &&
+	    dwc2_get_param_phy_type(hsotg) == DWC2_PHY_TYPE_PARAM_FS)
 		valid = 0;
 
 	if (!valid) {
@@ -2370,7 +2370,7 @@ int dwc2_set_param_speed(struct dwc2_hsotg *hsotg, int val)
 				"%d invalid for speed parameter. Check HW configuration.\n",
 				val);
 		val = dwc2_get_param_phy_type(hsotg) == DWC2_PHY_TYPE_PARAM_FS ?
-				1 : 0;
+				DWC2_SPEED_PARAM_FULL : DWC2_SPEED_PARAM_HIGH;
 		dev_dbg(hsotg->dev, "Setting speed to %d\n", val);
 		retval = -EINVAL;
 	}
