@@ -109,19 +109,6 @@ struct palmas_reg_init {
 	 */
 	int mode_sleep;
 
-	/* tstep is the timestep loaded to the TSTEP register
-	 *
-	 * For SMPS
-	 *
-	 * 0: Jump (no slope control)
-	 * 1: 10mV/us
-	 * 2: 5mV/us
-	 * 3: 2.5mV/us
-	 *
-	 * For LDO unused
-	 */
-	int tstep;
-
 	/* voltage_sel is the bitfield loaded onto the SMPSX_VOLTAGE
 	 * register. Set this is the default voltage set in OTP needs
 	 * to be overridden.
@@ -154,6 +141,12 @@ enum palmas_regulators {
 	PALMAS_REG_LDO9,
 	PALMAS_REG_LDOLN,
 	PALMAS_REG_LDOUSB,
+	/* External regulators */
+	PALMAS_REG_REGEN1,
+	PALMAS_REG_REGEN2,
+	PALMAS_REG_REGEN3,
+	PALMAS_REG_SYSEN1,
+	PALMAS_REG_SYSEN2,
 	/* Total number of regulators */
 	PALMAS_NUM_REGS,
 };
@@ -171,6 +164,9 @@ struct palmas_pmic_platform_data {
 
 	/* use LDO6 for vibrator control */
 	int ldo6_vibrator;
+
+	/* Enable tracking mode of LDO8 */
+	bool enable_ldo8_tracking;
 };
 
 struct palmas_usb_platform_data {
@@ -331,6 +327,8 @@ struct palmas_pmic {
 	int smps457;
 
 	int range[PALMAS_REG_SMPS10];
+	unsigned int ramp_delay[PALMAS_REG_SMPS10];
+	unsigned int current_reg_mode[PALMAS_REG_SMPS10];
 };
 
 struct palmas_resource {

@@ -274,15 +274,15 @@ static int max8973_init_dcdc(struct max8973_chip *max,
 	if (pdata->reg_init_data &&
 			pdata->reg_init_data->constraints.ramp_delay) {
 		if (pdata->reg_init_data->constraints.ramp_delay < 25000)
-			control1 = MAX8973_RAMP_12mV_PER_US;
+			control1 |= MAX8973_RAMP_12mV_PER_US;
 		else if (pdata->reg_init_data->constraints.ramp_delay < 50000)
-			control1 = MAX8973_RAMP_25mV_PER_US;
+			control1 |= MAX8973_RAMP_25mV_PER_US;
 		else if (pdata->reg_init_data->constraints.ramp_delay < 200000)
-			control1 = MAX8973_RAMP_50mV_PER_US;
+			control1 |= MAX8973_RAMP_50mV_PER_US;
 		else
-			control1 = MAX8973_RAMP_200mV_PER_US;
+			control1 |= MAX8973_RAMP_200mV_PER_US;
 	} else {
-		control1 = MAX8973_RAMP_12mV_PER_US;
+		control1 |= MAX8973_RAMP_12mV_PER_US;
 		max->desc.ramp_delay = 12500;
 	}
 
