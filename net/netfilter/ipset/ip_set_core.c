@@ -1,6 +1,6 @@
 /* Copyright (C) 2000-2002 Joakim Axelsson <gozem@linux.nu>
  *                         Patrick Schaaf <bof@bof.de>
- * Copyright (C) 2003-2011 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+ * Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -315,6 +315,29 @@ ip_set_get_ipaddr6(struct nlattr *nla, union nf_inet_addr *ipaddr)
 }
 EXPORT_SYMBOL_GPL(ip_set_get_ipaddr6);
 
+int
+ip_set_get_extensions(struct ip_set *set, struct nlattr *tb[],
+		      struct ip_set_ext *ext)
+{
+	if (tb[IPSET_ATTR_TIMEOUT]) {
+		if (!(set->extensions & IPSET_EXT_TIMEOUT))
+			return -IPSET_ERR_TIMEOUT;
+		ext->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
+	}
+	if (tb[IPSET_ATTR_BYTES] || tb[IPSET_ATTR_PACKETS]) {
+		if (!(set->extensions & IPSET_EXT_COUNTER))
+			return -IPSET_ERR_COUNTER;
+		if (tb[IPSET_ATTR_BYTES])
+			ext->bytes = be64_to_cpu(nla_get_be64(
+						 tb[IPSET_ATTR_BYTES]));
+		if (tb[IPSET_ATTR_PACKETS])
+			ext->packets = be64_to_cpu(nla_get_be64(
+						   tb[IPSET_ATTR_PACKETS]));
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ip_set_get_extensions);
+
 /*
  * Creating/destroying/renaming/swapping affect the existence and
  * the properties of a set. All of these can be executed from userspace
@@ -365,8 +388,7 @@ ip_set_rcu_get(ip_set_id_t index)
 
 int
 ip_set_test(ip_set_id_t index, const struct sk_buff *skb,
-	    const struct xt_action_param *par,
-	    const struct ip_set_adt_opt *opt)
+	    const struct xt_action_param *par, struct ip_set_adt_opt *opt)
 {
 	struct ip_set *set = ip_set_rcu_get(index);
 	int ret = 0;
@@ -391,7 +413,7 @@ ip_set_test(ip_set_id_t index, const struct sk_buff *skb,
 		ret = 1;
 	} else {
 		/* --return-nomatch: invert matched element */
-		if ((opt->flags & IPSET_RETURN_NOMATCH) &&
+		if ((opt->cmdflags & IPSET_FLAG_RETURN_NOMATCH) &&
 		    (set->type->features & IPSET_TYPE_NOMATCH) &&
 		    (ret > 0 || ret == -ENOTEMPTY))
 			ret = -ret;
@@ -404,8 +426,7 @@ EXPORT_SYMBOL_GPL(ip_set_test);
 
 int
 ip_set_add(ip_set_id_t index, const struct sk_buff *skb,
-	   const struct xt_action_param *par,
-	   const struct ip_set_adt_opt *opt)
+	   const struct xt_action_param *par, struct ip_set_adt_opt *opt)
 {
 	struct ip_set *set = ip_set_rcu_get(index);
 	int ret;
@@ -427,8 +448,7 @@ EXPORT_SYMBOL_GPL(ip_set_add);
 
 int
 ip_set_del(ip_set_id_t index, const struct sk_buff *skb,
-	   const struct xt_action_param *par,
-	   const struct ip_set_adt_opt *opt)
+	   const struct xt_action_param *par, struct ip_set_adt_opt *opt)
 {
 	struct ip_set *set = ip_set_rcu_get(index);
 	int ret = 0;

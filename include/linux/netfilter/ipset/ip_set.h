@@ -1,7 +1,7 @@
 /* Copyright (C) 2000-2002 Joakim Axelsson <gozem@linux.nu>
  *                         Patrick Schaaf <bof@bof.de>
  *                         Martin Josefsson <gandalf@wlug.westbo.se>
- * Copyright (C) 2003-2011 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+ * Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -47,10 +47,36 @@ enum ip_set_feature {
 	IPSET_DUMP_LAST = (1 << IPSET_DUMP_LAST_FLAG),
 };
 
+/* Set extensions */
+enum ip_set_extension {
+	IPSET_EXT_NONE = 0,
+	IPSET_EXT_BIT_TIMEOUT = 1,
+	IPSET_EXT_TIMEOUT = (1 << IPSET_EXT_BIT_TIMEOUT),
+	IPSET_EXT_BIT_COUNTER = 2,
+	IPSET_EXT_COUNTER = (1 << IPSET_EXT_BIT_COUNTER),
+};
+
+/* Extension offsets */
+enum ip_set_offset {
+	IPSET_OFFSET_TIMEOUT = 0,
+	IPSET_OFFSET_COUNTER,
+	IPSET_OFFSET_MAX,
+};
+
+#define SET_WITH_TIMEOUT(s)	((s)->extensions & IPSET_EXT_TIMEOUT)
+#define SET_WITH_COUNTER(s)	((s)->extensions & IPSET_EXT_COUNTER)
+
+struct ip_set_ext {
+	unsigned long timeout;
+	u64 packets;
+	u64 bytes;
+};
+
 struct ip_set;
 
 typedef int (*ipset_adtfn)(struct ip_set *set, void *value,
-			   u32 timeout, u32 flags);
+			   const struct ip_set_ext *ext,
+			   struct ip_set_ext *mext, u32 cmdflags);
 
 /* Kernel API function options */
 struct ip_set_adt_opt {
@@ -58,7 +84,7 @@ struct ip_set_adt_opt {
 	u8 dim;			/* Dimension of match/target */
 	u8 flags;		/* Direction and negation flags */
 	u32 cmdflags;		/* Command-like flags */
-	u32 timeout;		/* Timeout value */
+	struct ip_set_ext ext;	/* Extensions */
 };
 
 /* Set type, variant-specific part */
@@ -69,7 +95,7 @@ struct ip_set_type_variant {
 	 *			positive for matching element */
 	int (*kadt)(struct ip_set *set, const struct sk_buff *skb,
 		    const struct xt_action_param *par,
-		    enum ipset_adt adt, const struct ip_set_adt_opt *opt);
+		    enum ipset_adt adt, struct ip_set_adt_opt *opt);
 
 	/* Userspace: test/add/del entries
 	 *		returns negative error code,
@@ -151,9 +177,75 @@ struct ip_set {
 	u8 family;
 	/* The type revision */
 	u8 revision;
+	/* Extensions */
+	u8 extensions;
 	/* The type specific data */
 	void *data;
 };
+
+struct ip_set_counter {
+	atomic64_t bytes;
+	atomic64_t packets;
+};
+
+static inline void
+ip_set_add_bytes(u64 bytes, struct ip_set_counter *counter)
+{
+	atomic64_add((long long)bytes, &(counter)->bytes);
+}
+
+static inline void
+ip_set_add_packets(u64 packets, struct ip_set_counter *counter)
+{
+	atomic64_add((long long)packets, &(counter)->packets);
+}
+
+static inline u64
+ip_set_get_bytes(const struct ip_set_counter *counter)
+{
+	return (u64)atomic64_read(&(counter)->bytes);
+}
+
+static inline u64
+ip_set_get_packets(const struct ip_set_counter *counter)
+{
+	return (u64)atomic64_read(&(counter)->packets);
+}
+
+static inline void
+ip_set_update_counter(struct ip_set_counter *counter,
+		      const struct ip_set_ext *ext,
+		      struct ip_set_ext *mext, u32 flags)
+{
+	if (ext->packets != ULLONG_MAX &&
+	    !(flags & IPSET_FLAG_SKIP_COUNTER_UPDATE)) {
+		ip_set_add_bytes(ext->bytes, counter);
+		ip_set_add_packets(ext->packets, counter);
+	}
+	if (flags & IPSET_FLAG_MATCH_COUNTERS) {
+		mext->packets = ip_set_get_packets(counter);
+		mext->bytes = ip_set_get_bytes(counter);
+	}
+}
+
+static inline bool
+ip_set_put_counter(struct sk_buff *skb, struct ip_set_counter *counter)
+{
+	return nla_put_net64(skb, IPSET_ATTR_BYTES,
+			     cpu_to_be64(ip_set_get_bytes(counter))) ||
+	       nla_put_net64(skb, IPSET_ATTR_PACKETS,
+			     cpu_to_be64(ip_set_get_packets(counter)));
+}
+
+static inline void
+ip_set_init_counter(struct ip_set_counter *counter,
+		    const struct ip_set_ext *ext)
+{
+	if (ext->bytes != ULLONG_MAX)
+		atomic64_set(&(counter)->bytes, (long long)(ext->bytes));
+	if (ext->packets != ULLONG_MAX)
+		atomic64_set(&(counter)->packets, (long long)(ext->packets));
+}
 
 /* register and unregister set references */
 extern ip_set_id_t ip_set_get_byname(const char *name, struct ip_set **set);
@@ -167,19 +259,21 @@ extern void ip_set_nfnl_put(ip_set_id_t index);
 
 extern int ip_set_add(ip_set_id_t id, const struct sk_buff *skb,
 		      const struct xt_action_param *par,
-		      const struct ip_set_adt_opt *opt);
+		      struct ip_set_adt_opt *opt);
 extern int ip_set_del(ip_set_id_t id, const struct sk_buff *skb,
 		      const struct xt_action_param *par,
-		      const struct ip_set_adt_opt *opt);
+		      struct ip_set_adt_opt *opt);
 extern int ip_set_test(ip_set_id_t id, const struct sk_buff *skb,
 		       const struct xt_action_param *par,
-		       const struct ip_set_adt_opt *opt);
+		       struct ip_set_adt_opt *opt);
 
 /* Utility functions */
 extern void *ip_set_alloc(size_t size);
 extern void ip_set_free(void *members);
 extern int ip_set_get_ipaddr4(struct nlattr *nla,  __be32 *ipaddr);
 extern int ip_set_get_ipaddr6(struct nlattr *nla, union nf_inet_addr *ipaddr);
+extern int ip_set_get_extensions(struct ip_set *set, struct nlattr *tb[],
+				 struct ip_set_ext *ext);
 
 static inline int
 ip_set_get_hostipaddr4(struct nlattr *nla, u32 *ipaddr)
@@ -198,6 +292,14 @@ static inline bool
 ip_set_eexist(int ret, u32 flags)
 {
 	return ret == -IPSET_ERR_EXIST && (flags & IPSET_FLAG_EXIST);
+}
+
+/* Match elements marked with nomatch */
+static inline bool
+ip_set_enomatch(int ret, u32 flags, enum ipset_adt adt)
+{
+	return adt == IPSET_TEST &&
+	       ret == -ENOTEMPTY && ((flags >> 16) & IPSET_FLAG_NOMATCH);
 }
 
 /* Check the NLA_F_NET_BYTEORDER flag */
@@ -283,5 +385,15 @@ bitmap_bytes(u32 a, u32 b)
 {
 	return 4 * ((((b - a + 8) / 8) + 3) / 4);
 }
+
+#include <linux/netfilter/ipset/ip_set_timeout.h>
+
+#define IP_SET_INIT_KEXT(skb, opt, map)			\
+	{ .bytes = (skb)->len, .packets = 1,		\
+	  .timeout = ip_set_adt_opt_timeout(opt, map) }
+
+#define IP_SET_INIT_UEXT(map)				\
+	{ .bytes = ULLONG_MAX, .packets = ULLONG_MAX,	\
+	  .timeout = (map)->timeout }
 
 #endif /*_IP_SET_H */
