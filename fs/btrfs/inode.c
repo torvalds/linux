@@ -1530,7 +1530,7 @@ static void btrfs_merge_extent_hook(struct inode *inode,
  * have pending delalloc work to be done.
  */
 static void btrfs_set_bit_hook(struct inode *inode,
-			       struct extent_state *state, int *bits)
+			       struct extent_state *state, unsigned long *bits)
 {
 
 	/*
@@ -1574,7 +1574,8 @@ static void btrfs_set_bit_hook(struct inode *inode,
  * extent_io.c clear_bit_hook, see set_bit_hook for why
  */
 static void btrfs_clear_bit_hook(struct inode *inode,
-				 struct extent_state *state, int *bits)
+				 struct extent_state *state,
+				 unsigned long *bits)
 {
 	/*
 	 * set_bit and clear bit hooks normally require _irqsave/restore
