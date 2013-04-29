@@ -1265,7 +1265,7 @@ static void call_console_drivers(int level, const char *text, size_t len)
 {
 	struct console *con;
 
-	trace_console(text, 0, len, len);
+	trace_console(text, len);
 
 	if (level >= console_loglevel && !ignore_loglevel)
 		return;
