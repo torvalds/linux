@@ -38,8 +38,8 @@ static int __init generic_rtc_probe(struct platform_device *dev)
 {
 	struct rtc_device *rtc;
 
-	rtc = rtc_device_register("rtc-generic", &dev->dev, &generic_rtc_ops,
-				  THIS_MODULE);
+	rtc = devm_rtc_device_register(&dev->dev, "rtc-generic",
+					&generic_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
@@ -50,10 +50,6 @@ static int __init generic_rtc_probe(struct platform_device *dev)
 
 static int __exit generic_rtc_remove(struct platform_device *dev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(dev);
-
-	rtc_device_unregister(rtc);
-
 	return 0;
 }
 
