@@ -59,7 +59,7 @@
 
 static const char dwc2_driver_name[] = "dwc2";
 
-static struct dwc2_core_params dwc2_module_params = {
+static const struct dwc2_core_params dwc2_module_params = {
 	.otg_cap			= -1,
 	.otg_ver			= -1,
 	.dma_enable			= -1,
