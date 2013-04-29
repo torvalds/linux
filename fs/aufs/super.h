@@ -55,6 +55,12 @@ struct au_wbr_mfs {
 	unsigned long long	mfsrr_watermark;
 };
 
+#define AuPlink_NHASH 100
+static inline int au_plink_hash(ino_t ino)
+{
+	return ino % AuPlink_NHASH;
+}
+
 struct au_branch;
 struct au_sbinfo {
 	/* nowait tasks in the system-wide workqueue */
@@ -145,7 +151,7 @@ struct au_sbinfo {
 	/* int			si_rendir; */
 
 	/* pseudo_link list */
-	struct au_sphlhead	si_plink;
+	struct au_sphlhead	si_plink[AuPlink_NHASH];
 	wait_queue_head_t	si_plink_wq;
 	spinlock_t		si_plink_maint_lock;
 	pid_t			si_plink_maint_pid;
