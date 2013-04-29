@@ -333,9 +333,8 @@ static int tps6586x_rtc_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops tps6586x_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(tps6586x_rtc_suspend, tps6586x_rtc_resume)
-};
+static SIMPLE_DEV_PM_OPS(tps6586x_pm_ops, tps6586x_rtc_suspend,
+			tps6586x_rtc_resume);
 
 static struct platform_driver tps6586x_rtc_driver = {
 	.driver	= {
