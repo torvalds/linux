@@ -434,10 +434,10 @@ static int spear_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-
-static int spear_rtc_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int spear_rtc_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct spear_rtc_config *config = platform_get_drvdata(pdev);
 	int irq;
 
@@ -453,8 +453,9 @@ static int spear_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int spear_rtc_resume(struct platform_device *pdev)
+static int spear_rtc_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct spear_rtc_config *config = platform_get_drvdata(pdev);
 	int irq;
 
@@ -472,11 +473,9 @@ static int spear_rtc_resume(struct platform_device *pdev)
 
 	return 0;
 }
-
-#else
-#define spear_rtc_suspend	NULL
-#define spear_rtc_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(spear_rtc_pm_ops, spear_rtc_suspend, spear_rtc_resume);
 
 static void spear_rtc_shutdown(struct platform_device *pdev)
 {
@@ -497,11 +496,10 @@ MODULE_DEVICE_TABLE(of, spear_rtc_id_table);
 static struct platform_driver spear_rtc_driver = {
 	.probe = spear_rtc_probe,
 	.remove = spear_rtc_remove,
-	.suspend = spear_rtc_suspend,
-	.resume = spear_rtc_resume,
 	.shutdown = spear_rtc_shutdown,
 	.driver = {
 		.name = "rtc-spear",
+		.pm = &spear_rtc_pm_ops,
 		.of_match_table = of_match_ptr(spear_rtc_id_table),
 	},
 };
