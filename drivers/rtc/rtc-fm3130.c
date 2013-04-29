@@ -395,7 +395,7 @@ static int fm3130_probe(struct i2c_client *client,
 
 	tmp = i2c_transfer(adapter, fm3130->msg, 4);
 	if (tmp != 4) {
-		pr_debug("read error %d\n", tmp);
+		dev_dbg(&client->dev, "read error %d\n", tmp);
 		err = -EIO;
 		goto exit_free;
 	}
