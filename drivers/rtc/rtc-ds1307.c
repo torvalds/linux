@@ -713,7 +713,7 @@ static int ds1307_probe(struct i2c_client *client,
 		tmp = ds1307->read_block_data(ds1307->client,
 				DS1337_REG_CONTROL, 2, buf);
 		if (tmp != 2) {
-			pr_debug("read error %d\n", tmp);
+			dev_dbg(&client->dev, "read error %d\n", tmp);
 			err = -EIO;
 			goto exit_free;
 		}
@@ -752,7 +752,7 @@ static int ds1307_probe(struct i2c_client *client,
 		tmp = i2c_smbus_read_i2c_block_data(ds1307->client,
 				RX8025_REG_CTRL1 << 4 | 0x08, 2, buf);
 		if (tmp != 2) {
-			pr_debug("read error %d\n", tmp);
+			dev_dbg(&client->dev, "read error %d\n", tmp);
 			err = -EIO;
 			goto exit_free;
 		}
@@ -796,7 +796,7 @@ static int ds1307_probe(struct i2c_client *client,
 			tmp = i2c_smbus_read_i2c_block_data(ds1307->client,
 					RX8025_REG_CTRL1 << 4 | 0x08, 2, buf);
 			if (tmp != 2) {
-				pr_debug("read error %d\n", tmp);
+				dev_dbg(&client->dev, "read error %d\n", tmp);
 				err = -EIO;
 				goto exit_free;
 			}
@@ -824,7 +824,7 @@ read_rtc:
 	/* read RTC registers */
 	tmp = ds1307->read_block_data(ds1307->client, ds1307->offset, 8, buf);
 	if (tmp != 8) {
-		pr_debug("read error %d\n", tmp);
+		dev_dbg(&client->dev, "read error %d\n", tmp);
 		err = -EIO;
 		goto exit_free;
 	}
@@ -866,7 +866,7 @@ read_rtc:
 
 		tmp = i2c_smbus_read_byte_data(client, DS1340_REG_FLAG);
 		if (tmp < 0) {
-			pr_debug("read error %d\n", tmp);
+			dev_dbg(&client->dev, "read error %d\n", tmp);
 			err = -EIO;
 			goto exit_free;
 		}
