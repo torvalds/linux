@@ -550,17 +550,7 @@ static struct platform_driver omap_rtc_driver = {
 	.id_table	= omap_rtc_devtype,
 };
 
-static int __init rtc_init(void)
-{
-	return platform_driver_probe(&omap_rtc_driver, omap_rtc_probe);
-}
-module_init(rtc_init);
-
-static void __exit rtc_exit(void)
-{
-	platform_driver_unregister(&omap_rtc_driver);
-}
-module_exit(rtc_exit);
+module_platform_driver_probe(omap_rtc_driver, omap_rtc_probe);
 
 MODULE_AUTHOR("George G. Davis (and others)");
 MODULE_LICENSE("GPL");
