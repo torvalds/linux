@@ -1633,7 +1633,6 @@ static int cpsw_probe_dual_emac(struct platform_device *pdev,
 		priv_sl2->irqs_table[i] = priv->irqs_table[i];
 		priv_sl2->num_irqs = priv->num_irqs;
 	}
-	priv->irq_enabled = true;
 	ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	ndev->netdev_ops = &cpsw_netdev_ops;
@@ -1679,6 +1678,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	priv->msg_enable = netif_msg_init(debug_level, CPSW_DEBUG);
 	priv->rx_packet_max = max(rx_packet_max, 128);
 	priv->cpts = devm_kzalloc(&pdev->dev, sizeof(struct cpts), GFP_KERNEL);
+	priv->irq_enabled = true;
 	if (!ndev) {
 		pr_err("error allocating cpts\n");
 		goto clean_ndev_ret;
