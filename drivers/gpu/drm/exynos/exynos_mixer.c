@@ -643,12 +643,14 @@ static void mixer_win_reset(struct mixer_context *ctx)
 	/* setting graphical layers */
 	val  = MXR_GRP_CFG_COLOR_KEY_DISABLE; /* no blank key */
 	val |= MXR_GRP_CFG_WIN_BLEND_EN;
-	val |= MXR_GRP_CFG_BLEND_PRE_MUL;
-	val |= MXR_GRP_CFG_PIXEL_BLEND_EN;
 	val |= MXR_GRP_CFG_ALPHA_VAL(0xff); /* non-transparent alpha */
 
-	/* the same configuration for both layers */
+	/* Don't blend layer 0 onto the mixer background */
 	mixer_reg_write(res, MXR_GRAPHIC_CFG(0), val);
+
+	/* Blend layer 1 into layer 0 */
+	val |= MXR_GRP_CFG_BLEND_PRE_MUL;
+	val |= MXR_GRP_CFG_PIXEL_BLEND_EN;
 	mixer_reg_write(res, MXR_GRAPHIC_CFG(1), val);
 
 	/* setting video layers */

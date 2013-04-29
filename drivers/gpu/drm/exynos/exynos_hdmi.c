@@ -1373,11 +1373,10 @@ static void hdmiphy_conf_apply(struct hdmi_context *hdata)
 		return;
 	}
 
-	if (hdata->type == HDMI_TYPE13) {
+	if (hdata->type == HDMI_TYPE13)
 		hdmiphy_data = hdmiphy_v13_configs[i].conf;
-	} else {
+	else
 		hdmiphy_data = hdmiphy_v14_configs[i].conf;
-	}
 
 	memcpy(buffer, hdmiphy_data, 32);
 	ret = i2c_master_send(hdata->hdmiphy_port, buffer, 32);
@@ -1653,11 +1652,10 @@ static void hdmi_mode_set(void *ctx, void *mode)
 		m->vrefresh, (m->flags & DRM_MODE_FLAG_INTERLACE) ?
 		"INTERLACED" : "PROGERESSIVE");
 
-	if (hdata->type == HDMI_TYPE13) {
+	if (hdata->type == HDMI_TYPE13)
 		hdmi_v13_mode_set(hdata, mode);
-	} else {
+	else
 		hdmi_v14_mode_set(hdata, mode);
-	}
 }
 
 static void hdmi_get_max_resol(void *ctx, unsigned int *width,
