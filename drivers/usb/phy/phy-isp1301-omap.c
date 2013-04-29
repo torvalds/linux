@@ -236,7 +236,7 @@ isp1301_clear_bits(struct isp1301 *isp, u8 reg, u8 bits)
 
 static inline const char *state_name(struct isp1301 *isp)
 {
-	return otg_state_string(isp->phy.state);
+	return usb_otg_state_string(isp->phy.state);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -481,7 +481,7 @@ static void check_state(struct isp1301 *isp, const char *tag)
 	if (isp->phy.state == state && !extra)
 		return;
 	pr_debug("otg: %s FSM %s/%02x, %s, %06x\n", tag,
-		otg_state_string(state), fsm, state_name(isp),
+		usb_otg_state_string(state), fsm, state_name(isp),
 		omap_readl(OTG_CTRL));
 }
 
@@ -1077,7 +1077,7 @@ static void isp_update_otg(struct isp1301 *isp, u8 stat)
 
 	if (state != isp->phy.state)
 		pr_debug("  isp, %s -> %s\n",
-				otg_state_string(state), state_name(isp));
+				usb_otg_state_string(state), state_name(isp));
 
 #ifdef	CONFIG_USB_OTG
 	/* update the OTG controller state to match the isp1301; may
@@ -1212,7 +1212,7 @@ static void isp1301_release(struct device *dev)
 
 static struct isp1301 *the_transceiver;
 
-static int __exit isp1301_remove(struct i2c_client *i2c)
+static int isp1301_remove(struct i2c_client *i2c)
 {
 	struct isp1301	*isp;
 
@@ -1634,7 +1634,7 @@ static struct i2c_driver isp1301_driver = {
 		.name	= "isp1301_omap",
 	},
 	.probe		= isp1301_probe,
-	.remove		= __exit_p(isp1301_remove),
+	.remove		= isp1301_remove,
 	.id_table	= isp1301_id,
 };
 

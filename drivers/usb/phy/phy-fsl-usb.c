@@ -43,7 +43,7 @@
 
 #include <asm/unaligned.h>
 
-#include "fsl_otg.h"
+#include "phy-fsl-usb.h"
 
 #define DRIVER_VERSION "Rev. 1.55"
 #define DRIVER_AUTHOR "Jerry Huang/Li Yang"
@@ -361,28 +361,18 @@ int fsl_otg_init_timers(struct otg_fsm *fsm)
 void fsl_otg_uninit_timers(void)
 {
 	/* FSM used timers */
-	if (a_wait_vrise_tmr != NULL)
-		kfree(a_wait_vrise_tmr);
-	if (a_wait_bcon_tmr != NULL)
-		kfree(a_wait_bcon_tmr);
-	if (a_aidl_bdis_tmr != NULL)
-		kfree(a_aidl_bdis_tmr);
-	if (b_ase0_brst_tmr != NULL)
-		kfree(b_ase0_brst_tmr);
-	if (b_se0_srp_tmr != NULL)
-		kfree(b_se0_srp_tmr);
-	if (b_srp_fail_tmr != NULL)
-		kfree(b_srp_fail_tmr);
-	if (a_wait_enum_tmr != NULL)
-		kfree(a_wait_enum_tmr);
+	kfree(a_wait_vrise_tmr);
+	kfree(a_wait_bcon_tmr);
+	kfree(a_aidl_bdis_tmr);
+	kfree(b_ase0_brst_tmr);
+	kfree(b_se0_srp_tmr);
+	kfree(b_srp_fail_tmr);
+	kfree(a_wait_enum_tmr);
 
 	/* device driver used timers */
-	if (b_srp_wait_tmr != NULL)
-		kfree(b_srp_wait_tmr);
-	if (b_data_pulse_tmr != NULL)
-		kfree(b_data_pulse_tmr);
-	if (b_vbus_pulse_tmr != NULL)
-		kfree(b_vbus_pulse_tmr);
+	kfree(b_srp_wait_tmr);
+	kfree(b_data_pulse_tmr);
+	kfree(b_vbus_pulse_tmr);
 }
 
 /* Add timer to timer list */
@@ -1002,7 +992,7 @@ static int show_fsl_usb2_otg_state(struct device *dev,
 	/* State */
 	t = scnprintf(next, size,
 		      "OTG state: %s\n\n",
-		      otg_state_string(fsl_otg_dev->phy.state));
+		      usb_otg_state_string(fsl_otg_dev->phy.state));
 	size -= t;
 	next += t;
 

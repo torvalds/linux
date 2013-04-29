@@ -274,6 +274,8 @@ config 440EPX
 	select IBM_EMAC_EMAC4
 	select IBM_EMAC_RGMII
 	select IBM_EMAC_ZMII
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_BIG_ENDIAN_DESC
 
 config 440GRX
 	bool

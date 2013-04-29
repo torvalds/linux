@@ -374,6 +374,11 @@ static int qmi_wwan_suspend(struct usb_interface *intf, pm_message_t message)
 	struct qmi_wwan_state *info = (void *)&dev->data;
 	int ret;
 
+	/*
+	 * Both usbnet_suspend() and subdriver->suspend() MUST return 0
+	 * in system sleep context, otherwise, the resume callback has
+	 * to recover device from previous suspend failure.
+	 */
 	ret = usbnet_suspend(intf, message);
 	if (ret < 0)
 		goto err;

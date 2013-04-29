@@ -774,30 +774,25 @@ static void sierra_close(struct usb_serial_port *port)
 	portdata->rts_state = 0;
 	portdata->dtr_state = 0;
 
-	if (serial->dev) {
-		mutex_lock(&serial->disc_mutex);
-		if (!serial->disconnected) {
-			serial->interface->needs_remote_wakeup = 0;
-			/* odd error handling due to pm counters */
-			if (!usb_autopm_get_interface(serial->interface))
-				sierra_send_setup(port);
-			else
-				usb_autopm_get_interface_no_resume(serial->interface);
-				
-		}
-		mutex_unlock(&serial->disc_mutex);
-		spin_lock_irq(&intfdata->susp_lock);
-		portdata->opened = 0;
-		spin_unlock_irq(&intfdata->susp_lock);
+	mutex_lock(&serial->disc_mutex);
+	if (!serial->disconnected) {
+		serial->interface->needs_remote_wakeup = 0;
+		/* odd error handling due to pm counters */
+		if (!usb_autopm_get_interface(serial->interface))
+			sierra_send_setup(port);
+		else
+			usb_autopm_get_interface_no_resume(serial->interface);
 
+	}
+	mutex_unlock(&serial->disc_mutex);
+	spin_lock_irq(&intfdata->susp_lock);
+	portdata->opened = 0;
+	spin_unlock_irq(&intfdata->susp_lock);
 
-		/* Stop reading urbs */
-		sierra_stop_rx_urbs(port);
-		/* .. and release them */
-		for (i = 0; i < portdata->num_in_urbs; i++) {
-			sierra_release_urb(portdata->in_urbs[i]);
-			portdata->in_urbs[i] = NULL;
-		}
+	sierra_stop_rx_urbs(port);
+	for (i = 0; i < portdata->num_in_urbs; i++) {
+		sierra_release_urb(portdata->in_urbs[i]);
+		portdata->in_urbs[i] = NULL;
 	}
 }
 

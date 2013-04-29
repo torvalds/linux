@@ -211,6 +211,7 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 	struct twl6030_usb *twl = _twl;
 	enum omap_musb_vbus_id_status status = OMAP_MUSB_UNKNOWN;
 	u8 vbus_state, hw_state;
+	int ret;
 
 	hw_state = twl6030_readb(twl, TWL6030_MODULE_ID0, STS_HW_CONDITIONS);
 
@@ -218,7 +219,10 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 						CONTROLLER_STAT1);
 	if (!(hw_state & STS_USB_ID)) {
 		if (vbus_state & VBUS_DET) {
-			regulator_enable(twl->usb3v3);
+			ret = regulator_enable(twl->usb3v3);
+			if (ret)
+				dev_err(twl->dev, "Failed to enable usb3v3\n");
+
 			twl->asleep = 1;
 			status = OMAP_MUSB_VBUS_VALID;
 			twl->linkstat = status;
@@ -245,12 +249,15 @@ static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 	struct twl6030_usb *twl = _twl;
 	enum omap_musb_vbus_id_status status = OMAP_MUSB_UNKNOWN;
 	u8 hw_state;
+	int ret;
 
 	hw_state = twl6030_readb(twl, TWL6030_MODULE_ID0, STS_HW_CONDITIONS);
 
 	if (hw_state & STS_USB_ID) {
+		ret = regulator_enable(twl->usb3v3);
+		if (ret)
+			dev_err(twl->dev, "Failed to enable usb3v3\n");
 
-		regulator_enable(twl->usb3v3);
 		twl->asleep = 1;
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x1, USB_ID_INT_EN_HI_CLR);
 		twl6030_writeb(twl, TWL_MODULE_USB, 0x10, USB_ID_INT_EN_HI_SET);
@@ -393,7 +400,7 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit twl6030_usb_remove(struct platform_device *pdev)
+static int twl6030_usb_remove(struct platform_device *pdev)
 {
 	struct twl6030_usb *twl = platform_get_drvdata(pdev);
 
@@ -420,7 +427,7 @@ MODULE_DEVICE_TABLE(of, twl6030_usb_id_table);
 
 static struct platform_driver twl6030_usb_driver = {
 	.probe		= twl6030_usb_probe,
-	.remove		= __exit_p(twl6030_usb_remove),
+	.remove		= twl6030_usb_remove,
 	.driver		= {
 		.name	= "twl6030_usb",
 		.owner	= THIS_MODULE,

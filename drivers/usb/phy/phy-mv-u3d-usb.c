@@ -15,7 +15,7 @@
 #include <linux/usb/otg.h>
 #include <linux/platform_data/mv_usb.h>
 
-#include "mv_u3d_phy.h"
+#include "phy-mv-u3d-usb.h"
 
 /*
  * struct mv_u3d_phy - transceiver driver state
@@ -313,7 +313,7 @@ err:
 	return ret;
 }
 
-static int __exit mv_u3d_phy_remove(struct platform_device *pdev)
+static int mv_u3d_phy_remove(struct platform_device *pdev)
 {
 	struct mv_u3d_phy *mv_u3d_phy = platform_get_drvdata(pdev);
 

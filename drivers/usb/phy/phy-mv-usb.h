@@ -158,8 +158,7 @@ struct mv_otg {
 
 	unsigned int active;
 	unsigned int clock_gating;
-	unsigned int clknum;
-	struct clk *clk[0];
+	struct clk *clk;
 };
 
 #endif

@@ -407,6 +407,8 @@ config SERIAL_CONSOLE
 config SPARC_LEON
 	bool "Sparc Leon processor family"
 	depends on SPARC32
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_BIG_ENDIAN_DESC
 	---help---
 	  If you say Y here if you are running on a SPARC-LEON processor.
 	  The LEON processor is a synthesizable VHDL model of the

@@ -593,12 +593,10 @@ static void keyspan_pda_dtr_rts(struct usb_serial_port *port, int on)
 {
 	struct usb_serial *serial = port->serial;
 
-	if (serial->dev) {
-		if (on)
-			keyspan_pda_set_modem_info(serial, (1<<7) | (1<< 2));
-		else
-			keyspan_pda_set_modem_info(serial, 0);
-	}
+	if (on)
+		keyspan_pda_set_modem_info(serial, (1 << 7) | (1 << 2));
+	else
+		keyspan_pda_set_modem_info(serial, 0);
 }
 
 
@@ -649,13 +647,8 @@ error:
 }
 static void keyspan_pda_close(struct usb_serial_port *port)
 {
-	struct usb_serial *serial = port->serial;
-
-	if (serial->dev) {
-		/* shutdown our bulk reads and writes */
-		usb_kill_urb(port->write_urb);
-		usb_kill_urb(port->interrupt_in_urb);
-	}
+	usb_kill_urb(port->write_urb);
+	usb_kill_urb(port->interrupt_in_urb);
 }
 
 

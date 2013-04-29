@@ -61,6 +61,7 @@ static void set_vbus_draw(struct gpio_vbus_data *gpio_vbus, unsigned mA)
 {
 	struct regulator *vbus_draw = gpio_vbus->vbus_draw;
 	int enabled;
+	int ret;
 
 	if (!vbus_draw)
 		return;
@@ -69,12 +70,16 @@ static void set_vbus_draw(struct gpio_vbus_data *gpio_vbus, unsigned mA)
 	if (mA) {
 		regulator_set_current_limit(vbus_draw, 0, 1000 * mA);
 		if (!enabled) {
-			regulator_enable(vbus_draw);
+			ret = regulator_enable(vbus_draw);
+			if (ret < 0)
+				return;
 			gpio_vbus->vbus_draw_enabled = 1;
 		}
 	} else {
 		if (enabled) {
-			regulator_disable(vbus_draw);
+			ret = regulator_disable(vbus_draw);
+			if (ret < 0)
+				return;
 			gpio_vbus->vbus_draw_enabled = 0;
 		}
 	}
