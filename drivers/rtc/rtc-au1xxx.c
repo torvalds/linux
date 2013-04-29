@@ -101,7 +101,7 @@ static int au1xtoy_rtc_probe(struct platform_device *pdev)
 	while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C0S)
 		msleep(1);
 
-	rtcdev = rtc_device_register("rtc-au1xxx", &pdev->dev,
+	rtcdev = devm_rtc_device_register(&pdev->dev, "rtc-au1xxx",
 				     &au1xtoy_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtcdev)) {
 		ret = PTR_ERR(rtcdev);
@@ -118,9 +118,6 @@ out_err:
 
 static int au1xtoy_rtc_remove(struct platform_device *pdev)
 {
-	struct rtc_device *rtcdev = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(rtcdev);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
