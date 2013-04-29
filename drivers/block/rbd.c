@@ -5011,8 +5011,6 @@ static void rbd_dev_device_release(struct device *dev)
 	rbd_dev->major = 0;
 	rbd_dev_id_put(rbd_dev);
 	rbd_dev_mapping_clear(rbd_dev);
-
-	rbd_dev_image_release(rbd_dev);
 }
 
 static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
@@ -5032,6 +5030,7 @@ static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
 		}
 		rbd_assert(second);
 		rbd_bus_del_dev(second);
+		rbd_dev_image_release(second);
 		first->parent = NULL;
 		first->parent_overlap = 0;
 
@@ -5077,6 +5076,7 @@ static ssize_t rbd_remove(struct bus_type *bus,
 		goto done;
 	ret = count;
 	rbd_bus_del_dev(rbd_dev);
+	rbd_dev_image_release(rbd_dev);
 	module_put(THIS_MODULE);
 done:
 	mutex_unlock(&ctl_mutex);
