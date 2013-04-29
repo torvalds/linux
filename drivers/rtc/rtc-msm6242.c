@@ -252,18 +252,7 @@ static struct platform_driver msm6242_rtc_driver = {
 	.remove	= __exit_p(msm6242_rtc_remove),
 };
 
-static int __init msm6242_rtc_init(void)
-{
-	return platform_driver_probe(&msm6242_rtc_driver, msm6242_rtc_probe);
-}
-
-static void __exit msm6242_rtc_fini(void)
-{
-	platform_driver_unregister(&msm6242_rtc_driver);
-}
-
-module_init(msm6242_rtc_init);
-module_exit(msm6242_rtc_fini);
+module_platform_driver_probe(msm6242_rtc_driver, msm6242_rtc_probe);
 
 MODULE_AUTHOR("Geert Uytterhoeven <geert@linux-m68k.org>");
 MODULE_LICENSE("GPL");
