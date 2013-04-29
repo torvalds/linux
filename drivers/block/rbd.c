@@ -4879,10 +4879,6 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev)
 		goto err_out_snaps;
 
 	ret = rbd_dev_probe_parent(rbd_dev);
-	if (ret)
-		goto err_out_snaps;
-
-	ret = rbd_dev_device_setup(rbd_dev);
 	if (!ret)
 		return 0;
 
@@ -4964,9 +4960,12 @@ static ssize_t rbd_add(struct bus_type *bus,
 	if (rc < 0)
 		goto err_out_rbd_dev;
 
-	return count;
+	rc = rbd_dev_device_setup(rbd_dev);
+	if (!rc)
+		return count;
+
+	rbd_dev_image_release(rbd_dev);
 err_out_rbd_dev:
-	kfree(rbd_dev->header_name);
 	rbd_dev_destroy(rbd_dev);
 err_out_client:
 	rbd_put_client(rbdc);
@@ -5029,7 +5028,6 @@ static void rbd_dev_remove_parent(struct rbd_device *rbd_dev)
 			second = third;
 		}
 		rbd_assert(second);
-		rbd_bus_del_dev(second);
 		rbd_dev_image_release(second);
 		first->parent = NULL;
 		first->parent_overlap = 0;
