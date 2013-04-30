@@ -1,0 +1,28 @@
+Synopsis DesignWare GPIO controller bindings
+
+Required properties:
+- compatible:
+  - "snps,dw-gpio"
+- reg: Physical base address and length of the controller's registers.
+- gpio-controller : Marks the device node as a GPIO controller.
+- #gpio-cells : Should be two.
+  - first cell is the pin number
+  - second cell is used to specify optional parameters (unused)
+- clocks
+  - Clock source
+
+Optional properties:
+- width
+  - Number of gpio lines.  Defaults to 32.
+- resetvalue
+  - Reset value of gpios for the saved shadow value.
+
+Example:
+	gpio0: gpio@ff708000 {
+		compatible = "snps,dw-gpio";
+		reg = <0xff708000 0x1000>;
+		width = <29>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		clocks = <&per_base_clk>;
+	};
