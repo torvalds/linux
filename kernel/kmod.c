@@ -502,34 +502,13 @@ static void helper_unlock(void)
  * @argv: arg vector for process
  * @envp: environment for process
  * @gfp_mask: gfp mask for memory allocation
+ * @cleanup: a cleanup function
+ * @init: an init function
+ * @data: arbitrary context sensitive data
  *
  * Returns either %NULL on allocation failure, or a subprocess_info
  * structure.  This should be passed to call_usermodehelper_exec to
  * exec the process and free the structure.
- */
-static
-struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
-						  char **envp, gfp_t gfp_mask)
-{
-	struct subprocess_info *sub_info;
-	sub_info = kzalloc(sizeof(struct subprocess_info), gfp_mask);
-	if (!sub_info)
-		goto out;
-
-	INIT_WORK(&sub_info->work, __call_usermodehelper);
-	sub_info->path = path;
-	sub_info->argv = argv;
-	sub_info->envp = envp;
-  out:
-	return sub_info;
-}
-
-/**
- * call_usermodehelper_setfns - set a cleanup/init function
- * @info: a subprocess_info returned by call_usermodehelper_setup
- * @cleanup: a cleanup function
- * @init: an init function
- * @data: arbitrary context sensitive data
  *
  * The init function is used to customize the helper process prior to
  * exec.  A non-zero return code causes the process to error out, exit,
@@ -540,16 +519,29 @@ struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
  * Function must be runnable in either a process context or the
  * context in which call_usermodehelper_exec is called.
  */
-static
-void call_usermodehelper_setfns(struct subprocess_info *info,
-		    int (*init)(struct subprocess_info *info, struct cred *new),
-		    void (*cleanup)(struct subprocess_info *info),
-		    void *data)
+struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
+		char **envp, gfp_t gfp_mask,
+		int (*init)(struct subprocess_info *info, struct cred *new),
+		void (*cleanup)(struct subprocess_info *info),
+		void *data)
 {
-	info->cleanup = cleanup;
-	info->init = init;
-	info->data = data;
+	struct subprocess_info *sub_info;
+	sub_info = kzalloc(sizeof(struct subprocess_info), gfp_mask);
+	if (!sub_info)
+		goto out;
+
+	INIT_WORK(&sub_info->work, __call_usermodehelper);
+	sub_info->path = path;
+	sub_info->argv = argv;
+	sub_info->envp = envp;
+
+	sub_info->cleanup = cleanup;
+	sub_info->init = init;
+	sub_info->data = data;
+  out:
+	return sub_info;
 }
+EXPORT_SYMBOL(call_usermodehelper_setup);
 
 /**
  * call_usermodehelper_exec - start a usermode application
@@ -563,7 +555,6 @@ void call_usermodehelper_setfns(struct subprocess_info *info,
  * asynchronously if wait is not set, and runs as a child of keventd.
  * (ie. it runs with full root capabilities).
  */
-static
 int call_usermodehelper_exec(struct subprocess_info *sub_info, int wait)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
@@ -615,6 +606,7 @@ unlock:
 	helper_unlock();
 	return retval;
 }
+EXPORT_SYMBOL(call_usermodehelper_exec);
 
 /*
  * call_usermodehelper_fns() will not run the caller-provided cleanup function
@@ -630,12 +622,11 @@ int call_usermodehelper_fns(
 	struct subprocess_info *info;
 	gfp_t gfp_mask = (wait == UMH_NO_WAIT) ? GFP_ATOMIC : GFP_KERNEL;
 
-	info = call_usermodehelper_setup(path, argv, envp, gfp_mask);
+	info = call_usermodehelper_setup(path, argv, envp, gfp_mask,
+					 init, cleanup, data);
 
 	if (info == NULL)
 		return -ENOMEM;
-
-	call_usermodehelper_setfns(info, init, cleanup, data);
 
 	return call_usermodehelper_exec(info, wait);
 }
