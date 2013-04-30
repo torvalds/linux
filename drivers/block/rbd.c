@@ -2838,8 +2838,7 @@ static void rbd_free_disk(struct rbd_device *rbd_dev)
 
 static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 				const char *object_name,
-				u64 offset, u64 length,
-				void *buf, u64 *version)
+				u64 offset, u64 length, void *buf)
 
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
@@ -2890,10 +2889,8 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 	rbd_assert(obj_request->xferred <= (u64) SIZE_MAX);
 	size = (size_t) obj_request->xferred;
 	ceph_copy_from_page_vector(pages, buf, 0, size);
-	rbd_assert(size <= (size_t) INT_MAX);
-	ret = (int) size;
-	if (version)
-		*version = obj_request->version;
+	rbd_assert(size <= (size_t)INT_MAX);
+	ret = (int)size;
 out:
 	if (obj_request)
 		rbd_obj_request_put(obj_request);
@@ -2914,7 +2911,7 @@ out:
  * Returns a pointer-coded errno if a failure occurs.
  */
 static struct rbd_image_header_ondisk *
-rbd_dev_v1_header_read(struct rbd_device *rbd_dev, u64 *version)
+rbd_dev_v1_header_read(struct rbd_device *rbd_dev)
 {
 	struct rbd_image_header_ondisk *ondisk = NULL;
 	u32 snap_count = 0;
@@ -2942,7 +2939,7 @@ rbd_dev_v1_header_read(struct rbd_device *rbd_dev, u64 *version)
 			return ERR_PTR(-ENOMEM);
 
 		ret = rbd_obj_read_sync(rbd_dev, rbd_dev->header_name,
-				       0, size, ondisk, version);
+				       0, size, ondisk);
 		if (ret < 0)
 			goto out_err;
 		if ((size_t)ret < size) {
@@ -2977,10 +2974,9 @@ static int rbd_read_header(struct rbd_device *rbd_dev,
 			   struct rbd_image_header *header)
 {
 	struct rbd_image_header_ondisk *ondisk;
-	u64 ver = 0;
 	int ret;
 
-	ondisk = rbd_dev_v1_header_read(rbd_dev, &ver);
+	ondisk = rbd_dev_v1_header_read(rbd_dev);
 	if (IS_ERR(ondisk))
 		return PTR_ERR(ondisk);
 	ret = rbd_header_from_disk(header, ondisk);
