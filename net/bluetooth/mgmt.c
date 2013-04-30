@@ -2808,6 +2808,22 @@ failed:
 	return err;
 }
 
+static int mgmt_stop_discovery_failed(struct hci_dev *hdev, u8 status)
+{
+	struct pending_cmd *cmd;
+	int err;
+
+	cmd = mgmt_pending_find(MGMT_OP_STOP_DISCOVERY, hdev);
+	if (!cmd)
+		return -ENOENT;
+
+	err = cmd_complete(cmd->sk, hdev->id, cmd->opcode, mgmt_status(status),
+			   &hdev->discovery.type, sizeof(hdev->discovery.type));
+	mgmt_pending_remove(cmd);
+
+	return err;
+}
+
 static void stop_discovery_complete(struct hci_dev *hdev, u8 status)
 {
 	BT_DBG("status %d", status);
@@ -4213,22 +4229,6 @@ int mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 
 	return mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, ev,
 			  sizeof(*ev) + eir_len, NULL);
-}
-
-int mgmt_stop_discovery_failed(struct hci_dev *hdev, u8 status)
-{
-	struct pending_cmd *cmd;
-	int err;
-
-	cmd = mgmt_pending_find(MGMT_OP_STOP_DISCOVERY, hdev);
-	if (!cmd)
-		return -ENOENT;
-
-	err = cmd_complete(cmd->sk, hdev->id, cmd->opcode, mgmt_status(status),
-			   &hdev->discovery.type, sizeof(hdev->discovery.type));
-	mgmt_pending_remove(cmd);
-
-	return err;
 }
 
 int mgmt_discovering(struct hci_dev *hdev, u8 discovering)
