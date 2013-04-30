@@ -651,12 +651,6 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	found = false;
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-		int lvds_reg;
-
-		if (HAS_PCH_SPLIT(dev))
-			lvds_reg = PCH_LVDS;
-		else
-			lvds_reg = LVDS;
 		if (intel_is_dual_link_lvds(dev))
 			clock.p2 = limit->p2.p2_fast;
 		else
