@@ -14,7 +14,7 @@ struct frontswap_ops {
 };
 
 extern bool frontswap_enabled;
-extern struct frontswap_ops
+extern struct frontswap_ops *
 	frontswap_register_ops(struct frontswap_ops *ops);
 extern void frontswap_shrink(unsigned long);
 extern unsigned long frontswap_curr_pages(void);

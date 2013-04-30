@@ -1707,9 +1707,9 @@ static struct frontswap_ops zcache_frontswap_ops = {
 	.init = zcache_frontswap_init
 };
 
-struct frontswap_ops zcache_frontswap_register_ops(void)
+struct frontswap_ops *zcache_frontswap_register_ops(void)
 {
-	struct frontswap_ops old_ops =
+	struct frontswap_ops *old_ops =
 		frontswap_register_ops(&zcache_frontswap_ops);
 
 	return old_ops;
@@ -1874,7 +1874,7 @@ static int __init zcache_init(void)
 			pr_warn("%s: cleancache_ops overridden\n", namestr);
 	}
 	if (zcache_enabled && !disable_frontswap) {
-		struct frontswap_ops old_ops;
+		struct frontswap_ops *old_ops;
 
 		old_ops = zcache_frontswap_register_ops();
 		if (frontswap_has_exclusive_gets)
@@ -1886,7 +1886,7 @@ static int __init zcache_init(void)
 			namestr, frontswap_has_exclusive_gets,
 			!disable_frontswap_ignore_nonactive);
 #endif
-		if (old_ops.init != NULL)
+		if (old_ops != NULL)
 			pr_warn("%s: frontswap_ops overridden\n", namestr);
 	}
 	if (ramster_enabled)
