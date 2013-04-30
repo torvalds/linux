@@ -3119,17 +3119,11 @@ nfsd4_do_encode_secinfo(struct nfsd4_compoundres *resp,
 		struct rpcsec_gss_info info;
 
 		if (rpcauth_get_gssinfo(flavs[i].pseudoflavor, &info) == 0) {
-			RESERVE_SPACE(4);
+			RESERVE_SPACE(4 + 4 + info.oid.len + 4 + 4);
 			WRITE32(RPC_AUTH_GSS);
-			ADJUST_ARGS();
-			RESERVE_SPACE(4 + info.oid.len);
 			WRITE32(info.oid.len);
 			WRITEMEM(info.oid.data, info.oid.len);
-			ADJUST_ARGS();
-			RESERVE_SPACE(4);
 			WRITE32(info.qop);
-			ADJUST_ARGS();
-			RESERVE_SPACE(4);
 			WRITE32(info.service);
 			ADJUST_ARGS();
 		} else {
