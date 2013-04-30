@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include "slab.h"
 #include <linux/proc_fs.h>
+#include <linux/notifier.h>
 #include <linux/seq_file.h>
 #include <linux/kmemcheck.h>
 #include <linux/cpu.h>
@@ -3483,7 +3484,6 @@ int kmem_cache_shrink(struct kmem_cache *s)
 }
 EXPORT_SYMBOL(kmem_cache_shrink);
 
-#if defined(CONFIG_MEMORY_HOTPLUG)
 static int slab_mem_going_offline_callback(void *arg)
 {
 	struct kmem_cache *s;
@@ -3598,7 +3598,10 @@ static int slab_memory_callback(struct notifier_block *self,
 	return ret;
 }
 
-#endif /* CONFIG_MEMORY_HOTPLUG */
+static struct notifier_block slab_memory_callback_nb = {
+	.notifier_call = slab_memory_callback,
+	.priority = SLAB_CALLBACK_PRI,
+};
 
 /********************************************************************
  *			Basic setup of slabs
@@ -3651,7 +3654,7 @@ void __init kmem_cache_init(void)
 	create_boot_cache(kmem_cache_node, "kmem_cache_node",
 		sizeof(struct kmem_cache_node), SLAB_HWCACHE_ALIGN);
 
-	hotplug_memory_notifier(slab_memory_callback, SLAB_CALLBACK_PRI);
+	register_hotmemory_notifier(&slab_memory_callback_nb);
 
 	/* Able to allocate the per node structures */
 	slab_state = PARTIAL;

@@ -2440,6 +2440,15 @@ config FB_PUV3_UNIGFX
 	  Choose this option if you want to use the Unigfx device as a
 	  framebuffer device. Without the support of PCI & AGP.
 
+config FB_HYPERV
+	tristate "Microsoft Hyper-V Synthetic Video support"
+	depends on FB && HYPERV
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This framebuffer driver supports Microsoft Hyper-V Synthetic Video.
+
 source "drivers/video/omap/Kconfig"
 source "drivers/video/omap2/Kconfig"
 source "drivers/video/exynos/Kconfig"

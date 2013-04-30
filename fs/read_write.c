@@ -128,7 +128,7 @@ EXPORT_SYMBOL(generic_file_llseek_size);
  *
  * This is a generic implemenation of ->llseek useable for all normal local
  * filesystems.  It just updates the file offset to the value specified by
- * @offset and @whence under i_mutex.
+ * @offset and @whence.
  */
 loff_t generic_file_llseek(struct file *file, loff_t offset, int whence)
 {

@@ -457,7 +457,7 @@ void __init prom_free_prom_memory(void)
 	/* We got nothing to free here ...  */
 }
 
-extern unsigned long setup_zero_pages(void);
+extern void setup_zero_pages(void);
 
 void __init paging_init(void)
 {
@@ -492,7 +492,7 @@ void __init mem_init(void)
 		totalram_pages += free_all_bootmem_node(NODE_DATA(node));
 	}
 
-	totalram_pages -= setup_zero_pages();	/* This comes from node 0 */
+	setup_zero_pages();	/* This comes from node 0 */
 
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
 	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;

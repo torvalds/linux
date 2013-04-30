@@ -1034,21 +1034,15 @@ static inline void audit_free_aux(struct audit_context *context)
 	}
 }
 
-static inline void audit_zero_context(struct audit_context *context,
-				      enum audit_state state)
-{
-	memset(context, 0, sizeof(*context));
-	context->state      = state;
-	context->prio = state == AUDIT_RECORD_CONTEXT ? ~0ULL : 0;
-}
-
 static inline struct audit_context *audit_alloc_context(enum audit_state state)
 {
 	struct audit_context *context;
 
-	if (!(context = kmalloc(sizeof(*context), GFP_KERNEL)))
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
+	if (!context)
 		return NULL;
-	audit_zero_context(context, state);
+	context->state = state;
+	context->prio = state == AUDIT_RECORD_CONTEXT ? ~0ULL : 0;
 	INIT_LIST_HEAD(&context->killed_trees);
 	INIT_LIST_HEAD(&context->names_list);
 	return context;
