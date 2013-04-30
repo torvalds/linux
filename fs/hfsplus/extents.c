@@ -349,7 +349,7 @@ found:
 		if (count <= block_nr) {
 			err = hfsplus_block_free(sb, start, count);
 			if (err) {
-				printk(KERN_ERR "hfs: can't free extent\n");
+				pr_err("can't free extent\n");
 				hfs_dbg(EXTENT, " start: %u count: %u\n",
 					start, count);
 			}
@@ -360,7 +360,7 @@ found:
 			count -= block_nr;
 			err = hfsplus_block_free(sb, start + count, block_nr);
 			if (err) {
-				printk(KERN_ERR "hfs: can't free extent\n");
+				pr_err("can't free extent\n");
 				hfs_dbg(EXTENT, " start: %u count: %u\n",
 					start, count);
 			}
@@ -433,7 +433,7 @@ int hfsplus_file_extend(struct inode *inode)
 	if (sbi->alloc_file->i_size * 8 <
 	    sbi->total_blocks - sbi->free_blocks + 8) {
 		/* extend alloc file */
-		printk(KERN_ERR "hfs: extend alloc file! "
+		pr_err("extend alloc file! "
 				"(%llu,%u,%u)\n",
 			sbi->alloc_file->i_size * 8,
 			sbi->total_blocks, sbi->free_blocks);

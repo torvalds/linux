@@ -187,14 +187,14 @@ int hfs_cat_find_brec(struct super_block *sb, u32 cnid,
 
 	type = rec.type;
 	if (type != HFS_CDR_THD && type != HFS_CDR_FTH) {
-		printk(KERN_ERR "hfs: found bad thread record in catalog\n");
+		pr_err("found bad thread record in catalog\n");
 		return -EIO;
 	}
 
 	fd->search_key->cat.ParID = rec.thread.ParID;
 	len = fd->search_key->cat.CName.len = rec.thread.CName.len;
 	if (len > HFS_NAMELEN) {
-		printk(KERN_ERR "hfs: bad catalog namelength\n");
+		pr_err("bad catalog namelength\n");
 		return -EIO;
 	}
 	memcpy(fd->search_key->cat.CName.name, rec.thread.CName.name, len);

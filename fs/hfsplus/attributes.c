@@ -56,7 +56,7 @@ int hfsplus_attr_build_key(struct super_block *sb, hfsplus_btree_key *key,
 	if (name) {
 		len = strlen(name);
 		if (len > HFSPLUS_ATTR_MAX_STRLEN) {
-			printk(KERN_ERR "hfs: invalid xattr name's length\n");
+			pr_err("invalid xattr name's length\n");
 			return -EINVAL;
 		}
 		hfsplus_asc2uni(sb,
@@ -169,7 +169,7 @@ int hfsplus_find_attr(struct super_block *sb, u32 cnid,
 	hfs_dbg(ATTR_MOD, "find_attr: %s,%d\n", name ? name : NULL, cnid);
 
 	if (!HFSPLUS_SB(sb)->attr_tree) {
-		printk(KERN_ERR "hfs: attributes file doesn't exist\n");
+		pr_err("attributes file doesn't exist\n");
 		return -EINVAL;
 	}
 
@@ -232,7 +232,7 @@ int hfsplus_create_attr(struct inode *inode,
 		name ? name : NULL, inode->i_ino);
 
 	if (!HFSPLUS_SB(sb)->attr_tree) {
-		printk(KERN_ERR "hfs: attributes file doesn't exist\n");
+		pr_err("attributes file doesn't exist\n");
 		return -EINVAL;
 	}
 
@@ -307,10 +307,10 @@ static int __hfsplus_delete_attr(struct inode *inode, u32 cnid,
 		break;
 	case HFSPLUS_ATTR_FORK_DATA:
 	case HFSPLUS_ATTR_EXTENTS:
-		printk(KERN_ERR "hfs: only inline data xattr are supported\n");
+		pr_err("only inline data xattr are supported\n");
 		return -EOPNOTSUPP;
 	default:
-		printk(KERN_ERR "hfs: invalid extended attribute record\n");
+		pr_err("invalid extended attribute record\n");
 		return -ENOENT;
 	}
 
@@ -332,7 +332,7 @@ int hfsplus_delete_attr(struct inode *inode, const char *name)
 		name ? name : NULL, inode->i_ino);
 
 	if (!HFSPLUS_SB(sb)->attr_tree) {
-		printk(KERN_ERR "hfs: attributes file doesn't exist\n");
+		pr_err("attributes file doesn't exist\n");
 		return -EINVAL;
 	}
 
@@ -346,7 +346,7 @@ int hfsplus_delete_attr(struct inode *inode, const char *name)
 		if (err)
 			goto out;
 	} else {
-		printk(KERN_ERR "hfs: invalid extended attribute name\n");
+		pr_err("invalid extended attribute name\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -372,7 +372,7 @@ int hfsplus_delete_all_attrs(struct inode *dir, u32 cnid)
 	hfs_dbg(ATTR_MOD, "delete_all_attrs: %d\n", cnid);
 
 	if (!HFSPLUS_SB(dir->i_sb)->attr_tree) {
-		printk(KERN_ERR "hfs: attributes file doesn't exist\n");
+		pr_err("attributes file doesn't exist\n");
 		return -EINVAL;
 	}
 
@@ -384,7 +384,7 @@ int hfsplus_delete_all_attrs(struct inode *dir, u32 cnid)
 		err = hfsplus_find_attr(dir->i_sb, cnid, NULL, &fd);
 		if (err) {
 			if (err != -ENOENT)
-				printk(KERN_ERR "hfs: xattr search failed.\n");
+				pr_err("xattr search failed\n");
 			goto end_delete_all;
 		}
 

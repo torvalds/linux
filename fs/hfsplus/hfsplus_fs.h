@@ -10,6 +10,12 @@
 #ifndef _LINUX_HFSPLUS_FS_H
 #define _LINUX_HFSPLUS_FS_H
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/fs.h>
 #include <linux/mutex.h>
 #include <linux/buffer_head.h>
@@ -32,16 +38,16 @@
 #endif
 #define DBG_MASK	(0)
 
-#define hfs_dbg(flg, fmt, ...)				\
-do {							\
-	if (DBG_##flg & DBG_MASK)			\
-		printk(KERN_DEBUG fmt, ##__VA_ARGS__);	\
+#define hfs_dbg(flg, fmt, ...)					\
+do {								\
+	if (DBG_##flg & DBG_MASK)				\
+		printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__);	\
 } while (0)
 
-#define hfs_dbg_cont(flg, fmt, ...)			\
-do {							\
-	if (DBG_##flg & DBG_MASK)			\
-		printk(KERN_CONT fmt, ##__VA_ARGS__);	\
+#define hfs_dbg_cont(flg, fmt, ...)				\
+do {								\
+	if (DBG_##flg & DBG_MASK)				\
+		pr_cont(fmt, ##__VA_ARGS__);			\
 } while (0)
 
 /* Runtime config options */

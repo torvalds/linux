@@ -221,7 +221,7 @@ struct hfs_bnode *hfs_bnode_findhash(struct hfs_btree *tree, u32 cnid)
 	struct hfs_bnode *node;
 
 	if (cnid >= tree->node_count) {
-		printk(KERN_ERR "hfs: request for non-existent node %d in B*Tree\n", cnid);
+		pr_err("request for non-existent node %d in B*Tree\n", cnid);
 		return NULL;
 	}
 
@@ -244,7 +244,7 @@ static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
 	loff_t off;
 
 	if (cnid >= tree->node_count) {
-		printk(KERN_ERR "hfs: request for non-existent node %d in B*Tree\n", cnid);
+		pr_err("request for non-existent node %d in B*Tree\n", cnid);
 		return NULL;
 	}
 

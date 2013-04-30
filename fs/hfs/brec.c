@@ -47,15 +47,13 @@ u16 hfs_brec_keylen(struct hfs_bnode *node, u16 rec)
 		if (node->tree->attributes & HFS_TREE_BIGKEYS) {
 			retval = hfs_bnode_read_u16(node, recoff) + 2;
 			if (retval > node->tree->max_key_len + 2) {
-				printk(KERN_ERR "hfs: keylen %d too large\n",
-					retval);
+				pr_err("keylen %d too large\n", retval);
 				retval = 0;
 			}
 		} else {
 			retval = (hfs_bnode_read_u8(node, recoff) | 1) + 1;
 			if (retval > node->tree->max_key_len + 1) {
-				printk(KERN_ERR "hfs: keylen %d too large\n",
-					retval);
+				pr_err("keylen %d too large\n", retval);
 				retval = 0;
 			}
 		}
@@ -388,7 +386,7 @@ again:
 		end_off = hfs_bnode_read_u16(parent, end_rec_off);
 		if (end_rec_off - end_off < diff) {
 
-			printk(KERN_DEBUG "hfs: splitting index node...\n");
+			printk(KERN_DEBUG "splitting index node...\n");
 			fd->bnode = parent;
 			new_node = hfs_bnode_split(fd);
 			if (IS_ERR(new_node))

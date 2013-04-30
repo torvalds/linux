@@ -188,12 +188,12 @@ int hfsplus_find_cat(struct super_block *sb, u32 cnid,
 
 	type = be16_to_cpu(tmp.type);
 	if (type != HFSPLUS_FOLDER_THREAD && type != HFSPLUS_FILE_THREAD) {
-		printk(KERN_ERR "hfs: found bad thread record in catalog\n");
+		pr_err("found bad thread record in catalog\n");
 		return -EIO;
 	}
 
 	if (be16_to_cpu(tmp.thread.nodeName.length) > 255) {
-		printk(KERN_ERR "hfs: catalog name length corrupted\n");
+		pr_err("catalog name length corrupted\n");
 		return -EIO;
 	}
 

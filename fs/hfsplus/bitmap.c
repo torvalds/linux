@@ -238,7 +238,7 @@ out:
 	return 0;
 
 kaboom:
-	printk(KERN_CRIT "hfsplus: unable to mark blocks free: error %ld\n",
+	pr_crit("hfsplus: unable to mark blocks free: error %ld\n",
 			PTR_ERR(page));
 	mutex_unlock(&sbi->alloc_mutex);
 
