@@ -138,7 +138,8 @@ void __init imx_src_init(void)
 	WARN_ON(!src_base);
 
 	imx_reset_controller.of_node = np;
-	reset_controller_register(&imx_reset_controller);
+	if (IS_ENABLED(CONFIG_RESET_CONTROLLER))
+		reset_controller_register(&imx_reset_controller);
 
 	/*
 	 * force warm reset sources to generate cold reset
