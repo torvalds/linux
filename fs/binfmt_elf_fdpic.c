@@ -1687,8 +1687,6 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	fill_elf_fdpic_header(elf, e_phnum);
 
 	has_dumped = 1;
-	current->flags |= PF_DUMPCORE;
-
 	/*
 	 * Set up the notes in similar form to SVR4 core dumps made
 	 * with info from their /proc.

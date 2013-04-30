@@ -2092,8 +2092,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 		goto cleanup;
 
 	has_dumped = 1;
-	current->flags |= PF_DUMPCORE;
-  
+
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 
