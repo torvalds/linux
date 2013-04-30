@@ -310,8 +310,8 @@ xfs_da3_node_read(
 		int			type;
 
 		switch (be16_to_cpu(info->magic)) {
-		case XFS_DA3_NODE_MAGIC:
 		case XFS_DA_NODE_MAGIC:
+		case XFS_DA3_NODE_MAGIC:
 			type = XFS_BLFT_DA_NODE_BUF;
 			break;
 		case XFS_ATTR_LEAF_MAGIC:

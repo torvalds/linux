@@ -2039,7 +2039,7 @@ xlog_recovery_validate_buf_type(
 	case XFS_BLFT_ATTR_RMT_BUF:
 		if (!xfs_sb_version_hascrc(&mp->m_sb))
 			break;
-		if (magicda != XFS_ATTR3_RMT_MAGIC) {
+		if (magic32 != XFS_ATTR3_RMT_MAGIC) {
 			xfs_warn(mp, "Bad attr remote magic!");
 			ASSERT(0);
 			break;
@@ -2135,7 +2135,6 @@ xlog_recover_do_reg_buffer(
 	ASSERT(i == item->ri_total);
 
 	xlog_recovery_validate_buf_type(mp, bp, buf_f);
-
 }
 
 /*
