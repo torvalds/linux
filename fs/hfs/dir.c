@@ -25,7 +25,9 @@ static struct dentry *hfs_lookup(struct inode *dir, struct dentry *dentry,
 	struct inode *inode = NULL;
 	int res;
 
-	hfs_find_init(HFS_SB(dir->i_sb)->cat_tree, &fd);
+	res = hfs_find_init(HFS_SB(dir->i_sb)->cat_tree, &fd);
+	if (res)
+		return ERR_PTR(res);
 	hfs_cat_build_key(dir->i_sb, fd.search_key, dir->i_ino, &dentry->d_name);
 	res = hfs_brec_read(&fd, &rec, sizeof(rec));
 	if (res) {
@@ -63,7 +65,9 @@ static int hfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	if (filp->f_pos >= inode->i_size)
 		return 0;
 
-	hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
+	err = hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
+	if (err)
+		return err;
 	hfs_cat_build_key(sb, fd.search_key, inode->i_ino, NULL);
 	err = hfs_brec_find(&fd);
 	if (err)

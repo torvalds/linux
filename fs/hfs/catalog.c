@@ -92,7 +92,9 @@ int hfs_cat_create(u32 cnid, struct inode *dir, struct qstr *str, struct inode *
 		return -ENOSPC;
 
 	sb = dir->i_sb;
-	hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
+	err = hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
+	if (err)
+		return err;
 
 	hfs_cat_build_key(sb, fd.search_key, cnid, NULL);
 	entry_size = hfs_cat_build_thread(sb, &entry, S_ISDIR(inode->i_mode) ?
@@ -214,7 +216,9 @@ int hfs_cat_delete(u32 cnid, struct inode *dir, struct qstr *str)
 
 	dprint(DBG_CAT_MOD, "delete_cat: %s,%u\n", str ? str->name : NULL, cnid);
 	sb = dir->i_sb;
-	hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
+	res = hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
+	if (res)
+		return res;
 
 	hfs_cat_build_key(sb, fd.search_key, dir->i_ino, str);
 	res = hfs_brec_find(&fd);
@@ -281,7 +285,9 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, struct qstr *src_name,
 	dprint(DBG_CAT_MOD, "rename_cat: %u - %lu,%s - %lu,%s\n", cnid, src_dir->i_ino, src_name->name,
 		dst_dir->i_ino, dst_name->name);
 	sb = src_dir->i_sb;
-	hfs_find_init(HFS_SB(sb)->cat_tree, &src_fd);
+	err = hfs_find_init(HFS_SB(sb)->cat_tree, &src_fd);
+	if (err)
+		return err;
 	dst_fd = src_fd;
 
 	/* find the old dir entry and read the data */
