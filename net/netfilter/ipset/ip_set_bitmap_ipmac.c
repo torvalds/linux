@@ -25,12 +25,12 @@
 #include <linux/netfilter/ipset/ip_set.h>
 #include <linux/netfilter/ipset/ip_set_bitmap.h>
 
-#define REVISION_MIN	0
-#define REVISION_MAX	1	/* Counter support added */
+#define IPSET_TYPE_REV_MIN	0
+#define IPSET_TYPE_REV_MAX	1	/* Counter support added */
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
-IP_SET_MODULE_DESC("bitmap:ip,mac", REVISION_MIN, REVISION_MAX);
+IP_SET_MODULE_DESC("bitmap:ip,mac", IPSET_TYPE_REV_MIN, IPSET_TYPE_REV_MAX);
 MODULE_ALIAS("ip_set_bitmap:ip,mac");
 
 #define MTYPE		bitmap_ipmac
@@ -460,8 +460,8 @@ static struct ip_set_type bitmap_ipmac_type = {
 	.features	= IPSET_TYPE_IP | IPSET_TYPE_MAC,
 	.dimension	= IPSET_DIM_TWO,
 	.family		= NFPROTO_IPV4,
-	.revision_min	= REVISION_MIN,
-	.revision_max	= REVISION_MAX,
+	.revision_min	= IPSET_TYPE_REV_MIN,
+	.revision_max	= IPSET_TYPE_REV_MAX,
 	.create		= bitmap_ipmac_create,
 	.create_policy	= {
 		[IPSET_ATTR_IP]		= { .type = NLA_NESTED },

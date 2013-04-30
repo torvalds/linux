@@ -398,4 +398,7 @@ bitmap_bytes(u32 a, u32 b)
 	{ .bytes = ULLONG_MAX, .packets = ULLONG_MAX,	\
 	  .timeout = (map)->timeout }
 
+#define IPSET_CONCAT(a, b)		a##b
+#define IPSET_TOKEN(a, b)		IPSET_CONCAT(a, b)
+
 #endif /*_IP_SET_H */
