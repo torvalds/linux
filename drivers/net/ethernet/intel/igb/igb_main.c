@@ -1667,10 +1667,13 @@ void igb_down(struct igb_adapter *adapter)
 	wrfl();
 	msleep(10);
 
-	for (i = 0; i < adapter->num_q_vectors; i++)
-		napi_disable(&(adapter->q_vector[i]->napi));
-
 	igb_irq_disable(adapter);
+
+	for (i = 0; i < adapter->num_q_vectors; i++) {
+		napi_synchronize(&(adapter->q_vector[i]->napi));
+		napi_disable(&(adapter->q_vector[i]->napi));
+	}
+
 
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
