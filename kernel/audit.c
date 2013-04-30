@@ -50,6 +50,7 @@
 #include <linux/err.h>
 #include <linux/kthread.h>
 #include <linux/kernel.h>
+#include <linux/syscalls.h>
 
 #include <linux/audit.h>
 
@@ -1393,6 +1394,224 @@ void audit_log_key(struct audit_buffer *ab, char *key)
 		audit_log_format(ab, "(null)");
 }
 
+void audit_log_cap(struct audit_buffer *ab, char *prefix, kernel_cap_t *cap)
+{
+	int i;
+
+	audit_log_format(ab, " %s=", prefix);
+	CAP_FOR_EACH_U32(i) {
+		audit_log_format(ab, "%08x",
+				 cap->cap[(_KERNEL_CAPABILITY_U32S-1) - i]);
+	}
+}
+
+void audit_log_fcaps(struct audit_buffer *ab, struct audit_names *name)
+{
+	kernel_cap_t *perm = &name->fcap.permitted;
+	kernel_cap_t *inh = &name->fcap.inheritable;
+	int log = 0;
+
+	if (!cap_isclear(*perm)) {
+		audit_log_cap(ab, "cap_fp", perm);
+		log = 1;
+	}
+	if (!cap_isclear(*inh)) {
+		audit_log_cap(ab, "cap_fi", inh);
+		log = 1;
+	}
+
+	if (log)
+		audit_log_format(ab, " cap_fe=%d cap_fver=%x",
+				 name->fcap.fE, name->fcap_ver);
+}
+
+static inline int audit_copy_fcaps(struct audit_names *name,
+				   const struct dentry *dentry)
+{
+	struct cpu_vfs_cap_data caps;
+	int rc;
+
+	if (!dentry)
+		return 0;
+
+	rc = get_vfs_caps_from_disk(dentry, &caps);
+	if (rc)
+		return rc;
+
+	name->fcap.permitted = caps.permitted;
+	name->fcap.inheritable = caps.inheritable;
+	name->fcap.fE = !!(caps.magic_etc & VFS_CAP_FLAGS_EFFECTIVE);
+	name->fcap_ver = (caps.magic_etc & VFS_CAP_REVISION_MASK) >>
+				VFS_CAP_REVISION_SHIFT;
+
+	return 0;
+}
+
+/* Copy inode data into an audit_names. */
+void audit_copy_inode(struct audit_names *name, const struct dentry *dentry,
+		      const struct inode *inode)
+{
+	name->ino   = inode->i_ino;
+	name->dev   = inode->i_sb->s_dev;
+	name->mode  = inode->i_mode;
+	name->uid   = inode->i_uid;
+	name->gid   = inode->i_gid;
+	name->rdev  = inode->i_rdev;
+	security_inode_getsecid(inode, &name->osid);
+	audit_copy_fcaps(name, dentry);
+}
+
+/**
+ * audit_log_name - produce AUDIT_PATH record from struct audit_names
+ * @context: audit_context for the task
+ * @n: audit_names structure with reportable details
+ * @path: optional path to report instead of audit_names->name
+ * @record_num: record number to report when handling a list of names
+ * @call_panic: optional pointer to int that will be updated if secid fails
+ */
+void audit_log_name(struct audit_context *context, struct audit_names *n,
+		    struct path *path, int record_num, int *call_panic)
+{
+	struct audit_buffer *ab;
+	ab = audit_log_start(context, GFP_KERNEL, AUDIT_PATH);
+	if (!ab)
+		return;
+
+	audit_log_format(ab, "item=%d", record_num);
+
+	if (path)
+		audit_log_d_path(ab, " name=", path);
+	else if (n->name) {
+		switch (n->name_len) {
+		case AUDIT_NAME_FULL:
+			/* log the full path */
+			audit_log_format(ab, " name=");
+			audit_log_untrustedstring(ab, n->name->name);
+			break;
+		case 0:
+			/* name was specified as a relative path and the
+			 * directory component is the cwd */
+			audit_log_d_path(ab, " name=", &context->pwd);
+			break;
+		default:
+			/* log the name's directory component */
+			audit_log_format(ab, " name=");
+			audit_log_n_untrustedstring(ab, n->name->name,
+						    n->name_len);
+		}
+	} else
+		audit_log_format(ab, " name=(null)");
+
+	if (n->ino != (unsigned long)-1) {
+		audit_log_format(ab, " inode=%lu"
+				 " dev=%02x:%02x mode=%#ho"
+				 " ouid=%u ogid=%u rdev=%02x:%02x",
+				 n->ino,
+				 MAJOR(n->dev),
+				 MINOR(n->dev),
+				 n->mode,
+				 from_kuid(&init_user_ns, n->uid),
+				 from_kgid(&init_user_ns, n->gid),
+				 MAJOR(n->rdev),
+				 MINOR(n->rdev));
+	}
+	if (n->osid != 0) {
+		char *ctx = NULL;
+		u32 len;
+		if (security_secid_to_secctx(
+			n->osid, &ctx, &len)) {
+			audit_log_format(ab, " osid=%u", n->osid);
+			if (call_panic)
+				*call_panic = 2;
+		} else {
+			audit_log_format(ab, " obj=%s", ctx);
+			security_release_secctx(ctx, len);
+		}
+	}
+
+	audit_log_fcaps(ab, n);
+	audit_log_end(ab);
+}
+
+int audit_log_task_context(struct audit_buffer *ab)
+{
+	char *ctx = NULL;
+	unsigned len;
+	int error;
+	u32 sid;
+
+	security_task_getsecid(current, &sid);
+	if (!sid)
+		return 0;
+
+	error = security_secid_to_secctx(sid, &ctx, &len);
+	if (error) {
+		if (error != -EINVAL)
+			goto error_path;
+		return 0;
+	}
+
+	audit_log_format(ab, " subj=%s", ctx);
+	security_release_secctx(ctx, len);
+	return 0;
+
+error_path:
+	audit_panic("error in audit_log_task_context");
+	return error;
+}
+EXPORT_SYMBOL(audit_log_task_context);
+
+void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
+{
+	const struct cred *cred;
+	char name[sizeof(tsk->comm)];
+	struct mm_struct *mm = tsk->mm;
+	char *tty;
+
+	if (!ab)
+		return;
+
+	/* tsk == current */
+	cred = current_cred();
+
+	spin_lock_irq(&tsk->sighand->siglock);
+	if (tsk->signal && tsk->signal->tty && tsk->signal->tty->name)
+		tty = tsk->signal->tty->name;
+	else
+		tty = "(none)";
+	spin_unlock_irq(&tsk->sighand->siglock);
+
+	audit_log_format(ab,
+			 " ppid=%ld pid=%d auid=%u uid=%u gid=%u"
+			 " euid=%u suid=%u fsuid=%u"
+			 " egid=%u sgid=%u fsgid=%u ses=%u tty=%s",
+			 sys_getppid(),
+			 tsk->pid,
+			 from_kuid(&init_user_ns, audit_get_loginuid(tsk)),
+			 from_kuid(&init_user_ns, cred->uid),
+			 from_kgid(&init_user_ns, cred->gid),
+			 from_kuid(&init_user_ns, cred->euid),
+			 from_kuid(&init_user_ns, cred->suid),
+			 from_kuid(&init_user_ns, cred->fsuid),
+			 from_kgid(&init_user_ns, cred->egid),
+			 from_kgid(&init_user_ns, cred->sgid),
+			 from_kgid(&init_user_ns, cred->fsgid),
+			 audit_get_sessionid(tsk), tty);
+
+	get_task_comm(name, tsk);
+	audit_log_format(ab, " comm=");
+	audit_log_untrustedstring(ab, name);
+
+	if (mm) {
+		down_read(&mm->mmap_sem);
+		if (mm->exe_file)
+			audit_log_d_path(ab, " exe=", &mm->exe_file->f_path);
+		up_read(&mm->mmap_sem);
+	}
+	audit_log_task_context(ab);
+}
+EXPORT_SYMBOL(audit_log_task_info);
+
 /**
  * audit_log_link_denied - report a link restriction denial
  * @operation: specific link opreation
@@ -1401,19 +1620,28 @@ void audit_log_key(struct audit_buffer *ab, char *key)
 void audit_log_link_denied(const char *operation, struct path *link)
 {
 	struct audit_buffer *ab;
+	struct audit_names *name;
 
+	name = kzalloc(sizeof(*name), GFP_NOFS);
+	if (!name)
+		return;
+
+	/* Generate AUDIT_ANOM_LINK with subject, operation, outcome. */
 	ab = audit_log_start(current->audit_context, GFP_KERNEL,
 			     AUDIT_ANOM_LINK);
 	if (!ab)
-		return;
-	audit_log_format(ab, "op=%s action=denied", operation);
-	audit_log_format(ab, " pid=%d comm=", current->pid);
-	audit_log_untrustedstring(ab, current->comm);
-	audit_log_d_path(ab, " path=", link);
-	audit_log_format(ab, " dev=");
-	audit_log_untrustedstring(ab, link->dentry->d_inode->i_sb->s_id);
-	audit_log_format(ab, " ino=%lu", link->dentry->d_inode->i_ino);
+		goto out;
+	audit_log_format(ab, "op=%s", operation);
+	audit_log_task_info(ab, current);
+	audit_log_format(ab, " res=0");
 	audit_log_end(ab);
+
+	/* Generate AUDIT_PATH record with object. */
+	name->type = AUDIT_TYPE_NORMAL;
+	audit_copy_inode(name, link->dentry, link->dentry->d_inode);
+	audit_log_name(current->audit_context, name, link, 0, NULL);
+out:
+	kfree(name);
 }
 
 /**

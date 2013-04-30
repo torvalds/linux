@@ -190,8 +190,6 @@ static inline int audit_get_sessionid(struct task_struct *tsk)
 	return tsk->sessionid;
 }
 
-extern int audit_log_task_context(struct audit_buffer *ab);
-extern void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk);
 extern void __audit_ipc_obj(struct kern_ipc_perm *ipcp);
 extern void __audit_ipc_set_perm(unsigned long qbytes, uid_t uid, gid_t gid, umode_t mode);
 extern int __audit_bprm(struct linux_binprm *bprm);
@@ -346,13 +344,6 @@ static inline int audit_get_sessionid(struct task_struct *tsk)
 {
 	return -1;
 }
-static int void audit_log_task_context(struct audit_buffer *ab)
-{
-	return 0;
-}
-static inline void audit_log_task_info(struct audit_buffer *ab,
-				       struct task_struct *tsk)
-{ }
 static inline void audit_ipc_obj(struct kern_ipc_perm *ipcp)
 { }
 static inline void audit_ipc_set_perm(unsigned long qbytes, uid_t uid,
@@ -439,6 +430,10 @@ static inline void	    audit_log_secctx(struct audit_buffer *ab, u32 secid)
 { }
 #endif
 
+extern int audit_log_task_context(struct audit_buffer *ab);
+extern void audit_log_task_info(struct audit_buffer *ab,
+				struct task_struct *tsk);
+
 extern int		    audit_update_lsm_rules(void);
 
 				/* Private API (for audit.c only) */
@@ -484,6 +479,13 @@ static inline void audit_log_link_denied(const char *string,
 					 const struct path *link)
 { }
 static inline void audit_log_secctx(struct audit_buffer *ab, u32 secid)
+{ }
+static inline int audit_log_task_context(struct audit_buffer *ab)
+{
+	return 0;
+}
+static inline void audit_log_task_info(struct audit_buffer *ab,
+				       struct task_struct *tsk)
 { }
 #define audit_enabled 0
 #endif /* CONFIG_AUDIT */
