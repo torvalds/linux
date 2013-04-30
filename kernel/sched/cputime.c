@@ -581,6 +581,14 @@ static void cputime_adjust(struct task_cputime *curr,
 	 */
 	rtime = nsecs_to_cputime(curr->sum_exec_runtime);
 
+	/*
+	 * Update userspace visible utime/stime values only if actual execution
+	 * time is bigger than already exported. Note that can happen, that we
+	 * provided bigger values due to scaling inaccuracy on big numbers.
+	 */
+	if (prev->stime + prev->utime >= rtime)
+		goto out;
+
 	if (!rtime) {
 		stime = 0;
 	} else if (!total) {
@@ -598,6 +606,7 @@ static void cputime_adjust(struct task_cputime *curr,
 	prev->stime = max(prev->stime, stime);
 	prev->utime = max(prev->utime, rtime - prev->stime);
 
+out:
 	*ut = prev->utime;
 	*st = prev->stime;
 }
