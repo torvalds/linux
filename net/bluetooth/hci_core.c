@@ -751,7 +751,7 @@ void hci_discovery_set_state(struct hci_dev *hdev, int state)
 	hdev->discovery.state = state;
 }
 
-static void inquiry_cache_flush(struct hci_dev *hdev)
+void hci_inquiry_cache_flush(struct hci_dev *hdev)
 {
 	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *p, *n;
@@ -964,7 +964,7 @@ int hci_inquiry(void __user *arg)
 	hci_dev_lock(hdev);
 	if (inquiry_cache_age(hdev) > INQUIRY_CACHE_AGE_MAX ||
 	    inquiry_cache_empty(hdev) || ir.flags & IREQ_CACHE_FLUSH) {
-		inquiry_cache_flush(hdev);
+		hci_inquiry_cache_flush(hdev);
 		do_inquiry = 1;
 	}
 	hci_dev_unlock(hdev);
@@ -1230,7 +1230,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	cancel_delayed_work_sync(&hdev->le_scan_disable);
 
 	hci_dev_lock(hdev);
-	inquiry_cache_flush(hdev);
+	hci_inquiry_cache_flush(hdev);
 	hci_conn_hash_flush(hdev);
 	hci_dev_unlock(hdev);
 
@@ -1331,7 +1331,7 @@ int hci_dev_reset(__u16 dev)
 	skb_queue_purge(&hdev->cmd_q);
 
 	hci_dev_lock(hdev);
-	inquiry_cache_flush(hdev);
+	hci_inquiry_cache_flush(hdev);
 	hci_conn_hash_flush(hdev);
 	hci_dev_unlock(hdev);
 
@@ -3562,7 +3562,7 @@ int hci_do_inquiry(struct hci_dev *hdev, u8 length)
 	if (test_bit(HCI_INQUIRY, &hdev->flags))
 		return -EINPROGRESS;
 
-	inquiry_cache_flush(hdev);
+	hci_inquiry_cache_flush(hdev);
 
 	memset(&cp, 0, sizeof(cp));
 	memcpy(&cp.lap, lap, sizeof(cp.lap));
