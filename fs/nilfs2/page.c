@@ -407,7 +407,7 @@ void nilfs_clear_dirty_page(struct page *page, bool silent)
 	struct inode *inode = page->mapping->host;
 	struct super_block *sb = inode->i_sb;
 
-	BUG_ON(!test_bit(PG_locked, &page->flags));
+	BUG_ON(!PageLocked(page));
 
 	if (!silent) {
 		nilfs_warning(sb, __func__,
