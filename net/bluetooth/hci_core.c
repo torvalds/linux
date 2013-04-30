@@ -2067,17 +2067,80 @@ int hci_cancel_le_scan(struct hci_dev *hdev)
 	return 0;
 }
 
+static void inquiry_complete(struct hci_dev *hdev, u8 status)
+{
+	if (status) {
+		BT_ERR("Failed to start inquiry: status %d", status);
+
+		hci_dev_lock(hdev);
+		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		hci_dev_unlock(hdev);
+		return;
+	}
+}
+
+static void le_scan_disable_work_complete(struct hci_dev *hdev, u8 status)
+{
+	/* General inquiry access code (GIAC) */
+	u8 lap[3] = { 0x33, 0x8b, 0x9e };
+	struct hci_request req;
+	struct hci_cp_inquiry cp;
+	int err;
+
+	if (status) {
+		BT_ERR("Failed to disable LE scanning: status %d", status);
+		return;
+	}
+
+	switch (hdev->discovery.type) {
+	case DISCOV_TYPE_LE:
+		hci_dev_lock(hdev);
+		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		hci_dev_unlock(hdev);
+		break;
+
+	case DISCOV_TYPE_INTERLEAVED:
+		hci_req_init(&req, hdev);
+
+		memset(&cp, 0, sizeof(cp));
+		memcpy(&cp.lap, lap, sizeof(cp.lap));
+		cp.length = DISCOV_INTERLEAVED_INQUIRY_LEN;
+		hci_req_add(&req, HCI_OP_INQUIRY, sizeof(cp), &cp);
+
+		hci_dev_lock(hdev);
+
+		hci_inquiry_cache_flush(hdev);
+
+		err = hci_req_run(&req, inquiry_complete);
+		if (err) {
+			BT_ERR("Inquiry request failed: err %d", err);
+			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+		}
+
+		hci_dev_unlock(hdev);
+		break;
+	}
+}
+
 static void le_scan_disable_work(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    le_scan_disable.work);
 	struct hci_cp_le_set_scan_enable cp;
+	struct hci_request req;
+	int err;
 
 	BT_DBG("%s", hdev->name);
 
-	memset(&cp, 0, sizeof(cp));
+	hci_req_init(&req, hdev);
 
-	hci_send_cmd(hdev, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+	memset(&cp, 0, sizeof(cp));
+	cp.enable = LE_SCAN_DISABLE;
+	hci_req_add(&req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+
+	err = hci_req_run(&req, le_scan_disable_work_complete);
+	if (err)
+		BT_ERR("Disable LE scanning request failed: err %d", err);
 }
 
 static void le_scan_work(struct work_struct *work)

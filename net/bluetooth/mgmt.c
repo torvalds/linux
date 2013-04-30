@@ -2621,23 +2621,6 @@ static int remove_remote_oob_data(struct sock *sk, struct hci_dev *hdev,
 	return err;
 }
 
-int mgmt_interleaved_discovery(struct hci_dev *hdev)
-{
-	int err;
-
-	BT_DBG("%s", hdev->name);
-
-	hci_dev_lock(hdev);
-
-	err = hci_do_inquiry(hdev, DISCOV_INTERLEAVED_INQUIRY_LEN);
-	if (err < 0)
-		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
-
-	hci_dev_unlock(hdev);
-
-	return err;
-}
-
 static int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status)
 {
 	struct pending_cmd *cmd;
