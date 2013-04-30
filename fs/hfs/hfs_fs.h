@@ -34,8 +34,18 @@
 //#define DBG_MASK	(DBG_CAT_MOD|DBG_BNODE_REFS|DBG_INODE|DBG_EXTENT)
 #define DBG_MASK	(0)
 
-#define dprint(flg, fmt, args...) \
-	if (flg & DBG_MASK) printk(fmt , ## args)
+#define hfs_dbg(flg, fmt, ...)				\
+do {							\
+	if (DBG_##flg & DBG_MASK)			\
+		printk(KERN_DEBUG fmt, ##__VA_ARGS__);	\
+} while (0)
+
+#define hfs_dbg_cont(flg, fmt, ...)			\
+do {							\
+	if (DBG_##flg & DBG_MASK)			\
+		printk(KERN_CONT fmt, ##__VA_ARGS__);	\
+} while (0)
+
 
 /*
  * struct hfs_inode_info

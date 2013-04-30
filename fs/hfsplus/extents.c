@@ -265,7 +265,7 @@ int hfsplus_get_block(struct inode *inode, sector_t iblock,
 	mutex_unlock(&hip->extents_lock);
 
 done:
-	dprint(DBG_EXTENT, "get_block(%lu): %llu - %u\n",
+	hfs_dbg(EXTENT, "get_block(%lu): %llu - %u\n",
 		inode->i_ino, (long long)iblock, dblock);
 
 	mask = (1 << sbi->fs_shift) - 1;
@@ -288,11 +288,12 @@ static void hfsplus_dump_extent(struct hfsplus_extent *extent)
 {
 	int i;
 
-	dprint(DBG_EXTENT, "   ");
+	hfs_dbg(EXTENT, "   ");
 	for (i = 0; i < 8; i++)
-		dprint(DBG_EXTENT, " %u:%u", be32_to_cpu(extent[i].start_block),
-				 be32_to_cpu(extent[i].block_count));
-	dprint(DBG_EXTENT, "\n");
+		hfs_dbg_cont(EXTENT, " %u:%u",
+			     be32_to_cpu(extent[i].start_block),
+			     be32_to_cpu(extent[i].block_count));
+	hfs_dbg_cont(EXTENT, "\n");
 }
 
 static int hfsplus_add_extent(struct hfsplus_extent *extent, u32 offset,
@@ -349,7 +350,7 @@ found:
 			err = hfsplus_block_free(sb, start, count);
 			if (err) {
 				printk(KERN_ERR "hfs: can't free extent\n");
-				dprint(DBG_EXTENT, " start: %u count: %u\n",
+				hfs_dbg(EXTENT, " start: %u count: %u\n",
 					start, count);
 			}
 			extent->block_count = 0;
@@ -360,7 +361,7 @@ found:
 			err = hfsplus_block_free(sb, start + count, block_nr);
 			if (err) {
 				printk(KERN_ERR "hfs: can't free extent\n");
-				dprint(DBG_EXTENT, " start: %u count: %u\n",
+				hfs_dbg(EXTENT, " start: %u count: %u\n",
 					start, count);
 			}
 			extent->block_count = cpu_to_be32(count);
@@ -459,11 +460,11 @@ int hfsplus_file_extend(struct inode *inode)
 		}
 	}
 
-	dprint(DBG_EXTENT, "extend %lu: %u,%u\n", inode->i_ino, start, len);
+	hfs_dbg(EXTENT, "extend %lu: %u,%u\n", inode->i_ino, start, len);
 
 	if (hip->alloc_blocks <= hip->first_blocks) {
 		if (!hip->first_blocks) {
-			dprint(DBG_EXTENT, "first extents\n");
+			hfs_dbg(EXTENT, "first extents\n");
 			/* no extents yet */
 			hip->first_extents[0].start_block = cpu_to_be32(start);
 			hip->first_extents[0].block_count = cpu_to_be32(len);
@@ -500,7 +501,7 @@ out:
 	return res;
 
 insert_extent:
-	dprint(DBG_EXTENT, "insert new extent\n");
+	hfs_dbg(EXTENT, "insert new extent\n");
 	res = hfsplus_ext_write_extent_locked(inode);
 	if (res)
 		goto out;
@@ -525,9 +526,8 @@ void hfsplus_file_truncate(struct inode *inode)
 	u32 alloc_cnt, blk_cnt, start;
 	int res;
 
-	dprint(DBG_INODE, "truncate: %lu, %llu -> %llu\n",
-		inode->i_ino, (long long)hip->phys_size,
-		inode->i_size);
+	hfs_dbg(INODE, "truncate: %lu, %llu -> %llu\n",
+		inode->i_ino, (long long)hip->phys_size, inode->i_size);
 
 	if (inode->i_size > hip->phys_size) {
 		struct address_space *mapping = inode->i_mapping;

@@ -87,7 +87,8 @@ int hfs_cat_create(u32 cnid, struct inode *dir, struct qstr *str, struct inode *
 	int entry_size;
 	int err;
 
-	dprint(DBG_CAT_MOD, "create_cat: %s,%u(%d)\n", str->name, cnid, inode->i_nlink);
+	hfs_dbg(CAT_MOD, "create_cat: %s,%u(%d)\n",
+		str->name, cnid, inode->i_nlink);
 	if (dir->i_size >= HFS_MAX_VALENCE)
 		return -ENOSPC;
 
@@ -214,7 +215,7 @@ int hfs_cat_delete(u32 cnid, struct inode *dir, struct qstr *str)
 	struct list_head *pos;
 	int res, type;
 
-	dprint(DBG_CAT_MOD, "delete_cat: %s,%u\n", str ? str->name : NULL, cnid);
+	hfs_dbg(CAT_MOD, "delete_cat: %s,%u\n", str ? str->name : NULL, cnid);
 	sb = dir->i_sb;
 	res = hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
 	if (res)
@@ -282,7 +283,8 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, struct qstr *src_name,
 	int entry_size, type;
 	int err;
 
-	dprint(DBG_CAT_MOD, "rename_cat: %u - %lu,%s - %lu,%s\n", cnid, src_dir->i_ino, src_name->name,
+	hfs_dbg(CAT_MOD, "rename_cat: %u - %lu,%s - %lu,%s\n",
+		cnid, src_dir->i_ino, src_name->name,
 		dst_dir->i_ino, dst_name->name);
 	sb = src_dir->i_sb;
 	err = hfs_find_init(HFS_SB(sb)->cat_tree, &src_fd);

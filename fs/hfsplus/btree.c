@@ -303,7 +303,7 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 		kunmap(*pagep);
 		nidx = node->next;
 		if (!nidx) {
-			dprint(DBG_BNODE_MOD, "hfs: create new bmap node.\n");
+			hfs_dbg(BNODE_MOD, "create new bmap node\n");
 			next_node = hfs_bmap_new_bmap(node, idx);
 		} else
 			next_node = hfs_bnode_find(tree, nidx);
@@ -329,7 +329,7 @@ void hfs_bmap_free(struct hfs_bnode *node)
 	u32 nidx;
 	u8 *data, byte, m;
 
-	dprint(DBG_BNODE_MOD, "btree_free_node: %u\n", node->this);
+	hfs_dbg(BNODE_MOD, "btree_free_node: %u\n", node->this);
 	BUG_ON(!node->this);
 	tree = node->tree;
 	nidx = node->this;

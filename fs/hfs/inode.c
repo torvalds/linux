@@ -237,7 +237,7 @@ void hfs_delete_inode(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 
-	dprint(DBG_INODE, "delete_inode: %lu\n", inode->i_ino);
+	hfs_dbg(INODE, "delete_inode: %lu\n", inode->i_ino);
 	if (S_ISDIR(inode->i_mode)) {
 		HFS_SB(sb)->folder_count--;
 		if (HFS_I(inode)->cat_key.ParID == cpu_to_be32(HFS_ROOT_CNID))
@@ -418,7 +418,7 @@ int hfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	hfs_cat_rec rec;
 	int res;
 
-	dprint(DBG_INODE, "hfs_write_inode: %lu\n", inode->i_ino);
+	hfs_dbg(INODE, "hfs_write_inode: %lu\n", inode->i_ino);
 	res = hfs_ext_write_extent(inode);
 	if (res)
 		return res;
