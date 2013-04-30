@@ -4587,7 +4587,7 @@ static void i9xx_update_pll(struct intel_crtc *crtc,
 	if (INTEL_INFO(dev)->gen >= 4)
 		dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
 
-	if (is_sdvo && intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_TVOUT))
+	if (crtc->config.sdvo_tv_clock)
 		dpll |= PLL_REF_INPUT_TVCLKINBC;
 	else if (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_LVDS) &&
 		 intel_panel_use_ssc(dev_priv) && num_connectors < 2)
@@ -5598,7 +5598,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	struct intel_encoder *intel_encoder;
 	uint32_t dpll;
 	int factor, num_connectors = 0;
-	bool is_lvds = false, is_sdvo = false, is_tv = false;
+	bool is_lvds = false, is_sdvo = false;
 
 	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
 		switch (intel_encoder->type) {
@@ -5608,8 +5608,6 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 		case INTEL_OUTPUT_SDVO:
 		case INTEL_OUTPUT_HDMI:
 			is_sdvo = true;
-			if (intel_encoder->needs_tv_clock)
-				is_tv = true;
 			break;
 		}
 
@@ -5623,7 +5621,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 		     dev_priv->lvds_ssc_freq == 100) ||
 		    (HAS_PCH_IBX(dev) && intel_is_dual_link_lvds(dev)))
 			factor = 25;
-	} else if (is_sdvo && is_tv)
+	} else if (intel_crtc->config.sdvo_tv_clock)
 		factor = 20;
 
 	if (ironlake_needs_fb_cb_tune(&intel_crtc->config.dpll, factor))
