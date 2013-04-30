@@ -86,6 +86,7 @@
 #include <linux/fs_struct.h>
 #include <linux/slab.h>
 #include <linux/flex_array.h>
+#include <linux/posix-timers.h>
 #ifdef CONFIG_HARDWALL
 #include <asm/hardwall.h>
 #endif
@@ -2013,6 +2014,102 @@ static const struct file_operations proc_map_files_operations = {
 	.llseek		= default_llseek,
 };
 
+struct timers_private {
+	struct pid *pid;
+	struct task_struct *task;
+	struct sighand_struct *sighand;
+	struct pid_namespace *ns;
+	unsigned long flags;
+};
+
+static void *timers_start(struct seq_file *m, loff_t *pos)
+{
+	struct timers_private *tp = m->private;
+
+	tp->task = get_pid_task(tp->pid, PIDTYPE_PID);
+	if (!tp->task)
+		return ERR_PTR(-ESRCH);
+
+	tp->sighand = lock_task_sighand(tp->task, &tp->flags);
+	if (!tp->sighand)
+		return ERR_PTR(-ESRCH);
+
+	return seq_list_start(&tp->task->signal->posix_timers, *pos);
+}
+
+static void *timers_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct timers_private *tp = m->private;
+	return seq_list_next(v, &tp->task->signal->posix_timers, pos);
+}
+
+static void timers_stop(struct seq_file *m, void *v)
+{
+	struct timers_private *tp = m->private;
+
+	if (tp->sighand) {
+		unlock_task_sighand(tp->task, &tp->flags);
+		tp->sighand = NULL;
+	}
+
+	if (tp->task) {
+		put_task_struct(tp->task);
+		tp->task = NULL;
+	}
+}
+
+static int show_timer(struct seq_file *m, void *v)
+{
+	struct k_itimer *timer;
+	struct timers_private *tp = m->private;
+	int notify;
+	static char *nstr[] = {
+		[SIGEV_SIGNAL] = "signal",
+		[SIGEV_NONE] = "none",
+		[SIGEV_THREAD] = "thread",
+	};
+
+	timer = list_entry((struct list_head *)v, struct k_itimer, list);
+	notify = timer->it_sigev_notify;
+
+	seq_printf(m, "ID: %d\n", timer->it_id);
+	seq_printf(m, "signal: %d/%p\n", timer->sigq->info.si_signo,
+			timer->sigq->info.si_value.sival_ptr);
+	seq_printf(m, "notify: %s/%s.%d\n",
+		nstr[notify & ~SIGEV_THREAD_ID],
+		(notify & SIGEV_THREAD_ID) ? "tid" : "pid",
+		pid_nr_ns(timer->it_pid, tp->ns));
+
+	return 0;
+}
+
+static const struct seq_operations proc_timers_seq_ops = {
+	.start	= timers_start,
+	.next	= timers_next,
+	.stop	= timers_stop,
+	.show	= show_timer,
+};
+
+static int proc_timers_open(struct inode *inode, struct file *file)
+{
+	struct timers_private *tp;
+
+	tp = __seq_open_private(file, &proc_timers_seq_ops,
+			sizeof(struct timers_private));
+	if (!tp)
+		return -ENOMEM;
+
+	tp->pid = proc_pid(inode);
+	tp->ns = inode->i_sb->s_fs_info;
+	return 0;
+}
+
+static const struct file_operations proc_timers_operations = {
+	.open		= proc_timers_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release_private,
+};
 #endif /* CONFIG_CHECKPOINT_RESTORE */
 
 static struct dentry *proc_pident_instantiate(struct inode *dir,
@@ -2582,6 +2679,9 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("uid_map",    S_IRUGO|S_IWUSR, proc_uid_map_operations),
 	REG("gid_map",    S_IRUGO|S_IWUSR, proc_gid_map_operations),
 	REG("projid_map", S_IRUGO|S_IWUSR, proc_projid_map_operations),
+#endif
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	REG("timers",	  S_IRUGO, proc_timers_operations),
 #endif
 };
 

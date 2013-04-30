@@ -55,6 +55,11 @@ enum clock_event_nofitiers {
 #define CLOCK_EVT_FEAT_C3STOP		0x000008
 #define CLOCK_EVT_FEAT_DUMMY		0x000010
 
+/*
+ * Core shall set the interrupt affinity dynamically in broadcast mode
+ */
+#define CLOCK_EVT_FEAT_DYNIRQ		0x000020
+
 /**
  * struct clock_event_device - clock event device descriptor
  * @event_handler:	Assigned by the framework to be called by the low
@@ -170,6 +175,12 @@ extern void tick_broadcast(const struct cpumask *mask);
 extern int tick_receive_broadcast(void);
 #endif
 
+#if defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST) && defined(CONFIG_TICK_ONESHOT)
+extern int tick_check_broadcast_expired(void);
+#else
+static inline int tick_check_broadcast_expired(void) { return 0; }
+#endif
+
 #ifdef CONFIG_GENERIC_CLOCKEVENTS
 extern void clockevents_notify(unsigned long reason, void *arg);
 #else
@@ -182,6 +193,7 @@ static inline void clockevents_suspend(void) {}
 static inline void clockevents_resume(void) {}
 
 #define clockevents_notify(reason, arg) do { } while (0)
+static inline int tick_check_broadcast_expired(void) { return 0; }
 
 #endif
 
