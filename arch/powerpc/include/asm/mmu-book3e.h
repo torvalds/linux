@@ -215,6 +215,7 @@
 #define TLBILX_T_CLASS3			7
 
 #ifndef __ASSEMBLY__
+#include <asm/bug.h>
 
 extern unsigned int tlbcam_index;
 
@@ -253,6 +254,23 @@ struct mmu_psize_def
 #define MMU_PAGE_SIZE_INDIRECT	0x2	/* Supported as an indirect size */
 };
 extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
+
+static inline int shift_to_mmu_psize(unsigned int shift)
+{
+	int psize;
+
+	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize)
+		if (mmu_psize_defs[psize].shift == shift)
+			return psize;
+	return -1;
+}
+
+static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
+{
+	if (mmu_psize_defs[mmu_psize].shift)
+		return mmu_psize_defs[mmu_psize].shift;
+	BUG();
+}
 
 /* The page sizes use the same names as 64-bit hash but are
  * constants
