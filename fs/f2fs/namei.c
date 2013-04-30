@@ -72,6 +72,7 @@ out:
 	unlock_new_inode(inode);
 fail:
 	trace_f2fs_new_inode(inode, err);
+	make_bad_inode(inode);
 	iput(inode);
 	if (nid_free)
 		alloc_nid_failed(sbi, ino);
@@ -155,6 +156,7 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 out:
 	clear_nlink(inode);
 	unlock_new_inode(inode);
+	make_bad_inode(inode);
 	iput(inode);
 	alloc_nid_failed(sbi, ino);
 	return err;
@@ -190,6 +192,7 @@ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
 	return 0;
 out:
 	clear_inode_flag(F2FS_I(inode), FI_INC_LINK);
+	make_bad_inode(inode);
 	iput(inode);
 	return err;
 }
@@ -295,6 +298,7 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 out:
 	clear_nlink(inode);
 	unlock_new_inode(inode);
+	make_bad_inode(inode);
 	iput(inode);
 	alloc_nid_failed(sbi, inode->i_ino);
 	return err;
@@ -335,6 +339,7 @@ out_fail:
 	clear_inode_flag(F2FS_I(inode), FI_INC_LINK);
 	clear_nlink(inode);
 	unlock_new_inode(inode);
+	make_bad_inode(inode);
 	iput(inode);
 	alloc_nid_failed(sbi, inode->i_ino);
 	return err;
@@ -382,6 +387,7 @@ static int f2fs_mknod(struct inode *dir, struct dentry *dentry,
 out:
 	clear_nlink(inode);
 	unlock_new_inode(inode);
+	make_bad_inode(inode);
 	iput(inode);
 	alloc_nid_failed(sbi, inode->i_ino);
 	return err;

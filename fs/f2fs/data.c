@@ -577,6 +577,7 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	bool locked = false;
 	int ret;
 	long excess_nrtw = 0, desired_nrtw;
 
@@ -590,10 +591,12 @@ static int f2fs_write_data_pages(struct address_space *mapping,
 		wbc->nr_to_write = desired_nrtw;
 	}
 
-	if (!S_ISDIR(inode->i_mode))
+	if (!S_ISDIR(inode->i_mode)) {
 		mutex_lock(&sbi->writepages);
+		locked = true;
+	}
 	ret = write_cache_pages(mapping, wbc, __f2fs_writepage, mapping);
-	if (!S_ISDIR(inode->i_mode))
+	if (locked)
 		mutex_unlock(&sbi->writepages);
 	f2fs_submit_bio(sbi, DATA, (wbc->sync_mode == WB_SYNC_ALL));
 
