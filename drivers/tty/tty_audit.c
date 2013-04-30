@@ -134,12 +134,8 @@ void tty_audit_exit(void)
  */
 void tty_audit_fork(struct signal_struct *sig)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&current->sighand->siglock, flags);
 	sig->audit_tty = current->signal->audit_tty;
 	sig->audit_tty_log_passwd = current->signal->audit_tty_log_passwd;
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 }
 
 /**
