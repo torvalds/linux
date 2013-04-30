@@ -95,82 +95,40 @@ out:
 EXPORT_SYMBOL(detect_memory_layout);
 
 /*
- * Move memory chunks array from index "from" to index "to"
+ * Create memory hole with given address and size.
  */
-static void mem_chunk_move(struct mem_chunk chunk[], int to, int from)
+void create_mem_hole(struct mem_chunk mem_chunk[], unsigned long addr,
+		     unsigned long size)
 {
-	int cnt = MEMORY_CHUNKS - to;
-
-	memmove(&chunk[to], &chunk[from], cnt * sizeof(struct mem_chunk));
-}
-
-/*
- * Initialize memory chunk
- */
-static void mem_chunk_init(struct mem_chunk *chunk, unsigned long addr,
-			   unsigned long size, int type)
-{
-	chunk->type = type;
-	chunk->addr = addr;
-	chunk->size = size;
-}
-
-/*
- * Create memory hole with given address, size, and type
- */
-void create_mem_hole(struct mem_chunk chunk[], unsigned long addr,
-		     unsigned long size, int type)
-{
-	unsigned long lh_start, lh_end, lh_size, ch_start, ch_end, ch_size;
-	int i, ch_type;
+	int i;
 
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
-		if (chunk[i].size == 0)
+		struct mem_chunk *chunk = &mem_chunk[i];
+
+		if (chunk->size == 0)
 			continue;
+		if (addr > chunk->addr + chunk->size)
+			continue;
+		if (addr + size <= chunk->addr)
+			continue;
+		/* Split */
+		if ((addr > chunk->addr) &&
+		    (addr + size < chunk->addr + chunk->size)) {
+			struct mem_chunk *new = chunk + 1;
 
-		/* Define chunk properties */
-		ch_start = chunk[i].addr;
-		ch_size = chunk[i].size;
-		ch_end = ch_start + ch_size - 1;
-		ch_type = chunk[i].type;
-
-		/* Is memory chunk hit by memory hole? */
-		if (addr + size <= ch_start)
-			continue; /* No: memory hole in front of chunk */
-		if (addr > ch_end)
-			continue; /* No: memory hole after chunk */
-
-		/* Yes: Define local hole properties */
-		lh_start = max(addr, chunk[i].addr);
-		lh_end = min(addr + size - 1, ch_end);
-		lh_size = lh_end - lh_start + 1;
-
-		if (lh_start == ch_start && lh_end == ch_end) {
-			/* Hole covers complete memory chunk */
-			mem_chunk_init(&chunk[i], lh_start, lh_size, type);
-		} else if (lh_end == ch_end) {
-			/* Hole starts in memory chunk and convers chunk end */
-			mem_chunk_move(chunk, i + 1, i);
-			mem_chunk_init(&chunk[i], ch_start, ch_size - lh_size,
-				       ch_type);
-			mem_chunk_init(&chunk[i + 1], lh_start, lh_size, type);
-			i += 1;
-		} else if (lh_start == ch_start) {
-			/* Hole ends in memory chunk */
-			mem_chunk_move(chunk, i + 1, i);
-			mem_chunk_init(&chunk[i], lh_start, lh_size, type);
-			mem_chunk_init(&chunk[i + 1], lh_end + 1,
-				       ch_size - lh_size, ch_type);
-			break;
-		} else {
-			/* Hole splits memory chunk */
-			mem_chunk_move(chunk, i + 2, i);
-			mem_chunk_init(&chunk[i], ch_start,
-				       lh_start - ch_start, ch_type);
-			mem_chunk_init(&chunk[i + 1], lh_start, lh_size, type);
-			mem_chunk_init(&chunk[i + 2], lh_end + 1,
-				       ch_end - lh_end, ch_type);
-			break;
+			memmove(new, chunk, (MEMORY_CHUNKS-i-1) * sizeof(*new));
+			new->addr = addr + size;
+			new->size = chunk->addr + chunk->size - new->addr;
+			chunk->size = addr - chunk->addr;
+			continue;
+		} else if ((addr <= chunk->addr) &&
+			   (addr + size >= chunk->addr + chunk->size)) {
+			memset(chunk, 0 , sizeof(*chunk));
+		} else if (addr + size < chunk->addr + chunk->size) {
+			chunk->size =  chunk->addr + chunk->size - addr - size;
+			chunk->addr = addr + size;
+		} else if (addr > chunk->addr) {
+			chunk->size = addr - chunk->addr;
 		}
 	}
 }

@@ -463,14 +463,10 @@ static void __init setup_resources(void)
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		if (!memory_chunk[i].size)
 			continue;
-		if (memory_chunk[i].type == CHUNK_OLDMEM ||
-		    memory_chunk[i].type == CHUNK_CRASHK)
-			continue;
 		res = alloc_bootmem_low(sizeof(*res));
 		res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
 		switch (memory_chunk[i].type) {
 		case CHUNK_READ_WRITE:
-		case CHUNK_CRASHK:
 			res->name = "System RAM";
 			break;
 		case CHUNK_READ_ONLY:
@@ -527,7 +523,7 @@ static void __init setup_memory_end(void)
 		unsigned long align;
 
 		chunk = &memory_chunk[i];
-		if (chunk->type == CHUNK_OLDMEM)
+		if (!chunk->size)
 			continue;
 		align = 1UL << (MAX_ORDER + PAGE_SHIFT - 1);
 		start = (chunk->addr + align - 1) & ~(align - 1);
@@ -579,7 +575,7 @@ static void __init setup_memory_end(void)
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		struct mem_chunk *chunk = &memory_chunk[i];
 
-		if (chunk->type == CHUNK_OLDMEM)
+		if (!chunk->size)
 			continue;
 		if (chunk->addr >= memory_end) {
 			memset(chunk, 0, sizeof(*chunk));
@@ -681,15 +677,6 @@ static int __init verify_crash_base(unsigned long crash_base,
 }
 
 /*
- * Reserve kdump memory by creating a memory hole in the mem_chunk array
- */
-static void __init reserve_kdump_bootmem(unsigned long addr, unsigned long size,
-					 int type)
-{
-	create_mem_hole(memory_chunk, addr, size, type);
-}
-
-/*
  * When kdump is enabled, we have to ensure that no memory from
  * the area [0 - crashkernel memory size] and
  * [crashk_res.start - crashk_res.end] is set offline.
@@ -730,8 +717,8 @@ static void reserve_oldmem(void)
 
 		real_size = max(real_size, chunk->addr + chunk->size);
 	}
-	reserve_kdump_bootmem(OLDMEM_BASE, OLDMEM_SIZE, CHUNK_OLDMEM);
-	reserve_kdump_bootmem(OLDMEM_SIZE, real_size - OLDMEM_SIZE, CHUNK_OLDMEM);
+	create_mem_hole(memory_chunk, OLDMEM_BASE, OLDMEM_SIZE);
+	create_mem_hole(memory_chunk, OLDMEM_SIZE, real_size - OLDMEM_SIZE);
 	if (OLDMEM_BASE + OLDMEM_SIZE == real_size)
 		saved_max_pfn = PFN_DOWN(OLDMEM_BASE) - 1;
 	else
@@ -774,7 +761,7 @@ static void __init reserve_crashkernel(void)
 	crashk_res.start = crash_base;
 	crashk_res.end = crash_base + crash_size - 1;
 	insert_resource(&iomem_resource, &crashk_res);
-	reserve_kdump_bootmem(crash_base, crash_size, CHUNK_CRASHK);
+	create_mem_hole(memory_chunk, crash_base, crash_size);
 	pr_info("Reserving %lluMB of memory at %lluMB "
 		"for crashkernel (System RAM: %luMB)\n",
 		crash_size >> 20, crash_base >> 20, memory_end >> 20);
@@ -846,11 +833,10 @@ static void __init setup_memory(void)
 	 * Register RAM areas with the bootmem allocator.
 	 */
 
-	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		unsigned long start_chunk, end_chunk, pfn;
 
-		if (memory_chunk[i].type != CHUNK_READ_WRITE &&
-		    memory_chunk[i].type != CHUNK_CRASHK)
+		if (!memory_chunk[i].size)
 			continue;
 		start_chunk = PFN_DOWN(memory_chunk[i].addr);
 		end_chunk = start_chunk + PFN_DOWN(memory_chunk[i].size);
