@@ -56,7 +56,8 @@ int hfs_find_1st_rec_by_cnid(struct hfs_bnode *bnode,
 				int *end,
 				int *cur_rec)
 {
-	__be32 cur_cnid, search_cnid;
+	__be32 cur_cnid;
+	__be32 search_cnid;
 
 	if (bnode->tree->cnid == HFSPLUS_EXT_CNID) {
 		cur_cnid = fd->key->ext.cnid;
@@ -67,8 +68,11 @@ int hfs_find_1st_rec_by_cnid(struct hfs_bnode *bnode,
 	} else if (bnode->tree->cnid == HFSPLUS_ATTR_CNID) {
 		cur_cnid = fd->key->attr.cnid;
 		search_cnid = fd->search_key->attr.cnid;
-	} else
+	} else {
+		cur_cnid = 0;	/* used-uninitialized warning */
+		search_cnid = 0;
 		BUG();
+	}
 
 	if (cur_cnid == search_cnid) {
 		(*end) = (*cur_rec);
