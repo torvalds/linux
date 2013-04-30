@@ -43,7 +43,7 @@ static struct debug_entry {
 };
 #undef ATTR
 
-int __init ramster_debugfs_init(void)
+int ramster_debugfs_init(void)
 {
 	int i;
 	struct dentry *root = debugfs_create_dir("ramster", NULL);

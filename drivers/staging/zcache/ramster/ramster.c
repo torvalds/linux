@@ -121,6 +121,7 @@ int ramster_do_preload_flnode(struct tmem_pool *pool)
 		kmem_cache_free(ramster_flnode_cache, flnode);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ramster_do_preload_flnode);
 
 /*
  * Called by the message handler after a (still compressed) page has been
@@ -388,6 +389,7 @@ void *ramster_pampd_free(void *pampd, struct tmem_pool *pool,
 	}
 	return local_pampd;
 }
+EXPORT_SYMBOL_GPL(ramster_pampd_free);
 
 void ramster_count_foreign_pages(bool eph, int count)
 {
@@ -408,6 +410,7 @@ void ramster_count_foreign_pages(bool eph, int count)
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(ramster_count_foreign_pages);
 
 /*
  * For now, just push over a few pages every few seconds to
@@ -593,7 +596,7 @@ requeue:
 	ramster_remotify_queue_delayed_work(HZ);
 }
 
-void __init ramster_remotify_init(void)
+void ramster_remotify_init(void)
 {
 	unsigned long n = 60UL;
 	ramster_remotify_workqueue =
@@ -768,8 +771,10 @@ static bool frontswap_selfshrinking __read_mostly;
 static void selfshrink_process(struct work_struct *work);
 static DECLARE_DELAYED_WORK(selfshrink_worker, selfshrink_process);
 
+#ifndef CONFIG_RAMSTER_MODULE
 /* Enable/disable with kernel boot option. */
-static bool use_frontswap_selfshrink __initdata = true;
+static bool use_frontswap_selfshrink = true;
+#endif
 
 /*
  * The default values for the following parameters were deemed reasonable
@@ -824,6 +829,7 @@ static void frontswap_selfshrink(void)
 	frontswap_shrink(tgt_frontswap_pages);
 }
 
+#ifndef CONFIG_RAMSTER_MODULE
 static int __init ramster_nofrontswap_selfshrink_setup(char *s)
 {
 	use_frontswap_selfshrink = false;
@@ -831,6 +837,7 @@ static int __init ramster_nofrontswap_selfshrink_setup(char *s)
 }
 
 __setup("noselfshrink", ramster_nofrontswap_selfshrink_setup);
+#endif
 
 static void selfshrink_process(struct work_struct *work)
 {
@@ -849,6 +856,7 @@ void ramster_cpu_up(int cpu)
 	per_cpu(ramster_remoteputmem1, cpu) = p1;
 	per_cpu(ramster_remoteputmem2, cpu) = p2;
 }
+EXPORT_SYMBOL_GPL(ramster_cpu_up);
 
 void ramster_cpu_down(int cpu)
 {
@@ -864,6 +872,7 @@ void ramster_cpu_down(int cpu)
 		kp->flnode = NULL;
 	}
 }
+EXPORT_SYMBOL_GPL(ramster_cpu_down);
 
 void ramster_register_pamops(struct tmem_pamops *pamops)
 {
@@ -874,9 +883,11 @@ void ramster_register_pamops(struct tmem_pamops *pamops)
 	pamops->repatriate = ramster_pampd_repatriate;
 	pamops->repatriate_preload = ramster_pampd_repatriate_preload;
 }
+EXPORT_SYMBOL_GPL(ramster_register_pamops);
 
-void __init ramster_init(bool cleancache, bool frontswap,
-				bool frontswap_exclusive_gets)
+void ramster_init(bool cleancache, bool frontswap,
+				bool frontswap_exclusive_gets,
+				bool frontswap_selfshrink)
 {
 	int ret = 0;
 
@@ -891,10 +902,17 @@ void __init ramster_init(bool cleancache, bool frontswap,
 	if (ret)
 		pr_err("ramster: can't create sysfs for ramster\n");
 	(void)r2net_register_handlers();
+#ifdef CONFIG_RAMSTER_MODULE
+	ret = r2nm_init();
+	if (ret)
+		pr_err("ramster: can't init r2net\n");
+	frontswap_selfshrinking = frontswap_selfshrink;
+#else
+	frontswap_selfshrinking = use_frontswap_selfshrink;
+#endif
 	INIT_LIST_HEAD(&ramster_rem_op_list);
 	ramster_flnode_cache = kmem_cache_create("ramster_flnode",
 				sizeof(struct flushlist_node), 0, 0, NULL);
-	frontswap_selfshrinking = use_frontswap_selfshrink;
 	if (frontswap_selfshrinking) {
 		pr_info("ramster: Initializing frontswap selfshrink driver.\n");
 		schedule_delayed_work(&selfshrink_worker,
@@ -902,3 +920,4 @@ void __init ramster_init(bool cleancache, bool frontswap,
 	}
 	ramster_remotify_init();
 }
+EXPORT_SYMBOL_GPL(ramster_init);

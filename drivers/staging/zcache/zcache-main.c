@@ -1894,7 +1894,7 @@ static int __init zcache_init(void)
 	}
 	if (ramster_enabled)
 		ramster_init(!disable_cleancache, !disable_frontswap,
-				frontswap_has_exclusive_gets);
+				frontswap_has_exclusive_gets, false);
 out:
 	return ret;
 }
