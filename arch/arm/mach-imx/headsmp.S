@@ -24,7 +24,7 @@ ENTRY(v7_secondary_startup)
 ENDPROC(v7_secondary_startup)
 #endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_ARM_CPU_SUSPEND
 /*
  * The following code is located into the .data section.  This is to
  * allow phys_l2x0_saved_regs to be accessed with a relative load
