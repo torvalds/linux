@@ -110,8 +110,6 @@ struct rbd_image_header {
 
 	u64 stripe_unit;
 	u64 stripe_count;
-
-	u64 obj_version;
 };
 
 /*
@@ -2554,8 +2552,7 @@ static int rbd_dev_header_watch_sync(struct rbd_device *rbd_dev, int start)
 					rbd_dev->watch_request->osd_req);
 
 	osd_req_op_watch_init(obj_request->osd_req, 0, CEPH_OSD_OP_WATCH,
-				rbd_dev->watch_event->cookie,
-				rbd_dev->header.obj_version, start);
+				rbd_dev->watch_event->cookie, 0, start);
 	rbd_osd_req_format_write(obj_request);
 
 	ret = rbd_obj_request_submit(osdc, obj_request);
@@ -2987,8 +2984,6 @@ static int rbd_read_header(struct rbd_device *rbd_dev,
 	if (IS_ERR(ondisk))
 		return PTR_ERR(ondisk);
 	ret = rbd_header_from_disk(header, ondisk);
-	if (ret >= 0)
-		header->obj_version = ver;
 	kfree(ondisk);
 
 	return ret;
@@ -3044,9 +3039,6 @@ static int rbd_dev_v1_refresh(struct rbd_device *rbd_dev, u64 *hver)
 	/* osd requests may still refer to snapc */
 	ceph_put_snap_context(rbd_dev->header.snapc);
 
-	if (hver)
-		*hver = h.obj_version;
-	rbd_dev->header.obj_version = h.obj_version;
 	rbd_dev->header.image_size = h.image_size;
 	rbd_dev->header.snapc = h.snapc;
 	rbd_dev->header.snap_names = h.snap_names;
@@ -4656,7 +4648,6 @@ static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 	ret = rbd_dev_v2_snap_context(rbd_dev, &ver);
 	if (ret)
 		goto out_err;
-	rbd_dev->header.obj_version = ver;
 
 	dout("discovered version 2 image, header name is %s\n",
 		rbd_dev->header_name);
