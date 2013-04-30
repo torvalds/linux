@@ -550,6 +550,9 @@ static int __cpuinit relay_hotcpu_callback(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+/* Needs a _much_ better name... */
+#define FIX_SIZE(x) ((((x) - 1) & PAGE_MASK) + PAGE_SIZE)
+
 /**
  *	relay_open - create a new relay channel
  *	@base_filename: base name of files to create, %NULL for buffering only
