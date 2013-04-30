@@ -3490,4 +3490,6 @@ out:
 	test_msg("Free space cache tests finished\n");
 }
 #undef test_msg
-#endif /* CONFIG_BTRFS_FS_RUN_SANITY_TESTS */
+#else /* !CONFIG_BTRFS_FS_RUN_SANITY_TESTS */
+void btrfs_test_free_space_cache(void) {}
+#endif /* !CONFIG_BTRFS_FS_RUN_SANITY_TESTS */

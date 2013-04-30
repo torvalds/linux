@@ -1733,9 +1733,7 @@ static int __init init_btrfs_fs(void)
 
 	btrfs_init_lockdep();
 
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 	btrfs_test_free_space_cache();
-#endif
 
 	printk(KERN_INFO "%s loaded\n", BTRFS_BUILD_VERSION);
 	return 0;
