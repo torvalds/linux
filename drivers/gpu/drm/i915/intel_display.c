@@ -5637,9 +5637,6 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 			if (intel_encoder->needs_tv_clock)
 				is_tv = true;
 			break;
-		case INTEL_OUTPUT_TVOUT:
-			is_tv = true;
-			break;
 		}
 
 		num_connectors++;
@@ -5698,13 +5695,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 		break;
 	}
 
-	if (is_sdvo && is_tv)
-		dpll |= PLL_REF_INPUT_TVCLKINBC;
-	else if (is_tv)
-		/* XXX: just matching BIOS for now */
-		/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
-		dpll |= 3;
-	else if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2)
+	if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2)
 		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
