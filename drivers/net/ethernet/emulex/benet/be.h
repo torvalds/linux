@@ -329,6 +329,7 @@ enum vf_state {
 #define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
 #define BE_UC_PMAC_COUNT		30
 #define BE_VF_UC_PMAC_COUNT		2
+#define BE_FLAGS_QNQ_ASYNC_EVT_RCVD		(1 << 11)
 
 struct phy_info {
 	u8 transceiver;
@@ -436,6 +437,7 @@ struct be_adapter {
 	bool wol;
 	u32 uc_macs;		/* Count of secondary UC MAC programmed */
 	u16 asic_rev;
+	u16 qnq_vid;
 	u32 msg_enable;
 	int be_get_temp_freq;
 	u16 max_mcast_mac;
@@ -649,6 +651,11 @@ static inline bool be_is_wol_excluded(struct be_adapter *adapter)
 	default:
 		return false;
 	}
+}
+
+static inline int qnq_async_evt_rcvd(struct be_adapter *adapter)
+{
+	return adapter->flags & BE_FLAGS_QNQ_ASYNC_EVT_RCVD;
 }
 
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,

@@ -834,6 +834,8 @@ static int nr_getname(struct socket *sock, struct sockaddr *uaddr,
 	struct sock *sk = sock->sk;
 	struct nr_sock *nr = nr_sk(sk);
 
+	memset(&sax->fsa_ax25, 0, sizeof(struct sockaddr_ax25));
+
 	lock_sock(sk);
 	if (peer != 0) {
 		if (sk->sk_state != TCP_ESTABLISHED) {

@@ -165,7 +165,7 @@ static struct list_head vsock_bind_table[VSOCK_HASH_SIZE + 1];
 static struct list_head vsock_connected_table[VSOCK_HASH_SIZE];
 static DEFINE_SPINLOCK(vsock_table_lock);
 
-static __init void vsock_init_tables(void)
+static void vsock_init_tables(void)
 {
 	int i;
 
@@ -1932,7 +1932,6 @@ static const struct file_operations vsock_device_ops = {
 
 static struct miscdevice vsock_device = {
 	.name		= "vsock",
-	.minor		= MISC_DYNAMIC_MINOR,
 	.fops		= &vsock_device_ops,
 };
 
@@ -1942,6 +1941,7 @@ static int __vsock_core_init(void)
 
 	vsock_init_tables();
 
+	vsock_device.minor = MISC_DYNAMIC_MINOR;
 	err = misc_register(&vsock_device);
 	if (err) {
 		pr_err("Failed to register misc device\n");

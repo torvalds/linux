@@ -1471,14 +1471,17 @@ static int tun_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (!tun)
 		return -EBADFD;
 
-	if (flags & ~(MSG_DONTWAIT|MSG_TRUNC))
-		return -EINVAL;
+	if (flags & ~(MSG_DONTWAIT|MSG_TRUNC)) {
+		ret = -EINVAL;
+		goto out;
+	}
 	ret = tun_do_read(tun, tfile, iocb, m->msg_iov, total_len,
 			  flags & MSG_DONTWAIT);
 	if (ret > total_len) {
 		m->msg_flags |= MSG_TRUNC;
 		ret = flags & MSG_TRUNC ? ret : total_len;
 	}
+out:
 	tun_put(tun);
 	return ret;
 }
@@ -1593,8 +1596,12 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			return err;
 
 		if (tun->flags & TUN_TAP_MQ &&
-		    (tun->numqueues + tun->numdisabled > 1))
-			return -EBUSY;
+		    (tun->numqueues + tun->numdisabled > 1)) {
+			/* One or more queue has already been attached, no need
+			 * to initialize the device again.
+			 */
+			return 0;
+		}
 	}
 	else {
 		char *name;

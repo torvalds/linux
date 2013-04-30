@@ -639,13 +639,8 @@ static inline u16 be_get_tx_vlan_tag(struct be_adapter *adapter,
 	return vlan_tag;
 }
 
-static int be_vlan_tag_chk(struct be_adapter *adapter, struct sk_buff *skb)
-{
-	return vlan_tx_tag_present(skb) || adapter->pvid;
-}
-
 static void wrb_fill_hdr(struct be_adapter *adapter, struct be_eth_hdr_wrb *hdr,
-		struct sk_buff *skb, u32 wrb_cnt, u32 len)
+		struct sk_buff *skb, u32 wrb_cnt, u32 len, bool skip_hw_vlan)
 {
 	u16 vlan_tag;
 
@@ -672,8 +667,9 @@ static void wrb_fill_hdr(struct be_adapter *adapter, struct be_eth_hdr_wrb *hdr,
 		AMAP_SET_BITS(struct amap_eth_hdr_wrb, vlan_tag, hdr, vlan_tag);
 	}
 
+	/* To skip HW VLAN tagging: evt = 1, compl = 0 */
+	AMAP_SET_BITS(struct amap_eth_hdr_wrb, complete, hdr, !skip_hw_vlan);
 	AMAP_SET_BITS(struct amap_eth_hdr_wrb, event, hdr, 1);
-	AMAP_SET_BITS(struct amap_eth_hdr_wrb, complete, hdr, 1);
 	AMAP_SET_BITS(struct amap_eth_hdr_wrb, num_wrb, hdr, wrb_cnt);
 	AMAP_SET_BITS(struct amap_eth_hdr_wrb, len, hdr, len);
 }
@@ -696,7 +692,8 @@ static void unmap_tx_frag(struct device *dev, struct be_eth_wrb *wrb,
 }
 
 static int make_tx_wrbs(struct be_adapter *adapter, struct be_queue_info *txq,
-		struct sk_buff *skb, u32 wrb_cnt, bool dummy_wrb)
+		struct sk_buff *skb, u32 wrb_cnt, bool dummy_wrb,
+		bool skip_hw_vlan)
 {
 	dma_addr_t busaddr;
 	int i, copied = 0;
@@ -745,7 +742,7 @@ static int make_tx_wrbs(struct be_adapter *adapter, struct be_queue_info *txq,
 		queue_head_inc(txq);
 	}
 
-	wrb_fill_hdr(adapter, hdr, first_skb, wrb_cnt, copied);
+	wrb_fill_hdr(adapter, hdr, first_skb, wrb_cnt, copied, skip_hw_vlan);
 	be_dws_cpu_to_le(hdr, sizeof(*hdr));
 
 	return copied;
@@ -762,7 +759,8 @@ dma_err:
 }
 
 static struct sk_buff *be_insert_vlan_in_pkt(struct be_adapter *adapter,
-					     struct sk_buff *skb)
+					     struct sk_buff *skb,
+					     bool *skip_hw_vlan)
 {
 	u16 vlan_tag = 0;
 
@@ -777,7 +775,65 @@ static struct sk_buff *be_insert_vlan_in_pkt(struct be_adapter *adapter,
 			skb->vlan_tci = 0;
 	}
 
+	if (qnq_async_evt_rcvd(adapter) && adapter->pvid) {
+		if (!vlan_tag)
+			vlan_tag = adapter->pvid;
+		if (skip_hw_vlan)
+			*skip_hw_vlan = true;
+	}
+
+	if (vlan_tag) {
+		skb = __vlan_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
+		if (unlikely(!skb))
+			return skb;
+
+		skb->vlan_tci = 0;
+	}
+
+	/* Insert the outer VLAN, if any */
+	if (adapter->qnq_vid) {
+		vlan_tag = adapter->qnq_vid;
+		skb = __vlan_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
+		if (unlikely(!skb))
+			return skb;
+		if (skip_hw_vlan)
+			*skip_hw_vlan = true;
+	}
+
 	return skb;
+}
+
+static bool be_ipv6_exthdr_check(struct sk_buff *skb)
+{
+	struct ethhdr *eh = (struct ethhdr *)skb->data;
+	u16 offset = ETH_HLEN;
+
+	if (eh->h_proto == htons(ETH_P_IPV6)) {
+		struct ipv6hdr *ip6h = (struct ipv6hdr *)(skb->data + offset);
+
+		offset += sizeof(struct ipv6hdr);
+		if (ip6h->nexthdr != NEXTHDR_TCP &&
+		    ip6h->nexthdr != NEXTHDR_UDP) {
+			struct ipv6_opt_hdr *ehdr =
+				(struct ipv6_opt_hdr *) (skb->data + offset);
+
+			/* offending pkt: 2nd byte following IPv6 hdr is 0xff */
+			if (ehdr->hdrlen == 0xff)
+				return true;
+		}
+	}
+	return false;
+}
+
+static int be_vlan_tag_tx_chk(struct be_adapter *adapter, struct sk_buff *skb)
+{
+	return vlan_tx_tag_present(skb) || adapter->pvid || adapter->qnq_vid;
+}
+
+static int be_ipv6_tx_stall_chk(struct be_adapter *adapter, struct sk_buff *skb)
+{
+	return BE3_chip(adapter) &&
+		be_ipv6_exthdr_check(skb);
 }
 
 static netdev_tx_t be_xmit(struct sk_buff *skb,
@@ -790,33 +846,64 @@ static netdev_tx_t be_xmit(struct sk_buff *skb,
 	u32 wrb_cnt = 0, copied = 0;
 	u32 start = txq->head, eth_hdr_len;
 	bool dummy_wrb, stopped = false;
+	bool skip_hw_vlan = false;
+	struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
 
 	eth_hdr_len = ntohs(skb->protocol) == ETH_P_8021Q ?
 		VLAN_ETH_HLEN : ETH_HLEN;
 
-	/* HW has a bug which considers padding bytes as legal
-	 * and modifies the IPv4 hdr's 'tot_len' field
+	/* For padded packets, BE HW modifies tot_len field in IP header
+	 * incorrecly when VLAN tag is inserted by HW.
 	 */
-	if (skb->len <= 60 && be_vlan_tag_chk(adapter, skb) &&
-			is_ipv4_pkt(skb)) {
+	if (skb->len <= 60 && vlan_tx_tag_present(skb) && is_ipv4_pkt(skb)) {
 		ip = (struct iphdr *)ip_hdr(skb);
 		pskb_trim(skb, eth_hdr_len + ntohs(ip->tot_len));
 	}
+
+	/* If vlan tag is already inlined in the packet, skip HW VLAN
+	 * tagging in UMC mode
+	 */
+	if ((adapter->function_mode & UMC_ENABLED) &&
+	    veh->h_vlan_proto == htons(ETH_P_8021Q))
+			skip_hw_vlan = true;
 
 	/* HW has a bug wherein it will calculate CSUM for VLAN
 	 * pkts even though it is disabled.
 	 * Manually insert VLAN in pkt.
 	 */
 	if (skb->ip_summed != CHECKSUM_PARTIAL &&
-			be_vlan_tag_chk(adapter, skb)) {
-		skb = be_insert_vlan_in_pkt(adapter, skb);
+			vlan_tx_tag_present(skb)) {
+		skb = be_insert_vlan_in_pkt(adapter, skb, &skip_hw_vlan);
+		if (unlikely(!skb))
+			goto tx_drop;
+	}
+
+	/* HW may lockup when VLAN HW tagging is requested on
+	 * certain ipv6 packets. Drop such pkts if the HW workaround to
+	 * skip HW tagging is not enabled by FW.
+	 */
+	if (unlikely(be_ipv6_tx_stall_chk(adapter, skb) &&
+		     (adapter->pvid || adapter->qnq_vid) &&
+		     !qnq_async_evt_rcvd(adapter)))
+		goto tx_drop;
+
+	/* Manual VLAN tag insertion to prevent:
+	 * ASIC lockup when the ASIC inserts VLAN tag into
+	 * certain ipv6 packets. Insert VLAN tags in driver,
+	 * and set event, completion, vlan bits accordingly
+	 * in the Tx WRB.
+	 */
+	if (be_ipv6_tx_stall_chk(adapter, skb) &&
+	    be_vlan_tag_tx_chk(adapter, skb)) {
+		skb = be_insert_vlan_in_pkt(adapter, skb, &skip_hw_vlan);
 		if (unlikely(!skb))
 			goto tx_drop;
 	}
 
 	wrb_cnt = wrb_cnt_for_skb(adapter, skb, &dummy_wrb);
 
-	copied = make_tx_wrbs(adapter, txq, skb, wrb_cnt, dummy_wrb);
+	copied = make_tx_wrbs(adapter, txq, skb, wrb_cnt, dummy_wrb,
+			      skip_hw_vlan);
 	if (copied) {
 		int gso_segs = skb_shinfo(skb)->gso_segs;
 
