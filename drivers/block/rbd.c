@@ -274,14 +274,6 @@ struct rbd_img_request {
 #define for_each_obj_request_safe(ireq, oreq, n) \
 	list_for_each_entry_safe_reverse(oreq, n, &(ireq)->obj_requests, links)
 
-struct rbd_snap {
-	const char		*name;
-	u64			size;
-	struct list_head	node;
-	u64			id;
-	u64			features;
-};
-
 struct rbd_mapping {
 	u64                     size;
 	u64                     features;
@@ -326,9 +318,6 @@ struct rbd_device {
 
 	struct list_head	node;
 
-	/* list of snapshots */
-	struct list_head	snaps;
-
 	/* sysfs related */
 	struct device		dev;
 	unsigned long		open_count;	/* protected by lock */
@@ -356,10 +345,7 @@ static DEFINE_SPINLOCK(rbd_client_list_lock);
 
 static int rbd_img_request_submit(struct rbd_img_request *img_request);
 
-static int rbd_dev_snaps_update(struct rbd_device *rbd_dev);
-
 static void rbd_dev_device_release(struct device *dev);
-static void rbd_snap_destroy(struct rbd_snap *snap);
 
 static ssize_t rbd_add(struct bus_type *bus, const char *buf,
 		       size_t count);
@@ -3075,17 +3061,6 @@ static int rbd_read_header(struct rbd_device *rbd_dev,
 	return ret;
 }
 
-static void rbd_remove_all_snaps(struct rbd_device *rbd_dev)
-{
-	struct rbd_snap *snap;
-	struct rbd_snap *next;
-
-	list_for_each_entry_safe(snap, next, &rbd_dev->snaps, node) {
-		list_del(&snap->node);
-		rbd_snap_destroy(snap);
-	}
-}
-
 static void rbd_update_mapping_size(struct rbd_device *rbd_dev)
 {
 	if (rbd_dev->spec->snap_id != CEPH_NOSNAP)
@@ -3133,8 +3108,6 @@ static int rbd_dev_v1_refresh(struct rbd_device *rbd_dev)
 	if (strcmp(rbd_dev->header.object_prefix, h.object_prefix))
 		rbd_warn(rbd_dev, "object prefix changed (ignoring)");
 	kfree(h.object_prefix);
-
-	ret = rbd_dev_snaps_update(rbd_dev);
 
 	up_write(&rbd_dev->header_rwsem);
 
@@ -3461,7 +3434,6 @@ static struct rbd_device *rbd_dev_create(struct rbd_client *rbdc,
 	spin_lock_init(&rbd_dev->lock);
 	rbd_dev->flags = 0;
 	INIT_LIST_HEAD(&rbd_dev->node);
-	INIT_LIST_HEAD(&rbd_dev->snaps);
 	init_rwsem(&rbd_dev->header_rwsem);
 
 	rbd_dev->spec = spec;
@@ -3482,54 +3454,6 @@ static void rbd_dev_destroy(struct rbd_device *rbd_dev)
 	rbd_put_client(rbd_dev->rbd_client);
 	rbd_spec_put(rbd_dev->spec);
 	kfree(rbd_dev);
-}
-
-static void rbd_snap_destroy(struct rbd_snap *snap)
-{
-	kfree(snap->name);
-	kfree(snap);
-}
-
-static struct rbd_snap *rbd_snap_create(struct rbd_device *rbd_dev,
-						const char *snap_name,
-						u64 snap_id, u64 snap_size,
-						u64 snap_features)
-{
-	struct rbd_snap *snap;
-
-	snap = kzalloc(sizeof (*snap), GFP_KERNEL);
-	if (!snap)
-		return ERR_PTR(-ENOMEM);
-
-	snap->name = snap_name;
-	snap->id = snap_id;
-	snap->size = snap_size;
-	snap->features = snap_features;
-
-	return snap;
-}
-
-/*
- * Returns a dynamically-allocated snapshot name if successful, or a
- * pointer-coded error otherwise.
- */
-static const char *rbd_dev_v1_snap_info(struct rbd_device *rbd_dev,
-			u64 snap_id, u64 *snap_size, u64 *snap_features)
-{
-	const char *snap_name;
-	u32 which;
-
-	which = rbd_dev_snap_index(rbd_dev, snap_id);
-	if (which == BAD_SNAP_INDEX)
-		return ERR_PTR(-ENOENT);
-	snap_name = _rbd_dev_v1_snap_name(rbd_dev, which);
-	if (!snap_name)
-		return ERR_PTR(-ENOMEM);
-
-	*snap_size = rbd_dev->header.snap_sizes[which];
-	*snap_features = 0;	/* No features for v1 */
-
-	return snap_name;
 }
 
 /*
@@ -3883,10 +3807,6 @@ static u64 rbd_snap_id_by_name(struct rbd_device *rbd_dev, const char *name)
  * When an image being mapped (not a parent) is probed, we have the
  * pool name and pool id, image name and image id, and the snapshot
  * name.  The only thing we're missing is the snapshot id.
- *
- * The set of snapshots for an image is not known until they have
- * been read by rbd_dev_snaps_update(), so we can't completely fill
- * in this information until after that has been called.
  */
 static int rbd_dev_spec_update(struct rbd_device *rbd_dev)
 {
@@ -4065,45 +3985,6 @@ out:
 	return snap_name;
 }
 
-static const char *rbd_dev_v2_snap_info(struct rbd_device *rbd_dev,
-			u64 snap_id, u64 *snap_size, u64 *snap_features)
-{
-	u64 size;
-	u64 features;
-	const char *snap_name;
-	int ret;
-
-	ret = _rbd_dev_v2_snap_size(rbd_dev, snap_id, NULL, &size);
-	if (ret)
-		goto out_err;
-
-	ret = _rbd_dev_v2_snap_features(rbd_dev, snap_id, &features);
-	if (ret)
-		goto out_err;
-
-	snap_name = rbd_dev_v2_snap_name(rbd_dev, snap_id);
-	if (!IS_ERR(snap_name)) {
-		*snap_size = size;
-		*snap_features = features;
-	}
-
-	return snap_name;
-out_err:
-	return ERR_PTR(ret);
-}
-
-static const char *rbd_dev_snap_info(struct rbd_device *rbd_dev,
-		u64 snap_id, u64 *snap_size, u64 *snap_features)
-{
-	if (rbd_dev->image_format == 1)
-		return rbd_dev_v1_snap_info(rbd_dev, snap_id,
-					snap_size, snap_features);
-	if (rbd_dev->image_format == 2)
-		return rbd_dev_v2_snap_info(rbd_dev, snap_id,
-					snap_size, snap_features);
-	return ERR_PTR(-EINVAL);
-}
-
 static int rbd_dev_v2_refresh(struct rbd_device *rbd_dev)
 {
 	int ret;
@@ -4119,137 +4000,8 @@ static int rbd_dev_v2_refresh(struct rbd_device *rbd_dev)
 	dout("rbd_dev_v2_snap_context returned %d\n", ret);
 	if (ret)
 		goto out;
-	ret = rbd_dev_snaps_update(rbd_dev);
-	dout("rbd_dev_snaps_update returned %d\n", ret);
-	if (ret)
-		goto out;
 out:
 	up_write(&rbd_dev->header_rwsem);
-
-	return ret;
-}
-
-/*
- * Scan the rbd device's current snapshot list and compare it to the
- * newly-received snapshot context.  Remove any existing snapshots
- * not present in the new snapshot context.  Add a new snapshot for
- * any snaphots in the snapshot context not in the current list.
- * And verify there are no changes to snapshots we already know
- * about.
- *
- * Assumes the snapshots in the snapshot context are sorted by
- * snapshot id, highest id first.  (Snapshots in the rbd_dev's list
- * are also maintained in that order.)
- *
- * Note that any error occurs while updating the snapshot list
- * aborts the update, and the entire list is cleared.  The snapshot
- * list becomes inconsistent at that point anyway, so it might as
- * well be empty.
- */
-static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
-{
-	struct ceph_snap_context *snapc = rbd_dev->header.snapc;
-	const u32 snap_count = snapc->num_snaps;
-	struct list_head *head = &rbd_dev->snaps;
-	struct list_head *links = head->next;
-	u32 index = 0;
-	int ret = 0;
-
-	dout("%s: snap count is %u\n", __func__, (unsigned int)snap_count);
-	while (index < snap_count || links != head) {
-		u64 snap_id;
-		struct rbd_snap *snap;
-		const char *snap_name;
-		u64 snap_size = 0;
-		u64 snap_features = 0;
-
-		snap_id = index < snap_count ? snapc->snaps[index]
-					     : CEPH_NOSNAP;
-		snap = links != head ? list_entry(links, struct rbd_snap, node)
-				     : NULL;
-		rbd_assert(!snap || snap->id != CEPH_NOSNAP);
-
-		if (snap_id == CEPH_NOSNAP || (snap && snap->id > snap_id)) {
-			struct list_head *next = links->next;
-
-			/*
-			 * A previously-existing snapshot is not in
-			 * the new snap context.
-			 *
-			 * If the now-missing snapshot is the one
-			 * the image represents, clear its existence
-			 * flag so we can avoid sending any more
-			 * requests to it.
-			 */
-			if (rbd_dev->spec->snap_id == snap->id)
-				clear_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
-			dout("removing %ssnap id %llu\n",
-				rbd_dev->spec->snap_id == snap->id ?
-							"mapped " : "",
-				(unsigned long long)snap->id);
-
-			list_del(&snap->node);
-			rbd_snap_destroy(snap);
-
-			/* Done with this list entry; advance */
-
-			links = next;
-			continue;
-		}
-
-		snap_name = rbd_dev_snap_info(rbd_dev, snap_id,
-					&snap_size, &snap_features);
-		if (IS_ERR(snap_name)) {
-			ret = PTR_ERR(snap_name);
-			dout("failed to get snap info, error %d\n", ret);
-			goto out_err;
-		}
-
-		dout("entry %u: snap_id = %llu\n", (unsigned int)snap_count,
-			(unsigned long long)snap_id);
-		if (!snap || (snap_id != CEPH_NOSNAP && snap->id < snap_id)) {
-			struct rbd_snap *new_snap;
-
-			/* We haven't seen this snapshot before */
-
-			new_snap = rbd_snap_create(rbd_dev, snap_name,
-					snap_id, snap_size, snap_features);
-			if (IS_ERR(new_snap)) {
-				ret = PTR_ERR(new_snap);
-				dout("  failed to add dev, error %d\n", ret);
-				goto out_err;
-			}
-
-			/* New goes before existing, or at end of list */
-
-			dout("  added dev%s\n", snap ? "" : " at end\n");
-			if (snap)
-				list_add_tail(&new_snap->node, &snap->node);
-			else
-				list_add_tail(&new_snap->node, head);
-		} else {
-			/* Already have this one */
-
-			dout("  already present\n");
-
-			rbd_assert(snap->size == snap_size);
-			rbd_assert(!strcmp(snap->name, snap_name));
-			rbd_assert(snap->features == snap_features);
-
-			/* Done with this list entry; advance */
-
-			links = links->next;
-		}
-
-		/* Advance to the next entry in the snapshot context */
-
-		index++;
-	}
-	dout("%s: done\n", __func__);
-
-	return 0;
-out_err:
-	rbd_remove_all_snaps(rbd_dev);
 
 	return ret;
 }
@@ -4913,7 +4665,6 @@ static void rbd_dev_image_release(struct rbd_device *rbd_dev)
 {
 	int ret;
 
-	rbd_remove_all_snaps(rbd_dev);
 	rbd_dev_unprobe(rbd_dev);
 	ret = rbd_dev_header_watch_sync(rbd_dev, 0);
 	if (ret)
@@ -4963,20 +4714,14 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev)
 	if (ret)
 		goto err_out_watch;
 
-	ret = rbd_dev_snaps_update(rbd_dev);
-	if (ret)
-		goto err_out_probe;
-
 	ret = rbd_dev_spec_update(rbd_dev);
 	if (ret)
-		goto err_out_snaps;
+		goto err_out_probe;
 
 	ret = rbd_dev_probe_parent(rbd_dev);
 	if (!ret)
 		return 0;
 
-err_out_snaps:
-	rbd_remove_all_snaps(rbd_dev);
 err_out_probe:
 	rbd_dev_unprobe(rbd_dev);
 err_out_watch:
