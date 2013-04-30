@@ -325,8 +325,7 @@ int ovs_vport_get_options(const struct vport *vport, struct sk_buff *skb)
  * @skb: skb that was received
  *
  * Must be called with rcu_read_lock.  The packet cannot be shared and
- * skb->data should point to the Ethernet header.  The caller must have already
- * called compute_ip_summed() to initialize the checksumming fields.
+ * skb->data should point to the Ethernet header.
  */
 void ovs_vport_receive(struct vport *vport, struct sk_buff *skb)
 {

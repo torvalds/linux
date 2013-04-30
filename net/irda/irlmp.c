@@ -66,7 +66,14 @@ const char *irlmp_reasons[] = {
 	"LM_LAP_RESET",
 	"LM_INIT_DISCONNECT",
 	"ERROR, NOT USED",
+	"UNKNOWN",
 };
+
+const char *irlmp_reason_str(LM_REASON reason)
+{
+	reason = min_t(size_t, reason, ARRAY_SIZE(irlmp_reasons) - 1);
+	return irlmp_reasons[reason];
+}
 
 /*
  * Function irlmp_init (void)
@@ -747,7 +754,8 @@ void irlmp_disconnect_indication(struct lsap_cb *self, LM_REASON reason,
 {
 	struct lsap_cb *lsap;
 
-	IRDA_DEBUG(1, "%s(), reason=%s\n", __func__, irlmp_reasons[reason]);
+	IRDA_DEBUG(1, "%s(), reason=%s [%d]\n", __func__,
+		   irlmp_reason_str(reason), reason);
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == LMP_LSAP_MAGIC, return;);
 

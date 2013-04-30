@@ -134,7 +134,6 @@ static const struct key_entry hp_wmi_keymap[] = {
 	{ KE_KEY, 0x2142, { KEY_MEDIA } },
 	{ KE_KEY, 0x213b, { KEY_INFO } },
 	{ KE_KEY, 0x2169, { KEY_DIRECTION } },
-	{ KE_KEY, 0x216a, { KEY_SETUP } },
 	{ KE_KEY, 0x231b, { KEY_HELP } },
 	{ KE_END, 0 }
 };
@@ -925,9 +924,6 @@ static int __init hp_wmi_init(void)
 		err = hp_wmi_input_setup();
 		if (err)
 			return err;
-		
-		//Enable magic for hotkeys that run on the SMBus
-		ec_write(0xe6,0x6e);
 	}
 
 	if (bios_capable) {

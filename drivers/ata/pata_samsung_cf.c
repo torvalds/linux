@@ -661,18 +661,7 @@ static struct platform_driver pata_s3c_driver = {
 	},
 };
 
-static int __init pata_s3c_init(void)
-{
-	return platform_driver_probe(&pata_s3c_driver, pata_s3c_probe);
-}
-
-static void __exit pata_s3c_exit(void)
-{
-	platform_driver_unregister(&pata_s3c_driver);
-}
-
-module_init(pata_s3c_init);
-module_exit(pata_s3c_exit);
+module_platform_driver_probe(pata_s3c_driver, pata_s3c_probe);
 
 MODULE_AUTHOR("Abhilash Kesavan, <a.kesavan@samsung.com>");
 MODULE_DESCRIPTION("low-level driver for Samsung PATA controller");

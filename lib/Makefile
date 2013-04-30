@@ -174,3 +174,5 @@ quiet_cmd_build_OID_registry = GEN     $@
       cmd_build_OID_registry = perl $(srctree)/$(src)/build_OID_registry $< $@
 
 clean-files	+= oid_registry_data.c
+
+obj-$(CONFIG_UCS2_STRING) += ucs2_string.o

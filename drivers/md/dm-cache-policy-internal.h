@@ -117,6 +117,8 @@ void dm_cache_policy_destroy(struct dm_cache_policy *p);
  */
 const char *dm_cache_policy_get_name(struct dm_cache_policy *p);
 
+const unsigned *dm_cache_policy_get_version(struct dm_cache_policy *p);
+
 size_t dm_cache_policy_get_hint_size(struct dm_cache_policy *p);
 
 /*----------------------------------------------------------------*/

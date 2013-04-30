@@ -79,10 +79,10 @@ static bool access_dcsw(struct kvm_vcpu *vcpu,
 	u32 val;
 	int cpu;
 
-	cpu = get_cpu();
-
 	if (!p->is_write)
 		return read_from_write_only(vcpu, p);
+
+	cpu = get_cpu();
 
 	cpumask_setall(&vcpu->arch.require_dcache_flush);
 	cpumask_clear_cpu(cpu, &vcpu->arch.require_dcache_flush);

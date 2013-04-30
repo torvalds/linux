@@ -2159,6 +2159,10 @@ map_skb:
 		                                  skb->data,
 		                                  adapter->rx_buffer_len,
 						  DMA_FROM_DEVICE);
+		if (dma_mapping_error(&pdev->dev, buffer_info->dma)) {
+			adapter->alloc_rx_buff_failed++;
+			break;
+		}
 
 		rx_desc = IXGB_RX_DESC(*rx_ring, i);
 		rx_desc->buff_addr = cpu_to_le64(buffer_info->dma);
@@ -2168,7 +2172,8 @@ map_skb:
 		rx_desc->status = 0;
 
 
-		if (++i == rx_ring->count) i = 0;
+		if (++i == rx_ring->count)
+			i = 0;
 		buffer_info = &rx_ring->buffer_info[i];
 	}
 

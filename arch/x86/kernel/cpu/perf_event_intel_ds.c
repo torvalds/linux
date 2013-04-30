@@ -314,10 +314,11 @@ int intel_pmu_drain_bts_buffer(void)
 	if (top <= at)
 		return 0;
 
+	memset(&regs, 0, sizeof(regs));
+
 	ds->bts_index = ds->bts_buffer_base;
 
 	perf_sample_data_init(&data, 0, event->hw.last_period);
-	regs.ip     = 0;
 
 	/*
 	 * Prepare a generic sample, i.e. fill in the invariant fields.

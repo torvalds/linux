@@ -345,6 +345,53 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	return NETDEV_TX_OK;
 }
 
+/* Init RX & TX buffer descriptors
+ */
+static void fec_enet_bd_init(struct net_device *dev)
+{
+	struct fec_enet_private *fep = netdev_priv(dev);
+	struct bufdesc *bdp;
+	unsigned int i;
+
+	/* Initialize the receive buffer descriptors. */
+	bdp = fep->rx_bd_base;
+	for (i = 0; i < RX_RING_SIZE; i++) {
+
+		/* Initialize the BD for every fragment in the page. */
+		if (bdp->cbd_bufaddr)
+			bdp->cbd_sc = BD_ENET_RX_EMPTY;
+		else
+			bdp->cbd_sc = 0;
+		bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
+	}
+
+	/* Set the last buffer to wrap */
+	bdp = fec_enet_get_prevdesc(bdp, fep->bufdesc_ex);
+	bdp->cbd_sc |= BD_SC_WRAP;
+
+	fep->cur_rx = fep->rx_bd_base;
+
+	/* ...and the same for transmit */
+	bdp = fep->tx_bd_base;
+	fep->cur_tx = bdp;
+	for (i = 0; i < TX_RING_SIZE; i++) {
+
+		/* Initialize the BD for every fragment in the page. */
+		bdp->cbd_sc = 0;
+		if (bdp->cbd_bufaddr && fep->tx_skbuff[i]) {
+			dev_kfree_skb_any(fep->tx_skbuff[i]);
+			fep->tx_skbuff[i] = NULL;
+		}
+		bdp->cbd_bufaddr = 0;
+		bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
+	}
+
+	/* Set the last buffer to wrap */
+	bdp = fec_enet_get_prevdesc(bdp, fep->bufdesc_ex);
+	bdp->cbd_sc |= BD_SC_WRAP;
+	fep->dirty_tx = bdp;
+}
+
 /* This function is called to start or restart the FEC during a link
  * change.  This only happens when switching between half and full
  * duplex.
@@ -388,6 +435,8 @@ fec_restart(struct net_device *ndev, int duplex)
 	/* Set maximum receive buffer size. */
 	writel(PKT_MAXBLR_SIZE, fep->hwp + FEC_R_BUFF_SIZE);
 
+	fec_enet_bd_init(ndev);
+
 	/* Set receive and transmit descriptor base. */
 	writel(fep->bd_dma, fep->hwp + FEC_R_DES_START);
 	if (fep->bufdesc_ex)
@@ -397,7 +446,6 @@ fec_restart(struct net_device *ndev, int duplex)
 		writel((unsigned long)fep->bd_dma + sizeof(struct bufdesc)
 			* RX_RING_SIZE,	fep->hwp + FEC_X_DES_START);
 
-	fep->cur_rx = fep->rx_bd_base;
 
 	for (i = 0; i <= TX_RING_MOD_MASK; i++) {
 		if (fep->tx_skbuff[i]) {
@@ -934,24 +982,29 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 		goto spin_unlock;
 	}
 
-	/* Duplex link change */
 	if (phy_dev->link) {
-		if (fep->full_duplex != phy_dev->duplex) {
-			fec_restart(ndev, phy_dev->duplex);
-			/* prevent unnecessary second fec_restart() below */
+		if (!fep->link) {
 			fep->link = phy_dev->link;
 			status_change = 1;
 		}
-	}
 
-	/* Link on or off change */
-	if (phy_dev->link != fep->link) {
-		fep->link = phy_dev->link;
-		if (phy_dev->link)
+		if (fep->full_duplex != phy_dev->duplex)
+			status_change = 1;
+
+		if (phy_dev->speed != fep->speed) {
+			fep->speed = phy_dev->speed;
+			status_change = 1;
+		}
+
+		/* if any of the above changed restart the FEC */
+		if (status_change)
 			fec_restart(ndev, phy_dev->duplex);
-		else
+	} else {
+		if (fep->link) {
 			fec_stop(ndev);
-		status_change = 1;
+			fep->link = phy_dev->link;
+			status_change = 1;
+		}
 	}
 
 spin_unlock:
@@ -1328,7 +1381,7 @@ static int fec_enet_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 static void fec_enet_free_buffers(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	int i;
+	unsigned int i;
 	struct sk_buff *skb;
 	struct bufdesc	*bdp;
 
@@ -1352,7 +1405,7 @@ static void fec_enet_free_buffers(struct net_device *ndev)
 static int fec_enet_alloc_buffers(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	int i;
+	unsigned int i;
 	struct sk_buff *skb;
 	struct bufdesc	*bdp;
 
@@ -1437,6 +1490,7 @@ fec_enet_close(struct net_device *ndev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
 	/* Don't know what to do yet. */
+	napi_disable(&fep->napi);
 	fep->opened = 0;
 	netif_stop_queue(ndev);
 	fec_stop(ndev);
@@ -1592,8 +1646,6 @@ static int fec_enet_init(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	struct bufdesc *cbd_base;
-	struct bufdesc *bdp;
-	int i;
 
 	/* Allocate memory for buffer descriptors. */
 	cbd_base = dma_alloc_coherent(NULL, PAGE_SIZE, &fep->bd_dma,
@@ -1603,6 +1655,7 @@ static int fec_enet_init(struct net_device *ndev)
 		return -ENOMEM;
 	}
 
+	memset(cbd_base, 0, PAGE_SIZE);
 	spin_lock_init(&fep->hw_lock);
 
 	fep->netdev = ndev;
@@ -1625,35 +1678,6 @@ static int fec_enet_init(struct net_device *ndev)
 
 	writel(FEC_RX_DISABLED_IMASK, fep->hwp + FEC_IMASK);
 	netif_napi_add(ndev, &fep->napi, fec_enet_rx_napi, FEC_NAPI_WEIGHT);
-
-	/* Initialize the receive buffer descriptors. */
-	bdp = fep->rx_bd_base;
-	for (i = 0; i < RX_RING_SIZE; i++) {
-
-		/* Initialize the BD for every fragment in the page. */
-		bdp->cbd_sc = 0;
-		bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
-	}
-
-	/* Set the last buffer to wrap */
-	bdp = fec_enet_get_prevdesc(bdp, fep->bufdesc_ex);
-	bdp->cbd_sc |= BD_SC_WRAP;
-
-	/* ...and the same for transmit */
-	bdp = fep->tx_bd_base;
-	fep->cur_tx = bdp;
-	for (i = 0; i < TX_RING_SIZE; i++) {
-
-		/* Initialize the BD for every fragment in the page. */
-		bdp->cbd_sc = 0;
-		bdp->cbd_bufaddr = 0;
-		bdp = fec_enet_get_nextdesc(bdp, fep->bufdesc_ex);
-	}
-
-	/* Set the last buffer to wrap */
-	bdp = fec_enet_get_prevdesc(bdp, fep->bufdesc_ex);
-	bdp->cbd_sc |= BD_SC_WRAP;
-	fep->dirty_tx = bdp;
 
 	fec_restart(ndev, 0);
 
