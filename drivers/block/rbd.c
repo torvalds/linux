@@ -433,6 +433,8 @@ static void rbd_dev_remove_parent(struct rbd_device *rbd_dev);
 
 static int rbd_dev_refresh(struct rbd_device *rbd_dev);
 static int rbd_dev_v2_refresh(struct rbd_device *rbd_dev);
+static const char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev,
+					u64 snap_id);
 
 static int rbd_open(struct block_device *bdev, fmode_t mode)
 {
@@ -838,18 +840,27 @@ static u32 rbd_dev_snap_index(struct rbd_device *rbd_dev, u64 snap_id)
 	return BAD_SNAP_INDEX;
 }
 
+static const char *rbd_dev_v1_snap_name(struct rbd_device *rbd_dev, u64 snap_id)
+{
+	u32 which;
+
+	which = rbd_dev_snap_index(rbd_dev, snap_id);
+	if (which == BAD_SNAP_INDEX)
+		return NULL;
+
+	return _rbd_dev_v1_snap_name(rbd_dev, which);
+}
+
 static const char *rbd_snap_name(struct rbd_device *rbd_dev, u64 snap_id)
 {
-	struct rbd_snap *snap;
-
 	if (snap_id == CEPH_NOSNAP)
 		return RBD_SNAP_HEAD_NAME;
 
-	list_for_each_entry(snap, &rbd_dev->snaps, node)
-		if (snap_id == snap->id)
-			return snap->name;
+	rbd_assert(rbd_image_format_valid(rbd_dev->image_format));
+	if (rbd_dev->image_format == 1)
+		return rbd_dev_v1_snap_name(rbd_dev, snap_id);
 
-	return NULL;
+	return rbd_dev_v2_snap_name(rbd_dev, snap_id);
 }
 
 static struct rbd_snap *snap_by_name(struct rbd_device *rbd_dev,
@@ -3446,11 +3457,15 @@ static struct rbd_snap *rbd_snap_create(struct rbd_device *rbd_dev,
  * Returns a dynamically-allocated snapshot name if successful, or a
  * pointer-coded error otherwise.
  */
-static const char *rbd_dev_v1_snap_info(struct rbd_device *rbd_dev, u32 which,
-		u64 *snap_size, u64 *snap_features)
+static const char *rbd_dev_v1_snap_info(struct rbd_device *rbd_dev,
+			u64 snap_id, u64 *snap_size, u64 *snap_features)
 {
 	const char *snap_name;
+	u32 which;
 
+	which = rbd_dev_snap_index(rbd_dev, snap_id);
+	if (which == BAD_SNAP_INDEX)
+		return ERR_PTR(-ENOENT);
 	snap_name = _rbd_dev_v1_snap_name(rbd_dev, which);
 	if (!snap_name)
 		return ERR_PTR(-ENOMEM);
@@ -3816,12 +3831,6 @@ static int rbd_dev_spec_update(struct rbd_device *rbd_dev)
 
 	snap_name = rbd_snap_name(rbd_dev, spec->snap_id);
 	if (!snap_name) {
-		rbd_warn(rbd_dev, "no snapshot with id %llu", spec->snap_id);
-		ret = -EIO;
-		goto out_err;
-	}
-	snap_name = kstrdup(snap_name, GFP_KERNEL);
-	if (!snap_name) {
 		ret = -ENOMEM;
 		goto out_err;
 	}
@@ -3909,11 +3918,12 @@ out:
 	return ret;
 }
 
-static const char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev, u32 which)
+static const char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev,
+					u64 snap_id)
 {
 	size_t size;
 	void *reply_buf;
-	__le64 snap_id;
+	__le64 snapid;
 	int ret;
 	void *p;
 	void *end;
@@ -3924,11 +3934,10 @@ static const char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev, u32 which)
 	if (!reply_buf)
 		return ERR_PTR(-ENOMEM);
 
-	rbd_assert(which < rbd_dev->header.snapc->num_snaps);
-	snap_id = cpu_to_le64(rbd_dev->header.snapc->snaps[which]);
+	snapid = cpu_to_le64(snap_id);
 	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_snapshot_name",
-				&snap_id, sizeof (snap_id),
+				&snapid, sizeof (snapid),
 				reply_buf, size);
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0) {
@@ -3943,24 +3952,21 @@ static const char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev, u32 which)
 		goto out;
 
 	dout("  snap_id 0x%016llx snap_name = %s\n",
-		(unsigned long long)le64_to_cpu(snap_id), snap_name);
+		(unsigned long long)snap_id, snap_name);
 out:
 	kfree(reply_buf);
 
 	return snap_name;
 }
 
-static const char *rbd_dev_v2_snap_info(struct rbd_device *rbd_dev, u32 which,
-		u64 *snap_size, u64 *snap_features)
+static const char *rbd_dev_v2_snap_info(struct rbd_device *rbd_dev,
+			u64 snap_id, u64 *snap_size, u64 *snap_features)
 {
-	u64 snap_id;
 	u64 size;
 	u64 features;
 	const char *snap_name;
 	int ret;
 
-	rbd_assert(which < rbd_dev->header.snapc->num_snaps);
-	snap_id = rbd_dev->header.snapc->snaps[which];
 	ret = _rbd_dev_v2_snap_size(rbd_dev, snap_id, NULL, &size);
 	if (ret)
 		goto out_err;
@@ -3969,7 +3975,7 @@ static const char *rbd_dev_v2_snap_info(struct rbd_device *rbd_dev, u32 which,
 	if (ret)
 		goto out_err;
 
-	snap_name = rbd_dev_v2_snap_name(rbd_dev, which);
+	snap_name = rbd_dev_v2_snap_name(rbd_dev, snap_id);
 	if (!IS_ERR(snap_name)) {
 		*snap_size = size;
 		*snap_features = features;
@@ -3980,14 +3986,14 @@ out_err:
 	return ERR_PTR(ret);
 }
 
-static const char *rbd_dev_snap_info(struct rbd_device *rbd_dev, u32 which,
-		u64 *snap_size, u64 *snap_features)
+static const char *rbd_dev_snap_info(struct rbd_device *rbd_dev,
+		u64 snap_id, u64 *snap_size, u64 *snap_features)
 {
 	if (rbd_dev->image_format == 1)
-		return rbd_dev_v1_snap_info(rbd_dev, which,
+		return rbd_dev_v1_snap_info(rbd_dev, snap_id,
 					snap_size, snap_features);
 	if (rbd_dev->image_format == 2)
-		return rbd_dev_v2_snap_info(rbd_dev, which,
+		return rbd_dev_v2_snap_info(rbd_dev, snap_id,
 					snap_size, snap_features);
 	return ERR_PTR(-EINVAL);
 }
@@ -4085,7 +4091,7 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 			continue;
 		}
 
-		snap_name = rbd_dev_snap_info(rbd_dev, index,
+		snap_name = rbd_dev_snap_info(rbd_dev, snap_id,
 					&snap_size, &snap_features);
 		if (IS_ERR(snap_name)) {
 			ret = PTR_ERR(snap_name);
