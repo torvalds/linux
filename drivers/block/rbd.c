@@ -225,7 +225,6 @@ struct rbd_obj_request {
 	struct ceph_osd_request	*osd_req;
 
 	u64			xferred;	/* bytes transferred */
-	u64			version;
 	int			result;
 
 	rbd_obj_callback_t	callback;
@@ -1486,7 +1485,6 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req,
 
 	if (osd_req->r_result < 0)
 		obj_request->result = osd_req->r_result;
-	obj_request->version = le64_to_cpu(osd_req->r_reassert_version.version);
 
 	BUG_ON(osd_req->r_num_ops > 2);
 
