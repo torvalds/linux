@@ -61,6 +61,8 @@ struct arch_timer_cpu {
 #ifdef CONFIG_KVM_ARM_TIMER
 int kvm_timer_hyp_init(void);
 int kvm_timer_init(struct kvm *kvm);
+void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
+			  const struct kvm_irq_level *irq);
 void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu);
 void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu);
 void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu);
@@ -76,6 +78,8 @@ static inline int kvm_timer_init(struct kvm *kvm)
 	return 0;
 }
 
+static inline void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
+					const struct kvm_irq_level *irq) {}
 static inline void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu) {}
 static inline void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu) {}
 static inline void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu) {}
