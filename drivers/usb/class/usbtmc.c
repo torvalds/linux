@@ -31,6 +31,8 @@
 #include <linux/usb/tmc.h>
 
 
+#define RIGOL			1
+#define USBTMC_HEADER_SIZE	12
 #define USBTMC_MINOR_BASE	176
 
 /*
@@ -84,6 +86,8 @@ struct usbtmc_device_data {
 	u8 bTag_last_write;	/* needed for abort */
 	u8 bTag_last_read;	/* needed for abort */
 
+	u8 rigol_quirk;
+
 	/* attributes from the USB TMC spec for this device */
 	u8 TermChar;
 	bool TermCharEnabled;
@@ -96,6 +100,16 @@ struct usbtmc_device_data {
 	struct mutex io_mutex;	/* only one i/o function running at a time */
 };
 #define to_usbtmc_data(d) container_of(d, struct usbtmc_device_data, kref)
+
+struct usbtmc_ID_rigol_quirk {
+	__u16 idVendor;
+	__u16 idProduct;
+};
+
+static const struct usbtmc_ID_rigol_quirk usbtmc_id_quirk[] = {
+	{ 0x1ab1, 0x0588 },
+	{ 0, 0 }
+};
 
 /* Forward declarations */
 static struct usb_driver usbtmc_driver;
