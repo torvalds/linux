@@ -497,6 +497,7 @@ void show_regs(struct pt_regs *regs)
 	int loop;
 
 	printk("\n");
+	show_regs_print_info(KERN_DEFAULT);
 
 	printk("Frame: @%08lx [%s]\n",
 	       (unsigned long) regs,
@@ -511,8 +512,6 @@ void show_regs(struct pt_regs *regs)
 		else
 			printk(" | ");
 	}
-
-	printk("Process %s (pid: %d)\n", current->comm, current->pid);
 }
 
 void die_if_kernel(const char *str, ...)

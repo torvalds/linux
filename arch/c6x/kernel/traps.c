@@ -31,6 +31,7 @@ void __init trap_init(void)
 void show_regs(struct pt_regs *regs)
 {
 	pr_err("\n");
+	show_regs_print_info(KERN_ERR);
 	pr_err("PC: %08lx SP: %08lx\n", regs->pc, regs->sp);
 	pr_err("Status: %08lx ORIG_A4: %08lx\n", regs->csr, regs->orig_a4);
 	pr_err("A0: %08lx  B0: %08lx\n", regs->a0, regs->b0);

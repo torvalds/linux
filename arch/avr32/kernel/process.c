@@ -215,6 +215,8 @@ void show_regs_log_lvl(struct pt_regs *regs, const char *log_lvl)
 	unsigned long lr = regs->lr;
 	unsigned long mode = (regs->sr & MODE_MASK) >> MODE_SHIFT;
 
+	show_regs_print_info(log_lvl);
+
 	if (!user_mode(regs)) {
 		sp = (unsigned long)regs + FRAME_SIZE_FULL;
 
@@ -252,9 +254,6 @@ void show_regs_log_lvl(struct pt_regs *regs, const char *log_lvl)
 	       regs->sr & SR_I0M ? '0' : '.',
 	       regs->sr & SR_GM ? 'G' : 'g');
 	printk("%sCPU Mode: %s\n", log_lvl, cpu_modes[mode]);
-	printk("%sProcess: %s [%d] (task: %p thread: %p)\n",
-	       log_lvl, current->comm, current->pid, current,
-	       task_thread_info(current));
 }
 
 void show_regs(struct pt_regs *regs)

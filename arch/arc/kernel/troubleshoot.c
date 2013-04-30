@@ -163,6 +163,7 @@ void show_regs(struct pt_regs *regs)
 		return;
 
 	print_task_path_n_nm(tsk, buf);
+	show_regs_print_info(KERN_INFO);
 
 	if (current->thread.cause_code)
 		show_ecr_verbose(regs);

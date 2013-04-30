@@ -383,6 +383,8 @@ void show_regs(struct pt_regs * regs)
 {
 	int i, wmask;
 
+	show_regs_print_info(KERN_DEFAULT);
+
 	wmask = regs->wmask & ~1;
 
 	for (i = 0; i < 16; i++) {
