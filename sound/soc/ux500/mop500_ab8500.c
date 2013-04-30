@@ -125,9 +125,9 @@ static int mop500_ab8500_set_mclk(struct device *dev,
 static int mclk_input_control_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	struct mop500_ab8500_drvdata *drvdata =
-				snd_soc_card_get_drvdata(codec->card);
+				snd_soc_card_get_drvdata(card);
 
 	ucontrol->value.enumerated.item[0] = drvdata->mclk_sel;
 
@@ -137,9 +137,9 @@ static int mclk_input_control_get(struct snd_kcontrol *kcontrol,
 static int mclk_input_control_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	struct mop500_ab8500_drvdata *drvdata =
-				snd_soc_card_get_drvdata(codec->card);
+				snd_soc_card_get_drvdata(card);
 	unsigned int val = ucontrol->value.enumerated.item[0];
 
 	if (val > (unsigned int)MCLK_ULPCLK)
@@ -385,7 +385,7 @@ int mop500_ab8500_machine_init(struct snd_soc_pcm_runtime *rtd)
 	drvdata->mclk_sel = MCLK_ULPCLK;
 
 	/* Add controls */
-	ret = snd_soc_add_codec_controls(codec, mop500_ab8500_ctrls,
+	ret = snd_soc_add_card_controls(codec->card, mop500_ab8500_ctrls,
 			ARRAY_SIZE(mop500_ab8500_ctrls));
 	if (ret < 0) {
 		pr_err("%s: Failed to add machine-controls (%d)!\n",
