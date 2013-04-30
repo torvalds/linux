@@ -176,7 +176,19 @@ void show_trace(struct task_struct *task, struct pt_regs *regs,
 
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
-	show_stack_log_lvl(task, NULL, sp, 0, "");
+	unsigned long bp = 0;
+	unsigned long stack;
+
+	/*
+	 * Stack frames below this one aren't interesting.  Don't show them
+	 * if we're printing for %current.
+	 */
+	if (!sp && (!task || task == current)) {
+		sp = &stack;
+		bp = stack_frame(current, NULL);
+	}
+
+	show_stack_log_lvl(task, NULL, sp, bp, "");
 }
 
 /*
