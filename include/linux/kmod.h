@@ -67,9 +67,7 @@ struct subprocess_info {
 };
 
 extern int
-call_usermodehelper_fns(char *path, char **argv, char **envp, int wait,
-			int (*init)(struct subprocess_info *info, struct cred *new),
-			void (*cleanup)(struct subprocess_info *), void *data);
+call_usermodehelper(char *path, char **argv, char **envp, int wait);
 
 extern struct subprocess_info *
 call_usermodehelper_setup(char *path, char **argv, char **envp, gfp_t gfp_mask,
@@ -78,13 +76,6 @@ call_usermodehelper_setup(char *path, char **argv, char **envp, gfp_t gfp_mask,
 
 extern int
 call_usermodehelper_exec(struct subprocess_info *info, int wait);
-
-static inline int
-call_usermodehelper(char *path, char **argv, char **envp, int wait)
-{
-	return call_usermodehelper_fns(path, argv, envp, wait,
-				       NULL, NULL, NULL);
-}
 
 extern struct ctl_table usermodehelper_table[];
 
