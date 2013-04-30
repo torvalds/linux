@@ -1,6 +1,7 @@
 #include <linux/efi.h>
 #include <linux/module.h>
 #include <linux/pstore.h>
+#include <linux/ucs2_string.h>
 
 #define DUMP_NAME_LEN 52
 
@@ -140,15 +141,15 @@ static int efi_pstore_erase_func(struct efivar_entry *entry, void *data)
 	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
 	efi_char16_t efi_name_old[DUMP_NAME_LEN];
 	efi_char16_t *efi_name = ed->name;
-	unsigned long utf16_len = utf16_strlen(ed->name);
+	unsigned long ucs2_len = ucs2_strlen(ed->name);
 	char name_old[DUMP_NAME_LEN];
 	int i;
 
 	if (efi_guidcmp(entry->var.VendorGuid, vendor))
 		return 0;
 
-	if (utf16_strncmp(entry->var.VariableName,
-			  efi_name, (size_t)utf16_len)) {
+	if (ucs2_strncmp(entry->var.VariableName,
+			  efi_name, (size_t)ucs2_len)) {
 		/*
 		 * Check if an old format, which doesn't support
 		 * holding multiple logs, remains.
@@ -159,8 +160,8 @@ static int efi_pstore_erase_func(struct efivar_entry *entry, void *data)
 		for (i = 0; i < DUMP_NAME_LEN; i++)
 			efi_name_old[i] = name_old[i];
 
-		if (utf16_strncmp(entry->var.VariableName, efi_name_old,
-				  utf16_strlen(efi_name_old)))
+		if (ucs2_strncmp(entry->var.VariableName, efi_name_old,
+				  ucs2_strlen(efi_name_old)))
 			return 0;
 	}
 

@@ -32,6 +32,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
+#include <linux/ucs2_string.h>
 
 /* Private pointer to registered efivars */
 static struct efivars *__efivars;
@@ -91,7 +92,7 @@ validate_load_option(struct efi_variable *var, int match, u8 *buffer,
 	u16 filepathlength;
 	int i, desclength = 0, namelen;
 
-	namelen = utf16_strnlen(var->VariableName, sizeof(var->VariableName));
+	namelen = ucs2_strnlen(var->VariableName, sizeof(var->VariableName));
 
 	/* Either "Boot" or "Driver" followed by four digits of hex */
 	for (i = match; i < match+4; i++) {
@@ -114,7 +115,7 @@ validate_load_option(struct efi_variable *var, int match, u8 *buffer,
 	 * There's no stored length for the description, so it has to be
 	 * found by hand
 	 */
-	desclength = utf16_strsize((efi_char16_t *)(buffer + 6), len - 6) + 2;
+	desclength = ucs2_strsize((efi_char16_t *)(buffer + 6), len - 6) + 2;
 
 	/* Each boot entry must have a descriptor */
 	if (!desclength)
@@ -228,24 +229,12 @@ EXPORT_SYMBOL_GPL(efivar_validate);
 static efi_status_t
 check_var_size(u32 attributes, unsigned long size)
 {
-	u64 storage_size, remaining_size, max_size;
-	efi_status_t status;
 	const struct efivar_operations *fops = __efivars->ops;
 
-	if (!fops->query_variable_info)
+	if (!fops->query_variable_store)
 		return EFI_UNSUPPORTED;
 
-	status = fops->query_variable_info(attributes, &storage_size,
-					   &remaining_size, &max_size);
-
-	if (status != EFI_SUCCESS)
-		return status;
-
-	if (!storage_size || size > remaining_size || size > max_size ||
-	    (remaining_size - size) < (storage_size / 2))
-		return EFI_OUT_OF_RESOURCES;
-
-	return status;
+	return fops->query_variable_store(attributes, size);
 }
 
 static int efi_status_to_err(efi_status_t status)
@@ -288,9 +277,9 @@ static bool variable_is_present(efi_char16_t *variable_name, efi_guid_t *vendor,
 	unsigned long strsize1, strsize2;
 	bool found = false;
 
-	strsize1 = utf16_strsize(variable_name, 1024);
+	strsize1 = ucs2_strsize(variable_name, 1024);
 	list_for_each_entry_safe(entry, n, head, list) {
-		strsize2 = utf16_strsize(entry->var.VariableName, 1024);
+		strsize2 = ucs2_strsize(entry->var.VariableName, 1024);
 		if (strsize1 == strsize2 &&
 			!memcmp(variable_name, &(entry->var.VariableName),
 				strsize2) &&
@@ -594,7 +583,7 @@ int efivar_entry_set(struct efivar_entry *entry, u32 attributes,
 		return -EEXIST;
 	}
 
-	status = check_var_size(attributes, size + utf16_strsize(name, 1024));
+	status = check_var_size(attributes, size + ucs2_strsize(name, 1024));
 	if (status == EFI_SUCCESS || status == EFI_UNSUPPORTED)
 		status = ops->set_variable(name, &vendor,
 					   attributes, size, data);
@@ -630,7 +619,7 @@ int efivar_entry_set_safe(efi_char16_t *name, efi_guid_t vendor, u32 attributes,
 	unsigned long flags;
 	efi_status_t status;
 
-	if (!ops->query_variable_info)
+	if (!ops->query_variable_store)
 		return -ENOSYS;
 
 	if (!block && spin_trylock_irqsave(&__efivars->lock, flags))
@@ -638,7 +627,7 @@ int efivar_entry_set_safe(efi_char16_t *name, efi_guid_t vendor, u32 attributes,
 	else
 		spin_lock_irqsave(&__efivars->lock, flags);
 
-	status = check_var_size(attributes, size + utf16_strsize(name, 1024));
+	status = check_var_size(attributes, size + ucs2_strsize(name, 1024));
 	if (status != EFI_SUCCESS) {
 		spin_unlock_irqrestore(&__efivars->lock, flags);
 		return -ENOSPC;
@@ -679,8 +668,8 @@ struct efivar_entry *efivar_entry_find(efi_char16_t *name, efi_guid_t guid,
 	WARN_ON(!spin_is_locked(&__efivars->lock));
 
 	list_for_each_entry_safe(entry, n, head, list) {
-		strsize1 = utf16_strsize(name, 1024);
-		strsize2 = utf16_strsize(entry->var.VariableName, 1024);
+		strsize1 = ucs2_strsize(name, 1024);
+		strsize2 = ucs2_strsize(entry->var.VariableName, 1024);
 		if (strsize1 == strsize2 &&
 		    !memcmp(name, &(entry->var.VariableName), strsize1) &&
 		    !efi_guidcmp(guid, entry->var.VendorGuid)) {
@@ -818,7 +807,7 @@ int efivar_entry_set_get_size(struct efivar_entry *entry, u32 attributes,
 	/*
 	 * Ensure that the available space hasn't shrunk below the safe level
 	 */
-	status = check_var_size(attributes, *size + utf16_strsize(name, 1024));
+	status = check_var_size(attributes, *size + ucs2_strsize(name, 1024));
 	if (status != EFI_SUCCESS) {
 		if (status != EFI_UNSUPPORTED) {
 			err = efi_status_to_err(status);

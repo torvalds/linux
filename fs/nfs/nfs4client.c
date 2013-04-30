@@ -300,7 +300,7 @@ int nfs40_walk_client_list(struct nfs_client *new,
 			   struct rpc_cred *cred)
 {
 	struct nfs_net *nn = net_generic(new->cl_net, nfs_net_id);
-	struct nfs_client *pos, *n, *prev = NULL;
+	struct nfs_client *pos, *prev = NULL;
 	struct nfs4_setclientid_res clid = {
 		.clientid	= new->cl_clientid,
 		.confirm	= new->cl_confirm,
@@ -308,10 +308,23 @@ int nfs40_walk_client_list(struct nfs_client *new,
 	int status = -NFS4ERR_STALE_CLIENTID;
 
 	spin_lock(&nn->nfs_client_lock);
-	list_for_each_entry_safe(pos, n, &nn->nfs_client_list, cl_share_link) {
+	list_for_each_entry(pos, &nn->nfs_client_list, cl_share_link) {
 		/* If "pos" isn't marked ready, we can't trust the
 		 * remaining fields in "pos" */
-		if (pos->cl_cons_state < NFS_CS_READY)
+		if (pos->cl_cons_state > NFS_CS_READY) {
+			atomic_inc(&pos->cl_count);
+			spin_unlock(&nn->nfs_client_lock);
+
+			if (prev)
+				nfs_put_client(prev);
+			prev = pos;
+
+			status = nfs_wait_client_init_complete(pos);
+			spin_lock(&nn->nfs_client_lock);
+			if (status < 0)
+				continue;
+		}
+		if (pos->cl_cons_state != NFS_CS_READY)
 			continue;
 
 		if (pos->rpc_ops != new->rpc_ops)
@@ -423,16 +436,16 @@ int nfs41_walk_client_list(struct nfs_client *new,
 			   struct rpc_cred *cred)
 {
 	struct nfs_net *nn = net_generic(new->cl_net, nfs_net_id);
-	struct nfs_client *pos, *n, *prev = NULL;
+	struct nfs_client *pos, *prev = NULL;
 	int status = -NFS4ERR_STALE_CLIENTID;
 
 	spin_lock(&nn->nfs_client_lock);
-	list_for_each_entry_safe(pos, n, &nn->nfs_client_list, cl_share_link) {
+	list_for_each_entry(pos, &nn->nfs_client_list, cl_share_link) {
 		/* If "pos" isn't marked ready, we can't trust the
 		 * remaining fields in "pos", especially the client
 		 * ID and serverowner fields.  Wait for CREATE_SESSION
 		 * to finish. */
-		if (pos->cl_cons_state < NFS_CS_READY) {
+		if (pos->cl_cons_state > NFS_CS_READY) {
 			atomic_inc(&pos->cl_count);
 			spin_unlock(&nn->nfs_client_lock);
 
@@ -440,18 +453,17 @@ int nfs41_walk_client_list(struct nfs_client *new,
 				nfs_put_client(prev);
 			prev = pos;
 
-			nfs4_schedule_lease_recovery(pos);
 			status = nfs_wait_client_init_complete(pos);
-			if (status < 0) {
-				nfs_put_client(pos);
-				spin_lock(&nn->nfs_client_lock);
-				continue;
+			if (status == 0) {
+				nfs4_schedule_lease_recovery(pos);
+				status = nfs4_wait_clnt_recover(pos);
 			}
-			status = pos->cl_cons_state;
 			spin_lock(&nn->nfs_client_lock);
 			if (status < 0)
 				continue;
 		}
+		if (pos->cl_cons_state != NFS_CS_READY)
+			continue;
 
 		if (pos->rpc_ops != new->rpc_ops)
 			continue;
@@ -469,17 +481,18 @@ int nfs41_walk_client_list(struct nfs_client *new,
 			continue;
 
 		atomic_inc(&pos->cl_count);
-		spin_unlock(&nn->nfs_client_lock);
+		*result = pos;
+		status = 0;
 		dprintk("NFS: <-- %s using nfs_client = %p ({%d})\n",
 			__func__, pos, atomic_read(&pos->cl_count));
-
-		*result = pos;
-		return 0;
+		break;
 	}
 
 	/* No matching nfs_client found. */
 	spin_unlock(&nn->nfs_client_lock);
 	dprintk("NFS: <-- %s status = %d\n", __func__, status);
+	if (prev)
+		nfs_put_client(prev);
 	return status;
 }
 #endif	/* CONFIG_NFS_V4_1 */

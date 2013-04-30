@@ -1886,7 +1886,13 @@ again:
 			status = PTR_ERR(clnt);
 			break;
 		}
-		clp->cl_rpcclient = clnt;
+		/* Note: this is safe because we haven't yet marked the
+		 * client as ready, so we are the only user of
+		 * clp->cl_rpcclient
+		 */
+		clnt = xchg(&clp->cl_rpcclient, clnt);
+		rpc_shutdown_client(clnt);
+		clnt = clp->cl_rpcclient;
 		goto again;
 
 	case -NFS4ERR_MINOR_VERS_MISMATCH:

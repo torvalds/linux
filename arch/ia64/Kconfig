@@ -110,6 +110,7 @@ config DMI
 
 config EFI
 	bool
+	select UCS2_STRING
 	default y
 
 config SCHED_OMIT_FRAME_POINTER

@@ -1690,7 +1690,7 @@ static int do_loopback(struct path *path, const char *old_name,
 
 	if (IS_ERR(mnt)) {
 		err = PTR_ERR(mnt);
-		goto out;
+		goto out2;
 	}
 
 	err = graft_tree(mnt, path);

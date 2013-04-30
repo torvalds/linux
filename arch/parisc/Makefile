@@ -65,8 +65,10 @@ ifndef CONFIG_FUNCTION_TRACER
 endif
 
 # Use long jumps instead of long branches (needed if your linker fails to
-# link a too big vmlinux executable)
-cflags-$(CONFIG_MLONGCALLS)	+= -mlong-calls
+# link a too big vmlinux executable). Not enabled for building modules.
+ifdef CONFIG_MLONGCALLS
+KBUILD_CFLAGS_KERNEL += -mlong-calls
+endif
 
 # select which processor to optimise for
 cflags-$(CONFIG_PA7100)		+= -march=1.1 -mschedule=7100

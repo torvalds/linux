@@ -299,7 +299,7 @@ static void l2x0_unlock(u32 cache_id)
 	int lockregs;
 	int i;
 
-	switch (cache_id) {
+	switch (cache_id & L2X0_CACHE_ID_PART_MASK) {
 	case L2X0_CACHE_ID_PART_L310:
 		lockregs = 8;
 		break;
@@ -333,15 +333,14 @@ void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
 	if (cache_id_part_number_from_dt)
 		cache_id = cache_id_part_number_from_dt;
 	else
-		cache_id = readl_relaxed(l2x0_base + L2X0_CACHE_ID)
-			& L2X0_CACHE_ID_PART_MASK;
+		cache_id = readl_relaxed(l2x0_base + L2X0_CACHE_ID);
 	aux = readl_relaxed(l2x0_base + L2X0_AUX_CTRL);
 
 	aux &= aux_mask;
 	aux |= aux_val;
 
 	/* Determine the number of ways */
-	switch (cache_id) {
+	switch (cache_id & L2X0_CACHE_ID_PART_MASK) {
 	case L2X0_CACHE_ID_PART_L310:
 		if (aux & (1 << 16))
 			ways = 16;
@@ -725,7 +724,6 @@ static const struct l2x0_of_data pl310_data = {
 		.flush_all   = l2x0_flush_all,
 		.inv_all     = l2x0_inv_all,
 		.disable     = l2x0_disable,
-		.set_debug   = pl310_set_debug,
 	},
 };
 
@@ -814,9 +812,8 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 		data->save();
 
 	of_init = true;
-	l2x0_init(l2x0_base, aux_val, aux_mask);
-
 	memcpy(&outer_cache, &data->outer_cache, sizeof(outer_cache));
+	l2x0_init(l2x0_base, aux_val, aux_mask);
 
 	return 0;
 }

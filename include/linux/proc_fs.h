@@ -117,6 +117,7 @@ struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 				const struct file_operations *proc_fops,
 				void *data);
 extern void remove_proc_entry(const char *name, struct proc_dir_entry *parent);
+extern int remove_proc_subtree(const char *name, struct proc_dir_entry *parent);
 
 struct pid_namespace;
 
@@ -202,6 +203,7 @@ static inline struct proc_dir_entry *proc_create_data(const char *name,
 	return NULL;
 }
 #define remove_proc_entry(name, parent) do {} while (0)
+#define remove_proc_subtree(name, parent) do {} while (0)
 
 static inline struct proc_dir_entry *proc_symlink(const char *name,
 		struct proc_dir_entry *parent,const char *dest) {return NULL;}

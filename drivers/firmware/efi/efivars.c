@@ -67,6 +67,7 @@
 
 #include <linux/efi.h>
 #include <linux/module.h>
+#include <linux/ucs2_string.h>
 
 #define EFIVARS_VERSION "0.08"
 #define EFIVARS_DATE "2004-May-17"
@@ -407,7 +408,7 @@ efivar_create_sysfs_entry(struct efivar_entry *new_var)
 	efi_char16_t *variable_name;
 
 	variable_name = new_var->var.VariableName;
-	variable_name_size = utf16_strlen(variable_name) * sizeof(efi_char16_t);
+	variable_name_size = ucs2_strlen(variable_name) * sizeof(efi_char16_t);
 
 	/*
 	 * Length of the variable bytes in ASCII, plus the '-' separator,
