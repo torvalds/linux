@@ -16,7 +16,6 @@
 #include <linux/hid.h>
 #include <linux/module.h>
 
-#include "usbhid/usbhid.h"
 #include "hid-ids.h"
 
 #if defined(CONFIG_LEDS_CLASS) || defined(CONFIG_LEDS_CLASS_MODULE)
@@ -132,7 +131,7 @@ static void steelseries_srws1_set_leds(struct hid_device *hdev, __u16 leds)
 	value[14] = 0x00;
 	value[15] = 0x00;
 
-	usbhid_submit_report(hdev, report, USB_DIR_OUT);
+	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
 
 	/* Note: LED change does not show on device until the device is read/polled */
 }
@@ -378,16 +377,5 @@ static struct hid_driver steelseries_srws1_driver = {
 	.report_fixup = steelseries_srws1_report_fixup
 };
 
-static int __init steelseries_srws1_init(void)
-{
-	return hid_register_driver(&steelseries_srws1_driver);
-}
-
-static void __exit steelseries_srws1_exit(void)
-{
-	hid_unregister_driver(&steelseries_srws1_driver);
-}
-
-module_init(steelseries_srws1_init);
-module_exit(steelseries_srws1_exit);
+module_hid_driver(steelseries_srws1_driver);
 MODULE_LICENSE("GPL");
