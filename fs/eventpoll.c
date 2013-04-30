@@ -745,11 +745,15 @@ static void ep_free(struct eventpoll *ep)
 	 * point we are sure no poll callbacks will be lingering around, and also by
 	 * holding "epmutex" we can be sure that no file cleanup code will hit
 	 * us during this operation. So we can avoid the lock on "ep->lock".
+	 * We do not need to lock ep->mtx, either, we only do it to prevent
+	 * a lockdep warning.
 	 */
+	mutex_lock(&ep->mtx);
 	while ((rbp = rb_first(&ep->rbr)) != NULL) {
 		epi = rb_entry(rbp, struct epitem, rbn);
 		ep_remove(ep, epi);
 	}
+	mutex_unlock(&ep->mtx);
 
 	mutex_unlock(&epmutex);
 	mutex_destroy(&ep->mtx);
