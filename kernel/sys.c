@@ -1857,7 +1857,6 @@ SYSCALL_DEFINE1(umask, int, mask)
 	return mask;
 }
 
-#ifdef CONFIG_CHECKPOINT_RESTORE
 static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 {
 	struct fd exe;
@@ -2051,17 +2050,12 @@ out:
 	return error;
 }
 
+#ifdef CONFIG_CHECKPOINT_RESTORE
 static int prctl_get_tid_address(struct task_struct *me, int __user **tid_addr)
 {
 	return put_user(me->clear_child_tid, tid_addr);
 }
-
-#else /* CONFIG_CHECKPOINT_RESTORE */
-static int prctl_set_mm(int opt, unsigned long addr,
-			unsigned long arg4, unsigned long arg5)
-{
-	return -EINVAL;
-}
+#else
 static int prctl_get_tid_address(struct task_struct *me, int __user **tid_addr)
 {
 	return -EINVAL;
