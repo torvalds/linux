@@ -622,10 +622,12 @@ int efivar_entry_set_safe(efi_char16_t *name, efi_guid_t vendor, u32 attributes,
 	if (!ops->query_variable_store)
 		return -ENOSYS;
 
-	if (!block && spin_trylock_irqsave(&__efivars->lock, flags))
-		return -EBUSY;
-	else
+	if (!block) {
+		if (!spin_trylock_irqsave(&__efivars->lock, flags))
+			return -EBUSY;
+	} else {
 		spin_lock_irqsave(&__efivars->lock, flags);
+	}
 
 	status = check_var_size(attributes, size + ucs2_strsize(name, 1024));
 	if (status != EFI_SUCCESS) {
