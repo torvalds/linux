@@ -377,16 +377,5 @@ static struct hid_driver steelseries_srws1_driver = {
 	.report_fixup = steelseries_srws1_report_fixup
 };
 
-static int __init steelseries_srws1_init(void)
-{
-	return hid_register_driver(&steelseries_srws1_driver);
-}
-
-static void __exit steelseries_srws1_exit(void)
-{
-	hid_unregister_driver(&steelseries_srws1_driver);
-}
-
-module_init(steelseries_srws1_init);
-module_exit(steelseries_srws1_exit);
+module_hid_driver(steelseries_srws1_driver);
 MODULE_LICENSE("GPL");

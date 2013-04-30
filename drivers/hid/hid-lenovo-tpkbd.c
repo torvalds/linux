@@ -228,8 +228,6 @@ static ssize_t pointer_press_speed_show(struct device *dev,
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
 	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 
-	data_pointer = hid_get_drvdata(hdev);
-
 	return snprintf(buf, PAGE_SIZE, "%u\n",
 		data_pointer->press_speed);
 }
