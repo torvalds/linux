@@ -1417,12 +1417,12 @@ static void fimc_lite_unregister_capture_subdev(struct fimc_lite *fimc)
 
 static void fimc_lite_clk_put(struct fimc_lite *fimc)
 {
-	if (IS_ERR_OR_NULL(fimc->clock))
+	if (IS_ERR(fimc->clock))
 		return;
 
 	clk_unprepare(fimc->clock);
 	clk_put(fimc->clock);
-	fimc->clock = NULL;
+	fimc->clock = ERR_PTR(-EINVAL);
 }
 
 static int fimc_lite_clk_get(struct fimc_lite *fimc)
@@ -1436,7 +1436,7 @@ static int fimc_lite_clk_get(struct fimc_lite *fimc)
 	ret = clk_prepare(fimc->clock);
 	if (ret < 0) {
 		clk_put(fimc->clock);
-		fimc->clock = NULL;
+		fimc->clock = ERR_PTR(-EINVAL);
 	}
 	return ret;
 }
