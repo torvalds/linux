@@ -251,7 +251,7 @@ static const struct ata_port_info ahci_highbank_port_info = {
 };
 
 static struct scsi_host_template ahci_highbank_platform_sht = {
-	AHCI_SHT("highbank-ahci"),
+	AHCI_SHT("sata_highbank"),
 };
 
 static const struct of_device_id ahci_of_match[] = {
