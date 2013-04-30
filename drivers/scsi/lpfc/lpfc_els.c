@@ -484,6 +484,7 @@ lpfc_issue_reg_vfi(struct lpfc_vport *vport)
 	vport->port_state = LPFC_FABRIC_CFG_LINK;
 	memcpy(dmabuf->virt, &phba->fc_fabparam, sizeof(vport->fc_sparam));
 	lpfc_reg_vfi(mboxq, vport, dmabuf->phys);
+
 	mboxq->mbox_cmpl = lpfc_mbx_cmpl_reg_vfi;
 	mboxq->vport = vport;
 	mboxq->context1 = dmabuf;
@@ -698,6 +699,20 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			phba->link_flag &= ~LS_NPIV_FAB_SUPPORTED;
 			spin_unlock_irq(&phba->hbalock);
 		}
+	}
+
+	/*
+	 * For FC we need to do some special processing because of the SLI
+	 * Port's default settings of the Common Service Parameters.
+	 */
+	if (phba->sli4_hba.lnk_info.lnk_tp == LPFC_LNK_TYPE_FC) {
+		/* If physical FC port changed, unreg VFI and ALL VPIs / RPIs */
+		if ((phba->sli_rev == LPFC_SLI_REV4) && fabric_param_changed)
+			lpfc_unregister_fcf_prep(phba);
+
+		/* This should just update the VFI CSPs*/
+		if (vport->fc_flag & FC_VFI_REGISTERED)
+			lpfc_issue_reg_vfi(vport);
 	}
 
 	if (fabric_param_changed &&
@@ -6225,7 +6240,7 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 		spin_unlock_irq(&phba->hbalock);
 	}
 
-	if (phba->sli.ring[LPFC_ELS_RING].txcmplq_cnt)
+	if (!list_empty(&phba->sli.ring[LPFC_ELS_RING].txcmplq))
 		mod_timer(&vport->els_tmofunc, jiffies + HZ * timeout);
 }
 
@@ -6279,7 +6294,6 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 			continue;
 
 		list_move_tail(&piocb->list, &completions);
-		pring->txq_cnt--;
 	}
 
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
@@ -6339,7 +6353,6 @@ lpfc_els_flush_all_cmd(struct lpfc_hba  *phba)
 		    cmd->ulpCommand == CMD_ABORT_XRI_CN)
 			continue;
 		list_move_tail(&piocb->list, &completions);
-		pring->txq_cnt--;
 	}
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
 		if (piocb->iocb_flag & LPFC_IO_LIBDFC)
@@ -8065,7 +8078,7 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 				rxid, 1);
 
 			/* Check if TXQ queue needs to be serviced */
-			if (pring->txq_cnt)
+			if (!(list_empty(&pring->txq)))
 				lpfc_worker_wake_up(phba);
 			return;
 		}
