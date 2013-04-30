@@ -550,9 +550,6 @@ static int __cpuinit relay_hotcpu_callback(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-/* Needs a _much_ better name... */
-#define FIX_SIZE(x) ((((x) - 1) & PAGE_MASK) + PAGE_SIZE)
-
 /**
  *	relay_open - create a new relay channel
  *	@base_filename: base name of files to create, %NULL for buffering only
@@ -591,7 +588,7 @@ struct rchan *relay_open(const char *base_filename,
 	chan->version = RELAYFS_CHANNEL_VERSION;
 	chan->n_subbufs = n_subbufs;
 	chan->subbuf_size = subbuf_size;
-	chan->alloc_size = FIX_SIZE(subbuf_size * n_subbufs);
+	chan->alloc_size = PAGE_ALIGN(subbuf_size * n_subbufs);
 	chan->parent = parent;
 	chan->private_data = private_data;
 	if (base_filename) {
