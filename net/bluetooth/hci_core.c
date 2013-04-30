@@ -79,7 +79,8 @@ static void hci_req_cancel(struct hci_dev *hdev, int err)
 	}
 }
 
-struct sk_buff *hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 event)
+static struct sk_buff *hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode,
+					    u8 event)
 {
 	struct hci_ev_cmd_complete *ev;
 	struct hci_event_hdr *hdr;
@@ -134,7 +135,7 @@ failed:
 }
 
 struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
-				  void *param, u8 event, u32 timeout)
+				  const void *param, u8 event, u32 timeout)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	struct hci_request req;
@@ -188,7 +189,7 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 EXPORT_SYMBOL(__hci_cmd_sync_ev);
 
 struct sk_buff *__hci_cmd_sync(struct hci_dev *hdev, u16 opcode, u32 plen,
-			       void *param, u32 timeout)
+			       const void *param, u32 timeout)
 {
 	return __hci_cmd_sync_ev(hdev, opcode, plen, param, 0, timeout);
 }
@@ -377,6 +378,8 @@ static void bredr_setup(struct hci_request *req)
 
 static void le_setup(struct hci_request *req)
 {
+	struct hci_dev *hdev = req->hdev;
+
 	/* Read LE Buffer Size */
 	hci_req_add(req, HCI_OP_LE_READ_BUFFER_SIZE, 0, NULL);
 
@@ -391,6 +394,10 @@ static void le_setup(struct hci_request *req)
 
 	/* Read LE Supported States */
 	hci_req_add(req, HCI_OP_LE_READ_SUPPORTED_STATES, 0, NULL);
+
+	/* LE-only controllers have LE implicitly enabled */
+	if (!lmp_bredr_capable(hdev))
+		set_bit(HCI_LE_ENABLED, &hdev->dev_flags);
 }
 
 static u8 hci_get_inquiry_mode(struct hci_dev *hdev)
@@ -573,6 +580,10 @@ static void hci_set_le_support(struct hci_request *req)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct hci_cp_write_le_host_supported cp;
+
+	/* LE-only devices do not support explicit enablement */
+	if (!lmp_bredr_capable(hdev))
+		return;
 
 	memset(&cp, 0, sizeof(cp));
 
@@ -2602,7 +2613,7 @@ int hci_req_run(struct hci_request *req, hci_req_complete_t complete)
 }
 
 static struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode,
-				       u32 plen, void *param)
+				       u32 plen, const void *param)
 {
 	int len = HCI_COMMAND_HDR_SIZE + plen;
 	struct hci_command_hdr *hdr;
@@ -2628,7 +2639,8 @@ static struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode,
 }
 
 /* Send HCI command */
-int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
+int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen,
+		 const void *param)
 {
 	struct sk_buff *skb;
 
@@ -2652,8 +2664,8 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param)
 }
 
 /* Queue a command to an asynchronous HCI request */
-void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen, void *param,
-		    u8 event)
+void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
+		    const void *param, u8 event)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct sk_buff *skb;
@@ -2682,7 +2694,8 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen, void *param,
 	skb_queue_tail(&req->cmd_q, skb);
 }
 
-void hci_req_add(struct hci_request *req, u16 opcode, u32 plen, void *param)
+void hci_req_add(struct hci_request *req, u16 opcode, u32 plen,
+		 const void *param)
 {
 	hci_req_add_ev(req, opcode, plen, param, 0);
 }

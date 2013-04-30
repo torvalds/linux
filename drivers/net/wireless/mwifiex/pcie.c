@@ -861,9 +861,8 @@ static int mwifiex_pcie_delete_cmdrsp_buf(struct mwifiex_adapter *adapter)
 
 	if (card && card->cmd_buf) {
 		MWIFIEX_SKB_PACB(card->cmd_buf, &buf_pa);
-		pci_unmap_single(card->dev, buf_pa, MWIFIEX_SIZE_OF_CMD_BUFFER,
+		pci_unmap_single(card->dev, buf_pa, card->cmd_buf->len,
 				 PCI_DMA_TODEVICE);
-		dev_kfree_skb_any(card->cmd_buf);
 	}
 	return 0;
 }
@@ -1573,7 +1572,7 @@ static int mwifiex_pcie_cmdrsp_complete(struct mwifiex_adapter *adapter,
 	skb_tmp = card->cmd_buf;
 	if (skb_tmp) {
 		MWIFIEX_SKB_PACB(skb_tmp, &buf_pa);
-		pci_unmap_single(card->dev, buf_pa, MWIFIEX_UPLD_SIZE,
+		pci_unmap_single(card->dev, buf_pa, skb_tmp->len,
 				 PCI_DMA_FROMDEVICE);
 		card->cmd_buf = NULL;
 	}
@@ -2294,9 +2293,9 @@ static void mwifiex_pcie_cleanup(struct mwifiex_adapter *adapter)
 	if (pdev) {
 		pci_iounmap(pdev, card->pci_mmap);
 		pci_iounmap(pdev, card->pci_mmap1);
-
-		pci_release_regions(pdev);
 		pci_disable_device(pdev);
+		pci_release_region(pdev, 2);
+		pci_release_region(pdev, 0);
 		pci_set_drvdata(pdev, NULL);
 	}
 }

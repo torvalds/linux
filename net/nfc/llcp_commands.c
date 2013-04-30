@@ -26,7 +26,7 @@
 
 #include <net/nfc/nfc.h>
 
-#include "../nfc.h"
+#include "nfc.h"
 #include "llcp.h"
 
 static u8 llcp_tlv_length[LLCP_TLV_MAX] = {

@@ -111,8 +111,7 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 */
 	cmd->keep_alive_seconds = POWER_KEEP_ALIVE_PERIOD_SEC;
 
-	if ((iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM) ||
-	    !iwlwifi_mod_params.power_save)
+	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM)
 		return;
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
@@ -146,14 +145,8 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	keep_alive = DIV_ROUND_UP(keep_alive, MSEC_PER_SEC);
 	cmd->keep_alive_seconds = keep_alive;
 
-	if (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP) {
-		/* TODO: Also for D3 (device sleep / WoWLAN) */
-		cmd->rx_data_timeout = cpu_to_le32(10 * USEC_PER_MSEC);
-		cmd->tx_data_timeout = cpu_to_le32(10 * USEC_PER_MSEC);
-	} else {
-		cmd->rx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
-		cmd->tx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
-	}
+	cmd->rx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
+	cmd->tx_data_timeout = cpu_to_le32(100 * USEC_PER_MSEC);
 }
 
 int iwl_mvm_power_update_mode(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
@@ -177,8 +170,7 @@ int iwl_mvm_power_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
 
-	if ((iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_CAM) &&
-	    iwlwifi_mod_params.power_save)
+	if (iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_CAM)
 		cmd.flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
 	iwl_mvm_power_log(mvm, &cmd);

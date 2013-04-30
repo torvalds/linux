@@ -6314,12 +6314,13 @@ drop:
 	kfree_skb(skb);
 }
 
-static void l2cap_att_channel(struct l2cap_conn *conn, u16 cid,
+static void l2cap_att_channel(struct l2cap_conn *conn,
 			      struct sk_buff *skb)
 {
 	struct l2cap_chan *chan;
 
-	chan = l2cap_global_chan_by_scid(0, cid, conn->src, conn->dst);
+	chan = l2cap_global_chan_by_scid(0, L2CAP_CID_LE_DATA,
+					 conn->src, conn->dst);
 	if (!chan)
 		goto drop;
 
@@ -6368,7 +6369,7 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 		break;
 
 	case L2CAP_CID_LE_DATA:
-		l2cap_att_channel(conn, cid, skb);
+		l2cap_att_channel(conn, skb);
 		break;
 
 	case L2CAP_CID_SMP:

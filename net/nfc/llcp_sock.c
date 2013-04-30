@@ -24,7 +24,7 @@
 #include <linux/module.h>
 #include <linux/nfc.h>
 
-#include "../nfc.h"
+#include "nfc.h"
 #include "llcp.h"
 
 static int sock_wait_state(struct sock *sk, int state, unsigned long timeo)
