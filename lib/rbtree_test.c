@@ -117,8 +117,7 @@ static int black_path_count(struct rb_node *rb)
 static void check(int nr_nodes)
 {
 	struct rb_node *rb;
-	int count = 0;
-	int blacks = 0;
+	int count = 0, blacks = 0;
 	u32 prev_key = 0;
 
 	for (rb = rb_first(&root); rb; rb = rb_next(rb)) {
@@ -134,7 +133,9 @@ static void check(int nr_nodes)
 		prev_key = node->key;
 		count++;
 	}
+
 	WARN_ON_ONCE(count != nr_nodes);
+	WARN_ON_ONCE(count < (1 << black_path_count(rb_last(&root))) - 1);
 }
 
 static void check_augmented(int nr_nodes)
