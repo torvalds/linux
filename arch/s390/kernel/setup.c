@@ -226,25 +226,17 @@ static void __init conmode_default(void)
 }
 
 #ifdef CONFIG_ZFCPDUMP
-static void __init setup_zfcpdump(unsigned int console_devno)
+static void __init setup_zfcpdump(void)
 {
-	static char str[41];
-
 	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
 		return;
 	if (OLDMEM_BASE)
 		return;
-	if (console_devno != -1)
-		sprintf(str, " cio_ignore=all,!0.0.%04x,!0.0.%04x",
-			ipl_info.data.fcp.dev_id.devno, console_devno);
-	else
-		sprintf(str, " cio_ignore=all,!0.0.%04x",
-			ipl_info.data.fcp.dev_id.devno);
-	strcat(boot_command_line, str);
+	strcat(boot_command_line, " cio_ignore=all,!ipldev,!condev");
 	console_loglevel = 2;
 }
 #else
-static inline void setup_zfcpdump(unsigned int console_devno) {}
+static inline void setup_zfcpdump(void) {}
 #endif /* CONFIG_ZFCPDUMP */
 
  /*
@@ -1097,5 +1089,5 @@ void __init setup_arch(char **cmdline_p)
 	set_preferred_console();
 
 	/* Setup zfcpdump support */
-	setup_zfcpdump(console_devno);
+	setup_zfcpdump();
 }
