@@ -687,22 +687,7 @@ static void intel_ddi_mode_set(struct drm_encoder *encoder,
 
 		intel_dp->DP = intel_dig_port->saved_port_bits |
 			       DDI_BUF_CTL_ENABLE | DDI_BUF_EMP_400MV_0DB_HSW;
-		switch (intel_dp->lane_count) {
-		case 1:
-			intel_dp->DP |= DDI_PORT_WIDTH_X1;
-			break;
-		case 2:
-			intel_dp->DP |= DDI_PORT_WIDTH_X2;
-			break;
-		case 4:
-			intel_dp->DP |= DDI_PORT_WIDTH_X4;
-			break;
-		default:
-			intel_dp->DP |= DDI_PORT_WIDTH_X4;
-			WARN(1, "Unexpected DP lane count %d\n",
-			     intel_dp->lane_count);
-			break;
-		}
+		intel_dp->DP |= DDI_PORT_WIDTH(intel_dp->lane_count);
 
 		if (intel_dp->has_audio) {
 			DRM_DEBUG_DRIVER("DP audio on pipe %c on DDI\n",
@@ -1031,22 +1016,7 @@ void intel_ddi_enable_transcoder_func(struct drm_crtc *crtc)
 
 		temp |= TRANS_DDI_MODE_SELECT_DP_SST;
 
-		switch (intel_dp->lane_count) {
-		case 1:
-			temp |= TRANS_DDI_PORT_WIDTH_X1;
-			break;
-		case 2:
-			temp |= TRANS_DDI_PORT_WIDTH_X2;
-			break;
-		case 4:
-			temp |= TRANS_DDI_PORT_WIDTH_X4;
-			break;
-		default:
-			temp |= TRANS_DDI_PORT_WIDTH_X4;
-			WARN(1, "Unsupported lane count %d\n",
-			     intel_dp->lane_count);
-		}
-
+		temp |= DDI_PORT_WIDTH(intel_dp->lane_count);
 	} else {
 		WARN(1, "Invalid encoder type %d for pipe %c\n",
 		     intel_encoder->type, pipe_name(pipe));

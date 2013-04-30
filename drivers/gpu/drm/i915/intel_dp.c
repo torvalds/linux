@@ -901,18 +901,8 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 
 	/* Handle DP bits in common between all three register formats */
 	intel_dp->DP |= DP_VOLTAGE_0_4 | DP_PRE_EMPHASIS_0;
+	intel_dp->DP |= DP_PORT_WIDTH(intel_dp->lane_count);
 
-	switch (intel_dp->lane_count) {
-	case 1:
-		intel_dp->DP |= DP_PORT_WIDTH_1;
-		break;
-	case 2:
-		intel_dp->DP |= DP_PORT_WIDTH_2;
-		break;
-	case 4:
-		intel_dp->DP |= DP_PORT_WIDTH_4;
-		break;
-	}
 	if (intel_dp->has_audio) {
 		DRM_DEBUG_DRIVER("Enabling DP audio on pipe %c\n",
 				 pipe_name(intel_crtc->pipe));
