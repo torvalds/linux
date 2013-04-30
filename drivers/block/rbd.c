@@ -66,6 +66,8 @@
 
 #define RBD_SNAP_HEAD_NAME	"-"
 
+#define	BAD_SNAP_INDEX	U32_MAX		/* invalid index into snap array */
+
 /* This allows a single page to hold an image name sent by OSD */
 #define RBD_IMAGE_NAME_LEN_MAX	(PAGE_SIZE - sizeof (__le32) - 1)
 #define RBD_IMAGE_ID_LEN_MAX	64
@@ -807,6 +809,33 @@ out_err:
 	header->object_prefix = NULL;
 
 	return -ENOMEM;
+}
+
+static const char *_rbd_dev_v1_snap_name(struct rbd_device *rbd_dev, u32 which)
+{
+	const char *snap_name;
+
+	rbd_assert(which < rbd_dev->header.snapc->num_snaps);
+
+	/* Skip over names until we find the one we are looking for */
+
+	snap_name = rbd_dev->header.snap_names;
+	while (which--)
+		snap_name += strlen(snap_name) + 1;
+
+	return kstrdup(snap_name, GFP_KERNEL);
+}
+
+static u32 rbd_dev_snap_index(struct rbd_device *rbd_dev, u64 snap_id)
+{
+	struct ceph_snap_context *snapc = rbd_dev->header.snapc;
+	u32 which;
+
+	for (which = 0; which < snapc->num_snaps; which++)
+		if (snapc->snaps[which] == snap_id)
+			return which;
+
+	return BAD_SNAP_INDEX;
 }
 
 static const char *rbd_snap_name(struct rbd_device *rbd_dev, u64 snap_id)
@@ -3421,17 +3450,8 @@ static const char *rbd_dev_v1_snap_info(struct rbd_device *rbd_dev, u32 which,
 		u64 *snap_size, u64 *snap_features)
 {
 	const char *snap_name;
-	int i;
 
-	rbd_assert(which < rbd_dev->header.snapc->num_snaps);
-
-	/* Skip over names until we find the one we are looking for */
-
-	snap_name = rbd_dev->header.snap_names;
-	for (i = 0; i < which; i++)
-		snap_name += strlen(snap_name) + 1;
-
-	snap_name = kstrdup(snap_name, GFP_KERNEL);
+	snap_name = _rbd_dev_v1_snap_name(rbd_dev, which);
 	if (!snap_name)
 		return ERR_PTR(-ENOMEM);
 
