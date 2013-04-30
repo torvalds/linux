@@ -78,6 +78,22 @@ static struct test {
 		.func = test__python_use,
 	},
 	{
+		.desc = "Test breakpoint overflow signal handler",
+		.func = test__bp_signal,
+	},
+	{
+		.desc = "Test breakpoint overflow sampling",
+		.func = test__bp_signal_overflow,
+	},
+	{
+		.desc = "Test number of exit event of a simple workload",
+		.func = test__task_exit,
+	},
+	{
+		.desc = "Test software clock events have valid period values",
+		.func = test__sw_clock_freq,
+	},
+	{
 		.func = NULL,
 	},
 };
