@@ -1245,7 +1245,6 @@ void gpmc_read_settings_dt(struct device_node *np, struct gpmc_settings *p)
 
 	p->sync_read = of_property_read_bool(np, "gpmc,sync-read");
 	p->sync_write = of_property_read_bool(np, "gpmc,sync-write");
-	p->device_nand = of_property_read_bool(np, "gpmc,device-nand");
 	of_property_read_u32(np, "gpmc,device-width", &p->device_width);
 	of_property_read_u32(np, "gpmc,mux-add-data", &p->mux_add_data);
 

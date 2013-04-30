@@ -102,14 +102,14 @@ int gpmc_nand_init(struct omap_nand_platform_data *gpmc_nand_data,
 		if (gpmc_nand_data->of_node) {
 			gpmc_read_settings_dt(gpmc_nand_data->of_node, &s);
 		} else {
-			s.device_nand = true;
-
 			/* Enable RD PIN Monitoring Reg */
 			if (gpmc_nand_data->dev_ready) {
 				s.wait_on_read = true;
 				s.wait_on_write = true;
 			}
 		}
+
+		s.device_nand = true;
 
 		if (gpmc_nand_data->devsize == NAND_BUSWIDTH_16)
 			s.device_width = GPMC_DEVWIDTH_16BIT;
