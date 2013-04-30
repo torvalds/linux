@@ -2,8 +2,9 @@
  *  HID driver for multitouch panels
  *
  *  Copyright (c) 2010-2012 Stephane Chatty <chatty@enac.fr>
- *  Copyright (c) 2010-2012 Benjamin Tissoires <benjamin.tissoires@gmail.com>
+ *  Copyright (c) 2010-2013 Benjamin Tissoires <benjamin.tissoires@gmail.com>
  *  Copyright (c) 2010-2012 Ecole Nationale de l'Aviation Civile, France
+ *  Copyright (c) 2012-2013 Red Hat, Inc
  *
  *  This code is partly based on hid-egalax.c:
  *
@@ -26,13 +27,23 @@
  * any later version.
  */
 
+/*
+ * This driver is regularly tested thanks to the tool hid-test[1].
+ * This tool relies on hid-replay[2] and a database of hid devices[3].
+ * Please run these regression tests before patching this module so that
+ * your patch won't break existing known devices.
+ *
+ * [1] https://github.com/bentiss/hid-test
+ * [2] https://github.com/bentiss/hid-replay
+ * [3] https://github.com/bentiss/hid-devices
+ */
+
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/input/mt.h>
-#include "usbhid/usbhid.h"
 
 
 MODULE_AUTHOR("Stephane Chatty <chatty@enac.fr>");
@@ -740,7 +751,7 @@ static void mt_set_input_mode(struct hid_device *hdev)
 	r = re->report_id_hash[td->inputmode];
 	if (r) {
 		r->field[0]->value[td->inputmode_index] = 0x02;
-		usbhid_submit_report(hdev, r, USB_DIR_OUT);
+		hid_hw_request(hdev, r, HID_REQ_SET_REPORT);
 	}
 }
 
@@ -765,7 +776,7 @@ static void mt_set_maxcontacts(struct hid_device *hdev)
 		max = min(fieldmax, max);
 		if (r->field[0]->value[0] != max) {
 			r->field[0]->value[0] = max;
-			usbhid_submit_report(hdev, r, USB_DIR_OUT);
+			hid_hw_request(hdev, r, HID_REQ_SET_REPORT);
 		}
 	}
 }
@@ -902,26 +913,11 @@ static int mt_reset_resume(struct hid_device *hdev)
 
 static int mt_resume(struct hid_device *hdev)
 {
-	struct usb_interface *intf;
-	struct usb_host_interface *interface;
-	struct usb_device *dev;
-
-	if (hdev->bus != BUS_USB)
-		return 0;
-
-	intf = to_usb_interface(hdev->dev.parent);
-	interface = intf->cur_altsetting;
-	dev = hid_to_usb_dev(hdev);
-
 	/* Some Elan legacy devices require SET_IDLE to be set on resume.
 	 * It should be safe to send it to other devices too.
 	 * Tested on 3M, Stantum, Cypress, Zytronic, eGalax, and Elan panels. */
 
-	usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
-			HID_REQ_SET_IDLE,
-			USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			0, interface->desc.bInterfaceNumber,
-			NULL, 0, USB_CTRL_SET_TIMEOUT);
+	hid_hw_idle(hdev, 0, 0, HID_REQ_SET_IDLE);
 
 	return 0;
 }
