@@ -42,9 +42,9 @@ extern void __cleancache_put_page(struct page *);
 extern void __cleancache_invalidate_page(struct address_space *, struct page *);
 extern void __cleancache_invalidate_inode(struct address_space *);
 extern void __cleancache_invalidate_fs(struct super_block *);
-extern int cleancache_enabled;
 
 #ifdef CONFIG_CLEANCACHE
+#define cleancache_enabled (1)
 static inline bool cleancache_fs_enabled(struct page *page)
 {
 	return page->mapping->host->i_sb->cleancache_poolid >= 0;

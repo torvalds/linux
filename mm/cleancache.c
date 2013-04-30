@@ -19,16 +19,6 @@
 #include <linux/cleancache.h>
 
 /*
- * This global enablement flag may be read thousands of times per second
- * by cleancache_get/put/invalidate even on systems where cleancache_ops
- * is not claimed (e.g. cleancache is config'ed on but remains
- * disabled), so is preferred to the slower alternative: a function
- * call that checks a non-global.
- */
-int cleancache_enabled __read_mostly;
-EXPORT_SYMBOL(cleancache_enabled);
-
-/*
  * cleancache_ops is set by cleancache_ops_register to contain the pointers
  * to the cleancache "backend" implementation functions.
  */
@@ -414,7 +404,6 @@ static int __init init_cleancache(void)
 		fs_poolid_map[i] = FS_UNKNOWN;
 		shared_fs_poolid_map[i] = FS_UNKNOWN;
 	}
-	cleancache_enabled = 1;
 	return 0;
 }
 module_init(init_cleancache)
