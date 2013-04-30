@@ -4890,8 +4890,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	int refclk, num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
 	u32 dspcntr;
-	bool ok, has_reduced_clock = false, is_sdvo = false;
-	bool is_lvds = false, is_tv = false;
+	bool ok, has_reduced_clock = false;
+	bool is_lvds = false;
 	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
 	int ret;
@@ -4900,15 +4900,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		switch (encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
-			break;
-		case INTEL_OUTPUT_SDVO:
-		case INTEL_OUTPUT_HDMI:
-			is_sdvo = true;
-			if (encoder->needs_tv_clock)
-				is_tv = true;
-			break;
-		case INTEL_OUTPUT_TVOUT:
-			is_tv = true;
 			break;
 		}
 
@@ -5345,7 +5336,6 @@ static int ironlake_get_refclk(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
-	struct intel_encoder *edp_encoder = NULL;
 	int num_connectors = 0;
 	bool is_lvds = false;
 
@@ -5353,9 +5343,6 @@ static int ironlake_get_refclk(struct drm_crtc *crtc)
 		switch (encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
-			break;
-		case INTEL_OUTPUT_EDP:
-			edp_encoder = encoder;
 			break;
 		}
 		num_connectors++;
@@ -5515,21 +5502,12 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 	struct intel_encoder *intel_encoder;
 	int refclk;
 	const intel_limit_t *limit;
-	bool ret, is_sdvo = false, is_tv = false, is_lvds = false;
+	bool ret, is_lvds = false;
 
 	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
 		switch (intel_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
-			break;
-		case INTEL_OUTPUT_SDVO:
-		case INTEL_OUTPUT_HDMI:
-			is_sdvo = true;
-			if (intel_encoder->needs_tv_clock)
-				is_tv = true;
-			break;
-		case INTEL_OUTPUT_TVOUT:
-			is_tv = true;
 			break;
 		}
 	}
