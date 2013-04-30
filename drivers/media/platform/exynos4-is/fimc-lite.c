@@ -637,13 +637,18 @@ static void fimc_lite_try_compose(struct fimc_lite *fimc, struct v4l2_rect *r)
 /*
  * Video node ioctl operations
  */
-static int fimc_vidioc_querycap_capture(struct file *file, void *priv,
+static int fimc_lite_querycap(struct file *file, void *priv,
 					struct v4l2_capability *cap)
 {
+	struct fimc_lite *fimc = video_drvdata(file);
+
 	strlcpy(cap->driver, FIMC_LITE_DRV_NAME, sizeof(cap->driver));
-	cap->bus_info[0] = 0;
-	cap->card[0] = 0;
-	cap->capabilities = V4L2_CAP_STREAMING;
+	strlcpy(cap->card, FIMC_LITE_DRV_NAME, sizeof(cap->card));
+	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
+					dev_name(&fimc->pdev->dev));
+
+	cap->device_caps = V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -938,7 +943,7 @@ static int fimc_lite_s_selection(struct file *file, void *fh,
 }
 
 static const struct v4l2_ioctl_ops fimc_lite_ioctl_ops = {
-	.vidioc_querycap		= fimc_vidioc_querycap_capture,
+	.vidioc_querycap		= fimc_lite_querycap,
 	.vidioc_enum_fmt_vid_cap_mplane	= fimc_lite_enum_fmt_mplane,
 	.vidioc_try_fmt_vid_cap_mplane	= fimc_lite_try_fmt_mplane,
 	.vidioc_s_fmt_vid_cap_mplane	= fimc_lite_s_fmt_mplane,
