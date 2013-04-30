@@ -152,7 +152,7 @@ static struct btrfs_lockdep_keyset {
 	{ .id = BTRFS_DEV_TREE_OBJECTID,	.name_stem = "dev"	},
 	{ .id = BTRFS_FS_TREE_OBJECTID,		.name_stem = "fs"	},
 	{ .id = BTRFS_CSUM_TREE_OBJECTID,	.name_stem = "csum"	},
-	{ .id = BTRFS_ORPHAN_OBJECTID,		.name_stem = "orphan"	},
+	{ .id = BTRFS_QUOTA_TREE_OBJECTID,	.name_stem = "quota"	},
 	{ .id = BTRFS_TREE_LOG_OBJECTID,	.name_stem = "log"	},
 	{ .id = BTRFS_TREE_RELOC_OBJECTID,	.name_stem = "treloc"	},
 	{ .id = BTRFS_DATA_RELOC_TREE_OBJECTID,	.name_stem = "dreloc"	},
