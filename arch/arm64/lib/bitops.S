@@ -50,8 +50,8 @@ ENTRY(	\name	)
 1:	ldxr	x2, [x1]
 	lsr	x0, x2, x3		// Save old value of bit
 	\instr	x2, x2, x4		// toggle bit
-	stxr	w2, x2, [x1]
-	cbnz	w2, 1b
+	stxr	w5, x2, [x1]
+	cbnz	w5, 1b
 	smp_dmb	ish
 	and	x0, x0, #1
 3:	ret
