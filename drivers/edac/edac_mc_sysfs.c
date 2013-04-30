@@ -327,17 +327,17 @@ static struct device_attribute *dynamic_csrow_dimm_attr[] = {
 };
 
 /* possible dynamic channel ce_count attribute files */
-DEVICE_CHANNEL(ch0_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch0_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 0);
-DEVICE_CHANNEL(ch1_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch1_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 1);
-DEVICE_CHANNEL(ch2_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch2_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 2);
-DEVICE_CHANNEL(ch3_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch3_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 3);
-DEVICE_CHANNEL(ch4_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch4_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 4);
-DEVICE_CHANNEL(ch5_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch5_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 5);
 
 /* Total possible dynamic ce_count attribute file table */
