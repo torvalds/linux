@@ -368,17 +368,20 @@ static int __net_init nf_log_net_init(struct net *net)
 	return 0;
 
 out_sysctl:
+#ifdef CONFIG_PROC_FS
 	/* For init_net: errors will trigger panic, don't unroll on error. */
 	if (!net_eq(net, &init_net))
 		remove_proc_entry("nf_log", net->nf.proc_netfilter);
-
+#endif
 	return ret;
 }
 
 static void __net_exit nf_log_net_exit(struct net *net)
 {
 	netfilter_log_sysctl_exit(net);
+#ifdef CONFIG_PROC_FS
 	remove_proc_entry("nf_log", net->nf.proc_netfilter);
+#endif
 }
 
 static struct pernet_operations nf_log_net_ops = {
