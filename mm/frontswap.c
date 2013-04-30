@@ -27,14 +27,6 @@
 static struct frontswap_ops *frontswap_ops __read_mostly;
 
 /*
- * This global enablement flag reduces overhead on systems where frontswap_ops
- * has not been registered, so is preferred to the slower alternative: a
- * function call that checks a non-global.
- */
-bool frontswap_enabled __read_mostly;
-EXPORT_SYMBOL(frontswap_enabled);
-
-/*
  * If enabled, frontswap_store will return failure even on success.  As
  * a result, the swap subsystem will always write the page to swap, in
  * effect converting frontswap into a writethrough cache.  In this mode,
@@ -128,8 +120,6 @@ struct frontswap_ops *frontswap_register_ops(struct frontswap_ops *ops)
 	struct frontswap_ops *old = frontswap_ops;
 	int i;
 
-	frontswap_enabled = true;
-
 	for (i = 0; i < MAX_SWAPFILES; i++) {
 		if (test_and_clear_bit(i, need_init))
 			ops->init(i);
@@ -183,9 +173,21 @@ void __frontswap_init(unsigned type)
 }
 EXPORT_SYMBOL(__frontswap_init);
 
-static inline void __frontswap_clear(struct swap_info_struct *sis, pgoff_t offset)
+bool __frontswap_test(struct swap_info_struct *sis,
+				pgoff_t offset)
 {
-	frontswap_clear(sis, offset);
+	bool ret = false;
+
+	if (frontswap_ops && sis->frontswap_map)
+		ret = test_bit(offset, sis->frontswap_map);
+	return ret;
+}
+EXPORT_SYMBOL(__frontswap_test);
+
+static inline void __frontswap_clear(struct swap_info_struct *sis,
+				pgoff_t offset)
+{
+	clear_bit(offset, sis->frontswap_map);
 	atomic_dec(&sis->frontswap_pages);
 }
 
@@ -204,18 +206,20 @@ int __frontswap_store(struct page *page)
 	struct swap_info_struct *sis = swap_info[type];
 	pgoff_t offset = swp_offset(entry);
 
-	if (!frontswap_ops) {
-		inc_frontswap_failed_stores();
+	/*
+	 * Return if no backend registed.
+	 * Don't need to inc frontswap_failed_stores here.
+	 */
+	if (!frontswap_ops)
 		return ret;
-	}
 
 	BUG_ON(!PageLocked(page));
 	BUG_ON(sis == NULL);
-	if (frontswap_test(sis, offset))
+	if (__frontswap_test(sis, offset))
 		dup = 1;
 	ret = frontswap_ops->store(type, offset, page);
 	if (ret == 0) {
-		frontswap_set(sis, offset);
+		set_bit(offset, sis->frontswap_map);
 		inc_frontswap_succ_stores();
 		if (!dup)
 			atomic_inc(&sis->frontswap_pages);
@@ -248,18 +252,18 @@ int __frontswap_load(struct page *page)
 	struct swap_info_struct *sis = swap_info[type];
 	pgoff_t offset = swp_offset(entry);
 
-	if (!frontswap_ops)
-		return ret;
-
 	BUG_ON(!PageLocked(page));
 	BUG_ON(sis == NULL);
-	if (frontswap_test(sis, offset))
+	/*
+	 * __frontswap_test() will check whether there is backend registered
+	 */
+	if (__frontswap_test(sis, offset))
 		ret = frontswap_ops->load(type, offset, page);
 	if (ret == 0) {
 		inc_frontswap_loads();
 		if (frontswap_tmem_exclusive_gets_enabled) {
 			SetPageDirty(page);
-			frontswap_clear(sis, offset);
+			__frontswap_clear(sis, offset);
 		}
 	}
 	return ret;
@@ -274,11 +278,11 @@ void __frontswap_invalidate_page(unsigned type, pgoff_t offset)
 {
 	struct swap_info_struct *sis = swap_info[type];
 
-	if (!frontswap_ops)
-		return;
-
 	BUG_ON(sis == NULL);
-	if (frontswap_test(sis, offset)) {
+	/*
+	 * __frontswap_test() will check whether there is backend registered
+	 */
+	if (__frontswap_test(sis, offset)) {
 		frontswap_ops->invalidate_page(type, offset);
 		__frontswap_clear(sis, offset);
 		inc_frontswap_invalidates();
@@ -435,7 +439,6 @@ static int __init init_frontswap(void)
 	debugfs_create_u64("invalidates", S_IRUGO,
 				root, &frontswap_invalidates);
 #endif
-	frontswap_enabled = 1;
 	return 0;
 }
 
