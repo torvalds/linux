@@ -189,6 +189,13 @@ static int blacklist_parse_parameters(char *str, range_action action,
 			to_cssid = from_cssid;
 			to_ssid = from_ssid;
 			to = from;
+		} else if (strcmp(parm, "condev") == 0) {
+			if (console_devno == -1)
+				continue;
+
+			from_cssid = to_cssid = 0;
+			from_ssid = to_ssid = 0;
+			from = to = console_devno;
 		} else {
 			rc = parse_busid(strsep(&parm, "-"), &from_cssid,
 					 &from_ssid, &from, msgtrigger);
