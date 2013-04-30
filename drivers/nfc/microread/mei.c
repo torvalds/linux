@@ -63,8 +63,6 @@ static int microread_mei_remove(struct mei_cl_device *device)
 
 	microread_remove(phy->hdev);
 
-	nfc_mei_phy_disable(phy);
-
 	nfc_mei_phy_free(phy);
 
 	return 0;
