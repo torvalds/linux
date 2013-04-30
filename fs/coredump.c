@@ -280,8 +280,8 @@ static int zap_process(struct task_struct *start, int exit_code)
 	return nr;
 }
 
-static inline int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
-				struct core_state *core_state, int exit_code)
+static int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
+			struct core_state *core_state, int exit_code)
 {
 	struct task_struct *g, *p;
 	unsigned long flags;
@@ -291,6 +291,9 @@ static inline int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 	if (!signal_group_exit(tsk->signal)) {
 		mm->core_state = core_state;
 		nr = zap_process(tsk, exit_code);
+		/* ignore all signals except SIGKILL, see prepare_signal() */
+		tsk->signal->flags |= SIGNAL_GROUP_COREDUMP;
+		clear_tsk_thread_flag(tsk, TIF_SIGPENDING);
 	}
 	spin_unlock_irq(&tsk->sighand->siglock);
 	if (unlikely(nr < 0))
@@ -513,12 +516,6 @@ void do_coredump(siginfo_t *siginfo)
 		goto fail_creds;
 
 	old_cred = override_creds(cred);
-
-	/*
-	 * Clear any false indication of pending signals that might
-	 * be seen by the filesystem code called to write the core file.
-	 */
-	clear_thread_flag(TIF_SIGPENDING);
 
 	ispipe = format_corename(&cn, &cprm);
 
