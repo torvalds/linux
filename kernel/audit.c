@@ -805,12 +805,11 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case AUDIT_TTY_GET: {
 		struct audit_tty_status s;
 		struct task_struct *tsk = current;
-		unsigned long flags;
 
-		spin_lock_irqsave(&tsk->sighand->siglock, flags);
+		spin_lock(&tsk->sighand->siglock);
 		s.enabled = tsk->signal->audit_tty != 0;
 		s.log_passwd = tsk->signal->audit_tty_log_passwd;
-		spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
+		spin_unlock(&tsk->sighand->siglock);
 
 		audit_send_reply(NETLINK_CB(skb).portid, seq,
 				 AUDIT_TTY_GET, 0, 0, &s, sizeof(s));
@@ -819,7 +818,6 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	case AUDIT_TTY_SET: {
 		struct audit_tty_status s;
 		struct task_struct *tsk = current;
-		unsigned long flags;
 
 		memset(&s, 0, sizeof(s));
 		/* guard against past and future API changes */
@@ -828,10 +826,10 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		    (s.log_passwd != 0 && s.log_passwd != 1))
 			return -EINVAL;
 
-		spin_lock_irqsave(&tsk->sighand->siglock, flags);
+		spin_lock(&tsk->sighand->siglock);
 		tsk->signal->audit_tty = s.enabled;
 		tsk->signal->audit_tty_log_passwd = s.log_passwd;
-		spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
+		spin_unlock(&tsk->sighand->siglock);
 		break;
 	}
 	default:
