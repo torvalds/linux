@@ -30,9 +30,7 @@
 
 static struct timecounter *timecounter;
 static struct workqueue_struct *wqueue;
-static struct kvm_irq_level timer_irq = {
-	.level	= 1,
-};
+static unsigned int host_vtimer_irq;
 
 static cycle_t kvm_phys_timer_read(void)
 {
@@ -67,8 +65,8 @@ static void kvm_timer_inject_irq(struct kvm_vcpu *vcpu)
 
 	timer->cntv_ctl |= ARCH_TIMER_CTRL_IT_MASK;
 	kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
-			    vcpu->arch.timer_cpu.irq->irq,
-			    vcpu->arch.timer_cpu.irq->level);
+			    timer->irq->irq,
+			    timer->irq->level);
 }
 
 static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
@@ -156,6 +154,20 @@ void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
 	timer_arm(timer, ns);
 }
 
+void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu,
+			  const struct kvm_irq_level *irq)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+
+	/*
+	 * The vcpu timer irq number cannot be determined in
+	 * kvm_timer_vcpu_init() because it is called much before
+	 * kvm_vcpu_set_target(). To handle this, we determine
+	 * vcpu timer irq number when the vcpu is reset.
+	 */
+	timer->irq = irq;
+}
+
 void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
@@ -163,12 +175,11 @@ void kvm_timer_vcpu_init(struct kvm_vcpu *vcpu)
 	INIT_WORK(&timer->expired, kvm_timer_inject_irq_work);
 	hrtimer_init(&timer->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	timer->timer.function = kvm_timer_expire;
-	timer->irq = &timer_irq;
 }
 
 static void kvm_timer_init_interrupt(void *info)
 {
-	enable_percpu_irq(timer_irq.irq, 0);
+	enable_percpu_irq(host_vtimer_irq, 0);
 }
 
 
@@ -182,7 +193,7 @@ static int kvm_timer_cpu_notify(struct notifier_block *self,
 		break;
 	case CPU_DYING:
 	case CPU_DYING_FROZEN:
-		disable_percpu_irq(timer_irq.irq);
+		disable_percpu_irq(host_vtimer_irq);
 		break;
 	}
 
@@ -230,7 +241,7 @@ int kvm_timer_hyp_init(void)
 		goto out;
 	}
 
-	timer_irq.irq = ppi;
+	host_vtimer_irq = ppi;
 
 	err = register_cpu_notifier(&kvm_timer_cpu_nb);
 	if (err) {
