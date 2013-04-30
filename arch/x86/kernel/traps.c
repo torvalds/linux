@@ -12,6 +12,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/context_tracking.h>
 #include <linux/interrupt.h>
 #include <linux/kallsyms.h>
 #include <linux/spinlock.h>
@@ -55,8 +56,6 @@
 #include <asm/i387.h>
 #include <asm/fpu-internal.h>
 #include <asm/mce.h>
-#include <asm/context_tracking.h>
-
 #include <asm/mach_traps.h>
 
 #ifdef CONFIG_X86_64
@@ -176,34 +175,38 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 #define DO_ERROR(trapnr, signr, str, name)				\
 dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	\
 {									\
-	exception_enter(regs);						\
+	enum ctx_state prev_state;					\
+									\
+	prev_state = exception_enter();					\
 	if (notify_die(DIE_TRAP, str, regs, error_code,			\
 			trapnr, signr) == NOTIFY_STOP) {		\
-		exception_exit(regs);					\
+		exception_exit(prev_state);				\
 		return;							\
 	}								\
 	conditional_sti(regs);						\
 	do_trap(trapnr, signr, str, regs, error_code, NULL);		\
-	exception_exit(regs);						\
+	exception_exit(prev_state);					\
 }
 
 #define DO_ERROR_INFO(trapnr, signr, str, name, sicode, siaddr)		\
 dotraplinkage void do_##name(struct pt_regs *regs, long error_code)	\
 {									\
 	siginfo_t info;							\
+	enum ctx_state prev_state;					\
+									\
 	info.si_signo = signr;						\
 	info.si_errno = 0;						\
 	info.si_code = sicode;						\
 	info.si_addr = (void __user *)siaddr;				\
-	exception_enter(regs);						\
+	prev_state = exception_enter();					\
 	if (notify_die(DIE_TRAP, str, regs, error_code,			\
 			trapnr, signr) == NOTIFY_STOP) {		\
-		exception_exit(regs);					\
+		exception_exit(prev_state);				\
 		return;							\
 	}								\
 	conditional_sti(regs);						\
 	do_trap(trapnr, signr, str, regs, error_code, &info);		\
-	exception_exit(regs);						\
+	exception_exit(prev_state);					\
 }
 
 DO_ERROR_INFO(X86_TRAP_DE, SIGFPE, "divide error", divide_error, FPE_INTDIV,
@@ -226,14 +229,16 @@ DO_ERROR_INFO(X86_TRAP_AC, SIGBUS, "alignment check", alignment_check,
 /* Runs on IST stack */
 dotraplinkage void do_stack_segment(struct pt_regs *regs, long error_code)
 {
-	exception_enter(regs);
+	enum ctx_state prev_state;
+
+	prev_state = exception_enter();
 	if (notify_die(DIE_TRAP, "stack segment", regs, error_code,
 		       X86_TRAP_SS, SIGBUS) != NOTIFY_STOP) {
 		preempt_conditional_sti(regs);
 		do_trap(X86_TRAP_SS, SIGBUS, "stack segment", regs, error_code, NULL);
 		preempt_conditional_cli(regs);
 	}
-	exception_exit(regs);
+	exception_exit(prev_state);
 }
 
 dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
@@ -241,7 +246,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 	static const char str[] = "double fault";
 	struct task_struct *tsk = current;
 
-	exception_enter(regs);
+	exception_enter();
 	/* Return not checked because double check cannot be ignored */
 	notify_die(DIE_TRAP, str, regs, error_code, X86_TRAP_DF, SIGSEGV);
 
@@ -261,8 +266,9 @@ dotraplinkage void __kprobes
 do_general_protection(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk;
+	enum ctx_state prev_state;
 
-	exception_enter(regs);
+	prev_state = exception_enter();
 	conditional_sti(regs);
 
 #ifdef CONFIG_X86_32
@@ -300,12 +306,14 @@ do_general_protection(struct pt_regs *regs, long error_code)
 
 	force_sig(SIGSEGV, tsk);
 exit:
-	exception_exit(regs);
+	exception_exit(prev_state);
 }
 
 /* May run on IST stack. */
 dotraplinkage void __kprobes notrace do_int3(struct pt_regs *regs, long error_code)
 {
+	enum ctx_state prev_state;
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 	/*
 	 * ftrace must be first, everything else may cause a recursive crash.
@@ -315,7 +323,7 @@ dotraplinkage void __kprobes notrace do_int3(struct pt_regs *regs, long error_co
 	    ftrace_int3_handler(regs))
 		return;
 #endif
-	exception_enter(regs);
+	prev_state = exception_enter();
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
 	if (kgdb_ll_trap(DIE_INT3, "int3", regs, error_code, X86_TRAP_BP,
 				SIGTRAP) == NOTIFY_STOP)
@@ -336,7 +344,7 @@ dotraplinkage void __kprobes notrace do_int3(struct pt_regs *regs, long error_co
 	preempt_conditional_cli(regs);
 	debug_stack_usage_dec();
 exit:
-	exception_exit(regs);
+	exception_exit(prev_state);
 }
 
 #ifdef CONFIG_X86_64
@@ -393,11 +401,12 @@ asmlinkage __kprobes struct pt_regs *sync_regs(struct pt_regs *eregs)
 dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk = current;
+	enum ctx_state prev_state;
 	int user_icebp = 0;
 	unsigned long dr6;
 	int si_code;
 
-	exception_enter(regs);
+	prev_state = exception_enter();
 
 	get_debugreg(dr6, 6);
 
@@ -467,7 +476,7 @@ dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 	debug_stack_usage_dec();
 
 exit:
-	exception_exit(regs);
+	exception_exit(prev_state);
 }
 
 /*
@@ -561,17 +570,21 @@ void math_error(struct pt_regs *regs, int error_code, int trapnr)
 
 dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code)
 {
-	exception_enter(regs);
+	enum ctx_state prev_state;
+
+	prev_state = exception_enter();
 	math_error(regs, error_code, X86_TRAP_MF);
-	exception_exit(regs);
+	exception_exit(prev_state);
 }
 
 dotraplinkage void
 do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 {
-	exception_enter(regs);
+	enum ctx_state prev_state;
+
+	prev_state = exception_enter();
 	math_error(regs, error_code, X86_TRAP_XF);
-	exception_exit(regs);
+	exception_exit(prev_state);
 }
 
 dotraplinkage void
@@ -639,7 +652,9 @@ EXPORT_SYMBOL_GPL(math_state_restore);
 dotraplinkage void __kprobes
 do_device_not_available(struct pt_regs *regs, long error_code)
 {
-	exception_enter(regs);
+	enum ctx_state prev_state;
+
+	prev_state = exception_enter();
 	BUG_ON(use_eager_fpu());
 
 #ifdef CONFIG_MATH_EMULATION
@@ -650,7 +665,7 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 
 		info.regs = regs;
 		math_emulate(&info);
-		exception_exit(regs);
+		exception_exit(prev_state);
 		return;
 	}
 #endif
@@ -658,15 +673,16 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 #ifdef CONFIG_X86_32
 	conditional_sti(regs);
 #endif
-	exception_exit(regs);
+	exception_exit(prev_state);
 }
 
 #ifdef CONFIG_X86_32
 dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 {
 	siginfo_t info;
+	enum ctx_state prev_state;
 
-	exception_enter(regs);
+	prev_state = exception_enter();
 	local_irq_enable();
 
 	info.si_signo = SIGILL;
@@ -678,7 +694,7 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 		do_trap(X86_TRAP_IRET, SIGILL, "iret exception", regs, error_code,
 			&info);
 	}
-	exception_exit(regs);
+	exception_exit(prev_state);
 }
 #endif
 

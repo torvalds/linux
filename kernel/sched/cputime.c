@@ -115,10 +115,6 @@ static int irqtime_account_si_update(void)
 static inline void task_group_account_field(struct task_struct *p, int index,
 					    u64 tmp)
 {
-#ifdef CONFIG_CGROUP_CPUACCT
-	struct kernel_cpustat *kcpustat;
-	struct cpuacct *ca;
-#endif
 	/*
 	 * Since all updates are sure to touch the root cgroup, we
 	 * get ourselves ahead and touch it first. If the root cgroup
@@ -127,19 +123,7 @@ static inline void task_group_account_field(struct task_struct *p, int index,
 	 */
 	__get_cpu_var(kernel_cpustat).cpustat[index] += tmp;
 
-#ifdef CONFIG_CGROUP_CPUACCT
-	if (unlikely(!cpuacct_subsys.active))
-		return;
-
-	rcu_read_lock();
-	ca = task_ca(p);
-	while (ca && (ca != &root_cpuacct)) {
-		kcpustat = this_cpu_ptr(ca->cpustat);
-		kcpustat->cpustat[index] += tmp;
-		ca = parent_ca(ca);
-	}
-	rcu_read_unlock();
-#endif
+	cpuacct_account_field(p, index, tmp);
 }
 
 /*
@@ -388,82 +372,10 @@ static inline void irqtime_account_process_tick(struct task_struct *p, int user_
 						struct rq *rq) {}
 #endif /* CONFIG_IRQ_TIME_ACCOUNTING */
 
-#ifndef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-/*
- * Account a single tick of cpu time.
- * @p: the process that the cpu time gets accounted to
- * @user_tick: indicates if the tick is a user or a system tick
- */
-void account_process_tick(struct task_struct *p, int user_tick)
-{
-	cputime_t one_jiffy_scaled = cputime_to_scaled(cputime_one_jiffy);
-	struct rq *rq = this_rq();
-
-	if (vtime_accounting_enabled())
-		return;
-
-	if (sched_clock_irqtime) {
-		irqtime_account_process_tick(p, user_tick, rq);
-		return;
-	}
-
-	if (steal_account_process_tick())
-		return;
-
-	if (user_tick)
-		account_user_time(p, cputime_one_jiffy, one_jiffy_scaled);
-	else if ((p != rq->idle) || (irq_count() != HARDIRQ_OFFSET))
-		account_system_time(p, HARDIRQ_OFFSET, cputime_one_jiffy,
-				    one_jiffy_scaled);
-	else
-		account_idle_time(cputime_one_jiffy);
-}
-
-/*
- * Account multiple ticks of steal time.
- * @p: the process from which the cpu time has been stolen
- * @ticks: number of stolen ticks
- */
-void account_steal_ticks(unsigned long ticks)
-{
-	account_steal_time(jiffies_to_cputime(ticks));
-}
-
-/*
- * Account multiple ticks of idle time.
- * @ticks: number of stolen ticks
- */
-void account_idle_ticks(unsigned long ticks)
-{
-
-	if (sched_clock_irqtime) {
-		irqtime_account_idle_ticks(ticks);
-		return;
-	}
-
-	account_idle_time(jiffies_to_cputime(ticks));
-}
-#endif /* !CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
-
 /*
  * Use precise platform statistics if available:
  */
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-void task_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st)
-{
-	*ut = p->utime;
-	*st = p->stime;
-}
-
-void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st)
-{
-	struct task_cputime cputime;
-
-	thread_group_cputime(p, &cputime);
-
-	*ut = cputime.utime;
-	*st = cputime.stime;
-}
 
 #ifndef __ARCH_HAS_VTIME_TASK_SWITCH
 void vtime_task_switch(struct task_struct *prev)
@@ -518,21 +430,111 @@ void vtime_account_irq_enter(struct task_struct *tsk)
 }
 EXPORT_SYMBOL_GPL(vtime_account_irq_enter);
 #endif /* __ARCH_HAS_VTIME_ACCOUNT */
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
 
-#else /* !CONFIG_VIRT_CPU_ACCOUNTING */
 
-static cputime_t scale_stime(cputime_t stime, cputime_t rtime, cputime_t total)
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
+void task_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st)
 {
-	u64 temp = (__force u64) rtime;
+	*ut = p->utime;
+	*st = p->stime;
+}
 
-	temp *= (__force u64) stime;
+void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st)
+{
+	struct task_cputime cputime;
 
-	if (sizeof(cputime_t) == 4)
-		temp = div_u64(temp, (__force u32) total);
+	thread_group_cputime(p, &cputime);
+
+	*ut = cputime.utime;
+	*st = cputime.stime;
+}
+#else /* !CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
+/*
+ * Account a single tick of cpu time.
+ * @p: the process that the cpu time gets accounted to
+ * @user_tick: indicates if the tick is a user or a system tick
+ */
+void account_process_tick(struct task_struct *p, int user_tick)
+{
+	cputime_t one_jiffy_scaled = cputime_to_scaled(cputime_one_jiffy);
+	struct rq *rq = this_rq();
+
+	if (vtime_accounting_enabled())
+		return;
+
+	if (sched_clock_irqtime) {
+		irqtime_account_process_tick(p, user_tick, rq);
+		return;
+	}
+
+	if (steal_account_process_tick())
+		return;
+
+	if (user_tick)
+		account_user_time(p, cputime_one_jiffy, one_jiffy_scaled);
+	else if ((p != rq->idle) || (irq_count() != HARDIRQ_OFFSET))
+		account_system_time(p, HARDIRQ_OFFSET, cputime_one_jiffy,
+				    one_jiffy_scaled);
 	else
-		temp = div64_u64(temp, (__force u64) total);
+		account_idle_time(cputime_one_jiffy);
+}
 
-	return (__force cputime_t) temp;
+/*
+ * Account multiple ticks of steal time.
+ * @p: the process from which the cpu time has been stolen
+ * @ticks: number of stolen ticks
+ */
+void account_steal_ticks(unsigned long ticks)
+{
+	account_steal_time(jiffies_to_cputime(ticks));
+}
+
+/*
+ * Account multiple ticks of idle time.
+ * @ticks: number of stolen ticks
+ */
+void account_idle_ticks(unsigned long ticks)
+{
+
+	if (sched_clock_irqtime) {
+		irqtime_account_idle_ticks(ticks);
+		return;
+	}
+
+	account_idle_time(jiffies_to_cputime(ticks));
+}
+
+/*
+ * Perform (stime * rtime) / total with reduced chances
+ * of multiplication overflows by using smaller factors
+ * like quotient and remainders of divisions between
+ * rtime and total.
+ */
+static cputime_t scale_stime(u64 stime, u64 rtime, u64 total)
+{
+	u64 rem, res, scaled;
+
+	if (rtime >= total) {
+		/*
+		 * Scale up to rtime / total then add
+		 * the remainder scaled to stime / total.
+		 */
+		res = div64_u64_rem(rtime, total, &rem);
+		scaled = stime * res;
+		scaled += div64_u64(stime * rem, total);
+	} else {
+		/*
+		 * Same in reverse: scale down to total / rtime
+		 * then substract that result scaled to
+		 * to the remaining part.
+		 */
+		res = div64_u64_rem(total, rtime, &rem);
+		scaled = div64_u64(stime, res);
+		scaled -= div64_u64(scaled * rem, total);
+	}
+
+	return (__force cputime_t) scaled;
 }
 
 /*
@@ -544,6 +546,12 @@ static void cputime_adjust(struct task_cputime *curr,
 			   cputime_t *ut, cputime_t *st)
 {
 	cputime_t rtime, stime, total;
+
+	if (vtime_accounting_enabled()) {
+		*ut = curr->utime;
+		*st = curr->stime;
+		return;
+	}
 
 	stime = curr->stime;
 	total = stime + curr->utime;
@@ -560,10 +568,14 @@ static void cputime_adjust(struct task_cputime *curr,
 	 */
 	rtime = nsecs_to_cputime(curr->sum_exec_runtime);
 
-	if (total)
-		stime = scale_stime(stime, rtime, total);
-	else
+	if (!rtime) {
+		stime = 0;
+	} else if (!total) {
 		stime = rtime;
+	} else {
+		stime = scale_stime((__force u64)stime,
+				    (__force u64)rtime, (__force u64)total);
+	}
 
 	/*
 	 * If the tick based count grows faster than the scheduler one,
@@ -597,7 +609,7 @@ void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime
 	thread_group_cputime(p, &cputime);
 	cputime_adjust(&cputime, &p->signal->prev_cputime, ut, st);
 }
-#endif /* !CONFIG_VIRT_CPU_ACCOUNTING */
+#endif /* !CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 static unsigned long long vtime_delta(struct task_struct *tsk)
