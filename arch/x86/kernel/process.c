@@ -444,7 +444,7 @@ void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 	if (x86_idle || boot_option_idle_override == IDLE_POLL)
 		return;
 
-	if (cpu_has_amd_erratum(amd_erratum_400)) {
+	if (cpu_has_bug(c, X86_BUG_AMD_APIC_C1E)) {
 		/* E400: APIC timer interrupt does not wake up CPU from C1e */
 		pr_info("using AMD E400 aware idle routine\n");
 		x86_idle = amd_e400_idle;
