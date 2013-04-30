@@ -1,7 +1,7 @@
 /*
- * QorIQ Sec/Crypto 4.0 device tree stub [ controller @ offset 0x300000 ]
+ * e6500 Power ISA Device Tree Source (include)
  *
- * Copyright 2011 Freescale Semiconductor Inc.
+ * Copyright 2013 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -20,7 +20,7 @@
  * Foundation, either version 2 of that License or (at your option) any
  * later version.
  *
- * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
  * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
@@ -32,70 +32,34 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-crypto: crypto@300000 {
-	compatible = "fsl,sec-v4.0";
-	fsl,sec-era = <1>;
-	#address-cells = <1>;
-	#size-cells = <1>;
-	reg = <0x300000 0x10000>;
-	ranges = <0 0x300000 0x10000>;
-	interrupts = <92 2 0 0>;
-
-	sec_jr0: jr@1000 {
-		compatible = "fsl,sec-v4.0-job-ring";
-		reg = <0x1000 0x1000>;
-		interrupts = <88 2 0 0>;
+/ {
+	cpus {
+		power-isa-version = "2.06";
+		power-isa-b;		// Base
+		power-isa-e;		// Embedded
+		power-isa-atb;		// Alternate Time Base
+		power-isa-cs;		// Cache Specification
+		power-isa-ds;		// Decorated Storage
+		power-isa-e.ed;		// Embedded.Enhanced Debug
+		power-isa-e.pd;		// Embedded.External PID
+		power-isa-e.hv;		// Embedded.Hypervisor
+		power-isa-e.le;		// Embedded.Little-Endian
+		power-isa-e.pm;		// Embedded.Performance Monitor
+		power-isa-e.pc;		// Embedded.Processor Control
+		power-isa-ecl;		// Embedded Cache Locking
+		power-isa-exp;		// External Proxy
+		power-isa-fp;		// Floating Point
+		power-isa-fp.r;		// Floating Point.Record
+		power-isa-mmc;		// Memory Coherence
+		power-isa-scpm;		// Store Conditional Page Mobility
+		power-isa-wt;		// Wait
+		power-isa-64;		// 64-bit
+		power-isa-e.pt;		// Embedded.Page Table
+		power-isa-e.hv.lrat;	// Embedded.Hypervisor.LRAT
+		power-isa-e.em;		// Embedded Multi-Threading
+		power-isa-v;		// Vector (AltiVec)
+		fsl,eref-er;		// Enhanced Reservations (Load and Reserve and Store Cond.)
+		fsl,eref-deo;		// Data Cache Extended Operations
+		mmu-type = "power-embedded";
 	};
-
-	sec_jr1: jr@2000 {
-		compatible = "fsl,sec-v4.0-job-ring";
-		reg = <0x2000 0x1000>;
-		interrupts = <89 2 0 0>;
-	};
-
-	sec_jr2: jr@3000 {
-		compatible = "fsl,sec-v4.0-job-ring";
-		reg = <0x3000 0x1000>;
-		interrupts = <90 2 0 0>;
-	};
-
-	sec_jr3: jr@4000 {
-		compatible = "fsl,sec-v4.0-job-ring";
-		reg = <0x4000 0x1000>;
-		interrupts = <91 2 0 0>;
-	};
-
-	rtic@6000 {
-		compatible = "fsl,sec-v4.0-rtic";
-		#address-cells = <1>;
-		#size-cells = <1>;
-		reg = <0x6000 0x100>;
-		ranges = <0x0 0x6100 0xe00>;
-
-		rtic_a: rtic-a@0 {
-			compatible = "fsl,sec-v4.0-rtic-memory";
-			reg = <0x00 0x20 0x100 0x80>;
-		};
-
-		rtic_b: rtic-b@20 {
-			compatible = "fsl,sec-v4.0-rtic-memory";
-			reg = <0x20 0x20 0x200 0x80>;
-		};
-
-		rtic_c: rtic-c@40 {
-			compatible = "fsl,sec-v4.0-rtic-memory";
-			reg = <0x40 0x20 0x300 0x80>;
-		};
-
-		rtic_d: rtic-d@60 {
-			compatible = "fsl,sec-v4.0-rtic-memory";
-			reg = <0x60 0x20 0x500 0x80>;
-		};
-	};
-};
-
-sec_mon: sec_mon@314000 {
-	compatible = "fsl,sec-v4.0-mon";
-	reg = <0x314000 0x1000>;
-	interrupts = <93 2 0 0>;
 };
