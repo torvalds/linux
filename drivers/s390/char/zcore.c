@@ -426,7 +426,7 @@ static int zcore_memmap_open(struct inode *inode, struct file *filp)
 			      GFP_KERNEL);
 	if (!chunk_array)
 		return -ENOMEM;
-	detect_memory_layout(chunk_array);
+	detect_memory_layout(chunk_array, 0);
 	buf = kzalloc(MEMORY_CHUNKS * CHUNK_INFO_SIZE, GFP_KERNEL);
 	if (!buf) {
 		kfree(chunk_array);
@@ -610,7 +610,7 @@ static int __init get_mem_info(unsigned long *mem, unsigned long *end)
 			      GFP_KERNEL);
 	if (!chunk_array)
 		return -ENOMEM;
-	detect_memory_layout(chunk_array);
+	detect_memory_layout(chunk_array, 0);
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		if (chunk_array[i].size == 0)
 			break;

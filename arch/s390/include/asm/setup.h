@@ -46,7 +46,7 @@ extern struct mem_chunk memory_chunk[];
 extern int memory_end_set;
 extern unsigned long memory_end;
 
-void detect_memory_layout(struct mem_chunk chunk[]);
+void detect_memory_layout(struct mem_chunk chunk[], unsigned long maxsize);
 void create_mem_hole(struct mem_chunk memory_chunk[], unsigned long addr,
 		     unsigned long size, int type);
 

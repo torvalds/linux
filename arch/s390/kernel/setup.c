@@ -1066,7 +1066,7 @@ void __init setup_arch(char **cmdline_p)
 		memcpy(&uaccess, &uaccess_std, sizeof(uaccess));
 
 	parse_early_param();
-
+	detect_memory_layout(memory_chunk, memory_end);
 	os_info_init();
 	setup_ipl();
 	reserve_oldmem();

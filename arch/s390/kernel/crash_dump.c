@@ -88,7 +88,7 @@ static struct mem_chunk *get_memory_layout(void)
 	struct mem_chunk *chunk_array;
 
 	chunk_array = kzalloc_panic(MEMORY_CHUNKS * sizeof(struct mem_chunk));
-	detect_memory_layout(chunk_array);
+	detect_memory_layout(chunk_array, 0);
 	create_mem_hole(chunk_array, OLDMEM_BASE, OLDMEM_SIZE, CHUNK_CRASHK);
 	return chunk_array;
 }
