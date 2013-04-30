@@ -455,21 +455,39 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 		goto exit;
 	}
 
-	remaining = count;
-	done = 0;
+	if (data->rigol_quirk) {
+		dev_dbg(dev, "usb_bulk_msg_in: count(%zu)\n", count);
 
-	while (remaining > 0) {
-		if (remaining > USBTMC_SIZE_IOBUFFER - 12 - 3)
-			this_part = USBTMC_SIZE_IOBUFFER - 12 - 3;
-		else
-			this_part = remaining;
+		retval = send_request_dev_dep_msg_in(data, count);
 
-			retval = send_request_dev_dep_msg_in(data, this_part);
 		if (retval < 0) {
-			dev_err(dev, "usb_bulk_msg returned %d\n", retval);
 			if (data->auto_abort)
 				usbtmc_ioctl_abort_bulk_out(data);
 			goto exit;
+		}
+	}
+
+	/* Loop until we have fetched everything we requested */
+	remaining = count;
+	this_part = remaining;
+	done = 0;
+
+	while (remaining > 0) {
+		if (!(data->rigol_quirk)) {
+			dev_dbg(dev, "usb_bulk_msg_in: remaining(%zu), count(%zu)\n", remaining, count);
+
+			if (remaining > USBTMC_SIZE_IOBUFFER - USBTMC_HEADER_SIZE - 3)
+				this_part = USBTMC_SIZE_IOBUFFER - USBTMC_HEADER_SIZE - 3;
+			else
+				this_part = remaining;
+
+			retval = send_request_dev_dep_msg_in(data, this_part);
+			if (retval < 0) {
+			dev_err(dev, "usb_bulk_msg returned %d\n", retval);
+				if (data->auto_abort)
+					usbtmc_ioctl_abort_bulk_out(data);
+				goto exit;
+			}
 		}
 
 		/* Send bulk URB */
@@ -479,51 +497,109 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 				      buffer, USBTMC_SIZE_IOBUFFER, &actual,
 				      USBTMC_TIMEOUT);
 
+		dev_dbg(dev, "usb_bulk_msg: retval(%u), done(%zu), remaining(%zu), actual(%d)\n", retval, done, remaining, actual);
+
 		/* Store bTag (in case we need to abort) */
 		data->bTag_last_read = data->bTag;
 
 		if (retval < 0) {
-			dev_err(dev, "Unable to read data, error %d\n", retval);
+			dev_dbg(dev, "Unable to read data, error %d\n", retval);
 			if (data->auto_abort)
 				usbtmc_ioctl_abort_bulk_in(data);
 			goto exit;
 		}
 
-		/* How many characters did the instrument send? */
-		n_characters = buffer[4] +
-			       (buffer[5] << 8) +
-			       (buffer[6] << 16) +
-			       (buffer[7] << 24);
+		/* Parse header in first packet */
+		if ((done == 0) || (!(data->rigol_quirk))) {
+			/* Sanity checks for the header */
+			if (actual < USBTMC_HEADER_SIZE) {
+				dev_err(dev, "Device sent too small first packet: %u < %u\n", actual, USBTMC_HEADER_SIZE);
+				if (data->auto_abort)
+					usbtmc_ioctl_abort_bulk_in(data);
+				goto exit;
+			}
 
-		/* Ensure the instrument doesn't lie about it */
-		if(n_characters > actual - 12) {
-			dev_err(dev, "Device lies about message size: %u > %d\n", n_characters, actual - 12);
-			n_characters = actual - 12;
+			if (buffer[0] != 2) {
+				dev_err(dev, "Device sent reply with wrong MsgID: %u != 2\n", buffer[0]);
+				if (data->auto_abort)
+					usbtmc_ioctl_abort_bulk_in(data);
+				goto exit;
+			}
+
+			if (buffer[1] != data->bTag_last_write) {
+				dev_err(dev, "Device sent reply with wrong bTag: %u != %u\n", buffer[1], data->bTag_last_write);
+				if (data->auto_abort)
+					usbtmc_ioctl_abort_bulk_in(data);
+				goto exit;
+			}
+
+			/* How many characters did the instrument send? */
+			n_characters = buffer[4] +
+				       (buffer[5] << 8) +
+				       (buffer[6] << 16) +
+				       (buffer[7] << 24);
+
+			if (n_characters > this_part) {
+				dev_err(dev, "Device wants to return more data than requested: %u > %zu\n", n_characters, count);
+				if (data->auto_abort)
+					usbtmc_ioctl_abort_bulk_in(data);
+				goto exit;
+			}
+
+			/* Remove the USBTMC header */
+			actual -= USBTMC_HEADER_SIZE;
+
+			/* Check if the message is smaller than requested */
+			if (data->rigol_quirk) {
+				if (remaining > n_characters)
+					remaining = n_characters;
+				/* Remove padding if it exists */
+				if (actual > remaining) 
+					actual = remaining;
+			}
+			else {
+				if (this_part > n_characters)
+					this_part = n_characters;
+				/* Remove padding if it exists */
+				if (actual > this_part) 
+					actual = this_part;
+			}
+
+			dev_dbg(dev, "Bulk-IN header: N_characters(%u), bTransAttr(%u)\n", n_characters, buffer[8]);
+
+			remaining -= actual;
+
+			/* Terminate if end-of-message bit received from device */
+			if ((buffer[8] &  0x01) && (actual >= n_characters))
+				remaining = 0;
+
+			dev_dbg(dev, "Bulk-IN header: remaining(%zu), buf(%p), buffer(%p) done(%zu)\n", remaining,buf,buffer,done);
+
+
+			/* Copy buffer to user space */
+			if (copy_to_user(buf + done, &buffer[USBTMC_HEADER_SIZE], actual)) {
+				/* There must have been an addressing problem */
+				retval = -EFAULT;
+				goto exit;
+			}
+			done += actual;
 		}
+		else  {
+			if (actual > remaining) 
+				actual = remaining;
 
-		/* Ensure the instrument doesn't send more back than requested */
-		if(n_characters > this_part) {
-			dev_err(dev, "Device returns more than requested: %zu > %zu\n", done + n_characters, done + this_part);
-			n_characters = this_part;
+			remaining -= actual;
+
+			dev_dbg(dev, "Bulk-IN header cont: actual(%u), done(%zu), remaining(%zu), buf(%p), buffer(%p)\n", actual, done, remaining,buf,buffer);
+
+			/* Copy buffer to user space */
+			if (copy_to_user(buf + done, buffer, actual)) {
+				/* There must have been an addressing problem */
+				retval = -EFAULT;
+				goto exit;
+			}
+			done += actual;
 		}
-
-		/* Bound amount of data received by amount of data requested */
-		if (n_characters > this_part)
-			n_characters = this_part;
-
-		/* Copy buffer to user space */
-		if (copy_to_user(buf + done, &buffer[12], n_characters)) {
-			/* There must have been an addressing problem */
-			retval = -EFAULT;
-			goto exit;
-		}
-
-		done += n_characters;
-		/* Terminate if end-of-message bit received from device */
-		if ((buffer[8] &  0x01) && (actual >= n_characters + 12))
-			remaining = 0;
-		else
-			remaining -= n_characters;
 	}
 
 	/* Update file position value */
