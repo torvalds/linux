@@ -136,8 +136,10 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 	if (tr->tr_t_gh.gh_gl) {
 		gfs2_glock_dq(&tr->tr_t_gh);
 		gfs2_holder_uninit(&tr->tr_t_gh);
-		kfree(tr);
+		if (!tr->tr_attached)
+			kfree(tr);
 	}
+	up_read(&sdp->sd_log_flush_lock);
 
 	if (sdp->sd_vfs->s_flags & MS_SYNCHRONOUS)
 		gfs2_log_flush(sdp, NULL);
