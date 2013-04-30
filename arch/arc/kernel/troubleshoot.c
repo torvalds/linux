@@ -71,7 +71,7 @@ void print_task_path_n_nm(struct task_struct *tsk, char *buf)
 	}
 
 done:
-	pr_info("%s, TGID %u\n", path_nm, tsk->tgid);
+	pr_info("Path: %s\n", path_nm);
 }
 EXPORT_SYMBOL(print_task_path_n_nm);
 
