@@ -4290,30 +4290,6 @@ static int i9xx_get_refclk(struct drm_crtc *crtc, int num_connectors)
 	return refclk;
 }
 
-static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc *crtc)
-{
-	unsigned dotclock = crtc->config.adjusted_mode.clock;
-	struct dpll *clock = &crtc->config.dpll;
-
-	/* SDVO TV has fixed PLL values depend on its clock range,
-	   this mirrors vbios setting. */
-	if (dotclock >= 100000 && dotclock < 140500) {
-		clock->p1 = 2;
-		clock->p2 = 10;
-		clock->n = 3;
-		clock->m1 = 16;
-		clock->m2 = 8;
-	} else if (dotclock >= 140500 && dotclock <= 200000) {
-		clock->p1 = 1;
-		clock->p2 = 10;
-		clock->n = 6;
-		clock->m1 = 12;
-		clock->m2 = 8;
-	}
-
-	crtc->config.clock_set = true;
-}
-
 static uint32_t pnv_dpll_compute_fp(struct dpll *dpll)
 {
 	return (1 << dpll->n) << 16 | dpll->m1 << 8 | dpll->m2;
@@ -4972,9 +4948,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		intel_crtc->config.dpll.p2 = clock.p2;
 	}
 
-	if (is_sdvo && is_tv)
-		i9xx_adjust_sdvo_tv_clock(intel_crtc);
-
 	if (IS_GEN2(dev))
 		i8xx_update_pll(intel_crtc, adjusted_mode,
 				has_reduced_clock ? &reduced_clock : NULL,
@@ -5579,9 +5552,6 @@ static bool ironlake_compute_clocks(struct drm_crtc *crtc,
 						     clock,
 						     reduced_clock);
 	}
-
-	if (is_sdvo && is_tv)
-		i9xx_adjust_sdvo_tv_clock(to_intel_crtc(crtc));
 
 	return true;
 }
