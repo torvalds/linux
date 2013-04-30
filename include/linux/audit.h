@@ -89,6 +89,8 @@ extern int audit_classify_arch(int arch);
 
 struct filename;
 
+extern void audit_log_session_info(struct audit_buffer *ab);
+
 #ifdef CONFIG_AUDITSYSCALL
 /* These are defined in auditsc.c */
 				/* Public API */

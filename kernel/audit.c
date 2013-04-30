@@ -269,14 +269,12 @@ static int audit_log_config_change(char *function_name, int new, int old,
 {
 	struct audit_buffer *ab;
 	int rc = 0;
-	u32 sessionid = audit_get_sessionid(current);
-	uid_t auid = from_kuid(&init_user_ns, audit_get_loginuid(current));
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
 	if (unlikely(!ab))
 		return rc;
-	audit_log_format(ab, "%s=%d old=%d auid=%u ses=%u", function_name, new,
-			 old, auid, sessionid);
+	audit_log_format(ab, "%s=%d old=%d", function_name, new, old);
+	audit_log_session_info(ab);
 	rc = audit_log_task_context(ab);
 	if (rc)
 		allow_changes = 0; /* Something weird, deny request */
@@ -611,9 +609,7 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 static int audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type)
 {
 	int rc = 0;
-	u32 sessionid = audit_get_sessionid(current);
 	uid_t uid = from_kuid(&init_user_ns, current_uid());
-	uid_t auid = from_kuid(&init_user_ns, audit_get_loginuid(current));
 
 	if (!audit_enabled) {
 		*ab = NULL;
@@ -623,8 +619,8 @@ static int audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type)
 	*ab = audit_log_start(NULL, GFP_KERNEL, msg_type);
 	if (unlikely(!*ab))
 		return rc;
-	audit_log_format(*ab, "pid=%d uid=%u auid=%u ses=%u",
-			 task_tgid_vnr(current), uid, auid, sessionid);
+	audit_log_format(*ab, "pid=%d uid=%u", task_tgid_vnr(current), uid);
+	audit_log_session_info(*ab);
 	audit_log_task_context(*ab);
 
 	return rc;
@@ -1374,6 +1370,14 @@ void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
 	} else
 		audit_log_untrustedstring(ab, p);
 	kfree(pathname);
+}
+
+void audit_log_session_info(struct audit_buffer *ab)
+{
+	u32 sessionid = audit_get_sessionid(current);
+	uid_t auid = from_kuid(&init_user_ns, audit_get_loginuid(current));
+
+	audit_log_format(ab, "auid=%u ses=%u\n", auid, sessionid);
 }
 
 void audit_log_key(struct audit_buffer *ab, char *key)
