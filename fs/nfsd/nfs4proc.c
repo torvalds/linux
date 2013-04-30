@@ -813,21 +813,11 @@ nfsd4_rename(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	status = nfsd_rename(rqstp, &cstate->save_fh, rename->rn_sname,
 			     rename->rn_snamelen, &cstate->current_fh,
 			     rename->rn_tname, rename->rn_tnamelen);
-
-	/* the underlying filesystem returns different error's than required
-	 * by NFSv4. both save_fh and current_fh have been verified.. */
-	if (status == nfserr_isdir)
-		status = nfserr_exist;
-	else if ((status == nfserr_notdir) &&
-                  (S_ISDIR(cstate->save_fh.fh_dentry->d_inode->i_mode) &&
-                   S_ISDIR(cstate->current_fh.fh_dentry->d_inode->i_mode)))
-		status = nfserr_exist;
-
-	if (!status) {
-		set_change_info(&rename->rn_sinfo, &cstate->current_fh);
-		set_change_info(&rename->rn_tinfo, &cstate->save_fh);
-	}
-	return status;
+	if (status)
+		return status;
+	set_change_info(&rename->rn_sinfo, &cstate->current_fh);
+	set_change_info(&rename->rn_tinfo, &cstate->save_fh);
+	return nfs_ok;
 }
 
 static __be32
