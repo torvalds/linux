@@ -452,6 +452,7 @@ struct i915_hw_ppgtt {
 /* This must match up with the value previously used for execbuf2.rsvd1. */
 #define DEFAULT_CONTEXT_ID 0
 struct i915_hw_context {
+	struct kref ref;
 	int id;
 	bool is_initialized;
 	struct drm_i915_file_private *file_priv;
@@ -1701,6 +1702,17 @@ void i915_gem_context_fini(struct drm_device *dev);
 void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
 int i915_switch_context(struct intel_ring_buffer *ring,
 			struct drm_file *file, int to_id);
+void i915_gem_context_free(struct kref *ctx_ref);
+static inline void i915_gem_context_reference(struct i915_hw_context *ctx)
+{
+	kref_get(&ctx->ref);
+}
+
+static inline void i915_gem_context_unreference(struct i915_hw_context *ctx)
+{
+	kref_put(&ctx->ref, i915_gem_context_free);
+}
+
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file);
 int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
