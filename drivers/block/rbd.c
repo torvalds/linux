@@ -3435,10 +3435,10 @@ static struct rbd_snap *rbd_snap_create(struct rbd_device *rbd_dev,
  * Returns a dynamically-allocated snapshot name if successful, or a
  * pointer-coded error otherwise.
  */
-static char *rbd_dev_v1_snap_info(struct rbd_device *rbd_dev, u32 which,
+static const char *rbd_dev_v1_snap_info(struct rbd_device *rbd_dev, u32 which,
 		u64 *snap_size, u64 *snap_features)
 {
-	char *snap_name;
+	const char *snap_name;
 	int i;
 
 	rbd_assert(which < rbd_dev->header.snapc->num_snaps);
@@ -3907,7 +3907,7 @@ out:
 	return ret;
 }
 
-static char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev, u32 which)
+static const char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev, u32 which)
 {
 	size_t size;
 	void *reply_buf;
@@ -3948,13 +3948,13 @@ out:
 	return snap_name;
 }
 
-static char *rbd_dev_v2_snap_info(struct rbd_device *rbd_dev, u32 which,
+static const char *rbd_dev_v2_snap_info(struct rbd_device *rbd_dev, u32 which,
 		u64 *snap_size, u64 *snap_features)
 {
 	u64 snap_id;
 	u64 size;
 	u64 features;
-	char *snap_name;
+	const char *snap_name;
 	int ret;
 
 	rbd_assert(which < rbd_dev->header.snapc->num_snaps);
@@ -3978,7 +3978,7 @@ out_err:
 	return ERR_PTR(ret);
 }
 
-static char *rbd_dev_snap_info(struct rbd_device *rbd_dev, u32 which,
+static const char *rbd_dev_snap_info(struct rbd_device *rbd_dev, u32 which,
 		u64 *snap_size, u64 *snap_features)
 {
 	if (rbd_dev->image_format == 1)
@@ -4045,7 +4045,7 @@ static int rbd_dev_snaps_update(struct rbd_device *rbd_dev)
 	while (index < snap_count || links != head) {
 		u64 snap_id;
 		struct rbd_snap *snap;
-		char *snap_name;
+		const char *snap_name;
 		u64 snap_size = 0;
 		u64 snap_features = 0;
 
