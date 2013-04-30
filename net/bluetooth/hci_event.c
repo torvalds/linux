@@ -949,18 +949,15 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	if (!cp)
 		return;
 
+	if (status)
+		return;
+
 	switch (cp->enable) {
 	case LE_SCAN_ENABLE:
-		if (status)
-			return;
-
 		set_bit(HCI_LE_SCAN, &hdev->dev_flags);
 		break;
 
 	case LE_SCAN_DISABLE:
-		if (status)
-			return;
-
 		clear_bit(HCI_LE_SCAN, &hdev->dev_flags);
 		break;
 
