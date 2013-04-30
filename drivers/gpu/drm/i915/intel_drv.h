@@ -120,7 +120,6 @@ struct intel_encoder {
 	struct intel_crtc *new_crtc;
 
 	int type;
-	bool needs_tv_clock;
 	/*
 	 * Intel hw has only one MUX where encoders could be clone, hence a
 	 * simple flag is enough to compute the possible_clones mask.
@@ -222,6 +221,10 @@ struct intel_crtc_config {
 
 	/* Controls for the clock computation, to override various stages. */
 	bool clock_set;
+
+	/* SDVO TV has a bunch of special case. To make multifunction encoders
+	 * work correctly, we need to track this at runtime.*/
+	bool sdvo_tv_clock;
 
 	/*
 	 * crtc bandwidth limit, don't increase pipe bpp or clock if not really

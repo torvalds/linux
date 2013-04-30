@@ -1092,6 +1092,7 @@ static bool intel_sdvo_compute_config(struct intel_encoder *encoder,
 		(void) intel_sdvo_get_preferred_input_mode(intel_sdvo,
 							   mode,
 							   adjusted_mode);
+		pipe_config->sdvo_tv_clock = true;
 	} else if (intel_sdvo->is_lvds) {
 		if (!intel_sdvo_set_output_timings_from_mode(intel_sdvo,
 							     intel_sdvo->sdvo_lvds_fixed_mode))
@@ -1655,12 +1656,9 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 	if (ret == connector_status_connected) {
 		intel_sdvo->is_tv = false;
 		intel_sdvo->is_lvds = false;
-		intel_sdvo->base.needs_tv_clock = false;
 
-		if (response & SDVO_TV_MASK) {
+		if (response & SDVO_TV_MASK)
 			intel_sdvo->is_tv = true;
-			intel_sdvo->base.needs_tv_clock = true;
-		}
 		if (response & SDVO_LVDS_MASK)
 			intel_sdvo->is_lvds = intel_sdvo->sdvo_lvds_fixed_mode != NULL;
 	}
@@ -2359,7 +2357,6 @@ intel_sdvo_tv_init(struct intel_sdvo *intel_sdvo, int type)
 	intel_sdvo_connector->output_flag = type;
 
 	intel_sdvo->is_tv = true;
-	intel_sdvo->base.needs_tv_clock = true;
 
 	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
 
@@ -2447,7 +2444,6 @@ static bool
 intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo, uint16_t flags)
 {
 	intel_sdvo->is_tv = false;
-	intel_sdvo->base.needs_tv_clock = false;
 	intel_sdvo->is_lvds = false;
 
 	/* SDVO requires XXX1 function may not exist unless it has XXX0 function.*/
