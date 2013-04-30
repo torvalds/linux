@@ -640,8 +640,8 @@ static ssize_t usbtmc_write(struct file *filp, const char __user *buf,
 	done = 0;
 
 	while (remaining > 0) {
-		if (remaining > USBTMC_SIZE_IOBUFFER - 12) {
-			this_part = USBTMC_SIZE_IOBUFFER - 12;
+		if (remaining > USBTMC_SIZE_IOBUFFER - USBTMC_HEADER_SIZE) {
+			this_part = USBTMC_SIZE_IOBUFFER - USBTMC_HEADER_SIZE;
 			buffer[8] = 0;
 		} else {
 			this_part = remaining;
@@ -662,13 +662,13 @@ static ssize_t usbtmc_write(struct file *filp, const char __user *buf,
 		buffer[10] = 0; /* Reserved */
 		buffer[11] = 0; /* Reserved */
 
-		if (copy_from_user(&buffer[12], buf + done, this_part)) {
+		if (copy_from_user(&buffer[USBTMC_HEADER_SIZE], buf + done, this_part)) {
 			retval = -EFAULT;
 			goto exit;
 		}
 
-		n_bytes = roundup(12 + this_part, 4);
-		memset(buffer + 12 + this_part, 0, n_bytes - (12 + this_part));
+		n_bytes = roundup(USBTMC_HEADER_SIZE + this_part, 4);
+		memset(buffer + USBTMC_HEADER_SIZE + this_part, 0, n_bytes - (USBTMC_HEADER_SIZE + this_part));
 
 		do {
 			retval = usb_bulk_msg(data->usb_dev,
