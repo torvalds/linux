@@ -60,7 +60,7 @@ static const struct ov9640_reg ov9640_regs_dflt[] = {
 
 /* Configurations
  * NOTE: for YUV, alter the following registers:
- * 		COM12 |= OV9640_COM12_YUV_AVG
+ *		COM12 |= OV9640_COM12_YUV_AVG
  *
  *	 for RGB, alter the following registers:
  *		COM7  |= OV9640_COM7_RGB
