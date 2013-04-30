@@ -1210,8 +1210,6 @@ void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
 					u16 latency, u16 to_multiplier);
 void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __u8 rand[8],
 							__u8 ltk[16]);
-int hci_do_inquiry(struct hci_dev *hdev, u8 length);
-int hci_cancel_inquiry(struct hci_dev *hdev);
 
 u8 bdaddr_to_le(u8 bdaddr_type);
 
