@@ -375,6 +375,59 @@ exit:
 	return rv;
 }
 
+/*
+ * Sends a REQUEST_DEV_DEP_MSG_IN message on the Bulk-IN endpoint.
+ * @transfer_size: number of bytes to request from the device.
+ *
+ * See the USBTMC specification, Table 4.
+ *
+ * Also updates bTag_last_write.
+ */
+static int send_request_dev_dep_msg_in(struct usbtmc_device_data *data, size_t transfer_size)
+{
+	int retval;
+	u8 buffer[USBTMC_HEADER_SIZE];
+	int actual;
+
+	/* Setup IO buffer for REQUEST_DEV_DEP_MSG_IN message
+	 * Refer to class specs for details
+	 */
+	buffer[0] = 2;
+	buffer[1] = data->bTag;
+	buffer[2] = ~(data->bTag);
+	buffer[3] = 0; /* Reserved */
+	buffer[4] = (transfer_size) & 255;
+	buffer[5] = ((transfer_size) >> 8) & 255;
+	buffer[6] = ((transfer_size) >> 16) & 255;
+	buffer[7] = ((transfer_size) >> 24) & 255;
+	buffer[8] = data->TermCharEnabled * 2;
+	/* Use term character? */
+	buffer[9] = data->TermChar;
+	buffer[10] = 0; /* Reserved */
+	buffer[11] = 0; /* Reserved */
+
+	/* Send bulk URB */
+	retval = usb_bulk_msg(data->usb_dev,
+			      usb_sndbulkpipe(data->usb_dev,
+					      data->bulk_out),
+			      buffer, USBTMC_HEADER_SIZE, &actual, USBTMC_TIMEOUT);
+
+	/* Store bTag (in case we need to abort) */
+	data->bTag_last_write = data->bTag;
+
+	/* Increment bTag -- and increment again if zero */
+	data->bTag++;
+	if (!data->bTag)
+		(data->bTag)++;
+
+	if (retval < 0) {
+		dev_err(&data->intf->dev, "usb_bulk_msg in send_request_dev_dep_msg_in() returned %d\n", retval);
+		return retval;
+	}
+
+	return 0;
+}
+
 static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 			   size_t count, loff_t *f_pos)
 {
@@ -411,37 +464,7 @@ static ssize_t usbtmc_read(struct file *filp, char __user *buf,
 		else
 			this_part = remaining;
 
-		/* Setup IO buffer for DEV_DEP_MSG_IN message
-		 * Refer to class specs for details
-		 */
-		buffer[0] = 2;
-		buffer[1] = data->bTag;
-		buffer[2] = ~(data->bTag);
-		buffer[3] = 0; /* Reserved */
-		buffer[4] = (this_part) & 255;
-		buffer[5] = ((this_part) >> 8) & 255;
-		buffer[6] = ((this_part) >> 16) & 255;
-		buffer[7] = ((this_part) >> 24) & 255;
-		buffer[8] = data->TermCharEnabled * 2;
-		/* Use term character? */
-		buffer[9] = data->TermChar;
-		buffer[10] = 0; /* Reserved */
-		buffer[11] = 0; /* Reserved */
-
-		/* Send bulk URB */
-		retval = usb_bulk_msg(data->usb_dev,
-				      usb_sndbulkpipe(data->usb_dev,
-						      data->bulk_out),
-				      buffer, 12, &actual, USBTMC_TIMEOUT);
-
-		/* Store bTag (in case we need to abort) */
-		data->bTag_last_write = data->bTag;
-
-		/* Increment bTag -- and increment again if zero */
-		data->bTag++;
-		if (!data->bTag)
-			(data->bTag)++;
-
+			retval = send_request_dev_dep_msg_in(data, this_part);
 		if (retval < 0) {
 			dev_err(dev, "usb_bulk_msg returned %d\n", retval);
 			if (data->auto_abort)
