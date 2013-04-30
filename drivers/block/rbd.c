@@ -3065,19 +3065,22 @@ static int rbd_dev_v1_refresh(struct rbd_device *rbd_dev, u64 *hver)
 
 static int rbd_dev_refresh(struct rbd_device *rbd_dev, u64 *hver)
 {
+	u64 image_size;
 	int ret;
 
 	rbd_assert(rbd_image_format_valid(rbd_dev->image_format));
+	image_size = rbd_dev->header.image_size;
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 	if (rbd_dev->image_format == 1)
 		ret = rbd_dev_v1_refresh(rbd_dev, hver);
 	else
 		ret = rbd_dev_v2_refresh(rbd_dev, hver);
 	mutex_unlock(&ctl_mutex);
-	revalidate_disk(rbd_dev->disk);
 	if (ret)
 		rbd_warn(rbd_dev, "got notification but failed to "
 			   " update snaps: %d\n", ret);
+	if (image_size != rbd_dev->header.image_size)
+		revalidate_disk(rbd_dev->disk);
 
 	return ret;
 }
