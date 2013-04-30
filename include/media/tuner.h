@@ -138,6 +138,10 @@
 #define TUNER_XC4000			87	/* Xceive Silicon Tuner */
 #define TUNER_XC5000C			88	/* Xceive Silicon Tuner */
 
+#define TUNER_SONY_BTF_PG472Z		89	/* PAL+SECAM */
+#define TUNER_SONY_BTF_PK467Z		90	/* NTSC_JP */
+#define TUNER_SONY_BTF_PB463Z		91	/* NTSC */
+
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)
 #define TDA9887_PORT1_INACTIVE 		(1<<1)
@@ -188,7 +192,7 @@ struct tuner_setup {
 	unsigned short	addr; 	/* I2C address */
 	unsigned int	type;   /* Tuner type */
 	unsigned int	mode_mask;  /* Allowed tuner modes */
-	unsigned int	config; /* configuraion for more complex tuners */
+	void		*config;    /* configuraion for more complex tuners */
 	int (*tuner_callback) (void *dev, int component, int cmd, int arg);
 };
 

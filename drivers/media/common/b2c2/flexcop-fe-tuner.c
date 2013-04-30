@@ -325,7 +325,7 @@ static int skystar2_rev27_attach(struct flexcop_device *fc,
 	/* enable no_base_addr - no repeated start when reading */
 	fc->fc_i2c_adap[2].no_base_addr = 1;
 	if (!dvb_attach(isl6421_attach, fc->fe, &fc->fc_i2c_adap[2].i2c_adap,
-			0x08, 1, 1)) {
+			0x08, 1, 1, false)) {
 		err("ISL6421 could NOT be attached");
 		goto fail_isl;
 	}
@@ -391,7 +391,7 @@ static int skystar2_rev28_attach(struct flexcop_device *fc,
 
 	fc->fc_i2c_adap[2].no_base_addr = 1;
 	if (!dvb_attach(isl6421_attach, fc->fe, &fc->fc_i2c_adap[2].i2c_adap,
-			0x08, 0, 0)) {
+			0x08, 0, 0, false)) {
 		err("ISL6421 could NOT be attached");
 		fc->fc_i2c_adap[2].no_base_addr = 0;
 		return 0;

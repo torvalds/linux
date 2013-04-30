@@ -514,7 +514,7 @@ static const struct vpif_output dm6467_ch0_outputs[] = {
 			.index = 1,
 			.name = "Component",
 			.type = V4L2_OUTPUT_TYPE_ANALOG,
-			.capabilities = V4L2_OUT_CAP_CUSTOM_TIMINGS,
+			.capabilities = V4L2_OUT_CAP_DV_TIMINGS,
 		},
 		.subdev_name = "adv7343",
 		.output_route = ADV7343_COMPONENT_ID,

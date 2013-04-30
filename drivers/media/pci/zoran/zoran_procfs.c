@@ -201,7 +201,7 @@ zoran_proc_init (struct zoran *zr)
 		dprintk(2,
 			KERN_INFO
 			"%s: procfs entry /proc/%s allocated. data=%p\n",
-			ZR_DEVNAME(zr), name, zr->zoran_proc->data);
+			ZR_DEVNAME(zr), name, zr);
 	} else {
 		dprintk(1, KERN_ERR "%s: Unable to initialise /proc/%s\n",
 			ZR_DEVNAME(zr), name);

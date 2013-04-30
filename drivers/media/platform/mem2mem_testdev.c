@@ -38,6 +38,10 @@ MODULE_AUTHOR("Pawel Osciak, <pawel@osciak.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1.1");
 
+static unsigned debug;
+module_param(debug, uint, 0644);
+MODULE_PARM_DESC(debug, "activates debug info");
+
 #define MIN_W 32
 #define MIN_H 32
 #define MAX_W 640
@@ -67,7 +71,7 @@ MODULE_VERSION("0.1.1");
 #define MEM2MEM_VFLIP	(1 << 1)
 
 #define dprintk(dev, fmt, arg...) \
-	v4l2_dbg(1, 1, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
+	v4l2_dbg(1, debug, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
 
 
 static void m2mtest_dev_release(struct device *dev)
@@ -233,6 +237,10 @@ static int device_process(struct m2mtest_ctx *ctx,
 		/ MEM2MEM_NUM_TILES;
 	bytes_left = bytesperline - tile_w * MEM2MEM_NUM_TILES;
 	w = 0;
+
+	memcpy(&out_vb->v4l2_buf.timestamp,
+			&in_vb->v4l2_buf.timestamp,
+			sizeof(struct timeval));
 
 	switch (ctx->mode) {
 	case MEM2MEM_HFLIP | MEM2MEM_VFLIP:
@@ -844,6 +852,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *ds
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	src_vq->ops = &m2mtest_qops;
 	src_vq->mem_ops = &vb2_vmalloc_memops;
+	src_vq->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -855,6 +864,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *ds
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	dst_vq->ops = &m2mtest_qops;
 	dst_vq->mem_ops = &vb2_vmalloc_memops;
+	dst_vq->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 
 	return vb2_queue_init(dst_vq);
 }

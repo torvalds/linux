@@ -232,6 +232,7 @@ static void w9968cf_smbus_write_nack(struct sd *sd)
 
 static void w9968cf_smbus_read_ack(struct sd *sd)
 {
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 	int sda;
 
 	/* Ensure SDA is high before raising clock to avoid a spurious stop */
@@ -248,6 +249,7 @@ static void w9968cf_smbus_read_ack(struct sd *sd)
 /* SMBus protocol: S Addr Wr [A] Subaddr [A] Value [A] P */
 static void w9968cf_i2c_w(struct sd *sd, u8 reg, u8 value)
 {
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 	u16* data = (u16 *)sd->gspca_dev.usb_buf;
 
 	data[0] = 0x082f | ((sd->sensor_addr & 0x80) ? 0x1500 : 0x0);
@@ -297,6 +299,7 @@ static void w9968cf_i2c_w(struct sd *sd, u8 reg, u8 value)
 /* SMBus protocol: S Addr Wr [A] Subaddr [A] P S Addr+1 Rd [A] [Value] NA P */
 static int w9968cf_i2c_r(struct sd *sd, u8 reg)
 {
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 	int ret = 0;
 	u8 value;
 
@@ -326,7 +329,7 @@ static int w9968cf_i2c_r(struct sd *sd, u8 reg)
 		ret = value;
 		PDEBUG(D_USBI, "i2c [0x%02X] -> 0x%02X", reg, value);
 	} else
-		PDEBUG(D_ERR, "i2c read [0x%02x] failed", reg);
+		PERR("i2c read [0x%02x] failed", reg);
 
 	return ret;
 }

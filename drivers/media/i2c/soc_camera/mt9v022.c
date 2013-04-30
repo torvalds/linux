@@ -275,6 +275,7 @@ static int mt9v022_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 	struct v4l2_rect rect = a->c;
+	int min_row, min_blank;
 	int ret;
 
 	/* Bayer format - even size lengths */
@@ -310,13 +311,21 @@ static int mt9v022_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 		ret = reg_write(client, MT9V022_COLUMN_START, rect.left);
 	if (!ret)
 		ret = reg_write(client, MT9V022_ROW_START, rect.top);
+	/*
+	 * mt9v022: min total row time is 660 columns, min blanking is 43
+	 * mt9v024: min total row time is 690 columns, min blanking is 61
+	 */
+	if (is_mt9v024(mt9v022->chip_version)) {
+		min_row = 690;
+		min_blank = 61;
+	} else {
+		min_row = 660;
+		min_blank = 43;
+	}
 	if (!ret)
-		/*
-		 * Default 94, Phytec driver says:
-		 * "width + horizontal blank >= 660"
-		 */
 		ret = v4l2_ctrl_s_ctrl(mt9v022->hblank,
-				rect.width > 660 - 43 ? 43 : 660 - rect.width);
+				rect.width > min_row - min_blank ?
+				min_blank : min_row - rect.width);
 	if (!ret)
 		ret = v4l2_ctrl_s_ctrl(mt9v022->vblank, 45);
 	if (!ret)
@@ -488,7 +497,7 @@ static int mt9v022_g_register(struct v4l2_subdev *sd,
 }
 
 static int mt9v022_s_register(struct v4l2_subdev *sd,
-			      struct v4l2_dbg_register *reg)
+			      const struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
