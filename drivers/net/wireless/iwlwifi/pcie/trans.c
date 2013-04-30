@@ -405,20 +405,27 @@ static int iwl_pcie_load_section(struct iwl_trans *trans, u8 section_num,
 {
 	u8 *v_addr;
 	dma_addr_t p_addr;
-	u32 offset;
+	u32 offset, chunk_sz = section->len;
 	int ret = 0;
 
 	IWL_DEBUG_FW(trans, "[%d] uCode section being loaded...\n",
 		     section_num);
 
-	v_addr = dma_alloc_coherent(trans->dev, PAGE_SIZE, &p_addr, GFP_KERNEL);
-	if (!v_addr)
-		return -ENOMEM;
+	v_addr = dma_alloc_coherent(trans->dev, chunk_sz, &p_addr,
+				    GFP_KERNEL | __GFP_NOWARN);
+	if (!v_addr) {
+		IWL_DEBUG_INFO(trans, "Falling back to small chunks of DMA\n");
+		chunk_sz = PAGE_SIZE;
+		v_addr = dma_alloc_coherent(trans->dev, chunk_sz,
+					    &p_addr, GFP_KERNEL);
+		if (!v_addr)
+			return -ENOMEM;
+	}
 
-	for (offset = 0; offset < section->len; offset += PAGE_SIZE) {
+	for (offset = 0; offset < section->len; offset += chunk_sz) {
 		u32 copy_size;
 
-		copy_size = min_t(u32, PAGE_SIZE, section->len - offset);
+		copy_size = min_t(u32, chunk_sz, section->len - offset);
 
 		memcpy(v_addr, (u8 *)section->data + offset, copy_size);
 		ret = iwl_pcie_load_firmware_chunk(trans,
@@ -432,7 +439,7 @@ static int iwl_pcie_load_section(struct iwl_trans *trans, u8 section_num,
 		}
 	}
 
-	dma_free_coherent(trans->dev, PAGE_SIZE, v_addr, p_addr);
+	dma_free_coherent(trans->dev, chunk_sz, v_addr, p_addr);
 	return ret;
 }
 
