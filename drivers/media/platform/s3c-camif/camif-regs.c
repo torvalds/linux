@@ -379,7 +379,7 @@ static void camif_hw_set_prescaler(struct camif_vp *vp)
 	camif_write(camif, S3C_CAMIF_REG_CISCPREDST(vp->id, vp->offset), cfg);
 }
 
-void camif_s3c244x_hw_set_scaler(struct camif_vp *vp)
+static void camif_s3c244x_hw_set_scaler(struct camif_vp *vp)
 {
 	struct camif_dev *camif = vp->camif;
 	struct camif_scaler *scaler = &vp->scaler;
@@ -426,7 +426,7 @@ void camif_s3c244x_hw_set_scaler(struct camif_vp *vp)
 		 scaler->main_h_ratio, scaler->main_v_ratio);
 }
 
-void camif_s3c64xx_hw_set_scaler(struct camif_vp *vp)
+static void camif_s3c64xx_hw_set_scaler(struct camif_vp *vp)
 {
 	struct camif_dev *camif = vp->camif;
 	struct camif_scaler *scaler = &vp->scaler;
