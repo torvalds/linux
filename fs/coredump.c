@@ -263,7 +263,6 @@ static int zap_process(struct task_struct *start, int exit_code)
 	struct task_struct *t;
 	int nr = 0;
 
-	start->signal->flags = SIGNAL_GROUP_EXIT;
 	start->signal->group_exit_code = exit_code;
 	start->signal->group_stop_count = 0;
 
@@ -291,8 +290,9 @@ static int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 	if (!signal_group_exit(tsk->signal)) {
 		mm->core_state = core_state;
 		nr = zap_process(tsk, exit_code);
+		tsk->signal->group_exit_task = tsk;
 		/* ignore all signals except SIGKILL, see prepare_signal() */
-		tsk->signal->flags |= SIGNAL_GROUP_COREDUMP;
+		tsk->signal->flags = SIGNAL_GROUP_COREDUMP;
 		clear_tsk_thread_flag(tsk, TIF_SIGPENDING);
 	}
 	spin_unlock_irq(&tsk->sighand->siglock);
@@ -343,6 +343,7 @@ static int zap_threads(struct task_struct *tsk, struct mm_struct *mm,
 				if (unlikely(p->mm == mm)) {
 					lock_task_sighand(p, &flags);
 					nr += zap_process(p, exit_code);
+					p->signal->flags = SIGNAL_GROUP_EXIT;
 					unlock_task_sighand(p, &flags);
 				}
 				break;
@@ -393,6 +394,11 @@ static void coredump_finish(struct mm_struct *mm)
 {
 	struct core_thread *curr, *next;
 	struct task_struct *task;
+
+	spin_lock_irq(&current->sighand->siglock);
+	current->signal->group_exit_task = NULL;
+	current->signal->flags = SIGNAL_GROUP_EXIT;
+	spin_unlock_irq(&current->sighand->siglock);
 
 	next = mm->core_state->dumper.next;
 	while ((curr = next) != NULL) {
