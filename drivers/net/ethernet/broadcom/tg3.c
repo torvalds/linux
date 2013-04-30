@@ -5995,7 +5995,7 @@ static int tg3_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
 				SOF_TIMESTAMPING_SOFTWARE;
 
 	if (tg3_flag(tp, PTP_CAPABLE)) {
-		info->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
+		info->so_timestamping |= SOF_TIMESTAMPING_TX_HARDWARE |
 					SOF_TIMESTAMPING_RX_HARDWARE |
 					SOF_TIMESTAMPING_RAW_HARDWARE;
 	}
