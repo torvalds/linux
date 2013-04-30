@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/freezer.h>
 #include <linux/ptrace.h>
+#include <linux/uaccess.h>
 #include <trace/events/sched.h>
 
 static DEFINE_SPINLOCK(kthread_create_lock);
@@ -133,6 +134,24 @@ EXPORT_SYMBOL_GPL(kthread_freezable_should_stop);
 void *kthread_data(struct task_struct *task)
 {
 	return to_kthread(task)->data;
+}
+
+/**
+ * probe_kthread_data - speculative version of kthread_data()
+ * @task: possible kthread task in question
+ *
+ * @task could be a kthread task.  Return the data value specified when it
+ * was created if accessible.  If @task isn't a kthread task or its data is
+ * inaccessible for any reason, %NULL is returned.  This function requires
+ * that @task itself is safe to dereference.
+ */
+void *probe_kthread_data(struct task_struct *task)
+{
+	struct kthread *kthread = to_kthread(task);
+	void *data = NULL;
+
+	probe_kernel_read(&data, &kthread->data, sizeof(data));
+	return data;
 }
 
 static void __kthread_parkme(struct kthread *self)
