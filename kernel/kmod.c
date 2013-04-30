@@ -77,6 +77,7 @@ static void free_modprobe_argv(struct subprocess_info *info)
 
 static int call_modprobe(char *module_name, int wait)
 {
+	struct subprocess_info *info;
 	static char *envp[] = {
 		"HOME=/",
 		"TERM=linux",
@@ -98,8 +99,15 @@ static int call_modprobe(char *module_name, int wait)
 	argv[3] = module_name;	/* check free_modprobe_argv() */
 	argv[4] = NULL;
 
-	return call_usermodehelper_fns(modprobe_path, argv, envp,
-		wait | UMH_KILLABLE, NULL, free_modprobe_argv, NULL);
+	info = call_usermodehelper_setup(modprobe_path, argv, envp, GFP_KERNEL,
+					 NULL, free_modprobe_argv, NULL);
+	if (!info)
+		goto free_module_name;
+
+	return call_usermodehelper_exec(info, wait | UMH_KILLABLE);
+
+free_module_name:
+	kfree(module_name);
 free_argv:
 	kfree(argv);
 out:
