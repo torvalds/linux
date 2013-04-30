@@ -67,15 +67,6 @@ void show_regs(struct pt_regs *regs)
 	pr_err("A31: %08lx  B31: %08lx\n", regs->a31, regs->b31);
 }
 
-void dump_stack(void)
-{
-	unsigned long stack;
-
-	show_stack(current, &stack);
-}
-EXPORT_SYMBOL(dump_stack);
-
-
 void die(char *str, struct pt_regs *fp, int nr)
 {
 	console_verbose();

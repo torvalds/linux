@@ -129,23 +129,6 @@ static void show_last_breaking_event(struct pt_regs *regs)
 #endif
 }
 
-/*
- * The architecture-independent dump_stack generator
- */
-void dump_stack(void)
-{
-	printk("CPU: %d %s %s %.*s\n",
-	       task_thread_info(current)->cpu, print_tainted(),
-	       init_utsname()->release,
-	       (int)strcspn(init_utsname()->version, " "),
-	       init_utsname()->version);
-	printk("Process %s (pid: %d, task: %p, ksp: %p)\n",
-	       current->comm, current->pid, current,
-	       (void *) current->thread.ksp);
-	show_stack(NULL, NULL);
-}
-EXPORT_SYMBOL(dump_stack);
-
 static inline int mask_bits(struct pt_regs *regs, unsigned long bits)
 {
 	return (regs->psw.mask & bits) / ((~bits + 1) & bits);

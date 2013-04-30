@@ -481,14 +481,6 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	show_trace(task, stack);
 }
 
-void dump_stack(void)
-{
-	show_stack(current, NULL);
-}
-
-EXPORT_SYMBOL(dump_stack);
-
-
 void show_code(unsigned int *pc)
 {
 	long i;

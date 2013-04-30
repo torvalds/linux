@@ -96,14 +96,6 @@ show_stack (struct task_struct *task, unsigned long *sp)
 }
 
 void
-dump_stack (void)
-{
-	show_stack(NULL, NULL);
-}
-
-EXPORT_SYMBOL(dump_stack);
-
-void
 show_regs (struct pt_regs *regs)
 {
 	unsigned long ip = regs->cr_iip + ia64_psr(regs)->ri;

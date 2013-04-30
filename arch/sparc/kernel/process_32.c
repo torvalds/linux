@@ -164,13 +164,6 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 	printk("\n");
 }
 
-void dump_stack(void)
-{
-	show_stack(current, NULL);
-}
-
-EXPORT_SYMBOL(dump_stack);
-
 /*
  * Note: sparc64 has a pretty intricated thread_saved_pc, check it out.
  */

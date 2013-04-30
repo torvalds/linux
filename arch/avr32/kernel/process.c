@@ -204,14 +204,6 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 	show_stack_log_lvl(tsk, (unsigned long)stack, NULL, "");
 }
 
-void dump_stack(void)
-{
-	unsigned long stack;
-
-	show_trace_log_lvl(current, &stack, NULL, "");
-}
-EXPORT_SYMBOL(dump_stack);
-
 static const char *cpu_modes[] = {
 	"Application", "Supervisor", "Interrupt level 0", "Interrupt level 1",
 	"Interrupt level 2", "Interrupt level 3", "Exception", "NMI"
