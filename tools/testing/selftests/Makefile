@@ -1,10 +1,11 @@
 TARGETS = breakpoints
-TARGETS += kcmp
-TARGETS += mqueue
-TARGETS += vm
 TARGETS += cpu-hotplug
-TARGETS += memory-hotplug
 TARGETS += efivarfs
+TARGETS += kcmp
+TARGETS += memory-hotplug
+TARGETS += mqueue
+TARGETS += soft-dirty
+TARGETS += vm
 
 all:
 	for TARGET in $(TARGETS); do \
