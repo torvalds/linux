@@ -30,8 +30,9 @@ void etrax_gpio_wake_up_check(void); /* drivers/gpio.c */
 void default_idle(void)
 {
 #ifdef CONFIG_ETRAX_GPIO
-  etrax_gpio_wake_up_check();
+	etrax_gpio_wake_up_check();
 #endif
+	local_irq_enable();
 }
 
 /*
