@@ -250,20 +250,7 @@ config ARCH_SUSPEND_POSSIBLE
 	def_bool y
 
 menu "CPU Frequency scaling"
-
 source "drivers/cpufreq/Kconfig"
-
-config CPU_FREQ_AT32AP
-	bool "CPU frequency driver for AT32AP"
-	depends on CPU_FREQ && PLATFORM_AT32AP
-	default n
-	help
-	  This enables the CPU frequency driver for AT32AP processors.
-
-	  For details, take a look in <file:Documentation/cpu-freq>.
-
-	  If in doubt, say N.
-
 endmenu
 
 endmenu

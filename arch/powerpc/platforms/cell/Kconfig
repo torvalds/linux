@@ -113,34 +113,10 @@ config CBE_THERM
 	default m
 	depends on CBE_RAS && SPU_BASE
 
-config CBE_CPUFREQ
-	tristate "CBE frequency scaling"
-	depends on CBE_RAS && CPU_FREQ
-	default m
-	help
-	  This adds the cpufreq driver for Cell BE processors.
-	  For details, take a look at <file:Documentation/cpu-freq/>.
-	  If you don't have such processor, say N
-
-config CBE_CPUFREQ_PMI_ENABLE
-	bool "CBE frequency scaling using PMI interface"
-	depends on CBE_CPUFREQ
-	default n
-	help
-	  Select this, if you want to use the PMI interface
-	  to switch frequencies. Using PMI, the
-	  processor will not only be able to run at lower speed,
-	  but also at lower core voltage.
-
-config CBE_CPUFREQ_PMI
-	tristate
-	depends on CBE_CPUFREQ_PMI_ENABLE
-	default CBE_CPUFREQ
-
 config PPC_PMI
 	tristate
 	default y
-	depends on CBE_CPUFREQ_PMI || PPC_IBM_CELL_POWERBUTTON
+	depends on CPU_FREQ_CBE_PMI || PPC_IBM_CELL_POWERBUTTON
 	help
 	  PMI (Platform Management Interrupt) is a way to
 	  communicate with the BMC (Baseboard Management Controller).

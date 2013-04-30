@@ -224,6 +224,7 @@ ACPI_EXTERN u8 acpi_gbl_global_lock_pending;
  */
 ACPI_EXTERN acpi_spinlock acpi_gbl_gpe_lock;	/* For GPE data structs and registers */
 ACPI_EXTERN acpi_spinlock acpi_gbl_hardware_lock;	/* For ACPI H/W except GPE registers */
+ACPI_EXTERN acpi_spinlock acpi_gbl_reference_count_lock;
 
 /* Mutex for _OSI support */
 
@@ -413,10 +414,12 @@ ACPI_EXTERN u8 acpi_gbl_db_output_flags;
 
 #ifdef ACPI_DISASSEMBLER
 
-u8 ACPI_INIT_GLOBAL(acpi_gbl_ignore_noop_operator, FALSE);
+ACPI_EXTERN u8 ACPI_INIT_GLOBAL(acpi_gbl_ignore_noop_operator, FALSE);
 
 ACPI_EXTERN u8 acpi_gbl_db_opt_disasm;
 ACPI_EXTERN u8 acpi_gbl_db_opt_verbose;
+ACPI_EXTERN u8 acpi_gbl_num_external_methods;
+ACPI_EXTERN u32 acpi_gbl_resolved_external_methods;
 ACPI_EXTERN struct acpi_external_list *acpi_gbl_external_list;
 ACPI_EXTERN struct acpi_external_file *acpi_gbl_external_file_list;
 #endif

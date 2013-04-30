@@ -87,13 +87,12 @@ static int mxc_set_target(struct cpufreq_policy *policy,
 
 	freqs.old = clk_get_rate(cpu_clk) / 1000;
 	freqs.new = freq_Hz / 1000;
-	freqs.cpu = 0;
 	freqs.flags = 0;
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	ret = set_cpu_freq(freq_Hz);
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return ret;
 }
@@ -145,14 +144,11 @@ static int mxc_cpufreq_init(struct cpufreq_policy *policy)
 	imx_freq_table[i].frequency = CPUFREQ_TABLE_END;
 
 	policy->cur = clk_get_rate(cpu_clk) / 1000;
-	policy->min = policy->cpuinfo.min_freq = cpu_freq_khz_min;
-	policy->max = policy->cpuinfo.max_freq = cpu_freq_khz_max;
 
 	/* Manual states, that PLL stabilizes in two CLK32 periods */
 	policy->cpuinfo.transition_latency = 2 * NANOSECOND / CLK32_FREQ;
 
 	ret = cpufreq_frequency_table_cpuinfo(policy, imx_freq_table);
-
 	if (ret < 0) {
 		printk(KERN_ERR "%s: failed to register i.MXC CPUfreq with error code %d\n",
 		       __func__, ret);
