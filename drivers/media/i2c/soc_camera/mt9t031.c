@@ -570,7 +570,7 @@ static int mt9t031_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops mt9t031_dev_pm_ops = {
+static const struct dev_pm_ops mt9t031_dev_pm_ops = {
 	.runtime_suspend	= mt9t031_runtime_suspend,
 	.runtime_resume		= mt9t031_runtime_resume,
 };
