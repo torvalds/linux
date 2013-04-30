@@ -4180,6 +4180,9 @@ int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	struct mgmt_ev_device_found *ev = (void *) buf;
 	size_t ev_size;
 
+	if (!hci_discovery_active(hdev))
+		return -EPERM;
+
 	/* Leave 5 bytes for a potential CoD field */
 	if (sizeof(*ev) + eir_len + 5 > sizeof(buf))
 		return -EINVAL;
