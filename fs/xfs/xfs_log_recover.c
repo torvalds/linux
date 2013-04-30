@@ -1940,12 +1940,18 @@ xlog_recovery_validate_buf_type(
 	case XFS_BLFT_UDQUOT_BUF:
 	case XFS_BLFT_PDQUOT_BUF:
 	case XFS_BLFT_GDQUOT_BUF:
+#ifdef CONFIG_XFS_QUOTA
 		if (magic16 != XFS_DQUOT_MAGIC) {
 			xfs_warn(mp, "Bad DQUOT block magic!");
 			ASSERT(0);
 			break;
 		}
 		bp->b_ops = &xfs_dquot_buf_ops;
+#else
+		xfs_alert(mp,
+	"Trying to recover dquots without QUOTA support built in!");
+		ASSERT(0);
+#endif
 		break;
 	case XFS_BLFT_DINO_BUF:
 		/*
