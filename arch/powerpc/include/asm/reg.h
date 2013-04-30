@@ -267,9 +267,11 @@
 #define SPRN_HSRR1	0x13B	/* Hypervisor Save/Restore 1 */
 #define SPRN_FSCR	0x099	/* Facility Status & Control Register */
 #define   FSCR_TAR	(1 << (63-55)) /* Enable Target Address Register */
+#define   FSCR_EBB	(1 << (63-56)) /* Enable Event Based Branching */
 #define   FSCR_DSCR	(1 << (63-61)) /* Enable Data Stream Control Register */
 #define SPRN_HFSCR	0xbe	/* HV=1 Facility Status & Control Register */
 #define   HFSCR_TAR	(1 << (63-55)) /* Enable Target Address Register */
+#define   HFSCR_EBB	(1 << (63-56)) /* Enable Event Based Branching */
 #define   HFSCR_TM	(1 << (63-58)) /* Enable Transactional Memory */
 #define   HFSCR_PM	(1 << (63-60)) /* Enable prob/priv access to PMU SPRs */
 #define   HFSCR_BHRB	(1 << (63-59)) /* Enable Branch History Rolling Buffer*/
