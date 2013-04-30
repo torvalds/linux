@@ -1115,6 +1115,16 @@ void hci_sock_dev_event(struct hci_dev *hdev, int event);
 					 BIT(BDADDR_LE_PUBLIC) | \
 					 BIT(BDADDR_LE_RANDOM))
 
+/* These LE scan and inquiry parameters were chosen according to LE General
+ * Discovery Procedure specification.
+ */
+#define DISCOV_LE_SCAN_WIN		0x12
+#define DISCOV_LE_SCAN_INT		0x12
+#define DISCOV_LE_TIMEOUT		msecs_to_jiffies(10240)
+#define DISCOV_INTERLEAVED_TIMEOUT	msecs_to_jiffies(5120)
+#define DISCOV_INTERLEAVED_INQUIRY_LEN	0x04
+#define DISCOV_BREDR_INQUIRY_LEN	0x08
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t len);
 int mgmt_index_added(struct hci_dev *hdev);
 int mgmt_index_removed(struct hci_dev *hdev);
