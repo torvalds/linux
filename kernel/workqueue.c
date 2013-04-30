@@ -2059,6 +2059,7 @@ static bool manage_workers(struct worker *worker)
 	if (unlikely(!mutex_trylock(&pool->manager_mutex))) {
 		spin_unlock_irq(&pool->lock);
 		mutex_lock(&pool->manager_mutex);
+		spin_lock_irq(&pool->lock);
 		ret = true;
 	}
 
