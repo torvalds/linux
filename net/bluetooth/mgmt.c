@@ -2808,6 +2808,23 @@ failed:
 	return err;
 }
 
+static void stop_discovery_complete(struct hci_dev *hdev, u8 status)
+{
+	BT_DBG("status %d", status);
+
+	hci_dev_lock(hdev);
+
+	if (status) {
+		mgmt_stop_discovery_failed(hdev, status);
+		goto unlock;
+	}
+
+	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+
+unlock:
+	hci_dev_unlock(hdev);
+}
+
 static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 			  u16 len)
 {
@@ -2815,6 +2832,8 @@ static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 	struct pending_cmd *cmd;
 	struct hci_cp_remote_name_req_cancel cp;
 	struct inquiry_entry *e;
+	struct hci_request req;
+	struct hci_cp_le_set_scan_enable enable_cp;
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -2841,12 +2860,20 @@ static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
+	hci_req_init(&req, hdev);
+
 	switch (hdev->discovery.state) {
 	case DISCOVERY_FINDING:
-		if (test_bit(HCI_INQUIRY, &hdev->flags))
-			err = hci_cancel_inquiry(hdev);
-		else
-			err = hci_cancel_le_scan(hdev);
+		if (test_bit(HCI_INQUIRY, &hdev->flags)) {
+			hci_req_add(&req, HCI_OP_INQUIRY_CANCEL, 0, NULL);
+		} else {
+			cancel_delayed_work(&hdev->le_scan_disable);
+
+			memset(&enable_cp, 0, sizeof(enable_cp));
+			enable_cp.enable = LE_SCAN_DISABLE;
+			hci_req_add(&req, HCI_OP_LE_SET_SCAN_ENABLE,
+				    sizeof(enable_cp), &enable_cp);
+		}
 
 		break;
 
@@ -2864,16 +2891,22 @@ static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 		}
 
 		bacpy(&cp.bdaddr, &e->data.bdaddr);
-		err = hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ_CANCEL,
-				   sizeof(cp), &cp);
+		hci_req_add(&req, HCI_OP_REMOTE_NAME_REQ_CANCEL, sizeof(cp),
+			    &cp);
 
 		break;
 
 	default:
 		BT_DBG("unknown discovery state %u", hdev->discovery.state);
-		err = -EFAULT;
+
+		mgmt_pending_remove(cmd);
+		err = cmd_complete(sk, hdev->id, MGMT_OP_STOP_DISCOVERY,
+				   MGMT_STATUS_FAILED, &mgmt_cp->type,
+				   sizeof(mgmt_cp->type));
+		goto unlock;
 	}
 
+	err = hci_req_run(&req, stop_discovery_complete);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 	else
