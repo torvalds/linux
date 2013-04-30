@@ -682,9 +682,10 @@ choice
 	prompt "Build-forced no-CBs CPUs"
 	default RCU_NOCB_CPU_NONE
 	help
-	  This option allows no-CBs CPUs to be specified at build time.
-	  Additional no-CBs CPUs may be specified by the rcu_nocbs=
-	  boot parameter.
+	  This option allows no-CBs CPUs (whose RCU callbacks are invoked
+	  from kthreads rather than from softirq context) to be specified
+	  at build time.  Additional no-CBs CPUs may be specified by
+	  the rcu_nocbs= boot parameter.
 
 config RCU_NOCB_CPU_NONE
 	bool "No build_forced no-CBs CPUs"
@@ -692,25 +693,40 @@ config RCU_NOCB_CPU_NONE
 	help
 	  This option does not force any of the CPUs to be no-CBs CPUs.
 	  Only CPUs designated by the rcu_nocbs= boot parameter will be
-	  no-CBs CPUs.
+	  no-CBs CPUs, whose RCU callbacks will be invoked by per-CPU
+	  kthreads whose names begin with "rcuo".  All other CPUs will
+	  invoke their own RCU callbacks in softirq context.
+
+	  Select this option if you want to choose no-CBs CPUs at
+	  boot time, for example, to allow testing of different no-CBs
+	  configurations without having to rebuild the kernel each time.
 
 config RCU_NOCB_CPU_ZERO
 	bool "CPU 0 is a build_forced no-CBs CPU"
 	depends on RCU_NOCB_CPU && !NO_HZ_FULL
 	help
-	  This option forces CPU 0 to be a no-CBs CPU.  Additional CPUs
-	  may be designated as no-CBs CPUs using the rcu_nocbs= boot
-	  parameter will be no-CBs CPUs.
+	  This option forces CPU 0 to be a no-CBs CPU, so that its RCU
+	  callbacks are invoked by a per-CPU kthread whose name begins
+	  with "rcuo".	Additional CPUs may be designated as no-CBs
+	  CPUs using the rcu_nocbs= boot parameter will be no-CBs CPUs.
+	  All other CPUs will invoke their own RCU callbacks in softirq
+	  context.
 
 	  Select this if CPU 0 needs to be a no-CBs CPU for real-time
-	  or energy-efficiency reasons.
+	  or energy-efficiency reasons, but the real reason it exists
+	  is to ensure that randconfig testing covers mixed systems.
 
 config RCU_NOCB_CPU_ALL
 	bool "All CPUs are build_forced no-CBs CPUs"
 	depends on RCU_NOCB_CPU
 	help
 	  This option forces all CPUs to be no-CBs CPUs.  The rcu_nocbs=
-	  boot parameter will be ignored.
+	  boot parameter will be ignored.  All CPUs' RCU callbacks will
+	  be executed in the context of per-CPU rcuo kthreads created for
+	  this purpose.  Assuming that the kthreads whose names start with
+	  "rcuo" are bound to "housekeeping" CPUs, this reduces OS jitter
+	  on the remaining CPUs, but might decrease memory locality during
+	  RCU-callback invocation, thus potentially degrading throughput.
 
 	  Select this if all CPUs need to be no-CBs CPUs for real-time
 	  or energy-efficiency reasons.
