@@ -419,10 +419,8 @@ efivar_create_sysfs_entry(struct efivar_entry *new_var)
 
 	short_name = kzalloc(short_name_size, GFP_KERNEL);
 
-	if (!short_name) {
-		kfree(short_name);
+	if (!short_name)
 		return 1;
-	}
 
 	/* Convert Unicode to normal chars (assume top bits are 0),
 	   ala UTF-8 */
