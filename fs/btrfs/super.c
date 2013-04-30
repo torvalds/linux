@@ -51,7 +51,6 @@
 #include "print-tree.h"
 #include "xattr.h"
 #include "volumes.h"
-#include "version.h"
 #include "export.h"
 #include "compression.h"
 #include "rcu-string.h"
@@ -1685,6 +1684,18 @@ static void btrfs_interface_exit(void)
 		printk(KERN_INFO "btrfs: misc_deregister failed for control device\n");
 }
 
+static void btrfs_print_info(void)
+{
+	printk(KERN_INFO "Btrfs loaded"
+#ifdef CONFIG_BTRFS_DEBUG
+			", debug=on"
+#endif
+#ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
+			", integrity-checker=on"
+#endif
+			"\n");
+}
+
 static int __init init_btrfs_fs(void)
 {
 	int err;
@@ -1733,9 +1744,9 @@ static int __init init_btrfs_fs(void)
 
 	btrfs_init_lockdep();
 
+	btrfs_print_info();
 	btrfs_test_free_space_cache();
 
-	printk(KERN_INFO "%s loaded\n", BTRFS_BUILD_VERSION);
 	return 0;
 
 unregister_ioctl:
