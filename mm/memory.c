@@ -715,11 +715,11 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
 	 * Choose text because data symbols depend on CONFIG_KALLSYMS_ALL=y
 	 */
 	if (vma->vm_ops)
-		print_symbol(KERN_ALERT "vma->vm_ops->fault: %s\n",
-				(unsigned long)vma->vm_ops->fault);
+		printk(KERN_ALERT "vma->vm_ops->fault: %pSR\n",
+		       vma->vm_ops->fault);
 	if (vma->vm_file && vma->vm_file->f_op)
-		print_symbol(KERN_ALERT "vma->vm_file->f_op->mmap: %s\n",
-				(unsigned long)vma->vm_file->f_op->mmap);
+		printk(KERN_ALERT "vma->vm_file->f_op->mmap: %pSR\n",
+		       vma->vm_file->f_op->mmap);
 	dump_stack();
 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 }

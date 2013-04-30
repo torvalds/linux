@@ -1675,7 +1675,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	module.sig_enforce
 			[KNL] When CONFIG_MODULE_SIG is set, this means that
 			modules without (valid) signatures will fail to load.
-			Note that if CONFIG_MODULE_SIG_ENFORCE is set, that
+			Note that if CONFIG_MODULE_SIG_FORCE is set, that
 			is always true, so this option does nothing.
 
 	mousedev.tap_time=
@@ -2023,8 +2023,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	noreplace-smp	[X86-32,SMP] Don't replace SMP instructions
 			with UP alternatives
-
-	noresidual	[PPC] Don't use residual data on PReP machines.
 
 	nordrand	[X86] Disable the direct use of the RDRAND
 			instruction even if it is supported by the

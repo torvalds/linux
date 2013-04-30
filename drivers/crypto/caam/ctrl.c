@@ -66,7 +66,7 @@ static void build_instantiation_desc(u32 *desc)
 
 	/*
 	 * load 1 to clear written reg:
-	 * resets the done interrrupt and returns the RNG to idle.
+	 * resets the done interrupt and returns the RNG to idle.
 	 */
 	append_load_imm_u32(desc, 1, LDST_SRCDST_WORD_CLRW);
 

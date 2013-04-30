@@ -54,7 +54,7 @@ MODULE_PARM_DESC(debug, "enable debug messages");
 
 unsigned int fw_debug;
 module_param(fw_debug, int, 0644);
-MODULE_PARM_DESC(fw_debug, "Firware debug level def:2");
+MODULE_PARM_DESC(fw_debug, "Firmware debug level def:2");
 
 unsigned int encoder_buffers = SAA7164_MAX_ENCODER_BUFFERS;
 module_param(encoder_buffers, int, 0644);

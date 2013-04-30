@@ -41,7 +41,7 @@
 #define SPORT_CTL_LAFS                0x00020000    /* Late Transmit frame select */
 #define SPORT_CTL_RJUST               0x00040000    /* Right Justified mode select */
 #define SPORT_CTL_FSED                0x00080000    /* External frame sync edge select */
-#define SPORT_CTL_TFIEN               0x00100000    /* Transmit finish interrrupt enable select */
+#define SPORT_CTL_TFIEN               0x00100000    /* Transmit finish interrupt enable select */
 #define SPORT_CTL_GCLKEN              0x00200000    /* Gated clock mode select */
 #define SPORT_CTL_SPENSEC             0x01000000    /* Enable secondary channel */
 #define SPORT_CTL_SPTRAN              0x02000000    /* Data direction control */

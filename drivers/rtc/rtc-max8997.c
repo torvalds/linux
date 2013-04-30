@@ -24,7 +24,7 @@
 /* Module parameter for WTSR function control */
 static int wtsr_en = 1;
 module_param(wtsr_en, int, 0444);
-MODULE_PARM_DESC(wtsr_en, "Wachdog Timeout & Sofware Reset (default=on)");
+MODULE_PARM_DESC(wtsr_en, "Watchdog Timeout & Software Reset (default=on)");
 /* Module parameter for SMPL function control */
 static int smpl_en = 1;
 module_param(smpl_en, int, 0444);

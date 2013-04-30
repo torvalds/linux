@@ -4741,7 +4741,7 @@ lpfc_bsg_mbox_cmd(struct fc_bsg_job *job)
 	if (job->request_len <
 	    sizeof(struct fc_bsg_request) + sizeof(struct dfc_mbox_req)) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_LIBDFC,
-				"2737 Mix-and-match backward compability "
+				"2737 Mix-and-match backward compatibility "
 				"between MBOX_REQ old size:%d and "
 				"new request size:%d\n",
 				(int)(job->request_len -

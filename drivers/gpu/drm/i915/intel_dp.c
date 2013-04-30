@@ -2028,7 +2028,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 	}
 
 	if (channel_eq)
-		DRM_DEBUG_KMS("Channel EQ done. DP Training successfull\n");
+		DRM_DEBUG_KMS("Channel EQ done. DP Training successful\n");
 
 	intel_dp_set_link_train(intel_dp, DP, DP_TRAINING_PATTERN_DISABLE);
 }

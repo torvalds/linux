@@ -1088,7 +1088,7 @@ int auok190x_common_probe(struct platform_device *pdev,
 		goto err_defio;
 	}
 
-	dev_dbg(info->device, "targetting %d frames per second\n", board->fps);
+	dev_dbg(info->device, "targeting %d frames per second\n", board->fps);
 	info->fbdefio->delay = HZ / board->fps;
 	info->fbdefio->first_io = auok190xfb_dpy_first_io,
 	info->fbdefio->deferred_io = auok190xfb_dpy_deferred_io,

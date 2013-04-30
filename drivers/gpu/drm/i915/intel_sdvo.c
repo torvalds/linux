@@ -451,7 +451,7 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 	int i, ret = true;
 
         /* Would be simpler to allocate both in one go ? */        
-	buf = (u8 *)kzalloc(args_len * 2 + 2, GFP_KERNEL);
+	buf = kzalloc(args_len * 2 + 2, GFP_KERNEL);
 	if (!buf)
 		return false;
 

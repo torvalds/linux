@@ -199,7 +199,7 @@ static int puv3_i2c_probe(struct platform_device *pdev)
 
 	adapter = kzalloc(sizeof(struct i2c_adapter), GFP_KERNEL);
 	if (adapter == NULL) {
-		dev_err(&pdev->dev, "can't allocate inteface!\n");
+		dev_err(&pdev->dev, "can't allocate interface!\n");
 		rc = -ENOMEM;
 		goto fail_nomem;
 	}
