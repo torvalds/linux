@@ -4624,8 +4624,15 @@ static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 		ret = rbd_dev_v2_parent_info(rbd_dev);
 		if (ret)
 			goto out_err;
-		rbd_warn(rbd_dev, "WARNING: kernel support for "
-					"layered rbd images is EXPERIMENTAL!");
+
+		/*
+		 * Don't print a warning for parent images.  We can
+		 * tell this point because we won't know its pool
+		 * name yet (just its pool id).
+		 */
+		if (rbd_dev->spec->pool_name)
+			rbd_warn(rbd_dev, "WARNING: kernel layering "
+					"is EXPERIMENTAL!");
 	}
 
 	/* If the image supports fancy striping, get its parameters */
