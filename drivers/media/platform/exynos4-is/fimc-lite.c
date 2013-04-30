@@ -1,8 +1,8 @@
 /*
  * Samsung EXYNOS FIMC-LITE (camera host interface) driver
 *
- * Copyright (C) 2012 Samsung Electronics Co., Ltd.
- * Sylwester Nawrocki <s.nawrocki@samsung.com>
+ * Copyright (C) 2012 - 2013 Samsung Electronics Co., Ltd.
+ * Author: Sylwester Nawrocki <s.nawrocki@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1626,15 +1626,6 @@ static struct flite_drvdata fimc_lite_drvdata_exynos4 = {
 	.out_hor_offs_align	= 8,
 };
 
-static struct platform_device_id fimc_lite_driver_ids[] = {
-	{
-		.name		= "exynos-fimc-lite",
-		.driver_data	= (unsigned long)&fimc_lite_drvdata_exynos4,
-	},
-	{ /* sentinel */ },
-};
-MODULE_DEVICE_TABLE(platform, fimc_lite_driver_ids);
-
 static const struct of_device_id flite_of_match[] = {
 	{
 		.compatible = "samsung,exynos4212-fimc-lite",
@@ -1647,7 +1638,6 @@ MODULE_DEVICE_TABLE(of, flite_of_match);
 static struct platform_driver fimc_lite_driver = {
 	.probe		= fimc_lite_probe,
 	.remove		= fimc_lite_remove,
-	.id_table	= fimc_lite_driver_ids,
 	.driver = {
 		.of_match_table = flite_of_match,
 		.name		= FIMC_LITE_DRV_NAME,
