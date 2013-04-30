@@ -174,7 +174,7 @@ int fimc_is_hw_change_mode(struct fimc_is *is)
 		HIC_CAPTURE_STILL, HIC_CAPTURE_VIDEO,
 	};
 
-	if (WARN_ON(is->config_index > ARRAY_SIZE(cmd)))
+	if (WARN_ON(is->config_index >= ARRAY_SIZE(cmd)))
 		return -EINVAL;
 
 	mcuctl_write(cmd[is->config_index], is, MCUCTL_REG_ISSR(0));
