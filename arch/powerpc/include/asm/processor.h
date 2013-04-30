@@ -281,6 +281,9 @@ struct thread_struct {
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	unsigned long	tar;
+	unsigned long	ebbrr;
+	unsigned long	ebbhr;
+	unsigned long	bescr;
 #endif
 };
 

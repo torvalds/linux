@@ -663,6 +663,9 @@
 #define SPRN_MMCRH	316	/* Hypervisor monitor mode control register */
 #define SPRN_MMCRS	894	/* Supervisor monitor mode control register */
 #define SPRN_MMCRC	851	/* Core monitor mode control register */
+#define SPRN_EBBHR	804	/* Event based branch handler register */
+#define SPRN_EBBRR	805	/* Event based branch return register */
+#define SPRN_BESCR	806	/* Branch event status and control register */
 
 #define SPRN_PMC1	787
 #define SPRN_PMC2	788
