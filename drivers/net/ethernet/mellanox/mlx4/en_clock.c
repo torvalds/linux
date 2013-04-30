@@ -114,6 +114,7 @@ void mlx4_en_fill_hwtstamps(struct mlx4_en_dev *mdev,
 void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev)
 {
 	struct mlx4_dev *dev = mdev->dev;
+	u64 ns;
 
 	memset(&mdev->cycles, 0, sizeof(mdev->cycles));
 	mdev->cycles.read = mlx4_en_read_clock;
@@ -133,10 +134,9 @@ void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev)
 	/* Calculate period in seconds to call the overflow watchdog - to make
 	 * sure counter is checked at least once every wrap around.
 	 */
-	mdev->overflow_period =
-		(cyclecounter_cyc2ns(&mdev->cycles,
-				    mdev->cycles.mask) / NSEC_PER_SEC / 2)
-		* HZ;
+	ns = cyclecounter_cyc2ns(&mdev->cycles, mdev->cycles.mask);
+	do_div(ns, NSEC_PER_SEC / 2 / HZ);
+	mdev->overflow_period = ns;
 }
 
 void mlx4_en_ptp_overflow_check(struct mlx4_en_dev *mdev)
