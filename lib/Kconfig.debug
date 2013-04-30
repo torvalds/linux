@@ -1463,5 +1463,8 @@ source "lib/Kconfig.kgdb"
 
 source "lib/Kconfig.kmemcheck"
 
+config TEST_STRING_HELPERS
+	tristate "Test functions located in the string_helpers module at runtime"
+
 config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"
