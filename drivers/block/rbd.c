@@ -435,6 +435,11 @@ static int rbd_dev_refresh(struct rbd_device *rbd_dev);
 static int rbd_dev_v2_refresh(struct rbd_device *rbd_dev);
 static const char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev,
 					u64 snap_id);
+static int _rbd_dev_v2_snap_size(struct rbd_device *rbd_dev, u64 snap_id,
+				u8 *order, u64 *snap_size);
+static int _rbd_dev_v2_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
+		u64 *snap_features);
+static u64 rbd_snap_id_by_name(struct rbd_device *rbd_dev, const char *name);
 
 static int rbd_open(struct block_device *bdev, fmode_t mode)
 {
@@ -840,7 +845,8 @@ static u32 rbd_dev_snap_index(struct rbd_device *rbd_dev, u64 snap_id)
 	return BAD_SNAP_INDEX;
 }
 
-static const char *rbd_dev_v1_snap_name(struct rbd_device *rbd_dev, u64 snap_id)
+static const char *rbd_dev_v1_snap_name(struct rbd_device *rbd_dev,
+					u64 snap_id)
 {
 	u32 which;
 
@@ -863,34 +869,84 @@ static const char *rbd_snap_name(struct rbd_device *rbd_dev, u64 snap_id)
 	return rbd_dev_v2_snap_name(rbd_dev, snap_id);
 }
 
-static struct rbd_snap *snap_by_name(struct rbd_device *rbd_dev,
-					const char *snap_name)
+static int rbd_snap_size(struct rbd_device *rbd_dev, u64 snap_id,
+				u64 *snap_size)
 {
-	struct rbd_snap *snap;
+	rbd_assert(rbd_image_format_valid(rbd_dev->image_format));
+	if (snap_id == CEPH_NOSNAP) {
+		*snap_size = rbd_dev->header.image_size;
+	} else if (rbd_dev->image_format == 1) {
+		u32 which;
 
-	list_for_each_entry(snap, &rbd_dev->snaps, node)
-		if (!strcmp(snap_name, snap->name))
-			return snap;
+		which = rbd_dev_snap_index(rbd_dev, snap_id);
+		if (which == BAD_SNAP_INDEX)
+			return -ENOENT;
 
-	return NULL;
+		*snap_size = rbd_dev->header.snap_sizes[which];
+	} else {
+		u64 size = 0;
+		int ret;
+
+		ret = _rbd_dev_v2_snap_size(rbd_dev, snap_id, NULL, &size);
+		if (ret)
+			return ret;
+
+		*snap_size = size;
+	}
+	return 0;
+}
+
+static int rbd_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
+			u64 *snap_features)
+{
+	rbd_assert(rbd_image_format_valid(rbd_dev->image_format));
+	if (snap_id == CEPH_NOSNAP) {
+		*snap_features = rbd_dev->header.features;
+	} else if (rbd_dev->image_format == 1) {
+		*snap_features = 0;	/* No features for format 1 */
+	} else {
+		u64 features = 0;
+		int ret;
+
+		ret = _rbd_dev_v2_snap_features(rbd_dev, snap_id, &features);
+		if (ret)
+			return ret;
+
+		*snap_features = features;
+	}
+	return 0;
 }
 
 static int rbd_dev_mapping_set(struct rbd_device *rbd_dev)
 {
-	if (!memcmp(rbd_dev->spec->snap_name, RBD_SNAP_HEAD_NAME,
-		    sizeof (RBD_SNAP_HEAD_NAME))) {
-		rbd_dev->mapping.size = rbd_dev->header.image_size;
-		rbd_dev->mapping.features = rbd_dev->header.features;
-	} else {
-		struct rbd_snap *snap;
+	const char *snap_name = rbd_dev->spec->snap_name;
+	u64 snap_id;
+	u64 size = 0;
+	u64 features = 0;
+	int ret;
 
-		snap = snap_by_name(rbd_dev, rbd_dev->spec->snap_name);
-		if (!snap)
+	if (strcmp(snap_name, RBD_SNAP_HEAD_NAME)) {
+		snap_id = rbd_snap_id_by_name(rbd_dev, snap_name);
+		if (snap_id == CEPH_NOSNAP)
 			return -ENOENT;
-		rbd_dev->mapping.size = snap->size;
-		rbd_dev->mapping.features = snap->features;
-		rbd_dev->mapping.read_only = true;
+	} else {
+		snap_id = CEPH_NOSNAP;
 	}
+
+	ret = rbd_snap_size(rbd_dev, snap_id, &size);
+	if (ret)
+		return ret;
+	ret = rbd_snap_features(rbd_dev, snap_id, &features);
+	if (ret)
+		return ret;
+
+	rbd_dev->mapping.size = size;
+	rbd_dev->mapping.features = features;
+
+	/* If we are mapping a snapshot it must be marked read-only */
+
+	if (snap_id != CEPH_NOSNAP)
+		rbd_dev->mapping.read_only = true;
 
 	return 0;
 }
@@ -3766,6 +3822,56 @@ out:
 	return image_name;
 }
 
+static u64 rbd_v1_snap_id_by_name(struct rbd_device *rbd_dev, const char *name)
+{
+	struct ceph_snap_context *snapc = rbd_dev->header.snapc;
+	const char *snap_name;
+	u32 which = 0;
+
+	/* Skip over names until we find the one we are looking for */
+
+	snap_name = rbd_dev->header.snap_names;
+	while (which < snapc->num_snaps) {
+		if (!strcmp(name, snap_name))
+			return snapc->snaps[which];
+		snap_name += strlen(snap_name) + 1;
+		which++;
+	}
+	return CEPH_NOSNAP;
+}
+
+static u64 rbd_v2_snap_id_by_name(struct rbd_device *rbd_dev, const char *name)
+{
+	struct ceph_snap_context *snapc = rbd_dev->header.snapc;
+	u32 which;
+	bool found = false;
+	u64 snap_id;
+
+	for (which = 0; !found && which < snapc->num_snaps; which++) {
+		const char *snap_name;
+
+		snap_id = snapc->snaps[which];
+		snap_name = rbd_dev_v2_snap_name(rbd_dev, snap_id);
+		if (IS_ERR(snap_name))
+			break;
+		found = !strcmp(name, snap_name);
+		kfree(snap_name);
+	}
+	return found ? snap_id : CEPH_NOSNAP;
+}
+
+/*
+ * Assumes name is never RBD_SNAP_HEAD_NAME; returns CEPH_NOSNAP if
+ * no snapshot by that name is found, or if an error occurs.
+ */
+static u64 rbd_snap_id_by_name(struct rbd_device *rbd_dev, const char *name)
+{
+	if (rbd_dev->image_format == 1)
+		return rbd_v1_snap_id_by_name(rbd_dev, name);
+
+	return rbd_v2_snap_id_by_name(rbd_dev, name);
+}
+
 /*
  * When an rbd image has a parent image, it is identified by the
  * pool, image, and snapshot ids (not names).  This function fills
@@ -3797,12 +3903,12 @@ static int rbd_dev_spec_update(struct rbd_device *rbd_dev)
 	 */
 	if (spec->pool_name) {
 		if (strcmp(spec->snap_name, RBD_SNAP_HEAD_NAME)) {
-			struct rbd_snap *snap;
+			u64 snap_id;
 
-			snap = snap_by_name(rbd_dev, spec->snap_name);
-			if (!snap)
+			snap_id = rbd_snap_id_by_name(rbd_dev, spec->snap_name);
+			if (snap_id == CEPH_NOSNAP)
 				return -ENOENT;
-			spec->snap_id = snap->id;
+			spec->snap_id = snap_id;
 		} else {
 			spec->snap_id = CEPH_NOSNAP;
 		}
