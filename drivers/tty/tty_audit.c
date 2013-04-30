@@ -111,11 +111,12 @@ static void tty_audit_buf_push(struct tty_audit_buf *buf)
 void tty_audit_exit(void)
 {
 	struct tty_audit_buf *buf;
+	unsigned long flags;
 
-	spin_lock_irq(&current->sighand->siglock);
+	spin_lock_irqsave(&current->sighand->siglock, flags);
 	buf = current->signal->tty_audit_buf;
 	current->signal->tty_audit_buf = NULL;
-	spin_unlock_irq(&current->sighand->siglock);
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 	if (!buf)
 		return;
 
@@ -133,9 +134,11 @@ void tty_audit_exit(void)
  */
 void tty_audit_fork(struct signal_struct *sig)
 {
-	spin_lock_irq(&current->sighand->siglock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&current->sighand->siglock, flags);
 	sig->audit_tty = current->signal->audit_tty;
-	spin_unlock_irq(&current->sighand->siglock);
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 }
 
 /**
@@ -145,13 +148,14 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 {
 	struct tty_audit_buf *buf;
 	int major, minor, should_audit;
+	unsigned long flags;
 
-	spin_lock_irq(&current->sighand->siglock);
+	spin_lock_irqsave(&current->sighand->siglock, flags);
 	should_audit = current->signal->audit_tty;
 	buf = current->signal->tty_audit_buf;
 	if (buf)
 		atomic_inc(&buf->count);
-	spin_unlock_irq(&current->sighand->siglock);
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
 	major = tty->driver->major;
 	minor = tty->driver->minor_start + tty->index;
@@ -221,10 +225,11 @@ static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty,
 		unsigned icanon)
 {
 	struct tty_audit_buf *buf, *buf2;
+	unsigned long flags;
 
 	buf = NULL;
 	buf2 = NULL;
-	spin_lock_irq(&current->sighand->siglock);
+	spin_lock_irqsave(&current->sighand->siglock, flags);
 	if (likely(!current->signal->audit_tty))
 		goto out;
 	buf = current->signal->tty_audit_buf;
@@ -232,7 +237,7 @@ static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty,
 		atomic_inc(&buf->count);
 		goto out;
 	}
-	spin_unlock_irq(&current->sighand->siglock);
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
 	buf2 = tty_audit_buf_alloc(tty->driver->major,
 				   tty->driver->minor_start + tty->index,
@@ -242,7 +247,7 @@ static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty,
 		return NULL;
 	}
 
-	spin_lock_irq(&current->sighand->siglock);
+	spin_lock_irqsave(&current->sighand->siglock, flags);
 	if (!current->signal->audit_tty)
 		goto out;
 	buf = current->signal->tty_audit_buf;
@@ -254,7 +259,7 @@ static struct tty_audit_buf *tty_audit_buf_get(struct tty_struct *tty,
 	atomic_inc(&buf->count);
 	/* Fall through */
  out:
-	spin_unlock_irq(&current->sighand->siglock);
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 	if (buf2)
 		tty_audit_buf_free(buf2);
 	return buf;
@@ -317,16 +322,17 @@ void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
 void tty_audit_push(struct tty_struct *tty)
 {
 	struct tty_audit_buf *buf;
+	unsigned long flags;
 
-	spin_lock_irq(&current->sighand->siglock);
+	spin_lock_irqsave(&current->sighand->siglock, flags);
 	if (likely(!current->signal->audit_tty)) {
-		spin_unlock_irq(&current->sighand->siglock);
+		spin_unlock_irqrestore(&current->sighand->siglock, flags);
 		return;
 	}
 	buf = current->signal->tty_audit_buf;
 	if (buf)
 		atomic_inc(&buf->count);
-	spin_unlock_irq(&current->sighand->siglock);
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 
 	if (buf) {
 		int major, minor;
