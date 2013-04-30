@@ -39,7 +39,6 @@ struct ir_raw_event_ctrl {
 	ktime_t				last_event;	/* when last event occurred */
 	enum raw_event_type		last_type;	/* last event type */
 	struct rc_dev			*dev;		/* pointer to the parent rc_dev */
-	u64				enabled_protocols; /* enabled raw protocol decoders */
 
 	/* raw decoder state follows */
 	struct ir_raw_event prev_ev;

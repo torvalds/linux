@@ -924,7 +924,7 @@ static int vpfe_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
  *
  * Return 0 on success, error code otherwise
  */
-static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
+static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 {
 	struct vpfe_video_device *video = video_drvdata(file);
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
@@ -945,13 +945,13 @@ static int vpfe_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 		goto unlock_out;
 	}
 	ret = v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
-					 core, s_std, *std_id);
+					 core, s_std, std_id);
 	if (ret < 0) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "Failed to set standard\n");
 		video->stdid = V4L2_STD_UNKNOWN;
 		goto unlock_out;
 	}
-	video->stdid = *std_id;
+	video->stdid = std_id;
 unlock_out:
 	mutex_unlock(&video->lock);
 	return ret;
@@ -1016,12 +1016,12 @@ vpfe_query_dv_timings(struct file *file, void *fh,
 }
 
 /*
- * vpfe_s_dv_timings() - set dv_preset on external subdev
+ * vpfe_s_dv_timings() - set dv_timings on external subdev
  * @file: file pointer
  * @priv: void pointer
  * @timings: pointer to v4l2_dv_timings structure
  *
- * set dv_timings pointed by preset on external subdev through
+ * set dv_timings pointed by timings on external subdev through
  * v4l2_device_call_until_err, this configures amplifier also
  *
  * Return 0 on success, error code otherwise
@@ -1042,12 +1042,12 @@ vpfe_s_dv_timings(struct file *file, void *fh,
 }
 
 /*
- * vpfe_g_dv_timings() - get dv_preset which is set on external subdev
+ * vpfe_g_dv_timings() - get dv_timings which is set on external subdev
  * @file: file pointer
  * @priv: void pointer
  * @timings: pointer to v4l2_dv_timings structure
  *
- * get dv_preset which is set on external subdev through
+ * get dv_timings which is set on external subdev through
  * v4l2_subdev_call
  *
  * Return 0 on success, error code otherwise
@@ -1423,7 +1423,7 @@ static int vpfe_dqbuf(struct file *file, void *priv,
 }
 
 /*
- * vpfe_streamon() - get dv_preset which is set on external subdev
+ * vpfe_streamon() - start streaming
  * @file: file pointer
  * @priv: void pointer
  * @buf_type: enum v4l2_buf_type
@@ -1472,7 +1472,7 @@ static int vpfe_streamon(struct file *file, void *priv,
 }
 
 /*
- * vpfe_streamoff() - get dv_preset which is set on external subdev
+ * vpfe_streamoff() - stop streaming
  * @file: file pointer
  * @priv: void pointer
  * @buf_type: enum v4l2_buf_type

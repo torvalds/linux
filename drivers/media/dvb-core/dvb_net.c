@@ -1044,7 +1044,7 @@ static int dvb_net_feed_start(struct net_device *dev)
 		ret = priv->tsfeed->set(priv->tsfeed,
 					priv->pid, /* pid */
 					TS_PACKET, /* type */
-					DMX_TS_PES_OTHER, /* pes type */
+					DMX_PES_OTHER, /* pes type */
 					32768,     /* circular buffer size */
 					timeout    /* timeout */
 					);

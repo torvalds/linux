@@ -439,22 +439,22 @@ static int vidioc_querycap(struct file *file, void *priv,
  *
  * other, returned from video DAC.
  */
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id std)
 {
 	struct sta2x11_vip *vip = video_drvdata(file);
 	v4l2_std_id oldstd = vip->std, newstd;
 	int status;
 
-	if (V4L2_STD_ALL == *std) {
-		v4l2_subdev_call(vip->decoder, core, s_std, *std);
+	if (V4L2_STD_ALL == std) {
+		v4l2_subdev_call(vip->decoder, core, s_std, std);
 		ssleep(2);
 		v4l2_subdev_call(vip->decoder, video, querystd, &newstd);
 		v4l2_subdev_call(vip->decoder, video, g_input_status, &status);
 		if (status & V4L2_IN_ST_NO_SIGNAL)
 			return -EIO;
-		*std = vip->std = newstd;
-		if (oldstd != *std) {
-			if (V4L2_STD_525_60 & (*std))
+		std = vip->std = newstd;
+		if (oldstd != std) {
+			if (V4L2_STD_525_60 & std)
 				vip->format = formats_60[0];
 			else
 				vip->format = formats_50[0];
@@ -462,14 +462,14 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
 		return 0;
 	}
 
-	if (oldstd != *std) {
-		if (V4L2_STD_525_60 & (*std))
+	if (oldstd != std) {
+		if (V4L2_STD_525_60 & std)
 			vip->format = formats_60[0];
 		else
 			vip->format = formats_50[0];
 	}
 
-	return v4l2_subdev_call(vip->decoder, core, s_std, *std);
+	return v4l2_subdev_call(vip->decoder, core, s_std, std);
 }
 
 /**
