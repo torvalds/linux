@@ -3085,10 +3085,11 @@ static __be32
 nfsd4_do_encode_secinfo(struct nfsd4_compoundres *resp,
 			 __be32 nfserr, struct svc_export *exp)
 {
-	u32 i, nflavs;
+	u32 i, nflavs, supported;
 	struct exp_flavor_info *flavs;
 	struct exp_flavor_info def_flavs[2];
-	__be32 *p;
+	__be32 *p, *flavorsp;
+	static bool report = true;
 
 	if (nfserr)
 		goto out;
@@ -3112,13 +3113,17 @@ nfsd4_do_encode_secinfo(struct nfsd4_compoundres *resp,
 		}
 	}
 
+	supported = 0;
 	RESERVE_SPACE(4);
-	WRITE32(nflavs);
+	flavorsp = p++;		/* to be backfilled later */
 	ADJUST_ARGS();
+
 	for (i = 0; i < nflavs; i++) {
+		rpc_authflavor_t pf = flavs[i].pseudoflavor;
 		struct rpcsec_gss_info info;
 
-		if (rpcauth_get_gssinfo(flavs[i].pseudoflavor, &info) == 0) {
+		if (rpcauth_get_gssinfo(pf, &info) == 0) {
+			supported++;
 			RESERVE_SPACE(4 + 4 + info.oid.len + 4 + 4);
 			WRITE32(RPC_AUTH_GSS);
 			WRITE32(info.oid.len);
@@ -3126,12 +3131,21 @@ nfsd4_do_encode_secinfo(struct nfsd4_compoundres *resp,
 			WRITE32(info.qop);
 			WRITE32(info.service);
 			ADJUST_ARGS();
-		} else {
+		} else if (pf < RPC_AUTH_MAXFLAVOR) {
+			supported++;
 			RESERVE_SPACE(4);
-			WRITE32(flavs[i].pseudoflavor);
+			WRITE32(pf);
 			ADJUST_ARGS();
+		} else {
+			if (report)
+				pr_warn("NFS: SECINFO: security flavor %u "
+					"is not supported\n", pf);
 		}
 	}
+
+	if (nflavs != supported)
+		report = false;
+	*flavorsp = htonl(supported);
 
 out:
 	if (exp)
