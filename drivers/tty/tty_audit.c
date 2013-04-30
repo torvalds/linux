@@ -111,12 +111,9 @@ static void tty_audit_buf_push(struct tty_audit_buf *buf)
 void tty_audit_exit(void)
 {
 	struct tty_audit_buf *buf;
-	unsigned long flags;
 
-	spin_lock_irqsave(&current->sighand->siglock, flags);
 	buf = current->signal->tty_audit_buf;
 	current->signal->tty_audit_buf = NULL;
-	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 	if (!buf)
 		return;
 
