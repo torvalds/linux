@@ -527,6 +527,8 @@ static void __init setup_memory_end(void)
 		unsigned long align;
 
 		chunk = &memory_chunk[i];
+		if (chunk->type == CHUNK_OLDMEM)
+			continue;
 		align = 1UL << (MAX_ORDER + PAGE_SHIFT - 1);
 		start = (chunk->addr + align - 1) & ~(align - 1);
 		end = (chunk->addr + chunk->size) & ~(align - 1);
@@ -577,6 +579,8 @@ static void __init setup_memory_end(void)
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		struct mem_chunk *chunk = &memory_chunk[i];
 
+		if (chunk->type == CHUNK_OLDMEM)
+			continue;
 		if (chunk->addr >= memory_end) {
 			memset(chunk, 0, sizeof(*chunk));
 			continue;
@@ -1065,9 +1069,9 @@ void __init setup_arch(char **cmdline_p)
 
 	os_info_init();
 	setup_ipl();
+	reserve_oldmem();
 	setup_memory_end();
 	setup_addressing_mode();
-	reserve_oldmem();
 	reserve_crashkernel();
 	setup_memory();
 	setup_resources();
