@@ -184,11 +184,14 @@ struct irq_dest {
 	uint32_t outputs_active[NUM_OUTPUTS];
 };
 
+#define MAX_MMIO_REGIONS 10
+
 struct openpic {
 	struct kvm *kvm;
 	struct kvm_device *dev;
 	struct kvm_io_device mmio;
-	struct list_head mmio_regions;
+	const struct mem_reg *mmio_regions[MAX_MMIO_REGIONS];
+	int num_mmio_regions;
 	atomic_t users;
 
 	gpa_t reg_base;
@@ -1238,62 +1241,71 @@ static int openpic_cpu_read(void *opaque, gpa_t addr, u32 *ptr)
 }
 
 struct mem_reg {
-	struct list_head list;
 	int (*read)(void *opaque, gpa_t addr, u32 *ptr);
 	int (*write)(void *opaque, gpa_t addr, u32 val);
 	gpa_t start_addr;
 	int size;
 };
 
-static struct mem_reg openpic_gbl_mmio = {
+static const struct mem_reg openpic_gbl_mmio = {
 	.write = openpic_gbl_write,
 	.read = openpic_gbl_read,
 	.start_addr = OPENPIC_GLB_REG_START,
 	.size = OPENPIC_GLB_REG_SIZE,
 };
 
-static struct mem_reg openpic_tmr_mmio = {
+static const struct mem_reg openpic_tmr_mmio = {
 	.write = openpic_tmr_write,
 	.read = openpic_tmr_read,
 	.start_addr = OPENPIC_TMR_REG_START,
 	.size = OPENPIC_TMR_REG_SIZE,
 };
 
-static struct mem_reg openpic_cpu_mmio = {
+static const struct mem_reg openpic_cpu_mmio = {
 	.write = openpic_cpu_write,
 	.read = openpic_cpu_read,
 	.start_addr = OPENPIC_CPU_REG_START,
 	.size = OPENPIC_CPU_REG_SIZE,
 };
 
-static struct mem_reg openpic_src_mmio = {
+static const struct mem_reg openpic_src_mmio = {
 	.write = openpic_src_write,
 	.read = openpic_src_read,
 	.start_addr = OPENPIC_SRC_REG_START,
 	.size = OPENPIC_SRC_REG_SIZE,
 };
 
-static struct mem_reg openpic_msi_mmio = {
+static const struct mem_reg openpic_msi_mmio = {
 	.read = openpic_msi_read,
 	.write = openpic_msi_write,
 	.start_addr = OPENPIC_MSI_REG_START,
 	.size = OPENPIC_MSI_REG_SIZE,
 };
 
-static struct mem_reg openpic_summary_mmio = {
+static const struct mem_reg openpic_summary_mmio = {
 	.read = openpic_summary_read,
 	.write = openpic_summary_write,
 	.start_addr = OPENPIC_SUMMARY_REG_START,
 	.size = OPENPIC_SUMMARY_REG_SIZE,
 };
 
+static void add_mmio_region(struct openpic *opp, const struct mem_reg *mr)
+{
+	if (opp->num_mmio_regions >= MAX_MMIO_REGIONS) {
+		WARN(1, "kvm mpic: too many mmio regions\n");
+		return;
+	}
+
+	opp->mmio_regions[opp->num_mmio_regions++] = mr;
+}
+
 static void fsl_common_init(struct openpic *opp)
 {
 	int i;
 	int virq = MAX_SRC;
 
-	list_add(&openpic_msi_mmio.list, &opp->mmio_regions);
-	list_add(&openpic_summary_mmio.list, &opp->mmio_regions);
+	add_mmio_region(opp, &openpic_msi_mmio);
+	add_mmio_region(opp, &openpic_summary_mmio);
 
 	opp->vid = VID_REVISION_1_2;
 	opp->vir = VIR_GENERIC;
@@ -1330,10 +1342,10 @@ static void fsl_common_init(struct openpic *opp)
 
 static int kvm_mpic_read_internal(struct openpic *opp, gpa_t addr, u32 *ptr)
 {
-	struct list_head *node;
+	int i;
 
-	list_for_each(node, &opp->mmio_regions) {
-		struct mem_reg *mr = list_entry(node, struct mem_reg, list);
+	for (i = 0; i < opp->num_mmio_regions; i++) {
+		const struct mem_reg *mr = opp->mmio_regions[i];
 
 		if (mr->start_addr > addr || addr >= mr->start_addr + mr->size)
 			continue;
@@ -1346,10 +1358,10 @@ static int kvm_mpic_read_internal(struct openpic *opp, gpa_t addr, u32 *ptr)
 
 static int kvm_mpic_write_internal(struct openpic *opp, gpa_t addr, u32 val)
 {
-	struct list_head *node;
+	int i;
 
-	list_for_each(node, &opp->mmio_regions) {
-		struct mem_reg *mr = list_entry(node, struct mem_reg, list);
+	for (i = 0; i < opp->num_mmio_regions; i++) {
+		const struct mem_reg *mr = opp->mmio_regions[i];
 
 		if (mr->start_addr > addr || addr >= mr->start_addr + mr->size)
 			continue;
@@ -1660,11 +1672,10 @@ static int mpic_create(struct kvm_device *dev, u32 type)
 	opp->model = type;
 	spin_lock_init(&opp->lock);
 
-	INIT_LIST_HEAD(&opp->mmio_regions);
-	list_add(&openpic_gbl_mmio.list, &opp->mmio_regions);
-	list_add(&openpic_tmr_mmio.list, &opp->mmio_regions);
-	list_add(&openpic_src_mmio.list, &opp->mmio_regions);
-	list_add(&openpic_cpu_mmio.list, &opp->mmio_regions);
+	add_mmio_region(opp, &openpic_gbl_mmio);
+	add_mmio_region(opp, &openpic_tmr_mmio);
+	add_mmio_region(opp, &openpic_src_mmio);
+	add_mmio_region(opp, &openpic_cpu_mmio);
 
 	switch (opp->model) {
 	case KVM_DEV_TYPE_FSL_MPIC_20:
