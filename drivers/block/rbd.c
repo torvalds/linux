@@ -1,3 +1,4 @@
+
 /*
    rbd.c -- Export ceph rados objects as a Linux block device
 
@@ -2602,8 +2603,7 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 			     const void *outbound,
 			     size_t outbound_size,
 			     void *inbound,
-			     size_t inbound_size,
-			     u64 *version)
+			     size_t inbound_size)
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct rbd_obj_request *obj_request;
@@ -2669,8 +2669,6 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 	rbd_assert(obj_request->xferred < (u64)INT_MAX);
 	ret = (int)obj_request->xferred;
 	ceph_copy_from_page_vector(pages, inbound, 0, obj_request->xferred);
-	if (version)
-		*version = obj_request->version;
 out:
 	if (obj_request)
 		rbd_obj_request_put(obj_request);
@@ -3463,7 +3461,7 @@ static int _rbd_dev_v2_snap_size(struct rbd_device *rbd_dev, u64 snap_id,
 	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_size",
 				&snapid, sizeof (snapid),
-				&size_buf, sizeof (size_buf), NULL);
+				&size_buf, sizeof (size_buf));
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
 		return ret;
@@ -3500,7 +3498,7 @@ static int rbd_dev_v2_object_prefix(struct rbd_device *rbd_dev)
 
 	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_object_prefix", NULL, 0,
-				reply_buf, RBD_OBJ_PREFIX_LEN_MAX, NULL);
+				reply_buf, RBD_OBJ_PREFIX_LEN_MAX);
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
 		goto out;
@@ -3536,7 +3534,7 @@ static int _rbd_dev_v2_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
 	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_features",
 				&snapid, sizeof (snapid),
-				&features_buf, sizeof (features_buf), NULL);
+				&features_buf, sizeof (features_buf));
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
 		return ret;
@@ -3593,7 +3591,7 @@ static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_parent",
 				&snapid, sizeof (snapid),
-				reply_buf, size, NULL);
+				reply_buf, size);
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
 		goto out_err;
@@ -3650,7 +3648,7 @@ static int rbd_dev_v2_striping_info(struct rbd_device *rbd_dev)
 
 	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_stripe_unit_count", NULL, 0,
-				(char *)&striping_info_buf, size, NULL);
+				(char *)&striping_info_buf, size);
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
 		return ret;
@@ -3717,7 +3715,7 @@ static char *rbd_dev_image_name(struct rbd_device *rbd_dev)
 	ret = rbd_obj_method_sync(rbd_dev, RBD_DIRECTORY,
 				"rbd", "dir_get_name",
 				image_id, image_id_size,
-				reply_buf, size, NULL);
+				reply_buf, size);
 	if (ret < 0)
 		goto out;
 	p = reply_buf;
@@ -3848,7 +3846,7 @@ static int rbd_dev_v2_snap_context(struct rbd_device *rbd_dev)
 
 	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_snapcontext", NULL, 0,
-				reply_buf, size, NULL);
+				reply_buf, size);
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0)
 		goto out;
@@ -3913,7 +3911,7 @@ static const char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev, u32 which)
 	ret = rbd_obj_method_sync(rbd_dev, rbd_dev->header_name,
 				"rbd", "get_snapshot_name",
 				&snap_id, sizeof (snap_id),
-				reply_buf, size, NULL);
+				reply_buf, size);
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret < 0) {
 		snap_name = ERR_PTR(ret);
@@ -4506,7 +4504,7 @@ static int rbd_dev_image_id(struct rbd_device *rbd_dev)
 
 	ret = rbd_obj_method_sync(rbd_dev, object_name,
 				"rbd", "get_id", NULL, 0,
-				response, RBD_IMAGE_ID_LEN_MAX, NULL);
+				response, RBD_IMAGE_ID_LEN_MAX);
 	dout("%s: rbd_obj_method_sync returned %d\n", __func__, ret);
 	if (ret == -ENOENT) {
 		image_id = kstrdup("", GFP_KERNEL);
