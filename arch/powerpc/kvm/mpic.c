@@ -192,7 +192,6 @@ struct openpic {
 	struct kvm_io_device mmio;
 	const struct mem_reg *mmio_regions[MAX_MMIO_REGIONS];
 	int num_mmio_regions;
-	atomic_t users;
 
 	gpa_t reg_base;
 	spinlock_t lock;
