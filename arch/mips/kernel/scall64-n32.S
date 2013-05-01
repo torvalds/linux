@@ -143,7 +143,7 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_setitimer
 	PTR	sys_alarm
 	PTR	sys_getpid
-	PTR	sys_32_sendfile
+	PTR	compat_sys_sendfile
 	PTR	sys_socket			/* 6040 */
 	PTR	sys_connect
 	PTR	sys_accept
@@ -168,11 +168,11 @@ EXPORT(sysn32_call_table)
 	PTR	sys_newuname
 	PTR	sys_semget
 	PTR	sys_semop
-	PTR	sys_n32_semctl
+	PTR	compat_sys_semctl
 	PTR	sys_shmdt			/* 6065 */
 	PTR	sys_msgget
-	PTR	sys_n32_msgsnd
-	PTR	sys_n32_msgrcv
+	PTR	compat_sys_msgsnd
+	PTR	compat_sys_msgrcv
 	PTR	compat_sys_msgctl
 	PTR	compat_sys_fcntl		/* 6070 */
 	PTR	sys_flock

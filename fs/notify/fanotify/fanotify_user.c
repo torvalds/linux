@@ -755,9 +755,9 @@ out_destroy_group:
 	return fd;
 }
 
-SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
-			      __u64 mask, int dfd,
-			      const char  __user * pathname)
+SYSCALL_DEFINE5(fanotify_mark, int, fanotify_fd, unsigned int, flags,
+			      __u64, mask, int, dfd,
+			      const char  __user *, pathname)
 {
 	struct inode *inode = NULL;
 	struct vfsmount *mnt = NULL;
@@ -856,17 +856,6 @@ fput_and_out:
 	fdput(f);
 	return ret;
 }
-
-#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
-asmlinkage long SyS_fanotify_mark(long fanotify_fd, long flags, __u64 mask,
-				  long dfd, long pathname)
-{
-	return SYSC_fanotify_mark((int) fanotify_fd, (unsigned int) flags,
-				  mask, (int) dfd,
-				  (const char  __user *) pathname);
-}
-SYSCALL_ALIAS(sys_fanotify_mark, SyS_fanotify_mark);
-#endif
 
 /*
  * fanotify_user_setup - Our initialization function.  Note that we cannot return

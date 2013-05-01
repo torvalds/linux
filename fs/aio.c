@@ -1790,7 +1790,5 @@ SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
 			ret = read_events(ioctx, min_nr, nr, events, timeout);
 		put_ioctx(ioctx);
 	}
-
-	asmlinkage_protect(5, ret, ctx_id, min_nr, nr, events, timeout);
 	return ret;
 }

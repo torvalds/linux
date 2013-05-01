@@ -119,99 +119,6 @@ SYSCALL_DEFINE6(32_pwrite, unsigned int, fd, const char __user *, buf,
 	return sys_pwrite64(fd, buf, count, merge_64(a4, a5));
 }
 
-#ifdef CONFIG_SYSVIPC
-
-SYSCALL_DEFINE6(32_ipc, u32, call, long, first, long, second, long, third,
-	unsigned long, ptr, unsigned long, fifth)
-{
-	int version, err;
-
-	version = call >> 16; /* hack for backward compatibility */
-	call &= 0xffff;
-
-	switch (call) {
-	case SEMOP:
-		/* struct sembuf is the same on 32 and 64bit :)) */
-		err = sys_semtimedop(first, compat_ptr(ptr), second, NULL);
-		break;
-	case SEMTIMEDOP:
-		err = compat_sys_semtimedop(first, compat_ptr(ptr), second,
-					    compat_ptr(fifth));
-		break;
-	case SEMGET:
-		err = sys_semget(first, second, third);
-		break;
-	case SEMCTL:
-		err = compat_sys_semctl(first, second, third, compat_ptr(ptr));
-		break;
-	case MSGSND:
-		err = compat_sys_msgsnd(first, second, third, compat_ptr(ptr));
-		break;
-	case MSGRCV:
-		err = compat_sys_msgrcv(first, second, fifth, third,
-					version, compat_ptr(ptr));
-		break;
-	case MSGGET:
-		err = sys_msgget((key_t) first, second);
-		break;
-	case MSGCTL:
-		err = compat_sys_msgctl(first, second, compat_ptr(ptr));
-		break;
-	case SHMAT:
-		err = compat_sys_shmat(first, second, third, version,
-				       compat_ptr(ptr));
-		break;
-	case SHMDT:
-		err = sys_shmdt(compat_ptr(ptr));
-		break;
-	case SHMGET:
-		err = sys_shmget(first, (unsigned)second, third);
-		break;
-	case SHMCTL:
-		err = compat_sys_shmctl(first, second, compat_ptr(ptr));
-		break;
-	default:
-		err = -ENOSYS;
-		break;
-	}
-
-	return err;
-}
-
-#else
-
-SYSCALL_DEFINE6(32_ipc, u32, call, int, first, int, second, int, third,
-	u32, ptr, u32, fifth)
-{
-	return -ENOSYS;
-}
-
-#endif /* CONFIG_SYSVIPC */
-
-#ifdef CONFIG_MIPS32_N32
-SYSCALL_DEFINE4(n32_semctl, int, semid, int, semnum, int, cmd, u32, arg)
-{
-	/* compat_sys_semctl expects a pointer to union semun */
-	u32 __user *uptr = compat_alloc_user_space(sizeof(u32));
-	if (put_user(arg, uptr))
-		return -EFAULT;
-	return compat_sys_semctl(semid, semnum, cmd, uptr);
-}
-
-SYSCALL_DEFINE4(n32_msgsnd, int, msqid, u32, msgp, unsigned int, msgsz,
-	int, msgflg)
-{
-	return compat_sys_msgsnd(msqid, msgsz, msgflg, compat_ptr(msgp));
-}
-
-SYSCALL_DEFINE5(n32_msgrcv, int, msqid, u32, msgp, size_t, msgsz,
-	int, msgtyp, int, msgflg)
-{
-	return compat_sys_msgrcv(msqid, msgsz, msgtyp, msgflg, IPC_64,
-				 compat_ptr(msgp));
-}
-#endif
-
 SYSCALL_DEFINE1(32_personality, unsigned long, personality)
 {
 	unsigned int p = personality & 0xffffffff;
@@ -223,26 +130,6 @@ SYSCALL_DEFINE1(32_personality, unsigned long, personality)
 	ret = sys_personality(p);
 	if (ret != -1 && personality(ret) == PER_LINUX32)
 		ret = (ret & ~PER_MASK) | PER_LINUX;
-	return ret;
-}
-
-SYSCALL_DEFINE4(32_sendfile, long, out_fd, long, in_fd,
-	compat_off_t __user *, offset, s32, count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	off_t of;
-
-	if (offset && get_user(of, offset))
-		return -EFAULT;
-
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile(out_fd, in_fd, offset ? (off_t __user *)&of : NULL, count);
-	set_fs(old_fs);
-
-	if (offset && put_user(of, offset))
-		return -EFAULT;
-
 	return ret;
 }
 
@@ -277,12 +164,6 @@ asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_a2,
 {
 	return sys_fallocate(fd, mode, merge_64(offset_a2, offset_a3),
 			     merge_64(len_a4, len_a5));
-}
-
-asmlinkage long sys32_lookup_dcookie(u32 a0, u32 a1, char __user *buf,
-	size_t len)
-{
-	return sys_lookup_dcookie(merge_64(a0, a1), buf, len);
 }
 
 SYSCALL_DEFINE6(32_fanotify_mark, int, fanotify_fd, unsigned int, flags,

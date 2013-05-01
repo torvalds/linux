@@ -515,8 +515,8 @@ SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
 	return ret;
 }
 
-SYSCALL_DEFINE(pread64)(unsigned int fd, char __user *buf,
-			size_t count, loff_t pos)
+SYSCALL_DEFINE4(pread64, unsigned int, fd, char __user *, buf,
+			size_t, count, loff_t, pos)
 {
 	struct fd f;
 	ssize_t ret = -EBADF;
@@ -534,17 +534,9 @@ SYSCALL_DEFINE(pread64)(unsigned int fd, char __user *buf,
 
 	return ret;
 }
-#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
-asmlinkage long SyS_pread64(long fd, long buf, long count, loff_t pos)
-{
-	return SYSC_pread64((unsigned int) fd, (char __user *) buf,
-			    (size_t) count, pos);
-}
-SYSCALL_ALIAS(sys_pread64, SyS_pread64);
-#endif
 
-SYSCALL_DEFINE(pwrite64)(unsigned int fd, const char __user *buf,
-			 size_t count, loff_t pos)
+SYSCALL_DEFINE4(pwrite64, unsigned int, fd, const char __user *, buf,
+			 size_t, count, loff_t, pos)
 {
 	struct fd f;
 	ssize_t ret = -EBADF;
@@ -562,14 +554,6 @@ SYSCALL_DEFINE(pwrite64)(unsigned int fd, const char __user *buf,
 
 	return ret;
 }
-#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
-asmlinkage long SyS_pwrite64(long fd, long buf, long count, loff_t pos)
-{
-	return SYSC_pwrite64((unsigned int) fd, (const char __user *) buf,
-			     (size_t) count, pos);
-}
-SYSCALL_ALIAS(sys_pwrite64, SyS_pwrite64);
-#endif
 
 /*
  * Reduce an iovec's length in-place.  Return the resulting number of segments
@@ -897,8 +881,8 @@ SYSCALL_DEFINE5(pwritev, unsigned long, fd, const struct iovec __user *, vec,
 	return ret;
 }
 
-ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos, size_t count,
-		    loff_t max)
+static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
+		  	   size_t count, loff_t max)
 {
 	struct fd in, out;
 	struct inode *in_inode, *out_inode;
@@ -1022,3 +1006,43 @@ SYSCALL_DEFINE4(sendfile64, int, out_fd, int, in_fd, loff_t __user *, offset, si
 
 	return do_sendfile(out_fd, in_fd, NULL, count, 0);
 }
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE4(sendfile, int, out_fd, int, in_fd,
+		compat_off_t __user *, offset, compat_size_t, count)
+{
+	loff_t pos;
+	off_t off;
+	ssize_t ret;
+
+	if (offset) {
+		if (unlikely(get_user(off, offset)))
+			return -EFAULT;
+		pos = off;
+		ret = do_sendfile(out_fd, in_fd, &pos, count, MAX_NON_LFS);
+		if (unlikely(put_user(pos, offset)))
+			return -EFAULT;
+		return ret;
+	}
+
+	return do_sendfile(out_fd, in_fd, NULL, count, 0);
+}
+
+COMPAT_SYSCALL_DEFINE4(sendfile64, int, out_fd, int, in_fd,
+		compat_loff_t __user *, offset, compat_size_t, count)
+{
+	loff_t pos;
+	ssize_t ret;
+
+	if (offset) {
+		if (unlikely(copy_from_user(&pos, offset, sizeof(loff_t))))
+			return -EFAULT;
+		ret = do_sendfile(out_fd, in_fd, &pos, count, 0);
+		if (unlikely(put_user(pos, offset)))
+			return -EFAULT;
+		return ret;
+	}
+
+	return do_sendfile(out_fd, in_fd, NULL, count, 0);
+}
+#endif

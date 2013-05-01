@@ -1771,7 +1771,7 @@ unsigned long vm_brk(unsigned long addr, unsigned long len)
  *
  * MREMAP_FIXED is not supported under NOMMU conditions
  */
-unsigned long do_mremap(unsigned long addr,
+static unsigned long do_mremap(unsigned long addr,
 			unsigned long old_len, unsigned long new_len,
 			unsigned long flags, unsigned long new_addr)
 {
@@ -1806,7 +1806,6 @@ unsigned long do_mremap(unsigned long addr,
 	vma->vm_end = vma->vm_start + new_len;
 	return vma->vm_start;
 }
-EXPORT_SYMBOL(do_mremap);
 
 SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 		unsigned long, new_len, unsigned long, flags,

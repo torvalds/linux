@@ -44,7 +44,6 @@
 #include <linux/signal.h>
 #include <linux/poll.h>
 #include <linux/mm.h>
-#include <linux/eventpoll.h>
 #include <linux/fs_struct.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
@@ -1253,26 +1252,6 @@ compat_sys_pwritev(unsigned long fd, const struct compat_iovec __user *vec,
 	return compat_sys_pwritev64(fd, vec, vlen, pos);
 }
 
-asmlinkage long
-compat_sys_vmsplice(int fd, const struct compat_iovec __user *iov32,
-		    unsigned int nr_segs, unsigned int flags)
-{
-	unsigned i;
-	struct iovec __user *iov;
-	if (nr_segs > UIO_MAXIOV)
-		return -EINVAL;
-	iov = compat_alloc_user_space(nr_segs * sizeof(struct iovec));
-	for (i = 0; i < nr_segs; i++) {
-		struct compat_iovec v;
-		if (get_user(v.iov_base, &iov32[i].iov_base) ||
-		    get_user(v.iov_len, &iov32[i].iov_len) ||
-		    put_user(compat_ptr(v.iov_base), &iov[i].iov_base) ||
-		    put_user(v.iov_len, &iov[i].iov_len))
-			return -EFAULT;
-	}
-	return sys_vmsplice(fd, iov, nr_segs, flags);
-}
-
 /*
  * Exactly like fs/open.c:sys_open(), except that it doesn't set the
  * O_LARGEFILE flag.
@@ -1658,84 +1637,6 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 	return ret;
 }
 
-#ifdef CONFIG_EPOLL
-
-asmlinkage long compat_sys_epoll_pwait(int epfd,
-			struct compat_epoll_event __user *events,
-			int maxevents, int timeout,
-			const compat_sigset_t __user *sigmask,
-			compat_size_t sigsetsize)
-{
-	long err;
-	compat_sigset_t csigmask;
-	sigset_t ksigmask, sigsaved;
-
-	/*
-	 * If the caller wants a certain signal mask to be set during the wait,
-	 * we apply it here.
-	 */
-	if (sigmask) {
-		if (sigsetsize != sizeof(compat_sigset_t))
-			return -EINVAL;
-		if (copy_from_user(&csigmask, sigmask, sizeof(csigmask)))
-			return -EFAULT;
-		sigset_from_compat(&ksigmask, &csigmask);
-		sigdelsetmask(&ksigmask, sigmask(SIGKILL) | sigmask(SIGSTOP));
-		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
-	}
-
-	err = sys_epoll_wait(epfd, events, maxevents, timeout);
-
-	/*
-	 * If we changed the signal mask, we need to restore the original one.
-	 * In case we've got a signal while waiting, we do not restore the
-	 * signal mask yet, and we allow do_signal() to deliver the signal on
-	 * the way back to userspace, before the signal mask is restored.
-	 */
-	if (sigmask) {
-		if (err == -EINTR) {
-			memcpy(&current->saved_sigmask, &sigsaved,
-			       sizeof(sigsaved));
-			set_restore_sigmask();
-		} else
-			sigprocmask(SIG_SETMASK, &sigsaved, NULL);
-	}
-
-	return err;
-}
-
-#endif /* CONFIG_EPOLL */
-
-#ifdef CONFIG_SIGNALFD
-
-asmlinkage long compat_sys_signalfd4(int ufd,
-				     const compat_sigset_t __user *sigmask,
-				     compat_size_t sigsetsize, int flags)
-{
-	compat_sigset_t ss32;
-	sigset_t tmp;
-	sigset_t __user *ksigmask;
-
-	if (sigsetsize != sizeof(compat_sigset_t))
-		return -EINVAL;
-	if (copy_from_user(&ss32, sigmask, sizeof(ss32)))
-		return -EFAULT;
-	sigset_from_compat(&tmp, &ss32);
-	ksigmask = compat_alloc_user_space(sizeof(sigset_t));
-	if (copy_to_user(ksigmask, &tmp, sizeof(sigset_t)))
-		return -EFAULT;
-
-	return sys_signalfd4(ufd, ksigmask, sizeof(sigset_t), flags);
-}
-
-asmlinkage long compat_sys_signalfd(int ufd,
-				    const compat_sigset_t __user *sigmask,
-				    compat_size_t sigsetsize)
-{
-	return compat_sys_signalfd4(ufd, sigmask, sigsetsize, 0);
-}
-#endif /* CONFIG_SIGNALFD */
-
 #ifdef CONFIG_FHANDLE
 /*
  * Exactly like fs/open.c:sys_open_by_handle_at(), except that it
@@ -1747,25 +1648,3 @@ COMPAT_SYSCALL_DEFINE3(open_by_handle_at, int, mountdirfd,
 	return do_handle_open(mountdirfd, handle, flags);
 }
 #endif
-
-#ifdef __ARCH_WANT_COMPAT_SYS_SENDFILE
-asmlinkage long compat_sys_sendfile(int out_fd, int in_fd,
-				    compat_off_t __user *offset, compat_size_t count)
-{
-	loff_t pos;
-	off_t off;
-	ssize_t ret;
-
-	if (offset) {
-		if (unlikely(get_user(off, offset)))
-			return -EFAULT;
-		pos = off;
-		ret = do_sendfile(out_fd, in_fd, &pos, count, MAX_NON_LFS);
-		if (unlikely(put_user(pos, offset)))
-			return -EFAULT;
-		return ret;
-	}
-
-	return do_sendfile(out_fd, in_fd, NULL, count, 0);
-}
-#endif /* __ARCH_WANT_COMPAT_SYS_SENDFILE */
