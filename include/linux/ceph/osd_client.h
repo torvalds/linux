@@ -224,6 +224,9 @@ struct ceph_osd_client {
 	struct workqueue_struct	*notify_wq;
 };
 
+extern int ceph_osdc_setup(void);
+extern void ceph_osdc_cleanup(void);
+
 extern int ceph_osdc_init(struct ceph_osd_client *osdc,
 			  struct ceph_client *client);
 extern void ceph_osdc_stop(struct ceph_osd_client *osdc);
