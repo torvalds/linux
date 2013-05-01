@@ -68,6 +68,11 @@ struct fimd_driver_data {
 	unsigned int has_clksel:1;
 };
 
+static struct fimd_driver_data s3c64xx_fimd_driver_data = {
+	.timing_base = 0x0,
+	.has_clksel = 1,
+};
+
 static struct fimd_driver_data exynos4_fimd_driver_data = {
 	.timing_base = 0x0,
 	.has_shadowcon = 1,
@@ -117,6 +122,8 @@ struct fimd_context {
 
 #ifdef CONFIG_OF
 static const struct of_device_id fimd_driver_dt_match[] = {
+	{ .compatible = "samsung,s3c6400-fimd",
+	  .data = &s3c64xx_fimd_driver_data },
 	{ .compatible = "samsung,exynos4210-fimd",
 	  .data = &exynos4_fimd_driver_data },
 	{ .compatible = "samsung,exynos5250-fimd",
@@ -1108,6 +1115,9 @@ static int fimd_runtime_resume(struct device *dev)
 
 static struct platform_device_id fimd_driver_ids[] = {
 	{
+		.name		= "s3c64xx-fb",
+		.driver_data	= (unsigned long)&s3c64xx_fimd_driver_data,
+	}, {
 		.name		= "exynos4-fb",
 		.driver_data	= (unsigned long)&exynos4_fimd_driver_data,
 	}, {
