@@ -1527,6 +1527,8 @@ static int nvme_dev_add(struct nvme_dev *dev)
 
 	mem = dma_alloc_coherent(&dev->pci_dev->dev, 8192, &dma_addr,
 								GFP_KERNEL);
+	if (!mem)
+		return -ENOMEM;
 
 	res = nvme_identify(dev, 0, 1, dma_addr);
 	if (res) {
