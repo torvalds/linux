@@ -97,18 +97,14 @@ struct msg_msg *load_msg(const void __user *src, int len)
 		goto out_err;
 	}
 
-	len -= alen;
-	src = ((char __user *)src) + alen;
-	seg = msg->next;
-	while (len > 0) {
+	for (seg = msg->next; seg != NULL; seg = seg->next) {
+		len -= alen;
+		src = (char __user *)src + alen;
 		alen = min(len, DATALEN_SEG);
 		if (copy_from_user(seg + 1, src, alen)) {
 			err = -EFAULT;
 			goto out_err;
 		}
-		seg = seg->next;
-		len -= alen;
-		src = ((char __user *)src) + alen;
 	}
 
 	err = security_msg_msg_alloc(msg);
@@ -135,15 +131,13 @@ struct msg_msg *copy_msg(struct msg_msg *src, struct msg_msg *dst)
 	alen = min(len, DATALEN_MSG);
 	memcpy(dst + 1, src + 1, alen);
 
-	len -= alen;
-	dst_pseg = dst->next;
-	src_pseg = src->next;
-	while (len > 0) {
+	for (dst_pseg = dst->next, src_pseg = src->next;
+	     src_pseg != NULL;
+	     dst_pseg = dst_pseg->next, src_pseg = src_pseg->next) {
+
+		len -= alen;
 		alen = min(len, DATALEN_SEG);
 		memcpy(dst_pseg + 1, src_pseg + 1, alen);
-		dst_pseg = dst_pseg->next;
-		len -= alen;
-		src_pseg = src_pseg->next;
 	}
 
 	dst->m_type = src->m_type;
@@ -166,16 +160,12 @@ int store_msg(void __user *dest, struct msg_msg *msg, int len)
 	if (copy_to_user(dest, msg + 1, alen))
 		return -1;
 
-	len -= alen;
-	dest = ((char __user *)dest) + alen;
-	seg = msg->next;
-	while (len > 0) {
+	for (seg = msg->next; seg != NULL; seg = seg->next) {
+		len -= alen;
+		dest = (char __user *)dest + alen;
 		alen = min(len, DATALEN_SEG);
 		if (copy_to_user(dest, seg + 1, alen))
 			return -1;
-		len -= alen;
-		dest = ((char __user *)dest) + alen;
-		seg = seg->next;
 	}
 	return 0;
 }
