@@ -840,7 +840,7 @@ static inline void rt2800_clear_beacon_register(struct rt2x00_dev *rt2x00dev,
 						unsigned int beacon_base)
 {
 	int i;
-	const int txwi_desc_size = rt2x00dev->ops->bcn->winfo_size;
+	const int txwi_desc_size = rt2x00dev->bcn->winfo_size;
 
 	/*
 	 * For the Beacon base registers we only need to clear
