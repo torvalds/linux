@@ -152,6 +152,10 @@ static bool con_flag_test_and_set(struct ceph_connection *con,
 	return test_and_set_bit(con_flag, &con->flags);
 }
 
+/* Slab caches for frequently-allocated structures */
+
+static struct kmem_cache	*ceph_msg_cache;
+
 /* static tag bytes (protocol control messages) */
 static char tag_msg = CEPH_MSGR_TAG_MSG;
 static char tag_ack = CEPH_MSGR_TAG_ACK;
@@ -226,12 +230,30 @@ static void encode_my_addr(struct ceph_messenger *msgr)
  */
 static struct workqueue_struct *ceph_msgr_wq;
 
+static int ceph_msgr_slab_init(void)
+{
+	BUG_ON(ceph_msg_cache);
+	ceph_msg_cache = kmem_cache_create("ceph_msg",
+					sizeof (struct ceph_msg),
+					__alignof__(struct ceph_msg), 0, NULL);
+	return ceph_msg_cache ? 0 : -ENOMEM;
+}
+
+static void ceph_msgr_slab_exit(void)
+{
+	BUG_ON(!ceph_msg_cache);
+	kmem_cache_destroy(ceph_msg_cache);
+	ceph_msg_cache = NULL;
+}
+
 static void _ceph_msgr_exit(void)
 {
 	if (ceph_msgr_wq) {
 		destroy_workqueue(ceph_msgr_wq);
 		ceph_msgr_wq = NULL;
 	}
+
+	ceph_msgr_slab_exit();
 
 	BUG_ON(zero_page == NULL);
 	kunmap(zero_page);
@@ -244,6 +266,9 @@ int ceph_msgr_init(void)
 	BUG_ON(zero_page != NULL);
 	zero_page = ZERO_PAGE(0);
 	page_cache_get(zero_page);
+
+	if (ceph_msgr_slab_init())
+		return -ENOMEM;
 
 	ceph_msgr_wq = alloc_workqueue("ceph-msgr", WQ_NON_REENTRANT, 0);
 	if (ceph_msgr_wq)
@@ -3068,7 +3093,7 @@ struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 {
 	struct ceph_msg *m;
 
-	m = kzalloc(sizeof(*m), flags);
+	m = kmem_cache_zalloc(ceph_msg_cache, flags);
 	if (m == NULL)
 		goto out;
 
@@ -3215,7 +3240,7 @@ void ceph_msg_kfree(struct ceph_msg *m)
 		vfree(m->front.iov_base);
 	else
 		kfree(m->front.iov_base);
-	kfree(m);
+	kmem_cache_free(ceph_msg_cache, m);
 }
 
 /*
