@@ -807,6 +807,30 @@ static inline void free_copy(struct msg_msg *copy)
 }
 #endif
 
+static struct msg_msg *find_msg(struct msg_queue *msq, long *msgtyp, int mode)
+{
+	struct msg_msg *msg;
+	long count = 0;
+
+	list_for_each_entry(msg, &msq->q_messages, m_list) {
+		if (testmsg(msg, *msgtyp, mode) &&
+		    !security_msg_queue_msgrcv(msq, msg, current,
+					       *msgtyp, mode)) {
+			if (mode == SEARCH_LESSEQUAL && msg->m_type != 1) {
+				*msgtyp = msg->m_type - 1;
+			} else if (mode == SEARCH_NUMBER) {
+				if (*msgtyp == count)
+					return msg;
+			} else
+				return msg;
+			count++;
+		}
+	}
+
+	return ERR_PTR(-EAGAIN);
+}
+
+
 long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp,
 	       int msgflg,
 	       long (*msg_handler)(void __user *, struct msg_msg *, size_t))
@@ -836,33 +860,13 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp,
 
 	for (;;) {
 		struct msg_receiver msr_d;
-		struct msg_msg *walk_msg;
-		long msg_counter = 0;
 
 		msg = ERR_PTR(-EACCES);
 		if (ipcperms(ns, &msq->q_perm, S_IRUGO))
 			goto out_unlock;
 
-		msg = ERR_PTR(-EAGAIN);
-		list_for_each_entry(walk_msg, &msq->q_messages, m_list) {
+		msg = find_msg(msq, &msgtyp, mode);
 
-			if (testmsg(walk_msg, msgtyp, mode) &&
-			    !security_msg_queue_msgrcv(msq, walk_msg, current,
-						       msgtyp, mode)) {
-
-				msg = walk_msg;
-				if (mode == SEARCH_LESSEQUAL &&
-						walk_msg->m_type != 1) {
-					msgtyp = walk_msg->m_type - 1;
-				} else if (mode == SEARCH_NUMBER) {
-					if (msgtyp == msg_counter)
-						break;
-					msg = ERR_PTR(-EAGAIN);
-				} else
-					break;
-				msg_counter++;
-			}
-		}
 		if (!IS_ERR(msg)) {
 			/*
 			 * Found a suitable message.
