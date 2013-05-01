@@ -1,8 +1,8 @@
 /*
  * Copyright (C) ST-Ericsson AB 2013
- * Authors: Vicram Arv / vikram.arv@stericsson.com,
- *	    Dmitry Tarnyagin / dmitry.tarnyagin@stericsson.com
- *	    Sjur Brendeland / sjur.brandeland@stericsson.com
+ * Authors: Vicram Arv
+ *	    Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ *	    Sjur Brendeland
  * License terms: GNU General Public License (GPL) version 2
  */
 #include <linux/module.h>
@@ -23,8 +23,8 @@
 #include <linux/virtio_config.h>
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Vicram Arv <vikram.arv@stericsson.com>");
-MODULE_AUTHOR("Sjur Brendeland <sjur.brandeland@stericsson.com>");
+MODULE_AUTHOR("Vicram Arv");
+MODULE_AUTHOR("Sjur Brendeland");
 MODULE_DESCRIPTION("Virtio CAIF Driver");
 
 /* NAPI schedule quota */
