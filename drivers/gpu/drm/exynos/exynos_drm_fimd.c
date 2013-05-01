@@ -65,6 +65,7 @@ struct fimd_driver_data {
 	unsigned int timing_base;
 
 	unsigned int has_shadowcon:1;
+	unsigned int has_clksel:1;
 };
 
 static struct fimd_driver_data exynos4_fimd_driver_data = {
@@ -277,6 +278,11 @@ static void fimd_commit(struct device *dev)
 	/* setup clock source, clock divider, enable dma. */
 	val = ctx->vidcon0;
 	val &= ~(VIDCON0_CLKVAL_F_MASK | VIDCON0_CLKDIR);
+
+	if (ctx->driver_data->has_clksel) {
+		val &= ~VIDCON0_CLKSEL_MASK;
+		val |= VIDCON0_CLKSEL_LCD;
+	}
 
 	if (ctx->clkdiv > 1)
 		val |= VIDCON0_CLKVAL_F(ctx->clkdiv - 1) | VIDCON0_CLKDIR;
