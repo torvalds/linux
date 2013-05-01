@@ -410,6 +410,7 @@ static void populate_be_v1_stats(struct be_adapter *adapter)
 	drvs->rxpp_fifo_overflow_drop = port_stats->rxpp_fifo_overflow_drop;
 	drvs->tx_pauseframes = port_stats->tx_pauseframes;
 	drvs->tx_controlframes = port_stats->tx_controlframes;
+	drvs->tx_priority_pauseframes = port_stats->tx_priority_pauseframes;
 	drvs->jabber_events = port_stats->jabber_events;
 	drvs->rx_drops_no_pbuf = rxf_stats->rx_drops_no_pbuf;
 	drvs->rx_drops_no_erx_descr = rxf_stats->rx_drops_no_erx_descr;

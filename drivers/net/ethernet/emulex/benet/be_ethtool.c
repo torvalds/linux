@@ -85,6 +85,7 @@ static const struct be_ethtool_stat et_stats[] = {
 	{DRVSTAT_INFO(tx_pauseframes)},
 	{DRVSTAT_INFO(tx_controlframes)},
 	{DRVSTAT_INFO(rx_priority_pause_frames)},
+	{DRVSTAT_INFO(tx_priority_pauseframes)},
 	/* Received packets dropped when an internal fifo going into
 	 * main packet buffer tank (PMEM) overflows.
 	 */
