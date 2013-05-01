@@ -102,7 +102,7 @@ static const struct iwl_base_params iwl7000_base_params = {
 	.chain_noise_scale = 1000,
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
 	.max_event_log_size = 512,
-	.shadow_reg_enable = false, /* TODO: fix bugs using this feature */
+	.shadow_reg_enable = true,
 };
 
 static const struct iwl_ht_params iwl7000_ht_params = {
