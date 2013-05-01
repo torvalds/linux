@@ -243,31 +243,37 @@ static void invalidate_buckets_lru(struct cache *ca)
 	ca->heap.used = 0;
 
 	for_each_bucket(b, ca) {
+		/*
+		 * If we fill up the unused list, if we then return before
+		 * adding anything to the free_inc list we'll skip writing
+		 * prios/gens and just go back to allocating from the unused
+		 * list:
+		 */
+		if (fifo_full(&ca->unused))
+			return;
+
 		if (!can_invalidate_bucket(ca, b))
 			continue;
 
-		if (!GC_SECTORS_USED(b)) {
-			if (!bch_bucket_add_unused(ca, b))
-				return;
-		} else {
-			if (!heap_full(&ca->heap))
-				heap_add(&ca->heap, b, bucket_max_cmp);
-			else if (bucket_max_cmp(b, heap_peek(&ca->heap))) {
-				ca->heap.data[0] = b;
-				heap_sift(&ca->heap, 0, bucket_max_cmp);
-			}
+		if (!GC_SECTORS_USED(b) &&
+		    bch_bucket_add_unused(ca, b))
+			continue;
+
+		if (!heap_full(&ca->heap))
+			heap_add(&ca->heap, b, bucket_max_cmp);
+		else if (bucket_max_cmp(b, heap_peek(&ca->heap))) {
+			ca->heap.data[0] = b;
+			heap_sift(&ca->heap, 0, bucket_max_cmp);
 		}
 	}
-
-	if (ca->heap.used * 2 < ca->heap.size)
-		bch_queue_gc(ca->set);
 
 	for (i = ca->heap.used / 2 - 1; i >= 0; --i)
 		heap_sift(&ca->heap, i, bucket_min_cmp);
 
 	while (!fifo_full(&ca->free_inc)) {
 		if (!heap_pop(&ca->heap, b, bucket_min_cmp)) {
-			/* We don't want to be calling invalidate_buckets()
+			/*
+			 * We don't want to be calling invalidate_buckets()
 			 * multiple times when it can't do anything
 			 */
 			ca->invalidate_needs_gc = 1;
@@ -343,15 +349,22 @@ static void invalidate_buckets(struct cache *ca)
 		invalidate_buckets_random(ca);
 		break;
 	}
+
+	pr_debug("free %zu/%zu free_inc %zu/%zu unused %zu/%zu",
+		 fifo_used(&ca->free), ca->free.size,
+		 fifo_used(&ca->free_inc), ca->free_inc.size,
+		 fifo_used(&ca->unused), ca->unused.size);
 }
 
 #define allocator_wait(ca, cond)					\
 do {									\
 	DEFINE_WAIT(__wait);						\
 									\
-	while (!(cond)) {						\
+	while (1) {							\
 		prepare_to_wait(&ca->set->alloc_wait,			\
 				&__wait, TASK_INTERRUPTIBLE);		\
+		if (cond)						\
+			break;						\
 									\
 		mutex_unlock(&(ca)->set->bucket_lock);			\
 		if (test_bit(CACHE_SET_STOPPING_2, &ca->set->flags)) {	\
@@ -360,7 +373,6 @@ do {									\
 		}							\
 									\
 		schedule();						\
-		__set_current_state(TASK_RUNNING);			\
 		mutex_lock(&(ca)->set->bucket_lock);			\
 	}								\
 									\
@@ -374,6 +386,11 @@ void bch_allocator_thread(struct closure *cl)
 	mutex_lock(&ca->set->bucket_lock);
 
 	while (1) {
+		/*
+		 * First, we pull buckets off of the unused and free_inc lists,
+		 * possibly issue discards to them, then we add the bucket to
+		 * the free list:
+		 */
 		while (1) {
 			long bucket;
 
@@ -398,17 +415,26 @@ void bch_allocator_thread(struct closure *cl)
 			}
 		}
 
-		allocator_wait(ca, ca->set->gc_mark_valid);
+		/*
+		 * We've run out of free buckets, we need to find some buckets
+		 * we can invalidate. First, invalidate them in memory and add
+		 * them to the free_inc list:
+		 */
+
+		allocator_wait(ca, ca->set->gc_mark_valid &&
+			       (ca->need_save_prio > 64 ||
+				!ca->invalidate_needs_gc));
 		invalidate_buckets(ca);
 
-		allocator_wait(ca, !atomic_read(&ca->set->prio_blocked) ||
-			       !CACHE_SYNC(&ca->set->sb));
-
+		/*
+		 * Now, we write their new gens to disk so we can start writing
+		 * new stuff to them:
+		 */
+		allocator_wait(ca, !atomic_read(&ca->set->prio_blocked));
 		if (CACHE_SYNC(&ca->set->sb) &&
 		    (!fifo_empty(&ca->free_inc) ||
-		     ca->need_save_prio > 64)) {
+		     ca->need_save_prio > 64))
 			bch_prio_write(ca);
-		}
 	}
 }
 
@@ -475,7 +501,7 @@ void bch_bucket_free(struct cache_set *c, struct bkey *k)
 	for (i = 0; i < KEY_PTRS(k); i++) {
 		struct bucket *b = PTR_BUCKET(c, k, i);
 
-		SET_GC_MARK(b, 0);
+		SET_GC_MARK(b, GC_MARK_RECLAIMABLE);
 		SET_GC_SECTORS_USED(b, 0);
 		bch_bucket_add_unused(PTR_CACHE(c, k, i), b);
 	}
