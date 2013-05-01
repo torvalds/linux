@@ -345,8 +345,11 @@ static DEFINE_SPINLOCK(rbd_dev_list_lock);
 static LIST_HEAD(rbd_client_list);		/* clients */
 static DEFINE_SPINLOCK(rbd_client_list_lock);
 
+/* Slab caches for frequently-allocated structures */
+
 static struct kmem_cache	*rbd_img_request_cache;
 static struct kmem_cache	*rbd_obj_request_cache;
+static struct kmem_cache	*rbd_segment_name_cache;
 
 static int rbd_img_request_submit(struct rbd_img_request *img_request);
 
@@ -985,7 +988,7 @@ static const char *rbd_segment_name(struct rbd_device *rbd_dev, u64 offset)
 	u64 segment;
 	int ret;
 
-	name = kmalloc(MAX_OBJ_NAME_SIZE + 1, GFP_NOIO);
+	name = kmem_cache_alloc(rbd_segment_name_cache, GFP_NOIO);
 	if (!name)
 		return NULL;
 	segment = offset >> rbd_dev->header.obj_order;
@@ -999,6 +1002,13 @@ static const char *rbd_segment_name(struct rbd_device *rbd_dev, u64 offset)
 	}
 
 	return name;
+}
+
+static void rbd_segment_name_free(const char *name)
+{
+	/* The explicit cast here is needed to drop the const qualifier */
+
+	kmem_cache_free(rbd_segment_name_cache, (void *)name);
 }
 
 static u64 rbd_segment_offset(struct rbd_device *rbd_dev, u64 offset)
@@ -2033,7 +2043,8 @@ static int rbd_img_request_fill(struct rbd_img_request *img_request,
 		length = rbd_segment_length(rbd_dev, img_offset, resid);
 		obj_request = rbd_obj_request_create(object_name,
 						offset, length, type);
-		kfree(object_name);	/* object request has its own copy */
+		/* object request has its own copy of the object name */
+		rbd_segment_name_free(object_name);
 		if (!obj_request)
 			goto out_unwind;
 
@@ -5018,8 +5029,19 @@ static int rbd_slab_init(void)
 					sizeof (struct rbd_obj_request),
 					__alignof__(struct rbd_obj_request),
 					0, NULL);
-	if (rbd_obj_request_cache)
+	if (!rbd_obj_request_cache)
+		goto out_err;
+
+	rbd_assert(!rbd_segment_name_cache);
+	rbd_segment_name_cache = kmem_cache_create("rbd_segment_name",
+					MAX_OBJ_NAME_SIZE + 1, 1, 0, NULL);
+	if (rbd_segment_name_cache)
 		return 0;
+out_err:
+	if (rbd_obj_request_cache) {
+		kmem_cache_destroy(rbd_obj_request_cache);
+		rbd_obj_request_cache = NULL;
+	}
 
 	kmem_cache_destroy(rbd_img_request_cache);
 	rbd_img_request_cache = NULL;
@@ -5029,6 +5051,10 @@ static int rbd_slab_init(void)
 
 static void rbd_slab_exit(void)
 {
+	rbd_assert(rbd_segment_name_cache);
+	kmem_cache_destroy(rbd_segment_name_cache);
+	rbd_segment_name_cache = NULL;
+
 	rbd_assert(rbd_obj_request_cache);
 	kmem_cache_destroy(rbd_obj_request_cache);
 	rbd_obj_request_cache = NULL;
