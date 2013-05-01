@@ -94,28 +94,14 @@ void __sync_icache_dcache(pte_t pte, unsigned long addr)
 }
 
 /*
- * Ensure cache coherency between kernel mapping and userspace mapping of this
- * page.
+ * This function is called when a page has been modified by the kernel. Mark
+ * it as dirty for later flushing when mapped in user space (if executable,
+ * see __sync_icache_dcache).
  */
 void flush_dcache_page(struct page *page)
 {
-	struct address_space *mapping;
-
-	/*
-	 * The zero page is never written to, so never has any dirty cache
-	 * lines, and therefore never needs to be flushed.
-	 */
-	if (page == ZERO_PAGE(0))
-		return;
-
-	mapping = page_mapping(page);
-	if (mapping && mapping_mapped(mapping)) {
-		__flush_dcache_page(page);
-		__flush_icache_all();
-		set_bit(PG_dcache_clean, &page->flags);
-	} else {
+	if (test_bit(PG_dcache_clean, &page->flags))
 		clear_bit(PG_dcache_clean, &page->flags);
-	}
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
