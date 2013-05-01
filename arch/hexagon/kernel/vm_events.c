@@ -1,7 +1,7 @@
 /*
  * Mostly IRQ support for Hexagon
  *
- * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -44,6 +44,8 @@ void show_regs(struct pt_regs *regs)
 	       regs->lc1, regs->sa1, regs->m1);
 	printk(KERN_EMERG "gp: \t0x%08lx   ugp: 0x%08lx   usr: 0x%08lx\n",
 	       regs->gp, regs->ugp, regs->usr);
+	printk(KERN_EMERG "cs0: \t0x%08lx   cs1: 0x%08lx\n",
+	       regs->cs0, regs->cs1);
 	printk(KERN_EMERG "r0: \t0x%08lx %08lx %08lx %08lx\n", regs->r00,
 		regs->r01,
 		regs->r02,
