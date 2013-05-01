@@ -1357,8 +1357,6 @@ int efx_farch_ev_init(struct efx_channel *channel)
 	efx_writeo_table(efx, &reg, efx->type->evq_ptr_tbl_base,
 			 channel->channel);
 
-	efx->type->push_irq_moderation(channel);
-
 	return 0;
 }
 

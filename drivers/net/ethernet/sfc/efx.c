@@ -331,15 +331,17 @@ static int efx_probe_eventq(struct efx_channel *channel)
 /* Prepare channel's event queue */
 static int efx_init_eventq(struct efx_channel *channel)
 {
+	struct efx_nic *efx = channel->efx;
 	int rc;
 
 	EFX_WARN_ON_PARANOID(channel->eventq_init);
 
-	netif_dbg(channel->efx, drv, channel->efx->net_dev,
+	netif_dbg(efx, drv, efx->net_dev,
 		  "chan %d init event queue\n", channel->channel);
 
 	rc = efx_nic_init_eventq(channel);
 	if (rc == 0) {
+		efx->type->push_irq_moderation(channel);
 		channel->eventq_read_ptr = 0;
 		channel->eventq_init = true;
 	}
