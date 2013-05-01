@@ -19,6 +19,7 @@ config TILE
 	select HAVE_SYSCALL_WRAPPERS if TILEGX
 	select VIRT_TO_BUS
 	select SYS_HYPERVISOR
+	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_CLOCKEVENTS
 	select MODULES_USE_ELF_RELA
@@ -113,13 +114,6 @@ config STRICT_DEVMEM
 # SMP is required for Tilera Linux.
 config SMP
 	def_bool y
-
-# Allow checking for compile-time determined overflow errors in
-# copy_from_user().  There are still unprovable places in the
-# generic code as of 2.6.34, so this option is not really compatible
-# with -Werror, which is more useful in general.
-config DEBUG_COPY_FROM_USER
-	def_bool n
 
 config HVC_TILE
 	depends on TTY

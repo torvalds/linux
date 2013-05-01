@@ -933,13 +933,10 @@ static int realtek_cr_autosuspend_setup(struct us_data *us)
 
 static void realtek_cr_destructor(void *extra)
 {
-	struct rts51x_chip *chip = (struct rts51x_chip *)extra;
-	struct us_data *us;
+	struct rts51x_chip *chip = extra;
 
 	if (!chip)
 		return;
-
-	us = chip->us;
 
 #ifdef CONFIG_REALTEK_AUTOPM
 	if (ss_en) {

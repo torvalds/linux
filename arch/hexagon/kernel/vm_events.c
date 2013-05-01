@@ -33,6 +33,8 @@
  */
 void show_regs(struct pt_regs *regs)
 {
+	show_regs_print_info(KERN_EMERG);
+
 	printk(KERN_EMERG "restart_r0: \t0x%08lx   syscall_nr: %ld\n",
 	       regs->restart_r0, regs->syscall_nr);
 	printk(KERN_EMERG "preds: \t\t0x%08lx\n", regs->preds);

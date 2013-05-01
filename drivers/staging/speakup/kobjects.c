@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/string.h>
+#include <linux/string_helpers.h>
 #include <linux/sysfs.h>
 #include <linux/ctype.h>
 
@@ -417,7 +418,7 @@ static ssize_t synth_direct_store(struct kobject *kobj,
 		bytes = min_t(size_t, len, 250);
 		strncpy(tmp, ptr, bytes);
 		tmp[bytes] = '\0';
-		spk_xlate(tmp);
+		string_unescape_any_inplace(tmp);
 		synth_printf("%s", tmp);
 		ptr += bytes;
 		len -= bytes;
@@ -605,7 +606,8 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 	if (param->data == NULL)
 		return 0;
 	ret = 0;
-	cp = spk_xlate((char *) buf);
+	cp = (char *)buf;
+	string_unescape_any_inplace(cp);
 
 	spk_lock(flags);
 	switch (param->var_type) {

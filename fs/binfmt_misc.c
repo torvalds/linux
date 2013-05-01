@@ -23,6 +23,7 @@
 #include <linux/binfmts.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
+#include <linux/string_helpers.h>
 #include <linux/file.h>
 #include <linux/pagemap.h>
 #include <linux/namei.h>
@@ -234,24 +235,6 @@ static char *scanarg(char *s, char del)
 	return s;
 }
 
-static int unquote(char *from)
-{
-	char c = 0, *s = from, *p = from;
-
-	while ((c = *s++) != '\0') {
-		if (c == '\\' && *s == 'x') {
-			s++;
-			c = toupper(*s++);
-			*p = (c - (isdigit(c) ? '0' : 'A' - 10)) << 4;
-			c = toupper(*s++);
-			*p++ |= c - (isdigit(c) ? '0' : 'A' - 10);
-			continue;
-		}
-		*p++ = c;
-	}
-	return p - from;
-}
-
 static char * check_special_flags (char * sfs, Node * e)
 {
 	char * p = sfs;
@@ -354,8 +337,9 @@ static Node *create_entry(const char __user *buffer, size_t count)
 		p[-1] = '\0';
 		if (!e->mask[0])
 			e->mask = NULL;
-		e->size = unquote(e->magic);
-		if (e->mask && unquote(e->mask) != e->size)
+		e->size = string_unescape_inplace(e->magic, UNESCAPE_HEX);
+		if (e->mask &&
+		    string_unescape_inplace(e->mask, UNESCAPE_HEX) != e->size)
 			goto Einval;
 		if (e->size + e->offset > BINPRM_BUF_SIZE)
 			goto Einval;

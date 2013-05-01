@@ -254,7 +254,7 @@ static void sysrq_etm_dump(int key)
 
 static struct sysrq_key_op sysrq_etm_op = {
 	.handler = sysrq_etm_dump,
-	.help_msg = "ETM buffer dump",
+	.help_msg = "etm-buffer-dump(v)",
 	.action_msg = "etm",
 };
 

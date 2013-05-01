@@ -1,5 +1,6 @@
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/bug.h>
+#include <linux/uaccess.h>
 
 void copy_from_user_overflow(void)
 {

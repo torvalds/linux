@@ -20,6 +20,8 @@
 
 void show_regs(struct pt_regs *regs)
 {
+	show_regs_print_info(KERN_INFO);
+
 	pr_info(" Registers dump: mode=%X\r\n", regs->pt_mode);
 	pr_info(" r1=%08lX, r2=%08lX, r3=%08lX, r4=%08lX\n",
 				regs->r1, regs->r2, regs->r3, regs->r4);

@@ -19,8 +19,6 @@
 #include <linux/reboot.h>
 #include <linux/export.h>
 
-#define BITS_PER_PAGE		(PAGE_SIZE*8)
-
 struct pid_cache {
 	int nr_ids;
 	char name[16];
