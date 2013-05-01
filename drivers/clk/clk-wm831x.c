@@ -299,8 +299,8 @@ static void wm831x_clkout_unprepare(struct clk_hw *hw)
 }
 
 static const char *wm831x_clkout_parents[] = {
-	"xtal",
 	"fll",
+	"xtal",
 };
 
 static u8 wm831x_clkout_get_parent(struct clk_hw *hw)
@@ -318,9 +318,9 @@ static u8 wm831x_clkout_get_parent(struct clk_hw *hw)
 	}
 
 	if (ret & WM831X_CLKOUT_SRC)
-		return 0;
-	else
 		return 1;
+	else
+		return 0;
 }
 
 static int wm831x_clkout_set_parent(struct clk_hw *hw, u8 parent)
