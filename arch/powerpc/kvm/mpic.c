@@ -1486,8 +1486,8 @@ static int set_base_addr(struct openpic *opp, struct kvm_device_attr *attr)
 
 	map_mmio(opp);
 
-	mutex_unlock(&opp->kvm->slots_lock);
 out:
+	mutex_unlock(&opp->kvm->slots_lock);
 	return 0;
 }
 
